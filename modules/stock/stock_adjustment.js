@@ -46,25 +46,41 @@ async function loadData() {
     renderTable([]);
     return;
   }
+
   showLoading(true);
+
   try {
-    const [prods, whs, sb, cats, logs] = await Promise.all([
+    const [prods, whs, sb, cats, logs, imgs] = await Promise.all([
       sbFetch("products", "?select=*&is_active=eq.true&order=product_name"),
       sbFetch("warehouses", "?select=*&is_active=eq.true"),
       sbFetch("stock_balance", "?select=*"),
       sbFetch("categories", "?select=*"),
       sbFetch("stock_movements", "?select=*&order=moved_at.desc&limit=10"),
+      sbFetch("product_images", "?select=*"),
     ]);
-    products = prods || [];
+
+    products = (prods || []).map((p) => {
+      const img = (imgs || []).find(
+        (i) => i.product_id === p.product_id && i.sort_order === 0,
+      );
+
+      return {
+        ...p,
+        image_url: img?.url || "",
+      };
+    });
+
     warehouses = whs || [];
     stockBalance = sb || [];
     categories = cats || [];
     recentLogs = logs || [];
+
     filterTable();
     renderLogs();
   } catch (e) {
     showToast("โหลดไม่ได้: " + e.message, "error");
   }
+
   showLoading(false);
 }
 
