@@ -213,10 +213,11 @@ ${w.warehouse_code}:${qty}
     .join("");
 }
 function selectProduct(id) {
-  selectedProduct = products.find((p) => p.product_id === Number(id)); // ← เพิ่ม Number()
+  selectedProduct = products.find((p) => p.product_id === Number(id));
+
   selectedWarehouse = null;
   adjType = "IN";
-  filterTable();
+
   renderAdjPanel();
 }
 
@@ -296,7 +297,7 @@ function renderAdjPanel() {
 function selectWarehouse(id) {
   selectedWarehouse = warehouses.find((w) => w.warehouse_id == id);
 
-  renderAdjPanel();
+  if (!selectedWarehouse) return;
 
   const cur = getWarehouseStock(
     selectedProduct.product_id,
@@ -304,43 +305,47 @@ function selectWarehouse(id) {
   );
 
   document.getElementById("currentStock").textContent = cur.toLocaleString();
+
+  updatePreview();
 }
 
 function updatePreview() {
+  if (!selectedWarehouse) return;
+
   const qty = parseFloat(document.getElementById("adjQty").value) || 0;
+
   const preview = document.getElementById("qtyPreview");
-  if (!selectedWarehouse || !qty) {
-    preview.style.display = "none";
-    return;
+
+  const cur = getWarehouseStock(
+    selectedProduct.product_id,
+    selectedWarehouse.warehouse_id,
+  );
+
+  let after;
+
+  if (adjType === "IN") {
+    after = cur + qty;
   }
 
-  const sb = stockBalance.find(
-    (b) =>
-      b.product_id === selectedProduct.product_id &&
-      b.warehouse_id === selectedWarehouse.warehouse_id,
-  );
-  const cur = sb?.qty_on_hand || 0;
+  if (adjType === "OUT") {
+    after = cur - qty;
+  }
 
-  let after, text, cls;
   if (adjType === "ADJUST") {
     after = qty;
-    text = `ยอดปัจจุบัน: ${cur} → จะปรับเป็น: ${after}`;
-    cls = after < 0 ? "err" : after <= 5 ? "warn" : "ok";
-  } else if (adjType === "IN") {
-    after = cur + qty;
-    text = `${cur} + ${qty} = ${after}`;
-    cls = "ok";
-  } else {
-    after = cur - qty;
-    text = `${cur} − ${qty} = ${after}`;
-    cls = after < 0 ? "err" : after <= 5 ? "warn" : "ok";
   }
 
-  preview.textContent = text;
-  preview.className = `qty-preview ${cls}`;
   preview.style.display = "block";
-}
+  preview.textContent = `${cur} → ${after}`;
 
+  if (after < 0) {
+    preview.className = "qty-preview err";
+  } else if (after <= 5) {
+    preview.className = "qty-preview warn";
+  } else {
+    preview.className = "qty-preview ok";
+  }
+}
 // ============================================================
 // SAVE ADJUSTMENT
 // ============================================================
@@ -603,5 +608,13 @@ function selectAdjType(type) {
     btn.classList.add(`sel-${type}`);
   }
 
-  renderAdjPanel();
+  const labels = {
+    IN: "จำนวนที่เพิ่ม",
+    OUT: "จำนวนที่ลด",
+    ADJUST: "ตั้งค่า Stock เป็น",
+  };
+
+  document.getElementById("qtyLabel").textContent = labels[type];
+
+  updatePreview();
 }

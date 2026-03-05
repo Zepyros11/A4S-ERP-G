@@ -615,32 +615,40 @@
                 "
               >
                 <div class="form-group">
-                  <label class="form-label"> Stock ปัจจุบัน </label>
+<label class="form-label">Stock ปัจจุบัน</label>
 
-                  <div
-                    id="currentStock"
-                    style="
-                      padding: 10px;
-                      border-radius: 8px;
-                      background: var(--surface2);
-                      text-align: center;
-                      font-weight: 600;
-                      font-family: &quot;IBM Plex Mono&quot;;
-                    "
-                  >
-                    -
-                  </div>
-                </div>
-                <label class="form-label" id="qtyLabel">จำนวนที่เพิ่ม</label>
-                <input
-                  class="form-control mono"
-                  type="number"
-                  id="adjQty"
-                  min="0"
-                  placeholder="0"
-                  oninput="updatePreview()"
-                />
-              </div>
+<div
+id="currentStock"
+style="
+padding:10px;
+border-radius:8px;
+background:var(--surface2);
+text-align:center;
+font-weight:600;
+font-family:'IBM Plex Mono';
+">
+-
+</div>
+
+</div>
+
+<div class="form-group">
+
+<label class="form-label" id="qtyLabel">
+จำนวนที่เพิ่ม
+</label>
+
+<input
+class="form-control mono"
+type="number"
+id="adjQty"
+min="0"
+placeholder="0"
+oninput="updatePreview()"
+/>
+
+</div>
+
 
               <!-- PREVIEW -->
               <div class="qty-preview" id="qtyPreview"></div>
