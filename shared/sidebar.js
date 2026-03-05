@@ -32,7 +32,6 @@
           icon: "📦",
           label: "รายการสินค้า",
           path: BASE_PATH + "/modules/stock/products.html",
-          // path: "/A4S-ERP-G/stock/products.html",
         },
         {
           id: "categories",
@@ -45,21 +44,18 @@
           icon: "✏️",
           label: "จัดการสินค้า",
           path: BASE_PATH + "/modules/stock/stock_adjustment.html",
-          // path: "/A4S-ERP-G/stock/stock_adjustment.html",
         },
         {
           id: "stock-move",
           icon: "🔄",
           label: "ความเคลื่อนไหว",
           path: BASE_PATH + "/modules/stock/movements.html",
-          // path: "/A4S-ERP-G/stock/movements.html",
         },
         {
           id: "warehouses",
           icon: "🏭",
           label: "คลังสินค้า",
           path: BASE_PATH + "/modules/stock/warehouses.html",
-          // path: "/A4S-ERP-G/stock/warehouses.html",
         },
       ],
     },
@@ -110,7 +106,7 @@
           id: "settings",
           icon: "⚙️",
           label: "ตั้งค่าระบบ",
-          path: "/A4S-ERP-G/settings/settings.html",
+          path: BASE_PATH + "/modules/settings/settings.html",
         },
         {
           id: "users",
