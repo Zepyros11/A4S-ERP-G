@@ -8,6 +8,8 @@ let allWarehouses = [],
   allStockBalance = [],
   allProducts = [];
 let selectedId = null;
+let allLocations = [];
+let allBins = [];
 
 const TYPE_CFG = {
   MAIN: { label: "🏭 หลัก", color: "#0f4c75", bg: "var(--accent-pale)" },
@@ -149,10 +151,13 @@ function renderCards() {
 
 function selectWarehouse(id) {
   selectedId = id;
-  renderCards();
-  showStockDetail(id);
-}
 
+  renderCards();
+
+  showStockDetail(id);
+
+  loadLocations();
+}
 function showStockDetail(whId) {
   const wh = allWarehouses.find((w) => w.warehouse_id === whId);
   const whStock = allStockBalance.filter((b) => b.warehouse_id === whId);
@@ -305,4 +310,72 @@ function generateCode() {
   );
   const next = Math.max(...nums) + 1;
   return "WH-" + String(next).padStart(3, "0");
+}
+async function loadLocations() {
+  if (!selectedId) return;
+
+  try {
+    const locations = await sbFetch("warehouse_locations", {
+      query: `?warehouse_id=eq.${selectedId}`,
+    });
+
+    const bins = await sbFetch("warehouse_bins", {
+      query: `?warehouse_id=eq.${selectedId}`,
+    });
+
+    allLocations = locations || [];
+    allBins = bins || [];
+
+    renderLocations();
+  } catch (e) {
+    showToast("โหลด Location ไม่ได้", "error");
+  }
+}
+
+function renderLocations() {
+  const wrap = document.getElementById("locationList");
+
+  if (!wrap) return;
+
+  if (allLocations.length === 0) {
+    wrap.innerHTML = `
+<div style="color:var(--text3)">
+ไม่มี Location
+</div>
+`;
+
+    return;
+  }
+
+  wrap.innerHTML = allLocations
+    .map((loc) => {
+      const bins = allBins.filter((b) => b.location_id === loc.location_id);
+
+      return `
+
+<div class="location-block">
+
+<div class="location-header">
+${loc.location_code}
+</div>
+
+<div class="bin-row">
+
+${bins
+  .map(
+    (b) => `
+<div class="bin-chip">
+${b.bin_code}
+</div>
+`,
+  )
+  .join("")}
+
+</div>
+
+</div>
+
+`;
+    })
+    .join("");
 }

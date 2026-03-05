@@ -188,6 +188,34 @@
       .qty-zero {
         color: var(--danger);
       }
+      .location-block {
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        margin-bottom: 12px;
+        overflow: hidden;
+      }
+
+      .location-header {
+        padding: 10px 14px;
+        background: var(--surface2);
+        font-weight: 600;
+        font-size: 13px;
+      }
+
+      .bin-row {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        padding: 10px;
+      }
+
+      .bin-chip {
+        padding: 4px 10px;
+        background: var(--accent-pale);
+        border-radius: 6px;
+        font-size: 12px;
+        font-family: "IBM Plex Mono", monospace;
+      }
     </style>
   </head>
   <body>
@@ -449,6 +477,20 @@
             </tbody>
           </table>
         </div>
+      </div>
+    </div>
+
+    <div class="stock-panel" id="locationPanel">
+      <div class="stock-panel-hdr">
+        <span class="stock-panel-title">📍 Locations</span>
+
+        <button class="btn-sm btn-sm-edit" onclick="loadLocations()">
+          รีเฟรช
+        </button>
+      </div>
+
+      <div style="padding: 16px">
+        <div id="locationList"></div>
       </div>
     </div>
 
