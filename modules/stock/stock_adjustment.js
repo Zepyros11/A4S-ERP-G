@@ -191,20 +191,22 @@ function selectProduct(id) {
 // ============================================================
 function renderAdjPanel() {
   if (!selectedProduct) {
-    document.getElementById("adjEmpty").style.display = "block";
     document.getElementById("adjForm").style.display = "none";
     return;
   }
-  document.getElementById("adjEmpty").style.display = "none";
+
   document.getElementById("adjForm").style.display = "block";
 
   // Header
   const cat = categories.find(
     (c) => c.category_id === selectedProduct.category_id,
   );
+
   document.getElementById("adjCode").textContent =
     selectedProduct.product_code || "—";
+
   document.getElementById("adjName").textContent = selectedProduct.product_name;
+
   document.getElementById("adjCat").textContent = cat
     ? `🏷️ ${cat.category_name}`
     : "ไม่มีหมวดหมู่";
@@ -221,10 +223,12 @@ function renderAdjPanel() {
     OUT: "จำนวนที่ลด",
     ADJUST: "ตั้งยอด Stock เป็น",
   };
+
   document.getElementById("qtyLabel").textContent = labels[adjType];
 
   // Warehouse dropdown
   const whSelect = document.getElementById("whSelect");
+
   whSelect.innerHTML =
     '<option value="">— เลือกคลัง —</option>' +
     warehouses
@@ -234,10 +238,15 @@ function renderAdjPanel() {
             b.product_id === selectedProduct.product_id &&
             b.warehouse_id === w.warehouse_id,
         );
+
         const qty = sb?.qty_on_hand || 0;
+
         const sel =
           selectedWarehouse?.warehouse_id === w.warehouse_id ? "selected" : "";
-        return `<option value="${w.warehouse_id}" ${sel}>${w.warehouse_name} (คงเหลือ: ${qty})</option>`;
+
+        return `<option value="${w.warehouse_id}" ${sel}>
+          ${w.warehouse_name} (คงเหลือ: ${qty})
+        </option>`;
       })
       .join("");
 
