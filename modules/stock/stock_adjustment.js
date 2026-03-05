@@ -90,7 +90,11 @@ function filterTable() {
 function renderTable(list) {
   const tbody = document.getElementById("prodTableBody");
   if (!list.length) {
-    tbody.innerHTML = `<tr><td colspan="4" style="padding:40px;text-align:center;color:var(--text3)">ไม่พบสินค้า</td></tr>`;
+    tbody.innerHTML = `<tr>
+<td colspan="6" style="padding:40px;text-align:center;color:var(--text3)">
+ไม่พบสินค้า
+</td>
+</tr>`;
     return;
   }
   tbody.innerHTML = list
@@ -105,15 +109,49 @@ function renderTable(list) {
       const badgeLbl =
         st === "ok" ? "ปกติ" : st === "low" ? "ใกล้หมด" : "หมดแล้ว";
       const isSelected = selectedProduct?.product_id === p.product_id;
+      const img = p.image_url || "";
+
+      const whStock = warehouses
+        .map((w) => {
+          const sb = stockBalance.find(
+            (b) =>
+              b.product_id === p.product_id &&
+              b.warehouse_id === w.warehouse_id,
+          );
+          const qty = sb?.qty_on_hand || 0;
+          return qty > 0 ? `${w.warehouse_name}:${qty}` : "";
+        })
+        .filter(Boolean)
+        .join(" ");
+
       return `<tr>
-        <td><span class="code-cell">${p.product_code || "—"}</span></td>
-        <td><span style="font-weight:500">${p.product_name}</span></td>
-        <td class="right"><span class="mono ${qtyClass}">${total.toLocaleString()}</span></td>
-        <td><span class="badge ${badgeCls}">${badgeLbl}</span></td>
-        <td>
-          <button class="row-menu-btn" onclick="openRowMenu(event, ${p.product_id})">⋮</button>
-        </td>
-      </tr>`;
+
+<td>
+  ${img ? `<img src="${img}" class="prod-img">` : `📦`}
+</td>
+
+<td>
+  <div style="font-weight:500">${p.product_name}</div>
+  <div class="code-cell">${p.product_code || ""}</div>
+</td>
+
+<td style="font-size:12px;color:var(--text2)">
+  ${whStock || "-"}
+</td>
+
+<td class="right">
+  <span class="mono ${qtyClass}">${total.toLocaleString()}</span>
+</td>
+
+<td>
+  <span class="badge ${badgeCls}">${badgeLbl}</span>
+</td>
+
+<td>
+  <button class="row-menu-btn" onclick="openRowMenu(event, ${p.product_id})">⋮</button>
+</td>
+
+</tr>`;
     })
     .join("");
 }
