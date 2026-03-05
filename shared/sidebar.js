@@ -32,7 +32,7 @@
           id: "categories",
           icon: "🏷️",
           label: "หมวดหมู่",
-          path: BASE_PATH + "/modules/stock/categories.html",
+          path: BASE_PATH + "/categories.html",
         },
         {
           id: "stock-adj",
