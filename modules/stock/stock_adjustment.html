@@ -563,59 +563,47 @@
             <!-- TYPE BUTTONS -->
             <div class="adj-type-row">
               <button
-                class="adj-type-btn sel-IN"
-                data-type="IN"
-                onclick="selectAdjType('IN')"
-              >
-                <div class="adj-type-icon">📥</div>
-                <div class="adj-type-lbl">เพิ่ม</div>
-              </button>
-              <button
-                class="adj-type-btn"
-                data-type="OUT"
-                onclick="selectAdjType('OUT')"
-              >
-                <div class="adj-type-icon">📤</div>
-                <div class="adj-type-lbl">ลด</div>
-              </button>
-              <button
-                class="adj-type-btn"
-                data-type="ADJUST"
-                onclick="selectAdjType('ADJUST')"
-              >
-                <div class="adj-type-icon">⚖️</div>
-                <div class="adj-type-lbl">ตั้งค่า</div>
-              </button>
+class="adj-type-btn sel-IN"
+data-type="IN"
+onclick="selectAdjType('IN')"
+>
+เพิ่ม
+</button>
+
+<button
+class="adj-type-btn"
+data-type="OUT"
+onclick="selectAdjType('OUT')"
+>
+ลด
+</button>
+
+<button
+class="adj-type-btn"
+data-type="ADJUST"
+onclick="selectAdjType('ADJUST')"
+>
+ตั้งค่า
+</button>
             </div>
 
             <!-- WAREHOUSE DROPDOWN -->
             <div class="form-group">
               <label class="form-label">เลือกคลัง</label>
-              <select
-                class="form-control"
-                id="whSelect"
-                onchange="selectWarehouse(this.value)"
-              >
-                <option value="">— เลือกคลัง —</option>
+              <<select
+id="whSelect"
+class="form-control"
+onchange="selectWarehouse(this.value)"
+>
               </select>
             </div>
 
-            <!-- QTY -->
-            <div class="form-group">
-              <label class="form-label">Stock ปัจจุบัน</label>
-              <div
-                id="currentStock"
-                style="
-                  padding: 10px;
-                  border-radius: 8px;
-                  background: var(--surface2);
-                  font-family: &quot;IBM Plex Mono&quot;;
-                  text-align: center;
-                  font-weight: 600;
-                "
-              >
-                <div class="form-group">
-<label class="form-label">Stock ปัจจุบัน</label>
+            <!-- STOCK CURRENT -->
+<div class="form-group">
+
+<label class="form-label">
+Stock ปัจจุบัน
+</label>
 
 <div
 id="currentStock"
@@ -626,12 +614,14 @@ background:var(--surface2);
 text-align:center;
 font-weight:600;
 font-family:'IBM Plex Mono';
+font-size:18px;
 ">
 -
 </div>
 
 </div>
 
+<!-- QTY INPUT -->
 <div class="form-group">
 
 <label class="form-label" id="qtyLabel">
@@ -648,6 +638,9 @@ oninput="updatePreview()"
 />
 
 </div>
+
+<!-- PREVIEW -->
+<div class="qty-preview" id="qtyPreview"></div>
 
 
               <!-- PREVIEW -->
