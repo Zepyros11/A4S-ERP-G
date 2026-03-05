@@ -41,7 +41,7 @@
         {
           id: "stock-adj",
           icon: "📦",
-          label: "จัดการสินค้า",
+          label: "Stock สินค้า",
           path: BASE_PATH + "/modules/stock/stock_adjustment.html",
         },
         {
