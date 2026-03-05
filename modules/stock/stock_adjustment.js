@@ -105,26 +105,33 @@ function filterTable() {
 
 function renderTable(list) {
   const tbody = document.getElementById("prodTableBody");
+
   if (!list.length) {
-    tbody.innerHTML = `<tr>
-<td colspan="6" style="padding:40px;text-align:center;color:var(--text3)">
+    tbody.innerHTML = `
+<tr>
+<td colspan="7" style="padding:40px;text-align:center;color:var(--text3)">
 ไม่พบสินค้า
 </td>
 </tr>`;
     return;
   }
+
   tbody.innerHTML = list
     .map((p) => {
       const total = getTotalStock(p.product_id);
+
       const st =
         total === 0 ? "out" : total <= (p.reorder_point || 0) ? "low" : "ok";
+
       const qtyClass =
         st === "out" ? "qty-zero" : st === "low" ? "qty-low" : "qty-ok";
+
       const badgeCls =
         st === "ok" ? "badge-ok" : st === "low" ? "badge-low" : "badge-out";
+
       const badgeLbl =
         st === "ok" ? "ปกติ" : st === "low" ? "ใกล้หมด" : "หมดแล้ว";
-      const isSelected = selectedProduct?.product_id === p.product_id;
+
       const img = p.image_url || "";
 
       const whStock = warehouses
@@ -134,27 +141,33 @@ function renderTable(list) {
               b.product_id === p.product_id &&
               b.warehouse_id === w.warehouse_id,
           );
+
           const qty = sb?.qty_on_hand || 0;
+
           return qty > 0 ? `${w.warehouse_name}:${qty}` : "";
         })
         .filter(Boolean)
         .join(" ");
 
-      return `<tr>
+      return `
+<tr onclick="selectProduct(${p.product_id})">
 
 <td>
   <div class="prod-img-wrap">
-    <img 
-      src="${img}" 
+    <img
+      src="${img}"
       class="prod-img"
       onerror="this.parentElement.innerHTML='<span class=prod-img-placeholder>📦</span>'"
     >
   </div>
 </td>
 
+<td class="code-cell">
+  ${p.product_code || "-"}
+</td>
+
 <td>
-  <div style="font-weight:500">${p.product_name}</div>
-  <div class="code-cell">${p.product_code || ""}</div>
+  ${p.product_name}
 </td>
 
 <td style="font-size:12px;color:var(--text2)">
@@ -162,22 +175,31 @@ function renderTable(list) {
 </td>
 
 <td class="right">
-  <span class="mono ${qtyClass}">${total.toLocaleString()}</span>
+  <span class="mono ${qtyClass}">
+    ${total.toLocaleString()}
+  </span>
 </td>
 
 <td>
-  <span class="badge ${badgeCls}">${badgeLbl}</span>
+  <span class="badge ${badgeCls}">
+    ${badgeLbl}
+  </span>
 </td>
 
 <td>
-  <button class="row-menu-btn" onclick="openRowMenu(event, ${p.product_id})">⋮</button>
+  <button
+    class="row-menu-btn"
+    onclick="openRowMenu(event, ${p.product_id})"
+  >
+    ⋮
+  </button>
 </td>
 
-</tr>`;
+</tr>
+`;
     })
     .join("");
 }
-
 function selectProduct(id) {
   selectedProduct = products.find((p) => p.product_id === Number(id)); // ← เพิ่ม Number()
   selectedWarehouse = null;
