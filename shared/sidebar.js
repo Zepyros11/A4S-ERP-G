@@ -3,6 +3,10 @@
 // ============================================================
 
 (function () {
+  const BASE_PATH = window.location.hostname.includes("github.io")
+    ? "/" + window.location.pathname.split("/")[1]
+    : "";
+
   const MENU = [
     {
       group: "ภาพรวม",
