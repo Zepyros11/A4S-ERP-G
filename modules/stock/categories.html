@@ -186,17 +186,6 @@
           0 0 0 2px #fff,
           0 0 0 4px var(--text);
       }
-      .btn-icon {
-        background: none;
-        border: none;
-        cursor: pointer;
-        font-size: 16px;
-        padding: 6px;
-      }
-
-      .btn-icon.danger {
-        color: #dc2626;
-      }
     </style>
   </head>
   <body>
@@ -554,50 +543,17 @@
     </div>
 
     <div class="page">
-      <!-- Toolbar -->
-      <div class="panel" style="margin-bottom: 14px">
+      <div class="cat-grid" id="catGrid">
         <div
-          style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap"
+          style="
+            grid-column: 1/-1;
+            padding: 40px;
+            text-align: center;
+            color: var(--text3);
+          "
         >
-          <select class="form-control" style="max-width: 200px">
-            <option>เปิดใช้งาน</option>
-            <option>ปิดใช้งาน</option>
-          </select>
-
-          <select class="form-control" style="max-width: 200px">
-            <option>ชนิดสินค้า</option>
-          </select>
-
-          <div style="flex: 1"></div>
-
-          <input
-            class="form-control"
-            placeholder="🔍 ค้นหา..."
-            style="max-width: 280px"
-          />
+          กำลังโหลด...
         </div>
-      </div>
-
-      <!-- TABLE -->
-      <div class="panel">
-        <table class="table" id="catTable">
-          <thead>
-            <tr>
-              <th style="width: 90px">ลำดับ</th>
-              <th>หมวดหมู่</th>
-              <th>ชนิดสินค้า</th>
-              <th style="width: 120px"></th>
-            </tr>
-          </thead>
-
-          <tbody id="catTableBody">
-            <tr>
-              <td colspan="4" style="text-align: center; padding: 40px">
-                กำลังโหลด...
-              </td>
-            </tr>
-          </tbody>
-        </table>
       </div>
     </div>
 

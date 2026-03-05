@@ -260,69 +260,39 @@ async function loadData() {
 }
 
 function renderGrid(cats) {
-  const body = document.getElementById("catTableBody");
-
+  const grid = document.getElementById("catGrid");
   let html = "";
-
-  cats.forEach((c, index) => {
-    html += `
-    <tr>
-
-      <td>${index + 1}</td>
-
-      <td>
-        <div style="display:flex;align-items:center;gap:10px">
-
-          <div style="
-            width:32px;
-            height:32px;
-            border-radius:6px;
-            display:flex;
-            align-items:center;
-            justify-content:center;
-            background:${(c.color || "#0f4c75") + "22"};
-            color:${c.color || "#0f4c75"};
-            font-size:16px;
-          ">
-            ${c.icon || "📦"}
-          </div>
-
-          <div>
-            <div style="font-weight:600">
-              ${c.category_name}
-            </div>
-
-            <div style="font-size:12px;color:#6b7280">
-              ${c.description || ""}
-            </div>
-          </div>
-
+  cats.forEach((c) => {
+    const count = products.filter(
+      (p) => p.category_id === c.category_id,
+    ).length;
+    const color = c.color || "#0f4c75";
+    const bg = color + "22";
+    const lbl = c.sku_labels || {};
+    const skuFmt = lbl.prefix
+      ? `${lbl.prefix}-[${lbl.l2 || "?"}]-[${lbl.l3 || "?"}]-[${lbl.l4 || "?"}]-001`
+      : "—";
+    html += `<div class="cat-card">
+      <div class="cat-card-top">
+        <div class="cat-color" style="background:${bg};color:${color}">${c.icon || "📦"}</div>
+        <div style="flex:1;min-width:0">
+          <div class="cat-name">${c.category_name}</div>
+          ${c.description ? `<div class="cat-desc">${c.description}</div>` : ""}
+          <div style="font-size:11px;font-family:monospace;color:#1f2937;margin-top:4px;opacity:.8">${skuFmt}</div>
         </div>
-      </td>
-
-      <td>
-        ${c.sku_labels?.prefix || "-"}
-      </td>
-
-      <td>
-
-        <button onclick="editCategory(${c.category_id})"
-        class="btn-icon">
-          ✏️
-        </button>
-
-        <button onclick="deleteCategory(${c.category_id},'${c.category_name}')"
-        class="btn-icon danger">
-          🗑
-        </button>
-
-      </td>
-
-    </tr>
-    `;
+      </div>
+      <div class="cat-card-foot">
+        <div><div class="cat-count">${count}</div><div class="cat-count-lbl">สินค้า</div></div>
+        <div class="cat-actions">
+          <button class="btn-sm btn-sm-edit" onclick="event.stopPropagation();editCategory(${c.category_id})">✏️ แก้ไข</button>
+          <button class="btn-sm btn-sm-del" onclick="event.stopPropagation();deleteCategory(${c.category_id},'${c.category_name}')">🗑</button>
+        </div>
+      </div>
+    </div>`;
   });
-
-  body.innerHTML = html;
+  // Add card
+  html += `<div class="cat-add-card" onclick="openModal()"><div class="cat-add-icon">＋</div><div class="cat-add-lbl">เพิ่มหมวดหมู่ใหม่</div></div>`;
+  grid.innerHTML = html;
 }
 
 function buildPickers() {
