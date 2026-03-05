@@ -1062,3 +1062,31 @@ select.form-control {
   line-height: 1;
   color: var(--text3);
 }
+.table-wrap {
+  overflow-x: auto;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.data-table th,
+.data-table td {
+  padding: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.data-table tr:hover {
+  background: #fafafa;
+}
+.btn-topbar.btn-outline {
+  background: #e8f1fb;
+  color: #0f4c75;
+  border: 1px solid #c7d7f5;
+  font-weight: 600;
+}
+
+.btn-topbar.btn-outline:hover {
+  background: #d8e7fa;
+}

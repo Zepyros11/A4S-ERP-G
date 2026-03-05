@@ -9,6 +9,7 @@ let categories = [],
   products = [];
 let selectedEmoji = "📦";
 let selectedColor = "#0f4c75";
+let orderEditMode = false;
 
 const EMOJIS = [
   // เทคโนโลยี / อุปกรณ์
@@ -247,7 +248,7 @@ async function loadData() {
   showLoading(true);
   try {
     const [cats, prods] = await Promise.all([
-      sbFetch("categories", "?select=*&order=category_name"),
+      sbFetch("categories", "?select=*&order=sort_order.asc"),
       sbFetch("products", "?select=product_id,category_id&is_active=eq.true"),
     ]);
     categories = cats || [];
@@ -260,41 +261,86 @@ async function loadData() {
 }
 
 function renderGrid(cats) {
-  const grid = document.getElementById("catGrid");
+  const tbody = document.getElementById("catTable");
+
+  if (!tbody) return;
+
   let html = "";
-  cats.forEach((c) => {
+
+  cats.forEach((c, index) => {
     const count = products.filter(
       (p) => p.category_id === c.category_id,
     ).length;
-    const color = c.color || "#0f4c75";
-    const bg = color + "22";
+
     const lbl = c.sku_labels || {};
+
     const skuFmt = lbl.prefix
       ? `${lbl.prefix}-[${lbl.l2 || "?"}]-[${lbl.l3 || "?"}]-[${lbl.l4 || "?"}]-001`
       : "—";
-    html += `<div class="cat-card">
-      <div class="cat-card-top">
-        <div class="cat-color" style="background:${bg};color:${color}">${c.icon || "📦"}</div>
-        <div style="flex:1;min-width:0">
-          <div class="cat-name">${c.category_name}</div>
-          ${c.description ? `<div class="cat-desc">${c.description}</div>` : ""}
-          <div style="font-size:11px;font-family:monospace;color:#1f2937;margin-top:4px;opacity:.8">${skuFmt}</div>
-        </div>
-      </div>
-      <div class="cat-card-foot">
-        <div><div class="cat-count">${count}</div><div class="cat-count-lbl">สินค้า</div></div>
-        <div class="cat-actions">
-          <button class="btn-sm btn-sm-edit" onclick="event.stopPropagation();editCategory(${c.category_id})">✏️ แก้ไข</button>
-          <button class="btn-sm btn-sm-del" onclick="event.stopPropagation();deleteCategory(${c.category_id},'${c.category_name}')">🗑</button>
-        </div>
-      </div>
-    </div>`;
-  });
-  // Add card
-  html += `<div class="cat-add-card" onclick="openModal()"><div class="cat-add-icon">＋</div><div class="cat-add-lbl">เพิ่มหมวดหมู่ใหม่</div></div>`;
-  grid.innerHTML = html;
-}
 
+    html += `
+      <tr>
+
+        <td>
+
+        ${
+          orderEditMode
+            ? `<input type="number"
+          step="0.01"
+          value="${c.sort_order ?? 0}"
+          style="width:70px;text-align:center"
+          onchange="updateSort(${c.category_id},this.value)">`
+            : (c.sort_order ?? 0)
+        }
+
+        </td>
+
+        <td style="font-size:20px">${c.icon || "📦"}</td>
+
+        <td>
+          <strong>${c.category_name}</strong>
+          ${c.description ? `<div style="font-size:11px;color:#9ca3af">${c.description}</div>` : ""}
+        </td>
+
+        <td style="font-family:monospace">${skuFmt}</td>
+
+        <td>
+          <strong>${count}</strong>
+        </td>
+
+        <td>
+          <button class="btn btn-outline btn-sm"
+            onclick="editCategory(${c.category_id})">
+            ✏️
+          </button>
+        </td>
+
+        <td>
+          <button class="btn-danger-sm"
+            onclick="deleteCategory(${c.category_id},'${c.category_name}')">
+            🗑
+          </button>
+        </td>
+
+      </tr>
+    `;
+  });
+
+  if (!html) {
+    html = `
+      <tr>
+        <td colspan="7" style="text-align:center;padding:40px;color:#9ca3af">
+          ไม่มีหมวดหมู่
+        </td>
+      </tr>
+    `;
+  }
+
+  tbody.innerHTML = html;
+
+  const count = document.getElementById("catCount");
+  if (count) count.textContent = cats.length + " รายการ";
+}
 function buildPickers() {
   const ep = document.getElementById("emojiPicker");
   ep.innerHTML = EMOJIS.map(
@@ -462,3 +508,26 @@ window.addEventListener("DOMContentLoaded", () => {
   if (SB_URL && SB_KEY) loadData();
   else renderGrid([]);
 });
+function toggleOrderEdit() {
+  orderEditMode = !orderEditMode;
+
+  renderGrid(categories);
+
+  showToast(orderEditMode ? "เปิดโหมดแก้ไขลำดับ" : "ปิดโหมดแก้ไขลำดับ");
+}
+async function updateSort(id, value) {
+  try {
+    await sbFetch("categories", `?category_id=eq.${id}`, {
+      method: "PATCH",
+      body: {
+        sort_order: parseFloat(value),
+      },
+    });
+
+    showToast("บันทึกลำดับแล้ว");
+
+    await loadData();
+  } catch (e) {
+    showToast("บันทึกไม่ได้ " + e.message, "error");
+  }
+}

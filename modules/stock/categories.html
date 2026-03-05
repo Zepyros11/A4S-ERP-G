@@ -186,6 +186,17 @@
           0 0 0 2px #fff,
           0 0 0 4px var(--text);
       }
+      .table-title {
+        font-size: 26px;
+        font-weight: 700;
+        letter-spacing: 0.4px;
+        color: var(--text);
+      }
+      .data-table th,
+      .data-table td {
+        text-align: center;
+        vertical-align: middle;
+      }
     </style>
   </head>
   <body>
@@ -536,6 +547,9 @@
       <div class="topbar-sep"></div>
       <div class="topbar-title">หมวดหมู่สินค้า</div>
       <div class="topbar-actions">
+        <button class="btn-topbar btn-outline" onclick="toggleOrderEdit()">
+          ✏️ แก้ไขลำดับ
+        </button>
         <button class="btn-topbar btn-white" onclick="openModal()">
           ＋ เพิ่มหมวดหมู่
         </button>
@@ -543,16 +557,28 @@
     </div>
 
     <div class="page">
-      <div class="cat-grid" id="catGrid">
-        <div
-          style="
-            grid-column: 1/-1;
-            padding: 40px;
-            text-align: center;
-            color: var(--text3);
-          "
-        >
-          กำลังโหลด...
+      <div class="table-card">
+        <div class="table-hdr">
+          <div class="table-title">หมวดหมู่สินค้า</div>
+          <div class="table-count" id="catCount">0 รายการ</div>
+        </div>
+
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th style="width: 70px">ลำดับ</th>
+                <th style="width: 80px">Icon</th>
+                <th>ชื่อหมวดหมู่</th>
+                <th style="width: 240px">SKU</th>
+                <th style="width: 140px">จำนวนสินค้า</th>
+                <th style="width: 120px">แก้ไข</th>
+                <th style="width: 100px">ลบ</th>
+              </tr>
+            </thead>
+
+            <tbody id="catTable"></tbody>
+          </table>
         </div>
       </div>
     </div>
