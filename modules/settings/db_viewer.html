@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <title>Database Viewer — A4S ERP</title>
+
+    <link rel="stylesheet" href="../../assets/css/common.css" />
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <style>
+      .page-db {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+
+      .db-toolbar {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+
+      .db-select {
+        padding: 8px 12px;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        font-size: 13px;
+      }
+
+      .db-search {
+        padding: 8px 12px;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        font-size: 13px;
+        width: 220px;
+      }
+
+      .db-table-wrap {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        overflow: auto;
+        max-height: 70vh;
+      }
+
+      .db-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+      }
+
+      .db-table th {
+        background: var(--surface2);
+        padding: 10px;
+        text-align: left;
+        font-weight: 600;
+        border-bottom: 2px solid var(--border);
+      }
+
+      .db-table td {
+        padding: 9px 10px;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .db-table tr:hover {
+        background: var(--accent-pale);
+      }
+
+      .db-empty {
+        padding: 40px;
+        text-align: center;
+        color: var(--text3);
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="topbar">
+      <div class="topbar-logo">🗄 <span>A4S</span>-ERP</div>
+      <div class="topbar-sep"></div>
+      <div class="topbar-title">Database Viewer</div>
+    </div>
+
+    <div id="sidebar-container"></div>
+
+    <div class="page page-db">
+      <div class="db-toolbar">
+        <select id="tableSelect" class="db-select"></select>
+
+        <input
+          id="searchInput"
+          class="db-search"
+          placeholder="ค้นหา..."
+          oninput="filterTable()"
+        />
+
+        <button class="btn btn-outline" onclick="loadTable()">รีเฟรช</button>
+      </div>
+
+      <div class="db-table-wrap">
+        <table class="db-table" id="dataTable"></table>
+      </div>
+    </div>
+
+    <script src="../../shared/sidebar.js"></script>
+
+    <script>
+      const SUPABASE_URL = localStorage.getItem("sb_url");
+      const SUPABASE_KEY = localStorage.getItem("sb_key");
+
+      if (!SUPABASE_URL || !SUPABASE_KEY) {
+        alert("กรุณาเชื่อมต่อ Supabase ในหน้า Settings ก่อน");
+        window.location.href = "../settings/settings.html";
+      }
+
+      const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+      let tableData = [];
+      let currentTable = "";
+
+      const TABLES = [
+        "products",
+        "categories",
+        "warehouses",
+        "stock_movements",
+      ];
+
+      const tableSelect = document.getElementById("tableSelect");
+
+      TABLES.forEach((t) => {
+        const opt = document.createElement("option");
+        opt.value = t;
+        opt.textContent = t;
+        tableSelect.appendChild(opt);
+      });
+
+      tableSelect.addEventListener("change", () => {
+        currentTable = tableSelect.value;
+        loadTable();
+      });
+
+      currentTable = TABLES[0];
+      tableSelect.value = currentTable;
+
+      async function loadTable() {
+        const table = document.getElementById("dataTable");
+
+        table.innerHTML = "Loading...";
+
+        const { data, error } = await supabaseClient
+          .from(currentTable)
+          .select("*")
+          .limit(200);
+
+        if (error) {
+          table.innerHTML = `<div class="db-empty">${error.message}</div>`;
+          return;
+        }
+
+        tableData = data;
+
+        renderTable(data);
+      }
+
+      function renderTable(rows) {
+        const table = document.getElementById("dataTable");
+
+        if (!rows || rows.length === 0) {
+          table.innerHTML = `<div class="db-empty">No Data</div>`;
+          return;
+        }
+
+        const cols = Object.keys(rows[0]);
+
+        let html = "<thead><tr>";
+
+        cols.forEach((c) => {
+          html += `<th>${c}</th>`;
+        });
+
+        html += "</tr></thead><tbody>";
+
+        rows.forEach((r) => {
+          html += "<tr>";
+
+          cols.forEach((c) => {
+            html += `<td>${r[c] ?? ""}</td>`;
+          });
+
+          html += "</tr>";
+        });
+
+        html += "</tbody>";
+
+        table.innerHTML = html;
+      }
+
+      function filterTable() {
+        const q = document.getElementById("searchInput").value.toLowerCase();
+
+        const filtered = tableData.filter((row) => {
+          return Object.values(row).some((v) =>
+            String(v).toLowerCase().includes(q),
+          );
+        });
+
+        renderTable(filtered);
+      }
+
+      loadTable();
+    </script>
+  </body>
+</html>
