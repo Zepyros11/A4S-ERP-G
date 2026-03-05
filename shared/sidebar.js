@@ -108,6 +108,12 @@
           path: BASE_PATH + "/modules/settings/settings.html",
         },
         {
+          id: "DB Viewer",
+          icon: "🗄️",
+          label: "Database Viewer",
+          path: BASE_PATH + "/modules/settings/db_viewer.html",
+        },
+        {
           id: "users",
           icon: "👥",
           label: "ผู้ใช้งาน",
