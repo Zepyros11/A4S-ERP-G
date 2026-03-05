@@ -108,7 +108,7 @@
           path: BASE_PATH + "/modules/settings/settings.html",
         },
         {
-          id: "DB Viewer",
+          id: "db_viewer",
           icon: "🗄️",
           label: "Database Viewer",
           path: BASE_PATH + "/modules/settings/db_viewer.html",
