@@ -699,10 +699,12 @@
     </div>
 
     <!-- Row Menu -->
-    <div id="rowMenu" class="row-menu">
-      <button onclick="openAdjustment('IN')">📥 เพิ่ม Stock</button>
-      <button onclick="openAdjustment('OUT')">📤 ลด Stock</button>
-      <button onclick="openAdjustment('ADJUST')">⚖️ ตั้งค่า Stock</button>
+    <div class="adj-actions">
+      <button class="adj-btn active" onclick="setAdjType('ADD')">เพิ่ม</button>
+
+      <button class="adj-btn" onclick="setAdjType('SUB')">ลด</button>
+
+      <button class="adj-btn" onclick="setAdjType('SET')">ตั้งค่า</button>
     </div>
 
     <script src="../../shared/auth.js"></script>

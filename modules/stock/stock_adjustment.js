@@ -562,3 +562,24 @@ document.addEventListener("click", () => {
   const menu = document.getElementById("rowMenu");
   if (menu) menu.style.display = "none";
 });
+function setAdjType(type) {
+  adjType = type;
+
+  document.querySelectorAll(".adj-btn").forEach((btn) => {
+    btn.classList.remove("active");
+  });
+
+  event.target.classList.add("active");
+
+  if (type === "ADD") {
+    document.getElementById("qtyLabel").textContent = "จำนวนที่เพิ่ม";
+  }
+
+  if (type === "SUB") {
+    document.getElementById("qtyLabel").textContent = "จำนวนที่ลด";
+  }
+
+  if (type === "SET") {
+    document.getElementById("qtyLabel").textContent = "จำนวนใหม่";
+  }
+}
