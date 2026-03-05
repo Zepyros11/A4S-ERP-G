@@ -17,7 +17,7 @@
           id: "dashboard",
           icon: "📊",
           label: "Dashboard",
-          path: "/A4S-ERP-G/dashdoard/dashboard.html",
+          path: BASE_PATH + "/A4S-ERP-G/dashdoard/dashboard.html",
           // path: "/A4S-ERP-G/dashdoard/dashboard.html",
         },
       ],
