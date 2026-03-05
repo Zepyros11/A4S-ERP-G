@@ -32,7 +32,7 @@
           id: "categories",
           icon: "🏷️",
           label: "หมวดหมู่",
-          path: "/A4S-ERP-G/stock/categories.html",
+          path: BASE_PATH + "/modules/stock/categories.html",
         },
         {
           id: "stock-adj",
