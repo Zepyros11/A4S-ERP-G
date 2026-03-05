@@ -105,12 +105,15 @@ function renderTable(list) {
       const badgeLbl =
         st === "ok" ? "ปกติ" : st === "low" ? "ใกล้หมด" : "หมดแล้ว";
       const isSelected = selectedProduct?.product_id === p.product_id;
-      return `<tr class="${isSelected ? "selected" : ""}" onclick="selectProduct(${p.product_id})">
-      <td><span class="code-cell">${p.product_code || "—"}</span></td>
-      <td><span style="font-weight:500">${p.product_name}</span></td>
-      <td class="right"><span class="mono ${qtyClass}">${total.toLocaleString()}</span></td>
-      <td><span class="badge ${badgeCls}">${badgeLbl}</span></td>
-    </tr>`;
+      return `<tr>
+        <td><span class="code-cell">${p.product_code || "—"}</span></td>
+        <td><span style="font-weight:500">${p.product_name}</span></td>
+        <td class="right"><span class="mono ${qtyClass}">${total.toLocaleString()}</span></td>
+        <td><span class="badge ${badgeCls}">${badgeLbl}</span></td>
+        <td>
+          <button class="row-menu-btn" onclick="openRowMenu(event, ${p.product_id})">⋮</button>
+        </td>
+      </tr>`;
     })
     .join("");
 }
@@ -401,4 +404,34 @@ function showLoading(show) {
 window.addEventListener("DOMContentLoaded", () => {
   if (SB_URL && SB_KEY) loadData();
   else renderTable([]);
+});
+
+let menuProduct = null;
+
+function openRowMenu(e, productId) {
+  e.stopPropagation();
+
+  menuProduct = products.find((p) => p.product_id === productId);
+
+  const menu = document.getElementById("rowMenu");
+
+  menu.style.display = "block";
+  menu.style.left = e.pageX + "px";
+  menu.style.top = e.pageY + "px";
+}
+
+function openAdjustment(type) {
+  if (!menuProduct) return;
+
+  selectedProduct = menuProduct;
+  adjType = type;
+
+  document.getElementById("rowMenu").style.display = "none";
+
+  renderAdjPanel();
+}
+// ปิด menu เมื่อคลิกที่อื่น
+document.addEventListener("click", () => {
+  const menu = document.getElementById("rowMenu");
+  if (menu) menu.style.display = "none";
 });

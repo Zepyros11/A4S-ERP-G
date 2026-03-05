@@ -448,6 +448,44 @@
           position: static;
         }
       }
+
+      .row-menu-btn {
+        border: none;
+        background: transparent;
+        font-size: 18px;
+        cursor: pointer;
+        color: var(--text3);
+      }
+
+      .row-menu-btn:hover {
+        color: var(--accent);
+      }
+
+      .row-menu {
+        position: fixed;
+        background: #fff;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        box-shadow: var(--shadow);
+        display: none;
+        z-index: 999;
+        overflow: hidden;
+      }
+
+      .row-menu button {
+        display: block;
+        width: 180px;
+        padding: 10px 14px;
+        border: none;
+        background: #fff;
+        text-align: left;
+        cursor: pointer;
+        font-family: "Sarabun";
+      }
+
+      .row-menu button:hover {
+        background: var(--accent-pale);
+      }
     </style>
   </head>
   <body>
@@ -493,6 +531,7 @@
                     <th>ชื่อสินค้า</th>
                     <th class="right">Stock รวม</th>
                     <th>สถานะ</th>
+                    <th style="width: 50px"></th>
                   </tr>
                 </thead>
                 <tbody id="prodTableBody">
@@ -643,6 +682,13 @@
           </div>
         </div>
       </div>
+    </div>
+
+    <!-- Row Menu -->
+    <div id="rowMenu" class="row-menu">
+      <button onclick="openAdjustment('IN')">📥 เพิ่ม Stock</button>
+      <button onclick="openAdjustment('OUT')">📤 ลด Stock</button>
+      <button onclick="openAdjustment('ADJUST')">⚖️ ตั้งค่า Stock</button>
     </div>
 
     <script src="../../shared/auth.js"></script>
