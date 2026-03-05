@@ -127,7 +127,13 @@ function renderTable(list) {
       return `<tr>
 
 <td>
-  ${img ? `<img src="${img}" class="prod-img">` : `📦`}
+  <div class="prod-img-wrap">
+    <img 
+      src="${img}" 
+      class="prod-img"
+      onerror="this.parentElement.innerHTML='<span class=prod-img-placeholder>📦</span>'"
+    >
+  </div>
 </td>
 
 <td>
