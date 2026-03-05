@@ -416,7 +416,6 @@
         .layout {
           grid-template-columns: 1fr;
         }
-
       }
 
       .row-menu-btn {
@@ -458,25 +457,24 @@
       }
 
       .prod-img {
-  width:36px;
-  height:36px;
-  object-fit:cover;
-  border-radius:6px;
-  border:1px solid var(--border);
-}
+        width: 36px;
+        height: 36px;
+        object-fit: cover;
+        border-radius: 6px;
+        border: 1px solid var(--border);
+      }
 
-.prod-img-wrap{
-  width:36px;
-  height:36px;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-}
+      .prod-img-wrap {
+        width: 36px;
+        height: 36px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
 
-.prod-img-placeholder{
-  font-size:18px;
-}
-
+      .prod-img-placeholder {
+        font-size: 18px;
+      }
     </style>
   </head>
   <body>
@@ -516,17 +514,17 @@
             </div>
             <div style="overflow-x: auto">
               <table class="prod-table">
-                  <thead>
-                    <tr>
-                      <th style="width:60px">ภาพ</th>
-                      <th style="width:160px">SKU</th>
-                      <th>สินค้า</th>
-                      <th style="width:200px">คลัง</th>
-                      <th class="right" style="width:90px">Stock</th>
-                      <th style="width:90px">สถานะ</th>
-                      <th style="width:40px"></th>
-                    </tr>
-                  </thead>
+                <thead>
+                  <tr>
+                    <th style="width: 60px">ภาพ</th>
+                    <th style="width: 160px">SKU</th>
+                    <th>สินค้า</th>
+                    <th style="width: 200px">คลัง</th>
+                    <th class="right" style="width: 90px">Stock</th>
+                    <th style="width: 90px">สถานะ</th>
+                    <th style="width: 40px"></th>
+                  </tr>
+                </thead>
                 <tbody id="prodTableBody">
                   <tr>
                     <td
@@ -554,57 +552,85 @@
           </div>
         </div>
 
-
-          <!-- ADJ FORM -->
-          <div id="adjForm" style="display: none">
-            <div class="adj-prod-hdr">
-              <div class="adj-prod-code" id="adjCode">—</div>
-              <div class="adj-prod-name" id="adjName">—</div>
-              <div class="adj-prod-cat" id="adjCat">—</div>
+        <!-- ADJ FORM -->
+        <div id="adjForm" style="display: none">
+          <div class="adj-prod-hdr">
+            <div class="adj-prod-code" id="adjCode">—</div>
+            <div class="adj-prod-name" id="adjName">—</div>
+            <div class="adj-prod-cat" id="adjCat">—</div>
+          </div>
+          <div class="adj-body">
+            <!-- TYPE BUTTONS -->
+            <div class="adj-type-row">
+              <button
+                class="adj-type-btn sel-IN"
+                data-type="IN"
+                onclick="selectAdjType('IN')"
+              >
+                <div class="adj-type-icon">📥</div>
+                <div class="adj-type-lbl">เพิ่ม</div>
+              </button>
+              <button
+                class="adj-type-btn"
+                data-type="OUT"
+                onclick="selectAdjType('OUT')"
+              >
+                <div class="adj-type-icon">📤</div>
+                <div class="adj-type-lbl">ลด</div>
+              </button>
+              <button
+                class="adj-type-btn"
+                data-type="ADJUST"
+                onclick="selectAdjType('ADJUST')"
+              >
+                <div class="adj-type-icon">⚖️</div>
+                <div class="adj-type-lbl">ตั้งค่า</div>
+              </button>
             </div>
-            <div class="adj-body">
-              <!-- TYPE BUTTONS -->
-              <div class="adj-type-row">
-                <button
-                  class="adj-type-btn sel-IN"
-                  data-type="IN"
-                  onclick="selectAdjType('IN')"
-                >
-                  <div class="adj-type-icon">📥</div>
-                  <div class="adj-type-lbl">เพิ่ม</div>
-                </button>
-                <button
-                  class="adj-type-btn"
-                  data-type="OUT"
-                  onclick="selectAdjType('OUT')"
-                >
-                  <div class="adj-type-icon">📤</div>
-                  <div class="adj-type-lbl">ลด</div>
-                </button>
-                <button
-                  class="adj-type-btn"
-                  data-type="ADJUST"
-                  onclick="selectAdjType('ADJUST')"
-                >
-                  <div class="adj-type-icon">⚖️</div>
-                  <div class="adj-type-lbl">ตั้งค่า</div>
-                </button>
-              </div>
 
-              <!-- WAREHOUSE DROPDOWN -->
-              <div class="form-group">
-                <label class="form-label">เลือกคลัง</label>
-                <select
-                  class="form-control"
-                  id="whSelect"
-                  onchange="selectWarehouse(this.value)"
-                >
-                  <option value="">— เลือกคลัง —</option>
-                </select>
-              </div>
+            <!-- WAREHOUSE DROPDOWN -->
+            <div class="form-group">
+              <label class="form-label">เลือกคลัง</label>
+              <select
+                class="form-control"
+                id="whSelect"
+                onchange="selectWarehouse(this.value)"
+              >
+                <option value="">— เลือกคลัง —</option>
+              </select>
+            </div>
 
-              <!-- QTY -->
-              <div class="form-group">
+            <!-- QTY -->
+            <div class="form-group">
+              <label class="form-label">Stock ปัจจุบัน</label>
+              <div
+                id="currentStock"
+                style="
+                  padding: 10px;
+                  border-radius: 8px;
+                  background: var(--surface2);
+                  font-family: &quot;IBM Plex Mono&quot;;
+                  text-align: center;
+                  font-weight: 600;
+                "
+              >
+                <div class="form-group">
+                  <label class="form-label"> Stock ปัจจุบัน </label>
+
+                  <div
+                    id="currentStock"
+                    style="
+                      padding: 10px;
+                      border-radius: 8px;
+                      background: var(--surface2);
+                      text-align: center;
+                      font-weight: 600;
+                      font-family: &quot;IBM Plex Mono&quot;;
+                    "
+                  >
+                    -
+                  </div>
+                </div>
                 <label class="form-label" id="qtyLabel">จำนวนที่เพิ่ม</label>
                 <input
                   class="form-control mono"
@@ -632,10 +658,10 @@
                   "
                 ></div>
                 <input
-                    class="form-control"
-                    id="adjNote"
-                    placeholder="หมายเหตุ"
-                  />
+                  class="form-control"
+                  id="adjNote"
+                  placeholder="หมายเหตุ"
+                />
                 <button
                   type="button"
                   onclick="addNoteRow()"

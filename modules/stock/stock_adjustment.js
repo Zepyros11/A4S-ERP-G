@@ -93,6 +93,13 @@ function getTotalStock(prodId) {
     .reduce((s, b) => s + (b.qty_on_hand || 0), 0);
 }
 
+function getWarehouseStock(prodId, warehouseId) {
+  const sb = stockBalance.find(
+    (b) => b.product_id === prodId && b.warehouse_id === warehouseId,
+  );
+
+  return sb?.qty_on_hand || 0;
+}
 function filterTable() {
   const search = document.getElementById("searchInput").value.toLowerCase();
   const list = products.filter(
@@ -136,18 +143,23 @@ function renderTable(list) {
 
       const whStock = warehouses
         .map((w) => {
-          const sb = stockBalance.find(
-            (b) =>
-              b.product_id === p.product_id &&
-              b.warehouse_id === w.warehouse_id,
-          );
+          const qty = getWarehouseStock(p.product_id, w.warehouse_id);
 
-          const qty = sb?.qty_on_hand || 0;
+          if (qty <= 0) return "";
 
-          return qty > 0 ? `${w.warehouse_name}:${qty}` : "";
+          return `
+<span style="
+display:inline-block;
+padding:2px 6px;
+background:var(--accent-pale);
+border-radius:4px;
+margin-right:4px;
+font-size:11px;
+">
+${w.warehouse_code}:${qty}
+</span>`;
         })
-        .filter(Boolean)
-        .join(" ");
+        .join("");
 
       return `
 <tr onclick="selectProduct(${p.product_id})">
@@ -261,7 +273,10 @@ function renderAdjPanel() {
             b.warehouse_id === w.warehouse_id,
         );
 
-        const qty = sb?.qty_on_hand || 0;
+        const qty = getWarehouseStock(
+          selectedProduct.product_id,
+          w.warehouse_id,
+        );
 
         const sel =
           selectedWarehouse?.warehouse_id === w.warehouse_id ? "selected" : "";
@@ -279,12 +294,8 @@ function renderAdjPanel() {
 }
 
 function selectWarehouse(id) {
-  selectedWarehouse = warehouses.find((w) => w.warehouse_id === Number(id));
-  updatePreview();
-}
+  selectedWarehouse = warehouses.find((w) => w.warehouse_id === id);
 
-function selectAdjType(type) {
-  adjType = type;
   renderAdjPanel();
 }
 
