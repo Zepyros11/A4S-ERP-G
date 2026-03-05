@@ -216,34 +216,6 @@
         color: #d97706;
       }
 
-      /* ── RIGHT PANEL: ADJUSTMENT ── */
-      .adj-panel {
-        background: var(--surface);
-        border: 1px solid var(--border);
-        border-radius: var(--radius);
-        box-shadow: var(--shadow);
-        overflow: hidden;
-        position: sticky;
-        top: 76px;
-      }
-      .adj-panel-empty {
-        padding: 48px 20px;
-        text-align: center;
-        color: var(--text3);
-      }
-      .adj-panel-empty-icon {
-        font-size: 40px;
-        margin-bottom: 12px;
-      }
-      .adj-panel-empty-title {
-        font-size: 13px;
-        font-weight: 600;
-        margin-bottom: 4px;
-      }
-      .adj-panel-empty-sub {
-        font-size: 12px;
-      }
-
       /* ADJ HEADER */
       .adj-prod-hdr {
         padding: 16px 20px;
@@ -444,9 +416,7 @@
         .layout {
           grid-template-columns: 1fr;
         }
-        .adj-panel {
-          position: static;
-        }
+
       }
 
       .row-menu-btn {
@@ -561,16 +531,6 @@
           </div>
         </div>
 
-        <!-- RIGHT: ADJUSTMENT PANEL -->
-        <div class="adj-panel" id="adjPanel">
-          <!-- EMPTY STATE -->
-          <div class="adj-panel-empty" id="adjEmpty">
-            <div class="adj-panel-empty-icon">👈</div>
-            <div class="adj-panel-empty-title">เลือกสินค้า</div>
-            <div class="adj-panel-empty-sub">
-              คลิกสินค้าที่ต้องการปรับ Stock
-            </div>
-          </div>
 
           <!-- ADJ FORM -->
           <div id="adjForm" style="display: none">
