@@ -49,32 +49,42 @@
   </head>
 
   <body>
-    <div id="sidebar"></div>
-
-    <div class="db-container">
-      <h2>Database Viewer</h2>
-
-      <div class="db-toolbar">
-        <select id="tableSelect"></select>
-
-        <input id="searchInput" placeholder="ค้นหา..." oninput="loadTable()" />
-
-        <button onclick="loadTable()">รีเฟรช</button>
-
-        <button onclick="insertRow()">＋ เพิ่มข้อมูล</button>
+    <div class="topbar">
+      <div style="padding: 10px 16px; font-weight: 600">
+        📦 A4S-ERP | Database Viewer
       </div>
+    </div>
 
-      <table class="db-table">
-        <thead>
-          <tr id="tableHead"></tr>
-        </thead>
+    <div class="page">
+      <div class="db-container">
+        <h2>Database Viewer</h2>
 
-        <tbody id="tableBody"></tbody>
-      </table>
+        <div class="db-toolbar">
+          <select id="tableSelect"></select>
 
-      <div class="db-pagination">
-        <button onclick="prevPage()">⬅ ก่อนหน้า</button>
-        <button onclick="nextPage()">ถัดไป ➡</button>
+          <input
+            id="searchInput"
+            placeholder="ค้นหา..."
+            oninput="loadTable()"
+          />
+
+          <button onclick="loadTable()">รีเฟรช</button>
+
+          <button onclick="insertRow()">＋ เพิ่มข้อมูล</button>
+        </div>
+
+        <table class="db-table">
+          <thead>
+            <tr id="tableHead"></tr>
+          </thead>
+
+          <tbody id="tableBody"></tbody>
+        </table>
+
+        <div class="db-pagination">
+          <button onclick="prevPage()">⬅ ก่อนหน้า</button>
+          <button onclick="nextPage()">ถัดไป ➡</button>
+        </div>
       </div>
     </div>
 
