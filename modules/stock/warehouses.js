@@ -379,3 +379,47 @@ ${b.bin_code}
     })
     .join("");
 }
+function openLocationModal() {
+  if (!selectedId) {
+    showToast("เลือกคลังก่อน", "warning");
+    return;
+  }
+
+  document.getElementById("locCode").value = "";
+  document.getElementById("locName").value = "";
+
+  document.getElementById("locationModal").classList.add("open");
+}
+
+function closeLocationModal() {
+  document.getElementById("locationModal").classList.remove("open");
+}
+async function saveLocation() {
+  const code = document.getElementById("locCode").value.trim();
+
+  const name = document.getElementById("locName").value.trim();
+
+  if (!code) {
+    showToast("กรอกรหัส Location", "error");
+    return;
+  }
+
+  try {
+    await sbFetch("warehouse_locations", {
+      method: "POST",
+      body: {
+        warehouse_id: selectedId,
+        location_code: code,
+        location_name: name,
+      },
+    });
+
+    showToast("เพิ่ม Location สำเร็จ", "success");
+
+    closeLocationModal();
+
+    loadLocations();
+  } catch (e) {
+    showToast("บันทึกไม่ได้", "error");
+  }
+}

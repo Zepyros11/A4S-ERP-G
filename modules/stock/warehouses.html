@@ -482,17 +482,51 @@
 
     <div class="stock-panel" id="locationPanel">
       <div class="stock-panel-hdr">
-        <span class="stock-panel-title">📍 Locations</span>
+  <span class="stock-panel-title">📍 Locations</span>
 
-        <button class="btn-sm btn-sm-edit" onclick="loadLocations()">
-          รีเฟรช
-        </button>
-      </div>
+  <div style="display:flex;gap:8px">
+    <button class="btn-sm btn-sm-edit" onclick="openLocationModal()">
+      ＋ Location
+    </button>
 
-      <div style="padding: 16px">
-        <div id="locationList"></div>
-      </div>
+    <button class="btn-sm btn-sm-edit" onclick="loadLocations()">
+      รีเฟรช
+    </button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="locationModal">
+
+  <div class="modal" style="width:420px">
+
+    <div class="modal-hdr">
+      <div class="modal-title">เพิ่ม Location</div>
+      <button class="btn-modal-close" onclick="closeLocationModal()">✕</button>
     </div>
+
+    <div class="modal-body">
+
+      <div class="form-group">
+        <label class="form-label">รหัส Location *</label>
+        <input class="form-control" id="locCode" placeholder="A">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">ชื่อ Location</label>
+        <input class="form-control" id="locName" placeholder="Receiving">
+      </div>
+
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeLocationModal()">ยกเลิก</button>
+      <button class="btn btn-primary" onclick="saveLocation()">💾 บันทึก</button>
+    </div>
+
+  </div>
+
+</div>
+
 
     <script src="warehouses.js"></script>
     <script src="../../shared/auth.js"></script>
