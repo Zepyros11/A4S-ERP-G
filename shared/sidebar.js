@@ -194,12 +194,9 @@ function buildSidebar() {
 
 // ---------- Inject Layout ----------
 document.addEventListener("DOMContentLoaded", () => {
-  const page = document.querySelector(".page");
-  const topbar = document.querySelector(".topbar");
-
-  if (!page || !topbar) return;
-
   const sidebar = buildSidebar();
+
+  const body = document.body;
 
   const wrapper = document.createElement("div");
   wrapper.id = "erp-layout";
@@ -209,7 +206,5 @@ document.addEventListener("DOMContentLoaded", () => {
     <main id="erp-main"></main>
   `;
 
-  page.parentNode.insertBefore(wrapper, page);
-
-  document.getElementById("erp-main").appendChild(page);
+  body.prepend(wrapper);
 });
