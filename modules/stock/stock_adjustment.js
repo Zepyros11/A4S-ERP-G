@@ -294,9 +294,16 @@ function renderAdjPanel() {
 }
 
 function selectWarehouse(id) {
-  selectedWarehouse = warehouses.find((w) => w.warehouse_id === id);
+  selectedWarehouse = warehouses.find((w) => w.warehouse_id == id);
 
   renderAdjPanel();
+
+  const cur = getWarehouseStock(
+    selectedProduct.product_id,
+    selectedWarehouse.warehouse_id,
+  );
+
+  document.getElementById("currentStock").textContent = cur.toLocaleString();
 }
 
 function updatePreview() {
@@ -582,4 +589,19 @@ function setAdjType(type) {
   if (type === "SET") {
     document.getElementById("qtyLabel").textContent = "จำนวนใหม่";
   }
+}
+function selectAdjType(type) {
+  adjType = type;
+
+  document.querySelectorAll(".adj-type-btn").forEach((btn) => {
+    btn.classList.remove("sel-IN", "sel-OUT", "sel-ADJUST");
+  });
+
+  const btn = document.querySelector(`[data-type="${type}"]`);
+
+  if (btn) {
+    btn.classList.add(`sel-${type}`);
+  }
+
+  renderAdjPanel();
 }
