@@ -15,13 +15,29 @@
     return null;
   }
 
+  // detect base path automatically
+  function getBasePath() {
+    const host = window.location.hostname;
+
+    // GitHub Pages project
+    if (host.includes("github.io")) {
+      const parts = window.location.pathname.split("/");
+      return "/" + parts[1];
+    }
+
+    // localhost or real domain
+    return "";
+  }
+
+  const BASE_PATH = getBasePath();
+
   const session = getSession();
 
   // ── 2. ถ้าไม่มี session → redirect ไป login ──────────────
   if (!session) {
     // จำ URL ที่ผู้ใช้พยายามเข้า เพื่อ redirect กลับหลัง login
     sessionStorage.setItem("erp_redirect", window.location.pathname);
-    window.location.replace("../../login.html");
+    window.location.replace(BASE_PATH + "/login.html");
     throw new Error("Not authenticated"); // หยุด script ที่เหลือ
   }
 
@@ -33,7 +49,7 @@
     if (!confirm("ออกจากระบบ?")) return;
     localStorage.removeItem("erp_session");
     sessionStorage.removeItem("erp_session");
-    window.location.replace("../../login.html");
+    window.location.replace(BASE_PATH + "/login.html");
   };
 
   // ── 5. Inject User chip ใน Topbar (รอ DOM) ──────────────
@@ -111,7 +127,7 @@
             <div class="erp-drop-name">${session.first_name} ${session.last_name}</div>
             <div class="erp-drop-meta">@${session.username} · ${session.role}</div>
           </div>
-          <a class="erp-drop-item" href="../../modules/settings/settings.html">⚙️ ตั้งค่าระบบ</a>
+          <a class="erp-drop-item" href="${BASE_PATH}/modules/settings/settings.html">⚙️ ตั้งค่าระบบ</a>
           <div class="erp-drop-divider"></div>
           <div class="erp-drop-item danger" onclick="erpLogout()">🚪 ออกจากระบบ</div>
         </div>
