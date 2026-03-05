@@ -18,6 +18,7 @@
           icon: "📊",
           label: "Dashboard",
           path: "/A4S-ERP-G/dashdoard/dashboard.html",
+          // path: "/A4S-ERP-G/dashdoard/dashboard.html",
         },
       ],
     },
