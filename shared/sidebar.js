@@ -17,7 +17,7 @@
           id: "dashboard",
           icon: "📊",
           label: "Dashboard",
-          path: BASE_PATH + "/modules/dashdoard/dashboard.html",
+          path: BASE_PATH + "/modules/dashboard/dashboard.html",
         },
       ],
     },
