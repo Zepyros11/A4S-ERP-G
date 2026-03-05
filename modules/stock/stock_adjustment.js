@@ -372,7 +372,6 @@ async function saveAdjustment() {
         warehouse_id: selectedWarehouse.warehouse_id,
         movement_type: adjType,
         qty: isIn || isAdj ? qty : -qty,
-        qty_after: qtyAfter,
         note: note || `Manual ${adjType}`,
         moved_at: new Date().toISOString(),
       },
