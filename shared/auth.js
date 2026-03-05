@@ -181,3 +181,16 @@
 
   observer.observe(document.body, { childList: true, subtree: true });
 })();
+
+function getBasePath() {
+  const host = window.location.hostname;
+
+  if (host.includes("github.io")) {
+    const parts = window.location.pathname.split("/");
+    return "/" + parts[1];
+  }
+
+  return "";
+}
+
+const BASE_PATH = getBasePath();
