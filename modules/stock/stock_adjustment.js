@@ -428,7 +428,15 @@ function openAdjustment(type) {
 
   document.getElementById("rowMenu").style.display = "none";
 
-  renderAdjPanel();
+  selectedWarehouse = warehouses[0];
+
+  const qty = prompt("ใส่จำนวน");
+
+  if (!qty || qty <= 0) return;
+
+  document.getElementById("adjQty").value = qty;
+
+  saveAdjustment();
 }
 // ปิด menu เมื่อคลิกที่อื่น
 document.addEventListener("click", () => {
