@@ -111,7 +111,7 @@
             <div class="erp-drop-name">${session.first_name} ${session.last_name}</div>
             <div class="erp-drop-meta">@${session.username} · ${session.role}</div>
           </div>
-          <a class="erp-drop-item" href="/modules/settings/settings.html">⚙️ ตั้งค่าระบบ</a>
+          <a class="erp-drop-item" href="../../modules/settings/settings.html">⚙️ ตั้งค่าระบบ</a>
           <div class="erp-drop-divider"></div>
           <div class="erp-drop-item danger" onclick="erpLogout()">🚪 ออกจากระบบ</div>
         </div>
