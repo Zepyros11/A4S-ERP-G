@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>รายงาน — A4S-ERP</title>
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../assets/css/common.css">
+<style>
+.page { padding:24px 28px 60px; }
+
+/* TABS */
+.tabs-wrap { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow); margin-bottom:20px; overflow:hidden; }
+.tabs { display:flex; border-bottom:2px solid var(--border); overflow-x:auto; }
+.tab { padding:14px 22px; font-size:13.5px; font-weight:500; color:var(--text3); cursor:pointer; border:none; background:none; white-space:nowrap; transition:all .18s; border-bottom:2px solid transparent; margin-bottom:-2px; display:flex; align-items:center; gap:6px; font-family:'Sarabun',sans-serif; }
+.tab:hover { color:var(--text2); }
+.tab.active { color:var(--accent); border-bottom-color:var(--accent); font-weight:600; }
+.tab-content { display:none; padding:20px; }
+.tab-content.active { display:block; }
+
+/* FILTER BAR */
+.filter-bar { display:flex; flex-wrap:wrap; align-items:flex-end; gap:12px; padding:14px 20px; background:var(--surface2); border-bottom:1px solid var(--border); }
+.filter-group { display:flex; flex-direction:column; gap:4px; }
+.filter-label { font-size:11px; font-weight:600; color:var(--text2); letter-spacing:.3px; }
+.filter-control { padding:8px 12px; border:1.5px solid var(--border); border-radius:7px; font-size:13px; font-family:'Sarabun',sans-serif; outline:none; background:var(--surface); transition:all .18s; appearance:none; min-width:130px; }
+.filter-control:focus { border-color:var(--accent); }
+select.filter-control { background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%239ca3af' d='M6 8L1 3h10z'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 10px center; padding-right:30px; cursor:pointer; }
+.filter-actions { display:flex; gap:8px; align-items:flex-end; margin-left:auto; }
+
+/* BUTTONS */
+.btn { padding:9px 16px; border-radius:7px; font-size:13px; font-family:'Sarabun',sans-serif; font-weight:500; cursor:pointer; border:none; transition:all .18s; display:flex; align-items:center; gap:6px; }
+.btn-primary { background:var(--accent); color:#fff; }
+.btn-primary:hover { background:var(--accent-light); }
+.btn-success { background:#d1fae5; color:var(--success); border:1.5px solid #6ee7b7; }
+.btn-success:hover { background:#a7f3d0; }
+
+/* SECTION CARDS */
+.section-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow); overflow:hidden; margin-bottom:16px; }
+.section-hdr { padding:14px 20px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; background:var(--surface2); }
+.section-title { font-size:14px; font-weight:700; color:var(--text); }
+.section-sub { font-size:12px; color:var(--text3); font-family:'IBM Plex Mono',monospace; }
+
+/* KPI ROW */
+.kpi-row { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:16px; }
+.kpi-mini { background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:14px 16px; box-shadow:var(--shadow); }
+.kpi-mini-val { font-size:22px; font-weight:700; font-family:'IBM Plex Mono',monospace; }
+.kpi-mini-lbl { font-size:11px; color:var(--text3); font-weight:600; letter-spacing:.3px; margin-top:3px; }
+
+/* TABLES */
+.rep-table { width:100%; border-collapse:collapse; }
+.rep-table th { padding:10px 16px; background:var(--surface2); font-size:11px; font-weight:700; letter-spacing:.8px; color:var(--text3); text-align:left; border-bottom:2px solid var(--border); white-space:nowrap; cursor:pointer; user-select:none; }
+.rep-table th:hover { color:var(--accent); }
+.rep-table th.right, .rep-table td.right { text-align:right; }
+.rep-table td { padding:11px 16px; border-bottom:1px solid var(--border); font-size:13.5px; vertical-align:middle; }
+.rep-table tr:last-child td { border-bottom:none; }
+.rep-table tr:hover td { background:var(--accent-pale); }
+.rep-table tfoot td { padding:12px 16px; background:var(--surface2); font-weight:700; border-top:2px solid var(--border); }
+.mono { font-family:'IBM Plex Mono',monospace; }
+.qty-ok   { color:var(--success); font-weight:600; }
+.qty-low  { color:#d97706; font-weight:600; }
+.qty-zero { color:var(--danger); font-weight:600; }
+.badge { display:inline-flex; align-items:center; padding:2px 8px; border-radius:4px; font-size:11px; font-weight:600; }
+.badge-ok  { background:var(--success-pale); color:var(--success); }
+.badge-low { background:var(--warning-pale); color:var(--warning); }
+.badge-out { background:var(--danger-pale);  color:var(--danger); }
+
+/* HORIZONTAL BAR CHART */
+.bar-chart-h { display:flex; flex-direction:column; gap:8px; padding:4px 0; }
+.bar-row { display:flex; align-items:center; gap:12px; }
+.bar-row-label { font-size:12px; color:var(--text2); width:140px; text-align:right; flex-shrink:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.bar-row-track { flex:1; height:22px; background:var(--border); border-radius:4px; overflow:hidden; }
+.bar-row-fill { height:100%; border-radius:4px; transition:width .7s ease; display:flex; align-items:center; padding-left:8px; }
+.bar-row-val { font-size:11px; font-weight:600; color:#fff; font-family:'IBM Plex Mono',monospace; white-space:nowrap; }
+
+/* MONTHLY CHART */
+.month-grid { display:grid; grid-template-columns:repeat(12,1fr); gap:6px; align-items:flex-end; height:120px; padding:0 4px; }
+.month-col { display:flex; flex-direction:column; align-items:center; gap:3px; }
+.month-bar-wrap { flex:1; width:100%; display:flex; flex-direction:column; justify-content:flex-end; gap:2px; }
+.month-bar { width:100%; border-radius:3px 3px 0 0; min-height:3px; transition:height .5s ease; }
+.month-lbl { font-size:9px; color:var(--text3); font-family:'IBM Plex Mono',monospace; }
+
+/* EMPTY */
+.empty-state { padding:40px; text-align:center; color:var(--text3); }
+.empty-icon  { font-size:36px; margin-bottom:8px; }
+
+@media (max-width:768px) {
+  .kpi-row { grid-template-columns:1fr 1fr; }
+  .bar-row-label { width:80px; }
+  .filter-bar { flex-direction:column; }
+}
+</style>
+</head>
+<body>
+<div class="loading-overlay" id="loadingOverlay"><div class="spinner"></div></div>
+<div class="toast" id="toast"></div>
+
+<div class="topbar">
+  <div class="topbar-logo">📦 <span>A4S</span>-ERP</div>
+  <div class="topbar-sep"></div>
+  <div class="topbar-title">รายงาน</div>
+  <div class="topbar-actions">
+    <button class="btn-topbar btn-ghost" onclick="loadAll()">🔄 รีเฟรช</button>
+    <button class="btn-topbar btn-white" onclick="exportCurrentTab()">⬇ Export CSV</button>
+  </div>
+</div>
+<div id="sidebar-container"></div>
+
+<div class="page">
+  <div class="tabs-wrap">
+
+    <!-- TAB NAV -->
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('stock')"    id="tab-stock">📦 Stock คงเหลือ</button>
+      <button class="tab"        onclick="switchTab('movement')" id="tab-movement">🔄 ความเคลื่อนไหว</button>
+      <button class="tab"        onclick="switchTab('topsale')"  id="tab-topsale">🏆 สินค้าขายดี/เบิกบ่อย</button>
+      <button class="tab"        onclick="switchTab('poso')"     id="tab-poso">📋 สรุป PO / SO</button>
+    </div>
+
+    <!-- ═══════ TAB 1: STOCK ═══════ -->
+    <div class="tab-content active" id="content-stock">
+      <div class="filter-bar">
+        <div class="filter-group">
+          <span class="filter-label">คลังสินค้า</span>
+          <select class="filter-control" id="stockFilterWH" onchange="renderStockReport()">
+            <option value="">ทุกคลัง</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <span class="filter-label">หมวดหมู่</span>
+          <select class="filter-control" id="stockFilterCat" onchange="renderStockReport()">
+            <option value="">ทุกหมวดหมู่</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <span class="filter-label">สถานะ Stock</span>
+          <select class="filter-control" id="stockFilterStatus" onchange="renderStockReport()">
+            <option value="">ทั้งหมด</option>
+            <option value="ok">ปกติ</option>
+            <option value="low">ใกล้หมด</option>
+            <option value="out">หมดแล้ว</option>
+          </select>
+        </div>
+        <div class="filter-actions">
+          <button class="btn btn-success" onclick="exportStock()">⬇ Export CSV</button>
+        </div>
+      </div>
+      <div style="padding:16px 20px 0">
+        <div class="kpi-row">
+          <div class="kpi-mini"><div class="kpi-mini-val" id="skpiTotal">—</div><div class="kpi-mini-lbl">SKU ทั้งหมด</div></div>
+          <div class="kpi-mini"><div class="kpi-mini-val" style="color:var(--success)" id="skpiOk">—</div><div class="kpi-mini-lbl">Stock ปกติ</div></div>
+          <div class="kpi-mini"><div class="kpi-mini-val" style="color:#d97706" id="skpiLow">—</div><div class="kpi-mini-lbl">ใกล้หมด</div></div>
+          <div class="kpi-mini"><div class="kpi-mini-val" style="color:var(--danger)" id="skpiOut">—</div><div class="kpi-mini-lbl">หมดแล้ว</div></div>
+        </div>
+      </div>
+      <div class="section-card">
+        <div class="section-hdr">
+          <span class="section-title">📦 รายงาน Stock คงเหลือ</span>
+          <span class="section-sub" id="stockReportDate">—</span>
+        </div>
+        <div style="overflow-x:auto">
+          <table class="rep-table">
+            <thead><tr>
+              <th onclick="stockSort('product_code')">รหัส ↕</th>
+              <th onclick="stockSort('product_name')">ชื่อสินค้า ↕</th>
+              <th>หมวดหมู่</th>
+              <th onclick="stockSort('warehouse_name')">คลัง ↕</th>
+              <th class="right" onclick="stockSort('qty_on_hand')">Qty on Hand ↕</th>
+              <th class="right" onclick="stockSort('qty_reserved')">Reserved ↕</th>
+              <th class="right">Available</th>
+              <th class="right" onclick="stockSort('reorder_point')">Reorder Point ↕</th>
+              <th>สถานะ</th>
+            </tr></thead>
+            <tbody id="stockTableBody">
+              <tr><td colspan="9"><div class="empty-state"><div class="empty-icon">📦</div>กำลังโหลด...</div></td></tr>
+            </tbody>
+            <tfoot id="stockTableFoot"></tfoot>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════ TAB 2: MOVEMENT ═══════ -->
+    <div class="tab-content" id="content-movement">
+      <div class="filter-bar">
+        <div class="filter-group">
+          <span class="filter-label">จากวันที่</span>
+          <input type="date" class="filter-control" id="mvDateFrom">
+        </div>
+        <div class="filter-group">
+          <span class="filter-label">ถึงวันที่</span>
+          <input type="date" class="filter-control" id="mvDateTo">
+        </div>
+        <div class="filter-group">
+          <span class="filter-label">ประเภท</span>
+          <select class="filter-control" id="mvType">
+            <option value="">ทั้งหมด</option>
+            <option value="IN">รับเข้า</option>
+            <option value="OUT">จ่ายออก</option>
+            <option value="INTERNAL">เบิก</option>
+            <option value="ADJUST">ปรับยอด</option>
+            <option value="RETURN">คืน</option>
+          </select>
+        </div>
+        <div class="filter-actions">
+          <button class="btn btn-primary" onclick="renderMovementReport()">🔍 ดูรายงาน</button>
+          <button class="btn btn-success" onclick="exportMovement()">⬇ Export CSV</button>
+        </div>
+      </div>
+      <div style="padding:16px 20px 0">
+        <div class="kpi-row">
+          <div class="kpi-mini"><div class="kpi-mini-val" id="mkpiTotal">—</div><div class="kpi-mini-lbl">รายการทั้งหมด</div></div>
+          <div class="kpi-mini"><div class="kpi-mini-val" style="color:var(--success)" id="mkpiIn">—</div><div class="kpi-mini-lbl">รับเข้ารวม</div></div>
+          <div class="kpi-mini"><div class="kpi-mini-val" style="color:var(--danger)" id="mkpiOut">—</div><div class="kpi-mini-lbl">จ่ายออกรวม</div></div>
+          <div class="kpi-mini"><div class="kpi-mini-val" style="color:var(--warning)" id="mkpiAdj">—</div><div class="kpi-mini-lbl">ปรับยอด</div></div>
+        </div>
+      </div>
+      <div class="section-card" style="margin-bottom:16px">
+        <div class="section-hdr"><span class="section-title">📊 กราฟรับ-จ่าย รายเดือน</span></div>
+        <div style="padding:16px 20px">
+          <div class="month-grid" id="monthChart"></div>
+          <div style="display:flex;justify-content:center;gap:20px;margin-top:10px">
+            <div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text2)"><div style="width:10px;height:10px;border-radius:2px;background:#10b981"></div>รับเข้า</div>
+            <div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text2)"><div style="width:10px;height:10px;border-radius:2px;background:#f59e0b"></div>จ่ายออก</div>
+          </div>
+        </div>
+      </div>
+      <div class="section-card">
+        <div class="section-hdr">
+          <span class="section-title">🔄 รายละเอียดความเคลื่อนไหว</span>
+          <span class="section-sub" id="mvCount">—</span>
+        </div>
+        <div style="overflow-x:auto">
+          <table class="rep-table">
+            <thead><tr>
+              <th>วันที่</th>
+              <th>ประเภท</th>
+              <th>สินค้า</th>
+              <th>คลัง</th>
+              <th class="right">จำนวน</th>
+              <th class="right">คงเหลือ</th>
+              <th>เอกสารอ้างอิง</th>
+              <th>หมายเหตุ</th>
+            </tr></thead>
+            <tbody id="mvTableBody">
+              <tr><td colspan="8"><div class="empty-state"><div class="empty-icon">🔄</div>กดปุ่ม "ดูรายงาน" เพื่อโหลดข้อมูล</div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════ TAB 3: TOP SALE ═══════ -->
+    <div class="tab-content" id="content-topsale">
+      <div class="filter-bar">
+        <div class="filter-group">
+          <span class="filter-label">จากวันที่</span>
+          <input type="date" class="filter-control" id="tsDateFrom">
+        </div>
+        <div class="filter-group">
+          <span class="filter-label">ถึงวันที่</span>
+          <input type="date" class="filter-control" id="tsDateTo">
+        </div>
+        <div class="filter-group">
+          <span class="filter-label">แสดง Top</span>
+          <select class="filter-control" id="tsTop">
+            <option value="10">Top 10</option>
+            <option value="20">Top 20</option>
+            <option value="50">Top 50</option>
+          </select>
+        </div>
+        <div class="filter-actions">
+          <button class="btn btn-primary" onclick="renderTopSaleReport()">🔍 ดูรายงาน</button>
+          <button class="btn btn-success" onclick="exportTopSale()">⬇ Export CSV</button>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;padding:16px 0 0">
+        <div class="section-card">
+          <div class="section-hdr"><span class="section-title">💰 สินค้าจ่ายออกบ่อย (OUT)</span></div>
+          <div style="padding:16px 20px">
+            <div class="bar-chart-h" id="topOutChart">
+              <div class="empty-state"><div class="empty-icon">💰</div>กดดูรายงาน</div>
+            </div>
+          </div>
+        </div>
+        <div class="section-card">
+          <div class="section-hdr"><span class="section-title">📋 สินค้าเบิกบ่อย (INTERNAL)</span></div>
+          <div style="padding:16px 20px">
+            <div class="bar-chart-h" id="topReqChart">
+              <div class="empty-state"><div class="empty-icon">📋</div>กดดูรายงาน</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════ TAB 4: PO / SO ═══════ -->
+    <div class="tab-content" id="content-poso">
+      <div class="filter-bar">
+        <div class="filter-group">
+          <span class="filter-label">ปี</span>
+          <select class="filter-control" id="posoYear" onchange="renderPOSOReport()"></select>
+        </div>
+        <div class="filter-actions">
+          <button class="btn btn-success" onclick="exportPOSO()">⬇ Export CSV</button>
+        </div>
+      </div>
+      <div style="padding:16px 20px 0">
+        <div class="kpi-row">
+          <div class="kpi-mini"><div class="kpi-mini-val" style="color:var(--accent)"  id="pkpiPO">—</div><div class="kpi-mini-lbl">PO ทั้งปี (ใบ)</div></div>
+          <div class="kpi-mini"><div class="kpi-mini-val" style="color:var(--accent)"  id="pkpiPOAmt">—</div><div class="kpi-mini-lbl">มูลค่า PO รวม</div></div>
+          <div class="kpi-mini"><div class="kpi-mini-val" style="color:var(--success)" id="pkpiSO">—</div><div class="kpi-mini-lbl">SO ทั้งปี (ใบ)</div></div>
+          <div class="kpi-mini"><div class="kpi-mini-val" style="color:var(--success)" id="pkpiSOAmt">—</div><div class="kpi-mini-lbl">มูลค่า SO รวม</div></div>
+        </div>
+      </div>
+      <div class="section-card" style="margin-bottom:16px">
+        <div class="section-hdr"><span class="section-title">📊 กราฟ PO / SO รายเดือน</span></div>
+        <div style="padding:16px 20px">
+          <div class="month-grid" id="posoChart"></div>
+          <div style="display:flex;justify-content:center;gap:20px;margin-top:10px">
+            <div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text2)"><div style="width:10px;height:10px;border-radius:2px;background:#1b6ca8"></div>PO</div>
+            <div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text2)"><div style="width:10px;height:10px;border-radius:2px;background:#10b981"></div>SO</div>
+          </div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+        <div class="section-card">
+          <div class="section-hdr"><span class="section-title">📋 PO รายเดือน</span></div>
+          <div style="overflow-x:auto">
+            <table class="rep-table">
+              <thead><tr>
+                <th>เดือน</th>
+                <th class="right">ใบ</th>
+                <th class="right">มูลค่ารวม</th>
+                <th class="right">เฉลี่ย/ใบ</th>
+              </tr></thead>
+              <tbody id="poMonthBody"></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="section-card">
+          <div class="section-hdr"><span class="section-title">💰 SO รายเดือน</span></div>
+          <div style="overflow-x:auto">
+            <table class="rep-table">
+              <thead><tr>
+                <th>เดือน</th>
+                <th class="right">ใบ</th>
+                <th class="right">มูลค่ารวม</th>
+                <th class="right">เฉลี่ย/ใบ</th>
+              </tr></thead>
+              <tbody id="soMonthBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script src="../../shared/auth.js"></script>
+<script src="../../shared/responsive.js"></script>
+<script src="../../shared/sidebar.js"></script>
+<script src="reports.js"></script>
+</body>
+</html>

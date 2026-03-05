@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ใบเบิกสินค้า — Requisition</title>
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../assets/css/common.css">
+<style>
+.page { max-width:960px; margin:0 auto; padding:32px 24px 100px; }
+
+/* PURPOSE GRID */
+.purpose-section { margin-bottom:20px; }
+.purpose-section-label { font-size:12px; font-weight:700; color:var(--text2); letter-spacing:.8px; margin-bottom:10px; }
+.purpose-grid { display:grid; grid-template-columns:repeat(5,1fr); gap:10px; }
+.purpose-card {
+  background:var(--surface); border:1.5px solid var(--border); border-radius:10px;
+  padding:14px 10px; cursor:pointer; transition:all .18s;
+  display:flex; flex-direction:column; align-items:center; gap:6px; text-align:center;
+}
+.purpose-card:hover { border-color:var(--accent); background:var(--accent-pale); }
+.purpose-card.active { border-color:var(--accent); background:var(--accent-pale); box-shadow:0 0 0 3px rgba(109,40,217,.1); }
+.purpose-icon { font-size:24px; line-height:1; }
+.purpose-label { font-size:12px; font-weight:600; color:var(--text2); }
+.purpose-card.active .purpose-label { color:var(--accent); }
+.purpose-type { font-size:10px; color:var(--text3); }
+.purpose-card.active .purpose-type { color:var(--accent-light); }
+
+/* STATUS BAR */
+.status-bar { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:20px 32px; margin-bottom:20px; display:flex; align-items:center; box-shadow:var(--shadow); }
+.step { display:flex; flex-direction:column; align-items:center; gap:6px; }
+.step-circle { width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:700; border:2px solid var(--border2); background:var(--surface); color:var(--text3); transition:all .3s; }
+.step.active .step-circle { background:var(--accent); border-color:var(--accent); color:#fff; }
+.step-label { font-size:11px; color:var(--text3); font-weight:600; white-space:nowrap; }
+.step.active .step-label { color:var(--accent); }
+.step-line { flex:1; height:2px; background:var(--border); margin:0 8px; margin-bottom:18px; }
+
+/* CARD */
+.card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); margin-bottom:20px; box-shadow:var(--shadow); overflow:hidden; }
+.card-header { padding:14px 20px; border-bottom:1px solid var(--border); background:var(--surface2); display:flex; align-items:center; justify-content:space-between; }
+.card-title { display:flex; align-items:center; gap:8px; font-size:14px; font-weight:700; }
+.card-title-icon { width:28px; height:28px; border-radius:7px; background:var(--accent-pale); display:flex; align-items:center; justify-content:center; font-size:14px; }
+.card-body { padding:20px; }
+
+/* REQ HEADER */
+.req-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; }
+.req-number-label { font-size:11px; font-weight:700; color:var(--text3); letter-spacing:.8px; margin-bottom:4px; }
+.req-number-value { font-family:'IBM Plex Mono',monospace; font-size:22px; font-weight:700; color:var(--accent); }
+.req-status-badge { padding:5px 12px; border-radius:20px; font-size:12px; font-weight:700; letter-spacing:.5px; }
+.badge-draft { background:var(--bg); color:var(--text2); border:1px solid var(--border2); }
+
+/* FORM */
+.form-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+.form-group { display:flex; flex-direction:column; gap:6px; }
+.form-label { font-size:12px; font-weight:600; color:var(--text2); letter-spacing:.3px; }
+.form-label .required { color:var(--danger); margin-left:3px; }
+.form-control { padding:10px 14px; border:1.5px solid var(--border); border-radius:7px; font-size:14px; font-family:'Sarabun',sans-serif; color:var(--text); background:var(--surface); outline:none; appearance:none; transition:all .18s; }
+.form-control:focus { border-color:var(--accent); box-shadow:0 0 0 3px rgba(109,40,217,.08); }
+select.form-control { background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%239ca3af' d='M6 8L1 3h10z'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 12px center; padding-right:36px; cursor:pointer; }
+.form-hint { font-size:11px; color:var(--text3); margin-top:2px; }
+.input-prefix { display:flex; align-items:center; border:1.5px solid var(--border); border-radius:7px; overflow:hidden; transition:all .18s; }
+.input-prefix:focus-within { border-color:var(--accent); box-shadow:0 0 0 3px rgba(109,40,217,.08); }
+.input-prefix-text { padding:10px 12px; background:var(--surface2); font-size:13px; color:var(--text2); border-right:1.5px solid var(--border); white-space:nowrap; }
+.input-prefix .form-control { border:none; border-radius:0; box-shadow:none; flex:1; }
+
+/* APPROVER BLOCK */
+.approver-block { background:linear-gradient(135deg,#faf5ff 0%,#f3e8ff 100%); border:1.5px solid #ddd6fe; border-radius:8px; padding:16px 20px; display:flex; align-items:center; gap:16px; margin-top:16px; }
+.approver-icon { font-size:28px; flex-shrink:0; }
+.approver-content { flex:1; display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.approver-label { font-size:11px; font-weight:700; color:var(--accent); letter-spacing:.8px; margin-bottom:4px; }
+
+/* ITEMS TABLE */
+.items-table-wrap { overflow-x:auto; }
+.items-table { width:100%; border-collapse:collapse; font-size:13.5px; }
+.items-table th { padding:10px 14px; background:var(--surface2); color:var(--text2); font-size:11px; font-weight:600; letter-spacing:.8px; text-align:left; border-bottom:2px solid var(--border); white-space:nowrap; }
+.items-table td { padding:8px 6px; border-bottom:1px solid var(--border); vertical-align:middle; }
+.items-table tr:last-child td { border-bottom:none; }
+.items-table tr:hover td { background:var(--surface2); }
+.item-num { width:32px; height:32px; background:var(--bg); border-radius:6px; display:flex; align-items:center; justify-content:center; font-size:12px; color:var(--text3); font-family:'IBM Plex Mono',monospace; }
+.td-input { padding:8px 10px; border:1.5px solid transparent; border-radius:6px; font-size:13.5px; font-family:'Sarabun',sans-serif; width:100%; background:transparent; outline:none; transition:all .15s; color:var(--text); }
+.td-input:focus { border-color:var(--accent); background:#fff; box-shadow:0 0 0 3px rgba(109,40,217,.08); }
+.td-input.text-right { text-align:right; }
+select.td-input { cursor:pointer; appearance:none; }
+.btn-remove { width:28px; height:28px; border-radius:6px; border:none; background:transparent; color:var(--text3); cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:16px; transition:all .15s; }
+.btn-remove:hover { background:var(--danger-pale); color:var(--danger); }
+.btn-add-row { margin-top:12px; padding:9px 16px; border:1.5px dashed var(--border2); border-radius:7px; background:transparent; color:var(--text2); font-size:13px; font-family:'Sarabun',sans-serif; cursor:pointer; width:100%; transition:all .18s; display:flex; align-items:center; justify-content:center; gap:6px; }
+.btn-add-row:hover { border-color:var(--accent); color:var(--accent); background:var(--accent-pale); }
+
+/* SUMMARY */
+.summary-block { display:flex; justify-content:flex-end; margin-top:16px; }
+.summary-table { width:260px; }
+.summary-row { display:flex; justify-content:space-between; align-items:center; padding:7px 0; font-size:13.5px; border-bottom:1px solid var(--border); }
+.summary-row:last-child { border-bottom:none; }
+.summary-label { color:var(--text2); }
+.summary-value { font-family:'IBM Plex Mono',monospace; font-weight:600; color:var(--accent); }
+.summary-total .summary-label { font-size:14px; font-weight:600; color:var(--text); }
+.summary-total .summary-value { font-size:18px; }
+
+/* FOOTER */
+.form-footer { position:fixed; bottom:0; left:0; right:0; background:var(--surface); border-top:1px solid var(--border); padding:14px 32px; display:flex; align-items:center; justify-content:space-between; gap:12px; z-index:50; box-shadow:0 -4px 16px rgba(0,0,0,.06); }
+.footer-left { display:flex; gap:10px; }
+.footer-right { display:flex; gap:10px; }
+.btn { padding:10px 20px; border-radius:7px; font-size:13.5px; font-family:'Sarabun',sans-serif; font-weight:500; cursor:pointer; border:none; transition:all .18s; display:flex; align-items:center; gap:6px; }
+.btn-outline { background:transparent; border:1.5px solid var(--border2); color:var(--text2); }
+.btn-outline:hover { border-color:var(--text2); color:var(--text); }
+.btn-danger-outline { background:transparent; border:1.5px solid var(--border2); color:var(--text3); }
+.btn-danger-outline:hover { border-color:var(--danger); color:var(--danger); background:var(--danger-pale); }
+.btn-warning { background:var(--warning-pale); color:var(--warning); border:1.5px solid #fcd34d; }
+.btn-warning:hover { background:#fef9c3; }
+.btn-success { background:var(--accent); color:#fff; }
+.btn-success:hover { background:var(--accent-light); }
+textarea.form-control { resize:vertical; min-height:80px; line-height:1.6; }
+
+@media (max-width:640px) {
+  .form-grid { grid-template-columns:1fr; }
+  .purpose-grid { grid-template-columns:repeat(3,1fr); }
+  .approver-content { grid-template-columns:1fr; }
+  .status-bar { display:none; }
+}
+</style>
+</head>
+<body>
+<div class="loading-overlay" id="loadingOverlay"><div class="spinner"></div></div>
+<div class="toast" id="toast"></div>
+
+<div class="topbar">
+  <div class="topbar-logo">📦 <span>A4S</span>-ERP</div>
+  <div class="topbar-sep"></div>
+  <div class="topbar-title">ใบเบิกสินค้า (REQ)</div>
+  <div class="topbar-actions">
+    <button class="btn-topbar btn-ghost" onclick="window.history.back()">← กลับ</button>
+  </div>
+</div>
+<div id="sidebar-container"></div>
+
+<div class="page">
+
+  <!-- PURPOSE CARDS -->
+  <div class="purpose-section">
+    <div class="purpose-section-label">วัตถุประสงค์การเบิก <span style="color:var(--danger)">*</span></div>
+    <div class="purpose-grid" id="purposeGrid">
+      <!-- populated by JS -->
+    </div>
+  </div>
+
+  <!-- STATUS STEPS -->
+  <div class="status-bar">
+    <div class="step active"><div class="step-circle">1</div><div class="step-label">กรอกข้อมูล</div></div>
+    <div class="step-line"></div>
+    <div class="step pending"><div class="step-circle">2</div><div class="step-label">รออนุมัติ</div></div>
+    <div class="step-line"></div>
+    <div class="step pending"><div class="step-circle">3</div><div class="step-label">อนุมัติแล้ว</div></div>
+    <div class="step-line"></div>
+    <div class="step pending"><div class="step-circle">4</div><div class="step-label">จ่ายของออก</div></div>
+    <div class="step-line"></div>
+    <div class="step pending"><div class="step-circle">✓</div><div class="step-label">เสร็จสิ้น</div></div>
+  </div>
+
+  <!-- REQ NUMBER & INFO -->
+  <div class="card">
+    <div class="card-body">
+      <div class="req-header">
+        <div>
+          <div class="req-number-label">เลขที่ใบเบิก</div>
+          <div class="req-number-value" id="reqNumberDisplay">REQ-2025-001</div>
+        </div>
+        <span class="req-status-badge badge-draft" id="statusBadge">● DRAFT</span>
+      </div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label">เลขที่ REQ <span class="required">*</span></label>
+          <div class="input-prefix">
+            <span class="input-prefix-text" id="reqPrefix">REQ-2025-</span>
+            <input type="text" class="form-control" id="reqNumber" placeholder="001" value="001"
+              oninput="document.getElementById('reqNumberDisplay').textContent=document.getElementById('reqPrefix').textContent+this.value">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">วันที่เบิก <span class="required">*</span></label>
+          <input type="date" class="form-control" id="reqDate">
+        </div>
+        <div class="form-group">
+          <label class="form-label">แผนกที่เบิก <span class="required">*</span></label>
+          <select class="form-control" id="deptId"><option value="">— เลือกแผนก —</option></select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">คลังที่เบิก <span class="required">*</span></label>
+          <select class="form-control" id="warehouseId"><option value="">— เลือกคลัง —</option></select>
+        </div>
+      </div>
+
+      <!-- APPROVER BLOCK -->
+      <div class="approver-block">
+        <span class="approver-icon">🔐</span>
+        <div class="approver-content">
+          <div class="form-group">
+            <div class="approver-label">ผู้ขอเบิก <span style="color:var(--danger)">*</span></div>
+            <select class="form-control" id="requestedBy"><option value="">— เลือกผู้ขอเบิก —</option></select>
+          </div>
+          <div class="form-group">
+            <div class="approver-label">ผู้อนุมัติ</div>
+            <select class="form-control" id="approvedBy"><option value="">— เลือกผู้อนุมัติ —</option></select>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ITEMS -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title"><div class="card-title-icon">📋</div>รายการสินค้าที่ขอเบิก</div>
+      <div style="font-size:12px;color:var(--text3)" id="itemCount">0 รายการ</div>
+    </div>
+    <div class="card-body">
+      <div class="items-table-wrap">
+        <table class="items-table">
+          <thead><tr>
+            <th style="width:40px">#</th>
+            <th style="min-width:200px">สินค้า <span style="color:var(--danger)">*</span></th>
+            <th style="width:110px">หน่วย</th>
+            <th style="width:110px">จำนวนที่ขอ <span style="color:var(--danger)">*</span></th>
+            <th style="width:110px">จำนวนอนุมัติ</th>
+            <th style="width:110px">จำนวนจ่ายจริง</th>
+            <th style="width:150px">หมายเหตุรายการ</th>
+            <th style="width:40px"></th>
+          </tr></thead>
+          <tbody id="itemsBody"></tbody>
+        </table>
+      </div>
+      <button class="btn-add-row" onclick="addItemRow()">＋ เพิ่มรายการสินค้า</button>
+      <div class="summary-block">
+        <div class="summary-table">
+          <div class="summary-row">
+            <span class="summary-label">รายการทั้งหมด</span>
+            <span class="summary-value" id="totalItemsDisplay">0 รายการ</span>
+          </div>
+          <div class="summary-row summary-total">
+            <span class="summary-label">จำนวนรวมที่ขอเบิก</span>
+            <span class="summary-value" id="totalQtyDisplay">0 ชิ้น</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- NOTE -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title"><div class="card-title-icon">📝</div>หมายเหตุ / รายละเอียดเพิ่มเติม</div>
+    </div>
+    <div class="card-body">
+      <textarea class="form-control" id="note"
+        placeholder="ระบุรายละเอียดการใช้งาน เช่น ชื่องาน, วันที่จัดงาน, สถานที่..."></textarea>
+    </div>
+  </div>
+
+</div>
+
+<!-- FOOTER -->
+<div class="form-footer">
+  <div class="footer-left">
+    <button class="btn btn-danger-outline" onclick="resetForm()">🗑 ล้างข้อมูล</button>
+  </div>
+  <div class="footer-right">
+    <button class="btn btn-outline" onclick="saveDraft()">💾 Draft</button>
+    <button class="btn btn-warning" onclick="previewREQ()">👁 Preview</button>
+    <button class="btn btn-success" onclick="submitREQ()">📤 ส่งอนุมัติ</button>
+  </div>
+</div>
+
+<script src="../../shared/auth.js"></script>
+<script src="../../shared/responsive.js"></script>
+<script src="../../shared/sidebar.js"></script>
+<script src="requisition.js"></script>
+</body>
+</html>

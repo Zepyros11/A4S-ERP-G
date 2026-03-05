@@ -1,0 +1,1777 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>รายการสินค้า — A4S-ERP</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../../assets/css/common.css" />
+    <style>
+      :root {
+        --panel-w: 380px;
+      }
+      .stats-row {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 14px;
+        margin-bottom: 20px;
+      }
+      .stat-card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 16px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        box-shadow: var(--shadow);
+      }
+      .stat-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 9px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+        flex-shrink: 0;
+      }
+      .stat-label {
+        font-size: 11px;
+        color: var(--text3);
+        font-weight: 600;
+        letter-spacing: 0.5px;
+      }
+      .stat-value {
+        font-size: 22px;
+        font-weight: 700;
+        line-height: 1.2;
+        margin-top: 2px;
+      }
+      .toolbar {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+      }
+      .search-wrap {
+        position: relative;
+        flex: 1;
+        min-width: 200px;
+        max-width: 340px;
+      }
+      .search-icon {
+        position: absolute;
+        left: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 14px;
+        color: var(--text3);
+        pointer-events: none;
+      }
+      .search-input {
+        width: 100%;
+        padding: 9px 12px 9px 34px;
+        border: 1.5px solid var(--border);
+        border-radius: 8px;
+        font-size: 13.5px;
+        font-family: "Sarabun", sans-serif;
+        background: var(--surface);
+        outline: none;
+        transition: all 0.18s;
+      }
+      .search-input:focus {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px rgba(15, 76, 117, 0.08);
+      }
+      .filter-select {
+        padding: 9px 30px 9px 12px;
+        border: 1.5px solid var(--border);
+        border-radius: 8px;
+        font-size: 13px;
+        font-family: "Sarabun", sans-serif;
+        background: var(--surface);
+        color: var(--text2);
+        outline: none;
+        cursor: pointer;
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%239ca3af' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 10px center;
+      }
+      .toolbar-right {
+        margin-left: auto;
+        display: flex;
+        gap: 8px;
+      }
+      .content-wrap {
+        display: flex;
+        gap: 16px;
+        align-items: flex-start;
+      }
+      .table-card {
+        flex: 1;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
+        overflow: hidden;
+        min-width: 0;
+      }
+      .table-header {
+        padding: 14px 20px;
+        border-bottom: 1px solid var(--border);
+        background: var(--surface2);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .table-title {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text2);
+      }
+      .table-count {
+        font-size: 12px;
+        color: var(--text3);
+        font-family: "IBM Plex Mono", monospace;
+      }
+      .prod-table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      .prod-table th {
+        padding: 10px 16px;
+        background: var(--surface2);
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.8px;
+        color: var(--text3);
+        text-align: left;
+        border-bottom: 2px solid var(--border);
+        white-space: nowrap;
+        cursor: pointer;
+        user-select: none;
+      }
+      .prod-table th:hover {
+        color: var(--accent);
+      }
+      .prod-table td {
+        padding: 11px 16px;
+        border-bottom: 1px solid var(--border);
+        font-size: 13.5px;
+        vertical-align: middle;
+      }
+      .prod-table tr:last-child td {
+        border-bottom: none;
+      }
+      .prod-table tr {
+        cursor: pointer;
+        transition: background 0.12s;
+      }
+      .prod-table tr:hover td {
+        background: var(--accent-pale);
+      }
+      .prod-table tr.selected td {
+        background: #dbeafe;
+      }
+      .prod-code {
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 12px;
+        color: var(--text3);
+      }
+      .prod-name {
+        font-weight: 500;
+        color: var(--text);
+      }
+      .prod-category {
+        font-size: 12px;
+        color: var(--text2);
+        margin-top: 2px;
+      }
+      .stock-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 3px 8px;
+        border-radius: 5px;
+        font-size: 12px;
+        font-weight: 600;
+        font-family: "IBM Plex Mono", monospace;
+        white-space: nowrap;
+      }
+      .stock-ok {
+        background: var(--success-pale);
+        color: var(--success);
+      }
+      .stock-low {
+        background: var(--warning-pale);
+        color: var(--warning);
+      }
+      .stock-out {
+        background: var(--danger-pale);
+        color: var(--danger);
+      }
+      .side-panel {
+        width: var(--panel-w);
+        min-width: var(--panel-w);
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow-lg);
+        display: none;
+        flex-direction: column;
+        max-height: calc(100vh - 100px);
+        overflow-y: auto;
+        position: sticky;
+        top: 76px;
+        animation: slideIn 0.2s ease;
+      }
+      .side-panel.open {
+        display: flex;
+      }
+      @keyframes slideIn {
+        from {
+          opacity: 0;
+          transform: translateX(16px);
+        }
+        to {
+          opacity: 1;
+          transform: translateX(0);
+        }
+      }
+      .panel-header {
+        padding: 16px 20px;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 10px;
+        background: var(--surface2);
+      }
+      .panel-prod-code {
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 11px;
+        color: var(--text3);
+        margin-bottom: 3px;
+      }
+      .panel-prod-name {
+        font-size: 15px;
+        font-weight: 700;
+        color: var(--text);
+        margin-bottom: 4px;
+      }
+      .panel-category-badge {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 11px;
+        font-weight: 600;
+        background: var(--accent-pale);
+        color: var(--accent);
+      }
+      .btn-close-panel {
+        width: 28px;
+        height: 28px;
+        border: none;
+        background: var(--bg);
+        border-radius: 6px;
+        cursor: pointer;
+        color: var(--text3);
+        font-size: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        transition: all 0.15s;
+      }
+      .btn-close-panel:hover {
+        background: var(--danger-pale);
+        color: var(--danger);
+      }
+      .panel-body {
+        padding: 16px 20px;
+        flex: 1;
+      }
+      .panel-tabs {
+        display: flex;
+        gap: 4px;
+        margin-bottom: 14px;
+        background: var(--bg);
+        border-radius: 8px;
+        padding: 4px;
+      }
+      .panel-tab {
+        flex: 1;
+        padding: 7px 4px;
+        border: none;
+        background: transparent;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 600;
+        font-family: "Sarabun", sans-serif;
+        cursor: pointer;
+        color: var(--text3);
+        transition: all 0.15s;
+      }
+      .panel-tab.active {
+        background: var(--surface);
+        color: var(--accent);
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+      }
+      .panel-tab-content {
+        display: none;
+      }
+      .panel-tab-content.active {
+        display: block;
+      }
+      .info-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+      }
+      .info-item {
+        background: var(--surface2);
+        border-radius: 7px;
+        padding: 10px 12px;
+      }
+      .info-label {
+        font-size: 10px;
+        font-weight: 700;
+        color: var(--text3);
+        letter-spacing: 0.8px;
+        margin-bottom: 3px;
+      }
+      .info-value {
+        font-size: 13.5px;
+        font-weight: 500;
+        color: var(--text);
+      }
+      .info-value.price {
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 14px;
+        font-weight: 700;
+        color: var(--accent);
+      }
+      .unit-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 8px;
+      }
+      .unit-badge {
+        padding: 3px 8px;
+        border-radius: 5px;
+        font-size: 11px;
+        font-family: "IBM Plex Mono", monospace;
+        background: var(--accent-pale);
+        color: var(--accent);
+        font-weight: 500;
+      }
+      .stock-table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      .stock-table th {
+        padding: 9px 12px;
+        background: var(--surface2);
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.8px;
+        color: var(--text3);
+        text-align: left;
+        border-bottom: 2px solid var(--border);
+      }
+      .stock-table td {
+        padding: 10px 12px;
+        border-bottom: 1px solid var(--border);
+        font-size: 13px;
+      }
+      .stock-table tr:last-child td {
+        border-bottom: none;
+      }
+      .wh-name {
+        font-weight: 500;
+      }
+      .qty-value {
+        font-family: "IBM Plex Mono", monospace;
+        font-weight: 600;
+      }
+      .qty-ok {
+        color: var(--success);
+      }
+      .qty-low {
+        color: var(--warning);
+      }
+      .qty-zero {
+        color: var(--danger);
+      }
+      .hist-item {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        padding: 10px 0;
+        border-bottom: 1px solid var(--border);
+      }
+      .hist-item:last-child {
+        border-bottom: none;
+      }
+      .hist-dot {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        flex-shrink: 0;
+        margin-top: 2px;
+      }
+      .dot-in {
+        background: var(--success-pale);
+        color: var(--success);
+      }
+      .dot-out {
+        background: var(--danger-pale);
+        color: var(--danger);
+      }
+      .dot-adj {
+        background: var(--warning-pale);
+        color: var(--warning);
+      }
+      .hist-body {
+        flex: 1;
+      }
+      .hist-type {
+        font-size: 12px;
+        font-weight: 600;
+      }
+      .hist-ref {
+        font-size: 11px;
+        color: var(--text3);
+        font-family: "IBM Plex Mono", monospace;
+      }
+      .hist-qty {
+        font-family: "IBM Plex Mono", monospace;
+        font-weight: 600;
+        font-size: 13px;
+        text-align: right;
+        flex-shrink: 0;
+      }
+      .hist-date {
+        font-size: 10px;
+        color: var(--text3);
+        margin-top: 2px;
+      }
+      .panel-actions {
+        padding: 14px 20px;
+        border-top: 1px solid var(--border);
+        display: flex;
+        gap: 8px;
+        background: var(--surface2);
+        position: sticky;
+        bottom: 0;
+      }
+      .panel-actions .btn {
+        flex: 1;
+        justify-content: center;
+        font-size: 12.5px;
+        padding: 8px 12px;
+      }
+      .modal-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 300;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.2s;
+        backdrop-filter: blur(4px);
+      }
+      .modal-overlay.open {
+        opacity: 1;
+        pointer-events: all;
+      }
+      .modal {
+        background: var(--surface);
+        border-radius: 14px;
+        width: 860px;
+        max-width: 96vw;
+        max-height: 92vh;
+        display: flex;
+        flex-direction: column;
+        box-shadow: 0 24px 60px rgba(0, 0, 0, 0.2);
+        transform: scale(0.96);
+        transition: transform 0.2s;
+        overflow: hidden;
+      }
+      .modal-overlay.open .modal {
+        transform: scale(1);
+      }
+      .modal-header {
+        padding: 18px 24px 14px;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-shrink: 0;
+        background: var(--surface2);
+      }
+      .modal-title {
+        font-size: 16px;
+        font-weight: 700;
+      }
+      .btn-modal-close {
+        width: 30px;
+        height: 30px;
+        border-radius: 6px;
+        border: none;
+        background: var(--bg);
+        color: var(--text3);
+        cursor: pointer;
+        font-size: 18px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.15s;
+      }
+      .btn-modal-close:hover {
+        background: var(--danger-pale);
+        color: var(--danger);
+      }
+      .modal-body {
+        display: flex;
+        flex: 1;
+        min-height: 0;
+        overflow: hidden;
+      }
+      .modal-col-left {
+        width: 340px;
+        min-width: 340px;
+        border-right: 1px solid var(--border);
+        overflow-y: auto;
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+      .modal-col-right {
+        flex: 1;
+        overflow-y: auto;
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+      .modal-footer {
+        padding: 14px 24px;
+        border-top: 1px solid var(--border);
+        display: flex;
+        gap: 10px;
+        justify-content: flex-end;
+        background: var(--surface2);
+        flex-shrink: 0;
+      }
+      .modal-col-title {
+        font-size: 10px;
+        font-weight: 700;
+        color: var(--text3);
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        padding-bottom: 8px;
+        border-bottom: 1px solid var(--border);
+        margin-bottom: 2px;
+      }
+      .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+      }
+      .form-label {
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--text2);
+        letter-spacing: 0.5px;
+      }
+      .form-label .req {
+        color: var(--danger);
+      }
+      .form-control {
+        padding: 9px 12px;
+        border: 1.5px solid var(--border);
+        border-radius: 7px;
+        font-size: 13.5px;
+        font-family: "Sarabun", sans-serif;
+        color: var(--text);
+        background: var(--surface);
+        transition: all 0.18s;
+        outline: none;
+        appearance: none;
+      }
+      .form-control:focus {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px rgba(15, 76, 117, 0.08);
+      }
+      select.form-control {
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%239ca3af' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 10px center;
+        padding-right: 30px;
+        cursor: pointer;
+      }
+      .form-grid-modal {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
+      }
+      .section-label {
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--text3);
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        margin: 16px 0 10px;
+        padding-bottom: 6px;
+        border-bottom: 1px solid var(--border);
+      }
+      .empty-state {
+        padding: 60px 20px;
+        text-align: center;
+        color: var(--text3);
+      }
+      .empty-icon {
+        font-size: 40px;
+        margin-bottom: 12px;
+      }
+      .empty-text {
+        font-size: 14px;
+      }
+      /* ── Tablet (≤1024px) ── */
+      @media (max-width: 1024px) {
+        .stats-row {
+          grid-template-columns: repeat(2, 1fr);
+          gap: 10px;
+        }
+        .side-panel {
+          position: fixed;
+          right: 16px;
+          top: 76px;
+          max-height: calc(100vh - 90px);
+          z-index: 90;
+          width: 340px;
+          min-width: 340px;
+        }
+        .toolbar {
+          flex-wrap: wrap;
+        }
+        .search-wrap {
+          max-width: 100%;
+        }
+      }
+
+      /* ── Mobile (≤767px) ── */
+      @media (max-width: 767px) {
+        .stats-row {
+          grid-template-columns: 1fr 1fr;
+          gap: 8px;
+          margin-bottom: 14px;
+        }
+        .stat-card {
+          padding: 12px;
+          gap: 10px;
+        }
+        .stat-icon {
+          width: 34px;
+          height: 34px;
+          font-size: 15px;
+        }
+        .stat-value {
+          font-size: 18px;
+        }
+        .stat-label {
+          font-size: 10px;
+        }
+
+        .toolbar {
+          flex-direction: column;
+          align-items: stretch;
+          gap: 8px;
+          margin-bottom: 14px;
+        }
+        .search-wrap {
+          max-width: 100%;
+        }
+        .filter-select {
+          width: 100%;
+        }
+        .toolbar-right {
+          margin-left: 0;
+          display: flex;
+          gap: 8px;
+        }
+        .toolbar-right .btn {
+          flex: 1;
+          justify-content: center;
+        }
+
+        .prod-table th:nth-child(4),
+        .prod-table td:nth-child(4) {
+          display: none;
+        }
+        .prod-table th:nth-child(7),
+        .prod-table td:nth-child(7) {
+          display: none;
+        }
+
+        .side-panel {
+          position: fixed;
+          inset: 0;
+          width: 100% !important;
+          min-width: unset !important;
+          max-height: 100%;
+          border-radius: 0;
+          border: none;
+          top: 0;
+          z-index: 250;
+          animation: slideUp 0.25s ease;
+        }
+
+        .modal-overlay {
+          align-items: flex-end;
+        }
+        .modal {
+          width: 100% !important;
+          max-width: 100% !important;
+          max-height: 95vh;
+          border-radius: 16px 16px 0 0;
+          transform: translateY(30px);
+        }
+        .modal-overlay.open .modal {
+          transform: translateY(0);
+        }
+        .modal-body {
+          flex-direction: column;
+        }
+        .modal-col-left {
+          width: 100%;
+          min-width: 0;
+          border-right: none;
+          border-bottom: 1px solid var(--border);
+          max-height: 260px;
+        }
+        .modal-col-right {
+          flex: 1;
+        }
+        .modal-header {
+          padding: 14px 16px 12px;
+        }
+        .modal-body > div {
+          padding: 14px 16px;
+        }
+        .modal-footer {
+          padding: 10px 16px;
+        }
+        .form-grid-modal {
+          grid-template-columns: 1fr;
+          gap: 10px;
+        }
+      }
+
+      /* ── Custom Confirm Dialog ── */
+      .confirm-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(10, 15, 30, 0.55);
+        z-index: 400;
+        align-items: center;
+        justify-content: center;
+        backdrop-filter: blur(6px);
+        -webkit-backdrop-filter: blur(6px);
+        animation: confirmFadeIn 0.18s ease;
+      }
+      .confirm-overlay.open {
+        display: flex;
+      }
+      @keyframes confirmFadeIn {
+        from {
+          opacity: 0;
+        }
+        to {
+          opacity: 1;
+        }
+      }
+      .confirm-dialog {
+        background: var(--surface);
+        border-radius: 20px;
+        width: 380px;
+        max-width: 92vw;
+        box-shadow:
+          0 0 0 1px rgba(0, 0, 0, 0.06),
+          0 8px 24px rgba(0, 0, 0, 0.12),
+          0 32px 64px rgba(0, 0, 0, 0.16);
+        animation: confirmSlideUp 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 32px 28px 24px;
+        gap: 0;
+        text-align: center;
+      }
+      @keyframes confirmSlideUp {
+        from {
+          opacity: 0;
+          transform: scale(0.88) translateY(16px);
+        }
+        to {
+          opacity: 1;
+          transform: scale(1) translateY(0);
+        }
+      }
+      .confirm-icon-wrap {
+        width: 60px;
+        height: 60px;
+        border-radius: 16px;
+        background: var(--danger-pale);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 18px;
+        flex-shrink: 0;
+        border: 1.5px solid rgba(155, 28, 28, 0.12);
+      }
+      .confirm-icon-wrap svg {
+        width: 28px;
+        height: 28px;
+        color: var(--danger);
+        stroke: var(--danger);
+      }
+      .confirm-content {
+        margin-bottom: 24px;
+      }
+      .confirm-title {
+        font-size: 17px;
+        font-weight: 700;
+        color: var(--text);
+        margin-bottom: 8px;
+        letter-spacing: -0.2px;
+      }
+      .confirm-msg {
+        font-size: 13.5px;
+        color: var(--text2);
+        line-height: 1.65;
+      }
+      .confirm-actions {
+        display: flex;
+        gap: 10px;
+        width: 100%;
+      }
+      .confirm-btn {
+        flex: 1;
+        padding: 11px 16px;
+        border-radius: 10px;
+        font-size: 14px;
+        font-family: "Sarabun", sans-serif;
+        font-weight: 600;
+        cursor: pointer;
+        border: none;
+        transition: all 0.18s;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        letter-spacing: 0.1px;
+      }
+      .confirm-btn-cancel {
+        background: var(--surface2);
+        color: var(--text2);
+        border: 1.5px solid var(--border);
+      }
+      .confirm-btn-cancel:hover {
+        background: var(--bg);
+        border-color: var(--border2);
+        color: var(--text);
+      }
+      .confirm-btn-ok {
+        background: var(--danger);
+        color: #fff;
+        box-shadow: 0 2px 8px rgba(155, 28, 28, 0.3);
+      }
+      .confirm-btn-ok:hover {
+        background: #7f1d1d;
+        box-shadow: 0 4px 12px rgba(155, 28, 28, 0.4);
+        transform: translateY(-1px);
+      }
+      .confirm-btn-ok:active {
+        transform: translateY(0);
+      }
+      .confirm-btn-ok svg {
+        width: 14px;
+        height: 14px;
+        stroke: #fff;
+      }
+
+      /* ── XS Mobile (≤480px) ── */
+      @media (max-width: 480px) {
+        .stats-row {
+          gap: 6px;
+        }
+        .stat-value {
+          font-size: 16px;
+        }
+        .stat-label {
+          display: none;
+        }
+        .stat-card {
+          padding: 10px 12px;
+          gap: 8px;
+        }
+
+        .prod-table th:nth-child(5),
+        .prod-table td:nth-child(5) {
+          display: none;
+        }
+        .prod-table th:nth-child(6),
+        .prod-table td:nth-child(6) {
+          display: none;
+        }
+        .prod-table td {
+          padding: 9px 10px;
+          font-size: 12.5px;
+        }
+        .prod-table th {
+          padding: 8px 10px;
+        }
+        .prod-code {
+          font-size: 11px;
+        }
+
+        .panel-tabs .panel-tab {
+          font-size: 11px;
+          padding: 6px 2px;
+        }
+      }
+
+      /* ── Product Image Thumbnail ── */
+      .prod-img-wrap {
+        width: 52px;
+        height: 52px;
+        border-radius: 8px;
+        overflow: hidden;
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        margin: 0 auto;
+      }
+      .prod-img-wrap img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+      }
+      .prod-img-placeholder {
+        font-size: 22px;
+        line-height: 1;
+        color: var(--text3);
+      }
+
+      /* ── Side panel image ── */
+      .panel-img-wrap {
+        width: 100%;
+        height: 180px;
+        overflow: hidden;
+        background: var(--surface2);
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .panel-img-wrap img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+      }
+      .panel-img-placeholder {
+        font-size: 48px;
+        color: var(--text3);
+      }
+
+      /* ── Image Lightbox ── */
+      .prod-img-wrap {
+        cursor: zoom-in;
+        transition: opacity 0.15s;
+      }
+      .prod-img-wrap:hover {
+        opacity: 0.82;
+      }
+
+      .lightbox-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.88);
+        z-index: 500;
+        align-items: center;
+        justify-content: center;
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        animation: lbFadeIn 0.2s ease;
+      }
+      .lightbox-overlay.open {
+        display: flex;
+      }
+      @keyframes lbFadeIn {
+        from {
+          opacity: 0;
+        }
+        to {
+          opacity: 1;
+        }
+      }
+      .lightbox-box {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        max-width: 90vw;
+        max-height: 90vh;
+        animation: lbSlideUp 0.22s cubic-bezier(0.34, 1.36, 0.64, 1);
+      }
+      @keyframes lbSlideUp {
+        from {
+          opacity: 0;
+          transform: scale(0.9);
+        }
+        to {
+          opacity: 1;
+          transform: scale(1);
+        }
+      }
+      .lightbox-img-wrap {
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: min(780px, 88vw);
+        height: min(520px, 72vh);
+        background: rgba(255, 255, 255, 0.04);
+        border-radius: 14px;
+        overflow: hidden;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+      }
+      .lightbox-img-wrap img {
+        max-width: 100%;
+        max-height: 100%;
+        object-fit: contain;
+        border-radius: 8px;
+        transition: opacity 0.18s;
+      }
+      .lightbox-img-wrap img.fading {
+        opacity: 0;
+      }
+      .lightbox-arrow {
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        border: none;
+        background: rgba(255, 255, 255, 0.12);
+        color: #fff;
+        font-size: 20px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background 0.15s;
+        z-index: 2;
+        backdrop-filter: blur(4px);
+        user-select: none;
+      }
+      .lightbox-arrow:hover {
+        background: rgba(255, 255, 255, 0.28);
+      }
+      .lightbox-arrow:active {
+        transform: translateY(-50%) scale(0.92);
+      }
+      .lightbox-arrow.prev {
+        left: 12px;
+      }
+      .lightbox-arrow.next {
+        right: 12px;
+      }
+      .lightbox-arrow.hidden {
+        display: none !important;
+      }
+      .lightbox-footer {
+        margin-top: 14px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+      }
+      .lightbox-title {
+        color: #fff;
+        font-size: 14px;
+        font-weight: 600;
+        text-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+      }
+      .lightbox-counter {
+        color: rgba(255, 255, 255, 0.5);
+        font-size: 12px;
+        font-family: "IBM Plex Mono", monospace;
+      }
+      .lightbox-dots {
+        display: flex;
+        gap: 7px;
+      }
+      .lightbox-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.3);
+        border: none;
+        cursor: pointer;
+        transition:
+          background 0.15s,
+          transform 0.15s;
+        padding: 0;
+      }
+      .lightbox-dot.active {
+        background: #fff;
+        transform: scale(1.3);
+      }
+      .lightbox-thumbs {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        justify-content: center;
+        max-width: min(780px, 88vw);
+      }
+      .lightbox-thumb {
+        width: 54px;
+        height: 54px;
+        border-radius: 7px;
+        overflow: hidden;
+        cursor: pointer;
+        border: 2px solid transparent;
+        transition:
+          border-color 0.15s,
+          opacity 0.15s;
+        background: rgba(255, 255, 255, 0.06);
+      }
+      .lightbox-thumb img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+      .lightbox-thumb.active {
+        border-color: #fff;
+        opacity: 1;
+      }
+      .lightbox-thumb:not(.active) {
+        opacity: 0.5;
+      }
+      .lightbox-thumb:hover:not(.active) {
+        opacity: 0.85;
+      }
+      .lightbox-close {
+        position: fixed;
+        top: 18px;
+        right: 22px;
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        border: none;
+        background: rgba(255, 255, 255, 0.12);
+        color: #fff;
+        font-size: 20px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background 0.15s;
+        backdrop-filter: blur(4px);
+        z-index: 3;
+      }
+      .lightbox-close:hover {
+        background: rgba(255, 255, 255, 0.25);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="loading-overlay" id="loadingOverlay">
+      <div class="spinner"></div>
+    </div>
+    <div class="toast" id="toast"></div>
+
+    <div class="topbar">
+      <div class="topbar-logo">📦 <span>A4S</span>-ERP</div>
+      <div class="topbar-sep"></div>
+      <div class="topbar-title">รายการสินค้า</div>
+      <div class="topbar-actions">
+        <button
+          class="btn-topbar btn-primary-top"
+          onclick="window.location.href = 'product_form.html'"
+        >
+          ＋ เพิ่มสินค้า
+        </button>
+      </div>
+    </div>
+    <div id="sidebar-container"></div>
+
+    <!-- MODAL -->
+    <div
+      class="modal-overlay"
+      id="modalOverlay"
+      onclick="closeModalOnBg(event)"
+    >
+      <div class="modal">
+        <div class="modal-header">
+          <div style="display: flex; align-items: center; gap: 10px">
+            <div class="modal-title" id="modalTitle">เพิ่มสินค้าใหม่</div>
+            <div
+              id="modalSkuBadge"
+              style="
+                display: none;
+                font-family: monospace;
+                font-size: 12px;
+                font-weight: 700;
+                background: var(--accent-pale);
+                color: var(--accent);
+                padding: 3px 10px;
+                border-radius: 5px;
+              "
+            ></div>
+          </div>
+          <button class="btn-modal-close" onclick="closeModal()">✕</button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="editProductId" />
+          <div class="modal-col-left">
+            <div class="modal-col-title">📦 หมวดหมู่ &amp; รหัสสินค้า</div>
+            <div class="form-group">
+              <label class="form-label"
+                >หมวดหมู่ <span class="req">*</span></label
+              >
+              <select
+                class="form-control"
+                id="fCategory"
+                onchange="onCategoryChange()"
+              >
+                <option value="">— เลือกหมวดหมู่ก่อน —</option>
+              </select>
+            </div>
+            <div id="skuBuilderWrap" style="display: none">
+              <label
+                class="form-label"
+                style="margin-bottom: 8px; display: block"
+                >รหัสสินค้า (SKU) <span class="req">*</span></label
+              >
+              <div
+                id="skuColsGrid"
+                style="display: flex; flex-direction: column; gap: 10px"
+              ></div>
+              <div
+                style="
+                  margin-top: 12px;
+                  padding: 10px 14px;
+                  background: var(--accent-pale);
+                  border-radius: 8px;
+                  border: 1.5px solid #93c5fd;
+                "
+              >
+                <div
+                  style="
+                    font-size: 10px;
+                    font-weight: 700;
+                    color: var(--text3);
+                    letter-spacing: 0.8px;
+                    margin-bottom: 3px;
+                  "
+                >
+                  SKU PREVIEW
+                </div>
+                <div
+                  style="
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                  "
+                >
+                  <span
+                    id="skuFinalPreview"
+                    style="
+                      font-family: monospace;
+                      font-size: 15px;
+                      font-weight: 700;
+                      color: var(--accent);
+                      letter-spacing: 1px;
+                    "
+                    >—</span
+                  >
+                  <span
+                    id="skuDupWarn"
+                    style="font-size: 11px; color: var(--danger); display: none"
+                    >⚠️ ซ้ำ!</span
+                  >
+                </div>
+              </div>
+            </div>
+            <div
+              id="skuPlaceholder"
+              style="
+                flex: 1;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                text-align: center;
+                padding: 20px;
+                color: var(--text3);
+                gap: 8px;
+              "
+            >
+              <div style="font-size: 32px">🏷️</div>
+              <div style="font-size: 13px; font-weight: 600">
+                เลือกหมวดหมู่ก่อน
+              </div>
+              <div style="font-size: 11px">
+                ระบบจะสร้าง SKU Format ตามที่กำหนดไว้
+              </div>
+            </div>
+          </div>
+          <div class="modal-col-right">
+            <div class="modal-col-title">📋 ข้อมูลสินค้า</div>
+            <div
+              id="prodFieldsPlaceholder"
+              style="
+                flex: 1;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                text-align: center;
+                padding: 40px 20px;
+                color: var(--text3);
+                gap: 8px;
+              "
+            >
+              <div style="font-size: 32px">📝</div>
+              <div style="font-size: 13px; font-weight: 600">
+                รอเลือกหมวดหมู่
+              </div>
+              <div style="font-size: 11px">
+                กรอกข้อมูลสินค้าหลังเลือกหมวดหมู่แล้ว
+              </div>
+            </div>
+            <div
+              id="prodFieldsContent"
+              style="display: none; flex-direction: column; gap: 14px"
+            >
+              <div class="form-group">
+                <label class="form-label"
+                  >ชื่อสินค้า <span class="req">*</span></label
+                >
+                <input
+                  class="form-control"
+                  id="fName"
+                  placeholder="ชื่อสินค้า"
+                />
+              </div>
+              <div class="form-grid-modal">
+                <div class="form-group">
+                  <label class="form-label"
+                    >หน่วยฐาน <span class="req">*</span></label
+                  >
+                  <input
+                    class="form-control"
+                    id="fBaseUnit"
+                    placeholder="ชิ้น"
+                  />
+                </div>
+                <div class="form-group">
+                  <label class="form-label">จุดสั่งซื้อ (Reorder)</label>
+                  <input
+                    class="form-control"
+                    id="fReorder"
+                    type="number"
+                    min="0"
+                    placeholder="0"
+                  />
+                </div>
+              </div>
+              <div class="section-label" style="margin: 0">ราคา</div>
+              <div class="form-grid-modal">
+                <div class="form-group">
+                  <label class="form-label">ราคาทุน (฿)</label>
+                  <input
+                    class="form-control"
+                    id="fCost"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder="0.00"
+                  />
+                </div>
+                <div class="form-group">
+                  <label class="form-label">ราคาขาย (฿)</label>
+                  <input
+                    class="form-control"
+                    id="fSale"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder="0.00"
+                  />
+                </div>
+              </div>
+              <div class="section-label" style="margin: 0">
+                หน่วยนับ (Units)
+              </div>
+              <div id="unitsContainer"></div>
+              <button
+                class="btn btn-outline"
+                style="width: 100%; justify-content: center"
+                onclick="addUnitRow()"
+              >
+                ＋ เพิ่มหน่วยนับ
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-outline" onclick="closeModal()">ยกเลิก</button>
+          <button
+            class="btn btn-primary"
+            onclick="saveProduct()"
+            id="btnSave"
+            style="display: none"
+          >
+            💾 บันทึกสินค้า
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="page">
+      <div class="stats-row">
+        <div class="stat-card">
+          <div class="stat-icon" style="background: #e0f2fe; color: #0369a1">
+            📦
+          </div>
+          <div>
+            <div class="stat-label">สินค้าทั้งหมด</div>
+            <div class="stat-value" id="statTotal">—</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div
+            class="stat-icon"
+            style="background: var(--success-pale); color: var(--success)"
+          >
+            ✅
+          </div>
+          <div>
+            <div class="stat-label">Stock ปกติ</div>
+            <div class="stat-value" id="statOk">—</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div
+            class="stat-icon"
+            style="background: var(--warning-pale); color: var(--warning)"
+          >
+            ⚠️
+          </div>
+          <div>
+            <div class="stat-label">Stock ต่ำ</div>
+            <div class="stat-value" id="statLow">—</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div
+            class="stat-icon"
+            style="background: var(--danger-pale); color: var(--danger)"
+          >
+            🚨
+          </div>
+          <div>
+            <div class="stat-label">หมด Stock</div>
+            <div class="stat-value" id="statOut">—</div>
+          </div>
+        </div>
+      </div>
+      <div class="toolbar">
+        <div class="search-wrap">
+          <span class="search-icon">🔍</span>
+          <input
+            class="search-input"
+            id="searchInput"
+            placeholder="ค้นหาชื่อหรือรหัสสินค้า..."
+            oninput="filterTable()"
+          />
+        </div>
+        <select
+          class="filter-select"
+          id="filterCategory"
+          onchange="filterTable()"
+        >
+          <option value="">ทุกหมวดหมู่</option>
+        </select>
+        <select
+          class="filter-select"
+          id="filterWarehouse"
+          onchange="filterTable()"
+        >
+          <option value="">ทุกคลัง</option>
+        </select>
+        <select
+          class="filter-select"
+          id="filterStatus"
+          onchange="filterTable()"
+        >
+          <option value="">ทุกสถานะ Stock</option>
+          <option value="ok">Stock ปกติ</option>
+          <option value="low">Stock ต่ำ</option>
+          <option value="out">หมด Stock</option>
+        </select>
+        <div class="toolbar-right">
+          <button
+            class="btn btn-danger-outline"
+            id="btnDeleteSelected"
+            style="display: none"
+            onclick="deleteSelectedProducts()"
+          >
+            🗑 ลบที่เลือก
+          </button>
+
+          <button class="btn btn-outline" onclick="loadData()">
+            🔄 รีเฟรช
+          </button>
+        </div>
+      </div>
+      <div class="content-wrap">
+        <div class="table-card" id="tableCard">
+          <div class="table-header">
+            <span class="table-title">รายการสินค้า</span>
+            <span class="table-count" id="tableCount">0 รายการ</span>
+          </div>
+          <div style="overflow-x: auto">
+            <table class="prod-table">
+              <thead>
+                <tr>
+                  <th style="width: 40px; text-align: center">
+                    <input
+                      type="checkbox"
+                      id="checkAll"
+                      onchange="toggleCheckAll(this)"
+                    />
+                  </th>
+                  <th style="width: 68px; text-align: center">ภาพ</th>
+                  <th onclick="sortTable('product_name')">ชื่อสินค้า ↕</th>
+                  <th>หมวดหมู่</th>
+                  <th onclick="sortTable('sale_price')">ราคาขาย ↕</th>
+                  <th>Stock รวม</th>
+                  <th>สถานะ</th>
+                </tr>
+              </thead>
+              <tbody id="tableBody">
+                <tr>
+                  <td colspan="6">
+                    <div class="empty-state">
+                      <div class="empty-icon">📦</div>
+                      <div class="empty-text">ยังไม่มีข้อมูล</div>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="side-panel" id="sidePanel">
+          <!-- รูปภาพสินค้า -->
+          <div class="panel-header">
+            <div>
+              <div class="panel-prod-code" id="panelCode">—</div>
+              <div class="panel-prod-name" id="panelName">—</div>
+              <span class="panel-category-badge" id="panelCategory">—</span>
+            </div>
+            <button class="btn-close-panel" onclick="closePanel()">✕</button>
+          </div>
+          <div class="panel-body">
+            <div class="panel-tabs">
+              <button
+                class="panel-tab active"
+                onclick="switchTab('info', this)"
+              >
+                📋 ข้อมูล
+              </button>
+              <button class="panel-tab" onclick="switchTab('stock', this)">
+                📦 Stock
+              </button>
+              <button class="panel-tab" onclick="switchTab('history', this)">
+                🔄 ประวัติ
+              </button>
+            </div>
+            <div class="panel-tab-content active" id="tab-info">
+              <div class="info-grid">
+                <div class="info-item">
+                  <div class="info-label">หน่วยฐาน</div>
+                  <div class="info-value" id="panelBaseUnit">—</div>
+                </div>
+                <div class="info-item">
+                  <div class="info-label">จุดสั่งซื้อ</div>
+                  <div class="info-value" id="panelReorder">—</div>
+                </div>
+                <div class="info-item">
+                  <div class="info-label">ราคาทุน</div>
+                  <div class="info-value price" id="panelCost">—</div>
+                </div>
+                <div class="info-item">
+                  <div class="info-label">ราคาขาย</div>
+                  <div class="info-value price" id="panelSale">—</div>
+                </div>
+              </div>
+              <div style="margin-top: 14px">
+                <div class="info-label" style="margin-bottom: 6px">
+                  หน่วยนับที่รองรับ
+                </div>
+                <div class="unit-list" id="panelUnits">—</div>
+              </div>
+            </div>
+            <div class="panel-tab-content" id="tab-stock">
+              <div id="stockByWarehouse">
+                <div class="empty-state" style="padding: 30px 0">
+                  <div class="empty-icon">🏭</div>
+                  <div class="empty-text">ไม่มีข้อมูล Stock</div>
+                </div>
+              </div>
+            </div>
+            <div class="panel-tab-content" id="tab-history">
+              <div id="historyList">
+                <div class="empty-state" style="padding: 30px 0">
+                  <div class="empty-icon">📜</div>
+                  <div class="empty-text">ยังไม่มีประวัติ</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="panel-actions">
+            <button class="btn btn-outline" onclick="editSelectedProduct()">
+              ✏️ แก้ไข
+            </button>
+            <button
+              class="btn btn-danger-outline"
+              onclick="deleteSelectedProduct()"
+            >
+              🗑 ลบ
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Confirm Dialog -->
+    <div id="confirmOverlay" class="confirm-overlay">
+      <div class="confirm-dialog">
+        <div class="confirm-icon-wrap" id="confirmIconWrap">
+          <svg
+            id="confirmIconSvg"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <polyline points="3 6 5 6 21 6"></polyline>
+            <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"></path>
+            <path d="M10 11v6M14 11v6"></path>
+            <path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"></path>
+          </svg>
+        </div>
+        <div class="confirm-content">
+          <div class="confirm-title" id="confirmTitle">ยืนยันการลบ</div>
+          <div class="confirm-msg" id="confirmMsg"></div>
+        </div>
+        <div class="confirm-actions">
+          <button
+            class="confirm-btn confirm-btn-cancel"
+            onclick="confirmResolve(false)"
+          >
+            ยกเลิก
+          </button>
+          <button
+            class="confirm-btn confirm-btn-ok"
+            id="confirmOkBtn"
+            onclick="confirmResolve(true)"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <polyline points="3 6 5 6 21 6"></polyline>
+              <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"></path>
+            </svg>
+            ลบ
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Lightbox Image Viewer -->
+    <div
+      class="lightbox-overlay"
+      id="lightboxOverlay"
+      onclick="closeLightboxOnBg(event)"
+    >
+      <button class="lightbox-close" onclick="closeLightbox()">✕</button>
+      <div class="lightbox-box" id="lightboxBox">
+        <div class="lightbox-img-wrap">
+          <button
+            class="lightbox-arrow prev"
+            id="lbPrev"
+            onclick="lightboxNav(-1)"
+          >
+            &#8592;
+          </button>
+          <img id="lightboxImg" src="" alt="" />
+          <button
+            class="lightbox-arrow next"
+            id="lbNext"
+            onclick="lightboxNav(1)"
+          >
+            &#8594;
+          </button>
+        </div>
+        <div class="lightbox-footer">
+          <div class="lightbox-title" id="lightboxTitle"></div>
+          <div class="lightbox-counter" id="lightboxCounter"></div>
+          <div class="lightbox-thumbs" id="lightboxThumbs"></div>
+        </div>
+      </div>
+    </div>
+
+    <script src="../../shared/auth.js"></script>
+    <script src="../../shared/responsive.js"></script>
+    <script src="../../shared/sidebar.js"></script>
+    <script src="products.js"></script>
+  </body>
+</html>

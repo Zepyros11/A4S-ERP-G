@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ใบขาย / เบิกภายใน — Sales Order</title>
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../assets/css/common.css">
+<style>
+.page { max-width:960px; margin:0 auto; padding:32px 24px 100px; }
+
+/* TYPE SWITCHER */
+.type-switcher { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:16px 24px; margin-bottom:20px; display:flex; align-items:center; gap:12px; box-shadow:var(--shadow); }
+.type-label { font-size:13px; font-weight:600; color:var(--text2); margin-right:4px; }
+.type-btn { padding:8px 20px; border-radius:7px; border:1.5px solid var(--border2); background:transparent; font-size:13px; font-family:'Sarabun',sans-serif; font-weight:500; cursor:pointer; transition:all .18s; color:var(--text2); display:flex; align-items:center; gap:6px; }
+.type-btn.active-SALE     { background:#e8eef9; border-color:#1a3a6b; color:#1a3a6b; }
+.type-btn.active-INTERNAL { background:var(--warning-pale); border-color:var(--warning); color:var(--warning); }
+.type-btn:hover:not([class*="active"]) { background:var(--surface2); }
+
+/* STATUS STEPS */
+.status-bar { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:20px 32px; margin-bottom:20px; display:flex; align-items:center; box-shadow:var(--shadow); }
+.step { display:flex; flex-direction:column; align-items:center; gap:6px; }
+.step-circle { width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:700; border:2px solid var(--border2); background:var(--surface); color:var(--text3); transition:all .3s; }
+.step.active .step-circle { background:var(--accent); border-color:var(--accent); color:#fff; }
+.step-label { font-size:11px; color:var(--text3); font-weight:600; white-space:nowrap; }
+.step.active .step-label { color:var(--accent); }
+.step-line { flex:1; height:2px; background:var(--border); margin:0 8px; margin-bottom:18px; }
+
+/* CARD */
+.card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); margin-bottom:20px; box-shadow:var(--shadow); overflow:hidden; }
+.card-header { padding:14px 20px; border-bottom:1px solid var(--border); background:var(--surface2); display:flex; align-items:center; justify-content:space-between; }
+.card-title { display:flex; align-items:center; gap:8px; font-size:14px; font-weight:700; }
+.card-title-icon { width:28px; height:28px; border-radius:7px; background:var(--accent-pale); display:flex; align-items:center; justify-content:center; font-size:14px; }
+.card-body { padding:20px; }
+
+/* SO HEADER */
+.so-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; }
+.so-number-label { font-size:11px; font-weight:700; color:var(--text3); letter-spacing:.8px; margin-bottom:4px; }
+.so-number-value { font-family:'IBM Plex Mono',monospace; font-size:22px; font-weight:700; color:var(--accent); }
+.so-status-badge { padding:5px 12px; border-radius:20px; font-size:12px; font-weight:700; letter-spacing:.5px; }
+.badge-draft { background:var(--bg); color:var(--text2); border:1px solid var(--border2); }
+
+/* FORM */
+.form-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+.form-group { display:flex; flex-direction:column; gap:6px; }
+.form-label { font-size:12px; font-weight:600; color:var(--text2); letter-spacing:.3px; }
+.form-label .required { color:var(--danger); margin-left:3px; }
+.form-control { padding:10px 14px; border:1.5px solid var(--border); border-radius:7px; font-size:14px; font-family:'Sarabun',sans-serif; color:var(--text); background:var(--surface); outline:none; appearance:none; transition:all .18s; }
+.form-control:focus { border-color:var(--accent); box-shadow:0 0 0 3px rgba(15,76,117,.08); }
+select.form-control { background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%239ca3af' d='M6 8L1 3h10z'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 12px center; padding-right:36px; cursor:pointer; }
+.form-hint { font-size:11px; color:var(--text3); margin-top:2px; }
+.input-prefix { display:flex; align-items:center; border:1.5px solid var(--border); border-radius:7px; overflow:hidden; transition:all .18s; }
+.input-prefix:focus-within { border-color:var(--accent); box-shadow:0 0 0 3px rgba(15,76,117,.08); }
+.input-prefix-text { padding:10px 12px; background:var(--surface2); font-size:13px; color:var(--text2); border-right:1.5px solid var(--border); white-space:nowrap; }
+.input-prefix .form-control { border:none; border-radius:0; box-shadow:none; flex:1; }
+
+/* PO REF */
+.po-ref-block { display:flex; gap:12px; align-items:flex-start; padding:14px; background:var(--surface2); border:1px solid var(--border); border-radius:8px; }
+.po-ref-icon { font-size:20px; flex-shrink:0; margin-top:2px; }
+.po-ref-label { font-size:12px; font-weight:600; color:var(--text2); }
+.po-ref-content { flex:1; }
+.po-ref-select { width:100%; }
+
+/* ITEMS TABLE */
+.items-table-wrap { overflow-x:auto; }
+.items-table { width:100%; border-collapse:collapse; font-size:13.5px; }
+.items-table th { padding:10px 14px; background:var(--surface2); color:var(--text2); font-size:11px; font-weight:600; letter-spacing:.8px; text-align:left; border-bottom:2px solid var(--border); white-space:nowrap; }
+.items-table td { padding:8px 6px; border-bottom:1px solid var(--border); vertical-align:middle; }
+.items-table tr:last-child td { border-bottom:none; }
+.items-table tr:hover td { background:var(--surface2); }
+.item-num { width:32px; height:32px; background:var(--bg); border-radius:6px; display:flex; align-items:center; justify-content:center; font-size:12px; color:var(--text3); font-family:'IBM Plex Mono',monospace; }
+.td-input { padding:8px 10px; border:1.5px solid transparent; border-radius:6px; font-size:13.5px; font-family:'Sarabun',sans-serif; width:100%; background:transparent; outline:none; transition:all .15s; color:var(--text); }
+.td-input:focus { border-color:var(--accent); background:#fff; box-shadow:0 0 0 3px rgba(15,76,117,.08); }
+.td-input.text-right { text-align:right; }
+select.td-input { cursor:pointer; appearance:none; }
+.subtotal-cell { font-family:'IBM Plex Mono',monospace; font-size:13px; font-weight:500; color:var(--accent); text-align:right; padding-right:12px; white-space:nowrap; }
+.btn-remove { width:28px; height:28px; border-radius:6px; border:none; background:transparent; color:var(--text3); cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:16px; transition:all .15s; }
+.btn-remove:hover { background:var(--danger-pale); color:var(--danger); }
+.btn-add-row { margin-top:12px; padding:9px 16px; border:1.5px dashed var(--border2); border-radius:7px; background:transparent; color:var(--text2); font-size:13px; font-family:'Sarabun',sans-serif; cursor:pointer; width:100%; transition:all .18s; display:flex; align-items:center; justify-content:center; gap:6px; }
+.btn-add-row:hover { border-color:var(--accent); color:var(--accent); background:var(--accent-pale); }
+
+/* SUMMARY */
+.summary-block { display:flex; justify-content:flex-end; margin-top:16px; }
+.summary-table { width:300px; }
+.summary-row { display:flex; justify-content:space-between; align-items:center; padding:7px 0; font-size:13.5px; border-bottom:1px solid var(--border); }
+.summary-row:last-child { border-bottom:none; }
+.summary-label { color:var(--text2); display:flex; align-items:center; gap:8px; }
+.summary-value { font-family:'IBM Plex Mono',monospace; font-weight:500; color:var(--text); }
+.summary-total { padding:10px 0 0; margin-top:4px; }
+.summary-total .summary-label { font-size:14px; font-weight:600; color:var(--text); }
+.summary-total .summary-value { font-size:18px; font-weight:600; color:var(--accent); }
+
+/* DISCOUNT */
+.discount-row { display:flex; align-items:center; gap:12px; width:100%; border:none; padding:0; }
+.discount-toggle-label { display:flex; align-items:center; gap:8px; cursor:pointer; user-select:none; flex-shrink:0; }
+.discount-checkbox-wrap { position:relative; width:18px; height:18px; flex-shrink:0; }
+.discount-checkbox-wrap input[type="checkbox"] { position:absolute; opacity:0; width:0; height:0; }
+.discount-checkmark { position:absolute; inset:0; border:2px solid var(--border2); border-radius:4px; background:var(--surface); transition:all .18s; }
+.discount-checkbox-wrap input:checked + .discount-checkmark { background:var(--accent); border-color:var(--accent); }
+.discount-checkbox-wrap input:checked + .discount-checkmark::after { content:''; position:absolute; left:4px; top:1px; width:5px; height:9px; border:2px solid #fff; border-top:none; border-left:none; transform:rotate(45deg); }
+.discount-inputs { display:flex; align-items:center; gap:8px; flex:1; justify-content:flex-end; }
+.discount-inputs input { width:80px; padding:6px 10px; border:1.5px solid var(--border); border-radius:6px; font-size:13px; font-family:'Sarabun',sans-serif; text-align:right; outline:none; transition:all .15s; }
+.discount-inputs input:focus { border-color:var(--accent); }
+.discount-inputs input:disabled { background:var(--bg); color:var(--text3); cursor:not-allowed; }
+.discount-type-btn { padding:6px 12px; border:1.5px solid var(--border); border-radius:6px; font-size:12px; font-family:'Sarabun',sans-serif; cursor:pointer; transition:all .15s; background:transparent; color:var(--text2); }
+.discount-type-btn.active { background:var(--accent-pale); border-color:var(--accent); color:var(--accent); font-weight:600; }
+.discount-summary-value { color:var(--danger) !important; }
+
+/* VAT */
+.vat-toggle-label { display:flex; align-items:center; gap:8px; cursor:pointer; user-select:none; }
+.vat-checkbox-wrap { position:relative; width:18px; height:18px; flex-shrink:0; }
+.vat-checkbox-wrap input[type="checkbox"] { position:absolute; opacity:0; width:0; height:0; }
+.vat-checkmark { position:absolute; inset:0; border:2px solid var(--border2); border-radius:4px; background:var(--surface); transition:all .18s; }
+.vat-checkbox-wrap input:checked + .vat-checkmark { background:var(--accent); border-color:var(--accent); }
+.vat-checkbox-wrap input:checked + .vat-checkmark::after { content:''; position:absolute; left:4px; top:1px; width:5px; height:9px; border:2px solid #fff; border-top:none; border-left:none; transform:rotate(45deg); }
+#vatRow.vat-off { opacity:.4; }
+
+/* FOOTER */
+.form-footer { position:fixed; bottom:0; left:0; right:0; background:var(--surface); border-top:1px solid var(--border); padding:14px 32px; display:flex; align-items:center; justify-content:space-between; gap:12px; z-index:50; box-shadow:0 -4px 16px rgba(0,0,0,.06); }
+.footer-left { display:flex; gap:10px; }
+.footer-right { display:flex; gap:10px; }
+.btn { padding:10px 20px; border-radius:7px; font-size:13.5px; font-family:'Sarabun',sans-serif; font-weight:500; cursor:pointer; border:none; transition:all .18s; display:flex; align-items:center; gap:6px; }
+.btn-outline { background:transparent; border:1.5px solid var(--border2); color:var(--text2); }
+.btn-outline:hover { border-color:var(--text2); color:var(--text); }
+.btn-danger-outline { background:transparent; border:1.5px solid var(--border2); color:var(--text3); }
+.btn-danger-outline:hover { border-color:var(--danger); color:var(--danger); background:var(--danger-pale); }
+.btn-warning { background:var(--warning-pale); color:var(--warning); border:1.5px solid #e8c97a; }
+.btn-warning:hover { background:#fdebd0; }
+.btn-success { background:var(--accent); color:#fff; }
+.btn-success:hover { background:var(--accent-light); }
+textarea.form-control { resize:vertical; min-height:80px; line-height:1.6; }
+
+@media (max-width:640px) {
+  .form-grid { grid-template-columns:1fr; }
+  .status-bar { display:none; }
+  .type-switcher { flex-wrap:wrap; }
+}
+</style>
+</head>
+<body>
+<div class="loading-overlay" id="loadingOverlay"><div class="spinner"></div></div>
+<div class="toast" id="toast"></div>
+
+<div class="topbar">
+  <div class="topbar-logo">📦 <span>A4S</span>-ERP</div>
+  <div class="topbar-sep"></div>
+  <div class="topbar-title">ใบขาย / เบิกภายใน (SO)</div>
+  <div class="topbar-actions">
+    <button class="btn-topbar btn-ghost" onclick="window.history.back()">← กลับ</button>
+  </div>
+</div>
+<div id="sidebar-container"></div>
+
+<div class="page">
+
+  <!-- TYPE SWITCHER -->
+  <div class="type-switcher">
+    <span class="type-label">ประเภทเอกสาร:</span>
+    <button class="type-btn active-SALE" id="btnSale" onclick="setOrderType('SALE')">🛒 ใบขาย (Sale)</button>
+    <button class="type-btn" id="btnInternal" onclick="setOrderType('INTERNAL')">📋 เบิกภายใน (Internal)</button>
+  </div>
+
+  <!-- STATUS STEPS -->
+  <div class="status-bar">
+    <div class="step active"><div class="step-circle">1</div><div class="step-label">กรอกข้อมูล</div></div>
+    <div class="step-line"></div>
+    <div class="step pending"><div class="step-circle">2</div><div class="step-label">รออนุมัติ</div></div>
+    <div class="step-line"></div>
+    <div class="step pending"><div class="step-circle">3</div><div class="step-label">อนุมัติแล้ว</div></div>
+    <div class="step-line"></div>
+    <div class="step pending"><div class="step-circle">4</div><div class="step-label">จัดส่ง</div></div>
+    <div class="step-line"></div>
+    <div class="step pending"><div class="step-circle">✓</div><div class="step-label">เสร็จสิ้น</div></div>
+  </div>
+
+  <!-- SO NUMBER & INFO -->
+  <div class="card">
+    <div class="card-body">
+      <div class="so-header">
+        <div>
+          <div class="so-number-label">เลขที่เอกสาร</div>
+          <div class="so-number-value" id="soNumberDisplay">SO-2025-001</div>
+        </div>
+        <span class="so-status-badge badge-draft" id="statusBadge">● DRAFT</span>
+      </div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label">เลขที่ SO <span class="required">*</span></label>
+          <div class="input-prefix">
+            <span class="input-prefix-text" id="soPrefix">SO-2025-</span>
+            <input type="text" class="form-control" id="soNumber" placeholder="001" value="001"
+              oninput="document.getElementById('soNumberDisplay').textContent=document.getElementById('soPrefix').textContent+this.value">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">วันที่ <span class="required">*</span></label>
+          <input type="date" class="form-control" id="orderDate">
+        </div>
+        <div class="form-group" id="customerGroup">
+          <label class="form-label">ลูกค้า <span class="required">*</span></label>
+          <select class="form-control" id="customerId"><option value="">— เลือกลูกค้า —</option></select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">คลังสินค้า <span class="required">*</span></label>
+          <select class="form-control" id="warehouseId"><option value="">— เลือกคลัง —</option></select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">วันที่ส่ง / รับของ <span class="required">*</span></label>
+          <input type="date" class="form-control" id="deliveryDate">
+          <span class="form-hint">กำหนดวันที่นัดส่งหรือรับสินค้า</span>
+        </div>
+        <div class="form-group">
+          <label class="form-label">ผู้สร้างเอกสาร</label>
+          <select class="form-control" id="createdBy"><option value="">— เลือกผู้ใช้ —</option></select>
+        </div>
+      </div>
+      <div style="margin-top:16px">
+        <div class="po-ref-block">
+          <span class="po-ref-icon">🔗</span>
+          <div class="po-ref-content">
+            <div class="po-ref-label">อ้างอิง PO ที่เกี่ยวข้อง (ถ้ามี)</div>
+            <select class="form-control po-ref-select" id="relatedPo" style="margin-top:8px">
+              <option value="">— เลือก PO ที่เกี่ยวข้อง —</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ITEMS -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title"><div class="card-title-icon">📋</div>รายการสินค้า</div>
+      <div style="font-size:12px;color:var(--text3)" id="itemCount">0 รายการ</div>
+    </div>
+    <div class="card-body">
+      <div class="items-table-wrap">
+        <table class="items-table">
+          <thead><tr>
+            <th style="width:40px">#</th>
+            <th style="min-width:200px">สินค้า <span style="color:var(--danger)">*</span></th>
+            <th style="width:120px">หน่วย</th>
+            <th style="width:100px">จำนวน</th>
+            <th style="width:130px">ราคาต่อหน่วย</th>
+            <th style="width:130px">ยอดรวม</th>
+            <th style="width:40px"></th>
+          </tr></thead>
+          <tbody id="itemsBody"></tbody>
+        </table>
+      </div>
+      <button class="btn-add-row" onclick="addItemRow()">＋ เพิ่มรายการสินค้า</button>
+      <div class="summary-block">
+        <div class="summary-table">
+          <div class="summary-row">
+            <span class="summary-label">ยอดรวมสินค้า</span>
+            <span class="summary-value" id="subtotalDisplay">฿0.00</span>
+          </div>
+          <!-- DISCOUNT -->
+          <div class="summary-row">
+            <div class="discount-row">
+              <label class="discount-toggle-label">
+                <div class="discount-checkbox-wrap">
+                  <input type="checkbox" id="discountToggle" onchange="toggleDiscount()">
+                  <span class="discount-checkmark"></span>
+                </div>
+                <span class="summary-label">ส่วนลด</span>
+              </label>
+              <div class="discount-inputs">
+                <button class="discount-type-btn active" id="btnPct" onclick="setDiscountType('pct')">%</button>
+                <button class="discount-type-btn" id="btnAmt" onclick="setDiscountType('amt')">฿</button>
+                <input type="number" id="discountValue" placeholder="0" min="0" step="0.01" disabled oninput="calcTotal()">
+              </div>
+            </div>
+            <span class="summary-value discount-summary-value" id="discountDisplay" style="min-width:80px;text-align:right">-฿0.00</span>
+          </div>
+          <!-- VAT -->
+          <div class="summary-row" id="vatRow">
+            <label class="vat-toggle-label">
+              <div class="vat-checkbox-wrap">
+                <input type="checkbox" id="vatToggle" checked onchange="calcTotal()">
+                <span class="vat-checkmark"></span>
+              </div>
+              <span class="summary-label">VAT 7%</span>
+            </label>
+            <span class="summary-value" id="vatDisplay">฿0.00</span>
+          </div>
+          <div class="summary-row summary-total">
+            <span class="summary-label">ยอดรวมทั้งหมด</span>
+            <span class="summary-value" id="totalDisplay">฿0.00</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- NOTE -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title"><div class="card-title-icon">📝</div>หมายเหตุ</div>
+    </div>
+    <div class="card-body">
+      <textarea class="form-control" id="note" placeholder="หมายเหตุ เช่น ที่อยู่จัดส่ง, วิธีชำระเงิน, เงื่อนไขพิเศษ..."></textarea>
+    </div>
+  </div>
+
+</div>
+
+<!-- FOOTER -->
+<div class="form-footer">
+  <div class="footer-left">
+    <button class="btn btn-danger-outline" onclick="resetForm()">🗑 ล้างข้อมูล</button>
+  </div>
+  <div class="footer-right">
+    <button class="btn btn-outline" onclick="saveDraft()">💾 Draft</button>
+    <button class="btn btn-warning" onclick="previewSO()">👁 Preview</button>
+    <button class="btn btn-success" onclick="submitSO()">✓ ยืนยัน SO</button>
+  </div>
+</div>
+
+<script src="../../shared/auth.js"></script>
+<script src="../../shared/responsive.js"></script>
+<script src="../../shared/sidebar.js"></script>
+<script src="so_form.js"></script>
+</body>
+</html>

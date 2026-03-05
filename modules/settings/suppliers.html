@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>จัดการ Supplier — A4S-ERP</title>
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../assets/css/common.css">
+<style>
+/* ── Suppliers-specific ── */
+.sup-table{width:100%;border-collapse:collapse;}
+.sup-table th{padding:10px 16px;background:var(--surface2);font-size:11px;font-weight:700;letter-spacing:.8px;color:var(--text3);text-align:left;border-bottom:2px solid var(--border);white-space:nowrap;cursor:pointer;user-select:none;}
+.sup-table th:hover{color:var(--accent);}
+.sup-table td{padding:12px 16px;border-bottom:1px solid var(--border);font-size:13.5px;vertical-align:middle;}
+.sup-table tr:last-child td{border-bottom:none;}
+.sup-table tr{cursor:pointer;transition:background .12s;}
+.sup-table tr:hover td{background:var(--accent-pale);}
+.sup-table tr.selected td{background:#dbeafe;}
+.sup-name{font-weight:600;color:var(--text);}
+.sup-code{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--text3);}
+.sup-contact{font-size:12px;color:var(--text2);margin-top:2px;}
+.panel-sup-code{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--text3);letter-spacing:1px;}
+.panel-sup-name{font-size:15px;font-weight:700;color:var(--text);margin-top:2px;}
+.info-label{font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.8px;margin-bottom:3px;}
+.info-value{font-size:13.5px;font-weight:500;color:var(--text);word-break:break-all;}
+.info-value.mono{font-family:'IBM Plex Mono',monospace;font-size:12px;}
+.info-value.link{color:var(--accent-light);text-decoration:none;}
+.info-value.link:hover{text-decoration:underline;}
+.po-item{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);}
+.po-item:last-child{border-bottom:none;}
+.po-ref{font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:600;color:var(--accent);}
+.po-date{font-size:12px;color:var(--text3);}
+.po-amount{margin-left:auto;font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:600;}
+.btn-danger-sm{padding:5px 10px;background:var(--danger-pale);color:var(--danger);border:1.5px solid #fca5a5;border-radius:6px;font-size:12px;font-family:'Sarabun',sans-serif;cursor:pointer;}
+.btn-danger-sm:hover{background:#fee2e2;}
+</style>
+</head>
+<body>
+
+<div class="loading-overlay" id="loadingOverlay"><div class="spinner"></div></div>
+<div class="toast" id="toast"></div>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="topbar-logo">📦 <span>A4S</span>-ERP</div>
+  <div class="topbar-sep"></div>
+  <div class="topbar-title">จัดการ Supplier</div>
+  <div class="topbar-actions">
+    <button class="btn-topbar btn-white" onclick="openModal()">＋ เพิ่ม Supplier</button>
+  </div>
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modalOverlay" onclick="closeModalBg(event)">
+  <div class="modal">
+    <div class="modal-hdr">
+      <div class="modal-title" id="modalTitle">เพิ่ม Supplier ใหม่</div>
+      <button class="btn-modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="editId">
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label">รหัส Supplier <span class="req">*</span></label>
+          <input class="form-control" id="fCode" placeholder="SUP-001">
+        </div>
+        <div class="form-group">
+          <label class="form-label">สถานะ</label>
+          <select class="form-control" id="fStatus">
+            <option value="true">✅ ใช้งาน</option>
+            <option value="false">❌ ปิดใช้งาน</option>
+          </select>
+        </div>
+        <div class="form-group full">
+          <label class="form-label">ชื่อบริษัท / ร้านค้า <span class="req">*</span></label>
+          <input class="form-control" id="fName" placeholder="ชื่อ Supplier">
+        </div>
+        <div class="form-group full">
+          <label class="form-label">ชื่อผู้ติดต่อ</label>
+          <input class="form-control" id="fContact" placeholder="ชื่อ-สกุล ผู้ติดต่อ">
+        </div>
+        <div class="form-section">📞 ข้อมูลติดต่อ</div>
+        <div class="form-group">
+          <label class="form-label">เบอร์โทรศัพท์</label>
+          <input class="form-control" id="fPhone" placeholder="0x-xxxx-xxxx">
+        </div>
+        <div class="form-group">
+          <label class="form-label">อีเมล</label>
+          <input class="form-control" id="fEmail" type="email" placeholder="supplier@email.com">
+        </div>
+        <div class="form-group full">
+          <label class="form-label">เว็บไซต์</label>
+          <input class="form-control" id="fWebsite" placeholder="https://www.supplier.com">
+        </div>
+        <div class="form-section">🏢 ข้อมูลธุรกิจ</div>
+        <div class="form-group">
+          <label class="form-label">เลขที่ผู้เสียภาษี</label>
+          <input class="form-control" id="fTaxId" placeholder="0-0000-00000-00-0">
+        </div>
+        <div class="form-group">
+          <label class="form-label">เครดิต (วัน)</label>
+          <input class="form-control" id="fCredit" type="number" min="0" placeholder="30">
+        </div>
+        <div class="form-group full">
+          <label class="form-label">ที่อยู่</label>
+          <textarea class="form-control" id="fAddress" rows="2" style="resize:vertical" placeholder="ที่อยู่บริษัท"></textarea>
+        </div>
+        <div class="form-group full">
+          <label class="form-label">หมายเหตุ</label>
+          <textarea class="form-control" id="fNote" rows="2" style="resize:vertical" placeholder="หมายเหตุเพิ่มเติม"></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal()">ยกเลิก</button>
+      <button class="btn btn-primary" onclick="saveSupplier()">💾 บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<div class="page">
+  <!-- Stats -->
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="stat-icon" style="background:#e0f2fe;color:#0369a1">🚚</div>
+      <div><div class="stat-label">Supplier ทั้งหมด</div><div class="stat-value" id="statTotal" style="color:var(--text)">—</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon" style="background:var(--success-pale);color:var(--success)">✅</div>
+      <div><div class="stat-label">ใช้งาน</div><div class="stat-value" id="statActive" style="color:var(--success)">—</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon" style="background:var(--danger-pale);color:var(--danger)">❌</div>
+      <div><div class="stat-label">ปิดใช้งาน</div><div class="stat-value" id="statInactive" style="color:var(--danger)">—</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon" style="background:var(--warning-pale);color:var(--warning)">📦</div>
+      <div><div class="stat-label">มี PO ทั้งหมด</div><div class="stat-value" id="statWithPO" style="color:var(--warning)">—</div></div>
+    </div>
+  </div>
+
+  <!-- Toolbar -->
+  <div class="toolbar">
+    <div class="search-wrap">
+      <span class="search-icon">🔍</span>
+      <input class="search-input" id="searchInput" placeholder="ค้นหาชื่อ, รหัส, เบอร์..." oninput="filterTable()">
+    </div>
+    <select class="filter-select" id="filterStatus" onchange="filterTable()">
+      <option value="">ทุกสถานะ</option>
+      <option value="true">ใช้งาน</option>
+      <option value="false">ปิดใช้งาน</option>
+    </select>
+    <div class="toolbar-right">
+      <button class="btn btn-outline" onclick="loadData()">🔄 รีเฟรช</button>
+      <button class="btn btn-primary" onclick="openModal()">＋ เพิ่ม Supplier</button>
+    </div>
+  </div>
+
+  <!-- Table + Panel -->
+  <div class="content-wrap">
+    <div class="table-card">
+      <div class="table-hdr">
+        <span class="table-title">รายชื่อ Supplier</span>
+        <span class="table-count" id="tableCount">0 รายการ</span>
+      </div>
+      <div style="overflow-x:auto">
+        <table class="sup-table">
+          <thead>
+            <tr>
+              <th onclick="sortBy('supplier_code')">รหัส ↕</th>
+              <th onclick="sortBy('supplier_name')">ชื่อ Supplier ↕</th>
+              <th>ผู้ติดต่อ</th>
+              <th>เบอร์โทร</th>
+              <th onclick="sortBy('credit_days')">เครดิต ↕</th>
+              <th>สถานะ</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody">
+            <tr><td colspan="6"><div class="empty-state"><div class="empty-icon">🚚</div><div>กำลังโหลด...</div></div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Side Panel -->
+    <div class="side-panel" id="sidePanel">
+      <div class="panel-hdr">
+        <div style="display:flex;align-items:center;flex:1;min-width:0">
+          <div class="panel-avatar" style="background:linear-gradient(135deg,var(--accent),var(--accent-light))">🚚</div>
+          <div style="min-width:0">
+            <div class="panel-sup-code" id="panelCode">—</div>
+            <div class="panel-sup-name" id="panelName">—</div>
+          </div>
+        </div>
+        <button class="btn-close" onclick="closePanel()">✕</button>
+      </div>
+      <div class="panel-body">
+        <div class="p-section">
+          <div class="p-section-title">📋 ข้อมูลทั่วไป</div>
+          <div class="info-grid">
+            <div class="info-item"><div class="info-label">สถานะ</div><div class="info-value" id="panelStatus">—</div></div>
+            <div class="info-item"><div class="info-label">เครดิต</div><div class="info-value mono" id="panelCredit">—</div></div>
+            <div class="info-item"><div class="info-label">ผู้ติดต่อ</div><div class="info-value" id="panelContact">—</div></div>
+            <div class="info-item"><div class="info-label">เลขที่ภาษี</div><div class="info-value mono" id="panelTaxId">—</div></div>
+          </div>
+        </div>
+        <div class="p-section">
+          <div class="p-section-title">📞 ข้อมูลติดต่อ</div>
+          <div class="info-grid">
+            <div class="info-item"><div class="info-label">โทรศัพท์</div><div class="info-value mono" id="panelPhone">—</div></div>
+            <div class="info-item"><div class="info-label">อีเมล</div><div class="info-value" id="panelEmail" style="font-size:12px">—</div></div>
+            <div class="info-item full"><div class="info-label">เว็บไซต์</div><a class="info-value link" id="panelWebsite" href="#" target="_blank">—</a></div>
+            <div class="info-item full"><div class="info-label">ที่อยู่</div><div class="info-value" id="panelAddress" style="font-size:12px;line-height:1.5">—</div></div>
+          </div>
+        </div>
+        <div class="p-section" id="panelNoteSection" style="display:none">
+          <div class="p-section-title">💬 หมายเหตุ</div>
+          <div style="background:var(--surface2);border-radius:7px;padding:10px 12px;font-size:13px;color:var(--text2);line-height:1.6" id="panelNote"></div>
+        </div>
+        <div class="p-section">
+          <div class="p-section-title">📄 ประวัติ PO</div>
+          <div id="panelPOHistory"><div style="text-align:center;padding:16px;color:var(--text3);font-size:13px">ไม่มีประวัติ PO</div></div>
+        </div>
+      </div>
+      <div class="panel-actions">
+        <button class="btn btn-outline" onclick="editSelected()">✏️ แก้ไข</button>
+        <button class="btn-danger-sm" onclick="deleteSelected()" style="flex:.5">🗑</button>
+        <button class="btn btn-primary" onclick="openModal()">＋ เพิ่มใหม่</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="suppliers.js"></script>
+<script src="../../shared/auth.js"></script>
+<script src="../../shared/sidebar.js"></script>
+</body>
+</html>
