@@ -150,6 +150,7 @@
     "reports",
     "categories",
     "stock-adj",
+    "DB Viewer",
   ];
 
   function getActiveId() {
