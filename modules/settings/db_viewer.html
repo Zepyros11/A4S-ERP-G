@@ -122,12 +122,30 @@
       let tableData = [];
       let currentTable = "";
 
-      const TABLES = [
-        "products",
-        "categories",
-        "warehouses",
-        "stock_movements",
-      ];
+      //   ดึงตารางทั้งหมดจากฐานข้อมูลมาแสดงใน select
+      async function loadTables() {
+        const { data, error } = await supabaseClient.rpc("get_tables");
+
+        if (error) {
+          console.error(error);
+          return;
+        }
+
+        const tableSelect = document.getElementById("tableSelect");
+
+        tableSelect.innerHTML = "";
+
+        data.forEach((t) => {
+          const opt = document.createElement("option");
+          opt.value = t.table_name;
+          opt.textContent = t.table_name;
+
+          tableSelect.appendChild(opt);
+        });
+
+        currentTable = data[0].table_name;
+        loadTables();
+      }
 
       const tableSelect = document.getElementById("tableSelect");
 
@@ -140,7 +158,7 @@
 
       tableSelect.addEventListener("change", () => {
         currentTable = tableSelect.value;
-        loadTable();
+        loadTables();
       });
 
       currentTable = TABLES[0];
@@ -211,7 +229,7 @@
         renderTable(filtered);
       }
 
-      loadTable();
+      loadTables();
     </script>
   </body>
 </html>
