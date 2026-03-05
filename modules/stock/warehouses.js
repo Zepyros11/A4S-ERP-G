@@ -180,12 +180,60 @@ function showStockDetail(whId) {
             ? "qty-low"
             : "qty-ok";
       return `<tr>
-      <td><span style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--text3)">${prod?.product_code || "—"}</span></td>
-      <td><span style="font-weight:500">${prod?.product_name || "สินค้า #" + b.product_id}</span></td>
-      <td><span class="stock-qty ${qtyClass}">${(b.qty_on_hand || 0).toLocaleString()}</span></td>
-      <td><span class="stock-qty" style="color:#d97706">${(b.qty_reserved || 0).toLocaleString()}</span></td>
-      <td><span class="stock-qty" style="color:var(--accent)">${Math.max(0, avail).toLocaleString()}</span></td>
-    </tr>`;
+
+<td>
+<span style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--text3)">
+${prod?.product_code || "—"}
+</span>
+</td>
+
+<td>
+<span style="font-weight:500">
+${prod?.product_name || "สินค้า #" + b.product_id}
+</span>
+</td>
+
+<td>
+<span class="stock-qty ${qtyClass}">
+${(b.qty_on_hand || 0).toLocaleString()}
+</span>
+</td>
+
+<td>
+<span class="stock-qty" style="color:#d97706">
+${(b.qty_reserved || 0).toLocaleString()}
+</span>
+</td>
+
+<td>
+<span class="stock-qty" style="color:var(--accent)">
+${Math.max(0, avail).toLocaleString()}
+</span>
+</td>
+
+<td>
+
+<button
+style="
+padding:4px 10px;
+font-size:12px;
+border-radius:6px;
+border:none;
+background:var(--accent-pale);
+color:var(--accent);
+cursor:pointer;
+font-weight:600;
+"
+onclick="openAdjust(${b.product_id}, ${whId})"
+>
+
+⚖️ Adjust
+
+</button>
+
+</td>
+
+</tr>`;
     })
     .join("");
   document
@@ -422,4 +470,9 @@ async function saveLocation() {
   } catch (e) {
     showToast("บันทึกไม่ได้", "error");
   }
+}
+function openAdjust(productId, warehouseId) {
+  const url = `../stock/stock_adjustment.html?product=${productId}&warehouse=${warehouseId}`;
+
+  window.location.href = url;
 }

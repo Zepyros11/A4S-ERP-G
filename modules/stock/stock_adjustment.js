@@ -502,10 +502,28 @@ function showLoading(show) {
 // ============================================================
 // INIT
 // ============================================================
-window.addEventListener("DOMContentLoaded", () => {
-  if (SB_URL && SB_KEY) loadData();
-  else renderTable([]);
+window.addEventListener("DOMContentLoaded", async () => {
+  if (SB_URL && SB_KEY) {
+    await loadData();
+
+    autoSelectFromURL();
+  }
 });
+
+function autoSelectFromURL() {
+  const params = new URLSearchParams(window.location.search);
+
+  const productId = params.get("product");
+  const warehouseId = params.get("warehouse");
+
+  if (productId) {
+    selectProduct(Number(productId));
+  }
+
+  if (warehouseId) {
+    selectWarehouse(Number(warehouseId));
+  }
+}
 
 let menuProduct = null;
 
