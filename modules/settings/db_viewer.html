@@ -2,127 +2,110 @@
 <html lang="th">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-
-    <title>Database Viewer — A4S ERP</title>
+    <title>Database Viewer</title>
 
     <link rel="stylesheet" href="../../assets/css/common.css" />
 
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
     <style>
-      .page-db {
-        display: flex;
-        flex-direction: column;
-        gap: 16px;
+      .db-container {
+        padding: 20px;
       }
 
       .db-toolbar {
         display: flex;
         gap: 10px;
-        align-items: center;
-        flex-wrap: wrap;
-      }
-
-      .db-select {
-        padding: 8px 12px;
-        border: 1px solid var(--border);
-        border-radius: 6px;
-        font-size: 13px;
-      }
-
-      .db-search {
-        padding: 8px 12px;
-        border: 1px solid var(--border);
-        border-radius: 6px;
-        font-size: 13px;
-        width: 220px;
-      }
-
-      .db-table-wrap {
-        background: var(--surface);
-        border: 1px solid var(--border);
-        border-radius: 10px;
-        overflow: auto;
-        max-height: 70vh;
+        margin-bottom: 15px;
       }
 
       .db-table {
         width: 100%;
         border-collapse: collapse;
-        font-size: 13px;
+        font-size: 14px;
+      }
+
+      .db-table th,
+      .db-table td {
+        border-bottom: 1px solid #ddd;
+        padding: 8px;
+        text-align: left;
       }
 
       .db-table th {
-        background: var(--surface2);
-        padding: 10px;
-        text-align: left;
+        background: #f5f5f5;
         font-weight: 600;
-        border-bottom: 2px solid var(--border);
       }
 
-      .db-table td {
-        padding: 9px 10px;
-        border-bottom: 1px solid var(--border);
+      .db-actions button {
+        margin-right: 4px;
+        cursor: pointer;
       }
 
-      .db-table tr:hover {
-        background: var(--accent-pale);
-      }
-
-      .db-empty {
-        padding: 40px;
-        text-align: center;
-        color: var(--text3);
+      .db-pagination {
+        margin-top: 15px;
+        display: flex;
+        gap: 10px;
       }
     </style>
   </head>
 
   <body>
-    <div class="topbar">
-      <div class="topbar-logo">🗄 <span>A4S</span>-ERP</div>
-      <div class="topbar-sep"></div>
-      <div class="topbar-title">Database Viewer</div>
-    </div>
+    <div id="sidebar"></div>
 
-    <div id="sidebar-container"></div>
+    <div class="db-container">
+      <h2>Database Viewer</h2>
 
-    <div class="page page-db">
       <div class="db-toolbar">
-        <select id="tableSelect" class="db-select"></select>
+        <select id="tableSelect"></select>
 
-        <input
-          id="searchInput"
-          class="db-search"
-          placeholder="ค้นหา..."
-          oninput="filterTable()"
-        />
+        <input id="searchInput" placeholder="ค้นหา..." oninput="loadTable()" />
 
-        <button class="btn btn-outline" onclick="loadTable()">รีเฟรช</button>
+        <button onclick="loadTable()">รีเฟรช</button>
+
+        <button onclick="insertRow()">＋ เพิ่มข้อมูล</button>
       </div>
 
-      <div class="db-table-wrap">
-        <table class="db-table" id="dataTable"></table>
+      <table class="db-table">
+        <thead>
+          <tr id="tableHead"></tr>
+        </thead>
+
+        <tbody id="tableBody"></tbody>
+      </table>
+
+      <div class="db-pagination">
+        <button onclick="prevPage()">⬅ ก่อนหน้า</button>
+        <button onclick="nextPage()">ถัดไป ➡</button>
       </div>
     </div>
 
+    <script src="../../shared/auth.js"></script>
+    <script src="../../shared/responsive.js"></script>
     <script src="../../shared/sidebar.js"></script>
+    <script src="../../modules/settings/settings.js"></script>
 
     <script>
-      const SUPABASE_URL = localStorage.getItem("sb_url");
-      const SUPABASE_KEY = localStorage.getItem("sb_key");
+      let supabaseClient;
 
-      if (!SUPABASE_URL || !SUPABASE_KEY) {
-        alert("กรุณาเชื่อมต่อ Supabase ในหน้า Settings ก่อน");
-        window.location.href = "../settings/settings.html";
+      let currentTable = "";
+      let page = 0;
+      const pageSize = 50;
+
+      initSupabase();
+
+      function initSupabase() {
+        if (!window.supabaseConfig) {
+          alert("Supabase config missing");
+          return;
+        }
+
+        supabaseClient = supabase.createClient(
+          supabaseConfig.url,
+          supabaseConfig.anon,
+        );
+
+        loadTables();
       }
 
-      const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
-      let tableData = [];
-      let currentTable = "";
-
-      //   ดึงตารางทั้งหมดจากฐานข้อมูลมาแสดงใน select
       async function loadTables() {
         const { data, error } = await supabaseClient.rpc("get_tables");
 
@@ -131,105 +114,179 @@
           return;
         }
 
-        const tableSelect = document.getElementById("tableSelect");
+        const select = document.getElementById("tableSelect");
 
-        tableSelect.innerHTML = "";
+        select.innerHTML = "";
 
         data.forEach((t) => {
           const opt = document.createElement("option");
           opt.value = t.table_name;
           opt.textContent = t.table_name;
 
-          tableSelect.appendChild(opt);
+          select.appendChild(opt);
         });
 
         currentTable = data[0].table_name;
-        loadTables();
+
+        select.onchange = () => {
+          currentTable = select.value;
+          page = 0;
+          loadTable();
+        };
+
+        loadTable();
       }
 
-      const tableSelect = document.getElementById("tableSelect");
-
-      TABLES.forEach((t) => {
-        const opt = document.createElement("option");
-        opt.value = t;
-        opt.textContent = t;
-        tableSelect.appendChild(opt);
-      });
-
-      tableSelect.addEventListener("change", () => {
-        currentTable = tableSelect.value;
-        loadTables();
-      });
-
-      currentTable = TABLES[0];
-      tableSelect.value = currentTable;
-
       async function loadTable() {
-        const table = document.getElementById("dataTable");
+        const search = document.getElementById("searchInput").value;
 
-        table.innerHTML = "Loading...";
-
-        const { data, error } = await supabaseClient
+        let query = supabaseClient
           .from(currentTable)
           .select("*")
-          .limit(200);
+          .range(page * pageSize, (page + 1) * pageSize - 1);
+
+        const { data, error } = await query;
 
         if (error) {
-          table.innerHTML = `<div class="db-empty">${error.message}</div>`;
+          console.error(error);
           return;
         }
-
-        tableData = data;
 
         renderTable(data);
       }
 
       function renderTable(rows) {
-        const table = document.getElementById("dataTable");
+        const head = document.getElementById("tableHead");
+        const body = document.getElementById("tableBody");
 
-        if (!rows || rows.length === 0) {
-          table.innerHTML = `<div class="db-empty">No Data</div>`;
+        head.innerHTML = "";
+        body.innerHTML = "";
+
+        if (!rows.length) return;
+
+        const columns = Object.keys(rows[0]);
+
+        columns.forEach((c) => {
+          const th = document.createElement("th");
+          th.textContent = c;
+          head.appendChild(th);
+        });
+
+        const act = document.createElement("th");
+        act.textContent = "Action";
+        head.appendChild(act);
+
+        rows.forEach((r) => {
+          const tr = document.createElement("tr");
+
+          columns.forEach((c) => {
+            const td = document.createElement("td");
+            td.textContent = r[c];
+            tr.appendChild(td);
+          });
+
+          const td = document.createElement("td");
+          td.className = "db-actions";
+
+          td.innerHTML = `
+<button onclick='editRow(${JSON.stringify(r)})'>✏️</button>
+<button onclick='deleteRow("${r.id || r.product_id || ""}")'>🗑</button>
+`;
+
+          tr.appendChild(td);
+
+          body.appendChild(tr);
+        });
+      }
+
+      async function deleteRow(id) {
+        if (!confirm("ลบข้อมูล ?")) return;
+
+        const pk = await getPrimaryKey();
+
+        const { error } = await supabaseClient
+          .from(currentTable)
+          .delete()
+          .eq(pk, id);
+
+        if (error) {
+          alert(error.message);
           return;
         }
 
-        const cols = Object.keys(rows[0]);
-
-        let html = "<thead><tr>";
-
-        cols.forEach((c) => {
-          html += `<th>${c}</th>`;
-        });
-
-        html += "</tr></thead><tbody>";
-
-        rows.forEach((r) => {
-          html += "<tr>";
-
-          cols.forEach((c) => {
-            html += `<td>${r[c] ?? ""}</td>`;
-          });
-
-          html += "</tr>";
-        });
-
-        html += "</tbody>";
-
-        table.innerHTML = html;
+        loadTable();
       }
 
-      function filterTable() {
-        const q = document.getElementById("searchInput").value.toLowerCase();
+      async function editRow(row) {
+        const json = prompt("แก้ไข JSON", JSON.stringify(row));
 
-        const filtered = tableData.filter((row) => {
-          return Object.values(row).some((v) =>
-            String(v).toLowerCase().includes(q),
-          );
-        });
+        if (!json) return;
 
-        renderTable(filtered);
+        let data;
+
+        try {
+          data = JSON.parse(json);
+        } catch {
+          alert("JSON ผิด");
+          return;
+        }
+
+        const pk = await getPrimaryKey();
+
+        const { error } = await supabaseClient
+          .from(currentTable)
+          .update(data)
+          .eq(pk, row[pk]);
+
+        if (error) {
+          alert(error.message);
+          return;
+        }
+
+        loadTable();
       }
 
-      loadTables();
+      async function insertRow() {
+        const json = prompt("เพิ่ม JSON");
+
+        if (!json) return;
+
+        let data;
+
+        try {
+          data = JSON.parse(json);
+        } catch {
+          alert("JSON ผิด");
+          return;
+        }
+
+        const { error } = await supabaseClient.from(currentTable).insert(data);
+
+        if (error) {
+          alert(error.message);
+          return;
+        }
+
+        loadTable();
+      }
+
+      async function getPrimaryKey() {
+        if (currentTable === "products") return "product_id";
+
+        return "id";
+      }
+
+      function nextPage() {
+        page++;
+        loadTable();
+      }
+
+      function prevPage() {
+        if (page === 0) return;
+
+        page--;
+        loadTable();
+      }
     </script>
   </body>
 </html>
