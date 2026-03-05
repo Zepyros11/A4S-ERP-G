@@ -28,7 +28,7 @@
       items: [
         {
           id: "products",
-          icon: "📦",
+          icon: "✏️",
           label: "รายการสินค้า",
           path: BASE_PATH + "/modules/stock/products.html",
         },
@@ -40,7 +40,7 @@
         },
         {
           id: "stock-adj",
-          icon: "✏️",
+          icon: "📦",
           label: "จัดการสินค้า",
           path: BASE_PATH + "/modules/stock/stock_adjustment.html",
         },
