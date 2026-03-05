@@ -198,13 +198,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const body = document.body;
 
-  const wrapper = document.createElement("div");
-  wrapper.id = "erp-layout";
+  const layout = document.createElement("div");
+  layout.id = "erp-layout";
 
-  wrapper.innerHTML = `
+  layout.innerHTML = `
     ${sidebar}
     <main id="erp-main"></main>
   `;
 
-  body.prepend(wrapper);
+  body.prepend(layout);
 });
