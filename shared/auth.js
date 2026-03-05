@@ -5,13 +5,12 @@
 // ============================================================
 
 (function () {
-
   // ── 1. อ่าน Session ──────────────────────────────────────
   function getSession() {
     // ลอง localStorage ก่อน (remember me), แล้ว sessionStorage
-    const local   = localStorage.getItem('erp_session');
-    const session = sessionStorage.getItem('erp_session');
-    if (local)   return JSON.parse(local);
+    const local = localStorage.getItem("erp_session");
+    const session = sessionStorage.getItem("erp_session");
+    if (local) return JSON.parse(local);
     if (session) return JSON.parse(session);
     return null;
   }
@@ -21,9 +20,9 @@
   // ── 2. ถ้าไม่มี session → redirect ไป login ──────────────
   if (!session) {
     // จำ URL ที่ผู้ใช้พยายามเข้า เพื่อ redirect กลับหลัง login
-    sessionStorage.setItem('erp_redirect', window.location.pathname);
-    window.location.replace('/login.html');
-    throw new Error('Not authenticated'); // หยุด script ที่เหลือ
+    sessionStorage.setItem("erp_redirect", window.location.pathname);
+    window.location.replace("../../login.html");
+    throw new Error("Not authenticated"); // หยุด script ที่เหลือ
   }
 
   // ── 3. เปิดให้ page อื่นเข้าถึง session ได้ ─────────────
@@ -31,27 +30,31 @@
 
   // ── 4. Logout function ───────────────────────────────────
   window.erpLogout = function () {
-    if (!confirm('ออกจากระบบ?')) return;
-    localStorage.removeItem('erp_session');
-    sessionStorage.removeItem('erp_session');
-    window.location.replace('/login.html');
+    if (!confirm("ออกจากระบบ?")) return;
+    localStorage.removeItem("erp_session");
+    sessionStorage.removeItem("erp_session");
+    window.location.replace("../../login.html");
   };
 
   // ── 5. Inject User chip ใน Topbar (รอ DOM) ──────────────
   // sidebar.js จะ inject topbar ทีหลัง เราต้องรอ
   function injectUserChip() {
-    const topbar = document.querySelector('.topbar');
+    const topbar = document.querySelector(".topbar");
     if (!topbar) return;
 
     // ถ้า chip มีแล้วข้ามไป
-    if (document.getElementById('erp-user-chip')) return;
+    if (document.getElementById("erp-user-chip")) return;
 
     const ROLE_LABEL = {
-      ADMIN: '👑', MANAGER: '🏢', WAREHOUSE: '🏭', SALES: '💰', VIEWER: '👁'
+      ADMIN: "👑",
+      MANAGER: "🏢",
+      WAREHOUSE: "🏭",
+      SALES: "💰",
+      VIEWER: "👁",
     };
 
-    const chip = document.createElement('div');
-    chip.id = 'erp-user-chip';
+    const chip = document.createElement("div");
+    chip.id = "erp-user-chip";
     chip.style.cssText = `
       margin-left:auto; display:flex; align-items:center; gap:10px;
     `;
@@ -97,10 +100,10 @@
       <div class="erp-chip-wrap" id="erpChipWrap">
         <div style="text-align:right">
           <div class="erp-user-name">${session.first_name} ${session.last_name}</div>
-          <div class="erp-user-role">${ROLE_LABEL[session.role] || '👤'} ${session.role}</div>
+          <div class="erp-user-role">${ROLE_LABEL[session.role] || "👤"} ${session.role}</div>
         </div>
         <div class="erp-avatar" onclick="toggleUserMenu()" id="erpAvatar">
-          ${(session.first_name[0] || '?').toUpperCase()}${(session.last_name?.[0] || '').toUpperCase()}
+          ${(session.first_name[0] || "?").toUpperCase()}${(session.last_name?.[0] || "").toUpperCase()}
         </div>
 
         <div class="erp-dropdown" id="erpDropdown">
@@ -116,7 +119,7 @@
     `;
 
     // ลบ topbar-actions เดิม (ถ้ามี) แล้วใส่ chip แทน
-    const existingActions = topbar.querySelector('.topbar-actions');
+    const existingActions = topbar.querySelector(".topbar-actions");
     if (existingActions) {
       // ย้าย actions ไปอยู่ก่อน chip
       chip.insertBefore(existingActions, chip.firstChild);
@@ -126,22 +129,22 @@
 
   // Toggle dropdown
   window.toggleUserMenu = function () {
-    const dd = document.getElementById('erpDropdown');
-    if (dd) dd.classList.toggle('open');
+    const dd = document.getElementById("erpDropdown");
+    if (dd) dd.classList.toggle("open");
   };
 
   // ปิด dropdown เมื่อคลิกที่อื่น
-  document.addEventListener('click', (e) => {
-    const wrap = document.getElementById('erpChipWrap');
+  document.addEventListener("click", (e) => {
+    const wrap = document.getElementById("erpChipWrap");
     if (wrap && !wrap.contains(e.target)) {
-      const dd = document.getElementById('erpDropdown');
-      if (dd) dd.classList.remove('open');
+      const dd = document.getElementById("erpDropdown");
+      if (dd) dd.classList.remove("open");
     }
   });
 
   // รอ topbar ถูก inject โดย sidebar.js
   const observer = new MutationObserver(() => {
-    if (document.querySelector('.topbar')) {
+    if (document.querySelector(".topbar")) {
       injectUserChip();
       // รอ sidebar inject topbar-actions ด้วย
       setTimeout(injectUserChip, 100);
@@ -150,8 +153,8 @@
   });
 
   // ลอง inject ทันทีก่อน (กรณี topbar มีอยู่แล้ว)
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", () => {
       injectUserChip();
       setTimeout(injectUserChip, 150);
     });
@@ -161,5 +164,4 @@
   }
 
   observer.observe(document.body, { childList: true, subtree: true });
-
 })();

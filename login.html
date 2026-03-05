@@ -1,170 +1,543 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="th">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>เข้าสู่ระบบ — A4S-ERP</title>
-<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
-<style>
-*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
-:root{--accent:#0f4c75;--accent-light:#1b6ca8;--danger:#9b1c1c;--danger-pale:#fde8e8;--border:#e4e8ef;--text:#111827;--text2:#4b5563;--text3:#9ca3af;--shadow-lg:0 20px 60px rgba(0,0,0,.15);}
-html,body{height:100%;}
-body{font-family:'Sarabun',sans-serif;background:#0a1628;display:flex;align-items:center;justify-content:center;min-height:100vh;overflow:hidden;position:relative;}
-.bg-grid{position:fixed;inset:0;background-image:linear-gradient(rgba(15,76,117,.15) 1px,transparent 1px),linear-gradient(90deg,rgba(15,76,117,.15) 1px,transparent 1px);background-size:40px 40px;animation:gridMove 20s linear infinite;}
-@keyframes gridMove{to{background-position:40px 40px;}}
-.bg-glow{position:fixed;width:600px;height:600px;border-radius:50%;filter:blur(120px);opacity:.25;animation:glowPulse 8s ease-in-out infinite;}
-.bg-glow-1{background:#0f4c75;top:-200px;left:-200px;animation-delay:0s;}
-.bg-glow-2{background:#1b6ca8;bottom:-200px;right:-200px;animation-delay:4s;}
-@keyframes glowPulse{0%,100%{opacity:.2;transform:scale(1);}50%{opacity:.35;transform:scale(1.1);}}
-.card-wrap{position:relative;z-index:10;width:420px;max-width:95vw;animation:cardIn .5s cubic-bezier(.34,1.56,.64,1);}
-@keyframes cardIn{from{opacity:0;transform:translateY(30px) scale(.95);}to{opacity:1;transform:translateY(0) scale(1);}}
-.card{background:rgba(255,255,255,.97);border-radius:20px;box-shadow:var(--shadow-lg),0 0 0 1px rgba(255,255,255,.1);overflow:hidden;}
-.card-header{background:linear-gradient(135deg,var(--accent) 0%,var(--accent-light) 100%);padding:36px 40px 32px;text-align:center;position:relative;overflow:hidden;}
-.card-header::before{content:'';position:absolute;inset:0;background:url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");}
-.logo-icon{font-size:40px;margin-bottom:12px;display:block;}
-.logo-title{font-size:24px;font-weight:700;color:#fff;letter-spacing:.5px;}
-.logo-subtitle{font-size:13px;color:rgba(255,255,255,.7);margin-top:4px;}
-.card-body{padding:36px 40px 32px;}
-.form-group{margin-bottom:20px;}
-.form-label{display:block;font-size:12px;font-weight:700;color:var(--text2);letter-spacing:.5px;margin-bottom:7px;}
-.input-wrap{position:relative;}
-.input-icon{position:absolute;left:14px;top:50%;transform:translateY(-50%);font-size:16px;pointer-events:none;color:var(--text3);}
-.form-input{width:100%;padding:12px 44px 12px 42px;border:2px solid var(--border);border-radius:10px;font-size:14px;font-family:'Sarabun',sans-serif;color:var(--text);background:#f8f9fb;outline:none;transition:all .2s;}
-.form-input:focus{border-color:var(--accent);background:#fff;box-shadow:0 0 0 4px rgba(15,76,117,.1);}
-.input-toggle{position:absolute;right:14px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:16px;color:var(--text3);padding:4px;transition:color .2s;}
-.input-toggle:hover{color:var(--accent);}
-.remember-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;}
-.remember-label{display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--text2);user-select:none;}
-.remember-label input{display:none;}
-.checkbox{width:18px;height:18px;border-radius:5px;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;transition:all .15s;flex-shrink:0;background:#f8f9fb;}
-.remember-label input:checked~.checkbox{background:var(--accent);border-color:var(--accent);color:#fff;}
-.remember-label input:checked~.checkbox::after{content:'✓';}
-.error-msg{background:var(--danger-pale);border:1.5px solid #fca5a5;border-radius:8px;padding:10px 14px;font-size:13px;color:var(--danger);margin-bottom:16px;display:none;animation:shake .3s ease;}
-.error-msg.show{display:flex;align-items:center;gap:8px;}
-@keyframes shake{0%,100%{transform:translateX(0);}25%{transform:translateX(-6px);}75%{transform:translateX(6px);}}
-.btn-login{width:100%;padding:13px;background:linear-gradient(135deg,var(--accent),var(--accent-light));color:#fff;border:none;border-radius:10px;font-size:15px;font-family:'Sarabun',sans-serif;font-weight:600;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 4px 15px rgba(15,76,117,.35);}
-.btn-login:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(15,76,117,.45);}
-.btn-login:disabled{opacity:.7;cursor:not-allowed;transform:none;}
-.btn-login .spinner{width:18px;height:18px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:none;}
-.btn-login.loading .spinner{display:block;}
-.btn-login.loading .btn-text{display:none;}
-@keyframes spin{to{transform:rotate(360deg);}}
-.card-footer{padding:0 40px 28px;text-align:center;font-size:12px;color:var(--text3);}
-.version-tag{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;background:#f0f2f5;border-radius:20px;font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--text3);}
-@media (max-width:480px) {
-  .card-header{padding:24px 20px 20px;}
-  .card-body{padding:24px 20px 20px;}
-  .card-footer{padding:0 20px 20px;}
-  .logo-icon{font-size:32px;}
-  .logo-title{font-size:20px;}
-}
-</style>
-</head>
-<body>
-<div class="bg-grid"></div>
-<div class="bg-glow bg-glow-1"></div>
-<div class="bg-glow bg-glow-2"></div>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>เข้าสู่ระบบ — A4S-ERP</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      *,
+      *::before,
+      *::after {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      :root {
+        --accent: #0f4c75;
+        --accent-light: #1b6ca8;
+        --danger: #9b1c1c;
+        --danger-pale: #fde8e8;
+        --border: #e4e8ef;
+        --text: #111827;
+        --text2: #4b5563;
+        --text3: #9ca3af;
+        --shadow-lg: 0 20px 60px rgba(0, 0, 0, 0.15);
+      }
+      html,
+      body {
+        height: 100%;
+      }
+      body {
+        font-family: "Sarabun", sans-serif;
+        background: #0a1628;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        overflow: hidden;
+        position: relative;
+      }
+      .bg-grid {
+        position: fixed;
+        inset: 0;
+        background-image:
+          linear-gradient(rgba(15, 76, 117, 0.15) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(15, 76, 117, 0.15) 1px, transparent 1px);
+        background-size: 40px 40px;
+        animation: gridMove 20s linear infinite;
+      }
+      @keyframes gridMove {
+        to {
+          background-position: 40px 40px;
+        }
+      }
+      .bg-glow {
+        position: fixed;
+        width: 600px;
+        height: 600px;
+        border-radius: 50%;
+        filter: blur(120px);
+        opacity: 0.25;
+        animation: glowPulse 8s ease-in-out infinite;
+      }
+      .bg-glow-1 {
+        background: #0f4c75;
+        top: -200px;
+        left: -200px;
+        animation-delay: 0s;
+      }
+      .bg-glow-2 {
+        background: #1b6ca8;
+        bottom: -200px;
+        right: -200px;
+        animation-delay: 4s;
+      }
+      @keyframes glowPulse {
+        0%,
+        100% {
+          opacity: 0.2;
+          transform: scale(1);
+        }
+        50% {
+          opacity: 0.35;
+          transform: scale(1.1);
+        }
+      }
+      .card-wrap {
+        position: relative;
+        z-index: 10;
+        width: 420px;
+        max-width: 95vw;
+        animation: cardIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+      }
+      @keyframes cardIn {
+        from {
+          opacity: 0;
+          transform: translateY(30px) scale(0.95);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0) scale(1);
+        }
+      }
+      .card {
+        background: rgba(255, 255, 255, 0.97);
+        border-radius: 20px;
+        box-shadow:
+          var(--shadow-lg),
+          0 0 0 1px rgba(255, 255, 255, 0.1);
+        overflow: hidden;
+      }
+      .card-header {
+        background: linear-gradient(
+          135deg,
+          var(--accent) 0%,
+          var(--accent-light) 100%
+        );
+        padding: 36px 40px 32px;
+        text-align: center;
+        position: relative;
+        overflow: hidden;
+      }
+      .card-header::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+      }
+      .logo-icon {
+        font-size: 40px;
+        margin-bottom: 12px;
+        display: block;
+      }
+      .logo-title {
+        font-size: 24px;
+        font-weight: 700;
+        color: #fff;
+        letter-spacing: 0.5px;
+      }
+      .logo-subtitle {
+        font-size: 13px;
+        color: rgba(255, 255, 255, 0.7);
+        margin-top: 4px;
+      }
+      .card-body {
+        padding: 36px 40px 32px;
+      }
+      .form-group {
+        margin-bottom: 20px;
+      }
+      .form-label {
+        display: block;
+        font-size: 12px;
+        font-weight: 700;
+        color: var(--text2);
+        letter-spacing: 0.5px;
+        margin-bottom: 7px;
+      }
+      .input-wrap {
+        position: relative;
+      }
+      .input-icon {
+        position: absolute;
+        left: 14px;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 16px;
+        pointer-events: none;
+        color: var(--text3);
+      }
+      .form-input {
+        width: 100%;
+        padding: 12px 44px 12px 42px;
+        border: 2px solid var(--border);
+        border-radius: 10px;
+        font-size: 14px;
+        font-family: "Sarabun", sans-serif;
+        color: var(--text);
+        background: #f8f9fb;
+        outline: none;
+        transition: all 0.2s;
+      }
+      .form-input:focus {
+        border-color: var(--accent);
+        background: #fff;
+        box-shadow: 0 0 0 4px rgba(15, 76, 117, 0.1);
+      }
+      .input-toggle {
+        position: absolute;
+        right: 14px;
+        top: 50%;
+        transform: translateY(-50%);
+        background: none;
+        border: none;
+        cursor: pointer;
+        font-size: 16px;
+        color: var(--text3);
+        padding: 4px;
+        transition: color 0.2s;
+      }
+      .input-toggle:hover {
+        color: var(--accent);
+      }
+      .remember-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 24px;
+      }
+      .remember-label {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        cursor: pointer;
+        font-size: 13px;
+        color: var(--text2);
+        user-select: none;
+      }
+      .remember-label input {
+        display: none;
+      }
+      .checkbox {
+        width: 18px;
+        height: 18px;
+        border-radius: 5px;
+        border: 2px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 11px;
+        font-weight: 700;
+        transition: all 0.15s;
+        flex-shrink: 0;
+        background: #f8f9fb;
+      }
+      .remember-label input:checked ~ .checkbox {
+        background: var(--accent);
+        border-color: var(--accent);
+        color: #fff;
+      }
+      .remember-label input:checked ~ .checkbox::after {
+        content: "✓";
+      }
+      .error-msg {
+        background: var(--danger-pale);
+        border: 1.5px solid #fca5a5;
+        border-radius: 8px;
+        padding: 10px 14px;
+        font-size: 13px;
+        color: var(--danger);
+        margin-bottom: 16px;
+        display: none;
+        animation: shake 0.3s ease;
+      }
+      .error-msg.show {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      @keyframes shake {
+        0%,
+        100% {
+          transform: translateX(0);
+        }
+        25% {
+          transform: translateX(-6px);
+        }
+        75% {
+          transform: translateX(6px);
+        }
+      }
+      .btn-login {
+        width: 100%;
+        padding: 13px;
+        background: linear-gradient(135deg, var(--accent), var(--accent-light));
+        color: #fff;
+        border: none;
+        border-radius: 10px;
+        font-size: 15px;
+        font-family: "Sarabun", sans-serif;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        box-shadow: 0 4px 15px rgba(15, 76, 117, 0.35);
+      }
+      .btn-login:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 6px 20px rgba(15, 76, 117, 0.45);
+      }
+      .btn-login:disabled {
+        opacity: 0.7;
+        cursor: not-allowed;
+        transform: none;
+      }
+      .btn-login .spinner {
+        width: 18px;
+        height: 18px;
+        border: 2px solid rgba(255, 255, 255, 0.4);
+        border-top-color: #fff;
+        border-radius: 50%;
+        animation: spin 0.7s linear infinite;
+        display: none;
+      }
+      .btn-login.loading .spinner {
+        display: block;
+      }
+      .btn-login.loading .btn-text {
+        display: none;
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      .card-footer {
+        padding: 0 40px 28px;
+        text-align: center;
+        font-size: 12px;
+        color: var(--text3);
+      }
+      .version-tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 4px 10px;
+        background: #f0f2f5;
+        border-radius: 20px;
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 11px;
+        color: var(--text3);
+      }
+      @media (max-width: 480px) {
+        .card-header {
+          padding: 24px 20px 20px;
+        }
+        .card-body {
+          padding: 24px 20px 20px;
+        }
+        .card-footer {
+          padding: 0 20px 20px;
+        }
+        .logo-icon {
+          font-size: 32px;
+        }
+        .logo-title {
+          font-size: 20px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="bg-grid"></div>
+    <div class="bg-glow bg-glow-1"></div>
+    <div class="bg-glow bg-glow-2"></div>
 
-<div class="card-wrap">
-  <div class="card">
-    <div class="card-header">
-      <span class="logo-icon">📦</span>
-      <div class="logo-title">A4S-ERP</div>
-      <div class="logo-subtitle">Stock & Order Management System</div>
-    </div>
-    <div class="card-body">
-      <div class="error-msg" id="errorMsg"><span>⚠️</span><span id="errorText">Username หรือ Password ไม่ถูกต้อง</span></div>
-      <div class="form-group">
-        <label class="form-label">USERNAME</label>
-        <div class="input-wrap">
-          <span class="input-icon">👤</span>
-          <input type="text" class="form-input" id="username" placeholder="กรอก Username" autocomplete="username" onkeydown="onEnter(event)">
+    <div class="card-wrap">
+      <div class="card">
+        <div class="card-header">
+          <span class="logo-icon">📦</span>
+          <div class="logo-title">A4S-ERP</div>
+          <div class="logo-subtitle">Stock & Order Management System</div>
+        </div>
+        <div class="card-body">
+          <div class="error-msg" id="errorMsg">
+            <span>⚠️</span
+            ><span id="errorText">Username หรือ Password ไม่ถูกต้อง</span>
+          </div>
+          <div class="form-group">
+            <label class="form-label">USERNAME</label>
+            <div class="input-wrap">
+              <span class="input-icon">👤</span>
+              <input
+                type="text"
+                class="form-input"
+                id="username"
+                placeholder="กรอก Username"
+                autocomplete="username"
+                onkeydown="onEnter(event)"
+              />
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">PASSWORD</label>
+            <div class="input-wrap">
+              <span class="input-icon">🔒</span>
+              <input
+                type="password"
+                class="form-input"
+                id="password"
+                placeholder="กรอก Password"
+                autocomplete="current-password"
+                onkeydown="onEnter(event)"
+              />
+              <button
+                class="input-toggle"
+                onclick="togglePwd()"
+                tabindex="-1"
+                id="pwdToggle"
+              >
+                👁
+              </button>
+            </div>
+          </div>
+          <div class="remember-row">
+            <label class="remember-label">
+              <input type="checkbox" id="rememberMe" />
+              <span class="checkbox"></span>
+              จำการเข้าสู่ระบบ
+            </label>
+          </div>
+          <button class="btn-login" id="loginBtn" onclick="doLogin()">
+            <div class="spinner"></div>
+            <span class="btn-text">🔐 เข้าสู่ระบบ</span>
+          </button>
+        </div>
+        <div class="card-footer">
+          <div class="version-tag">v1.0.0 · A4S Stock System</div>
         </div>
       </div>
-      <div class="form-group">
-        <label class="form-label">PASSWORD</label>
-        <div class="input-wrap">
-          <span class="input-icon">🔒</span>
-          <input type="password" class="form-input" id="password" placeholder="กรอก Password" autocomplete="current-password" onkeydown="onEnter(event)">
-          <button class="input-toggle" onclick="togglePwd()" tabindex="-1" id="pwdToggle">👁</button>
-        </div>
-      </div>
-      <div class="remember-row">
-        <label class="remember-label">
-          <input type="checkbox" id="rememberMe">
-          <span class="checkbox"></span>
-          จำการเข้าสู่ระบบ
-        </label>
-      </div>
-      <button class="btn-login" id="loginBtn" onclick="doLogin()">
-        <div class="spinner"></div>
-        <span class="btn-text">🔐 เข้าสู่ระบบ</span>
-      </button>
     </div>
-    <div class="card-footer"><div class="version-tag">v1.0.0 · A4S Stock System</div></div>
-  </div>
-</div>
 
-<script>
-const SUPABASE_URL = localStorage.getItem('sb_url') || '';
-const SUPABASE_KEY = localStorage.getItem('sb_key') || '';
+    <script>
+      const SUPABASE_URL = localStorage.getItem("sb_url") || "";
+      const SUPABASE_KEY = localStorage.getItem("sb_key") || "";
 
-window.addEventListener('DOMContentLoaded', () => {
-  const saved = localStorage.getItem('erp_remember_user');
-  if (saved) {
-    document.getElementById('username').value = saved;
-    document.getElementById('rememberMe').checked = true;
-    document.getElementById('password').focus();
-  } else { document.getElementById('username').focus(); }
-});
+      window.addEventListener("DOMContentLoaded", () => {
+        const saved = localStorage.getItem("erp_remember_user");
+        if (saved) {
+          document.getElementById("username").value = saved;
+          document.getElementById("rememberMe").checked = true;
+          document.getElementById("password").focus();
+        } else {
+          document.getElementById("username").focus();
+        }
+      });
 
-function togglePwd() {
-  const inp = document.getElementById('password');
-  const btn = document.getElementById('pwdToggle');
-  inp.type = inp.type === 'password' ? 'text' : 'password';
-  btn.textContent = inp.type === 'password' ? '👁' : '🙈';
-}
-function onEnter(e) { if (e.key === 'Enter') doLogin(); }
-function showError(msg) {
-  const el = document.getElementById('errorMsg');
-  document.getElementById('errorText').textContent = msg;
-  el.classList.add('show');
-  el.style.animation = 'none'; el.offsetHeight; el.style.animation = '';
-}
-async function hashPassword(pwd) {
-  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pwd));
-  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
-}
-async function doLogin() {
-  const username = document.getElementById('username').value.trim();
-  const password = document.getElementById('password').value;
-  const remember = document.getElementById('rememberMe').checked;
-  if (!username || !password) { showError('กรุณากรอก Username และ Password'); return; }
-  if (!SUPABASE_URL || !SUPABASE_KEY) { showError('ยังไม่ได้ตั้งค่า Supabase — กรุณาตั้งค่าก่อน'); return; }
-  const btn = document.getElementById('loginBtn');
-  btn.classList.add('loading'); btn.disabled = true;
-  document.getElementById('errorMsg').classList.remove('show');
-  try {
-    const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/users?username=eq.${encodeURIComponent(username)}&is_active=eq.true&select=*`,
-      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
-    );
-    const users = await res.json();
-    if (!users || !users.length) { showError('ไม่พบผู้ใช้งานนี้ในระบบ'); return; }
-    const user = users[0];
-    let passwordMatch = false;
-    if (user.password_hash) { passwordMatch = (await hashPassword(password)) === user.password_hash; }
-    else if (user.password)  { passwordMatch = password === user.password; }
-    if (!passwordMatch) { showError('Password ไม่ถูกต้อง'); return; }
-    const sessionData = { user_id:user.user_id, username:user.username, first_name:user.first_name, last_name:user.last_name, role:user.role, email:user.email, login_at:new Date().toISOString() };
-    if (remember) { localStorage.setItem('erp_remember_user', username); localStorage.setItem('erp_session', JSON.stringify(sessionData)); }
-    else          { localStorage.removeItem('erp_remember_user'); sessionStorage.setItem('erp_session', JSON.stringify(sessionData)); }
-    const redirectTo = sessionStorage.getItem('erp_redirect') || '/modules/stock/products.html';
-    sessionStorage.removeItem('erp_redirect');
-    window.location.href = redirectTo;
-  } catch(e) { showError('เกิดข้อผิดพลาด: ' + e.message); }
-  finally { btn.classList.remove('loading'); btn.disabled = false; }
-}
-</script>
-</body>
+      function togglePwd() {
+        const inp = document.getElementById("password");
+        const btn = document.getElementById("pwdToggle");
+        inp.type = inp.type === "password" ? "text" : "password";
+        btn.textContent = inp.type === "password" ? "👁" : "🙈";
+      }
+      function onEnter(e) {
+        if (e.key === "Enter") doLogin();
+      }
+      function showError(msg) {
+        const el = document.getElementById("errorMsg");
+        document.getElementById("errorText").textContent = msg;
+        el.classList.add("show");
+        el.style.animation = "none";
+        el.offsetHeight;
+        el.style.animation = "";
+      }
+      async function hashPassword(pwd) {
+        const buf = await crypto.subtle.digest(
+          "SHA-256",
+          new TextEncoder().encode(pwd),
+        );
+        return Array.from(new Uint8Array(buf))
+          .map((b) => b.toString(16).padStart(2, "0"))
+          .join("");
+      }
+      async function doLogin() {
+        const username = document.getElementById("username").value.trim();
+        const password = document.getElementById("password").value;
+        const remember = document.getElementById("rememberMe").checked;
+        if (!username || !password) {
+          showError("กรุณากรอก Username และ Password");
+          return;
+        }
+        if (!SUPABASE_URL || !SUPABASE_KEY) {
+          showError("ยังไม่ได้ตั้งค่า Supabase — กรุณาตั้งค่าก่อน");
+          return;
+        }
+        const btn = document.getElementById("loginBtn");
+        btn.classList.add("loading");
+        btn.disabled = true;
+        document.getElementById("errorMsg").classList.remove("show");
+        try {
+          const res = await fetch(
+            `${SUPABASE_URL}/rest/v1/users?username=eq.${encodeURIComponent(username)}&is_active=eq.true&select=*`,
+            {
+              headers: {
+                apikey: SUPABASE_KEY,
+                Authorization: `Bearer ${SUPABASE_KEY}`,
+              },
+            },
+          );
+          const users = await res.json();
+          if (!users || !users.length) {
+            showError("ไม่พบผู้ใช้งานนี้ในระบบ");
+            return;
+          }
+          const user = users[0];
+          let passwordMatch = false;
+          if (user.password_hash) {
+            passwordMatch =
+              (await hashPassword(password)) === user.password_hash;
+          } else if (user.password) {
+            passwordMatch = password === user.password;
+          }
+          if (!passwordMatch) {
+            showError("Password ไม่ถูกต้อง");
+            return;
+          }
+          const sessionData = {
+            user_id: user.user_id,
+            username: user.username,
+            first_name: user.first_name,
+            last_name: user.last_name,
+            role: user.role,
+            email: user.email,
+            login_at: new Date().toISOString(),
+          };
+          if (remember) {
+            localStorage.setItem("erp_remember_user", username);
+            localStorage.setItem("erp_session", JSON.stringify(sessionData));
+          } else {
+            localStorage.removeItem("erp_remember_user");
+            sessionStorage.setItem("erp_session", JSON.stringify(sessionData));
+          }
+          const redirectTo =
+            sessionStorage.getItem("erp_redirect") ||
+            "./modules/stock/products.html";
+          sessionStorage.removeItem("erp_redirect");
+          window.location.href = redirectTo;
+        } catch (e) {
+          showError("เกิดข้อผิดพลาด: " + e.message);
+        } finally {
+          btn.classList.remove("loading");
+          btn.disabled = false;
+        }
+      }
+    </script>
+  </body>
 </html>
