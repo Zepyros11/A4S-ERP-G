@@ -10,7 +10,8 @@ let categories = [],
 let selectedEmoji = "📦";
 let selectedColor = "#0f4c75";
 let orderEditMode = false;
-
+let catSortKey = "sort_order";
+let catSortAsc = true;
 const EMOJIS = [
   // เทคโนโลยี / อุปกรณ์
   "📦",
@@ -267,7 +268,17 @@ function renderGrid(cats) {
 
   let html = "";
 
-  cats.forEach((c, index) => {
+  const sorted = [...cats].sort((a, b) => {
+    let av = a[catSortKey] ?? "";
+    let bv = b[catSortKey] ?? "";
+
+    if (typeof av === "string") av = av.toLowerCase();
+    if (typeof bv === "string") bv = bv.toLowerCase();
+
+    return catSortAsc ? (av > bv ? 1 : -1) : av < bv ? 1 : -1;
+  });
+
+  sorted.forEach((c, index) => {
     const count = products.filter(
       (p) => p.category_id === c.category_id,
     ).length;
@@ -279,62 +290,44 @@ function renderGrid(cats) {
       : "—";
 
     html += `
-      <tr>
+<tr>
 
-        <td>
+<td>
+${
+  orderEditMode
+    ? `<input type="number"
+step="0.01"
+value="${c.sort_order ?? 0}"
+style="width:70px;text-align:center"
+onchange="updateSort(${c.category_id},this.value)">`
+    : (c.sort_order ?? 0)
+}
+</td>
 
-        ${
-          orderEditMode
-            ? `<input type="number"
-          step="0.01"
-          value="${c.sort_order ?? 0}"
-          style="width:70px;text-align:center"
-          onchange="updateSort(${c.category_id},this.value)">`
-            : (c.sort_order ?? 0)
-        }
+<td style="font-size:20px">${c.icon || "📦"}</td>
 
-        </td>
+<td>
+<strong>${c.category_name}</strong>
+${c.description ? `<div style="font-size:11px;color:#9ca3af">${c.description}</div>` : ""}
+</td>
 
-        <td style="font-size:20px">${c.icon || "📦"}</td>
+<td style="font-family:monospace">${skuFmt}</td>
 
-        <td>
-          <strong>${c.category_name}</strong>
-          ${c.description ? `<div style="font-size:11px;color:#9ca3af">${c.description}</div>` : ""}
-        </td>
+<td><strong>${count}</strong></td>
 
-        <td style="font-family:monospace">${skuFmt}</td>
+<td>
+<button class="btn btn-outline btn-sm"
+onclick="editCategory(${c.category_id})">✏️</button>
+</td>
 
-        <td>
-          <strong>${count}</strong>
-        </td>
+<td>
+<button class="btn-danger-sm"
+onclick="deleteCategory(${c.category_id},'${c.category_name}')">🗑</button>
+</td>
 
-        <td>
-          <button class="btn btn-outline btn-sm"
-            onclick="editCategory(${c.category_id})">
-            ✏️
-          </button>
-        </td>
-
-        <td>
-          <button class="btn-danger-sm"
-            onclick="deleteCategory(${c.category_id},'${c.category_name}')">
-            🗑
-          </button>
-        </td>
-
-      </tr>
-    `;
+</tr>
+`;
   });
-
-  if (!html) {
-    html = `
-      <tr>
-        <td colspan="7" style="text-align:center;padding:40px;color:#9ca3af">
-          ไม่มีหมวดหมู่
-        </td>
-      </tr>
-    `;
-  }
 
   tbody.innerHTML = html;
 
@@ -511,6 +504,12 @@ window.addEventListener("DOMContentLoaded", () => {
 function toggleOrderEdit() {
   orderEditMode = !orderEditMode;
 
+  const btn = document.getElementById("btnOrderEdit");
+
+  if (btn) {
+    btn.innerHTML = orderEditMode ? "✏️ แก้ไขลำดับ เปิด" : "✏️ แก้ไขลำดับ ปิด";
+  }
+
   renderGrid(categories);
 
   showToast(orderEditMode ? "เปิดโหมดแก้ไขลำดับ" : "ปิดโหมดแก้ไขลำดับ");
@@ -530,4 +529,14 @@ async function updateSort(id, value) {
   } catch (e) {
     showToast("บันทึกไม่ได้ " + e.message, "error");
   }
+}
+function sortCategory(key) {
+  if (catSortKey === key) {
+    catSortAsc = !catSortAsc;
+  } else {
+    catSortKey = key;
+    catSortAsc = true;
+  }
+
+  renderGrid(categories);
 }

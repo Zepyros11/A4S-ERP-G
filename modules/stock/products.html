@@ -131,7 +131,7 @@
         justify-content: space-between;
       }
       .table-title {
-        font-size: 13px;
+        font-size: 16px;
         font-weight: 600;
         color: var(--text2);
       }
@@ -145,26 +145,25 @@
         border-collapse: collapse;
       }
       .prod-table th {
-        padding: 10px 16px;
-        background: var(--surface2);
-        font-size: 11px;
+        padding: 12px 18px;
+        background: #f3f4f6;
+        font-size: 13px;
         font-weight: 700;
-        letter-spacing: 0.8px;
-        color: var(--text3);
-        text-align: left;
+        color: #374151;
+        text-align: center;
         border-bottom: 2px solid var(--border);
+        letter-spacing: 0.3px;
         white-space: nowrap;
-        cursor: pointer;
         user-select: none;
       }
       .prod-table th:hover {
-        color: var(--accent);
+        background: #e5e7eb;
       }
       .prod-table td {
-        padding: 11px 16px;
+        padding: 14px 18px;
+        font-size: 14px;
         border-bottom: 1px solid var(--border);
-        font-size: 13.5px;
-        vertical-align: middle;
+        text-align: center;
       }
       .prod-table tr:last-child td {
         border-bottom: none;
@@ -1220,7 +1219,7 @@
     <div class="topbar">
       <div class="topbar-logo">📦 <span>A4S</span>-ERP</div>
       <div class="topbar-sep"></div>
-      <div class="topbar-title">รายการสินค้า</div>
+      <div class="topbar-title">✏️ รายการสินค้า</div>
       <div class="topbar-actions">
         <button
           class="btn-topbar btn-primary-top"
@@ -1566,7 +1565,7 @@
       <div class="content-wrap">
         <div class="table-card" id="tableCard">
           <div class="table-header">
-            <span class="table-title">รายการสินค้า</span>
+            <span class="table-title">✏️ รายการสินค้า</span>
             <span class="table-count" id="tableCount">0 รายการ</span>
           </div>
           <div style="overflow-x: auto">

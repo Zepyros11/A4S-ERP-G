@@ -11,73 +11,7 @@
     <link rel="stylesheet" href="../../assets/css/common.css" />
     <style>
       /* ── Categories-specific ── */
-      .cat-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-        gap: 16px;
-        margin-bottom: 24px;
-      }
-      .cat-card {
-        background: var(--surface);
-        border: 1px solid var(--border);
-        border-radius: var(--radius);
-        box-shadow: var(--shadow);
-        overflow: hidden;
-        transition: all 0.2s;
-        cursor: pointer;
-      }
-      .cat-card:hover {
-        transform: translateY(-2px);
-        box-shadow: var(--shadow-lg);
-      }
-      .cat-card-top {
-        padding: 18px 20px;
-        display: flex;
-        align-items: center;
-        gap: 14px;
-      }
-      .cat-color {
-        width: 46px;
-        height: 46px;
-        border-radius: 12px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 22px;
-        flex-shrink: 0;
-      }
-      .cat-name {
-        font-size: 15px;
-        font-weight: 700;
-        color: var(--text);
-      }
-      .cat-desc {
-        font-size: 12px;
-        color: var(--text3);
-        margin-top: 3px;
-      }
-      .cat-card-foot {
-        padding: 10px 20px;
-        background: var(--surface2);
-        border-top: 1px solid var(--border);
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-      }
-      .cat-count {
-        font-family: "IBM Plex Mono", monospace;
-        font-size: 18px;
-        font-weight: 700;
-        color: var(--accent);
-      }
-      .cat-count-lbl {
-        font-size: 11px;
-        color: var(--text3);
-      }
-      .cat-actions {
-        display: flex;
-        gap: 6px;
-      }
+
       .btn-sm {
         padding: 5px 10px;
         border-radius: 6px;
@@ -105,32 +39,6 @@
       }
       .btn-sm-del:hover {
         background: #fee2e2;
-      }
-      .cat-add-card {
-        background: var(--surface);
-        border: 2px dashed var(--border2);
-        border-radius: var(--radius);
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        min-height: 120px;
-        cursor: pointer;
-        transition: all 0.2s;
-        color: var(--text3);
-        gap: 8px;
-      }
-      .cat-add-card:hover {
-        border-color: var(--accent);
-        color: var(--accent);
-        background: var(--accent-pale);
-      }
-      .cat-add-icon {
-        font-size: 28px;
-      }
-      .cat-add-lbl {
-        font-size: 13px;
-        font-weight: 600;
       }
       .emoji-row {
         display: flex;
@@ -187,7 +95,7 @@
           0 0 0 4px var(--text);
       }
       .table-title {
-        font-size: 26px;
+        font-size: 16px;
         font-weight: 700;
         letter-spacing: 0.4px;
         color: var(--text);
@@ -196,6 +104,37 @@
       .data-table td {
         text-align: center;
         vertical-align: middle;
+      }
+      .data-table thead th {
+        font-size: 13px;
+        font-weight: 600;
+        color: #374151;
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+        padding: 14px 16px;
+        background: #f8fafc;
+        border-bottom: 1px solid #e5e7eb;
+        white-space: nowrap;
+      }
+      .data-table thead th {
+        cursor: pointer;
+        user-select: none;
+      }
+      .sort-icon {
+        font-size: 10px;
+        margin-left: 4px;
+        color: var(--text3);
+      }
+      .sort-icon {
+        font-size: 11px;
+        margin-left: 6px;
+        opacity: 0.6;
+      }
+      .data-table thead th:hover {
+        background: #f1f5f9;
+      }
+      .data-table thead th {
+        border-right: 1px solid #f1f5f9;
       }
     </style>
   </head>
@@ -545,10 +484,14 @@
     <div class="topbar">
       <div class="topbar-logo">📦 <span>A4S</span>-ERP</div>
       <div class="topbar-sep"></div>
-      <div class="topbar-title">หมวดหมู่สินค้า</div>
+      <div class="topbar-title">🏷️ หมวดหมู่สินค้า</div>
       <div class="topbar-actions">
-        <button class="btn-topbar btn-outline" onclick="toggleOrderEdit()">
-          ✏️ แก้ไขลำดับ
+        <button
+          id="btnOrderEdit"
+          class="btn-topbar btn-outline"
+          onclick="toggleOrderEdit()"
+        >
+          ✏️ แก้ไขลำดับ ปิด
         </button>
         <button class="btn-topbar btn-white" onclick="openModal()">
           ＋ เพิ่มหมวดหมู่
@@ -559,7 +502,7 @@
     <div class="page">
       <div class="table-card">
         <div class="table-hdr">
-          <div class="table-title">หมวดหมู่สินค้า</div>
+          <div class="table-title">🏷️ หมวดหมู่สินค้า</div>
           <div class="table-count" id="catCount">0 รายการ</div>
         </div>
 
@@ -567,13 +510,24 @@
           <table class="data-table">
             <thead>
               <tr>
-                <th style="width: 70px">ลำดับ</th>
-                <th style="width: 80px">Icon</th>
-                <th>ชื่อหมวดหมู่</th>
-                <th style="width: 240px">SKU</th>
-                <th style="width: 140px">จำนวนสินค้า</th>
-                <th style="width: 120px">แก้ไข</th>
-                <th style="width: 100px">ลบ</th>
+                <th onclick="sortCategory('sort_order')">
+                  ลำดับ <span class="sort-icon">↕</span>
+                </th>
+
+                <th>Icon</th>
+
+                <th onclick="sortCategory('category_name')">
+                  ชื่อหมวดหมู่ <span class="sort-icon">↕</span>
+                </th>
+
+                <th>SKU</th>
+
+                <th onclick="sortCategory('product_count')">
+                  จำนวนสินค้า <span class="sort-icon">↕</span>
+                </th>
+
+                <th>แก้ไข</th>
+                <th>ลบ</th>
               </tr>
             </thead>
 
