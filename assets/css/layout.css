@@ -4,6 +4,7 @@
 
 .page {
   padding: var(--page-pad);
+  display: grid;
 }
 
 /* layout container */

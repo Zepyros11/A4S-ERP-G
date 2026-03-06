@@ -295,9 +295,7 @@ function renderGrid(cats) {
 <td>
 ${
   orderEditMode
-    ? `<input type="number"
-step="0.01"
-value="${c.sort_order ?? 0}"
+    ? `<input type="number" step="0.01" value="${c.sort_order ?? 0}"
 style="width:70px;text-align:center"
 onchange="updateSort(${c.category_id},this.value)">`
     : (c.sort_order ?? 0)

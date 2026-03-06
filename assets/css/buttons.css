@@ -94,3 +94,13 @@
 .btn-icon.danger:hover {
   background: #fee2e2;
 }
+.btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}

@@ -1,0 +1,113 @@
+/* =========================================================
+   CATEGORIES PAGE
+========================================================= */
+
+/* sticky header */
+
+.table-wrap thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+/* category name */
+
+.data-table td strong {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+/* description */
+
+.data-table td div {
+  margin-top: 2px;
+}
+
+/* category action buttons */
+
+.table-categories .btn-icon {
+  width: 32px;
+  height: 32px;
+  background: transparent;
+}
+
+.table-categories .btn-icon:hover {
+  background: var(--surface2);
+}
+
+.table-categories .btn-icon.danger:hover {
+  background: #fee2e2;
+}
+
+/* =========================================================
+   EMOJI PICKER
+========================================================= */
+
+.emoji-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.emoji-opt {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  cursor: pointer;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.emoji-opt:hover {
+  border-color: var(--accent);
+  background: var(--accent-pale);
+}
+
+.emoji-opt.selected {
+  border-color: var(--accent);
+  background: var(--accent-pale);
+}
+
+/* =========================================================
+   COLOR PICKER
+========================================================= */
+
+.color-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.color-opt {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  cursor: pointer;
+  border: 2px solid transparent;
+}
+
+.color-opt:hover {
+  transform: scale(1.15);
+}
+
+.color-opt.selected {
+  border-color: var(--text);
+}
+
+/* =========================================================
+   PREVIEW CARD
+========================================================= */
+
+#catPreviewCard {
+  transition: 0.2s;
+}
+
+#catPreviewCard:hover {
+  transform: translateY(-1px);
+}

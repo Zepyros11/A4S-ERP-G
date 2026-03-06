@@ -257,10 +257,15 @@ function updateStats() {
     else if (qty <= (p.reorder_point || 0)) low++;
     else ok++;
   });
-  document.getElementById("statTotal").textContent = allProducts.length;
-  document.getElementById("statOk").textContent = ok;
-  document.getElementById("statLow").textContent = low;
-  document.getElementById("statOut").textContent = out;
+  const statTotal = document.getElementById("statTotal");
+  const statOk = document.getElementById("statOk");
+  const statLow = document.getElementById("statLow");
+  const statOut = document.getElementById("statOut");
+
+  if (statTotal) statTotal.textContent = allProducts.length;
+  if (statOk) statOk.textContent = ok;
+  if (statLow) statLow.textContent = low;
+  if (statOut) statOut.textContent = out;
 }
 
 // ============================================================
@@ -270,7 +275,7 @@ async function selectProduct(productId) {
   selectedProduct = allProducts.find((p) => p.product_id === productId);
   if (!selectedProduct) return;
   document
-    .querySelectorAll(".prod-table tr")
+    .querySelectorAll(".data-table tr")
     .forEach((tr) => tr.classList.remove("selected"));
   event.currentTarget.classList.add("selected");
   const cat = categories.find(
@@ -397,7 +402,7 @@ async function loadHistory(productId) {
 function closePanel() {
   document.getElementById("sidePanel").classList.remove("open");
   document
-    .querySelectorAll(".prod-table tr")
+    .querySelectorAll(".data-table tr")
     .forEach((tr) => tr.classList.remove("selected"));
   selectedProduct = null;
 }
