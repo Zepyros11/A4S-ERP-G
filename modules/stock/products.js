@@ -181,43 +181,51 @@ function renderTable(products) {
            </div>`;
 
       return `<tr>
-      <td style="text-align:center" onclick="event.stopPropagation()">
-        <input type="checkbox"
-              ${selectedIds.has(p.product_id) ? "checked" : ""}
-              onchange="toggleProductSelection(${p.product_id}, this)">
-      </td>
 
-      <td style="text-align:center" onclick="event.stopPropagation();openLightbox(${p.product_id})">
-        ${imgCell}
-      </td>
+<td style="text-align:center"
+ onclick="event.stopPropagation();openLightbox(${p.product_id})">
+ ${imgCell}
+</td>
 
-      <td onclick="selectProduct(${p.product_id})">
-        <div class="prod-name">${p.product_name}</div>
-        <div class="prod-category">${cat?.category_name || "—"}</div>
-      </td>
+<td onclick="selectProduct(${p.product_id})">
+ <div class="prod-name">${p.product_name}</div>
+ <div class="prod-category">${p.product_code || "—"}</div>
+</td>
 
-      <td onclick="selectProduct(${p.product_id})">
-        <span style="font-size:12px;color:var(--text2)">
-          ${cat?.category_name || "—"}
-        </span>
-      </td>
+<td onclick="selectProduct(${p.product_id})">
+ ${cat?.category_name || "—"}
+</td>
 
-      <td onclick="selectProduct(${p.product_id})">
-        <span style="font-family:'IBM Plex Mono',monospace;font-size:13px">
-          ฿${formatNum(p.sale_price)}
-        </span>
-      </td>
+<td onclick="selectProduct(${p.product_id})">
+ <span style="font-family:'IBM Plex Mono',monospace">
+   ฿${formatNum(p.sale_price)}
+ </span>
+</td>
 
-      <td onclick="selectProduct(${p.product_id})">
-        <span style="font-family:'IBM Plex Mono',monospace;font-weight:600">
-          ${totalStock.toLocaleString()}
-        </span>
-      </td>
+<td style="text-align:center">
+<label class="switch">
+  <input type="checkbox"
+    ${p.is_active ? "checked" : ""}
+    onchange="toggleProductActive(${p.product_id}, this)">
+  <span class="slider"></span>
+</label>
+</td>
 
-      <td onclick="selectProduct(${p.product_id})">
-        <span class="stock-badge ${cls}">${label}</span>
-      </td>
-    </tr>`;
+<td style="text-align:center">
+ <button class="btn-icon"
+   onclick="event.stopPropagation();window.location.href='product_form.html?id=${p.product_id}'">
+   ✏️
+ </button>
+</td>
+
+<td style="text-align:center">
+  <button class="btn-icon danger"
+    onclick="event.stopPropagation();deleteProduct(${p.product_id})">
+    🗑
+  </button>
+</td>
+
+</tr>`;
     })
     .join("");
 }
@@ -921,4 +929,56 @@ function renderLightbox() {
   } else {
     thumbWrap.innerHTML = "";
   }
+}
+async function toggleProductActive(productId, el) {
+  const isActive = el.checked;
+
+  try {
+    await supabaseFetch("products", {
+      method: "PATCH",
+      body: { is_active: isActive },
+      query: `?product_id=eq.${productId}`,
+    });
+
+    showToast(
+      isActive ? "เปิดใช้งานสินค้าแล้ว" : "ปิดใช้งานสินค้าแล้ว",
+      "success",
+    );
+  } catch (e) {
+    showToast("อัปเดตสถานะไม่สำเร็จ", "error");
+    el.checked = !isActive;
+  }
+}
+async function deleteProduct(productId) {
+  const prod = allProducts.find((p) => p.product_id === productId);
+  if (!prod) return;
+
+  const ok = await showConfirm(
+    "ยืนยันการลบสินค้า",
+    `ต้องการลบ "${prod.product_name}" ใช่หรือไม่?`,
+  );
+
+  if (!ok) return;
+
+  showLoading(true);
+
+  try {
+    await supabaseFetch("product_units", {
+      method: "DELETE",
+      query: `?product_id=eq.${productId}`,
+    }).catch(() => {});
+
+    await supabaseFetch("products", {
+      method: "DELETE",
+      query: `?product_id=eq.${productId}`,
+    });
+
+    showToast("ลบสินค้าแล้ว", "success");
+
+    await loadData();
+  } catch (e) {
+    showToast("ลบสินค้าไม่ได้", "error");
+  }
+
+  showLoading(false);
 }

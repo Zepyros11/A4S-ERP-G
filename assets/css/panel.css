@@ -1,0 +1,74 @@
+/* =========================================================
+   SIDE PANEL
+   ========================================================= */
+
+.side-panel {
+  width: var(--panel-w);
+  min-width: var(--panel-w);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+  display: none;
+  flex-direction: column;
+  max-height: calc(100vh - 100px);
+  overflow-y: auto;
+  position: sticky;
+  top: 76px;
+}
+
+.side-panel.open {
+  display: flex;
+}
+
+.panel-hdr {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface2);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.panel-body {
+  padding: 20px;
+  flex: 1;
+}
+
+.panel-actions {
+  padding: 14px 20px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  gap: 8px;
+  background: var(--surface2);
+}
+
+.panel-actions .btn {
+  flex: 1;
+  justify-content: center;
+}
+
+.panel-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+}
+
+.btn-close {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: none;
+  background: var(--bg);
+  color: var(--text3);
+  cursor: pointer;
+}
+
+.btn-close:hover {
+  background: var(--danger-pale);
+  color: var(--danger);
+}

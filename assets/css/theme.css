@@ -1,0 +1,31 @@
+/* =========================================================
+   A4S ERP THEME
+   ========================================================= */
+
+/* ===== DEFAULT THEME ===== */
+
+:root {
+  --accent: #0f4c75;
+  --accent-light: #1b6ca8;
+  --accent-pale: #e8f0fb;
+
+  --success: #057a55;
+  --success-pale: #def7ec;
+
+  --danger: #9b1c1c;
+  --danger-pale: #fde8e8;
+
+  --warning: #92400e;
+  --warning-pale: #fef3c7;
+
+  --bg: #f0f2f5;
+  --surface: #ffffff;
+  --surface2: #f8f9fb;
+
+  --border: #e4e8ef;
+  --border2: #d0d6e2;
+
+  --text: #111827;
+  --text2: #4b5563;
+  --text3: #9ca3af;
+}

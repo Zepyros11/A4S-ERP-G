@@ -35,7 +35,7 @@
         {
           id: "categories",
           icon: "🏷️",
-          label: "หมวดหมู่สินค้า",
+          label: "หมวดหมู่",
           path: BASE_PATH + "/modules/stock/categories.html",
         },
         {

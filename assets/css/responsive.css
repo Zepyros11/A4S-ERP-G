@@ -1,0 +1,68 @@
+/* =========================================================
+   RESPONSIVE
+   ========================================================= */
+
+/* ===== TABLET ===== */
+
+@media (max-width: 1024px) {
+  :root {
+    --page-pad: 20px;
+    --panel-w: 320px;
+  }
+
+  .stats-row {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* ===== MOBILE ===== */
+
+@media (max-width: 767px) {
+  :root {
+    --page-pad: 14px;
+  }
+
+  .content-wrap {
+    flex-direction: column;
+  }
+
+  .toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .toolbar-right {
+    margin-left: 0;
+  }
+
+  .side-panel {
+    position: fixed;
+    inset: 0;
+    width: 100% !important;
+    min-width: unset;
+    max-height: 100%;
+    border-radius: 0;
+    border: none;
+    top: 0;
+    z-index: 250;
+  }
+
+  .modal {
+    width: 100% !important;
+    max-width: 100% !important;
+    border-radius: 16px 16px 0 0;
+  }
+}
+
+/* ===== SMALL MOBILE ===== */
+
+@media (max-width: 480px) {
+  .btn {
+    padding: 8px 12px;
+    font-size: 12px;
+  }
+
+  .stat-value {
+    font-size: 16px;
+  }
+}

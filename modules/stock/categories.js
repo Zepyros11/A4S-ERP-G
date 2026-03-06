@@ -315,14 +315,18 @@ ${c.description ? `<div style="font-size:11px;color:#9ca3af">${c.description}</d
 
 <td><strong>${count}</strong></td>
 
-<td>
-<button class="btn btn-outline btn-sm"
-onclick="editCategory(${c.category_id})">✏️</button>
+<td style="text-align:center">
+  <button class="btn-icon"
+    onclick="editCategory(${c.category_id})">
+    ✏️
+  </button>
 </td>
 
-<td>
-<button class="btn-danger-sm"
-onclick="deleteCategory(${c.category_id},'${c.category_name}')">🗑</button>
+<td style="text-align:center">
+  <button class="btn-icon danger"
+    onclick="deleteCategory(${c.category_id},'${c.category_name}')">
+    🗑
+  </button>
 </td>
 
 </tr>

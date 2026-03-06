@@ -8,7 +8,21 @@
       href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="../../assets/css/common.css" />
+    <link rel="stylesheet" href="/assets/css/theme.css" />
+    <link rel="stylesheet" href="/assets/css/common.css" />
+
+    <link rel="stylesheet" href="/assets/css/layout.css" />
+    <link rel="stylesheet" href="/assets/css/buttons.css" />
+    <link rel="stylesheet" href="/assets/css/forms.css" />
+    <link rel="stylesheet" href="/assets/css/tables.css" />
+
+    <link rel="stylesheet" href="/assets/css/modal.css" />
+    <link rel="stylesheet" href="/assets/css/panel.css" />
+
+    <link rel="stylesheet" href="/assets/css/components.css" />
+    <link rel="stylesheet" href="/assets/css/animations.css" />
+
+    <link rel="stylesheet" href="/assets/css/responsive.css" />
     <style>
       :root {
         --panel-w: 380px;
@@ -190,7 +204,7 @@
       .prod-category {
         font-size: 12px;
         color: var(--text2);
-        margin-top: 2px;
+        font-family: "IBM Plex Mono", monospace;
       }
       .stock-badge {
         display: inline-flex;
@@ -1208,6 +1222,65 @@
       .lightbox-close:hover {
         background: rgba(255, 255, 255, 0.25);
       }
+      .btn-icon {
+        border: none;
+        background: #f3f4f6;
+        padding: 6px 10px;
+        border-radius: 6px;
+        cursor: pointer;
+      }
+
+      .btn-icon:hover {
+        background: #e5e7eb;
+      }
+
+      .btn-icon.danger {
+        color: #ef4444;
+      }
+      .switch {
+        position: relative;
+        display: inline-block;
+        width: 42px;
+        height: 22px;
+      }
+
+      .switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+      }
+
+      .slider {
+        position: absolute;
+        cursor: pointer;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: #d1d5db;
+        border-radius: 20px;
+        transition: 0.2s;
+      }
+
+      .slider:before {
+        position: absolute;
+        content: "";
+        height: 16px;
+        width: 16px;
+        left: 3px;
+        bottom: 3px;
+        background: white;
+        border-radius: 50%;
+        transition: 0.2s;
+      }
+
+      input:checked + .slider {
+        background: #22c55e;
+      }
+
+      input:checked + .slider:before {
+        transform: translateX(20px);
+      }
     </style>
   </head>
   <body>
@@ -1572,19 +1645,13 @@
             <table class="prod-table">
               <thead>
                 <tr>
-                  <th style="width: 40px; text-align: center">
-                    <input
-                      type="checkbox"
-                      id="checkAll"
-                      onchange="toggleCheckAll(this)"
-                    />
-                  </th>
-                  <th style="width: 68px; text-align: center">ภาพ</th>
-                  <th onclick="sortTable('product_name')">ชื่อสินค้า ↕</th>
+                  <th style="text-align: center">ภาพ</th>
+                  <th onclick="sortTable('product_name')">ชื่อสินค้า</th>
                   <th>หมวดหมู่</th>
-                  <th onclick="sortTable('sale_price')">ราคาขาย ↕</th>
-                  <th>Stock รวม</th>
-                  <th>สถานะ</th>
+                  <th onclick="sortTable('sale_price')">ราคาขาย</th>
+                  <th style="text-align: center">สถานะ</th>
+                  <th style="text-align: center">แก้ไข</th>
+                  <th style="text-align: center">ลบ</th>
                 </tr>
               </thead>
               <tbody id="tableBody">

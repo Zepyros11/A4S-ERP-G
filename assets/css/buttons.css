@@ -1,0 +1,96 @@
+/* =========================================================
+   BUTTONS
+   ========================================================= */
+
+.btn {
+  padding: 9px 18px;
+  border-radius: 7px;
+  font-size: 13.5px;
+  font-family: "Sarabun", sans-serif;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  transition: all 0.18s;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Primary */
+.btn-primary {
+  background: var(--accent);
+  color: #fff;
+}
+
+.btn-primary:hover {
+  background: var(--accent-light);
+}
+
+/* Outline */
+.btn-outline {
+  background: transparent;
+  border: 1.5px solid var(--border2);
+  color: var(--text2);
+}
+
+.btn-outline:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* Danger */
+.btn-danger {
+  background: var(--danger-pale);
+  color: var(--danger);
+  border: 1.5px solid #fca5a5;
+}
+
+.btn-danger:hover {
+  background: #fee2e2;
+}
+
+/* Success */
+.btn-success {
+  background: var(--success);
+  color: #fff;
+}
+
+.btn-success:hover {
+  background: #065f46;
+}
+
+/* Warning */
+.btn-warning {
+  background: var(--warning-pale);
+  color: var(--warning);
+  border: 1.5px solid #fcd34d;
+}
+
+.btn-warning:hover {
+  background: #fef9c3;
+}
+
+/* Icon button */
+.btn-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  border: none;
+  background: #f1f5f9;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-icon:hover {
+  background: #e2e8f0;
+}
+
+.btn-icon.danger {
+  color: #dc2626;
+}
+
+.btn-icon.danger:hover {
+  background: #fee2e2;
+}
