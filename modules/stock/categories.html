@@ -3,428 +3,166 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>หมวดหมู่สินค้า — A4S-ERP</title>
+
+    <title>หมวดหมู่สินค้า — A4S ERP</title>
+
     <link
       href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="../../assets/css/theme.css" />
-    <link rel="stylesheet" href="../../assets/css/common.css" />
 
-    <link rel="stylesheet" href="../../assets/css/layout.css" />
-    <link rel="stylesheet" href="../../assets/css/buttons.css" />
-    <link rel="stylesheet" href="../../assets/css/forms.css" />
-    <link rel="stylesheet" href="../../assets/css/table.css" />
-
-    <link rel="stylesheet" href="../../assets/css/modal.css" />
-    <link rel="stylesheet" href="../../assets/css/panel.css" />
-
-    <link rel="stylesheet" href="../../assets/css/components.css" />
-    <link rel="stylesheet" href="../../assets/css/animations.css" />
-
-    <link rel="stylesheet" href="../../assets/css/responsive.css" />
-    <link rel="stylesheet" href="../../assets/css/categories.css" />
+    <link rel="stylesheet" href="../../assets/css/main.css" />
   </head>
+
   <body>
     <div class="loading-overlay" id="loadingOverlay">
       <div class="spinner"></div>
     </div>
+
     <div class="toast" id="toast"></div>
 
-    <!-- MODAL -->
-    <div class="modal-overlay" id="modalOverlay" onclick="closeModalBg(event)">
-      <div class="modal" style="width: 820px; max-width: 96vw">
-        <div class="modal-hdr">
-          <div class="modal-title" id="modalTitle">เพิ่มหมวดหมู่ใหม่</div>
-          <button class="btn-modal-close" onclick="closeModal()">✕</button>
-        </div>
-        <div
-          style="display: grid; grid-template-columns: 1fr 1fr; min-height: 0"
-        >
-          <!-- Left: ชื่อ / ไอคอน / สี -->
-          <div
-            style="
-              padding: 22px 20px;
-              border-right: 1px solid var(--border);
-              display: flex;
-              flex-direction: column;
-              gap: 14px;
-              overflow-y: auto;
-              max-height: 70vh;
-            "
-          >
-            <input type="hidden" id="editId" />
-            <div
-              style="
-                font-size: 11px;
-                font-weight: 700;
-                color: var(--text3);
-                letter-spacing: 1px;
-                text-transform: uppercase;
-                border-bottom: 1px solid var(--border);
-                padding-bottom: 8px;
-              "
-            >
-              📋 ข้อมูลหมวดหมู่
-            </div>
-            <div class="form-group">
-              <label class="form-label"
-                >ชื่อหมวดหมู่ <span class="req">*</span></label
-              >
-              <input
-                class="form-control"
-                id="fName"
-                placeholder="เช่น เสื้อผ้า"
-                oninput="updateCatPreview()"
-              />
-            </div>
-            <div class="form-group">
-              <label class="form-label">คำอธิบาย</label>
-              <input
-                class="form-control"
-                id="fDesc"
-                placeholder="คำอธิบายสั้นๆ (ถ้ามี)"
-                oninput="updateCatPreview()"
-              />
-            </div>
-            <div class="form-group">
-              <label class="form-label">ไอคอน</label>
-              <div
-                class="emoji-row"
-                id="emojiPicker"
-                style="max-height: 160px"
-              ></div>
-            </div>
-            <div class="form-group">
-              <label class="form-label">สีหมวดหมู่</label>
-              <div class="color-row" id="colorPicker"></div>
-            </div>
-            <!-- Preview -->
-            <div
-              id="catPreviewCard"
-              style="
-                margin-top: 4px;
-                padding: 12px 14px;
-                border-radius: 9px;
-                border: 1.5px solid var(--border);
-                background: var(--surface2);
-                display: flex;
-                align-items: center;
-                gap: 12px;
-              "
-            >
-              <div
-                id="prevIcon"
-                style="
-                  width: 42px;
-                  height: 42px;
-                  border-radius: 10px;
-                  display: flex;
-                  align-items: center;
-                  justify-content: center;
-                  font-size: 22px;
-                  background: #0f4c7522;
-                  color: #0f4c75;
-                  flex-shrink: 0;
-                "
-              >
-                📦
-              </div>
-              <div>
-                <div
-                  id="prevName"
-                  style="font-size: 14px; font-weight: 700; color: var(--text)"
-                >
-                  ชื่อหมวดหมู่
-                </div>
-                <div
-                  id="prevDesc"
-                  style="font-size: 11px; color: var(--text3); margin-top: 2px"
-                >
-                  คำอธิบาย
-                </div>
-              </div>
-            </div>
-          </div>
-          <!-- Right: SKU Format -->
-          <div
-            style="
-              padding: 22px 20px;
-              overflow-y: auto;
-              max-height: 70vh;
-              display: flex;
-              flex-direction: column;
-              gap: 16px;
-            "
-          >
-            <div
-              style="
-                font-size: 11px;
-                font-weight: 700;
-                color: var(--text3);
-                letter-spacing: 1px;
-                text-transform: uppercase;
-                border-bottom: 1px solid var(--border);
-                padding-bottom: 8px;
-              "
-            >
-              🔖 รูปแบบ SKU สินค้า
-            </div>
-            <div
-              style="
-                padding: 10px 14px;
-                background: var(--accent-pale);
-                border-radius: 8px;
-                border: 1.5px solid #93c5fd;
-              "
-            >
-              <div
-                style="
-                  font-size: 10px;
-                  font-weight: 700;
-                  color: var(--text3);
-                  letter-spacing: 0.8px;
-                  margin-bottom: 4px;
-                "
-              >
-                PREVIEW
-              </div>
-              <div
-                id="skuPreview"
-                style="
-                  font-family: monospace;
-                  font-size: 15px;
-                  font-weight: 700;
-                  color: var(--accent);
-                  letter-spacing: 1px;
-                "
-              >
-                XXX-[?]-[?]-[?]-001
-              </div>
-            </div>
-            <div class="form-group">
-              <div
-                style="
-                  display: flex;
-                  align-items: center;
-                  justify-content: space-between;
-                  margin-bottom: 5px;
-                "
-              >
-                <label class="form-label" style="margin: 0"
-                  >ช่อง 1 — Prefix (Fix)</label
-                >
-                <span
-                  style="
-                    font-size: 10px;
-                    background: var(--accent);
-                    color: #fff;
-                    padding: 1px 6px;
-                    border-radius: 4px;
-                    font-weight: 700;
-                  "
-                  >FIX</span
-                >
-              </div>
-              <input
-                class="form-control"
-                id="skuF1"
-                placeholder="APP"
-                maxlength="6"
-                style="
-                  font-family: monospace;
-                  text-transform: uppercase;
-                  font-size: 14px;
-                  font-weight: 700;
-                  letter-spacing: 2px;
-                  color: var(--accent);
-                "
-                oninput="
-                  this.value = this.value.toUpperCase();
-                  updateSkuPreview();
-                "
-              />
-              <div
-                style="font-size: 11px; color: var(--text3); margin-top: 4px"
-              >
-                รหัสตัวย่อหมวด เช่น APP, MED, FOOD
-              </div>
-            </div>
-            <div style="border-top: 1px dashed var(--border)"></div>
-            <div
-              style="
-                font-size: 11px;
-                font-weight: 700;
-                color: var(--text2);
-                margin-bottom: -8px;
-              "
-            >
-              ช่อง 2-4 — ชื่อ Label
-            </div>
-            <div class="form-group">
-              <label class="form-label">ช่อง 2</label>
-              <input
-                class="form-control"
-                id="skuL2"
-                placeholder="เช่น ประเภท, Type"
-                oninput="updateSkuPreview()"
-              />
-            </div>
-            <div class="form-group">
-              <label class="form-label">ช่อง 3</label>
-              <input
-                class="form-control"
-                id="skuL3"
-                placeholder="เช่น สี, Color"
-                oninput="updateSkuPreview()"
-              />
-            </div>
-            <div class="form-group">
-              <label class="form-label">ช่อง 4</label>
-              <input
-                class="form-control"
-                id="skuL4"
-                placeholder="เช่น ไซส์, Size"
-                oninput="updateSkuPreview()"
-              />
-            </div>
-            <div style="border-top: 1px dashed var(--border)"></div>
-            <div class="form-group">
-              <div
-                style="
-                  display: flex;
-                  align-items: center;
-                  justify-content: space-between;
-                  margin-bottom: 5px;
-                "
-              >
-                <label class="form-label" style="margin: 0"
-                  >ช่อง 5 — ลำดับ</label
-                >
-                <span
-                  style="
-                    font-size: 10px;
-                    background: #374151;
-                    color: #fff;
-                    padding: 1px 6px;
-                    border-radius: 4px;
-                    font-weight: 700;
-                  "
-                  >AUTO</span
-                >
-              </div>
-              <input
-                class="form-control"
-                id="skuF5"
-                value="001"
-                readonly
-                style="
-                  font-family: monospace;
-                  font-size: 13px;
-                  background: var(--surface2);
-                  color: var(--text3);
-                "
-              />
-              <div
-                style="font-size: 11px; color: var(--text3); margin-top: 4px"
-              >
-                ระบบ Generate อัตโนมัติ เพิ่มทีละ 1
-              </div>
-            </div>
-            <div
-              style="
-                padding: 10px 12px;
-                background: #fef9c3;
-                border-radius: 8px;
-                border: 1px solid #fcd34d;
-              "
-            >
-              <div
-                style="
-                  font-size: 10px;
-                  font-weight: 700;
-                  color: #92400e;
-                  margin-bottom: 4px;
-                "
-              >
-                💡 ตัวอย่าง
-              </div>
-              <div
-                id="skuExample"
-                style="font-family: monospace; font-size: 12px; color: #92400e"
-              >
-                APP-TEE-RED-XL-001
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button class="btn btn-outline" onclick="closeModal()">ยกเลิก</button>
-          <button class="btn btn-primary" onclick="saveCategory()">
-            💾 บันทึก
-          </button>
-        </div>
-      </div>
-    </div>
-
     <!-- TOPBAR -->
+
     <div class="topbar">
       <div class="topbar-logo">📦 <span>A4S</span>-ERP</div>
+
       <div class="topbar-sep"></div>
+
       <div class="topbar-title">🏷️ หมวดหมู่</div>
-      <div class="topbar-actions">
-        <button
-          id="btnOrderEdit"
-          class="btn-topbar btn-outline"
-          onclick="toggleOrderEdit()"
-        >
-          ✏️ แก้ไขลำดับ ปิด
-        </button>
-        <button class="btn-topbar btn-white" onclick="openModal()">
-          ＋ เพิ่มหมวดหมู่
-        </button>
-      </div>
     </div>
 
     <div class="page">
-      <div class="table-card">
-        <div class="table-hdr">
-          <div class="table-title">🏷️ หมวดหมู่</div>
-          <div class="table-count" id="catCount">0 รายการ</div>
+      <!-- ========================= -->
+      <!-- STATS -->
+      <!-- ========================= -->
+
+      <div class="stats-row">
+        <div class="stat-card">
+          <div class="stat-icon">🏷️</div>
+          <div>
+            <div class="stat-value" id="statTotal">0</div>
+            <div class="stat-label">หมวดทั้งหมด</div>
+          </div>
         </div>
 
-        <div class="table-wrap">
-          <table class="data-table table-categories">
-            <thead>
-              <tr>
-                <th class="col-center" onclick="sortCategory('sort_order')">
-                  ลำดับ <span class="sort-icon">↕</span>
-                </th>
+        <div class="stat-card">
+          <div class="stat-icon">📦</div>
+          <div>
+            <div class="stat-value" id="statUsed">0</div>
+            <div class="stat-label">หมวดที่มีสินค้า</div>
+          </div>
+        </div>
 
-                <th class="col-center">Icon</th>
-
-                <th class="col-center" onclick="sortCategory('category_name')">
-                  ชื่อหมวดหมู่ <span class="sort-icon">↕</span>
-                </th>
-
-                <th class="col-center">SKU</th>
-
-                <th class="col-center" onclick="sortCategory('product_count')">
-                  จำนวนสินค้า <span class="sort-icon">↕</span>
-                </th>
-
-                <th class="col-center">แก้ไข</th>
-                <th class="col-center">ลบ</th>
-              </tr>
-            </thead>
-
-            <tbody id="catTable"></tbody>
-          </table>
+        <div class="stat-card">
+          <div class="stat-icon">📭</div>
+          <div>
+            <div class="stat-value" id="statEmpty">0</div>
+            <div class="stat-label">หมวดว่าง</div>
+          </div>
         </div>
       </div>
+
+      <!-- ========================= -->
+      <!-- TOOLBAR -->
+      <!-- ========================= -->
+
+      <div class="toolbar">
+        <div class="search-wrap">
+          <span class="search-icon">🔍</span>
+
+          <input
+            class="search-input"
+            id="searchInput"
+            placeholder="ค้นหาหมวดหมู่"
+            oninput="renderTable()"
+          />
+        </div>
+
+        <div class="toolbar-right">
+          <button class="btn btn-primary" onclick="openModal()">
+            ＋ เพิ่มหมวดหมู่
+          </button>
+        </div>
+      </div>
+
+      <!-- ========================= -->
+      <!-- CONTENT ROW -->
+      <!-- ========================= -->
+
+      <div class="content-row">
+        <!-- ========================= -->
+        <!-- TABLE -->
+        <!-- ========================= -->
+
+        <div class="table-card">
+          <div class="table-hdr">
+            <div class="table-title">🏷️ หมวดหมู่</div>
+
+            <div class="table-count" id="catCount">0 รายการ</div>
+          </div>
+
+          <div class="table-wrap">
+            <table class="data-table table-categories">
+              <thead>
+                <tr>
+                  <th style="width: 40px"></th>
+
+                  <th>Icon</th>
+
+                  <th onclick="sortTable('category_name')">
+                    ชื่อหมวดหมู่
+                    <span class="sort-icon" id="sort-category_name">⇅</span>
+                  </th>
+
+                  <th onclick="sortTable('sku_pattern')">
+                    SKU
+                    <span class="sort-icon" id="sort-sku_pattern">⇅</span>
+                  </th>
+
+                  <th onclick="sortTable('product_count')">
+                    จำนวนสินค้า
+                    <span class="sort-icon" id="sort-product_count">⇅</span>
+                  </th>
+
+                  <th class="col-center">จัดการ</th>
+                </tr>
+              </thead>
+
+              <tbody id="catTable"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- ========================= -->
+        <!-- SIDE PANEL -->
+        <!-- ========================= -->
+
+        <div class="side-panel" id="categoryPanel">
+          <div class="panel-hdr">
+            <div id="panelTitle">สินค้าในหมวด</div>
+
+            <button class="btn-close" onclick="closeCategoryPanel()">✕</button>
+          </div>
+
+          <div class="panel-body">
+            <div class="panel-search">
+              <input
+                id="panelSearch"
+                placeholder="ค้นหาสินค้า..."
+                oninput="filterCategoryProducts()"
+              />
+            </div>
+
+            <div id="panelBody"></div>
+          </div>
+        </div>
+      </div>
+      <!-- END content-row -->
     </div>
+    <!-- END page -->
 
     <script src="categories.js"></script>
+
     <script src="../../shared/auth.js"></script>
     <script src="../../shared/sidebar.js"></script>
   </body>

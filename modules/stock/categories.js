@@ -9,7 +9,6 @@ let categories = [],
   products = [];
 let selectedEmoji = "📦";
 let selectedColor = "#0f4c75";
-let orderEditMode = false;
 let catSortKey = "sort_order";
 let catSortAsc = true;
 const EMOJIS = [
@@ -254,7 +253,9 @@ async function loadData() {
     ]);
     categories = cats || [];
     products = prods || [];
+
     renderGrid(categories);
+    renderCategoryStats();
   } catch (e) {
     showToast("โหลดไม่ได้: " + e.message, "error");
   }
@@ -290,17 +291,11 @@ function renderGrid(cats) {
       : "—";
 
     html += `
-<tr>
+<tr draggable="true"
+onclick="openCategoryProducts(${c.category_id},'${c.category_name}','${c.icon || "📦"}')"
+data-id="${c.category_id}">
 
-<td>
-${
-  orderEditMode
-    ? `<input type="number" step="0.01" value="${c.sort_order ?? 0}"
-style="width:70px;text-align:center"
-onchange="updateSort(${c.category_id},this.value)">`
-    : (c.sort_order ?? 0)
-}
-</td>
+<td class="drag-handle">⋮⋮</td>
 
 <td style="font-size:20px">${c.icon || "📦"}</td>
 
@@ -313,18 +308,32 @@ ${c.description ? `<div style="font-size:11px;color:#9ca3af">${c.description}</d
 
 <td><strong>${count}</strong></td>
 
-<td style="text-align:center">
-  <button class="btn-icon"
-    onclick="editCategory(${c.category_id})">
-    ✏️
-  </button>
-</td>
+<td class="col-center">
 
-<td style="text-align:center">
-  <button class="btn-icon danger"
-    onclick="deleteCategory(${c.category_id},'${c.category_name}')">
-    🗑
-  </button>
+<div class="row-menu">
+
+<button class="menu-btn"
+onclick="event.stopPropagation();toggleRowMenu(this)">
+⋮
+</button>
+
+<div class="menu-dropdown">
+
+<button
+onclick="event.stopPropagation();editCategory(${c.category_id})">
+✏️ แก้ไข
+</button>
+
+<button
+class="danger"
+onclick="event.stopPropagation();deleteCategory(${c.category_id},'${c.category_name}')">
+🗑 ลบ
+</button>
+
+</div>
+
+</div>
+
 </td>
 
 </tr>
@@ -332,6 +341,7 @@ ${c.description ? `<div style="font-size:11px;color:#9ca3af">${c.description}</d
   });
 
   tbody.innerHTML = html;
+  enableDragSort();
 
   const count = document.getElementById("catCount");
   if (count) count.textContent = cats.length + " รายการ";
@@ -503,35 +513,7 @@ window.addEventListener("DOMContentLoaded", () => {
   if (SB_URL && SB_KEY) loadData();
   else renderGrid([]);
 });
-function toggleOrderEdit() {
-  orderEditMode = !orderEditMode;
 
-  const btn = document.getElementById("btnOrderEdit");
-
-  if (btn) {
-    btn.innerHTML = orderEditMode ? "✏️ แก้ไขลำดับ เปิด" : "✏️ แก้ไขลำดับ ปิด";
-  }
-
-  renderGrid(categories);
-
-  showToast(orderEditMode ? "เปิดโหมดแก้ไขลำดับ" : "ปิดโหมดแก้ไขลำดับ");
-}
-async function updateSort(id, value) {
-  try {
-    await sbFetch("categories", `?category_id=eq.${id}`, {
-      method: "PATCH",
-      body: {
-        sort_order: parseFloat(value),
-      },
-    });
-
-    showToast("บันทึกลำดับแล้ว");
-
-    await loadData();
-  } catch (e) {
-    showToast("บันทึกไม่ได้ " + e.message, "error");
-  }
-}
 function sortCategory(key) {
   if (catSortKey === key) {
     catSortAsc = !catSortAsc;
@@ -541,4 +523,199 @@ function sortCategory(key) {
   }
 
   renderGrid(categories);
+}
+function renderCategoryStats() {
+  const total = categories.length;
+
+  const used = categories.filter((c) =>
+    products.some((p) => p.category_id === c.category_id),
+  ).length;
+
+  const empty = total - used;
+
+  const statTotal = document.getElementById("statTotal");
+  const statUsed = document.getElementById("statUsed");
+  const statEmpty = document.getElementById("statEmpty");
+
+  if (statTotal) statTotal.textContent = total;
+  if (statUsed) statUsed.textContent = used;
+  if (statEmpty) statEmpty.textContent = empty;
+}
+let currentSort = { field: "", dir: "asc" };
+
+function sortTable(field) {
+  if (currentSort.field === field) {
+    currentSort.dir = currentSort.dir === "asc" ? "desc" : "asc";
+  } else {
+    currentSort.field = field;
+    currentSort.dir = "asc";
+  }
+
+  categories.sort((a, b) => {
+    let x = a[field] || "";
+    let y = b[field] || "";
+
+    if (typeof x === "string") x = x.toLowerCase();
+    if (typeof y === "string") y = y.toLowerCase();
+
+    if (currentSort.dir === "asc") return x > y ? 1 : -1;
+    return x < y ? 1 : -1;
+  });
+
+  document.querySelectorAll(".sort-icon").forEach((i) => {
+    i.textContent = "⇅";
+  });
+
+  const icon = document.getElementById("sort-" + field);
+
+  if (icon) {
+    icon.textContent = currentSort.dir === "asc" ? "▲" : "▼";
+  }
+
+  renderTable();
+}
+const search =
+  document.getElementById("searchInput")?.value.toLowerCase() || "";
+
+const filtered = categories.filter((c) =>
+  (c.category_name || "").toLowerCase().includes(search),
+);
+function enableDragSort() {
+  const tbody = document.getElementById("catTable");
+  let dragging;
+
+  tbody.querySelectorAll("tr").forEach((row) => {
+    row.addEventListener("dragstart", () => {
+      dragging = row;
+      row.classList.add("dragging");
+    });
+
+    row.addEventListener("dragend", () => {
+      row.classList.remove("dragging");
+    });
+
+    row.addEventListener("dragover", (e) => {
+      e.preventDefault();
+
+      const after = getDragAfterElement(tbody, e.clientY);
+
+      if (after == null) {
+        tbody.appendChild(dragging);
+      } else {
+        tbody.insertBefore(dragging, after);
+      }
+    });
+  });
+}
+function getDragAfterElement(container, y) {
+  const els = [...container.querySelectorAll("tr:not(.dragging)")];
+
+  return els.reduce(
+    (closest, child) => {
+      const box = child.getBoundingClientRect();
+
+      const offset = y - box.top - box.height / 2;
+
+      if (offset < 0 && offset > closest.offset) {
+        return { offset: offset, element: child };
+      } else {
+        return closest;
+      }
+    },
+    { offset: Number.NEGATIVE_INFINITY },
+  ).element;
+}
+function toggleRowMenu(btn) {
+  const menu = btn.nextElementSibling;
+
+  document.querySelectorAll(".menu-dropdown").forEach((m) => {
+    if (m !== menu) m.style.display = "none";
+  });
+
+  menu.style.display = menu.style.display === "block" ? "none" : "block";
+}
+
+document.addEventListener("click", () => {
+  document
+    .querySelectorAll(".menu-dropdown")
+    .forEach((m) => (m.style.display = "none"));
+});
+async function openCategoryProducts(id, name, icon) {
+  const rows = await sbFetch(
+    "products",
+    `?select=product_id,product_name,product_code&category_id=eq.${id}`,
+  );
+
+  categoryProducts = rows || [];
+
+  document.getElementById("panelTitle").innerHTML =
+    `สินค้าในหมวด : ${icon} ${name}`;
+
+  document.getElementById("categoryPanel").classList.add("open");
+
+  drawCategoryProducts(categoryProducts);
+}
+let categoryProducts = [];
+
+function drawCategoryProducts(rows) {
+  const body = document.getElementById("panelBody");
+
+  if (rows.length === 0) {
+    body.innerHTML = `
+<div style="padding:30px;text-align:center">
+ไม่มีสินค้าในหมวดนี้
+</div>
+`;
+
+    return;
+  }
+
+  body.innerHTML = `
+
+<table class="stock-table">
+
+<thead>
+<tr>
+<th>สินค้า</th>
+<th>SKU</th>
+</tr>
+</thead>
+
+<tbody>
+
+${rows
+  .map(
+    (p) => `
+
+<tr>
+
+<td>${p.product_name || "-"}</td>
+
+<td class="mono">${p.product_code || "-"}</td>
+
+</tr>
+
+`,
+  )
+  .join("")}
+
+</tbody>
+
+</table>
+
+`;
+}
+function filterCategoryProducts() {
+  const q = document.getElementById("panelSearch").value.toLowerCase();
+
+  const list = categoryProducts.filter(
+    (p) =>
+      (p.product_name || "").toLowerCase().includes(q) ||
+      (p.product_code || "").toLowerCase().includes(q),
+  );
+
+  drawCategoryProducts(list);
+}
+function closeCategoryPanel() {
+  document.getElementById("categoryPanel").classList.remove("open");
 }

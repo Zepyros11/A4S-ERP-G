@@ -1,0 +1,172 @@
+/* ======================================================
+   A4S ERP — SIDE PANEL
+====================================================== */
+
+/* layout row */
+
+.content-row {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+}
+
+/* side panel */
+.table-card {
+  flex: 2;
+}
+
+.side-panel {
+  flex: 1;
+
+  background: var(--surface);
+
+  border: 1px solid var(--border);
+  border-radius: 12px;
+
+  display: none;
+
+  flex-shrink: 0;
+
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+}
+
+/* open */
+
+.side-panel.open {
+  display: block;
+}
+
+/* header */
+
+.panel-hdr {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  padding: 16px 18px;
+
+  border-bottom: 1px solid var(--border);
+
+  background: var(--surface2);
+
+  font-weight: 600;
+}
+
+/* body */
+
+.panel-body {
+  padding: 16px;
+
+  max-height: 600px;
+
+  overflow: auto;
+
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* search */
+
+.panel-search {
+  margin-bottom: 6px;
+}
+
+.panel-search input {
+  width: 100%;
+
+  padding: 10px 12px;
+
+  border: 1px solid var(--border);
+
+  border-radius: 8px;
+
+  font-size: 13px;
+
+  background: var(--surface);
+}
+
+/* close button */
+
+.btn-close {
+  width: 30px;
+  height: 30px;
+
+  border: none;
+
+  border-radius: 8px;
+
+  background: var(--surface);
+
+  cursor: pointer;
+
+  font-size: 14px;
+}
+
+.btn-close:hover {
+  background: var(--danger-pale);
+
+  color: var(--danger);
+}
+
+/* ========================= */
+/* stock table */
+/* ========================= */
+
+.stock-table {
+  width: 100%;
+
+  border-collapse: collapse;
+
+  font-size: 13px;
+}
+
+.stock-table th {
+  padding: 10px 12px;
+
+  text-align: left;
+
+  font-size: 12px;
+
+  font-weight: 600;
+
+  background: var(--surface2);
+
+  border-bottom: 2px solid var(--border);
+}
+
+.stock-table td {
+  padding: 12px;
+
+  border-bottom: 1px solid var(--border);
+}
+
+.stock-table tr:hover {
+  background: var(--surface2);
+}
+
+/* mono */
+
+.mono {
+  font-family: "IBM Plex Mono", monospace;
+}
+
+/* quantity */
+
+.stock-qty {
+  font-family: "IBM Plex Mono", monospace;
+
+  font-weight: 600;
+}
+
+.qty-ok {
+  color: var(--success);
+}
+
+.qty-low {
+  color: #d97706;
+}
+
+.qty-zero {
+  color: var(--danger);
+}

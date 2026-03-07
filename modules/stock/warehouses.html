@@ -3,341 +3,118 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>จัดการคลังสินค้า — A4S-ERP</title>
+
+    <title>คลังสินค้า — A4S-ERP</title>
+
     <link
       href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
       rel="stylesheet"
     />
-<link rel="stylesheet" href="../../assets/css/theme.css">
-<link rel="stylesheet" href="../../assets/css/common.css">
-
-<link rel="stylesheet" href="../../assets/css/layout.css">
-<link rel="stylesheet" href="../../assets/css/buttons.css">
-<link rel="stylesheet" href="../../assets/css/forms.css">
-<link rel="stylesheet" href="../../assets/css/table.css">
-
-<link rel="stylesheet" href="../../assets/css/modal.css">
-<link rel="stylesheet" href="../../assets/css/panel.css">
-
-<link rel="stylesheet" href="../../assets/css/components.css">
-<link rel="stylesheet" href="../../assets/css/animations.css">
-
-<link rel="stylesheet" href="../../assets/css/responsive.css">
-    <style>
-      /* ── Warehouses-specific ── */
-      .wh-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-        gap: 16px;
-        margin-bottom: 20px;
-      }
-      .wh-card {
-        background: var(--surface);
-        border: 1px solid var(--border);
-        border-radius: var(--radius);
-        box-shadow: var(--shadow);
-        overflow: hidden;
-        transition: all 0.2s;
-        cursor: pointer;
-      }
-      .wh-card:hover {
-        transform: translateY(-2px);
-        box-shadow: var(--shadow-lg);
-      }
-      .wh-card.selected {
-        border-color: var(--accent);
-        box-shadow:
-          0 0 0 2px var(--accent-pale),
-          var(--shadow-lg);
-      }
-      .wh-card-top {
-        padding: 18px 20px;
-        display: flex;
-        align-items: flex-start;
-        gap: 14px;
-        border-bottom: 1px solid var(--border);
-      }
-      .wh-icon {
-        width: 46px;
-        height: 46px;
-        border-radius: 12px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 22px;
-        flex-shrink: 0;
-      }
-      .wh-code {
-        font-family: "IBM Plex Mono", monospace;
-        font-size: 11px;
-        color: var(--text3);
-        letter-spacing: 1px;
-      }
-      .wh-name {
-        font-size: 15px;
-        font-weight: 700;
-        color: var(--text);
-        margin-top: 2px;
-      }
-      .wh-type {
-        font-size: 11px;
-        color: var(--text3);
-        margin-top: 4px;
-      }
-      .wh-card-stats {
-        padding: 14px 20px;
-        display: grid;
-        grid-template-columns: 1fr 1fr 1fr;
-        gap: 8px;
-      }
-      .wh-stat {
-        text-align: center;
-      }
-      .wh-stat-val {
-        font-size: 18px;
-        font-weight: 700;
-        font-family: "IBM Plex Mono", monospace;
-        color: var(--text);
-      }
-      .wh-stat-lbl {
-        font-size: 10px;
-        color: var(--text3);
-        font-weight: 600;
-        letter-spacing: 0.3px;
-        margin-top: 2px;
-      }
-      .wh-card-footer {
-        padding: 10px 20px;
-        background: var(--surface2);
-        border-top: 1px solid var(--border);
-        display: flex;
-        justify-content: flex-end;
-        gap: 8px;
-      }
-      .btn-sm {
-        padding: 5px 12px;
-        border-radius: 6px;
-        font-size: 12px;
-        font-family: "Sarabun", sans-serif;
-        font-weight: 500;
-        cursor: pointer;
-        border: none;
-        transition: all 0.15s;
-        display: inline-flex;
-        align-items: center;
-        gap: 4px;
-      }
-      .btn-sm-edit {
-        background: var(--accent-pale);
-        color: var(--accent);
-      }
-      .btn-sm-edit:hover {
-        background: #c7d7f5;
-      }
-      .btn-sm-del {
-        background: var(--danger-pale);
-        color: var(--danger);
-        border: 1.5px solid #fca5a5;
-      }
-      .btn-sm-del:hover {
-        background: #fee2e2;
-      }
-      .stock-panel {
-        background: var(--surface);
-        border: 1px solid var(--border);
-        border-radius: var(--radius);
-        box-shadow: var(--shadow);
-        overflow: hidden;
-        display: none;
-      }
-      .stock-panel.open {
-        display: block;
-      }
-      .stock-panel-hdr {
-        padding: 14px 20px;
-        border-bottom: 1px solid var(--border);
-        background: var(--surface2);
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-      }
-      .stock-panel-title {
-        font-size: 13px;
-        font-weight: 600;
-        color: var(--text2);
-      }
-      .stock-table {
-        width: 100%;
-        border-collapse: collapse;
-      }
-      .stock-table th {
-        padding: 9px 16px;
-        background: var(--surface2);
-        font-size: 11px;
-        font-weight: 700;
-        letter-spacing: 0.8px;
-        color: var(--text3);
-        text-align: left;
-        border-bottom: 2px solid var(--border);
-      }
-      .stock-table td {
-        padding: 11px 16px;
-        border-bottom: 1px solid var(--border);
-        font-size: 13.5px;
-      }
-      .stock-table tr:last-child td {
-        border-bottom: none;
-      }
-      .stock-qty {
-        font-family: "IBM Plex Mono", monospace;
-        font-size: 14px;
-        font-weight: 600;
-      }
-      .qty-ok {
-        color: var(--success);
-      }
-      .qty-low {
-        color: #d97706;
-      }
-      .qty-zero {
-        color: var(--danger);
-      }
-      .location-block {
-        border: 1px solid var(--border);
-        border-radius: 10px;
-        margin-bottom: 12px;
-        overflow: hidden;
-      }
-
-      .location-header {
-        padding: 10px 14px;
-        background: var(--surface2);
-        font-weight: 600;
-        font-size: 13px;
-      }
-
-      .bin-row {
-        display: flex;
-        gap: 8px;
-        flex-wrap: wrap;
-        padding: 10px;
-      }
-
-      .bin-chip {
-        padding: 4px 10px;
-        background: var(--accent-pale);
-        border-radius: 6px;
-        font-size: 12px;
-        font-family: "IBM Plex Mono", monospace;
-      }
-    </style>
+<link rel="stylesheet" href="../../assets/css/main.css">
   </head>
+
   <body>
     <div class="loading-overlay" id="loadingOverlay">
       <div class="spinner"></div>
     </div>
+
     <div class="toast" id="toast"></div>
 
     <!-- TOPBAR -->
+
     <div class="topbar">
       <div class="topbar-logo">📦 <span>A4S</span>-ERP</div>
+
       <div class="topbar-sep"></div>
-      <div class="topbar-title">จัดการคลังสินค้า</div>
-      <div class="topbar-actions">
-        <button class="btn-topbar btn-white" onclick="openModal()">
-          ＋ เพิ่มคลัง
-        </button>
-      </div>
+
+      <div class="topbar-title">📦 คลังสินค้า</div>
     </div>
 
     <!-- MODAL -->
-    <div class="modal-overlay" id="modalOverlay">
+
+    <div class="modal-overlay" id="modalOverlay" onclick="closeModalBg(event)">
       <div class="modal" style="width: 520px">
         <div class="modal-hdr">
           <div class="modal-title" id="modalTitle">เพิ่มคลังสินค้าใหม่</div>
           <button class="btn-modal-close" onclick="closeModal()">✕</button>
         </div>
+
         <div class="modal-body">
           <input type="hidden" id="editId" />
+
           <div class="form-grid">
             <div class="form-group">
-              <label class="form-label"
-                >รหัสคลัง <span class="req">*</span></label
-              >
-              <input class="form-control" id="fCode" placeholder="WH-001" />
+              <label class="form-label">รหัสคลัง *</label>
+              <input class="form-control" id="fCode" />
             </div>
+
             <div class="form-group">
               <label class="form-label">ประเภทคลัง</label>
+
               <select class="form-control" id="fType">
-                <option value="MAIN">🏭 หลัก (Main)</option>
-                <option value="BRANCH">🏪 สาขา (Branch)</option>
-                <option value="TRANSIT">🚚 พักสินค้า (Transit)</option>
-                <option value="RETURN">↩ คืนสินค้า (Return)</option>
+                <option value="MAIN">คลังหลัก</option>
+                <option value="BRANCH">คลังสาขา</option>
+                <option value="TRANSIT">จุดพักสินค้า</option>
+                <option value="RETURN">จุดคืนสินค้า</option>
               </select>
             </div>
-            <div class="form-group full">
-              <label class="form-label"
-                >ชื่อคลังสินค้า <span class="req">*</span></label
-              >
-              <input class="form-control" id="fName" placeholder="ชื่อคลัง" />
-            </div>
-            <div class="form-group full">
-              <label class="form-label">ที่อยู่คลัง</label>
-              <textarea
-                class="form-control"
-                id="fAddress"
-                rows="2"
-                style="resize: vertical"
-                placeholder="ที่ตั้งคลังสินค้า"
-              ></textarea>
-            </div>
+
             <div class="form-group">
-              <label class="form-label">ผู้ดูแลคลัง</label>
-              <input
-                class="form-control"
-                id="fManager"
-                placeholder="ชื่อผู้ดูแล"
-              />
+              <label class="form-label">Icon คลัง</label>
+
+              <select class="form-control" id="fIcon">
+                <option value="🏭">🏭 โรงงาน</option>
+                <option value="🏣">🏣 อาคารสินค้า</option>
+                <option value="🏢">🏢 อาคารสำนักงาน</option>
+                <option value="🏪">🏪 ร้านค้า/สาขา</option>
+                <option value="🏠">🏠 บ้าน</option>
+              </select>
             </div>
+
+            <div class="form-group full">
+              <label class="form-label">ชื่อคลัง *</label>
+              <input class="form-control" id="fName" />
+            </div>
+
+            <div class="form-group full">
+              <label class="form-label">ที่อยู่</label>
+              <textarea class="form-control" id="fAddress"></textarea>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">ผู้ดูแล</label>
+              <input class="form-control" id="fManager" />
+            </div>
+
             <div class="form-group">
               <label class="form-label">เบอร์โทร</label>
-              <input
-                class="form-control"
-                id="fPhone"
-                placeholder="0x-xxxx-xxxx"
-              />
+              <input class="form-control" id="fPhone" />
             </div>
+
             <div class="form-group">
-              <label class="form-label">ความจุสูงสุด (ชิ้น)</label>
-              <input
-                class="form-control"
-                id="fCapacity"
-                type="number"
-                min="0"
-                placeholder="10000"
-              />
+              <label class="form-label">ความจุ</label>
+              <input class="form-control" type="number" id="fCapacity" />
             </div>
+
             <div class="form-group">
               <label class="form-label">สถานะ</label>
+
               <select class="form-control" id="fStatus">
-                <option value="true">✅ ใช้งาน</option>
-                <option value="false">❌ ปิดใช้งาน</option>
+                <option value="true">ใช้งาน</option>
+                <option value="false">ปิด</option>
               </select>
             </div>
+
             <div class="form-group full">
               <label class="form-label">หมายเหตุ</label>
-              <textarea
-                class="form-control"
-                id="fNote"
-                rows="2"
-                style="resize: vertical"
-                placeholder="หมายเหตุ"
-              ></textarea>
+              <textarea class="form-control" id="fNote"></textarea>
             </div>
           </div>
         </div>
+
         <div class="modal-footer">
           <button class="btn btn-outline" onclick="closeModal()">ยกเลิก</button>
+
           <button class="btn btn-primary" onclick="saveWarehouse()">
             💾 บันทึก
           </button>
@@ -345,205 +122,175 @@
       </div>
     </div>
 
-    <div class="page">
-      <!-- Stats -->
-      <div class="stats-row">
+    <div class="page page-layout">
+      <div class="stats-grid" id="statsGrid">
         <div class="stat-card">
-          <div class="stat-icon" style="background: #e0f2fe; color: #0369a1">
-            🏭
-          </div>
-          <div>
+          <div class="stat-icon">🏣</div>
+          <div class="stat-info">
+            <div class="stat-value" id="statTotal">0</div>
             <div class="stat-label">คลังทั้งหมด</div>
-            <div class="stat-value" id="statTotal" style="color: var(--text)">
-              —
-            </div>
           </div>
         </div>
+
         <div class="stat-card">
-          <div
-            class="stat-icon"
-            style="background: var(--success-pale); color: var(--success)"
-          >
-            ✅
-          </div>
-          <div>
+          <div class="stat-icon">✅</div>
+          <div class="stat-info">
+            <div class="stat-value" id="statActive">0</div>
             <div class="stat-label">ใช้งาน</div>
-            <div
-              class="stat-value"
-              id="statActive"
-              style="color: var(--success)"
-            >
-              —
-            </div>
           </div>
         </div>
+
         <div class="stat-card">
-          <div
-            class="stat-icon"
-            style="background: var(--warning-pale); color: var(--warning)"
-          >
-            📦
-          </div>
-          <div>
-            <div class="stat-label">Stock รวมทุกคลัง</div>
-            <div
-              class="stat-value"
-              id="statTotalStock"
-              style="color: var(--warning)"
-            >
-              —
-            </div>
+          <div class="stat-icon">⛔</div>
+          <div class="stat-info">
+            <div class="stat-value" id="statInactive">0</div>
+            <div class="stat-label">ปิดใช้งาน</div>
           </div>
         </div>
+
         <div class="stat-card">
-          <div
-            class="stat-icon"
-            style="background: var(--teal-pale); color: var(--teal)"
-          >
-            🏪
-          </div>
-          <div>
-            <div class="stat-label">ประเภทสาขา</div>
-            <div class="stat-value" id="statBranch" style="color: var(--teal)">
-              —
-            </div>
+          <div class="stat-icon">📦</div>
+          <div class="stat-info">
+            <div class="stat-value" id="statStock">0</div>
+            <div class="stat-label">รายการสินค้าทั้งหมด</div>
           </div>
         </div>
       </div>
-
-      <!-- Toolbar -->
       <div class="toolbar">
         <div class="search-wrap">
           <span class="search-icon">🔍</span>
+
           <input
             class="search-input"
             id="searchInput"
-            placeholder="ค้นหาชื่อ, รหัสคลัง..."
-            oninput="renderCards()"
+            placeholder="ค้นหาคลัง"
+            oninput="renderTable()"
           />
         </div>
-        <select class="filter-select" id="filterType" onchange="renderCards()">
+
+        <select class="filter-select" id="filterType" onchange="renderTable()">
           <option value="">ทุกประเภท</option>
-          <option value="MAIN">หลัก (Main)</option>
-          <option value="BRANCH">สาขา (Branch)</option>
-          <option value="TRANSIT">พักสินค้า (Transit)</option>
-          <option value="RETURN">คืนสินค้า (Return)</option>
+          <option value="MAIN">หลัก</option>
+          <option value="BRANCH">สาขา</option>
+          <option value="TRANSIT">พักสินค้า</option>
+          <option value="RETURN">คืนสินค้า</option>
         </select>
+
         <select
           class="filter-select"
           id="filterStatus"
-          onchange="renderCards()"
+          onchange="renderTable()"
         >
           <option value="">ทุกสถานะ</option>
           <option value="true">ใช้งาน</option>
-          <option value="false">ปิดใช้งาน</option>
+          <option value="false">ปิด</option>
         </select>
+
         <div class="toolbar-right">
-          <button class="btn btn-outline" onclick="loadData()">
-            🔄 รีเฟรช
+          <button class="btn btn-outline" onclick="exportWarehouses()">
+            ⬇ Export
           </button>
+
+          <button class="btn btn-outline" onclick="importWarehouses()">
+            ⬆ Import
+          </button>
+
+          <button class="btn btn-outline" onclick="downloadTemplate()">
+            📄 Download Form
+          </button>
+
           <button class="btn btn-primary" onclick="openModal()">
             ＋ เพิ่มคลัง
           </button>
         </div>
       </div>
+<div class="content-row">
 
-      <!-- Warehouse Cards -->
-      <div class="wh-grid" id="whGrid">
-        <div style="grid-column: 1/-1">
-          <div class="empty-state">
-            <div class="empty-icon">🏭</div>
-            <div>กำลังโหลด...</div>
-          </div>
-        </div>
-      </div>
+  <!-- LEFT : TABLE -->
+  <div class="table-card">
 
-      <!-- Stock Detail Panel -->
-      <div class="stock-panel" id="stockPanel">
-        <div class="stock-panel-hdr">
-          <span class="stock-panel-title" id="stockPanelTitle"
-            >📦 Stock ในคลัง</span
-          >
-          <button class="btn-sm btn-sm-edit" onclick="closeStockPanel()">
-            ✕ ปิด
-          </button>
-        </div>
-        <div style="overflow-x: auto">
-          <table class="stock-table">
-            <thead>
-              <tr>
-                <th>รหัส</th>
-                <th>ชื่อสินค้า</th>
-                <th>Qty on Hand</th>
-                <th>Reserved</th>
-                <th>Available</th>
-              </tr>
-            </thead>
-            <tbody id="stockTableBody">
-              <tr>
-                <td
-                  colspan="5"
-                  style="text-align: center; padding: 24px; color: var(--text3)"
-                >
-                  เลือกคลังเพื่อดู Stock
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
+    <div class="table-hdr">
+      <div class="table-title">🏭 คลังสินค้า</div>
+      <div class="table-count" id="whCount">0 รายการ</div>
     </div>
 
-    <div class="stock-panel" id="locationPanel">
-      <div class="stock-panel-hdr">
-  <span class="stock-panel-title">📍 Locations</span>
+    <div class="table-wrap">
+      <table class="data-table">
 
-  <div style="display:flex;gap:8px">
-    <button class="btn-sm btn-sm-edit" onclick="openLocationModal()">
-      ＋ Location
-    </button>
+        <thead>
+          <tr>
 
-    <button class="btn-sm btn-sm-edit" onclick="loadLocations()">
-      รีเฟรช
-    </button>
+<th onclick="sortTable('warehouse_code')">
+รหัส <span class="sort-icon" id="sort-warehouse_code">⇅</span>
+</th>
+
+<th onclick="sortTable('warehouse_name')">
+ชื่อคลัง <span class="sort-icon" id="sort-warehouse_name">⇅</span>
+</th>
+
+<th onclick="sortTable('warehouse_type')">
+ประเภท <span class="sort-icon" id="sort-warehouse_type">⇅</span>
+</th>
+
+<th onclick="sortTable('manager_name')">
+ผู้ดูแล <span class="sort-icon" id="sort-manager_name">⇅</span>
+</th>
+
+<th onclick="sortTable('qty')">
+จำนวนสินค้า <span class="sort-icon" id="sort-qty">⇅</span>
+</th>
+
+<th onclick="sortTable('is_active')">
+สถานะ <span class="sort-icon" id="sort-is_active">⇅</span>
+</th>
+
+<th class="col-center">จัดการ</th>
+
+</tr>
+        </thead>
+
+        <tbody id="whTable"></tbody>
+
+      </table>
+    </div>
+
   </div>
-</div>
 
-<div class="modal-overlay" id="locationModal">
 
-  <div class="modal" style="width:420px">
+  <!-- RIGHT : PANEL -->
+  <div class="side-panel" id="warehousePanel">
 
-    <div class="modal-hdr">
-      <div class="modal-title">เพิ่ม Location</div>
-      <button class="btn-modal-close" onclick="closeLocationModal()">✕</button>
+    <div class="panel-hdr">
+      <div id="panelTitle">สินค้าในคลัง</div>
+
+      <button class="btn-close" onclick="closePanel()">✕</button>
     </div>
 
-    <div class="modal-body">
+    <div class="panel-body">
 
-      <div class="form-group">
-        <label class="form-label">รหัส Location *</label>
-        <input class="form-control" id="locCode" placeholder="A">
+      <div class="panel-search">
+        <input
+          id="panelSearch"
+          placeholder="ค้นหาสินค้า..."
+          oninput="filterPanelStock()"
+        />
       </div>
 
-      <div class="form-group">
-        <label class="form-label">ชื่อ Location</label>
-        <input class="form-control" id="locName" placeholder="Receiving">
-      </div>
+      <div id="panelBody"></div>
 
-    </div>
-
-    <div class="modal-footer">
-      <button class="btn btn-outline" onclick="closeLocationModal()">ยกเลิก</button>
-      <button class="btn btn-primary" onclick="saveLocation()">💾 บันทึก</button>
     </div>
 
   </div>
 
 </div>
 
-
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="warehouses.js"></script>
     <script src="../../shared/auth.js"></script>
     <script src="../../shared/sidebar.js"></script>
+
+    <div id="deleteModalContainer"></div>
+    <script src="/assets/component/deleteModal.js"></script>
+    
   </body>
 </html>

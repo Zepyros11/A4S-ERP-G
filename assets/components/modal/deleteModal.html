@@ -1,0 +1,26 @@
+<!-- component -->
+<div class="modal-overlay" id="deleteModal">
+  <div class="modal" style="width: 420px">
+    <div class="modal-hdr">
+      <div class="modal-title">ยืนยันการลบ</div>
+
+      <button class="btn-modal-close" onclick="closeDeleteModal()">✕</button>
+    </div>
+
+    <div class="modal-body">
+      <div style="display: flex; gap: 12px; align-items: center">
+        <div style="font-size: 26px">🗑</div>
+
+        <div id="deleteMessage"></div>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeDeleteModal()">
+        ยกเลิก
+      </button>
+
+      <button class="btn btn-danger" onclick="confirmDelete()">ลบข้อมูล</button>
+    </div>
+  </div>
+</div>

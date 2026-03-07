@@ -22,16 +22,10 @@
       ],
     },
     {
-      group: "Stock",
+      group: "่ตั้งค่า Stock",
       icon: "📦",
       id: "g-stock",
       items: [
-        {
-          id: "products",
-          icon: "✏️",
-          label: "รายการสินค้า",
-          path: BASE_PATH + "/modules/stock/products.html",
-        },
         {
           id: "categories",
           icon: "🏷️",
@@ -39,22 +33,29 @@
           path: BASE_PATH + "/modules/stock/categories.html",
         },
         {
+          id: "warehouses",
+          icon: "🏭",
+          label: "คลังสินค้า",
+          path: BASE_PATH + "/modules/stock/warehouses.html",
+        },
+        {
+          id: "products",
+          icon: "✏️",
+          label: "รายการสินค้า",
+          path: BASE_PATH + "/modules/stock/products.html",
+        },
+        {
           id: "stock-adj",
           icon: "📦",
-          label: "Stock สินค้า",
-          path: BASE_PATH + "/modules/stock/stock_adjustment.html",
+          label: "Stock เริ่มต้น",
+          path: BASE_PATH + "/modules/stock/stock_initial.html",
         },
+
         {
           id: "stock-move",
           icon: "🔄",
           label: "ความเคลื่อนไหว",
           path: BASE_PATH + "/modules/stock/movements.html",
-        },
-        {
-          id: "warehouses",
-          icon: "🏭",
-          label: "คลังสินค้า",
-          path: BASE_PATH + "/modules/stock/warehouses.html",
         },
       ],
     },

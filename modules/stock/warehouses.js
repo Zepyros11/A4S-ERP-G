@@ -1,478 +1,747 @@
-/* ============================================================
-   warehouses.js — Logic สำหรับหน้าจัดการคลังสินค้า
-   ============================================================ */
-
 let SUPABASE_URL = localStorage.getItem("sb_url") || "";
 let SUPABASE_KEY = localStorage.getItem("sb_key") || "";
-let allWarehouses = [],
-  allStockBalance = [],
-  allProducts = [];
-let selectedId = null;
-let allLocations = [];
-let allBins = [];
 
-const TYPE_CFG = {
-  MAIN: { label: "🏭 หลัก", color: "#0f4c75", bg: "var(--accent-pale)" },
-  BRANCH: { label: "🏪 สาขา", color: "#0e7490", bg: "var(--teal-pale)" },
-  TRANSIT: {
-    label: "🚚 พักสินค้า",
-    color: "#92400e",
-    bg: "var(--warning-pale)",
-  },
-  RETURN: { label: "↩ คืนสินค้า", color: "#057a55", bg: "var(--success-pale)" },
+let warehouses = [];
+let stock = [];
+
+const TYPE = {
+  MAIN: { label: "คลังหลัก", color: "type-main" },
+  BRANCH: { label: "คลังสาขา", color: "type-branch" },
+  TRANSIT: { label: "จุดพักสินค้า", color: "type-transit" },
+  RETURN: { label: "จุดคืนสินค้า", color: "type-return" },
 };
-
 async function sbFetch(table, opts = {}) {
   const { method = "GET", query = "", body } = opts;
+
   const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}${query}`, {
     method,
+
     headers: {
       apikey: SUPABASE_KEY,
       Authorization: `Bearer ${SUPABASE_KEY}`,
       "Content-Type": "application/json",
-      Prefer: method === "POST" ? "return=representation" : "",
+      Prefer: "return=minimal",
     },
     body: body ? JSON.stringify(body) : undefined,
   });
-  if (!res.ok) throw new Error((await res.json()).message || "Error");
-  return method !== "DELETE" ? res.json().catch(() => null) : null;
+
+  if (!res.ok) {
+    const t = await res.text();
+    throw new Error(t);
+  }
+
+  if (method === "DELETE") return null;
+
+  const text = await res.text();
+
+  return text ? JSON.parse(text) : null;
 }
 
 async function loadData() {
-  if (!SUPABASE_URL || !SUPABASE_KEY) return;
   showLoading(true);
+
   try {
-    const [whs, stock, prods] = await Promise.all([
-      sbFetch("warehouses", { query: "?select=*&order=warehouse_code" }),
-      sbFetch("stock_balance", { query: "?select=*" }),
-      sbFetch("products", {
-        query: "?select=product_id,product_code,product_name",
-      }),
-    ]);
-    allWarehouses = whs || [];
-    allStockBalance = stock || [];
-    allProducts = prods || [];
-    renderCards();
-    updateStats();
+    warehouses = await sbFetch("warehouses", {
+      query: "?select=*&order=warehouse_code.asc",
+    });
+
+    try {
+      stock = await sbFetch("stock_available", { query: "?select=*" });
+    } catch {}
+
+    renderTable();
+    renderStats();
   } catch (e) {
-    showToast("โหลดไม่ได้: " + e.message, "error");
+    showToast("โหลดข้อมูลไม่ได้", "error");
   }
+
   showLoading(false);
 }
 
-function updateStats() {
-  const totalStock = allStockBalance.reduce(
-    (s, b) => s + (b.qty_on_hand || 0),
-    0,
-  );
-  document.getElementById("statTotal").textContent = allWarehouses.length;
-  document.getElementById("statActive").textContent = allWarehouses.filter(
-    (w) => w.is_active !== false,
-  ).length;
-  document.getElementById("statTotalStock").textContent =
-    totalStock.toLocaleString();
-  document.getElementById("statBranch").textContent = allWarehouses.filter(
-    (w) => w.warehouse_type === "BRANCH",
-  ).length;
-}
-
-function renderCards() {
+function renderTable() {
   const search = document.getElementById("searchInput").value.toLowerCase();
+
   const type = document.getElementById("filterType").value;
+
   const status = document.getElementById("filterStatus").value;
 
-  const list = allWarehouses.filter((w) => {
-    const q =
-      `${w.warehouse_name || ""} ${w.warehouse_code || ""}`.toLowerCase();
-    return (
-      (!search || q.includes(search)) &&
-      (!type || w.warehouse_type === type) &&
-      (status === "" || String(w.is_active !== false) === status)
-    );
+  const list = warehouses.filter((w) => {
+    const q = (w.warehouse_name + " " + w.warehouse_code).toLowerCase();
+
+    if (search && !q.includes(search)) return false;
+
+    if (type && w.warehouse_type !== type) return false;
+
+    if (status !== "") {
+      if (String(w.is_active) !== status) return false;
+    }
+
+    return true;
   });
 
-  const grid = document.getElementById("whGrid");
+  const tbody = document.getElementById("whTable");
+
+  document.getElementById("whCount").textContent = list.length + " รายการ";
+
   if (list.length === 0) {
-    grid.innerHTML = `<div style="grid-column:1/-1"><div class="empty-state"><div class="empty-icon">🔍</div><div>ไม่พบคลังสินค้า</div></div></div>`;
+    tbody.innerHTML = `<tr><td colspan="8">ไม่พบข้อมูล</td></tr>`;
     return;
   }
 
-  grid.innerHTML = list
+  tbody.innerHTML = list
     .map((w) => {
-      const cfg = TYPE_CFG[w.warehouse_type] || {
-        label: w.warehouse_type,
-        color: "#6b7280",
-        bg: "var(--surface2)",
-      };
-      const isActive = w.is_active !== false;
-      const whStock = allStockBalance.filter(
-        (b) => b.warehouse_id === w.warehouse_id,
-      );
-      const totalQty = whStock.reduce((s, b) => s + (b.qty_on_hand || 0), 0);
-      const reserved = whStock.reduce((s, b) => s + (b.qty_reserved || 0), 0);
-      const skuCount = whStock.filter((b) => (b.qty_on_hand || 0) > 0).length;
-      const capacityPct =
-        w.capacity && totalQty
-          ? Math.min(100, Math.round((totalQty / w.capacity) * 100))
-          : null;
+      const whStock = stock.filter((s) => s.warehouse_id === w.warehouse_id);
+      const qty = whStock.reduce((sum, s) => sum + (s.qty_on_hand || 0), 0);
+      let remainLabel = "";
 
-      return `<div class="wh-card ${w.warehouse_id === selectedId ? "selected" : ""}" onclick="selectWarehouse(${w.warehouse_id})">
-      <div class="wh-card-top">
-        <div class="wh-icon" style="background:${cfg.bg};color:${cfg.color}">${cfg.label.split(" ")[0]}</div>
-        <div style="flex:1;min-width:0">
-          <div class="wh-code">${w.warehouse_code || "—"}</div>
-          <div class="wh-name">${w.warehouse_name}</div>
-          <div class="wh-type" style="color:${cfg.color};font-weight:600;font-size:11px">${cfg.label}</div>
-          ${w.manager_name ? `<div class="wh-type">👤 ${w.manager_name}</div>` : ""}
-        </div>
-        <span class="status-badge ${isActive ? "status-active" : "status-inactive"}">${isActive ? "● ใช้งาน" : "● ปิด"}</span>
-      </div>
-      <div class="wh-card-stats">
-        <div class="wh-stat"><div class="wh-stat-val">${totalQty.toLocaleString()}</div><div class="wh-stat-lbl">QTY ON HAND</div></div>
-        <div class="wh-stat"><div class="wh-stat-val" style="color:var(--warning)">${reserved.toLocaleString()}</div><div class="wh-stat-lbl">RESERVED</div></div>
-        <div class="wh-stat"><div class="wh-stat-val" style="color:var(--accent)">${skuCount}</div><div class="wh-stat-lbl">SKU</div></div>
-      </div>
-      ${
-        capacityPct !== null
-          ? `<div style="padding:0 20px 12px">
-        <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text3);margin-bottom:4px"><span>ความจุ</span><span>${capacityPct}% (${totalQty.toLocaleString()}/${w.capacity.toLocaleString()})</span></div>
-        <div style="height:6px;background:var(--border);border-radius:3px;overflow:hidden"><div style="height:100%;width:${capacityPct}%;background:${capacityPct > 80 ? "#ef4444" : capacityPct > 50 ? "#f59e0b" : "#10b981"};border-radius:3px;transition:width .6s ease"></div></div>
-      </div>`
-          : ""
+      if (!w.is_active && qty > 0) {
+        remainLabel = `<span class="stock-warning">มีสินค้าตกค้าง</span>`;
       }
-      <div class="wh-card-footer">
-        <button class="btn-sm btn-sm-edit" onclick="event.stopPropagation();editWarehouse(${w.warehouse_id})">✏️ แก้ไข</button>
-        <button class="btn-sm btn-sm-del" onclick="event.stopPropagation();deleteWarehouse(${w.warehouse_id},'${w.warehouse_name}')">🗑</button>
-      </div>
-    </div>`;
-    })
-    .join("");
-}
 
-function selectWarehouse(id) {
-  selectedId = id;
+      return `
+<tr onclick="openWarehouseStock(${w.warehouse_id},'${w.warehouse_name}','${w.warehouse_icon}')">
 
-  renderCards();
-
-  showStockDetail(id);
-
-  loadLocations();
-}
-function showStockDetail(whId) {
-  const wh = allWarehouses.find((w) => w.warehouse_id === whId);
-  const whStock = allStockBalance.filter((b) => b.warehouse_id === whId);
-  document.getElementById("stockPanelTitle").textContent =
-    `📦 Stock ใน ${wh?.warehouse_name || "คลัง"}`;
-  document.getElementById("stockPanel").classList.add("open");
-  const tbody = document.getElementById("stockTableBody");
-  if (whStock.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--text3)">ไม่มี Stock ในคลังนี้</td></tr>`;
-    return;
-  }
-  tbody.innerHTML = whStock
-    .map((b) => {
-      const prod = allProducts.find((p) => p.product_id === b.product_id);
-      const avail = (b.qty_on_hand || 0) - (b.qty_reserved || 0);
-      const qtyClass =
-        b.qty_on_hand === 0
-          ? "qty-zero"
-          : b.qty_on_hand < 10
-            ? "qty-low"
-            : "qty-ok";
-      return `<tr>
+<td class="col-center">${w.warehouse_code}</td>
 
 <td>
-<span style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--text3)">
-${prod?.product_code || "—"}
+${w.warehouse_icon || "🏭"}
+<strong>${w.warehouse_name}</strong>
+</td>
+
+<td class="col-center">
+<span class="type-badge ${TYPE[w.warehouse_type]?.color || ""}">
+${TYPE[w.warehouse_type]?.label || ""}
 </span>
 </td>
 
-<td>
-<span style="font-weight:500">
-${prod?.product_name || "สินค้า #" + b.product_id}
+<td class="col-center">
+
+<span class="manager-cell">
+
+<span class="manager-icon">👤</span>
+${w.manager_name || "-"}
+
+<span class="manager-tooltip">
+<span class="phone-icon">📞</span>
+${w.phone || "-"}
 </span>
+
+</span>
+
 </td>
 
-<td>
-<span class="stock-qty ${qtyClass}">
-${(b.qty_on_hand || 0).toLocaleString()}
-</span>
+<td class="col-center">
+${qty}
 </td>
 
-<td>
-<span class="stock-qty" style="color:#d97706">
-${(b.qty_reserved || 0).toLocaleString()}
-</span>
+<td class="col-center">
+
+<div class="status-box">
+
+<label class="switch"
+onclick="event.stopPropagation()"
+title="${w.is_active ? "เปิดใช้งาน" : "ปิดใช้งาน"}">
+
+<input type="checkbox"
+${w.is_active ? "checked" : ""}
+onclick="event.stopPropagation()"
+onchange="toggleWarehouseStatus(${w.warehouse_id}, this.checked)">
+
+<span class="slider"></span>
+
+</label>
+
+${remainLabel}
+
+</div>
+
 </td>
 
-<td>
-<span class="stock-qty" style="color:var(--accent)">
-${Math.max(0, avail).toLocaleString()}
-</span>
-</td>
+<td class="col-center">
 
-<td>
+<div class="row-menu">
 
-<button
-style="
-padding:4px 10px;
-font-size:12px;
-border-radius:6px;
-border:none;
-background:var(--accent-pale);
-color:var(--accent);
-cursor:pointer;
-font-weight:600;
-"
-onclick="openAdjust(${b.product_id}, ${whId})"
->
-
-⚖️ Adjust
-
+<button class="menu-btn"
+onclick="event.stopPropagation();toggleRowMenu(this)">
+⋮
 </button>
 
+<div class="menu-dropdown">
+
+<button
+onclick="event.stopPropagation();editWarehouse(${w.warehouse_id})">
+✏️ แก้ไข
+</button>
+
+<button
+class="danger"
+onclick="event.stopPropagation();deleteWarehouse(${w.warehouse_id},'${w.warehouse_name}')">
+🗑 ลบ
+</button>
+
+</div>
+
+</div>
+
 </td>
 
-</tr>`;
+</tr>
+
+`;
     })
     .join("");
-  document
-    .getElementById("stockPanel")
-    .scrollIntoView({ behavior: "smooth", block: "nearest" });
-}
-
-function closeStockPanel() {
-  document.getElementById("stockPanel").classList.remove("open");
-  selectedId = null;
-  renderCards();
 }
 
 function openModal(data = null) {
-  document.getElementById("modalTitle").textContent = data
-    ? "แก้ไขคลังสินค้า"
-    : "เพิ่มคลังสินค้าใหม่";
-  document.getElementById("editId").value = data?.warehouse_id || "";
-  const codeEl = document.getElementById("fCode");
-  codeEl.value = data?.warehouse_code || generateCode();
-  codeEl.readOnly = true;
-  codeEl.style.cssText =
-    'background:var(--surface2);color:var(--text3);cursor:not-allowed;font-family:"IBM Plex Mono",monospace;font-weight:600;letter-spacing:1px;';
-  document.getElementById("fName").value = data?.warehouse_name || "";
-  document.getElementById("fType").value = data?.warehouse_type || "MAIN";
-  document.getElementById("fAddress").value = data?.address || "";
-  document.getElementById("fManager").value = data?.manager_name || "";
-  document.getElementById("fPhone").value = data?.phone || "";
-  document.getElementById("fCapacity").value = data?.capacity || "";
-  document.getElementById("fNote").value = data?.note || "";
-  document.getElementById("fStatus").value = data
-    ? String(data.is_active !== false)
-    : "true";
   document.getElementById("modalOverlay").classList.add("open");
-  setTimeout(() => document.getElementById("fCode").focus(), 100);
+
+  document.getElementById("modalTitle").textContent = data
+    ? "แก้ไขคลัง"
+    : "เพิ่มคลัง";
+
+  document.getElementById("editId").value = data?.warehouse_id || "";
+
+  document.getElementById("fCode").value =
+    data?.warehouse_code || generateCode();
+
+  document.getElementById("fType").value = data?.warehouse_type || "MAIN";
+
+  document.getElementById("fIcon").value = data?.warehouse_icon || "🏭";
+
+  document.getElementById("fName").value = data?.warehouse_name || "";
+
+  document.getElementById("fAddress").value = data?.location || "";
+
+  document.getElementById("fManager").value = data?.manager_name || "";
+
+  document.getElementById("fPhone").value = data?.phone || "";
+
+  document.getElementById("fCapacity").value = data?.capacity || "";
+
+  document.getElementById("fNote").value = data?.note || "";
+
+  document.getElementById("fStatus").value = data
+    ? data.is_active
+      ? "true"
+      : "false"
+    : "true";
 }
 
-function editWarehouse(id) {
-  openModal(allWarehouses.find((w) => w.warehouse_id === id));
-}
 function closeModal() {
   document.getElementById("modalOverlay").classList.remove("open");
 }
+
 function closeModalBg(e) {
-  if (e.target === document.getElementById("modalOverlay")) closeModal();
+  if (e.target.id === "modalOverlay") closeModal();
 }
 
-async function saveWarehouse() {
-  const name = document.getElementById("fName").value.trim();
-  if (!name) {
-    showToast("กรุณากรอกชื่อคลัง", "error");
-    return;
-  }
-  if (!SUPABASE_URL || !SUPABASE_KEY) {
-    showToast("กรุณาเชื่อมต่อ Supabase ก่อน", "warning");
-    return;
-  }
-  const payload = {
-    warehouse_code: document.getElementById("fCode").value.trim() || null,
-    warehouse_name: name,
-    warehouse_type: document.getElementById("fType").value, // ← เพิ่มบรรทัดนี้
-    location: document.getElementById("fAddress").value.trim() || null,
-    is_active: document.getElementById("fStatus").value === "true",
-  };
-  showLoading(true);
-  try {
-    const editId = document.getElementById("editId").value;
-    if (editId) {
-      await sbFetch("warehouses", {
-        method: "PATCH",
-        query: `?warehouse_id=eq.${editId}`,
-        body: payload,
-      });
-      showToast("✅ แก้ไขคลังสำเร็จ!", "success");
-    } else {
-      await sbFetch("warehouses", { method: "POST", body: payload });
-      showToast("✅ เพิ่มคลังสำเร็จ!", "success");
-    }
-    closeModal();
-    await loadData();
-  } catch (e) {
-    showToast("เกิดข้อผิดพลาด: " + e.message, "error");
-  }
-  showLoading(false);
+function editWarehouse(id) {
+  const w = warehouses.find((w) => w.warehouse_id === id);
+
+  openModal(w);
 }
 
-async function deleteWarehouse(id, name) {
-  if (!confirm(`ลบคลัง "${name}" ออกจากระบบ?\n(Stock ในคลังนี้จะถูกลบด้วย)`))
+function deleteWarehouse(id, name) {
+  const whStock = stock.filter((s) => s.warehouse_id === id);
+
+  const qty = whStock.reduce((a, b) => a + (b.qty_on_hand || 0), 0);
+
+  if (qty > 0) {
+    showToast(`คลัง "${name}" ยังมีสินค้าอยู่ ลบไม่ได้`, "warning");
     return;
-  showLoading(true);
-  try {
+  }
+
+  openDeleteModal(`ต้องการลบคลัง "${name}" หรือไม่ ?`, async () => {
     await sbFetch("warehouses", {
       method: "DELETE",
       query: `?warehouse_id=eq.${id}`,
     });
-    showToast("ลบคลังแล้ว", "success");
-    if (selectedId === id) closeStockPanel();
-    await loadData();
-  } catch (e) {
-    showToast("ลบไม่ได้: " + e.message, "error");
+
+    loadData();
+  });
+}
+
+async function saveWarehouse() {
+  const payload = {
+    warehouse_code: document.getElementById("fCode").value,
+    warehouse_name: document.getElementById("fName").value,
+    warehouse_type: document.getElementById("fType").value,
+    warehouse_icon: document.getElementById("fIcon").value,
+    location: document.getElementById("fAddress").value,
+    manager_name: document.getElementById("fManager").value,
+    phone: document.getElementById("fPhone").value,
+    capacity: parseInt(document.getElementById("fCapacity").value) || 0,
+    note: document.getElementById("fNote").value,
+    is_active: document.getElementById("fStatus").value === "true",
+  };
+
+  const id = document.getElementById("editId").value;
+
+  const isEdit = id && id !== "";
+  if (isEdit) {
+    await sbFetch("warehouses", {
+      method: "PATCH",
+      query: `?warehouse_id=eq.${id}`,
+      body: payload,
+    });
+  } else {
+    await sbFetch("warehouses", {
+      method: "POST",
+      body: payload,
+    });
   }
-  showLoading(false);
+
+  closeModal();
+
+  loadData();
+}
+
+function generateCode() {
+  if (warehouses.length === 0) return "WH-001";
+
+  const nums = warehouses.map(
+    (w) => parseInt(w.warehouse_code.replace("WH-", "")) || 0,
+  );
+
+  const next = Math.max(...nums) + 1;
+
+  return "WH-" + String(next).padStart(3, "0");
 }
 
 function showToast(msg, type = "success") {
   const t = document.getElementById("toast");
+
   t.className = `toast toast-${type} show`;
+
   t.textContent = msg;
+
   setTimeout(() => t.classList.remove("show"), 3000);
 }
+
 function showLoading(show) {
   document.getElementById("loadingOverlay").classList.toggle("show", show);
 }
 
 window.addEventListener("DOMContentLoaded", () => {
-  if (SUPABASE_URL && SUPABASE_KEY) setTimeout(() => loadData(), 50);
+  if (SUPABASE_URL && SUPABASE_KEY) loadData();
 });
-function generateCode() {
-  if (allWarehouses.length === 0) return "WH-001";
-  const nums = allWarehouses.map(
-    (w) => parseInt((w.warehouse_code || "").replace("WH-", "")) || 0,
-  );
-  const next = Math.max(...nums) + 1;
-  return "WH-" + String(next).padStart(3, "0");
-}
-async function loadLocations() {
-  if (!selectedId) return;
-
+async function toggleWarehouseStatus(id, status) {
   try {
-    const locations = await sbFetch("warehouse_locations", {
-      query: `?warehouse_id=eq.${selectedId}`,
+    await sbFetch("warehouses", {
+      method: "PATCH",
+      query: `?warehouse_id=eq.${id}`,
+      body: { is_active: status },
     });
 
-    const bins = await sbFetch("warehouse_bins", {
-      query: `?warehouse_id=eq.${selectedId}`,
-    });
+    // update local state
+    const w = warehouses.find((w) => w.warehouse_id === id);
+    if (w) w.is_active = status;
 
-    allLocations = locations || [];
-    allBins = bins || [];
+    // re-render table + stats
+    renderTable();
+    renderStats();
 
-    renderLocations();
+    showToast("อัปเดตสถานะสำเร็จ");
   } catch (e) {
-    showToast("โหลด Location ไม่ได้", "error");
+    showToast("เปลี่ยนสถานะไม่ได้", "error");
   }
 }
+function renderStats() {
+  const total = warehouses.length;
 
-function renderLocations() {
-  const wrap = document.getElementById("locationList");
+  const active = warehouses.filter((w) => w.is_active).length;
 
-  if (!wrap) return;
+  const inactive = total - active;
 
-  if (allLocations.length === 0) {
-    wrap.innerHTML = `
-<div style="color:var(--text3)">
-ไม่มี Location
+  const totalStock = stock.length;
+
+  document.getElementById("statTotal").textContent = total;
+
+  document.getElementById("statActive").textContent = active;
+
+  document.getElementById("statInactive").textContent = inactive;
+
+  document.getElementById("statStock").textContent = totalStock;
+}
+let currentSort = { field: "", dir: "asc" };
+
+function sortTable(field) {
+  if (currentSort.field === field) {
+    currentSort.dir = currentSort.dir === "asc" ? "desc" : "asc";
+  } else {
+    currentSort.field = field;
+    currentSort.dir = "asc";
+  }
+
+  warehouses.sort((a, b) => {
+    let x;
+    let y;
+
+    if (field === "qty") {
+      const ax = stock
+        .filter((s) => s.warehouse_id === a.warehouse_id)
+        .reduce((sum, s) => sum + (s.qty_on_hand || 0), 0);
+
+      const bx = stock
+        .filter((s) => s.warehouse_id === b.warehouse_id)
+        .reduce((sum, s) => sum + (s.qty_on_hand || 0), 0);
+
+      x = ax;
+      y = bx;
+    } else {
+      x = a[field] || "";
+      y = b[field] || "";
+    }
+
+    if (currentSort.dir === "asc") return x > y ? 1 : -1;
+    return x < y ? 1 : -1;
+  });
+
+  document.querySelectorAll(".sort-icon").forEach((i) => {
+    i.classList.remove("active");
+    i.textContent = "⇅";
+  });
+
+  const icon = document.getElementById("sort-" + field);
+
+  if (icon) {
+    icon.classList.add("active");
+    icon.textContent = currentSort.dir === "asc" ? "▲" : "▼";
+  }
+
+  renderTable();
+}
+function downloadTemplate() {
+  const data = [
+    {
+      warehouse_code: "",
+      warehouse_name: "",
+      warehouse_type: "",
+      manager_name: "",
+      location: "",
+      phone: "",
+    },
+  ];
+
+  const ws = XLSX.utils.json_to_sheet(data);
+
+  const wb = XLSX.utils.book_new();
+
+  XLSX.utils.book_append_sheet(wb, ws, "Warehouses");
+
+  XLSX.writeFile(wb, "warehouse_template.xlsx");
+}
+async function openWarehouseStock(id, name, icon) {
+  const items = stock.filter((s) => s.warehouse_id === id);
+
+  document.getElementById("panelTitle").innerHTML =
+    `สินค้าในคลัง : ${icon || "🏣"}  ${name}`;
+
+  document.getElementById("warehousePanel").classList.add("open");
+  document.querySelector(".page").classList.remove("panel-open");
+
+  renderStockPanel(items);
+}
+
+function closePanel() {
+  document.getElementById("warehousePanel").classList.remove("open");
+  document.querySelector(".page").classList.remove("panel-open");
+}
+function exportWarehouses() {
+  if (!warehouses || warehouses.length === 0) {
+    showToast("ไม่มีข้อมูลให้ Export", "warning");
+    return;
+  }
+
+  const rows = warehouses.map((w) => ({
+    code: w.warehouse_code,
+    name: w.warehouse_name,
+    type: w.warehouse_type,
+    manager: w.manager_name || "",
+    location: w.location || "",
+    phone: w.phone || "",
+    active: w.is_active ? "YES" : "NO",
+  }));
+
+  const ws = XLSX.utils.json_to_sheet(rows);
+
+  const wb = XLSX.utils.book_new();
+
+  XLSX.utils.book_append_sheet(wb, ws, "Warehouses");
+
+  XLSX.writeFile(wb, "warehouses_export.xlsx");
+}
+function importWarehouses() {
+  const input = document.createElement("input");
+
+  input.type = "file";
+
+  input.accept = ".xlsx,.csv";
+
+  input.onchange = async (e) => {
+    const file = e.target.files[0];
+
+    const text = await file.text();
+
+    const rows = text.split("\n").slice(1);
+
+    for (const row of rows) {
+      if (!row.trim()) continue;
+
+      const cols = row.split(",");
+
+      const payload = {
+        warehouse_code: cols[0],
+        warehouse_name: cols[1],
+        warehouse_type: cols[2] || "MAIN",
+        manager_name: cols[3] || "",
+        location: cols[4] || "",
+        phone: cols[5] || "",
+        is_active: true,
+      };
+
+      await sbFetch("warehouses", {
+        method: "POST",
+        body: payload,
+      });
+    }
+
+    loadData();
+
+    showToast("Import สำเร็จ");
+  };
+
+  input.click();
+}
+
+let currentPanelItems = [];
+
+function renderStockPanel(items) {
+  currentPanelItems = items;
+
+  drawPanel(items);
+}
+
+function filterPanelStock() {
+  const q = document.getElementById("panelSearch").value.toLowerCase();
+
+  const list = currentPanelItems.filter(
+    (i) =>
+      (i.product_name || "").toLowerCase().includes(q) ||
+      (i.product_sku || "").toLowerCase().includes(q),
+  );
+
+  drawPanel(list);
+}
+function drawPanel(items) {
+  const body = document.getElementById("panelBody");
+
+  if (items.length === 0) {
+    body.innerHTML = `
+<div style="padding:30px;text-align:center">
+ไม่พบสินค้า
 </div>
 `;
+    return;
+  }
+
+  body.innerHTML = `
+
+<table class="stock-table">
+
+<thead>
+<tr>
+<th>สินค้า</th>
+<th>จำนวน</th>
+</tr>
+</thead>
+
+<tbody>
+
+${items
+  .map((i) => {
+    let cls = "qty-ok";
+
+    if (i.qty_on_hand === 0) cls = "qty-zero";
+    else if (i.qty_on_hand < 5) cls = "qty-low";
+
+    return `
+
+<tr>
+
+<td>${i.product_name || "-"}</td>
+
+<td class="stock-qty ${cls}">
+${i.qty_on_hand}
+</td>
+
+</tr>
+
+`;
+  })
+  .join("")}
+
+</tbody>
+
+</table>
+
+`;
+}
+// ===============================
+// STOCK MOVEMENT ENGINE
+// ===============================
+
+async function createMovement({
+  product_id,
+  warehouse_id,
+  bin_id = null,
+  movement_type,
+  qty,
+  ref_doc_type = null,
+  ref_doc_id = null,
+  note = "",
+}) {
+  try {
+    await sbFetch("stock_movements", {
+      method: "POST",
+      body: {
+        product_id,
+        warehouse_id,
+        bin_id,
+        movement_type,
+        qty,
+        ref_doc_type,
+        ref_doc_id,
+        note,
+      },
+    });
+
+    loadData();
+    showToast("บันทึก Movement สำเร็จ");
+  } catch (e) {
+    showToast("บันทึก Movement ไม่สำเร็จ", "error");
+  }
+}
+async function receiveStock(product_id, warehouse_id, qty) {
+  await createMovement({
+    product_id,
+    warehouse_id,
+    movement_type: "IN",
+    qty: qty,
+    ref_doc_type: "PO",
+  });
+}
+async function issueStock(product_id, warehouse_id, qty) {
+  await createMovement({
+    product_id,
+    warehouse_id,
+    movement_type: "OUT",
+    qty: qty,
+    ref_doc_type: "SO",
+  });
+}
+async function transferStock(product_id, from_wh, to_wh, qty) {
+  try {
+    await createMovement({
+      product_id,
+      warehouse_id: from_wh,
+      movement_type: "OUT",
+      qty: qty,
+      ref_doc_type: "TRANSFER",
+    });
+
+    await createMovement({
+      product_id,
+      warehouse_id: to_wh,
+      movement_type: "IN",
+      qty: qty,
+      ref_doc_type: "TRANSFER",
+    });
+
+    showToast("โอนสินค้าสำเร็จ");
+  } catch (e) {
+    showToast("Transfer ไม่สำเร็จ", "error");
+  }
+}
+async function loadMovementHistory(product_id) {
+  return await sbFetch("stock_movements", {
+    query: `?product_id=eq.${product_id}&order=moved_at.desc.nullslast`,
+  });
+}
+async function openMovementHistory(product_id) {
+  const rows = await loadMovementHistory(product_id);
+
+  document.getElementById("movementPanel").classList.add("open");
+
+  drawMovement(rows);
+}
+
+function closeMovementPanel() {
+  document.getElementById("movementPanel").classList.remove("open");
+}
+
+function drawMovement(rows) {
+  const body = document.getElementById("movementBody");
+
+  if (!rows || rows.length === 0) {
+    body.innerHTML = "<div style='padding:20px'>ไม่มี Movement</div>";
 
     return;
   }
 
-  wrap.innerHTML = allLocations
-    .map((loc) => {
-      const bins = allBins.filter((b) => b.location_id === loc.location_id);
+  body.innerHTML = `
 
-      return `
+<table class="stock-table">
 
-<div class="location-block">
+<thead>
+<tr>
+<th>Date</th>
+<th>Type</th>
+<th>Qty</th>
+<th>Ref</th>
+</tr>
+</thead>
 
-<div class="location-header">
-${loc.location_code}
-</div>
+<tbody>
 
-<div class="bin-row">
-
-${bins
+${rows
   .map(
-    (b) => `
-<div class="bin-chip">
-${b.bin_code}
-</div>
+    (r) => `
+
+<tr>
+
+<td>${new Date(r.moved_at).toLocaleString()}</td>
+
+<td>${r.movement_type}</td>
+
+<td>${r.qty}</td>
+
+<td>${r.ref_doc_type || ""}</td>
+
+</tr>
+
 `,
   )
   .join("")}
 
-</div>
+</tbody>
 
-</div>
+</table>
 
 `;
-    })
-    .join("");
 }
-function openLocationModal() {
-  if (!selectedId) {
-    showToast("เลือกคลังก่อน", "warning");
-    return;
-  }
+function toggleRowMenu(btn) {
+  const menu = btn.nextElementSibling;
 
-  document.getElementById("locCode").value = "";
-  document.getElementById("locName").value = "";
+  document.querySelectorAll(".menu-dropdown").forEach((m) => {
+    if (m !== menu) m.style.display = "none";
+  });
 
-  document.getElementById("locationModal").classList.add("open");
+  menu.style.display = menu.style.display === "block" ? "none" : "block";
 }
 
-function closeLocationModal() {
-  document.getElementById("locationModal").classList.remove("open");
-}
-async function saveLocation() {
-  const code = document.getElementById("locCode").value.trim();
-
-  const name = document.getElementById("locName").value.trim();
-
-  if (!code) {
-    showToast("กรอกรหัส Location", "error");
-    return;
-  }
-
-  try {
-    await sbFetch("warehouse_locations", {
-      method: "POST",
-      body: {
-        warehouse_id: selectedId,
-        location_code: code,
-        location_name: name,
-      },
-    });
-
-    showToast("เพิ่ม Location สำเร็จ", "success");
-
-    closeLocationModal();
-
-    loadLocations();
-  } catch (e) {
-    showToast("บันทึกไม่ได้", "error");
-  }
-}
-function openAdjust(productId, warehouseId) {
-  const url = `../stock/stock_adjustment.html?product=${productId}&warehouse=${warehouseId}`;
-
-  window.location.href = url;
-}
+document.addEventListener("click", () => {
+  document
+    .querySelectorAll(".menu-dropdown")
+    .forEach((m) => (m.style.display = "none"));
+});

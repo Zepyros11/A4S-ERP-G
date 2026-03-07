@@ -1,245 +1,580 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="th">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>จัดการผู้ใช้งาน — A4S-ERP</title>
-<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="../../assets/css/common.css">
-<style>
-/* ── Users-specific ── */
-.stats-row{grid-template-columns:repeat(5,1fr);}
-.usr-table{width:100%;border-collapse:collapse;}
-.usr-table th{padding:10px 16px;background:var(--surface2);font-size:11px;font-weight:700;letter-spacing:.8px;color:var(--text3);text-align:left;border-bottom:2px solid var(--border);white-space:nowrap;cursor:pointer;user-select:none;}
-.usr-table th:hover{color:var(--accent);}
-.usr-table td{padding:12px 16px;border-bottom:1px solid var(--border);font-size:13.5px;vertical-align:middle;}
-.usr-table tr:last-child td{border-bottom:none;}
-.usr-table tr{cursor:pointer;transition:background .12s;}
-.usr-table tr:hover td{background:var(--accent-pale);}
-.usr-table tr.selected td{background:#dbeafe;}
-.avatar{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;color:#fff;flex-shrink:0;letter-spacing:.5px;}
-.role-badge{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;white-space:nowrap;}
-.role-ADMIN{background:#fef3c7;color:#92400e;}
-.role-MANAGER{background:var(--accent-pale);color:var(--accent);}
-.role-WAREHOUSE{background:var(--teal-pale);color:var(--teal);}
-.role-SALES{background:var(--success-pale);color:var(--success);}
-.role-VIEWER{background:var(--surface2);color:var(--text2);border:1px solid var(--border);}
-.status-on{background:var(--success-pale);color:var(--success);}
-.status-off{background:var(--danger-pale);color:var(--danger);}
-.panel-name{font-size:15px;font-weight:700;color:var(--text);}
-.panel-username{font-size:11px;color:var(--text3);font-family:'IBM Plex Mono',monospace;margin-top:2px;}
-.perm-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;}
-.perm-item{display:flex;align-items:center;gap:6px;padding:7px 10px;border-radius:6px;background:var(--surface2);font-size:12px;}
-.perm-check{width:16px;height:16px;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:10px;flex-shrink:0;}
-.perm-on{background:var(--success-pale);color:var(--success);}
-.perm-off{background:var(--border);color:var(--text3);}
-.perm-toggle-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;grid-column:span 2;}
-.perm-toggle{display:flex;align-items:center;gap:8px;padding:9px 12px;border-radius:7px;border:1.5px solid var(--border);cursor:pointer;transition:all .15s;user-select:none;}
-.perm-toggle:hover{border-color:var(--accent);}
-.perm-toggle.active{border-color:var(--success);background:var(--success-pale);}
-.perm-toggle input{display:none;}
-.perm-toggle-icon{width:18px;height:18px;border-radius:4px;border:1.5px solid var(--border2);display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0;transition:all .15s;}
-.perm-toggle.active .perm-toggle-icon{background:var(--success);border-color:var(--success);color:#fff;}
-.perm-toggle-label{font-size:13px;color:var(--text2);}
-.perm-toggle.active .perm-toggle-label{color:var(--success);font-weight:500;}
-.role-preview{grid-column:span 2;background:var(--surface2);border-radius:8px;padding:12px 14px;border:1px solid var(--border);}
-.role-preview-title{font-size:11px;font-weight:700;color:var(--text3);letter-spacing:.5px;margin-bottom:8px;}
-.role-preview-perms{display:flex;flex-wrap:wrap;gap:6px;}
-.role-perm-tag{padding:3px 8px;border-radius:4px;font-size:11px;font-weight:600;background:var(--accent-pale);color:var(--accent);}
-.form-hint{font-size:11px;color:var(--text3);margin-top:2px;}
-</style>
-</head>
-<body>
-
-<div class="loading-overlay" id="loadingOverlay"><div class="spinner"></div></div>
-<div class="toast" id="toast"></div>
-
-<!-- TOPBAR -->
-<div class="topbar">
-  <div class="topbar-logo">📦 <span>A4S</span>-ERP</div>
-  <div class="topbar-sep"></div>
-  <div class="topbar-title">จัดการผู้ใช้งาน</div>
-  <div class="topbar-actions">
-    <button class="btn-topbar btn-white" onclick="openModal()">＋ เพิ่มผู้ใช้</button>
-  </div>
-</div>
-
-<!-- MODAL -->
-<div class="modal-overlay" id="modalOverlay" onclick="closeModalBg(event)">
-  <div class="modal" style="width:560px">
-    <div class="modal-hdr">
-      <div class="modal-title" id="modalTitle">เพิ่มผู้ใช้งานใหม่</div>
-      <button class="btn-modal-close" onclick="closeModal()">✕</button>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>จัดการผู้ใช้งาน — A4S-ERP</title>
+    <link rel="stylesheet" href="../../assets/css/main.css" />
+    <style>
+      /* ── Users-specific ── */
+      .stats-row {
+        grid-template-columns: repeat(5, 1fr);
+      }
+      .usr-table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      .usr-table th {
+        padding: 10px 16px;
+        background: var(--surface2);
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.8px;
+        color: var(--text3);
+        text-align: left;
+        border-bottom: 2px solid var(--border);
+        white-space: nowrap;
+        cursor: pointer;
+        user-select: none;
+      }
+      .usr-table th:hover {
+        color: var(--accent);
+      }
+      .usr-table td {
+        padding: 12px 16px;
+        border-bottom: 1px solid var(--border);
+        font-size: 13.5px;
+        vertical-align: middle;
+      }
+      .usr-table tr:last-child td {
+        border-bottom: none;
+      }
+      .usr-table tr {
+        cursor: pointer;
+        transition: background 0.12s;
+      }
+      .usr-table tr:hover td {
+        background: var(--accent-pale);
+      }
+      .usr-table tr.selected td {
+        background: #dbeafe;
+      }
+      .avatar {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 15px;
+        font-weight: 700;
+        color: #fff;
+        flex-shrink: 0;
+        letter-spacing: 0.5px;
+      }
+      .role-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 3px 9px;
+        border-radius: 20px;
+        font-size: 11px;
+        font-weight: 600;
+        white-space: nowrap;
+      }
+      .role-ADMIN {
+        background: #fef3c7;
+        color: #92400e;
+      }
+      .role-MANAGER {
+        background: var(--accent-pale);
+        color: var(--accent);
+      }
+      .role-WAREHOUSE {
+        background: var(--teal-pale);
+        color: var(--teal);
+      }
+      .role-SALES {
+        background: var(--success-pale);
+        color: var(--success);
+      }
+      .role-VIEWER {
+        background: var(--surface2);
+        color: var(--text2);
+        border: 1px solid var(--border);
+      }
+      .status-on {
+        background: var(--success-pale);
+        color: var(--success);
+      }
+      .status-off {
+        background: var(--danger-pale);
+        color: var(--danger);
+      }
+      .panel-name {
+        font-size: 15px;
+        font-weight: 700;
+        color: var(--text);
+      }
+      .panel-username {
+        font-size: 11px;
+        color: var(--text3);
+        font-family: "IBM Plex Mono", monospace;
+        margin-top: 2px;
+      }
+      .perm-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 6px;
+      }
+      .perm-item {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 7px 10px;
+        border-radius: 6px;
+        background: var(--surface2);
+        font-size: 12px;
+      }
+      .perm-check {
+        width: 16px;
+        height: 16px;
+        border-radius: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 10px;
+        flex-shrink: 0;
+      }
+      .perm-on {
+        background: var(--success-pale);
+        color: var(--success);
+      }
+      .perm-off {
+        background: var(--border);
+        color: var(--text3);
+      }
+      .perm-toggle-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        grid-column: span 2;
+      }
+      .perm-toggle {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 9px 12px;
+        border-radius: 7px;
+        border: 1.5px solid var(--border);
+        cursor: pointer;
+        transition: all 0.15s;
+        user-select: none;
+      }
+      .perm-toggle:hover {
+        border-color: var(--accent);
+      }
+      .perm-toggle.active {
+        border-color: var(--success);
+        background: var(--success-pale);
+      }
+      .perm-toggle input {
+        display: none;
+      }
+      .perm-toggle-icon {
+        width: 18px;
+        height: 18px;
+        border-radius: 4px;
+        border: 1.5px solid var(--border2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 11px;
+        flex-shrink: 0;
+        transition: all 0.15s;
+      }
+      .perm-toggle.active .perm-toggle-icon {
+        background: var(--success);
+        border-color: var(--success);
+        color: #fff;
+      }
+      .perm-toggle-label {
+        font-size: 13px;
+        color: var(--text2);
+      }
+      .perm-toggle.active .perm-toggle-label {
+        color: var(--success);
+        font-weight: 500;
+      }
+      .role-preview {
+        grid-column: span 2;
+        background: var(--surface2);
+        border-radius: 8px;
+        padding: 12px 14px;
+        border: 1px solid var(--border);
+      }
+      .role-preview-title {
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--text3);
+        letter-spacing: 0.5px;
+        margin-bottom: 8px;
+      }
+      .role-preview-perms {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+      .role-perm-tag {
+        padding: 3px 8px;
+        border-radius: 4px;
+        font-size: 11px;
+        font-weight: 600;
+        background: var(--accent-pale);
+        color: var(--accent);
+      }
+      .form-hint {
+        font-size: 11px;
+        color: var(--text3);
+        margin-top: 2px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="loading-overlay" id="loadingOverlay">
+      <div class="spinner"></div>
     </div>
-    <div class="modal-body">
-      <input type="hidden" id="editId">
-      <div class="form-grid">
-        <div class="form-group">
-          <label class="form-label">ชื่อ <span class="req">*</span></label>
-          <input class="form-control" id="fFirstName" placeholder="ชื่อ">
-        </div>
-        <div class="form-group">
-          <label class="form-label">นามสกุล <span class="req">*</span></label>
-          <input class="form-control" id="fLastName" placeholder="นามสกุล">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Username <span class="req">*</span></label>
-          <input class="form-control" id="fUsername" placeholder="username" style="font-family:'IBM Plex Mono',monospace">
-        </div>
-        <div class="form-group">
-          <label class="form-label">อีเมล</label>
-          <input class="form-control" id="fEmail" type="email" placeholder="user@company.com">
-        </div>
-        <div class="form-group">
-          <label class="form-label">เบอร์โทร</label>
-          <input class="form-control" id="fPhone" placeholder="0x-xxxx-xxxx">
-        </div>
-        <div class="form-group">
-          <label class="form-label">สถานะ</label>
-          <select class="form-control" id="fStatus">
-            <option value="true">✅ ใช้งาน</option>
-            <option value="false">❌ ปิดใช้งาน</option>
-          </select>
-        </div>
-        <div class="form-section">🔐 สิทธิ์และ Role</div>
-        <div class="form-group full">
-          <label class="form-label">Role <span class="req">*</span></label>
-          <select class="form-control" id="fRole" onchange="onRoleChange()">
-            <option value="ADMIN">👑 Admin — สิทธิ์เต็ม</option>
-            <option value="MANAGER" selected>🏢 Manager — จัดการทั่วไป</option>
-            <option value="WAREHOUSE">🏭 Warehouse — จัดการคลัง</option>
-            <option value="SALES">💰 Sales — ขายสินค้า</option>
-            <option value="VIEWER">👁 Viewer — ดูอย่างเดียว</option>
-          </select>
-        </div>
-        <div class="role-preview">
-          <div class="role-preview-title">สิทธิ์ที่ได้รับตาม Role</div>
-          <div class="role-preview-perms" id="rolePreview"></div>
-        </div>
-        <div class="form-section">⚙️ กำหนดสิทธิ์เพิ่มเติม (Custom)</div>
-        <div class="perm-toggle-grid" id="permToggles"></div>
+    <div class="toast" id="toast"></div>
+
+    <!-- TOPBAR -->
+    <div class="topbar">
+      <div class="topbar-logo">📦 <span>A4S</span>-ERP</div>
+      <div class="topbar-sep"></div>
+      <div class="topbar-title">จัดการผู้ใช้งาน</div>
+      <div class="topbar-actions">
+        <button class="btn-topbar btn-white" onclick="openModal()">
+          ＋ เพิ่มผู้ใช้
+        </button>
       </div>
     </div>
-    <div class="modal-footer">
-      <button class="btn btn-outline" onclick="closeModal()">ยกเลิก</button>
-      <button class="btn btn-primary" onclick="saveUser()">💾 บันทึก</button>
-    </div>
-  </div>
-</div>
 
-<div class="page">
-  <!-- Stats (5 columns) -->
-  <div class="stats-row">
-    <div class="stat-card">
-      <div class="stat-icon" style="background:#e0f2fe;color:#0369a1">👥</div>
-      <div><div class="stat-label">ผู้ใช้ทั้งหมด</div><div class="stat-value" id="statTotal" style="color:var(--text)">—</div></div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-icon" style="background:var(--warning-pale);color:var(--warning)">👑</div>
-      <div><div class="stat-label">Admin</div><div class="stat-value" id="statAdmin" style="color:var(--warning)">—</div></div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-icon" style="background:var(--accent-pale);color:var(--accent)">🏢</div>
-      <div><div class="stat-label">Manager</div><div class="stat-value" id="statManager" style="color:var(--accent)">—</div></div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-icon" style="background:var(--success-pale);color:var(--success)">✅</div>
-      <div><div class="stat-label">ใช้งาน</div><div class="stat-value" id="statActive" style="color:var(--success)">—</div></div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-icon" style="background:var(--danger-pale);color:var(--danger)">❌</div>
-      <div><div class="stat-label">ปิดใช้งาน</div><div class="stat-value" id="statInactive" style="color:var(--danger)">—</div></div>
-    </div>
-  </div>
-
-  <!-- Toolbar -->
-  <div class="toolbar">
-    <div class="search-wrap">
-      <span class="search-icon">🔍</span>
-      <input class="search-input" id="searchInput" placeholder="ค้นหาชื่อ, username, อีเมล..." oninput="filterTable()">
-    </div>
-    <select class="filter-select" id="filterRole" onchange="filterTable()">
-      <option value="">ทุก Role</option>
-      <option value="ADMIN">Admin</option>
-      <option value="MANAGER">Manager</option>
-      <option value="WAREHOUSE">Warehouse</option>
-      <option value="SALES">Sales</option>
-      <option value="VIEWER">Viewer</option>
-    </select>
-    <select class="filter-select" id="filterStatus" onchange="filterTable()">
-      <option value="">ทุกสถานะ</option>
-      <option value="true">ใช้งาน</option>
-      <option value="false">ปิดใช้งาน</option>
-    </select>
-    <div class="toolbar-right">
-      <button class="btn btn-outline" onclick="loadData()">🔄 รีเฟรช</button>
-      <button class="btn btn-primary" onclick="openModal()">＋ เพิ่มผู้ใช้</button>
-    </div>
-  </div>
-
-  <!-- Table + Panel -->
-  <div class="content-wrap">
-    <div class="table-card">
-      <div class="table-hdr">
-        <span class="table-title">รายชื่อผู้ใช้งาน</span>
-        <span class="table-count" id="tableCount">0 รายการ</span>
+    <!-- MODAL -->
+    <div class="modal-overlay" id="modalOverlay" onclick="closeModalBg(event)">
+      <div class="modal" style="width: 560px">
+        <div class="modal-hdr">
+          <div class="modal-title" id="modalTitle">เพิ่มผู้ใช้งานใหม่</div>
+          <button class="btn-modal-close" onclick="closeModal()">✕</button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="editId" />
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">ชื่อ <span class="req">*</span></label>
+              <input class="form-control" id="fFirstName" placeholder="ชื่อ" />
+            </div>
+            <div class="form-group">
+              <label class="form-label"
+                >นามสกุล <span class="req">*</span></label
+              >
+              <input
+                class="form-control"
+                id="fLastName"
+                placeholder="นามสกุล"
+              />
+            </div>
+            <div class="form-group">
+              <label class="form-label"
+                >Username <span class="req">*</span></label
+              >
+              <input
+                class="form-control"
+                id="fUsername"
+                placeholder="username"
+                style="font-family: &quot;IBM Plex Mono&quot;, monospace"
+              />
+            </div>
+            <div class="form-group">
+              <label class="form-label">อีเมล</label>
+              <input
+                class="form-control"
+                id="fEmail"
+                type="email"
+                placeholder="user@company.com"
+              />
+            </div>
+            <div class="form-group">
+              <label class="form-label">เบอร์โทร</label>
+              <input
+                class="form-control"
+                id="fPhone"
+                placeholder="0x-xxxx-xxxx"
+              />
+            </div>
+            <div class="form-group">
+              <label class="form-label">สถานะ</label>
+              <select class="form-control" id="fStatus">
+                <option value="true">✅ ใช้งาน</option>
+                <option value="false">❌ ปิดใช้งาน</option>
+              </select>
+            </div>
+            <div class="form-section">🔐 สิทธิ์และ Role</div>
+            <div class="form-group full">
+              <label class="form-label">Role <span class="req">*</span></label>
+              <select class="form-control" id="fRole" onchange="onRoleChange()">
+                <option value="ADMIN">👑 Admin — สิทธิ์เต็ม</option>
+                <option value="MANAGER" selected>
+                  🏢 Manager — จัดการทั่วไป
+                </option>
+                <option value="WAREHOUSE">🏭 Warehouse — จัดการคลัง</option>
+                <option value="SALES">💰 Sales — ขายสินค้า</option>
+                <option value="VIEWER">👁 Viewer — ดูอย่างเดียว</option>
+              </select>
+            </div>
+            <div class="role-preview">
+              <div class="role-preview-title">สิทธิ์ที่ได้รับตาม Role</div>
+              <div class="role-preview-perms" id="rolePreview"></div>
+            </div>
+            <div class="form-section">⚙️ กำหนดสิทธิ์เพิ่มเติม (Custom)</div>
+            <div class="perm-toggle-grid" id="permToggles"></div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-outline" onclick="closeModal()">ยกเลิก</button>
+          <button class="btn btn-primary" onclick="saveUser()">
+            💾 บันทึก
+          </button>
+        </div>
       </div>
-      <div style="overflow-x:auto">
-        <table class="usr-table">
-          <thead>
-            <tr>
-              <th onclick="sortBy('first_name')">ชื่อ-นามสกุล ↕</th>
-              <th onclick="sortBy('username')">Username ↕</th>
-              <th onclick="sortBy('role')">Role ↕</th>
-              <th>อีเมล</th>
-              <th>สถานะ</th>
-            </tr>
-          </thead>
-          <tbody id="tableBody">
-            <tr><td colspan="5"><div class="empty-state"><div class="empty-icon">👥</div><div>กำลังโหลด...</div></div></td></tr>
-          </tbody>
-        </table>
-      </div>
     </div>
 
-    <!-- Side Panel -->
-    <div class="side-panel" id="sidePanel">
-      <div class="panel-hdr">
-        <div style="display:flex;align-items:center;gap:12px;flex:1;min-width:0">
-          <div class="avatar" id="panelAvatar" style="background:var(--accent)">?</div>
+    <div class="page">
+      <!-- Stats (5 columns) -->
+      <div class="stats-row">
+        <div class="stat-card">
+          <div class="stat-icon" style="background: #e0f2fe; color: #0369a1">
+            👥
+          </div>
           <div>
-            <div class="panel-name" id="panelName">—</div>
-            <div class="panel-username" id="panelUsername">—</div>
+            <div class="stat-label">ผู้ใช้ทั้งหมด</div>
+            <div class="stat-value" id="statTotal" style="color: var(--text)">
+              —
+            </div>
           </div>
         </div>
-        <button class="btn-close" onclick="closePanel()">✕</button>
-      </div>
-      <div class="panel-body">
-        <div class="p-section">
-          <div class="p-section-title">📋 ข้อมูลทั่วไป</div>
-          <div class="info-grid">
-            <div class="info-item"><div class="info-lbl">Role</div><div class="info-val" id="panelRole">—</div></div>
-            <div class="info-item"><div class="info-lbl">สถานะ</div><div class="info-val" id="panelStatus">—</div></div>
-            <div class="info-item"><div class="info-lbl">อีเมล</div><div class="info-val mono" id="panelEmail" style="font-size:12px">—</div></div>
-            <div class="info-item"><div class="info-lbl">โทรศัพท์</div><div class="info-val mono" id="panelPhone">—</div></div>
+        <div class="stat-card">
+          <div
+            class="stat-icon"
+            style="background: var(--warning-pale); color: var(--warning)"
+          >
+            👑
+          </div>
+          <div>
+            <div class="stat-label">Admin</div>
+            <div
+              class="stat-value"
+              id="statAdmin"
+              style="color: var(--warning)"
+            >
+              —
+            </div>
           </div>
         </div>
-        <div class="p-section">
-          <div class="p-section-title">🔐 สิทธิ์การใช้งาน</div>
-          <div class="perm-grid" id="panelPerms"></div>
+        <div class="stat-card">
+          <div
+            class="stat-icon"
+            style="background: var(--accent-pale); color: var(--accent)"
+          >
+            🏢
+          </div>
+          <div>
+            <div class="stat-label">Manager</div>
+            <div
+              class="stat-value"
+              id="statManager"
+              style="color: var(--accent)"
+            >
+              —
+            </div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div
+            class="stat-icon"
+            style="background: var(--success-pale); color: var(--success)"
+          >
+            ✅
+          </div>
+          <div>
+            <div class="stat-label">ใช้งาน</div>
+            <div
+              class="stat-value"
+              id="statActive"
+              style="color: var(--success)"
+            >
+              —
+            </div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div
+            class="stat-icon"
+            style="background: var(--danger-pale); color: var(--danger)"
+          >
+            ❌
+          </div>
+          <div>
+            <div class="stat-label">ปิดใช้งาน</div>
+            <div
+              class="stat-value"
+              id="statInactive"
+              style="color: var(--danger)"
+            >
+              —
+            </div>
+          </div>
         </div>
       </div>
-      <div class="panel-actions">
-        <button class="btn btn-outline" onclick="editSelected()">✏️ แก้ไข</button>
-        <button class="btn-sm-danger" onclick="deleteSelected()" style="flex:.4">🗑</button>
-        <button class="btn btn-primary" onclick="openModal()">＋ เพิ่มใหม่</button>
+
+      <!-- Toolbar -->
+      <div class="toolbar">
+        <div class="search-wrap">
+          <span class="search-icon">🔍</span>
+          <input
+            class="search-input"
+            id="searchInput"
+            placeholder="ค้นหาชื่อ, username, อีเมล..."
+            oninput="filterTable()"
+          />
+        </div>
+        <select class="filter-select" id="filterRole" onchange="filterTable()">
+          <option value="">ทุก Role</option>
+          <option value="ADMIN">Admin</option>
+          <option value="MANAGER">Manager</option>
+          <option value="WAREHOUSE">Warehouse</option>
+          <option value="SALES">Sales</option>
+          <option value="VIEWER">Viewer</option>
+        </select>
+        <select
+          class="filter-select"
+          id="filterStatus"
+          onchange="filterTable()"
+        >
+          <option value="">ทุกสถานะ</option>
+          <option value="true">ใช้งาน</option>
+          <option value="false">ปิดใช้งาน</option>
+        </select>
+        <div class="toolbar-right">
+          <button class="btn btn-outline" onclick="loadData()">
+            🔄 รีเฟรช
+          </button>
+          <button class="btn btn-primary" onclick="openModal()">
+            ＋ เพิ่มผู้ใช้
+          </button>
+        </div>
+      </div>
+
+      <!-- Table + Panel -->
+      <div class="content-wrap">
+        <div class="table-card">
+          <div class="table-hdr">
+            <span class="table-title">รายชื่อผู้ใช้งาน</span>
+            <span class="table-count" id="tableCount">0 รายการ</span>
+          </div>
+          <div style="overflow-x: auto">
+            <table class="usr-table">
+              <thead>
+                <tr>
+                  <th onclick="sortBy('first_name')">ชื่อ-นามสกุล ↕</th>
+                  <th onclick="sortBy('username')">Username ↕</th>
+                  <th onclick="sortBy('role')">Role ↕</th>
+                  <th>อีเมล</th>
+                  <th>สถานะ</th>
+                </tr>
+              </thead>
+              <tbody id="tableBody">
+                <tr>
+                  <td colspan="5">
+                    <div class="empty-state">
+                      <div class="empty-icon">👥</div>
+                      <div>กำลังโหลด...</div>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Side Panel -->
+        <div class="side-panel" id="sidePanel">
+          <div class="panel-hdr">
+            <div
+              style="
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                flex: 1;
+                min-width: 0;
+              "
+            >
+              <div
+                class="avatar"
+                id="panelAvatar"
+                style="background: var(--accent)"
+              >
+                ?
+              </div>
+              <div>
+                <div class="panel-name" id="panelName">—</div>
+                <div class="panel-username" id="panelUsername">—</div>
+              </div>
+            </div>
+            <button class="btn-close" onclick="closePanel()">✕</button>
+          </div>
+          <div class="panel-body">
+            <div class="p-section">
+              <div class="p-section-title">📋 ข้อมูลทั่วไป</div>
+              <div class="info-grid">
+                <div class="info-item">
+                  <div class="info-lbl">Role</div>
+                  <div class="info-val" id="panelRole">—</div>
+                </div>
+                <div class="info-item">
+                  <div class="info-lbl">สถานะ</div>
+                  <div class="info-val" id="panelStatus">—</div>
+                </div>
+                <div class="info-item">
+                  <div class="info-lbl">อีเมล</div>
+                  <div
+                    class="info-val mono"
+                    id="panelEmail"
+                    style="font-size: 12px"
+                  >
+                    —
+                  </div>
+                </div>
+                <div class="info-item">
+                  <div class="info-lbl">โทรศัพท์</div>
+                  <div class="info-val mono" id="panelPhone">—</div>
+                </div>
+              </div>
+            </div>
+            <div class="p-section">
+              <div class="p-section-title">🔐 สิทธิ์การใช้งาน</div>
+              <div class="perm-grid" id="panelPerms"></div>
+            </div>
+          </div>
+          <div class="panel-actions">
+            <button class="btn btn-outline" onclick="editSelected()">
+              ✏️ แก้ไข
+            </button>
+            <button
+              class="btn-sm-danger"
+              onclick="deleteSelected()"
+              style="flex: 0.4"
+            >
+              🗑
+            </button>
+            <button class="btn btn-primary" onclick="openModal()">
+              ＋ เพิ่มใหม่
+            </button>
+          </div>
+        </div>
       </div>
     </div>
-  </div>
-</div>
 
-<script src="users.js"></script>
-<script src="../../shared/auth.js"></script>
-<script src="../../shared/sidebar.js"></script>
-</body>
+    <script src="users.js"></script>
+    <script src="../../shared/auth.js"></script>
+    <script src="../../shared/sidebar.js"></script>
+  </body>
 </html>
