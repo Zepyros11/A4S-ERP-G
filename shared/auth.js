@@ -55,91 +55,16 @@
   // ── 5. Inject User chip ใน Topbar (รอ DOM) ──────────────
   // sidebar.js จะ inject topbar ทีหลัง เราต้องรอ
   function injectUserChip() {
-    const topbar = document.querySelector(".topbar");
-    if (!topbar) return;
+    const topbar = document.querySelector(".topbar-right");
 
-    // ถ้า chip มีแล้วข้ามไป
-    if (document.getElementById("erp-user-chip")) return;
+    if (!topbar) return; // กัน error ถ้า element ไม่มี
 
-    const ROLE_LABEL = {
-      ADMIN: "👑",
-      MANAGER: "🏢",
-      WAREHOUSE: "🏭",
-      SALES: "💰",
-      VIEWER: "👁",
-    };
+    const user = localStorage.getItem("user_name") || "User";
 
     const chip = document.createElement("div");
-    chip.id = "erp-user-chip";
-    chip.style.cssText = `
-      margin-left:auto; display:flex; align-items:center; gap:10px;
-    `;
-    chip.innerHTML = `
-      <style>
-        .erp-chip-wrap { display:flex; align-items:center; gap:8px; position:relative; }
-        .erp-avatar {
-          width:32px; height:32px; border-radius:50%;
-          background:rgba(255,255,255,.18);
-          border:2px solid rgba(255,255,255,.3);
-          display:flex; align-items:center; justify-content:center;
-          font-size:13px; font-weight:700; color:#fff;
-          cursor:pointer; user-select:none;
-          transition:all .18s;
-          font-family:'Sarabun',sans-serif;
-        }
-        .erp-avatar:hover { background:rgba(255,255,255,.28); }
-        .erp-user-name { font-size:13px; color:rgba(255,255,255,.9); font-family:'Sarabun',sans-serif; white-space:nowrap; }
-        .erp-user-role { font-size:10px; color:rgba(255,255,255,.55); font-family:'Sarabun',sans-serif; }
-        .erp-dropdown {
-          position:absolute; top:calc(100% + 10px); right:0;
-          background:#fff; border-radius:10px; min-width:200px;
-          box-shadow:0 8px 32px rgba(0,0,0,.18); border:1px solid #e4e8ef;
-          overflow:hidden; z-index:500;
-          display:none; animation:dropIn .18s ease;
-        }
-        .erp-dropdown.open { display:block; }
-        @keyframes dropIn { from{opacity:0;transform:translateY(-6px)} to{opacity:1;transform:translateY(0)} }
-        .erp-drop-header { padding:14px 16px; background:#f8f9fb; border-bottom:1px solid #e4e8ef; }
-        .erp-drop-name { font-size:14px; font-weight:600; color:#111827; }
-        .erp-drop-meta { font-size:11px; color:#9ca3af; margin-top:2px; font-family:'IBM Plex Mono',monospace; }
-        .erp-drop-item {
-          display:flex; align-items:center; gap:10px;
-          padding:11px 16px; font-size:13.5px; font-family:'Sarabun',sans-serif;
-          color:#374151; cursor:pointer; transition:background .12s; text-decoration:none;
-        }
-        .erp-drop-item:hover { background:#f0f2f5; }
-        .erp-drop-divider { height:1px; background:#e4e8ef; }
-        .erp-drop-item.danger { color:#9b1c1c; }
-        .erp-drop-item.danger:hover { background:#fde8e8; }
-      </style>
+    chip.className = "user-chip";
+    chip.innerHTML = `👤 ${user}`;
 
-      <div class="erp-chip-wrap" id="erpChipWrap">
-        <div style="text-align:right">
-          <div class="erp-user-name">${session.first_name} ${session.last_name}</div>
-          <div class="erp-user-role">${ROLE_LABEL[session.role] || "👤"} ${session.role}</div>
-        </div>
-        <div class="erp-avatar" onclick="toggleUserMenu()" id="erpAvatar">
-          ${(session.first_name[0] || "?").toUpperCase()}${(session.last_name?.[0] || "").toUpperCase()}
-        </div>
-
-        <div class="erp-dropdown" id="erpDropdown">
-          <div class="erp-drop-header">
-            <div class="erp-drop-name">${session.first_name} ${session.last_name}</div>
-            <div class="erp-drop-meta">@${session.username} · ${session.role}</div>
-          </div>
-          <a class="erp-drop-item" href="${BASE_PATH}/modules/settings/settings.html">⚙️ ตั้งค่าระบบ</a>
-          <div class="erp-drop-divider"></div>
-          <div class="erp-drop-item danger" onclick="erpLogout()">🚪 ออกจากระบบ</div>
-        </div>
-      </div>
-    `;
-
-    // ลบ topbar-actions เดิม (ถ้ามี) แล้วใส่ chip แทน
-    const existingActions = topbar.querySelector(".topbar-actions");
-    if (existingActions) {
-      // ย้าย actions ไปอยู่ก่อน chip
-      chip.insertBefore(existingActions, chip.firstChild);
-    }
     topbar.appendChild(chip);
   }
 
