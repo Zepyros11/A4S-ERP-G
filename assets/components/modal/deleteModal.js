@@ -20,7 +20,7 @@ function confirmDelete() {
   closeDeleteModal();
 }
 async function loadDeleteModal() {
-  const res = await fetch("/assets/components/modal/deleteModal.html");
+  const res = await fetch("../../assets/components/modal/deleteModal.html");
   const html = await res.text();
 
   document.getElementById("deleteModalContainer").innerHTML = html;
