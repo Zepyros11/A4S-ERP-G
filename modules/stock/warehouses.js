@@ -159,29 +159,17 @@ ${remainLabel}
 
 <td class="col-center">
 
-<div class="row-menu">
-
-<button class="menu-btn"
-onclick="event.stopPropagation();toggleRowMenu(this)">
-⋮
-</button>
-
-<div class="menu-dropdown">
-
 <button
+class="btn-icon"
 onclick="event.stopPropagation();editWarehouse(${w.warehouse_id})">
-✏️ แก้ไข
+✏️
 </button>
 
 <button
-class="danger"
+class="btn-icon danger"
 onclick="event.stopPropagation();deleteWarehouse(${w.warehouse_id},'${w.warehouse_name}')">
-🗑 ลบ
+🗑
 </button>
-
-</div>
-
-</div>
 
 </td>
 
@@ -276,24 +264,32 @@ async function saveWarehouse() {
   };
 
   const id = document.getElementById("editId").value;
-
   const isEdit = id && id !== "";
-  if (isEdit) {
-    await sbFetch("warehouses", {
-      method: "PATCH",
-      query: `?warehouse_id=eq.${id}`,
-      body: payload,
-    });
-  } else {
-    await sbFetch("warehouses", {
-      method: "POST",
-      body: payload,
-    });
+
+  try {
+    if (isEdit) {
+      await sbFetch("warehouses", {
+        method: "PATCH",
+        query: `?warehouse_id=eq.${id}`,
+        body: payload,
+      });
+    } else {
+      await sbFetch("warehouses", {
+        method: "POST",
+        body: payload,
+      });
+    }
+
+    closeModal();
+    loadData();
+    showToast("บันทึกสำเร็จ");
+  } catch (e) {
+    if (e.message.includes("duplicate") || e.message.includes("unique")) {
+      showToast("SKU ซ้ำ", "error");
+    } else {
+      showToast("บันทึกไม่สำเร็จ", "error");
+    }
   }
-
-  closeModal();
-
-  loadData();
 }
 
 function generateCode() {

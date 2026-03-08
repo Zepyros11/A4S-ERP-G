@@ -76,15 +76,15 @@
   height: 34px;
   border-radius: 8px;
   border: none;
-  background: #f1f5f9;
+  background: transparent;
   cursor: pointer;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
+  font-size: 16px;
 }
-
 .btn-icon:hover {
-  background: #e2e8f0;
+  transform: scale(1.15);
 }
 
 .btn-icon.danger {
@@ -93,14 +93,4 @@
 
 .btn-icon.danger:hover {
   background: #fee2e2;
-}
-.btn-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-.btn-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
 }

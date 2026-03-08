@@ -9,8 +9,7 @@ let categories = [],
   products = [];
 let selectedEmoji = "📦";
 let selectedColor = "#0f4c75";
-let catSortKey = "sort_order";
-let catSortAsc = true;
+
 const EMOJIS = [
   // เทคโนโลยี / อุปกรณ์
   "📦",
@@ -248,14 +247,15 @@ async function loadData() {
   showLoading(true);
   try {
     const [cats, prods] = await Promise.all([
-      sbFetch("categories", "?select=*&order=sort_order.asc"),
+      sbFetch("categories", "?select=*&order=category_name"),
       sbFetch("products", "?select=product_id,category_id&is_active=eq.true"),
     ]);
     categories = cats || [];
     products = prods || [];
-
     renderGrid(categories);
-    renderCategoryStats();
+    renderStats();
+    renderGridFiltered();
+    renderStats();
   } catch (e) {
     showToast("โหลดไม่ได้: " + e.message, "error");
   }
@@ -263,23 +263,11 @@ async function loadData() {
 }
 
 function renderGrid(cats) {
-  const tbody = document.getElementById("catTable");
-
-  if (!tbody) return;
+  const tbody = document.getElementById("catTableBody");
 
   let html = "";
 
-  const sorted = [...cats].sort((a, b) => {
-    let av = a[catSortKey] ?? "";
-    let bv = b[catSortKey] ?? "";
-
-    if (typeof av === "string") av = av.toLowerCase();
-    if (typeof bv === "string") bv = bv.toLowerCase();
-
-    return catSortAsc ? (av > bv ? 1 : -1) : av < bv ? 1 : -1;
-  });
-
-  sorted.forEach((c, index) => {
+  cats.forEach((c) => {
     const count = products.filter(
       (p) => p.category_id === c.category_id,
     ).length;
@@ -290,62 +278,91 @@ function renderGrid(cats) {
       ? `${lbl.prefix}-[${lbl.l2 || "?"}]-[${lbl.l3 || "?"}]-[${lbl.l4 || "?"}]-001`
       : "—";
 
+    const color = c.color || "#0f4c75";
+
+    const bg = color + "22";
+
     html += `
-<tr draggable="true"
-onclick="openCategoryProducts(${c.category_id},'${c.category_name}','${c.icon || "📦"}')"
-data-id="${c.category_id}">
 
-<td class="drag-handle">⋮⋮</td>
+      <tr>
 
-<td style="font-size:20px">${c.icon || "📦"}</td>
+        <td>
 
-<td>
-<strong>${c.category_name}</strong>
-${c.description ? `<div style="font-size:11px;color:#9ca3af">${c.description}</div>` : ""}
-</td>
+          <div style="display:flex;align-items:center;gap:12px">
 
-<td style="font-family:monospace">${skuFmt}</td>
+            <div class="cat-color"
+              style="background:${bg};color:${color}">
+              ${c.icon || "📦"}
+            </div>
 
-<td><strong>${count}</strong></td>
+            <div>
 
-<td class="col-center">
+              <div style="font-weight:700">
+                ${c.category_name}
+              </div>
 
-<div class="row-menu">
+              ${
+                c.description
+                  ? `<div style="font-size:12px;color:var(--text3)">
+                      ${c.description}
+                    </div>`
+                  : ""
+              }
 
-<button class="menu-btn"
-onclick="event.stopPropagation();toggleRowMenu(this)">
-⋮
-</button>
+            </div>
 
-<div class="menu-dropdown">
+          </div>
 
-<button
-onclick="event.stopPropagation();editCategory(${c.category_id})">
-✏️ แก้ไข
-</button>
+        </td>
 
-<button
-class="danger"
-onclick="event.stopPropagation();deleteCategory(${c.category_id},'${c.category_name}')">
-🗑 ลบ
-</button>
+        <td class="col-center">
+          <strong>${count}</strong>
+        </td>
 
-</div>
+        <td class="col-center"
+          style="font-family:monospace;font-size:12px">
 
-</div>
+          ${skuFmt}
 
-</td>
+        </td>
 
-</tr>
-`;
+        <td class="col-center">
+
+          <button
+            class="btn-icon"
+            onclick="editCategory(${c.category_id})">
+            ✏️
+          </button>
+
+          <button
+            class="btn-icon danger"
+            onclick="deleteCategory(${c.category_id},'${c.category_name}')">
+            🗑
+          </button>
+
+        </td>
+
+      </tr>
+
+    `;
   });
 
-  tbody.innerHTML = html;
-  enableDragSort();
+  if (!html) {
+    html = `
+      <tr>
+        <td colspan="4"
+        style="text-align:center;padding:40px;color:var(--text3)">
+          ไม่พบข้อมูล
+        </td>
+      </tr>
+    `;
+  }
 
-  const count = document.getElementById("catCount");
-  if (count) count.textContent = cats.length + " รายการ";
+  tbody.innerHTML = html;
+
+  document.getElementById("catCount").textContent = cats.length + " รายการ";
 }
+
 function buildPickers() {
   const ep = document.getElementById("emojiPicker");
   ep.innerHTML = EMOJIS.map(
@@ -483,20 +500,34 @@ async function saveCategory() {
 
 async function deleteCategory(id, name) {
   const count = products.filter((p) => p.category_id === id).length;
+
   if (count > 0) {
     showToast(`ไม่สามารถลบได้ มีสินค้า ${count} รายการในหมวดนี้`, "error");
+
     return;
   }
-  if (!confirm(`ลบหมวดหมู่ "${name}"?`)) return;
-  showLoading(true);
-  try {
-    await sbFetch("categories", `?category_id=eq.${id}`, { method: "DELETE" });
-    showToast("ลบหมวดหมู่แล้ว", "success");
-    await loadData();
-  } catch (e) {
-    showToast("ลบไม่ได้: " + e.message, "error");
-  }
-  showLoading(false);
+
+  openDeleteModal(
+    `ลบหมวดหมู่ "${name}" ?`,
+
+    async () => {
+      showLoading(true);
+
+      try {
+        await sbFetch("categories", `?category_id=eq.${id}`, {
+          method: "DELETE",
+        });
+
+        showToast("ลบหมวดหมู่แล้ว", "success");
+
+        await loadData();
+      } catch (e) {
+        showToast("ลบไม่ได้: " + e.message, "error");
+      }
+
+      showLoading(false);
+    },
+  );
 }
 
 function showToast(msg, type = "success") {
@@ -513,209 +544,79 @@ window.addEventListener("DOMContentLoaded", () => {
   if (SB_URL && SB_KEY) loadData();
   else renderGrid([]);
 });
+function renderStats() {
+  const totalCat = categories.length;
 
-function sortCategory(key) {
-  if (catSortKey === key) {
-    catSortAsc = !catSortAsc;
-  } else {
-    catSortKey = key;
-    catSortAsc = true;
-  }
+  const totalProducts = products.length;
 
-  renderGrid(categories);
-}
-function renderCategoryStats() {
-  const total = categories.length;
-
-  const used = categories.filter((c) =>
+  const catWithProduct = categories.filter((c) =>
     products.some((p) => p.category_id === c.category_id),
   ).length;
 
-  const empty = total - used;
+  const catEmpty = totalCat - catWithProduct;
 
-  const statTotal = document.getElementById("statTotal");
-  const statUsed = document.getElementById("statUsed");
-  const statEmpty = document.getElementById("statEmpty");
+  document.getElementById("statTotalCat").textContent = totalCat;
 
-  if (statTotal) statTotal.textContent = total;
-  if (statUsed) statUsed.textContent = used;
-  if (statEmpty) statEmpty.textContent = empty;
+  document.getElementById("statCatWithProduct").textContent = catWithProduct;
+
+  document.getElementById("statCatEmpty").textContent = catEmpty;
+
+  document.getElementById("statTotalProduct").textContent = totalProducts;
 }
-let currentSort = { field: "", dir: "asc" };
+function renderGridFiltered() {
+  const q = document.getElementById("searchInput").value.toLowerCase();
+
+  const filter = document.getElementById("filterStatus").value;
+
+  let list = categories.filter((c) => {
+    const text = (c.category_name + " " + (c.description || "")).toLowerCase();
+
+    if (q && !text.includes(q)) return false;
+
+    const count = products.filter(
+      (p) => p.category_id === c.category_id,
+    ).length;
+
+    if (filter === "with" && count === 0) return false;
+
+    if (filter === "empty" && count > 0) return false;
+
+    return true;
+  });
+
+  renderGrid(list);
+}
+let currentSort = {
+  field: "",
+  asc: true,
+};
 
 function sortTable(field) {
   if (currentSort.field === field) {
-    currentSort.dir = currentSort.dir === "asc" ? "desc" : "asc";
+    currentSort.asc = !currentSort.asc;
   } else {
     currentSort.field = field;
-    currentSort.dir = "asc";
+    currentSort.asc = true;
   }
 
-  categories.sort((a, b) => {
-    let x = a[field] || "";
-    let y = b[field] || "";
+  let sorted = [...categories];
 
-    if (typeof x === "string") x = x.toLowerCase();
-    if (typeof y === "string") y = y.toLowerCase();
+  sorted.sort((a, b) => {
+    let valA, valB;
 
-    if (currentSort.dir === "asc") return x > y ? 1 : -1;
-    return x < y ? 1 : -1;
+    if (field === "product_count") {
+      valA = products.filter((p) => p.category_id === a.category_id).length;
+      valB = products.filter((p) => p.category_id === b.category_id).length;
+    } else {
+      valA = a[field] || "";
+      valB = b[field] || "";
+    }
+
+    if (valA < valB) return currentSort.asc ? -1 : 1;
+    if (valA > valB) return currentSort.asc ? 1 : -1;
+
+    return 0;
   });
 
-  document.querySelectorAll(".sort-icon").forEach((i) => {
-    i.textContent = "⇅";
-  });
-
-  const icon = document.getElementById("sort-" + field);
-
-  if (icon) {
-    icon.textContent = currentSort.dir === "asc" ? "▲" : "▼";
-  }
-
-  renderTable();
-}
-const search =
-  document.getElementById("searchInput")?.value.toLowerCase() || "";
-
-const filtered = categories.filter((c) =>
-  (c.category_name || "").toLowerCase().includes(search),
-);
-function enableDragSort() {
-  const tbody = document.getElementById("catTable");
-  let dragging;
-
-  tbody.querySelectorAll("tr").forEach((row) => {
-    row.addEventListener("dragstart", () => {
-      dragging = row;
-      row.classList.add("dragging");
-    });
-
-    row.addEventListener("dragend", () => {
-      row.classList.remove("dragging");
-    });
-
-    row.addEventListener("dragover", (e) => {
-      e.preventDefault();
-
-      const after = getDragAfterElement(tbody, e.clientY);
-
-      if (after == null) {
-        tbody.appendChild(dragging);
-      } else {
-        tbody.insertBefore(dragging, after);
-      }
-    });
-  });
-}
-function getDragAfterElement(container, y) {
-  const els = [...container.querySelectorAll("tr:not(.dragging)")];
-
-  return els.reduce(
-    (closest, child) => {
-      const box = child.getBoundingClientRect();
-
-      const offset = y - box.top - box.height / 2;
-
-      if (offset < 0 && offset > closest.offset) {
-        return { offset: offset, element: child };
-      } else {
-        return closest;
-      }
-    },
-    { offset: Number.NEGATIVE_INFINITY },
-  ).element;
-}
-function toggleRowMenu(btn) {
-  const menu = btn.nextElementSibling;
-
-  document.querySelectorAll(".menu-dropdown").forEach((m) => {
-    if (m !== menu) m.style.display = "none";
-  });
-
-  menu.style.display = menu.style.display === "block" ? "none" : "block";
-}
-
-document.addEventListener("click", () => {
-  document
-    .querySelectorAll(".menu-dropdown")
-    .forEach((m) => (m.style.display = "none"));
-});
-async function openCategoryProducts(id, name, icon) {
-  const rows = await sbFetch(
-    "products",
-    `?select=product_id,product_name,product_code&category_id=eq.${id}`,
-  );
-
-  categoryProducts = rows || [];
-
-  document.getElementById("panelTitle").innerHTML =
-    `สินค้าในหมวด : ${icon} ${name}`;
-
-  document.getElementById("categoryPanel").classList.add("open");
-
-  drawCategoryProducts(categoryProducts);
-}
-let categoryProducts = [];
-
-function drawCategoryProducts(rows) {
-  const body = document.getElementById("panelBody");
-
-  if (rows.length === 0) {
-    body.innerHTML = `
-<div style="padding:30px;text-align:center">
-ไม่มีสินค้าในหมวดนี้
-</div>
-`;
-
-    return;
-  }
-
-  body.innerHTML = `
-
-<table class="stock-table">
-
-<thead>
-<tr>
-<th>สินค้า</th>
-<th>SKU</th>
-</tr>
-</thead>
-
-<tbody>
-
-${rows
-  .map(
-    (p) => `
-
-<tr>
-
-<td>${p.product_name || "-"}</td>
-
-<td class="mono">${p.product_code || "-"}</td>
-
-</tr>
-
-`,
-  )
-  .join("")}
-
-</tbody>
-
-</table>
-
-`;
-}
-function filterCategoryProducts() {
-  const q = document.getElementById("panelSearch").value.toLowerCase();
-
-  const list = categoryProducts.filter(
-    (p) =>
-      (p.product_name || "").toLowerCase().includes(q) ||
-      (p.product_code || "").toLowerCase().includes(q),
-  );
-
-  drawCategoryProducts(list);
-}
-function closeCategoryPanel() {
-  document.getElementById("categoryPanel").classList.remove("open");
+  renderGrid(sorted);
 }

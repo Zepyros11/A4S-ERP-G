@@ -12,7 +12,7 @@
 
 /* side panel */
 .table-card {
-  flex: 2;
+  flex: 1;
 }
 
 .side-panel {
@@ -169,4 +169,21 @@
 
 .qty-zero {
   color: var(--danger);
+}
+.mini-popup {
+  position: fixed;
+  top: 40%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: #fff;
+  padding: 20px;
+  border-radius: 10px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  display: flex;
+  gap: 10px;
+}
+
+.mini-popup select {
+  padding: 6px 10px;
 }

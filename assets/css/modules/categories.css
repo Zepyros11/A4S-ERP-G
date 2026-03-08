@@ -111,3 +111,8 @@
 #catPreviewCard:hover {
   transform: translateY(-1px);
 }
+/* categories table height */
+
+#categoryPanel {
+  display: none;
+}
