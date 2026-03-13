@@ -1,0 +1,230 @@
+/* =========================================================
+   media-schedule.css — Event Media Module
+========================================================= */
+
+/* ── MEDIA TYPE BADGE ── */
+.media-type-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.mtype-PHOTO {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+.mtype-VIDEO {
+  background: #fce7f3;
+  color: #be185d;
+}
+.mtype-GRAPHIC {
+  background: #ede9fe;
+  color: #7c3aed;
+}
+.mtype-LIVE {
+  background: #fee2e2;
+  color: #dc2626;
+}
+.mtype-DOCUMENT {
+  background: #f0fdf4;
+  color: #15803d;
+}
+.mtype-OTHER {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+/* ── STATUS BADGE ── */
+.media-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.mstatus-TODO {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+.mstatus-INPROGRESS {
+  background: #fef3c7;
+  color: #d97706;
+}
+.mstatus-DONE {
+  background: #d1fae5;
+  color: #059669;
+}
+.mstatus-CANCELLED {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+/* ── DUE DATE ── */
+.due-overdue {
+  color: #dc2626;
+  font-weight: 700;
+}
+.due-today {
+  color: #d97706;
+  font-weight: 700;
+}
+.due-normal {
+  color: var(--text2);
+}
+
+/* ── MEDIA MODAL ── */
+.med-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(4px);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 400;
+}
+.med-modal-overlay.open {
+  display: flex;
+}
+.med-modal {
+  background: var(--surface);
+  border-radius: 16px;
+  width: 580px;
+  max-width: 95vw;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+  animation: medPop 0.2s ease;
+}
+@keyframes medPop {
+  from {
+    transform: scale(0.95);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+.med-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.med-modal-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.med-modal-footer {
+  padding: 14px 20px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  flex-shrink: 0;
+}
+
+/* ── FORM GRID ── */
+.med-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.med-form-grid .mspan2 {
+  grid-column: span 2;
+}
+
+/* ── FILE UPLOAD ── */
+.med-upload-area {
+  border: 2px dashed var(--border2);
+  border-radius: 10px;
+  padding: 16px;
+  text-align: center;
+  cursor: pointer;
+  background: var(--surface2);
+  transition: border-color 0.15s;
+  font-size: 13px;
+  color: var(--text3);
+}
+.med-upload-area:hover {
+  border-color: var(--accent);
+}
+
+/* ── STATS ── */
+.med-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.med-stat-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.med-stat-label {
+  font-size: 11px;
+  color: var(--text3);
+  font-weight: 600;
+  text-transform: uppercase;
+}
+.med-stat-value {
+  font-size: 22px;
+  font-weight: 800;
+  font-family: "IBM Plex Mono", monospace;
+}
+
+/* ── FILE LINK ── */
+.file-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--accent);
+  text-decoration: none;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: var(--surface2);
+  transition: background 0.15s;
+}
+.file-link:hover {
+  background: var(--border);
+}
+
+/* ── PROGRESS BAR ── */
+.med-progress-wrap {
+  background: var(--border);
+  border-radius: 99px;
+  height: 6px;
+  overflow: hidden;
+  margin-top: 4px;
+}
+.med-progress-bar {
+  height: 100%;
+  border-radius: 99px;
+  background: var(--accent);
+  transition: width 0.3s;
+}
+.med-progress-bar.done {
+  background: var(--success);
+}
+.med-progress-bar.over80 {
+  background: var(--warning);
+}

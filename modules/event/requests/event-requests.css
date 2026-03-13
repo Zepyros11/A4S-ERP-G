@@ -1,0 +1,211 @@
+/* =========================================================
+   event-requests.css — Requests Module
+========================================================= */
+
+/* ── STATUS BADGES ── */
+.req-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.status-PENDING {
+  background: #fef3c7;
+  color: #d97706;
+}
+.status-APPROVED {
+  background: #d1fae5;
+  color: #059669;
+}
+.status-REJECTED {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+/* ── TYPE BADGE ── */
+.req-type-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  background: #e0f2fe;
+  color: #0369a1;
+}
+
+/* ── SIDE PANEL ── */
+.req-panel {
+  position: fixed;
+  top: 0;
+  right: -480px;
+  width: 480px;
+  height: 100vh;
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+  box-shadow: -4px 0 24px rgba(0, 0, 0, 0.1);
+  z-index: 300;
+  display: flex;
+  flex-direction: column;
+  transition: right 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.req-panel.open {
+  right: 0;
+}
+
+.req-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface2);
+  flex-shrink: 0;
+}
+.req-panel-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+}
+.req-panel-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.req-panel-footer {
+  padding: 14px 20px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  flex-shrink: 0;
+}
+
+/* ── DETAIL ROW ── */
+.req-detail-row {
+  display: flex;
+  gap: 8px;
+  font-size: 13px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border);
+}
+.req-detail-label {
+  color: var(--text3);
+  min-width: 110px;
+  flex-shrink: 0;
+}
+.req-detail-value {
+  color: var(--text);
+  font-weight: 500;
+  word-break: break-word;
+}
+
+/* ── REJECT REASON BOX ── */
+.reject-box {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  padding: 12px 14px;
+  font-size: 13px;
+  color: #b91c1c;
+}
+
+/* ── REQUEST MODAL ── */
+.req-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(4px);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 400;
+}
+.req-modal-overlay.open {
+  display: flex;
+}
+.req-modal {
+  background: var(--surface);
+  border-radius: 16px;
+  width: 580px;
+  max-width: 95vw;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+  animation: modalPop 0.2s ease;
+}
+@keyframes modalPop {
+  from {
+    transform: scale(0.95);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+.req-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.req-modal-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.req-modal-footer {
+  padding: 14px 20px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  flex-shrink: 0;
+}
+
+/* ── FORM GRID ── */
+.req-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.req-form-grid .span2 {
+  grid-column: span 2;
+}
+
+/* ── REJECT MODAL ── */
+.reject-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(4px);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 500;
+}
+.reject-modal-overlay.open {
+  display: flex;
+}
+.reject-modal {
+  background: var(--surface);
+  border-radius: 16px;
+  width: 420px;
+  max-width: 95vw;
+  padding: 24px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+}

@@ -1,0 +1,263 @@
+-- WARNING: This schema is for context only and is not meant to be run.
+-- Table order and constraints may not be valid for execution.
+
+CREATE TABLE public.categories (
+  category_id integer NOT NULL DEFAULT nextval('categories_category_id_seq'::regclass),
+  category_name character varying NOT NULL UNIQUE,
+  description text,
+  created_at timestamp without time zone DEFAULT now(),
+  icon text DEFAULT '📦'::text,
+  color text DEFAULT '#0f4c75'::text,
+  sku_labels jsonb,
+  sort_order numeric DEFAULT 0,
+  CONSTRAINT categories_pkey PRIMARY KEY (category_id)
+);
+CREATE TABLE public.countries (
+  country_id integer NOT NULL DEFAULT nextval('countries_country_id_seq'::regclass),
+  country_code character varying NOT NULL UNIQUE,
+  country_name character varying NOT NULL,
+  sort_order integer DEFAULT 0,
+  CONSTRAINT countries_pkey PRIMARY KEY (country_id)
+);
+CREATE TABLE public.customers (
+  customer_id integer NOT NULL DEFAULT nextval('customers_customer_id_seq'::regclass),
+  customer_code character varying NOT NULL UNIQUE,
+  customer_name character varying NOT NULL,
+  contact_name character varying,
+  phone character varying,
+  is_active boolean DEFAULT true,
+  CONSTRAINT customers_pkey PRIMARY KEY (customer_id)
+);
+CREATE TABLE public.departments (
+  dept_id integer NOT NULL DEFAULT nextval('departments_dept_id_seq'::regclass),
+  dept_code character varying NOT NULL UNIQUE,
+  dept_name character varying NOT NULL,
+  manager_id integer,
+  is_active boolean DEFAULT true,
+  CONSTRAINT departments_pkey PRIMARY KEY (dept_id),
+  CONSTRAINT fk_dept_manager FOREIGN KEY (manager_id) REFERENCES public.users(user_id)
+);
+CREATE TABLE public.po_items (
+  po_item_id integer NOT NULL DEFAULT nextval('po_items_po_item_id_seq'::regclass),
+  po_id integer NOT NULL,
+  product_id integer NOT NULL,
+  unit_id integer NOT NULL,
+  qty_ordered numeric NOT NULL,
+  qty_received numeric DEFAULT 0,
+  unit_price numeric NOT NULL,
+  subtotal numeric DEFAULT (qty_ordered * unit_price),
+  CONSTRAINT po_items_pkey PRIMARY KEY (po_item_id),
+  CONSTRAINT po_items_po_id_fkey FOREIGN KEY (po_id) REFERENCES public.purchase_orders(po_id),
+  CONSTRAINT po_items_product_id_fkey FOREIGN KEY (product_id) REFERENCES public.products(product_id),
+  CONSTRAINT po_items_unit_id_fkey FOREIGN KEY (unit_id) REFERENCES public.product_units(unit_id)
+);
+CREATE TABLE public.product_images (
+  image_id integer NOT NULL DEFAULT nextval('product_images_image_id_seq'::regclass),
+  product_id integer NOT NULL,
+  url character varying NOT NULL,
+  sort_order integer DEFAULT 0,
+  created_at timestamp without time zone DEFAULT now(),
+  CONSTRAINT product_images_pkey PRIMARY KEY (image_id),
+  CONSTRAINT product_images_product_id_fkey FOREIGN KEY (product_id) REFERENCES public.products(product_id)
+);
+CREATE TABLE public.product_units (
+  unit_id integer NOT NULL DEFAULT nextval('product_units_unit_id_seq'::regclass),
+  product_id integer NOT NULL,
+  unit_name character varying NOT NULL,
+  conversion_qty numeric DEFAULT 1,
+  is_base_unit boolean DEFAULT false,
+  CONSTRAINT product_units_pkey PRIMARY KEY (unit_id),
+  CONSTRAINT product_units_product_id_fkey FOREIGN KEY (product_id) REFERENCES public.products(product_id)
+);
+CREATE TABLE public.products (
+  product_id integer NOT NULL DEFAULT nextval('products_product_id_seq'::regclass),
+  product_code character varying NOT NULL UNIQUE,
+  product_name character varying NOT NULL,
+  category_id integer,
+  base_unit character varying DEFAULT 'ชิ้น'::character varying,
+  reorder_point numeric DEFAULT 0,
+  cost_price numeric DEFAULT 0,
+  sale_price numeric DEFAULT 0,
+  is_active boolean DEFAULT true,
+  created_at timestamp without time zone DEFAULT now(),
+  CONSTRAINT products_pkey PRIMARY KEY (product_id),
+  CONSTRAINT products_category_id_fkey FOREIGN KEY (category_id) REFERENCES public.categories(category_id)
+);
+CREATE TABLE public.purchase_orders (
+  po_id integer NOT NULL DEFAULT nextval('purchase_orders_po_id_seq'::regclass),
+  po_number character varying NOT NULL UNIQUE,
+  supplier_id integer NOT NULL,
+  warehouse_id integer NOT NULL,
+  status text DEFAULT 'DRAFT'::text CHECK (status = ANY (ARRAY['DRAFT'::text, 'APPROVED'::text, 'RECEIVED'::text, 'CANCELLED'::text])),
+  order_date date NOT NULL,
+  expected_date date,
+  total_amount numeric DEFAULT 0,
+  created_by integer,
+  created_at timestamp without time zone DEFAULT now(),
+  CONSTRAINT purchase_orders_pkey PRIMARY KEY (po_id),
+  CONSTRAINT purchase_orders_supplier_id_fkey FOREIGN KEY (supplier_id) REFERENCES public.suppliers(supplier_id),
+  CONSTRAINT purchase_orders_warehouse_id_fkey FOREIGN KEY (warehouse_id) REFERENCES public.warehouses(warehouse_id),
+  CONSTRAINT purchase_orders_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(user_id)
+);
+CREATE TABLE public.requisition_items (
+  req_item_id integer NOT NULL DEFAULT nextval('requisition_items_req_item_id_seq'::regclass),
+  req_id integer NOT NULL,
+  product_id integer NOT NULL,
+  unit_id integer NOT NULL,
+  qty_requested numeric NOT NULL,
+  qty_approved numeric DEFAULT 0,
+  qty_issued numeric DEFAULT 0,
+  note text,
+  CONSTRAINT requisition_items_pkey PRIMARY KEY (req_item_id),
+  CONSTRAINT requisition_items_req_id_fkey FOREIGN KEY (req_id) REFERENCES public.requisitions(req_id),
+  CONSTRAINT requisition_items_product_id_fkey FOREIGN KEY (product_id) REFERENCES public.products(product_id),
+  CONSTRAINT requisition_items_unit_id_fkey FOREIGN KEY (unit_id) REFERENCES public.product_units(unit_id)
+);
+CREATE TABLE public.requisition_purposes (
+  purpose_id integer NOT NULL DEFAULT nextval('requisition_purposes_purpose_id_seq'::regclass),
+  purpose_code character varying NOT NULL UNIQUE,
+  purpose_name character varying NOT NULL,
+  purpose_type text CHECK (purpose_type = ANY (ARRAY['MARKETING'::text, 'PROMOTION'::text, 'SAMPLE'::text, 'INTERNAL'::text, 'DAMAGE'::text, 'OTHER'::text])),
+  is_active boolean DEFAULT true,
+  CONSTRAINT requisition_purposes_pkey PRIMARY KEY (purpose_id)
+);
+CREATE TABLE public.requisitions (
+  req_id integer NOT NULL DEFAULT nextval('requisitions_req_id_seq'::regclass),
+  req_number character varying NOT NULL UNIQUE,
+  req_date date NOT NULL DEFAULT CURRENT_DATE,
+  warehouse_id integer NOT NULL,
+  dept_id integer NOT NULL,
+  purpose_id integer NOT NULL,
+  requested_by integer NOT NULL,
+  approved_by integer,
+  status text DEFAULT 'DRAFT'::text CHECK (status = ANY (ARRAY['DRAFT'::text, 'PENDING'::text, 'APPROVED'::text, 'ISSUED'::text, 'CANCELLED'::text])),
+  approved_at timestamp without time zone,
+  note text,
+  created_at timestamp without time zone DEFAULT now(),
+  CONSTRAINT requisitions_pkey PRIMARY KEY (req_id),
+  CONSTRAINT requisitions_warehouse_id_fkey FOREIGN KEY (warehouse_id) REFERENCES public.warehouses(warehouse_id),
+  CONSTRAINT requisitions_dept_id_fkey FOREIGN KEY (dept_id) REFERENCES public.departments(dept_id),
+  CONSTRAINT requisitions_purpose_id_fkey FOREIGN KEY (purpose_id) REFERENCES public.requisition_purposes(purpose_id),
+  CONSTRAINT requisitions_requested_by_fkey FOREIGN KEY (requested_by) REFERENCES public.users(user_id),
+  CONSTRAINT requisitions_approved_by_fkey FOREIGN KEY (approved_by) REFERENCES public.users(user_id)
+);
+CREATE TABLE public.sales_orders (
+  so_id integer NOT NULL DEFAULT nextval('sales_orders_so_id_seq'::regclass),
+  so_number character varying NOT NULL UNIQUE,
+  customer_id integer,
+  warehouse_id integer NOT NULL,
+  order_type text DEFAULT 'SALE'::text CHECK (order_type = ANY (ARRAY['SALE'::text, 'RETURN'::text])),
+  status text DEFAULT 'DRAFT'::text CHECK (status = ANY (ARRAY['DRAFT'::text, 'CONFIRMED'::text, 'DELIVERED'::text, 'CANCELLED'::text])),
+  order_date date NOT NULL,
+  total_amount numeric DEFAULT 0,
+  created_by integer,
+  created_at timestamp without time zone DEFAULT now(),
+  CONSTRAINT sales_orders_pkey PRIMARY KEY (so_id),
+  CONSTRAINT sales_orders_customer_id_fkey FOREIGN KEY (customer_id) REFERENCES public.customers(customer_id),
+  CONSTRAINT sales_orders_warehouse_id_fkey FOREIGN KEY (warehouse_id) REFERENCES public.warehouses(warehouse_id),
+  CONSTRAINT sales_orders_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(user_id)
+);
+CREATE TABLE public.so_items (
+  so_item_id integer NOT NULL DEFAULT nextval('so_items_so_item_id_seq'::regclass),
+  so_id integer NOT NULL,
+  product_id integer NOT NULL,
+  unit_id integer NOT NULL,
+  qty_ordered numeric NOT NULL,
+  qty_delivered numeric DEFAULT 0,
+  unit_price numeric NOT NULL,
+  subtotal numeric DEFAULT (qty_ordered * unit_price),
+  CONSTRAINT so_items_pkey PRIMARY KEY (so_item_id),
+  CONSTRAINT so_items_so_id_fkey FOREIGN KEY (so_id) REFERENCES public.sales_orders(so_id),
+  CONSTRAINT so_items_product_id_fkey FOREIGN KEY (product_id) REFERENCES public.products(product_id),
+  CONSTRAINT so_items_unit_id_fkey FOREIGN KEY (unit_id) REFERENCES public.product_units(unit_id)
+);
+CREATE TABLE public.stock_movements (
+  movement_id integer NOT NULL DEFAULT nextval('stock_movements_movement_id_seq'::regclass),
+  product_id integer NOT NULL,
+  warehouse_id integer NOT NULL,
+  movement_type text NOT NULL CHECK (movement_type = ANY (ARRAY['IN'::text, 'OUT'::text, 'TRANSFER'::text, 'ADJUST'::text, 'INIT'::text])),
+  qty numeric NOT NULL,
+  ref_doc_type character varying,
+  ref_doc_id integer,
+  moved_at timestamp without time zone DEFAULT now(),
+  note text,
+  created_by integer,
+  bin_id bigint,
+  CONSTRAINT stock_movements_pkey PRIMARY KEY (movement_id),
+  CONSTRAINT stock_movements_product_id_fkey FOREIGN KEY (product_id) REFERENCES public.products(product_id),
+  CONSTRAINT stock_movements_warehouse_id_fkey FOREIGN KEY (warehouse_id) REFERENCES public.warehouses(warehouse_id),
+  CONSTRAINT stock_movements_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(user_id),
+  CONSTRAINT stock_movements_bin_id_fkey FOREIGN KEY (bin_id) REFERENCES public.warehouse_bins(bin_id)
+);
+CREATE TABLE public.suppliers (
+  supplier_id integer NOT NULL DEFAULT nextval('suppliers_supplier_id_seq'::regclass),
+  supplier_code character varying NOT NULL UNIQUE,
+  supplier_name character varying NOT NULL,
+  contact_name character varying,
+  phone character varying,
+  payment_terms character varying,
+  is_active boolean DEFAULT true,
+  CONSTRAINT suppliers_pkey PRIMARY KEY (supplier_id)
+);
+CREATE TABLE public.users (
+  user_id integer NOT NULL DEFAULT nextval('users_user_id_seq'::regclass),
+  user_code character varying NOT NULL UNIQUE,
+  full_name character varying NOT NULL,
+  dept_id integer,
+  role text DEFAULT 'STAFF'::text CHECK (role = ANY (ARRAY['ADMIN'::text, 'MANAGER'::text, 'STAFF'::text, 'VIEWER'::text])),
+  is_active boolean DEFAULT true,
+  created_at timestamp without time zone DEFAULT now(),
+  password text,
+  username text UNIQUE,
+  CONSTRAINT users_pkey PRIMARY KEY (user_id),
+  CONSTRAINT users_dept_id_fkey FOREIGN KEY (dept_id) REFERENCES public.departments(dept_id)
+);
+CREATE TABLE public.warehouse_bins (
+  bin_id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  warehouse_id integer NOT NULL,
+  location_id bigint,
+  bin_code character varying NOT NULL,
+  bin_name character varying,
+  capacity numeric DEFAULT 0,
+  created_at timestamp without time zone DEFAULT now(),
+  CONSTRAINT warehouse_bins_pkey PRIMARY KEY (bin_id),
+  CONSTRAINT warehouse_bins_warehouse_id_fkey FOREIGN KEY (warehouse_id) REFERENCES public.warehouses(warehouse_id),
+  CONSTRAINT warehouse_bins_location_id_fkey FOREIGN KEY (location_id) REFERENCES public.warehouse_locations(location_id)
+);
+CREATE TABLE public.warehouse_locations (
+  location_id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  warehouse_id integer NOT NULL,
+  location_code character varying NOT NULL,
+  location_name character varying,
+  location_type character varying DEFAULT 'STORAGE'::character varying,
+  created_at timestamp without time zone DEFAULT now(),
+  CONSTRAINT warehouse_locations_pkey PRIMARY KEY (location_id),
+  CONSTRAINT warehouse_locations_warehouse_id_fkey FOREIGN KEY (warehouse_id) REFERENCES public.warehouses(warehouse_id)
+);
+CREATE TABLE public.warehouse_zones (
+  zone_id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  warehouse_id bigint,
+  zone_code text,
+  zone_name text,
+  created_at timestamp without time zone DEFAULT now(),
+  CONSTRAINT warehouse_zones_pkey PRIMARY KEY (zone_id),
+  CONSTRAINT warehouse_zones_warehouse_id_fkey FOREIGN KEY (warehouse_id) REFERENCES public.warehouses(warehouse_id)
+);
+CREATE TABLE public.warehouses (
+  warehouse_id integer NOT NULL DEFAULT nextval('warehouses_warehouse_id_seq'::regclass),
+  warehouse_code character varying NOT NULL UNIQUE,
+  warehouse_name character varying NOT NULL,
+  location character varying,
+  is_active boolean DEFAULT true,
+  warehouse_type character varying DEFAULT 'MAIN'::character varying,
+  warehouse_icon text,
+  manager_name text,
+  phone text,
+  capacity integer,
+  note text,
+  warehouse_code_short text,
+  country character varying DEFAULT 'TH'::character varying,
+  parent_id integer,
+  CONSTRAINT warehouses_pkey PRIMARY KEY (warehouse_id),
+  CONSTRAINT warehouses_parent_id_fkey FOREIGN KEY (parent_id) REFERENCES public.warehouses(warehouse_id)
+);

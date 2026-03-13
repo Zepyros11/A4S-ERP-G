@@ -1,0 +1,28 @@
+modules/event/
+├── requests/
+│   ├── events-list.html        ← รายการกิจกรรมทั้งหมด
+│   ├── events-calendar.html    ← ปฏิทิน
+│   ├── event-form.html         ← สร้าง/แก้ไขกิจกรรม
+│   └── event-log.html          ← Feed/Update ต่องาน
+│
+├── requests/
+│   ├── event-requests.html     ← คำขอจากแผนกอื่น
+│   └── event-requests.js
+│
+├── rooms/
+│   ├── rooms.html              ← จัดการห้องประชุม
+│   ├── room-booking.html       ← จองห้อง/เช็คว่าง
+│   └── room-booking.js
+│
+├── procurement/
+│   ├── suppliers-event.html    ← Supplier ของ Event
+│   ├── event-order.html        ← สั่งซื้อ
+│   └── event-budget.html       ← งบประมาณ/ค่าใช้จ่าย
+│
+├── attendees/
+│   ├── attendees.html          ← ทะเบียนผู้เข้างาน
+│   └── tickets.html            ← ออกบัตร/ขายบัตร
+│
+└── media/
+    ├── media-schedule.html     ← ตารางตัดต่อ/โพส
+    └── requisition-event.html  ← เบิกของการตลาด

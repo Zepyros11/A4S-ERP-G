@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>หมวดหมู่สินค้า — A4S-ERP</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../../../../css/main.css" />
+    <link rel="stylesheet" href="./categories.css" />
+  </head>
+
+  <body>
+    <!-- LOADING -->
+    <div class="loading-overlay" id="loadingOverlay">
+      <div class="spinner"></div>
+    </div>
+
+    <!-- TOAST -->
+    <div class="toast" id="toast"></div>
+
+    <!-- CATEGORY FORM MODAL (inject by JS) -->
+    <div id="categoryFormContainer"></div>
+
+    <!-- TOPBAR -->
+    <div class="topbar"></div>
+
+    <!-- PAGE -->
+    <div class="page">
+      <!-- STATS -->
+      <div class="stats-row">
+        <div class="stat-card">
+          <div class="stat-icon">📂</div>
+          <div>
+            <div class="stat-value" id="statTotalCat">0</div>
+            <div class="stat-label">หมวดหมู่ทั้งหมด</div>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-icon">📦</div>
+          <div>
+            <div class="stat-value" id="statCatWithProduct">0</div>
+            <div class="stat-label">หมวดที่มีสินค้า</div>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-icon">🗂️</div>
+          <div>
+            <div class="stat-value" id="statCatEmpty">0</div>
+            <div class="stat-label">หมวดว่าง</div>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-icon">📊</div>
+          <div>
+            <div class="stat-value" id="statTotalProduct">0</div>
+            <div class="stat-label">สินค้าทั้งหมด</div>
+          </div>
+        </div>
+      </div>
+
+
+     <!-- TABLE -->
+<div class="content-row">
+  <div class="table-card">
+
+    <div class="table-toolbar">
+      <div class="search-wrap">
+        <span class="search-icon">🔍</span>
+        <input class="search-input" id="searchInput" placeholder="ค้นหาหมวดหมู่" />
+      </div>
+      <select class="filter-select" id="filterStatus">
+        <option value="">ทุกหมวด</option>
+        <option value="with">มีสินค้า</option>
+        <option value="empty">ไม่มีสินค้า</option>
+      </select>
+      <div class="toolbar-right">
+        <button class="btn btn-primary" id="btnAddCategory">＋ เพิ่มหมวดหมู่</button>
+      </div>
+    </div>
+
+    <div class="table-hdr">
+      <div class="table-title">📂 หมวดหมู่สินค้า</div>
+      <div class="table-count" id="catCount">0 รายการ</div>
+    </div>
+
+    <div class="table-wrap">
+      <table class="data-table table-categories">
+        <thead>
+          <tr>
+            <th onclick="sortTable('category_name')">หมวดหมู่ <span class="sort-icon">⇅</span></th>
+            <th class="col-center" onclick="sortTable('product_count')">จำนวนสินค้า <span class="sort-icon">⇅</span></th>
+            <th class="col-center">SKU Format</th>
+            <th class="col-center">จัดการ</th>
+          </tr>
+        </thead>
+        <tbody id="catTableBody">
+          <tr><td colspan="4" style="text-align:center;padding:40px;color:var(--text3)">กำลังโหลด...</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+  </div>
+</div>
+
+    <!-- SCRIPTS -->
+
+    <!-- Page Controller -->
+    <script type="module" src="./categories-list.js"></script>
+
+    <!-- Core -->
+    <script src="../../../../js/core/auth.js"></script>
+    <!-- MODALS -->
+    <script src="../../../../js/components/modal/deleteModal.js"></script>
+    <script src="../../../../js/components/modal/modalManager.js"></script>
+    <script src="../../../../js/components/modal/enterModal.js"></script>
+
+    <!-- JS Component/navigation -->
+    <script type="module">
+      import { loadTopbar } from "../../../../js/components/navigation/topbar.js";
+      loadTopbar("🏷️ หมวดหมู่สินค้า");
+    </script>
+    <script src="../../../../js/components/navigation/imgPopup.js"></script>
+    <script src="../../../../js/components/navigation/sidebar.js"></script>
+  </body>
+</html>

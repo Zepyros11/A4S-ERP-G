@@ -1,0 +1,129 @@
+1. Infrastructure
+modules/event/activity/
+├── events-list.html     — หน้าแสดงรายการ
+├── events-list.js       — controller (filter, sort, CRUD)
+├── events.css           — styles สำหรับ list + panel
+├── event-form.html      — หน้าสร้าง/แก้ไข
+├── event-form.js        — controller form
+├── event-form.css       — styles form
+├── event-log.html       — หน้า log กิจกรรม
+├── event-log.js         — controller log
+├── event-log.css        — styles log
+└── events-api.js        — API layer (Supabase REST)
+-----------------------------------------------------------------------------
+Shared dependencies:
+js/components/navigation/sidebar.js
+js/components/navigation/topbar.js
+js/components/navigation/imgPopup.js
+js/components/modal/deleteModal.js
+js/components/modal/modalManager.js
+js/core/auth.js
+css/main.css
+-----------------------------------------------------------------------------
+2. Database Tables ที่ใช้
+events          — ข้อมูลหลักกิจกรรม
+event_logs      — log/timeline กิจกรรม
+event_media     — ไฟล์แนบ/สื่อ (อ้างอิง)
+notifications   — แจ้งเตือนผู้รับผิดชอบ
+users           — dropdown ผู้รับผิดชอบ
+Storage bucket: event-files/posters/ — เก็บรูป poster
+-----------------------------------------------------------------------------
+3. Data Flow
+[สร้างกิจกรรม]
+event-form.js
+  → autoGenerateCode()     query DB หา max seq → EVT-YYYYMM-XXX
+  → validate()             ชื่อ + ประเภท + วันที่
+  → createEvent(payload)   POST /events
+  → uploadEventPoster()    POST storage/event-files/posters/
+  → updateEvent()          PATCH poster_url
+  → createNotification()   POST /notifications → assigned_to
+  → redirect               → events-list.html
+
+[แก้ไขกิจกรรม]
+event-form.js?id=N
+  → fetchEventById(N)      GET /events?event_id=eq.N
+  → loadEventData()        fill form fields
+  → saveEvent()            PATCH /events?event_id=eq.N
+  → redirect               → events-list.html
+
+[หน้า List]
+events-list.js
+  → fetchEvents()          GET /events?order=event_date.asc
+  → fetchUsers()           GET /users?is_active=eq.true
+  → renderTable()          สร้าง HTML rows
+  → openEventPanel()       side panel แสดง detail
+  → deleteEvent()          DELETE /events?event_id=eq.N
+
+[Log กิจกรรม]
+event-log.js?id=N
+  → fetchEventById(N)      GET /events
+  → fetchEventLogs(N)      GET /event_logs?event_id=eq.N
+  → submitLog()            POST /event_logs + upload attachment
+  → autoRefresh()          setInterval 30s re-fetch logs
+-----------------------------------------------------------------------------
+4. ปัญหาที่เจอและต้องระวัง
+🔴 Critical
+        ปัญหา          |             สาเหตุ                     |             วิธีแก้
+__________________________________________________________________________________________________
+duplicate key          | autoGenerateCode() ไม่มี               |  เพิ่ม getSB() ใน event-form.js,
+events_event_code_key  |  getSB() → throw error เงียบ → code    |  query max seq จาก DB
+                       | ว่าง → ชน constraint                      
+------------------------------------------------------------------------------------------------
+row-level security    |Supabase เปิด RLS แต่ไม่มี policy        | CREATE POLICY 
+policy                |                                     | "allow_all" FOR ALL  
+                                                            | USING (true) หรือ 
+                                                            | DISABLE ROW LEVEL 
+                                                            | SECURITY
+------------------------------------------------------------------------------------------------
+Storage upload 400    |bucket ไม่มี policy                    | ต้องเพิ่ม storage policy หรือเปิด Public bucket
+______________________________________________________________________________________________________
+
+🟡 Medium
+        ปัญหา          |             สาเหตุ                     |             วิธีแก้
+__________________________________________________________________________________________________
+Link ปุ่มแก้ไขผิด path    |../form/event-form.html ผิด folder      |ใช้ ./event-form.html (same folder)
+------------------------------------------------------------------------------------------------
+autoGenerateCode() ได้  |query ORDER BY DESC LIMIT              |เปลี่ยนเป็น fetch ทุก record แล้วหา max เอง
+seq เดิมหลัง DELETE      |1 แต่ record ถูกลบ                      |
+------------------------------------------------------------------------------------------------
+getSB() ไม่มีใน          |copy มาจาก module อื่นไม่ครบ              |ต้อง define ใน file ที่ใช้เสมอ
+event-form.js          |                                       |
+________________________________________________________________________________________________________
+
+🟢 Minor
+        ปัญหา          |             สาเหตุ                     |             วิธีแก้
+________________________________________________________________________________________________
+panel.css 404          |path CSS ใน HTML ผิด                    |ตรวจ relative path ให้ตรง folder จริง
+------------------------------------------------------------------------------------------------
+poster image 400       |storage path ไม่ถูกต้อง                   |ใช้ products/${filename} ใน uploadPath
+________________________________________________________________________________________________________
+
+5. Conventions สำคัญ
+javascript// getSB() ต้อง define ในทุก JS file ที่ใช้
+function getSB() {
+  return {
+    url: localStorage.getItem("sb_url") || "",
+    key: localStorage.getItem("sb_key") || "",
+  };
+}
+
+// Event Code format
+EVT-YYYYMM-XXX   // เช่น EVT-202603-001
+
+// Path ภายใน activity/ folder ใช้ ./
+./event-form.html       ✅
+../form/event-form.html ❌
+
+// Redirect หลัง save
+window.location.href = "./events-list.html"  // จาก form
+window.location.href = "../activity/events-list.html"  // จาก subfolder อื่น
+-----------------------------------------------------------------------------
+6. RLS Status
+sql-- ต้องรันครั้งแรกสำหรับทุก table ใหม่
+ALTER TABLE events ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "allow_all" ON events
+FOR ALL USING (true) WITH CHECK (true);
+
+-- Storage
+CREATE POLICY "allow_storage_all" ON storage.objects
+FOR ALL USING (true) WITH CHECK (true);

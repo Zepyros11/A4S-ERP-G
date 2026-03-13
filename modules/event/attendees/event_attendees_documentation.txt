@@ -1,0 +1,313 @@
+================================================================
+EVENT / ATTENDEES MODULE — Documentation
+A4S-ERP | modules/event/attendees/
+================================================================
+
+
+----------------------------------------------------------------
+1. INFRASTRUCTURE
+----------------------------------------------------------------
+
+Folder Structure:
+  modules/event/attendees/
+  ├── attendees.css      — styles (check-in badge, payment badge,
+  │                        ticket badge, attend type badge,
+  │                        check-in button, modal, stats cards)
+  ├── attendees.html     — รายชื่อผู้เข้าร่วม + check-in + stats
+  └── attendees.js       — controller: CRUD, check-in, export CSV
+
+Shared Dependencies:
+  js/components/navigation/sidebar.js
+  js/components/navigation/topbar.js
+  js/components/modal/deleteModal.js
+  js/components/modal/modalManager.js
+  js/core/auth.js
+  css/main.css
+
+Sidebar Entry (sidebar.js):
+  Group : กิจกรรม (EVENT) — id: g-event
+  Items :
+    attendees → /modules/event/attendees/attendees.html
+  READY : "attendees" (เพิ่มต่อจาก "event-budget")
+
+Storage:
+  ไม่ใช้ Storage bucket ใน attendees module
+
+
+----------------------------------------------------------------
+2. DATABASE TABLES
+----------------------------------------------------------------
+
+event_attendees
+  attendee_id      integer PK
+  event_id         integer → events
+  name             varchar NOT NULL       — ชื่อ-นามสกุล
+  phone            varchar
+  email            varchar
+  company          varchar                — บริษัท / หน่วยงาน
+  attend_type      varchar: ONSITE / ONLINE / VIP
+  ticket_no        varchar UNIQUE         — auto-generate TK-{eventId}-XXXX
+  ticket_type      varchar                — General / Early Bird / Staff / ฯลฯ
+  paid_amount      numeric DEFAULT 0
+  payment_status   varchar: PENDING / PAID / FREE / WAIVED
+  checked_in       boolean DEFAULT false
+  check_in_at      timestamp              — บันทึกเวลา check-in จริง
+  note             text
+  created_at       timestamp
+
+Supabase RLS:
+  event_attendees → DISABLE ROW LEVEL SECURITY
+
+
+----------------------------------------------------------------
+3. DATA FLOW
+----------------------------------------------------------------
+
+[โหลดหน้า]
+  initPage()
+    → fetchEvents()          GET /events?order=event_date.desc
+    → populateEventSelect()  สร้าง dropdown [EVT-CODE] ชื่อ
+    → รับ ?event_id=N จาก URL params
+      → ถ้ามี: set dropdown → loadAttendees(N)
+    → bindEvents()           search + filter listeners
+
+[เลือกกิจกรรม]
+  onEventChange()
+    → loadAttendees(eventId)
+        → fetchAttendees(eventId)
+              GET /event_attendees?event_id=eq.N&order=created_at.asc
+        → showSections(true)   แสดง stats / toolbar / table
+        → updateStats()        คำนวณ total/checkedIn/paid/revenue
+        → filterTable()        render table
+
+[เพิ่ม/แก้ไขผู้เข้าร่วม]
+  openAttModal(id?)
+    → ถ้ามี id: fill form จาก allAttendees
+    → ถ้าไม่มี: reset form
+  saveAttendee()
+    → validate: name required
+    → build payload
+    → ถ้า editingAttId: PATCH /event_attendees?attendee_id=eq.N
+    → ถ้าไม่มี:
+          generateTicketNo(eventId)
+              GET /event_attendees?ticket_no=like.TK-{eventId}-*
+              หา maxSeq → TK-{eventId}-XXXX
+          POST /event_attendees (พร้อม ticket_no)
+    → reload allAttendees → updateStats() → filterTable()
+
+[Check-in Toggle]
+  toggleCheckin(id, isCheckedIn)
+    → ถ้า isCheckedIn=false (กำลัง check-in):
+          PATCH checked_in=true, check_in_at=NOW()
+    → ถ้า isCheckedIn=true (ยกเลิก check-in):
+          PATCH checked_in=false, check_in_at=null
+    → update allAttendees state (local)
+    → updateStats() + filterTable()  (ไม่ reload จาก DB)
+
+[ลบผู้เข้าร่วม]
+  deleteAttendee(id)
+    → DeleteModal.open()
+    → DELETE /event_attendees?attendee_id=eq.N
+    → reload allAttendees → updateStats() → filterTable()
+
+[Export CSV]
+  exportCSV()
+    → map allAttendees → rows array
+    → สร้าง CSV string พร้อม BOM (\uFEFF) รองรับ Excel ไทย
+    → Blob → URL.createObjectURL → click download
+    → ชื่อไฟล์: attendees_{event_code}.csv
+
+[Filter]
+  filterTable()
+    → filter by: search (name/email/company/ticket_no)
+                 filterCheckin (checked_in true/false)
+                 filterPayment (payment_status)
+                 filterAttendType (attend_type)
+    → renderTable(filtered)
+
+[Stats Calculation]
+  updateStats()
+    total         = allAttendees.length
+    checkedIn     = filter(checked_in === true).length
+    notCheckedIn  = total - checkedIn
+    paid          = filter(payment_status === "PAID").length
+    revenue       = sum(paid_amount) ของ payment_status === "PAID"
+
+
+----------------------------------------------------------------
+4. ปัญหาที่เจอและต้องระวัง
+----------------------------------------------------------------
+
+🔴 CRITICAL
+
+ปัญหา : ticket_no duplicate key error
+สาเหตุ : generateTicketNo() เป็น client-side 2 steps
+         (query max → generate) ถ้า 2 user เพิ่มพร้อมกัน
+         อาจได้ seq เดียวกัน → POST ชน UNIQUE constraint
+วิธีแก้ : ระยะสั้น: เพิ่ม try/catch ที่ createAttendee()
+           ถ้า error 409 → retry generateTicketNo() ใหม่
+         ระยะยาว: ใช้ DB sequence หรือ UUID แทน running number
+
+ปัญหา : toggleCheckin() update local state โดยไม่ reload จาก DB
+สาเหตุ : เพื่อความเร็ว — update allAttendees array โดยตรง
+         ถ้า PATCH fail แต่ UI แสดงว่าสำเร็จ → state ไม่ sync
+วิธีแก้ : ใส่ try/catch และ reload allAttendees จาก DB ถ้า error
+         หรือ reload ทุกครั้งหลัง PATCH (trade off: ช้าลงเล็กน้อย)
+
+ปัญหา : ลบ attendee ที่ checked_in=true โดยไม่แจ้งเตือน
+สาเหตุ : deleteAttendee() ไม่เช็ค checked_in ก่อนลบ
+วิธีแก้ : เพิ่ม warning ใน DeleteModal message ถ้า checked_in=true
+
+🟡 MEDIUM
+
+ปัญหา : ticket_no format ผูกกับ event_id
+สาเหตุ : TK-{eventId}-XXXX — ถ้า event_id เป็น 3+ หลัก
+         ticket_no จะยาวขึ้น ไม่ uniform
+วิธีแก้ : ใช้ event_code แทน event_id เช่น TK-EVT202603-0001
+         หรือใช้ UUID แบบสั้น
+
+ปัญหา : Export CSV ไม่รองรับ filter ปัจจุบัน
+สาเหตุ : exportCSV() ใช้ allAttendees ทั้งหมด
+         ไม่ได้ export เฉพาะที่ filter อยู่
+วิธีแก้ : เปลี่ยนเป็น export จาก filtered list แทน
+         หรือเพิ่มตัวเลือก "Export ทั้งหมด / Export ที่กรอง"
+
+ปัญหา : check_in_at timezone แสดงผลไม่ถูกต้อง
+สาเหตุ : new Date().toISOString() เป็น UTC
+         formatDateTime() ใช้ Asia/Bangkok แก้แล้ว
+         แต่ถ้า server timezone ต่างกันอาจมีปัญหา
+วิธีแก้ : ใช้ formatDateTime() ที่มี timeZone:'Asia/Bangkok' เสมอ
+         — ทำแล้วใน attendees.js
+
+ปัญหา : paid_amount เป็น string จาก input
+สาเหตุ : input type=number คืน string เสมอ
+วิธีแก้ : parseFloat() ก่อน save — ทำแล้วใน saveAttendee()
+
+ปัญหา : max_attendees ไม่ได้ validate ก่อนเพิ่ม
+สาเหตุ : fetchEvents() ดึง max_attendees มาแล้ว
+         แต่ saveAttendee() ไม่ได้เช็คว่าเต็มหรือยัง
+วิธีแก้ : เพิ่ม guard:
+         if (currentEvent?.max_attendees &&
+             allAttendees.length >= currentEvent.max_attendees) {
+           showToast("ผู้เข้าร่วมเต็มแล้ว", "error"); return;
+         }
+
+🟢 MINOR
+
+ปัญหา : filterCheckin ใช้ string "true"/"false" เทียบกับ boolean
+สาเหตุ : String(a.checked_in) === checkin
+         ทำงานได้ถูกต้องเพราะ String(true) = "true"
+วิธีแก้ : พฤติกรรมถูกต้องแล้ว — ระวังถ้าแก้ logic
+
+ปัญหา : CSV export ชื่อไฟล์ใช้ event_code
+สาเหตุ : ถ้า event_code มีอักขระพิเศษอาจเป็นปัญหาบางระบบ
+วิธีแก้ : replace(/[^a-zA-Z0-9_-]/g, "_") ก่อนใช้เป็นชื่อไฟล์
+
+ปัญหา : หน้าแสดง empty state ถ้าไม่มี ?event_id ใน URL
+สาเหตุ : ต้องเลือก event จาก dropdown ก่อน
+วิธีแก้ : navigate มาพร้อม ?event_id=N จากหน้า events-list
+         หรือ event-log เสมอ
+
+
+----------------------------------------------------------------
+5. CONVENTIONS
+----------------------------------------------------------------
+
+Ticket No Format:
+  TK-{eventId}-XXXX   เช่น TK-5-0001, TK-12-0042
+  auto-generate ทุกครั้งที่เพิ่มผู้เข้าร่วมใหม่
+  ห้ามแก้ไขหลังสร้าง (ไม่มี field ใน edit modal)
+
+Check-in Pattern:
+  toggleCheckin() → PATCH checked_in + check_in_at
+  check-in  : checked_in=true,  check_in_at=NOW()
+  undo      : checked_in=false, check_in_at=null
+  บันทึกเวลาจริงที่ scan/กด check-in
+
+Payment Status Values:
+  FREE    → ไม่มีค่าใช้จ่าย (default)
+  PENDING → ลงทะเบียนแล้วแต่ยังไม่ชำระ
+  PAID    → ชำระเงินแล้ว (นับใน revenue)
+  WAIVED  → ได้รับการยกเว้น (VIP / speaker)
+
+Attend Type Values:
+  ONSITE → เข้าร่วมที่งาน (default)
+  ONLINE → เข้าร่วมออนไลน์
+  VIP    → ผู้เข้าร่วมพิเศษ
+
+Revenue Calculation:
+  sum(paid_amount) เฉพาะ payment_status === "PAID"
+  ไม่นับ PENDING / FREE / WAIVED
+
+CSV Export:
+  Encoding: UTF-8 with BOM (\uFEFF) → Excel เปิดภาษาไทยได้
+  Columns: Ticket No, ชื่อ, อีเมล, โทร, บริษัท,
+           ประเภท, Ticket Type, ชำระ, ยอด(฿),
+           Check-in, เวลา Check-in
+
+URL Navigation:
+  attendees.html?event_id=N   → pre-select event
+  navigate มาจาก events-list หรือ event-log
+
+
+----------------------------------------------------------------
+6. API FUNCTIONS SUMMARY
+----------------------------------------------------------------
+
+attendees.js:
+  fetchEvents()              GET /events?order=event_date.desc
+  fetchAttendees(eventId)    GET /event_attendees?event_id=eq.N
+                                               &order=created_at.asc
+  generateTicketNo(eventId)  GET /event_attendees?ticket_no=like.TK-N-*
+                             → หา maxSeq → return TK-N-XXXX
+  createAttendee(data)       POST /event_attendees
+  updateAttendee(id, data)   PATCH /event_attendees?attendee_id=eq.N
+  removeAttendee(id)         DELETE /event_attendees?attendee_id=eq.N
+
+
+----------------------------------------------------------------
+7. STATUS / BADGE REFERENCE
+----------------------------------------------------------------
+
+Check-in Status:
+  checked_in=false  → ⬜ .checkin-no  (เทา)
+  checked_in=true   → ✅ .checkin-yes (เขียว)
+
+Payment Status:
+  PAID    → 💳 .pay-PAID    (น้ำเงิน)
+  PENDING → ⏳ .pay-PENDING (เหลือง)
+  FREE    → 🆓 .pay-FREE    (เทา)
+  WAIVED  → 🎫 .pay-WAIVED  (ม่วง)
+
+Attend Type:
+  ONSITE → 🏢 .attend-ONSITE (เขียวอ่อน)
+  ONLINE → 💻 .attend-ONLINE (น้ำเงินอ่อน)
+  VIP    → ⭐ .attend-VIP    (เหลืองอ่อน)
+
+
+----------------------------------------------------------------
+8. FLOW SUMMARY
+----------------------------------------------------------------
+
+ลงทะเบียน:
+  [เพิ่มผู้เข้าร่วม]
+      → auto generate ticket_no (TK-{eventId}-XXXX)
+      → payment_status = FREE (default)
+      → checked_in = false
+
+งานวันจริง:
+  [Scan / กด Check-in]
+      → checked_in = true
+      → check_in_at = timestamp ปัจจุบัน
+
+หลังงาน:
+  [Export CSV]
+      → ดึง allAttendees
+      → สร้าง CSV + BOM
+      → download attendees_{event_code}.csv
+
+
+================================================================
+END OF DOCUMENT
+A4S-ERP — Event/Attendees Module
+================================================================

@@ -1,0 +1,217 @@
+================================================================
+EVENT MODULE — Workflow
+A4S-ERP | End-to-End Process Flow
+================================================================
+
+
+----------------------------------------------------------------
+WORKFLOW A: สร้างกิจกรรมโดยตรง (Admin / Event Staff)
+----------------------------------------------------------------
+
+[1] เปิด events-list.html
+      → กด "+ เพิ่มกิจกรรม"
+
+[2] event-form.html
+      → กรอก event_name, event_type, date, location
+      → auto-generate event_code: EVT-YYYYMM-XXX
+          query events WHERE event_code LIKE 'EVT-YYYYMM-%'
+          หา maxSeq → +1 → EVT-202603-001
+      → อัปโหลด poster → event-files/posters/
+      → status = DRAFT (default)
+      → POST /events → redirect กลับ events-list
+
+[3] events-list.html
+      → เปลี่ยน status เป็น CONFIRMED เมื่อพร้อม
+      → กด "Log" → event-log.html?event_id=N
+          บันทึก log_type=NOTE หรือ UPDATE
+
+
+----------------------------------------------------------------
+WORKFLOW B: ขอจัดงานผ่านใบขอ (Dept User)
+----------------------------------------------------------------
+
+[1] event-request-form.html
+      → กรอก event_name, event_type, requested_date, location
+      → แนบไฟล์ → event-files/documents/req_{requestId}_{ts}.ext
+      → auto-generate request_code: REQ-YYYYMM-XXX
+      → POST /event_requests (status=PENDING)
+
+[2] event-requests.html (Event Admin เห็น)
+      → รายการ PENDING ทั้งหมด
+      → เปิด side panel ดูรายละเอียด
+
+[3A] อนุมัติ (APPROVED)
+      → PATCH event_requests status=APPROVED, reviewed_by, reviewed_at
+      → สร้าง events record อัตโนมัติ:
+          event_name  = request.event_name
+          event_type  = request.event_type
+          event_date  = request.requested_date
+          status      = CONFIRMED
+          event_code  = auto-generate EVT-YYYYMM-XXX
+      → PATCH event_requests event_id = events.event_id ที่สร้างใหม่
+
+[3B] ปฏิเสธ (REJECTED)
+      → PATCH event_requests status=REJECTED, reviewed_by,
+               reviewed_at, reject_reason
+
+
+----------------------------------------------------------------
+WORKFLOW C: จองห้องประชุม
+----------------------------------------------------------------
+
+[1] rooms-list.html
+      → ดูห้องทั้งหมด (card grid)
+      → เพิ่ม / แก้ไข / ลบห้อง
+      → facilities เป็น JSONB array: ["projector","whiteboard"]
+
+[2] room-booking.html
+      → เลือก event_id + room_id + วันที่
+      → conflict check ก่อน save:
+          query room_bookings WHERE room_id=N
+                                AND booking_date=D
+                                AND status != CANCELLED
+          overlap = newStart < existEnd AND newEnd > existStart
+          → ถ้า conflict: แสดง error ไม่ให้ save
+      → POST /room_bookings (status=CONFIRMED default)
+
+[3] ยกเลิก
+      → PATCH status=CANCELLED
+      → ช่วงเวลานั้นเปิดว่างใหม่ทันที
+
+
+----------------------------------------------------------------
+WORKFLOW D: จัดการงบประมาณและ Vendor
+----------------------------------------------------------------
+
+[1] event-budget.html
+      → เลือก event_id
+      → upsert budget:
+          GET /event_budget?event_id=eq.N
+          ถ้ามี: แสดงแก้ไข → PATCH
+          ถ้าไม่มี: POST ใหม่
+      → progress bar แสดง spent/total
+
+[2] เพิ่ม Vendor
+      → POST /event_suppliers (event_id, supplier_name, amount)
+      → spent_amount คำนวณ client-side:
+          sum(amount) WHERE status != CANCELLED
+      → อัปโหลด contract → event-files/documents/sup_{eventId}_{ts}.ext
+
+[3] อัปเดต Vendor status
+      → PENDING → CONFIRMED → PAID
+      → CANCELLED → ไม่นับใน spent_amount
+
+[4] event-suppliers.html
+      → ดู vendor ทุกกิจกรรม (cross-event view)
+      → filter by event / status / service type
+
+
+----------------------------------------------------------------
+WORKFLOW E: จัดการผู้เข้าร่วม (Attendees)
+----------------------------------------------------------------
+
+[1] attendees.html?event_id=N
+      → fetch event_attendees WHERE event_id=N
+
+[2] เพิ่มผู้เข้าร่วม
+      → กรอก name, email, phone, company
+      → เลือก attend_type (ONSITE/ONLINE/VIP)
+      → payment_status = FREE (default)
+      → auto-generate ticket_no:
+          query event_attendees WHERE ticket_no LIKE 'TK-{eventId}-%'
+          หา maxSeq → TK-{eventId}-XXXX
+      → POST /event_attendees
+
+[3] Check-in วันงาน
+      → กดปุ่ม "⬜ Check-in" ที่แต่ละแถว
+      → PATCH checked_in=true, check_in_at=NOW()
+      → ปุ่มเปลี่ยนเป็น "✅ Check-in แล้ว"
+      → stats อัปเดต real-time (client-side)
+
+[4] ยกเลิก Check-in
+      → กดปุ่ม "✅ Check-in แล้ว"
+      → PATCH checked_in=false, check_in_at=null
+
+[5] Export CSV
+      → map allAttendees → CSV rows
+      → BOM + UTF-8 → Excel เปิดภาษาไทยได้
+      → download: attendees_{event_code}.csv
+
+
+----------------------------------------------------------------
+WORKFLOW F: ตารางงาน Media
+----------------------------------------------------------------
+
+[1] media-schedule.html?event_id=N
+      → fetch event_media WHERE event_id=N
+      → fetch users (สำหรับ assigned_to)
+
+[2] เพิ่มงาน
+      → ระบุ title, media_type, status=TODO, assigned_to, due_date
+      → อัปโหลดไฟล์ (ถ้ามี) → event-files/media/media_{eventId}_{ts}.ext
+      → POST /event_media
+
+[3] อัปเดตสถานะ (inline)
+      → dropdown ใน table แถว → onchange → PATCH status
+      → progress bar อัปเดตทันที
+
+[4] Overdue Detection
+      → เปรียบเทียบ due_date กับ today (Asia/Bangkok timezone)
+      → ถ้า due_date < today AND status != DONE/CANCELLED → แสดง ⚠ เกิน deadline
+
+[5] Progress Bar
+      activeTasks = ทุกงานที่ status != CANCELLED
+      pct = DONE / activeTasks * 100
+      <80%  → สีน้ำเงิน
+      >=80% → สีเหลือง
+      100%  → สีเขียว
+
+
+----------------------------------------------------------------
+WORKFLOW G: Event Log
+----------------------------------------------------------------
+
+[1] event-log.html?event_id=N
+      → fetch event_logs WHERE event_id=N ORDER BY created_at DESC
+      → แสดงแบบ timeline
+
+[2] เพิ่ม log
+      → เลือก log_type, กรอก message
+      → แนบไฟล์ (optional)
+      → POST /event_logs
+
+log_type reference:
+  NOTE      → หมายเหตุทั่วไป
+  UPDATE    → มีการเปลี่ยนแปลงข้อมูล
+  REQUEST   → เกี่ยวกับใบขอ
+  ISSUE     → ปัญหาที่พบ
+  CHECKIN   → บันทึก check-in
+  SYSTEM    → ระบบสร้างอัตโนมัติ
+
+
+----------------------------------------------------------------
+DATA FLOW SUMMARY
+----------------------------------------------------------------
+
+URL Navigation พร้อม ?event_id=N:
+  events-list.html
+      → [log] → event-log.html?event_id=N
+      → [edit] → event-form.html?event_id=N
+      → [attendees] → attendees.html?event_id=N
+      → [media] → media-schedule.html?event_id=N
+      → [budget] → event-budget.html?event_id=N
+
+event_requests → (APPROVED) → events (auto-create)
+
+events (1) ─┬─ event_logs (N)
+            ├─ room_bookings (N)
+            ├─ event_suppliers (N)
+            ├─ event_budget (1)
+            ├─ event_attendees (N)
+            └─ event_media (N)
+
+
+================================================================
+END OF DOCUMENT
+A4S-ERP — Event Module Workflow
+================================================================

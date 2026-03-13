@@ -1,0 +1,546 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>เพิ่มสินค้าใหม่ — A4S-ERP</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../../../../css/main.css" />
+    <link rel="stylesheet" href="./product-form.css" />
+    <style>
+      /* ── Category Card Grid ── */
+      .category-card-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+        gap: 10px;
+      }
+      .cat-card {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 16px 10px;
+        border: 2px solid var(--border);
+        border-radius: 12px;
+        background: var(--surface);
+        cursor: pointer;
+        transition: all 0.18s;
+        text-align: center;
+        position: relative;
+        user-select: none;
+      }
+      .cat-card:hover {
+        border-color: var(--accent);
+        background: var(--accent-pale);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(15, 76, 117, 0.12);
+      }
+      .cat-card.selected {
+        border-color: var(--accent);
+        background: var(--accent-pale);
+        box-shadow: 0 0 0 3px rgba(15, 76, 117, 0.12);
+      }
+      .cat-card.selected::after {
+        content: "✓";
+        position: absolute;
+        top: 6px;
+        right: 8px;
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--accent);
+      }
+      .cat-card-icon {
+        font-size: 28px;
+        line-height: 1;
+      }
+      .cat-card-name {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--text2);
+        line-height: 1.3;
+      }
+      .cat-card.selected .cat-card-name {
+        color: var(--accent);
+      }
+      .cat-card-empty {
+        grid-column: 1 / -1;
+        padding: 24px;
+        text-align: center;
+        color: var(--text3);
+        font-size: 13px;
+      }
+      @media (max-width: 480px) {
+        .category-card-grid {
+          grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+          gap: 8px;
+        }
+      }
+      .cat-card.dragging {
+        opacity: 0.5;
+        transform: scale(0.95);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="loading-overlay" id="loadingOverlay">
+      <div class="spinner"></div>
+    </div>
+    <div class="toast" id="toast"></div>
+
+    <!-- TOPBAR -->
+    <div class="topbar">
+      <button class="btn-topbar btn-ghost" onclick="goBack()">← กลับ</button>
+      <div class="topbar-sep"></div>
+      <div class="topbar-logo">📦 <span>A4S</span>-ERP</div>
+      <div class="topbar-sep"></div>
+      <div class="topbar-title" id="pageTitle">เพิ่มสินค้าใหม่</div>
+      <div class="topbar-actions">
+        <button class="btn-topbar btn-ghost" onclick="goBack()">ยกเลิก</button>
+        <button class="btn-topbar btn-white" onclick="saveProduct()">
+          💾 บันทึกสินค้า
+        </button>
+      </div>
+    </div>
+
+    <!-- PAGE LAYOUT -->
+    <div class="pf-layout">
+      <!-- LEFT SIDEBAR -->
+      <aside class="pf-sidebar">
+        <div class="pf-sidebar-title">ขั้นตอนการเพิ่มสินค้า</div>
+        <div class="pf-steps">
+          <div class="pf-step active" data-step="1" onclick="goToStep(1)">
+            <div class="pf-step-num"><span>1</span></div>
+            <div class="pf-step-info">
+              <div class="pf-step-label">หมวดหมู่</div>
+              <div class="pf-step-sub" id="summCatStep">เลือกหมวดหมู่</div>
+            </div>
+          </div>
+          <div class="pf-step-connector" id="conn-1"></div>
+
+          <div class="pf-step" data-step="2" onclick="goToStep(2)">
+            <div class="pf-step-num"><span>2</span></div>
+            <div class="pf-step-info">
+              <div class="pf-step-label">ประเภทสินค้า</div>
+              <div class="pf-step-sub">เดี่ยว / ชุด</div>
+            </div>
+          </div>
+          <div class="pf-step-connector" id="conn-2"></div>
+
+          <div class="pf-step" data-step="3" onclick="goToStep(3)">
+            <div class="pf-step-num"><span>3</span></div>
+            <div class="pf-step-info">
+              <div class="pf-step-label">รหัสสินค้า (SKU)</div>
+              <div class="pf-step-sub">สร้างรหัสสินค้า</div>
+            </div>
+          </div>
+          <div class="pf-step-connector" id="conn-3"></div>
+
+          <div class="pf-step" data-step="4" onclick="goToStep(4)">
+            <div class="pf-step-num"><span>4</span></div>
+            <div class="pf-step-info">
+              <div class="pf-step-label">ข้อมูลสินค้า</div>
+              <div class="pf-step-sub">ชื่อ, หน่วย</div>
+            </div>
+          </div>
+          <div class="pf-step-connector" id="conn-4"></div>
+
+          <div class="pf-step" data-step="5" onclick="goToStep(5)">
+            <div class="pf-step-num"><span>5</span></div>
+            <div class="pf-step-info">
+              <div class="pf-step-label">รูปภาพสินค้า</div>
+              <div class="pf-step-sub">อัปโหลดรูป</div>
+            </div>
+          </div>
+          <div class="pf-step-connector" id="conn-5"></div>
+        </div>
+
+        <div class="pf-sidebar-summary">
+          <div class="pf-summary-box">
+            <div class="pf-summary-title">สรุปข้อมูล</div>
+            <div class="pf-summary-item">
+              <span>หมวดหมู่</span
+              ><span class="pf-summary-val" id="summCat">—</span>
+            </div>
+            <div class="pf-summary-item">
+              <span>ประเภท</span
+              ><span class="pf-summary-val" id="summType">—</span>
+            </div>
+            <div class="pf-summary-item">
+              <span>SKU</span><span class="pf-summary-val" id="summSku">—</span>
+            </div>
+            <div class="pf-summary-item">
+              <span>Variants</span
+              ><span class="pf-summary-val" id="summVars">—</span>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- MAIN CONTENT -->
+      <main class="pf-main">
+        <!-- STEP 1: หมวดหมู่ -->
+        <div class="pf-section" data-step="1">
+          <div class="pf-section-hdr">
+            <div
+              class="pf-section-icon"
+              style="background: #e0f2fe; color: #0369a1"
+            >
+              🏷️
+            </div>
+            <div>
+              <div class="pf-section-title">Step 1 — เลือกหมวดหมู่</div>
+            </div>
+            <div class="pf-section-sub">จำเป็นต้องเลือกก่อน</div>
+          </div>
+          <div class="pf-section-body">
+            <div
+              style="
+                font-size: 11.5px;
+                color: var(--text3);
+                margin-bottom: 14px;
+              "
+            >
+              หมวดหมู่กำหนด Format ของ SKU และ Attribute ที่ใช้
+            </div>
+            <select
+              id="fCategory"
+              style="display: none"
+              onchange="onCategoryChange()"
+            ></select>
+            <div id="categoryCardGrid" class="category-card-grid">
+              <div class="cat-card-empty">กำลังโหลดหมวดหมู่...</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- STEP 2: ประเภทสินค้า -->
+        <div class="pf-section" data-step="2" style="display: none">
+          <div class="pf-section-hdr">
+            <div
+              class="pf-section-icon"
+              style="background: #fce7f3; color: #9d174d"
+            >
+              📦
+            </div>
+            <div><div class="pf-section-title">Step 2 — ประเภทสินค้า</div></div>
+            <span
+              id="catBadge"
+              style="
+                display: none;
+                font-size: 12px;
+                font-weight: 600;
+                background: var(--accent-pale);
+                color: var(--accent);
+                padding: 3px 10px;
+                border-radius: 5px;
+                margin-left: auto;
+              "
+            ></span>
+          </div>
+          <div class="pf-section-body">
+            <div class="type-selector">
+              <div
+                class="type-card"
+                data-type="single"
+                onclick="selectProductType('single')"
+              >
+                <div class="type-card-check">✓</div>
+                <div class="type-card-icon">📦</div>
+                <div class="type-card-label">สินค้าเดี่ยว</div>
+                <div class="type-card-desc">
+                  สินค้าที่มี SKU เดียว ไม่มีตัวแปร<br />เช่น กระดาษ A4, ปากกา,
+                  แฟ้มเจาะรู
+                </div>
+              </div>
+              <div
+                class="type-card"
+                data-type="variable"
+                onclick="selectProductType('variable')"
+              >
+                <div class="type-card-check">✓</div>
+                <div class="type-card-icon">👕</div>
+                <div class="type-card-label">สินค้าชุด (Variants)</div>
+                <div class="type-card-desc">
+                  สินค้าที่มีหลายตัวเลือก เช่น หลายสี หลายไซส์<br />แต่ละ
+                  Variant มี SKU และ Stock แยกกัน
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- STEP 3: SKU Builder -->
+        <div class="pf-section" data-step="3" style="display: none">
+          <div class="pf-section-hdr">
+            <div
+              class="pf-section-icon"
+              style="background: #fef3c7; color: #92400e"
+            >
+              🔢
+            </div>
+            <div>
+              <div class="pf-section-title">Step 3 — รหัสสินค้า (SKU)</div>
+            </div>
+            <div class="pf-section-sub">สร้างตาม Format ของหมวดหมู่</div>
+          </div>
+          <div class="pf-section-body">
+            <div class="sku-builder">
+              <div class="sku-preview-bar">
+                <div>
+                  <div class="sku-preview-label">SKU PREVIEW</div>
+                  <div class="sku-preview-val" id="skuPreviewVal">—</div>
+                </div>
+                <span class="sku-dup-warn" id="skuDupWarn"
+                  >⚠️ SKU นี้ซ้ำกับที่มีอยู่แล้ว!</span
+                >
+              </div>
+              <div class="sku-fields" id="skuFieldsGrid"></div>
+            </div>
+
+            <!-- ราคา (สินค้าเดี่ยว) -->
+            <div
+              id="singlePriceSection"
+              style="display: none; margin-top: 10px"
+            >
+              <div
+                style="
+                  display: flex;
+                  align-items: center;
+                  justify-content: flex-end;
+                  gap: 16px;
+                "
+              >
+                <div style="display: flex; align-items: center; gap: 6px">
+                  <div style="font-size: 11px; color: var(--text3)">
+                    ราคาทุน:
+                  </div>
+                  <input
+                    class="form-control"
+                    id="fCost"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder="0.00"
+                    style="
+                      width: 90px;
+                      font-family: monospace;
+                      font-size: 12px;
+                      text-align: right;
+                    "
+                  />
+                </div>
+                <div style="display: flex; align-items: center; gap: 6px">
+                  <div style="font-size: 11px; color: var(--text3)">
+                    ราคาขาย:
+                  </div>
+                  <input
+                    class="form-control"
+                    id="fSale"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder="0.00"
+                    style="
+                      width: 90px;
+                      font-family: monospace;
+                      font-size: 12px;
+                      text-align: right;
+                      color: var(--accent);
+                    "
+                  />
+                </div>
+              </div>
+            </div>
+
+            <!-- ราคา (Parent SKU) -->
+            <div
+              id="parentPriceSection"
+              style="display: none; margin-top: 10px"
+            >
+              <div
+                style="
+                  display: flex;
+                  align-items: center;
+                  justify-content: flex-end;
+                  gap: 16px;
+                "
+              >
+                <div style="display: flex; align-items: center; gap: 6px">
+                  <div style="font-size: 11px; color: var(--text3)">
+                    ราคาทุน:
+                  </div>
+                  <input
+                    class="form-control"
+                    id="parentCost"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder="0.00"
+                    style="
+                      width: 90px;
+                      font-family: monospace;
+                      font-size: 12px;
+                      text-align: right;
+                    "
+                  />
+                </div>
+                <div style="display: flex; align-items: center; gap: 6px">
+                  <div style="font-size: 11px; color: var(--text3)">
+                    ราคาขาย:
+                  </div>
+                  <input
+                    class="form-control"
+                    id="parentSale"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder="0.00"
+                    style="
+                      width: 90px;
+                      font-family: monospace;
+                      font-size: 12px;
+                      text-align: right;
+                      color: var(--accent);
+                    "
+                  />
+                </div>
+              </div>
+            </div>
+
+            <!-- Variant SKU Section -->
+            <div id="variantSkuSection" style="display: none; margin-top: 20px">
+              <div class="section-divider" style="margin-bottom: 12px">
+                ตัวเลือก (Variants)
+              </div>
+              <div id="variantSkuRows">
+                <div
+                  style="
+                    text-align: center;
+                    padding: 20px;
+                    color: var(--text3);
+                    border: 1.5px dashed var(--border);
+                    border-radius: 8px;
+                    font-size: 12px;
+                  "
+                >
+                  กด "+ เพิ่มตัวเลือก" เพื่อเพิ่ม SKU ย่อย เช่น สีแดง, ไซส์ S
+                </div>
+              </div>
+              <button
+                class="btn btn-outline"
+                style="margin-top: 10px; font-size: 13px; padding: 8px 16px"
+                onclick="addVariantSkuRow()"
+              >
+                ＋ เพิ่มตัวเลือก
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- STEP 4: ข้อมูลสินค้า -->
+        <div class="pf-section" data-step="4" style="display: none">
+          <div class="pf-section-hdr">
+            <div
+              class="pf-section-icon"
+              style="background: #d1fae5; color: #065f46"
+            >
+              📋
+            </div>
+            <div><div class="pf-section-title">Step 4 — ข้อมูลสินค้า</div></div>
+          </div>
+          <div class="pf-section-body">
+            <div class="form-group" style="margin-bottom: 16px">
+              <label class="form-label"
+                >ชื่อสินค้า <span class="req">*</span></label
+              >
+              <input
+                class="form-control"
+                id="fName"
+                placeholder="ชื่อสินค้า"
+                style="font-size: 15px; font-weight: 500"
+                oninput="updateSummary()"
+              />
+            </div>
+            <div class="form-grid-2" style="margin-bottom: 16px">
+              <div class="form-group">
+                <label class="form-label"
+                  >หน่วยฐาน <span class="req">*</span></label
+                >
+                <input
+                  class="form-control"
+                  id="fBaseUnit"
+                  placeholder="เช่น ชิ้น, ตัว, อัน"
+                />
+              </div>
+              <div class="form-group">
+                <label class="form-label">จุดสั่งซื้อ (Reorder Point)</label>
+                <input
+                  class="form-control"
+                  id="fReorder"
+                  type="number"
+                  min="0"
+                  placeholder="0"
+                />
+              </div>
+            </div>
+            <div class="section-divider">หน่วยนับ (Units)</div>
+            <div
+              style="font-size: 12px; color: var(--text3); margin-bottom: 10px"
+            >
+              กำหนดหน่วยนับและอัตราการแปลง เช่น 1 กล่อง = 12 ชิ้น
+            </div>
+            <div id="unitsContainer"></div>
+            <button
+              class="btn btn-outline"
+              style="width: 100%; justify-content: center; margin-top: 8px"
+              onclick="addUnitRow()"
+            >
+              ＋ เพิ่มหน่วยนับ
+            </button>
+          </div>
+        </div>
+
+        <!-- STEP 5: รูปภาพสินค้า -->
+        <div class="pf-section" data-step="5" style="display: none">
+          <div class="pf-section-hdr">
+            <div
+              class="pf-section-icon"
+              style="background: #ede9fe; color: #6d28d9"
+            >
+              🖼️
+            </div>
+            <div><div class="pf-section-title">Step 5 — รูปภาพสินค้า</div></div>
+          </div>
+          <div class="pf-section-body">
+            <div
+              style="font-size: 12px; color: var(--text3); margin-bottom: 14px"
+            >
+              อัปโหลดรูปภาพสินค้าได้สูงสุด 5 รูป (JPG, PNG, WEBP)
+            </div>
+            <div class="img-upload-grid" id="imgUploadGrid"></div>
+            <input
+              type="file"
+              id="imgFileInput"
+              accept="image/*"
+              style="display: none"
+              onchange="onImgFileSelected(event)"
+            />
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <script src="./product-form.js"></script>
+    <script>
+      document.addEventListener("input", (e) => {
+        if (e.target.id === "fName") updateSummary();
+      });
+    </script>
+    <script src="../../../../js/core/auth.js"></script>
+    <script src="../../../../js/components/navigation/sidebar.js"></script>
+  </body>
+</html>

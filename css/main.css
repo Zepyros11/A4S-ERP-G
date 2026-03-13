@@ -1,0 +1,23 @@
+/* =========================================================
+   A4S ERP MAIN CSS
+   ========================================================= */
+
+/* =========================
+   CORE
+========================= */
+
+@import "./core/theme.css";
+@import "./core/common.css";
+@import "./core/layout.css";
+@import "./core/responsive.css";
+
+/* =========================
+   COMPONENTS
+========================= */
+
+@import "./components/buttons.css";
+@import "./components/card.css";
+@import "./components/forms.css";
+@import "./components/panel.css";
+@import "./components/components.css";
+@import "./components/animations.css";

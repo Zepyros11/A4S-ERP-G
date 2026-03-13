@@ -1,0 +1,224 @@
+/* =========================================================
+   procurement.css — Procurement Module
+========================================================= */
+
+/* ── BUDGET SUMMARY CARD ── */
+.budget-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 14px;
+  margin-bottom: 20px;
+}
+.budget-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.budget-card-label {
+  font-size: 12px;
+  color: var(--text3);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.budget-card-value {
+  font-size: 22px;
+  font-weight: 800;
+  font-family: "IBM Plex Mono", monospace;
+  color: var(--text);
+}
+.budget-card-value.danger {
+  color: var(--danger);
+}
+.budget-card-value.success {
+  color: var(--success);
+}
+.budget-card-value.warning {
+  color: var(--warning);
+}
+
+/* ── PROGRESS BAR ── */
+.budget-progress-wrap {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px 18px;
+  margin-bottom: 20px;
+}
+.budget-progress-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  margin-bottom: 8px;
+  color: var(--text2);
+}
+.budget-bar-bg {
+  height: 12px;
+  background: var(--surface2);
+  border-radius: 99px;
+  overflow: hidden;
+}
+.budget-bar-fill {
+  height: 100%;
+  border-radius: 99px;
+  background: var(--success);
+  transition: width 0.4s ease;
+}
+.budget-bar-fill.warn {
+  background: var(--warning);
+}
+.budget-bar-fill.danger {
+  background: var(--danger);
+}
+
+/* ── SUPPLIER STATUS BADGE ── */
+.sup-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.sup-PENDING {
+  background: #fef3c7;
+  color: #d97706;
+}
+.sup-CONFIRMED {
+  background: #d1fae5;
+  color: #059669;
+}
+.sup-CANCELLED {
+  background: #fee2e2;
+  color: #dc2626;
+}
+.sup-PAID {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+/* ── EVENT SELECTOR ── */
+.event-selector-bar {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.event-selector-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text2);
+  white-space: nowrap;
+}
+
+/* ── PROCUREMENT MODAL ── */
+.proc-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(4px);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 400;
+}
+.proc-modal-overlay.open {
+  display: flex;
+}
+.proc-modal {
+  background: var(--surface);
+  border-radius: 16px;
+  width: 540px;
+  max-width: 95vw;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+  animation: procPop 0.2s ease;
+}
+@keyframes procPop {
+  from {
+    transform: scale(0.95);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+.proc-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.proc-modal-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.proc-modal-footer {
+  padding: 14px 20px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  flex-shrink: 0;
+}
+
+/* ── FORM GRID ── */
+.proc-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.proc-form-grid .pspan2 {
+  grid-column: span 2;
+}
+
+/* ── DOC UPLOAD ── */
+.doc-upload-area {
+  border: 2px dashed var(--border2);
+  border-radius: 8px;
+  padding: 16px;
+  text-align: center;
+  cursor: pointer;
+  background: var(--surface2);
+  transition: border-color 0.15s;
+  font-size: 13px;
+  color: var(--text3);
+}
+.doc-upload-area:hover {
+  border-color: var(--accent);
+}
+.doc-upload-name {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* ── BUDGET EDIT MODAL ── */
+.budget-edit-modal {
+  background: var(--surface);
+  border-radius: 16px;
+  width: 420px;
+  max-width: 95vw;
+  padding: 24px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+  animation: procPop 0.2s ease;
+}

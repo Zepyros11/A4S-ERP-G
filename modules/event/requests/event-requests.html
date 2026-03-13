@@ -1,0 +1,298 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>คำขอจัดกิจกรรม — A4S-ERP</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../../../../css/main.css" />
+    <link rel="stylesheet" href="./event-requests.css" />
+  </head>
+  <body>
+    <div class="loading-overlay" id="loadingOverlay">
+      <div class="spinner"></div>
+    </div>
+    <div class="toast" id="toast"></div>
+
+    <div class="topbar"></div>
+    <div class="layout">
+      <div id="sidebar-container"></div>
+      <div class="content-area">
+        <div class="page">
+          <!-- STATS -->
+          <div class="stats-row">
+            <div class="stat-card">
+              <div class="stat-icon">📋</div>
+              <div>
+                <div class="stat-value" id="cardTotal">0</div>
+                <div class="stat-label">คำขอทั้งหมด</div>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon">⏳</div>
+              <div>
+                <div class="stat-value" id="cardPending">0</div>
+                <div class="stat-label">รอดำเนินการ</div>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon">✅</div>
+              <div>
+                <div class="stat-value" id="cardApproved">0</div>
+                <div class="stat-label">อนุมัติแล้ว</div>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon">❌</div>
+              <div>
+                <div class="stat-value" id="cardRejected">0</div>
+                <div class="stat-label">ปฏิเสธ</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- TOOLBAR -->
+          <div class="toolbar">
+            <div class="search-wrap">
+              <span class="search-icon">🔍</span>
+              <input
+                class="search-input"
+                id="searchInput"
+                placeholder="ค้นหาชื่อกิจกรรม..."
+              />
+            </div>
+            <select class="filter-select" id="filterStatus">
+              <option value="">⚪ ทุกสถานะ</option>
+              <option value="PENDING">⏳ รอดำเนินการ</option>
+              <option value="APPROVED">✅ อนุมัติแล้ว</option>
+              <option value="REJECTED">❌ ปฏิเสธ</option>
+            </select>
+            <select class="filter-select" id="filterType">
+              <option value="">⚪ ทุกประเภท</option>
+              <option value="BOOTH">🏪 ออกบูธ</option>
+              <option value="MEETING">👥 ประชุม</option>
+              <option value="ONLINE">💻 Online</option>
+              <option value="HYBRID">🔀 Hybrid</option>
+              <option value="CONFERENCE">🎤 Conference</option>
+              <option value="OTHER">📌 อื่นๆ</option>
+            </select>
+            <div class="toolbar-right">
+              <button
+                class="btn btn-primary"
+                onclick="window.location.href = './event-request-form.html'"
+              >
+                ＋ ยื่นคำขอ
+              </button>
+            </div>
+          </div>
+
+          <!-- TABLE -->
+          <div class="content-wrap">
+            <div class="table-card">
+              <div class="table-hdr">
+                <div class="table-title">📋 รายการคำขอจัดกิจกรรม</div>
+                <div class="table-count" id="tableCount">0 รายการ</div>
+              </div>
+              <div class="table-wrap">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th style="width: 130px">รหัสคำขอ</th>
+                      <th>ชื่อกิจกรรม</th>
+                      <th class="col-center">ประเภท</th>
+                      <th class="col-center">วันที่ขอจัด</th>
+                      <th class="col-center">ผู้ขอ</th>
+                      <th class="col-center">สถานะ</th>
+                      <th class="col-center">จัดการ</th>
+                    </tr>
+                  </thead>
+                  <tbody id="tableBody">
+                    <tr>
+                      <td colspan="7">
+                        <div class="empty-state">
+                          <div class="empty-icon">📋</div>
+                          <div class="empty-text">ยังไม่มีคำขอ</div>
+                        </div>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- /page -->
+      </div>
+      <!-- /content-area -->
+    </div>
+    <!-- /layout -->
+
+    <!-- ── SIDE PANEL ── -->
+    <div class="req-panel" id="reqPanel">
+      <div class="req-panel-header">
+        <div class="req-panel-title">📋 รายละเอียดคำขอ</div>
+        <button class="btn-icon" onclick="window.closeReqPanel()">✕</button>
+      </div>
+      <div class="req-panel-body" id="reqPanelBody">
+        <!-- filled by JS -->
+      </div>
+      <div class="req-panel-footer" id="reqPanelFooter">
+        <!-- filled by JS (approve/reject buttons) -->
+      </div>
+    </div>
+    <div
+      id="panelBackdrop"
+      style="display: none; position: fixed; inset: 0; z-index: 299"
+      onclick="window.closeReqPanel()"
+    ></div>
+
+    <!-- ── REQUEST MODAL ── -->
+    <div class="req-modal-overlay" id="reqModalOverlay">
+      <div class="req-modal">
+        <div class="req-modal-header">
+          <div style="font-weight: 700; font-size: 15px">
+            📋 ยื่นคำขอจัดกิจกรรม
+          </div>
+          <button class="btn-icon" onclick="window.closeRequestModal()">
+            ✕
+          </button>
+        </div>
+        <div class="req-modal-body">
+          <div class="req-form-grid">
+            <div class="form-group span2">
+              <label class="form-label"
+                >ชื่อกิจกรรม <span class="req-mark">*</span></label
+              >
+              <input
+                class="form-input"
+                id="fReqName"
+                placeholder="ชื่อกิจกรรมที่ต้องการจัด"
+              />
+            </div>
+            <div class="form-group">
+              <label class="form-label"
+                >ประเภท <span class="req-mark">*</span></label
+              >
+              <select class="form-input" id="fReqType">
+                <option value="">-- เลือกประเภท --</option>
+                <option value="BOOTH">🏪 ออกบูธ</option>
+                <option value="MEETING">👥 ประชุม</option>
+                <option value="ONLINE">💻 Online</option>
+                <option value="HYBRID">🔀 Hybrid</option>
+                <option value="CONFERENCE">🎤 Conference</option>
+                <option value="OTHER">📌 อื่นๆ</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">แผนก</label>
+              <select class="form-input" id="fReqDept">
+                <option value="">-- เลือกแผนก --</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label"
+                >วันที่ต้องการจัด <span class="req-mark">*</span></label
+              >
+              <input type="date" class="form-input" id="fReqDate" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">วันสิ้นสุด</label>
+              <input type="date" class="form-input" id="fReqEndDate" />
+            </div>
+            <div class="form-group span2">
+              <label class="form-label">สถานที่</label>
+              <input
+                class="form-input"
+                id="fReqLocation"
+                placeholder="สถานที่จัดกิจกรรม"
+              />
+            </div>
+            <div class="form-group">
+              <label class="form-label">จำนวนผู้เข้าร่วม (คน)</label>
+              <input
+                type="number"
+                class="form-input"
+                id="fReqAttendees"
+                min="0"
+                placeholder="0"
+              />
+            </div>
+            <div class="form-group">
+              <label class="form-label">แนบไฟล์</label>
+              <input
+                type="file"
+                class="form-input"
+                id="fReqFile"
+                accept=".pdf,.doc,.docx,.jpg,.png"
+              />
+            </div>
+            <div class="form-group span2">
+              <label class="form-label">รายละเอียด</label>
+              <textarea
+                class="form-input"
+                id="fReqDetail"
+                rows="3"
+                placeholder="รายละเอียดเพิ่มเติม..."
+              ></textarea>
+            </div>
+          </div>
+        </div>
+        <div class="req-modal-footer">
+          <button
+            class="btn btn-secondary"
+            onclick="window.closeRequestModal()"
+          >
+            ยกเลิก
+          </button>
+          <button class="btn btn-primary" onclick="window.submitRequest()">
+            📤 ส่งคำขอ
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── REJECT MODAL ── -->
+    <div class="reject-modal-overlay" id="rejectModalOverlay">
+      <div class="reject-modal">
+        <div style="font-weight: 700; font-size: 15px; margin-bottom: 14px">
+          ❌ เหตุผลที่ปฏิเสธ
+        </div>
+        <textarea
+          class="form-input"
+          id="fRejectReason"
+          rows="3"
+          placeholder="ระบุเหตุผล..."
+        ></textarea>
+        <div
+          style="
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
+            margin-top: 14px;
+          "
+        >
+          <button class="btn btn-secondary" onclick="window.closeRejectModal()">
+            ยกเลิก
+          </button>
+          <button class="btn btn-danger" onclick="window.confirmReject()">
+            ยืนยันปฏิเสธ
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="./event-requests.js"></script>
+    <script src="../../../../js/core/auth.js"></script>
+    <script src="../../../../js/components/modal/deleteModal.js"></script>
+    <script src="../../../../js/components/modal/modalManager.js"></script>
+    <script src="../../../../js/components/modal/enterModal.js"></script>
+    <script type="module">
+      import { loadTopbar } from "../../../../js/components/navigation/topbar.js";
+      loadTopbar("📋 คำขอจัดกิจกรรม");
+    </script>
+    <script src="../../../../js/components/navigation/sidebar.js"></script>
+  </body>
+</html>

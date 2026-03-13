@@ -1,0 +1,32 @@
+Rules สำคัญ 
+ส่ง code เป็น block ทั้ง function หรือทั้ง div เสมอ 
+บอก filename + search keyword ทุกครั้ง 
+CSS ใหม่ดูว่าควรใส่ไฟล์ไหน (warehouse.css, stock_initial.css, table.css, layout.css) 
+ห้ามใช้ confirm() ใช้ openDeleteModal() เท่านั้น
+
+=================================
+TRUNCATE TABLE
+stock_movements,
+po_items,
+so_items,
+requisition_items,
+purchase_orders,
+sales_orders,
+requisitions,
+product_units,
+product_images,
+products,
+categories,
+warehouse_bins,
+warehouse_locations,
+warehouse_zones,
+warehouses,
+suppliers,
+customers,
+users,
+departments,
+requisition_purposes,
+countries
+RESTART IDENTITY CASCADE;
+
+=================================

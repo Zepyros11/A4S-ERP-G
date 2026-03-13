@@ -1,0 +1,351 @@
+================================================================
+EVENT MODULE — Instruction & Known Issues
+A4S-ERP | สิ่งที่ต้องระวังและ Best Practices
+================================================================
+
+
+================================================================
+SECTION A: ปัญหาที่เจอและวิธีแก้ (เรียงตาม module)
+================================================================
+
+
+----------------------------------------------------------------
+ACTIVITY (events, event-form, event-log)
+----------------------------------------------------------------
+
+🔴 event_code duplicate เมื่อสร้างพร้อมกัน
+  สาเหตุ : auto-generate เป็น 2-step client-side
+           (query max → generate)
+  ผลกระทบ: POST fail ด้วย 409 Unique Violation
+  วิธีแก้ : ระยะสั้น — try/catch แล้ว retry generateCode()
+           ระยะยาว — ใช้ DB sequence หรือ UUID
+
+🔴 start_time / end_time จาก DB เป็น "HH:MM:SS"
+  สาเหตุ : Postgres time type ส่งค่า 3 ส่วนเสมอ
+  ผลกระทบ: input type=time รับได้แค่ "HH:MM"
+  วิธีแก้ : ใช้ .slice(0, 5) ก่อนใส่ value ใน input เสมอ
+
+🟡 poster_url ไม่ลบไฟล์เก่าเมื่ออัปโหลดใหม่
+  สาเหตุ : Storage ไม่มี auto-delete
+  ผลกระทบ: ไฟล์เก่าสะสมใน Storage
+  วิธีแก้ : DELETE /storage/v1/object/event-files/{old_path}
+           ก่อน upload ใหม่ (ต้องเก็บ path เดิมไว้)
+
+🟢 event_date แสดง timezone ผิด
+  สาเหตุ : new Date("2026-03-13") interpret เป็น UTC midnight
+           → แสดงวันที่ -1 ในบาง timezone
+  วิธีแก้ : ใช้ new Date(date + "T00:00:00") เสมอ
+
+
+----------------------------------------------------------------
+REQUESTS (event-requests, event-request-form)
+----------------------------------------------------------------
+
+🔴 request_code duplicate (เหมือน event_code)
+  วิธีแก้ : try/catch + retry generateCode()
+
+🟡 Auto-create events เมื่อ APPROVED อาจล้มเหลวกลางคัน
+  สาเหตุ : 2 operations: POST events → PATCH event_requests
+           ถ้า PATCH ล้มเหลว event_requests ยัง PENDING
+           แต่ events ถูกสร้างแล้ว
+  ผลกระทบ: ข้อมูลไม่ sync
+  วิธีแก้ : ใส่ try/catch ครอบทั้งสอง operation
+           ถ้า PATCH ล้มเหลว → แจ้ง admin ให้ PATCH manually
+           หรือใช้ Supabase Edge Function ทำ atomic
+
+🟡 ไฟล์แนบ request ไม่ลบเมื่อ reject
+  ผลกระทบ: ไฟล์เก่าสะสมใน Storage
+  วิธีแก้ : soft delete เป็น OK — ไฟล์ยังเป็น evidence
+
+
+----------------------------------------------------------------
+ROOMS (rooms-list, room-booking)
+----------------------------------------------------------------
+
+🔴 Conflict check เป็น client-side เท่านั้น
+  สาเหตุ : 2 user บันทึกพร้อมกัน → ผ่าน check ทั้งคู่
+  ผลกระทบ: double booking
+  วิธีแก้ : ระยะสั้น — Realtime enabled แล้ว
+           ระยะยาว — เพิ่ม DB constraint หรือ Edge Function
+
+🔴 facilities จาก DB อาจเป็น Array หรือ Object
+  สาเหตุ : JSONB Postgres บางครั้งส่ง {} แทน []
+  ผลกระทบ: .map() / .join() พัง
+  วิธีแก้ : ตรวจก่อนใช้เสมอ:
+    const fac = Array.isArray(r.facilities)
+                ? r.facilities
+                : Object.values(r.facilities || {});
+
+🟡 room_id จาก URL params เป็น string
+  สาเหตุ : URLSearchParams.get() คืน string เสมอ
+  ผลกระทบ: เปรียบเทียบกับ integer จาก DB ล้มเหลว
+  วิธีแก้ : parseInt(params.get("room_id")) ทุกครั้ง
+
+🟡 start_time / end_time จาก DB เป็น "HH:MM:SS"
+  วิธีแก้ : .slice(0, 5) เหมือน activity module
+
+
+----------------------------------------------------------------
+PROCUREMENT (event-budget, event-suppliers)
+----------------------------------------------------------------
+
+🟡 spent_amount คำนวณ client-side ไม่ sync กับ DB
+  สาเหตุ : sum(amount) WHERE status != CANCELLED
+           ทำใน JS ไม่ได้ save ลง event_budget.spent_amount
+  ผลกระทบ: ถ้าโหลดจาก DB โดยตรง spent_amount = 0 เสมอ
+  วิธีแก้ : คำนวณใหม่ทุกครั้งที่โหลด suppliers
+           หรือ save spent_amount กลับ DB หลัง upsert vendors
+
+🟡 upsertBudget() สามารถ race condition ได้
+  สาเหตุ : GET → POST/PATCH — 2 steps
+           ถ้า 2 user submit พร้อมกัน อาจได้ 2 records
+           (แม้ event_id จะ UNIQUE)
+  ผลกระทบ: POST fail ด้วย Unique Violation
+  วิธีแก้ : try/catch แล้ว fallback เป็น PATCH
+
+🟢 progress bar แสดงผิดถ้า budget_total = 0
+  วิธีแก้ : guard: pct = budget_total > 0
+           ? (spent / budget_total) * 100 : 0
+
+
+----------------------------------------------------------------
+ATTENDEES
+----------------------------------------------------------------
+
+🔴 ticket_no duplicate เมื่อสร้างพร้อมกัน
+  สาเหตุ : generateTicketNo() เป็น 2-step client-side
+  วิธีแก้ : try/catch ที่ createAttendee()
+           ถ้า error 409 → retry generateTicketNo() ใหม่
+
+🟡 max_attendees ไม่ validate ก่อน save
+  วิธีแก้ : เพิ่ม guard:
+    if (currentEvent?.max_attendees &&
+        allAttendees.length >= currentEvent.max_attendees) {
+      showToast("ผู้เข้าร่วมเต็มแล้ว", "error"); return;
+    }
+
+🟡 toggleCheckin() update local state ไม่ reload จาก DB
+  ผลกระทบ: ถ้า PATCH fail → UI ผิดพลาด
+  วิธีแก้ : reload allAttendees จาก DB เสมอหลัง PATCH
+
+🟢 Export CSV ใช้ allAttendees (ทั้งหมด ไม่ใช่ filtered)
+  วิธีแก้ : เปลี่ยนเป็น export จาก filtered list
+           หรือเพิ่ม option เลือก
+
+
+----------------------------------------------------------------
+MEDIA
+----------------------------------------------------------------
+
+🟡 Overdue check ใช้ string comparison
+  สาเหตุ : due_date < today เป็น ISO string compare
+           ทำงานได้ถ้า format ตรงกัน (YYYY-MM-DD)
+  ผลกระทบ: ถ้า due_date จาก DB มี format ต่าง → ผิดพลาด
+  วิธีแก้ : ใช้ format YYYY-MM-DD เสมอ / ตรวจ format ก่อนเปรียบเทียบ
+
+🟡 Inline status update ไม่ reload จาก DB
+  วิธีแก้ : update allMedia array local ก่อน
+           ถ้า error → filterTable() เพื่อ revert UI
+
+🟢 ไฟล์เก่าไม่ถูกลบเมื่ออัปโหลดใหม่ (เหมือน poster)
+  วิธีแก้ : เก็บ old file_url และ DELETE ก่อน upload ใหม่
+
+
+================================================================
+SECTION B: BEST PRACTICES
+================================================================
+
+
+----------------------------------------------------------------
+1. Auto-generate Code Pattern
+----------------------------------------------------------------
+
+ใช้ pattern นี้ทุกครั้ง (ไม่ใช้ count(*)):
+
+  async function generateCode(prefix, table, codeField) {
+    const { url, key } = getSB();
+    const res = await fetch(
+      `${url}/rest/v1/${table}?${codeField}=like.${prefix}*&select=${codeField}`,
+      { headers: { apikey: key, Authorization: `Bearer ${key}` } }
+    );
+    const rows = await res.json().catch(() => []);
+    let maxSeq = 0;
+    (rows || []).forEach((r) => {
+      const parts = (r[codeField] || "").split("-");
+      const n = parseInt(parts[parts.length - 1], 10);
+      if (!isNaN(n) && n > maxSeq) maxSeq = n;
+    });
+    return `${prefix}${String(maxSeq + 1).padStart(3, "0")}`;
+  }
+
+  เหตุผล: count(*) จะผิดพลาดถ้ามีการลบ record ไปแล้ว
+
+
+----------------------------------------------------------------
+2. Dropdown ต้องมี stopPropagation()
+----------------------------------------------------------------
+
+  item.addEventListener("click", (e) => {
+    e.stopPropagation();  // ป้องกัน race กับ global click listener
+    // logic ที่นี่
+  });
+
+  เหตุผล: global document click listener ปิด dropdown
+          จะ fire ก่อน item click ในบาง browser
+
+
+----------------------------------------------------------------
+3. JSONB facilities pattern
+----------------------------------------------------------------
+
+  // อ่าน
+  const fac = Array.isArray(r.facilities)
+              ? r.facilities
+              : Object.values(r.facilities || {});
+
+  // เขียน (เก็บเป็น array เสมอ)
+  const payload = {
+    facilities: selectedFacilities  // must be Array
+  };
+
+
+----------------------------------------------------------------
+4. Time field pattern
+----------------------------------------------------------------
+
+  // อ่านจาก DB
+  input.value = (dbRecord.start_time || "").slice(0, 5);  // "HH:MM"
+
+  // บันทึกลง DB
+  payload.start_time = document.getElementById("fStartTime").value;
+  // input type=time คืน "HH:MM" → Postgres รับได้เลย
+
+
+----------------------------------------------------------------
+5. Date comparison (Overdue / Today)
+----------------------------------------------------------------
+
+  // วันนี้ (timezone-safe)
+  const today = new Date().toLocaleDateString("sv",
+    { timeZone: "Asia/Bangkok" });  // "2026-03-13"
+
+  // เปรียบเทียบ
+  const isOverdue = due_date && due_date < today
+                    && status !== "DONE"
+                    && status !== "CANCELLED";
+
+
+----------------------------------------------------------------
+6. File Upload + URL Pattern
+----------------------------------------------------------------
+
+  async function uploadFile(bucket, folder, eventId, file) {
+    const { url, key } = getSB();
+    const ext  = file.name.split(".").pop().toLowerCase();
+    const name = `${folder}_${eventId}_${Date.now()}.${ext}`;
+    const path = `${folder}/${name}`;
+
+    const res = await fetch(
+      `${url}/storage/v1/object/${bucket}/${path}`,
+      {
+        method: "POST",
+        headers: {
+          apikey: key,
+          Authorization: `Bearer ${key}`,
+          "Content-Type": file.type,
+          "x-upsert": "true",  // ป้องกัน error ถ้าชื่อซ้ำ
+        },
+        body: file,
+      }
+    );
+    if (!res.ok) throw new Error("Upload failed");
+    return `${url}/storage/v1/object/public/${bucket}/${path}`;
+  }
+
+
+----------------------------------------------------------------
+7. upsert Budget Pattern
+----------------------------------------------------------------
+
+  async function upsertBudget(eventId, data) {
+    const existing = await fetchBudget(eventId);
+    if (existing) {
+      return sbFetch("event_budget",
+        `?event_id=eq.${eventId}`,
+        { method: "PATCH", body: data });
+    } else {
+      return sbFetch("event_budget", "",
+        { method: "POST", body: { ...data, event_id: eventId } });
+    }
+  }
+
+
+----------------------------------------------------------------
+8. Export CSV (UTF-8 BOM)
+----------------------------------------------------------------
+
+  function exportCSV(rows, headers, filename) {
+    const csv = [headers, ...rows]
+      .map((r) => r.map((v) =>
+        `"${String(v).replace(/"/g, '""')}"`).join(","))
+      .join("\n");
+    const blob = new Blob(["\uFEFF" + csv],
+      { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a   = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  เหตุผล: \uFEFF (BOM) ทำให้ Excel เปิดไฟล์ภาษาไทยได้
+
+
+----------------------------------------------------------------
+9. Conflict Check Pattern (Room Booking)
+----------------------------------------------------------------
+
+  function hasConflict(bookings, newStart, newEnd, excludeId = null) {
+    return bookings.some((b) => {
+      if (b.booking_id === excludeId) return false;
+      if (b.status === "CANCELLED") return false;
+      return newStart < b.end_time && newEnd > b.start_time;
+    });
+  }
+
+  // เรียกก่อน save เสมอ
+  if (hasConflict(existingBookings, start, end, editingId)) {
+    showToast("เวลาชนกับการจองอื่น", "error"); return;
+  }
+
+
+================================================================
+SECTION C: SUPABASE SETUP CHECKLIST
+================================================================
+
+□ Run SQL สร้าง 11 tables
+□ DISABLE RLS ทุก event table
+□ Enable Realtime: room_bookings, notifications
+□ สร้าง Storage bucket: event-files (Public)
+□ สร้าง folders: documents/, media/, posters/
+□ สร้าง Storage policy: allow_storage_all
+
+
+================================================================
+SECTION D: ROLE REFERENCE
+================================================================
+
+EVENT_ADMIN   สร้าง/แก้ไข/ลบ/อนุมัติทุกอย่าง
+EVENT_STAFF   แก้ไข/บันทึก log/จัดการ event
+DEPT_USER     ส่งใบขอ / ดู calendar / จองห้อง
+VIEWER        ดูอย่างเดียว
+
+Table: user_roles (user_id, module='EVENT', role)
+UNIQUE (user_id, module) → 1 user มีได้ 1 role ต่อ module
+
+
+================================================================
+END OF DOCUMENT
+A4S-ERP — Event Module Instruction & Known Issues
+================================================================

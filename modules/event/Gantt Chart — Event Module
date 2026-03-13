@@ -1,0 +1,48 @@
+Gantt Chart — Event Module
+modules/event/
+│
+├── activity/          ✅ DONE ← สร้าง/แก้ไขกิจกรรมปฏิทิน
+│   ├── events-list.html
+│   ├── events-list.js
+│   ├── events-api.js
+│   ├── events.css
+│   ├── event-form.html
+│   ├── event-form.js
+│   ├── event-form.css
+│   ├── event-log.html
+│   ├── event-log.js
+│   └── event-log.css
+│
+├── requests/          ✅ DONE ← คำขอจากแผนกอื่น
+│   ├── event-request-form.css
+│   ├── event-request-form.html
+│   └── event-request-form.js
+│   ├── event-requests.html
+│   ├── event-requests.js
+│   └── event-requests.css
+│
+├── rooms/             ✅ DONE  ← จัดการห้องประชุม
+│   ├── room-booking.html
+│   ├── room-booking.js
+│   ├── rooms-list.html
+│   ├── rooms-list.js
+│   └── rooms.css
+├── procurement/       ✅ DONE ← Supplier ของ Event
+│   ├── event-suppliers.html
+│   ├── event-suppliers.js
+│   ├── event-budget.html
+│   └── event-budget.js
+│   └── procurement.css
+│
+├── attendees/         ⬜ ← ทะเบียนผู้เข้างาน
+│   ├── attendees.html
+│   ├── attendees.js
+│   └── attendees.css
+│
+└── media/             ⬜ ← ตารางตัดต่อ/โพส/บิกของการตลาด
+    ├── media-schedule.html
+    ├── media-schedule.js
+    └── media-schedule.css
+
+ลำดับงานแนะนำ
+ลำดับModuleหน้าความสำคัญ1requestsevent-requests🔴 สูง — flow เริ่มจากนี้2roomsrooms-list + booking🔴 สูง — จองก่อนสร้าง event3attendeesattendees🟡 กลาง4procurementsuppliers + budget🟡 กลาง5mediamedia-schedule🟢 ต่ำ

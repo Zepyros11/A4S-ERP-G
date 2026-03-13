@@ -1,0 +1,351 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ตารางงาน Media — A4S-ERP</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../../../../css/main.css" />
+    <link rel="stylesheet" href="./media-schedule.css" />
+  </head>
+  <body>
+    <div class="loading-overlay" id="loadingOverlay">
+      <div class="spinner"></div>
+    </div>
+    <div class="toast" id="toast"></div>
+
+    <div class="topbar"></div>
+    <div class="layout">
+      <div id="sidebar-container"></div>
+      <div class="content-area">
+        <div class="page">
+          <!-- PAGE HEADER -->
+          <div
+            style="
+              display: flex;
+              align-items: center;
+              justify-content: space-between;
+              margin-bottom: 20px;
+            "
+          >
+            <div style="font-size: 20px; font-weight: 700">
+              🎬 ตารางงาน Media
+            </div>
+          </div>
+
+          <!-- EVENT SELECTOR -->
+          <div
+            style="
+              background: var(--surface);
+              border: 1px solid var(--border);
+              border-radius: 10px;
+              padding: 12px 16px;
+              display: flex;
+              align-items: center;
+              gap: 12px;
+              margin-bottom: 20px;
+            "
+          >
+            <span
+              style="
+                font-size: 13px;
+                font-weight: 600;
+                color: var(--text2);
+                white-space: nowrap;
+              "
+            >
+              🗓 เลือกกิจกรรม:
+            </span>
+            <select
+              class="form-input"
+              id="eventSelect"
+              style="flex: 1; max-width: 400px"
+              onchange="window.onEventChange()"
+            >
+              <option value="">-- เลือกกิจกรรม --</option>
+            </select>
+            <div id="mediaActionBtns" style="display: none">
+              <button class="btn btn-primary" onclick="window.openMedModal()">
+                ＋ เพิ่มงาน Media
+              </button>
+            </div>
+          </div>
+
+          <!-- STATS -->
+          <div id="medStatsSection" style="display: none">
+            <div class="med-stats">
+              <div class="med-stat-card">
+                <div class="med-stat-label">งานทั้งหมด</div>
+                <div class="med-stat-value" id="statTotal">0</div>
+              </div>
+              <div class="med-stat-card">
+                <div class="med-stat-label">เสร็จแล้ว</div>
+                <div
+                  class="med-stat-value"
+                  id="statDone"
+                  style="color: var(--success)"
+                >
+                  0
+                </div>
+              </div>
+              <div class="med-stat-card">
+                <div class="med-stat-label">กำลังทำ</div>
+                <div
+                  class="med-stat-value"
+                  id="statInprogress"
+                  style="color: var(--warning)"
+                >
+                  0
+                </div>
+              </div>
+              <div class="med-stat-card">
+                <div class="med-stat-label">เกิน Deadline</div>
+                <div
+                  class="med-stat-value"
+                  id="statOverdue"
+                  style="color: var(--danger)"
+                >
+                  0
+                </div>
+              </div>
+            </div>
+            <!-- Overall Progress -->
+            <div
+              style="
+                background: var(--surface);
+                border: 1px solid var(--border);
+                border-radius: 10px;
+                padding: 14px 16px;
+                margin-bottom: 16px;
+              "
+            >
+              <div
+                style="
+                  display: flex;
+                  justify-content: space-between;
+                  font-size: 13px;
+                  margin-bottom: 6px;
+                "
+              >
+                <span style="font-weight: 600">ความคืบหน้าโดยรวม</span>
+                <span
+                  id="progressPct"
+                  style="font-family: &quot;IBM Plex Mono&quot;, monospace"
+                  >0%</span
+                >
+              </div>
+              <div class="med-progress-wrap">
+                <div
+                  class="med-progress-bar"
+                  id="progressBar"
+                  style="width: 0%"
+                ></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- TOOLBAR -->
+          <div id="medToolbar" style="display: none">
+            <div class="toolbar">
+              <div class="search-wrap">
+                <span class="search-icon">🔍</span>
+                <input
+                  class="search-input"
+                  id="searchInput"
+                  placeholder="ค้นหาชื่องาน / ผู้รับผิดชอบ..."
+                />
+              </div>
+              <select class="filter-select" id="filterType">
+                <option value="">⚪ ทุกประเภท</option>
+                <option value="PHOTO">📷 Photo</option>
+                <option value="VIDEO">🎥 Video</option>
+                <option value="GRAPHIC">🎨 Graphic</option>
+                <option value="LIVE">🔴 Live</option>
+                <option value="DOCUMENT">📄 Document</option>
+                <option value="OTHER">📁 Other</option>
+              </select>
+              <select class="filter-select" id="filterStatus">
+                <option value="">⚪ ทุกสถานะ</option>
+                <option value="TODO">📋 Todo</option>
+                <option value="INPROGRESS">⚡ In Progress</option>
+                <option value="DONE">✅ Done</option>
+                <option value="CANCELLED">❌ Cancelled</option>
+              </select>
+              <select class="filter-select" id="filterAssigned">
+                <option value="">⚪ ทุกคน</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- TABLE -->
+          <div id="medTableSection" style="display: none">
+            <div class="content-wrap">
+              <div class="table-card">
+                <div class="table-hdr">
+                  <div class="table-title">🎬 รายการงาน Media</div>
+                  <div class="table-count" id="medCount">0 งาน</div>
+                </div>
+                <div class="table-wrap">
+                  <table class="data-table">
+                    <thead>
+                      <tr>
+                        <th>ชื่องาน</th>
+                        <th class="col-center">ประเภท</th>
+                        <th class="col-center">ผู้รับผิดชอบ</th>
+                        <th class="col-center">Deadline</th>
+                        <th class="col-center">สถานะ</th>
+                        <th class="col-center">ไฟล์</th>
+                        <th class="col-center">จัดการ</th>
+                      </tr>
+                    </thead>
+                    <tbody id="medTableBody">
+                      <tr>
+                        <td colspan="7">
+                          <div class="empty-state">
+                            <div class="empty-icon">🎬</div>
+                            <div class="empty-text">ยังไม่มีงาน Media</div>
+                          </div>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- No Event State -->
+          <div id="noEventState">
+            <div class="empty-state" style="min-height: 300px">
+              <div class="empty-icon">🎬</div>
+              <div class="empty-text">เลือกกิจกรรมเพื่อดูตารางงาน Media</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── MEDIA MODAL ── -->
+    <div class="med-modal-overlay" id="medModalOverlay">
+      <div class="med-modal">
+        <div class="med-modal-header">
+          <div style="font-weight: 700; font-size: 15px" id="medModalTitle">
+            🎬 เพิ่มงาน Media
+          </div>
+          <button class="btn-icon" onclick="window.closeMedModal()">✕</button>
+        </div>
+        <div class="med-modal-body">
+          <input type="hidden" id="fMedId" />
+          <div class="med-form-grid">
+            <div class="form-group mspan2">
+              <label class="form-label"
+                >ชื่องาน <span style="color: var(--danger)">*</span></label
+              >
+              <input
+                class="form-input"
+                id="fMedTitle"
+                placeholder="ชื่องาน Media"
+              />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">ประเภท</label>
+              <select class="form-input" id="fMedType">
+                <option value="PHOTO">📷 Photo</option>
+                <option value="VIDEO">🎥 Video</option>
+                <option value="GRAPHIC">🎨 Graphic</option>
+                <option value="LIVE">🔴 Live</option>
+                <option value="DOCUMENT">📄 Document</option>
+                <option value="OTHER">📁 Other</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">สถานะ</label>
+              <select class="form-input" id="fMedStatus">
+                <option value="TODO">📋 Todo</option>
+                <option value="INPROGRESS">⚡ In Progress</option>
+                <option value="DONE">✅ Done</option>
+                <option value="CANCELLED">❌ Cancelled</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">ผู้รับผิดชอบ</label>
+              <select class="form-input" id="fMedAssigned">
+                <option value="">-- ไม่ระบุ --</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Deadline</label>
+              <input type="date" class="form-input" id="fMedDueDate" />
+            </div>
+
+            <div class="form-group mspan2">
+              <label class="form-label">รายละเอียด</label>
+              <textarea
+                class="form-input"
+                id="fMedDetail"
+                rows="3"
+                placeholder="รายละเอียดงาน..."
+              ></textarea>
+            </div>
+
+            <!-- File Upload -->
+            <div class="form-group mspan2">
+              <label class="form-label">แนบไฟล์</label>
+              <div
+                class="med-upload-area"
+                onclick="document.getElementById('fMedFile').click()"
+              >
+                📎 คลิกเพื่ออัปโหลดไฟล์ (รูป / วิดีโอ / PDF)
+              </div>
+              <input
+                type="file"
+                id="fMedFile"
+                style="display: none"
+                accept="image/*,video/*,.pdf,.doc,.docx"
+                onchange="window.handleMedFileChange(this)"
+              />
+              <div
+                id="fMedFileInfo"
+                style="
+                  font-size: 12px;
+                  color: var(--text3);
+                  margin-top: 6px;
+                  display: none;
+                "
+              ></div>
+              <input type="hidden" id="fMedFileUrl" />
+            </div>
+          </div>
+        </div>
+        <div class="med-modal-footer">
+          <button class="btn btn-secondary" onclick="window.closeMedModal()">
+            ยกเลิก
+          </button>
+          <button
+            class="btn btn-primary"
+            id="btnSaveMed"
+            onclick="window.saveMedia()"
+          >
+            💾 บันทึก
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="./media-schedule.js"></script>
+    <script src="../../../../js/core/auth.js"></script>
+    <script src="../../../../js/components/modal/deleteModal.js"></script>
+    <script src="../../../../js/components/modal/modalManager.js"></script>
+    <script src="../../../../js/components/modal/enterModal.js"></script>
+    <script type="module">
+      import { loadTopbar } from "../../../../js/components/navigation/topbar.js";
+      loadTopbar("🎬 ตารางงาน Media");
+    </script>
+    <script src="../../../../js/components/navigation/sidebar.js"></script>
+  </body>
+</html>

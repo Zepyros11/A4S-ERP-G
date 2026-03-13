@@ -1,0 +1,284 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>คลังสินค้า — A4S-ERP</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../../assets/css/main.css" />
+  </head>
+
+  <body>
+    <div class="loading-overlay" id="loadingOverlay">
+      <div class="spinner"></div>
+    </div>
+    <div class="toast" id="toast"></div>
+
+    <!-- TOPBAR -->
+    <div class="topbar">
+      <div class="topbar-logo">📦 <span>A4S</span>-ERP</div>
+      <div class="topbar-sep"></div>
+      <div class="topbar-title">📦 คลังสินค้า</div>
+    </div>
+
+    <!-- MODAL -->
+    <div class="modal-overlay" id="modalOverlay">
+      <div class="modal" style="width: 660px">
+        <div class="modal-hdr">
+          <div class="modal-title" id="modalTitle">เพิ่มคลังสินค้าใหม่</div>
+          <button class="btn-modal-close" onclick="closeModal()">✕</button>
+        </div>
+
+        <div class="modal-body">
+          <input type="hidden" id="editId" />
+
+          <div class="form-grid">
+            <!-- Row 1: รหัส | ประเภท | Icon -->
+            <div class="form-group">
+              <label class="form-label">รหัสคลัง *</label>
+              <input class="form-control" id="fCode" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">ประเภทคลัง</label>
+              <select class="form-control" id="fType">
+                <option value="MAIN">🏣 คลังหลัก</option>
+                <option value="BRANCH">🏪 คลังสาขา</option>
+                <option value="TRANSIT">📦 จุดพักสินค้า</option>
+                <option value="RETURN">↩️ จุดคืนสินค้า</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Icon คลัง</label>
+              <select class="form-control" id="fIcon">
+                <option value="🏭">🏭 โรงงาน</option>
+                <option value="🏣">🏣 อาคารสินค้า</option>
+                <option value="🏢">🏢 อาคารสำนักงาน</option>
+                <option value="🏪">🏪 ร้านค้า/สาขา</option>
+                <option value="🏠">🏠 บ้าน</option>
+              </select>
+            </div>
+
+            <!-- Row 2: ชื่อคลัง full -->
+            <div class="form-group full">
+              <label class="form-label">ชื่อคลัง *</label>
+              <input class="form-control" id="fName" />
+            </div>
+
+            <!-- Row 3: ที่อยู่ full -->
+            <div class="form-group full">
+              <label class="form-label">ที่อยู่</label>
+              <textarea class="form-control" id="fAddress" rows="2"></textarea>
+            </div>
+
+            <!-- Row 4: ผู้ดูแล | เบอร์โทร -->
+            <div class="form-group">
+              <label class="form-label">ผู้ดูแล</label>
+              <input class="form-control" id="fManager" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">เบอร์โทร</label>
+              <input class="form-control" id="fPhone" />
+            </div>
+
+            <!-- Row 5: ความจุ | สถานะ -->
+            <div class="form-group">
+              <label class="form-label">ความจุ</label>
+              <input class="form-control" type="number" id="fCapacity" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">สถานะ</label>
+              <select class="form-control" id="fStatus">
+                <option value="true">ใช้งาน</option>
+                <option value="false">ปิด</option>
+              </select>
+            </div>
+
+            <!-- Row 6: ประเทศ | คลังแม่ -->
+            <div class="form-group">
+              <label class="form-label">ประเทศ</label>
+              <div class="country-dropdown-wrap" id="countryDropdownWrap">
+                <button
+                  type="button"
+                  class="country-trigger"
+                  id="countryTrigger"
+                  onclick="toggleCountryDropdown(event)"
+                >
+                  — เลือกประเทศ —
+                  <span class="country-trigger-arrow">▾</span>
+                </button>
+                <div class="country-panel" id="countryPanel">
+                  <div class="country-list" id="countryList"></div>
+                </div>
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">คลังแม่ (Parent)</label>
+              <select class="form-control" id="fParent">
+                <option value="">— ไม่มี (คลังหลัก) —</option>
+              </select>
+            </div>
+
+            <!-- Row 7: หมายเหตุ full -->
+            <div class="form-group full">
+              <label class="form-label">หมายเหตุ</label>
+              <textarea class="form-control" id="fNote" rows="2"></textarea>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button class="btn btn-outline" onclick="closeModal()">ยกเลิก</button>
+          <button class="btn btn-primary" onclick="saveWarehouse()">
+            💾 บันทึก
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="page page-layout">
+      <div class="stats-grid" id="statsGrid">
+        <div class="stat-card">
+          <div class="stat-icon">🏣</div>
+          <div class="stat-info">
+            <div class="stat-value" id="statTotal">0</div>
+            <div class="stat-label">คลังทั้งหมด</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">✅</div>
+          <div class="stat-info">
+            <div class="stat-value" id="statActive">0</div>
+            <div class="stat-label">ใช้งาน</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">⛔</div>
+          <div class="stat-info">
+            <div class="stat-value" id="statInactive">0</div>
+            <div class="stat-label">ปิดใช้งาน</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">📦</div>
+          <div class="stat-info">
+            <div class="stat-value" id="statStock">0</div>
+            <div class="stat-label">รายการสินค้าทั้งหมด</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="toolbar">
+        <div class="search-wrap">
+          <span class="search-icon">🔍</span>
+          <input
+            class="search-input"
+            id="searchInput"
+            placeholder="ค้นหาคลัง"
+            oninput="renderTable()"
+          />
+        </div>
+        <select class="filter-select" id="filterType" onchange="renderTable()">
+          <option value="">🏢 ทุกประเภท</option>
+          <option value="MAIN">🏣 คลังหลัก</option>
+          <option value="BRANCH">🏪 คลังสาขา</option>
+          <option value="TRANSIT">📦 จุดพักสินค้า</option>
+          <option value="RETURN">↩️ จุดคืนสินค้า</option>
+        </select>
+        <select
+          class="filter-select"
+          id="filterStatus"
+          onchange="renderTable()"
+        >
+          <option value="">⚪ ทุกสถานะ</option>
+          <option value="true">✅ ใช้งาน</option>
+          <option value="false">⛔ ปิด</option>
+        </select>
+        <div class="toolbar-right">
+          <button class="btn btn-outline" onclick="exportWarehouses()">
+            ⬇ Export
+          </button>
+          <button class="btn btn-outline" onclick="importWarehouses()">
+            ⬆ Import
+          </button>
+          <button class="btn btn-outline" onclick="downloadTemplate()">
+            📄 Download Form
+          </button>
+          <button class="btn btn-primary" onclick="openModal()">
+            ＋ เพิ่มคลัง
+          </button>
+        </div>
+      </div>
+
+      <div class="content-row">
+        <!-- LEFT : TABLE -->
+        <div class="table-card">
+          <div class="table-hdr">
+            <div class="table-title">🏭 คลังสินค้า</div>
+            <div class="table-count" id="whCount">0 รายการ</div>
+          </div>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th onclick="sortTable('warehouse_code')">
+                    รหัส
+                    <span class="sort-icon" id="sort-warehouse_code">⇅</span>
+                  </th>
+                  <th onclick="sortTable('warehouse_name')">
+                    ชื่อคลัง
+                    <span class="sort-icon" id="sort-warehouse_name">⇅</span>
+                  </th>
+                  <th onclick="sortTable('warehouse_type')">
+                    ประเภท
+                    <span class="sort-icon" id="sort-warehouse_type">⇅</span>
+                  </th>
+                  <th onclick="sortTable('manager_name')">
+                    ผู้ดูแล
+                    <span class="sort-icon" id="sort-manager_name">⇅</span>
+                  </th>
+                  <th onclick="sortTable('qty')">
+                    จำนวนสินค้า <span class="sort-icon" id="sort-qty">⇅</span>
+                  </th>
+                  <th onclick="sortTable('is_active')">
+                    สถานะ <span class="sort-icon" id="sort-is_active">⇅</span>
+                  </th>
+                  <th class="col-center">จัดการ</th>
+                </tr>
+              </thead>
+              <tbody id="whTable"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- RIGHT : PANEL -->
+        <div class="side-panel" id="warehousePanel">
+          <div class="panel-hdr">
+            <div id="panelTitle">สินค้าในคลัง</div>
+            <button class="btn-close" onclick="closePanel()">✕</button>
+          </div>
+          <div class="panel-body">
+            <div class="panel-search">
+              <input
+                id="panelSearch"
+                placeholder="ค้นหาสินค้า..."
+                oninput="filterPanelStock()"
+              />
+            </div>
+            <div id="panelBody"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="warehouses.js"></script>
+    <script src="../../shared/auth.js"></script>
+    <script src="../../shared/sidebar.js"></script>
+    <div id="deleteModalContainer"></div>
+    <script src="../../assets/components/modal/deleteModal.js"></script>
+    <script src="/assets/components/modal/modalControl.js"></script>
+  </body>
+</html>

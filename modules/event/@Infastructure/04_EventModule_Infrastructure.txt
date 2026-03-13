@@ -1,0 +1,232 @@
+================================================================
+EVENT MODULE — Infrastructure
+A4S-ERP | Technical Setup
+================================================================
+
+
+----------------------------------------------------------------
+1. TECH STACK
+----------------------------------------------------------------
+
+Frontend  : Vanilla JS + HTML + CSS (no framework)
+Backend   : Supabase (PostgreSQL + Storage + Realtime)
+Hosting   : GitHub Pages
+Auth      : session จาก localStorage / sessionStorage
+
+
+----------------------------------------------------------------
+2. SUPABASE PROJECT
+----------------------------------------------------------------
+
+Project   : stock-order-system
+URL       : https://dtiynydgkcqausqktreg.supabase.co
+Key       : sb_publishable_erMV0G_pNtPTYq-3frqv1Q_sIJ7KILD
+Stored in : localStorage keys → sb_url, sb_key
+
+
+----------------------------------------------------------------
+3. DATABASE
+----------------------------------------------------------------
+
+Tables    : 11 tables (ดูรายละเอียดใน DatabaseTables.txt)
+RLS       : DISABLED บนทุก event table (dev mode)
+
+SQL ปิด RLS ทั้งหมด:
+  ALTER TABLE events               DISABLE ROW LEVEL SECURITY;
+  ALTER TABLE event_logs           DISABLE ROW LEVEL SECURITY;
+  ALTER TABLE event_requests       DISABLE ROW LEVEL SECURITY;
+  ALTER TABLE event_budget         DISABLE ROW LEVEL SECURITY;
+  ALTER TABLE event_attendees      DISABLE ROW LEVEL SECURITY;
+  ALTER TABLE event_media          DISABLE ROW LEVEL SECURITY;
+  ALTER TABLE event_suppliers      DISABLE ROW LEVEL SECURITY;
+  ALTER TABLE meeting_rooms        DISABLE ROW LEVEL SECURITY;
+  ALTER TABLE room_bookings        DISABLE ROW LEVEL SECURITY;
+  ALTER TABLE notifications        DISABLE ROW LEVEL SECURITY;
+  ALTER TABLE user_roles           DISABLE ROW LEVEL SECURITY;
+
+Realtime enabled:
+  room_bookings   → ป้องกัน double booking
+  notifications   → แจ้งเตือน real-time
+
+
+----------------------------------------------------------------
+4. STORAGE
+----------------------------------------------------------------
+
+Bucket    : event-files (Public)
+Policy    : allow_storage_all
+  CREATE POLICY "allow_storage_all" ON storage.objects
+  FOR ALL USING (true) WITH CHECK (true);
+
+Folder Structure:
+  event-files/
+  ├── documents/    ไฟล์แนบใบขอ, vendor contract
+  │     req_{requestId}_{timestamp}.{ext}
+  │     sup_{eventId}_{timestamp}.{ext}
+  ├── media/        ไฟล์งาน media
+  │     media_{eventId}_{timestamp}.{ext}
+  └── posters/      poster กิจกรรม
+        poster_{eventId}_{timestamp}.{ext}
+
+Upload Pattern:
+  POST {sb_url}/storage/v1/object/event-files/{path}
+  Headers: apikey, Authorization, Content-Type, x-upsert: true
+  Public URL: {sb_url}/storage/v1/object/public/event-files/{path}
+
+
+----------------------------------------------------------------
+5. FILE STRUCTURE
+----------------------------------------------------------------
+
+modules/event/
+├── activity/
+│   ├── events-list.html / .js / events.css
+│   ├── event-form.html / .js / event-form.css
+│   └── event-log.html / .js / event-log.css
+├── requests/
+│   ├── event-requests.html / .js / event-requests.css
+│   └── event-request-form.html / .js / event-request-form.css
+├── rooms/
+│   ├── rooms-list.html / .js
+│   ├── room-booking.html / .js
+│   └── rooms.css
+├── procurement/
+│   ├── event-budget.html / .js
+│   ├── event-suppliers.html / .js
+│   └── procurement.css
+├── attendees/
+│   ├── attendees.html / .js / attendees.css
+└── media/
+    ├── media-schedule.html / .js / media-schedule.css
+
+Shared JS:
+  js/core/auth.js
+  js/components/navigation/sidebar.js
+  js/components/navigation/topbar.js
+  js/components/modal/deleteModal.js
+  js/components/modal/modalManager.js
+  js/components/modal/enterModal.js
+
+CSS Path:
+  ../../../../css/main.css  (relative จากแต่ละ sub-folder)
+
+
+----------------------------------------------------------------
+6. API PATTERN (ทุก module ใช้รูปแบบเดียวกัน)
+----------------------------------------------------------------
+
+function getSB() {
+  return {
+    url: localStorage.getItem("sb_url") || "",
+    key: localStorage.getItem("sb_key") || "",
+  };
+}
+
+async function sbFetch(table, query = "", opts = {}) {
+  const { url, key } = getSB();
+  const { method = "GET", body } = opts;
+  const res = await fetch(`${url}/rest/v1/${table}${query}`, {
+    method,
+    headers: {
+      apikey: key,
+      Authorization: `Bearer ${key}`,
+      "Content-Type": "application/json",
+      Prefer: method === "POST" || method === "PATCH"
+              ? "return=representation" : "",
+    },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  if (!res.ok) {
+    const e = await res.json().catch(() => ({}));
+    throw new Error(e.message || "Error");
+  }
+  return method === "DELETE" ? null : res.json().catch(() => null);
+}
+
+
+----------------------------------------------------------------
+7. SESSION / AUTH PATTERN
+----------------------------------------------------------------
+
+const session = JSON.parse(
+  localStorage.getItem("erp_session") ||
+  sessionStorage.getItem("erp_session") || "{}"
+);
+const currentUserId = session?.user_id || null;
+
+
+----------------------------------------------------------------
+8. DATE / TIME PATTERN
+----------------------------------------------------------------
+
+วันที่ปัจจุบัน (timezone-safe):
+  new Date().toLocaleDateString("sv", { timeZone: "Asia/Bangkok" })
+  → ได้ "2026-03-13" format ISO
+
+แสดงวันที่ภาษาไทย:
+  new Date(d + "T00:00:00").toLocaleDateString("th-TH", {
+    day: "numeric", month: "short", year: "numeric"
+  })
+
+แสดง datetime:
+  new Date(dt).toLocaleString("th-TH", {
+    timeZone: "Asia/Bangkok",
+    day: "2-digit", month: "short", year: "numeric",
+    hour: "2-digit", minute: "2-digit"
+  })
+
+time จาก DB (HH:MM:SS):
+  time.slice(0, 5)  → "HH:MM"
+
+
+----------------------------------------------------------------
+9. AUTO-GENERATE CODE PATTERN
+----------------------------------------------------------------
+
+Event Code: EVT-YYYYMM-XXX
+  const ym     = new Date().toLocaleDateString("sv",
+                   { timeZone:"Asia/Bangkok" }).slice(0,7).replace("-","");
+  const prefix = `EVT-${ym}-`;
+  query events WHERE event_code LIKE 'EVT-{ym}-%'
+  หา maxSeq จาก parseInt(code.split("-").pop())
+  return `${prefix}${String(maxSeq+1).padStart(3,"0")}`
+
+Request Code: REQ-YYYYMM-XXX  (รูปแบบเดียวกัน)
+
+Ticket No: TK-{eventId}-XXXX
+  query event_attendees WHERE ticket_no LIKE 'TK-{eventId}-%'
+  หา maxSeq → return `TK-${eventId}-${String(maxSeq+1).padStart(4,"0")}`
+
+
+----------------------------------------------------------------
+10. SIDEBAR ENTRY (sidebar.js)
+----------------------------------------------------------------
+
+เพิ่ม group ใน MENU array (ก่อน g-reports):
+{
+  group: "กิจกรรม (EVENT)", icon: "🗓️", id: "g-event",
+  items: [
+    { id:"events",         icon:"🗓️", label:"กิจกรรม",
+      path: BASE_PATH+"/modules/event/activity/events-list.html" },
+    { id:"event-requests", icon:"📋", label:"ใบขอจัดงาน",
+      path: BASE_PATH+"/modules/event/requests/event-requests.html" },
+    { id:"rooms",          icon:"🚪", label:"ห้องประชุม",
+      path: BASE_PATH+"/modules/event/rooms/rooms-list.html" },
+    { id:"event-budget",   icon:"💰", label:"งบประมาณ & Vendor",
+      path: BASE_PATH+"/modules/event/procurement/event-budget.html" },
+    { id:"attendees",      icon:"👥", label:"ผู้เข้าร่วม",
+      path: BASE_PATH+"/modules/event/attendees/attendees.html" },
+    { id:"event-media",    icon:"🎬", label:"งาน Media",
+      path: BASE_PATH+"/modules/event/media/media-schedule.html" },
+  ]
+}
+
+READY array เพิ่ม:
+  "events", "event-requests", "rooms",
+  "event-budget", "attendees", "event-media"
+
+
+================================================================
+END OF DOCUMENT
+A4S-ERP — Event Module Infrastructure
+================================================================

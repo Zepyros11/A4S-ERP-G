@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>จองห้องประชุม — A4S-ERP</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../../../../css/main.css" />
+    <link rel="stylesheet" href="./rooms.css" />
+  </head>
+  <body>
+    <div class="loading-overlay" id="loadingOverlay">
+      <div class="spinner"></div>
+    </div>
+    <div class="toast" id="toast"></div>
+
+    <div class="topbar"></div>
+    <div class="layout">
+      <div id="sidebar-container"></div>
+      <div class="content-area">
+        <div class="page">
+          <!-- PAGE HEADER -->
+          <div
+            style="
+              display: flex;
+              align-items: center;
+              justify-content: space-between;
+              margin-bottom: 20px;
+            "
+          >
+            <div>
+              <div style="font-size: 20px; font-weight: 700">
+                📅 การจองห้องประชุม
+              </div>
+              <div
+                style="font-size: 12px; color: var(--text3); margin-top: 2px"
+                id="pageRoomName"
+              ></div>
+            </div>
+            <div style="display: flex; gap: 8px">
+              <button
+                class="btn btn-secondary"
+                onclick="window.location.href = './rooms-list.html'"
+              >
+                ← รายการห้อง
+              </button>
+              <button
+                class="btn btn-primary"
+                onclick="window.openBookingModal()"
+              >
+                ＋ จองห้อง
+              </button>
+            </div>
+          </div>
+
+          <!-- FILTER BAR -->
+          <div class="toolbar" style="margin-bottom: 16px">
+            <select class="filter-select" id="filterRoom">
+              <option value="">🚪 ทุกห้อง</option>
+            </select>
+            <input type="date" class="filter-select" id="filterDate" />
+            <select class="filter-select" id="filterBookingStatus">
+              <option value="">⚪ ทุกสถานะ</option>
+              <option value="PENDING">⏳ รอยืนยัน</option>
+              <option value="CONFIRMED">✅ ยืนยันแล้ว</option>
+              <option value="CANCELLED">⛔ ยกเลิก</option>
+            </select>
+          </div>
+
+          <!-- BOOKING TABLE -->
+          <div class="content-wrap">
+            <div class="table-card">
+              <div class="table-hdr">
+                <div class="table-title">📋 รายการการจอง</div>
+                <div class="table-count" id="bookingCount">0 รายการ</div>
+              </div>
+              <div class="table-wrap">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>ห้อง</th>
+                      <th class="col-center">วันที่</th>
+                      <th class="col-center">เวลา</th>
+                      <th>หัวข้อ</th>
+                      <th class="col-center">ผู้จอง</th>
+                      <th class="col-center">สถานะ</th>
+                      <th class="col-center">จัดการ</th>
+                    </tr>
+                  </thead>
+                  <tbody id="bookingTableBody">
+                    <tr>
+                      <td colspan="7">
+                        <div class="empty-state">
+                          <div class="empty-icon">📅</div>
+                          <div class="empty-text">ยังไม่มีการจอง</div>
+                        </div>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── BOOKING MODAL ── -->
+    <div class="room-modal-overlay" id="bookingModalOverlay">
+      <div class="room-modal">
+        <div class="room-modal-header">
+          <div style="font-weight: 700; font-size: 15px" id="bookingModalTitle">
+            📅 จองห้องประชุม
+          </div>
+          <button class="btn-icon" onclick="window.closeBookingModal()">
+            ✕
+          </button>
+        </div>
+        <div class="room-modal-body">
+          <input type="hidden" id="fBookingId" />
+          <div class="booking-form-grid">
+            <div class="form-group bspan2">
+              <label class="form-label"
+                >ห้องประชุม <span style="color: var(--danger)">*</span></label
+              >
+              <select class="form-input" id="fBookingRoom"></select>
+            </div>
+            <div class="form-group bspan2">
+              <label class="form-label"
+                >หัวข้อ / วัตถุประสงค์
+                <span style="color: var(--danger)">*</span></label
+              >
+              <input
+                class="form-input"
+                id="fBookingTopic"
+                placeholder="ระบุหัวข้อการประชุม"
+              />
+            </div>
+            <div class="form-group bspan2">
+              <label class="form-label"
+                >วันที่ <span style="color: var(--danger)">*</span></label
+              >
+              <input type="date" class="form-input" id="fBookingDate" />
+            </div>
+            <div class="form-group">
+              <label class="form-label"
+                >เวลาเริ่ม <span style="color: var(--danger)">*</span></label
+              >
+              <input type="time" class="form-input" id="fBookingStart" />
+            </div>
+            <div class="form-group">
+              <label class="form-label"
+                >เวลาสิ้นสุด <span style="color: var(--danger)">*</span></label
+              >
+              <input type="time" class="form-input" id="fBookingEnd" />
+            </div>
+            <div class="form-group bspan2">
+              <label class="form-label">กิจกรรม (ถ้ามี)</label>
+              <select class="form-input" id="fBookingEvent">
+                <option value="">-- ไม่ระบุ --</option>
+              </select>
+            </div>
+            <div class="form-group bspan2">
+              <label class="form-label">หมายเหตุ</label>
+              <textarea
+                class="form-input"
+                id="fBookingNote"
+                rows="2"
+                placeholder="..."
+              ></textarea>
+            </div>
+          </div>
+          <!-- Conflict Alert -->
+          <div class="conflict-alert" id="conflictAlert">
+            ⚠️ ช่วงเวลานี้มีการจองห้องนี้อยู่แล้ว กรุณาเลือกเวลาอื่น
+          </div>
+        </div>
+        <div class="room-modal-footer">
+          <button
+            class="btn btn-secondary"
+            onclick="window.closeBookingModal()"
+          >
+            ยกเลิก
+          </button>
+          <button class="btn btn-primary" onclick="window.saveBooking()">
+            💾 บันทึก
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="./room-booking.js"></script>
+    <script src="../../../../js/core/auth.js"></script>
+    <script src="../../../../js/components/modal/deleteModal.js"></script>
+    <script src="../../../../js/components/modal/modalManager.js"></script>
+    <script src="../../../../js/components/modal/enterModal.js"></script>
+    <script type="module">
+      import { loadTopbar } from "../../../../js/components/navigation/topbar.js";
+      loadTopbar("📅 จองห้องประชุม");
+    </script>
+    <script src="../../../../js/components/navigation/sidebar.js"></script>
+  </body>
+</html>

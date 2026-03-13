@@ -1,0 +1,427 @@
+/* =========================================================
+   products.css — Products List Page
+========================================================= */
+
+/* ── TABLE ── */
+.table-products .btn-icon {
+  background: #ffffff;
+}
+.table-products .btn-icon:hover {
+  background: #f8fafc;
+}
+.table-products td:nth-child(2) {
+  cursor: pointer;
+}
+.table-products td:nth-child(2):hover img {
+  transform: scale(1.05);
+}
+.table-products td:nth-child(2) img {
+  transition: transform 0.15s ease;
+}
+
+/* ── STATUS TOGGLE ── */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 42px;
+  height: 22px;
+}
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.slider {
+  position: absolute;
+  inset: 0;
+  background: #d1d5db;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: 0.25s;
+}
+.slider:before {
+  content: "";
+  position: absolute;
+  height: 18px;
+  width: 18px;
+  left: 2px;
+  top: 2px;
+  background: white;
+  border-radius: 50%;
+  transition: 0.25s;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+}
+.switch input:checked + .slider {
+  background: var(--success);
+}
+.switch input:checked + .slider:before {
+  transform: translateX(20px);
+}
+
+/* ── CATEGORY PICKER ── */
+.cat-picker {
+  position: fixed;
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+  padding: 6px;
+  z-index: 9999;
+  display: none;
+}
+.cat-picker-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.cat-picker-item:hover {
+  background: var(--surface2);
+}
+.cat-badge {
+  cursor: pointer;
+  transition: 0.15s;
+}
+.cat-badge:hover {
+  transform: scale(1.05);
+}
+.col-center .cat-badge {
+  margin: auto;
+}
+
+/* ── LIGHTBOX ── */
+.lightbox-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(1px);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+.lightbox-overlay.open {
+  display: flex;
+}
+.lightbox-modal {
+  background: #fff;
+  border-radius: 14px;
+  padding: 20px;
+  max-width: 520px;
+  width: 90%;
+  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.6);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+}
+.lightbox-body {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+#lightboxImg {
+  max-height: 70vh;
+  max-width: 100%;
+  border-radius: 10px;
+}
+.lightbox-nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: none;
+  background: #f3f4f6;
+  cursor: pointer;
+  font-size: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: 0.15s;
+}
+.lightbox-nav:hover {
+  background: #e5e7eb;
+}
+.lightbox-nav.left {
+  left: -60px;
+}
+.lightbox-nav.right {
+  right: -60px;
+}
+.lightbox-close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  border: none;
+  background: #f3f4f6;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  cursor: pointer;
+}
+.lightbox-info {
+  margin-top: 10px;
+  text-align: center;
+}
+.lightbox-title {
+  font-weight: 600;
+  font-size: 14px;
+  margin-bottom: 3px;
+}
+.lightbox-counter {
+  font-size: 12px;
+  color: #6b7280;
+}
+.lightbox-thumbs {
+  display: flex;
+  gap: 6px;
+  margin-top: 10px;
+  overflow: auto;
+  justify-content: center;
+}
+.lightbox-thumb img {
+  height: 50px;
+  border-radius: 6px;
+  cursor: pointer;
+  opacity: 0.7;
+}
+.lightbox-thumb.active img {
+  opacity: 1;
+  border: 2px solid #3b82f6;
+}
+
+/* ── EDIT PANEL ── */
+.edit-panel {
+  position: fixed;
+  top: 0;
+  right: -420px;
+  width: 420px;
+  height: 100vh;
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+  box-shadow: -4px 0 24px rgba(0, 0, 0, 0.1);
+  z-index: 300;
+  display: flex;
+  flex-direction: column;
+  transition: right 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.edit-panel.open {
+  right: 0;
+}
+.edit-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface2);
+  flex-shrink: 0;
+}
+.edit-panel-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+}
+.edit-panel-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.edit-panel-footer {
+  padding: 14px 20px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  flex-shrink: 0;
+}
+
+/* ── EP IMAGE GRID ── */
+.ep-image-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+  margin-top: 6px;
+}
+.ep-slot {
+  aspect-ratio: 1;
+  border: 2px dashed var(--border2);
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  position: relative;
+  background: var(--surface2);
+  transition: border-color 0.15s;
+}
+.ep-slot:hover {
+  border-color: var(--accent);
+}
+.ep-slot-plus {
+  font-size: 20px;
+  color: var(--text3);
+  pointer-events: none;
+}
+.ep-slot-remove {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font-size: 11px;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.ep-slot:hover .ep-slot-remove {
+  opacity: 1;
+}
+
+/* ── STOCK BADGE ── */
+.stock-badge {
+  display: inline-flex;
+  padding: 3px 8px;
+  border-radius: 5px;
+  font-size: 12px;
+  font-family: "IBM Plex Mono", monospace;
+}
+.stock-ok {
+  background: var(--success-pale);
+  color: var(--success);
+}
+.stock-low {
+  background: var(--warning-pale);
+  color: var(--warning);
+}
+.stock-out {
+  background: var(--danger-pale);
+  color: var(--danger);
+}
+/* ── EDIT PRODUCT MODAL ── */
+.ep-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(2px);
+  z-index: 400;
+  display: none;
+}
+.ep-overlay.open {
+  display: block;
+}
+
+.ep-modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -60%);
+  width: 600px;
+  max-width: 95vw;
+  background: #fff;
+  border-radius: 14px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+  z-index: 401;
+  display: none;
+  flex-direction: column;
+  transition:
+    transform 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 0.25s;
+  opacity: 0;
+}
+.ep-modal.open {
+  display: flex;
+  transform: translate(-50%, -50%);
+  opacity: 1;
+}
+.ep-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface2);
+  border-radius: 14px 14px 0 0;
+}
+.ep-modal-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+}
+.ep-modal-close {
+  border: none;
+  background: #f3f4f6;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.ep-modal-body {
+  padding: 20px;
+  overflow-y: auto;
+  max-height: 65vh;
+}
+.ep-modal-footer {
+  padding: 14px 20px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  border-radius: 0 0 14px 14px;
+}
+.ep-section-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+}
+.ep-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-bottom: 12px;
+}
+.ep-field label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text2);
+}
+.ep-input {
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.ep-input:focus {
+  border-color: var(--accent);
+}
+.ep-row2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}

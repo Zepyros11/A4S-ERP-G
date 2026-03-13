@@ -1,0 +1,310 @@
+================================================================
+EVENT / PROCUREMENT MODULE — Documentation
+A4S-ERP | modules/event/procurement/
+================================================================
+
+
+----------------------------------------------------------------
+1. INFRASTRUCTURE
+----------------------------------------------------------------
+
+Folder Structure:
+  modules/event/procurement/
+  ├── procurement.css        — shared styles (budget cards, progress bar,
+  │                            supplier badges, modals, upload area)
+  ├── event-budget.html      — งบประมาณ + vendor per event (main page)
+  ├── event-budget.js        — controller: budget upsert, vendor CRUD
+  ├── event-suppliers.html   — cross-event vendor overview
+  └── event-suppliers.js     — controller: filter all vendors
+
+Shared Dependencies:
+  js/components/navigation/sidebar.js
+  js/components/navigation/topbar.js
+  js/components/modal/deleteModal.js
+  js/components/modal/modalManager.js
+  js/core/auth.js
+  css/main.css
+
+Sidebar Entry (sidebar.js):
+  Group : กิจกรรม (EVENT) — id: g-event
+  Items :
+    event-budget → /modules/event/procurement/event-budget.html
+  READY : "event-budget" (เพิ่มต่อจาก "rooms")
+  NOTE  : event-suppliers ไม่มีใน sidebar — เข้าผ่านปุ่มใน event-budget
+
+Storage bucket:
+  event-files/documents/   — เก็บไฟล์แนบ vendor (ใบเสนอราคา/สัญญา)
+  naming: sup_{eventId}_{timestamp}.{ext}
+
+
+----------------------------------------------------------------
+2. DATABASE TABLES
+----------------------------------------------------------------
+
+event_budget
+  budget_id      integer PK
+  event_id       integer → events  UNIQUE (1 budget per event)
+  budget_total   numeric DEFAULT 0
+  spent_amount   numeric DEFAULT 0  (ไม่ได้ใช้โดยตรง — คำนวณจาก suppliers)
+  approved_by    integer → users
+  approved_at    timestamp
+  note           text
+  created_at     timestamp
+
+event_suppliers
+  ev_supplier_id  integer PK
+  event_id        integer → events
+  supplier_id     integer → suppliers  (optional — ถ้าผูกกับ master supplier)
+  supplier_name   varchar              (ชื่อ vendor อิสระ)
+  service_type    varchar CHECK IN:
+                    VENUE / CATERING / AV / DECORATION / PRINTING /
+                    TRANSPORT / PHOTOGRAPHER / BOOTH / GIFT / OTHER
+  detail          text
+  amount          numeric DEFAULT 0
+  status          varchar: PENDING / CONFIRMED / PAID / CANCELLED
+  doc_url         varchar              (URL ไฟล์แนบจาก storage)
+  created_at      timestamp
+
+Supabase RLS:
+  event_budget    → DISABLE ROW LEVEL SECURITY
+  event_suppliers → DISABLE ROW LEVEL SECURITY
+
+
+----------------------------------------------------------------
+3. DATA FLOW
+----------------------------------------------------------------
+
+[event-budget — โหลดหน้า]
+  initPage()
+    → fetchEvents()          GET /events?order=event_date.desc
+    → populateEventSelect()  สร้าง dropdown [EVT-CODE] ชื่อ
+    → รับ ?event_id=N จาก URL params
+      → ถ้ามี: set dropdown value → loadEventBudget(N)
+
+[event-budget — เลือกกิจกรรม]
+  onEventChange()
+    → loadEventBudget(eventId)
+        → fetchBudget(eventId)
+              GET /event_budget?event_id=eq.N
+              คืน record แรก หรือ null ถ้าไม่มี
+        → fetchSuppliers(eventId)
+              GET /event_suppliers?event_id=eq.N&order=created_at.asc
+        → renderBudgetSummary()
+              calcSpent() = sum(amount) ของ status != CANCELLED
+              คำนวณ pct = spent/total*100
+              เปลี่ยนสี progress bar:
+                pct < 80%  → success (เขียว)
+                pct >= 80% → warn (เหลือง)
+                pct >= 100%→ danger (แดง)
+        → renderSupplierTable()
+
+[event-budget — ตั้งงบประมาณ]
+  openBudgetModal()   → fill form จาก currentBudget
+  saveBudget()
+    → validate budget_total >= 0
+    → upsertBudget(eventId, data)
+          fetchBudget(eventId) เช็คว่ามีอยู่แล้วไหม
+          ถ้ามี  → PATCH /event_budget?budget_id=eq.N
+          ถ้าไม่มี → POST /event_budget
+    → reload currentBudget → renderBudgetSummary()
+
+[event-budget — เพิ่ม/แก้ไข Vendor]
+  openSupplierModal(id?)
+    → ถ้ามี id: fill form จาก currentSuppliers
+    → ถ้าไม่มี: reset form
+  handleSupFile()     → validate size ≤ 10MB, store supAttachFile
+  saveSupplier()
+    → validate: supplier_name + service_type required
+    → ถ้า editingSupId: PATCH /event_suppliers?ev_supplier_id=eq.N
+    → ถ้าไม่มี: POST /event_suppliers
+    → ถ้ามี supAttachFile:
+          uploadSupDoc() → POST storage/event-files/documents/
+          updateSupplier() → PATCH doc_url
+    → reload currentSuppliers
+    → renderSupplierTable() + renderBudgetSummary()
+
+[event-budget — ลบ Vendor]
+  deleteSupplier(id)
+    → DeleteModal.open()
+    → DELETE /event_suppliers?ev_supplier_id=eq.N
+    → reload + re-render
+
+[event-suppliers — cross-event view]
+  initPage()
+    → fetchAllSuppliers()    GET /event_suppliers?order=created_at.desc
+    → fetchEvents()          GET /events
+    → populateEventFilter()
+    → updateCards()          total / paid count / total amount
+    → filterTable()          filter by search + event + serviceType + status
+  คลิก event_code link → event-budget.html?event_id=N
+
+
+----------------------------------------------------------------
+4. ปัญหาที่เจอและต้องระวัง
+----------------------------------------------------------------
+
+🔴 CRITICAL
+
+ปัญหา : event_budget UNIQUE constraint ชน
+สาเหตุ : upsertBudget() ใช้ 2 steps (fetch → POST/PATCH)
+         ถ้า fetch ไม่เจอแต่ record มีอยู่จริง (race condition)
+         จะ POST ซ้ำ → duplicate key error
+วิธีแก้ : ใช้ Supabase upsert header แทน:
+         Prefer: resolution=merge-duplicates
+         หรือใช้ ON CONFLICT DO UPDATE ใน SQL
+
+ปัญหา : spent_amount ใน event_budget ไม่ sync กับ event_suppliers
+สาเหตุ : column spent_amount ใน DB ไม่ได้ update อัตโนมัติ
+         — ใช้ calcSpent() client-side แทน
+วิธีแก้ : ปัจจุบัน: คำนวณ client-side ทุกครั้ง (OK สำหรับ dev)
+         Production: ควรใช้ DB trigger หรือ recalculate ทุกครั้งที่ save
+
+ปัญหา : ลบ event ที่มี event_budget/event_suppliers อยู่
+สาเหตุ : FK constraint จะ error
+วิธีแก้ : ใช้ ON DELETE CASCADE ใน schema
+         หรือลบ suppliers/budget ก่อนลบ event เสมอ
+
+🟡 MEDIUM
+
+ปัญหา : doc_url ค้างหลัง edit vendor (แสดง "ไฟล์แนบอยู่แล้ว")
+สาเหตุ : ไม่ได้ clear supFileName เมื่อไม่ได้เลือกไฟล์ใหม่
+วิธีแก้ : ถ้า edit และไม่เลือกไฟล์ใหม่ → keep เดิม (พฤติกรรมถูกต้อง)
+         ถ้าต้องการลบไฟล์ → เพิ่มปุ่ม "ลบไฟล์แนบ"
+
+ปัญหา : fetchAllSuppliers() ดึงข้อมูลทั้งหมดไม่มี pagination
+สาเหตุ : ถ้ามี vendor มากจะช้า
+วิธีแก้ : เพิ่ม limit หรือ filter ที่ query เช่น
+         ?limit=200&order=created_at.desc
+
+ปัญหา : amount เป็น string จาก input type=number
+สาเหตุ : input value คืน string เสมอ
+วิธีแก้ : parseFloat() ก่อน save เสมอ — ทำแล้วใน saveSupplier()
+
+ปัญหา : progress bar แสดง 0% ถ้า budget_total = 0 หรือ null
+สาเหตุ : division by zero
+วิธีแก้ : guard clause: pct = total > 0 ? (spent/total)*100 : 0
+         — ทำแล้วใน renderBudgetSummary()
+
+🟢 MINOR
+
+ปัญหา : event-budget.html เปิดมาแล้วต้องเลือก event เอง
+สาเหตุ : ถ้าไม่มี ?event_id ใน URL จะแสดง empty state
+วิธีแก้ : ปกติแล้วควร navigate มาพร้อม ?event_id=N
+         จาก events-list หรือ event-log
+
+ปัญหา : cardTotalAmount ใน event-suppliers ไม่นับ CANCELLED
+สาเหตุ : updateCards() filter status != CANCELLED ก่อน sum
+วิธีแก้ : พฤติกรรมถูกต้องแล้ว — ต้องระวังถ้าแก้ logic
+
+ปัญหา : serviceLabel() คืน raw value ถ้า type ไม่อยู่ใน map
+สาเหตุ : fallback เป็น t (raw string)
+วิธีแก้ : ครอบคลุมแล้ว — ถ้าเพิ่ม service_type ใหม่ ต้องเพิ่มใน
+         serviceLabel() ทั้ง event-budget.js และ event-suppliers.js
+
+
+----------------------------------------------------------------
+5. SCHEMA GAP — columns ที่มีใน DB แต่ไม่ได้ใช้
+----------------------------------------------------------------
+
+event_suppliers.supplier_id  — FK → suppliers master table
+  ปัจจุบัน: ใช้ supplier_name แบบ free text แทน
+  ถ้าต้องการผูกกับ master suppliers:
+    เพิ่ม dropdown ใน modal และ set supplier_id ด้วย
+
+event_budget.spent_amount    — ไม่ได้ update อัตโนมัติ
+  ปัจจุบัน: คำนวณ client-side จาก event_suppliers
+  ถ้าต้องการ sync:
+    เพิ่ม PATCH spent_amount ทุกครั้งที่ save/delete supplier
+
+
+----------------------------------------------------------------
+6. CONVENTIONS
+----------------------------------------------------------------
+
+Budget Upsert Pattern:
+  1. fetchBudget(eventId)    → ตรวจว่ามีอยู่แล้ว
+  2. ถ้ามี  → PATCH /event_budget?budget_id=eq.N
+  3. ถ้าไม่มี → POST /event_budget (พร้อม event_id)
+
+URL Navigation Pattern:
+  event-budget.html?event_id=N    → pre-select event
+  event-suppliers.html            → cross-event view
+  คลิก event_code ใน suppliers  → event-budget.html?event_id=N
+
+Progress Bar Color Logic:
+  pct < 80%   → .budget-bar-fill          (สีเขียว — var(--success))
+  pct >= 80%  → .budget-bar-fill.warn     (สีเหลือง — var(--warning))
+  pct >= 100% → .budget-bar-fill.danger   (สีแดง — var(--danger))
+
+calcSpent() Logic:
+  sum(amount) ของ suppliers ที่ status != CANCELLED
+  ไม่นับ CANCELLED เพราะยกเลิกแล้วไม่ควรนับเป็นค่าใช้จ่าย
+
+Service Types (value → label):
+  VENUE        → 🏢 สถานที่
+  CATERING     → 🍽 อาหาร/เครื่องดื่ม
+  AV           → 🎤 AV/อุปกรณ์เสียง
+  DECORATION   → 🎨 ตกแต่ง
+  PRINTING     → 🖨 สิ่งพิมพ์
+  TRANSPORT    → 🚌 ขนส่ง
+  PHOTOGRAPHER → 📷 ช่างภาพ/วิดีโอ
+  BOOTH        → 🏪 บูธ/โครงสร้าง
+  GIFT         → 🎁 ของที่ระลึก/ของขวัญ
+  OTHER        → 📌 อื่นๆ
+
+Supplier Status Flow:
+  PENDING → CONFIRMED → PAID
+      └──────────────────→ CANCELLED (ได้จากทุก status)
+
+File Upload Path:
+  event-files/documents/sup_{eventId}_{timestamp}.{ext}
+
+
+----------------------------------------------------------------
+7. API FUNCTIONS SUMMARY
+----------------------------------------------------------------
+
+event-budget.js:
+  fetchEvents()              GET /events?order=event_date.desc
+  fetchBudget(eventId)       GET /event_budget?event_id=eq.N → record[0]
+  upsertBudget(eventId,data) fetch → PATCH ถ้ามี / POST ถ้าไม่มี
+  fetchSuppliers(eventId)    GET /event_suppliers?event_id=eq.N
+  createSupplier(data)       POST /event_suppliers
+  updateSupplier(id,data)    PATCH /event_suppliers?ev_supplier_id=eq.N
+  removeSupplier(id)         DELETE /event_suppliers?ev_supplier_id=eq.N
+  uploadSupDoc(eventId,file) POST storage/event-files/documents/
+
+event-suppliers.js:
+  fetchAllSuppliers()        GET /event_suppliers?order=created_at.desc
+  fetchEvents()              GET /events?order=event_date.desc
+
+
+----------------------------------------------------------------
+8. STATUS FLOW
+----------------------------------------------------------------
+
+Budget:
+  ไม่มี budget → [ตั้งงบประมาณ] → มี budget_total
+  แก้ไขได้ตลอดเวลา (upsert)
+
+Supplier/Vendor:
+  [เพิ่ม Vendor]
+        ↓
+    PENDING
+        ↓
+    CONFIRMED
+        ↓
+      PAID
+        ↓ (จากทุก status)
+    CANCELLED
+
+Budget Visual:
+  spent/total < 80%   → 🟢 ปกติ
+  spent/total >= 80%  → 🟡 ใกล้เต็ม
+  spent/total >= 100% → 🔴 เกินงบ
+
+
+================================================================
+END OF DOCUMENT
+A4S-ERP — Event/Procurement Module
+================================================================

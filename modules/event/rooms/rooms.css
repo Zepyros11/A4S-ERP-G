@@ -1,0 +1,247 @@
+/* =========================================================
+   rooms.css — Meeting Rooms Module
+========================================================= */
+
+/* ── ROOM CARD GRID ── */
+.rooms-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+  padding: 4px 0;
+}
+
+.room-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition:
+    box-shadow 0.15s,
+    border-color 0.15s;
+  cursor: pointer;
+}
+.room-card:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  border-color: var(--accent);
+}
+.room-card.inactive {
+  opacity: 0.5;
+}
+
+.room-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+.room-card-icon {
+  font-size: 28px;
+  line-height: 1;
+}
+.room-card-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  flex: 1;
+}
+.room-card-code {
+  font-size: 11px;
+  color: var(--text3);
+  font-family: "IBM Plex Mono", monospace;
+  margin-top: 2px;
+}
+
+.room-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.room-meta-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  background: var(--surface2);
+  color: var(--text2);
+}
+
+.room-facilities {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.facility-tag {
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-size: 11px;
+  background: #e0f2fe;
+  color: #0369a1;
+}
+
+.room-card-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+/* ── BOOKING STATUS ── */
+.booking-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.bstatus-PENDING {
+  background: #fef3c7;
+  color: #d97706;
+}
+.bstatus-CONFIRMED {
+  background: #d1fae5;
+  color: #059669;
+}
+.bstatus-CANCELLED {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+/* ── ROOM MODAL ── */
+.room-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(4px);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 400;
+}
+.room-modal-overlay.open {
+  display: flex;
+}
+.room-modal {
+  background: var(--surface);
+  border-radius: 16px;
+  width: 520px;
+  max-width: 95vw;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+  animation: modalPop 0.2s ease;
+}
+@keyframes modalPop {
+  from {
+    transform: scale(0.95);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+.room-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.room-modal-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.room-modal-footer {
+  padding: 14px 20px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  flex-shrink: 0;
+}
+
+/* ── FACILITIES CHECKBOXES ── */
+.facilities-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.facility-check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  cursor: pointer;
+}
+.facility-check input {
+  cursor: pointer;
+}
+
+/* ── TIMELINE ── */
+.booking-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 8px;
+}
+.booking-slot {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  font-size: 13px;
+}
+.booking-slot-time {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 12px;
+  color: var(--text2);
+  min-width: 110px;
+}
+.booking-slot-topic {
+  flex: 1;
+  font-weight: 600;
+}
+.booking-slot-actions {
+  display: flex;
+  gap: 6px;
+}
+
+/* ── BOOKING FORM ── */
+.booking-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.booking-form-grid .bspan2 {
+  grid-column: span 2;
+}
+
+/* ── CONFLICT ALERT ── */
+.conflict-alert {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 13px;
+  color: #b91c1c;
+  display: none;
+}
+.conflict-alert.show {
+  display: block;
+}

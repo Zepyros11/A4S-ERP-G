@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Vendor / Supplier — A4S-ERP</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../../../../css/main.css" />
+    <link rel="stylesheet" href="./procurement.css" />
+  </head>
+  <body>
+    <div class="loading-overlay" id="loadingOverlay">
+      <div class="spinner"></div>
+    </div>
+    <div class="toast" id="toast"></div>
+
+    <div class="topbar"></div>
+    <div class="layout">
+      <div id="sidebar-container"></div>
+      <div class="content-area">
+        <div class="page">
+          <!-- PAGE HEADER -->
+          <div
+            style="
+              display: flex;
+              align-items: center;
+              justify-content: space-between;
+              margin-bottom: 20px;
+            "
+          >
+            <div style="font-size: 20px; font-weight: 700">
+              🚚 Vendor / Supplier ทั้งหมด
+            </div>
+            <button
+              class="btn btn-secondary"
+              onclick="window.location.href = './event-budget.html'"
+            >
+              ← งบประมาณ
+            </button>
+          </div>
+
+          <!-- TOOLBAR -->
+          <div class="toolbar">
+            <div class="search-wrap">
+              <span class="search-icon">🔍</span>
+              <input
+                class="search-input"
+                id="searchInput"
+                placeholder="ค้นหาชื่อ Vendor..."
+              />
+            </div>
+            <select class="filter-select" id="filterEvent">
+              <option value="">🗓 ทุกกิจกรรม</option>
+            </select>
+            <select class="filter-select" id="filterServiceType">
+              <option value="">⚪ ทุกประเภท</option>
+              <option value="VENUE">🏢 สถานที่</option>
+              <option value="CATERING">🍽 อาหาร</option>
+              <option value="AV">🎤 AV</option>
+              <option value="DECORATION">🎨 ตกแต่ง</option>
+              <option value="PRINTING">🖨 สิ่งพิมพ์</option>
+              <option value="TRANSPORT">🚌 ขนส่ง</option>
+              <option value="PHOTOGRAPHER">📷 ช่างภาพ</option>
+              <option value="BOOTH">🏪 บูธ</option>
+              <option value="GIFT">🎁 ของขวัญ</option>
+              <option value="OTHER">📌 อื่นๆ</option>
+            </select>
+            <select class="filter-select" id="filterSupStatus">
+              <option value="">⚪ ทุกสถานะ</option>
+              <option value="PENDING">⏳ รอดำเนินการ</option>
+              <option value="CONFIRMED">✅ ยืนยันแล้ว</option>
+              <option value="PAID">💳 ชำระแล้ว</option>
+              <option value="CANCELLED">❌ ยกเลิก</option>
+            </select>
+          </div>
+
+          <!-- STATS ROW -->
+          <div class="stats-row" style="margin-bottom: 16px">
+            <div class="stat-card">
+              <div class="stat-icon">🚚</div>
+              <div>
+                <div class="stat-value" id="cardTotal">0</div>
+                <div class="stat-label">Vendor ทั้งหมด</div>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon">💳</div>
+              <div>
+                <div class="stat-value" id="cardPaid">0</div>
+                <div class="stat-label">ชำระแล้ว</div>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon">💰</div>
+              <div>
+                <div class="stat-value" id="cardTotalAmount">฿0</div>
+                <div class="stat-label">มูลค่ารวม</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- TABLE -->
+          <div class="content-wrap">
+            <div class="table-card">
+              <div class="table-hdr">
+                <div class="table-title">🚚 รายการ Vendor ทั้งหมด</div>
+                <div class="table-count" id="tableCount">0 รายการ</div>
+              </div>
+              <div class="table-wrap">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>ชื่อ Vendor</th>
+                      <th class="col-center">กิจกรรม</th>
+                      <th class="col-center">ประเภท</th>
+                      <th class="col-center">มูลค่า (฿)</th>
+                      <th class="col-center">สถานะ</th>
+                      <th class="col-center">เอกสาร</th>
+                    </tr>
+                  </thead>
+                  <tbody id="tableBody">
+                    <tr>
+                      <td colspan="6">
+                        <div class="empty-state">
+                          <div class="empty-icon">🚚</div>
+                          <div class="empty-text">ยังไม่มี Vendor</div>
+                        </div>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="./event-suppliers.js"></script>
+    <script src="../../../../js/core/auth.js"></script>
+    <script src="../../../../js/components/modal/modalManager.js"></script>
+    <script type="module">
+      import { loadTopbar } from "../../../../js/components/navigation/topbar.js";
+      loadTopbar("🚚 Vendor / Supplier");
+    </script>
+    <script src="../../../../js/components/navigation/sidebar.js"></script>
+  </body>
+</html>

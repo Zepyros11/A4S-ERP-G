@@ -1,0 +1,143 @@
+Event / Requests Module — Documentation
+
+1. Infrastructure
+modules/event/requests/
+├── event-requests.html       — list + side panel + approve/reject
+├── event-requests.js         — controller (filter, CRUD, approve/reject)
+├── event-requests.css        — styles
+├── event-request-form.html   — full form page (ยื่นคำขอ)
+├── event-request-form.js     — controller form
+└── event-request-form.css    — styles form
+Shared dependencies:
+js/components/navigation/sidebar.js
+js/components/navigation/topbar.js
+js/components/modal/deleteModal.js
+js/components/modal/modalManager.js
+js/core/auth.js
+css/main.css
+-------------------------------------------------------------------------------
+2. Database Tables ที่ใช้
+event_requests   — ข้อมูลหลักคำขอ
+events           — สร้าง event อัตโนมัติเมื่อ approve
+users            — ผู้ขอ / ผู้อนุมัติ
+departments      — dropdown แผนก
+Storage bucket: event-files/documents/ — เก็บไฟล์แนบ
+-------------------------------------------------------------------------------
+3. Data Flow
+[ยื่นคำขอใหม่]
+event-request-form.js
+  → initPage()              fetch departments → populate dropdown
+  → handleFileSelect()      validate size ≤ 10MB, store in attachFile
+  → handleFileDrop()        drag & drop → store in attachFile
+  → submitRequest()
+      → validate            name + type + date required
+      → autoGenerateRequestCode()
+            query DB: REQ-YYYYMM-* → find maxSeq → REQ-YYYYMM-XXX
+      → createRequest(payload)   POST /event_requests
+      → uploadRequestFile()      POST storage/event-files/documents/
+      → updateRequest()          PATCH attachment_url
+      → redirect                 → event-requests.html
+
+[หน้า List]
+event-requests.js
+  → loadData()
+      → fetchRequests()     GET /event_requests?order=created_at.desc
+      → fetchUsers()        GET /users
+      → fetchDepts()        GET /departments
+  → filterTable()           filter by search + status + type
+  → renderTable()           สร้าง HTML rows
+  → openReqPanel()          side panel แสดง detail + action buttons
+
+[อนุมัติ]
+event-requests.js
+  → approveRequest(id)
+      → createEventFromRequest()
+            query DB: EVT-YYYYMM-* → find maxSeq → EVT-YYYYMM-XXX
+            POST /events  (status: CONFIRMED)
+      → updateRequest(id)   PATCH status=APPROVED, event_id=newEvent.id
+      → reload
+
+[ปฏิเสธ]
+event-requests.js
+  → openRejectModal(id)     เก็บ rejectTargetId
+  → confirmReject()
+      → validate            reason required
+      → updateRequest(id)   PATCH status=REJECTED, reject_reason
+      → reload
+-------------------------------------------------------------------------------
+4. ปัญหาที่เจอและต้องระวัง
+🔴 Critical
+                ปัญหา              |             สาเหตุ                     |             วิธีแก้
+__________________________________________________________________________________________________
+duplicate key                      |autoGenerateRequestCode()              |ใช้ try/catch ครอบ + 
+event_requests_request_code_key    |race condition ถ้า submit พร้อมกัน       |retry หรือใช้ DB sequence แทน
+------------------------------------------------------------------------------------------------
+createEventFromRequest() fail แต่  |ไม่มี transaction — 2 steps แยกกัน        |ถ้า event สร้างไม่ได้ ให้ rollback status กลับ PENDING
+request ถูก approve แล้ว            |                                       |ตรวจ session ก่อน submit เสมอ
+------------------------------------------------------------------------------------------------
+ requested_by เป็น null            |session หมดอายุหรือไม่ได้ login            |ตรวจ session ก่อน submit เสมอ
+______________________________________________________________________________________________
+
+🟡 Medium
+                ปัญหา              |             สาเหตุ                     |             วิธีแก้
+__________________________________________________________________________________________________
+ปุ่ม "＋ ยื่นคำขอ" ใน list ยังเรียก      |ลืมแก้ onclick หลัง                      |แก้เป็น 
+openRequestModal()                |refactor เป็น form page                 |window.location.href='./event-request-form.html'
+--------------------------------------------------------------------------------------------------
+dept_id ไม่มีใน                     |   แผนกถูกลบหรือ                        |query is_active=eq.true + แสดง "—" ถ้าหาไม่เจอ
+departments table                 | is_active=false                       |
+--------------------------------------------------------------------------------------------------
+file upload สำเร็จแต่ attachment_url |updateRequest() ถูกเรียกหลัง error อื่น    |แยก try/catch upload ออกจาก main flow
+ไม่ถูก save                         |                                       |
+--------------------------------------------------------------------------------------------------
+end_date < requested_date         |   ไม่มี validation                     | เพิ่ม validate ใน submitRequest()
+                                  |                                      |
+______________________________________________________________________________________________
+
+🟢 Minor
+                ปัญหา              |             สาเหตุ                     |             วิธีแก้
+__________________________________________________________________________________________________
+fReqBudget ไม่ถูก save ลง DB        | event_requests table ไม่มี column budget |เพิ่ม column หรือยัดเข้า detail field
+--------------------------------------------------------------------------------------------------
+start_time / end_time ไม่ถูก save   | เหมือนกัน — ไม่มีใน schema                 | เพิ่ม column หรือยัดใน detail
+drag & drop ไม่ทำงานบน Firefox เก่า | event API ต่างกัน                        | ใส่ e.stopPropagation() ใน ondragover
+______________________________________________________________________________________________
+
+5. Schema Gap — ต้องเพิ่ม columns (ถ้าต้องการ)
+event_requests table ปัจจุบัน ไม่มี fields เหล่านี้:
+sql-- รัน SQL Editor ใน Supabase ถ้าต้องการเก็บข้อมูลเพิ่ม
+ALTER TABLE event_requests
+  ADD COLUMN IF NOT EXISTS start_time time,
+  ADD COLUMN IF NOT EXISTS end_time   time,
+  ADD COLUMN IF NOT EXISTS budget     numeric DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS objective  text;
+ถ้าไม่รัน → ข้อมูลจาก form จะถูก merge เข้า detail field แทน (วิธีที่ทำอยู่ตอนนี้)
+
+6. Conventions สำคัญ
+javascript// Request Code format
+REQ-YYYYMM-XXX   // เช่น REQ-202603-001
+
+// Event Code ที่สร้างจาก approve
+EVT-YYYYMM-XXX   // เช่น EVT-202603-001
+
+// Path ภายใน requests/ folder
+./event-request-form.html     ✅
+./event-requests.html         ✅
+
+// Session
+JSON.parse(localStorage.getItem("erp_session") ||
+           sessionStorage.getItem("erp_session") || "{}")
+
+// File upload path
+event-files/documents/req_${requestId}_${Date.now()}.${ext}
+```
+
+---
+
+## 7. Status Flow
+```
+ยื่นคำขอ
+    ↓
+ PENDING  ──── อนุมัติ ────→  APPROVED  →  สร้าง Event (EVT-YYYYMM-XXX)
+    │
+    └──── ปฏิเสธ (ระบุเหตุผล) ──→  REJECTED

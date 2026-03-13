@@ -1,0 +1,163 @@
+================================================================
+EVENT MODULE — Module Overview
+A4S-ERP | modules/event/
+================================================================
+
+
+----------------------------------------------------------------
+MODULE STRUCTURE
+----------------------------------------------------------------
+
+modules/event/
+├── activity/
+│   ├── events-list.html        รายการกิจกรรมทั้งหมด
+│   ├── events-list.js
+│   ├── events.css
+│   ├── event-form.html         สร้าง / แก้ไขกิจกรรม
+│   ├── event-form.js
+│   ├── event-form.css
+│   ├── event-log.html          บันทึก log กิจกรรม
+│   ├── event-log.js
+│   └── event-log.css
+│
+├── requests/
+│   ├── event-requests.html     รายการใบขอจัดงาน + อนุมัติ/ปฏิเสธ
+│   ├── event-requests.js
+│   ├── event-requests.css
+│   ├── event-request-form.html ฟอร์มส่งใบขอ
+│   ├── event-request-form.js
+│   └── event-request-form.css
+│
+├── rooms/
+│   ├── rooms-list.html         จัดการห้องประชุม (CRUD)
+│   ├── rooms-list.js
+│   ├── room-booking.html       จองห้อง + ตรวจสอบ conflict
+│   ├── room-booking.js
+│   └── rooms.css
+│
+├── procurement/
+│   ├── event-budget.html       งบประมาณ + vendor per event
+│   ├── event-budget.js
+│   ├── event-suppliers.html    vendor ทุกกิจกรรม
+│   ├── event-suppliers.js
+│   └── procurement.css
+│
+├── attendees/
+│   ├── attendees.html          รายชื่อผู้เข้าร่วม + check-in
+│   ├── attendees.js
+│   └── attendees.css
+│
+└── media/
+    ├── media-schedule.html     ตารางงาน Media
+    ├── media-schedule.js
+    └── media-schedule.css
+
+
+----------------------------------------------------------------
+SIDEBAR NAVIGATION (sidebar.js)
+----------------------------------------------------------------
+
+Group: กิจกรรม (EVENT)  id: g-event
+
+  ID              Label                 Path
+  ──────────────────────────────────────────────────────────
+  events          กิจกรรม              activity/events-list.html
+  event-requests  ใบขอจัดงาน          requests/event-requests.html
+  rooms           ห้องประชุม           rooms/rooms-list.html
+  event-budget    งบประมาณ & Vendor    procurement/event-budget.html
+  attendees       ผู้เข้าร่วม         attendees/attendees.html
+  event-media     งาน Media            media/media-schedule.html
+
+READY array (ทุก ID ด้านบนต้องอยู่ใน READY):
+  "events", "event-requests", "rooms", "event-budget",
+  "attendees", "event-media"
+
+
+----------------------------------------------------------------
+SUB-MODULE SUMMARY
+----------------------------------------------------------------
+
+1. ACTIVITY (events-list + event-form + event-log)
+   ──────────────────────────────────────────────
+   Table    : events, event_logs
+   Features :
+     - รายการกิจกรรมพร้อม filter status / type / date
+     - สร้างกิจกรรมด้วย event_code auto-generate EVT-YYYYMM-XXX
+     - แก้ไข / ลบ / เปลี่ยน status inline
+     - อัปโหลด poster → Storage event-files/posters/
+     - บันทึก log แบบ timeline (text + แนบไฟล์)
+     - log_type: UPDATE / NOTE / REQUEST / ISSUE / CHECKIN / SYSTEM
+
+2. REQUESTS (event-requests + event-request-form)
+   ───────────────────────────────────────────────
+   Table    : event_requests, events
+   Features :
+     - ฟอร์มขอจัดงานพร้อมแนบไฟล์ → Storage event-files/documents/
+     - request_code auto-generate REQ-YYYYMM-XXX
+     - Side panel อนุมัติ → สร้าง events record อัตโนมัติ
+     - ปฏิเสธพร้อมระบุเหตุผล
+     - Status flow: PENDING → APPROVED / REJECTED
+
+3. ROOMS (rooms-list + room-booking)
+   ──────────────────────────────────
+   Table    : meeting_rooms, room_bookings
+   Features :
+     - จัดการห้องประชุม (CRUD) พร้อม facilities JSONB
+     - จองห้องพร้อม conflict check (client-side)
+     - ป้องกัน double booking: overlap = newStart < existEnd AND newEnd > existStart
+     - filter: ห้อง / วันที่ / status
+     - Realtime enabled (room_bookings)
+
+4. PROCUREMENT (event-budget + event-suppliers)
+   ──────────────────────────────────────────────
+   Table    : event_budget, event_suppliers
+   Features :
+     - upsert งบประมาณ (1 event = 1 record)
+     - Progress bar งบ: <80% เขียว / >=80% เหลือง / >=100% แดง
+     - CRUD vendor per event พร้อม upload contract
+     - spent_amount คำนวณ client-side จาก sum(amount) ที่ไม่ใช่ CANCELLED
+     - event-suppliers.html: ดู vendor ข้ามกิจกรรม
+     - Vendor status: PENDING → CONFIRMED → PAID / CANCELLED
+
+5. ATTENDEES (attendees)
+   ──────────────────────
+   Table    : event_attendees
+   Features :
+     - ลงทะเบียนผู้เข้าร่วม ticket_no auto: TK-{eventId}-XXXX
+     - Check-in toggle พร้อมบันทึก timestamp
+     - Stats: total / checked-in / paid / revenue
+     - Filter: check-in / payment status / attend type
+     - Export CSV (UTF-8 BOM) สำหรับ Excel ภาษาไทย
+     - รับ ?event_id=N จาก URL
+
+6. MEDIA (media-schedule)
+   ────────────────────────
+   Table    : event_media
+   Features :
+     - ตารางงาน Media per event
+     - Overall progress bar (% DONE จาก active tasks)
+     - Overdue detection เทียบ due_date vs today (Asia/Bangkok)
+     - Inline status dropdown (ไม่ต้องเปิด modal)
+     - Upload file → Storage event-files/media/
+     - Filter: ประเภท / สถานะ / ผู้รับผิดชอบ
+     - รับ ?event_id=N จาก URL
+
+
+----------------------------------------------------------------
+STATUS VALUES REFERENCE
+----------------------------------------------------------------
+
+events.status          : DRAFT / CONFIRMED / ONGOING / DONE / CANCELLED
+event_requests.status  : PENDING / APPROVED / REJECTED
+room_bookings.status   : PENDING / CONFIRMED / CANCELLED
+event_suppliers.status : PENDING / CONFIRMED / PAID / CANCELLED
+event_attendees.payment_status : FREE / PENDING / PAID / WAIVED
+event_attendees.attend_type    : ONSITE / ONLINE / VIP
+event_media.status     : TODO / INPROGRESS / DONE / CANCELLED
+event_media.media_type : PHOTO / VIDEO / GRAPHIC / LIVE / DOCUMENT / OTHER
+
+
+================================================================
+END OF DOCUMENT
+A4S-ERP — Event Module Overview
+================================================================

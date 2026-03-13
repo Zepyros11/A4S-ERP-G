@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>สร้างกิจกรรม — A4S-ERP</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../../../../css/main.css" />
+    <link rel="stylesheet" href="../activity/events.css" />
+    <link rel="stylesheet" href="./event-form.css" />
+  </head>
+  <body>
+    <div class="loading-overlay" id="loadingOverlay">
+      <div class="spinner"></div>
+    </div>
+    <div class="toast" id="toast"></div>
+
+    <!-- TOPBAR -->
+    <div class="topbar"></div>
+    <div class="layout">
+      <!-- SIDEBAR -->
+      <div id="sidebar-container"></div>
+
+      <!-- CONTENT -->
+      <div class="content-area">
+        <div class="page">
+          <!-- PAGE HEADER -->
+          <div class="toolbar" style="margin-bottom: 20px">
+            <div style="display: flex; align-items: center; gap: 12px">
+              <button
+                class="btn btn-outline"
+                onclick="window.location.href = '../activity/events-list.html'"
+              >
+                ← กลับ
+              </button>
+              <div>
+                <div style="font-size: 18px; font-weight: 700" id="pageTitle">
+                  ✨ สร้างกิจกรรมใหม่
+                </div>
+                <div
+                  style="font-size: 12px; color: var(--text3)"
+                  id="pageSubtitle"
+                >
+                  กรอกข้อมูลกิจกรรมให้ครบถ้วน
+                </div>
+              </div>
+            </div>
+            <div class="toolbar-right">
+              <button
+                class="btn btn-outline"
+                id="btnCancel"
+                onclick="window.location.href = '../activity/events-list.html'"
+              >
+                ยกเลิก
+              </button>
+              <button
+                class="btn btn-primary"
+                id="btnSave"
+                onclick="window.saveEvent()"
+              >
+                💾 บันทึก
+              </button>
+            </div>
+          </div>
+
+          <!-- FORM BODY (2 columns) -->
+          <div class="ef-layout">
+            <!-- ── LEFT COLUMN ── -->
+            <div class="ef-left">
+              <!-- SECTION: ข้อมูลหลัก -->
+              <div class="ef-section">
+                <div class="ef-section-title">📋 ข้อมูลหลัก</div>
+
+                <div class="ef-field">
+                  <label class="ef-label">
+                    ชื่องาน <span class="ef-required">*</span>
+                  </label>
+                  <input
+                    class="ef-input"
+                    type="text"
+                    id="fEventName"
+                    placeholder="ระบุชื่อกิจกรรม"
+                  />
+                </div>
+
+                <div class="ef-field">
+                  <label class="ef-label">
+                    ประเภทงาน <span class="ef-required">*</span>
+                  </label>
+                  <select class="ef-input" id="fEventType">
+                    <option value="">— เลือกประเภท —</option>
+                    <option value="BOOTH">🏪 ออกบูธ</option>
+                    <option value="MEETING">👥 ประชุม</option>
+                    <option value="ONLINE">💻 Online</option>
+                    <option value="HYBRID">🔀 Hybrid</option>
+                    <option value="CONFERENCE">🎤 Conference</option>
+                    <option value="OTHER">📌 อื่นๆ</option>
+                  </select>
+                </div>
+
+                <div class="ef-row-2">
+                  <div class="ef-field">
+                    <label class="ef-label">
+                      วันที่เริ่ม <span class="ef-required">*</span>
+                    </label>
+                    <input class="ef-input" type="date" id="fEventDate" />
+                  </div>
+                  <div class="ef-field">
+                    <label class="ef-label">วันที่สิ้นสุด</label>
+                    <input class="ef-input" type="date" id="fEndDate" />
+                  </div>
+                </div>
+
+                <div class="ef-row-2">
+                  <div class="ef-field">
+                    <label class="ef-label">เวลาเริ่ม</label>
+                    <input class="ef-input" type="time" id="fStartTime" />
+                  </div>
+                  <div class="ef-field">
+                    <label class="ef-label">เวลาสิ้นสุด</label>
+                    <input class="ef-input" type="time" id="fEndTime" />
+                  </div>
+                </div>
+
+                <div class="ef-field">
+                  <label class="ef-label">สถานที่</label>
+                  <input
+                    class="ef-input"
+                    type="text"
+                    id="fLocation"
+                    placeholder="ระบุสถานที่ / อาคาร / ห้องประชุม"
+                  />
+                </div>
+
+                <div class="ef-field">
+                  <label class="ef-label">จำนวนผู้เข้าร่วมสูงสุด</label>
+                  <input
+                    class="ef-input"
+                    type="number"
+                    id="fMaxAttendees"
+                    placeholder="0"
+                    min="0"
+                  />
+                </div>
+              </div>
+              <!-- end SECTION ข้อมูลหลัก -->
+
+              <!-- SECTION: การมอบหมาย -->
+              <div class="ef-section">
+                <div class="ef-section-title">👤 การมอบหมาย</div>
+
+                <div class="ef-row-2">
+                  <div class="ef-field">
+                    <label class="ef-label">ผู้รับผิดชอบ</label>
+                    <select class="ef-input" id="fAssignedTo">
+                      <option value="">— เลือกพนักงาน —</option>
+                    </select>
+                  </div>
+                  <div class="ef-field">
+                    <label class="ef-label">สถานะ</label>
+                    <select class="ef-input" id="fStatus">
+                      <option value="DRAFT">📝 Draft</option>
+                      <option value="CONFIRMED">✅ Confirmed</option>
+                      <option value="ONGOING">▶️ Ongoing</option>
+                      <option value="DONE">🏁 Done</option>
+                      <option value="CANCELLED">❌ Cancelled</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="ef-field">
+                  <label class="ef-label">รายละเอียดกิจกรรม</label>
+                  <textarea
+                    class="ef-input ef-textarea"
+                    id="fDescription"
+                    placeholder="ระบุรายละเอียดกิจกรรม หรือกำหนดการเบื้องต้น..."
+                  >
+                  </textarea>
+                </div>
+              </div>
+              <!-- end SECTION การมอบหมาย -->
+            </div>
+            <!-- end ef-left -->
+
+            <!-- ── RIGHT COLUMN ── -->
+            <div class="ef-right">
+              <!-- SECTION: โปสเตอร์ -->
+              <div class="ef-section">
+                <div class="ef-section-title">🖼️ โปสเตอร์กิจกรรม</div>
+
+                <!-- Preview -->
+                <div class="ef-poster-preview" id="posterPreview">
+                  <span class="ef-poster-placeholder">🗓️</span>
+                </div>
+
+                <!-- Upload Zone -->
+                <div
+                  class="ef-upload-zone"
+                  id="uploadZone"
+                  onclick="document.getElementById('posterInput').click()"
+                  ondragover="
+                    event.preventDefault();
+                    this.classList.add('drag-over');
+                  "
+                  ondragleave="this.classList.remove('drag-over')"
+                  ondrop="window.handlePosterDrop(event)"
+                >
+                  <div class="ef-upload-icon">📤</div>
+                  <div class="ef-upload-text">
+                    คลิกเพื่ออัปโหลด หรือลากไฟล์มาที่นี่
+                  </div>
+                  <div class="ef-upload-hint">JPG, PNG ไม่เกิน 5MB</div>
+                </div>
+                <input
+                  type="file"
+                  id="posterInput"
+                  accept="image/*"
+                  style="display: none"
+                  onchange="window.handlePosterSelect(this)"
+                />
+
+                <!-- Remove button -->
+                <button
+                  class="btn btn-danger-outline"
+                  id="btnRemovePoster"
+                  style="display: none; width: 100%; margin-top: 8px"
+                  onclick="window.removePoster()"
+                >
+                  🗑 ลบโปสเตอร์
+                </button>
+              </div>
+              <!-- end SECTION โปสเตอร์ -->
+
+              <!-- SECTION: รหัสกิจกรรม (auto) -->
+              <div class="ef-section">
+                <div class="ef-section-title">🔖 รหัสกิจกรรม</div>
+                <div class="ef-field">
+                  <label class="ef-label">Event Code</label>
+                  <input
+                    class="ef-input"
+                    style="font-family: &quot;IBM Plex Mono&quot;, monospace"
+                    type="text"
+                    id="fEventCode"
+                    placeholder="EVT-YYYYMM-001 (สร้างอัตโนมัติ)"
+                  />
+                  <div
+                    style="
+                      font-size: 11px;
+                      color: var(--text3);
+                      margin-top: 4px;
+                    "
+                  >
+                    ระบบจะสร้างให้อัตโนมัติ หรือกรอกเองได้
+                  </div>
+                </div>
+              </div>
+            </div>
+            <!-- end ef-right -->
+          </div>
+          <!-- end ef-layout -->
+        </div>
+        <!-- end .page -->
+
+        <!-- SCRIPTS -->
+        <script type="module" src="./event-form.js"></script>
+        <script src="../../../../js/core/auth.js"></script>
+        <script src="../../../../js/components/modal/deleteModal.js"></script>
+        <script src="../../../../js/components/modal/modalManager.js"></script>
+        <script type="module">
+          import { loadTopbar } from "../../../../js/components/navigation/topbar.js";
+          loadTopbar("🗓️ กิจกรรม");
+        </script>
+        <script src="../../../../js/components/navigation/sidebar.js"></script>
+      </div>
+    </div>
+  </body>
+</html>

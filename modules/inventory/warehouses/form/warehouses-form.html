@@ -1,0 +1,126 @@
+<!-- =====================================================
+     warehouses-form.html
+     Warehouse Form Modal
+===================================================== -->
+
+<div class="modal-overlay" id="warehouseModal">
+  <div class="modal" style="width: 660px">
+    <div class="modal-hdr">
+      <div class="modal-title" id="warehouseModalTitle">
+        เพิ่มคลังสินค้าใหม่
+      </div>
+      <button class="btn-modal-close" onclick="closeWarehouseModal()">✕</button>
+    </div>
+
+    <div class="modal-body">
+      <input type="hidden" id="whEditId" />
+
+      <div class="form-grid">
+        <!-- Row 1: รหัส | ประเภท | Icon -->
+        <div class="form-group">
+          <label class="form-label">รหัสคลัง *</label>
+          <input class="form-control" id="fCode" />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">ประเภทคลัง</label>
+          <select class="form-control" id="fType">
+            <option value="MAIN">🏣 คลังหลัก</option>
+            <option value="BRANCH">🏪 คลังสาขา</option>
+            <option value="TRANSIT">📦 จุดพักสินค้า</option>
+            <option value="RETURN">↩️ จุดคืนสินค้า</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Icon คลัง</label>
+          <select class="form-control" id="fIcon">
+            <option value="🏭">🏭 โรงงาน</option>
+            <option value="🏣">🏣 อาคารสินค้า</option>
+            <option value="🏢">🏢 อาคารสำนักงาน</option>
+            <option value="🏪">🏪 ร้านค้า/สาขา</option>
+            <option value="🏠">🏠 บ้าน</option>
+          </select>
+        </div>
+
+        <!-- Row 2: ชื่อคลัง -->
+        <div class="form-group full">
+          <label class="form-label">ชื่อคลัง *</label>
+          <input class="form-control" id="fName" />
+        </div>
+
+        <!-- Row 3: ที่อยู่ -->
+        <div class="form-group full">
+          <label class="form-label">ที่อยู่</label>
+          <textarea class="form-control" id="fAddress" rows="2"></textarea>
+        </div>
+
+        <!-- Row 4: ผู้ดูแล | เบอร์โทร -->
+        <div class="form-group">
+          <label class="form-label">ผู้ดูแล</label>
+          <input class="form-control" id="fManager" />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">เบอร์โทร</label>
+          <input class="form-control" id="fPhone" />
+        </div>
+
+        <!-- Row 5: ความจุ | สถานะ -->
+        <div class="form-group">
+          <label class="form-label">ความจุ</label>
+          <input class="form-control" type="number" id="fCapacity" />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">สถานะ</label>
+          <select class="form-control" id="fStatus">
+            <option value="true">ใช้งาน</option>
+            <option value="false">ปิด</option>
+          </select>
+        </div>
+
+        <!-- Row 6: ประเทศ | คลังแม่ -->
+        <div class="form-group">
+          <label class="form-label">ประเทศ</label>
+          <div class="country-dropdown-wrap" id="countryDropdownWrap">
+            <button
+              type="button"
+              class="country-trigger"
+              id="countryTrigger"
+              onclick="toggleCountryDropdown(event)"
+            >
+              — เลือกประเทศ —
+              <span class="country-trigger-arrow">▾</span>
+            </button>
+            <div class="country-panel" id="countryPanel">
+              <div class="country-list" id="countryList"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">คลังแม่ (Parent)</label>
+          <select class="form-control" id="fParent">
+            <option value="">— ไม่มี (คลังหลัก) —</option>
+          </select>
+        </div>
+
+        <!-- Row 7: หมายเหตุ -->
+        <div class="form-group full">
+          <label class="form-label">หมายเหตุ</label>
+          <textarea class="form-control" id="fNote" rows="2"></textarea>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeWarehouseModal()">
+        ยกเลิก
+      </button>
+      <button class="btn btn-primary" onclick="saveWarehouseForm()">
+        💾 บันทึก
+      </button>
+    </div>
+  </div>
+</div>

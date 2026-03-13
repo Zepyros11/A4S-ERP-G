@@ -1,0 +1,217 @@
+/* ============================================================
+   stock-initial.css — Styles for Stock Initial module
+   วางที่: modules/inventory/stockInitial/list/stock-initial.css
+   ============================================================ */
+
+/* ── Product code under name ── */
+.si-code {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11px;
+  color: var(--text3, #94a3b8);
+  margin-top: 2px;
+}
+
+/* ── Warehouse header in table ── */
+.si-wh-name {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* ── Input cell ── */
+.si-input-cell {
+  padding: 6px 8px !important;
+}
+
+.si-qty-input {
+  width: 80px;
+  padding: 5px 8px;
+  font-size: 13px;
+  height: 32px;
+  border-radius: 6px;
+  text-align: center;
+  border: 1px solid var(--border);
+  font-family: "IBM Plex Mono", monospace;
+}
+
+.si-qty-input:not(:placeholder-shown) {
+  border-color: var(--accent, #2563eb);
+}
+
+/* ── Data row ── */
+.si-data-row td {
+  vertical-align: middle;
+}
+
+/* ── Category badge ── */
+.cat-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.cat-icon {
+  font-size: 14px;
+}
+
+/* ============================================================
+   WAREHOUSE TABS (Mollness Design)
+   ============================================================ */
+
+.warehouse-tabs {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.tab-row-label {
+  font-size: 10px;
+  font-weight: 900;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  padding-left: 12px;
+  margin-bottom: 4px;
+}
+
+.tab-row {
+  display: inline-flex;
+  background: rgba(255, 255, 255, 0.5);
+  backdrop-filter: blur(10px);
+  padding: 6px;
+  border-radius: 40px;
+  border: 1px solid #e2e8f0;
+  gap: 4px;
+  flex-wrap: nowrap;
+  align-self: flex-start;
+}
+
+#parentTabs {
+  background: rgba(241, 245, 249, 0.5);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.02);
+}
+
+#childTabs {
+  background: rgba(241, 245, 249, 0.5);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.02);
+}
+
+.wh-tab {
+  border: none;
+  background: transparent;
+  padding: 10px 24px;
+  border-radius: 35px;
+  font-size: 13px;
+  font-weight: 800;
+  color: #64748b;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  white-space: nowrap;
+  font-family: "Sarabun", sans-serif;
+}
+
+.wh-tab::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #e2e8f0;
+  flex-shrink: 0;
+  transition: all 0.3s;
+}
+
+/* Country active */
+#countryTabs .wh-tab.active {
+  background: #0f172a;
+  color: #ffffff;
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+}
+
+#countryTabs .wh-tab.active::before {
+  background: #3b82f6;
+  box-shadow: 0 0 8px #3b82f6;
+}
+
+/* Parent active */
+#parentTabs .wh-tab {
+  padding: 8px 20px;
+  font-size: 13px;
+}
+
+#parentTabs .wh-tab.active {
+  background: #fccfcf;
+  color: #2563eb;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+#parentTabs .wh-tab.active::before {
+  background: #3b82f6;
+  box-shadow: 0 0 8px #3b82f6;
+}
+
+/* Child active */
+#childTabs .wh-tab {
+  padding: 8px 20px;
+  font-size: 12px;
+}
+
+#childTabs .wh-tab.active {
+  background: #ffffff;
+  color: #0f766e;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+#childTabs .wh-tab.active::before {
+  background: #0f766e;
+  box-shadow: 0 0 8px #0f766e;
+}
+/* ── WAREHOUSE FILTER ROW ── */
+.wh-filter-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.wh-filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.wh-filter-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  padding-left: 4px;
+}
+/* ── SI TOOLBAR LAYOUT ── */
+.si-toolbar {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+}
+
+.si-wh-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 12px;
+}
+
+.si-search-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}

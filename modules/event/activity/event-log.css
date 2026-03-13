@@ -1,0 +1,288 @@
+/* =========================================================
+   event-log.css — Event Log Page Styles
+========================================================= */
+
+/* ── LAYOUT ── */
+.log-layout {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: 20px;
+  align-items: start;
+}
+
+/* ── LEFT: INFO CARD ── */
+.log-info-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+  position: sticky;
+  top: 20px;
+}
+
+.log-poster {
+  width: 100%;
+  height: 180px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  margin-bottom: 14px;
+}
+.log-poster img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.log-event-name {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.4;
+  margin-bottom: 4px;
+}
+.log-event-code {
+  font-size: 11px;
+  color: var(--text3);
+  font-family: "IBM Plex Mono", monospace;
+  margin-bottom: 2px;
+}
+
+.log-divider {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 14px 0;
+}
+
+/* ── META ROWS ── */
+.log-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.log-meta-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.log-meta-icon {
+  font-size: 15px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.log-meta-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 2px;
+}
+.log-meta-value {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+}
+
+/* ── RIGHT: FEED CARD ── */
+.log-feed-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.log-feed-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface2);
+  flex-shrink: 0;
+}
+.log-feed-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+}
+.log-feed-count {
+  font-size: 12px;
+  color: var(--text3);
+}
+
+/* ── TIMELINE ── */
+.log-timeline {
+  flex: 1;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-height: 300px;
+  max-height: calc(100vh - 380px);
+  overflow-y: auto;
+}
+
+.log-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: var(--text3);
+  font-size: 13px;
+  padding: 40px 0;
+}
+
+/* ── LOG ITEM ── */
+.log-item {
+  display: flex;
+  gap: 12px;
+  animation: logFadeIn 0.3s ease;
+}
+@keyframes logFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.log-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.log-bubble {
+  flex: 1;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 0 12px 12px 12px;
+  padding: 12px 14px;
+}
+
+.log-bubble-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+  flex-wrap: wrap;
+}
+.log-bubble-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+}
+.log-bubble-time {
+  font-size: 11px;
+  color: var(--text3);
+  margin-left: auto;
+}
+.log-bubble-msg {
+  font-size: 13.5px;
+  color: var(--text2);
+  line-height: 1.6;
+}
+
+/* ── LOG TYPE BADGES ── */
+.log-type-badge {
+  display: inline-flex;
+  padding: 2px 8px;
+  border-radius: 20px;
+  font-size: 10px;
+  font-weight: 700;
+}
+.logtype-UPDATE {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+.logtype-NOTE {
+  background: #f1f5f9;
+  color: #475569;
+}
+.logtype-REQUEST {
+  background: #dcfce7;
+  color: #15803d;
+}
+.logtype-ISSUE {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+/* ── ATTACHMENT ── */
+.log-attachment {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  padding: 6px 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 12px;
+  color: var(--text2);
+  cursor: pointer;
+  text-decoration: none;
+  transition: border-color 0.15s;
+}
+.log-attachment:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* ── INPUT AREA ── */
+.log-input-area {
+  border-top: 1px solid var(--border);
+  padding: 16px 20px;
+  background: var(--surface2);
+  flex-shrink: 0;
+}
+.log-textarea {
+  width: 100%;
+  height: 90px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 13.5px;
+  font-family: "Sarabun", sans-serif;
+  color: var(--text);
+  resize: none;
+  margin-bottom: 10px;
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s;
+}
+.log-textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+}
+.log-textarea::placeholder {
+  color: var(--text3);
+}
+.log-input-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
