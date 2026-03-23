@@ -66,29 +66,12 @@
 }
 
 /* offset page content ให้ไม่ถูก topbar บัง */
-.cal-standalone-page {
-  padding-top: 72px;
-}
-
-@media (max-width: 600px) {
-  .cal-topbar {
-    padding: 0 16px;
-  }
-  .cal-topbar-sep,
-  .cal-topbar-page {
-    display: none;
-  }
-  .cal-topbar-date {
-    font-size: 11px;
-    padding: 4px 10px;
-  }
-}
 
 /* ── STANDALONE PAGE (ไม่มี sidebar/topbar) ── */
 .cal-standalone-page {
   max-width: 1400px;
   margin: 0 auto;
-  padding: 24px 32px 60px;
+  padding: 80px 32px 60px;
   font-family: "Sarabun", sans-serif;
 }
 
@@ -691,4 +674,21 @@
   cursor: pointer;
   font-weight: 600;
   text-decoration: underline;
+}
+
+@media (max-width: 600px) {
+  .cal-topbar {
+    padding: 0 16px;
+  }
+  .cal-topbar-sep,
+  .cal-topbar-page {
+    display: none;
+  }
+  .cal-topbar-date {
+    font-size: 11px;
+    padding: 4px 10px;
+  }
+  .cal-standalone-page {
+    padding: 72px 12px 40px;
+  }
 }
