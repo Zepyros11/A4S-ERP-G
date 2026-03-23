@@ -26,6 +26,16 @@ const MONTHS_TH = [
 ];
 
 async function initPage() {
+  // แสดงวันที่บน topbar
+  const now = new Date();
+  const dateEl = document.getElementById("calTopbarDate");
+  if (dateEl) {
+    dateEl.textContent = now.toLocaleDateString("th-TH", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    });
+  }
   await loadEvents();
   renderCalendar();
 }
