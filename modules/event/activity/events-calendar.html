@@ -1012,11 +1012,11 @@
 
           const pillsHtml = shown
             .map(
-              (e) =>
-                `<div class="cal-event-pill type-${e.event_type}"
-               onclick="event.stopPropagation();openEventPanel(${e.event_id})"
-               title="${e.event_name}">
-               ${typeIcon(e.event_type)} ${e.event_name}
+              (ev) =>
+                `<div class="cal-event-pill type-${ev.event_type}"
+               onclick="openEventPanel(${ev.event_id});event.stopPropagation();"
+               title="${ev.event_name}">
+               ${typeIcon(ev.event_type)} ${ev.event_name}
              </div>`,
             )
             .join("");
