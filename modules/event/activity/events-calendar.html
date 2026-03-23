@@ -3,1143 +3,888 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>ปฏิทินกิจกรรม — A4S ERP</title>
+    <title>ปฏิทินกิจกรรม — A4S-ERP</title>
     <link
-      href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
       rel="stylesheet"
     />
+    <link rel="stylesheet" href="../../../../css/main.css" />
+    <link rel="stylesheet" href="../activity/events.css" />
     <style>
-      /* ── RESET & BASE ── */
-      *,
-      *::before,
-      *::after {
-        box-sizing: border-box;
-        margin: 0;
-        padding: 0;
-      }
-
-      :root {
-        --navy: #0f2244;
-        --navy2: #1a3460;
-        --accent: #3b82f6;
-        --accent2: #60a5fa;
-        --teal: #0ea5e9;
-        --text: #1e293b;
-        --text2: #475569;
-        --text3: #94a3b8;
-        --surface: #ffffff;
-        --surface2: #f8fafc;
-        --border: #e2e8f0;
-        --shadow: 0 4px 24px rgba(15, 34, 68, 0.1);
-        --radius: 12px;
-
-        /* event type colors */
-        --c-booth: #7c3aed;
-        --c-meeting: #1d4ed8;
-        --c-online: #059669;
-        --c-hybrid: #c2410c;
-        --c-conference: #b91c1c;
-        --c-other: #475569;
-      }
-
-      body {
-        font-family: "Sarabun", sans-serif;
-        background: var(--surface2);
-        color: var(--text);
-        min-height: 100vh;
-      }
-
-      /* ── SETUP SCREEN ── */
-      #setupScreen {
-        display: none;
-        position: fixed;
-        inset: 0;
-        background: linear-gradient(
-          135deg,
-          var(--navy) 0%,
-          var(--navy2) 60%,
-          #1e3a5f 100%
-        );
-        z-index: 999;
-        align-items: center;
-        justify-content: center;
-      }
-      #setupScreen.show {
-        display: flex;
-      }
-
-      .setup-card {
-        background: rgba(255, 255, 255, 0.07);
-        border: 1px solid rgba(255, 255, 255, 0.15);
-        border-radius: 20px;
-        padding: 44px 40px;
-        width: 440px;
-        backdrop-filter: blur(16px);
-        box-shadow: 0 24px 64px rgba(0, 0, 0, 0.4);
-      }
-      .setup-logo {
-        font-size: 36px;
-        margin-bottom: 12px;
-        text-align: center;
-      }
-      .setup-title {
-        font-size: 22px;
-        font-weight: 800;
-        color: #fff;
-        text-align: center;
-        margin-bottom: 6px;
-      }
-      .setup-sub {
-        font-size: 13px;
-        color: rgba(255, 255, 255, 0.55);
-        text-align: center;
-        margin-bottom: 32px;
-        line-height: 1.6;
-      }
-      .setup-label {
-        display: block;
-        font-size: 12px;
-        font-weight: 700;
-        color: rgba(255, 255, 255, 0.7);
-        text-transform: uppercase;
-        letter-spacing: 0.6px;
-        margin-bottom: 8px;
-      }
-      .setup-input {
-        width: 100%;
-        height: 44px;
-        background: rgba(255, 255, 255, 0.1);
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        border-radius: 10px;
-        padding: 0 14px;
-        font-size: 13px;
-        font-family: "IBM Plex Mono", monospace;
-        color: #fff;
-        margin-bottom: 16px;
-        transition:
-          border-color 0.15s,
-          background 0.15s;
-      }
-      .setup-input::placeholder {
-        color: rgba(255, 255, 255, 0.35);
-      }
-      .setup-input:focus {
-        outline: none;
-        border-color: var(--accent2);
-        background: rgba(255, 255, 255, 0.15);
-      }
-
-      .setup-btn {
-        width: 100%;
-        height: 48px;
-        background: var(--accent);
-        border: none;
-        border-radius: 10px;
-        font-size: 15px;
-        font-weight: 700;
-        color: #fff;
-        cursor: pointer;
-        margin-top: 8px;
-        transition:
-          background 0.15s,
-          transform 0.1s;
-        font-family: "Sarabun", sans-serif;
-      }
-      .setup-btn:hover {
-        background: var(--teal);
-      }
-      .setup-btn:active {
-        transform: scale(0.98);
-      }
-
-      .setup-hint {
-        font-size: 11px;
-        color: rgba(255, 255, 255, 0.35);
-        text-align: center;
-        margin-top: 16px;
-        line-height: 1.6;
-      }
-      .setup-err {
-        font-size: 12px;
-        color: #fca5a5;
-        text-align: center;
-        margin-top: 10px;
-        min-height: 18px;
-      }
-
-      /* ── TOPBAR ── */
-      .cal-topbar {
-        background: var(--navy);
-        height: 56px;
-        display: flex;
-        align-items: center;
-        padding: 0 24px;
-        gap: 12px;
-        position: sticky;
-        top: 0;
-        z-index: 100;
-        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
-      }
-      .cal-topbar-logo {
-        font-size: 20px;
-        font-weight: 800;
-        color: #fff;
-        letter-spacing: -0.5px;
-      }
-      .cal-topbar-logo span {
-        color: var(--accent2);
-      }
-      .cal-topbar-sep {
-        color: rgba(255, 255, 255, 0.2);
-        font-size: 18px;
-        margin: 0 4px;
-      }
-      .cal-topbar-title {
-        font-size: 14px;
-        font-weight: 600;
-        color: rgba(255, 255, 255, 0.8);
-      }
-      .cal-topbar-date {
-        margin-left: auto;
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        font-size: 13px;
-        color: rgba(255, 255, 255, 0.6);
-        background: rgba(255, 255, 255, 0.08);
-        padding: 6px 12px;
-        border-radius: 20px;
-        cursor: pointer;
-        transition: background 0.15s;
-        border: none;
-        font-family: "Sarabun", sans-serif;
-      }
-      .cal-topbar-date:hover {
-        background: rgba(255, 255, 255, 0.15);
-        color: #fff;
-      }
-
-      /* ── MAIN WRAPPER ── */
-      .cal-main {
-        max-width: 1280px;
-        margin: 0 auto;
-        padding: 24px 20px;
-      }
-
-      /* ── CALENDAR HEADER (nav + view toggle) ── */
+      /* ── CALENDAR LAYOUT ── */
       .cal-header {
-        background: var(--surface);
-        border: 1px solid var(--border);
-        border-radius: var(--radius);
-        padding: 16px 20px;
         display: flex;
         align-items: center;
+        justify-content: space-between;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
         gap: 12px;
-        margin-bottom: 16px;
-        box-shadow: var(--shadow);
       }
-      .cal-nav-btn {
-        width: 38px;
-        height: 38px;
-        border: 1px solid var(--border);
-        border-radius: 8px;
-        background: var(--surface2);
-        cursor: pointer;
-        font-size: 16px;
+      .cal-nav {
         display: flex;
         align-items: center;
-        justify-content: center;
-        transition: all 0.15s;
-        color: var(--text2);
+        gap: 10px;
       }
-      .cal-nav-btn:hover {
-        background: var(--accent);
-        color: #fff;
-        border-color: var(--accent);
-      }
-
-      .cal-today-btn {
-        height: 38px;
-        padding: 0 16px;
-        border: 1px solid var(--border);
-        border-radius: 8px;
-        background: var(--surface2);
-        cursor: pointer;
-        font-size: 13px;
-        font-weight: 600;
-        font-family: "Sarabun", sans-serif;
-        color: var(--text2);
-        transition: all 0.15s;
-      }
-      .cal-today-btn:hover {
-        background: var(--accent);
-        color: #fff;
-        border-color: var(--accent);
-      }
-
-      .cal-month-title {
-        flex: 1;
-        text-align: center;
-        font-size: 20px;
-        font-weight: 800;
+      .cal-month-label {
+        font-size: 18px;
+        font-weight: 700;
         color: var(--text);
-        letter-spacing: -0.3px;
-      }
-
-      /* view toggle */
-      .cal-view-toggle {
-        display: flex;
-        border: 1px solid var(--border);
-        border-radius: 8px;
-        overflow: hidden;
-      }
-      .cal-view-btn {
-        height: 38px;
-        padding: 0 16px;
-        border: none;
-        background: var(--surface2);
-        cursor: pointer;
-        font-size: 13px;
-        font-weight: 600;
-        font-family: "Sarabun", sans-serif;
-        color: var(--text2);
-        transition: all 0.15s;
-      }
-      .cal-view-btn.active {
-        background: var(--navy);
-        color: #fff;
-      }
-      .cal-view-btn:not(.active):hover {
-        background: var(--border);
-      }
-
-      /* ── LOADING ── */
-      .cal-loading {
-        display: none;
+        min-width: 160px;
         text-align: center;
-        padding: 60px;
-        color: var(--text3);
-        font-size: 14px;
-        gap: 12px;
-        flex-direction: column;
-        align-items: center;
       }
-      .cal-loading.show {
-        display: flex;
-      }
-      .cal-spinner {
-        width: 36px;
-        height: 36px;
-        border: 3px solid var(--border);
-        border-top-color: var(--accent);
-        border-radius: 50%;
-        animation: spin 0.7s linear infinite;
-      }
-      @keyframes spin {
-        to {
-          transform: rotate(360deg);
-        }
-      }
-
-      /* ── MONTH GRID ── */
       .cal-grid-wrap {
         background: var(--surface);
         border: 1px solid var(--border);
-        border-radius: var(--radius);
+        border-radius: 12px;
         overflow: hidden;
-        box-shadow: var(--shadow);
       }
-
-      /* day-of-week header */
-      .cal-dow-row {
+      .cal-day-headers {
         display: grid;
         grid-template-columns: repeat(7, 1fr);
-        border-bottom: 1px solid var(--border);
         background: var(--surface2);
+        border-bottom: 1px solid var(--border);
       }
-      .cal-dow-cell {
-        text-align: center;
+      .cal-day-hdr {
         padding: 10px 0;
+        text-align: center;
         font-size: 12px;
         font-weight: 700;
         color: var(--text3);
         text-transform: uppercase;
         letter-spacing: 0.5px;
       }
-      .cal-dow-cell:first-child {
-        color: #ef4444;
-      } /* อา. */
-
-      /* week rows */
-      .cal-weeks {
-        display: flex;
-        flex-direction: column;
+      .cal-day-hdr.weekend {
+        color: var(--danger, #e53e3e);
       }
-      .cal-week-row {
+      .cal-grid {
         display: grid;
         grid-template-columns: repeat(7, 1fr);
-        border-bottom: 1px solid var(--border);
-        min-height: 120px;
+        grid-auto-rows: minmax(100px, auto);
       }
-      .cal-week-row:last-child {
-        border-bottom: none;
-      }
-
-      .cal-day-cell {
+      .cal-cell {
         border-right: 1px solid var(--border);
-        padding: 6px 6px 8px;
-        vertical-align: top;
-        min-height: 120px;
+        border-bottom: 1px solid var(--border);
+        padding: 8px;
+        min-height: 100px;
         position: relative;
-        transition: background 0.12s;
+        cursor: default;
+        transition: background 0.15s;
       }
-      .cal-day-cell:last-child {
+      .cal-cell:nth-child(7n) {
         border-right: none;
       }
-      .cal-day-cell.other-month {
+      .cal-cell.other-month {
         background: var(--surface2);
+        opacity: 0.5;
       }
-      .cal-day-cell.today {
-        background: #fffbeb;
-      }
-      .cal-day-cell:first-child {
-        background: rgba(254, 242, 242, 0.4);
-      }
-
-      .cal-day-num {
-        font-size: 13px;
-        font-weight: 700;
-        color: var(--text2);
+      .cal-cell.today .cal-date-num {
+        background: var(--accent);
+        color: #fff;
+        border-radius: 50%;
         width: 26px;
         height: 26px;
         display: flex;
         align-items: center;
         justify-content: center;
-        border-radius: 50%;
+      }
+      .cal-cell.weekend-cell .cal-date-num {
+        color: var(--danger, #e53e3e);
+      }
+      .cal-date-num {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text2);
         margin-bottom: 4px;
-      }
-      .cal-day-cell.today .cal-day-num {
-        background: var(--accent);
-        color: #fff;
-      }
-      .cal-day-cell.other-month .cal-day-num {
-        color: var(--text3);
-      }
-      .cal-day-cell:first-child .cal-day-num {
-        color: #ef4444;
-      }
-      .cal-day-cell.today:first-child .cal-day-num {
-        background: #ef4444;
-        color: #fff;
-      }
-
-      /* ── EVENT CHIPS ── */
-      .cal-event-list {
-        display: flex;
-        flex-direction: column;
-        gap: 3px;
-      }
-
-      .cal-event-chip {
+        width: 26px;
+        height: 26px;
         display: flex;
         align-items: center;
-        gap: 5px;
-        padding: 3px 7px;
-        border-radius: 6px;
-        font-size: 11.5px;
+        justify-content: center;
+      }
+      /* ── EVENT PILL ── */
+      .cal-event-pill {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        padding: 2px 7px;
+        border-radius: 4px;
+        font-size: 11px;
         font-weight: 600;
+        margin-bottom: 3px;
         cursor: pointer;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
-        transition:
-          opacity 0.12s,
-          transform 0.12s;
-        text-decoration: none;
-        max-width: 100%;
-        line-height: 1.4;
+        transition: opacity 0.15s;
+        line-height: 1.6;
       }
-      .cal-event-chip:hover {
-        opacity: 0.82;
-        transform: translateX(2px);
-      }
-
-      /* type colors */
-      .chip-BOOTH {
-        background: #f3e8ff;
-        color: var(--c-booth);
-      }
-      .chip-MEETING {
-        background: #dbeafe;
-        color: var(--c-meeting);
-      }
-      .chip-ONLINE {
-        background: #dcfce7;
-        color: var(--c-online);
-      }
-      .chip-HYBRID {
-        background: #ffedd5;
-        color: var(--c-hybrid);
-      }
-      .chip-CONFERENCE {
-        background: #fee2e2;
-        color: var(--c-conference);
-      }
-      .chip-OTHER {
-        background: #f1f5f9;
-        color: var(--c-other);
-      }
-      /* default fallback */
-      .chip- {
-        background: #e0f2fe;
-        color: #0369a1;
-      }
-
-      .cal-more-btn {
-        font-size: 11px;
-        color: var(--accent);
-        font-weight: 700;
-        cursor: pointer;
-        padding: 2px 0;
-        background: none;
-        border: none;
-        font-family: "Sarabun", sans-serif;
-        text-align: left;
-      }
-      .cal-more-btn:hover {
-        text-decoration: underline;
-      }
-
-      /* ── WEEK VIEW ── */
-      .cal-week-view {
-        background: var(--surface);
-        border: 1px solid var(--border);
-        border-radius: var(--radius);
-        overflow: hidden;
-        box-shadow: var(--shadow);
-      }
-      .week-header-row {
-        display: grid;
-        grid-template-columns: repeat(7, 1fr);
-        border-bottom: 2px solid var(--border);
-        background: var(--surface2);
-      }
-      .week-header-cell {
-        text-align: center;
-        padding: 12px 6px;
-        border-right: 1px solid var(--border);
-      }
-      .week-header-cell:last-child {
-        border-right: none;
-      }
-      .week-day-name {
-        font-size: 11px;
-        font-weight: 700;
-        color: var(--text3);
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        margin-bottom: 4px;
-      }
-      .week-day-num {
-        font-size: 18px;
-        font-weight: 800;
-        color: var(--text);
-        width: 36px;
-        height: 36px;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        margin: 0 auto;
-      }
-      .week-header-cell.today .week-day-num {
-        background: var(--accent);
-        color: #fff;
-      }
-      .week-header-cell:first-child .week-day-name {
-        color: #ef4444;
-      }
-      .week-header-cell:first-child .week-day-num {
-        color: #ef4444;
-      }
-      .week-header-cell.today:first-child .week-day-num {
-        background: #ef4444;
-        color: #fff;
-      }
-
-      .week-body-row {
-        display: grid;
-        grid-template-columns: repeat(7, 1fr);
-        min-height: 200px;
-        border-top: 1px solid var(--border);
-      }
-      .week-body-cell {
-        padding: 10px 8px;
-        border-right: 1px solid var(--border);
-        display: flex;
-        flex-direction: column;
-        gap: 4px;
-      }
-      .week-body-cell:last-child {
-        border-right: none;
-      }
-
-      /* ── EVENT DETAIL MODAL ── */
-      #detailOverlay {
-        display: none;
-        position: fixed;
-        inset: 0;
-        background: rgba(0, 0, 0, 0.45);
-        z-index: 500;
-        backdrop-filter: blur(3px);
-        align-items: center;
-        justify-content: center;
-      }
-      #detailOverlay.show {
-        display: flex;
-      }
-
-      .detail-modal {
-        background: var(--surface);
-        border-radius: 16px;
-        width: 780px;
-        max-width: 95vw;
-        max-height: 90vh;
-        box-shadow: 0 24px 64px rgba(0, 0, 0, 0.25);
-        overflow: hidden;
-        animation: slideUp 0.22s ease;
-        display: flex;
-        flex-direction: column;
-      }
-      @keyframes slideUp {
-        from {
-          transform: translateY(20px);
-          opacity: 0;
-        }
-        to {
-          transform: translateY(0);
-          opacity: 1;
-        }
-      }
-
-      /* 2-column body */
-      .detail-columns {
-        display: grid;
-        grid-template-columns: 280px 1fr;
-        flex: 1;
-        overflow: hidden;
-      }
-
-      /* LEFT: poster */
-      .detail-poster-col {
-        background: var(--navy);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        overflow: hidden;
-        min-height: 320px;
-      }
-      .detail-poster {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-        display: block;
-      }
-      .detail-poster-placeholder {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 100%;
-        height: 100%;
-        font-size: 72px;
-        background: linear-gradient(160deg, var(--navy) 0%, var(--navy2) 100%);
-      }
-
-      /* RIGHT: info */
-      .detail-body {
-        padding: 22px 24px 20px;
-        overflow-y: auto;
-        display: flex;
-        flex-direction: column;
-      }
-      .detail-badges {
-        display: flex;
-        gap: 6px;
-        flex-wrap: wrap;
-        margin-bottom: 12px;
-      }
-      .detail-badge {
-        display: inline-flex;
-        padding: 3px 10px;
-        border-radius: 20px;
-        font-size: 11px;
-        font-weight: 700;
-      }
-      .detail-name {
-        font-size: 18px;
-        font-weight: 800;
-        color: var(--text);
-        margin-bottom: 4px;
-        line-height: 1.3;
-      }
-      .detail-code {
-        font-size: 11px;
-        font-family: "IBM Plex Mono", monospace;
-        color: var(--text3);
-        margin-bottom: 16px;
-      }
-      .detail-rows {
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-        margin-bottom: 20px;
-        flex: 1;
-      }
-      .detail-row {
-        display: flex;
-        gap: 10px;
-        font-size: 13.5px;
-        align-items: flex-start;
-      }
-      .detail-row-icon {
-        flex-shrink: 0;
-        font-size: 15px;
-        margin-top: 1px;
-      }
-      .detail-row-val {
-        color: var(--text2);
-        line-height: 1.5;
-      }
-
-      .detail-footer {
-        display: flex;
-        gap: 8px;
-        justify-content: flex-end;
-        padding: 14px 24px;
-        border-top: 1px solid var(--border);
-        background: var(--surface2);
-        flex-shrink: 0;
-      }
-
-      @media (max-width: 600px) {
-        .detail-columns {
-          grid-template-columns: 1fr;
-        }
-        .detail-poster-col {
-          min-height: 180px;
-          max-height: 180px;
-        }
-      }
-      .detail-btn {
-        height: 40px;
-        padding: 0 18px;
-        border-radius: 8px;
-        font-size: 13px;
-        font-weight: 700;
-        cursor: pointer;
-        font-family: "Sarabun", sans-serif;
-        transition: all 0.15s;
-        text-decoration: none;
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        border: none;
-      }
-      .detail-btn-close {
-        background: var(--surface);
-        border: 1px solid var(--border);
-        color: var(--text2);
-      }
-      .detail-btn-close:hover {
-        background: var(--border);
-      }
-      .detail-btn-log {
-        background: var(--navy);
-        color: #fff;
-      }
-      .detail-btn-log:hover {
-        background: var(--navy2);
-      }
-
-      /* ── MORE MODAL (วัน + event list) ── */
-      #moreOverlay {
-        display: none;
-        position: fixed;
-        inset: 0;
-        background: rgba(0, 0, 0, 0.35);
-        z-index: 490;
-        align-items: center;
-        justify-content: center;
-        backdrop-filter: blur(2px);
-      }
-      #moreOverlay.show {
-        display: flex;
-      }
-      .more-modal {
-        background: var(--surface);
-        border-radius: 14px;
-        width: 340px;
-        max-height: 80vh;
-        overflow-y: auto;
-        box-shadow: 0 16px 48px rgba(0, 0, 0, 0.2);
-        animation: slideUp 0.2s ease;
-      }
-      .more-modal-hdr {
-        padding: 14px 18px 12px;
-        border-bottom: 1px solid var(--border);
-        font-size: 14px;
-        font-weight: 700;
-        color: var(--text);
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        position: sticky;
-        top: 0;
-        background: var(--surface);
-      }
-      .more-close-btn {
-        background: none;
-        border: none;
-        font-size: 16px;
-        cursor: pointer;
-        color: var(--text3);
-        line-height: 1;
-      }
-      .more-event-list {
-        padding: 12px;
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
-      }
-      .more-event-chip {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        padding: 10px 12px;
-        border-radius: 10px;
-        cursor: pointer;
-        transition: opacity 0.12s;
-        text-decoration: none;
-        border: 1px solid transparent;
-      }
-      .more-event-chip:hover {
+      .cal-event-pill:hover {
         opacity: 0.8;
       }
-      .more-event-name {
-        font-size: 13px;
-        font-weight: 700;
+      .cal-event-pill.type-BOOTH {
+        background: #f3e8ff;
+        color: #7c3aed;
       }
-      .more-event-time {
-        font-size: 11px;
-        opacity: 0.7;
-      }
-
-      /* ── STATUS badge colors ── */
-      .sbadge-DRAFT {
-        background: #f1f5f9;
-        color: #475569;
-      }
-      .sbadge-CONFIRMED {
+      .cal-event-pill.type-MEETING {
         background: #dbeafe;
         color: #1d4ed8;
       }
-      .sbadge-ONGOING {
-        background: #fef9c3;
-        color: #a16207;
-      }
-      .sbadge-DONE {
+      .cal-event-pill.type-ONLINE {
         background: #dcfce7;
         color: #15803d;
       }
-      .sbadge-CANCELLED {
+      .cal-event-pill.type-HYBRID {
+        background: #ffedd5;
+        color: #c2410c;
+      }
+      .cal-event-pill.type-CONFERENCE {
         background: #fee2e2;
         color: #b91c1c;
+      }
+      .cal-event-pill.type-OTHER {
+        background: #f1f5f9;
+        color: #475569;
+      }
+      .cal-more {
+        font-size: 10px;
+        color: var(--text3);
+        cursor: pointer;
+        padding: 1px 4px;
+      }
+      .cal-more:hover {
+        color: var(--accent);
+      }
+
+      /* ── EMPTY STATE ── */
+      .cal-empty {
+        grid-column: 1 / -1;
+        padding: 60px 0;
+        text-align: center;
+        color: var(--text3);
+        font-size: 14px;
       }
 
       /* ── LEGEND ── */
       .cal-legend {
         display: flex;
-        gap: 14px;
+        gap: 12px;
         flex-wrap: wrap;
-        margin-top: 14px;
-        padding: 12px 16px;
-        background: var(--surface);
-        border: 1px solid var(--border);
-        border-radius: var(--radius);
-        box-shadow: var(--shadow);
+        margin-top: 12px;
       }
-      .legend-item {
+      .cal-legend-item {
         display: flex;
         align-items: center;
-        gap: 6px;
-        font-size: 12px;
+        gap: 5px;
+        font-size: 11px;
         color: var(--text2);
       }
-      .legend-dot {
+      .cal-legend-dot {
         width: 10px;
         height: 10px;
         border-radius: 3px;
-        flex-shrink: 0;
       }
 
-      /* ── TOAST ── */
-      .cal-toast {
+      /* ── SETTINGS BUTTON (fixed position) ── */
+      .btn-settings-float {
         position: fixed;
         bottom: 24px;
-        left: 50%;
-        transform: translateX(-50%) translateY(80px);
-        background: var(--navy);
-        color: #fff;
-        padding: 10px 22px;
-        border-radius: 100px;
-        font-size: 13px;
-        font-weight: 600;
-        z-index: 999;
+        right: 24px;
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+        font-size: 18px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
         transition:
-          transform 0.3s ease,
-          opacity 0.3s;
-        opacity: 0;
-        pointer-events: none;
+          box-shadow 0.2s,
+          transform 0.2s;
+        z-index: 200;
       }
-      .cal-toast.show {
-        transform: translateX(-50%) translateY(0);
-        opacity: 1;
+      .btn-settings-float:hover {
+        box-shadow: 0 6px 24px rgba(0, 0, 0, 0.18);
+        transform: scale(1.08);
       }
 
-      /* ── RESPONSIVE ── */
-      @media (max-width: 768px) {
-        .cal-event-chip {
-          font-size: 10px;
-          padding: 2px 5px;
+      /* ── SETTINGS MODAL ── */
+      .settings-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.45);
+        backdrop-filter: blur(3px);
+        z-index: 500;
+        align-items: center;
+        justify-content: center;
+      }
+      .settings-overlay.open {
+        display: flex;
+      }
+      .settings-modal {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 28px;
+        width: 420px;
+        max-width: 95vw;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+        animation: modalIn 0.2s ease;
+      }
+      @keyframes modalIn {
+        from {
+          opacity: 0;
+          transform: scale(0.95) translateY(8px);
         }
-        .cal-week-row {
-          min-height: 80px;
+        to {
+          opacity: 1;
+          transform: scale(1) translateY(0);
         }
-        .cal-day-cell {
-          min-height: 80px;
-          padding: 4px 3px;
-        }
-        .cal-month-title {
-          font-size: 16px;
-        }
+      }
+      .settings-title {
+        font-size: 16px;
+        font-weight: 700;
+        color: var(--text);
+        margin-bottom: 6px;
+      }
+      .settings-subtitle {
+        font-size: 12px;
+        color: var(--text3);
+        margin-bottom: 20px;
+        line-height: 1.5;
+      }
+      .settings-field {
+        margin-bottom: 14px;
+      }
+      .settings-label {
+        display: block;
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--text2);
+        margin-bottom: 5px;
+      }
+      .settings-input {
+        width: 100%;
+        height: 38px;
+        padding: 0 10px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        font-size: 12px;
+        font-family: "IBM Plex Mono", monospace;
+        color: var(--text);
+        background: var(--surface2);
+        transition: border-color 0.15s;
+        box-sizing: border-box;
+      }
+      .settings-input:focus {
+        outline: none;
+        border-color: var(--accent);
+      }
+      .settings-actions {
+        display: flex;
+        gap: 8px;
+        justify-content: flex-end;
+        margin-top: 20px;
+      }
+      .settings-status {
+        font-size: 11px;
+        margin-top: 10px;
+        padding: 6px 10px;
+        border-radius: 6px;
+        display: none;
+      }
+      .settings-status.ok {
+        background: #dcfce7;
+        color: #15803d;
+        display: block;
+      }
+      .settings-status.err {
+        background: #fee2e2;
+        color: #b91c1c;
+        display: block;
+      }
+
+      /* ── NO CONFIG BANNER ── */
+      .no-config-banner {
+        background: #fef9c3;
+        border: 1px solid #fde047;
+        border-radius: 10px;
+        padding: 14px 18px;
+        font-size: 13px;
+        color: #854d0e;
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .no-config-banner a {
+        color: var(--accent);
+        cursor: pointer;
+        font-weight: 600;
+        text-decoration: underline;
       }
     </style>
   </head>
   <body>
-    <!-- ══ SETUP SCREEN ══ -->
-    <div id="setupScreen">
-      <div class="setup-card">
-        <div class="setup-logo">📅</div>
-        <div class="setup-title">ปฏิทินกิจกรรม A4S</div>
-        <div class="setup-sub">
-          กรอกข้อมูล Supabase เพื่อเชื่อมต่อ<br />
-          ระบบจะจำข้อมูลนี้ในเบราว์เซอร์ของคุณ
-        </div>
-
-        <label class="setup-label">Supabase Project URL</label>
-        <input
-          class="setup-input"
-          id="setupUrl"
-          placeholder="https://xxxxxxxxxxxx.supabase.co"
-          type="url"
-        />
-
-        <label class="setup-label">Supabase Anon Key</label>
-        <input
-          class="setup-input"
-          id="setupKey"
-          placeholder="eyJhbGciO..."
-          type="password"
-        />
-
-        <button class="setup-btn" onclick="submitSetup()">
-          เชื่อมต่อและเปิดปฏิทิน →
-        </button>
-        <div class="setup-err" id="setupErr"></div>
-        <div class="setup-hint">
-          ข้อมูลถูกเก็บใน localStorage ของเบราว์เซอร์นี้เท่านั้น<br />
-          ไม่ได้ส่งออกไปที่อื่น
-        </div>
-      </div>
+    <div class="loading-overlay" id="loadingOverlay">
+      <div class="spinner"></div>
     </div>
+    <div class="toast" id="toast"></div>
 
-    <!-- ══ TOPBAR ══ -->
-    <div class="cal-topbar">
-      <div class="cal-topbar-logo">A4<span>S</span> ERP</div>
-      <div class="cal-topbar-sep">/</div>
-      <div class="cal-topbar-title">ปฏิทินกิจกรรม</div>
-      <button class="cal-topbar-date" id="todayDateBtn" onclick="goToday()">
-        📅 <span id="todayDateLabel"></span>
-      </button>
-    </div>
+    <!-- TOPBAR -->
+    <div class="topbar"></div>
+    <div class="layout">
+      <!-- SIDEBAR -->
+      <div id="sidebar-container"></div>
 
-    <!-- ══ MAIN ══ -->
-    <div class="cal-main">
-      <!-- HEADER: nav + title + view toggle -->
-      <div class="cal-header">
-        <button class="cal-nav-btn" onclick="navigate(-1)">‹</button>
-        <button class="cal-nav-btn" onclick="navigate(1)">›</button>
-        <button class="cal-today-btn" onclick="goToday()">วันนี้</button>
-        <div class="cal-month-title" id="calTitle">—</div>
-        <div class="cal-view-toggle">
-          <button
-            class="cal-view-btn active"
-            id="btnMonth"
-            onclick="setView('month')"
+      <!-- CONTENT -->
+      <div class="content-area">
+        <div class="page">
+          <!-- NO CONFIG BANNER (แสดงเมื่อยังไม่ตั้งค่า) -->
+          <div
+            class="no-config-banner"
+            id="noConfigBanner"
+            style="display: none"
           >
-            เดือน
-          </button>
-          <button class="cal-view-btn" id="btnWeek" onclick="setView('week')">
-            สัปดาห์
-          </button>
-        </div>
-      </div>
+            ⚠️ ยังไม่ได้ตั้งค่า Supabase —
+            <a onclick="openSettings()">คลิกที่นี่เพื่อตั้งค่า</a>
+          </div>
 
-      <!-- LOADING -->
-      <div class="cal-loading" id="calLoading">
-        <div class="cal-spinner"></div>
-        <div>กำลังโหลดกิจกรรม...</div>
-      </div>
+          <!-- HEADER -->
+          <div class="cal-header">
+            <div class="cal-nav">
+              <button class="btn btn-outline" onclick="changeMonth(-1)">
+                ‹
+              </button>
+              <div class="cal-month-label" id="calMonthLabel">—</div>
+              <button class="btn btn-outline" onclick="changeMonth(1)">
+                ›
+              </button>
+              <button class="btn btn-outline" onclick="goToday()">
+                วันนี้
+              </button>
+            </div>
+            <div style="display: flex; gap: 8px; align-items: center">
+              <select
+                class="filter-select"
+                id="calFilterType"
+                onchange="renderCalendar()"
+                style="height: 36px"
+              >
+                <option value="">⚪ ทุกประเภท</option>
+                <option value="BOOTH">🏪 ออกบูธ</option>
+                <option value="MEETING">👥 ประชุม</option>
+                <option value="ONLINE">💻 Online</option>
+                <option value="HYBRID">🔀 Hybrid</option>
+                <option value="CONFERENCE">🎤 Conference</option>
+                <option value="OTHER">📌 อื่นๆ</option>
+              </select>
+              <select
+                class="filter-select"
+                id="calFilterStatus"
+                onchange="renderCalendar()"
+                style="height: 36px"
+              >
+                <option value="">⚪ ทุกสถานะ</option>
+                <option value="DRAFT">📝 Draft</option>
+                <option value="CONFIRMED">✅ Confirmed</option>
+                <option value="ONGOING">▶️ Ongoing</option>
+                <option value="DONE">🏁 Done</option>
+                <option value="CANCELLED">❌ Cancelled</option>
+              </select>
+            </div>
+          </div>
 
-      <!-- CALENDAR BODY -->
-      <div id="calBody"></div>
+          <!-- CALENDAR GRID -->
+          <div class="cal-grid-wrap">
+            <div class="cal-day-headers">
+              <div class="cal-day-hdr weekend">อา</div>
+              <div class="cal-day-hdr">จ</div>
+              <div class="cal-day-hdr">อ</div>
+              <div class="cal-day-hdr">พ</div>
+              <div class="cal-day-hdr">พฤ</div>
+              <div class="cal-day-hdr">ศ</div>
+              <div class="cal-day-hdr weekend">ส</div>
+            </div>
+            <div class="cal-grid" id="calGrid">
+              <div class="cal-empty">กำลังโหลด...</div>
+            </div>
+          </div>
 
-      <!-- LEGEND -->
-      <div class="cal-legend">
-        <div class="legend-item">
-          <div
-            class="legend-dot"
-            style="background: #f3e8ff; border: 1.5px solid #7c3aed"
-          ></div>
-          ออกบูธ
-        </div>
-        <div class="legend-item">
-          <div
-            class="legend-dot"
-            style="background: #dbeafe; border: 1.5px solid #1d4ed8"
-          ></div>
-          ประชุม
-        </div>
-        <div class="legend-item">
-          <div
-            class="legend-dot"
-            style="background: #dcfce7; border: 1.5px solid #059669"
-          ></div>
-          Online
-        </div>
-        <div class="legend-item">
-          <div
-            class="legend-dot"
-            style="background: #ffedd5; border: 1.5px solid #c2410c"
-          ></div>
-          Hybrid
-        </div>
-        <div class="legend-item">
-          <div
-            class="legend-dot"
-            style="background: #fee2e2; border: 1.5px solid #b91c1c"
-          ></div>
-          Conference
-        </div>
-        <div class="legend-item">
-          <div
-            class="legend-dot"
-            style="background: #f1f5f9; border: 1.5px solid #475569"
-          ></div>
-          อื่นๆ
-        </div>
-      </div>
-    </div>
-
-    <!-- ══ MORE EVENTS MODAL ══ -->
-    <div id="moreOverlay" onclick="closeMOre(event)">
-      <div class="more-modal" onclick="event.stopPropagation()">
-        <div class="more-modal-hdr">
-          <span id="moreDateLabel"></span>
-          <button class="more-close-btn" onclick="closeMore()">✕</button>
-        </div>
-        <div class="more-event-list" id="moreList"></div>
-      </div>
-    </div>
-
-    <!-- ══ EVENT DETAIL MODAL ══ -->
-    <div id="detailOverlay" onclick="closeDetail(event)">
-      <div class="detail-modal" onclick="event.stopPropagation()">
-        <!-- 2 columns -->
-        <div class="detail-columns">
-          <!-- LEFT: poster -->
-          <div class="detail-poster-col" id="detailPosterWrap"></div>
-          <!-- RIGHT: info -->
-          <div class="detail-body">
-            <div class="detail-badges" id="detailBadges"></div>
-            <div class="detail-name" id="detailName">—</div>
-            <div class="detail-code" id="detailCode"></div>
-            <div class="detail-rows" id="detailRows"></div>
+          <!-- LEGEND -->
+          <div class="cal-legend">
+            <div class="cal-legend-item">
+              <div class="cal-legend-dot" style="background: #7c3aed"></div>
+              ออกบูธ
+            </div>
+            <div class="cal-legend-item">
+              <div class="cal-legend-dot" style="background: #1d4ed8"></div>
+              ประชุม
+            </div>
+            <div class="cal-legend-item">
+              <div class="cal-legend-dot" style="background: #15803d"></div>
+              Online
+            </div>
+            <div class="cal-legend-item">
+              <div class="cal-legend-dot" style="background: #c2410c"></div>
+              Hybrid
+            </div>
+            <div class="cal-legend-item">
+              <div class="cal-legend-dot" style="background: #b91c1c"></div>
+              Conference
+            </div>
+            <div class="cal-legend-item">
+              <div class="cal-legend-dot" style="background: #475569"></div>
+              อื่นๆ
+            </div>
           </div>
         </div>
-        <!-- FOOTER -->
-        <div class="detail-footer">
-          <button
-            class="detail-btn detail-btn-close"
-            onclick="closeDetailModal()"
-          >
-            ปิด
+        <!-- end .page -->
+
+        <!-- SCRIPTS -->
+        <script src="../../../../js/components/navigation/sidebar.js"></script>
+        <script type="module">
+          import { loadTopbar } from "../../../../js/components/navigation/topbar.js";
+          loadTopbar("📅 ปฏิทินกิจกรรม");
+        </script>
+      </div>
+    </div>
+
+    <!-- ═══ SETTINGS MODAL ═══ -->
+    <div
+      class="settings-overlay"
+      id="settingsOverlay"
+      onclick="handleOverlayClick(event)"
+    >
+      <div class="settings-modal">
+        <div class="settings-title">⚙️ ตั้งค่าการเชื่อมต่อ Supabase</div>
+        <div class="settings-subtitle">
+          กรอก URL และ API Key เพื่อเชื่อมต่อฐานข้อมูล<br />
+          ค่านี้จะถูกบันทึกใน localStorage ของเครื่องนี้
+        </div>
+
+        <div class="settings-field">
+          <label class="settings-label">Supabase URL</label>
+          <input
+            class="settings-input"
+            id="inputSbUrl"
+            placeholder="https://xxxx.supabase.co"
+          />
+        </div>
+        <div class="settings-field">
+          <label class="settings-label">Supabase Anon Key</label>
+          <input
+            class="settings-input"
+            id="inputSbKey"
+            placeholder="eyJhbGci..."
+            type="password"
+          />
+        </div>
+
+        <div class="settings-status" id="settingsStatus"></div>
+
+        <div class="settings-actions">
+          <button class="btn btn-outline" onclick="closeSettings()">
+            ยกเลิก
+          </button>
+          <button class="btn btn-outline" onclick="testConnection()">
+            🔗 ทดสอบ
+          </button>
+          <button class="btn btn-primary" onclick="saveSettings()">
+            💾 บันทึก
           </button>
         </div>
       </div>
     </div>
 
-    <!-- TOAST -->
-    <div class="cal-toast" id="calToast"></div>
+    <!-- ⚙️ SETTINGS FLOAT BUTTON -->
+    <button
+      class="btn-settings-float"
+      onclick="openSettings()"
+      title="ตั้งค่า Supabase"
+    >
+      ⚙️
+    </button>
+
+    <!-- ═══ SIDE PANEL OVERLAY ═══ -->
+    <div
+      id="evPanelOverlay"
+      style="
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.4);
+        z-index: 299;
+        backdrop-filter: blur(2px);
+      "
+      onclick="closeEventPanel()"
+    ></div>
+
+    <!-- ═══ SIDE PANEL ═══ -->
+    <div id="evSidePanel" class="ev-side-panel">
+      <div class="ev-panel-header">
+        <div class="ev-panel-title">📋 รายละเอียดกิจกรรม</div>
+        <button class="btn-icon" onclick="closeEventPanel()">✕</button>
+      </div>
+      <div class="ev-panel-body">
+        <div class="ev-panel-poster" id="panelPoster">
+          <span class="ev-panel-poster-placeholder">🗓️</span>
+        </div>
+        <div>
+          <div
+            style="
+              font-size: 18px;
+              font-weight: 700;
+              color: var(--text);
+              margin-bottom: 4px;
+            "
+            id="panelName"
+          >
+            —
+          </div>
+          <div
+            style="
+              font-size: 11px;
+              color: var(--text3);
+              font-family: &quot;IBM Plex Mono&quot;, monospace;
+              margin-bottom: 8px;
+            "
+            id="panelCode"
+          ></div>
+          <div style="display: flex; gap: 6px; flex-wrap: wrap">
+            <span id="panelStatus"></span>
+            <span id="panelType"></span>
+          </div>
+        </div>
+        <hr style="border: none; border-top: 1px solid var(--border)" />
+        <div style="display: flex; flex-direction: column; gap: 14px">
+          <div class="ev-info-row">
+            <span class="ev-info-icon">📅</span>
+            <div>
+              <div class="ev-info-label">วันที่จัดงาน</div>
+              <div class="ev-info-value" id="panelDate">—</div>
+            </div>
+          </div>
+          <div class="ev-info-row">
+            <span class="ev-info-icon">🕐</span>
+            <div>
+              <div class="ev-info-label">เวลา</div>
+              <div class="ev-info-value" id="panelTime">—</div>
+            </div>
+          </div>
+          <div class="ev-info-row">
+            <span class="ev-info-icon">📍</span>
+            <div>
+              <div class="ev-info-label">สถานที่</div>
+              <div class="ev-info-value" id="panelLocation">—</div>
+            </div>
+          </div>
+          <div class="ev-info-row">
+            <span class="ev-info-icon">👥</span>
+            <div>
+              <div class="ev-info-label">ผู้เข้าร่วมสูงสุด</div>
+              <div class="ev-info-value" id="panelAttendees">—</div>
+            </div>
+          </div>
+          <div class="ev-info-row">
+            <span class="ev-info-icon">📝</span>
+            <div>
+              <div class="ev-info-label">รายละเอียด</div>
+              <div
+                class="ev-info-value"
+                style="line-height: 1.6; color: var(--text2)"
+                id="panelDesc"
+              >
+                —
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="ev-panel-footer">
+        <button class="btn btn-primary" id="panelBtnEdit">✏️ แก้ไข</button>
+      </div>
+    </div>
 
     <script>
-      /* ══════════════════════════════════════════════
-       CONFIG & STATE
-    ══════════════════════════════════════════════ */
-      const SB_URL_KEY = "sb_url";
-      const SB_KEY_KEY = "sb_key";
-
+      // ── STATE ──
       let allEvents = [];
-      let currentDate = new Date(); // month/week anchor
-      let currentView = "month"; // "month" | "week"
+      let currentYear = new Date().getFullYear();
+      let currentMonth = new Date().getMonth(); // 0-indexed
 
-      const TODAY = new Date();
-      const TODAY_STR = toYMD(TODAY);
+      const MONTHS_TH = [
+        "มกราคม",
+        "กุมภาพันธ์",
+        "มีนาคม",
+        "เมษายน",
+        "พฤษภาคม",
+        "มิถุนายน",
+        "กรกฎาคม",
+        "สิงหาคม",
+        "กันยายน",
+        "ตุลาคม",
+        "พฤศจิกายน",
+        "ธันวาคม",
+      ];
 
-      /* ══════════════════════════════════════════════
-       INIT
-    ══════════════════════════════════════════════ */
-      window.addEventListener("DOMContentLoaded", async () => {
-        // แสดงวันนี้บน topbar
-        document.getElementById("todayDateLabel").textContent =
-          formatDateTH(TODAY_STR);
+      // ── INIT (ไม่ผ่าน auth.js — standalone) ──
+      async function initPage() {
+        const sbUrl = localStorage.getItem("sb_url");
+        const sbKey = localStorage.getItem("sb_key");
 
-        const url = localStorage.getItem(SB_URL_KEY);
-        const key = localStorage.getItem(SB_KEY_KEY);
-
-        if (!url || !key) {
-          document.getElementById("setupScreen").classList.add("show");
-          return;
-        }
-        await loadAndRender();
-      });
-
-      /* ── SETUP ── */
-      async function submitSetup() {
-        const url = document
-          .getElementById("setupUrl")
-          .value.trim()
-          .replace(/\/$/, "");
-        const key = document.getElementById("setupKey").value.trim();
-        const errEl = document.getElementById("setupErr");
-        errEl.textContent = "";
-
-        if (!url || !key) {
-          errEl.textContent = "กรุณากรอกข้อมูลให้ครบ";
+        if (!sbUrl || !sbKey) {
+          document.getElementById("noConfigBanner").style.display = "flex";
+          document.getElementById("calGrid").innerHTML =
+            `<div class="cal-empty">⚙️ กรุณาตั้งค่า Supabase ก่อนใช้งาน</div>`;
+          updateMonthLabel();
+          openSettings();
           return;
         }
 
-        // ทดสอบ connection
+        await loadEvents();
+        renderCalendar();
+      }
+
+      // ── LOAD EVENTS ──
+      async function loadEvents() {
+        showLoading(true);
+        try {
+          const { url, key } = getSB();
+          const res = await fetch(
+            `${url}/rest/v1/events?select=*&order=event_date.asc`,
+            { headers: { apikey: key, Authorization: `Bearer ${key}` } },
+          );
+          if (!res.ok) throw new Error("Fetch failed: " + res.status);
+          allEvents = await res.json();
+        } catch (e) {
+          showToast("โหลดข้อมูลไม่ได้: " + e.message, "error");
+          allEvents = [];
+        }
+        showLoading(false);
+      }
+
+      // ── RENDER CALENDAR ──
+      function renderCalendar() {
+        updateMonthLabel();
+
+        const typeFilter =
+          document.getElementById("calFilterType")?.value || "";
+        const statusFilter =
+          document.getElementById("calFilterStatus")?.value || "";
+
+        const filtered = allEvents.filter(
+          (e) =>
+            (!typeFilter || e.event_type === typeFilter) &&
+            (!statusFilter || e.status === statusFilter),
+        );
+
+        // map date → events[]
+        const eventMap = {};
+        filtered.forEach((e) => {
+          const start = e.event_date;
+          const end = e.end_date || start;
+          // วน loop วันระหว่าง start-end
+          let d = new Date(start);
+          const endD = new Date(end);
+          while (d <= endD) {
+            const key = d.toISOString().split("T")[0];
+            if (!eventMap[key]) eventMap[key] = [];
+            eventMap[key].push(e);
+            d.setDate(d.getDate() + 1);
+          }
+        });
+
+        // สร้าง grid
+        const firstDay = new Date(currentYear, currentMonth, 1).getDay(); // 0=Sun
+        const daysInMonth = new Date(
+          currentYear,
+          currentMonth + 1,
+          0,
+        ).getDate();
+        const today = new Date().toISOString().split("T")[0];
+
+        let cells = "";
+
+        // padding before
+        for (let i = 0; i < firstDay; i++) {
+          const prevMonthDays = new Date(
+            currentYear,
+            currentMonth,
+            0,
+          ).getDate();
+          const d = prevMonthDays - firstDay + i + 1;
+          cells += `<div class="cal-cell other-month"><div class="cal-date-num">${d}</div></div>`;
+        }
+
+        // days of month
+        for (let d = 1; d <= daysInMonth; d++) {
+          const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+          const isToday = dateStr === today;
+          const dow = new Date(currentYear, currentMonth, d).getDay();
+          const isWeekend = dow === 0 || dow === 6;
+          const dayEvents = eventMap[dateStr] || [];
+
+          const cls = [
+            "cal-cell",
+            isToday ? "today" : "",
+            isWeekend ? "weekend-cell" : "",
+          ]
+            .filter(Boolean)
+            .join(" ");
+
+          const MAX_SHOW = 3;
+          const shown = dayEvents.slice(0, MAX_SHOW);
+          const extra = dayEvents.length - MAX_SHOW;
+
+          const pillsHtml = shown
+            .map(
+              (e) =>
+                `<div class="cal-event-pill type-${e.event_type}"
+               onclick="event.stopPropagation();openEventPanel(${e.event_id})"
+               title="${e.event_name}">
+               ${typeIcon(e.event_type)} ${e.event_name}
+             </div>`,
+            )
+            .join("");
+
+          const moreHtml =
+            extra > 0 ? `<div class="cal-more">+${extra} เพิ่มเติม</div>` : "";
+
+          cells += `
+            <div class="${cls}">
+              <div class="cal-date-num">${d}</div>
+              ${pillsHtml}
+              ${moreHtml}
+            </div>`;
+        }
+
+        // padding after
+        const totalCells = firstDay + daysInMonth;
+        const remaining = (7 - (totalCells % 7)) % 7;
+        for (let d = 1; d <= remaining; d++) {
+          cells += `<div class="cal-cell other-month"><div class="cal-date-num">${d}</div></div>`;
+        }
+
+        document.getElementById("calGrid").innerHTML =
+          cells || `<div class="cal-empty">ไม่มีกิจกรรม</div>`;
+      }
+
+      function updateMonthLabel() {
+        document.getElementById("calMonthLabel").textContent =
+          `${MONTHS_TH[currentMonth]} ${currentYear + 543}`;
+      }
+
+      // ── NAV ──
+      function changeMonth(delta) {
+        currentMonth += delta;
+        if (currentMonth > 11) {
+          currentMonth = 0;
+          currentYear++;
+        }
+        if (currentMonth < 0) {
+          currentMonth = 11;
+          currentYear--;
+        }
+        renderCalendar();
+      }
+
+      function goToday() {
+        const now = new Date();
+        currentYear = now.getFullYear();
+        currentMonth = now.getMonth();
+        renderCalendar();
+      }
+
+      // ── SIDE PANEL ──
+      function openEventPanel(eventId) {
+        const e = allEvents.find((ev) => ev.event_id === eventId);
+        if (!e) return;
+
+        document.getElementById("panelPoster").innerHTML = e.poster_url
+          ? `<img src="${e.poster_url}" alt="${e.event_name}">`
+          : `<span class="ev-panel-poster-placeholder">🗓️</span>`;
+
+        document.getElementById("panelName").textContent = e.event_name;
+        document.getElementById("panelCode").textContent = e.event_code || "";
+        document.getElementById("panelStatus").innerHTML =
+          `<span class="event-status-badge status-${e.status}">${statusLabel(e.status)}</span>`;
+        document.getElementById("panelType").innerHTML =
+          `<span class="event-type-badge type-${e.event_type}">${typeLabel(e.event_type)}</span>`;
+        document.getElementById("panelDate").textContent =
+          formatDate(e.event_date) +
+          (e.end_date && e.end_date !== e.event_date
+            ? ` — ${formatDate(e.end_date)}`
+            : "");
+        document.getElementById("panelTime").textContent =
+          e.start_time && e.end_time
+            ? `${e.start_time.slice(0, 5)} — ${e.end_time.slice(0, 5)} น.`
+            : "—";
+        document.getElementById("panelLocation").textContent =
+          e.location || "—";
+        document.getElementById("panelAttendees").textContent = e.max_attendees
+          ? `${e.max_attendees} ท่าน`
+          : "—";
+        document.getElementById("panelDesc").textContent = e.description || "—";
+        document.getElementById("panelBtnEdit").onclick = () =>
+          (window.location.href = `./event-form.html?id=${e.event_id}`);
+
+        document.getElementById("evSidePanel").classList.add("open");
+        document.getElementById("evPanelOverlay").style.display = "block";
+      }
+
+      function closeEventPanel() {
+        document.getElementById("evSidePanel").classList.remove("open");
+        document.getElementById("evPanelOverlay").style.display = "none";
+      }
+
+      // ── SETTINGS MODAL ──
+      function openSettings() {
+        const { url, key } = getSB();
+        document.getElementById("inputSbUrl").value = url;
+        document.getElementById("inputSbKey").value = key;
+        document.getElementById("settingsStatus").className = "settings-status";
+        document.getElementById("settingsStatus").textContent = "";
+        document.getElementById("settingsOverlay").classList.add("open");
+      }
+
+      function closeSettings() {
+        document.getElementById("settingsOverlay").classList.remove("open");
+      }
+
+      function handleOverlayClick(e) {
+        if (e.target === document.getElementById("settingsOverlay"))
+          closeSettings();
+      }
+
+      function saveSettings() {
+        const url = document.getElementById("inputSbUrl").value.trim();
+        const key = document.getElementById("inputSbKey").value.trim();
+        if (!url || !key) {
+          showStatus("กรุณากรอก URL และ Key ให้ครบ", "err");
+          return;
+        }
+        localStorage.setItem("sb_url", url);
+        localStorage.setItem("sb_key", key);
+        showStatus("✅ บันทึกแล้ว — กำลังโหลดข้อมูล...", "ok");
+        document.getElementById("noConfigBanner").style.display = "none";
+        setTimeout(async () => {
+          closeSettings();
+          await loadEvents();
+          renderCalendar();
+        }, 800);
+      }
+
+      async function testConnection() {
+        const url = document.getElementById("inputSbUrl").value.trim();
+        const key = document.getElementById("inputSbKey").value.trim();
+        if (!url || !key) {
+          showStatus("กรุณากรอก URL และ Key", "err");
+          return;
+        }
+        showStatus("กำลังทดสอบ...", "ok");
         try {
           const res = await fetch(
             `${url}/rest/v1/events?select=event_id&limit=1`,
@@ -1147,408 +892,30 @@
               headers: { apikey: key, Authorization: `Bearer ${key}` },
             },
           );
-          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          if (res.ok) showStatus("✅ เชื่อมต่อสำเร็จ!", "ok");
+          else showStatus(`❌ เชื่อมต่อไม่ได้ (${res.status})`, "err");
         } catch (e) {
-          errEl.textContent = "เชื่อมต่อไม่ได้: " + e.message;
-          return;
+          showStatus("❌ " + e.message, "err");
         }
-
-        localStorage.setItem(SB_URL_KEY, url);
-        localStorage.setItem(SB_KEY_KEY, key);
-        document.getElementById("setupScreen").classList.remove("show");
-        await loadAndRender();
       }
 
-      /* ── LOAD DATA ── */
-      async function loadAndRender() {
-        showLoading(true);
-        try {
-          allEvents = await fetchEvents();
-        } catch (e) {
-          toast("โหลดข้อมูลไม่ได้: " + e.message);
-        }
-        showLoading(false);
-        render();
+      function showStatus(msg, type) {
+        const el = document.getElementById("settingsStatus");
+        el.textContent = msg;
+        el.className = `settings-status ${type}`;
       }
 
-      async function fetchEvents() {
-        const url = localStorage.getItem(SB_URL_KEY);
-        const key = localStorage.getItem(SB_KEY_KEY);
-        const res = await fetch(
-          `${url}/rest/v1/events?select=*&order=event_date.asc`,
-          {
-            headers: { apikey: key, Authorization: `Bearer ${key}` },
-          },
-        );
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return res.json();
-      }
-
-      /* ══════════════════════════════════════════════
-       NAVIGATION & VIEW
-    ══════════════════════════════════════════════ */
-      function navigate(dir) {
-        if (currentView === "month") {
-          currentDate = new Date(
-            currentDate.getFullYear(),
-            currentDate.getMonth() + dir,
-            1,
-          );
-        } else {
-          currentDate = new Date(currentDate.getTime() + dir * 7 * 86400000);
-        }
-        render();
-      }
-
-      function goToday() {
-        currentDate = new Date(TODAY);
-        render();
-      }
-
-      function setView(v) {
-        currentView = v;
-        document
-          .getElementById("btnMonth")
-          .classList.toggle("active", v === "month");
-        document
-          .getElementById("btnWeek")
-          .classList.toggle("active", v === "week");
-        render();
-      }
-
-      /* ══════════════════════════════════════════════
-       RENDER DISPATCHER
-    ══════════════════════════════════════════════ */
-      function render() {
-        if (currentView === "month") renderMonth();
-        else renderWeek();
-      }
-
-      /* ══════════════════════════════════════════════
-       MONTH VIEW
-    ══════════════════════════════════════════════ */
-      function renderMonth() {
-        const y = currentDate.getFullYear();
-        const m = currentDate.getMonth(); // 0-based
-        const buddhistY = y + 543;
-        const monthNames = [
-          "มกราคม",
-          "กุมภาพันธ์",
-          "มีนาคม",
-          "เมษายน",
-          "พฤษภาคม",
-          "มิถุนายน",
-          "กรกฎาคม",
-          "สิงหาคม",
-          "กันยายน",
-          "ตุลาคม",
-          "พฤศจิกายน",
-          "ธันวาคม",
-        ];
-
-        document.getElementById("calTitle").textContent =
-          `${monthNames[m]} ${buddhistY}`;
-
-        // เริ่มต้น grid: วันแรกของเดือน
-        const firstDay = new Date(y, m, 1);
-        const startDow = firstDay.getDay(); // 0=อา
-        const daysInMonth = new Date(y, m + 1, 0).getDate();
-        const daysInPrevMonth = new Date(y, m, 0).getDate();
-
-        // สร้างช่อง 42 วัน (6 แถว × 7 คอลัมน์)
-        const cells = [];
-        for (let i = 0; i < startDow; i++) {
-          cells.push({
-            date: toYMD2(y, m - 1, daysInPrevMonth - startDow + 1 + i),
-            cur: false,
-          });
-        }
-        for (let d = 1; d <= daysInMonth; d++) {
-          cells.push({ date: toYMD2(y, m, d), cur: true });
-        }
-        while (cells.length < 42) {
-          const d = cells.length - startDow - daysInMonth + 1;
-          cells.push({ date: toYMD2(y, m + 1, d), cur: false });
-        }
-
-        // map events by date
-        const evByDate = groupByDate(allEvents);
-
-        // DOW headers
-        const dows = ["อา.", "จ.", "อ.", "พ.", "พฤ.", "ศ.", "ส."];
-        const dowRow = `<div class="cal-dow-row">
-        ${dows.map((d) => `<div class="cal-dow-cell">${d}</div>`).join("")}
-      </div>`;
-
-        // build weeks
-        let weeksHtml = '<div class="cal-weeks">';
-        for (let row = 0; row < 6; row++) {
-          weeksHtml += '<div class="cal-week-row">';
-          for (let col = 0; col < 7; col++) {
-            const cell = cells[row * 7 + col];
-            const dayEvs = evByDate[cell.date] || [];
-            const isToday = cell.date === TODAY_STR;
-            const isOther = !cell.cur;
-            const dayNum = parseInt(cell.date.split("-")[2]);
-
-            let cls = "cal-day-cell";
-            if (isOther) cls += " other-month";
-            if (isToday) cls += " today";
-
-            const MAX_SHOW = 3;
-            const shown = dayEvs.slice(0, MAX_SHOW);
-            const extra = dayEvs.length - MAX_SHOW;
-
-            const chipsHtml = shown.map((e) => eventChip(e, true)).join("");
-            const moreHtml =
-              extra > 0
-                ? `<button class="cal-more-btn" onclick='showMore("${cell.date}")'>+${extra} เพิ่มเติม</button>`
-                : "";
-
-            weeksHtml += `
-            <div class="${cls}">
-              <div class="cal-day-num">${dayNum}</div>
-              <div class="cal-event-list">${chipsHtml}${moreHtml}</div>
-            </div>`;
-          }
-          weeksHtml += "</div>";
-        }
-        weeksHtml += "</div>";
-
-        document.getElementById("calBody").innerHTML = `
-        <div class="cal-grid-wrap">${dowRow}${weeksHtml}</div>`;
-      }
-
-      /* ══════════════════════════════════════════════
-       WEEK VIEW
-    ══════════════════════════════════════════════ */
-      function renderWeek() {
-        // หาวันอาทิตย์ต้นสัปดาห์
-        const dow = currentDate.getDay();
-        const sunday = new Date(currentDate.getTime() - dow * 86400000);
-        const days = Array.from({ length: 7 }, (_, i) => {
-          const d = new Date(sunday.getTime() + i * 86400000);
-          return toYMD(d);
-        });
-
-        const evByDate = groupByDate(allEvents);
-        const dows = ["อา.", "จ.", "อ.", "พ.", "พฤ.", "ศ.", "ส."];
-
-        // title: ช่วงสัปดาห์
-        const buddhistY = sunday.getFullYear() + 543;
-        const monthNames = [
-          "ม.ค.",
-          "ก.พ.",
-          "มี.ค.",
-          "เม.ย.",
-          "พ.ค.",
-          "มิ.ย.",
-          "ก.ค.",
-          "ส.ค.",
-          "ก.ย.",
-          "ต.ค.",
-          "พ.ย.",
-          "ธ.ค.",
-        ];
-        const endDay = new Date(sunday.getTime() + 6 * 86400000);
-        document.getElementById("calTitle").textContent =
-          `${sunday.getDate()} — ${endDay.getDate()} ${monthNames[sunday.getMonth()]} ${buddhistY}`;
-
-        // header
-        const headerCells = days
-          .map((dateStr, i) => {
-            const d = new Date(dateStr + "T00:00:00");
-            const isToday = dateStr === TODAY_STR;
-            return `<div class="week-header-cell${isToday ? " today" : ""}">
-          <div class="week-day-name">${dows[i]}</div>
-          <div class="week-day-num">${d.getDate()}</div>
-        </div>`;
-          })
-          .join("");
-
-        // body
-        const bodyCells = days
-          .map((dateStr) => {
-            const dayEvs = evByDate[dateStr] || [];
-            const chips = dayEvs.map((e) => eventChip(e, false)).join("");
-            return `<div class="week-body-cell">${chips || ""}</div>`;
-          })
-          .join("");
-
-        document.getElementById("calBody").innerHTML = `
-        <div class="cal-week-view">
-          <div class="week-header-row">${headerCells}</div>
-          <div class="week-body-row">${bodyCells}</div>
-        </div>`;
-      }
-
-      /* ══════════════════════════════════════════════
-       EVENT CHIP
-    ══════════════════════════════════════════════ */
-      function eventChip(e, compact) {
-        const typeIcon = {
-          BOOTH: "🏪",
-          MEETING: "👥",
-          ONLINE: "💻",
-          HYBRID: "🔀",
-          CONFERENCE: "🎤",
-          OTHER: "📌",
+      // ── HELPERS ──
+      function getSB() {
+        return {
+          url: localStorage.getItem("sb_url") || "",
+          key: localStorage.getItem("sb_key") || "",
         };
-        const icon = typeIcon[e.event_type] || "📌";
-        const name = e.event_name || "—";
-        return `<span class="cal-event-chip chip-${e.event_type || ""}"
-        onclick='openDetail(${JSON.stringify(JSON.stringify(e))})'>
-        ${icon} ${name}
-      </span>`;
       }
 
-      /* ══════════════════════════════════════════════
-       MORE MODAL
-    ══════════════════════════════════════════════ */
-      function showMore(dateStr) {
-        const evByDate = groupByDate(allEvents);
-        const dayEvs = evByDate[dateStr] || [];
-        document.getElementById("moreDateLabel").textContent =
-          formatDateTH(dateStr);
-
-        const typeIcon = {
-          BOOTH: "🏪",
-          MEETING: "👥",
-          ONLINE: "💻",
-          HYBRID: "🔀",
-          CONFERENCE: "🎤",
-          OTHER: "📌",
-        };
-        const html = dayEvs
-          .map((e) => {
-            const icon = typeIcon[e.event_type] || "📌";
-            const timeStr = e.start_time ? e.start_time.slice(0, 5) : "";
-            return `<div class="more-event-chip chip-${e.event_type || ""}"
-          onclick='closeMore();openDetail(${JSON.stringify(JSON.stringify(e))})'>
-          <span style="font-size:16px">${icon}</span>
-          <div>
-            <div class="more-event-name">${e.event_name || "—"}</div>
-            ${timeStr ? `<div class="more-event-time">${timeStr} น.</div>` : ""}
-          </div>
-        </div>`;
-          })
-          .join("");
-
-        document.getElementById("moreList").innerHTML = html;
-        document.getElementById("moreOverlay").classList.add("show");
-      }
-
-      function closeMore() {
-        document.getElementById("moreOverlay").classList.remove("show");
-      }
-      function closeMOre(e) {
-        if (e.target === document.getElementById("moreOverlay")) closeMore();
-      }
-
-      /* ══════════════════════════════════════════════
-       DETAIL MODAL
-    ══════════════════════════════════════════════ */
-      function openDetail(eJson) {
-        const e = JSON.parse(eJson);
-
-        // poster
-        document.getElementById("detailPosterWrap").innerHTML = e.poster_url
-          ? `<img class="detail-poster" src="${e.poster_url}" alt="${e.event_name}">`
-          : `<div class="detail-poster-placeholder">🗓️</div>`;
-
-        // badges
-        const statusLabel = {
-          DRAFT: "📝 Draft",
-          CONFIRMED: "✅ Confirmed",
-          ONGOING: "▶️ Ongoing",
-          DONE: "🏁 Done",
-          CANCELLED: "❌ Cancelled",
-        };
-        const typeLabel = {
-          BOOTH: "🏪 ออกบูธ",
-          MEETING: "👥 ประชุม",
-          ONLINE: "💻 Online",
-          HYBRID: "🔀 Hybrid",
-          CONFERENCE: "🎤 Conference",
-          OTHER: "📌 อื่นๆ",
-        };
-        document.getElementById("detailBadges").innerHTML = `
-        <span class="detail-badge sbadge-${e.status}">${statusLabel[e.status] || e.status}</span>
-        <span class="detail-badge chip-${e.event_type}">${typeLabel[e.event_type] || e.event_type}</span>`;
-
-        document.getElementById("detailName").textContent = e.event_name || "—";
-        document.getElementById("detailCode").textContent = e.event_code || "";
-
-        // info rows
-        const dateStr =
-          formatDateTH(e.event_date) +
-          (e.end_date && e.end_date !== e.event_date
-            ? ` — ${formatDateTH(e.end_date)}`
-            : "");
-        const timeStr =
-          e.start_time && e.end_time
-            ? `${e.start_time.slice(0, 5)} — ${e.end_time.slice(0, 5)} น.`
-            : "—";
-
-        document.getElementById("detailRows").innerHTML = `
-        <div class="detail-row"><span class="detail-row-icon">📅</span><span class="detail-row-val">${dateStr}</span></div>
-        <div class="detail-row"><span class="detail-row-icon">🕐</span><span class="detail-row-val">${timeStr}</span></div>
-        <div class="detail-row"><span class="detail-row-icon">📍</span><span class="detail-row-val">${e.location || "—"}</span></div>
-        ${e.max_attendees ? `<div class="detail-row"><span class="detail-row-icon">👥</span><span class="detail-row-val">${e.max_attendees} ท่าน</span></div>` : ""}
-        ${e.description ? `<div class="detail-row"><span class="detail-row-icon">📝</span><span class="detail-row-val">${e.description}</span></div>` : ""}`;
-
-        document.getElementById("detailOverlay").classList.add("show");
-      }
-
-      function closeDetailModal() {
-        document.getElementById("detailOverlay").classList.remove("show");
-      }
-      function closeDetail(e) {
-        if (e.target === document.getElementById("detailOverlay"))
-          closeDetailModal();
-      }
-
-      /* ══════════════════════════════════════════════
-       HELPERS
-    ══════════════════════════════════════════════ */
-      function groupByDate(events) {
-        const map = {};
-        events.forEach((e) => {
-          const d = e.event_date;
-          if (!d) return;
-          if (!map[d]) map[d] = [];
-          map[d].push(e);
-          // ถ้า end_date คนละวัน ให้แสดงทุกวันในช่วง (max 14 วันกัน spam)
-          if (e.end_date && e.end_date > d) {
-            let cur = new Date(d + "T00:00:00");
-            const end = new Date(e.end_date + "T00:00:00");
-            let limit = 0;
-            cur.setDate(cur.getDate() + 1);
-            while (cur <= end && limit < 14) {
-              const key = toYMD(cur);
-              if (!map[key]) map[key] = [];
-              // ไม่ซ้ำ
-              if (!map[key].find((x) => x.event_id === e.event_id))
-                map[key].push(e);
-              cur.setDate(cur.getDate() + 1);
-              limit++;
-            }
-          }
-        });
-        return map;
-      }
-
-      function toYMD(d) {
-        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-      }
-      function toYMD2(y, m, d) {
-        const dt = new Date(y, m, d);
-        return toYMD(dt);
-      }
-
-      function formatDateTH(dateStr) {
-        if (!dateStr) return "—";
-        const [y, mo, d] = dateStr.split("-");
+      function formatDate(d) {
+        if (!d) return "—";
+        const [y, m, day] = d.split("-");
         const months = [
           "",
           "ม.ค.",
@@ -1564,27 +931,66 @@
           "พ.ย.",
           "ธ.ค.",
         ];
-        return `${parseInt(d)} ${months[parseInt(mo)]} ${parseInt(y) + 543}`;
+        return `${parseInt(day)} ${months[parseInt(m)]} ${parseInt(y) + 543}`;
       }
 
-      function showLoading(v) {
-        document.getElementById("calLoading").classList.toggle("show", v);
-        document.getElementById("calBody").style.display = v ? "none" : "";
+      function typeIcon(t) {
+        return (
+          {
+            BOOTH: "🏪",
+            MEETING: "👥",
+            ONLINE: "💻",
+            HYBRID: "🔀",
+            CONFERENCE: "🎤",
+            OTHER: "📌",
+          }[t] || ""
+        );
       }
 
-      function toast(msg) {
-        const el = document.getElementById("calToast");
-        el.textContent = msg;
-        el.classList.add("show");
-        setTimeout(() => el.classList.remove("show"), 3000);
+      function typeLabel(t) {
+        return (
+          {
+            BOOTH: "🏪 ออกบูธ",
+            MEETING: "👥 ประชุม",
+            ONLINE: "💻 Online",
+            HYBRID: "🔀 Hybrid",
+            CONFERENCE: "🎤 Conference",
+            OTHER: "📌 อื่นๆ",
+          }[t] || t
+        );
       }
 
-      /* ── Reset connection ── */
-      window.resetConnection = function () {
-        localStorage.removeItem(SB_URL_KEY);
-        localStorage.removeItem(SB_KEY_KEY);
-        location.reload();
-      };
+      function statusLabel(s) {
+        return (
+          {
+            DRAFT: "📝 Draft",
+            CONFIRMED: "✅ Confirmed",
+            ONGOING: "▶️ Ongoing",
+            DONE: "🏁 Done",
+            CANCELLED: "❌ Cancelled",
+          }[s] || s
+        );
+      }
+
+      function showToast(msg, type = "success") {
+        const t = document.getElementById("toast");
+        t.className = `toast toast-${type} show`;
+        t.textContent = msg;
+        setTimeout(() => t.classList.remove("show"), 3000);
+      }
+
+      function showLoading(show) {
+        document
+          .getElementById("loadingOverlay")
+          .classList.toggle("show", show);
+      }
+
+      // ── START (ไม่ใช้ auth.js) ──
+      if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", initPage);
+      } else {
+        initPage();
+      }
     </script>
   </body>
 </html>
