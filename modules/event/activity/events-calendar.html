@@ -11,15 +11,12 @@
     <link rel="stylesheet" href="../../../../css/main.css" />
     <link rel="stylesheet" href="../activity/events.css" />
     <style>
-      /* ── CALENDAR LAYOUT ── */
+      /* ── CALENDAR HEADER ── */
       .cal-header {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        margin-bottom: 0;
-        padding: 18px 24px;
-        background: #fff;
-        border-bottom: 1px solid #f1f5f9;
+        margin-bottom: 16px;
         flex-wrap: wrap;
         gap: 12px;
       }
@@ -28,7 +25,7 @@
         align-items: center;
         gap: 8px;
       }
-      .cal-nav .btn {
+      .cal-nav .btn-circle {
         width: 32px;
         height: 32px;
         padding: 0;
@@ -38,12 +35,12 @@
         border-radius: 50%;
         font-size: 16px;
         background: transparent;
-        border: none;
+        border: 1px solid #e2e8f0;
         color: #64748b;
         cursor: pointer;
         transition: background 0.15s;
       }
-      .cal-nav .btn:hover {
+      .cal-nav .btn-circle:hover {
         background: #f1f5f9;
       }
       .cal-month-label {
@@ -63,14 +60,27 @@
         font-size: 13px;
         font-weight: 600;
         cursor: pointer;
-        transition: background 0.15s;
         font-family: "Sarabun", sans-serif;
+        transition: background 0.15s;
       }
       .btn-today:hover {
         background: #e0e7ff;
       }
+      .cal-filter-wrap {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+      .cal-filter-wrap .filter-select {
+        border-radius: 10px;
+        font-size: 12px;
+        border: 1px solid #e2e8f0;
+        background: #f8fafc;
+        height: 34px;
+        padding: 0 10px;
+      }
 
-      /* ── CALENDAR WRAP ── */
+      /* ── GRID WRAP ── */
       .cal-grid-wrap {
         background: #fff;
         border: 1px solid #e2e8f0;
@@ -95,8 +105,6 @@
       .cal-day-hdr.weekend {
         color: #f43f5e;
       }
-
-      /* ── GRID ── */
       .cal-grid {
         display: grid;
         grid-template-columns: repeat(7, 1fr);
@@ -123,8 +131,6 @@
       .cal-cell.other-month .cal-date-num {
         color: #cbd5e1;
       }
-
-      /* วันที่ circle */
       .cal-date-num {
         width: 28px;
         height: 28px;
@@ -136,7 +142,6 @@
         font-weight: 500;
         color: #64748b;
         margin-bottom: 4px;
-        transition: background 0.15s;
       }
       .cal-cell.today .cal-date-num {
         background: #4f46e5;
@@ -165,11 +170,11 @@
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
+        border: 1px solid transparent;
+        line-height: 1.5;
         transition:
           filter 0.15s,
           transform 0.1s;
-        border: 1px solid transparent;
-        line-height: 1.5;
       }
       .cal-event-pill:hover {
         filter: brightness(0.95);
@@ -217,10 +222,8 @@
         background: #f1f5f9;
         color: #4f46e5;
       }
-
-      /* ── EMPTY STATE ── */
       .cal-empty {
-        grid-column: 1 / -1;
+        grid-column: 1/-1;
         padding: 60px 0;
         text-align: center;
         color: #94a3b8;
@@ -248,21 +251,6 @@
         border-radius: 3px;
       }
 
-      /* ── FILTER AREA ── */
-      .cal-filter-wrap {
-        display: flex;
-        gap: 8px;
-        align-items: center;
-      }
-      .cal-filter-wrap .filter-select {
-        border-radius: 10px;
-        font-size: 12px;
-        border-color: #e2e8f0;
-        background: #f8fafc;
-        height: 34px;
-        padding: 0 10px;
-      }
-
       /* ── EVENT POPUP ── */
       .ev-popup {
         position: relative;
@@ -287,7 +275,6 @@
           transform: scale(1) translateY(0);
         }
       }
-
       .ev-popup-close {
         width: 28px;
         height: 28px;
@@ -306,8 +293,6 @@
       .ev-popup-close:hover {
         background: #f1f5f9;
       }
-
-      /* ── ซ้าย: รูป ── */
       .ev-popup-left {
         background: #f8f9fa;
         border-right: 1px solid #e5e7eb;
@@ -329,8 +314,6 @@
         font-size: 64px;
         opacity: 0.3;
       }
-
-      /* ── ขวา: detail ── */
       .ev-popup-right {
         display: flex;
         flex-direction: column;
@@ -354,7 +337,6 @@
         display: grid;
         grid-template-columns: 1fr 1fr;
         gap: 12px 20px;
-        margin-bottom: 4px;
       }
       .ev-popup-field {
         display: flex;
@@ -389,11 +371,6 @@
         color: #475569 !important;
         line-height: 1.6;
       }
-      .ev-popup-divider {
-        border: none;
-        border-top: 1px solid #e5e7eb;
-        margin: 14px 0;
-      }
       .ev-popup-footer {
         display: flex;
         justify-content: flex-end;
@@ -402,29 +379,14 @@
         padding-top: 14px;
       }
 
-      /* ── MOBILE grid stack ── */
-      @media (max-width: 600px) {
-        .ev-popup-grid-2 {
-          grid-template-columns: 1fr;
-          gap: 10px;
-        }
-        .ev-popup-name {
-          font-size: 15px;
-        }
-        .ev-popup-field-value {
-          font-size: 12.5px;
-        }
-      }
-
-      /* ── TABLET (≤900px) ── */
+      /* TABLET */
       @media (max-width: 900px) {
         .ev-popup {
           grid-template-columns: 220px 1fr;
           width: 92vw;
         }
       }
-
-      /* ── MOBILE (≤600px) → stack ซ้อนกัน ── */
+      /* MOBILE */
       @media (max-width: 600px) {
         .ev-popup {
           grid-template-columns: 1fr;
@@ -439,55 +401,30 @@
           min-height: unset;
           height: 220px;
           max-height: 220px;
-          background: #f8f9fa;
-        }
-        .ev-popup-left img {
-          object-fit: contain;
-          object-position: center;
+          margin-left: 0;
+          border-radius: 14px 14px 0 0;
         }
         .ev-popup-right {
           padding: 14px 16px;
-          max-height: calc(92vh - 200px);
-          overflow-y: auto;
+          max-height: calc(92vh - 220px);
         }
         .ev-popup-name {
           font-size: 15px;
-          margin-bottom: 2px;
         }
-        .ev-popup-code {
-          font-size: 10px;
-        }
-        .ev-popup-badges {
-          margin-bottom: 8px;
-          gap: 4px;
-        }
-        .ev-popup-divider {
-          margin: 10px 0;
-        }
-        .ev-popup-info-list {
+        .ev-popup-grid-2 {
+          grid-template-columns: 1fr;
           gap: 10px;
         }
-        .ev-popup-info-icon {
-          font-size: 13px;
-        }
-        .ev-popup-info-label {
-          font-size: 9px;
-        }
-        .ev-popup-info-value {
+        .ev-popup-field-value {
           font-size: 12.5px;
         }
         .ev-popup-footer {
           margin-top: 14px;
           padding-top: 10px;
         }
-        .ev-popup-close {
-          top: 8px;
-          right: 8px;
-          width: 26px;
-          height: 26px;
-          font-size: 11px;
-        }
       }
+
+      /* ── SETTINGS FLOAT ── */
       .btn-settings-float {
         position: fixed;
         bottom: 24px;
@@ -609,8 +546,6 @@
         color: #b91c1c;
         display: block;
       }
-
-      /* ── NO CONFIG BANNER ── */
       .no-config-banner {
         background: #fef9c3;
         border: 1px solid #fde047;
@@ -637,16 +572,11 @@
     </div>
     <div class="toast" id="toast"></div>
 
-    <!-- TOPBAR -->
     <div class="topbar"></div>
     <div class="layout">
-      <!-- SIDEBAR -->
       <div id="sidebar-container"></div>
-
-      <!-- CONTENT -->
       <div class="content-area">
         <div class="page">
-          <!-- NO CONFIG BANNER (แสดงเมื่อยังไม่ตั้งค่า) -->
           <div
             class="no-config-banner"
             id="noConfigBanner"
@@ -659,9 +589,9 @@
           <!-- HEADER -->
           <div class="cal-header">
             <div class="cal-nav">
-              <button class="btn" onclick="changeMonth(-1)">‹</button>
+              <button class="btn-circle" onclick="changeMonth(-1)">‹</button>
               <div class="cal-month-label" id="calMonthLabel">—</div>
-              <button class="btn" onclick="changeMonth(1)">›</button>
+              <button class="btn-circle" onclick="changeMonth(1)">›</button>
               <button class="btn-today" onclick="goToday()">วันนี้</button>
             </div>
             <div class="cal-filter-wrap">
@@ -693,8 +623,8 @@
             </div>
           </div>
 
-          <!-- CALENDAR GRID -->
-          <div class="cal-grid-wrap" style="margin-top: 16px">
+          <!-- CALENDAR -->
+          <div class="cal-grid-wrap">
             <div class="cal-day-headers">
               <div class="cal-day-hdr weekend">อา</div>
               <div class="cal-day-hdr">จ</div>
@@ -712,7 +642,7 @@
           <!-- LEGEND -->
           <div class="cal-legend">
             <div class="cal-legend-item">
-              <div class="cal-legend-dot" style="background: #7c3aed"></div>
+              <div class="cal-legend-dot" style="background: #6d28d9"></div>
               ออกบูธ
             </div>
             <div class="cal-legend-item">
@@ -737,9 +667,7 @@
             </div>
           </div>
         </div>
-        <!-- end .page -->
 
-        <!-- SCRIPTS -->
         <script src="../../../../js/components/navigation/sidebar.js"></script>
         <script type="module">
           import { loadTopbar } from "../../../../js/components/navigation/topbar.js";
@@ -748,7 +676,7 @@
       </div>
     </div>
 
-    <!-- ═══ SETTINGS MODAL ═══ -->
+    <!-- SETTINGS MODAL -->
     <div
       class="settings-overlay"
       id="settingsOverlay"
@@ -757,10 +685,9 @@
       <div class="settings-modal">
         <div class="settings-title">⚙️ ตั้งค่าการเชื่อมต่อ Supabase</div>
         <div class="settings-subtitle">
-          กรอก URL และ API Key เพื่อเชื่อมต่อฐานข้อมูล<br />
-          ค่านี้จะถูกบันทึกใน localStorage ของเครื่องนี้
+          กรอก URL และ API Key เพื่อเชื่อมต่อฐานข้อมูล<br />ค่านี้จะถูกบันทึกใน
+          localStorage ของเครื่องนี้
         </div>
-
         <div class="settings-field">
           <label class="settings-label">Supabase URL</label>
           <input
@@ -778,9 +705,7 @@
             type="password"
           />
         </div>
-
         <div class="settings-status" id="settingsStatus"></div>
-
         <div class="settings-actions">
           <button class="btn btn-outline" onclick="closeSettings()">
             ยกเลิก
@@ -795,7 +720,6 @@
       </div>
     </div>
 
-    <!-- ⚙️ SETTINGS FLOAT BUTTON -->
     <button
       class="btn-settings-float"
       onclick="openSettings()"
@@ -804,7 +728,7 @@
       ⚙️
     </button>
 
-    <!-- ═══ EVENT POPUP OVERLAY ═══ -->
+    <!-- EVENT POPUP -->
     <div
       id="evPanelOverlay"
       style="
@@ -819,14 +743,11 @@
       "
       onclick="closeEventPanel()"
     >
-      <!-- ═══ EVENT POPUP ═══ -->
       <div id="evPopup" class="ev-popup" onclick="event.stopPropagation()">
-        <!-- [ซ้าย] รูปภาพ -->
         <div class="ev-popup-left" id="panelPoster">
           <span class="ev-popup-placeholder">🗓️</span>
         </div>
 
-        <!-- [ขวา] รายละเอียด -->
         <div class="ev-popup-right">
           <div class="ev-popup-top-row">
             <div class="ev-popup-badges">
@@ -838,7 +759,6 @@
             </button>
           </div>
 
-          <!-- ROW 1: ชื่องาน | สถานที่ -->
           <div class="ev-popup-grid-2">
             <div class="ev-popup-field">
               <div class="ev-popup-field-label">ชื่องาน</div>
@@ -853,7 +773,6 @@
             </div>
           </div>
 
-          <!-- ROW 2: วันที่ | เวลา -->
           <div class="ev-popup-grid-2" style="margin-top: 16px">
             <div class="ev-popup-field">
               <div class="ev-popup-field-label">📅 วันที่จัดงาน</div>
@@ -865,7 +784,6 @@
             </div>
           </div>
 
-          <!-- ROW 3: รายละเอียด -->
           <div class="ev-popup-field" style="margin-top: 16px">
             <div class="ev-popup-field-label">📝 รายละเอียด</div>
             <div class="ev-popup-field-value ev-popup-desc" id="panelDesc">
@@ -881,15 +799,13 @@
     </div>
 
     <script>
-      // ── SUPABASE CONFIG (hardcoded fallback) ──
       const SB_URL_DEFAULT = "https://dtiynydgkcqausqktreg.supabase.co";
       const SB_KEY_DEFAULT =
         "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR0aXlueWRna2NxYXVzcWt0cmVnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIyNjEwNTcsImV4cCI6MjA4NzgzNzA1N30.DmXwvBBvx3zK7rw21179ro65mTm0B4lQ20ktVMpAUQE";
 
-      // ── STATE ──
       let allEvents = [];
       let currentYear = new Date().getFullYear();
-      let currentMonth = new Date().getMonth(); // 0-indexed
+      let currentMonth = new Date().getMonth();
 
       const MONTHS_TH = [
         "มกราคม",
@@ -906,13 +822,11 @@
         "ธันวาคม",
       ];
 
-      // ── INIT (ไม่ผ่าน auth.js — standalone) ──
       async function initPage() {
         await loadEvents();
         renderCalendar();
       }
 
-      // ── LOAD EVENTS ──
       async function loadEvents() {
         showLoading(true);
         try {
@@ -937,10 +851,8 @@
         showLoading(false);
       }
 
-      // ── RENDER CALENDAR ──
       function renderCalendar() {
         updateMonthLabel();
-
         const typeFilter =
           document.getElementById("calFilterType")?.value || "";
         const statusFilter =
@@ -952,52 +864,42 @@
             (!statusFilter || e.status === statusFilter),
         );
 
-        // map date → events[]
         const eventMap = {};
         filtered.forEach((e) => {
           const start = e.event_date;
           const end = e.end_date || start;
-          // วน loop วันระหว่าง start-end
-          let d = new Date(start);
-          const endD = new Date(end);
+          let d = new Date(start + "T00:00:00");
+          const endD = new Date(end + "T00:00:00");
           while (d <= endD) {
             const key = d.toISOString().split("T")[0];
             if (!eventMap[key]) eventMap[key] = [];
-            eventMap[key].push(e);
+            if (!eventMap[key].find((x) => x.event_id === e.event_id))
+              eventMap[key].push(e);
             d.setDate(d.getDate() + 1);
           }
         });
 
-        // สร้าง grid
-        const firstDay = new Date(currentYear, currentMonth, 1).getDay(); // 0=Sun
+        const firstDay = new Date(currentYear, currentMonth, 1).getDay();
         const daysInMonth = new Date(
           currentYear,
           currentMonth + 1,
           0,
         ).getDate();
         const today = new Date().toISOString().split("T")[0];
-
         let cells = "";
 
-        // padding before
         for (let i = 0; i < firstDay; i++) {
-          const prevMonthDays = new Date(
-            currentYear,
-            currentMonth,
-            0,
-          ).getDate();
-          const d = prevMonthDays - firstDay + i + 1;
+          const prevDays = new Date(currentYear, currentMonth, 0).getDate();
+          const d = prevDays - firstDay + i + 1;
           cells += `<div class="cal-cell other-month"><div class="cal-date-num">${d}</div></div>`;
         }
 
-        // days of month
         for (let d = 1; d <= daysInMonth; d++) {
           const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
           const isToday = dateStr === today;
           const dow = new Date(currentYear, currentMonth, d).getDay();
           const isWeekend = dow === 0 || dow === 6;
           const dayEvents = eventMap[dateStr] || [];
-
           const cls = [
             "cal-cell",
             isToday ? "today" : "",
@@ -1012,11 +914,11 @@
 
           const pillsHtml = shown
             .map(
-              (e) =>
-                `<div class="cal-event-pill type-${e.event_type}"
-               onclick="event.stopPropagation();openEventPanel(${e.event_id})"
-               title="${e.event_name}">
-               ${typeIcon(e.event_type)} ${e.event_name}
+              (ev) =>
+                `<div class="cal-event-pill type-${ev.event_type}"
+               onclick="openEventPanel(${ev.event_id});event.stopPropagation();"
+               title="${ev.event_name}">
+               ${typeIcon(ev.event_type)} ${ev.event_name}
              </div>`,
             )
             .join("");
@@ -1024,15 +926,9 @@
           const moreHtml =
             extra > 0 ? `<div class="cal-more">+${extra} เพิ่มเติม</div>` : "";
 
-          cells += `
-            <div class="${cls}">
-              <div class="cal-date-num">${d}</div>
-              ${pillsHtml}
-              ${moreHtml}
-            </div>`;
+          cells += `<div class="${cls}"><div class="cal-date-num">${d}</div>${pillsHtml}${moreHtml}</div>`;
         }
 
-        // padding after
         const totalCells = firstDay + daysInMonth;
         const remaining = (7 - (totalCells % 7)) % 7;
         for (let d = 1; d <= remaining; d++) {
@@ -1048,7 +944,6 @@
           `${MONTHS_TH[currentMonth]} ${currentYear + 543}`;
       }
 
-      // ── NAV ──
       function changeMonth(delta) {
         currentMonth += delta;
         if (currentMonth > 11) {
@@ -1061,23 +956,18 @@
         }
         renderCalendar();
       }
-
       function goToday() {
-        const now = new Date();
-        currentYear = now.getFullYear();
-        currentMonth = now.getMonth();
+        currentYear = new Date().getFullYear();
+        currentMonth = new Date().getMonth();
         renderCalendar();
       }
 
-      // ── EVENT POPUP ──
       function openEventPanel(eventId) {
         const e = allEvents.find((ev) => ev.event_id === eventId);
         if (!e) return;
-
         document.getElementById("panelPoster").innerHTML = e.poster_url
           ? `<img src="${e.poster_url}" alt="${e.event_name}">`
           : `<span class="ev-popup-placeholder">🗓️</span>`;
-
         document.getElementById("panelName").textContent = e.event_name;
         document.getElementById("panelCode").textContent = e.event_code || "";
         document.getElementById("panelStatus").innerHTML =
@@ -1095,25 +985,17 @@
             : "—";
         document.getElementById("panelLocation").textContent =
           e.location || "—";
-        document.getElementById("panelAttendees").textContent = e.max_attendees
-          ? `${e.max_attendees} ท่าน`
-          : "—";
         document.getElementById("panelDesc").textContent = e.description || "—";
         document.getElementById("panelBtnEdit").onclick = () =>
           (window.location.href = `./event-form.html?id=${e.event_id}`);
-
-        const overlay = document.getElementById("evPanelOverlay");
-        overlay.style.display = "flex";
+        document.getElementById("evPanelOverlay").style.display = "flex";
         document.body.style.overflow = "hidden";
       }
-
       function closeEventPanel() {
-        const overlay = document.getElementById("evPanelOverlay");
-        overlay.style.display = "none";
+        document.getElementById("evPanelOverlay").style.display = "none";
         document.body.style.overflow = "";
       }
 
-      // ── SETTINGS MODAL ──
       function openSettings() {
         const { url, key } = getSB();
         document.getElementById("inputSbUrl").value = url;
@@ -1122,16 +1004,13 @@
         document.getElementById("settingsStatus").textContent = "";
         document.getElementById("settingsOverlay").classList.add("open");
       }
-
       function closeSettings() {
         document.getElementById("settingsOverlay").classList.remove("open");
       }
-
       function handleOverlayClick(e) {
         if (e.target === document.getElementById("settingsOverlay"))
           closeSettings();
       }
-
       function saveSettings() {
         const url = document.getElementById("inputSbUrl").value.trim();
         const key = document.getElementById("inputSbKey").value.trim();
@@ -1149,7 +1028,6 @@
           renderCalendar();
         }, 800);
       }
-
       async function testConnection() {
         const url = document.getElementById("inputSbUrl").value.trim();
         const key = document.getElementById("inputSbKey").value.trim();
@@ -1161,9 +1039,7 @@
         try {
           const res = await fetch(
             `${url}/rest/v1/events?select=event_id&limit=1`,
-            {
-              headers: { apikey: key, Authorization: `Bearer ${key}` },
-            },
+            { headers: { apikey: key, Authorization: `Bearer ${key}` } },
           );
           if (res.ok) showStatus("✅ เชื่อมต่อสำเร็จ!", "ok");
           else showStatus(`❌ เชื่อมต่อไม่ได้ (${res.status})`, "err");
@@ -1171,16 +1047,13 @@
           showStatus("❌ " + e.message, "err");
         }
       }
-
       function showStatus(msg, type) {
         const el = document.getElementById("settingsStatus");
         el.textContent = msg;
         el.className = `settings-status ${type}`;
       }
 
-      // ── HELPERS ──
       function getSB() {
-        // ตรวจว่า key ใน localStorage เป็น JWT จริงไหม ถ้าไม่ใช่ใช้ default
         const storedUrl = localStorage.getItem("sb_url") || "";
         const storedKey = localStorage.getItem("sb_key") || "";
         const isValidKey =
@@ -1190,7 +1063,6 @@
           key: isValidKey ? storedKey : SB_KEY_DEFAULT,
         };
       }
-
       function formatDate(d) {
         if (!d) return "—";
         const [y, m, day] = d.split("-");
@@ -1211,7 +1083,6 @@
         ];
         return `${parseInt(day)} ${months[parseInt(m)]} ${parseInt(y) + 543}`;
       }
-
       function typeIcon(t) {
         return (
           {
@@ -1224,7 +1095,6 @@
           }[t] || ""
         );
       }
-
       function typeLabel(t) {
         return (
           {
@@ -1237,7 +1107,6 @@
           }[t] || t
         );
       }
-
       function statusLabel(s) {
         return (
           {
@@ -1249,21 +1118,18 @@
           }[s] || s
         );
       }
-
       function showToast(msg, type = "success") {
         const t = document.getElementById("toast");
         t.className = `toast toast-${type} show`;
         t.textContent = msg;
         setTimeout(() => t.classList.remove("show"), 3000);
       }
-
       function showLoading(show) {
         document
           .getElementById("loadingOverlay")
           .classList.toggle("show", show);
       }
 
-      // ── START (ไม่ใช้ auth.js) ──
       if (document.readyState === "loading") {
         document.addEventListener("DOMContentLoaded", initPage);
       } else {
