@@ -907,9 +907,14 @@
 
       // ── HELPERS ──
       function getSB() {
+        // ตรวจว่า key ใน localStorage เป็น JWT จริงไหม ถ้าไม่ใช่ใช้ default
+        const storedUrl = localStorage.getItem("sb_url") || "";
+        const storedKey = localStorage.getItem("sb_key") || "";
+        const isValidKey =
+          storedKey.startsWith("eyJ") && storedKey.length > 100;
         return {
-          url: localStorage.getItem("sb_url") || SB_URL_DEFAULT,
-          key: localStorage.getItem("sb_key") || SB_KEY_DEFAULT,
+          url: storedUrl || SB_URL_DEFAULT,
+          key: isValidKey ? storedKey : SB_KEY_DEFAULT,
         };
       }
 
