@@ -1,3 +1,17 @@
+/* ── STANDALONE PAGE (ไม่มี sidebar/topbar) ── */
+.cal-standalone-page {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 24px 32px 60px;
+  font-family: "Sarabun", sans-serif;
+}
+
+@media (max-width: 768px) {
+  .cal-standalone-page {
+    padding: 16px 12px 40px;
+  }
+}
+
 /* =========================================================
    events-calendar.css — Event Calendar Page Styles
    Style ref: pastel indigo, filled pills, sunday pink bg
