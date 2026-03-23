@@ -649,6 +649,7 @@
       }
 
       // ── LOAD EVENTS ──
+      // ใหม่ — เพิ่ม handle 401 บังคับเปิด Settings
       async function loadEvents() {
         showLoading(true);
         try {
@@ -657,6 +658,13 @@
             `${url}/rest/v1/events?select=*&order=event_date.asc`,
             { headers: { apikey: key, Authorization: `Bearer ${key}` } },
           );
+          if (res.status === 401 || res.status === 403) {
+            showLoading(false);
+            document.getElementById("noConfigBanner").style.display = "flex";
+            showStatus("❌ Key ไม่ถูกต้องหรือหมดอายุ — กรุณากรอกใหม่", "err");
+            openSettings();
+            return;
+          }
           if (!res.ok) throw new Error("Fetch failed: " + res.status);
           allEvents = await res.json();
         } catch (e) {
