@@ -339,21 +339,62 @@
       @media (max-width: 600px) {
         .ev-popup {
           grid-template-columns: 1fr;
-          grid-template-rows: 200px 1fr;
-          width: 94vw;
-          max-height: 90vh;
+          grid-template-rows: auto 1fr;
+          width: 96vw;
+          max-height: 92vh;
+          border-radius: 14px;
         }
         .ev-popup-left {
           border-right: none;
-          border-bottom: 1px solid var(--border);
-          min-height: 200px;
+          border-bottom: 1px solid #e5e7eb;
+          min-height: unset;
+          height: 200px;
+          max-height: 200px;
+        }
+        .ev-popup-left img {
+          object-position: top center;
         }
         .ev-popup-right {
-          padding: 16px;
-          max-height: calc(90vh - 200px);
+          padding: 14px 16px;
+          max-height: calc(92vh - 200px);
+          overflow-y: auto;
         }
         .ev-popup-name {
-          font-size: 16px;
+          font-size: 15px;
+          margin-bottom: 2px;
+        }
+        .ev-popup-code {
+          font-size: 10px;
+        }
+        .ev-popup-badges {
+          margin-bottom: 8px;
+          gap: 4px;
+        }
+        .ev-popup-divider {
+          margin: 10px 0;
+        }
+        .ev-popup-info-list {
+          gap: 10px;
+        }
+        .ev-popup-info-icon {
+          font-size: 13px;
+        }
+        .ev-popup-info-label {
+          font-size: 9px;
+        }
+        .ev-popup-info-value {
+          font-size: 12.5px;
+        }
+        .ev-popup-footer {
+          margin-top: 14px;
+          padding-top: 10px;
+        }
+        .ev-popup-close {
+          top: 8px;
+          right: 8px;
+          width: 26px;
+          height: 26px;
+          font-size: 11px;
         }
       }
       .btn-settings-float {
