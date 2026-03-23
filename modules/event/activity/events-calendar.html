@@ -1085,14 +1085,6 @@
           >
             ปิด
           </button>
-          <a
-            class="detail-btn detail-btn-log"
-            id="detailLogBtn"
-            href="#"
-            target="_blank"
-          >
-            💬 ดู Log กิจกรรม
-          </a>
         </div>
       </div>
     </div>
@@ -1504,10 +1496,6 @@
         <div class="detail-row"><span class="detail-row-icon">📍</span><span class="detail-row-val">${e.location || "—"}</span></div>
         ${e.max_attendees ? `<div class="detail-row"><span class="detail-row-icon">👥</span><span class="detail-row-val">${e.max_attendees} ท่าน</span></div>` : ""}
         ${e.description ? `<div class="detail-row"><span class="detail-row-icon">📝</span><span class="detail-row-val">${e.description}</span></div>` : ""}`;
-
-        // log button path — relative to event-calendar.html location (same folder as activity/)
-        document.getElementById("detailLogBtn").href =
-          `./event-log.html?id=${e.event_id}`;
 
         document.getElementById("detailOverlay").classList.add("show");
       }
