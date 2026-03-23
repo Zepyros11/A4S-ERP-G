@@ -184,7 +184,177 @@
         border-radius: 3px;
       }
 
-      /* ── SETTINGS BUTTON (fixed position) ── */
+      /* ── EVENT POPUP ── */
+      .ev-popup {
+        position: relative;
+        display: grid;
+        grid-template-columns: 280px 1fr;
+        background: var(--surface);
+        border-radius: 16px;
+        overflow: hidden;
+        box-shadow: 0 24px 80px rgba(0, 0, 0, 0.3);
+        width: 760px;
+        max-width: 94vw;
+        max-height: 88vh;
+        animation: popupIn 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+      }
+      @keyframes popupIn {
+        from {
+          opacity: 0;
+          transform: scale(0.92) translateY(16px);
+        }
+        to {
+          opacity: 1;
+          transform: scale(1) translateY(0);
+        }
+      }
+
+      /* ── ปุ่มปิด ── */
+      .ev-popup-close {
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        border: 1px solid var(--border);
+        background: var(--surface);
+        color: var(--text2);
+        font-size: 13px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10;
+        transition: background 0.15s;
+      }
+      .ev-popup-close:hover {
+        background: var(--surface2);
+      }
+
+      /* ── ซ้าย: รูป ── */
+      .ev-popup-left {
+        background: var(--surface2);
+        border-right: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        min-height: 320px;
+      }
+      .ev-popup-left img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+      .ev-popup-placeholder {
+        font-size: 64px;
+        opacity: 0.3;
+      }
+
+      /* ── ขวา: detail ── */
+      .ev-popup-right {
+        display: flex;
+        flex-direction: column;
+        padding: 24px;
+        overflow-y: auto;
+        max-height: 88vh;
+      }
+      .ev-popup-badges {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+        margin-bottom: 12px;
+      }
+      .ev-popup-name {
+        font-size: 20px;
+        font-weight: 700;
+        color: var(--text);
+        line-height: 1.3;
+        margin-bottom: 4px;
+      }
+      .ev-popup-code {
+        font-size: 11px;
+        color: var(--text3);
+        font-family: "IBM Plex Mono", monospace;
+        margin-bottom: 4px;
+      }
+      .ev-popup-divider {
+        border: none;
+        border-top: 1px solid var(--border);
+        margin: 14px 0;
+      }
+      .ev-popup-info-list {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+        flex: 1;
+      }
+      .ev-popup-info-row {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+      }
+      .ev-popup-info-icon {
+        font-size: 15px;
+        flex-shrink: 0;
+        margin-top: 1px;
+      }
+      .ev-popup-info-label {
+        font-size: 10px;
+        font-weight: 700;
+        color: var(--text3);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 2px;
+      }
+      .ev-popup-info-value {
+        font-size: 13.5px;
+        font-weight: 500;
+        color: var(--text);
+      }
+      .ev-popup-desc {
+        line-height: 1.6;
+        color: var(--text2) !important;
+      }
+      .ev-popup-footer {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        margin-top: 20px;
+        padding-top: 14px;
+        border-top: 1px solid var(--border);
+      }
+
+      /* ── TABLET (≤900px) ── */
+      @media (max-width: 900px) {
+        .ev-popup {
+          grid-template-columns: 220px 1fr;
+          width: 92vw;
+        }
+      }
+
+      /* ── MOBILE (≤600px) → stack ซ้อนกัน ── */
+      @media (max-width: 600px) {
+        .ev-popup {
+          grid-template-columns: 1fr;
+          grid-template-rows: 200px 1fr;
+          width: 94vw;
+          max-height: 90vh;
+        }
+        .ev-popup-left {
+          border-right: none;
+          border-bottom: 1px solid var(--border);
+          min-height: 200px;
+        }
+        .ev-popup-right {
+          padding: 16px;
+          max-height: calc(90vh - 200px);
+        }
+        .ev-popup-name {
+          font-size: 16px;
+        }
+      }
       .btn-settings-float {
         position: fixed;
         bottom: 24px;
@@ -509,103 +679,87 @@
       ⚙️
     </button>
 
-    <!-- ═══ SIDE PANEL OVERLAY ═══ -->
+    <!-- ═══ EVENT POPUP OVERLAY ═══ -->
     <div
       id="evPanelOverlay"
       style="
         display: none;
         position: fixed;
         inset: 0;
-        background: rgba(0, 0, 0, 0.4);
-        z-index: 299;
-        backdrop-filter: blur(2px);
+        background: rgba(0, 0, 0, 0.55);
+        z-index: 400;
+        backdrop-filter: blur(4px);
+        align-items: center;
+        justify-content: center;
       "
       onclick="closeEventPanel()"
-    ></div>
+    >
+      <!-- ═══ EVENT POPUP ═══ -->
+      <div id="evPopup" class="ev-popup" onclick="event.stopPropagation()">
+        <!-- ปุ่มปิด -->
+        <button class="ev-popup-close" onclick="closeEventPanel()">✕</button>
 
-    <!-- ═══ SIDE PANEL ═══ -->
-    <div id="evSidePanel" class="ev-side-panel">
-      <div class="ev-panel-header">
-        <div class="ev-panel-title">📋 รายละเอียดกิจกรรม</div>
-        <button class="btn-icon" onclick="closeEventPanel()">✕</button>
-      </div>
-      <div class="ev-panel-body">
-        <div class="ev-panel-poster" id="panelPoster">
-          <span class="ev-panel-poster-placeholder">🗓️</span>
+        <!-- [ซ้าย] รูปภาพ -->
+        <div class="ev-popup-left" id="panelPoster">
+          <span class="ev-popup-placeholder">🗓️</span>
         </div>
-        <div>
-          <div
-            style="
-              font-size: 18px;
-              font-weight: 700;
-              color: var(--text);
-              margin-bottom: 4px;
-            "
-            id="panelName"
-          >
-            —
-          </div>
-          <div
-            style="
-              font-size: 11px;
-              color: var(--text3);
-              font-family: &quot;IBM Plex Mono&quot;, monospace;
-              margin-bottom: 8px;
-            "
-            id="panelCode"
-          ></div>
-          <div style="display: flex; gap: 6px; flex-wrap: wrap">
+
+        <!-- [ขวา] รายละเอียด -->
+        <div class="ev-popup-right">
+          <div class="ev-popup-badges">
             <span id="panelStatus"></span>
             <span id="panelType"></span>
           </div>
-        </div>
-        <hr style="border: none; border-top: 1px solid var(--border)" />
-        <div style="display: flex; flex-direction: column; gap: 14px">
-          <div class="ev-info-row">
-            <span class="ev-info-icon">📅</span>
-            <div>
-              <div class="ev-info-label">วันที่จัดงาน</div>
-              <div class="ev-info-value" id="panelDate">—</div>
+
+          <div class="ev-popup-name" id="panelName">—</div>
+          <div class="ev-popup-code" id="panelCode"></div>
+
+          <hr class="ev-popup-divider" />
+
+          <div class="ev-popup-info-list">
+            <div class="ev-popup-info-row">
+              <span class="ev-popup-info-icon">📅</span>
+              <div>
+                <div class="ev-popup-info-label">วันที่จัดงาน</div>
+                <div class="ev-popup-info-value" id="panelDate">—</div>
+              </div>
             </div>
-          </div>
-          <div class="ev-info-row">
-            <span class="ev-info-icon">🕐</span>
-            <div>
-              <div class="ev-info-label">เวลา</div>
-              <div class="ev-info-value" id="panelTime">—</div>
+            <div class="ev-popup-info-row">
+              <span class="ev-popup-info-icon">🕐</span>
+              <div>
+                <div class="ev-popup-info-label">เวลา</div>
+                <div class="ev-popup-info-value" id="panelTime">—</div>
+              </div>
             </div>
-          </div>
-          <div class="ev-info-row">
-            <span class="ev-info-icon">📍</span>
-            <div>
-              <div class="ev-info-label">สถานที่</div>
-              <div class="ev-info-value" id="panelLocation">—</div>
+            <div class="ev-popup-info-row">
+              <span class="ev-popup-info-icon">📍</span>
+              <div>
+                <div class="ev-popup-info-label">สถานที่</div>
+                <div class="ev-popup-info-value" id="panelLocation">—</div>
+              </div>
             </div>
-          </div>
-          <div class="ev-info-row">
-            <span class="ev-info-icon">👥</span>
-            <div>
-              <div class="ev-info-label">ผู้เข้าร่วมสูงสุด</div>
-              <div class="ev-info-value" id="panelAttendees">—</div>
+            <div class="ev-popup-info-row">
+              <span class="ev-popup-info-icon">👥</span>
+              <div>
+                <div class="ev-popup-info-label">ผู้เข้าร่วมสูงสุด</div>
+                <div class="ev-popup-info-value" id="panelAttendees">—</div>
+              </div>
             </div>
-          </div>
-          <div class="ev-info-row">
-            <span class="ev-info-icon">📝</span>
-            <div>
-              <div class="ev-info-label">รายละเอียด</div>
-              <div
-                class="ev-info-value"
-                style="line-height: 1.6; color: var(--text2)"
-                id="panelDesc"
-              >
-                —
+            <div class="ev-popup-info-row">
+              <span class="ev-popup-info-icon">📝</span>
+              <div>
+                <div class="ev-popup-info-label">รายละเอียด</div>
+                <div class="ev-popup-info-value ev-popup-desc" id="panelDesc">
+                  —
+                </div>
               </div>
             </div>
           </div>
+
+          <div class="ev-popup-footer">
+            <button class="btn btn-primary" id="panelBtnEdit">✏️ แก้ไข</button>
+          </div>
         </div>
-      </div>
-      <div class="ev-panel-footer">
-        <button class="btn btn-primary" id="panelBtnEdit">✏️ แก้ไข</button>
       </div>
     </div>
 
@@ -798,14 +952,14 @@
         renderCalendar();
       }
 
-      // ── SIDE PANEL ──
+      // ── EVENT POPUP ──
       function openEventPanel(eventId) {
         const e = allEvents.find((ev) => ev.event_id === eventId);
         if (!e) return;
 
         document.getElementById("panelPoster").innerHTML = e.poster_url
           ? `<img src="${e.poster_url}" alt="${e.event_name}">`
-          : `<span class="ev-panel-poster-placeholder">🗓️</span>`;
+          : `<span class="ev-popup-placeholder">🗓️</span>`;
 
         document.getElementById("panelName").textContent = e.event_name;
         document.getElementById("panelCode").textContent = e.event_code || "";
@@ -831,13 +985,15 @@
         document.getElementById("panelBtnEdit").onclick = () =>
           (window.location.href = `./event-form.html?id=${e.event_id}`);
 
-        document.getElementById("evSidePanel").classList.add("open");
-        document.getElementById("evPanelOverlay").style.display = "block";
+        const overlay = document.getElementById("evPanelOverlay");
+        overlay.style.display = "flex";
+        document.body.style.overflow = "hidden";
       }
 
       function closeEventPanel() {
-        document.getElementById("evSidePanel").classList.remove("open");
-        document.getElementById("evPanelOverlay").style.display = "none";
+        const overlay = document.getElementById("evPanelOverlay");
+        overlay.style.display = "none";
+        document.body.style.overflow = "";
       }
 
       // ── SETTINGS MODAL ──
