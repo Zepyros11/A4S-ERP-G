@@ -21,11 +21,13 @@
     <div id="calTopbarContainer"></div>
     <script src="../../../../js/components/navigation/topbar-calendar.js"></script>
     <script>
-      CalTopbar.init({
-        container: "calTopbarContainer",
-        pageName: "ปฏิทินกิจกรรม",
-        cssPath: "../../../../js/components/navigation/topbar-calendar.css",
-        logoPath: "../../../../assets/images/logo.png",
+      document.addEventListener("DOMContentLoaded", function () {
+        CalTopbar.init({
+          container: "calTopbarContainer",
+          pageName: "ปฏิทินกิจกรรม",
+          cssPath: "../../../../js/components/navigation/topbar-calendar.css",
+          logoPath: "../../../../assets/images/logo.png",
+        });
       });
     </script>
 
