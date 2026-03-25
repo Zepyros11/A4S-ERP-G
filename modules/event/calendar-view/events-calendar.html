@@ -20,12 +20,14 @@
 
     <!-- CAL TOPBAR -->
     <div id="calTopbarContainer"></div>
+    <script src="../../../../js/components/navigation/topbar-calendar.js"></script>
     <script>
-      fetch("../../../../js/components/navigation/topbar-calendar.html")
-        .then(r => r.text())
-        .then(html => {
-          document.getElementById("calTopbarContainer").innerHTML = html;
-        });
+      CalTopbar.init({
+        container: "calTopbarContainer",
+        cssPath:   "../../../../js/components/navigation/topbar-calendar.css",
+        pageName:  "ปฏิทินกิจกรรม",
+        logoPath:  "../../../../assets/images/logo.png",
+      });
     </script>
 
     <div class="cal-standalone-page">
