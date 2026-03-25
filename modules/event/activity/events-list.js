@@ -184,10 +184,17 @@ function renderTable(events) {
         }
       </td>
       <td class="col-center">${posterCell}</td>
-      <td class="col-center">
-        <span class="event-status-badge status-${e.status}">
-          ${statusLabel(e.status)}
-        </span>
+<td class="col-center" onclick="event.stopPropagation()">
+        <select
+          class="inline-status-select status-${e.status}"
+          onchange="window.changeEventStatus(${e.event_id}, this)"
+        >
+          <option value="DRAFT"   ${e.status === "DRAFT" ? "selected" : ""}>📝 Draft</option>
+          <option value="CONFIRMED" ${e.status === "CONFIRMED" ? "selected" : ""}>✅ Confirmed</option>
+          <option value="ONGOING" ${e.status === "ONGOING" ? "selected" : ""}>▶️ Ongoing</option>
+          <option value="DONE"    ${e.status === "DONE" ? "selected" : ""}>🏁 Done</option>
+          <option value="CANCELLED" ${e.status === "CANCELLED" ? "selected" : ""}>❌ Cancelled</option>
+        </select>
       </td>
       <td class="col-center" onclick="event.stopPropagation()">
         <div class="action-group">
@@ -369,4 +376,45 @@ if (document.readyState === "loading") {
   document.addEventListener("DOMContentLoaded", initPage);
 } else {
   initPage();
+}
+// ── INLINE STATUS CHANGE ───────────────────────────────────
+window.changeEventStatus = async function (eventId, selectEl) {
+  const newStatus = selectEl.value;
+  const oldStatus = allEvents.find((e) => e.event_id === eventId)?.status;
+
+  // อัปเดต class ทันที
+  selectEl.className = `inline-status-select status-${newStatus}`;
+
+  try {
+    const { url, key } = getSBLocal();
+    await fetch(`${url}/rest/v1/events?event_id=eq.${eventId}`, {
+      method: "PATCH",
+      headers: {
+        apikey: key,
+        Authorization: `Bearer ${key}`,
+        "Content-Type": "application/json",
+        Prefer: "return=representation",
+      },
+      body: JSON.stringify({ status: newStatus }),
+    });
+
+    // อัปเดต allEvents local state
+    const ev = allEvents.find((e) => e.event_id === eventId);
+    if (ev) ev.status = newStatus;
+
+    updateStatCards();
+    showToast("อัปเดตสถานะแล้ว", "success");
+  } catch (err) {
+    // rollback
+    selectEl.value = oldStatus;
+    selectEl.className = `inline-status-select status-${oldStatus}`;
+    showToast("อัปเดตไม่สำเร็จ: " + err.message, "error");
+  }
+};
+
+function getSBLocal() {
+  return {
+    url: localStorage.getItem("sb_url") || "",
+    key: localStorage.getItem("sb_key") || "",
+  };
 }
