@@ -1,0 +1,245 @@
+/* =========================================================
+   event-poster-gallery.css — Poster Gallery Page Styles
+========================================================= */
+
+/* ── GRID TOGGLE ── */
+.epg-grid-toggle {
+  display: flex;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.epg-toggle-btn {
+  padding: 0 14px;
+  height: 36px;
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--surface);
+  color: var(--text3);
+  border: none;
+  cursor: pointer;
+  border-right: 1px solid var(--border);
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+.epg-toggle-btn:last-child {
+  border-right: none;
+}
+.epg-toggle-btn.active {
+  background: var(--accent);
+  color: #fff;
+}
+.epg-toggle-btn:hover:not(.active) {
+  background: var(--surface2);
+  color: var(--text);
+}
+
+/* ── MONTH SECTION ── */
+.epg-month-section {
+  margin-bottom: 40px;
+}
+.epg-month-header {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  margin-bottom: 16px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid var(--border);
+}
+.epg-month-title {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--text);
+  letter-spacing: 1px;
+  font-family: "IBM Plex Mono", monospace;
+}
+.epg-month-count {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text3);
+  letter-spacing: 1.5px;
+}
+
+/* ── GRID ── */
+.epg-grid {
+  display: grid;
+  gap: 18px;
+}
+.epg-grid-3 {
+  grid-template-columns: repeat(3, 1fr);
+}
+.epg-grid-4 {
+  grid-template-columns: repeat(4, 1fr);
+}
+.epg-grid-5 {
+  grid-template-columns: repeat(5, 1fr);
+}
+
+/* ── CARD ── */
+.epg-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  overflow: hidden;
+  cursor: pointer;
+  transition:
+    transform 0.2s,
+    box-shadow 0.2s,
+    border-color 0.2s;
+}
+.epg-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12);
+  border-color: var(--accent);
+}
+
+/* ── CARD IMAGE AREA ── */
+.epg-card-img {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 3/4;
+  background: var(--surface2);
+  overflow: hidden;
+}
+.epg-card-img img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.3s;
+}
+.epg-card:hover .epg-card-img img {
+  transform: scale(1.04);
+}
+
+/* ── NO POSTER STATE ── */
+.epg-card-noposter {
+  background: var(--surface2);
+}
+.epg-noposter-inner {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.epg-noposter-icon {
+  font-size: 36px;
+  opacity: 0.3;
+}
+.epg-noposter-text {
+  font-size: 11px;
+  color: var(--text3);
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+/* ── DATE BADGE ── */
+.epg-date-badge {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 10px;
+  padding: 6px 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1;
+  z-index: 2;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  min-width: 38px;
+}
+.epg-date-day {
+  font-size: 18px;
+  font-weight: 800;
+  color: #1e293b;
+  font-family: "IBM Plex Mono", monospace;
+}
+.epg-date-mon {
+  font-size: 9px;
+  font-weight: 700;
+  color: #64748b;
+  letter-spacing: 1px;
+  margin-top: 1px;
+}
+
+/* ── CARD BODY ── */
+.epg-card-body {
+  padding: 12px 14px 14px;
+}
+
+/* ── TYPE CHIP ── */
+.epg-type-chip {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 20px;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  margin-bottom: 6px;
+}
+.epg-type-BOOTH {
+  background: #f3e8ff;
+  color: #7c3aed;
+}
+.epg-type-MEETING {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+.epg-type-ONLINE {
+  background: #dcfce7;
+  color: #15803d;
+}
+.epg-type-HYBRID {
+  background: #ffedd5;
+  color: #c2410c;
+}
+.epg-type-CONFERENCE {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+.epg-type-OTHER {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+/* ── CARD NAME ── */
+.epg-card-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.4;
+  margin-bottom: 6px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* ── CARD META ── */
+.epg-card-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 11px;
+  color: var(--text3);
+}
+
+/* ── RESPONSIVE ── */
+@media (max-width: 900px) {
+  .epg-grid-4,
+  .epg-grid-5 {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+@media (max-width: 640px) {
+  .epg-grid-3,
+  .epg-grid-4,
+  .epg-grid-5 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}

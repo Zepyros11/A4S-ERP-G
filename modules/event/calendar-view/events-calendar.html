@@ -10,10 +10,6 @@
     />
     <link rel="stylesheet" href="../activity/events.css" />
     <link rel="stylesheet" href="./events-calendar.css" />
-    <link
-      rel="stylesheet"
-      href="../../../../js/components/navigation/topbar-calendar.css"
-    />
   </head>
   <body>
     <div class="loading-overlay" id="loadingOverlay">
@@ -25,12 +21,10 @@
     <div id="calTopbarContainer"></div>
     <script src="../../../../js/components/navigation/topbar-calendar.js"></script>
     <script>
-      document.addEventListener("DOMContentLoaded", function () {
-        CalTopbar.init({
-          container: "calTopbarContainer",
-          pageName: "ปฏิทินกิจกรรม",
-          logoPath: "../../../../assets/images/logo.png",
-        });
+      CalTopbar.init({
+        container: "calTopbarContainer",
+        pageName: "ปฏิทินกิจกรรม",
+        logoPath: "../../../../assets/images/logo.png",
       });
     </script>
 

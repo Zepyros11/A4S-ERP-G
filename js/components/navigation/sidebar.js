@@ -34,6 +34,12 @@
           path: BASE_PATH + "/modules/event/activity/events-list.html",
         },
         {
+          id: "event-poster-gallery",
+          icon: "🖼️",
+          label: "Poster Gallery",
+          path: BASE_PATH + "/modules/event/activity/event-poster-gallery.html",
+        },
+        {
           id: "event-requests",
           icon: "📋",
           label: "คำขอจัดกิจกรรม",
@@ -199,6 +205,7 @@
     "req",
     //**** EVENT ****
     "events",
+    "event-poster-gallery",
     "event-requests",
     "rooms",
     "event-budget",
