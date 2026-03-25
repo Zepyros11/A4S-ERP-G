@@ -77,14 +77,9 @@ const CalTopbar = (function () {
           <span class="cal-topbar-sep">/</span>
           <span class="cal-topbar-page">${pageName}</span>
         </div>
-       <div class="cal-topbar-right">
-        <button class="cal-topbar-btn active"
-          onclick="window.location.href = './events-calendar.html'">
-          📅 Event Calendar
-        </button>
-
-        <button class="cal-topbar-btn"
-          onclick="window.location.href = '../activity
+        <div class="cal-topbar-right">
+          <span class="cal-topbar-date" id="calTopbarDate"></span>
+        </div>
       </div>
     `;
 
