@@ -8,7 +8,7 @@
       href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="../../../../css/main.css" />
+    <!-- <link rel="stylesheet" href="../../../../css/main.css" /> -->
     <link rel="stylesheet" href="../activity/events.css" />
     <link rel="stylesheet" href="./events-calendar.css" />
   </head>
@@ -20,13 +20,15 @@
 
     <!-- CAL TOPBAR -->
     <div id="calTopbarContainer"></div>
-    <script src="../../../../js/components/navigation/topbar-calendar.js"></script>
-    <script>
-      CalTopbar.init({
-        container: "calTopbarContainer",
-        pageName:  "ปฏิทินกิจกรรม",
-      });
-    </script>
+   <script src="/A4S-ERP-G/js/components/navigation/topbar-calendar.js"></script>
+<script>
+  CalTopbar.init({
+    container: "calTopbarContainer",
+    cssPath:   "/A4S-ERP-G/js/components/navigation/topbar-calendar.css",
+    pageName:  "ปฏิทินกิจกรรม",
+    logoPath:  "/A4S-ERP-G/assets/images/logo.png",
+  });
+</script>
 
     <div class="cal-standalone-page">
           <div
