@@ -173,8 +173,9 @@
           id: "users",
           icon: "👥",
           label: "ผู้ใช้งาน",
-          path: BASE_PATH + "/modules/settings/users.html",
+          path: BASE_PATH + "/modules/settings/users/users.html",
         },
+
         {
           id: "suppliers",
           icon: "🚚",

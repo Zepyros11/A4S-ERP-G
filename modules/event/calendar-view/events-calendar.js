@@ -193,7 +193,7 @@ function openEventPanel(eventId) {
   document.getElementById("panelLocation").textContent = e.location || "—";
   document.getElementById("panelDesc").textContent = e.description || "—";
   document.getElementById("panelBtnEdit").onclick = () =>
-    (window.location.href = `./event-form.html?id=${e.event_id}`);
+    (window.location.href = `../activity/event-form.html?id=${e.event_id}`);
   document.getElementById("evPanelOverlay").style.display = "flex";
   document.body.style.overflow = "hidden";
 }

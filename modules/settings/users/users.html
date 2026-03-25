@@ -4,231 +4,8 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>จัดการผู้ใช้งาน — A4S-ERP</title>
-    <link rel="stylesheet" href="../../../../css/main.css" />
-    <style>
-      /* ── Users-specific ── */
-      .stats-row {
-        grid-template-columns: repeat(5, 1fr);
-      }
-      .usr-table {
-        width: 100%;
-        border-collapse: collapse;
-      }
-      .usr-table th {
-        padding: 10px 16px;
-        background: var(--surface2);
-        font-size: 11px;
-        font-weight: 700;
-        letter-spacing: 0.8px;
-        color: var(--text3);
-        text-align: left;
-        border-bottom: 2px solid var(--border);
-        white-space: nowrap;
-        cursor: pointer;
-        user-select: none;
-      }
-      .usr-table th:hover {
-        color: var(--accent);
-      }
-      .usr-table td {
-        padding: 12px 16px;
-        border-bottom: 1px solid var(--border);
-        font-size: 13.5px;
-        vertical-align: middle;
-      }
-      .usr-table tr:last-child td {
-        border-bottom: none;
-      }
-      .usr-table tr {
-        cursor: pointer;
-        transition: background 0.12s;
-      }
-      .usr-table tr:hover td {
-        background: var(--accent-pale);
-      }
-      .usr-table tr.selected td {
-        background: #dbeafe;
-      }
-      .avatar {
-        width: 36px;
-        height: 36px;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 15px;
-        font-weight: 700;
-        color: #fff;
-        flex-shrink: 0;
-        letter-spacing: 0.5px;
-      }
-      .role-badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 4px;
-        padding: 3px 9px;
-        border-radius: 20px;
-        font-size: 11px;
-        font-weight: 600;
-        white-space: nowrap;
-      }
-      .role-ADMIN {
-        background: #fef3c7;
-        color: #92400e;
-      }
-      .role-MANAGER {
-        background: var(--accent-pale);
-        color: var(--accent);
-      }
-      .role-WAREHOUSE {
-        background: var(--teal-pale);
-        color: var(--teal);
-      }
-      .role-SALES {
-        background: var(--success-pale);
-        color: var(--success);
-      }
-      .role-VIEWER {
-        background: var(--surface2);
-        color: var(--text2);
-        border: 1px solid var(--border);
-      }
-      .status-on {
-        background: var(--success-pale);
-        color: var(--success);
-      }
-      .status-off {
-        background: var(--danger-pale);
-        color: var(--danger);
-      }
-      .panel-name {
-        font-size: 15px;
-        font-weight: 700;
-        color: var(--text);
-      }
-      .panel-username {
-        font-size: 11px;
-        color: var(--text3);
-        font-family: "IBM Plex Mono", monospace;
-        margin-top: 2px;
-      }
-      .perm-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 6px;
-      }
-      .perm-item {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        padding: 7px 10px;
-        border-radius: 6px;
-        background: var(--surface2);
-        font-size: 12px;
-      }
-      .perm-check {
-        width: 16px;
-        height: 16px;
-        border-radius: 4px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 10px;
-        flex-shrink: 0;
-      }
-      .perm-on {
-        background: var(--success-pale);
-        color: var(--success);
-      }
-      .perm-off {
-        background: var(--border);
-        color: var(--text3);
-      }
-      .perm-toggle-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 8px;
-        grid-column: span 2;
-      }
-      .perm-toggle {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        padding: 9px 12px;
-        border-radius: 7px;
-        border: 1.5px solid var(--border);
-        cursor: pointer;
-        transition: all 0.15s;
-        user-select: none;
-      }
-      .perm-toggle:hover {
-        border-color: var(--accent);
-      }
-      .perm-toggle.active {
-        border-color: var(--success);
-        background: var(--success-pale);
-      }
-      .perm-toggle input {
-        display: none;
-      }
-      .perm-toggle-icon {
-        width: 18px;
-        height: 18px;
-        border-radius: 4px;
-        border: 1.5px solid var(--border2);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 11px;
-        flex-shrink: 0;
-        transition: all 0.15s;
-      }
-      .perm-toggle.active .perm-toggle-icon {
-        background: var(--success);
-        border-color: var(--success);
-        color: #fff;
-      }
-      .perm-toggle-label {
-        font-size: 13px;
-        color: var(--text2);
-      }
-      .perm-toggle.active .perm-toggle-label {
-        color: var(--success);
-        font-weight: 500;
-      }
-      .role-preview {
-        grid-column: span 2;
-        background: var(--surface2);
-        border-radius: 8px;
-        padding: 12px 14px;
-        border: 1px solid var(--border);
-      }
-      .role-preview-title {
-        font-size: 11px;
-        font-weight: 700;
-        color: var(--text3);
-        letter-spacing: 0.5px;
-        margin-bottom: 8px;
-      }
-      .role-preview-perms {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 6px;
-      }
-      .role-perm-tag {
-        padding: 3px 8px;
-        border-radius: 4px;
-        font-size: 11px;
-        font-weight: 600;
-        background: var(--accent-pale);
-        color: var(--accent);
-      }
-      .form-hint {
-        font-size: 11px;
-        color: var(--text3);
-        margin-top: 2px;
-      }
-    </style>
+    <link rel="stylesheet" href="../../../../../css/main.css" />
+    <link rel="stylesheet" href="./users.css" />
   </head>
   <body>
     <div class="loading-overlay" id="loadingOverlay">
@@ -237,6 +14,7 @@
     <div class="toast" id="toast"></div>
 
     <!-- TOPBAR -->
+
     <div class="topbar">
       <div class="topbar-logo">📦 <span>A4S</span>-ERP</div>
       <div class="topbar-sep"></div>
@@ -258,18 +36,14 @@
         <div class="modal-body">
           <input type="hidden" id="editId" />
           <div class="form-grid">
-            <div class="form-group">
-              <label class="form-label">ชื่อ <span class="req">*</span></label>
-              <input class="form-control" id="fFirstName" placeholder="ชื่อ" />
-            </div>
-            <div class="form-group">
+            <div class="form-group" style="grid-column: span 2">
               <label class="form-label"
-                >นามสกุล <span class="req">*</span></label
+                >ชื่อ-นามสกุล <span class="req">*</span></label
               >
               <input
                 class="form-control"
-                id="fLastName"
-                placeholder="นามสกุล"
+                id="fFullName"
+                placeholder="ชื่อ นามสกุล"
               />
             </div>
             <div class="form-group">
@@ -474,7 +248,7 @@
             <table class="usr-table">
               <thead>
                 <tr>
-                  <th onclick="sortBy('first_name')">ชื่อ-นามสกุล ↕</th>
+                  <th onclick="sortBy('full_name')">ชื่อ-นามสกุล ↕</th>
                   <th onclick="sortBy('username')">Username ↕</th>
                   <th onclick="sortBy('role')">Role ↕</th>
                   <th>อีเมล</th>
@@ -573,20 +347,17 @@
       </div>
     </div>
 
-    <script src="users.js"></script>
-    <!-- Core -->
-    <script src="../../../../js/core/auth.js"></script>
-    <!-- MODALS -->
-    <script src="../../../../js/components/modal/deleteModal.js"></script>
-    <script src="../../../../js/components/modal/modalManager.js"></script>
-    <script src="../../../../js/components/modal/enterModal.js"></script>
+    <script src="./users.js"></script>
+    <script src="../../../../../js/core/auth.js"></script>
+    <script src="../../../../../js/components/modal/deleteModal.js"></script>
+    <script src="../../../../../js/components/modal/modalManager.js"></script>
+    <script src="../../../../../js/components/modal/enterModal.js"></script>
 
-    <!-- JS Component/navigation -->
     <script type="module">
-      import { loadTopbar } from "../../../../js/components/navigation/topbar.js";
-      loadTopbar("🏷️ หมวดหมู่สินค้า");
+      import { loadTopbar } from "../../../../../js/components/navigation/topbar.js";
+      loadTopbar("👤 จัดการผู้ใช้งาน");
     </script>
-    <script src="../../../../js/components/navigation/imgPopup.js"></script>
-    <script src="../../../../js/components/navigation/sidebar.js"></script>
+    <script src="../../../../../js/components/navigation/imgPopup.js"></script>
+    <script src="../../../../../js/components/navigation/sidebar.js"></script>
   </body>
 </html>
