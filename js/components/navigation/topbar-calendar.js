@@ -8,16 +8,29 @@
      <script>
        CalTopbar.init({
          container: "calTopbarContainer",
-         cssPath: "PATH/topbar-calendar.css",
-         pageName: "ปฏิทินกิจกรรม",
-         logoPath: "PATH/assets/images/logo.png",
+         pageName:  "ปฏิทินกิจกรรม",
        });
      </script>
+
+   หมายเหตุ: cssPath และ logoPath ไม่จำเป็นต้องส่งมา
+   — JS จะ detect path ของตัวเองอัตโนมัติ
 ============================================================ */
 
 const CalTopbar = (function () {
+  // ── หา path ของ script นี้เอง ──
+  // ทำงานได้ทั้ง Live Server (localhost) และ GitHub Pages
+  function getSelfDir() {
+    const scripts = document.querySelectorAll("script[src]");
+    for (const s of scripts) {
+      if (s.src.includes("topbar-calendar.js")) {
+        // ตัด filename ออก เหลือแค่ directory
+        return s.src.replace(/topbar-calendar\.js.*$/, "");
+      }
+    }
+    return "";
+  }
+
   function loadCSS(href) {
-    // ป้องกัน load ซ้ำ
     if (document.querySelector(`link[href="${href}"]`)) return;
     const link = document.createElement("link");
     link.rel = "stylesheet";
@@ -37,26 +50,29 @@ const CalTopbar = (function () {
     const {
       container = "calTopbarContainer",
       pageName = "หน้าหลัก",
-      logoPath = "",
-      cssPath = "",
+      cssPath = null, // ถ้าไม่ส่งมา จะ auto-detect
+      logoPath = null, // ถ้าไม่ส่งมา จะ auto-detect
     } = opts || {};
 
-    // 1. Load CSS
-    if (cssPath) loadCSS(cssPath);
+    const selfDir = getSelfDir();
 
-    // 2. Build DOM
+    // 1. Load CSS — ใช้ path ที่ส่งมา หรือ auto-detect จาก script location
+    const resolvedCss = cssPath || selfDir + "topbar-calendar.css";
+    loadCSS(resolvedCss);
+
+    // 2. Logo path — ขึ้นไป 4 ระดับจาก navigation/ → root → assets/
+    const resolvedLogo =
+      logoPath || selfDir + "../../../../assets/images/logo.png";
+
+    // 3. Build DOM
     const wrap = document.getElementById(container);
     if (!wrap) return;
 
     wrap.innerHTML = `
       <div class="cal-topbar">
         <div class="cal-topbar-left">
-          ${
-            logoPath
-              ? `<img src="${logoPath}" alt="A4S ERP" class="cal-topbar-logo"
-                    onerror="this.style.display='none'">`
-              : ""
-          }
+          <img src="${resolvedLogo}" alt="A4S ERP" class="cal-topbar-logo"
+               onerror="this.style.display='none'">
           <span class="cal-topbar-brand">A4S ERP</span>
           <span class="cal-topbar-sep">/</span>
           <span class="cal-topbar-page">${pageName}</span>
@@ -67,7 +83,7 @@ const CalTopbar = (function () {
       </div>
     `;
 
-    // 3. Set date
+    // 4. Set date
     const dateEl = document.getElementById("calTopbarDate");
     if (dateEl) dateEl.textContent = formatDateTH(new Date());
   }
