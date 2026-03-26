@@ -69,8 +69,8 @@ window.savePlace = async function () {
     const placeId = res?.place_id;
 
     // ── UPLOAD IMAGE (ถ้ามี) ──
-    if (imageFile && placeId) {
-      const url = await uploadPlaceImage(placeId, imageFile);
+    if (imageFiles[0] && placeId) {
+      const url = await uploadPlaceImage(placeId, imageFiles[0]);
       imageUrl = url;
 
       await updatePlaceImage(placeId, url);

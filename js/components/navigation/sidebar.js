@@ -40,6 +40,12 @@
           path: BASE_PATH + "/modules/event/activity/event-poster-gallery.html",
         },
         {
+          id: "events-place-list",
+          icon: "📍",
+          label: "สถานที่",
+          path: BASE_PATH + "/modules/event/activity/events-place-list.html",
+        },
+        {
           id: "event-requests",
           icon: "📋",
           label: "คำขอจัดกิจกรรม",
@@ -206,6 +212,7 @@
     //**** EVENT ****
     "events",
     "event-poster-gallery",
+    "events-place-list",
     "event-requests",
     "rooms",
     "event-budget",
@@ -229,15 +236,11 @@
 
   function getActiveId() {
     const p = window.location.pathname;
+    // เช็ค endsWith ก่อน (exact match) เพื่อป้องกัน "events" match "events-place-list"
     for (const g of MENU)
       for (const item of g.items) {
-        const idSlug = item.id.replace(/-/g, "_");
-        if (
-          p.includes(idSlug) ||
-          p.includes(item.id) ||
-          p.endsWith(item.path.replace(/^\//, ""))
-        )
-          return item.id;
+        const cleanPath = item.path.replace(/^\/[^/]+/, ""); // ตัด basePath ออก
+        if (p.endsWith(cleanPath)) return item.id;
       }
     return "";
   }

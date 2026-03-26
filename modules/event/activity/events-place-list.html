@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>รายการสถานที่ — A4S-ERP</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../../../css/main.css" />
+    <link rel="stylesheet" href="./events.css" />
+    <link rel="stylesheet" href="./events-place-list.css" />
+  </head>
+  <body>
+    <div class="loading-overlay" id="loadingOverlay">
+      <div class="spinner"></div>
+    </div>
+    <div class="toast" id="toast"></div>
+
+    <!-- TOPBAR -->
+    <div class="topbar"></div>
+    <div class="layout">
+      <!-- SIDEBAR -->
+      <div id="sidebar-container"></div>
+
+      <!-- CONTENT -->
+      <div class="content-area">
+        <div class="page">
+          <!-- ① STATS -->
+          <div class="stats-row">
+            <div class="stat-card">
+              <div class="stat-icon">📍</div>
+              <div>
+                <div class="stat-value" id="cardTotal">0</div>
+                <div class="stat-label">สถานที่ทั้งหมด</div>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon">✅</div>
+              <div>
+                <div class="stat-value" id="cardActive">0</div>
+                <div class="stat-label">ACTIVE</div>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon">🏨</div>
+              <div>
+                <div class="stat-value" id="cardHotel">0</div>
+                <div class="stat-label">โรงแรม</div>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon">🎤</div>
+              <div>
+                <div class="stat-value" id="cardEventSpace">0</div>
+                <div class="stat-label">Event Space</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ② TOOLBAR -->
+          <div class="table-card">
+            <div class="table-toolbar">
+              <div class="search-wrap">
+                <span class="search-icon">🔍</span>
+                <input
+                  class="search-input"
+                  id="searchInput"
+                  placeholder="ค้นหาชื่อสถานที่ หรือที่อยู่..."
+                />
+              </div>
+              <select class="filter-select" id="filterType">
+                <option value="">⚪ ทุกประเภท</option>
+                <option value="HOTEL">🏨 โรงแรม</option>
+                <option value="MEETING_ROOM">🏢 ห้องประชุม</option>
+                <option value="RESTAURANT">🍽 ร้านอาหาร</option>
+                <option value="EVENT_SPACE">🎤 Event Space</option>
+              </select>
+              <select class="filter-select" id="filterStatus">
+                <option value="">⚪ ทุกสถานะ</option>
+                <option value="ACTIVE">✅ ACTIVE</option>
+                <option value="INACTIVE">🚫 INACTIVE</option>
+              </select>
+              <div class="toolbar-right">
+                <button
+                  class="btn btn-primary"
+                  onclick="window.location.href = './events-place-form.html'"
+                >
+                  ＋ เพิ่มสถานที่
+                </button>
+              </div>
+            </div>
+
+            <!-- ③ TABLE -->
+            <div class="table-hdr">
+              <div class="table-title">📍 รายการสถานที่</div>
+              <div class="table-count" id="tableCount">0 รายการ</div>
+            </div>
+            <div class="table-wrap">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th style="width: 40px; text-align: center">
+                      <input
+                        type="checkbox"
+                        id="chkAll"
+                        onclick="window.toggleAllCheckbox(this)"
+                      />
+                    </th>
+                    <th class="col-center" style="width: 80px">รูป</th>
+                    <th
+                      onclick="window.sortTable('place_name')"
+                      style="cursor: pointer"
+                    >
+                      ชื่อสถานที่ <span class="sort-icon">⇅</span>
+                    </th>
+                    <th class="col-center">ประเภท</th>
+                    <th>ที่อยู่</th>
+                    <th>ติดต่อ</th>
+                    <th
+                      class="col-center"
+                      onclick="window.sortTable('capacity')"
+                      style="cursor: pointer"
+                    >
+                      Capacity <span class="sort-icon">⇅</span>
+                    </th>
+                    <th class="col-center">ที่จอดรถ</th>
+                    <th class="col-center">สถานะ</th>
+                    <th class="col-center">จัดการ</th>
+                  </tr>
+                </thead>
+                <tbody id="tableBody">
+                  <tr>
+                    <td colspan="10">
+                      <div class="empty-state">
+                        <div class="empty-icon">📍</div>
+                        <div class="empty-text">ยังไม่มีข้อมูลสถานที่</div>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        <!-- end .page -->
+
+        <!-- SCRIPTS -->
+        <script type="module" src="./events-place-list.js"></script>
+        <script src="../../../js/core/auth.js"></script>
+        <script src="../../../js/components/modal/deleteModal.js"></script>
+        <script src="../../../js/components/modal/modalManager.js"></script>
+        <script src="../../../js/components/navigation/imgPopup.js"></script>
+        <script src="../../../js/components/navigation/sidebar.js"></script>
+        <script type="module">
+          import { loadTopbar } from "../../../js/components/navigation/topbar.js";
+          loadTopbar("📍 สถานที่");
+        </script>
+      </div>
+    </div>
+
+    <!-- OVERLAY -->
+    <div
+      id="plPanelOverlay"
+      style="
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.4);
+        z-index: 299;
+        backdrop-filter: blur(2px);
+      "
+      onclick="window.closePlacePanel()"
+    ></div>
+
+    <!-- SIDE PANEL -->
+    <div id="plSidePanel" class="ev-side-panel">
+      <div class="ev-panel-header">
+        <div class="ev-panel-title">📍 รายละเอียดสถานที่</div>
+        <button class="btn-icon" onclick="window.closePlacePanel()">✕</button>
+      </div>
+
+      <div class="ev-panel-body">
+        <!-- Cover Image -->
+        <div class="ev-panel-poster" id="panelCover">
+          <span style="font-size: 48px; opacity: 0.3">📍</span>
+        </div>
+
+        <!-- ชื่อ + Type + Status -->
+        <div>
+          <div
+            style="
+              font-size: 18px;
+              font-weight: 700;
+              color: var(--text);
+              margin-bottom: 6px;
+            "
+            id="panelName"
+          >
+            —
+          </div>
+          <div style="display: flex; gap: 6px; flex-wrap: wrap">
+            <span id="panelType"></span>
+            <span id="panelStatus"></span>
+          </div>
+        </div>
+
+        <hr style="border: none; border-top: 1px solid var(--border)" />
+
+        <div style="display: flex; flex-direction: column; gap: 14px">
+          <div class="ev-info-row">
+            <span class="ev-info-icon">📍</span>
+            <div>
+              <div class="ev-info-label">ที่อยู่</div>
+              <div class="ev-info-value" id="panelAddress">—</div>
+            </div>
+          </div>
+          <div class="ev-info-row">
+            <span class="ev-info-icon">📞</span>
+            <div>
+              <div class="ev-info-label">ติดต่อ</div>
+              <div class="ev-info-value" id="panelContact">—</div>
+            </div>
+          </div>
+          <div class="ev-info-row">
+            <span class="ev-info-icon">✉️</span>
+            <div>
+              <div class="ev-info-label">Email</div>
+              <div class="ev-info-value" id="panelEmail">—</div>
+            </div>
+          </div>
+          <div class="ev-info-row">
+            <span class="ev-info-icon">👥</span>
+            <div>
+              <div class="ev-info-label">Capacity</div>
+              <div class="ev-info-value" id="panelCapacity">—</div>
+            </div>
+          </div>
+          <div class="ev-info-row">
+            <span class="ev-info-icon">🏢</span>
+            <div>
+              <div class="ev-info-label">ห้องประชุม / ห้องพัก</div>
+              <div class="ev-info-value" id="panelRooms">—</div>
+            </div>
+          </div>
+          <div class="ev-info-row">
+            <span class="ev-info-icon">🗺️</span>
+            <div>
+              <div class="ev-info-label">Google Map</div>
+              <div class="ev-info-value" id="panelMap">—</div>
+            </div>
+          </div>
+          <div class="ev-info-row">
+            <span class="ev-info-icon">📝</span>
+            <div>
+              <div class="ev-info-label">รายละเอียด</div>
+              <div
+                class="ev-info-value"
+                style="line-height: 1.6; color: var(--text2)"
+                id="panelDesc"
+              >
+                —
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="ev-panel-footer">
+        <button class="btn btn-primary" id="panelBtnEdit">✏️ แก้ไข</button>
+      </div>
+    </div>
+
+    <!-- DELETE SELECTED -->
+    <script>
+      document.addEventListener("DOMContentLoaded", () => {
+        const toolbarRight = document.querySelector(".toolbar-right");
+        if (toolbarRight) {
+          const btnDel = document.createElement("button");
+          btnDel.id = "btnDeleteSelected";
+          btnDel.className = "btn btn-danger-outline";
+          btnDel.style.display = "none";
+          btnDel.innerHTML = "🗑 ลบที่เลือก";
+          btnDel.onclick = () => window.deleteSelectedPlaces();
+          toolbarRight.insertBefore(btnDel, toolbarRight.firstChild);
+        }
+      });
+    </script>
+  </body>
+</html>

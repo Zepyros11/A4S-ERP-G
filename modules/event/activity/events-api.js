@@ -144,3 +144,16 @@ export async function createPlace(data) {
   });
   return res?.[0];
 }
+/* ── PLACES ── */
+export async function fetchPlaces() {
+  return sbFetch("places", "?select=*&order=place_name.asc") || [];
+}
+
+export async function createPlace(data) {
+  const res = await sbFetch("places", "", { method: "POST", body: data });
+  return res?.[0];
+}
+
+export async function removePlace(id) {
+  return sbFetch("places", `?place_id=eq.${id}`, { method: "DELETE" });
+}

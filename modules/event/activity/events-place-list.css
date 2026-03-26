@@ -1,0 +1,106 @@
+/* =========================================================
+   events-place-list.css — Place List Page Styles
+========================================================= */
+
+/* ── COVER IMAGE CELL ── */
+.place-cover-wrap {
+  width: 52px;
+  height: 52px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface2);
+  margin: auto;
+}
+.place-cover-wrap img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  cursor: pointer;
+  transition: transform 0.15s;
+}
+.place-cover-wrap img:hover {
+  transform: scale(1.08);
+}
+
+/* ── NAME CELL ── */
+.place-name {
+  font-weight: 600;
+  font-size: 13.5px;
+  color: var(--text);
+}
+.place-sub {
+  font-size: 11px;
+  color: var(--text3);
+  margin-top: 2px;
+}
+
+/* ── ADDRESS CELL ── */
+.place-address {
+  font-size: 12.5px;
+  color: var(--text2);
+  max-width: 200px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── MAP LINK ── */
+.place-map-link {
+  font-size: 12px;
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 600;
+}
+.place-map-link:hover {
+  text-decoration: underline;
+}
+
+/* ── TYPE BADGES ── */
+.place-type-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.ptype-HOTEL {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+.ptype-MEETING_ROOM {
+  background: #f3e8ff;
+  color: #7c3aed;
+}
+.ptype-RESTAURANT {
+  background: #ffedd5;
+  color: #c2410c;
+}
+.ptype-EVENT_SPACE {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+/* ── STATUS BADGES ── */
+.place-status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+}
+.pstatus-ACTIVE {
+  background: #dcfce7;
+  color: #15803d;
+}
+.pstatus-INACTIVE {
+  background: #f1f5f9;
+  color: #475569;
+}
