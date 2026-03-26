@@ -1,0 +1,241 @@
+/* =========================================================
+   events-place-form.css — Place Form Styles
+   (Extend from event-form.css)
+========================================================= */
+
+/* ใช้ ef-* จาก event-form ได้เลย */
+
+/* ─────────────────────────────────────────
+   TEXTAREA (override ให้สูงขึ้นสำหรับ address)
+───────────────────────────────────────── */
+#fAddress {
+  height: 90px;
+}
+
+/* ─────────────────────────────────────────
+   NUMBER INPUT (ดู clean ขึ้น)
+───────────────────────────────────────── */
+.ef-input[type="number"] {
+  -moz-appearance: textfield;
+}
+.ef-input[type="number"]::-webkit-outer-spin-button,
+.ef-input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* ─────────────────────────────────────────
+   RIGHT PANEL IMAGE (reuse แต่ tweak icon)
+───────────────────────────────────────── */
+#preview {
+  background: var(--surface2);
+}
+#preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* ─────────────────────────────────────────
+   UPLOAD ZONE (hover effect เพิ่มนิด)
+───────────────────────────────────────── */
+.ef-upload-zone {
+  position: relative;
+}
+.ef-upload-zone:active {
+  transform: scale(0.98);
+}
+
+/* ─────────────────────────────────────────
+   STATUS SELECT (สี subtle)
+───────────────────────────────────────── */
+#fStatus {
+  font-weight: 600;
+}
+
+/* ─────────────────────────────────────────
+   SECTION SPACING FIX
+───────────────────────────────────────── */
+.ef-section:last-child {
+  margin-bottom: 0;
+}
+
+/* ─────────────────────────────────────────
+   RESPONSIVE (มือถือ)
+───────────────────────────────────────── */
+@media (max-width: 900px) {
+  .ef-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ─────────────────────────────────────────
+   SMALL UX ENHANCEMENTS
+───────────────────────────────────────── */
+
+/* focus smooth */
+.ef-input:focus {
+  transform: translateY(-1px);
+}
+
+/* textarea scroll smooth */
+textarea.ef-input {
+  overflow-y: auto;
+}
+
+/* label spacing */
+.ef-label {
+  letter-spacing: 0.2px;
+}
+
+/* subtle card hover (optional feel modern) */
+.ef-section {
+  transition: box-shadow 0.2s ease;
+}
+.ef-section:hover {
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.04);
+}
+/* 1 COLUMN */
+.single-column {
+  grid-template-columns: 1fr !important;
+}
+
+/* IMAGE GRID */
+.place-img-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.place-img-item {
+  position: relative;
+  width: 100%;
+  height: 80px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+
+.place-img-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.place-img-remove {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  border: none;
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+/* 5 SLOT */
+.place-img-grid.slots {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+/* SLOT */
+/* A4 RATIO */
+.place-slot {
+  aspect-ratio: 210 / 297; /* 🔥 A4 */
+  width: 100%;
+  border: 2px dashed var(--border2);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  background: var(--surface2);
+  position: relative;
+  overflow: hidden;
+}
+
+.place-slot:hover {
+  border-color: var(--accent);
+  background: rgba(59, 130, 246, 0.05);
+}
+
+/* EMPTY ICON */
+.place-slot.empty::before {
+  content: "＋";
+  font-size: 24px;
+  color: var(--text3);
+}
+
+/* IMAGE */
+.place-slot img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* REMOVE BTN */
+.place-remove {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  border: none;
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+/* dragging */
+.place-slot:active {
+  opacity: 0.6;
+}
+
+/* hover drop */
+.place-slot.drag-over {
+  border-color: var(--accent);
+  background: rgba(59, 130, 246, 0.1);
+}
+.place-slot {
+  cursor: grab;
+}
+
+.place-slot:active {
+  cursor: grabbing;
+}
+.ef-upload-zone {
+  pointer-events: none;
+}
+.place-slot {
+  pointer-events: auto;
+}
+/* HOVER SLOT ชัดๆ */
+.place-slot:hover {
+  border-color: #3b82f6; /* ฟ้าเข้ม */
+  background: rgba(59, 130, 246, 0.12);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25);
+}
+
+/* EMPTY + ICON */
+.place-slot.empty::before {
+  content: "+";
+  font-size: 28px;
+  color: #3b82f6;
+  font-weight: 600;
+}
+
+/* CURSOR */
+.place-slot {
+  cursor: pointer; /* 👈 เปลี่ยนจาก grab เป็น pointer จะชัดกว่า */
+}
+
+/* DRAG MODE (ตอนลากจริง) */
+.place-slot:active {
+  cursor: grabbing;
+  opacity: 0.7;
+}

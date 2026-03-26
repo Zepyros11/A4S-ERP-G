@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Poster Gallery</title>
+
+    <!-- CSS -->
+    <link rel="stylesheet" href="../../../css/main.css" />
+    <link rel="stylesheet" href="../activity/events.css" />
+    <link rel="stylesheet" href="../activity/event-poster-gallery.css" />
+    <link
+      rel="stylesheet"
+      href="../../../js/components/navigation/topbar-calendar.css"
+    />
+    <link rel="stylesheet" href="./event-poster-gallery-view.css" />
+  </head>
+
+  <body class="cal-standalone-page">
+    <!-- TOPBAR -->
+    <div id="calTopbarContainer"></div>
+
+    <!-- ✅ LOADING (JS ต้องใช้) -->
+    <div id="loadingOverlay" class="loading-overlay">
+      <div class="spinner"></div>
+    </div>
+
+    <!-- ✅ TOAST (JS ต้องใช้) -->
+    <div id="toast" class="toast"></div>
+
+    <!-- PAGE -->
+    <div class="page">
+      <!-- HEADER -->
+      <div class="toolbar">
+        <div>
+          <div class="title">🖼️ Poster Gallery</div>
+          <div id="pageSubtitle" class="subtitle">กำลังโหลด...</div>
+        </div>
+
+        <!-- ✅ สำคัญ: ต้องมีครบ 2 ตัว -->
+        <div class="toolbar-right">
+          <!-- filterType -->
+          <select id="filterType" class="filter-select">
+            <option value="">ทุกประเภท</option>
+            <option value="BOOTH">BOOTH</option>
+            <option value="MEETING">MEETING</option>
+            <option value="ONLINE">ONLINE</option>
+            <option value="HYBRID">HYBRID</option>
+          </select>
+
+          <!-- 🔥 ตัวที่ทำให้คุณพังเมื่อกี้ -->
+          <select id="filterPoster" class="filter-select">
+            <option value="all">ทั้งหมด</option>
+            <option value="has" selected>มีโปสเตอร์</option>
+            <option value="none">ไม่มีโปสเตอร์</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- GALLERY -->
+      <div id="galleryBody"></div>
+    </div>
+
+    <!-- POPUP (custom ของคุณ) -->
+    <div id="popup" class="popup hidden">
+      <div class="popup-bg"></div>
+
+      <div class="popup-content">
+        <img id="popupImg" />
+        <button id="popupClose">✕</button>
+      </div>
+    </div>
+
+    <!-- SCRIPT -->
+    <script type="module" src="../activity/event-poster-gallery.js"></script>
+    <script src="../../../js/components/navigation/topbar-calendar.js"></script>
+
+    <script>
+      // topbar
+      CalTopbar.init({
+        container: "calTopbarContainer",
+        pageName: "Poster Gallery",
+      });
+
+      // ===== OVERRIDE POPUP =====
+      window.ImgPopup = {
+        open: (imgs, index = 0) => {
+          const popup = document.getElementById("popup");
+          const img = document.getElementById("popupImg");
+
+          img.src = imgs[index];
+          popup.classList.remove("hidden");
+        },
+      };
+
+      // close popup
+      document.getElementById("popupClose").onclick = () => {
+        document.getElementById("popup").classList.add("hidden");
+      };
+
+      document.querySelector(".popup-bg").onclick = () => {
+        document.getElementById("popup").classList.add("hidden");
+      };
+    </script>
+
+    <script>
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") {
+          document.getElementById("popup").classList.add("hidden");
+        }
+      });
+    </script>
+  </body>
+</html>

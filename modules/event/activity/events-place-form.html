@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>เพิ่มสถานที่ — A4S-ERP</title>
+
+    <link
+      href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+
+    <link rel="stylesheet" href="../../../css/main.css" />
+    <link rel="stylesheet" href="./events.css" />
+    <link rel="stylesheet" href="./event-form.css" />
+    <link rel="stylesheet" href="./events-place-form.css" />
+  </head>
+
+  <body>
+    <!-- LOADING -->
+    <div class="loading-overlay" id="loadingOverlay">
+      <div class="spinner"></div>
+    </div>
+
+    <!-- TOAST -->
+    <div class="toast" id="toast"></div>
+
+    <!-- TOPBAR -->
+    <div class="topbar"></div>
+
+    <div class="layout">
+      <!-- SIDEBAR -->
+      <div id="sidebar-container"></div>
+
+      <!-- CONTENT -->
+      <div class="content-area">
+        <div class="page">
+          <!-- HEADER -->
+          <div class="toolbar" style="margin-bottom: 20px">
+            <div style="display: flex; align-items: center; gap: 12px">
+              <button
+                class="btn btn-outline"
+                onclick="window.location.href = '../activity/events-list.html'"
+              >
+                ← กลับ
+              </button>
+
+              <div>
+                <div style="font-size: 18px; font-weight: 700">
+                  📍 เพิ่มสถานที่
+                </div>
+                <div style="font-size: 12px; color: var(--text3)">
+                  จัดการข้อมูลสถานที่สำหรับ Event
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- FORM -->
+          <div class="ef-layout single-column">
+            <div>
+              <!-- SECTION: CORE -->
+              <div class="ef-section">
+                <div class="ef-section-title">📋 ข้อมูลสถานที่</div>
+
+                <!-- NAME -->
+                <div class="ef-field">
+                  <label class="ef-label">
+                    ชื่อสถานที่ <span class="ef-required">*</span>
+                  </label>
+                  <input
+                    class="ef-input"
+                    id="fPlaceName"
+                    placeholder="เช่น Hilton Bangkok / Impact Arena"
+                  />
+                </div>
+
+                <!-- TYPE -->
+                <div class="ef-field">
+                  <label class="ef-label">
+                    ประเภทสถานที่ <span class="ef-required">*</span>
+                  </label>
+                  <select class="ef-input" id="fPlaceType">
+                    <option value="">— เลือกประเภท —</option>
+                    <option value="HOTEL">🏨 โรงแรม</option>
+                    <option value="MEETING_ROOM">🏢 ห้องประชุม</option>
+                    <option value="RESTAURANT">🍽 ร้านอาหาร</option>
+                    <option value="EVENT_SPACE">🎤 Event Space</option>
+                  </select>
+                </div>
+
+                <!-- DESC -->
+                <div class="ef-field">
+                  <label class="ef-label">รายละเอียด</label>
+                  <textarea
+                    class="ef-input ef-textarea"
+                    id="fDescription"
+                    placeholder="รายละเอียดสถานที่..."
+                  ></textarea>
+                </div>
+
+                <!-- IMAGE SECTION -->
+                <div class="ef-field">
+                  <label class="ef-label">🖼️ รูปสถานที่ (สูงสุด 5 รูป)</label>
+
+                  <!-- ✅ SLOT (ลากได้) -->
+                  <div id="previewGrid" class="place-img-grid slots"></div>
+
+                  <input
+                    type="file"
+                    id="fileInput"
+                    multiple
+                    style="display: none"
+                  />
+                </div>
+
+                <!-- STATUS -->
+                <div class="ef-field">
+                  <label class="ef-label">⚙️ สถานะ</label>
+                  <select class="ef-input" id="fStatus">
+                    <option value="ACTIVE">ACTIVE</option>
+                    <option value="INACTIVE">INACTIVE</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- LOCATION -->
+              <div class="ef-section">
+                <div class="ef-section-title">📍 Location</div>
+
+                <div class="ef-field">
+                  <label class="ef-label">ที่อยู่</label>
+                  <textarea
+                    class="ef-input ef-textarea"
+                    id="fAddress"
+                    placeholder="ที่อยู่เต็ม..."
+                  ></textarea>
+                </div>
+
+                <div class="ef-row-2">
+                  <div class="ef-field">
+                    <label class="ef-label">Latitude</label>
+                    <input class="ef-input" id="fLat" />
+                  </div>
+                  <div class="ef-field">
+                    <label class="ef-label">Longitude</label>
+                    <input class="ef-input" id="fLong" />
+                  </div>
+                </div>
+
+                <div class="ef-field">
+                  <label class="ef-label">Google Map</label>
+                  <input class="ef-input" id="fMap" />
+                </div>
+              </div>
+
+              <!-- CONTACT -->
+              <div class="ef-section">
+                <div class="ef-section-title">📞 Contact</div>
+
+                <div class="ef-row-2">
+                  <div class="ef-field">
+                    <label class="ef-label">ชื่อผู้ติดต่อ</label>
+                    <input class="ef-input" id="fContactName" />
+                  </div>
+                  <div class="ef-field">
+                    <label class="ef-label">เบอร์โทร</label>
+                    <input class="ef-input" id="fPhone" />
+                  </div>
+                </div>
+
+                <div class="ef-field">
+                  <label class="ef-label">Email</label>
+                  <input class="ef-input" id="fEmail" />
+                </div>
+              </div>
+
+              <!-- BUSINESS -->
+              <div class="ef-section">
+                <div class="ef-section-title">🏢 ข้อมูลเพิ่มเติม</div>
+
+                <div class="ef-row-2">
+                  <div class="ef-field">
+                    <label class="ef-label">Capacity</label>
+                    <input class="ef-input" type="number" id="fCapacity" />
+                  </div>
+                  <div class="ef-field">
+                    <label class="ef-label">Meeting Rooms</label>
+                    <input class="ef-input" type="number" id="fRoomsMeeting" />
+                  </div>
+                </div>
+
+                <div class="ef-row-2">
+                  <div class="ef-field">
+                    <label class="ef-label">จำนวนห้องพัก</label>
+                    <input class="ef-input" type="number" id="fRooms" />
+                  </div>
+                  <div class="ef-field">
+                    <label class="ef-label">ที่จอดรถ</label>
+                    <select class="ef-input" id="fParking">
+                      <option value="">— เลือก —</option>
+                      <option value="true">มี</option>
+                      <option value="false">ไม่มี</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="toolbar-right">
+              <button
+                class="btn btn-outline"
+                onclick="window.location.href = '../activity/events-list.html'"
+              >
+                ยกเลิก
+              </button>
+              <button class="btn btn-primary" onclick="window.savePlace()">
+                💾 บันทึก
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- SCRIPTS -->
+        <script type="module" src="./events-place-form.js"></script>
+        <script src="../../../js/core/auth.js"></script>
+        <script src="../../../js/components/navigation/sidebar.js"></script>
+
+        <script type="module">
+          import { loadTopbar } from "../../../js/components/navigation/topbar.js";
+          loadTopbar("📍 สถานที่");
+        </script>
+      </div>
+    </div>
+  </body>
+</html>

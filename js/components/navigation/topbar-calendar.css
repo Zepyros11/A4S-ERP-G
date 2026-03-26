@@ -33,24 +33,29 @@
   width: auto;
   object-fit: contain;
 }
-.cal-topbar-brand {
-  font-size: 15px;
-  font-weight: 700;
-  background: linear-gradient(45deg, #818cf8, #f472b6);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  letter-spacing: 0.3px;
-}
-.cal-topbar-sep {
-  color: #cbd5e1;
-  font-size: 14px;
-  font-weight: 300;
-}
-.cal-topbar-page {
-  font-size: 14px;
+.cal-topbar-btn {
+  background: none;
+  border: none;
+  padding: 4px 6px;
+  font-size: 13px;
   font-weight: 600;
   color: #64748b;
+  cursor: pointer; /* 👈 เปลี่ยนเป็นนิ้ว */
+  border-radius: 6px;
+  transition: all 0.15s ease;
+}
+
+/* hover */
+.cal-topbar-btn:hover {
+  color: #1e293b;
+  background: rgba(99, 102, 241, 0.08);
+}
+
+/* active page */
+.cal-topbar-btn.active {
+  color: #4f46e5;
+  font-weight: 700;
+  background: rgba(99, 102, 241, 0.12);
 }
 
 /* ── RIGHT ── */
@@ -89,4 +94,7 @@
     font-size: 11px;
     padding: 4px 10px;
   }
+}
+.cal-standalone-page {
+  padding-top: 62px;
 }

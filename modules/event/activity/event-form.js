@@ -5,6 +5,7 @@
 import {
   fetchEventById,
   fetchUsers,
+  fetchEvents, // 👈 เพิ่มตัวนี้
   createEvent,
   updateEvent,
   uploadEventPoster,
@@ -275,8 +276,75 @@ function showLoading(show) {
 }
 
 // ── START ──────────────────────────────────────────────────
+async function startPage() {
+  await initPage();
+  await loadEventNames();
+  setupEventNameAutocomplete();
+}
+
 if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", initPage);
+  document.addEventListener("DOMContentLoaded", startPage);
 } else {
-  initPage();
+  startPage();
+}
+// ── AUTOCOMPLETE EVENT NAME ─────────────────────────
+let eventNameList = [];
+
+async function loadEventNames() {
+  try {
+    const events = await fetchEvents(); // 👈 เรียกตรงๆเลย
+    eventNameList = [
+      ...new Set(events.map((e) => e.event_name).filter(Boolean)),
+    ];
+    console.log("EVENT NAMES:", eventNameList); // debug
+  } catch (e) {
+    console.error("โหลดชื่อ event ไม่ได้", e);
+  }
+}
+
+function setupEventNameAutocomplete() {
+  const input = document.getElementById("fEventName");
+  const dropdown = document.getElementById("eventNameDropdown");
+
+  input.addEventListener("focus", showDropdown);
+  input.addEventListener("input", showDropdown);
+
+  function showDropdown() {
+    const keyword = input.value.toLowerCase();
+
+    const filtered = eventNameList.filter((name) =>
+      name.toLowerCase().includes(keyword),
+    );
+
+    if (!filtered.length) {
+      dropdown.style.display = "none";
+      return;
+    }
+
+    dropdown.innerHTML = filtered
+      .slice(0, 8)
+      .map(
+        (name) => `
+        <div class="ef-dropdown-item">${name}</div>
+      `,
+      )
+      .join("");
+
+    dropdown.style.display = "block";
+
+    // click select
+    dropdown.querySelectorAll(".ef-dropdown-item").forEach((el) => {
+      el.onclick = () => {
+        input.value = el.textContent;
+        dropdown.style.display = "none";
+      };
+    });
+  }
+
+  // click outside
+  document.addEventListener("click", (e) => {
+    if (!dropdown.contains(e.target) && e.target !== input) {
+      dropdown.style.display = "none";
+    }
+  });
 }

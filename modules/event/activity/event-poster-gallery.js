@@ -6,7 +6,7 @@ import { fetchEvents } from "./events-api.js";
 
 // ── STATE ──────────────────────────────────────────────────
 let allEvents = [];
-let gridCols = 3;
+let gridCols = 5;
 
 // ── INIT ───────────────────────────────────────────────────
 async function initPage() {

@@ -134,3 +134,87 @@
   font-size: 11px;
   color: var(--text3);
 }
+/* ── EVENT NAME AUTOCOMPLETE ── */
+.ef-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+
+  background: #fff;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+
+  max-height: 220px;
+  overflow-y: auto;
+
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.15);
+
+  z-index: 99999;
+
+  transform: translateZ(0); /* 🔥 ตัวนี้สำคัญ */
+}
+
+.ef-dropdown-item {
+  padding: 10px 14px;
+  font-size: 13px;
+  cursor: pointer;
+  background: #fff; /* 👈 กันโปร่ง */
+
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.ef-dropdown-item:last-child {
+  border-bottom: none;
+}
+
+.ef-dropdown-item:hover {
+  background: #f8fafc; /* 👈 hover นุ่มๆ */
+}
+/* ===============================
+   EVENT NAME AUTOCOMPLETE (SAFE)
+================================ */
+
+/* จำกัด scope เฉพาะ field นี้ */
+#fEventName {
+  position: relative;
+  z-index: 2;
+}
+
+/* wrapper ของ field นี้ */
+#fEventName + .ef-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+
+  background: #ffffff;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+
+  max-height: 220px;
+  overflow-y: auto;
+
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.15);
+
+  z-index: 99999;
+
+  display: none;
+}
+
+/* item */
+.ef-dropdown-item {
+  padding: 10px 14px;
+  font-size: 13px;
+  cursor: pointer;
+  background: #dddddd;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.ef-dropdown-item:last-child {
+  border-bottom: none;
+}
+
+.ef-dropdown-item:hover {
+  background: #e0f2fe; /* ฟ้าอ่อน เห็นชัด */
+}
