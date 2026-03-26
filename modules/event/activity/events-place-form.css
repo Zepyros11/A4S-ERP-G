@@ -1,20 +1,8 @@
 /* =========================================================
    events-place-form.css — Place Form Styles
-   (Extend from event-form.css)
 ========================================================= */
 
-/* ใช้ ef-* จาก event-form ได้เลย */
-
-/* ─────────────────────────────────────────
-   TEXTAREA (override ให้สูงขึ้นสำหรับ address)
-───────────────────────────────────────── */
-#fAddress {
-  height: 90px;
-}
-
-/* ─────────────────────────────────────────
-   NUMBER INPUT (ดู clean ขึ้น)
-───────────────────────────────────────── */
+/* ── NUMBER INPUT ── */
 .ef-input[type="number"] {
   -moz-appearance: textfield;
 }
@@ -24,192 +12,21 @@
   margin: 0;
 }
 
-/* ─────────────────────────────────────────
-   RIGHT PANEL IMAGE (reuse แต่ tweak icon)
-───────────────────────────────────────── */
-#preview {
-  background: var(--surface2);
-}
-#preview img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-/* ─────────────────────────────────────────
-   UPLOAD ZONE (hover effect เพิ่มนิด)
-───────────────────────────────────────── */
-.ef-upload-zone {
-  position: relative;
-}
-.ef-upload-zone:active {
-  transform: scale(0.98);
-}
-
-/* ─────────────────────────────────────────
-   STATUS SELECT (สี subtle)
-───────────────────────────────────────── */
-#fStatus {
-  font-weight: 600;
-}
-
-/* ─────────────────────────────────────────
-   SECTION SPACING FIX
-───────────────────────────────────────── */
+/* ── SECTION SPACING ── */
 .ef-section:last-child {
   margin-bottom: 0;
 }
 
-/* ─────────────────────────────────────────
-   RESPONSIVE (มือถือ)
-───────────────────────────────────────── */
+/* ── RESPONSIVE ── */
 @media (max-width: 900px) {
   .ef-layout {
     grid-template-columns: 1fr;
   }
 }
 
-/* ─────────────────────────────────────────
-   SMALL UX ENHANCEMENTS
-───────────────────────────────────────── */
-
-/* focus smooth */
-.ef-input:focus {
-  transform: translateY(-1px);
-}
-
-/* textarea scroll smooth */
-textarea.ef-input {
-  overflow-y: auto;
-}
-
-/* label spacing */
-.ef-label {
-  letter-spacing: 0.2px;
-}
-
-/* subtle card hover (optional feel modern) */
-.ef-section {
-  transition: box-shadow 0.2s ease;
-}
-.ef-section:hover {
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.04);
-}
-/* 1 COLUMN */
-.single-column {
-  grid-template-columns: 1fr !important;
-}
-
-/* IMAGE GRID */
-.place-img-grid {
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 10px;
-  margin-bottom: 12px;
-}
-
-.place-img-item {
-  position: relative;
-  width: 100%;
-  height: 80px;
-  border-radius: 8px;
-  overflow: hidden;
-  border: 1px solid var(--border);
-}
-
-.place-img-item img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.place-img-remove {
-  position: absolute;
-  top: 4px;
-  right: 4px;
-  background: rgba(0, 0, 0, 0.6);
-  color: #fff;
-  border: none;
-  font-size: 11px;
-  padding: 2px 6px;
-  border-radius: 4px;
-  cursor: pointer;
-}
-/* 5 SLOT */
-.place-img-grid.slots {
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 10px;
-  margin-bottom: 12px;
-}
-
-/* SLOT */
-/* A4 RATIO */
-.place-slot {
-  aspect-ratio: 210 / 297; /* 🔥 A4 */
-  width: 100%;
-  border: 2px dashed var(--border2);
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  background: var(--surface2);
-  position: relative;
-  overflow: hidden;
-}
-
-.place-slot:hover {
-  border-color: var(--accent);
-  background: rgba(59, 130, 246, 0.05);
-}
-
-/* EMPTY ICON */
-.place-slot.empty::before {
-  content: "＋";
-  font-size: 24px;
-  color: var(--text3);
-}
-
-/* IMAGE */
-.place-slot img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-/* REMOVE BTN */
-.place-remove {
-  position: absolute;
-  top: 4px;
-  right: 4px;
-  background: rgba(0, 0, 0, 0.6);
-  color: #fff;
-  border: none;
-  font-size: 11px;
-  padding: 2px 6px;
-  border-radius: 4px;
-  cursor: pointer;
-}
-/* dragging */
-.place-slot:active {
-  opacity: 0.6;
-}
-
-/* hover drop */
-.place-slot.drag-over {
-  border-color: var(--accent);
-  background: rgba(59, 130, 246, 0.1);
-}
-.place-slot {
-  cursor: grab;
-}
-
-.place-slot:active {
-  cursor: grabbing;
-}
-
-/* ── SLOT GRID ── */
+/* ═══════════════════════════════════════════
+   IMAGE SLOT GRID
+═══════════════════════════════════════════ */
 .place-img-grid {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
@@ -244,16 +61,19 @@ textarea.ef-input {
   background: rgba(59, 130, 246, 0.06);
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
 }
+
+/* ── SLOT INNER CONTENT (empty) ── */
 .place-slot-inner {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 4px;
   pointer-events: none;
+  user-select: none;
 }
 .place-slot-icon {
-  font-size: 26px;
-  font-weight: 600;
+  font-size: 28px;
+  font-weight: 700;
   color: #3b82f6;
   line-height: 1;
 }
@@ -267,6 +87,11 @@ textarea.ef-input {
 /* ── FILLED SLOT ── */
 .place-slot.filled {
   border: 2px solid var(--border);
+  cursor: grab;
+}
+.place-slot.filled:active {
+  cursor: grabbing;
+  opacity: 0.65;
 }
 .place-slot.filled img {
   width: 100%;
@@ -274,9 +99,10 @@ textarea.ef-input {
   object-fit: cover;
   display: block;
   pointer-events: none;
+  user-select: none;
 }
 
-/* ── REMOVE BTN ── */
+/* ── REMOVE BUTTON ── */
 .place-remove {
   position: absolute;
   top: 5px;
@@ -294,6 +120,7 @@ textarea.ef-input {
   justify-content: center;
   z-index: 2;
   transition: background 0.15s;
+  line-height: 1;
 }
 .place-remove:hover {
   background: #ef4444;
@@ -306,11 +133,12 @@ textarea.ef-input {
   left: 6px;
   font-size: 10px;
   font-weight: 700;
-  color: rgba(255, 255, 255, 0.85);
-  background: rgba(0, 0, 0, 0.4);
+  color: rgba(255, 255, 255, 0.9);
+  background: rgba(0, 0, 0, 0.45);
   padding: 1px 5px;
   border-radius: 4px;
   pointer-events: none;
+  user-select: none;
 }
 .place-slot.empty .place-slot-num {
   color: var(--text3);
@@ -322,15 +150,4 @@ textarea.ef-input {
   border-color: #3b82f6 !important;
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3);
   opacity: 0.85;
-}
-
-/* ── DRAGGING ── */
-.place-slot.filled:active {
-  cursor: grabbing;
-  opacity: 0.6;
-}
-
-/* ── DISABLE UPLOAD ZONE pointer conflict ── */
-.ef-upload-zone {
-  pointer-events: auto;
 }
