@@ -10,12 +10,6 @@ function initPage() {
   renderSlots();
 }
 
-// ── BIND EVENTS ──────────────────────────────────
-function bindEvents() {
-  const fileInput = document.getElementById("fileInput");
-  fileInput.addEventListener("change", handleFileSelect);
-}
-
 // ── VALIDATE ─────────────────────────────────────
 function validate() {
   const name = document.getElementById("fPlaceName").value.trim();
@@ -157,117 +151,106 @@ if (document.readyState === "loading") {
 } else {
   initPage();
 }
-// INIT SLOT 5 ช่อง
+// ── SLOTS ────────────────────────────────────────
 function renderSlots() {
   const grid = document.getElementById("previewGrid");
   grid.innerHTML = "";
 
   for (let i = 0; i < 5; i++) {
     const file = imageFiles[i];
+    const slot = document.createElement("div");
 
     if (file) {
       const url = URL.createObjectURL(file);
-
-      grid.innerHTML += `
-        <div class="place-slot"
-             draggable="true"
-             ondragstart="handleDragStart(event, ${i})"
-             ondragover="handleDragOver(event)"
-             ondrop="handleDrop(event, ${i})">
-
-          <img src="${url}" />
-          <button class="place-remove" onclick="removeImage(${i})">✕</button>
-        </div>
+      slot.className = "place-slot filled";
+      slot.draggable = true;
+      slot.innerHTML = `
+        <img src="${url}" alt="slot-${i}" />
+        <button class="place-remove" type="button">✕</button>
+        <div class="place-slot-num">${i + 1}</div>
       `;
+      // drag (เลื่อนลำดับ)
+      slot.addEventListener("dragstart", (e) => {
+        e.dataTransfer.effectAllowed = "move";
+        e.dataTransfer.setData("text/plain", String(i));
+      });
+      // remove
+      slot.querySelector(".place-remove").addEventListener("click", (e) => {
+        e.stopPropagation();
+        imageFiles.splice(i, 1);
+        renderSlots();
+      });
     } else {
-      grid.innerHTML += `
-        <div class="place-slot empty"
-             onclick="selectImage(${i})"
-             ondragover="handleDragOver(event)"
-             ondrop="handleDropEmpty(event, ${i})">
+      slot.className = "place-slot empty";
+      slot.innerHTML = `
+        <div class="place-slot-inner">
+          <div class="place-slot-icon">+</div>
+          <div class="place-slot-hint">คลิก / ลากรูป</div>
+          <div class="place-slot-num">${i + 1}</div>
         </div>
       `;
+      // คลิก = เปิด file picker
+      slot.addEventListener("click", () => triggerFilePicker(i));
     }
+
+    // dragover + drop สำหรับทุก slot (ทั้ง filled และ empty)
+    slot.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      slot.classList.add("drag-over");
+    });
+    slot.addEventListener("dragleave", () =>
+      slot.classList.remove("drag-over"),
+    );
+    slot.addEventListener("drop", (e) => {
+      e.preventDefault();
+      slot.classList.remove("drag-over");
+
+      // drop จาก slot อื่น (สลับลำดับ)
+      const fromIndex = parseInt(e.dataTransfer.getData("text/plain"));
+      if (!isNaN(fromIndex) && fromIndex !== i) {
+        const temp = imageFiles[fromIndex] ?? null;
+        imageFiles[fromIndex] = imageFiles[i] ?? null;
+        imageFiles[i] = temp;
+        // ล้าง undefined ที่ไม่จำเป็น
+        renderSlots();
+        return;
+      }
+
+      // drop จากภายนอก (ไฟล์จาก OS)
+      const file = e.dataTransfer.files?.[0];
+      if (file && file.type.startsWith("image/")) {
+        imageFiles[i] = file;
+        renderSlots();
+      }
+    });
+
+    grid.appendChild(slot);
   }
 }
-// SELECT SLOT
-window.selectImage = function (index) {
+
+// ── FILE PICKER ──────────────────────────────────
+function triggerFilePicker(index) {
   const input = document.getElementById("fileInput");
   input.dataset.index = index;
+  input.value = ""; // reset ให้เลือกไฟล์เดิมซ้ำได้
   input.click();
-};
+}
 
-// HANDLE FILE
 function handleFileSelect(e) {
   const file = e.target.files?.[0];
   if (!file) return;
-
   if (!file.type.startsWith("image/")) {
     showToast("กรุณาเลือกไฟล์รูปภาพ", "error");
     return;
   }
-
-  const index = e.target.dataset.index;
-
-  if (index !== undefined) {
-    imageFiles[index] = file;
-  } else {
-    if (imageFiles.length >= 5) {
-      showToast("สูงสุด 5 รูป", "error");
-      return;
-    }
-    imageFiles.push(file);
-  }
-
+  const index = parseInt(e.target.dataset.index);
+  imageFiles[isNaN(index) ? imageFiles.length : index] = file;
   renderSlots();
 }
 
-// REMOVE
-window.removeImage = function (index) {
-  imageFiles.splice(index, 1);
-  renderSlots();
-};
-let dragIndex = null;
-
-// START DRAG
-window.handleDragStart = function (e, index) {
-  dragIndex = index;
-
-  // 🔥 สำคัญมาก (ไม่งั้นลากไม่ติดบาง browser)
-  e.dataTransfer.effectAllowed = "move";
-  e.dataTransfer.setData("text/plain", index);
-};
-
-// ALLOW DROP
-window.handleDragOver = function (e) {
-  e.preventDefault();
-  e.dataTransfer.dropEffect = "move";
-};
-
-// DROP ON SLOT (swap)
-window.handleDrop = function (e, targetIndex) {
-  e.preventDefault();
-
-  const from = parseInt(e.dataTransfer.getData("text/plain"));
-
-  if (isNaN(from)) return;
-
-  const temp = imageFiles[from];
-  imageFiles[from] = imageFiles[targetIndex];
-  imageFiles[targetIndex] = temp;
-
-  renderSlots();
-};
-
-// DROP ON EMPTY SLOT
-window.handleDropEmpty = function (e, targetIndex) {
-  e.preventDefault();
-
-  const from = parseInt(e.dataTransfer.getData("text/plain"));
-  if (isNaN(from)) return;
-
-  const item = imageFiles.splice(from, 1)[0];
-  imageFiles[targetIndex] = item;
-
-  renderSlots();
-};
+// bind file input
+document.addEventListener("DOMContentLoaded", () => {
+  document
+    .getElementById("fileInput")
+    .addEventListener("change", handleFileSelect);
+});

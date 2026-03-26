@@ -208,34 +208,129 @@ textarea.ef-input {
 .place-slot:active {
   cursor: grabbing;
 }
-.ef-upload-zone {
+
+/* ── SLOT GRID ── */
+.place-img-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 10px;
+  margin-top: 8px;
+}
+
+/* ── SLOT BASE ── */
+.place-slot {
+  aspect-ratio: 3 / 4;
+  width: 100%;
+  border-radius: 10px;
+  position: relative;
+  overflow: hidden;
+  cursor: pointer;
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s,
+    opacity 0.15s;
+}
+
+/* ── EMPTY SLOT ── */
+.place-slot.empty {
+  border: 2px dashed var(--border2, #cbd5e1);
+  background: var(--surface2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.place-slot.empty:hover {
+  border-color: #3b82f6;
+  background: rgba(59, 130, 246, 0.06);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+.place-slot-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
   pointer-events: none;
 }
-.place-slot {
-  pointer-events: auto;
-}
-/* HOVER SLOT ชัดๆ */
-.place-slot:hover {
-  border-color: #3b82f6; /* ฟ้าเข้ม */
-  background: rgba(59, 130, 246, 0.12);
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25);
-}
-
-/* EMPTY + ICON */
-.place-slot.empty::before {
-  content: "+";
-  font-size: 28px;
-  color: #3b82f6;
+.place-slot-icon {
+  font-size: 26px;
   font-weight: 600;
+  color: #3b82f6;
+  line-height: 1;
+}
+.place-slot-hint {
+  font-size: 10px;
+  color: var(--text3);
+  text-align: center;
+  line-height: 1.3;
 }
 
-/* CURSOR */
-.place-slot {
-  cursor: pointer; /* 👈 เปลี่ยนจาก grab เป็น pointer จะชัดกว่า */
+/* ── FILLED SLOT ── */
+.place-slot.filled {
+  border: 2px solid var(--border);
+}
+.place-slot.filled img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  pointer-events: none;
 }
 
-/* DRAG MODE (ตอนลากจริง) */
-.place-slot:active {
+/* ── REMOVE BTN ── */
+.place-remove {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 22px;
+  height: 22px;
+  background: rgba(0, 0, 0, 0.65);
+  color: #fff;
+  border: none;
+  border-radius: 50%;
+  font-size: 11px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+  transition: background 0.15s;
+}
+.place-remove:hover {
+  background: #ef4444;
+}
+
+/* ── SLOT NUMBER ── */
+.place-slot-num {
+  position: absolute;
+  bottom: 5px;
+  left: 6px;
+  font-size: 10px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.85);
+  background: rgba(0, 0, 0, 0.4);
+  padding: 1px 5px;
+  border-radius: 4px;
+  pointer-events: none;
+}
+.place-slot.empty .place-slot-num {
+  color: var(--text3);
+  background: transparent;
+}
+
+/* ── DRAG OVER ── */
+.place-slot.drag-over {
+  border-color: #3b82f6 !important;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3);
+  opacity: 0.85;
+}
+
+/* ── DRAGGING ── */
+.place-slot.filled:active {
   cursor: grabbing;
-  opacity: 0.7;
+  opacity: 0.6;
+}
+
+/* ── DISABLE UPLOAD ZONE pointer conflict ── */
+.ef-upload-zone {
+  pointer-events: auto;
 }
