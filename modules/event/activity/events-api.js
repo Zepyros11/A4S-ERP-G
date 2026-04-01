@@ -137,13 +137,6 @@ export async function markAllNotifsRead(userId) {
     body: { is_read: true },
   });
 }
-export async function createPlace(data) {
-  const res = await sbFetch("places", "", {
-    method: "POST",
-    body: data,
-  });
-  return res?.[0];
-}
 /* ── PLACES ── */
 export async function fetchPlaces() {
   return sbFetch("places", "?select=*&order=place_name.asc") || [];

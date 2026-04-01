@@ -145,7 +145,7 @@ function validate() {
 }
 
 // ── SAVE ───────────────────────────────────────────────────
-window.saveEvent = async function () {
+window._saveEventImpl = async function () {
   if (!validate()) return;
 
   showLoading(true);

@@ -40,7 +40,10 @@
                 <div style="font-size: 18px; font-weight: 700" id="pageTitle">
                   ✨ สร้างกิจกรรมใหม่
                 </div>
-                <div style="font-size: 12px; color: var(--text3)" id="pageSubtitle">
+                <div
+                  style="font-size: 12px; color: var(--text3)"
+                  id="pageSubtitle"
+                >
                   กรอกข้อมูลกิจกรรมให้ครบถ้วน
                 </div>
               </div>
@@ -53,7 +56,11 @@
               >
                 ยกเลิก
               </button>
-              <button class="btn btn-primary" id="btnSave" onclick="window.saveEvent()">
+              <button
+                class="btn btn-primary"
+                id="btnSave"
+                onclick="window.saveEvent()"
+              >
                 💾 บันทึก
               </button>
             </div>
@@ -186,8 +193,19 @@
                 <div
                   class="ef-poster-preview"
                   id="posterPreview"
-                  ondragover="event.preventDefault(); this.classList.add('drag-over'); document.getElementById('uploadZone').classList.add('drag-over');"
-                  ondragleave="this.classList.remove('drag-over'); document.getElementById('uploadZone').classList.remove('drag-over');"
+                  ondragover="
+                    event.preventDefault();
+                    this.classList.add('drag-over');
+                    document
+                      .getElementById('uploadZone')
+                      .classList.add('drag-over');
+                  "
+                  ondragleave="
+                    this.classList.remove('drag-over');
+                    document
+                      .getElementById('uploadZone')
+                      .classList.remove('drag-over');
+                  "
                   ondrop="_posterDrop(event)"
                 >
                   <span class="ef-poster-placeholder">🗓️</span>
@@ -197,12 +215,25 @@
                   class="ef-upload-zone"
                   id="uploadZone"
                   onclick="document.getElementById('posterInput').click()"
-                  ondragover="event.preventDefault(); this.classList.add('drag-over'); document.getElementById('posterPreview').classList.add('drag-over');"
-                  ondragleave="this.classList.remove('drag-over'); document.getElementById('posterPreview').classList.remove('drag-over');"
+                  ondragover="
+                    event.preventDefault();
+                    this.classList.add('drag-over');
+                    document
+                      .getElementById('posterPreview')
+                      .classList.add('drag-over');
+                  "
+                  ondragleave="
+                    this.classList.remove('drag-over');
+                    document
+                      .getElementById('posterPreview')
+                      .classList.remove('drag-over');
+                  "
                   ondrop="_posterDrop(event)"
                 >
                   <div class="ef-upload-icon">📤</div>
-                  <div class="ef-upload-text">คลิกเพื่ออัปโหลด หรือลากไฟล์มาที่นี่</div>
+                  <div class="ef-upload-text">
+                    คลิกเพื่ออัปโหลด หรือลากไฟล์มาที่นี่
+                  </div>
                   <div class="ef-upload-hint">JPG, PNG ไม่เกิน 5MB</div>
                 </div>
 
@@ -231,12 +262,18 @@
                   <label class="ef-label">Event Code</label>
                   <input
                     class="ef-input"
-                    style="font-family: 'IBM Plex Mono', monospace"
+                    style="font-family: &quot;IBM Plex Mono&quot;, monospace"
                     type="text"
                     id="fEventCode"
                     placeholder="EVT-YYYYMM-001 (สร้างอัตโนมัติ)"
                   />
-                  <div style="font-size: 11px; color: var(--text3); margin-top: 4px">
+                  <div
+                    style="
+                      font-size: 11px;
+                      color: var(--text3);
+                      margin-top: 4px;
+                    "
+                  >
                     ระบบจะสร้างให้อัตโนมัติ หรือกรอกเองได้
                   </div>
                 </div>
@@ -254,13 +291,36 @@
              เพื่อให้ inline onclick/ondrop เรียกได้ทันที
         ══════════════════════════════════════════ -->
         <script>
+          // ── saveEvent bridge ──────────────────────────────────
+          // ES Module โหลดช้า — bridge นี้รับ click ก่อน แล้วรอ module พร้อม
+          window.saveEvent = function () {
+            if (typeof window._saveEventImpl === "function") {
+              window._saveEventImpl();
+            } else {
+              // รอ module โหลดเสร็จ (max 5 วิ)
+              var waited = 0;
+              var check = setInterval(function () {
+                waited += 100;
+                if (typeof window._saveEventImpl === "function") {
+                  clearInterval(check);
+                  window._saveEventImpl();
+                } else if (waited >= 5000) {
+                  clearInterval(check);
+                  alert("ระบบยังโหลดไม่เสร็จ กรุณารอสักครู่แล้วลองใหม่");
+                }
+              }, 100);
+            }
+          };
+
           // bridge state ไปให้ ES module อ่านได้ผ่าน window
           window._posterFile = null;
-          window._posterUrl  = null;
+          window._posterUrl = null;
 
           function _showPosterPreview(url) {
             document.getElementById("posterPreview").innerHTML =
-              '<img src="' + url + '" alt="poster preview" style="width:100%;height:100%;object-fit:cover;">';
+              '<img src="' +
+              url +
+              '" alt="poster preview" style="width:100%;height:100%;object-fit:cover;">';
             document.getElementById("btnRemovePoster").style.display = "block";
           }
 
@@ -268,9 +328,12 @@
             var file = input.files && input.files[0];
             if (!file) return;
             if (file.size > 5 * 1024 * 1024) {
-              document.getElementById("toast").className = "toast toast-error show";
+              document.getElementById("toast").className =
+                "toast toast-error show";
               document.getElementById("toast").textContent = "ไฟล์ใหญ่เกิน 5MB";
-              setTimeout(function(){ document.getElementById("toast").classList.remove("show"); }, 3000);
+              setTimeout(function () {
+                document.getElementById("toast").classList.remove("show");
+              }, 3000);
               return;
             }
             window._posterFile = file;
@@ -280,18 +343,28 @@
           function _posterDrop(e) {
             e.preventDefault();
             document.getElementById("uploadZone").classList.remove("drag-over");
-            document.getElementById("posterPreview").classList.remove("drag-over");
-            var file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+            document
+              .getElementById("posterPreview")
+              .classList.remove("drag-over");
+            var file =
+              e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
             if (!file || !file.type.startsWith("image/")) {
-              document.getElementById("toast").className = "toast toast-error show";
-              document.getElementById("toast").textContent = "กรุณาเลือกไฟล์รูปภาพเท่านั้น";
-              setTimeout(function(){ document.getElementById("toast").classList.remove("show"); }, 3000);
+              document.getElementById("toast").className =
+                "toast toast-error show";
+              document.getElementById("toast").textContent =
+                "กรุณาเลือกไฟล์รูปภาพเท่านั้น";
+              setTimeout(function () {
+                document.getElementById("toast").classList.remove("show");
+              }, 3000);
               return;
             }
             if (file.size > 5 * 1024 * 1024) {
-              document.getElementById("toast").className = "toast toast-error show";
+              document.getElementById("toast").className =
+                "toast toast-error show";
               document.getElementById("toast").textContent = "ไฟล์ใหญ่เกิน 5MB";
-              setTimeout(function(){ document.getElementById("toast").classList.remove("show"); }, 3000);
+              setTimeout(function () {
+                document.getElementById("toast").classList.remove("show");
+              }, 3000);
               return;
             }
             window._posterFile = file;
@@ -300,7 +373,7 @@
 
           function _posterRemove() {
             window._posterFile = null;
-            window._posterUrl  = null;
+            window._posterUrl = null;
             document.getElementById("posterPreview").innerHTML =
               '<span class="ef-poster-placeholder">🗓️</span>';
             document.getElementById("btnRemovePoster").style.display = "none";
