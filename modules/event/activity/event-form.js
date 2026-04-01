@@ -14,8 +14,8 @@ import {
 
 // ── STATE ──────────────────────────────────────────────────
 let editId = null;
-let posterFile = null;
-let posterUrl = null;
+// posterFile และ posterUrl ใช้ผ่าน window._posterFile / window._posterUrl
+// (set โดย plain script ใน HTML เพื่อแก้ ES Module timing issue)
 
 // ── INIT ───────────────────────────────────────────────────
 async function initPage() {
@@ -78,8 +78,11 @@ async function loadEventData() {
     document.getElementById("fDescription").value = e.description || "";
 
     if (e.poster_url) {
-      posterUrl = e.poster_url;
-      showPosterPreview(e.poster_url);
+      window._posterUrl = e.poster_url;
+      // แสดง preview โดยเรียก _showPosterPreview ที่ define ใน plain script
+      if (typeof _showPosterPreview === "function") {
+        _showPosterPreview(e.poster_url);
+      }
     }
   } catch (err) {
     showToast("โหลดข้อมูลไม่ได้: " + err.message, "error");
@@ -113,52 +116,6 @@ async function autoGenerateCode() {
   document.getElementById("fEventCode").value = code;
   return code;
 }
-
-// ── POSTER HANDLERS ────────────────────────────────────────
-window.handlePosterSelect = function (input) {
-  const file = input.files?.[0];
-  if (!file) return;
-  if (file.size > 5 * 1024 * 1024) {
-    showToast("ไฟล์ใหญ่เกิน 5MB", "error");
-    return;
-  }
-  posterFile = file;
-  showPosterPreview(URL.createObjectURL(file));
-};
-
-window.handlePosterDrop = function (e) {
-  e.preventDefault();
-  // clear drag-over ทั้งสอง zone
-  document.getElementById("uploadZone").classList.remove("drag-over");
-  document.getElementById("posterPreview").classList.remove("drag-over");
-
-  const file = e.dataTransfer.files?.[0];
-  if (!file || !file.type.startsWith("image/")) {
-    showToast("กรุณาเลือกไฟล์รูปภาพเท่านั้น", "error");
-    return;
-  }
-  if (file.size > 5 * 1024 * 1024) {
-    showToast("ไฟล์ใหญ่เกิน 5MB", "error");
-    return;
-  }
-  posterFile = file;
-  showPosterPreview(URL.createObjectURL(file));
-};
-
-function showPosterPreview(url) {
-  document.getElementById("posterPreview").innerHTML =
-    `<img src="${url}" alt="poster preview">`;
-  document.getElementById("btnRemovePoster").style.display = "block";
-}
-
-window.removePoster = function () {
-  posterFile = null;
-  posterUrl = null;
-  document.getElementById("posterPreview").innerHTML =
-    `<span class="ef-poster-placeholder">🗓️</span>`;
-  document.getElementById("btnRemovePoster").style.display = "none";
-  document.getElementById("posterInput").value = "";
-};
 
 // ── VALIDATE ───────────────────────────────────────────────
 function validate() {
@@ -217,6 +174,10 @@ window.saveEvent = async function () {
       const res = await createEvent(payload);
       savedId = res?.event_id;
     }
+
+    // อ่าน posterFile จาก window (set โดย plain script)
+    const posterFile = window._posterFile;
+    const posterUrl = window._posterUrl;
 
     if (posterFile && savedId) {
       const url = await uploadEventPoster(savedId, posterFile);
