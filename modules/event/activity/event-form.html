@@ -74,11 +74,11 @@
               <div class="ef-section">
                 <div class="ef-section-title">📋 ข้อมูลหลัก</div>
 
+                <!-- ชื่องาน + autocomplete -->
                 <div class="ef-field" style="position: relative">
                   <label class="ef-label">
                     ชื่องาน <span class="ef-required">*</span>
                   </label>
-
                   <input
                     class="ef-input"
                     type="text"
@@ -86,8 +86,6 @@
                     placeholder="ระบุชื่อกิจกรรม"
                     autocomplete="off"
                   />
-
-                  <!-- dropdown -->
                   <div id="eventNameDropdown" class="ef-dropdown"></div>
                 </div>
 
@@ -182,8 +180,7 @@
                     class="ef-input ef-textarea"
                     id="fDescription"
                     placeholder="ระบุรายละเอียดกิจกรรม หรือกำหนดการเบื้องต้น..."
-                  >
-                  </textarea>
+                  ></textarea>
                 </div>
               </div>
               <!-- end SECTION การมอบหมาย -->
@@ -196,8 +193,14 @@
               <div class="ef-section">
                 <div class="ef-section-title">🖼️ โปสเตอร์กิจกรรม</div>
 
-                <!-- Preview -->
-                <div class="ef-poster-preview" id="posterPreview">
+                <!-- Preview — รับ drag-drop ได้ด้วย -->
+                <div
+                  class="ef-poster-preview"
+                  id="posterPreview"
+                  ondragover="event.preventDefault(); this.classList.add('drag-over'); document.getElementById('uploadZone').classList.add('drag-over');"
+                  ondragleave="this.classList.remove('drag-over'); document.getElementById('uploadZone').classList.remove('drag-over');"
+                  ondrop="window.handlePosterDrop(event)"
+                >
                   <span class="ef-poster-placeholder">🗓️</span>
                 </div>
 
@@ -206,11 +209,8 @@
                   class="ef-upload-zone"
                   id="uploadZone"
                   onclick="document.getElementById('posterInput').click()"
-                  ondragover="
-                    event.preventDefault();
-                    this.classList.add('drag-over');
-                  "
-                  ondragleave="this.classList.remove('drag-over')"
+                  ondragover="event.preventDefault(); this.classList.add('drag-over'); document.getElementById('posterPreview').classList.add('drag-over');"
+                  ondragleave="this.classList.remove('drag-over'); document.getElementById('posterPreview').classList.remove('drag-over');"
                   ondrop="window.handlePosterDrop(event)"
                 >
                   <div class="ef-upload-icon">📤</div>
@@ -246,18 +246,12 @@
                   <label class="ef-label">Event Code</label>
                   <input
                     class="ef-input"
-                    style="font-family: &quot;IBM Plex Mono&quot;, monospace"
+                    style="font-family: 'IBM Plex Mono', monospace"
                     type="text"
                     id="fEventCode"
                     placeholder="EVT-YYYYMM-001 (สร้างอัตโนมัติ)"
                   />
-                  <div
-                    style="
-                      font-size: 11px;
-                      color: var(--text3);
-                      margin-top: 4px;
-                    "
-                  >
+                  <div style="font-size: 11px; color: var(--text3); margin-top: 4px">
                     ระบบจะสร้างให้อัตโนมัติ หรือกรอกเองได้
                   </div>
                 </div>

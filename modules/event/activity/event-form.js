@@ -5,7 +5,7 @@
 import {
   fetchEventById,
   fetchUsers,
-  fetchEvents, // 👈 เพิ่มตัวนี้
+  fetchEvents,
   createEvent,
   updateEvent,
   uploadEventPoster,
@@ -13,9 +13,9 @@ import {
 } from "./events-api.js";
 
 // ── STATE ──────────────────────────────────────────────────
-let editId = null; // null = สร้างใหม่, number = แก้ไข
-let posterFile = null; // ไฟล์ที่เลือกแต่ยังไม่ upload
-let posterUrl = null; // URL ที่มีอยู่แล้ว (กรณีแก้ไข)
+let editId = null;
+let posterFile = null;
+let posterUrl = null;
 
 // ── INIT ───────────────────────────────────────────────────
 async function initPage() {
@@ -30,10 +30,10 @@ async function initPage() {
     document.getElementById("btnSave").textContent = "💾 บันทึกการแก้ไข";
     await loadEventData();
   } else {
-    const code = await autoGenerateCode();
-    document.getElementById("fEventCode").value = code;
+    await autoGenerateCode();
   }
 }
+
 // ── LOAD USERS ─────────────────────────────────────────────
 async function loadUsers() {
   try {
@@ -77,7 +77,6 @@ async function loadEventData() {
     document.getElementById("fStatus").value = e.status || "DRAFT";
     document.getElementById("fDescription").value = e.description || "";
 
-    // โปสเตอร์
     if (e.poster_url) {
       posterUrl = e.poster_url;
       showPosterPreview(e.poster_url);
@@ -96,15 +95,9 @@ async function autoGenerateCode() {
   const mm = String(now.getMonth() + 1).padStart(2, "0");
   const prefix = `EVT-${yyyy}${mm}-`;
 
-  // ดึงทุก code ที่มี prefix นี้ แล้วหา max seq
   const res = await fetch(
     `${url}/rest/v1/events?select=event_code&event_code=like.${prefix}*`,
-    {
-      headers: {
-        apikey: key,
-        Authorization: `Bearer ${key}`,
-      },
-    },
+    { headers: { apikey: key, Authorization: `Bearer ${key}` } },
   );
   const rows = await res.json();
 
@@ -116,12 +109,11 @@ async function autoGenerateCode() {
     });
   }
 
-  // ใช้ timestamp เป็น fallback กัน collision
-  const seq = maxSeq + 1;
-  const code = `${prefix}${String(seq).padStart(3, "0")}`;
+  const code = `${prefix}${String(maxSeq + 1).padStart(3, "0")}`;
   document.getElementById("fEventCode").value = code;
   return code;
 }
+
 // ── POSTER HANDLERS ────────────────────────────────────────
 window.handlePosterSelect = function (input) {
   const file = input.files?.[0];
@@ -131,16 +123,22 @@ window.handlePosterSelect = function (input) {
     return;
   }
   posterFile = file;
-  const url = URL.createObjectURL(file);
-  showPosterPreview(url);
+  showPosterPreview(URL.createObjectURL(file));
 };
 
 window.handlePosterDrop = function (e) {
   e.preventDefault();
+  // clear drag-over ทั้งสอง zone
   document.getElementById("uploadZone").classList.remove("drag-over");
+  document.getElementById("posterPreview").classList.remove("drag-over");
+
   const file = e.dataTransfer.files?.[0];
   if (!file || !file.type.startsWith("image/")) {
     showToast("กรุณาเลือกไฟล์รูปภาพเท่านั้น", "error");
+    return;
+  }
+  if (file.size > 5 * 1024 * 1024) {
+    showToast("ไฟล์ใหญ่เกิน 5MB", "error");
     return;
   }
   posterFile = file;
@@ -195,7 +193,6 @@ window.saveEvent = async function () {
 
   showLoading(true);
   try {
-    // 1. เตรียม payload
     const payload = {
       event_name: document.getElementById("fEventName").value.trim(),
       event_code: document.getElementById("fEventCode").value.trim(),
@@ -213,7 +210,6 @@ window.saveEvent = async function () {
       description: document.getElementById("fDescription").value.trim() || null,
     };
 
-    // 2. Save to DB
     let savedId = editId;
     if (editId) {
       await updateEvent(editId, payload);
@@ -222,18 +218,15 @@ window.saveEvent = async function () {
       savedId = res?.event_id;
     }
 
-    // 3. Upload poster ถ้ามีไฟล์ใหม่
     if (posterFile && savedId) {
       const url = await uploadEventPoster(savedId, posterFile);
       await updateEvent(savedId, { poster_url: url });
     }
 
-    // 4. ถ้าลบโปสเตอร์
     if (!posterFile && !posterUrl && editId) {
       await updateEvent(editId, { poster_url: null });
     }
 
-    // 5. Notification (กรณีสร้างใหม่)
     if (!editId && payload.assigned_to) {
       await createNotification({
         user_id: payload.assigned_to,
@@ -246,8 +239,6 @@ window.saveEvent = async function () {
     }
 
     showToast(editId ? "บันทึกการแก้ไขแล้ว" : "สร้างกิจกรรมแล้ว", "success");
-
-    // 6. กลับหน้า list
     setTimeout(() => {
       window.location.href = "../activity/events-list.html";
     }, 1200);
@@ -270,9 +261,62 @@ function showToast(msg, type = "success") {
   t.textContent = msg;
   setTimeout(() => t.classList.remove("show"), 3000);
 }
-
 function showLoading(show) {
   document.getElementById("loadingOverlay").classList.toggle("show", show);
+}
+
+// ── AUTOCOMPLETE EVENT NAME ─────────────────────────────────
+let eventNameList = [];
+
+async function loadEventNames() {
+  try {
+    const events = await fetchEvents();
+    eventNameList = [
+      ...new Set(events.map((e) => e.event_name).filter(Boolean)),
+    ];
+  } catch (e) {
+    console.error("โหลดชื่อ event ไม่ได้", e);
+  }
+}
+
+function setupEventNameAutocomplete() {
+  const input = document.getElementById("fEventName");
+  const dropdown = document.getElementById("eventNameDropdown");
+
+  function showDropdown() {
+    const keyword = input.value.toLowerCase();
+    const filtered = eventNameList.filter((name) =>
+      name.toLowerCase().includes(keyword),
+    );
+
+    if (!filtered.length) {
+      dropdown.style.display = "none";
+      return;
+    }
+
+    dropdown.innerHTML = filtered
+      .slice(0, 8)
+      .map((name) => `<div class="ef-dropdown-item">${name}</div>`)
+      .join("");
+
+    dropdown.style.display = "block";
+
+    dropdown.querySelectorAll(".ef-dropdown-item").forEach((el) => {
+      el.onclick = () => {
+        input.value = el.textContent;
+        dropdown.style.display = "none";
+      };
+    });
+  }
+
+  input.addEventListener("focus", showDropdown);
+  input.addEventListener("input", showDropdown);
+
+  document.addEventListener("click", (e) => {
+    if (!dropdown.contains(e.target) && e.target !== input) {
+      dropdown.style.display = "none";
+    }
+  });
 }
 
 // ── START ──────────────────────────────────────────────────
@@ -286,65 +330,4 @@ if (document.readyState === "loading") {
   document.addEventListener("DOMContentLoaded", startPage);
 } else {
   startPage();
-}
-// ── AUTOCOMPLETE EVENT NAME ─────────────────────────
-let eventNameList = [];
-
-async function loadEventNames() {
-  try {
-    const events = await fetchEvents(); // 👈 เรียกตรงๆเลย
-    eventNameList = [
-      ...new Set(events.map((e) => e.event_name).filter(Boolean)),
-    ];
-    console.log("EVENT NAMES:", eventNameList); // debug
-  } catch (e) {
-    console.error("โหลดชื่อ event ไม่ได้", e);
-  }
-}
-
-function setupEventNameAutocomplete() {
-  const input = document.getElementById("fEventName");
-  const dropdown = document.getElementById("eventNameDropdown");
-
-  input.addEventListener("focus", showDropdown);
-  input.addEventListener("input", showDropdown);
-
-  function showDropdown() {
-    const keyword = input.value.toLowerCase();
-
-    const filtered = eventNameList.filter((name) =>
-      name.toLowerCase().includes(keyword),
-    );
-
-    if (!filtered.length) {
-      dropdown.style.display = "none";
-      return;
-    }
-
-    dropdown.innerHTML = filtered
-      .slice(0, 8)
-      .map(
-        (name) => `
-        <div class="ef-dropdown-item">${name}</div>
-      `,
-      )
-      .join("");
-
-    dropdown.style.display = "block";
-
-    // click select
-    dropdown.querySelectorAll(".ef-dropdown-item").forEach((el) => {
-      el.onclick = () => {
-        input.value = el.textContent;
-        dropdown.style.display = "none";
-      };
-    });
-  }
-
-  // click outside
-  document.addEventListener("click", (e) => {
-    if (!dropdown.contains(e.target) && e.target !== input) {
-      dropdown.style.display = "none";
-    }
-  });
 }
