@@ -1,16 +1,23 @@
-/* ============================================================
+﻿/* ============================================================
    events-list.js — Controller for Events List page
 ============================================================ */
 
-import { fetchEvents, fetchUsers, removeEvent } from "./events-api.js";
+import {
+  fetchEvents,
+  fetchUsers,
+  fetchEventCategories,
+  removeEvent,
+  updateEvent,
+} from "./events-api.js";
 
-// ── STATE ──────────────────────────────────────────────────
 let allEvents = [];
 let allUsers = [];
+let eventCategories = [];
 let sortKey = "event_date";
 let sortAsc = false;
 
-// ── INIT ───────────────────────────────────────────────────
+window._panelEventId = null;
+
 async function initPage() {
   await loadData();
   bindEvents();
@@ -19,9 +26,16 @@ async function initPage() {
 async function loadData() {
   showLoading(true);
   try {
-    const [evts, usrs] = await Promise.all([fetchEvents(), fetchUsers()]);
+    const [evts, usrs, cats] = await Promise.all([
+      fetchEvents(),
+      fetchUsers(),
+      fetchEventCategories(),
+    ]);
     allEvents = evts || [];
     allUsers = usrs || [];
+    eventCategories = cats || [];
+    updatePanelTypeOptions();
+    updatePanelAssigneeOptions();
     await autoUpdateStatuses();
     updateStatCards();
     filterTable();
@@ -31,14 +45,12 @@ async function loadData() {
   showLoading(false);
 }
 
-// ── AUTO STATUS UPDATE ─────────────────────────────────────
 async function autoUpdateStatuses() {
   const now = new Date();
   const { url, key } = getSBLocal();
   if (!url || !key) return;
 
   const toUpdate = [];
-
   for (const e of allEvents) {
     if (e.status !== "CONFIRMED" && e.status !== "ONGOING") continue;
 
@@ -46,16 +58,12 @@ async function autoUpdateStatuses() {
     const endDate = e.end_date || e.event_date;
     const startTime = e.start_time ? e.start_time.slice(0, 5) : "00:00";
     const endTime = e.end_time ? e.end_time.slice(0, 5) : "23:59";
-
     const startDT = new Date(`${startDate}T${startTime}:00`);
     const endDT = new Date(`${endDate}T${endTime}:00`);
 
     let newStatus = null;
-    if (now >= endDT) {
-      newStatus = "DONE";
-    } else if (now >= startDT && e.status === "CONFIRMED") {
-      newStatus = "ONGOING";
-    }
+    if (now >= endDT) newStatus = "DONE";
+    else if (now >= startDT && e.status === "CONFIRMED") newStatus = "ONGOING";
 
     if (newStatus && newStatus !== e.status) {
       toUpdate.push({ event_id: e.event_id, newStatus });
@@ -76,14 +84,13 @@ async function autoUpdateStatuses() {
         },
         body: JSON.stringify({ status: newStatus }),
       }).then(() => {
-        const ev = allEvents.find((e) => e.event_id === event_id);
+        const ev = allEvents.find((item) => item.event_id === event_id);
         if (ev) ev.status = newStatus;
       }),
     ),
   );
 }
 
-// ── BIND EVENTS ────────────────────────────────────────────
 function bindEvents() {
   document
     .getElementById("searchInput")
@@ -94,28 +101,38 @@ function bindEvents() {
   document
     .getElementById("filterStatus")
     ?.addEventListener("change", filterTable);
+
+  document.getElementById("panelBtnSaveEdit")?.addEventListener("click", () => {
+    window.savePanelEvent();
+  });
+  document.getElementById("panelBtnFullEdit")?.addEventListener("click", () => {
+    if (!window._panelEventId) return;
+    window.location.href = `./event-form.html?id=${window._panelEventId}`;
+  });
+  document.getElementById("panelBtnLog")?.addEventListener("click", () => {
+    if (!window._panelEventId) return;
+    window.location.href = `./event-log.html?id=${window._panelEventId}`;
+  });
 }
 
-// ── STAT CARDS ─────────────────────────────────────────────
 function updateStatCards() {
   const today = new Date().toISOString().split("T")[0];
-  const total = allEvents.length;
-  const upcoming = allEvents.filter(
+  document.getElementById("cardTotal").textContent = allEvents.length;
+  document.getElementById("cardUpcoming").textContent = allEvents.filter(
     (e) => e.event_date > today && e.status === "CONFIRMED",
   ).length;
-  const ongoing = allEvents.filter((e) => e.status === "ONGOING").length;
-  const done = allEvents.filter((e) => e.status === "DONE").length;
-
-  document.getElementById("cardTotal").textContent = total;
-  document.getElementById("cardUpcoming").textContent = upcoming;
-  document.getElementById("cardOngoing").textContent = ongoing;
-  document.getElementById("cardDone").textContent = done;
+  document.getElementById("cardOngoing").textContent = allEvents.filter(
+    (e) => e.status === "ONGOING",
+  ).length;
+  document.getElementById("cardDone").textContent = allEvents.filter(
+    (e) => e.status === "DONE",
+  ).length;
 }
 
-// ── FILTER ─────────────────────────────────────────────────
 function filterTable() {
-  const search =
-    document.getElementById("searchInput")?.value.toLowerCase() || "";
+  const search = (
+    document.getElementById("searchInput")?.value || ""
+  ).toLowerCase();
   const type = document.getElementById("filterType")?.value || "";
   const status = document.getElementById("filterStatus")?.value || "";
 
@@ -133,7 +150,6 @@ function filterTable() {
   renderTable(filtered);
 }
 
-// ── SORT ───────────────────────────────────────────────────
 window.sortTable = function (key) {
   if (sortKey === key) sortAsc = !sortAsc;
   else {
@@ -143,7 +159,6 @@ window.sortTable = function (key) {
   filterTable();
 };
 
-// ── RENDER TABLE ───────────────────────────────────────────
 function renderTable(events) {
   const sorted = [...events].sort((a, b) => {
     let av = a[sortKey] || "";
@@ -161,7 +176,7 @@ function renderTable(events) {
     tbody.innerHTML = `
       <tr><td colspan="9">
         <div class="empty-state">
-          <div class="empty-icon">🗓️</div>
+          <div class="empty-icon">📋</div>
           <div class="empty-text">ไม่พบกิจกรรม</div>
         </div>
       </td></tr>`;
@@ -182,24 +197,17 @@ function renderTable(events) {
             .toUpperCase()
         : "—";
 
-      // poster cell
       const posterCell = e.poster_url
         ? `<div class="event-poster-wrap">
-           <img src="${e.poster_url}" alt="${e.event_name}"
-             onclick="event.stopPropagation();ImgPopup.open(['${e.poster_url}'],0)"
-             onerror="this.parentElement.innerHTML='<span class=\\'event-poster-placeholder\\'>🗓️</span>'">
-         </div>`
-        : `<div class="event-poster-wrap">
-           <span class="event-poster-placeholder">🗓️</span>
-         </div>`;
+          <img src="${e.poster_url}" alt="${escapeHtmlAttr(e.event_name || "event")}" onclick="event.stopPropagation();ImgPopup.open(['${e.poster_url}'],0)" onerror="this.parentElement.innerHTML='<span class=\\'event-poster-placeholder\\'>📋</span>'">
+        </div>`
+        : `<div class="event-poster-wrap"><span class="event-poster-placeholder">📋</span></div>`;
 
-      // date cell
       const dateEnd =
         e.end_date && e.end_date !== e.event_date
           ? `<div class="event-date-end">ถึง ${formatDate(e.end_date)}</div>`
           : "";
 
-      // row highlight
       const rowClass =
         e.status === "ONGOING"
           ? "row-ongoing"
@@ -209,52 +217,31 @@ function renderTable(events) {
 
       return `<tr class="${rowClass}" onclick="window.openEventPanel(${e.event_id})">
       <td style="text-align:center" onclick="event.stopPropagation()">
-        <input type="checkbox" class="row-check" value="${e.event_id}"
-          onchange="window.updateDeleteButton()">
+        <input type="checkbox" class="row-check" value="${e.event_id}" onchange="window.updateDeleteButton()">
       </td>
       <td>
         <div class="event-date-main">${formatDate(e.event_date)}</div>
         ${dateEnd}
       </td>
       <td>
-        <div class="event-name">${e.event_name}</div>
-        <div class="event-code">${e.event_code || "—"}</div>
+        <div class="event-name">${escapeHtml(e.event_name || "—")}</div>
+        <div class="event-code">${escapeHtml(e.event_code || "—")}</div>
       </td>
       <td class="col-center">
-        <span class="event-type-badge type-${e.event_type}">
-          ${typeLabel(e.event_type)}
-        </span>
+        <span class="event-type-badge type-${escapeHtmlAttr(getTypeClass(e))}">${escapeHtml(typeLabel(getTypeValue(e)))}</span>
       </td>
-      <td>${e.location || "—"}</td>
+      <td>${escapeHtml(e.location || "—")}</td>
       <td>
-        ${
-          user
-            ? `<div class="event-assignee">
-               <div class="assignee-avatar">${initials}</div>
-               <span>${user.full_name}</span>
-             </div>`
-            : "—"
-        }
+        ${user ? `<div class="event-assignee"><div class="assignee-avatar">${initials}</div><span>${escapeHtml(user.full_name)}</span></div>` : "—"}
       </td>
       <td class="col-center">${posterCell}</td>
-<td class="col-center" onclick="event.stopPropagation()">
-        <select
-          class="inline-status-select status-${e.status}"
-          onchange="window.changeEventStatus(${e.event_id}, this)"
-        >
-          <option value="DRAFT"   ${e.status === "DRAFT" ? "selected" : ""}>📝 Draft</option>
-          <option value="CONFIRMED" ${e.status === "CONFIRMED" ? "selected" : ""}>✔️ Confirmed</option>
-          <option value="ONGOING" ${e.status === "ONGOING" ? "selected" : ""}>▶️ Ongoing</option>
-          <option value="DONE"    ${e.status === "DONE" ? "selected" : ""}>✅ Done</option>
-          <option value="CANCELLED" ${e.status === "CANCELLED" ? "selected" : ""}>❌ Cancelled</option>
-        </select>
+      <td class="col-center" onclick="event.stopPropagation()">
+        ${buildStatusPill(e.event_id, e.status)}
       </td>
       <td class="col-center" onclick="event.stopPropagation()">
         <div class="action-group">
-          <button class="btn-icon"
-            onclick="window.openEventPanel(${e.event_id})">✏️</button>
-          <button class="btn-icon danger"
-            onclick="window.deleteEvent(${e.event_id})">🗑</button>
+          <button class="btn-icon" onclick="window.openEventPanel(${e.event_id})">✏️</button>
+          <button class="btn-icon danger" onclick="window.deleteEvent(${e.event_id})">🗑</button>
         </div>
       </td>
     </tr>`;
@@ -262,56 +249,129 @@ function renderTable(events) {
     .join("");
 }
 
-// ── SIDE PANEL ─────────────────────────────────────────────
+function updatePanelTypeOptions() {
+  const el = document.getElementById("peqEventType");
+  if (!el) return;
+  el.innerHTML = eventCategories.length
+    ? eventCategories
+        .map(
+          (cat) =>
+            `<option value="${cat.event_category_id}">${escapeHtml(
+              `${cat.icon || ""} ${cat.category_name}`.trim(),
+            )}</option>`,
+        )
+        .join("")
+    : '<option value="">—</option>';
+}
+
+function updatePanelAssigneeOptions() {
+  const el = document.getElementById("peqAssignee");
+  if (!el) return;
+  el.innerHTML = ['<option value="">— ไม่ระบุ —</option>']
+    .concat(
+      allUsers.map(
+        (user) =>
+          `<option value="${user.user_id}">${escapeHtml(user.full_name)}</option>`,
+      ),
+    )
+    .join("");
+}
+
 window.openEventPanel = function (eventId) {
-  const e = allEvents.find((ev) => ev.event_id === eventId);
+  const e = allEvents.find((item) => item.event_id === eventId);
   if (!e) return;
-  const user = allUsers.find((u) => u.user_id === e.assigned_to);
+
+  window._panelEventId = eventId;
 
   document.getElementById("panelPoster").innerHTML = e.poster_url
-    ? `<img src="${e.poster_url}" alt="${e.event_name}">`
-    : `<span class="ev-panel-poster-placeholder">🗓️</span>`;
+    ? `<img src="${e.poster_url}" alt="${escapeHtmlAttr(e.event_name || "event")}">`
+    : '<span class="ev-panel-poster-placeholder">📋</span>';
 
-  document.getElementById("panelName").textContent = e.event_name;
-  document.getElementById("panelCode").textContent = e.event_code || "";
-  document.getElementById("panelStatus").innerHTML =
-    `<span class="event-status-badge status-${e.status}">${statusLabel(e.status)}</span>`;
-  document.getElementById("panelType").innerHTML =
-    `<span class="event-type-badge type-${e.event_type}">${typeLabel(e.event_type)}</span>`;
-  document.getElementById("panelDate").textContent =
-    formatDate(e.event_date) +
-    (e.end_date && e.end_date !== e.event_date
-      ? ` — ${formatDate(e.end_date)}`
-      : "");
-  document.getElementById("panelTime").textContent =
-    e.start_time && e.end_time
-      ? `${e.start_time.slice(0, 5)} — ${e.end_time.slice(0, 5)} น.`
-      : "—";
-  document.getElementById("panelLocation").textContent = e.location || "—";
-  document.getElementById("panelAttendees").textContent = e.max_attendees
-    ? `${e.max_attendees} ท่าน`
-    : "—";
-  document.getElementById("panelAssignee").textContent = user
-    ? user.full_name
-    : "—";
-  document.getElementById("panelDesc").textContent = e.description || "—";
-
-  // ปุ่ม footer
-  document.getElementById("panelBtnEdit").onclick = () =>
-    (window.location.href = `./event-form.html?id=${e.event_id}`);
-  document.getElementById("panelBtnLog").onclick = () =>
-    (window.location.href = `./event-log.html?id=${e.event_id}`);
+  document.getElementById("peqEventName").value = e.event_name || "";
+  document.getElementById("peqEventCode").value = e.event_code || "";
+  document.getElementById("peqEventType").value = e.event_category_id || "";
+  document.getElementById("peqStatus").value = e.status || "DRAFT";
+  document.getElementById("peqEventDate").value = e.event_date || "";
+  document.getElementById("peqEndDate").value = e.end_date || "";
+  document.getElementById("peqStartTime").value = toTimeValue(e.start_time);
+  document.getElementById("peqEndTime").value = toTimeValue(e.end_time);
+  document.getElementById("peqLocation").value = e.location || "";
+  document.getElementById("peqMaxAttendees").value = e.max_attendees || "";
+  document.getElementById("peqAssignee").value = e.assigned_to || "";
+  document.getElementById("peqDesc").value = e.description || "";
 
   document.getElementById("evSidePanel").classList.add("open");
   document.getElementById("evPanelOverlay").style.display = "block";
 };
 
 window.closeEventPanel = function () {
+  window._panelEventId = null;
   document.getElementById("evSidePanel").classList.remove("open");
   document.getElementById("evPanelOverlay").style.display = "none";
 };
 
-// ── DELETE ─────────────────────────────────────────────────
+window.savePanelEvent = async function () {
+  const eventId = window._panelEventId;
+  if (!eventId) return;
+
+  const eventName = document.getElementById("peqEventName").value.trim();
+  if (!eventName) {
+    showToast("กรุณาระบุชื่อกิจกรรม", "error");
+    return;
+  }
+
+  const eventDate = document.getElementById("peqEventDate").value;
+  if (!eventDate) {
+    showToast("กรุณาระบุวันที่เริ่ม", "error");
+    return;
+  }
+
+  const endDate = document.getElementById("peqEndDate").value || null;
+  if (endDate && endDate < eventDate) {
+    showToast("วันที่สิ้นสุดต้องไม่ก่อนวันที่เริ่ม", "error");
+    return;
+  }
+
+  const payload = {
+    event_name: eventName,
+    event_category_id:
+      parseInt(document.getElementById("peqEventType").value, 10) || null,
+    status: document.getElementById("peqStatus").value,
+    event_date: eventDate,
+    end_date: endDate,
+    start_time: document.getElementById("peqStartTime").value || null,
+    end_time: document.getElementById("peqEndTime").value || null,
+    location: document.getElementById("peqLocation").value.trim() || null,
+    max_attendees:
+      parseInt(document.getElementById("peqMaxAttendees").value, 10) || 0,
+    assigned_to:
+      parseInt(document.getElementById("peqAssignee").value, 10) || null,
+    description: document.getElementById("peqDesc").value.trim() || null,
+  };
+
+  showLoading(true);
+  try {
+    const res = await updateEvent(eventId, payload);
+    const updated = Array.isArray(res) ? res[0] : null;
+    const index = allEvents.findIndex((item) => item.event_id === eventId);
+    if (index >= 0) {
+      allEvents[index] = {
+        ...allEvents[index],
+        ...payload,
+        ...(updated || {}),
+      };
+    }
+
+    showToast("บันทึกแล้ว", "success");
+    updateStatCards();
+    filterTable();
+    window.closeEventPanel();
+  } catch (err) {
+    showToast("บันทึกไม่สำเร็จ: " + err.message, "error");
+  }
+  showLoading(false);
+};
+
 window.deleteEvent = function (eventId) {
   const e = allEvents.find((ev) => ev.event_id === eventId);
   if (!e) return;
@@ -321,6 +381,7 @@ window.deleteEvent = function (eventId) {
       await removeEvent(eventId);
       showToast("ลบกิจกรรมแล้ว", "success");
       await loadData();
+      if (window._panelEventId === eventId) window.closeEventPanel();
     } catch (err) {
       showToast("ลบไม่สำเร็จ: " + err.message, "error");
     }
@@ -328,10 +389,9 @@ window.deleteEvent = function (eventId) {
   });
 };
 
-// ── BULK DELETE ────────────────────────────────────────────
 function getSelected() {
   return Array.from(document.querySelectorAll(".row-check:checked")).map((c) =>
-    parseInt(c.value),
+    parseInt(c.value, 10),
   );
 }
 
@@ -358,6 +418,7 @@ window.deleteSelectedEvents = async function () {
         for (const id of ids) await removeEvent(id);
         showToast("ลบกิจกรรมที่เลือกแล้ว", "success");
         await loadData();
+        if (ids.includes(window._panelEventId)) window.closeEventPanel();
       } catch (err) {
         showToast("ลบไม่สำเร็จ: " + err.message, "error");
       }
@@ -366,7 +427,6 @@ window.deleteSelectedEvents = async function () {
   );
 };
 
-// ── HELPERS ────────────────────────────────────────────────
 function formatDate(d) {
   if (!d) return "—";
   const [y, m, day] = d.split("-");
@@ -385,7 +445,29 @@ function formatDate(d) {
     "พ.ย.",
     "ธ.ค.",
   ];
-  return `${parseInt(day)} ${months[parseInt(m)]} ${parseInt(y) + 543}`;
+  return `${parseInt(day, 10)} ${months[parseInt(m, 10)]} ${parseInt(y, 10) + 543}`;
+}
+
+function getTypeValue(eventRow) {
+  if (eventRow.event_type) return eventRow.event_type;
+  const category = eventCategories.find(
+    (item) => item.event_category_id === eventRow.event_category_id,
+  );
+  return category?.category_name || "OTHER";
+}
+
+function getTypeClass(eventRow) {
+  const value = getTypeValue(eventRow);
+  return [
+    "BOOTH",
+    "MEETING",
+    "ONLINE",
+    "HYBRID",
+    "CONFERENCE",
+    "OTHER",
+  ].includes(value)
+    ? value
+    : "OTHER";
 }
 
 function typeLabel(t) {
@@ -413,6 +495,61 @@ function statusLabel(s) {
   );
 }
 
+const STATUS_LIST = ["DRAFT", "CONFIRMED", "ONGOING", "DONE", "CANCELLED"];
+
+function buildStatusPill(eventId, current) {
+  const options = STATUS_LIST.map(
+    (s) => `
+    <div class="status-pill-option status-${s} ${s === current ? "active" : ""}"
+         onmousedown="event.preventDefault();window.changeEventStatus(${eventId},'${s}',this)">
+      ${statusLabel(s)}
+    </div>`,
+  ).join("");
+
+  return `
+  <div class="status-pill-wrap">
+    <button class="status-pill-btn status-${current}" id="spb-${eventId}"
+            onclick="window._toggleStatusPill(${eventId},event)">
+      ${statusLabel(current)}<span class="pill-caret">▼</span>
+    </button>
+    <div class="status-pill-dropdown" id="spd-${eventId}">${options}</div>
+  </div>`;
+}
+
+window._toggleStatusPill = function (eventId, e) {
+  e.stopPropagation();
+  const dd = document.getElementById(`spd-${eventId}`);
+  const btn = document.getElementById(`spb-${eventId}`);
+  const isOpen = dd.classList.contains("open");
+  // ปิดทุก dropdown ก่อน
+  document.querySelectorAll(".status-pill-dropdown.open").forEach((el) => el.classList.remove("open"));
+  document.querySelectorAll(".status-pill-btn.open").forEach((el) => el.classList.remove("open"));
+  if (!isOpen) {
+    dd.classList.add("open");
+    btn.classList.add("open");
+  }
+};
+
+document.addEventListener("click", () => {
+  document.querySelectorAll(".status-pill-dropdown.open").forEach((el) => el.classList.remove("open"));
+  document.querySelectorAll(".status-pill-btn.open").forEach((el) => el.classList.remove("open"));
+});
+
+function toTimeValue(value) {
+  return value ? value.slice(0, 5) : "";
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;");
+}
+
+function escapeHtmlAttr(value) {
+  return escapeHtml(value).replaceAll('"', "&quot;");
+}
+
 function showToast(msg, type = "success") {
   const t = document.getElementById("toast");
   t.className = `toast toast-${type} show`;
@@ -424,19 +561,17 @@ function showLoading(show) {
   document.getElementById("loadingOverlay").classList.toggle("show", show);
 }
 
-// ── START ──────────────────────────────────────────────────
-if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", initPage);
-} else {
-  initPage();
-}
-// ── INLINE STATUS CHANGE ───────────────────────────────────
-window.changeEventStatus = async function (eventId, selectEl) {
-  const newStatus = selectEl.value;
+window.changeEventStatus = async function (eventId, newStatus) {
   const oldStatus = allEvents.find((e) => e.event_id === eventId)?.status;
 
-  // อัปเดต class ทันที
-  selectEl.className = `inline-status-select status-${newStatus}`;
+  // ปิด dropdown และอัปเดต pill ทันที
+  const dd = document.getElementById(`spd-${eventId}`);
+  const btn = document.getElementById(`spb-${eventId}`);
+  if (dd) dd.classList.remove("open");
+  if (btn) {
+    btn.className = `status-pill-btn status-${newStatus}`;
+    btn.innerHTML = `${statusLabel(newStatus)}<span class="pill-caret">▼</span>`;
+  }
 
   try {
     const { url, key } = getSBLocal();
@@ -451,16 +586,16 @@ window.changeEventStatus = async function (eventId, selectEl) {
       body: JSON.stringify({ status: newStatus }),
     });
 
-    // อัปเดต allEvents local state
     const ev = allEvents.find((e) => e.event_id === eventId);
     if (ev) ev.status = newStatus;
-
     updateStatCards();
     showToast("อัปเดตสถานะแล้ว", "success");
   } catch (err) {
-    // rollback
-    selectEl.value = oldStatus;
-    selectEl.className = `inline-status-select status-${oldStatus}`;
+    // rollback pill
+    if (btn) {
+      btn.className = `status-pill-btn status-${oldStatus}`;
+      btn.innerHTML = `${statusLabel(oldStatus)}<span class="pill-caret">▼</span>`;
+    }
     showToast("อัปเดตไม่สำเร็จ: " + err.message, "error");
   }
 };
@@ -470,4 +605,10 @@ function getSBLocal() {
     url: localStorage.getItem("sb_url") || "",
     key: localStorage.getItem("sb_key") || "",
   };
+}
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", initPage);
+} else {
+  initPage();
 }

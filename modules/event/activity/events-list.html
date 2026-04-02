@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="th">
   <head>
     <meta charset="UTF-8" />
@@ -58,101 +58,99 @@
             </div>
           </div>
 
-          <!-- ② TOOLBAR -->
-          <div class="toolbar">
-            <div class="search-wrap">
-              <span class="search-icon">🔍</span>
-              <input
-                class="search-input"
-                id="searchInput"
-                placeholder="ค้นหาชื่อกิจกรรม หรือสถานที่..."
-              />
+          <!-- ② TOOLBAR + TABLE -->
+          <div class="table-card">
+            <div class="toolbar">
+              <div class="search-wrap">
+                <span class="search-icon">🔍</span>
+                <input
+                  class="search-input"
+                  id="searchInput"
+                  placeholder="ค้นหาชื่อกิจกรรม หรือสถานที่..."
+                />
+              </div>
+              <select class="filter-select" id="filterType">
+                <option value="">⚪ ทุกประเภท</option>
+                <option value="BOOTH">🏪 ออกบูธ</option>
+                <option value="MEETING">👥 ประชุม</option>
+                <option value="ONLINE">💻 Online</option>
+                <option value="HYBRID">🔀 Hybrid</option>
+                <option value="CONFERENCE">🎤 Conference</option>
+                <option value="OTHER">📌 อื่นๆ</option>
+              </select>
+              <select class="filter-select" id="filterStatus">
+                <option value="">⚪ ทุกสถานะ</option>
+                <option value="DRAFT">📝 Draft</option>
+                <option value="CONFIRMED">✔️ Confirmed</option>
+                <option value="ONGOING">▶️ Ongoing</option>
+                <option value="DONE">✅ Done</option>
+                <option value="CANCELLED">❌ Cancelled</option>
+              </select>
+              <div class="toolbar-right">
+                <button
+                  class="btn btn-primary"
+                  onclick="
+                    window.open('../calendar-view/events-calendar.html', '_blank')
+                  "
+                >
+                  Event Calendar
+                </button>
+                <button
+                  class="btn btn-primary"
+                  onclick="window.location.href = './event-form.html'"
+                >
+                  ＋ สร้างกิจกรรม
+                </button>
+              </div>
             </div>
-            <select class="filter-select" id="filterType">
-              <option value="">⚪ ทุกประเภท</option>
-              <option value="BOOTH">🏪 ออกบูธ</option>
-              <option value="MEETING">👥 ประชุม</option>
-              <option value="ONLINE">💻 Online</option>
-              <option value="HYBRID">🔀 Hybrid</option>
-              <option value="CONFERENCE">🎤 Conference</option>
-              <option value="OTHER">📌 อื่นๆ</option>
-            </select>
-            <select class="filter-select" id="filterStatus">
-              <option value="">⚪ ทุกสถานะ</option>
-              <option value="DRAFT">📝 Draft</option>
-              <option value="CONFIRMED">✔️ Confirmed</option>
-              <option value="ONGOING">▶️ Ongoing</option>
-              <option value="DONE">✅ Done</option>
-              <option value="CANCELLED">❌ Cancelled</option>
-            </select>
-            <div class="toolbar-right">
-              <button
-                class="btn btn-primary"
-                onclick="
-                  window.open('../calendar-view/events-calendar.html', '_blank')
-                "
-              >
-                Event Calendar
-              </button>
-              <button
-                class="btn btn-primary"
-                onclick="window.location.href = './event-form.html'"
-              >
-                ＋ สร้างกิจกรรม
-              </button>
-            </div>
-          </div>
 
-          <!-- ③ TABLE (Section ถัดไป) -->
-          <div class="content-wrap">
-            <div class="table-card">
-              <div class="table-hdr">
-                <div class="table-title">🗓️ รายการกิจกรรม</div>
-                <div class="table-count" id="tableCount">0 รายการ</div>
-              </div>
-              <div class="table-wrap">
-                <table class="data-table table-events">
-                  <thead>
-                    <tr>
-                      <th style="width: 40px; text-align: center">
-                        <input
-                          type="checkbox"
-                          id="chkAll"
-                          onclick="window.toggleAllCheckbox(this)"
-                        />
-                      </th>
-                      <th
-                        onclick="window.sortTable('event_date')"
-                        style="cursor: pointer"
-                      >
-                        วันที่จัดงาน <span class="sort-icon">⇅</span>
-                      </th>
-                      <th
-                        onclick="window.sortTable('event_name')"
-                        style="cursor: pointer"
-                      >
-                        ชื่องาน <span class="sort-icon">⇅</span>
-                      </th>
-                      <th class="col-center">ประเภท</th>
-                      <th>สถานที่</th>
-                      <th>ผู้รับผิดชอบ</th>
-                      <th class="col-center">โปสเตอร์</th>
-                      <th class="col-center">สถานะ</th>
-                      <th class="col-center">จัดการ</th>
-                    </tr>
-                  </thead>
-                  <tbody id="tableBody">
-                    <tr>
-                      <td colspan="9">
-                        <div class="empty-state">
-                          <div class="empty-icon">🗓️</div>
-                          <div class="empty-text">ยังไม่มีข้อมูลกิจกรรม</div>
-                        </div>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
+            <!-- ③ TABLE -->
+            <div class="table-hdr">
+              <div class="table-title">🗓️ รายการกิจกรรม</div>
+              <div class="table-count" id="tableCount">0 รายการ</div>
+            </div>
+            <div class="table-wrap">
+              <table class="data-table table-events">
+                <thead>
+                  <tr>
+                    <th style="width: 40px; text-align: center">
+                      <input
+                        type="checkbox"
+                        id="chkAll"
+                        onclick="window.toggleAllCheckbox(this)"
+                      />
+                    </th>
+                    <th
+                      onclick="window.sortTable('event_date')"
+                      style="cursor: pointer"
+                    >
+                      วันที่จัดงาน <span class="sort-icon">⇅</span>
+                    </th>
+                    <th
+                      onclick="window.sortTable('event_name')"
+                      style="cursor: pointer"
+                    >
+                      ชื่องาน <span class="sort-icon">⇅</span>
+                    </th>
+                    <th class="col-center">ประเภท</th>
+                    <th>สถานที่</th>
+                    <th>ผู้รับผิดชอบ</th>
+                    <th class="col-center">โปสเตอร์</th>
+                    <th class="col-center">สถานะ</th>
+                    <th class="col-center">จัดการ</th>
+                  </tr>
+                </thead>
+                <tbody id="tableBody">
+                  <tr>
+                    <td colspan="9">
+                      <div class="empty-state">
+                        <div class="empty-icon">🗓️</div>
+                        <div class="empty-text">ยังไม่มีข้อมูลกิจกรรม</div>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
           </div>
         </div>
@@ -192,112 +190,103 @@
      SIDE PANEL
 ═══════════════════════════════════════════════ -->
     <div id="evSidePanel" class="ev-side-panel">
-      <!-- HEADER -->
       <div class="ev-panel-header">
         <div class="ev-panel-title">📋 รายละเอียดกิจกรรม</div>
         <button class="btn-icon" onclick="window.closeEventPanel()">✕</button>
       </div>
 
-      <!-- BODY -->
       <div class="ev-panel-body">
-        <!-- POSTER -->
         <div class="ev-panel-poster" id="panelPoster">
-          <span class="ev-panel-poster-placeholder">🗓️</span>
+          <span class="ev-panel-poster-placeholder">📋</span>
         </div>
 
-        <!-- ชื่อ + Code + Status -->
-        <div>
-          <div
-            style="
-              font-size: 18px;
-              font-weight: 700;
-              color: var(--text);
-              margin-bottom: 4px;
-            "
-            id="panelName"
-          >
-            —
+        <div class="panel-field">
+          <label class="panel-label">
+            ชื่อกิจกรรม <span style="color: var(--danger)">*</span>
+          </label>
+          <input class="panel-input" id="peqEventName" placeholder="ชื่อกิจกรรม" />
+        </div>
+
+        <div class="panel-field">
+          <label class="panel-label">Event Code</label>
+          <input class="panel-input" id="peqEventCode" readonly />
+        </div>
+
+        <div class="panel-row-2">
+          <div class="panel-field">
+            <label class="panel-label">ประเภท</label>
+            <select class="panel-input" id="peqEventType"></select>
           </div>
-          <div
-            style="
-              font-size: 11px;
-              color: var(--text3);
-              font-family: &quot;IBM Plex Mono&quot;, monospace;
-              margin-bottom: 8px;
-            "
-            id="panelCode"
-          ></div>
-          <div style="display: flex; gap: 6px; flex-wrap: wrap">
-            <span id="panelStatus"></span>
-            <span id="panelType"></span>
+          <div class="panel-field">
+            <label class="panel-label">สถานะ</label>
+            <select class="panel-input" id="peqStatus">
+              <option value="DRAFT">📝 Draft</option>
+              <option value="CONFIRMED">✔️ Confirmed</option>
+              <option value="ONGOING">▶️ Ongoing</option>
+              <option value="DONE">✅ Done</option>
+              <option value="CANCELLED">❌ Cancelled</option>
+            </select>
           </div>
         </div>
 
-        <hr style="border: none; border-top: 1px solid var(--border)" />
-
-        <!-- INFO ROWS -->
-        <div style="display: flex; flex-direction: column; gap: 14px">
-          <div class="ev-info-row">
-            <span class="ev-info-icon">📅</span>
-            <div>
-              <div class="ev-info-label">วันที่จัดงาน</div>
-              <div class="ev-info-value" id="panelDate">—</div>
-            </div>
+        <div class="panel-row-2">
+          <div class="panel-field">
+            <label class="panel-label">วันที่เริ่ม</label>
+            <input class="panel-input" id="peqEventDate" type="date" />
           </div>
-
-          <div class="ev-info-row">
-            <span class="ev-info-icon">🕐</span>
-            <div>
-              <div class="ev-info-label">เวลา</div>
-              <div class="ev-info-value" id="panelTime">—</div>
-            </div>
+          <div class="panel-field">
+            <label class="panel-label">วันที่สิ้นสุด</label>
+            <input class="panel-input" id="peqEndDate" type="date" />
           </div>
+        </div>
 
-          <div class="ev-info-row">
-            <span class="ev-info-icon">📍</span>
-            <div>
-              <div class="ev-info-label">สถานที่</div>
-              <div class="ev-info-value" id="panelLocation">—</div>
-            </div>
+        <div class="panel-row-2">
+          <div class="panel-field">
+            <label class="panel-label">เวลาเริ่ม</label>
+            <input class="panel-input" id="peqStartTime" type="time" />
           </div>
+          <div class="panel-field">
+            <label class="panel-label">เวลาสิ้นสุด</label>
+            <input class="panel-input" id="peqEndTime" type="time" />
+          </div>
+        </div>
 
-          <div class="ev-info-row">
-            <span class="ev-info-icon">👥</span>
-            <div>
-              <div class="ev-info-label">จำนวนผู้เข้าร่วมสูงสุด</div>
-              <div class="ev-info-value" id="panelAttendees">—</div>
-            </div>
-          </div>
+        <div class="panel-field">
+          <label class="panel-label">สถานที่</label>
+          <input class="panel-input" id="peqLocation" placeholder="สถานที่" />
+        </div>
 
-          <div class="ev-info-row">
-            <span class="ev-info-icon">👤</span>
-            <div>
-              <div class="ev-info-label">ผู้รับผิดชอบ</div>
-              <div class="ev-info-value" id="panelAssignee">—</div>
-            </div>
+        <div class="panel-row-2">
+          <div class="panel-field">
+            <label class="panel-label">จำนวนผู้เข้าร่วมสูงสุด</label>
+            <input
+              class="panel-input"
+              id="peqMaxAttendees"
+              type="number"
+              min="0"
+              placeholder="0"
+            />
           </div>
+          <div class="panel-field">
+            <label class="panel-label">ผู้รับผิดชอบ</label>
+            <select class="panel-input" id="peqAssignee"></select>
+          </div>
+        </div>
 
-          <div class="ev-info-row">
-            <span class="ev-info-icon">📝</span>
-            <div>
-              <div class="ev-info-label">รายละเอียด</div>
-              <div
-                class="ev-info-value"
-                style="line-height: 1.6; color: var(--text2)"
-                id="panelDesc"
-              >
-                —
-              </div>
-            </div>
-          </div>
+        <div class="panel-field">
+          <label class="panel-label">รายละเอียด</label>
+          <textarea
+            class="panel-input panel-textarea"
+            id="peqDesc"
+            placeholder="รายละเอียดกิจกรรม"
+          ></textarea>
         </div>
       </div>
-      <!-- end .ev-panel-body -->
 
-      <!-- FOOTER -->
       <div class="ev-panel-footer">
+        <button class="btn btn-outline" id="panelBtnFullEdit">🗔 แก้ไขเต็ม</button>
         <button class="btn btn-outline" id="panelBtnLog">💬 Log งาน</button>
-        <button class="btn btn-primary" id="panelBtnEdit">✏️ แก้ไข</button>
+        <button class="btn btn-primary" id="panelBtnSaveEdit">💾 บันทึก</button>
       </div>
     </div>
     <!-- end #evSidePanel -->

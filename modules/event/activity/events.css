@@ -195,8 +195,9 @@
 
 /* ── PANEL POSTER ── */
 .ev-panel-poster {
-  width: 100%;
-  height: 180px;
+  width: 60%;
+  margin: 0 auto;
+  aspect-ratio: 148 / 210;
   border-radius: 10px;
   border: 1px solid var(--border);
   background: var(--surface2);
@@ -254,50 +255,207 @@
 .table-events tr.row-ongoing td:first-child {
   border-left: 3px solid var(--warning);
 }
-/* ── INLINE STATUS SELECT ── */
-.inline-status-select {
-  appearance: none;
-  -webkit-appearance: none;
-  border: 1px solid transparent;
+/* ── INLINE STATUS CUSTOM DROPDOWN ── */
+.status-pill-wrap {
+  position: relative;
+  display: inline-block;
+}
+
+.status-pill-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 1.5px solid transparent;
   outline: none;
   cursor: pointer;
   font-family: "Sarabun", sans-serif;
   font-size: 11px;
   font-weight: 700;
-  padding: 3px 24px 3px 10px;
-  border-radius: 6px;
-  text-align: center;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23999'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 8px center;
-  transition: opacity 0.15s;
+  padding: 4px 10px 4px 10px;
+  border-radius: 20px;
+  white-space: nowrap;
+  transition: box-shadow 0.15s, filter 0.15s;
+  background: none;
+  letter-spacing: 0.2px;
 }
-.inline-status-select:hover {
-  opacity: 0.85;
+.status-pill-btn:hover {
+  filter: brightness(0.95);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.13);
+}
+.status-pill-btn .pill-caret {
+  font-size: 8px;
+  opacity: 0.6;
+  transition: transform 0.2s;
+  line-height: 1;
+}
+.status-pill-btn.open .pill-caret {
+  transform: rotate(180deg);
 }
 
-.inline-status-select.status-DRAFT {
-  background-color: #f1f5f9;
-  color: #475569;
-  border-color: #cbd5e1;
+/* Dropdown panel */
+.status-pill-dropdown {
+  display: none;
+  position: absolute;
+  top: calc(100% + 5px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 8px 28px rgba(0,0,0,0.14), 0 2px 8px rgba(0,0,0,0.08);
+  border: 1px solid rgba(0,0,0,0.07);
+  overflow: hidden;
+  z-index: 150;
+  min-width: 130px;
+  padding: 5px;
 }
-.inline-status-select.status-CONFIRMED {
-  background-color: #dbeafe;
-  color: #1d4ed8;
-  border-color: #bfdbfe;
+.status-pill-dropdown.open {
+  display: block;
+  animation: pillDropIn 0.14s ease;
 }
-.inline-status-select.status-ONGOING {
-  background-color: #fef9c3;
-  color: #a16207;
-  border-color: #fde68a;
+@keyframes pillDropIn {
+  from { opacity:0; transform: translateX(-50%) translateY(-6px); }
+  to   { opacity:1; transform: translateX(-50%) translateY(0); }
 }
-.inline-status-select.status-DONE {
-  background-color: #dcfce7;
-  color: #15803d;
-  border-color: #bbf7d0;
+
+.status-pill-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 12px;
+  border-radius: 8px;
+  font-family: "Sarabun", sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.1s;
+  white-space: nowrap;
 }
-.inline-status-select.status-CANCELLED {
-  background-color: #fee2e2;
-  color: #b91c1c;
-  border-color: #fecaca;
+.status-pill-option:hover {
+  background: #f3f4f6;
+}
+.status-pill-option.active {
+  background: #f0fdf4;
+}
+.status-pill-option .opt-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* Per-status colors */
+.status-pill-btn.status-DRAFT    { background:#f1f5f9; color:#475569; border-color:#cbd5e1; }
+.status-pill-btn.status-CONFIRMED { background:#dbeafe; color:#1d4ed8; border-color:#bfdbfe; }
+.status-pill-btn.status-ONGOING  { background:#fef9c3; color:#a16207; border-color:#fde68a; }
+.status-pill-btn.status-DONE     { background:#dcfce7; color:#15803d; border-color:#bbf7d0; }
+.status-pill-btn.status-CANCELLED{ background:#fee2e2; color:#b91c1c; border-color:#fecaca; }
+
+.opt-dot.status-DRAFT     { background:#94a3b8; }
+.opt-dot.status-CONFIRMED { background:#3b82f6; }
+.opt-dot.status-ONGOING   { background:#eab308; }
+.opt-dot.status-DONE      { background:#22c55e; }
+.opt-dot.status-CANCELLED { background:#ef4444; }
+
+.status-pill-option.status-DRAFT     { color:#475569; }
+.status-pill-option.status-CONFIRMED { color:#1d4ed8; }
+.status-pill-option.status-ONGOING   { color:#a16207; }
+.status-pill-option.status-DONE      { color:#15803d; }
+.status-pill-option.status-CANCELLED { color:#b91c1c; }
+
+.panel-input {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--text);
+  font: inherit;
+  padding: 10px 12px;
+}
+
+.panel-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(30, 64, 175, 0.12);
+}
+
+.panel-select {
+  appearance: auto;
+}
+
+.panel-textarea {
+  min-height: 110px;
+  resize: vertical;
+  line-height: 1.5;
+}
+
+.panel-grid-2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.ev-panel-footer .btn {
+  min-width: 96px;
+}
+
+@media (max-width: 640px) {
+  .panel-grid-2 {
+    grid-template-columns: 1fr;
+  }
+}
+
+.panel-field {
+  margin-bottom: 10px;
+}
+
+.panel-field:last-child {
+  margin-bottom: 0;
+}
+
+.panel-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+
+.panel-row-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.panel-input {
+  height: 36px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  font-size: 13px;
+  font-family: "Sarabun", sans-serif;
+  color: var(--text);
+  background: var(--surface);
+  transition: border-color 0.15s, box-shadow 0.15s;
+  box-sizing: border-box;
+}
+
+.panel-input[readonly] {
+  background: var(--surface2);
+  color: var(--text3);
+}
+
+.panel-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+}
+
+.panel-textarea {
+  height: 88px;
+  padding: 8px 10px;
+  resize: none;
+  line-height: 1.5;
 }

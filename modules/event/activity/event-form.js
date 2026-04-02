@@ -72,6 +72,31 @@ async function loadPlaces() {
     const dropdown = document.getElementById("locationDropdown");
     if (!input || !dropdown) return;
 
+    // ค่าที่ถูกเลือกจาก dropdown จริงๆ
+    let confirmedValue = input.value || "";
+
+    // expose เพื่อให้ loadEventForEdit ตั้งค่าได้
+    window._setConfirmedLocation = (v) => {
+      confirmedValue = v || "";
+      input.value = confirmedValue;
+      updateClearBtn();
+    };
+
+    // expose getter สำหรับ save
+    window._getConfirmedLocation = () => confirmedValue || null;
+
+    function updateClearBtn() {
+      const btn = document.getElementById("btnClearLocation");
+      if (btn) btn.style.display = confirmedValue ? "block" : "none";
+    }
+
+    window._clearLocation = function () {
+      confirmedValue = "";
+      input.value = "";
+      dropdown.style.display = "none";
+      updateClearBtn();
+    };
+
     function renderDropdown(keyword) {
       const filtered = keyword
         ? activePlaces.filter((p) =>
@@ -112,17 +137,28 @@ async function loadPlaces() {
       dropdown.querySelectorAll(".ef-loc-item").forEach((el) => {
         el.addEventListener("mousedown", (e) => {
           e.preventDefault();
-          input.value = el.dataset.name;
+          confirmedValue = el.dataset.name;
+          input.value = confirmedValue;
           dropdown.style.display = "none";
+          updateClearBtn();
         });
       });
     }
 
-    input.addEventListener("focus", () => renderDropdown(input.value));
+    input.addEventListener("focus", () => {
+      input.select();
+      renderDropdown(confirmedValue ? "" : "");
+    });
     input.addEventListener("input", () => renderDropdown(input.value));
     input.addEventListener("blur", () => {
-      setTimeout(() => (dropdown.style.display = "none"), 150);
+      setTimeout(() => {
+        // คืนค่าที่เลือกไว้ ถ้าผู้ใช้พิมพ์เองโดยไม่เลือก
+        input.value = confirmedValue;
+        dropdown.style.display = "none";
+      }, 150);
     });
+
+    updateClearBtn();
   } catch (e) {
     console.error("โหลดสถานที่ไม่ได้", e);
   }
@@ -175,7 +211,8 @@ async function loadEventData() {
     document.getElementById("fEndTime").value = e.end_time
       ? e.end_time.slice(0, 5)
       : "";
-    document.getElementById("fLocation").value = e.location || "";
+    if (window._setConfirmedLocation) window._setConfirmedLocation(e.location || "");
+    else document.getElementById("fLocation").value = e.location || "";
     document.getElementById("fMaxAttendees").value = e.max_attendees || "";
     document.getElementById("fAssignedTo").value = e.assigned_to || "";
     document.getElementById("fStatus").value = e.status || "DRAFT";
@@ -264,7 +301,7 @@ window._saveEventImpl = async function () {
       end_date: document.getElementById("fEndDate").value || null,
       start_time: document.getElementById("fStartTime").value || null,
       end_time: document.getElementById("fEndTime").value || null,
-      location: document.getElementById("fLocation").value.trim() || null,
+      location: window._getConfirmedLocation ? window._getConfirmedLocation() : (document.getElementById("fLocation").value.trim() || null),
       max_attendees:
         parseInt(document.getElementById("fMaxAttendees").value) || 0,
       assigned_to:

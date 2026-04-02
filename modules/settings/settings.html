@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ตั้งค่าระบบ — A4S-ERP</title>
-<link rel="stylesheet" href="../../assets/css/main.css">
+<link rel="stylesheet" href="../../css/main.css">
 <style>
 /* Settings-specific */
 .page { max-width:720px; margin:0 auto; padding:32px 24px 80px; }
@@ -67,12 +67,15 @@
 <div class="loading-overlay" id="loadingOverlay"><div class="spinner"></div></div>
 <div class="toast" id="toast"></div>
 
-<div class="topbar">
-  <div class="topbar-logo">📦 <span>A4S</span>-ERP</div>
-  <div class="topbar-sep"></div>
-  <div class="topbar-title">ตั้งค่าระบบ</div>
-</div>
+<!-- TOPBAR -->
+<div class="topbar"></div>
 
+<div class="layout">
+  <!-- SIDEBAR -->
+  <div id="sidebar-container"></div>
+
+  <!-- CONTENT -->
+  <div class="content-area">
 <div class="page">
 
   <div class="section">
@@ -206,9 +209,15 @@
   </div>
 
 </div>
+  </div><!-- end .content-area -->
+</div><!-- end .layout -->
 
-<script src="../../shared/auth.js"></script>
-<script src="../../shared/sidebar.js"></script>
+<script src="../../js/core/auth.js"></script>
 <script src="settings.js"></script>
+<script type="module">
+  import { loadTopbar } from "../../js/components/navigation/topbar.js";
+  loadTopbar("⚙️ ตั้งค่าระบบ");
+</script>
+<script src="../../js/components/navigation/sidebar.js"></script>
 </body>
 </html>
