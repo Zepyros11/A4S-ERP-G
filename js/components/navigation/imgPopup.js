@@ -141,7 +141,7 @@ transform:scale(1.3);
 
 .imp-img-wrap img{
 max-width:100%;
-max-height:62vh;
+max-height:calc(100vh - 210px);
 object-fit:contain;
 border-radius:16px;
 opacity:0;
@@ -163,43 +163,42 @@ padding:16px 20px 20px;
 }
 
 .imp-dots{
-display:flex;
-gap:6px;
-}
-
-.imp-dot{
-height:5px;
-border-radius:99px;
-background:rgba(255,255,255,0.2);
-cursor:pointer;
-width:8px;
-}
-
-.imp-dot.active{
-width:28px;
-background:#3b82f6;
+display:none;
 }
 
 .imp-thumbs{
 display:flex;
-gap:10px;
+gap:8px;
+padding:8px 14px;
+background:rgba(0,0,0,0.45);
+border-radius:14px;
+backdrop-filter:blur(6px);
 }
 
 .imp-thumb{
 position:relative;
-width:56px;
-height:56px;
-border-radius:10px;
+width:52px;
+height:70px;
+border-radius:8px;
 overflow:hidden;
-border:none;
+border:2px solid transparent;
 background:none;
 cursor:pointer;
-opacity:0.4;
+opacity:0.5;
+transition:opacity 0.15s, border-color 0.15s, transform 0.15s;
+flex-shrink:0;
+padding:0;
+}
+
+.imp-thumb:hover{
+opacity:0.8;
+transform:translateY(-2px);
 }
 
 .imp-thumb.active{
 opacity:1;
-outline:2px solid #3b82f6;
+border-color:#fff;
+transform:translateY(-3px);
 }
 
 .imp-thumb img{

@@ -218,13 +218,13 @@ async function loadEventData() {
     document.getElementById("fStatus").value = e.status || "DRAFT";
     document.getElementById("fDescription").value = e.description || "";
 
-    if (e.poster_url) {
-      window._posterUrl = e.poster_url;
-      // แสดง preview โดยเรียก _showPosterPreview ที่ define ใน plain script
-      if (typeof _showPosterPreview === "function") {
-        _showPosterPreview(e.poster_url);
-      }
-    }
+    // โหลดรูปภาพ — รองรับทั้ง image_urls (array) และ poster_url เดิม
+    const imgUrls = Array.isArray(e.image_urls) && e.image_urls.length
+      ? e.image_urls
+      : (e.poster_url ? [e.poster_url] : []);
+    window._imageUrls = [...imgUrls, ...new Array(5).fill(null)].slice(0, 5);
+    window._imageFiles = new Array(5).fill(null);
+    if (typeof _renderImgGrid === "function") _renderImgGrid();
   } catch (err) {
     showToast("โหลดข้อมูลไม่ได้: " + err.message, "error");
   }
@@ -318,18 +318,19 @@ window._saveEventImpl = async function () {
       savedId = res?.event_id;
     }
 
-    // อ่าน posterFile จาก window (set โดย plain script)
-    const posterFile = window._posterFile;
-    const posterUrl = window._posterUrl;
-
-    if (posterFile && savedId) {
-      const url = await uploadEventPoster(savedId, posterFile);
-      await updateEvent(savedId, { poster_url: url });
+    // อัปโหลดรูปภาพใหม่ และรวม URLs
+    const imageFiles = window._imageFiles || [];
+    const imageUrls  = [...(window._imageUrls || [])];
+    for (let i = 0; i < 5; i++) {
+      if (imageFiles[i] && savedId) {
+        imageUrls[i] = await uploadEventPoster(savedId, imageFiles[i]);
+      }
     }
-
-    if (!posterFile && !posterUrl && editId) {
-      await updateEvent(editId, { poster_url: null });
-    }
+    const finalUrls = imageUrls.filter(Boolean);
+    await updateEvent(savedId, {
+      poster_url: finalUrls[0] || null,
+      image_urls: finalUrls.length ? finalUrls : null,
+    });
 
     if (!editId && payload.assigned_to) {
       await createNotification({

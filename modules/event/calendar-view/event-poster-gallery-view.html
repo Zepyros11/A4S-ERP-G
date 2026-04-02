@@ -55,13 +55,15 @@
       <div id="galleryBody"></div>
     </div>
 
-    <!-- POPUP (custom ของคุณ) -->
+    <!-- POPUP -->
     <div id="popup" class="popup hidden">
       <div class="popup-bg"></div>
-
       <div class="popup-content">
-        <img id="popupImg" />
         <button id="popupClose">✕</button>
+        <button id="popupPrev" class="popup-nav popup-prev">‹</button>
+        <img id="popupImg" />
+        <button id="popupNext" class="popup-nav popup-next">›</button>
+        <div id="popupThumbs" class="popup-thumbs"></div>
       </div>
     </div>
 
@@ -70,38 +72,50 @@
     <script src="../../../js/components/navigation/topbar-calendar.js"></script>
 
     <script>
-      // topbar
-      CalTopbar.init({
-        container: "calTopbarContainer",
-        pageName: "Poster Gallery",
-      });
+      CalTopbar.init({ container: "calTopbarContainer", pageName: "Poster Gallery" });
 
-      // ===== OVERRIDE POPUP =====
+      // ── ImgPopup with slider ──────────────────────────────
+      var _popImgs = [];
+      var _popIdx  = 0;
+
+      function _popShow(idx) {
+        _popIdx = (idx + _popImgs.length) % _popImgs.length;
+        document.getElementById("popupImg").src = _popImgs[_popIdx];
+
+        // nav visibility
+        var hasMulti = _popImgs.length > 1;
+        document.getElementById("popupPrev").style.display = hasMulti ? "flex" : "none";
+        document.getElementById("popupNext").style.display = hasMulti ? "flex" : "none";
+
+        // thumbnail strip
+        var thumbs = document.getElementById("popupThumbs");
+        thumbs.style.display = hasMulti ? "flex" : "none";
+        thumbs.innerHTML = _popImgs.map(function (url, i) {
+          return '<img src="' + url + '" class="popup-thumb' + (i === _popIdx ? " active" : "") + '" onclick="_popShow(' + i + ')" />';
+        }).join("");
+      }
+
       window.ImgPopup = {
-        open: (imgs, index = 0) => {
-          const popup = document.getElementById("popup");
-          const img = document.getElementById("popupImg");
-
-          img.src = imgs[index];
-          popup.classList.remove("hidden");
+        open: function (imgs, index) {
+          _popImgs = Array.isArray(imgs) ? imgs : [imgs];
+          document.getElementById("popup").classList.remove("hidden");
+          _popShow(index || 0);
         },
       };
 
-      // close popup
-      document.getElementById("popupClose").onclick = () => {
+      document.getElementById("popupClose").onclick = function () {
         document.getElementById("popup").classList.add("hidden");
       };
-
-      document.querySelector(".popup-bg").onclick = () => {
+      document.getElementById("popupPrev").onclick = function () { _popShow(_popIdx - 1); };
+      document.getElementById("popupNext").onclick = function () { _popShow(_popIdx + 1); };
+      document.querySelector(".popup-bg").onclick = function () {
         document.getElementById("popup").classList.add("hidden");
       };
-    </script>
-
-    <script>
-      document.addEventListener("keydown", (e) => {
-        if (e.key === "Escape") {
-          document.getElementById("popup").classList.add("hidden");
-        }
+      document.addEventListener("keydown", function (e) {
+        if (document.getElementById("popup").classList.contains("hidden")) return;
+        if (e.key === "Escape") document.getElementById("popup").classList.add("hidden");
+        if (e.key === "ArrowLeft")  _popShow(_popIdx - 1);
+        if (e.key === "ArrowRight") _popShow(_popIdx + 1);
       });
     </script>
   </body>

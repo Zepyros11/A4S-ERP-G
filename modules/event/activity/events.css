@@ -93,6 +93,34 @@
 .event-poster-wrap img:hover {
   transform: scale(1.08);
 }
+/* หลายภาพ — แสดงเป็นแถวเล็ก */
+.event-poster-multi {
+  width: auto;
+  max-width: 160px;
+  height: 50px;
+  display: flex;
+  gap: 3px;
+  overflow: hidden;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+}
+.event-poster-multi img {
+  width: 36px;
+  height: 50px;
+  flex-shrink: 0;
+  border-radius: 5px;
+  border: 1px solid var(--border);
+  object-fit: cover;
+  cursor: pointer;
+  transition: transform 0.15s;
+}
+.event-poster-multi img:hover {
+  transform: scale(1.08);
+  z-index: 1;
+}
+
 .event-poster-placeholder {
   font-size: 18px;
   line-height: 1;

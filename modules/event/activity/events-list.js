@@ -197,10 +197,18 @@ function renderTable(events) {
             .toUpperCase()
         : "—";
 
-      const posterCell = e.poster_url
-        ? `<div class="event-poster-wrap">
-          <img src="${e.poster_url}" alt="${escapeHtmlAttr(e.event_name || "event")}" onclick="event.stopPropagation();ImgPopup.open(['${e.poster_url}'],0)" onerror="this.parentElement.innerHTML='<span class=\\'event-poster-placeholder\\'>📋</span>'">
-        </div>`
+      const imgs = Array.isArray(e.image_urls) && e.image_urls.length
+        ? e.image_urls
+        : (e.poster_url ? [e.poster_url] : []);
+      const urlsJson = JSON.stringify(imgs).replaceAll('"', "&quot;");
+      const posterCell = imgs.length
+        ? `<div class="event-poster-wrap event-poster-multi">
+            ${imgs.map((url, idx) =>
+              `<img src="${escapeHtmlAttr(url)}" alt="${escapeHtmlAttr(e.event_name || "event")}"
+                onclick="event.stopPropagation();ImgPopup.open(${urlsJson},${idx})"
+                onerror="this.remove()">`
+            ).join("")}
+          </div>`
         : `<div class="event-poster-wrap"><span class="event-poster-placeholder">📋</span></div>`;
 
       const dateEnd =

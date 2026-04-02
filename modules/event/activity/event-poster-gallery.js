@@ -130,10 +130,17 @@ function buildCard(e) {
   const timeTxt = e.start_time ? e.start_time.slice(0, 5) : "";
   const location = e.location || "";
 
-  const posterInner = e.poster_url
-    ? `<img src="${e.poster_url}" alt="${e.event_name}"
+  // รวม image_urls ทั้งหมด หรือ fallback เป็น poster_url เดียว
+  const allImgs = Array.isArray(e.image_urls) && e.image_urls.length
+    ? e.image_urls
+    : (e.poster_url ? [e.poster_url] : []);
+  const urlsJson = JSON.stringify(allImgs).replace(/"/g, "&quot;");
+  const mainImg = allImgs[0] || null;
+
+  const posterInner = mainImg
+    ? `<img src="${mainImg}" alt="${e.event_name}"
          loading="lazy"
-         onclick="event.stopPropagation(); ImgPopup.open(['${e.poster_url}'], 0)"
+         onclick="event.stopPropagation(); ImgPopup.open(${urlsJson}, 0)"
          onerror="this.parentElement.classList.add('epg-card-noposter'); this.remove();">`
     : `<div class="epg-noposter-inner">
          <span class="epg-noposter-icon">🗓️</span>
