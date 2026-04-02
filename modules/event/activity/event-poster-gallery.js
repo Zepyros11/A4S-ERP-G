@@ -198,22 +198,22 @@ function shortMonth(mm) {
 function formatMonthLabel(key) {
   if (!key || key === "0000-00") return "ไม่ระบุวันที่";
   const [y, m] = key.split("-");
-  const enMonths = [
+  const thMonths = [
     "",
-    "JANUARY",
-    "FEBRUARY",
-    "MARCH",
-    "APRIL",
-    "MAY",
-    "JUNE",
-    "JULY",
-    "AUGUST",
-    "SEPTEMBER",
-    "OCTOBER",
-    "NOVEMBER",
-    "DECEMBER",
+    "มกราคม",
+    "กุมภาพันธ์",
+    "มีนาคม",
+    "เมษายน",
+    "พฤษภาคม",
+    "มิถุนายน",
+    "กรกฎาคม",
+    "สิงหาคม",
+    "กันยายน",
+    "ตุลาคม",
+    "พฤศจิกายน",
+    "ธันวาคม",
   ];
-  return `${enMonths[parseInt(m)]} ${parseInt(y) + 543}`;
+  return `${thMonths[parseInt(m)]} ${parseInt(y) + 543}`;
 }
 
 function showToast(msg, type = "success") {
