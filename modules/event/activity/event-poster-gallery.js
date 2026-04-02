@@ -137,6 +137,10 @@ function buildCard(e) {
   const urlsJson = JSON.stringify(allImgs).replace(/"/g, "&quot;");
   const mainImg = allImgs[0] || null;
 
+  const imgCountBadge = allImgs.length > 1
+    ? `<div class="epg-img-count">🖼️ ${allImgs.length}</div>`
+    : "";
+
   const posterInner = mainImg
     ? `<img src="${mainImg}" alt="${e.event_name}"
          loading="lazy"
@@ -150,9 +154,12 @@ function buildCard(e) {
   return `
     <div class="epg-card" onclick="window.location.href='./event-form.html?id=${e.event_id}'">
       <div class="epg-card-img ${!e.poster_url ? "epg-card-noposter" : ""}">
-        <div class="epg-date-badge">
-          <span class="epg-date-day">${day}</span>
-          <span class="epg-date-mon">${monthShort}</span>
+        <div class="epg-top-badges">
+          <div class="epg-date-badge">
+            <span class="epg-date-day">${day}</span>
+            <span class="epg-date-mon">${monthShort}</span>
+          </div>
+          ${imgCountBadge}
         </div>
         ${posterInner}
       </div>

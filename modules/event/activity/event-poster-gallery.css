@@ -137,11 +137,33 @@
   letter-spacing: 0.5px;
 }
 
-/* ── DATE BADGE ── */
-.epg-date-badge {
+/* ── TOP BADGES WRAPPER ── */
+.epg-top-badges {
   position: absolute;
   top: 10px;
   left: 10px;
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  z-index: 2;
+}
+
+/* ── IMAGE COUNT BADGE ── */
+.epg-img-count {
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 5px 9px;
+  border-radius: 10px;
+  backdrop-filter: blur(4px);
+  white-space: nowrap;
+  align-self: center;
+  pointer-events: none;
+}
+
+/* ── DATE BADGE ── */
+.epg-date-badge {
   background: rgba(255, 255, 255, 0.95);
   border-radius: 10px;
   padding: 6px 10px;
