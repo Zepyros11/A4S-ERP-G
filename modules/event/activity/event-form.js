@@ -314,7 +314,7 @@ window._saveEventImpl = async function () {
     if (editId) {
       await updateEvent(editId, payload);
     } else {
-      const res = await createEvent({ ...payload, event_type: "OTHER" });
+      const res = await createEvent(payload);
       savedId = res?.event_id;
     }
 
