@@ -7,8 +7,10 @@ const SB_KEY_DEFAULT =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR0aXlueWRna2NxYXVzcWt0cmVnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIyNjEwNTcsImV4cCI6MjA4NzgzNzA1N30.DmXwvBBvx3zK7rw21179ro65mTm0B4lQ20ktVMpAUQE";
 
 let allEvents = [];
+let allCategories = [];
 let currentYear = new Date().getFullYear();
 let currentMonth = new Date().getMonth();
+let activeCalCatId = "";
 
 const MONTHS_TH = [
   "มกราคม",
@@ -36,7 +38,7 @@ async function initPage() {
       year: "numeric",
     });
   }
-  await loadEvents();
+  await Promise.all([loadEvents(), loadCategories()]);
   renderCalendar();
 }
 
@@ -64,14 +66,66 @@ async function loadEvents() {
   showLoading(false);
 }
 
+async function loadCategories() {
+  try {
+    const { url, key } = getSB();
+    const res = await fetch(
+      `${url}/rest/v1/event_categories?select=*&order=sort_order.asc`,
+      { headers: { apikey: key, Authorization: `Bearer ${key}` } },
+    );
+    if (res.ok) allCategories = await res.json();
+  } catch (_) {}
+
+  // inject category chips
+  const chipsWrap = document.getElementById("calCatChips");
+  if (chipsWrap) {
+    const allBtn = chipsWrap.querySelector('[data-cat=""]');
+    chipsWrap.innerHTML = "";
+    chipsWrap.appendChild(allBtn);
+    allCategories.forEach((cat) => {
+      const btn = document.createElement("button");
+      btn.className = "epg-chip";
+      btn.dataset.cat = cat.event_category_id;
+      btn.textContent = `${cat.icon || ""} ${cat.category_name}`.trim();
+      btn.onclick = () => setCalCatFilter(btn, String(cat.event_category_id));
+      chipsWrap.appendChild(btn);
+    });
+  }
+
+  // inject legend
+  const legend = document.getElementById("calLegend");
+  if (legend) {
+    legend.innerHTML = allCategories.map(c =>
+      `<div class="cal-legend-item">
+        <div class="cal-legend-dot" style="background:${c.color || "#6366f1"}"></div>
+        ${c.icon || ""} ${c.category_name}
+      </div>`
+    ).join("");
+  }
+}
+
+function setCalCatFilter(btn, catId) {
+  document.querySelectorAll("#calCatChips .epg-chip").forEach((b) => b.classList.remove("active"));
+  btn.classList.add("active");
+  activeCalCatId = catId;
+  renderCalendar();
+}
+
+function getCatStyle(event) {
+  const cat = allCategories.find((c) => c.event_category_id === event.event_category_id);
+  const color = cat?.color || "#6366f1";
+  const icon = cat?.icon || "📌";
+  const name = cat?.category_name || "อื่นๆ";
+  return { color, icon, name };
+}
+
 function renderCalendar() {
   updateMonthLabel();
-  const typeFilter = document.getElementById("calFilterType")?.value || "";
   const statusFilter = document.getElementById("calFilterStatus")?.value || "";
 
   const filtered = allEvents.filter(
     (e) =>
-      (!typeFilter || e.event_type === typeFilter) &&
+      (!activeCalCatId || String(e.event_category_id) === activeCalCatId) &&
       (!statusFilter || e.status === statusFilter),
   );
 
@@ -82,7 +136,7 @@ function renderCalendar() {
     let d = new Date(start + "T00:00:00");
     const endD = new Date(end + "T00:00:00");
     while (d <= endD) {
-      const key = d.toISOString().split("T")[0];
+      const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
       if (!eventMap[key]) eventMap[key] = [];
       if (!eventMap[key].find((x) => x.event_id === e.event_id))
         eventMap[key].push(e);
@@ -92,7 +146,8 @@ function renderCalendar() {
 
   const firstDay = new Date(currentYear, currentMonth, 1).getDay();
   const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
-  const today = new Date().toISOString().split("T")[0];
+  const _now = new Date();
+  const today = `${_now.getFullYear()}-${String(_now.getMonth()+1).padStart(2,"0")}-${String(_now.getDate()).padStart(2,"0")}`;
   let cells = "";
 
   for (let i = 0; i < firstDay; i++) {
@@ -120,14 +175,15 @@ function renderCalendar() {
     const extra = dayEvents.length - MAX_SHOW;
 
     const pillsHtml = shown
-      .map(
-        (ev) =>
-          `<div class="cal-event-pill type-${ev.event_type}"
-               onclick="openEventPanel(${ev.event_id});event.stopPropagation();"
-               title="${ev.event_name}">
-               ${typeIcon(ev.event_type)} ${ev.event_name}
-             </div>`,
-      )
+      .map((ev) => {
+        const { color, icon } = getCatStyle(ev);
+        return `<div class="cal-event-pill"
+             style="background:${color}22;color:${color};border-color:${color}55"
+             onclick="openEventPanel(${ev.event_id});event.stopPropagation();"
+             title="${ev.event_name}">
+             ${icon} ${ev.event_name}
+           </div>`;
+      })
       .join("");
 
     const moreHtml =
@@ -179,8 +235,9 @@ function openEventPanel(eventId) {
   document.getElementById("panelCode").textContent = e.event_code || "";
   document.getElementById("panelStatus").innerHTML =
     `<span class="event-status-badge status-${e.status}">${statusLabel(e.status)}</span>`;
+  const { color: catColor, icon: catIcon, name: catName } = getCatStyle(e);
   document.getElementById("panelType").innerHTML =
-    `<span class="event-type-badge type-${e.event_type}">${typeLabel(e.event_type)}</span>`;
+    `<span class="event-type-badge" style="background:${catColor}22;color:${catColor};border:1px solid ${catColor}55">${catIcon} ${catName}</span>`;
   document.getElementById("panelDate").textContent =
     formatDate(e.event_date) +
     (e.end_date && e.end_date !== e.event_date

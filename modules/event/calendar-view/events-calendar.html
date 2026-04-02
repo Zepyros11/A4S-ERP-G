@@ -46,19 +46,6 @@
         <div class="cal-filter-wrap">
           <select
             class="filter-select"
-            id="calFilterType"
-            onchange="renderCalendar()"
-          >
-            <option value="">ทุกประเภท</option>
-            <option value="BOOTH">🏪 ออกบูธ</option>
-            <option value="MEETING">👥 ประชุม</option>
-            <option value="ONLINE">💻 Online</option>
-            <option value="HYBRID">🔀 Hybrid</option>
-            <option value="CONFERENCE">🎤 Conference</option>
-            <option value="OTHER">📌 อื่นๆ</option>
-          </select>
-          <select
-            class="filter-select"
             id="calFilterStatus"
             onchange="renderCalendar()"
           >
@@ -70,6 +57,12 @@
             <option value="CANCELLED">❌ Cancelled</option>
           </select>
         </div>
+      </div>
+
+      <!-- Category Filter Chips -->
+      <div class="cal-cat-chips" id="calCatChips">
+        <button class="epg-chip active" data-cat="" onclick="setCalCatFilter(this, '')">ทั้งหมด</button>
+        <!-- dynamic chips injected by JS -->
       </div>
 
       <!-- CALENDAR -->
@@ -89,32 +82,7 @@
       </div>
 
       <!-- LEGEND -->
-      <div class="cal-legend">
-        <div class="cal-legend-item">
-          <div class="cal-legend-dot" style="background: #6d28d9"></div>
-          ออกบูธ
-        </div>
-        <div class="cal-legend-item">
-          <div class="cal-legend-dot" style="background: #1d4ed8"></div>
-          ประชุม
-        </div>
-        <div class="cal-legend-item">
-          <div class="cal-legend-dot" style="background: #15803d"></div>
-          Online
-        </div>
-        <div class="cal-legend-item">
-          <div class="cal-legend-dot" style="background: #c2410c"></div>
-          Hybrid
-        </div>
-        <div class="cal-legend-item">
-          <div class="cal-legend-dot" style="background: #b91c1c"></div>
-          Conference
-        </div>
-        <div class="cal-legend-item">
-          <div class="cal-legend-dot" style="background: #475569"></div>
-          อื่นๆ
-        </div>
-      </div>
+      <div class="cal-legend" id="calLegend"></div>
     </div>
     <!-- SETTINGS MODAL -->
     <div

@@ -2,55 +2,73 @@
    event-poster-gallery.js — Controller for Poster Gallery page
 ============================================================ */
 
-import { fetchEvents } from "./events-api.js";
+import { fetchEvents, fetchEventCategories } from "./events-api.js";
 
 // ── STATE ──────────────────────────────────────────────────
 let allEvents = [];
+let allCategories = [];
 let gridCols = 5;
+let activeCatId = "";
 
 // ── INIT ───────────────────────────────────────────────────
 async function initPage() {
   showLoading(true);
   try {
-    allEvents = (await fetchEvents()) || [];
+    [allEvents, allCategories] = await Promise.all([
+      fetchEvents().catch(() => []),
+      fetchEventCategories().catch(() => []),
+    ]);
+    renderCategoryChips();
     renderGallery();
   } catch (e) {
     showToast("โหลดข้อมูลไม่ได้: " + e.message, "error");
   }
   showLoading(false);
 
-  document
-    .getElementById("filterPoster")
-    .addEventListener("change", renderGallery);
-  document
-    .getElementById("filterPoster")
-    .addEventListener("change", renderGallery);
+  document.getElementById("filterPoster").addEventListener("change", renderGallery);
+}
+
+function renderCategoryChips() {
+  const wrap = document.getElementById("filterChipsWrap");
+  // remove old dynamic chips (keep first "ทั้งหมด" and last poster-filter div)
+  const allChipBtn = wrap.querySelector('[data-cat=""]');
+  const posterDiv = wrap.querySelector('div[style]');
+  wrap.innerHTML = "";
+  wrap.appendChild(allChipBtn);
+
+  allCategories.forEach((cat) => {
+    const btn = document.createElement("button");
+    btn.className = "epg-chip";
+    btn.dataset.cat = cat.event_category_id;
+    btn.textContent = `${cat.icon || ""} ${cat.category_name}`.trim();
+    btn.onclick = () => window.setTypeFilter(btn, String(cat.event_category_id));
+    wrap.appendChild(btn);
+  });
+
+  if (posterDiv) wrap.appendChild(posterDiv);
 }
 
 // ── GRID SIZE ──────────────────────────────────────────────
-window.setTypeFilter = function (btn, type) {
-  document
-    .querySelectorAll(".epg-chip")
-    .forEach((b) => b.classList.remove("active"));
+window.setTypeFilter = function (btn, catId) {
+  document.querySelectorAll(".epg-chip").forEach((b) => b.classList.remove("active"));
   btn.classList.add("active");
-  document.getElementById("filterType").value = type;
+  activeCatId = catId;
   renderGallery();
 };
 
 // ── RENDER ─────────────────────────────────────────────────
 function renderGallery() {
-  const filterType = document.getElementById("filterType").value;
   const filterPoster = document.getElementById("filterPoster").value;
 
   let filtered = allEvents.filter((e) => {
-    const matchType = !filterType || e.event_type === filterType;
+    const matchCat = !activeCatId || String(e.event_category_id) === activeCatId;
     const matchPoster =
       filterPoster === "all"
         ? true
         : filterPoster === "has"
           ? !!e.poster_url
           : !e.poster_url;
-    return matchType && matchPoster;
+    return matchCat && matchPoster;
   });
 
   document.getElementById("pageSubtitle").textContent =
@@ -97,19 +115,18 @@ function renderGallery() {
 }
 
 // ── BUILD CARD ─────────────────────────────────────────────
-const typeMapLabel = {
-  BOOTH: "BOOTH",
-  MEETING: "MEETING",
-  ONLINE: "ONLINE",
-  HYBRID: "HYBRID",
-  CONFERENCE: "CONF",
-  OTHER: "OTHER",
-};
+function getCatInfo(e) {
+  const cat = allCategories.find((c) => c.event_category_id === e.event_category_id);
+  return {
+    label: cat ? `${cat.icon || ""} ${cat.category_name}`.trim() : (e.event_type || ""),
+    color: cat?.color || "#6366f1",
+  };
+}
 
 function buildCard(e) {
   const day = e.event_date ? parseInt(e.event_date.split("-")[2]) : "??";
   const monthShort = e.event_date ? shortMonth(e.event_date.slice(5, 7)) : "";
-  const typeLabel = typeMapLabel[e.event_type] || e.event_type || "";
+  const { label: catLabel, color: catColor } = getCatInfo(e);
   const timeTxt = e.start_time ? e.start_time.slice(0, 5) : "";
   const location = e.location || "";
 
@@ -133,7 +150,7 @@ function buildCard(e) {
         ${posterInner}
       </div>
       <div class="epg-card-body">
-        <span class="epg-type-chip epg-type-${e.event_type}">${typeLabel}</span>
+        <span class="epg-type-chip" style="background:${catColor}22;color:${catColor};border-color:${catColor}55">${catLabel}</span>
         <div class="epg-card-name">${e.event_name || "—"}</div>
         <div class="epg-card-meta">
           ${location ? `<span>📍 ${location}</span>` : ""}

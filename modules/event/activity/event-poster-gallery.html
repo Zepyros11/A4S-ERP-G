@@ -86,56 +86,15 @@
           </div>
 
           <!-- Filter Chips -->
-          <div class="epg-filter-chips">
+          <div class="epg-filter-chips" id="filterChipsWrap">
             <button
               class="epg-chip active"
-              data-type=""
+              data-cat=""
               onclick="window.setTypeFilter(this, '')"
             >
               ทั้งหมด
             </button>
-            <button
-              class="epg-chip"
-              data-type="BOOTH"
-              onclick="window.setTypeFilter(this, 'BOOTH')"
-            >
-              🏪 ออกบูธ
-            </button>
-            <button
-              class="epg-chip"
-              data-type="MEETING"
-              onclick="window.setTypeFilter(this, 'MEETING')"
-            >
-              👥 ประชุม
-            </button>
-            <button
-              class="epg-chip"
-              data-type="ONLINE"
-              onclick="window.setTypeFilter(this, 'ONLINE')"
-            >
-              💻 Online
-            </button>
-            <button
-              class="epg-chip"
-              data-type="HYBRID"
-              onclick="window.setTypeFilter(this, 'HYBRID')"
-            >
-              🔀 Hybrid
-            </button>
-            <button
-              class="epg-chip"
-              data-type="CONFERENCE"
-              onclick="window.setTypeFilter(this, 'CONFERENCE')"
-            >
-              🎤 Conference
-            </button>
-            <button
-              class="epg-chip"
-              data-type="OTHER"
-              onclick="window.setTypeFilter(this, 'OTHER')"
-            >
-              📌 อื่นๆ
-            </button>
+            <!-- dynamic category chips injected by JS -->
             <!-- Poster filter -->
             <div style="margin-left: auto">
               <select class="filter-select" id="filterPoster">
@@ -145,9 +104,6 @@
               </select>
             </div>
           </div>
-
-          <!-- hidden select สำหรับ JS เดิม -->
-          <select id="filterType" style="display: none"></select>
 
           <!-- GALLERY BODY -->
           <div id="galleryBody">

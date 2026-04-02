@@ -89,6 +89,37 @@
   box-shadow: 0 1px 4px rgba(148, 163, 184, 0.1);
 }
 
+/* ── CATEGORY CHIPS ROW ── */
+.cal-cat-chips {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+.epg-chip {
+  padding: 7px 18px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  color: #475569;
+  cursor: pointer;
+  white-space: nowrap;
+  font-family: "Sarabun", sans-serif;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.epg-chip:hover:not(.active) {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+}
+.epg-chip.active {
+  background: #1e293b;
+  color: #fff;
+  border-color: #1e293b;
+}
+
 /* ── GRID WRAP ── */
 .cal-grid-wrap {
   background: #fff;

@@ -68,6 +68,8 @@ const CalTopbar = (function () {
     const wrap = document.getElementById(container);
     if (!wrap) return;
 
+    const currentPage = window.location.pathname.split("/").pop().replace(".html", "");
+
     wrap.innerHTML = `
       <div class="cal-topbar">
         <div class="cal-topbar-left">
@@ -78,11 +80,11 @@ const CalTopbar = (function () {
           <span class="cal-topbar-page">${pageName}</span>
         </div>
         <div class="cal-topbar-right">
-          <button class="cal-topbar-btn"
+          <button class="cal-topbar-btn ${currentPage === 'events-calendar' ? 'active' : ''}"
             onclick="window.location.href = './events-calendar.html'">
             Event Calendar
           </button>
-          <button class="cal-topbar-btn"
+          <button class="cal-topbar-btn ${currentPage === 'event-poster-gallery-view' ? 'active' : ''}"
             onclick="window.location.href = './event-poster-gallery-view.html'">
             Poster Gallery
           </button>

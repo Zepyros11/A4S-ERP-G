@@ -36,25 +36,19 @@
           <div class="title">🖼️ Poster Gallery</div>
           <div id="pageSubtitle" class="subtitle">กำลังโหลด...</div>
         </div>
-
-        <!-- ✅ สำคัญ: ต้องมีครบ 2 ตัว -->
         <div class="toolbar-right">
-          <!-- filterType -->
-          <select id="filterType" class="filter-select">
-            <option value="">ทุกประเภท</option>
-            <option value="BOOTH">BOOTH</option>
-            <option value="MEETING">MEETING</option>
-            <option value="ONLINE">ONLINE</option>
-            <option value="HYBRID">HYBRID</option>
-          </select>
-
-          <!-- 🔥 ตัวที่ทำให้คุณพังเมื่อกี้ -->
           <select id="filterPoster" class="filter-select">
-            <option value="all">ทั้งหมด</option>
-            <option value="has" selected>มีโปสเตอร์</option>
-            <option value="none">ไม่มีโปสเตอร์</option>
+            <option value="all">🖼️ ทั้งหมด</option>
+            <option value="has" selected>✅ มีโปสเตอร์</option>
+            <option value="none">❌ ไม่มีโปสเตอร์</option>
           </select>
         </div>
+      </div>
+
+      <!-- Category Filter Chips -->
+      <div class="epg-filter-chips" id="filterChipsWrap">
+        <button class="epg-chip active" data-cat="" onclick="window.setTypeFilter(this, '')">ทั้งหมด</button>
+        <!-- dynamic chips injected by JS -->
       </div>
 
       <!-- GALLERY -->
