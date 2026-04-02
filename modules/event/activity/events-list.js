@@ -174,7 +174,7 @@ function renderTable(events) {
 
   if (!sorted.length) {
     tbody.innerHTML = `
-      <tr><td colspan="9">
+      <tr><td colspan="8">
         <div class="empty-state">
           <div class="empty-icon">📋</div>
           <div class="empty-text">ไม่พบกิจกรรม</div>
@@ -226,9 +226,6 @@ function renderTable(events) {
       <td>
         <div class="event-name">${escapeHtml(e.event_name || "—")}</div>
         <div class="event-code">${escapeHtml(e.event_code || "—")}</div>
-      </td>
-      <td class="col-center">
-        <span class="event-type-badge type-${escapeHtmlAttr(getTypeClass(e))}">${escapeHtml(typeLabel(getTypeValue(e)))}</span>
       </td>
       <td>${escapeHtml(e.location || "—")}</td>
       <td>
@@ -448,40 +445,6 @@ function formatDate(d) {
   return `${parseInt(day, 10)} ${months[parseInt(m, 10)]} ${parseInt(y, 10) + 543}`;
 }
 
-function getTypeValue(eventRow) {
-  if (eventRow.event_type) return eventRow.event_type;
-  const category = eventCategories.find(
-    (item) => item.event_category_id === eventRow.event_category_id,
-  );
-  return category?.category_name || "OTHER";
-}
-
-function getTypeClass(eventRow) {
-  const value = getTypeValue(eventRow);
-  return [
-    "BOOTH",
-    "MEETING",
-    "ONLINE",
-    "HYBRID",
-    "CONFERENCE",
-    "OTHER",
-  ].includes(value)
-    ? value
-    : "OTHER";
-}
-
-function typeLabel(t) {
-  return (
-    {
-      BOOTH: "🏪 ออกบูธ",
-      MEETING: "👥 ประชุม",
-      ONLINE: "💻 Online",
-      HYBRID: "🔀 Hybrid",
-      CONFERENCE: "🎤 Conference",
-      OTHER: "📌 อื่นๆ",
-    }[t] || t
-  );
-}
 
 function statusLabel(s) {
   return (
