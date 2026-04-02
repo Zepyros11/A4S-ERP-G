@@ -28,17 +28,24 @@
       id: "g-event",
       items: [
         {
+          id: "event-poster-gallery",
+          icon: "🖼️",
+          label: "Poster Gallery",
+          path: BASE_PATH + "/modules/event/activity/event-poster-gallery.html",
+        },
+        {
           id: "events",
           icon: "🗓️",
           label: "รายการกิจกรรม",
           path: BASE_PATH + "/modules/event/activity/events-list.html",
         },
         {
-          id: "event-poster-gallery",
-          icon: "🖼️",
-          label: "Poster Gallery",
-          path: BASE_PATH + "/modules/event/activity/event-poster-gallery.html",
+          id: "events-category",
+          icon: "🏷️",
+          label: "ประเภทกิจกรรม",
+          path: BASE_PATH + "/modules/event/activity/events-category.html",
         },
+
         {
           id: "events-place-list",
           icon: "📍",
@@ -210,8 +217,9 @@
     "so",
     "req",
     //**** EVENT ****
-    "events",
     "event-poster-gallery",
+    "events",
+    "events-category",
     "events-place-list",
     "event-requests",
     "rooms",

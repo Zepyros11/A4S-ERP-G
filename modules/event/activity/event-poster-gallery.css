@@ -243,3 +243,64 @@
     grid-template-columns: repeat(2, 1fr);
   }
 }
+/* ── FILTER CHIPS ── */
+.epg-filter-chips {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 24px;
+}
+.epg-chip {
+  padding: 7px 18px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text2);
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    background 0.15s,
+    color 0.15s,
+    border-color 0.15s;
+}
+.epg-chip:hover:not(.active) {
+  background: var(--surface2);
+  border-color: var(--border2);
+}
+.epg-chip.active {
+  background: #1e293b;
+  color: #fff;
+  border-color: #1e293b;
+}
+
+/* ── MONTH HEADER LINE ── */
+.epg-month-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 16px;
+  padding-bottom: 10px;
+  border-bottom: none;
+}
+.epg-month-header::after {
+  content: "";
+  flex: 1;
+  height: 2px;
+  background: linear-gradient(to right, var(--border), transparent);
+}
+
+/* ── CARD: rounded corners ── */
+.epg-card {
+  border-radius: 20px;
+}
+.epg-date-badge {
+  border-radius: 14px;
+  min-width: 48px;
+  padding: 8px 12px;
+}
+.epg-date-day {
+  font-size: 20px;
+}

@@ -90,16 +90,10 @@
 
                 <div class="ef-field">
                   <label class="ef-label">
-                    ประเภทงาน <span class="ef-required">*</span>
+                    ประเภทกิจกรรม <span class="ef-required">*</span>
                   </label>
                   <select class="ef-input" id="fEventType">
-                    <option value="">— เลือกประเภท —</option>
-                    <option value="BOOTH">🏪 ออกบูธ</option>
-                    <option value="MEETING">👥 ประชุม</option>
-                    <option value="ONLINE">💻 Online</option>
-                    <option value="HYBRID">🔀 Hybrid</option>
-                    <option value="CONFERENCE">🎤 Conference</option>
-                    <option value="OTHER">📌 อื่นๆ</option>
+                    <option value="">— เลือกประเภทกิจกรรม —</option>
                   </select>
                 </div>
 
@@ -127,15 +121,19 @@
                   </div>
                 </div>
 
-                <div class="ef-field">
-                  <label class="ef-label">สถานที่</label>
-                  <input
-                    class="ef-input"
-                    type="text"
-                    id="fLocation"
-                    placeholder="ระบุสถานที่ / อาคาร / ห้องประชุม"
-                  />
-                </div>
+           <div class="ef-field">
+  <label class="ef-label">สถานที่</label>
+  <div class="ef-location-wrap" id="locationWrap">
+    <input
+      class="ef-input"
+      type="text"
+      id="fLocation"
+      placeholder="ระบุสถานที่ / อาคาร / ห้องประชุม"
+      autocomplete="off"
+    />
+    <div class="ef-location-dropdown" id="locationDropdown"></div>
+  </div>
+</div>
 
                 <div class="ef-field">
                   <label class="ef-label">จำนวนผู้เข้าร่วมสูงสุด</label>
@@ -164,9 +162,9 @@
                     <label class="ef-label">สถานะ</label>
                     <select class="ef-input" id="fStatus">
                       <option value="DRAFT">📝 Draft</option>
-                      <option value="CONFIRMED">✅ Confirmed</option>
+                      <option value="CONFIRMED">✔️ Confirmed</option>
                       <option value="ONGOING">▶️ Ongoing</option>
-                      <option value="DONE">🏁 Done</option>
+                      <option value="DONE">✅ Done</option>
                       <option value="CANCELLED">❌ Cancelled</option>
                     </select>
                   </div>

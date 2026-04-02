@@ -1,0 +1,408 @@
+/* =========================================================
+   events-category.css — Event Category Page Styles
+========================================================= */
+
+/* ── CATEGORY BADGE (ในตาราง) ── */
+.ecat-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 700;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.ecat-color-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.ecat-icon-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.ecat-icon-emoji {
+  font-size: 22px;
+  line-height: 1;
+}
+
+.ecat-sort-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text2);
+}
+
+/* ── OVERLAY ── */
+.ecat-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 400;
+  backdrop-filter: blur(3px);
+}
+.ecat-overlay.show {
+  display: block;
+}
+
+/* ── MODAL ── */
+.ecat-modal {
+  display: none;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -48%) scale(0.97);
+  width: 780px;
+  max-width: calc(100vw - 32px);
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 20px;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.16);
+  z-index: 401;
+  opacity: 0;
+  transition:
+    transform 0.2s ease,
+    opacity 0.2s ease;
+  overflow: hidden;
+}
+.ecat-modal.show {
+  display: block;
+  transform: translate(-50%, -50%) scale(1);
+  opacity: 1;
+}
+
+/* ── MODAL HEADER ── */
+.ecat-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 22px;
+  border-bottom: 1px solid #f1f5f9;
+  background: #fff;
+}
+.ecat-header-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: #eef2ff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+.ecat-modal-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #1e293b;
+}
+.ecat-close-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: #94a3b8;
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+.ecat-close-btn:hover {
+  background: #f1f5f9;
+  color: #475569;
+}
+/* ── MODAL BODY ── */
+.ecat-modal-body {
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-height: calc(100vh - 160px);
+  overflow-y: auto;
+}
+
+/* ── FIELD ── */
+.ecat-field {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  position: relative;
+}
+.ecat-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #475569;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.ecat-label-icon {
+  font-size: 14px;
+}
+
+.ecat-input {
+  width: 100%;
+  height: 42px;
+  padding: 0 14px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 12px;
+  font-size: 13.5px;
+  font-family: "Sarabun", sans-serif;
+  color: #1e293b;
+  background: #fff;
+  outline: none;
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s;
+  box-sizing: border-box;
+}
+.ecat-input:focus {
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
+}
+.ecat-input::placeholder {
+  color: #94a3b8;
+}
+
+.ecat-textarea {
+  height: auto;
+  padding: 10px 14px;
+  resize: none;
+  line-height: 1.6;
+}
+
+/* ── EMOJI INPUT ── */
+.ecat-emoji-wrap {
+  position: relative;
+}
+.ecat-emoji-prefix {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 20px;
+  line-height: 1;
+  pointer-events: none;
+}
+
+/* ── COLOR SWATCH ── */
+.ecat-color-swatch {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  border: 1.5px solid #e2e8f0;
+  cursor: pointer;
+  overflow: hidden;
+  position: relative;
+  flex-shrink: 0;
+  background: #3b82f6;
+  transition: border-color 0.15s;
+}
+.ecat-color-swatch:hover {
+  border-color: #94a3b8;
+}
+.ecat-color-picker {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+  width: 100%;
+  height: 100%;
+  transform: scale(2);
+}
+
+/* ── PREVIEW ── */
+.ecat-preview-wrap {
+  background: #f8fafc;
+  border: 1.5px dashed #cbd5e1;
+  border-radius: 14px;
+  padding: 16px 20px;
+}
+.ecat-preview-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: #94a3b8;
+  margin-bottom: 4px;
+}
+.ecat-badge-preview {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 18px;
+  border-radius: 30px;
+  font-size: 14px;
+  font-weight: 700;
+  border: 1.5px solid transparent;
+  transition: all 0.2s;
+}
+
+/* ── MODAL FOOTER ── */
+.ecat-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 22px;
+  border-top: 1px solid #f1f5f9;
+  background: #f8fafc;
+}
+.ecat-btn-cancel {
+  padding: 9px 20px;
+  border-radius: 12px;
+  border: none;
+  background: transparent;
+  color: #475569;
+  font-size: 13.5px;
+  font-weight: 600;
+  font-family: "Sarabun", sans-serif;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.ecat-btn-cancel:hover {
+  background: #e2e8f0;
+}
+
+.ecat-btn-save {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 28px;
+  border-radius: 12px;
+  border: none;
+  background: #4f46e5;
+  color: #fff;
+  font-size: 13.5px;
+  font-weight: 700;
+  font-family: "Sarabun", sans-serif;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(79, 70, 229, 0.35);
+  transition:
+    background 0.15s,
+    transform 0.1s,
+    box-shadow 0.15s;
+}
+.ecat-btn-save:hover {
+  background: #4338ca;
+  box-shadow: 0 6px 18px rgba(79, 70, 229, 0.4);
+}
+.ecat-btn-save:active {
+  transform: scale(0.97);
+}
+.ecat-btn-save:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+/* ── SPINNER ── */
+.ecat-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: ecatSpin 0.6s linear infinite;
+}
+@keyframes ecatSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+/* ── EMOJI PICKER ── */
+.ecat-emoji-selected {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 42px;
+  padding: 0 14px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 12px;
+  cursor: pointer;
+  font-size: 22px;
+  background: #fff;
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s;
+  user-select: none;
+}
+.ecat-emoji-selected:hover {
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.ecat-emoji-picker {
+  display: none;
+  position: absolute;
+  left: 0;
+  top: calc(100% + 6px);
+  width: 280px;
+  background: #fff;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 10px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+  z-index: 500;
+}
+.ecat-emoji-picker.open {
+  display: block;
+}
+
+.ecat-emoji-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 4px;
+}
+.ecat-emoji-item {
+  width: 100%;
+  aspect-ratio: 1;
+  border: none;
+  background: transparent;
+  border-radius: 8px;
+  font-size: 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    background 0.12s,
+    transform 0.1s;
+  line-height: 1;
+}
+.ecat-emoji-item:hover {
+  background: #f1f5f9;
+  transform: scale(1.2);
+}
+.ecat-emoji-item.selected {
+  background: #eef2ff;
+  outline: 2px solid #6366f1;
+}
+
+/* ── 3-COL ROW (Emoji | Color | ลำดับ) ── */
+.ecat-row-3 {
+  display: grid;
+  grid-template-columns: 1fr 1fr 120px;
+  gap: 14px;
+}

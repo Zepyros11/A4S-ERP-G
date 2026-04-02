@@ -20,7 +20,7 @@ async function initPage() {
   showLoading(false);
 
   document
-    .getElementById("filterType")
+    .getElementById("filterPoster")
     .addEventListener("change", renderGallery);
   document
     .getElementById("filterPoster")
@@ -28,12 +28,12 @@ async function initPage() {
 }
 
 // ── GRID SIZE ──────────────────────────────────────────────
-window.setGrid = function (n) {
-  gridCols = n;
+window.setTypeFilter = function (btn, type) {
   document
-    .querySelectorAll(".epg-toggle-btn")
+    .querySelectorAll(".epg-chip")
     .forEach((b) => b.classList.remove("active"));
-  document.getElementById(`btnGrid${n}`)?.classList.add("active");
+  btn.classList.add("active");
+  document.getElementById("filterType").value = type;
   renderGallery();
 };
 
@@ -75,7 +75,7 @@ function renderGallery() {
     groups[key].push(e);
   });
 
-  const sortedKeys = Object.keys(groups).sort();
+  const sortedKeys = Object.keys(groups).sort().reverse();
 
   body.innerHTML = sortedKeys
     .map((key) => {

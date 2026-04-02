@@ -29,22 +29,35 @@ async function loadData() {
 
 // ── BIND EVENTS ────────────────────────────────────────────
 function bindEvents() {
-  document.getElementById("searchInput")?.addEventListener("input", filterTable);
-  document.getElementById("filterType")?.addEventListener("change", filterTable);
-  document.getElementById("filterStatus")?.addEventListener("change", filterTable);
+  document
+    .getElementById("searchInput")
+    ?.addEventListener("input", filterTable);
+  document
+    .getElementById("filterType")
+    ?.addEventListener("change", filterTable);
+  document
+    .getElementById("filterStatus")
+    ?.addEventListener("change", filterTable);
 }
 
 // ── STAT CARDS ─────────────────────────────────────────────
 function updateStatCards() {
   document.getElementById("cardTotal").textContent = allPlaces.length;
-  document.getElementById("cardActive").textContent = allPlaces.filter((p) => p.status === "ACTIVE").length;
-  document.getElementById("cardHotel").textContent = allPlaces.filter((p) => p.place_type === "HOTEL").length;
-  document.getElementById("cardEventSpace").textContent = allPlaces.filter((p) => p.place_type === "EVENT_SPACE").length;
+  document.getElementById("cardActive").textContent = allPlaces.filter(
+    (p) => p.status === "ACTIVE",
+  ).length;
+  document.getElementById("cardHotel").textContent = allPlaces.filter(
+    (p) => p.place_type === "HOTEL",
+  ).length;
+  document.getElementById("cardEventSpace").textContent = allPlaces.filter(
+    (p) => p.place_type === "EVENT_SPACE",
+  ).length;
 }
 
 // ── FILTER ─────────────────────────────────────────────────
 function filterTable() {
-  const search = document.getElementById("searchInput")?.value.toLowerCase() || "";
+  const search =
+    document.getElementById("searchInput")?.value.toLowerCase() || "";
   const type = document.getElementById("filterType")?.value || "";
   const status = document.getElementById("filterStatus")?.value || "";
 
@@ -64,7 +77,10 @@ function filterTable() {
 // ── SORT ───────────────────────────────────────────────────
 window.sortTable = function (key) {
   if (sortKey === key) sortAsc = !sortAsc;
-  else { sortKey = key; sortAsc = true; }
+  else {
+    sortKey = key;
+    sortAsc = true;
+  }
   filterTable();
 };
 
@@ -92,20 +108,28 @@ function renderTable(places) {
     return;
   }
 
-  tbody.innerHTML = sorted.map((p) => {
-    const coverCell = p.cover_image_url
-      ? `<div class="place-cover-wrap">
-           <img src="${p.cover_image_url}" alt="${p.place_name}"
-             onclick="event.stopPropagation();ImgPopup.open(['${p.cover_image_url}'],0)"
-             onerror="this.parentElement.innerHTML='<span style=\\'font-size:20px\\'>📍</span>'">
-         </div>`
-      : `<div class="place-cover-wrap"><span style="font-size:20px">📍</span></div>`;
+  tbody.innerHTML = sorted
+    .map((p) => {
+      const imgs =
+        p.image_urls && p.image_urls.length
+          ? p.image_urls
+          : p.cover_image_url
+            ? [p.cover_image_url]
+            : [];
+      const imgListJson = JSON.stringify(imgs).replace(/"/g, "&quot;");
+      const coverCell = imgs.length
+        ? `<div class="place-cover-wrap">
+       <img src="${imgs[0]}" alt="${p.place_name}"
+         onclick="event.stopPropagation();ImgPopup.open(${imgListJson},0)"
+         onerror="this.parentElement.innerHTML='<span style=\\'font-size:20px\\'>📍</span>'">
+     </div>`
+        : `<div class="place-cover-wrap"><span style="font-size:20px">📍</span></div>`;
 
-    const mapCell = p.google_map_url
-      ? `<a href="${p.google_map_url}" target="_blank" onclick="event.stopPropagation()" class="place-map-link">🗺️ Map</a>`
-      : "—";
+      const mapCell = p.google_map_url
+        ? `<a href="${p.google_map_url}" target="_blank" onclick="event.stopPropagation()" class="place-map-link">🗺️ Map</a>`
+        : "—";
 
-    return `<tr onclick="window.openPlacePanel(${p.place_id})">
+      return `<tr onclick="window.openPlacePanel(${p.place_id})">
       <td style="text-align:center" onclick="event.stopPropagation()">
         <input type="checkbox" class="row-check" value="${p.place_id}" onchange="window.updateDeleteButton()">
       </td>
@@ -135,49 +159,81 @@ function renderTable(places) {
         </div>
       </td>
     </tr>`;
-  }).join("");
+    })
+    .join("");
 }
 
 // ── SIDE PANEL ─────────────────────────────────────────────
+window._panelPlaceId = null;
+
 window.openPlacePanel = function (placeId) {
   const p = allPlaces.find((pl) => pl.place_id === placeId);
   if (!p) return;
 
-  document.getElementById("panelCover").innerHTML = p.cover_image_url
-    ? `<img src="${p.cover_image_url}" alt="${p.place_name}" style="width:100%;height:100%;object-fit:cover">`
-    : `<span style="font-size:48px;opacity:0.3">📍</span>`;
+  window._panelPlaceId = placeId;
 
-  document.getElementById("panelName").textContent = p.place_name;
-  document.getElementById("panelType").innerHTML =
-    `<span class="place-type-badge ptype-${p.place_type}">${typeLabel(p.place_type)}</span>`;
-  document.getElementById("panelStatus").innerHTML =
-    `<span class="place-status-badge pstatus-${p.status}">${p.status}</span>`;
-  document.getElementById("panelAddress").textContent = p.address || "—";
-  document.getElementById("panelContact").textContent =
-    [p.contact_name, p.phone].filter(Boolean).join(" · ") || "—";
-  document.getElementById("panelEmail").textContent = p.email || "—";
-  document.getElementById("panelCapacity").textContent = p.capacity
-    ? `${p.capacity.toLocaleString()} คน`
-    : "—";
-  document.getElementById("panelRooms").textContent =
-    `ห้องประชุม ${p.meeting_rooms || 0} · ห้องพัก ${p.rooms || 0}`;
-  document.getElementById("panelMap").innerHTML = p.google_map_url
-    ? `<a href="${p.google_map_url}" target="_blank" class="place-map-link">เปิด Google Map ↗</a>`
-    : "—";
-  document.getElementById("panelDesc").textContent = p.description || "—";
+  // Cover image
+  const panelImgs =
+    p.image_urls && p.image_urls.length
+      ? p.image_urls
+      : p.cover_image_url
+        ? [p.cover_image_url]
+        : [];
 
-  document.getElementById("panelBtnEdit").onclick = () =>
-    (window.location.href = `./events-place-form.html?id=${p.place_id}`);
+  if (panelImgs.length) {
+    const dots = panelImgs
+      .map(
+        (u, i) =>
+          `<div class="place-panel-dot ${i === 0 ? "active" : ""}" onclick="window._panelGoto(${i})"></div>`,
+      )
+      .join("");
+    document.getElementById("panelCover").innerHTML = `
+    <div class="place-panel-gallery" id="panelGallery">
+      ${panelImgs
+        .map(
+          (u, i) =>
+            `<img src="${u}" class="place-panel-gimg ${i === 0 ? "active" : ""}"
+          onclick="ImgPopup.open(${JSON.stringify(panelImgs)},${i})"
+          style="cursor:pointer">`,
+        )
+        .join("")}
+    </div>
+    ${
+      panelImgs.length > 1
+        ? `
+      <button class="place-panel-nav left" onclick="window._panelNav(-1)">‹</button>
+      <button class="place-panel-nav right" onclick="window._panelNav(1)">›</button>
+      <div class="place-panel-dots">${dots}</div>
+    `
+        : ""
+    }
+  `;
+    window._panelImgIndex = 0;
+    window._panelImgCount = panelImgs.length;
+  } else {
+    document.getElementById("panelCover").innerHTML =
+      `<span style="font-size:48px;opacity:0.3">📍</span>`;
+  }
+
+  // Fill inputs
+  document.getElementById("peqName").value = p.place_name || "";
+  document.getElementById("peqType").value = p.place_type || "HOTEL";
+  document.getElementById("peqStatus").value = p.status || "ACTIVE";
+  document.getElementById("peqAddress").value = p.address || "";
+  document.getElementById("peqContact").value = p.contact_name || "";
+  document.getElementById("peqPhone").value = p.phone || "";
+  document.getElementById("peqEmail").value = p.email || "";
+  document.getElementById("peqCapacity").value = p.capacity || "";
+  document.getElementById("peqMeetingRooms").value = p.meeting_rooms || "";
+  document.getElementById("peqRooms").value = p.rooms || "";
+  document.getElementById("peqParking").value =
+    p.has_parking === true ? "true" : p.has_parking === false ? "false" : "";
+  document.getElementById("peqMap").value = p.google_map_url || "";
+  document.getElementById("peqDesc").value = p.description || "";
 
   document.getElementById("plSidePanel").classList.add("open");
   document.getElementById("plPanelOverlay").style.display = "block";
 };
-
-window.closePlacePanel = function () {
-  document.getElementById("plSidePanel").classList.remove("open");
-  document.getElementById("plPanelOverlay").style.display = "none";
-};
-
 // ── DELETE ─────────────────────────────────────────────────
 window.deletePlace = function (placeId) {
   const p = allPlaces.find((pl) => pl.place_id === placeId);
@@ -194,10 +250,16 @@ window.deletePlace = function (placeId) {
     showLoading(false);
   });
 };
+window.closePlacePanel = function () {
+  document.getElementById("plSidePanel").classList.remove("open");
+  document.getElementById("plPanelOverlay").style.display = "none";
+};
 
 // ── BULK DELETE ────────────────────────────────────────────
 function getSelected() {
-  return Array.from(document.querySelectorAll(".row-check:checked")).map((c) => parseInt(c.value));
+  return Array.from(document.querySelectorAll(".row-check:checked")).map((c) =>
+    parseInt(c.value),
+  );
 }
 
 window.updateDeleteButton = function () {
@@ -206,30 +268,40 @@ window.updateDeleteButton = function () {
 };
 
 window.toggleAllCheckbox = function (el) {
-  document.querySelectorAll(".row-check").forEach((c) => (c.checked = el.checked));
+  document
+    .querySelectorAll(".row-check")
+    .forEach((c) => (c.checked = el.checked));
   window.updateDeleteButton();
 };
 
 window.deleteSelectedPlaces = async function () {
   const ids = getSelected();
   if (!ids.length) return;
-  DeleteModal.open(`ต้องการลบสถานที่ ${ids.length} รายการ หรือไม่?`, async () => {
-    showLoading(true);
-    try {
-      for (const id of ids) await removePlace(id);
-      showToast("ลบที่เลือกแล้ว", "success");
-      await loadData();
-    } catch (err) {
-      showToast("ลบไม่สำเร็จ: " + err.message, "error");
-    }
-    showLoading(false);
-  });
+  DeleteModal.open(
+    `ต้องการลบสถานที่ ${ids.length} รายการ หรือไม่?`,
+    async () => {
+      showLoading(true);
+      try {
+        for (const id of ids) await removePlace(id);
+        showToast("ลบที่เลือกแล้ว", "success");
+        await loadData();
+      } catch (err) {
+        showToast("ลบไม่สำเร็จ: " + err.message, "error");
+      }
+      showLoading(false);
+    },
+  );
 };
 
 // ── HELPERS ────────────────────────────────────────────────
 function typeLabel(t) {
   return (
-    { HOTEL: "🏨 โรงแรม", MEETING_ROOM: "🏢 ห้องประชุม", RESTAURANT: "🍽 ร้านอาหาร", EVENT_SPACE: "🎤 Event Space" }[t] || t
+    {
+      HOTEL: "🏨 โรงแรม",
+      MEETING_ROOM: "🏢 ห้องประชุม",
+      RESTAURANT: "🍽 ร้านอาหาร",
+      EVENT_SPACE: "🎤 Event Space",
+    }[t] || t
   );
 }
 
@@ -249,4 +321,93 @@ if (document.readyState === "loading") {
   document.addEventListener("DOMContentLoaded", initPage);
 } else {
   initPage();
+}
+// ── savePanelPlace  ────────────────────────────────────────────
+window.savePanelPlace = async function () {
+  const placeId = window._panelPlaceId;
+  if (!placeId) return;
+
+  const name = document.getElementById("peqName").value.trim();
+  if (!name) {
+    showToast("กรุณาระบุชื่อสถานที่", "error");
+    return;
+  }
+
+  const payload = {
+    place_name: name,
+    place_type: document.getElementById("peqType").value,
+    status: document.getElementById("peqStatus").value,
+    address: document.getElementById("peqAddress").value.trim() || null,
+    contact_name: document.getElementById("peqContact").value.trim() || null,
+    phone: document.getElementById("peqPhone").value.trim() || null,
+    email: document.getElementById("peqEmail").value.trim() || null,
+    capacity: parseInt(document.getElementById("peqCapacity").value) || 0,
+    meeting_rooms:
+      parseInt(document.getElementById("peqMeetingRooms").value) || 0,
+    rooms: parseInt(document.getElementById("peqRooms").value) || 0,
+    has_parking:
+      document.getElementById("peqParking").value === "true"
+        ? true
+        : document.getElementById("peqParking").value === "false"
+          ? false
+          : null,
+    google_map_url: document.getElementById("peqMap").value.trim() || null,
+    description: document.getElementById("peqDesc").value.trim() || null,
+  };
+
+  showLoading(true);
+  try {
+    const { url, key } = getSB();
+    const res = await fetch(`${url}/rest/v1/places?place_id=eq.${placeId}`, {
+      method: "PATCH",
+      headers: {
+        apikey: key,
+        Authorization: `Bearer ${key}`,
+        "Content-Type": "application/json",
+        Prefer: "return=representation",
+      },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) throw new Error("Save failed");
+    showToast("บันทึกแล้ว", "success");
+    await loadData();
+    showToast("บันทึกแล้ว", "success");
+    await loadData();
+    window.closePlacePanel();
+  } catch (err) {
+    showToast("บันทึกไม่สำเร็จ: " + err.message, "error");
+  }
+  showLoading(false);
+};
+window._panelNav = function (dir) {
+  const imgs = document.querySelectorAll("#panelGallery .place-panel-gimg");
+  const dots = document.querySelectorAll(".place-panel-dot");
+  if (!imgs.length) return;
+  imgs[window._panelImgIndex].classList.remove("active");
+  if (dots[window._panelImgIndex])
+    dots[window._panelImgIndex].classList.remove("active");
+  window._panelImgIndex =
+    (window._panelImgIndex + dir + window._panelImgCount) %
+    window._panelImgCount;
+  imgs[window._panelImgIndex].classList.add("active");
+  if (dots[window._panelImgIndex])
+    dots[window._panelImgIndex].classList.add("active");
+};
+
+window._panelGoto = function (idx) {
+  const imgs = document.querySelectorAll("#panelGallery .place-panel-gimg");
+  const dots = document.querySelectorAll(".place-panel-dot");
+  if (!imgs.length) return;
+  imgs[window._panelImgIndex].classList.remove("active");
+  if (dots[window._panelImgIndex])
+    dots[window._panelImgIndex].classList.remove("active");
+  window._panelImgIndex = idx;
+  imgs[idx].classList.add("active");
+  if (dots[idx]) dots[idx].classList.add("active");
+};
+function getSB() {
+  return {
+    url: localStorage.getItem("sb_url") || "",
+    key: localStorage.getItem("sb_key") || "",
+  };
 }

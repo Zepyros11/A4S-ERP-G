@@ -6,6 +6,8 @@ import {
   fetchEventById,
   fetchUsers,
   fetchEvents,
+  fetchEventCategories,
+  fetchPlaces,
   createEvent,
   updateEvent,
   uploadEventPoster,
@@ -22,7 +24,7 @@ async function initPage() {
   const params = new URLSearchParams(window.location.search);
   editId = params.get("id") ? parseInt(params.get("id")) : null;
 
-  await loadUsers();
+  await Promise.all([loadUsers(), loadEventCategories(), loadPlaces()]);
 
   if (editId) {
     document.getElementById("pageTitle").textContent = "✏️ แก้ไขกิจกรรม";
@@ -45,8 +47,110 @@ async function loadUsers() {
         `<option value="${u.user_id}">${u.full_name}</option>`,
       );
     });
+
+    // Default = user ที่ login อยู่ (ถ้ายังไม่ได้ set จาก editId)
+    if (!editId) {
+      const session = JSON.parse(
+        localStorage.getItem("erp_session") ||
+          sessionStorage.getItem("erp_session") ||
+          "{}",
+      );
+      if (session?.user_id) {
+        sel.value = session.user_id;
+      }
+    }
   } catch (e) {
     showToast("โหลดข้อมูลผู้ใช้ไม่ได้", "error");
+  }
+}
+// ── LOAD PLACES ────────────────────────────────────────────
+async function loadPlaces() {
+  try {
+    const places = await fetchPlaces();
+    const activePlaces = places.filter((p) => p.status === "ACTIVE");
+    const input = document.getElementById("fLocation");
+    const dropdown = document.getElementById("locationDropdown");
+    if (!input || !dropdown) return;
+
+    function renderDropdown(keyword) {
+      const filtered = keyword
+        ? activePlaces.filter((p) =>
+            p.place_name.toLowerCase().includes(keyword.toLowerCase()),
+          )
+        : activePlaces;
+
+      if (!filtered.length) {
+        dropdown.style.display = "none";
+        return;
+      }
+
+      dropdown.innerHTML = filtered
+        .map((p) => {
+          const imgs =
+            p.image_urls && p.image_urls.length
+              ? p.image_urls
+              : p.cover_image_url
+                ? [p.cover_image_url]
+                : [];
+          const thumb = imgs[0]
+            ? `<img src="${imgs[0]}" style="width:100%;height:100%;object-fit:cover;border-radius:6px;">`
+            : placeTypeIcon(p.place_type);
+          return `
+          <div class="ef-loc-item" data-name="${p.place_name}">
+            <div class="ef-loc-icon">${thumb}</div>
+            <div class="ef-loc-info">
+              <div class="ef-loc-name">${p.place_name}</div>
+              ${p.address ? `<div class="ef-loc-addr">${p.address}</div>` : ""}
+            </div>
+            ${p.capacity ? `<div class="ef-loc-cap">👥 ${p.capacity.toLocaleString()}</div>` : ""}
+          </div>`;
+        })
+        .join("");
+
+      dropdown.style.display = "block";
+
+      dropdown.querySelectorAll(".ef-loc-item").forEach((el) => {
+        el.addEventListener("mousedown", (e) => {
+          e.preventDefault();
+          input.value = el.dataset.name;
+          dropdown.style.display = "none";
+        });
+      });
+    }
+
+    input.addEventListener("focus", () => renderDropdown(input.value));
+    input.addEventListener("input", () => renderDropdown(input.value));
+    input.addEventListener("blur", () => {
+      setTimeout(() => (dropdown.style.display = "none"), 150);
+    });
+  } catch (e) {
+    console.error("โหลดสถานที่ไม่ได้", e);
+  }
+}
+
+function placeTypeIcon(type) {
+  return (
+    { HOTEL: "🏨", MEETING_ROOM: "🏢", RESTAURANT: "🍽", EVENT_SPACE: "🎤" }[
+      type
+    ] || "📍"
+  );
+}
+
+// ── LOAD EVENT CATEGORIES ──────────────────────────────────
+async function loadEventCategories() {
+  try {
+    const cats = await fetchEventCategories();
+    const sel = document.getElementById("fEventType");
+    // ล้าง option เดิมทิ้ง เหลือแค่ placeholder
+    sel.innerHTML = `<option value="">— เลือกประเภทกิจกรรม —</option>`;
+    cats.forEach((c) => {
+      sel.insertAdjacentHTML(
+        "beforeend",
+        `<option value="${c.event_category_id}">${c.icon || ""} ${c.category_name}</option>`,
+      );
+    });
+  } catch (e) {
+    showToast("โหลดประเภทกิจกรรมไม่ได้", "error");
   }
 }
 
@@ -62,7 +166,7 @@ async function loadEventData() {
 
     document.getElementById("fEventName").value = e.event_name || "";
     document.getElementById("fEventCode").value = e.event_code || "";
-    document.getElementById("fEventType").value = e.event_type || "";
+    document.getElementById("fEventType").value = e.event_category_id || "";
     document.getElementById("fEventDate").value = e.event_date || "";
     document.getElementById("fEndDate").value = e.end_date || "";
     document.getElementById("fStartTime").value = e.start_time
@@ -153,7 +257,9 @@ window._saveEventImpl = async function () {
     const payload = {
       event_name: document.getElementById("fEventName").value.trim(),
       event_code: document.getElementById("fEventCode").value.trim(),
-      event_type: document.getElementById("fEventType").value,
+      event_category_id:
+        parseInt(document.getElementById("fEventType").value) || null,
+
       event_date: document.getElementById("fEventDate").value,
       end_date: document.getElementById("fEndDate").value || null,
       start_time: document.getElementById("fStartTime").value || null,
@@ -171,7 +277,7 @@ window._saveEventImpl = async function () {
     if (editId) {
       await updateEvent(editId, payload);
     } else {
-      const res = await createEvent(payload);
+      const res = await createEvent({ ...payload, event_type: "OTHER" });
       savedId = res?.event_id;
     }
 

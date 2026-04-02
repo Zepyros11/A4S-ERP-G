@@ -32,7 +32,7 @@ async function sbFetch(table, query = "", opts = {}) {
 
 /* ── EVENTS ── */
 export async function fetchEvents() {
-  return sbFetch("events", "?select=*&order=event_date.asc") || [];
+  return sbFetch("events", "?select=*&order=event_date.desc") || [];
 }
 
 export async function fetchEventById(id) {
@@ -56,7 +56,7 @@ export async function removeEvent(id) {
   return sbFetch("events", `?event_id=eq.${id}`, { method: "DELETE" });
 }
 
-/* ── USERS (สำหรับ dropdown ผู้รับผิดชอบ) ── */
+/* ── USERS ── */
 export async function fetchUsers() {
   return (
     sbFetch(
@@ -137,9 +137,15 @@ export async function markAllNotifsRead(userId) {
     body: { is_read: true },
   });
 }
+
 /* ── PLACES ── */
 export async function fetchPlaces() {
   return sbFetch("places", "?select=*&order=place_name.asc") || [];
+}
+
+export async function fetchPlaceById(id) {
+  const res = await sbFetch("places", `?place_id=eq.${id}&select=*`);
+  return res?.[0] || null;
 }
 
 export async function createPlace(data) {
@@ -147,6 +153,23 @@ export async function createPlace(data) {
   return res?.[0];
 }
 
+export async function updatePlace(id, data) {
+  return sbFetch("places", `?place_id=eq.${id}`, {
+    method: "PATCH",
+    body: data,
+  });
+}
+
 export async function removePlace(id) {
   return sbFetch("places", `?place_id=eq.${id}`, { method: "DELETE" });
+}
+
+/* ── EVENT CATEGORIES ── */
+export async function fetchEventCategories() {
+  return (
+    sbFetch(
+      "event_categories",
+      "?select=*&order=sort_order.asc,category_name.asc",
+    ) || []
+  );
 }

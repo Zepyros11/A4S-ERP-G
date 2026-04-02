@@ -8,7 +8,7 @@ import { fetchEvents, fetchUsers, removeEvent } from "./events-api.js";
 let allEvents = [];
 let allUsers = [];
 let sortKey = "event_date";
-let sortAsc = true;
+let sortAsc = false;
 
 // ── INIT ───────────────────────────────────────────────────
 async function initPage() {
@@ -22,12 +22,65 @@ async function loadData() {
     const [evts, usrs] = await Promise.all([fetchEvents(), fetchUsers()]);
     allEvents = evts || [];
     allUsers = usrs || [];
+    await autoUpdateStatuses();
     updateStatCards();
     filterTable();
   } catch (e) {
     showToast("โหลดข้อมูลไม่ได้: " + e.message, "error");
   }
   showLoading(false);
+}
+
+// ── AUTO STATUS UPDATE ─────────────────────────────────────
+async function autoUpdateStatuses() {
+  const now = new Date();
+  const { url, key } = getSBLocal();
+  if (!url || !key) return;
+
+  const toUpdate = [];
+
+  for (const e of allEvents) {
+    if (e.status !== "CONFIRMED" && e.status !== "ONGOING") continue;
+
+    const startDate = e.event_date;
+    const endDate = e.end_date || e.event_date;
+    const startTime = e.start_time ? e.start_time.slice(0, 5) : "00:00";
+    const endTime = e.end_time ? e.end_time.slice(0, 5) : "23:59";
+
+    const startDT = new Date(`${startDate}T${startTime}:00`);
+    const endDT = new Date(`${endDate}T${endTime}:00`);
+
+    let newStatus = null;
+    if (now >= endDT) {
+      newStatus = "DONE";
+    } else if (now >= startDT && e.status === "CONFIRMED") {
+      newStatus = "ONGOING";
+    }
+
+    if (newStatus && newStatus !== e.status) {
+      toUpdate.push({ event_id: e.event_id, newStatus });
+    }
+  }
+
+  if (!toUpdate.length) return;
+
+  await Promise.all(
+    toUpdate.map(({ event_id, newStatus }) =>
+      fetch(`${url}/rest/v1/events?event_id=eq.${event_id}`, {
+        method: "PATCH",
+        headers: {
+          apikey: key,
+          Authorization: `Bearer ${key}`,
+          "Content-Type": "application/json",
+          Prefer: "return=minimal",
+        },
+        body: JSON.stringify({ status: newStatus }),
+      }).then(() => {
+        const ev = allEvents.find((e) => e.event_id === event_id);
+        if (ev) ev.status = newStatus;
+      }),
+    ),
+  );
 }
 
 // ── BIND EVENTS ────────────────────────────────────────────
@@ -190,9 +243,9 @@ function renderTable(events) {
           onchange="window.changeEventStatus(${e.event_id}, this)"
         >
           <option value="DRAFT"   ${e.status === "DRAFT" ? "selected" : ""}>📝 Draft</option>
-          <option value="CONFIRMED" ${e.status === "CONFIRMED" ? "selected" : ""}>✅ Confirmed</option>
+          <option value="CONFIRMED" ${e.status === "CONFIRMED" ? "selected" : ""}>✔️ Confirmed</option>
           <option value="ONGOING" ${e.status === "ONGOING" ? "selected" : ""}>▶️ Ongoing</option>
-          <option value="DONE"    ${e.status === "DONE" ? "selected" : ""}>🏁 Done</option>
+          <option value="DONE"    ${e.status === "DONE" ? "selected" : ""}>✅ Done</option>
           <option value="CANCELLED" ${e.status === "CANCELLED" ? "selected" : ""}>❌ Cancelled</option>
         </select>
       </td>
@@ -352,9 +405,9 @@ function statusLabel(s) {
   return (
     {
       DRAFT: "📝 Draft",
-      CONFIRMED: "✅ Confirmed",
+      CONFIRMED: "✔️ Confirmed",
       ONGOING: "▶️ Ongoing",
-      DONE: "🏁 Done",
+      DONE: "✅ Done",
       CANCELLED: "❌ Cancelled",
     }[s] || s
   );

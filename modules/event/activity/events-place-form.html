@@ -226,10 +226,15 @@
       loadTopbar("📍 สถานที่");
     </script>
     <script>
-      // Slot rendering — plain script ไม่ใช้ module
-      var _imageFiles = [];
+      // Slot rendering — plain script (จะถูก override โดย ES module หลัง load)
+      var _imageFiles = window._imageFiles || [];
 
       function _renderSlots() {
+        // ถ้า ES module override แล้ว ให้ใช้ version นั้น
+        if (window._renderSlots && window._renderSlots !== _renderSlots) {
+          window._renderSlots();
+          return;
+        }
         var grid = document.getElementById("previewGrid");
         if (!grid) {
           setTimeout(_renderSlots, 100);
@@ -247,7 +252,7 @@
                 '<img src="' +
                 URL.createObjectURL(file) +
                 '" />' +
-                '<button class="place-remove" onclick="event.stopPropagation();_removeImg(' +
+                '<button class="place-remove" onclick="event.stopPropagation();_removeSlot(' +
                 idx +
                 ')">✕</button>' +
                 '<div class="place-slot-num">' +
@@ -306,22 +311,8 @@
         input.click();
       }
 
-      function _removeImg(idx) {
-        _imageFiles.splice(idx, 1);
-        _renderSlots();
-      }
-
-      document
-        .getElementById("fileInput")
-        .addEventListener("change", function (e) {
-          var file = e.target.files && e.target.files[0];
-          if (!file) return;
-          var idx = parseInt(e.target.dataset.index);
-          _imageFiles[isNaN(idx) ? _imageFiles.length : idx] = file;
-          _renderSlots();
-        });
-
-      // เริ่ม render — retry ถ้า grid ยังไม่มี
+      // _removeSlot และ fileInput.change จะถูก handle โดย ES module
+      // plain script นี้ทำแค่ render ครั้งแรก
       _renderSlots();
     </script>
   </body>

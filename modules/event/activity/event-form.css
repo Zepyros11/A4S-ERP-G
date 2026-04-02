@@ -85,8 +85,10 @@
 
 /* ── POSTER PREVIEW ── */
 .ef-poster-preview {
-  width: 100%;
-  height: 200px;
+  width: 60%;
+  aspect-ratio: 1 / 1.414; /* A4/A5 ratio */
+  margin-left: auto;
+  margin-right: auto;
   border-radius: 10px;
   border: 2px dashed var(--border);
   background: var(--surface2);
@@ -172,4 +174,71 @@
 }
 .ef-dropdown-item:hover {
   background: var(--surface2);
+}
+/* ── LOCATION CUSTOM DROPDOWN ── */
+.ef-location-wrap {
+  position: relative;
+}
+.ef-location-dropdown {
+  display: none;
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  z-index: 9999;
+  max-height: 240px;
+  overflow-y: auto;
+}
+.ef-loc-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--border);
+  transition: background 0.12s;
+}
+.ef-loc-item:last-child {
+  border-bottom: none;
+}
+.ef-loc-item:hover {
+  background: var(--surface2);
+}
+.ef-loc-icon {
+  font-size: 20px;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: var(--surface2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.ef-loc-info {
+  flex: 1;
+  min-width: 0;
+}
+.ef-loc-name {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text);
+}
+.ef-loc-addr {
+  font-size: 11px;
+  color: var(--text3);
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ef-loc-cap {
+  font-size: 11px;
+  color: var(--text3);
+  flex-shrink: 0;
+  white-space: nowrap;
 }

@@ -187,88 +187,147 @@
           <span style="font-size: 48px; opacity: 0.3">📍</span>
         </div>
 
-        <!-- ชื่อ + Type + Status -->
-        <div>
-          <div
-            style="
-              font-size: 18px;
-              font-weight: 700;
-              color: var(--text);
-              margin-bottom: 6px;
-            "
-            id="panelName"
+        <!-- ── EDIT FORM ── -->
+        <div class="panel-field">
+          <label class="panel-label"
+            >ชื่อสถานที่ <span style="color: var(--danger)">*</span></label
           >
-            —
+          <input class="panel-input" id="peqName" placeholder="ชื่อสถานที่" />
+        </div>
+
+        <div class="panel-row-2">
+          <div class="panel-field">
+            <label class="panel-label">ประเภท</label>
+            <select class="panel-input" id="peqType">
+              <option value="HOTEL">🏨 โรงแรม</option>
+              <option value="MEETING_ROOM">🏢 ห้องประชุม</option>
+              <option value="RESTAURANT">🍽 ร้านอาหาร</option>
+              <option value="EVENT_SPACE">🎤 Event Space</option>
+            </select>
           </div>
-          <div style="display: flex; gap: 6px; flex-wrap: wrap">
-            <span id="panelType"></span>
-            <span id="panelStatus"></span>
+          <div class="panel-field">
+            <label class="panel-label">สถานะ</label>
+            <select class="panel-input" id="peqStatus">
+              <option value="ACTIVE">✅ ACTIVE</option>
+              <option value="INACTIVE">🚫 INACTIVE</option>
+            </select>
           </div>
         </div>
 
-        <hr style="border: none; border-top: 1px solid var(--border)" />
+        <div class="panel-field">
+          <label class="panel-label">ที่อยู่</label>
+          <textarea
+            class="panel-input panel-textarea"
+            id="peqAddress"
+            placeholder="ที่อยู่..."
+          ></textarea>
+        </div>
 
-        <div style="display: flex; flex-direction: column; gap: 14px">
-          <div class="ev-info-row">
-            <span class="ev-info-icon">📍</span>
-            <div>
-              <div class="ev-info-label">ที่อยู่</div>
-              <div class="ev-info-value" id="panelAddress">—</div>
-            </div>
+        <div class="panel-row-2">
+          <div class="panel-field">
+            <label class="panel-label">ชื่อผู้ติดต่อ</label>
+            <input class="panel-input" id="peqContact" placeholder="ชื่อ" />
           </div>
-          <div class="ev-info-row">
-            <span class="ev-info-icon">📞</span>
-            <div>
-              <div class="ev-info-label">ติดต่อ</div>
-              <div class="ev-info-value" id="panelContact">—</div>
-            </div>
+          <div class="panel-field">
+            <label class="panel-label">เบอร์โทร</label>
+            <input
+              class="panel-input"
+              id="peqPhone"
+              placeholder="08x-xxx-xxxx"
+            />
           </div>
-          <div class="ev-info-row">
-            <span class="ev-info-icon">✉️</span>
-            <div>
-              <div class="ev-info-label">Email</div>
-              <div class="ev-info-value" id="panelEmail">—</div>
-            </div>
+        </div>
+
+        <div class="panel-field">
+          <label class="panel-label">Email</label>
+          <input
+            class="panel-input"
+            id="peqEmail"
+            type="email"
+            placeholder="email@..."
+          />
+        </div>
+
+        <div class="panel-row-2">
+          <div class="panel-field">
+            <label class="panel-label">Capacity (คน)</label>
+            <input
+              class="panel-input"
+              id="peqCapacity"
+              type="number"
+              min="0"
+              placeholder="0"
+            />
           </div>
-          <div class="ev-info-row">
-            <span class="ev-info-icon">👥</span>
-            <div>
-              <div class="ev-info-label">Capacity</div>
-              <div class="ev-info-value" id="panelCapacity">—</div>
-            </div>
+          <div class="panel-field">
+            <label class="panel-label">Meeting Rooms</label>
+            <input
+              class="panel-input"
+              id="peqMeetingRooms"
+              type="number"
+              min="0"
+              placeholder="0"
+            />
           </div>
-          <div class="ev-info-row">
-            <span class="ev-info-icon">🏢</span>
-            <div>
-              <div class="ev-info-label">ห้องประชุม / ห้องพัก</div>
-              <div class="ev-info-value" id="panelRooms">—</div>
-            </div>
+        </div>
+
+        <div class="panel-row-2">
+          <div class="panel-field">
+            <label class="panel-label">ห้องพัก</label>
+            <input
+              class="panel-input"
+              id="peqRooms"
+              type="number"
+              min="0"
+              placeholder="0"
+            />
           </div>
-          <div class="ev-info-row">
-            <span class="ev-info-icon">🗺️</span>
-            <div>
-              <div class="ev-info-label">Google Map</div>
-              <div class="ev-info-value" id="panelMap">—</div>
-            </div>
+          <div class="panel-field">
+            <label class="panel-label">ที่จอดรถ</label>
+            <select class="panel-input" id="peqParking">
+              <option value="">— เลือก —</option>
+              <option value="true">✅ มี</option>
+              <option value="false">❌ ไม่มี</option>
+            </select>
           </div>
-          <div class="ev-info-row">
-            <span class="ev-info-icon">📝</span>
-            <div>
-              <div class="ev-info-label">รายละเอียด</div>
-              <div
-                class="ev-info-value"
-                style="line-height: 1.6; color: var(--text2)"
-                id="panelDesc"
-              >
-                —
-              </div>
-            </div>
-          </div>
+        </div>
+
+        <div class="panel-field">
+          <label class="panel-label">Google Map URL</label>
+          <input
+            class="panel-input"
+            id="peqMap"
+            placeholder="https://maps.google.com/..."
+          />
+        </div>
+
+        <div class="panel-field">
+          <label class="panel-label">รายละเอียด</label>
+          <textarea
+            class="panel-input panel-textarea"
+            id="peqDesc"
+            placeholder="รายละเอียด..."
+          ></textarea>
         </div>
       </div>
 
       <div class="ev-panel-footer">
-        <button class="btn btn-primary" id="panelBtnEdit">✏️ แก้ไข</button>
+        <button
+          class="btn btn-outline"
+          onclick="
+            window.location.href =
+              './events-place-form.html?id=' + window._panelPlaceId
+          "
+        >
+          🔗 แก้ไขเต็ม
+        </button>
+        <button
+          class="btn btn-primary"
+          id="panelBtnSave"
+          onclick="window.savePanelPlace()"
+        >
+          💾 บันทึก
+        </button>
       </div>
     </div>
 
