@@ -485,9 +485,9 @@
   </div>
   <div class="cfg-group">
     <span>AI Proxy URL</span>
-    <input id="cfg-ai-proxy" placeholder="http://localhost:3001/extract" title="Backend proxy สำหรับ AI OCR (ดูคำอธิบายด้านล่าง)" />
+    <input id="cfg-ai-proxy" placeholder="http://localhost:3001/extract" title="Backend proxy for AI OCR (see guide below)" />
   </div>
-  <button class="btn btn-outline" style="color:#fff;border-color:rgba(255,255,255,.4)" onclick="saveConfig()">บันทึก Config</button>
+  <button class="btn btn-outline" style="color:#fff;border-color:rgba(255,255,255,.4)" onclick="saveConfig()">Save Config</button>
 </div>
 
 <!-- ══ Toolbar ════════════════════════════════════════════ -->
@@ -501,33 +501,33 @@
   </button>
 
   <button class="btn btn-success" onclick="saveAllToSupabase()">
-    💾 บันทึกทั้งหมด (Supabase)
+    💾 Save All (Supabase)
   </button>
 
   <button class="btn btn-outline" onclick="exportExcel()">
     📤 Export Excel
   </button>
 
-  <button class="btn btn-outline" onclick="downloadTemplate()" title="ดาวน์โหลด Template สำหรับกรอกข้อมูลนำเข้า">
+  <button class="btn btn-outline" onclick="downloadTemplate()" title="Download import template">
     📋 Template Import
   </button>
 
   <button class="btn btn-warning" onclick="clearAll()">
-    🗑 ล้างข้อมูล
+    🗑 Clear Data
   </button>
 
-  <button class="btn btn-outline" onclick="copyShareUrl()" title="คัดลอก URL พร้อม Supabase credentials เพื่อแชร์ให้คนอื่น">
+  <button class="btn btn-outline" onclick="copyShareUrl()" title="Copy URL with Supabase credentials to share">
     🔗 Copy Share URL
   </button>
 
   <div style="flex:1"></div>
-  <span class="badge badge-info" id="row-count">0 รายการ</span>
+  <span class="badge badge-info" id="row-count">0 items</span>
 </div>
 
 <!-- ══ Note about AI ══════════════════════════════════════ -->
 <div style="background:#fffbeb;border-bottom:1px solid #fde68a;padding:7px 20px;font-size:11px;color:#92400e;">
-  ⚠ <strong>AI Passport OCR:</strong> การดึงข้อมูลจาก Passport ด้วย AI ต้องใช้ <strong>Backend Proxy</strong> (เนื่องจาก Browser CORS Policy ไม่อนุญาตเรียก Anthropic API โดยตรง)
-  — ใส่ URL ของ proxy server ใน Config ด้านบน หากต้องการ setup proxy ดู <code>proxy-setup-guide</code> ด้านล่างตาราง
+  ⚠ <strong>AI Passport OCR:</strong> Extracting passport data with AI requires a <strong>Backend Proxy</strong> (Browser CORS Policy does not allow direct calls to the Anthropic API)
+  — Enter your proxy server URL in Config above. To set up a proxy, see <code>proxy-setup-guide</code> below the table.
 </div>
 
 <!-- ══ Status Cards ══════════════════════════════════════ -->
@@ -537,7 +537,7 @@
       <div class="cs-stat-icon">👥</div>
       <div>
         <div class="cs-stat-value" id="st-total">0</div>
-        <div class="cs-stat-label">จำนวนทั้งหมด</div>
+        <div class="cs-stat-label">Total</div>
       </div>
     </div>
     <div class="cs-stat-card s-conf">
@@ -582,18 +582,18 @@
 
 <!-- ══ Legend ════════════════════════════════════════════ -->
 <div style="display:flex;align-items:center;gap:16px;padding:7px 20px;background:var(--surface);border-bottom:1px solid var(--border);flex-wrap:wrap;">
-  <span style="font-size:11px;font-weight:600;color:var(--text3);letter-spacing:.4px;">สถานะแถว :</span>
+  <span style="font-size:11px;font-weight:600;color:var(--text3);letter-spacing:.4px;">Row Status :</span>
   <span style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text2);">
     <span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:#bfdbfe;border:1px solid #93c5fd;flex-shrink:0;"></span>
-    มี Passport ID
+    Has Passport ID
   </span>
   <span style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text2);">
     <span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:#bbf7d0;border:1px solid #86efac;flex-shrink:0;"></span>
-    กรอกข้อมูลครบทุกช่อง
+    All fields complete
   </span>
   <span style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text2);">
     <span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:#fffbea;border:1px solid #fde68a;flex-shrink:0;"></span>
-    กำลังแก้ไข
+    Editing
   </span>
 </div>
 
@@ -603,8 +603,8 @@
     <thead>
       <tr>
         <th class="col-no">#</th>
-        <th class="col-code sortable" data-sort="code" onclick="sortBy('code')">รหัส<span class="sort-arrow"></span></th>
-        <th class="col-name sortable" data-sort="name" onclick="sortBy('name')">รายชื่อ<span class="sort-arrow"></span></th>
+        <th class="col-code sortable" data-sort="code" onclick="sortBy('code')">Code<span class="sort-arrow"></span></th>
+        <th class="col-name sortable" data-sort="name" onclick="sortBy('name')">Name<span class="sort-arrow"></span></th>
         <th class="col-pin sortable" data-sort="pin" onclick="sortBy('pin')">PIN<span class="sort-arrow"></span></th>
         <th class="col-seat sortable" data-sort="seat" onclick="sortBy('seat')">Seat<span class="sort-arrow"></span></th>
         <th class="col-nat sortable" data-sort="nationality" onclick="sortBy('nationality')">Nationality<span class="sort-arrow"></span></th>
@@ -619,7 +619,7 @@
     </thead>
     <tbody id="table-body">
       <tr id="empty-row">
-        <td colspan="13">ยังไม่มีข้อมูล — กด Import Excel หรือเพิ่มแถวด้วยตนเอง</td>
+        <td colspan="13">No data — click Import Excel or add a row manually</td>
       </tr>
     </tbody>
   </table>
@@ -627,13 +627,13 @@
 
 <!-- ══ Add Row button ════════════════════════════════════ -->
 <div style="padding:0 20px 20px">
-  <button class="btn btn-outline" onclick="addEmptyRow()">+ เพิ่มแถวว่าง</button>
+  <button class="btn btn-outline" onclick="addEmptyRow()">+ Add Empty Row</button>
 </div>
 
 <!-- ══ Proxy Setup Guide ══════════════════════════════════ -->
 <details style="margin:0 20px 30px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px">
-  <summary style="cursor:pointer;font-weight:700;color:var(--accent);font-size:13px">📋 AI Proxy Setup Guide (Node.js — คลิกเพื่อดู)</summary>
-  <pre style="margin-top:12px;background:#1e293b;color:#e2e8f0;padding:14px;border-radius:6px;font-size:12px;overflow-x:auto"><code>// proxy-server.js — รัน: node proxy-server.js
+  <summary style="cursor:pointer;font-weight:700;color:var(--accent);font-size:13px">📋 AI Proxy Setup Guide (Node.js — click to expand)</summary>
+  <pre style="margin-top:12px;background:#1e293b;color:#e2e8f0;padding:14px;border-radius:6px;font-size:12px;overflow-x:auto"><code>// proxy-server.js — run: node proxy-server.js
 const express = require('express');
 const cors = require('cors');
 const Anthropic = require('@anthropic-ai/sdk');
@@ -662,8 +662,8 @@ app.post('/extract', async (req, res) => {
 
 app.listen(3001, () => console.log('Proxy running on port 3001'));
 
-// ติดตั้ง: npm install express cors @anthropic-ai/sdk
-// รัน: ANTHROPIC_API_KEY=sk-... node proxy-server.js</code></pre>
+// install: npm install express cors @anthropic-ai/sdk
+// run: ANTHROPIC_API_KEY=sk-... node proxy-server.js</code></pre>
 </details>
 
 <!-- ══ Image Modal ════════════════════════════════════════ -->
@@ -676,8 +676,8 @@ app.listen(3001, () => console.log('Proxy running on port 3001'));
 <div id="save-overlay">
   <div id="save-overlay-box">
     <div id="save-overlay-spinner"></div>
-    <div id="save-overlay-title">กำลังบันทึก...</div>
-    <div id="save-overlay-msg">กรุณารอสักครู่ อย่าปิดหรือ Refresh หน้านี้</div>
+    <div id="save-overlay-title">Saving...</div>
+    <div id="save-overlay-msg">Please wait. Do not close or refresh this page.</div>
   </div>
 </div>
 
@@ -782,7 +782,7 @@ function saveConfig() {
   localStorage.setItem('cs_sb_key',   key);
   localStorage.setItem('cs_ai_proxy', proxy);
   initSupabase(url, key);
-  toast('บันทึก Config แล้ว', 'success');
+  toast('Config saved', 'success');
 }
 
 function initSupabase(url, key) {
@@ -843,7 +843,7 @@ function importExcel(event) {
       const ws  = wb.Sheets[wb.SheetNames[0]];
       const raw = XLSX.utils.sheet_to_json(ws, { defval: '' });
 
-      if (raw.length === 0) { toast('ไม่พบข้อมูลใน Excel', 'error'); return; }
+      if (raw.length === 0) { toast('No data found in Excel', 'error'); return; }
 
       /* Detect column names (case-insensitive, support Thai & English) */
       const firstRow = raw[0];
@@ -851,11 +851,11 @@ function importExcel(event) {
       const findKey = (...candidates) =>
         keys.find(k => candidates.some(c => k.toString().toLowerCase().includes(c.toLowerCase()))) || null;
 
-      const colCode = findKey('รหัส', 'code', 'id');
-      const colName = findKey('รายชื่อ', 'ชื่อ', 'name');
+      const colCode = findKey('รหัส', 'code', 'id', 'Code');
+      const colName = findKey('รายชื่อ', 'ชื่อ', 'name', 'Name');
       const colPin  = findKey('pin', 'PIN', 'position', 'ตำแหน่ง');
       const colSeat = findKey('seat', 'ที่นั่ง', 'Seat');
-      const colNat  = findKey('nationality', 'สัญชาติ', 'nation');
+      const colNat  = findKey('nationality', 'สัญชาติ', 'nation', 'Nationality');
 
       const imported = [];
       raw.forEach((r) => {
@@ -883,14 +883,14 @@ function importExcel(event) {
       renderTable();
       saveLocal(); // บันทึก localStorage ทันทีก่อน async Supabase
       const mainCount = imported.filter(r => !r.isSubRow).length;
-      toast(`Import สำเร็จ — ${mainCount} รายการ`, 'success');
+      toast(`Import successful — ${mainCount} items`, 'success');
 
       if (sbClient) {
-        toast('กำลังบันทึกไป Supabase...', 'info');
-        saveAllToSupabase().catch(e => toast('บันทึก Supabase ไม่สำเร็จ: ' + e.message, 'error'));
+        toast('Saving to Supabase...', 'info');
+        saveAllToSupabase().catch(e => toast('Failed to save to Supabase: ' + e.message, 'error'));
       }
     } catch (err) {
-      toast('เกิดข้อผิดพลาดในการอ่าน Excel: ' + err.message, 'error');
+      toast('Error reading Excel: ' + err.message, 'error');
       console.error(err);
     }
   };
@@ -911,7 +911,7 @@ function addEmptyRow() {
 }
 
 async function clearAll() {
-  if (!confirm('ล้างข้อมูลทั้งหมด? (จะลบจาก Supabase และรูปทั้งหมดในเบราว์เซอร์ด้วย)')) return;
+  if (!confirm('Clear all data? (This will also delete from Supabase and all images in the browser)')) return;
   rows = [];
   localStorage.removeItem('cs_rows');
   IMG_DB.clearAll(); // ล้างรูปใน IndexedDB ด้วย
@@ -921,9 +921,9 @@ async function clearAll() {
     try {
       const { error } = await sbClient.from('tour_seat_check').delete().neq('code', '__never__');
       if (error) throw error;
-      toast('ล้างข้อมูลใน Supabase สำเร็จ', 'success');
+      toast('Supabase data cleared', 'success');
     } catch(e) {
-      toast('ลบจาก Supabase ไม่สำเร็จ: ' + e.message, 'error');
+      toast('Failed to delete from Supabase: ' + e.message, 'error');
     }
   }
 }
@@ -1082,7 +1082,7 @@ async function loadFromSupabase() {
 
   // แสดง loading
   document.getElementById('table-body').innerHTML =
-    `<tr><td colspan="12" style="text-align:center;padding:40px;color:var(--text3)">⏳ กำลังโหลดข้อมูลจาก Supabase...</td></tr>`;
+    `<tr><td colspan="12" style="text-align:center;padding:40px;color:var(--text3)">⏳ Loading data from Supabase...</td></tr>`;
 
   try {
     const { data, error } = await sbClient
@@ -1180,7 +1180,7 @@ function renderTable() {
 
   if (rows.length === 0) {
     if (empty) empty.style.display = '';
-    document.getElementById('row-count').textContent = '0 รายการ';
+    document.getElementById('row-count').textContent = '0 items';
     updateStats();
     return;
   }
@@ -1193,7 +1193,7 @@ function renderTable() {
 
   const mainCount = rows.filter(r => !r.isSubRow).length;
   document.getElementById('row-count').textContent =
-    `${mainCount} รายการ (${rows.length} แถว)`;
+    `${mainCount} items (${rows.length} rows)`;
   updateStats();
 }
 
@@ -1215,17 +1215,17 @@ function buildRow(row) {
   const displayNo = row.isSubRow ? '' : (rowIndex + 1);
 
   tr.innerHTML = `
-    <!-- ลำดับ -->
+    <!-- No. -->
     <td class="col-no">${displayNo}</td>
 
-    <!-- รหัส -->
-    <td class="col-code ${row.isSubRow ? 'sub-indent' : ''}" data-label="รหัส">
+    <!-- Code -->
+    <td class="col-code ${row.isSubRow ? 'sub-indent' : ''}" data-label="Code">
       ${e ? `<input class="field-input" style="width:58px" value="${esc(row.code)}" onchange="setField('${row.id}','code',this.value)" />` :
             `<span class="field-view">${esc(row.code)}</span>`}
     </td>
 
-    <!-- รายชื่อ -->
-    <td class="col-name" data-label="รายชื่อ">
+    <!-- Name -->
+    <td class="col-name" data-label="Name">
       ${e ? `<input class="field-input" style="width:145px" value="${esc(row.name)}" onchange="setField('${row.id}','name',this.value)" />` :
             `<span class="field-view">${esc(row.name)}</span>`}
     </td>
@@ -1257,7 +1257,7 @@ function buildRow(row) {
     <td class="col-pid" data-label="Pass. ID">
       <div class="ai-wrap">
         ${e ? `<input class="field-input" style="width:110px" value="${esc(row.passId)}" onchange="setField('${row.id}','passId',this.value)" placeholder="เลขหนังสือเดินทาง" />
-               <button class="btn-ai" onclick="aiExtract('${row.id}')" title="ดึงข้อมูลจาก Passport ด้วย AI">✦ AI</button>` :
+               <button class="btn-ai" onclick="aiExtract('${row.id}')" title="Extract passport data with AI">✦ AI</button>` :
               `<span class="field-view">${esc(row.passId)}</span>`}
       </div>
     </td>
@@ -1287,8 +1287,8 @@ function buildRow(row) {
     <!-- Edit / Save -->
     <td class="col-edit">
       ${row.isEditing
-          ? `<button class="btn-icon save-btn" onclick="saveRow('${row.id}')" title="บันทึก">💾</button>`
-          : `<button class="btn-icon edit-btn" onclick="editRow('${row.id}')" title="แก้ไข">✏️</button>`}
+          ? `<button class="btn-icon save-btn" onclick="saveRow('${row.id}')" title="Save">💾</button>`
+          : `<button class="btn-icon edit-btn" onclick="editRow('${row.id}')" title="Edit">✏️</button>`}
     </td>
   `;
 
@@ -1308,17 +1308,17 @@ function formatDate(d) {
 
 function pinDropdown(row) {
   return `<select class="field-input" style="width:76px" onchange="setField('${row.id}','pin',this.value)">
-    ${PIN_OPTIONS.map(p => `<option value="${p}" ${row.pin===p?'selected':''}>${p||'— เลือก —'}</option>`).join('')}
+    ${PIN_OPTIONS.map(p => `<option value="${p}" ${row.pin===p?'selected':''}>${p||'— Select —'}</option>`).join('')}
   </select>`;
 }
 function shirtDropdown(row) {
   return `<select class="field-input" style="width:76px" onchange="setField('${row.id}','shirt',this.value)">
-    ${SHIRT_OPTIONS.map(s => `<option value="${s}" ${row.shirt===s?'selected':''}>${s||'— เลือก —'}</option>`).join('')}
+    ${SHIRT_OPTIONS.map(s => `<option value="${s}" ${row.shirt===s?'selected':''}>${s||'— Select —'}</option>`).join('')}
   </select>`;
 }
 function nationalityDropdown(row) {
   return `<select class="field-input" style="width:105px" onchange="setField('${row.id}','nationality',this.value)">
-    ${NATIONALITY_OPTIONS.map(n => `<option value="${n}" ${row.nationality===n?'selected':''}>${n||'— เลือก —'}</option>`).join('')}
+    ${NATIONALITY_OPTIONS.map(n => `<option value="${n}" ${row.nationality===n?'selected':''}>${n||'— Select —'}</option>`).join('')}
   </select>`;
 }
 
@@ -1333,7 +1333,7 @@ function imgCell(row, field, fileField, label) {
                  id="zone_${id}_${field}"
                  ${ed ? `ondragover="dragOver(event)" ondragleave="dragLeave(event)" ondrop="dropImg(event,'${id}','${field}','${fileField}')"
                          onclick="zoneClick('${id}','${field}','${fileField}',event)"` :
-                        `onclick="openImgModal('${src}')" title="คลิกเพื่อขยาย"`}>
+                        `onclick="openImgModal('${src}')" title="Click to enlarge"`}>
               <img src="${src}" alt="${label}" />
               ${ed ? `<button class="remove-img" onclick="removeImg('${id}','${field}','${fileField}',event)">✕</button>` : ''}
            </div>
@@ -1344,8 +1344,8 @@ function imgCell(row, field, fileField, label) {
                  id="zone_${id}_${field}"
                  ${ed ? `ondragover="dragOver(event)" ondragleave="dragLeave(event)" ondrop="dropImg(event,'${id}','${field}','${fileField}')"
                          onclick="zoneClick('${id}','${field}','${fileField}',event)"` :
-                        `title="${label} ยังไม่มีรูป"`}>
-              ${ed ? `<span>${label}<br>คลิก/ลาก</span>` : `<span style="font-size:18px">🖼</span>`}
+                        `title="${label} — no image"`}>
+              ${ed ? `<span>${label}<br>Click/Drop</span>` : `<span style="font-size:18px">🖼</span>`}
            </div>
            <input type="file" id="fi_${id}_${field}" accept="image/*" style="display:none"
                   onchange="fileChosen(event,'${id}','${field}','${fileField}')" />`;
@@ -1376,9 +1376,9 @@ async function saveRow(id) {
       await saveRowToSupabase(row);
       refreshRow(row); // re-render เพื่อแสดง URL รูปใหม่
       saveLocal();
-      toast('บันทึกสำเร็จ', 'success');
+      toast('Saved successfully', 'success');
     } catch(e) {
-      toast('บันทึก Supabase ไม่สำเร็จ: ' + e.message, 'error');
+      toast('Failed to save to Supabase: ' + e.message, 'error');
     }
   }
 }
@@ -1533,17 +1533,17 @@ async function aiExtract(id) {
 
   const proxyUrl = localStorage.getItem('cs_ai_proxy') || '';
   if (!proxyUrl) {
-    toast('กรุณาตั้งค่า AI Proxy URL ใน Config ก่อน', 'error');
+    toast('Please set AI Proxy URL in Config first', 'error');
     return;
   }
   if (!row.passImg) {
-    toast('กรุณาอัปโหลด Passport Image ก่อน', 'error');
+    toast('Please upload a Passport Image first', 'error');
     return;
   }
 
   // Extract base64 data
   const base64Match = row.passImg.match(/^data:(.+);base64,(.+)$/);
-  if (!base64Match) { toast('รูปภาพ Passport ไม่ถูกต้อง', 'error'); return; }
+  if (!base64Match) { toast('Invalid Passport image', 'error'); return; }
   const mediaType   = base64Match[1];
   const imageBase64 = base64Match[2];
 
@@ -1564,9 +1564,9 @@ async function aiExtract(id) {
     if (data.exp) { row.passExp = data.exp;  }
 
     refreshRow(row);
-    toast('AI ดึงข้อมูล Passport สำเร็จ', 'success');
+    toast('AI Passport extraction successful', 'success');
   } catch (err) {
-    toast('AI Extraction ล้มเหลว: ' + err.message, 'error');
+    toast('AI Extraction failed: ' + err.message, 'error');
   } finally {
     if (aiBtn) { aiBtn.textContent = '✦ AI'; aiBtn.disabled = false; }
   }
@@ -1577,7 +1577,7 @@ async function aiExtract(id) {
 ═══════════════════════════════════════════════════════════ */
 async function saveAllToSupabase() {
   if (!sbClient) {
-    toast('ยังไม่ได้ตั้งค่า Supabase', 'error');
+    toast('Supabase not configured', 'error');
     return;
   }
   try {
