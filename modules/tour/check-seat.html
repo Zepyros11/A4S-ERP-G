@@ -678,6 +678,9 @@ app.listen(3001, () => console.log('Proxy running on port 3001'));
 <script>
 'use strict';
 
+const SB_URL_DEFAULT = "https://dtiynydgkcqausqktreg.supabase.co";
+const SB_KEY_DEFAULT = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR0aXlueWRna2NxYXVzcWt0cmVnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIyNjEwNTcsImV4cCI6MjA4NzgzNzA1N30.DmXwvBBvx3zK7rw21179ro65mTm0B4lQ20ktVMpAUQE";
+
 /* ═══════════════════════════════════════════════════════════
    INDEXEDDB — เก็บรูปในเบราว์เซอร์ (ไม่จำกัด 5 MB)
 ═══════════════════════════════════════════════════════════ */
@@ -772,11 +775,12 @@ function saveConfig() {
 }
 
 function initSupabase(url, key) {
-  if (url && key && url.startsWith('http')) {
-    try {
-      sbClient = window.supabase.createClient(url, key);
-    } catch (e) { console.warn('Supabase init failed', e); }
-  }
+  const resolvedUrl = (url && url.startsWith('http')) ? url : SB_URL_DEFAULT;
+  const isValidKey  = key && key.startsWith('eyJ') && key.length > 100;
+  const resolvedKey = isValidKey ? key : SB_KEY_DEFAULT;
+  try {
+    sbClient = window.supabase.createClient(resolvedUrl, resolvedKey);
+  } catch (e) { console.warn('Supabase init failed', e); }
 }
 
 /* ═══════════════════════════════════════════════════════════
