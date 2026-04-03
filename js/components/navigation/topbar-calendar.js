@@ -68,7 +68,10 @@ const CalTopbar = (function () {
     const wrap = document.getElementById(container);
     if (!wrap) return;
 
-    const currentPage = window.location.pathname.split("/").pop().replace(".html", "");
+    const currentPage = window.location.pathname
+      .split("/")
+      .pop()
+      .replace(".html", "");
 
     wrap.innerHTML = `
       <div class="cal-topbar">
@@ -80,17 +83,17 @@ const CalTopbar = (function () {
           <span class="cal-topbar-page">${pageName}</span>
         </div>
         <div class="cal-topbar-right">
-          <button class="cal-topbar-btn ${currentPage === 'events-calendar' ? 'active' : ''}"
+          <button class="cal-topbar-btn ${currentPage === "events-calendar" ? "active" : ""}"
             onclick="window.location.href = './events-calendar.html'">
             Event Calendar
           </button>
-          <button class="cal-topbar-btn ${currentPage === 'event-poster-gallery-view' ? 'active' : ''}"
+          <button class="cal-topbar-btn ${currentPage === "event-poster-gallery-view" ? "active" : ""}"
             onclick="window.location.href = './event-poster-gallery-view.html'">
             Poster Gallery
           </button>
-          <button class="cal-topbar-btn ${currentPage === 'events-bookingRoom' ? 'active' : ''}"
+          <button class="cal-topbar-btn ${currentPage === "events-bookingRoom" ? "active" : ""}"
             onclick="window.location.href = './events-bookingRoom.html'">
-            Room Booking
+            Meet Booking
           </button>
           <span class="cal-topbar-date" id="calTopbarDate"></span>
         </div>
