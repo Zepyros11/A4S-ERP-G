@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Room Booking Calendar — A4S-ERP</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../activity/events.css" />
+    <link rel="stylesheet" href="./events-calendar.css" />
+    <link rel="stylesheet" href="./events-booking.css" />
+  </head>
+  <body>
+    <div class="loading-overlay" id="loadingOverlay">
+      <div class="spinner"></div>
+    </div>
+    <div class="toast" id="toast"></div>
+
+    <!-- TOPBAR -->
+    <div id="calTopbarContainer"></div>
+    <script src="../../../js/components/navigation/topbar-calendar.js"></script>
+    <script>
+      CalTopbar.init({
+        container: "calTopbarContainer",
+        pageName: "จองห้องประชุม",
+        logoPath: "/A4S-ERP-G/assets/images/logo-a4s.png",
+      });
+    </script>
+
+    <div class="cal-standalone-page">
+      <div class="no-config-banner" id="noConfigBanner" style="display: none">
+        ⚠️ ยังไม่ได้ตั้งค่า Supabase —
+        <a onclick="openSettings()">คลิกที่นี่เพื่อตั้งค่า</a>
+      </div>
+
+      <!-- HEADER -->
+      <div class="cal-header">
+        <div class="cal-nav">
+          <button class="btn-circle" onclick="changeMonth(-1)">‹</button>
+          <div class="cal-month-label" id="calMonthLabel">—</div>
+          <button class="btn-circle" onclick="changeMonth(1)">›</button>
+          <button class="btn-today" onclick="goToday()">วันนี้</button>
+        </div>
+        <div class="cal-filter-wrap">
+          <select class="filter-select" id="filterStatus" onchange="renderCalendar()">
+            <option value="">ทุกสถานะ</option>
+            <option value="PENDING">⏳ Pending</option>
+            <option value="CONFIRMED">✅ Confirmed</option>
+            <option value="CANCELLED">❌ Cancelled</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Room Filter Chips -->
+      <div class="cal-cat-chips" id="roomChips">
+        <button class="epg-chip active" data-room="" onclick="setRoomFilter(this, '')">ทั้งหมด</button>
+        <!-- dynamic room chips injected by JS -->
+      </div>
+
+      <!-- CALENDAR -->
+      <div class="cal-grid-wrap">
+        <div class="cal-day-headers">
+          <div class="cal-day-hdr weekend">อา</div>
+          <div class="cal-day-hdr">จ</div>
+          <div class="cal-day-hdr">อ</div>
+          <div class="cal-day-hdr">พ</div>
+          <div class="cal-day-hdr">พฤ</div>
+          <div class="cal-day-hdr">ศ</div>
+          <div class="cal-day-hdr weekend">ส</div>
+        </div>
+        <div class="cal-grid" id="calGrid">
+          <div class="cal-empty">กำลังโหลด...</div>
+        </div>
+      </div>
+
+      <!-- LEGEND (rooms) -->
+      <div class="cal-legend" id="roomLegend"></div>
+    </div>
+
+    <!-- SETTINGS MODAL -->
+    <div class="settings-overlay" id="settingsOverlay" onclick="handleOverlayClick(event)">
+      <div class="settings-modal">
+        <div class="settings-title">⚙️ ตั้งค่าการเชื่อมต่อ Supabase</div>
+        <div class="settings-subtitle">
+          กรอก URL และ API Key เพื่อเชื่อมต่อฐานข้อมูล<br />ค่านี้จะถูกบันทึกใน
+          localStorage ของเครื่องนี้
+        </div>
+        <div class="settings-field">
+          <label class="settings-label">Supabase URL</label>
+          <input class="settings-input" id="inputSbUrl" placeholder="https://xxxx.supabase.co" />
+        </div>
+        <div class="settings-field">
+          <label class="settings-label">Supabase Anon Key</label>
+          <input class="settings-input" id="inputSbKey" placeholder="eyJhbGci..." type="password" />
+        </div>
+        <div class="settings-status" id="settingsStatus"></div>
+        <div class="settings-actions">
+          <button class="btn btn-outline" onclick="closeSettings()">ยกเลิก</button>
+          <button class="btn btn-outline" onclick="testConnection()">🔗 ทดสอบ</button>
+          <button class="btn btn-primary" onclick="saveSettings()">💾 บันทึก</button>
+        </div>
+      </div>
+    </div>
+
+    <button class="btn-settings-float" onclick="openSettings()" title="ตั้งค่า Supabase">⚙️</button>
+
+    <!-- BOOKING DETAIL PANEL -->
+    <div
+      id="bkPanelOverlay"
+      style="
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.55);
+        z-index: 400;
+        backdrop-filter: blur(4px);
+        align-items: center;
+        justify-content: center;
+      "
+      onclick="closeBookingPanel()"
+    >
+      <div class="bk-popup" onclick="event.stopPropagation()">
+        <button class="bk-popup-close" onclick="closeBookingPanel()">✕</button>
+
+        <!-- Room Header -->
+        <div class="bk-popup-room-bar" id="bkRoomBar">
+          <div class="bk-popup-room-icon">🏢</div>
+          <div>
+            <div class="bk-popup-room-name" id="bkRoomName">—</div>
+            <div class="bk-popup-room-meta" id="bkRoomMeta"></div>
+          </div>
+        </div>
+
+        <!-- Body -->
+        <div class="bk-popup-body">
+          <div class="bk-popup-topic" id="bkTopic">—</div>
+          <div class="bk-popup-badges">
+            <span id="bkStatus"></span>
+          </div>
+
+          <div class="bk-info-rows">
+            <div class="bk-info-row">
+              <div class="bk-info-icon">📅</div>
+              <div>
+                <div class="bk-info-label">วันที่</div>
+                <div class="bk-info-value" id="bkDate">—</div>
+              </div>
+            </div>
+            <div class="bk-info-row">
+              <div class="bk-info-icon">🕐</div>
+              <div>
+                <div class="bk-info-label">เวลา</div>
+                <div class="bk-info-value" id="bkTime">—</div>
+              </div>
+            </div>
+            <div class="bk-info-row" id="bkEventRow">
+              <div class="bk-info-icon">📋</div>
+              <div>
+                <div class="bk-info-label">หัวข้อการจอง</div>
+                <div class="bk-info-value" id="bkEvent">—</div>
+              </div>
+            </div>
+            <div class="bk-info-row" id="bkNoteRow">
+              <div class="bk-info-icon">📝</div>
+              <div>
+                <div class="bk-info-label">หมายเหตุ</div>
+                <div class="bk-info-value" id="bkNote">—</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="./events-booking.js"></script>
+  </body>
+</html>

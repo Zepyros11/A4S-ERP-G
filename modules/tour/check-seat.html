@@ -1,0 +1,1656 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Check Seat — Tour</title>
+  <!-- SheetJS for Excel import -->
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+  <!-- Supabase JS -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    /* ── Reset & Base ─────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --accent:       #0f4c75;
+      --accent-light: #1b6ca8;
+      --accent-pale:  #e8f0fb;
+      --success:      #057a55;
+      --success-pale: #def7ec;
+      --danger:       #9b1c1c;
+      --danger-pale:  #fde8e8;
+      --warning:      #92400e;
+      --warning-pale: #fef3c7;
+      --bg:           #f0f2f5;
+      --surface:      #ffffff;
+      --surface2:     #f8f9fb;
+      --border:       #e4e8ef;
+      --border2:      #d0d6e2;
+      --text:         #111827;
+      --text2:        #4b5563;
+      --text3:        #9ca3af;
+    }
+
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      font-size: 13px;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* ── Config Panel ─────────────────────────────────── */
+    #config-panel {
+      background: var(--accent);
+      color: #fff;
+      padding: 10px 20px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+    }
+    #config-panel span { font-weight: 600; font-size: 12px; white-space: nowrap; }
+    #config-panel input {
+      padding: 4px 8px;
+      border: 1px solid rgba(255,255,255,0.3);
+      border-radius: 4px;
+      background: rgba(255,255,255,0.15);
+      color: #fff;
+      font-size: 12px;
+      width: 220px;
+    }
+    #config-panel input::placeholder { color: rgba(255,255,255,0.5); }
+    #config-panel .cfg-group { display: flex; align-items: center; gap: 6px; }
+
+    /* ── Toolbar ──────────────────────────────────────── */
+    #toolbar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 20px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      flex-wrap: wrap;
+    }
+    #toolbar h1 { font-size: 16px; font-weight: 700; color: var(--accent); margin-right: 8px; }
+
+    .btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 6px 14px; border-radius: 6px; border: none;
+      font-size: 12px; font-weight: 600; cursor: pointer; transition: .15s;
+    }
+    .btn-primary   { background: var(--accent); color: #fff; }
+    .btn-primary:hover { background: var(--accent-light); }
+    .btn-success   { background: var(--success); color: #fff; }
+    .btn-success:hover { filter: brightness(1.1); }
+    .btn-danger    { background: var(--danger); color: #fff; }
+    .btn-warning   { background: #d97706; color: #fff; }
+    .btn-outline   { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
+    .btn-outline:hover { background: var(--accent-pale); }
+    .btn-icon {
+      padding: 5px 7px; border-radius: 5px; border: none; cursor: pointer;
+      font-size: 14px; line-height: 1; transition: .15s; background: transparent;
+    }
+    .btn-icon:hover { background: var(--bg); }
+    .btn-icon.save-btn { background: var(--success-pale); color: var(--success); }
+    .btn-icon.save-btn:hover { background: var(--success); color: #fff; }
+    .btn-icon.edit-btn { color: var(--accent); }
+
+    #file-input { display: none; }
+
+    .badge {
+      display: inline-block; padding: 2px 7px; border-radius: 99px;
+      font-size: 11px; font-weight: 600;
+    }
+    .badge-info  { background: var(--accent-pale); color: var(--accent); }
+
+    /* ── Table wrapper ────────────────────────────────── */
+    #table-wrap {
+      padding: 16px 20px;
+      overflow-x: auto;
+    }
+
+    table {
+      width: max-content;
+      min-width: 100%;
+      border-collapse: collapse;
+      background: var(--surface);
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 1px 4px rgba(0,0,0,.07);
+    }
+
+    thead tr { background: var(--accent); color: #fff; }
+    thead th {
+      padding: 10px 10px; text-align: left; font-size: 12px;
+      font-weight: 600; white-space: nowrap; border-right: 1px solid rgba(255,255,255,0.12);
+    }
+    thead th:last-child { border-right: none; }
+
+    tbody tr { border-bottom: 1px solid var(--border); transition: background .1s; }
+    tbody tr:hover:not(.sub-row) { background: var(--surface2); }
+    tbody tr.sub-row { background: #f9f6ff; }
+    tbody tr.sub-row:hover { background: #f0ebff; }
+    tbody tr.editing { background: #fffbea; }
+    /* Row status bg — green > blue > default */
+    tbody tr.row-confirmed   { background: #bbf7d0; }
+    tbody tr.row-confirmed:hover { background: #86efac; }
+    tbody tr.row-confirmed.sub-row { background: #bbf7d0; }
+    tbody tr.row-has-passid  { background: #bfdbfe; }
+    tbody tr.row-has-passid:hover { background: #93c5fd; }
+    tbody tr.row-has-passid.sub-row { background: #bfdbfe; }
+
+    /* ── Status Cards ─────────────────────────────────── */
+    #stats-panel {
+      display: flex; flex-direction: column; gap: 10px;
+      padding: 14px 20px;
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+    }
+    .cs-stats-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+    .cs-stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px 18px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      box-shadow: 0 1px 4px rgba(0,0,0,.06);
+      transition: box-shadow .15s;
+    }
+    .cs-stat-card:hover { box-shadow: 0 3px 10px rgba(0,0,0,.1); }
+    .cs-stat-icon {
+      width: 42px; height: 42px;
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px; flex-shrink: 0;
+    }
+    .cs-stat-value {
+      font-size: 24px; font-weight: 700;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      line-height: 1;
+    }
+    .cs-stat-label {
+      font-size: 11px; font-weight: 600;
+      letter-spacing: 0.4px; margin-top: 3px;
+      color: var(--text3);
+    }
+    /* per-card accent */
+    .cs-stat-card.s-total  .cs-stat-icon { background: var(--accent-pale); }
+    .cs-stat-card.s-total  .cs-stat-value { color: var(--accent); }
+    .cs-stat-card.s-conf   .cs-stat-icon { background: var(--success-pale); }
+    .cs-stat-card.s-conf   .cs-stat-value { color: var(--success); }
+    .cs-stat-card.s-unconf .cs-stat-icon { background: var(--danger-pale); }
+    .cs-stat-card.s-unconf .cs-stat-value { color: #dc2626; }
+    .cs-stat-card.s-seat2  .cs-stat-icon { background: #ede9fe; }
+    .cs-stat-card.s-seat2  .cs-stat-value { color: #7c3aed; }
+    .cs-stat-card.s-seat1  .cs-stat-icon { background: var(--warning-pale); }
+    .cs-stat-card.s-seat1  .cs-stat-value { color: #d97706; }
+    .cs-stat-card.s-seat0  .cs-stat-icon { background: #f3f4f6; }
+    .cs-stat-card.s-seat0  .cs-stat-value { color: var(--text2); }
+    @media (max-width: 640px) {
+      .cs-stats-row { grid-template-columns: repeat(3, 1fr); gap: 6px; }
+      .cs-stat-card { padding: 10px 10px; gap: 8px; }
+      .cs-stat-icon { width: 34px; height: 34px; font-size: 16px; }
+      .cs-stat-value { font-size: 18px; }
+      .cs-stat-label { font-size: 10px; }
+    }
+
+    td {
+      padding: 6px 8px; vertical-align: middle;
+      border-right: 1px solid var(--border);
+      white-space: nowrap;
+    }
+    td:last-child { border-right: none; }
+
+    /* sub-row indent cell */
+    td.sub-indent {
+      padding-left: 28px;
+      color: var(--text2);
+      position: relative;
+    }
+    td.sub-indent::before {
+      content: '└';
+      position: absolute;
+      left: 10px;
+      color: var(--text3);
+    }
+
+    /* ── Field inputs in edit mode ────────────────────── */
+    .field-view { min-height: 22px; }
+    .field-input {
+      padding: 4px 7px; border: 1px solid var(--border2);
+      border-radius: 4px; font-size: 12px; color: var(--text);
+      width: 100%; background: #fff;
+    }
+    .field-input:focus { outline: none; border-color: var(--accent-light); box-shadow: 0 0 0 2px var(--accent-pale); }
+    select.field-input { cursor: pointer; }
+
+    /* ── Image cells ──────────────────────────────────── */
+    .img-cell { width: 90px; }
+
+    .img-drop-zone {
+      width: 80px; height: 54px;
+      border: 2px dashed var(--border2);
+      border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px; color: var(--text3);
+      cursor: pointer; transition: .15s; position: relative; overflow: hidden;
+      background: var(--surface2);
+    }
+    .img-drop-zone.drag-over { border-color: var(--accent); background: var(--accent-pale); }
+    .img-drop-zone.has-image { border-style: solid; border-color: var(--border); }
+    .img-drop-zone img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+    .img-drop-zone .remove-img {
+      position: absolute; top: 2px; right: 2px;
+      background: rgba(0,0,0,.55); color: #fff;
+      border: none; border-radius: 3px; width: 16px; height: 16px;
+      font-size: 10px; line-height: 1; cursor: pointer;
+      display: none; align-items: center; justify-content: center;
+    }
+    .img-drop-zone.has-image:hover .remove-img { display: flex; }
+
+    .img-locked { cursor: zoom-in !important; }
+
+    /* ── Seat cell ────────────────────────────────────── */
+    .seat-badge {
+      display: inline-block; padding: 2px 8px; border-radius: 99px;
+      font-weight: 700; font-size: 12px;
+      background: var(--accent-pale); color: var(--accent);
+    }
+    .seat-badge.sub { background: #ede9fe; color: #5b21b6; }
+
+    /* ── AI buttons ───────────────────────────────────── */
+    .ai-wrap { display: flex; align-items: center; gap: 4px; }
+    .btn-ai {
+      padding: 3px 6px; border-radius: 4px; border: none;
+      background: #6c47ff22; color: #6c47ff; font-size: 11px;
+      cursor: pointer; font-weight: 600;
+    }
+    .btn-ai:hover { background: #6c47ff33; }
+    .btn-ai:disabled { opacity: .45; cursor: not-allowed; }
+
+    /* ── Empty state ──────────────────────────────────── */
+    #empty-row td {
+      text-align: center; padding: 40px; color: var(--text3);
+      font-size: 14px;
+    }
+
+    /* ── Image Modal ──────────────────────────────────── */
+    #img-modal {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,.75); z-index: 1000;
+      align-items: center; justify-content: center;
+    }
+    #img-modal.open { display: flex; }
+    #img-modal img {
+      max-width: 90vw; max-height: 90vh;
+      border-radius: 8px; box-shadow: 0 20px 60px rgba(0,0,0,.5);
+    }
+    #img-modal-close {
+      position: fixed; top: 20px; right: 24px;
+      background: #fff; border: none; border-radius: 50%;
+      width: 36px; height: 36px; font-size: 18px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 2px 8px rgba(0,0,0,.3);
+    }
+
+    /* ── Save Overlay ─────────────────────────────────── */
+    #save-overlay {
+      display: none;
+      position: fixed; inset: 0; z-index: 3000;
+      background: rgba(0,0,0,.55);
+      align-items: center; justify-content: center;
+    }
+    #save-overlay.active { display: flex; }
+    #save-overlay-box {
+      background: var(--surface);
+      border-radius: 14px;
+      padding: 36px 48px;
+      text-align: center;
+      box-shadow: 0 8px 40px rgba(0,0,0,.35);
+      min-width: 280px;
+    }
+    #save-overlay-spinner {
+      width: 48px; height: 48px;
+      border: 5px solid var(--border2);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      margin: 0 auto 18px;
+      animation: spin .8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #save-overlay-title {
+      font-size: 16px; font-weight: 700; color: var(--accent); margin-bottom: 6px;
+    }
+    #save-overlay-msg {
+      font-size: 13px; color: var(--text2);
+    }
+
+    /* ── Toast ────────────────────────────────────────── */
+    #toast-container {
+      position: fixed; bottom: 24px; right: 24px;
+      display: flex; flex-direction: column; gap: 8px; z-index: 2000;
+    }
+    .toast {
+      padding: 10px 16px; border-radius: 8px; color: #fff;
+      font-size: 13px; box-shadow: 0 4px 12px rgba(0,0,0,.2);
+      animation: slideIn .2s ease;
+    }
+    .toast.success { background: var(--success); }
+    .toast.error   { background: #dc2626; }
+    .toast.info    { background: var(--accent); }
+    @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+    /* ── Column widths ────────────────────────────────── */
+    .col-no     { width: 44px; min-width: 44px; text-align: center; color: var(--text3); font-size: 12px; }
+    .col-code   { width: 70px; min-width: 70px; }
+    .col-name   { width: 160px; min-width: 130px; }
+    .col-pin    { width: 90px; min-width: 80px; }
+    .col-seat   { width: 70px; min-width: 60px; text-align: center; }
+    .col-pimg   { width: 100px; min-width: 100px; }
+    .col-pid    { width: 150px; min-width: 130px; }
+    .col-pexp   { width: 120px; min-width: 110px; }
+    .col-visa   { width: 100px; min-width: 100px; }
+    .col-tel    { width: 140px; min-width: 120px; }
+    .col-shirt  { width: 90px; min-width: 80px; }
+    .col-edit   { width: 54px; min-width: 54px; text-align: center; }
+
+    /* ── Misc ─────────────────────────────────────────── */
+    .note { font-size: 11px; color: var(--text3); margin-top: 2px; }
+    .divider { width: 1px; height: 24px; background: var(--border); }
+    hr { border: none; border-top: 1px solid var(--border); margin: 0; }
+
+    /* ══ RESPONSIVE ══════════════════════════════════════ */
+
+    /* Tablet — horizontal scroll (already handled) */
+    @media (max-width: 1024px) {
+      #config-panel input { width: 170px; }
+      #toolbar { padding: 10px 14px; gap: 6px; }
+      #table-wrap { padding: 12px 14px; }
+    }
+
+    /* Mobile — card layout */
+    @media (max-width: 640px) {
+      /* Config */
+      #config-panel { flex-direction: column; align-items: stretch; gap: 8px; padding: 10px 14px; }
+      #config-panel .cfg-group { flex-direction: column; align-items: flex-start; gap: 3px; }
+      #config-panel input { width: 100%; }
+
+      /* Toolbar */
+      #toolbar { padding: 8px 12px; gap: 6px; }
+      #toolbar h1 { font-size: 14px; width: 100%; margin-right: 0; }
+      .btn { padding: 5px 10px; font-size: 11px; }
+      .divider { display: none; }
+
+      /* AI note */
+      #ai-note { font-size: 10px; padding: 6px 12px; }
+
+      /* Table wrap */
+      #table-wrap { padding: 10px 12px; }
+
+      /* Convert table → cards */
+      table, thead, tbody, tr, td { display: block; width: 100% !important; }
+      thead tr { display: none; }
+
+      tbody tr {
+        margin-bottom: 12px;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        overflow: hidden;
+        background: var(--surface);
+        box-shadow: 0 1px 6px rgba(0,0,0,.07);
+      }
+      tbody tr.sub-row {
+        margin-left: 18px;
+        border-left: 3px solid #8b5cf6;
+      }
+      tbody tr.editing { background: #fffbea; }
+
+      td {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 9px 14px;
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+        white-space: normal;
+        min-height: 40px;
+      }
+      td:last-child { border-bottom: none; }
+
+      /* Label from data-label */
+      td[data-label]::before {
+        content: attr(data-label);
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--text3);
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+        min-width: 90px;
+        margin-right: 10px;
+        flex-shrink: 0;
+      }
+
+      /* Sub-indent on mobile */
+      td.sub-indent { padding-left: 14px; }
+      td.sub-indent::before { content: '└ ' attr(data-label); }
+
+      /* Inputs fill width in edit mode */
+      .field-input { width: 100% !important; }
+      .ai-wrap { width: 100%; gap: 6px; }
+
+      /* Image cells */
+      .img-drop-zone { width: 100px; height: 68px; }
+
+      /* Edit col */
+      td.col-edit { justify-content: flex-end; }
+      td.col-edit[data-label]::before { display: none; }
+
+      /* Seat center */
+      td.col-seat { justify-content: space-between; }
+
+      /* Add-row button */
+      #add-row-wrap { padding: 0 12px 16px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ══ Config Panel ══════════════════════════════════════ -->
+<div id="config-panel">
+  <span>⚙ CONFIG</span>
+  <div class="cfg-group">
+    <span>Supabase URL</span>
+    <input id="cfg-sb-url" placeholder="https://xxx.supabase.co" />
+  </div>
+  <div class="cfg-group">
+    <span>Supabase Key</span>
+    <input id="cfg-sb-key" type="password" placeholder="anon key" />
+  </div>
+  <div class="cfg-group">
+    <span>AI Proxy URL</span>
+    <input id="cfg-ai-proxy" placeholder="http://localhost:3001/extract" title="Backend proxy สำหรับ AI OCR (ดูคำอธิบายด้านล่าง)" />
+  </div>
+  <button class="btn btn-outline" style="color:#fff;border-color:rgba(255,255,255,.4)" onclick="saveConfig()">บันทึก Config</button>
+</div>
+
+<!-- ══ Toolbar ════════════════════════════════════════════ -->
+<div id="toolbar">
+  <h1>✈ Check Seat</h1>
+  <div class="divider"></div>
+
+  <input type="file" id="file-input" accept=".xlsx,.xls,.csv" onchange="importExcel(event)" />
+  <button class="btn btn-primary" onclick="document.getElementById('file-input').click()">
+    📥 Import Excel
+  </button>
+
+  <button class="btn btn-success" onclick="saveAllToSupabase()">
+    💾 บันทึกทั้งหมด (Supabase)
+  </button>
+
+  <button class="btn btn-outline" onclick="exportExcel()">
+    📤 Export Excel
+  </button>
+
+  <button class="btn btn-outline" onclick="downloadTemplate()" title="ดาวน์โหลด Template สำหรับกรอกข้อมูลนำเข้า">
+    📋 Template Import
+  </button>
+
+  <button class="btn btn-warning" onclick="clearAll()">
+    🗑 ล้างข้อมูล
+  </button>
+
+  <div style="flex:1"></div>
+  <span class="badge badge-info" id="row-count">0 รายการ</span>
+</div>
+
+<!-- ══ Note about AI ══════════════════════════════════════ -->
+<div style="background:#fffbeb;border-bottom:1px solid #fde68a;padding:7px 20px;font-size:11px;color:#92400e;">
+  ⚠ <strong>AI Passport OCR:</strong> การดึงข้อมูลจาก Passport ด้วย AI ต้องใช้ <strong>Backend Proxy</strong> (เนื่องจาก Browser CORS Policy ไม่อนุญาตเรียก Anthropic API โดยตรง)
+  — ใส่ URL ของ proxy server ใน Config ด้านบน หากต้องการ setup proxy ดู <code>proxy-setup-guide</code> ด้านล่างตาราง
+</div>
+
+<!-- ══ Status Cards ══════════════════════════════════════ -->
+<div id="stats-panel">
+  <div class="cs-stats-row">
+    <div class="cs-stat-card s-total">
+      <div class="cs-stat-icon">👥</div>
+      <div>
+        <div class="cs-stat-value" id="st-total">0</div>
+        <div class="cs-stat-label">จำนวนทั้งหมด</div>
+      </div>
+    </div>
+    <div class="cs-stat-card s-conf">
+      <div class="cs-stat-icon">✅</div>
+      <div>
+        <div class="cs-stat-value" id="st-conf">0</div>
+        <div class="cs-stat-label">Confirm</div>
+      </div>
+    </div>
+    <div class="cs-stat-card s-unconf">
+      <div class="cs-stat-icon">⏳</div>
+      <div>
+        <div class="cs-stat-value" id="st-unconf">0</div>
+        <div class="cs-stat-label">Unconfirmed</div>
+      </div>
+    </div>
+  </div>
+  <div class="cs-stats-row">
+    <div class="cs-stat-card s-seat2">
+      <div class="cs-stat-icon">✈️</div>
+      <div>
+        <div class="cs-stat-value" id="st-seat2">0</div>
+        <div class="cs-stat-label">2 Seat</div>
+      </div>
+    </div>
+    <div class="cs-stat-card s-seat1">
+      <div class="cs-stat-icon">🪑</div>
+      <div>
+        <div class="cs-stat-value" id="st-seat1">0</div>
+        <div class="cs-stat-label">1 Seat</div>
+      </div>
+    </div>
+    <div class="cs-stat-card s-seat0">
+      <div class="cs-stat-icon">🎫</div>
+      <div>
+        <div class="cs-stat-value" id="st-seat0">0</div>
+        <div class="cs-stat-label">&lt; 1 Seat</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ Legend ════════════════════════════════════════════ -->
+<div style="display:flex;align-items:center;gap:16px;padding:7px 20px;background:var(--surface);border-bottom:1px solid var(--border);flex-wrap:wrap;">
+  <span style="font-size:11px;font-weight:600;color:var(--text3);letter-spacing:.4px;">สถานะแถว :</span>
+  <span style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text2);">
+    <span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:#bfdbfe;border:1px solid #93c5fd;flex-shrink:0;"></span>
+    มี Passport ID
+  </span>
+  <span style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text2);">
+    <span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:#bbf7d0;border:1px solid #86efac;flex-shrink:0;"></span>
+    กรอกข้อมูลครบทุกช่อง
+  </span>
+  <span style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text2);">
+    <span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:#fffbea;border:1px solid #fde68a;flex-shrink:0;"></span>
+    กำลังแก้ไข
+  </span>
+</div>
+
+<!-- ══ Table ══════════════════════════════════════════════ -->
+<div id="table-wrap">
+  <table id="main-table">
+    <thead>
+      <tr>
+        <th class="col-no">#</th>
+        <th class="col-code">รหัส</th>
+        <th class="col-name">รายชื่อ</th>
+        <th class="col-pin">PIN</th>
+        <th class="col-seat">Seat</th>
+        <th class="col-pimg">Pass.<br>Image</th>
+        <th class="col-pid">Pass. ID</th>
+        <th class="col-pexp">Pass.<br>Exp.</th>
+        <th class="col-visa">Visa</th>
+        <th class="col-tel">WhatsApp</th>
+        <th class="col-shirt">T-Shirt</th>
+        <th class="col-edit">Edit</th>
+      </tr>
+    </thead>
+    <tbody id="table-body">
+      <tr id="empty-row">
+        <td colspan="12">ยังไม่มีข้อมูล — กด Import Excel หรือเพิ่มแถวด้วยตนเอง</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ══ Add Row button ════════════════════════════════════ -->
+<div style="padding:0 20px 20px">
+  <button class="btn btn-outline" onclick="addEmptyRow()">+ เพิ่มแถวว่าง</button>
+</div>
+
+<!-- ══ Proxy Setup Guide ══════════════════════════════════ -->
+<details style="margin:0 20px 30px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px">
+  <summary style="cursor:pointer;font-weight:700;color:var(--accent);font-size:13px">📋 AI Proxy Setup Guide (Node.js — คลิกเพื่อดู)</summary>
+  <pre style="margin-top:12px;background:#1e293b;color:#e2e8f0;padding:14px;border-radius:6px;font-size:12px;overflow-x:auto"><code>// proxy-server.js — รัน: node proxy-server.js
+const express = require('express');
+const cors = require('cors');
+const Anthropic = require('@anthropic-ai/sdk');
+const app = express();
+app.use(cors({ origin: '*' }));
+app.use(express.json({ limit: '20mb' }));
+
+const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+app.post('/extract', async (req, res) => {
+  const { imageBase64, mediaType } = req.body;
+  const msg = await client.messages.create({
+    model: 'claude-opus-4-6',
+    max_tokens: 256,
+    messages: [{
+      role: 'user',
+      content: [
+        { type: 'image', source: { type: 'base64', media_type: mediaType, data: imageBase64 } },
+        { type: 'text', text: 'Extract from this passport: 1) passport number/ID, 2) expiry date (YYYY-MM-DD). Respond JSON only: {"id":"...","exp":"YYYY-MM-DD"}' }
+      ]
+    }]
+  });
+  const json = JSON.parse(msg.content[0].text);
+  res.json(json);
+});
+
+app.listen(3001, () => console.log('Proxy running on port 3001'));
+
+// ติดตั้ง: npm install express cors @anthropic-ai/sdk
+// รัน: ANTHROPIC_API_KEY=sk-... node proxy-server.js</code></pre>
+</details>
+
+<!-- ══ Image Modal ════════════════════════════════════════ -->
+<div id="img-modal" onclick="closeImgModal()">
+  <button id="img-modal-close" onclick="closeImgModal()">✕</button>
+  <img id="img-modal-img" src="" alt="preview" onclick="event.stopPropagation()" />
+</div>
+
+<!-- ══ Save Processing Overlay ═══════════════════════════ -->
+<div id="save-overlay">
+  <div id="save-overlay-box">
+    <div id="save-overlay-spinner"></div>
+    <div id="save-overlay-title">กำลังบันทึก...</div>
+    <div id="save-overlay-msg">กรุณารอสักครู่ อย่าปิดหรือ Refresh หน้านี้</div>
+  </div>
+</div>
+
+<!-- ══ Toast container ═══════════════════════════════════ -->
+<div id="toast-container"></div>
+
+<script>
+'use strict';
+
+/* ═══════════════════════════════════════════════════════════
+   INDEXEDDB — เก็บรูปในเบราว์เซอร์ (ไม่จำกัด 5 MB)
+═══════════════════════════════════════════════════════════ */
+const IMG_DB = {
+  _db: null,
+  async open() {
+    if (this._db) return this._db;
+    return new Promise((resolve, reject) => {
+      const req = indexedDB.open('cs_images', 1);
+      req.onupgradeneeded = (e) => e.target.result.createObjectStore('imgs');
+      req.onsuccess  = (e) => { this._db = e.target.result; resolve(this._db); };
+      req.onerror    = () => reject(req.error);
+    });
+  },
+  async set(key, val) {
+    const db = await this.open();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction('imgs', 'readwrite');
+      tx.objectStore('imgs').put(val, key);
+      tx.oncomplete = resolve; tx.onerror = reject;
+    });
+  },
+  async get(key) {
+    const db = await this.open();
+    return new Promise((resolve, reject) => {
+      const tx  = db.transaction('imgs', 'readonly');
+      const req = tx.objectStore('imgs').get(key);
+      req.onsuccess = () => resolve(req.result || null);
+      req.onerror   = reject;
+    });
+  },
+  async del(key) {
+    const db = await this.open();
+    return new Promise((resolve) => {
+      const tx = db.transaction('imgs', 'readwrite');
+      tx.objectStore('imgs').delete(key);
+      tx.oncomplete = resolve;
+    });
+  },
+  async clearAll() {
+    const db = await this.open();
+    return new Promise((resolve) => {
+      const tx = db.transaction('imgs', 'readwrite');
+      tx.objectStore('imgs').clear();
+      tx.oncomplete = resolve;
+    });
+  },
+};
+
+/* ═══════════════════════════════════════════════════════════
+   STATE
+═══════════════════════════════════════════════════════════ */
+let rows = [];          // { id, code, name, pin, seat, passImg, passImgFile, passId, passExp, visaImg, visaImgFile, tel, shirt, isEditing, isSubRow, parentId }
+let sbClient = null;
+let _rowCounter = 0;
+
+const PIN_OPTIONS   = ['', 'SVP', 'VP', 'AVP', 'SD', 'DR'];
+const SHIRT_OPTIONS = ['', '5XL', '4XL', '3XL', '2XL', 'XL', 'L', 'M', 'S'];
+
+/* ═══════════════════════════════════════════════════════════
+   CONFIG
+═══════════════════════════════════════════════════════════ */
+function loadConfig() {
+  document.getElementById('cfg-sb-url').value   = localStorage.getItem('cs_sb_url')   || '';
+  document.getElementById('cfg-sb-key').value   = localStorage.getItem('cs_sb_key')   || '';
+  document.getElementById('cfg-ai-proxy').value = localStorage.getItem('cs_ai_proxy') || '';
+}
+
+function saveConfig() {
+  const url   = document.getElementById('cfg-sb-url').value.trim();
+  const key   = document.getElementById('cfg-sb-key').value.trim();
+  const proxy = document.getElementById('cfg-ai-proxy').value.trim();
+  localStorage.setItem('cs_sb_url',   url);
+  localStorage.setItem('cs_sb_key',   key);
+  localStorage.setItem('cs_ai_proxy', proxy);
+  initSupabase(url, key);
+  toast('บันทึก Config แล้ว', 'success');
+}
+
+function initSupabase(url, key) {
+  if (url && key && url.startsWith('http')) {
+    try {
+      sbClient = window.supabase.createClient(url, key);
+    } catch (e) { console.warn('Supabase init failed', e); }
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   ROW FACTORY
+═══════════════════════════════════════════════════════════ */
+function makeRow(overrides = {}) {
+  _rowCounter++;
+  return {
+    id:          'row_' + Date.now() + '_' + _rowCounter,
+    code:        '',
+    name:        '',
+    pin:         '',
+    seat:        '',
+    passImg:     null,   // data-url string
+    passImgFile: null,
+    passId:      '',
+    passExp:     '',
+    visaImg:     null,
+    visaImgFile: null,
+    tel:         '',
+    shirt:       '',
+    isEditing:   false,
+    isSubRow:    false,
+    parentId:    null,
+    ...overrides
+  };
+}
+
+function makeSubRow(parentRow, index) {
+  return makeRow({
+    code:      parentRow.code + '-' + (index + 1),
+    isSubRow:  true,
+    parentId:  parentRow.id,
+    isEditing: false,
+  });
+}
+
+/* ═══════════════════════════════════════════════════════════
+   EXCEL IMPORT
+═══════════════════════════════════════════════════════════ */
+function importExcel(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const wb  = XLSX.read(e.target.result, { type: 'binary', cellDates: true });
+      const ws  = wb.Sheets[wb.SheetNames[0]];
+      const raw = XLSX.utils.sheet_to_json(ws, { defval: '' });
+
+      if (raw.length === 0) { toast('ไม่พบข้อมูลใน Excel', 'error'); return; }
+
+      /* Detect column names (case-insensitive, support Thai & English) */
+      const firstRow = raw[0];
+      const keys = Object.keys(firstRow);
+      const findKey = (...candidates) =>
+        keys.find(k => candidates.some(c => k.toString().toLowerCase().includes(c.toLowerCase()))) || null;
+
+      const colCode = findKey('รหัส', 'code', 'id');
+      const colName = findKey('รายชื่อ', 'ชื่อ', 'name');
+      const colPin  = findKey('pin', 'PIN', 'position', 'ตำแหน่ง');
+      const colSeat = findKey('seat', 'ที่นั่ง', 'Seat');
+
+      const imported = [];
+      raw.forEach((r) => {
+        const seat  = parseFloat((colSeat ? r[colSeat] : '') || 0) || 0;
+        const pin   = (colPin  ? r[colPin]  : '').toString().trim().toUpperCase();
+        const row   = makeRow({
+          code:  (colCode ? r[colCode] : '').toString().trim(),
+          name:  (colName ? r[colName] : '').toString().trim(),
+          pin:   PIN_OPTIONS.includes(pin) ? pin : '',
+          seat,
+        });
+        imported.push(row);
+
+        /* Sub-rows for Seat >= 2 */
+        if (seat >= 2) {
+          const count = Math.floor(seat) - 1;
+          for (let i = 0; i < count; i++) {
+            imported.push(makeSubRow(row, i));
+          }
+        }
+      });
+
+      rows = imported;
+      renderTable();
+      saveLocal(); // บันทึก localStorage ทันทีก่อน async Supabase
+      const mainCount = imported.filter(r => !r.isSubRow).length;
+      toast(`Import สำเร็จ — ${mainCount} รายการ`, 'success');
+
+      if (sbClient) {
+        toast('กำลังบันทึกไป Supabase...', 'info');
+        saveAllToSupabase().catch(e => toast('บันทึก Supabase ไม่สำเร็จ: ' + e.message, 'error'));
+      }
+    } catch (err) {
+      toast('เกิดข้อผิดพลาดในการอ่าน Excel: ' + err.message, 'error');
+      console.error(err);
+    }
+  };
+  reader.readAsBinaryString(file);
+  event.target.value = ''; // reset
+}
+
+/* ═══════════════════════════════════════════════════════════
+   ADD / CLEAR
+═══════════════════════════════════════════════════════════ */
+function addEmptyRow() {
+  const row = makeRow({ isEditing: true });
+  rows.push(row);
+  renderTable();
+  // scroll to bottom
+  const tb = document.getElementById('table-wrap');
+  tb.scrollTop = tb.scrollHeight;
+}
+
+async function clearAll() {
+  if (!confirm('ล้างข้อมูลทั้งหมด? (จะลบจาก Supabase และรูปทั้งหมดในเบราว์เซอร์ด้วย)')) return;
+  rows = [];
+  localStorage.removeItem('cs_rows');
+  IMG_DB.clearAll(); // ล้างรูปใน IndexedDB ด้วย
+  renderTable();
+
+  if (sbClient) {
+    try {
+      const { error } = await sbClient.from('tour_seat_check').delete().neq('code', '__never__');
+      if (error) throw error;
+      toast('ล้างข้อมูลใน Supabase สำเร็จ', 'success');
+    } catch(e) {
+      toast('ลบจาก Supabase ไม่สำเร็จ: ' + e.message, 'error');
+    }
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   RENDER TABLE
+═══════════════════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════════
+   PERSISTENCE — LOCAL CACHE (ไม่ save data URL ขนาดใหญ่)
+═══════════════════════════════════════════════════════════ */
+function saveLocal() {
+  const slim = rows.map(r => ({
+    id: r.id, code: r.code, name: r.name, pin: r.pin, seat: r.seat,
+    passImg:  r.passImg  && !r.passImg.startsWith('data:')  ? r.passImg  : null,
+    passId: r.passId, passExp: r.passExp,
+    visaImg:  r.visaImg  && !r.visaImg.startsWith('data:')  ? r.visaImg  : null,
+    tel: r.tel, shirt: r.shirt, isSubRow: r.isSubRow, parentId: r.parentId,
+  }));
+  try { localStorage.setItem('cs_rows', JSON.stringify(slim)); } catch(e) {}
+}
+
+function loadLocal() {
+  try {
+    const saved = localStorage.getItem('cs_rows');
+    if (!saved) return false;
+    const parsed = JSON.parse(saved);
+    if (!parsed.length) return false;
+    rows = parsed.map(r => ({ ...makeRow(), ...r, isEditing: false, passImgFile: null, visaImgFile: null }));
+    return true;
+  } catch(e) { return false; }
+}
+
+/* คืนรูปจาก IndexedDB สำหรับ rows ที่ยังไม่มีรูป */
+async function restoreImagesFromIDB() {
+  const needImg = rows.filter(r => r.code && (!r.passImg || !r.visaImg));
+  if (needImg.length === 0) return;
+  await Promise.all(needImg.map(async row => {
+    if (!row.passImg) {
+      const img = await IMG_DB.get(`${row.code}_passImg`);
+      if (img) { row.passImg = img; }
+    }
+    if (!row.visaImg) {
+      const img = await IMG_DB.get(`${row.code}_visaImg`);
+      if (img) { row.visaImg = img; }
+    }
+  }));
+  renderTable();
+}
+
+/* ═══════════════════════════════════════════════════════════
+   PERSISTENCE — SUPABASE
+═══════════════════════════════════════════════════════════ */
+
+/* แปลง data URL → File object (สำหรับ upload รูป) */
+function dataUrlToFile(dataUrl, filename) {
+  const [header, b64] = dataUrl.split(',');
+  const mime = header.match(/:(.*?);/)[1];
+  const bin  = atob(b64);
+  const arr  = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+  return new File([arr], filename, { type: mime });
+}
+
+/* row object → Supabase record */
+function rowToRecord(row) {
+  const parentRow = row.parentId ? getRow(row.parentId) : null;
+  return {
+    code:               row.code || null,
+    name:               row.name || null,
+    pin:                row.pin  || null,
+    seat:               row.seat !== '' ? parseFloat(row.seat) : null,
+    passport_image_url: (row.passImg && !row.passImg.startsWith('data:')) ? row.passImg : null,
+    passport_id:        row.passId || null,
+    passport_exp_date:  row.passExp || null,
+    visa_image_url:     (row.visaImg && !row.visaImg.startsWith('data:')) ? row.visaImg : null,
+    tel:                row.tel   || null,
+    tshirt_size:        row.shirt || null,
+    is_sub_row:         row.isSubRow,
+    parent_code:        parentRow ? parentRow.code : null,
+  };
+}
+
+/* Supabase record → row object */
+function recordToRow(r, idMap) {
+  const id = 'sb_' + r.code;
+  const parentId = r.parent_code ? (idMap[r.parent_code] || null) : null;
+  return makeRow({
+    id, code: r.code || '', name: r.name || '', pin: r.pin || '',
+    seat: r.seat ?? '', passImg: r.passport_image_url || null,
+    passId: r.passport_id || '', passExp: r.passport_exp_date || '',
+    visaImg: r.visa_image_url || null, tel: r.tel || '',
+    shirt: r.tshirt_size || '', isSubRow: r.is_sub_row || false,
+    parentId,
+  });
+}
+
+/* Upload รูปไปยัง Supabase Storage → return public URL */
+async function uploadImageToStorage(dataUrlOrFile, path) {
+  if (!sbClient) return null;
+  try {
+    let file;
+    if (typeof dataUrlOrFile === 'string' && dataUrlOrFile.startsWith('data:')) {
+      const ext = dataUrlOrFile.split(';')[0].split('/')[1] || 'jpg';
+      file = dataUrlToFile(dataUrlOrFile, `${path}.${ext}`);
+    } else {
+      file = dataUrlOrFile;
+    }
+    const ext = file.name ? file.name.split('.').pop() : 'jpg';
+    const { data, error } = await sbClient.storage
+      .from('tour-seat-images')
+      .upload(`${path}.${ext}`, file, { upsert: true });
+    if (error) throw error;
+    const { data: { publicUrl } } = sbClient.storage
+      .from('tour-seat-images').getPublicUrl(data.path);
+    return publicUrl;
+  } catch(e) { console.warn('Upload image failed:', e.message); return null; }
+}
+
+/* Save แถวเดียวไป Supabase (พร้อม upload รูปถ้ามี) */
+async function saveRowToSupabase(row) {
+  if (!sbClient) return;
+
+  // Upload รูปถ้าเป็น data URL หรือ File
+  if (row.passImg && row.passImg.startsWith('data:')) {
+    const url = await uploadImageToStorage(row.passImg, `passport/${row.code || row.id}`);
+    if (url) { row.passImg = url; row.passImgFile = null; }
+  } else if (row.passImgFile) {
+    const url = await uploadImageToStorage(row.passImgFile, `passport/${row.code || row.id}`);
+    if (url) { row.passImg = url; row.passImgFile = null; }
+  }
+
+  if (row.visaImg && row.visaImg.startsWith('data:')) {
+    const url = await uploadImageToStorage(row.visaImg, `visa/${row.code || row.id}`);
+    if (url) { row.visaImg = url; row.visaImgFile = null; }
+  } else if (row.visaImgFile) {
+    const url = await uploadImageToStorage(row.visaImgFile, `visa/${row.code || row.id}`);
+    if (url) { row.visaImg = url; row.visaImgFile = null; }
+  }
+
+  const { error } = await sbClient
+    .from('tour_seat_check')
+    .upsert(rowToRecord(row), { onConflict: 'code' });
+  if (error) throw error;
+}
+
+/* Load ทั้งหมดจาก Supabase */
+async function loadFromSupabase() {
+  if (!sbClient) {
+    loadLocal();
+    renderTable();
+    restoreImagesFromIDB(); // คืนรูปจาก IndexedDB
+    return;
+  }
+
+  // แสดง loading
+  document.getElementById('table-body').innerHTML =
+    `<tr><td colspan="12" style="text-align:center;padding:40px;color:var(--text3)">⏳ กำลังโหลดข้อมูลจาก Supabase...</td></tr>`;
+
+  try {
+    const { data, error } = await sbClient
+      .from('tour_seat_check')
+      .select('*')
+      .order('created_at', { ascending: true });
+
+    if (error) throw error;
+
+    if (!data || data.length === 0) {
+      loadLocal();
+      renderTable();
+      restoreImagesFromIDB();
+      return;
+    }
+
+    // สร้าง id map ก่อน เพื่อ link parentId
+    const idMap = {};
+    data.forEach(r => { idMap[r.code] = 'sb_' + r.code; });
+
+    // แยก parent rows ก่อน แล้วค่อย sub-rows
+    const parents = data.filter(r => !r.is_sub_row);
+    const subs    = data.filter(r => r.is_sub_row);
+
+    rows = [];
+    parents.forEach(p => {
+      rows.push(recordToRow(p, idMap));
+      subs.filter(s => s.parent_code === p.code)
+          .forEach(s => rows.push(recordToRow(s, idMap)));
+    });
+
+    saveLocal();
+    renderTable();
+    restoreImagesFromIDB(); // คืนรูปจาก IndexedDB สำหรับ rows ที่ยังไม่มีรูปใน Supabase
+  } catch(e) {
+    console.error('Load from Supabase failed:', e);
+    toast('โหลดจาก Supabase ไม่ได้ — ใช้ข้อมูล cache แทน', 'error');
+    loadLocal();
+    renderTable();
+    restoreImagesFromIDB();
+  }
+}
+
+function isRowComplete(row) {
+  return !!(row.passId && row.passExp && row.passImg && row.tel && row.shirt);
+}
+
+function updateStats() {
+  const all     = rows; // ทุก row รวม sub
+  const parents = rows.filter(r => !r.isSubRow);
+
+  const total   = all.length;
+  const conf    = all.filter(r => !!r.passId).length;
+  const unconf  = total - conf;
+  const seat2   = parents.filter(r => parseFloat(r.seat) >= 2).length;
+  const seat1   = parents.filter(r => { const s = parseFloat(r.seat); return s >= 1 && s < 2; }).length;
+  const seat0   = parents.filter(r => parseFloat(r.seat) < 1).length;
+
+  document.getElementById('st-total').textContent  = total;
+  document.getElementById('st-conf').textContent   = conf;
+  document.getElementById('st-unconf').textContent = unconf;
+  document.getElementById('st-seat2').textContent  = seat2;
+  document.getElementById('st-seat1').textContent  = seat1;
+  document.getElementById('st-seat0').textContent  = seat0;
+}
+
+function renderTable() {
+  const tbody = document.getElementById('table-body');
+  const empty = document.getElementById('empty-row');
+
+  // remove all except empty-row
+  Array.from(tbody.querySelectorAll('tr:not(#empty-row)')).forEach(tr => tr.remove());
+
+  if (rows.length === 0) {
+    empty.style.display = '';
+    document.getElementById('row-count').textContent = '0 รายการ';
+    updateStats();
+    return;
+  }
+  empty.style.display = 'none';
+
+  rows.forEach(row => {
+    const tr = buildRow(row);
+    tbody.appendChild(tr);
+  });
+
+  const mainCount = rows.filter(r => !r.isSubRow).length;
+  document.getElementById('row-count').textContent =
+    `${mainCount} รายการ (${rows.length} แถว)`;
+  updateStats();
+}
+
+/* ── Build a single <tr> ──────────────────────────────── */
+function buildRow(row) {
+  const tr = document.createElement('tr');
+  tr.id = 'tr_' + row.id;
+  if (row.isSubRow) tr.classList.add('sub-row');
+  if (row.isEditing) tr.classList.add('editing');
+  // Row bg: green (ครบทุกช่อง) > blue (มี passId) > default
+  if (!row.isEditing) {
+    if (isRowComplete(row))  tr.classList.add('row-confirmed');
+    else if (row.passId)     tr.classList.add('row-has-passid');
+  }
+
+  const e = row.isEditing;
+
+  const rowIndex = rows.filter(r => !r.isSubRow).indexOf(row);
+  const displayNo = row.isSubRow ? '' : (rowIndex + 1);
+
+  tr.innerHTML = `
+    <!-- ลำดับ -->
+    <td class="col-no">${displayNo}</td>
+
+    <!-- รหัส -->
+    <td class="col-code ${row.isSubRow ? 'sub-indent' : ''}" data-label="รหัส">
+      ${e ? `<input class="field-input" style="width:58px" value="${esc(row.code)}" onchange="setField('${row.id}','code',this.value)" />` :
+            `<span class="field-view">${esc(row.code)}</span>`}
+    </td>
+
+    <!-- รายชื่อ -->
+    <td class="col-name" data-label="รายชื่อ">
+      ${e ? `<input class="field-input" style="width:145px" value="${esc(row.name)}" onchange="setField('${row.id}','name',this.value)" />` :
+            `<span class="field-view">${esc(row.name)}</span>`}
+    </td>
+
+    <!-- PIN -->
+    <td class="col-pin" data-label="PIN">
+      ${e ? pinDropdown(row) : `<span class="field-view">${esc(row.pin)}</span>`}
+    </td>
+
+    <!-- Seat -->
+    <td class="col-seat" data-label="Seat">
+      ${row.isSubRow
+          ? `<span class="seat-badge sub">0</span>`
+          : (e ? `<input class="field-input" style="width:52px;text-align:center"
+                    type="number" step="0.5" min="0" value="${esc(row.seat)}"
+                    onchange="onSeatChange('${row.id}', this.value)" />`
+               : `<span class="seat-badge">${row.seat !== '' ? row.seat : '—'}</span>`)}
+    </td>
+
+    <!-- Passport Image -->
+    <td class="col-pimg img-cell" data-label="Pass. Img">${imgCell(row, 'passImg', 'passImgFile', 'Passport')}</td>
+
+    <!-- Passport ID -->
+    <td class="col-pid" data-label="Pass. ID">
+      <div class="ai-wrap">
+        ${e ? `<input class="field-input" style="width:110px" value="${esc(row.passId)}" onchange="setField('${row.id}','passId',this.value)" placeholder="เลขหนังสือเดินทาง" />
+               <button class="btn-ai" onclick="aiExtract('${row.id}')" title="ดึงข้อมูลจาก Passport ด้วย AI">✦ AI</button>` :
+              `<span class="field-view">${esc(row.passId)}</span>`}
+      </div>
+    </td>
+
+    <!-- Passport Exp Date -->
+    <td class="col-pexp" data-label="Pass. Exp.">
+      <div class="ai-wrap">
+        ${e ? `<input class="field-input" style="width:100px" type="text" placeholder="dd/mm/yyyy" value="${esc(row.passExp)}" onchange="setField('${row.id}','passExp',this.value)" />` :
+              `<span class="field-view">${row.passExp || '—'}</span>`}
+      </div>
+    </td>
+
+    <!-- Visa -->
+    <td class="col-visa img-cell" data-label="Visa">${imgCell(row, 'visaImg', 'visaImgFile', 'Visa')}</td>
+
+    <!-- Tel -->
+    <td class="col-tel" data-label="WhatsApp">
+      ${e ? `<input class="field-input" style="width:125px" type="tel" value="${esc(row.tel)}" placeholder="+66 8x xxx xxxx" onchange="setField('${row.id}','tel',this.value)" />` :
+            `<span class="field-view">${esc(row.tel)}</span>`}
+    </td>
+
+    <!-- T-Shirt Size -->
+    <td class="col-shirt" data-label="T-Shirt">
+      ${e ? shirtDropdown(row) : `<span class="field-view">${esc(row.shirt)}</span>`}
+    </td>
+
+    <!-- Edit / Save -->
+    <td class="col-edit">
+      ${row.isEditing
+          ? `<button class="btn-icon save-btn" onclick="saveRow('${row.id}')" title="บันทึก">💾</button>`
+          : `<button class="btn-icon edit-btn" onclick="editRow('${row.id}')" title="แก้ไข">✏️</button>`}
+    </td>
+  `;
+
+  return tr;
+}
+
+/* ── Helpers ──────────────────────────────────────────── */
+function esc(s) {
+  if (s === null || s === undefined) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function formatDate(d) {
+  if (!d) return '—';
+  const dt = new Date(d + 'T00:00:00');
+  return dt.toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: '2-digit' });
+}
+
+function pinDropdown(row) {
+  return `<select class="field-input" style="width:76px" onchange="setField('${row.id}','pin',this.value)">
+    ${PIN_OPTIONS.map(p => `<option value="${p}" ${row.pin===p?'selected':''}>${p||'— เลือก —'}</option>`).join('')}
+  </select>`;
+}
+function shirtDropdown(row) {
+  return `<select class="field-input" style="width:76px" onchange="setField('${row.id}','shirt',this.value)">
+    ${SHIRT_OPTIONS.map(s => `<option value="${s}" ${row.shirt===s?'selected':''}>${s||'— เลือก —'}</option>`).join('')}
+  </select>`;
+}
+
+/* ── Image cell HTML ──────────────────────────────────── */
+function imgCell(row, field, fileField, label) {
+  const src = row[field];
+  const id  = row.id;
+  const ed  = row.isEditing;
+
+  if (src) {
+    return `<div class="img-drop-zone has-image ${ed ? '' : 'img-locked'}"
+                 id="zone_${id}_${field}"
+                 ${ed ? `ondragover="dragOver(event)" ondragleave="dragLeave(event)" ondrop="dropImg(event,'${id}','${field}','${fileField}')"
+                         onclick="zoneClick('${id}','${field}','${fileField}',event)"` :
+                        `onclick="openImgModal('${src}')" title="คลิกเพื่อขยาย"`}>
+              <img src="${src}" alt="${label}" />
+              ${ed ? `<button class="remove-img" onclick="removeImg('${id}','${field}','${fileField}',event)">✕</button>` : ''}
+           </div>
+           <input type="file" id="fi_${id}_${field}" accept="image/*" style="display:none"
+                  onchange="fileChosen(event,'${id}','${field}','${fileField}')" />`;
+  } else {
+    return `<div class="img-drop-zone ${ed ? '' : 'img-locked'}"
+                 id="zone_${id}_${field}"
+                 ${ed ? `ondragover="dragOver(event)" ondragleave="dragLeave(event)" ondrop="dropImg(event,'${id}','${field}','${fileField}')"
+                         onclick="zoneClick('${id}','${field}','${fileField}',event)"` :
+                        `title="${label} ยังไม่มีรูป"`}>
+              ${ed ? `<span>${label}<br>คลิก/ลาก</span>` : `<span style="font-size:18px">🖼</span>`}
+           </div>
+           <input type="file" id="fi_${id}_${field}" accept="image/*" style="display:none"
+                  onchange="fileChosen(event,'${id}','${field}','${fileField}')" />`;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   EDIT / SAVE
+═══════════════════════════════════════════════════════════ */
+function editRow(id) {
+  const row = getRow(id);
+  if (!row) return;
+  row.isEditing = true;
+  refreshRow(row);
+}
+
+async function saveRow(id) {
+  const row = getRow(id);
+  if (!row) return;
+  row.isEditing = false;
+  refreshRow(row);
+  saveLocal();
+
+  if (sbClient) {
+    const btn = document.querySelector(`#tr_${id} .save-btn`);
+    if (btn) { btn.textContent = '⏳'; btn.disabled = true; }
+    try {
+      await saveRowToSupabase(row);
+      refreshRow(row); // re-render เพื่อแสดง URL รูปใหม่
+      saveLocal();
+      toast('บันทึกสำเร็จ', 'success');
+    } catch(e) {
+      toast('บันทึก Supabase ไม่สำเร็จ: ' + e.message, 'error');
+    }
+  }
+}
+
+function setField(id, field, value) {
+  const row = getRow(id);
+  if (row) row[field] = value;
+}
+
+function onSeatChange(id, value) {
+  const row = getRow(id);
+  if (!row) return;
+  const newSeat = parseFloat(value) || 0;
+  const oldSeat = parseFloat(row.seat) || 0;
+  row.seat = newSeat;
+
+  // Adjust sub-rows
+  const neededSubs = newSeat >= 2 ? Math.floor(newSeat) - 1 : 0;
+  const existingSubs = rows.filter(r => r.parentId === id);
+
+  if (neededSubs > existingSubs.length) {
+    // add sub-rows
+    const parentIdx = rows.findIndex(r => r.id === id);
+    let insertAt = parentIdx + 1 + existingSubs.length;
+    for (let i = existingSubs.length; i < neededSubs; i++) {
+      rows.splice(insertAt, 0, makeSubRow(row, i));
+      insertAt++;
+    }
+  } else if (neededSubs < existingSubs.length) {
+    // remove excess sub-rows
+    const toRemove = existingSubs.slice(neededSubs).map(r => r.id);
+    rows = rows.filter(r => !toRemove.includes(r.id));
+  }
+
+  renderTable();
+}
+
+/* Re-render a single row in place */
+function refreshRow(row) {
+  const tr = document.getElementById('tr_' + row.id);
+  if (!tr) { renderTable(); return; }
+  const newTr = buildRow(row);
+  tr.parentNode.replaceChild(newTr, tr);
+  updateStats();
+}
+
+function getRow(id) {
+  return rows.find(r => r.id === id) || null;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   IMAGE HANDLING
+═══════════════════════════════════════════════════════════ */
+function dragOver(event) {
+  event.preventDefault();
+  event.currentTarget.classList.add('drag-over');
+}
+function dragLeave(event) {
+  event.currentTarget.classList.remove('drag-over');
+}
+
+function dropImg(event, id, field, fileField) {
+  event.preventDefault();
+  event.currentTarget.classList.remove('drag-over');
+  const file = event.dataTransfer.files[0];
+  if (file && file.type.startsWith('image/')) {
+    loadImageFile(file, id, field, fileField);
+  }
+}
+
+function zoneClick(id, field, fileField, event) {
+  event.stopPropagation();
+  const inp = document.getElementById(`fi_${id}_${field}`);
+  if (inp) inp.click();
+}
+
+function fileChosen(event, id, field, fileField) {
+  const file = event.target.files[0];
+  if (file) loadImageFile(file, id, field, fileField);
+}
+
+function loadImageFile(file, id, field, fileField) {
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    const row = getRow(id);
+    if (!row) return;
+    row[field]     = e.target.result;
+    row[fileField] = file;
+    refreshRow(row);
+
+    // บันทึกลง IndexedDB ทันที (ใช้ code เป็น key ให้คงที่ข้าม session)
+    if (row.code) {
+      await IMG_DB.set(`${row.code}_${field}`, e.target.result);
+    }
+
+    // Auto-upload ไป Supabase Storage ด้วย ถ้า sbClient พร้อม
+    if (sbClient && row.code) {
+      const storePath = field === 'passImg'
+        ? `passport/${row.code}`
+        : `visa/${row.code}`;
+      const url = await uploadImageToStorage(file, storePath);
+      if (url) {
+        row[field]     = url;
+        row[fileField] = null;
+        refreshRow(row);
+        saveLocal();
+        IMG_DB.del(`${row.code}_${field}`); // ลบออกจาก IDB (ใช้ Supabase URL แล้ว)
+        sbClient.from('tour_seat_check').upsert(rowToRecord(row), { onConflict: 'code' })
+          .then(({ error }) => { if (error) console.warn('upsert after img upload:', error.message); });
+      }
+    }
+  };
+  reader.readAsDataURL(file);
+}
+
+function removeImg(id, field, fileField, event) {
+  event.stopPropagation();
+  const row = getRow(id);
+  if (!row) return;
+  row[field]     = null;
+  row[fileField] = null;
+  refreshRow(row);
+
+  // ลบจาก IndexedDB ด้วย ไม่งั้นรูปจะกลับมาหลัง refresh
+  if (row.code) IMG_DB.del(`${row.code}_${field}`);
+
+  // ถ้ามี Supabase ให้ update record ด้วย null
+  if (sbClient && row.code) {
+    sbClient.from('tour_seat_check').upsert(rowToRecord(row), { onConflict: 'code' })
+      .then(({ error }) => { if (error) console.warn('remove img upsert:', error.message); });
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   IMAGE MODAL
+═══════════════════════════════════════════════════════════ */
+function openImgModal(src) {
+  document.getElementById('img-modal-img').src = src;
+  document.getElementById('img-modal').classList.add('open');
+}
+function closeImgModal() {
+  document.getElementById('img-modal').classList.remove('open');
+  document.getElementById('img-modal-img').src = '';
+}
+
+/* ═══════════════════════════════════════════════════════════
+   AI PASSPORT EXTRACTION
+═══════════════════════════════════════════════════════════ */
+async function aiExtract(id) {
+  const row = getRow(id);
+  if (!row) return;
+
+  const proxyUrl = localStorage.getItem('cs_ai_proxy') || '';
+  if (!proxyUrl) {
+    toast('กรุณาตั้งค่า AI Proxy URL ใน Config ก่อน', 'error');
+    return;
+  }
+  if (!row.passImg) {
+    toast('กรุณาอัปโหลด Passport Image ก่อน', 'error');
+    return;
+  }
+
+  // Extract base64 data
+  const base64Match = row.passImg.match(/^data:(.+);base64,(.+)$/);
+  if (!base64Match) { toast('รูปภาพ Passport ไม่ถูกต้อง', 'error'); return; }
+  const mediaType   = base64Match[1];
+  const imageBase64 = base64Match[2];
+
+  // Show loading
+  const aiBtn = document.querySelector(`#tr_${id} .btn-ai`);
+  if (aiBtn) { aiBtn.textContent = '⏳'; aiBtn.disabled = true; }
+
+  try {
+    const resp = await fetch(proxyUrl, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ imageBase64, mediaType }),
+    });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const data = await resp.json();
+
+    if (data.id)  { row.passId  = data.id;  }
+    if (data.exp) { row.passExp = data.exp;  }
+
+    refreshRow(row);
+    toast('AI ดึงข้อมูล Passport สำเร็จ', 'success');
+  } catch (err) {
+    toast('AI Extraction ล้มเหลว: ' + err.message, 'error');
+  } finally {
+    if (aiBtn) { aiBtn.textContent = '✦ AI'; aiBtn.disabled = false; }
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   SUPABASE — SAVE ALL (batch upsert ไม่รวม upload รูป)
+═══════════════════════════════════════════════════════════ */
+async function saveAllToSupabase() {
+  if (!sbClient) {
+    toast('ยังไม่ได้ตั้งค่า Supabase', 'error');
+    return;
+  }
+  try {
+    // Upload รูปที่ยังเป็น data URL ก่อน batch upsert
+    const rowsWithImg = rows.filter(r =>
+      (r.passImg && r.passImg.startsWith('data:')) ||
+      r.passImgFile ||
+      (r.visaImg && r.visaImg.startsWith('data:')) ||
+      r.visaImgFile
+    );
+    if (rowsWithImg.length > 0) {
+      showSaveOverlay(
+        `กำลัง Upload รูป...`,
+        `กำลัง upload รูป ${rowsWithImg.length} รายการ — กรุณารอสักครู่ อย่าปิดหรือ Refresh หน้านี้`
+      );
+      let done = 0;
+      await Promise.all(rowsWithImg.map(async row => {
+        if (row.passImg && row.passImg.startsWith('data:')) {
+          const url = await uploadImageToStorage(row.passImg, `passport/${row.code || row.id}`);
+          if (url) { row.passImg = url; row.passImgFile = null; }
+        } else if (row.passImgFile) {
+          const url = await uploadImageToStorage(row.passImgFile, `passport/${row.code || row.id}`);
+          if (url) { row.passImg = url; row.passImgFile = null; }
+        }
+        if (row.visaImg && row.visaImg.startsWith('data:')) {
+          const url = await uploadImageToStorage(row.visaImg, `visa/${row.code || row.id}`);
+          if (url) { row.visaImg = url; row.visaImgFile = null; }
+        } else if (row.visaImgFile) {
+          const url = await uploadImageToStorage(row.visaImgFile, `visa/${row.code || row.id}`);
+          if (url) { row.visaImg = url; row.visaImgFile = null; }
+        }
+        done++;
+        document.getElementById('save-overlay-msg').textContent =
+          `Upload รูปแล้ว ${done}/${rowsWithImg.length} รายการ — อย่าปิดหรือ Refresh หน้านี้`;
+      }));
+      renderTable(); // อัปเดต UI ให้แสดง URL รูปใหม่
+    }
+
+    showSaveOverlay('กำลังบันทึกข้อมูล...', `กำลัง sync ${rows.length} รายการไป Supabase — อย่าปิดหรือ Refresh หน้านี้`);
+    const records = rows.map(row => rowToRecord(row));
+    const { error } = await sbClient
+      .from('tour_seat_check')
+      .upsert(records, { onConflict: 'code' });
+    if (error) throw error;
+    saveLocal();
+    hideSaveOverlay();
+    toast(`บันทึก ${records.length} รายการสำเร็จ`, 'success');
+  } catch(err) {
+    hideSaveOverlay();
+    toast('บันทึกล้มเหลว: ' + err.message, 'error');
+    console.error(err);
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   EXPORT EXCEL
+═══════════════════════════════════════════════════════════ */
+function exportExcel() {
+  if (rows.length === 0) { toast('ไม่มีข้อมูลให้ Export', 'error'); return; }
+  const data = rows.map(row => ({
+    'รหัส':              row.code,
+    'รายชื่อ':           row.name,
+    'PIN':               row.pin,
+    'Seat':              row.seat,
+    'Passport ID':       row.passId,
+    'Passport Exp Date': row.passExp,
+    'Tel (WhatsApp)':    row.tel,
+    'T-Shirt Size':      row.shirt,
+    'Sub Row':           row.isSubRow ? 'ใช่' : '',
+  }));
+  const ws = XLSX.utils.json_to_sheet(data);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Check Seat');
+  XLSX.writeFile(wb, 'check-seat-export.xlsx');
+  toast('Export Excel สำเร็จ', 'success');
+}
+
+/* ═══════════════════════════════════════════════════════════
+   DOWNLOAD TEMPLATE
+═══════════════════════════════════════════════════════════ */
+function downloadTemplate() {
+  const headers = [
+    { รหัส: '001', รายชื่อ: 'ชื่อ-นามสกุล', PIN: 'SVP', Seat: 1 },
+    { รหัส: '002', รายชื่อ: 'ชื่อ-นามสกุล', PIN: 'VP',  Seat: 2 },
+    { รหัส: '003', รายชื่อ: 'ชื่อ-นามสกุล', PIN: 'AVP', Seat: 0.5 },
+  ];
+
+  const ws = XLSX.utils.json_to_sheet(headers);
+
+  /* ตั้งความกว้างคอลัมน์ */
+  ws['!cols'] = [
+    { wch: 10 },  // รหัส
+    { wch: 30 },  // รายชื่อ
+    { wch: 8  },  // PIN
+    { wch: 8  },  // Seat
+  ];
+
+  /* เพิ่ม comment อธิบาย PIN */
+  ws['C1'].c = [{ a: 'System', t: 'ค่าที่ใช้ได้: SVP, VP, AVP, SD, DR' }];
+  ws['!comments'] = true;
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Template');
+  XLSX.writeFile(wb, 'check-seat-template.xlsx');
+  toast('ดาวน์โหลด Template สำเร็จ', 'success');
+}
+
+/* ═══════════════════════════════════════════════════════════
+   TOAST
+═══════════════════════════════════════════════════════════ */
+function showSaveOverlay(title = 'กำลังบันทึก...', msg = 'กรุณารอสักครู่ อย่าปิดหรือ Refresh หน้านี้') {
+  document.getElementById('save-overlay-title').textContent = title;
+  document.getElementById('save-overlay-msg').textContent   = msg;
+  document.getElementById('save-overlay').classList.add('active');
+}
+function hideSaveOverlay() {
+  document.getElementById('save-overlay').classList.remove('active');
+}
+
+function toast(msg, type = 'info') {
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.textContent = msg;
+  document.getElementById('toast-container').appendChild(el);
+  setTimeout(() => el.remove(), 3500);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   KEYBOARD — Escape to close modal
+═══════════════════════════════════════════════════════════ */
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') closeImgModal();
+});
+
+/* ═══════════════════════════════════════════════════════════
+   INIT
+═══════════════════════════════════════════════════════════ */
+loadConfig();
+initSupabase(
+  localStorage.getItem('cs_sb_url') || '',
+  localStorage.getItem('cs_sb_key') || ''
+);
+loadFromSupabase(); // โหลดจาก Supabase → fallback localStorage
+</script>
+</body>
+</html>
