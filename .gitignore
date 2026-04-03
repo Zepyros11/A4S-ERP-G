@@ -1,4 +1,6 @@
 # Environment files (secrets)
 .env
 *.env
-ai-proxy/.env
+
+# AI proxy (not used)
+ai-proxy/
