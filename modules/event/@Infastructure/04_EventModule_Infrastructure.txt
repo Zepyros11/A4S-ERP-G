@@ -1,5 +1,5 @@
-================================================================
-EVENT MODULE — Infrastructure
+﻿================================================================
+EVENT MODULE โ€” Infrastructure
 A4S-ERP | Technical Setup
 ================================================================
 
@@ -11,7 +11,7 @@ A4S-ERP | Technical Setup
 Frontend  : Vanilla JS + HTML + CSS (no framework)
 Backend   : Supabase (PostgreSQL + Storage + Realtime)
 Hosting   : GitHub Pages
-Auth      : session จาก localStorage / sessionStorage
+Auth      : session เธเธฒเธ localStorage / sessionStorage
 
 
 ----------------------------------------------------------------
@@ -21,17 +21,17 @@ Auth      : session จาก localStorage / sessionStorage
 Project   : stock-order-system
 URL       : https://dtiynydgkcqausqktreg.supabase.co
 Key       : sb_publishable_erMV0G_pNtPTYq-3frqv1Q_sIJ7KILD
-Stored in : localStorage keys → sb_url, sb_key
+Stored in : localStorage keys โ’ sb_url, sb_key
 
 
 ----------------------------------------------------------------
 3. DATABASE
 ----------------------------------------------------------------
 
-Tables    : 11 tables (ดูรายละเอียดใน DatabaseTables.txt)
-RLS       : DISABLED บนทุก event table (dev mode)
+Tables    : 11 tables (เธ”เธนเธฃเธฒเธขเธฅเธฐเน€เธญเธตเธขเธ”เนเธ DatabaseTables.txt)
+RLS       : DISABLED เธเธเธ—เธธเธ event table (dev mode)
 
-SQL ปิด RLS ทั้งหมด:
+SQL เธเธดเธ” RLS เธ—เธฑเนเธเธซเธกเธ”:
   ALTER TABLE events               DISABLE ROW LEVEL SECURITY;
   ALTER TABLE event_logs           DISABLE ROW LEVEL SECURITY;
   ALTER TABLE event_requests       DISABLE ROW LEVEL SECURITY;
@@ -45,8 +45,8 @@ SQL ปิด RLS ทั้งหมด:
   ALTER TABLE user_roles           DISABLE ROW LEVEL SECURITY;
 
 Realtime enabled:
-  room_bookings   → ป้องกัน double booking
-  notifications   → แจ้งเตือน real-time
+  room_bookings   โ’ เธเนเธญเธเธเธฑเธ double booking
+  notifications   โ’ เนเธเนเธเน€เธ•เธทเธญเธ real-time
 
 
 ----------------------------------------------------------------
@@ -60,12 +60,12 @@ Policy    : allow_storage_all
 
 Folder Structure:
   event-files/
-  ├── documents/    ไฟล์แนบใบขอ, vendor contract
-  │     req_{requestId}_{timestamp}.{ext}
-  │     sup_{eventId}_{timestamp}.{ext}
-  ├── media/        ไฟล์งาน media
-  │     media_{eventId}_{timestamp}.{ext}
-  └── posters/      poster กิจกรรม
+  โ”โ”€โ”€ documents/    เนเธเธฅเนเนเธเธเนเธเธเธญ, vendor contract
+  โ”     req_{requestId}_{timestamp}.{ext}
+  โ”     sup_{eventId}_{timestamp}.{ext}
+  โ”โ”€โ”€ media/        เนเธเธฅเนเธเธฒเธ media
+  โ”     media_{eventId}_{timestamp}.{ext}
+  โ””โ”€โ”€ posters/      poster เธเธดเธเธเธฃเธฃเธก
         poster_{eventId}_{timestamp}.{ext}
 
 Upload Pattern:
@@ -79,25 +79,24 @@ Upload Pattern:
 ----------------------------------------------------------------
 
 modules/event/
-├── activity/
-│   ├── events-list.html / .js / events.css
-│   ├── event-form.html / .js / event-form.css
-│   └── event-log.html / .js / event-log.css
-├── requests/
-│   ├── event-requests.html / .js / event-requests.css
-│   └── event-request-form.html / .js / event-request-form.css
-├── rooms/
-│   ├── rooms-list.html / .js
-│   ├── room-booking.html / .js
-│   └── rooms.css
-├── procurement/
-│   ├── event-budget.html / .js
-│   ├── event-suppliers.html / .js
-│   └── procurement.css
-├── attendees/
-│   ├── attendees.html / .js / attendees.css
-└── media/
-    ├── media-schedule.html / .js / media-schedule.css
+โ”โ”€โ”€ activity/
+โ”   โ”โ”€โ”€ events-list.html / .js / events.css
+โ”   โ”โ”€โ”€ event-form.html / .js / event-form.css
+โ”   โ””โ”€โ”€ event-log.html / .js / event-log.css
+โ”โ”€โ”€ requests/
+โ”   โ”โ”€โ”€ event-requests.html / .js / event-requests.css
+โ”   โ””โ”€โ”€ event-request-form.html / .js / event-request-form.css
+โ”โ”€โ”€ rooms/
+โ”   โ”โ”€โ”€ room-booking.html / .js
+โ”   โ””โ”€โ”€ rooms.css
+โ”โ”€โ”€ procurement/
+โ”   โ”โ”€โ”€ event-budget.html / .js
+โ”   โ”โ”€โ”€ event-suppliers.html / .js
+โ”   โ””โ”€โ”€ procurement.css
+โ”โ”€โ”€ attendees/
+โ”   โ”โ”€โ”€ attendees.html / .js / attendees.css
+โ””โ”€โ”€ media/
+    โ”โ”€โ”€ media-schedule.html / .js / media-schedule.css
 
 Shared JS:
   js/core/auth.js
@@ -108,11 +107,11 @@ Shared JS:
   js/components/modal/enterModal.js
 
 CSS Path:
-  ../../../../css/main.css  (relative จากแต่ละ sub-folder)
+  ../../../../css/main.css  (relative เธเธฒเธเนเธ•เนเธฅเธฐ sub-folder)
 
 
 ----------------------------------------------------------------
-6. API PATTERN (ทุก module ใช้รูปแบบเดียวกัน)
+6. API PATTERN (เธ—เธธเธ module เนเธเนเธฃเธนเธเนเธเธเน€เธ”เธตเธขเธงเธเธฑเธ)
 ----------------------------------------------------------------
 
 function getSB() {
@@ -159,24 +158,24 @@ const currentUserId = session?.user_id || null;
 8. DATE / TIME PATTERN
 ----------------------------------------------------------------
 
-วันที่ปัจจุบัน (timezone-safe):
+เธงเธฑเธเธ—เธตเนเธเธฑเธเธเธธเธเธฑเธ (timezone-safe):
   new Date().toLocaleDateString("sv", { timeZone: "Asia/Bangkok" })
-  → ได้ "2026-03-13" format ISO
+  โ’ เนเธ”เน "2026-03-13" format ISO
 
-แสดงวันที่ภาษาไทย:
+เนเธชเธ”เธเธงเธฑเธเธ—เธตเนเธ เธฒเธฉเธฒเนเธ—เธข:
   new Date(d + "T00:00:00").toLocaleDateString("th-TH", {
     day: "numeric", month: "short", year: "numeric"
   })
 
-แสดง datetime:
+เนเธชเธ”เธ datetime:
   new Date(dt).toLocaleString("th-TH", {
     timeZone: "Asia/Bangkok",
     day: "2-digit", month: "short", year: "numeric",
     hour: "2-digit", minute: "2-digit"
   })
 
-time จาก DB (HH:MM:SS):
-  time.slice(0, 5)  → "HH:MM"
+time เธเธฒเธ DB (HH:MM:SS):
+  time.slice(0, 5)  โ’ "HH:MM"
 
 
 ----------------------------------------------------------------
@@ -188,45 +187,44 @@ Event Code: EVT-YYYYMM-XXX
                    { timeZone:"Asia/Bangkok" }).slice(0,7).replace("-","");
   const prefix = `EVT-${ym}-`;
   query events WHERE event_code LIKE 'EVT-{ym}-%'
-  หา maxSeq จาก parseInt(code.split("-").pop())
+  เธซเธฒ maxSeq เธเธฒเธ parseInt(code.split("-").pop())
   return `${prefix}${String(maxSeq+1).padStart(3,"0")}`
 
-Request Code: REQ-YYYYMM-XXX  (รูปแบบเดียวกัน)
+Request Code: REQ-YYYYMM-XXX  (เธฃเธนเธเนเธเธเน€เธ”เธตเธขเธงเธเธฑเธ)
 
 Ticket No: TK-{eventId}-XXXX
   query event_attendees WHERE ticket_no LIKE 'TK-{eventId}-%'
-  หา maxSeq → return `TK-${eventId}-${String(maxSeq+1).padStart(4,"0")}`
+  เธซเธฒ maxSeq โ’ return `TK-${eventId}-${String(maxSeq+1).padStart(4,"0")}`
 
 
 ----------------------------------------------------------------
 10. SIDEBAR ENTRY (sidebar.js)
 ----------------------------------------------------------------
 
-เพิ่ม group ใน MENU array (ก่อน g-reports):
+เน€เธเธดเนเธก group เนเธ MENU array (เธเนเธญเธ g-reports):
 {
-  group: "กิจกรรม (EVENT)", icon: "🗓️", id: "g-event",
+  group: "เธเธดเธเธเธฃเธฃเธก (EVENT)", icon: "๐—“๏ธ", id: "g-event",
   items: [
-    { id:"events",         icon:"🗓️", label:"กิจกรรม",
+    { id:"events",         icon:"๐—“๏ธ", label:"เธเธดเธเธเธฃเธฃเธก",
       path: BASE_PATH+"/modules/event/activity/events-list.html" },
-    { id:"event-requests", icon:"📋", label:"ใบขอจัดงาน",
+    { id:"event-requests", icon:"๐“", label:"เนเธเธเธญเธเธฑเธ”เธเธฒเธ",
       path: BASE_PATH+"/modules/event/requests/event-requests.html" },
-    { id:"rooms",          icon:"🚪", label:"ห้องประชุม",
-      path: BASE_PATH+"/modules/event/rooms/rooms-list.html" },
-    { id:"event-budget",   icon:"💰", label:"งบประมาณ & Vendor",
+    { id:"rooms",          icon:"๐ช", label:"เธซเนเธญเธเธเธฃเธฐเธเธธเธก",
+    { id:"event-budget",   icon:"๐’ฐ", label:"เธเธเธเธฃเธฐเธกเธฒเธ“ & Vendor",
       path: BASE_PATH+"/modules/event/procurement/event-budget.html" },
-    { id:"attendees",      icon:"👥", label:"ผู้เข้าร่วม",
+    { id:"attendees",      icon:"๐‘ฅ", label:"เธเธนเนเน€เธเนเธฒเธฃเนเธงเธก",
       path: BASE_PATH+"/modules/event/attendees/attendees.html" },
-    { id:"event-media",    icon:"🎬", label:"งาน Media",
+    { id:"event-media",    icon:"๐ฌ", label:"เธเธฒเธ Media",
       path: BASE_PATH+"/modules/event/media/media-schedule.html" },
   ]
 }
 
-READY array เพิ่ม:
+READY array เน€เธเธดเนเธก:
   "events", "event-requests", "rooms",
   "event-budget", "attendees", "event-media"
 
 
 ================================================================
 END OF DOCUMENT
-A4S-ERP — Event Module Infrastructure
+A4S-ERP โ€” Event Module Infrastructure
 ================================================================

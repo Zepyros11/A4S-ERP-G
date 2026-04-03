@@ -88,8 +88,8 @@ const CalTopbar = (function () {
             onclick="window.location.href = './event-poster-gallery-view.html'">
             Poster Gallery
           </button>
-          <button class="cal-topbar-btn ${currentPage === 'events-booking' ? 'active' : ''}"
-            onclick="window.location.href = './events-booking.html'">
+          <button class="cal-topbar-btn ${currentPage === 'events-bookingRoom' ? 'active' : ''}"
+            onclick="window.location.href = './events-bookingRoom.html'">
             Room Booking
           </button>
           <span class="cal-topbar-date" id="calTopbarDate"></span>

@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Events - Booking Room</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="events-bookingRoom.css" />
+  </head>
+  <body class="text-slate-800 flex flex-col h-screen overflow-hidden">
+
+    <!-- TOPBAR -->
+    <div id="calTopbarContainer"></div>
+    <script src="../../../js/components/navigation/topbar-calendar.js"></script>
+    <script>
+      CalTopbar.init({
+        container: "calTopbarContainer",
+        pageName: "จองห้องประชุม",
+        logoPath: "/A4S-ERP-G/assets/images/logo-a4s.png",
+      });
+    </script>
+
+    <!-- 3-column layout -->
+    <div class="flex flex-1 overflow-hidden" style="padding-top: 56px;">
+
+      <!-- COL 1: Room List -->
+      <aside class="w-72 bg-white border-r border-slate-200 flex flex-col flex-shrink-0">
+        <div class="p-5 border-b border-slate-100">
+          <h2 class="text-base font-bold text-slate-900">พื้นที่ทำงาน</h2>
+          <p class="text-[10px] text-slate-400 mt-0.5 uppercase font-bold tracking-widest">เลือกห้องที่คุณต้องการ</p>
+        </div>
+
+        <div class="px-3 pt-3">
+          <input
+            id="searchRoom"
+            type="text"
+            placeholder="ค้นหาห้อง..."
+            class="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
+          />
+        </div>
+
+        <div class="flex-1 overflow-y-auto p-3 space-y-2 booking-list" id="roomList">
+          <!-- rendered by JS -->
+        </div>
+
+      </aside>
+
+      <!-- COL 2: Timeline -->
+      <main class="flex-1 flex flex-col bg-white border-r border-slate-200 overflow-hidden min-w-0">
+        <!-- Header -->
+        <header class="px-6 py-4 border-b border-slate-100 flex justify-between items-center flex-shrink-0">
+          <div>
+            <h1 class="text-xl font-black text-slate-900 tracking-tight" id="selectedRoomName">เลือกห้อง</h1>
+            <p class="text-xs text-slate-400" id="selectedRoomDetail">สถานะการจองประจำสัปดาห์นี้</p>
+          </div>
+          <button
+            id="btnBook"
+            class="px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-bold shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition"
+          >
+            จองห้องนี้
+          </button>
+        </header>
+
+        <!-- Timeline -->
+        <div class="flex-1 overflow-y-auto p-6">
+          <div class="space-y-8" id="timeline">
+            <!-- rendered by JS -->
+          </div>
+        </div>
+      </main>
+
+      <!-- COL 3: Right panel -->
+      <aside class="w-72 flex-shrink-0 flex flex-col bg-slate-50 overflow-hidden">
+
+        <!-- Mini Calendar -->
+        <div class="flex-1 border-b border-slate-200 flex flex-col overflow-hidden">
+          <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+            <span class="text-xs font-black text-slate-500 uppercase tracking-widest">ปฏิทิน</span>
+            <div class="flex gap-1">
+              <button id="calPrev" class="w-6 h-6 rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 text-xs flex items-center justify-center">‹</button>
+              <button id="calNext" class="w-6 h-6 rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 text-xs flex items-center justify-center">›</button>
+            </div>
+          </div>
+          <div class="flex-1 overflow-auto p-3">
+            <div id="miniCalendar"></div>
+          </div>
+        </div>
+
+        <!-- Request List -->
+        <div class="flex-1 flex flex-col overflow-hidden">
+          <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+            <span class="text-xs font-black text-slate-500 uppercase tracking-widest">Request List</span>
+            <span id="requestCount" class="text-[10px] bg-indigo-100 text-indigo-600 font-bold px-2 py-0.5 rounded-full">0</span>
+          </div>
+          <div class="flex-1 overflow-y-auto p-3 space-y-2" id="requestList">
+            <!-- rendered by JS -->
+          </div>
+        </div>
+
+      </aside>
+    </div><!-- end 3-col -->
+
+    <!-- Booking Modal -->
+    <div id="bookingModal" class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
+      <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-8 relative">
+        <button id="closeModal" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 text-xl font-bold">&times;</button>
+        <h2 class="text-lg font-black text-slate-900 mb-1">จองห้องประชุม</h2>
+        <p class="text-sm text-slate-400 mb-6" id="modalRoomName">-</p>
+        <div class="space-y-4">
+
+          <!-- ชื่อผู้จอง + ชื่อ CS -->
+          <div class="flex gap-3">
+            <div class="flex-1">
+              <label class="text-xs font-bold text-slate-500 uppercase tracking-widest">ชื่อผู้จอง</label>
+              <input id="inputBookerText" type="text" list="bookerList" placeholder="พิมพ์หรือเลือกชื่อ..."
+                autocomplete="off"
+                class="mt-1 w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300" />
+              <datalist id="bookerList"></datalist>
+              <input type="hidden" id="inputBooker" />
+            </div>
+            <div class="flex-1">
+              <label class="text-xs font-bold text-slate-500 uppercase tracking-widest">ชื่อ CS</label>
+              <input id="inputCsText" type="text" list="csList" placeholder="พิมพ์หรือเลือกชื่อ..."
+                autocomplete="off"
+                class="mt-1 w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300" />
+              <datalist id="csList"></datalist>
+              <input type="hidden" id="inputCs" />
+            </div>
+          </div>
+
+          <!-- วันที่ -->
+          <div>
+            <label class="text-xs font-bold text-slate-500 uppercase tracking-widest">วันที่</label>
+            <input id="inputDate" type="date" class="mt-1 w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300" />
+          </div>
+
+          <!-- เวลา -->
+          <div class="flex gap-4">
+            <div class="flex-1">
+              <label class="text-xs font-bold text-slate-500 uppercase tracking-widest">เวลาเริ่ม</label>
+              <input type="hidden" id="inputStart" />
+              <div id="startTimeGrid" class="mt-1 grid grid-cols-2 gap-1 max-h-44 overflow-y-auto pr-0.5"></div>
+            </div>
+            <div class="flex-1">
+              <label class="text-xs font-bold text-slate-500 uppercase tracking-widest">เวลาสิ้นสุด</label>
+              <input type="hidden" id="inputEnd" />
+              <div id="endTimeGrid" class="mt-1 grid grid-cols-2 gap-1 max-h-44 overflow-y-auto pr-0.5"></div>
+            </div>
+          </div>
+
+          <button id="btnConfirmBook" class="w-full py-3 bg-indigo-600 text-white rounded-xl font-bold text-sm hover:bg-indigo-700 transition">
+            ยืนยันการจอง
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script src="../../../js/components/navigation/imgPopup.js"></script>
+    <script src="events-bookingRoom.js"></script>
+  </body>
+</html>

@@ -1,48 +1,45 @@
-Gantt Chart — Event Module
+﻿Gantt Chart โ€” Event Module
 modules/event/
-│
-├── activity/          ✅ DONE ← สร้าง/แก้ไขกิจกรรมปฏิทิน
-│   ├── events-list.html
-│   ├── events-list.js
-│   ├── events-api.js
-│   ├── events.css
-│   ├── event-form.html
-│   ├── event-form.js
-│   ├── event-form.css
-│   ├── event-log.html
-│   ├── event-log.js
-│   └── event-log.css
-│
-├── requests/          ✅ DONE ← คำขอจากแผนกอื่น
-│   ├── event-request-form.css
-│   ├── event-request-form.html
-│   └── event-request-form.js
-│   ├── event-requests.html
-│   ├── event-requests.js
-│   └── event-requests.css
-│
-├── rooms/             ✅ DONE  ← จัดการห้องประชุม
-│   ├── room-booking.html
-│   ├── room-booking.js
-│   ├── rooms-list.html
-│   ├── rooms-list.js
-│   └── rooms.css
-├── procurement/       ✅ DONE ← Supplier ของ Event
-│   ├── event-suppliers.html
-│   ├── event-suppliers.js
-│   ├── event-budget.html
-│   └── event-budget.js
-│   └── procurement.css
-│
-├── attendees/         ⬜ ← ทะเบียนผู้เข้างาน
-│   ├── attendees.html
-│   ├── attendees.js
-│   └── attendees.css
-│
-└── media/             ⬜ ← ตารางตัดต่อ/โพส/บิกของการตลาด
-    ├── media-schedule.html
-    ├── media-schedule.js
-    └── media-schedule.css
+โ”
+โ”โ”€โ”€ activity/          โ… DONE โ เธชเธฃเนเธฒเธ/เนเธเนเนเธเธเธดเธเธเธฃเธฃเธกเธเธเธดเธ—เธดเธ
+โ”   โ”โ”€โ”€ events-list.html
+โ”   โ”โ”€โ”€ events-list.js
+โ”   โ”โ”€โ”€ events-api.js
+โ”   โ”โ”€โ”€ events.css
+โ”   โ”โ”€โ”€ event-form.html
+โ”   โ”โ”€โ”€ event-form.js
+โ”   โ”โ”€โ”€ event-form.css
+โ”   โ”โ”€โ”€ event-log.html
+โ”   โ”โ”€โ”€ event-log.js
+โ”   โ””โ”€โ”€ event-log.css
+โ”
+โ”โ”€โ”€ requests/          โ… DONE โ เธเธณเธเธญเธเธฒเธเนเธเธเธเธญเธทเนเธ
+โ”   โ”โ”€โ”€ event-request-form.css
+โ”   โ”โ”€โ”€ event-request-form.html
+โ”   โ””โ”€โ”€ event-request-form.js
+โ”   โ”โ”€โ”€ event-requests.html
+โ”   โ”โ”€โ”€ event-requests.js
+โ”   โ””โ”€โ”€ event-requests.css
+โ”
+โ”โ”€โ”€ rooms/             โ… DONE  โ เธเธฑเธ”เธเธฒเธฃเธซเนเธญเธเธเธฃเธฐเธเธธเธก
+โ”   โ”โ”€โ”€ room-booking.html
+โ”   โ”โ”€โ”€ room-booking.js
+โ”   โ””โ”€โ”€ rooms.css
+โ”โ”€โ”€ procurement/       โ… DONE โ Supplier เธเธญเธ Event
+โ”   โ”โ”€โ”€ event-suppliers.html
+โ”   โ”โ”€โ”€ event-suppliers.js
+โ”   โ”โ”€โ”€ event-budget.html
+โ”   โ””โ”€โ”€ event-budget.js
+โ”   โ””โ”€โ”€ procurement.css
+โ”
+โ”โ”€โ”€ attendees/         โฌ โ เธ—เธฐเน€เธเธตเธขเธเธเธนเนเน€เธเนเธฒเธเธฒเธ
+โ”   โ”โ”€โ”€ attendees.html
+โ”   โ”โ”€โ”€ attendees.js
+โ”   โ””โ”€โ”€ attendees.css
+โ”
+โ””โ”€โ”€ media/             โฌ โ เธ•เธฒเธฃเธฒเธเธ•เธฑเธ”เธ•เนเธญ/เนเธเธช/เธเธดเธเธเธญเธเธเธฒเธฃเธ•เธฅเธฒเธ”
+    โ”โ”€โ”€ media-schedule.html
+    โ”โ”€โ”€ media-schedule.js
+    โ””โ”€โ”€ media-schedule.css
 
-ลำดับงานแนะนำ
-ลำดับModuleหน้าความสำคัญ1requestsevent-requests🔴 สูง — flow เริ่มจากนี้2roomsrooms-list + booking🔴 สูง — จองก่อนสร้าง event3attendeesattendees🟡 กลาง4procurementsuppliers + budget🟡 กลาง5mediamedia-schedule🟢 ต่ำ
+เธฅเธณเธ”เธฑเธเธเธฒเธเนเธเธฐเธเธณ

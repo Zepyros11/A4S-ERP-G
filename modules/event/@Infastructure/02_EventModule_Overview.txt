@@ -1,5 +1,5 @@
-================================================================
-EVENT MODULE — Module Overview
+﻿================================================================
+EVENT MODULE โ€” Module Overview
 A4S-ERP | modules/event/
 ================================================================
 
@@ -9,66 +9,63 @@ MODULE STRUCTURE
 ----------------------------------------------------------------
 
 modules/event/
-├── activity/
-│   ├── events-list.html        รายการกิจกรรมทั้งหมด
-│   ├── events-list.js
-│   ├── events.css
-│   ├── event-form.html         สร้าง / แก้ไขกิจกรรม
-│   ├── event-form.js
-│   ├── event-form.css
-│   ├── event-log.html          บันทึก log กิจกรรม
-│   ├── event-log.js
-│   └── event-log.css
-│
-├── requests/
-│   ├── event-requests.html     รายการใบขอจัดงาน + อนุมัติ/ปฏิเสธ
-│   ├── event-requests.js
-│   ├── event-requests.css
-│   ├── event-request-form.html ฟอร์มส่งใบขอ
-│   ├── event-request-form.js
-│   └── event-request-form.css
-│
-├── rooms/
-│   ├── rooms-list.html         จัดการห้องประชุม (CRUD)
-│   ├── rooms-list.js
-│   ├── room-booking.html       จองห้อง + ตรวจสอบ conflict
-│   ├── room-booking.js
-│   └── rooms.css
-│
-├── procurement/
-│   ├── event-budget.html       งบประมาณ + vendor per event
-│   ├── event-budget.js
-│   ├── event-suppliers.html    vendor ทุกกิจกรรม
-│   ├── event-suppliers.js
-│   └── procurement.css
-│
-├── attendees/
-│   ├── attendees.html          รายชื่อผู้เข้าร่วม + check-in
-│   ├── attendees.js
-│   └── attendees.css
-│
-└── media/
-    ├── media-schedule.html     ตารางงาน Media
-    ├── media-schedule.js
-    └── media-schedule.css
+โ”โ”€โ”€ activity/
+โ”   โ”โ”€โ”€ events-list.html        เธฃเธฒเธขเธเธฒเธฃเธเธดเธเธเธฃเธฃเธกเธ—เธฑเนเธเธซเธกเธ”
+โ”   โ”โ”€โ”€ events-list.js
+โ”   โ”โ”€โ”€ events.css
+โ”   โ”โ”€โ”€ event-form.html         เธชเธฃเนเธฒเธ / เนเธเนเนเธเธเธดเธเธเธฃเธฃเธก
+โ”   โ”โ”€โ”€ event-form.js
+โ”   โ”โ”€โ”€ event-form.css
+โ”   โ”โ”€โ”€ event-log.html          เธเธฑเธเธ—เธถเธ log เธเธดเธเธเธฃเธฃเธก
+โ”   โ”โ”€โ”€ event-log.js
+โ”   โ””โ”€โ”€ event-log.css
+โ”
+โ”โ”€โ”€ requests/
+โ”   โ”โ”€โ”€ event-requests.html     เธฃเธฒเธขเธเธฒเธฃเนเธเธเธญเธเธฑเธ”เธเธฒเธ + เธญเธเธธเธกเธฑเธ•เธด/เธเธเธดเน€เธชเธ
+โ”   โ”โ”€โ”€ event-requests.js
+โ”   โ”โ”€โ”€ event-requests.css
+โ”   โ”โ”€โ”€ event-request-form.html เธเธญเธฃเนเธกเธชเนเธเนเธเธเธญ
+โ”   โ”โ”€โ”€ event-request-form.js
+โ”   โ””โ”€โ”€ event-request-form.css
+โ”
+โ”โ”€โ”€ rooms/
+โ”   โ”โ”€โ”€ room-booking.html       เธเธญเธเธซเนเธญเธ + เธ•เธฃเธงเธเธชเธญเธ conflict
+โ”   โ”โ”€โ”€ room-booking.js
+โ”   โ””โ”€โ”€ rooms.css
+โ”
+โ”โ”€โ”€ procurement/
+โ”   โ”โ”€โ”€ event-budget.html       เธเธเธเธฃเธฐเธกเธฒเธ“ + vendor per event
+โ”   โ”โ”€โ”€ event-budget.js
+โ”   โ”โ”€โ”€ event-suppliers.html    vendor เธ—เธธเธเธเธดเธเธเธฃเธฃเธก
+โ”   โ”โ”€โ”€ event-suppliers.js
+โ”   โ””โ”€โ”€ procurement.css
+โ”
+โ”โ”€โ”€ attendees/
+โ”   โ”โ”€โ”€ attendees.html          เธฃเธฒเธขเธเธทเนเธญเธเธนเนเน€เธเนเธฒเธฃเนเธงเธก + check-in
+โ”   โ”โ”€โ”€ attendees.js
+โ”   โ””โ”€โ”€ attendees.css
+โ”
+โ””โ”€โ”€ media/
+    โ”โ”€โ”€ media-schedule.html     เธ•เธฒเธฃเธฒเธเธเธฒเธ Media
+    โ”โ”€โ”€ media-schedule.js
+    โ””โ”€โ”€ media-schedule.css
 
 
 ----------------------------------------------------------------
 SIDEBAR NAVIGATION (sidebar.js)
 ----------------------------------------------------------------
 
-Group: กิจกรรม (EVENT)  id: g-event
+Group: เธเธดเธเธเธฃเธฃเธก (EVENT)  id: g-event
 
   ID              Label                 Path
-  ──────────────────────────────────────────────────────────
-  events          กิจกรรม              activity/events-list.html
-  event-requests  ใบขอจัดงาน          requests/event-requests.html
-  rooms           ห้องประชุม           rooms/rooms-list.html
-  event-budget    งบประมาณ & Vendor    procurement/event-budget.html
-  attendees       ผู้เข้าร่วม         attendees/attendees.html
-  event-media     งาน Media            media/media-schedule.html
+  โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€
+  events          เธเธดเธเธเธฃเธฃเธก              activity/events-list.html
+  event-requests  เนเธเธเธญเธเธฑเธ”เธเธฒเธ          requests/event-requests.html
+  event-budget    เธเธเธเธฃเธฐเธกเธฒเธ“ & Vendor    procurement/event-budget.html
+  attendees       เธเธนเนเน€เธเนเธฒเธฃเนเธงเธก         attendees/attendees.html
+  event-media     เธเธฒเธ Media            media/media-schedule.html
 
-READY array (ทุก ID ด้านบนต้องอยู่ใน READY):
+READY array (เธ—เธธเธ ID เธ”เนเธฒเธเธเธเธ•เนเธญเธเธญเธขเธนเนเนเธ READY):
   "events", "event-requests", "rooms", "event-budget",
   "attendees", "event-media"
 
@@ -78,69 +75,68 @@ SUB-MODULE SUMMARY
 ----------------------------------------------------------------
 
 1. ACTIVITY (events-list + event-form + event-log)
-   ──────────────────────────────────────────────
+   โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€
    Table    : events, event_logs
    Features :
-     - รายการกิจกรรมพร้อม filter status / type / date
-     - สร้างกิจกรรมด้วย event_code auto-generate EVT-YYYYMM-XXX
-     - แก้ไข / ลบ / เปลี่ยน status inline
-     - อัปโหลด poster → Storage event-files/posters/
-     - บันทึก log แบบ timeline (text + แนบไฟล์)
+     - เธฃเธฒเธขเธเธฒเธฃเธเธดเธเธเธฃเธฃเธกเธเธฃเนเธญเธก filter status / type / date
+     - เธชเธฃเนเธฒเธเธเธดเธเธเธฃเธฃเธกเธ”เนเธงเธข event_code auto-generate EVT-YYYYMM-XXX
+     - เนเธเนเนเธ / เธฅเธ / เน€เธเธฅเธตเนเธขเธ status inline
+     - เธญเธฑเธเนเธซเธฅเธ” poster โ’ Storage event-files/posters/
+     - เธเธฑเธเธ—เธถเธ log เนเธเธ timeline (text + เนเธเธเนเธเธฅเน)
      - log_type: UPDATE / NOTE / REQUEST / ISSUE / CHECKIN / SYSTEM
 
 2. REQUESTS (event-requests + event-request-form)
-   ───────────────────────────────────────────────
+   โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€
    Table    : event_requests, events
    Features :
-     - ฟอร์มขอจัดงานพร้อมแนบไฟล์ → Storage event-files/documents/
+     - เธเธญเธฃเนเธกเธเธญเธเธฑเธ”เธเธฒเธเธเธฃเนเธญเธกเนเธเธเนเธเธฅเน โ’ Storage event-files/documents/
      - request_code auto-generate REQ-YYYYMM-XXX
-     - Side panel อนุมัติ → สร้าง events record อัตโนมัติ
-     - ปฏิเสธพร้อมระบุเหตุผล
-     - Status flow: PENDING → APPROVED / REJECTED
+     - Side panel เธญเธเธธเธกเธฑเธ•เธด โ’ เธชเธฃเนเธฒเธ events record เธญเธฑเธ•เนเธเธกเธฑเธ•เธด
+     - เธเธเธดเน€เธชเธเธเธฃเนเธญเธกเธฃเธฐเธเธธเน€เธซเธ•เธธเธเธฅ
+     - Status flow: PENDING โ’ APPROVED / REJECTED
 
-3. ROOMS (rooms-list + room-booking)
-   ──────────────────────────────────
+   โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€
    Table    : meeting_rooms, room_bookings
    Features :
-     - จัดการห้องประชุม (CRUD) พร้อม facilities JSONB
-     - จองห้องพร้อม conflict check (client-side)
-     - ป้องกัน double booking: overlap = newStart < existEnd AND newEnd > existStart
-     - filter: ห้อง / วันที่ / status
+     - เธเธฑเธ”เธเธฒเธฃเธซเนเธญเธเธเธฃเธฐเธเธธเธก (CRUD) เธเธฃเนเธญเธก facilities JSONB
+     - เธเธญเธเธซเนเธญเธเธเธฃเนเธญเธก conflict check (client-side)
+     - เธเนเธญเธเธเธฑเธ double booking: overlap = newStart < existEnd AND newEnd > existStart
+     - filter: เธซเนเธญเธ / เธงเธฑเธเธ—เธตเน / status
      - Realtime enabled (room_bookings)
 
 4. PROCUREMENT (event-budget + event-suppliers)
-   ──────────────────────────────────────────────
+   โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€
    Table    : event_budget, event_suppliers
    Features :
-     - upsert งบประมาณ (1 event = 1 record)
-     - Progress bar งบ: <80% เขียว / >=80% เหลือง / >=100% แดง
-     - CRUD vendor per event พร้อม upload contract
-     - spent_amount คำนวณ client-side จาก sum(amount) ที่ไม่ใช่ CANCELLED
-     - event-suppliers.html: ดู vendor ข้ามกิจกรรม
-     - Vendor status: PENDING → CONFIRMED → PAID / CANCELLED
+     - upsert เธเธเธเธฃเธฐเธกเธฒเธ“ (1 event = 1 record)
+     - Progress bar เธเธ: <80% เน€เธเธตเธขเธง / >=80% เน€เธซเธฅเธทเธญเธ / >=100% เนเธ”เธ
+     - CRUD vendor per event เธเธฃเนเธญเธก upload contract
+     - spent_amount เธเธณเธเธงเธ“ client-side เธเธฒเธ sum(amount) เธ—เธตเนเนเธกเนเนเธเน CANCELLED
+     - event-suppliers.html: เธ”เธน vendor เธเนเธฒเธกเธเธดเธเธเธฃเธฃเธก
+     - Vendor status: PENDING โ’ CONFIRMED โ’ PAID / CANCELLED
 
 5. ATTENDEES (attendees)
-   ──────────────────────
+   โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€
    Table    : event_attendees
    Features :
-     - ลงทะเบียนผู้เข้าร่วม ticket_no auto: TK-{eventId}-XXXX
-     - Check-in toggle พร้อมบันทึก timestamp
+     - เธฅเธเธ—เธฐเน€เธเธตเธขเธเธเธนเนเน€เธเนเธฒเธฃเนเธงเธก ticket_no auto: TK-{eventId}-XXXX
+     - Check-in toggle เธเธฃเนเธญเธกเธเธฑเธเธ—เธถเธ timestamp
      - Stats: total / checked-in / paid / revenue
      - Filter: check-in / payment status / attend type
-     - Export CSV (UTF-8 BOM) สำหรับ Excel ภาษาไทย
-     - รับ ?event_id=N จาก URL
+     - Export CSV (UTF-8 BOM) เธชเธณเธซเธฃเธฑเธ Excel เธ เธฒเธฉเธฒเนเธ—เธข
+     - เธฃเธฑเธ ?event_id=N เธเธฒเธ URL
 
 6. MEDIA (media-schedule)
-   ────────────────────────
+   โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€
    Table    : event_media
    Features :
-     - ตารางงาน Media per event
-     - Overall progress bar (% DONE จาก active tasks)
-     - Overdue detection เทียบ due_date vs today (Asia/Bangkok)
-     - Inline status dropdown (ไม่ต้องเปิด modal)
-     - Upload file → Storage event-files/media/
-     - Filter: ประเภท / สถานะ / ผู้รับผิดชอบ
-     - รับ ?event_id=N จาก URL
+     - เธ•เธฒเธฃเธฒเธเธเธฒเธ Media per event
+     - Overall progress bar (% DONE เธเธฒเธ active tasks)
+     - Overdue detection เน€เธ—เธตเธขเธ due_date vs today (Asia/Bangkok)
+     - Inline status dropdown (เนเธกเนเธ•เนเธญเธเน€เธเธดเธ” modal)
+     - Upload file โ’ Storage event-files/media/
+     - Filter: เธเธฃเธฐเน€เธ เธ— / เธชเธ–เธฒเธเธฐ / เธเธนเนเธฃเธฑเธเธเธดเธ”เธเธญเธ
+     - เธฃเธฑเธ ?event_id=N เธเธฒเธ URL
 
 
 ----------------------------------------------------------------
@@ -159,5 +155,5 @@ event_media.media_type : PHOTO / VIDEO / GRAPHIC / LIVE / DOCUMENT / OTHER
 
 ================================================================
 END OF DOCUMENT
-A4S-ERP — Event Module Overview
+A4S-ERP โ€” Event Module Overview
 ================================================================

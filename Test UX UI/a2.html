@@ -1,0 +1,275 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MeetFlow V8 - Glassmorphism Edition</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      body {
+        font-family: "Plus Jakarta Sans", "IBM Plex Sans Thai", sans-serif;
+        background: linear-gradient(
+          135deg,
+          #e0e7ff 0%,
+          #fef2f2 50%,
+          #f0f9ff 100%
+        );
+        min-height: screen;
+      }
+      .glass-card {
+        background: rgba(255, 255, 255, 0.4);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.5);
+        box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.05);
+      }
+      .glass-btn {
+        background: rgba(255, 255, 255, 0.6);
+        backdrop-filter: blur(4px);
+        border: 1px solid rgba(255, 255, 255, 0.8);
+        transition: all 0.3s ease;
+      }
+      .glass-btn:hover {
+        background: rgba(255, 255, 255, 0.9);
+        transform: translateY(-2px);
+      }
+      .glass-btn-active {
+        background: #6366f1;
+        color: white;
+        box-shadow: 0 10px 20px -5px rgba(99, 102, 241, 0.4);
+      }
+      .time-slot-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+        gap: 12px;
+      }
+      .circle-blur {
+        position: fixed;
+        border-radius: 50%;
+        filter: blur(80px);
+        z-index: -1;
+      }
+    </style>
+  </head>
+  <body class="p-4 md:p-10">
+    <!-- Decorative Blurred Background Elements -->
+    <div
+      class="circle-blur w-96 h-96 bg-indigo-200 top-[-10%] left-[-10%] opacity-60"
+    ></div>
+    <div
+      class="circle-blur w-80 h-80 bg-pink-200 bottom-[10%] right-[-5%] opacity-50"
+    ></div>
+
+    <div class="max-w-6xl mx-auto">
+      <!-- Top Navigation Bar -->
+      <nav
+        class="glass-card rounded-[2rem] p-4 mb-8 flex justify-between items-center px-8"
+      >
+        <div class="flex items-center gap-3">
+          <div
+            class="w-10 h-10 bg-indigo-600 rounded-2xl flex items-center justify-center text-white font-bold shadow-lg shadow-indigo-100"
+          >
+            M
+          </div>
+          <span class="font-black text-slate-800 tracking-tight">MeetFlow</span>
+        </div>
+        <div class="hidden md:flex gap-8 text-sm font-bold text-slate-500">
+          <a href="#" class="text-indigo-600">จองห้อง</a>
+          <a href="#" class="hover:text-indigo-600 transition">ตารางของฉัน</a>
+          <a href="#" class="hover:text-indigo-600 transition">แผนผัง</a>
+        </div>
+        <div class="flex items-center gap-4">
+          <div class="text-right hidden sm:block">
+            <p
+              class="text-[10px] font-black text-slate-400 uppercase leading-none"
+            >
+              ยินดีต้อนรับ
+            </p>
+            <p class="text-xs font-bold text-slate-700">คุณสมชาย (Staff)</p>
+          </div>
+          <img
+            src="https://ui-avatars.com/api/?name=Somchai&background=6366f1&color=fff"
+            class="w-10 h-10 rounded-full border-2 border-white shadow-sm"
+          />
+        </div>
+      </nav>
+
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <!-- Left: Room Discovery (Scrollable) -->
+        <div class="lg:col-span-2 space-y-6">
+          <div class="flex justify-between items-center mb-2 px-4">
+            <h2 class="text-2xl font-black text-slate-800">ค้นหาห้องว่าง</h2>
+            <button class="text-sm font-bold text-indigo-600 hover:underline">
+              ดูทั้งหมด
+            </button>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Room Card 1 -->
+            <div class="glass-card p-5 rounded-[2.5rem] group cursor-pointer">
+              <div
+                class="relative h-44 rounded-[2rem] overflow-hidden mb-4 shadow-sm"
+              >
+                <img
+                  src="https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&q=80&w=500"
+                  class="w-full h-full object-cover group-hover:scale-105 transition duration-700"
+                />
+                <div
+                  class="absolute top-4 right-4 bg-white/90 backdrop-blur px-3 py-1 rounded-full text-[10px] font-black text-green-600 shadow-sm"
+                >
+                  ว่างตอนนี้
+                </div>
+              </div>
+              <h3 class="text-lg font-bold text-slate-800 px-2">
+                The Zen Studio
+              </h3>
+              <p class="text-xs text-slate-400 px-2 mb-4">
+                ชั้น 8 • 👤 4-6 ท่าน • 📺 TV & Audio
+              </p>
+              <div class="flex gap-2 px-2">
+                <button
+                  class="flex-1 py-3 glass-btn rounded-2xl text-xs font-bold text-slate-700"
+                >
+                  รายละเอียด
+                </button>
+                <button
+                  class="flex-1 py-3 glass-btn-active rounded-2xl text-xs font-bold transition transform active:scale-95"
+                >
+                  เลือกเวลา
+                </button>
+              </div>
+            </div>
+
+            <!-- Room Card 2 -->
+            <div
+              class="glass-card p-5 rounded-[2.5rem] group cursor-pointer opacity-80"
+            >
+              <div
+                class="relative h-44 rounded-[2rem] overflow-hidden mb-4 shadow-sm"
+              >
+                <img
+                  src="https://images.unsplash.com/photo-1517502884422-41eaadeff171?auto=format&fit=crop&q=80&w=500"
+                  class="w-full h-full object-cover group-hover:scale-105 transition duration-700"
+                />
+                <div
+                  class="absolute top-4 right-4 bg-slate-100/90 backdrop-blur px-3 py-1 rounded-full text-[10px] font-black text-slate-400 shadow-sm"
+                >
+                  ไม่ว่าง
+                </div>
+              </div>
+              <h3 class="text-lg font-bold text-slate-800 px-2">
+                Creative Hub
+              </h3>
+              <p class="text-xs text-slate-400 px-2 mb-4">
+                ชั้น 12 • 👤 8-12 ท่าน • ✍️ Whiteboard
+              </p>
+              <div class="flex gap-2 px-2">
+                <button
+                  class="w-full py-3 glass-btn rounded-2xl text-xs font-bold text-slate-400 cursor-not-allowed"
+                >
+                  ว่างอีกครั้ง 14:00 น.
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: Quick Booking Panel -->
+        <div class="space-y-8">
+          <!-- Selected Info -->
+          <div class="glass-card p-8 rounded-[3rem] border-indigo-100">
+            <h3
+              class="text-xs font-black text-slate-400 uppercase tracking-widest mb-6"
+            >
+              รายการที่เลือก
+            </h3>
+
+            <div
+              class="flex items-center gap-4 mb-8 p-4 bg-white/30 rounded-3xl border border-white/50"
+            >
+              <div
+                class="w-12 h-12 bg-indigo-100 rounded-2xl flex items-center justify-center text-xl"
+              >
+                ✨
+              </div>
+              <div>
+                <p class="text-sm font-bold text-slate-800 uppercase">
+                  The Zen Studio
+                </p>
+                <p class="text-[10px] text-slate-500">
+                  14 เมษายน • 13:00 - 14:00
+                </p>
+              </div>
+            </div>
+
+            <div class="space-y-4 mb-8">
+              <p class="text-xs font-bold text-slate-500 mb-2">
+                เลือกเวลาที่ต้องการ:
+              </p>
+              <div class="time-slot-grid">
+                <button class="py-2 glass-btn rounded-xl text-xs font-bold">
+                  09:00
+                </button>
+                <button class="py-2 glass-btn rounded-xl text-xs font-bold">
+                  10:30
+                </button>
+                <button
+                  class="py-2 glass-btn-active rounded-xl text-xs font-bold"
+                >
+                  13:00
+                </button>
+                <button class="py-2 glass-btn rounded-xl text-xs font-bold">
+                  14:30
+                </button>
+                <button class="py-2 glass-btn rounded-xl text-xs font-bold">
+                  16:00
+                </button>
+                <button class="py-2 glass-btn rounded-xl text-xs font-bold">
+                  17:30
+                </button>
+              </div>
+            </div>
+
+            <div
+              class="bg-indigo-900/5 p-4 rounded-2xl border border-indigo-200/20 mb-8"
+            >
+              <div class="flex justify-between items-center">
+                <span class="text-xs text-slate-500">โควตาที่ใช้:</span>
+                <span class="text-sm font-black text-indigo-600">1.0 ชม.</span>
+              </div>
+            </div>
+
+            <button
+              class="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black text-sm tracking-wide shadow-xl shadow-indigo-200 hover:bg-indigo-700 transition transform active:scale-95"
+            >
+              ยืนยันการจอง
+            </button>
+          </div>
+
+          <!-- Personal Quota (Mini) -->
+          <div
+            class="glass-card p-6 rounded-[2rem] flex items-center justify-between"
+          >
+            <div>
+              <p class="text-[10px] font-black text-slate-400 uppercase mb-1">
+                โควตาส่วนตัว
+              </p>
+              <p class="text-lg font-black text-slate-800">
+                12.5 <span class="text-xs font-normal text-slate-400">ชม.</span>
+              </p>
+            </div>
+            <div
+              class="w-12 h-12 rounded-full border-4 border-indigo-500 border-t-transparent flex items-center justify-center"
+            >
+              <span class="text-[10px] font-black text-indigo-600">65%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

@@ -59,12 +59,6 @@
           path: BASE_PATH + "/modules/event/requests/event-requests.html",
         },
         {
-          id: "rooms",
-          icon: "🚪",
-          label: "ห้องประชุม",
-          path: BASE_PATH + "/modules/event/rooms/rooms-list.html",
-        },
-        {
           id: "event-budget",
           icon: "💰",
           label: "งบประมาณ",
@@ -86,7 +80,7 @@
     },
     //  **************** STOCK *****************
     {
-      group: "่ตั้งค่า Stock",
+      group: "ตั้งค่า Stock",
       icon: "📦",
       id: "g-stock",
       items: [
@@ -222,7 +216,6 @@
     "events-category",
     "events-place-list",
     "event-requests",
-    "rooms",
     "event-budget",
     "attendees",
     "event-media",

@@ -1,0 +1,313 @@
+<!-- "Neumorphic Interactive & Visual Time-Blocking" -->
+
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MeetFlow V7 - Premium Neumorphic</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg-color: #eef2f7;
+        --nm-shadow-out: 8px 8px 16px #d1d9e6, -8px -8px 16px #ffffff;
+        --nm-shadow-in: inset 4px 4px 8px #d1d9e6, inset -4px -4px 8px #ffffff;
+      }
+      body {
+        font-family: "Plus Jakarta Sans", "IBM Plex Sans Thai", sans-serif;
+        background-color: var(--bg-color);
+        color: #4a5568;
+      }
+      .nm-flat {
+        background: var(--bg-color);
+        box-shadow: var(--nm-shadow-out);
+        border-radius: 24px;
+      }
+      .nm-inset {
+        background: var(--bg-color);
+        box-shadow: var(--nm-shadow-in);
+        border-radius: 20px;
+      }
+      .nm-button {
+        background: var(--bg-color);
+        box-shadow: var(--nm-shadow-out);
+        transition: all 0.2s ease;
+      }
+      .nm-button:active {
+        box-shadow: var(--nm-shadow-in);
+        transform: scale(0.98);
+      }
+      .nm-button-active {
+        background: #6366f1;
+        box-shadow:
+          4px 4px 8px #c1c9d6,
+          -4px -4px 8px #ffffff;
+        color: white;
+      }
+      .time-pill {
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+      .time-pill:hover:not(.booked) {
+        background: #ffffff;
+        transform: scale(1.05);
+        z-index: 10;
+      }
+      .booked {
+        background: #cbd5e1;
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+    </style>
+  </head>
+  <body class="min-h-screen p-4 md:p-8">
+    <div class="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8">
+      <!-- Left Section: Status & Navigation -->
+      <div class="lg:col-span-3 space-y-8">
+        <div class="nm-flat p-6 flex items-center gap-4">
+          <img
+            src="https://ui-avatars.com/api/?name=Staff+User&background=6366f1&color=fff"
+            class="w-12 h-12 rounded-2xl shadow-inner"
+            alt="Avatar"
+          />
+          <div>
+            <h2 class="font-bold text-slate-800">คุณอภิสิทธิ์</h2>
+            <p class="text-[10px] text-slate-400 uppercase font-black">
+              Staff ID: #9921
+            </p>
+          </div>
+        </div>
+
+        <div class="nm-flat p-8 space-y-6">
+          <h3
+            class="text-xs font-black text-slate-400 uppercase tracking-widest"
+          >
+            โควตาการใช้งาน
+          </h3>
+          <div class="relative pt-1">
+            <div class="flex mb-2 items-center justify-between">
+              <div>
+                <span
+                  class="text-xs font-semibold inline-block py-1 px-2 uppercase rounded-full text-indigo-600 bg-indigo-100"
+                  >สัปดาห์นี้</span
+                >
+              </div>
+              <div class="text-right">
+                <span class="text-xs font-semibold inline-block text-indigo-600"
+                  >80%</span
+                >
+              </div>
+            </div>
+            <div class="nm-inset overflow-hidden h-3 mb-4 flex">
+              <div
+                style="width: 80%"
+                class="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-indigo-500 rounded-full"
+              ></div>
+            </div>
+            <p class="text-[11px] text-slate-400 text-center">
+              เหลืออีก 2.5 ชั่วโมงสำหรับการจอง
+            </p>
+          </div>
+        </div>
+
+        <nav class="space-y-4">
+          <button
+            class="nm-button nm-button-active w-full py-4 px-6 rounded-2xl flex items-center gap-3 font-bold"
+          >
+            <span>🏠</span> หน้าหลัก
+          </button>
+          <button
+            class="nm-button w-full py-4 px-6 rounded-2xl flex items-center gap-3 font-bold text-slate-500 hover:text-indigo-600"
+          >
+            <span>📅</span> ประวัติการจอง
+          </button>
+          <button
+            class="nm-button w-full py-4 px-6 rounded-2xl flex items-center gap-3 font-bold text-slate-500 hover:text-indigo-600"
+          >
+            <span>⚙️</span> ตั้งค่าโปรไฟล์
+          </button>
+        </nav>
+      </div>
+
+      <!-- Middle Section: Room & Time Selection -->
+      <div class="lg:col-span-6 space-y-8">
+        <div class="flex justify-between items-end px-2">
+          <div>
+            <h1 class="text-3xl font-black text-slate-800 tracking-tight">
+              เลือกช่วงเวลา
+            </h1>
+            <p class="text-slate-400 text-sm">
+              จองห้อง "Skyline Pod" สำหรับวันนี้
+            </p>
+          </div>
+          <div
+            class="nm-button px-4 py-2 rounded-xl text-sm font-bold text-indigo-600"
+          >
+            14 เม.ย. 2024
+          </div>
+        </div>
+
+        <!-- Neumorphic Time Grid -->
+        <div class="nm-flat p-8">
+          <div class="grid grid-cols-3 gap-6">
+            <!-- Time Slots as Pills -->
+            <div class="space-y-4">
+              <h4
+                class="text-center text-[10px] font-black text-slate-400 uppercase mb-4"
+              >
+                ช่วงเช้า
+              </h4>
+              <button
+                class="time-pill nm-button w-full py-4 rounded-2xl font-bold text-slate-600"
+              >
+                09:00 - 10:00
+              </button>
+              <button
+                class="time-pill booked nm-flat w-full py-4 rounded-2xl font-bold text-slate-300"
+              >
+                10:00 - 11:00
+              </button>
+              <button
+                class="time-pill nm-button w-full py-4 rounded-2xl font-bold text-slate-600"
+              >
+                11:00 - 12:00
+              </button>
+            </div>
+            <div class="space-y-4">
+              <h4
+                class="text-center text-[10px] font-black text-slate-400 uppercase mb-4"
+              >
+                ช่วงบ่าย
+              </h4>
+              <button
+                class="time-pill nm-button w-full py-4 rounded-2xl font-bold text-indigo-600 border-2 border-indigo-200"
+              >
+                13:00 - 14:00
+              </button>
+              <button
+                class="time-pill nm-button w-full py-4 rounded-2xl font-bold text-slate-600"
+              >
+                14:00 - 15:00
+              </button>
+              <button
+                class="time-pill nm-button w-full py-4 rounded-2xl font-bold text-slate-600"
+              >
+                15:00 - 16:00
+              </button>
+            </div>
+            <div class="space-y-4">
+              <h4
+                class="text-center text-[10px] font-black text-slate-400 uppercase mb-4"
+              >
+                ช่วงเย็น
+              </h4>
+              <button
+                class="time-pill nm-button w-full py-4 rounded-2xl font-bold text-slate-600"
+              >
+                16:00 - 17:00
+              </button>
+              <button
+                class="time-pill nm-button w-full py-4 rounded-2xl font-bold text-slate-600"
+              >
+                17:00 - 18:00
+              </button>
+              <button
+                class="time-pill nm-button w-full py-4 rounded-2xl font-bold text-slate-600"
+              >
+                18:00 - 19:00
+              </button>
+            </div>
+          </div>
+
+          <div class="mt-10 p-6 nm-inset bg-white/50 border border-white">
+            <p class="text-xs text-slate-500 text-center leading-relaxed">
+              <span class="font-bold text-indigo-600">Tip:</span>
+              เลือกช่วงเวลาต่อกันเพื่อรับส่วนลดโควตา 10%
+            </p>
+          </div>
+        </div>
+
+        <button
+          class="nm-button nm-button-active w-full py-5 rounded-[2rem] text-lg font-black tracking-wide shadow-indigo-200 uppercase"
+        >
+          ยืนยันการจองทันที
+        </button>
+      </div>
+
+      <!-- Right Section: Details & Quick Suggestions -->
+      <div class="lg:col-span-3 space-y-8">
+        <h3
+          class="text-xs font-black text-slate-400 uppercase tracking-widest px-2"
+        >
+          ข้อมูลห้องที่เลือก
+        </h3>
+        <div class="nm-flat overflow-hidden group">
+          <div class="h-40 bg-slate-200 relative overflow-hidden">
+            <img
+              src="https://images.unsplash.com/photo-1497366754035-f200968a6e72?auto=format&fit=crop&q=80&w=400"
+              class="w-full h-full object-cover group-hover:scale-110 transition duration-500"
+              alt="Room"
+            />
+            <div
+              class="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent"
+            ></div>
+            <span class="absolute bottom-4 left-4 text-white font-bold"
+              >Skyline Pod 04</span
+            >
+          </div>
+          <div class="p-6 space-y-4">
+            <div class="flex items-center justify-between text-xs">
+              <span class="text-slate-400 font-medium">อุปกรณ์ภายใน:</span>
+              <span class="font-bold">Projector, Audio</span>
+            </div>
+            <div class="flex items-center justify-between text-xs">
+              <span class="text-slate-400 font-medium">ความจุ:</span>
+              <span class="font-bold">2 - 4 ท่าน</span>
+            </div>
+            <div class="flex items-center justify-between text-xs">
+              <span class="text-slate-400 font-medium">คะแนนความเงียบ:</span>
+              <span class="font-bold text-green-500">★★★★★</span>
+            </div>
+          </div>
+        </div>
+
+        <h3
+          class="text-xs font-black text-slate-400 uppercase tracking-widest px-2"
+        >
+          แนะนำสำหรับคุณ
+        </h3>
+        <div class="space-y-4">
+          <div
+            class="nm-button p-4 rounded-2xl flex gap-4 items-center cursor-pointer"
+          >
+            <div
+              class="w-10 h-10 nm-inset flex items-center justify-center text-lg"
+            >
+              💡
+            </div>
+            <div>
+              <p class="text-xs font-bold">The Idea Box</p>
+              <p class="text-[10px] text-slate-400">ว่างเวลา 14:00 น.</p>
+            </div>
+          </div>
+          <div
+            class="nm-button p-4 rounded-2xl flex gap-4 items-center cursor-pointer"
+          >
+            <div
+              class="w-10 h-10 nm-inset flex items-center justify-center text-lg"
+            >
+              🛋️
+            </div>
+            <div>
+              <p class="text-xs font-bold">Zen Zone</p>
+              <p class="text-[10px] text-slate-400">ว่างตลอดวัน</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

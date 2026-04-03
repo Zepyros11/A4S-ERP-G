@@ -1,170 +1,169 @@
-================================================================
-EVENT MODULE — Workflow
+﻿================================================================
+EVENT MODULE โ€” Workflow
 A4S-ERP | End-to-End Process Flow
 ================================================================
 
 
 ----------------------------------------------------------------
-WORKFLOW A: สร้างกิจกรรมโดยตรง (Admin / Event Staff)
+WORKFLOW A: เธชเธฃเนเธฒเธเธเธดเธเธเธฃเธฃเธกเนเธ”เธขเธ•เธฃเธ (Admin / Event Staff)
 ----------------------------------------------------------------
 
-[1] เปิด events-list.html
-      → กด "+ เพิ่มกิจกรรม"
+[1] เน€เธเธดเธ” events-list.html
+      โ’ เธเธ” "+ เน€เธเธดเนเธกเธเธดเธเธเธฃเธฃเธก"
 
 [2] event-form.html
-      → กรอก event_name, event_type, date, location
-      → auto-generate event_code: EVT-YYYYMM-XXX
+      โ’ เธเธฃเธญเธ event_name, event_type, date, location
+      โ’ auto-generate event_code: EVT-YYYYMM-XXX
           query events WHERE event_code LIKE 'EVT-YYYYMM-%'
-          หา maxSeq → +1 → EVT-202603-001
-      → อัปโหลด poster → event-files/posters/
-      → status = DRAFT (default)
-      → POST /events → redirect กลับ events-list
+          เธซเธฒ maxSeq โ’ +1 โ’ EVT-202603-001
+      โ’ เธญเธฑเธเนเธซเธฅเธ” poster โ’ event-files/posters/
+      โ’ status = DRAFT (default)
+      โ’ POST /events โ’ redirect เธเธฅเธฑเธ events-list
 
 [3] events-list.html
-      → เปลี่ยน status เป็น CONFIRMED เมื่อพร้อม
-      → กด "Log" → event-log.html?event_id=N
-          บันทึก log_type=NOTE หรือ UPDATE
+      โ’ เน€เธเธฅเธตเนเธขเธ status เน€เธเนเธ CONFIRMED เน€เธกเธทเนเธญเธเธฃเนเธญเธก
+      โ’ เธเธ” "Log" โ’ event-log.html?event_id=N
+          เธเธฑเธเธ—เธถเธ log_type=NOTE เธซเธฃเธทเธญ UPDATE
 
 
 ----------------------------------------------------------------
-WORKFLOW B: ขอจัดงานผ่านใบขอ (Dept User)
+WORKFLOW B: เธเธญเธเธฑเธ”เธเธฒเธเธเนเธฒเธเนเธเธเธญ (Dept User)
 ----------------------------------------------------------------
 
 [1] event-request-form.html
-      → กรอก event_name, event_type, requested_date, location
-      → แนบไฟล์ → event-files/documents/req_{requestId}_{ts}.ext
-      → auto-generate request_code: REQ-YYYYMM-XXX
-      → POST /event_requests (status=PENDING)
+      โ’ เธเธฃเธญเธ event_name, event_type, requested_date, location
+      โ’ เนเธเธเนเธเธฅเน โ’ event-files/documents/req_{requestId}_{ts}.ext
+      โ’ auto-generate request_code: REQ-YYYYMM-XXX
+      โ’ POST /event_requests (status=PENDING)
 
-[2] event-requests.html (Event Admin เห็น)
-      → รายการ PENDING ทั้งหมด
-      → เปิด side panel ดูรายละเอียด
+[2] event-requests.html (Event Admin เน€เธซเนเธ)
+      โ’ เธฃเธฒเธขเธเธฒเธฃ PENDING เธ—เธฑเนเธเธซเธกเธ”
+      โ’ เน€เธเธดเธ” side panel เธ”เธนเธฃเธฒเธขเธฅเธฐเน€เธญเธตเธขเธ”
 
-[3A] อนุมัติ (APPROVED)
-      → PATCH event_requests status=APPROVED, reviewed_by, reviewed_at
-      → สร้าง events record อัตโนมัติ:
+[3A] เธญเธเธธเธกเธฑเธ•เธด (APPROVED)
+      โ’ PATCH event_requests status=APPROVED, reviewed_by, reviewed_at
+      โ’ เธชเธฃเนเธฒเธ events record เธญเธฑเธ•เนเธเธกเธฑเธ•เธด:
           event_name  = request.event_name
           event_type  = request.event_type
           event_date  = request.requested_date
           status      = CONFIRMED
           event_code  = auto-generate EVT-YYYYMM-XXX
-      → PATCH event_requests event_id = events.event_id ที่สร้างใหม่
+      โ’ PATCH event_requests event_id = events.event_id เธ—เธตเนเธชเธฃเนเธฒเธเนเธซเธกเน
 
-[3B] ปฏิเสธ (REJECTED)
-      → PATCH event_requests status=REJECTED, reviewed_by,
+[3B] เธเธเธดเน€เธชเธ (REJECTED)
+      โ’ PATCH event_requests status=REJECTED, reviewed_by,
                reviewed_at, reject_reason
 
 
 ----------------------------------------------------------------
-WORKFLOW C: จองห้องประชุม
+WORKFLOW C: เธเธญเธเธซเนเธญเธเธเธฃเธฐเธเธธเธก
 ----------------------------------------------------------------
 
-[1] rooms-list.html
-      → ดูห้องทั้งหมด (card grid)
-      → เพิ่ม / แก้ไข / ลบห้อง
-      → facilities เป็น JSONB array: ["projector","whiteboard"]
+      โ’ เธ”เธนเธซเนเธญเธเธ—เธฑเนเธเธซเธกเธ” (card grid)
+      โ’ เน€เธเธดเนเธก / เนเธเนเนเธ / เธฅเธเธซเนเธญเธ
+      โ’ facilities เน€เธเนเธ JSONB array: ["projector","whiteboard"]
 
 [2] room-booking.html
-      → เลือก event_id + room_id + วันที่
-      → conflict check ก่อน save:
+      โ’ เน€เธฅเธทเธญเธ event_id + room_id + เธงเธฑเธเธ—เธตเน
+      โ’ conflict check เธเนเธญเธ save:
           query room_bookings WHERE room_id=N
                                 AND booking_date=D
                                 AND status != CANCELLED
           overlap = newStart < existEnd AND newEnd > existStart
-          → ถ้า conflict: แสดง error ไม่ให้ save
-      → POST /room_bookings (status=CONFIRMED default)
+          โ’ เธ–เนเธฒ conflict: เนเธชเธ”เธ error เนเธกเนเนเธซเน save
+      โ’ POST /room_bookings (status=CONFIRMED default)
 
-[3] ยกเลิก
-      → PATCH status=CANCELLED
-      → ช่วงเวลานั้นเปิดว่างใหม่ทันที
+[3] เธขเธเน€เธฅเธดเธ
+      โ’ PATCH status=CANCELLED
+      โ’ เธเนเธงเธเน€เธงเธฅเธฒเธเธฑเนเธเน€เธเธดเธ”เธงเนเธฒเธเนเธซเธกเนเธ—เธฑเธเธ—เธต
 
 
 ----------------------------------------------------------------
-WORKFLOW D: จัดการงบประมาณและ Vendor
+WORKFLOW D: เธเธฑเธ”เธเธฒเธฃเธเธเธเธฃเธฐเธกเธฒเธ“เนเธฅเธฐ Vendor
 ----------------------------------------------------------------
 
 [1] event-budget.html
-      → เลือก event_id
-      → upsert budget:
+      โ’ เน€เธฅเธทเธญเธ event_id
+      โ’ upsert budget:
           GET /event_budget?event_id=eq.N
-          ถ้ามี: แสดงแก้ไข → PATCH
-          ถ้าไม่มี: POST ใหม่
-      → progress bar แสดง spent/total
+          เธ–เนเธฒเธกเธต: เนเธชเธ”เธเนเธเนเนเธ โ’ PATCH
+          เธ–เนเธฒเนเธกเนเธกเธต: POST เนเธซเธกเน
+      โ’ progress bar เนเธชเธ”เธ spent/total
 
-[2] เพิ่ม Vendor
-      → POST /event_suppliers (event_id, supplier_name, amount)
-      → spent_amount คำนวณ client-side:
+[2] เน€เธเธดเนเธก Vendor
+      โ’ POST /event_suppliers (event_id, supplier_name, amount)
+      โ’ spent_amount เธเธณเธเธงเธ“ client-side:
           sum(amount) WHERE status != CANCELLED
-      → อัปโหลด contract → event-files/documents/sup_{eventId}_{ts}.ext
+      โ’ เธญเธฑเธเนเธซเธฅเธ” contract โ’ event-files/documents/sup_{eventId}_{ts}.ext
 
-[3] อัปเดต Vendor status
-      → PENDING → CONFIRMED → PAID
-      → CANCELLED → ไม่นับใน spent_amount
+[3] เธญเธฑเธเน€เธ”เธ• Vendor status
+      โ’ PENDING โ’ CONFIRMED โ’ PAID
+      โ’ CANCELLED โ’ เนเธกเนเธเธฑเธเนเธ spent_amount
 
 [4] event-suppliers.html
-      → ดู vendor ทุกกิจกรรม (cross-event view)
-      → filter by event / status / service type
+      โ’ เธ”เธน vendor เธ—เธธเธเธเธดเธเธเธฃเธฃเธก (cross-event view)
+      โ’ filter by event / status / service type
 
 
 ----------------------------------------------------------------
-WORKFLOW E: จัดการผู้เข้าร่วม (Attendees)
+WORKFLOW E: เธเธฑเธ”เธเธฒเธฃเธเธนเนเน€เธเนเธฒเธฃเนเธงเธก (Attendees)
 ----------------------------------------------------------------
 
 [1] attendees.html?event_id=N
-      → fetch event_attendees WHERE event_id=N
+      โ’ fetch event_attendees WHERE event_id=N
 
-[2] เพิ่มผู้เข้าร่วม
-      → กรอก name, email, phone, company
-      → เลือก attend_type (ONSITE/ONLINE/VIP)
-      → payment_status = FREE (default)
-      → auto-generate ticket_no:
+[2] เน€เธเธดเนเธกเธเธนเนเน€เธเนเธฒเธฃเนเธงเธก
+      โ’ เธเธฃเธญเธ name, email, phone, company
+      โ’ เน€เธฅเธทเธญเธ attend_type (ONSITE/ONLINE/VIP)
+      โ’ payment_status = FREE (default)
+      โ’ auto-generate ticket_no:
           query event_attendees WHERE ticket_no LIKE 'TK-{eventId}-%'
-          หา maxSeq → TK-{eventId}-XXXX
-      → POST /event_attendees
+          เธซเธฒ maxSeq โ’ TK-{eventId}-XXXX
+      โ’ POST /event_attendees
 
-[3] Check-in วันงาน
-      → กดปุ่ม "⬜ Check-in" ที่แต่ละแถว
-      → PATCH checked_in=true, check_in_at=NOW()
-      → ปุ่มเปลี่ยนเป็น "✅ Check-in แล้ว"
-      → stats อัปเดต real-time (client-side)
+[3] Check-in เธงเธฑเธเธเธฒเธ
+      โ’ เธเธ”เธเธธเนเธก "โฌ Check-in" เธ—เธตเนเนเธ•เนเธฅเธฐเนเธ–เธง
+      โ’ PATCH checked_in=true, check_in_at=NOW()
+      โ’ เธเธธเนเธกเน€เธเธฅเธตเนเธขเธเน€เธเนเธ "โ… Check-in เนเธฅเนเธง"
+      โ’ stats เธญเธฑเธเน€เธ”เธ• real-time (client-side)
 
-[4] ยกเลิก Check-in
-      → กดปุ่ม "✅ Check-in แล้ว"
-      → PATCH checked_in=false, check_in_at=null
+[4] เธขเธเน€เธฅเธดเธ Check-in
+      โ’ เธเธ”เธเธธเนเธก "โ… Check-in เนเธฅเนเธง"
+      โ’ PATCH checked_in=false, check_in_at=null
 
 [5] Export CSV
-      → map allAttendees → CSV rows
-      → BOM + UTF-8 → Excel เปิดภาษาไทยได้
-      → download: attendees_{event_code}.csv
+      โ’ map allAttendees โ’ CSV rows
+      โ’ BOM + UTF-8 โ’ Excel เน€เธเธดเธ”เธ เธฒเธฉเธฒเนเธ—เธขเนเธ”เน
+      โ’ download: attendees_{event_code}.csv
 
 
 ----------------------------------------------------------------
-WORKFLOW F: ตารางงาน Media
+WORKFLOW F: เธ•เธฒเธฃเธฒเธเธเธฒเธ Media
 ----------------------------------------------------------------
 
 [1] media-schedule.html?event_id=N
-      → fetch event_media WHERE event_id=N
-      → fetch users (สำหรับ assigned_to)
+      โ’ fetch event_media WHERE event_id=N
+      โ’ fetch users (เธชเธณเธซเธฃเธฑเธ assigned_to)
 
-[2] เพิ่มงาน
-      → ระบุ title, media_type, status=TODO, assigned_to, due_date
-      → อัปโหลดไฟล์ (ถ้ามี) → event-files/media/media_{eventId}_{ts}.ext
-      → POST /event_media
+[2] เน€เธเธดเนเธกเธเธฒเธ
+      โ’ เธฃเธฐเธเธธ title, media_type, status=TODO, assigned_to, due_date
+      โ’ เธญเธฑเธเนเธซเธฅเธ”เนเธเธฅเน (เธ–เนเธฒเธกเธต) โ’ event-files/media/media_{eventId}_{ts}.ext
+      โ’ POST /event_media
 
-[3] อัปเดตสถานะ (inline)
-      → dropdown ใน table แถว → onchange → PATCH status
-      → progress bar อัปเดตทันที
+[3] เธญเธฑเธเน€เธ”เธ•เธชเธ–เธฒเธเธฐ (inline)
+      โ’ dropdown เนเธ table เนเธ–เธง โ’ onchange โ’ PATCH status
+      โ’ progress bar เธญเธฑเธเน€เธ”เธ•เธ—เธฑเธเธ—เธต
 
 [4] Overdue Detection
-      → เปรียบเทียบ due_date กับ today (Asia/Bangkok timezone)
-      → ถ้า due_date < today AND status != DONE/CANCELLED → แสดง ⚠ เกิน deadline
+      โ’ เน€เธเธฃเธตเธขเธเน€เธ—เธตเธขเธ due_date เธเธฑเธ today (Asia/Bangkok timezone)
+      โ’ เธ–เนเธฒ due_date < today AND status != DONE/CANCELLED โ’ เนเธชเธ”เธ โ  เน€เธเธดเธ deadline
 
 [5] Progress Bar
-      activeTasks = ทุกงานที่ status != CANCELLED
+      activeTasks = เธ—เธธเธเธเธฒเธเธ—เธตเน status != CANCELLED
       pct = DONE / activeTasks * 100
-      <80%  → สีน้ำเงิน
-      >=80% → สีเหลือง
-      100%  → สีเขียว
+      <80%  โ’ เธชเธตเธเนเธณเน€เธเธดเธ
+      >=80% โ’ เธชเธตเน€เธซเธฅเธทเธญเธ
+      100%  โ’ เธชเธตเน€เธเธตเธขเธง
 
 
 ----------------------------------------------------------------
@@ -172,46 +171,46 @@ WORKFLOW G: Event Log
 ----------------------------------------------------------------
 
 [1] event-log.html?event_id=N
-      → fetch event_logs WHERE event_id=N ORDER BY created_at DESC
-      → แสดงแบบ timeline
+      โ’ fetch event_logs WHERE event_id=N ORDER BY created_at DESC
+      โ’ เนเธชเธ”เธเนเธเธ timeline
 
-[2] เพิ่ม log
-      → เลือก log_type, กรอก message
-      → แนบไฟล์ (optional)
-      → POST /event_logs
+[2] เน€เธเธดเนเธก log
+      โ’ เน€เธฅเธทเธญเธ log_type, เธเธฃเธญเธ message
+      โ’ เนเธเธเนเธเธฅเน (optional)
+      โ’ POST /event_logs
 
 log_type reference:
-  NOTE      → หมายเหตุทั่วไป
-  UPDATE    → มีการเปลี่ยนแปลงข้อมูล
-  REQUEST   → เกี่ยวกับใบขอ
-  ISSUE     → ปัญหาที่พบ
-  CHECKIN   → บันทึก check-in
-  SYSTEM    → ระบบสร้างอัตโนมัติ
+  NOTE      โ’ เธซเธกเธฒเธขเน€เธซเธ•เธธเธ—เธฑเนเธงเนเธ
+  UPDATE    โ’ เธกเธตเธเธฒเธฃเน€เธเธฅเธตเนเธขเธเนเธเธฅเธเธเนเธญเธกเธนเธฅ
+  REQUEST   โ’ เน€เธเธตเนเธขเธงเธเธฑเธเนเธเธเธญ
+  ISSUE     โ’ เธเธฑเธเธซเธฒเธ—เธตเนเธเธ
+  CHECKIN   โ’ เธเธฑเธเธ—เธถเธ check-in
+  SYSTEM    โ’ เธฃเธฐเธเธเธชเธฃเนเธฒเธเธญเธฑเธ•เนเธเธกเธฑเธ•เธด
 
 
 ----------------------------------------------------------------
 DATA FLOW SUMMARY
 ----------------------------------------------------------------
 
-URL Navigation พร้อม ?event_id=N:
+URL Navigation เธเธฃเนเธญเธก ?event_id=N:
   events-list.html
-      → [log] → event-log.html?event_id=N
-      → [edit] → event-form.html?event_id=N
-      → [attendees] → attendees.html?event_id=N
-      → [media] → media-schedule.html?event_id=N
-      → [budget] → event-budget.html?event_id=N
+      โ’ [log] โ’ event-log.html?event_id=N
+      โ’ [edit] โ’ event-form.html?event_id=N
+      โ’ [attendees] โ’ attendees.html?event_id=N
+      โ’ [media] โ’ media-schedule.html?event_id=N
+      โ’ [budget] โ’ event-budget.html?event_id=N
 
-event_requests → (APPROVED) → events (auto-create)
+event_requests โ’ (APPROVED) โ’ events (auto-create)
 
-events (1) ─┬─ event_logs (N)
-            ├─ room_bookings (N)
-            ├─ event_suppliers (N)
-            ├─ event_budget (1)
-            ├─ event_attendees (N)
-            └─ event_media (N)
+events (1) โ”€โ”ฌโ”€ event_logs (N)
+            โ”โ”€ room_bookings (N)
+            โ”โ”€ event_suppliers (N)
+            โ”โ”€ event_budget (1)
+            โ”โ”€ event_attendees (N)
+            โ””โ”€ event_media (N)
 
 
 ================================================================
 END OF DOCUMENT
-A4S-ERP — Event Module Workflow
+A4S-ERP โ€” Event Module Workflow
 ================================================================
