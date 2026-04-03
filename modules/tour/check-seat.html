@@ -1103,7 +1103,7 @@ async function loadFromSupabase() {
     restoreImagesFromIDB(); // คืนรูปจาก IndexedDB สำหรับ rows ที่ยังไม่มีรูปใน Supabase
   } catch(e) {
     console.error('Load from Supabase failed:', e);
-    toast('โหลดจาก Supabase ไม่ได้ — ใช้ข้อมูล cache แทน', 'error');
+    console.warn('โหลดจาก Supabase ไม่ได้ — ใช้ข้อมูล cache แทน');
     loadLocal();
     renderTable();
     restoreImagesFromIDB();
