@@ -508,6 +508,10 @@
     🗑 ล้างข้อมูล
   </button>
 
+  <button class="btn btn-outline" onclick="copyShareUrl()" title="คัดลอก URL พร้อม Supabase credentials เพื่อแชร์ให้คนอื่น">
+    🔗 Copy Share URL
+  </button>
+
   <div style="flex:1"></div>
   <span class="badge badge-info" id="row-count">0 รายการ</span>
 </div>
@@ -737,6 +741,20 @@ const SHIRT_OPTIONS = ['', '5XL', '4XL', '3XL', '2XL', 'XL', 'L', 'M', 'S'];
    CONFIG
 ═══════════════════════════════════════════════════════════ */
 function loadConfig() {
+  // รับค่าจาก URL query params ก่อน (เพื่อรองรับการแชร์ URL)
+  const qp = new URLSearchParams(window.location.search);
+  const qUrl   = qp.get('sb_url');
+  const qKey   = qp.get('sb_key');
+  const qProxy = qp.get('ai_proxy');
+  if (qUrl)   localStorage.setItem('cs_sb_url',   qUrl);
+  if (qKey)   localStorage.setItem('cs_sb_key',   qKey);
+  if (qProxy) localStorage.setItem('cs_ai_proxy', qProxy);
+
+  // ซ่อน Config Panel เมื่อเปิดผ่าน Share URL
+  if (qUrl && qKey) {
+    document.getElementById('config-panel').style.display = 'none';
+  }
+
   document.getElementById('cfg-sb-url').value   = localStorage.getItem('cs_sb_url')   || '';
   document.getElementById('cfg-sb-key').value   = localStorage.getItem('cs_sb_key')   || '';
   document.getElementById('cfg-ai-proxy').value = localStorage.getItem('cs_ai_proxy') || '';
@@ -1641,6 +1659,25 @@ function toast(msg, type = 'info') {
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') closeImgModal();
 });
+
+function copyShareUrl() {
+  const url   = localStorage.getItem('cs_sb_url')   || '';
+  const key   = localStorage.getItem('cs_sb_key')   || '';
+  const proxy = localStorage.getItem('cs_ai_proxy') || '';
+  if (!url || !key) {
+    toast('กรุณาบันทึก Config ก่อนแชร์ URL', 'error');
+    return;
+  }
+  const base = window.location.href.split('?')[0];
+  const params = new URLSearchParams({ sb_url: url, sb_key: key });
+  if (proxy) params.set('ai_proxy', proxy);
+  const shareUrl = base + '?' + params.toString();
+  navigator.clipboard.writeText(shareUrl)
+    .then(() => toast('คัดลอก Share URL แล้ว', 'success'))
+    .catch(() => {
+      prompt('คัดลอก URL นี้:', shareUrl);
+    });
+}
 
 /* ═══════════════════════════════════════════════════════════
    INIT
