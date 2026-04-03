@@ -355,6 +355,7 @@
     .col-name   { width: 160px; min-width: 130px; }
     .col-pin    { width: 90px; min-width: 80px; }
     .col-seat   { width: 70px; min-width: 60px; text-align: center; }
+    .col-nat    { width: 110px; min-width: 90px; }
     .col-pimg   { width: 100px; min-width: 100px; }
     .col-pid    { width: 150px; min-width: 130px; }
     .col-pexp   { width: 120px; min-width: 110px; }
@@ -599,6 +600,7 @@
         <th class="col-name">รายชื่อ</th>
         <th class="col-pin">PIN</th>
         <th class="col-seat">Seat</th>
+        <th class="col-nat">Nationality</th>
         <th class="col-pimg">Pass.<br>Image</th>
         <th class="col-pid">Pass. ID</th>
         <th class="col-pexp">Pass.<br>Exp.</th>
@@ -610,7 +612,7 @@
     </thead>
     <tbody id="table-body">
       <tr id="empty-row">
-        <td colspan="12">ยังไม่มีข้อมูล — กด Import Excel หรือเพิ่มแถวด้วยตนเอง</td>
+        <td colspan="13">ยังไม่มีข้อมูล — กด Import Excel หรือเพิ่มแถวด้วยตนเอง</td>
       </tr>
     </tbody>
   </table>
@@ -733,7 +735,7 @@ const IMG_DB = {
 /* ═══════════════════════════════════════════════════════════
    STATE
 ═══════════════════════════════════════════════════════════ */
-let rows = [];          // { id, code, name, pin, seat, passImg, passImgFile, passId, passExp, visaImg, visaImgFile, tel, shirt, isEditing, isSubRow, parentId }
+let rows = [];          // { id, code, name, pin, seat, nationality, passImg, passImgFile, passId, passExp, visaImg, visaImgFile, tel, shirt, isEditing, isSubRow, parentId }
 let sbClient = null;
 let _rowCounter = 0;
 
@@ -794,6 +796,7 @@ function makeRow(overrides = {}) {
     name:        '',
     pin:         '',
     seat:        '',
+    nationality: '',
     passImg:     null,   // data-url string
     passImgFile: null,
     passId:      '',
@@ -843,16 +846,18 @@ function importExcel(event) {
       const colName = findKey('รายชื่อ', 'ชื่อ', 'name');
       const colPin  = findKey('pin', 'PIN', 'position', 'ตำแหน่ง');
       const colSeat = findKey('seat', 'ที่นั่ง', 'Seat');
+      const colNat  = findKey('nationality', 'สัญชาติ', 'nation');
 
       const imported = [];
       raw.forEach((r) => {
         const seat  = parseFloat((colSeat ? r[colSeat] : '') || 0) || 0;
         const pin   = (colPin  ? r[colPin]  : '').toString().trim().toUpperCase();
         const row   = makeRow({
-          code:  (colCode ? r[colCode] : '').toString().trim(),
-          name:  (colName ? r[colName] : '').toString().trim(),
-          pin:   PIN_OPTIONS.includes(pin) ? pin : '',
+          code:        (colCode ? r[colCode] : '').toString().trim(),
+          name:        (colName ? r[colName] : '').toString().trim(),
+          pin:         PIN_OPTIONS.includes(pin) ? pin : '',
           seat,
+          nationality: (colNat  ? r[colNat]  : '').toString().trim(),
         });
         imported.push(row);
 
@@ -923,6 +928,7 @@ async function clearAll() {
 function saveLocal() {
   const slim = rows.map(r => ({
     id: r.id, code: r.code, name: r.name, pin: r.pin, seat: r.seat,
+    nationality: r.nationality,
     passImg:  r.passImg  && !r.passImg.startsWith('data:')  ? r.passImg  : null,
     passId: r.passId, passExp: r.passExp,
     visaImg:  r.visaImg  && !r.visaImg.startsWith('data:')  ? r.visaImg  : null,
@@ -981,6 +987,7 @@ function rowToRecord(row) {
     name:               row.name || null,
     pin:                row.pin  || null,
     seat:               row.seat !== '' ? parseFloat(row.seat) : null,
+    nationality:        row.nationality || null,
     passport_image_url: (row.passImg && !row.passImg.startsWith('data:')) ? row.passImg : null,
     passport_id:        row.passId || null,
     passport_exp_date:  row.passExp || null,
@@ -998,7 +1005,7 @@ function recordToRow(r, idMap) {
   const parentId = r.parent_code ? (idMap[r.parent_code] || null) : null;
   return makeRow({
     id, code: r.code || '', name: r.name || '', pin: r.pin || '',
-    seat: r.seat ?? '', passImg: r.passport_image_url || null,
+    seat: r.seat ?? '', nationality: r.nationality || '', passImg: r.passport_image_url || null,
     passId: r.passport_id || '', passExp: r.passport_exp_date || '',
     visaImg: r.visa_image_url || null, tel: r.tel || '',
     shirt: r.tshirt_size || '', isSubRow: r.is_sub_row || false,
@@ -1205,6 +1212,12 @@ function buildRow(row) {
                     type="number" step="0.5" min="0" value="${esc(row.seat)}"
                     onchange="onSeatChange('${row.id}', this.value)" />`
                : `<span class="seat-badge">${row.seat !== '' ? row.seat : '—'}</span>`)}
+    </td>
+
+    <!-- Nationality -->
+    <td class="col-nat" data-label="Nationality">
+      ${e ? `<input class="field-input" style="width:95px" value="${esc(row.nationality)}" placeholder="e.g. Thai" onchange="setField('${row.id}','nationality',this.value)" />` :
+            `<span class="field-view">${esc(row.nationality) || '—'}</span>`}
     </td>
 
     <!-- Passport Image -->
