@@ -97,6 +97,9 @@
   flex-wrap: wrap;
   margin-bottom: 16px;
 }
+.cal-cat-select {
+  display: none;
+}
 .epg-chip {
   padding: 7px 18px;
   border-radius: 999px;
@@ -725,14 +728,14 @@
     padding: 0 10px;
   }
 
-  /* Category chips */
+  /* Category chips → hidden on mobile, replaced by select */
   .cal-cat-chips {
-    gap: 5px;
-    margin-bottom: 10px;
+    display: none;
   }
-  .epg-chip {
-    padding: 4px 10px;
-    font-size: 11px;
+  .cal-cat-select {
+    display: block;
+    width: 100%;
+    margin-bottom: 10px;
   }
 
   /* Grid */

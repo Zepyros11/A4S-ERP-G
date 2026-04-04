@@ -59,11 +59,15 @@
         </div>
       </div>
 
-      <!-- Category Filter Chips -->
+      <!-- Category Filter Chips (desktop) -->
       <div class="cal-cat-chips" id="calCatChips">
         <button class="epg-chip active" data-cat="" onclick="setCalCatFilter(this, '')">ทั้งหมด</button>
         <!-- dynamic chips injected by JS -->
       </div>
+      <!-- Category Filter Dropdown (mobile) -->
+      <select id="calCatSelect" class="filter-select cal-cat-select" onchange="setCalCatFromSelect(this)">
+        <option value="">ทั้งหมด</option>
+      </select>
 
       <!-- CALENDAR -->
       <div class="cal-grid-wrap">

@@ -25,7 +25,6 @@ async function initPage() {
   }
   showLoading(false);
 
-  document.getElementById("filterPoster").addEventListener("change", renderGallery);
 }
 
 function renderCategoryChips() {
@@ -58,17 +57,8 @@ window.setTypeFilter = function (btn, catId) {
 
 // ── RENDER ─────────────────────────────────────────────────
 function renderGallery() {
-  const filterPoster = document.getElementById("filterPoster").value;
-
   let filtered = allEvents.filter((e) => {
-    const matchCat = !activeCatId || String(e.event_category_id) === activeCatId;
-    const matchPoster =
-      filterPoster === "all"
-        ? true
-        : filterPoster === "has"
-          ? !!e.poster_url
-          : !e.poster_url;
-    return matchCat && matchPoster;
+    return !activeCatId || String(e.event_category_id) === activeCatId;
   });
 
   document.getElementById("pageSubtitle").textContent =

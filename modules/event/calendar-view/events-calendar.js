@@ -92,6 +92,18 @@ async function loadCategories() {
     });
   }
 
+  // inject category select (mobile)
+  const catSelect = document.getElementById("calCatSelect");
+  if (catSelect) {
+    catSelect.innerHTML = '<option value="">ทั้งหมด</option>';
+    allCategories.forEach((cat) => {
+      const opt = document.createElement("option");
+      opt.value = cat.event_category_id;
+      opt.textContent = `${cat.icon || ""} ${cat.category_name}`.trim();
+      catSelect.appendChild(opt);
+    });
+  }
+
   // inject legend
   const legend = document.getElementById("calLegend");
   if (legend) {
@@ -108,6 +120,16 @@ function setCalCatFilter(btn, catId) {
   document.querySelectorAll("#calCatChips .epg-chip").forEach((b) => b.classList.remove("active"));
   btn.classList.add("active");
   activeCalCatId = catId;
+  const sel = document.getElementById("calCatSelect");
+  if (sel) sel.value = catId;
+  renderCalendar();
+}
+
+function setCalCatFromSelect(sel) {
+  activeCalCatId = sel.value;
+  document.querySelectorAll("#calCatChips .epg-chip").forEach((b) => {
+    b.classList.toggle("active", b.dataset.cat === sel.value);
+  });
   renderCalendar();
 }
 
