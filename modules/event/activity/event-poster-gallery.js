@@ -45,13 +45,35 @@ function renderCategoryChips() {
   });
 
   if (posterDiv) wrap.appendChild(posterDiv);
+
+  // populate mobile select
+  const sel = document.getElementById("epgCatSelect");
+  if (sel) {
+    sel.innerHTML = '<option value="">ทั้งหมด</option>';
+    allCategories.forEach((cat) => {
+      const opt = document.createElement("option");
+      opt.value = cat.event_category_id;
+      opt.textContent = `${cat.icon || ""} ${cat.category_name}`.trim();
+      sel.appendChild(opt);
+    });
+  }
 }
 
-// ── GRID SIZE ──────────────────────────────────────────────
+// ── FILTER ─────────────────────────────────────────────────
 window.setTypeFilter = function (btn, catId) {
   document.querySelectorAll(".epg-chip").forEach((b) => b.classList.remove("active"));
   btn.classList.add("active");
   activeCatId = catId;
+  const sel = document.getElementById("epgCatSelect");
+  if (sel) sel.value = catId;
+  renderGallery();
+};
+
+window.setTypeFilterFromSelect = function (sel) {
+  activeCatId = sel.value;
+  document.querySelectorAll(".epg-chip").forEach((b) => {
+    b.classList.toggle("active", b.dataset.cat === sel.value);
+  });
   renderGallery();
 };
 

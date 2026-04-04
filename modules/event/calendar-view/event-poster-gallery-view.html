@@ -38,11 +38,15 @@
         </div>
       </div>
 
-      <!-- Category Filter Chips -->
+      <!-- Category Filter Chips (desktop) -->
       <div class="epg-filter-chips" id="filterChipsWrap">
         <button class="epg-chip active" data-cat="" onclick="window.setTypeFilter(this, '')">ทั้งหมด</button>
         <!-- dynamic chips injected by JS -->
       </div>
+      <!-- Category Filter Dropdown (mobile) -->
+      <select id="epgCatSelect" class="filter-select epg-cat-select" onchange="window.setTypeFilterFromSelect(this)">
+        <option value="">ทั้งหมด</option>
+      </select>
 
       <!-- GALLERY -->
       <div id="galleryBody"></div>

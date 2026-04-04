@@ -1,5 +1,21 @@
 /* ===== LAYOUT ===== */
 
+/* Category select: hidden on desktop, shown on mobile */
+.epg-cat-select {
+  display: none;
+}
+
+@media (max-width: 600px) {
+  .epg-filter-chips {
+    display: none;
+  }
+  .epg-cat-select {
+    display: block;
+    width: 100%;
+    margin-bottom: 12px;
+  }
+}
+
 .cal-standalone-page {
   padding-top: 64px;
 }
