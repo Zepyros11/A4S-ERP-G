@@ -2,10 +2,16 @@
    events-api.js — API layer for Event Module
 ============================================================ */
 
+const SB_URL_DEFAULT = "https://dtiynydgkcqausqktreg.supabase.co";
+const SB_KEY_DEFAULT =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR0aXlueWRna2NxYXVzcWt0cmVnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIyNjEwNTcsImV4cCI6MjA4NzgzNzA1N30.DmXwvBBvx3zK7rw21179ro65mTm0B4lQ20ktVMpAUQE";
+
 function getSB() {
+  const storedKey = localStorage.getItem("sb_key") || "";
+  const isValidKey = storedKey.startsWith("eyJ") && storedKey.length > 100;
   return {
-    url: localStorage.getItem("sb_url") || "",
-    key: localStorage.getItem("sb_key") || "",
+    url: localStorage.getItem("sb_url") || SB_URL_DEFAULT,
+    key: isValidKey ? storedKey : SB_KEY_DEFAULT,
   };
 }
 
