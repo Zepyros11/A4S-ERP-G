@@ -377,6 +377,56 @@
     .col-shirt   { width: 90px; min-width: 80px; }
     .col-edit    { width: 54px; min-width: 54px; text-align: center; }
 
+    /* ── Floating Edit/Save FAB ──────────────────────── */
+    #global-edit-btn {
+      position: fixed;
+      bottom: 32px;
+      right: 32px;
+      z-index: 1500;
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      border: none;
+      cursor: pointer;
+      font-size: 22px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 16px rgba(0,0,0,.25);
+      transition: background .2s, transform .15s, box-shadow .2s;
+      background: var(--accent);
+      color: #fff;
+      line-height: 1;
+    }
+    #global-edit-btn:hover {
+      transform: scale(1.1);
+      box-shadow: 0 8px 24px rgba(0,0,0,.3);
+    }
+    #global-edit-btn.saving {
+      background: var(--success);
+    }
+    /* tooltip */
+    #global-edit-btn::after {
+      content: attr(data-tip);
+      position: absolute;
+      right: calc(100% + 10px);
+      background: rgba(0,0,0,.75);
+      color: #fff;
+      font-size: 11px;
+      font-weight: 600;
+      white-space: nowrap;
+      padding: 4px 10px;
+      border-radius: 6px;
+      pointer-events: none;
+      opacity: 0;
+      transform: translateX(6px);
+      transition: opacity .15s, transform .15s;
+    }
+    #global-edit-btn:hover::after {
+      opacity: 1;
+      transform: translateX(0);
+    }
+
     /* ── Highlight row ───────────────────────────────── */
     tbody tr.row-highlighted { background: #fef08a !important; }
     tbody tr.row-highlighted:hover { background: #fde047 !important; }
@@ -657,10 +707,6 @@
     <span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:#fffbea;border:1px solid #fde68a;flex-shrink:0;"></span>
     Editing
   </span>
-  <div style="flex:1"></div>
-  <button id="global-edit-btn" class="btn btn-outline" onclick="toggleGlobalEdit()" style="font-size:12px;padding:5px 16px;">
-    ✏️ Edit All
-  </button>
 </div>
 
 <!-- ══ Flight Autocomplete Dropdown ═════════════════════ -->
@@ -756,6 +802,9 @@ app.listen(3001, () => console.log('Proxy running on port 3001'));
     <div id="save-overlay-msg">Please wait. Do not close or refresh this page.</div>
   </div>
 </div>
+
+<!-- ══ Floating Edit/Save Button ════════════════════════ -->
+<button id="global-edit-btn" onclick="toggleGlobalEdit()" data-tip="Edit All">✏️</button>
 
 <!-- ══ Toast container ═══════════════════════════════════ -->
 <div id="toast-container"></div>
@@ -1280,15 +1329,17 @@ function toggleGlobalEdit() {
   const btn = document.getElementById('global-edit-btn');
 
   if (_globalEditing) {
-    // Enter edit mode — all rows become editable
+    // Enter edit mode
     rows.forEach(r => { r.isEditing = true; });
-    btn.innerHTML = '💾 Save All';
-    btn.className = 'btn btn-success';
+    btn.innerHTML   = '💾';
+    btn.dataset.tip = 'Save All';
+    btn.classList.add('saving');
   } else {
-    // Exit edit mode — save all rows
+    // Exit edit mode — save
     rows.forEach(r => { r.isEditing = false; });
-    btn.innerHTML = '✏️ Edit All';
-    btn.className = 'btn btn-outline';
+    btn.innerHTML   = '✏️';
+    btn.dataset.tip = 'Edit All';
+    btn.classList.remove('saving');
     updateFlightMemory();   // บันทึก flight memory
     updateComebackMemory(); // บันทึก comeback memory
     saveLocal();
@@ -1563,11 +1614,12 @@ function renderTable() {
   // sync isEditing with global state
   rows.forEach(r => { r.isEditing = _globalEditing; });
 
-  // sync button appearance
+  // sync FAB appearance
   const btn = document.getElementById('global-edit-btn');
   if (btn) {
-    btn.innerHTML = _globalEditing ? '💾 Save All' : '✏️ Edit All';
-    btn.className = _globalEditing ? 'btn btn-success' : 'btn btn-outline';
+    btn.innerHTML    = _globalEditing ? '💾' : '✏️';
+    btn.dataset.tip  = _globalEditing ? 'Save All' : 'Edit All';
+    btn.classList.toggle('saving', _globalEditing);
   }
 
   // remove all except empty-row
