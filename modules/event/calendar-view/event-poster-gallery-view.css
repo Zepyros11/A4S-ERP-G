@@ -29,7 +29,25 @@
 .toolbar {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   margin-bottom: 20px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.cal-filter-wrap {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.cal-filter-wrap .filter-select {
+  border-radius: 50px;
+  font-size: 12px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  height: 34px;
+  padding: 0 14px;
+  box-shadow: 0 1px 4px rgba(148, 163, 184, 0.1);
 }
 
 .title {
