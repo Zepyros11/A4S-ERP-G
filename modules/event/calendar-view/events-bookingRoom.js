@@ -116,7 +116,7 @@ function renderRoomList(filter = "") {
   const today = todayStr(0);
 
   list.innerHTML = filtered.map((room) => {
-    const isSelected = room.place_id === selectedRoomId;
+    const isSelected = String(room.place_id) === String(selectedRoomId);
     const isActive = room.status === "ACTIVE";
 
     // Show event count today if this is the selected room
@@ -131,8 +131,12 @@ function renderRoomList(filter = "") {
         : `<span class="text-[10px] bg-green-500 text-white px-2 py-0.5 rounded-full font-bold">ว่าง</span>`;
 
     const activeClass = isSelected
-      ? "border-2 border-indigo-600 bg-indigo-50 active"
+      ? "border-2 border-indigo-600 bg-indigo-600 active"
       : "border border-slate-100 bg-white hover:shadow-md";
+
+    const nameClass = "font-bold text-slate-900 text-sm leading-tight";
+    const metaClass = isSelected ? "text-xs text-indigo-700 mt-1" : "text-xs text-slate-500 mt-1";
+    const addrClass = isSelected ? "text-[10px] text-indigo-500 mt-0.5 truncate" : "text-[10px] text-slate-400 mt-0.5 truncate";
 
     const meta = room.capacity ? `👥 ${room.capacity} คน` : "";
     const addressShort = room.address ? room.address.split("\n")[0].substring(0, 40) : "";
@@ -140,11 +144,10 @@ function renderRoomList(filter = "") {
     return `
       <div class="room-item ${activeClass} p-4 rounded-2xl cursor-pointer shadow-sm" data-room-id="${room.place_id}" data-place-name="${room.place_name}">
         <div class="flex justify-between items-start">
-          <h3 class="font-bold text-slate-900 text-sm leading-tight">${room.place_name}</h3>
-          ${statusLabel}
+          <h3 class="${nameClass}">${room.place_name}</h3>
         </div>
-        ${meta ? `<p class="text-xs text-slate-500 mt-1">${meta}</p>` : ""}
-        ${addressShort ? `<p class="text-[10px] text-slate-400 mt-0.5 truncate">${addressShort}</p>` : ""}
+        ${meta ? `<p class="${metaClass}">${meta}</p>` : ""}
+        ${addressShort ? `<p class="${addrClass}">${addressShort}</p>` : ""}
       </div>
     `;
   }).join("");
@@ -349,26 +352,8 @@ function nextHour(timeStr, hours = 1) {
 }
 
 // --- Modal ---
-function bindUserAutocomplete(textId, hiddenId, datalistId) {
-  const dl = document.getElementById(datalistId);
-  const textInput = document.getElementById(textId);
-  const hiddenInput = document.getElementById(hiddenId);
-  if (!dl || !textInput || !hiddenInput) return;
-
-  dl.innerHTML = users.map((u) => `<option value="${u.full_name}"></option>`).join("");
-
-  // remove old listener by replacing element clone
-  const fresh = textInput.cloneNode(true);
-  textInput.parentNode.replaceChild(fresh, textInput);
-  fresh.addEventListener("input", () => {
-    const match = users.find((u) => u.full_name === fresh.value);
-    hiddenInput.value = match ? String(match.user_id) : "";
-  });
-}
-
 function populateBookerDropdown() {
-  bindUserAutocomplete("inputBookerText", "inputBooker", "bookerList");
-  bindUserAutocomplete("inputCsText", "inputCs", "csList");
+  // no-op: using plain text inputs now
 }
 
 function openModal(date = "", start = "") {
@@ -378,13 +363,10 @@ function openModal(date = "", start = "") {
   document.getElementById("inputDate").value = date || todayStr(0);
   document.getElementById("inputStart").value = initStart;
   document.getElementById("inputEnd").value = initEnd;
-  populateBookerDropdown();
-  const bt = document.getElementById("inputBookerText");
-  if (bt) bt.value = "";
-  document.getElementById("inputBooker").value = "";
-  const ct = document.getElementById("inputCsText");
-  if (ct) ct.value = "";
-  document.getElementById("inputCs").value = "";
+  const bn = document.getElementById("inputBookerName");
+  const cn = document.getElementById("inputCsName");
+  if (bn) bn.value = "";
+  if (cn) cn.value = "";
   buildStartGrid(initStart);
   buildEndGrid(initEnd);
   updateHeader();
@@ -396,13 +378,13 @@ function closeModal() {
 }
 
 async function confirmBooking() {
-  const bookerText = (document.getElementById("inputBookerText")?.value || "").trim();
-  const csText     = (document.getElementById("inputCsText")?.value || "").trim();
+  const bookerName = (document.getElementById("inputBookerName")?.value || "").trim();
+  const csName     = (document.getElementById("inputCsName")?.value || "").trim();
   const date  = document.getElementById("inputDate").value;
   const start = document.getElementById("inputStart").value;
   const end   = document.getElementById("inputEnd").value;
 
-  if (!bookerText || !date || !start || !end) {
+  if (!bookerName || !date || !start || !end) {
     alert("กรุณากรอกข้อมูลให้ครบถ้วน");
     return;
   }
@@ -411,9 +393,10 @@ async function confirmBooking() {
     return;
   }
 
-  // lookup user_ids at submit time (avoids datalist timing issues)
-  const bookerUser = users.find((u) => u.full_name === bookerText);
-  const csUser     = users.find((u) => u.full_name === csText);
+  const bookerUser = users.find((u) => u.full_name === bookerName);
+  const csUser     = csName ? users.find((u) => u.full_name === csName) : null;
+  const resolvedBookerId = bookerUser ? bookerUser.user_id : null;
+  const resolvedCsId     = csUser     ? csUser.user_id     : null;
 
   const room = rooms.find((r) => String(r.place_id) === String(selectedRoomId));
   const btn = document.getElementById("btnConfirmBook");
@@ -426,8 +409,10 @@ async function confirmBooking() {
       request_code: code,
       place_id: selectedRoomId ? Number(selectedRoomId) : null,
       place_name: room ? room.place_name : selectedPlaceName || "",
-      booked_by: bookerUser ? bookerUser.user_id : null,
-      cs_id: csUser ? csUser.user_id : null,
+      booked_by: resolvedBookerId,
+      cs_id: resolvedCsId,
+      booked_by_name: bookerName || null,
+      cs_name: csName || null,
       booking_date: date,
       start_time: start,
       end_time: end,
@@ -448,7 +433,7 @@ async function confirmBooking() {
 async function loadRoomBookings() {
   roomBookings = (await sbFetch(
     "room_booking_requests",
-    "?select=request_id,request_code,place_name,booked_by,booking_date,start_time,end_time,status,created_at&order=created_at.desc&limit=20"
+    "?select=request_id,request_code,place_name,booked_by,cs_id,booked_by_name,cs_name,booking_date,start_time,end_time,status,created_at&order=created_at.desc&limit=20"
   )) || [];
 }
 
@@ -549,11 +534,11 @@ function renderRequestList() {
 
   container.innerHTML = roomBookings.map((r) => {
     const s = statusMap[r.status] || statusMap.PENDING;
-    const bookerName = (users.find((u) => String(u.user_id) === String(r.booked_by)) || {}).full_name || "—";
+    const bookerName = r.booked_by_name || (users.find((u) => String(u.user_id) === String(r.booked_by)) || {}).full_name || "—";
     const timeStr = r.end_time === "ALLDAY" ? "ตลอดทั้งวัน"
       : `${r.start_time || ""}–${r.end_time || ""}`;
     return `
-      <div class="bg-white rounded-xl border border-slate-100 p-3 shadow-sm">
+      <div class="bg-white rounded-xl border border-slate-100 p-3 shadow-sm cursor-pointer hover:border-indigo-200 hover:shadow-md transition" data-request-id="${r.request_id}">
         <div class="flex justify-between items-start gap-2">
           <p class="text-xs font-bold text-slate-800 leading-tight">${bookerName}</p>
           <span class="text-[9px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0 ${s.cls}">${s.label}</span>
@@ -564,7 +549,138 @@ function renderRequestList() {
       </div>
     `;
   }).join("");
+
+  container.querySelectorAll("[data-request-id]").forEach((el) => {
+    el.addEventListener("click", () => {
+      const req = roomBookings.find((r) => String(r.request_id) === el.dataset.requestId);
+      if (req) openRequestDetail(req);
+    });
+  });
 }
+
+// --- Request Detail Modal ---
+let detailCurrentRequestId = null;
+
+const REQ_STATUS_MAP = {
+  PENDING:   { label: "รอดำเนินการ", cls: "bg-yellow-100 text-yellow-600" },
+  APPROVED:  { label: "อนุมัติ",      cls: "bg-green-100 text-green-600" },
+  REJECTED:  { label: "ปฏิเสธ",       cls: "bg-red-100 text-red-500" },
+  CANCELLED: { label: "ยกเลิก",       cls: "bg-slate-100 text-slate-400" },
+};
+
+function openRequestDetail(req) {
+  detailCurrentRequestId = req.request_id;
+
+  // Header code
+  document.getElementById("detailModalCode").textContent = req.request_code || "—";
+
+  // Info panel
+  const s = REQ_STATUS_MAP[req.status] || REQ_STATUS_MAP.PENDING;
+  const bookerName = req.booked_by_name || (users.find((u) => String(u.user_id) === String(req.booked_by)) || {}).full_name || "—";
+  const csName = req.cs_name || (req.cs_id ? (users.find((u) => String(u.user_id) === String(req.cs_id)) || {}).full_name : null) || "—";
+  const timeStr = req.end_time === "ALLDAY" ? "ตลอดทั้งวัน" : `${req.start_time || ""}–${req.end_time || ""}`;
+  const createdAt = req.created_at ? req.created_at.slice(0, 16).replace("T", " ") : "—";
+
+  document.getElementById("detailInfoPanel").innerHTML = `
+    <div class="flex items-center justify-between">
+      <span class="text-xs text-slate-500">สถานะ</span>
+      <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${s.cls}">${s.label}</span>
+    </div>
+    <div class="h-px bg-slate-50"></div>
+    <div class="flex flex-col gap-3">
+      ${infoRow("ผู้จอง", bookerName)}
+      ${infoRow("CS", csName)}
+      ${infoRow("ห้อง", req.place_name || "—")}
+      ${infoRow("วันที่", req.booking_date || "—")}
+      ${infoRow("เวลา", timeStr)}
+      ${infoRow("รหัส", `<span class="font-mono text-indigo-500">${req.request_code || "—"}</span>`)}
+      ${infoRow("สร้างเมื่อ", createdAt)}
+    </div>
+  `;
+
+  // Show modal then load logs
+  document.getElementById("requestDetailModal").classList.remove("hidden");
+  document.getElementById("logInput").value = "";
+  loadRequestLogs(req.request_id);
+}
+
+function infoRow(label, value) {
+  return `
+    <div class="flex items-start justify-between gap-2">
+      <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wide flex-shrink-0 mt-0.5">${label}</span>
+      <span class="text-xs text-slate-700 text-right">${value}</span>
+    </div>
+  `;
+}
+
+async function loadRequestLogs(requestId) {
+  const panel = document.getElementById("detailLogPanel");
+  panel.innerHTML = `<p class="text-xs text-slate-400 text-center italic">กำลังโหลด...</p>`;
+
+  const logs = await sbFetch(
+    "room_booking_logs",
+    `?request_id=eq.${requestId}&order=created_at.asc`
+  );
+
+  if (!logs || logs.length === 0) {
+    panel.innerHTML = `<p class="text-xs text-slate-400 text-center italic mt-4">ยังไม่มี log</p>`;
+    return;
+  }
+
+  panel.innerHTML = logs.map((log) => {
+    const time = log.created_at ? log.created_at.slice(0, 16).replace("T", " ") : "";
+    const author = log.created_by_name || "ระบบ";
+    return `
+      <div class="bg-slate-50 rounded-xl p-3 border border-slate-100">
+        <div class="flex items-center justify-between mb-1">
+          <span class="text-[10px] font-bold text-indigo-600">${author}</span>
+          <span class="text-[9px] text-slate-400">${time}</span>
+        </div>
+        <p class="text-xs text-slate-700 leading-relaxed">${log.message || ""}</p>
+      </div>
+    `;
+  }).join("");
+
+  panel.scrollTop = panel.scrollHeight;
+}
+
+async function submitRequestLog() {
+  const input = document.getElementById("logInput");
+  const message = (input.value || "").trim();
+  if (!message || !detailCurrentRequestId) return;
+
+  const btn = document.getElementById("logSubmit");
+  btn.disabled = true;
+
+  await sbFetch("room_booking_logs", "", {
+    method: "POST",
+    body: {
+      request_id: detailCurrentRequestId,
+      message,
+      created_by_name: null,
+    },
+  });
+
+  input.value = "";
+  btn.disabled = false;
+  await loadRequestLogs(detailCurrentRequestId);
+}
+
+// Detail modal event listeners
+document.getElementById("closeDetailModal").addEventListener("click", () => {
+  document.getElementById("requestDetailModal").classList.add("hidden");
+  detailCurrentRequestId = null;
+});
+document.getElementById("requestDetailModal").addEventListener("click", (e) => {
+  if (e.target === e.currentTarget) {
+    document.getElementById("requestDetailModal").classList.add("hidden");
+    detailCurrentRequestId = null;
+  }
+});
+document.getElementById("logSubmit").addEventListener("click", submitRequestLog);
+document.getElementById("logInput").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") submitRequestLog();
+});
 
 // --- Init ---
 async function loadData() {

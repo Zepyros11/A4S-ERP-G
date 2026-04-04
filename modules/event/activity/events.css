@@ -2,6 +2,95 @@
    events.css — Event Module Styles
 ========================================================= */
 
+/* ── PAGE TABS ── */
+.ev-tabs {
+  display: flex;
+  gap: 0;
+}
+.ev-tab {
+  padding: 12px 20px;
+  font-size: 13px;
+  font-weight: 600;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: #94a3b8;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+  font-family: inherit;
+  white-space: nowrap;
+}
+.ev-tab:hover:not(.active) {
+  color: #475569;
+}
+.ev-tab.active {
+  color: #6366f1;
+  border-bottom-color: #6366f1;
+}
+
+/* ── ROOM BOOKING BADGES ── */
+.room-bkq-badge {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 999px;
+}
+.room-bkq-badge.PENDING   { background: #fef9c3; color: #92400e; }
+.room-bkq-badge.APPROVED  { background: #dcfce7; color: #166534; }
+.room-bkq-badge.REJECTED  { background: #fee2e2; color: #991b1b; }
+.room-bkq-badge.CANCELLED { background: #f1f5f9; color: #64748b; }
+
+/* ── REQ PANEL (requests side panel) ── */
+.req-panel {
+  position: fixed;
+  top: 0;
+  right: -480px;
+  width: 480px;
+  height: 100vh;
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+  box-shadow: -4px 0 24px rgba(0,0,0,0.1);
+  z-index: 300;
+  display: flex;
+  flex-direction: column;
+  transition: right 0.28s cubic-bezier(0.4,0,0.2,1);
+}
+.req-panel.open { right: 0; }
+.req-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface2);
+  flex-shrink: 0;
+}
+.req-panel-title { font-size: 15px; font-weight: 700; color: var(--text); }
+.req-panel-body  { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 14px; }
+.req-panel-footer { padding: 14px 20px; border-top: 1px solid var(--border); display: flex; gap: 8px; justify-content: flex-end; flex-shrink: 0; }
+
+/* ── REJECT MODAL ── */
+.reject-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15,23,42,0.55);
+  backdrop-filter: blur(4px);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 500;
+}
+.reject-modal-overlay.open { display: flex; }
+.reject-modal {
+  background: var(--surface);
+  border-radius: 16px;
+  width: 420px;
+  max-width: 95vw;
+  padding: 24px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+}
+
 /* ── EVENT TYPE BADGES ── */
 .event-type-badge {
   display: inline-flex;

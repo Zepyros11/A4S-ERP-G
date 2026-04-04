@@ -56,7 +56,7 @@
           id: "event-requests",
           icon: "📋",
           label: "คำขอจัดกิจกรรม",
-          path: BASE_PATH + "/modules/event/requests/event-requests.html",
+          path: BASE_PATH + "/modules/event/activity/events-list.html",
         },
         {
           id: "event-budget",
