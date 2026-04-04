@@ -737,46 +737,58 @@
 
   /* Grid */
   .cal-grid-wrap {
-    border-radius: 12px;
+    border-radius: 10px;
+    overflow: hidden;
   }
   .cal-day-hdr {
-    padding: 8px 0;
-    font-size: 10px;
+    padding: 6px 0;
+    font-size: 9px;
     letter-spacing: 0;
   }
   .cal-grid {
-    grid-auto-rows: minmax(80px, 1fr);
+    grid-auto-rows: minmax(58px, 1fr);
+    overflow: hidden;
   }
   .cal-cell {
-    padding: 4px 3px 3px;
+    padding: 3px 2px 2px;
+    overflow: hidden;
+    min-width: 0;
+    border-right: 1px solid #d1d5db;
+    border-bottom: 1px solid #d1d5db;
   }
   .cal-date-num {
-    width: 18px;
-    height: 18px;
-    font-size: 10px;
+    width: 16px;
+    height: 16px;
+    font-size: 9px;
     font-weight: 700;
-    top: 3px;
-    right: 3px;
+    top: 2px;
+    right: 2px;
     background: rgba(241,245,249,0.95);
     border-radius: 50%;
   }
-  .cal-cell {
-    border-right: 1px solid #d1d5db;
-    border-bottom: 1px solid #d1d5db;
+  .cal-cell.today .cal-date-num {
+    background: #f59e0b !important;
+    color: #fff !important;
   }
 
   /* Event pills */
   .cal-event-pill:first-of-type {
-    margin-top: 26px;
+    margin-top: 20px;
   }
   .cal-event-pill {
-    font-size: 10px;
-    padding: 2px 5px;
-    gap: 2px;
-    margin-bottom: 2px;
+    display: block;
+    font-size: 9px;
+    padding: 1px 4px;
+    margin-bottom: 1px;
+    max-width: 100%;
+    width: 100%;
+    box-sizing: border-box;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   .cal-more {
-    font-size: 10px;
+    font-size: 9px;
   }
 
   /* Legend */
