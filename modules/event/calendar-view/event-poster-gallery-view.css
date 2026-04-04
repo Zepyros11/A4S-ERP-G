@@ -1,8 +1,14 @@
 /* ===== LAYOUT ===== */
 
+body,
+body button,
+body input,
+body select,
+body textarea {
+  font-family: "Plus Jakarta Sans", "IBM Plex Sans Thai", sans-serif;
+}
 body {
   background-color: #f8fafc;
-  font-family: "Plus Jakarta Sans", "IBM Plex Sans Thai", sans-serif;
 }
 
 /* Category select: hidden on desktop, shown on mobile */
