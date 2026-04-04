@@ -61,6 +61,17 @@ body {
   margin-bottom: 20px;
   flex-wrap: wrap;
   gap: 12px;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 0;
+}
+
+@media (max-width: 600px) {
+  .toolbar {
+    justify-content: flex-start;
+  }
 }
 
 .cal-filter-wrap {
