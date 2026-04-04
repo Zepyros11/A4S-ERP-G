@@ -143,12 +143,8 @@ function getCatStyle(event) {
 
 function renderCalendar() {
   updateMonthLabel();
-  const statusFilter = document.getElementById("calFilterStatus")?.value || "";
-
   const filtered = allEvents.filter(
-    (e) =>
-      (!activeCalCatId || String(e.event_category_id) === activeCalCatId) &&
-      (!statusFilter || e.status === statusFilter),
+    (e) => !activeCalCatId || String(e.event_category_id) === activeCalCatId,
   );
 
   const eventMap = {};

@@ -78,15 +78,9 @@ window.setTypeFilterFromSelect = function (sel) {
 };
 
 // ── RENDER ─────────────────────────────────────────────────
-window.renderGalleryFilter = function () {
-  renderGallery();
-};
-
 function renderGallery() {
-  const statusFilter = document.getElementById("epgFilterStatus")?.value || "";
   let filtered = allEvents.filter((e) => {
-    return (!activeCatId || String(e.event_category_id) === activeCatId) &&
-           (!statusFilter || e.status === statusFilter);
+    return !activeCatId || String(e.event_category_id) === activeCatId;
   });
 
   document.getElementById("pageSubtitle").textContent =

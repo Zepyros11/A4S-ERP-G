@@ -78,8 +78,6 @@ const CalTopbar = (function () {
         <div class="cal-topbar-left">
           <img src="${resolvedLogo}" alt="A4S ERP" class="cal-topbar-logo"
                onerror="this.style.display='none'">
-          <span class="cal-topbar-brand">A4S ERP</span>
-          <span class="cal-topbar-sep">/</span>
           <span class="cal-topbar-page">${pageName}</span>
         </div>
         <div class="cal-topbar-right">

@@ -1,11 +1,16 @@
 /* offset page content ให้ไม่ถูก topbar บัง */
 
 /* ── STANDALONE PAGE (ไม่มี sidebar/topbar) ── */
+body {
+  background-color: #f8fafc;
+  font-family: "Plus Jakarta Sans", "IBM Plex Sans Thai", sans-serif;
+}
+
 .cal-standalone-page {
   max-width: 1400px;
   margin: 0 auto;
   padding: 80px 32px 60px;
-  font-family: "Sarabun", sans-serif;
+  font-family: "Plus Jakarta Sans", "IBM Plex Sans Thai", sans-serif;
 }
 
 @media (max-width: 768px) {
@@ -62,17 +67,18 @@
 .btn-today {
   padding: 5px 16px;
   background: #eef2ff;
-  color: #4f46e5;
-  border: 1px solid #e0e7ff;
+  color: #6366f1;
+  border: 1px solid #a5b4fc;
   border-radius: 50px;
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
-  font-family: "Sarabun", sans-serif;
-  transition: background 0.15s;
+  font-family: "Plus Jakarta Sans", "IBM Plex Sans Thai", sans-serif;
+  transition: background 0.15s, border-color 0.15s;
 }
 .btn-today:hover {
   background: #e0e7ff;
+  border-color: #6366f1;
 }
 .cal-filter-wrap {
   display: flex;
@@ -110,7 +116,7 @@
   color: #475569;
   cursor: pointer;
   white-space: nowrap;
-  font-family: "Sarabun", sans-serif;
+  font-family: "Plus Jakarta Sans", "IBM Plex Sans Thai", sans-serif;
   transition: background 0.15s, color 0.15s, border-color 0.15s;
 }
 .epg-chip:hover:not(.active) {
@@ -118,9 +124,10 @@
   border-color: #cbd5e1;
 }
 .epg-chip.active {
-  background: #1e293b;
-  color: #fff;
-  border-color: #1e293b;
+  background: #eef2ff;
+  color: #6366f1;
+  border-color: #6366f1;
+  box-shadow: 0 0 0 2px #a5b4fc;
 }
 
 /* ── GRID WRAP ── */
@@ -541,7 +548,7 @@
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
-  font-family: "Sarabun", sans-serif;
+  font-family: "Plus Jakarta Sans", "IBM Plex Sans Thai", sans-serif;
   transition:
     background 0.15s,
     transform 0.1s;
@@ -735,7 +742,24 @@
   .cal-cat-select {
     display: block;
     width: 100%;
-    margin-bottom: 10px;
+    margin-bottom: 12px;
+    height: 40px;
+    padding: 0 16px;
+    border-radius: 999px;
+    border: 1.5px solid #a5b4fc;
+    background: #eef2ff;
+    color: #6366f1;
+    font-size: 13px;
+    font-weight: 600;
+    font-family: "Plus Jakarta Sans", "IBM Plex Sans Thai", sans-serif;
+    box-shadow: 0 0 0 2px rgba(165,180,252,0.25);
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236366f1' stroke-width='1.8' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 14px center;
+    padding-right: 36px;
+    cursor: pointer;
   }
 
   /* Grid */
