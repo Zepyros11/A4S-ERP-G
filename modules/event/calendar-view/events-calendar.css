@@ -698,6 +698,94 @@
 
 @media (max-width: 600px) {
   .cal-standalone-page {
-    padding: 72px 12px 40px;
+    padding: 72px 4px 40px;
+  }
+
+  /* Header */
+  .cal-header {
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .cal-month-label {
+    font-size: 15px;
+    min-width: 110px;
+  }
+  .cal-nav .btn-circle {
+    width: 28px;
+    height: 28px;
+    font-size: 14px;
+  }
+  .btn-today {
+    font-size: 11px;
+    padding: 4px 12px;
+  }
+  .cal-filter-wrap .filter-select {
+    font-size: 11px;
+    height: 30px;
+    padding: 0 10px;
+  }
+
+  /* Category chips */
+  .cal-cat-chips {
+    gap: 5px;
+    margin-bottom: 10px;
+  }
+  .epg-chip {
+    padding: 4px 10px;
+    font-size: 11px;
+  }
+
+  /* Grid */
+  .cal-grid-wrap {
+    border-radius: 12px;
+  }
+  .cal-day-hdr {
+    padding: 8px 0;
+    font-size: 10px;
+    letter-spacing: 0;
+  }
+  .cal-grid {
+    grid-auto-rows: minmax(80px, 1fr);
+  }
+  .cal-cell {
+    padding: 4px 3px 3px;
+  }
+  .cal-date-num {
+    width: 22px;
+    height: 22px;
+    font-size: 11px;
+    top: 4px;
+    right: 4px;
+  }
+
+  /* Event pills */
+  .cal-event-pill:first-of-type {
+    margin-top: 26px;
+  }
+  .cal-event-pill {
+    font-size: 10px;
+    padding: 2px 5px;
+    gap: 2px;
+    margin-bottom: 2px;
+  }
+  .cal-more {
+    font-size: 10px;
+  }
+
+  /* Legend */
+  .cal-legend {
+    gap: 8px;
+  }
+  .cal-legend-item {
+    font-size: 10px;
+  }
+
+  /* Float button */
+  .btn-settings-float {
+    bottom: 16px;
+    right: 16px;
+    width: 42px;
+    height: 42px;
+    font-size: 18px;
   }
 }
