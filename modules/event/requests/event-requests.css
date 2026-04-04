@@ -2,6 +2,47 @@
    event-requests.css — Requests Module
 ========================================================= */
 
+/* ── PAGE TABS ── */
+.ev-tabs {
+  display: flex;
+  gap: 0;
+}
+.ev-tab {
+  padding: 10px 20px;
+  font-size: 13px;
+  font-weight: 600;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: #94a3b8;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+  font-family: inherit;
+  white-space: nowrap;
+}
+.ev-tab:hover:not(.active) { color: #475569; }
+.ev-tab.active {
+  color: #6366f1;
+  border-bottom-color: #6366f1;
+}
+
+/* ── TAB NOTIFICATION BADGE ── */
+.tab-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: #ef4444;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  margin-left: 6px;
+  line-height: 1;
+}
+
 /* ── STATUS BADGES ── */
 .req-status-badge {
   display: inline-flex;

@@ -54,56 +54,118 @@
             </div>
           </div>
 
-          <!-- TOOLBAR -->
-          <div class="toolbar">
-            <div class="search-wrap">
-              <span class="search-icon">🔍</span>
-              <input
-                class="search-input"
-                id="searchInput"
-                placeholder="ค้นหาชื่อกิจกรรม..."
-              />
+          <!-- EVENT REQUESTS TABLE -->
+          <div class="content-wrap">
+            <div class="table-card">
+              <!-- TOOLBAR -->
+              <div class="toolbar">
+                <div class="search-wrap">
+                  <span class="search-icon">🔍</span>
+                  <input class="search-input" id="searchInput" placeholder="ค้นหารหัส, ชื่อกิจกรรม..." />
+                </div>
+                <select class="filter-select" id="filterStatus">
+                  <option value="">⚪ ทุกสถานะ</option>
+                  <option value="PENDING">⏳ รอดำเนินการ</option>
+                  <option value="APPROVED">✅ อนุมัติแล้ว</option>
+                  <option value="REJECTED">❌ ปฏิเสธ</option>
+                </select>
+                <select class="filter-select" id="filterType">
+                  <option value="">🏷 ทุกประเภท</option>
+                  <option value="BOOTH">🏪 ออกบูธ</option>
+                  <option value="MEETING">👥 ประชุม</option>
+                  <option value="ONLINE">💻 Online</option>
+                  <option value="HYBRID">🔀 Hybrid</option>
+                  <option value="CONFERENCE">🎤 Conference</option>
+                  <option value="OTHER">📌 อื่นๆ</option>
+                </select>
+                <div class="toolbar-right">
+                  <button class="btn btn-primary" onclick="window.openRequestModal()">＋ ยื่นคำขอ</button>
+                </div>
+              </div>
+
+              <div class="table-hdr">
+                <div class="ev-tabs">
+                  <button class="ev-tab" onclick="window.location.href='../activity/events-list.html'">
+                    🗓️ รายการกิจกรรม
+                  </button>
+                  <button class="ev-tab active">
+                    📋 คำขอจัดกิจกรรม
+                  </button>
+                </div>
+                <div class="table-count" id="evReqCount">กำลังโหลด...</div>
+              </div>
+              <div class="table-wrap">
+                <table class="data-table" style="table-layout:fixed;width:100%">
+                  <thead>
+                    <tr>
+                      <th style="width:130px">รหัสคำขอ</th>
+                      <th>ชื่อกิจกรรม</th>
+                      <th class="col-center" style="width:130px">ประเภท</th>
+                      <th class="col-center" style="width:130px">แผนก</th>
+                      <th class="col-center" style="width:110px">วันที่จัด</th>
+                      <th class="col-center" style="width:110px">สถานะ</th>
+                      <th class="col-center" style="width:90px">จัดการ</th>
+                    </tr>
+                  </thead>
+                  <tbody id="evReqTableBody">
+                    <tr><td colspan="7"><div class="empty-state"><div class="empty-icon">📋</div><div class="empty-text">กำลังโหลด...</div></div></td></tr>
+                  </tbody>
+                </table>
+              </div>
             </div>
-            <select class="filter-select" id="filterStatus">
-              <option value="">⚪ ทุกสถานะ</option>
-              <option value="PENDING">⏳ รอดำเนินการ</option>
-              <option value="APPROVED">✅ อนุมัติแล้ว</option>
-              <option value="REJECTED">❌ ปฏิเสธ</option>
-            </select>
-            <select class="filter-select" id="filterType">
-              <option value="">⚪ ทุกประเภท</option>
-              <option value="BOOTH">🏪 ออกบูธ</option>
-              <option value="MEETING">👥 ประชุม</option>
-              <option value="ONLINE">💻 Online</option>
-              <option value="HYBRID">🔀 Hybrid</option>
-              <option value="CONFERENCE">🎤 Conference</option>
-              <option value="OTHER">📌 อื่นๆ</option>
-            </select>
           </div>
 
           <!-- TABLE: Room Booking Requests -->
           <div class="content-wrap" style="margin-top:24px;">
             <div class="table-card">
+              <!-- TOOLBAR -->
+              <div class="toolbar">
+                <div class="search-wrap">
+                  <span class="search-icon">🔍</span>
+                  <input class="search-input" id="rbkqSearch" placeholder="ค้นหารหัส, ห้อง, ผู้จอง..." oninput="filterRoomBookings()" />
+                </div>
+                <select class="filter-select" id="rbkqFilterStatus" onchange="filterRoomBookings()">
+                  <option value="">⚪ ทุกสถานะ</option>
+                  <option value="PENDING">⏳ รอดำเนินการ</option>
+                  <option value="APPROVED">✅ อนุมัติแล้ว</option>
+                  <option value="REJECTED">❌ ปฏิเสธ</option>
+                  <option value="CANCELLED">🚫 ยกเลิก</option>
+                </select>
+                <div class="toolbar-right">
+                  <button id="btnDeleteSelectedBkq" class="btn btn-danger-outline" style="display:none" onclick="deleteSelectedBkq()">🗑 ลบที่เลือก</button>
+                </div>
+              </div>
+
               <div class="table-hdr">
-                <div class="table-title">🚪 รายการจองห้องประชุม</div>
+                <div class="ev-tabs">
+                  <button class="ev-tab" onclick="window.location.href='../activity/events-list.html'">
+                    🗓️ รายการกิจกรรม
+                  </button>
+                  <button class="ev-tab active">
+                    🚪 คำขอจองห้อง<span id="reqPendingBadge" class="tab-badge" style="display:none"></span>
+                  </button>
+                </div>
                 <div class="table-count" id="rbkqCount">กำลังโหลด...</div>
               </div>
               <div class="table-wrap">
                 <table class="data-table" style="table-layout:fixed;width:100%">
                   <thead>
                     <tr>
-                      <th>รหัสคำขอ</th>
+                      <th style="width:40px;text-align:center">
+                        <input type="checkbox" id="chkAllBkq" onclick="toggleAllBkqCheckbox(this)" />
+                      </th>
                       <th>ห้อง</th>
                       <th class="col-center">ผู้จอง</th>
                       <th class="col-center">CS</th>
                       <th class="col-center">วันที่</th>
                       <th class="col-center">เวลา</th>
                       <th class="col-center">สถานะ</th>
+                      <th class="col-center">อนุมัติ</th>
                       <th class="col-center">จัดการ</th>
                     </tr>
                   </thead>
                   <tbody id="rbkqTableBody">
-                    <tr><td colspan="8"><div class="empty-state"><div class="empty-icon">🚪</div><div class="empty-text">กำลังโหลด...</div></div></td></tr>
+                    <tr><td colspan="9"><div class="empty-state"><div class="empty-icon">🚪</div><div class="empty-text">กำลังโหลด...</div></div></td></tr>
                   </tbody>
                 </table>
               </div>
@@ -490,8 +552,21 @@
     }
 
     // ── State ─────────────────────────────────────────────────
-    let _bkqRows = [];
+    let _bkqRows = [];       // enriched rows (with _booker, _cs)
     let _bkqCurrentId = null;
+    let _bkqLogPollTimer  = null;
+    let _bkqLastLogSig    = "";
+    let _bkqListPollTimer = null;
+    let _bkqListLastSig   = "";
+
+    function startBkqLogPolling(requestId) {
+      stopBkqLogPolling();
+      _bkqLogPollTimer = setInterval(() => loadBkqLogs(requestId, true), 4000);
+    }
+    function stopBkqLogPolling() {
+      if (_bkqLogPollTimer) { clearInterval(_bkqLogPollTimer); _bkqLogPollTimer = null; }
+      _bkqLastLogSig = "";
+    }
 
     const BKQ_STATUS_MAP = {
       PENDING:  { label:"รอดำเนินการ", cls:"PENDING"  },
@@ -501,13 +576,13 @@
     };
 
     // ── Room Booking Requests loader ──────────────────────────
-    async function loadRoomBookingRequests() {
+    async function loadRoomBookingRequests(silent = false) {
       const { url, key } = bkqSB();
       const tbody   = document.getElementById("rbkqTableBody");
       const counter = document.getElementById("rbkqCount");
       if (!tbody) return;
       if (!url || !key) {
-        tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;color:#94a3b8;font-size:12px;">ไม่พบข้อมูล Supabase</td></tr>`;
+        if (!silent) tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;color:#94a3b8;font-size:12px;">ไม่พบข้อมูล Supabase</td></tr>`;
         return;
       }
       try {
@@ -517,50 +592,152 @@
           fetch(`${url}/rest/v1/users?select=user_id,full_name&is_active=eq.true`,
             { headers: { apikey:key, Authorization:`Bearer ${key}` } }),
         ]);
-        _bkqRows = await rbRes.json().catch(()=>[]) || [];
-        const users  = await usersRes.json().catch(()=>[]) || [];
+        const raw   = await rbRes.json().catch(()=>[]) || [];
+        const users = await usersRes.json().catch(()=>[]) || [];
+
+        const sig = raw.map(r => `${r.request_id}:${r.status}:${r.updated_at||r.created_at}`).join("|");
+        if (silent && sig === _bkqListLastSig) return;
+        _bkqListLastSig = sig;
+
         const userMap = Object.fromEntries(users.map(u=>[String(u.user_id), u.full_name]));
+        _bkqRows = raw.map(r => ({
+          ...r,
+          _booker: r.booked_by_name || userMap[String(r.booked_by)] || "—",
+          _cs:     r.cs_name        || userMap[String(r.cs_id)]     || "—",
+        }));
 
-        counter.textContent = `${_bkqRows.length} รายการ`;
-
-        if (_bkqRows.length === 0) {
-          tbody.innerHTML = `<tr><td colspan="8"><div class="empty-state"><div class="empty-icon">🚪</div><div class="empty-text">ยังไม่มีรายการจองห้อง</div></div></td></tr>`;
-          return;
-        }
-
-        tbody.innerHTML = _bkqRows.map(r => {
-          const s = BKQ_STATUS_MAP[r.status] || BKQ_STATUS_MAP.PENDING;
-          const booker  = r.booked_by_name || userMap[String(r.booked_by)] || "—";
-          const cs      = r.cs_name        || userMap[String(r.cs_id)]     || "—";
-          const timeStr = r.end_time==="ALLDAY" ? "ตลอดทั้งวัน" : `${r.start_time||""}–${r.end_time||""}`;
-          return `
-            <tr data-rid="${r.request_id}">
-              <td><span style="font-family:monospace;font-size:11px;color:#6366f1">${r.request_code}</span></td>
-              <td>${r.place_name}</td>
-              <td class="col-center">${booker}</td>
-              <td class="col-center">${cs}</td>
-              <td class="col-center">${r.booking_date}</td>
-              <td class="col-center">${timeStr}</td>
-              <td class="col-center"><span class="room-bkq-badge ${s.cls}">${s.label}</span></td>
-              <td class="col-center" onclick="event.stopPropagation()">
-                <button class="btn-icon" title="อนุมัติ" onclick="updateRoomBooking(${r.request_id},'APPROVED',this)">✅</button>
-                <button class="btn-icon" title="ปฏิเสธ"  onclick="updateRoomBooking(${r.request_id},'REJECTED',this)">❌</button>
-              </td>
-            </tr>`;
-        }).join("");
-
-        // Row click → open detail modal
-        tbody.querySelectorAll("tr[data-rid]").forEach(tr => {
-          tr.addEventListener("click", () => {
-            const row = _bkqRows.find(r => String(r.request_id) === tr.dataset.rid);
-            if (row) openBkqDetail(row);
-          });
-        });
+        filterRoomBookings();   // re-apply current search/filter
       } catch (e) {
-        tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;color:#ef4444;font-size:12px;">โหลดข้อมูลไม่ได้: ${e.message}</td></tr>`;
+        if (!silent) tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;color:#ef4444;font-size:12px;">โหลดข้อมูลไม่ได้: ${e.message}</td></tr>`;
       }
     }
-    setTimeout(loadRoomBookingRequests, 800);
+
+    function renderRoomBookings(rows) {
+      const tbody   = document.getElementById("rbkqTableBody");
+      const counter = document.getElementById("rbkqCount");
+      counter.textContent = `${rows.length} รายการ`;
+
+      // Update pending badge (count from full _bkqRows, not filtered)
+      const pendingCount = _bkqRows.filter(r => r.status === "PENDING").length;
+      const badge = document.getElementById("reqPendingBadge");
+      if (badge) {
+        badge.textContent = pendingCount;
+        badge.style.display = pendingCount > 0 ? "inline-flex" : "none";
+      }
+
+      if (rows.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state"><div class="empty-icon">🚪</div><div class="empty-text">ยังไม่มีรายการจองห้อง</div></div></td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = rows.map(r => {
+        const s       = BKQ_STATUS_MAP[r.status] || BKQ_STATUS_MAP.PENDING;
+        const booker  = r._booker;
+        const cs      = r._cs;
+        const timeStr = r.end_time==="ALLDAY" ? "ตลอดทั้งวัน" : `${r.start_time||""}–${r.end_time||""}`;
+        return `
+          <tr data-rid="${r.request_id}" style="cursor:pointer">
+            <td style="text-align:center" onclick="event.stopPropagation()">
+              <input type="checkbox" class="bkq-chk" value="${r.request_id}" onchange="syncBkqDeleteBtn()" />
+            </td>
+            <td>${r.place_name}</td>
+            <td class="col-center">${booker}</td>
+            <td class="col-center">${cs}</td>
+            <td class="col-center">${r.booking_date}</td>
+            <td class="col-center">${timeStr}</td>
+            <td class="col-center"><span class="room-bkq-badge ${s.cls}">${s.label}</span></td>
+            <td class="col-center" onclick="event.stopPropagation()">
+              <button class="btn-icon" title="อนุมัติ" onclick="updateRoomBooking(${r.request_id},'APPROVED',this)">✅</button>
+              <button class="btn-icon" title="ปฏิเสธ"  onclick="updateRoomBooking(${r.request_id},'REJECTED',this)">❌</button>
+            </td>
+            <td class="col-center" onclick="event.stopPropagation()">
+              <button class="btn-icon" title="แก้ไข" onclick="openBkqDetailById(${r.request_id})" style="color:#f97316">✏️</button>
+              <button class="btn-icon" title="ลบ"    onclick="deleteBkqRow(${r.request_id},this)"  style="color:#ef4444">🗑</button>
+            </td>
+          </tr>`;
+      }).join("");
+
+      tbody.querySelectorAll("tr[data-rid]").forEach(tr => {
+        tr.addEventListener("click", () => {
+          const row = _bkqRows.find(r => String(r.request_id) === tr.dataset.rid);
+          if (row) openBkqDetail(row);
+        });
+      });
+    }
+
+    function filterRoomBookings() {
+      const q = (document.getElementById("rbkqSearch")?.value || "").toLowerCase();
+      const s = document.getElementById("rbkqFilterStatus")?.value || "";
+      const filtered = _bkqRows.filter(r =>
+        (!q || r.request_code?.toLowerCase().includes(q) ||
+               r.place_name?.toLowerCase().includes(q)   ||
+               r._booker?.toLowerCase().includes(q)      ||
+               r._cs?.toLowerCase().includes(q)) &&
+        (!s || r.status === s)
+      );
+      renderRoomBookings(filtered);
+    }
+
+    // ── Checkbox helpers ──────────────────────────────────────
+    function toggleAllBkqCheckbox(master) {
+      document.querySelectorAll(".bkq-chk").forEach(c => c.checked = master.checked);
+      syncBkqDeleteBtn();
+    }
+    function syncBkqDeleteBtn() {
+      const checked = document.querySelectorAll(".bkq-chk:checked").length;
+      const btn = document.getElementById("btnDeleteSelectedBkq");
+      if (btn) btn.style.display = checked > 0 ? "" : "none";
+      const master = document.getElementById("chkAllBkq");
+      if (master) {
+        const total = document.querySelectorAll(".bkq-chk").length;
+        master.indeterminate = checked > 0 && checked < total;
+        master.checked = total > 0 && checked === total;
+      }
+    }
+
+    // ── Open detail by ID ─────────────────────────────────────
+    function openBkqDetailById(id) {
+      const row = _bkqRows.find(r => String(r.request_id) === String(id));
+      if (row) openBkqDetail(row);
+    }
+
+    // ── Delete single row ─────────────────────────────────────
+    async function deleteBkqRow(id, btn) {
+      if (!confirm("ยืนยันลบรายการนี้?")) return;
+      btn.disabled = true;
+      const { url, key } = bkqSB();
+      try {
+        await fetch(`${url}/rest/v1/room_booking_requests?request_id=eq.${id}`, {
+          method: "DELETE",
+          headers: { apikey: key, Authorization: `Bearer ${key}` },
+        });
+        _bkqListLastSig = "";
+        await loadRoomBookingRequests();
+      } catch { btn.disabled = false; }
+    }
+
+    // ── Delete selected rows ──────────────────────────────────
+    async function deleteSelectedBkq() {
+      const ids = [...document.querySelectorAll(".bkq-chk:checked")].map(c => c.value);
+      if (!ids.length) return;
+      if (!confirm(`ยืนยันลบ ${ids.length} รายการ?`)) return;
+      const { url, key } = bkqSB();
+      const btn = document.getElementById("btnDeleteSelectedBkq");
+      btn.disabled = true;
+      try {
+        await fetch(`${url}/rest/v1/room_booking_requests?request_id=in.(${ids.join(",")})`, {
+          method: "DELETE",
+          headers: { apikey: key, Authorization: `Bearer ${key}` },
+        });
+        _bkqListLastSig = "";
+        await loadRoomBookingRequests();
+      } catch { btn.disabled = false; }
+    }
+
+    setTimeout(() => {
+      loadRoomBookingRequests();
+      _bkqListPollTimer = setInterval(() => loadRoomBookingRequests(true), 8000);
+    }, 800);
 
     async function updateRoomBooking(id, status, btn) {
       const { url, key } = bkqSB();
@@ -571,7 +748,7 @@
           headers: { apikey:key, Authorization:`Bearer ${key}`, "Content-Type":"application/json", Prefer:"return=representation" },
           body: JSON.stringify({ status }),
         });
-        if (res.ok) loadRoomBookingRequests();
+        if (res.ok) { _bkqListLastSig = ""; loadRoomBookingRequests(); }
       } catch { btn.disabled = false; }
     }
     window.updateRoomBooking = updateRoomBooking;
@@ -597,11 +774,13 @@
       document.getElementById("bkqLogInput").value = "";
       document.getElementById("bkqDetailOverlay").classList.add("open");
       loadBkqLogs(row.request_id);
+      startBkqLogPolling(row.request_id);
     }
 
     function closeBkqDetail() {
       document.getElementById("bkqDetailOverlay").classList.remove("open");
       _bkqCurrentId = null;
+      stopBkqLogPolling();
     }
 
     function toggleBkqAllday(checked) {
@@ -626,40 +805,52 @@
 
       try {
         await bkqFetch("room_booking_requests", `?request_id=eq.${_bkqCurrentId}`, { method:"PATCH", body:payload });
+        _bkqListLastSig = "";
         await loadRoomBookingRequests();
-        // Update local state
-        const idx = _bkqRows.findIndex(r => String(r.request_id) === String(_bkqCurrentId));
-        if (idx >= 0) Object.assign(_bkqRows[idx], payload);
       } catch(e) { alert("บันทึกไม่สำเร็จ: " + e.message); }
 
       btn.disabled = false; btn.textContent = "💾 บันทึก";
     }
 
     // ── Logs ──────────────────────────────────────────────────
-    async function loadBkqLogs(requestId) {
+    async function loadBkqLogs(requestId, silent = false) {
       const list = document.getElementById("bkqLogList");
-      list.innerHTML = `<p class="bkq-empty">กำลังโหลด...</p>`;
+      if (!silent) {
+        list.innerHTML = `<p class="bkq-empty">กำลังโหลด...</p>`;
+        _bkqLastLogSig = "";
+      }
 
       const logs = await bkqFetch("room_booking_logs", `?request_id=eq.${requestId}&order=created_at.asc`);
+
+      const sig = (logs || []).map(l => l.created_at).join("|");
+      if (silent && sig === _bkqLastLogSig) return;
+      _bkqLastLogSig = sig;
+
       if (!logs || logs.length === 0) {
         list.innerHTML = `<p class="bkq-empty">ยังไม่มี log</p>`;
         return;
       }
 
+      const wasAtBottom = list.scrollHeight - list.scrollTop <= list.clientHeight + 8;
+
       list.innerHTML = logs.map(log => {
         const time   = (log.created_at||"").slice(0,16).replace("T"," ");
         const author = log.created_by_name || "ระบบ";
+        let bgStyle     = "background:#f8fafc;border:1px solid #f1f5f9;";
+        let authorStyle = "color:#6366f1;";
+        if (author === "CS")       { bgStyle = "background:#fef9c3;border:1px solid #fde68a;"; authorStyle = "color:#d97706;"; }
+        else if (author === "BRE") { bgStyle = "background:#dcfce7;border:1px solid #86efac;"; authorStyle = "color:#16a34a;"; }
         return `
-          <div class="bkq-log-item">
+          <div class="bkq-log-item" style="${bgStyle}">
             <div class="bkq-log-meta">
-              <span class="bkq-log-author">${author}</span>
+              <span class="bkq-log-author" style="${authorStyle}">${author}</span>
               <span class="bkq-log-time">${time}</span>
             </div>
             <div class="bkq-log-msg">${log.message||""}</div>
           </div>`;
       }).join("");
 
-      list.scrollTop = list.scrollHeight;
+      if (!silent || wasAtBottom) list.scrollTop = list.scrollHeight;
     }
 
     async function submitBkqLog() {
@@ -672,7 +863,7 @@
 
       await bkqFetch("room_booking_logs", "", {
         method: "POST",
-        body: { request_id: _bkqCurrentId, message: msg, created_by_name: null },
+        body: { request_id: _bkqCurrentId, message: msg, created_by_name: "BRE" },
       });
       input.value = "";
       btn.disabled = false;

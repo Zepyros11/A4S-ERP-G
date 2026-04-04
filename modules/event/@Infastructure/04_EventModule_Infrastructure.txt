@@ -84,7 +84,7 @@ modules/event/
 โ”   โ”โ”€โ”€ event-form.html / .js / event-form.css
 โ”   โ””โ”€โ”€ event-log.html / .js / event-log.css
 โ”โ”€โ”€ requests/
-โ”   โ”โ”€โ”€ event-requests.html / .js / event-requests.css
+โ”   โ”โ”€โ”€ event-requests-form.html / .js / event-requests-form.css
 โ”   โ””โ”€โ”€ event-request-form.html / .js / event-request-form.css
 โ”โ”€โ”€ rooms/
 โ”   โ”โ”€โ”€ room-booking.html / .js
@@ -208,7 +208,7 @@ Ticket No: TK-{eventId}-XXXX
     { id:"events",         icon:"๐—“๏ธ", label:"เธเธดเธเธเธฃเธฃเธก",
       path: BASE_PATH+"/modules/event/activity/events-list.html" },
     { id:"event-requests", icon:"๐“", label:"เนเธเธเธญเธเธฑเธ”เธเธฒเธ",
-      path: BASE_PATH+"/modules/event/requests/event-requests.html" },
+      path: BASE_PATH+"/modules/event/requests/event-requests-form.html" },
     { id:"rooms",          icon:"๐ช", label:"เธซเนเธญเธเธเธฃเธฐเธเธธเธก",
     { id:"event-budget",   icon:"๐’ฐ", label:"เธเธเธเธฃเธฐเธกเธฒเธ“ & Vendor",
       path: BASE_PATH+"/modules/event/procurement/event-budget.html" },

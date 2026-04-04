@@ -17,9 +17,9 @@ modules/event/
 โ”   โ”โ”€โ”€ event-request-form.css
 โ”   โ”โ”€โ”€ event-request-form.html
 โ”   โ””โ”€โ”€ event-request-form.js
-โ”   โ”โ”€โ”€ event-requests.html
-โ”   โ”โ”€โ”€ event-requests.js
-โ”   โ””โ”€โ”€ event-requests.css
+โ”   โ”โ”€โ”€ event-requests-form.html
+โ”   โ”โ”€โ”€ event-requests-form.js
+โ”   โ””โ”€โ”€ event-requests-form.css
 โ”
 โ”โ”€โ”€ rooms/             โ… DONE  โ เธเธฑเธ”เธเธฒเธฃเธซเนเธญเธเธเธฃเธฐเธเธธเธก
 โ”   โ”โ”€โ”€ room-booking.html

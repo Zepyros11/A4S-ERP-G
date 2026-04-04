@@ -190,51 +190,80 @@ function renderTimeline() {
     return;
   }
 
-  if (roomEvents.length === 0) {
+  const today = todayStr(0);
+
+  // Approved bookings for selected room (future only)
+  const approvedBookings = roomBookings.filter(
+    (b) => b.status === "APPROVED" && b.place_name === selectedPlaceName && b.booking_date >= today
+  );
+
+  if (roomEvents.length === 0 && approvedBookings.length === 0) {
     timeline.innerHTML = `
       <div class="flex flex-col items-center justify-center py-16 text-center">
         <span class="text-4xl mb-3">📭</span>
         <p class="text-sm font-bold text-slate-400">ยังไม่มีกิจกรรมในห้องนี้</p>
-        <p class="text-xs text-slate-300 mt-1">กิจกรรมจาก Events List จะแสดงที่นี่</p>
+        <p class="text-xs text-slate-300 mt-1">กิจกรรมจาก Events List และการจองห้องจะแสดงที่นี่</p>
       </div>
     `;
     return;
   }
 
-  // Group events by date — exclude past dates
-  const today = todayStr(0);
+  // Group by date
   const byDate = {};
+
   roomEvents.forEach((e) => {
     const d = e.event_date;
     if (d < today) return;
     if (!byDate[d]) byDate[d] = [];
-    byDate[d].push(e);
+    byDate[d].push({ _type: "event", _sort: e.start_time || "00:00", ...e });
+  });
+
+  approvedBookings.forEach((b) => {
+    const d = b.booking_date;
+    if (!byDate[d]) byDate[d] = [];
+    byDate[d].push({ _type: "booking", _sort: b.end_time === "ALLDAY" ? "00:00" : (b.start_time || "00:00"), ...b });
   });
 
   const eventsById = Object.fromEntries(roomEvents.map((e) => [String(e.event_id), e]));
+  const bookingsById = Object.fromEntries(approvedBookings.map((b) => [String(b.request_id), b]));
 
   timeline.innerHTML = Object.keys(byDate).sort().map((dateStr) => {
     const dayLabel = getDayLabel(dateStr);
     const dateLabel = formatDateThai(dateStr);
     const isToday = dateStr === today;
-    const labelColorClass = isToday
-      ? "text-indigo-600 bg-indigo-50"
-      : "text-slate-500 bg-slate-100";
+    const labelColorClass = isToday ? "text-indigo-600 bg-indigo-50" : "text-slate-500 bg-slate-100";
 
-    const eventRows = byDate[dateStr].map((ev) => {
-      const status = STATUS_MAP[ev.status] || STATUS_MAP.DRAFT;
-      const timeStr = ev.start_time
-        ? `${ev.start_time.slice(0, 5)}${ev.end_time ? " – " + ev.end_time.slice(0, 5) : ""}`
-        : "ตลอดทั้งวัน";
-      return `
-        <div class="flex items-center gap-4 p-4 bg-white rounded-2xl border border-slate-100 shadow-sm cursor-pointer hover:border-indigo-200 hover:bg-indigo-50 transition" data-event-id="${ev.event_id}">
-          <span class="text-xs font-bold text-slate-400 w-28 flex-shrink-0">${timeStr}</span>
-          <div class="flex-1 min-w-0">
-            <p class="text-sm font-bold text-slate-800 truncate">${ev.event_name || "—"}</p>
-          </div>
-          <span class="text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0 ${status.cls}">${status.label}</span>
-        </div>
-      `;
+    const items = byDate[dateStr].sort((a, b) => a._sort.localeCompare(b._sort));
+
+    const rows = items.map((item) => {
+      if (item._type === "event") {
+        const status = STATUS_MAP[item.status] || STATUS_MAP.DRAFT;
+        const timeStr = item.start_time
+          ? `${item.start_time.slice(0, 5)}${item.end_time ? " – " + item.end_time.slice(0, 5) : ""}`
+          : "ตลอดทั้งวัน";
+        return `
+          <div class="flex items-center gap-4 p-4 bg-white rounded-2xl border border-slate-100 shadow-sm cursor-pointer hover:border-indigo-200 hover:bg-indigo-50 transition" data-event-id="${item.event_id}">
+            <span class="text-xs font-bold text-slate-400 w-28 flex-shrink-0">${timeStr}</span>
+            <div class="flex-1 min-w-0">
+              <p class="text-sm font-bold text-slate-800 truncate">${item.event_name || "—"}</p>
+            </div>
+            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0 ${status.cls}">${status.label}</span>
+          </div>`;
+      } else {
+        // Approved booking
+        const timeStr = item.end_time === "ALLDAY" ? "ตลอดทั้งวัน"
+          : `${(item.start_time || "").slice(0, 5)} – ${(item.end_time || "").slice(0, 5)}`;
+        const csText = item.cs_name ? `<p class="text-[10px] text-violet-400 truncate">CS: ${item.cs_name}</p>` : "";
+        return `
+          <div class="flex items-center gap-4 p-4 bg-violet-50 rounded-2xl border border-violet-200 shadow-sm cursor-pointer hover:bg-violet-100 transition" data-booking-id="${item.request_id}">
+            <span class="text-xs font-bold text-violet-400 w-28 flex-shrink-0">${timeStr}</span>
+            <div class="flex-1 min-w-0">
+              <p class="text-sm font-bold text-violet-800 truncate">🔖 ${item.booked_by_name || "—"}</p>
+              ${csText}
+            </div>
+            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0 bg-violet-200 text-violet-700">จองห้อง</span>
+          </div>`;
+      }
     }).join("");
 
     return `
@@ -244,18 +273,21 @@ function renderTimeline() {
           <div class="h-[1px] flex-1 bg-slate-100"></div>
           <span class="text-xs font-bold text-slate-300 uppercase tracking-widest">${dayLabel}</span>
         </div>
-        <div class="grid grid-cols-1 gap-2">
-          ${eventRows}
-        </div>
-      </section>
-    `;
+        <div class="grid grid-cols-1 gap-2">${rows}</div>
+      </section>`;
   }).join("");
 
-  // Bind click on event rows -> open poster popup
+  // Bind events
   timeline.querySelectorAll("[data-event-id]").forEach((el) => {
     el.addEventListener("click", () => {
       const ev = eventsById[el.dataset.eventId];
       if (ev) openPosterPopup(ev);
+    });
+  });
+  timeline.querySelectorAll("[data-booking-id]").forEach((el) => {
+    el.addEventListener("click", () => {
+      const bk = bookingsById[el.dataset.bookingId];
+      if (bk) openRequestDetail(bk);
     });
   });
 }
@@ -433,7 +465,7 @@ async function confirmBooking() {
 async function loadRoomBookings() {
   roomBookings = (await sbFetch(
     "room_booking_requests",
-    "?select=request_id,request_code,place_name,booked_by,cs_id,booked_by_name,cs_name,booking_date,start_time,end_time,status,created_at&order=created_at.desc&limit=20"
+    "?select=request_id,request_code,place_name,booked_by,cs_id,booked_by_name,cs_name,booking_date,start_time,end_time,status,created_at&order=created_at.desc"
   )) || [];
 }
 
@@ -463,9 +495,14 @@ function renderMiniCalendar() {
   const monthNames = ["มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน","กรกฎาคม","สิงหาคม","กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม"];
   const dayNames = ["อา","จ","อ","พ","พฤ","ศ","ส"];
 
-  // Dates that have events for the selected room
+  // Dates that have events or approved bookings for the selected room
   const eventDates = new Set(
     roomEvents.filter((e) => e.status !== "CANCELLED").map((e) => e.event_date)
+  );
+  const bookingDates = new Set(
+    roomBookings
+      .filter((b) => b.status === "APPROVED" && b.place_name === selectedPlaceName)
+      .map((b) => b.booking_date)
   );
 
   let html = `
@@ -481,11 +518,14 @@ function renderMiniCalendar() {
   for (let d = 1; d <= daysInMonth; d++) {
     const dateStr = `${calViewYear}-${String(calViewMonth + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
     const isToday = d === today.getDate() && calViewMonth === today.getMonth() && calViewYear === today.getFullYear();
-    const hasEvent = eventDates.has(dateStr);
+    const hasEvent   = eventDates.has(dateStr);
+    const hasBooking = bookingDates.has(dateStr);
     const dow = (firstDay + d - 1) % 7;
 
     let cls = "text-[11px] w-6 h-6 mx-auto flex items-center justify-center rounded-full cursor-pointer transition ";
     if (isToday) cls += "bg-indigo-600 text-white font-bold ";
+    else if (hasEvent && hasBooking) cls += "bg-orange-100 text-orange-600 font-bold ring-2 ring-violet-400 ";
+    else if (hasBooking) cls += "bg-violet-100 text-violet-700 font-bold ";
     else if (hasEvent) cls += "bg-orange-100 text-orange-600 font-bold ";
     else if (dow === 0) cls += "text-red-400 hover:bg-red-50 ";
     else cls += "text-slate-600 hover:bg-indigo-50 ";
@@ -560,6 +600,17 @@ function renderRequestList() {
 
 // --- Request Detail Modal ---
 let detailCurrentRequestId = null;
+let _logPollTimer = null;
+let _lastLogSig   = "";
+
+function startLogPolling(requestId) {
+  stopLogPolling();
+  _logPollTimer = setInterval(() => loadRequestLogs(requestId, true), 4000);
+}
+function stopLogPolling() {
+  if (_logPollTimer) { clearInterval(_logPollTimer); _logPollTimer = null; }
+  _lastLogSig = "";
+}
 
 const REQ_STATUS_MAP = {
   PENDING:   { label: "รอดำเนินการ", cls: "bg-yellow-100 text-yellow-600" },
@@ -602,6 +653,7 @@ function openRequestDetail(req) {
   document.getElementById("requestDetailModal").classList.remove("hidden");
   document.getElementById("logInput").value = "";
   loadRequestLogs(req.request_id);
+  startLogPolling(req.request_id);
 }
 
 function infoRow(label, value) {
@@ -613,27 +665,40 @@ function infoRow(label, value) {
   `;
 }
 
-async function loadRequestLogs(requestId) {
+async function loadRequestLogs(requestId, silent = false) {
   const panel = document.getElementById("detailLogPanel");
-  panel.innerHTML = `<p class="text-xs text-slate-400 text-center italic">กำลังโหลด...</p>`;
+  if (!silent) {
+    panel.innerHTML = `<p class="text-xs text-slate-400 text-center italic">กำลังโหลด...</p>`;
+    _lastLogSig = "";
+  }
 
   const logs = await sbFetch(
     "room_booking_logs",
     `?request_id=eq.${requestId}&order=created_at.asc`
   );
 
+  const sig = (logs || []).map(l => l.created_at).join("|");
+  if (silent && sig === _lastLogSig) return;
+  _lastLogSig = sig;
+
   if (!logs || logs.length === 0) {
     panel.innerHTML = `<p class="text-xs text-slate-400 text-center italic mt-4">ยังไม่มี log</p>`;
     return;
   }
 
+  const wasAtBottom = panel.scrollHeight - panel.scrollTop <= panel.clientHeight + 8;
+
   panel.innerHTML = logs.map((log) => {
     const time = log.created_at ? log.created_at.slice(0, 16).replace("T", " ") : "";
     const author = log.created_by_name || "ระบบ";
+    let bgCls = "bg-slate-50 border-slate-100";
+    let authorCls = "text-indigo-600";
+    if (author === "CS")  { bgCls = "bg-yellow-50 border-yellow-200"; authorCls = "text-amber-600"; }
+    else if (author === "BRE") { bgCls = "bg-green-50 border-green-200"; authorCls = "text-green-700"; }
     return `
-      <div class="bg-slate-50 rounded-xl p-3 border border-slate-100">
+      <div class="${bgCls} rounded-xl p-3 border">
         <div class="flex items-center justify-between mb-1">
-          <span class="text-[10px] font-bold text-indigo-600">${author}</span>
+          <span class="text-[10px] font-bold ${authorCls}">${author}</span>
           <span class="text-[9px] text-slate-400">${time}</span>
         </div>
         <p class="text-xs text-slate-700 leading-relaxed">${log.message || ""}</p>
@@ -641,7 +706,7 @@ async function loadRequestLogs(requestId) {
     `;
   }).join("");
 
-  panel.scrollTop = panel.scrollHeight;
+  if (!silent || wasAtBottom) panel.scrollTop = panel.scrollHeight;
 }
 
 async function submitRequestLog() {
@@ -657,7 +722,7 @@ async function submitRequestLog() {
     body: {
       request_id: detailCurrentRequestId,
       message,
-      created_by_name: null,
+      created_by_name: "CS",
     },
   });
 
@@ -670,11 +735,13 @@ async function submitRequestLog() {
 document.getElementById("closeDetailModal").addEventListener("click", () => {
   document.getElementById("requestDetailModal").classList.add("hidden");
   detailCurrentRequestId = null;
+  stopLogPolling();
 });
 document.getElementById("requestDetailModal").addEventListener("click", (e) => {
   if (e.target === e.currentTarget) {
     document.getElementById("requestDetailModal").classList.add("hidden");
     detailCurrentRequestId = null;
+    stopLogPolling();
   }
 });
 document.getElementById("logSubmit").addEventListener("click", submitRequestLog);
@@ -710,3 +777,16 @@ async function loadData() {
 }
 
 loadData();
+
+// Auto-refresh request list + timeline + calendar every 10s
+let _bookingPollSig = "";
+setInterval(async () => {
+  const prev = roomBookings.map(b => `${b.request_id}:${b.status}`).join("|");
+  await loadRoomBookings();
+  const next = roomBookings.map(b => `${b.request_id}:${b.status}`).join("|");
+  if (next !== prev) {
+    renderRequestList();
+    renderTimeline();
+    renderMiniCalendar();
+  }
+}, 10000);

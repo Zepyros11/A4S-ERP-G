@@ -6,8 +6,8 @@ modules/event/
 │   └── event-log.html          ← Feed/Update ต่องาน
 │
 ├── requests/
-│   ├── event-requests.html     ← คำขอจากแผนกอื่น
-│   └── event-requests.js
+│   ├── event-requests-form.html     ← คำขอจากแผนกอื่น
+│   └── event-requests-form.js
 │
 ├── rooms/
 │   ├── rooms.html              ← จัดการห้องประชุม

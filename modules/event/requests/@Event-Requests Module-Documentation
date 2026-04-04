@@ -2,9 +2,9 @@ Event / Requests Module — Documentation
 
 1. Infrastructure
 modules/event/requests/
-├── event-requests.html       — list + side panel + approve/reject
-├── event-requests.js         — controller (filter, CRUD, approve/reject)
-├── event-requests.css        — styles
+├── event-requests-form.html       — list + side panel + approve/reject
+├── event-requests-form.js         — controller (filter, CRUD, approve/reject)
+├── event-requests-form.css        — styles
 ├── event-request-form.html   — full form page (ยื่นคำขอ)
 ├── event-request-form.js     — controller form
 └── event-request-form.css    — styles form
@@ -36,10 +36,10 @@ event-request-form.js
       → createRequest(payload)   POST /event_requests
       → uploadRequestFile()      POST storage/event-files/documents/
       → updateRequest()          PATCH attachment_url
-      → redirect                 → event-requests.html
+      → redirect                 → event-requests-form.html
 
 [หน้า List]
-event-requests.js
+event-requests-form.js
   → loadData()
       → fetchRequests()     GET /event_requests?order=created_at.desc
       → fetchUsers()        GET /users
@@ -49,7 +49,7 @@ event-requests.js
   → openReqPanel()          side panel แสดง detail + action buttons
 
 [อนุมัติ]
-event-requests.js
+event-requests-form.js
   → approveRequest(id)
       → createEventFromRequest()
             query DB: EVT-YYYYMM-* → find maxSeq → EVT-YYYYMM-XXX
@@ -58,7 +58,7 @@ event-requests.js
       → reload
 
 [ปฏิเสธ]
-event-requests.js
+event-requests-form.js
   → openRejectModal(id)     เก็บ rejectTargetId
   → confirmReject()
       → validate            reason required
@@ -122,7 +122,7 @@ EVT-YYYYMM-XXX   // เช่น EVT-202603-001
 
 // Path ภายใน requests/ folder
 ./event-request-form.html     ✅
-./event-requests.html         ✅
+./event-requests-form.html         ✅
 
 // Session
 JSON.parse(localStorage.getItem("erp_session") ||

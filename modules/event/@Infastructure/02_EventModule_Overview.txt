@@ -21,9 +21,9 @@ modules/event/
 โ”   โ””โ”€โ”€ event-log.css
 โ”
 โ”โ”€โ”€ requests/
-โ”   โ”โ”€โ”€ event-requests.html     เธฃเธฒเธขเธเธฒเธฃเนเธเธเธญเธเธฑเธ”เธเธฒเธ + เธญเธเธธเธกเธฑเธ•เธด/เธเธเธดเน€เธชเธ
-โ”   โ”โ”€โ”€ event-requests.js
-โ”   โ”โ”€โ”€ event-requests.css
+โ”   โ”โ”€โ”€ event-requests-form.html     เธฃเธฒเธขเธเธฒเธฃเนเธเธเธญเธเธฑเธ”เธเธฒเธ + เธญเธเธธเธกเธฑเธ•เธด/เธเธเธดเน€เธชเธ
+โ”   โ”โ”€โ”€ event-requests-form.js
+โ”   โ”โ”€โ”€ event-requests-form.css
 โ”   โ”โ”€โ”€ event-request-form.html เธเธญเธฃเนเธกเธชเนเธเนเธเธเธญ
 โ”   โ”โ”€โ”€ event-request-form.js
 โ”   โ””โ”€โ”€ event-request-form.css
@@ -60,7 +60,7 @@ Group: เธเธดเธเธเธฃเธฃเธก (EVENT)  id:
   ID              Label                 Path
   โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€
   events          เธเธดเธเธเธฃเธฃเธก              activity/events-list.html
-  event-requests  เนเธเธเธญเธเธฑเธ”เธเธฒเธ          requests/event-requests.html
+  event-requests  เนเธเธเธญเธเธฑเธ”เธเธฒเธ          requests/event-requests-form.html
   event-budget    เธเธเธเธฃเธฐเธกเธฒเธ“ & Vendor    procurement/event-budget.html
   attendees       เธเธนเนเน€เธเนเธฒเธฃเนเธงเธก         attendees/attendees.html
   event-media     เธเธฒเธ Media            media/media-schedule.html

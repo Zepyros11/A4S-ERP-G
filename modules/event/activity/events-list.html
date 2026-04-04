@@ -59,38 +59,6 @@
             </div>
           </div>
 
-          <!-- ① STATS: Requests (hidden by default) -->
-          <div class="stats-row" id="statsRequests" style="display:none">
-            <div class="stat-card">
-              <div class="stat-icon">📋</div>
-              <div>
-                <div class="stat-value" id="rCardTotal">0</div>
-                <div class="stat-label">คำขอทั้งหมด</div>
-              </div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-icon">⏳</div>
-              <div>
-                <div class="stat-value" id="rCardPending">0</div>
-                <div class="stat-label">รอดำเนินการ</div>
-              </div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-icon">✅</div>
-              <div>
-                <div class="stat-value" id="rCardApproved">0</div>
-                <div class="stat-label">อนุมัติแล้ว</div>
-              </div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-icon">❌</div>
-              <div>
-                <div class="stat-value" id="rCardRejected">0</div>
-                <div class="stat-label">ปฏิเสธ</div>
-              </div>
-            </div>
-          </div>
-
           <!-- ② TOOLBAR + TABLE -->
           <div class="table-card">
 
@@ -137,33 +105,14 @@
               </div>
             </div>
 
-            <!-- TOOLBAR: Requests -->
-            <div class="toolbar" id="toolbarRequests" style="display:none">
-              <div class="search-wrap">
-                <span class="search-icon">🔍</span>
-                <input
-                  class="search-input"
-                  id="rSearchInput"
-                  placeholder="ค้นหาชื่อกิจกรรม..."
-                  oninput="filterRoomBookings()"
-                />
-              </div>
-              <select class="filter-select" id="rFilterStatus" onchange="filterRoomBookings()">
-                <option value="">⚪ ทุกสถานะ</option>
-                <option value="PENDING">⏳ รอดำเนินการ</option>
-                <option value="APPROVED">✅ อนุมัติแล้ว</option>
-                <option value="REJECTED">❌ ปฏิเสธ</option>
-              </select>
-            </div>
-
             <!-- ③ TABLE HEADER with TABS -->
             <div class="table-hdr">
               <div class="ev-tabs">
-                <button class="ev-tab active" id="tabBtnEvents" onclick="switchTab('events')">
+                <button class="ev-tab active">
                   🗓️ รายการกิจกรรม
                 </button>
-                <button class="ev-tab" id="tabBtnRequests" onclick="switchTab('requests')">
-                  🚪 คำขอจัดกิจกรรม
+                <button class="ev-tab" onclick="window.location.href='../requests/event-requests.html'">
+                  🚪 คำขอจองห้อง<span id="reqPendingBadge" class="tab-badge" style="display:none"></span>
                 </button>
               </div>
               <div class="table-count" id="tableCount">0 รายการ</div>
@@ -197,36 +146,6 @@
                         <div class="empty-state">
                           <div class="empty-icon">🗓️</div>
                           <div class="empty-text">ยังไม่มีข้อมูลกิจกรรม</div>
-                        </div>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            <!-- TAB CONTENT: Requests -->
-            <div id="tabContentRequests" style="display:none">
-              <div class="table-wrap">
-                <table class="data-table">
-                  <thead>
-                    <tr>
-                      <th style="width:140px">รหัสคำขอ</th>
-                      <th>ห้อง</th>
-                      <th class="col-center">ผู้จอง</th>
-                      <th class="col-center">CS</th>
-                      <th class="col-center">วันที่</th>
-                      <th class="col-center">เวลา</th>
-                      <th class="col-center">สถานะ</th>
-                      <th class="col-center">จัดการ</th>
-                    </tr>
-                  </thead>
-                  <tbody id="rbkqTableBody">
-                    <tr>
-                      <td colspan="8">
-                        <div class="empty-state">
-                          <div class="empty-icon">🚪</div>
-                          <div class="empty-text">กำลังโหลด...</div>
                         </div>
                       </td>
                     </tr>
@@ -346,36 +265,27 @@
       </div>
     </div>
 
-    <!-- ═══════════════════════════════════════════════
-     SIDE PANEL (Requests)
-    ═══════════════════════════════════════════════ -->
-    <div class="req-panel" id="reqPanel">
-      <div class="req-panel-header">
-        <div class="req-panel-title">📋 รายละเอียดคำขอ</div>
-        <button class="btn-icon" onclick="window.closeReqPanel()">✕</button>
-      </div>
-      <div class="req-panel-body" id="reqPanelBody"></div>
-      <div class="req-panel-footer" id="reqPanelFooter"></div>
-    </div>
-    <div
-      id="panelBackdrop"
-      style="display:none;position:fixed;inset:0;z-index:299;"
-      onclick="window.closeReqPanel()"
-    ></div>
-
-    <!-- ═══════════════════════════════════════════════
-     REJECT MODAL
-    ═══════════════════════════════════════════════ -->
-    <div class="reject-modal-overlay" id="rejectModalOverlay">
-      <div class="reject-modal">
-        <div style="font-weight:700;font-size:15px;margin-bottom:14px">❌ เหตุผลที่ปฏิเสธ</div>
-        <textarea class="form-input" id="fRejectReason" rows="3" placeholder="ระบุเหตุผล..."></textarea>
-        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;">
-          <button class="btn btn-secondary" onclick="window.closeRejectModal()">ยกเลิก</button>
-          <button class="btn btn-danger" onclick="window.confirmReject()">ยืนยันปฏิเสธ</button>
-        </div>
-      </div>
-    </div>
+    <!-- PENDING BADGE: fetch count from room_booking_requests -->
+    <script>
+      (async function loadPendingBadge() {
+        const url = localStorage.getItem("sb_url") || "";
+        const key = localStorage.getItem("sb_key") || "";
+        if (!url || !key) return;
+        try {
+          const res = await fetch(
+            `${url}/rest/v1/room_booking_requests?select=request_id&status=eq.PENDING`,
+            { headers: { apikey: key, Authorization: `Bearer ${key}`, "Range-Unit": "items", Range: "0-999" } }
+          );
+          const data = await res.json().catch(() => []);
+          const count = Array.isArray(data) ? data.length : 0;
+          const badge = document.getElementById("reqPendingBadge");
+          if (badge && count > 0) {
+            badge.textContent = count;
+            badge.style.display = "inline-flex";
+          }
+        } catch {}
+      })();
+    </script>
 
     <!-- DELETE SELECTED BUTTON -->
     <script>
@@ -393,126 +303,5 @@
       });
     </script>
 
-    <!-- ═══════════════════════════════════════════════
-     TAB SWITCHER
-    ═══════════════════════════════════════════════ -->
-    <script>
-      function switchTab(tab) {
-        const isEvents = tab === "events";
-        document.getElementById("statsEvents").style.display = isEvents ? "" : "none";
-        document.getElementById("statsRequests").style.display = isEvents ? "none" : "";
-        document.getElementById("toolbarEvents").style.display = isEvents ? "" : "none";
-        document.getElementById("toolbarRequests").style.display = isEvents ? "none" : "";
-        document.getElementById("tabContentEvents").style.display = isEvents ? "" : "none";
-        document.getElementById("tabContentRequests").style.display = isEvents ? "none" : "";
-        document.getElementById("tabBtnEvents").classList.toggle("active", isEvents);
-        document.getElementById("tabBtnRequests").classList.toggle("active", !isEvents);
-        if (!isEvents && !window._reqLoaded) {
-          window._reqLoaded = true;
-          loadRoomBookingRequests();
-        }
-      }
-    </script>
-
-    <!-- ═══════════════════════════════════════════════
-     ROOM BOOKING REQUESTS JS
-    ═══════════════════════════════════════════════ -->
-    <script>
-      var _rbkqAllRows = [];
-
-      async function loadRoomBookingRequests() {
-        const SB_URL = localStorage.getItem("sb_url") || "";
-        const SB_KEY = localStorage.getItem("sb_key") || "";
-        const tbody = document.getElementById("rbkqTableBody");
-        if (!tbody) return;
-        if (!SB_URL || !SB_KEY) {
-          tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;color:#94a3b8;font-size:12px;">ไม่พบข้อมูล Supabase</td></tr>`;
-          return;
-        }
-
-        try {
-          const [rbRes, usersRes] = await Promise.all([
-            fetch(`${SB_URL}/rest/v1/room_booking_requests?select=*&order=created_at.desc`,
-              { headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` } }),
-            fetch(`${SB_URL}/rest/v1/users?select=user_id,full_name&is_active=eq.true`,
-              { headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` } }),
-          ]);
-          const rows = await rbRes.json().catch(() => []) || [];
-          const users = await usersRes.json().catch(() => []) || [];
-          const userMap = Object.fromEntries(users.map(u => [String(u.user_id), u.full_name]));
-
-          _rbkqAllRows = rows.map(r => ({ ...r, _booker: r.booked_by_name || userMap[String(r.booked_by)] || "—", _cs: r.cs_name || userMap[String(r.cs_id)] || "—" }));
-
-          // update stats
-          document.getElementById("rCardTotal").textContent = rows.length;
-          document.getElementById("rCardPending").textContent = rows.filter(r => r.status === "PENDING").length;
-          document.getElementById("rCardApproved").textContent = rows.filter(r => r.status === "APPROVED").length;
-          document.getElementById("rCardRejected").textContent = rows.filter(r => r.status === "REJECTED").length;
-
-          renderRoomBookings(_rbkqAllRows);
-        } catch (e) {
-          document.getElementById("rbkqTableBody").innerHTML =
-            `<tr><td colspan="8" style="text-align:center;color:#ef4444;font-size:12px;">โหลดข้อมูลไม่ได้: ${e.message}</td></tr>`;
-        }
-      }
-
-      function renderRoomBookings(rows) {
-        const STATUS_MAP = {
-          PENDING:   { label: "รอดำเนินการ", cls: "PENDING" },
-          APPROVED:  { label: "อนุมัติแล้ว", cls: "APPROVED" },
-          REJECTED:  { label: "ปฏิเสธ",      cls: "REJECTED" },
-          CANCELLED: { label: "ยกเลิก",      cls: "CANCELLED" },
-        };
-        const tbody = document.getElementById("rbkqTableBody");
-        document.getElementById("tableCount").textContent = rows.length + " รายการ";
-        if (!rows.length) {
-          tbody.innerHTML = `<tr><td colspan="8"><div class="empty-state"><div class="empty-icon">🚪</div><div class="empty-text">ยังไม่มีรายการจองห้อง</div></div></td></tr>`;
-          return;
-        }
-        tbody.innerHTML = rows.map(r => {
-          const s = STATUS_MAP[r.status] || STATUS_MAP.PENDING;
-          const timeStr = r.end_time === "ALLDAY" ? "ตลอดทั้งวัน" : `${r.start_time || ""}–${r.end_time || ""}`;
-          return `
-            <tr>
-              <td><span style="font-family:monospace;font-size:11px;color:#6366f1">${r.request_code}</span></td>
-              <td>${r.place_name}</td>
-              <td class="col-center">${r._booker}</td>
-              <td class="col-center">${r._cs}</td>
-              <td class="col-center">${r.booking_date}</td>
-              <td class="col-center">${timeStr}</td>
-              <td class="col-center"><span class="room-bkq-badge ${s.cls}">${s.label}</span></td>
-              <td class="col-center">
-                <button class="btn-icon" title="อนุมัติ" onclick="updateRoomBooking(${r.request_id},'APPROVED',this)">✅</button>
-                <button class="btn-icon" title="ปฏิเสธ"  onclick="updateRoomBooking(${r.request_id},'REJECTED',this)">❌</button>
-              </td>
-            </tr>`;
-        }).join("");
-      }
-
-      function filterRoomBookings() {
-        const q = (document.getElementById("rSearchInput")?.value || "").toLowerCase();
-        const s = document.getElementById("rFilterStatus")?.value || "";
-        const filtered = _rbkqAllRows.filter(r =>
-          (!q || r.place_name?.toLowerCase().includes(q) || r.request_code?.toLowerCase().includes(q)) &&
-          (!s || r.status === s)
-        );
-        renderRoomBookings(filtered);
-      }
-
-      async function updateRoomBooking(id, status, btn) {
-        const SB_URL = localStorage.getItem("sb_url") || "";
-        const SB_KEY = localStorage.getItem("sb_key") || "";
-        btn.disabled = true;
-        try {
-          const res = await fetch(`${SB_URL}/rest/v1/room_booking_requests?request_id=eq.${id}`, {
-            method: "PATCH",
-            headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}`, "Content-Type": "application/json", Prefer: "return=representation" },
-            body: JSON.stringify({ status }),
-          });
-          if (res.ok) loadRoomBookingRequests();
-        } catch { btn.disabled = false; }
-      }
-      window.updateRoomBooking = updateRoomBooking;
-    </script>
   </body>
 </html>

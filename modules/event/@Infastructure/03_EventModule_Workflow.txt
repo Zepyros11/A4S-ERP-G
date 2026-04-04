@@ -36,7 +36,7 @@ WORKFLOW B: เธเธญเธเธฑเธ”เธเธฒเธ
       โ’ auto-generate request_code: REQ-YYYYMM-XXX
       โ’ POST /event_requests (status=PENDING)
 
-[2] event-requests.html (Event Admin เน€เธซเนเธ)
+[2] event-requests-form.html (Event Admin เน€เธซเนเธ)
       โ’ เธฃเธฒเธขเธเธฒเธฃ PENDING เธ—เธฑเนเธเธซเธกเธ”
       โ’ เน€เธเธดเธ” side panel เธ”เธนเธฃเธฒเธขเธฅเธฐเน€เธญเธตเธขเธ”
 

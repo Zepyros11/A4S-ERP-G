@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>รายการใบสั่งซื้อ - A4S ERP</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../../../css/main.css" />
+    <link rel="stylesheet" href="./po-list.css" />
+  </head>
+  <body>
+    <div class="loading-overlay" id="loadingOverlay">
+      <div class="spinner"></div>
+    </div>
+    <div class="toast" id="toast"></div>
+
+    <div class="topbar"></div>
+
+    <div class="layout">
+      <div id="sidebar-container"></div>
+
+      <div class="content-area">
+        <div class="page po-page">
+          <section class="po-hero">
+            <div class="po-hero-copy">
+              <div class="po-eyebrow">PROCUREMENT</div>
+              <h1 class="po-hero-title">รายการใบสั่งซื้อ</h1>
+              <p class="po-hero-desc">
+                ติดตามใบสั่งซื้อทั้งหมด ดูสถานะล่าสุด และเปิดรายละเอียดได้จากหน้าเดียว
+              </p>
+            </div>
+            <div class="po-hero-actions">
+              <button class="btn btn-outline" onclick="window.refreshPOList()">
+                รีเฟรชข้อมูล
+              </button>
+              <button class="btn btn-primary" onclick="window.goToPOForm()">
+                สร้างใบสั่งซื้อ
+              </button>
+            </div>
+          </section>
+
+          <section class="stats-row po-stats">
+            <div class="stat-card po-stat-card">
+              <div class="stat-icon po-stat-icon indigo">PO</div>
+              <div>
+                <div class="stat-value" id="cardTotal">0</div>
+                <div class="stat-label">ใบสั่งซื้อทั้งหมด</div>
+              </div>
+            </div>
+
+            <div class="stat-card po-stat-card">
+              <div class="stat-icon po-stat-icon amber">DR</div>
+              <div>
+                <div class="stat-value" id="cardDraft">0</div>
+                <div class="stat-label">Draft</div>
+              </div>
+            </div>
+
+            <div class="stat-card po-stat-card">
+              <div class="stat-icon po-stat-icon emerald">GO</div>
+              <div>
+                <div class="stat-value" id="cardActive">0</div>
+                <div class="stat-label">รอดำเนินการ</div>
+              </div>
+            </div>
+
+            <div class="stat-card po-stat-card">
+              <div class="stat-icon po-stat-icon sky">฿</div>
+              <div>
+                <div class="stat-value" id="cardAmount">฿0.00</div>
+                <div class="stat-label">มูลค่ารวม</div>
+              </div>
+            </div>
+          </section>
+
+          <section class="po-tabs-wrap">
+            <div class="po-tabs">
+              <button class="po-tab active">รายการใบสั่งซื้อ</button>
+              <button class="po-tab" onclick="window.goToPOForm()">
+                สร้างใบสั่งซื้อ
+              </button>
+            </div>
+          </section>
+
+          <section class="content-wrap po-content">
+            <div class="table-card po-table-card">
+              <div class="toolbar po-toolbar">
+                <div class="search-wrap po-search">
+                  <span class="search-icon">🔍</span>
+                  <input
+                    class="search-input"
+                    id="searchInput"
+                    placeholder="ค้นหาเลขที่ PO, supplier, คลัง..."
+                  />
+                </div>
+
+                <select class="filter-select" id="filterStatus">
+                  <option value="">ทุกสถานะ</option>
+                  <option value="DRAFT">Draft</option>
+                  <option value="APPROVED">Approved</option>
+                  <option value="ORDERED">Ordered</option>
+                  <option value="RECEIVED">Received</option>
+                  <option value="CANCELLED">Cancelled</option>
+                </select>
+
+                <select class="filter-select" id="filterSupplier">
+                  <option value="">ทุก Supplier</option>
+                </select>
+
+                <select class="filter-select" id="filterWarehouse">
+                  <option value="">ทุกคลัง</option>
+                </select>
+              </div>
+
+              <div class="table-hdr po-table-hdr">
+                <div class="table-title">เอกสารจัดซื้อ</div>
+                <div class="table-count" id="poCount">กำลังโหลด...</div>
+              </div>
+
+              <div class="table-wrap">
+                <table class="data-table po-data-table">
+                  <thead>
+                    <tr>
+                      <th>เลขที่ PO</th>
+                      <th>Supplier</th>
+                      <th class="col-center">คลัง</th>
+                      <th class="col-center">วันที่สั่งซื้อ</th>
+                      <th class="col-center">กำหนดรับ</th>
+                      <th class="col-center">จำนวนรายการ</th>
+                      <th class="col-center">ยอดรวม</th>
+                      <th class="col-center">สถานะ</th>
+                      <th class="col-center">จัดการ</th>
+                    </tr>
+                  </thead>
+                  <tbody id="poTableBody">
+                    <tr>
+                      <td colspan="9">
+                        <div class="empty-state">
+                          <div class="empty-icon">🧾</div>
+                          <div class="empty-text">กำลังโหลดข้อมูล...</div>
+                        </div>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+
+    <div class="po-panel" id="poPanel">
+      <div class="po-panel-header">
+        <div class="po-panel-title">รายละเอียดใบสั่งซื้อ</div>
+        <button class="btn-icon" onclick="window.closePoPanel()">✕</button>
+      </div>
+
+      <div class="po-panel-body" id="poPanelBody">
+        <div class="empty-state">
+          <div class="empty-icon">🧾</div>
+          <div class="empty-text">เลือกใบสั่งซื้อเพื่อดูรายละเอียด</div>
+        </div>
+      </div>
+
+      <div class="po-panel-footer">
+        <button class="btn btn-outline" onclick="window.copySelectedPoNumber()">
+          คัดลอกเลขที่ PO
+        </button>
+        <button class="btn btn-primary" onclick="window.goToPOForm()">
+          สร้างใบสั่งซื้อ
+        </button>
+      </div>
+    </div>
+
+    <div
+      class="po-panel-backdrop"
+      id="poPanelBackdrop"
+      onclick="window.closePoPanel()"
+    ></div>
+
+    <script src="../../../js/components/navigation/sidebar.js"></script>
+    <script type="module">
+      import { loadTopbar } from "../../../js/components/navigation/topbar.js";
+
+      loadTopbar("🧾 รายการใบสั่งซื้อ");
+    </script>
+    <script src="./po-list.js"></script>
+  </body>
+</html>
