@@ -357,6 +357,7 @@
     @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
 
     /* ── Column widths ────────────────────────────────── */
+    .col-cb      { width: 36px; min-width: 36px; text-align: center; }
     .col-no      { width: 44px; min-width: 44px; text-align: center; color: var(--text3); font-size: 12px; }
     .col-code    { width: 70px; min-width: 70px; }
     .col-name    { width: 160px; min-width: 130px; }
@@ -375,6 +376,25 @@
     .col-tel     { width: 140px; min-width: 120px; }
     .col-shirt   { width: 90px; min-width: 80px; }
     .col-edit    { width: 54px; min-width: 54px; text-align: center; }
+
+    /* ── Highlight row ───────────────────────────────── */
+    tbody tr.row-highlighted { background: #fef08a !important; }
+    tbody tr.row-highlighted:hover { background: #fde047 !important; }
+
+    /* ── Checkbox cell ───────────────────────────────── */
+    .cb-wrap {
+      display: flex; align-items: center; justify-content: center;
+    }
+    .row-cb {
+      width: 16px; height: 16px; cursor: pointer;
+      accent-color: #f59e0b;
+    }
+    .row-cb:disabled { cursor: default; opacity: 0.4; }
+    .cb-dot {
+      width: 10px; height: 10px; border-radius: 50%;
+      background: #f59e0b;
+      display: inline-block;
+    }
 
     /* ── Flight Autocomplete ─────────────────────────── */
     .flight-ac-wrap { position: relative; display: inline-block; }
@@ -653,6 +673,7 @@
   <table id="main-table">
     <thead>
       <tr>
+        <th class="col-cb"></th>
         <th class="col-no">#</th>
         <th class="col-code sortable" data-sort="code" onclick="sortBy('code')">Code<span class="sort-arrow"></span></th>
         <th class="col-name sortable" data-sort="name" onclick="sortBy('name')">Name<span class="sort-arrow"></span></th>
@@ -674,7 +695,7 @@
     </thead>
     <tbody id="table-body">
       <tr id="empty-row">
-        <td colspan="17">No data — click Import Excel or add a row manually</td>
+        <td colspan="18">No data — click Import Excel or add a row manually</td>
       </tr>
     </tbody>
   </table>
@@ -878,6 +899,7 @@ function makeRow(overrides = {}) {
     visaImgFile:       null,
     tel:               '',
     shirt:             '',
+    highlighted:       false,
     isEditing:         false,
     isSubRow:          false,
     parentId:          null,
@@ -1291,6 +1313,7 @@ function saveLocal() {
     group: r.group, flight: r.flight,
     departureDateTime: r.departureDateTime, arrivalDateTime: r.arrivalDateTime,
     comeback: r.comeback,
+    highlighted: r.highlighted || false,
     seat: r.seat, nationality: r.nationality,
     passImg:  r.passImg  && !r.passImg.startsWith('data:')  ? r.passImg  : null,
     passId: r.passId, passExp: r.passExp,
@@ -1444,7 +1467,7 @@ async function loadFromSupabase() {
 
   // แสดง loading
   document.getElementById('table-body').innerHTML =
-    `<tr><td colspan="17" style="text-align:center;padding:40px;color:var(--text3)">⏳ Loading data from Supabase...</td></tr>`;
+    `<tr><td colspan="18" style="text-align:center;padding:40px;color:var(--text3)">⏳ Loading data from Supabase...</td></tr>`;
 
   try {
     const { data, error } = await sbClient
@@ -1576,7 +1599,8 @@ function buildRow(row) {
   if (row.isSubRow) tr.classList.add('sub-row');
   if (row.isEditing) tr.classList.add('editing');
   // Row bg: green (ครบทุกช่อง) > blue (มี passId) > default
-  if (!row.isEditing) {
+  if (row.highlighted) tr.classList.add('row-highlighted');
+  if (!row.isEditing && !row.highlighted) {
     if (isRowComplete(row))  tr.classList.add('row-confirmed');
     else if (row.passId)     tr.classList.add('row-has-passid');
   }
@@ -1587,6 +1611,16 @@ function buildRow(row) {
   const displayNo = row.isSubRow ? '' : (rowIndex + 1);
 
   tr.innerHTML = `
+    <!-- Checkbox -->
+    <td class="col-cb">
+      <div class="cb-wrap">
+        ${e
+          ? `<input type="checkbox" class="row-cb" ${row.highlighted ? 'checked' : ''}
+               onchange="toggleHighlight('${row.id}',this.checked)" />`
+          : (row.highlighted ? `<span class="cb-dot"></span>` : '')}
+      </div>
+    </td>
+
     <!-- No. -->
     <td class="col-no">${displayNo}</td>
 
@@ -1800,6 +1834,15 @@ async function saveRow(id) {
 function setField(id, field, value) {
   const row = getRow(id);
   if (row) row[field] = value;
+}
+
+function toggleHighlight(id, checked) {
+  const row = getRow(id);
+  if (!row) return;
+  row.highlighted = checked;
+  const tr = document.getElementById('tr_' + id);
+  if (!tr) return;
+  tr.classList.toggle('row-highlighted', checked);
 }
 
 function onSeatChange(id, value) {
