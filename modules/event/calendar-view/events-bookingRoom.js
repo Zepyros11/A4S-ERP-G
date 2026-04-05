@@ -679,6 +679,13 @@ function renderRequestList() {
     : upcoming.filter((r) => r.status === _requestFilter);
 
   badge.textContent = upcoming.length;
+  // Update mobile bottom nav badge
+  const mobBadge = document.getElementById("mobReqBadge");
+  if (mobBadge) {
+    const totalUnread = upcoming.reduce((sum, r) => sum + getUnreadCount(r.request_id), 0);
+    mobBadge.textContent = totalUnread;
+    mobBadge.style.display = totalUnread > 0 ? "flex" : "none";
+  }
 
   // Update status tab styles
   document.querySelectorAll(".req-filter-btn").forEach((btn) => {
