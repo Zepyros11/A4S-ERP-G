@@ -5,8 +5,8 @@
 // --- Supabase API ---
 function getSB() {
   return {
-    url: localStorage.getItem("sb_url") || "",
-    key: localStorage.getItem("sb_key") || "",
+    url: localStorage.getItem("sb_url") || "https://dtiynydgkcqausqktreg.supabase.co",
+    key: localStorage.getItem("sb_key") || "sb_publishable_erMV0G_pNtPTYq-3frqv1Q_sIJ7KILD",
   };
 }
 async function sbFetch(table, query = "", opts = {}) {
