@@ -182,6 +182,7 @@ function renderRoomList(filter = "") {
       renderMiniCalendar();
       renderRoomList(filter); // re-render badge with correct roomEvents
       renderRequestList();    // re-filter by newly selected room
+      if (typeof window._onRoomSelected === "function") window._onRoomSelected();
     });
   });
 }
