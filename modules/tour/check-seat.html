@@ -367,6 +367,7 @@
     .col-depart  { width: 150px; min-width: 130px; }
     .col-arrive  { width: 150px; min-width: 130px; }
     .col-comeback{ width: 120px; min-width: 100px; }
+    .col-comeback-dt{ width: 150px; min-width: 130px; }
     .col-seat    { width: 70px; min-width: 60px; text-align: center; }
     .col-nat     { width: 110px; min-width: 90px; }
     .col-pimg    { width: 100px; min-width: 100px; }
@@ -686,7 +687,7 @@
       <div class="cs-stat-icon">🎫</div>
       <div>
         <div class="cs-stat-value" id="st-seat0">0</div>
-        <div class="cs-stat-label">&lt; 1 Seat</div>
+        <div class="cs-stat-label">Booking</div>
       </div>
     </div>
   </div>
@@ -736,12 +737,13 @@
         <th class="col-flight sortable" data-sort="flight" onclick="sortBy('flight')">Flight<span class="sort-arrow"></span></th>
         <th class="col-depart">Date&Time<br>(Departure)</th>
         <th class="col-arrive">Date&Time<br>(Arrival)</th>
-        <th class="col-comeback sortable" data-sort="comeback" onclick="sortBy('comeback')">Comeback<span class="sort-arrow"></span></th>
+        <th class="col-comeback sortable" data-sort="comeback" onclick="sortBy('comeback')">Comeback Flight<span class="sort-arrow"></span></th>
+        <th class="col-comeback-dt">Date&amp;Time<br>(Comeback)</th>
       </tr>
     </thead>
     <tbody id="table-body">
       <tr id="empty-row">
-        <td colspan="18">No data — click Import Excel or add a row manually</td>
+        <td colspan="19">No data — click Import Excel or add a row manually</td>
       </tr>
     </tbody>
   </table>
@@ -867,13 +869,14 @@ const IMG_DB = {
 /* ═══════════════════════════════════════════════════════════
    STATE
 ═══════════════════════════════════════════════════════════ */
-let rows = [];          // { id, code, name, pin, group, flight, departureDateTime, arrivalDateTime, comeback, seat, nationality, passImg, passImgFile, passId, passExp, visaImg, visaImgFile, tel, shirt, isEditing, isSubRow, parentId }
+let rows = [];          // { id, code, name, pin, group, flight, departureDateTime, arrivalDateTime, comeback, comebackDateTime, seat, nationality, passImg, passImgFile, passId, passExp, visaImg, visaImgFile, tel, shirt, isEditing, isSubRow, parentId }
 let sbClient = null;
 let _rowCounter = 0;
 let _sortCol = null, _sortAsc = true;
 let _globalEditing = false;
-let flightMemory   = {}; // { "FX1": { departureDateTime, arrivalDateTime, comeback } }
-let comebackMemory = []; // [ "2026-05-03T10:00", ... ] — ค่า comeback ที่เคยใช้
+let flightMemory   = {}; // { "FX1": { departureDateTime, arrivalDateTime, comeback, comebackDateTime } }
+let comebackMemory = []; // [ "2026-05-03T10:00", ... ] — ค่า comeback ที่เคยใช้ (legacy)
+let comebackFlightMemory = {}; // { "YY": { comebackDateTime: "..." } } — memory comeback flight
 
 const PIN_OPTIONS         = ['', 'SVP', 'VP', 'AVP', 'SD', 'DR'];
 const GROUP_OPTIONS       = ['', 'G1', 'G2', 'G3', 'G4', 'G5'];
@@ -938,6 +941,7 @@ function makeRow(overrides = {}) {
     departureDateTime: '',
     arrivalDateTime:   '',
     comeback:          '',
+    comebackDateTime:  '',
     seat:              '',
     nationality:       '',
     passImg:           null,   // data-url string
@@ -993,8 +997,9 @@ function importExcel(event) {
       const colFlight   = findKey('flight', 'เที่ยวบิน', 'Flight');
       const colDepart   = findKey('departure', 'ออก', 'depart', 'Departure');
       const colArrive   = findKey('arrival', 'ถึง', 'arrive', 'Arrival');
-      const colComeback = findKey('comeback', 'กลับ', 'Comeback');
-      const colSeat     = findKey('seat', 'ที่นั่ง', 'Seat');
+      const colComeback   = findKey('comeback flight', 'comeback', 'กลับ', 'Comeback');
+      const colComebackDt = findKey('comeback date', 'comeback time', 'วันกลับ');
+      const colSeat       = findKey('seat', 'ที่นั่ง', 'Seat');
       const colNat      = findKey('nationality', 'สัญชาติ', 'nation', 'Nationality');
 
       const imported = [];
@@ -1009,7 +1014,8 @@ function importExcel(event) {
           flight:            (colFlight   ? r[colFlight]   : '').toString().trim(),
           departureDateTime: (colDepart   ? r[colDepart]   : '').toString().trim(),
           arrivalDateTime:   (colArrive   ? r[colArrive]   : '').toString().trim(),
-          comeback:          (colComeback ? r[colComeback] : '').toString().trim(),
+          comeback:          (colComeback   ? r[colComeback]   : '').toString().trim(),
+          comebackDateTime:  (colComebackDt ? r[colComebackDt] : '').toString().trim(),
           seat,
           nationality:       (colNat      ? r[colNat]      : '').toString().trim(),
         });
@@ -1097,6 +1103,7 @@ function updateFlightMemory() {
         departureDateTime: r.departureDateTime || '',
         arrivalDateTime:   r.arrivalDateTime   || '',
         comeback:          r.comeback          || '',
+        comebackDateTime:  r.comebackDateTime  || '',
       };
     }
   });
@@ -1128,7 +1135,7 @@ function showFlightAc(inputEl, rowId, query) {
                 <span class="ac-flight">✈ ${esc(k)}</span>
                 <span class="ac-detail">
                   <span>ออก: ${fmtDT(m.departureDateTime) || '—'}</span>
-                  <span>ถึง: ${fmtDT(m.arrivalDateTime) || '—'} &nbsp;|&nbsp; กลับ: ${esc(m.comeback) || '—'}</span>
+                  <span>ถึง: ${fmtDT(m.arrivalDateTime) || '—'} &nbsp;|&nbsp; กลับ: ${esc(m.comeback) || '—'} ${m.comebackDateTime ? fmtDT(m.comebackDateTime) : ''}</span>
                 </span>
               </div>`;
     }).join('');
@@ -1159,6 +1166,7 @@ function selectFlightAc(rowId, flight) {
     row.departureDateTime = mem.departureDateTime;
     row.arrivalDateTime   = mem.arrivalDateTime;
     row.comeback          = mem.comeback;
+    row.comebackDateTime  = mem.comebackDateTime || '';
     toast(`✦ Autofill จาก Flight "${flight}"`, 'info');
   }
   closeFlightAc();
@@ -1177,6 +1185,7 @@ function onFlightInput(rowId, inputEl) {
       row.departureDateTime = mem.departureDateTime;
       row.arrivalDateTime   = mem.arrivalDateTime;
       row.comeback          = mem.comeback;
+      row.comebackDateTime  = mem.comebackDateTime || '';
     }
   }
 
@@ -1221,50 +1230,55 @@ document.addEventListener('mousedown', (e) => {
 });
 
 /* ═══════════════════════════════════════════════════════════
-   COMEBACK MEMORY — autofill / suggest ค่า comeback ที่เคยใช้
+   COMEBACK FLIGHT MEMORY — autofill comeback flight → datetime
 ═══════════════════════════════════════════════════════════ */
 let _cbActiveIdx = -1;
 
 function loadComebackMemory() {
   try {
-    const saved = localStorage.getItem('cs_comeback_memory');
-    if (saved) comebackMemory = JSON.parse(saved);
+    const saved = localStorage.getItem('cs_comeback_flight_memory');
+    if (saved) comebackFlightMemory = JSON.parse(saved);
   } catch(e) {}
 }
 
 function saveComebackMemory() {
-  try { localStorage.setItem('cs_comeback_memory', JSON.stringify(comebackMemory)); } catch(e) {}
+  try { localStorage.setItem('cs_comeback_flight_memory', JSON.stringify(comebackFlightMemory)); } catch(e) {}
 }
 
 function updateComebackMemory() {
   rows.forEach(r => {
-    if (r.comeback && !comebackMemory.includes(r.comeback)) {
-      comebackMemory.unshift(r.comeback); // ใหม่สุดขึ้นก่อน
+    if (!r.comeback) return;
+    if (r.comebackDateTime) {
+      comebackFlightMemory[r.comeback] = {
+        comebackDateTime: r.comebackDateTime,
+      };
     }
   });
-  // เก็บไว้แค่ 20 ค่าล่าสุด
-  comebackMemory = [...new Set(comebackMemory)].slice(0, 20);
   saveComebackMemory();
 }
 
-function showComebackAc(inputEl, rowId) {
+function showComebackAc(inputEl, rowId, query) {
   const dd = document.getElementById('comeback-ac-dropdown');
   if (!dd) return;
 
-  const matches = comebackMemory.length
-    ? comebackMemory
-    : null;
+  const keys = Object.keys(comebackFlightMemory).filter(k =>
+    !query || k.toLowerCase().includes(query.toLowerCase())
+  );
 
-  if (!matches) {
-    dd.innerHTML = `<div class="flight-ac-empty">ยังไม่มีข้อมูล Comeback ที่บันทึกไว้</div>`;
+  if (keys.length === 0) {
+    dd.innerHTML = `<div class="flight-ac-empty">ไม่มีข้อมูล Comeback Flight ที่บันทึกไว้</div>`;
   } else {
     _cbActiveIdx = -1;
-    dd.innerHTML = matches.map((v, i) =>
-      `<div class="flight-ac-item" data-idx="${i}"
-            onmousedown="selectComebackAc('${rowId}','${esc(v)}')">
-         <span class="ac-flight">📅 ${v.replace('T', ' ')}</span>
-       </div>`
-    ).join('');
+    dd.innerHTML = keys.map((k, i) => {
+      const m = comebackFlightMemory[k];
+      return `<div class="flight-ac-item" data-idx="${i}" data-flight="${esc(k)}"
+                   onmousedown="selectComebackAc('${rowId}','${esc(k)}')" >
+                <span class="ac-flight">✈ ${esc(k)}</span>
+                <span class="ac-detail">
+                  <span>กลับ: ${m.comebackDateTime ? m.comebackDateTime.replace('T',' ') : '—'}</span>
+                </span>
+              </div>`;
+    }).join('');
   }
 
   const rect = inputEl.getBoundingClientRect();
@@ -1281,16 +1295,37 @@ function closeComebackAc(delay = 0) {
   }, delay);
 }
 
-function selectComebackAc(rowId, value) {
+function selectComebackAc(rowId, flight) {
   const row = getRow(rowId);
   if (!row) return;
-  row.comeback = value;
+  row.comeback = flight;
+  const mem = comebackFlightMemory[flight];
+  if (mem) {
+    row.comebackDateTime = mem.comebackDateTime || '';
+    toast(`✦ Autofill Comeback จาก "${flight}"`, 'info');
+  }
   closeComebackAc();
   refreshRow(row);
 }
 
 function onComebackFocus(rowId, inputEl) {
-  showComebackAc(inputEl, rowId);
+  showComebackAc(inputEl, rowId, inputEl.value);
+}
+
+function onComebackInput(rowId, inputEl) {
+  const val = inputEl.value;
+  const row = getRow(rowId);
+  if (row) {
+    row.comeback = val;
+    // exact match → autofill datetime ทันที
+    if (val && comebackFlightMemory[val]) {
+      const mem = comebackFlightMemory[val];
+      row.comebackDateTime = mem.comebackDateTime || '';
+      refreshRow(row);
+      return;
+    }
+  }
+  showComebackAc(inputEl, rowId, val);
 }
 
 function onComebackKey(event, rowId) {
@@ -1307,10 +1342,13 @@ function onComebackKey(event, rowId) {
     _cbActiveIdx = Math.max(_cbActiveIdx - 1, 0);
   } else if (event.key === 'Enter' && _cbActiveIdx >= 0) {
     event.preventDefault();
-    const val = comebackMemory[_cbActiveIdx];
-    selectComebackAc(rowId, val);
-    const inp = document.getElementById(`fi_comeback_${rowId}`);
-    if (inp) inp.value = val;
+    const keys = Object.keys(comebackFlightMemory);
+    const val = keys[_cbActiveIdx];
+    if (val) {
+      selectComebackAc(rowId, val);
+      const inp = document.getElementById(`fi_comeback_${rowId}`);
+      if (inp) inp.value = val;
+    }
     return;
   } else if (event.key === 'Escape') {
     closeComebackAc();
@@ -1363,7 +1401,7 @@ function saveLocal() {
     id: r.id, code: r.code, name: r.name, pin: r.pin,
     group: r.group, flight: r.flight,
     departureDateTime: r.departureDateTime, arrivalDateTime: r.arrivalDateTime,
-    comeback: r.comeback,
+    comeback: r.comeback, comebackDateTime: r.comebackDateTime,
     highlighted: r.highlighted || false,
     seat: r.seat, nationality: r.nationality,
     passImg:  r.passImg  && !r.passImg.startsWith('data:')  ? r.passImg  : null,
@@ -1428,6 +1466,7 @@ function rowToRecord(row) {
     departure_datetime: row.departureDateTime || null,
     arrival_datetime:   row.arrivalDateTime || null,
     comeback:           row.comeback || null,
+    comeback_datetime:  row.comebackDateTime || null,
     seat:               row.seat !== '' ? parseFloat(row.seat) : null,
     nationality:        row.nationality || null,
     passport_image_url: (row.passImg && !row.passImg.startsWith('data:')) ? row.passImg : null,
@@ -1449,7 +1488,7 @@ function recordToRow(r, idMap) {
     id, code: r.code || '', name: r.name || '', pin: r.pin || '',
     group: r.group_name || '', flight: r.flight || '',
     departureDateTime: r.departure_datetime || '', arrivalDateTime: r.arrival_datetime || '',
-    comeback: r.comeback || '',
+    comeback: r.comeback || '', comebackDateTime: r.comeback_datetime || '',
     seat: r.seat ?? '', nationality: r.nationality || '', passImg: r.passport_image_url || null,
     passId: r.passport_id || '', passExp: r.passport_exp_date || '',
     visaImg: r.visa_image_url || null, tel: r.tel || '',
@@ -1575,7 +1614,7 @@ function updateStats() {
   const unconf  = total - conf;
   const seat2   = parents.filter(r => parseFloat(r.seat) >= 2).length;
   const seat1   = parents.filter(r => { const s = parseFloat(r.seat); return s >= 1 && s < 2; }).length;
-  const seat0   = parents.filter(r => parseFloat(r.seat) < 1).length;
+  const seat0   = all.filter(r => r.group && r.group.trim() !== '').length;
 
   document.getElementById('st-total').textContent  = total;
   document.getElementById('st-conf').textContent   = conf;
@@ -1773,16 +1812,23 @@ function buildRow(row) {
             `<span class="field-view">${row.arrivalDateTime ? row.arrivalDateTime.replace('T',' ') : '—'}</span>`}
     </td>
 
-    <!-- Comeback -->
-    <td class="col-comeback" data-label="Comeback">
+    <!-- Comeback Flight -->
+    <td class="col-comeback" data-label="Comeback Flight">
       ${e ? `<input class="field-input" id="fi_comeback_${row.id}" style="width:106px"
-               type="text" value="${esc(row.comeback)}" placeholder="วันกลับ"
+               type="text" value="${esc(row.comeback)}" placeholder="Comeback Flight"
+               oninput="onComebackInput('${row.id}',this)"
                onchange="setField('${row.id}','comeback',this.value)"
                onfocus="onComebackFocus('${row.id}',this)"
                onclick="onComebackFocus('${row.id}',this)"
                onkeydown="onComebackKey(event,'${row.id}')"
                onblur="closeComebackAc(200)" />` :
             `<span class="field-view">${esc(row.comeback) || '—'}</span>`}
+    </td>
+
+    <!-- Comeback Date & Time -->
+    <td class="col-comeback-dt" data-label="Comeback Date&Time">
+      ${e ? `<input class="field-input" style="width:136px" type="datetime-local" value="${esc(row.comebackDateTime)}" onchange="setField('${row.id}','comebackDateTime',this.value)" />` :
+            `<span class="field-view">${row.comebackDateTime ? row.comebackDateTime.replace('T',' ') : '—'}</span>`}
     </td>
 
   `;
@@ -2154,7 +2200,8 @@ function exportExcel() {
     'Flight':            row.flight,
     'Departure (ออกสนามบิน)': row.departureDateTime,
     'Arrival (ถึงไทย)':  row.arrivalDateTime,
-    'Comeback':          row.comeback,
+    'Comeback Flight':   row.comeback,
+    'Comeback Date&Time': row.comebackDateTime,
     'Seat':              row.seat,
     'Passport ID':       row.passId,
     'Passport Exp Date': row.passExp,
