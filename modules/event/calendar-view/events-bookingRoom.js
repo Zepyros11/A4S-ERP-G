@@ -59,6 +59,8 @@ let selectedRoomId = null;
 let selectedPlaceName = null;
 let users = [];
 let roomBookings = []; // room_booking_requests from Supabase
+let _logCountCache = {}; // { [request_id]: totalLogCount }
+let _requestFilter = "ALL";  // active status filter for Request List
 
 // --- Helpers ---
 function todayStr(offsetDays = 0) {
@@ -119,9 +121,14 @@ function renderRoomList(filter = "") {
     const isSelected = String(room.place_id) === String(selectedRoomId);
     const isActive = room.status === "ACTIVE";
 
-    // Show event count today if this is the selected room
+    // Show event count today if this is the selected room (support multi-day events)
     const todayEventCount = isSelected
-      ? roomEvents.filter((e) => e.event_date === today && e.status !== "CANCELLED").length
+      ? roomEvents.filter((e) => {
+          if (e.status === "CANCELLED") return false;
+          const start = e.event_date;
+          const end = e.end_date || start;
+          return start <= today && end >= today;
+        }).length
       : 0;
 
     const statusLabel = !isActive
@@ -141,10 +148,19 @@ function renderRoomList(filter = "") {
     const meta = room.capacity ? `👥 ${room.capacity} คน` : "";
     const addressShort = room.address ? room.address.split("\n")[0].substring(0, 40) : "";
 
+    // Unread message badge for this room
+    const roomUnread = roomBookings
+      .filter((b) => b.place_name === room.place_name)
+      .reduce((sum, b) => sum + getUnreadCount(b.request_id), 0);
+    const unreadBadge = roomUnread > 0
+      ? `<span style="display:inline-flex;align-items:center;gap:2px;background:#f97316;color:#fff;font-size:9px;font-weight:700;padding:1px 6px;border-radius:999px;line-height:1.6">💬 ${roomUnread}</span>`
+      : "";
+
     return `
       <div class="room-item ${activeClass} p-4 rounded-2xl cursor-pointer shadow-sm" data-room-id="${room.place_id}" data-place-name="${room.place_name}">
         <div class="flex justify-between items-start">
           <h3 class="${nameClass}">${room.place_name}</h3>
+          <div class="flex items-center gap-1 flex-shrink-0">${unreadBadge}${statusLabel}</div>
         </div>
         ${meta ? `<p class="${metaClass}">${meta}</p>` : ""}
         ${addressShort ? `<p class="${addrClass}">${addressShort}</p>` : ""}
@@ -164,6 +180,8 @@ function renderRoomList(filter = "") {
       renderTimeline();
       updateHeader();
       renderMiniCalendar();
+      renderRoomList(filter); // re-render badge with correct roomEvents
+      renderRequestList();    // re-filter by newly selected room
     });
   });
 }
@@ -212,10 +230,25 @@ function renderTimeline() {
   const byDate = {};
 
   roomEvents.forEach((e) => {
-    const d = e.event_date;
-    if (d < today) return;
-    if (!byDate[d]) byDate[d] = [];
-    byDate[d].push({ _type: "event", _sort: e.start_time || "00:00", ...e });
+    if (e.status === "CANCELLED") return;
+    const start = e.event_date;
+    const end = e.end_date || start;
+    // Hide DONE only if the event ended before today (fully past)
+    if (e.status === "DONE" && end < today) return;
+    // Iterate every day from start to end
+    let cur = new Date(start + "T00:00:00");
+    const endD = new Date(end + "T00:00:00");
+    while (cur <= endD) {
+      const d = `${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, "0")}-${String(cur.getDate()).padStart(2, "0")}`;
+      if (d >= today) {
+        if (!byDate[d]) byDate[d] = [];
+        // Only push if not already added (avoid duplicates)
+        if (!byDate[d].some((x) => x._type === "event" && String(x.event_id) === String(e.event_id))) {
+          byDate[d].push({ _type: "event", _sort: e.start_time || "00:00", ...e });
+        }
+      }
+      cur.setDate(cur.getDate() + 1);
+    }
   });
 
   approvedBookings.forEach((b) => {
@@ -226,6 +259,17 @@ function renderTimeline() {
 
   const eventsById = Object.fromEntries(roomEvents.map((e) => [String(e.event_id), e]));
   const bookingsById = Object.fromEntries(approvedBookings.map((b) => [String(b.request_id), b]));
+
+  if (Object.keys(byDate).length === 0) {
+    timeline.innerHTML = `
+      <div class="flex flex-col items-center justify-center py-16 text-center">
+        <span class="text-4xl mb-3">📭</span>
+        <p class="text-sm font-bold text-slate-400">ยังไม่มีกิจกรรมในห้องนี้</p>
+        <p class="text-xs text-slate-300 mt-1">กิจกรรมจาก Events List และการจองห้องจะแสดงที่นี่</p>
+      </div>
+    `;
+    return;
+  }
 
   timeline.innerHTML = Object.keys(byDate).sort().map((dateStr) => {
     const dayLabel = getDayLabel(dateStr);
@@ -242,10 +286,10 @@ function renderTimeline() {
           ? `${item.start_time.slice(0, 5)}${item.end_time ? " – " + item.end_time.slice(0, 5) : ""}`
           : "ตลอดทั้งวัน";
         return `
-          <div class="flex items-center gap-4 p-4 bg-white rounded-2xl border border-slate-100 shadow-sm cursor-pointer hover:border-indigo-200 hover:bg-indigo-50 transition" data-event-id="${item.event_id}">
-            <span class="text-xs font-bold text-slate-400 w-28 flex-shrink-0">${timeStr}</span>
+          <div class="flex items-center gap-4 p-4 bg-sky-50 rounded-2xl border border-sky-100 border-l-4 border-l-sky-500 shadow-sm cursor-pointer hover:bg-sky-100 transition" data-event-id="${item.event_id}">
+            <span class="text-xs font-bold text-sky-500 w-28 flex-shrink-0">${timeStr}</span>
             <div class="flex-1 min-w-0">
-              <p class="text-sm font-bold text-slate-800 truncate">${item.event_name || "—"}</p>
+              <p class="text-sm font-bold text-slate-800 truncate">🗓️ ${item.event_name || "—"}</p>
             </div>
             <span class="text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0 ${status.cls}">${status.label}</span>
           </div>`;
@@ -255,13 +299,13 @@ function renderTimeline() {
           : `${(item.start_time || "").slice(0, 5)} – ${(item.end_time || "").slice(0, 5)}`;
         const csText = item.cs_name ? `<p class="text-[10px] text-violet-400 truncate">CS: ${item.cs_name}</p>` : "";
         return `
-          <div class="flex items-center gap-4 p-4 bg-violet-50 rounded-2xl border border-violet-200 shadow-sm cursor-pointer hover:bg-violet-100 transition" data-booking-id="${item.request_id}">
-            <span class="text-xs font-bold text-violet-400 w-28 flex-shrink-0">${timeStr}</span>
+          <div class="flex items-center gap-4 p-4 bg-violet-50 rounded-2xl border border-violet-100 border-l-4 border-l-violet-500 shadow-sm cursor-pointer hover:bg-violet-100 transition" data-booking-id="${item.request_id}">
+            <span class="text-xs font-bold text-violet-500 w-28 flex-shrink-0">${timeStr}</span>
             <div class="flex-1 min-w-0">
-              <p class="text-sm font-bold text-violet-800 truncate">🔖 ${item.booked_by_name || "—"}</p>
+              <p class="text-sm font-bold text-violet-900 truncate">🔖 ${item.booked_by_name || "—"}</p>
               ${csText}
             </div>
-            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0 bg-violet-200 text-violet-700">จองห้อง</span>
+            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0 bg-violet-500 text-white">จองห้อง</span>
           </div>`;
       }
     }).join("");
@@ -467,12 +511,57 @@ async function loadRoomBookings() {
     "room_booking_requests",
     "?select=request_id,request_code,place_name,booked_by,cs_id,booked_by_name,cs_name,booking_date,start_time,end_time,status,created_at&order=created_at.desc"
   )) || [];
+  populateNameDatalist();
+}
+
+// --- Custom Name Dropdown ---
+function setupNameDropdown(inputId, panelId, getOptions) {
+  const input = document.getElementById(inputId);
+  const panel = document.getElementById(panelId);
+  if (!input || !panel) return;
+
+  function renderOptions(q) {
+    const opts = getOptions().filter(n => !q || n.toLowerCase().includes(q.toLowerCase()));
+    if (!opts.length) { panel.classList.add("hidden"); return; }
+    panel.innerHTML = opts.map(n => `
+      <div class="px-4 py-2.5 text-sm text-slate-700 cursor-pointer hover:bg-indigo-50 hover:text-indigo-700 border-b border-slate-50 last:border-0"
+           data-val="${n}">${n}</div>`).join("");
+    panel.classList.remove("hidden");
+    panel.querySelectorAll("[data-val]").forEach(el => {
+      el.addEventListener("mousedown", (e) => {
+        e.preventDefault();
+        input.value = el.dataset.val;
+        panel.classList.add("hidden");
+      });
+    });
+  }
+
+  input.addEventListener("focus", () => renderOptions(input.value));
+  input.addEventListener("input", () => renderOptions(input.value));
+  input.addEventListener("blur",  () => setTimeout(() => panel.classList.add("hidden"), 150));
+}
+
+function populateNameDatalist() {
+  // re-bind dropdowns whenever bookings reload (options may change)
+  setupNameDropdown("inputBookerName", "bookerDropdownPanel",
+    () => [...new Set(roomBookings.map(r => r.booked_by_name).filter(Boolean))]);
+  setupNameDropdown("inputCsName", "csDropdownPanel",
+    () => [...new Set(roomBookings.map(r => r.cs_name).filter(Boolean))]);
 }
 
 // --- Event Listeners ---
 document.getElementById("searchRoom").addEventListener("input", (e) => {
   renderRoomList(e.target.value);
 });
+
+document.getElementById("requestFilterTabs").addEventListener("click", (e) => {
+  const btn = e.target.closest("[data-filter]");
+  if (btn) {
+    _requestFilter = btn.dataset.filter;
+    renderRequestList();
+  }
+});
+
 
 document.getElementById("btnBook").addEventListener("click", () => openModal());
 document.getElementById("closeModal").addEventListener("click", closeModal);
@@ -495,10 +584,18 @@ function renderMiniCalendar() {
   const monthNames = ["มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน","กรกฎาคม","สิงหาคม","กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม"];
   const dayNames = ["อา","จ","อ","พ","พฤ","ศ","ส"];
 
-  // Dates that have events or approved bookings for the selected room
-  const eventDates = new Set(
-    roomEvents.filter((e) => e.status !== "CANCELLED").map((e) => e.event_date)
-  );
+  // Dates that have events or approved bookings for the selected room (expand multi-day events)
+  const eventDates = new Set();
+  roomEvents.filter((e) => e.status !== "CANCELLED").forEach((e) => {
+    const start = e.event_date;
+    const end = e.end_date || start;
+    let cur = new Date(start + "T00:00:00");
+    const endD = new Date(end + "T00:00:00");
+    while (cur <= endD) {
+      eventDates.add(`${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, "0")}-${String(cur.getDate()).padStart(2, "0")}`);
+      cur.setDate(cur.getDate() + 1);
+    }
+  });
   const bookingDates = new Set(
     roomBookings
       .filter((b) => b.status === "APPROVED" && b.place_name === selectedPlaceName)
@@ -522,15 +619,26 @@ function renderMiniCalendar() {
     const hasBooking = bookingDates.has(dateStr);
     const dow = (firstDay + d - 1) % 7;
 
-    let cls = "text-[11px] w-6 h-6 mx-auto flex items-center justify-center rounded-full cursor-pointer transition ";
-    if (isToday) cls += "bg-indigo-600 text-white font-bold ";
-    else if (hasEvent && hasBooking) cls += "bg-orange-100 text-orange-600 font-bold ring-2 ring-violet-400 ";
-    else if (hasBooking) cls += "bg-violet-100 text-violet-700 font-bold ";
-    else if (hasEvent) cls += "bg-orange-100 text-orange-600 font-bold ";
-    else if (dow === 0) cls += "text-red-400 hover:bg-red-50 ";
-    else cls += "text-slate-600 hover:bg-indigo-50 ";
+    const isPast = dateStr < todayStr(0);
 
-    html += `<div><span class="${cls}" data-date="${dateStr}">${d}</span></div>`;
+    let cls = "text-[11px] w-6 h-6 mx-auto flex items-center justify-center rounded-full transition ";
+    if (isPast) {
+      cls += "text-slate-300 line-through cursor-default ";
+    } else if (isToday) {
+      cls += "bg-rose-500 text-white font-bold cursor-pointer ";
+    } else if (hasEvent && hasBooking) {
+      cls += "bg-sky-100 text-sky-600 font-bold ring-2 ring-violet-400 cursor-pointer ";
+    } else if (hasBooking) {
+      cls += "bg-violet-100 text-violet-700 font-bold cursor-pointer ";
+    } else if (hasEvent) {
+      cls += "bg-sky-100 text-sky-600 font-bold cursor-pointer ";
+    } else if (dow === 0) {
+      cls += "text-red-400 hover:bg-red-50 cursor-pointer ";
+    } else {
+      cls += "text-slate-600 hover:bg-indigo-50 cursor-pointer ";
+    }
+
+    html += `<div><span class="${cls}" ${isPast ? "" : `data-date="${dateStr}"`}>${d}</span></div>`;
   }
 
   html += `</div>`;
@@ -558,10 +666,29 @@ function renderRequestList() {
   const badge = document.getElementById("requestCount");
   if (!container) return;
 
-  badge.textContent = roomBookings.length;
+  const today = todayStr(0);
+  // Only upcoming bookings (today onwards), filtered by selected room
+  let upcoming = roomBookings.filter((r) => r.booking_date >= today);
+  if (selectedPlaceName) {
+    upcoming = upcoming.filter((r) => r.place_name === selectedPlaceName);
+  }
+  // Status filter
+  const filtered = _requestFilter === "ALL"
+    ? upcoming
+    : upcoming.filter((r) => r.status === _requestFilter);
 
-  if (roomBookings.length === 0) {
-    container.innerHTML = `<p class="text-xs text-slate-400 text-center mt-4 italic">ยังไม่มีรายการ</p>`;
+  badge.textContent = upcoming.length;
+
+  // Update status tab styles
+  document.querySelectorAll(".req-filter-btn").forEach((btn) => {
+    const isActive = btn.dataset.filter === _requestFilter;
+    btn.className = `req-filter-btn text-[10px] font-bold px-2.5 py-1 rounded-lg transition ${
+      isActive ? "bg-indigo-600 text-white" : "text-slate-500 hover:bg-slate-100"
+    }`;
+  });
+
+  if (filtered.length === 0) {
+    container.innerHTML = `<p class="text-xs text-slate-400 text-center mt-4 italic">ไม่มีรายการ</p>`;
     return;
   }
 
@@ -572,16 +699,20 @@ function renderRequestList() {
     CANCELLED:{ label: "ยกเลิก",       cls: "bg-slate-100 text-slate-400" },
   };
 
-  container.innerHTML = roomBookings.map((r) => {
+  container.innerHTML = filtered.map((r) => {
     const s = statusMap[r.status] || statusMap.PENDING;
     const bookerName = r.booked_by_name || (users.find((u) => String(u.user_id) === String(r.booked_by)) || {}).full_name || "—";
     const timeStr = r.end_time === "ALLDAY" ? "ตลอดทั้งวัน"
       : `${r.start_time || ""}–${r.end_time || ""}`;
+    const unread = getUnreadCount(r.request_id);
+    const unreadBadge = unread > 0
+      ? `<span style="display:inline-flex;align-items:center;gap:2px;background:#f97316;color:#fff;font-size:9px;font-weight:700;padding:1px 5px;border-radius:999px;line-height:1.4">💬 ${unread}</span>`
+      : "";
     return `
       <div class="bg-white rounded-xl border border-slate-100 p-3 shadow-sm cursor-pointer hover:border-indigo-200 hover:shadow-md transition" data-request-id="${r.request_id}">
         <div class="flex justify-between items-start gap-2">
           <p class="text-xs font-bold text-slate-800 leading-tight">${bookerName}</p>
-          <span class="text-[9px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0 ${s.cls}">${s.label}</span>
+          <div class="flex items-center gap-1 flex-shrink-0">${unreadBadge}<span class="text-[9px] font-bold px-1.5 py-0.5 rounded-full ${s.cls}">${s.label}</span></div>
         </div>
         <p class="text-[10px] text-slate-500 mt-0.5">${r.place_name}</p>
         <p class="text-[10px] text-slate-400">${r.booking_date} • ${timeStr}</p>
@@ -596,6 +727,41 @@ function renderRequestList() {
       if (req) openRequestDetail(req);
     });
   });
+}
+
+// --- Unread Log Counts ---
+// _logCountCache[id] = { total, latest } where latest = newest created_at string
+async function refreshLogCounts() {
+  if (!roomBookings.length) return;
+  const ids = roomBookings.map(r => r.request_id).join(",");
+  const logs = await sbFetch("room_booking_logs", `?request_id=in.(${ids})&select=request_id,created_at`);
+  const map = {};
+  (logs || []).forEach(l => {
+    const id = l.request_id;
+    if (!map[id]) map[id] = { total: 0, latest: "" };
+    map[id].total++;
+    if (l.created_at > map[id].latest) map[id].latest = l.created_at;
+  });
+  const prev = JSON.stringify(_logCountCache);
+  _logCountCache = map;
+  if (JSON.stringify(map) !== prev) { renderRequestList(); renderRoomList(); }
+}
+
+function getUnreadCount(requestId) {
+  const info   = _logCountCache[requestId];
+  if (!info || info.total === 0) return 0;
+  const seenAt = localStorage.getItem(`lsLogBRE_${requestId}`) || "";
+  return seenAt >= info.latest ? 0 : info.total - parseInt(localStorage.getItem(`lsLogNBRE_${requestId}`) || "0", 10);
+}
+
+function markLogsRead(requestId, logs) {
+  const latest = (logs || []).reduce((m, l) => l.created_at > m ? l.created_at : m, "");
+  localStorage.setItem(`lsLogBRE_${requestId}`, latest);
+  localStorage.setItem(`lsLogNBRE_${requestId}`, (logs || []).length);
+  if (!_logCountCache[requestId]) _logCountCache[requestId] = { total: 0, latest: "" };
+  _logCountCache[requestId].total  = Math.max(_logCountCache[requestId].total,  (logs||[]).length);
+  _logCountCache[requestId].latest = latest || _logCountCache[requestId].latest;
+  renderRequestList();
 }
 
 // --- Request Detail Modal ---
@@ -633,18 +799,19 @@ function openRequestDetail(req) {
   const createdAt = req.created_at ? req.created_at.slice(0, 16).replace("T", " ") : "—";
 
   document.getElementById("detailInfoPanel").innerHTML = `
-    <div class="flex items-center justify-between">
-      <span class="text-xs text-slate-500">สถานะ</span>
-      <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${s.cls}">${s.label}</span>
+    <div class="flex items-start justify-between gap-2 mb-4">
+      <div>
+        <p class="text-base font-black text-slate-900 leading-tight">${req.place_name || "—"}</p>
+        <p class="text-xs text-indigo-400 font-mono mt-0.5">${req.request_code || "—"}</p>
+      </div>
+      <span class="text-xs font-bold px-3 py-1 rounded-full flex-shrink-0 ${s.cls}">${s.label}</span>
     </div>
-    <div class="h-px bg-slate-50"></div>
-    <div class="flex flex-col gap-3">
+
+    <div class="divide-y divide-slate-100">
       ${infoRow("ผู้จอง", bookerName)}
       ${infoRow("CS", csName)}
-      ${infoRow("ห้อง", req.place_name || "—")}
       ${infoRow("วันที่", req.booking_date || "—")}
       ${infoRow("เวลา", timeStr)}
-      ${infoRow("รหัส", `<span class="font-mono text-indigo-500">${req.request_code || "—"}</span>`)}
       ${infoRow("สร้างเมื่อ", createdAt)}
     </div>
   `;
@@ -658,9 +825,9 @@ function openRequestDetail(req) {
 
 function infoRow(label, value) {
   return `
-    <div class="flex items-start justify-between gap-2">
-      <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wide flex-shrink-0 mt-0.5">${label}</span>
-      <span class="text-xs text-slate-700 text-right">${value}</span>
+    <div class="flex items-center justify-between py-2.5 gap-4">
+      <span class="text-xs text-slate-400 flex-shrink-0">${label}</span>
+      <span class="text-sm font-medium text-slate-800 text-right">${value}</span>
     </div>
   `;
 }
@@ -680,6 +847,9 @@ async function loadRequestLogs(requestId, silent = false) {
   const sig = (logs || []).map(l => l.created_at).join("|");
   if (silent && sig === _lastLogSig) return;
   _lastLogSig = sig;
+
+  // Mark as read only when user actively opens the detail (not background polling)
+  if (!silent) markLogsRead(requestId, logs);
 
   if (!logs || logs.length === 0) {
     panel.innerHTML = `<p class="text-xs text-slate-400 text-center italic mt-4">ยังไม่มี log</p>`;
@@ -745,6 +915,22 @@ document.getElementById("requestDetailModal").addEventListener("click", (e) => {
   }
 });
 document.getElementById("logSubmit").addEventListener("click", submitRequestLog);
+
+// ESC to close any open modal
+document.addEventListener("keydown", (e) => {
+  if (e.key !== "Escape") return;
+  const detailModal = document.getElementById("requestDetailModal");
+  if (!detailModal.classList.contains("hidden")) {
+    detailModal.classList.add("hidden");
+    detailCurrentRequestId = null;
+    stopLogPolling();
+    return;
+  }
+  const bookingModal = document.getElementById("bookingModal");
+  if (!bookingModal.classList.contains("hidden")) {
+    closeModal();
+  }
+});
 document.getElementById("logInput").addEventListener("keydown", (e) => {
   if (e.key === "Enter") submitRequestLog();
 });
@@ -776,7 +962,7 @@ async function loadData() {
   renderRequestList();
 }
 
-loadData();
+loadData().then(() => refreshLogCounts());
 
 // Auto-refresh request list + timeline + calendar every 10s
 let _bookingPollSig = "";
@@ -789,4 +975,5 @@ setInterval(async () => {
     renderTimeline();
     renderMiniCalendar();
   }
+  await refreshLogCounts(); // always refresh unread counts (re-renders list if changed)
 }, 10000);

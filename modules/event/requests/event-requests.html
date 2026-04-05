@@ -54,69 +54,8 @@
             </div>
           </div>
 
-          <!-- EVENT REQUESTS TABLE -->
-          <div class="content-wrap">
-            <div class="table-card">
-              <!-- TOOLBAR -->
-              <div class="toolbar">
-                <div class="search-wrap">
-                  <span class="search-icon">🔍</span>
-                  <input class="search-input" id="searchInput" placeholder="ค้นหารหัส, ชื่อกิจกรรม..." />
-                </div>
-                <select class="filter-select" id="filterStatus">
-                  <option value="">⚪ ทุกสถานะ</option>
-                  <option value="PENDING">⏳ รอดำเนินการ</option>
-                  <option value="APPROVED">✅ อนุมัติแล้ว</option>
-                  <option value="REJECTED">❌ ปฏิเสธ</option>
-                </select>
-                <select class="filter-select" id="filterType">
-                  <option value="">🏷 ทุกประเภท</option>
-                  <option value="BOOTH">🏪 ออกบูธ</option>
-                  <option value="MEETING">👥 ประชุม</option>
-                  <option value="ONLINE">💻 Online</option>
-                  <option value="HYBRID">🔀 Hybrid</option>
-                  <option value="CONFERENCE">🎤 Conference</option>
-                  <option value="OTHER">📌 อื่นๆ</option>
-                </select>
-                <div class="toolbar-right">
-                  <button class="btn btn-primary" onclick="window.openRequestModal()">＋ ยื่นคำขอ</button>
-                </div>
-              </div>
-
-              <div class="table-hdr">
-                <div class="ev-tabs">
-                  <button class="ev-tab" onclick="window.location.href='../activity/events-list.html'">
-                    🗓️ รายการกิจกรรม
-                  </button>
-                  <button class="ev-tab active">
-                    📋 คำขอจัดกิจกรรม
-                  </button>
-                </div>
-                <div class="table-count" id="evReqCount">กำลังโหลด...</div>
-              </div>
-              <div class="table-wrap">
-                <table class="data-table" style="table-layout:fixed;width:100%">
-                  <thead>
-                    <tr>
-                      <th style="width:130px">รหัสคำขอ</th>
-                      <th>ชื่อกิจกรรม</th>
-                      <th class="col-center" style="width:130px">ประเภท</th>
-                      <th class="col-center" style="width:130px">แผนก</th>
-                      <th class="col-center" style="width:110px">วันที่จัด</th>
-                      <th class="col-center" style="width:110px">สถานะ</th>
-                      <th class="col-center" style="width:90px">จัดการ</th>
-                    </tr>
-                  </thead>
-                  <tbody id="evReqTableBody">
-                    <tr><td colspan="7"><div class="empty-state"><div class="empty-icon">📋</div><div class="empty-text">กำลังโหลด...</div></div></td></tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-
           <!-- TABLE: Room Booking Requests -->
-          <div class="content-wrap" style="margin-top:24px;">
+          <div class="content-wrap">
             <div class="table-card">
               <!-- TOOLBAR -->
               <div class="toolbar">
@@ -558,6 +497,7 @@
     let _bkqLastLogSig    = "";
     let _bkqListPollTimer = null;
     let _bkqListLastSig   = "";
+    let _bkqLogCountCache = {}; // { [request_id]: totalLogCount }
 
     function startBkqLogPolling(requestId) {
       stopBkqLogPolling();
@@ -635,12 +575,16 @@
         const booker  = r._booker;
         const cs      = r._cs;
         const timeStr = r.end_time==="ALLDAY" ? "ตลอดทั้งวัน" : `${r.start_time||""}–${r.end_time||""}`;
+        const unread  = getBkqUnread(r.request_id);
+        const unreadBadge = unread > 0
+          ? `<span style="display:inline-flex;align-items:center;gap:2px;background:#f97316;color:#fff;font-size:9px;font-weight:700;padding:1px 6px;border-radius:999px;line-height:1.5;margin-left:4px">💬 ${unread}</span>`
+          : "";
         return `
           <tr data-rid="${r.request_id}" style="cursor:pointer">
             <td style="text-align:center" onclick="event.stopPropagation()">
               <input type="checkbox" class="bkq-chk" value="${r.request_id}" onchange="syncBkqDeleteBtn()" />
             </td>
-            <td>${r.place_name}</td>
+            <td>${r.place_name}${unreadBadge}</td>
             <td class="col-center">${booker}</td>
             <td class="col-center">${cs}</td>
             <td class="col-center">${r.booking_date}</td>
@@ -678,6 +622,40 @@
       renderRoomBookings(filtered);
     }
 
+    // ── Unread Log Counts ─────────────────────────────────────
+    async function refreshBkqLogCounts() {
+      if (!_bkqRows.length) return;
+      const ids = _bkqRows.map(r => r.request_id).join(",");
+      const logs = await bkqFetch("room_booking_logs", `?request_id=in.(${ids})&select=request_id,created_at`);
+      const map = {};
+      (logs || []).forEach(l => {
+        const id = l.request_id;
+        if (!map[id]) map[id] = { total: 0, latest: "" };
+        map[id].total++;
+        if (l.created_at > map[id].latest) map[id].latest = l.created_at;
+      });
+      const prev = JSON.stringify(_bkqLogCountCache);
+      _bkqLogCountCache = map;
+      if (JSON.stringify(map) !== prev) filterRoomBookings();
+    }
+
+    function getBkqUnread(requestId) {
+      const info   = _bkqLogCountCache[requestId];
+      if (!info || info.total === 0) return 0;
+      const seenAt = localStorage.getItem(`lsLogCS_${requestId}`) || "";
+      return seenAt >= info.latest ? 0 : info.total - parseInt(localStorage.getItem(`lsLogNCS_${requestId}`) || "0", 10);
+    }
+
+    function markBkqLogsRead(requestId, logs) {
+      const latest = (logs || []).reduce((m, l) => l.created_at > m ? l.created_at : m, "");
+      localStorage.setItem(`lsLogCS_${requestId}`, latest);
+      localStorage.setItem(`lsLogNCS_${requestId}`, (logs || []).length);
+      if (!_bkqLogCountCache[requestId]) _bkqLogCountCache[requestId] = { total: 0, latest: "" };
+      _bkqLogCountCache[requestId].total  = Math.max(_bkqLogCountCache[requestId].total,  (logs||[]).length);
+      _bkqLogCountCache[requestId].latest = latest || _bkqLogCountCache[requestId].latest;
+      filterRoomBookings();
+    }
+
     // ── Checkbox helpers ──────────────────────────────────────
     function toggleAllBkqCheckbox(master) {
       document.querySelectorAll(".bkq-chk").forEach(c => c.checked = master.checked);
@@ -702,41 +680,45 @@
     }
 
     // ── Delete single row ─────────────────────────────────────
-    async function deleteBkqRow(id, btn) {
-      if (!confirm("ยืนยันลบรายการนี้?")) return;
-      btn.disabled = true;
-      const { url, key } = bkqSB();
-      try {
-        await fetch(`${url}/rest/v1/room_booking_requests?request_id=eq.${id}`, {
-          method: "DELETE",
-          headers: { apikey: key, Authorization: `Bearer ${key}` },
-        });
-        _bkqListLastSig = "";
-        await loadRoomBookingRequests();
-      } catch { btn.disabled = false; }
+    function deleteBkqRow(id, btn) {
+      DeleteModal.open("ยืนยันลบรายการนี้?", async () => {
+        btn.disabled = true;
+        const { url, key } = bkqSB();
+        const h = { apikey: key, Authorization: `Bearer ${key}` };
+        try {
+          await fetch(`${url}/rest/v1/room_booking_logs?request_id=eq.${id}`, { method: "DELETE", headers: h });
+          await fetch(`${url}/rest/v1/room_booking_requests?request_id=eq.${id}`, { method: "DELETE", headers: h });
+          _bkqListLastSig = "";
+          await loadRoomBookingRequests();
+        } catch { btn.disabled = false; }
+      });
     }
 
     // ── Delete selected rows ──────────────────────────────────
-    async function deleteSelectedBkq() {
+    function deleteSelectedBkq() {
       const ids = [...document.querySelectorAll(".bkq-chk:checked")].map(c => c.value);
       if (!ids.length) return;
-      if (!confirm(`ยืนยันลบ ${ids.length} รายการ?`)) return;
-      const { url, key } = bkqSB();
-      const btn = document.getElementById("btnDeleteSelectedBkq");
-      btn.disabled = true;
-      try {
-        await fetch(`${url}/rest/v1/room_booking_requests?request_id=in.(${ids.join(",")})`, {
-          method: "DELETE",
-          headers: { apikey: key, Authorization: `Bearer ${key}` },
-        });
-        _bkqListLastSig = "";
-        await loadRoomBookingRequests();
-      } catch { btn.disabled = false; }
+      DeleteModal.open(`ยืนยันลบ ${ids.length} รายการ?`, async () => {
+        const { url, key } = bkqSB();
+        const btn = document.getElementById("btnDeleteSelectedBkq");
+        const h = { apikey: key, Authorization: `Bearer ${key}` };
+        btn.disabled = true;
+        try {
+          await fetch(`${url}/rest/v1/room_booking_logs?request_id=in.(${ids.join(",")})`, { method: "DELETE", headers: h });
+          await fetch(`${url}/rest/v1/room_booking_requests?request_id=in.(${ids.join(",")})`, { method: "DELETE", headers: h });
+          _bkqListLastSig = "";
+          await loadRoomBookingRequests();
+        } catch { btn.disabled = false; }
+      });
     }
 
-    setTimeout(() => {
-      loadRoomBookingRequests();
-      _bkqListPollTimer = setInterval(() => loadRoomBookingRequests(true), 8000);
+    setTimeout(async () => {
+      await loadRoomBookingRequests();
+      refreshBkqLogCounts();
+      _bkqListPollTimer = setInterval(async () => {
+        await loadRoomBookingRequests(true);
+        refreshBkqLogCounts();
+      }, 8000);
     }, 800);
 
     async function updateRoomBooking(id, status, btn) {
@@ -826,6 +808,9 @@
       if (silent && sig === _bkqLastLogSig) return;
       _bkqLastLogSig = sig;
 
+      // Mark as read only when user actively opens the detail (not background polling)
+      if (!silent) markBkqLogsRead(requestId, logs);
+
       if (!logs || logs.length === 0) {
         list.innerHTML = `<p class="bkq-empty">ยังไม่มี log</p>`;
         return;
@@ -879,6 +864,27 @@
     window.saveBkqDetail   = saveBkqDetail;
     window.submitBkqLog    = submitBkqLog;
     window.toggleBkqAllday = toggleBkqAllday;
+
+    // ESC to close modals (innermost first)
+    document.addEventListener("keydown", (e) => {
+      if (e.key !== "Escape") return;
+      if (document.getElementById("rejectModalOverlay").classList.contains("open")) {
+        window.closeRejectModal(); return;
+      }
+      const dm = document.getElementById("deleteModalOverlay");
+      if (dm && dm.classList.contains("active")) {
+        DeleteModal.close(); return;
+      }
+      if (document.getElementById("bkqDetailOverlay").classList.contains("open")) {
+        closeBkqDetail(); return;
+      }
+      if (document.getElementById("reqModalOverlay").classList.contains("open")) {
+        window.closeRequestModal(); return;
+      }
+      if (document.getElementById("reqPanel").classList.contains("open")) {
+        window.closeReqPanel();
+      }
+    });
     </script>
   </body>
 </html>
