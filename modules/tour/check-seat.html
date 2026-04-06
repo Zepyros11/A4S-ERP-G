@@ -200,6 +200,10 @@
     .cs-stat-card.s-seat1  .cs-stat-value { color: #d97706; }
     .cs-stat-card.s-seat0  .cs-stat-icon { background: #f3f4f6; }
     .cs-stat-card.s-seat0  .cs-stat-value { color: var(--text2); }
+    .cs-stat-card.s-lagos  .cs-stat-icon { background: #fef9c3; }
+    .cs-stat-card.s-lagos  .cs-stat-value { color: #a16207; }
+    .cs-stat-card.s-abidjan .cs-stat-icon { background: #fce7f3; }
+    .cs-stat-card.s-abidjan .cs-stat-value { color: #9d174d; }
     @media (max-width: 640px) {
       .cs-stats-row { grid-template-columns: repeat(3, 1fr); gap: 6px; }
       .cs-stat-card { padding: 10px 10px; gap: 8px; }
@@ -362,6 +366,7 @@
     .col-code    { width: 70px; min-width: 70px; }
     .col-name    { width: 160px; min-width: 130px; }
     .col-pin     { width: 90px; min-width: 80px; }
+    .col-port    { width: 100px; min-width: 90px; }
     .col-group   { width: 110px; min-width: 90px; }
     .col-flight  { width: 120px; min-width: 100px; }
     .col-depart  { width: 150px; min-width: 130px; }
@@ -691,6 +696,29 @@
       </div>
     </div>
   </div>
+  <div class="cs-stats-row">
+    <div class="cs-stat-card s-lagos">
+      <div class="cs-stat-icon">🚢</div>
+      <div>
+        <div class="cs-stat-value" id="st-lagos">0</div>
+        <div class="cs-stat-label">Port Lagos</div>
+      </div>
+    </div>
+    <div class="cs-stat-card s-abidjan">
+      <div class="cs-stat-icon">⚓</div>
+      <div>
+        <div class="cs-stat-value" id="st-abidjan">0</div>
+        <div class="cs-stat-label">Port Abidjan</div>
+      </div>
+    </div>
+    <div class="cs-stat-card s-seat0">
+      <div class="cs-stat-icon">📍</div>
+      <div>
+        <div class="cs-stat-value" id="st-port-none">0</div>
+        <div class="cs-stat-label">No Port</div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- ══ Legend ════════════════════════════════════════════ -->
@@ -733,6 +761,7 @@
         <th class="col-visa">Visa</th>
         <th class="col-tel sortable" data-sort="tel" onclick="sortBy('tel')">WhatsApp<span class="sort-arrow"></span></th>
         <th class="col-shirt sortable" data-sort="shirt" onclick="sortBy('shirt')">T-Shirt<span class="sort-arrow"></span></th>
+        <th class="col-port sortable" data-sort="port" onclick="sortBy('port')">Port<span class="sort-arrow"></span></th>
         <th class="col-group sortable" data-sort="group" onclick="sortBy('group')">Group<span class="sort-arrow"></span></th>
         <th class="col-flight sortable" data-sort="flight" onclick="sortBy('flight')">Flight<span class="sort-arrow"></span></th>
         <th class="col-depart">Date&Time<br>(Departure)</th>
@@ -743,7 +772,7 @@
     </thead>
     <tbody id="table-body">
       <tr id="empty-row">
-        <td colspan="19">No data — click Import Excel or add a row manually</td>
+        <td colspan="20">No data — click Import Excel or add a row manually</td>
       </tr>
     </tbody>
   </table>
@@ -878,6 +907,7 @@ let flightMemory   = {}; // { "FX1": { departureDateTime, arrivalDateTime, comeb
 let comebackMemory = []; // [ "2026-05-03T10:00", ... ] — ค่า comeback ที่เคยใช้ (legacy)
 let comebackFlightMemory = {}; // { "YY": { comebackDateTime: "..." } } — memory comeback flight
 
+const PORT_OPTIONS        = ['', 'Lagos', 'Abidjan'];
 const PIN_OPTIONS         = ['', 'SVP', 'VP', 'AVP', 'SD', 'DR'];
 const GROUP_OPTIONS       = ['', 'G1', 'G2', 'G3', 'G4', 'G5'];
 const SHIRT_OPTIONS       = ['', '5XL', '4XL', '3XL', '2XL', 'XL', 'L', 'M', 'S'];
@@ -936,6 +966,7 @@ function makeRow(overrides = {}) {
     code:              '',
     name:              '',
     pin:               '',
+    port:              '',
     group:             '',
     flight:            '',
     departureDateTime: '',
@@ -1616,12 +1647,19 @@ function updateStats() {
   const seat1   = parents.filter(r => { const s = parseFloat(r.seat); return s >= 1 && s < 2; }).length;
   const seat0   = all.filter(r => r.group && r.group.trim() !== '').length;
 
-  document.getElementById('st-total').textContent  = total;
-  document.getElementById('st-conf').textContent   = conf;
-  document.getElementById('st-unconf').textContent = unconf;
-  document.getElementById('st-seat2').textContent  = seat2;
-  document.getElementById('st-seat1').textContent  = seat1;
-  document.getElementById('st-seat0').textContent  = seat0;
+  const portLagos   = all.filter(r => r.port === 'Lagos').length;
+  const portAbidjan = all.filter(r => r.port === 'Abidjan').length;
+  const portNone    = all.filter(r => !r.port || r.port.trim() === '').length;
+
+  document.getElementById('st-total').textContent    = total;
+  document.getElementById('st-conf').textContent     = conf;
+  document.getElementById('st-unconf').textContent   = unconf;
+  document.getElementById('st-seat2').textContent    = seat2;
+  document.getElementById('st-seat1').textContent    = seat1;
+  document.getElementById('st-seat0').textContent    = seat0;
+  document.getElementById('st-lagos').textContent    = portLagos;
+  document.getElementById('st-abidjan').textContent  = portAbidjan;
+  document.getElementById('st-port-none').textContent = portNone;
 }
 
 function sortBy(col) {
@@ -1781,6 +1819,11 @@ function buildRow(row) {
       ${e ? shirtDropdown(row) : `<span class="field-view">${esc(row.shirt)}</span>`}
     </td>
 
+    <!-- Port -->
+    <td class="col-port" data-label="Port">
+      ${e ? portDropdown(row) : `<span class="field-view">${esc(row.port) || '—'}</span>`}
+    </td>
+
     <!-- Group -->
     <td class="col-group" data-label="Group">
       ${e ? groupDropdown(row) : `<span class="field-view">${esc(row.group) || '—'}</span>`}
@@ -1850,6 +1893,11 @@ function formatDate(d) {
 function pinDropdown(row) {
   return `<select class="field-input" style="width:76px" onchange="setField('${row.id}','pin',this.value)">
     ${PIN_OPTIONS.map(p => `<option value="${p}" ${row.pin===p?'selected':''}>${p||'— Select —'}</option>`).join('')}
+  </select>`;
+}
+function portDropdown(row) {
+  return `<select class="field-input" style="width:84px" onchange="setField('${row.id}','port',this.value)">
+    ${PORT_OPTIONS.map(p => `<option value="${p}" ${row.port===p?'selected':''}>${p||'— Select —'}</option>`).join('')}
   </select>`;
 }
 function groupDropdown(row) {
