@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(git -C \"d:/@Projects/A4S-ERP-G\" log --oneline)"
+      "Bash(git -C \"d:/@Projects/A4S-ERP-G\" log --oneline)",
+      "Bash(curl -s \"https://dtiynydgkcqausqktreg.supabase.co/rest/v1/\" -H \"apikey: sb_publishable_erMV0G_pNtPTYq-3frqv1Q_sIJ7KILD\" -H \"Authorization: Bearer sb_publishable_erMV0G_pNtPTYq-3frqv1Q_sIJ7KILD\")"
     ]
   }
 }

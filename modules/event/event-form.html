@@ -8,9 +8,11 @@
       href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
       rel="stylesheet"
     />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" />
     <link rel="stylesheet" href="../../css/main.css" />
     <link rel="stylesheet" href="events.css" />
     <link rel="stylesheet" href="./event-form.css" />
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
   </head>
   <body>
     <div class="loading-overlay" id="loadingOverlay">
@@ -66,17 +68,17 @@
             </div>
           </div>
 
+          <!-- SECTION: รูปภาพ (full width) -->
+          <div class="ef-section">
+            <div class="ef-section-title">🖼️ รูปภาพกิจกรรม <span style="font-weight:400;font-size:11px;color:var(--text3)">(สูงสุด 5 ภาพ — ภาพแรก = โปสเตอร์หลัก)</span></div>
+            <div class="ef-img-grid" id="imgGrid"></div>
+            <input type="file" id="imgInput" accept="image/*" style="display:none">
+          </div>
+
           <!-- FORM BODY (2 columns) -->
           <div class="ef-layout">
             <!-- ── LEFT COLUMN ── -->
             <div class="ef-left">
-
-              <!-- SECTION: รูปภาพ -->
-              <div class="ef-section">
-                <div class="ef-section-title">🖼️ รูปภาพกิจกรรม <span style="font-weight:400;font-size:11px;color:var(--text3)">(สูงสุด 5 ภาพ — ภาพแรก = โปสเตอร์หลัก)</span></div>
-                <div class="ef-img-grid" id="imgGrid"></div>
-                <input type="file" id="imgInput" accept="image/*" style="display:none">
-              </div>
 
               <!-- SECTION: ข้อมูลหลัก -->
               <div class="ef-section">
@@ -110,11 +112,11 @@
                     <label class="ef-label">
                       วันที่เริ่ม <span class="ef-required">*</span>
                     </label>
-                    <input class="ef-input" type="date" id="fEventDate" />
+                    <input class="ef-input" type="text" id="fEventDate" placeholder="dd/mm/yyyy" autocomplete="off" />
                   </div>
                   <div class="ef-field">
                     <label class="ef-label">วันที่สิ้นสุด</label>
-                    <input class="ef-input" type="date" id="fEndDate" />
+                    <input class="ef-input" type="text" id="fEndDate" placeholder="dd/mm/yyyy" autocomplete="off" />
                   </div>
                 </div>
 
@@ -158,38 +160,6 @@
                 </div>
               </div>
 
-              <!-- SECTION: การมอบหมาย -->
-              <div class="ef-section">
-                <div class="ef-section-title">👤 การมอบหมาย</div>
-
-                <div class="ef-row-2">
-                  <div class="ef-field">
-                    <label class="ef-label">ผู้รับผิดชอบ</label>
-                    <select class="ef-input" id="fAssignedTo">
-                      <option value="">— เลือกพนักงาน —</option>
-                    </select>
-                  </div>
-                  <div class="ef-field">
-                    <label class="ef-label">สถานะ</label>
-                    <select class="ef-input" id="fStatus">
-                      <option value="DRAFT">📝 Draft</option>
-                      <option value="CONFIRMED">✔️ Confirmed</option>
-                      <option value="ONGOING">▶️ Ongoing</option>
-                      <option value="DONE">✅ Done</option>
-                      <option value="CANCELLED">❌ Cancelled</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div class="ef-field">
-                  <label class="ef-label">รายละเอียดกิจกรรม</label>
-                  <textarea
-                    class="ef-input ef-textarea"
-                    id="fDescription"
-                    placeholder="ระบุรายละเอียดกิจกรรม หรือกำหนดการเบื้องต้น..."
-                  ></textarea>
-                </div>
-              </div>
             </div>
             <!-- end ef-left -->
 
@@ -216,6 +186,37 @@
                   >
                     ระบบจะสร้างให้อัตโนมัติ หรือกรอกเองได้
                   </div>
+                </div>
+              </div>
+
+              <!-- SECTION: การมอบหมาย -->
+              <div class="ef-section">
+                <div class="ef-section-title">👤 การมอบหมาย</div>
+
+                <div class="ef-field">
+                  <label class="ef-label">ผู้รับผิดชอบ</label>
+                  <select class="ef-input" id="fAssignedTo">
+                    <option value="">— เลือกพนักงาน —</option>
+                  </select>
+                </div>
+                <div class="ef-field">
+                  <label class="ef-label">สถานะ</label>
+                  <select class="ef-input" id="fStatus">
+                    <option value="DRAFT">📝 Draft</option>
+                    <option value="CONFIRMED" selected>✔️ Confirmed</option>
+                    <option value="ONGOING">▶️ Ongoing</option>
+                    <option value="DONE">✅ Done</option>
+                    <option value="CANCELLED">❌ Cancelled</option>
+                  </select>
+                </div>
+
+                <div class="ef-field">
+                  <label class="ef-label">รายละเอียดกิจกรรม</label>
+                  <textarea
+                    class="ef-input ef-textarea"
+                    id="fDescription"
+                    placeholder="ระบุรายละเอียดกิจกรรม หรือกำหนดการเบื้องต้น..."
+                  ></textarea>
                 </div>
               </div>
             </div>
@@ -288,6 +289,15 @@
                     '<img src="' + preview + '" alt="img">' +
                     '<button class="ef-img-remove" onclick="event.stopPropagation();_imgRemove(' + idx + ')">✕</button>' +
                     (idx === 0 ? '<span class="ef-img-main-badge">โปสเตอร์</span>' : "");
+                } else if (idx === 0) {
+                  slot.classList.add("has-img");
+                  slot.innerHTML =
+                    '<img src="../../assets/images/NoPoster.png" alt="No Poster" style="opacity:0.6">' +
+                    '<span class="ef-img-main-badge">โปสเตอร์</span>';
+                  slot.onclick = function () {
+                    window._imgTargetIdx = 0;
+                    document.getElementById("imgInput").click();
+                  };
                 } else {
                   slot.innerHTML = '<span class="ef-img-add">+</span>';
                   slot.onclick = function () {

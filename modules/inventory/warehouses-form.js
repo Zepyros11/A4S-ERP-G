@@ -8,7 +8,7 @@ import {
   createCountry,
   updateCountry,
   removeCountry,
-} from "../list/warehouses-api.js";
+} from "./warehouses-api.js";
 
 /* ================================
    STATE (shared กับ list ผ่าน module scope)

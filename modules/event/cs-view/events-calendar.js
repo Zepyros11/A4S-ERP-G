@@ -147,77 +147,169 @@ function renderCalendar() {
     (e) => !activeCalCatId || String(e.event_category_id) === activeCalCatId,
   );
 
-  const eventMap = {};
-  filtered.forEach((e) => {
-    const start = e.event_date;
-    const end = e.end_date || start;
-    let d = new Date(start + "T00:00:00");
-    const endD = new Date(end + "T00:00:00");
-    while (d <= endD) {
-      const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
-      if (!eventMap[key]) eventMap[key] = [];
-      if (!eventMap[key].find((x) => x.event_id === e.event_id))
-        eventMap[key].push(e);
-      d.setDate(d.getDate() + 1);
-    }
-  });
-
-  const firstDay = new Date(currentYear, currentMonth, 1).getDay();
-  const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
   const _now = new Date();
-  const today = `${_now.getFullYear()}-${String(_now.getMonth()+1).padStart(2,"0")}-${String(_now.getDate()).padStart(2,"0")}`;
-  let cells = "";
+  const todayStr = toDateStr(_now);
 
-  for (let i = 0; i < firstDay; i++) {
-    const prevDays = new Date(currentYear, currentMonth, 0).getDate();
-    const d = prevDays - firstDay + i + 1;
-    cells += `<div class="cal-cell other-month"><div class="cal-date-num">${d}</div></div>`;
+  // ── Build visible dates (fill to full weeks) ──────────────
+  const firstDOW = new Date(currentYear, currentMonth, 1).getDay();
+  const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+  const visibleDates = [];
+
+  for (let i = 0; i < firstDOW; i++) {
+    const d = new Date(currentYear, currentMonth, 1 - (firstDOW - i));
+    visibleDates.push({ dateStr: toDateStr(d), day: d.getDate(), inMonth: false });
+  }
+  for (let d = 1; d <= daysInMonth; d++) {
+    visibleDates.push({
+      dateStr: `${currentYear}-${String(currentMonth + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`,
+      day: d,
+      inMonth: true,
+    });
+  }
+  const totalCells = firstDOW + daysInMonth;
+  const remaining = (7 - (totalCells % 7)) % 7;
+  for (let d = 1; d <= remaining; d++) {
+    const dt = new Date(currentYear, currentMonth + 1, d);
+    visibleDates.push({ dateStr: toDateStr(dt), day: d, inMonth: false });
   }
 
-  for (let d = 1; d <= daysInMonth; d++) {
-    const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
-    const isToday = dateStr === today;
-    const dow = new Date(currentYear, currentMonth, d).getDay();
-    const isWeekend = dow === 0 || dow === 6;
-    const dayEvents = eventMap[dateStr] || [];
-    const cls = [
-      "cal-cell",
-      isToday ? "today" : "",
-      isWeekend ? "weekend-cell" : "",
-    ]
-      .filter(Boolean)
-      .join(" ");
+  // ── Split into week rows ──────────────────────────────────
+  const weeks = [];
+  for (let i = 0; i < visibleDates.length; i += 7) {
+    weeks.push(visibleDates.slice(i, i + 7));
+  }
 
-    const MAX_SHOW = 3;
-    const shown = dayEvents.slice(0, MAX_SHOW);
-    const extra = dayEvents.length - MAX_SHOW;
+  let html = "";
+  weeks.forEach((week) => {
+    const weekStart = week[0].dateStr;
+    const weekEnd = week[6].dateStr;
 
-    const pillsHtml = shown
-      .map((ev) => {
-        const { color, icon } = getCatStyle(ev);
-        return `<div class="cal-event-pill"
-             style="background:${color}22;color:${color};border-color:${color}55"
-             onclick="openEventPanel(${ev.event_id});event.stopPropagation();"
-             title="${ev.event_name}">
-             ${icon} ${ev.event_name}
-           </div>`;
+    // Multi-day events: end_date > event_date AND overlaps this week
+    const multiDayEvts = filtered.filter((e) => {
+      const eEnd = e.end_date || e.event_date;
+      return eEnd > e.event_date && e.event_date <= weekEnd && eEnd >= weekStart;
+    });
+
+    // Single-day events mapped by date
+    const singleMap = {};
+    filtered.forEach((e) => {
+      const eEnd = e.end_date || e.event_date;
+      if (eEnd === e.event_date && e.event_date >= weekStart && e.event_date <= weekEnd) {
+        if (!singleMap[e.event_date]) singleMap[e.event_date] = [];
+        singleMap[e.event_date].push(e);
+      }
+    });
+
+    // Assign stacking lanes for multi-day bars
+    const lanes = assignLanes(multiDayEvts, week);
+    const numLanes = lanes.length;
+
+    // ── Span bars (grid-row 1..numLanes) ────────────────────
+    const barsHtml = lanes
+      .flatMap((lane, laneIdx) =>
+        lane.map(({ event: e, colStart, colEnd }) => {
+          const { color, icon } = getCatStyle(e);
+          const eEnd = e.end_date || e.event_date;
+          const isStart = e.event_date >= weekStart;
+          const isEnd = eEnd <= weekEnd;
+          const rTL = isStart ? "6px" : "0";
+          const rBL = isStart ? "6px" : "0";
+          const rTR = isEnd ? "6px" : "0";
+          const rBR = isEnd ? "6px" : "0";
+          return `<div class="cal-span-bar"
+            style="grid-column:${colStart + 1}/${colEnd + 2};grid-row:${laneIdx + 1};
+                   background:${color};color:#fff;
+                   border-radius:${rTL} ${rTR} ${rBR} ${rBL};
+                   margin:2px ${isEnd ? "3px" : "0"} 1px ${isStart ? "3px" : "0"};"
+            onclick="openEventPanel(${e.event_id})"
+            title="${e.event_name}">
+            ${isStart ? `${icon} ${e.event_name}` : ""}
+          </div>`;
+        })
+      )
+      .join("");
+
+    // ── Day cells (grid-row = numLanes+1) ────────────────────
+    const cellRow = numLanes + 1;
+    const MAX_PILLS = numLanes >= 2 ? 1 : numLanes === 1 ? 2 : 3;
+    const cellsHtml = week
+      .map(({ dateStr, day, inMonth }, colIdx) => {
+        const isToday = dateStr === todayStr;
+        const dow = new Date(dateStr + "T00:00:00").getDay();
+        const isWeekend = dow === 0 || dow === 6;
+        const dayEvents = singleMap[dateStr] || [];
+        const cls = [
+          "cal-cell",
+          !inMonth ? "other-month" : "",
+          isToday ? "today" : "",
+          isWeekend ? "weekend-cell" : "",
+          colIdx === 6 ? "col-last" : "",
+        ]
+          .filter(Boolean)
+          .join(" ");
+        const shown = dayEvents.slice(0, MAX_PILLS);
+        const extra = dayEvents.length - MAX_PILLS;
+        const pillsHtml = shown
+          .map((ev) => {
+            const { color, icon } = getCatStyle(ev);
+            return `<div class="cal-event-pill"
+              style="background:${color};color:#fff;"
+              onclick="openEventPanel(${ev.event_id});event.stopPropagation();"
+              title="${ev.event_name}">${icon} ${ev.event_name}</div>`;
+          })
+          .join("");
+        const moreHtml = extra > 0 ? `<div class="cal-more">+${extra}</div>` : "";
+        return `<div class="${cls}" style="grid-column:${colIdx + 1};grid-row:${cellRow}"><div class="cal-date-num">${day}</div><div class="cal-pills-wrap">${pillsHtml}${moreHtml}</div></div>`;
       })
       .join("");
 
-    const moreHtml =
-      extra > 0 ? `<div class="cal-more">+${extra} เพิ่มเติม</div>` : "";
-
-    cells += `<div class="${cls}"><div class="cal-date-num">${d}</div><div class="cal-pills-wrap">${pillsHtml}${moreHtml}</div></div>`;
-  }
-
-  const totalCells = firstDay + daysInMonth;
-  const remaining = (7 - (totalCells % 7)) % 7;
-  for (let d = 1; d <= remaining; d++) {
-    cells += `<div class="cal-cell other-month"><div class="cal-date-num">${d}</div></div>`;
-  }
+    // Single grid: bars + cells share the same 7-col grid → perfect column alignment
+    const rowTemplate = numLanes > 0
+      ? `style="grid-template-rows:repeat(${numLanes},24px) auto"`
+      : "";
+    html += `<div class="cal-week-row" ${rowTemplate}>${barsHtml}${cellsHtml}</div>`;
+  });
 
   document.getElementById("calGrid").innerHTML =
-    cells || `<div class="cal-empty">ไม่มีกิจกรรม</div>`;
+    html || `<div class="cal-empty">ไม่มีกิจกรรม</div>`;
+}
+
+// ── Helpers ────────────────────────────────────────────────
+function toDateStr(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function assignLanes(events, week) {
+  if (!events.length) return [];
+  const weekStart = week[0].dateStr;
+  const weekEnd = week[6].dateStr;
+  const sorted = [...events].sort((a, b) =>
+    a.event_date.localeCompare(b.event_date)
+  );
+  const lanes = [];
+  sorted.forEach((e) => {
+    const eStart = e.event_date > weekStart ? e.event_date : weekStart;
+    const eEnd =
+      (e.end_date || e.event_date) < weekEnd
+        ? e.end_date || e.event_date
+        : weekEnd;
+    const colStart = week.findIndex((d) => d.dateStr === eStart);
+    const colEnd = week.findIndex((d) => d.dateStr === eEnd);
+    if (colStart === -1 || colEnd === -1) return;
+    let placed = false;
+    for (let i = 0; i < lanes.length; i++) {
+      const overlaps = lanes[i].some(
+        (item) => !(item.colEnd < colStart || item.colStart > colEnd)
+      );
+      if (!overlaps) {
+        lanes[i].push({ event: e, colStart, colEnd });
+        placed = true;
+        break;
+      }
+    }
+    if (!placed) lanes.push([{ event: e, colStart, colEnd }]);
+  });
+  return lanes;
 }
 
 function updateMonthLabel() {
@@ -248,7 +340,7 @@ function openEventPanel(eventId) {
   if (!e) return;
   document.getElementById("panelPoster").innerHTML = e.poster_url
     ? `<img src="${e.poster_url}" alt="${e.event_name}">`
-    : `<span class="ev-popup-placeholder">🗓️</span>`;
+    : `<img src="../../../assets/images/NoPoster.png" alt="No Poster">`;
   document.getElementById("panelName").textContent = e.event_name;
   document.getElementById("panelCode").textContent = e.event_code || "";
   document.getElementById("panelStatus").innerHTML =

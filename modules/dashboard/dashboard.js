@@ -48,7 +48,7 @@ async function loadAll() {
   try {
     const [products, stockBalance, pos, sos, movements] = await Promise.all([
       sbFetch('products', '?select=product_id,product_code,product_name,reorder_point,is_active&is_active=eq.true'),
-      sbFetch('stock_balance', '?select=product_id,warehouse_id,quantity'),
+      sbFetch('stock_balance', '?select=product_id,warehouse_id,qty_on_hand'),
       sbFetch('purchase_orders', '?select=po_id,po_number,order_date,total_amount,status&order=order_date.desc&limit=100'),
       sbFetch('sales_orders', '?select=so_id,so_number,order_date,total_amount,status&order=order_date.desc&limit=100'),
       sbFetch('stock_movements', '?select=*&order=moved_at.desc&limit=100'),

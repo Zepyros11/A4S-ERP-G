@@ -11,7 +11,7 @@ import {
   removeCategory,
 } from "./categories-api.js";
 
-import { openCategoryModal } from "../form/categories-form.js";
+import { openCategoryModal } from "./categories-form.js";
 import { renderCategoriesTable } from "./categories-table.js";
 
 /* ================================
@@ -39,7 +39,7 @@ async function loadFormModal() {
   const container = document.getElementById("categoryFormContainer");
   if (!container) return;
 
-  const res = await fetch("../form/categories-form.html");
+  const res = await fetch("./categories-form.html");
   const html = await res.text();
   container.innerHTML = html;
 }

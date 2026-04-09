@@ -31,50 +31,50 @@
           id: "event-poster-gallery",
           icon: "🖼️",
           label: "Poster Gallery",
-          path: BASE_PATH + "/modules/event/activity/event-poster-gallery.html",
+          path: BASE_PATH + "/modules/event/event-poster-gallery.html",
         },
         {
           id: "events",
           icon: "🗓️",
           label: "รายการกิจกรรม",
-          path: BASE_PATH + "/modules/event/activity/events-list.html",
+          path: BASE_PATH + "/modules/event/events-list.html",
         },
         {
           id: "events-category",
           icon: "🏷️",
           label: "ประเภทกิจกรรม",
-          path: BASE_PATH + "/modules/event/activity/events-category.html",
+          path: BASE_PATH + "/modules/event/events-category.html",
         },
 
         {
           id: "events-place-list",
           icon: "📍",
           label: "สถานที่",
-          path: BASE_PATH + "/modules/event/activity/events-place-list.html",
+          path: BASE_PATH + "/modules/event/events-place-list.html",
         },
         {
           id: "event-requests",
           icon: "📋",
           label: "คำขอจัดกิจกรรม",
-          path: BASE_PATH + "/modules/event/activity/events-list.html",
+          path: BASE_PATH + "/modules/event/event-requests.html",
         },
         {
           id: "event-budget",
           icon: "💰",
           label: "งบประมาณ",
-          path: BASE_PATH + "/modules/event/procurement/event-budget.html",
+          path: BASE_PATH + "/modules/event/event-budget.html",
         },
         {
           id: "attendees",
           icon: "👥",
           label: "ผู้เข้าร่วม",
-          path: BASE_PATH + "/modules/event/attendees/attendees.html",
+          path: BASE_PATH + "/modules/event/attendees.html",
         },
         {
           id: "event-media",
           icon: "🎬",
           label: "สื่อ & มีเดีย",
-          path: BASE_PATH + "/modules/event/media/media-schedule.html",
+          path: BASE_PATH + "/modules/event/media-schedule.html",
         },
       ],
     },
@@ -88,39 +88,32 @@
           id: "categories",
           icon: "🏷️",
           label: "หมวดหมู่",
-          path:
-            BASE_PATH +
-            "/modules/inventory/categories/list/categories-list.html",
+          path: BASE_PATH + "/modules/inventory/categories-list.html",
         },
         {
           id: "warehouses",
           icon: "🏭",
           label: "คลังสินค้า",
-          path:
-            BASE_PATH +
-            "/modules/inventory/warehouses/list/warehouses-list.html",
+          path: BASE_PATH + "/modules/inventory/warehouses-list.html",
         },
         {
           id: "products",
           icon: "✏️",
           label: "รายการสินค้า",
-          path:
-            BASE_PATH + "/modules/inventory/products/list/products-list.html",
+          path: BASE_PATH + "/modules/inventory/products-list.html",
         },
         {
           id: "stock-initial",
           icon: "📦",
           label: "Stock เริ่มต้น",
-          path:
-            BASE_PATH +
-            "/modules/inventory/stockInitial/list/stock-initial-list.html",
+          path: BASE_PATH + "/modules/inventory/stock-initial-list.html",
         },
 
         {
           id: "stock-move",
           icon: "🔄",
           label: "ความเคลื่อนไหว",
-          path: BASE_PATH + "/modules/stock/movements.html",
+          path: BASE_PATH + "/modules/inventory/movements.html",
         },
       ],
     },
@@ -192,7 +185,7 @@
           id: "users",
           icon: "👥",
           label: "ผู้ใช้งาน",
-          path: BASE_PATH + "/modules/settings/users/users.html",
+          path: BASE_PATH + "/modules/settings/users.html",
         },
 
         {

@@ -25,62 +25,27 @@
       <div class="content-area">
         <div class="page">
           <!-- PAGE HEADER -->
-          <div
-            style="
-              display: flex;
-              align-items: center;
-              gap: 12px;
-              margin-bottom: 16px;
-            "
-          >
+          <div class="epg-page-header">
             <button
-              class="btn btn-outline"
+              class="btn btn-outline epg-back-btn"
               onclick="window.location.href = 'events-list.html'"
             >
               ← กลับ
             </button>
-            <div>
-              <div style="font-size: 18px; font-weight: 700">
-                🖼️ Poster Gallery
-              </div>
-              <div
-                style="font-size: 12px; color: var(--text3)"
-                id="pageSubtitle"
-              >
-                กำลังโหลด...
-              </div>
+
+            <div class="epg-header-divider"></div>
+
+            <div class="epg-header-info">
+              <div class="epg-header-title">🖼️ Poster Gallery</div>
+              <div class="epg-header-subtitle" id="pageSubtitle">กำลังโหลด...</div>
             </div>
-            <div
-              style="
-                margin-left: auto;
-                display: flex;
-                align-items: center;
-                gap: 8px;
-              "
-            >
+
+            <div class="epg-header-actions">
               <!-- Grid Toggle -->
               <div class="epg-grid-toggle">
-                <button
-                  class="epg-toggle-btn"
-                  id="btnGrid3"
-                  onclick="window.setGrid(3)"
-                >
-                  ⊞ 3
-                </button>
-                <button
-                  class="epg-toggle-btn active"
-                  id="btnGrid4"
-                  onclick="window.setGrid(4)"
-                >
-                  ⊟ 4
-                </button>
-                <button
-                  class="epg-toggle-btn"
-                  id="btnGrid5"
-                  onclick="window.setGrid(5)"
-                >
-                  ▦ 5
-                </button>
+                <button class="epg-toggle-btn" id="btnGrid3" onclick="window.setGrid(3)">⊞ 3</button>
+                <button class="epg-toggle-btn active" id="btnGrid4" onclick="window.setGrid(4)">⊟ 4</button>
+                <button class="epg-toggle-btn" id="btnGrid5" onclick="window.setGrid(5)">▦ 5</button>
               </div>
             </div>
           </div>

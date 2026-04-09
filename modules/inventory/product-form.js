@@ -997,7 +997,7 @@ async function saveProduct() {
 
     showToast("✅ บันทึกสินค้าสำเร็จ!", "success");
     setTimeout(() => {
-      window.location.href = "../list/products-list.html";
+      window.location.href = "./products-list.html";
     }, 1500);
   } catch (e) {
     showToast("เกิดข้อผิดพลาด: " + e.message, "error");
@@ -1127,7 +1127,7 @@ async function saveCategoryOrder() {
 // ── UTILS ─────────────────────────────────────────────────
 function goBack() {
   if (history.length > 1) history.back();
-  else window.location.href = "../list/products-list.html";
+  else window.location.href = "./products-list.html";
 }
 
 function showToast(msg, type = "success") {

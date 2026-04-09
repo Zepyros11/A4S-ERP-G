@@ -19,10 +19,18 @@ let editId = null;
 // posterFile และ posterUrl ใช้ผ่าน window._posterFile / window._posterUrl
 // (set โดย plain script ใน HTML เพื่อแก้ ES Module timing issue)
 
+// ── FLATPICKR instances ────────────────────────────────────
+let fpEventDate, fpEndDate;
+
 // ── INIT ───────────────────────────────────────────────────
 async function initPage() {
   const params = new URLSearchParams(window.location.search);
   editId = params.get("id") ? parseInt(params.get("id")) : null;
+
+  // Init flatpickr dd/mm/yyyy
+  const fpOpts = { dateFormat: "d/m/Y", allowInput: true };
+  fpEventDate = flatpickr("#fEventDate", fpOpts);
+  fpEndDate = flatpickr("#fEndDate", fpOpts);
 
   await Promise.all([loadUsers(), loadEventCategories(), loadPlaces()]);
 
@@ -173,6 +181,8 @@ function placeTypeIcon(type) {
 }
 
 // ── LOAD EVENT CATEGORIES ──────────────────────────────────
+let holidayCatIds = [];
+
 async function loadEventCategories() {
   try {
     const cats = await fetchEventCategories();
@@ -184,6 +194,10 @@ async function loadEventCategories() {
         "beforeend",
         `<option value="${c.event_category_id}">${c.icon || ""} ${c.category_name}</option>`,
       );
+      // เก็บ ID หมวด "วันหยุดบริษัท" ไว้กรอง autocomplete
+      if (c.category_name === "วันหยุดบริษัท") {
+        holidayCatIds.push(c.event_category_id);
+      }
     });
   } catch (e) {
     showToast("โหลดประเภทกิจกรรมไม่ได้", "error");
@@ -203,8 +217,8 @@ async function loadEventData() {
     document.getElementById("fEventName").value = e.event_name || "";
     document.getElementById("fEventCode").value = e.event_code || "";
     document.getElementById("fEventType").value = e.event_category_id || "";
-    document.getElementById("fEventDate").value = e.event_date || "";
-    document.getElementById("fEndDate").value = e.end_date || "";
+    if (e.event_date) fpEventDate.setDate(e.event_date, true);
+    if (e.end_date) fpEndDate.setDate(e.end_date, true);
     document.getElementById("fStartTime").value = e.start_time
       ? e.start_time.slice(0, 5)
       : "";
@@ -262,7 +276,7 @@ async function autoGenerateCode() {
 function validate() {
   const name = document.getElementById("fEventName").value.trim();
   const type = document.getElementById("fEventType").value;
-  const date = document.getElementById("fEventDate").value;
+  const date = fpEventDate.selectedDates[0];
 
   if (!name) {
     showToast("กรุณาระบุชื่องาน", "error");
@@ -277,7 +291,7 @@ function validate() {
     return false;
   }
 
-  const endDate = document.getElementById("fEndDate").value;
+  const endDate = fpEndDate.selectedDates[0];
   if (endDate && endDate < date) {
     showToast("วันที่สิ้นสุดต้องไม่น้อยกว่าวันที่เริ่ม", "error");
     return false;
@@ -297,8 +311,8 @@ window._saveEventImpl = async function () {
       event_category_id:
         parseInt(document.getElementById("fEventType").value) || null,
 
-      event_date: document.getElementById("fEventDate").value,
-      end_date: document.getElementById("fEndDate").value || null,
+      event_date: fpEventDate.selectedDates[0] ? fpEventDate.formatDate(fpEventDate.selectedDates[0], "Y-m-d") : "",
+      end_date: fpEndDate.selectedDates[0] ? fpEndDate.formatDate(fpEndDate.selectedDates[0], "Y-m-d") : null,
       start_time: document.getElementById("fStartTime").value || null,
       end_time: document.getElementById("fEndTime").value || null,
       location: window._getConfirmedLocation ? window._getConfirmedLocation() : (document.getElementById("fLocation").value.trim() || null),
@@ -377,7 +391,12 @@ async function loadEventNames() {
   try {
     const events = await fetchEvents();
     eventNameList = [
-      ...new Set(events.map((e) => e.event_name).filter(Boolean)),
+      ...new Set(
+        events
+          .filter((e) => !holidayCatIds.includes(e.event_category_id))
+          .map((e) => e.event_name)
+          .filter(Boolean)
+      ),
     ];
   } catch (e) {
     console.error("โหลดชื่อ event ไม่ได้", e);

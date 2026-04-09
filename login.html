@@ -35,10 +35,10 @@
         font-family: "Sarabun", sans-serif;
         background: #0a1628;
         display: flex;
+        flex-direction: column;
         align-items: center;
-        justify-content: center;
         min-height: 100vh;
-        overflow: hidden;
+        overflow-y: auto;
         position: relative;
       }
       .bg-grid {
@@ -90,8 +90,9 @@
       .card-wrap {
         position: relative;
         z-index: 10;
-        width: 420px;
-        max-width: 95vw;
+        width: 340px;
+        max-width: 90vw;
+        margin: auto;
         animation: cardIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
       }
       @keyframes cardIn {
@@ -118,7 +119,7 @@
           var(--accent) 0%,
           var(--accent-light) 100%
         );
-        padding: 36px 40px 32px;
+        padding: 16px 24px 14px;
         text-align: center;
         position: relative;
         overflow: hidden;
@@ -130,34 +131,40 @@
         background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
       }
       .logo-icon {
-        font-size: 40px;
-        margin-bottom: 12px;
+        width: 56px;
+        height: 56px;
+        object-fit: contain;
+        margin-bottom: 6px;
         display: block;
+        margin-left: auto;
+        margin-right: auto;
       }
       .logo-title {
-        font-size: 24px;
+        font-size: 20px;
         font-weight: 700;
         color: #fff;
         letter-spacing: 0.5px;
       }
       .logo-subtitle {
-        font-size: 13px;
-        color: rgba(255, 255, 255, 0.7);
-        margin-top: 4px;
+        font-size: 14px;
+        font-weight: 600;
+        color: rgba(255, 255, 255, 0.9);
+        margin-top: 2px;
+        letter-spacing: 0.3px;
       }
       .card-body {
-        padding: 36px 40px 32px;
+        padding: 16px 24px 14px;
       }
       .form-group {
-        margin-bottom: 20px;
+        margin-bottom: 12px;
       }
       .form-label {
         display: block;
-        font-size: 12px;
+        font-size: 11px;
         font-weight: 700;
         color: var(--text2);
         letter-spacing: 0.5px;
-        margin-bottom: 7px;
+        margin-bottom: 5px;
       }
       .input-wrap {
         position: relative;
@@ -173,7 +180,7 @@
       }
       .form-input {
         width: 100%;
-        padding: 12px 44px 12px 42px;
+        padding: 9px 44px 9px 42px;
         border: 2px solid var(--border);
         border-radius: 10px;
         font-size: 14px;
@@ -208,7 +215,7 @@
         display: flex;
         align-items: center;
         justify-content: space-between;
-        margin-bottom: 24px;
+        margin-bottom: 12px;
       }
       .remember-label {
         display: flex;
@@ -274,7 +281,7 @@
       }
       .btn-login {
         width: 100%;
-        padding: 13px;
+        padding: 10px;
         background: linear-gradient(135deg, var(--accent), var(--accent-light));
         color: #fff;
         border: none;
@@ -320,7 +327,7 @@
         }
       }
       .card-footer {
-        padding: 0 40px 28px;
+        padding: 0 24px 14px;
         text-align: center;
         font-size: 12px;
         color: var(--text3);
@@ -363,9 +370,8 @@
     <div class="card-wrap">
       <div class="card">
         <div class="card-header">
-          <span class="logo-icon">📦</span>
-          <div class="logo-title">A4S-ERP</div>
-          <div class="logo-subtitle">Stock & Order Management System</div>
+          <img src="assets/logo/logo-a4s.png" class="logo-icon" alt="A4S Logo" />
+          <div class="logo-subtitle">ระบบบริหารจัดการองค์กร</div>
         </div>
         <div class="card-body">
           <div class="error-msg" id="errorMsg">
@@ -421,7 +427,7 @@
           </button>
         </div>
         <div class="card-footer">
-          <div class="version-tag">v1.0.0 · A4S Stock System</div>
+          <div class="version-tag">v1.0.0 · xPata</div>
         </div>
       </div>
     </div>
@@ -526,11 +532,8 @@
             localStorage.removeItem("erp_remember_user");
             sessionStorage.setItem("erp_session", JSON.stringify(sessionData));
           }
-          const redirectTo =
-            sessionStorage.getItem("erp_redirect") ||
-            "./modules/stock/products.html";
           sessionStorage.removeItem("erp_redirect");
-          window.location.href = redirectTo;
+          window.location.href = "./modules/dashboard/dashboard.html";
         } catch (e) {
           showError("เกิดข้อผิดพลาด: " + e.message);
         } finally {

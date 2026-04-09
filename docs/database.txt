@@ -1,5 +1,10 @@
 -- WARNING: This schema is for context only and is not meant to be run.
 -- Table order and constraints may not be valid for execution.
+-- Last updated: 2026-04-08 | Total tables: 39
+
+-- ============================================================
+-- GROUP 1: INVENTORY & STOCK
+-- ============================================================
 
 CREATE TABLE public.categories (
   category_id integer NOT NULL DEFAULT nextval('categories_category_id_seq'::regclass),
@@ -260,4 +265,299 @@ CREATE TABLE public.warehouses (
   parent_id integer,
   CONSTRAINT warehouses_pkey PRIMARY KEY (warehouse_id),
   CONSTRAINT warehouses_parent_id_fkey FOREIGN KEY (parent_id) REFERENCES public.warehouses(warehouse_id)
+);
+CREATE TABLE public.stock_balance (
+  product_id integer,
+  warehouse_id integer,
+  bin_id bigint,
+  qty_on_hand numeric,
+  CONSTRAINT stock_balance_product_id_fkey FOREIGN KEY (product_id) REFERENCES public.products(product_id),
+  CONSTRAINT stock_balance_warehouse_id_fkey FOREIGN KEY (warehouse_id) REFERENCES public.warehouses(warehouse_id),
+  CONSTRAINT stock_balance_bin_id_fkey FOREIGN KEY (bin_id) REFERENCES public.warehouse_bins(bin_id)
+);
+
+-- ============================================================
+-- GROUP 2: EVENT MODULE
+-- ============================================================
+CREATE TABLE public.event_categories (
+  event_category_id integer NOT NULL DEFAULT nextval('event_categories_event_category_id_seq'::regclass),
+  category_name character varying NOT NULL,
+  description text,
+  icon text,
+  color text,
+  sort_order integer DEFAULT 0,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT event_categories_pkey PRIMARY KEY (event_category_id)
+);
+CREATE TABLE public.events (
+  event_id integer NOT NULL DEFAULT nextval('events_event_id_seq'::regclass),
+  event_code character varying NOT NULL,
+  event_name character varying NOT NULL,
+  event_date date NOT NULL,
+  end_date date,
+  start_time time without time zone,
+  end_time time without time zone,
+  location character varying,
+  poster_url text,
+  description text,
+  max_attendees integer,
+  status character varying,
+  created_by integer,
+  assigned_to integer,
+  created_at timestamp without time zone DEFAULT now(),
+  place_id bigint,
+  event_category_id integer,
+  image_urls text[],
+  CONSTRAINT events_pkey PRIMARY KEY (event_id),
+  CONSTRAINT events_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(user_id),
+  CONSTRAINT events_assigned_to_fkey FOREIGN KEY (assigned_to) REFERENCES public.users(user_id),
+  CONSTRAINT events_place_id_fkey FOREIGN KEY (place_id) REFERENCES public.places(place_id),
+  CONSTRAINT events_event_category_id_fkey FOREIGN KEY (event_category_id) REFERENCES public.event_categories(event_category_id)
+);
+CREATE TABLE public.event_attendees (
+  attendee_id integer NOT NULL DEFAULT nextval('event_attendees_attendee_id_seq'::regclass),
+  event_id integer NOT NULL,
+  name character varying NOT NULL,
+  phone character varying,
+  email character varying,
+  company character varying,
+  attend_type character varying NOT NULL,
+  ticket_no character varying,
+  ticket_type character varying,
+  paid_amount numeric,
+  payment_status character varying,
+  checked_in boolean DEFAULT false,
+  check_in_at timestamp without time zone,
+  note text,
+  created_at timestamp without time zone DEFAULT now(),
+  CONSTRAINT event_attendees_pkey PRIMARY KEY (attendee_id),
+  CONSTRAINT event_attendees_event_id_fkey FOREIGN KEY (event_id) REFERENCES public.events(event_id)
+);
+CREATE TABLE public.event_budget (
+  budget_id integer NOT NULL DEFAULT nextval('event_budget_budget_id_seq'::regclass),
+  event_id integer NOT NULL,
+  budget_total numeric,
+  spent_amount numeric,
+  approved_by integer,
+  approved_at timestamp without time zone,
+  note text,
+  created_at timestamp without time zone DEFAULT now(),
+  CONSTRAINT event_budget_pkey PRIMARY KEY (budget_id),
+  CONSTRAINT event_budget_event_id_fkey FOREIGN KEY (event_id) REFERENCES public.events(event_id),
+  CONSTRAINT event_budget_approved_by_fkey FOREIGN KEY (approved_by) REFERENCES public.users(user_id)
+);
+CREATE TABLE public.event_logs (
+  log_id integer NOT NULL DEFAULT nextval('event_logs_log_id_seq'::regclass),
+  event_id integer NOT NULL,
+  user_id integer NOT NULL,
+  log_type character varying NOT NULL,
+  message text NOT NULL,
+  attachment_url text,
+  created_at timestamp without time zone DEFAULT now(),
+  CONSTRAINT event_logs_pkey PRIMARY KEY (log_id),
+  CONSTRAINT event_logs_event_id_fkey FOREIGN KEY (event_id) REFERENCES public.events(event_id),
+  CONSTRAINT event_logs_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(user_id)
+);
+CREATE TABLE public.event_media (
+  media_id integer NOT NULL DEFAULT nextval('event_media_media_id_seq'::regclass),
+  event_id integer NOT NULL,
+  media_type character varying NOT NULL,
+  title character varying,
+  detail text,
+  file_url text,
+  assigned_to integer,
+  due_date date,
+  status character varying,
+  created_at timestamp without time zone DEFAULT now(),
+  CONSTRAINT event_media_pkey PRIMARY KEY (media_id),
+  CONSTRAINT event_media_event_id_fkey FOREIGN KEY (event_id) REFERENCES public.events(event_id),
+  CONSTRAINT event_media_assigned_to_fkey FOREIGN KEY (assigned_to) REFERENCES public.users(user_id)
+);
+CREATE TABLE public.event_requests (
+  request_id integer NOT NULL DEFAULT nextval('event_requests_request_id_seq'::regclass),
+  request_code character varying,
+  requested_by integer NOT NULL,
+  dept_id integer,
+  event_name character varying NOT NULL,
+  event_type character varying,
+  requested_date date NOT NULL,
+  end_date date,
+  location character varying,
+  attendees_count integer,
+  detail text,
+  attachment_url text,
+  status character varying,
+  reviewed_by integer,
+  reviewed_at timestamp without time zone,
+  reject_reason text,
+  event_id integer,
+  created_at timestamp without time zone DEFAULT now(),
+  CONSTRAINT event_requests_pkey PRIMARY KEY (request_id),
+  CONSTRAINT event_requests_requested_by_fkey FOREIGN KEY (requested_by) REFERENCES public.users(user_id),
+  CONSTRAINT event_requests_dept_id_fkey FOREIGN KEY (dept_id) REFERENCES public.departments(dept_id),
+  CONSTRAINT event_requests_reviewed_by_fkey FOREIGN KEY (reviewed_by) REFERENCES public.users(user_id),
+  CONSTRAINT event_requests_event_id_fkey FOREIGN KEY (event_id) REFERENCES public.events(event_id)
+);
+CREATE TABLE public.event_suppliers (
+  ev_supplier_id integer NOT NULL DEFAULT nextval('event_suppliers_ev_supplier_id_seq'::regclass),
+  event_id integer NOT NULL,
+  supplier_id integer,
+  supplier_name character varying,
+  service_type character varying NOT NULL,
+  detail text,
+  amount numeric,
+  status character varying,
+  doc_url text,
+  created_at timestamp without time zone DEFAULT now(),
+  CONSTRAINT event_suppliers_pkey PRIMARY KEY (ev_supplier_id),
+  CONSTRAINT event_suppliers_event_id_fkey FOREIGN KEY (event_id) REFERENCES public.events(event_id),
+  CONSTRAINT event_suppliers_supplier_id_fkey FOREIGN KEY (supplier_id) REFERENCES public.suppliers(supplier_id)
+);
+
+-- ============================================================
+-- GROUP 3: PLACES & ROOM BOOKING
+-- ============================================================
+CREATE TABLE public.places (
+  place_id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  place_name text NOT NULL,
+  place_type text NOT NULL,
+  description text,
+  address text,
+  province text,
+  country text,
+  latitude numeric,
+  longitude numeric,
+  google_map_url text,
+  contact_name text,
+  phone text,
+  email text,
+  line_id text,
+  capacity integer,
+  meeting_rooms integer,
+  has_accommodation boolean,
+  rooms integer,
+  has_parking boolean,
+  cover_image_url text,
+  status text,
+  created_at timestamp without time zone DEFAULT now(),
+  updated_at timestamp without time zone,
+  image_urls text[],
+  CONSTRAINT places_pkey PRIMARY KEY (place_id)
+);
+CREATE TABLE public.place_rooms (
+  room_id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  place_id bigint,
+  room_name text,
+  capacity integer,
+  description text,
+  CONSTRAINT place_rooms_pkey PRIMARY KEY (room_id),
+  CONSTRAINT place_rooms_place_id_fkey FOREIGN KEY (place_id) REFERENCES public.places(place_id)
+);
+CREATE TABLE public.meeting_rooms (
+  room_id integer NOT NULL DEFAULT nextval('meeting_rooms_room_id_seq'::regclass),
+  room_code character varying NOT NULL UNIQUE,
+  room_name character varying NOT NULL,
+  branch character varying NOT NULL,
+  capacity integer,
+  facilities jsonb,
+  floor character varying,
+  note text,
+  is_active boolean DEFAULT true,
+  created_at timestamp without time zone DEFAULT now(),
+  CONSTRAINT meeting_rooms_pkey PRIMARY KEY (room_id)
+);
+CREATE TABLE public.room_bookings (
+  booking_id integer NOT NULL DEFAULT nextval('room_bookings_booking_id_seq'::regclass),
+  event_id integer,
+  room_id integer NOT NULL,
+  booking_date date NOT NULL,
+  start_time time without time zone NOT NULL,
+  end_time time without time zone NOT NULL,
+  topic character varying,
+  booked_by integer NOT NULL,
+  status character varying,
+  note text,
+  created_at timestamp without time zone DEFAULT now(),
+  CONSTRAINT room_bookings_pkey PRIMARY KEY (booking_id),
+  CONSTRAINT room_bookings_event_id_fkey FOREIGN KEY (event_id) REFERENCES public.events(event_id),
+  CONSTRAINT room_bookings_room_id_fkey FOREIGN KEY (room_id) REFERENCES public.meeting_rooms(room_id),
+  CONSTRAINT room_bookings_booked_by_fkey FOREIGN KEY (booked_by) REFERENCES public.users(user_id)
+);
+CREATE TABLE public.room_booking_requests (
+  request_id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  request_code text NOT NULL,
+  place_id bigint,
+  place_name text NOT NULL,
+  booked_by bigint,
+  booking_date date NOT NULL,
+  start_time text,
+  end_time text,
+  status text NOT NULL,
+  note text,
+  created_at timestamp with time zone DEFAULT now(),
+  cs_id bigint,
+  booked_by_name text,
+  cs_name text,
+  CONSTRAINT room_booking_requests_pkey PRIMARY KEY (request_id),
+  CONSTRAINT room_booking_requests_booked_by_fkey FOREIGN KEY (booked_by) REFERENCES public.users(user_id),
+  CONSTRAINT room_booking_requests_cs_id_fkey FOREIGN KEY (cs_id) REFERENCES public.users(user_id)
+);
+CREATE TABLE public.room_booking_logs (
+  log_id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  request_id bigint NOT NULL,
+  message text NOT NULL,
+  created_by_name text,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT room_booking_logs_pkey PRIMARY KEY (log_id),
+  CONSTRAINT room_booking_logs_request_id_fkey FOREIGN KEY (request_id) REFERENCES public.room_booking_requests(request_id)
+);
+
+-- ============================================================
+-- GROUP 4: SYSTEM
+-- ============================================================
+CREATE TABLE public.user_roles (
+  role_id integer NOT NULL DEFAULT nextval('user_roles_role_id_seq'::regclass),
+  user_id integer NOT NULL,
+  module character varying NOT NULL,
+  role character varying NOT NULL,
+  created_at timestamp without time zone DEFAULT now(),
+  CONSTRAINT user_roles_pkey PRIMARY KEY (role_id),
+  CONSTRAINT user_roles_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(user_id)
+);
+CREATE TABLE public.notifications (
+  notif_id integer NOT NULL DEFAULT nextval('notifications_notif_id_seq'::regclass),
+  user_id integer NOT NULL,
+  module character varying,
+  ref_type character varying,
+  ref_id integer,
+  title character varying NOT NULL,
+  message text,
+  is_read boolean DEFAULT false,
+  created_at timestamp without time zone DEFAULT now(),
+  CONSTRAINT notifications_pkey PRIMARY KEY (notif_id),
+  CONSTRAINT notifications_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(user_id)
+);
+
+-- ============================================================
+-- GROUP 5: TOUR
+-- ============================================================
+CREATE TABLE public.tour_seat_check (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  code text NOT NULL,
+  name text,
+  pin text,
+  seat numeric,
+  passport_image_url text,
+  passport_id text,
+  passport_exp_date date,
+  visa_image_url text,
+  tel text,
+  tshirt_size text,
+  is_sub_row boolean DEFAULT false,
+  parent_code text,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone,
+  nationality text,
+  CONSTRAINT tour_seat_check_pkey PRIMARY KEY (id),
+  CONSTRAINT tour_seat_check_parent_code_fkey FOREIGN KEY (parent_code) REFERENCES public.tour_seat_check(code)
 );

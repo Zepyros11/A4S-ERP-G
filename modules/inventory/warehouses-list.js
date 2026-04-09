@@ -13,7 +13,7 @@ import {
   patchWarehouseStatus,
 } from "./warehouses-api.js";
 
-import { openWarehouseModal, setFormState } from "../form/warehouses-form.js";
+import { openWarehouseModal, setFormState } from "./warehouses-form.js";
 import { renderWarehousesTable } from "./warehouses-table.js";
 
 /* ================================
@@ -45,7 +45,7 @@ async function initPage() {
 async function loadFormModal() {
   const container = document.getElementById("warehouseFormContainer");
   if (!container) return;
-  const res = await fetch("../form/warehouses-form.html");
+  const res = await fetch("./warehouses-form.html");
   const html = await res.text();
   container.innerHTML = html;
 }

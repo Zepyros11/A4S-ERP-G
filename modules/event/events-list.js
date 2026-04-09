@@ -209,7 +209,7 @@ function renderTable(events) {
                 onerror="this.remove()">`
             ).join("")}
           </div>`
-        : `<div class="event-poster-wrap"><span class="event-poster-placeholder">📋</span></div>`;
+        : `<div class="event-poster-wrap"><img src="../../assets/images/NoPoster.png" alt="No Poster"></div>`;
 
       const dateEnd =
         e.end_date && e.end_date !== e.event_date
@@ -290,7 +290,7 @@ window.openEventPanel = function (eventId) {
 
   document.getElementById("panelPoster").innerHTML = e.poster_url
     ? `<img src="${e.poster_url}" alt="${escapeHtmlAttr(e.event_name || "event")}">`
-    : '<span class="ev-panel-poster-placeholder">📋</span>';
+    : '<img src="../../assets/images/NoPoster.png" alt="No Poster">';
 
   document.getElementById("peqEventName").value = e.event_name || "";
   document.getElementById("peqEventCode").value = e.event_code || "";
