@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>จัดการ Role — A4S-ERP</title>
+    <link rel="stylesheet" href="../../css/main.css" />
+    <link rel="stylesheet" href="./role.css" />
+  </head>
+  <body>
+    <div class="loading-overlay" id="loadingOverlay">
+      <div class="spinner"></div>
+    </div>
+    <div class="toast" id="toast"></div>
+
+    <!-- TOPBAR -->
+    <div class="topbar"></div>
+    <div class="layout">
+      <div id="sidebar-container"></div>
+
+      <div class="content-area">
+        <div class="page">
+          <!-- PAGE HEADER -->
+          <div class="toolbar" style="margin-bottom: 20px">
+            <div style="display: flex; align-items: center; gap: 12px">
+              <button
+                class="btn btn-outline"
+                onclick="window.location.href = '../users/users.html'"
+              >
+                ← กลับ
+              </button>
+              <div>
+                <div style="font-size: 18px; font-weight: 700">
+                  🔐 จัดการ Role & สิทธิ์
+                </div>
+                <div style="font-size: 12px; color: var(--text3)">
+                  กำหนดสิทธิ์การใช้งานสำหรับแต่ละ Role
+                </div>
+              </div>
+            </div>
+            <div class="toolbar-right">
+              <button class="btn btn-primary" onclick="window.openRoleModal()">
+                ＋ เพิ่ม Role
+              </button>
+            </div>
+          </div>
+
+          <!-- ROLE CARDS GRID -->
+          <div class="role-grid" id="roleGrid">
+            <!-- render by JS -->
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL: เพิ่ม/แก้ไข Role -->
+    <div
+      class="modal-overlay"
+      id="roleModalOverlay"
+      onclick="window.closeRoleModalBg(event)"
+    >
+      <div class="modal" style="width: 580px">
+        <div class="modal-hdr">
+          <div class="modal-title" id="roleModalTitle">เพิ่ม Role ใหม่</div>
+          <button class="btn-modal-close" onclick="window.closeRoleModal()">
+            ✕
+          </button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="rEditKey" />
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label"
+                >Role Key <span class="req">*</span></label
+              >
+              <input
+                class="form-control"
+                id="rKey"
+                placeholder="ADMIN, MANAGER, CUSTOM_ROLE..."
+                style="
+                  font-family: &quot;IBM Plex Mono&quot;, monospace;
+                  text-transform: uppercase;
+                "
+              />
+              <div class="form-hint">
+                ใช้ตัวพิมพ์ใหญ่ ไม่มีช่องว่าง เช่น WAREHOUSE
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label"
+                >ชื่อ Role <span class="req">*</span></label
+              >
+              <input
+                class="form-control"
+                id="rLabel"
+                placeholder="เช่น 👑 Admin"
+              />
+            </div>
+            <div class="form-group">
+              <label class="form-label">สี Badge</label>
+              <select class="form-control" id="rColor">
+                <option value="role-ADMIN">🟡 Admin (เหลือง)</option>
+                <option value="role-MANAGER">🔵 Manager (น้ำเงิน)</option>
+                <option value="role-WAREHOUSE">🟢 Warehouse (เขียว)</option>
+                <option value="role-SALES">🟩 Sales (เขียวอ่อน)</option>
+                <option value="role-VIEWER">⚪ Viewer (เทา)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">คำอธิบาย</label>
+              <input
+                class="form-control"
+                id="rDesc"
+                placeholder="อธิบายหน้าที่ของ Role นี้"
+              />
+            </div>
+
+            <div class="form-section" style="grid-column: span 2">
+              🛡️ สิทธิ์การใช้งาน
+            </div>
+
+            <div
+              class="role-perm-edit-grid"
+              id="rPermGrid"
+              style="grid-column: span 2"
+            >
+              <!-- render by JS -->
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button
+            class="btn btn-outline"
+            id="rBtnDelete"
+            style="margin-right: auto; display: none"
+            onclick="window.deleteRole()"
+          >
+            🗑 ลบ Role นี้
+          </button>
+          <button class="btn btn-outline" onclick="window.closeRoleModal()">
+            ยกเลิก
+          </button>
+          <button class="btn btn-primary" onclick="window.saveRole()">
+            💾 บันทึก
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Registry ต้องโหลดก่อน role.js เสมอ -->
+    <script src="../../js/shared/modules-registry.js"></script>
+    <script src="./role.js"></script>
+    <script src="../../js/core/auth.js"></script>
+    <script src="../../js/components/modal/deleteModal.js"></script>
+    <script src="../../js/components/modal/modalManager.js"></script>
+    <script type="module">
+      import { loadTopbar } from "../../js/components/navigation/topbar.js";
+      loadTopbar("🔐 Role & สิทธิ์");
+    </script>
+    <script src="../../js/components/navigation/sidebar.js"></script>
+  </body>
+</html>

@@ -1,0 +1,341 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Events - Booking Room</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="events-bookingRoom.css" />
+    <style>
+      /* ── Mobile panel switching ── */
+      @media (max-width: 767px) {
+        #colRoom, #colTimeline, #colRight {
+          display: none;
+          position: absolute;
+          inset: 0;
+          top: 56px;
+          bottom: 56px; /* space for bottom nav */
+          overflow: hidden;
+        }
+        #colRoom.mob-active,
+        #colTimeline.mob-active,
+        #colRight.mob-active {
+          display: flex;
+          flex-direction: column;
+        }
+        #mobileNav { display: flex; }
+        #threeCol { position: relative; overflow: hidden; }
+      }
+      @media (min-width: 768px) {
+        #colRoom, #colTimeline, #colRight { display: flex !important; }
+        #mobileNav { display: none !important; }
+        #threeCol { position: static; }
+      }
+      /* bottom nav */
+      #mobileNav {
+        position: fixed;
+        bottom: 0; left: 0; right: 0;
+        height: 56px;
+        background: #fff;
+        border-top: 1px solid #e2e8f0;
+        z-index: 100;
+        align-items: center;
+        justify-content: space-around;
+      }
+      .mob-tab {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 2px;
+        font-size: 9px;
+        font-weight: 700;
+        color: #94a3b8;
+        padding: 6px 0;
+        cursor: pointer;
+        transition: color .15s;
+      }
+      .mob-tab .mob-icon { font-size: 18px; line-height: 1; }
+      .mob-tab.active { color: #4f46e5; }
+      .mob-tab .mob-badge {
+        position: absolute;
+        top: 4px; right: calc(50% - 18px);
+        background: #f97316;
+        color: #fff;
+        font-size: 8px;
+        font-weight: 800;
+        min-width: 14px;
+        height: 14px;
+        border-radius: 99px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0 3px;
+      }
+    </style>
+  </head>
+  <body class="text-slate-800 flex flex-col h-screen overflow-hidden">
+
+    <!-- TOPBAR -->
+    <div id="calTopbarContainer"></div>
+    <script src="./topbar-calendar.js"></script>
+    <script>
+      CalTopbar.init({
+        container: "calTopbarContainer",
+        pageName: "จองห้องประชุม",
+        logoPath: "../../assets/logo/logo-a4s.png",
+      });
+    </script>
+
+    <!-- 3-column layout -->
+    <div id="threeCol" class="flex flex-1 overflow-hidden" style="padding-top: 56px;">
+
+      <!-- COL 1: Room List -->
+      <aside id="colRoom" class="w-full md:w-72 bg-white border-r border-slate-200 flex flex-col flex-shrink-0">
+        <div class="p-5 border-b border-slate-100">
+          <h2 class="text-base font-bold text-slate-900">เลือกห้องประชุม</h2>
+          <p class="text-[10px] text-slate-400 mt-0.5 uppercase font-bold tracking-widest">เลือกห้องที่คุณต้องการ</p>
+        </div>
+
+        <div class="px-3 pt-3">
+          <input
+            id="searchRoom"
+            type="text"
+            placeholder="ค้นหาห้อง..."
+            class="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
+          />
+        </div>
+
+        <div class="flex-1 overflow-y-auto p-3 space-y-2 booking-list" id="roomList">
+          <!-- rendered by JS -->
+        </div>
+      </aside>
+
+      <!-- COL 2: Timeline -->
+      <main id="colTimeline" class="flex-1 flex flex-col bg-white border-r border-slate-200 overflow-hidden min-w-0">
+        <!-- Header -->
+        <header class="px-4 md:px-6 py-4 border-b border-slate-100 flex justify-between items-center flex-shrink-0">
+          <div class="min-w-0 mr-3">
+            <h1 class="text-lg md:text-xl font-black text-slate-900 tracking-tight truncate" id="selectedRoomName">เลือกห้อง</h1>
+            <p class="text-xs text-slate-400 truncate" id="selectedRoomDetail">สถานะการจองประจำสัปดาห์นี้</p>
+          </div>
+          <button
+            id="btnBook"
+            class="px-3 md:px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-bold shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition flex-shrink-0"
+          >
+            จองห้องนี้
+          </button>
+        </header>
+
+        <!-- Timeline -->
+        <div class="flex-1 overflow-y-auto p-4 md:p-6">
+          <div class="space-y-8" id="timeline">
+            <!-- rendered by JS -->
+          </div>
+        </div>
+      </main>
+
+      <!-- COL 3: Right panel -->
+      <aside id="colRight" class="w-full md:w-72 flex-shrink-0 flex flex-col bg-slate-50 overflow-hidden">
+
+        <!-- Mini Calendar -->
+        <div class="flex-1 border-b border-slate-200 flex flex-col overflow-hidden">
+          <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+            <span class="text-xs font-black text-slate-500 uppercase tracking-widest">ปฏิทิน</span>
+            <div class="flex gap-1">
+              <button id="calPrev" class="w-6 h-6 rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 text-xs flex items-center justify-center">‹</button>
+              <button id="calNext" class="w-6 h-6 rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 text-xs flex items-center justify-center">›</button>
+            </div>
+          </div>
+          <div class="flex-1 overflow-auto p-3">
+            <div id="miniCalendar"></div>
+          </div>
+        </div>
+
+        <!-- Request List -->
+        <div class="flex-1 flex flex-col overflow-hidden">
+          <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+            <span class="text-xs font-black text-slate-500 uppercase tracking-widest">Request List</span>
+            <span id="requestCount" class="text-[10px] bg-indigo-100 text-indigo-600 font-bold px-2 py-0.5 rounded-full">0</span>
+          </div>
+          <!-- Status filter tabs -->
+          <div class="flex gap-1 px-3 py-2 border-b border-slate-100 flex-shrink-0 flex-wrap" id="requestFilterTabs">
+            <button data-filter="ALL"      class="req-filter-btn text-[10px] font-bold px-2.5 py-1 rounded-lg">ทั้งหมด</button>
+            <button data-filter="PENDING"  class="req-filter-btn text-[10px] font-bold px-2.5 py-1 rounded-lg">รอ</button>
+            <button data-filter="APPROVED" class="req-filter-btn text-[10px] font-bold px-2.5 py-1 rounded-lg">อนุมัติ</button>
+            <button data-filter="REJECTED" class="req-filter-btn text-[10px] font-bold px-2.5 py-1 rounded-lg">ปฏิเสธ</button>
+          </div>
+          <div class="flex-1 overflow-y-auto p-3 space-y-2" id="requestList">
+            <!-- rendered by JS -->
+          </div>
+        </div>
+
+      </aside>
+    </div><!-- end 3-col -->
+
+    <!-- Mobile Bottom Navigation -->
+    <nav id="mobileNav">
+      <button class="mob-tab active" data-panel="colRoom" style="position:relative">
+        <span class="mob-icon">🏢</span>
+        <span>ห้อง</span>
+      </button>
+      <button class="mob-tab" data-panel="colTimeline" style="position:relative">
+        <span class="mob-icon">📅</span>
+        <span>กำหนดการ</span>
+      </button>
+      <button class="mob-tab" data-panel="colRight" style="position:relative">
+        <span class="mob-icon">📋</span>
+        <span id="mobReqLabel">Request</span>
+        <span id="mobReqBadge" class="mob-badge" style="display:none">0</span>
+      </button>
+    </nav>
+
+    <!-- Booking Modal -->
+    <div id="bookingModal" class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6 md:p-8 relative max-h-[90vh] overflow-y-auto">
+        <button id="closeModal" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 text-xl font-bold">&times;</button>
+        <h2 class="text-lg font-black text-slate-900 mb-1">จองห้องประชุม</h2>
+        <p class="text-sm text-slate-400 mb-6" id="modalRoomName">-</p>
+        <div class="space-y-4">
+
+          <!-- ชื่อผู้จอง + ชื่อ CS -->
+          <div class="flex flex-col sm:flex-row gap-3">
+            <div class="flex-1 relative">
+              <label class="text-xs font-bold text-slate-500 uppercase tracking-widest">ชื่อผู้จอง</label>
+              <input id="inputBookerName" type="text" placeholder="พิมพ์หรือเลือกชื่อ..."
+                autocomplete="off"
+                class="mt-1 w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300" />
+              <div id="bookerDropdownPanel" class="hidden absolute z-20 left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden" style="max-height:180px;overflow-y:auto"></div>
+            </div>
+            <div class="flex-1 relative">
+              <label class="text-xs font-bold text-slate-500 uppercase tracking-widest">ชื่อ CS</label>
+              <input id="inputCsName" type="text" placeholder="พิมพ์หรือเลือกชื่อ..."
+                autocomplete="off"
+                class="mt-1 w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300" />
+              <div id="csDropdownPanel" class="hidden absolute z-20 left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden" style="max-height:180px;overflow-y:auto"></div>
+            </div>
+          </div>
+
+          <!-- วันที่ -->
+          <div>
+            <label class="text-xs font-bold text-slate-500 uppercase tracking-widest">วันที่</label>
+            <input id="inputDate" type="date" class="mt-1 w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300" />
+          </div>
+
+          <!-- เวลา -->
+          <div class="flex gap-4">
+            <div class="flex-1">
+              <label class="text-xs font-bold text-slate-500 uppercase tracking-widest">เวลาเริ่ม</label>
+              <input type="hidden" id="inputStart" />
+              <div id="startTimeGrid" class="mt-1 grid grid-cols-2 gap-1 max-h-44 overflow-y-auto pr-0.5"></div>
+            </div>
+            <div class="flex-1">
+              <label class="text-xs font-bold text-slate-500 uppercase tracking-widest">เวลาสิ้นสุด</label>
+              <input type="hidden" id="inputEnd" />
+              <div id="endTimeGrid" class="mt-1 grid grid-cols-2 gap-1 max-h-44 overflow-y-auto pr-0.5"></div>
+            </div>
+          </div>
+
+          <button id="btnConfirmBook" class="w-full py-3 bg-indigo-600 text-white rounded-xl font-bold text-sm hover:bg-indigo-700 transition">
+            ยืนยันการจอง
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Request Detail Modal -->
+    <div id="requestDetailModal" class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-2 md:p-4">
+      <div class="bg-white rounded-2xl shadow-2xl w-full max-w-3xl relative flex flex-col" style="max-height: 92vh;">
+
+        <!-- Modal Header -->
+        <div class="flex items-center justify-between px-4 md:px-6 py-4 border-b border-slate-100 flex-shrink-0">
+          <div>
+            <h2 class="text-base font-black text-slate-900">รายละเอียดคำขอจองห้อง</h2>
+            <p class="text-[10px] text-indigo-400 font-mono mt-0.5" id="detailModalCode">-</p>
+          </div>
+          <button id="closeDetailModal" class="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg text-xl font-bold transition">&times;</button>
+        </div>
+
+        <!-- Two Panels: stack on mobile, side-by-side on md+ -->
+        <div class="flex flex-col md:flex-row flex-1 overflow-hidden md:divide-x divide-slate-100">
+
+          <!-- Info -->
+          <div class="flex flex-col md:w-1/2 overflow-hidden border-b md:border-b-0 border-slate-100" style="min-height:0">
+            <div class="px-4 md:px-6 py-3 border-b border-slate-100 flex-shrink-0">
+              <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">ข้อมูล</span>
+            </div>
+            <div class="overflow-y-auto p-4 md:p-6" style="max-height:35vh; min-height: 120px;">
+              <div id="detailInfoPanel" class="space-y-4"></div>
+            </div>
+          </div>
+
+          <!-- Log -->
+          <div class="flex flex-col md:w-1/2 overflow-hidden flex-1" style="min-height:0">
+            <div class="px-4 md:px-6 py-3 border-b border-slate-100 flex-shrink-0">
+              <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Log การคุยงาน</span>
+            </div>
+            <div class="flex-1 overflow-y-auto p-4 space-y-2" id="detailLogPanel"></div>
+            <div class="flex gap-2 px-4 py-3 border-t border-slate-100 flex-shrink-0">
+              <input id="logInput" type="text" placeholder="เพิ่ม note..."
+                class="flex-1 px-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300" />
+              <button id="logSubmit" class="px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 transition">ส่ง</button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <script src="../../js/components/navigation/imgPopup.js"></script>
+    <script src="events-bookingRoom.js"></script>
+
+    <!-- Mobile tab switching -->
+    <script>
+      (function () {
+        const isMobile = () => window.innerWidth < 768;
+        const panels = ["colRoom", "colTimeline", "colRight"];
+
+        function activatePanel(panelId) {
+          if (!isMobile()) return;
+          panels.forEach((id) => {
+            const el = document.getElementById(id);
+            el.classList.toggle("mob-active", id === panelId);
+          });
+          document.querySelectorAll(".mob-tab").forEach((btn) => {
+            btn.classList.toggle("active", btn.dataset.panel === panelId);
+          });
+        }
+
+        // Init: show room panel first on mobile
+        function initMobile() {
+          if (isMobile()) activatePanel("colRoom");
+        }
+
+        document.querySelectorAll(".mob-tab").forEach((btn) => {
+          btn.addEventListener("click", () => activatePanel(btn.dataset.panel));
+        });
+
+        // After selecting a room, auto-switch to timeline on mobile
+        window._onRoomSelected = function () {
+          if (isMobile()) activatePanel("colTimeline");
+        };
+
+        window.addEventListener("resize", () => {
+          if (!isMobile()) {
+            panels.forEach((id) => document.getElementById(id).classList.remove("mob-active"));
+          } else {
+            const anyActive = panels.some((id) => document.getElementById(id).classList.contains("mob-active"));
+            if (!anyActive) activatePanel("colRoom");
+          }
+        });
+
+        initMobile();
+      })();
+    </script>
+  </body>
+</html>

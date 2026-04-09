@@ -1,0 +1,894 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ความเคลื่อนไหว Stock — A4S-ERP</title>
+    <link rel="stylesheet" href="../../assets/css/main.css" />
+    <style>
+      :root {
+        --in-color: #057a55;
+        --in-pale: #def7ec;
+        --out-color: #9b1c1c;
+        --out-pale: #fde8e8;
+        --adj-color: #92400e;
+        --adj-pale: #fef3c7;
+        --req-color: #5521b5;
+        --req-pale: #ede9fe;
+        --ret-color: #0369a1;
+        --ret-pale: #e0f2fe;
+      }
+      .stats-row {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 12px;
+        margin-bottom: 20px;
+      }
+      .stat-card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 14px 18px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        box-shadow: var(--shadow);
+      }
+      .stat-icon {
+        width: 38px;
+        height: 38px;
+        border-radius: 9px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 17px;
+        flex-shrink: 0;
+      }
+      .stat-label {
+        font-size: 10px;
+        color: var(--text3);
+        font-weight: 700;
+        letter-spacing: 0.5px;
+      }
+      .stat-value {
+        font-size: 20px;
+        font-weight: 700;
+        font-family: "IBM Plex Mono", monospace;
+        margin-top: 2px;
+      }
+      .filter-card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 16px 20px;
+        margin-bottom: 20px;
+        box-shadow: var(--shadow);
+      }
+      .filter-row {
+        display: flex;
+        gap: 12px;
+        align-items: flex-end;
+        flex-wrap: wrap;
+      }
+      .filter-group {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+      }
+      .filter-label {
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--text2);
+        letter-spacing: 0.3px;
+      }
+      .filter-control {
+        padding: 8px 12px;
+        border: 1.5px solid var(--border);
+        border-radius: 7px;
+        font-size: 13px;
+        font-family: "Sarabun", sans-serif;
+        color: var(--text);
+        background: var(--surface);
+        outline: none;
+        transition: all 0.18s;
+        appearance: none;
+      }
+      .filter-control:focus {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px rgba(15, 76, 117, 0.08);
+      }
+      select.filter-control {
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%239ca3af' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 10px center;
+        padding-right: 30px;
+        cursor: pointer;
+      }
+      .filter-search {
+        position: relative;
+      }
+      .filter-search-icon {
+        position: absolute;
+        left: 10px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--text3);
+        font-size: 13px;
+        pointer-events: none;
+      }
+      .filter-search .filter-control {
+        padding-left: 32px;
+        min-width: 200px;
+      }
+      .filter-actions {
+        display: flex;
+        gap: 8px;
+        margin-left: auto;
+        align-items: flex-end;
+      }
+      .type-pills {
+        display: flex;
+        gap: 8px;
+        margin-top: 12px;
+        flex-wrap: wrap;
+      }
+      .type-pill {
+        padding: 5px 14px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        border: 1.5px solid var(--border);
+        background: var(--surface);
+        color: var(--text3);
+        transition: all 0.18s;
+        user-select: none;
+      }
+      .type-pill:hover {
+        border-color: var(--accent);
+        color: var(--accent);
+      }
+      .type-pill.active-all {
+        background: var(--accent);
+        color: #fff;
+        border-color: var(--accent);
+      }
+      .type-pill.active-IN {
+        background: var(--in-color);
+        color: #fff;
+        border-color: var(--in-color);
+      }
+      .type-pill.active-OUT {
+        background: var(--out-color);
+        color: #fff;
+        border-color: var(--out-color);
+      }
+      .type-pill.active-INTERNAL {
+        background: var(--req-color);
+        color: #fff;
+        border-color: var(--req-color);
+      }
+      .type-pill.active-ADJUST {
+        background: var(--adj-color);
+        color: #fff;
+        border-color: var(--adj-color);
+      }
+      .type-pill.active-RETURN {
+        background: var(--ret-color);
+        color: #fff;
+        border-color: var(--ret-color);
+      }
+
+      /* TIMELINE */
+      .timeline-wrap {
+        display: flex;
+        flex-direction: column;
+        gap: 0;
+      }
+      .date-group {
+        margin-bottom: 24px;
+      }
+      .date-label {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 12px;
+      }
+      .date-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: var(--accent);
+        flex-shrink: 0;
+      }
+      .date-text {
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--text2);
+      }
+      .tl-item {
+        display: flex;
+        gap: 12px;
+        margin-bottom: 10px;
+      }
+      .tl-line-wrap {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        width: 36px;
+        flex-shrink: 0;
+      }
+      .tl-dot {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 15px;
+        flex-shrink: 0;
+      }
+      .dot-IN {
+        background: var(--in-pale);
+        color: var(--in-color);
+      }
+      .dot-OUT {
+        background: var(--out-pale);
+        color: var(--out-color);
+      }
+      .dot-ADJUST {
+        background: var(--adj-pale);
+        color: var(--adj-color);
+      }
+      .dot-INTERNAL {
+        background: var(--req-pale);
+        color: var(--req-color);
+      }
+      .dot-RETURN {
+        background: var(--ret-pale);
+        color: var(--ret-color);
+      }
+      .tl-card {
+        flex: 1;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 12px 16px;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 12px;
+        box-shadow: var(--shadow);
+        border-left-width: 3px;
+      }
+      .border-IN {
+        border-left-color: var(--in-color);
+      }
+      .border-OUT {
+        border-left-color: var(--out-color);
+      }
+      .border-ADJUST {
+        border-left-color: var(--adj-color);
+      }
+      .border-INTERNAL {
+        border-left-color: var(--req-color);
+      }
+      .border-RETURN {
+        border-left-color: var(--ret-color);
+      }
+      .tl-main {
+        flex: 1;
+      }
+      .tl-type-badge {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+        margin-bottom: 4px;
+      }
+      .badge-IN {
+        background: var(--in-pale);
+        color: var(--in-color);
+      }
+      .badge-OUT {
+        background: var(--out-pale);
+        color: var(--out-color);
+      }
+      .badge-ADJUST {
+        background: var(--adj-pale);
+        color: var(--adj-color);
+      }
+      .badge-INTERNAL {
+        background: var(--req-pale);
+        color: var(--req-color);
+      }
+      .badge-RETURN {
+        background: var(--ret-pale);
+        color: var(--ret-color);
+      }
+      .tl-product {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--text);
+        margin-bottom: 3px;
+      }
+      .tl-meta {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        font-size: 11px;
+        color: var(--text3);
+      }
+      .tl-ref {
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 11px;
+      }
+      .tl-right {
+        text-align: right;
+        flex-shrink: 0;
+      }
+      .tl-qty {
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 16px;
+        font-weight: 700;
+      }
+      .qty-in {
+        color: var(--in-color);
+      }
+      .qty-out {
+        color: var(--out-color);
+      }
+      .qty-adj {
+        color: var(--adj-color);
+      }
+      .tl-balance {
+        font-size: 11px;
+        color: var(--text3);
+        margin-top: 2px;
+        font-family: "IBM Plex Mono", monospace;
+      }
+      .tl-time {
+        font-size: 11px;
+        color: var(--text3);
+        margin-top: 4px;
+      }
+      .load-more-wrap {
+        text-align: center;
+        margin: 16px 0 32px;
+      }
+
+      /* MODAL */
+      .modal-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 300;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.2s;
+        backdrop-filter: blur(4px);
+      }
+      .modal-overlay.open {
+        opacity: 1;
+        pointer-events: all;
+      }
+      .modal {
+        background: var(--surface);
+        border-radius: 14px;
+        width: 500px;
+        max-width: 95vw;
+        max-height: 90vh;
+        overflow-y: auto;
+        box-shadow: 0 24px 60px rgba(0, 0, 0, 0.2);
+        transform: scale(0.96);
+        transition: transform 0.2s;
+      }
+      .modal-overlay.open .modal {
+        transform: scale(1);
+      }
+      .modal-header {
+        padding: 18px 24px 14px;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background: var(--surface2);
+      }
+      .modal-title {
+        font-size: 16px;
+        font-weight: 700;
+      }
+      .btn-modal-close {
+        width: 30px;
+        height: 30px;
+        border-radius: 6px;
+        border: none;
+        background: var(--bg);
+        color: var(--text3);
+        cursor: pointer;
+        font-size: 18px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.15s;
+      }
+      .btn-modal-close:hover {
+        background: var(--danger-pale);
+        color: var(--danger);
+      }
+      .modal-body {
+        padding: 20px 24px;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+      .modal-footer {
+        padding: 14px 24px;
+        border-top: 1px solid var(--border);
+        display: flex;
+        gap: 10px;
+        justify-content: flex-end;
+        background: var(--surface2);
+      }
+      .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+      }
+      .form-label {
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--text2);
+        letter-spacing: 0.5px;
+      }
+      .form-label .req {
+        color: var(--danger);
+      }
+      .form-control {
+        padding: 9px 12px;
+        border: 1.5px solid var(--border);
+        border-radius: 7px;
+        font-size: 13.5px;
+        font-family: "Sarabun", sans-serif;
+        color: var(--text);
+        background: var(--surface);
+        outline: none;
+        appearance: none;
+        transition: all 0.18s;
+      }
+      .form-control:focus {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px rgba(15, 76, 117, 0.08);
+      }
+      select.form-control {
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%239ca3af' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 10px center;
+        padding-right: 30px;
+        cursor: pointer;
+      }
+      .type-btn-group {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .type-btn {
+        padding: 7px 14px;
+        border-radius: 7px;
+        border: 1.5px solid var(--border);
+        background: var(--surface);
+        font-size: 13px;
+        font-family: "Sarabun", sans-serif;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.18s;
+        color: var(--text3);
+      }
+      .type-btn:hover {
+        border-color: var(--accent);
+        color: var(--accent);
+      }
+      .type-btn.sel-IN {
+        background: var(--in-color);
+        color: #fff;
+        border-color: var(--in-color);
+      }
+      .type-btn.sel-OUT {
+        background: var(--out-color);
+        color: #fff;
+        border-color: var(--out-color);
+      }
+      .type-btn.sel-ADJUST {
+        background: var(--adj-color);
+        color: #fff;
+        border-color: var(--adj-color);
+      }
+      .type-btn.sel-INTERNAL {
+        background: var(--req-color);
+        color: #fff;
+        border-color: var(--req-color);
+      }
+      .type-btn.sel-RETURN {
+        background: var(--ret-color);
+        color: #fff;
+        border-color: var(--ret-color);
+      }
+      .qty-hint {
+        font-size: 11px;
+        color: var(--text3);
+        margin-top: 3px;
+        font-family: "IBM Plex Mono", monospace;
+      }
+      .empty-state {
+        padding: 60px 20px;
+        text-align: center;
+        color: var(--text3);
+      }
+      .empty-icon {
+        font-size: 40px;
+        margin-bottom: 12px;
+      }
+      .empty-text {
+        font-size: 14px;
+      }
+      @media (max-width: 768px) {
+        .stats-row {
+          grid-template-columns: repeat(3, 1fr);
+        }
+        .filter-row {
+          flex-direction: column;
+        }
+        .filter-actions {
+          margin-left: 0;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="loading-overlay" id="loadingOverlay">
+      <div class="spinner"></div>
+    </div>
+    <div class="toast" id="toast"></div>
+
+    <div class="topbar">
+      <div class="topbar-logo">📦 <span>A4S</span>-ERP</div>
+      <div class="topbar-sep"></div>
+      <div class="topbar-title">ความเคลื่อนไหว Stock</div>
+      <div class="topbar-actions">
+        <button class="btn-topbar btn-primary-top" onclick="openModal()">
+          ＋ บันทึกรายการ
+        </button>
+      </div>
+    </div>
+    <div id="sidebar-container"></div>
+
+    <!-- MODAL -->
+    <div
+      class="modal-overlay"
+      id="modalOverlay"
+      onclick="closeModalOnBg(event)"
+    >
+      <div class="modal">
+        <div class="modal-header">
+          <div class="modal-title">บันทึกรายการ Stock</div>
+          <button class="btn-modal-close" onclick="closeModal()">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label"
+              >ประเภทรายการ <span class="req">*</span></label
+            >
+            <div class="type-btn-group">
+              <button
+                class="type-btn"
+                data-type="IN"
+                onclick="setType('IN', this)"
+              >
+                📥 รับเข้า
+              </button>
+              <button
+                class="type-btn"
+                data-type="OUT"
+                onclick="setType('OUT', this)"
+              >
+                📤 จ่ายออก
+              </button>
+              <button
+                class="type-btn"
+                data-type="ADJUST"
+                onclick="setType('ADJUST', this)"
+              >
+                ⚖️ ปรับยอด
+              </button>
+              <button
+                class="type-btn"
+                data-type="INTERNAL"
+                onclick="setType('INTERNAL', this)"
+              >
+                📋 เบิกภายใน
+              </button>
+              <button
+                class="type-btn"
+                data-type="RETURN"
+                onclick="setType('RETURN', this)"
+              >
+                ↩ คืน
+              </button>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">สินค้า <span class="req">*</span></label>
+            <select
+              class="form-control"
+              id="fProduct"
+              onchange="onProductChange()"
+            >
+              <option value="">— เลือกสินค้า —</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">คลัง <span class="req">*</span></label>
+            <select
+              class="form-control"
+              id="fWarehouse"
+              onchange="onWarehouseChange()"
+            >
+              <option value="">— เลือกคลัง —</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">จำนวน <span class="req">*</span></label>
+            <input
+              type="number"
+              class="form-control"
+              id="fQty"
+              placeholder="0"
+              min="0"
+              step="1"
+            />
+            <div class="qty-hint" id="qtyHint"></div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">วันที่-เวลา</label>
+            <input type="datetime-local" class="form-control" id="fMovedAt" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">ประเภทเอกสารอ้างอิง</label>
+            <select class="form-control" id="fRefType">
+              <option value="">ไม่มี</option>
+              <option value="PO">PO — Purchase Order</option>
+              <option value="SO">SO — Sales Order</option>
+              <option value="REQ">REQ — Requisition</option>
+              <option value="ADJ">ADJ — Adjustment</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">เลขที่เอกสาร</label>
+            <input
+              type="text"
+              class="form-control"
+              id="fRefId"
+              placeholder="เช่น PO-2024-001"
+            />
+          </div>
+          <div class="form-group">
+            <label class="form-label">หมายเหตุ</label>
+            <textarea
+              class="form-control"
+              id="fNote"
+              rows="2"
+              placeholder="หมายเหตุเพิ่มเติม"
+              style="resize: vertical"
+            ></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-outline" onclick="closeModal()">ยกเลิก</button>
+          <button class="btn btn-primary" onclick="saveMovement()">
+            💾 บันทึก
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="page">
+      <div class="stats-row">
+        <div class="stat-card">
+          <div class="stat-icon" style="background: #e0f2fe; color: #0369a1">
+            📋
+          </div>
+          <div>
+            <div class="stat-label">รายการทั้งหมด</div>
+            <div class="stat-value" id="statTotal">—</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div
+            class="stat-icon"
+            style="background: var(--in-pale); color: var(--in-color)"
+          >
+            📥
+          </div>
+          <div>
+            <div class="stat-label">รับเข้า</div>
+            <div class="stat-value" id="statIn" style="color: var(--in-color)">
+              —
+            </div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div
+            class="stat-icon"
+            style="background: var(--out-pale); color: var(--out-color)"
+          >
+            📤
+          </div>
+          <div>
+            <div class="stat-label">จ่ายออก</div>
+            <div
+              class="stat-value"
+              id="statOut"
+              style="color: var(--out-color)"
+            >
+              —
+            </div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div
+            class="stat-icon"
+            style="background: var(--req-pale); color: var(--req-color)"
+          >
+            📋
+          </div>
+          <div>
+            <div class="stat-label">เบิก</div>
+            <div
+              class="stat-value"
+              id="statReq"
+              style="color: var(--req-color)"
+            >
+              —
+            </div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div
+            class="stat-icon"
+            style="background: var(--adj-pale); color: var(--adj-color)"
+          >
+            ⚖️
+          </div>
+          <div>
+            <div class="stat-label">ปรับยอด</div>
+            <div
+              class="stat-value"
+              id="statAdj"
+              style="color: var(--adj-color)"
+            >
+              —
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="filter-card">
+        <div class="filter-row">
+          <div class="filter-group filter-search">
+            <label class="filter-label">ค้นหา</label>
+            <span class="filter-search-icon">🔍</span>
+            <input
+              class="filter-control"
+              id="searchInput"
+              placeholder="ชื่อสินค้า, เลขที่เอกสาร..."
+              oninput="applyFilters()"
+            />
+          </div>
+          <div class="filter-group">
+            <label class="filter-label">สินค้า</label>
+            <select
+              class="filter-control"
+              id="filterProduct"
+              onchange="applyFilters()"
+              style="min-width: 160px"
+            >
+              <option value="">ทุกสินค้า</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <label class="filter-label">คลัง</label>
+            <select
+              class="filter-control"
+              id="filterWarehouse"
+              onchange="applyFilters()"
+            >
+              <option value="">ทุกคลัง</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <label class="filter-label">จากวันที่</label>
+            <input
+              type="date"
+              class="filter-control"
+              id="filterDateFrom"
+              onchange="applyFilters()"
+            />
+          </div>
+          <div class="filter-group">
+            <label class="filter-label">ถึงวันที่</label>
+            <input
+              type="date"
+              class="filter-control"
+              id="filterDateTo"
+              onchange="applyFilters()"
+            />
+          </div>
+          <div class="filter-actions">
+            <button class="btn btn-outline" onclick="resetFilters()">
+              ↺ รีเซ็ต
+            </button>
+            <button class="btn btn-primary" onclick="loadMovements()">
+              🔄 โหลดใหม่
+            </button>
+            <button class="btn btn-outline" onclick="exportCSV()">⬇ CSV</button>
+          </div>
+        </div>
+        <div class="type-pills">
+          <span
+            class="type-pill active-all"
+            data-type="ALL"
+            onclick="setTypeFilter('ALL', this)"
+            >📋 ทั้งหมด</span
+          >
+          <span
+            class="type-pill"
+            data-type="IN"
+            onclick="setTypeFilter('IN', this)"
+            >📥 รับเข้า</span
+          >
+          <span
+            class="type-pill"
+            data-type="OUT"
+            onclick="setTypeFilter('OUT', this)"
+            >📤 จ่ายออก</span
+          >
+          <span
+            class="type-pill"
+            data-type="INTERNAL"
+            onclick="setTypeFilter('INTERNAL', this)"
+            >📋 เบิก</span
+          >
+          <span
+            class="type-pill"
+            data-type="ADJUST"
+            onclick="setTypeFilter('ADJUST', this)"
+            >⚖️ ปรับ</span
+          >
+          <span
+            class="type-pill"
+            data-type="RETURN"
+            onclick="setTypeFilter('RETURN', this)"
+            >↩ คืน</span
+          >
+        </div>
+      </div>
+
+      <div id="timelineContainer"></div>
+      <div class="load-more-wrap" id="loadMoreWrap" style="display: none">
+        <button class="btn btn-outline" onclick="loadMore()">
+          โหลดเพิ่ม...
+        </button>
+      </div>
+    </div>
+
+    <script src="../../js/shared/auth.js"></script>
+    <script src="../../js/shared/responsive.js"></script>
+    <script src="../../js/shared/sidebar.js"></script>
+    <script src="movements.js"></script>
+  </body>
+</html>

@@ -1,0 +1,363 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>จัดการผู้ใช้งาน — A4S-ERP</title>
+    <link rel="stylesheet" href="../../css/main.css" />
+    <link rel="stylesheet" href="./users.css" />
+  </head>
+  <body>
+    <div class="loading-overlay" id="loadingOverlay">
+      <div class="spinner"></div>
+    </div>
+    <div class="toast" id="toast"></div>
+
+    <!-- TOPBAR -->
+
+    <div class="topbar">
+      <div class="topbar-logo">📦 <span>A4S</span>-ERP</div>
+      <div class="topbar-sep"></div>
+      <div class="topbar-title">จัดการผู้ใช้งาน</div>
+      <div class="topbar-actions">
+        <button class="btn-topbar btn-white" onclick="openModal()">
+          ＋ เพิ่มผู้ใช้
+        </button>
+      </div>
+    </div>
+
+    <!-- MODAL -->
+    <div class="modal-overlay" id="modalOverlay" onclick="closeModalBg(event)">
+      <div class="modal" style="width: 560px">
+        <div class="modal-hdr">
+          <div class="modal-title" id="modalTitle">เพิ่มผู้ใช้งานใหม่</div>
+          <button class="btn-modal-close" onclick="closeModal()">✕</button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="editId" />
+          <div class="form-grid">
+            <div class="form-group" style="grid-column: span 2">
+              <label class="form-label"
+                >ชื่อ-นามสกุล <span class="req">*</span></label
+              >
+              <input
+                class="form-control"
+                id="fFullName"
+                placeholder="ชื่อ นามสกุล"
+              />
+            </div>
+            <div class="form-group">
+              <label class="form-label"
+                >Username <span class="req">*</span></label
+              >
+              <input
+                class="form-control"
+                id="fUsername"
+                placeholder="username"
+                style="font-family: &quot;IBM Plex Mono&quot;, monospace"
+              />
+            </div>
+            <div class="form-group">
+              <label class="form-label">อีเมล</label>
+              <input
+                class="form-control"
+                id="fEmail"
+                type="email"
+                placeholder="user@company.com"
+              />
+            </div>
+            <div class="form-group">
+              <label class="form-label">เบอร์โทร</label>
+              <input
+                class="form-control"
+                id="fPhone"
+                placeholder="0x-xxxx-xxxx"
+              />
+            </div>
+            <div class="form-group">
+              <label class="form-label">สถานะ</label>
+              <select class="form-control" id="fStatus">
+                <option value="true">✅ ใช้งาน</option>
+                <option value="false">❌ ปิดใช้งาน</option>
+              </select>
+            </div>
+            <div class="form-section">🔐 สิทธิ์และ Role</div>
+            <div class="form-group full">
+              <label class="form-label">Role <span class="req">*</span></label>
+              <select class="form-control" id="fRole" onchange="onRoleChange()">
+                <option value="ADMIN">👑 Admin — สิทธิ์เต็ม</option>
+                <option value="MANAGER" selected>
+                  🏢 Manager — จัดการทั่วไป
+                </option>
+                <option value="WAREHOUSE">🏭 Warehouse — จัดการคลัง</option>
+                <option value="SALES">💰 Sales — ขายสินค้า</option>
+                <option value="VIEWER">👁 Viewer — ดูอย่างเดียว</option>
+              </select>
+            </div>
+            <div class="role-preview">
+              <div class="role-preview-title">สิทธิ์ที่ได้รับตาม Role</div>
+              <div class="role-preview-perms" id="rolePreview"></div>
+            </div>
+            <div class="form-section">⚙️ กำหนดสิทธิ์เพิ่มเติม (Custom)</div>
+            <div class="perm-toggle-grid" id="permToggles"></div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-outline" onclick="closeModal()">ยกเลิก</button>
+          <button class="btn btn-primary" onclick="saveUser()">
+            💾 บันทึก
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="page">
+      <!-- Stats (5 columns) -->
+      <div class="stats-row">
+        <div class="stat-card">
+          <div class="stat-icon" style="background: #e0f2fe; color: #0369a1">
+            👥
+          </div>
+          <div>
+            <div class="stat-label">ผู้ใช้ทั้งหมด</div>
+            <div class="stat-value" id="statTotal" style="color: var(--text)">
+              —
+            </div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div
+            class="stat-icon"
+            style="background: var(--warning-pale); color: var(--warning)"
+          >
+            👑
+          </div>
+          <div>
+            <div class="stat-label">Admin</div>
+            <div
+              class="stat-value"
+              id="statAdmin"
+              style="color: var(--warning)"
+            >
+              —
+            </div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div
+            class="stat-icon"
+            style="background: var(--accent-pale); color: var(--accent)"
+          >
+            🏢
+          </div>
+          <div>
+            <div class="stat-label">Manager</div>
+            <div
+              class="stat-value"
+              id="statManager"
+              style="color: var(--accent)"
+            >
+              —
+            </div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div
+            class="stat-icon"
+            style="background: var(--success-pale); color: var(--success)"
+          >
+            ✅
+          </div>
+          <div>
+            <div class="stat-label">ใช้งาน</div>
+            <div
+              class="stat-value"
+              id="statActive"
+              style="color: var(--success)"
+            >
+              —
+            </div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div
+            class="stat-icon"
+            style="background: var(--danger-pale); color: var(--danger)"
+          >
+            ❌
+          </div>
+          <div>
+            <div class="stat-label">ปิดใช้งาน</div>
+            <div
+              class="stat-value"
+              id="statInactive"
+              style="color: var(--danger)"
+            >
+              —
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Toolbar -->
+      <div class="toolbar">
+        <div class="search-wrap">
+          <span class="search-icon">🔍</span>
+          <input
+            class="search-input"
+            id="searchInput"
+            placeholder="ค้นหาชื่อ, username, อีเมล..."
+            oninput="filterTable()"
+          />
+        </div>
+        <select class="filter-select" id="filterRole" onchange="filterTable()">
+          <option value="">ทุก Role</option>
+          <option value="ADMIN">Admin</option>
+          <option value="MANAGER">Manager</option>
+          <option value="WAREHOUSE">Warehouse</option>
+          <option value="SALES">Sales</option>
+          <option value="VIEWER">Viewer</option>
+        </select>
+        <select
+          class="filter-select"
+          id="filterStatus"
+          onchange="filterTable()"
+        >
+          <option value="">ทุกสถานะ</option>
+          <option value="true">ใช้งาน</option>
+          <option value="false">ปิดใช้งาน</option>
+        </select>
+        <div class="toolbar-right">
+          <button class="btn btn-outline" onclick="loadData()">
+            🔄 รีเฟรช
+          </button>
+          <button class="btn btn-primary" onclick="openModal()">
+            ＋ เพิ่มผู้ใช้
+          </button>
+        </div>
+      </div>
+
+      <!-- Table + Panel -->
+      <div class="content-wrap">
+        <div class="table-card">
+          <div class="table-hdr">
+            <span class="table-title">รายชื่อผู้ใช้งาน</span>
+            <span class="table-count" id="tableCount">0 รายการ</span>
+          </div>
+          <div style="overflow-x: auto">
+            <table class="usr-table">
+              <thead>
+                <tr>
+                  <th onclick="sortBy('full_name')">ชื่อ-นามสกุล ↕</th>
+                  <th onclick="sortBy('username')">Username ↕</th>
+                  <th onclick="sortBy('role')">Role ↕</th>
+                  <th>อีเมล</th>
+                  <th>สถานะ</th>
+                </tr>
+              </thead>
+              <tbody id="tableBody">
+                <tr>
+                  <td colspan="5">
+                    <div class="empty-state">
+                      <div class="empty-icon">👥</div>
+                      <div>กำลังโหลด...</div>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Side Panel -->
+        <div class="side-panel" id="sidePanel">
+          <div class="panel-hdr">
+            <div
+              style="
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                flex: 1;
+                min-width: 0;
+              "
+            >
+              <div
+                class="avatar"
+                id="panelAvatar"
+                style="background: var(--accent)"
+              >
+                ?
+              </div>
+              <div>
+                <div class="panel-name" id="panelName">—</div>
+                <div class="panel-username" id="panelUsername">—</div>
+              </div>
+            </div>
+            <button class="btn-close" onclick="closePanel()">✕</button>
+          </div>
+          <div class="panel-body">
+            <div class="p-section">
+              <div class="p-section-title">📋 ข้อมูลทั่วไป</div>
+              <div class="info-grid">
+                <div class="info-item">
+                  <div class="info-lbl">Role</div>
+                  <div class="info-val" id="panelRole">—</div>
+                </div>
+                <div class="info-item">
+                  <div class="info-lbl">สถานะ</div>
+                  <div class="info-val" id="panelStatus">—</div>
+                </div>
+                <div class="info-item">
+                  <div class="info-lbl">อีเมล</div>
+                  <div
+                    class="info-val mono"
+                    id="panelEmail"
+                    style="font-size: 12px"
+                  >
+                    —
+                  </div>
+                </div>
+                <div class="info-item">
+                  <div class="info-lbl">โทรศัพท์</div>
+                  <div class="info-val mono" id="panelPhone">—</div>
+                </div>
+              </div>
+            </div>
+            <div class="p-section">
+              <div class="p-section-title">🔐 สิทธิ์การใช้งาน</div>
+              <div class="perm-grid" id="panelPerms"></div>
+            </div>
+          </div>
+          <div class="panel-actions">
+            <button class="btn btn-outline" onclick="editSelected()">
+              ✏️ แก้ไข
+            </button>
+            <button
+              class="btn-sm-danger"
+              onclick="deleteSelected()"
+              style="flex: 0.4"
+            >
+              🗑
+            </button>
+            <button class="btn btn-primary" onclick="openModal()">
+              ＋ เพิ่มใหม่
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="./users.js"></script>
+    <script src="../../js/core/auth.js"></script>
+    <script src="../../js/components/modal/deleteModal.js"></script>
+    <script src="../../js/components/modal/modalManager.js"></script>
+    <script src="../../js/components/modal/enterModal.js"></script>
+
+    <script type="module">
+      import { loadTopbar } from "../../js/components/navigation/topbar.js";
+      loadTopbar("👤 จัดการผู้ใช้งาน");
+    </script>
+    <script src="../../js/components/navigation/imgPopup.js"></script>
+    <script src="../../js/components/navigation/sidebar.js"></script>
+  </body>
+</html>

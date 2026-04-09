@@ -1,0 +1,890 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>คำขอจัดกิจกรรม — A4S-ERP</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../../css/main.css" />
+    <link rel="stylesheet" href="./event-requests.css" />
+  </head>
+  <body>
+    <div class="loading-overlay" id="loadingOverlay">
+      <div class="spinner"></div>
+    </div>
+    <div class="toast" id="toast"></div>
+
+    <div class="topbar"></div>
+    <div class="layout">
+      <div id="sidebar-container"></div>
+      <div class="content-area">
+        <div class="page">
+          <!-- STATS -->
+          <div class="stats-row">
+            <div class="stat-card">
+              <div class="stat-icon">📋</div>
+              <div>
+                <div class="stat-value" id="cardTotal">0</div>
+                <div class="stat-label">คำขอทั้งหมด</div>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon">⏳</div>
+              <div>
+                <div class="stat-value" id="cardPending">0</div>
+                <div class="stat-label">รอดำเนินการ</div>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon">✅</div>
+              <div>
+                <div class="stat-value" id="cardApproved">0</div>
+                <div class="stat-label">อนุมัติแล้ว</div>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon">❌</div>
+              <div>
+                <div class="stat-value" id="cardRejected">0</div>
+                <div class="stat-label">ปฏิเสธ</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- TABLE: Room Booking Requests -->
+          <div class="content-wrap">
+            <div class="table-card">
+              <!-- TOOLBAR -->
+              <div class="toolbar">
+                <div class="search-wrap">
+                  <span class="search-icon">🔍</span>
+                  <input class="search-input" id="rbkqSearch" placeholder="ค้นหารหัส, ห้อง, ผู้จอง..." oninput="filterRoomBookings()" />
+                </div>
+                <select class="filter-select" id="rbkqFilterStatus" onchange="filterRoomBookings()">
+                  <option value="">⚪ ทุกสถานะ</option>
+                  <option value="PENDING">⏳ รอดำเนินการ</option>
+                  <option value="APPROVED">✅ อนุมัติแล้ว</option>
+                  <option value="REJECTED">❌ ปฏิเสธ</option>
+                  <option value="CANCELLED">🚫 ยกเลิก</option>
+                </select>
+                <div class="toolbar-right">
+                  <button id="btnDeleteSelectedBkq" class="btn btn-danger-outline" style="display:none" onclick="deleteSelectedBkq()">🗑 ลบที่เลือก</button>
+                </div>
+              </div>
+
+              <div class="table-hdr">
+                <div class="ev-tabs">
+                  <button class="ev-tab" onclick="window.location.href='events-list.html'">
+                    🗓️ รายการกิจกรรม
+                  </button>
+                  <button class="ev-tab active">
+                    🚪 คำขอจองห้อง<span id="reqPendingBadge" class="tab-badge" style="display:none"></span>
+                  </button>
+                </div>
+                <div class="table-count" id="rbkqCount">กำลังโหลด...</div>
+              </div>
+              <div class="table-wrap">
+                <table class="data-table" style="table-layout:fixed;width:100%">
+                  <thead>
+                    <tr>
+                      <th style="width:40px;text-align:center">
+                        <input type="checkbox" id="chkAllBkq" onclick="toggleAllBkqCheckbox(this)" />
+                      </th>
+                      <th>ห้อง</th>
+                      <th class="col-center">ผู้จอง</th>
+                      <th class="col-center">CS</th>
+                      <th class="col-center">วันที่</th>
+                      <th class="col-center">เวลา</th>
+                      <th class="col-center">สถานะ</th>
+                      <th class="col-center">อนุมัติ</th>
+                      <th class="col-center">จัดการ</th>
+                    </tr>
+                  </thead>
+                  <tbody id="rbkqTableBody">
+                    <tr><td colspan="9"><div class="empty-state"><div class="empty-icon">🚪</div><div class="empty-text">กำลังโหลด...</div></div></td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+        </div>
+        <!-- /page -->
+      </div>
+      <!-- /content-area -->
+    </div>
+    <!-- /layout -->
+
+    <!-- ── SIDE PANEL ── -->
+    <div class="req-panel" id="reqPanel">
+      <div class="req-panel-header">
+        <div class="req-panel-title">📋 รายละเอียดคำขอ</div>
+        <button class="btn-icon" onclick="window.closeReqPanel()">✕</button>
+      </div>
+      <div class="req-panel-body" id="reqPanelBody">
+        <!-- filled by JS -->
+      </div>
+      <div class="req-panel-footer" id="reqPanelFooter">
+        <!-- filled by JS (approve/reject buttons) -->
+      </div>
+    </div>
+    <div
+      id="panelBackdrop"
+      style="display: none; position: fixed; inset: 0; z-index: 299"
+      onclick="window.closeReqPanel()"
+    ></div>
+
+    <!-- ── REQUEST MODAL ── -->
+    <div class="req-modal-overlay" id="reqModalOverlay">
+      <div class="req-modal">
+        <div class="req-modal-header">
+          <div style="font-weight: 700; font-size: 15px">
+            📋 ยื่นคำขอจัดกิจกรรม
+          </div>
+          <button class="btn-icon" onclick="window.closeRequestModal()">
+            ✕
+          </button>
+        </div>
+        <div class="req-modal-body">
+          <div class="req-form-grid">
+            <div class="form-group span2">
+              <label class="form-label"
+                >ชื่อกิจกรรม <span class="req-mark">*</span></label
+              >
+              <input
+                class="form-input"
+                id="fReqName"
+                placeholder="ชื่อกิจกรรมที่ต้องการจัด"
+              />
+            </div>
+            <div class="form-group">
+              <label class="form-label"
+                >ประเภท <span class="req-mark">*</span></label
+              >
+              <select class="form-input" id="fReqType">
+                <option value="">-- เลือกประเภท --</option>
+                <option value="BOOTH">🏪 ออกบูธ</option>
+                <option value="MEETING">👥 ประชุม</option>
+                <option value="ONLINE">💻 Online</option>
+                <option value="HYBRID">🔀 Hybrid</option>
+                <option value="CONFERENCE">🎤 Conference</option>
+                <option value="OTHER">📌 อื่นๆ</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">แผนก</label>
+              <select class="form-input" id="fReqDept">
+                <option value="">-- เลือกแผนก --</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label"
+                >วันที่ต้องการจัด <span class="req-mark">*</span></label
+              >
+              <input type="date" class="form-input" id="fReqDate" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">วันสิ้นสุด</label>
+              <input type="date" class="form-input" id="fReqEndDate" />
+            </div>
+            <div class="form-group span2">
+              <label class="form-label">สถานที่</label>
+              <input
+                class="form-input"
+                id="fReqLocation"
+                placeholder="สถานที่จัดกิจกรรม"
+              />
+            </div>
+            <div class="form-group">
+              <label class="form-label">จำนวนผู้เข้าร่วม (คน)</label>
+              <input
+                type="number"
+                class="form-input"
+                id="fReqAttendees"
+                min="0"
+                placeholder="0"
+              />
+            </div>
+            <div class="form-group">
+              <label class="form-label">แนบไฟล์</label>
+              <input
+                type="file"
+                class="form-input"
+                id="fReqFile"
+                accept=".pdf,.doc,.docx,.jpg,.png"
+              />
+            </div>
+            <div class="form-group span2">
+              <label class="form-label">รายละเอียด</label>
+              <textarea
+                class="form-input"
+                id="fReqDetail"
+                rows="3"
+                placeholder="รายละเอียดเพิ่มเติม..."
+              ></textarea>
+            </div>
+          </div>
+        </div>
+        <div class="req-modal-footer">
+          <button
+            class="btn btn-secondary"
+            onclick="window.closeRequestModal()"
+          >
+            ยกเลิก
+          </button>
+          <button class="btn btn-primary" onclick="window.submitRequest()">
+            📤 ส่งคำขอ
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── REJECT MODAL ── -->
+    <div class="reject-modal-overlay" id="rejectModalOverlay">
+      <div class="reject-modal">
+        <div style="font-weight: 700; font-size: 15px; margin-bottom: 14px">
+          ❌ เหตุผลที่ปฏิเสธ
+        </div>
+        <textarea
+          class="form-input"
+          id="fRejectReason"
+          rows="3"
+          placeholder="ระบุเหตุผล..."
+        ></textarea>
+        <div
+          style="
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
+            margin-top: 14px;
+          "
+        >
+          <button class="btn btn-secondary" onclick="window.closeRejectModal()">
+            ยกเลิก
+          </button>
+          <button class="btn btn-danger" onclick="window.confirmReject()">
+            ยืนยันปฏิเสธ
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Room Booking Requests Section -->
+    <style>
+      .room-bkq-section { margin-top: 24px; }
+      .room-bkq-section .table-hdr { display:flex; justify-content:space-between; align-items:center; padding:12px 16px; border-bottom:1px solid #e2e8f0; }
+      .room-bkq-section .table-title { font-weight:700; font-size:14px; color:#1e293b; }
+      .room-bkq-section .table-count { font-size:11px; color:#64748b; }
+      .room-bkq-badge { display:inline-block; font-size:10px; font-weight:700; padding:2px 8px; border-radius:999px; }
+      .room-bkq-badge.PENDING  { background:#fef9c3; color:#92400e; }
+      .room-bkq-badge.APPROVED { background:#dcfce7; color:#166534; }
+      .room-bkq-badge.REJECTED { background:#fee2e2; color:#991b1b; }
+      .room-bkq-badge.CANCELLED{ background:#f1f5f9; color:#64748b; }
+      /* Booking Detail Modal */
+      #bkqDetailOverlay {
+        display:none; position:fixed; inset:0; background:rgba(0,0,0,0.45);
+        backdrop-filter:blur(4px); z-index:500;
+        align-items:center; justify-content:center;
+      }
+      #bkqDetailOverlay.open { display:flex; }
+      #bkqDetailModal {
+        background:#fff; border-radius:18px; box-shadow:0 20px 60px rgba(0,0,0,0.18);
+        width:860px; max-width:95vw; max-height:88vh;
+        display:flex; flex-direction:column; overflow:hidden;
+      }
+      .bkq-modal-header {
+        display:flex; align-items:center; justify-content:space-between;
+        padding:18px 24px 14px; border-bottom:1px solid #f1f5f9; flex-shrink:0;
+      }
+      .bkq-modal-title { font-weight:800; font-size:15px; color:#1e293b; }
+      .bkq-modal-code  { font-family:monospace; font-size:11px; color:#6366f1; margin-top:2px; }
+      .bkq-modal-body  { display:flex; flex:1; overflow:hidden; }
+      /* Left: Edit Panel */
+      .bkq-edit-panel {
+        width:50%; border-right:1px solid #f1f5f9;
+        display:flex; flex-direction:column; overflow:hidden;
+      }
+      .bkq-panel-label {
+        padding:10px 20px; border-bottom:1px solid #f1f5f9;
+        font-size:10px; font-weight:800; color:#94a3b8;
+        text-transform:uppercase; letter-spacing:0.08em; flex-shrink:0;
+      }
+      .bkq-edit-scroll { flex:1; overflow-y:auto; padding:20px; }
+      .bkq-field { margin-bottom:14px; }
+      .bkq-field label {
+        display:block; font-size:10px; font-weight:700; color:#64748b;
+        text-transform:uppercase; letter-spacing:0.06em; margin-bottom:5px;
+      }
+      .bkq-field input, .bkq-field select {
+        width:100%; padding:9px 12px; border:1px solid #e2e8f0;
+        border-radius:10px; font-size:13px; color:#1e293b;
+        outline:none; transition:border-color .15s, box-shadow .15s;
+        box-sizing:border-box;
+      }
+      .bkq-field input:focus, .bkq-field select:focus {
+        border-color:#6366f1; box-shadow:0 0 0 3px rgba(99,102,241,.12);
+      }
+      .bkq-field-row { display:flex; gap:12px; }
+      .bkq-field-row .bkq-field { flex:1; }
+      .bkq-allday-row { display:flex; align-items:center; gap:8px; margin-bottom:14px; }
+      .bkq-allday-row input[type=checkbox] { width:15px; height:15px; cursor:pointer; accent-color:#6366f1; }
+      .bkq-allday-row label { font-size:12px; color:#475569; cursor:pointer; margin:0; }
+      .bkq-edit-footer {
+        padding:14px 20px; border-top:1px solid #f1f5f9; flex-shrink:0;
+        display:flex; gap:8px; justify-content:flex-end;
+      }
+      /* Right: Log Panel */
+      .bkq-log-panel {
+        width:50%; display:flex; flex-direction:column; overflow:hidden;
+      }
+      .bkq-log-list { flex:1; overflow-y:auto; padding:14px 16px; display:flex; flex-direction:column; gap:8px; }
+      .bkq-log-item {
+        background:#f8fafc; border:1px solid #f1f5f9; border-radius:12px;
+        padding:10px 12px;
+      }
+      .bkq-log-meta { display:flex; justify-content:space-between; margin-bottom:4px; }
+      .bkq-log-author { font-size:10px; font-weight:700; color:#6366f1; }
+      .bkq-log-time   { font-size:9px; color:#94a3b8; }
+      .bkq-log-msg    { font-size:12px; color:#334155; line-height:1.5; }
+      .bkq-log-input-row {
+        display:flex; gap:8px; padding:12px 16px;
+        border-top:1px solid #f1f5f9; flex-shrink:0;
+      }
+      .bkq-log-input-row input {
+        flex:1; padding:9px 12px; border:1px solid #e2e8f0;
+        border-radius:10px; font-size:13px; outline:none;
+        transition:border-color .15s, box-shadow .15s;
+      }
+      .bkq-log-input-row input:focus {
+        border-color:#6366f1; box-shadow:0 0 0 3px rgba(99,102,241,.12);
+      }
+      .bkq-empty { text-align:center; color:#94a3b8; font-size:12px; font-style:italic; padding:24px 0; }
+      /* row hover */
+      #rbkqTableBody tr { cursor:pointer; transition:background .12s; }
+      #rbkqTableBody tr:hover { background:#f5f3ff; }
+    </style>
+
+    <!-- Booking Detail Modal -->
+    <div id="bkqDetailOverlay">
+      <div id="bkqDetailModal">
+
+        <!-- Header -->
+        <div class="bkq-modal-header">
+          <div>
+            <div class="bkq-modal-title">🚪 รายละเอียดการจองห้องประชุม</div>
+            <div class="bkq-modal-code" id="bkqModalCode">—</div>
+          </div>
+          <button class="btn-icon" onclick="closeBkqDetail()">✕</button>
+        </div>
+
+        <!-- Body: 2 panels -->
+        <div class="bkq-modal-body">
+
+          <!-- LEFT: Edit Form -->
+          <div class="bkq-edit-panel">
+            <div class="bkq-panel-label">ข้อมูลการจอง</div>
+            <div class="bkq-edit-scroll">
+
+              <div class="bkq-field-row">
+                <div class="bkq-field">
+                  <label>ผู้จอง</label>
+                  <input type="text" id="bkqEditBooker" placeholder="ชื่อผู้จอง" />
+                </div>
+                <div class="bkq-field">
+                  <label>CS</label>
+                  <input type="text" id="bkqEditCS" placeholder="ชื่อ CS" />
+                </div>
+              </div>
+
+              <div class="bkq-field">
+                <label>ห้องประชุม</label>
+                <input type="text" id="bkqEditRoom" placeholder="ชื่อห้อง" />
+              </div>
+
+              <div class="bkq-field">
+                <label>วันที่</label>
+                <input type="date" id="bkqEditDate" />
+              </div>
+
+              <div class="bkq-allday-row">
+                <input type="checkbox" id="bkqAlldayCheck" onchange="toggleBkqAllday(this.checked)" />
+                <label for="bkqAlldayCheck">ตลอดทั้งวัน</label>
+              </div>
+
+              <div id="bkqTimeFields" class="bkq-field-row">
+                <div class="bkq-field">
+                  <label>เวลาเริ่ม</label>
+                  <input type="time" id="bkqEditStart" />
+                </div>
+                <div class="bkq-field">
+                  <label>เวลาสิ้นสุด</label>
+                  <input type="time" id="bkqEditEnd" />
+                </div>
+              </div>
+
+              <div class="bkq-field">
+                <label>สถานะ</label>
+                <select id="bkqEditStatus">
+                  <option value="PENDING">⏳ รอดำเนินการ</option>
+                  <option value="APPROVED">✅ อนุมัติแล้ว</option>
+                  <option value="REJECTED">❌ ปฏิเสธ</option>
+                  <option value="CANCELLED">🚫 ยกเลิก</option>
+                </select>
+              </div>
+
+            </div>
+            <div class="bkq-edit-footer">
+              <button class="btn btn-secondary" onclick="closeBkqDetail()">ปิด</button>
+              <button class="btn btn-primary" id="bkqSaveBtn" onclick="saveBkqDetail()">💾 บันทึก</button>
+            </div>
+          </div>
+
+          <!-- RIGHT: Log -->
+          <div class="bkq-log-panel">
+            <div class="bkq-panel-label">Log การคุยงาน</div>
+            <div class="bkq-log-list" id="bkqLogList">
+              <p class="bkq-empty">ยังไม่มี log</p>
+            </div>
+            <div class="bkq-log-input-row">
+              <input type="text" id="bkqLogInput" placeholder="เพิ่ม note..." onkeydown="if(event.key==='Enter') submitBkqLog()" />
+              <button class="btn btn-primary" id="bkqLogSendBtn" onclick="submitBkqLog()">ส่ง</button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="./event-requests.js"></script>
+    <script src="../../js/core/auth.js"></script>
+    <script src="../../js/components/modal/deleteModal.js"></script>
+    <script src="../../js/components/modal/modalManager.js"></script>
+    <script src="../../js/components/modal/enterModal.js"></script>
+    <script type="module">
+      import { loadTopbar } from "../../js/components/navigation/topbar.js";
+      loadTopbar("📋 คำขอจัดกิจกรรม");
+    </script>
+    <script src="../../js/components/navigation/sidebar.js"></script>
+
+    <script>
+    // ── Supabase helper ───────────────────────────────────────
+    function bkqSB() {
+      return { url: localStorage.getItem("sb_url")||"", key: localStorage.getItem("sb_key")||"" };
+    }
+    async function bkqFetch(table, query="", opts={}) {
+      const { url, key } = bkqSB();
+      const { method="GET", body } = opts;
+      const res = await fetch(`${url}/rest/v1/${table}${query}`, {
+        method,
+        headers: {
+          apikey: key, Authorization: `Bearer ${key}`,
+          "Content-Type": "application/json",
+          ...(method==="POST"||method==="PATCH" ? { Prefer:"return=representation" } : {}),
+        },
+        body: body ? JSON.stringify(body) : undefined,
+      });
+      if (!res.ok) return method==="DELETE" ? null : [];
+      return method==="DELETE" ? null : res.json().catch(()=>[]);
+    }
+
+    // ── State ─────────────────────────────────────────────────
+    let _bkqRows = [];       // enriched rows (with _booker, _cs)
+    let _bkqCurrentId = null;
+    let _bkqLogPollTimer  = null;
+    let _bkqLastLogSig    = "";
+    let _bkqListPollTimer = null;
+    let _bkqListLastSig   = "";
+    let _bkqLogCountCache = {}; // { [request_id]: totalLogCount }
+
+    function startBkqLogPolling(requestId) {
+      stopBkqLogPolling();
+      _bkqLogPollTimer = setInterval(() => loadBkqLogs(requestId, true), 4000);
+    }
+    function stopBkqLogPolling() {
+      if (_bkqLogPollTimer) { clearInterval(_bkqLogPollTimer); _bkqLogPollTimer = null; }
+      _bkqLastLogSig = "";
+    }
+
+    const BKQ_STATUS_MAP = {
+      PENDING:  { label:"รอดำเนินการ", cls:"PENDING"  },
+      APPROVED: { label:"อนุมัติแล้ว", cls:"APPROVED" },
+      REJECTED: { label:"ปฏิเสธ",      cls:"REJECTED" },
+      CANCELLED:{ label:"ยกเลิก",      cls:"CANCELLED"},
+    };
+
+    // ── Room Booking Requests loader ──────────────────────────
+    async function loadRoomBookingRequests(silent = false) {
+      const { url, key } = bkqSB();
+      const tbody   = document.getElementById("rbkqTableBody");
+      const counter = document.getElementById("rbkqCount");
+      if (!tbody) return;
+      if (!url || !key) {
+        if (!silent) tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;color:#94a3b8;font-size:12px;">ไม่พบข้อมูล Supabase</td></tr>`;
+        return;
+      }
+      try {
+        const [rbRes, usersRes] = await Promise.all([
+          fetch(`${url}/rest/v1/room_booking_requests?select=*&order=created_at.desc`,
+            { headers: { apikey:key, Authorization:`Bearer ${key}` } }),
+          fetch(`${url}/rest/v1/users?select=user_id,full_name&is_active=eq.true`,
+            { headers: { apikey:key, Authorization:`Bearer ${key}` } }),
+        ]);
+        const raw   = await rbRes.json().catch(()=>[]) || [];
+        const users = await usersRes.json().catch(()=>[]) || [];
+
+        const sig = raw.map(r => `${r.request_id}:${r.status}:${r.updated_at||r.created_at}`).join("|");
+        if (silent && sig === _bkqListLastSig) return;
+        _bkqListLastSig = sig;
+
+        const userMap = Object.fromEntries(users.map(u=>[String(u.user_id), u.full_name]));
+        _bkqRows = raw.map(r => ({
+          ...r,
+          _booker: r.booked_by_name || userMap[String(r.booked_by)] || "—",
+          _cs:     r.cs_name        || userMap[String(r.cs_id)]     || "—",
+        }));
+
+        filterRoomBookings();   // re-apply current search/filter
+      } catch (e) {
+        if (!silent) tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;color:#ef4444;font-size:12px;">โหลดข้อมูลไม่ได้: ${e.message}</td></tr>`;
+      }
+    }
+
+    function renderRoomBookings(rows) {
+      const tbody   = document.getElementById("rbkqTableBody");
+      const counter = document.getElementById("rbkqCount");
+      counter.textContent = `${rows.length} รายการ`;
+
+      // Update pending badge (count from full _bkqRows, not filtered)
+      const pendingCount = _bkqRows.filter(r => r.status === "PENDING").length;
+      const badge = document.getElementById("reqPendingBadge");
+      if (badge) {
+        badge.textContent = pendingCount;
+        badge.style.display = pendingCount > 0 ? "inline-flex" : "none";
+      }
+
+      if (rows.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state"><div class="empty-icon">🚪</div><div class="empty-text">ยังไม่มีรายการจองห้อง</div></div></td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = rows.map(r => {
+        const s       = BKQ_STATUS_MAP[r.status] || BKQ_STATUS_MAP.PENDING;
+        const booker  = r._booker;
+        const cs      = r._cs;
+        const timeStr = r.end_time==="ALLDAY" ? "ตลอดทั้งวัน" : `${r.start_time||""}–${r.end_time||""}`;
+        const unread  = getBkqUnread(r.request_id);
+        const unreadBadge = unread > 0
+          ? `<span style="display:inline-flex;align-items:center;gap:2px;background:#f97316;color:#fff;font-size:9px;font-weight:700;padding:1px 6px;border-radius:999px;line-height:1.5;margin-left:4px">💬 ${unread}</span>`
+          : "";
+        return `
+          <tr data-rid="${r.request_id}" style="cursor:pointer">
+            <td style="text-align:center" onclick="event.stopPropagation()">
+              <input type="checkbox" class="bkq-chk" value="${r.request_id}" onchange="syncBkqDeleteBtn()" />
+            </td>
+            <td>${r.place_name}${unreadBadge}</td>
+            <td class="col-center">${booker}</td>
+            <td class="col-center">${cs}</td>
+            <td class="col-center">${r.booking_date}</td>
+            <td class="col-center">${timeStr}</td>
+            <td class="col-center"><span class="room-bkq-badge ${s.cls}">${s.label}</span></td>
+            <td class="col-center" onclick="event.stopPropagation()">
+              <button class="btn-icon" title="อนุมัติ" onclick="updateRoomBooking(${r.request_id},'APPROVED',this)">✅</button>
+              <button class="btn-icon" title="ปฏิเสธ"  onclick="updateRoomBooking(${r.request_id},'REJECTED',this)">❌</button>
+            </td>
+            <td class="col-center" onclick="event.stopPropagation()">
+              <button class="btn-icon" title="แก้ไข" onclick="openBkqDetailById(${r.request_id})" style="color:#f97316">✏️</button>
+              <button class="btn-icon" title="ลบ"    onclick="deleteBkqRow(${r.request_id},this)"  style="color:#ef4444">🗑</button>
+            </td>
+          </tr>`;
+      }).join("");
+
+      tbody.querySelectorAll("tr[data-rid]").forEach(tr => {
+        tr.addEventListener("click", () => {
+          const row = _bkqRows.find(r => String(r.request_id) === tr.dataset.rid);
+          if (row) openBkqDetail(row);
+        });
+      });
+    }
+
+    function filterRoomBookings() {
+      const q = (document.getElementById("rbkqSearch")?.value || "").toLowerCase();
+      const s = document.getElementById("rbkqFilterStatus")?.value || "";
+      const filtered = _bkqRows.filter(r =>
+        (!q || r.request_code?.toLowerCase().includes(q) ||
+               r.place_name?.toLowerCase().includes(q)   ||
+               r._booker?.toLowerCase().includes(q)      ||
+               r._cs?.toLowerCase().includes(q)) &&
+        (!s || r.status === s)
+      );
+      renderRoomBookings(filtered);
+    }
+
+    // ── Unread Log Counts ─────────────────────────────────────
+    async function refreshBkqLogCounts() {
+      if (!_bkqRows.length) return;
+      const ids = _bkqRows.map(r => r.request_id).join(",");
+      const logs = await bkqFetch("room_booking_logs", `?request_id=in.(${ids})&select=request_id,created_at`);
+      const map = {};
+      (logs || []).forEach(l => {
+        const id = l.request_id;
+        if (!map[id]) map[id] = { total: 0, latest: "" };
+        map[id].total++;
+        if (l.created_at > map[id].latest) map[id].latest = l.created_at;
+      });
+      const prev = JSON.stringify(_bkqLogCountCache);
+      _bkqLogCountCache = map;
+      if (JSON.stringify(map) !== prev) filterRoomBookings();
+    }
+
+    function getBkqUnread(requestId) {
+      const info   = _bkqLogCountCache[requestId];
+      if (!info || info.total === 0) return 0;
+      const seenAt = localStorage.getItem(`lsLogCS_${requestId}`) || "";
+      return seenAt >= info.latest ? 0 : info.total - parseInt(localStorage.getItem(`lsLogNCS_${requestId}`) || "0", 10);
+    }
+
+    function markBkqLogsRead(requestId, logs) {
+      const latest = (logs || []).reduce((m, l) => l.created_at > m ? l.created_at : m, "");
+      localStorage.setItem(`lsLogCS_${requestId}`, latest);
+      localStorage.setItem(`lsLogNCS_${requestId}`, (logs || []).length);
+      if (!_bkqLogCountCache[requestId]) _bkqLogCountCache[requestId] = { total: 0, latest: "" };
+      _bkqLogCountCache[requestId].total  = Math.max(_bkqLogCountCache[requestId].total,  (logs||[]).length);
+      _bkqLogCountCache[requestId].latest = latest || _bkqLogCountCache[requestId].latest;
+      filterRoomBookings();
+    }
+
+    // ── Checkbox helpers ──────────────────────────────────────
+    function toggleAllBkqCheckbox(master) {
+      document.querySelectorAll(".bkq-chk").forEach(c => c.checked = master.checked);
+      syncBkqDeleteBtn();
+    }
+    function syncBkqDeleteBtn() {
+      const checked = document.querySelectorAll(".bkq-chk:checked").length;
+      const btn = document.getElementById("btnDeleteSelectedBkq");
+      if (btn) btn.style.display = checked > 0 ? "" : "none";
+      const master = document.getElementById("chkAllBkq");
+      if (master) {
+        const total = document.querySelectorAll(".bkq-chk").length;
+        master.indeterminate = checked > 0 && checked < total;
+        master.checked = total > 0 && checked === total;
+      }
+    }
+
+    // ── Open detail by ID ─────────────────────────────────────
+    function openBkqDetailById(id) {
+      const row = _bkqRows.find(r => String(r.request_id) === String(id));
+      if (row) openBkqDetail(row);
+    }
+
+    // ── Delete single row ─────────────────────────────────────
+    function deleteBkqRow(id, btn) {
+      DeleteModal.open("ยืนยันลบรายการนี้?", async () => {
+        btn.disabled = true;
+        const { url, key } = bkqSB();
+        const h = { apikey: key, Authorization: `Bearer ${key}` };
+        try {
+          await fetch(`${url}/rest/v1/room_booking_logs?request_id=eq.${id}`, { method: "DELETE", headers: h });
+          await fetch(`${url}/rest/v1/room_booking_requests?request_id=eq.${id}`, { method: "DELETE", headers: h });
+          _bkqListLastSig = "";
+          await loadRoomBookingRequests();
+        } catch { btn.disabled = false; }
+      });
+    }
+
+    // ── Delete selected rows ──────────────────────────────────
+    function deleteSelectedBkq() {
+      const ids = [...document.querySelectorAll(".bkq-chk:checked")].map(c => c.value);
+      if (!ids.length) return;
+      DeleteModal.open(`ยืนยันลบ ${ids.length} รายการ?`, async () => {
+        const { url, key } = bkqSB();
+        const btn = document.getElementById("btnDeleteSelectedBkq");
+        const h = { apikey: key, Authorization: `Bearer ${key}` };
+        btn.disabled = true;
+        try {
+          await fetch(`${url}/rest/v1/room_booking_logs?request_id=in.(${ids.join(",")})`, { method: "DELETE", headers: h });
+          await fetch(`${url}/rest/v1/room_booking_requests?request_id=in.(${ids.join(",")})`, { method: "DELETE", headers: h });
+          _bkqListLastSig = "";
+          await loadRoomBookingRequests();
+        } catch { btn.disabled = false; }
+      });
+    }
+
+    setTimeout(async () => {
+      await loadRoomBookingRequests();
+      refreshBkqLogCounts();
+      _bkqListPollTimer = setInterval(async () => {
+        await loadRoomBookingRequests(true);
+        refreshBkqLogCounts();
+      }, 8000);
+    }, 800);
+
+    async function updateRoomBooking(id, status, btn) {
+      const { url, key } = bkqSB();
+      btn.disabled = true;
+      try {
+        const res = await fetch(`${url}/rest/v1/room_booking_requests?request_id=eq.${id}`, {
+          method: "PATCH",
+          headers: { apikey:key, Authorization:`Bearer ${key}`, "Content-Type":"application/json", Prefer:"return=representation" },
+          body: JSON.stringify({ status }),
+        });
+        if (res.ok) { _bkqListLastSig = ""; loadRoomBookingRequests(); }
+      } catch { btn.disabled = false; }
+    }
+    window.updateRoomBooking = updateRoomBooking;
+
+    // ── Booking Detail Modal ───────────────────────────────────
+    function openBkqDetail(row) {
+      _bkqCurrentId = row.request_id;
+      document.getElementById("bkqModalCode").textContent = row.request_code || "—";
+
+      // Fill edit fields
+      document.getElementById("bkqEditBooker").value = row.booked_by_name || "";
+      document.getElementById("bkqEditCS").value     = row.cs_name || "";
+      document.getElementById("bkqEditRoom").value   = row.place_name || "";
+      document.getElementById("bkqEditDate").value   = row.booking_date || "";
+      document.getElementById("bkqEditStatus").value = row.status || "PENDING";
+
+      const isAllday = row.end_time === "ALLDAY";
+      document.getElementById("bkqAlldayCheck").checked = isAllday;
+      document.getElementById("bkqTimeFields").style.display = isAllday ? "none" : "flex";
+      document.getElementById("bkqEditStart").value = !isAllday ? (row.start_time||"").slice(0,5) : "";
+      document.getElementById("bkqEditEnd").value   = !isAllday ? (row.end_time||"").slice(0,5)   : "";
+
+      document.getElementById("bkqLogInput").value = "";
+      document.getElementById("bkqDetailOverlay").classList.add("open");
+      loadBkqLogs(row.request_id);
+      startBkqLogPolling(row.request_id);
+    }
+
+    function closeBkqDetail() {
+      document.getElementById("bkqDetailOverlay").classList.remove("open");
+      _bkqCurrentId = null;
+      stopBkqLogPolling();
+    }
+
+    function toggleBkqAllday(checked) {
+      document.getElementById("bkqTimeFields").style.display = checked ? "none" : "flex";
+    }
+
+    async function saveBkqDetail() {
+      if (!_bkqCurrentId) return;
+      const btn = document.getElementById("bkqSaveBtn");
+      btn.disabled = true; btn.textContent = "กำลังบันทึก...";
+
+      const isAllday = document.getElementById("bkqAlldayCheck").checked;
+      const payload = {
+        booked_by_name: document.getElementById("bkqEditBooker").value.trim() || null,
+        cs_name:        document.getElementById("bkqEditCS").value.trim()     || null,
+        place_name:     document.getElementById("bkqEditRoom").value.trim()   || null,
+        booking_date:   document.getElementById("bkqEditDate").value          || null,
+        start_time:     isAllday ? null : (document.getElementById("bkqEditStart").value || null),
+        end_time:       isAllday ? "ALLDAY" : (document.getElementById("bkqEditEnd").value || null),
+        status:         document.getElementById("bkqEditStatus").value,
+      };
+
+      try {
+        await bkqFetch("room_booking_requests", `?request_id=eq.${_bkqCurrentId}`, { method:"PATCH", body:payload });
+        _bkqListLastSig = "";
+        await loadRoomBookingRequests();
+      } catch(e) { alert("บันทึกไม่สำเร็จ: " + e.message); }
+
+      btn.disabled = false; btn.textContent = "💾 บันทึก";
+    }
+
+    // ── Logs ──────────────────────────────────────────────────
+    async function loadBkqLogs(requestId, silent = false) {
+      const list = document.getElementById("bkqLogList");
+      if (!silent) {
+        list.innerHTML = `<p class="bkq-empty">กำลังโหลด...</p>`;
+        _bkqLastLogSig = "";
+      }
+
+      const logs = await bkqFetch("room_booking_logs", `?request_id=eq.${requestId}&order=created_at.asc`);
+
+      const sig = (logs || []).map(l => l.created_at).join("|");
+      if (silent && sig === _bkqLastLogSig) return;
+      _bkqLastLogSig = sig;
+
+      // Mark as read only when user actively opens the detail (not background polling)
+      if (!silent) markBkqLogsRead(requestId, logs);
+
+      if (!logs || logs.length === 0) {
+        list.innerHTML = `<p class="bkq-empty">ยังไม่มี log</p>`;
+        return;
+      }
+
+      const wasAtBottom = list.scrollHeight - list.scrollTop <= list.clientHeight + 8;
+
+      list.innerHTML = logs.map(log => {
+        const time   = (log.created_at||"").slice(0,16).replace("T"," ");
+        const author = log.created_by_name || "ระบบ";
+        let bgStyle     = "background:#f8fafc;border:1px solid #f1f5f9;";
+        let authorStyle = "color:#6366f1;";
+        if (author === "CS")       { bgStyle = "background:#fef9c3;border:1px solid #fde68a;"; authorStyle = "color:#d97706;"; }
+        else if (author === "BRE") { bgStyle = "background:#dcfce7;border:1px solid #86efac;"; authorStyle = "color:#16a34a;"; }
+        return `
+          <div class="bkq-log-item" style="${bgStyle}">
+            <div class="bkq-log-meta">
+              <span class="bkq-log-author" style="${authorStyle}">${author}</span>
+              <span class="bkq-log-time">${time}</span>
+            </div>
+            <div class="bkq-log-msg">${log.message||""}</div>
+          </div>`;
+      }).join("");
+
+      if (!silent || wasAtBottom) list.scrollTop = list.scrollHeight;
+    }
+
+    async function submitBkqLog() {
+      if (!_bkqCurrentId) return;
+      const input = document.getElementById("bkqLogInput");
+      const msg   = (input.value||"").trim();
+      if (!msg) return;
+      const btn = document.getElementById("bkqLogSendBtn");
+      btn.disabled = true;
+
+      await bkqFetch("room_booking_logs", "", {
+        method: "POST",
+        body: { request_id: _bkqCurrentId, message: msg, created_by_name: "BRE" },
+      });
+      input.value = "";
+      btn.disabled = false;
+      await loadBkqLogs(_bkqCurrentId);
+    }
+
+    // Close on backdrop click
+    document.getElementById("bkqDetailOverlay").addEventListener("click", function(e) {
+      if (e.target === this) closeBkqDetail();
+    });
+
+    window.closeBkqDetail  = closeBkqDetail;
+    window.saveBkqDetail   = saveBkqDetail;
+    window.submitBkqLog    = submitBkqLog;
+    window.toggleBkqAllday = toggleBkqAllday;
+
+    // ESC to close modals (innermost first)
+    document.addEventListener("keydown", (e) => {
+      if (e.key !== "Escape") return;
+      if (document.getElementById("rejectModalOverlay").classList.contains("open")) {
+        window.closeRejectModal(); return;
+      }
+      const dm = document.getElementById("deleteModalOverlay");
+      if (dm && dm.classList.contains("active")) {
+        DeleteModal.close(); return;
+      }
+      if (document.getElementById("bkqDetailOverlay").classList.contains("open")) {
+        closeBkqDetail(); return;
+      }
+      if (document.getElementById("reqModalOverlay").classList.contains("open")) {
+        window.closeRequestModal(); return;
+      }
+      if (document.getElementById("reqPanel").classList.contains("open")) {
+        window.closeReqPanel();
+      }
+    });
+    </script>
+  </body>
+</html>

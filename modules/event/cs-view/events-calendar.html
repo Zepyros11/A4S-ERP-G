@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ปฏิทินกิจกรรม — A4S-ERP</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="events.css" />
+    <link rel="stylesheet" href="./events-calendar.css" />
+  </head>
+  <body>
+    <div class="loading-overlay" id="loadingOverlay">
+      <div class="spinner"></div>
+    </div>
+    <div class="toast" id="toast"></div>
+
+    <!-- CAL TOPBAR -->
+    <div id="calTopbarContainer"></div>
+    <!-- <script src="/A4S-ERP./topbar-calendar.js"></script> -->
+    <script src="./topbar-calendar.js"></script>
+    <script>
+      CalTopbar.init({
+        container: "calTopbarContainer",
+        pageName: "ปฏิทินกิจกรรม",
+        logoPath: "../../assets/logo/logo-a4s.png",
+      });
+    </script>
+
+    <div class="cal-standalone-page">
+      <div class="no-config-banner" id="noConfigBanner" style="display: none">
+        ⚠️ ยังไม่ได้ตั้งค่า Supabase —
+        <a onclick="openSettings()">คลิกที่นี่เพื่อตั้งค่า</a>
+      </div>
+
+      <!-- HEADER -->
+      <div class="cal-header">
+        <div class="cal-nav">
+          <button class="btn-circle" onclick="changeMonth(-1)">‹</button>
+          <div class="cal-month-label" id="calMonthLabel">—</div>
+          <button class="btn-circle" onclick="changeMonth(1)">›</button>
+          <button class="btn-today" onclick="goToday()">วันนี้</button>
+        </div>
+      </div>
+
+      <!-- Category Filter Chips (desktop) -->
+      <div class="cal-cat-chips" id="calCatChips">
+        <button class="epg-chip active" data-cat="" onclick="setCalCatFilter(this, '')">ทั้งหมด</button>
+        <!-- dynamic chips injected by JS -->
+      </div>
+      <!-- Category Filter Dropdown (mobile) -->
+      <select id="calCatSelect" class="filter-select cal-cat-select" onchange="setCalCatFromSelect(this)">
+        <option value="">ทั้งหมด</option>
+      </select>
+
+      <!-- CALENDAR -->
+      <div class="cal-grid-wrap">
+        <div class="cal-day-headers">
+          <div class="cal-day-hdr weekend">อา</div>
+          <div class="cal-day-hdr">จ</div>
+          <div class="cal-day-hdr">อ</div>
+          <div class="cal-day-hdr">พ</div>
+          <div class="cal-day-hdr">พฤ</div>
+          <div class="cal-day-hdr">ศ</div>
+          <div class="cal-day-hdr weekend">ส</div>
+        </div>
+        <div class="cal-grid" id="calGrid">
+          <div class="cal-empty">กำลังโหลด...</div>
+        </div>
+      </div>
+
+      <!-- LEGEND -->
+      <div class="cal-legend" id="calLegend"></div>
+    </div>
+    <!-- SETTINGS MODAL -->
+    <div
+      class="settings-overlay"
+      id="settingsOverlay"
+      onclick="handleOverlayClick(event)"
+    >
+      <div class="settings-modal">
+        <div class="settings-title">⚙️ ตั้งค่าการเชื่อมต่อ Supabase</div>
+        <div class="settings-subtitle">
+          กรอก URL และ API Key เพื่อเชื่อมต่อฐานข้อมูล<br />ค่านี้จะถูกบันทึกใน
+          localStorage ของเครื่องนี้
+        </div>
+        <div class="settings-field">
+          <label class="settings-label">Supabase URL</label>
+          <input
+            class="settings-input"
+            id="inputSbUrl"
+            placeholder="https://xxxx.supabase.co"
+          />
+        </div>
+        <div class="settings-field">
+          <label class="settings-label">Supabase Anon Key</label>
+          <input
+            class="settings-input"
+            id="inputSbKey"
+            placeholder="eyJhbGci..."
+            type="password"
+          />
+        </div>
+        <div class="settings-status" id="settingsStatus"></div>
+        <div class="settings-actions">
+          <button class="btn btn-outline" onclick="closeSettings()">
+            ยกเลิก
+          </button>
+          <button class="btn btn-outline" onclick="testConnection()">
+            🔗 ทดสอบ
+          </button>
+          <button class="btn btn-primary" onclick="saveSettings()">
+            💾 บันทึก
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <button
+      class="btn-settings-float"
+      onclick="openSettings()"
+      title="ตั้งค่า Supabase"
+    >
+      ⚙️
+    </button>
+
+    <!-- EVENT POPUP -->
+    <div
+      id="evPanelOverlay"
+      style="
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.55);
+        z-index: 400;
+        backdrop-filter: blur(4px);
+        align-items: center;
+        justify-content: center;
+      "
+      onclick="closeEventPanel()"
+    >
+      <div id="evPopup" class="ev-popup" onclick="event.stopPropagation()">
+        <!-- ปุ่มปิด absolute -->
+        <button class="ev-popup-close" onclick="closeEventPanel()">✕</button>
+
+        <!-- COL 1: Poster -->
+        <div class="ev-popup-left" id="panelPoster">
+          <span class="ev-popup-placeholder">🗓️</span>
+        </div>
+
+        <!-- COL 2: Detail -->
+        <div class="ev-popup-detail">
+          <!-- ชื่องาน -->
+          <div class="ev-popup-name" id="panelName">—</div>
+          <div class="ev-popup-code" id="panelCode"></div>
+
+          <!-- badges -->
+          <div class="ev-popup-badges">
+            <span id="panelStatus"></span>
+            <span id="panelType"></span>
+          </div>
+
+          <!-- Info rows -->
+          <div class="ev-popup-info-rows">
+            <div class="ev-popup-info-row">
+              <div class="ev-popup-info-icon">🕐</div>
+              <div class="ev-popup-info-body">
+                <div class="ev-popup-info-label">Date & Time</div>
+                <div class="ev-popup-info-datetime">
+                  <span class="ev-popup-info-value" id="panelDate">—</span>
+                  <span class="ev-popup-info-sep">|</span>
+                  <span
+                    class="ev-popup-info-value"
+                    id="panelTime"
+                    style="color: #64748b"
+                    >—</span
+                  >
+                </div>
+              </div>
+            </div>
+            <div class="ev-popup-info-row">
+              <div class="ev-popup-info-icon">📍</div>
+              <div class="ev-popup-info-body">
+                <div class="ev-popup-info-label">Location</div>
+                <div class="ev-popup-info-value" id="panelLocation">—</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- รายละเอียด -->
+          <div class="ev-popup-info-label" style="margin-bottom: 4px">
+            รายละเอียด
+          </div>
+          <div class="ev-popup-desc" id="panelDesc">—</div>
+
+          <!-- footer -->
+          <div class="ev-popup-footer">
+            <button class="btn btn-primary" id="panelBtnEdit">✏️ แก้ไข</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="./events-calendar.js"></script>
+  </body>
+</html>

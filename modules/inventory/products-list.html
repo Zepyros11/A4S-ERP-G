@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>รายการสินค้า — A4S-ERP</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../../css/main.css" />
+    <link rel="stylesheet" href="./products.css" />
+  </head>
+  <body>
+    <div class="loading-overlay" id="loadingOverlay">
+      <div class="spinner"></div>
+    </div>
+    <div class="toast" id="toast"></div>
+
+    <!-- TOPBAR -->
+    <div class="topbar"></div>
+    <div class="layout">
+      <!-- SIDEBAR -->
+      <div id="sidebar-container"></div>
+
+      <!-- CONTENT -->
+      <div class="content-area">
+        <!-- PAGE -->
+        <div class="page">
+          <!-- STATS -->
+          <div class="stats-row">
+            <div class="stat-card">
+              <div class="stat-icon">📦</div>
+              <div>
+                <div class="stat-value" id="cardTotal">0</div>
+                <div class="stat-label">สินค้าทั้งหมด</div>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon">✅</div>
+              <div>
+                <div class="stat-value" id="cardActive">0</div>
+                <div class="stat-label">เปิดใช้งาน</div>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon">⛔</div>
+              <div>
+                <div class="stat-value" id="cardInactive">0</div>
+                <div class="stat-label">ปิดใช้งาน</div>
+              </div>
+            </div>
+          </div>
+
+        <!-- TABLE -->
+<div class="content-wrap">
+  <div class="table-card" id="tableCard">
+
+    <div class="table-toolbar">
+      <div class="search-wrap">
+        <span class="search-icon">🔍</span>
+        <input class="search-input" id="searchInput" placeholder="ค้นหาชื่อหรือรหัสสินค้า..." />
+      </div>
+      <select class="filter-select" id="filterCategory">
+        <option value="">⚪ ทุกหมวดหมู่</option>
+      </select>
+      <select class="filter-select" id="filterStatus">
+        <option value="">⚪ ทุกสถานะ</option>
+        <option value="true">✅ เปิดใช้งาน</option>
+        <option value="false">⛔ ปิดใช้งาน</option>
+      </select>
+      <div class="toolbar-right">
+        <button class="btn btn-danger-outline" id="btnDeleteSelected" style="display:none" onclick="window.deleteSelectedProducts()">🗑 ลบที่เลือก</button>
+        <button class="btn btn-primary" onclick="window.location.href = '../form/product-form.html'">＋ เพิ่มสินค้า</button>
+      </div>
+    </div>
+
+    <div class="table-hdr">
+      <div class="table-title">📦 รายการสินค้า</div>
+      <div class="table-count" id="tableCount">0 รายการ</div>
+    </div>
+    <div class="table-wrap">
+      <table class="data-table table-products">
+        <thead>
+          <tr>
+            <th style="width:40px;text-align:center">
+              <input type="checkbox" id="chkAll" onclick="window.toggleAllCheckbox(this)" />
+            </th>
+            <th class="col-center">ภาพ</th>
+            <th class="col-center" onclick="window.sortTable('product_name')" style="cursor:pointer">ชื่อสินค้า <span class="sort-icon">⇅</span></th>
+            <th class="col-center">หมวดหมู่</th>
+            <th class="col-center" onclick="window.sortTable('cost_price')" style="cursor:pointer">ราคาทุน <span class="sort-icon">⇅</span></th>
+            <th class="col-center" onclick="window.sortTable('sale_price')" style="cursor:pointer">ราคาขาย <span class="sort-icon">⇅</span></th>
+            <th class="col-center">สถานะ</th>
+            <th class="col-center">จัดการ</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody">
+          <tr><td colspan="8"><div class="empty-state"><div class="empty-icon">📦</div><div class="empty-text">ยังไม่มีข้อมูล</div></div></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+  </div>
+</div>
+        <!-- Edit popup -->
+        <!-- EDIT PRODUCT MODAL -->
+        <div
+          class="ep-overlay"
+          id="epOverlay"
+          onclick="window.closeEditPanel()"
+        ></div>
+        <div class="ep-modal" id="epModal">
+          <div class="ep-modal-header">
+            <span class="ep-modal-title">✏️ แก้ไขสินค้า</span>
+            <button class="ep-modal-close" onclick="window.closeEditPanel()">
+              ✕
+            </button>
+          </div>
+          <div class="ep-modal-body">
+            <!-- IMAGE GRID -->
+            <div class="ep-section-label">รูปภาพสินค้า (สูงสุด 5 รูป)</div>
+            <div class="ep-image-grid" id="epImageGrid"></div>
+            <input
+              type="file"
+              id="epUpload"
+              accept="image/*"
+              style="display: none"
+            />
+
+            <!-- FIELDS -->
+            <div class="ep-section-label" style="margin-top: 16px">
+              ข้อมูลสินค้า
+            </div>
+            <div class="ep-field">
+              <label>ชื่อสินค้า</label>
+              <input
+                type="text"
+                id="epName"
+                class="ep-input"
+                placeholder="ชื่อสินค้า"
+              />
+            </div>
+            <div class="ep-row2">
+              <div class="ep-field">
+                <label>ราคาทุน (฿)</label>
+                <input
+                  type="number"
+                  id="epCost"
+                  class="ep-input"
+                  placeholder="0.00"
+                  step="0.01"
+                />
+              </div>
+              <div class="ep-field">
+                <label>ราคาขาย (฿)</label>
+                <input
+                  type="number"
+                  id="epSale"
+                  class="ep-input"
+                  placeholder="0.00"
+                  step="0.01"
+                />
+              </div>
+            </div>
+          </div>
+          <div class="ep-modal-footer">
+            <button class="btn btn-secondary" onclick="window.closeEditPanel()">
+              ยกเลิก
+            </button>
+            <button class="btn btn-primary" onclick="window.saveEditPanel()">
+              💾 บันทึก
+            </button>
+          </div>
+        </div>
+        <!-- product -->
+        <script type="module" src="./products-list.js"></script>
+        <!-- Core -->
+        <script src="../../js/core/auth.js"></script>
+        <!-- MODALS -->
+        <script src="../../js/components/modal/deleteModal.js"></script>
+        <script src="../../js/components/modal/modalManager.js"></script>
+        <script src="../../js/components/modal/enterModal.js"></script>
+
+        <!-- JS Component/navigation -->
+        <script type="module">
+          import { loadTopbar } from "../../js/components/navigation/topbar.js";
+          loadTopbar("📦 รายการสินค้า");
+        </script>
+        <script src="../../js/components/navigation/imgPopup.js"></script>
+        <script src="../../js/components/navigation/sidebar.js"></script>
+      </div>
+    </div>
+  </body>
+</html>

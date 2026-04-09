@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git -C \"d:/@Projects/A4S-ERP-G\" log --oneline)"
+    ]
+  }
+}

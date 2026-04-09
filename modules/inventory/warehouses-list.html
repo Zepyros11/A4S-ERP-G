@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>คลังสินค้า — A4S-ERP</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../../css/main.css" />
+    <link rel="stylesheet" href="./warehouse.css" />
+  </head>
+
+  <body>
+    <!-- LOADING -->
+    <div class="loading-overlay" id="loadingOverlay">
+      <div class="spinner"></div>
+    </div>
+
+    <!-- TOAST -->
+    <div class="toast" id="toast"></div>
+
+    <!-- WAREHOUSE FORM MODAL (inject by JS) -->
+    <div id="warehouseFormContainer"></div>
+
+    <!-- TOPBAR -->
+    <div class="topbar"></div>
+
+    <!-- PAGE -->
+    <div class="page">
+      <!-- STATS -->
+      <div class="stats-row">
+        <div class="stat-card">
+          <div class="stat-icon">🏣</div>
+          <div>
+            <div class="stat-value" id="statTotal">0</div>
+            <div class="stat-label">คลังทั้งหมด</div>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-icon">✅</div>
+          <div>
+            <div class="stat-value" id="statActive">0</div>
+            <div class="stat-label">ใช้งาน</div>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-icon">⛔</div>
+          <div>
+            <div class="stat-value" id="statInactive">0</div>
+            <div class="stat-label">ปิดใช้งาน</div>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-icon">📦</div>
+          <div>
+            <div class="stat-value" id="statStock">0</div>
+            <div class="stat-label">รายการสินค้าทั้งหมด</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TABLE + PANEL -->
+<div class="content-row">
+  <div class="table-card">
+
+    <div class="table-toolbar">
+      <div class="search-wrap">
+        <span class="search-icon">🔍</span>
+        <input class="search-input" id="searchInput" placeholder="ค้นหาคลัง" />
+      </div>
+      <select class="filter-select" id="filterType">
+        <option value="">🏢 ทุกประเภท</option>
+        <option value="MAIN">🏣 คลังหลัก</option>
+        <option value="BRANCH">🏪 คลังสาขา</option>
+        <option value="TRANSIT">📦 จุดพักสินค้า</option>
+        <option value="RETURN">↩️ จุดคืนสินค้า</option>
+      </select>
+      <select class="filter-select" id="filterStatus">
+        <option value="">⚪ ทุกสถานะ</option>
+        <option value="true">✅ ใช้งาน</option>
+        <option value="false">⛔ ปิด</option>
+      </select>
+      <div class="toolbar-right">
+        <button class="btn btn-outline" onclick="exportWarehouses()">⬇ Export</button>
+        <button class="btn btn-outline" onclick="importWarehouses()">⬆ Import</button>
+        <button class="btn btn-outline" onclick="downloadTemplate()">📄 Download Form</button>
+        <button class="btn btn-primary" id="btnAddWarehouse">＋ เพิ่มคลัง</button>
+      </div>
+    </div>
+
+    <div class="table-hdr">
+      <div class="table-title">🏭 คลังสินค้า</div>
+      <div class="table-count" id="whCount">0 รายการ</div>
+    </div>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th onclick="sortTable('warehouse_code')">รหัส <span class="sort-icon" id="sort-warehouse_code">⇅</span></th>
+            <th onclick="sortTable('warehouse_name')">ชื่อคลัง <span class="sort-icon" id="sort-warehouse_name">⇅</span></th>
+            <th onclick="sortTable('warehouse_type')">ประเภท <span class="sort-icon" id="sort-warehouse_type">⇅</span></th>
+            <th onclick="sortTable('manager_name')">ผู้ดูแล <span class="sort-icon" id="sort-manager_name">⇅</span></th>
+            <th onclick="sortTable('qty')">จำนวนสินค้า <span class="sort-icon" id="sort-qty">⇅</span></th>
+            <th onclick="sortTable('is_active')">สถานะ <span class="sort-icon" id="sort-is_active">⇅</span></th>
+            <th class="col-center">จัดการ</th>
+          </tr>
+        </thead>
+        <tbody id="whTable">
+          <tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text3)">กำลังโหลด...</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+  </div>
+
+
+    <!-- SCRIPTS -->
+
+    <!-- XLSX -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+    <!-- Page Controller -->
+    <script type="module" src="./warehouses-list.js"></script>
+
+    <!-- Core -->
+    <script src="../../js/core/auth.js"></script>
+    <!-- MODALS -->
+    <script src="../../js/components/modal/deleteModal.js"></script>
+    <script src="../../js/components/modal/modalManager.js"></script>
+    <script src="../../js/components/modal/enterModal.js"></script>
+
+    <!-- JS Component/navigation -->
+    <script type="module">
+      import { loadTopbar } from "../../js/components/navigation/topbar.js";
+      loadTopbar("🏭 คลังสินค้า");
+    </script>
+    <script src="../../js/components/navigation/imgPopup.js"></script>
+    <script src="../../js/components/navigation/sidebar.js"></script>
+  </body>
+</html>
