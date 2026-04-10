@@ -1,164 +1,316 @@
 /* ============================================================
-   permissions.js — Central Permission Registry
+   permissions.js — Central Permission Registry (3-Level Tree)
    ============================================================
-   วิธีเพิ่ม Module ใหม่:
-     เพิ่ม object ใน modules[] พร้อม key, label, icon, perms[]
-     Role permissions จะถูกจัดการใน Supabase → role_configs
+   โครงสร้าง: Module → Sub-module (หน้า) → Actions
+   ตรงกับ sidebar ทุกหน้า
    ============================================================ */
 
 /* global AppPermissions */
 window.AppPermissions = (() => {
-  /* ── MODULE TREE ── เพิ่ม Module ใหม่ที่นี่ ── */
   const modules = [
+    /* ── ภาพรวม ── */
     {
-      key: "dashboard",
-      label: "Dashboard",
-      icon: "📊",
-      perms: [
-        { key: "view_dashboard", label: "ดู Dashboard" },
+      key: "dashboard", label: "ภาพรวม", icon: "📊",
+      children: [
+        { key: "dashboard", label: "Dashboard", icon: "📊", perms: [
+          { key: "dashboard_view", label: "ดู" },
+        ]},
       ],
     },
+
+    /* ── กิจกรรม (EVENT) ── */
     {
-      key: "event",
-      label: "กิจกรรม (EVENT)",
-      icon: "🎪",
-      perms: [
-        { key: "event_view",     label: "ดูรายการกิจกรรม" },
-        { key: "event_create",   label: "สร้างกิจกรรม" },
-        { key: "event_edit",     label: "แก้ไขกิจกรรม" },
-        { key: "event_delete",   label: "ลบกิจกรรม" },
-        { key: "event_category", label: "จัดการประเภทกิจกรรม" },
-        { key: "event_place",    label: "จัดการสถานที่" },
-        { key: "event_poster",   label: "จัดการโปสเตอร์ / Media" },
-        { key: "event_budget",   label: "งบประมาณกิจกรรม" },
-        { key: "event_request",  label: "คำขอกิจกรรม" },
-        { key: "event_attendee", label: "ผู้เข้าร่วมกิจกรรม" },
+      key: "event", label: "กิจกรรม (EVENT)", icon: "🗓️",
+      children: [
+        { key: "poster", label: "Poster Gallery", icon: "🖼️", perms: [
+          { key: "poster_view",   label: "ดูรายการ" },
+          { key: "poster_create", label: "สร้าง" },
+          { key: "poster_edit",   label: "แก้ไข" },
+          { key: "poster_delete", label: "ลบ" },
+        ]},
+        { key: "events", label: "รายการกิจกรรม", icon: "🗓️", perms: [
+          { key: "events_view",   label: "ดูรายการ" },
+          { key: "events_create", label: "สร้าง" },
+          { key: "events_edit",   label: "แก้ไข" },
+          { key: "events_delete", label: "ลบ" },
+        ]},
+        { key: "evt_cat", label: "ประเภทกิจกรรม", icon: "🏷️", perms: [
+          { key: "evt_cat_view",   label: "ดูรายการ" },
+          { key: "evt_cat_create", label: "สร้าง" },
+          { key: "evt_cat_edit",   label: "แก้ไข" },
+          { key: "evt_cat_delete", label: "ลบ" },
+        ]},
+        { key: "evt_place", label: "สถานที่", icon: "📍", perms: [
+          { key: "evt_place_view",   label: "ดูรายการ" },
+          { key: "evt_place_create", label: "สร้าง" },
+          { key: "evt_place_edit",   label: "แก้ไข" },
+          { key: "evt_place_delete", label: "ลบ" },
+        ]},
+        { key: "evt_req", label: "คำขอจัดกิจกรรม", icon: "📋", perms: [
+          { key: "evt_req_view",    label: "ดูรายการ" },
+          { key: "evt_req_create",  label: "สร้าง" },
+          { key: "evt_req_approve", label: "อนุมัติ" },
+        ]},
+        { key: "evt_budget", label: "งบประมาณ", icon: "💰", perms: [
+          { key: "evt_budget_view",   label: "ดูรายการ" },
+          { key: "evt_budget_create", label: "สร้าง" },
+          { key: "evt_budget_edit",   label: "แก้ไข" },
+          { key: "evt_budget_delete", label: "ลบ" },
+        ]},
+        { key: "attendee", label: "ผู้เข้าร่วม", icon: "👥", perms: [
+          { key: "attendee_view", label: "ดูรายการ" },
+          { key: "attendee_edit", label: "แก้ไข" },
+        ]},
+        { key: "media", label: "สื่อ & มีเดีย", icon: "🎬", perms: [
+          { key: "media_view",   label: "ดูรายการ" },
+          { key: "media_upload", label: "อัปโหลด" },
+          { key: "media_delete", label: "ลบ" },
+        ]},
       ],
     },
+
+    /* ── ตั้งค่า Stock ── */
     {
-      key: "inventory",
-      label: "คลังสินค้า",
-      icon: "🏭",
-      perms: [
-        { key: "inventory_view",      label: "ดูสินค้าและคลัง" },
-        { key: "inventory_create",    label: "เพิ่มสินค้า" },
-        { key: "inventory_edit",      label: "แก้ไขสินค้า" },
-        { key: "inventory_delete",    label: "ลบสินค้า" },
-        { key: "inventory_category",  label: "จัดการประเภทสินค้า" },
-        { key: "inventory_warehouse", label: "จัดการคลัง" },
-        { key: "manage_stock",        label: "นับ / ปรับ Stock" },
-        { key: "inventory_movement",  label: "เคลื่อนย้ายสินค้า" },
+      key: "stock", label: "ตั้งค่า Stock", icon: "📦",
+      children: [
+        { key: "inv_cat", label: "หมวดหมู่", icon: "🏷️", perms: [
+          { key: "inv_cat_view",   label: "ดูรายการ" },
+          { key: "inv_cat_create", label: "สร้าง" },
+          { key: "inv_cat_edit",   label: "แก้ไข" },
+          { key: "inv_cat_delete", label: "ลบ" },
+        ]},
+        { key: "warehouse", label: "คลังสินค้า", icon: "🏭", perms: [
+          { key: "warehouse_view",   label: "ดูรายการ" },
+          { key: "warehouse_create", label: "สร้าง" },
+          { key: "warehouse_edit",   label: "แก้ไข" },
+          { key: "warehouse_delete", label: "ลบ" },
+        ]},
+        { key: "product", label: "รายการสินค้า", icon: "✏️", perms: [
+          { key: "product_view",   label: "ดูรายการ" },
+          { key: "product_create", label: "สร้าง" },
+          { key: "product_edit",   label: "แก้ไข" },
+          { key: "product_delete", label: "ลบ" },
+        ]},
+        { key: "stock_init", label: "Stock เริ่มต้น", icon: "📦", perms: [
+          { key: "stock_init_view",   label: "ดูรายการ" },
+          { key: "stock_init_create", label: "สร้าง" },
+          { key: "stock_init_edit",   label: "แก้ไข" },
+        ]},
+        { key: "stock_move", label: "ความเคลื่อนไหว", icon: "🔄", perms: [
+          { key: "stock_move_view", label: "ดูรายการ" },
+        ]},
       ],
     },
+
+    /* ── เอกสาร ── */
     {
-      key: "po",
-      label: "จัดซื้อ (PO)",
-      icon: "📦",
-      perms: [
-        { key: "po_view",   label: "ดู Purchase Order" },
-        { key: "create_po", label: "สร้าง PO" },
-        { key: "approve_po", label: "อนุมัติ PO" },
-        { key: "po_delete", label: "ลบ PO" },
+      key: "docs", label: "เอกสาร", icon: "📄",
+      children: [
+        { key: "po", label: "ใบสั่งซื้อ (PO)", icon: "🛒", perms: [
+          { key: "po_view",    label: "ดูรายการ" },
+          { key: "po_create",  label: "สร้าง" },
+          { key: "po_edit",    label: "แก้ไข" },
+          { key: "po_approve", label: "อนุมัติ" },
+          { key: "po_delete",  label: "ลบ" },
+        ]},
+        { key: "so", label: "ใบขาย (SO)", icon: "💰", perms: [
+          { key: "so_view",    label: "ดูรายการ" },
+          { key: "so_create",  label: "สร้าง" },
+          { key: "so_edit",    label: "แก้ไข" },
+          { key: "so_approve", label: "อนุมัติ" },
+          { key: "so_delete",  label: "ลบ" },
+        ]},
+        { key: "req", label: "ใบเบิก (REQ)", icon: "📋", perms: [
+          { key: "req_view",    label: "ดูรายการ" },
+          { key: "req_create",  label: "สร้าง" },
+          { key: "req_approve", label: "อนุมัติ" },
+        ]},
       ],
     },
+
+    /* ── รายงาน ── */
     {
-      key: "so",
-      label: "ขาย (SO)",
-      icon: "💰",
-      perms: [
-        { key: "so_view",    label: "ดู Sales Order" },
-        { key: "create_so",  label: "สร้าง SO" },
-        { key: "approve_so", label: "อนุมัติ SO" },
-        { key: "so_delete",  label: "ลบ SO" },
+      key: "report", label: "รายงาน", icon: "📈",
+      children: [
+        { key: "report_stock", label: "รายงาน Stock", icon: "📈", perms: [
+          { key: "report_stock_view",   label: "ดูรายงาน" },
+          { key: "report_stock_export", label: "ส่งออก" },
+        ]},
       ],
     },
+
+    /* ── ตั้งค่า ── */
     {
-      key: "requisition",
-      label: "คำขอ (Requisition)",
-      icon: "📋",
-      perms: [
-        { key: "req_view",    label: "ดู Requisition" },
-        { key: "req_create",  label: "สร้าง Requisition" },
-        { key: "req_approve", label: "อนุมัติ Requisition" },
-      ],
-    },
-    {
-      key: "report",
-      label: "รายงาน",
-      icon: "📈",
-      perms: [
-        { key: "view_reports",      label: "ดูรายงานภาพรวม" },
-        { key: "report_event",      label: "รายงานกิจกรรม" },
-        { key: "report_inventory",  label: "รายงานคลังสินค้า" },
-        { key: "report_finance",    label: "รายงานการเงิน" },
-      ],
-    },
-    {
-      key: "settings",
-      label: "ตั้งค่าระบบ",
-      icon: "⚙️",
-      perms: [
-        { key: "manage_users",    label: "จัดการผู้ใช้งาน" },
-        { key: "manage_roles",    label: "จัดการ Role & สิทธิ์" },
-        { key: "manage_settings", label: "ตั้งค่าระบบ" },
+      key: "settings", label: "ตั้งค่า", icon: "⚙️",
+      children: [
+        { key: "sys_settings", label: "ตั้งค่าระบบ", icon: "⚙️", perms: [
+          { key: "sys_settings_view", label: "ดู" },
+          { key: "sys_settings_edit", label: "แก้ไข" },
+        ]},
+        { key: "db_viewer", label: "Database Viewer", icon: "🗄️", perms: [
+          { key: "db_viewer_view", label: "ดู" },
+        ]},
+        { key: "users_mgmt", label: "ผู้ใช้งาน", icon: "👥", perms: [
+          { key: "users_view",   label: "ดูรายการ" },
+          { key: "users_create", label: "สร้าง" },
+          { key: "users_edit",   label: "แก้ไข" },
+          { key: "users_delete", label: "ลบ" },
+        ]},
+        { key: "roles_mgmt", label: "จัดการ Role", icon: "🔐", perms: [
+          { key: "roles_view",   label: "ดู" },
+          { key: "roles_create", label: "สร้าง" },
+          { key: "roles_edit",   label: "แก้ไข" },
+          { key: "roles_delete", label: "ลบ" },
+        ]},
+        { key: "supplier", label: "Supplier", icon: "🚚", perms: [
+          { key: "supplier_view",   label: "ดูรายการ" },
+          { key: "supplier_create", label: "สร้าง" },
+          { key: "supplier_edit",   label: "แก้ไข" },
+          { key: "supplier_delete", label: "ลบ" },
+        ]},
+        { key: "customer", label: "ลูกค้า", icon: "🧑", perms: [
+          { key: "customer_view",   label: "ดูรายการ" },
+          { key: "customer_create", label: "สร้าง" },
+          { key: "customer_edit",   label: "แก้ไข" },
+          { key: "customer_delete", label: "ลบ" },
+        ]},
       ],
     },
   ];
 
-  /* Default roles — ใช้เป็น fallback เมื่อ Supabase ไม่ได้เชื่อมต่อ */
+  /* ── Helper: flat array ── */
+  const allPerms = modules.flatMap(m => m.children.flatMap(c => c.perms));
+  const allPermKeys = allPerms.map(p => p.key);
+
+  /* ── Default roles — fallback เมื่อ Supabase ไม่ได้เชื่อมต่อ ── */
   const defaultRoles = {
     ADMIN: {
-      label: "👑 Admin", icon: "👑", color: "role-ADMIN",
-      perms: [
-        "view_dashboard",
-        "event_view","event_create","event_edit","event_delete","event_category","event_place","event_poster","event_budget","event_request","event_attendee",
-        "inventory_view","inventory_create","inventory_edit","inventory_delete","inventory_category","inventory_warehouse","manage_stock","inventory_movement",
-        "po_view","create_po","approve_po","po_delete",
-        "so_view","create_so","approve_so","so_delete",
-        "req_view","req_create","req_approve",
-        "view_reports","report_event","report_inventory","report_finance",
-        "manage_users","manage_roles","manage_settings",
-      ],
+      label: "Admin", icon: "fluent-emoji-flat:crown", color: "role-ADMIN",
+      perms: [...allPermKeys],
     },
     MANAGER: {
-      label: "🏢 Manager", icon: "🏢", color: "role-MANAGER",
+      label: "Manager", icon: "fluent-emoji-flat:office-building", color: "role-MANAGER",
       perms: [
-        "view_dashboard",
-        "event_view","event_create","event_edit","event_category",
-        "inventory_view","inventory_create","inventory_edit","manage_stock",
-        "po_view","create_po","approve_po",
-        "so_view","create_so","approve_so",
+        "dashboard_view",
+        "poster_view","poster_create","poster_edit",
+        "events_view","events_create","events_edit",
+        "evt_cat_view","evt_cat_create","evt_cat_edit",
+        "evt_place_view","evt_place_create","evt_place_edit",
+        "evt_req_view","evt_req_create","evt_req_approve",
+        "evt_budget_view","evt_budget_create","evt_budget_edit",
+        "attendee_view","attendee_edit",
+        "media_view","media_upload",
+        "inv_cat_view","inv_cat_create","inv_cat_edit",
+        "warehouse_view","warehouse_create","warehouse_edit",
+        "product_view","product_create","product_edit",
+        "stock_init_view","stock_init_create","stock_init_edit",
+        "stock_move_view",
+        "po_view","po_create","po_edit","po_approve",
+        "so_view","so_create","so_edit","so_approve",
         "req_view","req_create","req_approve",
-        "view_reports","report_event","report_inventory",
+        "report_stock_view","report_stock_export",
+        "supplier_view","supplier_create","supplier_edit",
+        "customer_view","customer_create","customer_edit",
       ],
     },
     WAREHOUSE: {
-      label: "🏭 Warehouse", icon: "🏭", color: "role-WAREHOUSE",
+      label: "Warehouse", icon: "fluent-emoji-flat:factory", color: "role-WAREHOUSE",
       perms: [
-        "view_dashboard",
-        "inventory_view","inventory_create","inventory_edit","inventory_category","inventory_warehouse","manage_stock","inventory_movement",
-        "po_view","create_po",
+        "dashboard_view",
+        "inv_cat_view","inv_cat_create","inv_cat_edit","inv_cat_delete",
+        "warehouse_view","warehouse_create","warehouse_edit","warehouse_delete",
+        "product_view","product_create","product_edit","product_delete",
+        "stock_init_view","stock_init_create","stock_init_edit",
+        "stock_move_view",
+        "po_view","po_create",
         "req_view","req_create",
+        "report_stock_view",
       ],
     },
     SALES: {
-      label: "💰 Sales", icon: "💰", color: "role-SALES",
+      label: "Sales", icon: "fluent-emoji-flat:money-bag", color: "role-SALES",
       perms: [
-        "view_dashboard",
-        "event_view",
-        "inventory_view",
-        "so_view","create_so",
+        "dashboard_view",
+        "poster_view","events_view",
+        "product_view",
+        "so_view","so_create","so_edit",
         "req_view","req_create",
-        "view_reports",
+        "report_stock_view",
+        "customer_view","customer_create","customer_edit",
       ],
     },
     VIEWER: {
-      label: "👁 Viewer", icon: "👁", color: "role-VIEWER",
-      perms: ["view_dashboard","event_view","inventory_view","po_view","so_view"],
+      label: "Viewer", icon: "fluent-emoji-flat:eye", color: "role-VIEWER",
+      perms: [
+        "dashboard_view",
+        "poster_view","events_view",
+        "product_view",
+        "po_view","so_view",
+        "report_stock_view",
+      ],
     },
   };
 
-  const allPerms = modules.flatMap((m) => m.perms);
+  /* ── Helper: iconToEmoji ── แปลง Iconify fluent-emoji-flat → emoji char (สำหรับใช้ใน <option>) ── */
+  const EMOJI_MAP = {
+    "fluent-emoji-flat:bust-in-silhouette": "👤",
+    "fluent-emoji-flat:crown": "👑",
+    "fluent-emoji-flat:office-building": "🏢",
+    "fluent-emoji-flat:factory": "🏭",
+    "fluent-emoji-flat:money-bag": "💰",
+    "fluent-emoji-flat:eye": "👁️",
+    "fluent-emoji-flat:locked": "🔒",
+    "fluent-emoji-flat:gear": "⚙️",
+    "fluent-emoji-flat:key": "🔑",
+    "fluent-emoji-flat:wrench": "🔧",
+    "fluent-emoji-flat:man-office-worker": "👨‍💼",
+    "fluent-emoji-flat:woman-office-worker": "👩‍💼",
+    "fluent-emoji-flat:technologist": "🧑‍💻",
+    "fluent-emoji-flat:construction-worker": "👷",
+    "fluent-emoji-flat:busts-in-silhouette": "👥",
+    "fluent-emoji-flat:briefcase": "💼",
+    "fluent-emoji-flat:clipboard": "📋",
+    "fluent-emoji-flat:chart-increasing": "📈",
+    "fluent-emoji-flat:bar-chart": "📊",
+    "fluent-emoji-flat:trophy": "🏆",
+    "fluent-emoji-flat:star": "⭐",
+    "fluent-emoji-flat:rocket": "🚀",
+    "fluent-emoji-flat:direct-hit": "🎯",
+    "fluent-emoji-flat:department-store": "🏬",
+    "fluent-emoji-flat:delivery-truck": "🚚",
+    "fluent-emoji-flat:package": "📦",
+    "fluent-emoji-flat:receipt": "🧾",
+    "fluent-emoji-flat:bell": "🔔",
+    "fluent-emoji-flat:light-bulb": "💡",
+    "fluent-emoji-flat:shield": "🛡️",
+    "fluent-emoji-flat:graduation-cap": "🎓",
+    "fluent-emoji-flat:house": "🏠",
+    "fluent-emoji-flat:calendar": "📅",
+    "fluent-emoji-flat:triangular-flag": "🚩",
+    "fluent-emoji-flat:red-heart": "❤️",
+    "fluent-emoji-flat:bookmark": "🔖",
+    "fluent-emoji-flat:artist-palette": "🎨",
+  };
 
-  return { modules, allPerms, defaultRoles };
+  function iconToEmoji(icon) {
+    if (!icon) return "";
+    if (!icon.includes(":")) return icon; /* already plain emoji */
+    return EMOJI_MAP[icon] || "";
+  }
+
+  /* ── Helper: renderIcon ── รองรับทั้ง emoji และ Iconify name ── */
+  function renderIcon(icon, size = 16) {
+    if (!icon) return "❓";
+    /* Iconify format: "fluent-emoji-flat:crown", "ph:user-fill" */
+    if (typeof icon === "string" && icon.includes(":")) {
+      /* Colorful sets → อย่า override สี */
+      const isColorful = /^(fluent-emoji|twemoji|noto|emojione|openmoji)/.test(icon);
+      const colorQS = isColorful ? "" : "?color=%23334155";
+      return `<img src="https://api.iconify.design/${icon}.svg${colorQS}" width="${size}" height="${size}" style="vertical-align:middle;display:inline-block" alt="" />`;
+    }
+    /* Plain emoji */
+    return icon;
+  }
+
+  return { modules, allPerms, allPermKeys, defaultRoles, renderIcon, iconToEmoji };
 })();

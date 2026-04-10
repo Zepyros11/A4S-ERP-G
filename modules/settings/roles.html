@@ -27,7 +27,7 @@
             <div class="roles-sidebar">
               <div class="roles-sidebar-hdr">
                 <span class="roles-sidebar-title">Role ทั้งหมด</span>
-                <button class="btn btn-primary btn-sm" onclick="openAddRole()">＋ เพิ่ม</button>
+                <button class="btn btn-primary btn-sm" data-perm="roles_create" onclick="openAddRole()">＋ เพิ่ม</button>
               </div>
               <div class="role-list" id="roleList">
                 <div class="empty-state"><div class="empty-icon">⚙️</div><div>กำลังโหลด...</div></div>
@@ -47,7 +47,7 @@
                     <div class="panel-role-name" id="panelTitle">—</div>
                     <div class="panel-role-meta" id="panelMeta">—</div>
                   </div>
-                  <button class="btn btn-primary" onclick="saveRole()">💾 บันทึก</button>
+                  <button class="btn btn-primary" data-perm="roles_edit" onclick="saveRole()">💾 บันทึก</button>
                 </div>
 
                 <!-- Search -->
@@ -74,8 +74,10 @@
         </div>
 
         <script src="../../js/core/permissions.js"></script>
-        <script src="./roles.js"></script>
         <script src="../../js/core/auth.js"></script>
+        <script src="../../js/core/authz.js"></script>
+        <script>AuthZ.requirePerm("roles_view");</script>
+        <script src="./roles.js"></script>
         <script src="../../js/components/modal/deleteModal.js"></script>
         <script src="../../js/components/modal/modalManager.js"></script>
         <script type="module">
@@ -88,35 +90,59 @@
 
     <!-- ADD ROLE MODAL -->
     <div class="modal-overlay" id="addRoleOverlay" onclick="closeAddRoleBg(event)">
-      <div class="modal" style="width:420px">
+      <div class="modal add-role-modal">
         <div class="modal-hdr">
           <div class="modal-title">เพิ่ม Role ใหม่</div>
           <button class="btn-modal-close" onclick="closeAddRole()">✕</button>
         </div>
         <div class="modal-body">
-          <div class="form-grid">
-            <div class="form-group full">
-              <label class="form-label">Role Key <span class="req">*</span></label>
-              <input class="form-control" id="newRoleKey" placeholder="เช่น STAFF (ตัวพิมพ์ใหญ่)" style="font-family:'IBM Plex Mono',monospace;text-transform:uppercase" />
-              <div class="form-hint">ใช้เป็น identifier ในระบบ ไม่สามารถเปลี่ยนได้ภายหลัง</div>
+          <div class="add-role-form">
+            <div class="form-row">
+              <div class="form-group" style="flex:1">
+                <label class="form-label">ชื่อ Role <span class="req">*</span></label>
+                <input class="form-control" id="newRoleLabel" placeholder="เช่น Staff" />
+              </div>
+              <div class="form-group" style="flex:1">
+                <label class="form-label">สี (Color)</label>
+                <select class="form-control" id="newRoleColor">
+                  <optgroup label="— มาตรฐาน —">
+                    <option value="role-ADMIN">🟡 ทอง (Admin)</option>
+                    <option value="role-MANAGER">🔵 น้ำเงิน (Manager)</option>
+                    <option value="role-WAREHOUSE">💠 ฟ้าน้ำทะเล</option>
+                    <option value="role-SALES">🟢 เขียว (Sales)</option>
+                    <option value="role-VIEWER" selected>⚪ เทา (Viewer)</option>
+                  </optgroup>
+                  <optgroup label="— โทนร้อน —">
+                    <option value="role-red">🔴 แดง</option>
+                    <option value="role-rose">🌹 กุหลาบ</option>
+                    <option value="role-pink">🌸 ชมพู</option>
+                    <option value="role-orange">🟠 ส้ม</option>
+                    <option value="role-yellow">💛 เหลือง</option>
+                  </optgroup>
+                  <optgroup label="— โทนเย็น —">
+                    <option value="role-lime">🟩 เขียวมะนาว</option>
+                    <option value="role-emerald">🟢 มรกต</option>
+                    <option value="role-cyan">🩵 ฟ้าครีม</option>
+                    <option value="role-sky">🌤️ ฟ้าสด</option>
+                    <option value="role-indigo">🟣 คราม</option>
+                    <option value="role-purple">💜 ม่วง</option>
+                  </optgroup>
+                  <optgroup label="— โทนกลาง —">
+                    <option value="role-slate">⚫ สเลท</option>
+                  </optgroup>
+                </select>
+              </div>
             </div>
             <div class="form-group">
-              <label class="form-label">ชื่อ Role <span class="req">*</span></label>
-              <input class="form-control" id="newRoleLabel" placeholder="เช่น Staff" />
-            </div>
-            <div class="form-group">
-              <label class="form-label">Icon (Emoji)</label>
-              <input class="form-control" id="newRoleIcon" placeholder="👤" maxlength="2" style="font-size:20px;text-align:center" />
-            </div>
-            <div class="form-group full">
-              <label class="form-label">Color CSS Class</label>
-              <select class="form-control" id="newRoleColor">
-                <option value="role-ADMIN">🟡 Admin (ทอง)</option>
-                <option value="role-MANAGER">🔵 Manager (น้ำเงิน)</option>
-                <option value="role-WAREHOUSE">🟢 Warehouse (เขียว)</option>
-                <option value="role-SALES">💚 Sales (เขียวอ่อน)</option>
-                <option value="role-VIEWER" selected>⚪ Viewer (เทา)</option>
-              </select>
+              <label class="form-label">Icon</label>
+              <div class="icon-picker-wrap">
+                <div class="icon-selected-row">
+                  <div class="icon-preview" id="iconPreview">👤</div>
+                  <input class="form-control icon-search" id="iconSearch" placeholder="🔍 ค้นหาไอคอน (เช่น user, home, star)..." oninput="searchIcons()" />
+                </div>
+                <div class="icon-picker" id="iconPicker"></div>
+              </div>
+              <input type="hidden" id="newRoleIcon" value="fluent-emoji-flat:bust-in-silhouette" />
             </div>
           </div>
         </div>

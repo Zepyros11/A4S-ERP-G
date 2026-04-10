@@ -182,7 +182,12 @@
           label: "ผู้ใช้งาน",
           path: BASE_PATH + "/modules/settings/users.html",
         },
-
+        {
+          id: "roles",
+          icon: "🔐",
+          label: "จัดการ Role",
+          path: BASE_PATH + "/modules/settings/roles.html",
+        },
         {
           id: "suppliers",
           icon: "🚚",
@@ -198,6 +203,42 @@
       ],
     },
   ];
+
+  /* ── Permission key ต่อ menu item id ── */
+  const ID_TO_PERM = {
+    dashboard: "dashboard_view",
+    "event-poster-gallery": "poster_view",
+    events: "events_view",
+    "events-category": "evt_cat_view",
+    "events-place-list": "evt_place_view",
+    "event-requests": "evt_req_view",
+    "event-budget": "evt_budget_view",
+    attendees: "attendee_view",
+    "event-media": "media_view",
+    categories: "inv_cat_view",
+    warehouses: "warehouse_view",
+    products: "product_view",
+    "stock-initial": "stock_init_view",
+    "stock-move": "stock_move_view",
+    po: "po_view",
+    so: "so_view",
+    req: "req_view",
+    reports: "report_stock_view",
+    settings: "sys_settings_view",
+    db_viewer: "db_viewer_view",
+    users: "users_view",
+    roles: "roles_view",
+    suppliers: "supplier_view",
+    customers: "customer_view",
+  };
+
+  /* ── เช็คสิทธิ์ของ item (ถ้า AuthZ ยังไม่โหลด → อนุญาตทั้งหมด) ── */
+  function canSeeItem(itemId) {
+    const need = ID_TO_PERM[itemId];
+    if (!need) return true;
+    if (typeof window.AuthZ === "undefined") return true;
+    return window.AuthZ.hasPerm(need);
+  }
 
   const READY = [
     //**** Dashboard ****/
@@ -226,6 +267,7 @@
     "settings",
     "suppliers",
     "users",
+    "roles",
     "customers",
     // "reports",
     // "db_viewer",
@@ -366,6 +408,10 @@
 
   let menuHTML = "";
   for (const g of MENU) {
+    /* filter items ที่ user ไม่มีสิทธิ์ดู */
+    const visibleItems = g.items.filter((item) => canSeeItem(item.id));
+    if (visibleItems.length === 0) continue; /* group ที่ว่างเปล่า → ข้าม */
+
     const isOpen = openGroups.includes(g.id);
     menuHTML += `<div class="sb-group" id="${g.id}">
       <div class="sb-grp-hdr ${isOpen ? "open" : ""}" onclick="toggleGroup('${g.id}')">
@@ -375,7 +421,7 @@
         <span class="sb-grp-tip">${g.group}</span>
       </div>
       <div class="sb-items ${isOpen ? "open" : ""}">`;
-    for (const item of g.items) {
+    for (const item of visibleItems) {
       const ready = READY.includes(item.id);
       const cls = [
         "sb-item",

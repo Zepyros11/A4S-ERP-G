@@ -78,11 +78,6 @@
               </div>
               <select class="filter-select" id="filterRole" onchange="filterTable()">
                 <option value="">ทุก Role</option>
-                <option value="ADMIN">Admin</option>
-                <option value="MANAGER">Manager</option>
-                <option value="WAREHOUSE">Warehouse</option>
-                <option value="SALES">Sales</option>
-                <option value="VIEWER">Viewer</option>
               </select>
               <select class="filter-select" id="filterStatus" onchange="filterTable()">
                 <option value="">ทุกสถานะ</option>
@@ -91,7 +86,7 @@
               </select>
               <div class="toolbar-right">
                 <button class="btn btn-outline" onclick="loadData()">🔄 รีเฟรช</button>
-                <button class="btn btn-primary" onclick="openModal()">＋ เพิ่มผู้ใช้</button>
+                <button class="btn btn-primary" data-perm="users_create" onclick="openModal()">＋ เพิ่มผู้ใช้</button>
               </div>
             </div>
 
@@ -135,8 +130,10 @@
 
         <!-- SCRIPTS -->
         <script src="../../js/core/permissions.js"></script>
-        <script src="./users.js"></script>
         <script src="../../js/core/auth.js"></script>
+        <script src="../../js/core/authz.js"></script>
+        <script>AuthZ.requirePerm("users_view");</script>
+        <script src="./users.js"></script>
         <script src="../../js/components/modal/deleteModal.js"></script>
         <script src="../../js/components/modal/modalManager.js"></script>
         <script src="../../js/components/modal/enterModal.js"></script>
@@ -156,7 +153,7 @@
           <div class="modal-title" id="modalTitle">เพิ่มผู้ใช้งานใหม่</div>
           <button class="btn-modal-close" onclick="closeModal()">✕</button>
         </div>
-        <div class="modal-body">
+        <div class="modal-body" style="flex:1;overflow-y:auto;min-height:0">
           <input type="hidden" id="editId" />
           <div class="form-grid">
             <div class="form-group" style="grid-column:span 2">
@@ -204,13 +201,7 @@
             <div class="form-section">🔐 Role & สิทธิ์การใช้งาน</div>
             <div class="form-group full">
               <label class="form-label">Role <span class="req">*</span></label>
-              <select class="form-control" id="fRole" onchange="onRoleChange()">
-                <option value="ADMIN">👑 Admin — สิทธิ์เต็ม</option>
-                <option value="MANAGER" selected>🏢 Manager — จัดการทั่วไป</option>
-                <option value="WAREHOUSE">🏭 Warehouse — จัดการคลัง</option>
-                <option value="SALES">💰 Sales — ขายสินค้า</option>
-                <option value="VIEWER">👁 Viewer — ดูอย่างเดียว</option>
-              </select>
+              <select class="form-control" id="fRole" onchange="onRoleChange()"></select>
             </div>
             <div class="perm-section-header">
               <span class="perm-section-title">สิทธิ์การใช้งาน</span>
@@ -230,56 +221,7 @@
       </div>
     </div>
 
-    <!-- SIDE PANEL OVERLAY -->
-    <div id="userPanelOverlay"
-      style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:299;backdrop-filter:blur(2px);"
-      onclick="closePanel()"></div>
 
-    <!-- SIDE PANEL -->
-    <div class="ev-side-panel" id="sidePanel">
-      <div class="ev-panel-header">
-        <div style="display:flex;align-items:center;gap:12px;flex:1;min-width:0">
-          <div class="avatar" id="panelAvatar" style="background:var(--accent);width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;color:#fff;flex-shrink:0">?</div>
-          <div>
-            <div class="ev-panel-title" id="panelName" style="font-size:15px">—</div>
-            <div style="font-size:12px;color:#94a3b8" id="panelUsername">—</div>
-          </div>
-        </div>
-        <button class="btn-icon" onclick="closePanel()">✕</button>
-      </div>
-      <div class="ev-panel-body" style="padding:20px;overflow-y:auto;flex:1">
-        <div class="p-section">
-          <div class="p-section-title">📋 ข้อมูลทั่วไป</div>
-          <div class="info-grid">
-            <div class="info-item">
-              <div class="info-lbl">Role</div>
-              <div class="info-val" id="panelRole">—</div>
-            </div>
-            <div class="info-item">
-              <div class="info-lbl">สถานะ</div>
-              <div class="info-val" id="panelStatus">—</div>
-            </div>
-            <div class="info-item">
-              <div class="info-lbl">อีเมล</div>
-              <div class="info-val mono" id="panelEmail" style="font-size:12px">—</div>
-            </div>
-            <div class="info-item">
-              <div class="info-lbl">โทรศัพท์</div>
-              <div class="info-val mono" id="panelPhone">—</div>
-            </div>
-          </div>
-        </div>
-        <div class="p-section">
-          <div class="p-section-title">🔐 สิทธิ์การใช้งาน</div>
-          <div class="perm-grid" id="panelPerms"></div>
-        </div>
-      </div>
-      <div class="ev-panel-footer">
-        <button class="btn btn-outline" onclick="editSelected()">✏️ แก้ไข</button>
-        <button class="btn btn-danger-outline" onclick="deleteSelected()">🗑 ลบ</button>
-        <button class="btn btn-primary" onclick="openModal()">＋ เพิ่มใหม่</button>
-      </div>
-    </div>
 
   </body>
 </html>

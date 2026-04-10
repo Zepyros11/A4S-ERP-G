@@ -96,6 +96,20 @@
   border: 1px solid var(--border);
 }
 
+/* ── EXTRA ROLE COLORS ── */
+.role-red     { background: #fee2e2; color: #991b1b; }
+.role-orange  { background: #ffedd5; color: #9a3412; }
+.role-yellow  { background: #fef9c3; color: #854d0e; }
+.role-lime    { background: #ecfccb; color: #3f6212; }
+.role-emerald { background: #d1fae5; color: #065f46; }
+.role-cyan    { background: #cffafe; color: #155e75; }
+.role-sky     { background: #e0f2fe; color: #075985; }
+.role-indigo  { background: #e0e7ff; color: #3730a3; }
+.role-purple  { background: #f3e8ff; color: #6b21a8; }
+.role-pink    { background: #fce7f3; color: #9f1239; }
+.role-rose    { background: #ffe4e6; color: #9f1239; }
+.role-slate   { background: #f1f5f9; color: #334155; }
+
 /* ── STATUS BADGES ── */
 .status-on {
   background: var(--success-pale);
@@ -458,25 +472,84 @@
 .tree-mod-cb.state-partial { background: var(--success-pale); border-color: var(--success); color: var(--success); }
 .tree-mod-cb.state-none { background: var(--surface); }
 
-/* children container */
+/* children container (sub-modules) */
 .tree-children {
   border-top: 1px solid var(--border);
+  background: var(--surface);
 }
 .tree-children.collapsed { display: none; }
 
-/* individual permission row */
+/* Sub-module row (level 2) */
+.tree-sub {
+  border-bottom: 1px solid var(--border);
+}
+.tree-sub:last-child { border-bottom: none; }
+.tree-sub-hdr {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px 6px 18px;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.1s;
+  background: var(--surface);
+}
+.tree-sub-hdr:hover { background: var(--accent-pale); }
+.tree-sub-icon { font-size: 12px; }
+.tree-sub-label {
+  flex: 1;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+}
+.tree-sub-count {
+  font-size: 9px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 8px;
+  background: var(--surface2);
+  color: var(--text3);
+  border: 1px solid var(--border);
+  font-family: 'IBM Plex Mono', monospace;
+}
+.tree-sub-expand { font-size: 9px; color: var(--text3); }
+
+.tree-sub-cb {
+  width: 15px;
+  height: 15px;
+  border-radius: 4px;
+  border: 2px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  cursor: pointer;
+  font-size: 9px;
+  font-weight: 800;
+  transition: all 0.15s;
+}
+.tree-sub-cb.state-all { background: var(--success); border-color: var(--success); color: #fff; }
+.tree-sub-cb.state-partial { background: var(--success-pale); border-color: var(--success); color: var(--success); }
+.tree-sub-cb.state-none { background: var(--surface); }
+
+/* Sub children (actions) */
+.tree-sub-children {
+  background: var(--surface2);
+}
+.tree-sub-children.collapsed { display: none; }
+
+/* individual permission row (level 3) */
 .tree-item {
   display: flex;
   align-items: center;
   gap: 9px;
-  padding: 6px 12px 6px 20px;
+  padding: 5px 12px 5px 42px;
   cursor: pointer;
-  font-size: 12.5px;
+  font-size: 12px;
   color: var(--text);
   transition: background 0.1s;
-  border-bottom: 1px solid var(--border);
+  border-top: 1px solid var(--border);
 }
-.tree-item:last-child { border-bottom: none; }
 .tree-item:hover { background: var(--accent-pale); }
 .tree-item.tree-from-role { cursor: default; color: var(--text2); }
 .tree-item.tree-from-role:hover { background: transparent; }
