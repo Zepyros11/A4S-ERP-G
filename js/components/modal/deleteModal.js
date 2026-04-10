@@ -128,6 +128,10 @@ window.DeleteModal = (() => {
     document.head.appendChild(style);
   }
 
+  function onKeyDown(e) {
+    if (e.key === "Escape") close();
+  }
+
   function open(message, onConfirm) {
     ensureModal();
 
@@ -136,10 +140,12 @@ window.DeleteModal = (() => {
     document.getElementById("dmMessage").textContent = message;
 
     document.getElementById("deleteModalOverlay").classList.add("active");
+    document.addEventListener("keydown", onKeyDown);
   }
 
   function close() {
     document.getElementById("deleteModalOverlay")?.classList.remove("active");
+    document.removeEventListener("keydown", onKeyDown);
   }
 
   function confirm() {

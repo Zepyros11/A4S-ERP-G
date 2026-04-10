@@ -1,0 +1,299 @@
+/* ============================================================
+   roles.css — Role & Permission Management Page
+   ============================================================ */
+
+/* ── SPLIT LAYOUT ── */
+.roles-layout {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: 16px;
+  height: calc(100vh - 120px);
+}
+
+/* ── LEFT: ROLE SIDEBAR ── */
+.roles-sidebar {
+  background: var(--surface);
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.roles-sidebar-hdr {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface2);
+}
+.roles-sidebar-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+}
+.btn-sm {
+  padding: 5px 12px;
+  font-size: 12px;
+}
+.role-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* Role Card */
+.role-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.12s;
+  border: 1.5px solid transparent;
+}
+.role-card:hover {
+  background: var(--surface2);
+}
+.role-card.active {
+  background: var(--accent-pale);
+  border-color: var(--accent);
+}
+.role-card-icon {
+  font-size: 22px;
+  flex-shrink: 0;
+}
+.role-card-info {
+  flex: 1;
+  min-width: 0;
+}
+.role-card-name {
+  margin-bottom: 3px;
+}
+.role-card-count {
+  font-size: 11px;
+  color: var(--text3);
+  margin-bottom: 5px;
+}
+.role-card-bar {
+  height: 3px;
+  background: var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.role-card-bar-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+  transition: width 0.3s;
+}
+.role-card.active .role-card-bar-fill {
+  background: var(--accent);
+}
+
+/* ── RIGHT: PANEL ── */
+.roles-panel {
+  background: var(--surface);
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.roles-panel-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.roles-panel-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Panel Header */
+.roles-panel-hdr {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface2);
+  flex-shrink: 0;
+}
+.panel-role-name {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+}
+.panel-role-meta {
+  font-size: 11px;
+  color: var(--text3);
+  margin-top: 2px;
+}
+
+/* Search */
+.perm-search-wrap {
+  position: relative;
+  padding: 12px 16px 0;
+  flex-shrink: 0;
+}
+.perm-search-wrap .search-icon {
+  position: absolute;
+  left: 28px;
+  top: 50%;
+  transform: translateY(-20%);
+  font-size: 14px;
+  pointer-events: none;
+}
+.perm-search {
+  width: 100%;
+  padding-left: 34px;
+}
+
+/* Select All Row */
+.perm-select-all-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.perm-select-all-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text2);
+  cursor: pointer;
+  user-select: none;
+}
+.perm-total-count {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+/* ── PERMISSION TREE ── */
+.perm-tree {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Module Group */
+.tree-module {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.tree-module-hdr {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 14px;
+  background: var(--surface2);
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.12s;
+}
+.tree-module-hdr:hover {
+  background: var(--accent-pale);
+}
+.mod-icon {
+  font-size: 15px;
+}
+.mod-label {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+}
+.mod-count {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text3);
+  font-family: 'IBM Plex Mono', monospace;
+}
+
+/* Children */
+.tree-children {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+}
+.tree-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.1s;
+  border-top: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+}
+.tree-item:nth-child(even) {
+  border-right: none;
+}
+.tree-item:hover {
+  background: var(--accent-pale);
+}
+.tree-item-label {
+  font-size: 12.5px;
+  color: var(--text2);
+}
+
+/* ── TREE CHECKBOX ── */
+.tree-cb {
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+  border: 2px solid var(--border2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  flex-shrink: 0;
+  transition: all 0.12s;
+  background: var(--surface);
+  color: transparent;
+}
+.tree-cb.checked {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+/* Module-level checkbox states */
+.tree-cb.mod-cb {
+  border-radius: 6px;
+}
+.tree-cb.mod-cb.state-all {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.tree-cb.mod-cb.state-partial {
+  background: var(--accent-pale);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.tree-cb.mod-cb.state-none {
+  background: var(--surface);
+  border-color: var(--border2);
+  color: transparent;
+}

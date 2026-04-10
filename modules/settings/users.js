@@ -1,62 +1,14 @@
 /* ============================================================
    users.js — Logic สำหรับหน้าจัดการผู้ใช้งาน
    ============================================================ */
+/* global AppPermissions */
 
 const SUPABASE_URL = localStorage.getItem("sb_url") || "";
 const SUPABASE_KEY = localStorage.getItem("sb_key") || "";
 
-const ROLE_PERMISSIONS = {
-  ADMIN: {
-    label: "👑 Admin",
-    color: "role-ADMIN",
-    perms: [
-      "view_all",
-      "create_po",
-      "approve_po",
-      "create_so",
-      "approve_so",
-      "manage_stock",
-      "manage_users",
-      "manage_settings",
-      "view_reports",
-    ],
-  },
-  MANAGER: {
-    label: "🏢 Manager",
-    color: "role-MANAGER",
-    perms: [
-      "view_all",
-      "create_po",
-      "approve_po",
-      "create_so",
-      "approve_so",
-      "manage_stock",
-      "view_reports",
-    ],
-  },
-  WAREHOUSE: {
-    label: "🏭 Warehouse",
-    color: "role-WAREHOUSE",
-    perms: ["view_all", "create_po", "manage_stock"],
-  },
-  SALES: {
-    label: "💰 Sales",
-    color: "role-SALES",
-    perms: ["view_all", "create_so"],
-  },
-  VIEWER: { label: "👁 Viewer", color: "role-VIEWER", perms: ["view_all"] },
-};
-const ALL_PERMISSIONS = [
-  { key: "view_all", label: "ดูข้อมูลทั้งหมด" },
-  { key: "create_po", label: "สร้าง PO" },
-  { key: "approve_po", label: "อนุมัติ PO" },
-  { key: "create_so", label: "สร้าง SO" },
-  { key: "approve_so", label: "อนุมัติ SO" },
-  { key: "manage_stock", label: "จัดการ Stock" },
-  { key: "manage_users", label: "จัดการผู้ใช้" },
-  { key: "manage_settings", label: "ตั้งค่าระบบ" },
-  { key: "view_reports", label: "ดูรายงาน" },
-];
+/* ── Role config — โหลดจาก Supabase, fallback เป็น defaultRoles ── */
+let ROLE_PERMISSIONS = { ...AppPermissions.defaultRoles };
+const ALL_PERMISSIONS = AppPermissions.allPerms;
 const AVATAR_COLORS = [
   "#0f4c75",
   "#065f46",
@@ -95,9 +47,20 @@ async function loadData() {
   }
   showLoading(true);
   try {
-    const users = await sbFetch("users", {
-      query: "?select=*&order=full_name",
-    });
+    const [users, roleData] = await Promise.all([
+      sbFetch("users", { query: "?select=*&order=full_name" }),
+      sbFetch("role_configs", { query: "?select=*&order=sort_order" }),
+    ]);
+    /* อัปเดต ROLE_PERMISSIONS จาก Supabase */
+    if (roleData) {
+      roleData.forEach((r) => {
+        ROLE_PERMISSIONS[r.role_key] = {
+          label: `${r.icon || ""} ${r.label}`.trim(),
+          color: r.color || "role-VIEWER",
+          perms: r.permissions || [],
+        };
+      });
+    }
     allUsers = users || [];
     filterTable();
     updateStats();
@@ -159,7 +122,7 @@ function renderTable(list) {
   document.getElementById("tableCount").textContent = `${list.length} รายการ`;
   const tbody = document.getElementById("tableBody");
   if (list.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state"><div class="empty-icon">🔍</div><div>ไม่พบผู้ใช้งาน</div></div></td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state"><div class="empty-icon">🔍</div><div>ไม่พบผู้ใช้งาน</div></div></td></tr>`;
     return;
   }
   tbody.innerHTML = list
@@ -174,7 +137,7 @@ function renderTable(list) {
       ).toUpperCase();
       const color = AVATAR_COLORS[(u.user_id || 0) % AVATAR_COLORS.length];
       const isActive = u.is_active !== false;
-      return `<tr class="${u.user_id === selectedId ? "selected" : ""}" onclick="selectUser(${u.user_id})">
+      return `<tr>
       <td><div style="display:flex;align-items:center;gap:10px">
         <div class="avatar" style="background:${color};width:32px;height:32px;font-size:12px">${initials}</div>
         <div style="font-weight:600">${u.full_name || "—"}</div>
@@ -183,19 +146,25 @@ function renderTable(list) {
       <td><span class="role-badge ${role.color}">${role.label}</span></td>
       <td><span style="font-size:12.5px;color:var(--text2)">${u.email || "—"}</span></td>
       <td><span class="status-badge ${isActive ? "status-on" : "status-off"}">${isActive ? "● ใช้งาน" : "● ปิด"}</span></td>
+      <td class="col-center" onclick="event.stopPropagation()">
+        <div class="action-group">
+          <button class="btn-icon" onclick="editUser(${u.user_id})">✏️</button>
+          <button class="btn-icon danger" onclick="deleteUser(${u.user_id})">🗑</button>
+        </div>
+      </td>
     </tr>`;
     })
     .join("");
 }
 
-function selectUser(id) {
+function selectUser(id, e) {
   selectedId = id;
   const u = allUsers.find((x) => x.user_id === id);
   if (!u) return;
   document
     .querySelectorAll(".usr-table tr")
     .forEach((r) => r.classList.remove("selected"));
-  event.currentTarget.classList.add("selected");
+  e.currentTarget.classList.add("selected");
 
   const nameParts2 = (u.full_name || "?").split(" ");
   const initials = (
@@ -222,11 +191,17 @@ function selectUser(id) {
   document.getElementById("panelPhone").textContent = u.phone || "—";
 
   const userPerms = new Set([...role.perms, ...(u.custom_permissions || [])]);
-  document.getElementById("panelPerms").innerHTML = ALL_PERMISSIONS.map((p) => {
-    const has = userPerms.has(p.key);
-    return `<div class="perm-item">
-      <div class="perm-check ${has ? "perm-on" : "perm-off"}">${has ? "✓" : "—"}</div>
-      <span style="font-size:12px;color:${has ? "var(--text)" : "var(--text3)"}">${p.label}</span>
+  document.getElementById("panelPerms").innerHTML = AppPermissions.modules.map((mod) => {
+    const items = mod.perms.map((p) => {
+      const has = userPerms.has(p.key);
+      return `<div class="perm-item">
+        <div class="perm-check ${has ? "perm-on" : "perm-off"}">${has ? "✓" : "—"}</div>
+        <span style="font-size:12px;color:${has ? "var(--text)" : "var(--text3)"}">${p.label}</span>
+      </div>`;
+    }).join("");
+    return `<div class="perm-mod-section">
+      <div class="perm-mod-title">${mod.icon} ${mod.label}</div>
+      <div class="perm-grid">${items}</div>
     </div>`;
   }).join("");
 
@@ -246,37 +221,48 @@ function closePanel() {
 function buildPermToggles(rolePerms, customP = []) {
   customPerms = {};
   customP.forEach((k) => (customPerms[k] = true));
-  document.getElementById("permToggles").innerHTML = ALL_PERMISSIONS.map(
-    (p) => {
+  document.getElementById("permToggles").innerHTML = AppPermissions.modules.map((mod) => {
+    const chips = mod.perms.map((p) => {
       const fromRole = rolePerms.includes(p.key);
-      const isOn = fromRole || customPerms[p.key];
-      return `<label class="perm-toggle ${isOn ? "active" : ""}" id="ptog-${p.key}" onclick="togglePerm('${p.key}',${fromRole})">
-      <div class="perm-toggle-icon">${isOn ? "✓" : ""}</div>
-      <span class="perm-toggle-label">${p.label}${fromRole ? " (Role)" : ""}</span>
-    </label>`;
-    },
-  ).join("");
+      const isCustom = !fromRole && !!customPerms[p.key];
+      let cls = "perm-chip";
+      let icon = '<span class="perm-chip-icon-off">+</span>';
+      let tag = "";
+      if (fromRole) {
+        cls += " state-role";
+        icon = '<span class="perm-chip-icon-check">✓</span>';
+        tag = '<span class="perm-chip-tag">Role</span>';
+      } else if (isCustom) {
+        cls += " state-custom";
+        icon = '<span class="perm-chip-icon-check">✓</span>';
+      }
+      return `<label class="${cls}" id="ptog-${p.key}" onclick="togglePerm('${p.key}',${fromRole})">
+        ${icon}
+        <span class="perm-chip-label">${p.label}</span>
+        ${tag}
+      </label>`;
+    }).join("");
+    return `<div class="perm-module-group">
+      <div class="perm-module-header"><span>${mod.icon}</span><span>${mod.label}</span></div>
+      <div class="perm-module-chips">${chips}</div>
+    </div>`;
+  }).join("");
 }
 
 function togglePerm(key, fromRole) {
   if (fromRole) return;
   customPerms[key] = !customPerms[key];
   const el = document.getElementById(`ptog-${key}`);
-  el.classList.toggle("active", customPerms[key]);
-  el.querySelector(".perm-toggle-icon").textContent = customPerms[key]
-    ? "✓"
-    : "";
+  const isOn = customPerms[key];
+  el.className = `perm-chip${isOn ? " state-custom" : ""}`;
+  el.querySelector("[class^='perm-chip-icon']").outerHTML = isOn
+    ? '<span class="perm-chip-icon-check">✓</span>'
+    : '<span class="perm-chip-icon-off">+</span>';
 }
 
 function onRoleChange() {
   const role = document.getElementById("fRole").value;
   const cfg = ROLE_PERMISSIONS[role];
-  document.getElementById("rolePreview").innerHTML = cfg.perms
-    .map((k) => {
-      const p = ALL_PERMISSIONS.find((x) => x.key === k);
-      return `<span class="role-perm-tag">${p?.label || k}</span>`;
-    })
-    .join("");
   buildPermToggles(
     cfg.perms,
     Object.keys(customPerms).filter((k) => customPerms[k]),
@@ -309,6 +295,15 @@ function openModal(data = null) {
   }
   document.getElementById("modalOverlay").classList.add("open");
   setTimeout(() => document.getElementById("fFullName").focus(), 100);
+}
+
+function editUser(id) {
+  selectedId = id;
+  openModal(allUsers.find((u) => u.user_id === id));
+}
+function deleteUser(id) {
+  selectedId = id;
+  deleteSelected();
 }
 
 function editSelected() {
@@ -405,4 +400,13 @@ function showLoading(show) {
 window.addEventListener("DOMContentLoaded", () => {
   onRoleChange();
   if (SUPABASE_URL && SUPABASE_KEY) setTimeout(() => loadData(), 50);
+});
+
+window.addEventListener("keydown", (e) => {
+  if (e.key !== "Escape") return;
+  if (document.getElementById("modalOverlay").classList.contains("open")) {
+    closeModal();
+  } else if (document.getElementById("sidePanel").classList.contains("open")) {
+    closePanel();
+  }
 });

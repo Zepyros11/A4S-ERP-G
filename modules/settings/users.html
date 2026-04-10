@@ -111,6 +111,7 @@
                     <th onclick="sortBy('role')" style="cursor:pointer">Role <span class="sort-icon">⇅</span></th>
                     <th>อีเมล</th>
                     <th class="col-center">สถานะ</th>
+                    <th class="col-center">จัดการ</th>
                   </tr>
                 </thead>
                 <tbody id="tableBody">
@@ -133,6 +134,7 @@
         <!-- end .page -->
 
         <!-- SCRIPTS -->
+        <script src="../../js/core/permissions.js"></script>
         <script src="./users.js"></script>
         <script src="../../js/core/auth.js"></script>
         <script src="../../js/components/modal/deleteModal.js"></script>
@@ -149,7 +151,7 @@
 
     <!-- EDIT MODAL -->
     <div class="modal-overlay" id="modalOverlay" onclick="closeModalBg(event)">
-      <div class="modal" style="width:560px">
+      <div class="modal" style="width:640px;max-height:90vh;display:flex;flex-direction:column">
         <div class="modal-hdr">
           <div class="modal-title" id="modalTitle">เพิ่มผู้ใช้งานใหม่</div>
           <button class="btn-modal-close" onclick="closeModal()">✕</button>
@@ -180,7 +182,7 @@
                 <option value="false">❌ ปิดใช้งาน</option>
               </select>
             </div>
-            <div class="form-section">🔐 สิทธิ์และ Role</div>
+            <div class="form-section">🔐 Role & สิทธิ์การใช้งาน</div>
             <div class="form-group full">
               <label class="form-label">Role <span class="req">*</span></label>
               <select class="form-control" id="fRole" onchange="onRoleChange()">
@@ -191,11 +193,14 @@
                 <option value="VIEWER">👁 Viewer — ดูอย่างเดียว</option>
               </select>
             </div>
-            <div class="role-preview">
-              <div class="role-preview-title">สิทธิ์ที่ได้รับตาม Role</div>
-              <div class="role-preview-perms" id="rolePreview"></div>
+            <div class="perm-section-header">
+              <span class="perm-section-title">สิทธิ์การใช้งาน</span>
+              <div class="perm-legend">
+                <span class="legend-item legend-role">✓ จาก Role</span>
+                <span class="legend-item legend-custom">✓ เพิ่มเติม</span>
+                <span class="legend-item legend-off">+ คลิกเพื่อเพิ่ม</span>
+              </div>
             </div>
-            <div class="form-section">⚙️ กำหนดสิทธิ์เพิ่มเติม (Custom)</div>
             <div class="perm-toggle-grid" id="permToggles"></div>
           </div>
         </div>

@@ -39,7 +39,6 @@
   border-bottom: none;
 }
 .usr-table tr {
-  cursor: pointer;
   transition: background 0.12s;
 }
 .usr-table tr:hover td {
@@ -154,58 +153,136 @@
   color: var(--text3);
 }
 
-/* ── PERMISSION TOGGLE (form) ── */
+/* ── PERMISSION TOGGLE (form) — grouped by module ── */
 .perm-toggle-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+  display: flex;
+  flex-direction: column;
   gap: 8px;
   grid-column: span 2;
 }
-.perm-toggle {
+.perm-module-group {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.perm-module-header {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 9px 12px;
-  border-radius: 7px;
-  border: 1.5px solid var(--border);
-  cursor: pointer;
-  transition: all 0.15s;
-  user-select: none;
-}
-.perm-toggle:hover {
-  border-color: var(--accent);
-}
-.perm-toggle.active {
-  border-color: var(--success);
-  background: var(--success-pale);
-}
-.perm-toggle input {
-  display: none;
-}
-.perm-toggle-icon {
-  width: 18px;
-  height: 18px;
-  border-radius: 4px;
-  border: 1.5px solid var(--border2);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  gap: 7px;
+  padding: 7px 12px;
+  background: var(--surface2);
   font-size: 11px;
-  flex-shrink: 0;
-  transition: all 0.15s;
+  font-weight: 700;
+  color: var(--text2);
+  border-bottom: 1px solid var(--border);
+  letter-spacing: 0.3px;
 }
-.perm-toggle.active .perm-toggle-icon {
+.perm-module-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 10px 12px;
+}
+/* base chip */
+.perm-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 11px;
+  border-radius: 20px;
+  border: 1.5px solid var(--border);
+  font-size: 12px;
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.15s;
+  color: var(--text3);
+  background: var(--surface);
+}
+.perm-chip:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* ✓ จาก Role — เขียวเข้ม, ไม่คลิกได้ */
+.perm-chip.state-role {
+  background: var(--success);
+  border-color: var(--success);
+  color: #fff;
+  font-weight: 600;
+  cursor: default;
+}
+.perm-chip.state-role:hover {
   background: var(--success);
   border-color: var(--success);
   color: #fff;
 }
-.perm-toggle-label {
+
+/* ✓ เพิ่มเติม (Custom) — เขียวอ่อน, คลิกได้ */
+.perm-chip.state-custom {
+  background: var(--success-pale);
+  border-color: var(--success);
+  color: var(--success);
+  font-weight: 600;
+}
+
+/* icon ใน chip */
+.perm-chip-icon-check {
+  font-size: 11px;
+  font-weight: 700;
+}
+.perm-chip-icon-off {
   font-size: 13px;
+  font-weight: 400;
+  opacity: 0.4;
+}
+
+/* badge "Role" */
+.perm-chip-tag {
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: rgba(255,255,255,0.3);
+  color: #fff;
+  letter-spacing: 0.3px;
+}
+
+/* ── LEGEND ── */
+.perm-section-header {
+  grid-column: span 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+.perm-section-title {
+  font-size: 12px;
+  font-weight: 700;
   color: var(--text2);
 }
-.perm-toggle.active .perm-toggle-label {
+.perm-legend {
+  display: flex;
+  gap: 10px;
+}
+.legend-item {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 20px;
+}
+.legend-role {
+  background: var(--success);
+  color: #fff;
+}
+.legend-custom {
+  background: var(--success-pale);
   color: var(--success);
-  font-weight: 500;
+  border: 1px solid var(--success);
+}
+.legend-off {
+  background: var(--surface2);
+  color: var(--text3);
+  border: 1px solid var(--border);
 }
 
 /* ── ROLE PREVIEW ── */
@@ -235,6 +312,58 @@
   font-weight: 600;
   background: var(--accent-pale);
   color: var(--accent);
+}
+
+/* ── ACTION BUTTONS (column จัดการ) ── */
+.action-btns {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+}
+.btn-action {
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  border: 1.5px solid transparent;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.btn-edit {
+  background: var(--accent-pale);
+  color: var(--accent);
+  border-color: var(--accent-pale);
+}
+.btn-edit:hover {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+.btn-delete {
+  background: var(--danger-pale);
+  color: var(--danger);
+  border-color: var(--danger-pale);
+}
+.btn-delete:hover {
+  background: var(--danger);
+  color: #fff;
+  border-color: var(--danger);
+}
+
+/* ── PANEL PERMS — grouped by module ── */
+.perm-mod-section {
+  margin-bottom: 10px;
+}
+.perm-mod-section:last-child {
+  margin-bottom: 0;
+}
+.perm-mod-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text3);
+  letter-spacing: 0.4px;
+  margin-bottom: 5px;
 }
 
 /* ── MISC ── */
