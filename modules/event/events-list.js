@@ -17,10 +17,248 @@ let sortKey = "event_date";
 let sortAsc = false;
 
 window._panelEventId = null;
+let _panelChatPoll = null;
+let _panelChatSig = "";
+
+function getPanelSenderName() {
+  const u = window.ERP_USER;
+  if (!u) return "Admin";
+  return [u.first_name, u.last_name].filter(Boolean).join(" ") || u.username || "Admin";
+}
+let _evChatCountCache = {}; // { [event_id]: { total, latest } }
+
+/* ── Pin helpers ── */
+function getPinnedIds() {
+  try { return JSON.parse(localStorage.getItem("evPinned") || "[]"); } catch { return []; }
+}
+function isPinned(eventId) { return getPinnedIds().includes(eventId); }
+window.togglePin = function (eventId, e) {
+  e.stopPropagation();
+  const pins = getPinnedIds();
+  const idx = pins.indexOf(eventId);
+  if (idx === -1) pins.push(eventId); else pins.splice(idx, 1);
+  localStorage.setItem("evPinned", JSON.stringify(pins));
+  filterTable();
+};
+
+/* ── Unread chat badge helpers ── */
+async function refreshEvChatCounts() {
+  if (!allEvents.length) return;
+  const { url, key } = getSBLocal();
+  if (!url || !key) return;
+  const ids = allEvents.map((e) => e.event_id).join(",");
+  try {
+    const res = await fetch(
+      `${url}/rest/v1/event_chat_logs?event_id=in.(${ids})&select=event_id,created_at`,
+      { headers: { apikey: key, Authorization: `Bearer ${key}` } }
+    );
+    const logs = await res.json();
+    const map = {};
+    (logs || []).forEach((l) => {
+      const id = l.event_id;
+      if (!map[id]) map[id] = { total: 0, latest: "", timestamps: [] };
+      map[id].total++;
+      map[id].timestamps.push(l.created_at);
+      if (l.created_at > map[id].latest) map[id].latest = l.created_at;
+    });
+    const prev = JSON.stringify(_evChatCountCache);
+    _evChatCountCache = map;
+    if (JSON.stringify(map) !== prev) filterTable();
+  } catch {}
+}
+
+function getEvChatUnread(eventId) {
+  const info = _evChatCountCache[eventId];
+  if (!info || info.total === 0) return 0;
+  const seenAt = localStorage.getItem(`evChat_admin_seen_${eventId}`) || "";
+  // count messages with timestamp strictly newer than last-seen — deletion-proof
+  return info.timestamps.filter(t => t > seenAt).length;
+}
+
+function updatePanelChatTabBadge(eventId) {
+  const badge = document.getElementById("panelChatTabBadge");
+  if (!badge) return;
+  const n = getEvChatUnread(eventId);
+  if (n > 0) {
+    badge.textContent = n;
+    badge.style.display = "inline-flex";
+  } else {
+    badge.style.display = "none";
+  }
+}
+
+function markEvChatRead(eventId, logs) {
+  const latest = (logs || []).reduce((m, l) => (l.created_at > m ? l.created_at : m), "");
+  // only track seenAt timestamp — count-based seenN removed (breaks after deletions)
+  localStorage.setItem(`evChat_admin_seen_${eventId}`, latest);
+  // sync cache with actual DB state
+  if (!_evChatCountCache[eventId]) _evChatCountCache[eventId] = { total: 0, latest: "", timestamps: [] };
+  _evChatCountCache[eventId].total = (logs || []).length;
+  _evChatCountCache[eventId].timestamps = (logs || []).map(l => l.created_at);
+  if (latest) _evChatCountCache[eventId].latest = latest;
+  updatePanelChatTabBadge(eventId);
+  filterTable();
+}
+
+/* ── Tab switching ── */
+window.switchPanelTab = function (tab, btn) {
+  ["detail", "chat", "history"].forEach((t) => {
+    document.getElementById("tab" + t.charAt(0).toUpperCase() + t.slice(1)).style.display = "none";
+  });
+  document.querySelectorAll(".ev-panel-tab").forEach((b) => b.classList.remove("active"));
+  document.getElementById("tab" + tab.charAt(0).toUpperCase() + tab.slice(1)).style.display = "flex";
+  btn.classList.add("active");
+
+  const footer = document.getElementById("panelFooter");
+  if (footer) footer.style.display = tab === "detail" ? "flex" : "none";
+
+  clearInterval(_panelChatPoll);
+  // when leaving chat tab, immediately re-sync badge counts
+  if (tab !== "chat") refreshEvChatCounts();
+  if (tab === "chat") {
+    // hide badge immediately when chat tab opens
+    const tabBadge = document.getElementById("panelChatTabBadge");
+    if (tabBadge) tabBadge.style.display = "none";
+    const nameEl = document.getElementById("panelChatSenderName");
+    if (nameEl) nameEl.textContent = getPanelSenderName();
+    loadPanelChat();
+    _panelChatPoll = setInterval(() => loadPanelChat(true), 5000);
+  } else if (tab === "history") {
+    loadPanelHistory();
+  }
+};
+
+/* ── Load chat (event_chat_logs) ── */
+async function loadPanelChat(silent = false) {
+  if (!window._panelEventId) return;
+  const { url, key } = getSBLocal();
+  if (!url || !key) return;
+  const log = document.getElementById("panelChatLog");
+  if (!silent) log.innerHTML = `<p class="chat-empty">กำลังโหลด...</p>`;
+  try {
+    const res = await fetch(
+      `${url}/rest/v1/event_chat_logs?event_id=eq.${window._panelEventId}&order=created_at.asc`,
+      { headers: { apikey: key, Authorization: `Bearer ${key}` } }
+    );
+    const logs = await res.json();
+    const sig = (logs || []).map((l) => l.created_at).join("|");
+    if (silent && sig === _panelChatSig) return;
+    _panelChatSig = sig;
+
+    const wasAtBottom = log.scrollHeight - log.scrollTop <= log.clientHeight + 8;
+    if (!logs || !logs.length) {
+      log.innerHTML = `<p class="chat-empty">ยังไม่มีข้อความ</p>`;
+      return;
+    }
+    const senderName = getPanelSenderName();
+    log.innerHTML = logs.map((l) => {
+      const author = l.created_by_name || "CS";
+      const isRight = author === senderName;
+      const time = (l.created_at || "").slice(0, 16).replace("T", " ");
+      const roleKey = ["CS","BRE","Admin"].includes(author) ? author : "Admin";
+      return `<div class="bubble-row ${isRight ? "right" : "left"}" data-role="${roleKey}">
+        <div class="bubble-author">${escapeHtml(author)}</div>
+        <div class="bubble-wrap">
+          <div class="bubble-body">${escapeHtml(l.message || "")}</div>
+          <div class="bubble-actions">
+            <button class="bubble-del-btn" onclick="window.deletePanelChat(${l.id})" title="ลบ">🗑</button>
+          </div>
+        </div>
+        <div class="bubble-time">${time}</div>
+      </div>`;
+    }).join("");
+    markEvChatRead(window._panelEventId, logs);
+    if (!silent || wasAtBottom) log.scrollTop = log.scrollHeight;
+  } catch {
+    if (!silent) log.innerHTML = `<p class="chat-empty" style="color:#ef4444">โหลดไม่ได้</p>`;
+  }
+}
+
+/* ── Submit chat ── */
+window.submitPanelChat = async function () {
+  const input = document.getElementById("panelChatInput");
+  const message = (input.value || "").trim();
+  if (!message || !window._panelEventId) return;
+  const { url, key } = getSBLocal();
+  const btn = document.getElementById("panelChatBtn");
+  btn.disabled = true;
+  try {
+    await fetch(`${url}/rest/v1/event_chat_logs`, {
+      method: "POST",
+      headers: {
+        apikey: key, Authorization: `Bearer ${key}`,
+        "Content-Type": "application/json", Prefer: "return=minimal",
+      },
+      body: JSON.stringify({ event_id: window._panelEventId, message, created_by_name: getPanelSenderName() }),
+    });
+    input.value = "";
+    await loadPanelChat();
+  } catch {}
+  btn.disabled = false;
+};
+
+/* ── Delete chat message ── */
+window.deletePanelChat = function (logId) {
+  DeleteModal.open("ต้องการลบข้อความนี้หรือไม่?", async () => {
+    const { url, key } = getSBLocal();
+    try {
+      await fetch(`${url}/rest/v1/event_chat_logs?id=eq.${logId}`, {
+        method: "DELETE",
+        headers: { apikey: key, Authorization: `Bearer ${key}`, Prefer: "return=minimal" },
+      });
+      await loadPanelChat();
+      await refreshEvChatCounts();
+    } catch {}
+  });
+};
+
+/* ── Load history (event_logs) ── */
+async function loadPanelHistory() {
+  if (!window._panelEventId) return;
+  const { url, key } = getSBLocal();
+  if (!url || !key) return;
+  const el = document.getElementById("panelHistoryLog");
+  el.innerHTML = `<p class="chat-empty">กำลังโหลด...</p>`;
+  try {
+    const res = await fetch(
+      `${url}/rest/v1/event_logs?event_id=eq.${window._panelEventId}&select=*,users(full_name)&order=created_at.desc`,
+      { headers: { apikey: key, Authorization: `Bearer ${key}` } }
+    );
+    const logs = await res.json();
+    if (!logs || !logs.length) {
+      el.innerHTML = `<p class="chat-empty">ยังไม่มีประวัติ</p>`;
+      return;
+    }
+    el.innerHTML = logs.map((l) => {
+      const actor = l.users?.full_name || "ระบบ";
+      const initials = actor.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
+      const time = (l.created_at || "").slice(0, 16).replace("T", " ");
+      const actionMap = {
+        CREATE: "สร้างกิจกรรม", UPDATE: "แก้ไขกิจกรรม",
+        STATUS_CHANGE: "เปลี่ยนสถานะ", DELETE: "ลบกิจกรรม",
+      };
+      const action = actionMap[l.action] || l.action || "ดำเนินการ";
+      return `<div class="timeline-item">
+        <div class="timeline-dot">${initials}</div>
+        <div class="timeline-content">
+          <div class="timeline-header">
+            <span class="timeline-actor">${escapeHtml(actor)}</span>
+            <span class="timeline-time">${time}</span>
+          </div>
+          <div class="timeline-action">${action}</div>
+          ${l.note ? `<div class="timeline-note">${escapeHtml(l.note)}</div>` : ""}
+        </div>
+      </div>`;
+    }).join("");
+  } catch {
+    el.innerHTML = `<p class="chat-empty" style="color:#ef4444">โหลดไม่ได้</p>`;
+  }
+}
 
 async function initPage() {
   await loadData();
   bindEvents();
+  setInterval(refreshEvChatCounts, 5000);
 }
 
 async function loadData() {
@@ -39,6 +277,7 @@ async function loadData() {
     await autoUpdateStatuses();
     updateStatCards();
     filterTable();
+    await refreshEvChatCounts();
   } catch (e) {
     showToast("โหลดข้อมูลไม่ได้: " + e.message, "error");
   }
@@ -109,10 +348,7 @@ function bindEvents() {
     if (!window._panelEventId) return;
     window.location.href = `./event-form.html?id=${window._panelEventId}`;
   });
-  document.getElementById("panelBtnLog")?.addEventListener("click", () => {
-    if (!window._panelEventId) return;
-    window.location.href = `./event-log.html?id=${window._panelEventId}`;
-  });
+  // panelBtnLog removed — now handled by tabs
 }
 
 function updateStatCards() {
@@ -161,6 +397,14 @@ window.sortTable = function (key) {
 
 function renderTable(events) {
   const sorted = [...events].sort((a, b) => {
+    // pinned → top, then unread, then normal
+    const pa = isPinned(a.event_id) ? 0 : 1;
+    const pb = isPinned(b.event_id) ? 0 : 1;
+    if (pa !== pb) return pa - pb;
+    const ua = getEvChatUnread(a.event_id) > 0 ? 0 : 1;
+    const ub = getEvChatUnread(b.event_id) > 0 ? 0 : 1;
+    if (ua !== ub) return ua - ub;
+
     let av = a[sortKey] || "";
     let bv = b[sortKey] || "";
     if (typeof av === "string") av = av.toLowerCase();
@@ -223,7 +467,18 @@ function renderTable(events) {
             ? "row-upcoming"
             : "";
 
-      return `<tr class="${rowClass}" onclick="window.openEventPanel(${e.event_id})">
+      const unread = getEvChatUnread(e.event_id);
+      const totalMsgs = _evChatCountCache[e.event_id]?.total || 0;
+      const unreadBadge = unread > 0
+        ? `<span class="chat-unread-pill">💬 ${unread}</span>`
+        : totalMsgs > 0
+          ? `<span class="chat-convo-pill">💬 ${totalMsgs}</span>`
+          : "";
+      const unreadRowClass = unread > 0 ? " row-has-unread" : "";
+      const pinned = isPinned(e.event_id);
+      const pinnedRowClass = pinned ? " row-pinned" : "";
+
+      return `<tr class="${rowClass}${unreadRowClass}${pinnedRowClass}" onclick="window.openEventPanel(${e.event_id})">
       <td style="text-align:center" onclick="event.stopPropagation()">
         <input type="checkbox" class="row-check" value="${e.event_id}" onchange="window.updateDeleteButton()">
       </td>
@@ -232,7 +487,7 @@ function renderTable(events) {
         ${dateEnd}
       </td>
       <td>
-        <div class="event-name">${escapeHtml(e.event_name || "—")}</div>
+        <div class="event-name">${escapeHtml(e.event_name || "—")}${unreadBadge}</div>
         <div class="event-code">${escapeHtml(e.event_code || "—")}</div>
       </td>
       <td>${escapeHtml(e.location || "—")}</td>
@@ -245,6 +500,7 @@ function renderTable(events) {
       </td>
       <td class="col-center" onclick="event.stopPropagation()">
         <div class="action-group">
+          <button class="btn-icon ${pinned ? "btn-pin-active" : "btn-pin"}" title="${pinned ? "ยกเลิกปักหมุด" : "ปักหมุด"}" onclick="window.togglePin(${e.event_id}, event)">📌</button>
           <button class="btn-icon" onclick="window.openEventPanel(${e.event_id})">✏️</button>
           <button class="btn-icon danger" onclick="window.deleteEvent(${e.event_id})">🗑</button>
         </div>
@@ -305,14 +561,28 @@ window.openEventPanel = function (eventId) {
   document.getElementById("peqAssignee").value = e.assigned_to || "";
   document.getElementById("peqDesc").value = e.description || "";
 
+  // reset to detail tab
+  document.getElementById("tabDetail").style.display = "flex";
+  document.getElementById("tabChat").style.display = "none";
+  document.getElementById("tabHistory").style.display = "none";
+  document.querySelectorAll(".ev-panel-tab").forEach((b) => b.classList.remove("active"));
+  document.querySelector(".ev-panel-tab[data-tab='detail']").classList.add("active");
+  document.getElementById("panelFooter").style.display = "flex";
+  clearInterval(_panelChatPoll);
+
+  // update chat tab badge
+  updatePanelChatTabBadge(eventId);
+
   document.getElementById("evSidePanel").classList.add("open");
   document.getElementById("evPanelOverlay").style.display = "block";
 };
 
 window.closeEventPanel = function () {
   window._panelEventId = null;
+  clearInterval(_panelChatPoll);
   document.getElementById("evSidePanel").classList.remove("open");
   document.getElementById("evPanelOverlay").style.display = "none";
+  refreshEvChatCounts();
 };
 
 window.savePanelEvent = async function () {

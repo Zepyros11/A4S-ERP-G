@@ -17,15 +17,17 @@
     </div>
     <div class="toast" id="toast"></div>
 
+    <!-- AUTH (must run before topbar so ERP_USER is available) -->
+    <script src="../../../js/core/auth.js"></script>
+
     <!-- CAL TOPBAR -->
     <div id="calTopbarContainer"></div>
-    <!-- <script src="/A4S-ERP./topbar-calendar.js"></script> -->
     <script src="./topbar-calendar.js"></script>
     <script>
       CalTopbar.init({
         container: "calTopbarContainer",
         pageName: "ปฏิทินกิจกรรม",
-        logoPath: "../../assets/logo/logo-a4s.png",
+        logoPath: "../../../assets/logo/logo-a4s.png",
       });
     </script>
 
@@ -197,7 +199,39 @@
 
           <!-- footer -->
           <div class="ev-popup-footer">
-            <button class="btn btn-primary" id="panelBtnEdit">✏️ แก้ไข</button>
+            <button class="btn btn-primary" id="panelBtnMsg">💬 Message</button>
+          </div>
+        </div>
+
+        <!-- COL 3: Chat Panel (slides in) -->
+        <div class="ev-popup-chat" id="evChatCol">
+          <!-- Collapse tab (LINE-style on left edge) -->
+          <button class="ev-chat-tab" onclick="closeChatPanel()" title="ปิดบอร์ดสนทนา">&#8249;</button>
+          <!-- Inner content wrapper (clips chat, not the tab) -->
+          <div class="ev-chat-inner">
+            <!-- Header -->
+            <div class="ev-chat-header">
+              <div>
+                <div class="ev-chat-title">💬 บอร์ดสนทนา</div>
+                <div id="chatPanelEventName" class="ev-chat-subtitle">—</div>
+              </div>
+            </div>
+            <!-- Sender display -->
+            <div class="ev-chat-role-bar">
+              <span class="ev-chat-role-label">ส่งในนามของ:</span>
+              <span class="ev-chat-sender-name" id="calChatSenderName">—</span>
+            </div>
+            <!-- Messages -->
+            <div id="chatLogPanel" class="ev-chat-log">
+              <p style="text-align:center;font-size:12px;color:#94a3b8;font-style:italic">กำลังโหลด...</p>
+            </div>
+            <!-- Input -->
+            <div class="ev-chat-input-bar">
+              <input id="chatInput" type="text" placeholder="พิมพ์ข้อความ..."
+                onkeydown="if(event.key==='Enter')submitEventLog()"
+                class="ev-chat-input" />
+              <button id="chatSubmitBtn" onclick="submitEventLog()" class="ev-chat-send-btn">ส่ง</button>
+            </div>
           </div>
         </div>
       </div>

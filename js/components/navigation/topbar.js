@@ -235,6 +235,36 @@ export function loadTopbar(title = "") {
     if (raw) session = JSON.parse(raw);
   } catch (_) {}
 
+  // fetch fresh name from DB in background and update topbar if changed
+  (async () => {
+    try {
+      const sbUrl = localStorage.getItem("sb_url") || "";
+      const sbKey = localStorage.getItem("sb_key") || "";
+      if (sbUrl && sbKey && session?.user_id) {
+        const res = await fetch(
+          `${sbUrl}/rest/v1/users?user_id=eq.${session.user_id}&select=full_name,username,role&limit=1`,
+          { headers: { apikey: sbKey, Authorization: `Bearer ${sbKey}` } }
+        );
+        const data = await res.json();
+        if (data?.[0]) {
+          const db = data[0];
+          const freshName = db.full_name || db.username || "";
+          if (freshName) {
+            const nameEl = document.getElementById("topbarUserNameText");
+            const ddNameEl = document.getElementById("topbarDropdownFullname");
+            const avatarEl = document.getElementById("topbarAvatar");
+            const ddAvatarEl = document.getElementById("topbarDropAvatar");
+            const ini = freshName.split(" ").filter(Boolean).map(w => w[0].toUpperCase()).slice(0,2).join("");
+            if (nameEl) nameEl.textContent = freshName;
+            if (ddNameEl) ddNameEl.textContent = freshName;
+            if (avatarEl) avatarEl.textContent = ini;
+            if (ddAvatarEl) ddAvatarEl.textContent = ini;
+          }
+        }
+      }
+    } catch (_) {}
+  })();
+
   const fullName = session
     ? `${session.first_name || ""} ${session.last_name || ""}`.trim() || session.username || "User"
     : "User";
@@ -263,14 +293,14 @@ export function loadTopbar(title = "") {
   <div class="topbar-user" id="topbarUserWrap">
     <button class="topbar-user-btn" id="topbarUserBtn" onclick="window._topbarToggleUserMenu()" aria-expanded="false">
       <div class="topbar-avatar" id="topbarAvatar">${initials}</div>
-      <span class="topbar-user-name">${fullName}</span>
+      <span class="topbar-user-name" id="topbarUserNameText">${fullName}</span>
       <span class="topbar-user-caret">▼</span>
     </button>
     <div class="topbar-dropdown" id="topbarDropdown">
       <div class="topbar-dropdown-header">
-        <div class="topbar-dropdown-avatar" id="topbarDropdownAvatar">${initials}</div>
+        <div class="topbar-dropdown-avatar" id="topbarDropAvatar">${initials}</div>
         <div class="topbar-dropdown-info">
-          <div class="topbar-dropdown-fullname">${fullName}</div>
+          <div class="topbar-dropdown-fullname" id="topbarDropdownFullname">${fullName}</div>
           ${roleLabel ? `<div class="topbar-dropdown-role">${roleLabel}</div>` : ""}
         </div>
       </div>

@@ -12,6 +12,62 @@ let currentYear = new Date().getFullYear();
 let currentMonth = new Date().getMonth();
 let activeCalCatId = "";
 
+/* ── Chat Panel ── */
+let _chatEventId = null;
+let _chatPollTimer = null;
+let _chatLastSig = "";
+
+function getCalSenderName() {
+  const u = window.ERP_USER;
+  if (!u) return "CS";
+  return [u.first_name, u.last_name].filter(Boolean).join(" ") || u.username || "CS";
+}
+
+/* ── Unread badge cache ── */
+let _calChatCache = {}; // { [event_id]: { total, latest } }
+
+async function refreshCalChatCounts() {
+  if (!allEvents.length) return;
+  const { url, key } = getSB();
+  const ids = allEvents.map((e) => e.event_id).join(",");
+  try {
+    const res = await fetch(
+      `${url}/rest/v1/event_chat_logs?event_id=in.(${ids})&select=event_id,created_at`,
+      { headers: { apikey: key, Authorization: `Bearer ${key}` } }
+    );
+    const logs = await res.json();
+    const map = {};
+    (logs || []).forEach((l) => {
+      const id = l.event_id;
+      if (!map[id]) map[id] = { total: 0, latest: "", timestamps: [] };
+      map[id].total++;
+      map[id].timestamps.push(l.created_at);
+      if (l.created_at > map[id].latest) map[id].latest = l.created_at;
+    });
+    const prev = JSON.stringify(_calChatCache);
+    _calChatCache = map;
+    if (JSON.stringify(map) !== prev) renderCalendar();
+  } catch {}
+}
+
+function getCalUnread(eventId) {
+  const info = _calChatCache[eventId];
+  if (!info || info.total === 0) return 0;
+  const seenAt = localStorage.getItem(`evChat_cs_seen_${eventId}`) || "";
+  // count messages with timestamp strictly newer than last-seen — deletion-proof
+  return info.timestamps.filter(t => t > seenAt).length;
+}
+
+function markCalChatRead(eventId, logs) {
+  const latest = (logs || []).reduce((m, l) => (l.created_at > m ? l.created_at : m), "");
+  localStorage.setItem(`evChat_cs_seen_${eventId}`, latest);
+  if (!_calChatCache[eventId]) _calChatCache[eventId] = { total: 0, latest: "", timestamps: [] };
+  _calChatCache[eventId].total = (logs || []).length;
+  _calChatCache[eventId].timestamps = (logs || []).map(l => l.created_at);
+  if (latest) _calChatCache[eventId].latest = latest;
+  renderCalendar();
+}
+
 const MONTHS_TH = [
   "มกราคม",
   "กุมภาพันธ์",
@@ -40,6 +96,8 @@ async function initPage() {
   }
   await Promise.all([loadEvents(), loadCategories()]);
   renderCalendar();
+  await refreshCalChatCounts();
+  setInterval(refreshCalChatCounts, 15000);
 }
 
 async function loadEvents() {
@@ -216,6 +274,10 @@ function renderCalendar() {
           const rBL = isStart ? "6px" : "0";
           const rTR = isEnd ? "6px" : "0";
           const rBR = isEnd ? "6px" : "0";
+          const barUnread = getCalUnread(e.event_id);
+          const barBadge = barUnread > 0
+            ? `<span class="cal-unread-badge">${barUnread}</span>`
+            : "";
           return `<div class="cal-span-bar"
             style="grid-column:${colStart + 1}/${colEnd + 2};grid-row:${laneIdx + 1};
                    background:${color};color:#fff;
@@ -223,7 +285,7 @@ function renderCalendar() {
                    margin:2px ${isEnd ? "3px" : "0"} 1px ${isStart ? "3px" : "0"};"
             onclick="openEventPanel(${e.event_id})"
             title="${e.event_name}">
-            ${isStart ? `${icon} ${e.event_name}` : ""}
+            ${isStart ? `<span class="cal-bar-text">${icon} ${e.event_name}</span>${barBadge}` : ""}
           </div>`;
         })
       )
@@ -252,10 +314,14 @@ function renderCalendar() {
         const pillsHtml = shown
           .map((ev) => {
             const { color, icon } = getCatStyle(ev);
+            const pillUnread = getCalUnread(ev.event_id);
+            const pillBadge = pillUnread > 0
+              ? `<span class="cal-unread-badge">${pillUnread}</span>`
+              : "";
             return `<div class="cal-event-pill"
               style="background:${color};color:#fff;"
               onclick="openEventPanel(${ev.event_id});event.stopPropagation();"
-              title="${ev.event_name}">${icon} ${ev.event_name}</div>`;
+              title="${ev.event_name}">${icon} ${ev.event_name}${pillBadge}</div>`;
           })
           .join("");
         const moreHtml = extra > 0 ? `<div class="cal-more">+${extra}</div>` : "";
@@ -359,12 +425,104 @@ function openEventPanel(eventId) {
       : "—";
   document.getElementById("panelLocation").textContent = e.location || "—";
   document.getElementById("panelDesc").textContent = e.description || "—";
-  document.getElementById("panelBtnEdit").onclick = () =>
-    (window.location.href = `event-form.html?id=${e.event_id}`);
+  const msgBtn = document.getElementById("panelBtnMsg");
+  msgBtn.onclick = () => openChatPanel(e.event_id, e.event_name);
+  const calUnread = getCalUnread(e.event_id);
+  msgBtn.innerHTML = calUnread > 0
+    ? `💬 Message <span style="background:#ef4444;color:#fff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:999px;margin-left:4px">${calUnread}</span>`
+    : `💬 Message`;
   document.getElementById("evPanelOverlay").style.display = "flex";
   document.body.style.overflow = "hidden";
 }
+
+/* ── Chat Panel Functions ── */
+function openChatPanel(eventId, eventName) {
+  _chatEventId = eventId;
+  _chatLastSig = "";
+  document.getElementById("chatPanelEventName").textContent = eventName || "—";
+  document.getElementById("evPopup").classList.add("chat-open");
+  // hide badge immediately when chat opens
+  document.getElementById("panelBtnMsg").innerHTML = `💬 Message`;
+  // show logged-in user name
+  const senderEl = document.getElementById("calChatSenderName");
+  if (senderEl) senderEl.textContent = getCalSenderName();
+  loadEventLogs();
+  _chatPollTimer = setInterval(() => loadEventLogs(true), 5000);
+}
+
+function closeChatPanel() {
+  document.getElementById("evPopup").classList.remove("chat-open");
+  clearInterval(_chatPollTimer);
+  _chatEventId = null;
+}
+
+
+async function loadEventLogs(silent = false) {
+  if (!_chatEventId) return;
+  const { url, key } = getSB();
+  if (!url || !key) return;
+  const panel = document.getElementById("chatLogPanel");
+  if (!silent) panel.innerHTML = `<p style="text-align:center;font-size:12px;color:#94a3b8;font-style:italic">กำลังโหลด...</p>`;
+  try {
+    const res = await fetch(`${url}/rest/v1/event_chat_logs?event_id=eq.${_chatEventId}&order=created_at.asc`, {
+      headers: { apikey: key, Authorization: `Bearer ${key}` }
+    });
+    const logs = await res.json();
+    const sig = (logs || []).map(l => l.created_at).join("|");
+    if (silent && sig === _chatLastSig) return;
+    _chatLastSig = sig;
+    const wasAtBottom = panel.scrollHeight - panel.scrollTop <= panel.clientHeight + 8;
+    if (!logs || !logs.length) {
+      panel.innerHTML = `<p style="text-align:center;font-size:12px;color:#94a3b8;font-style:italic;margin-top:16px">ยังไม่มีข้อความ</p>`;
+      return;
+    }
+    const mySenderName = getCalSenderName();
+    panel.innerHTML = logs.map(log => {
+      const time = (log.created_at || "").slice(0, 16).replace("T", " ");
+      const author = log.created_by_name || "ระบบ";
+      // right = my own messages, left = others
+      const isRight = author === mySenderName;
+
+      let bg, border, textColor;
+      if (isRight) {
+        bg = "#ede9fe"; border = "#c4b5fd"; textColor = "#4c1d95";
+      } else {
+        bg = "#fffbeb"; border = "#fcd34d"; textColor = "#92400e";
+      }
+      const br = isRight ? "14px 4px 14px 14px" : "4px 14px 14px 14px";
+
+      return `<div style="display:flex;flex-direction:column;max-width:82%;align-self:${isRight ? "flex-end" : "flex-start"};align-items:${isRight ? "flex-end" : "flex-start"}">
+        <div style="font-size:10px;font-weight:700;color:#94a3b8;margin-bottom:3px">${author}</div>
+        <div style="background:${bg};border:1.5px solid ${border};border-radius:${br};padding:8px 12px;font-size:13px;line-height:1.5;color:${textColor};word-break:break-word">${log.message || ""}</div>
+        <div style="font-size:10px;color:#94a3b8;margin-top:3px">${time}</div>
+      </div>`;
+    }).join("");
+    markCalChatRead(_chatEventId, logs);
+    if (!silent || wasAtBottom) panel.scrollTop = panel.scrollHeight;
+  } catch(e) { if (!silent) panel.innerHTML = `<p style="text-align:center;color:#ef4444;font-size:12px">โหลดไม่ได้</p>`; }
+}
+
+async function submitEventLog() {
+  const input = document.getElementById("chatInput");
+  const message = (input.value || "").trim();
+  if (!message || !_chatEventId) return;
+  const { url, key } = getSB();
+  const btn = document.getElementById("chatSubmitBtn");
+  btn.disabled = true;
+  try {
+    await fetch(`${url}/rest/v1/event_chat_logs`, {
+      method: "POST",
+      headers: { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json", Prefer: "return=minimal" },
+      body: JSON.stringify({ event_id: _chatEventId, message, created_by_name: getCalSenderName() })
+    });
+    input.value = "";
+    await loadEventLogs();
+  } catch(e) {}
+  btn.disabled = false;
+}
 function closeEventPanel() {
+  closeChatPanel();
+  document.getElementById("evPopup").classList.remove("chat-open");
   document.getElementById("evPanelOverlay").style.display = "none";
   document.body.style.overflow = "";
 }

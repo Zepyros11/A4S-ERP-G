@@ -187,11 +187,22 @@
      SIDE PANEL (Events)
     ═══════════════════════════════════════════════ -->
     <div id="evSidePanel" class="ev-side-panel">
+
+      <!-- HEADER -->
       <div class="ev-panel-header">
-        <div class="ev-panel-title">📋 รายละเอียดกิจกรรม</div>
+        <div class="ev-panel-title" id="panelHeaderTitle">📋 รายละเอียดกิจกรรม</div>
         <button class="btn-icon" onclick="window.closeEventPanel()">✕</button>
       </div>
-      <div class="ev-panel-body">
+
+      <!-- TABS -->
+      <div class="ev-panel-tabs">
+        <button class="ev-panel-tab active" data-tab="detail" onclick="window.switchPanelTab('detail',this)">📋 รายละเอียด</button>
+        <button class="ev-panel-tab" data-tab="chat" onclick="window.switchPanelTab('chat',this)">💬 สนทนา<span id="panelChatTabBadge" class="tab-badge" style="display:none"></span></button>
+        <button class="ev-panel-tab" data-tab="history" onclick="window.switchPanelTab('history',this)">📝 ประวัติ</button>
+      </div>
+
+      <!-- TAB: รายละเอียด -->
+      <div class="ev-panel-body ev-tab-content" id="tabDetail">
         <div class="ev-panel-poster" id="panelPoster">
           <span class="ev-panel-poster-placeholder">📋</span>
         </div>
@@ -258,9 +269,36 @@
           <textarea class="panel-input panel-textarea" id="peqDesc" placeholder="รายละเอียดกิจกรรม"></textarea>
         </div>
       </div>
-      <div class="ev-panel-footer">
+
+      <!-- TAB: สนทนา -->
+      <div class="ev-tab-content ev-tab-chat" id="tabChat" style="display:none;">
+        <!-- Current user display -->
+        <div class="chat-role-bar">
+          <span class="chat-role-label">ส่งในนามของ:</span>
+          <span class="chat-sender-name" id="panelChatSenderName">—</span>
+        </div>
+        <!-- Messages -->
+        <div class="chat-bubble-log" id="panelChatLog">
+          <p class="chat-empty">กำลังโหลด...</p>
+        </div>
+        <!-- Input -->
+        <div class="chat-input-bar">
+          <input id="panelChatInput" class="chat-input" type="text" placeholder="พิมพ์ข้อความ..."
+            onkeydown="if(event.key==='Enter')window.submitPanelChat()" />
+          <button id="panelChatBtn" class="chat-send-btn" onclick="window.submitPanelChat()">ส่ง</button>
+        </div>
+      </div>
+
+      <!-- TAB: ประวัติ -->
+      <div class="ev-tab-content ev-tab-history" id="tabHistory" style="display:none;">
+        <div class="history-timeline" id="panelHistoryLog">
+          <p class="chat-empty">กำลังโหลด...</p>
+        </div>
+      </div>
+
+      <!-- FOOTER (detail tab only) -->
+      <div class="ev-panel-footer" id="panelFooter">
         <button class="btn btn-outline" id="panelBtnFullEdit">🗔 แก้ไขเต็ม</button>
-        <button class="btn btn-outline" id="panelBtnLog">💬 Log งาน</button>
         <button class="btn btn-primary" id="panelBtnSaveEdit">💾 บันทึก</button>
       </div>
     </div>

@@ -29,9 +29,16 @@
   gap: 10px;
 }
 .cal-topbar-logo {
-  height: 28px;
+  height: 32px;
   width: auto;
   object-fit: contain;
+  flex-shrink: 0;
+}
+.cal-topbar-page {
+  font-size: 15px;
+  font-weight: 700;
+  color: #1e293b;
+  letter-spacing: -0.2px;
 }
 .cal-topbar-btn {
   background: none;
@@ -81,6 +88,195 @@
   content: "📅";
   font-size: 12px;
 }
+
+/* ── USER MENU ── */
+.cal-user-menu {
+  position: relative;
+}
+.cal-user-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: none;
+  border: 1px solid #e2e8f0;
+  border-radius: 50px;
+  padding: 4px 12px 4px 4px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s;
+}
+.cal-user-btn:hover {
+  background: #f8fafc;
+}
+.cal-user-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.cal-user-avatar.lg {
+  width: 36px;
+  height: 36px;
+  font-size: 15px;
+}
+.cal-user-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1e293b;
+}
+.cal-user-caret {
+  font-size: 10px;
+  color: #94a3b8;
+}
+.cal-user-dropdown {
+  display: none;
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+  min-width: 200px;
+  z-index: 999;
+  overflow: hidden;
+}
+.cal-user-dropdown.open {
+  display: block;
+  animation: dropIn 0.15s ease;
+}
+@keyframes dropIn {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.cal-user-dropdown-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  background: #f8fafc;
+}
+.cal-dropdown-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: #1e293b;
+}
+.cal-dropdown-role {
+  font-size: 11px;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.cal-dropdown-divider {
+  height: 1px;
+  background: #f1f5f9;
+}
+.cal-dropdown-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 16px;
+  border: none;
+  background: none;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+  transition: background 0.12s;
+}
+.cal-dropdown-item:hover {
+  background: #f8fafc;
+}
+.cal-dropdown-item.danger {
+  color: #dc2626;
+}
+.cal-dropdown-item.danger:hover {
+  background: #fef2f2;
+}
+
+/* ── LOGOUT MODAL ── */
+.cal-modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(15,23,42,0.45);
+  backdrop-filter: blur(6px);
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+.cal-modal-box {
+  background: #fff;
+  border-radius: 16px;
+  padding: 32px 28px 24px;
+  width: 340px;
+  max-width: 92vw;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.14);
+  text-align: center;
+  animation: calModalPop 0.2s cubic-bezier(0.34,1.56,0.64,1);
+}
+@keyframes calModalPop {
+  from { transform: scale(0.94) translateY(8px); opacity: 0; }
+  to   { transform: scale(1) translateY(0); opacity: 1; }
+}
+.cal-modal-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 12px;
+  background: #fef2f2;
+  margin-bottom: 14px;
+}
+.cal-modal-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #111827;
+  margin-bottom: 6px;
+}
+.cal-modal-msg {
+  font-size: 14px;
+  color: #6b7280;
+  margin-bottom: 24px;
+  line-height: 1.6;
+}
+.cal-modal-actions {
+  display: flex;
+  gap: 10px;
+}
+.cal-modal-btn {
+  flex: 1;
+  padding: 10px 16px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: 'Sarabun', 'Plus Jakarta Sans', sans-serif;
+  transition: background 0.15s;
+}
+.cal-modal-btn.cancel {
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+}
+.cal-modal-btn.cancel:hover { background: #e2e8f0; }
+.cal-modal-btn.danger {
+  background: #dc2626;
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(220,38,38,0.25);
+}
+.cal-modal-btn.danger:hover { background: #b91c1c; }
 
 /* ── MOBILE ── */
 @media (max-width: 600px) {

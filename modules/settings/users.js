@@ -231,10 +231,12 @@ function selectUser(id) {
   }).join("");
 
   document.getElementById("sidePanel").classList.add("open");
+  document.getElementById("userPanelOverlay").style.display = "block";
 }
 
 function closePanel() {
   document.getElementById("sidePanel").classList.remove("open");
+  document.getElementById("userPanelOverlay").style.display = "none";
   document
     .querySelectorAll(".usr-table tr")
     .forEach((r) => r.classList.remove("selected"));
@@ -341,8 +343,8 @@ async function saveUser() {
   const payload = {
     full_name: fullName,
     username,
-    email: document.getElementById("fEmail").value.trim() || null,
-    phone: document.getElementById("fPhone").value.trim() || null,
+    email: document.getElementById("fEmail")?.value.trim() || null,
+    phone: document.getElementById("fPhone")?.value.trim() || null,
     role,
     custom_permissions: extras.length ? extras : null,
     is_active: document.getElementById("fStatus").value === "true",
@@ -370,23 +372,24 @@ async function saveUser() {
   showLoading(false);
 }
 
-async function deleteSelected() {
+function deleteSelected() {
   if (!selectedId) return;
   const u = allUsers.find((x) => x.user_id === selectedId);
-  if (!confirm(`ลบผู้ใช้ "${u?.full_name}" ออกจากระบบ?`)) return;
-  showLoading(true);
-  try {
-    await sbFetch("users", {
-      method: "DELETE",
-      query: `?user_id=eq.${selectedId}`,
-    });
-    showToast("ลบผู้ใช้แล้ว", "success");
-    closePanel();
-    await loadData();
-  } catch (e) {
-    showToast("ลบไม่ได้: " + e.message, "error");
-  }
-  showLoading(false);
+  DeleteModal.open(`ต้องการลบผู้ใช้ "${u?.full_name}" ออกจากระบบหรือไม่?`, async () => {
+    showLoading(true);
+    try {
+      await sbFetch("users", {
+        method: "DELETE",
+        query: `?user_id=eq.${selectedId}`,
+      });
+      showToast("ลบผู้ใช้แล้ว", "success");
+      closePanel();
+      await loadData();
+    } catch (e) {
+      showToast("ลบไม่ได้: " + e.message, "error");
+    }
+    showLoading(false);
+  });
 }
 
 function showToast(msg, type = "success") {

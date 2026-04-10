@@ -2,7 +2,8 @@
 
 /* ── STANDALONE PAGE (ไม่มี sidebar/topbar) ── */
 body {
-  background-color: #f8fafc;
+  background: linear-gradient(135deg, #eef2ff 0%, #f0fdf4 50%, #fdf4ff 100%);
+  min-height: 100vh;
   font-family: "Plus Jakarta Sans", "IBM Plex Sans Thai", sans-serif;
 }
 
@@ -179,12 +180,19 @@ body {
   font-size: 11px;
   font-weight: 700;
   cursor: pointer;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
+  overflow: visible;
   transition: filter 0.15s;
   letter-spacing: 0.1px;
   align-self: center;
+  gap: 4px;
+  position: relative;
+}
+.cal-bar-text {
+  flex: 1;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  min-width: 0;
 }
 .cal-span-bar:hover {
   filter: brightness(1.08);
@@ -270,10 +278,11 @@ body {
   margin-bottom: 3px;
   cursor: pointer;
   white-space: nowrap;
-  overflow: hidden;
+  overflow: visible;
   text-overflow: ellipsis;
   line-height: 1.4;
   border: none;
+  position: relative;
   transition:
     filter 0.15s,
     transform 0.1s;
@@ -355,8 +364,7 @@ body {
 /* ── EVENT POPUP ── */
 .ev-popup {
   position: relative;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+  display: flex;
   background: #ffffff;
   border-radius: 20px;
   overflow: hidden;
@@ -365,6 +373,10 @@ body {
   max-width: 96vw;
   max-height: 90vh;
   animation: popupIn 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: width 0.32s cubic-bezier(0.34, 1.1, 0.64, 1);
+}
+.ev-popup.chat-open {
+  width: 1060px;
 }
 @keyframes popupIn {
   from {
@@ -408,6 +420,8 @@ body {
   justify-content: center;
   overflow: hidden;
   min-height: 360px;
+  width: 320px;
+  flex-shrink: 0;
   border-right: 1px solid #e2e8f0;
 }
 .ev-popup-left img {
@@ -429,6 +443,179 @@ body {
   overflow-y: auto;
   max-height: 90vh;
   gap: 10px;
+  flex: 1;
+  min-width: 0;
+}
+
+/* ── COL 3: Chat Panel ── */
+.ev-popup-chat {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 0;
+  overflow: visible;       /* allow tab to poke left; popup clips at its border */
+  flex-shrink: 0;
+  border-left: 1px solid #e2e8f0;
+  transition: width 0.32s cubic-bezier(0.34, 1.1, 0.64, 1);
+  background: #fff;
+}
+.ev-popup.chat-open .ev-popup-chat {
+  width: 340px;
+}
+
+/* inner wrapper clips the chat content (not the tab) */
+.ev-chat-inner {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+  min-width: 340px;
+}
+
+/* ── Collapse tab (LINE-style — inside left edge of chat column) ── */
+.ev-chat-tab {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 18px;
+  height: 52px;
+  background: #4f46e5;
+  border: none;
+  border-radius: 0 6px 6px 0;
+  color: #fff;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 20;
+  padding: 0;
+  transition: background 0.15s, width 0.15s;
+}
+.ev-chat-tab:hover {
+  background: #4338ca;
+  width: 22px;
+}
+
+.ev-chat-header {
+  padding: 14px 16px;
+  background: #4f46e5;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+.ev-chat-title {
+  font-size: 13px;
+  font-weight: 700;
+}
+.ev-chat-subtitle {
+  font-size: 11px;
+  opacity: 0.75;
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 280px;
+}
+.ev-chat-role-bar {
+  padding: 8px 14px;
+  border-bottom: 1px solid #f1f5f9;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-shrink: 0;
+}
+.ev-chat-role-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #64748b;
+}
+.ev-chat-log {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: #f8fafc;
+}
+.ev-chat-input-bar {
+  padding: 10px 14px;
+  border-top: 1px solid #f1f5f9;
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+  background: #fff;
+}
+.ev-chat-input {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 12px;
+  font-size: 13px;
+  outline: none;
+  font-family: inherit;
+  transition: border-color 0.15s;
+}
+.ev-chat-input:focus {
+  border-color: #818cf8;
+}
+.ev-chat-send-btn {
+  padding: 8px 16px;
+  background: #4f46e5;
+  color: #fff;
+  border: none;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s;
+}
+.ev-chat-send-btn:hover {
+  background: #4338ca;
+}
+.ev-chat-send-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ── UNREAD BADGE on calendar pills/bars ── */
+.cal-unread-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  background: #f97316;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 800;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  line-height: 1.5;
+  flex-shrink: 0;
+  animation: calBadgePing 1.6s ease-out infinite;
+}
+@keyframes calBadgePing {
+  0%   { box-shadow: 0 0 0 0 rgba(249,115,22,0.7), 0 0 0 0 rgba(249,115,22,0.4); }
+  50%  { box-shadow: 0 0 0 8px rgba(249,115,22,0), 0 0 0 16px rgba(249,115,22,0); }
+  100% { box-shadow: 0 0 0 0 rgba(249,115,22,0),  0 0 0 0  rgba(249,115,22,0); }
+}
+
+/* ── CHAT SENDER NAME ── */
+.ev-chat-sender-name {
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  border-radius: 20px;
+  padding: 4px 14px;
+  box-shadow: 0 2px 6px rgba(99,102,241,0.35);
 }
 .ev-popup-badges {
   display: flex;
@@ -514,21 +701,31 @@ body {
 /* TABLET */
 @media (max-width: 900px) {
   .ev-popup {
-    grid-template-columns: 1fr 1fr;
     width: 94vw;
+  }
+  .ev-popup.chat-open {
+    width: 94vw;
+    flex-wrap: wrap;
+  }
+  .ev-popup.chat-open .ev-popup-chat {
+    width: 100%;
+    border-left: none;
+    border-top: 1px solid #e2e8f0;
+    max-height: 300px;
   }
 }
 /* MOBILE */
 @media (max-width: 600px) {
   .ev-popup {
-    grid-template-columns: 1fr;
-    grid-template-rows: 160px auto auto;
+    flex-direction: column;
     width: 96vw;
     max-height: 94vh;
     border-radius: 16px;
   }
   .ev-popup-left {
-    min-height: unset;
+    width: 100%;
+    min-width: unset;
+    min-height: 160px;
     border-right: none;
     border-bottom: 1px solid #e2e8f0;
   }
@@ -537,8 +734,20 @@ body {
     border-bottom: 1px solid #e2e8f0;
     max-height: none;
   }
-  .ev-popup-board {
-    min-height: 140px;
+  .ev-popup.chat-open {
+    width: 96vw;
+  }
+  .ev-popup.chat-open .ev-popup-chat {
+    width: 100%;
+    border-left: none;
+    border-top: 1px solid #e2e8f0;
+  }
+  .ev-popup.chat-open .ev-chat-inner {
+    max-height: 280px;
+    min-width: unset;
+  }
+  .ev-chat-tab {
+    display: none;
   }
 }
 

@@ -2,6 +2,42 @@
    events.css — Event Module Styles
 ========================================================= */
 
+/* ── ACTION GROUP (edit | del inline) ── */
+.action-group {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+/* ── PIN BUTTON ── */
+.btn-pin {
+  opacity: 0.25;
+  transition: opacity 0.15s;
+  filter: grayscale(1);
+}
+.btn-pin:hover {
+  opacity: 0.8;
+  filter: grayscale(0);
+}
+.btn-pin-active {
+  opacity: 1;
+  filter: grayscale(0);
+}
+
+/* ── PINNED ROW ── */
+tr.row-pinned {
+  background: #fefce8 !important;
+  box-shadow: inset 3px 0 0 #eab308;
+}
+tr.row-pinned:hover {
+  background: #fef9c3 !important;
+}
+tr.row-pinned .event-name {
+  font-weight: 700;
+}
+
 /* ── PAGE TABS ── */
 .ev-tabs {
   display: flex;
@@ -591,5 +627,342 @@
   height: 88px;
   padding: 8px 10px;
   resize: none;
+  line-height: 1.5;
+}
+
+/* ══════════════════════════════════════════
+   PANEL TABS
+══════════════════════════════════════════ */
+.ev-panel-tabs {
+  display: flex;
+  border-bottom: 2px solid var(--border);
+  background: var(--surface2);
+  flex-shrink: 0;
+}
+.ev-panel-tab {
+  flex: 1;
+  padding: 10px 6px;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: "Sarabun", sans-serif;
+  color: var(--text3);
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+.ev-panel-tab:hover {
+  color: var(--accent);
+}
+.ev-panel-tab.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+  background: var(--surface);
+}
+
+.ev-tab-content {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+/* รายละเอียด tab — reuse ev-panel-body spacing */
+#tabDetail {
+  padding: 20px;
+  gap: 0;
+}
+
+/* ══════════════════════════════════════════
+   CHAT TAB
+══════════════════════════════════════════ */
+.ev-tab-chat {
+  background: #f8fafc;
+}
+.chat-role-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  flex-shrink: 0;
+}
+.chat-role-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text3);
+  margin-right: 2px;
+}
+.chat-role-btn {
+  padding: 3px 12px;
+  border-radius: 20px;
+  border: 1.5px solid var(--border);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  background: var(--surface2);
+  color: var(--text3);
+  font-family: "Sarabun", sans-serif;
+  transition: background 0.15s, border-color 0.15s;
+}
+.chat-role-btn.active[data-role="CS"]    { background:#fef3c7; border-color:#f59e0b; color:#92400e; }
+.chat-role-btn.active[data-role="BRE"]   { background:#dcfce7; border-color:#16a34a; color:#14532d; }
+.chat-role-btn.active[data-role="Admin"] { background:#ede9fe; border-color:#7c3aed; color:#4c1d95; }
+
+.chat-bubble-log {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+/* ── Row with unread messages ── */
+tr.row-has-unread {
+  background: #fff7ed !important;
+  box-shadow: inset 3px 0 0 #f97316;
+}
+tr.row-has-unread:hover {
+  background: #ffedd5 !important;
+}
+tr.row-has-unread .event-name {
+  color: #c2410c;
+}
+
+/* ── Unread pill badge ── */
+.chat-unread-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  background: #f97316;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 999px;
+  line-height: 1.5;
+  margin-left: 6px;
+  vertical-align: middle;
+  position: relative;
+  animation: pillPing 1.6s ease-out infinite;
+}
+@keyframes pillPing {
+  0%   { box-shadow: 0 0 0 0 rgba(249,115,22,0.7), 0 0 0 0 rgba(249,115,22,0.4); }
+  50%  { box-shadow: 0 0 0 8px rgba(249,115,22,0), 0 0 0 16px rgba(249,115,22,0); }
+  100% { box-shadow: 0 0 0 0 rgba(249,115,22,0),  0 0 0 0  rgba(249,115,22,0); }
+}
+
+/* ── "Has conversation" pill (read, muted) ── */
+.chat-convo-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  background: #e5e7eb;
+  color: #6b7280;
+  font-size: 9px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 999px;
+  line-height: 1.5;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+.chat-sender-name {
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  border-radius: 20px;
+  padding: 4px 14px;
+  box-shadow: 0 2px 6px rgba(99,102,241,0.35);
+}
+.chat-empty {
+  text-align: center;
+  font-size: 12px;
+  color: var(--text3);
+  font-style: italic;
+  margin: auto;
+}
+
+/* bubble row */
+.bubble-row {
+  display: flex;
+  flex-direction: column;
+  max-width: 82%;
+}
+.bubble-row.right {
+  align-self: flex-end;
+  align-items: flex-end;
+}
+.bubble-row.left {
+  align-self: flex-start;
+  align-items: flex-start;
+}
+.bubble-author {
+  font-size: 10px;
+  font-weight: 700;
+  margin-bottom: 3px;
+  color: var(--text3);
+}
+/* wrap bubble + delete btn side by side */
+.bubble-wrap {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.bubble-row.right .bubble-wrap { flex-direction: row-reverse; }
+.bubble-body {
+  padding: 8px 12px;
+  border-radius: 14px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text);
+  word-break: break-word;
+}
+.bubble-row.left  .bubble-body { background:#fff; border:1.5px solid #e2e8f0; border-radius:4px 14px 14px 14px; }
+.bubble-row.right .bubble-body { border-radius:14px 4px 14px 14px; }
+.bubble-row[data-role="CS"]    .bubble-body { background:#fffbeb; border-color:#fcd34d; }
+.bubble-row[data-role="BRE"]   .bubble-body { background:#f0fdf4; border-color:#86efac; color:#14532d; }
+.bubble-row[data-role="Admin"] .bubble-body { background:#ede9fe; border-color:#c4b5fd; color:#4c1d95; }
+
+/* delete button — hidden until hover */
+.bubble-actions { display: flex; align-items: center; }
+.bubble-del-btn {
+  opacity: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 13px;
+  padding: 2px 4px;
+  border-radius: 6px;
+  transition: opacity 0.15s, background 0.15s;
+  line-height: 1;
+}
+.bubble-wrap:hover .bubble-del-btn { opacity: 1; }
+.bubble-del-btn:hover { background: #fee2e2; }
+
+.bubble-time {
+  font-size: 10px;
+  color: #94a3b8;
+  margin-top: 3px;
+  padding: 0 2px;
+}
+
+.chat-input-bar {
+  display: flex;
+  gap: 8px;
+  padding: 10px 14px;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+  flex-shrink: 0;
+}
+.chat-input {
+  flex: 1;
+  height: 36px;
+  padding: 0 12px;
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  font-size: 13px;
+  font-family: "Sarabun", sans-serif;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.chat-input:focus { border-color: var(--accent); }
+.chat-send-btn {
+  padding: 0 18px;
+  height: 36px;
+  background: #4f46e5;
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: "Sarabun", sans-serif;
+  transition: background 0.15s;
+}
+.chat-send-btn:hover { background: #4338ca; }
+.chat-send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ══════════════════════════════════════════
+   HISTORY TIMELINE TAB
+══════════════════════════════════════════ */
+.ev-tab-history {
+  background: var(--surface2);
+}
+.history-timeline {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+.timeline-item {
+  display: flex;
+  gap: 12px;
+  padding-bottom: 20px;
+  position: relative;
+}
+.timeline-item::before {
+  content: "";
+  position: absolute;
+  left: 15px;
+  top: 32px;
+  bottom: 0;
+  width: 2px;
+  background: var(--border);
+}
+.timeline-item:last-child::before { display: none; }
+.timeline-dot {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #4f46e5;
+  color: #fff;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-weight: 700;
+}
+.timeline-content {
+  flex: 1;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+.timeline-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+.timeline-actor {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text);
+}
+.timeline-time {
+  font-size: 10px;
+  color: var(--text3);
+}
+.timeline-action {
+  font-size: 12px;
+  color: var(--text2);
+  line-height: 1.5;
+}
+.timeline-note {
+  font-size: 11.5px;
+  color: var(--text3);
+  margin-top: 4px;
+  font-style: italic;
   line-height: 1.5;
 }
