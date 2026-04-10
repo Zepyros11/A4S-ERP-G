@@ -71,7 +71,7 @@
       </select>
       <div class="toolbar-right">
         <button class="btn btn-danger-outline" id="btnDeleteSelected" style="display:none" onclick="window.deleteSelectedProducts()">🗑 ลบที่เลือก</button>
-        <button class="btn btn-primary" onclick="window.location.href = './product-form.html'">＋ เพิ่มสินค้า</button>
+        <button class="btn btn-primary" data-perm="product_create" onclick="window.location.href = './product-form.html'">＋ เพิ่มสินค้า</button>
       </div>
     </div>
 
@@ -173,10 +173,12 @@
             </button>
           </div>
         </div>
-        <!-- product -->
-        <script type="module" src="./products-list.js"></script>
         <!-- Core -->
         <script src="../../js/core/auth.js"></script>
+        <script src="../../js/core/authz.js"></script>
+        <script>AuthZ.requirePerm("product_view");</script>
+        <!-- product -->
+        <script type="module" src="./products-list.js"></script>
         <!-- MODALS -->
         <script src="../../js/components/modal/deleteModal.js"></script>
         <script src="../../js/components/modal/modalManager.js"></script>

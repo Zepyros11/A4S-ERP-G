@@ -105,11 +105,11 @@
   </div>
 </div>
 
-    <script type="module" src="./stock-initial-list.js"></script>
-    <!-- MODALS -->
-
     <!-- Core -->
     <script src="../../js/core/auth.js"></script>
+    <script src="../../js/core/authz.js"></script>
+    <script>AuthZ.requirePerm("stock_init_view");</script>
+    <script type="module" src="./stock-initial-list.js"></script>
     <!-- MODALS -->
     <script src="../../js/components/modal/deleteModal.js"></script>
     <script src="../../js/components/modal/modalManager.js"></script>

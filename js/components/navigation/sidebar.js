@@ -232,12 +232,30 @@
     customers: "customer_view",
   };
 
-  /* ── เช็คสิทธิ์ของ item (ถ้า AuthZ ยังไม่โหลด → อนุญาตทั้งหมด) ── */
+  /* ── อ่าน effective_perms จาก session (ไม่พึ่ง AuthZ) ── */
+  function _getEffectivePerms() {
+    let user = window.ERP_USER;
+    if (!user) {
+      const raw =
+        localStorage.getItem("erp_session") ||
+        sessionStorage.getItem("erp_session");
+      if (raw) { try { user = JSON.parse(raw); } catch (e) {} }
+    }
+    if (!user) return null; /* not logged in */
+    if (!Array.isArray(user.effective_perms)) return null; /* old session — ไม่มี field */
+    return new Set(user.effective_perms);
+  }
+
+  /* ── เช็คสิทธิ์ของ item ──
+     - ไม่มี session / session เก่า → แสดงทุกอย่าง (backward compat)
+     - มี effective_perms → filter ตามจริง
+  */
   function canSeeItem(itemId) {
     const need = ID_TO_PERM[itemId];
     if (!need) return true;
-    if (typeof window.AuthZ === "undefined") return true;
-    return window.AuthZ.hasPerm(need);
+    const perms = _getEffectivePerms();
+    if (!perms) return true; /* session ไม่มี field → ถือว่า fullAccess */
+    return perms.has(need);
   }
 
   const READY = [

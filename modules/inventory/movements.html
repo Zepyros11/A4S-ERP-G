@@ -560,7 +560,7 @@
       <div class="topbar-sep"></div>
       <div class="topbar-title">ความเคลื่อนไหว Stock</div>
       <div class="topbar-actions">
-        <button class="btn-topbar btn-primary-top" onclick="openModal()">
+        <button class="btn-topbar btn-primary-top" data-perm="stock_move_create" onclick="openModal()">
           ＋ บันทึกรายการ
         </button>
       </div>
@@ -887,6 +887,8 @@
     </div>
 
     <script src="../../js/core/auth.js"></script>
+    <script src="../../js/core/authz.js"></script>
+    <script>AuthZ.requirePerm("stock_move_view");</script>
     <script src="../../js/core/responsive.js"></script>
     <script src="../../js/components/navigation/sidebar.js"></script>
     <script src="movements.js"></script>

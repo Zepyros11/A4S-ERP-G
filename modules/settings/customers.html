@@ -40,7 +40,7 @@
   <div class="topbar-sep"></div>
   <div class="topbar-title">จัดการลูกค้า</div>
   <div class="topbar-actions">
-    <button class="btn-topbar btn-white" onclick="openModal()">＋ เพิ่มลูกค้า</button>
+    <button class="btn-topbar btn-white" data-perm="customer_create" onclick="openModal()">＋ เพิ่มลูกค้า</button>
   </div>
 </div>
 
@@ -162,7 +162,7 @@
     </select>
     <div class="toolbar-right">
       <button class="btn btn-outline" onclick="loadData()">🔄 รีเฟรช</button>
-      <button class="btn btn-primary" onclick="openModal()">＋ เพิ่มลูกค้า</button>
+      <button class="btn btn-primary" data-perm="customer_create" onclick="openModal()">＋ เพิ่มลูกค้า</button>
     </div>
   </div>
 
@@ -236,15 +236,17 @@
       <div class="panel-actions">
         <button class="btn btn-outline" onclick="editSelected()">✏️ แก้ไข</button>
         <button class="btn-sm-danger" onclick="deleteSelected()" style="flex:.5">🗑</button>
-        <button class="btn btn-primary" onclick="openModal()">＋ เพิ่มใหม่</button>
+        <button class="btn btn-primary" data-perm="customer_create" onclick="openModal()">＋ เพิ่มใหม่</button>
       </div>
     </div>
   </div>
 
 </div>
 
-<script src="customers.js"></script>
 <script src="../../js/core/auth.js"></script>
+<script src="../../js/core/authz.js"></script>
+<script>AuthZ.requirePerm("customer_view");</script>
+<script src="customers.js"></script>
 <script src="../../js/components/navigation/sidebar.js"></script>
 </body>
 </html>

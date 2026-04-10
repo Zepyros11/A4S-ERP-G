@@ -39,7 +39,7 @@
                 />
               </div>
               <div class="toolbar-right">
-                <button class="btn btn-primary" onclick="window.openModal()">
+                <button class="btn btn-primary" data-perm="evt_cat_create" onclick="window.openModal()">
                   ＋ เพิ่มประเภท
                 </button>
               </div>
@@ -81,8 +81,10 @@
 
         <!-- ES MODULE: main logic -->
 
-        <script type="module" src="./events-category.js"></script>
         <script src="../../js/core/auth.js"></script>
+        <script src="../../js/core/authz.js"></script>
+        <script>AuthZ.requirePerm("evt_cat_view");</script>
+        <script type="module" src="./events-category.js"></script>
         <script src="../../js/components/modal/deleteModal.js"></script>
         <script src="../../js/components/modal/modalManager.js"></script>
         <script type="module">

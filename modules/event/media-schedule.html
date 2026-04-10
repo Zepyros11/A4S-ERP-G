@@ -68,7 +68,7 @@
               <option value="">-- เลือกกิจกรรม --</option>
             </select>
             <div id="mediaActionBtns" style="display: none">
-              <button class="btn btn-primary" onclick="window.openMedModal()">
+              <button class="btn btn-primary" data-perm="media_upload" onclick="window.openMedModal()">
                 ＋ เพิ่มงาน Media
               </button>
             </div>
@@ -337,8 +337,10 @@
       </div>
     </div>
 
-    <script type="module" src="./media-schedule.js"></script>
     <script src="../../js/core/auth.js"></script>
+    <script src="../../js/core/authz.js"></script>
+    <script>AuthZ.requirePerm("media_view");</script>
+    <script type="module" src="./media-schedule.js"></script>
     <script src="../../js/components/modal/deleteModal.js"></script>
     <script src="../../js/components/modal/modalManager.js"></script>
     <script src="../../js/components/modal/enterModal.js"></script>

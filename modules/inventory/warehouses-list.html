@@ -89,7 +89,7 @@
         <button class="btn btn-outline" onclick="exportWarehouses()">⬇ Export</button>
         <button class="btn btn-outline" onclick="importWarehouses()">⬆ Import</button>
         <button class="btn btn-outline" onclick="downloadTemplate()">📄 Download Form</button>
-        <button class="btn btn-primary" id="btnAddWarehouse">＋ เพิ่มคลัง</button>
+        <button class="btn btn-primary" id="btnAddWarehouse" data-perm="warehouse_create">＋ เพิ่มคลัง</button>
       </div>
     </div>
 
@@ -124,11 +124,13 @@
     <!-- XLSX -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
-    <!-- Page Controller -->
-    <script type="module" src="./warehouses-list.js"></script>
-
     <!-- Core -->
     <script src="../../js/core/auth.js"></script>
+    <script src="../../js/core/authz.js"></script>
+    <script>AuthZ.requirePerm("warehouse_view");</script>
+
+    <!-- Page Controller -->
+    <script type="module" src="./warehouses-list.js"></script>
     <!-- MODALS -->
     <script src="../../js/components/modal/deleteModal.js"></script>
     <script src="../../js/components/modal/modalManager.js"></script>

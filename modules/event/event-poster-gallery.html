@@ -76,8 +76,10 @@
           </div>
         </div>
 
-        <script type="module" src="./event-poster-gallery.js"></script>
         <script src="../../js/core/auth.js"></script>
+        <script src="../../js/core/authz.js"></script>
+        <script>AuthZ.requirePerm("poster_view");</script>
+        <script type="module" src="./event-poster-gallery.js"></script>
         <script src="../../js/components/modal/deleteModal.js"></script>
         <script src="../../js/components/modal/modalManager.js"></script>
         <script type="module">

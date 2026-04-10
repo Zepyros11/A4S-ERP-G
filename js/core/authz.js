@@ -62,8 +62,33 @@
       if (!key || this.hasPerm(key)) return true;
       alert("⛔ คุณไม่มีสิทธิ์เข้าถึงหน้านี้");
       const base = getBasePath();
-      window.location.replace(base + "/modules/dashboard/dashboard.html");
+      /* หา landing page ที่ user มีสิทธิ์ดู */
+      const target = this._findLandingPage() || base + "/login.html";
+      window.location.replace(target);
       throw new Error(`Permission denied: ${key}`);
+    },
+
+    /* หาหน้าแรกที่ user มีสิทธิ์เข้า (สำหรับ landing/redirect) */
+    _findLandingPage() {
+      const base = getBasePath();
+      const perms = getEffectivePerms();
+      /* list ตามลำดับความสำคัญ */
+      const candidates = [
+        ["dashboard_view", "/modules/dashboard/dashboard.html"],
+        ["events_view",    "/modules/event/events-list.html"],
+        ["poster_view",    "/modules/event/event-poster-gallery.html"],
+        ["product_view",   "/modules/inventory/products-list.html"],
+        ["warehouse_view", "/modules/inventory/warehouses-list.html"],
+        ["po_view",        "/modules/transactions/purchase_order/po-list.html"],
+        ["so_view",        "/modules/transactions/sales_order/so_form.html"],
+        ["req_view",       "/modules/transactions/requisition/requisition.html"],
+        ["users_view",     "/modules/settings/users.html"],
+        ["roles_view",     "/modules/settings/roles.html"],
+      ];
+      for (const [perm, path] of candidates) {
+        if (perms.has(perm)) return base + path;
+      }
+      return null;
     },
 
     /* Scan element ที่มี data-perm และ remove ถ้าไม่มีสิทธิ์

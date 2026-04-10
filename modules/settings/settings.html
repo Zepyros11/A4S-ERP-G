@@ -106,7 +106,7 @@
           </div>
         </div>
         <div class="btn-row">
-          <button class="btn btn-primary" onclick="saveAndConnect()">🔌 บันทึกและเชื่อมต่อ</button>
+          <button class="btn btn-primary" data-perm="sys_settings_edit" onclick="saveAndConnect()">🔌 บันทึกและเชื่อมต่อ</button>
           <button class="btn btn-outline" onclick="testConnection()">🧪 ทดสอบการเชื่อมต่อ</button>
           <button class="btn btn-sm-danger" onclick="clearCredentials()">🗑 ล้างค่า</button>
         </div>
@@ -139,7 +139,7 @@
           <div class="form-group"><label class="form-label">เบอร์โทร</label><input class="form-control" id="companyPhone" placeholder="02-xxx-xxxx"></div>
           <div class="form-group"><label class="form-label">อีเมล</label><input class="form-control" id="companyEmail" placeholder="contact@company.com"></div>
         </div>
-        <div class="btn-row"><button class="btn btn-primary" onclick="saveCompanyInfo()">💾 บันทึกข้อมูลบริษัท</button></div>
+        <div class="btn-row"><button class="btn btn-primary" data-perm="sys_settings_edit" onclick="saveCompanyInfo()">💾 บันทึกข้อมูลบริษัท</button></div>
       </div>
     </div>
 
@@ -156,7 +156,7 @@
           <div class="form-group"><label class="form-label">ใบขาย (SO)</label><input class="form-control mono" id="prefixSo" placeholder="SO-2025-" value="SO-2025-"></div>
           <div class="form-group"><label class="form-label">ใบเบิก (REQ)</label><input class="form-control mono" id="prefixReq" placeholder="REQ-2025-" value="REQ-2025-"></div>
         </div>
-        <div class="btn-row"><button class="btn btn-primary" onclick="savePrefixes()">💾 บันทึก Prefix</button></div>
+        <div class="btn-row"><button class="btn btn-primary" data-perm="sys_settings_edit" onclick="savePrefixes()">💾 บันทึก Prefix</button></div>
       </div>
     </div>
   </div>
@@ -213,6 +213,8 @@
 </div><!-- end .layout -->
 
 <script src="../../js/core/auth.js"></script>
+<script src="../../js/core/authz.js"></script>
+<script>AuthZ.requirePerm("sys_settings_view");</script>
 <script src="settings.js"></script>
 <script type="module">
   import { loadTopbar } from "../../js/components/navigation/topbar.js";

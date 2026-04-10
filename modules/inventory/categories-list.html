@@ -80,7 +80,7 @@
         <option value="empty">ไม่มีสินค้า</option>
       </select>
       <div class="toolbar-right">
-        <button class="btn btn-primary" id="btnAddCategory">＋ เพิ่มหมวดหมู่</button>
+        <button class="btn btn-primary" id="btnAddCategory" data-perm="inv_cat_create">＋ เพิ่มหมวดหมู่</button>
       </div>
     </div>
 
@@ -110,11 +110,13 @@
 
     <!-- SCRIPTS -->
 
-    <!-- Page Controller -->
-    <script type="module" src="./categories-list.js"></script>
-
     <!-- Core -->
     <script src="../../js/core/auth.js"></script>
+    <script src="../../js/core/authz.js"></script>
+    <script>AuthZ.requirePerm("inv_cat_view");</script>
+
+    <!-- Page Controller -->
+    <script type="module" src="./categories-list.js"></script>
     <!-- MODALS -->
     <script src="../../js/components/modal/deleteModal.js"></script>
     <script src="../../js/components/modal/modalManager.js"></script>
