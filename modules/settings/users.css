@@ -366,6 +366,30 @@
   margin-bottom: 5px;
 }
 
+/* ── PASSWORD INPUT ── */
+.input-with-btn {
+  position: relative;
+  display: flex;
+}
+.input-with-btn .form-control {
+  flex: 1;
+  padding-right: 40px;
+}
+.btn-eye {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 15px;
+  padding: 2px 4px;
+  color: var(--text3);
+  line-height: 1;
+}
+.btn-eye:hover { color: var(--text); }
+
 /* ── MISC ── */
 .form-hint {
   font-size: 11px;

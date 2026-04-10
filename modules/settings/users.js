@@ -49,9 +49,9 @@ async function loadData() {
   try {
     const [users, roleData] = await Promise.all([
       sbFetch("users", { query: "?select=*&order=full_name" }),
-      sbFetch("role_configs", { query: "?select=*&order=sort_order" }),
+      sbFetch("role_configs", { query: "?select=*&order=sort_order" }).catch(() => null),
     ]);
-    /* อัปเดต ROLE_PERMISSIONS จาก Supabase */
+    /* อัปเดต ROLE_PERMISSIONS จาก Supabase (ถ้ามี table) */
     if (roleData) {
       roleData.forEach((r) => {
         ROLE_PERMISSIONS[r.role_key] = {
@@ -269,19 +269,45 @@ function onRoleChange() {
   );
 }
 
+function generateUserCode() {
+  const max = allUsers.reduce((acc, u) => {
+    const n = parseInt((u.user_code || "").replace(/\D/g, "")) || 0;
+    return Math.max(acc, n);
+  }, 0);
+  return "EMP" + String(max + 1).padStart(3, "0");
+}
+
+function toggleEye(inputId, iconId) {
+  const input = document.getElementById(inputId);
+  const isText = input.type === "text";
+  input.type = isText ? "password" : "text";
+  document.getElementById(iconId).textContent = isText ? "👁" : "🙈";
+}
+
+async function hashPassword(pwd) {
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(pwd));
+  return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
 function openModal(data = null) {
-  document.getElementById("modalTitle").textContent = data
-    ? "แก้ไขผู้ใช้งาน"
-    : "เพิ่มผู้ใช้งานใหม่";
+  const isEdit = !!data;
+  document.getElementById("modalTitle").textContent = isEdit ? "แก้ไขผู้ใช้งาน" : "เพิ่มผู้ใช้งานใหม่";
   document.getElementById("editId").value = data?.user_id || "";
   document.getElementById("fFullName").value = data?.full_name || "";
+  document.getElementById("fUserCode").value = data?.user_code || (isEdit ? "" : generateUserCode());
   document.getElementById("fUsername").value = data?.username || "";
+  document.getElementById("fPassword").value = "";
+  document.getElementById("fPasswordConfirm").value = "";
   document.getElementById("fEmail").value = data?.email || "";
   document.getElementById("fPhone").value = data?.phone || "";
   document.getElementById("fStatus").value = data
     ? String(data.is_active !== false)
     : "true";
   document.getElementById("fRole").value = data?.role || "MANAGER";
+  /* แสดง hint เมื่อแก้ไข, ซ่อน * เมื่อ optional */
+  document.getElementById("pwdHint").style.display      = isEdit ? "block" : "none";
+  document.getElementById("pwdReq").style.display       = isEdit ? "none" : "inline";
+  document.getElementById("pwdConfirmReq").style.display = isEdit ? "none" : "inline";
   customPerms = {};
   onRoleChange();
   if (data?.custom_permissions) {
@@ -318,10 +344,22 @@ function closeModalBg(e) {
 }
 
 async function saveUser() {
-  const fullName = document.getElementById("fFullName").value.trim();
-  const username = document.getElementById("fUsername").value.trim();
+  const fullName  = document.getElementById("fFullName").value.trim();
+  const username  = document.getElementById("fUsername").value.trim();
+  const password  = document.getElementById("fPassword").value;
+  const confirmPw = document.getElementById("fPasswordConfirm").value;
+  const editId    = document.getElementById("editId").value;
+
   if (!fullName || !username) {
     showToast("กรุณากรอกชื่อ-นามสกุล และ Username", "error");
+    return;
+  }
+  if (!editId && !password) {
+    showToast("กรุณากรอกรหัสผ่าน", "error");
+    return;
+  }
+  if (password && password !== confirmPw) {
+    showToast("รหัสผ่านไม่ตรงกัน", "error");
     return;
   }
   if (!SUPABASE_URL || !SUPABASE_KEY) {
@@ -335,19 +373,23 @@ async function saveUser() {
     (k) => customPerms[k] && !rolePerms.includes(k),
   );
 
+  const userCode = document.getElementById("fUserCode").value.trim().toUpperCase();
+  if (!userCode) { showToast("กรุณากรอกรหัสพนักงาน", "error"); return; }
+
   const payload = {
     full_name: fullName,
     username,
+    user_code: userCode,
     email: document.getElementById("fEmail")?.value.trim() || null,
     phone: document.getElementById("fPhone")?.value.trim() || null,
     role,
     custom_permissions: extras.length ? extras : null,
     is_active: document.getElementById("fStatus").value === "true",
+    ...(password ? { password_hash: await hashPassword(password) } : {}),
   };
 
   showLoading(true);
   try {
-    const editId = document.getElementById("editId").value;
     if (editId) {
       await sbFetch("users", {
         method: "PATCH",
