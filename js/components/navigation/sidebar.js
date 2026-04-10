@@ -127,25 +127,20 @@
           id: "po",
           icon: "🛒",
           label: "ใบสั่งซื้อ (PO)",
-          path:
-            BASE_PATH +
-            "/modules/transactions/purchase_order/po-list.html",
+          path: BASE_PATH + "/modules/transactions/purchase_order/po-list.html",
         },
         {
           id: "so",
           icon: "💰",
           label: "ใบขาย (SO)",
-          path:
-            BASE_PATH +
-            "/modules/transactions/sales_order/so_form.html",
+          path: BASE_PATH + "/modules/transactions/sales_order/so_form.html",
         },
         {
           id: "req",
           icon: "📋",
           label: "ใบเบิก (REQ)",
           path:
-            BASE_PATH +
-            "/modules/transactions/requisition/requisition.html",
+            BASE_PATH + "/modules/transactions/requisition/requisition.html",
         },
       ],
     },
@@ -205,6 +200,8 @@
   ];
 
   const READY = [
+    //**** Dashboard ****/
+    "dashboard",
     //**** DOCUMENT ****
     "po",
     "so",
