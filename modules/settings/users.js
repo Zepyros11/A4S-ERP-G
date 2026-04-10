@@ -220,44 +220,92 @@ function closePanel() {
 
 function buildPermToggles(rolePerms, customP = []) {
   customPerms = {};
-  customP.forEach((k) => (customPerms[k] = true));
-  document.getElementById("permToggles").innerHTML = AppPermissions.modules.map((mod) => {
-    const chips = mod.perms.map((p) => {
+  customP.forEach(k => customPerms[k] = true);
+
+  document.getElementById("permToggles").innerHTML = AppPermissions.modules.map(mod => {
+    const roleCount = mod.perms.filter(p => rolePerms.includes(p.key)).length;
+    const customCount = mod.perms.filter(p => !rolePerms.includes(p.key) && customPerms[p.key]).length;
+    const total = roleCount + customCount;
+    const modState = total === 0 ? "none" : total === mod.perms.length ? "all" : "partial";
+    const modCbTxt = modState === "all" ? "✓" : modState === "partial" ? "—" : "";
+
+    const items = mod.perms.map(p => {
       const fromRole = rolePerms.includes(p.key);
       const isCustom = !fromRole && !!customPerms[p.key];
-      let cls = "perm-chip";
-      let icon = '<span class="perm-chip-icon-off">+</span>';
-      let tag = "";
-      if (fromRole) {
-        cls += " state-role";
-        icon = '<span class="perm-chip-icon-check">✓</span>';
-        tag = '<span class="perm-chip-tag">Role</span>';
-      } else if (isCustom) {
-        cls += " state-custom";
-        icon = '<span class="perm-chip-icon-check">✓</span>';
-      }
-      return `<label class="${cls}" id="ptog-${p.key}" onclick="togglePerm('${p.key}',${fromRole})">
-        ${icon}
-        <span class="perm-chip-label">${p.label}</span>
-        ${tag}
-      </label>`;
+      const cbCls = fromRole ? "cb-role" : isCustom ? "cb-custom" : "cb-empty";
+      const cbTxt  = (fromRole || isCustom) ? "✓" : "";
+      return `<div class="tree-item${fromRole ? " tree-from-role" : ""}" onclick="${fromRole ? "" : `toggleTreePerm('${p.key}')`}">
+        <span class="tree-cb ${cbCls}" id="tcb-${p.key}">${cbTxt}</span>
+        <span class="tree-item-label">${p.label}</span>
+        ${fromRole ? '<span class="tree-role-tag">Role</span>' : ""}
+      </div>`;
     }).join("");
-    return `<div class="perm-module-group">
-      <div class="perm-module-header"><span>${mod.icon}</span><span>${mod.label}</span></div>
-      <div class="perm-module-chips">${chips}</div>
+
+    return `<div class="tree-module" id="tmod-${mod.key}">
+      <div class="tree-mod-hdr" onclick="toggleModuleCollapse('${mod.key}')">
+        <span class="tree-mod-cb state-${modState}" id="modcb-${mod.key}"
+          onclick="event.stopPropagation();toggleModuleCustom('${mod.key}')">${modCbTxt}</span>
+        <span class="tree-mod-icon">${mod.icon}</span>
+        <span class="tree-mod-label">${mod.label}</span>
+        <span class="tree-mod-count" id="modcount-${mod.key}">${total}/${mod.perms.length}</span>
+        <span class="tree-expand-icon" id="expicon-${mod.key}">▾</span>
+      </div>
+      <div class="tree-children" id="tchildren-${mod.key}">${items}</div>
     </div>`;
   }).join("");
 }
 
-function togglePerm(key, fromRole) {
-  if (fromRole) return;
+function toggleTreePerm(key) {
   customPerms[key] = !customPerms[key];
-  const el = document.getElementById(`ptog-${key}`);
-  const isOn = customPerms[key];
-  el.className = `perm-chip${isOn ? " state-custom" : ""}`;
-  el.querySelector("[class^='perm-chip-icon']").outerHTML = isOn
-    ? '<span class="perm-chip-icon-check">✓</span>'
-    : '<span class="perm-chip-icon-off">+</span>';
+  const cbEl = document.getElementById(`tcb-${key}`);
+  if (cbEl) {
+    const isOn = customPerms[key];
+    cbEl.className = `tree-cb ${isOn ? "cb-custom" : "cb-empty"}`;
+    cbEl.textContent = isOn ? "✓" : "";
+  }
+  const mod = AppPermissions.modules.find(m => m.perms.some(p => p.key === key));
+  if (mod) _syncModCount(mod);
+}
+
+function toggleModuleCustom(modKey) {
+  const mod = AppPermissions.modules.find(m => m.key === modKey);
+  if (!mod) return;
+  const role = document.getElementById("fRole").value;
+  const rolePerms = ROLE_PERMISSIONS[role]?.perms || [];
+  const hasOff = mod.perms.some(p => !rolePerms.includes(p.key) && !customPerms[p.key]);
+  mod.perms.forEach(p => {
+    if (!rolePerms.includes(p.key)) {
+      customPerms[p.key] = hasOff;
+      const cbEl = document.getElementById(`tcb-${p.key}`);
+      if (cbEl) {
+        cbEl.className = `tree-cb ${hasOff ? "cb-custom" : "cb-empty"}`;
+        cbEl.textContent = hasOff ? "✓" : "";
+      }
+    }
+  });
+  _syncModCount(mod);
+}
+
+function toggleModuleCollapse(modKey) {
+  const children = document.getElementById(`tchildren-${modKey}`);
+  const icon = document.getElementById(`expicon-${modKey}`);
+  if (!children) return;
+  const collapsed = children.classList.toggle("collapsed");
+  if (icon) icon.textContent = collapsed ? "▸" : "▾";
+}
+
+function _syncModCount(mod) {
+  const role = document.getElementById("fRole").value;
+  const rolePerms = ROLE_PERMISSIONS[role]?.perms || [];
+  const roleCount = mod.perms.filter(p => rolePerms.includes(p.key)).length;
+  const customCount = mod.perms.filter(p => !rolePerms.includes(p.key) && customPerms[p.key]).length;
+  const total = roleCount + customCount;
+  const modState = total === 0 ? "none" : total === mod.perms.length ? "all" : "partial";
+  const modCbTxt = modState === "all" ? "✓" : modState === "partial" ? "—" : "";
+  const countEl = document.getElementById(`modcount-${mod.key}`);
+  const cbEl = document.getElementById(`modcb-${mod.key}`);
+  if (countEl) countEl.textContent = `${total}/${mod.perms.length}`;
+  if (cbEl) { cbEl.className = `tree-mod-cb state-${modState}`; cbEl.textContent = modCbTxt; }
 }
 
 function onRoleChange() {
@@ -396,6 +444,20 @@ async function saveUser() {
         query: `?user_id=eq.${editId}`,
         body: payload,
       });
+      /* อัปเดต session ถ้าแก้ไขตัวเอง */
+      const currentUser = window.ERP_USER;
+      if (currentUser && String(currentUser.user_id) === String(editId)) {
+        const updated = { ...currentUser, full_name: fullName, username, role, email: payload.email };
+        if (localStorage.getItem("erp_session")) localStorage.setItem("erp_session", JSON.stringify(updated));
+        if (sessionStorage.getItem("erp_session")) sessionStorage.setItem("erp_session", JSON.stringify(updated));
+        window.ERP_USER = updated;
+        closeModal();
+        await loadData();
+        showToast("✅ แก้ไขผู้ใช้สำเร็จ! กำลัง reload...", "success");
+        setTimeout(() => location.reload(), 1200);
+        showLoading(false);
+        return;
+      }
       showToast("✅ แก้ไขผู้ใช้สำเร็จ!", "success");
     } else {
       await sbFetch("users", { method: "POST", body: payload });
