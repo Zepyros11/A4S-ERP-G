@@ -343,6 +343,39 @@
         font-size: 11px;
         color: var(--text3);
       }
+      .card-footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px 28px;
+        border-top: 1px solid #e8ecf0;
+      }
+      .btn-setup {
+        background: none;
+        border: none;
+        font-size: 11px;
+        color: var(--text3);
+        cursor: pointer;
+        padding: 4px 8px;
+        border-radius: 6px;
+        font-family: 'Sarabun', sans-serif;
+      }
+      .btn-setup:hover { background: #f0f2f5; color: var(--text); }
+      .setup-panel {
+        background: #fff;
+        border-radius: 16px;
+        padding: 20px 24px;
+        margin-top: 12px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.10);
+        width: 100%;
+        box-sizing: border-box;
+      }
+      .setup-title {
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--text);
+        margin-bottom: 14px;
+      }
       @media (max-width: 480px) {
         .card-header {
           padding: 24px 20px 20px;
@@ -428,13 +461,50 @@
         </div>
         <div class="card-footer">
           <div class="version-tag">v1.0.0 · xPata</div>
+          <button class="btn-setup" onclick="toggleSetup()">⚙️ ตั้งค่า Supabase</button>
         </div>
+      </div>
+
+      <!-- Supabase Setup Panel -->
+      <div class="setup-panel" id="setupPanel" style="display:none">
+        <div class="setup-title">⚙️ ตั้งค่าการเชื่อมต่อ Supabase</div>
+        <div class="form-group">
+          <label class="form-label">Project URL</label>
+          <input class="form-input" id="sbUrl" placeholder="https://xxxx.supabase.co" />
+        </div>
+        <div class="form-group" style="margin-top:10px">
+          <label class="form-label">Anon Key</label>
+          <input class="form-input" id="sbKey" placeholder="eyJhbGci..." />
+        </div>
+        <button class="btn-login" style="margin-top:14px" onclick="saveSetup()">💾 บันทึกและเชื่อมต่อ</button>
       </div>
     </div>
 
     <script>
-      const SUPABASE_URL = localStorage.getItem("sb_url") || "";
-      const SUPABASE_KEY = localStorage.getItem("sb_key") || "";
+      let SUPABASE_URL = localStorage.getItem("sb_url") || "";
+      let SUPABASE_KEY = localStorage.getItem("sb_key") || "";
+
+      function toggleSetup() {
+        const p = document.getElementById("setupPanel");
+        const show = p.style.display === "none";
+        p.style.display = show ? "block" : "none";
+        if (show) {
+          document.getElementById("sbUrl").value = SUPABASE_URL;
+          document.getElementById("sbKey").value = SUPABASE_KEY;
+        }
+      }
+      function saveSetup() {
+        const url = document.getElementById("sbUrl").value.trim().replace(/\/$/, "");
+        const key = document.getElementById("sbKey").value.trim();
+        if (!url || !key) { alert("กรุณากรอกทั้ง URL และ Key"); return; }
+        localStorage.setItem("sb_url", url);
+        localStorage.setItem("sb_key", key);
+        SUPABASE_URL = url;
+        SUPABASE_KEY = key;
+        document.getElementById("setupPanel").style.display = "none";
+        document.getElementById("errorMsg").classList.remove("show");
+        document.getElementById("username").focus();
+      }
 
       window.addEventListener("DOMContentLoaded", () => {
         const saved = localStorage.getItem("erp_remember_user");
