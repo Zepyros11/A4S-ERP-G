@@ -824,6 +824,12 @@ function openRequestDetail(req) {
     </div>
   `;
 
+  // Set chat panel header
+  const subEl = document.getElementById("bkrChatSubtitle");
+  if (subEl) subEl.textContent = req.request_code || "—";
+  const senderEl = document.getElementById("bkrSenderName");
+  if (senderEl) senderEl.textContent = window.ERP_USER?.full_name || window.ERP_USER?.username || "Admin";
+
   // Show modal then load logs
   document.getElementById("requestDetailModal").classList.remove("hidden");
   document.getElementById("logInput").value = "";
@@ -866,22 +872,20 @@ async function loadRequestLogs(requestId, silent = false) {
 
   const wasAtBottom = panel.scrollHeight - panel.scrollTop <= panel.clientHeight + 8;
 
+  const myName = window.ERP_USER?.full_name || window.ERP_USER?.username || "";
   panel.innerHTML = logs.map((log) => {
     const time = log.created_at ? log.created_at.slice(0, 16).replace("T", " ") : "";
     const author = log.created_by_name || "ระบบ";
-    let bgCls = "bg-slate-50 border-slate-100";
-    let authorCls = "text-indigo-600";
-    if (author === "CS")  { bgCls = "bg-yellow-50 border-yellow-200"; authorCls = "text-amber-600"; }
-    else if (author === "BRE") { bgCls = "bg-green-50 border-green-200"; authorCls = "text-green-700"; }
-    return `
-      <div class="${bgCls} rounded-xl p-3 border">
-        <div class="flex items-center justify-between mb-1">
-          <span class="text-[10px] font-bold ${authorCls}">${author}</span>
-          <span class="text-[9px] text-slate-400">${time}</span>
-        </div>
-        <p class="text-xs text-slate-700 leading-relaxed">${log.message || ""}</p>
-      </div>
-    `;
+    const isMe = author === myName;
+    let bg, border, textColor;
+    if (isMe) { bg="#ede9fe"; border="#c4b5fd"; textColor="#4c1d95"; }
+    else      { bg="#fffbeb"; border="#fcd34d"; textColor="#92400e"; }
+    const br = isMe ? "14px 4px 14px 14px" : "4px 14px 14px 14px";
+    return `<div style="display:flex;flex-direction:column;max-width:82%;align-self:${isMe?"flex-end":"flex-start"};align-items:${isMe?"flex-end":"flex-start"}">
+      <div style="font-size:10px;font-weight:700;color:#94a3b8;margin-bottom:3px">${author}</div>
+      <div style="background:${bg};border:1.5px solid ${border};border-radius:${br};padding:8px 12px;font-size:13px;line-height:1.5;color:${textColor};word-break:break-word">${log.message || ""}</div>
+      <div style="font-size:10px;color:#94a3b8;margin-top:3px">${time}</div>
+    </div>`;
   }).join("");
 
   if (!silent || wasAtBottom) panel.scrollTop = panel.scrollHeight;
@@ -900,7 +904,7 @@ async function submitRequestLog() {
     body: {
       request_id: detailCurrentRequestId,
       message,
-      created_by_name: "CS",
+      created_by_name: (window.ERP_USER?.full_name || window.ERP_USER?.username || "Admin"),
     },
   });
 

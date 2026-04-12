@@ -286,7 +286,7 @@ export function loadTopbar(title = "") {
 
   const html = `
 <div class="topbar">
-  <div class="topbar-logo">📦 <span>A4S</span>-ERP</div>
+  <div class="topbar-logo"><img src="${BASE_PATH}/assets/logo/logo-a4s.png" alt="A4S" style="height:28px;vertical-align:middle;"> <span>A4S</span> -ERP</div>
   <div class="topbar-sep"></div>
   <div class="topbar-title">${title}</div>
   <div class="topbar-spacer"></div>
@@ -328,9 +328,11 @@ export function loadTopbar(title = "") {
   };
 
   window._topbarGoSettings = function () {
-    const depth = window.location.pathname.split("/").length - 2;
-    const prefix = depth > 0 ? "../".repeat(depth) : "./";
-    window.location.href = prefix + "modules/settings/settings.html";
+    const host = window.location.hostname;
+    const BASE_PATH = host.includes("github.io")
+      ? "/" + window.location.pathname.split("/")[1]
+      : "";
+    window.location.href = BASE_PATH + "/modules/account/account.html";
   };
 
   document.addEventListener("click", (e) => {

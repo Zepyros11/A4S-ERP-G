@@ -40,19 +40,6 @@
           path: BASE_PATH + "/modules/event/events-list.html",
         },
         {
-          id: "events-category",
-          icon: "🏷️",
-          label: "ประเภทกิจกรรม",
-          path: BASE_PATH + "/modules/event/events-category.html",
-        },
-
-        {
-          id: "events-place-list",
-          icon: "📍",
-          label: "สถานที่",
-          path: BASE_PATH + "/modules/event/events-place-list.html",
-        },
-        {
           id: "event-requests",
           icon: "📋",
           label: "คำขอจัดกิจกรรม",
@@ -76,26 +63,29 @@
           label: "สื่อ & มีเดีย",
           path: BASE_PATH + "/modules/event/media-schedule.html",
         },
+        /* ── SETUP items ── */
+        {
+          id: "events-category",
+          icon: "🏷️",
+          label: "ประเภทกิจกรรม",
+          path: BASE_PATH + "/modules/event/events-category.html",
+          section: "setup",
+        },
+        {
+          id: "events-place-list",
+          icon: "📍",
+          label: "สถานที่",
+          path: BASE_PATH + "/modules/event/events-place-list.html",
+          section: "setup",
+        },
       ],
     },
     //  **************** STOCK *****************
     {
-      group: "ตั้งค่า Stock",
+      group: "คลังสินค้า (Stock)",
       icon: "📦",
       id: "g-stock",
       items: [
-        {
-          id: "categories",
-          icon: "🏷️",
-          label: "หมวดหมู่",
-          path: BASE_PATH + "/modules/inventory/categories-list.html",
-        },
-        {
-          id: "warehouses",
-          icon: "🏭",
-          label: "คลังสินค้า",
-          path: BASE_PATH + "/modules/inventory/warehouses-list.html",
-        },
         {
           id: "products",
           icon: "✏️",
@@ -103,17 +93,32 @@
           path: BASE_PATH + "/modules/inventory/products-list.html",
         },
         {
-          id: "stock-initial",
-          icon: "📦",
-          label: "Stock เริ่มต้น",
-          path: BASE_PATH + "/modules/inventory/stock-initial-list.html",
-        },
-
-        {
           id: "stock-move",
           icon: "🔄",
           label: "ความเคลื่อนไหว",
           path: BASE_PATH + "/modules/inventory/movements.html",
+        },
+        /* ── SETUP items ── */
+        {
+          id: "categories",
+          icon: "🏷️",
+          label: "หมวดหมู่",
+          path: BASE_PATH + "/modules/inventory/categories-list.html",
+          section: "setup",
+        },
+        {
+          id: "warehouses",
+          icon: "🏭",
+          label: "คลังสินค้า",
+          path: BASE_PATH + "/modules/inventory/warehouses-list.html",
+          section: "setup",
+        },
+        {
+          id: "stock-initial",
+          icon: "📦",
+          label: "Stock เริ่มต้น",
+          path: BASE_PATH + "/modules/inventory/stock-initial-list.html",
+          section: "setup",
         },
       ],
     },
@@ -380,6 +385,56 @@
     .sb-item.active::before{content:'';position:absolute;left:0;top:5px;bottom:5px;width:3px;background:#388bfd;border-radius:0 3px 3px 0;}
     .sb-item.soon{opacity:.35;cursor:default;}
     .sb-item.soon:hover{background:transparent;color:#8b949e;}
+
+    /* ── SUB-GROUP (nested collapsible section) ── */
+    .sb-subgroup{
+      margin-top:4px;
+      border-top:1px solid #161b22;
+    }
+    .sb-subgrp-hdr{
+      display:flex;align-items:center;gap:9px;
+      padding:8px 14px 8px 30px;
+      cursor:pointer;user-select:none;
+      font-size:10px;font-weight:700;
+      color:#6e7681;
+      letter-spacing:.7px;
+      text-transform:uppercase;
+      transition:color .15s,background .15s;
+      position:relative;
+    }
+    .sb-subgrp-hdr:hover{color:#c9d1d9;background:#161b22;}
+    .sb-subgrp-icon{font-size:11px;flex-shrink:0;width:14px;text-align:center;}
+    .sb-subgrp-lbl{flex:1;overflow:hidden;transition:opacity .2s;white-space:nowrap;}
+    .sb-subgrp-arrow{
+      font-size:9px;color:#6e7681;flex-shrink:0;
+      transition:transform .2s;
+    }
+    .sb-subgroup.open .sb-subgrp-arrow{transform:rotate(90deg);}
+    .sb-subgrp-items{
+      overflow:hidden;max-height:0;
+      transition:max-height .25s ease;
+      background:rgba(0,0,0,.15);
+    }
+    .sb-subgroup.open .sb-subgrp-items{max-height:400px;}
+    #erp-sidebar.collapsed .sb-subgrp-lbl,
+    #erp-sidebar.collapsed .sb-subgrp-arrow{display:none;}
+    #erp-sidebar.collapsed .sb-subgrp-items{max-height:0!important;}
+
+    /* Nested items (more indented, subtler) */
+    .sb-item-nested{
+      padding-left:44px;
+      font-size:12.5px;
+      color:#7d858e;
+    }
+    .sb-item-nested:hover{color:#c9d1d9;background:#161b22;}
+    .sb-item-nested.active{color:#79c0ff;background:#1c2d3f;}
+    .sb-item-nested .sb-icon{font-size:12px;opacity:.85;}
+    #erp-sidebar.collapsed .sb-item-nested{padding-left:14px;}
+
+    /* Sub-group tooltip when collapsed */
+    .sb-subgrp-tip{display:none;position:absolute;left:calc(100% + 8px);top:50%;transform:translateY(-50%);background:#161b22;color:#e6edf3;padding:5px 10px;border-radius:6px;font-size:12px;white-space:nowrap;pointer-events:none;z-index:300;box-shadow:0 4px 16px rgba(0,0,0,.5);border:1px solid #30363d;text-transform:none;letter-spacing:normal;font-weight:500;}
+    #erp-sidebar.collapsed .sb-subgrp-hdr:hover .sb-subgrp-tip{display:block;}
+
     .sb-icon{font-size:13px;flex-shrink:0;width:18px;text-align:center;}
     .sb-lbl{overflow:hidden;transition:opacity .2s;}
     #erp-sidebar.collapsed .sb-lbl{opacity:0;width:0;}
@@ -424,11 +479,46 @@
       openGroups.push(g.id);
   });
 
+  /* Load open sub-groups from localStorage + auto-expand ถ้า active อยู่ใน setup */
+  let openSubgroups = JSON.parse(localStorage.getItem("sb_open_subgroups") || "[]");
+  for (const g of MENU) {
+    const hasActiveSetup = g.items.some(
+      (i) => i.section === "setup" && i.id === activeId,
+    );
+    const subKey = g.id + "-setup";
+    if (hasActiveSetup && !openSubgroups.includes(subKey)) {
+      openSubgroups.push(subKey);
+    }
+  }
+
+  /* helper — render item */
+  function renderSbItem(item, isNested) {
+    const ready = READY.includes(item.id);
+    const cls = [
+      "sb-item",
+      item.id === activeId ? "active" : "",
+      !ready ? "soon" : "",
+      isNested ? "sb-item-nested" : "",
+    ]
+      .filter(Boolean)
+      .join(" ");
+    return `<a href="${ready ? item.path : "#"}" class="${cls}" ${!ready ? 'onclick="return false"' : ""}>
+      <span class="sb-icon">${item.icon}</span>
+      <span class="sb-lbl">${item.label}</span>
+      ${!ready ? '<span class="sb-soon">SOON</span>' : ""}
+      <span class="sb-tip">${item.label}</span>
+    </a>`;
+  }
+
   let menuHTML = "";
   for (const g of MENU) {
     /* filter items ที่ user ไม่มีสิทธิ์ดู */
     const visibleItems = g.items.filter((item) => canSeeItem(item.id));
     if (visibleItems.length === 0) continue; /* group ที่ว่างเปล่า → ข้าม */
+
+    /* แยก main vs setup */
+    const mainItems = visibleItems.filter((i) => i.section !== "setup");
+    const setupItems = visibleItems.filter((i) => i.section === "setup");
 
     const isOpen = openGroups.includes(g.id);
     menuHTML += `<div class="sb-group" id="${g.id}">
@@ -439,22 +529,31 @@
         <span class="sb-grp-tip">${g.group}</span>
       </div>
       <div class="sb-items ${isOpen ? "open" : ""}">`;
-    for (const item of visibleItems) {
-      const ready = READY.includes(item.id);
-      const cls = [
-        "sb-item",
-        item.id === activeId ? "active" : "",
-        !ready ? "soon" : "",
-      ]
-        .filter(Boolean)
-        .join(" ");
-      menuHTML += `<a href="${ready ? item.path : "#"}" class="${cls}" ${!ready ? 'onclick="return false"' : ""}>
-        <span class="sb-icon">${item.icon}</span>
-        <span class="sb-lbl">${item.label}</span>
-        ${!ready ? '<span class="sb-soon">SOON</span>' : ""}
-        <span class="sb-tip">${item.label}</span>
-      </a>`;
+
+    /* Main items */
+    for (const item of mainItems) {
+      menuHTML += renderSbItem(item, false);
     }
+
+    /* Setup sub-section (collapsible) */
+    if (setupItems.length > 0) {
+      const subKey = g.id + "-setup";
+      const subOpen = openSubgroups.includes(subKey);
+      menuHTML += `
+        <div class="sb-subgroup ${subOpen ? "open" : ""}" id="${subKey}">
+          <div class="sb-subgrp-hdr" onclick="toggleSubgroup('${subKey}')">
+            <span class="sb-subgrp-icon">⚙️</span>
+            <span class="sb-subgrp-lbl">ตั้งค่า</span>
+            <span class="sb-subgrp-arrow">›</span>
+            <span class="sb-subgrp-tip">ตั้งค่า ${g.group}</span>
+          </div>
+          <div class="sb-subgrp-items">`;
+      for (const item of setupItems) {
+        menuHTML += renderSbItem(item, true);
+      }
+      menuHTML += `</div></div>`;
+    }
+
     menuHTML += `</div></div>`;
   }
 
@@ -480,7 +579,6 @@
     if (collapsed) sidebar.classList.add("collapsed");
     sidebar.innerHTML = `
       <div class="sb-logo">
-        <span class="sb-logo-text">📦 A4S<em>-ERP</em></span>
         <button class="sb-toggle" onclick="toggleSidebar()" title="ย่อ/ขยาย">
           <span id="sb-icon">${collapsed ? "›" : "‹"}</span>
         </button>
@@ -531,5 +629,18 @@
     if (isOpen) og = og.filter((id) => id !== groupId);
     else if (!og.includes(groupId)) og.push(groupId);
     localStorage.setItem("sb_open_groups", JSON.stringify(og));
+  };
+
+  window.toggleSubgroup = function (subgroupId) {
+    const sb = document.getElementById("erp-sidebar");
+    if (sb && sb.classList.contains("collapsed") && window.innerWidth > 768)
+      return;
+    const el = document.getElementById(subgroupId);
+    if (!el) return;
+    const isOpen = el.classList.toggle("open");
+    let osg = JSON.parse(localStorage.getItem("sb_open_subgroups") || "[]");
+    if (isOpen && !osg.includes(subgroupId)) osg.push(subgroupId);
+    else if (!isOpen) osg = osg.filter((id) => id !== subgroupId);
+    localStorage.setItem("sb_open_subgroups", JSON.stringify(osg));
   };
 })();

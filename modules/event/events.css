@@ -2,6 +2,40 @@
    events.css — Event Module Styles
 ========================================================= */
 
+/* ── DATE FILTER CHIPS ── */
+.date-filter-chips {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--surface2, #f1f5f9);
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 8px;
+  padding: 3px;
+}
+.date-chip {
+  padding: 5px 14px;
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  background: transparent;
+  color: var(--text3, #64748b);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s;
+  font-family: inherit;
+}
+.date-chip:hover:not(.active) {
+  background: var(--surface, #fff);
+  color: var(--text, #1e293b);
+}
+.date-chip.active {
+  background: #6366f1;
+  color: #fff;
+  box-shadow: 0 2px 6px rgba(99, 102, 241, 0.35);
+  font-weight: 700;
+}
+
 /* ── ACTION GROUP (edit | del inline) ── */
 .action-group {
   display: flex;

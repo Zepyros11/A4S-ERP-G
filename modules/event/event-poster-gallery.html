@@ -53,6 +53,13 @@
           <!-- Filter Chips -->
           <div class="epg-filter-chips" id="filterChipsWrap">
             <button
+              class="epg-chip"
+              id="btnThisMonth"
+              onclick="window.toggleThisMonth(this)"
+            >
+              📅 เดือนนี้
+            </button>
+            <button
               class="epg-chip active"
               data-cat=""
               onclick="window.setTypeFilter(this, '')"
@@ -60,14 +67,6 @@
               ทั้งหมด
             </button>
             <!-- dynamic category chips injected by JS -->
-            <!-- Poster filter -->
-            <div style="margin-left: auto">
-              <select class="filter-select" id="filterPoster">
-                <option value="all">🖼️ ทั้งหมด</option>
-                <option value="has" selected>✅ มีโปสเตอร์</option>
-                <option value="none">❌ ไม่มีโปสเตอร์</option>
-              </select>
-            </div>
           </div>
 
           <!-- GALLERY BODY -->

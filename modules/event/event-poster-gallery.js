@@ -9,6 +9,7 @@ let allEvents = [];
 let allCategories = [];
 let gridCols = 5;
 let activeCatId = "";
+let filterThisMonth = false;
 
 // ── INIT ───────────────────────────────────────────────────
 async function initPage() {
@@ -30,9 +31,10 @@ async function initPage() {
 function renderCategoryChips() {
   const wrap = document.getElementById("filterChipsWrap");
   // remove old dynamic chips (keep first "ทั้งหมด" and last poster-filter div)
+  const monthBtn = document.getElementById("btnThisMonth");
   const allChipBtn = wrap.querySelector('[data-cat=""]');
-  const posterDiv = wrap.querySelector('div[style]');
   wrap.innerHTML = "";
+  if (monthBtn) wrap.appendChild(monthBtn);
   wrap.appendChild(allChipBtn);
 
   allCategories.forEach((cat) => {
@@ -43,8 +45,6 @@ function renderCategoryChips() {
     btn.onclick = () => window.setTypeFilter(btn, String(cat.event_category_id));
     wrap.appendChild(btn);
   });
-
-  if (posterDiv) wrap.appendChild(posterDiv);
 
   // populate mobile select
   const sel = document.getElementById("epgCatSelect");
@@ -64,8 +64,23 @@ window.setTypeFilter = function (btn, catId) {
   document.querySelectorAll(".epg-chip").forEach((b) => b.classList.remove("active"));
   btn.classList.add("active");
   activeCatId = catId;
+  filterThisMonth = false;
   const sel = document.getElementById("epgCatSelect");
   if (sel) sel.value = catId;
+  renderGallery();
+};
+
+window.toggleThisMonth = function (btn) {
+  filterThisMonth = !filterThisMonth;
+  // clear all chip active states then set correctly
+  document.querySelectorAll(".epg-chip").forEach((b) => b.classList.remove("active"));
+  if (filterThisMonth) {
+    btn.classList.add("active");
+  } else {
+    // back to "ทั้งหมด"
+    const allBtn = document.querySelector('.epg-chip[data-cat=""]');
+    if (allBtn) allBtn.classList.add("active");
+  }
   renderGallery();
 };
 
@@ -79,8 +94,13 @@ window.setTypeFilterFromSelect = function (sel) {
 
 // ── RENDER ─────────────────────────────────────────────────
 function renderGallery() {
+  const now = new Date();
+  const curMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+
   let filtered = allEvents.filter((e) => {
-    return !activeCatId || String(e.event_category_id) === activeCatId;
+    if (activeCatId && String(e.event_category_id) !== activeCatId) return false;
+    if (filterThisMonth && e.event_date && e.event_date.slice(0, 7) !== curMonth) return false;
+    return true;
   });
 
   document.getElementById("pageSubtitle").textContent =

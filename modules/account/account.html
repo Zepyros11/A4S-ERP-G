@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ตั้งค่าบัญชี — A4S-ERP</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../../css/main.css" />
+    <link rel="stylesheet" href="./account.css" />
+  </head>
+  <body>
+    <div class="loading-overlay" id="loadingOverlay"><div class="spinner"></div></div>
+    <div class="toast" id="toast"></div>
+
+    <!-- TOPBAR -->
+    <div class="topbar"></div>
+
+    <div class="layout">
+      <!-- SIDEBAR -->
+      <div id="sidebar-container"></div>
+
+      <!-- CONTENT -->
+      <div class="content-area">
+        <div class="page account-page">
+
+          <!-- PROFILE HEADER -->
+          <div class="account-header">
+            <div class="account-avatar-wrap">
+              <div class="account-avatar" id="accAvatar" onclick="triggerAvatarUpload()" title="คลิกเพื่อเปลี่ยนรูป">?</div>
+              <div class="avatar-overlay" onclick="triggerAvatarUpload()">📷</div>
+              <button class="avatar-remove" id="avatarRemoveBtn" onclick="removeAvatar()" title="ลบรูป" style="display:none">✕</button>
+              <input type="file" id="avatarFileInput" accept="image/*" style="display:none" onchange="onAvatarSelected(event)" />
+            </div>
+            <div class="account-info">
+              <div class="account-name" id="accName">กำลังโหลด...</div>
+              <div class="account-meta">
+                <span>@<span id="accUsername">—</span></span>
+                <span class="dot">·</span>
+                <span class="role-badge" id="accRoleBadge">—</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- TABBED SECTION: 4 tabs -->
+          <div class="account-section">
+            <div class="section-tabs">
+              <button class="section-tab active" data-tab="profile" onclick="switchTab('profile')">
+                📝 ข้อมูลส่วนตัว
+              </button>
+              <button class="section-tab" data-tab="password" onclick="switchTab('password')">
+                🔒 เปลี่ยนรหัสผ่าน
+              </button>
+              <button class="section-tab" data-tab="info" onclick="switchTab('info')">
+                ℹ️ ข้อมูลบัญชี
+              </button>
+              <button class="section-tab" data-tab="perms" onclick="switchTab('perms')">
+                🔐 สิทธิ์การใช้งาน
+              </button>
+            </div>
+
+            <!-- TAB: Profile -->
+            <div class="tab-panel active" id="tabProfile">
+              <div class="tab-sub">แก้ไขข้อมูลส่วนตัวของคุณได้ตามต้องการ</div>
+              <div class="form-grid">
+                <div class="form-group full">
+                  <label class="form-label">ชื่อ-นามสกุล <span class="req">*</span></label>
+                  <input class="form-control" id="fFullName" placeholder="ชื่อ นามสกุล" />
+                </div>
+                <div class="form-group">
+                  <label class="form-label">อีเมล</label>
+                  <input class="form-control" id="fEmail" type="email" placeholder="user@company.com" />
+                </div>
+                <div class="form-group">
+                  <label class="form-label">เบอร์โทร</label>
+                  <input class="form-control" id="fPhone" placeholder="0x-xxxx-xxxx" />
+                </div>
+              </div>
+              <div class="section-footer">
+                <button class="btn btn-primary" onclick="saveProfile()">💾 บันทึกข้อมูล</button>
+              </div>
+            </div>
+
+            <!-- TAB: Password -->
+            <div class="tab-panel" id="tabPassword">
+              <div class="tab-sub">ใช้รหัสผ่านที่คาดเดายาก ไม่ซ้ำกับบริการอื่น · หลังเปลี่ยนรหัสผ่านต้อง login ใหม่</div>
+              <div class="form-grid">
+                <div class="form-group full">
+                  <label class="form-label">รหัสผ่านปัจจุบัน <span class="req">*</span></label>
+                  <div class="input-with-btn">
+                    <input class="form-control" id="fCurrentPwd" type="password" autocomplete="current-password" />
+                    <button type="button" class="btn-eye" onclick="toggleEye('fCurrentPwd','eyeCurrent')" tabindex="-1"><span id="eyeCurrent">👁</span></button>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">รหัสผ่านใหม่ <span class="req">*</span></label>
+                  <div class="input-with-btn">
+                    <input class="form-control" id="fNewPwd" type="password" autocomplete="new-password" oninput="checkPasswordStrength()" />
+                    <button type="button" class="btn-eye" onclick="toggleEye('fNewPwd','eyeNew')" tabindex="-1"><span id="eyeNew">👁</span></button>
+                  </div>
+                  <div class="pwd-strength" id="pwdStrength">
+                    <div class="pwd-strength-bar"><div class="pwd-strength-fill" id="pwdStrengthFill"></div></div>
+                    <div class="pwd-strength-text" id="pwdStrengthText">—</div>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">ยืนยันรหัสผ่านใหม่ <span class="req">*</span></label>
+                  <div class="input-with-btn">
+                    <input class="form-control" id="fConfirmPwd" type="password" autocomplete="new-password" oninput="checkPasswordMatch()" />
+                    <button type="button" class="btn-eye" onclick="toggleEye('fConfirmPwd','eyeConfirm')" tabindex="-1"><span id="eyeConfirm">👁</span></button>
+                  </div>
+                  <div class="pwd-match" id="pwdMatch"></div>
+                </div>
+              </div>
+              <div class="section-footer">
+                <button class="btn btn-primary" onclick="changePassword()">🔑 เปลี่ยนรหัสผ่าน</button>
+              </div>
+            </div>
+
+            <!-- TAB: Account Info (read-only) -->
+            <div class="tab-panel" id="tabInfo">
+              <div class="tab-sub">ข้อมูลที่ผู้ดูแลระบบเป็นผู้กำหนด — หากต้องการแก้ไขกรุณาติดต่อ admin</div>
+              <dl class="info-list">
+                <div class="info-row">
+                  <dt>Username</dt>
+                  <dd class="mono" id="infoUsername">—</dd>
+                </div>
+                <div class="info-row">
+                  <dt>รหัสพนักงาน</dt>
+                  <dd class="mono" id="infoCode">—</dd>
+                </div>
+                <div class="info-row">
+                  <dt>Role</dt>
+                  <dd id="infoRole">—</dd>
+                </div>
+                <div class="info-row">
+                  <dt>สถานะบัญชี</dt>
+                  <dd id="infoStatus">—</dd>
+                </div>
+                <div class="info-row">
+                  <dt>Login ล่าสุด</dt>
+                  <dd id="infoLoginTime">—</dd>
+                </div>
+                <div class="info-row">
+                  <dt>User ID</dt>
+                  <dd class="mono" id="infoUserId">—</dd>
+                </div>
+              </dl>
+            </div>
+
+            <!-- TAB: My Permissions -->
+            <div class="tab-panel" id="tabPerms">
+              <div class="tab-sub">
+                <span id="permCount">0</span> สิทธิ์ทั้งหมด ·
+                <span class="ro-tag role" style="margin:0 4px">Role</span><span id="permCountRole">0</span> ·
+                <span class="ro-tag custom" style="margin:0 4px">เพิ่มเติม</span><span id="permCountCustom">0</span>
+              </div>
+              <div class="perm-legend-ro">
+                <span><span class="ro-cb cb-demo cb-role">✓</span> จาก Role</span>
+                <span><span class="ro-cb cb-demo cb-custom">✓</span> สิทธิ์เพิ่มเติม</span>
+                <span><span class="ro-cb cb-demo cb-off"></span> ไม่มีสิทธิ์</span>
+              </div>
+              <div class="ro-tree" id="permTreeRo">
+                <div class="empty-state" style="padding:20px;text-align:center;color:var(--text3);font-size:13px">กำลังโหลด...</div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- SCRIPTS -->
+    <script src="../../js/core/permissions.js"></script>
+    <script src="../../js/core/auth.js"></script>
+    <script src="../../js/core/authz.js"></script>
+    <script src="./account.js"></script>
+    <script src="../../js/components/modal/deleteModal.js"></script>
+    <script src="../../js/components/modal/modalManager.js"></script>
+    <script type="module">
+      import { loadTopbar } from "../../js/components/navigation/topbar.js";
+      loadTopbar("⚙️ ตั้งค่าบัญชี");
+    </script>
+    <script src="../../js/components/navigation/sidebar.js"></script>
+  </body>
+</html>

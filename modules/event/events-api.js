@@ -170,6 +170,49 @@ export async function removePlace(id) {
   return sbFetch("places", `?place_id=eq.${id}`, { method: "DELETE" });
 }
 
+/* ── PLACE TYPES ── */
+export async function fetchPlaceTypes() {
+  return sbFetch("place_types", "?select=*&order=sort_order.asc") || [];
+}
+
+export async function createPlaceType(data) {
+  const res = await sbFetch("place_types", "", { method: "POST", body: data });
+  return res?.[0];
+}
+
+export async function updatePlaceType(id, data) {
+  return sbFetch("place_types", `?type_id=eq.${id}`, { method: "PATCH", body: data });
+}
+
+export async function removePlaceType(id) {
+  return sbFetch("place_types", `?type_id=eq.${id}`, { method: "DELETE" });
+}
+
+/* ── PLACE ROOM TYPES (accommodation) ── */
+export async function fetchPlaceRoomTypes(placeId) {
+  return sbFetch("place_room_types", `?place_id=eq.${placeId}&select=*&order=sort_order.asc`) || [];
+}
+
+export async function upsertPlaceRoomTypes(placeId, items) {
+  await sbFetch("place_room_types", `?place_id=eq.${placeId}`, { method: "DELETE" });
+  if (!items || items.length === 0) return [];
+  const payload = items.map((r, i) => ({ ...r, place_id: placeId, sort_order: i }));
+  return sbFetch("place_room_types", "", { method: "POST", body: payload }) || [];
+}
+
+/* ── PLACE ROOMS ── */
+export async function fetchPlaceRooms(placeId) {
+  return sbFetch("place_rooms", `?place_id=eq.${placeId}&select=*&order=room_name.asc`) || [];
+}
+
+export async function upsertPlaceRooms(placeId, rooms) {
+  // ลบห้องเดิมทั้งหมดแล้ว insert ใหม่
+  await sbFetch("place_rooms", `?place_id=eq.${placeId}`, { method: "DELETE" });
+  if (!rooms || rooms.length === 0) return [];
+  const payload = rooms.map((r) => ({ ...r, place_id: placeId }));
+  return sbFetch("place_rooms", "", { method: "POST", body: payload }) || [];
+}
+
 /* ── EVENT CATEGORIES ── */
 export async function fetchEventCategories() {
   return (

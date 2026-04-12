@@ -30,17 +30,17 @@
           <!-- ① STATS: Events (default visible) -->
           <div class="stats-row" id="statsEvents">
             <div class="stat-card">
-              <div class="stat-icon">🗓️</div>
+              <div class="stat-icon">📅</div>
               <div>
-                <div class="stat-value" id="cardTotal">0</div>
-                <div class="stat-label">งานทั้งหมด</div>
+                <div class="stat-value" id="cardMonth">0</div>
+                <div class="stat-label">เดือนนี้</div>
               </div>
             </div>
             <div class="stat-card">
               <div class="stat-icon">⏳</div>
               <div>
-                <div class="stat-value" id="cardUpcoming">0</div>
-                <div class="stat-label">กำลังจะมาถึง</div>
+                <div class="stat-value" id="cardWeek">0</div>
+                <div class="stat-label">สัปดาห์นี้</div>
               </div>
             </div>
             <div class="stat-card">
@@ -51,10 +51,10 @@
               </div>
             </div>
             <div class="stat-card">
-              <div class="stat-icon">✅</div>
+              <div class="stat-icon">📝</div>
               <div>
-                <div class="stat-value" id="cardDone">0</div>
-                <div class="stat-label">เสร็จสิ้นแล้ว</div>
+                <div class="stat-value" id="cardDraft">0</div>
+                <div class="stat-label">Draft / รออนุมัติ</div>
               </div>
             </div>
           </div>
@@ -72,23 +72,21 @@
                   placeholder="ค้นหาชื่อกิจกรรม หรือสถานที่..."
                 />
               </div>
-              <select class="filter-select" id="filterType">
-                <option value="">⚪ ทุกประเภท</option>
-                <option value="BOOTH">🏪 ออกบูธ</option>
-                <option value="MEETING">👥 ประชุม</option>
-                <option value="ONLINE">💻 Online</option>
-                <option value="HYBRID">🔀 Hybrid</option>
-                <option value="CONFERENCE">🎤 Conference</option>
-                <option value="OTHER">📌 อื่นๆ</option>
-              </select>
-              <select class="filter-select" id="filterStatus">
-                <option value="">⚪ ทุกสถานะ</option>
-                <option value="DRAFT">📝 Draft</option>
-                <option value="CONFIRMED">✔️ Confirmed</option>
-                <option value="ONGOING">▶️ Ongoing</option>
-                <option value="DONE">✅ Done</option>
-                <option value="CANCELLED">❌ Cancelled</option>
-              </select>
+              <!-- Date filter chips -->
+              <div class="date-filter-chips" id="dateFilterChips">
+                <button class="date-chip active" data-range="all" onclick="window.setDateFilter(this,'all')">ทั้งหมด</button>
+                <button class="date-chip" data-range="month" onclick="window.setDateFilter(this,'month')">เดือนนี้</button>
+                <button class="date-chip" data-range="week" onclick="window.setDateFilter(this,'week')">อาทิตย์นี้</button>
+                <button class="date-chip" data-range="today" onclick="window.setDateFilter(this,'today')">วันนี้</button>
+              </div>
+              <div class="date-filter-chips" id="statusFilterChips">
+                <button class="date-chip active" data-status="" onclick="window.setStatusFilter(this,'')">ทุกสถานะ</button>
+                <button class="date-chip" data-status="DRAFT" onclick="window.setStatusFilter(this,'DRAFT')">📝 Draft</button>
+                <button class="date-chip" data-status="CONFIRMED" onclick="window.setStatusFilter(this,'CONFIRMED')">✔️ Confirmed</button>
+                <button class="date-chip" data-status="ONGOING" onclick="window.setStatusFilter(this,'ONGOING')">▶️ Ongoing</button>
+                <button class="date-chip" data-status="DONE" onclick="window.setStatusFilter(this,'DONE')">✅ Done</button>
+                <button class="date-chip" data-status="CANCELLED" onclick="window.setStatusFilter(this,'CANCELLED')">❌ Cancelled</button>
+              </div>
               <div class="toolbar-right">
                 <button
                   class="btn btn-primary"

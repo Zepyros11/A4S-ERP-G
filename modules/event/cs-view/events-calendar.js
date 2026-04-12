@@ -19,8 +19,8 @@ let _chatLastSig = "";
 
 function getCalSenderName() {
   const u = window.ERP_USER;
-  if (!u) return "CS";
-  return [u.first_name, u.last_name].filter(Boolean).join(" ") || u.username || "CS";
+  if (!u) return "Admin";
+  return u.full_name || [u.first_name, u.last_name].filter(Boolean).join(" ") || u.username || "Admin";
 }
 
 /* ── Unread badge cache ── */

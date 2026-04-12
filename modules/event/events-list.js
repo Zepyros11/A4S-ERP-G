@@ -15,6 +15,8 @@ let allUsers = [];
 let eventCategories = [];
 let sortKey = "event_date";
 let sortAsc = false;
+let activeDateRange = "all";
+let activeStatusFilter = "";
 
 window._panelEventId = null;
 let _panelChatPoll = null;
@@ -23,7 +25,7 @@ let _panelChatSig = "";
 function getPanelSenderName() {
   const u = window.ERP_USER;
   if (!u) return "Admin";
-  return [u.first_name, u.last_name].filter(Boolean).join(" ") || u.username || "Admin";
+  return u.full_name || [u.first_name, u.last_name].filter(Boolean).join(" ") || u.username || "Admin";
 }
 let _evChatCountCache = {}; // { [event_id]: { total, latest } }
 
@@ -334,12 +336,6 @@ function bindEvents() {
   document
     .getElementById("searchInput")
     ?.addEventListener("input", filterTable);
-  document
-    .getElementById("filterType")
-    ?.addEventListener("change", filterTable);
-  document
-    .getElementById("filterStatus")
-    ?.addEventListener("change", filterTable);
 
   document.getElementById("panelBtnSaveEdit")?.addEventListener("click", () => {
     window.savePanelEvent();
@@ -352,25 +348,78 @@ function bindEvents() {
 }
 
 function updateStatCards() {
-  const today = new Date().toISOString().split("T")[0];
-  document.getElementById("cardTotal").textContent = allEvents.length;
-  document.getElementById("cardUpcoming").textContent = allEvents.filter(
-    (e) => e.event_date > today && e.status === "CONFIRMED",
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = now.getMonth();
+  const monthStart = `${y}-${String(m + 1).padStart(2, "0")}-01`;
+  const lastDay = new Date(y, m + 1, 0).getDate();
+  const monthEnd = `${y}-${String(m + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+
+  const day = now.getDay();
+  const diffToMon = day === 0 ? 6 : day - 1;
+  const mon = new Date(now); mon.setDate(now.getDate() - diffToMon);
+  const sun = new Date(mon); sun.setDate(mon.getDate() + 6);
+  const weekStart = mon.toISOString().split("T")[0];
+  const weekEnd = sun.toISOString().split("T")[0];
+
+  document.getElementById("cardMonth").textContent = allEvents.filter(
+    (e) => e.event_date >= monthStart && e.event_date <= monthEnd,
+  ).length;
+  document.getElementById("cardWeek").textContent = allEvents.filter(
+    (e) => e.event_date >= weekStart && e.event_date <= weekEnd,
   ).length;
   document.getElementById("cardOngoing").textContent = allEvents.filter(
     (e) => e.status === "ONGOING",
   ).length;
-  document.getElementById("cardDone").textContent = allEvents.filter(
-    (e) => e.status === "DONE",
+  document.getElementById("cardDraft").textContent = allEvents.filter(
+    (e) => e.status === "DRAFT",
   ).length;
+}
+
+window.setDateFilter = function (btn, range) {
+  document.querySelectorAll("#dateFilterChips .date-chip").forEach((b) => b.classList.remove("active"));
+  btn.classList.add("active");
+  activeDateRange = range;
+  filterTable();
+};
+
+window.setStatusFilter = function (btn, status) {
+  document.querySelectorAll("#statusFilterChips .date-chip").forEach((b) => b.classList.remove("active"));
+  btn.classList.add("active");
+  activeStatusFilter = status;
+  filterTable();
+};
+
+function getDateRange() {
+  const now = new Date();
+  const todayStr = now.toISOString().split("T")[0];
+  if (activeDateRange === "today") {
+    return { start: todayStr, end: todayStr };
+  }
+  if (activeDateRange === "week") {
+    const day = now.getDay();
+    const diffToMon = day === 0 ? 6 : day - 1;
+    const mon = new Date(now);
+    mon.setDate(now.getDate() - diffToMon);
+    const sun = new Date(mon);
+    sun.setDate(mon.getDate() + 6);
+    return { start: mon.toISOString().split("T")[0], end: sun.toISOString().split("T")[0] };
+  }
+  if (activeDateRange === "month") {
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, "0");
+    const lastDay = new Date(y, now.getMonth() + 1, 0).getDate();
+    return { start: `${y}-${m}-01`, end: `${y}-${m}-${String(lastDay).padStart(2, "0")}` };
+  }
+  return null;
 }
 
 function filterTable() {
   const search = (
     document.getElementById("searchInput")?.value || ""
   ).toLowerCase();
-  const type = document.getElementById("filterType")?.value || "";
-  const status = document.getElementById("filterStatus")?.value || "";
+  const status = activeStatusFilter;
+  const dateRange = getDateRange();
 
   const filtered = allEvents.filter((e) => {
     const matchSearch =
@@ -378,9 +427,12 @@ function filterTable() {
       (e.event_name || "").toLowerCase().includes(search) ||
       (e.location || "").toLowerCase().includes(search) ||
       (e.event_code || "").toLowerCase().includes(search);
-    const matchType = !type || e.event_type === type;
     const matchStatus = !status || e.status === status;
-    return matchSearch && matchType && matchStatus;
+    let matchDate = true;
+    if (dateRange && e.event_date) {
+      matchDate = e.event_date >= dateRange.start && e.event_date <= dateRange.end;
+    }
+    return matchSearch && matchStatus && matchDate;
   });
 
   renderTable(filtered);

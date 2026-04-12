@@ -2,6 +2,59 @@
    events-place-form.css — Place Form Styles
 ========================================================= */
 
+/* ── SECTION TOGGLE ── */
+.ef-section-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  user-select: none;
+}
+/* ── TOGGLE SWITCH ── */
+.toggle-switch {
+  position: relative;
+  width: 44px;
+  height: 24px;
+  flex-shrink: 0;
+}
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+  position: absolute;
+}
+.toggle-slider {
+  position: absolute;
+  inset: 0;
+  background: #cbd5e1;
+  border-radius: 24px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.toggle-slider::before {
+  content: "";
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  left: 3px;
+  bottom: 3px;
+  background: #fff;
+  border-radius: 50%;
+  transition: transform 0.2s;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+.toggle-switch input:checked + .toggle-slider {
+  background: #6366f1;
+}
+.toggle-switch input:checked + .toggle-slider::before {
+  transform: translateX(20px);
+}
+.toggle-body {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border, #e2e8f0);
+}
+
 /* ── NUMBER INPUT ── */
 .ef-input[type="number"] {
   -moz-appearance: textfield;
@@ -10,6 +63,23 @@
 .ef-input[type="number"]::-webkit-inner-spin-button {
   -webkit-appearance: none;
   margin: 0;
+}
+
+/* ── SECTION TITLE HIGHLIGHT ── */
+.ef-section > .ef-section-title,
+.ef-section-toggle .ef-section-title {
+  font-size: 14px;
+  font-weight: 800;
+  color: #1e293b;
+  padding: 10px 14px;
+  background: linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%);
+  border-left: 4px solid #6366f1;
+  border-radius: 0 8px 8px 0;
+  margin-bottom: 18px;
+  letter-spacing: 0.5px;
+}
+.ef-section-toggle .ef-section-title {
+  margin-bottom: 0;
 }
 
 /* ── SECTION SPACING ── */
@@ -25,13 +95,128 @@
 }
 
 /* ═══════════════════════════════════════════
+   IMAGE TABS
+═══════════════════════════════════════════ */
+.img-tabs {
+  display: flex;
+  gap: 2px;
+  border-bottom: 2px solid var(--border, #e2e8f0);
+  margin-bottom: 16px;
+}
+.img-tab {
+  padding: 8px 16px;
+  border: none;
+  background: transparent;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text3, #94a3b8);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  transition: all 0.15s;
+  font-family: inherit;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.img-tab:hover {
+  color: var(--text, #1e293b);
+}
+.img-tab.active {
+  color: #6366f1;
+  border-bottom-color: #6366f1;
+}
+.img-tab-count {
+  background: var(--surface2, #f1f5f9);
+  padding: 1px 7px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 700;
+  min-width: 18px;
+  text-align: center;
+}
+.img-tab.active .img-tab-count {
+  background: #eef2ff;
+  color: #6366f1;
+}
+
+/* ── TAB PANELS ── */
+.img-tab-panel {
+  display: none;
+}
+.img-tab-panel.active {
+  display: block;
+}
+
+/* ═══════════════════════════════════════════
+   GALLERY CATEGORIES
+═══════════════════════════════════════════ */
+.gallery-cat-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+}
+.btn-sm {
+  padding: 4px 12px !important;
+  font-size: 11px !important;
+}
+.img-tab-panel .place-img-grid:empty::after {
+  content: "ยังไม่มีรูป — กดปุ่ม ＋ เพิ่มรูป";
+  display: block;
+  padding: 30px;
+  text-align: center;
+  color: var(--text3, #94a3b8);
+  font-size: 12px;
+  grid-column: 1 / -1;
+}
+
+/* ── DOC LIST ── */
+.doc-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.doc-list:empty::after {
+  content: "ยังไม่มีเอกสาร — กดปุ่ม ＋ เพิ่มไฟล์";
+  display: block;
+  padding: 16px;
+  text-align: center;
+  color: var(--text3, #94a3b8);
+  font-size: 12px;
+}
+.doc-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--surface, #fff);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 12px;
+}
+.doc-row .doc-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.doc-row a {
+  color: #6366f1;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+/* ═══════════════════════════════════════════
    IMAGE SLOT GRID
 ═══════════════════════════════════════════ */
 .place-img-grid {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
   gap: 10px;
-  margin-top: 8px;
 }
 
 /* ── SLOT BASE ── */
@@ -150,4 +335,211 @@
   border-color: #3b82f6 !important;
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3);
   opacity: 0.85;
+}
+
+/* ═══════════════════════════════════════════
+   PROVINCE AUTOCOMPLETE
+═══════════════════════════════════════════ */
+.province-dropdown {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: var(--surface, #fff);
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+  z-index: 50;
+  max-height: 200px;
+  overflow-y: auto;
+  margin-top: 2px;
+}
+.province-opt {
+  padding: 8px 14px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+.province-opt:hover {
+  background: #eef2ff;
+  color: #6366f1;
+}
+
+/* ═══════════════════════════════════════════
+   AMENITY TAGS
+═══════════════════════════════════════════ */
+.amenity-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+.amenity-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+  user-select: none;
+}
+.amenity-tag:hover {
+  border-color: #6366f1;
+  background: rgba(99,102,241,0.06);
+}
+.amenity-tag:has(input:checked) {
+  background: #eef2ff;
+  border-color: #6366f1;
+  color: #6366f1;
+  font-weight: 600;
+}
+.amenity-tag input[type="checkbox"] {
+  width: 14px;
+  height: 14px;
+  accent-color: #6366f1;
+}
+
+/* ═══════════════════════════════════════════
+   ROOM CARD (sub-rooms)
+═══════════════════════════════════════════ */
+.room-card {
+  background: var(--surface2, #f8fafc);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 12px;
+}
+.room-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  font-size: 14px;
+  color: #fff;
+  background: #6366f1;
+  border-radius: 8px;
+}
+.btn-icon-sm {
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text3);
+  cursor: pointer;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+}
+.btn-icon-sm:hover {
+  background: #fee2e2;
+  border-color: #ef4444;
+  color: #ef4444;
+}
+.room-card-header .btn-icon-sm {
+  background: rgba(255,255,255,0.2);
+  border-color: rgba(255,255,255,0.3);
+  color: #fff;
+}
+.room-card-header .btn-icon-sm:hover {
+  background: rgba(255,255,255,0.9);
+  color: #ef4444;
+}
+.room-card .ef-field {
+  margin-bottom: 8px;
+}
+.room-card .ef-label {
+  font-size: 11px;
+  margin-bottom: 2px;
+}
+.accom-img-grid {
+  grid-template-columns: repeat(5, 1fr) !important;
+  gap: 6px !important;
+}
+.accom-img-grid .place-slot {
+  aspect-ratio: 4/3;
+}
+.accom-img-count {
+  font-weight: 400;
+  color: var(--text3);
+  font-size: 11px;
+}
+
+/* ═══════════════════════════════════════════
+   PLACE TYPE MANAGER MODAL
+═══════════════════════════════════════════ */
+.pt-modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 1000;
+  align-items: center;
+  justify-content: center;
+}
+.pt-modal-overlay.show {
+  display: flex;
+}
+.pt-modal {
+  background: var(--surface, #fff);
+  border-radius: 16px;
+  width: 520px;
+  max-width: 95vw;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+}
+.pt-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  font-size: 15px;
+}
+.pt-modal-body {
+  padding: 16px 20px;
+  overflow-y: auto;
+  flex: 1;
+}
+.pt-modal-footer {
+  padding: 12px 20px;
+  border-top: 1px solid var(--border);
+  text-align: right;
+}
+.pt-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.pt-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.pt-icon-btn {
+  width: 42px;
+  height: 38px;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 8px;
+  background: var(--surface2, #f8fafc);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.15s;
+}
+.pt-icon-btn:hover {
+  border-color: #6366f1;
+  background: #eef2ff;
+  box-shadow: 0 0 0 2px rgba(99,102,241,0.15);
 }

@@ -44,12 +44,160 @@
   // ── 3. เปิดให้ page อื่นเข้าถึง session ได้ ─────────────
   window.ERP_USER = session;
 
-  // ── 4. Logout function ───────────────────────────────────
-  window.erpLogout = function () {
-    if (!confirm("ออกจากระบบ?")) return;
+  // ── 4. Logout function (custom modal) ────────────────────
+  function _doLogout() {
     localStorage.removeItem("erp_session");
     sessionStorage.removeItem("erp_session");
     window.location.replace(BASE_PATH + "/login.html");
+  }
+
+  function _closeLogoutModal() {
+    document.getElementById("logoutModalOverlay")?.classList.remove("active");
+    document.removeEventListener("keydown", _logoutKeyHandler);
+  }
+
+  function _logoutKeyHandler(e) {
+    if (e.key === "Escape") _closeLogoutModal();
+    else if (e.key === "Enter") _doLogout();
+  }
+
+  function _injectLogoutModal() {
+    if (document.getElementById("logoutModalOverlay")) return;
+
+    /* ── HTML ── */
+    const wrap = document.createElement("div");
+    wrap.innerHTML = `
+<div id="logoutModalOverlay" class="lm-overlay">
+  <div class="lm-modal">
+    <div class="lm-icon-wrap">
+      <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#0f4c75" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+        <polyline points="16 17 21 12 16 7"/>
+        <line x1="21" y1="12" x2="9" y2="12"/>
+      </svg>
+    </div>
+    <div class="lm-title">ออกจากระบบ?</div>
+    <div class="lm-body">
+      <p>คุณต้องการออกจากระบบหรือไม่?<br/>ต้อง login ใหม่เมื่อจะใช้งานอีกครั้ง</p>
+    </div>
+    <div class="lm-footer">
+      <button class="lm-btn cancel" id="lmCancelBtn">ยกเลิก</button>
+      <button class="lm-btn primary" id="lmConfirmBtn">🚪 ออกจากระบบ</button>
+    </div>
+  </div>
+</div>`;
+    document.body.appendChild(wrap.firstElementChild);
+
+    /* ── CSS ── */
+    if (!document.getElementById("logoutModalStyle")) {
+      const style = document.createElement("style");
+      style.id = "logoutModalStyle";
+      style.textContent = `
+.lm-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(6px);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 3000;
+  animation: lmFade 0.15s ease;
+}
+.lm-overlay.active { display: flex; }
+.lm-modal {
+  width: 380px;
+  max-width: 92vw;
+  background: #fff;
+  border-radius: 16px;
+  padding: 32px 28px 24px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.18), 0 2px 6px rgba(0,0,0,0.08);
+  text-align: center;
+  font-family: 'Sarabun', sans-serif;
+  animation: lmPop 0.22s cubic-bezier(0.34,1.56,0.64,1);
+}
+.lm-icon-wrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 58px;
+  height: 58px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #e0f2fe, #dbeafe);
+  margin-bottom: 16px;
+  box-shadow: 0 4px 14px rgba(15,76,117,0.15);
+}
+.lm-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 8px;
+  letter-spacing: 0.2px;
+}
+.lm-body {
+  font-size: 13.5px;
+  color: #64748b;
+  line-height: 1.65;
+  margin-bottom: 24px;
+}
+.lm-body p { margin: 0; }
+.lm-footer {
+  display: flex;
+  gap: 10px;
+}
+.lm-btn {
+  flex: 1;
+  padding: 11px 16px;
+  border-radius: 10px;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: 'Sarabun', sans-serif;
+  transition: all 0.15s;
+}
+.lm-btn.cancel {
+  background: #f1f5f9;
+  color: #475569;
+  border: 1.5px solid #e2e8f0;
+}
+.lm-btn.cancel:hover {
+  background: #e2e8f0;
+  border-color: #cbd5e1;
+}
+.lm-btn.primary {
+  background: linear-gradient(135deg, #0f4c75, #1b6ca8);
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(15,76,117,0.30);
+}
+.lm-btn.primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(15,76,117,0.42);
+}
+.lm-btn.primary:active { transform: translateY(0); }
+@keyframes lmFade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes lmPop {
+  from { transform: scale(0.92) translateY(12px); opacity: 0; }
+  to   { transform: scale(1) translateY(0); opacity: 1; }
+}
+`;
+      document.head.appendChild(style);
+    }
+
+    /* ── Events ── */
+    const overlay = document.getElementById("logoutModalOverlay");
+    document.getElementById("lmCancelBtn").onclick = _closeLogoutModal;
+    document.getElementById("lmConfirmBtn").onclick = _doLogout;
+    overlay.onclick = (e) => { if (e.target === overlay) _closeLogoutModal(); };
+  }
+
+  window.erpLogout = function () {
+    _injectLogoutModal();
+    document.getElementById("logoutModalOverlay").classList.add("active");
+    document.addEventListener("keydown", _logoutKeyHandler);
   };
 
   // ── 5. Inject User chip ใน Topbar (รอ DOM) ──────────────

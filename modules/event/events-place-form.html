@@ -72,17 +72,47 @@
                 />
               </div>
 
-              <div class="ef-field">
-                <label class="ef-label"
-                  >ประเภทสถานที่ <span class="ef-required">*</span></label
-                >
-                <select class="ef-input" id="fPlaceType">
-                  <option value="">— เลือกประเภท —</option>
-                  <option value="HOTEL">🏨 โรงแรม</option>
-                  <option value="MEETING_ROOM">🏢 ห้องประชุม</option>
-                  <option value="RESTAURANT">🍽 ร้านอาหาร</option>
-                  <option value="EVENT_SPACE">🎤 Event Space</option>
-                </select>
+              <div class="ef-row-2">
+                <div class="ef-field">
+                  <label class="ef-label">ประเภทสถานที่ <span class="ef-required">*</span></label>
+                  <div style="display:flex;gap:6px">
+                    <select class="ef-input" id="fPlaceType" style="flex:1">
+                      <option value="">— เลือกประเภท —</option>
+                    </select>
+                    <button class="btn btn-outline" type="button" onclick="window.openPlaceTypeManager()" title="จัดการประเภท" style="padding:8px 10px;flex-shrink:0">⚙️</button>
+                  </div>
+                </div>
+                <div class="ef-field">
+                  <label class="ef-label">ภูมิภาค</label>
+                  <select class="ef-input" id="fRegion">
+                    <option value="">— เลือก —</option>
+                    <option value="กรุงเทพฯ">กรุงเทพฯ</option>
+                    <option value="ปริมณฑล">ปริมณฑล</option>
+                    <option value="ภาคกลาง">ภาคกลาง</option>
+                    <option value="ภาคเหนือ">ภาคเหนือ</option>
+                    <option value="ภาคอีสาน">ภาคอีสาน</option>
+                    <option value="ภาคตะวันออก">ภาคตะวันออก</option>
+                    <option value="ภาคใต้">ภาคใต้</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="ef-row-2">
+                <div class="ef-field" style="position:relative">
+                  <label class="ef-label">จังหวัด</label>
+                  <input class="ef-input" id="fProvince" placeholder="พิมพ์ชื่อจังหวัด..." autocomplete="off" />
+                  <div class="province-dropdown" id="provinceDd"></div>
+                </div>
+                <div class="ef-field">
+                  <label class="ef-label">Rating (ดาว)</label>
+                  <select class="ef-input" id="fRating">
+                    <option value="">— ไม่ระบุ —</option>
+                    <option value="2">⭐⭐ 2 ดาว</option>
+                    <option value="3">⭐⭐⭐ 3 ดาว</option>
+                    <option value="4">⭐⭐⭐⭐ 4 ดาว</option>
+                    <option value="5">⭐⭐⭐⭐⭐ 5 ดาว</option>
+                  </select>
+                </div>
               </div>
 
               <div class="ef-field">
@@ -94,24 +124,53 @@
                 ></textarea>
               </div>
 
-              <!-- IMAGE SLOTS -->
-              <div class="ef-field">
-                <label class="ef-label">🖼️ รูปสถานที่ (สูงสุด 5 รูป)</label>
-                <div id="previewGrid" class="place-img-grid"></div>
-                <input
-                  type="file"
-                  id="fileInput"
-                  accept="image/*"
-                  style="display: none"
-                />
+              <div class="ef-row-2">
+                <div class="ef-field">
+                  <label class="ef-label">⚙️ สถานะ</label>
+                  <select class="ef-input" id="fStatus" style="max-width: 200px">
+                    <option value="ACTIVE">✅ ACTIVE</option>
+                    <option value="INACTIVE">🚫 INACTIVE</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <!-- SECTION: รูปภาพ -->
+            <div class="ef-section">
+              <div class="ef-section-title">🖼️ รูปภาพ & เอกสาร</div>
+              <input type="file" id="fileInput" accept="image/*" multiple style="display:none" />
+              <input type="file" id="docInput" accept=".pdf,.jpg,.jpeg,.png,.xlsx,.docx" multiple style="display:none" />
+
+              <!-- TAB BAR -->
+              <div class="img-tabs">
+                <button class="img-tab active" data-tab="exterior" onclick="window.switchImgTab('exterior',this)">🏢 ภาพรวม <span class="img-tab-count" id="cnt-exterior">0/10</span></button>
+                <button class="img-tab" data-tab="food" onclick="window.switchImgTab('food',this)">🍽️ อาหาร <span class="img-tab-count" id="cnt-food">0/10</span></button>
+                <button class="img-tab" data-tab="docs" onclick="window.switchImgTab('docs',this)">📄 เอกสาร <span class="img-tab-count" id="cnt-docs">0/5</span></button>
               </div>
 
-              <div class="ef-field">
-                <label class="ef-label">⚙️ สถานะ</label>
-                <select class="ef-input" id="fStatus" style="max-width: 200px">
-                  <option value="ACTIVE">✅ ACTIVE</option>
-                  <option value="INACTIVE">🚫 INACTIVE</option>
-                </select>
+              <!-- TAB PANELS -->
+              <div class="img-tab-panel active" id="panel-exterior">
+                <div class="gallery-cat-header">
+                  <span></span>
+                  <button class="btn btn-outline btn-sm" type="button" onclick="window.addImageSlot('exterior')">＋ เพิ่มรูป</button>
+                </div>
+                <div class="place-img-grid" id="grid-exterior"></div>
+              </div>
+
+              <div class="img-tab-panel" id="panel-food">
+                <div class="gallery-cat-header">
+                  <span></span>
+                  <button class="btn btn-outline btn-sm" type="button" onclick="window.addImageSlot('food')">＋ เพิ่มรูป</button>
+                </div>
+                <div class="place-img-grid" id="grid-food"></div>
+              </div>
+
+              <div class="img-tab-panel" id="panel-docs">
+                <div class="gallery-cat-header">
+                  <span></span>
+                  <button class="btn btn-outline btn-sm" type="button" onclick="window.addDocSlot()">＋ เพิ่มไฟล์</button>
+                </div>
+                <div class="doc-list" id="docList"></div>
               </div>
             </div>
 
@@ -127,17 +186,6 @@
                   placeholder="ที่อยู่เต็ม..."
                   style="height: 90px"
                 ></textarea>
-              </div>
-
-              <div class="ef-row-2">
-                <div class="ef-field">
-                  <label class="ef-label">Latitude</label>
-                  <input class="ef-input" id="fLat" placeholder="13.7563" />
-                </div>
-                <div class="ef-field">
-                  <label class="ef-label">Longitude</label>
-                  <input class="ef-input" id="fLong" placeholder="100.5018" />
-                </div>
               </div>
 
               <div class="ef-field">
@@ -165,42 +213,107 @@
                 </div>
               </div>
 
-              <div class="ef-field">
-                <label class="ef-label">Email</label>
-                <input class="ef-input" id="fEmail" type="email" />
+              <div class="ef-row-2">
+                <div class="ef-field">
+                  <label class="ef-label">Email</label>
+                  <input class="ef-input" id="fEmail" type="email" />
+                </div>
+                <div class="ef-field">
+                  <label class="ef-label">LINE ID</label>
+                  <input class="ef-input" id="fLineId" placeholder="@line_id" />
+                </div>
+              </div>
+
+              <div class="ef-row-2">
+                <div class="ef-field">
+                  <label class="ef-label">Website</label>
+                  <input class="ef-input" id="fWebsite" placeholder="https://..." />
+                </div>
+                <div class="ef-field">
+                  <label class="ef-label">Tax ID</label>
+                  <input class="ef-input" id="fTaxId" placeholder="เลขประจำตัวผู้เสียภาษี" />
+                </div>
               </div>
             </div>
 
-            <!-- SECTION: ข้อมูลเพิ่มเติม -->
+            <!-- SECTION: ห้องพัก -->
             <div class="ef-section">
-              <div class="ef-section-title">🏢 ข้อมูลเพิ่มเติม</div>
+              <label class="ef-section-toggle">
+                <div class="toggle-switch"><input type="checkbox" id="chkAccom" onchange="window.toggleSection('accomBody', this.checked)" /><span class="toggle-slider"></span></div>
+                <span class="ef-section-title" style="margin:0;cursor:pointer">🛏️ มีห้องพัก (Accommodation)</span>
+              </label>
+              <div id="accomBody" class="toggle-body" style="display:none">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+                  <strong style="font-size:13px">🛏️ รายละเอียดห้องพักแต่ละประเภท</strong>
+                  <button class="btn btn-outline btn-sm" type="button" onclick="window.addAccom()">＋ เพิ่มประเภท</button>
+                </div>
+                <div id="accomContainer"></div>
+              </div>
+            </div>
+
+            <!-- SECTION: ห้องประชุม -->
+            <div class="ef-section">
+              <label class="ef-section-toggle">
+                <div class="toggle-switch"><input type="checkbox" id="chkMeeting" onchange="window.toggleSection('meetingBody', this.checked)" /><span class="toggle-slider"></span></div>
+                <span class="ef-section-title" style="margin:0;cursor:pointer">🏛️ มีห้องประชุม (Meeting)</span>
+              </label>
+              <div id="meetingBody" class="toggle-body" style="display:none">
 
               <div class="ef-row-2">
                 <div class="ef-field">
-                  <label class="ef-label">Capacity (คน)</label>
-                  <input
-                    class="ef-input"
-                    type="number"
-                    id="fCapacity"
-                    min="0"
-                  />
+                  <label class="ef-label">Capacity รวม (คน)</label>
+                  <input class="ef-input" type="number" id="fCapacity" min="0" placeholder="รองรับสูงสุดรวมทุกห้อง" />
                 </div>
                 <div class="ef-field">
-                  <label class="ef-label">Meeting Rooms</label>
-                  <input
-                    class="ef-input"
-                    type="number"
-                    id="fRoomsMeeting"
-                    min="0"
-                  />
+                  <label class="ef-label">ค่าเช่าห้องประชุม (เริ่มต้น)</label>
+                  <input class="ef-input" type="number" id="fMeetingRate" min="0" placeholder="เช่น 5,500" />
                 </div>
               </div>
 
               <div class="ef-row-2">
                 <div class="ef-field">
-                  <label class="ef-label">จำนวนห้องพัก</label>
-                  <input class="ef-input" type="number" id="fRooms" min="0" />
+                  <label class="ef-label">ค่า Meeting Package (ต่อคน)</label>
+                  <input class="ef-input" type="number" id="fPackageRate" min="0" placeholder="เช่น 550" />
                 </div>
+                <div class="ef-field">
+                  <label class="ef-label">ค่า Coffee Break (ต่อคน)</label>
+                  <input class="ef-input" type="number" id="fCoffeeRate" min="0" placeholder="เช่น 50" />
+                </div>
+              </div>
+
+              <div class="ef-row-2">
+                <div class="ef-field">
+                  <label class="ef-label">ค่าอาหาร (เริ่มต้น/คน)</label>
+                  <input class="ef-input" type="number" id="fMealRate" min="0" placeholder="เช่น 200" />
+                </div>
+                <div class="ef-field">
+                  <label class="ef-label">อุปกรณ์ห้องประชุม</label>
+                  <div class="amenity-tags" id="amenityTags">
+                    <label class="amenity-tag"><input type="checkbox" value="projector"> Projector</label>
+                    <label class="amenity-tag"><input type="checkbox" value="led_screen"> LED Screen</label>
+                    <label class="amenity-tag"><input type="checkbox" value="mic"> ไมค์/เครื่องเสียง</label>
+                    <label class="amenity-tag"><input type="checkbox" value="wifi"> WiFi</label>
+                    <label class="amenity-tag"><input type="checkbox" value="stage"> เวที</label>
+                    <label class="amenity-tag"><input type="checkbox" value="backdrop"> Backdrop</label>
+                  </div>
+                </div>
+              </div>
+
+              <!-- ห้องประชุมย่อย -->
+              <div style="margin-top:16px;border-top:1px solid var(--border);padding-top:16px">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+                  <strong style="font-size:13px">🚪 รายละเอียดห้องประชุมแต่ละห้อง</strong>
+                  <button class="btn btn-outline btn-sm" type="button" onclick="window.addRoom()">＋ เพิ่มห้อง</button>
+                </div>
+                <div id="roomsContainer"></div>
+              </div>
+              </div><!-- /meetingBody -->
+            </div>
+
+            <!-- SECTION: สิ่งอำนวยความสะดวก -->
+            <div class="ef-section">
+              <div class="ef-section-title">🏨 สิ่งอำนวยความสะดวก</div>
+              <div class="ef-row-2">
                 <div class="ef-field">
                   <label class="ef-label">ที่จอดรถ</label>
                   <select class="ef-input" id="fParking">
@@ -209,6 +322,25 @@
                     <option value="false">❌ ไม่มี</option>
                   </select>
                 </div>
+                <div class="ef-field">
+                  <label class="ef-label">สิ่งอำนวยความสะดวกอื่นๆ</label>
+                  <div class="amenity-tags" id="facilityTags">
+                    <label class="amenity-tag"><input type="checkbox" value="pool"> สระว่ายน้ำ</label>
+                    <label class="amenity-tag"><input type="checkbox" value="fitness"> ฟิตเนส</label>
+                    <label class="amenity-tag"><input type="checkbox" value="spa"> สปา</label>
+                    <label class="amenity-tag"><input type="checkbox" value="prayer_room"> ห้องละหมาด</label>
+                    <label class="amenity-tag"><input type="checkbox" value="restaurant"> ร้านอาหาร</label>
+                    <label class="amenity-tag"><input type="checkbox" value="transfer"> รถรับส่ง</label>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- SECTION: เงื่อนไข -->
+            <div class="ef-section">
+              <div class="ef-section-title">📝 เงื่อนไข / หมายเหตุ</div>
+              <div class="ef-field">
+                <textarea class="ef-input ef-textarea" id="fTerms" placeholder="เช่น มัดจำ 50%, ยกเลิกล่วงหน้า 7 วัน, ค่าใช้เกินเวลา 2,000/ชม." style="height:100px"></textarea>
               </div>
             </div>
           </div>
@@ -224,96 +356,6 @@
     <script type="module">
       import { loadTopbar } from "../../js/components/navigation/topbar.js";
       loadTopbar("📍 สถานที่");
-    </script>
-    <script>
-      // Slot rendering — plain script (จะถูก override โดย ES module หลัง load)
-      var _imageFiles = window._imageFiles || [];
-
-      function _renderSlots() {
-        // ถ้า ES module override แล้ว ให้ใช้ version นั้น
-        if (window._renderSlots && window._renderSlots !== _renderSlots) {
-          window._renderSlots();
-          return;
-        }
-        var grid = document.getElementById("previewGrid");
-        if (!grid) {
-          setTimeout(_renderSlots, 100);
-          return;
-        }
-        grid.innerHTML = "";
-        for (var i = 0; i < 5; i++) {
-          (function (idx) {
-            var file = _imageFiles[idx];
-            var slot = document.createElement("div");
-            if (file) {
-              slot.className = "place-slot filled";
-              slot.draggable = true;
-              slot.innerHTML =
-                '<img src="' +
-                URL.createObjectURL(file) +
-                '" />' +
-                '<button class="place-remove" onclick="event.stopPropagation();_removeSlot(' +
-                idx +
-                ')">✕</button>' +
-                '<div class="place-slot-num">' +
-                (idx + 1) +
-                "</div>";
-              slot.addEventListener("dragstart", function (e) {
-                e.dataTransfer.setData("text/plain", String(idx));
-              });
-            } else {
-              slot.className = "place-slot empty";
-              slot.innerHTML =
-                '<div class="place-slot-inner">' +
-                '<div class="place-slot-icon">+</div>' +
-                '<div class="place-slot-hint">คลิก / ลากรูป</div>' +
-                '<div class="place-slot-num">' +
-                (idx + 1) +
-                "</div>" +
-                "</div>";
-              slot.addEventListener("click", function () {
-                _pickFile(idx);
-              });
-            }
-            slot.addEventListener("dragover", function (e) {
-              e.preventDefault();
-              slot.classList.add("drag-over");
-            });
-            slot.addEventListener("dragleave", function () {
-              slot.classList.remove("drag-over");
-            });
-            slot.addEventListener("drop", function (e) {
-              e.preventDefault();
-              slot.classList.remove("drag-over");
-              var from = parseInt(e.dataTransfer.getData("text/plain"));
-              if (!isNaN(from) && from !== idx) {
-                var t = _imageFiles[from] || null;
-                _imageFiles[from] = _imageFiles[idx] || null;
-                _imageFiles[idx] = t;
-                _renderSlots();
-                return;
-              }
-              var f = e.dataTransfer.files && e.dataTransfer.files[0];
-              if (f && f.type.indexOf("image/") === 0) {
-                _imageFiles[idx] = f;
-                _renderSlots();
-              }
-            });
-            grid.appendChild(slot);
-          })(i);
-        }
-      }
-
-      function _pickFile(idx) {
-        var input = document.getElementById("fileInput");
-        input.dataset.index = String(idx);
-        input.value = "";
-        input.click();
-      }
-
-      // _removeSlot และ fileInput.change จะถูก handle โดย ES module
-      // plain script นี้ทำแค่ render ครั้งแรก
-      _renderSlots();
     </script>
   </body>
 </html>
