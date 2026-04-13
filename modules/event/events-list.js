@@ -15,7 +15,7 @@ let allUsers = [];
 let eventCategories = [];
 let sortKey = "event_date";
 let sortAsc = false;
-let activeDateRange = "all";
+let activeDateRange = "month";
 let activeStatusFilter = "";
 
 window._panelEventId = null;
@@ -530,7 +530,7 @@ function renderTable(events) {
       const pinned = isPinned(e.event_id);
       const pinnedRowClass = pinned ? " row-pinned" : "";
 
-      return `<tr class="${rowClass}${unreadRowClass}${pinnedRowClass}" onclick="window.openEventPanel(${e.event_id})">
+      return `<tr class="${rowClass}${unreadRowClass}${pinnedRowClass}" onclick="window.location.href='./event-form.html?id=${e.event_id}'">
       <td style="text-align:center" onclick="event.stopPropagation()">
         <input type="checkbox" class="row-check" value="${e.event_id}" onchange="window.updateDeleteButton()">
       </td>
@@ -553,7 +553,7 @@ function renderTable(events) {
       <td class="col-center" onclick="event.stopPropagation()">
         <div class="action-group">
           <button class="btn-icon ${pinned ? "btn-pin-active" : "btn-pin"}" title="${pinned ? "ยกเลิกปักหมุด" : "ปักหมุด"}" onclick="window.togglePin(${e.event_id}, event)">📌</button>
-          <button class="btn-icon" onclick="window.openEventPanel(${e.event_id})">✏️</button>
+          <button class="btn-icon" onclick="window.location.href='./event-form.html?id=${e.event_id}'">✏️</button>
           <button class="btn-icon danger" onclick="window.deleteEvent(${e.event_id})">🗑</button>
         </div>
       </td>

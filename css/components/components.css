@@ -171,3 +171,32 @@ input:checked + .slider:before {
 
   color: #111; /* ⭐ font สีดำ */
 }
+
+/* ── FLOATING SAVE BUTTON ── */
+.floating-save-btn {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: #22c55e;
+  color: #fff;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  box-shadow: 0 3px 12px rgba(34, 197, 94, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  transition: all 0.2s;
+}
+.floating-save-btn:hover {
+  background: #16a34a;
+  transform: scale(1.1);
+  box-shadow: 0 5px 16px rgba(34, 197, 94, 0.5);
+}
+.floating-save-btn:active {
+  transform: scale(0.95);
+}

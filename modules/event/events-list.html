@@ -74,8 +74,8 @@
               </div>
               <!-- Date filter chips -->
               <div class="date-filter-chips" id="dateFilterChips">
-                <button class="date-chip active" data-range="all" onclick="window.setDateFilter(this,'all')">ทั้งหมด</button>
-                <button class="date-chip" data-range="month" onclick="window.setDateFilter(this,'month')">เดือนนี้</button>
+                <button class="date-chip" data-range="all" onclick="window.setDateFilter(this,'all')">ทั้งหมด</button>
+                <button class="date-chip active" data-range="month" onclick="window.setDateFilter(this,'month')">เดือนนี้</button>
                 <button class="date-chip" data-range="week" onclick="window.setDateFilter(this,'week')">อาทิตย์นี้</button>
                 <button class="date-chip" data-range="today" onclick="window.setDateFilter(this,'today')">วันนี้</button>
               </div>
@@ -165,7 +165,7 @@
         <script type="module" src="./events-list.js"></script>
         <script src="../../js/components/modal/deleteModal.js"></script>
         <script src="../../js/components/modal/modalManager.js"></script>
-        <script src="../../js/components/modal/enterModal.js"></script>
+        <script src="../../js/components/modal/enterSave.js"></script>
         <script type="module">
           import { loadTopbar } from "../../js/components/navigation/topbar.js";
           loadTopbar("🗓️ รายการกิจกรรม");
@@ -175,154 +175,30 @@
       </div>
     </div>
 
-    <!-- ═══════════════════════════════════════════════
-     SIDE PANEL OVERLAY (Events)
-    ═══════════════════════════════════════════════ -->
-    <div
-      id="evPanelOverlay"
-      style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:299;backdrop-filter:blur(2px);"
-      onclick="window.closeEventPanel()"
-    ></div>
 
-    <!-- ═══════════════════════════════════════════════
-     SIDE PANEL (Events)
-    ═══════════════════════════════════════════════ -->
-    <div id="evSidePanel" class="ev-side-panel">
-
-      <!-- HEADER -->
-      <div class="ev-panel-header">
-        <div class="ev-panel-title" id="panelHeaderTitle">📋 รายละเอียดกิจกรรม</div>
-        <button class="btn-icon" onclick="window.closeEventPanel()">✕</button>
-      </div>
-
-      <!-- TABS -->
-      <div class="ev-panel-tabs">
-        <button class="ev-panel-tab active" data-tab="detail" onclick="window.switchPanelTab('detail',this)">📋 รายละเอียด</button>
-        <button class="ev-panel-tab" data-tab="chat" onclick="window.switchPanelTab('chat',this)">💬 สนทนา<span id="panelChatTabBadge" class="tab-badge" style="display:none"></span></button>
-        <button class="ev-panel-tab" data-tab="history" onclick="window.switchPanelTab('history',this)">📝 ประวัติ</button>
-      </div>
-
-      <!-- TAB: รายละเอียด -->
-      <div class="ev-panel-body ev-tab-content" id="tabDetail">
-        <div class="ev-panel-poster" id="panelPoster">
-          <span class="ev-panel-poster-placeholder">📋</span>
-        </div>
-        <div class="panel-field">
-          <label class="panel-label">ชื่อกิจกรรม <span style="color:var(--danger)">*</span></label>
-          <input class="panel-input" id="peqEventName" placeholder="ชื่อกิจกรรม" />
-        </div>
-        <div class="panel-field">
-          <label class="panel-label">Event Code</label>
-          <input class="panel-input" id="peqEventCode" readonly />
-        </div>
-        <div class="panel-row-2">
-          <div class="panel-field">
-            <label class="panel-label">ประเภท</label>
-            <select class="panel-input" id="peqEventType"></select>
-          </div>
-          <div class="panel-field">
-            <label class="panel-label">สถานะ</label>
-            <select class="panel-input" id="peqStatus">
-              <option value="DRAFT">📝 Draft</option>
-              <option value="CONFIRMED">✔️ Confirmed</option>
-              <option value="ONGOING">▶️ Ongoing</option>
-              <option value="DONE">✅ Done</option>
-              <option value="CANCELLED">❌ Cancelled</option>
-            </select>
-          </div>
-        </div>
-        <div class="panel-row-2">
-          <div class="panel-field">
-            <label class="panel-label">วันที่เริ่ม</label>
-            <input class="panel-input" id="peqEventDate" type="date" />
-          </div>
-          <div class="panel-field">
-            <label class="panel-label">วันที่สิ้นสุด</label>
-            <input class="panel-input" id="peqEndDate" type="date" />
-          </div>
-        </div>
-        <div class="panel-row-2">
-          <div class="panel-field">
-            <label class="panel-label">เวลาเริ่ม</label>
-            <input class="panel-input" id="peqStartTime" type="time" />
-          </div>
-          <div class="panel-field">
-            <label class="panel-label">เวลาสิ้นสุด</label>
-            <input class="panel-input" id="peqEndTime" type="time" />
-          </div>
-        </div>
-        <div class="panel-field">
-          <label class="panel-label">สถานที่</label>
-          <input class="panel-input" id="peqLocation" placeholder="สถานที่" />
-        </div>
-        <div class="panel-row-2">
-          <div class="panel-field">
-            <label class="panel-label">จำนวนผู้เข้าร่วมสูงสุด</label>
-            <input class="panel-input" id="peqMaxAttendees" type="number" min="0" placeholder="0" />
-          </div>
-          <div class="panel-field">
-            <label class="panel-label">ผู้รับผิดชอบ</label>
-            <select class="panel-input" id="peqAssignee"></select>
-          </div>
-        </div>
-        <div class="panel-field">
-          <label class="panel-label">รายละเอียด</label>
-          <textarea class="panel-input panel-textarea" id="peqDesc" placeholder="รายละเอียดกิจกรรม"></textarea>
-        </div>
-      </div>
-
-      <!-- TAB: สนทนา -->
-      <div class="ev-tab-content ev-tab-chat" id="tabChat" style="display:none;">
-        <!-- Current user display -->
-        <div class="chat-role-bar">
-          <span class="chat-role-label">ส่งในนามของ:</span>
-          <span class="chat-sender-name" id="panelChatSenderName">—</span>
-        </div>
-        <!-- Messages -->
-        <div class="chat-bubble-log" id="panelChatLog">
-          <p class="chat-empty">กำลังโหลด...</p>
-        </div>
-        <!-- Input -->
-        <div class="chat-input-bar">
-          <input id="panelChatInput" class="chat-input" type="text" placeholder="พิมพ์ข้อความ..."
-            onkeydown="if(event.key==='Enter')window.submitPanelChat()" />
-          <button id="panelChatBtn" class="chat-send-btn" onclick="window.submitPanelChat()">ส่ง</button>
-        </div>
-      </div>
-
-      <!-- TAB: ประวัติ -->
-      <div class="ev-tab-content ev-tab-history" id="tabHistory" style="display:none;">
-        <div class="history-timeline" id="panelHistoryLog">
-          <p class="chat-empty">กำลังโหลด...</p>
-        </div>
-      </div>
-
-      <!-- FOOTER (detail tab only) -->
-      <div class="ev-panel-footer" id="panelFooter">
-        <button class="btn btn-outline" id="panelBtnFullEdit">🗔 แก้ไขเต็ม</button>
-        <button class="btn btn-primary" id="panelBtnSaveEdit">💾 บันทึก</button>
-      </div>
-    </div>
-
-    <!-- PENDING BADGE: fetch count from room_booking_requests -->
+    <!-- PENDING BADGE: fetch count from room_booking_requests (auto-refresh) -->
     <script>
-      (async function loadPendingBadge() {
-        const url = localStorage.getItem("sb_url") || "";
-        const key = localStorage.getItem("sb_key") || "";
-        if (!url || !key) return;
-        try {
-          const res = await fetch(
-            `${url}/rest/v1/room_booking_requests?select=request_id&status=eq.PENDING`,
-            { headers: { apikey: key, Authorization: `Bearer ${key}`, "Range-Unit": "items", Range: "0-999" } }
-          );
-          const data = await res.json().catch(() => []);
-          const count = Array.isArray(data) ? data.length : 0;
-          const badge = document.getElementById("reqPendingBadge");
-          if (badge && count > 0) {
-            badge.textContent = count;
-            badge.style.display = "inline-flex";
-          }
-        } catch {}
+      (function () {
+        async function loadPendingBadge() {
+          const url = localStorage.getItem("sb_url") || "";
+          const key = localStorage.getItem("sb_key") || "";
+          if (!url || !key) return;
+          try {
+            const res = await fetch(
+              `${url}/rest/v1/room_booking_requests?select=request_id&status=eq.PENDING`,
+              { headers: { apikey: key, Authorization: `Bearer ${key}`, "Range-Unit": "items", Range: "0-999" } }
+            );
+            const data = await res.json().catch(() => []);
+            const count = Array.isArray(data) ? data.length : 0;
+            const badge = document.getElementById("reqPendingBadge");
+            if (badge) {
+              badge.textContent = count;
+              badge.style.display = count > 0 ? "inline-flex" : "none";
+            }
+          } catch {}
+        }
+        loadPendingBadge();
+        setInterval(loadPendingBadge, 10000);
       })();
     </script>
 

@@ -29,7 +29,19 @@ async function initPage() {
   editId = params.get("id") ? parseInt(params.get("id")) : null;
 
   // Init flatpickr dd/mm/yyyy
-  const fpOpts = { dateFormat: "d/m/Y", allowInput: true };
+  const fpOpts = { dateFormat: "d/m/Y", allowInput: true, parseDate: (dateStr) => {
+    // support ISO format from DB (YYYY-MM-DD)
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+      const [y, m, d] = dateStr.split("-").map(Number);
+      return new Date(y, m - 1, d);
+    }
+    // support d/m/Y format
+    if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(dateStr)) {
+      const [d, m, y] = dateStr.split("/").map(Number);
+      return new Date(y, m - 1, d);
+    }
+    return new Date(dateStr);
+  }};
   fpEventDate = flatpickr("#fEventDate", fpOpts);
   fpEndDate = flatpickr("#fEndDate", fpOpts);
 
@@ -38,7 +50,8 @@ async function initPage() {
   if (editId) {
     document.getElementById("pageTitle").textContent = "✏️ แก้ไขกิจกรรม";
     document.getElementById("pageSubtitle").textContent = `Event ID: ${editId}`;
-    document.getElementById("btnSave").textContent = "💾 บันทึกการแก้ไข";
+    const btnSave = document.getElementById("btnSave") || document.getElementById("floatingSaveBtn");
+    if (btnSave) btnSave.title = "บันทึกการแก้ไข";
     await loadEventData();
   } else {
     await autoGenerateCode();
@@ -280,7 +293,7 @@ async function loadEventData() {
       : (e.poster_url ? [e.poster_url] : []);
     window._imageUrls = [...imgUrls, ...new Array(5).fill(null)].slice(0, 5);
     window._imageFiles = new Array(5).fill(null);
-    if (typeof _renderImgGrid === "function") _renderImgGrid();
+    if (typeof window._renderImgGrid === "function") window._renderImgGrid();
   } catch (err) {
     showToast("โหลดข้อมูลไม่ได้: " + err.message, "error");
   }

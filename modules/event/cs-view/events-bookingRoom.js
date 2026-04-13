@@ -67,6 +67,7 @@ let users = [];
 let roomBookings = [];
 let _logCountCache = {};
 let _requestFilter = "ALL";
+let _datePicker = null;
 
 // --- Helpers ---
 function todayStr(offsetDays = 0) {
@@ -119,11 +120,16 @@ async function loadHolidayEvents() {
 // --- Load events for selected room ---
 async function loadRoomEvents() {
   if (!selectedPlaceName) { roomEvents = []; return; }
-  const encoded = encodeURIComponent(selectedPlaceName);
-  const data = await sbFetch(
-    "events",
-    `?location=eq.${encoded}&select=event_id,event_name,event_date,end_date,start_time,end_time,status,poster_url,event_category_id&order=event_date.asc,start_time.asc`
-  );
+  const fields = "select=event_id,event_name,event_date,end_date,start_time,end_time,status,poster_url,event_category_id&order=event_date.asc,start_time.asc";
+  let searchTerm;
+  if (selectedRoomName && selectedRoomName !== selectedPlaceName) {
+    // search for "place — room" or "place — room" (various dash types)
+    searchTerm = `%${selectedPlaceName}%${selectedRoomName}%`;
+  } else {
+    searchTerm = `%${selectedPlaceName}%`;
+  }
+  const encoded = encodeURIComponent(searchTerm);
+  const data = await sbFetch("events", `?location=like.${encoded}&${fields}`);
   roomEvents = data || [];
 }
 
@@ -381,7 +387,7 @@ function renderTimeline() {
           ? `${item.start_time.slice(0, 5)}${item.end_time ? " – " + item.end_time.slice(0, 5) : ""}`
           : "ตลอดทั้งวัน";
         return `
-          <div class="flex items-center gap-4 p-4 bg-red-50 rounded-2xl border border-red-100 border-l-4 border-l-red-400 shadow-sm">
+          <div class="flex items-center gap-4 p-4 bg-red-50 rounded-2xl border border-red-100 border-l-4 border-l-red-400 shadow-sm cursor-pointer hover:bg-red-100 transition" data-event-id="${item.event_id}">
             <span class="text-xs font-bold text-red-400 w-28 flex-shrink-0">${timeStr}</span>
             <div class="flex-1 min-w-0">
               <p class="text-sm font-bold text-red-700 truncate">🏖️ ${item.event_name || "วันหยุด"}</p>
@@ -448,16 +454,19 @@ function renderTimeline() {
 function openPosterPopup(ev) {
   const timeStr = ev.start_time
     ? `${ev.start_time.slice(0, 5)}${ev.end_time ? " – " + ev.end_time.slice(0, 5) : ""}`
-    : "";
+    : "ตลอดทั้งวัน";
   const subtitle = formatDateThai(ev.event_date) + (timeStr ? ` • ${timeStr}` : "");
   const imgUrl = ev.poster_url || "";
 
-  if (!imgUrl) return;
-
-  ImgPopup.open([imgUrl], 0, {
-    titles: [ev.event_name || "—"],
-    skus: [subtitle],
-  });
+  if (imgUrl) {
+    ImgPopup.open([imgUrl], 0, {
+      titles: [ev.event_name || "—"],
+      skus: [subtitle],
+    });
+  } else {
+    // no poster — open event form instead
+    window.open(`../event-form.html?id=${ev.event_id}`, "_blank");
+  }
 }
 
 // --- Time Slot Helpers ---
@@ -595,7 +604,8 @@ function openModal(date = "", start = "") {
   const modal = document.getElementById("bookingModal");
   const initStart = start || "09:00";
   const initEnd = nextHour(initStart, 1);
-  document.getElementById("inputDate").value = checkDate;
+  if (_datePicker) _datePicker.setDate(checkDate, true);
+  else document.getElementById("inputDate").value = checkDate;
   document.getElementById("inputStart").value = initStart;
   document.getElementById("inputEnd").value = initEnd;
   const bn = document.getElementById("inputBookerName");
@@ -634,12 +644,7 @@ document.getElementById("conflictOk").addEventListener("click", () => {
 document.getElementById("conflictModal").addEventListener("click", (e) => {
   if (e.target.id === "conflictModal") e.target.classList.add("hidden");
 });
-document.addEventListener("keydown", (e) => {
-  if (e.key === "Escape") {
-    const cm = document.getElementById("conflictModal");
-    if (!cm.classList.contains("hidden")) { cm.classList.add("hidden"); return; }
-  }
-});
+// Esc close for conflictModal handled by modalManager.js
 
 async function confirmBooking() {
   const bookerName = (document.getElementById("inputBookerName")?.value || "").trim();
@@ -1192,20 +1197,16 @@ document.getElementById("requestDetailModal").addEventListener("click", (e) => {
 document.getElementById("logSubmit").addEventListener("click", submitRequestLog);
 
 // ESC to close any open modal
-document.addEventListener("keydown", (e) => {
-  if (e.key !== "Escape") return;
-  const detailModal = document.getElementById("requestDetailModal");
-  if (!detailModal.classList.contains("hidden")) {
-    detailModal.classList.add("hidden");
-    detailCurrentRequestId = null;
-    stopLogPolling();
-    return;
-  }
-  const bookingModal = document.getElementById("bookingModal");
-  if (!bookingModal.classList.contains("hidden")) {
-    closeModal();
-  }
-});
+// Esc close handled by modalManager.js; cleanup side effects via MutationObserver
+const _detailModal = document.getElementById("requestDetailModal");
+if (_detailModal) {
+  new MutationObserver(() => {
+    if (_detailModal.classList.contains("hidden")) {
+      detailCurrentRequestId = null;
+      stopLogPolling();
+    }
+  }).observe(_detailModal, { attributes: true, attributeFilter: ["class"] });
+}
 document.getElementById("logInput").addEventListener("keydown", (e) => {
   if (e.key === "Enter") submitRequestLog();
 });
@@ -1281,6 +1282,26 @@ async function loadData() {
 }
 
 loadData().then(() => refreshLogCounts());
+
+// --- Flatpickr for date input (dd/mm/yyyy) ---
+_datePicker = flatpickr("#inputDate", {
+  dateFormat: "Y-m-d",
+  altInput: true,
+  altFormat: "d/m/Y",
+  allowInput: false,
+  clickOpens: true,
+  onReady(_, __, fp) {
+    if (fp.altInput) {
+      fp.altInput.classList.add(
+        "mt-1", "w-full", "px-4", "py-2.5", "rounded-xl",
+        "border", "border-slate-200", "text-sm",
+        "focus:outline-none", "focus:ring-2", "focus:ring-indigo-300",
+        "cursor-pointer"
+      );
+      fp.altInput.setAttribute("readonly", "readonly");
+    }
+  },
+});
 
 // Auto-refresh request list + timeline + calendar every 10s
 let _bookingPollSig = "";

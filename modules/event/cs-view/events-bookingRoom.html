@@ -10,6 +10,8 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="events-bookingRoom.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" />
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <style>
       /* ── Mobile panel switching ── */
       @media (max-width: 767px) {
@@ -225,7 +227,7 @@
           <!-- วันที่ -->
           <div>
             <label class="text-xs font-bold text-slate-500 uppercase tracking-widest">วันที่</label>
-            <input id="inputDate" type="date" class="mt-1 w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300" />
+            <input id="inputDate" type="text" placeholder="dd/mm/yyyy" class="mt-1 w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300" />
           </div>
 
           <!-- เวลา -->
@@ -319,6 +321,7 @@
     </style>
 
     <script src="../../../js/components/navigation/imgPopup.js"></script>
+    <script src="../../../js/components/modal/modalManager.js"></script>
     <script src="events-bookingRoom.js"></script>
 
     <!-- Mobile tab switching -->

@@ -1,0 +1,130 @@
+/* =========================================================
+   imageGrid.css — Shared Image Grid Component Styles
+========================================================= */
+
+/* ── GRID CONTAINER ── */
+.img-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 10px;
+}
+
+/* ── SLOT BASE ── */
+.img-grid-slot {
+  aspect-ratio: 4 / 3;
+  width: 100%;
+  border-radius: 10px;
+  position: relative;
+  overflow: hidden;
+  cursor: pointer;
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s,
+    opacity 0.15s;
+}
+
+/* ── EMPTY SLOT ── */
+.img-grid-slot.empty {
+  border: 2px dashed var(--border2, #cbd5e1);
+  background: var(--surface2, #f8fafc);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.img-grid-slot.empty:hover {
+  border-color: #3b82f6;
+  background: rgba(59, 130, 246, 0.06);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+/* ── EMPTY SLOT INNER ── */
+.img-grid-add {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  pointer-events: none;
+  user-select: none;
+}
+.img-grid-add-icon {
+  font-size: 28px;
+  font-weight: 700;
+  color: #3b82f6;
+  line-height: 1;
+}
+
+/* ── FILLED SLOT ── */
+.img-grid-slot.filled {
+  border: 2px solid var(--border, #e2e8f0);
+  cursor: default;
+}
+.img-grid-slot.filled img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+/* ── REMOVE BUTTON ── */
+.img-grid-remove {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 22px;
+  height: 22px;
+  background: rgba(0, 0, 0, 0.65);
+  color: #fff;
+  border: none;
+  border-radius: 50%;
+  font-size: 11px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+  transition: background 0.15s;
+  line-height: 1;
+}
+.img-grid-remove:hover {
+  background: #ef4444;
+}
+
+/* ── BADGE (e.g. "โปสเตอร์") ── */
+.img-grid-badge {
+  position: absolute;
+  bottom: 5px;
+  left: 6px;
+  font-size: 10px;
+  font-weight: 700;
+  background: #3b82f6;
+  color: #fff;
+  padding: 2px 6px;
+  border-radius: 4px;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* ── DRAG OVER STATE (grid-level) ── */
+.img-grid-drag-over {
+  outline: 2px dashed #6366f1;
+  outline-offset: 4px;
+  border-radius: 12px;
+  background: rgba(238, 242, 255, 0.3);
+}
+
+/* ── SLOT DRAG OVER ── */
+.img-grid-slot.drag-over {
+  border-color: #3b82f6 !important;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3);
+  opacity: 0.85;
+}
+
+/* ── COUNT LABEL ── */
+.img-grid-count {
+  font-weight: 400;
+  color: var(--text3, #94a3b8);
+  font-size: 11px;
+}

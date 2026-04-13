@@ -5,6 +5,7 @@
 import { createPlace, fetchPlaceById, updatePlace, fetchPlaceRooms, upsertPlaceRooms, fetchPlaceRoomTypes, upsertPlaceRoomTypes, fetchPlaceTypes, createPlaceType, updatePlaceType, removePlaceType } from "./events-api.js";
 import { withLoading } from "../../js/components/ui/loadingButton.js";
 import { openIconPicker, renderIcon } from "../../js/components/ui/iconPicker.js";
+import { ImageGrid } from "../../js/components/ui/imageGrid.js";
 
 // ── IMAGE COMPRESSION ──
 function compressImage(file, maxWidth = 1200, quality = 0.8) {
@@ -437,70 +438,41 @@ function renderAllGalleries() {
   updateTabCounts();
 }
 
-// ── BIND GRID DROP (add files) ──────────────────────
-function bindGridDrop(grid, imageArray, limit, onDrop) {
-  if (grid._dropBound) return;
-  grid._dropBound = true;
-  grid.addEventListener("dragover", (e) => { e.preventDefault(); grid.classList.add("grid-drag-over"); });
-  grid.addEventListener("dragleave", (e) => { if (!grid.contains(e.relatedTarget)) grid.classList.remove("grid-drag-over"); });
-  grid.addEventListener("drop", (e) => {
-    e.preventDefault(); grid.classList.remove("grid-drag-over");
-    const files = Array.from(e.dataTransfer?.files || []).filter(f => f.type.startsWith("image/"));
-    if (!files.length) return;
-    const remaining = limit - imageArray.length;
-    files.slice(0, remaining).forEach(f => imageArray.push({ file: f }));
-    onDrop();
-  });
-}
+// ── GALLERY ImageGrid instances ──────────────────────
+const galleryGrids = {};
 
 function renderGallery(cat) {
-  const grid = document.getElementById(`grid-${cat}`);
-  if (!grid) return;
-  grid.innerHTML = "";
-  const items = gallery[cat] || [];
+  const container = document.getElementById(`grid-${cat}`);
+  if (!container) return;
   const limit = IMG_LIMITS[cat];
 
-  // render filled slots
-  items.forEach((item, idx) => {
-    const src = item.file ? URL.createObjectURL(item.file) : item.url;
-    const slot = document.createElement("div");
-    slot.className = "place-slot filled";
-    slot.innerHTML = `
-      <img src="${src}" />
-      <button class="place-remove" onclick="event.stopPropagation();window.removeGalleryImg('${cat}',${idx})">✕</button>
-    `;
-    grid.appendChild(slot);
-  });
-
-  // render empty slots
-  for (let i = items.length; i < limit; i++) {
-    const slot = document.createElement("div");
-    slot.className = "place-slot empty";
-    slot.innerHTML = '<div class="place-slot-inner"><span class="place-slot-icon">+</span></div>';
-    slot.addEventListener("click", () => window.addImageSlot(cat));
-    grid.appendChild(slot);
-  }
-
-  // grid-level drag & drop for adding files
-  bindGridDrop(grid, gallery[cat], limit, () => { renderGallery(cat); updateTabCounts(); });
-}
-
-window.addImageSlot = function (cat) {
-  if (gallery[cat].length >= IMG_LIMITS[cat]) {
-    showToast(`เพิ่มได้สูงสุด ${IMG_LIMITS[cat]} รูปต่อหมวด`, "error");
+  if (galleryGrids[cat]) {
+    // update existing instance
+    galleryGrids[cat].setImages(gallery[cat]);
     return;
   }
-  const input = document.getElementById("fileInput");
-  input.dataset.cat = cat;
-  input.value = "";
-  input.click();
-};
 
-window.removeGalleryImg = function (cat, idx) {
-  gallery[cat].splice(idx, 1);
-  renderGallery(cat);
-  updateTabCounts();
-};
+  galleryGrids[cat] = new ImageGrid({
+    container,
+    maxImages: limit,
+    columns: 5,
+    aspectRatio: "4/3",
+    images: gallery[cat] || [],
+    onAdd: async (files) => {
+      for (const f of files) {
+        const compressed = await compressImage(f);
+        gallery[cat].push({ file: compressed });
+      }
+      galleryGrids[cat].setImages(gallery[cat]);
+      updateTabCounts();
+    },
+    onRemove: (idx) => {
+      gallery[cat].splice(idx, 1);
+      updateTabCounts();
+    },
+  });
+}
+
 
 // ── DOC LIST ─────────────────────────────
 function renderDocList() {
@@ -749,72 +721,50 @@ function renderAccomRows() {
   const container = document.getElementById("accomContainer");
   if (!container) return;
   container.innerHTML = "";
+  // clear cached ImageGrid instances (DOM was rebuilt)
+  Object.keys(accomGrids).forEach((k) => delete accomGrids[k]);
   accomRows.forEach((r, idx) => {
     container.appendChild(buildAccomCard(r, idx));
     renderAccomImages(idx);
-    // bind file input
-    const input = container.querySelector(`.accom-file-input[data-idx="${idx}"]`);
-    if (input) input.addEventListener("change", async (e) => {
-      const files = Array.from(e.target.files || []);
-      if (!files.length) return;
-      if (!accomRows[idx]._images) accomRows[idx]._images = [];
-      const remaining = ACCOM_IMG_LIMIT - accomRows[idx]._images.length;
-      const toAdd = files.slice(0, remaining);
-      if (files.length > remaining) showToast(`เพิ่มได้อีก ${remaining} รูป`, "error");
-      for (const f of toAdd) {
+  });
+}
+
+const accomGrids = {};
+
+function renderAccomImages(idx) {
+  const container = document.getElementById(`accom-grid-${idx}`);
+  if (!container) return;
+  if (!accomRows[idx]._images) accomRows[idx]._images = [];
+  const countEl = document.getElementById(`accom-cnt-${idx}`);
+
+  if (accomGrids[idx]) {
+    accomGrids[idx].setImages(accomRows[idx]._images);
+    if (countEl) countEl.textContent = `${accomRows[idx]._images.length}/${ACCOM_IMG_LIMIT}`;
+    return;
+  }
+
+  accomGrids[idx] = new ImageGrid({
+    container,
+    maxImages: ACCOM_IMG_LIMIT,
+    columns: 5,
+    aspectRatio: "4/3",
+    images: accomRows[idx]._images,
+    countEl,
+    onAdd: async (files) => {
+      for (const f of files) {
         const compressed = await compressImage(f);
         accomRows[idx]._images.push({ file: compressed });
       }
-      renderAccomImages(idx);
-    });
+      accomGrids[idx].setImages(accomRows[idx]._images);
+      if (countEl) countEl.textContent = `${accomRows[idx]._images.length}/${ACCOM_IMG_LIMIT}`;
+    },
+    onRemove: (imgIdx) => {
+      accomRows[idx]._images.splice(imgIdx, 1);
+      if (countEl) countEl.textContent = `${accomRows[idx]._images.length}/${ACCOM_IMG_LIMIT}`;
+    },
   });
 }
 
-function renderAccomImages(idx) {
-  const grid = document.getElementById(`accom-grid-${idx}`);
-  if (!grid) return;
-  const images = accomRows[idx]?._images || [];
-  grid.innerHTML = "";
-  images.forEach((item, i) => {
-    const src = item.file ? URL.createObjectURL(item.file) : item.url;
-    const slot = document.createElement("div");
-    slot.className = "place-slot filled";
-    slot.innerHTML = `
-      <img src="${src}" />
-      <button class="place-remove" onclick="event.stopPropagation();window.removeAccomImage(${idx},${i})">✕</button>
-    `;
-    grid.appendChild(slot);
-  });
-  // empty slots
-  for (let i = images.length; i < ACCOM_IMG_LIMIT; i++) {
-    const slot = document.createElement("div");
-    slot.className = "place-slot empty";
-    slot.innerHTML = '<div class="place-slot-inner"><span class="place-slot-icon">+</span></div>';
-    slot.addEventListener("click", () => window.addAccomImage(idx));
-    grid.appendChild(slot);
-  }
-  // grid-level drag & drop for adding files
-  bindGridDrop(grid, accomRows[idx]._images || [], ACCOM_IMG_LIMIT, () => renderAccomImages(idx));
-  const cnt = document.getElementById(`accom-cnt-${idx}`);
-  if (cnt) cnt.textContent = `${images.length}/${ACCOM_IMG_LIMIT}`;
-}
-
-window.addAccomImage = function (idx) {
-  if (!accomRows[idx]._images) accomRows[idx]._images = [];
-  if (accomRows[idx]._images.length >= ACCOM_IMG_LIMIT) {
-    showToast(`เพิ่มได้สูงสุด ${ACCOM_IMG_LIMIT} รูป`, "error");
-    return;
-  }
-  const input = document.querySelector(`.accom-file-input[data-idx="${idx}"]`);
-  if (input) { input.value = ""; input.click(); }
-};
-
-window.removeAccomImage = function (idx, imgIdx) {
-  if (accomRows[idx]?._images) {
-    accomRows[idx]._images.splice(imgIdx, 1);
-    renderAccomImages(idx);
-  }
-};
 
 function buildAccomCard(r, idx) {
   const card = document.createElement("div");
@@ -886,8 +836,7 @@ function buildAccomCard(r, idx) {
     </div>
     <div class="ef-field">
       <label class="ef-label">🖼️ รูปห้อง (สูงสุด 5 รูป) <span class="accom-img-count" id="accom-cnt-${idx}">${(r._images || []).length}/5</span></label>
-      <div class="place-img-grid accom-img-grid" id="accom-grid-${idx}"></div>
-      <input type="file" class="accom-file-input" data-idx="${idx}" accept="image/*" multiple style="display:none" />
+      <div id="accom-grid-${idx}"></div>
     </div>
   `;
   return card;
@@ -1027,76 +976,50 @@ function renderRooms() {
   const container = document.getElementById("roomsContainer");
   if (!container) return;
   container.innerHTML = "";
+  // clear cached ImageGrid instances (DOM was rebuilt)
+  Object.keys(roomGrids).forEach((k) => delete roomGrids[k]);
   roomRows.forEach((r, idx) => {
     container.appendChild(buildRoomCard(r, idx));
     renderRoomImages(idx);
   });
-  bindRoomImageInputs();
 }
+
+const roomGrids = {};
 
 function renderRoomImages(idx) {
-  const grid = document.getElementById(`room-img-grid-${idx}`);
-  if (!grid) return;
-  const images = roomRows[idx]?._images || [];
-  grid.innerHTML = "";
-  images.forEach((item, i) => {
-    const src = item.file ? URL.createObjectURL(item.file) : item.url;
-    const slot = document.createElement("div");
-    slot.className = "place-slot filled";
-    slot.innerHTML = `
-      <img src="${src}" />
-      <button class="place-remove" onclick="event.stopPropagation();window.removeRoomImage(${idx},${i})">✕</button>
-    `;
-    grid.appendChild(slot);
-  });
-  for (let i = images.length; i < ROOM_IMG_LIMIT; i++) {
-    const slot = document.createElement("div");
-    slot.className = "place-slot empty";
-    slot.innerHTML = '<div class="place-slot-inner"><span class="place-slot-icon">+</span></div>';
-    slot.addEventListener("click", () => window.addRoomImage(idx));
-    grid.appendChild(slot);
-  }
-  // grid-level drag & drop for adding files
-  bindGridDrop(grid, roomRows[idx]._images || [], ROOM_IMG_LIMIT, () => renderRoomImages(idx));
-  const cnt = document.getElementById(`room-cnt-${idx}`);
-  if (cnt) cnt.textContent = `${images.length}/${ROOM_IMG_LIMIT}`;
-}
-
-window.addRoomImage = function (idx) {
+  const container = document.getElementById(`room-img-grid-${idx}`);
+  if (!container) return;
   if (!roomRows[idx]._images) roomRows[idx]._images = [];
-  if (roomRows[idx]._images.length >= ROOM_IMG_LIMIT) {
-    showToast(`เพิ่มได้สูงสุด ${ROOM_IMG_LIMIT} รูป`, "error");
+  const countEl = document.getElementById(`room-cnt-${idx}`);
+
+  if (roomGrids[idx]) {
+    roomGrids[idx].setImages(roomRows[idx]._images);
+    if (countEl) countEl.textContent = `${roomRows[idx]._images.length}/${ROOM_IMG_LIMIT}`;
     return;
   }
-  const input = document.getElementById(`room-img-input-${idx}`);
-  input.value = "";
-  input.click();
-};
 
-window.removeRoomImage = function (idx, imgIdx) {
-  roomRows[idx]._images.splice(imgIdx, 1);
-  renderRoomImages(idx);
-};
-
-function bindRoomImageInputs() {
-  document.querySelectorAll(".room-img-file-input").forEach(function(input) {
-    if (input._bound) return;
-    input._bound = true;
-    input.addEventListener("change", async function(e) {
-      const files = Array.from(e.target.files || []);
-      if (!files.length) return;
-      const idx = parseInt(input.dataset.idx);
-      if (!roomRows[idx]._images) roomRows[idx]._images = [];
-      const remaining = ROOM_IMG_LIMIT - roomRows[idx]._images.length;
-      const toAdd = files.slice(0, remaining);
-      for (const f of toAdd) {
+  roomGrids[idx] = new ImageGrid({
+    container,
+    maxImages: ROOM_IMG_LIMIT,
+    columns: 5,
+    aspectRatio: "4/3",
+    images: roomRows[idx]._images,
+    countEl,
+    onAdd: async (files) => {
+      for (const f of files) {
         const compressed = await compressImage(f);
         roomRows[idx]._images.push({ file: compressed });
       }
-      renderRoomImages(idx);
-    });
+      roomGrids[idx].setImages(roomRows[idx]._images);
+      if (countEl) countEl.textContent = `${roomRows[idx]._images.length}/${ROOM_IMG_LIMIT}`;
+    },
+    onRemove: (imgIdx) => {
+      roomRows[idx]._images.splice(imgIdx, 1);
+      if (countEl) countEl.textContent = `${roomRows[idx]._images.length}/${ROOM_IMG_LIMIT}`;
+    },
   });
 }
+
 
 function buildRoomCard(r, idx) {
   const card = document.createElement("div");
@@ -1146,8 +1069,7 @@ function buildRoomCard(r, idx) {
     </div>
     <div class="ef-field">
       <label class="ef-label">📐 รูปห้อง (สูงสุด 10 รูป) <span class="room-img-count" id="room-cnt-${idx}">${(r._images || []).length}/10</span></label>
-      <div class="place-img-grid accom-img-grid" id="room-img-grid-${idx}"></div>
-      <input type="file" id="room-img-input-${idx}" class="room-img-file-input" data-idx="${idx}" accept="image/*" multiple style="display:none" />
+      <div id="room-img-grid-${idx}"></div>
     </div>
   `;
 
@@ -1161,7 +1083,7 @@ function buildFloorplanPreview(r, idx) {
       : '<img src="' + r._floorplan.url + '" class="room-fp-img" />';
     return '<div class="room-fp-preview">' + fpHtml + '<button class="room-fp-delete" type="button" onclick="window.removeFloorplan(' + idx + ')">✕</button></div>';
   }
-  return '<div class="place-slot empty" style="width:120px;height:90px;aspect-ratio:auto" onclick="document.getElementById(\'fp-input-' + idx + '\').click()"><div class="place-slot-inner"><span class="place-slot-icon">+</span></div></div>';
+  return '<div class="img-grid-slot empty" style="width:120px;height:90px;aspect-ratio:auto" onclick="document.getElementById(\'fp-input-' + idx + '\').click()"><div class="img-grid-add"><span class="img-grid-add-icon">+</span></div></div>';
 }
 
 function bindFloorplanInputs() {
@@ -1398,7 +1320,7 @@ function renderPTModal() {
   // bind events
   modal.querySelector(".pt-modal-overlay, .pt-modal")?.addEventListener("click", (e) => e.stopPropagation());
   modal.addEventListener("click", (e) => { if (e.target === modal) modal.classList.remove("show"); });
-  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && modal.classList.contains("show")) modal.classList.remove("show"); });
+  // Esc close handled by modalManager.js
 
   modal.querySelector("#ptAddBtn").addEventListener("click", () => {
     const list = modal.querySelector(".pt-list");
@@ -1549,28 +1471,6 @@ window.addEventListener("load", () => {
       document.getElementById("fStatusLabel").textContent = statusToggle.checked ? "ACTIVE" : "INACTIVE";
     });
   }
-  // bind image fileInput (with compression)
-  const fileInput = document.getElementById("fileInput");
-  if (fileInput) {
-    fileInput.addEventListener("change", async (e) => {
-      const files = Array.from(e.target.files || []);
-      if (!files.length) return;
-      const cat = e.target.dataset.cat || "exterior";
-      const limit = IMG_LIMITS[cat];
-      const remaining = limit - gallery[cat].length;
-      const toAdd = files.slice(0, remaining);
-      if (files.length > remaining) {
-        showToast(`เพิ่มได้อีก ${remaining} รูป (เลือกมา ${files.length})`, "error");
-      }
-      for (const f of toAdd) {
-        const compressed = await compressImage(f);
-        gallery[cat].push({ file: compressed });
-      }
-      renderGallery(cat);
-      updateTabCounts();
-    });
-  }
-
   // bind doc input
   const docInput = document.getElementById("docInput");
   if (docInput) {
