@@ -304,6 +304,22 @@
       </div>
     </div>
 
+    <!-- Simple Alert Modal (replaces native alert) -->
+    <div id="alertModal" class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[70] p-4">
+      <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden animate-[popIn_.25s_ease]">
+        <div id="alertModalHeader" class="bg-gradient-to-r from-indigo-500 to-violet-500 px-6 py-4 flex items-center gap-3">
+          <span id="alertModalIcon" class="text-2xl">ℹ️</span>
+          <div>
+            <h3 id="alertModalTitle" class="text-white font-black text-sm">แจ้งเตือน</h3>
+          </div>
+        </div>
+        <div id="alertModalBody" class="px-6 py-5 text-sm text-slate-700 leading-relaxed"></div>
+        <div class="px-6 pb-5">
+          <button id="alertModalOk" class="w-full py-2.5 bg-slate-800 text-white rounded-xl text-sm font-bold hover:bg-slate-900 transition">ตกลง</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Conflict Alert Modal -->
     <div id="conflictModal" class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
       <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden animate-[popIn_.25s_ease]">

@@ -752,7 +752,39 @@
       }, 8000);
     }, 800);
 
+    // Check if approving this request would create a time-overlap conflict
+    // with another already-APPROVED booking for the same room on the same date.
+    function findApprovalConflicts(target) {
+      if (!target) return [];
+      const sameRoomSameDate = _bkqRows.filter((r) => {
+        if (String(r.request_id) === String(target.request_id)) return false;
+        if (r.status !== "APPROVED") return false;
+        if (r.booking_date !== target.booking_date) return false;
+        // Prefer room_id match; fallback to place_id when room_id missing
+        if (target.room_id && r.room_id) return String(r.room_id) === String(target.room_id);
+        return String(r.place_id) === String(target.place_id);
+      });
+      return sameRoomSameDate.filter((r) => {
+        // ALLDAY always conflicts
+        if (target.end_time === "ALLDAY" || r.end_time === "ALLDAY") return true;
+        const aS = (target.start_time || "").slice(0, 5);
+        const aE = (target.end_time   || "23:59").slice(0, 5);
+        const bS = (r.start_time      || "").slice(0, 5);
+        const bE = (r.end_time        || "23:59").slice(0, 5);
+        return aS < bE && aE > bS;
+      });
+    }
+
     async function updateRoomBooking(id, status, btn) {
+      // Warn when approval would conflict with another approved booking
+      if (status === "APPROVED") {
+        const target = _bkqRows.find((r) => String(r.request_id) === String(id));
+        const conflicts = findApprovalConflicts(target);
+        if (conflicts.length > 0) {
+          const ok = await window.showApprovalConflictWarning(conflicts);
+          if (!ok) return;
+        }
+      }
       const { url, key } = bkqSB();
       btn.disabled = true;
       try {
@@ -948,6 +980,85 @@
         window.closeReqPanel();
       }
     });
+    </script>
+
+    <!-- Approval Conflict Warning Modal -->
+    <style>
+      .aw-overlay { position:fixed; inset:0; background:rgba(15,23,42,.45); backdrop-filter:blur(6px); display:none; align-items:center; justify-content:center; z-index:3000; }
+      .aw-overlay.active { display:flex; }
+      .aw-modal { width:440px; max-width:92vw; background:#fff; border-radius:16px; overflow:hidden; box-shadow:0 8px 32px rgba(0,0,0,.14); animation:awPop .2s cubic-bezier(.34,1.56,.64,1); font-family:'Sarabun',sans-serif; }
+      .aw-header { background:linear-gradient(135deg,#f97316,#ef4444); padding:16px 20px; color:#fff; display:flex; gap:12px; align-items:center; }
+      .aw-header .aw-icon { font-size:24px; }
+      .aw-header .aw-title { font-weight:800; font-size:15px; }
+      .aw-header .aw-sub { font-size:11px; opacity:.85; margin-top:2px; }
+      .aw-body { padding:16px 20px; max-height:260px; overflow-y:auto; }
+      .aw-body .aw-lead { font-size:13px; color:#475569; margin-bottom:10px; }
+      .aw-item { background:#fef3c7; border:1px solid #fcd34d; border-radius:10px; padding:10px 12px; font-size:12px; color:#78350f; margin-bottom:8px; line-height:1.5; }
+      .aw-item:last-child { margin-bottom:0; }
+      .aw-item b { color:#92400e; }
+      .aw-footer { display:flex; gap:10px; padding:0 20px 18px; }
+      .aw-btn { flex:1; padding:10px 16px; border-radius:8px; border:none; cursor:pointer; font-size:14px; font-weight:700; font-family:'Sarabun',sans-serif; transition:background .15s; }
+      .aw-btn.cancel { background:#f1f5f9; color:#475569; border:1px solid #e2e8f0; }
+      .aw-btn.cancel:hover { background:#e2e8f0; }
+      .aw-btn.primary { background:#ea580c; color:#fff; }
+      .aw-btn.primary:hover { background:#c2410c; }
+      @keyframes awPop { from { transform:scale(.94) translateY(8px); opacity:0; } to { transform:scale(1) translateY(0); opacity:1; } }
+    </style>
+    <div id="approvalWarnOverlay" class="aw-overlay">
+      <div class="aw-modal">
+        <div class="aw-header">
+          <span class="aw-icon">⚠️</span>
+          <div>
+            <div class="aw-title">พบการจองที่อนุมัติแล้วซ้อนเวลา</div>
+            <div class="aw-sub">กรุณาตรวจสอบก่อนอนุมัติซ้ำ</div>
+          </div>
+        </div>
+        <div class="aw-body">
+          <div class="aw-lead">ห้องนี้มีการจองที่อนุมัติแล้วในช่วงเวลาเดียวกัน:</div>
+          <div id="approvalWarnList"></div>
+        </div>
+        <div class="aw-footer">
+          <button class="aw-btn cancel" id="approvalWarnCancel">ยกเลิก</button>
+          <button class="aw-btn primary" id="approvalWarnOk">อนุมัติต่อ</button>
+        </div>
+      </div>
+    </div>
+    <script>
+      window.showApprovalConflictWarning = function (conflicts) {
+        return new Promise((resolve) => {
+          const overlay = document.getElementById("approvalWarnOverlay");
+          const listEl = document.getElementById("approvalWarnList");
+          const okBtn = document.getElementById("approvalWarnOk");
+          const cancelBtn = document.getElementById("approvalWarnCancel");
+          listEl.innerHTML = conflicts.map((c) => {
+            const time = c.end_time === "ALLDAY" ? "ตลอดทั้งวัน"
+              : `${(c.start_time||"").slice(0,5)}–${(c.end_time||"").slice(0,5)}`;
+            const room = (c.place_name || "") + (c.room_name ? ` — ${c.room_name}` : "");
+            return `<div class="aw-item">
+              <div><b>${room}</b></div>
+              <div>📅 ${c.booking_date} • ⏰ ${time}</div>
+              <div>👤 ${c.booked_by_name || "—"} · <span style="font-family:monospace">${c.request_code || ""}</span></div>
+            </div>`;
+          }).join("");
+          function cleanup(result) {
+            overlay.classList.remove("active");
+            okBtn.removeEventListener("click", onOk);
+            cancelBtn.removeEventListener("click", onCancel);
+            overlay.removeEventListener("click", onBackdrop);
+            document.removeEventListener("keydown", onKey);
+            resolve(result);
+          }
+          function onOk() { cleanup(true); }
+          function onCancel() { cleanup(false); }
+          function onBackdrop(e) { if (e.target === overlay) cleanup(false); }
+          function onKey(e) { if (e.key === "Escape") cleanup(false); }
+          okBtn.addEventListener("click", onOk);
+          cancelBtn.addEventListener("click", onCancel);
+          overlay.addEventListener("click", onBackdrop);
+          document.addEventListener("keydown", onKey);
+          overlay.classList.add("active");
+        });
+      };
     </script>
   </body>
 </html>

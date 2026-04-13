@@ -71,6 +71,44 @@ let _requestFilter = "ALL";
 let _datePicker = null;
 let _editingRequestId = null; // non-null when booking modal is in edit mode
 
+// --- Custom alert modal (replaces native alert) ---
+function showAlert(message, opts = {}) {
+  const {
+    title = "แจ้งเตือน",
+    icon = "ℹ️",
+    headerClass = "bg-gradient-to-r from-indigo-500 to-violet-500",
+    okLabel = "ตกลง",
+  } = opts;
+  return new Promise((resolve) => {
+    const modal = document.getElementById("alertModal");
+    if (!modal) { window.alert(message); resolve(); return; }
+    const header = document.getElementById("alertModalHeader");
+    const iconEl = document.getElementById("alertModalIcon");
+    const titleEl = document.getElementById("alertModalTitle");
+    const bodyEl = document.getElementById("alertModalBody");
+    const okBtn = document.getElementById("alertModalOk");
+    if (header) header.className = `${headerClass} px-6 py-4 flex items-center gap-3`;
+    if (iconEl) iconEl.textContent = icon;
+    if (titleEl) titleEl.textContent = title;
+    if (bodyEl) bodyEl.textContent = message;
+    if (okBtn) okBtn.textContent = okLabel;
+    function cleanup() {
+      modal.classList.add("hidden");
+      okBtn.removeEventListener("click", onOk);
+      modal.removeEventListener("click", onBackdrop);
+      document.removeEventListener("keydown", onKey);
+      resolve();
+    }
+    function onOk() { cleanup(); }
+    function onBackdrop(e) { if (e.target === modal) cleanup(); }
+    function onKey(e) { if (e.key === "Escape" || e.key === "Enter") cleanup(); }
+    okBtn.addEventListener("click", onOk);
+    modal.addEventListener("click", onBackdrop);
+    document.addEventListener("keydown", onKey);
+    modal.classList.remove("hidden");
+  });
+}
+
 // --- Helpers ---
 function todayStr(offsetDays = 0) {
   const d = new Date();
@@ -592,9 +630,9 @@ function checkAllDayConflicts(date) {
     }
   });
 
-  // All-day approved bookings
+  // All-day bookings (block both PENDING and APPROVED)
   roomBookings.forEach((b) => {
-    if (b.status !== "APPROVED") return;
+    if (b.status !== "APPROVED" && b.status !== "PENDING") return;
     if (b.booking_date !== checkDate) return;
     if (selectedRoomId && b.room_id) {
       if (String(b.room_id) !== String(selectedRoomId)) return;
@@ -602,7 +640,9 @@ function checkAllDayConflicts(date) {
       if (String(b.place_id) !== String(selectedPlaceId)) return;
     }
     if (b.end_time === "ALLDAY") {
-      conflicts.push(`🔖 ${b.booked_by_name || "จองห้อง"} (ตลอดทั้งวัน)`);
+      const tag = b.status === "PENDING" ? "⏳" : "🔖";
+      const suffix = b.status === "PENDING" ? " [รออนุมัติ]" : "";
+      conflicts.push(`${tag} ${b.booked_by_name || "จองห้อง"} (ตลอดทั้งวัน)${suffix}`);
     }
   });
 
@@ -693,7 +733,7 @@ function closeModal() {
 function showConflictModal(items) {
   const modal = document.getElementById("conflictModal");
   const body = document.getElementById("conflictBody");
-  const iconMap = { "🗓️": "bg-sky-100 text-sky-600", "🔖": "bg-violet-100 text-violet-600", "🏖️": "bg-red-100 text-red-600" };
+  const iconMap = { "🗓️": "bg-sky-100 text-sky-600", "🔖": "bg-violet-100 text-violet-600", "🏖️": "bg-red-100 text-red-600", "⏳": "bg-yellow-100 text-yellow-700" };
   body.innerHTML = items.map((txt) => {
     const icon = txt.slice(0, 2);
     const label = txt.slice(3);
@@ -722,11 +762,11 @@ async function confirmBooking() {
   const end   = document.getElementById("inputEnd").value;
 
   if (!bookerName || !date || !start || !end) {
-    alert("กรุณากรอกข้อมูลให้ครบถ้วน");
+    showAlert("กรุณากรอกข้อมูลให้ครบถ้วน", { title: "ข้อมูลไม่ครบ", icon: "⚠️", headerClass: "bg-gradient-to-r from-amber-500 to-orange-500" });
     return;
   }
   if (end !== "ALLDAY" && start >= end) {
-    alert("เวลาสิ้นสุดต้องหลังเวลาเริ่มต้น");
+    showAlert("เวลาสิ้นสุดต้องหลังเวลาเริ่มต้น", { title: "เวลาไม่ถูกต้อง", icon: "⏰", headerClass: "bg-gradient-to-r from-amber-500 to-orange-500" });
     return;
   }
 
@@ -750,9 +790,9 @@ async function confirmBooking() {
     }
   });
 
-  // Check approved bookings on the same date & room
+  // Check existing bookings on the same date & room (block PENDING + APPROVED)
   roomBookings.forEach((b) => {
-    if (b.status !== "APPROVED") return;
+    if (b.status !== "APPROVED" && b.status !== "PENDING") return;
     if (b.booking_date !== date) return;
     // Exclude the request being edited from its own conflict check
     if (_editingRequestId && String(b.request_id) === String(_editingRequestId)) return;
@@ -762,12 +802,14 @@ async function confirmBooking() {
     } else {
       if (String(b.place_id) !== String(selectedPlaceId)) return;
     }
+    const tag = b.status === "PENDING" ? "⏳" : "🔖";
+    const suffix = b.status === "PENDING" ? " [รออนุมัติ]" : "";
     // All-day booking always conflicts
-    if (b.end_time === "ALLDAY") { conflictNames.push(`🔖 ${b.booked_by_name || "จองห้อง"} (ตลอดทั้งวัน)`); return; }
+    if (b.end_time === "ALLDAY") { conflictNames.push(`${tag} ${b.booked_by_name || "จองห้อง"} (ตลอดทั้งวัน)${suffix}`); return; }
     const bS = (b.start_time || "").slice(0, 5);
     const bE = (b.end_time || "23:59").slice(0, 5);
     if (end === "ALLDAY" || (start < bE && end > bS)) {
-      conflictNames.push(`🔖 ${b.booked_by_name || "จองห้อง"} (${bS}–${bE})`);
+      conflictNames.push(`${tag} ${b.booked_by_name || "จองห้อง"} (${bS}–${bE})${suffix}`);
     }
   });
 
@@ -851,7 +893,7 @@ async function confirmBooking() {
     renderTimeline();
     renderMiniCalendar();
   } catch (e) {
-    alert("บันทึกไม่สำเร็จ: " + (e.message || "กรุณาลองใหม่"));
+    showAlert("บันทึกไม่สำเร็จ: " + (e.message || "กรุณาลองใหม่"), { title: "เกิดข้อผิดพลาด", icon: "❌", headerClass: "bg-gradient-to-r from-red-500 to-rose-500" });
   } finally {
     btn.disabled = false;
     btn.textContent = origLabel || "ยืนยันการจอง";
@@ -1203,16 +1245,40 @@ function openRequestDetail(req) {
   const senderEl = document.getElementById("bkrSenderName");
   if (senderEl) senderEl.textContent = window.ERP_USER?.full_name || window.ERP_USER?.username || "Admin";
 
-  // Show edit/delete buttons only if the current user is the creator of the request.
+  // Show edit/delete buttons only if the current user is the creator of the request
+  // AND the request is still PENDING (approved/rejected/cancelled requests are locked).
   // Match by created_by (if DB column exists) OR cs_id (CS is now fixed to the logged-in user on create).
   const myId = window.ERP_USER?.user_id;
   const matchCreatedBy = myId != null && req.created_by != null && String(req.created_by) === String(myId);
   const matchCsId = myId != null && req.cs_id != null && String(req.cs_id) === String(myId);
   const isCreator = matchCreatedBy || matchCsId;
+  const isPending = req.status === "PENDING";
+  const canModify = isCreator && isPending;
   const editBtn = document.getElementById("btnEditRequest");
   const delBtn = document.getElementById("btnDeleteRequest");
-  if (editBtn) editBtn.classList.toggle("hidden", !isCreator);
-  if (delBtn) delBtn.classList.toggle("hidden", !isCreator);
+  if (editBtn) editBtn.classList.toggle("hidden", !canModify);
+  if (delBtn) delBtn.classList.toggle("hidden", !canModify);
+
+  // Lock chat log input when request has been approved/rejected/cancelled.
+  const logInput = document.getElementById("logInput");
+  const logSubmit = document.getElementById("logSubmit");
+  if (logInput && logSubmit) {
+    if (isPending) {
+      logInput.disabled = false;
+      logSubmit.disabled = false;
+      logInput.placeholder = "พิมพ์ข้อความ...";
+      logInput.style.background = "";
+      logSubmit.style.opacity = "";
+      logSubmit.style.cursor = "";
+    } else {
+      logInput.disabled = true;
+      logSubmit.disabled = true;
+      logInput.placeholder = "คำขอนี้ถูกปิดการสนทนาแล้ว";
+      logInput.style.background = "#f1f5f9";
+      logSubmit.style.opacity = "0.5";
+      logSubmit.style.cursor = "not-allowed";
+    }
+  }
 
   // Show modal then load logs
   document.getElementById("requestDetailModal").classList.remove("hidden");
@@ -1340,7 +1406,7 @@ document.getElementById("btnDeleteRequest")?.addEventListener("click", () => {
       renderTimeline();
       renderMiniCalendar();
     } catch (e) {
-      alert("ลบไม่สำเร็จ: " + (e.message || "กรุณาลองใหม่"));
+      showAlert("ลบไม่สำเร็จ: " + (e.message || "กรุณาลองใหม่"), { title: "เกิดข้อผิดพลาด", icon: "❌", headerClass: "bg-gradient-to-r from-red-500 to-rose-500" });
     } finally {
       btn.disabled = false;
     }

@@ -9,7 +9,7 @@ let allEvents = [];
 let allCategories = [];
 let gridCols = 5;
 let activeCatId = "";
-let filterThisMonth = false;
+let filterThisMonth = true;
 
 // ── INIT ───────────────────────────────────────────────────
 async function initPage() {
@@ -36,6 +36,11 @@ function renderCategoryChips() {
   wrap.innerHTML = "";
   if (monthBtn) wrap.appendChild(monthBtn);
   wrap.appendChild(allChipBtn);
+
+  // Sync active chip with current filter state (defaults to "เดือนนี้")
+  [monthBtn, allChipBtn].forEach((b) => b && b.classList.remove("active"));
+  if (filterThisMonth && monthBtn) monthBtn.classList.add("active");
+  else if (!activeCatId) allChipBtn.classList.add("active");
 
   allCategories.forEach((cat) => {
     const btn = document.createElement("button");
