@@ -13,22 +13,23 @@ async function sbFetch(table, query = "", opts = {}) {
   const { url, key } = getSB();
   if (!url || !key) return [];
   const { method = "GET", body } = opts;
-  try {
-    const res = await fetch(`${url}/rest/v1/${table}${query}`, {
-      method,
-      headers: {
-        apikey: key,
-        Authorization: `Bearer ${key}`,
-        "Content-Type": "application/json",
-        ...(method === "POST" ? { Prefer: "return=representation" } : {}),
-      },
-      body: body ? JSON.stringify(body) : undefined,
-    });
-    if (!res.ok) return [];
-    return res.json().catch(() => []);
-  } catch {
-    return [];
+  const res = await fetch(`${url}/rest/v1/${table}${query}`, {
+    method,
+    headers: {
+      apikey: key,
+      Authorization: `Bearer ${key}`,
+      "Content-Type": "application/json",
+      ...(method === "POST" ? { Prefer: "return=representation" } : {}),
+    },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  if (!res.ok) {
+    // GET: swallow silently to preserve previous behavior; write methods: throw
+    if (method === "GET") return [];
+    const txt = await res.text().catch(() => "");
+    throw new Error(`${res.status} ${res.statusText}${txt ? " — " + txt : ""}`);
   }
+  return res.json().catch(() => []);
 }
 
 async function autoGenerateBookingCode() {
@@ -68,6 +69,7 @@ let roomBookings = [];
 let _logCountCache = {};
 let _requestFilter = "ALL";
 let _datePicker = null;
+let _editingRequestId = null; // non-null when booking modal is in edit mode
 
 // --- Helpers ---
 function todayStr(offsetDays = 0) {
@@ -164,6 +166,12 @@ function renderRoomList(filter = "") {
       ? `<span style="display:inline-flex;align-items:center;gap:2px;background:#f97316;color:#fff;font-size:9px;font-weight:700;padding:1px 6px;border-radius:999px;line-height:1.6">💬 ${placeUnread}</span>`
       : "";
 
+    // Pending booking count for entire place
+    const placePending = roomBookings.filter((b) => String(b.place_id) === String(place.place_id) && b.status === "PENDING").length;
+    const pendingBadge = placePending > 0
+      ? `<span style="display:inline-flex;align-items:center;gap:2px;background:#eab308;color:#fff;font-size:9px;font-weight:700;padding:1px 6px;border-radius:999px;line-height:1.6">⏳ ${placePending}</span>`
+      : "";
+
     const placeClass = isPlaceSelected
       ? "border-2 border-indigo-600 bg-indigo-50"
       : "border border-slate-100 bg-white hover:shadow-md";
@@ -177,11 +185,21 @@ function renderRoomList(filter = "") {
           ? "bg-indigo-600 text-white"
           : "bg-slate-50 text-slate-700 hover:bg-indigo-50";
         const cap = r.capacity ? `👥 ${r.capacity}` : "";
+        const roomPending = roomBookings.filter((b) => String(b.room_id) === String(r.room_id) && b.status === "PENDING").length;
+        const roomPendingBadge = roomPending > 0
+          ? `<span style="display:inline-flex;align-items:center;gap:2px;background:#eab308;color:#fff;font-size:9px;font-weight:700;padding:1px 6px;border-radius:999px;line-height:1.6">⏳ ${roomPending}</span>`
+          : "";
+        const roomUnread = roomBookings
+          .filter((b) => String(b.room_id) === String(r.room_id))
+          .reduce((sum, b) => sum + getUnreadCount(b.request_id), 0);
+        const roomUnreadBadge = roomUnread > 0
+          ? `<span style="display:inline-flex;align-items:center;gap:2px;background:#f97316;color:#fff;font-size:9px;font-weight:700;padding:1px 6px;border-radius:999px;line-height:1.6">💬 ${roomUnread}</span>`
+          : "";
         return `
           <div class="sub-room-item ${roomClass} px-3 py-2 rounded-lg cursor-pointer text-xs font-semibold" data-sub-room-id="${r.room_id}" data-sub-room-name="${r.room_name}" data-sub-place-id="${place.place_id}" data-sub-place-name="${place.place_name}">
             <div class="flex justify-between items-center">
               <span>🚪 ${r.room_name}</span>
-              ${cap ? `<span class="opacity-70">${cap}</span>` : ""}
+              <div class="flex items-center gap-1">${roomPendingBadge}${roomUnreadBadge}${cap ? `<span class="opacity-70">${cap}</span>` : ""}</div>
             </div>
           </div>
         `;
@@ -197,7 +215,7 @@ function renderRoomList(filter = "") {
         <div class="room-item ${placeClass} pl-5 pr-4 py-3 rounded-2xl cursor-pointer shadow-sm" data-place-id="${place.place_id}" data-place-name="${place.place_name}">
           <div class="flex justify-between items-center">
             <h3 class="font-bold text-sm leading-tight truncate">${place.place_name}</h3>
-            <div class="flex items-center gap-1 flex-shrink-0 ml-2">${unreadBadge}
+            <div class="flex items-center gap-1 flex-shrink-0 ml-2">${pendingBadge}${unreadBadge}
               ${pRooms.length > 0 ? `<span class="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full">${pRooms.length} ห้อง</span>` : ""}
             </div>
           </div>
@@ -592,6 +610,8 @@ function checkAllDayConflicts(date) {
 }
 
 function openModal(date = "", start = "") {
+  _editingRequestId = null; // reset — this is a new booking
+
   const checkDate = date || todayStr(0);
 
   // Block immediately if there are all-day conflicts
@@ -611,15 +631,63 @@ function openModal(date = "", start = "") {
   const bn = document.getElementById("inputBookerName");
   const cn = document.getElementById("inputCsName");
   if (bn) bn.value = "";
-  if (cn) cn.value = "";
+  if (cn) {
+    cn.value = window.ERP_USER?.full_name || window.ERP_USER?.username || "";
+    cn.setAttribute("readonly", "readonly");
+    cn.classList.add("bg-slate-100", "cursor-not-allowed");
+  }
   buildStartGrid(initStart);
   buildEndGrid(initEnd);
   updateHeader();
+  // Reset modal chrome for create mode
+  const title = modal.querySelector("h2");
+  if (title) title.textContent = "จองห้องประชุม";
+  const confirmBtn = document.getElementById("btnConfirmBook");
+  if (confirmBtn) confirmBtn.textContent = "ยืนยันการจอง";
+  modal.classList.remove("hidden");
+}
+
+function openEditModal(req) {
+  // Switch selected place/room to the request being edited
+  selectedPlaceId = req.place_id ? String(req.place_id) : null;
+  selectedPlaceName = req.place_name || null;
+  selectedRoomId = req.room_id ? String(req.room_id) : null;
+  selectedRoomName = req.room_name || req.place_name || null;
+
+  _editingRequestId = req.request_id;
+  const modal = document.getElementById("bookingModal");
+  const dateStr = req.booking_date;
+  const startStr = (req.start_time || "09:00").slice(0, 5);
+  const endStr = req.end_time === "ALLDAY" ? "ALLDAY" : (req.end_time || "10:00").slice(0, 5);
+
+  if (_datePicker) _datePicker.setDate(dateStr, true);
+  else document.getElementById("inputDate").value = dateStr;
+  document.getElementById("inputStart").value = startStr;
+  document.getElementById("inputEnd").value = endStr;
+  const bn = document.getElementById("inputBookerName");
+  const cn = document.getElementById("inputCsName");
+  if (bn) bn.value = req.booked_by_name || "";
+  if (cn) {
+    // CS field is fixed to the logged-in user (the editor), not the original cs_name
+    cn.value = window.ERP_USER?.full_name || window.ERP_USER?.username || req.cs_name || "";
+    cn.setAttribute("readonly", "readonly");
+    cn.classList.add("bg-slate-100", "cursor-not-allowed");
+  }
+  buildStartGrid(startStr);
+  buildEndGrid(endStr);
+  document.getElementById("modalRoomName").textContent =
+    (selectedPlaceName || "") + (req.room_name ? ` — ${req.room_name}` : "");
+  // Set modal chrome for edit mode
+  const title = modal.querySelector("h2");
+  if (title) title.textContent = "แก้ไขคำขอจองห้อง";
+  const confirmBtn = document.getElementById("btnConfirmBook");
+  if (confirmBtn) confirmBtn.textContent = "บันทึกการแก้ไข";
   modal.classList.remove("hidden");
 }
 
 function closeModal() {
   document.getElementById("bookingModal").classList.add("hidden");
+  _editingRequestId = null;
 }
 
 function showConflictModal(items) {
@@ -686,6 +754,8 @@ async function confirmBooking() {
   roomBookings.forEach((b) => {
     if (b.status !== "APPROVED") return;
     if (b.booking_date !== date) return;
+    // Exclude the request being edited from its own conflict check
+    if (_editingRequestId && String(b.request_id) === String(_editingRequestId)) return;
     // match by room_id if available, fallback to place_id
     if (selectedRoomId && b.room_id) {
       if (String(b.room_id) !== String(selectedRoomId)) return;
@@ -721,42 +791,77 @@ async function confirmBooking() {
   const resolvedCsId     = csUser     ? csUser.user_id     : null;
 
   const btn = document.getElementById("btnConfirmBook");
+  const origLabel = btn.textContent;
   btn.disabled = true;
   btn.textContent = "กำลังบันทึก...";
 
   try {
-    const code = await autoGenerateBookingCode();
-    const payload = {
-      request_code: code,
-      place_id: selectedPlaceId ? Number(selectedPlaceId) : null,
-      place_name: selectedPlaceName || "",
-      room_id: selectedRoomId ? Number(selectedRoomId) : null,
-      room_name: selectedRoomName || null,
-      booked_by: resolvedBookerId,
-      cs_id: resolvedCsId,
-      booked_by_name: bookerName || null,
-      cs_name: csName || null,
-      booking_date: date,
-      start_time: start,
-      end_time: end,
-      status: "PENDING",
-    };
-    await sbFetch("room_booking_requests", "", { method: "POST", body: payload });
+    if (_editingRequestId) {
+      // --- EDIT mode: PATCH existing record ---
+      const patchBody = {
+        booked_by: resolvedBookerId,
+        cs_id: resolvedCsId,
+        booked_by_name: bookerName || null,
+        cs_name: csName || null,
+        booking_date: date,
+        start_time: start,
+        end_time: end,
+      };
+      await sbFetch(
+        "room_booking_requests",
+        `?request_id=eq.${_editingRequestId}`,
+        { method: "PATCH", body: patchBody }
+      );
+      _editingRequestId = null;
+    } else {
+      // --- CREATE mode ---
+      const code = await autoGenerateBookingCode();
+      const payload = {
+        request_code: code,
+        place_id: selectedPlaceId ? Number(selectedPlaceId) : null,
+        place_name: selectedPlaceName || "",
+        room_id: selectedRoomId ? Number(selectedRoomId) : null,
+        room_name: selectedRoomName || null,
+        booked_by: resolvedBookerId,
+        cs_id: resolvedCsId,
+        booked_by_name: bookerName || null,
+        cs_name: csName || null,
+        booking_date: date,
+        start_time: start,
+        end_time: end,
+        status: "PENDING",
+        created_by: window.ERP_USER?.user_id || null,
+      };
+      try {
+        await sbFetch("room_booking_requests", "", { method: "POST", body: payload });
+      } catch (err) {
+        // Retry without created_by if column doesn't exist in DB yet
+        if (/created_by/i.test(err.message || "")) {
+          delete payload.created_by;
+          await sbFetch("room_booking_requests", "", { method: "POST", body: payload });
+        } else {
+          throw err;
+        }
+      }
+    }
     closeModal();
     await loadRoomBookings();
     renderRequestList();
+    renderRoomList();
+    renderTimeline();
+    renderMiniCalendar();
   } catch (e) {
     alert("บันทึกไม่สำเร็จ: " + (e.message || "กรุณาลองใหม่"));
   } finally {
     btn.disabled = false;
-    btn.textContent = "ยืนยันการจอง";
+    btn.textContent = origLabel || "ยืนยันการจอง";
   }
 }
 
 async function loadRoomBookings() {
   roomBookings = (await sbFetch(
     "room_booking_requests",
-    "?select=request_id,request_code,place_id,place_name,room_id,room_name,booked_by,cs_id,booked_by_name,cs_name,booking_date,start_time,end_time,status,created_at&order=created_at.desc"
+    "?select=*&order=created_at.desc"
   )) || [];
   populateNameDatalist();
 }
@@ -783,8 +888,8 @@ function setupNameDropdown(inputId, panelId, getOptions) {
     });
   }
 
-  input.addEventListener("focus", () => renderOptions(input.value));
-  input.addEventListener("input", () => renderOptions(input.value));
+  input.addEventListener("focus", () => { if (!input.readOnly) renderOptions(input.value); });
+  input.addEventListener("input", () => { if (!input.readOnly) renderOptions(input.value); });
   input.addEventListener("blur",  () => setTimeout(() => panel.classList.add("hidden"), 150));
 }
 
@@ -1098,6 +1203,17 @@ function openRequestDetail(req) {
   const senderEl = document.getElementById("bkrSenderName");
   if (senderEl) senderEl.textContent = window.ERP_USER?.full_name || window.ERP_USER?.username || "Admin";
 
+  // Show edit/delete buttons only if the current user is the creator of the request.
+  // Match by created_by (if DB column exists) OR cs_id (CS is now fixed to the logged-in user on create).
+  const myId = window.ERP_USER?.user_id;
+  const matchCreatedBy = myId != null && req.created_by != null && String(req.created_by) === String(myId);
+  const matchCsId = myId != null && req.cs_id != null && String(req.cs_id) === String(myId);
+  const isCreator = matchCreatedBy || matchCsId;
+  const editBtn = document.getElementById("btnEditRequest");
+  const delBtn = document.getElementById("btnDeleteRequest");
+  if (editBtn) editBtn.classList.toggle("hidden", !isCreator);
+  if (delBtn) delBtn.classList.toggle("hidden", !isCreator);
+
   // Show modal then load logs
   document.getElementById("requestDetailModal").classList.remove("hidden");
   document.getElementById("logInput").value = "";
@@ -1195,6 +1311,41 @@ document.getElementById("requestDetailModal").addEventListener("click", (e) => {
   }
 });
 document.getElementById("logSubmit").addEventListener("click", submitRequestLog);
+
+// Edit button in detail modal
+document.getElementById("btnEditRequest")?.addEventListener("click", () => {
+  const req = roomBookings.find((r) => String(r.request_id) === String(detailCurrentRequestId));
+  if (!req) return;
+  // Close detail modal first, then open edit mode of booking modal
+  document.getElementById("requestDetailModal").classList.add("hidden");
+  stopLogPolling();
+  openEditModal(req);
+});
+
+// Delete button in detail modal — uses shared DeleteModal component
+document.getElementById("btnDeleteRequest")?.addEventListener("click", () => {
+  const req = roomBookings.find((r) => String(r.request_id) === String(detailCurrentRequestId));
+  if (!req) return;
+  DeleteModal.open(`ต้องการลบคำขอ ${req.request_code || ""} ใช่หรือไม่?`, async () => {
+    const btn = document.getElementById("btnDeleteRequest");
+    btn.disabled = true;
+    try {
+      await sbFetch("room_booking_requests", `?request_id=eq.${req.request_id}`, { method: "DELETE" });
+      document.getElementById("requestDetailModal").classList.add("hidden");
+      detailCurrentRequestId = null;
+      stopLogPolling();
+      await loadRoomBookings();
+      renderRequestList();
+      renderRoomList();
+      renderTimeline();
+      renderMiniCalendar();
+    } catch (e) {
+      alert("ลบไม่สำเร็จ: " + (e.message || "กรุณาลองใหม่"));
+    } finally {
+      btn.disabled = false;
+    }
+  });
+});
 
 // ESC to close any open modal
 // Esc close handled by modalManager.js; cleanup side effects via MutationObserver
@@ -1311,6 +1462,7 @@ setInterval(async () => {
   const next = roomBookings.map(b => `${b.request_id}:${b.status}`).join("|");
   if (next !== prev) {
     renderRequestList();
+    renderRoomList();
     renderTimeline();
     renderMiniCalendar();
   }

@@ -614,7 +614,7 @@
             <td style="text-align:center" onclick="event.stopPropagation()">
               <input type="checkbox" class="bkq-chk" value="${r.request_id}" onchange="syncBkqDeleteBtn()" />
             </td>
-            <td>${r.place_name}${unreadBadge}</td>
+            <td>${r.place_name}${r.room_name ? ` — ${r.room_name}` : ""}${unreadBadge}</td>
             <td class="col-center">${booker}</td>
             <td class="col-center">${cs}</td>
             <td class="col-center">${r.booking_date}</td>
