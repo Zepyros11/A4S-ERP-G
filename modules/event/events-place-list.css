@@ -218,3 +218,15 @@
 .place-panel-dot.active {
   background: #fff;
 }
+
+/* ── PLACE LIST MAP ── */
+.place-map-container {
+  margin-bottom: 16px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--border, #e2e8f0);
+}
+.place-list-map {
+  width: 100%;
+  height: 400px;
+}

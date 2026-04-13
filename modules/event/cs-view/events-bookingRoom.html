@@ -298,6 +298,26 @@
       </div>
     </div>
 
+    <!-- Conflict Alert Modal -->
+    <div id="conflictModal" class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
+      <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden animate-[popIn_.25s_ease]">
+        <div class="bg-gradient-to-r from-red-500 to-orange-500 px-6 py-4 flex items-center gap-3">
+          <span class="text-2xl">⚠️</span>
+          <div>
+            <h3 class="text-white font-black text-sm">ไม่สามารถจองได้</h3>
+            <p class="text-white/80 text-[11px]">ช่วงเวลานี้มีการใช้งานแล้ว</p>
+          </div>
+        </div>
+        <div id="conflictBody" class="px-6 py-4 space-y-2 max-h-60 overflow-y-auto"></div>
+        <div class="px-6 pb-5">
+          <button id="conflictOk" class="w-full py-2.5 bg-slate-800 text-white rounded-xl text-sm font-bold hover:bg-slate-900 transition">รับทราบ</button>
+        </div>
+      </div>
+    </div>
+    <style>
+      @keyframes popIn { from { opacity:0; transform:scale(.9) } to { opacity:1; transform:scale(1) } }
+    </style>
+
     <script src="../../../js/components/navigation/imgPopup.js"></script>
     <script src="events-bookingRoom.js"></script>
 

@@ -8,6 +8,7 @@ import {
   fetchEvents,
   fetchEventCategories,
   fetchPlaces,
+  fetchAllPlaceRooms,
   createEvent,
   updateEvent,
   uploadEventPoster,
@@ -74,23 +75,28 @@ async function loadUsers() {
 // ── LOAD PLACES ────────────────────────────────────────────
 async function loadPlaces() {
   try {
-    const places = await fetchPlaces();
+    const [places, allRooms] = await Promise.all([fetchPlaces(), fetchAllPlaceRooms()]);
     const activePlaces = places.filter((p) => p.status === "ACTIVE");
+
+    // group rooms by place_id
+    const roomsByPlace = {};
+    (allRooms || []).forEach((r) => {
+      if (!roomsByPlace[r.place_id]) roomsByPlace[r.place_id] = [];
+      roomsByPlace[r.place_id].push(r);
+    });
+
     const input = document.getElementById("fLocation");
     const dropdown = document.getElementById("locationDropdown");
     if (!input || !dropdown) return;
 
-    // ค่าที่ถูกเลือกจาก dropdown จริงๆ
     let confirmedValue = input.value || "";
 
-    // expose เพื่อให้ loadEventForEdit ตั้งค่าได้
     window._setConfirmedLocation = (v) => {
       confirmedValue = v || "";
       input.value = confirmedValue;
       updateClearBtn();
     };
 
-    // expose getter สำหรับ save
     window._getConfirmedLocation = () => confirmedValue || null;
 
     function updateClearBtn() {
@@ -106,40 +112,65 @@ async function loadPlaces() {
     };
 
     function renderDropdown(keyword) {
-      const filtered = keyword
-        ? activePlaces.filter((p) =>
-            p.place_name.toLowerCase().includes(keyword.toLowerCase()),
-          )
-        : activePlaces;
+      const kw = (keyword || "").toLowerCase();
+      const filtered = activePlaces.filter((p) => {
+        if (!kw) return true;
+        if (p.place_name.toLowerCase().includes(kw)) return true;
+        const pRooms = roomsByPlace[p.place_id] || [];
+        return pRooms.some((r) => (r.room_name || "").toLowerCase().includes(kw));
+      });
 
       if (!filtered.length) {
         dropdown.style.display = "none";
         return;
       }
 
-      dropdown.innerHTML = filtered
-        .map((p) => {
-          const imgs =
-            p.image_urls && p.image_urls.length
-              ? p.image_urls
-              : p.cover_image_url
-                ? [p.cover_image_url]
-                : [];
-          const thumb = imgs[0]
-            ? `<img src="${imgs[0]}" style="width:100%;height:100%;object-fit:cover;border-radius:6px;">`
-            : placeTypeIcon(p.place_type);
-          return `
-          <div class="ef-loc-item" data-name="${p.place_name}">
-            <div class="ef-loc-icon">${thumb}</div>
-            <div class="ef-loc-info">
-              <div class="ef-loc-name">${p.place_name}</div>
-              ${p.address ? `<div class="ef-loc-addr">${p.address}</div>` : ""}
-            </div>
-            ${p.capacity ? `<div class="ef-loc-cap">👥 ${p.capacity.toLocaleString()}</div>` : ""}
-          </div>`;
-        })
-        .join("");
+      let html = "";
+      filtered.forEach((p) => {
+        const imgs = p.image_urls && p.image_urls.length ? p.image_urls
+          : p.cover_image_url ? [p.cover_image_url] : [];
+        const thumb = imgs[0]
+          ? `<img src="${imgs[0]}" style="width:100%;height:100%;object-fit:cover;border-radius:6px;">`
+          : placeTypeIcon(p.place_type);
 
+        const pRooms = roomsByPlace[p.place_id] || [];
+
+        if (pRooms.length > 0) {
+          // place header (not clickable)
+          html += `
+            <div class="ef-loc-header">
+              <div class="ef-loc-icon">${thumb}</div>
+              <div class="ef-loc-info">
+                <div class="ef-loc-name" style="font-weight:800">${p.place_name}</div>
+                ${p.address ? `<div class="ef-loc-addr">${p.address}</div>` : ""}
+              </div>
+            </div>`;
+          // sub-rooms
+          pRooms.forEach((r) => {
+            html += `
+              <div class="ef-loc-item ef-loc-subroom" data-name="${p.place_name} — ${r.room_name}">
+                <div class="ef-loc-icon" style="font-size:16px">🚪</div>
+                <div class="ef-loc-info">
+                  <div class="ef-loc-name">${r.room_name}</div>
+                </div>
+                ${r.capacity ? `<div class="ef-loc-cap">👥 ${r.capacity}</div>` : ""}
+              </div>`;
+          });
+        } else {
+          // place without rooms (clickable directly)
+          html += `
+            <div class="ef-loc-item" data-name="${p.place_name}">
+              <div class="ef-loc-icon">${thumb}</div>
+              <div class="ef-loc-info">
+                <div class="ef-loc-name">${p.place_name}</div>
+                ${p.address ? `<div class="ef-loc-addr">${p.address}</div>` : ""}
+              </div>
+              ${p.capacity ? `<div class="ef-loc-cap">👥 ${p.capacity.toLocaleString()}</div>` : ""}
+            </div>`;
+        }
+      });
+
+      dropdown.innerHTML = html;
       dropdown.style.display = "block";
 
       dropdown.querySelectorAll(".ef-loc-item").forEach((el) => {
@@ -155,12 +186,23 @@ async function loadPlaces() {
 
     input.addEventListener("focus", () => {
       input.select();
-      renderDropdown(confirmedValue ? "" : "");
+      // แสดง dropdown เฉพาะเมื่อพิมพ์แล้ว หรือมี <= 5 สถานที่
+      if (activePlaces.length <= 5) {
+        renderDropdown("");
+      } else {
+        dropdown.style.display = "none";
+      }
     });
-    input.addEventListener("input", () => renderDropdown(input.value));
+    input.addEventListener("input", () => {
+      const q = input.value.trim();
+      if (q.length >= 1) {
+        renderDropdown(q);
+      } else {
+        dropdown.style.display = "none";
+      }
+    });
     input.addEventListener("blur", () => {
       setTimeout(() => {
-        // คืนค่าที่เลือกไว้ ถ้าผู้ใช้พิมพ์เองโดยไม่เลือก
         input.value = confirmedValue;
         dropdown.style.display = "none";
       }, 150);

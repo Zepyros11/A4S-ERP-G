@@ -2,6 +2,279 @@
    events-place-form.css — Place Form Styles
 ========================================================= */
 
+/* ── FLOATING SAVE BUTTON ── */
+.floating-save-btn {
+  position: fixed;
+  bottom: 28px;
+  right: 28px;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: #22c55e;
+  color: #fff;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(34, 197, 94, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  transition: all 0.2s;
+}
+.floating-save-btn:hover {
+  background: #16a34a;
+  transform: scale(1.1);
+  box-shadow: 0 6px 20px rgba(34, 197, 94, 0.5);
+}
+.floating-save-btn:active {
+  transform: scale(0.95);
+}
+
+/* ── PLACE SEARCH ── */
+.place-search-box {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.place-search-results {
+  margin-top: 8px;
+}
+.place-search-results:empty {
+  display: none;
+}
+.place-result-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 14px;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 10px;
+  cursor: pointer;
+  margin-bottom: 6px;
+  transition: background 0.15s, border-color 0.15s;
+}
+.place-result-item:hover {
+  background: #eef2ff;
+  border-color: #a5b4fc;
+}
+.place-result-name {
+  font-weight: 700;
+  font-size: 14px;
+  color: #1e293b;
+}
+.place-result-addr {
+  font-size: 12px;
+  color: #64748b;
+  margin-top: 2px;
+}
+.place-result-type {
+  font-size: 10px;
+  color: #94a3b8;
+  margin-top: 2px;
+}
+.place-search-loading {
+  text-align: center;
+  padding: 12px;
+  color: #94a3b8;
+  font-size: 13px;
+}
+
+/* ── ADD CARD BUTTON ── */
+.btn-add-card {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 28px;
+  border: 2px dashed #a5b4fc;
+  border-radius: 14px;
+  background: #eef2ff;
+  color: #6366f1;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-add-card:hover {
+  background: #6366f1;
+  color: #fff;
+  border-color: #6366f1;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+  transform: translateY(-1px);
+}
+.btn-add-card:active {
+  transform: translateY(0);
+}
+
+/* ── ROOM AMENITY TOGGLES ── */
+.room-amenity-toggles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 8px;
+}
+.facility-toggle-item.compact {
+  padding: 7px 10px;
+  font-size: 12px;
+}
+.toggle-switch.toggle-sm {
+  width: 34px;
+  height: 18px;
+}
+.toggle-switch.toggle-sm .toggle-slider::before {
+  width: 14px;
+  height: 14px;
+  left: 2px;
+  bottom: 2px;
+}
+.toggle-switch.toggle-sm input:checked + .toggle-slider::before {
+  transform: translateX(16px);
+}
+
+/* ── GRID DRAG OVER ── */
+.grid-drag-over {
+  outline: 2px dashed #6366f1;
+  outline-offset: 4px;
+  border-radius: 12px;
+  background: rgba(238, 242, 255, 0.3);
+}
+
+/* ── DROP ZONE ── */
+.drop-zone {
+  border: 2px dashed var(--border, #cbd5e1);
+  border-radius: 12px;
+  padding: 40px 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+  grid-column: 1 / -1;
+}
+.drop-zone:hover,
+.drop-zone.drag-active {
+  border-color: #6366f1;
+  background: #eef2ff;
+}
+.drop-zone-icon {
+  font-size: 36px;
+  margin-bottom: 8px;
+}
+.drop-zone-text {
+  font-size: 14px;
+  color: var(--text2, #64748b);
+  font-weight: 500;
+}
+.drop-zone-hint {
+  font-size: 12px;
+  color: var(--text3, #94a3b8);
+  margin-top: 4px;
+}
+
+/* ── ROOM FLOORPLAN ── */
+.room-fp-preview {
+  position: relative;
+  display: inline-block;
+}
+.room-fp-delete {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: rgba(0,0,0,0.6);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+.room-fp-delete:hover {
+  background: rgba(220,38,38,0.8);
+}
+.room-fp-img {
+  max-width: 200px;
+  max-height: 120px;
+  border-radius: 8px;
+  border: 1px solid var(--border, #e2e8f0);
+  cursor: pointer;
+  object-fit: cover;
+}
+.room-fp-file {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: var(--bg2, #f8fafc);
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 8px;
+  color: var(--text1, #1e293b);
+  text-decoration: none;
+  font-size: 13px;
+}
+.room-fp-file:hover {
+  background: var(--bg3, #f1f5f9);
+}
+
+/* ── FACILITY TOGGLES ── */
+.facility-toggles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 12px;
+}
+.facility-toggle-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: var(--bg2, #f8fafc);
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 10px;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.15s, border-color 0.15s;
+  font-size: 14px;
+}
+.facility-toggle-item:hover {
+  background: var(--bg3, #f1f5f9);
+  border-color: #a5b4fc;
+}
+
+/* ── BED TYPE RADIO TOGGLE ── */
+.bed-type-toggle {
+  display: flex;
+  gap: 8px;
+}
+.bed-type-option {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 14px;
+  background: var(--bg2, #f8fafc);
+  border: 2px solid var(--border, #e2e8f0);
+  border-radius: 10px;
+  cursor: pointer;
+  user-select: none;
+  font-size: 14px;
+  transition: background 0.15s, border-color 0.15s;
+}
+.bed-type-option input {
+  display: none;
+}
+.bed-type-option:hover {
+  border-color: #a5b4fc;
+}
+.bed-type-option.active,
+.bed-type-option:has(input:checked) {
+  background: #dcfce7;
+  border-color: #22c55e;
+  color: #15803d;
+  font-weight: 600;
+}
+
 /* ── SECTION TOGGLE ── */
 .ef-section-toggle {
   display: flex;
@@ -44,7 +317,7 @@
   box-shadow: 0 1px 3px rgba(0,0,0,0.2);
 }
 .toggle-switch input:checked + .toggle-slider {
-  background: #6366f1;
+  background: #22c55e;
 }
 .toggle-switch input:checked + .toggle-slider::before {
   transform: translateX(20px);
@@ -153,7 +426,7 @@
 ═══════════════════════════════════════════ */
 .gallery-cat-header {
   display: flex;
-  justify-content: space-between;
+  justify-content: center;
   align-items: center;
   margin-bottom: 10px;
   font-size: 13px;
@@ -221,7 +494,7 @@
 
 /* ── SLOT BASE ── */
 .place-slot {
-  aspect-ratio: 3 / 4;
+  aspect-ratio: 4 / 3;
   width: 100%;
   border-radius: 10px;
   position: relative;
@@ -285,6 +558,7 @@
   display: block;
   pointer-events: none;
   user-select: none;
+  -webkit-user-drag: none;
 }
 
 /* ── REMOVE BUTTON ── */
@@ -542,4 +816,37 @@
   border-color: #6366f1;
   background: #eef2ff;
   box-shadow: 0 0 0 2px rgba(99,102,241,0.15);
+}
+
+/* ── MAP PREVIEW ── */
+.map-preview-container {
+  width: 50%;
+  height: 300px;
+  border-radius: 12px;
+  border: 1px solid var(--border, #e2e8f0);
+  overflow: hidden;
+  background: #f1f5f9;
+}
+
+/* ── WIKI THUMBNAIL ── */
+.wiki-thumb-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: 10px;
+  margin-top: 8px;
+}
+.wiki-thumb-img {
+  width: 60px;
+  height: 60px;
+  object-fit: cover;
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+.wiki-thumb-label {
+  font-size: 12px;
+  color: #92400e;
 }

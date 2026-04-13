@@ -205,6 +205,10 @@ export async function fetchPlaceRooms(placeId) {
   return sbFetch("place_rooms", `?place_id=eq.${placeId}&select=*&order=room_name.asc`) || [];
 }
 
+export async function fetchAllPlaceRooms() {
+  return sbFetch("place_rooms", "?select=*&order=room_name.asc") || [];
+}
+
 export async function upsertPlaceRooms(placeId, rooms) {
   // ลบห้องเดิมทั้งหมดแล้ว insert ใหม่
   await sbFetch("place_rooms", `?place_id=eq.${placeId}`, { method: "DELETE" });

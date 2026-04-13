@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Poster Gallery — A4S-ERP</title>
     <link
-      href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Playfair+Display:wght@600;700;800&display=swap"
       rel="stylesheet"
     />
     <link rel="stylesheet" href="../../css/main.css" />
@@ -24,54 +24,59 @@
 
       <div class="content-area">
         <div class="page">
-          <!-- PAGE HEADER -->
-          <div class="epg-page-header">
-            <button
-              class="btn btn-outline epg-back-btn"
-              onclick="window.location.href = 'events-list.html'"
-            >
-              ← กลับ
-            </button>
+          <!-- MAIN CARD (floating content like events-list) -->
+          <div class="table-card">
 
-            <div class="epg-header-divider"></div>
+            <!-- TOOLBAR (header + filter) -->
+            <div class="toolbar">
+              <div class="epg-toolbar-left">
+                <button
+                  class="btn btn-outline epg-back-btn"
+                  onclick="window.location.href = 'events-list.html'"
+                >
+                  ← กลับ
+                </button>
+                <div class="epg-header-divider"></div>
+                <div class="epg-header-info">
+                  <div class="epg-header-title">🖼️ Poster Gallery</div>
+                  <div class="epg-header-subtitle" id="pageSubtitle">กำลังโหลด...</div>
+                </div>
+              </div>
 
-            <div class="epg-header-info">
-              <div class="epg-header-title">🖼️ Poster Gallery</div>
-              <div class="epg-header-subtitle" id="pageSubtitle">กำลังโหลด...</div>
-            </div>
-
-            <div class="epg-header-actions">
-              <!-- Grid Toggle -->
-              <div class="epg-grid-toggle">
-                <button class="epg-toggle-btn" id="btnGrid3" onclick="window.setGrid(3)">⊞ 3</button>
-                <button class="epg-toggle-btn active" id="btnGrid4" onclick="window.setGrid(4)">⊟ 4</button>
-                <button class="epg-toggle-btn" id="btnGrid5" onclick="window.setGrid(5)">▦ 5</button>
+              <div class="epg-header-actions">
+                <!-- Grid Toggle -->
+                <div class="epg-grid-toggle">
+                  <button class="epg-toggle-btn" id="btnGrid3" onclick="window.setGrid(3)">⊞ 3</button>
+                  <button class="epg-toggle-btn active" id="btnGrid4" onclick="window.setGrid(4)">⊟ 4</button>
+                  <button class="epg-toggle-btn" id="btnGrid5" onclick="window.setGrid(5)">▦ 5</button>
+                </div>
               </div>
             </div>
-          </div>
 
-          <!-- Filter Chips -->
-          <div class="epg-filter-chips" id="filterChipsWrap">
-            <button
-              class="epg-chip"
-              id="btnThisMonth"
-              onclick="window.toggleThisMonth(this)"
-            >
-              📅 เดือนนี้
-            </button>
-            <button
-              class="epg-chip active"
-              data-cat=""
-              onclick="window.setTypeFilter(this, '')"
-            >
-              ทั้งหมด
-            </button>
-            <!-- dynamic category chips injected by JS -->
-          </div>
+            <!-- Filter Chips -->
+            <div class="epg-filter-chips" id="filterChipsWrap">
+              <button
+                class="epg-chip"
+                id="btnThisMonth"
+                onclick="window.toggleThisMonth(this)"
+              >
+                📅 เดือนนี้
+              </button>
+              <button
+                class="epg-chip active"
+                data-cat=""
+                onclick="window.setTypeFilter(this, '')"
+              >
+                ทั้งหมด
+              </button>
+              <!-- dynamic category chips injected by JS -->
+            </div>
 
-          <!-- GALLERY BODY -->
-          <div id="galleryBody">
-            <!-- จะ render เป็น Section แยกตาม Month -->
+            <!-- GALLERY BODY -->
+            <div class="epg-gallery-wrap" id="galleryBody">
+              <!-- จะ render เป็น Section แยกตาม Month -->
+            </div>
+
           </div>
         </div>
 

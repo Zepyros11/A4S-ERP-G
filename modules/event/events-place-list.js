@@ -2,10 +2,11 @@
    events-place-list.js — Controller for Place List page
 ============================================================ */
 
-import { fetchPlaces, removePlace } from "./events-api.js";
+import { fetchPlaces, removePlace, updatePlace, fetchPlaceTypes } from "./events-api.js";
 
 // ── STATE ──────────────────────────────────────────────────
 let allPlaces = [];
+let allPlaceTypes = [];
 let sortKey = "place_name";
 let sortAsc = true;
 
@@ -18,7 +19,12 @@ async function initPage() {
 async function loadData() {
   showLoading(true);
   try {
-    allPlaces = (await fetchPlaces()) || [];
+    [allPlaces, allPlaceTypes] = await Promise.all([
+      fetchPlaces(),
+      fetchPlaceTypes(),
+    ]);
+    allPlaces = allPlaces || [];
+    allPlaceTypes = allPlaceTypes || [];
     updateStatCards();
     filterTable();
   } catch (e) {
@@ -129,7 +135,7 @@ function renderTable(places) {
         ? `<a href="${p.google_map_url}" target="_blank" onclick="event.stopPropagation()" class="place-map-link">🗺️ Map</a>`
         : "—";
 
-      return `<tr onclick="window.openPlacePanel(${p.place_id})">
+      return `<tr onclick="window.location.href='./events-place-form.html?id=${p.place_id}'">
       <td style="text-align:center" onclick="event.stopPropagation()">
         <input type="checkbox" class="row-check" value="${p.place_id}" onchange="window.updateDeleteButton()">
       </td>
@@ -154,7 +160,7 @@ function renderTable(places) {
       </td>
       <td class="col-center" onclick="event.stopPropagation()">
         <div class="action-group">
-          <button class="btn-icon" onclick="window.openPlacePanel(${p.place_id})">✏️</button>
+          <button class="btn-icon" onclick="window.location.href='./events-place-form.html?id=${p.place_id}'">✏️</button>
           <button class="btn-icon danger" onclick="window.deletePlace(${p.place_id})">🗑</button>
         </div>
       </td>
@@ -295,6 +301,11 @@ window.deleteSelectedPlaces = async function () {
 
 // ── HELPERS ────────────────────────────────────────────────
 function typeLabel(t) {
+  const found = allPlaceTypes.find((pt) => pt.type_code === t);
+  if (found) {
+    const icon = found.icon || "";
+    return `${icon} ${found.type_name}`.trim();
+  }
   return (
     {
       HOTEL: "🏨 โรงแรม",
@@ -314,6 +325,57 @@ function showToast(msg, type = "success") {
 
 function showLoading(show) {
   document.getElementById("loadingOverlay").classList.toggle("show", show);
+}
+
+// ── PLACE LIST MAP ──────────────────────────────────────────
+let listMap = null;
+let listMapVisible = false;
+
+function parseLatLonFromUrl(url) {
+  if (!url) return null;
+  const m = url.match(/[?&@]q?=?([-\d.]+),([-\d.]+)/) || url.match(/@([-\d.]+),([-\d.]+)/);
+  if (m) return { lat: parseFloat(m[1]), lon: parseFloat(m[2]) };
+  return null;
+}
+
+window.togglePlaceMap = function () {
+  const container = document.getElementById("placeMapContainer");
+  listMapVisible = !listMapVisible;
+  container.style.display = listMapVisible ? "block" : "none";
+
+  if (listMapVisible) {
+    if (!listMap && typeof L !== "undefined") {
+      listMap = L.map("placeListMap").setView([13.75, 100.5], 6);
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: "&copy; OpenStreetMap",
+        maxZoom: 19,
+      }).addTo(listMap);
+    }
+    // slight delay so container is rendered before invalidating
+    setTimeout(() => {
+      if (listMap) listMap.invalidateSize();
+      renderMapPins();
+    }, 200);
+  }
+};
+
+function renderMapPins() {
+  if (!listMap) return;
+  // clear existing markers
+  listMap.eachLayer((l) => { if (l instanceof L.Marker) listMap.removeLayer(l); });
+
+  const bounds = [];
+  allPlaces.forEach((p) => {
+    const coords = parseLatLonFromUrl(p.google_map_url);
+    if (!coords) return;
+    const marker = L.marker([coords.lat, coords.lon]).addTo(listMap);
+    marker.bindPopup(`<strong>${p.place_name}</strong>`);
+    bounds.push([coords.lat, coords.lon]);
+  });
+
+  if (bounds.length > 0) {
+    listMap.fitBounds(bounds, { padding: [40, 40], maxZoom: 14 });
+  }
 }
 
 // ── START ──────────────────────────────────────────────────
@@ -344,7 +406,6 @@ window.savePanelPlace = async function () {
     capacity: parseInt(document.getElementById("peqCapacity").value) || 0,
     meeting_rooms:
       parseInt(document.getElementById("peqMeetingRooms").value) || 0,
-    rooms: parseInt(document.getElementById("peqRooms").value) || 0,
     has_parking:
       document.getElementById("peqParking").value === "true"
         ? true
@@ -357,20 +418,7 @@ window.savePanelPlace = async function () {
 
   showLoading(true);
   try {
-    const { url, key } = getSB();
-    const res = await fetch(`${url}/rest/v1/places?place_id=eq.${placeId}`, {
-      method: "PATCH",
-      headers: {
-        apikey: key,
-        Authorization: `Bearer ${key}`,
-        "Content-Type": "application/json",
-        Prefer: "return=representation",
-      },
-      body: JSON.stringify(payload),
-    });
-    if (!res.ok) throw new Error("Save failed");
-    showToast("บันทึกแล้ว", "success");
-    await loadData();
+    await updatePlace(placeId, payload);
     showToast("บันทึกแล้ว", "success");
     await loadData();
     window.closePlacePanel();
@@ -405,9 +453,3 @@ window._panelGoto = function (idx) {
   imgs[idx].classList.add("active");
   if (dots[idx]) dots[idx].classList.add("active");
 };
-function getSB() {
-  return {
-    url: localStorage.getItem("sb_url") || "",
-    key: localStorage.getItem("sb_key") || "",
-  };
-}

@@ -53,14 +53,20 @@ async function autoGenerateBookingCode() {
 }
 
 // --- State ---
-let rooms = [];
-let roomEvents = []; // events from `events` table matching selected room's place_name
-let selectedRoomId = null;
+let places = [];           // สถานที่ที่มีห้องประชุม
+let placeRoomsMap = {};    // { place_id: [room1, room2, ...] }
+let rooms = [];            // flat list ของ place_rooms ทั้งหมด (compat)
+let roomEvents = [];
+let holidayEvents = [];
+let holidayCatId = null;
+let selectedPlaceId = null;
+let selectedRoomId = null;    // room_id จาก place_rooms
 let selectedPlaceName = null;
+let selectedRoomName = null;
 let users = [];
-let roomBookings = []; // room_booking_requests from Supabase
-let _logCountCache = {}; // { [request_id]: totalLogCount }
-let _requestFilter = "ALL";  // active status filter for Request List
+let roomBookings = [];
+let _logCountCache = {};
+let _requestFilter = "ALL";
 
 // --- Helpers ---
 function todayStr(offsetDays = 0) {
@@ -92,87 +98,130 @@ const STATUS_MAP = {
   CANCELLED:  { label: "ยกเลิก",  cls: "bg-red-100 text-red-500" },
 };
 
+// --- Load holiday category ID ---
+async function loadHolidayCatId() {
+  if (holidayCatId) return;
+  const cats = await sbFetch("event_categories", "?select=event_category_id,category_name");
+  const found = (cats || []).find((c) => c.category_name === "วันหยุดบริษัท");
+  if (found) holidayCatId = found.event_category_id;
+}
+
+// --- Load company holiday events (all rooms) ---
+async function loadHolidayEvents() {
+  if (!holidayCatId) { holidayEvents = []; return; }
+  const data = await sbFetch(
+    "events",
+    `?event_category_id=eq.${holidayCatId}&select=event_id,event_name,event_date,end_date,start_time,end_time,status,poster_url&order=event_date.asc,start_time.asc`
+  );
+  holidayEvents = (data || []).filter((e) => e.status !== "CANCELLED");
+}
+
 // --- Load events for selected room ---
 async function loadRoomEvents() {
   if (!selectedPlaceName) { roomEvents = []; return; }
   const encoded = encodeURIComponent(selectedPlaceName);
   const data = await sbFetch(
     "events",
-    `?location=eq.${encoded}&select=event_id,event_name,event_date,end_date,start_time,end_time,status,poster_url&order=event_date.asc,start_time.asc`
+    `?location=eq.${encoded}&select=event_id,event_name,event_date,end_date,start_time,end_time,status,poster_url,event_category_id&order=event_date.asc,start_time.asc`
   );
   roomEvents = data || [];
 }
 
-// --- Render Room List ---
+// --- Render Room List (2-level: Place → Rooms) ---
 function renderRoomList(filter = "") {
   const list = document.getElementById("roomList");
-  const filtered = rooms.filter((r) =>
-    (r.place_name || "").toLowerCase().includes(filter.toLowerCase())
-  );
+  const q = filter.toLowerCase();
+  const filteredPlaces = places.filter((p) => {
+    if (!q) return true;
+    if ((p.place_name || "").toLowerCase().includes(q)) return true;
+    const pRooms = placeRoomsMap[p.place_id] || [];
+    return pRooms.some((r) => (r.room_name || "").toLowerCase().includes(q));
+  });
 
-  if (!filtered.length) {
+  if (!filteredPlaces.length) {
     list.innerHTML = `<p class="text-xs text-slate-400 text-center mt-6 italic">ไม่พบห้องประชุม</p>`;
     return;
   }
 
   const today = todayStr(0);
 
-  list.innerHTML = filtered.map((room) => {
-    const isSelected = String(room.place_id) === String(selectedRoomId);
-    const isActive = room.status === "ACTIVE";
+  list.innerHTML = filteredPlaces.map((place) => {
+    const isPlaceSelected = String(place.place_id) === String(selectedPlaceId);
+    const pRooms = placeRoomsMap[place.place_id] || [];
+    const addressShort = place.address ? place.address.split("\n")[0].substring(0, 40) : "";
 
-    // Show event count today if this is the selected room (support multi-day events)
-    const todayEventCount = isSelected
-      ? roomEvents.filter((e) => {
-          if (e.status === "CANCELLED") return false;
-          const start = e.event_date;
-          const end = e.end_date || start;
-          return start <= today && end >= today;
-        }).length
-      : 0;
-
-    const statusLabel = !isActive
-      ? `<span class="text-[10px] bg-slate-200 text-slate-500 px-2 py-0.5 rounded-full font-bold">ปิด</span>`
-      : isSelected && todayEventCount > 0
-        ? `<span class="text-[10px] bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full font-bold">มีงาน ${todayEventCount}</span>`
-        : `<span class="text-[10px] bg-green-500 text-white px-2 py-0.5 rounded-full font-bold">ว่าง</span>`;
-
-    const activeClass = isSelected
-      ? "border-2 border-indigo-600 bg-indigo-600 active"
-      : "border border-slate-100 bg-white hover:shadow-md";
-
-    const nameClass = "font-bold text-slate-900 text-sm leading-tight";
-    const metaClass = isSelected ? "text-xs text-indigo-700 mt-1" : "text-xs text-slate-500 mt-1";
-    const addrClass = isSelected ? "text-[10px] text-indigo-500 mt-0.5 truncate" : "text-[10px] text-slate-400 mt-0.5 truncate";
-
-    const meta = room.capacity ? `👥 ${room.capacity} คน` : "";
-    const addressShort = room.address ? room.address.split("\n")[0].substring(0, 40) : "";
-
-    // Unread message badge for this room
-    const roomUnread = roomBookings
-      .filter((b) => b.place_name === room.place_name)
+    // Unread count for entire place
+    const placeUnread = roomBookings
+      .filter((b) => String(b.place_id) === String(place.place_id))
       .reduce((sum, b) => sum + getUnreadCount(b.request_id), 0);
-    const unreadBadge = roomUnread > 0
-      ? `<span style="display:inline-flex;align-items:center;gap:2px;background:#f97316;color:#fff;font-size:9px;font-weight:700;padding:1px 6px;border-radius:999px;line-height:1.6">💬 ${roomUnread}</span>`
+    const unreadBadge = placeUnread > 0
+      ? `<span style="display:inline-flex;align-items:center;gap:2px;background:#f97316;color:#fff;font-size:9px;font-weight:700;padding:1px 6px;border-radius:999px;line-height:1.6">💬 ${placeUnread}</span>`
       : "";
 
+    const placeClass = isPlaceSelected
+      ? "border-2 border-indigo-600 bg-indigo-50"
+      : "border border-slate-100 bg-white hover:shadow-md";
+
+    // Sub-rooms HTML
+    let roomsHtml = "";
+    if (pRooms.length > 0 && isPlaceSelected) {
+      roomsHtml = pRooms.map((r) => {
+        const isRoomActive = String(r.room_id) === String(selectedRoomId);
+        const roomClass = isRoomActive
+          ? "bg-indigo-600 text-white"
+          : "bg-slate-50 text-slate-700 hover:bg-indigo-50";
+        const cap = r.capacity ? `👥 ${r.capacity}` : "";
+        return `
+          <div class="sub-room-item ${roomClass} px-3 py-2 rounded-lg cursor-pointer text-xs font-semibold" data-sub-room-id="${r.room_id}" data-sub-room-name="${r.room_name}" data-sub-place-id="${place.place_id}" data-sub-place-name="${place.place_name}">
+            <div class="flex justify-between items-center">
+              <span>🚪 ${r.room_name}</span>
+              ${cap ? `<span class="opacity-70">${cap}</span>` : ""}
+            </div>
+          </div>
+        `;
+      }).join("");
+      roomsHtml = `<div class="sub-room-list flex flex-col gap-1 mt-2 ml-2 pl-2" style="border-left:2px solid #c7d2fe">${roomsHtml}</div>`;
+    } else if (pRooms.length === 0) {
+      // Place without sub-rooms (backward compat)
+      roomsHtml = "";
+    }
+
     return `
-      <div class="room-item ${activeClass} p-4 rounded-2xl cursor-pointer shadow-sm" data-room-id="${room.place_id}" data-place-name="${room.place_name}">
-        <div class="flex justify-between items-start">
-          <h3 class="${nameClass}">${room.place_name}</h3>
-          <div class="flex items-center gap-1 flex-shrink-0">${unreadBadge}${statusLabel}</div>
+      <div class="place-group mb-2">
+        <div class="room-item ${placeClass} pl-5 pr-4 py-3 rounded-2xl cursor-pointer shadow-sm" data-place-id="${place.place_id}" data-place-name="${place.place_name}">
+          <div class="flex justify-between items-center">
+            <h3 class="font-bold text-sm leading-tight truncate">${place.place_name}</h3>
+            <div class="flex items-center gap-1 flex-shrink-0 ml-2">${unreadBadge}
+              ${pRooms.length > 0 ? `<span class="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full">${pRooms.length} ห้อง</span>` : ""}
+            </div>
+          </div>
+          ${addressShort ? `<p class="text-[10px] text-slate-400 mt-0.5 truncate">${addressShort}</p>` : ""}
         </div>
-        ${meta ? `<p class="${metaClass}">${meta}</p>` : ""}
-        ${addressShort ? `<p class="${addrClass}">${addressShort}</p>` : ""}
+        ${roomsHtml}
       </div>
     `;
   }).join("");
 
-  list.querySelectorAll("[data-room-id]").forEach((el) => {
+  // Bind place click → expand/select
+  list.querySelectorAll("[data-place-id]").forEach((el) => {
     el.addEventListener("click", async () => {
-      selectedRoomId = el.dataset.roomId;
-      selectedPlaceName = el.dataset.placeName;
-      renderRoomList(filter);   // show active state immediately
+      const placeId = el.dataset.placeId;
+      const placeName = el.dataset.placeName;
+      const pRooms = placeRoomsMap[placeId] || [];
+
+      selectedPlaceId = placeId;
+      selectedPlaceName = placeName;
+
+      if (pRooms.length > 0) {
+        // Auto-select first room
+        selectedRoomId = String(pRooms[0].room_id);
+        selectedRoomName = pRooms[0].room_name;
+      } else {
+        selectedRoomId = null;
+        selectedRoomName = placeName;
+      }
+
+      renderRoomList(filter);
       updateHeader();
       document.getElementById("timeline").innerHTML =
         `<p class="text-sm text-slate-400 text-center mt-10 italic">กำลังโหลดกิจกรรม...</p>`;
@@ -180,8 +229,29 @@ function renderRoomList(filter = "") {
       renderTimeline();
       updateHeader();
       renderMiniCalendar();
-      renderRoomList(filter); // re-render badge with correct roomEvents
-      renderRequestList();    // re-filter by newly selected room
+      renderRequestList();
+      if (typeof window._onRoomSelected === "function") window._onRoomSelected();
+    });
+  });
+
+  // Bind sub-room click
+  list.querySelectorAll("[data-sub-room-id]").forEach((el) => {
+    el.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      selectedPlaceId = el.dataset.subPlaceId;
+      selectedPlaceName = el.dataset.subPlaceName;
+      selectedRoomId = el.dataset.subRoomId;
+      selectedRoomName = el.dataset.subRoomName;
+
+      renderRoomList(filter);
+      updateHeader();
+      document.getElementById("timeline").innerHTML =
+        `<p class="text-sm text-slate-400 text-center mt-10 italic">กำลังโหลดกิจกรรม...</p>`;
+      await loadRoomEvents();
+      renderTimeline();
+      updateHeader();
+      renderMiniCalendar();
+      renderRequestList();
       if (typeof window._onRoomSelected === "function") window._onRoomSelected();
     });
   });
@@ -189,22 +259,36 @@ function renderRoomList(filter = "") {
 
 // --- Update Header ---
 function updateHeader() {
-  const room = rooms.find((r) => String(r.place_id) === String(selectedRoomId));
-  const name = room?.place_name || selectedPlaceName || "เลือกห้อง";
-  document.getElementById("selectedRoomName").textContent = name;
+  const displayName = selectedRoomName
+    ? (selectedPlaceName !== selectedRoomName ? `${selectedPlaceName} — ${selectedRoomName}` : selectedRoomName)
+    : selectedPlaceName || "เลือกห้อง";
+  document.getElementById("selectedRoomName").textContent = displayName;
   const upcoming = roomEvents.filter((e) => e.event_date >= todayStr(0) && e.status !== "CANCELLED").length;
+
+  // find capacity from place_rooms or place
+  let cap = null;
+  if (selectedRoomId) {
+    const pRooms = placeRoomsMap[selectedPlaceId] || [];
+    const subRoom = pRooms.find((r) => String(r.room_id) === String(selectedRoomId));
+    cap = subRoom?.capacity;
+  }
+  if (!cap) {
+    const place = places.find((p) => String(p.place_id) === String(selectedPlaceId));
+    cap = place?.capacity;
+  }
+
   const detail = selectedPlaceName
-    ? [room?.capacity ? `${room.capacity} คน` : "", upcoming ? `${upcoming} กิจกรรมที่กำลังจะมาถึง` : "ไม่มีกิจกรรม"].filter(Boolean).join(" • ")
+    ? [cap ? `${cap} คน` : "", upcoming ? `${upcoming} กิจกรรมที่กำลังจะมาถึง` : "ไม่มีกิจกรรม"].filter(Boolean).join(" • ")
     : "เลือกห้องเพื่อดูกิจกรรม";
   document.getElementById("selectedRoomDetail").textContent = detail;
   const modalName = document.getElementById("modalRoomName");
-  if (modalName) modalName.textContent = name;
+  if (modalName) modalName.textContent = displayName;
 }
 
 // --- Render Timeline ---
 function renderTimeline() {
   const timeline = document.getElementById("timeline");
-  if (!selectedRoomId) {
+  if (!selectedPlaceId) {
     timeline.innerHTML = `<p class="text-sm text-slate-400 text-center mt-10 italic">กรุณาเลือกห้องประชุม</p>`;
     return;
   }
@@ -212,11 +296,19 @@ function renderTimeline() {
   const today = todayStr(0);
 
   // Approved bookings for selected room (future only)
-  const approvedBookings = roomBookings.filter(
-    (b) => b.status === "APPROVED" && b.place_name === selectedPlaceName && b.booking_date >= today
-  );
+  const approvedBookings = roomBookings.filter((b) => {
+    if (b.status !== "APPROVED" || b.booking_date < today) return false;
+    // match by room_id if available, fallback to place_id
+    if (selectedRoomId && b.room_id) return String(b.room_id) === String(selectedRoomId);
+    return String(b.place_id) === String(selectedPlaceId);
+  });
 
-  if (roomEvents.length === 0 && approvedBookings.length === 0) {
+  // Filter out holiday events from roomEvents to avoid duplicates (they come from holidayEvents)
+  const nonHolidayRoomEvents = holidayCatId
+    ? roomEvents.filter((e) => e.event_category_id !== holidayCatId)
+    : roomEvents;
+
+  if (nonHolidayRoomEvents.length === 0 && holidayEvents.length === 0 && approvedBookings.length === 0) {
     timeline.innerHTML = `
       <div class="flex flex-col items-center justify-center py-16 text-center">
         <span class="text-4xl mb-3">📭</span>
@@ -230,27 +322,28 @@ function renderTimeline() {
   // Group by date
   const byDate = {};
 
-  roomEvents.forEach((e) => {
+  // Helper to expand multi-day event into byDate
+  function expandEventIntoDates(e, type) {
     if (e.status === "CANCELLED") return;
     const start = e.event_date;
     const end = e.end_date || start;
-    // Hide DONE only if the event ended before today (fully past)
     if (e.status === "DONE" && end < today) return;
-    // Iterate every day from start to end
     let cur = new Date(start + "T00:00:00");
     const endD = new Date(end + "T00:00:00");
     while (cur <= endD) {
       const d = `${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, "0")}-${String(cur.getDate()).padStart(2, "0")}`;
       if (d >= today) {
         if (!byDate[d]) byDate[d] = [];
-        // Only push if not already added (avoid duplicates)
-        if (!byDate[d].some((x) => x._type === "event" && String(x.event_id) === String(e.event_id))) {
-          byDate[d].push({ _type: "event", _sort: e.start_time || "00:00", ...e });
+        if (!byDate[d].some((x) => x._type === type && String(x.event_id) === String(e.event_id))) {
+          byDate[d].push({ _type: type, _sort: e.start_time || "00:00", ...e });
         }
       }
       cur.setDate(cur.getDate() + 1);
     }
-  });
+  }
+
+  nonHolidayRoomEvents.forEach((e) => expandEventIntoDates(e, "event"));
+  holidayEvents.forEach((e) => expandEventIntoDates(e, "holiday"));
 
   approvedBookings.forEach((b) => {
     const d = b.booking_date;
@@ -258,7 +351,7 @@ function renderTimeline() {
     byDate[d].push({ _type: "booking", _sort: b.end_time === "ALLDAY" ? "00:00" : (b.start_time || "00:00"), ...b });
   });
 
-  const eventsById = Object.fromEntries(roomEvents.map((e) => [String(e.event_id), e]));
+  const eventsById = Object.fromEntries([...roomEvents, ...holidayEvents].map((e) => [String(e.event_id), e]));
   const bookingsById = Object.fromEntries(approvedBookings.map((b) => [String(b.request_id), b]));
 
   if (Object.keys(byDate).length === 0) {
@@ -276,12 +369,26 @@ function renderTimeline() {
     const dayLabel = getDayLabel(dateStr);
     const dateLabel = formatDateThai(dateStr);
     const isToday = dateStr === today;
-    const labelColorClass = isToday ? "text-indigo-600 bg-indigo-50" : "text-slate-500 bg-slate-100";
-
     const items = byDate[dateStr].sort((a, b) => a._sort.localeCompare(b._sort));
+    const hasHolidayOnDate = items.some((i) => i._type === "holiday");
+    const labelColorClass = isToday ? "text-indigo-600 bg-indigo-50"
+      : hasHolidayOnDate ? "text-red-600 bg-red-50"
+      : "text-slate-500 bg-slate-100";
 
     const rows = items.map((item) => {
-      if (item._type === "event") {
+      if (item._type === "holiday") {
+        const timeStr = item.start_time
+          ? `${item.start_time.slice(0, 5)}${item.end_time ? " – " + item.end_time.slice(0, 5) : ""}`
+          : "ตลอดทั้งวัน";
+        return `
+          <div class="flex items-center gap-4 p-4 bg-red-50 rounded-2xl border border-red-100 border-l-4 border-l-red-400 shadow-sm">
+            <span class="text-xs font-bold text-red-400 w-28 flex-shrink-0">${timeStr}</span>
+            <div class="flex-1 min-w-0">
+              <p class="text-sm font-bold text-red-700 truncate">🏖️ ${item.event_name || "วันหยุด"}</p>
+            </div>
+            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0 bg-red-100 text-red-500">วันหยุด</span>
+          </div>`;
+      } else if (item._type === "event") {
         const status = STATUS_MAP[item.status] || STATUS_MAP.DRAFT;
         const timeStr = item.start_time
           ? `${item.start_time.slice(0, 5)}${item.end_time ? " – " + item.end_time.slice(0, 5) : ""}`
@@ -433,11 +540,62 @@ function populateBookerDropdown() {
   // no-op: using plain text inputs now
 }
 
+function checkAllDayConflicts(date) {
+  const conflicts = [];
+  const checkDate = date || todayStr(0);
+
+  // Holiday on this date
+  holidayEvents.forEach((e) => {
+    const eStart = e.event_date;
+    const eEnd = e.end_date || eStart;
+    if (checkDate >= eStart && checkDate <= eEnd) {
+      conflicts.push(`🏖️ ${e.event_name} (วันหยุดบริษัท)`);
+    }
+  });
+
+  // All-day room events (no start_time = all day)
+  roomEvents.forEach((e) => {
+    if (e.status === "CANCELLED") return;
+    if (holidayCatId && e.event_category_id === holidayCatId) return;
+    const eStart = e.event_date;
+    const eEnd = e.end_date || eStart;
+    if (checkDate < eStart || checkDate > eEnd) return;
+    if (!e.start_time) {
+      conflicts.push(`🗓️ ${e.event_name} (ตลอดทั้งวัน)`);
+    }
+  });
+
+  // All-day approved bookings
+  roomBookings.forEach((b) => {
+    if (b.status !== "APPROVED") return;
+    if (b.booking_date !== checkDate) return;
+    if (selectedRoomId && b.room_id) {
+      if (String(b.room_id) !== String(selectedRoomId)) return;
+    } else {
+      if (String(b.place_id) !== String(selectedPlaceId)) return;
+    }
+    if (b.end_time === "ALLDAY") {
+      conflicts.push(`🔖 ${b.booked_by_name || "จองห้อง"} (ตลอดทั้งวัน)`);
+    }
+  });
+
+  return conflicts;
+}
+
 function openModal(date = "", start = "") {
+  const checkDate = date || todayStr(0);
+
+  // Block immediately if there are all-day conflicts
+  const allDayConflicts = checkAllDayConflicts(checkDate);
+  if (allDayConflicts.length > 0) {
+    showConflictModal(allDayConflicts);
+    return;
+  }
+
   const modal = document.getElementById("bookingModal");
   const initStart = start || "09:00";
   const initEnd = nextHour(initStart, 1);
-  document.getElementById("inputDate").value = date || todayStr(0);
+  document.getElementById("inputDate").value = checkDate;
   document.getElementById("inputStart").value = initStart;
   document.getElementById("inputEnd").value = initEnd;
   const bn = document.getElementById("inputBookerName");
@@ -453,6 +611,35 @@ function openModal(date = "", start = "") {
 function closeModal() {
   document.getElementById("bookingModal").classList.add("hidden");
 }
+
+function showConflictModal(items) {
+  const modal = document.getElementById("conflictModal");
+  const body = document.getElementById("conflictBody");
+  const iconMap = { "🗓️": "bg-sky-100 text-sky-600", "🔖": "bg-violet-100 text-violet-600", "🏖️": "bg-red-100 text-red-600" };
+  body.innerHTML = items.map((txt) => {
+    const icon = txt.slice(0, 2);
+    const label = txt.slice(3);
+    const cls = iconMap[icon] || "bg-slate-100 text-slate-600";
+    return `<div class="flex items-center gap-3 p-3 rounded-xl ${cls}">
+      <span class="text-lg flex-shrink-0">${icon}</span>
+      <span class="text-sm font-semibold">${label}</span>
+    </div>`;
+  }).join("");
+  modal.classList.remove("hidden");
+}
+
+document.getElementById("conflictOk").addEventListener("click", () => {
+  document.getElementById("conflictModal").classList.add("hidden");
+});
+document.getElementById("conflictModal").addEventListener("click", (e) => {
+  if (e.target.id === "conflictModal") e.target.classList.add("hidden");
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") {
+    const cm = document.getElementById("conflictModal");
+    if (!cm.classList.contains("hidden")) { cm.classList.add("hidden"); return; }
+  }
+});
 
 async function confirmBooking() {
   const bookerName = (document.getElementById("inputBookerName")?.value || "").trim();
@@ -470,12 +657,64 @@ async function confirmBooking() {
     return;
   }
 
+  // --- Check time conflict with existing events & bookings ---
+  const conflictNames = [];
+
+  // Check room events (non-holiday) on the same date
+  roomEvents.forEach((e) => {
+    if (e.status === "CANCELLED") return;
+    if (holidayCatId && e.event_category_id === holidayCatId) return;
+    const eStart = e.event_date;
+    const eEnd = e.end_date || eStart;
+    if (date < eStart || date > eEnd) return; // not on this date
+    // All-day event always conflicts
+    if (!e.start_time) { conflictNames.push(`🗓️ ${e.event_name}`); return; }
+    // Time overlap check
+    const eS = e.start_time.slice(0, 5);
+    const eE = (e.end_time || "23:59").slice(0, 5);
+    if (end === "ALLDAY" || (start < eE && end > eS)) {
+      conflictNames.push(`🗓️ ${e.event_name} (${eS}–${eE})`);
+    }
+  });
+
+  // Check approved bookings on the same date & room
+  roomBookings.forEach((b) => {
+    if (b.status !== "APPROVED") return;
+    if (b.booking_date !== date) return;
+    // match by room_id if available, fallback to place_id
+    if (selectedRoomId && b.room_id) {
+      if (String(b.room_id) !== String(selectedRoomId)) return;
+    } else {
+      if (String(b.place_id) !== String(selectedPlaceId)) return;
+    }
+    // All-day booking always conflicts
+    if (b.end_time === "ALLDAY") { conflictNames.push(`🔖 ${b.booked_by_name || "จองห้อง"} (ตลอดทั้งวัน)`); return; }
+    const bS = (b.start_time || "").slice(0, 5);
+    const bE = (b.end_time || "23:59").slice(0, 5);
+    if (end === "ALLDAY" || (start < bE && end > bS)) {
+      conflictNames.push(`🔖 ${b.booked_by_name || "จองห้อง"} (${bS}–${bE})`);
+    }
+  });
+
+  // Check holiday events on the same date
+  holidayEvents.forEach((e) => {
+    const eStart = e.event_date;
+    const eEnd = e.end_date || eStart;
+    if (date >= eStart && date <= eEnd) {
+      conflictNames.push(`🏖️ ${e.event_name} (วันหยุดบริษัท)`);
+    }
+  });
+
+  if (conflictNames.length > 0) {
+    showConflictModal(conflictNames);
+    return;
+  }
+
   const bookerUser = users.find((u) => u.full_name === bookerName);
   const csUser     = csName ? users.find((u) => u.full_name === csName) : null;
   const resolvedBookerId = bookerUser ? bookerUser.user_id : null;
   const resolvedCsId     = csUser     ? csUser.user_id     : null;
 
-  const room = rooms.find((r) => String(r.place_id) === String(selectedRoomId));
   const btn = document.getElementById("btnConfirmBook");
   btn.disabled = true;
   btn.textContent = "กำลังบันทึก...";
@@ -484,8 +723,10 @@ async function confirmBooking() {
     const code = await autoGenerateBookingCode();
     const payload = {
       request_code: code,
-      place_id: selectedRoomId ? Number(selectedRoomId) : null,
-      place_name: room ? room.place_name : selectedPlaceName || "",
+      place_id: selectedPlaceId ? Number(selectedPlaceId) : null,
+      place_name: selectedPlaceName || "",
+      room_id: selectedRoomId ? Number(selectedRoomId) : null,
+      room_name: selectedRoomName || null,
       booked_by: resolvedBookerId,
       cs_id: resolvedCsId,
       booked_by_name: bookerName || null,
@@ -510,7 +751,7 @@ async function confirmBooking() {
 async function loadRoomBookings() {
   roomBookings = (await sbFetch(
     "room_booking_requests",
-    "?select=request_id,request_code,place_name,booked_by,cs_id,booked_by_name,cs_name,booking_date,start_time,end_time,status,created_at&order=created_at.desc"
+    "?select=request_id,request_code,place_id,place_name,room_id,room_name,booked_by,cs_id,booked_by_name,cs_name,booking_date,start_time,end_time,status,created_at&order=created_at.desc"
   )) || [];
   populateNameDatalist();
 }
@@ -597,9 +838,25 @@ function renderMiniCalendar() {
       cur.setDate(cur.getDate() + 1);
     }
   });
+  // Holiday dates
+  const holidayDates = new Set();
+  holidayEvents.forEach((e) => {
+    const start = e.event_date;
+    const end = e.end_date || start;
+    let cur = new Date(start + "T00:00:00");
+    const endD = new Date(end + "T00:00:00");
+    while (cur <= endD) {
+      holidayDates.add(`${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, "0")}-${String(cur.getDate()).padStart(2, "0")}`);
+      cur.setDate(cur.getDate() + 1);
+    }
+  });
   const bookingDates = new Set(
     roomBookings
-      .filter((b) => b.status === "APPROVED" && b.place_name === selectedPlaceName)
+      .filter((b) => {
+        if (b.status !== "APPROVED") return false;
+        if (selectedRoomId && b.room_id) return String(b.room_id) === String(selectedRoomId);
+        return String(b.place_id) === String(selectedPlaceId);
+      })
       .map((b) => b.booking_date)
   );
 
@@ -618,6 +875,7 @@ function renderMiniCalendar() {
     const isToday = d === today.getDate() && calViewMonth === today.getMonth() && calViewYear === today.getFullYear();
     const hasEvent   = eventDates.has(dateStr);
     const hasBooking = bookingDates.has(dateStr);
+    const isHoliday  = holidayDates.has(dateStr);
     const dow = (firstDay + d - 1) % 7;
 
     const isPast = dateStr < todayStr(0);
@@ -627,6 +885,8 @@ function renderMiniCalendar() {
       cls += "text-slate-300 line-through cursor-default ";
     } else if (isToday) {
       cls += "bg-rose-500 text-white font-bold cursor-pointer ";
+    } else if (isHoliday) {
+      cls += "bg-red-100 text-red-600 font-bold cursor-pointer ring-2 ring-red-300 ";
     } else if (hasEvent && hasBooking) {
       cls += "bg-sky-100 text-sky-600 font-bold ring-2 ring-violet-400 cursor-pointer ";
     } else if (hasBooking) {
@@ -670,8 +930,11 @@ function renderRequestList() {
   const today = todayStr(0);
   // Only upcoming bookings (today onwards), filtered by selected room
   let upcoming = roomBookings.filter((r) => r.booking_date >= today);
-  if (selectedPlaceName) {
-    upcoming = upcoming.filter((r) => r.place_name === selectedPlaceName);
+  if (selectedPlaceId) {
+    upcoming = upcoming.filter((r) => {
+      if (selectedRoomId && r.room_id) return String(r.room_id) === String(selectedRoomId);
+      return String(r.place_id) === String(selectedPlaceId);
+    });
   }
   // Status filter
   const filtered = _requestFilter === "ALL"
@@ -809,7 +1072,7 @@ function openRequestDetail(req) {
   document.getElementById("detailInfoPanel").innerHTML = `
     <div class="flex items-start justify-between gap-2 mb-4">
       <div>
-        <p class="text-base font-black text-slate-900 leading-tight">${req.place_name || "—"}</p>
+        <p class="text-base font-black text-slate-900 leading-tight">${req.place_name || "—"}${req.room_name ? ` — ${req.room_name}` : ""}</p>
         <p class="text-xs text-indigo-400 font-mono mt-0.5">${req.request_code || "—"}</p>
       </div>
       <span class="text-xs font-bold px-3 py-1 rounded-full flex-shrink-0 ${s.cls}">${s.label}</span>
@@ -952,16 +1215,59 @@ async function loadData() {
   const list = document.getElementById("roomList");
   list.innerHTML = `<p class="text-xs text-slate-400 text-center mt-6 italic">กำลังโหลด...</p>`;
 
-  [rooms, users] = await Promise.all([
-    sbFetch("places", "?select=*&place_type=eq.MEETING_ROOM&status=eq.ACTIVE&order=place_name.asc"),
+  // ดึง places ที่มีห้องประชุม + users
+  let allPlaces;
+  [allPlaces, users] = await Promise.all([
+    sbFetch("places", "?select=*&status=eq.ACTIVE&order=place_name.asc"),
     sbFetch("users", "?select=user_id,full_name&is_active=eq.true&order=full_name.asc"),
   ]);
-  rooms = rooms || [];
+  allPlaces = allPlaces || [];
   users = users || [];
 
-  if (rooms.length && !selectedRoomId) {
-    selectedRoomId = String(rooms[0].place_id);
-    selectedPlaceName = rooms[0].place_name;
+  // ดึง place_rooms ของทุก place
+  const allRooms = (await sbFetch("place_rooms", "?select=*&order=room_name.asc")) || [];
+  placeRoomsMap = {};
+  allRooms.forEach((r) => {
+    if (!placeRoomsMap[r.place_id]) placeRoomsMap[r.place_id] = [];
+    placeRoomsMap[r.place_id].push(r);
+  });
+
+  // เฉพาะ places ที่มี place_rooms หรือเป็น MEETING_ROOM
+  places = allPlaces.filter((p) =>
+    placeRoomsMap[p.place_id]?.length > 0 || p.place_type === "MEETING_ROOM"
+  );
+
+  // สร้าง flat rooms list สำหรับ backward compat
+  rooms = [];
+  places.forEach((p) => {
+    const pRooms = placeRoomsMap[p.place_id] || [];
+    if (pRooms.length > 0) {
+      pRooms.forEach((r) => {
+        rooms.push({ ...r, _place: p, place_name: p.place_name });
+      });
+    } else {
+      // place เดี่ยวที่ไม่มี sub-rooms (backward compat)
+      rooms.push({ room_id: null, room_name: p.place_name, place_id: p.place_id, capacity: p.capacity, _place: p, place_name: p.place_name });
+    }
+  });
+
+  // Load holiday category + events
+  await loadHolidayCatId();
+  await loadHolidayEvents();
+
+  // Auto-select first room
+  if (places.length && !selectedPlaceId) {
+    const firstPlace = places[0];
+    selectedPlaceId = String(firstPlace.place_id);
+    selectedPlaceName = firstPlace.place_name;
+    const firstRooms = placeRoomsMap[firstPlace.place_id] || [];
+    if (firstRooms.length > 0) {
+      selectedRoomId = String(firstRooms[0].room_id);
+      selectedRoomName = firstRooms[0].room_name;
+    } else {
+      selectedRoomId = null;
+      selectedRoomName = firstPlace.place_name;
+    }
     await loadRoomEvents();
   }
 

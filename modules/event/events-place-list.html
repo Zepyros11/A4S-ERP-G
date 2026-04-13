@@ -11,6 +11,7 @@
     <link rel="stylesheet" href="../../css/main.css" />
     <link rel="stylesheet" href="./events.css" />
     <link rel="stylesheet" href="./events-place-list.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   </head>
   <body>
     <div class="loading-overlay" id="loadingOverlay">
@@ -84,6 +85,13 @@
               </select>
               <div class="toolbar-right">
                 <button
+                  class="btn btn-outline"
+                  id="btnToggleMap"
+                  onclick="window.togglePlaceMap()"
+                >
+                  แผนที่
+                </button>
+                <button
                   class="btn btn-primary"
                   data-perm="evt_place_create"
                   onclick="window.location.href = './events-place-form.html'"
@@ -91,6 +99,11 @@
                   ＋ เพิ่มสถานที่
                 </button>
               </div>
+            </div>
+
+            <!-- MAP VIEW -->
+            <div id="placeMapContainer" class="place-map-container" style="display:none">
+              <div id="placeListMap" class="place-list-map"></div>
             </div>
 
             <!-- ③ TABLE -->
@@ -148,6 +161,7 @@
         <!-- end .page -->
 
         <!-- SCRIPTS -->
+        <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
         <script src="../../js/core/auth.js"></script>
         <script src="../../js/core/authz.js"></script>
         <script>AuthZ.requirePerm("evt_place_view");</script>
@@ -163,176 +177,6 @@
       </div>
     </div>
 
-    <!-- OVERLAY -->
-    <div
-      id="plPanelOverlay"
-      style="
-        display: none;
-        position: fixed;
-        inset: 0;
-        background: rgba(0, 0, 0, 0.4);
-        z-index: 299;
-        backdrop-filter: blur(2px);
-      "
-      onclick="window.closePlacePanel()"
-    ></div>
-
-    <!-- SIDE PANEL -->
-    <div id="plSidePanel" class="ev-side-panel">
-      <div class="ev-panel-header">
-        <div class="ev-panel-title">📍 รายละเอียดสถานที่</div>
-        <button class="btn-icon" onclick="window.closePlacePanel()">✕</button>
-      </div>
-
-      <div class="ev-panel-body">
-        <!-- Cover Image -->
-        <div class="ev-panel-poster" id="panelCover">
-          <span style="font-size: 48px; opacity: 0.3">📍</span>
-        </div>
-
-        <!-- ── EDIT FORM ── -->
-        <div class="panel-field">
-          <label class="panel-label"
-            >ชื่อสถานที่ <span style="color: var(--danger)">*</span></label
-          >
-          <input class="panel-input" id="peqName" placeholder="ชื่อสถานที่" />
-        </div>
-
-        <div class="panel-row-2">
-          <div class="panel-field">
-            <label class="panel-label">ประเภท</label>
-            <select class="panel-input" id="peqType">
-              <option value="HOTEL">🏨 โรงแรม</option>
-              <option value="MEETING_ROOM">🏢 ห้องประชุม</option>
-              <option value="RESTAURANT">🍽 ร้านอาหาร</option>
-              <option value="EVENT_SPACE">🎤 Event Space</option>
-            </select>
-          </div>
-          <div class="panel-field">
-            <label class="panel-label">สถานะ</label>
-            <select class="panel-input" id="peqStatus">
-              <option value="ACTIVE">✅ ACTIVE</option>
-              <option value="INACTIVE">🚫 INACTIVE</option>
-            </select>
-          </div>
-        </div>
-
-        <div class="panel-field">
-          <label class="panel-label">ที่อยู่</label>
-          <textarea
-            class="panel-input panel-textarea"
-            id="peqAddress"
-            placeholder="ที่อยู่..."
-          ></textarea>
-        </div>
-
-        <div class="panel-row-2">
-          <div class="panel-field">
-            <label class="panel-label">ชื่อผู้ติดต่อ</label>
-            <input class="panel-input" id="peqContact" placeholder="ชื่อ" />
-          </div>
-          <div class="panel-field">
-            <label class="panel-label">เบอร์โทร</label>
-            <input
-              class="panel-input"
-              id="peqPhone"
-              placeholder="08x-xxx-xxxx"
-            />
-          </div>
-        </div>
-
-        <div class="panel-field">
-          <label class="panel-label">Email</label>
-          <input
-            class="panel-input"
-            id="peqEmail"
-            type="email"
-            placeholder="email@..."
-          />
-        </div>
-
-        <div class="panel-row-2">
-          <div class="panel-field">
-            <label class="panel-label">Capacity (คน)</label>
-            <input
-              class="panel-input"
-              id="peqCapacity"
-              type="number"
-              min="0"
-              placeholder="0"
-            />
-          </div>
-          <div class="panel-field">
-            <label class="panel-label">Meeting Rooms</label>
-            <input
-              class="panel-input"
-              id="peqMeetingRooms"
-              type="number"
-              min="0"
-              placeholder="0"
-            />
-          </div>
-        </div>
-
-        <div class="panel-row-2">
-          <div class="panel-field">
-            <label class="panel-label">ห้องพัก</label>
-            <input
-              class="panel-input"
-              id="peqRooms"
-              type="number"
-              min="0"
-              placeholder="0"
-            />
-          </div>
-          <div class="panel-field">
-            <label class="panel-label">ที่จอดรถ</label>
-            <select class="panel-input" id="peqParking">
-              <option value="">— เลือก —</option>
-              <option value="true">✅ มี</option>
-              <option value="false">❌ ไม่มี</option>
-            </select>
-          </div>
-        </div>
-
-        <div class="panel-field">
-          <label class="panel-label">Google Map URL</label>
-          <input
-            class="panel-input"
-            id="peqMap"
-            placeholder="https://maps.google.com/..."
-          />
-        </div>
-
-        <div class="panel-field">
-          <label class="panel-label">รายละเอียด</label>
-          <textarea
-            class="panel-input panel-textarea"
-            id="peqDesc"
-            placeholder="รายละเอียด..."
-          ></textarea>
-        </div>
-      </div>
-
-      <div class="ev-panel-footer">
-        <button
-          class="btn btn-outline"
-          onclick="
-            window.location.href =
-              './events-place-form.html?id=' + window._panelPlaceId
-          "
-        >
-          🔗 แก้ไขเต็ม
-        </button>
-        <button
-          class="btn btn-primary"
-          id="panelBtnSave"
-          onclick="window.savePanelPlace()"
-        >
-          💾 บันทึก
-        </button>
-      </div>
-    </div>
 
     <!-- DELETE SELECTED -->
     <script>

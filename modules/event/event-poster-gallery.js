@@ -60,6 +60,14 @@ function renderCategoryChips() {
 }
 
 // ── FILTER ─────────────────────────────────────────────────
+window.setGrid = function (cols) {
+  gridCols = cols;
+  document.querySelectorAll(".epg-toggle-btn").forEach((b) => b.classList.remove("active"));
+  const activeBtn = document.getElementById("btnGrid" + cols);
+  if (activeBtn) activeBtn.classList.add("active");
+  renderGallery();
+};
+
 window.setTypeFilter = function (btn, catId) {
   document.querySelectorAll(".epg-chip").forEach((b) => b.classList.remove("active"));
   btn.classList.add("active");
@@ -144,6 +152,9 @@ function renderGallery() {
         </div>`;
     })
     .join("");
+
+  // Trigger scroll reveal animation
+  requestAnimationFrame(() => initScrollReveal());
 }
 
 // ── BUILD CARD ─────────────────────────────────────────────
@@ -176,34 +187,55 @@ function buildCard(e) {
   const posterInner = mainImg
     ? `<img src="${mainImg}" alt="${e.event_name}"
          loading="lazy"
-         onclick="event.stopPropagation(); ImgPopup.open(${urlsJson}, 0)"
          onerror="this.parentElement.classList.add('epg-card-noposter'); this.remove();">`
     : `<div class="epg-noposter-inner">
          <span class="epg-noposter-icon">🗓️</span>
          <span class="epg-noposter-text">No Poster Available</span>
        </div>`;
 
+  // Overlay chip colors: light translucent on dark background
+  const chipBg = `${catColor}44`;
+  const chipText = `#fff`;
+  const chipBorder = `${catColor}66`;
+
   return `
-    <div class="epg-card" onclick="window.location.href='./event-form.html?id=${e.event_id}'">
-      <div class="epg-card-img ${!e.poster_url ? "epg-card-noposter" : ""}">
+    <div class="epg-card">
+      <div class="epg-card-img ${!mainImg ? "epg-card-noposter" : ""}"
+           ${mainImg ? `onclick="event.stopPropagation(); ImgPopup.open(${urlsJson}, 0)"` : ""}>
         <div class="epg-top-badges">
           <div class="epg-date-badge">
             <span class="epg-date-day">${day}</span>
             <span class="epg-date-mon">${monthShort}</span>
           </div>
-          ${imgCountBadge}
         </div>
+        ${imgCountBadge}
         ${posterInner}
-      </div>
-      <div class="epg-card-body">
-        <span class="epg-type-chip" style="background:${catColor}22;color:${catColor};border-color:${catColor}55">${catLabel}</span>
-        <div class="epg-card-name">${e.event_name || "—"}</div>
-        <div class="epg-card-meta">
-          ${location ? `<span>📍 ${location}</span>` : ""}
-          ${timeTxt ? `<span>🕐 ${timeTxt}</span>` : ""}
+        <div class="epg-card-body" onclick="event.stopPropagation(); window.location.href='./event-form.html?id=${e.event_id}'">
+          <span class="epg-type-chip" style="background:${chipBg};color:${chipText};border-color:${chipBorder}">${catLabel}</span>
+          <div class="epg-card-name">${e.event_name || "—"}</div>
+          <div class="epg-card-meta">
+            ${location ? `<span>📍 ${location}</span>` : ""}
+            ${timeTxt ? `<span>🕐 ${timeTxt}</span>` : ""}
+          </div>
         </div>
       </div>
     </div>`;
+}
+
+// ── SCROLL REVEAL ─────────────────────────────────────────
+function initScrollReveal() {
+  const observer = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add("epg-visible");
+          observer.unobserve(entry.target);
+        }
+      });
+    },
+    { threshold: 0.08, rootMargin: "0px 0px -40px 0px" }
+  );
+  document.querySelectorAll(".epg-card").forEach((card) => observer.observe(card));
 }
 
 // ── HELPERS ────────────────────────────────────────────────
