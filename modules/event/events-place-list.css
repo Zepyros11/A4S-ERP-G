@@ -104,6 +104,35 @@
   background: #f1f5f9;
   color: #475569;
 }
+
+/* Toggle variant — same look as badge but interactive */
+.place-status-toggle {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 12px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  border: none;
+  cursor: pointer;
+  transition: transform 0.12s ease, box-shadow 0.12s ease, filter 0.12s ease;
+  font-family: inherit;
+}
+.place-status-toggle:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.12);
+  filter: brightness(0.97);
+}
+.place-status-toggle:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: none;
+}
+.place-status-toggle:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
 /* ── PANEL INLINE EDIT FIELDS ── */
 .panel-field {
   margin-bottom: 10px;

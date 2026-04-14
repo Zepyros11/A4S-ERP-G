@@ -317,6 +317,9 @@ let roomRows = [];
 let accomRows = []; // accommodation room types
 let gallery = { exterior: [], food: [] };
 let docFiles = []; // [{url, name, file}]
+let bankImages = []; // [{url}|{file}] — bank account / QR images
+let bankGrid = null;
+const BANK_IMG_MAX = 5;
 
 // ── INIT ──────────────────────────────────
 async function initPage() {
@@ -386,6 +389,14 @@ async function loadPlaceData() {
       cb.checked = amenities.includes(cb.value);
     });
 
+    // bank account fields
+    document.getElementById("fBankName").value = p.bank_name || "";
+    document.getElementById("fBankAccountName").value = p.bank_account_name || "";
+    document.getElementById("fBankAccountNo").value = p.bank_account_no || "";
+    document.getElementById("fBankBranch").value = p.bank_branch || "";
+    document.getElementById("fBankNote").value = p.bank_note || "";
+    bankImages = (p.bank_image_urls || []).map((u) => ({ url: u }));
+
     // load accommodation room types
     const accom = await fetchPlaceRoomTypes(editId);
     accomRows = (accom || []).map((r) => ({
@@ -435,6 +446,7 @@ async function loadPlaceData() {
 // ── GALLERY RENDER ────────────────────────
 function renderAllGalleries() {
   ["exterior", "food"].forEach(renderGallery);
+  renderBankGrid();
   updateTabCounts();
 }
 
@@ -469,6 +481,33 @@ function renderGallery(cat) {
     onRemove: (idx) => {
       gallery[cat].splice(idx, 1);
       updateTabCounts();
+    },
+  });
+}
+
+// ── BANK ACCOUNT ImageGrid ─────────────────────────
+function renderBankGrid() {
+  const container = document.getElementById("grid-bank");
+  if (!container) return;
+  if (bankGrid) {
+    bankGrid.setImages(bankImages);
+    return;
+  }
+  bankGrid = new ImageGrid({
+    container,
+    maxImages: BANK_IMG_MAX,
+    columns: 5,
+    aspectRatio: "4/3",
+    images: bankImages,
+    onAdd: async (files) => {
+      for (const f of files) {
+        const compressed = await compressImage(f);
+        bankImages.push({ file: compressed });
+      }
+      bankGrid.setImages(bankImages);
+    },
+    onRemove: (idx) => {
+      bankImages.splice(idx, 1);
     },
   });
 }
@@ -550,7 +589,7 @@ window.savePlace = async function () {
   if (!validate()) return;
   showLoading(true);
   try {
-    // amenities (from both equipment + facilities)
+    // amenities (from both equipment + facilities) — excludes parking
     const amenities = [];
     document.querySelectorAll(".facility-toggles input[type=checkbox]:checked").forEach((cb) => {
       if (cb.id === "fParking") return; // parking handled separately
@@ -575,6 +614,11 @@ window.savePlace = async function () {
       has_parking: document.getElementById("fParking").checked,
       status: document.getElementById("fStatus").checked ? "ACTIVE" : "INACTIVE",
       amenities: amenities.length > 0 ? amenities : null,
+      bank_name: document.getElementById("fBankName").value.trim() || null,
+      bank_account_name: document.getElementById("fBankAccountName").value.trim() || null,
+      bank_account_no: document.getElementById("fBankAccountNo").value.trim() || null,
+      bank_branch: document.getElementById("fBankBranch").value.trim() || null,
+      bank_note: document.getElementById("fBankNote").value.trim() || null,
       terms_notes: document.getElementById("fTerms").value.trim() || null,
     };
 
@@ -627,10 +671,23 @@ window.savePlace = async function () {
         }
       }
 
+      // Upload bank account images
+      const bankUrls = [];
+      for (let i = 0; i < bankImages.length; i++) {
+        const b = bankImages[i];
+        if (b.file) {
+          const uploaded = await uploadPlaceImage(placeId, b.file, `bank_${i}`);
+          bankUrls.push(uploaded);
+        } else if (b.url) {
+          bankUrls.push(b.url);
+        }
+      }
+
       await patchPlace(placeId, {
         image_urls: imageData,
         cover_image_url: coverUrl,
         document_urls: docUrls.length > 0 ? docUrls : null,
+        bank_image_urls: bankUrls.length > 0 ? bankUrls : null,
       });
     }
 
@@ -1436,6 +1493,58 @@ function autoFillRegion(province) {
   }
 }
 
+// ── BANK AUTOCOMPLETE ─────────────────────
+const THAI_BANKS = [
+  "ธนาคารกสิกรไทย (KBANK)",
+  "ธนาคารไทยพาณิชย์ (SCB)",
+  "ธนาคารกรุงเทพ (BBL)",
+  "ธนาคารกรุงไทย (KTB)",
+  "ธนาคารกรุงศรีอยุธยา (BAY)",
+  "ธนาคารทหารไทยธนชาต (TTB)",
+  "ธนาคารออมสิน (GSB)",
+  "ธนาคารยูโอบี (UOB)",
+  "ธนาคารอาคารสงเคราะห์ (GHB)",
+  "ธนาคารเพื่อการเกษตรและสหกรณ์การเกษตร (BAAC)",
+  "ธนาคารซีไอเอ็มบีไทย (CIMB)",
+  "ธนาคารแลนด์ แอนด์ เฮ้าส์ (LH Bank)",
+  "ธนาคารเกียรตินาคินภัทร (KKP)",
+  "ธนาคารทิสโก้ (TISCO)",
+  "ธนาคารไอซีบีซี (ไทย) (ICBC)",
+  "ธนาคารซิตี้แบงก์ (Citibank)",
+  "ธนาคารเอชเอสบีซี (HSBC)",
+  "ธนาคารสแตนดาร์ดชาร์เตอร์ด (SCBT)",
+  "ธนาคารอิสลามแห่งประเทศไทย (IBANK)",
+];
+
+function initBankAutocomplete() {
+  const input = document.getElementById("fBankName");
+  const dd = document.getElementById("bankDd");
+  if (!input || !dd) return;
+
+  function render(q) {
+    const ql = (q || "").trim().toLowerCase();
+    const matches = ql
+      ? THAI_BANKS.filter((b) => b.toLowerCase().includes(ql)).slice(0, 8)
+      : THAI_BANKS.slice(0, 8);
+    if (!matches.length) { dd.innerHTML = ""; dd.style.display = "none"; return; }
+    dd.style.display = "block";
+    dd.innerHTML = matches.map((b) => `<div class="province-opt">${b}</div>`).join("");
+    dd.querySelectorAll(".province-opt").forEach((opt) => {
+      opt.addEventListener("mousedown", (e) => {
+        e.preventDefault();
+        input.value = opt.textContent;
+        dd.style.display = "none";
+      });
+    });
+  }
+
+  input.addEventListener("input", () => render(input.value));
+  input.addEventListener("focus", () => render(input.value));
+  input.addEventListener("blur", () => {
+    setTimeout(() => { dd.style.display = "none"; }, 150);
+  });
+}
+
 function initProvinceAutocomplete() {
   const input = document.getElementById("fProvince");
   const dd = document.getElementById("provinceDd");
@@ -1512,6 +1621,7 @@ window.addEventListener("load", () => {
   }
 
   initProvinceAutocomplete();
+  initBankAutocomplete();
   loadPlaceTypes().then(() => {
     setTimeout(() => {
       initPage();

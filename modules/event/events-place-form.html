@@ -265,6 +265,44 @@
               </div>
             </div>
 
+            <!-- SECTION: ช่องทางการชำระเงิน (โอนเข้าบัญชี) -->
+            <div class="ef-section">
+              <div class="ef-section-title">🏦 ช่องทางการชำระเงิน (โอนเข้าบัญชี)</div>
+
+              <div class="ef-row-2">
+                <div class="ef-field" style="position:relative">
+                  <label class="ef-label">ธนาคาร</label>
+                  <input class="ef-input" id="fBankName" placeholder="พิมพ์ค้นหาธนาคาร..." autocomplete="off" />
+                  <div class="province-dropdown" id="bankDd"></div>
+                </div>
+                <div class="ef-field">
+                  <label class="ef-label">ชื่อบัญชี</label>
+                  <input class="ef-input" id="fBankAccountName" placeholder="ชื่อ-นามสกุล หรือ ชื่อบริษัท" />
+                </div>
+              </div>
+
+              <div class="ef-row-2">
+                <div class="ef-field">
+                  <label class="ef-label">เลขที่บัญชี</label>
+                  <input class="ef-input" id="fBankAccountNo" placeholder="เช่น 123-4-56789-0" inputmode="numeric" />
+                </div>
+                <div class="ef-field">
+                  <label class="ef-label">สาขา (ถ้ามี)</label>
+                  <input class="ef-input" id="fBankBranch" placeholder="เช่น สาขาเซ็นทรัลลาดพร้าว" />
+                </div>
+              </div>
+
+              <div class="ef-field">
+                <label class="ef-label">หมายเหตุ / รายละเอียดเพิ่มเติม</label>
+                <textarea class="ef-input ef-textarea" id="fBankNote" placeholder="เช่น เลขพร้อมเพย์, รายละเอียดเพิ่มเติม..." style="height:70px"></textarea>
+              </div>
+
+              <div class="ef-field" style="margin-top:8px">
+                <label class="ef-label">รูปบัญชี / QR (อัปโหลดได้สูงสุด 5 รูป)</label>
+                <div class="img-grid" id="grid-bank"></div>
+              </div>
+            </div>
+
             <!-- SECTION: เงื่อนไข -->
             <div class="ef-section">
               <div class="ef-section-title">📝 เงื่อนไข / หมายเหตุ</div>

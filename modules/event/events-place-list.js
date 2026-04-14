@@ -155,8 +155,13 @@ function renderTable(places) {
       </td>
       <td class="col-center">${p.capacity ? `${p.capacity.toLocaleString()} คน` : "—"}</td>
       <td class="col-center">${p.has_parking ? "✅" : "—"}</td>
-      <td class="col-center">
-        <span class="place-status-badge pstatus-${p.status}">${p.status}</span>
+      <td class="col-center" onclick="event.stopPropagation()">
+        <button type="button"
+          class="place-status-toggle pstatus-${p.status}"
+          title="คลิกเพื่อสลับสถานะ"
+          onclick="window.togglePlaceStatus(${p.place_id}, this)">
+          ${p.status}
+        </button>
       </td>
       <td class="col-center" onclick="event.stopPropagation()">
         <div class="action-group">
@@ -240,6 +245,32 @@ window.openPlacePanel = function (placeId) {
   document.getElementById("plSidePanel").classList.add("open");
   document.getElementById("plPanelOverlay").style.display = "block";
 };
+// ── TOGGLE STATUS ──────────────────────────────────────────
+window.togglePlaceStatus = async function (placeId, btn) {
+  const p = allPlaces.find((pl) => pl.place_id === placeId);
+  if (!p) return;
+  const newStatus = p.status === "ACTIVE" ? "INACTIVE" : "ACTIVE";
+  btn.disabled = true;
+  // Optimistic UI update
+  btn.classList.remove("pstatus-ACTIVE", "pstatus-INACTIVE");
+  btn.classList.add(`pstatus-${newStatus}`);
+  btn.textContent = newStatus;
+  try {
+    await updatePlace(placeId, { status: newStatus });
+    p.status = newStatus; // sync local state
+    // Refresh stat cards that depend on ACTIVE count
+    updateStatCards();
+  } catch (err) {
+    // Revert on failure
+    btn.classList.remove("pstatus-ACTIVE", "pstatus-INACTIVE");
+    btn.classList.add(`pstatus-${p.status}`);
+    btn.textContent = p.status;
+    showToast("เปลี่ยนสถานะไม่สำเร็จ: " + err.message, "error");
+  } finally {
+    btn.disabled = false;
+  }
+};
+
 // ── DELETE ─────────────────────────────────────────────────
 window.deletePlace = function (placeId) {
   const p = allPlaces.find((pl) => pl.place_id === placeId);
