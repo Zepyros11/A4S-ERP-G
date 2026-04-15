@@ -168,6 +168,12 @@
           path: BASE_PATH + "/modules/customer/members-list.html",
         },
         {
+          id: "members-tree",
+          icon: "🌳",
+          label: "MLM Tree View",
+          path: BASE_PATH + "/modules/customer/members-tree.html",
+        },
+        {
           id: "members-import",
           icon: "📥",
           label: "นำเข้า Excel",
@@ -272,6 +278,7 @@
     suppliers: "supplier_view",
     customers: "customer_view",
     members: "member_view",
+    "members-tree": "member_view",
     "members-import": "member_import",
     "members-sync": "member_sync_config",
   };
@@ -332,6 +339,7 @@
     "roles",
     "customers",
     "members",
+    "members-tree",
     "members-import",
     "members-sync",
     // "reports",
