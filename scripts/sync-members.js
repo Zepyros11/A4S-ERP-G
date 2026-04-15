@@ -28,21 +28,28 @@ const LOCAL = process.env.LOCAL_TEST === '1';
 const TEST_LINE = process.env.TEST_LINE === 'true' || process.env.TEST_LINE === '1';
 
 /* ── Date ranges — auto-split into 5-year buckets ──
-   Examples:
-     2026: [2015-2020, 2021-2025, 2026-now]
-     2030: [2015-2020, 2021-2025, 2026-2030] (2030 = current → label "2026-now")
-     2080: [2015-2020, 2021-2025, 2026-2030, ..., 2076-now]   (13 buckets)
+   Default: skip legacy 2015-2020 bucket (data static, already imported).
+   Set env INCLUDE_LEGACY=1 to re-import legacy (e.g. on first setup).
+
+   Examples (default, no legacy):
+     2026: [2021-2025, 2026-now]
+     2030: [2021-2025, 2026-now]
+     2031: [2021-2025, 2026-2030, 2031-now]
 */
+const INCLUDE_LEGACY = process.env.INCLUDE_LEGACY === '1';
+
 function buildDateRanges() {
   const today = new Date();
   const todayIso = today.toISOString().slice(0, 10);
   const currentYear = today.getFullYear();
   const ranges = [];
 
-  // Legacy bucket: 2015-2020 (6 ปี — inception cycle)
-  ranges.push({ label: '2015-2020', from: '2015-01-01', to: '2020-12-31' });
+  // Legacy bucket: 2015-2020 — opt-in only (large file, slow server-side)
+  if (INCLUDE_LEGACY) {
+    ranges.push({ label: '2015-2020', from: '2015-01-01', to: '2020-12-31' });
+  }
 
-  // Then 5-year buckets from 2021 onwards
+  // 5-year buckets from 2021 onwards
   let start = 2021;
   while (start <= currentYear) {
     const end = Math.min(start + 4, currentYear);
@@ -258,12 +265,12 @@ async function main() {
         : './downloads';
       mkdirSync(downloadDir, { recursive: true });
 
-      const downloadPromise = page.waitForEvent('download', { timeout: 900000 });   // 15 min
+      const downloadPromise = page.waitForEvent('download', { timeout: 1800000 });   // 30 min
       await page.waitForTimeout(1000);     // give dialog a moment (Python does this)
       await page.evaluate((sel) => {
         document.querySelector(sel)?.click();
       }, confirmSel);
-      console.log(`   ⏳ Generating .xls file (may take 1-5 min for large year)...`);
+      console.log(`   ⏳ Generating .xls file (may take 1-15 min for large year)...`);
 
       const download = await downloadPromise;
       const filename = `members-${range.label}-${Date.now()}.xls`;
