@@ -1,0 +1,58 @@
+name: Sync Members
+
+on:
+  # Cron: ทุก 1 ชั่วโมง (script เช็คเอาว่าถึงเวลา sync จริงหรือยังจาก sync_config.next_sync_at)
+  schedule:
+    - cron: '0 * * * *'
+  # Manual trigger (ERP UI หรือ GitHub UI)
+  workflow_dispatch:
+    inputs:
+      force:
+        description: 'Force sync even if not due'
+        type: boolean
+        default: false
+
+concurrency:
+  group: sync-members
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: scripts
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+      - name: 🟢 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: scripts/package-lock.json
+
+      - name: 📦 Install dependencies
+        run: npm ci
+
+      - name: 🎭 Install Playwright browser
+        run: npx playwright install --with-deps chromium
+
+      - name: 🚀 Run sync
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          MASTER_KEY: ${{ secrets.MASTER_KEY }}
+          FORCE: ${{ inputs.force }}
+        run: npm run sync
+
+      - name: 📸 Upload debug screenshots (on failure)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: debug-screenshots
+          path: scripts/debug-*.png
+          retention-days: 7
+          if-no-files-found: ignore

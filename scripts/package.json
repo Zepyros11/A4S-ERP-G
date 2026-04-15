@@ -1,0 +1,19 @@
+{
+  "name": "a4s-erp-sync",
+  "version": "0.1.0",
+  "description": "Auto-sync members from answerforsuccess.com → Supabase (runs on GitHub Actions)",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "sync": "node sync-members.js",
+    "sync:dry": "DRY_RUN=1 node sync-members.js",
+    "sync:local": "LOCAL_TEST=1 node sync-members.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "playwright": "^1.47.0",
+    "xlsx": "^0.18.5"
+  }
+}

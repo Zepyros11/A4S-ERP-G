@@ -1,0 +1,8 @@
+node_modules/
+*.log
+.env
+.env.local
+downloads/
+*.xls
+*.xlsx
+!sample.xlsx
