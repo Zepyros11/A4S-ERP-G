@@ -144,20 +144,40 @@ async function renderTree() {
   }
 }
 
-/* ── Render upline chain (one row per ancestor) ── */
+/* ── Render upline chain (one row per ancestor) — uses RPC for speed ── */
 async function renderUplineChain(field) {
   const wrap = document.getElementById('treeWrap');
-  const chain = [currentMember];
-  let curr = currentMember;
-  let depth = 0;
-  while (curr[field] && depth < 30) {
-    try {
-      const rows = await sb(`members?select=*&member_code=eq.${encodeURIComponent(curr[field])}&limit=1`);
-      if (!rows.length) break;
-      chain.push(rows[0]);
-      curr = rows[0];
-      depth++;
-    } catch { break; }
+  let chain = [];
+  try {
+    // Single RPC call returns full chain via recursive CTE
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/get_chain_up`, {
+      method: 'POST',
+      headers: {
+        apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ start_code: currentMember.member_code, field_name: field }),
+    });
+    if (res.ok) {
+      chain = await res.json();
+    } else {
+      throw new Error('RPC not available');
+    }
+  } catch (e) {
+    // Fallback: sequential fetch (slower but works without SQL 007)
+    console.warn('RPC fallback:', e.message);
+    chain = [currentMember];
+    let curr = currentMember;
+    let depth = 0;
+    while (curr[field] && depth < 30) {
+      try {
+        const rows = await sb(`members?select=*&member_code=eq.${encodeURIComponent(curr[field])}&limit=1`);
+        if (!rows.length) break;
+        chain.push(rows[0]);
+        curr = rows[0];
+        depth++;
+      } catch { break; }
+    }
   }
 
   wrap.innerHTML = '';
@@ -202,14 +222,47 @@ async function renderUplineChain(field) {
   }
 }
 
+/* ── Fetch children + their child counts in 1 query (RPC) ── */
+async function _fetchDownline(parentCode, field) {
+  // Try RPC first (fast)
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/get_direct_downline`, {
+      method: 'POST',
+      headers: {
+        apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ parent_code: parentCode, field_name: field }),
+    });
+    if (res.ok) return await res.json();
+  } catch {}
+
+  // Fallback: fetch children + N+1 counts (slower but works without SQL 007)
+  console.warn('Tree RPC fallback — run sql/007_tree_rpc.sql for speed');
+  const order = field === 'upline_code' ? '&order=side.asc,registered_at.asc' : '&order=registered_at.asc';
+  const children = await sb(`members?select=*&${field}=eq.${encodeURIComponent(parentCode)}${order}&limit=1000`);
+  await Promise.all(children.map(async c => {
+    c.child_count = await sbCount(`${field}=eq.${encodeURIComponent(c.member_code)}`);
+  }));
+  return children;
+}
+
 /* ── Build a tree node element with lazy expand ── */
-async function _buildNode(member, field, depth) {
+async function _buildRootNode(member, field) {
+  // Root node — count its direct children once
   const wrapper = document.createElement('div');
   wrapper.className = 'tree-node-wrap';
 
-  // Count direct children
   const childCount = await sbCount(`${field}=eq.${encodeURIComponent(member.member_code)}`);
+  member.child_count = childCount;
+  return _buildNodeFromData(member, field, 0);
+}
 
+function _buildNodeFromData(member, field, depth) {
+  const wrapper = document.createElement('div');
+  wrapper.className = 'tree-node-wrap';
+
+  const childCount = Number(member.child_count || 0);
   const row = document.createElement('div');
   row.className = 'tree-node';
   const name = MemberFmt.displayName(member);
@@ -250,14 +303,11 @@ async function _buildNode(member, field, depth) {
       if (!loaded) {
         childrenContainer.innerHTML = '<div class="tree-loading">⏳ กำลังโหลด...</div>';
         try {
-          const order = field === 'upline_code' ? '&order=side.asc,registered_at.asc' : '&order=registered_at.asc';
-          const children = await sb(
-            `members?select=*&${field}=eq.${encodeURIComponent(member.member_code)}${order}&limit=1000`
-          );
+          // SINGLE RPC query — fetches children + their child counts
+          const children = await _fetchDownline(member.member_code, field);
           childrenContainer.innerHTML = '';
           for (const c of children) {
-            const childNode = await _buildNode(c, field, depth + 1);
-            childrenContainer.appendChild(childNode);
+            childrenContainer.appendChild(_buildNodeFromData(c, field, depth + 1));
           }
           loaded = true;
         } catch (e) {
@@ -267,11 +317,16 @@ async function _buildNode(member, field, depth) {
     };
     row.addEventListener('click', expand);
   } else {
-    // leaf: still allow click to load that member as new center
     row.addEventListener('click', () => loadMember(member.member_code));
   }
 
   return wrapper;
+}
+
+// Backwards-compat alias for renderTree call
+async function _buildNode(member, field, depth) {
+  if (depth === 0) return _buildRootNode(member, field);
+  return _buildNodeFromData(member, field, depth);
 }
 
 /* ── Utils ── */
