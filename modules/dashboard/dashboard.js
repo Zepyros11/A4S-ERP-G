@@ -45,6 +45,7 @@ async function sbFetch(table, query = '') {
 async function loadAll() {
   if (!SUPABASE_URL || !SUPABASE_KEY) return;
   setWelcome();
+  checkPatExpiry();    // fire-and-forget — show alert if PAT expiring
   try {
     const [products, stockBalance, pos, sos, movements] = await Promise.all([
       sbFetch('products', '?select=product_id,product_code,product_name,reorder_point,is_active&is_active=eq.true'),
@@ -196,6 +197,53 @@ function showToast(msg, type = 'success') {
   t.className = `toast toast-${type} show`;
   t.textContent = msg;
   setTimeout(() => t.classList.remove('show'), 4000);
+}
+
+/* ── PAT Expiry Alert (auto-show ≤ 30 days) ── */
+async function checkPatExpiry() {
+  const box = document.getElementById('patAlert');
+  if (!box) return;
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/sync_config?id=eq.1&select=github_pat_expires_at,github_pat_encrypted`,
+      { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } }
+    );
+    if (!res.ok) return;
+    const [cfg] = await res.json();
+    if (!cfg?.github_pat_encrypted) return;     // ยังไม่ตั้ง PAT
+    if (!cfg?.github_pat_expires_at) return;    // ไม่รู้วันหมดอายุ — ข้าม
+
+    const exp = new Date(cfg.github_pat_expires_at + 'T23:59:59');
+    const days = Math.floor((exp - Date.now()) / 86400000);
+    if (days > 30) return;     // ยังเหลือเยอะ — ไม่ต้องเตือน
+
+    const isExpired = days < 0;
+    const cls = (isExpired || days <= 7) ? 'danger' : 'warn';
+    const icon = isExpired ? '🚨' : (days <= 7 ? '⚠️' : '⏰');
+    const title = isExpired
+      ? `PAT หมดอายุแล้ว ${Math.abs(days)} วัน — Auto-Sync ไม่ทำงาน!`
+      : days === 0
+        ? `PAT หมดอายุวันนี้!`
+        : `PAT จะหมดอายุใน ${days} วัน`;
+    const dateLabel = window.DateFmt
+      ? DateFmt.formatDMY(cfg.github_pat_expires_at)
+      : cfg.github_pat_expires_at;
+    const msg = `Token GitHub Actions จะหมดอายุ ${dateLabel} — ไป generate ใหม่ที่ GitHub แล้วอัปเดตในหน้าตั้งค่า`;
+
+    box.innerHTML = `
+      <div class="pat-alert ${cls}">
+        <div class="pat-alert-icon">${icon}</div>
+        <div class="pat-alert-body">
+          <div class="pat-alert-title">${title}</div>
+          <div class="pat-alert-msg">${msg}</div>
+        </div>
+        <a class="pat-alert-cta" href="../customer/members-sync.html">⚙️ ไปอัปเดต</a>
+      </div>
+    `;
+    box.style.display = 'block';
+  } catch (e) {
+    console.error('checkPatExpiry', e);
+  }
 }
 
 window.addEventListener('DOMContentLoaded', () => {

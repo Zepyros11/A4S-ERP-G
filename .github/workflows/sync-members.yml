@@ -11,6 +11,10 @@ on:
         description: 'Force sync even if not due'
         type: boolean
         default: false
+      test_line:
+        description: 'Test LINE notify only (no sync)'
+        type: boolean
+        default: false
 
 concurrency:
   group: sync-members
@@ -46,6 +50,7 @@ jobs:
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
           MASTER_KEY: ${{ secrets.MASTER_KEY }}
           FORCE: ${{ inputs.force }}
+          TEST_LINE: ${{ inputs.test_line }}
         run: npm run sync
 
       - name: 📸 Upload debug screenshots (on failure)

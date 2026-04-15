@@ -72,6 +72,14 @@
 
 /* ── Danger zone ── */
 .danger-zone{background:var(--danger-pale);border:1px dashed #fca5a5;border-radius:10px;padding:14px 16px;margin-top:20px;font-size:12.5px;color:var(--danger);display:flex;align-items:center;gap:10px;}
+
+/* ── PAT expiry badge ── */
+.pat-badge{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:600;letter-spacing:.3px;}
+.pat-badge.fresh{background:var(--success-pale);color:var(--success);}
+.pat-badge.warn{background:var(--warning-pale);color:var(--warning);}
+.pat-badge.expired{background:var(--danger-pale);color:var(--danger);animation:pulseDot 1.5s infinite;}
+.exp-quick{padding:6px 10px;border:1px solid var(--border);border-radius:6px;background:var(--surface);font-family:inherit;font-size:11.5px;font-weight:600;color:var(--text2);cursor:pointer;transition:all .15s;}
+.exp-quick:hover{background:var(--accent-pale);border-color:var(--accent);color:var(--accent);}
 </style>
 </head>
 <body>
@@ -144,15 +152,100 @@
     </div>
   </div>
 
+  <!-- ── GitHub Integration ── -->
+  <div class="sync-section">
+    <div class="sync-section-title">🐙 GitHub Actions Integration</div>
+    <div class="sync-section-desc">
+      ใช้สำหรับให้ปุ่ม "Sync Now" ยิง GitHub workflow ทันที — ไม่ต้องรอ cron
+    </div>
+    <div class="cred-row">
+      <div class="cred-label">📦 Repository</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+        <input class="cred-input" id="ghOwner" placeholder="owner" autocomplete="off">
+        <input class="cred-input" id="ghRepo" placeholder="repo" autocomplete="off">
+        <input class="cred-input" id="ghBranch" placeholder="main" autocomplete="off">
+      </div>
+    </div>
+    <div class="cred-row">
+      <div class="cred-label">⚙️ Workflow file</div>
+      <input class="cred-input" id="ghWorkflow" placeholder="sync-members.yml" autocomplete="off">
+    </div>
+    <div class="cred-row">
+      <div class="cred-label" style="display:flex;justify-content:space-between;align-items:center">
+        <span>🔑 Personal Access Token (PAT)</span>
+        <span id="patExpiryBadge" style="display:none"></span>
+      </div>
+      <div class="cred-input-wrap">
+        <input class="cred-input" id="ghPat" type="password" placeholder="ghp_xxxxxxxxxxxxxxxx" autocomplete="off">
+        <button class="cred-eye" type="button" onclick="togglePatEye()" id="patEye">👁️</button>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap">
+        <label style="font-size:12px;color:var(--text2);font-weight:500">📅 วันหมดอายุ:</label>
+        <input class="cred-input" id="ghPatExpires" type="date" style="max-width:170px;padding:7px 10px;font-size:12.5px">
+        <div style="display:flex;gap:4px">
+          <button type="button" class="exp-quick" onclick="_setExpiresIn(30)">+30</button>
+          <button type="button" class="exp-quick" onclick="_setExpiresIn(60)">+60</button>
+          <button type="button" class="exp-quick" onclick="_setExpiresIn(90)">+90</button>
+          <button type="button" class="exp-quick" onclick="_setExpiresIn(365)">+1 ปี</button>
+        </div>
+      </div>
+      <div style="font-size:11.5px;color:var(--text3);margin-top:6px;line-height:1.6">
+        💡 สร้างที่ <a href="https://github.com/settings/tokens/new?scopes=workflow&description=A4S-ERP+Sync+Now" target="_blank" style="color:var(--accent)">github.com/settings/tokens</a> — เลือก scope <code style="background:var(--surface2);padding:1px 5px;border-radius:3px">workflow</code> + ใส่วันหมดอายุตรงกับที่ตั้งใน GitHub
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:18px;padding-top:16px;border-top:1px solid var(--border)">
+      <button class="btn btn-primary" onclick="saveGithub()">💾 บันทึก GitHub config</button>
+    </div>
+  </div>
+
+  <!-- ── LINE Notify ── -->
+  <div class="sync-section">
+    <div class="sync-section-title">📱 LINE Notify (เมื่อ Sync Fail)</div>
+    <div class="sync-section-desc">
+      ส่งแจ้งเตือนผ่าน LINE Messaging API เมื่อ sync ล้มเหลว — Bot ของ OA ต้องเพิ่มเข้ากลุ่ม/เป็นเพื่อนก่อน
+    </div>
+    <div class="cred-row">
+      <div class="cred-label">🔑 Channel Access Token</div>
+      <div class="cred-input-wrap">
+        <input class="cred-input" id="lineToken" type="password" placeholder="long-lived token (เริ่มด้วย xx...)" autocomplete="off">
+        <button class="cred-eye" type="button" onclick="toggleLineEye()" id="lineTokenEye">👁️</button>
+      </div>
+      <div style="font-size:11.5px;color:var(--text3);margin-top:6px">
+        💡 หาที่ <a href="https://developers.line.biz/console/" target="_blank" style="color:var(--accent)">LINE Developers</a> → Channel → Messaging API → Issue token
+      </div>
+    </div>
+    <div class="cred-row">
+      <div class="cred-label">🎯 Target</div>
+      <div style="display:grid;grid-template-columns:160px 1fr;gap:8px">
+        <select class="cred-input" id="lineType">
+          <option value="group">Group</option>
+          <option value="user">User</option>
+          <option value="broadcast">Broadcast (ทุกคน)</option>
+        </select>
+        <input class="cred-input" id="lineTargetId" placeholder="Group ID หรือ User ID (ไม่ต้องใส่ถ้า Broadcast)" autocomplete="off">
+      </div>
+    </div>
+    <div class="cred-row">
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text2);cursor:pointer">
+        <input type="checkbox" id="lineSuccess" style="width:16px;height:16px;cursor:pointer">
+        แจ้งเตือนตอน sync สำเร็จด้วย (default: เฉพาะตอน fail)
+      </label>
+    </div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:18px;padding-top:16px;border-top:1px solid var(--border)">
+      <button class="btn btn-outline" onclick="testLine()">🧪 ส่ง Test message</button>
+      <button class="btn btn-primary" onclick="saveLine()">💾 บันทึก LINE config</button>
+    </div>
+  </div>
+
   <!-- ── Action ── -->
   <div class="sync-section">
     <div class="sync-section-title">🎛️ Manual Sync</div>
-    <div class="sync-section-desc">สั่งให้ระบบ sync ทันที (ไม่ต้องรอ schedule)</div>
+    <div class="sync-section-desc">สั่งให้ระบบ sync ทันที (ยิงผ่าน GitHub Actions workflow_dispatch)</div>
     <button class="btn-sync-now" data-perm="member_sync_trigger" onclick="syncNow()">
       🔄 Sync Now
     </button>
     <div class="danger-zone">
-      ⚠️ <strong>หมายเหตุ:</strong> ตอนนี้ยังไม่มี backend script ทำงานจริง — ปุ่ม "Sync Now" จะบันทึกว่า user กด แต่ไม่ได้ไปดึงข้อมูลจริงจนกว่าจะตั้งค่า GitHub Actions (Phase 2B/C)
+      ⚠️ <strong>ต้องตั้งค่า GitHub Integration ด้านบนก่อน</strong> — ระบบจะใช้ PAT ยิง workflow ผ่าน GitHub API
     </div>
   </div>
 

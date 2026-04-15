@@ -15,6 +15,7 @@ import { chromium } from 'playwright';
 import { decrypt } from './lib/crypto.js';
 import * as sb from './lib/supabase.js';
 import { parseXlsToRecords } from './lib/parser.js';
+import { sendLineNotify, buildSyncMessage } from './lib/line.js';
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { homedir } from 'node:os';
@@ -24,14 +25,39 @@ const MEMBER_LIST_URL = `${LOGIN_URL}?sessiontab=1&sub=1&typereport=1`;
 const MASTER_KEY = process.env.MASTER_KEY;
 const DRY_RUN = process.env.DRY_RUN === '1';
 const LOCAL = process.env.LOCAL_TEST === '1';
+const TEST_LINE = process.env.TEST_LINE === 'true' || process.env.TEST_LINE === '1';
 
-/* ── Date ranges (3 rounds) ── */
-const _today = new Date().toISOString().slice(0, 10);    // YYYY-MM-DD
-const DATE_RANGES = [
-  { label: '2015-2020', from: '2015-01-01', to: '2020-12-31' },
-  { label: '2021-2025', from: '2021-01-01', to: '2025-12-31' },
-  { label: '2026-now',  from: '2026-01-01', to: _today    },
-];
+/* ── Date ranges — auto-split into 5-year buckets ──
+   Examples:
+     2026: [2015-2020, 2021-2025, 2026-now]
+     2030: [2015-2020, 2021-2025, 2026-2030] (2030 = current → label "2026-now")
+     2080: [2015-2020, 2021-2025, 2026-2030, ..., 2076-now]   (13 buckets)
+*/
+function buildDateRanges() {
+  const today = new Date();
+  const todayIso = today.toISOString().slice(0, 10);
+  const currentYear = today.getFullYear();
+  const ranges = [];
+
+  // Legacy bucket: 2015-2020 (6 ปี — inception cycle)
+  ranges.push({ label: '2015-2020', from: '2015-01-01', to: '2020-12-31' });
+
+  // Then 5-year buckets from 2021 onwards
+  let start = 2021;
+  while (start <= currentYear) {
+    const end = Math.min(start + 4, currentYear);
+    const isCurrent = end === currentYear;
+    ranges.push({
+      label: isCurrent ? `${start}-now` : `${start}-${end}`,
+      from: `${start}-01-01`,
+      to: isCurrent ? todayIso : `${end}-12-31`,
+    });
+    start = end + 1;
+  }
+  return ranges;
+}
+
+const DATE_RANGES = buildDateRanges();
 
 async function main() {
   const startTime = Date.now();
@@ -55,6 +81,29 @@ async function main() {
   }
   if (!config.username_encrypted || !config.password_encrypted) {
     throw new Error('Credentials not set in sync_config — ไปตั้งค่าที่ ERP UI ก่อน');
+  }
+
+  // ── TEST_LINE mode: send test message + exit ──
+  if (TEST_LINE) {
+    console.log('\n🧪 TEST_LINE mode — sending test message only (no sync)');
+    if (!config.line_token_encrypted) {
+      console.error('❌ No LINE token configured');
+      process.exit(1);
+    }
+    const lineToken = decrypt(config.line_token_encrypted, MASTER_KEY);
+    const r = await sendLineNotify(
+      lineToken,
+      config.line_target_type || 'group',
+      config.line_target_id,
+      [{ type: 'text', text: '🧪 [A4S-ERP] Test message — LINE Notify ทำงานปกติ ✅' }]
+    );
+    if (r.ok) {
+      console.log('✅ Test message sent');
+      process.exit(0);
+    } else {
+      console.error('❌ LINE send failed:', r.error);
+      process.exit(1);
+    }
   }
 
   // 3. Decrypt credentials
@@ -288,6 +337,33 @@ async function main() {
       last_sync_at: new Date().toISOString(),
       next_sync_at: new Date(Date.now() + nextMs).toISOString(),
     });
+  }
+
+  // 8. LINE notify (fail always · success only if opted in)
+  const shouldNotify = (status === 'failed' || status === 'partial') ||
+                       (status === 'success' && config.line_notify_on_success);
+  if (shouldNotify && config.line_token_encrypted) {
+    try {
+      const lineToken = decrypt(config.line_token_encrypted, MASTER_KEY);
+      const msg = buildSyncMessage({
+        status,
+        durationSec: duration,
+        rowsInserted: totalInserted,
+        rowsFailed: totalFailed,
+        errorMessage: errorMsg,
+        ranges: DATE_RANGES.map(r => r.label).join(', '),
+      });
+      const r = await sendLineNotify(
+        lineToken,
+        config.line_target_type || 'group',
+        config.line_target_id,
+        [msg]
+      );
+      if (r.ok) console.log(`📱 LINE notify sent`);
+      else console.error(`📱 LINE notify failed: ${r.error}`);
+    } catch (e) {
+      console.error(`📱 LINE notify error: ${e.message}`);
+    }
   }
 
   console.log(`\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);

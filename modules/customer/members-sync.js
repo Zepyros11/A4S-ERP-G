@@ -12,8 +12,20 @@ let config = {
   password_encrypted: null,
   last_sync_at: null,
   next_sync_at: null,
+  github_owner: null,
+  github_repo: null,
+  github_workflow: null,
+  github_branch: 'main',
+  github_pat_encrypted: null,
+  github_pat_expires_at: null,
+  line_token_encrypted: null,
+  line_target_id: null,
+  line_target_type: 'group',
+  line_notify_on_success: false,
 };
-let _credsDirty = false;   // flag — user พิมพ์ credentials ใหม่
+let _credsDirty = false;   // flag — user พิมพ์ AFS credentials ใหม่
+let _patDirty = false;     // flag — user พิมพ์ PAT ใหม่
+let _lineDirty = false;    // flag — user พิมพ์ LINE token ใหม่
 
 /* ============================================================
    LOAD CONFIG + LOG
@@ -37,24 +49,38 @@ async function loadConfig() {
 }
 
 async function _populateCredsPreview() {
-  // ถ้ามี encrypted creds + Master Key พร้อม → decrypt แสดง (masked)
+  // AFS credentials
   const userInput = document.getElementById('afsUsername');
   const pwInput   = document.getElementById('afsPassword');
-  if (!config.username_encrypted && !config.password_encrypted) return;
+
+  // GitHub fields (plain)
+  document.getElementById('ghOwner').value    = config.github_owner    || '';
+  document.getElementById('ghRepo').value     = config.github_repo     || '';
+  document.getElementById('ghWorkflow').value = config.github_workflow || '';
+  document.getElementById('ghBranch').value   = config.github_branch   || 'main';
+  document.getElementById('ghPatExpires').value = config.github_pat_expires_at || '';
+  _renderPatExpiryBadge();
+
+  // LINE fields
+  document.getElementById('lineType').value     = config.line_target_type || 'group';
+  document.getElementById('lineTargetId').value = config.line_target_id   || '';
+  document.getElementById('lineSuccess').checked = !!config.line_notify_on_success;
+
   if (!ERPCrypto.hasMasterKey()) {
-    userInput.placeholder = '(encrypted — ต้อง Master Key)';
-    pwInput.placeholder   = '(encrypted — ต้อง Master Key)';
+    if (config.username_encrypted)      userInput.placeholder = '(encrypted — ต้อง Master Key)';
+    if (config.password_encrypted)      pwInput.placeholder   = '(encrypted — ต้อง Master Key)';
+    if (config.github_pat_encrypted)    document.getElementById('ghPat').placeholder = '(encrypted — ต้อง Master Key)';
     return;
   }
   try {
-    if (config.username_encrypted) {
-      const u = await ERPCrypto.decrypt(config.username_encrypted);
-      userInput.value = u || '';
-    }
-    if (config.password_encrypted) {
-      const p = await ERPCrypto.decrypt(config.password_encrypted);
-      pwInput.value = p || '';
-    }
+    if (config.username_encrypted)
+      userInput.value = (await ERPCrypto.decrypt(config.username_encrypted)) || '';
+    if (config.password_encrypted)
+      pwInput.value = (await ERPCrypto.decrypt(config.password_encrypted)) || '';
+    if (config.github_pat_encrypted)
+      document.getElementById('ghPat').value = (await ERPCrypto.decrypt(config.github_pat_encrypted)) || '';
+    if (config.line_token_encrypted)
+      document.getElementById('lineToken').value = (await ERPCrypto.decrypt(config.line_token_encrypted)) || '';
   } catch {
     userInput.placeholder = '(decrypt ล้มเหลว — Master Key ผิด?)';
     pwInput.placeholder = '(decrypt ล้มเหลว)';
@@ -131,7 +157,68 @@ function togglePwEye() {
 }
 document.addEventListener('input', (e) => {
   if (e.target.id === 'afsUsername' || e.target.id === 'afsPassword') _credsDirty = true;
+  if (e.target.id === 'ghPat') _patDirty = true;
+  if (e.target.id === 'lineToken') _lineDirty = true;
 });
+
+function toggleLineEye() {
+  const inp = document.getElementById('lineToken');
+  const eye = document.getElementById('lineTokenEye');
+  if (inp.type === 'password') { inp.type = 'text'; eye.textContent = '🙈'; }
+  else                         { inp.type = 'password'; eye.textContent = '👁️'; }
+}
+
+/* ── Quick-fill PAT expiry: today + N days ── */
+function _setExpiresIn(days) {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  const iso = d.toISOString().slice(0, 10);
+  const inp = document.getElementById('ghPatExpires');
+  inp.value = iso;
+  // Sync into config so badge updates instantly
+  config.github_pat_expires_at = iso;
+  _renderPatExpiryBadge();
+}
+
+function togglePatEye() {
+  const inp = document.getElementById('ghPat');
+  const eye = document.getElementById('patEye');
+  if (inp.type === 'password') { inp.type = 'text'; eye.textContent = '🙈'; }
+  else                         { inp.type = 'password'; eye.textContent = '👁️'; }
+}
+
+/* ── Render PAT expiry badge (countdown + color) ── */
+function _renderPatExpiryBadge() {
+  const badge = document.getElementById('patExpiryBadge');
+  const expIso = config.github_pat_expires_at;
+  if (!expIso) {
+    badge.style.display = 'none';
+    return;
+  }
+  const exp = new Date(expIso + 'T23:59:59');
+  const days = Math.floor((exp - Date.now()) / 86400000);
+
+  let cls, text;
+  if (days < 0) {
+    cls = 'expired';
+    text = `❌ หมดอายุแล้ว ${Math.abs(days)} วัน`;
+  } else if (days === 0) {
+    cls = 'expired';
+    text = `⚠️ หมดอายุวันนี้!`;
+  } else if (days <= 7) {
+    cls = 'expired';
+    text = `⚠️ เหลือ ${days} วัน — ใกล้หมดอายุ!`;
+  } else if (days <= 30) {
+    cls = 'warn';
+    text = `⏰ เหลือ ${days} วัน`;
+  } else {
+    cls = 'fresh';
+    text = `✓ เหลือ ${days} วัน · ${DateFmt.formatDMY(expIso)}`;
+  }
+  badge.className = `pat-badge ${cls}`;
+  badge.textContent = text;
+  badge.style.display = 'inline-flex';
+}
 
 /* ============================================================
    SAVE CONFIG
@@ -191,35 +278,264 @@ function _computeNextSync(freq) {
 }
 
 /* ============================================================
-   SYNC NOW (mocked — บันทึก log แต่ไม่ได้ไป scrape จริง)
+   SAVE GITHUB CONFIG
    ============================================================ */
-async function syncNow() {
-  if (!confirm('กด Sync Now ตอนนี้จะบันทึก log ว่าสั่ง sync — แต่ backend script ยังไม่ได้ตั้งค่า (Phase 2B/C) งานจริงจะยังไม่ทำ\n\nดำเนินต่อ?')) return;
+async function saveGithub() {
+  const owner    = document.getElementById('ghOwner').value.trim();
+  const repo     = document.getElementById('ghRepo').value.trim();
+  const workflow = document.getElementById('ghWorkflow').value.trim();
+  const branch   = document.getElementById('ghBranch').value.trim() || 'main';
+  const pat      = document.getElementById('ghPat').value;
+
+  if (!owner || !repo || !workflow) {
+    showToast('กรอก owner / repo / workflow ก่อน', 'error');
+    return;
+  }
+
   showLoading(true);
   try {
-    await fetch(`${SUPABASE_URL}/rest/v1/sync_log`, {
-      method: 'POST',
+    const expires = document.getElementById('ghPatExpires').value || null;
+    const patch = {
+      github_owner: owner,
+      github_repo: repo,
+      github_workflow: workflow,
+      github_branch: branch,
+      github_pat_expires_at: expires,
+      updated_at: new Date().toISOString(),
+    };
+    if (_patDirty && pat) {
+      if (!ERPCrypto.hasMasterKey()) {
+        showToast('ต้องตั้ง Master Key ก่อน', 'error'); showLoading(false); return;
+      }
+      patch.github_pat_encrypted = await ERPCrypto.encrypt(pat);
+    }
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/sync_config?id=eq.1`, {
+      method: 'PATCH',
       headers: {
         apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`,
         'Content-Type': 'application/json',
       },
+      body: JSON.stringify(patch),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    _patDirty = false;
+    await loadConfig();
+    showToast('✅ บันทึก GitHub config แล้ว', 'success');
+  } catch (e) {
+    showToast('บันทึกไม่ได้: ' + e.message, 'error');
+  }
+  showLoading(false);
+}
+
+/* ============================================================
+   SAVE LINE CONFIG
+   ============================================================ */
+async function saveLine() {
+  const token        = document.getElementById('lineToken').value;
+  const targetType   = document.getElementById('lineType').value;
+  const targetId     = document.getElementById('lineTargetId').value.trim();
+  const notifyOnSucc = document.getElementById('lineSuccess').checked;
+
+  if (targetType !== 'broadcast' && !targetId) {
+    showToast('ใส่ Group ID หรือ User ID ก่อน', 'error');
+    return;
+  }
+
+  showLoading(true);
+  try {
+    const patch = {
+      line_target_type: targetType,
+      line_target_id: targetType === 'broadcast' ? null : targetId,
+      line_notify_on_success: notifyOnSucc,
+      updated_at: new Date().toISOString(),
+    };
+    if (_lineDirty && token) {
+      if (!ERPCrypto.hasMasterKey()) {
+        showToast('ต้องตั้ง Master Key ก่อน', 'error'); showLoading(false); return;
+      }
+      patch.line_token_encrypted = await ERPCrypto.encrypt(token);
+    }
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/sync_config?id=eq.1`, {
+      method: 'PATCH',
+      headers: {
+        apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(patch),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    _lineDirty = false;
+    await loadConfig();
+    showToast('✅ บันทึก LINE config แล้ว', 'success');
+  } catch (e) {
+    showToast('บันทึกไม่ได้: ' + e.message, 'error');
+  }
+  showLoading(false);
+}
+
+/* ============================================================
+   TEST LINE — Trigger CI workflow with TEST_LINE flag
+   (LINE API ไม่รองรับ CORS — fetch ตรงจาก browser ไม่ได้
+    แก้: ให้ Github workflow ส่งให้แทน — server-side ไม่มี CORS)
+   ============================================================ */
+async function testLine() {
+  if (!config.line_token_encrypted) {
+    showToast('กดบันทึก LINE config ก่อน — แล้วค่อย Test', 'error');
+    return;
+  }
+  if (!config.github_pat_encrypted) {
+    showToast('ต้องตั้ง GitHub PAT ก่อน (CI ส่ง LINE ให้แทน)', 'error');
+    return;
+  }
+  if (!ERPCrypto.hasMasterKey()) {
+    showToast('ต้องตั้ง Master Key ก่อน', 'error');
+    return;
+  }
+
+  if (!confirm(
+    `ส่ง Test message ผ่าน GitHub Actions\n` +
+    `(LINE API ห้าม fetch จาก browser — ต้องผ่าน CI server)\n\n` +
+    `Workflow จะใช้เวลา ~30 วินาที — ทำต่อ?`
+  )) return;
+
+  showLoading(true);
+  try {
+    const pat = await ERPCrypto.decrypt(config.github_pat_encrypted);
+    const ghUrl = `https://api.github.com/repos/${config.github_owner}/${config.github_repo}/actions/workflows/${config.github_workflow}/dispatches`;
+
+    const ghRes = await fetch(ghUrl, {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/vnd.github+json',
+        'Authorization': `Bearer ${pat}`,
+        'X-GitHub-Api-Version': '2022-11-28',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        ref: config.github_branch || 'main',
+        inputs: { test_line: 'true' },
+      }),
+    });
+
+    if (ghRes.status === 204) {
+      showToast('🚀 ส่งคำสั่ง test ไป GitHub แล้ว — รอ ~30 วิ ดูใน LINE', 'success');
+      window.open(`https://github.com/${config.github_owner}/${config.github_repo}/actions`, '_blank');
+    } else {
+      const err = await ghRes.text();
+      throw new Error(`${ghRes.status}: ${err.slice(0, 150)}`);
+    }
+  } catch (e) {
+    showToast('ส่งไม่ได้: ' + e.message, 'error');
+  }
+  showLoading(false);
+}
+
+/* ============================================================
+   SYNC NOW — ยิง GitHub workflow_dispatch
+   ============================================================ */
+async function syncNow() {
+  // Validate config
+  if (!config.github_owner || !config.github_repo || !config.github_workflow) {
+    showToast('ต้องตั้งค่า GitHub Integration ก่อน', 'error');
+    return;
+  }
+  if (!config.github_pat_encrypted) {
+    showToast('ต้องใส่ GitHub PAT ก่อน', 'error');
+    return;
+  }
+  if (!ERPCrypto.hasMasterKey()) {
+    showToast('ต้องตั้ง Master Key ก่อน', 'error');
+    return;
+  }
+
+  if (!confirm(
+    `ส่งคำสั่ง Sync Now ไป GitHub Actions?\n\n` +
+    `Repo: ${config.github_owner}/${config.github_repo}\n` +
+    `Workflow: ${config.github_workflow}\n` +
+    `Branch: ${config.github_branch}\n\n` +
+    `Workflow จะรันบน GitHub server (~10-15 นาที)`
+  )) return;
+
+  showLoading(true);
+  let logId = null;
+  try {
+    // Decrypt PAT
+    const pat = await ERPCrypto.decrypt(config.github_pat_encrypted);
+    if (!pat) throw new Error('decrypt PAT ล้มเหลว');
+
+    // Start sync_log entry
+    const lr = await fetch(`${SUPABASE_URL}/rest/v1/sync_log`, {
+      method: 'POST',
+      headers: {
+        apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`,
+        'Content-Type': 'application/json', 'Prefer': 'return=representation',
+      },
       body: JSON.stringify([{
-        source: 'sync_now_requested',
+        source: 'sync_now_dispatched',
         started_at: new Date().toISOString(),
-        finished_at: new Date().toISOString(),
-        duration_sec: 0,
-        rows_total: 0,
-        rows_failed: 0,
-        status: 'failed',
-        error_message: 'Backend script ยังไม่ทำงาน — Phase 2B/C ยังไม่ setup',
+        status: 'running',
         triggered_by: window.ERP_USER?.user_id || 'unknown',
       }]),
     });
-    showToast('📝 บันทึก sync request แล้ว (backend ยังไม่ทำงาน)', 'warning');
-    await loadLog();
+    const data = await lr.json();
+    logId = data?.[0]?.id;
+
+    // Trigger GitHub workflow
+    const ghUrl = `https://api.github.com/repos/${config.github_owner}/${config.github_repo}/actions/workflows/${config.github_workflow}/dispatches`;
+    const ghRes = await fetch(ghUrl, {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/vnd.github+json',
+        'Authorization': `Bearer ${pat}`,
+        'X-GitHub-Api-Version': '2022-11-28',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ ref: config.github_branch || 'main' }),
+    });
+
+    if (ghRes.status === 204) {
+      // Success — workflow triggered
+      if (logId) {
+        await fetch(`${SUPABASE_URL}/rest/v1/sync_log?id=eq.${logId}`, {
+          method: 'PATCH',
+          headers: {
+            apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            finished_at: new Date().toISOString(),
+            status: 'success',
+            error_message: 'Dispatched to GitHub — actual sync running on CI',
+          }),
+        });
+      }
+      showToast('🚀 Sync Now ส่งคำสั่งไป GitHub แล้ว — ดูผลที่ Actions tab', 'success');
+      // Open GitHub Actions in new tab
+      window.open(`https://github.com/${config.github_owner}/${config.github_repo}/actions`, '_blank');
+    } else {
+      const errText = await ghRes.text();
+      throw new Error(`GitHub API ${ghRes.status}: ${errText.slice(0, 150)}`);
+    }
   } catch (e) {
+    if (logId) {
+      try {
+        await fetch(`${SUPABASE_URL}/rest/v1/sync_log?id=eq.${logId}`, {
+          method: 'PATCH',
+          headers: {
+            apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            finished_at: new Date().toISOString(),
+            status: 'failed',
+            error_message: e.message.slice(0, 200),
+          }),
+        });
+      } catch {}
+    }
     showToast('ไม่สำเร็จ: ' + e.message, 'error');
   }
+  await loadLog();
   showLoading(false);
 }
 
