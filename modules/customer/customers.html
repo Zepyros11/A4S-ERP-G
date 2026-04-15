@@ -35,14 +35,7 @@
 <div class="toast" id="toast"></div>
 
 <!-- TOPBAR -->
-<div class="topbar">
-  <div class="topbar-logo">📦 <span>A4S</span>-ERP</div>
-  <div class="topbar-sep"></div>
-  <div class="topbar-title">จัดการลูกค้า</div>
-  <div class="topbar-actions">
-    <button class="btn-topbar btn-white" data-perm="customer_create" onclick="openModal()">＋ เพิ่มลูกค้า</button>
-  </div>
-</div>
+<div class="topbar"></div>
 
 <!-- MODAL -->
 <div class="modal-overlay" id="modalOverlay" onclick="closeModalBg(event)">
@@ -247,6 +240,10 @@
 <script src="../../js/core/authz.js"></script>
 <script>AuthZ.requirePerm("customer_view");</script>
 <script src="customers.js"></script>
+<script type="module">
+  import { loadTopbar } from "../../js/components/navigation/topbar.js";
+  loadTopbar("🧑 จัดการลูกค้า");
+</script>
 <script src="../../js/components/navigation/sidebar.js"></script>
 </body>
 </html>
