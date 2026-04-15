@@ -533,14 +533,22 @@ A4S-ERP-G
 │ │ ├─ reports.html
 │ │ └─ reports.js
 │
+│ ├─ customer
+│ │ ├─ customers.html
+│ │ ├─ customers.js
+│ │ ├─ members-list.html
+│ │ ├─ members-list.js
+│ │ ├─ members-import.html
+│ │ └─ members-import.js
+│
+│ ├─ supplier
+│ │ ├─ suppliers.html
+│ │ └─ suppliers.js
+│
 │ ├─ settings
 │ │ ├─ settings.html
 │ │ ├─ settings.js
 │ │ ├─ db_viewer.html
-│ │ ├─ customers.html
-│ │ ├─ customers.js
-│ │ ├─ suppliers.html
-│ │ ├─ suppliers.js
 │ │ ├─ users.html
 │ │ └─ users.js
 │
@@ -598,14 +606,22 @@ A4S-ERP-G
 │ │ ├─ reports.html
 │ │ └─ reports.js
 │
+│ ├─ customer
+│ │ ├─ customers.html
+│ │ ├─ customers.js
+│ │ ├─ members-list.html
+│ │ ├─ members-list.js
+│ │ ├─ members-import.html
+│ │ └─ members-import.js
+│
+│ ├─ supplier
+│ │ ├─ suppliers.html
+│ │ └─ suppliers.js
+│
 │ ├─ settings
 │ │ ├─ settings.html
 │ │ ├─ settings.js
 │ │ ├─ db_viewer.html
-│ │ ├─ customers.html
-│ │ ├─ customers.js
-│ │ ├─ suppliers.html
-│ │ ├─ suppliers.js
 │ │ ├─ users.html
 │ │ └─ users.js
 │
@@ -853,12 +869,18 @@ requisition.html
 report
 reports.html
 
+customer
+customers.html
+members-list.html
+members-import.html
+
+supplier
+suppliers.html
+
 settings
 settings.html
 db_viewer.html
 users.html
-suppliers.html
-customers.html
 
 /shared
 auth.js

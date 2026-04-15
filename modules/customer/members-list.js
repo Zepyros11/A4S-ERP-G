@@ -1,0 +1,468 @@
+/* ============================================================
+   members-list.js — ตารางข้อมูลสมาชิก (server-side pagination)
+   ============================================================ */
+
+let SUPABASE_URL = localStorage.getItem('sb_url') || '';
+let SUPABASE_KEY = localStorage.getItem('sb_key') || '';
+
+let currentPage = [];         // rows ของหน้าปัจจุบัน (server-side paginated)
+let allMembers = [];          // alias — ใช้ชื่อเดิมใน purge function
+let totalRows = 0;            // total count จาก DB (หลัง filter)
+let sortKey = 'registered_at';
+let sortAsc = false;
+let page = 1;
+const PAGE_SIZE = 50;
+let decryptMode = false;
+let decryptedCache = {};
+let _searchDebounce = null;
+
+const PKG_BADGE = {
+  DM: '💎 DM', SI: '⭐ SI', PL: '💠 PL', MB: '🎁 MB', EM: '🌟 EM',
+};
+
+/* ── Supabase helper ── */
+function _sbHeaders(extra = {}) {
+  return {
+    apikey: SUPABASE_KEY,
+    Authorization: `Bearer ${SUPABASE_KEY}`,
+    ...extra,
+  };
+}
+
+/* ── Build filter string จาก UI controls ── */
+function _buildFilterQuery() {
+  const parts = [];
+  const q = (document.getElementById('searchInput').value || '').trim();
+  const mode = document.getElementById('searchMode')?.dataset.value || 'all';
+  const country = document.getElementById('filterCountry').value;
+  const pkg = document.getElementById('filterPackage').value;
+
+  if (country) parts.push(`country_code=eq.${encodeURIComponent(country)}`);
+  if (pkg) parts.push(`package=eq.${encodeURIComponent(pkg)}`);
+
+  if (q) {
+    const esc = q.replace(/[,()*]/g, '');
+    const like = `*${esc}*`;
+    if (mode === 'all') {
+      parts.push(`or=(member_code.ilike.${like},full_name.ilike.${like},member_name.ilike.${like},phone.ilike.${like},email.ilike.${like},sponsor_code.ilike.${like},upline_code.ilike.${like})`);
+    } else if (mode === 'full_name') {
+      // ชื่อ — ค้นทั้ง full_name + member_name
+      parts.push(`or=(full_name.ilike.${like},member_name.ilike.${like})`);
+    } else {
+      // Specific field — member_code / sponsor_code / upline_code / phone / email
+      parts.push(`${mode}=ilike.${like}`);
+    }
+  }
+  return parts.join('&');
+}
+
+/* ── Custom search mode dropdown ── */
+function toggleSearchMode(e) {
+  if (e) e.stopPropagation();
+  document.getElementById('searchMode').classList.toggle('open');
+}
+function selectSearchMode(btn) {
+  const value = btn.dataset.value;
+  const icon  = btn.dataset.icon;
+  const label = btn.dataset.label;
+  const wrap  = document.getElementById('searchMode');
+  wrap.dataset.value = value;
+  wrap.classList.remove('open');
+  wrap.querySelector('.search-mode-icon').textContent = icon;
+  wrap.querySelector('.search-mode-label').textContent = label;
+  wrap.querySelectorAll('.search-mode-option').forEach(o => {
+    o.classList.toggle('active', o.dataset.value === value);
+  });
+  applyFilter();
+}
+// Close dropdown on outside click
+document.addEventListener('click', (e) => {
+  const dd = document.getElementById('searchMode');
+  if (dd && !dd.contains(e.target)) dd.classList.remove('open');
+});
+
+/* ── Clear search ── */
+function clearSearch() {
+  document.getElementById('searchInput').value = '';
+  _updateSearchClearBtn();
+  page = 1;
+  loadPage();
+  loadStats();
+}
+function _updateSearchClearBtn() {
+  const btn = document.getElementById('searchClear');
+  const hasValue = document.getElementById('searchInput').value.trim().length > 0;
+  btn.classList.toggle('show', hasValue);
+}
+
+/* ── Count API — เร็วกว่า fetch ข้อมูลจริงมาก ── */
+async function sbCount(extraFilter = '') {
+  const url = `${SUPABASE_URL}/rest/v1/members?select=member_code${extraFilter ? '&' + extraFilter : ''}`;
+  const res = await fetch(url, {
+    headers: _sbHeaders({ Prefer: 'count=exact', Range: '0-0' }),
+  });
+  if (!res.ok) return 0;
+  const range = res.headers.get('content-range') || '*/0';
+  return parseInt(range.split('/')[1], 10) || 0;
+}
+
+/* ── Load stats (4 counts in parallel) ── */
+async function loadStats() {
+  try {
+    const thisYear = new Date().getFullYear();
+    const [total, th, kh, yr] = await Promise.all([
+      sbCount(),
+      sbCount('country_code=eq.TH'),
+      sbCount('country_code=eq.KH'),
+      sbCount(`registered_at=gte.${thisYear}-01-01`),
+    ]);
+    document.getElementById('statTotal').textContent    = total.toLocaleString();
+    document.getElementById('statTH').textContent       = th.toLocaleString();
+    document.getElementById('statKH').textContent       = kh.toLocaleString();
+    document.getElementById('statThisYear').textContent = yr.toLocaleString();
+  } catch (e) {
+    console.error('loadStats', e);
+  }
+}
+
+/* ── Load current page (50 rows) ── */
+async function loadPage() {
+  if (!SUPABASE_URL || !SUPABASE_KEY) {
+    showToast('ยังไม่ได้ตั้งค่า Supabase', 'error');
+    return;
+  }
+  showLoading(true);
+  try {
+    const filter = _buildFilterQuery();
+    const from = (page - 1) * PAGE_SIZE;
+    const to = from + PAGE_SIZE - 1;
+    const url = `${SUPABASE_URL}/rest/v1/members?select=*${filter ? '&' + filter : ''}&order=${sortKey}.${sortAsc ? 'asc' : 'desc'}`;
+
+    const res = await fetch(url, {
+      headers: _sbHeaders({
+        Range: `${from}-${to}`,
+        'Range-Unit': 'items',
+        Prefer: 'count=exact',
+      }),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    currentPage = await res.json();
+    allMembers = currentPage;  // keep alias for purge feature
+    const range = res.headers.get('content-range') || '*/0';
+    totalRows = parseInt(range.split('/')[1], 10) || 0;
+    render();
+  } catch (e) {
+    showToast('โหลดไม่ได้: ' + e.message, 'error');
+  }
+  showLoading(false);
+}
+
+/* ── Public entry — refresh ทั้งหน้า (stats + page) ── */
+async function loadData() {
+  page = 1;
+  await Promise.all([loadStats(), loadPage()]);
+}
+
+/* ── Search / filter handlers (server-side) ── */
+function onSearch() {
+  _updateSearchClearBtn();
+  clearTimeout(_searchDebounce);
+  _searchDebounce = setTimeout(() => { page = 1; loadPage(); loadStats(); }, 300);
+}
+function applyFilter() {
+  page = 1;
+  loadPage();
+  loadStats();
+}
+
+function sortBy(key) {
+  if (sortKey === key) sortAsc = !sortAsc;
+  else { sortKey = key; sortAsc = true; }
+  loadPage();
+}
+
+function gotoPage(n) {
+  const totalPages = Math.max(1, Math.ceil(totalRows / PAGE_SIZE));
+  const newPage = Math.max(1, Math.min(n, totalPages));
+  if (newPage === page) return;
+  page = newPage;
+  loadPage();
+}
+
+/* ── Render table ── */
+function render() {
+  const tbody = document.getElementById('tbody');
+  if (!currentPage.length) {
+    tbody.innerHTML = `<tr><td colspan="11" style="text-align:center;padding:40px;color:var(--text3)">ไม่พบข้อมูล</td></tr>`;
+    document.getElementById('paginate').innerHTML = '';
+    return;
+  }
+
+  const rows = currentPage;
+
+  tbody.innerHTML = rows.map(m => {
+    const pkg = m.package ? `<span class="pkg-badge pkg-${m.package}">${PKG_BADGE[m.package] || m.package}</span>` : '';
+    const flag = m.country_code === 'KH' ? '🇰🇭' : (m.country_code === 'TH' ? '🇹🇭' : '🌐');
+    const pwCell = m.password_encrypted
+      ? (decryptMode
+          ? `<span class="mask" data-code="${m.member_code}" data-field="password">⏳</span>`
+          : '<span class="mask">••••••</span>')
+      : '<span class="mask">—</span>';
+    const idCell = m.national_id_encrypted
+      ? (decryptMode
+          ? `<span class="mask" data-code="${m.member_code}" data-field="national_id">⏳</span>`
+          : '<span class="mask">x-xxxx-xxxxx-xx-x</span>')
+      : '<span class="mask">—</span>';
+
+    return `<tr>
+      <td><span class="mem-code">${m.member_code || '—'}</span></td>
+      <td>
+        <div class="mem-name">${escapeHtml(m.full_name || m.member_name || '—')}</div>
+        ${m.email ? `<div class="mem-contact">${escapeHtml(m.email)}</div>` : ''}
+      </td>
+      <td><span class="mem-code">${escapeHtml(m.phone || '—')}</span></td>
+      <td>${idCell}</td>
+      <td>${pwCell}</td>
+      <td>${pkg}</td>
+      <td><span class="mem-code">${escapeHtml(m.sponsor_code || '—')}</span></td>
+      <td><span class="mem-code">${escapeHtml(m.upline_code || '—')}</span></td>
+      <td>${escapeHtml(m.side || '—')}</td>
+      <td>${DateFmt.formatDMY(m.registered_at) || '—'}</td>
+      <td>${flag} ${m.country_code || ''}</td>
+    </tr>`;
+  }).join('');
+
+  renderPaginate();
+
+  // Decrypt cells in viewport if mode on
+  if (decryptMode) decryptVisibleCells(rows);
+}
+
+function renderPaginate() {
+  const pag = document.getElementById('paginate');
+  const totalPages = Math.max(1, Math.ceil(totalRows / PAGE_SIZE));
+  if (totalPages <= 1) { pag.innerHTML = ''; return; }
+
+  const parts = [];
+  parts.push(`<button onclick="gotoPage(1)" ${page===1?'disabled':''}>« แรก</button>`);
+  parts.push(`<button onclick="gotoPage(${page-1})" ${page===1?'disabled':''}>‹ ก่อน</button>`);
+  parts.push(`<span class="paginate-info">หน้า ${page} / ${totalPages.toLocaleString()} · ทั้งหมด ${totalRows.toLocaleString()}</span>`);
+  parts.push(`<button onclick="gotoPage(${page+1})" ${page===totalPages?'disabled':''}>ถัด ›</button>`);
+  parts.push(`<button onclick="gotoPage(${totalPages})" ${page===totalPages?'disabled':''}>ท้าย »</button>`);
+  pag.innerHTML = parts.join('');
+}
+
+/* ── Decrypt mode ── */
+async function toggleDecrypt() {
+  if (decryptMode) {
+    // ปิดโหมด
+    decryptMode = false;
+    decryptedCache = {};
+    document.getElementById('btnDecrypt').textContent = '🔓 ถอดรหัส';
+    render();
+    return;
+  }
+  // เปิดโหมด — ถ้ามี key อยู่แล้ว verify เลย ถ้าไม่มี open modal
+  if (window.ERPCrypto && ERPCrypto.hasMasterKey()) {
+    const ok = await ERPCrypto.verifyMasterKey();
+    if (ok) { _enableDecrypt(); return; }
+  }
+  openMKModal();
+}
+
+function _enableDecrypt() {
+  decryptMode = true;
+  document.getElementById('btnDecrypt').textContent = '🔒 ปิดถอดรหัส';
+  render();
+}
+
+/* ── Master Key Modal ── */
+function openMKModal() {
+  const overlay = document.getElementById('mkModalOverlay');
+  overlay.classList.add('open');
+  const input = document.getElementById('mkInput');
+  input.value = '';
+  input.type = 'password';
+  document.getElementById('mkEye').textContent = '👁️';
+  document.getElementById('mkError').classList.remove('show');
+  setTimeout(() => input.focus(), 50);
+}
+function closeMKModal() {
+  document.getElementById('mkModalOverlay').classList.remove('open');
+}
+function toggleMKEye() {
+  const inp = document.getElementById('mkInput');
+  const eye = document.getElementById('mkEye');
+  if (inp.type === 'password') { inp.type = 'text';     eye.textContent = '🙈'; }
+  else                         { inp.type = 'password'; eye.textContent = '👁️'; }
+}
+async function confirmMK() {
+  const key = document.getElementById('mkInput').value;
+  const err = document.getElementById('mkError');
+  err.classList.remove('show');
+  if (!key || key.length < 8) {
+    err.textContent = '❌ ต้องยาวอย่างน้อย 8 ตัวอักษร';
+    err.classList.add('show');
+    return;
+  }
+  try { ERPCrypto.setMasterKey(key); }
+  catch (e) { err.textContent = '❌ ' + e.message; err.classList.add('show'); return; }
+
+  const ok = await ERPCrypto.verifyMasterKey();
+  if (!ok) {
+    err.textContent = '❌ Master Key ไม่ถูกต้อง — ลองอีกครั้ง';
+    err.classList.add('show');
+    ERPCrypto.clearMasterKey();
+    return;
+  }
+  closeMKModal();
+  _enableDecrypt();
+  showToast('🔓 ปลดล็อกแล้ว', 'success');
+}
+
+async function decryptVisibleCells(rows) {
+  for (const m of rows) {
+    const code = m.member_code;
+    if (!decryptedCache[code]) decryptedCache[code] = {};
+    if (m.password_encrypted && decryptedCache[code].password === undefined) {
+      try { decryptedCache[code].password = await ERPCrypto.decrypt(m.password_encrypted); }
+      catch { decryptedCache[code].password = '⚠️ error'; }
+    }
+    if (m.national_id_encrypted && decryptedCache[code].national_id === undefined) {
+      try { decryptedCache[code].national_id = await ERPCrypto.decrypt(m.national_id_encrypted); }
+      catch { decryptedCache[code].national_id = '⚠️ error'; }
+    }
+    document.querySelectorAll(`[data-code="${CSS.escape(code)}"]`).forEach(el => {
+      const field = el.getAttribute('data-field');
+      el.textContent = decryptedCache[code][field] ?? '—';
+      el.classList.remove('mask');
+    });
+  }
+}
+
+/* ── Utils ── */
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, m => ({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+  }[m]));
+}
+function showLoading(on) {
+  document.getElementById('loadingOverlay').style.display = on ? 'flex' : 'none';
+}
+function showToast(msg, type='info') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = `toast show toast-${type}`;
+  setTimeout(() => t.className = 'toast', 3500);
+}
+
+/* ============================================================
+   PURGE ALL MEMBERS
+   ============================================================ */
+const PURGE_CONFIRM_TEXT = 'ลบทั้งหมด';
+
+function openPurgeModal() {
+  document.getElementById('pgCount').textContent = totalRows.toLocaleString();
+  const inp = document.getElementById('pgConfirmInput');
+  inp.value = '';
+  inp.classList.remove('match');
+  document.getElementById('btnConfirmPurge').disabled = true;
+  document.getElementById('purgeModalOverlay').classList.add('open');
+  setTimeout(() => inp.focus(), 50);
+}
+function closePurgeModal() {
+  document.getElementById('purgeModalOverlay').classList.remove('open');
+}
+function onPgInput() {
+  const inp = document.getElementById('pgConfirmInput');
+  const match = inp.value.trim() === PURGE_CONFIRM_TEXT;
+  inp.classList.toggle('match', match);
+  document.getElementById('btnConfirmPurge').disabled = !match;
+}
+async function confirmPurge() {
+  const btn = document.getElementById('btnConfirmPurge');
+  const countBeforeDelete = totalRows;
+  btn.disabled = true;
+  btn.textContent = '⏳ กำลังลบ...';
+  showLoading(true);
+
+  // sync_log: start
+  let logId = null;
+  try {
+    const lr = await fetch(`${SUPABASE_URL}/rest/v1/sync_log`, {
+      method: 'POST',
+      headers: {
+        apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`,
+        'Content-Type': 'application/json', 'Prefer': 'return=representation',
+      },
+      body: JSON.stringify([{
+        source: 'purge_all',
+        rows_total: countBeforeDelete,
+        status: 'running',
+        triggered_by: window.ERP_USER?.user_id || 'unknown',
+      }]),
+    });
+    const d = await lr.json();
+    logId = d?.[0]?.id;
+  } catch {}
+
+  const startTime = Date.now();
+  let deleted = 0, err = null;
+  try {
+    // DELETE all — PostgREST requires a filter; use "neq.__impossible_value__"
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/members?member_code=neq.__never_exists__`,
+      {
+        method: 'DELETE',
+        headers: {
+          apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`,
+          'Prefer': 'return=minimal',
+        },
+      }
+    );
+    if (!res.ok) throw new Error(await res.text());
+    deleted = countBeforeDelete;
+  } catch (e) {
+    err = e.message;
+  }
+  const dur = Math.round((Date.now() - startTime) / 1000);
+
+  // sync_log: finish
+  if (logId) {
+    try {
+      await fetch(`${SUPABASE_URL}/rest/v1/sync_log?id=eq.${logId}`, {
+        method: 'PATCH',
+        headers: {
+          apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          finished_at: new Date().toISOString(),
+          duration_sec: dur,
+          rows_inserted: 0,
+          rows_failed: err ? 1 : 0,
+          status: err ? 'failed' : 'success',
+          error_message: err,
+        }),
+      });
+    } catch {}
+  }
+
+  showLoading(false);
+  closePurgeModal();
+
+  if (err) {
+    showToast('ลบไม่สำเร็จ: ' + err.slice(0, 100), 'error');
+  } else {
+    currentPage = [];
+    allMembers = [];
+    totalRows = 0;
+    page = 1;
+    await loadData();
+    showToast(`🗑️ ลบ ${deleted.toLocaleString()} สมาชิก เสร็จใน ${dur}s`, 'success');
+  }
+  btn.textContent = '🗑️ ลบทั้งหมด';
+}
+
+/* ── Init ── */
+window.addEventListener('DOMContentLoaded', loadData);

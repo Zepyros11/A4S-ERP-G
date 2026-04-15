@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ตั้งค่า Auto-Sync สมาชิก — A4S-ERP</title>
+<link rel="stylesheet" href="../../css/main.css">
+<style>
+/* ── Status hero card ── */
+.sync-hero{background:linear-gradient(135deg,#0f4c75,#1b6ca8);color:#fff;border-radius:14px;padding:24px 28px;margin-bottom:18px;box-shadow:0 6px 20px rgba(15,76,117,.28);}
+.sync-hero.disabled{background:linear-gradient(135deg,#64748b,#94a3b8);box-shadow:0 6px 20px rgba(100,116,139,.28);}
+.sync-hero.failed{background:linear-gradient(135deg,#991b1b,#dc2626);box-shadow:0 6px 20px rgba(220,38,38,.3);}
+.sync-hero-top{display:flex;align-items:center;gap:12px;margin-bottom:14px;}
+.sync-hero-dot{width:10px;height:10px;border-radius:50%;background:#4ade80;box-shadow:0 0 0 3px rgba(74,222,128,.25);animation:pulseDot 1.8s infinite;}
+.sync-hero.disabled .sync-hero-dot{background:#cbd5e1;animation:none;box-shadow:none;}
+.sync-hero.failed .sync-hero-dot{background:#fca5a5;animation:pulseDot 1.5s infinite;}
+@keyframes pulseDot{0%,100%{opacity:1}50%{opacity:.45}}
+.sync-hero-status{font-size:12px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;opacity:.9;}
+.sync-hero-title{font-size:22px;font-weight:700;margin-bottom:4px;}
+.sync-hero-sub{font-size:13.5px;opacity:.88;line-height:1.6;}
+.sync-hero-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:18px;padding-top:16px;border-top:1px solid rgba(255,255,255,.18);}
+.sync-hero-cell{font-size:11.5px;opacity:.82;}
+.sync-hero-cell strong{display:block;font-size:15px;font-weight:700;margin-top:2px;opacity:1;font-variant-numeric:tabular-nums;}
+
+/* ── Section cards ── */
+.sync-section{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:22px 24px;margin-bottom:14px;}
+.sync-section-title{font-size:14px;font-weight:700;color:var(--text);margin-bottom:4px;display:flex;align-items:center;gap:8px;}
+.sync-section-desc{font-size:12.5px;color:var(--text3);margin-bottom:16px;line-height:1.6;}
+
+/* ── Toggle switch ── */
+.sync-toggle-row{display:flex;align-items:center;justify-content:space-between;padding:8px 0;}
+.sync-toggle-label{font-size:14px;font-weight:500;color:var(--text);}
+.sync-switch{position:relative;width:50px;height:28px;background:var(--border);border-radius:14px;cursor:pointer;transition:background .22s;}
+.sync-switch.on{background:var(--accent);}
+.sync-switch-knob{position:absolute;top:3px;left:3px;width:22px;height:22px;background:#fff;border-radius:50%;box-shadow:0 2px 4px rgba(0,0,0,.2);transition:transform .22s;}
+.sync-switch.on .sync-switch-knob{transform:translateX(22px);}
+
+/* ── Frequency pills ── */
+.freq-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;}
+.freq-btn{padding:10px 18px;border:1.5px solid var(--border);border-radius:22px;background:var(--surface);color:var(--text2);cursor:pointer;font-family:inherit;font-size:13px;font-weight:500;transition:all .15s;}
+.freq-btn:hover{border-color:var(--accent);color:var(--accent);}
+.freq-btn.active{background:linear-gradient(135deg,var(--accent),var(--accent-light));color:#fff;border-color:var(--accent);font-weight:600;box-shadow:0 3px 10px rgba(15,76,117,.3);}
+
+/* ── Credential input ── */
+.cred-row{margin-bottom:12px;}
+.cred-label{font-size:12px;font-weight:600;color:var(--text2);margin-bottom:6px;display:flex;align-items:center;gap:6px;}
+.cred-input{width:100%;padding:11px 14px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:13.5px;outline:none;transition:border-color .15s;}
+.cred-input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(15,76,117,.1);}
+.cred-input[type="password"]{font-family:'IBM Plex Mono',monospace;letter-spacing:2px;}
+.cred-input-wrap{position:relative;}
+.cred-eye{position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;font-size:16px;cursor:pointer;opacity:.5;padding:4px 8px;}
+.cred-eye:hover{opacity:1;}
+
+/* ── Action bar ── */
+.sync-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:4px;}
+.btn-sync-now{background:linear-gradient(135deg,var(--accent),var(--accent-light));color:#fff;border:none;font-weight:600;padding:11px 22px;border-radius:8px;font-family:inherit;font-size:13.5px;cursor:pointer;box-shadow:0 3px 10px rgba(15,76,117,.3);transition:all .15s;}
+.btn-sync-now:hover{transform:translateY(-1px);box-shadow:0 6px 16px rgba(15,76,117,.4);}
+.btn-sync-now:disabled{opacity:.5;cursor:not-allowed;transform:none;}
+
+/* ── Log table ── */
+.log-table{width:100%;border-collapse:collapse;font-size:12.5px;}
+.log-table th{padding:9px 12px;background:var(--surface2);font-weight:700;color:var(--text3);font-size:11px;letter-spacing:.6px;text-align:left;border-bottom:2px solid var(--border);text-transform:uppercase;}
+.log-table td{padding:10px 12px;border-bottom:1px solid var(--border);}
+.log-table tr:last-child td{border-bottom:none;}
+.log-status{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;}
+.log-status.success{background:var(--success-pale);color:var(--success);}
+.log-status.failed{background:var(--danger-pale);color:var(--danger);}
+.log-status.partial{background:var(--warning-pale);color:var(--warning);}
+.log-status.running{background:#e0e7ff;color:#4338ca;}
+.log-empty{text-align:center;padding:30px;color:var(--text3);font-size:13px;}
+.log-source-badge{display:inline-block;padding:2px 7px;border-radius:4px;font-size:10.5px;font-weight:600;background:var(--surface2);color:var(--text2);}
+
+/* ── Danger zone ── */
+.danger-zone{background:var(--danger-pale);border:1px dashed #fca5a5;border-radius:10px;padding:14px 16px;margin-top:20px;font-size:12.5px;color:var(--danger);display:flex;align-items:center;gap:10px;}
+</style>
+</head>
+<body>
+
+<div class="loading-overlay" id="loadingOverlay"><div class="spinner"></div></div>
+<div class="toast" id="toast"></div>
+
+<!-- TOPBAR -->
+<div class="topbar"></div>
+
+<!-- PAGE -->
+<div class="page">
+
+  <!-- ── Status Hero ── -->
+  <div class="sync-hero" id="syncHero">
+    <div class="sync-hero-top">
+      <div class="sync-hero-dot"></div>
+      <div class="sync-hero-status" id="heroStatus">กำลังโหลด...</div>
+    </div>
+    <div class="sync-hero-title" id="heroTitle">Auto-Sync Members</div>
+    <div class="sync-hero-sub" id="heroSub">ตั้งค่าให้ระบบดึงข้อมูลสมาชิกจาก answerforsuccess.com อัตโนมัติ</div>
+    <div class="sync-hero-grid">
+      <div class="sync-hero-cell">Sync ล่าสุด<strong id="heroLast">—</strong></div>
+      <div class="sync-hero-cell">Sync ถัดไป<strong id="heroNext">—</strong></div>
+      <div class="sync-hero-cell">Rows ล่าสุด<strong id="heroRows">—</strong></div>
+    </div>
+  </div>
+
+  <!-- ── Enable toggle + frequency ── -->
+  <div class="sync-section">
+    <div class="sync-section-title">⚡ Automation</div>
+    <div class="sync-section-desc">เปิดใช้แล้วระบบจะ sync ตามช่วงเวลาที่กำหนด (ทำงานบน GitHub Actions)</div>
+    <div class="sync-toggle-row">
+      <div class="sync-toggle-label">เปิดใช้งาน Auto-Sync</div>
+      <div class="sync-switch" id="swEnabled" onclick="toggleEnabled()"><div class="sync-switch-knob"></div></div>
+    </div>
+    <div style="margin-top:14px">
+      <div class="sync-toggle-label">ความถี่</div>
+      <div class="freq-row">
+        <button class="freq-btn" data-freq="1h"     onclick="setFreq('1h')">ทุก 1 ชั่วโมง</button>
+        <button class="freq-btn" data-freq="6h"     onclick="setFreq('6h')">ทุก 6 ชั่วโมง</button>
+        <button class="freq-btn active" data-freq="24h" onclick="setFreq('24h')">ทุกวัน</button>
+        <button class="freq-btn" data-freq="weekly" onclick="setFreq('weekly')">ทุกสัปดาห์</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Credentials ── -->
+  <div class="sync-section">
+    <div class="sync-section-title">🔐 Credentials answerforsuccess.com</div>
+    <div class="sync-section-desc">
+      เก็บเป็น encrypted ด้วย Master Key ใน Supabase — ใช้โดย GitHub Actions ตอน login
+    </div>
+    <div class="cred-row">
+      <div class="cred-label">👤 Username</div>
+      <div class="cred-input-wrap">
+        <input class="cred-input" id="afsUsername" placeholder="username หรืออีเมล" autocomplete="off">
+      </div>
+    </div>
+    <div class="cred-row">
+      <div class="cred-label">🔑 Password</div>
+      <div class="cred-input-wrap">
+        <input class="cred-input" id="afsPassword" type="password" placeholder="password" autocomplete="off">
+        <button class="cred-eye" type="button" onclick="togglePwEye()" id="pwEye">👁️</button>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:18px;padding-top:16px;border-top:1px solid var(--border)">
+      <button class="btn btn-outline" onclick="testLogin()">🧪 ทดสอบ Login</button>
+      <button class="btn btn-primary" onclick="saveConfig()">💾 บันทึกการตั้งค่า</button>
+    </div>
+  </div>
+
+  <!-- ── Action ── -->
+  <div class="sync-section">
+    <div class="sync-section-title">🎛️ Manual Sync</div>
+    <div class="sync-section-desc">สั่งให้ระบบ sync ทันที (ไม่ต้องรอ schedule)</div>
+    <button class="btn-sync-now" data-perm="member_sync_trigger" onclick="syncNow()">
+      🔄 Sync Now
+    </button>
+    <div class="danger-zone">
+      ⚠️ <strong>หมายเหตุ:</strong> ตอนนี้ยังไม่มี backend script ทำงานจริง — ปุ่ม "Sync Now" จะบันทึกว่า user กด แต่ไม่ได้ไปดึงข้อมูลจริงจนกว่าจะตั้งค่า GitHub Actions (Phase 2B/C)
+    </div>
+  </div>
+
+  <!-- ── Sync Log History ── -->
+  <div class="sync-section">
+    <div class="sync-section-title" style="display:flex;justify-content:space-between;align-items:center">
+      <span>📜 ประวัติการ Sync</span>
+      <button class="btn btn-outline" onclick="loadLog()" style="padding:5px 14px;font-size:12px">🔄 รีเฟรช</button>
+    </div>
+    <div style="overflow-x:auto">
+      <table class="log-table">
+        <thead>
+          <tr>
+            <th>เวลาเริ่ม</th>
+            <th>Source</th>
+            <th>Status</th>
+            <th style="text-align:right">Rows</th>
+            <th style="text-align:right">ใช้เวลา</th>
+            <th>By</th>
+            <th>Error</th>
+          </tr>
+        </thead>
+        <tbody id="logBody">
+          <tr><td colspan="7" class="log-empty">กำลังโหลด...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<script src="../../js/core/auth.js"></script>
+<script src="../../js/core/authz.js"></script>
+<script src="../../js/core/crypto.js"></script>
+<script src="../../js/core/date-format.js"></script>
+<script>AuthZ.requirePerm("member_sync_config");</script>
+<script src="./members-sync.js"></script>
+<script type="module">
+  import { loadTopbar } from "../../js/components/navigation/topbar.js";
+  loadTopbar("⚙️ ตั้งค่า Auto-Sync สมาชิก");
+</script>
+<script src="../../js/components/navigation/sidebar.js"></script>
+</body>
+</html>

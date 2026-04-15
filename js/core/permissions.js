@@ -175,6 +175,16 @@ window.AppPermissions = (() => {
           { key: "customer_edit",   label: "แก้ไข" },
           { key: "customer_delete", label: "ลบ" },
         ]},
+        { key: "member", label: "สมาชิก (MLM)", icon: "👤", perms: [
+          { key: "member_view",         label: "ดูรายการ" },
+          { key: "member_import",       label: "นำเข้า Excel" },
+          { key: "member_export",       label: "ส่งออก" },
+          { key: "member_edit",         label: "แก้ไข" },
+          { key: "member_delete",       label: "ลบ" },
+          { key: "member_decrypt",      label: "ถอดรหัสข้อมูลลับ" },
+          { key: "member_sync_config",  label: "ตั้งค่า Auto-Sync" },
+          { key: "member_sync_trigger", label: "กด Sync Now" },
+        ]},
       ],
     },
   ];

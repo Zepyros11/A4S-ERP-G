@@ -149,6 +149,54 @@
         },
       ],
     },
+    //  **************** CRM *****************
+    {
+      group: "ลูกค้า (CRM)",
+      icon: "🧑",
+      id: "g-crm",
+      items: [
+        {
+          id: "customers",
+          icon: "🧑",
+          label: "ข้อมูลลูกค้า",
+          path: BASE_PATH + "/modules/customer/customers.html",
+        },
+        {
+          id: "members",
+          icon: "👤",
+          label: "ข้อมูลสมาชิก (MLM)",
+          path: BASE_PATH + "/modules/customer/members-list.html",
+        },
+        {
+          id: "members-import",
+          icon: "📥",
+          label: "นำเข้า Excel",
+          path: BASE_PATH + "/modules/customer/members-import.html",
+          section: "setup",
+        },
+        {
+          id: "members-sync",
+          icon: "⚙️",
+          label: "ตั้งค่า Auto-Sync",
+          path: BASE_PATH + "/modules/customer/members-sync.html",
+          section: "setup",
+        },
+      ],
+    },
+    //  **************** SUPPLIER *****************
+    {
+      group: "ซัพพลายเออร์ (Supplier)",
+      icon: "🚚",
+      id: "g-supplier",
+      items: [
+        {
+          id: "suppliers",
+          icon: "🚚",
+          label: "ข้อมูล Supplier",
+          path: BASE_PATH + "/modules/supplier/suppliers.html",
+        },
+      ],
+    },
     //  **************** REPORT *****************
     {
       group: "รายงาน",
@@ -193,18 +241,6 @@
           label: "จัดการ Role",
           path: BASE_PATH + "/modules/settings/roles.html",
         },
-        {
-          id: "suppliers",
-          icon: "🚚",
-          label: "Supplier",
-          path: BASE_PATH + "/modules/settings/suppliers.html",
-        },
-        {
-          id: "customers",
-          icon: "🧑",
-          label: "ลูกค้า",
-          path: BASE_PATH + "/modules/settings/customers.html",
-        },
       ],
     },
   ];
@@ -235,6 +271,9 @@
     roles: "roles_view",
     suppliers: "supplier_view",
     customers: "customer_view",
+    members: "member_view",
+    "members-import": "member_import",
+    "members-sync": "member_sync_config",
   };
 
   /* ── อ่าน effective_perms จาก session (ไม่พึ่ง AuthZ) ── */
@@ -292,6 +331,9 @@
     "users",
     "roles",
     "customers",
+    "members",
+    "members-import",
+    "members-sync",
     // "reports",
     // "db_viewer",
   ];

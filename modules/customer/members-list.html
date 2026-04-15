@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ข้อมูลสมาชิก — A4S-ERP</title>
+<link rel="stylesheet" href="../../css/main.css">
+<style>
+.mem-table{width:100%;border-collapse:collapse;font-size:13px;}
+.mem-table th{padding:9px 12px;background:var(--surface2);font-size:11px;font-weight:700;letter-spacing:.6px;color:var(--text3);text-align:left;border-bottom:2px solid var(--border);white-space:nowrap;cursor:pointer;user-select:none;}
+.mem-table th:hover{color:var(--accent);}
+.mem-table td{padding:10px 12px;border-bottom:1px solid var(--border);vertical-align:middle;}
+.mem-table tr:last-child td{border-bottom:none;}
+.mem-table tr{cursor:pointer;transition:background .12s;}
+.mem-table tr:hover td{background:var(--accent-pale);}
+.mem-table tr.selected td{background:#dbeafe;}
+.mem-code{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--text3);font-weight:600;}
+.mem-name{font-weight:600;color:var(--text);}
+.mem-contact{font-size:11.5px;color:var(--text2);margin-top:2px;}
+.pkg-badge{display:inline-flex;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;}
+.pkg-DM{background:#ddd6fe;color:#5b21b6;}
+.pkg-SI{background:#fef3c7;color:#92400e;}
+.pkg-PL{background:#cffafe;color:#0e7490;}
+.pkg-MB{background:#fce7f3;color:#9f1239;}
+.pkg-EM{background:#d1fae5;color:#065f46;}
+.country-flag{font-size:13px;margin-right:4px;}
+.mask{font-family:'IBM Plex Mono',monospace;color:var(--text3);}
+.paginate{display:flex;align-items:center;gap:6px;padding:14px 0;justify-content:center;}
+.paginate button{min-width:36px;height:32px;border:1px solid var(--border);background:var(--surface);border-radius:6px;font-family:inherit;cursor:pointer;}
+.paginate button:hover{background:var(--accent-pale);border-color:var(--accent);}
+.paginate button.active{background:var(--accent);color:#fff;border-color:var(--accent);}
+.paginate button:disabled{opacity:.4;cursor:not-allowed;}
+.paginate-info{font-size:12.5px;color:var(--text3);margin:0 12px;}
+
+/* ── Search with custom dropdown (theme accent) ── */
+.search-wrap-with-mode{display:flex;align-items:center;gap:8px;min-width:380px;flex:1;max-width:640px;}
+
+/* Custom dropdown button */
+.search-mode{position:relative;}
+.search-mode-btn{
+  display:flex;align-items:center;gap:8px;
+  background:linear-gradient(135deg,var(--accent),var(--accent-light));
+  color:#fff;font-weight:600;font-family:inherit;font-size:13px;
+  border:none;border-radius:22px;
+  padding:10px 14px 10px 18px;
+  cursor:pointer;outline:none;min-width:170px;
+  box-shadow:0 3px 10px rgba(15,76,117,.3);
+  transition:all .18s cubic-bezier(.4,0,.2,1);
+}
+.search-mode-btn:hover{transform:translateY(-1px);box-shadow:0 6px 16px rgba(15,76,117,.4);}
+.search-mode-btn:focus{box-shadow:0 0 0 3px rgba(15,76,117,.2),0 3px 10px rgba(15,76,117,.3);}
+.search-mode-icon{font-size:14px;}
+.search-mode-label{flex:1;text-align:left;}
+.search-mode-chevron{font-size:10px;margin-left:2px;transition:transform .2s;opacity:.85;}
+.search-mode.open .search-mode-chevron{transform:rotate(180deg);}
+
+/* Dropdown panel */
+.search-mode-panel{
+  position:absolute;top:calc(100% + 6px);left:0;
+  min-width:220px;
+  background:#fff;
+  border:1px solid var(--border);
+  border-radius:14px;
+  box-shadow:0 10px 32px rgba(0,0,0,.15);
+  padding:6px;
+  z-index:50;
+  opacity:0;transform:translateY(-6px) scale(.98);
+  pointer-events:none;
+  transition:opacity .18s,transform .18s;
+}
+.search-mode.open .search-mode-panel{opacity:1;transform:translateY(0) scale(1);pointer-events:auto;}
+.search-mode-option{
+  display:flex;align-items:center;gap:10px;width:100%;
+  background:transparent;border:none;
+  padding:9px 14px;border-radius:9px;
+  font-family:inherit;font-size:13px;color:var(--text);
+  cursor:pointer;text-align:left;
+  transition:background .12s,color .12s;
+}
+.search-mode-option:hover{background:var(--accent-pale);color:var(--accent);}
+.search-mode-option.active{background:var(--accent-pale);color:var(--accent);font-weight:600;}
+.search-mode-option.active::after{content:'✓';margin-left:auto;color:var(--accent);font-weight:700;}
+
+/* Search input */
+.search-wrap-with-mode .search-input-wrap{flex:1;position:relative;display:flex;align-items:center;background:var(--surface);border:1.5px solid var(--border);border-radius:22px;padding:0 14px;transition:border-color .15s;}
+.search-wrap-with-mode .search-input-wrap:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px rgba(15,76,117,.12);}
+.search-wrap-with-mode .search-input{flex:1;border:none;padding:9px 0;font-family:inherit;font-size:13.5px;outline:none;background:transparent;}
+.search-clear{border:none;background:transparent;color:var(--text3);cursor:pointer;padding:0 4px;font-size:14px;display:none;border-radius:50%;width:22px;height:22px;}
+.search-clear.show{display:flex;align-items:center;justify-content:center;}
+.search-clear:hover{background:var(--danger-pale);color:var(--danger);}
+
+/* ── Danger button + purge modal ── */
+.btn-danger-outline{color:var(--danger);border-color:#fca5a5;}
+.btn-danger-outline:hover{background:var(--danger-pale);border-color:var(--danger);}
+.btn-danger-solid{background:var(--danger);color:#fff;border:none;}
+.btn-danger-solid:hover{background:#7f1d1d;}
+.btn-danger-solid:disabled{opacity:.4;cursor:not-allowed;}
+.pg-icon{width:60px;height:60px;border-radius:50%;background:linear-gradient(135deg,#fecaca,#ef4444);color:#fff;display:flex;align-items:center;justify-content:center;font-size:30px;margin:0 auto 14px;box-shadow:0 8px 20px rgba(220,38,38,.35);}
+.pg-title{font-size:17px;font-weight:700;color:var(--text);text-align:center;margin-bottom:6px;}
+.pg-warning{background:var(--danger-pale);color:var(--danger);border:1px solid #fca5a5;border-radius:8px;padding:12px 14px;font-size:12.5px;line-height:1.6;margin-top:14px;}
+.pg-count-badge{display:inline-block;background:var(--danger);color:#fff;padding:4px 12px;border-radius:12px;font-weight:700;font-size:14px;font-family:'IBM Plex Mono',monospace;}
+.pg-confirm-input{width:100%;padding:12px 14px;font-family:'IBM Plex Mono',monospace;font-size:14px;border:2px solid var(--border);border-radius:8px;margin-top:12px;transition:border-color .15s;}
+.pg-confirm-input:focus{outline:none;border-color:var(--danger);}
+.pg-confirm-input.match{border-color:var(--success);background:var(--success-pale);}
+
+/* ── Master Key Modal ── */
+.mk-icon{width:54px;height:54px;border-radius:50%;background:linear-gradient(135deg,#fde68a,#f59e0b);display:flex;align-items:center;justify-content:center;font-size:28px;margin:0 auto 14px;box-shadow:0 6px 16px rgba(245,158,11,.35);}
+.mk-title{font-size:17px;font-weight:700;color:var(--text);text-align:center;margin-bottom:6px;}
+.mk-desc{font-size:13px;color:var(--text2);text-align:center;line-height:1.6;margin-bottom:20px;padding:0 6px;}
+.mk-input-wrap{position:relative;}
+.mk-input-wrap input{width:100%;padding:13px 44px 13px 14px;font-family:'IBM Plex Mono',monospace;font-size:14px;letter-spacing:1px;border:2px solid var(--border);border-radius:8px;transition:border-color .15s;}
+.mk-input-wrap input:focus{outline:none;border-color:var(--accent);}
+.mk-toggle-eye{position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:18px;opacity:.5;transition:opacity .15s;}
+.mk-toggle-eye:hover{opacity:1;}
+.mk-hint{font-size:11.5px;color:var(--text3);margin-top:10px;display:flex;align-items:center;gap:6px;}
+.mk-error{background:var(--danger-pale);color:var(--danger);padding:10px 14px;border-radius:7px;font-size:12.5px;margin-top:12px;border:1px solid #fca5a5;display:none;}
+.mk-error.show{display:block;animation:shake .3s;}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+</style>
+</head>
+<body>
+
+<div class="loading-overlay" id="loadingOverlay"><div class="spinner"></div></div>
+<div class="toast" id="toast"></div>
+
+<!-- TOPBAR -->
+<div class="topbar"></div>
+
+<!-- PAGE -->
+<div class="page">
+
+  <!-- Stats -->
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="stat-icon" style="background:#e0f2fe;color:#0369a1">👤</div>
+      <div><div class="stat-label">สมาชิกทั้งหมด</div><div class="stat-value" id="statTotal">—</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon" style="background:var(--success-pale);color:var(--success)">🇹🇭</div>
+      <div><div class="stat-label">ไทย</div><div class="stat-value" id="statTH" style="color:var(--success)">—</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon" style="background:var(--warning-pale);color:var(--warning)">🇰🇭</div>
+      <div><div class="stat-label">Cambodia</div><div class="stat-value" id="statKH" style="color:var(--warning)">—</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon" style="background:#ddd6fe;color:#5b21b6">📦</div>
+      <div><div class="stat-label">ปีนี้</div><div class="stat-value" id="statThisYear" style="color:#5b21b6">—</div></div>
+    </div>
+  </div>
+
+  <!-- Toolbar -->
+  <div class="toolbar">
+    <div class="search-wrap-with-mode">
+      <div class="search-mode" id="searchMode" data-value="all">
+        <button class="search-mode-btn" type="button" onclick="toggleSearchMode(event)">
+          <span class="search-mode-icon">🔎</span>
+          <span class="search-mode-label">ทุก field</span>
+          <span class="search-mode-chevron">▾</span>
+        </button>
+        <div class="search-mode-panel" id="searchModePanel">
+          <button class="search-mode-option active" data-value="all"         data-icon="🔎" data-label="ทุก field"       onclick="selectSearchMode(this)">🔎 <span>ทุก field</span></button>
+          <button class="search-mode-option"        data-value="member_code" data-icon="🧑" data-label="รหัสสมาชิก"     onclick="selectSearchMode(this)">🧑 <span>รหัสสมาชิก</span></button>
+          <button class="search-mode-option"        data-value="full_name"   data-icon="👤" data-label="ชื่อ-นามสกุล"   onclick="selectSearchMode(this)">👤 <span>ชื่อ-นามสกุล</span></button>
+          <button class="search-mode-option"        data-value="phone"       data-icon="📞" data-label="เบอร์โทร"       onclick="selectSearchMode(this)">📞 <span>เบอร์โทร</span></button>
+          <button class="search-mode-option"        data-value="sponsor_code" data-icon="⭐" data-label="Sponsor"        onclick="selectSearchMode(this)">⭐ <span>Sponsor</span></button>
+          <button class="search-mode-option"        data-value="upline_code" data-icon="🌲" data-label="Upline"         onclick="selectSearchMode(this)">🌲 <span>Upline</span></button>
+          <button class="search-mode-option"        data-value="email"       data-icon="✉️" data-label="E-mail"         onclick="selectSearchMode(this)">✉️ <span>E-mail</span></button>
+        </div>
+      </div>
+      <div class="search-input-wrap">
+        <input class="search-input" id="searchInput" placeholder="ค้นหา..." oninput="onSearch()">
+        <button class="search-clear" id="searchClear" onclick="clearSearch()" title="ล้าง">✕</button>
+      </div>
+    </div>
+    <select class="filter-select" id="filterCountry" onchange="applyFilter()">
+      <option value="">ทุกประเทศ</option>
+      <option value="TH">🇹🇭 ไทย</option>
+      <option value="KH">🇰🇭 Cambodia</option>
+    </select>
+    <select class="filter-select" id="filterPackage" onchange="applyFilter()">
+      <option value="">ทุก Package</option>
+      <option value="DM">DM</option>
+      <option value="SI">SI</option>
+      <option value="PL">PL</option>
+      <option value="MB">MB</option>
+      <option value="EM">EM</option>
+    </select>
+    <div class="toolbar-right">
+      <button class="btn btn-outline" onclick="loadData()">🔄 รีเฟรช</button>
+      <button class="btn btn-outline" data-perm="member_decrypt" onclick="toggleDecrypt()" id="btnDecrypt">🔓 ถอดรหัส</button>
+      <button class="btn btn-outline btn-danger-outline" data-perm="member_delete" onclick="openPurgeModal()">🗑️ ลบทั้งหมด</button>
+      <button class="btn btn-primary" data-perm="member_import" onclick="location.href='./members-import.html'">📥 นำเข้า Excel</button>
+    </div>
+  </div>
+
+  <!-- Table -->
+  <div class="panel" style="margin-top:16px;padding:0;overflow:hidden">
+    <div style="overflow-x:auto">
+      <table class="mem-table">
+        <thead>
+          <tr>
+            <th onclick="sortBy('member_code')">รหัส</th>
+            <th onclick="sortBy('full_name')">ชื่อ-นามสกุล</th>
+            <th onclick="sortBy('phone')">โทรศัพท์</th>
+            <th>บัตร ปปช.</th>
+            <th>รหัสผ่าน</th>
+            <th onclick="sortBy('package')">Package</th>
+            <th onclick="sortBy('sponsor_code')">Sponsor</th>
+            <th onclick="sortBy('upline_code')">Upline</th>
+            <th onclick="sortBy('side')">ด้าน</th>
+            <th onclick="sortBy('registered_at')">วันที่สมัคร</th>
+            <th>ประเทศ</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+    <div class="paginate" id="paginate"></div>
+  </div>
+
+</div>
+
+<!-- Purge All Modal -->
+<div class="modal-overlay" id="purgeModalOverlay" onclick="if(event.target===this)closePurgeModal()">
+  <div class="modal" style="max-width:460px">
+    <div class="modal-body" style="padding:28px 28px 20px">
+      <div class="pg-icon">⚠️</div>
+      <div class="pg-title">ลบข้อมูลสมาชิกทั้งหมด?</div>
+      <div style="text-align:center;color:var(--text2);font-size:13.5px;line-height:1.7;margin-top:10px">
+        กำลังจะลบสมาชิก <span class="pg-count-badge" id="pgCount">—</span> รายการ<br>
+        <strong>การกระทำนี้ย้อนกลับไม่ได้</strong>
+      </div>
+      <div class="pg-warning">
+        🚨 <strong>ข้อมูลที่จะหายถาวร:</strong><br>
+        • สมาชิก + รหัสผ่าน + เลขบัตร ปปช. (encrypted)<br>
+        • โครงสร้าง MLM (sponsor/upline)<br>
+        • ประวัติทั้งหมด<br>
+        <br>
+        <strong>คำแนะนำ:</strong> re-import จากไฟล์ Excel ได้ แต่ข้อมูลที่แก้ใน ERP (ถ้ามี) จะหาย
+      </div>
+      <div style="margin-top:18px">
+        <label style="font-size:12.5px;color:var(--text2);font-weight:600">
+          พิมพ์ <code style="background:var(--surface2);padding:2px 6px;border-radius:4px;font-family:'IBM Plex Mono',monospace;color:var(--danger)">ลบทั้งหมด</code> เพื่อยืนยัน:
+        </label>
+        <input class="pg-confirm-input" id="pgConfirmInput" type="text"
+               placeholder="พิมพ์ที่นี่..." autocomplete="off"
+               oninput="onPgInput()">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closePurgeModal()">ยกเลิก</button>
+      <button class="btn btn-danger-solid" id="btnConfirmPurge" disabled onclick="confirmPurge()">🗑️ ลบทั้งหมด</button>
+    </div>
+  </div>
+</div>
+
+<!-- Master Key Modal -->
+<div class="modal-overlay" id="mkModalOverlay" onclick="if(event.target===this)closeMKModal()">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-body" style="padding:28px 28px 20px">
+      <div class="mk-icon">🔐</div>
+      <div class="mk-title">กรอก Master Key</div>
+      <div class="mk-desc">เพื่อถอดรหัส <strong>รหัสผ่าน</strong> และ <strong>เลขบัตรประชาชน</strong> ของสมาชิก</div>
+      <div class="mk-input-wrap">
+        <input id="mkInput" type="password" placeholder="Master Key ของคุณ" autocomplete="off"
+               onkeydown="if(event.key==='Enter')confirmMK()">
+        <button class="mk-toggle-eye" onclick="toggleMKEye()" id="mkEye" title="แสดง/ซ่อน">👁️</button>
+      </div>
+      <div class="mk-hint">💡 ใช้ Key เดียวกับตอน import</div>
+      <div class="mk-error" id="mkError"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeMKModal()">ยกเลิก</button>
+      <button class="btn btn-primary" onclick="confirmMK()">🔓 ปลดล็อก</button>
+    </div>
+  </div>
+</div>
+
+<script src="../../js/core/auth.js"></script>
+<script src="../../js/core/authz.js"></script>
+<script src="../../js/core/crypto.js"></script>
+<script src="../../js/core/date-format.js"></script>
+<script>AuthZ.requirePerm("member_view");</script>
+<script src="./members-list.js"></script>
+<script type="module">
+  import { loadTopbar } from "../../js/components/navigation/topbar.js";
+  loadTopbar("👤 ข้อมูลสมาชิก");
+</script>
+<script src="../../js/components/navigation/sidebar.js"></script>
+</body>
+</html>
