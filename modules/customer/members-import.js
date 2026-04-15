@@ -44,6 +44,31 @@ const HEADER_MAP = {
 
 const SENSITIVE_FIELDS = ['__password_plain', '__national_id_plain'];
 
+/* Fuzzy header matching (case + whitespace insensitive + substring patterns) */
+function _normHeader(h) { return String(h || '').replace(/\s+/g, '').toLowerCase(); }
+const HEADER_MAP_NORM = Object.fromEntries(Object.entries(HEADER_MAP).map(([k, v]) => [_normHeader(k), v]));
+const HEADER_PATTERNS = [
+  { re: /ชื่อบุคคล/,      field: 'full_name' },
+  { re: /ชื่อสมาชิก/,     field: 'member_name' },
+  { re: /รหัสสมาชิก/,     field: 'member_code' },
+  { re: /โทรศัพท์|โทร/,   field: 'phone' },
+  { re: /วันที่สมัคร/,    field: 'registered_at' },
+  { re: /วันเกิด/,        field: 'birth_date' },
+  { re: /ผู้แนะนำ/,       field: 'sponsor_code' },
+  { re: /อัพไลน์/,        field: 'upline_code' },
+  { re: /ด้าน/,           field: 'side' },
+  { re: /^package$/i,     field: 'package' },
+  { re: /^lb$/i,          field: 'country_code' },
+];
+function mapHeader(raw) {
+  if (!raw) return null;
+  if (HEADER_MAP[raw]) return HEADER_MAP[raw];
+  const norm = _normHeader(raw);
+  if (HEADER_MAP_NORM[norm]) return HEADER_MAP_NORM[norm];
+  for (const { re, field } of HEADER_PATTERNS) if (re.test(raw)) return field;
+  return null;
+}
+
 /* ── แปลง cell value → string "ปลอดภัย" (ไม่เป็น scientific) ── */
 function toCleanString(val) {
   if (val === null || val === undefined || val === '') return '';
@@ -171,16 +196,16 @@ function updateUI() {
   let html = '<table><thead><tr>';
   parsedHeaders.forEach(h => {
     if (!h) return;
-    const mapped = HEADER_MAP[h];
+    const mapped = mapHeader(h);
     const isSensitive = SENSITIVE_FIELDS.includes(mapped);
-    html += `<th title="${mapped || 'ไม่ match'}">${h}${isSensitive ? ' 🔒' : ''}${mapped ? '' : ' ⚠️'}</th>`;
+    html += `<th title="raw:'${h}' → ${mapped || '(unmapped)'}">${h}${isSensitive ? ' 🔒' : ''}${mapped ? '' : ' ⚠️'}</th>`;
   });
   html += '</tr></thead><tbody>';
   parsedRows.slice(0, 10).forEach(r => {
     html += '<tr>';
     parsedHeaders.forEach((h, i) => {
       if (!h) return;
-      const mapped = HEADER_MAP[h];
+      const mapped = mapHeader(h);
       const val = r[i];
       let display;
       if (SENSITIVE_FIELDS.includes(mapped) && val) {
@@ -212,7 +237,7 @@ async function rowToRecord(row) {
     const val = row[i];
     if (val === null || val === undefined || val === '') continue;
 
-    const mapped = HEADER_MAP[h];
+    const mapped = mapHeader(h);
     if (!mapped) { extra[h] = val; continue; }
 
     if (mapped === '__password_plain') {

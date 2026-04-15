@@ -40,6 +40,45 @@ const HEADER_MAP = {
 
 const NUMERIC_CODE_FIELDS = new Set(['member_code', 'sponsor_code', 'upline_code']);
 
+/* Normalize Thai/English header for fuzzy matching (strip spaces, lowercase) */
+function _normHeader(h) {
+  return String(h || '').replace(/\s+/g, '').toLowerCase();
+}
+
+/* Build a normalized lookup once (case + whitespace insensitive) */
+const HEADER_MAP_NORM = Object.fromEntries(
+  Object.entries(HEADER_MAP).map(([k, v]) => [_normHeader(k), v])
+);
+
+/* Substring patterns for extra robustness when header has decoration */
+const HEADER_PATTERNS = [
+  { re: /ชื่อบุคคล/, field: 'full_name' },
+  { re: /ชื่อสมาชิก/, field: 'member_name' },
+  { re: /รหัสสมาชิก/, field: 'member_code' },
+  { re: /โทรศัพท์|โทร/, field: 'phone' },
+  { re: /วันที่สมัคร/, field: 'registered_at' },
+  { re: /วันเกิด/, field: 'birth_date' },
+  { re: /รหัสผู้แนะนำ|ผู้แนะนำ/, field: 'sponsor_code' },
+  { re: /รหัสอัพไลน์|อัพไลน์/, field: 'upline_code' },
+  { re: /ด้าน/, field: 'side' },
+  { re: /^package$/i, field: 'package' },
+  { re: /^lb$/i, field: 'country_code' },
+];
+
+function mapHeader(raw) {
+  if (!raw) return null;
+  // 1. Direct match (fast path)
+  if (HEADER_MAP[raw]) return HEADER_MAP[raw];
+  // 2. Normalized match (ignore whitespace + case)
+  const norm = _normHeader(raw);
+  if (HEADER_MAP_NORM[norm]) return HEADER_MAP_NORM[norm];
+  // 3. Substring pattern fallback
+  for (const { re, field } of HEADER_PATTERNS) {
+    if (re.test(raw)) return field;
+  }
+  return null;
+}
+
 /* ── Helpers (mirror browser toCleanString / toNumericCode / parseDate) ── */
 function toCleanString(val) {
   if (val === null || val === undefined || val === '') return '';
@@ -114,6 +153,17 @@ export async function parseXlsToRecords(filePath, { masterKey, sourceFile = null
     r && r.some(c => c !== null && c !== '' && c !== undefined)
   );
 
+  // Diagnostic: log header → mapping for CI logs
+  console.log(`[parser] Headers detected (${headers.filter(Boolean).length} cols):`);
+  const unmapped = [];
+  headers.forEach((h, i) => {
+    if (!h) return;
+    const m = mapHeader(h);
+    if (m) console.log(`  col ${i}: "${h}" → ${m}`);
+    else { console.log(`  col ${i}: "${h}" → (unmapped)`); unmapped.push(h); }
+  });
+  if (unmapped.length) console.log(`[parser] ⚠️ ${unmapped.length} header(s) unmapped → stored as extra_data`);
+
   // Convert each row → record
   const records = [];
   for (const r of dataRows) {
@@ -126,7 +176,7 @@ export async function parseXlsToRecords(filePath, { masterKey, sourceFile = null
       const val = r[i];
       if (val === null || val === undefined || val === '') continue;
 
-      const mapped = HEADER_MAP[h];
+      const mapped = mapHeader(h);
       if (!mapped) { extra[h] = val; continue; }
 
       if (mapped === '__password_plain') {
