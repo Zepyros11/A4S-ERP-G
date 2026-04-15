@@ -16,6 +16,7 @@ FROM members m
 LEFT JOIN members s ON s.member_code = m.sponsor_code
 WHERE m.sponsor_code IS NOT NULL
   AND m.sponsor_code != ''
+  AND m.sponsor_code NOT IN ('1')   -- exclude corporate root (answerforsuccess platform)
 GROUP BY m.sponsor_code, s.full_name, s.member_name, s.country_code
 ORDER BY downline_count DESC
 LIMIT 10;
