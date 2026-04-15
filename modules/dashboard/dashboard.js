@@ -355,9 +355,13 @@ function _renderTopSponsors(rows) {
     const rank = i + 1;
     const rankCls = rank === 1 ? 'gold' : rank === 2 ? 'silver' : rank === 3 ? 'bronze' : '';
     const flag = _countryFlag(r.sponsor_country);
-    // Sponsor name fallback: if not found in DB → likely root/admin or non-imported branch
-    const nameDisplay = r.sponsor_name
-      ? escapeHtml(r.sponsor_name)
+    // Apply smart name rule (company → use full_name)
+    const computedName = window.MemberFmt
+      ? MemberFmt.displayNameFromPair(r.sponsor_member_name, r.sponsor_full_name)
+      : (r.sponsor_full_name || r.sponsor_member_name);
+    const hasName = computedName && computedName !== '—';
+    const nameDisplay = hasName
+      ? escapeHtml(computedName)
       : (r.sponsor_code === '1'
           ? '<span style="color:var(--text3)">🏛️ Root / Admin</span>'
           : '<span style="color:var(--text3)">— (สมาชิกแม่ทีม / ไม่ได้ import)</span>');

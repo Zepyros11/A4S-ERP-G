@@ -1,25 +1,16 @@
 -- ============================================================
--- Migration 006: Update views to use proper display name logic
---   Rule: if member_name is company (บริษัท/จำกัด/หจก/...)
---         AND full_name is not empty → use full_name (real person)
---         else → use member_name
+-- Migration 006: v_top_sponsors returns raw fields
+--   (display name logic moved to JS via window.MemberFmt
+--    ที่ทุก page ใช้ไอรูปแบบเดียวกัน — ง่ายต่อ maintain + ไม่มี regex ใน SQL)
 -- ============================================================
-
--- Regex for company-style names
--- Postgres uses POSIX regex (similar to JS but no /i flag — use ~* for case-insensitive)
--- Note: Thai chars are case-insensitive by nature
 
 DROP VIEW IF EXISTS v_top_sponsors;
 CREATE VIEW v_top_sponsors AS
 SELECT
   m.sponsor_code,
   COUNT(*) AS downline_count,
-  CASE
-    WHEN s.member_name ~* '(บริษัท|จำกัด|ห้างหุ้นส่วน|หจก|บจก|กรุ๊ป|กลุ่ม|มูลนิธิ|สมาคม|ร้าน|Co\.|Ltd|Inc|LLC|Corp|Group)'
-         AND COALESCE(NULLIF(s.full_name, ''), '') != ''
-    THEN s.full_name
-    ELSE COALESCE(NULLIF(s.member_name, ''), NULLIF(s.full_name, ''))
-  END AS sponsor_name,
+  s.member_name AS sponsor_member_name,
+  s.full_name   AS sponsor_full_name,
   s.country_code AS sponsor_country
 FROM members m
 LEFT JOIN members s ON s.member_code = m.sponsor_code
