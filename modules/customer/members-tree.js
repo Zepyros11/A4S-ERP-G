@@ -58,7 +58,7 @@ async function suggestByName(q) {
     );
     if (!rows.length) { _hideSuggest(); return; }
     const html = rows.map(m => {
-      const name = m.full_name || m.member_name || '—';
+      const name = MemberFmt.displayName(m);
       return `<div onclick="loadMember('${m.member_code}')" style="padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--border);transition:background .12s" onmouseover="this.style.background='var(--accent-pale)'" onmouseout="this.style.background='transparent'">
         <span style="font-family:'IBM Plex Mono',monospace;color:var(--accent);font-weight:600;font-size:12px">${m.member_code}</span>
         <span style="margin-left:10px;font-size:13px">${escapeHtml(name)}</span>
@@ -92,7 +92,7 @@ async function loadMember(code) {
 }
 
 function _renderMemberCard(m) {
-  const name = m.full_name || m.member_name || '—';
+  const name = window.MemberFmt ? MemberFmt.displayName(m) : (m.full_name || m.member_name || '—');
   const initial = name.replace(/^(นาย|นาง|นางสาว|Mr\.|Mrs\.|Ms\.|บริษัท|ห้างหุ้นส่วน)\s*/i, '').trim().charAt(0).toUpperCase() || '?';
   document.getElementById('mAvatar').textContent = initial;
   document.getElementById('mName').textContent = name;
@@ -184,7 +184,7 @@ async function renderUplineChain(field) {
       <div style="flex:1">
         <div style="display:flex;gap:10px;align-items:baseline">
           <span class="tree-code" onclick="loadMember('${m.member_code}')" style="cursor:pointer">${m.member_code}</span>
-          <span class="tree-name">${escapeHtml(m.full_name || m.member_name || '—')}</span>
+          <span class="tree-name">${escapeHtml(MemberFmt.displayName(m))}</span>
           ${m.package ? `<span class="tree-pkg pkg-${m.package}">${m.package}</span>` : ''}
           ${m.side ? `<span class="tree-side ${m.side==='ซ้าย'?'left':'right'}">${m.side}</span>` : ''}
         </div>
@@ -212,7 +212,7 @@ async function _buildNode(member, field, depth) {
 
   const row = document.createElement('div');
   row.className = 'tree-node';
-  const name = member.full_name || member.member_name || '—';
+  const name = MemberFmt.displayName(member);
   const isLeaf = childCount === 0;
   row.innerHTML = `
     <div class="tree-toggle ${isLeaf ? 'leaf' : ''}" data-expanded="false">${isLeaf ? '' : '▶'}</div>

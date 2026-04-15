@@ -217,7 +217,7 @@ function render() {
     return `<tr>
       <td><span class="mem-code">${m.member_code || '—'}</span></td>
       <td>
-        <div class="mem-name">${escapeHtml(m.full_name || m.member_name || '—')}</div>
+        <div class="mem-name">${escapeHtml(window.MemberFmt ? MemberFmt.displayName(m) : (m.full_name || m.member_name || '—'))}</div>
         ${m.email ? `<div class="mem-contact">${escapeHtml(m.email)}</div>` : ''}
       </td>
       <td><span class="mem-code">${escapeHtml(m.phone || '—')}</span></td>
