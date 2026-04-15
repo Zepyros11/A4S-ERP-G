@@ -156,6 +156,12 @@
       id: "g-crm",
       items: [
         {
+          id: "members-dashboard",
+          icon: "📊",
+          label: "Customer Dashboard",
+          path: BASE_PATH + "/modules/customer/members-dashboard.html",
+        },
+        {
           id: "customers",
           icon: "🧑",
           label: "ข้อมูลลูกค้า",
@@ -278,6 +284,7 @@
     suppliers: "supplier_view",
     customers: "customer_view",
     members: "member_view",
+    "members-dashboard": "member_view",
     "members-tree": "member_view",
     "members-import": "member_import",
     "members-sync": "member_sync_config",
@@ -339,6 +346,7 @@
     "roles",
     "customers",
     "members",
+    "members-dashboard",
     "members-tree",
     "members-import",
     "members-sync",

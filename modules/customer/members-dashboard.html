@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Customer Dashboard — A4S-ERP</title>
+<link rel="stylesheet" href="../../css/main.css">
+<style>
+/* ── Stat cards ── */
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-top:14px;}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px 18px;display:flex;align-items:center;gap:14px;transition:all .15s;}
+.stat-card:hover{box-shadow:0 6px 18px rgba(0,0,0,.08);transform:translateY(-1px);}
+.stat-icon{width:48px;height:48px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;}
+.stat-card.total .stat-icon{background:#dbeafe;}
+.stat-card.company .stat-icon{background:#fef3c7;}
+.stat-card.individual .stat-icon{background:#d1fae5;}
+.stat-card.warn .stat-icon{background:#fee2e2;}
+.stat-label{font-size:11.5px;color:var(--text3);font-weight:600;letter-spacing:.3px;text-transform:uppercase;}
+.stat-value{font-size:26px;font-weight:700;color:var(--text);font-variant-numeric:tabular-nums;line-height:1.1;margin-top:2px;}
+.stat-sub{font-size:11px;color:var(--text3);margin-top:2px;}
+.stat-card.warn .stat-value{color:#b91c1c;}
+
+/* ── Issue list table ── */
+.dq-section{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px;margin-top:22px;}
+.dq-head{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:12px;}
+.dq-title{font-size:15px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:8px;}
+.dq-title .pill{background:#fee2e2;color:#991b1b;font-size:11px;padding:2px 8px;border-radius:10px;font-weight:700;}
+.dq-search{display:flex;align-items:center;background:var(--surface2);border:1px solid var(--border);border-radius:18px;padding:0 14px;min-width:240px;flex:1;max-width:360px;}
+.dq-search input{border:none;background:transparent;padding:8px 4px;flex:1;outline:none;font-family:inherit;font-size:13px;}
+
+.dq-table{width:100%;border-collapse:collapse;font-size:13px;}
+.dq-table th{padding:9px 12px;background:var(--surface2);font-size:11px;font-weight:700;letter-spacing:.4px;color:var(--text3);text-align:left;border-bottom:2px solid var(--border);white-space:nowrap;}
+.dq-table td{padding:10px 12px;border-bottom:1px solid var(--border);vertical-align:middle;}
+.dq-table tr:hover td{background:var(--accent-pale);}
+.dq-code{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--accent);font-weight:700;cursor:pointer;}
+.dq-code:hover{text-decoration:underline;}
+.dq-empty-cell{color:#b91c1c;font-size:11px;font-style:italic;}
+
+.pkg-badge{display:inline-flex;padding:1px 8px;border-radius:4px;font-size:11px;font-weight:600;}
+.pkg-DM{background:#ddd6fe;color:#5b21b6;}
+.pkg-SI{background:#fef3c7;color:#92400e;}
+.pkg-PL{background:#cffafe;color:#0e7490;}
+.pkg-MB{background:#fce7f3;color:#9f1239;}
+.pkg-EM{background:#d1fae5;color:#065f46;}
+
+.dq-actions{display:flex;gap:6px;}
+.dq-btn{padding:4px 10px;border:1px solid var(--border);background:var(--surface);border-radius:6px;font-family:inherit;font-size:11.5px;cursor:pointer;color:var(--text2);transition:all .12s;}
+.dq-btn:hover{background:var(--accent);color:#fff;border-color:var(--accent);}
+.dq-btn.primary{background:var(--accent);color:#fff;border-color:var(--accent);}
+.dq-btn.primary:hover{background:var(--accent-light);}
+
+.paginate{display:flex;align-items:center;gap:6px;padding:14px 0 0;justify-content:center;flex-wrap:wrap;}
+.paginate button{min-width:36px;height:32px;border:1px solid var(--border);background:var(--surface);border-radius:6px;font-family:inherit;cursor:pointer;font-size:12px;}
+.paginate button:hover{background:var(--accent-pale);border-color:var(--accent);}
+.paginate button.active{background:var(--accent);color:#fff;border-color:var(--accent);}
+.paginate button:disabled{opacity:.4;cursor:not-allowed;}
+.paginate-info{font-size:12.5px;color:var(--text3);margin:0 12px;font-variant-numeric:tabular-nums;}
+
+.dq-empty{text-align:center;padding:40px 20px;color:var(--text3);}
+.dq-empty-icon{font-size:48px;opacity:.4;margin-bottom:8px;}
+
+/* ── Donut chart card ── */
+.donut-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:22px;}
+.donut-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px;}
+.donut-card h3{margin:0 0 10px;font-size:14px;font-weight:700;color:var(--text);}
+.donut-wrap{position:relative;width:160px;height:160px;margin:0 auto;}
+.donut-center{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;}
+.donut-center .big{font-size:22px;font-weight:700;color:var(--text);font-variant-numeric:tabular-nums;}
+.donut-center .small{font-size:10.5px;color:var(--text3);}
+.donut-legend{margin-top:14px;font-size:12.5px;}
+.donut-legend .row{display:flex;align-items:center;gap:8px;padding:4px 0;}
+.donut-legend .dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+.donut-legend .num{margin-left:auto;font-weight:600;color:var(--text);font-variant-numeric:tabular-nums;}
+@media(max-width:800px){.donut-row{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+
+<div class="loading-overlay" id="loadingOverlay"><div class="spinner"></div></div>
+<div class="toast" id="toast"></div>
+
+<div class="topbar"></div>
+
+<div class="page">
+
+  <!-- Stats -->
+  <div class="stat-grid" id="statGrid">
+    <div class="stat-card total">
+      <div class="stat-icon">📊</div>
+      <div><div class="stat-label">สมาชิกทั้งหมด</div><div class="stat-value" id="sTotal">—</div><div class="stat-sub">ไม่นับรหัส 1 (corporate)</div></div>
+    </div>
+    <div class="stat-card company">
+      <div class="stat-icon">🏢</div>
+      <div><div class="stat-label">ชื่อบริษัท</div><div class="stat-value" id="sCompany">—</div><div class="stat-sub" id="sCompanyPct">—</div></div>
+    </div>
+    <div class="stat-card individual">
+      <div class="stat-icon">👤</div>
+      <div><div class="stat-label">ชื่อบุคคลธรรมดา</div><div class="stat-value" id="sIndividual">—</div><div class="stat-sub" id="sIndividualPct">—</div></div>
+    </div>
+    <div class="stat-card warn">
+      <div class="stat-icon">⚠️</div>
+      <div><div class="stat-label">บริษัท (ไม่มีชื่อบุคคล)</div><div class="stat-value" id="sProblem">—</div><div class="stat-sub">ข้อมูลไม่ครบ ต้องแก้</div></div>
+    </div>
+  </div>
+
+  <!-- Donut + other stats -->
+  <div class="donut-row">
+    <div class="donut-card">
+      <h3>สัดส่วนประเภทลูกค้า</h3>
+      <div class="donut-wrap" id="donutWrap"></div>
+      <div class="donut-legend" id="donutLegend"></div>
+    </div>
+    <div class="donut-card">
+      <h3>ข้อมูลที่ขาดหาย (ภาพรวม)</h3>
+      <div id="missList" style="font-size:13px;"></div>
+    </div>
+  </div>
+
+  <!-- Data quality issue list -->
+  <div class="dq-section">
+    <div class="dq-head">
+      <div class="dq-title">
+        ⚠️ ลูกค้าชื่อบริษัท แต่ไม่มีชื่อบุคคลธรรมดา
+        <span class="pill" id="issueCount">0</span>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <div class="dq-search">
+          <span style="opacity:.6">🔍</span>
+          <input id="dqSearch" placeholder="ค้นหารหัสหรือชื่อบริษัท...">
+        </div>
+        <button class="dq-btn primary" onclick="exportCSV()">📥 Export CSV</button>
+      </div>
+    </div>
+
+    <div style="overflow-x:auto">
+      <table class="dq-table">
+        <thead>
+          <tr>
+            <th>รหัส</th>
+            <th>ชื่อบริษัท (member_name)</th>
+            <th>ชื่อบุคคล (full_name)</th>
+            <th>ประเทศ</th>
+            <th>Package</th>
+            <th>วันสมัคร</th>
+            <th style="width:120px">Action</th>
+          </tr>
+        </thead>
+        <tbody id="dqBody">
+          <tr><td colspan="7" class="dq-empty">⏳ กำลังโหลด...</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="paginate" id="dqPaginate"></div>
+  </div>
+
+</div>
+
+<script src="../../js/core/auth.js"></script>
+<script src="../../js/core/authz.js"></script>
+<script src="../../js/core/date-format.js"></script>
+<script src="../../js/core/member-format.js"></script>
+<script>AuthZ.requirePerm("member_view");</script>
+<script src="./members-dashboard.js"></script>
+<script type="module">
+  import { loadTopbar } from "../../js/components/navigation/topbar.js";
+  loadTopbar("📊 Customer Dashboard");
+</script>
+<script src="../../js/components/navigation/sidebar.js"></script>
+</body>
+</html>

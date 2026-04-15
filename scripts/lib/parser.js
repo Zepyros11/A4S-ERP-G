@@ -14,6 +14,7 @@ const HEADER_MAP = {
   'รหัสสมาชิก': 'member_code',
   'ชื่อสมาชิก': 'member_name',
   'ชื่อบุคคล': 'full_name',
+  'ชื่อบุคคลธรรมดา': 'full_name',
   'โทรศัพท์': 'phone',
   'รหัสผ่าน': '__password_plain',
   'บัตรประชาชน': '__national_id_plain',

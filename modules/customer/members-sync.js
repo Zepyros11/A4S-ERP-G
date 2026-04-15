@@ -2,6 +2,57 @@
    members-sync.js — ตั้งค่า Auto-Sync + ดู sync_log
    ============================================================ */
 
+/* ── Custom confirm modal (replaces native confirm()) ── */
+function uiConfirm(opts) {
+  return new Promise((resolve) => {
+    const overlay = document.getElementById('uiConfirmOverlay');
+    const iconEl    = document.getElementById('uiConfirmIcon');
+    const titleEl   = document.getElementById('uiConfirmTitle');
+    const msgEl     = document.getElementById('uiConfirmMessage');
+    const detailsEl = document.getElementById('uiConfirmDetails');
+    const noteEl    = document.getElementById('uiConfirmNote');
+    const okBtn     = document.getElementById('uiConfirmOK');
+    const cancelBtn = document.getElementById('uiConfirmCancel');
+
+    iconEl.textContent  = opts.icon    || '🚀';
+    titleEl.textContent = opts.title   || 'ยืนยัน?';
+    msgEl.textContent   = opts.message || '';
+
+    if (opts.details && Object.keys(opts.details).length) {
+      detailsEl.innerHTML = Object.entries(opts.details)
+        .map(([k, v]) => `<div class="row"><span class="k">${k}</span><span class="v">${String(v)}</span></div>`)
+        .join('');
+      detailsEl.style.display = 'block';
+    } else detailsEl.style.display = 'none';
+
+    if (opts.note) {
+      noteEl.innerHTML = opts.note;
+      noteEl.style.display = 'block';
+    } else noteEl.style.display = 'none';
+
+    okBtn.textContent = opts.okText     || 'ยืนยัน';
+    cancelBtn.textContent = opts.cancelText || 'ยกเลิก';
+    okBtn.className = 'ui-confirm-btn ' + (opts.danger ? 'danger' : 'ok');
+
+    const close = (val) => {
+      overlay.classList.remove('show');
+      okBtn.onclick = cancelBtn.onclick = overlay.onclick = null;
+      document.removeEventListener('keydown', onKey);
+      setTimeout(() => resolve(val), 150);
+    };
+    const onKey = (e) => {
+      if (e.key === 'Escape') close(false);
+      else if (e.key === 'Enter') close(true);
+    };
+    okBtn.onclick     = () => close(true);
+    cancelBtn.onclick = () => close(false);
+    overlay.onclick   = (e) => { if (e.target === overlay) close(false); };
+    document.addEventListener('keydown', onKey);
+    overlay.classList.add('show');
+    setTimeout(() => okBtn.focus(), 60);
+  });
+}
+
 let SUPABASE_URL = localStorage.getItem('sb_url') || '';
 let SUPABASE_KEY = localStorage.getItem('sb_key') || '';
 
@@ -392,11 +443,15 @@ async function testLine() {
     return;
   }
 
-  if (!confirm(
-    `ส่ง Test message ผ่าน GitHub Actions\n` +
-    `(LINE API ห้าม fetch จาก browser — ต้องผ่าน CI server)\n\n` +
-    `Workflow จะใช้เวลา ~30 วินาที — ทำต่อ?`
-  )) return;
+  const ok = await uiConfirm({
+    icon: '💬',
+    title: 'ทดสอบส่ง LINE Message',
+    message: 'ส่ง Test message ผ่าน GitHub Actions\n(LINE API ห้าม fetch จาก browser — ต้องผ่าน CI server)',
+    note: '⏱️ Workflow จะใช้เวลา <b>~30 วินาที</b> ก่อนได้รับข้อความใน LINE',
+    okText: '🚀 ส่งทดสอบ',
+    cancelText: 'ยกเลิก',
+  });
+  if (!ok) return;
 
   showLoading(true);
   try {
@@ -448,13 +503,20 @@ async function syncNow() {
     return;
   }
 
-  if (!confirm(
-    `ส่งคำสั่ง Sync Now ไป GitHub Actions?\n\n` +
-    `Repo: ${config.github_owner}/${config.github_repo}\n` +
-    `Workflow: ${config.github_workflow}\n` +
-    `Branch: ${config.github_branch}\n\n` +
-    `Workflow จะรันบน GitHub server (~10-15 นาที)`
-  )) return;
+  const ok = await uiConfirm({
+    icon: '🔄',
+    title: 'ยืนยัน Sync Now',
+    message: 'ส่งคำสั่งให้ GitHub Actions ดาวน์โหลด Excel ล่าสุด แล้วนำเข้าเข้า Supabase',
+    details: {
+      'Repo':     `${config.github_owner}/${config.github_repo}`,
+      'Workflow': config.github_workflow,
+      'Branch':   config.github_branch || 'main',
+    },
+    note: '⏱️ Workflow จะรันบน GitHub server <b>~10-15 นาที</b> — จะแสดงความคืบหน้าในหน้านี้แบบ real-time',
+    okText: '🚀 เริ่ม Sync',
+    cancelText: 'ยกเลิก',
+  });
+  if (!ok) return;
 
   showLoading(true);
   let logId = null;
@@ -509,9 +571,10 @@ async function syncNow() {
           }),
         });
       }
-      showToast('🚀 Sync Now ส่งคำสั่งไป GitHub แล้ว — ดูผลที่ Actions tab', 'success');
-      // Open GitHub Actions in new tab
-      window.open(`https://github.com/${config.github_owner}/${config.github_repo}/actions`, '_blank');
+      showLoading(false);
+      // Open in-page progress modal instead of redirecting
+      trackSyncProgress(pat, new Date());
+      return;
     } else {
       const errText = await ghRes.text();
       throw new Error(`GitHub API ${ghRes.status}: ${errText.slice(0, 150)}`);
@@ -537,6 +600,208 @@ async function syncNow() {
   }
   await loadLog();
   showLoading(false);
+}
+
+/* ============================================================
+   SYNC PROGRESS TRACKER — poll GitHub API + sync_log
+   ============================================================ */
+let _spPolling = false;
+let _spPollTimer = null;
+
+function _spSetStep(stepName, state) {
+  const el = document.querySelector(`.sp-step[data-step="${stepName}"]`);
+  if (!el) return;
+  el.classList.remove('active', 'done', 'fail');
+  if (state) el.classList.add(state);
+}
+function _spAdvanceSteps(phase) {
+  const order = ['dispatch', 'queue', 'login', 'import', 'done'];
+  const idx = order.indexOf(phase);
+  if (idx < 0) return;
+  for (let i = 0; i < order.length; i++) {
+    if (i < idx) _spSetStep(order[i], 'done');
+    else if (i === idx) _spSetStep(order[i], 'active');
+    else _spSetStep(order[i], null);
+  }
+}
+function _spLog(msg, type = '') {
+  const el = document.getElementById('spLog');
+  const ts = new Date().toTimeString().slice(0, 8);
+  const line = document.createElement('div');
+  line.innerHTML = `<span class="ts">${ts}</span><span class="msg ${type}">${msg}</span>`;
+  el.appendChild(line);
+  el.scrollTop = el.scrollHeight;
+}
+function _spFmtElapsed(sec) {
+  if (sec < 60) return `${sec}s`;
+  const m = Math.floor(sec / 60), s = sec % 60;
+  return `${m}m ${s}s`;
+}
+
+function openSyncProgressModal() {
+  document.getElementById('spOverlay').classList.add('show');
+  document.getElementById('spHero').className = 'sp-hero';
+  document.getElementById('spSpinner').className = 'sp-spinner loading';
+  document.getElementById('spSpinner').textContent = '🔄';
+  document.getElementById('spTitle').textContent = 'กำลัง Sync ข้อมูล';
+  document.getElementById('spPhase').textContent = 'รอเริ่ม workflow...';
+  document.getElementById('spElapsed').textContent = '0s';
+  document.getElementById('spStatus').textContent = 'queued';
+  document.getElementById('spRows').textContent = '—';
+  document.getElementById('spLog').innerHTML = '';
+  document.getElementById('spClose').textContent = 'ปิด (รัน background ต่อ)';
+  document.getElementById('spClose').className = 'sp-close';
+  _spAdvanceSteps('queue');
+  _spLog('🚀 Dispatched to GitHub Actions', 'ok');
+}
+function closeSyncProgress() {
+  document.getElementById('spOverlay').classList.remove('show');
+  _spPolling = false;
+  if (_spPollTimer) clearTimeout(_spPollTimer);
+}
+
+async function _fetchLatestRun(pat, sinceMs) {
+  const url = `https://api.github.com/repos/${config.github_owner}/${config.github_repo}/actions/runs?per_page=5&branch=${encodeURIComponent(config.github_branch || 'main')}`;
+  const res = await fetch(url, {
+    headers: { Accept: 'application/vnd.github+json', Authorization: `Bearer ${pat}`, 'X-GitHub-Api-Version': '2022-11-28' },
+  });
+  if (!res.ok) throw new Error(`GitHub ${res.status}`);
+  const data = await res.json();
+  // Find newest workflow_dispatch run created after our sinceMs (with a small leeway)
+  return (data.workflow_runs || []).find(r =>
+    r.event === 'workflow_dispatch' && Date.parse(r.created_at) >= sinceMs - 15000
+  );
+}
+async function _fetchRun(pat, runId) {
+  const res = await fetch(`https://api.github.com/repos/${config.github_owner}/${config.github_repo}/actions/runs/${runId}`, {
+    headers: { Accept: 'application/vnd.github+json', Authorization: `Bearer ${pat}`, 'X-GitHub-Api-Version': '2022-11-28' },
+  });
+  if (!res.ok) throw new Error(`GitHub ${res.status}`);
+  return res.json();
+}
+async function _fetchRunJobs(pat, runId) {
+  const res = await fetch(`https://api.github.com/repos/${config.github_owner}/${config.github_repo}/actions/runs/${runId}/jobs`, {
+    headers: { Accept: 'application/vnd.github+json', Authorization: `Bearer ${pat}`, 'X-GitHub-Api-Version': '2022-11-28' },
+  });
+  if (!res.ok) return null;
+  return res.json();
+}
+async function _fetchLatestSyncLog(sinceMs) {
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/sync_log?source=eq.auto_sync&order=started_at.desc&limit=1`,
+    { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } }
+  );
+  if (!res.ok) return null;
+  const rows = await res.json();
+  const row = rows?.[0];
+  if (!row) return null;
+  if (Date.parse(row.started_at) < sinceMs - 15000) return null;
+  return row;
+}
+
+async function trackSyncProgress(pat, startedAt) {
+  const startMs = startedAt instanceof Date ? startedAt.getTime() : Date.now();
+  openSyncProgressModal();
+  document.getElementById('spGhLink').href = `https://github.com/${config.github_owner}/${config.github_repo}/actions`;
+
+  _spPolling = true;
+  let githubRunId = null;
+  let lastStep = 'queue';
+
+  const tick = async () => {
+    if (!_spPolling) return;
+
+    // Update elapsed
+    const elapsedSec = Math.floor((Date.now() - startMs) / 1000);
+    document.getElementById('spElapsed').textContent = _spFmtElapsed(elapsedSec);
+
+    try {
+      // Find the run if we haven't yet
+      if (!githubRunId) {
+        const run = await _fetchLatestRun(pat, startMs);
+        if (run) {
+          githubRunId = run.id;
+          document.getElementById('spGhLink').href = run.html_url;
+          _spLog(`✅ Found workflow run #${run.run_number}`, 'ok');
+        }
+      }
+
+      if (githubRunId) {
+        const run = await _fetchRun(pat, githubRunId);
+        document.getElementById('spStatus').textContent = run.status;
+
+        if (run.status === 'completed') {
+          _spPolling = false;
+          if (run.conclusion === 'success') {
+            _spAdvanceSteps('done');
+            _spSetStep('done', 'done');
+            document.getElementById('spHero').className = 'sp-hero success';
+            document.getElementById('spSpinner').className = 'sp-spinner';
+            document.getElementById('spSpinner').textContent = '✅';
+            document.getElementById('spTitle').textContent = 'Sync สำเร็จ!';
+            document.getElementById('spPhase').textContent = `เสร็จใน ${_spFmtElapsed(elapsedSec)}`;
+            document.getElementById('spClose').textContent = '✅ เสร็จสิ้น';
+            document.getElementById('spClose').className = 'sp-close success';
+            _spLog(`✅ Completed successfully`, 'ok');
+            showToast('✅ Sync สำเร็จ', 'success');
+            loadLog();
+          } else {
+            _spSetStep(lastStep, 'fail');
+            document.getElementById('spHero').className = 'sp-hero fail';
+            document.getElementById('spSpinner').className = 'sp-spinner';
+            document.getElementById('spSpinner').textContent = '❌';
+            document.getElementById('spTitle').textContent = 'Sync ล้มเหลว';
+            document.getElementById('spPhase').textContent = `${run.conclusion} · ${_spFmtElapsed(elapsedSec)}`;
+            document.getElementById('spClose').textContent = '❌ ปิด';
+            document.getElementById('spClose').className = 'sp-close danger';
+            _spLog(`❌ ${run.conclusion}`, 'err');
+            showToast(`❌ Sync ${run.conclusion}`, 'error');
+            loadLog();
+          }
+          return;
+        }
+
+        // Determine phase from job steps
+        const jobs = await _fetchRunJobs(pat, githubRunId);
+        if (jobs?.jobs?.[0]) {
+          const steps = jobs.jobs[0].steps || [];
+          const runningStep = steps.find(s => s.status === 'in_progress');
+          if (runningStep) {
+            const name = runningStep.name.toLowerCase();
+            let phase = lastStep;
+            if (name.includes('run sync')) phase = 'import';
+            else if (name.includes('playwright') || name.includes('chromium')) phase = 'queue';
+            else if (name.includes('install') || name.includes('setup') || name.includes('checkout')) phase = 'queue';
+            else phase = lastStep;
+
+            // Better phase from sync_log if available
+            const log = await _fetchLatestSyncLog(startMs);
+            if (log) {
+              phase = log.rows_total ? 'import' : 'login';
+              if (log.rows_total) {
+                document.getElementById('spRows').textContent = (log.rows_total || 0).toLocaleString();
+              }
+            }
+            if (phase !== lastStep) {
+              _spAdvanceSteps(phase);
+              _spLog(`→ ${runningStep.name}`);
+              lastStep = phase;
+            }
+            document.getElementById('spPhase').textContent = runningStep.name;
+          }
+        }
+      } else {
+        // Still waiting for run to appear
+        document.getElementById('spPhase').textContent = 'Queued ใน GitHub...';
+      }
+    } catch (e) {
+      console.warn('poll err:', e.message);
+    }
+
+    // Next poll
+    _spPollTimer = setTimeout(tick, 5000);
+  };
+  tick();
 }
 
 /* ============================================================

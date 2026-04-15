@@ -120,6 +120,20 @@ function setMode(mode) {
 }
 
 /* ── Render tree based on mode ── */
+const MODE_HINT = {
+  'sponsor-down': '⭐ <b>ลูกทีมของคุณ</b> — คนที่<b>คุณชวน</b>มาสมัคร ไล่ลงไปเรื่อยๆ · คลิก <b>▶</b> ขยายดูลูก · แยกเป็น 2 คอลัมน์ <span style="color:#1e40af;font-weight:600">ซ้าย</span>/<span style="color:#991b1b;font-weight:600">ขวา</span> ตามตำแหน่ง binary',
+  'sponsor-up':   '⬆️ <b>แม่ทีมของคุณ</b> — คนที่<b>ชวนคุณ</b>มา ไล่ขึ้นไปถึง root · คลิก<b>รหัส</b>หรือ<b>ปุ่ม breadcrumb</b>เพื่อกระโดดไปดูคนนั้นแทน',
+  'upline-down':  '🌲 <b>Downline Binary</b> — ใครอยู่<b>ใต้คุณ</b>ในผังคำนวณโบนัส (ซ้าย/ขวา max 2 คน) · คลิก <b>▼ ขยาย</b> เปิดชั้นต่อไป · ช่องว่าง = ยังไม่มีคนในตำแหน่งนั้น',
+  'upline-up':    '⬆️ <b>Upline Binary</b> — <b>คุณอยู่ใต้ใคร</b>ในผังคำนวณโบนัส ไล่ขึ้นยอดบน · คลิก<b>รหัส</b>เพื่อเปลี่ยนคนที่ดู · L = ระดับห่างจากคุณ',
+};
+
+function _makeHint() {
+  const hint = document.createElement('div');
+  hint.style.cssText = 'padding:10px 14px;background:var(--accent-pale);border-left:3px solid var(--accent);border-radius:6px;margin-bottom:12px;font-size:12.5px;color:var(--text2);line-height:1.5';
+  hint.innerHTML = MODE_HINT[currentMode] || '';
+  return hint;
+}
+
 async function renderTree() {
   const wrap = document.getElementById('treeWrap');
   wrap.innerHTML = '<div class="tree-loading">⏳ กำลังโหลด...</div>';
@@ -127,21 +141,132 @@ async function renderTree() {
   try {
     if (currentMode === 'sponsor-up') {
       await renderUplineChain('sponsor_code');
+      wrap.insertBefore(_makeHint(), wrap.firstChild);
     } else if (currentMode === 'upline-up') {
       await renderUplineChain('upline_code');
+      wrap.insertBefore(_makeHint(), wrap.firstChild);
+    } else if (currentMode === 'upline-down') {
+      await renderBinaryTree();
     } else {
-      // downline (sponsor-down or upline-down)
-      const field = currentMode === 'sponsor-down' ? 'sponsor_code' : 'upline_code';
+      // sponsor-down: list view (recursive, no left/right)
       wrap.innerHTML = '';
-      const node = await _buildNode(currentMember, field, 0);
+      wrap.appendChild(_makeHint());
+      const node = await _buildNode(currentMember, 'sponsor_code', 0);
       wrap.appendChild(node);
-      // Auto-expand level 1
       const toggle = node.querySelector('.tree-toggle');
       if (toggle && !toggle.classList.contains('leaf')) toggle.click();
     }
   } catch (e) {
     wrap.innerHTML = `<div class="tree-empty">❌ ${escapeHtml(e.message)}</div>`;
   }
+}
+
+/* ── Binary tree (upline-down mode) ── */
+async function renderBinaryTree() {
+  const wrap = document.getElementById('treeWrap');
+  wrap.innerHTML = '';
+  wrap.appendChild(_makeHint());
+
+  const container = document.createElement('div');
+  container.className = 'binary-tree';
+  wrap.appendChild(container);
+
+  // Root
+  const childCount = await sbCount(`upline_code=eq.${encodeURIComponent(currentMember.member_code)}`);
+  currentMember.child_count = childCount;
+  const rootNode = _buildBinaryNode(currentMember, 0, true);
+  container.appendChild(rootNode);
+
+  // Auto-expand root
+  const rootBtn = rootNode.querySelector(':scope > .bt-expand');
+  if (rootBtn) rootBtn.click();
+}
+
+function _buildBinaryNode(member, depth, isRoot = false) {
+  const wrap = document.createElement('div');
+  wrap.className = 'bt-node';
+
+  const name = MemberFmt.displayName(member);
+  const card = document.createElement('div');
+  card.className = 'bt-card' + (isRoot ? ' root' : '');
+  card.innerHTML = `
+    <div class="bt-code tt" data-tip="${escapeHtml(name)}${member.package ? ' · ' + member.package : ''}" onclick="event.stopPropagation();loadMember('${member.member_code}')">${member.member_code}</div>
+    <div class="bt-name" title="${escapeHtml(name)}">${escapeHtml(name)}</div>
+    <div class="bt-meta">
+      ${member.package ? `<span class="tree-pkg pkg-${member.package}">${member.package}</span>` : ''}
+      ${member.side && !isRoot ? `<span class="tree-side ${member.side==='ซ้าย'?'left':'right'}">${member.side}</span>` : ''}
+      <span>${_flag(member.country_code)} ${member.country_code || ''}</span>
+    </div>
+  `;
+  wrap.appendChild(card);
+
+  const childCount = Number(member.child_count || 0);
+  if (childCount === 0) return wrap;
+
+  const btn = document.createElement('button');
+  btn.className = 'bt-expand';
+  btn.textContent = `▼ ขยาย (${childCount})`;
+  wrap.appendChild(btn);
+
+  let loaded = false;
+  let childContainer = null;
+
+  btn.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    if (loaded) {
+      if (childContainer) childContainer.remove();
+      btn.textContent = `▼ ขยาย (${childCount})`;
+      loaded = false;
+      childContainer = null;
+      return;
+    }
+    btn.textContent = '⏳ กำลังโหลด...';
+    try {
+      const children = await _fetchDownline(member.member_code, 'upline_code');
+      const left = children.find(c => c.side === 'ซ้าย');
+      const right = children.find(c => c.side === 'ขวา');
+
+      childContainer = document.createElement('div');
+      childContainer.className = 'bt-children';
+
+      const leftSlot = document.createElement('div');
+      leftSlot.className = 'bt-slot bt-slot-left';
+      leftSlot.innerHTML = `<span class="bt-side-label left">◀ ซ้าย</span>`;
+      if (left) leftSlot.appendChild(_buildBinaryNode(left, depth + 1));
+      else {
+        const empty = document.createElement('div');
+        empty.className = 'bt-empty';
+        empty.textContent = 'ว่าง';
+        leftSlot.appendChild(empty);
+      }
+
+      const rightSlot = document.createElement('div');
+      rightSlot.className = 'bt-slot bt-slot-right';
+      rightSlot.innerHTML = `<span class="bt-side-label right">ขวา ▶</span>`;
+      if (right) rightSlot.appendChild(_buildBinaryNode(right, depth + 1));
+      else {
+        const empty = document.createElement('div');
+        empty.className = 'bt-empty';
+        empty.textContent = 'ว่าง';
+        rightSlot.appendChild(empty);
+      }
+
+      childContainer.appendChild(leftSlot);
+      childContainer.appendChild(rightSlot);
+      wrap.appendChild(childContainer);
+      btn.textContent = '▲ ย่อ';
+      loaded = true;
+
+      // Warn if sparse/extra children
+      const extras = children.length - (left ? 1 : 0) - (right ? 1 : 0);
+      if (extras > 0) console.warn(`[binary-tree] ${member.member_code} has ${extras} extra children beyond ซ้าย/ขวา`);
+    } catch (err) {
+      btn.textContent = `▼ ขยาย (${childCount})`;
+      showToast('โหลดไม่ได้: ' + err.message, 'error');
+    }
+  });
+
+  return wrap;
 }
 
 /* ── Render upline chain (one row per ancestor) — uses RPC for speed ── */
@@ -186,32 +311,81 @@ async function renderUplineChain(field) {
   bc.className = 'upline-breadcrumb';
   bc.innerHTML = chain.slice().reverse().map((m, i, arr) => {
     const isLast = i === arr.length - 1;
+    const nm = escapeHtml(MemberFmt.displayName(m));
+    const pkg = m.package ? ` · ${m.package}` : '';
+    const flag = _flag(m.country_code);
+    const ttl = `${flag} ${nm}${pkg}`;
     const tag = isLast
-      ? `<span style="background:var(--accent);color:#fff;padding:4px 10px;border-radius:6px;font-family:'IBM Plex Mono',monospace;font-weight:600">${m.member_code} (คุณ)</span>`
-      : `<span class="upline-link" onclick="loadMember('${m.member_code}')">${m.member_code}</span>`;
+      ? `<span class="tt" data-tip="${ttl}" style="background:var(--accent);color:#fff;padding:4px 10px;border-radius:6px;font-family:'IBM Plex Mono',monospace;font-weight:600">${m.member_code} (คุณ)</span>`
+      : `<span class="upline-link tt" data-tip="${ttl}" onclick="loadMember('${m.member_code}')">${m.member_code}</span>`;
     return tag + (isLast ? '' : '<span class="upline-arrow">›</span>');
   }).join('');
   wrap.appendChild(bc);
 
-  // List view of chain (deep first → root last)
-  for (let i = 0; i < chain.length; i++) {
-    const m = chain[i];
-    const isMe = i === 0;
-    const node = document.createElement('div');
-    node.style.cssText = `padding:10px 14px;border:1px solid ${isMe ? 'var(--accent)' : 'var(--border)'};border-radius:8px;margin-top:8px;display:flex;align-items:center;gap:10px;${isMe ? 'background:var(--accent-pale)' : ''}`;
-    node.innerHTML = `
-      <div style="background:${isMe ? 'var(--accent)' : 'var(--surface2)'};color:${isMe ? '#fff' : 'var(--text2)'};width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:11px">L${i}</div>
-      <div style="flex:1">
-        <div style="display:flex;gap:10px;align-items:baseline">
-          <span class="tree-code" onclick="loadMember('${m.member_code}')" style="cursor:pointer">${m.member_code}</span>
-          <span class="tree-name">${escapeHtml(MemberFmt.displayName(m))}</span>
-          ${m.package ? `<span class="tree-pkg pkg-${m.package}">${m.package}</span>` : ''}
-          ${m.side ? `<span class="tree-side ${m.side==='ซ้าย'?'left':'right'}">${m.side}</span>` : ''}
+  // Split chain into left/right columns (same layout as downline)
+  const lefts  = chain.map((m, i) => ({ m, i })).filter(x => x.m.side === 'ซ้าย');
+  const rights = chain.map((m, i) => ({ m, i })).filter(x => x.m.side === 'ขวา');
+  const others = chain.map((m, i) => ({ m, i })).filter(x => x.m.side !== 'ซ้าย' && x.m.side !== 'ขวา');
+
+  const splitWrap = document.createElement('div');
+  splitWrap.className = 'tree-children split';
+  splitWrap.style.marginLeft = '0';
+  splitWrap.style.paddingLeft = '0';
+
+  const makeChainCol = (side, label, rows) => {
+    const col = document.createElement('div');
+    col.className = `tree-col ${side}`;
+    col.innerHTML = `<div class="tree-col-header ${side}">${label} (${rows.length})</div>`;
+    if (!rows.length) {
+      const empty = document.createElement('div');
+      empty.className = 'tree-col-empty';
+      empty.textContent = '— ไม่มีสายฝั่งนี้ —';
+      col.appendChild(empty);
+      return col;
+    }
+    for (const { m, i } of rows) {
+      const isMe = i === 0;
+      const nm = escapeHtml(MemberFmt.displayName(m));
+      const tip = `${nm}${m.package ? ' · ' + m.package : ''}${m.side ? ' · ' + m.side : ''}`;
+      const row = document.createElement('div');
+      row.style.cssText = `padding:9px 12px;border:1px solid ${isMe ? 'var(--accent)' : 'var(--border)'};border-radius:8px;margin-top:6px;display:flex;align-items:center;gap:10px;${isMe ? 'background:var(--accent-pale)' : 'background:var(--surface)'}`;
+      row.innerHTML = `
+        <div style="background:${isMe ? 'var(--accent)' : 'var(--surface2)'};color:${isMe ? '#fff' : 'var(--text2)'};width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:11px;flex-shrink:0">L${i}</div>
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;gap:8px;align-items:baseline;flex-wrap:wrap">
+            <span class="tree-code tt" data-tip="${tip}" onclick="loadMember('${m.member_code}')" style="cursor:pointer">${m.member_code}</span>
+            <span class="tree-name" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${nm}</span>
+            ${m.package ? `<span class="tree-pkg pkg-${m.package}">${m.package}</span>` : ''}
+          </div>
         </div>
-      </div>
-      <span style="font-size:11px;color:var(--text3)">${_flag(m.country_code)} ${m.country_code || ''}</span>
-    `;
-    wrap.appendChild(node);
+        <span style="font-size:11px;color:var(--text3);flex-shrink:0">${_flag(m.country_code)}</span>
+      `;
+      col.appendChild(row);
+    }
+    return col;
+  };
+
+  splitWrap.appendChild(makeChainCol('left',  '◀ ซ้าย', lefts));
+  splitWrap.appendChild(makeChainCol('right', 'ขวา ▶', rights));
+  wrap.appendChild(splitWrap);
+
+  if (others.length) {
+    const othersCol = document.createElement('div');
+    othersCol.className = 'tree-col';
+    othersCol.style.marginTop = '12px';
+    othersCol.innerHTML = `<div class="tree-col-header none">ไม่ระบุด้าน (${others.length})</div>`;
+    for (const { m, i } of others) {
+      const nm = escapeHtml(MemberFmt.displayName(m));
+      const row = document.createElement('div');
+      row.style.cssText = 'padding:9px 12px;border:1px solid var(--border);border-radius:8px;margin-top:6px;display:flex;align-items:center;gap:10px;background:var(--surface)';
+      row.innerHTML = `
+        <div style="background:var(--surface2);width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:11px;flex-shrink:0">L${i}</div>
+        <span class="tree-code" onclick="loadMember('${m.member_code}')" style="cursor:pointer">${m.member_code}</span>
+        <span class="tree-name" style="flex:1">${nm}</span>
+      `;
+      othersCol.appendChild(row);
+    }
+    wrap.appendChild(othersCol);
   }
 
   if (chain.length === 1) {
@@ -267,11 +441,12 @@ function _buildNodeFromData(member, field, depth) {
   row.className = 'tree-node';
   const name = MemberFmt.displayName(member);
   const isLeaf = childCount === 0;
+  const tip = `${escapeHtml(name)}${member.package ? ' · ' + member.package : ''}${member.side ? ' · ' + member.side : ''}${childCount ? ' · ลูกทีม ' + childCount.toLocaleString() : ''}`;
   row.innerHTML = `
     <div class="tree-toggle ${isLeaf ? 'leaf' : ''}" data-expanded="false">${isLeaf ? '' : '▶'}</div>
     <span class="tree-icon">${depth === 0 ? '🌳' : '👤'}</span>
     <div class="tree-info">
-      <span class="tree-code" onclick="event.stopPropagation();loadMember('${member.member_code}')" style="cursor:pointer">${member.member_code}</span>
+      <span class="tree-code tt" data-tip="${tip}" onclick="event.stopPropagation();loadMember('${member.member_code}')" style="cursor:pointer">${member.member_code}</span>
       <span class="tree-name">${escapeHtml(name)}</span>
       ${member.package ? `<span class="tree-pkg pkg-${member.package}">${member.package}</span>` : ''}
       ${member.side && depth > 0 ? `<span class="tree-side ${member.side==='ซ้าย'?'left':'right'}">${member.side}</span>` : ''}
@@ -283,8 +458,7 @@ function _buildNodeFromData(member, field, depth) {
 
   if (!isLeaf) {
     const childrenContainer = document.createElement('div');
-    childrenContainer.className = 'tree-children';
-    childrenContainer.style.display = 'none';
+    childrenContainer.className = 'tree-children hidden';
     wrapper.appendChild(childrenContainer);
 
     let loaded = false;
@@ -292,12 +466,12 @@ function _buildNodeFromData(member, field, depth) {
     const expand = async () => {
       const isExpanded = toggleEl.dataset.expanded === 'true';
       if (isExpanded) {
-        childrenContainer.style.display = 'none';
+        childrenContainer.classList.add('hidden');
         toggleEl.textContent = '▶';
         toggleEl.dataset.expanded = 'false';
         return;
       }
-      childrenContainer.style.display = 'block';
+      childrenContainer.classList.remove('hidden');
       toggleEl.textContent = '▼';
       toggleEl.dataset.expanded = 'true';
       if (!loaded) {
@@ -305,10 +479,7 @@ function _buildNodeFromData(member, field, depth) {
         try {
           // SINGLE RPC query — fetches children + their child counts
           const children = await _fetchDownline(member.member_code, field);
-          childrenContainer.innerHTML = '';
-          for (const c of children) {
-            childrenContainer.appendChild(_buildNodeFromData(c, field, depth + 1));
-          }
+          _renderChildrenSplit(childrenContainer, children, field, depth + 1);
           loaded = true;
         } catch (e) {
           childrenContainer.innerHTML = `<div class="tree-empty">❌ ${escapeHtml(e.message)}</div>`;
@@ -327,6 +498,50 @@ function _buildNodeFromData(member, field, depth) {
 async function _buildNode(member, field, depth) {
   if (depth === 0) return _buildRootNode(member, field);
   return _buildNodeFromData(member, field, depth);
+}
+
+/* ── Render children as left/right split columns ── */
+function _renderChildrenSplit(container, children, field, depth) {
+  container.innerHTML = '';
+  const lefts  = children.filter(c => c.side === 'ซ้าย');
+  const rights = children.filter(c => c.side === 'ขวา');
+  const others = children.filter(c => c.side !== 'ซ้าย' && c.side !== 'ขวา');
+
+  // No side info → fallback to flat list (no split)
+  if (!lefts.length && !rights.length) {
+    container.classList.remove('split');
+    for (const c of children) container.appendChild(_buildNodeFromData(c, field, depth));
+    return;
+  }
+
+  container.classList.add('split');
+
+  const makeCol = (side, label, rows) => {
+    const col = document.createElement('div');
+    col.className = `tree-col ${side}`;
+    col.innerHTML = `<div class="tree-col-header ${side}">${label} (${rows.length})</div>`;
+    if (rows.length) {
+      for (const c of rows) col.appendChild(_buildNodeFromData(c, field, depth));
+    } else {
+      const empty = document.createElement('div');
+      empty.className = 'tree-col-empty';
+      empty.textContent = '— ว่าง —';
+      col.appendChild(empty);
+    }
+    return col;
+  };
+
+  container.appendChild(makeCol('left',  '◀ ซ้าย', lefts));
+  container.appendChild(makeCol('right', 'ขวา ▶', rights));
+
+  if (others.length) {
+    const col = document.createElement('div');
+    col.className = 'tree-col';
+    col.style.flexBasis = '100%';
+    col.innerHTML = `<div class="tree-col-header none">ไม่ระบุด้าน (${others.length})</div>`;
+    for (const c of others) col.appendChild(_buildNodeFromData(c, field, depth));
+    container.appendChild(col);
+  }
 }
 
 /* ── Utils ── */

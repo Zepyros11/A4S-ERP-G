@@ -23,11 +23,23 @@
 .member-stat{font-size:11.5px;opacity:.85;}
 .member-stat strong{display:block;font-size:18px;font-weight:700;margin-top:2px;opacity:1;font-variant-numeric:tabular-nums;}
 
-/* ── Toggle tabs ── */
-.tree-tabs{display:flex;gap:8px;margin-top:18px;}
-.tree-tab{padding:10px 22px;border:1.5px solid var(--border);border-radius:22px;background:var(--surface);color:var(--text2);cursor:pointer;font-family:inherit;font-size:13.5px;font-weight:500;transition:all .15s;display:flex;align-items:center;gap:7px;}
+/* ── Toggle tabs (grouped) ── */
+.tree-tab-groups{display:flex;gap:14px;margin-top:18px;flex-wrap:wrap;}
+.tab-group{background:var(--surface2);border:1px solid var(--border);border-radius:14px;padding:8px 10px 10px;position:relative;flex:1;min-width:280px;}
+.tab-group-label{position:absolute;top:-10px;left:14px;background:var(--bg);padding:0 10px;font-size:11.5px;font-weight:700;color:var(--text2);letter-spacing:.3px;}
+.tab-group-label .emoji{font-size:14px;margin-right:4px;}
+.tab-group-desc{font-size:10.5px;color:var(--text3);margin:2px 4px 8px;line-height:1.4;}
+.tree-tabs{display:flex;gap:6px;flex-wrap:wrap;}
+.tree-tab{padding:9px 18px;border:1.5px solid var(--border);border-radius:20px;background:var(--surface);color:var(--text2);cursor:pointer;font-family:inherit;font-size:13px;font-weight:500;transition:all .15s;display:flex;align-items:center;gap:6px;flex:1;justify-content:center;min-width:120px;}
 .tree-tab:hover{border-color:var(--accent);color:var(--accent);}
 .tree-tab.active{background:linear-gradient(135deg,var(--accent),var(--accent-light));color:#fff;border-color:var(--accent);font-weight:600;box-shadow:0 3px 10px rgba(15,76,117,.3);}
+
+/* disabled group */
+.tab-group.disabled{background:#f1f3f5;border-color:#dee2e6;opacity:.65;position:relative;filter:grayscale(1);}
+.tab-group.disabled .tab-group-label{background:#f1f3f5;color:#868e96;}
+.tab-group.disabled .tab-group-desc{color:#adb5bd;}
+.tab-group.disabled .tree-tab{pointer-events:none;background:#e9ecef;color:#868e96;border-color:#dee2e6;}
+.tab-group.disabled::after{content:'🔒 ยังไม่เปิดใช้ — รอข้อมูลแผนจ่าย';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(33,37,41,.85);color:#fff;padding:6px 14px;border-radius:14px;font-size:11.5px;font-weight:600;white-space:nowrap;pointer-events:none;letter-spacing:.3px;}
 
 /* ── Tree node ── */
 .tree-wrap{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px;margin-top:14px;min-height:120px;}
@@ -57,13 +69,102 @@
 
 /* indented children container */
 .tree-children{margin-left:30px;padding-left:14px;border-left:2px dashed var(--border);margin-top:2px;}
+.tree-children.hidden{display:none!important;}
 .tree-loading{padding:8px 14px;color:var(--text3);font-size:12px;font-style:italic;}
+
+/* split left/right columns for downline children */
+.tree-children.split{display:flex;gap:16px;border-left:none;padding-left:30px;position:relative;}
+.tree-children.split::before{content:'';position:absolute;left:18px;top:0;bottom:0;width:2px;border-left:2px dashed var(--border);}
+.tree-col{flex:1;min-width:0;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px;}
+.tree-col.left{border-top:3px solid #3b82f6;}
+.tree-col.right{border-top:3px solid #ef4444;}
+.tree-col-header{font-size:11px;font-weight:700;padding:3px 10px;border-radius:4px;display:inline-block;letter-spacing:.4px;margin-bottom:6px;}
+.tree-col-header.left{background:#dbeafe;color:#1e40af;}
+.tree-col-header.right{background:#fee2e2;color:#991b1b;}
+.tree-col-header.none{background:var(--surface2);color:var(--text3);}
+.tree-col-empty{padding:16px;text-align:center;color:var(--text3);font-size:11.5px;font-style:italic;}
 
 /* breadcrumb (upline path) */
 .upline-breadcrumb{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:12px 16px;background:var(--surface2);border-radius:10px;margin-bottom:12px;font-size:12.5px;}
 .upline-link{padding:4px 10px;background:var(--surface);border:1px solid var(--border);border-radius:6px;cursor:pointer;font-family:'IBM Plex Mono',monospace;color:var(--accent);font-weight:600;transition:all .12s;}
 .upline-link:hover{background:var(--accent);color:#fff;border-color:var(--accent);}
 .upline-arrow{color:var(--text3);font-size:12px;}
+
+/* ── Binary tree (ซ้าย/ขวา) ── */
+.binary-tree{padding:30px 20px 20px;overflow-x:auto;text-align:center;min-height:200px;}
+.bt-node{display:inline-flex;flex-direction:column;align-items:center;position:relative;padding:0 14px;}
+.bt-card{background:var(--surface);border:1.5px solid var(--border);border-radius:10px;padding:10px 14px;min-width:170px;box-shadow:0 2px 6px rgba(0,0,0,.04);transition:all .15s;position:relative;z-index:2;}
+.bt-card:hover{border-color:var(--accent);box-shadow:0 4px 14px rgba(15,76,117,.15);transform:translateY(-1px);}
+.bt-card.root{background:linear-gradient(135deg,var(--accent),var(--accent-light));border-color:var(--accent);box-shadow:0 4px 14px rgba(15,76,117,.25);}
+.bt-card.root .bt-code,.bt-card.root .bt-name{color:#fff;}
+.bt-card.root .bt-meta span:last-child{color:#fff;opacity:.9;}
+.bt-code{font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--accent);font-weight:700;cursor:pointer;}
+.bt-code:hover{text-decoration:underline;}
+.bt-name{font-size:12px;color:var(--text);margin-top:3px;font-weight:500;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.bt-meta{margin-top:5px;display:flex;gap:5px;align-items:center;justify-content:center;font-size:10.5px;color:var(--text3);flex-wrap:wrap;}
+
+.bt-expand{margin-top:10px;padding:4px 14px;border:1px solid var(--border);background:var(--surface);border-radius:14px;cursor:pointer;font-family:inherit;font-size:11px;color:var(--text2);transition:all .15s;font-weight:600;}
+.bt-expand:hover{background:var(--accent);color:#fff;border-color:var(--accent);}
+
+/* connector lines */
+.bt-children{display:flex;gap:40px;margin-top:35px;position:relative;align-items:flex-start;}
+.bt-children::before{content:'';position:absolute;top:-18px;left:50%;transform:translateX(-50%);width:2px;height:18px;background:var(--border);}
+.bt-slot{position:relative;padding-top:35px;}
+.bt-slot::before{content:'';position:absolute;top:0;width:50%;height:2px;background:var(--border);}
+.bt-slot::after{content:'';position:absolute;top:0;left:50%;transform:translateX(-50%);width:2px;height:35px;background:var(--border);}
+.bt-slot-left::before{right:0;}
+.bt-slot-right::before{left:0;}
+
+.bt-side-label{position:absolute;top:-6px;left:50%;transform:translateX(-50%);background:var(--surface);padding:1px 8px;font-size:10px;font-weight:700;z-index:3;border-radius:4px;letter-spacing:.5px;}
+.bt-side-label.left{color:#1e40af;background:#dbeafe;}
+.bt-side-label.right{color:#991b1b;background:#fee2e2;}
+
+.bt-empty{padding:20px 28px;border:1.5px dashed var(--border);border-radius:10px;color:var(--text3);font-size:12px;background:var(--surface2);min-width:170px;opacity:.7;}
+.bt-empty::before{content:'➕';display:block;font-size:18px;margin-bottom:4px;opacity:.5;}
+
+/* ── Upline chain 2-column (zigzag by side) ── */
+.chain-2col{position:relative;padding:10px 0;}
+.chain-2col::before{content:'';position:absolute;top:10px;bottom:10px;left:50%;width:2px;background:var(--border);transform:translateX(-50%);z-index:0;}
+.chain-row{display:grid;grid-template-columns:1fr 24px 1fr;gap:0;margin:8px 0;align-items:center;position:relative;z-index:1;}
+.chain-cell{min-width:0;}
+.chain-cell.filled{padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:10px;display:flex;align-items:center;gap:10px;box-shadow:0 1px 3px rgba(0,0,0,.04);transition:all .15s;}
+.chain-cell.filled:hover{border-color:var(--accent);box-shadow:0 3px 10px rgba(15,76,117,.12);}
+.chain-cell.filled.left{border-left:4px solid #3b82f6;}
+.chain-cell.filled.right{border-right:4px solid #ef4444;}
+.chain-cell.filled.me{background:var(--accent-pale);border:1.5px solid var(--accent);}
+.chain-connector{display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--text3);font-weight:700;background:var(--surface);border:1px solid var(--border);border-radius:50%;width:26px;height:26px;justify-self:center;z-index:2;}
+.chain-connector.me{background:var(--accent);color:#fff;border-color:var(--accent);}
+
+/* ── Custom balloon tooltip ── */
+.tt{position:relative;}
+.tt::before,.tt::after{position:absolute;left:50%;opacity:0;pointer-events:none;transition:opacity .15s ease,transform .15s ease;z-index:100;}
+.tt::before{
+  content:attr(data-tip);
+  bottom:calc(100% + 10px);
+  transform:translateX(-50%) translateY(4px);
+  background:linear-gradient(135deg,#1a2942,#0f4c75);
+  color:#fff;
+  padding:8px 13px;
+  border-radius:8px;
+  font-size:12.5px;
+  font-weight:500;
+  white-space:nowrap;
+  max-width:360px;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  box-shadow:0 6px 20px rgba(15,76,117,.28),0 2px 6px rgba(0,0,0,.1);
+  font-family:'IBM Plex Sans Thai','IBM Plex Sans',sans-serif;
+  letter-spacing:.1px;
+}
+.tt::after{
+  content:'';
+  bottom:calc(100% + 4px);
+  transform:translateX(-50%) translateY(4px);
+  border:6px solid transparent;
+  border-top-color:#1a2942;
+  width:0;height:0;
+}
+.tt:hover::before,.tt:hover::after{opacity:1;transform:translateX(-50%) translateY(0);}
 </style>
 </head>
 <body>
@@ -94,11 +195,13 @@
     <div class="member-card">
       <div class="member-card-top">
         <div class="member-avatar" id="mAvatar">?</div>
-        <div style="flex:1">
-          <div class="member-card-name" id="mName">—</div>
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+            <div class="member-card-name" id="mName">—</div>
+            <div id="mPkgBadge"></div>
+          </div>
           <div class="member-card-code" id="mCode">—</div>
         </div>
-        <div id="mPkgBadge"></div>
       </div>
       <div class="member-stats-grid">
         <div class="member-stat">Sponsor (แม่ทีม)<strong id="mSponsor">—</strong></div>
@@ -108,12 +211,24 @@
       </div>
     </div>
 
-    <!-- Toggle tabs -->
-    <div class="tree-tabs">
-      <button class="tree-tab active" data-mode="sponsor-down" onclick="setMode('sponsor-down')">⭐ ลูกทีม (Sponsor)</button>
-      <button class="tree-tab" data-mode="sponsor-up" onclick="setMode('sponsor-up')">⬆️ สาย Sponsor</button>
-      <button class="tree-tab" data-mode="upline-down" onclick="setMode('upline-down')">🌲 Downline (Upline)</button>
-      <button class="tree-tab" data-mode="upline-up" onclick="setMode('upline-up')">⬆️ สาย Upline</button>
+    <!-- Toggle tabs (2 groups: Sponsor / Binary) -->
+    <div class="tree-tab-groups">
+      <div class="tab-group">
+        <div class="tab-group-label"><span class="emoji">🧑</span>ผังแนะนำ (Sponsor)</div>
+        <div class="tab-group-desc">ใครชวนใครมาสมัคร · ไม่มีซ้าย/ขวา ชวนกี่คนก็ได้</div>
+        <div class="tree-tabs">
+          <button class="tree-tab active" data-mode="sponsor-down" onclick="setMode('sponsor-down')">⭐ ลูกทีม (ลง)</button>
+          <button class="tree-tab" data-mode="sponsor-up" onclick="setMode('sponsor-up')">⬆️ แม่ทีม (ขึ้น)</button>
+        </div>
+      </div>
+      <div class="tab-group disabled" title="ยังไม่เปิดใช้ — รอข้อมูลแผนการจ่ายโบนัสจริง">
+        <div class="tab-group-label"><span class="emoji">🌲</span>ผัง Binary (คำนวณโบนัส)</div>
+        <div class="tab-group-desc">ตำแหน่งซ้าย/ขวา · แต่ละคนมีได้สูงสุด 2 คน (1 ซ้าย + 1 ขวา)</div>
+        <div class="tree-tabs">
+          <button class="tree-tab" data-mode="upline-down" disabled>🌲 Downline (ลง)</button>
+          <button class="tree-tab" data-mode="upline-up" disabled>⬆️ Upline (ขึ้น)</button>
+        </div>
+      </div>
     </div>
 
     <!-- Tree -->
