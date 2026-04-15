@@ -84,6 +84,22 @@
       .pat-alert-cta{padding:8px 16px;background:#fff;border:1.5px solid currentColor;border-radius:7px;font-family:inherit;font-size:12.5px;font-weight:600;cursor:pointer;text-decoration:none;color:inherit;flex-shrink:0;transition:all .15s;}
       .pat-alert-cta:hover{background:currentColor;color:#fff;}
 
+      /* ── MLM Stats grid ── */
+      .mlm-grid{display:grid;grid-template-columns:2fr 1fr 1fr;gap:14px;}
+      @media (max-width:1200px){.mlm-grid{grid-template-columns:1fr 1fr}.mlm-trend-card{grid-column:1/-1}}
+      @media (max-width:768px){.mlm-grid{grid-template-columns:1fr}.mlm-trend-card{grid-column:auto}}
+      .mlm-table{width:100%;border-collapse:collapse;font-size:13px;}
+      .mlm-table th{padding:10px 14px;background:var(--surface2);font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;text-align:left;border-bottom:2px solid var(--border);}
+      .mlm-table td{padding:11px 14px;border-bottom:1px solid var(--border);}
+      .mlm-table tr:last-child td{border-bottom:none;}
+      .mlm-table tr:hover td{background:var(--accent-pale);}
+      .mlm-rank{display:inline-flex;width:24px;height:24px;border-radius:50%;background:var(--surface2);color:var(--text2);align-items:center;justify-content:center;font-weight:700;font-size:11px;}
+      .mlm-rank.gold{background:#fef3c7;color:#92400e;}
+      .mlm-rank.silver{background:#e5e7eb;color:#374151;}
+      .mlm-rank.bronze{background:#fed7aa;color:#9a3412;}
+      .mlm-mono{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--text2);}
+      .mlm-count{font-family:'IBM Plex Mono',monospace;font-size:14px;font-weight:700;color:var(--accent);}
+
       .kpi-grid {
         display: grid;
         grid-template-columns: repeat(4, 1fr);
@@ -799,6 +815,76 @@
           </div>
         </div>
       </div>
+
+      <!-- ── Member (MLM) Stats ── -->
+      <div data-perm="member_view" id="memberStatsSection" style="margin-top:24px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+          <h3 style="font-size:17px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:8px">
+            👥 สมาชิก (MLM)
+            <span id="mlmTotalBadge" style="font-size:12px;font-weight:500;color:var(--text3);background:var(--surface);padding:3px 10px;border-radius:12px;border:1px solid var(--border)">—</span>
+          </h3>
+          <a href="../customer/members-list.html" class="section-action">ดูทั้งหมด →</a>
+        </div>
+
+        <!-- 4-col charts grid -->
+        <div class="mlm-grid">
+          <!-- Trend (large, span 2) -->
+          <div class="section-card mlm-trend-card">
+            <div class="section-hdr">
+              <span class="section-title">📈 จำนวนสมัครรายเดือน (24 เดือน)</span>
+            </div>
+            <div class="section-body" style="padding:14px 18px">
+              <div style="position:relative;height:240px"><canvas id="chartTrend"></canvas></div>
+            </div>
+          </div>
+
+          <!-- Country pie -->
+          <div class="section-card">
+            <div class="section-hdr">
+              <span class="section-title">🌍 ประเทศ</span>
+            </div>
+            <div class="section-body" style="padding:14px 18px">
+              <div style="position:relative;height:240px"><canvas id="chartCountry"></canvas></div>
+            </div>
+          </div>
+
+          <!-- Package donut -->
+          <div class="section-card">
+            <div class="section-hdr">
+              <span class="section-title">💎 Package</span>
+            </div>
+            <div class="section-body" style="padding:14px 18px">
+              <div style="position:relative;height:240px"><canvas id="chartPackage"></canvas></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Top sponsors -->
+        <div class="section-card" style="margin-top:14px">
+          <div class="section-hdr">
+            <span class="section-title">⭐ Top 10 Sponsors (ผู้แนะนำที่มี downline เยอะสุด)</span>
+          </div>
+          <div class="section-body" style="padding:0">
+            <div style="overflow-x:auto">
+              <table class="mlm-table" id="topSponsorsTable">
+                <thead>
+                  <tr>
+                    <th style="width:50px">#</th>
+                    <th>รหัสสมาชิก</th>
+                    <th>ชื่อ-นามสกุล</th>
+                    <th style="width:100px">ประเทศ</th>
+                    <th style="text-align:right;width:140px">จำนวน Downline</th>
+                  </tr>
+                </thead>
+                <tbody id="topSponsorsBody">
+                  <tr><td colspan="5" style="text-align:center;padding:30px;color:var(--text3)">กำลังโหลด...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
     </div>
 
     <script type="module">
@@ -811,6 +897,7 @@
     <script>AuthZ.requirePerm("dashboard_view");</script>
     <script src="../../js/core/responsive.js"></script>
     <script src="../../js/components/navigation/sidebar.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="dashboard.js"></script>
   </body>
 </html>

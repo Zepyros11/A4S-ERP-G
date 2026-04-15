@@ -46,6 +46,7 @@ async function loadAll() {
   if (!SUPABASE_URL || !SUPABASE_KEY) return;
   setWelcome();
   checkPatExpiry();    // fire-and-forget — show alert if PAT expiring
+  loadMemberStats();   // fire-and-forget — render MLM charts
   try {
     const [products, stockBalance, pos, sos, movements] = await Promise.all([
       sbFetch('products', '?select=product_id,product_code,product_name,reorder_point,is_active&is_active=eq.true'),
@@ -197,6 +198,189 @@ function showToast(msg, type = 'success') {
   t.className = `toast toast-${type} show`;
   t.textContent = msg;
   setTimeout(() => t.classList.remove('show'), 4000);
+}
+
+/* ============================================================
+   MEMBER (MLM) STATS — Chart.js + Supabase views
+   ============================================================ */
+
+const _mlmCharts = {};   // keep references for re-render
+
+async function _mlmFetch(view) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${view}?select=*`, {
+    headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
+  });
+  if (!res.ok) throw new Error(`${view}: ${res.status}`);
+  return res.json();
+}
+
+async function loadMemberStats() {
+  const section = document.getElementById('memberStatsSection');
+  if (!section) return;
+  // Hide if user has no member_view perm (AuthZ.applyDomPerms อาจยังไม่ทำ)
+  if (window.AuthZ && !AuthZ.hasPerm('member_view')) {
+    section.style.display = 'none';
+    return;
+  }
+  if (typeof Chart === 'undefined') {
+    console.warn('Chart.js not loaded');
+    return;
+  }
+
+  try {
+    const [country, pkg, monthly, top, total] = await Promise.all([
+      _mlmFetch('v_members_country_count'),
+      _mlmFetch('v_members_package_count'),
+      _mlmFetch('v_members_monthly_signups'),
+      _mlmFetch('v_top_sponsors'),
+      _mlmTotalCount(),
+    ]);
+
+    document.getElementById('mlmTotalBadge').textContent = `${total.toLocaleString()} คน`;
+    _renderTrendChart(monthly);
+    _renderCountryChart(country);
+    _renderPackageChart(pkg);
+    _renderTopSponsors(top);
+  } catch (e) {
+    console.error('loadMemberStats:', e);
+    // ถ้า view ยังไม่มี (ยังไม่รัน SQL 005) — ซ่อน section เงียบ ๆ
+    if (e.message.includes('404') || e.message.includes('PGRST')) {
+      section.style.display = 'none';
+    }
+  }
+}
+
+async function _mlmTotalCount() {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/members?select=member_code&limit=1`, {
+    headers: {
+      apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`,
+      Prefer: 'count=exact', Range: '0-0',
+    },
+  });
+  const range = res.headers.get('content-range') || '*/0';
+  return parseInt(range.split('/')[1], 10) || 0;
+}
+
+/* ── Trend chart (line) ── */
+function _renderTrendChart(rows) {
+  const labels = rows.map(r => r.month);
+  const data   = rows.map(r => r.count);
+  _mlmCharts.trend?.destroy();
+  _mlmCharts.trend = new Chart(document.getElementById('chartTrend'), {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label: 'สมัครใหม่',
+        data,
+        borderColor: '#0f4c75',
+        backgroundColor: 'rgba(15,76,117,.12)',
+        borderWidth: 2,
+        fill: true,
+        tension: 0.35,
+        pointRadius: 3,
+        pointHoverRadius: 6,
+        pointBackgroundColor: '#0f4c75',
+      }],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { beginAtZero: true, ticks: { precision: 0 } },
+        x: { ticks: { maxRotation: 0, autoSkip: true, maxTicksLimit: 12 } },
+      },
+    },
+  });
+}
+
+/* ── Country pie ── */
+function _renderCountryChart(rows) {
+  const labels = rows.map(r => _countryLabel(r.country_code));
+  const data   = rows.map(r => r.count);
+  const colors = ['#10b981', '#f59e0b', '#6366f1', '#ec4899', '#94a3b8'];
+  _mlmCharts.country?.destroy();
+  _mlmCharts.country = new Chart(document.getElementById('chartCountry'), {
+    type: 'doughnut',
+    data: {
+      labels,
+      datasets: [{ data, backgroundColor: colors, borderWidth: 2, borderColor: '#fff' }],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'bottom', labels: { font: { size: 11 } } },
+        tooltip: { callbacks: { label: c => `${c.label}: ${c.parsed.toLocaleString()}` } },
+      },
+      cutout: '55%',
+    },
+  });
+}
+
+/* ── Package donut ── */
+function _renderPackageChart(rows) {
+  const labels = rows.map(r => r.package);
+  const data   = rows.map(r => r.count);
+  const colors = {
+    DM: '#8b5cf6', SI: '#f59e0b', PL: '#0e7490',
+    MB: '#ec4899', EM: '#10b981', OTHER: '#94a3b8',
+  };
+  const bg = labels.map(l => colors[l] || '#94a3b8');
+  _mlmCharts.package?.destroy();
+  _mlmCharts.package = new Chart(document.getElementById('chartPackage'), {
+    type: 'doughnut',
+    data: {
+      labels,
+      datasets: [{ data, backgroundColor: bg, borderWidth: 2, borderColor: '#fff' }],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'bottom', labels: { font: { size: 11 } } },
+        tooltip: { callbacks: { label: c => `${c.label}: ${c.parsed.toLocaleString()}` } },
+      },
+      cutout: '55%',
+    },
+  });
+}
+
+/* ── Top sponsors table ── */
+function _renderTopSponsors(rows) {
+  const tb = document.getElementById('topSponsorsBody');
+  if (!rows.length) {
+    tb.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:30px;color:var(--text3)">ไม่มีข้อมูล</td></tr>`;
+    return;
+  }
+  tb.innerHTML = rows.map((r, i) => {
+    const rank = i + 1;
+    const rankCls = rank === 1 ? 'gold' : rank === 2 ? 'silver' : rank === 3 ? 'bronze' : '';
+    const flag = _countryFlag(r.sponsor_country);
+    // Sponsor name fallback: if not found in DB → likely root/admin or non-imported branch
+    const nameDisplay = r.sponsor_name
+      ? escapeHtml(r.sponsor_name)
+      : (r.sponsor_code === '1'
+          ? '<span style="color:var(--text3)">🏛️ Root / Admin</span>'
+          : '<span style="color:var(--text3)">— (สมาชิกแม่ทีม / ไม่ได้ import)</span>');
+    return `<tr>
+      <td><span class="mlm-rank ${rankCls}">${rank}</span></td>
+      <td><span class="mlm-mono">${escapeHtml(r.sponsor_code || '—')}</span></td>
+      <td>${nameDisplay}</td>
+      <td>${flag} ${escapeHtml(r.sponsor_country || '')}</td>
+      <td style="text-align:right"><span class="mlm-count">${(r.downline_count || 0).toLocaleString()}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+function _countryLabel(c) {
+  return c === 'TH' ? '🇹🇭 ไทย' : c === 'KH' ? '🇰🇭 Cambodia' : `🌐 ${c}`;
+}
+function _countryFlag(c) {
+  return c === 'TH' ? '🇹🇭' : c === 'KH' ? '🇰🇭' : '🌐';
+}
+function escapeHtml(s) {
+  return String(s ?? '').replace(/[&<>"']/g, m => ({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+  }[m]));
 }
 
 /* ── PAT Expiry Alert (auto-show ≤ 30 days) ── */
