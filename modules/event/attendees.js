@@ -228,7 +228,7 @@ function renderTable(list) {
       (a) => `
     <tr>
       <td>
-        <div style="font-weight:600">${a.name}</div>
+        <div style="font-weight:600">${a.name}${a.member_code ? ` <span style="font-family:'IBM Plex Mono',monospace;font-size:10px;background:var(--accent-pale,#dbeafe);color:var(--accent,#0f4c75);padding:1px 6px;border-radius:4px;font-weight:700">${a.member_code}</span>` : ''}</div>
         <div style="font-size:11px;color:var(--text3)">
           ${[a.email, a.phone].filter(Boolean).join(" · ")}
         </div>
@@ -350,6 +350,21 @@ window.openAttModal = function (id = null) {
       document.getElementById("fAttNote").value = a.note || "";
     }
   }
+  // Reset member search
+  document.getElementById("fMemberSearch").value = "";
+  document.getElementById("fMemberCode").value = id ? (allAttendees.find(x => x.attendee_id === id)?.member_code || "") : "";
+  document.getElementById("memberSuggest").style.display = "none";
+  const badge = document.getElementById("memberBadge");
+  const prereq = document.getElementById("prereqWarning");
+  prereq.style.display = "none";
+  if (id) {
+    const a = allAttendees.find(x => x.attendee_id === id);
+    if (a?.member_code) {
+      badge.style.display = "block";
+      document.getElementById("memberBadgeText").textContent = `🔖 สมาชิก: ${a.member_code} — ${a.name}`;
+    } else badge.style.display = "none";
+  } else badge.style.display = "none";
+
   document.getElementById("attModalOverlay").classList.add("open");
 };
 
@@ -379,6 +394,7 @@ window.saveAttendee = async function () {
         parseFloat(document.getElementById("fPaidAmount").value) || 0,
       payment_status: document.getElementById("fPaymentStatus").value,
       note: document.getElementById("fAttNote").value || null,
+      member_code: document.getElementById("fMemberCode").value || null,
     };
 
     if (editingAttId) {
@@ -513,6 +529,132 @@ function showToast(msg, type = "success") {
 function showLoading(show) {
   document.getElementById("loadingOverlay").classList.toggle("show", show);
 }
+
+// ── MEMBER SEARCH + PREREQUISITE CHECK ─────────────────────
+let _memberSearchTimer = null;
+
+window.searchMember = function (q) {
+  clearTimeout(_memberSearchTimer);
+  const sug = document.getElementById("memberSuggest");
+  q = q.trim();
+  if (!q) { sug.style.display = "none"; return; }
+  _memberSearchTimer = setTimeout(async () => {
+    try {
+      const { url, key } = getSB();
+      const isCode = /^\d+$/.test(q);
+      const filter = isCode
+        ? `member_code=ilike.*${q}*`
+        : `or=(member_name.ilike.*${q}*,full_name.ilike.*${q}*)`;
+      const res = await fetch(
+        `${url}/rest/v1/members?select=member_code,member_name,full_name,phone,country_code&${filter}&limit=5`,
+        { headers: { apikey: key, Authorization: `Bearer ${key}` } }
+      );
+      if (!res.ok) return;
+      const rows = await res.json();
+      if (!rows.length) { sug.innerHTML = '<div style="padding:10px;color:var(--text3);font-size:12px">ไม่พบ</div>'; sug.style.display = "block"; return; }
+      sug.innerHTML = rows.map(m => {
+        const name = m.full_name || m.member_name || '—';
+        return `<div onclick="selectMember('${m.member_code}','${escapeHtml(name)}','${m.phone||''}')" style="padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--border,#e2e8f0);font-size:12.5px;transition:background .1s" onmouseover="this.style.background='var(--accent-pale,#dbeafe)'" onmouseout="this.style.background=''">
+          <span style="font-family:'IBM Plex Mono',monospace;color:var(--accent,#0f4c75);font-weight:600">${m.member_code}</span>
+          <span style="margin-left:8px">${escapeHtml(name)}</span>
+          <span style="margin-left:6px;font-size:11px;color:var(--text3)">${m.country_code||''}</span>
+        </div>`;
+      }).join('');
+      sug.style.display = "block";
+    } catch (e) { console.warn('searchMember:', e); }
+  }, 300);
+};
+
+window.selectMember = function (code, name, phone) {
+  document.getElementById("fMemberSearch").value = "";
+  document.getElementById("memberSuggest").style.display = "none";
+  document.getElementById("fMemberCode").value = code;
+  document.getElementById("memberBadge").style.display = "block";
+  document.getElementById("memberBadgeText").textContent = `🔖 ${code} — ${name}`;
+  // Auto-fill name + phone if empty
+  if (!document.getElementById("fAttName").value) document.getElementById("fAttName").value = name;
+  if (!document.getElementById("fAttPhone").value && phone) document.getElementById("fAttPhone").value = phone;
+  // Check prerequisite
+  checkPrerequisite(code);
+};
+
+window.clearMember = function () {
+  document.getElementById("fMemberCode").value = "";
+  document.getElementById("memberBadge").style.display = "none";
+  document.getElementById("prereqWarning").style.display = "none";
+};
+
+async function checkPrerequisite(memberCode) {
+  const warn = document.getElementById("prereqWarning");
+  warn.style.display = "none";
+  if (!currentEventId || !memberCode) return;
+
+  try {
+    const { url, key } = getSB();
+    const h = { apikey: key, Authorization: `Bearer ${key}` };
+
+    // Get current event's series + level
+    const evRes = await fetch(`${url}/rest/v1/events?select=series_id,level_id&event_id=eq.${currentEventId}`, { headers: h });
+    const evRows = evRes.ok ? await evRes.json() : [];
+    const ev = evRows[0];
+    if (!ev?.series_id || !ev?.level_id) return; // No series = no prerequisite
+
+    // Get level info + prerequisite
+    const lvRes = await fetch(`${url}/rest/v1/course_levels?select=*&id=eq.${ev.level_id}`, { headers: h });
+    const lvRows = lvRes.ok ? await lvRes.json() : [];
+    const level = lvRows[0];
+    if (!level?.prerequisite_level_id) return; // No prerequisite = OK
+
+    // Get prerequisite level name
+    const prRes = await fetch(`${url}/rest/v1/course_levels?select=*&id=eq.${level.prerequisite_level_id}`, { headers: h });
+    const prRows = prRes.ok ? await prRes.json() : [];
+    const prereqLevel = prRows[0];
+    if (!prereqLevel) return;
+
+    // Check: did this member attend + check-in any event with prerequisite level?
+    const checkRes = await fetch(
+      `${url}/rest/v1/event_attendees?select=attendee_id,event_id&member_code=eq.${memberCode}&checked_in=eq.true`,
+      { headers: h }
+    );
+    const attended = checkRes.ok ? await checkRes.json() : [];
+
+    // Find if any attended event is in the same series + prerequisite level
+    let passed = false;
+    if (attended.length) {
+      const eventIds = attended.map(a => a.event_id).join(',');
+      const evCheck = await fetch(
+        `${url}/rest/v1/events?select=event_id&series_id=eq.${ev.series_id}&level_id=eq.${level.prerequisite_level_id}&event_id=in.(${eventIds})`,
+        { headers: h }
+      );
+      const matchEvents = evCheck.ok ? await evCheck.json() : [];
+      passed = matchEvents.length > 0;
+    }
+
+    if (passed) {
+      warn.style.display = "block";
+      warn.style.background = "#d1fae5";
+      warn.style.borderColor = "#6ee7b7";
+      warn.style.color = "#065f46";
+      warn.innerHTML = `✅ ผ่านแล้ว — เคย check-in <b>${prereqLevel.level_name}</b> แล้ว`;
+    } else {
+      warn.style.display = "block";
+      warn.style.background = "#fef2f2";
+      warn.style.borderColor = "#fecaca";
+      warn.style.color = "#991b1b";
+      warn.innerHTML = `⚠️ <b>ยังไม่ผ่าน prerequisite</b> — ต้องเรียน <b>${prereqLevel.level_name}</b> ก่อน (ลงทะเบียนได้แต่ยังไม่ครบเงื่อนไข)`;
+    }
+  } catch (e) {
+    console.warn('checkPrerequisite:', e);
+  }
+}
+
+// Close member suggest on click outside
+document.addEventListener("click", (e) => {
+  const sug = document.getElementById("memberSuggest");
+  if (sug && !e.target.closest("#memberSuggest") && e.target.id !== "fMemberSearch") {
+    sug.style.display = "none";
+  }
+});
 
 // ── START ─────────────────────────────────────────────────
 if (document.readyState === "loading") {
