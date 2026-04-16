@@ -723,6 +723,10 @@
     🔗 Copy Share URL
   </button>
 
+  <button class="btn btn-primary" onclick="syncFromSupabase()" title="โหลดข้อมูลล่าสุดจาก Supabase">
+    🔄 Sync
+  </button>
+
   <div style="flex:1"></div>
   <span class="badge badge-info" id="row-count">0 items</span>
 </div>
@@ -2568,6 +2572,16 @@ function toast(msg, type = 'info') {
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') closeImgModal();
 });
+
+async function syncFromSupabase() {
+  if (!sbClient) {
+    toast('Supabase ยังไม่ได้ตั้งค่า — กรุณาบันทึก Config ก่อน', 'error');
+    return;
+  }
+  toast('กำลังโหลดข้อมูลจาก Supabase...', 'info');
+  await loadFromSupabase();
+  toast('Sync สำเร็จ', 'success');
+}
 
 function copyShareUrl() {
   const url   = localStorage.getItem('cs_sb_url')   || '';
