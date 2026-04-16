@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>จัดการหลักสูตร — A4S-ERP</title>
+<link rel="stylesheet" href="../../css/main.css">
+<style>
+/* ── Hero ── */
+.cs-hero{background:linear-gradient(135deg,#1e40af,#3b82f6);color:#fff;border-radius:14px;padding:20px 24px;margin-bottom:18px;box-shadow:0 8px 24px rgba(30,64,175,.3);position:relative;overflow:hidden;display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;}
+.cs-hero::before{content:'';position:absolute;top:-40px;right:-40px;width:140px;height:140px;border-radius:50%;background:rgba(255,255,255,.06);}
+.cs-hero h1{font-size:18px;font-weight:700;margin:0;display:flex;align-items:center;gap:8px;position:relative;z-index:1;}
+.cs-hero p{margin:3px 0 0;font-size:12.5px;opacity:.85;position:relative;z-index:1;}
+.cs-add-btn{padding:9px 18px;border:none;border-radius:20px;background:rgba(255,255,255,.18);color:#fff;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;border:1.5px solid rgba(255,255,255,.25);transition:all .15s;display:flex;align-items:center;gap:6px;flex-shrink:0;}
+.cs-add-btn:hover{background:rgba(255,255,255,.28);}
+
+/* ── Series cards ── */
+.cs-grid{display:flex;flex-direction:column;gap:14px;}
+.cs-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;transition:all .15s;}
+.cs-card:hover{box-shadow:0 6px 18px rgba(0,0,0,.07);}
+.cs-card-head{padding:16px 18px;display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--border);}
+.cs-card-icon{width:44px;height:44px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;}
+.cs-card-name{font-size:16px;font-weight:700;color:var(--text);}
+.cs-card-desc{font-size:12px;color:var(--text3);margin-top:2px;}
+.cs-card-actions{margin-left:auto;display:flex;gap:6px;flex-shrink:0;}
+.cs-btn{padding:6px 12px;border:1px solid var(--border);background:var(--surface);border-radius:14px;font-family:inherit;font-size:11.5px;cursor:pointer;color:var(--text2);font-weight:600;transition:all .12s;display:flex;align-items:center;gap:4px;}
+.cs-btn:hover{background:var(--accent-pale);border-color:var(--accent);color:var(--accent);}
+.cs-btn.danger:hover{background:#fee2e2;border-color:#dc2626;color:#dc2626;}
+
+/* ── Levels list ── */
+.cs-levels{padding:12px 18px;}
+.cs-level{display:flex;align-items:center;gap:10px;padding:10px 14px;border:1px solid var(--border);border-radius:8px;margin-bottom:6px;background:var(--surface);transition:all .12s;}
+.cs-level:hover{border-color:var(--accent);background:var(--accent-pale);}
+.cs-level-num{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;color:#fff;}
+.cs-level-info{flex:1;min-width:0;}
+.cs-level-name{font-size:13.5px;font-weight:600;color:var(--text);}
+.cs-level-prereq{font-size:11px;color:var(--text3);margin-top:1px;}
+.cs-level-stats{font-size:11px;color:var(--text3);margin-left:auto;display:flex;gap:12px;flex-shrink:0;font-variant-numeric:tabular-nums;}
+.cs-level-actions{display:flex;gap:4px;flex-shrink:0;}
+.cs-level-btn{width:26px;height:26px;border:1px solid var(--border);background:var(--surface);border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--text3);transition:all .12s;}
+.cs-level-btn:hover{background:var(--accent);color:#fff;border-color:var(--accent);}
+.cs-level-btn.danger:hover{background:#dc2626;border-color:#dc2626;}
+
+.cs-add-level{padding:8px 14px;border:1.5px dashed var(--border);border-radius:8px;background:transparent;font-family:inherit;font-size:12px;color:var(--text3);cursor:pointer;transition:all .12s;display:flex;align-items:center;gap:5px;margin-top:4px;width:100%;}
+.cs-add-level:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-pale);}
+
+.cs-card-foot{padding:10px 18px;border-top:1px solid var(--border);font-size:11.5px;color:var(--text3);display:flex;gap:16px;}
+
+/* ── Empty state ── */
+.cs-empty{text-align:center;padding:60px 20px;color:var(--text3);}
+.cs-empty-icon{font-size:56px;opacity:.3;margin-bottom:10px;}
+
+/* ── Modal ── */
+.cs-modal-overlay{position:fixed;inset:0;background:rgba(15,23,42,.55);backdrop-filter:blur(3px);display:none;align-items:center;justify-content:center;z-index:9999;}
+.cs-modal-overlay.open{display:flex;}
+.cs-modal{background:#fff;border-radius:14px;max-width:480px;width:92%;box-shadow:0 20px 50px rgba(0,0,0,.25);overflow:hidden;}
+.cs-modal-head{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;}
+.cs-modal-head h2{margin:0;font-size:15px;font-weight:700;flex:1;}
+.cs-modal-body{padding:18px 20px;}
+.cs-modal-foot{padding:14px 20px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px;}
+
+.cs-field{margin-bottom:12px;}
+.cs-field label{display:block;font-size:11.5px;font-weight:700;color:var(--text2);margin-bottom:4px;}
+.cs-field input,.cs-field select,.cs-field textarea{width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:7px;font-family:inherit;font-size:12.5px;transition:border-color .15s;}
+.cs-field input:focus,.cs-field select:focus{outline:none;border-color:var(--accent);}
+.cs-field-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+
+.modal-btn{padding:9px 18px;border-radius:18px;border:none;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;}
+.modal-btn.cancel{background:#e5e7eb;color:#374151;}
+.modal-btn.save{background:linear-gradient(135deg,var(--accent),var(--accent-light));color:#fff;box-shadow:0 3px 10px rgba(15,76,117,.3);}
+.modal-btn.save:hover{transform:translateY(-1px);}
+</style>
+</head>
+<body>
+
+<div class="loading-overlay" id="loadingOverlay"><div class="spinner"></div></div>
+<div class="toast" id="toast"></div>
+
+<div class="topbar"></div>
+
+<div class="page">
+
+  <!-- Hero -->
+  <div class="cs-hero">
+    <div>
+      <h1>📚 จัดการหลักสูตร (Course Series)</h1>
+      <p>สร้างหลักสูตรที่มีหลาย levels + กำหนด prerequisites (เช่น ต้องเรียน Basic ก่อน Advance)</p>
+    </div>
+    <button class="cs-add-btn" onclick="openSeriesModal()">➕ เพิ่มหลักสูตร</button>
+  </div>
+
+  <!-- Series grid -->
+  <div class="cs-grid" id="seriesGrid">
+    <div class="cs-empty" id="emptyState">
+      <div class="cs-empty-icon">📚</div>
+      <div style="font-weight:600;color:var(--text2);font-size:15px">ยังไม่มีหลักสูตร</div>
+      <div style="font-size:13px;margin-top:4px">กด "เพิ่มหลักสูตร" เพื่อสร้างหลักสูตรแรก</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Series Modal (Add/Edit) -->
+<div class="cs-modal-overlay" id="seriesModalOverlay" onclick="if(event.target===this)closeSeriesModal()">
+  <div class="cs-modal">
+    <div class="cs-modal-head">
+      <span style="font-size:20px" id="smIcon">📚</span>
+      <h2 id="smTitle">เพิ่มหลักสูตร</h2>
+    </div>
+    <div class="cs-modal-body">
+      <div class="cs-field">
+        <label>ชื่อหลักสูตร</label>
+        <input id="sfName" placeholder="เช่น Unlock the World">
+      </div>
+      <div class="cs-field-row">
+        <div class="cs-field">
+          <label>Icon</label>
+          <input id="sfIcon" value="📚" style="text-align:center;font-size:20px">
+        </div>
+        <div class="cs-field">
+          <label>สี</label>
+          <input id="sfColor" type="color" value="#3b82f6" style="height:38px;padding:4px">
+        </div>
+      </div>
+      <div class="cs-field">
+        <label>รายละเอียด</label>
+        <textarea id="sfDesc" rows="2" placeholder="(optional)"></textarea>
+      </div>
+    </div>
+    <div class="cs-modal-foot">
+      <button class="modal-btn cancel" onclick="closeSeriesModal()">ยกเลิก</button>
+      <button class="modal-btn save" onclick="saveSeries()">💾 บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<!-- Level Modal (Add/Edit) -->
+<div class="cs-modal-overlay" id="levelModalOverlay" onclick="if(event.target===this)closeLevelModal()">
+  <div class="cs-modal">
+    <div class="cs-modal-head">
+      <span style="font-size:20px">📊</span>
+      <h2 id="lmTitle">เพิ่ม Level</h2>
+    </div>
+    <div class="cs-modal-body">
+      <div class="cs-field-row">
+        <div class="cs-field">
+          <label>ชื่อ Level</label>
+          <input id="lfName" placeholder="เช่น Basic, Advance, Master">
+        </div>
+        <div class="cs-field">
+          <label>ลำดับ</label>
+          <input id="lfOrder" type="number" value="1" min="1">
+        </div>
+      </div>
+      <div class="cs-field">
+        <label>เงื่อนไข (ต้องผ่าน Level ไหนก่อน)</label>
+        <select id="lfPrereq">
+          <option value="">ไม่มี — ลงได้เลย</option>
+        </select>
+      </div>
+      <div class="cs-field">
+        <label>รายละเอียด</label>
+        <textarea id="lfDesc" rows="2" placeholder="(optional)"></textarea>
+      </div>
+    </div>
+    <div class="cs-modal-foot">
+      <button class="modal-btn cancel" onclick="closeLevelModal()">ยกเลิก</button>
+      <button class="modal-btn save" onclick="saveLevel()">💾 บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<script src="../../js/core/auth.js"></script>
+<script src="../../js/core/authz.js"></script>
+<script src="../../js/core/date-format.js"></script>
+<script>AuthZ.requirePerm("evt_cat_view");</script>
+<script src="./course-series.js"></script>
+<script type="module">
+  import { loadTopbar } from "../../js/components/navigation/topbar.js";
+  loadTopbar("📚 จัดการหลักสูตร");
+</script>
+<script src="../../js/components/navigation/sidebar.js"></script>
+</body>
+</html>
