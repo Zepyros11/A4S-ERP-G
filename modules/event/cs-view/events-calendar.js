@@ -8,6 +8,8 @@ const SB_KEY_DEFAULT =
 
 let allEvents = [];
 let allCategories = [];
+let _calSeriesMap = {};
+let _calLevelMap = {};
 let currentYear = new Date().getFullYear();
 let currentMonth = new Date().getMonth();
 let activeCalCatId = "";
@@ -119,6 +121,17 @@ async function loadEvents() {
     }
     if (!res.ok) throw new Error("Fetch failed: " + res.status);
     allEvents = await res.json();
+    // Load course series + levels
+    try {
+      const [sRes, lRes] = await Promise.all([
+        fetch(`${url}/rest/v1/course_series?select=id,name,icon,color`, { headers: { apikey: key, Authorization: `Bearer ${key}` } }),
+        fetch(`${url}/rest/v1/course_levels?select=id,series_id,level_name,level_order,prerequisite_level_id,description`, { headers: { apikey: key, Authorization: `Bearer ${key}` } }),
+      ]);
+      const series = sRes.ok ? await sRes.json() : [];
+      const levels = lRes.ok ? await lRes.json() : [];
+      _calSeriesMap = Object.fromEntries(series.map(s => [s.id, s]));
+      _calLevelMap = Object.fromEntries(levels.map(l => [l.id, l]));
+    } catch {}
   } catch (e) {
     showToast("โหลดข้อมูลไม่ได้: " + e.message, "error");
     allEvents = [];
@@ -433,6 +446,31 @@ function openEventPanel(eventId) {
       : "—";
   document.getElementById("panelLocation").textContent = e.location || "—";
   document.getElementById("panelDesc").textContent = e.description || "—";
+
+  // Prereq accordion
+  const prereqBox = document.getElementById("panelPrereq");
+  if (e.series_id && e.level_id && _calLevelMap[e.level_id]) {
+    const lv = _calLevelMap[e.level_id];
+    const series = _calSeriesMap[e.series_id];
+    const color = series?.color || '#3b82f6';
+    const icon = (series?.icon && !series.icon.includes(':')) ? series.icon : '📚';
+    let detailHtml = '';
+    if (lv.prerequisite_level_id && _calLevelMap[lv.prerequisite_level_id]) {
+      detailHtml += `<div style="padding:4px 0">🔒 ต้องผ่าน: <b>${_calLevelMap[lv.prerequisite_level_id].level_name}</b></div>`;
+    }
+    if (lv.description) detailHtml += `<div style="padding:4px 0">📝 ${lv.description}</div>`;
+    if (!detailHtml) detailHtml = '<div style="padding:4px 0;color:#64748b">🟢 ไม่มีเงื่อนไขเพิ่มเติม</div>';
+    prereqBox.innerHTML = `
+      <div onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none';this.querySelector('.arr').textContent=this.nextElementSibling.style.display==='none'?'▾':'▴'"
+        style="display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:6px;background:${color}12;border:1px solid ${color}30;cursor:pointer;font-size:11.5px;font-weight:600;color:${color};user-select:none">
+        ${icon} ${series?.name || ''} · Lv.${lv.level_order} ${lv.level_name} <span class="arr" style="font-size:10px;margin-left:2px">▴</span>
+      </div>
+      <div style="margin-top:6px;padding:8px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;font-size:11.5px;line-height:1.7;color:#334155">${detailHtml}</div>`;
+    prereqBox.style.display = "block";
+  } else {
+    prereqBox.style.display = "none";
+  }
+
   const msgBtn = document.getElementById("panelBtnMsg");
   msgBtn.onclick = () => openChatPanel(e.event_id, e.event_name);
   const calUnread = getCalUnread(e.event_id);
