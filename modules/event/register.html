@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ลงทะเบียน — A4S-ERP</title>
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Sarabun',sans-serif;background:#f1f5f9;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:16px;}
+
+.reg-card{background:#fff;border-radius:18px;max-width:440px;width:100%;box-shadow:0 12px 40px rgba(0,0,0,.1);overflow:hidden;}
+
+/* ── Hero ── */
+.reg-hero{position:relative;overflow:hidden;}
+.reg-poster{width:100%;aspect-ratio:16/9;object-fit:cover;display:block;}
+.reg-poster-placeholder{width:100%;aspect-ratio:16/9;background:linear-gradient(135deg,#1e40af,#3b82f6);display:flex;align-items:center;justify-content:center;font-size:48px;color:rgba(255,255,255,.3);}
+.reg-hero-overlay{position:absolute;bottom:0;left:0;right:0;padding:16px 20px;background:linear-gradient(transparent,rgba(0,0,0,.7));color:#fff;}
+.reg-hero-name{font-size:18px;font-weight:700;text-shadow:0 1px 4px rgba(0,0,0,.3);}
+.reg-hero-badges{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;}
+.reg-badge{padding:3px 10px;border-radius:12px;font-size:11px;font-weight:600;backdrop-filter:blur(6px);}
+.reg-badge.status{background:rgba(74,222,128,.2);color:#4ade80;border:1px solid rgba(74,222,128,.3);}
+.reg-badge.series{background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.2);}
+
+/* ── Info rows ── */
+.reg-info{padding:16px 20px;border-bottom:1px solid #f1f5f9;}
+.reg-info-row{display:flex;align-items:center;gap:8px;padding:5px 0;font-size:13.5px;color:#334155;}
+.reg-info-icon{font-size:16px;width:22px;text-align:center;flex-shrink:0;}
+.reg-info-label{color:#94a3b8;font-size:11px;min-width:50px;}
+
+/* ── Prereq box ── */
+.reg-prereq{margin:0 20px;padding:10px 14px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;font-size:12px;line-height:1.6;color:#1e40af;margin-top:12px;}
+.reg-prereq.warn{background:#fef2f2;border-color:#fecaca;color:#991b1b;}
+.reg-prereq.ok{background:#f0fdf4;border-color:#bbf7d0;color:#065f46;}
+
+/* ── Capacity bar ── */
+.reg-capacity{margin:12px 20px 0;font-size:12px;color:#64748b;}
+.reg-cap-bar{height:6px;background:#e2e8f0;border-radius:3px;margin-top:4px;overflow:hidden;}
+.reg-cap-fill{height:100%;border-radius:3px;transition:width .3s;}
+.reg-cap-fill.ok{background:linear-gradient(90deg,#10b981,#34d399);}
+.reg-cap-fill.warn{background:linear-gradient(90deg,#f59e0b,#fbbf24);}
+.reg-cap-fill.full{background:linear-gradient(90deg,#ef4444,#f87171);}
+
+/* ── Auth form ── */
+.reg-auth{padding:20px;}
+.reg-auth-title{font-size:14px;font-weight:700;color:#334155;margin-bottom:12px;display:flex;align-items:center;gap:6px;}
+.reg-field{margin-bottom:10px;}
+.reg-field label{display:block;font-size:12px;font-weight:600;color:#64748b;margin-bottom:4px;}
+.reg-field input{width:100%;padding:11px 14px;border:1.5px solid #e2e8f0;border-radius:8px;font-family:inherit;font-size:14px;transition:border-color .15s;}
+.reg-field input:focus{outline:none;border-color:#3b82f6;box-shadow:0 0 0 3px rgba(59,130,246,.1);}
+.reg-submit{width:100%;padding:13px;border:none;border-radius:12px;background:linear-gradient(135deg,#1e40af,#3b82f6);color:#fff;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer;transition:all .15s;margin-top:8px;}
+.reg-submit:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(30,64,175,.3);}
+.reg-submit:disabled{opacity:.5;cursor:not-allowed;transform:none;box-shadow:none;}
+
+/* ── Messages ── */
+.reg-msg{padding:14px 20px;text-align:center;font-size:13.5px;line-height:1.6;}
+.reg-msg.error{background:#fef2f2;color:#991b1b;}
+.reg-msg.success{background:#f0fdf4;color:#065f46;}
+.reg-success-ticket{font-family:'IBM Plex Mono',monospace;font-size:18px;font-weight:700;color:#1e40af;margin-top:8px;}
+
+/* ── Full/closed state ── */
+.reg-closed{padding:24px 20px;text-align:center;color:#64748b;font-size:14px;}
+.reg-closed-icon{font-size:36px;margin-bottom:8px;opacity:.5;}
+
+/* ── Loading ── */
+.reg-loading{display:none;padding:20px;text-align:center;color:#64748b;}
+.reg-loading.show{display:block;}
+
+/* ── Toast ── */
+.toast{position:fixed;top:20px;left:50%;transform:translateX(-50%);padding:10px 20px;border-radius:10px;font-size:13px;font-weight:600;color:#fff;z-index:999;opacity:0;transition:opacity .3s;pointer-events:none;}
+.toast.show{opacity:1;}
+.toast-success{background:#065f46;}
+.toast-error{background:#991b1b;}
+
+@media(max-width:480px){
+  body{padding:0;align-items:flex-start;}
+  .reg-card{border-radius:0;min-height:100vh;max-width:100%;}
+}
+</style>
+</head>
+<body>
+
+<div class="toast" id="toast"></div>
+
+<div class="reg-card">
+  <!-- Loading -->
+  <div class="reg-loading show" id="regLoading">⏳ กำลังโหลดข้อมูล...</div>
+
+  <!-- Event info (populated by JS) -->
+  <div id="regContent" style="display:none">
+    <!-- Hero -->
+    <div class="reg-hero" id="regHero"></div>
+
+    <!-- Info rows -->
+    <div class="reg-info" id="regInfo"></div>
+
+    <!-- Prereq box -->
+    <div id="regPrereq" style="display:none"></div>
+
+    <!-- Capacity bar -->
+    <div id="regCapacity" style="display:none"></div>
+
+    <!-- Auth + Register form -->
+    <div id="regForm"></div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   register.js — Public event registration (no ERP login needed)
+   Member authenticates with member_code + password
+   ============================================================ */
+
+const SB_URL = localStorage.getItem('sb_url') || '';
+const SB_KEY = localStorage.getItem('sb_key') || '';
+
+let _event = null;
+let _series = null;
+let _level = null;
+let _prereqLevel = null;
+let _attendeeCount = 0;
+
+async function sbGet(path) {
+  const res = await fetch(`${SB_URL}/rest/v1/${path}`, {
+    headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` },
+  });
+  if (!res.ok) throw new Error(res.status);
+  return res.json();
+}
+
+async function sbPost(path, body) {
+  const res = await fetch(`${SB_URL}/rest/v1/${path}`, {
+    method: 'POST',
+    headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=representation' },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+/* ── Init ── */
+(async () => {
+  const params = new URLSearchParams(location.search);
+  const eventId = params.get('event');
+  if (!eventId || !SB_URL) {
+    document.getElementById('regLoading').innerHTML = '❌ ไม่พบ event หรือยังไม่ได้ตั้งค่า';
+    return;
+  }
+
+  try {
+    // Load event
+    const events = await sbGet(`events?event_id=eq.${eventId}&select=*&limit=1`);
+    _event = events[0];
+    if (!_event) throw new Error('Event not found');
+
+    // Load series + level
+    if (_event.series_id) {
+      const s = await sbGet(`course_series?id=eq.${_event.series_id}&limit=1`);
+      _series = s[0];
+    }
+    if (_event.level_id) {
+      const l = await sbGet(`course_levels?id=eq.${_event.level_id}&limit=1`);
+      _level = l[0];
+      if (_level?.prerequisite_level_id) {
+        const p = await sbGet(`course_levels?id=eq.${_level.prerequisite_level_id}&limit=1`);
+        _prereqLevel = p[0];
+      }
+    }
+
+    // Count current attendees
+    const attRes = await fetch(`${SB_URL}/rest/v1/event_attendees?event_id=eq.${eventId}&select=attendee_id`, {
+      headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}`, Prefer: 'count=exact', Range: '0-0' },
+    });
+    const range = attRes.headers.get('content-range') || '*/0';
+    _attendeeCount = parseInt(range.split('/')[1], 10) || 0;
+
+    renderPage();
+  } catch (e) {
+    document.getElementById('regLoading').innerHTML = `❌ โหลดไม่ได้: ${e.message}`;
+  }
+})();
+
+function renderPage() {
+  document.getElementById('regLoading').style.display = 'none';
+  document.getElementById('regContent').style.display = 'block';
+
+  // Hero
+  const heroEl = document.getElementById('regHero');
+  const posterUrl = (_event.image_urls && _event.image_urls[0]) || _event.poster_url;
+  let badgesHtml = `<span class="reg-badge status">${_event.status}</span>`;
+  if (_series) badgesHtml += `<span class="reg-badge series">${_series.icon || '📚'} ${_series.name}${_level ? ' · ' + _level.level_name : ''}</span>`;
+  heroEl.innerHTML = `
+    ${posterUrl ? `<img class="reg-poster" src="${posterUrl}" alt="">` : '<div class="reg-poster-placeholder">🗓️</div>'}
+    <div class="reg-hero-overlay">
+      <div class="reg-hero-name">${esc(_event.event_name)}</div>
+      <div class="reg-hero-badges">${badgesHtml}</div>
+    </div>`;
+
+  // Info
+  const fmtDate = d => d ? d.split('-').reverse().join('/') : '—';
+  const infoEl = document.getElementById('regInfo');
+  infoEl.innerHTML = `
+    <div class="reg-info-row"><span class="reg-info-icon">📅</span>${fmtDate(_event.event_date)}${_event.end_date && _event.end_date !== _event.event_date ? ' — ' + fmtDate(_event.end_date) : ''}</div>
+    <div class="reg-info-row"><span class="reg-info-icon">🕐</span>${_event.start_time && _event.end_time ? _event.start_time.slice(0,5) + ' — ' + _event.end_time.slice(0,5) + ' น.' : '—'}</div>
+    <div class="reg-info-row"><span class="reg-info-icon">📍</span>${esc(_event.location || '—')}</div>
+    ${_event.description ? `<div class="reg-info-row"><span class="reg-info-icon">📝</span>${esc(_event.description)}</div>` : ''}
+    ${_event.members_only ? '<div class="reg-info-row"><span class="reg-info-icon">👤</span><b>สมาชิก MLM เท่านั้น</b></div>' : ''}`;
+
+  // Prereq
+  if (_prereqLevel) {
+    const prereqEl = document.getElementById('regPrereq');
+    prereqEl.className = 'reg-prereq';
+    prereqEl.innerHTML = `🔒 <b>เงื่อนไข:</b> ต้องผ่าน <b>${esc(_prereqLevel.level_name)}</b> ก่อน${_level?.description ? '<br>📋 ' + esc(_level.description) : ''}`;
+    prereqEl.style.display = 'block';
+  } else if (_level?.description) {
+    const prereqEl = document.getElementById('regPrereq');
+    prereqEl.className = 'reg-prereq';
+    prereqEl.innerHTML = `📋 ${esc(_level.description)}`;
+    prereqEl.style.display = 'block';
+  }
+
+  // Capacity
+  if (_event.max_attendees && _event.max_attendees > 0) {
+    const capEl = document.getElementById('regCapacity');
+    const pct = Math.min(100, (_attendeeCount / _event.max_attendees) * 100);
+    const cls = pct >= 100 ? 'full' : pct >= 80 ? 'warn' : 'ok';
+    capEl.innerHTML = `
+      <div style="display:flex;justify-content:space-between">
+        <span>👥 ลงทะเบียนแล้ว ${_attendeeCount} / ${_event.max_attendees} คน</span>
+        <span style="font-weight:700">${pct >= 100 ? '❌ เต็ม' : Math.round(100 - pct) + '% เหลือ'}</span>
+      </div>
+      <div class="reg-cap-bar"><div class="reg-cap-fill ${cls}" style="width:${pct}%"></div></div>`;
+    capEl.style.display = 'block';
+  }
+
+  // Form or closed
+  const formEl = document.getElementById('regForm');
+  const isFull = _event.max_attendees > 0 && _attendeeCount >= _event.max_attendees;
+  const isOpen = _event.registration_enabled;
+
+  if (!isOpen) {
+    formEl.innerHTML = '<div class="reg-closed"><div class="reg-closed-icon">🚫</div>Event นี้ยังไม่เปิดลงทะเบียน</div>';
+  } else if (isFull) {
+    formEl.innerHTML = '<div class="reg-closed"><div class="reg-closed-icon">🚫</div>ลงทะเบียนเต็มแล้ว</div>';
+  } else {
+    formEl.innerHTML = `
+      <div class="reg-auth">
+        <div class="reg-auth-title">🔐 ยืนยันตัวตน</div>
+        <div class="reg-field">
+          <label>รหัสสมาชิก</label>
+          <input id="rCode" placeholder="เช่น 10001" autocomplete="off" inputmode="numeric">
+        </div>
+        <div class="reg-field">
+          <label>รหัสผ่าน</label>
+          <input id="rPass" type="password" placeholder="รหัสผ่านของคุณ">
+        </div>
+        <div id="regMsg" style="display:none"></div>
+        <button class="reg-submit" id="btnRegister" onclick="doRegister()">🎫 ลงทะเบียน</button>
+      </div>`;
+    // Enter key
+    setTimeout(() => {
+      document.getElementById('rPass')?.addEventListener('keydown', e => { if (e.key === 'Enter') doRegister(); });
+    }, 50);
+  }
+}
+
+async function doRegister() {
+  const code = document.getElementById('rCode').value.trim();
+  const pass = document.getElementById('rPass').value;
+  const msgEl = document.getElementById('regMsg');
+  const btn = document.getElementById('btnRegister');
+
+  if (!code || !pass) { showMsg('กรุณากรอกรหัสสมาชิกและรหัสผ่าน', 'error'); return; }
+
+  btn.disabled = true;
+  btn.textContent = '⏳ กำลังตรวจสอบ...';
+  msgEl.style.display = 'none';
+
+  try {
+    // 1. Find member
+    const members = await sbGet(`members?member_code=eq.${encodeURIComponent(code)}&select=member_code,member_name,full_name,phone,password_encrypted&limit=1`);
+    const member = members[0];
+    if (!member) { showMsg('❌ ไม่พบรหัสสมาชิกนี้', 'error'); btn.disabled = false; btn.textContent = '🎫 ลงทะเบียน'; return; }
+
+    // 2. Verify password (need crypto.js)
+    if (!window.ERPCrypto || !ERPCrypto.hasMasterKey()) {
+      showMsg('❌ ระบบยังไม่พร้อม (Master Key)', 'error'); btn.disabled = false; btn.textContent = '🎫 ลงทะเบียน'; return;
+    }
+    let storedPass = '';
+    try { storedPass = await ERPCrypto.decrypt(member.password_encrypted); } catch {}
+    if (pass !== storedPass) { showMsg('❌ รหัสผ่านไม่ถูกต้อง', 'error'); btn.disabled = false; btn.textContent = '🎫 ลงทะเบียน'; return; }
+
+    // 3. Check members_only
+    if (_event.members_only && !member.member_code) {
+      showMsg('❌ Event นี้สำหรับสมาชิก MLM เท่านั้น', 'error'); btn.disabled = false; btn.textContent = '🎫 ลงทะเบียน'; return;
+    }
+
+    // 4. Check duplicate registration
+    const existing = await sbGet(`event_attendees?event_id=eq.${_event.event_id}&member_code=eq.${code}&select=attendee_id&limit=1`);
+    if (existing.length) { showMsg('⚠️ คุณลงทะเบียนแล้ว', 'error'); btn.disabled = false; btn.textContent = '🎫 ลงทะเบียน'; return; }
+
+    // 5. Check prerequisite
+    if (_prereqLevel && _event.series_id) {
+      const attended = await sbGet(`event_attendees?member_code=eq.${code}&checked_in=eq.true&select=event_id`);
+      let passed = false;
+      if (attended.length) {
+        const eids = attended.map(a => a.event_id).join(',');
+        const matchEv = await sbGet(`events?series_id=eq.${_event.series_id}&level_id=eq.${_level.prerequisite_level_id}&event_id=in.(${eids})&select=event_id`);
+        passed = matchEv.length > 0;
+      }
+      if (!passed) {
+        showMsg(`❌ ยังไม่ผ่าน prerequisite — ต้องเรียน ${_prereqLevel.level_name} ก่อน`, 'error');
+        btn.disabled = false; btn.textContent = '🎫 ลงทะเบียน'; return;
+      }
+    }
+
+    // 6. Check capacity (recheck)
+    if (_event.max_attendees > 0 && _attendeeCount >= _event.max_attendees) {
+      showMsg('❌ เต็มแล้ว', 'error'); btn.disabled = false; btn.textContent = '🎫 ลงทะเบียน'; return;
+    }
+
+    // 7. Generate ticket
+    const prefix = `TK-${_event.event_id}-`;
+    let ticketNo = prefix + '0001';
+    try {
+      const tix = await sbGet(`event_attendees?ticket_no=like.${prefix}*&select=ticket_no&order=ticket_no.desc&limit=1`);
+      if (tix.length) {
+        const lastNum = parseInt(tix[0].ticket_no.split('-').pop(), 10) || 0;
+        ticketNo = prefix + String(lastNum + 1).padStart(4, '0');
+      }
+    } catch {}
+
+    // 8. Create attendee
+    const name = member.full_name || member.member_name || code;
+    const payload = [{
+      event_id: _event.event_id,
+      name,
+      phone: member.phone || null,
+      member_code: code,
+      attend_type: 'ONSITE',
+      ticket_no: ticketNo,
+      payment_status: 'FREE',
+    }];
+    await sbPost('event_attendees', payload);
+
+    // Success!
+    document.getElementById('regForm').innerHTML = `
+      <div class="reg-msg success">
+        <div style="font-size:32px;margin-bottom:8px">🎉</div>
+        <div style="font-weight:700;font-size:16px">ลงทะเบียนสำเร็จ!</div>
+        <div style="margin-top:4px">${esc(name)} (${code})</div>
+        <div class="reg-success-ticket">🎫 ${ticketNo}</div>
+        <div style="margin-top:12px;font-size:12px;color:#64748b">กรุณาแสดงหน้านี้เมื่อเข้างาน</div>
+      </div>`;
+
+  } catch (e) {
+    showMsg('❌ เกิดข้อผิดพลาด: ' + (e.message || '').slice(0, 100), 'error');
+    btn.disabled = false; btn.textContent = '🎫 ลงทะเบียน';
+  }
+}
+
+function showMsg(msg, type) {
+  const el = document.getElementById('regMsg');
+  if (!el) return;
+  el.className = `reg-msg ${type}`;
+  el.innerHTML = msg;
+  el.style.display = 'block';
+}
+
+function esc(s) { return String(s || '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+
+function showToast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = `toast show toast-${type}`;
+  setTimeout(() => t.className = 'toast', 3500);
+}
+</script>
+
+<script src="../../js/core/crypto.js"></script>
+</body>
+</html>

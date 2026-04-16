@@ -1114,6 +1114,22 @@ window.openBadgePopup = function (eventId) {
       : `💬 Message`;
   msgBtn.onclick = () => openPopupChat(e.event_id, e.event_name);
 
+  // Register link button
+  const regBtn = document.getElementById("popupBtnReg");
+  if (e.registration_enabled) {
+    regBtn.style.display = "inline-flex";
+    regBtn.onclick = () => {
+      const regUrl = `${location.origin}${location.pathname.replace(/[^/]+$/, '')}register.html?event=${e.event_id}`;
+      navigator.clipboard.writeText(regUrl).then(() => {
+        showToast("📋 คัดลอก link ลงทะเบียนแล้ว", "success");
+      }).catch(() => {
+        prompt("คัดลอก link นี้:", regUrl);
+      });
+    };
+  } else {
+    regBtn.style.display = "none";
+  }
+
   // Edit button
   document.getElementById("popupBtnEdit").onclick = () => {
     window.location.href = `./event-form.html?id=${e.event_id}`;

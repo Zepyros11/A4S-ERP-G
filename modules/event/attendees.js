@@ -401,6 +401,10 @@ window.saveAttendee = async function () {
       await updateAttendee(editingAttId, payload);
       showToast("แก้ไขข้อมูลแล้ว", "success");
     } else {
+      // ── Enforce registration rules ──
+      const blocked = await _enforceRegistration(payload);
+      if (blocked) { showLoading(false); return; }
+
       // สร้าง ticket_no อัตโนมัติ
       payload.ticket_no = await generateTicketNo(currentEventId);
       await createAttendee(payload);
@@ -528,6 +532,77 @@ function showToast(msg, type = "success") {
 }
 function showLoading(show) {
   document.getElementById("loadingOverlay").classList.toggle("show", show);
+}
+
+// ── ENFORCE REGISTRATION RULES ──────────────────────────────
+let _currentEvent = null;
+
+async function _loadCurrentEvent() {
+  if (_currentEvent && _currentEvent.event_id === currentEventId) return _currentEvent;
+  try {
+    const rows = await sbFetch("events", `?event_id=eq.${currentEventId}&select=*&limit=1`);
+    _currentEvent = rows?.[0] || null;
+  } catch { _currentEvent = null; }
+  return _currentEvent;
+}
+
+async function _enforceRegistration(payload) {
+  const ev = await _loadCurrentEvent();
+  if (!ev) return false;
+
+  // 1. Check max_attendees
+  if (ev.max_attendees && ev.max_attendees > 0) {
+    const currentCount = allAttendees.length;
+    if (currentCount >= ev.max_attendees) {
+      showToast(`❌ เต็มแล้ว — จำกัด ${ev.max_attendees} คน (ลงทะเบียนแล้ว ${currentCount})`, "error");
+      return true;
+    }
+  }
+
+  // 2. Check members_only
+  if (ev.members_only && !payload.member_code) {
+    showToast("❌ Event นี้สำหรับสมาชิก MLM เท่านั้น — กรุณาเลือกสมาชิกก่อน", "error");
+    return true;
+  }
+
+  // 3. Check prerequisite (if member selected + event has series/level)
+  if (payload.member_code && ev.series_id && ev.level_id) {
+    try {
+      const { url, key } = getSB();
+      const h = { apikey: key, Authorization: `Bearer ${key}` };
+
+      // Get level → prerequisite
+      const lvRes = await fetch(`${url}/rest/v1/course_levels?select=*&id=eq.${ev.level_id}`, { headers: h });
+      const lvRows = lvRes.ok ? await lvRes.json() : [];
+      const level = lvRows[0];
+
+      if (level?.prerequisite_level_id) {
+        // Get prerequisite level name
+        const prRes = await fetch(`${url}/rest/v1/course_levels?select=*&id=eq.${level.prerequisite_level_id}`, { headers: h });
+        const prereqLevel = (prRes.ok ? await prRes.json() : [])[0];
+
+        // Check if member passed prerequisite
+        const attRes = await fetch(`${url}/rest/v1/event_attendees?select=attendee_id,event_id&member_code=eq.${payload.member_code}&checked_in=eq.true`, { headers: h });
+        const attended = attRes.ok ? await attRes.json() : [];
+
+        let passed = false;
+        if (attended.length) {
+          const eventIds = attended.map(a => a.event_id).join(',');
+          const evCheck = await fetch(`${url}/rest/v1/events?select=event_id&series_id=eq.${ev.series_id}&level_id=eq.${level.prerequisite_level_id}&event_id=in.(${eventIds})`, { headers: h });
+          passed = (evCheck.ok ? await evCheck.json() : []).length > 0;
+        }
+
+        if (!passed) {
+          showToast(`❌ ยังไม่ผ่าน prerequisite — ต้องเรียน ${prereqLevel?.level_name || 'level ก่อนหน้า'} ก่อน`, "error");
+          return true;
+        }
+      }
+    } catch (e) {
+      console.warn('prereq check:', e);
+    }
+  }
+
+  return false; // not blocked
 }
 
 // ── MEMBER SEARCH + PREREQUISITE CHECK ─────────────────────

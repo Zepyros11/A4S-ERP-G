@@ -58,8 +58,10 @@ window.AppPermissions = (() => {
           { key: "evt_budget_delete", label: "ลบ" },
         ]},
         { key: "attendee", label: "ผู้เข้าร่วม", icon: "👥", perms: [
-          { key: "attendee_view", label: "ดูรายการ" },
-          { key: "attendee_edit", label: "แก้ไข" },
+          { key: "attendee_view",     label: "ดูรายการ" },
+          { key: "attendee_edit",     label: "แก้ไข" },
+          { key: "attendee_register", label: "ลงทะเบียนให้" },
+          { key: "attendee_checkin",  label: "Check-in" },
         ]},
         { key: "media", label: "สื่อ & มีเดีย", icon: "🎬", perms: [
           { key: "media_view",   label: "ดูรายการ" },
@@ -178,6 +180,21 @@ window.AppPermissions = (() => {
           { key: "member_decrypt",      label: "ถอดรหัสข้อมูลลับ" },
           { key: "member_sync_config",  label: "ตั้งค่า Auto-Sync" },
           { key: "member_sync_trigger", label: "กด Sync Now" },
+        ]},
+      ],
+    },
+
+    /* ── บริการลูกค้า (Customer Service) ── */
+    {
+      key: "customer_service", label: "บริการลูกค้า (CS)", icon: "🎁",
+      children: [
+        { key: "promotion_gallery", label: "Promotion Gallery", icon: "🖼️", perms: [
+          { key: "view_promotions",   label: "ดูรายการ" },
+        ]},
+        { key: "promotion", label: "รายการโปรโมชัน", icon: "🎁", perms: [
+          { key: "promotion_create", label: "สร้าง" },
+          { key: "promotion_edit",   label: "แก้ไข" },
+          { key: "promotion_delete", label: "ลบ" },
         ]},
       ],
     },
