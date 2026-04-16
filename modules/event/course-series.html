@@ -70,9 +70,14 @@
 .modal-btn.save{background:linear-gradient(135deg,var(--accent),var(--accent-light));color:#fff;box-shadow:0 3px 10px rgba(15,76,117,.3);}
 .modal-btn.save:hover{transform:translateY(-1px);}
 
-/* ── Icon picker button ── */
-.cs-icon-btn{display:flex;align-items:center;gap:8px;padding:8px 14px;border:1.5px solid var(--border);border-radius:7px;cursor:pointer;transition:border-color .15s;background:var(--surface);}
+/* ── Icon picker ── */
+.cs-icon-btn{display:flex;align-items:center;gap:8px;padding:8px 14px;border:1.5px solid var(--border);border-radius:7px;cursor:pointer;transition:border-color .15s;background:var(--surface);position:relative;}
 .cs-icon-btn:hover{border-color:var(--accent);}
+.cs-emoji-picker{display:none;position:absolute;left:0;top:calc(100% + 4px);width:280px;background:#fff;border:1.5px solid var(--border);border-radius:12px;padding:8px;box-shadow:0 8px 28px rgba(0,0,0,.12);z-index:1200;display:grid;grid-template-columns:repeat(8,1fr);gap:2px;}
+.cs-emoji-picker:not(.open){display:none;}
+.cs-emoji-picker.open{display:grid;}
+.cs-emoji-item{border:none;background:transparent;border-radius:6px;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;aspect-ratio:1;transition:all .1s;}
+.cs-emoji-item:hover{background:var(--accent-pale);transform:scale(1.15);}
 </style>
 </head>
 <body>
@@ -120,10 +125,11 @@
         <div class="cs-field">
           <label>Icon</label>
           <div class="cs-icon-btn" id="sfIconBtn" onclick="pickIcon()">
-            <span id="sfIconPreview"></span>
+            <span id="sfIconPreview" style="font-size:22px">📚</span>
             <span style="font-size:11px;color:var(--text3)">เปลี่ยน ▾</span>
           </div>
           <input type="hidden" id="sfIcon" value="📚">
+          <div class="cs-emoji-picker" id="emojiPicker"></div>
         </div>
         <div class="cs-field">
           <label>สี</label>
@@ -180,6 +186,7 @@
 
 <script src="../../js/core/auth.js"></script>
 <script src="../../js/core/authz.js"></script>
+<script src="../../js/core/permissions.js"></script>
 <script src="../../js/core/date-format.js"></script>
 <script>AuthZ.requirePerm("evt_cat_view");</script>
 <script src="./course-series.js"></script>

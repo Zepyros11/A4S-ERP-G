@@ -248,25 +248,29 @@ function _safeIcon(icon, size = 24) {
 }
 
 /* ── Icon picker (uses shared iconPicker.js module) ── */
-async function pickIcon() {
-  if (window._loadIconPicker) await window._loadIconPicker();
-  if (!window._openIconPicker) { showToast('Icon picker ยังไม่โหลด', 'error'); return; }
-  window._openIconPicker({
-    current: document.getElementById('sfIcon').value,
-    onPick: (icon) => {
-      document.getElementById('sfIcon').value = icon;
-      _updateIconPreview(icon);
-    },
-  });
-}
-function _updateIconPreview(icon) {
-  const el = document.getElementById('sfIconPreview');
-  if (icon && icon.includes(':') && window._renderIcon) {
-    el.innerHTML = window._renderIcon(icon, 24);
-  } else {
-    el.innerHTML = _safeIcon(icon || '📚', 24);
+const EMOJI_LIST = ['📚','📖','🎓','🏫','💡','🎯','🌟','🏆','🎤','👥','💼','📊','📈','📅','📍','📋','📝','📢','🤝','💻','🖥️','📽️','🎥','📸','🏢','🍽️','✨','🌐','🎉','🎸','🚗','✈️','🎬','🩺','📌','🔬','🎨','🛡️','⚡','🔥','💎','🌈','🧭','🧩','🌍','🔑','🎪','🏅','🧑‍💻','🧑‍🏫'];
+
+function pickIcon() {
+  const picker = document.getElementById('emojiPicker');
+  if (!picker.dataset.built) {
+    picker.innerHTML = EMOJI_LIST.map(e =>
+      `<button type="button" class="cs-emoji-item" onclick="selectEmoji('${e}')">${e}</button>`
+    ).join('');
+    picker.dataset.built = '1';
   }
+  picker.classList.toggle('open');
 }
+function selectEmoji(emoji) {
+  document.getElementById('sfIcon').value = emoji;
+  document.getElementById('sfIconPreview').textContent = emoji;
+  document.getElementById('emojiPicker').classList.remove('open');
+}
+document.addEventListener('click', e => {
+  const picker = document.getElementById('emojiPicker');
+  if (picker?.classList.contains('open') && !e.target.closest('#emojiPicker') && !e.target.closest('.cs-icon-btn')) {
+    picker.classList.remove('open');
+  }
+});
 
 /* ── ESC close ── */
 document.addEventListener('keydown', e => {

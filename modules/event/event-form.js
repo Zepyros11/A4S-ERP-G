@@ -279,7 +279,10 @@ async function loadCourseSeries() {
     }
     const sel = document.getElementById('fSeries');
     sel.innerHTML = '<option value="">— ไม่ผูกหลักสูตร —</option>' +
-      _allSeries.map(s => `<option value="${s.id}">${s.icon || '📚'} ${s.name}</option>`).join('');
+      _allSeries.map(s => {
+        const icon = (s.icon && !s.icon.includes(':')) ? s.icon : '📚';
+        return `<option value="${s.id}">${icon} ${s.name}</option>`;
+      }).join('');
   } catch (e) {
     console.warn('loadCourseSeries:', e.message);
   }
