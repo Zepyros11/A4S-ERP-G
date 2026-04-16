@@ -87,6 +87,15 @@ async function main() {
     console.log('⏸️  Auto-sync disabled — exiting (use FORCE=1 to override)');
     return;
   }
+  // Check if it's time to sync (respect frequency setting)
+  if (!FORCE && config.next_sync_at) {
+    const now = new Date();
+    const next = new Date(config.next_sync_at);
+    if (now < next) {
+      console.log(`⏰ Not due yet — next sync at ${config.next_sync_at} (use FORCE=1 to override)`);
+      return;
+    }
+  }
   if (!config.username_encrypted || !config.password_encrypted) {
     throw new Error('Credentials not set in sync_config — ไปตั้งค่าที่ ERP UI ก่อน');
   }
