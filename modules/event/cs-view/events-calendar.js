@@ -53,9 +53,14 @@ async function refreshCalChatCounts() {
 function getCalUnread(eventId) {
   const info = _calChatCache[eventId];
   if (!info || info.total === 0) return 0;
-  const seenAt = localStorage.getItem(`evChat_cs_seen_${eventId}`) || "";
-  // count messages with timestamp strictly newer than last-seen — deletion-proof
-  return info.timestamps.filter(t => t > seenAt).length;
+  // Always show badge if event has messages & event hasn't ended yet
+  const ev = allEvents.find(e => e.event_id === eventId);
+  if (ev) {
+    const endDate = ev.end_date || ev.event_date;
+    const today = toDateStr(new Date());
+    if (endDate < today) return 0; // event already passed — hide badge
+  }
+  return info.total;
 }
 
 function markCalChatRead(eventId, logs) {
@@ -65,7 +70,6 @@ function markCalChatRead(eventId, logs) {
   _calChatCache[eventId].total = (logs || []).length;
   _calChatCache[eventId].timestamps = (logs || []).map(l => l.created_at);
   if (latest) _calChatCache[eventId].latest = latest;
-  renderCalendar();
 }
 
 const MONTHS_TH = [
@@ -441,8 +445,7 @@ function openChatPanel(eventId, eventName) {
   _chatLastSig = "";
   document.getElementById("chatPanelEventName").textContent = eventName || "—";
   document.getElementById("evPopup").classList.add("chat-open");
-  // hide badge immediately when chat opens
-  document.getElementById("panelBtnMsg").innerHTML = `💬 Message`;
+  // badge stays visible — only hidden after event date passes
   // show logged-in user name
   const senderEl = document.getElementById("calChatSenderName");
   if (senderEl) senderEl.textContent = getCalSenderName();

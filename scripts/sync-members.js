@@ -26,6 +26,7 @@ const MASTER_KEY = process.env.MASTER_KEY;
 const DRY_RUN = process.env.DRY_RUN === '1';
 const LOCAL = process.env.LOCAL_TEST === '1';
 const TEST_LINE = process.env.TEST_LINE === 'true' || process.env.TEST_LINE === '1';
+const FORCE = process.env.FORCE === 'true' || process.env.FORCE === '1';
 
 /* ── Date ranges — auto-split into 5-year buckets ──
    Default: skip legacy 2015-2020 bucket (data static, already imported).
@@ -82,8 +83,8 @@ async function main() {
   console.log('\n📋 Loading sync_config...');
   const config = await sb.getConfig();
   if (!config) throw new Error('sync_config row not found — run 001_members.sql');
-  if (!config.enabled) {
-    console.log('⏸️  Auto-sync disabled — exiting');
+  if (!config.enabled && !FORCE) {
+    console.log('⏸️  Auto-sync disabled — exiting (use FORCE=1 to override)');
     return;
   }
   if (!config.username_encrypted || !config.password_encrypted) {

@@ -95,33 +95,43 @@ function _updateSearchClearBtn() {
   btn.classList.toggle('show', hasValue);
 }
 
-/* ── Count API — เร็วกว่า fetch ข้อมูลจริงมาก ── */
-async function sbCount(extraFilter = '') {
-  const url = `${SUPABASE_URL}/rest/v1/members?select=member_code${extraFilter ? '&' + extraFilter : ''}`;
-  const res = await fetch(url, {
-    headers: _sbHeaders({ Prefer: 'count=exact', Range: '0-0' }),
-  });
-  if (!res.ok) return 0;
-  const range = res.headers.get('content-range') || '*/0';
-  return parseInt(range.split('/')[1], 10) || 0;
-}
-
-/* ── Load stats (4 counts in parallel) ── */
+/* ── Load stats via RPC (single SQL call, fast) ── */
 async function loadStats() {
   try {
-    const thisYear = new Date().getFullYear();
-    const [total, th, kh, yr] = await Promise.all([
-      sbCount(),
-      sbCount('country_code=eq.TH'),
-      sbCount('country_code=eq.KH'),
-      sbCount(`registered_at=gte.${thisYear}-01-01`),
-    ]);
-    document.getElementById('statTotal').textContent    = total.toLocaleString();
-    document.getElementById('statTH').textContent       = th.toLocaleString();
-    document.getElementById('statKH').textContent       = kh.toLocaleString();
-    document.getElementById('statThisYear').textContent = yr.toLocaleString();
-  } catch (e) {
-    console.error('loadStats', e);
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/member_stats`, {
+      method: 'POST',
+      headers: {
+        apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: '{}',
+    });
+    if (!res.ok) throw new Error(`${res.status}`);
+    const s = await res.json();
+    document.getElementById('statTotal').textContent    = (s.total || 0).toLocaleString();
+    document.getElementById('statTH').textContent       = (s.th || 0).toLocaleString();
+    document.getElementById('statKH').textContent       = (s.kh || 0).toLocaleString();
+    document.getElementById('statThisYear').textContent = (s.this_year || 0).toLocaleString();
+    totalRows = s.total || 0;
+    renderPaginate();
+  } catch {
+    // Fallback: ใช้ reltuples (approximate, instant)
+    try {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/member_stats_fast`, {
+        method: 'POST',
+        headers: {
+          apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: '{}',
+      });
+      if (res.ok) {
+        const s = await res.json();
+        document.getElementById('statTotal').textContent = (s.total || 0).toLocaleString();
+        totalRows = s.total || 0;
+        renderPaginate();
+      }
+    } catch {}
   }
 }
 
@@ -136,20 +146,15 @@ async function loadPage() {
     const filter = _buildFilterQuery();
     const from = (page - 1) * PAGE_SIZE;
     const to = from + PAGE_SIZE - 1;
-    const url = `${SUPABASE_URL}/rest/v1/members?select=*${filter ? '&' + filter : ''}&order=${sortKey}.${sortAsc ? 'asc' : 'desc'}`;
+    const cols = 'member_code,member_name,full_name,email,phone,password_encrypted,national_id_encrypted,package,sponsor_code,upline_code,side,registered_at,country_code';
+    const url = `${SUPABASE_URL}/rest/v1/members?select=${cols}${filter ? '&' + filter : ''}&order=${sortKey}.${sortAsc ? 'asc' : 'desc'}`;
 
-    const res = await fetch(url, {
-      headers: _sbHeaders({
-        Range: `${from}-${to}`,
-        'Range-Unit': 'items',
-        Prefer: 'count=exact',
-      }),
+    const res = await fetch(url + `&limit=${PAGE_SIZE}&offset=${from}`, {
+      headers: _sbHeaders(),
     });
     if (!res.ok) throw new Error(await res.text());
     currentPage = await res.json();
-    allMembers = currentPage;  // keep alias for purge feature
-    const range = res.headers.get('content-range') || '*/0';
-    totalRows = parseInt(range.split('/')[1], 10) || 0;
+    allMembers = currentPage;
     render();
   } catch (e) {
     showToast('โหลดไม่ได้: ' + e.message, 'error');
@@ -157,10 +162,11 @@ async function loadPage() {
   showLoading(false);
 }
 
-/* ── Public entry — refresh ทั้งหน้า (stats + page) ── */
+/* ── Public entry — โหลดตารางก่อน (เร็ว) แล้ว stats ตามหลัง ── */
 async function loadData() {
   page = 1;
-  await Promise.all([loadStats(), loadPage()]);
+  await loadPage();
+  loadStats();  // fire-and-forget — ไม่ block หน้า
 }
 
 /* ── Search / filter handlers (server-side) ── */
@@ -182,8 +188,11 @@ function sortBy(key) {
 }
 
 function gotoPage(n) {
-  const totalPages = Math.max(1, Math.ceil(totalRows / PAGE_SIZE));
-  const newPage = Math.max(1, Math.min(n, totalPages));
+  const newPage = Math.max(1, n);
+  if (totalRows > 0) {
+    const totalPages = Math.max(1, Math.ceil(totalRows / PAGE_SIZE));
+    if (newPage > totalPages) return;
+  }
   if (newPage === page) return;
   page = newPage;
   loadPage();
@@ -240,16 +249,28 @@ function render() {
 
 function renderPaginate() {
   const pag = document.getElementById('paginate');
-  const totalPages = Math.max(1, Math.ceil(totalRows / PAGE_SIZE));
-  if (totalPages <= 1) { pag.innerHTML = ''; return; }
+  const hasMore = currentPage.length >= PAGE_SIZE;
 
-  const parts = [];
-  parts.push(`<button onclick="gotoPage(1)" ${page===1?'disabled':''}>« แรก</button>`);
-  parts.push(`<button onclick="gotoPage(${page-1})" ${page===1?'disabled':''}>‹ ก่อน</button>`);
-  parts.push(`<span class="paginate-info">หน้า ${page} / ${totalPages.toLocaleString()} · ทั้งหมด ${totalRows.toLocaleString()}</span>`);
-  parts.push(`<button onclick="gotoPage(${page+1})" ${page===totalPages?'disabled':''}>ถัด ›</button>`);
-  parts.push(`<button onclick="gotoPage(${totalPages})" ${page===totalPages?'disabled':''}>ท้าย »</button>`);
-  pag.innerHTML = parts.join('');
+  // ถ้า totalRows ยังไม่รู้ (RPC ยังไม่เสร็จ) ใช้ next/prev อย่างเดียว
+  if (totalRows > 0) {
+    const totalPages = Math.max(1, Math.ceil(totalRows / PAGE_SIZE));
+    if (totalPages <= 1 && page === 1) { pag.innerHTML = ''; return; }
+    const parts = [];
+    parts.push(`<button onclick="gotoPage(1)" ${page===1?'disabled':''}>« แรก</button>`);
+    parts.push(`<button onclick="gotoPage(${page-1})" ${page===1?'disabled':''}>‹ ก่อน</button>`);
+    parts.push(`<span class="paginate-info">หน้า ${page} / ${totalPages.toLocaleString()} · ทั้งหมด ${totalRows.toLocaleString()}</span>`);
+    parts.push(`<button onclick="gotoPage(${page+1})" ${page>=totalPages?'disabled':''}>ถัด ›</button>`);
+    parts.push(`<button onclick="gotoPage(${totalPages})" ${page>=totalPages?'disabled':''}>ท้าย »</button>`);
+    pag.innerHTML = parts.join('');
+  } else {
+    // Fallback: next/prev only
+    if (page === 1 && !hasMore) { pag.innerHTML = ''; return; }
+    const parts = [];
+    parts.push(`<button onclick="gotoPage(${page-1})" ${page===1?'disabled':''}>‹ ก่อน</button>`);
+    parts.push(`<span class="paginate-info">หน้า ${page}</span>`);
+    parts.push(`<button onclick="gotoPage(${page+1})" ${!hasMore?'disabled':''}>ถัด ›</button>`);
+    pag.innerHTML = parts.join('');
+  }
 }
 
 /* ── Decrypt mode ── */
