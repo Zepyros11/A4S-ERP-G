@@ -32,6 +32,8 @@ const DEFAULT_ROLES = {
       "export_reports",
       "manage_users",
       "manage_settings",
+      "view_promotions",
+      "manage_promotions",
     ],
   },
   MANAGER: {

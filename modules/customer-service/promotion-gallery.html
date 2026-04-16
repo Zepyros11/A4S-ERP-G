@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Promotion Gallery — A4S-ERP</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Playfair+Display:wght@600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../../css/main.css" />
+    <link rel="stylesheet" href="./promotions.css" />
+    <link rel="stylesheet" href="./promotion-gallery.css" />
+  </head>
+  <body>
+    <div class="loading-overlay" id="loadingOverlay">
+      <div class="spinner"></div>
+    </div>
+    <div class="toast" id="toast"></div>
+
+    <div class="topbar"></div>
+    <div class="layout">
+      <div id="sidebar-container"></div>
+
+      <div class="content-area">
+        <div class="page">
+          <!-- MAIN CARD -->
+          <div class="table-card">
+
+            <!-- TOOLBAR -->
+            <div class="toolbar">
+              <div class="pg-toolbar-left">
+                <button
+                  class="btn btn-outline pg-back-btn"
+                  onclick="window.location.href = 'promotion-list.html'"
+                >
+                  ← กลับ
+                </button>
+                <div class="pg-header-divider"></div>
+                <div class="pg-header-info">
+                  <div class="pg-header-title">🖼️ Promotion Gallery</div>
+                  <div class="pg-header-subtitle" id="pageSubtitle">กำลังโหลด...</div>
+                </div>
+              </div>
+
+              <div class="pg-header-actions">
+                <!-- Grid Toggle -->
+                <div class="pg-grid-toggle">
+                  <button class="pg-toggle-btn" id="btnGrid3" onclick="window.setGrid(3)">⊞ 3</button>
+                  <button class="pg-toggle-btn active" id="btnGrid4" onclick="window.setGrid(4)">⊟ 4</button>
+                  <button class="pg-toggle-btn" id="btnGrid5" onclick="window.setGrid(5)">▦ 5</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Filter Chips -->
+            <div class="pg-filter-chips" id="filterChipsWrap">
+              <button
+                class="pg-chip active"
+                id="btnThisMonth"
+                onclick="window.toggleThisMonth(this)"
+              >
+                📅 เดือนนี้
+              </button>
+              <button
+                class="pg-chip"
+                data-cat=""
+                onclick="window.setTypeFilter(this, '')"
+              >
+                ทั้งหมด
+              </button>
+              <!-- dynamic category chips injected by JS -->
+            </div>
+
+            <!-- GALLERY BODY -->
+            <div class="pg-gallery-wrap" id="galleryBody">
+              <!-- render เป็น Section แยกตาม Month -->
+            </div>
+
+          </div>
+        </div>
+
+        <script src="../../js/core/auth.js"></script>
+        <script src="../../js/core/authz.js"></script>
+        <script>AuthZ.requirePerm("view_promotions");</script>
+        <script type="module" src="./promotion-gallery.js"></script>
+        <script src="../../js/components/modal/deleteModal.js"></script>
+        <script src="../../js/components/modal/modalManager.js"></script>
+        <script type="module">
+          import { loadTopbar } from "../../js/components/navigation/topbar.js";
+          loadTopbar("🖼️ Promotion Gallery");
+        </script>
+        <script src="../../js/components/navigation/imgPopup.js"></script>
+        <script src="../../js/components/navigation/sidebar.js"></script>
+      </div>
+    </div>
+  </body>
+</html>

@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>โปรโมชัน — A4S-ERP</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../../css/main.css" />
+    <link rel="stylesheet" href="./promotions.css" />
+  </head>
+  <body>
+    <div class="loading-overlay" id="loadingOverlay">
+      <div class="spinner"></div>
+    </div>
+    <div class="toast" id="toast"></div>
+
+    <!-- TOPBAR -->
+    <div class="topbar"></div>
+    <div class="layout">
+      <!-- SIDEBAR -->
+      <div id="sidebar-container"></div>
+
+      <!-- CONTENT -->
+      <div class="content-area">
+        <div class="page">
+
+          <!-- STATS ROW -->
+          <div class="stats-row" id="statsPromotions">
+            <div class="stat-card">
+              <div class="stat-icon">🎯</div>
+              <div>
+                <div class="stat-value" id="cardActive">0</div>
+                <div class="stat-label">กำลังใช้งาน</div>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon">📅</div>
+              <div>
+                <div class="stat-value" id="cardMonth">0</div>
+                <div class="stat-label">เดือนนี้</div>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon">⏳</div>
+              <div>
+                <div class="stat-value" id="cardUpcoming">0</div>
+                <div class="stat-label">กำลังจะมา</div>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon">✅</div>
+              <div>
+                <div class="stat-value" id="cardExpired">0</div>
+                <div class="stat-label">หมดอายุแล้ว</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- TABLE CARD -->
+          <div class="table-card">
+
+            <!-- TOOLBAR -->
+            <div class="toolbar" id="toolbarPromotions">
+              <div class="search-wrap">
+                <span class="search-icon">🔍</span>
+                <input
+                  class="search-input"
+                  id="searchInput"
+                  placeholder="ค้นหาชื่อโปรโมชัน..."
+                />
+              </div>
+              <!-- Date filter chips -->
+              <div class="date-filter-chips" id="dateFilterChips">
+                <button class="date-chip" data-range="all" onclick="window.setDateFilter(this,'all')">ทั้งหมด</button>
+                <button class="date-chip active" data-range="month" onclick="window.setDateFilter(this,'month')">เดือนนี้</button>
+                <button class="date-chip" data-range="active" onclick="window.setDateFilter(this,'active')">กำลังใช้งาน</button>
+                <button class="date-chip" data-range="upcoming" onclick="window.setDateFilter(this,'upcoming')">กำลังจะมา</button>
+              </div>
+              <!-- Status filter chips -->
+              <div class="date-filter-chips" id="statusFilterChips">
+                <button class="date-chip active" data-status="" onclick="window.setStatusFilter(this,'')">ทุกสถานะ</button>
+                <button class="date-chip" data-status="DRAFT" onclick="window.setStatusFilter(this,'DRAFT')">📝 Draft</button>
+                <button class="date-chip" data-status="ACTIVE" onclick="window.setStatusFilter(this,'ACTIVE')">🎯 Active</button>
+                <button class="date-chip" data-status="EXPIRED" onclick="window.setStatusFilter(this,'EXPIRED')">⏰ Expired</button>
+                <button class="date-chip" data-status="CANCELLED" onclick="window.setStatusFilter(this,'CANCELLED')">❌ Cancelled</button>
+              </div>
+              <div class="toolbar-right">
+                <button
+                  class="btn btn-primary"
+                  onclick="window.location.href='promotion-gallery.html'"
+                >
+                  🖼️ Gallery
+                </button>
+                <button
+                  class="btn btn-primary"
+                  data-perm="promotions_create"
+                  onclick="window.createPromotion()"
+                >
+                  ＋ สร้างโปรโมชัน
+                </button>
+              </div>
+            </div>
+
+            <!-- TABLE HEADER -->
+            <div class="table-hdr">
+              <div class="ev-tabs">
+                <button class="ev-tab active">
+                  🎁 รายการโปรโมชัน
+                </button>
+              </div>
+              <div class="table-count" id="tableCount">0 รายการ</div>
+            </div>
+
+            <!-- TABLE -->
+            <div class="table-wrap">
+              <table class="data-table table-promotions">
+                <thead>
+                  <tr>
+                    <th style="width: 40px; text-align: center">
+                      <input type="checkbox" id="chkAll" onclick="window.toggleAllCheckbox(this)" />
+                    </th>
+                    <th class="col-center" style="width:60px">โปสเตอร์</th>
+                    <th onclick="window.sortTable('promotion_name')" style="cursor: pointer">
+                      ชื่อโปรโมชัน <span class="sort-icon">⇅</span>
+                    </th>
+                    <th onclick="window.sortTable('start_date')" style="cursor: pointer">
+                      วันเริ่มต้น <span class="sort-icon">⇅</span>
+                    </th>
+                    <th onclick="window.sortTable('end_date')" style="cursor: pointer">
+                      วันสิ้นสุด <span class="sort-icon">⇅</span>
+                    </th>
+                    <th class="col-center">สถานะ</th>
+                    <th class="col-center">จัดการ</th>
+                  </tr>
+                </thead>
+                <tbody id="tableBody">
+                  <tr>
+                    <td colspan="7">
+                      <div class="empty-state">
+                        <div class="empty-icon">🎁</div>
+                        <div class="empty-text">ยังไม่มีข้อมูลโปรโมชัน</div>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+          </div>
+          <!-- end .table-card -->
+        </div>
+        <!-- end .page -->
+
+        <!-- SCRIPTS -->
+        <script src="../../js/core/auth.js"></script>
+        <script src="../../js/core/authz.js"></script>
+        <script>AuthZ.requirePerm("view_promotions");</script>
+        <script type="module" src="./promotion-list.js"></script>
+        <script src="../../js/components/modal/deleteModal.js"></script>
+        <script src="../../js/components/modal/modalManager.js"></script>
+        <script type="module">
+          import { loadTopbar } from "../../js/components/navigation/topbar.js";
+          loadTopbar("🎁 โปรโมชัน");
+        </script>
+        <script src="../../js/components/navigation/imgPopup.js"></script>
+        <script src="../../js/components/navigation/sidebar.js"></script>
+      </div>
+    </div>
+
+    <!-- DELETE SELECTED BUTTON -->
+    <script>
+      document.addEventListener("DOMContentLoaded", () => {
+        const toolbarRight = document.querySelector("#toolbarPromotions .toolbar-right");
+        if (toolbarRight) {
+          const btnDel = document.createElement("button");
+          btnDel.id = "btnDeleteSelected";
+          btnDel.className = "btn btn-danger-outline";
+          btnDel.style.display = "none";
+          btnDel.innerHTML = "🗑 ลบที่เลือก";
+          btnDel.onclick = () => window.deleteSelectedPromotions();
+          toolbarRight.insertBefore(btnDel, toolbarRight.firstChild);
+        }
+      });
+    </script>
+
+  </body>
+</html>

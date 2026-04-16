@@ -252,6 +252,221 @@ function showToast(msg, type = 'info') {
   setTimeout(() => t.className = 'toast', 3500);
 }
 
+/* ============================================================
+   REPORTS SECTION
+   ============================================================ */
+
+const RPT_COLORS = ['bar-blue','bar-green','bar-amber','bar-purple','bar-pink','bar-teal','bar-red','bar-indigo'];
+const RPT_RAW = ['#3b82f6','#10b981','#f59e0b','#8b5cf6','#ec4899','#14b8a6','#ef4444','#6366f1'];
+const FLAGS = {TH:'🇹🇭',KH:'🇰🇭',CIV:'🇨🇮',NG:'🇳🇬',CM:'🇨🇲',BJ:'🇧🇯',SN:'🇸🇳',BF:'🇧🇫',ML:'🇲🇱',TG:'🇹🇬',GN:'🇬🇳',NE:'🇳🇪',CD:'🇨🇩',GH:'🇬🇭','N/A':'🌐'};
+
+async function rpc(fn, params = {}) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${fn}`, {
+    method: 'POST',
+    headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(params),
+  });
+  if (!res.ok) throw new Error(`${fn}: ${res.status}`);
+  return res.json();
+}
+
+/* ── Date filter ── */
+function _rptRange() {
+  const from = document.getElementById('rptFrom').value || '2015-01-01';
+  const to = document.getElementById('rptTo').value || new Date().toISOString().slice(0, 10);
+  return { p_from: from, p_to: to };
+}
+
+function setRptPreset(key) {
+  const now = new Date();
+  const toEl = document.getElementById('rptTo');
+  const fromEl = document.getElementById('rptFrom');
+  if (key === 'thisYear') {
+    fromEl.value = `${now.getFullYear()}-01-01`;
+    toEl.value = now.toISOString().slice(0, 10);
+  } else if (key === 'lastYear') {
+    fromEl.value = `${now.getFullYear() - 1}-01-01`;
+    toEl.value = `${now.getFullYear() - 1}-12-31`;
+  } else if (key === 'last6m') {
+    const d = new Date(now); d.setMonth(d.getMonth() - 6);
+    fromEl.value = d.toISOString().slice(0, 10);
+    toEl.value = now.toISOString().slice(0, 10);
+  } else if (key === 'last30d') {
+    const d = new Date(now); d.setDate(d.getDate() - 30);
+    fromEl.value = d.toISOString().slice(0, 10);
+    toEl.value = now.toISOString().slice(0, 10);
+  }
+  loadReports();
+}
+function applyReport() { loadReports(); }
+function resetReport() {
+  document.getElementById('rptFrom').value = '';
+  document.getElementById('rptTo').value = '';
+  loadReports();
+}
+
+/* ── Load all reports ── */
+async function loadReports() {
+  const range = _rptRange();
+  try {
+    const [monthly, pkg, country, sponsors, uplines, side, channel, gc] = await Promise.all([
+      rpc('member_report_monthly', range),
+      rpc('member_report_package', range),
+      rpc('member_report_country', range),
+      rpc('member_report_top_sponsors', { ...range, p_limit: 15 }),
+      rpc('member_report_top_uplines', { ...range, p_limit: 15 }),
+      rpc('member_report_side', range),
+      rpc('member_report_channel', range),
+      rpc('member_report_growth_by_country', range),
+    ]);
+    _renderGrowth(monthly);
+    _renderBar('pkgChart', pkg, 'package', 'pkgTotal');
+    _renderBar('countryChart', country, 'country_code', 'countryTotal', true);
+    _renderDonutReport('sideChart', side, 'side');
+    _renderBar('channelChart', channel, 'channel');
+    _renderRank('sponsorTable', sponsors, 'sponsor_code', 'sponsor_name');
+    _renderRank('uplineTable', uplines, 'upline_code', 'upline_name');
+    _renderGrowthCountry(gc);
+  } catch (e) {
+    console.error('Reports error:', e);
+    showToast('โหลดรายงานไม่ได้: ' + e.message, 'error');
+  }
+}
+
+/* ── Render: Monthly growth ── */
+function _renderGrowth(data) {
+  const el = document.getElementById('growthChart');
+  if (!data.length) { el.innerHTML = '<div class="report-empty">ไม่มีข้อมูล</div>'; return; }
+  const max = Math.max(...data.map(d => d.cnt));
+  const total = data.reduce((s, d) => s + Number(d.cnt), 0);
+  document.getElementById('growthTotal').textContent = total.toLocaleString() + ' คน';
+  el.innerHTML = data.map(d => {
+    const pct = max ? (d.cnt / max * 100) : 0;
+    return `<div class="growth-bar-wrap">
+      <div class="growth-bar bar-blue" style="height:${Math.max(pct, 2)}%">
+        <div class="growth-tooltip">${d.month}: ${Number(d.cnt).toLocaleString()}</div>
+      </div>
+      <div class="growth-bar-label">${d.month.slice(2)}</div>
+    </div>`;
+  }).join('');
+}
+
+/* ── Render: Horizontal bar chart ── */
+function _renderBar(elId, data, labelKey, totalBadgeId, showFlag) {
+  const el = document.getElementById(elId);
+  if (!data.length) { el.innerHTML = '<div class="report-empty">ไม่มีข้อมูล</div>'; return; }
+  const max = Math.max(...data.map(d => d.cnt));
+  const total = data.reduce((s, d) => s + Number(d.cnt), 0);
+  if (totalBadgeId) document.getElementById(totalBadgeId).textContent = total.toLocaleString() + ' คน';
+  el.innerHTML = '<div class="bar-chart">' + data.map((d, i) => {
+    const pct = max ? (d.cnt / max * 100) : 0;
+    const flag = showFlag ? (FLAGS[d[labelKey]] || '🌐') + ' ' : '';
+    const label = flag + (d[labelKey] || 'N/A');
+    return `<div class="bar-row">
+      <div class="bar-label" title="${label}">${label}</div>
+      <div class="bar-track"><div class="bar-fill ${RPT_COLORS[i % RPT_COLORS.length]}" style="width:${Math.max(pct, 1)}%"></div></div>
+      <div class="bar-val">${Number(d.cnt).toLocaleString()}</div>
+    </div>`;
+  }).join('') + '</div>';
+}
+
+/* ── Render: Donut (side balance) ── */
+function _renderDonutReport(elId, data, labelKey) {
+  const el = document.getElementById(elId);
+  if (!data.length) { el.innerHTML = '<div class="report-empty">ไม่มีข้อมูล</div>'; return; }
+  const total = data.reduce((s, d) => s + Number(d.cnt), 0);
+  if (!total) { el.innerHTML = '<div class="report-empty">ไม่มีข้อมูล</div>'; return; }
+  const r = 60, cx = 80, cy = 80, c = 2 * Math.PI * r, gap = 1;
+  let offset = 0;
+  const circles = data.map((d, i) => {
+    const pct = d.cnt / total;
+    const len = pct * c - gap;
+    if (len <= 0) return '';
+    const svg = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${RPT_RAW[i % RPT_RAW.length]}" stroke-width="22"
+      stroke-dasharray="${len} ${c - len}" stroke-dashoffset="${-offset}"
+      transform="rotate(-90 ${cx} ${cy})" stroke-linecap="round"/>`;
+    offset += pct * c;
+    return svg;
+  }).join('');
+  const legend = data.map((d, i) => {
+    const pct = ((d.cnt / total) * 100).toFixed(1);
+    return `<div class="row"><span class="dot" style="background:${RPT_RAW[i % RPT_RAW.length]}"></span>${d[labelKey] || 'N/A'}<span class="num">${Number(d.cnt).toLocaleString()} (${pct}%)</span></div>`;
+  }).join('');
+  el.innerHTML = `<div style="display:flex;align-items:center;gap:24px;flex-wrap:wrap;">
+    <div class="donut-wrap">
+      <svg viewBox="0 0 160 160" style="width:100%;height:100%">
+        <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#e5e7eb" stroke-width="22"/>
+        ${circles}
+      </svg>
+      <div class="donut-center"><div class="big">${total.toLocaleString()}</div><div class="small">รวม</div></div>
+    </div>
+    <div class="donut-legend">${legend}</div>
+  </div>`;
+}
+
+/* ── Render: Ranking table ── */
+function _renderRank(elId, data, codeKey, nameKey) {
+  const el = document.getElementById(elId);
+  if (!data.length) { el.innerHTML = '<div class="report-empty">ไม่มีข้อมูล</div>'; return; }
+  const max = Math.max(...data.map(d => d.cnt));
+  el.innerHTML = `<table class="rank-table">
+    <thead><tr><th>#</th><th>รหัส</th><th>ชื่อ</th><th>จำนวน</th><th style="width:40%"></th></tr></thead>
+    <tbody>${data.map((d, i) => {
+      const rc = i === 0 ? 'rank-1' : i === 1 ? 'rank-2' : i === 2 ? 'rank-3' : 'rank-default';
+      const pct = max ? (d.cnt / max * 100) : 0;
+      return `<tr>
+        <td><span class="rank-num ${rc}">${i + 1}</span></td>
+        <td><span class="rank-code">${escapeHtml(d[codeKey] || '—')}</span></td>
+        <td>${escapeHtml(d[nameKey] || '—')}</td>
+        <td class="rank-cnt">${Number(d.cnt).toLocaleString()}</td>
+        <td><div class="bar-track"><div class="bar-fill ${RPT_COLORS[i % RPT_COLORS.length]}" style="width:${pct}%"></div></div></td>
+      </tr>`;
+    }).join('')}</tbody>
+  </table>`;
+}
+
+/* ── Render: Growth by Country (stacked bars) ── */
+function _renderGrowthCountry(data) {
+  const el = document.getElementById('growthCountryChart');
+  const legendEl = document.getElementById('growthCountryLegend');
+  if (!data.length) { el.innerHTML = '<div class="report-empty">ไม่มีข้อมูล</div>'; legendEl.innerHTML = ''; return; }
+  const pivot = {}, monthSet = [];
+  const countries = new Set();
+  for (const d of data) {
+    if (!pivot[d.month]) { pivot[d.month] = {}; monthSet.push(d.month); }
+    pivot[d.month][d.country_code] = Number(d.cnt);
+    countries.add(d.country_code);
+  }
+  const months = [...new Set(monthSet)];
+  const cList = [...countries];
+  const maxTotal = Math.max(...months.map(m => cList.reduce((s, c) => s + (pivot[m][c] || 0), 0)));
+
+  el.innerHTML = months.map(m => {
+    const mTotal = cList.reduce((s, c) => s + (pivot[m][c] || 0), 0);
+    const pct = maxTotal ? (mTotal / maxTotal * 100) : 0;
+    const segs = cList.map((c, i) => {
+      const val = pivot[m][c] || 0;
+      if (!val) return '';
+      const sp = mTotal ? (val / mTotal * 100) : 0;
+      return `<div style="height:${sp}%;background:${RPT_RAW[i % RPT_RAW.length]};min-height:${val?1:0}px;" title="${c}: ${val.toLocaleString()}"></div>`;
+    }).join('');
+    return `<div class="growth-bar-wrap">
+      <div style="width:100%;height:${Math.max(pct, 2)}%;display:flex;flex-direction:column;justify-content:flex-end;border-radius:4px 4px 0 0;overflow:hidden;cursor:pointer;position:relative;">
+        ${segs}
+        <div class="growth-tooltip">${m}: ${mTotal.toLocaleString()}</div>
+      </div>
+      <div class="growth-bar-label">${m.slice(2)}</div>
+    </div>`;
+  }).join('');
+
+  legendEl.innerHTML = cList.slice(0, 8).map((c, i) =>
+    `<span style="display:inline-flex;align-items:center;gap:4px;margin-right:12px;font-size:11px;">
+      <span style="width:10px;height:10px;border-radius:50%;background:${RPT_RAW[i % RPT_RAW.length]};display:inline-block;"></span>
+      ${FLAGS[c] || '🌐'} ${c}
+    </span>`
+  ).join('');
+}
+
 /* ── Init ── */
 (async () => {
   if (!SUPABASE_URL || !SUPABASE_KEY) {
@@ -259,6 +474,12 @@ function showToast(msg, type = 'info') {
     return;
   }
   showLoading(true);
-  await Promise.all([loadStats(), loadIssues(1)]);
+
+  // Default report range: ปีนี้
+  const now = new Date();
+  document.getElementById('rptFrom').value = `${now.getFullYear()}-01-01`;
+  document.getElementById('rptTo').value = now.toISOString().slice(0, 10);
+
+  await Promise.all([loadStats(), loadIssues(1), loadReports()]);
   showLoading(false);
 })();

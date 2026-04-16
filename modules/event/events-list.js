@@ -1084,9 +1084,9 @@ window.openBadgePopup = function (eventId) {
     prereqBox.innerHTML = `
       <div onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none';this.querySelector('.arr').textContent=this.nextElementSibling.style.display==='none'?'▾':'▴'"
         style="display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:6px;background:${color}12;border:1px solid ${color}30;cursor:pointer;font-size:11.5px;font-weight:600;color:${color};transition:all .12s;user-select:none">
-        ${icon} ${series?.name || ''} · Lv.${lv.level_order} ${lv.level_name} <span class="arr" style="font-size:10px;margin-left:2px">▾</span>
+        ${icon} ${series?.name || ''} · Lv.${lv.level_order} ${lv.level_name} <span class="arr" style="font-size:10px;margin-left:2px">▴</span>
       </div>
-      <div style="display:none;margin-top:6px;padding:8px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;font-size:11.5px;line-height:1.7;color:#334155">
+      <div style="margin-top:6px;padding:8px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;font-size:11.5px;line-height:1.7;color:#334155">
         ${detailHtml}
       </div>`;
     prereqBox.style.display = "block";

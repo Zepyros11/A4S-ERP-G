@@ -72,6 +72,65 @@
 .donut-legend .dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
 .donut-legend .num{margin-left:auto;font-weight:600;color:var(--text);font-variant-numeric:tabular-nums;}
 @media(max-width:800px){.donut-row{grid-template-columns:1fr;}}
+
+/* ── Report section ── */
+.report-divider{margin:32px 0 14px;padding-top:24px;border-top:2px solid var(--border);display:flex;align-items:center;gap:10px;}
+.report-divider h2{font-size:17px;font-weight:700;color:var(--text);margin:0;}
+
+.filter-bar{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 18px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+.filter-bar label{font-size:12px;font-weight:600;color:var(--text3);}
+.filter-bar input[type=date]{padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:var(--surface2);color:var(--text);}
+.filter-bar .fbtn{padding:7px 16px;border:none;background:var(--accent);color:#fff;border-radius:8px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;transition:all .12s;}
+.filter-bar .fbtn:hover{opacity:.85;}
+.filter-bar .fbtn.outline{background:transparent;border:1px solid var(--border);color:var(--text2);}
+.filter-bar .fbtn.outline:hover{border-color:var(--accent);color:var(--accent);}
+.filter-spacer{flex:1;}
+
+.report-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px;}
+@media(max-width:900px){.report-grid{grid-template-columns:1fr;}}
+.report-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px;min-height:180px;}
+.report-card.full{grid-column:1/-1;}
+.report-card h3{margin:0 0 14px;font-size:14px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:8px;}
+.report-card h3 .badge{background:var(--accent-pale);color:var(--accent);font-size:11px;padding:2px 8px;border-radius:10px;font-weight:700;}
+
+/* ── Bar charts ── */
+.bar-chart{display:flex;flex-direction:column;gap:6px;}
+.bar-row{display:flex;align-items:center;gap:10px;font-size:12.5px;}
+.bar-label{min-width:70px;text-align:right;color:var(--text2);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.bar-track{flex:1;height:22px;background:var(--surface2);border-radius:6px;overflow:hidden;}
+.bar-fill{height:100%;border-radius:6px;transition:width .4s ease;min-width:2px;}
+.bar-val{min-width:60px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--text);font-size:12px;}
+.bar-blue{background:linear-gradient(90deg,#3b82f6,#60a5fa);}
+.bar-green{background:linear-gradient(90deg,#10b981,#34d399);}
+.bar-amber{background:linear-gradient(90deg,#f59e0b,#fbbf24);}
+.bar-purple{background:linear-gradient(90deg,#8b5cf6,#a78bfa);}
+.bar-pink{background:linear-gradient(90deg,#ec4899,#f472b6);}
+.bar-teal{background:linear-gradient(90deg,#14b8a6,#2dd4bf);}
+.bar-red{background:linear-gradient(90deg,#ef4444,#f87171);}
+.bar-indigo{background:linear-gradient(90deg,#6366f1,#818cf8);}
+
+/* ── Growth vertical bars ── */
+.growth-chart{display:flex;align-items:flex-end;gap:2px;height:180px;padding:0 4px;overflow-x:auto;}
+.growth-bar-wrap{display:flex;flex-direction:column;align-items:center;flex:1;min-width:18px;max-width:40px;}
+.growth-bar{width:100%;border-radius:4px 4px 0 0;transition:height .4s ease;cursor:pointer;position:relative;}
+.growth-bar:hover{opacity:.8;}
+.growth-bar-label{font-size:9px;color:var(--text3);margin-top:4px;writing-mode:vertical-lr;text-orientation:mixed;max-height:50px;overflow:hidden;}
+.growth-tooltip{display:none;position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);background:var(--text);color:var(--surface);padding:4px 8px;border-radius:6px;font-size:11px;white-space:nowrap;z-index:10;pointer-events:none;}
+.growth-bar:hover .growth-tooltip{display:block;}
+
+/* ── Ranking table ── */
+.rank-table{width:100%;border-collapse:collapse;font-size:12.5px;}
+.rank-table th{padding:8px 10px;background:var(--surface2);font-size:11px;font-weight:700;color:var(--text3);text-align:left;border-bottom:2px solid var(--border);white-space:nowrap;}
+.rank-table td{padding:8px 10px;border-bottom:1px solid var(--border);vertical-align:middle;}
+.rank-table tr:hover td{background:var(--accent-pale);}
+.rank-num{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;font-size:11px;font-weight:700;}
+.rank-1{background:#fef3c7;color:#92400e;}
+.rank-2{background:#e5e7eb;color:#374151;}
+.rank-3{background:#fed7aa;color:#9a3412;}
+.rank-default{background:var(--surface2);color:var(--text3);}
+.rank-code{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--accent);font-weight:700;}
+.rank-cnt{font-weight:700;font-variant-numeric:tabular-nums;}
+.report-empty{text-align:center;padding:40px;color:var(--text3);font-size:13px;}
 </style>
 </head>
 <body>
@@ -152,6 +211,81 @@
     </div>
 
     <div class="paginate" id="dqPaginate"></div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════
+       REPORTS SECTION
+       ══════════════════════════════════════════════════════════ -->
+  <div class="report-divider">
+    <h2>📈 รายงานสมาชิก</h2>
+  </div>
+
+  <!-- Date range filter -->
+  <div class="filter-bar">
+    <label>จาก</label>
+    <input type="date" id="rptFrom">
+    <label>ถึง</label>
+    <input type="date" id="rptTo">
+    <button class="fbtn" onclick="applyReport()">ค้นหา</button>
+    <button class="fbtn outline" onclick="resetReport()">ทั้งหมด</button>
+    <div class="filter-spacer"></div>
+    <button class="fbtn outline" onclick="setRptPreset('thisYear')">ปีนี้</button>
+    <button class="fbtn outline" onclick="setRptPreset('lastYear')">ปีก่อน</button>
+    <button class="fbtn outline" onclick="setRptPreset('last6m')">6 เดือน</button>
+    <button class="fbtn outline" onclick="setRptPreset('last30d')">30 วัน</button>
+  </div>
+
+  <!-- Monthly Growth -->
+  <div class="report-grid">
+    <div class="report-card full">
+      <h3>📈 สมาชิกใหม่รายเดือน <span class="badge" id="growthTotal">—</span></h3>
+      <div class="growth-chart" id="growthChart"><div class="report-empty">กำลังโหลด...</div></div>
+    </div>
+  </div>
+
+  <!-- Package + Country -->
+  <div class="report-grid">
+    <div class="report-card">
+      <h3>📦 สัดส่วน Package <span class="badge" id="pkgTotal">—</span></h3>
+      <div id="pkgChart"></div>
+    </div>
+    <div class="report-card">
+      <h3>🌍 สมาชิกตามประเทศ <span class="badge" id="countryTotal">—</span></h3>
+      <div id="countryChart"></div>
+    </div>
+  </div>
+
+  <!-- Side balance + Channel -->
+  <div class="report-grid">
+    <div class="report-card">
+      <h3>⚖️ สมดุลซ้าย-ขวา</h3>
+      <div id="sideChart"></div>
+    </div>
+    <div class="report-card">
+      <h3>📡 ช่องทางสมัคร (Channel)</h3>
+      <div id="channelChart"></div>
+    </div>
+  </div>
+
+  <!-- Top Sponsors + Top Uplines -->
+  <div class="report-grid">
+    <div class="report-card">
+      <h3>🏆 Top Sponsors <span class="badge">แนะนำเยอะสุด</span></h3>
+      <div style="overflow-x:auto" id="sponsorTable"></div>
+    </div>
+    <div class="report-card">
+      <h3>🏅 Top Uplines <span class="badge">มี Downline เยอะสุด</span></h3>
+      <div style="overflow-x:auto" id="uplineTable"></div>
+    </div>
+  </div>
+
+  <!-- Growth by Country -->
+  <div class="report-grid">
+    <div class="report-card full">
+      <h3>📊 Growth แยกตามประเทศ (รายเดือน)</h3>
+      <div class="growth-chart" id="growthCountryChart" style="height:200px;"><div class="report-empty">กำลังโหลด...</div></div>
+      <div id="growthCountryLegend" style="margin-top:8px;text-align:center;"></div>
+    </div>
   </div>
 
 </div>

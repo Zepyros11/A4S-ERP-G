@@ -203,6 +203,26 @@
         },
       ],
     },
+    // **************** CUSTOMER SERVICE *****************
+    {
+      group: "บริการลูกค้า (CS)",
+      icon: "🎁",
+      id: "g-customer-service",
+      items: [
+        {
+          id: "promotion-gallery",
+          icon: "🖼️",
+          label: "Promotion Gallery",
+          path: BASE_PATH + "/modules/customer-service/promotion-gallery.html",
+        },
+        {
+          id: "promotions",
+          icon: "🎁",
+          label: "รายการโปรโมชัน",
+          path: BASE_PATH + "/modules/customer-service/promotion-list.html",
+        },
+      ],
+    },
     //  **************** REPORT *****************
     {
       group: "รายงาน",
@@ -309,6 +329,8 @@
     "members-tree": "member_view",
     "members-import": "member_import",
     "members-sync": "member_sync_config",
+    promotions: "view_promotions",
+    "promotion-gallery": "view_promotions",
     automation: "devtool_view",
     wizard: "devtool_manage",
     "devtool-settings": "devtool_manage",
@@ -375,6 +397,9 @@
     "members-tree",
     "members-import",
     "members-sync",
+    //**** CUSTOMER SERVICE ****
+    "promotion-gallery",
+    "promotions",
     //**** DEV TOOL ****
     "automation",
     "wizard",

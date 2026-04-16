@@ -97,6 +97,15 @@ const ERP_MODULES = [
     ],
   },
 
+  {
+    key: "customer_service",
+    label: "🎁 บริการลูกค้า",
+    perms: [
+      { key: "view_promotions", label: "ดูโปรโมชัน" },
+      { key: "manage_promotions", label: "จัดการโปรโมชัน" },
+    ],
+  },
+
   // ─────────────────────────────────────────────────────────
   // ➕ เพิ่ม Module ใหม่ที่นี่
   // เช่น:
