@@ -56,7 +56,8 @@ function renderIcon(icon, size = 20) {
   if (typeof icon === "string" && icon.includes(":")) {
     const isColorful = /^(fluent-emoji|twemoji|noto|emojione|openmoji)/.test(icon);
     const colorQS = isColorful ? "" : "?color=%23334155";
-    return `<img src="https://api.iconify.design/${icon}.svg${colorQS}" width="${size}" height="${size}" style="vertical-align:middle;display:inline-block" alt="" loading="lazy" />`;
+    const path = icon.replace(':', '/');
+    return `<img src="https://api.iconify.design/${path}.svg${colorQS}" width="${size}" height="${size}" style="vertical-align:middle;display:inline-block" alt="" loading="lazy" onerror="this.style.display='none'" />`;
   }
   return `<span style="font-size:${size}px;line-height:1">${icon}</span>`;
 }

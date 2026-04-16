@@ -208,11 +208,11 @@ window.AppPermissions = (() => {
   /* ── Default roles — fallback เมื่อ Supabase ไม่ได้เชื่อมต่อ ── */
   const defaultRoles = {
     ADMIN: {
-      label: "Admin", icon: "fluent-emoji-flat:crown", color: "role-ADMIN",
+      label: "Admin", icon: "👑", color: "role-ADMIN",
       perms: [...allPermKeys],
     },
     MANAGER: {
-      label: "Manager", icon: "fluent-emoji-flat:office-building", color: "role-MANAGER",
+      label: "Manager", icon: "🏢", color: "role-MANAGER",
       perms: [
         "dashboard_view",
         "poster_view","poster_create","poster_edit",
@@ -237,7 +237,7 @@ window.AppPermissions = (() => {
       ],
     },
     WAREHOUSE: {
-      label: "Warehouse", icon: "fluent-emoji-flat:factory", color: "role-WAREHOUSE",
+      label: "Warehouse", icon: "🏭", color: "role-WAREHOUSE",
       perms: [
         "dashboard_view",
         "inv_cat_view","inv_cat_create","inv_cat_edit","inv_cat_delete",
@@ -251,7 +251,7 @@ window.AppPermissions = (() => {
       ],
     },
     SALES: {
-      label: "Sales", icon: "fluent-emoji-flat:money-bag", color: "role-SALES",
+      label: "Sales", icon: "💰", color: "role-SALES",
       perms: [
         "dashboard_view",
         "poster_view","events_view",
@@ -263,7 +263,7 @@ window.AppPermissions = (() => {
       ],
     },
     VIEWER: {
-      label: "Viewer", icon: "fluent-emoji-flat:eye", color: "role-VIEWER",
+      label: "Viewer", icon: "👁️", color: "role-VIEWER",
       perms: [
         "dashboard_view",
         "poster_view","events_view",
@@ -324,15 +324,15 @@ window.AppPermissions = (() => {
   /* ── Helper: renderIcon ── รองรับทั้ง emoji และ Iconify name ── */
   function renderIcon(icon, size = 16) {
     if (!icon) return "❓";
-    /* Iconify format: "fluent-emoji-flat:crown", "ph:user-fill" */
+    /* Iconify name → convert to emoji via lookup (no API call) */
     if (typeof icon === "string" && icon.includes(":")) {
-      /* Colorful sets → อย่า override สี */
-      const isColorful = /^(fluent-emoji|twemoji|noto|emojione|openmoji)/.test(icon);
-      const colorQS = isColorful ? "" : "?color=%23334155";
-      return `<img src="https://api.iconify.design/${icon}.svg${colorQS}" width="${size}" height="${size}" style="vertical-align:middle;display:inline-block" alt="" />`;
+      const emoji = EMOJI_MAP[icon];
+      if (emoji) return `<span style="font-size:${size}px;line-height:1">${emoji}</span>`;
+      /* Fallback: unknown Iconify name → use 🎯 */
+      return `<span style="font-size:${size}px;line-height:1">🎯</span>`;
     }
     /* Plain emoji */
-    return icon;
+    return `<span style="font-size:${size}px;line-height:1">${icon}</span>`;
   }
 
   return { modules, allPerms, allPermKeys, defaultRoles, renderIcon, iconToEmoji };

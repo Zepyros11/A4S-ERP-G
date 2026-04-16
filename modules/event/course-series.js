@@ -118,7 +118,8 @@ function openSeriesModal(id) {
   const icon = s?.icon || '📚';
   document.getElementById('sfIcon').value = icon;
   _updateIconPreview(icon);
-  document.getElementById('sfColor').value = s?.color || '#3b82f6';
+  const RANDOM_COLORS = ['#3b82f6','#ef4444','#10b981','#f59e0b','#8b5cf6','#ec4899','#06b6d4','#f97316','#6366f1','#14b8a6','#e11d48','#0ea5e9'];
+  document.getElementById('sfColor').value = s?.color || RANDOM_COLORS[Math.floor(Math.random() * RANDOM_COLORS.length)];
   document.getElementById('sfDesc').value = s?.description || '';
   document.getElementById('seriesModalOverlay').classList.add('open');
   setTimeout(() => document.getElementById('sfName').focus(), 50);
@@ -236,13 +237,12 @@ async function deleteLevel(id, name) {
   showLoading(false);
 }
 
-/* ── Icon helper ── */
+/* ── Icon helper (emoji only, no API) ── */
 function _safeIcon(icon, size = 24) {
   if (!icon) return '📚';
   if (icon.includes(':')) {
-    if (window._renderIcon) return window._renderIcon(icon, size);
-    const path = icon.replace(':', '/');
-    return `<img src="https://api.iconify.design/${path}.svg" width="${size}" height="${size}" style="vertical-align:middle" onerror="this.style.display='none';this.insertAdjacentText('afterend','📚')">`;
+    const emoji = window.AppPermissions?.iconToEmoji(icon) || '📚';
+    return `<span style="font-size:${size}px">${emoji}</span>`;
   }
   return `<span style="font-size:${size}px">${icon}</span>`;
 }
@@ -261,7 +261,11 @@ async function pickIcon() {
 }
 function _updateIconPreview(icon) {
   const el = document.getElementById('sfIconPreview');
-  el.innerHTML = _safeIcon(icon || '📚', 24);
+  if (icon && icon.includes(':') && window._renderIcon) {
+    el.innerHTML = window._renderIcon(icon, 24);
+  } else {
+    el.innerHTML = _safeIcon(icon || '📚', 24);
+  }
 }
 
 /* ── ESC close ── */
