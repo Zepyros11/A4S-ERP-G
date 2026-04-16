@@ -2489,7 +2489,8 @@ function exportExcel() {
   const ws = XLSX.utils.json_to_sheet(data);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Check Seat');
-  XLSX.writeFile(wb, 'check-seat-export.xlsx');
+  const ts = new Date().toISOString().slice(0,16).replace('T','_').replace(':','');
+  XLSX.writeFile(wb, `check-seat-export_${ts}.xlsx`);
   toast('Export Excel สำเร็จ', 'success');
 }
 

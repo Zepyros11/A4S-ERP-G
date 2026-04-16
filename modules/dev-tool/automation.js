@@ -126,6 +126,9 @@ function editTask(id) {
 function closeModal() {
   document.getElementById('taskModalOverlay').classList.remove('open');
 }
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') closeModal();
+});
 
 async function saveTask() {
   const name = document.getElementById('fName').value.trim();
