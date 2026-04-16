@@ -37,7 +37,7 @@ const FORCE = process.env.FORCE === 'true' || process.env.FORCE === '1';
      2030: [2021-2025, 2026-now]
      2031: [2021-2025, 2026-2030, 2031-now]
 */
-const INCLUDE_LEGACY = process.env.INCLUDE_LEGACY === '1';
+const INCLUDE_LEGACY = process.env.INCLUDE_LEGACY === '1' || process.env.INCLUDE_LEGACY === 'true';
 
 function buildDateRanges() {
   const today = new Date();

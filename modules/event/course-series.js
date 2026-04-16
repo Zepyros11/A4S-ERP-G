@@ -87,7 +87,7 @@ function render() {
 
     return `<div class="cs-card">
       <div class="cs-card-head">
-        <div class="cs-card-icon" style="background:${s.color}20">${s.icon || '📚'}</div>
+        <div class="cs-card-icon" style="background:${s.color}20">${_safeIcon(s.icon, 28)}</div>
         <div style="flex:1;min-width:0">
           <div class="cs-card-name">${escapeHtml(s.name)}</div>
           ${s.description ? `<div class="cs-card-desc">${escapeHtml(s.description)}</div>` : ''}
@@ -115,7 +115,9 @@ function openSeriesModal(id) {
   const s = id ? seriesList.find(x => x.id === id) : null;
   document.getElementById('smTitle').textContent = s ? 'แก้ไขหลักสูตร' : 'เพิ่มหลักสูตร';
   document.getElementById('sfName').value = s?.name || '';
-  document.getElementById('sfIcon').value = s?.icon || '📚';
+  const icon = s?.icon || '📚';
+  document.getElementById('sfIcon').value = icon;
+  _updateIconPreview(icon);
   document.getElementById('sfColor').value = s?.color || '#3b82f6';
   document.getElementById('sfDesc').value = s?.description || '';
   document.getElementById('seriesModalOverlay').classList.add('open');
@@ -232,6 +234,34 @@ async function deleteLevel(id, name) {
     showToast('ลบไม่ได้: ' + e.message, 'error');
   }
   showLoading(false);
+}
+
+/* ── Icon helper ── */
+function _safeIcon(icon, size = 24) {
+  if (!icon) return '📚';
+  if (icon.includes(':')) {
+    if (window._renderIcon) return window._renderIcon(icon, size);
+    const path = icon.replace(':', '/');
+    return `<img src="https://api.iconify.design/${path}.svg" width="${size}" height="${size}" style="vertical-align:middle" onerror="this.style.display='none';this.insertAdjacentText('afterend','📚')">`;
+  }
+  return `<span style="font-size:${size}px">${icon}</span>`;
+}
+
+/* ── Icon picker (uses shared iconPicker.js module) ── */
+async function pickIcon() {
+  if (window._loadIconPicker) await window._loadIconPicker();
+  if (!window._openIconPicker) { showToast('Icon picker ยังไม่โหลด', 'error'); return; }
+  window._openIconPicker({
+    current: document.getElementById('sfIcon').value,
+    onPick: (icon) => {
+      document.getElementById('sfIcon').value = icon;
+      _updateIconPreview(icon);
+    },
+  });
+}
+function _updateIconPreview(icon) {
+  const el = document.getElementById('sfIconPreview');
+  el.innerHTML = _safeIcon(icon || '📚', 24);
 }
 
 /* ── ESC close ── */

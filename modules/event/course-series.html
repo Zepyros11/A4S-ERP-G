@@ -69,6 +69,10 @@
 .modal-btn.cancel{background:#e5e7eb;color:#374151;}
 .modal-btn.save{background:linear-gradient(135deg,var(--accent),var(--accent-light));color:#fff;box-shadow:0 3px 10px rgba(15,76,117,.3);}
 .modal-btn.save:hover{transform:translateY(-1px);}
+
+/* ── Icon picker button ── */
+.cs-icon-btn{display:flex;align-items:center;gap:8px;padding:8px 14px;border:1.5px solid var(--border);border-radius:7px;cursor:pointer;transition:border-color .15s;background:var(--surface);}
+.cs-icon-btn:hover{border-color:var(--accent);}
 </style>
 </head>
 <body>
@@ -115,7 +119,11 @@
       <div class="cs-field-row">
         <div class="cs-field">
           <label>Icon</label>
-          <input id="sfIcon" value="📚" style="text-align:center;font-size:20px">
+          <div class="cs-icon-btn" id="sfIconBtn" onclick="pickIcon()">
+            <span id="sfIconPreview"></span>
+            <span style="font-size:11px;color:var(--text3)">เปลี่ยน ▾</span>
+          </div>
+          <input type="hidden" id="sfIcon" value="📚">
         </div>
         <div class="cs-field">
           <label>สี</label>
@@ -178,6 +186,13 @@
 <script type="module">
   import { loadTopbar } from "../../js/components/navigation/topbar.js";
   loadTopbar("📚 จัดการหลักสูตร");
+  // Lazy-load icon picker only when needed
+  window._loadIconPicker = async () => {
+    if (window._openIconPicker) return;
+    const mod = await import("../../js/components/ui/iconPicker.js");
+    window._openIconPicker = mod.openIconPicker;
+    window._renderIcon = mod.renderIcon;
+  };
 </script>
 <script src="../../js/components/navigation/sidebar.js"></script>
 </body>
