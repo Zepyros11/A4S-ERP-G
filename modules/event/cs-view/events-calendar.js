@@ -447,6 +447,15 @@ function openEventPanel(eventId) {
   document.getElementById("panelLocation").textContent = e.location || "—";
   document.getElementById("panelDesc").textContent = e.description || "—";
 
+  // Registration badges
+  const panelCode = document.getElementById("panelCode");
+  if (panelCode) {
+    let regHtml = '';
+    if (e.registration_enabled) regHtml += '<span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:600;background:#d1fae5;color:#065f46;margin-left:4px">📋 ลงทะเบียน</span>';
+    if (e.members_only) regHtml += '<span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:600;background:#fef3c7;color:#92400e;margin-left:4px">👤 MLM Only</span>';
+    panelCode.insertAdjacentHTML('beforeend', regHtml);
+  }
+
   // Prereq accordion
   const prereqBox = document.getElementById("panelPrereq");
   if (e.series_id && e.level_id && _calLevelMap[e.level_id]) {

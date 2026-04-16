@@ -665,7 +665,7 @@ function renderTable(events) {
       </td>
       <td>
         <div class="event-name">${escapeHtml(e.event_name || "—")}${unreadBadge}</div>
-        <div class="event-code">${escapeHtml(e.event_code || "—")}${e._seriesBadge || ''}</div>
+        <div class="event-code">${escapeHtml(e.event_code || "—")}${e._seriesBadge || ''}${e.registration_enabled ? ' <span style="display:inline-block;padding:1px 6px;border-radius:4px;font-size:9.5px;font-weight:600;background:#d1fae5;color:#065f46;margin-left:3px">📋 ลงทะเบียน</span>' : ''}${e.members_only ? '<span style="display:inline-block;padding:1px 6px;border-radius:4px;font-size:9.5px;font-weight:600;background:#fef3c7;color:#92400e;margin-left:3px">👤 MLM Only</span>' : ''}</div>
       </td>
       <td>${escapeHtml(e.location || "—")}</td>
       <td>
@@ -1064,6 +1064,15 @@ window.openBadgePopup = function (eventId) {
       : "—";
   document.getElementById("popupLocation").textContent = e.location || "—";
   document.getElementById("popupDesc").textContent = e.description || "—";
+
+  // Registration badges in popup
+  const popupBadges = document.getElementById("popupCode");
+  if (popupBadges) {
+    let regHtml = '';
+    if (e.registration_enabled) regHtml += '<span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:600;background:#d1fae5;color:#065f46;margin-left:4px">📋 ลงทะเบียน</span>';
+    if (e.members_only) regHtml += '<span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:600;background:#fef3c7;color:#92400e;margin-left:4px">👤 MLM Only</span>';
+    popupBadges.insertAdjacentHTML('beforeend', regHtml);
+  }
 
   // Prerequisites accordion badge
   const prereqBox = document.getElementById("popupPrereq");

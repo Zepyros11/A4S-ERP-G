@@ -330,6 +330,10 @@ async function loadEventData() {
     document.getElementById("fStatus").value = e.status || "DRAFT";
     document.getElementById("fDescription").value = e.description || "";
 
+    // Registration toggles
+    document.getElementById("fRegEnabled").checked = !!e.registration_enabled;
+    document.getElementById("fMembersOnly").checked = !!e.members_only;
+
     // Series + Level
     if (e.series_id) {
       document.getElementById('fSeries').value = e.series_id;
@@ -429,6 +433,8 @@ window._saveEventImpl = async function () {
       description: document.getElementById("fDescription").value.trim() || null,
       series_id: document.getElementById("fSeries").value || null,
       level_id: document.getElementById("fLevel").value || null,
+      registration_enabled: document.getElementById("fRegEnabled").checked,
+      members_only: document.getElementById("fMembersOnly").checked,
     };
 
     let savedId = editId;
