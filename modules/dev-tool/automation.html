@@ -146,35 +146,41 @@
       <p>กำหนด URL, credentials, workflow และ schedule</p>
     </div>
     <div class="dt-modal-body">
-      <div class="dt-field">
-        <label>ชื่อ Task</label>
-        <input id="fName" placeholder="เช่น Sync Members, Download Report">
-      </div>
-      <div class="dt-field">
-        <label>ประเภท</label>
-        <select id="fType">
-          <option value="web_download">🌐 Web Download (Playwright)</option>
-          <option value="api_fetch">📡 API Fetch</option>
-          <option value="file_import">📁 File Import</option>
-        </select>
-      </div>
-      <div class="dt-field">
-        <label>Target URL</label>
-        <input id="fUrl" placeholder="https://example.com/report">
-      </div>
-      <div class="dt-field">
-        <label>GitHub Workflow</label>
-        <input id="fWorkflow" placeholder="sync-members.yml">
-        <div class="hint">ชื่อไฟล์ .yml ใน .github/workflows/</div>
+      <div class="dt-field-row">
+        <div class="dt-field">
+          <label>ชื่อ Task</label>
+          <input id="fName" placeholder="เช่น Sync Members">
+        </div>
+        <div class="dt-field">
+          <label>ประเภท</label>
+          <select id="fType">
+            <option value="web_download">🌐 Web Download (Playwright)</option>
+            <option value="api_fetch">📡 API Fetch</option>
+            <option value="file_import">📁 File Import</option>
+          </select>
+        </div>
       </div>
       <div class="dt-field-row">
         <div class="dt-field">
-          <label>Schedule</label>
+          <label>Target URL</label>
+          <input id="fUrl" placeholder="https://example.com/report">
+        </div>
+        <div class="dt-field">
+          <label>GitHub Workflow</label>
+          <input id="fWorkflow" placeholder="sync-members.yml">
+          <div class="hint">ชื่อไฟล์ .yml ใน .github/workflows/</div>
+        </div>
+      </div>
+      <div class="dt-field-row">
+        <div class="dt-field">
+          <label>Schedule (ความถี่)</label>
           <select id="fSchedule">
             <option value="manual">🖐️ Manual only</option>
-            <option value="1h">ทุก 1 ชม.</option>
-            <option value="6h">ทุก 6 ชม.</option>
-            <option value="24h" selected>ทุกวัน</option>
+            <option value="1h">ทุก 1 ชั่วโมง</option>
+            <option value="3h">ทุก 3 ชั่วโมง</option>
+            <option value="6h">ทุก 6 ชั่วโมง</option>
+            <option value="12h">ทุก 12 ชั่วโมง</option>
+            <option value="24h" selected>ทุกวัน (24 ชม.)</option>
             <option value="weekly">ทุกสัปดาห์</option>
           </select>
         </div>

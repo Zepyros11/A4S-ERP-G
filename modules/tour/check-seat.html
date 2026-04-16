@@ -509,6 +509,76 @@
       transform: translateX(0);
     }
 
+    /* ── Add-Person Modal ────────────────────────────── */
+    #add-person-modal {
+      display: none; position: fixed; inset: 0; z-index: 4000;
+      background: rgba(15, 23, 42, 0.55);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      align-items: center; justify-content: center;
+      animation: confirmFadeIn .18s ease;
+    }
+    #add-person-modal.open { display: flex; }
+    #add-person-box {
+      background: #fff;
+      width: min(520px, 94vw);
+      max-height: 90vh;
+      overflow-y: auto;
+      border-radius: 16px;
+      padding: 28px 28px 22px;
+      box-shadow: 0 20px 60px rgba(0,0,0,.25), 0 0 0 1px rgba(0,0,0,.04);
+      animation: confirmPopIn .22s cubic-bezier(.2,.9,.3,1.2);
+    }
+    #add-person-box h2 {
+      font-size: 18px; font-weight: 700; color: var(--accent);
+      margin-bottom: 18px; display: flex; align-items: center; gap: 8px;
+    }
+    .ap-form-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 12px 16px;
+    }
+    .ap-field { display: flex; flex-direction: column; gap: 4px; }
+    .ap-field.full { grid-column: 1 / -1; }
+    .ap-field label {
+      font-size: 11px; font-weight: 700; color: var(--text3);
+      text-transform: uppercase; letter-spacing: .4px;
+    }
+    .ap-field input, .ap-field select {
+      padding: 8px 10px; border: 1px solid var(--border2);
+      border-radius: 6px; font-size: 13px; color: var(--text);
+      background: #fff; transition: border-color .15s, box-shadow .15s;
+    }
+    .ap-field input:focus, .ap-field select:focus {
+      outline: none; border-color: var(--accent-light);
+      box-shadow: 0 0 0 3px var(--accent-pale);
+    }
+    .ap-actions {
+      display: flex; gap: 10px; justify-content: flex-end;
+      margin-top: 20px; padding-top: 16px;
+      border-top: 1px solid var(--border);
+    }
+    .ap-actions button {
+      min-width: 100px; padding: 10px 20px;
+      border-radius: 10px; border: 0;
+      font-size: 14px; font-weight: 600; cursor: pointer;
+      transition: transform .1s, box-shadow .15s, background .15s;
+    }
+    .ap-actions button:active { transform: translateY(1px); }
+    .ap-btn-cancel { background: #f1f5f9; color: #334155; }
+    .ap-btn-cancel:hover { background: #e2e8f0; }
+    .ap-btn-submit {
+      background: linear-gradient(135deg, var(--accent-light), var(--accent));
+      color: #fff;
+      box-shadow: 0 4px 12px rgba(15, 76, 117, .3);
+    }
+    .ap-btn-submit:hover {
+      box-shadow: 0 6px 18px rgba(15, 76, 117, .42);
+      filter: brightness(1.08);
+    }
+    @media (max-width: 640px) {
+      .ap-form-grid { grid-template-columns: 1fr; }
+      #add-person-box { padding: 20px 16px 16px; }
+    }
+
     /* ── Highlight row ───────────────────────────────── */
     tbody tr.row-highlighted { background: #fef08a !important; }
     tbody tr.row-highlighted:hover { background: #fde047 !important; }
@@ -856,9 +926,6 @@
         <th class="col-pimg">Pass.<br>Image</th>
         <th class="col-pid sortable" data-sort="passId" onclick="sortBy('passId')">Pass. ID<span class="sort-arrow"></span></th>
         <th class="col-pexp sortable" data-sort="passExp" onclick="sortBy('passExp')">Pass.<br>Exp.<span class="sort-arrow"></span></th>
-        <th class="col-visa">Visa</th>
-        <th class="col-tel sortable" data-sort="tel" onclick="sortBy('tel')">WhatsApp<span class="sort-arrow"></span></th>
-        <th class="col-shirt sortable" data-sort="shirt" onclick="sortBy('shirt')">T-Shirt<span class="sort-arrow"></span></th>
         <th class="col-port sortable" data-sort="port" onclick="sortBy('port')">Port<span class="sort-arrow"></span></th>
         <th class="col-group sortable" data-sort="group" onclick="sortBy('group')">Group<span class="sort-arrow"></span></th>
         <th class="col-flight sortable" data-sort="flight" onclick="sortBy('flight')">Flight<span class="sort-arrow"></span></th>
@@ -866,6 +933,9 @@
         <th class="col-arrive">Date&Time<br>(Arrival)</th>
         <th class="col-comeback sortable" data-sort="comeback" onclick="sortBy('comeback')">Comeback Flight<span class="sort-arrow"></span></th>
         <th class="col-comeback-dt">Date&amp;Time<br>(Comeback)</th>
+        <th class="col-visa">Visa</th>
+        <th class="col-tel sortable" data-sort="tel" onclick="sortBy('tel')">WhatsApp<span class="sort-arrow"></span></th>
+        <th class="col-shirt sortable" data-sort="shirt" onclick="sortBy('shirt')">T-Shirt<span class="sort-arrow"></span></th>
         <th class="col-waive">Waive</th>
         <th class="col-del">Del</th>
       </tr>
@@ -878,8 +948,9 @@
   </table>
 </div>
 
-<!-- ══ Add Row button ════════════════════════════════════ -->
-<div style="padding:0 20px 20px">
+<!-- ══ Add Row buttons ═══════════════════════════════════ -->
+<div style="padding:0 20px 20px; display:flex; gap:10px; flex-wrap:wrap;">
+  <button class="btn btn-primary" onclick="openAddPerson()">➕ เพิ่มรายชื่อ</button>
   <button class="btn btn-outline" onclick="addEmptyRow()">+ Add Empty Row</button>
 </div>
 
@@ -943,6 +1014,89 @@ app.listen(3001, () => console.log('Proxy running on port 3001'));
     <div id="confirm-actions">
       <button class="btn-confirm-cancel" onclick="confirmDialogResolve(false)">ยกเลิก</button>
       <button class="btn-confirm-ok" onclick="confirmDialogResolve(true)">ลบ</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ Add Person Modal ══════════════════════════════════ -->
+<div id="add-person-modal" onclick="if(event.target===this)closeAddPerson()">
+  <div id="add-person-box" role="dialog" aria-modal="true">
+    <h2>➕ เพิ่มรายชื่อใหม่</h2>
+    <div class="ap-form-grid">
+      <div class="ap-field">
+        <label>Code</label>
+        <input id="ap-code" type="text" placeholder="รหัส">
+      </div>
+      <div class="ap-field">
+        <label>Name</label>
+        <input id="ap-name" type="text" placeholder="ชื่อ-นามสกุล">
+      </div>
+      <div class="ap-field">
+        <label>PIN</label>
+        <input id="ap-pin" type="text" placeholder="PIN">
+      </div>
+      <div class="ap-field">
+        <label>Nationality</label>
+        <select id="ap-nationality">
+          <option value="">— Select —</option>
+          <option value="Beninese">Beninese</option>
+          <option value="Burkinabé">Burkinabé</option>
+          <option value="Cameroonian">Cameroonian</option>
+          <option value="Ivoirienne">Ivoirienne</option>
+          <option value="Nigerian">Nigerian</option>
+          <option value="Togolese">Togolese</option>
+        </select>
+      </div>
+      <div class="ap-field">
+        <label>Passport ID</label>
+        <input id="ap-passid" type="text" placeholder="หมายเลข Passport">
+      </div>
+      <div class="ap-field">
+        <label>Passport Exp.</label>
+        <input id="ap-passexp" type="date">
+      </div>
+      <div class="ap-field">
+        <label>WhatsApp</label>
+        <input id="ap-tel" type="text" placeholder="เบอร์โทร">
+      </div>
+      <div class="ap-field">
+        <label>T-Shirt</label>
+        <select id="ap-shirt">
+          <option value="">— Select —</option>
+          <option value="5XL">5XL</option>
+          <option value="4XL">4XL</option>
+          <option value="3XL">3XL</option>
+          <option value="2XL">2XL</option>
+          <option value="XL">XL</option>
+          <option value="L">L</option>
+          <option value="M">M</option>
+          <option value="S">S</option>
+        </select>
+      </div>
+      <div class="ap-field">
+        <label>Port</label>
+        <select id="ap-port">
+          <option value="">— Select —</option>
+          <option value="Lagos">Lagos</option>
+          <option value="Abidjan">Abidjan</option>
+        </select>
+      </div>
+      <div class="ap-field">
+        <label>Group</label>
+        <input id="ap-group" type="text" placeholder="กลุ่ม">
+      </div>
+      <div class="ap-field">
+        <label>Flight</label>
+        <input id="ap-flight" type="text" placeholder="เที่ยวบิน">
+      </div>
+      <div class="ap-field">
+        <label>Seat</label>
+        <input id="ap-seat" type="text" placeholder="เลขที่นั่ง">
+      </div>
+    </div>
+    <div class="ap-actions">
+      <button class="ap-btn-cancel" onclick="closeAddPerson()">ยกเลิก</button>
+      <button class="ap-btn-submit" onclick="submitAddPerson()">เพิ่มรายชื่อ</button>
     </div>
   </div>
 </div>
@@ -1215,6 +1369,58 @@ function addEmptyRow() {
   const row = makeRow({ isEditing: _globalEditing });
   rows.push(row);
   renderTable();
+  // scroll to bottom
+  const tb = document.getElementById('table-wrap');
+  tb.scrollTop = tb.scrollHeight;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   ADD PERSON MODAL
+═══════════════════════════════════════════════════════════ */
+function openAddPerson() {
+  document.getElementById('add-person-modal').classList.add('open');
+  document.getElementById('ap-code').focus();
+}
+
+function closeAddPerson() {
+  const modal = document.getElementById('add-person-modal');
+  modal.classList.remove('open');
+  // clear form
+  ['ap-code','ap-name','ap-pin','ap-nationality','ap-passid','ap-passexp',
+   'ap-tel','ap-shirt','ap-port','ap-group','ap-flight','ap-seat'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+}
+
+function submitAddPerson() {
+  const name = document.getElementById('ap-name').value.trim();
+  if (!name) {
+    toast('กรุณากรอกชื่อ', 'error');
+    document.getElementById('ap-name').focus();
+    return;
+  }
+
+  const row = makeRow({
+    code:       document.getElementById('ap-code').value.trim(),
+    name:       name,
+    pin:        document.getElementById('ap-pin').value.trim(),
+    nationality:document.getElementById('ap-nationality').value,
+    passId:     document.getElementById('ap-passid').value.trim(),
+    passExp:    document.getElementById('ap-passexp').value,
+    tel:        document.getElementById('ap-tel').value.trim(),
+    shirt:      document.getElementById('ap-shirt').value,
+    port:       document.getElementById('ap-port').value,
+    group:      document.getElementById('ap-group').value.trim(),
+    flight:     document.getElementById('ap-flight').value.trim(),
+    seat:       document.getElementById('ap-seat').value.trim(),
+    isEditing:  _globalEditing,
+  });
+
+  rows.push(row);
+  renderTable();
+  closeAddPerson();
+  toast('เพิ่มรายชื่อ "' + name + '" สำเร็จ', 'success');
+
   // scroll to bottom
   const tb = document.getElementById('table-wrap');
   tb.scrollTop = tb.scrollHeight;
@@ -1941,20 +2147,6 @@ function buildRow(row) {
       </div>
     </td>
 
-    <!-- Visa -->
-    <td class="col-visa img-cell" data-label="Visa">${imgCell(row, 'visaImg', 'visaImgFile', 'Visa')}</td>
-
-    <!-- Tel -->
-    <td class="col-tel" data-label="WhatsApp">
-      ${e ? `<input class="field-input" style="width:125px" type="tel" value="${esc(row.tel)}" placeholder="+66 8x xxx xxxx" onchange="setField('${row.id}','tel',this.value)" />` :
-            `<span class="field-view">${esc(row.tel)}</span>`}
-    </td>
-
-    <!-- T-Shirt Size -->
-    <td class="col-shirt" data-label="T-Shirt">
-      ${e ? shirtDropdown(row) : `<span class="field-view">${esc(row.shirt)}</span>`}
-    </td>
-
     <!-- Port -->
     <td class="col-port" data-label="Port">
       ${e ? portDropdown(row) : `<span class="field-view">${esc(row.port) || '—'}</span>`}
@@ -2008,6 +2200,20 @@ function buildRow(row) {
     <td class="col-comeback-dt" data-label="Comeback Date&Time">
       ${e ? `<input class="field-input" style="width:136px" type="datetime-local" value="${esc(row.comebackDateTime)}" onchange="setField('${row.id}','comebackDateTime',this.value)" />` :
             `<span class="field-view">${row.comebackDateTime ? row.comebackDateTime.replace('T',' ') : '—'}</span>`}
+    </td>
+
+    <!-- Visa -->
+    <td class="col-visa img-cell" data-label="Visa">${imgCell(row, 'visaImg', 'visaImgFile', 'Visa')}</td>
+
+    <!-- Tel -->
+    <td class="col-tel" data-label="WhatsApp">
+      ${e ? `<input class="field-input" style="width:125px" type="tel" value="${esc(row.tel)}" placeholder="+66 8x xxx xxxx" onchange="setField('${row.id}','tel',this.value)" />` :
+            `<span class="field-view">${esc(row.tel)}</span>`}
+    </td>
+
+    <!-- T-Shirt Size -->
+    <td class="col-shirt" data-label="T-Shirt">
+      ${e ? shirtDropdown(row) : `<span class="field-view">${esc(row.shirt)}</span>`}
     </td>
 
     <!-- Waive -->

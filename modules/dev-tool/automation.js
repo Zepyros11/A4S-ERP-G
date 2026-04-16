@@ -59,7 +59,7 @@ function renderTasks() {
     const typeIcon = t.task_type === 'api_fetch' ? 'api' : t.task_type === 'file_import' ? 'file' : 'web';
     const typeEmoji = typeIcon === 'api' ? '📡' : typeIcon === 'file' ? '📁' : '🌐';
     const statusDot = t.status === 'active' ? 'active' : t.status === 'error' ? 'error' : 'inactive';
-    const scheduleLabel = { 'manual': 'Manual', '1h': 'ทุก 1 ชม.', '6h': 'ทุก 6 ชม.', '24h': 'ทุกวัน', 'weekly': 'ทุกสัปดาห์' };
+    const scheduleLabel = { 'manual': 'Manual', '1h': 'ทุก 1 ชม.', '3h': 'ทุก 3 ชม.', '6h': 'ทุก 6 ชม.', '12h': 'ทุก 12 ชม.', '24h': 'ทุกวัน', 'weekly': 'ทุกสัปดาห์' };
 
     return `<div class="task-card">
       <div class="task-card-head">
