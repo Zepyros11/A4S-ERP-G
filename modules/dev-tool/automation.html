@@ -82,6 +82,47 @@
 .dt-modal-foot .cancel:hover{background:#d1d5db;}
 .dt-modal-foot .save{background:linear-gradient(135deg,var(--accent),var(--accent-light));color:#fff;box-shadow:0 3px 10px rgba(15,76,117,.3);}
 .dt-modal-foot .save:hover{transform:translateY(-1px);box-shadow:0 5px 14px rgba(15,76,117,.4);}
+
+/* ── Sync Progress Modal ── */
+.sp-overlay{position:fixed;inset:0;background:rgba(15,23,42,.6);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;z-index:9998;opacity:0;transition:opacity .2s;}
+.sp-overlay.show{display:flex;opacity:1;}
+.sp-modal{background:#fff;border-radius:14px;max-width:420px;width:90%;box-shadow:0 18px 44px rgba(0,0,0,.28);overflow:hidden;transform:scale(.94) translateY(8px);transition:transform .22s cubic-bezier(.34,1.56,.64,1);}
+.sp-overlay.show .sp-modal{transform:scale(1) translateY(0);}
+.sp-hero{background:linear-gradient(135deg,#0f4c75,#1b6ca8);color:#fff;padding:16px 18px 14px;position:relative;overflow:hidden;display:flex;align-items:center;gap:12px;}
+.sp-hero::before{content:'';position:absolute;top:-40px;right:-40px;width:120px;height:120px;border-radius:50%;background:rgba(255,255,255,.07);}
+.sp-hero.success{background:linear-gradient(135deg,#065f46,#10b981);}
+.sp-hero.fail{background:linear-gradient(135deg,#991b1b,#dc2626);}
+.sp-spinner{width:42px;height:42px;display:flex;align-items:center;justify-content:center;font-size:22px;background:rgba(255,255,255,.18);border-radius:50%;position:relative;z-index:1;border:2px solid rgba(255,255,255,.3);flex-shrink:0;}
+.sp-spinner.loading{animation:spSpin 2s linear infinite;}
+@keyframes spSpin{to{transform:rotate(360deg);}}
+.sp-hero-text{flex:1;min-width:0;position:relative;z-index:1;}
+.sp-title{font-size:14px;font-weight:700;line-height:1.2;}
+.sp-phase{font-size:11.5px;margin-top:2px;opacity:.92;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.sp-body{padding:14px 16px;}
+.sp-steps{display:flex;flex-direction:column;gap:4px;margin-bottom:12px;}
+.sp-step{display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:6px;background:var(--surface2);font-size:11.5px;color:var(--text3);transition:all .25s;border:1px solid transparent;}
+.sp-step.active{background:var(--accent-pale);color:var(--accent);border-color:var(--accent);font-weight:600;}
+.sp-step.done{background:#d1fae5;color:#065f46;}
+.sp-step.fail{background:#fee2e2;color:#991b1b;}
+.sp-dot{width:14px;height:14px;border-radius:50%;background:var(--surface);border:2px solid currentColor;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;}
+.sp-step.active .sp-dot{animation:spPulse 1.2s ease-in-out infinite;}
+@keyframes spPulse{0%,100%{box-shadow:0 0 0 0 rgba(15,76,117,.5)}50%{box-shadow:0 0 0 4px rgba(15,76,117,0)}}
+.sp-step.done .sp-dot{background:currentColor;color:#fff;}
+.sp-step.done .sp-dot::before{content:'✓';}
+.sp-step.fail .sp-dot{background:currentColor;color:#fff;}
+.sp-step.fail .sp-dot::before{content:'✗';}
+.sp-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;padding:8px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border);margin-bottom:10px;}
+.sp-stat{text-align:center;}
+.sp-stat-label{font-size:9.5px;color:var(--text3);text-transform:uppercase;letter-spacing:.3px;font-weight:600;}
+.sp-stat-val{font-size:13px;font-weight:700;color:var(--text);font-variant-numeric:tabular-nums;margin-top:1px;}
+.sp-log{background:#0f172a;color:#94a3b8;border-radius:6px;padding:7px 10px;font-family:'IBM Plex Mono',monospace;font-size:10.5px;line-height:1.5;max-height:60px;overflow-y:auto;}
+.sp-log .ts{color:#64748b;margin-right:6px;}.sp-log .msg{color:#e2e8f0;}.sp-log .ok{color:#4ade80;}.sp-log .err{color:#f87171;}
+.sp-actions{display:flex;gap:8px;padding:10px 16px 14px;justify-content:space-between;flex-wrap:wrap;align-items:center;}
+.sp-actions a{color:var(--accent);text-decoration:none;font-size:11.5px;font-weight:600;display:flex;align-items:center;gap:4px;}
+.sp-close{padding:7px 16px;border:none;border-radius:16px;background:linear-gradient(135deg,var(--accent),var(--accent-light));color:#fff;font-family:inherit;font-size:11.5px;font-weight:600;cursor:pointer;box-shadow:0 2px 8px rgba(15,76,117,.3);transition:all .15s;}
+.sp-close:hover{transform:translateY(-1px);}
+.sp-close.danger{background:linear-gradient(135deg,#dc2626,#991b1b);}
+.sp-close.success{background:linear-gradient(135deg,#059669,#10b981);}
 </style>
 </head>
 <body>
@@ -223,6 +264,38 @@
     <div class="dt-modal-foot">
       <button class="cancel" onclick="closeModal()">ยกเลิก</button>
       <button class="save" id="btnSaveTask" onclick="saveTask()">💾 บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<!-- Sync Progress Modal -->
+<div class="sp-overlay" id="spOverlay">
+  <div class="sp-modal">
+    <div class="sp-hero" id="spHero">
+      <div class="sp-spinner loading" id="spSpinner">🔄</div>
+      <div class="sp-hero-text">
+        <div class="sp-title" id="spTitle">กำลังรัน...</div>
+        <div class="sp-phase" id="spPhase">รอเริ่ม workflow...</div>
+      </div>
+    </div>
+    <div class="sp-body">
+      <div class="sp-steps" id="spSteps">
+        <div class="sp-step done" data-step="dispatch"><div class="sp-dot"></div><span>ส่งคำสั่งไป GitHub Actions</span></div>
+        <div class="sp-step active" data-step="queue"><div class="sp-dot"></div><span>Queue + Setup environment</span></div>
+        <div class="sp-step" data-step="login"><div class="sp-dot"></div><span>Login + Download (Playwright)</span></div>
+        <div class="sp-step" data-step="import"><div class="sp-dot"></div><span>Import เข้า Supabase</span></div>
+        <div class="sp-step" data-step="done"><div class="sp-dot"></div><span>เสร็จสิ้น</span></div>
+      </div>
+      <div class="sp-stats">
+        <div class="sp-stat"><div class="sp-stat-label">เวลา</div><div class="sp-stat-val" id="spElapsed">0s</div></div>
+        <div class="sp-stat"><div class="sp-stat-label">Status</div><div class="sp-stat-val" id="spStatus" style="font-size:13px">—</div></div>
+        <div class="sp-stat"><div class="sp-stat-label">Rows</div><div class="sp-stat-val" id="spRows">—</div></div>
+      </div>
+      <div class="sp-log" id="spLog"></div>
+    </div>
+    <div class="sp-actions">
+      <a id="spGhLink" href="#" target="_blank">📂 GitHub Actions</a>
+      <button class="sp-close" id="spClose" onclick="closeSyncProgress()">ปิด (รัน background ต่อ)</button>
     </div>
   </div>
 </div>

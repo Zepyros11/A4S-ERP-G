@@ -45,15 +45,15 @@ async function loadTasks() {
 
 function renderTasks() {
   const grid = document.getElementById('taskGrid');
-  const empty = document.getElementById('emptyState');
 
   if (!tasks.length) {
-    grid.innerHTML = '';
-    grid.appendChild(empty);
-    empty.style.display = 'block';
+    grid.innerHTML = `<div class="dt-empty">
+      <div class="dt-empty-icon">🤖</div>
+      <h3>ยังไม่มี automation task</h3>
+      <p>กด "เพิ่มงาน" เพื่อสร้าง task แรก</p>
+    </div>`;
     return;
   }
-  empty.style.display = 'none';
 
   grid.innerHTML = tasks.map(t => {
     const typeIcon = t.task_type === 'api_fetch' ? 'api' : t.task_type === 'file_import' ? 'file' : 'web';
@@ -82,6 +82,7 @@ function renderTasks() {
         <button class="task-btn" onclick="editTask('${t.id}')">✏️ แก้ไข</button>
         <button class="task-btn" onclick="deleteTask('${t.id}','${escapeHtml(t.name)}')">🗑️</button>
         ${t.config_url ? `<a class="task-btn" href="${escapeHtml(t.config_url)}" style="text-decoration:none">⚙️ Detail</a>` : ''}
+        ${_spPolling && _spTaskId === t.id ? `<button class="task-btn" onclick="reopenProgress()" style="background:var(--accent-pale);color:var(--accent);border-color:var(--accent)">📡 ดูความคืบหน้า</button>` : ''}
         <button class="task-btn run" onclick="runTask('${t.id}')">▶️ Run</button>
       </div>
     </div>`;
@@ -185,50 +186,35 @@ async function deleteTask(id, name) {
   showLoading(false);
 }
 
-/* ── Run task (trigger GitHub workflow) ── */
+/* ── Run task (trigger GitHub workflow + show progress) ── */
+let _ghConfig = null;
+
 async function runTask(id) {
   const t = tasks.find(x => x.id === id);
-  if (!t || !t.workflow) {
-    showToast('ต้องกำหนด workflow ก่อน', 'error');
-    return;
-  }
+  if (!t || !t.workflow) { showToast('ต้องกำหนด workflow ก่อน', 'error'); return; }
 
-  // Need GitHub config from sync_config
-  let ghConfig;
-  try {
-    const rows = await sb('sync_config?id=eq.1&limit=1');
-    ghConfig = rows?.[0];
-  } catch { }
-  if (!ghConfig?.github_owner || !ghConfig?.github_pat_encrypted) {
-    showToast('ต้องตั้งค่า GitHub PAT ที่หน้า Auto-Sync ก่อน', 'error');
-    return;
+  if (!_ghConfig) {
+    try { const rows = await sb('sync_config?id=eq.1&limit=1'); _ghConfig = rows?.[0]; } catch {}
   }
-  if (!window.ERPCrypto || !ERPCrypto.hasMasterKey()) {
-    showToast('ต้องตั้ง Master Key ก่อน', 'error');
-    return;
+  if (!_ghConfig?.github_owner || !_ghConfig?.github_pat_encrypted) {
+    showToast('ต้องตั้งค่า GitHub PAT ที่หน้า ⚙️ ตั้งค่า Automation ก่อน', 'error'); return;
   }
+  if (!window.ERPCrypto || !ERPCrypto.hasMasterKey()) { showToast('ต้องตั้ง Master Key ก่อน', 'error'); return; }
 
   showLoading(true);
   try {
-    const pat = await ERPCrypto.decrypt(ghConfig.github_pat_encrypted);
-    const ghUrl = `https://api.github.com/repos/${ghConfig.github_owner}/${ghConfig.github_repo}/actions/workflows/${t.workflow}/dispatches`;
+    const pat = await ERPCrypto.decrypt(_ghConfig.github_pat_encrypted);
+    const ghUrl = `https://api.github.com/repos/${_ghConfig.github_owner}/${_ghConfig.github_repo}/actions/workflows/${t.workflow}/dispatches`;
     const res = await fetch(ghUrl, {
       method: 'POST',
-      headers: {
-        Accept: 'application/vnd.github+json',
-        Authorization: `Bearer ${pat}`,
-        'X-GitHub-Api-Version': '2022-11-28',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ ref: ghConfig.github_branch || 'main' }),
+      headers: { Accept: 'application/vnd.github+json', Authorization: `Bearer ${pat}`, 'X-GitHub-Api-Version': '2022-11-28', 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ref: _ghConfig.github_branch || 'main' }),
     });
     if (res.status === 204) {
-      // Update last_run_at
-      await sb(`automation_tasks?id=eq.${id}`, {
-        method: 'PATCH',
-        body: { last_run_at: new Date().toISOString() },
-      });
-      showToast(`🚀 ${t.name} — ส่ง workflow แล้ว`, 'success');
+      await sb(`automation_tasks?id=eq.${id}`, { method: 'PATCH', body: { last_run_at: new Date().toISOString() } });
+      showLoading(false);
+      _spTaskId = id;
+      trackSyncProgress(pat, new Date(), t.name);
       await loadTasks();
     } else {
       const err = await res.text();
@@ -236,8 +222,133 @@ async function runTask(id) {
     }
   } catch (e) {
     showToast('รันไม่ได้: ' + e.message, 'error');
+    showLoading(false);
   }
-  showLoading(false);
+}
+
+/* ── Sync Progress Tracker (polls GitHub API) ── */
+let _spPolling = false, _spPollTimer = null, _spTaskId = null;
+
+function _spSetStep(name, state) {
+  const el = document.querySelector(`.sp-step[data-step="${name}"]`);
+  if (!el) return;
+  el.classList.remove('active','done','fail');
+  if (state) el.classList.add(state);
+}
+function _spAdvance(phase) {
+  const order = ['dispatch','queue','login','import','done'];
+  const idx = order.indexOf(phase);
+  for (let i = 0; i < order.length; i++) {
+    if (i < idx) _spSetStep(order[i], 'done');
+    else if (i === idx) _spSetStep(order[i], 'active');
+    else _spSetStep(order[i], null);
+  }
+}
+function _spLog(msg, cls='') {
+  const el = document.getElementById('spLog');
+  const ts = new Date().toTimeString().slice(0,8);
+  el.innerHTML += `<div><span class="ts">${ts}</span><span class="msg ${cls}">${msg}</span></div>`;
+  el.scrollTop = el.scrollHeight;
+}
+function _fmtElapsed(s) { return s < 60 ? `${s}s` : `${Math.floor(s/60)}m ${s%60}s`; }
+
+function openSyncProgress(taskName) {
+  document.getElementById('spOverlay').classList.add('show');
+  document.getElementById('spHero').className = 'sp-hero';
+  document.getElementById('spSpinner').className = 'sp-spinner loading';
+  document.getElementById('spSpinner').textContent = '🔄';
+  document.getElementById('spTitle').textContent = taskName || 'กำลังรัน...';
+  document.getElementById('spPhase').textContent = 'รอเริ่ม workflow...';
+  document.getElementById('spElapsed').textContent = '0s';
+  document.getElementById('spStatus').textContent = 'queued';
+  document.getElementById('spRows').textContent = '—';
+  document.getElementById('spLog').innerHTML = '';
+  document.getElementById('spClose').textContent = 'ปิด (รัน background ต่อ)';
+  document.getElementById('spClose').className = 'sp-close';
+  _spAdvance('queue');
+  _spLog('🚀 Dispatched to GitHub Actions', 'ok');
+}
+function closeSyncProgress() {
+  document.getElementById('spOverlay').classList.remove('show');
+  if (!_spPolling) _spTaskId = null;
+  renderTasks();
+}
+function reopenProgress() {
+  document.getElementById('spOverlay').classList.add('show');
+}
+
+async function trackSyncProgress(pat, startedAt, taskName) {
+  const startMs = startedAt.getTime();
+  openSyncProgress(taskName);
+  document.getElementById('spGhLink').href = `https://github.com/${_ghConfig.github_owner}/${_ghConfig.github_repo}/actions`;
+  _spPolling = true;
+  let runId = null, lastStep = 'queue';
+
+  const ghHeaders = { Accept: 'application/vnd.github+json', Authorization: `Bearer ${pat}`, 'X-GitHub-Api-Version': '2022-11-28' };
+
+  const tick = async () => {
+    if (!_spPolling) return;
+    const elapsed = Math.floor((Date.now() - startMs) / 1000);
+    document.getElementById('spElapsed').textContent = _fmtElapsed(elapsed);
+
+    try {
+      if (!runId) {
+        const res = await fetch(`https://api.github.com/repos/${_ghConfig.github_owner}/${_ghConfig.github_repo}/actions/runs?per_page=5&branch=${encodeURIComponent(_ghConfig.github_branch||'main')}`, { headers: ghHeaders });
+        if (res.ok) {
+          const data = await res.json();
+          const run = (data.workflow_runs||[]).find(r => r.event === 'workflow_dispatch' && Date.parse(r.created_at) >= startMs - 15000);
+          if (run) { runId = run.id; document.getElementById('spGhLink').href = run.html_url; _spLog(`✅ Run #${run.run_number}`, 'ok'); }
+        }
+      }
+      if (runId) {
+        const res = await fetch(`https://api.github.com/repos/${_ghConfig.github_owner}/${_ghConfig.github_repo}/actions/runs/${runId}`, { headers: ghHeaders });
+        if (res.ok) {
+          const run = await res.json();
+          document.getElementById('spStatus').textContent = run.status;
+          if (run.status === 'completed') {
+            _spPolling = false;
+            const ok = run.conclusion === 'success';
+            if (ok) { _spAdvance('done'); _spSetStep('done','done'); }
+            else _spSetStep(lastStep, 'fail');
+            document.getElementById('spHero').className = `sp-hero ${ok ? 'success' : 'fail'}`;
+            document.getElementById('spSpinner').className = 'sp-spinner';
+            document.getElementById('spSpinner').textContent = ok ? '✅' : '❌';
+            document.getElementById('spTitle').textContent = ok ? 'สำเร็จ!' : 'ล้มเหลว';
+            document.getElementById('spPhase').textContent = `${run.conclusion} · ${_fmtElapsed(elapsed)}`;
+            document.getElementById('spClose').textContent = ok ? '✅ เสร็จ' : '❌ ปิด';
+            document.getElementById('spClose').className = `sp-close ${ok ? 'success' : 'danger'}`;
+            _spLog(ok ? '✅ Completed' : `❌ ${run.conclusion}`, ok ? 'ok' : 'err');
+            showToast(ok ? '✅ สำเร็จ' : `❌ ${run.conclusion}`, ok ? 'success' : 'error');
+            _spTaskId = null;
+            loadLogs(); loadTasks();
+            return;
+          }
+          // Check job steps for phase
+          const jRes = await fetch(`https://api.github.com/repos/${_ghConfig.github_owner}/${_ghConfig.github_repo}/actions/runs/${runId}/jobs`, { headers: ghHeaders });
+          if (jRes.ok) {
+            const jobs = await jRes.json();
+            const step = jobs.jobs?.[0]?.steps?.find(s => s.status === 'in_progress');
+            if (step) {
+              const n = step.name.toLowerCase();
+              let phase = n.includes('sync') ? 'import' : n.includes('playwright') || n.includes('chromium') ? 'queue' : lastStep;
+              // Check sync_log for rows
+              try {
+                const logs = await sb(`sync_log?source=eq.auto_sync&order=started_at.desc&limit=1`);
+                if (logs?.[0] && Date.parse(logs[0].started_at) >= startMs - 15000) {
+                  phase = logs[0].rows_total ? 'import' : 'login';
+                  if (logs[0].rows_total) document.getElementById('spRows').textContent = Number(logs[0].rows_total).toLocaleString();
+                }
+              } catch {}
+              if (phase !== lastStep) { _spAdvance(phase); _spLog(`→ ${step.name}`); lastStep = phase; }
+              document.getElementById('spPhase').textContent = step.name;
+            }
+          }
+        }
+      }
+    } catch (e) { console.warn('poll:', e.message); }
+    _spPollTimer = setTimeout(tick, 5000);
+  };
+  tick();
 }
 
 /* ── Load logs ── */

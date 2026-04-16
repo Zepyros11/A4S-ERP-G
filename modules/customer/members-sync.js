@@ -74,7 +74,6 @@ let config = {
   line_target_type: 'group',
   line_notify_on_success: false,
 };
-let _credsDirty = false;   // flag — user พิมพ์ AFS credentials ใหม่
 
 /* ============================================================
    LOAD CONFIG + LOG
@@ -98,24 +97,7 @@ async function loadConfig() {
 }
 
 async function _populateCredsPreview() {
-  // AFS credentials only (GitHub + LINE moved to dev-tool/settings)
-  const userInput = document.getElementById('afsUsername');
-  const pwInput   = document.getElementById('afsPassword');
-
-  if (!ERPCrypto.hasMasterKey()) {
-    if (config.username_encrypted) userInput.placeholder = '(encrypted — ต้อง Master Key)';
-    if (config.password_encrypted) pwInput.placeholder   = '(encrypted — ต้อง Master Key)';
-    return;
-  }
-  try {
-    if (config.username_encrypted)
-      userInput.value = (await ERPCrypto.decrypt(config.username_encrypted)) || '';
-    if (config.password_encrypted)
-      pwInput.value = (await ERPCrypto.decrypt(config.password_encrypted)) || '';
-  } catch {
-    userInput.placeholder = '(decrypt ล้มเหลว — Master Key ผิด?)';
-    pwInput.placeholder = '(decrypt ล้มเหลว)';
-  }
+  // Credentials moved to dev-tool/automation task modal — nothing to populate here
 }
 
 /* ============================================================
@@ -180,18 +162,9 @@ function setFreq(f) {
   config.frequency = f;
   _renderUI();
 }
-function togglePwEye() {
-  const inp = document.getElementById('afsPassword');
-  const eye = document.getElementById('pwEye');
-  if (inp.type === 'password') { inp.type = 'text'; eye.textContent = '🙈'; }
-  else                         { inp.type = 'password'; eye.textContent = '👁️'; }
-}
-document.addEventListener('input', (e) => {
-  if (e.target.id === 'afsUsername' || e.target.id === 'afsPassword') _credsDirty = true;
-});
-
 /* ============================================================
-   SAVE CONFIG
+   SAVE CONFIG (Automation toggle + frequency only)
+   Credentials moved to dev-tool/automation task modal
    ============================================================ */
 async function saveConfig() {
   showLoading(true);
@@ -201,20 +174,6 @@ async function saveConfig() {
       frequency: config.frequency,
       updated_at: new Date().toISOString(),
     };
-
-    // ถ้า enable แล้วแต่ยังไม่มี credentials → บังคับต้องกรอก
-    const u = document.getElementById('afsUsername').value.trim();
-    const p = document.getElementById('afsPassword').value;
-
-    if (_credsDirty) {
-      if (!ERPCrypto.hasMasterKey()) {
-        showLoading(false);
-        showToast('ต้องตั้ง Master Key ก่อน (ไปหน้า Import)', 'error');
-        return;
-      }
-      if (u) patch.username_encrypted = await ERPCrypto.encrypt(u);
-      if (p) patch.password_encrypted = await ERPCrypto.encrypt(p);
-    }
 
     // Compute next_sync_at
     if (config.enabled) {
@@ -232,7 +191,6 @@ async function saveConfig() {
       body: JSON.stringify(patch),
     });
     if (!res.ok) throw new Error(await res.text());
-    _credsDirty = false;
     await loadConfig();
     showToast('✅ บันทึกแล้ว', 'success');
   } catch (e) {
@@ -567,15 +525,6 @@ async function trackSyncProgress(pat, startedAt) {
   tick();
 }
 
-/* ============================================================
-   TEST LOGIN (mocked — ยังไม่ได้ทดสอบจริง)
-   ============================================================ */
-async function testLogin() {
-  const u = document.getElementById('afsUsername').value.trim();
-  const p = document.getElementById('afsPassword').value;
-  if (!u || !p) { showToast('กรอก username + password ก่อน', 'error'); return; }
-  showToast('🧪 ฟีเจอร์นี้จะทำงานจริงใน Phase 2C (ต้องมี backend)', 'warning');
-}
 
 /* ============================================================
    LOAD SYNC LOG
