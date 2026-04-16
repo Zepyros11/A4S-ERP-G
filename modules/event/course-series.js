@@ -38,18 +38,25 @@ async function loadAll() {
       if (!levelsMap[lv.series_id]) levelsMap[lv.series_id] = [];
       levelsMap[lv.series_id].push(lv);
     }
-    // Count events per series
-    for (const s of seriesList) {
-      try {
-        const res = await fetch(
-          `${SUPABASE_URL}/rest/v1/events?select=event_id&series_id=eq.${s.id}`,
-          { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, Prefer: 'count=exact', Range: '0-0' } }
-        );
-        const range = res.headers.get('content-range') || '*/0';
-        s._eventCount = parseInt(range.split('/')[1], 10) || 0;
-      } catch { s._eventCount = 0; }
-    }
+    // Render immediately, then load event counts in background
+    seriesList.forEach(s => { s._eventCount = 0; });
     render();
+
+    // Count events per series (parallel, non-blocking)
+    const ids = seriesList.map(s => s.id);
+    if (ids.length) {
+      try {
+        const evRes = await fetch(
+          `${SUPABASE_URL}/rest/v1/events?select=series_id&series_id=in.(${ids.join(',')})`,
+          { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } }
+        );
+        const evRows = evRes.ok ? await evRes.json() : [];
+        const counts = {};
+        evRows.forEach(e => { counts[e.series_id] = (counts[e.series_id] || 0) + 1; });
+        seriesList.forEach(s => { s._eventCount = counts[s.id] || 0; });
+        render();
+      } catch {}
+    }
   } catch (e) {
     showToast('โหลดไม่ได้: ' + e.message, 'error');
   }
@@ -71,11 +78,13 @@ function render() {
           const prereq = lv.prerequisite_level_id
             ? levels.find(l => l.id === lv.prerequisite_level_id)
             : null;
+          const noteHtml = lv.description ? `<div style="font-size:10.5px;color:var(--text2);margin-top:3px;padding:3px 8px;background:var(--surface2);border-radius:4px;border-left:2px solid ${s.color || '#3b82f6'}">📋 ${escapeHtml(lv.description)}</div>` : '';
           return `<div class="cs-level">
             <div class="cs-level-num" style="background:${s.color || '#3b82f6'}">${lv.level_order}</div>
             <div class="cs-level-info">
               <div class="cs-level-name">${escapeHtml(lv.level_name)}</div>
               <div class="cs-level-prereq">${prereq ? `🔒 ต้องผ่าน: ${escapeHtml(prereq.level_name)}` : '🟢 ไม่มีเงื่อนไข — ลงได้เลย'}</div>
+              ${noteHtml}
             </div>
             <div class="cs-level-actions">
               <button class="cs-level-btn" onclick="editLevel('${s.id}','${lv.id}')" title="แก้ไข">✏️</button>
@@ -117,7 +126,7 @@ function openSeriesModal(id) {
   document.getElementById('sfName').value = s?.name || '';
   const icon = s?.icon || '📚';
   document.getElementById('sfIcon').value = icon;
-  _updateIconPreview(icon);
+  document.getElementById('sfIconPreview').textContent = icon;
   const RANDOM_COLORS = ['#3b82f6','#ef4444','#10b981','#f59e0b','#8b5cf6','#ec4899','#06b6d4','#f97316','#6366f1','#14b8a6','#e11d48','#0ea5e9'];
   document.getElementById('sfColor').value = s?.color || RANDOM_COLORS[Math.floor(Math.random() * RANDOM_COLORS.length)];
   document.getElementById('sfDesc').value = s?.description || '';
@@ -157,7 +166,7 @@ async function saveSeries() {
 }
 
 async function deleteSeries(id, name) {
-  if (!confirm(`ลบหลักสูตร "${name}" ?\n(levels ทั้งหมดจะถูกลบด้วย)`)) return;
+  if (!await uiConfirm(`ลบหลักสูตร "${name}" ?`, 'levels ทั้งหมดจะถูกลบด้วย')) return;
   showLoading(true);
   try {
     await sb(`course_series?id=eq.${id}`, { method: 'DELETE' });
@@ -225,7 +234,7 @@ async function saveLevel() {
 }
 
 async function deleteLevel(id, name) {
-  if (!confirm(`ลบ level "${name}" ?`)) return;
+  if (!await uiConfirm(`ลบ level "${name}" ?`)) return;
   showLoading(true);
   try {
     await sb(`course_levels?id=eq.${id}`, { method: 'DELETE' });
@@ -237,13 +246,9 @@ async function deleteLevel(id, name) {
   showLoading(false);
 }
 
-/* ── Icon helper (emoji only, no API) ── */
+/* ── Icon helper (emoji only) ── */
 function _safeIcon(icon, size = 24) {
-  if (!icon) return '📚';
-  if (icon.includes(':')) {
-    const emoji = window.AppPermissions?.iconToEmoji(icon) || '📚';
-    return `<span style="font-size:${size}px">${emoji}</span>`;
-  }
+  if (!icon || icon.includes(':')) return `<span style="font-size:${size}px">📚</span>`;
   return `<span style="font-size:${size}px">${icon}</span>`;
 }
 
@@ -271,6 +276,37 @@ document.addEventListener('click', e => {
     picker.classList.remove('open');
   }
 });
+
+/* ── Styled confirm dialog ── */
+function uiConfirm(title, subtitle = '') {
+  return new Promise(resolve => {
+    let overlay = document.getElementById('confirmOverlay');
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.id = 'confirmOverlay';
+      overlay.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.55);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;z-index:10000;';
+      overlay.innerHTML = `<div style="background:#fff;border-radius:14px;max-width:400px;width:90%;box-shadow:0 20px 50px rgba(0,0,0,.25);overflow:hidden">
+        <div style="padding:24px 24px 8px;text-align:center">
+          <div style="font-size:36px;margin-bottom:10px">⚠️</div>
+          <div id="cfTitle" style="font-size:15px;font-weight:700;color:var(--text)"></div>
+          <div id="cfSub" style="font-size:12.5px;color:var(--text3);margin-top:4px"></div>
+        </div>
+        <div style="display:flex;gap:10px;padding:18px 24px;justify-content:center">
+          <button id="cfCancel" style="padding:9px 24px;border-radius:20px;border:none;background:#e5e7eb;color:#374151;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer">ยกเลิก</button>
+          <button id="cfOk" style="padding:9px 24px;border-radius:20px;border:none;background:linear-gradient(135deg,#dc2626,#991b1b);color:#fff;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 3px 10px rgba(220,38,38,.3)">ลบ</button>
+        </div>
+      </div>`;
+      document.body.appendChild(overlay);
+    }
+    document.getElementById('cfTitle').textContent = title;
+    document.getElementById('cfSub').textContent = subtitle;
+    overlay.style.display = 'flex';
+    const close = (val) => { overlay.style.display = 'none'; resolve(val); };
+    document.getElementById('cfOk').onclick = () => close(true);
+    document.getElementById('cfCancel').onclick = () => close(false);
+    overlay.onclick = (e) => { if (e.target === overlay) close(false); };
+  });
+}
 
 /* ── ESC close ── */
 document.addEventListener('keydown', e => {

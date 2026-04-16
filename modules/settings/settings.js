@@ -51,18 +51,16 @@ async function testConnection(silent = false) {
   if (!SUPABASE_URL || !SUPABASE_KEY) { showToast('กรุณากรอก URL และ Key ก่อน', 'warning'); return; }
   showLoading(true);
   try {
-    const [products, warehouses, suppliers, customers] = await Promise.all([
+    const [products, warehouses, suppliers] = await Promise.all([
       supabaseFetch('products',   '?select=product_id'),
       supabaseFetch('warehouses', '?select=warehouse_id'),
       supabaseFetch('suppliers',  '?select=supplier_id'),
-      supabaseFetch('customers',  '?select=customer_id'),
     ]);
     document.getElementById('connStatus').className = 'status-dot dot-connected';
     document.getElementById('connStatus').innerHTML = '<span class="dot-pulse"></span> เชื่อมต่อแล้ว';
     document.getElementById('countProducts').textContent   = products.length;
     document.getElementById('countWarehouses').textContent = warehouses.length;
     document.getElementById('countSuppliers').textContent  = suppliers.length;
-    document.getElementById('countCustomers').textContent  = customers.length;
     document.getElementById('dbInfo').style.display = 'block';
     if (!silent) showToast(`✅ เชื่อมต่อสำเร็จ! พบข้อมูล ${products.length} สินค้า`, 'success');
     await loadCategories();

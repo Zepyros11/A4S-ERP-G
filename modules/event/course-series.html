@@ -73,8 +73,7 @@
 /* ── Icon picker ── */
 .cs-icon-btn{display:flex;align-items:center;gap:8px;padding:8px 14px;border:1.5px solid var(--border);border-radius:7px;cursor:pointer;transition:border-color .15s;background:var(--surface);position:relative;}
 .cs-icon-btn:hover{border-color:var(--accent);}
-.cs-emoji-picker{display:none;position:absolute;left:0;top:calc(100% + 4px);width:280px;background:#fff;border:1.5px solid var(--border);border-radius:12px;padding:8px;box-shadow:0 8px 28px rgba(0,0,0,.12);z-index:1200;display:grid;grid-template-columns:repeat(8,1fr);gap:2px;}
-.cs-emoji-picker:not(.open){display:none;}
+.cs-emoji-picker{display:none;position:absolute;left:0;top:calc(100% + 4px);width:280px;background:#fff;border:1.5px solid var(--border);border-radius:12px;padding:8px;box-shadow:0 8px 28px rgba(0,0,0,.12);z-index:1200;grid-template-columns:repeat(8,1fr);gap:2px;}
 .cs-emoji-picker.open{display:grid;}
 .cs-emoji-item{border:none;background:transparent;border-radius:6px;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;aspect-ratio:1;transition:all .1s;}
 .cs-emoji-item:hover{background:var(--accent-pale);transform:scale(1.15);}
@@ -122,7 +121,7 @@
         <input id="sfName" placeholder="เช่น Unlock the World">
       </div>
       <div class="cs-field-row">
-        <div class="cs-field">
+        <div class="cs-field" style="position:relative">
           <label>Icon</label>
           <div class="cs-icon-btn" id="sfIconBtn" onclick="pickIcon()">
             <span id="sfIconPreview" style="font-size:22px">📚</span>
@@ -173,8 +172,9 @@
         </select>
       </div>
       <div class="cs-field">
-        <label>รายละเอียด</label>
-        <textarea id="lfDesc" rows="2" placeholder="(optional)"></textarea>
+        <label>📋 เงื่อนไข / สิ่งที่ต้องเตรียม</label>
+        <textarea id="lfDesc" rows="3" placeholder="เช่น ต้องนำ Laptop มา, เตรียมเอกสารสำเนาบัตร ฯลฯ"></textarea>
+        <div style="font-size:10.5px;color:var(--text3);margin-top:3px">จะแสดงเป็น note ให้ผู้ลงทะเบียนเห็น</div>
       </div>
     </div>
     <div class="cs-modal-foot">
@@ -193,13 +193,6 @@
 <script type="module">
   import { loadTopbar } from "../../js/components/navigation/topbar.js";
   loadTopbar("📚 จัดการหลักสูตร");
-  // Lazy-load icon picker only when needed
-  window._loadIconPicker = async () => {
-    if (window._openIconPicker) return;
-    const mod = await import("../../js/components/ui/iconPicker.js");
-    window._openIconPicker = mod.openIconPicker;
-    window._renderIcon = mod.renderIcon;
-  };
 </script>
 <script src="../../js/components/navigation/sidebar.js"></script>
 </body>

@@ -169,12 +169,6 @@ window.AppPermissions = (() => {
           { key: "supplier_edit",   label: "แก้ไข" },
           { key: "supplier_delete", label: "ลบ" },
         ]},
-        { key: "customer", label: "ลูกค้า", icon: "🧑", perms: [
-          { key: "customer_view",   label: "ดูรายการ" },
-          { key: "customer_create", label: "สร้าง" },
-          { key: "customer_edit",   label: "แก้ไข" },
-          { key: "customer_delete", label: "ลบ" },
-        ]},
         { key: "member", label: "สมาชิก (MLM)", icon: "👤", perms: [
           { key: "member_view",         label: "ดูรายการ" },
           { key: "member_import",       label: "นำเข้า Excel" },

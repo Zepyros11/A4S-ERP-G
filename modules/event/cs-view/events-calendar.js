@@ -53,14 +53,12 @@ async function refreshCalChatCounts() {
 function getCalUnread(eventId) {
   const info = _calChatCache[eventId];
   if (!info || info.total === 0) return 0;
-  // Always show badge if event has messages & event hasn't ended yet
-  const ev = allEvents.find(e => e.event_id === eventId);
-  if (ev) {
-    const endDate = ev.end_date || ev.event_date;
-    const today = toDateStr(new Date());
-    if (endDate < today) return 0; // event already passed — hide badge
-  }
-  return info.total;
+  const seenAt = localStorage.getItem(`evChat_cs_seen_${eventId}`) || "";
+  return info.timestamps.filter(t => t > seenAt).length;
+}
+function getCalTotal(eventId) {
+  const info = _calChatCache[eventId];
+  return info ? info.total : 0;
 }
 
 function markCalChatRead(eventId, logs) {
@@ -279,9 +277,12 @@ function renderCalendar() {
           const rTR = isEnd ? "6px" : "0";
           const rBR = isEnd ? "6px" : "0";
           const barUnread = getCalUnread(e.event_id);
+          const barTotal = getCalTotal(e.event_id);
           const barBadge = barUnread > 0
             ? `<span class="cal-unread-badge">${barUnread}</span>`
-            : "";
+            : barTotal > 0
+              ? `<span class="cal-unread-badge cal-read-badge">${barTotal}</span>`
+              : "";
           return `<div class="cal-span-bar"
             style="grid-column:${colStart + 1}/${colEnd + 2};grid-row:${laneIdx + 1};
                    background:${color};color:#fff;
@@ -319,9 +320,12 @@ function renderCalendar() {
           .map((ev) => {
             const { color, icon } = getCatStyle(ev);
             const pillUnread = getCalUnread(ev.event_id);
+            const pillTotal = getCalTotal(ev.event_id);
             const pillBadge = pillUnread > 0
               ? `<span class="cal-unread-badge">${pillUnread}</span>`
-              : "";
+              : pillTotal > 0
+                ? `<span class="cal-unread-badge cal-read-badge">${pillTotal}</span>`
+                : "";
             return `<div class="cal-event-pill"
               style="background:${color};color:#fff;"
               onclick="openEventPanel(${ev.event_id});event.stopPropagation();"
@@ -432,11 +436,19 @@ function openEventPanel(eventId) {
   const msgBtn = document.getElementById("panelBtnMsg");
   msgBtn.onclick = () => openChatPanel(e.event_id, e.event_name);
   const calUnread = getCalUnread(e.event_id);
+  const calTotal = getCalTotal(e.event_id);
   msgBtn.innerHTML = calUnread > 0
     ? `💬 Message <span style="background:#ef4444;color:#fff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:999px;margin-left:4px">${calUnread}</span>`
-    : `💬 Message`;
+    : calTotal > 0
+      ? `💬 Message <span style="background:#e2e8f0;color:#64748b;font-size:10px;font-weight:700;padding:1px 6px;border-radius:999px;margin-left:4px">${calTotal}</span>`
+      : `💬 Message`;
   document.getElementById("evPanelOverlay").style.display = "flex";
   document.body.style.overflow = "hidden";
+
+  // auto-open chat if there are messages
+  if (calTotal > 0) {
+    openChatPanel(e.event_id, e.event_name);
+  }
 }
 
 /* ── Chat Panel Functions ── */

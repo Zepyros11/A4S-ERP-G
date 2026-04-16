@@ -169,12 +169,6 @@
           path: BASE_PATH + "/modules/customer/members-dashboard.html",
         },
         {
-          id: "customers",
-          icon: "🧑",
-          label: "ข้อมูลลูกค้า",
-          path: BASE_PATH + "/modules/customer/customers.html",
-        },
-        {
           id: "members",
           icon: "👤",
           label: "ข้อมูลสมาชิก (MLM)",
@@ -309,7 +303,7 @@
     users: "users_view",
     roles: "roles_view",
     suppliers: "supplier_view",
-    customers: "customer_view",
+
     members: "member_view",
     "members-dashboard": "member_view",
     "members-tree": "member_view",
@@ -375,7 +369,7 @@
     "suppliers",
     "users",
     "roles",
-    "customers",
+
     "members",
     "members-dashboard",
     "members-tree",

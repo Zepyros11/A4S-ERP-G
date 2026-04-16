@@ -107,8 +107,11 @@
             <!-- ③ TABLE HEADER with TABS -->
             <div class="table-hdr">
               <div class="ev-tabs">
-                <button class="ev-tab active">
+                <button class="ev-tab active" onclick="window.switchListTab('events',this)">
                   🗓️ รายการกิจกรรม
+                </button>
+                <button class="ev-tab" onclick="window.switchListTab('chatrooms',this)">
+                  💬 ห้องสนทนา<span id="chatroomBadge" class="tab-badge" style="display:none"></span>
                 </button>
                 <button class="ev-tab" onclick="window.location.href='event-requests.html'">
                   🚪 คำขอจองห้อง<span id="reqPendingBadge" class="tab-badge" style="display:none"></span>
@@ -153,6 +156,16 @@
               </div>
             </div>
 
+            <!-- TAB CONTENT: Chat rooms -->
+            <div id="tabContentChatrooms" style="display:none">
+              <div class="chatroom-list" id="chatroomList">
+                <div class="empty-state">
+                  <div class="empty-icon">💬</div>
+                  <div class="empty-text">ยังไม่มีห้องสนทนา</div>
+                </div>
+              </div>
+            </div>
+
           </div>
           <!-- end .table-card -->
         </div>
@@ -175,6 +188,78 @@
       </div>
     </div>
 
+
+    <!-- EVENT POPUP (calendar-style) -->
+    <div id="evPopupOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:400;backdrop-filter:blur(4px);align-items:center;justify-content:center;" onclick="window.closeBadgePopup()">
+      <div class="ev-popup" onclick="event.stopPropagation()">
+        <button class="ev-popup-close" onclick="window.closeBadgePopup()">✕</button>
+        <!-- COL 1: Poster -->
+        <div class="ev-popup-left" id="popupPoster">
+          <span class="ev-popup-placeholder">🗓️</span>
+        </div>
+        <!-- COL 2: Detail -->
+        <div class="ev-popup-detail">
+          <div class="ev-popup-name" id="popupName">—</div>
+          <div class="ev-popup-code" id="popupCode"></div>
+          <div class="ev-popup-badges">
+            <span id="popupStatus"></span>
+            <span id="popupType"></span>
+          </div>
+          <div class="ev-popup-info-rows">
+            <div class="ev-popup-info-row">
+              <div class="ev-popup-info-icon">🕐</div>
+              <div class="ev-popup-info-body">
+                <div class="ev-popup-info-label">Date & Time</div>
+                <div class="ev-popup-info-datetime">
+                  <span class="ev-popup-info-value" id="popupDate">—</span>
+                  <span class="ev-popup-info-sep">|</span>
+                  <span class="ev-popup-info-value" id="popupTime" style="color:#64748b">—</span>
+                </div>
+              </div>
+            </div>
+            <div class="ev-popup-info-row">
+              <div class="ev-popup-info-icon">📍</div>
+              <div class="ev-popup-info-body">
+                <div class="ev-popup-info-label">Location</div>
+                <div class="ev-popup-info-value" id="popupLocation">—</div>
+              </div>
+            </div>
+          </div>
+          <div class="ev-popup-info-label" style="margin-bottom:4px">รายละเอียด</div>
+          <div class="ev-popup-desc" id="popupDesc">—</div>
+          <div id="popupPrereq" style="display:none;margin-top:10px;padding:10px 12px;border-radius:8px;border-left:3px solid #3b82f6;background:#eff6ff;font-size:12px;line-height:1.7"></div>
+          <div class="ev-popup-footer">
+            <button class="btn btn-primary" id="popupBtnMsg">💬 Message</button>
+            <button class="btn btn-primary" id="popupBtnEdit" style="background:#475569">✏️ แก้ไข</button>
+          </div>
+        </div>
+        <!-- COL 3: Chat Panel (slides in) -->
+        <div class="ev-popup-chat" id="popupChatCol">
+          <button class="ev-chat-tab" onclick="window.closePopupChat()" title="ปิดบอร์ดสนทนา">&#8249;</button>
+          <div class="ev-chat-inner">
+            <div class="ev-chat-header">
+              <div>
+                <div class="ev-chat-title">💬 บอร์ดสนทนา</div>
+                <div id="popupChatEvName" class="ev-chat-subtitle">—</div>
+              </div>
+            </div>
+            <div class="ev-chat-role-bar">
+              <span class="ev-chat-role-label">ส่งในนามของ:</span>
+              <span class="ev-chat-sender-name" id="popupChatSender">—</span>
+            </div>
+            <div id="popupChatLog" class="ev-chat-log">
+              <p style="text-align:center;font-size:12px;color:#94a3b8;font-style:italic">กำลังโหลด...</p>
+            </div>
+            <div class="ev-chat-input-bar">
+              <input id="popupChatInput" type="text" placeholder="พิมพ์ข้อความ..."
+                onkeydown="if(event.key==='Enter')window.submitPopupChat()"
+                class="ev-chat-input" />
+              <button id="popupChatBtn" onclick="window.submitPopupChat()" class="ev-chat-send-btn">ส่ง</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <!-- PENDING BADGE: fetch count from room_booking_requests (auto-refresh) -->
     <script>

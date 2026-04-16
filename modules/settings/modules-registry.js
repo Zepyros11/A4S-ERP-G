@@ -80,14 +80,6 @@ const ERP_MODULES = [
     ],
   },
   {
-    key: "customer",
-    label: "👥 ลูกค้า",
-    perms: [
-      { key: "view_customers", label: "ดูข้อมูลลูกค้า" },
-      { key: "manage_customers", label: "จัดการลูกค้า" },
-    ],
-  },
-  {
     key: "report",
     label: "📊 รายงาน",
     perms: [

@@ -56,8 +56,8 @@ function setOrderType(type) {
 // LOAD DROPDOWNS
 // ============================================================
 async function loadDropdowns() {
-  const [customers, warehouses, users, pos, prods, units] = await Promise.all([
-    supabaseFetch('customers',     { query: '?select=customer_id,customer_name&is_active=eq.true&order=customer_name' }),
+  const [members, warehouses, users, pos, prods, units] = await Promise.all([
+    supabaseFetch('members',       { query: '?select=member_code,full_name,member_name&order=member_code' }),
     supabaseFetch('warehouses',    { query: '?select=warehouse_id,warehouse_name&is_active=eq.true' }),
     supabaseFetch('users',         { query: '?select=user_id,first_name,last_name&is_active=eq.true' }),
     supabaseFetch('purchase_orders', { query: '?select=po_id,po_number,status&order=po_number.desc&limit=50' }),
@@ -66,9 +66,9 @@ async function loadDropdowns() {
   ]);
 
   const selCus = document.getElementById('customerId');
-  selCus.innerHTML = '<option value="">— เลือกลูกค้า —</option>';
-  customers?.forEach(c => selCus.insertAdjacentHTML('beforeend',
-    `<option value="${c.customer_id}">${c.customer_name}</option>`));
+  selCus.innerHTML = '<option value="">— เลือกสมาชิก —</option>';
+  members?.forEach(m => selCus.insertAdjacentHTML('beforeend',
+    `<option value="${m.member_code}">${m.member_code} — ${m.full_name || m.member_name || ''}</option>`));
 
   const selWH = document.getElementById('warehouseId');
   selWH.innerHTML = '<option value="">— เลือกคลัง —</option>';
@@ -240,7 +240,7 @@ function collectFormData(validate = true) {
   const note        = document.getElementById('note').value;
 
   if (validate) {
-    if (currentType === 'SALE' && !customerId) { showToast('กรุณาเลือกลูกค้า', 'error');      return null; }
+    if (currentType === 'SALE' && !customerId) { showToast('กรุณาเลือกสมาชิก', 'error');      return null; }
     if (!warehouseId)  { showToast('กรุณาเลือกคลัง', 'error');       return null; }
     if (!orderDate)    { showToast('กรุณาระบุวันที่', 'error');       return null; }
     if (!deliveryDate) { showToast('กรุณาระบุวันที่ส่งของ', 'error'); return null; }

@@ -23,7 +23,7 @@ async function _loadSeriesBadges() {
     const h = { apikey: key, Authorization: `Bearer ${key}` };
     const [sRes, lRes] = await Promise.all([
       fetch(`${url}/rest/v1/course_series?select=id,name,icon,color`, { headers: h }),
-      fetch(`${url}/rest/v1/course_levels?select=id,series_id,level_name,level_order`, { headers: h }),
+      fetch(`${url}/rest/v1/course_levels?select=id,series_id,level_name,level_order,prerequisite_level_id,description`, { headers: h }),
     ]);
     const series = sRes.ok ? await sRes.json() : [];
     const levels = lRes.ok ? await lRes.json() : [];
@@ -35,7 +35,7 @@ async function _loadSeriesBadges() {
         const s = _seriesMap[e.series_id];
         const lv = e.level_id ? _levelMap[e.level_id] : null;
         const lvText = lv ? ` · Lv.${lv.level_order} ${lv.level_name}` : '';
-        e._seriesBadge = ` <span style="display:inline-block;padding:1px 7px;border-radius:4px;font-size:10px;font-weight:600;background:${s.color}18;color:${s.color};margin-left:4px">${s.icon||'📚'} ${s.name}${lvText}</span>`;
+        e._seriesBadge = ` <span class="series-badge-link" onclick="event.stopPropagation();window.openBadgePopup(${e.event_id})" style="display:inline-block;padding:1px 7px;border-radius:4px;font-size:10px;font-weight:600;background:${s.color}18;color:${s.color};margin-left:4px">${s.icon||'📚'} ${s.name}${lvText}</span>`;
       } else {
         e._seriesBadge = '';
       }
@@ -288,10 +288,102 @@ async function loadPanelHistory() {
   }
 }
 
+/* ── List Tab switching ── */
+window.switchListTab = function (tab, btn) {
+  document.querySelectorAll(".ev-tabs .ev-tab").forEach((b) => b.classList.remove("active"));
+  btn.classList.add("active");
+  const isEvents = tab === "events";
+  document.getElementById("tabContentEvents").style.display = isEvents ? "" : "none";
+  document.getElementById("tabContentChatrooms").style.display = !isEvents ? "" : "none";
+  document.getElementById("toolbarEvents").style.display = isEvents ? "" : "none";
+  document.getElementById("statsEvents").style.display = isEvents ? "" : "none";
+  document.getElementById("tableCount").style.display = isEvents ? "" : "none";
+  if (tab === "chatrooms") renderChatrooms();
+};
+
+function renderChatrooms() {
+  const today = new Date().toISOString().split("T")[0];
+  // filter: has messages & event not yet passed (end_date >= today)
+  const rooms = allEvents
+    .filter((e) => {
+      const total = _evChatCountCache[e.event_id]?.total || 0;
+      if (total === 0) return false;
+      const endDate = e.end_date || e.event_date;
+      return endDate >= today;
+    })
+    .sort((a, b) => {
+      const la = _evChatCountCache[a.event_id]?.latest || "";
+      const lb = _evChatCountCache[b.event_id]?.latest || "";
+      return lb > la ? 1 : lb < la ? -1 : 0;
+    });
+
+  const container = document.getElementById("chatroomList");
+
+  // update badge count
+  const badge = document.getElementById("chatroomBadge");
+  const totalUnread = rooms.reduce((sum, e) => sum + getEvChatUnread(e.event_id), 0);
+  if (badge) {
+    badge.textContent = totalUnread;
+    badge.style.display = totalUnread > 0 ? "inline-flex" : "none";
+  }
+
+  if (!rooms.length) {
+    container.innerHTML = `<div class="empty-state" style="padding:60px 20px">
+      <div class="empty-icon">💬</div>
+      <div class="empty-text">ไม่มีห้องสนทนาที่ยังเปิดอยู่</div>
+    </div>`;
+    return;
+  }
+
+  container.innerHTML = rooms.map((e) => {
+    const unread = getEvChatUnread(e.event_id);
+    const total = _evChatCountCache[e.event_id]?.total || 0;
+    const latest = _evChatCountCache[e.event_id]?.latest || "";
+    const timeStr = latest ? latest.slice(0, 16).replace("T", " ") : "";
+    const posterImg = e.poster_url
+      ? `<img src="${escapeHtmlAttr(e.poster_url)}" alt="${escapeHtmlAttr(e.event_name)}">`
+      : `<span class="chatroom-poster-placeholder">🗓️</span>`;
+    const unreadClass = unread > 0 ? " has-unread" : "";
+    const badgeHtml = unread > 0
+      ? `<span class="chatroom-unread">${unread}</span>`
+      : `<span class="chatroom-total">${total}</span>`;
+
+    return `<div class="chatroom-item${unreadClass}" onclick="window.openBadgePopup(${e.event_id})">
+      <div class="chatroom-poster">${posterImg}</div>
+      <div class="chatroom-info">
+        <div class="chatroom-name">${escapeHtml(e.event_name || "—")}</div>
+        <div class="chatroom-meta">
+          <span>${formatDate(e.event_date)}</span>
+          <span>·</span>
+          <span>${statusLabel(e.status)}</span>
+        </div>
+      </div>
+      <div class="chatroom-right">
+        <div class="chatroom-time">${timeStr}</div>
+        ${badgeHtml}
+      </div>
+    </div>`;
+  }).join("");
+}
+
+function updateChatroomBadge() {
+  const today = new Date().toISOString().split("T")[0];
+  const totalUnread = allEvents
+    .filter(e => (_evChatCountCache[e.event_id]?.total || 0) > 0 && (e.end_date || e.event_date) >= today)
+    .reduce((sum, e) => sum + getEvChatUnread(e.event_id), 0);
+  const badge = document.getElementById("chatroomBadge");
+  if (badge) {
+    badge.textContent = totalUnread;
+    badge.style.display = totalUnread > 0 ? "inline-flex" : "none";
+  }
+}
+
 async function initPage() {
   await loadData();
   bindEvents();
-  setInterval(refreshEvChatCounts, 5000);
+  setInterval(() => {
+    refreshEvChatCounts().then(() => updateChatroomBadge());
+  }, 5000);
 }
 
 async function loadData() {
@@ -312,6 +404,7 @@ async function loadData() {
     updateStatCards();
     filterTable();
     await refreshEvChatCounts();
+    updateChatroomBadge();
   } catch (e) {
     showToast("โหลดข้อมูลไม่ได้: " + e.message, "error");
   }
@@ -562,7 +655,7 @@ function renderTable(events) {
       const pinned = isPinned(e.event_id);
       const pinnedRowClass = pinned ? " row-pinned" : "";
 
-      return `<tr class="${rowClass}${unreadRowClass}${pinnedRowClass}" onclick="window.location.href='./event-form.html?id=${e.event_id}'">
+      return `<tr class="${rowClass}${unreadRowClass}${pinnedRowClass}" onclick="window.openBadgePopup(${e.event_id})" style="cursor:pointer">
       <td style="text-align:center" onclick="event.stopPropagation()">
         <input type="checkbox" class="row-check" value="${e.event_id}" onchange="window.updateDeleteButton()">
       </td>
@@ -931,6 +1024,187 @@ function getSBLocal() {
     key: localStorage.getItem("sb_key") || "",
   };
 }
+
+/* ══════════════════════════════════════════
+   BADGE POPUP (calendar-style centered modal)
+══════════════════════════════════════════ */
+let _popupChatEventId = null;
+let _popupChatPoll = null;
+let _popupChatSig = "";
+
+function getCatStyle(event) {
+  const cat = eventCategories.find((c) => c.event_category_id === event.event_category_id);
+  return {
+    color: cat?.color || "#6366f1",
+    icon: cat?.icon || "📌",
+    name: cat?.category_name || "อื่นๆ",
+  };
+}
+
+window.openBadgePopup = function (eventId) {
+  const e = allEvents.find((item) => item.event_id === eventId);
+  if (!e) return;
+
+  document.getElementById("popupPoster").innerHTML = e.poster_url
+    ? `<img src="${e.poster_url}" alt="${escapeHtmlAttr(e.event_name || "event")}">`
+    : '<img src="../../assets/images/NoPoster.png" alt="No Poster">';
+  document.getElementById("popupName").textContent = e.event_name || "—";
+  document.getElementById("popupCode").textContent = e.event_code || "";
+  document.getElementById("popupStatus").innerHTML =
+    `<span class="event-status-badge status-${e.status}">${statusLabel(e.status)}</span>`;
+  const { color: catColor, icon: catIcon, name: catName } = getCatStyle(e);
+  document.getElementById("popupType").innerHTML =
+    `<span class="event-type-badge" style="background:${catColor}22;color:${catColor};border:1px solid ${catColor}55">${catIcon} ${catName}</span>`;
+  document.getElementById("popupDate").textContent =
+    formatDate(e.event_date) +
+    (e.end_date && e.end_date !== e.event_date ? ` — ${formatDate(e.end_date)}` : "");
+  document.getElementById("popupTime").textContent =
+    e.start_time && e.end_time
+      ? `${e.start_time.slice(0, 5)} — ${e.end_time.slice(0, 5)} น.`
+      : "—";
+  document.getElementById("popupLocation").textContent = e.location || "—";
+  document.getElementById("popupDesc").textContent = e.description || "—";
+
+  // Prerequisites / conditions box
+  const prereqBox = document.getElementById("popupPrereq");
+  if (e.series_id && e.level_id && _levelMap[e.level_id]) {
+    const lv = _levelMap[e.level_id];
+    const series = _seriesMap[e.series_id];
+    let html = `<div style="font-weight:700;margin-bottom:4px">📋 เงื่อนไขการลงทะเบียน</div>`;
+    if (lv.prerequisite_level_id && _levelMap[lv.prerequisite_level_id]) {
+      const prereqLv = _levelMap[lv.prerequisite_level_id];
+      html += `<div>🔒 ต้องผ่าน: <b>${prereqLv.level_name}</b> (${series?.name || ''})</div>`;
+    } else {
+      html += `<div>🟢 ไม่มีเงื่อนไข prerequisite</div>`;
+    }
+    if (lv.description) html += `<div style="margin-top:4px">📝 ${lv.description}</div>`;
+    prereqBox.innerHTML = html;
+    prereqBox.style.display = "block";
+  } else {
+    prereqBox.style.display = "none";
+  }
+
+  // Message button
+  const msgBtn = document.getElementById("popupBtnMsg");
+  const unread = getEvChatUnread(e.event_id);
+  const totalMsgs = _evChatCountCache[e.event_id]?.total || 0;
+  msgBtn.innerHTML = unread > 0
+    ? `💬 Message <span style="background:#ef4444;color:#fff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:999px;margin-left:4px">${unread}</span>`
+    : totalMsgs > 0
+      ? `💬 Message <span style="background:#e2e8f0;color:#64748b;font-size:10px;font-weight:700;padding:1px 6px;border-radius:999px;margin-left:4px">${totalMsgs}</span>`
+      : `💬 Message`;
+  msgBtn.onclick = () => openPopupChat(e.event_id, e.event_name);
+
+  // Edit button
+  document.getElementById("popupBtnEdit").onclick = () => {
+    window.location.href = `./event-form.html?id=${e.event_id}`;
+  };
+
+  document.getElementById("evPopupOverlay").style.display = "flex";
+  document.body.style.overflow = "hidden";
+
+  // auto-open chat if there are messages
+  if (totalMsgs > 0) {
+    openPopupChat(e.event_id, e.event_name);
+  }
+};
+
+window.closeBadgePopup = function () {
+  closePopupChatInner();
+  const popup = document.querySelector("#evPopupOverlay .ev-popup");
+  if (popup) popup.classList.remove("chat-open");
+  document.getElementById("evPopupOverlay").style.display = "none";
+  document.body.style.overflow = "";
+};
+
+function openPopupChat(eventId, eventName) {
+  _popupChatEventId = eventId;
+  _popupChatSig = "";
+  document.getElementById("popupChatEvName").textContent = eventName || "—";
+  document.querySelector("#evPopupOverlay .ev-popup").classList.add("chat-open");
+  const senderEl = document.getElementById("popupChatSender");
+  if (senderEl) senderEl.textContent = getPanelSenderName();
+  loadPopupChat();
+  _popupChatPoll = setInterval(() => loadPopupChat(true), 5000);
+}
+
+function closePopupChatInner() {
+  document.querySelector("#evPopupOverlay .ev-popup")?.classList.remove("chat-open");
+  clearInterval(_popupChatPoll);
+  _popupChatEventId = null;
+}
+window.closePopupChat = closePopupChatInner;
+
+async function loadPopupChat(silent = false) {
+  if (!_popupChatEventId) return;
+  const { url, key } = getSBLocal();
+  if (!url || !key) return;
+  const log = document.getElementById("popupChatLog");
+  if (!silent) log.innerHTML = `<p style="text-align:center;font-size:12px;color:#94a3b8;font-style:italic">กำลังโหลด...</p>`;
+  try {
+    const res = await fetch(
+      `${url}/rest/v1/event_chat_logs?event_id=eq.${_popupChatEventId}&order=created_at.asc`,
+      { headers: { apikey: key, Authorization: `Bearer ${key}` } }
+    );
+    const logs = await res.json();
+    const sig = (logs || []).map((l) => l.created_at).join("|");
+    if (silent && sig === _popupChatSig) return;
+    _popupChatSig = sig;
+    const wasAtBottom = log.scrollHeight - log.scrollTop <= log.clientHeight + 8;
+    if (!logs || !logs.length) {
+      log.innerHTML = `<p style="text-align:center;font-size:12px;color:#94a3b8;font-style:italic;margin-top:16px">ยังไม่มีข้อความ</p>`;
+      return;
+    }
+    const senderName = getPanelSenderName();
+    log.innerHTML = logs.map((l) => {
+      const author = l.created_by_name || "ระบบ";
+      const isRight = author === senderName;
+      const time = (l.created_at || "").slice(0, 16).replace("T", " ");
+      let bg, border, textColor;
+      if (isRight) { bg = "#ede9fe"; border = "#c4b5fd"; textColor = "#4c1d95"; }
+      else { bg = "#fffbeb"; border = "#fcd34d"; textColor = "#92400e"; }
+      const br = isRight ? "14px 4px 14px 14px" : "4px 14px 14px 14px";
+      return `<div style="display:flex;flex-direction:column;max-width:82%;align-self:${isRight ? "flex-end" : "flex-start"};align-items:${isRight ? "flex-end" : "flex-start"}">
+        <div style="font-size:10px;font-weight:700;color:#94a3b8;margin-bottom:3px">${escapeHtml(author)}</div>
+        <div style="background:${bg};border:1.5px solid ${border};border-radius:${br};padding:8px 12px;font-size:13px;line-height:1.5;color:${textColor};word-break:break-word">${escapeHtml(l.message || "")}</div>
+        <div style="font-size:10px;color:#94a3b8;margin-top:3px">${time}</div>
+      </div>`;
+    }).join("");
+    markEvChatRead(_popupChatEventId, logs);
+    if (!silent || wasAtBottom) log.scrollTop = log.scrollHeight;
+  } catch {
+    if (!silent) log.innerHTML = `<p style="text-align:center;color:#ef4444;font-size:12px">โหลดไม่ได้</p>`;
+  }
+}
+
+window.submitPopupChat = async function () {
+  const input = document.getElementById("popupChatInput");
+  const message = (input.value || "").trim();
+  if (!message || !_popupChatEventId) return;
+  const { url, key } = getSBLocal();
+  const btn = document.getElementById("popupChatBtn");
+  btn.disabled = true;
+  try {
+    await fetch(`${url}/rest/v1/event_chat_logs`, {
+      method: "POST",
+      headers: {
+        apikey: key, Authorization: `Bearer ${key}`,
+        "Content-Type": "application/json", Prefer: "return=minimal",
+      },
+      body: JSON.stringify({ event_id: _popupChatEventId, message, created_by_name: getPanelSenderName() }),
+    });
+    input.value = "";
+    await loadPopupChat();
+  } catch {}
+  btn.disabled = false;
+};
+
+// ESC key to close popup
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && document.getElementById("evPopupOverlay").style.display === "flex") {
+    window.closeBadgePopup();
+  }
+});
 
 if (document.readyState === "loading") {
   document.addEventListener("DOMContentLoaded", initPage);

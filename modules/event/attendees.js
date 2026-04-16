@@ -630,18 +630,21 @@ async function checkPrerequisite(memberCode) {
       passed = matchEvents.length > 0;
     }
 
+    // Also get current level's note/requirements
+    const levelNote = level.description ? `<div style="margin-top:6px;padding:4px 8px;background:var(--surface2);border-radius:4px;font-size:11px;color:var(--text2)">📋 ${level.description}</div>` : '';
+
     if (passed) {
       warn.style.display = "block";
       warn.style.background = "#d1fae5";
       warn.style.borderColor = "#6ee7b7";
       warn.style.color = "#065f46";
-      warn.innerHTML = `✅ ผ่านแล้ว — เคย check-in <b>${prereqLevel.level_name}</b> แล้ว`;
+      warn.innerHTML = `✅ ผ่านแล้ว — เคย check-in <b>${prereqLevel.level_name}</b> แล้ว${levelNote}`;
     } else {
       warn.style.display = "block";
       warn.style.background = "#fef2f2";
       warn.style.borderColor = "#fecaca";
       warn.style.color = "#991b1b";
-      warn.innerHTML = `⚠️ <b>ยังไม่ผ่าน prerequisite</b> — ต้องเรียน <b>${prereqLevel.level_name}</b> ก่อน (ลงทะเบียนได้แต่ยังไม่ครบเงื่อนไข)`;
+      warn.innerHTML = `⚠️ <b>ยังไม่ผ่าน prerequisite</b> — ต้องเรียน <b>${prereqLevel.level_name}</b> ก่อน${levelNote}`;
     }
   } catch (e) {
     console.warn('checkPrerequisite:', e);

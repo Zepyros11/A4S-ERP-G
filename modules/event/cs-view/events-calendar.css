@@ -624,6 +624,12 @@ body {
   border-radius: 999px;
   line-height: 1;
 }
+/* read badge — white/muted style */
+.cal-unread-badge.cal-read-badge {
+  background: rgba(255,255,255,0.85);
+  color: #64748b;
+  font-weight: 700;
+}
 @keyframes calBadgePing {
   0%   { box-shadow: 0 0 0 0 rgba(249,115,22,0.7), 0 0 0 0 rgba(249,115,22,0.4); }
   50%  { box-shadow: 0 0 0 8px rgba(249,115,22,0), 0 0 0 16px rgba(249,115,22,0); }

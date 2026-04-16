@@ -48,8 +48,11 @@ function _buildFilterQuery() {
     } else if (mode === 'full_name') {
       // ชื่อ — ค้นทั้ง full_name + member_name
       parts.push(`or=(full_name.ilike.${like},member_name.ilike.${like})`);
+    } else if (mode === 'member_code') {
+      // รหัสสมาชิก — exact match
+      parts.push(`member_code=eq.${encodeURIComponent(esc)}`);
     } else {
-      // Specific field — member_code / sponsor_code / upline_code / phone / email
+      // Specific field — sponsor_code / upline_code / phone / email
       parts.push(`${mode}=ilike.${like}`);
     }
   }
