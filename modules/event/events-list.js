@@ -13,6 +13,37 @@ import {
 let allEvents = [];
 let allUsers = [];
 let eventCategories = [];
+let _seriesMap = {};
+let _levelMap = {};
+
+async function _loadSeriesBadges() {
+  try {
+    const { url, key } = getSBLocal();
+    if (!url) return;
+    const h = { apikey: key, Authorization: `Bearer ${key}` };
+    const [sRes, lRes] = await Promise.all([
+      fetch(`${url}/rest/v1/course_series?select=id,name,icon,color`, { headers: h }),
+      fetch(`${url}/rest/v1/course_levels?select=id,series_id,level_name,level_order`, { headers: h }),
+    ]);
+    const series = sRes.ok ? await sRes.json() : [];
+    const levels = lRes.ok ? await lRes.json() : [];
+    _seriesMap = Object.fromEntries(series.map(s => [s.id, s]));
+    _levelMap = Object.fromEntries(levels.map(l => [l.id, l]));
+
+    for (const e of allEvents) {
+      if (e.series_id && _seriesMap[e.series_id]) {
+        const s = _seriesMap[e.series_id];
+        const lv = e.level_id ? _levelMap[e.level_id] : null;
+        const lvText = lv ? ` · Lv.${lv.level_order} ${lv.level_name}` : '';
+        e._seriesBadge = ` <span style="display:inline-block;padding:1px 7px;border-radius:4px;font-size:10px;font-weight:600;background:${s.color}18;color:${s.color};margin-left:4px">${s.icon||'📚'} ${s.name}${lvText}</span>`;
+      } else {
+        e._seriesBadge = '';
+      }
+    }
+  } catch (e) {
+    console.warn('_loadSeriesBadges:', e.message);
+  }
+}
 let sortKey = "event_date";
 let sortAsc = false;
 let activeDateRange = "month";
@@ -274,6 +305,7 @@ async function loadData() {
     allEvents = evts || [];
     allUsers = usrs || [];
     eventCategories = cats || [];
+    await _loadSeriesBadges();
     updatePanelTypeOptions();
     updatePanelAssigneeOptions();
     await autoUpdateStatuses();
@@ -540,7 +572,7 @@ function renderTable(events) {
       </td>
       <td>
         <div class="event-name">${escapeHtml(e.event_name || "—")}${unreadBadge}</div>
-        <div class="event-code">${escapeHtml(e.event_code || "—")}</div>
+        <div class="event-code">${escapeHtml(e.event_code || "—")}${e._seriesBadge || ''}</div>
       </td>
       <td>${escapeHtml(e.location || "—")}</td>
       <td>

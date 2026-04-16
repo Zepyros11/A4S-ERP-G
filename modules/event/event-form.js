@@ -45,7 +45,7 @@ async function initPage() {
   fpEventDate = flatpickr("#fEventDate", fpOpts);
   fpEndDate = flatpickr("#fEndDate", fpOpts);
 
-  await Promise.all([loadUsers(), loadEventCategories(), loadPlaces()]);
+  await Promise.all([loadUsers(), loadEventCategories(), loadPlaces(), loadCourseSeries()]);
 
   if (editId) {
     document.getElementById("pageTitle").textContent = "✏️ แก้ไขกิจกรรม";
@@ -259,7 +259,47 @@ async function loadEventCategories() {
   }
 }
 
-// ── LOAD EVENT DATA (กรณีแก้ไข) ───────────────────────────
+// ── LOAD COURSE SERIES + LEVELS ────────────────────────────
+let _allSeries = [];
+let _allLevels = {};  // seriesId → [levels]
+
+async function loadCourseSeries() {
+  try {
+    const { url, key } = getSB();
+    const [sRes, lRes] = await Promise.all([
+      fetch(`${url}/rest/v1/course_series?select=*&order=name.asc`, { headers: { apikey: key, Authorization: `Bearer ${key}` } }),
+      fetch(`${url}/rest/v1/course_levels?select=*&order=series_id,level_order.asc`, { headers: { apikey: key, Authorization: `Bearer ${key}` } }),
+    ]);
+    _allSeries = sRes.ok ? await sRes.json() : [];
+    const levels = lRes.ok ? await lRes.json() : [];
+    _allLevels = {};
+    for (const lv of levels) {
+      if (!_allLevels[lv.series_id]) _allLevels[lv.series_id] = [];
+      _allLevels[lv.series_id].push(lv);
+    }
+    const sel = document.getElementById('fSeries');
+    sel.innerHTML = '<option value="">— ไม่ผูกหลักสูตร —</option>' +
+      _allSeries.map(s => `<option value="${s.id}">${s.icon || '📚'} ${s.name}</option>`).join('');
+  } catch (e) {
+    console.warn('loadCourseSeries:', e.message);
+  }
+}
+
+window.onSeriesChange = function () {
+  const seriesId = document.getElementById('fSeries').value;
+  const sel = document.getElementById('fLevel');
+  if (!seriesId) {
+    sel.innerHTML = '<option value="">— เลือก Series ก่อน —</option>';
+    sel.disabled = true;
+    return;
+  }
+  const levels = _allLevels[seriesId] || [];
+  sel.innerHTML = '<option value="">— เลือก Level —</option>' +
+    levels.map(lv => `<option value="${lv.id}">Lv.${lv.level_order}: ${lv.level_name}</option>`).join('');
+  sel.disabled = false;
+};
+
+// ── LOAD EVENT DATA (กรณีแก้ไข) ────────────────────────────
 async function loadEventData() {
   showLoading(true);
   try {
@@ -286,6 +326,13 @@ async function loadEventData() {
     document.getElementById("fAssignedTo").value = e.assigned_to || "";
     document.getElementById("fStatus").value = e.status || "DRAFT";
     document.getElementById("fDescription").value = e.description || "";
+
+    // Series + Level
+    if (e.series_id) {
+      document.getElementById('fSeries').value = e.series_id;
+      onSeriesChange();
+      if (e.level_id) document.getElementById('fLevel').value = e.level_id;
+    }
 
     // โหลดรูปภาพ — รองรับทั้ง image_urls (array) และ poster_url เดิม
     const imgUrls = Array.isArray(e.image_urls) && e.image_urls.length
@@ -377,6 +424,8 @@ window._saveEventImpl = async function () {
         parseInt(document.getElementById("fAssignedTo").value) || null,
       status: document.getElementById("fStatus").value,
       description: document.getElementById("fDescription").value.trim() || null,
+      series_id: document.getElementById("fSeries").value || null,
+      level_id: document.getElementById("fLevel").value || null,
     };
 
     let savedId = editId;
