@@ -187,6 +187,18 @@ window.AppPermissions = (() => {
         ]},
       ],
     },
+
+    /* ── Dev Tool ── */
+    {
+      key: "devtool", label: "Dev Tool", icon: "🛠️",
+      children: [
+        { key: "devtool_automation", label: "Web Automation", icon: "🤖", perms: [
+          { key: "devtool_view",    label: "ดู" },
+          { key: "devtool_manage",  label: "จัดการ Task" },
+          { key: "devtool_run",     label: "รัน Manual" },
+        ]},
+      ],
+    },
   ];
 
   /* ── Helper: flat array ── */

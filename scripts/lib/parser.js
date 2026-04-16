@@ -18,8 +18,10 @@ const HEADER_MAP = {
   'โทรศัพท์': 'phone',
   'รหัสผ่าน': '__password_plain',
   'บัตรประชาชน': '__national_id_plain',
+  'เลขบัตรประชาชน': '__national_id_plain',
   'ชื่อผู้สมัครร่วม': 'co_applicant_name',
   'ประชาชน': 'co_applicant_id',
+  'เลขบัตรประชาชนผู้สมัครร่วม': 'co_applicant_id',
   'Package': 'package',
   'ตำแหน่ง': 'position',
   'ตำแหน่ง สูงสุด': 'position_level',
@@ -33,6 +35,7 @@ const HEADER_MAP = {
   'ประเภทสมาชิก': 'member_type',
   'ประเภทบุคคล': 'person_type',
   'เข้ากระเป๋า': 'wallet_percent',
+  'เข้ากระเป๋า A': 'wallet_percent',
   'ช่องทางสมัคร': 'channel',
   'สัญชาติ': 'nationality',
   'LB': 'country_code',
@@ -205,6 +208,21 @@ export async function parseXlsToRecords(filePath, { masterKey, sourceFile = null
 
     if (Object.keys(extra).length) rec.extra_data = extra;
     if (rec.member_code) records.push(rec);   // skip rows without primary key
+  }
+
+  // Diagnostic: count populated fields
+  const fieldCounts = {};
+  for (const r of records) {
+    for (const [k, v] of Object.entries(r)) {
+      if (v !== null && v !== undefined && v !== '') {
+        fieldCounts[k] = (fieldCounts[k] || 0) + 1;
+      }
+    }
+  }
+  console.log(`[parser] Field fill rates (${records.length} rows):`);
+  for (const [k, c] of Object.entries(fieldCounts).sort((a, b) => b[1] - a[1])) {
+    const pct = ((c / records.length) * 100).toFixed(1);
+    console.log(`  ${k}: ${c.toLocaleString()} (${pct}%)`);
   }
 
   return records;

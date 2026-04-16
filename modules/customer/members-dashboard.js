@@ -82,7 +82,7 @@ function renderDonut(company, individual) {
 function renderMissList(s) {
   const total = s.total || 1;
   const items = [
-    { icon: '📝', label: 'ขาดชื่อบุคคล (full_name)', val: s.any_missing_fullname || 0 },
+    { icon: '🏢', label: 'บริษัทขาดชื่อบุคคลธรรมดา', val: s.company_missing_fullname || 0 },
     { icon: '📞', label: 'ขาดเบอร์โทร', val: s.missing_phone || 0 },
   ];
   document.getElementById('missList').innerHTML = items.map(it => {
@@ -117,7 +117,7 @@ async function loadIssues(page = 1) {
   }
 
   const body = document.getElementById('dqBody');
-  body.innerHTML = `<tr><td colspan="7" class="dq-empty">⏳ กำลังโหลด...</td></tr>`;
+  body.innerHTML = `<tr><td colspan="6" class="dq-empty">⏳ กำลังโหลด...</td></tr>`;
 
   try {
     const res = await fetch(
@@ -137,7 +137,7 @@ async function loadIssues(page = 1) {
     document.getElementById('issueCount').textContent = totalIssueCount.toLocaleString();
 
     if (!rows.length) {
-      body.innerHTML = `<tr><td colspan="7" class="dq-empty"><div class="dq-empty-icon">✅</div>ไม่พบข้อมูลที่ตรงกับเงื่อนไข</td></tr>`;
+      body.innerHTML = `<tr><td colspan="6" class="dq-empty"><div class="dq-empty-icon">✅</div>ไม่พบข้อมูลที่ตรงกับเงื่อนไข</td></tr>`;
       renderPaginate(0);
       return;
     }
@@ -151,16 +151,12 @@ async function loadIssues(page = 1) {
         <td>${flag} ${r.country_code || ''}</td>
         <td>${r.package ? `<span class="pkg-badge pkg-${r.package}">${r.package}</span>` : '—'}</td>
         <td style="color:var(--text3);font-size:12px">${r.registered_at ? DateFmt.formatDMY(r.registered_at) : '—'}</td>
-        <td class="dq-actions">
-          <button class="dq-btn" onclick="gotoMember('${r.member_code}')">👁️ ดู</button>
-          <button class="dq-btn primary" onclick="gotoTree('${r.member_code}')">🌳 Tree</button>
-        </td>
       </tr>`;
     }).join('');
 
     renderPaginate(totalIssueCount);
   } catch (e) {
-    body.innerHTML = `<tr><td colspan="7" class="dq-empty">❌ ${escapeHtml(e.message)}</td></tr>`;
+    body.innerHTML = `<tr><td colspan="6" class="dq-empty">❌ ${escapeHtml(e.message)}</td></tr>`;
   }
 }
 

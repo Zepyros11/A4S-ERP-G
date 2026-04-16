@@ -255,6 +255,20 @@
         },
       ],
     },
+    //  **************** DEV TOOL *****************
+    {
+      group: "Dev Tool",
+      icon: "🛠️",
+      id: "g-devtool",
+      items: [
+        {
+          id: "automation",
+          icon: "🤖",
+          label: "Web Automation",
+          path: BASE_PATH + "/modules/dev-tool/automation.html",
+        },
+      ],
+    },
   ];
 
   /* ── Permission key ต่อ menu item id ── */
@@ -288,6 +302,7 @@
     "members-tree": "member_view",
     "members-import": "member_import",
     "members-sync": "member_sync_config",
+    automation: "devtool_view",
   };
 
   /* ── อ่าน effective_perms จาก session (ไม่พึ่ง AuthZ) ── */
@@ -350,6 +365,8 @@
     "members-tree",
     "members-import",
     "members-sync",
+    //**** DEV TOOL ****
+    "automation",
     // "reports",
     // "db_viewer",
   ];

@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Web Automation — A4S-ERP Dev Tool</title>
+<link rel="stylesheet" href="../../css/main.css">
+<style>
+/* ── Hero ── */
+.dt-hero{background:linear-gradient(135deg,#1e293b,#334155);color:#fff;border-radius:14px;padding:22px 26px;margin-bottom:18px;box-shadow:0 8px 24px rgba(30,41,59,.3);position:relative;overflow:hidden;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;}
+.dt-hero::before{content:'';position:absolute;top:-40px;right:-40px;width:160px;height:160px;border-radius:50%;background:rgba(255,255,255,.04);}
+.dt-hero-text h1{font-size:20px;font-weight:700;margin:0 0 4px;display:flex;align-items:center;gap:10px;}
+.dt-hero-text p{margin:0;font-size:13px;opacity:.85;line-height:1.5;}
+.dt-add-btn{padding:10px 20px;border:none;border-radius:22px;background:rgba(255,255,255,.15);color:#fff;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;backdrop-filter:blur(6px);border:1.5px solid rgba(255,255,255,.2);transition:all .15s;display:flex;align-items:center;gap:8px;flex-shrink:0;}
+.dt-add-btn:hover{background:rgba(255,255,255,.25);transform:translateY(-1px);}
+
+/* ── Task cards ── */
+.task-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:14px;}
+.task-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;transition:all .15s;}
+.task-card:hover{box-shadow:0 6px 18px rgba(0,0,0,.08);transform:translateY(-1px);}
+.task-card-head{padding:14px 16px;display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--border);}
+.task-icon{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;}
+.task-icon.web{background:#dbeafe;color:#1e40af;}
+.task-icon.api{background:#fef3c7;color:#92400e;}
+.task-icon.file{background:#d1fae5;color:#065f46;}
+.task-name{font-size:14px;font-weight:700;color:var(--text);}
+.task-url{font-size:11px;color:var(--text3);font-family:'IBM Plex Mono',monospace;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.task-status{margin-left:auto;display:flex;align-items:center;gap:5px;font-size:11px;font-weight:600;flex-shrink:0;}
+.task-status .dot{width:8px;height:8px;border-radius:50%;}
+.task-status .dot.active{background:#4ade80;box-shadow:0 0 0 3px rgba(74,222,128,.25);animation:pulse 1.8s infinite;}
+.task-status .dot.inactive{background:#94a3b8;}
+.task-status .dot.error{background:#f87171;box-shadow:0 0 0 3px rgba(248,113,113,.25);}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+.task-card-body{padding:14px 16px;}
+.task-info{display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12px;}
+.task-info dt{color:var(--text3);font-weight:600;}
+.task-info dd{color:var(--text);margin:0;font-variant-numeric:tabular-nums;}
+
+.task-card-foot{padding:10px 16px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end;}
+.task-btn{padding:6px 14px;border:1px solid var(--border);background:var(--surface);border-radius:16px;font-family:inherit;font-size:11.5px;cursor:pointer;color:var(--text2);font-weight:600;transition:all .12s;display:flex;align-items:center;gap:5px;}
+.task-btn:hover{background:var(--accent-pale);border-color:var(--accent);color:var(--accent);}
+.task-btn.run{background:linear-gradient(135deg,var(--accent),var(--accent-light));color:#fff;border-color:var(--accent);}
+.task-btn.run:hover{transform:translateY(-1px);box-shadow:0 3px 10px rgba(15,76,117,.3);}
+
+/* ── Log panel ── */
+.log-section{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px;margin-top:18px;}
+.log-title{font-size:14px;font-weight:700;color:var(--text);margin-bottom:12px;display:flex;align-items:center;gap:8px;justify-content:space-between;}
+.log-table{width:100%;border-collapse:collapse;font-size:12.5px;}
+.log-table th{padding:8px 10px;background:var(--surface2);font-size:10.5px;font-weight:700;letter-spacing:.4px;color:var(--text3);text-align:left;border-bottom:2px solid var(--border);}
+.log-table td{padding:9px 10px;border-bottom:1px solid var(--border);vertical-align:middle;}
+.log-table tr:hover td{background:var(--accent-pale);}
+.log-badge{padding:2px 8px;border-radius:10px;font-size:10.5px;font-weight:700;display:inline-flex;align-items:center;gap:4px;}
+.log-badge.success{background:#d1fae5;color:#065f46;}
+.log-badge.failed{background:#fee2e2;color:#991b1b;}
+.log-badge.running{background:#dbeafe;color:#1e40af;}
+
+/* ── Empty state ── */
+.dt-empty{text-align:center;padding:60px 20px;color:var(--text3);}
+.dt-empty-icon{font-size:56px;opacity:.3;margin-bottom:14px;}
+.dt-empty h3{font-size:16px;color:var(--text2);font-weight:600;margin:0 0 6px;}
+.dt-empty p{font-size:13px;margin:0;}
+
+/* ── Modal ── */
+.dt-modal-overlay{position:fixed;inset:0;background:rgba(15,23,42,.55);backdrop-filter:blur(3px);display:none;align-items:center;justify-content:center;z-index:9999;}
+.dt-modal-overlay.open{display:flex;}
+.dt-modal{background:#fff;border-radius:16px;max-width:560px;width:92%;box-shadow:0 20px 50px rgba(0,0,0,.25);overflow:hidden;max-height:90vh;overflow-y:auto;}
+.dt-modal-head{background:linear-gradient(135deg,#1e293b,#334155);color:#fff;padding:18px 22px;}
+.dt-modal-head h2{margin:0;font-size:16px;font-weight:700;display:flex;align-items:center;gap:8px;}
+.dt-modal-head p{margin:4px 0 0;font-size:12px;opacity:.85;}
+.dt-modal-body{padding:20px 22px;}
+.dt-field{margin-bottom:14px;}
+.dt-field label{display:block;font-size:12px;font-weight:700;color:var(--text2);margin-bottom:5px;letter-spacing:.3px;}
+.dt-field input,.dt-field select,.dt-field textarea{width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;transition:border-color .15s;}
+.dt-field input:focus,.dt-field select:focus,.dt-field textarea:focus{outline:none;border-color:var(--accent);}
+.dt-field textarea{resize:vertical;min-height:60px;}
+.dt-field .hint{font-size:11px;color:var(--text3);margin-top:4px;}
+.dt-field-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.dt-modal-foot{padding:14px 22px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:10px;}
+.dt-modal-foot button{padding:9px 20px;border-radius:20px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;border:none;}
+.dt-modal-foot .cancel{background:#e5e7eb;color:#374151;}
+.dt-modal-foot .cancel:hover{background:#d1d5db;}
+.dt-modal-foot .save{background:linear-gradient(135deg,var(--accent),var(--accent-light));color:#fff;box-shadow:0 3px 10px rgba(15,76,117,.3);}
+.dt-modal-foot .save:hover{transform:translateY(-1px);box-shadow:0 5px 14px rgba(15,76,117,.4);}
+</style>
+</head>
+<body>
+
+<div class="loading-overlay" id="loadingOverlay"><div class="spinner"></div></div>
+<div class="toast" id="toast"></div>
+
+<div class="topbar"></div>
+
+<div class="page">
+
+  <!-- Hero -->
+  <div class="dt-hero">
+    <div class="dt-hero-text">
+      <h1>🤖 Web Automation</h1>
+      <p>ตั้งค่า automation สำหรับ download file จากเว็บ · รันผ่าน GitHub Actions · ดู log/history</p>
+    </div>
+    <button class="dt-add-btn" onclick="openAddModal()">➕ เพิ่มงาน</button>
+  </div>
+
+  <!-- Task cards -->
+  <div class="task-grid" id="taskGrid">
+    <div class="dt-empty" id="emptyState">
+      <div class="dt-empty-icon">🤖</div>
+      <h3>ยังไม่มี automation task</h3>
+      <p>กด "เพิ่มงาน" เพื่อสร้าง task แรก</p>
+    </div>
+  </div>
+
+  <!-- Run history / log -->
+  <div class="log-section">
+    <div class="log-title">
+      <span>📜 ประวัติการรัน</span>
+      <button class="task-btn" onclick="loadLogs()">🔄 รีเฟรช</button>
+    </div>
+    <div style="overflow-x:auto">
+      <table class="log-table">
+        <thead>
+          <tr>
+            <th>Task</th>
+            <th>เวลาเริ่ม</th>
+            <th>Status</th>
+            <th style="text-align:right">Rows</th>
+            <th style="text-align:right">ใช้เวลา</th>
+            <th>Error</th>
+          </tr>
+        </thead>
+        <tbody id="logBody">
+          <tr><td colspan="6" style="text-align:center;padding:20px;color:var(--text3)">กำลังโหลด...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<!-- Add/Edit Task Modal -->
+<div class="dt-modal-overlay" id="taskModalOverlay" onclick="if(event.target===this)closeModal()">
+  <div class="dt-modal">
+    <div class="dt-modal-head">
+      <h2 id="modalTitle">➕ เพิ่ม Automation Task</h2>
+      <p>กำหนด URL, credentials, workflow และ schedule</p>
+    </div>
+    <div class="dt-modal-body">
+      <div class="dt-field">
+        <label>ชื่อ Task</label>
+        <input id="fName" placeholder="เช่น Sync Members, Download Report">
+      </div>
+      <div class="dt-field">
+        <label>ประเภท</label>
+        <select id="fType">
+          <option value="web_download">🌐 Web Download (Playwright)</option>
+          <option value="api_fetch">📡 API Fetch</option>
+          <option value="file_import">📁 File Import</option>
+        </select>
+      </div>
+      <div class="dt-field">
+        <label>Target URL</label>
+        <input id="fUrl" placeholder="https://example.com/report">
+      </div>
+      <div class="dt-field-row">
+        <div class="dt-field">
+          <label>Username (encrypted)</label>
+          <input id="fUser" type="text" placeholder="login username">
+        </div>
+        <div class="dt-field">
+          <label>Password (encrypted)</label>
+          <input id="fPass" type="password" placeholder="login password">
+        </div>
+      </div>
+      <div class="dt-field">
+        <label>GitHub Workflow</label>
+        <input id="fWorkflow" placeholder="sync-members.yml">
+        <div class="hint">ชื่อไฟล์ .yml ใน .github/workflows/</div>
+      </div>
+      <div class="dt-field-row">
+        <div class="dt-field">
+          <label>Schedule</label>
+          <select id="fSchedule">
+            <option value="manual">🖐️ Manual only</option>
+            <option value="1h">ทุก 1 ชม.</option>
+            <option value="6h">ทุก 6 ชม.</option>
+            <option value="24h" selected>ทุกวัน</option>
+            <option value="weekly">ทุกสัปดาห์</option>
+          </select>
+        </div>
+        <div class="dt-field">
+          <label>Status</label>
+          <select id="fStatus">
+            <option value="active">🟢 Active</option>
+            <option value="inactive">⚪ Inactive</option>
+          </select>
+        </div>
+      </div>
+      <div class="dt-field">
+        <label>หมายเหตุ</label>
+        <textarea id="fNotes" placeholder="รายละเอียดเพิ่มเติม (optional)"></textarea>
+      </div>
+    </div>
+    <div class="dt-modal-foot">
+      <button class="cancel" onclick="closeModal()">ยกเลิก</button>
+      <button class="save" id="btnSaveTask" onclick="saveTask()">💾 บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<script src="../../js/core/auth.js"></script>
+<script src="../../js/core/authz.js"></script>
+<script src="../../js/core/crypto.js"></script>
+<script src="../../js/core/date-format.js"></script>
+<script>AuthZ.requirePerm("devtool_view");</script>
+<script src="./automation.js"></script>
+<script type="module">
+  import { loadTopbar } from "../../js/components/navigation/topbar.js";
+  loadTopbar("🤖 Web Automation");
+</script>
+<script src="../../js/components/navigation/sidebar.js"></script>
+</body>
+</html>

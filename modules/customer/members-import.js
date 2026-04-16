@@ -22,8 +22,10 @@ const HEADER_MAP = {
   'โทรศัพท์': 'phone',
   'รหัสผ่าน': '__password_plain',       // ⚠️ will be encrypted
   'บัตรประชาชน': '__national_id_plain',  // ⚠️ will be encrypted
+  'เลขบัตรประชาชน': '__national_id_plain',
   'ชื่อผู้สมัครร่วม': 'co_applicant_name',
   'ประชาชน': 'co_applicant_id',
+  'เลขบัตรประชาชนผู้สมัครร่วม': 'co_applicant_id',
   'Package': 'package',
   'ตำแหน่ง': 'position',
   'ตำแหน่ง สูงสุด': 'position_level',
@@ -37,6 +39,7 @@ const HEADER_MAP = {
   'ประเภทสมาชิก': 'member_type',
   'ประเภทบุคคล': 'person_type',
   'เข้ากระเป๋า': 'wallet_percent',
+  'เข้ากระเป๋า A': 'wallet_percent',
   'ช่องทางสมัคร': 'channel',
   'สัญชาติ': 'nationality',
   'LB': 'country_code',
