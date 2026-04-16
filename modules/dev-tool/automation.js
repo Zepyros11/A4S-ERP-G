@@ -209,7 +209,7 @@ async function runTask(id) {
     const res = await fetch(ghUrl, {
       method: 'POST',
       headers: { Accept: 'application/vnd.github+json', Authorization: `Bearer ${pat}`, 'X-GitHub-Api-Version': '2022-11-28', 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ref: _ghConfig.github_branch || 'main', inputs: { force: 'true' } }),
+      body: JSON.stringify({ ref: _ghConfig.github_branch || 'main', inputs: { force: 'true', include_legacy: 'true' } }),
     });
     if (res.status === 204) {
       await sb(`automation_tasks?id=eq.${id}`, { method: 'PATCH', body: { last_run_at: new Date().toISOString() } });

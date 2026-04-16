@@ -15,6 +15,10 @@ on:
         description: 'Test LINE notify only (no sync)'
         type: boolean
         default: false
+      include_legacy:
+        description: 'Include legacy data (2015-2020)'
+        type: boolean
+        default: false
 
 concurrency:
   group: sync-members
@@ -51,6 +55,7 @@ jobs:
           MASTER_KEY: ${{ secrets.MASTER_KEY }}
           FORCE: ${{ inputs.force }}
           TEST_LINE: ${{ inputs.test_line }}
+          INCLUDE_LEGACY: ${{ inputs.include_legacy }}
         run: npm run sync
 
       - name: 📸 Upload debug screenshots (on failure)
