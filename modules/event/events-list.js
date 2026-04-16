@@ -1065,20 +1065,30 @@ window.openBadgePopup = function (eventId) {
   document.getElementById("popupLocation").textContent = e.location || "—";
   document.getElementById("popupDesc").textContent = e.description || "—";
 
-  // Prerequisites / conditions box
+  // Prerequisites accordion badge
   const prereqBox = document.getElementById("popupPrereq");
   if (e.series_id && e.level_id && _levelMap[e.level_id]) {
     const lv = _levelMap[e.level_id];
     const series = _seriesMap[e.series_id];
-    let html = `<div style="font-weight:700;margin-bottom:4px">📋 เงื่อนไขการลงทะเบียน</div>`;
+    const color = series?.color || '#3b82f6';
+    const icon = (series?.icon && !series.icon.includes(':')) ? series.icon : '📚';
+
+    let detailHtml = '';
     if (lv.prerequisite_level_id && _levelMap[lv.prerequisite_level_id]) {
       const prereqLv = _levelMap[lv.prerequisite_level_id];
-      html += `<div>🔒 ต้องผ่าน: <b>${prereqLv.level_name}</b> (${series?.name || ''})</div>`;
-    } else {
-      html += `<div>🟢 ไม่มีเงื่อนไข prerequisite</div>`;
+      detailHtml += `<div style="padding:4px 0">🔒 ต้องผ่าน: <b>${prereqLv.level_name}</b></div>`;
     }
-    if (lv.description) html += `<div style="margin-top:4px">📝 ${lv.description}</div>`;
-    prereqBox.innerHTML = html;
+    if (lv.description) detailHtml += `<div style="padding:4px 0">📝 ${lv.description}</div>`;
+    if (!detailHtml) detailHtml = '<div style="padding:4px 0;color:#64748b">🟢 ไม่มีเงื่อนไขเพิ่มเติม</div>';
+
+    prereqBox.innerHTML = `
+      <div onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none';this.querySelector('.arr').textContent=this.nextElementSibling.style.display==='none'?'▾':'▴'"
+        style="display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:6px;background:${color}12;border:1px solid ${color}30;cursor:pointer;font-size:11.5px;font-weight:600;color:${color};transition:all .12s;user-select:none">
+        ${icon} ${series?.name || ''} · Lv.${lv.level_order} ${lv.level_name} <span class="arr" style="font-size:10px;margin-left:2px">▾</span>
+      </div>
+      <div style="display:none;margin-top:6px;padding:8px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;font-size:11.5px;line-height:1.7;color:#334155">
+        ${detailHtml}
+      </div>`;
     prereqBox.style.display = "block";
   } else {
     prereqBox.style.display = "none";
