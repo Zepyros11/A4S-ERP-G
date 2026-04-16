@@ -28,16 +28,18 @@ const LOCAL = process.env.LOCAL_TEST === '1';
 const TEST_LINE = process.env.TEST_LINE === 'true' || process.env.TEST_LINE === '1';
 const FORCE = process.env.FORCE === 'true' || process.env.FORCE === '1';
 
-/* ── Date ranges — auto-split into 5-year buckets ──
+/* ── Date ranges — auto-split into 3-year buckets ──
    Default: skip legacy 2015-2020 bucket (data static, already imported).
    Set env INCLUDE_LEGACY=1 to re-import legacy (e.g. on first setup).
 
    Examples (default, no legacy):
-     2026: [2021-2025, 2026-now]
-     2030: [2021-2025, 2026-now]
-     2031: [2021-2025, 2026-2030, 2031-now]
+     2026: [2021-2023, 2024-now]
+     2028: [2021-2023, 2024-2026, 2027-now]
+   With legacy:
+     2026: [2015-2017, 2018-2020, 2021-2023, 2024-now]
 */
 const INCLUDE_LEGACY = process.env.INCLUDE_LEGACY === '1' || process.env.INCLUDE_LEGACY === 'true';
+const BUCKET_YEARS = 3;
 
 function buildDateRanges() {
   const today = new Date();
@@ -45,15 +47,11 @@ function buildDateRanges() {
   const currentYear = today.getFullYear();
   const ranges = [];
 
-  // Legacy bucket: 2015-2020 — opt-in only (large file, slow server-side)
-  if (INCLUDE_LEGACY) {
-    ranges.push({ label: '2015-2020', from: '2015-01-01', to: '2020-12-31' });
-  }
+  const startYear = INCLUDE_LEGACY ? 2015 : 2021;
 
-  // 5-year buckets from 2021 onwards
-  let start = 2021;
+  let start = startYear;
   while (start <= currentYear) {
-    const end = Math.min(start + 4, currentYear);
+    const end = Math.min(start + BUCKET_YEARS - 1, currentYear);
     const isCurrent = end === currentYear;
     ranges.push({
       label: isCurrent ? `${start}-now` : `${start}-${end}`,
