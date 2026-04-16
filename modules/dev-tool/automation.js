@@ -81,6 +81,7 @@ function renderTasks() {
       <div class="task-card-foot">
         <button class="task-btn" onclick="editTask('${t.id}')">✏️ แก้ไข</button>
         <button class="task-btn" onclick="deleteTask('${t.id}','${escapeHtml(t.name)}')">🗑️</button>
+        <a class="task-btn" href="./wizard.html?task=${t.id}" style="text-decoration:none">🧙 Steps</a>
         ${t.config_url ? `<a class="task-btn" href="${escapeHtml(t.config_url)}" style="text-decoration:none">⚙️ Detail</a>` : ''}
         ${_spPolling && _spTaskId === t.id ? `<button class="task-btn" onclick="reopenProgress()" style="background:var(--accent-pale);color:var(--accent);border-color:var(--accent)">📡 ดูความคืบหน้า</button>` : ''}
         <button class="task-btn run" onclick="runTask('${t.id}')">▶️ Run</button>
@@ -208,7 +209,7 @@ async function runTask(id) {
     const res = await fetch(ghUrl, {
       method: 'POST',
       headers: { Accept: 'application/vnd.github+json', Authorization: `Bearer ${pat}`, 'X-GitHub-Api-Version': '2022-11-28', 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ref: _ghConfig.github_branch || 'main' }),
+      body: JSON.stringify({ ref: _ghConfig.github_branch || 'main', inputs: { force: 'true' } }),
     });
     if (res.status === 204) {
       await sb(`automation_tasks?id=eq.${id}`, { method: 'PATCH', body: { last_run_at: new Date().toISOString() } });
@@ -319,6 +320,17 @@ async function trackSyncProgress(pat, startedAt, taskName) {
             document.getElementById('spClose').className = `sp-close ${ok ? 'success' : 'danger'}`;
             _spLog(ok ? '✅ Completed' : `❌ ${run.conclusion}`, ok ? 'ok' : 'err');
             showToast(ok ? '✅ สำเร็จ' : `❌ ${run.conclusion}`, ok ? 'success' : 'error');
+            // Update last_row_count from sync_log → automation_tasks
+            if (_spTaskId) {
+              try {
+                const logs = await sb('sync_log?order=started_at.desc&limit=1');
+                if (logs?.[0]) {
+                  const patch = { last_row_count: logs[0].rows_total || 0 };
+                  if (logs[0].error_message) patch.status = 'error';
+                  await sb(`automation_tasks?id=eq.${_spTaskId}`, { method: 'PATCH', body: patch });
+                }
+              } catch (e) { console.warn('update last_row_count:', e.message); }
+            }
             _spTaskId = null;
             loadLogs(); loadTasks();
             return;

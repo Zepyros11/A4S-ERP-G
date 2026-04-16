@@ -261,6 +261,12 @@
           path: BASE_PATH + "/modules/dev-tool/automation.html",
         },
         {
+          id: "wizard",
+          icon: "🧙",
+          label: "Step Wizard",
+          path: BASE_PATH + "/modules/dev-tool/wizard.html",
+        },
+        {
           id: "devtool-settings",
           icon: "⚙️",
           label: "ตั้งค่า Automation",
@@ -302,6 +308,7 @@
     "members-import": "member_import",
     "members-sync": "member_sync_config",
     automation: "devtool_view",
+    wizard: "devtool_manage",
     "devtool-settings": "devtool_manage",
   };
 
@@ -367,6 +374,7 @@
     "members-sync",
     //**** DEV TOOL ****
     "automation",
+    "wizard",
     "devtool-settings",
     // "reports",
     // "db_viewer",
