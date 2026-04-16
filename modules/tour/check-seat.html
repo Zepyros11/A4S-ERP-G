@@ -1617,6 +1617,7 @@ function rowToRecord(row) {
     code:               row.code || null,
     name:               row.name || null,
     pin:                row.pin  || null,
+    port:               row.port || null,
     group_name:         row.group || null,
     flight:             row.flight || null,
     departure_datetime: row.departureDateTime || null,
@@ -1631,6 +1632,8 @@ function rowToRecord(row) {
     visa_image_url:     (row.visaImg && !row.visaImg.startsWith('data:')) ? row.visaImg : null,
     tel:                row.tel   || null,
     tshirt_size:        row.shirt || null,
+    highlighted:        row.highlighted || false,
+    waive:              row.waive || false,
     is_sub_row:         row.isSubRow,
     parent_code:        parentRow ? parentRow.code : null,
   };
@@ -1642,13 +1645,14 @@ function recordToRow(r, idMap) {
   const parentId = r.parent_code ? (idMap[r.parent_code] || null) : null;
   return makeRow({
     id, code: r.code || '', name: r.name || '', pin: r.pin || '',
-    group: r.group_name || '', flight: r.flight || '',
+    port: r.port || '', group: r.group_name || '', flight: r.flight || '',
     departureDateTime: r.departure_datetime || '', arrivalDateTime: r.arrival_datetime || '',
     comeback: r.comeback || '', comebackDateTime: r.comeback_datetime || '',
     seat: r.seat ?? '', nationality: r.nationality || '', passImg: r.passport_image_url || null,
     passId: r.passport_id || '', passExp: r.passport_exp_date || '',
     visaImg: r.visa_image_url || null, tel: r.tel || '',
-    shirt: r.tshirt_size || '', isSubRow: r.is_sub_row || false,
+    shirt: r.tshirt_size || '', highlighted: r.highlighted || false,
+    waive: r.waive || false, isSubRow: r.is_sub_row || false,
     parentId,
   });
 }
