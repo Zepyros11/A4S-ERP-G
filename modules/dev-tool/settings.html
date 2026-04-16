@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ตั้งค่า Automation — A4S-ERP Dev Tool</title>
+<link rel="stylesheet" href="../../css/main.css">
+<style>
+/* ── Hero ── */
+.st-hero{background:linear-gradient(135deg,#1e293b,#334155);color:#fff;border-radius:14px;padding:22px 26px;margin-bottom:18px;box-shadow:0 8px 24px rgba(30,41,59,.3);position:relative;overflow:hidden;}
+.st-hero::before{content:'';position:absolute;top:-40px;right:-40px;width:160px;height:160px;border-radius:50%;background:rgba(255,255,255,.04);}
+.st-hero h1{font-size:20px;font-weight:700;margin:0 0 4px;display:flex;align-items:center;gap:10px;position:relative;z-index:1;}
+.st-hero p{margin:0;font-size:13px;opacity:.85;line-height:1.5;position:relative;z-index:1;}
+
+/* ── Section cards (reuse sync-section pattern) ── */
+.st-section{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:22px 24px;margin-bottom:14px;}
+.st-section-title{font-size:14px;font-weight:700;color:var(--text);margin-bottom:4px;display:flex;align-items:center;gap:8px;}
+.st-section-desc{font-size:12.5px;color:var(--text3);margin-bottom:16px;line-height:1.6;}
+
+/* ── Form rows ── */
+.cred-row{margin-bottom:14px;}
+.cred-label{font-size:12.5px;font-weight:600;color:var(--text2);margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;}
+.cred-input{width:100%;padding:11px 14px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;transition:border-color .15s;background:var(--surface);}
+.cred-input:focus{outline:none;border-color:var(--accent);}
+.cred-input-wrap{position:relative;}
+.cred-input-wrap input{padding-right:42px;}
+.cred-eye{position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:16px;opacity:.5;transition:opacity .15s;}
+.cred-eye:hover{opacity:1;}
+
+/* ── PAT expiry ── */
+.pat-badge{display:inline-flex;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:700;gap:5px;align-items:center;}
+.pat-badge.ok{background:var(--success-pale);color:var(--success);}
+.pat-badge.warn{background:var(--warning-pale);color:var(--warning);}
+.pat-badge.expired{background:var(--danger-pale);color:var(--danger);}
+.exp-quick{padding:6px 10px;border:1px solid var(--border);border-radius:6px;background:var(--surface);font-family:inherit;font-size:11.5px;font-weight:600;color:var(--text2);cursor:pointer;transition:all .15s;}
+.exp-quick:hover{background:var(--accent-pale);border-color:var(--accent);color:var(--accent);}
+
+/* ── Status indicator ── */
+.config-status{display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:8px;font-size:12.5px;font-weight:600;margin-bottom:16px;}
+.config-status.ok{background:#d1fae5;color:#065f46;}
+.config-status.warn{background:#fef3c7;color:#92400e;}
+.config-status.none{background:var(--surface2);color:var(--text3);}
+
+/* ── Custom Confirm Modal ── */
+.ui-confirm-overlay{position:fixed;inset:0;background:rgba(15,23,42,.55);backdrop-filter:blur(3px);display:none;align-items:center;justify-content:center;z-index:9999;opacity:0;transition:opacity .2s ease;}
+.ui-confirm-overlay.show{display:flex;opacity:1;}
+.ui-confirm{background:#fff;border-radius:16px;max-width:440px;width:92%;box-shadow:0 20px 50px rgba(0,0,0,.25);overflow:hidden;transform:scale(.94) translateY(8px);transition:transform .2s cubic-bezier(.34,1.56,.64,1);}
+.ui-confirm-overlay.show .ui-confirm{transform:scale(1) translateY(0);}
+.ui-confirm-hero{background:linear-gradient(135deg,var(--accent),var(--accent-light));padding:26px 28px 22px;color:#fff;text-align:center;position:relative;overflow:hidden;}
+.ui-confirm-icon{font-size:38px;margin-bottom:8px;position:relative;z-index:1;display:inline-block;}
+.ui-confirm-title{font-size:18px;font-weight:700;position:relative;z-index:1;}
+.ui-confirm-body{padding:22px 26px 6px;}
+.ui-confirm-message{font-size:13.5px;color:var(--text);line-height:1.7;white-space:pre-line;}
+.ui-confirm-note{margin-top:12px;padding:10px 14px;background:var(--accent-pale);border-left:3px solid var(--accent);border-radius:6px;font-size:12px;color:var(--text2);line-height:1.6;}
+.ui-confirm-actions{display:flex;gap:10px;padding:18px 26px 22px;justify-content:flex-end;}
+.ui-confirm-btn{padding:10px 22px;border-radius:22px;border:none;font-family:inherit;font-size:13.5px;font-weight:600;cursor:pointer;transition:all .15s;}
+.ui-confirm-btn.cancel{background:#e5e7eb;color:#374151;}
+.ui-confirm-btn.ok{background:linear-gradient(135deg,var(--accent),var(--accent-light));color:#fff;box-shadow:0 3px 10px rgba(15,76,117,.3);}
+</style>
+</head>
+<body>
+
+<div class="loading-overlay" id="loadingOverlay"><div class="spinner"></div></div>
+<div class="toast" id="toast"></div>
+
+<div class="topbar"></div>
+
+<div class="page">
+
+  <!-- Hero -->
+  <div class="st-hero">
+    <h1>⚙️ ตั้งค่า Automation</h1>
+    <p>Config ที่ใช้ร่วมกันทุก automation task — GitHub Actions + LINE Notify</p>
+  </div>
+
+  <!-- ── GitHub Integration ── -->
+  <div class="st-section">
+    <div class="st-section-title">🐙 GitHub Actions Integration</div>
+    <div class="st-section-desc">ใช้สำหรับยิง workflow ทุก automation task — ตั้งค่าครั้งเดียวใช้ได้ทุก task</div>
+
+    <div id="ghStatus" class="config-status none">⏳ กำลังโหลด...</div>
+
+    <div class="cred-row">
+      <div class="cred-label">📦 Repository</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+        <input class="cred-input" id="ghOwner" placeholder="owner" autocomplete="off">
+        <input class="cred-input" id="ghRepo" placeholder="repo" autocomplete="off">
+        <input class="cred-input" id="ghBranch" placeholder="main" autocomplete="off">
+      </div>
+    </div>
+    <div class="cred-row">
+      <div class="cred-label">
+        <span>🔑 Personal Access Token (PAT)</span>
+        <span id="patExpiryBadge" style="display:none"></span>
+      </div>
+      <div class="cred-input-wrap">
+        <input class="cred-input" id="ghPat" type="password" placeholder="ghp_xxxxxxxxxxxxxxxx" autocomplete="off">
+        <button class="cred-eye" type="button" onclick="togglePatEye()" id="patEye">👁️</button>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap">
+        <label style="font-size:12px;color:var(--text2);font-weight:500">📅 วันหมดอายุ:</label>
+        <input class="cred-input" id="ghPatExpires" type="date" style="max-width:170px;padding:7px 10px;font-size:12.5px">
+        <div style="display:flex;gap:4px">
+          <button type="button" class="exp-quick" onclick="_setExpiresIn(30)">+30</button>
+          <button type="button" class="exp-quick" onclick="_setExpiresIn(60)">+60</button>
+          <button type="button" class="exp-quick" onclick="_setExpiresIn(90)">+90</button>
+          <button type="button" class="exp-quick" onclick="_setExpiresIn(365)">+1 ปี</button>
+        </div>
+      </div>
+      <div style="font-size:11.5px;color:var(--text3);margin-top:6px;line-height:1.6">
+        💡 สร้างที่ <a href="https://github.com/settings/tokens/new?scopes=workflow&description=A4S-ERP+Automation" target="_blank" style="color:var(--accent)">github.com/settings/tokens</a> — เลือก scope <code style="background:var(--surface2);padding:1px 5px;border-radius:3px">workflow</code> + <code style="background:var(--surface2);padding:1px 5px;border-radius:3px">repo</code>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:18px;padding-top:16px;border-top:1px solid var(--border)">
+      <button class="btn btn-primary" onclick="saveGithub()">💾 บันทึก GitHub config</button>
+    </div>
+  </div>
+
+  <!-- ── LINE Notify ── -->
+  <div class="st-section">
+    <div class="st-section-title">📱 LINE Notify (เมื่อ Task Fail)</div>
+    <div class="st-section-desc">ส่งแจ้งเตือนผ่าน LINE Messaging API เมื่อ automation task ใดก็ตามล้มเหลว</div>
+
+    <div id="lineStatus" class="config-status none">⏳ กำลังโหลด...</div>
+
+    <div class="cred-row">
+      <div class="cred-label">🔑 Channel Access Token</div>
+      <div class="cred-input-wrap">
+        <input class="cred-input" id="lineToken" type="password" placeholder="long-lived token" autocomplete="off">
+        <button class="cred-eye" type="button" onclick="toggleLineEye()" id="lineTokenEye">👁️</button>
+      </div>
+      <div style="font-size:11.5px;color:var(--text3);margin-top:6px">
+        💡 หาที่ <a href="https://developers.line.biz/console/" target="_blank" style="color:var(--accent)">LINE Developers</a> → Channel → Messaging API → Issue token
+      </div>
+    </div>
+    <div class="cred-row">
+      <div class="cred-label">🎯 Target</div>
+      <div style="display:grid;grid-template-columns:160px 1fr;gap:8px">
+        <select class="cred-input" id="lineType">
+          <option value="group">Group</option>
+          <option value="user">User</option>
+          <option value="broadcast">Broadcast (ทุกคน)</option>
+        </select>
+        <input class="cred-input" id="lineTargetId" placeholder="Group ID หรือ User ID" autocomplete="off">
+      </div>
+    </div>
+    <div class="cred-row">
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text2);cursor:pointer">
+        <input type="checkbox" id="lineSuccess" style="width:16px;height:16px;cursor:pointer">
+        แจ้งเตือนตอน task สำเร็จด้วย (default: เฉพาะตอน fail)
+      </label>
+    </div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:18px;padding-top:16px;border-top:1px solid var(--border)">
+      <button class="btn btn-outline" onclick="testLine()">🧪 ส่ง Test message</button>
+      <button class="btn btn-primary" onclick="saveLine()">💾 บันทึก LINE config</button>
+    </div>
+  </div>
+
+</div>
+
+<!-- Confirm Modal -->
+<div class="ui-confirm-overlay" id="uiConfirmOverlay">
+  <div class="ui-confirm">
+    <div class="ui-confirm-hero">
+      <div class="ui-confirm-icon" id="uiConfirmIcon">🚀</div>
+      <div class="ui-confirm-title" id="uiConfirmTitle">ยืนยัน?</div>
+    </div>
+    <div class="ui-confirm-body">
+      <div class="ui-confirm-message" id="uiConfirmMessage"></div>
+      <div class="ui-confirm-note" id="uiConfirmNote" style="display:none"></div>
+    </div>
+    <div class="ui-confirm-actions">
+      <button class="ui-confirm-btn cancel" id="uiConfirmCancel">ยกเลิก</button>
+      <button class="ui-confirm-btn ok" id="uiConfirmOK">ยืนยัน</button>
+    </div>
+  </div>
+</div>
+
+<script src="../../js/core/auth.js"></script>
+<script src="../../js/core/authz.js"></script>
+<script src="../../js/core/crypto.js"></script>
+<script src="../../js/core/date-format.js"></script>
+<script>AuthZ.requirePerm("devtool_manage");</script>
+<script src="./settings.js"></script>
+<script type="module">
+  import { loadTopbar } from "../../js/components/navigation/topbar.js";
+  loadTopbar("⚙️ ตั้งค่า Automation");
+</script>
+<script src="../../js/components/navigation/sidebar.js"></script>
+</body>
+</html>

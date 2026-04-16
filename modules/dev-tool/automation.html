@@ -162,16 +162,6 @@
         <label>Target URL</label>
         <input id="fUrl" placeholder="https://example.com/report">
       </div>
-      <div class="dt-field-row">
-        <div class="dt-field">
-          <label>Username (encrypted)</label>
-          <input id="fUser" type="text" placeholder="login username">
-        </div>
-        <div class="dt-field">
-          <label>Password (encrypted)</label>
-          <input id="fPass" type="password" placeholder="login password">
-        </div>
-      </div>
       <div class="dt-field">
         <label>GitHub Workflow</label>
         <input id="fWorkflow" placeholder="sync-members.yml">
@@ -196,6 +186,29 @@
           </select>
         </div>
       </div>
+
+      <!-- Credentials (per-task, encrypted) -->
+      <div style="border-top:1px solid var(--border);margin-top:6px;padding-top:14px">
+        <div style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:10px;display:flex;align-items:center;gap:6px">🔐 Credentials <span style="font-weight:400;color:var(--text3)">(เฉพาะ task นี้ — encrypted)</span></div>
+        <div class="dt-field-row">
+          <div class="dt-field">
+            <label>Username</label>
+            <input id="fUser" type="text" placeholder="login username" autocomplete="off">
+          </div>
+          <div class="dt-field">
+            <label>Password</label>
+            <input id="fPass" type="password" placeholder="login password" autocomplete="off">
+          </div>
+        </div>
+      </div>
+
+      <!-- Detail page link -->
+      <div class="dt-field">
+        <label>Detail Page URL <span style="font-weight:400;color:var(--text3)">(optional)</span></label>
+        <input id="fConfigUrl" placeholder="../customer/members-sync.html">
+        <div class="hint">หน้า config เฉพาะ task (Sync Now + Progress modal + Log)</div>
+      </div>
+
       <div class="dt-field">
         <label>หมายเหตุ</label>
         <textarea id="fNotes" placeholder="รายละเอียดเพิ่มเติม (optional)"></textarea>

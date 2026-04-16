@@ -16,9 +16,24 @@ CREATE TABLE IF NOT EXISTS automation_tasks (
   last_run_at   TIMESTAMPTZ,
   last_row_count INT,
   last_error    TEXT,
+  config_url    TEXT,                           -- link to detail/config page
   created_at    TIMESTAMPTZ DEFAULT now(),
   updated_at    TIMESTAMPTZ DEFAULT now()
 );
+
+-- ── Seed: existing automation ──
+INSERT INTO automation_tasks (name, task_type, target_url, workflow, schedule, status, notes, config_url)
+VALUES (
+  'Export All Member',
+  'web_download',
+  'https://www.answerforsuccess.com/branch/index.php?sessiontab=1&sub=1&typereport=1',
+  'sync-members.yml',
+  '24h',
+  'active',
+  'ดาวน์โหลด Excel สมาชิกทั้งหมดจาก answerforsuccess.com แล้ว import เข้า Supabase (Playwright + SheetJS)',
+  '../customer/members-sync.html'
+)
+ON CONFLICT DO NOTHING;
 
 -- ============================================================
 -- DONE

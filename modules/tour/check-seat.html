@@ -1131,26 +1131,35 @@ function importExcel(event) {
       const findKey = (...candidates) =>
         keys.find(k => candidates.some(c => k.toString().toLowerCase().includes(c.toLowerCase()))) || null;
 
-      const colCode     = findKey('รหัส', 'code', 'id', 'Code');
-      const colName     = findKey('รายชื่อ', 'ชื่อ', 'name', 'Name');
-      const colPin      = findKey('pin', 'PIN', 'position', 'ตำแหน่ง');
-      const colGroup    = findKey('group', 'กลุ่ม', 'Group');
-      const colFlight   = findKey('flight', 'เที่ยวบิน', 'Flight');
-      const colDepart   = findKey('departure', 'ออก', 'depart', 'Departure');
-      const colArrive   = findKey('arrival', 'ถึง', 'arrive', 'Arrival');
+      const colCode       = findKey('รหัส', 'code', 'id', 'Code');
+      const colName       = findKey('รายชื่อ', 'ชื่อ', 'name', 'Name');
+      const colPin        = findKey('pin', 'PIN', 'position', 'ตำแหน่ง');
+      const colPort       = findKey('port', 'ท่า', 'Port');
+      const colGroup      = findKey('group', 'กลุ่ม', 'Group');
+      const colFlight     = findKey('flight', 'เที่ยวบิน', 'Flight');
+      const colDepart     = findKey('departure', 'ออก', 'depart', 'Departure');
+      const colArrive     = findKey('arrival', 'ถึง', 'arrive', 'Arrival');
       const colComeback   = findKey('comeback flight', 'comeback', 'กลับ', 'Comeback');
       const colComebackDt = findKey('comeback date', 'comeback time', 'วันกลับ');
       const colSeat       = findKey('seat', 'ที่นั่ง', 'Seat');
-      const colNat      = findKey('nationality', 'สัญชาติ', 'nation', 'Nationality');
+      const colNat        = findKey('nationality', 'สัญชาติ', 'nation', 'Nationality');
+      const colPassId     = findKey('passport id', 'pass id', 'หนังสือเดินทาง', 'Passport ID');
+      const colPassExp    = findKey('passport exp', 'pass exp', 'วันหมดอายุ', 'Passport Exp');
+      const colTel        = findKey('tel', 'whatsapp', 'โทร', 'phone', 'Tel');
+      const colShirt      = findKey('shirt', 'เสื้อ', 'T-Shirt', 'size');
+      const colWaive      = findKey('waive', 'ยกเว้น', 'Waive');
 
       const imported = [];
       raw.forEach((r) => {
         const seat  = parseFloat((colSeat ? r[colSeat] : '') || 0) || 0;
         const pin   = (colPin  ? r[colPin]  : '').toString().trim().toUpperCase();
+        const port  = (colPort ? r[colPort] : '').toString().trim();
+        const waiveVal = (colWaive ? r[colWaive] : '').toString().trim().toLowerCase();
         const row   = makeRow({
           code:              (colCode     ? r[colCode]     : '').toString().trim(),
           name:              (colName     ? r[colName]     : '').toString().trim(),
           pin:               PIN_OPTIONS.includes(pin) ? pin : '',
+          port:              PORT_OPTIONS.includes(port) ? port : '',
           group:             (colGroup    ? r[colGroup]    : '').toString().trim(),
           flight:            (colFlight   ? r[colFlight]   : '').toString().trim(),
           departureDateTime: (colDepart   ? r[colDepart]   : '').toString().trim(),
@@ -1159,6 +1168,11 @@ function importExcel(event) {
           comebackDateTime:  (colComebackDt ? r[colComebackDt] : '').toString().trim(),
           seat,
           nationality:       (colNat      ? r[colNat]      : '').toString().trim(),
+          passId:            (colPassId   ? r[colPassId]   : '').toString().trim(),
+          passExp:           (colPassExp  ? r[colPassExp]  : '').toString().trim(),
+          tel:               (colTel      ? r[colTel]      : '').toString().trim(),
+          shirt:             (colShirt    ? r[colShirt]    : '').toString().trim(),
+          waive:             waiveVal === 'true' || waiveVal === 'yes' || waiveVal === 'ใช่' || waiveVal === '1',
         });
         imported.push(row);
 
@@ -2456,6 +2470,7 @@ function exportExcel() {
     'รหัส':              row.code,
     'รายชื่อ':           row.name,
     'PIN':               row.pin,
+    'Port':              row.port,
     'Group':             row.group,
     'Flight':            row.flight,
     'Departure (ออกสนามบิน)': row.departureDateTime,
@@ -2463,10 +2478,12 @@ function exportExcel() {
     'Comeback Flight':   row.comeback,
     'Comeback Date&Time': row.comebackDateTime,
     'Seat':              row.seat,
+    'Nationality':       row.nationality,
     'Passport ID':       row.passId,
     'Passport Exp Date': row.passExp,
     'Tel (WhatsApp)':    row.tel,
     'T-Shirt Size':      row.shirt,
+    'Waive':             row.waive ? 'ใช่' : '',
     'Sub Row':           row.isSubRow ? 'ใช่' : '',
   }));
   const ws = XLSX.utils.json_to_sheet(data);
@@ -2481,9 +2498,9 @@ function exportExcel() {
 ═══════════════════════════════════════════════════════════ */
 function downloadTemplate() {
   const headers = [
-    { รหัส: '001', รายชื่อ: 'ชื่อ-นามสกุล', PIN: 'SVP', Seat: 1 },
-    { รหัส: '002', รายชื่อ: 'ชื่อ-นามสกุล', PIN: 'VP',  Seat: 2 },
-    { รหัส: '003', รายชื่อ: 'ชื่อ-นามสกุล', PIN: 'AVP', Seat: 0.5 },
+    { รหัส: '001', รายชื่อ: 'ชื่อ-นามสกุล', PIN: 'SVP', Port: 'Lagos', Group: 'A', Flight: 'TG001', 'Departure': '2025-01-15 08:00', 'Arrival': '2025-01-15 14:00', 'Comeback Flight': 'TG002', 'Comeback Date': '2025-01-20 10:00', Seat: 1, Nationality: 'Thai', 'Passport ID': 'AB1234567', 'Passport Exp': '2030-01-01', 'Tel (WhatsApp)': '0812345678', 'T-Shirt Size': 'L', Waive: '' },
+    { รหัส: '002', รายชื่อ: 'ชื่อ-นามสกุล', PIN: 'VP',  Port: 'Abidjan', Group: 'B', Flight: 'TG001', 'Departure': '', 'Arrival': '', 'Comeback Flight': '', 'Comeback Date': '', Seat: 2, Nationality: '', 'Passport ID': '', 'Passport Exp': '', 'Tel (WhatsApp)': '', 'T-Shirt Size': '', Waive: '' },
+    { รหัส: '003', รายชื่อ: 'ชื่อ-นามสกุล', PIN: 'AVP', Port: '', Group: '', Flight: '', 'Departure': '', 'Arrival': '', 'Comeback Flight': '', 'Comeback Date': '', Seat: 0.5, Nationality: '', 'Passport ID': '', 'Passport Exp': '', 'Tel (WhatsApp)': '', 'T-Shirt Size': '', Waive: '' },
   ];
 
   const ws = XLSX.utils.json_to_sheet(headers);
@@ -2493,11 +2510,25 @@ function downloadTemplate() {
     { wch: 10 },  // รหัส
     { wch: 30 },  // รายชื่อ
     { wch: 8  },  // PIN
+    { wch: 10 },  // Port
+    { wch: 10 },  // Group
+    { wch: 12 },  // Flight
+    { wch: 18 },  // Departure
+    { wch: 18 },  // Arrival
+    { wch: 16 },  // Comeback Flight
+    { wch: 18 },  // Comeback Date
     { wch: 8  },  // Seat
+    { wch: 14 },  // Nationality
+    { wch: 16 },  // Passport ID
+    { wch: 14 },  // Passport Exp
+    { wch: 16 },  // Tel
+    { wch: 12 },  // T-Shirt Size
+    { wch: 8  },  // Waive
   ];
 
-  /* เพิ่ม comment อธิบาย PIN */
+  /* เพิ่ม comment อธิบาย */
   ws['C1'].c = [{ a: 'System', t: 'ค่าที่ใช้ได้: SVP, VP, AVP, SD, DR' }];
+  ws['D1'].c = [{ a: 'System', t: 'ค่าที่ใช้ได้: Lagos, Abidjan (เว้นว่างได้)' }];
   ws['!comments'] = true;
 
   const wb = XLSX.utils.book_new();

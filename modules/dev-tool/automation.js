@@ -81,6 +81,7 @@ function renderTasks() {
       <div class="task-card-foot">
         <button class="task-btn" onclick="editTask('${t.id}')">✏️ แก้ไข</button>
         <button class="task-btn" onclick="deleteTask('${t.id}','${escapeHtml(t.name)}')">🗑️</button>
+        ${t.config_url ? `<a class="task-btn" href="${escapeHtml(t.config_url)}" style="text-decoration:none">⚙️ Detail</a>` : ''}
         <button class="task-btn run" onclick="runTask('${t.id}')">▶️ Run</button>
       </div>
     </div>`;
@@ -100,6 +101,7 @@ function openAddModal() {
   document.getElementById('fSchedule').value = '24h';
   document.getElementById('fStatus').value = 'active';
   document.getElementById('fNotes').value = '';
+  document.getElementById('fConfigUrl').value = '';
   document.getElementById('taskModalOverlay').classList.add('open');
 }
 
@@ -117,6 +119,7 @@ function editTask(id) {
   document.getElementById('fSchedule').value = t.schedule || '24h';
   document.getElementById('fStatus').value = t.status || 'active';
   document.getElementById('fNotes').value = t.notes || '';
+  document.getElementById('fConfigUrl').value = t.config_url || '';
   document.getElementById('taskModalOverlay').classList.add('open');
 }
 
@@ -137,6 +140,7 @@ async function saveTask() {
     schedule: document.getElementById('fSchedule').value,
     status: document.getElementById('fStatus').value,
     notes: document.getElementById('fNotes').value.trim() || null,
+    config_url: document.getElementById('fConfigUrl').value.trim() || null,
   };
 
   // Encrypt password if provided

@@ -186,13 +186,6 @@
           path: BASE_PATH + "/modules/customer/members-import.html",
           section: "setup",
         },
-        {
-          id: "members-sync",
-          icon: "⚙️",
-          label: "ตั้งค่า Auto-Sync",
-          path: BASE_PATH + "/modules/customer/members-sync.html",
-          section: "setup",
-        },
       ],
     },
     //  **************** SUPPLIER *****************
@@ -267,6 +260,12 @@
           label: "Web Automation",
           path: BASE_PATH + "/modules/dev-tool/automation.html",
         },
+        {
+          id: "devtool-settings",
+          icon: "⚙️",
+          label: "ตั้งค่า Automation",
+          path: BASE_PATH + "/modules/dev-tool/settings.html",
+        },
       ],
     },
   ];
@@ -303,6 +302,7 @@
     "members-import": "member_import",
     "members-sync": "member_sync_config",
     automation: "devtool_view",
+    "devtool-settings": "devtool_manage",
   };
 
   /* ── อ่าน effective_perms จาก session (ไม่พึ่ง AuthZ) ── */
@@ -367,6 +367,7 @@
     "members-sync",
     //**** DEV TOOL ****
     "automation",
+    "devtool-settings",
     // "reports",
     // "db_viewer",
   ];
@@ -406,6 +407,7 @@
       transition:width .25s ease,min-width .25s ease;
       scrollbar-width:thin;scrollbar-color:#21262d transparent;
       z-index:100;
+      padding-bottom:100px;
     }
     #erp-sidebar.collapsed{width:56px;min-width:56px;}
     #erp-sidebar::-webkit-scrollbar{width:4px;}
@@ -671,6 +673,12 @@
     shell.appendChild(sidebar);
     shell.appendChild(main);
     topbar.after(shell);
+
+    // Auto-scroll sidebar to active item
+    requestAnimationFrame(() => {
+      const active = sidebar.querySelector(".sb-item.active");
+      if (active) active.scrollIntoView({ block: "center", behavior: "instant" });
+    });
   });
 
   window.toggleSidebar = function () {
