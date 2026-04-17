@@ -326,6 +326,7 @@ async function loadEventData() {
     if (window._setConfirmedLocation) window._setConfirmedLocation(e.location || "");
     else document.getElementById("fLocation").value = e.location || "";
     document.getElementById("fMaxAttendees").value = e.max_attendees || "";
+    document.getElementById("fPrice").value = e.price != null ? e.price : "";
     document.getElementById("fAssignedTo").value = e.assigned_to || "";
     document.getElementById("fStatus").value = e.status || "DRAFT";
     document.getElementById("fDescription").value = e.description || "";
@@ -427,6 +428,7 @@ window._saveEventImpl = async function () {
       location: window._getConfirmedLocation ? window._getConfirmedLocation() : (document.getElementById("fLocation").value.trim() || null),
       max_attendees:
         parseInt(document.getElementById("fMaxAttendees").value) || 0,
+      price: parseFloat(document.getElementById("fPrice").value) || 0,
       assigned_to:
         parseInt(document.getElementById("fAssignedTo").value) || null,
       status: document.getElementById("fStatus").value,

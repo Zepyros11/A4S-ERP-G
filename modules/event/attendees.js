@@ -33,7 +33,7 @@ async function sbFetch(table, query = "", opts = {}) {
 async function fetchEvents() {
   // Exclude "วันหยุดบริษัท" category events
   const [events, cats] = await Promise.all([
-    sbFetch("events", "?select=event_id,event_name,event_code,max_attendees,event_category_id&order=event_date.desc"),
+    sbFetch("events", "?select=event_id,event_name,event_code,max_attendees,event_category_id,price&order=event_date.desc"),
     sbFetch("event_categories", "?select=event_category_id,category_name"),
   ]);
   const holidayIds = (cats || []).filter(c => c.category_name === "วันหยุดบริษัท").map(c => c.event_category_id);
@@ -262,8 +262,8 @@ function renderTable(list) {
           ${a.ticket_no || "—"}
         </div>
         ${
-          a.ticket_type
-            ? `<span class="ticket-badge">${a.ticket_type}</span>`
+          a.position_level
+            ? `<span style="display:inline-block;margin-top:3px;font-size:10.5px;color:#92400e;background:#fef3c7;padding:1px 7px;border-radius:5px;font-weight:700">⭐ ${a.position_level}</span>`
             : ""
         }
       </td>
@@ -340,13 +340,14 @@ window.openAttModal = function (id = null) {
     "fAttName",
     "fAttEmail",
     "fAttPhone",
-    "fAttCompany",
-    "fTicketType",
+    "fPositionLevel",
+    "fMemberCodeDisplay",
     "fAttNote",
   ].forEach((f) => (document.getElementById(f).value = ""));
-  document.getElementById("fPaidAmount").value = "";
-  document.getElementById("fAttendType").value = "ONSITE";
-  document.getElementById("fPaymentStatus").value = "FREE";
+  // Auto-fill paid amount from event's fixed price (new attendee)
+  const evPrice = parseFloat(currentEvent?.price || 0);
+  document.getElementById("fPaidAmount").value = evPrice > 0 ? evPrice : "";
+  document.getElementById("fPaymentStatus").value = evPrice > 0 ? "PENDING" : "FREE";
 
   if (id) {
     const a = allAttendees.find((x) => x.attendee_id === id);
@@ -355,9 +356,7 @@ window.openAttModal = function (id = null) {
       document.getElementById("fAttName").value = a.name || "";
       document.getElementById("fAttEmail").value = a.email || "";
       document.getElementById("fAttPhone").value = a.phone || "";
-      document.getElementById("fAttCompany").value = a.company || "";
-      document.getElementById("fAttendType").value = a.attend_type || "ONSITE";
-      document.getElementById("fTicketType").value = a.ticket_type || "";
+      document.getElementById("fPositionLevel").value = a.position_level || "";
       document.getElementById("fPaidAmount").value = a.paid_amount || "";
       document.getElementById("fPaymentStatus").value =
         a.payment_status || "FREE";
@@ -366,18 +365,19 @@ window.openAttModal = function (id = null) {
   }
   // Reset member search
   document.getElementById("fMemberSearch").value = "";
-  document.getElementById("fMemberCode").value = id ? (allAttendees.find(x => x.attendee_id === id)?.member_code || "") : "";
+  const editAtt = id ? allAttendees.find(x => x.attendee_id === id) : null;
+  document.getElementById("fMemberCode").value = editAtt?.member_code || "";
+  document.getElementById("fMemberCodeDisplay").value = editAtt?.member_code || "";
   document.getElementById("memberSuggest").style.display = "none";
   const badge = document.getElementById("memberBadge");
   const prereq = document.getElementById("prereqWarning");
   prereq.style.display = "none";
-  if (id) {
-    const a = allAttendees.find(x => x.attendee_id === id);
-    if (a?.member_code) {
-      badge.style.display = "flex";
-      document.getElementById("memberBadgeText").textContent = `🔖 สมาชิก: ${a.member_code} — ${a.name}`;
-    } else badge.style.display = "none";
-  } else badge.style.display = "none";
+  if (editAtt?.member_code) {
+    badge.style.display = "flex";
+    document.getElementById("memberBadgeText").textContent = `🔖 สมาชิก: ${editAtt.member_code} — ${editAtt.name}`;
+  } else {
+    badge.style.display = "none";
+  }
 
   document.getElementById("attModalOverlay").classList.add("open");
 };
@@ -401,9 +401,7 @@ window.saveAttendee = async function () {
       name,
       email: document.getElementById("fAttEmail").value || null,
       phone: document.getElementById("fAttPhone").value || null,
-      company: document.getElementById("fAttCompany").value || null,
-      attend_type: document.getElementById("fAttendType").value,
-      ticket_type: document.getElementById("fTicketType").value || null,
+      position_level: document.getElementById("fPositionLevel").value || null,
       paid_amount:
         parseFloat(document.getElementById("fPaidAmount").value) || 0,
       payment_status: document.getElementById("fPaymentStatus").value,
@@ -465,9 +463,8 @@ window.exportCSV = function () {
     "ชื่อ",
     "อีเมล",
     "โทร",
-    "บริษัท",
-    "ประเภท",
-    "Ticket Type",
+    "รหัสสมาชิก",
+    "ตำแหน่งสูงสุด",
     "ชำระ",
     "ยอด(฿)",
     "Check-in",
@@ -478,9 +475,8 @@ window.exportCSV = function () {
     a.name || "",
     a.email || "",
     a.phone || "",
-    a.company || "",
-    attendLabel(a.attend_type),
-    a.ticket_type || "",
+    a.member_code || "",
+    a.position_level || "",
     payLabel(a.payment_status),
     a.paid_amount || 0,
     a.checked_in ? "Yes" : "No",
@@ -636,11 +632,13 @@ window.searchMember = function (q) {
     try {
       const { url, key } = getSB();
       const esc = q.replace(/[,()*]/g, '');
-      const like = `*${esc}*`;
-      // Always search all fields (member_code + names + phone)
-      const filter = `or=(member_code.ilike.${like},member_name.ilike.${like},full_name.ilike.${like},phone.ilike.${like})`;
+      const isDigits = /^\d+$/.test(esc);
+      // Digits → exact member_code match only · Text → search names
+      const filter = isDigits
+        ? `member_code=eq.${encodeURIComponent(esc)}`
+        : `or=(member_name.ilike.*${esc}*,full_name.ilike.*${esc}*)`;
       const res = await fetch(
-        `${url}/rest/v1/members?select=member_code,member_name,full_name,phone,country_code&${filter}&limit=8`,
+        `${url}/rest/v1/members?select=member_code,member_name,full_name,phone,country_code,position_level&${filter}&limit=8`,
         { headers: { apikey: key, Authorization: `Bearer ${key}` } }
       );
       if (!res.ok) {
@@ -657,9 +655,10 @@ window.searchMember = function (q) {
       sug.innerHTML = rows.map(m => {
         const name = m.full_name || m.member_name || '—';
         const safeName = escapeHtml(name).replace(/'/g, "&#39;");
-        return `<div onclick="selectMember('${m.member_code}','${safeName}','${m.phone||''}')" style="padding:9px 12px;cursor:pointer;border-bottom:1px solid var(--border,#e2e8f0);font-size:12.5px;transition:background .1s;display:flex;align-items:center;gap:8px" onmouseover="this.style.background='#eff6ff'" onmouseout="this.style.background=''">
+        return `<div onclick="selectMember('${m.member_code}','${safeName}','${m.phone||''}','${m.position_level||''}')" style="padding:9px 12px;cursor:pointer;border-bottom:1px solid var(--border,#e2e8f0);font-size:12.5px;transition:background .1s;display:flex;align-items:center;gap:8px" onmouseover="this.style.background='#eff6ff'" onmouseout="this.style.background=''">
           <span style="font-family:'IBM Plex Mono',monospace;color:#1e40af;font-weight:700;background:#dbeafe;padding:2px 7px;border-radius:5px;font-size:11.5px">${m.member_code}</span>
           <span style="flex:1;color:#0f172a">${escapeHtml(name)}</span>
+          ${m.position_level ? `<span style="font-size:10.5px;color:#92400e;background:#fef3c7;padding:1px 6px;border-radius:4px;font-weight:700">⭐ ${escapeHtml(m.position_level)}</span>` : ''}
           ${m.country_code ? `<span style="font-size:10.5px;color:var(--text3,#94a3b8);background:#f1f5f9;padding:1px 6px;border-radius:4px">${m.country_code}</span>` : ''}
         </div>`;
       }).join('');
@@ -674,21 +673,25 @@ function escapeHtml(s) {
   return String(s || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
-window.selectMember = function (code, name, phone) {
+window.selectMember = function (code, name, phone, positionLevel) {
   document.getElementById("fMemberSearch").value = "";
   document.getElementById("memberSuggest").style.display = "none";
   document.getElementById("fMemberCode").value = code;
+  document.getElementById("fMemberCodeDisplay").value = code;
   document.getElementById("memberBadge").style.display = "flex";
   document.getElementById("memberBadgeText").textContent = `🔖 ${code} — ${name}`;
-  // Always overwrite name + phone with selected member's info
+  // Always overwrite name + phone + position_level with selected member's info
   document.getElementById("fAttName").value = name || "";
   document.getElementById("fAttPhone").value = phone || "";
+  document.getElementById("fPositionLevel").value = positionLevel || "";
   // Check prerequisite
   checkPrerequisite(code);
 };
 
 window.clearMember = function () {
   document.getElementById("fMemberCode").value = "";
+  document.getElementById("fMemberCodeDisplay").value = "";
+  document.getElementById("fPositionLevel").value = "";
   document.getElementById("memberBadge").style.display = "none";
   document.getElementById("prereqWarning").style.display = "none";
 };

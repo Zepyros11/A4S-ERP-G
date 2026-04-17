@@ -205,6 +205,27 @@
             </div>
 
             <div class="form-group">
+              <label class="form-label">🔖 รหัสสมาชิก <span style="font-weight:400;color:var(--text3);font-size:11px">(auto)</span></label>
+              <input
+                class="form-input"
+                id="fMemberCodeDisplay"
+                placeholder="—"
+                readonly
+                style="background:#f8fafc;color:#1e40af;font-weight:700;font-family:'IBM Plex Mono',monospace"
+              />
+            </div>
+            <div class="form-group">
+              <label class="form-label">⭐ ตำแหน่งสูงสุด <span style="font-weight:400;color:var(--text3);font-size:11px">(auto)</span></label>
+              <input
+                class="form-input"
+                id="fPositionLevel"
+                placeholder="—"
+                readonly
+                style="background:#f8fafc;color:#475569;font-weight:600"
+              />
+            </div>
+
+            <div class="form-group">
               <label class="form-label">อีเมล</label>
               <input
                 type="email"
@@ -222,40 +243,16 @@
               />
             </div>
 
-            <div class="form-group aspan2">
-              <label class="form-label">บริษัท / หน่วยงาน</label>
-              <input
-                class="form-input"
-                id="fAttCompany"
-                placeholder="ชื่อบริษัท"
-              />
-            </div>
-
             <div class="form-group">
-              <label class="form-label">ประเภทการเข้าร่วม</label>
-              <select class="form-input" id="fAttendType">
-                <option value="ONSITE">🏢 Onsite</option>
-                <option value="ONLINE">💻 Online</option>
-                <option value="VIP">⭐ VIP</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label class="form-label">ประเภท Ticket</label>
-              <input
-                class="form-input"
-                id="fTicketType"
-                placeholder="เช่น General / Early Bird / Staff"
-              />
-            </div>
-
-            <div class="form-group">
-              <label class="form-label">ยอดชำระ (บาท)</label>
+              <label class="form-label">💰 ยอดชำระ (บาท) <span style="font-weight:400;color:var(--text3);font-size:11px">(จาก event)</span></label>
               <input
                 type="number"
                 class="form-input"
                 id="fPaidAmount"
                 min="0"
                 placeholder="0.00"
+                readonly
+                style="background:#f8fafc;color:#0f172a;font-weight:700"
               />
             </div>
             <div class="form-group">
