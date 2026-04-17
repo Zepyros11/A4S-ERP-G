@@ -101,6 +101,19 @@ async function initPage() {
     if (urlEventId) {
       document.getElementById("eventSelect").value = urlEventId;
       await loadAttendees(parseInt(urlEventId));
+      // Lock to this event: hide selector, show event name big in hero
+      const ev = allEvents.find(e => e.event_id === parseInt(urlEventId));
+      if (ev) {
+        const wrap = document.getElementById("eventSelectWrap");
+        if (wrap) wrap.style.display = "none";
+        const title = document.getElementById("heroTitle");
+        if (title) {
+          title.innerHTML = `👥 ${ev.event_name}`;
+          title.style.fontSize = "24px";
+        }
+        const sub = document.getElementById("heroSubtitle");
+        if (sub) sub.textContent = "ผู้เข้าร่วมกิจกรรม · ลงทะเบียน · Check-in";
+      }
     }
   } catch (e) {
     showToast("โหลดข้อมูลไม่ได้: " + e.message, "error");

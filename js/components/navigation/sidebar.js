@@ -211,14 +211,14 @@
       items: [
         {
           id: "promotion-gallery",
-          icon: "🖼️",
-          label: "Promotion Gallery",
+          icon: "📰",
+          label: "Catalog ประจำเดือน",
           path: BASE_PATH + "/modules/customer-service/promotion-gallery.html",
         },
         {
           id: "promotions",
           icon: "🎁",
-          label: "รายการโปรโมชัน",
+          label: "จัดการโปรโมชัน",
           path: BASE_PATH + "/modules/customer-service/promotion-list.html",
         },
       ],
@@ -564,7 +564,7 @@
     #sb-overlay.show{display:block;}
     #sb-hamburger{display:none;padding:7px 10px;background:rgba(255,255,255,.12);color:#fff;border:none;border-radius:6px;font-size:16px;cursor:pointer;align-items:center;margin-right:4px;}
 
-    @media(max-width:768px){
+    @media(max-width:1024px){
       #sb-hamburger{display:flex!important;}
       #erp-sidebar{position:fixed;top:56px;left:-220px;width:220px!important;min-width:220px!important;transition:left .25s ease;z-index:150;height:calc(100vh - 56px);}
       #erp-sidebar.open{left:0;}

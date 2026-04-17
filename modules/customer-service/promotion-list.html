@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>โปรโมชัน — A4S-ERP</title>
     <link
-      href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Playfair+Display:wght@600;700;800&display=swap"
       rel="stylesheet"
     />
     <link rel="stylesheet" href="../../css/main.css" />
@@ -17,144 +17,118 @@
     </div>
     <div class="toast" id="toast"></div>
 
-    <!-- TOPBAR -->
     <div class="topbar"></div>
     <div class="layout">
-      <!-- SIDEBAR -->
       <div id="sidebar-container"></div>
 
-      <!-- CONTENT -->
       <div class="content-area">
         <div class="page">
-
-          <!-- STATS ROW -->
-          <div class="stats-row" id="statsPromotions">
-            <div class="stat-card">
-              <div class="stat-icon">🎯</div>
-              <div>
-                <div class="stat-value" id="cardActive">0</div>
-                <div class="stat-label">กำลังใช้งาน</div>
-              </div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-icon">📅</div>
-              <div>
-                <div class="stat-value" id="cardMonth">0</div>
-                <div class="stat-label">เดือนนี้</div>
-              </div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-icon">⏳</div>
-              <div>
-                <div class="stat-value" id="cardUpcoming">0</div>
-                <div class="stat-label">กำลังจะมา</div>
-              </div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-icon">✅</div>
-              <div>
-                <div class="stat-value" id="cardExpired">0</div>
-                <div class="stat-label">หมดอายุแล้ว</div>
-              </div>
-            </div>
-          </div>
-
-          <!-- TABLE CARD -->
           <div class="table-card">
 
-            <!-- TOOLBAR -->
-            <div class="toolbar" id="toolbarPromotions">
-              <div class="search-wrap">
-                <span class="search-icon">🔍</span>
-                <input
-                  class="search-input"
-                  id="searchInput"
-                  placeholder="ค้นหาชื่อโปรโมชัน..."
-                />
+            <!-- ─── TOOLBAR ─── -->
+            <div class="toolbar promo-toolbar">
+              <div class="promo-toolbar-left">
+                <div class="promo-header-info">
+                  <div class="promo-header-title">🎁 โปรโมชันประจำเดือน</div>
+                  <div class="promo-header-subtitle" id="pageSubtitle">กำลังโหลด...</div>
+                </div>
               </div>
-              <!-- Date filter chips -->
-              <div class="date-filter-chips" id="dateFilterChips">
-                <button class="date-chip" data-range="all" onclick="window.setDateFilter(this,'all')">ทั้งหมด</button>
-                <button class="date-chip active" data-range="month" onclick="window.setDateFilter(this,'month')">เดือนนี้</button>
-                <button class="date-chip" data-range="active" onclick="window.setDateFilter(this,'active')">กำลังใช้งาน</button>
-                <button class="date-chip" data-range="upcoming" onclick="window.setDateFilter(this,'upcoming')">กำลังจะมา</button>
-              </div>
-              <!-- Status filter chips -->
-              <div class="date-filter-chips" id="statusFilterChips">
-                <button class="date-chip active" data-status="" onclick="window.setStatusFilter(this,'')">ทุกสถานะ</button>
-                <button class="date-chip" data-status="DRAFT" onclick="window.setStatusFilter(this,'DRAFT')">📝 Draft</button>
-                <button class="date-chip" data-status="ACTIVE" onclick="window.setStatusFilter(this,'ACTIVE')">🎯 Active</button>
-                <button class="date-chip" data-status="EXPIRED" onclick="window.setStatusFilter(this,'EXPIRED')">⏰ Expired</button>
-                <button class="date-chip" data-status="CANCELLED" onclick="window.setStatusFilter(this,'CANCELLED')">❌ Cancelled</button>
-              </div>
-              <div class="toolbar-right">
-                <button
-                  class="btn btn-primary"
-                  onclick="window.location.href='promotion-gallery.html'"
-                >
-                  🖼️ Gallery
-                </button>
-                <button
-                  class="btn btn-primary"
-                  data-perm="promotions_create"
-                  onclick="window.createPromotion()"
-                >
-                  ＋ สร้างโปรโมชัน
+              <div class="promo-toolbar-right">
+                <!-- Month Navigator -->
+                <div class="promo-month-nav">
+                  <button class="promo-month-btn" id="btnPrevMonth" onclick="window.prevMonth()">‹</button>
+                  <span class="promo-month-label" id="monthLabel">—</span>
+                  <button class="promo-month-btn" id="btnNextMonth" onclick="window.nextMonth()">›</button>
+                </div>
+                <!-- Grid Toggle -->
+                <div class="promo-grid-toggle">
+                  <button class="promo-toggle-btn" id="btnGrid3" onclick="window.setGrid(3)">⊞ 3</button>
+                  <button class="promo-toggle-btn" id="btnGrid4" onclick="window.setGrid(4)">⊟ 4</button>
+                  <button class="promo-toggle-btn active" id="btnGrid5" onclick="window.setGrid(5)">▦ 5</button>
+                  <button class="promo-toggle-btn" id="btnGrid6" onclick="window.setGrid(6)">⊡ 6</button>
+                </div>
+                <!-- Upload -->
+                <button class="btn btn-primary" data-perm="promotion_create" onclick="window.openUpload()">
+                  ＋ อัปโหลดโปสเตอร์
                 </button>
               </div>
             </div>
 
-            <!-- TABLE HEADER -->
-            <div class="table-hdr">
-              <div class="ev-tabs">
-                <button class="ev-tab active">
-                  🎁 รายการโปรโมชัน
-                </button>
-              </div>
-              <div class="table-count" id="tableCount">0 รายการ</div>
+            <!-- ─── CATEGORY CHIPS ─── -->
+            <div class="promo-cat-bar" id="catBar">
+              <button class="promo-cat-chip active" data-cat="all" onclick="window.filterCat(this,'all')">
+                ทั้งหมด
+              </button>
+              <!-- dynamic chips injected by JS -->
+              <button class="promo-cat-manage-btn" onclick="window.openCatManager()" title="จัดการหมวดหมู่">⚙️</button>
             </div>
 
-            <!-- TABLE -->
-            <div class="table-wrap">
-              <table class="data-table table-promotions">
-                <thead>
-                  <tr>
-                    <th style="width: 40px; text-align: center">
-                      <input type="checkbox" id="chkAll" onclick="window.toggleAllCheckbox(this)" />
-                    </th>
-                    <th class="col-center" style="width:60px">โปสเตอร์</th>
-                    <th onclick="window.sortTable('promotion_name')" style="cursor: pointer">
-                      ชื่อโปรโมชัน <span class="sort-icon">⇅</span>
-                    </th>
-                    <th onclick="window.sortTable('start_date')" style="cursor: pointer">
-                      วันเริ่มต้น <span class="sort-icon">⇅</span>
-                    </th>
-                    <th onclick="window.sortTable('end_date')" style="cursor: pointer">
-                      วันสิ้นสุด <span class="sort-icon">⇅</span>
-                    </th>
-                    <th class="col-center">สถานะ</th>
-                    <th class="col-center">จัดการ</th>
-                  </tr>
-                </thead>
-                <tbody id="tableBody">
-                  <tr>
-                    <td colspan="7">
-                      <div class="empty-state">
-                        <div class="empty-icon">🎁</div>
-                        <div class="empty-text">ยังไม่มีข้อมูลโปรโมชัน</div>
-                      </div>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
+            <!-- ─── STATS MINI ─── -->
+            <div class="promo-stats" id="promoStats">
+              <span class="promo-stat">🖼️ <strong id="statTotal">0</strong> โปสเตอร์</span>
+              <span class="promo-stat">📂 <strong id="statCats">0</strong> หมวดหมู่</span>
+            </div>
+
+            <!-- ─── GALLERY GRID ─── -->
+            <div class="promo-gallery" id="galleryBody">
+              <!-- cards rendered by JS -->
             </div>
 
           </div>
-          <!-- end .table-card -->
         </div>
-        <!-- end .page -->
 
-        <!-- SCRIPTS -->
+        <!-- ─── UPLOAD MODAL ─── -->
+        <div class="promo-modal-overlay" id="uploadModal">
+          <div class="promo-modal" onclick="event.stopPropagation()">
+            <div class="promo-modal-header">
+              <span>📤 อัปโหลดโปสเตอร์โปรโมชัน</span>
+              <button class="promo-modal-close" onclick="window.closeUpload()">✕</button>
+            </div>
+            <div class="promo-modal-body">
+              <label class="promo-field-label">หมวดหมู่</label>
+              <select id="uploadCat" class="promo-select">
+                <option value="">— เลือกหมวดหมู่ —</option>
+              </select>
+              <label class="promo-field-label" style="margin-top:16px">เดือน</label>
+              <input id="uploadMonth" type="month" class="promo-input" />
+              <label class="promo-field-label" style="margin-top:16px">เลือกไฟล์ภาพ (เลือกได้หลายไฟล์)</label>
+              <div class="promo-drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+                <div class="promo-drop-icon">📁</div>
+                <div class="promo-drop-text">คลิกหรือลากไฟล์มาวาง</div>
+                <div class="promo-drop-hint">PNG, JPG — เลือกได้หลายไฟล์พร้อมกัน</div>
+              </div>
+              <input type="file" id="fileInput" multiple accept="image/*" style="display:none" onchange="window.handleFiles(this.files)" />
+              <div class="promo-preview-grid" id="previewGrid"></div>
+            </div>
+            <div class="promo-modal-footer">
+              <button class="btn btn-outline" onclick="window.closeUpload()">ยกเลิก</button>
+              <button class="btn btn-primary" id="btnUploadConfirm" onclick="window.confirmUpload()">📤 อัปโหลด</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- ─── CATEGORY MANAGER MODAL ─── -->
+        <div class="promo-modal-overlay" id="catManagerModal" onclick="window.closeCatManager()">
+          <div class="promo-modal" style="width:500px" onclick="event.stopPropagation()">
+            <div class="promo-modal-header">
+              <span>⚙️ จัดการหมวดหมู่</span>
+              <button class="promo-modal-close" onclick="window.closeCatManager()">✕</button>
+            </div>
+            <div class="promo-modal-body" style="padding:0">
+              <div id="catManagerList" class="cat-mgr-list">
+                <!-- rendered by JS -->
+              </div>
+            </div>
+            <div class="promo-modal-footer" style="justify-content:space-between">
+              <button class="btn btn-outline" onclick="window.addCatRow()">＋ เพิ่มหมวดหมู่</button>
+              <div style="display:flex;gap:8px">
+                <button class="btn btn-outline" onclick="window.closeCatManager()">ปิด</button>
+                <button class="btn btn-primary" onclick="window.saveCatChanges()">💾 บันทึก</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <script src="../../js/core/auth.js"></script>
         <script src="../../js/core/authz.js"></script>
         <script>AuthZ.requirePerm("view_promotions");</script>
@@ -169,22 +143,5 @@
         <script src="../../js/components/navigation/sidebar.js"></script>
       </div>
     </div>
-
-    <!-- DELETE SELECTED BUTTON -->
-    <script>
-      document.addEventListener("DOMContentLoaded", () => {
-        const toolbarRight = document.querySelector("#toolbarPromotions .toolbar-right");
-        if (toolbarRight) {
-          const btnDel = document.createElement("button");
-          btnDel.id = "btnDeleteSelected";
-          btnDel.className = "btn btn-danger-outline";
-          btnDel.style.display = "none";
-          btnDel.innerHTML = "🗑 ลบที่เลือก";
-          btnDel.onclick = () => window.deleteSelectedPromotions();
-          toolbarRight.insertBefore(btnDel, toolbarRight.firstChild);
-        }
-      });
-    </script>
-
   </body>
 </html>

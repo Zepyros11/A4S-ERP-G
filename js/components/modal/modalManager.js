@@ -7,6 +7,8 @@
   // ── SELECTORS for all modal/popup patterns in the system ──
   // Priority: close the topmost (last matched) first
   const MODAL_SELECTORS = [
+    // Pattern 0: .promo-modal-overlay.open (promotion modals)
+    { selector: ".promo-modal-overlay.open", close: (el) => el.classList.remove("open") },
     // Pattern 1: .modal-overlay.open (standard modals)
     { selector: ".modal-overlay.open", close: (el) => el.classList.remove("open") },
     // Pattern 2: .pt-modal-overlay.show (place type manager)

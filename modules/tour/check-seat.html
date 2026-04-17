@@ -206,6 +206,11 @@
     .cs-stat-card.s-abidjan .cs-stat-value { color: #9d174d; }
     .cs-stat-card.s-waive  .cs-stat-icon { background: #fee2e2; }
     .cs-stat-card.s-waive  .cs-stat-value { color: #dc2626; }
+    .cs-stat-card.s-instead .cs-stat-icon { background: #cffafe; }
+    .cs-stat-card.s-instead .cs-stat-value { color: #0891b2; }
+    /* clickable cards */
+    .cs-stat-card { cursor: pointer; }
+    .cs-stat-card:active { transform: translateY(1px); }
     @media (max-width: 640px) {
       .cs-stats-row { grid-template-columns: repeat(3, 1fr); gap: 6px; }
       .cs-stat-card { padding: 10px 10px; gap: 8px; }
@@ -367,6 +372,7 @@
     .col-no      { width: 44px; min-width: 44px; text-align: center; color: var(--text3); font-size: 12px; }
     .col-code    { width: 70px; min-width: 70px; }
     .col-name    { width: 160px; min-width: 130px; }
+    .col-instead { width: 150px; min-width: 130px; }
     .col-pin     { width: 90px; min-width: 80px; }
     .col-port    { width: 100px; min-width: 90px; }
     .col-group   { width: 110px; min-width: 90px; }
@@ -577,6 +583,83 @@
     @media (max-width: 640px) {
       .ap-form-grid { grid-template-columns: 1fr; }
       #add-person-box { padding: 20px 16px 16px; }
+    }
+
+    /* ── Report Modal (Card Drill-down) ──────────────── */
+    #report-modal {
+      display: none; position: fixed; inset: 0; z-index: 4000;
+      background: rgba(15, 23, 42, 0.55);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      align-items: center; justify-content: center;
+      animation: confirmFadeIn .18s ease;
+    }
+    #report-modal.open { display: flex; }
+    #report-box {
+      background: #fff;
+      width: min(1100px, 96vw);
+      max-height: 90vh;
+      display: flex; flex-direction: column;
+      border-radius: 16px;
+      box-shadow: 0 20px 60px rgba(0,0,0,.25), 0 0 0 1px rgba(0,0,0,.04);
+      animation: confirmPopIn .22s cubic-bezier(.2,.9,.3,1.2);
+      overflow: hidden;
+    }
+    #report-head {
+      padding: 20px 24px 14px;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 12px;
+      flex-wrap: wrap;
+    }
+    #report-export {
+      padding: 7px 14px; border-radius: 8px; border: none;
+      background: var(--success); color: #fff;
+      font-size: 12px; font-weight: 700; cursor: pointer;
+      display: inline-flex; align-items: center; gap: 6px;
+      transition: filter .15s, box-shadow .15s;
+    }
+    #report-export:hover { filter: brightness(1.08); box-shadow: 0 4px 12px rgba(5,122,85,.3); }
+    #report-export:disabled { opacity: .5; cursor: not-allowed; }
+    #report-head h2 {
+      font-size: 17px; font-weight: 700; color: var(--accent);
+      display: flex; align-items: center; gap: 10px; margin: 0;
+    }
+    #report-head .r-count {
+      padding: 3px 10px; border-radius: 99px;
+      background: var(--accent-pale); color: var(--accent);
+      font-size: 12px; font-weight: 700;
+    }
+    #report-close {
+      margin-left: auto;
+      background: #f1f5f9; border: none; border-radius: 8px;
+      width: 32px; height: 32px; cursor: pointer;
+      font-size: 16px; color: #334155;
+      display: flex; align-items: center; justify-content: center;
+    }
+    #report-close:hover { background: #e2e8f0; }
+    #report-body {
+      padding: 12px 20px 20px;
+      overflow: auto;
+    }
+    #report-table {
+      width: 100%; border-collapse: collapse;
+      font-size: 12px;
+    }
+    #report-table thead th {
+      background: var(--surface2); color: var(--text2);
+      padding: 8px 10px; text-align: left; font-weight: 700;
+      font-size: 11px; letter-spacing: .3px; text-transform: uppercase;
+      border-bottom: 1px solid var(--border);
+      position: sticky; top: 0;
+    }
+    #report-table tbody td {
+      padding: 8px 10px; border-bottom: 1px solid var(--border);
+      font-size: 13px; vertical-align: middle;
+    }
+    #report-table tbody tr:hover { background: var(--surface2); }
+    #report-empty {
+      text-align: center; padding: 30px; color: var(--text3);
+      font-size: 13px;
     }
 
     /* ── Highlight row ───────────────────────────────── */
@@ -810,21 +893,21 @@
 <!-- ══ Status Cards ══════════════════════════════════════ -->
 <div id="stats-panel">
   <div class="cs-stats-row">
-    <div class="cs-stat-card s-total">
+    <div class="cs-stat-card s-total" data-report="total">
       <div class="cs-stat-icon">👥</div>
       <div>
         <div class="cs-stat-value" id="st-total">0</div>
         <div class="cs-stat-label">Total</div>
       </div>
     </div>
-    <div class="cs-stat-card s-conf">
+    <div class="cs-stat-card s-conf" data-report="confirm">
       <div class="cs-stat-icon">✅</div>
       <div>
         <div class="cs-stat-value" id="st-conf">0</div>
         <div class="cs-stat-label">Confirm</div>
       </div>
     </div>
-    <div class="cs-stat-card s-unconf">
+    <div class="cs-stat-card s-unconf" data-report="unconfirmed">
       <div class="cs-stat-icon">⏳</div>
       <div>
         <div class="cs-stat-value" id="st-unconf">0</div>
@@ -833,21 +916,21 @@
     </div>
   </div>
   <div class="cs-stats-row">
-    <div class="cs-stat-card s-seat2">
+    <div class="cs-stat-card s-seat2" data-report="seat2">
       <div class="cs-stat-icon">✈️</div>
       <div>
         <div class="cs-stat-value" id="st-seat2">0</div>
         <div class="cs-stat-label">2 Seat</div>
       </div>
     </div>
-    <div class="cs-stat-card s-seat1">
+    <div class="cs-stat-card s-seat1" data-report="seat1">
       <div class="cs-stat-icon">🪑</div>
       <div>
         <div class="cs-stat-value" id="st-seat1">0</div>
         <div class="cs-stat-label">1 Seat</div>
       </div>
     </div>
-    <div class="cs-stat-card s-seat0">
+    <div class="cs-stat-card s-seat0" data-report="booking">
       <div class="cs-stat-icon">🎫</div>
       <div>
         <div class="cs-stat-value" id="st-seat0">0</div>
@@ -856,21 +939,21 @@
     </div>
   </div>
   <div class="cs-stats-row">
-    <div class="cs-stat-card s-lagos">
+    <div class="cs-stat-card s-lagos" data-report="lagos">
       <div class="cs-stat-icon">🚢</div>
       <div>
         <div class="cs-stat-value" id="st-lagos">0</div>
         <div class="cs-stat-label">Port Lagos</div>
       </div>
     </div>
-    <div class="cs-stat-card s-abidjan">
+    <div class="cs-stat-card s-abidjan" data-report="abidjan">
       <div class="cs-stat-icon">⚓</div>
       <div>
         <div class="cs-stat-value" id="st-abidjan">0</div>
         <div class="cs-stat-label">Port Abidjan</div>
       </div>
     </div>
-    <div class="cs-stat-card s-seat0">
+    <div class="cs-stat-card s-seat0" data-report="no-port">
       <div class="cs-stat-icon">📍</div>
       <div>
         <div class="cs-stat-value" id="st-port-none">0</div>
@@ -879,11 +962,18 @@
     </div>
   </div>
   <div class="cs-stats-row">
-    <div class="cs-stat-card s-waive">
+    <div class="cs-stat-card s-waive" data-report="waive">
       <div class="cs-stat-icon">🚫</div>
       <div>
         <div class="cs-stat-value" id="st-waive">0</div>
         <div class="cs-stat-label">Waive</div>
+      </div>
+    </div>
+    <div class="cs-stat-card s-instead" data-report="instead">
+      <div class="cs-stat-icon">🔄</div>
+      <div>
+        <div class="cs-stat-value" id="st-instead">0</div>
+        <div class="cs-stat-label">Instead</div>
       </div>
     </div>
   </div>
@@ -920,6 +1010,7 @@
         <th class="col-no">#</th>
         <th class="col-code sortable" data-sort="code" onclick="sortBy('code')">Code<span class="sort-arrow"></span></th>
         <th class="col-name sortable" data-sort="name" onclick="sortBy('name')">Name<span class="sort-arrow"></span></th>
+        <th class="col-instead sortable" data-sort="instead" onclick="sortBy('instead')">Instead<span class="sort-arrow"></span></th>
         <th class="col-pin sortable" data-sort="pin" onclick="sortBy('pin')">PIN<span class="sort-arrow"></span></th>
         <th class="col-seat sortable" data-sort="seat" onclick="sortBy('seat')">Seat<span class="sort-arrow"></span></th>
         <th class="col-nat sortable" data-sort="nationality" onclick="sortBy('nationality')">Nationality<span class="sort-arrow"></span></th>
@@ -942,7 +1033,7 @@
     </thead>
     <tbody id="table-body">
       <tr id="empty-row">
-        <td colspan="22">No data — click Import Excel or add a row manually</td>
+        <td colspan="23">No data — click Import Excel or add a row manually</td>
       </tr>
     </tbody>
   </table>
@@ -1101,6 +1192,39 @@ app.listen(3001, () => console.log('Proxy running on port 3001'));
   </div>
 </div>
 
+<!-- ══ Report Modal (Card Drill-down) ═══════════════════ -->
+<div id="report-modal" onclick="if(event.target===this)closeReport()">
+  <div id="report-box" role="dialog" aria-modal="true">
+    <div id="report-head">
+      <h2 id="report-title">📋 Report</h2>
+      <span class="r-count" id="report-count">0</span>
+      <button id="report-export" onclick="exportReportExcel()" title="Export Excel">📤 Export Excel</button>
+      <button id="report-close" onclick="closeReport()" title="ปิด">✕</button>
+    </div>
+    <div id="report-body">
+      <table id="report-table">
+        <thead>
+          <tr>
+            <th style="width:50px">#</th>
+            <th>Code</th>
+            <th>Name</th>
+            <th>Instead</th>
+            <th>PIN</th>
+            <th>Seat</th>
+            <th>Port</th>
+            <th>Group</th>
+            <th>Flight</th>
+            <th>Pass. ID</th>
+            <th>WhatsApp</th>
+          </tr>
+        </thead>
+        <tbody id="report-tbody"></tbody>
+      </table>
+      <div id="report-empty" style="display:none">ไม่มีข้อมูลในบริบทนี้</div>
+    </div>
+  </div>
+</div>
+
 <!-- ══ Floating Edit/Save Button ════════════════════════ -->
 <button id="global-edit-btn" onclick="toggleGlobalEdit()" data-tip="Edit All">✏️</button>
 
@@ -1232,6 +1356,7 @@ function makeRow(overrides = {}) {
     id:                'row_' + Date.now() + '_' + _rowCounter,
     code:              '',
     name:              '',
+    instead:           '',
     pin:               '',
     port:              '',
     group:             '',
@@ -1306,6 +1431,7 @@ function importExcel(event) {
       const colTel        = findKey('tel', 'whatsapp', 'โทร', 'phone', 'Tel');
       const colShirt      = findKey('shirt', 'เสื้อ', 'T-Shirt', 'size');
       const colWaive      = findKey('waive', 'ยกเว้น', 'Waive');
+      const colInstead    = findKey('instead', 'แทน', 'คนแทน', 'Instead');
 
       const imported = [];
       raw.forEach((r) => {
@@ -1316,6 +1442,7 @@ function importExcel(event) {
         const row   = makeRow({
           code:              (colCode     ? r[colCode]     : '').toString().trim(),
           name:              (colName     ? r[colName]     : '').toString().trim(),
+          instead:           (colInstead  ? r[colInstead]  : '').toString().trim(),
           pin:               PIN_OPTIONS.includes(pin) ? pin : '',
           port:              PORT_OPTIONS.includes(port) ? port : '',
           group:             (colGroup    ? r[colGroup]    : '').toString().trim(),
@@ -1763,7 +1890,7 @@ function toggleGlobalEdit() {
 ═══════════════════════════════════════════════════════════ */
 function saveLocal() {
   const slim = rows.map(r => ({
-    id: r.id, code: r.code, name: r.name, pin: r.pin,
+    id: r.id, code: r.code, name: r.name, instead: r.instead || '', pin: r.pin,
     group: r.group, flight: r.flight,
     departureDateTime: r.departureDateTime, arrivalDateTime: r.arrivalDateTime,
     comeback: r.comeback, comebackDateTime: r.comebackDateTime,
@@ -1826,6 +1953,7 @@ function rowToRecord(row) {
   return {
     code:               row.code || null,
     name:               row.name || null,
+    instead:            row.instead || null,
     pin:                row.pin  || null,
     port:               row.port || null,
     group_name:         row.group || null,
@@ -1854,7 +1982,7 @@ function recordToRow(r, idMap) {
   const id = 'sb_' + r.code;
   const parentId = r.parent_code ? (idMap[r.parent_code] || null) : null;
   return makeRow({
-    id, code: r.code || '', name: r.name || '', pin: r.pin || '',
+    id, code: r.code || '', name: r.name || '', instead: r.instead || '', pin: r.pin || '',
     port: r.port || '', group: r.group_name || '', flight: r.flight || '',
     departureDateTime: r.departure_datetime || '', arrivalDateTime: r.arrival_datetime || '',
     comeback: r.comeback || '', comebackDateTime: r.comeback_datetime || '',
@@ -1927,7 +2055,7 @@ async function loadFromSupabase() {
 
   // แสดง loading
   document.getElementById('table-body').innerHTML =
-    `<tr><td colspan="18" style="text-align:center;padding:40px;color:var(--text3)">⏳ Loading data from Supabase...</td></tr>`;
+    `<tr><td colspan="23" style="text-align:center;padding:40px;color:var(--text3)">⏳ Loading data from Supabase...</td></tr>`;
 
   try {
     const { data, error } = await sbClient
@@ -1990,6 +2118,7 @@ function updateStats() {
   const portAbidjan = all.filter(r => r.port === 'Abidjan').length;
   const portNone    = all.filter(r => !r.port || r.port.trim() === '').length;
   const waive       = all.filter(r => r.waive).length;
+  const insteadCnt  = all.filter(r => (r.instead || '').trim() !== '').length;
 
   document.getElementById('st-total').textContent    = total;
   document.getElementById('st-conf').textContent     = conf;
@@ -2001,6 +2130,7 @@ function updateStats() {
   document.getElementById('st-abidjan').textContent  = portAbidjan;
   document.getElementById('st-port-none').textContent = portNone;
   document.getElementById('st-waive').textContent    = waive;
+  document.getElementById('st-instead').textContent  = insteadCnt;
 }
 
 function sortBy(col) {
@@ -2105,6 +2235,13 @@ function buildRow(row) {
     <td class="col-name" data-label="Name">
       ${e ? `<input class="field-input" style="width:145px" value="${esc(row.name)}" onchange="setField('${row.id}','name',this.value)" />` :
             `<span class="field-view">${esc(row.name)}</span>`}
+    </td>
+
+    <!-- Instead -->
+    <td class="col-instead" data-label="Instead">
+      <input class="field-input" style="width:135px" value="${esc(row.instead)}"
+             placeholder="ชื่อคนไปแทน"
+             onchange="setInsteadField('${row.id}', this.value)" />
     </td>
 
     <!-- PIN -->
@@ -2333,6 +2470,18 @@ async function saveRow(id) {
 function setField(id, field, value) {
   const row = getRow(id);
   if (row) row[field] = value;
+}
+
+function setInsteadField(id, value) {
+  const row = getRow(id);
+  if (!row) return;
+  row.instead = value;
+  saveLocal();
+  updateStats();
+  if (sbClient && row.code) {
+    sbClient.from('tour_seat_check').upsert(rowToRecord(row), { onConflict: 'code' })
+      .then(({ error }) => { if (error) console.warn('instead upsert:', error.message); });
+  }
 }
 
 function toggleHighlight(id, checked) {
@@ -2683,6 +2832,7 @@ function exportExcel() {
   const data = rows.map(row => ({
     'รหัส':              row.code,
     'รายชื่อ':           row.name,
+    'Instead':           row.instead || '',
     'PIN':               row.pin,
     'Port':              row.port,
     'Group':             row.group,
@@ -2773,10 +2923,128 @@ function toast(msg, type = 'info') {
 }
 
 /* ═══════════════════════════════════════════════════════════
+   REPORT — Card drill-down
+═══════════════════════════════════════════════════════════ */
+const REPORT_CONFIG = {
+  total:       { title: '👥 Total — รายชื่อทั้งหมด',
+                 filter: r => true },
+  confirm:     { title: '✅ Confirm — ยืนยัน Passport แล้ว',
+                 filter: r => !!r.passId },
+  unconfirmed: { title: '⏳ Unconfirmed — ยังไม่มี Passport ID',
+                 filter: r => !r.passId },
+  seat2:       { title: '✈️ 2 Seat — ที่นั่ง ≥ 2 (parents)',
+                 filter: r => !r.isSubRow && parseFloat(r.seat) >= 2 },
+  seat1:       { title: '🪑 1 Seat — ที่นั่ง 1 ถึง < 2 (parents)',
+                 filter: r => { if (r.isSubRow) return false; const s = parseFloat(r.seat); return s >= 1 && s < 2; } },
+  booking:     { title: '🎫 Booking — มี Group',
+                 filter: r => r.group && r.group.trim() !== '' },
+  lagos:       { title: '🚢 Port Lagos',
+                 filter: r => r.port === 'Lagos' },
+  abidjan:     { title: '⚓ Port Abidjan',
+                 filter: r => r.port === 'Abidjan' },
+  'no-port':   { title: '📍 No Port — ยังไม่ระบุท่า',
+                 filter: r => !r.port || r.port.trim() === '' },
+  waive:       { title: '🚫 Waive — ยกเว้น',
+                 filter: r => !!r.waive },
+  instead:     { title: '🔄 Instead — มีคนไปแทน',
+                 filter: r => (r.instead || '').trim() !== '' },
+};
+
+let _currentReportKey = null;
+
+function openReport(key) {
+  const cfg = REPORT_CONFIG[key];
+  if (!cfg) return;
+  _currentReportKey = key;
+  const matched = rows.filter(cfg.filter);
+
+  document.getElementById('report-title').textContent = cfg.title;
+  document.getElementById('report-count').textContent = `${matched.length} รายการ`;
+
+  const tbody = document.getElementById('report-tbody');
+  const empty = document.getElementById('report-empty');
+  tbody.innerHTML = '';
+
+  if (matched.length === 0) {
+    empty.style.display = '';
+  } else {
+    empty.style.display = 'none';
+    matched.forEach((r, i) => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${i + 1}</td>
+        <td>${esc(r.code)}</td>
+        <td>${esc(r.name)}</td>
+        <td style="color:${(r.instead||'').trim()?'#0891b2':'var(--text3)'};font-weight:${(r.instead||'').trim()?'600':'400'}">${esc(r.instead) || '—'}</td>
+        <td>${esc(r.pin) || '—'}</td>
+        <td style="text-align:center">${r.seat !== '' && r.seat !== null ? r.seat : '—'}</td>
+        <td>${esc(r.port) || '—'}</td>
+        <td>${esc(r.group) || '—'}</td>
+        <td>${esc(r.flight) || '—'}</td>
+        <td>${esc(r.passId) || '—'}</td>
+        <td>${esc(r.tel) || '—'}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  document.getElementById('report-modal').classList.add('open');
+}
+
+function closeReport() {
+  document.getElementById('report-modal').classList.remove('open');
+  _currentReportKey = null;
+}
+
+function exportReportExcel() {
+  if (!_currentReportKey) return;
+  const cfg = REPORT_CONFIG[_currentReportKey];
+  if (!cfg) return;
+  const matched = rows.filter(cfg.filter);
+  if (matched.length === 0) { toast('ไม่มีข้อมูลให้ Export', 'error'); return; }
+
+  const data = matched.map((r, i) => ({
+    '#':                 i + 1,
+    'รหัส':              r.code,
+    'รายชื่อ':           r.name,
+    'Instead':           r.instead || '',
+    'PIN':               r.pin,
+    'Port':              r.port,
+    'Group':             r.group,
+    'Flight':            r.flight,
+    'Departure':         r.departureDateTime,
+    'Arrival':           r.arrivalDateTime,
+    'Comeback Flight':   r.comeback,
+    'Comeback Date&Time': r.comebackDateTime,
+    'Seat':              r.seat,
+    'Nationality':       r.nationality,
+    'Passport ID':       r.passId,
+    'Passport Exp':      r.passExp,
+    'WhatsApp':          r.tel,
+    'T-Shirt':           r.shirt,
+    'Waive':             r.waive ? 'ใช่' : '',
+    'Sub Row':           r.isSubRow ? 'ใช่' : '',
+  }));
+
+  const ws = XLSX.utils.json_to_sheet(data);
+  const wb = XLSX.utils.book_new();
+  const sheetName = cfg.title.replace(/[^\w\u0E00-\u0E7F]+/g, '_').slice(0, 28) || 'Report';
+  XLSX.utils.book_append_sheet(wb, ws, sheetName);
+  const ts = new Date().toISOString().slice(0,16).replace('T','_').replace(':','');
+  XLSX.writeFile(wb, `report_${_currentReportKey}_${ts}.xlsx`);
+  toast(`Export ${matched.length} รายการสำเร็จ`, 'success');
+}
+
+document.addEventListener('click', (e) => {
+  const card = e.target.closest('.cs-stat-card[data-report]');
+  if (card) openReport(card.dataset.report);
+});
+
+/* ═══════════════════════════════════════════════════════════
    KEYBOARD — Escape to close modal
 ═══════════════════════════════════════════════════════════ */
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') closeImgModal();
+  if (e.key === 'Escape') { closeImgModal(); closeReport(); }
 });
 
 async function syncFromSupabase() {

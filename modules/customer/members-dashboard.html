@@ -84,6 +84,8 @@
 .filter-bar .fbtn:hover{opacity:.85;}
 .filter-bar .fbtn.outline{background:transparent;border:1px solid var(--border);color:var(--text2);}
 .filter-bar .fbtn.outline:hover{border-color:var(--accent);color:var(--accent);}
+.filter-bar .fbtn.outline.active{background:var(--accent);color:#fff;border-color:var(--accent);}
+.rpt-range{font-size:11px;color:var(--text3);font-weight:400;}
 .filter-spacer{flex:1;}
 
 .report-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px;}
@@ -110,11 +112,12 @@
 .bar-indigo{background:linear-gradient(90deg,#6366f1,#818cf8);}
 
 /* ── Growth vertical bars ── */
-.growth-chart{display:flex;align-items:flex-end;gap:2px;height:180px;padding:0 4px;overflow-x:auto;}
-.growth-bar-wrap{display:flex;flex-direction:column;align-items:center;flex:1;min-width:18px;max-width:40px;}
-.growth-bar{width:100%;border-radius:4px 4px 0 0;transition:height .4s ease;cursor:pointer;position:relative;}
+.growth-chart{display:flex;align-items:stretch;gap:4px;height:250px;padding:0 4px;overflow-x:auto;}
+.growth-bar-wrap{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;flex:1;min-width:28px;max-width:80px;}
+.growth-bar{width:100%;border-radius:6px 6px 0 0;cursor:pointer;position:relative;background:linear-gradient(180deg,#3b82f6,#60a5fa);}
 .growth-bar:hover{opacity:.8;}
-.growth-bar-label{font-size:9px;color:var(--text3);margin-top:4px;writing-mode:vertical-lr;text-orientation:mixed;max-height:50px;overflow:hidden;}
+.growth-bar-top{font-size:10px;font-weight:700;color:var(--text2);text-align:center;margin-bottom:3px;font-variant-numeric:tabular-nums;}
+.growth-bar-label{font-size:10px;color:var(--text3);margin-top:5px;white-space:nowrap;}
 .growth-tooltip{display:none;position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);background:var(--text);color:var(--surface);padding:4px 8px;border-radius:6px;font-size:11px;white-space:nowrap;z-index:10;pointer-events:none;}
 .growth-bar:hover .growth-tooltip{display:block;}
 
@@ -131,6 +134,12 @@
 .rank-code{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--accent);font-weight:700;}
 .rank-cnt{font-weight:700;font-variant-numeric:tabular-nums;}
 .report-empty{text-align:center;padding:40px;color:var(--text3);font-size:13px;}
+
+/* ── Collapsible section ── */
+.dq-toggle{cursor:pointer;user-select:none;}
+.dq-toggle .arrow{display:inline-block;transition:transform .2s;font-size:12px;margin-right:6px;}
+.dq-body.collapsed{display:none;}
+.dq-toggle.open .arrow{transform:rotate(90deg);}
 </style>
 </head>
 <body>
@@ -175,42 +184,45 @@
     </div>
   </div>
 
-  <!-- Data quality issue list -->
+  <!-- Data quality issue list (collapsible) -->
   <div class="dq-section">
     <div class="dq-head">
-      <div class="dq-title">
-        ⚠️ ลูกค้าชื่อบริษัท แต่ไม่มีชื่อบุคคลธรรมดา
+      <div class="dq-title dq-toggle" id="dqToggle" onclick="toggleDQ()">
+        <span class="arrow">▶</span>
+        ⚠️ ข้อมูลไม่ครบ — ชื่อบริษัทไม่มีชื่อบุคคล
         <span class="pill" id="issueCount">0</span>
       </div>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-        <div class="dq-search">
-          <span style="opacity:.6">🔍</span>
-          <input id="dqSearch" placeholder="ค้นหารหัสหรือชื่อบริษัท...">
-        </div>
         <button class="dq-btn primary" onclick="exportCSV()">📥 Export CSV</button>
       </div>
     </div>
 
-    <div style="overflow-x:auto">
-      <table class="dq-table">
-        <thead>
-          <tr>
-            <th>รหัส</th>
-            <th>ชื่อบริษัท (member_name)</th>
-            <th>ชื่อบุคคล (full_name)</th>
-            <th>ประเทศ</th>
-            <th>Package</th>
-            <th>วันสมัคร</th>
-            <!-- <th>Action</th> -->
-          </tr>
-        </thead>
-        <tbody id="dqBody">
-          <tr><td colspan="7" class="dq-empty">⏳ กำลังโหลด...</td></tr>
-        </tbody>
-      </table>
+    <div class="dq-body collapsed" id="dqBody-wrap">
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;">
+        <div class="dq-search">
+          <span style="opacity:.6">🔍</span>
+          <input id="dqSearch" placeholder="ค้นหารหัสหรือชื่อบริษัท...">
+        </div>
+      </div>
+      <div style="overflow-x:auto">
+        <table class="dq-table">
+          <thead>
+            <tr>
+              <th>รหัส</th>
+              <th>ชื่อบริษัท (member_name)</th>
+              <th>ชื่อบุคคล (full_name)</th>
+              <th>ประเทศ</th>
+              <th>Package</th>
+              <th>วันสมัคร</th>
+            </tr>
+          </thead>
+          <tbody id="dqBody">
+            <tr><td colspan="6" class="dq-empty">⏳ กำลังโหลด...</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="paginate" id="dqPaginate"></div>
     </div>
-
-    <div class="paginate" id="dqPaginate"></div>
   </div>
 
   <!-- ══════════════════════════════════════════════════════════
@@ -227,18 +239,21 @@
     <label>ถึง</label>
     <input type="date" id="rptTo">
     <button class="fbtn" onclick="applyReport()">ค้นหา</button>
-    <button class="fbtn outline" onclick="resetReport()">ทั้งหมด</button>
+    <span style="font-size:10px;color:var(--text3);">(MM/DD/YYYY)</span>
     <div class="filter-spacer"></div>
-    <button class="fbtn outline" onclick="setRptPreset('thisYear')">ปีนี้</button>
-    <button class="fbtn outline" onclick="setRptPreset('lastYear')">ปีก่อน</button>
-    <button class="fbtn outline" onclick="setRptPreset('last6m')">6 เดือน</button>
-    <button class="fbtn outline" onclick="setRptPreset('last30d')">30 วัน</button>
+    <button class="fbtn outline" data-preset="1m" onclick="setRptPreset('1m')">1 เดือน</button>
+    <button class="fbtn outline" data-preset="3m" onclick="setRptPreset('3m')">3 เดือน</button>
+    <button class="fbtn outline" data-preset="6m" onclick="setRptPreset('6m')">6 เดือน</button>
+    <button class="fbtn outline active" data-preset="1y" onclick="setRptPreset('1y')">1 ปี</button>
+    <button class="fbtn outline" data-preset="3y" onclick="setRptPreset('3y')">3 ปี</button>
+    <button class="fbtn outline" data-preset="5y" onclick="setRptPreset('5y')">5 ปี</button>
+    <button class="fbtn outline" data-preset="all" onclick="setRptPreset('all')">ทั้งหมด</button>
   </div>
 
   <!-- Monthly Growth -->
   <div class="report-grid">
     <div class="report-card full">
-      <h3>📈 สมาชิกใหม่รายเดือน <span class="badge" id="growthTotal">—</span></h3>
+      <h3>📈 สมาชิกใหม่รายเดือน <span class="badge" id="growthTotal">—</span> <span class="rpt-range" id="rptRangeLabel"></span></h3>
       <div class="growth-chart" id="growthChart"><div class="report-empty">กำลังโหลด...</div></div>
     </div>
   </div>
@@ -246,11 +261,11 @@
   <!-- Package + Country -->
   <div class="report-grid">
     <div class="report-card">
-      <h3>📦 สัดส่วน Package <span class="badge" id="pkgTotal">—</span></h3>
+      <h3>📦 สัดส่วน Package <span class="badge" id="pkgTotal">—</span> <span class="rpt-range"></span></h3>
       <div id="pkgChart"></div>
     </div>
     <div class="report-card">
-      <h3>🌍 สมาชิกตามประเทศ <span class="badge" id="countryTotal">—</span></h3>
+      <h3>🌍 สมาชิกตามประเทศ <span class="badge" id="countryTotal">—</span> <span class="rpt-range"></span></h3>
       <div id="countryChart"></div>
     </div>
   </div>
@@ -258,11 +273,11 @@
   <!-- Side balance + Channel -->
   <div class="report-grid">
     <div class="report-card">
-      <h3>⚖️ สมดุลซ้าย-ขวา</h3>
+      <h3>⚖️ สมดุลซ้าย-ขวา <span class="rpt-range"></span></h3>
       <div id="sideChart"></div>
     </div>
     <div class="report-card">
-      <h3>📡 ช่องทางสมัคร (Channel)</h3>
+      <h3>📡 ช่องทางสมัคร (Channel) <span class="rpt-range"></span></h3>
       <div id="channelChart"></div>
     </div>
   </div>
@@ -270,11 +285,11 @@
   <!-- Top Sponsors + Top Uplines -->
   <div class="report-grid">
     <div class="report-card">
-      <h3>🏆 Top Sponsors <span class="badge">แนะนำเยอะสุด</span></h3>
+      <h3>🏆 Top Sponsors <span class="badge">แนะนำเยอะสุด</span> <span class="rpt-range"></span></h3>
       <div style="overflow-x:auto" id="sponsorTable"></div>
     </div>
     <div class="report-card">
-      <h3>🏅 Top Uplines <span class="badge">มี Downline เยอะสุด</span></h3>
+      <h3>🏅 Top Uplines <span class="badge">มี Downline เยอะสุด</span> <span class="rpt-range"></span></h3>
       <div style="overflow-x:auto" id="uplineTable"></div>
     </div>
   </div>
@@ -282,7 +297,7 @@
   <!-- Growth by Country -->
   <div class="report-grid">
     <div class="report-card full">
-      <h3>📊 Growth แยกตามประเทศ (รายเดือน)</h3>
+      <h3>📊 Growth แยกตามประเทศ (รายเดือน) <span class="rpt-range"></span></h3>
       <div class="growth-chart" id="growthCountryChart" style="height:200px;"><div class="report-empty">กำลังโหลด...</div></div>
       <div id="growthCountryLegend" style="margin-top:8px;text-align:center;"></div>
     </div>

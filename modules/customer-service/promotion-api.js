@@ -1,5 +1,23 @@
 /* ============================================================
    promotion-api.js — API layer for Promotion Module
+   ============================================================
+   Data model (Supabase tables — to be created):
+   ─────────────────────────────────────────────
+   promotion_categories
+     promotion_category_id  SERIAL PK
+     category_name          TEXT
+     icon                   TEXT          (emoji)
+     color                  TEXT          (hex)
+     sort_order             INT DEFAULT 0
+
+   promotions
+     promotion_id           SERIAL PK
+     promotion_category_id  INT FK
+     promo_month            TEXT          (YYYY-MM)
+     poster_url             TEXT          (public URL)
+     title                  TEXT          (optional caption)
+     sort_order             INT DEFAULT 0
+     created_at             TIMESTAMPTZ DEFAULT now()
 ============================================================ */
 
 const SB_URL_DEFAULT = "https://dtiynydgkcqausqktreg.supabase.co";
@@ -37,25 +55,17 @@ async function sbFetch(table, query = "", opts = {}) {
 }
 
 /* ── PROMOTIONS ── */
-export async function fetchPromotions() {
-  return sbFetch("promotions", "?select=*&order=start_date.desc") || [];
+export async function fetchPromotions(month) {
+  const q = month
+    ? `?select=*&promo_month=eq.${month}&order=sort_order.asc,created_at.desc`
+    : `?select=*&order=promo_month.desc,sort_order.asc`;
+  return sbFetch("promotions", q) || [];
 }
 
-export async function fetchPromotionById(id) {
-  const res = await sbFetch("promotions", `?promotion_id=eq.${id}&select=*`);
-  return res?.[0] || null;
-}
-
-export async function createPromotion(data) {
-  const res = await sbFetch("promotions", "", { method: "POST", body: data });
-  return res?.[0];
-}
-
-export async function updatePromotion(id, data) {
-  return sbFetch("promotions", `?promotion_id=eq.${id}`, {
-    method: "PATCH",
-    body: data,
-  });
+export async function createPromotions(rows) {
+  // batch insert
+  const res = await sbFetch("promotions", "", { method: "POST", body: rows });
+  return res || [];
 }
 
 export async function removePromotion(id) {
@@ -72,21 +82,27 @@ export async function fetchPromotionCategories() {
   );
 }
 
-/* ── USERS ── */
-export async function fetchUsers() {
-  return (
-    sbFetch(
-      "users",
-      "?select=user_id,full_name,username&is_active=eq.true&order=full_name",
-    ) || []
-  );
+export async function createPromotionCategory(data) {
+  const res = await sbFetch("promotion_categories", "", { method: "POST", body: data });
+  return res?.[0];
 }
 
-/* ── UPLOAD POSTER ── */
-export async function uploadPromotionPoster(promotionId, file) {
+export async function updatePromotionCategory(id, data) {
+  return sbFetch("promotion_categories", `?promotion_category_id=eq.${id}`, {
+    method: "PATCH",
+    body: data,
+  });
+}
+
+export async function removePromotionCategory(id) {
+  return sbFetch("promotion_categories", `?promotion_category_id=eq.${id}`, { method: "DELETE" });
+}
+
+/* ── UPLOAD POSTER IMAGE ── */
+export async function uploadPosterFile(file) {
   const { url, key } = getSB();
   const ext = file.name.split(".").pop().toLowerCase();
-  const fileName = `${promotionId}_poster_${Date.now()}.${ext}`;
+  const fileName = `promo_${Date.now()}_${Math.random().toString(36).slice(2, 6)}.${ext}`;
   const uploadPath = `promotions/${fileName}`;
 
   const uploadRes = await fetch(

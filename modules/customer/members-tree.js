@@ -567,3 +567,9 @@ document.addEventListener('click', (e) => {
   const inp = document.getElementById('searchInput');
   if (sug && !sug.contains(e.target) && e.target !== inp) _hideSuggest();
 });
+
+/* ── Auto-load from ?code= query param ── */
+(() => {
+  const code = new URLSearchParams(location.search).get('code');
+  if (code) loadMember(code);
+})();

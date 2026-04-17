@@ -26,11 +26,16 @@ async function sb(path, extraHeaders = {}) {
   return { res, json: await res.json() };
 }
 
-/* ── Load summary stats ── */
+/* ── Load summary stats (RPC — faster than view) ── */
 async function loadStats() {
   try {
-    const { json } = await sb('v_data_quality_summary?select=*');
-    const s = json[0] || {};
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/member_quality_stats`, {
+      method: 'POST',
+      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json' },
+      body: '{}',
+    });
+    if (!res.ok) throw new Error(`${res.status}: ${(await res.text()).slice(0, 120)}`);
+    const s = await res.json();
     const total = s.total || 0;
     const pct = (n) => total ? ((n || 0) / total * 100).toFixed(1) + '%' : '0%';
 
@@ -235,6 +240,14 @@ function gotoTree(code) {
   location.href = `./members-tree.html?code=${encodeURIComponent(code)}`;
 }
 
+/* ── Toggle data quality section ── */
+function toggleDQ() {
+  const wrap = document.getElementById('dqBody-wrap');
+  const toggle = document.getElementById('dqToggle');
+  wrap.classList.toggle('collapsed');
+  toggle.classList.toggle('open');
+}
+
 /* ── Utils ── */
 function _flag(c) { return c === 'TH' ? '🇹🇭' : c === 'KH' ? '🇰🇭' : '🌐'; }
 function escapeHtml(s) {
@@ -271,53 +284,63 @@ async function rpc(fn, params = {}) {
 }
 
 /* ── Date filter ── */
+function _setRptDate(id, iso) {
+  document.getElementById(id).value = iso;
+}
 function _rptRange() {
-  const from = document.getElementById('rptFrom').value || '2015-01-01';
-  const to = document.getElementById('rptTo').value || new Date().toISOString().slice(0, 10);
+  const now = new Date();
+  const from = document.getElementById('rptFrom').value || `${now.getFullYear()}-01-01`;
+  const to = document.getElementById('rptTo').value || now.toISOString().slice(0, 10);
   return { p_from: from, p_to: to };
+}
+function _rangeLabel() {
+  const r = _rptRange();
+  return DateFmt.formatDMY(r.p_from) + ' – ' + DateFmt.formatDMY(r.p_to);
+}
+
+function _highlightPreset(key) {
+  document.querySelectorAll('.filter-bar [data-preset]').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.preset === key);
+  });
 }
 
 function setRptPreset(key) {
+  _highlightPreset(key);
   const now = new Date();
-  const toEl = document.getElementById('rptTo');
-  const fromEl = document.getElementById('rptFrom');
-  if (key === 'thisYear') {
-    fromEl.value = `${now.getFullYear()}-01-01`;
-    toEl.value = now.toISOString().slice(0, 10);
-  } else if (key === 'lastYear') {
-    fromEl.value = `${now.getFullYear() - 1}-01-01`;
-    toEl.value = `${now.getFullYear() - 1}-12-31`;
-  } else if (key === 'last6m') {
-    const d = new Date(now); d.setMonth(d.getMonth() - 6);
-    fromEl.value = d.toISOString().slice(0, 10);
-    toEl.value = now.toISOString().slice(0, 10);
-  } else if (key === 'last30d') {
-    const d = new Date(now); d.setDate(d.getDate() - 30);
-    fromEl.value = d.toISOString().slice(0, 10);
-    toEl.value = now.toISOString().slice(0, 10);
-  }
+  _setRptDate('rptTo', now.toISOString().slice(0, 10));
+
+  const d = new Date(now);
+  if (key === '1m') d.setMonth(d.getMonth() - 1);
+  else if (key === '3m') d.setMonth(d.getMonth() - 3);
+  else if (key === '6m') d.setMonth(d.getMonth() - 6);
+  else if (key === '1y') d.setFullYear(d.getFullYear() - 1);
+  else if (key === '3y') d.setFullYear(d.getFullYear() - 3);
+  else if (key === '5y') d.setFullYear(d.getFullYear() - 5);
+  else if (key === 'all') { _setRptDate('rptFrom', '2015-01-01'); loadReports(); return; }
+
+  _setRptDate('rptFrom', d.toISOString().slice(0, 10));
   loadReports();
 }
-function applyReport() { loadReports(); }
-function resetReport() {
-  document.getElementById('rptFrom').value = '';
-  document.getElementById('rptTo').value = '';
-  loadReports();
-}
+function applyReport() { _highlightPreset(''); loadReports(); }
+
 
 /* ── Load all reports ── */
 async function loadReports() {
   const range = _rptRange();
+  const rl = _rangeLabel();
+  document.querySelectorAll('.rpt-range').forEach(el => el.textContent = rl);
   try {
+    // แต่ละ report โหลดแยก — ถ้าตัวไหน fail ไม่พังตัวอื่น
+    const safe = (fn) => fn.catch(e => { console.warn(e); return []; });
     const [monthly, pkg, country, sponsors, uplines, side, channel, gc] = await Promise.all([
-      rpc('member_report_monthly', range),
-      rpc('member_report_package', range),
-      rpc('member_report_country', range),
-      rpc('member_report_top_sponsors', { ...range, p_limit: 15 }),
-      rpc('member_report_top_uplines', { ...range, p_limit: 15 }),
-      rpc('member_report_side', range),
-      rpc('member_report_channel', range),
-      rpc('member_report_growth_by_country', range),
+      safe(rpc('member_report_monthly', range)),
+      safe(rpc('member_report_package', range)),
+      safe(rpc('member_report_country', range)),
+      safe(rpc('member_report_top_sponsors', { ...range, p_limit: 15 })),
+      safe(rpc('member_report_top_uplines', { ...range, p_limit: 15 })),
+      safe(rpc('member_report_side', range)),
+      safe(rpc('member_report_channel', range)),
+      safe(rpc('member_report_growth_by_country', range)),
     ]);
     _renderGrowth(monthly);
     _renderBar('pkgChart', pkg, 'package', 'pkgTotal');
@@ -339,14 +362,18 @@ function _renderGrowth(data) {
   if (!data.length) { el.innerHTML = '<div class="report-empty">ไม่มีข้อมูล</div>'; return; }
   const max = Math.max(...data.map(d => d.cnt));
   const total = data.reduce((s, d) => s + Number(d.cnt), 0);
+  const maxBarH = 180; // px
   document.getElementById('growthTotal').textContent = total.toLocaleString() + ' คน';
   el.innerHTML = data.map(d => {
-    const pct = max ? (d.cnt / max * 100) : 0;
+    const cnt = Number(d.cnt);
+    const h = max ? Math.max(Math.round(cnt / max * maxBarH), 4) : 4;
+    const label = data.length <= 12 ? d.month : d.month.slice(2);
     return `<div class="growth-bar-wrap">
-      <div class="growth-bar bar-blue" style="height:${Math.max(pct, 2)}%">
-        <div class="growth-tooltip">${d.month}: ${Number(d.cnt).toLocaleString()}</div>
+      <div class="growth-bar-top">${cnt.toLocaleString()}</div>
+      <div class="growth-bar" style="height:${h}px">
+        <div class="growth-tooltip">${d.month}: ${cnt.toLocaleString()}</div>
       </div>
-      <div class="growth-bar-label">${d.month.slice(2)}</div>
+      <div class="growth-bar-label">${label}</div>
     </div>`;
   }).join('');
 }
@@ -416,7 +443,7 @@ function _renderRank(elId, data, codeKey, nameKey) {
       const pct = max ? (d.cnt / max * 100) : 0;
       return `<tr>
         <td><span class="rank-num ${rc}">${i + 1}</span></td>
-        <td><span class="rank-code">${escapeHtml(d[codeKey] || '—')}</span></td>
+        <td><span class="rank-code" onclick="gotoTree('${d[codeKey]}')" style="cursor:pointer">${escapeHtml(d[codeKey] || '—')}</span></td>
         <td>${escapeHtml(d[nameKey] || '—')}</td>
         <td class="rank-cnt">${Number(d.cnt).toLocaleString()}</td>
         <td><div class="bar-track"><div class="bar-fill ${RPT_COLORS[i % RPT_COLORS.length]}" style="width:${pct}%"></div></div></td>
@@ -441,21 +468,24 @@ function _renderGrowthCountry(data) {
   const cList = [...countries];
   const maxTotal = Math.max(...months.map(m => cList.reduce((s, c) => s + (pivot[m][c] || 0), 0)));
 
+  const maxBarH = 160;
   el.innerHTML = months.map(m => {
     const mTotal = cList.reduce((s, c) => s + (pivot[m][c] || 0), 0);
-    const pct = maxTotal ? (mTotal / maxTotal * 100) : 0;
+    const h = maxTotal ? Math.max(Math.round(mTotal / maxTotal * maxBarH), 4) : 4;
     const segs = cList.map((c, i) => {
       const val = pivot[m][c] || 0;
       if (!val) return '';
       const sp = mTotal ? (val / mTotal * 100) : 0;
       return `<div style="height:${sp}%;background:${RPT_RAW[i % RPT_RAW.length]};min-height:${val?1:0}px;" title="${c}: ${val.toLocaleString()}"></div>`;
     }).join('');
+    const label = months.length <= 12 ? m : m.slice(2);
     return `<div class="growth-bar-wrap">
-      <div style="width:100%;height:${Math.max(pct, 2)}%;display:flex;flex-direction:column;justify-content:flex-end;border-radius:4px 4px 0 0;overflow:hidden;cursor:pointer;position:relative;">
+      <div class="growth-bar-top">${mTotal.toLocaleString()}</div>
+      <div style="width:100%;height:${h}px;display:flex;flex-direction:column;justify-content:flex-end;border-radius:6px 6px 0 0;overflow:hidden;cursor:pointer;position:relative;">
         ${segs}
         <div class="growth-tooltip">${m}: ${mTotal.toLocaleString()}</div>
       </div>
-      <div class="growth-bar-label">${m.slice(2)}</div>
+      <div class="growth-bar-label">${label}</div>
     </div>`;
   }).join('');
 
@@ -475,10 +505,11 @@ function _renderGrowthCountry(data) {
   }
   showLoading(true);
 
-  // Default report range: ปีนี้
+  // Default report range: 1 ปี
   const now = new Date();
-  document.getElementById('rptFrom').value = `${now.getFullYear()}-01-01`;
-  document.getElementById('rptTo').value = now.toISOString().slice(0, 10);
+  const oneYearAgo = new Date(now); oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+  _setRptDate('rptFrom', oneYearAgo.toISOString().slice(0, 10));
+  _setRptDate('rptTo', now.toISOString().slice(0, 10));
 
   await Promise.all([loadStats(), loadIssues(1), loadReports()]);
   showLoading(false);
