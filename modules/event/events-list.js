@@ -678,8 +678,9 @@ function renderTable(events) {
       <td class="col-center" onclick="event.stopPropagation()">
         <div class="action-group">
           <button class="btn-icon ${pinned ? "btn-pin-active" : "btn-pin"}" title="${pinned ? "ยกเลิกปักหมุด" : "ปักหมุด"}" onclick="window.togglePin(${e.event_id}, event)">📌</button>
-          <button class="btn-icon" onclick="window.location.href='./event-form.html?id=${e.event_id}'">✏️</button>
-          <button class="btn-icon danger" onclick="window.deleteEvent(${e.event_id})">🗑</button>
+          <button class="btn-icon" title="ผู้เข้าร่วม" onclick="window.location.href='./attendees.html?event=${e.event_id}'">👥</button>
+          <button class="btn-icon" title="แก้ไข" onclick="window.location.href='./event-form.html?id=${e.event_id}'">✏️</button>
+          <button class="btn-icon danger" title="ลบ" onclick="window.deleteEvent(${e.event_id})">🗑</button>
         </div>
       </td>
     </tr>`;

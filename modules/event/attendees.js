@@ -97,7 +97,7 @@ async function initPage() {
     populateEventSelect();
 
     const params = new URLSearchParams(window.location.search);
-    const urlEventId = params.get("event_id");
+    const urlEventId = params.get("event_id") || params.get("event");
     if (urlEventId) {
       document.getElementById("eventSelect").value = urlEventId;
       await loadAttendees(parseInt(urlEventId));
