@@ -34,6 +34,12 @@
           path: BASE_PATH + "/modules/event/event-poster-gallery.html",
         },
         {
+          id: "events-dashboard",
+          icon: "📊",
+          label: "Dashboard",
+          path: BASE_PATH + "/modules/event/events-dashboard.html",
+        },
+        {
           id: "events",
           icon: "🗓️",
           label: "รายการกิจกรรม",
@@ -210,6 +216,12 @@
       id: "g-customer-service",
       items: [
         {
+          id: "daily-sale",
+          icon: "📊",
+          label: "Daily Sale",
+          path: BASE_PATH + "/modules/customer-service/daily-sale.html",
+        },
+        {
           id: "promotion-gallery",
           icon: "📰",
           label: "Catalog ประจำเดือน",
@@ -301,6 +313,7 @@
   const ID_TO_PERM = {
     dashboard: "dashboard_view",
     "event-poster-gallery": "poster_view",
+    "events-dashboard": "events_view",
     events: "events_view",
     "events-category": "evt_cat_view",
     "course-series": "evt_cat_view",
@@ -331,6 +344,7 @@
     "members-sync": "member_sync_config",
     promotions: "view_promotions",
     "promotion-gallery": "view_promotions",
+    "daily-sale": "daily_sale_view",
     automation: "devtool_view",
     wizard: "devtool_manage",
     "devtool-settings": "devtool_manage",
@@ -371,6 +385,7 @@
     "req",
     //**** EVENT ****
     "event-poster-gallery",
+    "events-dashboard",
     "events",
     "events-category",
     "course-series",
@@ -398,6 +413,7 @@
     "members-import",
     "members-sync",
     //**** CUSTOMER SERVICE ****
+    "daily-sale",
     "promotion-gallery",
     "promotions",
     //**** DEV TOOL ****

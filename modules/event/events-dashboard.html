@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Events Dashboard — A4S-ERP</title>
+<link rel="stylesheet" href="../../css/main.css">
+<style>
+/* ── Hero ── */
+.ed-hero{background:linear-gradient(135deg,#1e40af,#3b82f6);color:#fff;border-radius:14px;padding:20px 24px;margin-bottom:18px;box-shadow:0 8px 24px rgba(30,64,175,.3);position:relative;overflow:hidden;display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;}
+.ed-hero::before{content:'';position:absolute;top:-40px;right:-40px;width:140px;height:140px;border-radius:50%;background:rgba(255,255,255,.06);}
+.ed-hero h1{font-size:18px;font-weight:700;margin:0;display:flex;align-items:center;gap:8px;position:relative;z-index:1;}
+.ed-hero p{margin:3px 0 0;font-size:12.5px;opacity:.85;position:relative;z-index:1;}
+.ed-hero-right{display:flex;gap:8px;flex-shrink:0;position:relative;z-index:1;flex-wrap:wrap;}
+.ed-date-input{padding:8px 12px;border:1.5px solid rgba(255,255,255,.3);border-radius:10px;background:rgba(255,255,255,.15);color:#fff;font-family:inherit;font-size:12.5px;font-weight:600;outline:none;}
+.ed-date-input::placeholder{color:rgba(255,255,255,.7);}
+.ed-date-input:focus{background:rgba(255,255,255,.25);}
+.ed-btn{padding:8px 14px;border:1.5px solid rgba(255,255,255,.3);border-radius:10px;background:rgba(255,255,255,.18);color:#fff;font-family:inherit;font-size:12.5px;font-weight:600;cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;gap:5px;}
+.ed-btn:hover{background:rgba(255,255,255,.28);}
+
+/* ── KPI row ── */
+.ed-kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:18px;}
+.ed-kpi{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px 18px;display:flex;align-items:center;gap:14px;transition:all .15s;}
+.ed-kpi:hover{box-shadow:0 6px 18px rgba(0,0,0,.08);transform:translateY(-1px);}
+.ed-kpi-icon{width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;}
+.ed-kpi-info{flex:1;min-width:0;}
+.ed-kpi-label{font-size:11.5px;color:var(--text3);font-weight:600;letter-spacing:.3px;text-transform:uppercase;}
+.ed-kpi-value{font-size:26px;font-weight:700;color:var(--text);font-variant-numeric:tabular-nums;line-height:1.1;margin-top:2px;}
+.ed-kpi-sub{font-size:11px;color:var(--text3);margin-top:2px;}
+.ed-kpi.blue .ed-kpi-icon{background:#dbeafe;color:#1e40af;}
+.ed-kpi.green .ed-kpi-icon{background:#d1fae5;color:#065f46;}
+.ed-kpi.amber .ed-kpi-icon{background:#fef3c7;color:#92400e;}
+.ed-kpi.purple .ed-kpi-icon{background:#ede9fe;color:#5b21b6;}
+.ed-kpi.pink .ed-kpi-icon{background:#fce7f3;color:#9d174d;}
+
+/* ── Section card ── */
+.ed-section{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px 18px;margin-bottom:14px;}
+.ed-section-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+.ed-section-title{font-size:14px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:7px;}
+.ed-section-sub{font-size:11.5px;color:var(--text3);}
+
+/* ── 2-col row ── */
+.ed-row-2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;}
+.ed-row-3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:14px;}
+@media(max-width:900px){.ed-row-2,.ed-row-3{grid-template-columns:1fr;}}
+
+/* ── Charts ── */
+.ed-chart-wrap{position:relative;width:100%;height:280px;}
+.ed-chart-wrap.small{height:220px;}
+
+/* ── Lists ── */
+.ed-list{display:flex;flex-direction:column;gap:8px;max-height:320px;overflow-y:auto;}
+.ed-list-item{display:flex;align-items:center;gap:10px;padding:9px 11px;border:1px solid var(--border);border-radius:8px;background:var(--surface);transition:all .12s;}
+.ed-list-item:hover{border-color:var(--accent);background:var(--accent-pale);}
+.ed-list-rank{width:26px;height:26px;border-radius:50%;background:var(--accent-pale);color:var(--accent);font-size:11.5px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.ed-list-rank.gold{background:#fef3c7;color:#92400e;}
+.ed-list-rank.silver{background:#e5e7eb;color:#4b5563;}
+.ed-list-rank.bronze{background:#fed7aa;color:#9a3412;}
+.ed-list-info{flex:1;min-width:0;}
+.ed-list-name{font-size:13px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.ed-list-sub{font-size:11px;color:var(--text3);margin-top:1px;}
+.ed-list-value{font-size:13px;font-weight:700;color:var(--accent);font-variant-numeric:tabular-nums;flex-shrink:0;}
+
+/* ── Upcoming event cards ── */
+.ed-upcoming-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;}
+.ed-up-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 14px;transition:all .15s;cursor:pointer;}
+.ed-up-card:hover{border-color:var(--accent);box-shadow:0 4px 12px rgba(0,0,0,.06);}
+.ed-up-date{font-size:11px;color:var(--accent);font-weight:700;letter-spacing:.3px;text-transform:uppercase;}
+.ed-up-name{font-size:13.5px;font-weight:700;color:var(--text);margin-top:3px;line-height:1.3;}
+.ed-up-location{font-size:11.5px;color:var(--text3);margin-top:4px;display:flex;align-items:center;gap:4px;}
+.ed-up-progress{margin-top:10px;}
+.ed-up-progress-label{display:flex;justify-content:space-between;font-size:11px;color:var(--text3);margin-bottom:4px;}
+.ed-up-progress-bar{height:6px;background:var(--border);border-radius:3px;overflow:hidden;}
+.ed-up-progress-fill{height:100%;background:linear-gradient(90deg,#3b82f6,#60a5fa);border-radius:3px;transition:width .4s;}
+.ed-up-progress-fill.warn{background:linear-gradient(90deg,#f59e0b,#fbbf24);}
+.ed-up-progress-fill.full{background:linear-gradient(90deg,#dc2626,#ef4444);}
+
+/* ── Empty state ── */
+.ed-empty{padding:40px 20px;text-align:center;color:var(--text3);font-size:13px;}
+.ed-empty-icon{font-size:36px;opacity:.4;margin-bottom:6px;}
+
+/* ── Loading ── */
+.ed-skeleton{background:linear-gradient(90deg,var(--border) 0%,var(--surface2) 50%,var(--border) 100%);background-size:200% 100%;animation:edShimmer 1.2s infinite;border-radius:6px;height:16px;}
+@keyframes edShimmer{0%{background-position:200% 0;}100%{background-position:-200% 0;}}
+</style>
+</head>
+<body>
+<div class="loading-overlay" id="loadingOverlay"><div class="spinner"></div></div>
+<div class="toast" id="toast"></div>
+
+<div class="topbar"></div>
+<div class="layout">
+  <div id="sidebar-container"></div>
+  <div class="content-area">
+    <div class="page">
+      <!-- HERO -->
+      <div class="ed-hero">
+        <div>
+          <h1>📊 Events Dashboard</h1>
+          <p>ภาพรวมกิจกรรมทั้งหมด · ผู้เข้าร่วม · รายรับ · แนวโน้ม</p>
+        </div>
+        <div class="ed-hero-right">
+          <input type="text" class="ed-date-input" id="dateFrom" placeholder="จาก (dd/mm/yyyy)" autocomplete="off" style="width:150px">
+          <input type="text" class="ed-date-input" id="dateTo" placeholder="ถึง (dd/mm/yyyy)" autocomplete="off" style="width:150px">
+          <button class="ed-btn" onclick="window.setPreset('30d')">30 วัน</button>
+          <button class="ed-btn" onclick="window.setPreset('90d')">90 วัน</button>
+          <button class="ed-btn" onclick="window.setPreset('ytd')">ปีนี้</button>
+          <button class="ed-btn" onclick="window.setPreset('all')">ทั้งหมด</button>
+          <button class="ed-btn" onclick="window.refreshDashboard()" style="background:rgba(255,255,255,.3)">🔄</button>
+        </div>
+      </div>
+
+      <!-- KPI ROW -->
+      <div class="ed-kpi-grid">
+        <div class="ed-kpi blue">
+          <div class="ed-kpi-icon">📅</div>
+          <div class="ed-kpi-info">
+            <div class="ed-kpi-label">Events ทั้งหมด</div>
+            <div class="ed-kpi-value" id="kpiEvents">0</div>
+            <div class="ed-kpi-sub" id="kpiEventsSub">—</div>
+          </div>
+        </div>
+        <div class="ed-kpi purple">
+          <div class="ed-kpi-icon">👥</div>
+          <div class="ed-kpi-info">
+            <div class="ed-kpi-label">ผู้เข้าร่วมรวม</div>
+            <div class="ed-kpi-value" id="kpiAttendees">0</div>
+            <div class="ed-kpi-sub" id="kpiAttendeesSub">จากทุก events</div>
+          </div>
+        </div>
+        <div class="ed-kpi green">
+          <div class="ed-kpi-icon">✅</div>
+          <div class="ed-kpi-info">
+            <div class="ed-kpi-label">Check-in Rate</div>
+            <div class="ed-kpi-value" id="kpiCheckinRate">0%</div>
+            <div class="ed-kpi-sub" id="kpiCheckinSub">—</div>
+          </div>
+        </div>
+        <div class="ed-kpi amber">
+          <div class="ed-kpi-icon">💰</div>
+          <div class="ed-kpi-info">
+            <div class="ed-kpi-label">รายรับรวม (฿)</div>
+            <div class="ed-kpi-value" id="kpiRevenue">0</div>
+            <div class="ed-kpi-sub" id="kpiRevenueSub">ชำระแล้ว</div>
+          </div>
+        </div>
+        <div class="ed-kpi pink">
+          <div class="ed-kpi-icon">⭐</div>
+          <div class="ed-kpi-info">
+            <div class="ed-kpi-label">สมาชิก MLM (unique)</div>
+            <div class="ed-kpi-value" id="kpiMembers">0</div>
+            <div class="ed-kpi-sub" id="kpiMembersSub">เข้างานในช่วงนี้</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ROW 2 — Events per month + Top events -->
+      <div class="ed-row-2">
+        <div class="ed-section">
+          <div class="ed-section-head">
+            <div class="ed-section-title">📊 Events ต่อเดือน</div>
+            <div class="ed-section-sub" id="chartMonthsSub">—</div>
+          </div>
+          <div class="ed-chart-wrap"><canvas id="chartMonths"></canvas></div>
+        </div>
+        <div class="ed-section">
+          <div class="ed-section-head">
+            <div class="ed-section-title">🏆 Top 10 Events คนเยอะสุด</div>
+          </div>
+          <div class="ed-chart-wrap"><canvas id="chartTopEvents"></canvas></div>
+        </div>
+      </div>
+
+      <!-- ROW 3 — 3 donuts -->
+      <div class="ed-row-3">
+        <div class="ed-section">
+          <div class="ed-section-head">
+            <div class="ed-section-title">🏷 แยกตามประเภท</div>
+          </div>
+          <div class="ed-chart-wrap small"><canvas id="chartCategory"></canvas></div>
+        </div>
+        <div class="ed-section">
+          <div class="ed-section-head">
+            <div class="ed-section-title">⭐ ตำแหน่งสูงสุด</div>
+          </div>
+          <div class="ed-chart-wrap small"><canvas id="chartPosition"></canvas></div>
+        </div>
+        <div class="ed-section">
+          <div class="ed-section-head">
+            <div class="ed-section-title">🌏 ประเทศ</div>
+          </div>
+          <div class="ed-chart-wrap small"><canvas id="chartCountry"></canvas></div>
+        </div>
+      </div>
+
+      <!-- ROW 4 — Top members + Top sponsors -->
+      <div class="ed-row-2">
+        <div class="ed-section">
+          <div class="ed-section-head">
+            <div class="ed-section-title">👑 Top 10 สมาชิกที่เข้างานบ่อย</div>
+          </div>
+          <div class="ed-list" id="topMembersList">
+            <div class="ed-empty"><div class="ed-empty-icon">👥</div>ไม่มีข้อมูล</div>
+          </div>
+        </div>
+        <div class="ed-section">
+          <div class="ed-section-head">
+            <div class="ed-section-title">🤝 Top 10 Sponsors พาคนมาเยอะสุด</div>
+          </div>
+          <div class="ed-list" id="topSponsorsList">
+            <div class="ed-empty"><div class="ed-empty-icon">🤝</div>ไม่มีข้อมูล</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ROW 5 — Upcoming events -->
+      <div class="ed-section">
+        <div class="ed-section-head">
+          <div class="ed-section-title">📆 กิจกรรมกำลังจะถึง</div>
+          <div class="ed-section-sub" id="upcomingSub">—</div>
+        </div>
+        <div class="ed-upcoming-grid" id="upcomingGrid">
+          <div class="ed-empty"><div class="ed-empty-icon">📅</div>ไม่มีกิจกรรมที่กำลังจะถึง</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<!-- Flatpickr (date picker) -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css">
+<script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/l10n/th.js"></script>
+
+<script src="../../js/core/auth.js"></script>
+<script src="../../js/core/authz.js"></script>
+<script src="../../js/core/permissions.js"></script>
+<script src="../../js/core/date-format.js"></script>
+<script>AuthZ.requirePerm("events_view");</script>
+<script src="./events-dashboard.js"></script>
+<script type="module">
+  import { loadTopbar } from "../../js/components/navigation/topbar.js";
+  loadTopbar("📊 Events Dashboard");
+</script>
+<script src="../../js/components/navigation/sidebar.js"></script>
+</body>
+</html>

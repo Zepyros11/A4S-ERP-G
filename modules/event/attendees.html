@@ -31,7 +31,6 @@
             </div>
             <div id="eventActionBtns" style="display:none;gap:8px;flex-shrink:0;position:relative;z-index:1">
               <button style="padding:8px 14px;border:none;border-radius:16px;background:rgba(255,255,255,.18);color:#fff;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;border:1.5px solid rgba(255,255,255,.25);display:flex;align-items:center;gap:5px" onclick="window.exportCSV()">📥 Export CSV</button>
-              <button style="padding:8px 14px;border:none;border-radius:16px;background:rgba(255,255,255,.18);color:#fff;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;border:1.5px solid rgba(255,255,255,.25);display:flex;align-items:center;gap:5px" data-perm="attendee_edit" onclick="window.openAttModal()">＋ เพิ่มผู้เข้าร่วม</button>
             </div>
           </div>
 
@@ -106,15 +105,8 @@
               <select class="filter-select" id="filterPayment">
                 <option value="">⚪ ทุกสถานะชำระ</option>
                 <option value="PAID">💳 ชำระแล้ว</option>
-                <option value="PENDING">⏳ รอชำระ</option>
-                <option value="FREE">🆓 ฟรี</option>
-                <option value="WAIVED">🎫 ยกเว้น</option>
-              </select>
-              <select class="filter-select" id="filterAttendType">
-                <option value="">⚪ ทุกประเภท</option>
-                <option value="ONSITE">🏢 Onsite</option>
-                <option value="ONLINE">💻 Online</option>
-                <option value="VIP">⭐ VIP</option>
+                <option value="UNPAID">⏳ ยังไม่ชำระ</option>
+                <option value="COMPLIMENTARY">🎫 ฟรี / ยกเว้น</option>
               </select>
             </div>
           </div>
@@ -128,27 +120,18 @@
                   <div class="table-count" id="attCount">0 คน</div>
                 </div>
                 <div class="table-wrap">
-                  <table class="data-table">
+                  <table class="data-table att-inline-table">
                     <thead>
                       <tr>
-                        <th>ชื่อ-นามสกุล</th>
-                        <th class="col-center">ประเภท</th>
-                        <th class="col-center">Ticket</th>
-                        <th class="col-center">ชำระ</th>
-                        <th class="col-center">Check-in</th>
-                        <th class="col-center">จัดการ</th>
+                        <th style="min-width:240px">🔍 ค้นหาสมาชิก / ชื่อ</th>
+                        <th class="col-center" style="min-width:100px">⭐ ตำแหน่ง</th>
+                        <th class="col-center" style="min-width:110px">🎫 Ticket</th>
+                        <th class="col-center" style="min-width:130px">💰 ชำระ</th>
+                        <th class="col-center" style="min-width:90px">✅ Check-in</th>
+                        <th class="col-center" style="min-width:90px">จัดการ</th>
                       </tr>
                     </thead>
-                    <tbody id="attTableBody">
-                      <tr>
-                        <td colspan="6">
-                          <div class="empty-state">
-                            <div class="empty-icon">👥</div>
-                            <div class="empty-text">ยังไม่มีผู้เข้าร่วม</div>
-                          </div>
-                        </td>
-                      </tr>
-                    </tbody>
+                    <tbody id="attTableBody"></tbody>
                   </table>
                 </div>
               </div>
@@ -166,126 +149,8 @@
       </div>
     </div>
 
-    <!-- ── ATTENDEE MODAL ── -->
-    <div class="att-modal-overlay" id="attModalOverlay">
-      <div class="att-modal">
-        <div class="att-modal-header">
-          <div style="font-weight: 700; font-size: 15px" id="attModalTitle">
-            👤 เพิ่มผู้เข้าร่วม
-          </div>
-          <button class="btn-icon" onclick="window.closeAttModal()">✕</button>
-        </div>
-        <div class="att-modal-body">
-          <input type="hidden" id="fAttId" />
-          <div class="att-form-grid">
-            <!-- Member search -->
-            <div class="form-group aspan2">
-              <label class="form-label">🔍 ค้นหาสมาชิก MLM <span style="font-weight:400;color:var(--text3)">(optional)</span></label>
-              <div style="position:relative">
-                <input class="form-input" id="fMemberSearch" placeholder="พิมพ์รหัสสมาชิก หรือ ชื่อ..." autocomplete="off" oninput="searchMember(this.value)">
-                <div id="memberSuggest" style="display:none;position:absolute;left:0;right:0;top:100%;background:var(--surface,#fff);border:1px solid var(--border,#e2e8f0);border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,.12);z-index:100;max-height:180px;overflow-y:auto"></div>
-              </div>
-              <input type="hidden" id="fMemberCode" value="">
-              <div id="memberBadge" style="display:none;margin-top:6px;padding:6px 10px;background:var(--accent-pale,#dbeafe);border-radius:6px;font-size:12px;display:none">
-                <span id="memberBadgeText"></span>
-                <button type="button" onclick="clearMember()" style="background:none;border:none;cursor:pointer;font-size:12px;color:var(--text3);margin-left:8px">✕</button>
-              </div>
-              <div id="prereqWarning" style="display:none;margin-top:6px;padding:8px 12px;background:#fef2f2;border:1px solid #fecaca;border-radius:6px;font-size:12px;color:#991b1b"></div>
-            </div>
-
-            <div class="form-group aspan2">
-              <label class="form-label"
-                >ชื่อ-นามสกุล <span style="color: var(--danger)">*</span></label
-              >
-              <input
-                class="form-input"
-                id="fAttName"
-                placeholder="ชื่อ-นามสกุล"
-              />
-            </div>
-
-            <div class="form-group">
-              <label class="form-label">🔖 รหัสสมาชิก <span style="font-weight:400;color:var(--text3);font-size:11px">(auto)</span></label>
-              <input
-                class="form-input"
-                id="fMemberCodeDisplay"
-                placeholder="—"
-                readonly
-                style="background:#f8fafc;color:#1e40af;font-weight:700;font-family:'IBM Plex Mono',monospace"
-              />
-            </div>
-            <div class="form-group">
-              <label class="form-label">⭐ ตำแหน่งสูงสุด <span style="font-weight:400;color:var(--text3);font-size:11px">(auto)</span></label>
-              <input
-                class="form-input"
-                id="fPositionLevel"
-                placeholder="—"
-                readonly
-                style="background:#f8fafc;color:#475569;font-weight:600"
-              />
-            </div>
-
-            <div class="form-group">
-              <label class="form-label">อีเมล</label>
-              <input
-                type="email"
-                class="form-input"
-                id="fAttEmail"
-                placeholder="email@example.com"
-              />
-            </div>
-            <div class="form-group">
-              <label class="form-label">เบอร์โทร</label>
-              <input
-                class="form-input"
-                id="fAttPhone"
-                placeholder="0XX-XXX-XXXX"
-              />
-            </div>
-
-            <div class="form-group">
-              <label class="form-label">💰 ยอดชำระ (บาท) <span style="font-weight:400;color:var(--text3);font-size:11px">(จาก event)</span></label>
-              <input
-                type="number"
-                class="form-input"
-                id="fPaidAmount"
-                min="0"
-                placeholder="0.00"
-                readonly
-                style="background:#f8fafc;color:#0f172a;font-weight:700"
-              />
-            </div>
-            <div class="form-group">
-              <label class="form-label">สถานะชำระ</label>
-              <select class="form-input" id="fPaymentStatus">
-                <option value="FREE">🆓 ฟรี</option>
-                <option value="PENDING">⏳ รอชำระ</option>
-                <option value="PAID">💳 ชำระแล้ว</option>
-                <option value="WAIVED">🎫 ยกเว้น</option>
-              </select>
-            </div>
-
-            <div class="form-group aspan2">
-              <label class="form-label">หมายเหตุ</label>
-              <textarea
-                class="form-input"
-                id="fAttNote"
-                rows="2"
-                placeholder="..."
-              ></textarea>
-            </div>
-          </div>
-        </div>
-        <div class="att-modal-footer">
-          <button class="btn btn-secondary" onclick="window.closeAttModal()">
-            ยกเลิก
-          </button>
-          <button class="btn btn-primary" onclick="window.saveAttendee()">
-            💾 บันทึก
-          </button>
-        </div>
-      </div>
-    </div>
+    <!-- Shared member search suggest dropdown (positioned dynamically per row) -->
+    <div id="memberSuggest" style="display:none;position:absolute;background:var(--surface,#fff);border:1px solid var(--border,#e2e8f0);border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,.15);z-index:500;max-height:240px;overflow-y:auto;min-width:280px"></div>
 
     <script src="../../js/core/auth.js"></script>
     <script src="../../js/core/authz.js"></script>

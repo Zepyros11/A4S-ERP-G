@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Daily Sale — A4S-ERP</title>
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../css/main.css" />
+  <link rel="stylesheet" href="./daily-sale.css" />
+</head>
+<body>
+
+<div class="loading-overlay" id="loadingOverlay"><div class="spinner"></div></div>
+<div class="toast" id="toast"></div>
+
+<div class="topbar"></div>
+<div class="layout">
+  <div id="sidebar-container"></div>
+
+  <div class="content-area">
+    <div class="page">
+
+      <!-- ── Hero ── -->
+      <div class="ds-hero" id="dsHero">
+        <div class="ds-hero-top">
+          <div class="ds-hero-left">
+            <div class="ds-hero-status"><span class="ds-hero-dot"></span><span id="dsHeroStatus">กำลังโหลด...</span></div>
+            <div class="ds-hero-title">📊 Daily Sale — สรุปยอดรายวัน</div>
+            <div class="ds-hero-sub">Sync จาก answerforsuccess.com อัตโนมัติทุก 1 ชม. (เวลา 08:00–20:00) · แทน Google Sheet DailySaleCS</div>
+          </div>
+          <button class="ds-sync-btn" data-perm="daily_sale_sync" onclick="dsSyncNow()">
+            <span style="font-size:18px">🔄</span><span>Sync Now</span>
+          </button>
+        </div>
+        <div class="ds-hero-grid">
+          <div class="ds-hero-cell">บิลวันนี้<strong id="dsKpiBills">—</strong></div>
+          <div class="ds-hero-cell">ยอดขาย (THB)<strong id="dsKpiAmount">—</strong></div>
+          <div class="ds-hero-cell">เงินสด<strong id="dsKpiCash">—</strong></div>
+          <div class="ds-hero-cell">เงินโอน<strong id="dsKpiTransfer">—</strong></div>
+          <div class="ds-hero-cell">บัตรเครดิต<strong id="dsKpiCredit">—</strong></div>
+          <div class="ds-hero-cell">E-Wallet<strong id="dsKpiEwallet">—</strong></div>
+          <div class="ds-hero-cell">Sync ล่าสุด<strong id="dsKpiSync">—</strong></div>
+        </div>
+      </div>
+
+      <!-- ── Filter bar ── -->
+      <div class="ds-filters">
+        <div class="ds-filter-group">
+          <span class="ds-filter-label">📅 วันที่</span>
+          <input type="date" class="ds-filter-input" id="dsDate" />
+        </div>
+        <div class="ds-filter-group">
+          <button class="ds-filter-pill" onclick="dsShiftDate(-1)">← เมื่อวาน</button>
+          <button class="ds-filter-pill active" onclick="dsShiftDate(0)">วันนี้</button>
+        </div>
+        <div class="ds-filter-group" style="margin-left:auto">
+          <span class="ds-filter-label">🏢 สาขา</span>
+          <select class="ds-filter-input" id="dsBranch">
+            <option value="">ทุกสาขา</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- ── Tabs ── -->
+      <div class="ds-tabs">
+        <button class="ds-tab active" data-tab="sale"    onclick="dsSwitchTab('sale')">💰 บิลขาย</button>
+        <button class="ds-tab"        data-tab="topup"   onclick="dsSwitchTab('topup')">🔋 เติม E-Wallet</button>
+        <button class="ds-tab"        data-tab="reconcile" onclick="dsSwitchTab('reconcile')">📋 ตรวจบิล</button>
+      </div>
+
+      <!-- ── Tab: Sale (bills + payments JOIN) ── -->
+      <div class="ds-tab-panel" id="dsPanelSale">
+        <div class="ds-table-wrap">
+          <div style="overflow-x:auto">
+            <table class="ds-table">
+              <thead>
+                <tr>
+                  <th>เลขบิล</th>
+                  <th>สมาชิก</th>
+                  <th>ประเภท</th>
+                  <th class="ds-num">ยอด</th>
+                  <th class="ds-num">เงินสด</th>
+                  <th class="ds-num">เงินโอน</th>
+                  <th class="ds-num">บัตรเครดิต</th>
+                  <th class="ds-num">E-Wallet</th>
+                  <th class="ds-num">Gift</th>
+                  <th>วิธีชำระ</th>
+                  <th>สาขา</th>
+                </tr>
+              </thead>
+              <tbody id="dsSaleBody">
+                <tr><td colspan="11" class="ds-table-empty">กำลังโหลด...</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="ds-summary" id="dsSaleSummary" style="display:none">
+            <div class="ds-summary-item"><span class="label">จำนวนบิล</span><span class="value" id="dsSumCount">—</span></div>
+            <div class="ds-summary-item"><span class="label">ยอดรวม</span><span class="value" id="dsSumAmount">—</span></div>
+            <div class="ds-summary-item"><span class="label">เงินสด</span><span class="value" id="dsSumCash">—</span></div>
+            <div class="ds-summary-item"><span class="label">เงินโอน</span><span class="value" id="dsSumTransfer">—</span></div>
+            <div class="ds-summary-item"><span class="label">บัตรเครดิต</span><span class="value" id="dsSumCredit">—</span></div>
+            <div class="ds-summary-item"><span class="label">E-Wallet</span><span class="value" id="dsSumEwallet">—</span></div>
+            <div class="ds-summary-item"><span class="label">Gift Voucher</span><span class="value" id="dsSumGift">—</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Tab: Topup (topup_bills + details) ── -->
+      <div class="ds-tab-panel" id="dsPanelTopup" style="display:none">
+        <div class="ds-table-wrap">
+          <div style="overflow-x:auto">
+            <table class="ds-table">
+              <thead>
+                <tr>
+                  <th>เลขบิล</th>
+                  <th>สมาชิก</th>
+                  <th class="ds-num">ยอด</th>
+                  <th class="ds-num">เงินสด</th>
+                  <th class="ds-num">เงินโอน</th>
+                  <th class="ds-num">บัตรเครดิต</th>
+                  <th class="ds-num">Gift</th>
+                  <th>รายละเอียด</th>
+                  <th>สาขา</th>
+                  <th>ช่องทาง</th>
+                </tr>
+              </thead>
+              <tbody id="dsTopupBody">
+                <tr><td colspan="10" class="ds-table-empty">กำลังโหลด...</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="ds-summary" id="dsTopupSummary" style="display:none">
+            <div class="ds-summary-item"><span class="label">จำนวนบิล</span><span class="value" id="dsTupCount">—</span></div>
+            <div class="ds-summary-item"><span class="label">ยอดเติม</span><span class="value" id="dsTupAmount">—</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Tab: Reconcile ── -->
+      <div class="ds-tab-panel" id="dsPanelReconcile" style="display:none">
+        <div class="ds-rec-card">
+          <div class="ds-rec-title">📋 ตรวจบิลประจำวัน — <span id="dsRecDateLabel">—</span></div>
+          <div class="ds-rec-sub">ระบบ prefill ข้อมูลจาก ERP · CS ปรับแก้ได้ถ้าระบบบันทึกผิด · ผลต่างจะคำนวณให้อัตโนมัติ</div>
+
+          <div class="ds-rec-diff" id="dsRecDiff">เลือกวันที่เพื่อดูข้อมูล</div>
+
+          <div class="ds-rec-grid">
+            <div class="ds-rec-field">
+              <label>จำนวนบิล (CS)</label>
+              <input type="number" id="dsRecBillCount" min="0" step="1" />
+            </div>
+            <div class="ds-rec-field">
+              <label>มูลค่ารวม (CS)</label>
+              <input type="number" id="dsRecBillValue" min="0" step="0.01" />
+            </div>
+            <div class="ds-rec-field">
+              <label>คงเหลือ</label>
+              <input type="number" id="dsRecRemaining" min="0" step="0.01" />
+            </div>
+            <div class="ds-rec-field readonly">
+              <label>จำนวนบิล (ระบบ)</label>
+              <input type="number" id="dsRecSystemCount" readonly />
+            </div>
+            <div class="ds-rec-field readonly">
+              <label>มูลค่ารวม (ระบบ)</label>
+              <input type="number" id="dsRecSystemValue" readonly />
+            </div>
+            <div class="ds-rec-field">
+              <label>ผู้เซ็น (Signature)</label>
+              <input type="text" id="dsRecSignature" placeholder="เกษ / เหน่ง" />
+            </div>
+          </div>
+
+          <div class="ds-rec-field" style="margin-bottom:16px">
+            <label>หมายเหตุ</label>
+            <input type="text" id="dsRecNotes" placeholder="กรอกหมายเหตุ (ไม่บังคับ)" />
+          </div>
+
+          <div class="ds-rec-actions">
+            <button class="ds-rec-prefill" onclick="dsRecPrefill()">🔄 Prefill จาก ERP</button>
+            <button class="ds-rec-save" data-perm="daily_sale_reconcile" onclick="dsRecSave()">💾 บันทึก</button>
+          </div>
+        </div>
+
+        <div class="ds-rec-card">
+          <div class="ds-rec-title">📅 ประวัติการตรวจบิล (30 วันล่าสุด)</div>
+          <div class="ds-rec-list" id="dsRecList">
+            <div style="text-align:center;padding:30px;color:var(--text3);grid-column:1/-1">กำลังโหลด...</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ── Sync Progress Modal (same pattern as members-sync) ── -->
+<div class="sp-overlay" id="spOverlay" style="position:fixed;inset:0;background:rgba(15,23,42,.6);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;z-index:9998;">
+  <div style="background:#fff;border-radius:14px;max-width:440px;width:90%;box-shadow:0 18px 44px rgba(0,0,0,.28);overflow:hidden;">
+    <div id="spHero" style="background:linear-gradient(135deg,#0f4c75,#1b6ca8);color:#fff;padding:16px 18px;display:flex;align-items:center;gap:12px">
+      <div id="spSpinner" style="width:42px;height:42px;display:flex;align-items:center;justify-content:center;font-size:22px;background:rgba(255,255,255,.18);border-radius:50%;border:2px solid rgba(255,255,255,.3);animation:spin 2s linear infinite">🔄</div>
+      <div style="flex:1">
+        <div id="spTitle" style="font-size:14px;font-weight:700">กำลัง Sync Daily Sale</div>
+        <div id="spPhase" style="font-size:11.5px;opacity:.92">รอเริ่ม workflow...</div>
+      </div>
+    </div>
+    <div style="padding:14px 16px">
+      <div id="spLog" style="background:#0f172a;color:#94a3b8;border-radius:6px;padding:8px 10px;font-family:'IBM Plex Mono',monospace;font-size:11px;max-height:140px;overflow-y:auto;margin-bottom:10px"></div>
+      <div style="display:flex;justify-content:space-between;gap:10px;font-size:12px">
+        <div>⏱️ <b id="spElapsed">0s</b></div>
+        <div>Status: <b id="spStatus">—</b></div>
+      </div>
+    </div>
+    <div style="padding:10px 16px 14px;display:flex;justify-content:space-between;gap:10px">
+      <a id="spGhLink" href="#" target="_blank" style="color:var(--accent);font-size:11.5px;font-weight:600">📂 GitHub Actions</a>
+      <button onclick="dsCloseSyncProgress()" style="padding:7px 16px;border:none;border-radius:16px;background:linear-gradient(135deg,var(--accent),var(--accent-light));color:#fff;font-size:12px;font-weight:600;cursor:pointer">ปิด</button>
+    </div>
+  </div>
+</div>
+
+<script src="../../js/core/auth.js"></script>
+<script src="../../js/core/authz.js"></script>
+<script src="../../js/core/crypto.js"></script>
+<script src="../../js/core/date-format.js"></script>
+<script>AuthZ.requirePerm("daily_sale_view");</script>
+<script src="./daily-sale.js"></script>
+<script type="module">
+  import { loadTopbar } from "../../js/components/navigation/topbar.js";
+  loadTopbar("📊 Daily Sale");
+</script>
+<script src="../../js/components/navigation/sidebar.js"></script>
+</body>
+</html>

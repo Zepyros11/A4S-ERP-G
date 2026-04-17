@@ -10,6 +10,14 @@
     />
     <link rel="stylesheet" href="../../css/main.css" />
     <link rel="stylesheet" href="./events.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" />
+    <style>
+      .date-custom-wrap{display:none;align-items:center;gap:6px;margin-left:6px;}
+      .date-custom-wrap.active{display:inline-flex;}
+      .date-custom-input{padding:6px 10px;border:1px solid var(--border,#e2e8f0);border-radius:14px;font-family:inherit;font-size:12px;width:110px;outline:none;background:var(--surface,#fff);color:var(--text,#0f172a);transition:border-color .15s;}
+      .date-custom-input:focus{border-color:var(--accent,#3b82f6);box-shadow:0 0 0 3px rgba(59,130,246,.12);}
+      .date-custom-sep{font-size:11px;color:var(--text3,#94a3b8);}
+    </style>
   </head>
   <body>
     <div class="loading-overlay" id="loadingOverlay">
@@ -78,6 +86,12 @@
                 <button class="date-chip active" data-range="month" onclick="window.setDateFilter(this,'month')">เดือนนี้</button>
                 <button class="date-chip" data-range="week" onclick="window.setDateFilter(this,'week')">อาทิตย์นี้</button>
                 <button class="date-chip" data-range="today" onclick="window.setDateFilter(this,'today')">วันนี้</button>
+                <button class="date-chip" data-range="custom" onclick="window.setDateFilter(this,'custom')">📅 เลือกช่วง</button>
+                <div class="date-custom-wrap" id="dateCustomWrap">
+                  <input type="text" class="date-custom-input" id="dateCustomFrom" placeholder="จาก" autocomplete="off">
+                  <span class="date-custom-sep">—</span>
+                  <input type="text" class="date-custom-input" id="dateCustomTo" placeholder="ถึง" autocomplete="off">
+                </div>
               </div>
               <div class="date-filter-chips" id="statusFilterChips">
                 <button class="date-chip active" data-status="" onclick="window.setStatusFilter(this,'')">ทุกสถานะ</button>
@@ -172,6 +186,7 @@
         <!-- end .page -->
 
         <!-- SCRIPTS -->
+        <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
         <script src="../../js/core/auth.js"></script>
         <script src="../../js/core/authz.js"></script>
         <script>AuthZ.requirePerm("events_view");</script>

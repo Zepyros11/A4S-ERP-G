@@ -505,8 +505,41 @@ window.setDateFilter = function (btn, range) {
   document.querySelectorAll("#dateFilterChips .date-chip").forEach((b) => b.classList.remove("active"));
   btn.classList.add("active");
   activeDateRange = range;
+  const customWrap = document.getElementById("dateCustomWrap");
+  if (customWrap) customWrap.classList.toggle("active", range === "custom");
+  if (range === "custom") _initCustomDatePickers();
   filterTable();
 };
+
+let _customDateFrom = null;
+let _customDateTo = null;
+let _fpCustomInit = false;
+
+function _initCustomDatePickers() {
+  if (_fpCustomInit || typeof flatpickr === "undefined") return;
+  _fpCustomInit = true;
+  flatpickr("#dateCustomFrom", {
+    dateFormat: "d/m/Y",
+    allowInput: true,
+    onChange: (dates) => {
+      _customDateFrom = dates[0] || null;
+      if (activeDateRange === "custom") filterTable();
+    },
+  });
+  flatpickr("#dateCustomTo", {
+    dateFormat: "d/m/Y",
+    allowInput: true,
+    onChange: (dates) => {
+      _customDateTo = dates[0] || null;
+      if (activeDateRange === "custom") filterTable();
+    },
+  });
+}
+
+function _toISO(d) {
+  if (!d) return null;
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
 
 window.setStatusFilter = function (btn, status) {
   document.querySelectorAll("#statusFilterChips .date-chip").forEach((b) => b.classList.remove("active"));
@@ -535,6 +568,12 @@ function getDateRange() {
     const m = String(now.getMonth() + 1).padStart(2, "0");
     const lastDay = new Date(y, now.getMonth() + 1, 0).getDate();
     return { start: `${y}-${m}-01`, end: `${y}-${m}-${String(lastDay).padStart(2, "0")}` };
+  }
+  if (activeDateRange === "custom") {
+    const s = _toISO(_customDateFrom);
+    const e = _toISO(_customDateTo);
+    if (!s && !e) return null;
+    return { start: s || "0000-01-01", end: e || "9999-12-31" };
   }
   return null;
 }

@@ -7,7 +7,10 @@
   "scripts": {
     "sync": "node sync-members.js",
     "sync:dry": "DRY_RUN=1 node sync-members.js",
-    "sync:local": "LOCAL_TEST=1 node sync-members.js"
+    "sync:local": "LOCAL_TEST=1 node sync-members.js",
+    "sync:daily": "node sync-daily-sale.js",
+    "sync:daily:dry": "DRY_RUN=1 node sync-daily-sale.js",
+    "sync:daily:local": "LOCAL_TEST=1 node sync-daily-sale.js"
   },
   "engines": {
     "node": ">=20"

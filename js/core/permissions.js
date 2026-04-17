@@ -188,6 +188,11 @@ window.AppPermissions = (() => {
     {
       key: "customer_service", label: "บริการลูกค้า (CS)", icon: "🎁",
       children: [
+        { key: "daily_sale", label: "Daily Sale", icon: "📊", perms: [
+          { key: "daily_sale_view",      label: "ดูข้อมูล" },
+          { key: "daily_sale_sync",      label: "สั่ง Sync" },
+          { key: "daily_sale_reconcile", label: "บันทึกตรวจบิล" },
+        ]},
         { key: "promotion_gallery", label: "Promotion Gallery", icon: "🖼️", perms: [
           { key: "view_promotions",   label: "ดูรายการ" },
         ]},

@@ -1,0 +1,63 @@
+name: Sync Daily Sale CS
+
+on:
+  # Cron: ทุก 1 ชั่วโมง ช่วง 08:00–20:00 ตามเวลาไทย (01:00–13:00 UTC)
+  schedule:
+    - cron: '0 1-13 * * *'
+  # Manual trigger (ERP UI หรือ GitHub UI)
+  workflow_dispatch:
+    inputs:
+      force:
+        description: 'Force sync (skip any gating)'
+        type: boolean
+        default: false
+      days_back:
+        description: 'Days back for date range (default 1 = yesterday→today)'
+        type: string
+        default: '1'
+
+concurrency:
+  group: sync-daily-sale
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: scripts
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+      - name: 🟢 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: scripts/package-lock.json
+
+      - name: 📦 Install dependencies
+        run: npm ci
+
+      - name: 🎭 Install Playwright browser
+        run: npx playwright install --with-deps chromium
+
+      - name: 🚀 Run daily-sale sync
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          MASTER_KEY: ${{ secrets.MASTER_KEY }}
+          FORCE: ${{ inputs.force }}
+          DAYS_BACK: ${{ inputs.days_back || '1' }}
+        run: npm run sync:daily
+
+      - name: 📸 Upload debug screenshots (on failure)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: debug-daily-sale-screenshots
+          path: scripts/debug-ds-*.png
+          retention-days: 7
+          if-no-files-found: ignore
