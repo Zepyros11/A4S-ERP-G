@@ -31,12 +31,13 @@ async function sbFetch(table, query = "", opts = {}) {
 }
 
 async function fetchEvents() {
-  return (
-    sbFetch(
-      "events",
-      "?select=event_id,event_name,event_code,max_attendees&order=event_date.desc",
-    ) || []
-  );
+  // Exclude "วันหยุดบริษัท" category events
+  const [events, cats] = await Promise.all([
+    sbFetch("events", "?select=event_id,event_name,event_code,max_attendees,event_category_id&order=event_date.desc"),
+    sbFetch("event_categories", "?select=event_category_id,category_name"),
+  ]);
+  const holidayIds = (cats || []).filter(c => c.category_name === "วันหยุดบริษัท").map(c => c.event_category_id);
+  return (events || []).filter(e => !holidayIds.includes(e.event_category_id));
 }
 async function fetchAttendees(eventId) {
   return (
