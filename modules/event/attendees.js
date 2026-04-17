@@ -374,7 +374,7 @@ window.openAttModal = function (id = null) {
   if (id) {
     const a = allAttendees.find(x => x.attendee_id === id);
     if (a?.member_code) {
-      badge.style.display = "block";
+      badge.style.display = "flex";
       document.getElementById("memberBadgeText").textContent = `🔖 สมาชิก: ${a.member_code} — ${a.name}`;
     } else badge.style.display = "none";
   } else badge.style.display = "none";
@@ -625,44 +625,64 @@ let _memberSearchTimer = null;
 window.searchMember = function (q) {
   clearTimeout(_memberSearchTimer);
   const sug = document.getElementById("memberSuggest");
-  q = q.trim();
+  q = (q || "").trim();
   if (!q) { sug.style.display = "none"; return; }
+
+  // Show loading state
+  sug.innerHTML = '<div style="padding:10px 12px;color:var(--text3,#94a3b8);font-size:12px">🔍 กำลังค้นหา...</div>';
+  sug.style.display = "block";
+
   _memberSearchTimer = setTimeout(async () => {
     try {
       const { url, key } = getSB();
-      const isCode = /^\d+$/.test(q);
-      const filter = isCode
-        ? `member_code=ilike.*${q}*`
-        : `or=(member_name.ilike.*${q}*,full_name.ilike.*${q}*)`;
+      const esc = q.replace(/[,()*]/g, '');
+      const like = `*${esc}*`;
+      // Always search all fields (member_code + names + phone)
+      const filter = `or=(member_code.ilike.${like},member_name.ilike.${like},full_name.ilike.${like},phone.ilike.${like})`;
       const res = await fetch(
-        `${url}/rest/v1/members?select=member_code,member_name,full_name,phone,country_code&${filter}&limit=5`,
+        `${url}/rest/v1/members?select=member_code,member_name,full_name,phone,country_code&${filter}&limit=8`,
         { headers: { apikey: key, Authorization: `Bearer ${key}` } }
       );
-      if (!res.ok) return;
+      if (!res.ok) {
+        const errText = await res.text().catch(() => '');
+        console.warn('searchMember API error:', res.status, errText);
+        sug.innerHTML = `<div style="padding:10px 12px;color:#dc2626;font-size:12px">⚠️ ค้นหาไม่สำเร็จ (${res.status})</div>`;
+        return;
+      }
       const rows = await res.json();
-      if (!rows.length) { sug.innerHTML = '<div style="padding:10px;color:var(--text3);font-size:12px">ไม่พบ</div>'; sug.style.display = "block"; return; }
+      if (!rows || !rows.length) {
+        sug.innerHTML = '<div style="padding:10px 12px;color:var(--text3,#94a3b8);font-size:12px">ไม่พบสมาชิก</div>';
+        return;
+      }
       sug.innerHTML = rows.map(m => {
         const name = m.full_name || m.member_name || '—';
-        return `<div onclick="selectMember('${m.member_code}','${escapeHtml(name)}','${m.phone||''}')" style="padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--border,#e2e8f0);font-size:12.5px;transition:background .1s" onmouseover="this.style.background='var(--accent-pale,#dbeafe)'" onmouseout="this.style.background=''">
-          <span style="font-family:'IBM Plex Mono',monospace;color:var(--accent,#0f4c75);font-weight:600">${m.member_code}</span>
-          <span style="margin-left:8px">${escapeHtml(name)}</span>
-          <span style="margin-left:6px;font-size:11px;color:var(--text3)">${m.country_code||''}</span>
+        const safeName = escapeHtml(name).replace(/'/g, "&#39;");
+        return `<div onclick="selectMember('${m.member_code}','${safeName}','${m.phone||''}')" style="padding:9px 12px;cursor:pointer;border-bottom:1px solid var(--border,#e2e8f0);font-size:12.5px;transition:background .1s;display:flex;align-items:center;gap:8px" onmouseover="this.style.background='#eff6ff'" onmouseout="this.style.background=''">
+          <span style="font-family:'IBM Plex Mono',monospace;color:#1e40af;font-weight:700;background:#dbeafe;padding:2px 7px;border-radius:5px;font-size:11.5px">${m.member_code}</span>
+          <span style="flex:1;color:#0f172a">${escapeHtml(name)}</span>
+          ${m.country_code ? `<span style="font-size:10.5px;color:var(--text3,#94a3b8);background:#f1f5f9;padding:1px 6px;border-radius:4px">${m.country_code}</span>` : ''}
         </div>`;
       }).join('');
-      sug.style.display = "block";
-    } catch (e) { console.warn('searchMember:', e); }
-  }, 300);
+    } catch (e) {
+      console.warn('searchMember:', e);
+      sug.innerHTML = `<div style="padding:10px 12px;color:#dc2626;font-size:12px">⚠️ ${e.message || 'error'}</div>`;
+    }
+  }, 250);
 };
+
+function escapeHtml(s) {
+  return String(s || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
 
 window.selectMember = function (code, name, phone) {
   document.getElementById("fMemberSearch").value = "";
   document.getElementById("memberSuggest").style.display = "none";
   document.getElementById("fMemberCode").value = code;
-  document.getElementById("memberBadge").style.display = "block";
+  document.getElementById("memberBadge").style.display = "flex";
   document.getElementById("memberBadgeText").textContent = `🔖 ${code} — ${name}`;
-  // Auto-fill name + phone if empty
-  if (!document.getElementById("fAttName").value) document.getElementById("fAttName").value = name;
-  if (!document.getElementById("fAttPhone").value && phone) document.getElementById("fAttPhone").value = phone;
+  // Always overwrite name + phone with selected member's info
+  document.getElementById("fAttName").value = name || "";
+  document.getElementById("fAttPhone").value = phone || "";
   // Check prerequisite
   checkPrerequisite(code);
 };
