@@ -36,7 +36,7 @@
         {
           id: "events-dashboard",
           icon: "📊",
-          label: "Dashboard",
+          label: "Event Dashboard",
           path: BASE_PATH + "/modules/event/events-dashboard.html",
         },
         {

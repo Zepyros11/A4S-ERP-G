@@ -29,7 +29,9 @@
               <div id="heroTitle" style="font-size:18px;font-weight:700;display:flex;align-items:center;gap:8px">👥 ผู้เข้าร่วมกิจกรรม</div>
               <div id="heroSubtitle" style="font-size:12.5px;opacity:.85;margin-top:3px">ลงทะเบียน · Check-in · ติดตามผู้เข้าร่วม</div>
             </div>
-            <div id="eventActionBtns" style="display:none;gap:8px;flex-shrink:0;position:relative;z-index:1">
+            <div id="eventActionBtns" style="display:none;gap:8px;flex-shrink:0;position:relative;z-index:1;flex-wrap:wrap">
+              <button style="padding:8px 14px;border:none;border-radius:16px;background:rgba(255,255,255,.18);color:#fff;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;border:1.5px solid rgba(255,255,255,.25);display:flex;align-items:center;gap:5px" onclick="window.openCheckinPage()">📱 หน้า Check-in</button>
+              <button style="padding:8px 14px;border:none;border-radius:16px;background:rgba(255,255,255,.18);color:#fff;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;border:1.5px solid rgba(255,255,255,.25);display:flex;align-items:center;gap:5px" onclick="window.openBulkMsgModal()">📢 ส่งข้อความกลุ่ม</button>
               <button style="padding:8px 14px;border:none;border-radius:16px;background:rgba(255,255,255,.18);color:#fff;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;border:1.5px solid rgba(255,255,255,.25);display:flex;align-items:center;gap:5px" onclick="window.exportCSV()">📥 Export CSV</button>
             </div>
           </div>
@@ -86,6 +88,9 @@
             </div>
           </div>
 
+          <!-- TIER INFO BANNER -->
+          <div id="tierInfoBanner" style="display:none"></div>
+
           <!-- TOOLBAR -->
           <div id="attToolbar" style="display: none">
             <div class="toolbar">
@@ -106,7 +111,11 @@
                 <option value="">⚪ ทุกสถานะชำระ</option>
                 <option value="PAID">💳 ชำระแล้ว</option>
                 <option value="UNPAID">⏳ ยังไม่ชำระ</option>
+                <option value="EXPIRED">⌛ เกิน grace period</option>
                 <option value="COMPLIMENTARY">🎫 ฟรี / ยกเว้น</option>
+              </select>
+              <select class="filter-select" id="filterTag">
+                <option value="">🏷️ ทุก tag</option>
               </select>
             </div>
           </div>
@@ -151,6 +160,140 @@
 
     <!-- Shared member search suggest dropdown (positioned dynamically per row) -->
     <div id="memberSuggest" style="display:none;position:absolute;background:var(--surface,#fff);border:1px solid var(--border,#e2e8f0);border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,.15);z-index:500;max-height:240px;overflow-y:auto;min-width:280px"></div>
+
+    <!-- ═══════════════════════════════════════
+         PAYMENT MODAL (บันทึกการชำระเงิน)
+         ═══════════════════════════════════════ -->
+    <div class="att-modal-overlay" id="paymentModal">
+      <div class="att-modal pay-modal">
+        <div class="att-modal-header">
+          <div>💰 บันทึกการชำระเงิน</div>
+          <button class="btn-icon" onclick="window.closePaymentModal()">✕</button>
+        </div>
+        <div class="att-modal-body">
+          <div id="payAttendeeInfo" class="pay-info"></div>
+
+          <div class="form-group">
+            <label class="form-label">สถานะการชำระ</label>
+            <div class="pay-status-group">
+              <label class="pay-status-opt" data-pay-status="PAID">
+                <input type="radio" name="payStatus" value="PAID"> 💳 ชำระแล้ว
+              </label>
+              <label class="pay-status-opt" data-pay-status="UNPAID">
+                <input type="radio" name="payStatus" value="UNPAID"> ⏳ ยังไม่ชำระ
+              </label>
+              <label class="pay-status-opt" data-pay-status="COMPLIMENTARY">
+                <input type="radio" name="payStatus" value="COMPLIMENTARY"> 🎫 ฟรี / ยกเว้น
+              </label>
+            </div>
+          </div>
+
+          <div id="payMethodBlock" class="form-group" style="display:none">
+            <label class="form-label">ช่องทางการชำระ <span style="color:var(--danger,#ef4444)">*</span></label>
+            <div class="pay-method-grid">
+              <label class="pay-method-card">
+                <input type="radio" name="payMethod" value="slip_kbank">
+                <span class="pay-method-icon" style="background:#7a1e81;color:#fff">K+</span>
+                <span class="pay-method-name">กสิกร (โอน)</span>
+              </label>
+              <label class="pay-method-card">
+                <input type="radio" name="payMethod" value="slip_ktb">
+                <span class="pay-method-icon" style="background:#009cde;color:#fff">KTB</span>
+                <span class="pay-method-name">กรุงไทย (โอน)</span>
+              </label>
+              <label class="pay-method-card">
+                <input type="radio" name="payMethod" value="cash">
+                <span class="pay-method-icon" style="background:#10b981;color:#fff">💵</span>
+                <span class="pay-method-name">เงินสด</span>
+              </label>
+              <label class="pay-method-card">
+                <input type="radio" name="payMethod" value="credit_card">
+                <span class="pay-method-icon" style="background:#1e293b;color:#fff">💳</span>
+                <span class="pay-method-name">Credit Card</span>
+              </label>
+            </div>
+          </div>
+
+          <div id="paySlipBlock" class="form-group" style="display:none">
+            <label class="form-label">อัปโหลดสลิป</label>
+            <input type="file" id="paySlipFile" accept="image/*" class="form-input">
+            <div id="paySlipPreview" style="margin-top:8px"></div>
+          </div>
+
+          <div id="payRefBlock" class="form-group" style="display:none">
+            <label class="form-label">เลขอ้างอิง (ref / เลขสลิป / EDC)</label>
+            <input type="text" id="payRef" class="form-input" placeholder="ไม่บังคับ">
+          </div>
+        </div>
+        <div class="att-modal-footer">
+          <button class="btn btn-secondary" onclick="window.closePaymentModal()">ยกเลิก</button>
+          <button class="btn btn-primary" onclick="window.savePayment()">💾 บันทึก</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════
+         QR CODE MODAL
+         ═══════════════════════════════════════ -->
+    <div class="att-modal-overlay" id="qrModal">
+      <div class="att-modal qr-modal" style="width:380px">
+        <div class="att-modal-header">
+          <div>🎫 บัตรเข้างาน (QR)</div>
+          <button class="btn-icon" onclick="window.closeQrModal()">✕</button>
+        </div>
+        <div class="att-modal-body" style="text-align:center">
+          <div id="qrInfo" style="margin-bottom:12px;color:var(--text2)"></div>
+          <div id="qrCodeWrap" style="display:inline-block;padding:12px;background:#fff;border:1px solid var(--border,#e2e8f0);border-radius:10px"></div>
+          <div id="qrTicketNo" style="margin-top:10px;font-family:'IBM Plex Mono',monospace;font-size:15px;font-weight:700;color:#1e40af"></div>
+          <div id="qrHint" style="margin-top:6px;font-size:11px;color:var(--text3)">สแกนเพื่อ Check-in หน้างาน</div>
+        </div>
+        <div class="att-modal-footer">
+          <button class="btn btn-secondary" onclick="window.closeQrModal()">ปิด</button>
+          <button class="btn btn-primary" onclick="window.printQr()">🖨 พิมพ์</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════
+         BULK MESSAGE MODAL
+         ═══════════════════════════════════════ -->
+    <div class="att-modal-overlay" id="bulkMsgModal">
+      <div class="att-modal bulk-msg-modal">
+        <div class="att-modal-header">
+          <div>📢 ส่งข้อความกลุ่ม</div>
+          <button class="btn-icon" onclick="window.closeBulkMsgModal()">✕</button>
+        </div>
+        <div class="att-modal-body">
+          <div class="form-group">
+            <label class="form-label">ส่งถึง</label>
+            <select id="bulkMsgTagFilter" class="form-input" onchange="window.onBulkMsgFilterChange()">
+              <option value="__ALL__">👥 ทุกคน</option>
+              <option value="__UNPAID__">⏳ ยังไม่ชำระ</option>
+              <option value="__EXPIRED__">⌛ เกิน grace period</option>
+            </select>
+            <div id="bulkMsgCount" style="font-size:12px;color:var(--text3);margin-top:6px"></div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">ข้อความ
+              <span style="font-weight:400;font-size:11px;color:var(--text3)">— ใช้ {ชื่อ} {รหัส} {ตำแหน่ง} {ราคา} {deadline} ได้</span>
+            </label>
+            <textarea id="bulkMsgTpl" class="form-input" rows="5" oninput="window.onBulkMsgTplChange()"
+              placeholder="สวัสดี {ชื่อ} — กรุณาโอนค่าบัตร {ราคา} บาท ภายใน {deadline}"></textarea>
+          </div>
+          <div class="form-group">
+            <label class="form-label">ตัวอย่างหลังแทนค่า</label>
+            <div id="bulkMsgPreview" class="bulk-msg-preview">—</div>
+          </div>
+        </div>
+        <div class="att-modal-footer">
+          <button class="btn btn-secondary" onclick="window.closeBulkMsgModal()">ยกเลิก</button>
+          <button class="btn btn-primary" onclick="window.copyBulkMessages()">📋 Copy ทั้งหมด</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- QR code library (for ticket QR display) -->
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 
     <script src="../../js/core/auth.js"></script>
     <script src="../../js/core/authz.js"></script>

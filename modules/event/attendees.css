@@ -2,6 +2,14 @@
    attendees.css — Attendees Module
 ========================================================= */
 
+/* ── PAGE SPACING ── */
+.content-area .page {
+  padding-bottom: 200px !important;
+}
+#attTableSection {
+  margin-bottom: 200px;
+}
+
 /* ── CHECK-IN BADGE ── */
 .checkin-badge {
   display: inline-flex;
@@ -558,4 +566,270 @@
   font-size: 20px;
   font-weight: 800;
   font-family: "IBM Plex Mono", monospace;
+}
+
+/* ── TIER CHIP (inside payment cell) ── */
+.tier-chip {
+  display: inline-block;
+  margin-top: 3px;
+  padding: 1px 8px;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: #065f46;
+  background: #d1fae5;
+  border-radius: 10px;
+  line-height: 1.5;
+}
+
+/* ── TIER INFO BANNER (above table) ── */
+.tier-banner {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.tier-banner-active,
+.tier-banner-idle,
+.tier-banner-upcoming {
+  flex: 1;
+  min-width: 220px;
+  padding: 9px 14px;
+  border-radius: 10px;
+  font-size: 12.5px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.tier-banner-active {
+  background: linear-gradient(90deg, #ecfdf5, #d1fae5);
+  color: #065f46;
+  border: 1px solid #6ee7b7;
+}
+.tier-banner-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.2);
+  flex-shrink: 0;
+  animation: tier-pulse 1.8s infinite;
+}
+@keyframes tier-pulse {
+  0%, 100% { box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.2); }
+  50% { box-shadow: 0 0 0 7px rgba(16, 185, 129, 0.08); }
+}
+.tier-banner-idle {
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fde68a;
+}
+.tier-banner-upcoming {
+  background: #eff6ff;
+  color: #1e40af;
+  border: 1px solid #bfdbfe;
+}
+
+/* ── PAYMENT MODAL ── */
+.pay-info {
+  padding: 10px 14px;
+  background: linear-gradient(135deg, #eff6ff, #dbeafe);
+  border: 1px solid #bfdbfe;
+  border-radius: 10px;
+  font-size: 13px;
+  color: #1e40af;
+  line-height: 1.6;
+}
+.pay-info b {
+  color: #0f172a;
+}
+.pay-status-group {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.pay-status-opt {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 9px 10px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  background: #fff;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.pay-status-opt input {
+  display: none;
+}
+.pay-status-opt:hover {
+  border-color: #cbd5e1;
+  background: #f8fafc;
+}
+.pay-status-opt:has(input:checked) {
+  border-color: #3b82f6;
+  background: #eff6ff;
+  color: #1e40af;
+}
+.pay-method-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+.pay-method-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  background: #fff;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.pay-method-card input {
+  display: none;
+}
+.pay-method-card:hover {
+  border-color: #cbd5e1;
+  background: #f8fafc;
+}
+.pay-method-card:has(input:checked) {
+  border-color: #3b82f6;
+  background: #eff6ff;
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.15);
+}
+.pay-method-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 800;
+  font-family: "IBM Plex Mono", monospace;
+  flex-shrink: 0;
+}
+.pay-method-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text, #0f172a);
+}
+
+/* ── DEADLINE + EXPIRED ── */
+.deadline-chip {
+  display: inline-block;
+  margin-top: 3px;
+  padding: 1px 8px;
+  font-size: 10.5px;
+  font-weight: 600;
+  border-radius: 10px;
+  line-height: 1.5;
+}
+.deadline-chip.ok {
+  color: #0369a1;
+  background: #e0f2fe;
+}
+.deadline-chip.near {
+  color: #92400e;
+  background: #fef3c7;
+}
+.deadline-chip.expired {
+  color: #991b1b;
+  background: #fee2e2;
+}
+.pay-EXPIRED {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+/* ── TAGS ── */
+.tag-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  margin-top: 3px;
+}
+.tag-chip {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 7px;
+  border-radius: 10px;
+  background: #fde68a;
+  color: #78350f;
+  white-space: nowrap;
+}
+.tag-chip-remove {
+  margin-left: 3px;
+  cursor: pointer;
+  color: #b91c1c;
+  font-weight: 700;
+}
+.tag-input-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+  padding: 3px 6px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: #fff;
+  min-height: 30px;
+}
+.tag-input-wrap input {
+  border: none;
+  outline: none;
+  font-family: inherit;
+  font-size: 12px;
+  flex: 1;
+  min-width: 60px;
+  padding: 2px 4px;
+}
+
+/* ── BULK MESSAGE PREVIEW ── */
+.bulk-msg-preview {
+  padding: 10px 14px;
+  background: var(--surface2, #f8fafc);
+  border: 1px dashed var(--border, #e2e8f0);
+  border-radius: 8px;
+  font-size: 13px;
+  color: var(--text, #0f172a);
+  white-space: pre-wrap;
+  min-height: 60px;
+  max-height: 180px;
+  overflow-y: auto;
+  line-height: 1.6;
+}
+
+/* ── QR BUTTON ── */
+.btn-qr {
+  padding: 4px 8px;
+  background: #eff6ff;
+  color: #1e40af;
+  border: 1px solid #bfdbfe;
+  border-radius: 7px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.btn-qr:hover {
+  background: #dbeafe;
+  transform: translateY(-1px);
+}
+
+/* Print mode — show only QR */
+@media print {
+  body * { visibility: hidden; }
+  #qrModal, #qrModal * { visibility: visible; }
+  #qrModal {
+    position: absolute;
+    inset: 0;
+    background: #fff !important;
+  }
+  #qrModal .att-modal-header,
+  #qrModal .att-modal-footer { display: none !important; }
 }

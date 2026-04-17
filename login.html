@@ -610,7 +610,11 @@
             sessionStorage.setItem("erp_session", JSON.stringify(sessionData));
           }
           sessionStorage.removeItem("erp_redirect");
-          window.location.href = "./modules/dashboard/dashboard.html";
+          const roleLower = String(user.role || "").toLowerCase();
+          const landingUrl = roleLower === "bre"
+            ? "./modules/event/events-dashboard.html"
+            : "./modules/dashboard/dashboard.html";
+          window.location.href = landingUrl;
         } catch (e) {
           showError("เกิดข้อผิดพลาด: " + e.message);
         } finally {

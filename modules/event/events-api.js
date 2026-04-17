@@ -62,6 +62,37 @@ export async function removeEvent(id) {
   return sbFetch("events", `?event_id=eq.${id}`, { method: "DELETE" });
 }
 
+/* ── EVENT TICKET TIERS ── */
+export async function fetchEventTiers(eventId) {
+  return (
+    sbFetch(
+      "event_ticket_tiers",
+      `?event_id=eq.${eventId}&select=*&order=sort_order.asc,valid_from.asc.nullsfirst`,
+    ) || []
+  );
+}
+
+export async function createEventTier(data) {
+  const res = await sbFetch("event_ticket_tiers", "", {
+    method: "POST",
+    body: data,
+  });
+  return res?.[0];
+}
+
+export async function updateEventTier(tierId, data) {
+  return sbFetch("event_ticket_tiers", `?tier_id=eq.${tierId}`, {
+    method: "PATCH",
+    body: data,
+  });
+}
+
+export async function removeEventTier(tierId) {
+  return sbFetch("event_ticket_tiers", `?tier_id=eq.${tierId}`, {
+    method: "DELETE",
+  });
+}
+
 /* ── USERS ── */
 export async function fetchUsers() {
   return (

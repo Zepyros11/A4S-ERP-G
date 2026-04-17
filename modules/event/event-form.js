@@ -13,12 +13,21 @@ import {
   updateEvent,
   uploadEventPoster,
   createNotification,
+  fetchEventTiers,
+  createEventTier,
+  updateEventTier,
+  removeEventTier,
 } from "./events-api.js";
 
 // ── STATE ──────────────────────────────────────────────────
 let editId = null;
 // posterFile และ posterUrl ใช้ผ่าน window._posterFile / window._posterUrl
 // (set โดย plain script ใน HTML เพื่อแก้ ES Module timing issue)
+
+// Ticket tiers state — array of tier objects (new rows have no tier_id)
+let _ticketTiers = [];
+// IDs ของ tier เดิมที่ถูกลบออก (ส่ง DELETE ตอน save)
+let _deletedTierIds = [];
 
 // ── FLATPICKR instances ────────────────────────────────────
 let fpEventDate, fpEndDate;
@@ -327,6 +336,7 @@ async function loadEventData() {
     else document.getElementById("fLocation").value = e.location || "";
     document.getElementById("fMaxAttendees").value = e.max_attendees || "";
     document.getElementById("fPrice").value = e.price != null ? e.price : "";
+    document.getElementById("fGraceDays").value = e.grace_days != null ? e.grace_days : "";
     document.getElementById("fAssignedTo").value = e.assigned_to || "";
     document.getElementById("fStatus").value = e.status || "DRAFT";
     document.getElementById("fDescription").value = e.description || "";
@@ -349,6 +359,9 @@ async function loadEventData() {
     window._imageUrls = [...imgUrls, ...new Array(5).fill(null)].slice(0, 5);
     window._imageFiles = new Array(5).fill(null);
     if (typeof window._renderImgGrid === "function") window._renderImgGrid();
+
+    // โหลด ticket tiers
+    await loadTicketTiers(editId);
   } catch (err) {
     showToast("โหลดข้อมูลไม่ได้: " + err.message, "error");
   }
@@ -380,6 +393,148 @@ async function autoGenerateCode() {
   const code = `${prefix}${String(maxSeq + 1).padStart(3, "0")}`;
   document.getElementById("fEventCode").value = code;
   return code;
+}
+
+// ── TICKET TIERS ───────────────────────────────────────────
+function makeEmptyTier() {
+  return {
+    tier_id: null,
+    tier_name: "",
+    price: 0,
+    valid_from: "",   // YYYY-MM-DD (html date input value)
+    valid_to: "",     // YYYY-MM-DD
+    seat_limit: "",
+  };
+}
+
+function isTierActiveToday(t) {
+  const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+  const from = t.valid_from || null;
+  const to = t.valid_to || null;
+  if (from && today < from) return false;
+  if (to && today > to) return false;
+  return true;
+}
+
+function renderTiers() {
+  const box = document.getElementById("tiersContainer");
+  const emptyMsg = document.getElementById("tiersEmpty");
+  if (!box) return;
+
+  if (!_ticketTiers.length) {
+    box.innerHTML = "";
+    if (emptyMsg) emptyMsg.style.display = "block";
+    return;
+  }
+  if (emptyMsg) emptyMsg.style.display = "none";
+
+  box.innerHTML = _ticketTiers
+    .map((t, i) => {
+      const active = isTierActiveToday(t);
+      return `<div class="tier-row ${active ? "tier-active" : ""}" data-idx="${i}">
+        <div>
+          <input type="text" placeholder="Early Bird"
+            value="${escapeAttr(t.tier_name)}"
+            oninput="window.onTierField(${i},'tier_name',this.value)">
+          ${active ? '<span class="tier-badge-active">ACTIVE</span>' : ""}
+        </div>
+        <input type="number" min="0" step="0.01" placeholder="0.00"
+          value="${t.price ?? ""}"
+          oninput="window.onTierField(${i},'price',this.value)">
+        <input type="date"
+          value="${t.valid_from || ""}"
+          oninput="window.onTierField(${i},'valid_from',this.value)">
+        <input type="date"
+          value="${t.valid_to || ""}"
+          oninput="window.onTierField(${i},'valid_to',this.value)">
+        <input type="number" min="0" placeholder="∞"
+          value="${t.seat_limit ?? ""}"
+          oninput="window.onTierField(${i},'seat_limit',this.value)">
+        <button type="button" class="tier-remove-btn" title="ลบระดับนี้"
+          onclick="window.removeTierRow(${i})">🗑</button>
+      </div>`;
+    })
+    .join("");
+}
+
+function escapeAttr(s) {
+  return String(s ?? "").replace(/"/g, "&quot;").replace(/</g, "&lt;");
+}
+
+window.addTierRow = function () {
+  _ticketTiers.push(makeEmptyTier());
+  renderTiers();
+};
+
+window.removeTierRow = function (idx) {
+  const t = _ticketTiers[idx];
+  if (!t) return;
+  if (t.tier_id) _deletedTierIds.push(t.tier_id);
+  _ticketTiers.splice(idx, 1);
+  renderTiers();
+};
+
+window.onTierField = function (idx, field, value) {
+  const t = _ticketTiers[idx];
+  if (!t) return;
+  t[field] = value;
+  // ไม่ re-render ตอนพิมพ์ — จะเสีย focus; ACTIVE badge จะ sync ตอน add/remove row
+};
+
+async function loadTicketTiers(eventId) {
+  try {
+    const tiers = await fetchEventTiers(eventId);
+    _ticketTiers = (tiers || []).map((t) => ({
+      tier_id: t.tier_id,
+      tier_name: t.tier_name || "",
+      price: t.price ?? 0,
+      valid_from: t.valid_from || "",
+      valid_to: t.valid_to || "",
+      seat_limit: t.seat_limit ?? "",
+    }));
+    _deletedTierIds = [];
+    renderTiers();
+  } catch (e) {
+    console.warn("loadTicketTiers:", e);
+  }
+}
+
+async function saveTicketTiers(eventId) {
+  // 1) Delete removed tiers
+  for (const id of _deletedTierIds) {
+    try { await removeEventTier(id); } catch (e) { console.warn("remove tier:", e); }
+  }
+  _deletedTierIds = [];
+
+  // 2) Update existing + create new
+  for (let i = 0; i < _ticketTiers.length; i++) {
+    const t = _ticketTiers[i];
+    const name = (t.tier_name || "").trim();
+    if (!name) continue; // skip blank rows silently
+
+    const body = {
+      event_id: eventId,
+      tier_name: name,
+      price: parseFloat(t.price) || 0,
+      valid_from: t.valid_from || null,
+      valid_to: t.valid_to || null,
+      seat_limit: t.seat_limit === "" || t.seat_limit == null
+        ? null
+        : parseInt(t.seat_limit) || null,
+      sort_order: i,
+    };
+    try {
+      if (t.tier_id) {
+        await updateEventTier(t.tier_id, body);
+      } else {
+        const created = await createEventTier(body);
+        if (created?.tier_id) t.tier_id = created.tier_id;
+      }
+    } catch (e) {
+      console.warn("save tier:", e);
+      throw new Error("บันทึก tier ไม่สำเร็จ: " + e.message);
+    }
+  }
 }
 
 // ── VALIDATE ───────────────────────────────────────────────
@@ -429,6 +584,10 @@ window._saveEventImpl = async function () {
       max_attendees:
         parseInt(document.getElementById("fMaxAttendees").value) || 0,
       price: parseFloat(document.getElementById("fPrice").value) || 0,
+      grace_days: (() => {
+        const v = document.getElementById("fGraceDays").value.trim();
+        return v === "" ? null : parseInt(v) || 0;
+      })(),
       assigned_to:
         parseInt(document.getElementById("fAssignedTo").value) || null,
       status: document.getElementById("fStatus").value,
@@ -460,6 +619,9 @@ window._saveEventImpl = async function () {
       poster_url: finalUrls[0] || null,
       image_urls: finalUrls.length ? finalUrls : null,
     });
+
+    // Save ticket tiers (diff-based)
+    if (savedId) await saveTicketTiers(savedId);
 
     if (!editId && payload.assigned_to) {
       await createNotification({

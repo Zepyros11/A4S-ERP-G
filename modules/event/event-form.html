@@ -165,8 +165,57 @@
                       min="0"
                       step="0.01"
                     />
+                    <div style="font-size:11px;color:var(--text3);margin-top:4px">
+                      ใช้เป็นราคามาตรฐาน — ถ้ามี Tier จะใช้ราคา Tier แทน
+                    </div>
                   </div>
                 </div>
+
+                <div class="ef-row-2">
+                  <div class="ef-field">
+                    <label class="ef-label">⏳ ให้เวลาชำระเงิน (วัน)</label>
+                    <input
+                      class="ef-input"
+                      type="number"
+                      id="fGraceDays"
+                      placeholder="ใช้ค่า default"
+                      min="0"
+                      max="90"
+                    />
+                    <div style="font-size:11px;color:var(--text3);margin-top:4px">
+                      ว่างไว้ = ใช้ default ของระบบ (ตั้งใน app_settings.default_grace_days)
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- SECTION: TICKET TIERS (เรียงตามวันที่) -->
+              <div class="ef-section">
+                <div class="ef-section-title">
+                  🎟️ ระดับราคาตามเวลา (Early Bird / Regular / Walk-in)
+                  <span style="font-weight:400;font-size:11px;color:var(--text3);text-transform:none;letter-spacing:0">
+                    — ระบบจะเลือก tier ที่ active ตอนลงทะเบียน แล้วล็อกราคาไว้
+                  </span>
+                </div>
+
+                <div class="tier-table">
+                  <div class="tier-hdr">
+                    <div>ชื่อระดับ</div>
+                    <div class="col-center">ราคา (฿)</div>
+                    <div class="col-center">ตั้งแต่</div>
+                    <div class="col-center">ถึง</div>
+                    <div class="col-center">จำกัดที่นั่ง</div>
+                    <div></div>
+                  </div>
+                  <div id="tiersContainer"></div>
+                  <div id="tiersEmpty" style="padding:14px 10px;color:var(--text3);font-size:12.5px;text-align:center">
+                    ยังไม่มี tier — คลิก "เพิ่มระดับราคา" เพื่อตั้งค่าราคาตามเวลา
+                  </div>
+                </div>
+
+                <button type="button" class="btn-add-tier" onclick="window.addTierRow()">
+                  ➕ เพิ่มระดับราคา
+                </button>
               </div>
 
             </div>

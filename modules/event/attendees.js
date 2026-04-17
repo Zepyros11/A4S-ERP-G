@@ -47,6 +47,54 @@ async function fetchAttendees(eventId) {
     ) || []
   );
 }
+async function fetchTiers(eventId) {
+  try {
+    const rows = await sbFetch(
+      "event_ticket_tiers",
+      `?event_id=eq.${eventId}&select=*&order=sort_order.asc,valid_from.asc.nullsfirst`,
+    );
+    return rows || [];
+  } catch (e) {
+    // Table may not exist yet — degrade gracefully (no tiers = use events.price)
+    console.warn("fetchTiers:", e.message);
+    return [];
+  }
+}
+async function fetchDefaultGrace() {
+  try {
+    const rows = await sbFetch(
+      "app_settings",
+      "?key=eq.default_grace_days&select=value",
+    );
+    const v = parseInt(rows?.[0]?.value);
+    return isNaN(v) ? 3 : v;
+  } catch {
+    return 3;
+  }
+}
+async function uploadSlip(eventId, file) {
+  const { url, key } = getSB();
+  const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
+  const path = `slips/${eventId}_${Date.now()}.${ext}`;
+  const res = await fetch(
+    `${url}/storage/v1/object/event-files/${path}`,
+    {
+      method: "POST",
+      headers: {
+        apikey: key,
+        Authorization: `Bearer ${key}`,
+        "Content-Type": file.type || "image/jpeg",
+        "x-upsert": "true",
+      },
+      body: file,
+    },
+  );
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || "Slip upload failed");
+  }
+  return `${url}/storage/v1/object/public/event-files/${path}`;
+}
 async function generateTicketNo(eventId) {
   const { url, key } = getSB();
   const prefix = `TK-${eventId}-`;
@@ -87,13 +135,69 @@ let allEvents = [];
 let currentEventId = null;
 let currentEvent = null;
 let allAttendees = [];
+let currentTiers = [];       // Tiers สำหรับ event ปัจจุบัน
+let currentTiersById = {};   // lookup tier_id → tier
+let defaultGraceDays = 3;    // จาก app_settings.default_grace_days
+let _paymentModalAtt = null; // attendee object while modal open
+let _qrModalAtt = null;      // attendee object while QR modal open
 
 // Inline new rows (not yet saved)
 let newRows = [];
 let activeSearchRowId = null; // ID of new-row currently showing member suggest
 
+// ── DEADLINE / EXPIRED HELPERS ────────────────────────────
+function getEventGraceDays() {
+  const g = currentEvent?.grace_days;
+  if (g == null || g === "" || isNaN(g)) return defaultGraceDays;
+  return parseInt(g);
+}
+function computeDeadlineISO(graceDays) {
+  const d = new Date();
+  d.setDate(d.getDate() + (graceDays || 0));
+  return d.toISOString().slice(0, 10); // YYYY-MM-DD
+}
+function isAttendeeExpired(a) {
+  if (a.payment_status !== "UNPAID") return false;
+  if (!a.payment_deadline) return false;
+  const today = new Date().toISOString().slice(0, 10);
+  return a.payment_deadline < today;
+}
+function daysUntil(dateStr) {
+  if (!dateStr) return null;
+  const today = new Date().toISOString().slice(0, 10);
+  const diff = Math.ceil((new Date(dateStr) - new Date(today)) / 86400000);
+  return diff;
+}
+function formatDMYShort(isoDate) {
+  if (!isoDate) return "";
+  const [y, m, d] = isoDate.split("-");
+  return `${d}/${m}/${y.slice(2)}`;
+}
+
+// หา tier ที่ active ณ วันนี้ — เลือกตาม sort_order น้อยสุดถ้ามี overlap
+function getActiveTier() {
+  if (!currentTiers?.length) return null;
+  const today = new Date().toISOString().slice(0, 10);
+  const match = currentTiers.filter((t) => {
+    if (t.valid_from && today < t.valid_from) return false;
+    if (t.valid_to && today > t.valid_to) return false;
+    return true;
+  });
+  match.sort(
+    (a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0) || a.tier_id - b.tier_id,
+  );
+  return match[0] || null;
+}
+
+// ราคาปัจจุบัน — tier ถ้ามี, fallback events.price
+function getCurrentPrice() {
+  const t = getActiveTier();
+  if (t) return parseFloat(t.price || 0);
+  return parseFloat(currentEvent?.price || 0);
+}
+
 function makeEmptyNewRow() {
-  const evPrice = parseFloat(currentEvent?.price || 0);
+  const evPrice = getCurrentPrice();
   return {
     id: "nr-" + Date.now() + "-" + Math.random().toString(36).slice(2, 7),
     name: "",
@@ -117,6 +221,7 @@ function ensureTrailingEmptyRow() {
 async function initPage() {
   showLoading(true);
   try {
+    defaultGraceDays = await fetchDefaultGrace();
     allEvents = (await fetchEvents()) || [];
     populateEventSelect();
 
@@ -153,6 +258,14 @@ async function initPage() {
   document
     .getElementById("filterPayment")
     ?.addEventListener("change", filterTable);
+  document
+    .getElementById("filterTag")
+    ?.addEventListener("change", filterTable);
+
+  // File input change → preview slip
+  document
+    .getElementById("paySlipFile")
+    ?.addEventListener("change", _onSlipFileChange);
 }
 
 function populateEventSelect() {
@@ -180,12 +293,21 @@ window.onEventChange = async function () {
 async function loadAttendees(eventId) {
   currentEventId = eventId;
   currentEvent = allEvents.find((e) => e.event_id === eventId);
-  // Reset inline new-rows when switching events
-  newRows = [makeEmptyNewRow()];
   showLoading(true);
   try {
-    allAttendees = (await fetchAttendees(eventId)) || [];
+    const [atts, tiers] = await Promise.all([
+      fetchAttendees(eventId),
+      fetchTiers(eventId),
+    ]);
+    allAttendees = atts || [];
+    currentTiers = tiers || [];
+    currentTiersById = {};
+    currentTiers.forEach((t) => { currentTiersById[t.tier_id] = t; });
+    // Reset inline new-rows (ราคา default ขึ้นกับ active tier)
+    newRows = [makeEmptyNewRow()];
     showSections(true);
+    renderTierBanner();
+    populateTagFilter();
     updateStats();
     filterTable();
   } catch (e) {
@@ -204,6 +326,55 @@ function showSections(show) {
   document.getElementById("eventActionBtns").style.display = show
     ? "flex"
     : "none";
+}
+
+// ── TIER INFO BANNER ──────────────────────────────────────
+function renderTierBanner() {
+  const el = document.getElementById("tierInfoBanner");
+  if (!el) return;
+  if (!currentTiers?.length) {
+    el.style.display = "none";
+    el.innerHTML = "";
+    return;
+  }
+
+  const active = getActiveTier();
+  const today = new Date().toISOString().slice(0, 10);
+  const upcoming = currentTiers
+    .filter((t) => t.valid_from && t.valid_from > today)
+    .sort((a, b) => a.valid_from.localeCompare(b.valid_from))[0];
+
+  const fmt = (d) => (d ? d.split("-").reverse().join("/") : "");
+  const daysTo = (d) => {
+    if (!d) return null;
+    const diff = Math.ceil((new Date(d) - new Date(today)) / 86400000);
+    return diff;
+  };
+
+  let html = `<div class="tier-banner">`;
+  if (active) {
+    const toLabel = active.valid_to
+      ? `— สิ้นสุด ${fmt(active.valid_to)} (เหลือ ${daysTo(active.valid_to)} วัน)`
+      : "";
+    html += `<div class="tier-banner-active">
+      <span class="tier-banner-dot"></span>
+      <span><b>ราคาปัจจุบัน:</b> ${escapeHtml(active.tier_name)} — <b>฿${formatNum(active.price)}</b> ${toLabel}</span>
+    </div>`;
+  } else {
+    html += `<div class="tier-banner-idle">
+      ⚠️ ยังไม่อยู่ในช่วง tier ใดๆ — ใช้ราคามาตรฐาน ฿${formatNum(currentEvent?.price || 0)}
+    </div>`;
+  }
+
+  if (upcoming) {
+    const d = daysTo(upcoming.valid_from);
+    html += `<div class="tier-banner-upcoming">
+      ⏭️ ถัดไป: <b>${escapeHtml(upcoming.tier_name)}</b> เริ่ม ${fmt(upcoming.valid_from)} (อีก ${d} วัน) — ฿${formatNum(upcoming.price)}
+    </div>`;
+  }
+  html += `</div>`;
+  el.innerHTML = html;
+  el.style.display = "block";
 }
 
 // ── STATS ─────────────────────────────────────────────────
@@ -228,6 +399,7 @@ function filterTable() {
     document.getElementById("searchInput")?.value.toLowerCase() || "";
   const checkin = document.getElementById("filterCheckin")?.value || "";
   const payment = document.getElementById("filterPayment")?.value || "";
+  const tagFilter = document.getElementById("filterTag")?.value || "";
 
   const filtered = allAttendees.filter((a) => {
     const matchSearch =
@@ -235,10 +407,16 @@ function filterTable() {
       (a.name || "").toLowerCase().includes(search) ||
       (a.phone || "").toLowerCase().includes(search) ||
       (a.member_code || "").toLowerCase().includes(search) ||
-      (a.ticket_no || "").toLowerCase().includes(search);
+      (a.ticket_no || "").toLowerCase().includes(search) ||
+      (a.tags || []).some((t) => (t || "").toLowerCase().includes(search));
     const matchCheckin = !checkin || String(a.checked_in) === checkin;
-    const matchPayment = !payment || a.payment_status === payment;
-    return matchSearch && matchCheckin && matchPayment;
+    const matchPayment =
+      !payment ||
+      (payment === "EXPIRED"
+        ? isAttendeeExpired(a)
+        : a.payment_status === payment);
+    const matchTag = !tagFilter || (a.tags || []).includes(tagFilter);
+    return matchSearch && matchCheckin && matchPayment && matchTag;
   });
 
   renderTable(filtered);
@@ -306,6 +484,11 @@ function renderNewRow(r) {
 }
 
 function renderSavedRow(a) {
+  const expired = isAttendeeExpired(a);
+  const displayPayStatus = expired ? "EXPIRED" : (a.payment_status || "COMPLIMENTARY");
+  const tierName = a.tier_id && currentTiersById[a.tier_id]
+    ? currentTiersById[a.tier_id].tier_name
+    : null;
   return `<tr class="saved-row" data-aid="${a.attendee_id}">
     <td>
       <div class="cell-name-wrap" data-field="name" onclick="window.startEditCell(${a.attendee_id},'name',this)">
@@ -313,6 +496,7 @@ function renderSavedRow(a) {
           ${a.member_code ? `<span style="font-family:'IBM Plex Mono',monospace;font-size:10px;background:#1e40af;color:#fff;padding:2px 7px;border-radius:10px;font-weight:700;margin-right:6px">${escapeHtml(a.member_code)}</span>` : ""}${escapeHtml(a.name)}
         </div>
         ${a.phone ? `<div style="font-size:11px;color:var(--text3)">📱 ${escapeHtml(a.phone)}</div>` : ""}
+        ${renderTagsInline(a)}
       </div>
     </td>
     <td class="col-center">
@@ -322,12 +506,15 @@ function renderSavedRow(a) {
       <div class="cell-ticket">${a.ticket_no || "—"}</div>
     </td>
     <td class="col-center">
-      <span class="pay-badge pay-${a.payment_status || "COMPLIMENTARY"}"
+      <span class="pay-badge pay-${displayPayStatus}"
         onclick="window.startEditCell(${a.attendee_id},'payment_status',this)"
-        style="cursor:pointer" title="คลิกเพื่อเปลี่ยน">
-        ${payLabel(a.payment_status)}
+        style="cursor:pointer" title="คลิกเพื่อบันทึกการชำระ">
+        ${payLabel(displayPayStatus)}
       </span>
       ${parseFloat(a.paid_amount || 0) > 0 ? `<div style="font-size:11px;color:var(--text3);margin-top:2px">฿${formatNum(a.paid_amount)}</div>` : ""}
+      ${tierName ? `<div class="tier-chip" title="ราคาที่ lock ตอนลงทะเบียน">🎟️ ${escapeHtml(tierName)}</div>` : ""}
+      ${a.payment_method ? `<div class="tier-chip" style="background:#dbeafe;color:#1e40af" title="วิธีชำระ">${paymentMethodIcon(a.payment_method)}</div>` : ""}
+      ${renderDeadlineChip(a)}
     </td>
     <td class="col-center">
       <button class="btn-checkin ${a.checked_in ? "undo-checkin" : "do-checkin"}"
@@ -337,9 +524,53 @@ function renderSavedRow(a) {
       ${a.check_in_at ? `<div style="font-size:10px;color:var(--text3);margin-top:2px">${formatDateTime(a.check_in_at)}</div>` : ""}
     </td>
     <td class="col-center">
-      <button class="btn-icon danger" onclick="window.deleteAttendee(${a.attendee_id})" title="ลบ">🗑</button>
+      <div style="display:inline-flex;gap:4px;align-items:center">
+        <button class="btn-qr" onclick="window.openQrModal(${a.attendee_id})" title="ดู QR บัตร">🎫</button>
+        <button class="btn-icon danger" onclick="window.deleteAttendee(${a.attendee_id})" title="ลบ">🗑</button>
+      </div>
     </td>
   </tr>`;
+}
+
+function paymentMethodIcon(m) {
+  return {
+    slip_kbank: "🏦 K+",
+    slip_ktb: "🏦 KTB",
+    cash: "💵 เงินสด",
+    credit_card: "💳 CC",
+  }[m] || m;
+}
+
+function renderDeadlineChip(a) {
+  if (a.payment_status !== "UNPAID" || !a.payment_deadline) return "";
+  const d = daysUntil(a.payment_deadline);
+  if (d == null) return "";
+  const cls = d < 0 ? "expired" : d <= 1 ? "near" : "ok";
+  const icon = d < 0 ? "⌛" : "⏳";
+  const label = d < 0
+    ? `เกิน ${Math.abs(d)} วัน`
+    : d === 0
+    ? "วันนี้"
+    : `อีก ${d} วัน`;
+  return `<div class="deadline-chip ${cls}" title="ครบกำหนด ${formatDMYShort(a.payment_deadline)}">${icon} ${label}</div>`;
+}
+
+function renderTagsInline(a) {
+  const tags = a.tags || [];
+  const chips = tags
+    .map(
+      (t) => `<span class="tag-chip">${escapeHtml(t)}<span class="tag-chip-remove"
+        onclick="event.stopPropagation();window.removeAttendeeTag(${a.attendee_id},'${escapeJS(t)}')">✕</span></span>`,
+    )
+    .join("");
+  return `<div class="tag-chips" onclick="event.stopPropagation()">
+    ${chips}
+    <button class="tag-chip" style="background:#e2e8f0;color:#475569;border:none;cursor:pointer;font-size:10px"
+      onclick="event.stopPropagation();window.promptAddTag(${a.attendee_id})">+ tag</button>
+  </div>`;
+}
+function escapeJS(s) {
+  return String(s || "").replace(/\\/g, "\\\\").replace(/'/g, "\\'");
 }
 
 // ── CHECK-IN TOGGLE ───────────────────────────────────────
@@ -477,21 +708,64 @@ async function _checkPrereqForRow(r) {
 
 window.saveNewRow = async function (id) {
   const r = _findRow(id); if (!r) return;
-  const name = (r.name || "").trim();
+  let name = (r.name || "").trim();
   if (!name) { showToast("กรุณาระบุชื่อ", "error"); return; }
   if (r.saving) return;
   r.saving = true; _updateSaveBtn(id);
 
+  // Auto-link member if user typed a code but didn't pick from dropdown
+  if (!r.memberCode && /^\d{3,10}$/.test(name)) {
+    try {
+      const { url, key } = getSB();
+      const res = await fetch(
+        `${url}/rest/v1/members?select=member_code,full_name,member_name,phone,position_level&member_code=eq.${encodeURIComponent(name)}&limit=1`,
+        { headers: { apikey: key, Authorization: `Bearer ${key}` } }
+      );
+      if (res.ok) {
+        const rows = await res.json();
+        const m = rows?.[0];
+        if (m) {
+          r.memberCode = m.member_code;
+          r.name = m.full_name || m.member_name || name;
+          r.phone = m.phone || r.phone || "";
+          r.positionLevel = m.position_level || "";
+          name = r.name;
+        }
+      }
+    } catch (e) { console.warn("auto-link:", e); }
+  }
+
+  // Duplicate check up-front → if dup, clear row & let user continue
+  if (r.memberCode) {
+    const dup = allAttendees.find(a => a.member_code === r.memberCode);
+    if (dup) {
+      showToast(`❌ สมาชิก ${r.memberCode} (${dup.name}) ลงทะเบียนแล้ว — Ticket: ${dup.ticket_no || "—"}`, "error");
+      r.memberCode = ""; r.name = ""; r.phone = "";
+      r.positionLevel = ""; r.prereq = null; r.saving = false;
+      filterTable();
+      requestAnimationFrame(() => {
+        const input = document.querySelector(`tr[data-nrid="${id}"] input[data-role="search"]`);
+        input?.focus();
+      });
+      return;
+    }
+  }
+
   try {
-    const evPrice = parseFloat(currentEvent?.price || 0);
+    const activeTier = getActiveTier();
+    const price = getCurrentPrice();
+    const grace = getEventGraceDays();
+    const needsPayment = r.paymentStatus === "UNPAID";
     const payload = {
       event_id: currentEventId,
       name,
       phone: r.phone || null,
       position_level: r.positionLevel || null,
-      paid_amount: evPrice,
+      paid_amount: price,
       payment_status: r.paymentStatus,
       member_code: r.memberCode || null,
+      tier_id: activeTier?.tier_id || null,
+      payment_deadline: needsPayment ? computeDeadlineISO(grace) : null,
     };
     const blocked = await _enforceRegistration(payload);
     if (blocked) { r.saving = false; _updateSaveBtn(id); return; }
@@ -522,24 +796,14 @@ window.startEditCell = function (attId, field, cellEl) {
   if (!a) return;
   if (cellEl.querySelector("input,select")) return; // already editing
 
-  const current = a[field] || "";
+  // Payment cell → open full modal (method, slip, ref)
   if (field === "payment_status") {
-    const sel = document.createElement("select");
-    sel.className = "inline-select";
-    sel.innerHTML = `
-      <option value="UNPAID" ${current === "UNPAID" ? "selected" : ""}>⏳ ยังไม่ชำระ</option>
-      <option value="PAID" ${current === "PAID" ? "selected" : ""}>💳 ชำระแล้ว</option>
-      <option value="COMPLIMENTARY" ${current === "COMPLIMENTARY" ? "selected" : ""}>🎫 ฟรี</option>`;
-    const save = async () => {
-      if (sel.value === current) { filterTable(); return; }
-      await _patchAttendee(attId, { payment_status: sel.value });
-    };
-    sel.onchange = save;
-    sel.onblur = save;
-    cellEl.innerHTML = "";
-    cellEl.appendChild(sel);
-    sel.focus();
-  } else {
+    window.openPaymentModal(attId);
+    return;
+  }
+
+  const current = a[field] || "";
+  {
     const inp = document.createElement("input");
     inp.className = "inline-input";
     inp.value = current;
@@ -647,6 +911,7 @@ function payLabel(s) {
     {
       PAID: "💳 ชำระแล้ว",
       UNPAID: "⏳ ยังไม่ชำระ",
+      EXPIRED: "⌛ เกินกำหนด",
       COMPLIMENTARY: "🎫 ฟรี / ยกเว้น",
     }[s] ||
     s ||
@@ -706,10 +971,31 @@ async function _enforceRegistration(payload) {
     }
   }
 
+  // 1b. Check tier seat_limit (ถ้ามี tier_id + tier กำหนด limit)
+  if (payload.tier_id) {
+    const tier = currentTiersById[payload.tier_id];
+    if (tier?.seat_limit && tier.seat_limit > 0) {
+      const usedInTier = allAttendees.filter((a) => a.tier_id === tier.tier_id).length;
+      if (usedInTier >= tier.seat_limit) {
+        showToast(`❌ Tier "${tier.tier_name}" เต็มแล้ว (${tier.seat_limit} ที่นั่ง)`, "error");
+        return true;
+      }
+    }
+  }
+
   // 2. Check members_only
   if (ev.members_only && !payload.member_code) {
     showToast("❌ Event นี้สำหรับสมาชิก MLM เท่านั้น — กรุณาเลือกสมาชิกก่อน", "error");
     return true;
+  }
+
+  // 2.5 Check duplicate member registration (same event, same member_code)
+  if (payload.member_code) {
+    const dup = allAttendees.find(a => a.member_code === payload.member_code);
+    if (dup) {
+      showToast(`❌ สมาชิก ${payload.member_code} (${dup.name}) ลงทะเบียนแล้ว — Ticket: ${dup.ticket_no || "—"}`, "error");
+      return true;
+    }
   }
 
   // 3. Check prerequisite (if member selected + event has series/level)
@@ -909,6 +1195,367 @@ window.addEventListener("resize", () => {
   const sug = document.getElementById("memberSuggest");
   if (sug && sug.style.display !== "none") _positionSuggestUnderActiveRow();
 });
+
+// ============================================================
+// ── TAG POPULATE + CRUD ───────────────────────────────────
+// ============================================================
+function populateTagFilter() {
+  const sel = document.getElementById("filterTag");
+  if (!sel) return;
+  const allTags = new Set();
+  allAttendees.forEach((a) => (a.tags || []).forEach((t) => allTags.add(t)));
+  const current = sel.value;
+  sel.innerHTML =
+    '<option value="">🏷️ ทุก tag</option>' +
+    [...allTags]
+      .sort()
+      .map((t) => `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`)
+      .join("");
+  if (current && allTags.has(current)) sel.value = current;
+}
+
+window.promptAddTag = async function (attendeeId) {
+  const tag = prompt("เพิ่ม tag ใหม่ (เช่น เข็มทอง, VIP, โทฟี่):");
+  if (!tag) return;
+  const t = tag.trim();
+  if (!t) return;
+  const a = allAttendees.find((x) => x.attendee_id === attendeeId);
+  if (!a) return;
+  const current = a.tags || [];
+  if (current.includes(t)) {
+    showToast("มี tag นี้อยู่แล้ว", "error");
+    return;
+  }
+  const next = [...current, t];
+  try {
+    await updateAttendee(attendeeId, { tags: next });
+    a.tags = next;
+    populateTagFilter();
+    filterTable();
+    showToast(`+ tag "${t}" 🏷️`, "success");
+  } catch (e) {
+    showToast("เพิ่ม tag ไม่สำเร็จ: " + e.message, "error");
+  }
+};
+
+window.removeAttendeeTag = async function (attendeeId, tag) {
+  const a = allAttendees.find((x) => x.attendee_id === attendeeId);
+  if (!a) return;
+  const next = (a.tags || []).filter((t) => t !== tag);
+  try {
+    await updateAttendee(attendeeId, { tags: next.length ? next : null });
+    a.tags = next;
+    populateTagFilter();
+    filterTable();
+    showToast(`- tag "${tag}"`, "success");
+  } catch (e) {
+    showToast("ลบ tag ไม่สำเร็จ: " + e.message, "error");
+  }
+};
+
+// ============================================================
+// ── PAYMENT MODAL ─────────────────────────────────────────
+// ============================================================
+window.openPaymentModal = function (attendeeId) {
+  const a = allAttendees.find((x) => x.attendee_id === attendeeId);
+  if (!a) return;
+  _paymentModalAtt = a;
+
+  const infoEl = document.getElementById("payAttendeeInfo");
+  const tierName =
+    a.tier_id && currentTiersById[a.tier_id]
+      ? currentTiersById[a.tier_id].tier_name
+      : null;
+  const deadlineStr = a.payment_deadline ? formatDMYShort(a.payment_deadline) : "—";
+  infoEl.innerHTML = `
+    <div><b>${escapeHtml(a.name)}</b> ${a.member_code ? `· ${escapeHtml(a.member_code)}` : ""}</div>
+    <div>🎫 Ticket: <b>${a.ticket_no || "—"}</b> · ราคา <b>฿${formatNum(a.paid_amount)}</b>${tierName ? ` · Tier <b>${escapeHtml(tierName)}</b>` : ""}</div>
+    <div>⏳ Deadline: <b>${deadlineStr}</b></div>`;
+
+  // Preset fields from attendee
+  document.querySelectorAll('input[name="payStatus"]').forEach((el) => {
+    el.checked = el.value === (a.payment_status || "UNPAID");
+  });
+  document.querySelectorAll('input[name="payMethod"]').forEach((el) => {
+    el.checked = el.value === a.payment_method;
+  });
+  document.getElementById("payRef").value = a.payment_ref || "";
+  const preview = document.getElementById("paySlipPreview");
+  preview.innerHTML = a.slip_url
+    ? `<a href="${a.slip_url}" target="_blank"><img src="${a.slip_url}" style="max-width:100%;max-height:160px;border-radius:8px;border:1px solid var(--border)"></a>`
+    : "";
+  document.getElementById("paySlipFile").value = "";
+
+  _syncPayMethodBlocks();
+  document.querySelectorAll('input[name="payStatus"]').forEach((el) => {
+    el.onchange = _syncPayMethodBlocks;
+  });
+  document.querySelectorAll('input[name="payMethod"]').forEach((el) => {
+    el.onchange = _syncPayMethodBlocks;
+  });
+
+  document.getElementById("paymentModal").classList.add("open");
+};
+
+window.closePaymentModal = function () {
+  document.getElementById("paymentModal").classList.remove("open");
+  _paymentModalAtt = null;
+};
+
+function _syncPayMethodBlocks() {
+  const status =
+    document.querySelector('input[name="payStatus"]:checked')?.value ||
+    "UNPAID";
+  const method =
+    document.querySelector('input[name="payMethod"]:checked')?.value || "";
+  const needsMethod = status === "PAID";
+  const isSlip = method === "slip_kbank" || method === "slip_ktb";
+  document.getElementById("payMethodBlock").style.display = needsMethod
+    ? "flex"
+    : "none";
+  document.getElementById("paySlipBlock").style.display =
+    needsMethod && isSlip ? "flex" : "none";
+  document.getElementById("payRefBlock").style.display = needsMethod
+    ? "flex"
+    : "none";
+}
+
+let _pendingSlipFile = null;
+function _onSlipFileChange(ev) {
+  const f = ev.target.files?.[0];
+  _pendingSlipFile = f || null;
+  const preview = document.getElementById("paySlipPreview");
+  if (!f) {
+    preview.innerHTML = "";
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = () => {
+    preview.innerHTML = `<img src="${reader.result}" style="max-width:100%;max-height:160px;border-radius:8px;border:1px solid var(--border)">`;
+  };
+  reader.readAsDataURL(f);
+}
+
+window.savePayment = async function () {
+  if (!_paymentModalAtt) return;
+  const a = _paymentModalAtt;
+  const status =
+    document.querySelector('input[name="payStatus"]:checked')?.value || "UNPAID";
+  const method =
+    document.querySelector('input[name="payMethod"]:checked')?.value || null;
+  const ref = document.getElementById("payRef").value.trim() || null;
+
+  if (status === "PAID" && !method) {
+    showToast("กรุณาเลือกช่องทางการชำระ", "error");
+    return;
+  }
+
+  showLoading(true);
+  try {
+    // Upload slip ถ้ามี file + method เป็น slip
+    let slipUrl = a.slip_url || null;
+    if (_pendingSlipFile && (method === "slip_kbank" || method === "slip_ktb")) {
+      slipUrl = await uploadSlip(currentEventId, _pendingSlipFile);
+      _pendingSlipFile = null;
+    }
+
+    const session = JSON.parse(
+      localStorage.getItem("erp_session") ||
+        sessionStorage.getItem("erp_session") ||
+        "{}",
+    );
+
+    const patch = {
+      payment_status: status,
+      payment_method: status === "PAID" ? method : null,
+      payment_ref: status === "PAID" ? ref : null,
+      slip_url: status === "PAID" && (method === "slip_kbank" || method === "slip_ktb")
+        ? slipUrl
+        : null,
+      paid_at: status === "PAID" ? new Date().toISOString() : null,
+      verified_by: status === "PAID" ? session?.user_id || null : null,
+      // Clear deadline when PAID or COMPLIMENTARY
+      payment_deadline: status === "UNPAID" ? a.payment_deadline : null,
+    };
+
+    await updateAttendee(a.attendee_id, patch);
+    Object.assign(a, patch);
+    showToast("บันทึกการชำระแล้ว 💰", "success");
+    window.closePaymentModal();
+    updateStats();
+    filterTable();
+  } catch (e) {
+    showToast("บันทึกไม่สำเร็จ: " + e.message, "error");
+  }
+  showLoading(false);
+};
+
+// ============================================================
+// ── QR MODAL ──────────────────────────────────────────────
+// ============================================================
+window.openQrModal = function (attendeeId) {
+  const a = allAttendees.find((x) => x.attendee_id === attendeeId);
+  if (!a) return;
+  _qrModalAtt = a;
+
+  document.getElementById("qrInfo").innerHTML = `
+    <div style="font-weight:700;font-size:15px">${escapeHtml(a.name)}</div>
+    ${a.member_code ? `<div style="font-size:12px;color:var(--text3)">${escapeHtml(a.member_code)}</div>` : ""}
+    ${currentEvent?.event_name ? `<div style="font-size:12px;color:var(--text3);margin-top:4px">${escapeHtml(currentEvent.event_name)}</div>` : ""}`;
+  document.getElementById("qrTicketNo").textContent = a.ticket_no || `ID-${a.attendee_id}`;
+
+  // QR payload = ticket_no (หรือ fallback attendee_id) — scanner ใช้เทียบกับ DB
+  const wrap = document.getElementById("qrCodeWrap");
+  wrap.innerHTML = "";
+  try {
+    new QRCode(wrap, {
+      text: a.ticket_no || `A4S-ATT-${a.attendee_id}`,
+      width: 200,
+      height: 200,
+      correctLevel: QRCode.CorrectLevel.M,
+    });
+  } catch (e) {
+    wrap.textContent = "QR library ยังไม่โหลด — รีเฟรชหน้าอีกครั้ง";
+  }
+
+  document.getElementById("qrModal").classList.add("open");
+};
+
+window.closeQrModal = function () {
+  document.getElementById("qrModal").classList.remove("open");
+  _qrModalAtt = null;
+};
+
+window.printQr = function () {
+  window.print();
+};
+
+// ============================================================
+// ── BULK MESSAGE MODAL ────────────────────────────────────
+// ============================================================
+window.openCheckinPage = function () {
+  if (!currentEventId) return;
+  window.open(`check-in.html?event_id=${currentEventId}`, "_blank");
+};
+
+window.openBulkMsgModal = function () {
+  _refreshBulkMsgTags();
+  // Load last template from localStorage (per event)
+  const key = `bulkMsgTpl_${currentEventId}`;
+  const saved = localStorage.getItem(key) || "";
+  document.getElementById("bulkMsgTpl").value = saved;
+  document.getElementById("bulkMsgTagFilter").value = "__ALL__";
+  window.onBulkMsgFilterChange();
+  document.getElementById("bulkMsgModal").classList.add("open");
+};
+
+window.closeBulkMsgModal = function () {
+  document.getElementById("bulkMsgModal").classList.remove("open");
+};
+
+function _refreshBulkMsgTags() {
+  const sel = document.getElementById("bulkMsgTagFilter");
+  if (!sel) return;
+  // Keep 3 system options, append tag options
+  const systemOpts = `
+    <option value="__ALL__">👥 ทุกคน</option>
+    <option value="__UNPAID__">⏳ ยังไม่ชำระ</option>
+    <option value="__EXPIRED__">⌛ เกิน grace period</option>`;
+  const allTags = new Set();
+  allAttendees.forEach((a) => (a.tags || []).forEach((t) => allTags.add(t)));
+  const tagOpts = [...allTags]
+    .sort()
+    .map((t) => `<option value="tag:${escapeHtml(t)}">🏷️ ${escapeHtml(t)}</option>`)
+    .join("");
+  sel.innerHTML = systemOpts + tagOpts;
+}
+
+function _bulkMsgTargets() {
+  const val = document.getElementById("bulkMsgTagFilter").value;
+  if (val === "__ALL__") return allAttendees;
+  if (val === "__UNPAID__")
+    return allAttendees.filter((a) => a.payment_status === "UNPAID");
+  if (val === "__EXPIRED__") return allAttendees.filter(isAttendeeExpired);
+  if (val.startsWith("tag:")) {
+    const tag = val.slice(4);
+    return allAttendees.filter((a) => (a.tags || []).includes(tag));
+  }
+  return [];
+}
+
+function _fillBulkTemplate(tpl, a) {
+  const tierName =
+    a.tier_id && currentTiersById[a.tier_id]
+      ? currentTiersById[a.tier_id].tier_name
+      : "";
+  return String(tpl || "")
+    .replace(/\{ชื่อ\}/g, a.name || "")
+    .replace(/\{รหัส\}/g, a.member_code || "")
+    .replace(/\{ตำแหน่ง\}/g, a.position_level || "")
+    .replace(/\{ราคา\}/g, formatNum(a.paid_amount || 0))
+    .replace(/\{tier\}/g, tierName)
+    .replace(/\{deadline\}/g, a.payment_deadline ? formatDMYShort(a.payment_deadline) : "—")
+    .replace(/\{ticket\}/g, a.ticket_no || "");
+}
+
+window.onBulkMsgFilterChange = function () {
+  const targets = _bulkMsgTargets();
+  document.getElementById("bulkMsgCount").textContent =
+    `จะส่งถึง ${targets.length} คน`;
+  window.onBulkMsgTplChange();
+};
+
+window.onBulkMsgTplChange = function () {
+  const tpl = document.getElementById("bulkMsgTpl").value;
+  // Persist per event
+  if (currentEventId) {
+    localStorage.setItem(`bulkMsgTpl_${currentEventId}`, tpl);
+  }
+  const targets = _bulkMsgTargets();
+  const sample = targets[0];
+  const preview = document.getElementById("bulkMsgPreview");
+  if (!tpl.trim()) {
+    preview.textContent = "— พิมพ์ข้อความด้านบนเพื่อดูตัวอย่าง —";
+    return;
+  }
+  if (!sample) {
+    preview.textContent = "(ไม่มีคนตรงกับ filter นี้)";
+    return;
+  }
+  preview.textContent = _fillBulkTemplate(tpl, sample);
+};
+
+window.copyBulkMessages = async function () {
+  const tpl = document.getElementById("bulkMsgTpl").value.trim();
+  if (!tpl) {
+    showToast("กรุณาพิมพ์ข้อความ", "error");
+    return;
+  }
+  const targets = _bulkMsgTargets();
+  if (!targets.length) {
+    showToast("ไม่มีคนตรงกับ filter", "error");
+    return;
+  }
+  const messages = targets
+    .map((a) => {
+      const phone = a.phone ? ` (📱 ${a.phone})` : "";
+      return `─── ${a.name}${phone} ───\n${_fillBulkTemplate(tpl, a)}`;
+    })
+    .join("\n\n");
+  try {
+    await navigator.clipboard.writeText(messages);
+    showToast(`Copy แล้ว ${targets.length} ข้อความ 📋`, "success");
+  } catch (e) {
+    // Fallback
+    const ta = document.createElement("textarea");
+    ta.value = messages;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand("copy");
+    ta.remove();
+    showToast(`Copy แล้ว ${targets.length} ข้อความ 📋`, "success");
+  }
+};
 
 // ── START ─────────────────────────────────────────────────
 if (document.readyState === "loading") {
