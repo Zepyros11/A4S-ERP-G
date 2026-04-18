@@ -2130,19 +2130,22 @@ async function loadFromSupabase() {
     const idMap = {};
     data.forEach(r => { idMap[r.code] = 'sb_' + r.code; });
 
-    /* ─── Auto-detect sub-rows by code pattern {parent}-{n}
-           ถ้า code มี suffix -N และ base code มีอยู่ในข้อมูล → มาร์คเป็น sub-row
-           (แก้กรณีเก่าที่ import มาโดย is_sub_row=false แต่โครงสร้างเป็น sub จริง) ─── */
+    /* ─── Auto-detect/correct sub-rows by code pattern {parent}-{n}
+           ถ้า code มี suffix -N และ base code มีอยู่ในข้อมูล → บังคับ is_sub_row=true + parent_code=base
+           (แก้ทั้งกรณี is_sub_row=false และกรณี parent_code ผิด) ─── */
     const codesSet = new Set(data.map(r => r.code));
     const subPattern = /^(.+)-\d+$/;
     const needsPersist = []; // records ที่ต้อง update ขึ้น Supabase
     data.forEach(r => {
-      if (r.is_sub_row) return; // already marked
       const m = subPattern.exec(r.code || '');
-      if (!m) return;
+      if (!m) return;                      // ไม่ใช่ pattern sub
       const base = m[1];
-      if (!codesSet.has(base)) return;
-      // กำลังจะ promote เป็น sub-row
+      if (!codesSet.has(base)) return;     // ไม่มี parent ในชุดข้อมูล
+
+      const needsSubFlag   = !r.is_sub_row;
+      const needsParentFix = r.parent_code !== base;
+      if (!needsSubFlag && !needsParentFix) return; // ถูกแล้ว
+
       r.is_sub_row = true;
       r.parent_code = base;
       needsPersist.push({ code: r.code, is_sub_row: true, parent_code: base });
