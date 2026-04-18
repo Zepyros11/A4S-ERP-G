@@ -2086,7 +2086,6 @@ function scheduleRowSave(rowOrId, delay = 600) {
   _saveTimers.set(row.id, setTimeout(() => {
     _saveTimers.delete(row.id);
     if (!sbClient || !row.code) return; // ไม่มี code → ยังเซฟไม่ได้ (รอผู้ใช้กรอก)
-    _suppressRealtimeForCode(row.code);
     saveRowToSupabase(row).catch(err => {
       // Cooldown: อย่า spam toast ทุก field ที่ fail (ถี่ไป) — ทุก 3 วินาที 1 ครั้ง
       const now = Date.now();
@@ -2097,18 +2096,6 @@ function scheduleRowSave(rowOrId, delay = 600) {
       console.error('auto-save failed:', err, 'row:', row.code);
     });
   }, delay));
-}
-
-/* Realtime echo suppression: ignore incoming events for codes we just saved */
-const _recentlySavedCodes = new Map(); // code → expireTime
-function _suppressRealtimeForCode(code) {
-  _recentlySavedCodes.set(code, Date.now() + 3000);
-}
-function _isOwnEcho(code) {
-  const exp = _recentlySavedCodes.get(code);
-  if (!exp) return false;
-  if (Date.now() > exp) { _recentlySavedCodes.delete(code); return false; }
-  return true;
 }
 
 /* Load ทั้งหมดจาก Supabase */
@@ -2136,7 +2123,6 @@ async function loadFromSupabase() {
       loadLocal();
       renderTable();
       restoreImagesFromIDB();
-      subscribeRealtime();
       return;
     }
 
@@ -2179,11 +2165,9 @@ async function loadFromSupabase() {
     saveLocal();
     renderTable();
     restoreImagesFromIDB(); // คืนรูปจาก IndexedDB สำหรับ rows ที่ยังไม่มีรูปใน Supabase
-    subscribeRealtime(); // เริ่ม listen การเปลี่ยนแปลงจากเครื่องอื่น
 
     // Persist การแก้ sub-row กลับไป Supabase (silent — ไม่ block UI)
     if (needsPersist.length > 0) {
-      needsPersist.forEach(rec => _suppressRealtimeForCode(rec.code));
       sbClient.from('tour_seat_check').upsert(needsPersist, { onConflict: 'code' })
         .then(({ error }) => {
           if (error) console.warn('persist sub-row flags:', error.message);
@@ -2197,75 +2181,6 @@ async function loadFromSupabase() {
     renderTable();
     restoreImagesFromIDB();
   }
-}
-
-/* ───── Realtime subscribe: auto-sync การเปลี่ยนแปลงจากเครื่องอื่น ───── */
-let _rtChannel = null;
-function subscribeRealtime() {
-  if (!sbClient || _rtChannel) return;
-  _rtChannel = sbClient.channel('tour_seat_check_changes')
-    .on('postgres_changes',
-        { event: '*', schema: 'public', table: 'tour_seat_check' },
-        handleRealtimeChange)
-    .subscribe(status => {
-      if (status === 'SUBSCRIBED') console.log('✓ Realtime connected');
-    });
-}
-
-function handleRealtimeChange(payload) {
-  const { eventType, new: newRec, old: oldRec } = payload;
-  const code = (newRec && newRec.code) || (oldRec && oldRec.code);
-  if (!code) return;
-  if (_isOwnEcho(code)) return; // เพิ่งเซฟเอง
-
-  // ถ้าผู้ใช้กำลังแก้แถวนี้อยู่ ให้แสดง indicator ไม่ overwrite
-  const existingRow = rows.find(r => r.code === code);
-  if (existingRow && existingRow.isEditing) {
-    toast(`แถว ${code} มีการแก้ไขจากเครื่องอื่น — save งานของคุณก่อนเพื่อรวมการเปลี่ยนแปลง`, 'info');
-    return;
-  }
-
-  if (eventType === 'DELETE') {
-    if (!existingRow) return;
-    rows = rows.filter(r => r.id !== existingRow.id);
-    // ลบ sub-row ของมันด้วย
-    rows = rows.filter(r => r.parentId !== existingRow.id);
-    renderTable();
-    saveLocal();
-    return;
-  }
-
-  // INSERT หรือ UPDATE → upsert เข้า local
-  const idMap = {};
-  rows.forEach(r => { if (r.code) idMap[r.code] = r.id; });
-  if (newRec.parent_code) idMap[newRec.parent_code] = idMap[newRec.parent_code] || ('sb_' + newRec.parent_code);
-
-  const incoming = recordToRow(newRec, idMap);
-  if (existingRow) {
-    // preserve id ของ row เดิม + image data ที่อาจอยู่ใน IndexedDB
-    incoming.id = existingRow.id;
-    if (!incoming.passImg && existingRow.passImg) incoming.passImg = existingRow.passImg;
-    if (!incoming.visaImg && existingRow.visaImg) incoming.visaImg = existingRow.visaImg;
-    const idx = rows.findIndex(r => r.id === existingRow.id);
-    rows[idx] = incoming;
-  } else {
-    // INSERT ใหม่ — ใส่ตามลำดับ: ถ้าเป็น sub-row วางต่อจาก parent, ไม่งั้น append
-    if (incoming.isSubRow && incoming.parentId) {
-      const parentIdx = rows.findIndex(r => r.id === incoming.parentId);
-      if (parentIdx >= 0) {
-        // วางต่อจาก sub-row สุดท้ายของ parent นี้
-        let insertAt = parentIdx + 1;
-        while (insertAt < rows.length && rows[insertAt].parentId === incoming.parentId) insertAt++;
-        rows.splice(insertAt, 0, incoming);
-      } else {
-        rows.push(incoming);
-      }
-    } else {
-      rows.push(incoming);
-    }
-  }
-  renderTable();
-  saveLocal();
 }
 
 function isRowComplete(row) {
@@ -2772,7 +2687,6 @@ function onSeatChange(id, value) {
     const toRemoveCodes = toRemoveRows.filter(r => r.code).map(r => r.code);
     rows = rows.filter(r => !toRemoveIds.includes(r.id));
     if (sbClient && toRemoveCodes.length) {
-      _suppressRealtimeForCode('__batch_delete__');
       sbClient.from('tour_seat_check').delete().in('code', toRemoveCodes)
         .then(({ error }) => { if (error) toast('ลบ sub-row ล้มเหลว: ' + error.message, 'error'); });
     }
@@ -3002,7 +2916,6 @@ async function saveAllToSupabase() {
 
     showSaveOverlay('กำลังบันทึกข้อมูล...', `กำลัง sync ${rows.length} รายการไป Supabase — อย่าปิดหรือ Refresh หน้านี้`);
     const records = rows.map(row => rowToRecord(row));
-    records.forEach(rec => { if (rec.code) _suppressRealtimeForCode(rec.code); });
     const { error } = await sbClient
       .from('tour_seat_check')
       .upsert(records, { onConflict: 'code' });
