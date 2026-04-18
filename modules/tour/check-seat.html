@@ -2186,6 +2186,92 @@ async function loadFromSupabase() {
   }
 }
 
+/* ═══════════════════════════════════════════════════════════
+   AUTO-REFRESH — poll Supabase ทุก 30 วิ + เมื่อ tab โฟกัสกลับมา
+   ข้ามการ refresh ถ้าผู้ใช้กำลังแก้ไขหรือมี save ค้างอยู่
+═══════════════════════════════════════════════════════════ */
+const AUTO_REFRESH_MS = 30000;
+let _autoRefreshTimer = null;
+let _refreshInFlight = false;
+
+function startAutoRefresh() {
+  if (_autoRefreshTimer) return;
+  _autoRefreshTimer = setInterval(refreshFromSupabaseSilent, AUTO_REFRESH_MS);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') refreshFromSupabaseSilent();
+  });
+  window.addEventListener('focus', refreshFromSupabaseSilent);
+}
+
+/* snapshot ที่ใช้เทียบว่าข้อมูลเปลี่ยนจริงไหม (เฉพาะ field หลัก กัน false positive) */
+function _snapshotRows(arr) {
+  return arr.map(r => [
+    r.code, r.name, r.instead, r.pin, r.port, r.group, r.flight,
+    r.departureDateTime, r.arrivalDateTime, r.comeback, r.comebackDateTime,
+    r.seat, r.nationality, r.passId, r.passExp, r.tel, r.shirt,
+    r.waive ? 1 : 0, r.highlighted ? 1 : 0, r.isSubRow ? 1 : 0,
+    r.passImg || '', r.visaImg || ''
+  ].join('¦')).join('‖');
+}
+
+async function refreshFromSupabaseSilent() {
+  if (!sbClient) return;
+  if (_refreshInFlight) return;
+  if (_globalEditing) return;                  // อยู่ใน Edit mode → ข้าม
+  if (_saveTimers.size > 0) return;            // มี save ค้าง → ข้าม (กัน race)
+  if (rows.some(r => r.isEditing)) return;     // มี row กำลังแก้ → ข้าม
+
+  _refreshInFlight = true;
+  try {
+    const { data, error } = await sbClient
+      .from('tour_seat_check').select('*')
+      .order('created_at', { ascending: true });
+    if (error || !data) return;
+
+    // same sub-row auto-detect logic
+    const codesSet = new Set(data.map(r => r.code));
+    const subPattern = /^(.+)-\d+$/;
+    data.forEach(r => {
+      const m = subPattern.exec(r.code || '');
+      if (!m) return;
+      const base = m[1];
+      if (!codesSet.has(base)) return;
+      if (r.is_sub_row && r.parent_code === base) return;
+      r.is_sub_row = true;
+      r.parent_code = base;
+    });
+
+    const idMap = {};
+    data.forEach(r => { idMap[r.code] = 'sb_' + r.code; });
+    const parents = data.filter(r => !r.is_sub_row);
+    const subs    = data.filter(r => r.is_sub_row);
+    const newRows = [];
+    parents.forEach(p => {
+      newRows.push(recordToRow(p, idMap));
+      subs.filter(s => s.parent_code === p.code)
+          .forEach(s => newRows.push(recordToRow(s, idMap)));
+    });
+    subs.filter(s => !parents.some(p => p.code === s.parent_code))
+        .forEach(s => newRows.push(recordToRow(s, idMap)));
+
+    // compare เฉพาะเมื่อเปลี่ยนจริงถึงจะ re-render
+    if (_snapshotRows(newRows) === _snapshotRows(rows)) return;
+
+    // เช็คซ้ำก่อนทับ (user อาจเริ่ม edit ระหว่าง fetch)
+    if (_globalEditing || _saveTimers.size > 0 || rows.some(r => r.isEditing)) return;
+
+    rows = newRows;
+    saveLocal();
+    renderTable();
+    restoreImagesFromIDB();
+    toast('🔄 อัพเดตข้อมูลจากเครื่องอื่น', 'info');
+  } catch(e) {
+    console.warn('auto-refresh failed:', e.message || e);
+  } finally {
+    _refreshInFlight = false;
+  }
+}
+
 function isRowComplete(row) {
   return !!(row.passId && row.passExp && row.passImg && row.tel && row.shirt);
 }
@@ -3223,7 +3309,7 @@ initSupabase(
   localStorage.getItem('cs_sb_url') || '',
   localStorage.getItem('cs_sb_key') || ''
 );
-loadFromSupabase(); // โหลดจาก Supabase → fallback localStorage
+loadFromSupabase().then(() => startAutoRefresh()); // โหลด → แล้วเริ่ม auto-refresh
 </script>
 </body>
 </html>
