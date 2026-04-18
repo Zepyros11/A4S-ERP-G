@@ -598,6 +598,27 @@
 .wp-colmenu-item.danger:hover { background: rgba(239, 68, 68, 0.08); }
 .wp-colmenu-sep { height: 1px; background: var(--border); margin: 4px 0; }
 
+/* ── Hero action buttons (export/print) ─────────── */
+.wp-hero-btn {
+  padding: 7px 14px;
+  border: 1.5px solid rgba(255, 255, 255, 0.35);
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  border-radius: 16px;
+  cursor: pointer;
+  transition: all .15s;
+  backdrop-filter: blur(6px);
+}
+.wp-hero-btn:hover {
+  background: rgba(255, 255, 255, 0.28);
+  border-color: rgba(255, 255, 255, 0.55);
+  transform: translateY(-1px);
+}
+.wp-hero-btn:active { transform: translateY(0); }
+
 /* ── Autosave indicator ──────────────────────────── */
 .wp-save-state {
   font-size: 11.5px;
@@ -906,4 +927,179 @@
 @media (max-width: 520px) {
   .wp-form-row { flex-direction: column; gap: 0; }
   .wp-form-row .form-group { width: 100% !important; }
+}
+
+/* ── Print-only header (rendered via JS before printing) ── */
+.wp-print-header { display: none; }
+
+/* ── Print styles ────────────────────────────────── */
+@media print {
+  @page {
+    size: A4 landscape;
+    margin: 10mm 12mm;
+  }
+  * { box-shadow: none !important; text-shadow: none !important; }
+  body { background: #fff !important; color: #000 !important; font-size: 11pt; }
+
+  /* Hide all interactive / chrome elements */
+  .topbar, #erp-sidebar, #sb-hamburger, #sb-overlay,
+  .wp-hero, .wp-edit-header, .wp-day-tabs,
+  .wp-toolbar, .wp-col-actions, .wp-col-menu-btn,
+  #timePickerPop, #assigneePop, #colMenuPop,
+  .wp-modal-overlay,
+  .wp-assignee-placeholder,
+  .wp-drag-handle,
+  #loadingOverlay, #toast { display: none !important; }
+
+  #erp-main { overflow: visible !important; height: auto !important; display: block !important; }
+  #erp-shell { display: block !important; }
+  .page { padding: 0 !important; max-width: 100% !important; margin: 0 !important; }
+
+  /* Show & style the print-only summary header */
+  .wp-print-header {
+    display: block !important;
+    margin-bottom: 8mm;
+    padding-bottom: 4mm;
+    border-bottom: 2px solid #000;
+  }
+  .wp-print-title {
+    font-size: 18pt;
+    font-weight: 700;
+    margin: 0 0 3mm;
+    color: #000;
+  }
+  .wp-print-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4mm 10mm;
+    font-size: 10pt;
+    color: #000;
+  }
+  .wp-print-meta > div { display: flex; gap: 4px; }
+  .wp-print-meta strong { color: #000; font-weight: 700; }
+  .wp-print-meta .lbl { color: #666; font-weight: 600; }
+
+  /* Table */
+  .wp-grid-wrap {
+    border: 1px solid #000 !important;
+    border-radius: 0 !important;
+    overflow: visible !important;
+    background: #fff !important;
+  }
+  .wp-table {
+    font-size: 10pt !important;
+    width: 100% !important;
+    border-collapse: collapse !important;
+  }
+  .wp-table th {
+    background: #e5e7eb !important;
+    color: #000 !important;
+    border: 1px solid #000 !important;
+    padding: 5px 8px !important;
+    position: static !important;
+    font-weight: 700;
+    font-size: 10pt;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .wp-table th .wp-col-header-wrap { justify-content: flex-start; }
+  .wp-table th input {
+    border: none !important;
+    background: transparent !important;
+    color: #000 !important;
+    padding: 0 !important;
+    font-size: 10pt !important;
+    font-weight: 700 !important;
+    pointer-events: none;
+  }
+  .wp-table td {
+    border: 1px solid #000 !important;
+    padding: 4px 6px !important;
+    background: #fff !important;
+    vertical-align: middle !important;
+  }
+
+  /* Neutralize all editable inputs → plain text */
+  .wp-cell-input, .wp-time-btn {
+    border: none !important;
+    background: transparent !important;
+    color: #000 !important;
+    resize: none !important;
+    padding: 0 !important;
+    pointer-events: none;
+    font-size: 10pt !important;
+    min-height: auto !important;
+  }
+  textarea.wp-cell-input {
+    resize: none !important;
+    overflow: visible !important;
+    white-space: pre-wrap !important;
+    height: auto !important;
+  }
+
+  /* Hide native form icons (date/time pickers, select arrows) */
+  input[type="date"]::-webkit-calendar-picker-indicator,
+  input[type="time"]::-webkit-calendar-picker-indicator,
+  input[type="date"]::-webkit-inner-spin-button,
+  input[type="time"]::-webkit-inner-spin-button { display: none !important; }
+  select {
+    -webkit-appearance: none !important;
+    appearance: none !important;
+    background-image: none !important;
+    padding-right: 0 !important;
+  }
+
+  /* Time range cell: inline text */
+  .wp-time-range {
+    display: flex !important;
+    justify-content: center;
+    gap: 2px;
+    padding: 0 !important;
+    min-height: auto !important;
+  }
+  .wp-time-btn {
+    min-width: auto !important;
+    padding: 0 4px !important;
+    border: none !important;
+    font-weight: 600 !important;
+  }
+  .wp-time-btn.is-empty { color: #aaa !important; font-style: italic; }
+  .wp-time-sep { color: #000 !important; }
+
+  /* Row number */
+  .wp-row-no {
+    background: #f3f4f6 !important;
+    color: #000 !important;
+    width: 28px !important;
+    padding: 4px 0 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .wp-row-no-inner { padding: 0 !important; }
+
+  /* Chips */
+  .wp-chip {
+    border: 1px solid #666 !important;
+    background: #fff !important;
+    color: #000 !important;
+    padding: 1px 7px 1px 6px !important;
+    font-size: 9pt !important;
+    margin: 1px;
+  }
+  .wp-chip.owner { background: #f3f4f6 !important; font-weight: 700; }
+  .wp-chip.owner::before { background: #000 !important; box-shadow: none !important; width: 5px !important; height: 5px !important; }
+  .wp-chip.helper { background: #fff !important; font-weight: 500; }
+
+  .wp-total {
+    background: #f3f4f6 !important;
+    color: #000 !important;
+    border-top: 1px solid #000 !important;
+    font-weight: 700;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Page break */
+  .wp-table tr { page-break-inside: avoid; }
+  .wp-table thead { display: table-header-group; }
 }

@@ -16,6 +16,17 @@ let state = {
   config: null,
 };
 
+function todayIso() { return new Date().toISOString().slice(0, 10); }
+
+// Filter clause: ถ้าเลือก "วันนี้" → รวม business_date = today + NULL (pending)
+//                ถ้าย้อนหลัง → business_date = selected_date (finalized แล้ว)
+function dateFilter(field = 'business_date') {
+  if (state.date === todayIso()) {
+    return `or=(${field}.eq.${state.date},${field}.is.null)`;
+  }
+  return `${field}=eq.${state.date}`;
+}
+
 /* ── tiny helpers ── */
 function $(id) { return document.getElementById(id); }
 function fmt(n) { return Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 }); }
@@ -99,7 +110,8 @@ async function loadAll() {
 async function loadKPI() {
   const branchFilter = state.branch ? `&branch=eq.${state.branch}` : '';
   try {
-    const rows = await sbGet(`daily_sale_summary?sale_date=eq.${state.date}${branchFilter}`);
+    // view column aliased: business_date AS sale_date
+    const rows = await sbGet(`daily_sale_summary?${dateFilter('sale_date')}${branchFilter}`);
     let bills = 0, amount = 0, cash = 0, transfer = 0, credit = 0, ewallet = 0;
     rows.forEach(r => {
       bills += r.bill_count || 0;
@@ -141,7 +153,7 @@ async function loadSale() {
   try {
     const branchFilter = state.branch ? `&branch=eq.${state.branch}` : '';
     const bills = await sbGet(
-      `daily_sale_bills?sale_date=eq.${state.date}${branchFilter}&order=sale_datetime.desc&limit=1000`
+      `daily_sale_bills?${dateFilter()}${branchFilter}&order=sale_datetime.desc&limit=1000`
     );
     if (!bills.length) {
       body.innerHTML = `<tr><td colspan="11" class="ds-table-empty">ไม่มีบิลในวันนี้</td></tr>`;
@@ -206,7 +218,7 @@ async function loadTopup() {
   try {
     const branchFilter = state.branch ? `&branch=eq.${state.branch}` : '';
     const bills = await sbGet(
-      `daily_sale_topup_bills?sale_date=eq.${state.date}${branchFilter}&order=sale_date.desc&limit=1000`
+      `daily_sale_topup_bills?${dateFilter()}${branchFilter}&order=sale_date.desc&limit=1000`
     );
     if (!bills.length) {
       body.innerHTML = `<tr><td colspan="10" class="ds-table-empty">ไม่มีบิลเติม E-Wallet ในวันนี้</td></tr>`;
@@ -485,7 +497,20 @@ async function _pollRun(pat) {
     if (run) {
       $('spGhLink').href = run.html_url;
       $('spStatus').textContent = run.status;
-      if (run.conclusion === 'success') { _spLog('✅ Sync สำเร็จ', 'ok'); return; }
+      if (run.conclusion === 'success') {
+        _spLog('✅ Sync สำเร็จ', 'ok');
+        // ปิดวัน: tag บิลที่ business_date = NULL ให้เป็นวันนี้
+        try {
+          const closed = await sbPost('rpc/daily_sale_close_day', { p_date: todayIso() });
+          const r = Array.isArray(closed) ? closed[0] : closed;
+          if (r && (r.bills_closed || r.topup_closed)) {
+            _spLog(`🔒 ปิดวัน: ${r.bills_closed} bills + ${r.topup_closed} topup`, 'ok');
+          }
+        } catch (e) {
+          _spLog(`⚠️ close_day error: ${e.message}`, 'err');
+        }
+        return;
+      }
       if (run.conclusion === 'failure') { _spLog('❌ Sync ล้มเหลว', 'err'); return; }
       if (run.status === 'completed' && run.conclusion) {
         _spLog(`Run ended: ${run.conclusion}`, run.conclusion === 'success' ? 'ok' : 'err');

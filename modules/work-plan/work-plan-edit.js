@@ -884,6 +884,123 @@ window.clearHelpers = () => {
   renderAssigneeLists();
 };
 
+/* ── Export CSV ───────────────────────────────────── */
+window.exportCSV = () => {
+  if (!state.plan) return;
+  const cols = state.plan.columns || [];
+  const header = ["ลำดับ", "วัน"]
+    .concat(cols.map((c) => c.label))
+    .concat(["ผู้รับผิดชอบ", "ผู้ช่วย"]);
+
+  const userName = (uid) => {
+    const u = state.users.find((x) => x.user_id === uid);
+    return u ? (u.full_name || u.username) : "";
+  };
+
+  const sortedRows = [...state.rows].sort((a, b) => {
+    if ((a.event_day || 1) !== (b.event_day || 1)) return (a.event_day || 1) - (b.event_day || 1);
+    return (a.row_order || 0) - (b.row_order || 0);
+  });
+
+  const rows = sortedRows.map((r, idx) => {
+    const cells = [
+      String(idx + 1),
+      `วันที่ ${r.event_day || 1}`,
+    ];
+    cols.forEach((c) => {
+      cells.push(String((r.data || {})[c.key] ?? ""));
+    });
+    cells.push(userName(r.owner_user_id));
+    cells.push((r.helper_user_ids || []).map(userName).filter(Boolean).join(", "));
+    return cells;
+  });
+
+  // Meta (2 แถวบนสุด)
+  const p = state.plan;
+  const metaLines = [
+    [`แผนงาน: ${p.plan_name || ""}`],
+    [`ปี: ${p.year || ""} | วันที่: ${p.event_start || ""} ${p.event_end && p.event_end !== p.event_start ? " – " + p.event_end : ""} | สถานที่: ${p.location || ""}`],
+    [], // blank line
+  ];
+
+  const csvRows = [...metaLines, header, ...rows];
+  const csv = csvRows.map((r) => r.map(csvEscape).join(",")).join("\r\n");
+
+  // Add BOM for Excel Thai UTF-8 support
+  const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${sanitizeFilename(p.plan_name || "work-plan")}_${p.year || ""}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 100);
+  toast("Export CSV สำเร็จ", "success");
+};
+
+function csvEscape(v) {
+  const s = String(v ?? "");
+  if (/[",\r\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+  return s;
+}
+function sanitizeFilename(s) {
+  return String(s).replace(/[<>:"/\\|?*\x00-\x1f]/g, "_").trim() || "export";
+}
+
+/* ── Print / PDF ──────────────────────────────────── */
+window.printPlan = () => {
+  if (!state.plan) return;
+  const pop = $("timePickerPop");
+  if (pop) pop.style.display = "none";
+
+  // Build clean print header (replaces hero + edit-header in print view)
+  injectPrintHeader();
+
+  window.print();
+
+  // Remove after printing
+  setTimeout(() => {
+    document.querySelector(".wp-print-header")?.remove();
+  }, 800);
+};
+
+function injectPrintHeader() {
+  const old = document.querySelector(".wp-print-header");
+  if (old) old.remove();
+
+  const p = state.plan;
+  const dept = state.departments.find((d) => d.id === p.dept_id);
+
+  const fmtDate = (s) => {
+    if (!s) return "";
+    const [y, m, d] = s.split("-");
+    return `${d}/${m}/${y}`;
+  };
+  const dateStr = p.event_start
+    ? (p.event_end && p.event_end !== p.event_start
+        ? `${fmtDate(p.event_start)} – ${fmtDate(p.event_end)}`
+        : fmtDate(p.event_start))
+    : "—";
+
+  const scopeLabel = { event: "Event", cs: "Customer Service", trip: "Trip" }[SCOPE] || SCOPE;
+
+  const header = document.createElement("div");
+  header.className = "wp-print-header";
+  header.innerHTML = `
+    <h1 class="wp-print-title">${escapeHtml(p.plan_name || "แผนงาน")}</h1>
+    <div class="wp-print-meta">
+      <div><span class="lbl">ประเภท:</span> <strong>${escapeHtml(scopeLabel)}</strong></div>
+      ${dept ? `<div><span class="lbl">แผนก:</span> <strong>${escapeHtml(dept.name)}</strong></div>` : ""}
+      <div><span class="lbl">ปี:</span> <strong>${escapeHtml(p.year || "")}</strong></div>
+      <div><span class="lbl">วันที่:</span> <strong>${escapeHtml(dateStr)}</strong></div>
+      ${p.location ? `<div><span class="lbl">สถานที่:</span> <strong>${escapeHtml(p.location)}</strong></div>` : ""}
+    </div>
+  `;
+
+  const page = document.querySelector(".page");
+  if (page) page.insertBefore(header, page.firstChild);
+}
+
 /* ── Delete plan ──────────────────────────────────── */
 window.deletePlanFromEdit = () => {
   window.DeleteModal.open(
