@@ -136,16 +136,16 @@
 
     tbody tr { border-bottom: 1px solid var(--border); transition: background .1s; }
     tbody tr:hover:not(.sub-row) { background: var(--surface2); }
-    tbody tr.sub-row { background: #f9f6ff; }
-    tbody tr.sub-row:hover { background: #f0ebff; }
+    tbody tr.sub-row { background: #ede9fe; box-shadow: inset 4px 0 0 #8b5cf6; }
+    tbody tr.sub-row:hover { background: #ddd6fe; }
     tbody tr.editing { background: #fffbea; }
     /* Row status bg — green > blue > default */
     tbody tr.row-confirmed   { background: #bbf7d0; }
     tbody tr.row-confirmed:hover { background: #86efac; }
-    tbody tr.row-confirmed.sub-row { background: #bbf7d0; }
+    tbody tr.row-confirmed.sub-row { background: #c4b5fd; }
     tbody tr.row-has-passid  { background: #bfdbfe; }
     tbody tr.row-has-passid:hover { background: #93c5fd; }
-    tbody tr.row-has-passid.sub-row { background: #bfdbfe; }
+    tbody tr.row-has-passid.sub-row { background: #ddd6fe; }
 
     /* ── Status Cards ─────────────────────────────────── */
     #stats-panel {
@@ -1434,15 +1434,27 @@ function importExcel(event) {
       const colShirt      = findKey('shirt', 'เสื้อ', 'T-Shirt', 'size');
       const colWaive      = findKey('waive', 'ยกเว้น', 'Waive');
       const colInstead    = findKey('instead', 'แทน', 'คนแทน', 'Instead');
+      const colSubRow     = findKey('sub row', 'subrow', 'sub_row');
+
+      /* Build set of codes that already exist in Excel (to skip duplicate auto-sub-rows) */
+      const excelCodes = new Set();
+      raw.forEach(r => {
+        const c = (colCode ? r[colCode] : '').toString().trim();
+        if (c) excelCodes.add(c);
+      });
 
       const imported = [];
+      const truthy = v => { const s = (v || '').toString().trim().toLowerCase(); return s === 'true' || s === 'yes' || s === 'ใช่' || s === '1'; };
+
       raw.forEach((r) => {
+        const code  = (colCode ? r[colCode] : '').toString().trim();
         const seat  = parseFloat((colSeat ? r[colSeat] : '') || 0) || 0;
         const pin   = (colPin  ? r[colPin]  : '').toString().trim().toUpperCase();
         const port  = (colPort ? r[colPort] : '').toString().trim();
-        const waiveVal = (colWaive ? r[colWaive] : '').toString().trim().toLowerCase();
-        const row   = makeRow({
-          code:              (colCode     ? r[colCode]     : '').toString().trim(),
+        const isSubFromExcel = colSubRow ? truthy(r[colSubRow]) : false;
+
+        const row = makeRow({
+          code,
           name:              (colName     ? r[colName]     : '').toString().trim(),
           instead:           (colInstead  ? r[colInstead]  : '').toString().trim(),
           pin:               PIN_OPTIONS.includes(pin) ? pin : '',
@@ -1459,14 +1471,24 @@ function importExcel(event) {
           passExp:           (colPassExp  ? r[colPassExp]  : '').toString().trim(),
           tel:               (colTel      ? r[colTel]      : '').toString().trim(),
           shirt:             (colShirt    ? r[colShirt]    : '').toString().trim(),
-          waive:             waiveVal === 'true' || waiveVal === 'yes' || waiveVal === 'ใช่' || waiveVal === '1',
+          waive:             truthy(colWaive ? r[colWaive] : ''),
         });
+
+        /* Mark as sub-row if Excel says so, OR if code matches {parent}-{n} pattern of a prior row */
+        if (isSubFromExcel) {
+          row.isSubRow = true;
+          const parentCode = code.includes('-') ? code.split('-').slice(0, -1).join('-') : '';
+          const parent = parentCode ? imported.find(p => !p.isSubRow && p.code === parentCode) : null;
+          if (parent) row.parentId = parent.id;
+        }
         imported.push(row);
 
-        /* Sub-rows for Seat >= 2 */
-        if (seat >= 2) {
+        /* Auto-gen sub-rows only if Excel doesn't already have them */
+        if (!row.isSubRow && seat >= 2) {
           const count = Math.floor(seat) - 1;
           for (let i = 0; i < count; i++) {
+            const expectedSubCode = code + '-' + (i + 1);
+            if (excelCodes.has(expectedSubCode)) continue; // skip; Excel has this row
             imported.push(makeSubRow(row, i));
           }
         }
@@ -1498,6 +1520,8 @@ function addEmptyRow() {
   const row = makeRow({ isEditing: _globalEditing });
   rows.push(row);
   renderTable();
+  saveLocal();
+  // (ไม่ schedule Supabase save จนกว่าจะมี code — กัน insert row ว่าง)
   // scroll to bottom
   const tb = document.getElementById('table-wrap');
   tb.scrollTop = tb.scrollHeight;
@@ -1549,6 +1573,7 @@ function submitAddPerson() {
   renderTable();
   closeAddPerson();
   toast('เพิ่มรายชื่อ "' + name + '" สำเร็จ', 'success');
+  scheduleRowSave(row, 200); // save ไป Supabase ถ้ามี code
 
   // scroll to bottom
   const tb = document.getElementById('table-wrap');
@@ -2046,6 +2071,46 @@ async function saveRowToSupabase(row) {
   if (error) throw error;
 }
 
+/* ───── Auto-save: debounced per-row upsert ─────
+   เรียกจาก field edit ทุกจุด — เซฟทั้ง local + Supabase
+   ถ้า upsert ล้มเหลวจะโชว์ toast ให้ user เห็น (ไม่เงียบเหมือน console.warn) */
+const _saveTimers = new Map(); // rowId → timeout
+const _saveErrorCooldown = { last: 0 };
+
+function scheduleRowSave(rowOrId, delay = 600) {
+  const row = typeof rowOrId === 'string' ? getRow(rowOrId) : rowOrId;
+  if (!row) return;
+  saveLocal(); // cache ทันที ป้องกันข้อมูลหายตอน reload
+
+  if (_saveTimers.has(row.id)) clearTimeout(_saveTimers.get(row.id));
+  _saveTimers.set(row.id, setTimeout(() => {
+    _saveTimers.delete(row.id);
+    if (!sbClient || !row.code) return; // ไม่มี code → ยังเซฟไม่ได้ (รอผู้ใช้กรอก)
+    _suppressRealtimeForCode(row.code);
+    saveRowToSupabase(row).catch(err => {
+      // Cooldown: อย่า spam toast ทุก field ที่ fail (ถี่ไป) — ทุก 3 วินาที 1 ครั้ง
+      const now = Date.now();
+      if (now - _saveErrorCooldown.last > 3000) {
+        _saveErrorCooldown.last = now;
+        toast('บันทึกล้มเหลว: ' + (err.message || err), 'error');
+      }
+      console.error('auto-save failed:', err, 'row:', row.code);
+    });
+  }, delay));
+}
+
+/* Realtime echo suppression: ignore incoming events for codes we just saved */
+const _recentlySavedCodes = new Map(); // code → expireTime
+function _suppressRealtimeForCode(code) {
+  _recentlySavedCodes.set(code, Date.now() + 3000);
+}
+function _isOwnEcho(code) {
+  const exp = _recentlySavedCodes.get(code);
+  if (!exp) return false;
+  if (Date.now() > exp) { _recentlySavedCodes.delete(code); return false; }
+  return true;
+}
+
 /* Load ทั้งหมดจาก Supabase */
 async function loadFromSupabase() {
   if (!sbClient) {
@@ -2071,12 +2136,31 @@ async function loadFromSupabase() {
       loadLocal();
       renderTable();
       restoreImagesFromIDB();
+      subscribeRealtime();
       return;
     }
 
     // สร้าง id map ก่อน เพื่อ link parentId
     const idMap = {};
     data.forEach(r => { idMap[r.code] = 'sb_' + r.code; });
+
+    /* ─── Auto-detect sub-rows by code pattern {parent}-{n}
+           ถ้า code มี suffix -N และ base code มีอยู่ในข้อมูล → มาร์คเป็น sub-row
+           (แก้กรณีเก่าที่ import มาโดย is_sub_row=false แต่โครงสร้างเป็น sub จริง) ─── */
+    const codesSet = new Set(data.map(r => r.code));
+    const subPattern = /^(.+)-\d+$/;
+    const needsPersist = []; // records ที่ต้อง update ขึ้น Supabase
+    data.forEach(r => {
+      if (r.is_sub_row) return; // already marked
+      const m = subPattern.exec(r.code || '');
+      if (!m) return;
+      const base = m[1];
+      if (!codesSet.has(base)) return;
+      // กำลังจะ promote เป็น sub-row
+      r.is_sub_row = true;
+      r.parent_code = base;
+      needsPersist.push({ code: r.code, is_sub_row: true, parent_code: base });
+    });
 
     // แยก parent rows ก่อน แล้วค่อย sub-rows
     const parents = data.filter(r => !r.is_sub_row);
@@ -2088,17 +2172,100 @@ async function loadFromSupabase() {
       subs.filter(s => s.parent_code === p.code)
           .forEach(s => rows.push(recordToRow(s, idMap)));
     });
+    // sub-row orphan (parent ไม่เจอ) → ใส่ท้ายสุด
+    const orphanSubs = subs.filter(s => !parents.some(p => p.code === s.parent_code));
+    orphanSubs.forEach(s => rows.push(recordToRow(s, idMap)));
 
     saveLocal();
     renderTable();
     restoreImagesFromIDB(); // คืนรูปจาก IndexedDB สำหรับ rows ที่ยังไม่มีรูปใน Supabase
+    subscribeRealtime(); // เริ่ม listen การเปลี่ยนแปลงจากเครื่องอื่น
+
+    // Persist การแก้ sub-row กลับไป Supabase (silent — ไม่ block UI)
+    if (needsPersist.length > 0) {
+      needsPersist.forEach(rec => _suppressRealtimeForCode(rec.code));
+      sbClient.from('tour_seat_check').upsert(needsPersist, { onConflict: 'code' })
+        .then(({ error }) => {
+          if (error) console.warn('persist sub-row flags:', error.message);
+          else console.log(`✓ marked ${needsPersist.length} rows as sub-row`);
+        });
+    }
   } catch(e) {
     console.error('Load from Supabase failed:', e);
-    console.warn('โหลดจาก Supabase ไม่ได้ — ใช้ข้อมูล cache แทน');
+    toast('โหลดจาก Supabase ไม่ได้ — ใช้ข้อมูล cache แทน', 'error');
     loadLocal();
     renderTable();
     restoreImagesFromIDB();
   }
+}
+
+/* ───── Realtime subscribe: auto-sync การเปลี่ยนแปลงจากเครื่องอื่น ───── */
+let _rtChannel = null;
+function subscribeRealtime() {
+  if (!sbClient || _rtChannel) return;
+  _rtChannel = sbClient.channel('tour_seat_check_changes')
+    .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'tour_seat_check' },
+        handleRealtimeChange)
+    .subscribe(status => {
+      if (status === 'SUBSCRIBED') console.log('✓ Realtime connected');
+    });
+}
+
+function handleRealtimeChange(payload) {
+  const { eventType, new: newRec, old: oldRec } = payload;
+  const code = (newRec && newRec.code) || (oldRec && oldRec.code);
+  if (!code) return;
+  if (_isOwnEcho(code)) return; // เพิ่งเซฟเอง
+
+  // ถ้าผู้ใช้กำลังแก้แถวนี้อยู่ ให้แสดง indicator ไม่ overwrite
+  const existingRow = rows.find(r => r.code === code);
+  if (existingRow && existingRow.isEditing) {
+    toast(`แถว ${code} มีการแก้ไขจากเครื่องอื่น — save งานของคุณก่อนเพื่อรวมการเปลี่ยนแปลง`, 'info');
+    return;
+  }
+
+  if (eventType === 'DELETE') {
+    if (!existingRow) return;
+    rows = rows.filter(r => r.id !== existingRow.id);
+    // ลบ sub-row ของมันด้วย
+    rows = rows.filter(r => r.parentId !== existingRow.id);
+    renderTable();
+    saveLocal();
+    return;
+  }
+
+  // INSERT หรือ UPDATE → upsert เข้า local
+  const idMap = {};
+  rows.forEach(r => { if (r.code) idMap[r.code] = r.id; });
+  if (newRec.parent_code) idMap[newRec.parent_code] = idMap[newRec.parent_code] || ('sb_' + newRec.parent_code);
+
+  const incoming = recordToRow(newRec, idMap);
+  if (existingRow) {
+    // preserve id ของ row เดิม + image data ที่อาจอยู่ใน IndexedDB
+    incoming.id = existingRow.id;
+    if (!incoming.passImg && existingRow.passImg) incoming.passImg = existingRow.passImg;
+    if (!incoming.visaImg && existingRow.visaImg) incoming.visaImg = existingRow.visaImg;
+    const idx = rows.findIndex(r => r.id === existingRow.id);
+    rows[idx] = incoming;
+  } else {
+    // INSERT ใหม่ — ใส่ตามลำดับ: ถ้าเป็น sub-row วางต่อจาก parent, ไม่งั้น append
+    if (incoming.isSubRow && incoming.parentId) {
+      const parentIdx = rows.findIndex(r => r.id === incoming.parentId);
+      if (parentIdx >= 0) {
+        // วางต่อจาก sub-row สุดท้ายของ parent นี้
+        let insertAt = parentIdx + 1;
+        while (insertAt < rows.length && rows[insertAt].parentId === incoming.parentId) insertAt++;
+        rows.splice(insertAt, 0, incoming);
+      } else {
+        rows.push(incoming);
+      }
+    } else {
+      rows.push(incoming);
+    }
+  }
+  renderTable();
+  saveLocal();
 }
 
 function isRowComplete(row) {
@@ -2471,19 +2638,17 @@ async function saveRow(id) {
 
 function setField(id, field, value) {
   const row = getRow(id);
-  if (row) row[field] = value;
+  if (!row) return;
+  row[field] = value;
+  scheduleRowSave(row);
 }
 
 function setInsteadField(id, value) {
   const row = getRow(id);
   if (!row) return;
   row.instead = value;
-  saveLocal();
   updateStats();
-  if (sbClient && row.code) {
-    sbClient.from('tour_seat_check').upsert(rowToRecord(row), { onConflict: 'code' })
-      .then(({ error }) => { if (error) console.warn('instead upsert:', error.message); });
-  }
+  scheduleRowSave(row, 400);
 }
 
 function toggleHighlight(id, checked) {
@@ -2491,8 +2656,8 @@ function toggleHighlight(id, checked) {
   if (!row) return;
   row.highlighted = checked;
   const tr = document.getElementById('tr_' + id);
-  if (!tr) return;
-  tr.classList.toggle('row-highlighted', checked);
+  if (tr) tr.classList.toggle('row-highlighted', checked);
+  scheduleRowSave(row, 200);
 }
 
 function toggleWaive(id, checked) {
@@ -2511,8 +2676,8 @@ function toggleWaive(id, checked) {
       else if (row.passId)     tr.classList.add('row-has-passid');
     }
   }
-  saveLocal();
   updateStats();
+  scheduleRowSave(row, 200);
 }
 
 /* Custom confirm dialog — returns Promise<boolean> */
@@ -2586,7 +2751,6 @@ function onSeatChange(id, value) {
   const row = getRow(id);
   if (!row) return;
   const newSeat = parseFloat(value) || 0;
-  const oldSeat = parseFloat(row.seat) || 0;
   row.seat = newSeat;
 
   // Adjust sub-rows
@@ -2602,12 +2766,20 @@ function onSeatChange(id, value) {
       insertAt++;
     }
   } else if (neededSubs < existingSubs.length) {
-    // remove excess sub-rows
-    const toRemove = existingSubs.slice(neededSubs).map(r => r.id);
-    rows = rows.filter(r => !toRemove.includes(r.id));
+    // remove excess sub-rows ทั้ง local + Supabase
+    const toRemoveRows = existingSubs.slice(neededSubs);
+    const toRemoveIds   = toRemoveRows.map(r => r.id);
+    const toRemoveCodes = toRemoveRows.filter(r => r.code).map(r => r.code);
+    rows = rows.filter(r => !toRemoveIds.includes(r.id));
+    if (sbClient && toRemoveCodes.length) {
+      _suppressRealtimeForCode('__batch_delete__');
+      sbClient.from('tour_seat_check').delete().in('code', toRemoveCodes)
+        .then(({ error }) => { if (error) toast('ลบ sub-row ล้มเหลว: ' + error.message, 'error'); });
+    }
   }
 
   renderTable();
+  scheduleRowSave(row);
 }
 
 /* Re-render a single row in place */
@@ -2678,10 +2850,10 @@ function loadImageFile(file, id, field, fileField) {
         row[field]     = url;
         row[fileField] = null;
         refreshRow(row);
-        saveLocal();
         IMG_DB.del(`${row.code}_${field}`); // ลบออกจาก IDB (ใช้ Supabase URL แล้ว)
-        sbClient.from('tour_seat_check').upsert(rowToRecord(row), { onConflict: 'code' })
-          .then(({ error }) => { if (error) console.warn('upsert after img upload:', error.message); });
+        scheduleRowSave(row, 100);
+      } else {
+        toast('Upload รูปล้มเหลว', 'error');
       }
     }
   };
@@ -2699,11 +2871,7 @@ function removeImg(id, field, fileField, event) {
   // ลบจาก IndexedDB ด้วย ไม่งั้นรูปจะกลับมาหลัง refresh
   if (row.code) IMG_DB.del(`${row.code}_${field}`);
 
-  // ถ้ามี Supabase ให้ update record ด้วย null
-  if (sbClient && row.code) {
-    sbClient.from('tour_seat_check').upsert(rowToRecord(row), { onConflict: 'code' })
-      .then(({ error }) => { if (error) console.warn('remove img upsert:', error.message); });
-  }
+  scheduleRowSave(row, 100);
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -2774,6 +2942,28 @@ async function saveAllToSupabase() {
     toast('Supabase not configured', 'error');
     return;
   }
+
+  /* ─── Pre-save freshness check: เตือนถ้า Supabase มี code ที่ local ไม่มี
+         (แปลว่ามีคนเพิ่มข้อมูลจากเครื่องอื่น และเครื่องนี้ยังไม่ reload) ─── */
+  try {
+    const { data: serverCodes, error: checkErr } = await sbClient
+      .from('tour_seat_check').select('code');
+    if (!checkErr && serverCodes) {
+      const localCodes = new Set(rows.filter(r => r.code).map(r => r.code));
+      const missingLocal = serverCodes.filter(s => !localCodes.has(s.code)).map(s => s.code);
+      if (missingLocal.length > 0) {
+        const ok = await confirmDialog(
+          `⚠️ Supabase มี <b>${missingLocal.length} แถว</b>ที่ไม่มีในเครื่องนี้:<br>` +
+          `<code style="background:#1e293b;padding:2px 6px;border-radius:4px;font-size:12px">${missingLocal.slice(0, 10).join(', ')}${missingLocal.length > 10 ? '...' : ''}</code><br>` +
+          `<span style="color:#fbbf24">ถ้า Save ต่อ ข้อมูลเหล่านั้นจะ<b>ยังอยู่</b> (upsert ไม่ลบ) แต่ถ้าคุณเพิ่งลบจากเครื่องนี้ก็จะกลับมา</span><br><br>` +
+          `ต้องการ Save ต่อไหม? (แนะนำ Hard Reload แทนถ้าไม่แน่ใจ)`,
+          { title: 'มีข้อมูลใหม่จากเครื่องอื่น', icon: '⚠️', okText: 'Save ต่อ', cancelText: 'ยกเลิก' }
+        );
+        if (!ok) { toast('ยกเลิกการ Save', 'info'); return; }
+      }
+    }
+  } catch(e) { /* freshness check พลาด ไม่ block save */ }
+
   try {
     // Upload รูปที่ยังเป็น data URL ก่อน batch upsert
     const rowsWithImg = rows.filter(r =>
@@ -2812,6 +3002,7 @@ async function saveAllToSupabase() {
 
     showSaveOverlay('กำลังบันทึกข้อมูล...', `กำลัง sync ${rows.length} รายการไป Supabase — อย่าปิดหรือ Refresh หน้านี้`);
     const records = rows.map(row => rowToRecord(row));
+    records.forEach(rec => { if (rec.code) _suppressRealtimeForCode(rec.code); });
     const { error } = await sbClient
       .from('tour_seat_check')
       .upsert(records, { onConflict: 'code' });

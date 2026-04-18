@@ -761,7 +761,7 @@ async function uploadPlaceImage(placeId, file, index) {
 
 async function patchPlace(placeId, data) {
   const { url, key } = getSB();
-  await fetch(`${url}/rest/v1/places?place_id=eq.${placeId}`, {
+  const res = await fetch(`${url}/rest/v1/places?place_id=eq.${placeId}`, {
     method: "PATCH",
     headers: {
       apikey: key,
@@ -771,6 +771,10 @@ async function patchPlace(placeId, data) {
     },
     body: JSON.stringify(data),
   });
+  if (!res.ok) {
+    const msg = await res.text().catch(() => res.statusText);
+    throw new Error(`patchPlace ${res.status}: ${msg}`);
+  }
 }
 
 // ── ACCOMMODATION ROOM TYPES ─────────────

@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>แผนงาน — A4S-ERP</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../../css/main.css" />
+    <link rel="stylesheet" href="./work-plan.css" />
+  </head>
+  <body>
+    <div class="loading-overlay" id="loadingOverlay"><div class="spinner"></div></div>
+    <div class="toast" id="toast"></div>
+
+    <div class="topbar"></div>
+    <div class="layout">
+      <div id="sidebar-container"></div>
+      <div class="content-area">
+        <div class="page">
+          <!-- HERO -->
+          <div id="wpHero" class="wp-hero scope-event">
+            <div>
+              <div id="heroTitle" class="wp-hero-title">📋 แผนงาน</div>
+              <div id="heroSub" class="wp-hero-sub">วางแผนงานเป็นตาราง — แยกแผนก / ปี / งาน</div>
+            </div>
+            <div class="wp-hero-actions">
+              <button class="btn"
+                style="padding:8px 14px;border:1.5px solid rgba(255,255,255,.25);border-radius:16px;background:rgba(255,255,255,.18);color:#fff;font-weight:600;font-size:12px"
+                onclick="window.openDeptModal()">🏷️ จัดการแผนก</button>
+              <button class="btn"
+                style="padding:8px 14px;border:none;border-radius:16px;background:#fff;color:#1e40af;font-weight:700;font-size:12px"
+                onclick="window.openPlanModal()">＋ สร้างแผนงาน</button>
+            </div>
+          </div>
+
+          <!-- FILTERS -->
+          <div class="wp-filter">
+            <span class="wp-filter-label">🗂 แผนก:</span>
+            <select class="form-input" id="filterDept"
+                    onchange="window.onFilterChange()">
+              <option value="">-- ทุกแผนก --</option>
+            </select>
+            <span class="wp-filter-label">📅 ปี:</span>
+            <select class="form-input" id="filterYear"
+                    onchange="window.onFilterChange()"></select>
+            <span class="wp-filter-label">🔎 ค้นหา:</span>
+            <input class="form-input" id="filterSearch" type="text"
+                   placeholder="ชื่อแผน / สถานที่" oninput="window.onFilterChange()" />
+          </div>
+
+          <!-- CARDS -->
+          <div id="wpGrid" class="wp-grid"></div>
+          <div id="wpEmpty" class="wp-empty" style="display:none">
+            ยังไม่มีแผนงาน — กด <b>"＋ สร้างแผนงาน"</b> เพื่อเริ่ม
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Modal: สร้าง/แก้ แผนงาน ── -->
+    <div class="wp-modal-overlay" id="planModal">
+      <div class="wp-modal">
+        <h3 id="planModalTitle">สร้างแผนงานใหม่</h3>
+        <div class="form-group">
+          <label class="form-label">ชื่อแผน *</label>
+          <input class="form-input" id="planNameInput" type="text" placeholder="เช่น SUMMIT Avani Plus 2569" />
+        </div>
+        <div class="wp-form-row">
+          <div class="form-group" style="flex:1">
+            <label class="form-label">แผนก</label>
+            <select class="form-input" id="planDeptInput"></select>
+          </div>
+          <div class="form-group" style="width:110px;flex-shrink:0">
+            <label class="form-label">ปี *</label>
+            <input class="form-input" id="planYearInput" type="number" />
+          </div>
+        </div>
+        <div class="wp-form-row">
+          <div class="form-group" style="flex:1">
+            <label class="form-label">วันเริ่ม</label>
+            <input class="form-input" id="planStartInput" type="date" onchange="window.onStartDateChange()" />
+          </div>
+          <div class="form-group" style="flex:1">
+            <label class="form-label">วันสิ้นสุด</label>
+            <input class="form-input" id="planEndInput" type="date" />
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">ระยะเวลา (เลือกเร็ว)</label>
+          <div class="wp-duration-picker">
+            <button type="button" class="wp-chip-btn" data-days="1" onclick="window.setDuration(1)">1 วัน (จบในวัน)</button>
+            <button type="button" class="wp-chip-btn" data-days="2" onclick="window.setDuration(2)">2 วัน</button>
+            <button type="button" class="wp-chip-btn" data-days="3" onclick="window.setDuration(3)">3 วัน</button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">สถานที่</label>
+          <div class="wp-combo">
+            <input class="form-input" id="planLocationInput" type="text"
+                   autocomplete="off"
+                   placeholder="พิมพ์เพื่อค้นหา หรือพิมพ์ชื่อใหม่"
+                   oninput="window.onPlaceInput()"
+                   onfocus="window.onPlaceFocus()" />
+            <span class="wp-combo-arrow" onclick="window.onPlaceFocus()">▾</span>
+            <div class="wp-combo-pop" id="placePop" style="display:none"></div>
+          </div>
+          <div style="font-size:11px;color:var(--text3);margin-top:6px;display:flex;align-items:center;gap:6px">
+            💡 เลือกจากรายการ หรือพิมพ์ชื่อใหม่
+            <a href="../event/events-place-list.html" target="_blank" rel="noopener"
+               style="margin-left:auto;padding:4px 12px;background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe;border-radius:12px;font-weight:600;font-size:11px;text-decoration:none;display:inline-flex;align-items:center;gap:4px">
+              ＋ สร้างใหม่ <span style="font-size:9px">↗</span>
+            </a>
+          </div>
+        </div>
+        <div class="wp-modal-footer">
+          <button class="btn btn-secondary" onclick="window.closePlanModal()">ยกเลิก</button>
+          <button class="btn btn-primary" onclick="window.savePlan()">บันทึก</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Modal: จัดการแผนก ── -->
+    <div class="wp-modal-overlay" id="deptModal">
+      <div class="wp-modal">
+        <h3>จัดการแผนก</h3>
+        <div id="deptList" style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px;max-height:280px;overflow-y:auto"></div>
+        <div style="display:flex;gap:6px;align-items:center">
+          <input class="form-input" id="newDeptName" type="text" placeholder="ชื่อแผนกใหม่" style="flex:1" />
+          <input type="color" id="newDeptColor" value="#4a90e2" style="width:42px;height:32px;border:1px solid var(--border);border-radius:4px;cursor:pointer" />
+          <button class="btn btn-primary" onclick="window.addDept()">+ เพิ่ม</button>
+        </div>
+        <div class="wp-modal-footer">
+          <button class="btn btn-secondary" onclick="window.closeDeptModal()">ปิด</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="../../js/core/auth.js"></script>
+    <script src="../../js/core/authz.js"></script>
+    <script type="module" src="./work-plan-list.js"></script>
+    <script src="../../js/components/modal/deleteModal.js"></script>
+    <script type="module">
+      import { loadTopbar } from "../../js/components/navigation/topbar.js";
+      loadTopbar("📋 แผนงาน");
+    </script>
+    <script src="../../js/components/navigation/sidebar.js"></script>
+  </body>
+</html>

@@ -69,6 +69,12 @@
           label: "สื่อ & มีเดีย",
           path: BASE_PATH + "/modules/event/media-schedule.html",
         },
+        {
+          id: "event-work-plan",
+          icon: "📋",
+          label: "แผนงาน",
+          path: BASE_PATH + "/modules/work-plan/work-plan-list.html?scope=event",
+        },
         /* ── SETUP items ── */
         {
           id: "events-category",
@@ -232,6 +238,26 @@
           icon: "🎁",
           label: "จัดการโปรโมชัน",
           path: BASE_PATH + "/modules/customer-service/promotion-list.html",
+        },
+        {
+          id: "cs-work-plan",
+          icon: "📋",
+          label: "แผนงาน",
+          path: BASE_PATH + "/modules/work-plan/work-plan-list.html?scope=cs",
+        },
+      ],
+    },
+    // **************** TRIP / TOUR *****************
+    {
+      group: "ทริป (Trip)",
+      icon: "✈️",
+      id: "g-trip",
+      items: [
+        {
+          id: "trip-work-plan",
+          icon: "📋",
+          label: "แผนงาน",
+          path: BASE_PATH + "/modules/work-plan/work-plan-list.html?scope=trip",
         },
       ],
     },
@@ -416,6 +442,10 @@
     "daily-sale",
     "promotion-gallery",
     "promotions",
+    //**** WORK PLAN ****
+    "event-work-plan",
+    "cs-work-plan",
+    "trip-work-plan",
     //**** DEV TOOL ****
     "automation",
     "wizard",
@@ -426,11 +456,16 @@
 
   function getActiveId() {
     const p = window.location.pathname;
+    const search = window.location.search;
+    const fullUrl = p + search;
     // เช็ค endsWith ก่อน (exact match) เพื่อป้องกัน "events" match "events-place-list"
     for (const g of MENU)
       for (const item of g.items) {
         const cleanPath = item.path.replace(/^\/[^/]+/, ""); // ตัด basePath ออก
-        if (p.endsWith(cleanPath)) return item.id;
+        // ถ้า item มี query string → match กับ pathname+search (แยก scope ของ work-plan ได้)
+        if (cleanPath.includes("?")) {
+          if (fullUrl.endsWith(cleanPath)) return item.id;
+        } else if (p.endsWith(cleanPath)) return item.id;
       }
     return "";
   }

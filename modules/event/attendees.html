@@ -29,7 +29,12 @@
               <div id="heroTitle" style="font-size:18px;font-weight:700;display:flex;align-items:center;gap:8px">👥 ผู้เข้าร่วมกิจกรรม</div>
               <div id="heroSubtitle" style="font-size:12.5px;opacity:.85;margin-top:3px">ลงทะเบียน · Check-in · ติดตามผู้เข้าร่วม</div>
             </div>
-            <div id="eventActionBtns" style="display:none;gap:8px;flex-shrink:0;position:relative;z-index:1;flex-wrap:wrap">
+            <div id="eventActionBtns" style="display:none;gap:8px;flex-shrink:0;position:relative;z-index:1;flex-wrap:wrap;align-items:center">
+              <label id="autoCheckinToggle" title="เปิด = save แล้ว check-in ทันที (ใช้ตอนหน้างาน)"
+                style="display:flex;align-items:center;gap:6px;padding:7px 12px;border-radius:16px;background:rgba(255,255,255,.12);border:1.5px solid rgba(255,255,255,.25);cursor:pointer;font-size:12px;font-weight:600;color:#fff;user-select:none">
+                <input type="checkbox" id="autoCheckinInput" onchange="window.onAutoCheckinToggle(this.checked)" style="accent-color:#10b981;width:15px;height:15px;cursor:pointer">
+                <span id="autoCheckinLabel">⚡ โหมดหน้างาน</span>
+              </label>
               <button style="padding:8px 14px;border:none;border-radius:16px;background:rgba(255,255,255,.18);color:#fff;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;border:1.5px solid rgba(255,255,255,.25);display:flex;align-items:center;gap:5px" onclick="window.openCheckinPage()">📱 หน้า Check-in</button>
               <button style="padding:8px 14px;border:none;border-radius:16px;background:rgba(255,255,255,.18);color:#fff;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;border:1.5px solid rgba(255,255,255,.25);display:flex;align-items:center;gap:5px" onclick="window.openBulkMsgModal()">📢 ส่งข้อความกลุ่ม</button>
               <button style="padding:8px 14px;border:none;border-radius:16px;background:rgba(255,255,255,.18);color:#fff;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;border:1.5px solid rgba(255,255,255,.25);display:flex;align-items:center;gap:5px" onclick="window.exportCSV()">📥 Export CSV</button>
@@ -91,17 +96,9 @@
           <!-- TIER INFO BANNER -->
           <div id="tierInfoBanner" style="display:none"></div>
 
-          <!-- TOOLBAR -->
+          <!-- TOOLBAR (filters only — search รวมอยู่ในช่องด้านล่างของตาราง) -->
           <div id="attToolbar" style="display: none">
-            <div class="toolbar">
-              <div class="search-wrap">
-                <span class="search-icon">🔍</span>
-                <input
-                  class="search-input"
-                  id="searchInput"
-                  placeholder="ค้นหาชื่อ / อีเมล / บริษัท..."
-                />
-              </div>
+            <div class="toolbar" style="justify-content:flex-end">
               <select class="filter-select" id="filterCheckin">
                 <option value="">⚪ ทุกสถานะ Check-in</option>
                 <option value="true">✅ Check-in แล้ว</option>
@@ -132,7 +129,7 @@
                   <table class="data-table att-inline-table">
                     <thead>
                       <tr>
-                        <th style="min-width:240px">🔍 ค้นหาสมาชิก / ชื่อ</th>
+                        <th style="min-width:240px">🔍 ค้นหา / เพิ่ม / filter</th>
                         <th class="col-center" style="min-width:100px">⭐ ตำแหน่ง</th>
                         <th class="col-center" style="min-width:110px">🎫 Ticket</th>
                         <th class="col-center" style="min-width:130px">💰 ชำระ</th>

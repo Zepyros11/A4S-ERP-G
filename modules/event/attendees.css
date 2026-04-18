@@ -629,6 +629,112 @@
   border: 1px solid #bfdbfe;
 }
 
+/* ── INFO PANEL (ticket + price summary) ── */
+.info-panel {
+  background: var(--surface, #fff);
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-bottom: 14px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+.info-panel-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border, #e2e8f0);
+}
+.info-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.info-label {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--text3, #94a3b8);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.info-value {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text, #0f172a);
+  margin-top: 2px;
+}
+.info-sub {
+  font-size: 11.5px;
+  color: var(--text3, #94a3b8);
+}
+.info-tier-list {
+  padding-top: 10px;
+}
+.info-tier-hdr {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text3, #94a3b8);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+}
+.info-tier-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.info-tier-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 7px 12px;
+  background: var(--surface2, #f8fafc);
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 8px;
+  font-size: 12.5px;
+  flex-wrap: wrap;
+}
+.info-tier-row.is-active {
+  background: linear-gradient(90deg, #ecfdf5, #d1fae5);
+  border-color: #6ee7b7;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.1);
+}
+.info-tier-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.info-tier-right {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11.5px;
+  color: var(--text2, #475569);
+}
+.info-tier-price {
+  font-family: "IBM Plex Mono", monospace;
+  font-weight: 700;
+  color: #059669;
+  background: #d1fae5;
+  padding: 1px 8px;
+  border-radius: 6px;
+}
+.tier-pill {
+  display: inline-block;
+  font-size: 9.5px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 10px;
+  letter-spacing: 0.4px;
+}
+.tier-pill-active { background: #10b981; color: #fff; }
+.tier-pill-upcoming { background: #dbeafe; color: #1e40af; }
+.tier-pill-ended { background: #e2e8f0; color: #64748b; }
+
+@media (max-width: 680px) {
+  .info-panel-grid { grid-template-columns: 1fr; }
+}
+
 /* ── PAYMENT MODAL ── */
 .pay-info {
   padding: 10px 14px;

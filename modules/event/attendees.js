@@ -144,6 +144,8 @@ let _qrModalAtt = null;      // attendee object while QR modal open
 // Inline new rows (not yet saved)
 let newRows = [];
 let activeSearchRowId = null; // ID of new-row currently showing member suggest
+let _searchKeyword = "";       // live keyword จาก new-row input (ใช้ filter ด้วย)
+let _autoCheckin = false;      // โหมดหน้างาน: save แล้ว check-in ทันที
 
 // ── DEADLINE / EXPIRED HELPERS ────────────────────────────
 function getEventGraceDays() {
@@ -250,9 +252,6 @@ async function initPage() {
   showLoading(false);
 
   document
-    .getElementById("searchInput")
-    ?.addEventListener("input", filterTable);
-  document
     .getElementById("filterCheckin")
     ?.addEventListener("change", filterTable);
   document
@@ -308,6 +307,7 @@ async function loadAttendees(eventId) {
     showSections(true);
     renderTierBanner();
     populateTagFilter();
+    _loadAutoCheckinState();
     updateStats();
     filterTable();
   } catch (e) {
@@ -331,47 +331,107 @@ function showSections(show) {
 // ── TIER INFO BANNER ──────────────────────────────────────
 function renderTierBanner() {
   const el = document.getElementById("tierInfoBanner");
-  if (!el) return;
-  if (!currentTiers?.length) {
+  if (!el || !currentEvent) {
+    if (el) { el.style.display = "none"; el.innerHTML = ""; }
+    return;
+  }
+
+  const today = new Date().toISOString().slice(0, 10);
+  const fmt = (d) => (d ? d.split("-").reverse().join("/") : "");
+  const daysTo = (d) => {
+    if (!d) return null;
+    return Math.ceil((new Date(d) - new Date(today)) / 86400000);
+  };
+
+  const active = getActiveTier();
+  const effectiveGrace = getEventGraceDays();
+  const soldCount = allAttendees.length;
+  const maxCap = currentEvent.max_attendees || 0;
+
+  const tierStatus = (t) => {
+    if (t.valid_from && today < t.valid_from) return "upcoming";
+    if (t.valid_to && today > t.valid_to) return "ended";
+    return "active";
+  };
+  const statusBadge = {
+    active: '<span class="tier-pill tier-pill-active">● ACTIVE</span>',
+    upcoming: '<span class="tier-pill tier-pill-upcoming">⏭ UPCOMING</span>',
+    ended: '<span class="tier-pill tier-pill-ended">✕ ENDED</span>',
+  };
+
+  const priceHdr = active
+    ? `<b>${escapeHtml(active.tier_name)}</b> — <b style="color:#059669">฿${formatNum(active.price)}</b>`
+    : currentTiers.length
+    ? `<span style="color:#92400e">ไม่อยู่ในช่วง Tier — ใช้ราคามาตรฐาน <b>฿${formatNum(currentEvent.price || 0)}</b></span>`
+    : `<b style="color:#059669">฿${formatNum(currentEvent.price || 0)}</b> <span style="color:var(--text3);font-size:11.5px">(ไม่มี Tier)</span>`;
+
+  // Build cells ตามที่มีข้อมูลจริงเท่านั้น
+  const hasPrice = (currentEvent.price || 0) > 0 || active;
+  const hasCustomGrace = currentEvent.grace_days != null;
+  const hasSeatLimit = maxCap > 0;
+
+  const cells = [];
+  if (hasPrice) {
+    cells.push(`<div class="info-cell">
+      <div class="info-label">💰 ราคาปัจจุบัน</div>
+      <div class="info-value">${priceHdr}</div>
+      ${active && active.valid_to ? `<div class="info-sub">สิ้นสุด ${fmt(active.valid_to)} · เหลืออีก ${daysTo(active.valid_to)} วัน</div>` : ""}
+    </div>`);
+  }
+  if (hasCustomGrace) {
+    cells.push(`<div class="info-cell">
+      <div class="info-label">⏳ Grace Period</div>
+      <div class="info-value">${effectiveGrace} วัน</div>
+    </div>`);
+  }
+  if (hasSeatLimit) {
+    cells.push(`<div class="info-cell">
+      <div class="info-label">🎫 ที่นั่ง</div>
+      <div class="info-value">${soldCount} / ${maxCap}</div>
+      <div class="info-sub">เหลือ ${Math.max(0, maxCap - soldCount)} ที่</div>
+    </div>`);
+  }
+
+  // ถ้าไม่มีข้อมูลเลยและไม่มี tier → ไม่แสดง panel
+  if (!cells.length && !currentTiers.length) {
     el.style.display = "none";
     el.innerHTML = "";
     return;
   }
 
-  const active = getActiveTier();
-  const today = new Date().toISOString().slice(0, 10);
-  const upcoming = currentTiers
-    .filter((t) => t.valid_from && t.valid_from > today)
-    .sort((a, b) => a.valid_from.localeCompare(b.valid_from))[0];
-
-  const fmt = (d) => (d ? d.split("-").reverse().join("/") : "");
-  const daysTo = (d) => {
-    if (!d) return null;
-    const diff = Math.ceil((new Date(d) - new Date(today)) / 86400000);
-    return diff;
-  };
-
-  let html = `<div class="tier-banner">`;
-  if (active) {
-    const toLabel = active.valid_to
-      ? `— สิ้นสุด ${fmt(active.valid_to)} (เหลือ ${daysTo(active.valid_to)} วัน)`
-      : "";
-    html += `<div class="tier-banner-active">
-      <span class="tier-banner-dot"></span>
-      <span><b>ราคาปัจจุบัน:</b> ${escapeHtml(active.tier_name)} — <b>฿${formatNum(active.price)}</b> ${toLabel}</span>
-    </div>`;
-  } else {
-    html += `<div class="tier-banner-idle">
-      ⚠️ ยังไม่อยู่ในช่วง tier ใดๆ — ใช้ราคามาตรฐาน ฿${formatNum(currentEvent?.price || 0)}
-    </div>`;
+  let html = `<div class="info-panel">`;
+  if (cells.length) {
+    html += `<div class="info-panel-grid" style="grid-template-columns:repeat(${cells.length},1fr)${currentTiers.length ? ";border-bottom:1px solid var(--border,#e2e8f0);padding-bottom:12px" : ";border:none;padding:0"}">${cells.join("")}</div>`;
   }
 
-  if (upcoming) {
-    const d = daysTo(upcoming.valid_from);
-    html += `<div class="tier-banner-upcoming">
-      ⏭️ ถัดไป: <b>${escapeHtml(upcoming.tier_name)}</b> เริ่ม ${fmt(upcoming.valid_from)} (อีก ${d} วัน) — ฿${formatNum(upcoming.price)}
-    </div>`;
+  if (currentTiers.length) {
+    html += `<div class="info-tier-list">
+      <div class="info-tier-hdr">🎟️ ระดับราคาทั้งหมด (${currentTiers.length})</div>
+      <div class="info-tier-rows">`;
+    currentTiers.forEach((t) => {
+      const s = tierStatus(t);
+      const soldInTier = allAttendees.filter((a) => a.tier_id === t.tier_id).length;
+      const seatInfo = t.seat_limit
+        ? ` · <span style="color:${soldInTier >= t.seat_limit ? "#991b1b" : "var(--text3)"}">${soldInTier}/${t.seat_limit} ที่</span>`
+        : soldInTier
+        ? ` · <span style="color:var(--text3)">${soldInTier} คน</span>`
+        : "";
+      const dateRange =
+        (t.valid_from ? fmt(t.valid_from) : "—") +
+        " → " +
+        (t.valid_to ? fmt(t.valid_to) : "—");
+      html += `<div class="info-tier-row ${s === "active" ? "is-active" : ""}">
+        <div class="info-tier-left">
+          ${statusBadge[s]}
+          <b>${escapeHtml(t.tier_name)}</b>
+          <span class="info-tier-price">฿${formatNum(t.price)}</span>
+        </div>
+        <div class="info-tier-right">${dateRange}${seatInfo}</div>
+      </div>`;
+    });
+    html += `</div></div>`;
   }
+
   html += `</div>`;
   el.innerHTML = html;
   el.style.display = "block";
@@ -395,8 +455,7 @@ function updateStats() {
 
 // ── FILTER + RENDER ───────────────────────────────────────
 function filterTable() {
-  const search =
-    document.getElementById("searchInput")?.value.toLowerCase() || "";
+  const search = (_searchKeyword || "").toLowerCase();
   const checkin = document.getElementById("filterCheckin")?.value || "";
   const payment = document.getElementById("filterPayment")?.value || "";
   const tagFilter = document.getElementById("filterTag")?.value || "";
@@ -430,14 +489,56 @@ function renderTable(list) {
   ensureTrailingEmptyRow();
 
   const newRowsHtml = newRows.map(renderNewRow).join("");
-  const savedRowsHtml = list.length
-    ? list.map(renderSavedRow).join("")
-    : `<tr><td colspan="6"><div class="empty-state" style="padding:20px">
-        <div class="empty-icon" style="font-size:28px">👥</div>
-        <div class="empty-text" style="font-size:12px">ยังไม่มีผู้เข้าร่วม — พิมพ์ที่แถวบนเพื่อเพิ่ม</div>
-      </div></td></tr>`;
+  tbody.innerHTML = newRowsHtml + _buildSavedRowsHtml(list);
+}
 
-  tbody.innerHTML = newRowsHtml + savedRowsHtml;
+function _buildSavedRowsHtml(list) {
+  return list.length
+    ? list.map(renderSavedRow).join("")
+    : `<tr class="empty-state-row"><td colspan="6"><div class="empty-state" style="padding:20px">
+        <div class="empty-icon" style="font-size:28px">👥</div>
+        <div class="empty-text" style="font-size:12px">ยังไม่มีผู้เข้าร่วมที่ตรง — พิมพ์ที่แถวบนเพื่อเพิ่ม</div>
+      </div></td></tr>`;
+}
+
+// Re-render เฉพาะ saved rows ไม่แตะ new-row → ไม่เสีย focus ตอนพิมพ์
+function renderSavedRowsOnly(list) {
+  const tbody = document.getElementById("attTableBody");
+  if (!tbody) return;
+  // ลบ saved-row + empty-state-row ทั้งหมด
+  tbody
+    .querySelectorAll("tr.saved-row, tr.empty-state-row")
+    .forEach((tr) => tr.remove());
+  tbody.insertAdjacentHTML("beforeend", _buildSavedRowsHtml(list));
+  const countEl = document.getElementById("attCount");
+  if (countEl) countEl.textContent = `${list.length} คน`;
+}
+
+// filter + update เฉพาะ saved rows (ใช้ตอนพิมพ์ใน new-row)
+function filterTableSavedOnly() {
+  const search = (_searchKeyword || "").toLowerCase();
+  const checkin = document.getElementById("filterCheckin")?.value || "";
+  const payment = document.getElementById("filterPayment")?.value || "";
+  const tagFilter = document.getElementById("filterTag")?.value || "";
+
+  const filtered = allAttendees.filter((a) => {
+    const matchSearch =
+      !search ||
+      (a.name || "").toLowerCase().includes(search) ||
+      (a.phone || "").toLowerCase().includes(search) ||
+      (a.member_code || "").toLowerCase().includes(search) ||
+      (a.ticket_no || "").toLowerCase().includes(search) ||
+      (a.tags || []).some((t) => (t || "").toLowerCase().includes(search));
+    const matchCheckin = !checkin || String(a.checked_in) === checkin;
+    const matchPayment =
+      !payment ||
+      (payment === "EXPIRED"
+        ? isAttendeeExpired(a)
+        : a.payment_status === payment);
+    const matchTag = !tagFilter || (a.tags || []).includes(tagFilter);
+    return matchSearch && matchCheckin && matchPayment && matchTag;
+  });
+  renderSavedRowsOnly(filtered);
 }
 
 function renderNewRow(r) {
@@ -455,7 +556,7 @@ function renderNewRow(r) {
     <td>
       <div style="display:flex;align-items:center;gap:4px;flex-wrap:nowrap">
         ${codeChip}
-        <input class="inline-input" placeholder="🔍 รหัสสมาชิก / ชื่อ..." autocomplete="off"
+        <input class="inline-input" placeholder="🔍 พิมพ์รหัส/ชื่อ — เพื่อเพิ่ม หรือ filter รายการด้านล่าง" autocomplete="off"
           value="${escapeHtml(r.name)}"
           oninput="window.onNewRowNameInput('${r.id}', this.value)"
           onkeydown="window.onNewRowKey(event, '${r.id}')"
@@ -605,23 +706,42 @@ window.onNewRowNameInput = function (id, val) {
   const r = _findRow(id); if (!r) return;
   r.name = val;
   activeSearchRowId = id;
+  // ใช้ input นี้เป็น filter ของรายชื่อด้านล่างด้วย
+  _searchKeyword = val || "";
   // If member is already linked, skip member search — user is just tweaking the display name
   if (!r.memberCode) {
     window.searchMember(val, id);
   }
-  // Auto-add trailing empty row if this is the last row
+  // Update saved-rows filter ทันที (ไม่แตะ new-row → ไม่เสีย focus)
+  filterTableSavedOnly();
+  // Auto-add trailing empty row เฉพาะตอนเริ่มพิมพ์ในแถวสุดท้าย
   const isLast = newRows[newRows.length - 1].id === id;
+  const prevCount = newRows.length;
   if (isLast && val.trim()) {
     ensureTrailingEmptyRow();
-    filterTable();
-    requestAnimationFrame(() => {
-      const input = document.querySelector(`tr[data-nrid="${id}"] input[data-role="search"]`);
-      if (input) { input.focus(); input.setSelectionRange(val.length, val.length); }
-    });
-  } else {
-    _updateSaveBtn(id);
+    // Append เฉพาะ trailing row ใหม่ — ไม่ไปแตะแถวที่ user กำลังพิมพ์
+    if (newRows.length !== prevCount) {
+      _appendLastNewRow();
+    }
   }
+  _updateSaveBtn(id);
 };
+
+// Insert เฉพาะ trailing empty row ที่เพิ่มล่าสุด ไปต่อท้าย new-rows (ไม่แตะของเดิม)
+function _appendLastNewRow() {
+  const tbody = document.getElementById("attTableBody");
+  if (!tbody) return;
+  const last = newRows[newRows.length - 1];
+  if (!last) return;
+  const html = renderNewRow(last);
+  // Insert ก่อน saved-row ตัวแรก (หรือ empty-state-row)
+  const firstSavedOrEmpty = tbody.querySelector("tr.saved-row, tr.empty-state-row");
+  if (firstSavedOrEmpty) {
+    firstSavedOrEmpty.insertAdjacentHTML("beforebegin", html);
+  } else {
+    tbody.insertAdjacentHTML("beforeend", html);
+  }
+}
 
 window.onNewRowPayment = function (id, val) {
   const r = _findRow(id); if (!r) return;
@@ -766,6 +886,8 @@ window.saveNewRow = async function (id) {
       member_code: r.memberCode || null,
       tier_id: activeTier?.tier_id || null,
       payment_deadline: needsPayment ? computeDeadlineISO(grace) : null,
+      checked_in: _autoCheckin ? true : false,
+      check_in_at: _autoCheckin ? new Date().toISOString() : null,
     };
     const blocked = await _enforceRegistration(payload);
     if (blocked) { r.saving = false; _updateSaveBtn(id); return; }
@@ -776,6 +898,8 @@ window.saveNewRow = async function (id) {
     newRows = newRows.filter(x => x.id !== id);
     ensureTrailingEmptyRow();
     allAttendees = await fetchAttendees(currentEventId);
+    _searchKeyword = ""; // เคลียร์ filter หลัง save
+    populateTagFilter();
     updateStats();
     filterTable();
     // Focus first empty new row's search input
@@ -1154,7 +1278,12 @@ window._onMemberSearchKey = function (ev) {
     const m = _lastMemberResults[_memberHighlight];
     if (m) {
       const name = m.full_name || m.member_name || '—';
+      const rowId = activeSearchRowId;
       window.selectMember(m.member_code, name, m.phone || '', m.position_level || '');
+      // Auto-save immediately after Enter-selecting a member
+      if (rowId) {
+        requestAnimationFrame(() => window.saveNewRow(rowId));
+      }
     }
   }
 };
@@ -1436,6 +1565,43 @@ window.printQr = function () {
 window.openCheckinPage = function () {
   if (!currentEventId) return;
   window.open(`check-in.html?event_id=${currentEventId}`, "_blank");
+};
+
+// ── AUTO CHECK-IN TOGGLE ──────────────────────────────────
+function _loadAutoCheckinState() {
+  const key = `autoCheckin_${currentEventId}`;
+  _autoCheckin = localStorage.getItem(key) === "1";
+  const input = document.getElementById("autoCheckinInput");
+  if (input) input.checked = _autoCheckin;
+  _syncAutoCheckinUi();
+}
+
+function _syncAutoCheckinUi() {
+  const toggle = document.getElementById("autoCheckinToggle");
+  const label = document.getElementById("autoCheckinLabel");
+  if (!toggle || !label) return;
+  if (_autoCheckin) {
+    toggle.style.background = "rgba(16,185,129,.95)";
+    toggle.style.border = "1.5px solid #10b981";
+    toggle.style.boxShadow = "0 0 0 3px rgba(16,185,129,.25)";
+    label.textContent = "⚡ โหมดหน้างาน: ON";
+  } else {
+    toggle.style.background = "rgba(255,255,255,.12)";
+    toggle.style.border = "1.5px solid rgba(255,255,255,.25)";
+    toggle.style.boxShadow = "none";
+    label.textContent = "⚡ โหมดหน้างาน";
+  }
+}
+
+window.onAutoCheckinToggle = function (checked) {
+  _autoCheckin = !!checked;
+  const key = `autoCheckin_${currentEventId}`;
+  localStorage.setItem(key, _autoCheckin ? "1" : "0");
+  _syncAutoCheckinUi();
+  showToast(
+    _autoCheckin ? "โหมดหน้างาน: ON — save แล้ว check-in ทันที" : "โหมดหน้างาน: OFF",
+    _autoCheckin ? "success" : "info",
+  );
 };
 
 window.openBulkMsgModal = function () {
