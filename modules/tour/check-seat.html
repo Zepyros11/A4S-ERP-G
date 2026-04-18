@@ -2224,14 +2224,42 @@ function sortBy(col) {
   if (_sortCol === col) { _sortAsc = !_sortAsc; }
   else { _sortCol = col; _sortAsc = true; }
 
-  rows.sort((a, b) => {
-    let av = a[col] ?? '', bv = b[col] ?? '';
-    if (col === 'seat') { av = parseFloat(av) || 0; bv = parseFloat(bv) || 0; }
-    else { av = av.toString().toLowerCase(); bv = bv.toString().toLowerCase(); }
+  const getVal = v => {
+    if (col === 'seat') return parseFloat(v) || 0;
+    return (v ?? '').toString().toLowerCase();
+  };
+
+  // sort parents เท่านั้น — sub-rows เกาะตามไม่แยก
+  const parents = rows.filter(r => !r.isSubRow);
+  const subs    = rows.filter(r => r.isSubRow);
+
+  parents.sort((a, b) => {
+    const av = getVal(a[col]), bv = getVal(b[col]);
     if (av < bv) return _sortAsc ? -1 : 1;
     if (av > bv) return _sortAsc ? 1 : -1;
     return 0;
   });
+
+  // rebuild: แต่ละ parent ตาม sort order + sub-rows ที่จับคู่
+  const subCodePattern = /^(.+)-\d+$/;
+  const getSubParentCode = s => {
+    const m = subCodePattern.exec(s.code || '');
+    return m ? m[1] : null;
+  };
+  const newRows = [];
+  const usedSubIds = new Set();
+  parents.forEach(p => {
+    newRows.push(p);
+    subs.forEach(s => {
+      if (usedSubIds.has(s.id)) return;
+      const match = s.parentId === p.id || getSubParentCode(s) === p.code;
+      if (match) { newRows.push(s); usedSubIds.add(s.id); }
+    });
+  });
+  // orphan subs (ไม่เจอ parent) ใส่ท้ายสุด
+  subs.filter(s => !usedSubIds.has(s.id)).forEach(s => newRows.push(s));
+
+  rows = newRows;
 
   // อัปเดต class หัวตาราง
   document.querySelectorAll('thead th.sortable').forEach(th => {
