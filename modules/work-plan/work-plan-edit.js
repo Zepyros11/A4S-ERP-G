@@ -829,6 +829,10 @@ function renderAssigneeLists() {
   $("assigneeOwnerList").innerHTML =
     vacantOwner + (ownerHtml || `<div style="padding:8px;color:var(--text3);font-size:12px">ไม่พบ</div>`);
 
+  const hasHelpers = (row.helper_user_ids || []).length > 0;
+  const vacantHelper = `<div class="wp-pop-item wp-pop-vacant ${!hasHelpers ? "selected" : ""}" onclick="window.clearHelpers()">
+    <span>⚪ ว่าง — ${hasHelpers ? "ล้างผู้ช่วยทั้งหมด" : "ยังไม่กำหนด"}</span>
+  </div>`;
   const helperHtml = filtered
     .slice(0, 20)
     .map((u) => {
@@ -840,7 +844,7 @@ function renderAssigneeLists() {
     })
     .join("");
   $("assigneeHelperList").innerHTML =
-    helperHtml || `<div style="padding:8px;color:var(--text3);font-size:12px">ไม่พบ</div>`;
+    vacantHelper + (helperHtml || `<div style="padding:8px;color:var(--text3);font-size:12px">ไม่พบ</div>`);
 }
 window.filterAssignees = renderAssigneeLists;
 
@@ -865,6 +869,17 @@ window.toggleHelper = (uid) => {
   else list.add(uid);
   row.helper_user_ids = Array.from(list);
   scheduleRowSave(rowId, { helper_user_ids: row.helper_user_ids });
+  renderTable();
+  renderAssigneeLists();
+};
+
+window.clearHelpers = () => {
+  const pop = $("assigneePop");
+  const rowId = parseInt(pop.dataset.rowId, 10);
+  const row = state.rows.find((r) => r.id === rowId);
+  if (!row) return;
+  row.helper_user_ids = [];
+  scheduleRowSave(rowId, { helper_user_ids: [] });
   renderTable();
   renderAssigneeLists();
 };
