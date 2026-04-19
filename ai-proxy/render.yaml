@@ -18,4 +18,10 @@ services:
       - key: PORT
         value: "10000"        # Render convention
       - key: ANTHROPIC_API_KEY
-        sync: false           # set manually in dashboard (SECRET)
+        sync: false           # set manually in dashboard (SECRET) — optional, OCR only
+      - key: LINE_CHANNEL_SECRET
+        sync: false           # Messaging API channel secret — for webhook signature verify
+      - key: SB_URL
+        sync: false           # Supabase project URL (for webhook DB updates)
+      - key: SB_SERVICE_KEY
+        sync: false           # service_role key (bypasses RLS) — keep SECRET

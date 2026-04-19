@@ -11,6 +11,7 @@ const cors     = require('cors');
 const Anthropic = require('@anthropic-ai/sdk');
 const path     = require('path');
 const fs       = require('fs');
+const crypto   = require('crypto');
 
 /* ── Load .env ─────────────────────────────────────────── */
 const envPath = path.join(__dirname, '.env');
@@ -31,7 +32,11 @@ const client = API_KEY ? new Anthropic({ apiKey: API_KEY }) : null;
 const app    = express();
 
 app.use(cors({ origin: '*' }));
-app.use(express.json({ limit: '20mb' }));
+// Capture raw body for LINE webhook signature verification
+app.use(express.json({
+  limit: '20mb',
+  verify: (req, _res, buf) => { req.rawBody = buf.toString('utf8'); },
+}));
 
 /* ── Health check ──────────────────────────────────────── */
 app.get('/', (req, res) => {
@@ -202,6 +207,90 @@ app.post('/line/broadcast', async (req, res) => {
   );
 });
 
+/* ══════════════════════════════════════════════════════════
+   LINE Webhook — receive events from LINE Platform
+   Update member_line_accounts.last_active_at when user interacts
+   (useful for picking the "current" LINE account when sending)
+   ══════════════════════════════════════════════════════════ */
+
+const LINE_CHANNEL_SECRET = process.env.LINE_CHANNEL_SECRET || '';
+const SB_URL_WEBHOOK      = (process.env.SB_URL || '').replace(/\/+$/, '');
+const SB_SERVICE_KEY      = process.env.SB_SERVICE_KEY || '';
+
+function _verifyLineSignature(req) {
+  if (!LINE_CHANNEL_SECRET) return { ok: false, reason: 'LINE_CHANNEL_SECRET not set' };
+  const signature = req.get('x-line-signature') || '';
+  if (!signature) return { ok: false, reason: 'missing x-line-signature header' };
+  const expected = crypto
+    .createHmac('sha256', LINE_CHANNEL_SECRET)
+    .update(req.rawBody || '')
+    .digest('base64');
+  // Use timingSafeEqual to prevent timing attacks
+  const a = Buffer.from(signature);
+  const b = Buffer.from(expected);
+  const match = a.length === b.length && crypto.timingSafeEqual(a, b);
+  return { ok: match, expected, received: signature };
+}
+
+async function _sbPatch(table, query, body) {
+  if (!SB_URL_WEBHOOK || !SB_SERVICE_KEY) return null;
+  try {
+    const res = await fetch(`${SB_URL_WEBHOOK}/rest/v1/${table}?${query}`, {
+      method: 'PATCH',
+      headers: {
+        apikey: SB_SERVICE_KEY,
+        Authorization: `Bearer ${SB_SERVICE_KEY}`,
+        'Content-Type': 'application/json',
+        Prefer: 'return=minimal',
+      },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) console.warn(`[webhook SB PATCH ${table}] ${res.status}`);
+    return res.ok;
+  } catch (e) {
+    console.warn(`[webhook SB PATCH ${table}] ${e.message}`);
+    return false;
+  }
+}
+
+app.post('/line/webhook', async (req, res) => {
+  // LINE will send a verification request from Developers Console — always 200
+  const verify = _verifyLineSignature(req);
+  if (!verify.ok) {
+    console.warn('[LINE webhook] signature invalid:', verify.reason || 'mismatch');
+    // Still return 200 to avoid LINE retries, but log for debug
+    return res.status(200).json({ ok: false, error: verify.reason || 'invalid signature' });
+  }
+
+  const events = req.body?.events || [];
+  const userIds = new Set();
+  for (const ev of events) {
+    const uid = ev?.source?.userId;
+    if (!uid) continue;
+    userIds.add(uid);
+    console.log(`[LINE webhook] ${ev.type} from ${uid.slice(0, 10)}...`);
+  }
+
+  if (!userIds.size) return res.status(200).json({ ok: true, events: 0 });
+
+  // Update last_active_at for each user
+  const nowIso = new Date().toISOString();
+  for (const uid of userIds) {
+    await _sbPatch(
+      'member_line_accounts',
+      `line_user_id=eq.${encodeURIComponent(uid)}`,
+      { last_active_at: nowIso },
+    );
+    await _sbPatch(
+      'members',
+      `line_user_id=eq.${encodeURIComponent(uid)}`,
+      { line_linked_at: nowIso },
+    );
+  }
+
+  return res.status(200).json({ ok: true, events: events.length, users: userIds.size });
+});
+
 /* ── Get OA info (bot name, picture) — quick health check ── */
 app.post('/line/info', async (req, res) => {
   const { token } = req.body || {};
@@ -235,5 +324,11 @@ app.listen(PORT, () => {
   console.log(`  → http://localhost:${PORT}/line/multicast   (LINE multicast)`);
   console.log(`  → http://localhost:${PORT}/line/broadcast   (LINE broadcast)`);
   console.log(`  → http://localhost:${PORT}/line/info        (LINE bot info — test token)`);
+  console.log(`  → http://localhost:${PORT}/line/webhook     (LINE webhook ${LINE_CHANNEL_SECRET ? '✅' : '❌ no secret'})`);
+  if (SB_URL_WEBHOOK && SB_SERVICE_KEY) {
+    console.log(`  ✅ Webhook will update Supabase on LINE events`);
+  } else {
+    console.log(`  ⚠️  Webhook DB updates disabled (set SB_URL + SB_SERVICE_KEY)`);
+  }
   console.log('');
 });
