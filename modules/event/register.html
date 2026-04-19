@@ -376,6 +376,51 @@ function renderPage() {
   }
 }
 
+/* ── Link LINE account to member (persistent, cross-event) ───
+   1) Upsert history row in member_line_accounts (ตัวเก็บทุก LINE ID)
+   2) Set members.line_user_id = this one (primary/current)
+*/
+async function linkLineToMember(memberCode, profile) {
+  if (!memberCode || !profile?.userId) return;
+  const now = new Date().toISOString();
+
+  // 1) Upsert history — POST with merge-duplicates
+  await fetch(`${SB_URL}/rest/v1/member_line_accounts?on_conflict=member_code,line_user_id`, {
+    method: 'POST',
+    headers: {
+      apikey: SB_KEY,
+      Authorization: `Bearer ${SB_KEY}`,
+      'Content-Type': 'application/json',
+      Prefer: 'resolution=merge-duplicates,return=minimal',
+    },
+    body: JSON.stringify({
+      member_code: memberCode,
+      line_user_id: profile.userId,
+      line_display_name: profile.displayName || null,
+      line_picture_url: profile.pictureUrl || null,
+      last_active_at: now,
+      is_active: true,
+      source: 'liff_login',
+    }),
+  });
+
+  // 2) Set as primary on members (latest login = current target)
+  await fetch(`${SB_URL}/rest/v1/members?member_code=eq.${encodeURIComponent(memberCode)}`, {
+    method: 'PATCH',
+    headers: {
+      apikey: SB_KEY,
+      Authorization: `Bearer ${SB_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      line_user_id: profile.userId,
+      line_display_name: profile.displayName || null,
+      line_picture_url: profile.pictureUrl || null,
+      line_linked_at: now,
+    }),
+  });
+}
+
 async function doRegister() {
   const code = document.getElementById('rCode').value.trim();
   const pass = document.getElementById('rPass').value;
@@ -460,6 +505,12 @@ async function doRegister() {
       } : {}),
     }];
     await sbPost('event_attendees', payload);
+
+    // 8b. Link LINE account to member (persistent, cross-event)
+    if (_lineProfile) {
+      try { await linkLineToMember(code, _lineProfile); }
+      catch (e) { console.warn('linkLineToMember failed:', e?.message || e); }
+    }
 
     // Success!
     document.getElementById('regForm').innerHTML = `

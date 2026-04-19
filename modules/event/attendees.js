@@ -40,12 +40,42 @@ async function fetchEvents() {
   return (events || []).filter(e => !holidayIds.includes(e.event_category_id));
 }
 async function fetchAttendees(eventId) {
-  return (
-    sbFetch(
-      "event_attendees",
-      `?event_id=eq.${eventId}&order=created_at.asc`,
-    ) || []
-  );
+  const rows = await sbFetch(
+    "event_attendees",
+    `?event_id=eq.${eventId}&order=created_at.asc`,
+  ) || [];
+  // Enrich with CURRENT primary line_user_id from members (latest LIFF login across ALL events)
+  // This lets admin-added attendees (never went through LIFF) still receive LINE if their member linked on another event
+  await _enrichWithMemberLineId(rows);
+  return rows;
+}
+
+async function _enrichWithMemberLineId(attendees) {
+  if (!attendees.length) return;
+  const codes = [...new Set(attendees.map(a => a.member_code).filter(Boolean))];
+  if (!codes.length) return;
+  try {
+    const inList = codes.map(c => encodeURIComponent(c)).join(",");
+    const rows = await sbFetch(
+      "members",
+      `?member_code=in.(${inList})&select=member_code,line_user_id,line_display_name,line_picture_url,line_linked_at`,
+    );
+    if (!rows?.length) return;
+    const byCode = {};
+    rows.forEach(r => { byCode[r.member_code] = r; });
+    attendees.forEach(a => {
+      const m = byCode[a.member_code];
+      if (!m) return;
+      // Prefer members.line_user_id (latest); fallback to event_attendees value for legacy data
+      if (m.line_user_id) {
+        a.line_user_id = m.line_user_id;
+        a.line_display_name = m.line_display_name || a.line_display_name;
+        a.line_picture_url = m.line_picture_url || a.line_picture_url;
+      }
+    });
+  } catch (e) {
+    console.warn("enrich line_user_id:", e.message);
+  }
 }
 async function fetchTiers(eventId) {
   try {
