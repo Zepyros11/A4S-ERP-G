@@ -1,0 +1,21 @@
+# Render infrastructure-as-code config
+# Deploy: commit this file, then Blueprint deploy at render.com
+# https://render.com/docs/blueprint-spec
+
+services:
+  - type: web
+    name: a4s-erp-proxy
+    runtime: node
+    plan: free                # 512MB RAM · sleeps after 15min idle
+    region: singapore         # closest to TH
+    rootDir: ai-proxy
+    buildCommand: npm install --production
+    startCommand: npm start
+    healthCheckPath: /
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      - key: PORT
+        value: "10000"        # Render convention
+      - key: ANTHROPIC_API_KEY
+        sync: false           # set manually in dashboard (SECRET)

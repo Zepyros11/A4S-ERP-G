@@ -347,73 +347,102 @@ function _bfUpdate({ done, total, ok, fail, startedAt }) {
   }
 }
 
+let _bfCancelled = false;
+
+async function _bfFetchTotalCount() {
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/members?password_encrypted=not.is.null&password_hash=is.null&select=member_code`,
+    { headers: _sbHeaders({ Prefer: 'count=exact', Range: '0-0' }) }
+  );
+  const range = res.headers.get('content-range') || '*/0';
+  return parseInt(range.split('/')[1], 10) || 0;
+}
+
+async function _bfFetchBatch(limit = 1000) {
+  const cols = 'member_code,password_encrypted';
+  const qs = `password_encrypted=not.is.null&password_hash=is.null&select=${cols}&limit=${limit}&order=member_code.asc`;
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/members?${qs}`, {
+    headers: _sbHeaders(),
+  });
+  if (!res.ok) throw new Error('โหลด batch ไม่สำเร็จ (' + res.status + ')');
+  return res.json();
+}
+
 async function confirmBackfill() {
   closeBackfillModal();
   const progOverlay = document.getElementById('backfillProgressOverlay');
+  _bfCancelled = false;
+
   try {
-    // Fetch ทุกแถวที่มี password_encrypted แต่ยังไม่มี password_hash
     showLoading(true);
-    const cols = 'member_code,password_encrypted';
-    const qs = `password_encrypted=not.is.null&password_hash=is.null&select=${cols}&limit=50000`;
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/members?${qs}`, {
-      headers: _sbHeaders({ 'Range-Unit': 'items', Range: '0-49999' }),
-    });
-    if (!res.ok) throw new Error('โหลด members ไม่สำเร็จ (' + res.status + ')');
-    const rows = await res.json();
+    const total = await _bfFetchTotalCount();
     showLoading(false);
 
-    if (!rows.length) {
+    if (!total) {
       showToast('ไม่มีแถวที่ต้อง backfill — ทุกคนมี password_hash แล้ว', 'success');
       return;
     }
 
     // Open progress modal
     document.getElementById('bfProgIcon').textContent = '🔁';
-    document.getElementById('bfProgTitle').textContent = 'กำลัง Backfill...';
-    document.getElementById('bfProgSub').textContent = 'กรุณารอ อย่าปิดหน้านี้';
+    document.getElementById('bfProgTitle').textContent = `กำลัง Backfill... (auto-loop)`;
+    document.getElementById('bfProgSub').textContent = `รวม ${total.toLocaleString()} คน · อย่าปิด/refresh หน้านี้`;
     progOverlay.classList.add('open');
+    _ensureCancelBtn();
 
-    const total = rows.length;
-    let ok = 0, fail = 0;
+    let overallDone = 0, overallOk = 0, overallFail = 0;
     const startedAt = Date.now();
-    _bfUpdate({ done: 0, total, ok, fail, startedAt });
+    _bfUpdate({ done: 0, total, ok: 0, fail: 0, startedAt });
 
-    for (let i = 0; i < rows.length; i++) {
-      const m = rows[i];
-      try {
-        const plain = await ERPCrypto.decrypt(m.password_encrypted);
-        if (!plain) { fail++; }
-        else {
-          const h = await ERPCrypto.hash(plain);
-          const patchRes = await fetch(
-            `${SUPABASE_URL}/rest/v1/members?member_code=eq.${encodeURIComponent(m.member_code)}`,
-            {
-              method: 'PATCH',
-              headers: _sbHeaders({ 'Content-Type': 'application/json' }),
-              body: JSON.stringify({ password_hash: h }),
-            }
-          );
-          if (patchRes.ok) ok++; else fail++;
+    // Auto-loop through batches of 1000 until empty
+    while (!_bfCancelled) {
+      const rows = await _bfFetchBatch(1000);
+      if (!rows.length) break;                    // nothing left — done
+
+      for (let i = 0; i < rows.length && !_bfCancelled; i++) {
+        const m = rows[i];
+        try {
+          const plain = await ERPCrypto.decrypt(m.password_encrypted);
+          if (!plain) { overallFail++; }
+          else {
+            const h = await ERPCrypto.hash(plain);
+            const patchRes = await fetch(
+              `${SUPABASE_URL}/rest/v1/members?member_code=eq.${encodeURIComponent(m.member_code)}`,
+              {
+                method: 'PATCH',
+                headers: _sbHeaders({ 'Content-Type': 'application/json' }),
+                body: JSON.stringify({ password_hash: h }),
+              }
+            );
+            if (patchRes.ok) overallOk++; else overallFail++;
+          }
+        } catch {
+          overallFail++;
         }
-      } catch {
-        fail++;
+        overallDone++;
+        if (overallDone % 10 === 0 || overallDone === total) {
+          _bfUpdate({ done: overallDone, total, ok: overallOk, fail: overallFail, startedAt });
+        }
       }
-      _bfUpdate({ done: i + 1, total, ok, fail, startedAt });
+      // final update per batch
+      _bfUpdate({ done: overallDone, total, ok: overallOk, fail: overallFail, startedAt });
     }
 
-    // Done — swap to success state briefly, then close
-    document.getElementById('bfProgIcon').textContent = fail ? '⚠️' : '✅';
-    document.getElementById('bfProgTitle').textContent = 'Backfill เสร็จแล้ว';
-    document.getElementById('bfProgSub').textContent = fail
-      ? `สำเร็จ ${ok} · ผิดพลาด ${fail}`
-      : `สำเร็จทั้งหมด ${ok} คน`;
+    // Done (or cancelled)
+    const finalIcon = _bfCancelled ? '🛑' : (overallFail ? '⚠️' : '✅');
+    const finalTitle = _bfCancelled ? 'ยกเลิกแล้ว' : 'Backfill เสร็จแล้ว';
+    document.getElementById('bfProgIcon').textContent = finalIcon;
+    document.getElementById('bfProgTitle').textContent = finalTitle;
+    document.getElementById('bfProgSub').textContent = overallFail
+      ? `สำเร็จ ${overallOk.toLocaleString()} · ผิดพลาด ${overallFail.toLocaleString()}`
+      : `สำเร็จทั้งหมด ${overallOk.toLocaleString()} คน`;
     setTimeout(() => {
       progOverlay.classList.remove('open');
       showToast(
-        `Backfill เสร็จ: สำเร็จ ${ok} คน${fail ? ` · ผิดพลาด ${fail}` : ''}`,
-        fail ? 'error' : 'success'
+        `Backfill ${_bfCancelled ? 'ยกเลิก' : 'เสร็จ'}: สำเร็จ ${overallOk.toLocaleString()}${overallFail ? ` · ผิดพลาด ${overallFail}` : ''}`,
+        overallFail ? 'error' : 'success'
       );
-    }, 1800);
+    }, 2000);
   } catch (e) {
     progOverlay.classList.remove('open');
     showLoading(false);
@@ -421,6 +450,22 @@ async function confirmBackfill() {
   }
 }
 window.confirmBackfill = confirmBackfill;
+
+function _ensureCancelBtn() {
+  if (document.getElementById('bfCancelBtn')) return;
+  const sub = document.getElementById('bfProgSub');
+  if (!sub) return;
+  const btn = document.createElement('button');
+  btn.id = 'bfCancelBtn';
+  btn.textContent = '🛑 หยุด';
+  btn.style.cssText = 'margin-top:12px;padding:6px 14px;border:none;border-radius:8px;background:#fee2e2;color:#991b1b;font-weight:700;cursor:pointer;font-size:12px';
+  btn.onclick = () => {
+    _bfCancelled = true;
+    btn.textContent = '⏳ กำลังหยุด...';
+    btn.disabled = true;
+  };
+  sub.parentElement.appendChild(btn);
+}
 
 /* ── Master Key Modal ── */
 function openMKModal() {

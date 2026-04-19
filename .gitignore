@@ -2,5 +2,20 @@
 .env
 *.env
 
-# AI proxy (not used)
-ai-proxy/
+# Node modules (never commit)
+node_modules/
+**/node_modules/
+
+# Log files
+*.log
+backfill.log
+backfill.err
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
