@@ -1622,6 +1622,89 @@ window.openCheckinPage = function () {
   window.open(`check-in.html?event_id=${currentEventId}`, "_blank");
 };
 
+// ── SHARE REGISTER LINK (LIFF + plain URL) ─────────────────
+function _buildPlainRegisterUrl() {
+  if (!currentEventId) return "";
+  // Prefer channel's LIFF endpoint if set (เผื่อ deploy บน domain อื่น), fallback to current origin
+  const base = `${location.origin}${location.pathname.replace(/attendees\.html.*$/, "register.html")}`;
+  return `${base}?event=${currentEventId}`;
+}
+
+function _buildLiffUrl(liffId) {
+  if (!liffId || !currentEventId) return "";
+  return `https://liff.line.me/${liffId}?event=${currentEventId}`;
+}
+
+window.openShareRegisterModal = async function () {
+  if (!currentEventId || !currentEvent) {
+    showToast("เลือก event ก่อน", "error");
+    return;
+  }
+
+  // Resolve channel (per-event or default) to get liff_id + endpoint
+  let channel = null;
+  try {
+    if (window.LineAPI) {
+      channel = await window.LineAPI.getChannelForEvent(currentEvent);
+    }
+  } catch (e) {
+    console.warn("get channel:", e.message);
+  }
+
+  const liffId = channel?.liff_id || null;
+  const liffUrl = _buildLiffUrl(liffId);
+  const plainUrl = channel?.liff_endpoint
+    ? `${channel.liff_endpoint.replace(/\/+$/, "").replace(/\?.*$/, "")}?event=${currentEventId}`
+    : _buildPlainRegisterUrl();
+
+  // Fill modal
+  document.getElementById("shareRegEventName").textContent = currentEvent.event_name || "Event";
+  document.getElementById("shareRegEventSub").textContent =
+    `[${currentEvent.event_code || ""}] ${currentEvent.location || ""}`;
+  document.getElementById("shareRegLiffInput").value = liffUrl || "— ไม่มี LIFF (ตั้งค่าใน channel ก่อน)";
+  document.getElementById("shareRegPlainInput").value = plainUrl;
+
+  // Build QR — prefer LIFF URL, fallback to plain
+  const qrWrap = document.getElementById("shareRegQrWrap");
+  qrWrap.innerHTML = "";
+  try {
+    const qrText = liffUrl || plainUrl;
+    new QRCode(qrWrap, {
+      text: qrText,
+      width: 220,
+      height: 220,
+      correctLevel: QRCode.CorrectLevel.M,
+    });
+  } catch (e) {
+    qrWrap.textContent = "QR library ยังไม่โหลด — refresh หน้า";
+  }
+
+  // Disable copy button if no LIFF
+  const liffBtn = document.querySelector('#shareRegLiffInput + button');
+  if (liffBtn) liffBtn.disabled = !liffUrl;
+
+  document.getElementById("shareRegisterModal").classList.add("open");
+};
+
+window.closeShareRegisterModal = function () {
+  document.getElementById("shareRegisterModal").classList.remove("open");
+};
+
+window.copyShareRegisterUrl = async function (type) {
+  const id = type === "liff" ? "shareRegLiffInput" : "shareRegPlainInput";
+  const input = document.getElementById(id);
+  const url = input.value;
+  if (!url || url.startsWith("—")) { showToast("ไม่มี URL ให้ copy", "error"); return; }
+  try {
+    await navigator.clipboard.writeText(url);
+    showToast(`✅ คัดลอก ${type === "liff" ? "LIFF" : "Plain"} URL แล้ว`, "success");
+  } catch {
+    input.select();
+    document.execCommand("copy");
+    showToast(`✅ คัดลอกแล้ว`, "success");
+  }
+};
+
 // ── AUTO CHECK-IN TOGGLE ──────────────────────────────────
 function _loadAutoCheckinState() {
   const key = `autoCheckin_${currentEventId}`;

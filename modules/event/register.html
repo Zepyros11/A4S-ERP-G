@@ -171,14 +171,83 @@ function getEventIdFromUrl() {
       eventId = sp.get('event') || sp.get('event_id');
     } catch {}
   }
+  // LIFF SDK might store state in window.liff after init — fallback check
+  try {
+    if (window.liff?.isInClient && window.liff.isInClient()) {
+      const ctx = window.liff.getContext?.();
+      if (ctx?.query) {
+        const qp = new URLSearchParams(ctx.query);
+        eventId = qp.get('event') || qp.get('event_id');
+      }
+    }
+  } catch {}
+  // Hash fallback (some clients strip query but keep hash)
+  if (!eventId && location.hash) {
+    const h = location.hash.replace(/^#/, '');
+    try {
+      const qp = new URLSearchParams(h.includes('?') ? h.split('?').pop() : h);
+      eventId = qp.get('event') || qp.get('event_id');
+    } catch {}
+  }
   return eventId;
+}
+
+/* ── Fallback: show list of open events if no event_id in URL ── */
+async function showEventPicker() {
+  try {
+    const events = await sbGet('events?registration_enabled=eq.true&status=neq.CANCELLED&select=event_id,event_name,event_code,event_date,location,poster_url,image_urls&order=event_date.desc&limit=30');
+    if (!events?.length) {
+      document.getElementById('regLoading').innerHTML = '❌ ไม่มี event ที่เปิดลงทะเบียน';
+      return;
+    }
+    const fmtDate = d => d ? d.split('-').reverse().join('/') : '—';
+    const html = `
+      <div style="padding:20px">
+        <div style="font-size:16px;font-weight:700;text-align:center;margin-bottom:4px">เลือก Event ที่จะลงทะเบียน</div>
+        <div style="font-size:12px;color:#64748b;text-align:center;margin-bottom:16px">ไม่มี event_id ใน URL — กรุณาเลือก</div>
+        ${events.map(e => {
+          const poster = (e.image_urls && e.image_urls[0]) || e.poster_url || '';
+          return `<a href="?event=${e.event_id}" style="display:flex;gap:12px;padding:10px;background:#fff;border:1px solid #e2e8f0;border-radius:10px;margin-bottom:8px;text-decoration:none;color:inherit;align-items:center">
+            ${poster ? `<img src="${poster}" style="width:48px;height:48px;border-radius:6px;object-fit:cover;flex-shrink:0">` : '<div style="width:48px;height:48px;border-radius:6px;background:linear-gradient(135deg,#1e40af,#3b82f6);flex-shrink:0;display:flex;align-items:center;justify-content:center;color:#fff">🗓️</div>'}
+            <div style="flex:1;min-width:0">
+              <div style="font-weight:700;font-size:13.5px;color:#0f172a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(e.event_name)}</div>
+              <div style="font-size:11px;color:#64748b">📅 ${fmtDate(e.event_date)}${e.location ? ' · 📍 ' + esc(e.location) : ''}</div>
+            </div>
+            <div style="color:#94a3b8;flex-shrink:0">›</div>
+          </a>`;
+        }).join('')}
+      </div>`;
+    document.getElementById('regLoading').style.display = 'none';
+    document.getElementById('regContent').style.display = 'block';
+    document.getElementById('regContent').innerHTML = html;
+  } catch (e) {
+    document.getElementById('regLoading').innerHTML = '❌ โหลดไม่ได้: ' + e.message;
+  }
 }
 
 /* ── Init ── */
 (async () => {
+  // If LIFF SDK is available, init first so liff.state is processed + redirect completes
+  if (window.liff) {
+    try {
+      // Need LIFF ID — fetch default event channel's liff_id from Supabase
+      const rows = await sbGet(`line_channels?purpose=eq.event&is_default=eq.true&is_active=eq.true&select=liff_id&limit=1`);
+      const liffId = rows?.[0]?.liff_id;
+      if (liffId) {
+        await liff.init({ liffId });
+        // After init, URL may have been updated — re-read event id
+      }
+    } catch (e) { console.warn('Early liff.init failed:', e?.message || e); }
+  }
+
   const eventId = getEventIdFromUrl();
-  if (!eventId || !SB_URL) {
-    document.getElementById('regLoading').innerHTML = '❌ ไม่พบ event หรือยังไม่ได้ตั้งค่า';
+  if (!SB_URL) {
+    document.getElementById('regLoading').innerHTML = '❌ ยังไม่ได้ตั้งค่า Supabase';
+    return;
+  }
+  if (!eventId) {
+    // Fallback: show event picker
+    await showEventPicker();
     return;
   }
 
