@@ -219,19 +219,13 @@ function requireMemberPassword(attendee) {
     // No password on record → allow (fallback)
     if (!enc) return resolve(true);
 
-    // Decrypt — if fails, prompt for master key setup
+    // Decrypt — if master key not set or decrypt fails on this device,
+    // skip password verification (degrade gracefully instead of blocking)
     let real = null;
-    const tryDecrypt = async () => {
-      if (!ERPCrypto.hasMasterKey()) return null;
-      try { return await ERPCrypto.decrypt(enc); } catch { return null; }
-    };
-    real = await tryDecrypt();
-    if (!real) {
-      const gotKey = await promptMasterKey(enc);
-      if (!gotKey) return resolve(false);
-      real = await tryDecrypt();
-      if (!real) return resolve(false);
+    if (ERPCrypto.hasMasterKey()) {
+      try { real = await ERPCrypto.decrypt(enc); } catch {}
     }
+    if (!real) return resolve(true);
 
     title.textContent = "🔒 ยืนยันตัวตน";
     hint.innerHTML = `<div class="ci-pin-name">${escapeHtml(attendee.name || "")}</div><div class="ci-pin-sub">กรอกรหัสผ่านของคุณ</div>`;
