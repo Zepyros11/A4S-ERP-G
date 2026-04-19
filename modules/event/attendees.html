@@ -283,10 +283,14 @@
             <label class="form-label">ตัวอย่างหลังแทนค่า</label>
             <div id="bulkMsgPreview" class="bulk-msg-preview">—</div>
           </div>
+          <div id="bulkLineStats" style="font-size:12px;color:var(--text3);background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:8px 12px;margin-top:6px">
+            📱 LINE: <span id="bulkLineLinked">—</span> คนที่เชื่อม LINE แล้ว
+          </div>
         </div>
         <div class="att-modal-footer">
           <button class="btn btn-secondary" onclick="window.closeBulkMsgModal()">ยกเลิก</button>
           <button class="btn btn-primary" onclick="window.copyBulkMessages()">📋 Copy ทั้งหมด</button>
+          <button class="btn" style="background:#06c755;color:#fff" id="btnBulkLinePush" onclick="window.sendBulkLinePush()" title="ส่งให้เฉพาะคนที่เชื่อม LINE">📱 ส่ง LINE OA</button>
         </div>
       </div>
     </div>
@@ -295,6 +299,8 @@
     <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 
     <script src="../../js/core/auth.js"></script>
+    <script src="../../js/core/crypto.js"></script>
+    <script src="../../js/core/line.js"></script>
     <script src="../../js/core/authz.js"></script>
     <script>AuthZ.requirePerm("attendee_view");</script>
     <script type="module" src="./attendees.js"></script>

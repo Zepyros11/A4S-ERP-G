@@ -278,6 +278,89 @@
   </div>
 </div>
 
+<!-- Backfill Progress Modal -->
+<div class="modal-overlay" id="backfillProgressOverlay">
+  <div class="modal" style="max-width:440px">
+    <div class="modal-body" style="padding:28px 28px 22px">
+      <div style="text-align:center;font-size:48px;margin-bottom:8px" id="bfProgIcon">🔁</div>
+      <div style="text-align:center;font-size:18px;font-weight:800;color:var(--text);margin-bottom:4px" id="bfProgTitle">
+        กำลัง Backfill...
+      </div>
+      <div style="text-align:center;color:var(--text2);font-size:12.5px;margin-bottom:18px" id="bfProgSub">
+        กรุณารอ อย่าปิดหน้านี้
+      </div>
+
+      <!-- Progress bar -->
+      <div style="background:#e2e8f0;border-radius:99px;height:14px;overflow:hidden;box-shadow:inset 0 2px 4px rgba(0,0,0,.08)">
+        <div id="bfProgBar"
+             style="height:100%;width:0%;background:linear-gradient(90deg,#3b82f6,#60a5fa);border-radius:99px;transition:width .25s ease-out;box-shadow:0 0 10px rgba(59,130,246,.5)">
+        </div>
+      </div>
+
+      <!-- Counter + percentage -->
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;font-family:'IBM Plex Mono',monospace">
+        <span style="font-size:13px;color:var(--text2)" id="bfProgCount">0 / 0</span>
+        <span style="font-size:15px;font-weight:700;color:#1e40af" id="bfProgPct">0%</span>
+      </div>
+
+      <!-- Stats -->
+      <div id="bfProgStats" style="display:flex;gap:12px;margin-top:12px;font-size:12px">
+        <div style="flex:1;padding:8px 10px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;text-align:center">
+          <div style="color:#065f46;font-weight:700;font-size:16px" id="bfProgOk">0</div>
+          <div style="color:#15803d;font-size:10.5px">สำเร็จ</div>
+        </div>
+        <div style="flex:1;padding:8px 10px;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;text-align:center">
+          <div style="color:#991b1b;font-weight:700;font-size:16px" id="bfProgFail">0</div>
+          <div style="color:#b91c1c;font-size:10.5px">ผิดพลาด</div>
+        </div>
+        <div style="flex:1;padding:8px 10px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;text-align:center">
+          <div style="color:#334155;font-weight:700;font-size:16px;font-family:'IBM Plex Mono',monospace" id="bfProgEta">—</div>
+          <div style="color:#64748b;font-size:10.5px">เหลือ</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Backfill Hash Modal -->
+<div class="modal-overlay" id="backfillModalOverlay" onclick="if(event.target===this)closeBackfillModal()">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-body" style="padding:28px 28px 20px">
+      <div style="text-align:center;font-size:48px;margin-bottom:8px">🔁</div>
+      <div style="text-align:center;font-size:20px;font-weight:800;color:var(--text);margin-bottom:6px">
+        Backfill Password Hash
+      </div>
+      <div style="text-align:center;color:var(--text2);font-size:13px;margin-bottom:16px">
+        สร้าง <code style="background:var(--surface2);padding:1px 6px;border-radius:4px;font-family:'IBM Plex Mono',monospace">password_hash</code> จาก <code style="background:var(--surface2);padding:1px 6px;border-radius:4px;font-family:'IBM Plex Mono',monospace">password_encrypted</code>
+      </div>
+
+      <div style="background:linear-gradient(135deg,#eff6ff,#dbeafe);border:1px solid #bfdbfe;border-radius:10px;padding:14px 16px;font-size:13px;color:#1e3a8a;line-height:1.75">
+        <div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:4px">
+          <span style="font-size:15px">①</span>
+          <span>อ่านสมาชิกที่มี <code style="background:#fff;padding:0 4px;border-radius:3px">password_encrypted</code> แต่ยังไม่มี <code style="background:#fff;padding:0 4px;border-radius:3px">password_hash</code></span>
+        </div>
+        <div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:4px">
+          <span style="font-size:15px">②</span>
+          <span>ถอดรหัสบน browser (ใช้ master key ที่ตั้งไว้)</span>
+        </div>
+        <div style="display:flex;gap:10px;align-items:flex-start">
+          <span style="font-size:15px">③</span>
+          <span>คำนวณ SHA-256 hash แล้วเขียนกลับ Supabase</span>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:10px;align-items:center;margin-top:14px;padding:10px 14px;background:#fefce8;border:1px solid #fde047;border-radius:8px;font-size:12.5px;color:#713f12">
+        <span style="font-size:18px">⏱️</span>
+        <span>ใช้เวลา ≈ <strong>1-3 นาที</strong> ต่อสมาชิก 10,000 คน — <strong>อย่าปิดหน้านี้</strong></span>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeBackfillModal()">ยกเลิก</button>
+      <button class="btn btn-primary" onclick="confirmBackfill()">🔁 เริ่ม Backfill</button>
+    </div>
+  </div>
+</div>
+
 <script src="../../js/core/auth.js"></script>
 <script src="../../js/core/authz.js"></script>
 <script src="../../js/core/crypto.js"></script>

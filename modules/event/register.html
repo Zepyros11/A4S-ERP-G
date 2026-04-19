@@ -76,6 +76,19 @@ body{font-family:'Sarabun',sans-serif;background:#f1f5f9;min-height:100vh;displa
   body{padding:0;align-items:flex-start;}
   .reg-card{border-radius:0;min-height:100vh;max-width:100%;}
 }
+
+/* ── LINE connect panel ── */
+.reg-line-panel{margin:0 20px 14px;padding:12px 14px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;display:flex;align-items:center;gap:10px;}
+.reg-line-panel.linked{background:#f0fdf4;border-color:#86efac;}
+.reg-line-panel.unlinked{background:#f9fafb;border-color:#e5e7eb;}
+.reg-line-avatar{width:38px;height:38px;border-radius:50%;background:#06c755;color:#fff;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;overflow:hidden;}
+.reg-line-avatar img{width:100%;height:100%;object-fit:cover;}
+.reg-line-info{flex:1;min-width:0;}
+.reg-line-title{font-size:12.5px;font-weight:700;color:#065f46;}
+.reg-line-name{font-size:13.5px;font-weight:600;color:#0f172a;}
+.reg-line-sub{font-size:11px;color:#64748b;}
+.reg-line-btn{padding:6px 12px;border:none;border-radius:8px;background:#06c755;color:#fff;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;}
+.reg-line-btn:hover{background:#05a84a;}
 </style>
 </head>
 <body>
@@ -100,6 +113,9 @@ body{font-family:'Sarabun',sans-serif;background:#f1f5f9;min-height:100vh;displa
     <!-- Capacity bar -->
     <div id="regCapacity" style="display:none"></div>
 
+    <!-- LINE connect panel -->
+    <div id="regLinePanel" style="display:none"></div>
+
     <!-- Auth + Register form -->
     <div id="regForm"></div>
   </div>
@@ -119,6 +135,8 @@ let _series = null;
 let _level = null;
 let _prereqLevel = null;
 let _attendeeCount = 0;
+let _lineChannel = null;      // { liff_id, friend_url, ... } or null
+let _lineProfile = null;      // { userId, displayName, pictureUrl } when logged in
 
 async function sbGet(path) {
   const res = await fetch(`${SB_URL}/rest/v1/${path}`, {
@@ -174,11 +192,88 @@ async function sbPost(path, body) {
     const range = attRes.headers.get('content-range') || '*/0';
     _attendeeCount = parseInt(range.split('/')[1], 10) || 0;
 
+    // Load LINE channel config (for LIFF)
+    await loadLineChannel();
+
     renderPage();
+
+    // Init LIFF after DOM is ready
+    initLiff().catch(e => console.warn('LIFF init failed:', e?.message || e));
   } catch (e) {
     document.getElementById('regLoading').innerHTML = `❌ โหลดไม่ได้: ${e.message}`;
   }
 })();
+
+/* ── LINE channel + LIFF ───────────────────────────────── */
+async function loadLineChannel() {
+  try {
+    // 1) Event-specific channel?
+    if (_event.line_channel_id) {
+      const rows = await sbGet(`line_channels?id=eq.${_event.line_channel_id}&is_active=eq.true&select=id,liff_id,friend_url,name&limit=1`);
+      if (rows[0]?.liff_id) { _lineChannel = rows[0]; return; }
+    }
+    // 2) Default event channel
+    const rows = await sbGet(`line_channels?purpose=eq.event&is_default=eq.true&is_active=eq.true&select=id,liff_id,friend_url,name&limit=1`);
+    if (rows[0]?.liff_id) _lineChannel = rows[0];
+  } catch (e) {
+    console.warn('load line_channel:', e.message);
+  }
+}
+
+async function initLiff() {
+  if (!_lineChannel?.liff_id) return;              // no channel — skip
+  if (!window.liff) {
+    console.warn('LIFF SDK not loaded');
+    return;
+  }
+
+  try {
+    await liff.init({ liffId: _lineChannel.liff_id });
+    if (liff.isLoggedIn()) {
+      const profile = await liff.getProfile();
+      _lineProfile = profile;
+    }
+    renderLinePanel();
+  } catch (e) {
+    console.warn('liff.init error:', e.message || e);
+  }
+}
+
+function renderLinePanel() {
+  if (!_lineChannel?.liff_id) return;
+  const el = document.getElementById('regLinePanel');
+  if (!el) return;
+
+  if (_lineProfile) {
+    const avatar = _lineProfile.pictureUrl
+      ? `<img src="${_lineProfile.pictureUrl}" alt="">`
+      : '💬';
+    el.className = 'reg-line-panel linked';
+    el.innerHTML = `
+      <div class="reg-line-avatar">${avatar}</div>
+      <div class="reg-line-info">
+        <div class="reg-line-title">✅ เชื่อม LINE แล้ว</div>
+        <div class="reg-line-name">${esc(_lineProfile.displayName || '')}</div>
+      </div>`;
+    el.style.display = 'flex';
+  } else {
+    el.className = 'reg-line-panel unlinked';
+    el.innerHTML = `
+      <div class="reg-line-avatar">💬</div>
+      <div class="reg-line-info">
+        <div class="reg-line-title">เชื่อม LINE (ไม่บังคับ)</div>
+        <div class="reg-line-sub">เพื่อรับข้อความแจ้งเตือน/ตั๋วผ่าน LINE OA</div>
+      </div>
+      <button class="reg-line-btn" onclick="loginLine()">เชื่อม LINE</button>`;
+    el.style.display = 'flex';
+  }
+}
+
+window.loginLine = function () {
+  if (!liff?.isLoggedIn) return;
+  if (liff.isLoggedIn()) return;
+  liff.login({ redirectUri: window.location.href });
+};
 
 function renderPage() {
   document.getElementById('regLoading').style.display = 'none';
@@ -340,6 +435,12 @@ async function doRegister() {
       attend_type: 'ONSITE',
       ticket_no: ticketNo,
       payment_status: 'FREE',
+      ...(_lineProfile ? {
+        line_user_id: _lineProfile.userId,
+        line_display_name: _lineProfile.displayName || null,
+        line_picture_url: _lineProfile.pictureUrl || null,
+        line_linked_at: new Date().toISOString(),
+      } : {}),
     }];
     await sbPost('event_attendees', payload);
 
@@ -377,6 +478,7 @@ function showToast(msg, type) {
 }
 </script>
 
+<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 <script src="../../js/core/crypto.js"></script>
 <script src="../../js/components/modal/modalManager.js"></script>
 </body>

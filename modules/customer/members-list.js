@@ -314,18 +314,45 @@ async function backfillPasswordHash() {
     showToast('Master key ไม่ถูกต้อง', 'error');
     return;
   }
+  document.getElementById('backfillModalOverlay').classList.add('open');
+}
+window.backfillPasswordHash = backfillPasswordHash;
 
-  if (!confirm(
-    'Backfill password_hash จาก password_encrypted ของสมาชิกทุกคน?\n\n' +
-    '• อ่านทุกแถวที่มี password_encrypted แต่ยังไม่มี password_hash\n' +
-    '• decrypt บน browser (ใช้ master key ที่ตั้งไว้)\n' +
-    '• เขียน hash กลับ Supabase\n\n' +
-    'ใช้เวลาขึ้นกับจำนวนสมาชิก (ประมาณ 1-3 นาทีต่อ 10,000 คน)'
-  )) return;
+function closeBackfillModal() {
+  document.getElementById('backfillModalOverlay').classList.remove('open');
+}
+window.closeBackfillModal = closeBackfillModal;
 
-  showLoading(true);
+function _bfFmtEta(ms) {
+  if (!isFinite(ms) || ms <= 0) return '—';
+  const s = Math.ceil(ms / 1000);
+  if (s < 60) return s + 's';
+  const m = Math.floor(s / 60), sec = s % 60;
+  return `${m}m ${sec}s`;
+}
+
+function _bfUpdate({ done, total, ok, fail, startedAt }) {
+  const pct = total ? Math.round((done / total) * 100) : 0;
+  document.getElementById('bfProgBar').style.width = pct + '%';
+  document.getElementById('bfProgCount').textContent = `${done} / ${total}`;
+  document.getElementById('bfProgPct').textContent = pct + '%';
+  document.getElementById('bfProgOk').textContent = ok;
+  document.getElementById('bfProgFail').textContent = fail;
+  if (done > 0 && done < total) {
+    const elapsed = Date.now() - startedAt;
+    const avg = elapsed / done;
+    document.getElementById('bfProgEta').textContent = _bfFmtEta(avg * (total - done));
+  } else {
+    document.getElementById('bfProgEta').textContent = done >= total ? '0s' : '—';
+  }
+}
+
+async function confirmBackfill() {
+  closeBackfillModal();
+  const progOverlay = document.getElementById('backfillProgressOverlay');
   try {
     // Fetch ทุกแถวที่มี password_encrypted แต่ยังไม่มี password_hash
+    showLoading(true);
     const cols = 'member_code,password_encrypted';
     const qs = `password_encrypted=not.is.null&password_hash=is.null&select=${cols}&limit=50000`;
     const res = await fetch(`${SUPABASE_URL}/rest/v1/members?${qs}`, {
@@ -333,45 +360,67 @@ async function backfillPasswordHash() {
     });
     if (!res.ok) throw new Error('โหลด members ไม่สำเร็จ (' + res.status + ')');
     const rows = await res.json();
+    showLoading(false);
 
     if (!rows.length) {
       showToast('ไม่มีแถวที่ต้อง backfill — ทุกคนมี password_hash แล้ว', 'success');
       return;
     }
 
+    // Open progress modal
+    document.getElementById('bfProgIcon').textContent = '🔁';
+    document.getElementById('bfProgTitle').textContent = 'กำลัง Backfill...';
+    document.getElementById('bfProgSub').textContent = 'กรุณารอ อย่าปิดหน้านี้';
+    progOverlay.classList.add('open');
+
+    const total = rows.length;
     let ok = 0, fail = 0;
-    const btn = document.getElementById('btnBackfillHash');
-    const originalText = btn.textContent;
+    const startedAt = Date.now();
+    _bfUpdate({ done: 0, total, ok, fail, startedAt });
+
     for (let i = 0; i < rows.length; i++) {
       const m = rows[i];
-      btn.textContent = `🔁 ${i + 1}/${rows.length}`;
       try {
         const plain = await ERPCrypto.decrypt(m.password_encrypted);
-        if (!plain) { fail++; continue; }
-        const h = await ERPCrypto.hash(plain);
-        const patchRes = await fetch(
-          `${SUPABASE_URL}/rest/v1/members?member_code=eq.${encodeURIComponent(m.member_code)}`,
-          {
-            method: 'PATCH',
-            headers: _sbHeaders({ 'Content-Type': 'application/json' }),
-            body: JSON.stringify({ password_hash: h }),
-          }
-        );
-        if (patchRes.ok) ok++; else fail++;
+        if (!plain) { fail++; }
+        else {
+          const h = await ERPCrypto.hash(plain);
+          const patchRes = await fetch(
+            `${SUPABASE_URL}/rest/v1/members?member_code=eq.${encodeURIComponent(m.member_code)}`,
+            {
+              method: 'PATCH',
+              headers: _sbHeaders({ 'Content-Type': 'application/json' }),
+              body: JSON.stringify({ password_hash: h }),
+            }
+          );
+          if (patchRes.ok) ok++; else fail++;
+        }
       } catch {
         fail++;
       }
+      _bfUpdate({ done: i + 1, total, ok, fail, startedAt });
     }
-    btn.textContent = originalText;
 
-    showToast(`Backfill เสร็จ: สำเร็จ ${ok} คน${fail ? ` · ผิดพลาด ${fail}` : ''}`, fail ? 'error' : 'success');
+    // Done — swap to success state briefly, then close
+    document.getElementById('bfProgIcon').textContent = fail ? '⚠️' : '✅';
+    document.getElementById('bfProgTitle').textContent = 'Backfill เสร็จแล้ว';
+    document.getElementById('bfProgSub').textContent = fail
+      ? `สำเร็จ ${ok} · ผิดพลาด ${fail}`
+      : `สำเร็จทั้งหมด ${ok} คน`;
+    setTimeout(() => {
+      progOverlay.classList.remove('open');
+      showToast(
+        `Backfill เสร็จ: สำเร็จ ${ok} คน${fail ? ` · ผิดพลาด ${fail}` : ''}`,
+        fail ? 'error' : 'success'
+      );
+    }, 1800);
   } catch (e) {
-    showToast('Error: ' + e.message, 'error');
-  } finally {
+    progOverlay.classList.remove('open');
     showLoading(false);
+    showToast('Error: ' + e.message, 'error');
   }
 }
-window.backfillPasswordHash = backfillPasswordHash;
+window.confirmBackfill = confirmBackfill;
 
 /* ── Master Key Modal ── */
 function openMKModal() {

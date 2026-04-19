@@ -54,7 +54,7 @@ async function initPage() {
   fpEventDate = flatpickr("#fEventDate", fpOpts);
   fpEndDate = flatpickr("#fEndDate", fpOpts);
 
-  await Promise.all([loadUsers(), loadEventCategories(), loadPlaces(), loadCourseSeries()]);
+  await Promise.all([loadUsers(), loadEventCategories(), loadPlaces(), loadCourseSeries(), loadLineChannels()]);
 
   if (editId) {
     document.getElementById("pageTitle").textContent = "✏️ แก้ไขกิจกรรม";
@@ -268,6 +268,29 @@ async function loadEventCategories() {
   }
 }
 
+// ── LOAD LINE CHANNELS ─────────────────────────────────────
+async function loadLineChannels() {
+  const sel = document.getElementById("fLineChannelId");
+  if (!sel) return;
+  try {
+    const { url, key } = getSB();
+    const r = await fetch(
+      `${url}/rest/v1/line_channels?is_active=eq.true&order=is_default.desc,purpose.asc,id.asc&select=id,name,purpose,is_default`,
+      { headers: { apikey: key, Authorization: `Bearer ${key}` } },
+    );
+    if (!r.ok) return;
+    const rows = await r.json();
+    sel.innerHTML =
+      '<option value="">— ใช้ default ของระบบ —</option>' +
+      rows.map(c => {
+        const tag = c.is_default ? " ⭐" : "";
+        return `<option value="${c.id}">[${c.purpose}] ${c.name}${tag}</option>`;
+      }).join("");
+  } catch (e) {
+    console.warn("loadLineChannels:", e.message);
+  }
+}
+
 // ── LOAD COURSE SERIES + LEVELS ────────────────────────────
 let _allSeries = [];
 let _allLevels = {};  // seriesId → [levels]
@@ -344,6 +367,12 @@ async function loadEventData() {
     // Registration toggles
     document.getElementById("fRegEnabled").checked = !!e.registration_enabled;
     document.getElementById("fMembersOnly").checked = !!e.members_only;
+
+    // LINE channel (populated async — wait briefly if options not loaded yet)
+    const lineSel = document.getElementById("fLineChannelId");
+    if (lineSel) {
+      if (e.line_channel_id != null) lineSel.value = String(e.line_channel_id);
+    }
 
     // Series + Level
     if (e.series_id) {
@@ -596,6 +625,10 @@ window._saveEventImpl = async function () {
       level_id: document.getElementById("fLevel").value || null,
       registration_enabled: document.getElementById("fRegEnabled").checked,
       members_only: document.getElementById("fMembersOnly").checked,
+      line_channel_id: (() => {
+        const v = document.getElementById("fLineChannelId")?.value || "";
+        return v ? parseInt(v) : null;
+      })(),
     };
 
     let savedId = editId;

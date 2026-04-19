@@ -1693,6 +1693,11 @@ window.onBulkMsgFilterChange = function () {
   const targets = _bulkMsgTargets();
   document.getElementById("bulkMsgCount").textContent =
     `จะส่งถึง ${targets.length} คน`;
+  const linkedCount = targets.filter(a => a.line_user_id).length;
+  const el = document.getElementById("bulkLineLinked");
+  if (el) el.textContent = `${linkedCount} / ${targets.length}`;
+  const btn = document.getElementById("btnBulkLinePush");
+  if (btn) btn.disabled = linkedCount === 0;
   window.onBulkMsgTplChange();
 };
 
@@ -1745,6 +1750,55 @@ window.copyBulkMessages = async function () {
     document.execCommand("copy");
     ta.remove();
     showToast(`Copy แล้ว ${targets.length} ข้อความ 📋`, "success");
+  }
+};
+
+// ── Send via LINE OA (per-user push) ─────────────────────────
+window.sendBulkLinePush = async function () {
+  const tpl = document.getElementById("bulkMsgTpl").value.trim();
+  if (!tpl) { showToast("กรุณาพิมพ์ข้อความ", "error"); return; }
+  if (!window.LineAPI) { showToast("LINE module ยังไม่โหลด — refresh หน้า", "error"); return; }
+  if (!window.ERPCrypto?.hasMasterKey()) { showToast("ตั้ง Master Key ในหน้า settings ก่อน", "error"); return; }
+
+  const targets = _bulkMsgTargets().filter(a => a.line_user_id);
+  if (!targets.length) { showToast("ไม่มีคนที่เชื่อม LINE", "error"); return; }
+
+  const btn = document.getElementById("btnBulkLinePush");
+  if (!confirm(`ส่งข้อความผ่าน LINE OA ให้ ${targets.length} คน?`)) return;
+
+  btn.disabled = true;
+  const originalText = btn.textContent;
+  btn.textContent = `⏳ 0/${targets.length}`;
+
+  try {
+    // Resolve channel for this event
+    const channel = await window.LineAPI.getChannelForEvent(currentEvent);
+    if (!channel) throw new Error("ไม่พบ LINE channel — ตั้งค่าในหน้า settings");
+
+    const sendTargets = targets.map(a => ({
+      userId: a.line_user_id,
+      message: _fillBulkTemplate(tpl, a),
+    }));
+
+    const result = await window.LineAPI.sendPersonalized({
+      channel,
+      targets: sendTargets,
+      onProgress: ({ done, total, ok, fail }) => {
+        btn.textContent = `⏳ ${done}/${total}`;
+      },
+    });
+
+    if (result.fail === 0) {
+      showToast(`✅ ส่งสำเร็จ ${result.ok}/${targets.length} คน`, "success");
+    } else {
+      showToast(`⚠️ สำเร็จ ${result.ok} · ล้มเหลว ${result.fail} คน — ดู console`, "error");
+      console.warn("LINE push errors:", result.errors);
+    }
+  } catch (e) {
+    showToast("ส่งไม่ได้: " + e.message, "error");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = originalText;
   }
 };
 
