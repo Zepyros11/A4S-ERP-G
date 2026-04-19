@@ -8,7 +8,7 @@
    - Ciphertext format: base64(iv[12] || ciphertext||tag)
    ============================================================ */
 
-import { pbkdf2Sync, createDecipheriv, createCipheriv, randomBytes } from 'node:crypto';
+import { pbkdf2Sync, createDecipheriv, createCipheriv, randomBytes, createHash } from 'node:crypto';
 
 const SALT = 'A4S-ERP-salt-v1';
 const ITERS = 100000;
@@ -56,4 +56,10 @@ export function encrypt(plaintext, passphrase) {
   const ct = Buffer.concat([cipher.update(String(plaintext), 'utf8'), cipher.final()]);
   const tag = cipher.getAuthTag();
   return Buffer.concat([iv, ct, tag]).toString('base64');
+}
+
+/** SHA-256 hash (hex) — mirror of browser ERPCrypto.hash */
+export function hash(plaintext) {
+  if (plaintext == null || plaintext === '') return null;
+  return createHash('sha256').update(String(plaintext)).digest('hex');
 }

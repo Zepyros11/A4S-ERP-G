@@ -5,7 +5,7 @@
 
 import { readFile } from 'node:fs/promises';
 import * as XLSX from 'xlsx';
-import { encrypt } from './crypto.js';
+import { encrypt, hash } from './crypto.js';
 
 /* ── Column mapping: header ภาษาไทย → DB field ── */
 const HEADER_MAP = {
@@ -183,7 +183,10 @@ export async function parseXlsToRecords(filePath, { masterKey, sourceFile = null
       if (!mapped) { extra[h] = val; continue; }
 
       if (mapped === '__password_plain') {
-        if (masterKey) rec.password_encrypted = encrypt(toCleanString(val), masterKey);
+        const plain = toCleanString(val);
+        if (masterKey) rec.password_encrypted = encrypt(plain, masterKey);
+        // Always write hash (no master key needed for verification)
+        rec.password_hash = hash(plain);
         continue;
       }
       if (mapped === '__national_id_plain') {

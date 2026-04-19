@@ -278,17 +278,17 @@ async function doRegister() {
 
   try {
     // 1. Find member
-    const members = await sbGet(`members?member_code=eq.${encodeURIComponent(code)}&select=member_code,member_name,full_name,phone,password_encrypted&limit=1`);
+    const members = await sbGet(`members?member_code=eq.${encodeURIComponent(code)}&select=member_code,member_name,full_name,phone,password_hash&limit=1`);
     const member = members[0];
     if (!member) { showMsg('❌ ไม่พบรหัสสมาชิกนี้', 'error'); btn.disabled = false; btn.textContent = '🎫 ลงทะเบียน'; return; }
 
-    // 2. Verify password (need crypto.js)
-    if (!window.ERPCrypto || !ERPCrypto.hasMasterKey()) {
-      showMsg('❌ ระบบยังไม่พร้อม (Master Key)', 'error'); btn.disabled = false; btn.textContent = '🎫 ลงทะเบียน'; return;
+    // 2. Verify password via hash (no master key needed — works anywhere)
+    if (!window.ERPCrypto) {
+      showMsg('❌ ระบบยังไม่พร้อม', 'error'); btn.disabled = false; btn.textContent = '🎫 ลงทะเบียน'; return;
     }
-    let storedPass = '';
-    try { storedPass = await ERPCrypto.decrypt(member.password_encrypted); } catch {}
-    if (pass !== storedPass) { showMsg('❌ รหัสผ่านไม่ถูกต้อง', 'error'); btn.disabled = false; btn.textContent = '🎫 ลงทะเบียน'; return; }
+    if (!member.password_hash) { showMsg('❌ สมาชิกยังไม่ได้ตั้งรหัสผ่าน — ติดต่อแอดมิน', 'error'); btn.disabled = false; btn.textContent = '🎫 ลงทะเบียน'; return; }
+    const inputHash = await ERPCrypto.hash(pass);
+    if (inputHash !== member.password_hash) { showMsg('❌ รหัสผ่านไม่ถูกต้อง', 'error'); btn.disabled = false; btn.textContent = '🎫 ลงทะเบียน'; return; }
 
     // 3. Check members_only
     if (_event.members_only && !member.member_code) {

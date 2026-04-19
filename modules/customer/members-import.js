@@ -244,8 +244,11 @@ async function rowToRecord(row) {
     if (!mapped) { extra[h] = val; continue; }
 
     if (mapped === '__password_plain') {
+      const plain = toCleanString(val);
       if (ERPCrypto.hasMasterKey())
-        rec.password_encrypted = await ERPCrypto.encrypt(toCleanString(val));
+        rec.password_encrypted = await ERPCrypto.encrypt(plain);
+      // Always write hash (no master key needed) for cross-device verification
+      rec.password_hash = await ERPCrypto.hash(plain);
       continue;
     }
     if (mapped === '__national_id_plain') {

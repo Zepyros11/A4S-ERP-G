@@ -118,10 +118,23 @@
     }
   }
 
+  /* ── SHA-256 hash (one-way, no master key needed) ── */
+  async function hash(plaintext) {
+    if (plaintext == null || plaintext === "") return null;
+    const buf = await crypto.subtle.digest(
+      "SHA-256",
+      new TextEncoder().encode(String(plaintext))
+    );
+    return [...new Uint8Array(buf)]
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
+  }
+
   /* ── Export ── */
   window.ERPCrypto = {
     encrypt,
     decrypt,
+    hash,
     setMasterKey,
     hasMasterKey,
     clearMasterKey,

@@ -189,6 +189,7 @@
     <div class="toolbar-right">
       <button class="btn btn-outline" onclick="loadData()">🔄 รีเฟรช</button>
       <button class="btn btn-outline" data-perm="member_decrypt" onclick="toggleDecrypt()" id="btnDecrypt">🔓 ถอดรหัส</button>
+      <button class="btn btn-outline" data-perm="member_decrypt" onclick="backfillPasswordHash()" id="btnBackfillHash" title="สร้าง password_hash จาก password_encrypted (ใช้ครั้งเดียวหลัง migration)">🔁 Backfill hash</button>
       <button class="btn btn-outline btn-danger-outline" data-perm="member_delete" onclick="openPurgeModal()">🗑️ ลบทั้งหมด</button>
       <button class="btn btn-primary" data-perm="member_import" onclick="location.href='./members-import.html'">📥 นำเข้า Excel</button>
     </div>

@@ -300,6 +300,79 @@ function _enableDecrypt() {
   render();
 }
 
+/* ── Backfill password_hash from password_encrypted ──────────
+   ใช้ครั้งเดียวหลัง migration 028 — ต้องมี master key เพื่อ decrypt
+   password_encrypted ก่อน hash และ update กลับ
+============================================================ */
+async function backfillPasswordHash() {
+  if (!window.ERPCrypto || !ERPCrypto.hasMasterKey()) {
+    showToast('ต้องกด 🔓 ถอดรหัส ก่อน (เพื่อใส่ master key)', 'error');
+    return;
+  }
+  const okKey = await ERPCrypto.verifyMasterKey();
+  if (!okKey) {
+    showToast('Master key ไม่ถูกต้อง', 'error');
+    return;
+  }
+
+  if (!confirm(
+    'Backfill password_hash จาก password_encrypted ของสมาชิกทุกคน?\n\n' +
+    '• อ่านทุกแถวที่มี password_encrypted แต่ยังไม่มี password_hash\n' +
+    '• decrypt บน browser (ใช้ master key ที่ตั้งไว้)\n' +
+    '• เขียน hash กลับ Supabase\n\n' +
+    'ใช้เวลาขึ้นกับจำนวนสมาชิก (ประมาณ 1-3 นาทีต่อ 10,000 คน)'
+  )) return;
+
+  showLoading(true);
+  try {
+    // Fetch ทุกแถวที่มี password_encrypted แต่ยังไม่มี password_hash
+    const cols = 'member_code,password_encrypted';
+    const qs = `password_encrypted=not.is.null&password_hash=is.null&select=${cols}&limit=50000`;
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/members?${qs}`, {
+      headers: _sbHeaders({ 'Range-Unit': 'items', Range: '0-49999' }),
+    });
+    if (!res.ok) throw new Error('โหลด members ไม่สำเร็จ (' + res.status + ')');
+    const rows = await res.json();
+
+    if (!rows.length) {
+      showToast('ไม่มีแถวที่ต้อง backfill — ทุกคนมี password_hash แล้ว', 'success');
+      return;
+    }
+
+    let ok = 0, fail = 0;
+    const btn = document.getElementById('btnBackfillHash');
+    const originalText = btn.textContent;
+    for (let i = 0; i < rows.length; i++) {
+      const m = rows[i];
+      btn.textContent = `🔁 ${i + 1}/${rows.length}`;
+      try {
+        const plain = await ERPCrypto.decrypt(m.password_encrypted);
+        if (!plain) { fail++; continue; }
+        const h = await ERPCrypto.hash(plain);
+        const patchRes = await fetch(
+          `${SUPABASE_URL}/rest/v1/members?member_code=eq.${encodeURIComponent(m.member_code)}`,
+          {
+            method: 'PATCH',
+            headers: _sbHeaders({ 'Content-Type': 'application/json' }),
+            body: JSON.stringify({ password_hash: h }),
+          }
+        );
+        if (patchRes.ok) ok++; else fail++;
+      } catch {
+        fail++;
+      }
+    }
+    btn.textContent = originalText;
+
+    showToast(`Backfill เสร็จ: สำเร็จ ${ok} คน${fail ? ` · ผิดพลาด ${fail}` : ''}`, fail ? 'error' : 'success');
+  } catch (e) {
+    showToast('Error: ' + e.message, 'error');
+  } finally {
+    showLoading(false);
+  }
+}
+window.backfillPasswordHash = backfillPasswordHash;
+
 /* ── Master Key Modal ── */
 function openMKModal() {
   const overlay = document.getElementById('mkModalOverlay');

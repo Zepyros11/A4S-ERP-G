@@ -208,6 +208,8 @@
     .cs-stat-card.s-waive  .cs-stat-value { color: #dc2626; }
     .cs-stat-card.s-instead .cs-stat-icon { background: #cffafe; }
     .cs-stat-card.s-instead .cs-stat-value { color: #0891b2; }
+    .cs-stat-card.s-staff  .cs-stat-icon { background: #e0e7ff; }
+    .cs-stat-card.s-staff  .cs-stat-value { color: #4f46e5; }
     /* clickable cards */
     .cs-stat-card { cursor: pointer; }
     .cs-stat-card:active { transform: translateY(1px); }
@@ -974,6 +976,13 @@
       <div>
         <div class="cs-stat-value" id="st-instead">0</div>
         <div class="cs-stat-label">Instead</div>
+      </div>
+    </div>
+    <div class="cs-stat-card s-staff" data-report="staff">
+      <div class="cs-stat-icon">👔</div>
+      <div>
+        <div class="cs-stat-value" id="st-staff">0</div>
+        <div class="cs-stat-label">Staff</div>
       </div>
     </div>
   </div>
@@ -2292,6 +2301,7 @@ function updateStats() {
   const portNone    = all.filter(r => !r.port || r.port.trim() === '').length;
   const waive       = all.filter(r => r.waive).length;
   const insteadCnt  = all.filter(r => (r.instead || '').trim() !== '').length;
+  const staffCnt    = all.filter(r => (r.code || '').trim().toUpperCase().startsWith('STAFF')).length;
 
   document.getElementById('st-total').textContent    = total;
   document.getElementById('st-conf').textContent     = conf;
@@ -2304,6 +2314,7 @@ function updateStats() {
   document.getElementById('st-port-none').textContent = portNone;
   document.getElementById('st-waive').textContent    = waive;
   document.getElementById('st-instead').textContent  = insteadCnt;
+  document.getElementById('st-staff').textContent    = staffCnt;
 }
 
 function sortBy(col) {
@@ -3171,6 +3182,8 @@ const REPORT_CONFIG = {
                  filter: r => !!r.waive },
   instead:     { title: '🔄 Instead — มีคนไปแทน',
                  filter: r => (r.instead || '').trim() !== '' },
+  staff:       { title: '👔 Staff — รหัสขึ้นต้นด้วย STAFF',
+                 filter: r => (r.code || '').trim().toUpperCase().startsWith('STAFF') },
 };
 
 let _currentReportKey = null;

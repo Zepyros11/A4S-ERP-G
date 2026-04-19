@@ -124,75 +124,12 @@ window.ciManualCheckin = async function () {
 };
 
 // ── MEMBER PASSWORD VERIFICATION (manual check-in only) ──
-async function fetchMemberPasswordEnc(memberCode) {
+async function fetchMemberPasswordHash(memberCode) {
   const rows = await sbFetch(
     "members",
-    `?member_code=eq.${encodeURIComponent(memberCode)}&select=password_encrypted&limit=1`,
+    `?member_code=eq.${encodeURIComponent(memberCode)}&select=password_hash&limit=1`,
   ).catch(() => null);
-  return rows?.[0]?.password_encrypted || null;
-}
-
-// Prompt staff to enter master key (one-time per device).
-// Verifies by attempting to decrypt the given sample ciphertext.
-function promptMasterKey(sampleEnc) {
-  return new Promise((resolve) => {
-    const modal = document.getElementById("ciPinModal");
-    const input = document.getElementById("ciPinInput");
-    const err = document.getElementById("ciPinError");
-    const title = document.getElementById("ciPinTitle");
-    const hint = document.getElementById("ciPinHint");
-    const submit = document.getElementById("ciPinSubmit");
-    const cancel = document.getElementById("ciPinCancel");
-
-    title.textContent = "🔑 ตั้งค่า Master Key";
-    hint.innerHTML = `<div class="ci-pin-sub" style="font-size:13px;line-height:1.5">กรอก master key ของระบบ<br>(รหัสเดียวกับที่ใช้บนเครื่อง desktop)<br><span style="font-size:11px;color:#94a3b8">อุปกรณ์นี้จะจำไว้ — ตั้งครั้งเดียว</span></div>`;
-    submit.textContent = "บันทึก";
-    err.textContent = "";
-    input.value = "";
-    input.type = "password";
-    modal.classList.add("open");
-    setTimeout(() => input.focus(), 50);
-
-    const cleanup = () => {
-      modal.classList.remove("open");
-      submit.onclick = null;
-      cancel.onclick = null;
-      input.onkeydown = null;
-    };
-    const finish = (ok) => { cleanup(); resolve(ok); };
-
-    const tryIt = async () => {
-      const v = input.value.trim();
-      if (v.length < 8) {
-        err.textContent = "master key ต้องยาวอย่างน้อย 8 ตัวอักษร";
-        return;
-      }
-      try {
-        ERPCrypto.setMasterKey(v);
-        const r = await ERPCrypto.decrypt(sampleEnc);
-        if (r) {
-          finish(true);
-        } else {
-          ERPCrypto.clearMasterKey();
-          err.textContent = "❌ master key ไม่ถูกต้อง";
-          input.value = "";
-          input.focus();
-        }
-      } catch {
-        ERPCrypto.clearMasterKey();
-        err.textContent = "❌ master key ไม่ถูกต้อง";
-        input.value = "";
-        input.focus();
-      }
-    };
-
-    submit.onclick = tryIt;
-    cancel.onclick = () => finish(false);
-    input.onkeydown = (e) => {
-      if (e.key === "Enter") { e.preventDefault(); tryIt(); }
-      else if (e.key === "Escape") { e.preventDefault(); finish(false); }
-    };
-  });
+  return rows?.[0]?.password_hash || null;
 }
 
 function requireMemberPassword(attendee) {
@@ -207,25 +144,15 @@ function requireMemberPassword(attendee) {
 
     // No member_code → can't verify (e.g. guest attendee) → just allow
     if (!attendee.member_code) return resolve(true);
-
     if (!window.ERPCrypto) return resolve(true);
 
-    // Fetch encrypted password
-    let enc = null;
+    // Fetch stored hash (no master key needed — works on any device)
+    let storedHash = null;
     try {
-      enc = await fetchMemberPasswordEnc(attendee.member_code);
+      storedHash = await fetchMemberPasswordHash(attendee.member_code);
     } catch {}
-
-    // No password on record → allow (fallback)
-    if (!enc) return resolve(true);
-
-    // Decrypt — if master key not set or decrypt fails on this device,
-    // skip password verification (degrade gracefully instead of blocking)
-    let real = null;
-    if (ERPCrypto.hasMasterKey()) {
-      try { real = await ERPCrypto.decrypt(enc); } catch {}
-    }
-    if (!real) return resolve(true);
+    // No hash on record → allow (degrade gracefully for un-backfilled rows)
+    if (!storedHash) return resolve(true);
 
     title.textContent = "🔒 ยืนยันตัวตน";
     hint.innerHTML = `<div class="ci-pin-name">${escapeHtml(attendee.name || "")}</div><div class="ci-pin-sub">กรอกรหัสผ่านของคุณ</div>`;
@@ -245,13 +172,14 @@ function requireMemberPassword(attendee) {
     };
     const finish = (ok) => { cleanup(); resolve(ok); };
 
-    const tryIt = () => {
+    const tryIt = async () => {
       const v = input.value;
       if (!v) {
         err.textContent = "กรุณาใส่รหัสผ่าน";
         return;
       }
-      if (v === real) {
+      const inputHash = await ERPCrypto.hash(v);
+      if (inputHash === storedHash) {
         finish(true);
       } else {
         attempts++;
