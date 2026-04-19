@@ -14,6 +14,7 @@ import {
   deletePlan,
   countRowsByPlan,
   fetchPlaces,
+  fetchEventById,
 } from "./work-plan-api.js";
 
 /* ── Helpers ─────────────────────────────────────────── */
@@ -29,6 +30,7 @@ const qs = new URLSearchParams(location.search);
 const SCOPE = ["event", "cs", "trip"].includes(qs.get("scope"))
   ? qs.get("scope")
   : "event";
+const EVENT_ID = qs.get("event_id") ? parseInt(qs.get("event_id"), 10) : null;
 const SCOPE_META = {
   event: { title: "📋 แผนงาน — Event", sub: "วางแผนกิจกรรม (Event) เป็นตาราง" },
   cs:    { title: "📋 แผนงาน — CS",    sub: "วางแผนงานฝั่ง Customer Service" },
@@ -43,6 +45,7 @@ const state = {
   rowCounts: {},
   editingPlanId: null,
   editingDeptId: null,
+  linkedEvent: null, // event ที่ filter อยู่ (ถ้ามี)
 };
 
 /* ── Init ───────────────────────────────────────────── */
@@ -53,6 +56,9 @@ async function init() {
   $("heroSub").textContent = SCOPE_META[SCOPE].sub;
   $("wpHero").className = `wp-hero scope-${SCOPE}`;
 
+  // Central Esc handler — closes topmost overlay/modal first
+  document.addEventListener("keydown", onGlobalEsc);
+
   // init year select
   const yearSel = $("filterYear");
   const thisYear = new Date().getFullYear() + 543; // พ.ศ.
@@ -62,8 +68,134 @@ async function init() {
   }
   $("planYearInput").value = thisYear;
 
+  // ถ้ามาจาก events-list (มี event_id) → auto-flow
+  if (EVENT_ID) {
+    await loadLinkedEvent();
+    await handleEventFlow();
+    return; // จบที่นี่ (redirect หรือรอ user ใน list)
+  }
+
   await Promise.all([loadDepartments(), loadPlaces(), loadPlans()]);
 }
+
+/* ── Auto-flow เมื่อมาจาก events-list ──────────────── */
+async function handleEventFlow() {
+  if (!state.linkedEvent) {
+    // event ไม่เจอ — กลับไปหน้า events
+    toast("ไม่พบ event นี้", "error");
+    setTimeout(() => (window.location.href = "../event/events-list.html"), 1500);
+    return;
+  }
+  showLoading(true);
+  try {
+    let plans;
+    try {
+      plans = await fetchPlans({ scope: SCOPE, eventId: EVENT_ID });
+    } catch (err) {
+      if (/event_id/.test(err.message || "")) {
+        showLoading(false);
+        toast("ยังไม่ได้รัน migration — กรุณา run sql/026_work_plans_event_link.sql", "error");
+        console.error("Migration 026 not applied:", err);
+        return;
+      }
+      throw err;
+    }
+    if (plans.length === 1) {
+      // มีแผนเดียว → เปิดหน้า edit เลย
+      window.location.href = `./work-plan-edit.html?id=${plans[0].id}&scope=${SCOPE}`;
+      return;
+    }
+    if (plans.length > 1) {
+      // หลายแผน → โชว์ list ให้เลือก
+      state.plans = plans;
+      state.rowCounts = {};
+      plans.forEach((p) => {
+        state.rowCounts[p.id] = p.work_plan_rows?.[0]?.count || 0;
+      });
+      await loadDepartments();
+      renderCards();
+      showLoading(false);
+      return;
+    }
+    // ไม่มีแผน → สร้างใหม่อัตโนมัติ แล้วเด้งเข้าหน้าแก้
+    await autoCreatePlanForEvent();
+  } catch (e) {
+    console.error(e);
+    toast("ไม่สามารถดึงข้อมูลแผนได้: " + e.message, "error");
+    showLoading(false);
+  }
+}
+
+async function autoCreatePlanForEvent() {
+  const ev = state.linkedEvent;
+  // รองรับ column name หลายแบบ (ขึ้นกับ schema events ที่มีอยู่)
+  const startDate = ev.event_date || ev.start_date || null;
+  const endDate = ev.event_end_date || ev.end_date || ev.event_date_end || startDate;
+  // ใช้เฉพาะ event_name เป็นชื่อแผน (ไม่ต้องใส่ event_code/SKU prefix)
+  const planName = ev.event_name;
+  const year = startDate
+    ? new Date(startDate).getFullYear() + 543
+    : new Date().getFullYear() + 543;
+  const payload = {
+    scope: SCOPE,
+    event_id: EVENT_ID,
+    plan_name: planName,
+    year,
+    event_start: startDate,
+    event_end: endDate,
+  };
+  // default แผนก = BRE สำหรับหน้า Event (ถ้ามีแผนกชื่อ BRE ในระบบ)
+  if (SCOPE === "event") {
+    if (!state.departments.length) await loadDepartments();
+    const bre = findDeptByName("BRE");
+    if (bre) payload.dept_id = bre.id;
+  }
+  if (window.ERP_USER?.user_id) payload.created_by = window.ERP_USER.user_id;
+  try {
+    const row = await createPlan(payload);
+    toast("สร้างแผนงานให้อัตโนมัติ", "success");
+    window.location.href = `./work-plan-edit.html?id=${row.id}&scope=${SCOPE}`;
+  } catch (e) {
+    toast("สร้างแผนไม่สำเร็จ: " + e.message, "error");
+    showLoading(false);
+  }
+}
+
+async function loadLinkedEvent() {
+  try {
+    state.linkedEvent = await fetchEventById(EVENT_ID);
+    if (!state.linkedEvent) {
+      console.warn(`Event ${EVENT_ID} not found (no row returned)`);
+    } else {
+      renderEventBanner();
+    }
+  } catch (e) {
+    console.error("loadLinkedEvent error:", e);
+    toast("โหลดข้อมูล event ไม่สำเร็จ: " + e.message, "error");
+  }
+}
+
+function renderEventBanner() {
+  const ev = state.linkedEvent;
+  if (!ev) return;
+  // inject banner ใต้ hero
+  const existing = document.querySelector(".wp-event-banner");
+  if (existing) existing.remove();
+  const banner = document.createElement("div");
+  banner.className = "wp-event-banner";
+  banner.innerHTML = `
+    <div class="wp-event-banner-icon">🎯</div>
+    <div class="wp-event-banner-body">
+      <div class="wp-event-banner-lbl">แผนงานของ Event</div>
+      <div class="wp-event-banner-name">${escapeHtml(ev.event_name)}${ev.event_code ? ` <span style="opacity:.6;font-size:12px">(${escapeHtml(ev.event_code)})</span>` : ""}</div>
+    </div>
+    <a href="./events-list.html" style="padding:6px 12px;background:#fff;color:#1e40af;border-radius:16px;font-weight:600;font-size:12px;text-decoration:none">← กลับ Events</a>
+  `;
+  banner.querySelector("a").setAttribute("href", "../event/events-list.html");
+  const filter = document.querySelector(".wp-filter");
+  filter.parentNode.insertBefore(banner, filter);
+}
+
 
 /* ── Load places for location autocomplete ─────────── */
 async function loadPlaces() {
@@ -183,15 +315,14 @@ window.addEventListener("resize", () => {
   const pop = $("placePop");
   if (pop && pop.style.display !== "none") positionPlacePop();
 });
-/* Enter key → close popup (allow free text) */
+/* Enter key on location input → close popup (allow free text) */
 document.addEventListener("keydown", (e) => {
+  if (e.key !== "Enter") return;
   const pop = $("placePop");
   if (!pop || pop.style.display === "none") return;
-  if (e.key === "Escape" || e.key === "Enter") {
-    if (e.target === $("planLocationInput")) {
-      e.preventDefault();
-      pop.style.display = "none";
-    }
+  if (e.target === $("planLocationInput")) {
+    e.preventDefault();
+    pop.style.display = "none";
   }
 });
 
@@ -235,22 +366,33 @@ function renderDeptList() {
 
 /* ── Load plans ─────────────────────────────────────── */
 async function loadPlans() {
+  showLoading(true);
   try {
     const deptId = $("filterDept").value || null;
     const year = $("filterYear").value || null;
-    state.plans = await fetchPlans({ scope: SCOPE, year, deptId });
+    state.plans = await fetchPlans({ scope: SCOPE, year, deptId, eventId: EVENT_ID });
 
-    const ids = state.plans.map((p) => p.id);
-    state.rowCounts = await countRowsByPlan(ids);
+    // Row count ถูก embed มาใน response แล้ว (work_plan_rows: [{count}])
+    state.rowCounts = {};
+    state.plans.forEach((p) => {
+      const c = p.work_plan_rows?.[0]?.count || 0;
+      state.rowCounts[p.id] = c;
+    });
     renderCards();
   } catch (e) {
     console.error(e);
     toast("โหลดแผนงานไม่สำเร็จ: " + e.message, "error");
+  } finally {
+    showLoading(false);
   }
 }
 
+function showLoading(on) {
+  $("loadingOverlay")?.classList.toggle("show", !!on);
+}
+
 function renderCards() {
-  const grid = $("wpGrid");
+  const body = $("wpListBody");
   const search = $("filterSearch").value.trim().toLowerCase();
   const deptMap = Object.fromEntries(state.departments.map((d) => [d.id, d]));
 
@@ -263,38 +405,36 @@ function renderCards() {
   });
 
   if (!filtered.length) {
-    grid.innerHTML = "";
+    body.innerHTML = "";
+    document.querySelector(".wp-list-wrap").style.display = "none";
     $("wpEmpty").style.display = "block";
     return;
   }
+  document.querySelector(".wp-list-wrap").style.display = "block";
   $("wpEmpty").style.display = "none";
 
-  grid.innerHTML = filtered
-    .map((p) => {
+  body.innerHTML = filtered
+    .map((p, idx) => {
       const dept = deptMap[p.dept_id];
       const deptBadge = dept
-        ? `<span class="wp-card-dept" style="background:${dept.color}">${escapeHtml(dept.name)}</span>`
-        : "";
+        ? `<span class="wp-dept-pill" style="background:${dept.color}">${escapeHtml(dept.name)}</span>`
+        : `<span style="color:var(--text3);font-size:12px">—</span>`;
       const dateStr = formatPlanDate(p.event_start, p.event_end);
       const rowCount = state.rowCounts[p.id] || 0;
-      const borderColor = dept ? dept.color : "#4a90e2";
       return `
-        <div class="wp-card" style="border-left-color:${borderColor}" onclick="window.openPlan(${p.id})">
-          <div class="wp-card-name">${escapeHtml(p.plan_name || "ไม่มีชื่อ")}</div>
-          <div class="wp-card-meta">
-            ${deptBadge}
-            <span>📅 ${p.year}</span>
-            ${dateStr ? `<span>🗓 ${dateStr}</span>` : ""}
-          </div>
-          ${p.location ? `<div class="wp-card-meta">📍 ${escapeHtml(p.location)}</div>` : ""}
-          <div class="wp-card-footer">
-            <div class="wp-card-rows">${rowCount} แถว</div>
-            <div class="wp-card-actions" onclick="event.stopPropagation()">
-              <button title="แก้ข้อมูล" onclick="window.editPlanInfo(${p.id})">✏️</button>
-              <button title="ลบ" onclick="window.removePlan(${p.id})">🗑</button>
-            </div>
-          </div>
-        </div>`;
+        <tr class="wp-list-row" onclick="window.openPlan(${p.id})">
+          <td class="wp-list-no">${idx + 1}</td>
+          <td class="wp-list-name">${escapeHtml(p.plan_name || "ไม่มีชื่อ")}</td>
+          <td>${deptBadge}</td>
+          <td style="text-align:center">${escapeHtml(p.year || "")}</td>
+          <td>${dateStr ? `<span class="wp-list-date">${dateStr}</span>` : `<span style="color:var(--text3)">—</span>`}</td>
+          <td>${p.location ? `<span class="wp-list-loc">📍 ${escapeHtml(p.location)}</span>` : `<span style="color:var(--text3)">—</span>`}</td>
+          <td style="text-align:center"><span class="wp-list-count">${rowCount}</span></td>
+          <td class="wp-list-actions" onclick="event.stopPropagation()">
+            <button title="แก้ข้อมูล" onclick="window.editPlanInfo(${p.id})">✏️</button>
+            <button title="ลบ" onclick="window.removePlan(${p.id})">🗑</button>
+          </td>
+        </tr>`;
     })
     .join("");
 }
@@ -321,15 +461,41 @@ window.openPlanModal = () => {
   state.editingPlanId = null;
   $("planModalTitle").textContent = "สร้างแผนงานใหม่";
   $("planNameInput").value = "";
-  $("planDeptInput").value = "";
+  // default แผนก = BRE สำหรับหน้า Event
+  let defaultDeptId = "";
+  if (SCOPE === "event") {
+    const bre = findDeptByName("BRE");
+    if (bre) defaultDeptId = String(bre.id);
+  }
+  $("planDeptInput").value = defaultDeptId;
   $("planYearInput").value = new Date().getFullYear() + 543;
   $("planStartInput").value = "";
   $("planEndInput").value = "";
   $("planLocationInput").value = "";
   syncDurationChips();
+  renderScopeBadge();
   $("planModal").classList.add("open");
   setTimeout(() => $("planNameInput").focus(), 50);
 };
+
+function renderScopeBadge() {
+  const badge = $("planScopeBadge");
+  if (!badge) return;
+  const meta = {
+    event: { icon: "🗓️", label: "Event", cls: "scope-event" },
+    cs:    { icon: "🎁", label: "CS", cls: "scope-cs" },
+    trip:  { icon: "✈️", label: "Trip", cls: "scope-trip" },
+  }[SCOPE];
+  badge.className = `wp-scope-badge ${meta.cls}`;
+  badge.innerHTML = `
+    <span class="wp-scope-badge-icon">${meta.icon}</span>
+    <div class="wp-scope-badge-body">
+      <div class="wp-scope-badge-label">ประเภท</div>
+      <div class="wp-scope-badge-value">${meta.label}</div>
+    </div>
+    <span class="wp-scope-badge-hint">จาก sidebar — เปลี่ยนได้จากเมนู</span>
+  `;
+}
 window.editPlanInfo = (id) => {
   const p = state.plans.find((x) => x.id === id);
   if (!p) return;
@@ -342,6 +508,7 @@ window.editPlanInfo = (id) => {
   $("planEndInput").value = p.event_end || "";
   $("planLocationInput").value = p.location || "";
   syncDurationChips();
+  renderScopeBadge();
   $("planModal").classList.add("open");
 };
 window.closePlanModal = () => $("planModal").classList.remove("open");
@@ -399,23 +566,23 @@ window.savePlan = async () => {
     event_end: $("planEndInput").value || null,
     location: $("planLocationInput").value.trim() || null,
   };
-  if (!state.editingPlanId && window.ERP_USER?.user_id) {
-    payload.created_by = window.ERP_USER.user_id;
+  if (!state.editingPlanId) {
+    // ถ้ามาจาก events-list → link กับ event_id
+    if (EVENT_ID) payload.event_id = EVENT_ID;
+    if (window.ERP_USER?.user_id) payload.created_by = window.ERP_USER.user_id;
   }
   try {
     if (state.editingPlanId) {
       await updatePlan(state.editingPlanId, payload);
       toast("แก้ไขสำเร็จ", "success");
+      window.closePlanModal();
+      await loadPlans();
     } else {
       const row = await createPlan(payload);
       toast("สร้างแผนสำเร็จ", "success");
       window.closePlanModal();
-      // เปิดหน้าแก้ทันที
       window.location.href = `./work-plan-edit.html?id=${row.id}&scope=${SCOPE}`;
-      return;
     }
-    window.closePlanModal();
-    await loadPlans();
   } catch (e) {
     console.error(e);
     toast("บันทึกไม่สำเร็จ: " + e.message, "error");
@@ -501,7 +668,42 @@ window.removeDept = (id) => {
   );
 };
 
+/* ── Central Esc handler (topmost first) ──────── */
+function onGlobalEsc(e) {
+  if (e.key !== "Escape") return;
+
+  // 1) Place autocomplete popup (topmost)
+  const placePop = $("placePop");
+  if (placePop && placePop.style.display !== "none") {
+    placePop.style.display = "none";
+    e.stopPropagation();
+    return;
+  }
+
+  // 2) Department modal
+  if ($("deptModal")?.classList.contains("open")) {
+    window.closeDeptModal();
+    e.stopPropagation();
+    return;
+  }
+
+  // 3) Plan modal
+  if ($("planModal")?.classList.contains("open")) {
+    window.closePlanModal();
+    e.stopPropagation();
+    return;
+  }
+}
+
 /* ── util ─────────────────────────────────────────── */
+function findDeptByName(name) {
+  const key = String(name || "").trim().toUpperCase();
+  return (
+    state.departments.find(
+      (d) => String(d.name || "").trim().toUpperCase() === key
+    ) || null
+  );
+}
 function escapeHtml(s) {
   return String(s ?? "").replace(/[&<>"']/g, (c) =>
     ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])

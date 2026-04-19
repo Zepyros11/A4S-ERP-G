@@ -85,6 +85,9 @@ async function init() {
     showLoading(false);
   }
 
+  // Central Esc handler — topmost overlay/popup first
+  document.addEventListener("keydown", onGlobalEsc);
+
   // Global click → close popovers
   document.addEventListener("click", (e) => {
     const pop = $("assigneePop");
@@ -106,7 +109,7 @@ async function init() {
 }
 
 function showLoading(on) {
-  $("loadingOverlay").classList.toggle("active", !!on);
+  $("loadingOverlay")?.classList.toggle("show", !!on);
 }
 
 /* ── Place datalist (autocomplete) ───────────────── */
@@ -428,9 +431,6 @@ document.addEventListener("click", (e) => {
   if (e.target.closest("#timePickerPop")) return;
   if (e.target.closest(".wp-time-btn")) return;
   closeTimePicker();
-});
-document.addEventListener("keydown", (e) => {
-  if (e.key === "Escape") closeTimePicker();
 });
 window.addEventListener("scroll", () => {
   if (_activeTimeBtn) closeTimePicker();
@@ -1015,6 +1015,42 @@ window.deletePlanFromEdit = () => {
     }
   );
 };
+
+/* ── Central Esc handler (topmost first) ──────── */
+function onGlobalEsc(e) {
+  if (e.key !== "Escape") return;
+
+  // 1) Time picker popup
+  const tp = $("timePickerPop");
+  if (tp && tp.style.display !== "none") {
+    closeTimePicker();
+    e.stopPropagation();
+    return;
+  }
+
+  // 2) Assignee picker
+  const ap = $("assigneePop");
+  if (ap && ap.style.display !== "none") {
+    ap.style.display = "none";
+    e.stopPropagation();
+    return;
+  }
+
+  // 3) Column menu
+  const cm = $("colMenuPop");
+  if (cm && cm.style.display !== "none") {
+    cm.style.display = "none";
+    e.stopPropagation();
+    return;
+  }
+
+  // 4) Add-column modal
+  if ($("colModal")?.classList.contains("open")) {
+    window.closeColModal();
+    e.stopPropagation();
+    return;
+  }
+}
 
 /* ── util ─────────────────────────────────────────── */
 function escapeHtml(s) {

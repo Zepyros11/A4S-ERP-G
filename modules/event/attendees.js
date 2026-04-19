@@ -95,11 +95,36 @@ async function uploadSlip(eventId, file) {
   }
   return `${url}/storage/v1/object/public/event-files/${path}`;
 }
+// Generate short event code from event_name (initials) — fallback to event_code tail / event_id
+function getEventShortCode(ev) {
+  if (!ev) return "";
+  const name = (ev.event_name || "").trim();
+  if (name) {
+    const initials = name
+      .split(/\s+/)
+      .map((w) => {
+        const clean = w.replace(/[^A-Za-z0-9\u0E00-\u0E7F]/g, "");
+        return clean ? clean.charAt(0) : "";
+      })
+      .filter(Boolean)
+      .join("")
+      .toUpperCase();
+    if (initials) return initials;
+  }
+  const parts = (ev.event_code || "").split("-");
+  const tail = parts[parts.length - 1];
+  return tail || String(ev.event_id || "");
+}
+
 async function generateTicketNo(eventId) {
   const { url, key } = getSB();
-  const prefix = `TK-${eventId}-`;
+  const ev = currentEvent || allEvents.find((e) => e.event_id === eventId);
+  const shortCode = getEventShortCode(ev) || String(eventId);
+  const newPrefix = `A4S-${shortCode}-`;
+  // Query ALL tickets for this event (any prefix) so running number stays continuous
+  // even when legacy tickets used different prefixes (TK-, A4S-<eventId>-, etc.)
   const res = await fetch(
-    `${url}/rest/v1/event_attendees?ticket_no=like.${prefix}*&select=ticket_no`,
+    `${url}/rest/v1/event_attendees?event_id=eq.${eventId}&select=ticket_no`,
     { headers: { apikey: key, Authorization: `Bearer ${key}` } },
   );
   const rows = await res.json().catch(() => []);
@@ -109,7 +134,7 @@ async function generateTicketNo(eventId) {
     const n = parseInt(parts[parts.length - 1], 10);
     if (!isNaN(n) && n > maxSeq) maxSeq = n;
   });
-  return `${prefix}${String(maxSeq + 1).padStart(4, "0")}`;
+  return `${newPrefix}${String(maxSeq + 1).padStart(4, "0")}`;
 }
 async function createAttendee(data) {
   const res = await sbFetch("event_attendees", "", {
@@ -1528,9 +1553,9 @@ window.openQrModal = function (attendeeId) {
   _qrModalAtt = a;
 
   document.getElementById("qrInfo").innerHTML = `
-    <div style="font-weight:700;font-size:15px">${escapeHtml(a.name)}</div>
-    ${a.member_code ? `<div style="font-size:12px;color:var(--text3)">${escapeHtml(a.member_code)}</div>` : ""}
-    ${currentEvent?.event_name ? `<div style="font-size:12px;color:var(--text3);margin-top:4px">${escapeHtml(currentEvent.event_name)}</div>` : ""}`;
+    <div class="qr-name">${escapeHtml(a.name)}</div>
+    ${a.member_code ? `<div class="qr-member">${escapeHtml(a.member_code)}</div>` : ""}
+    ${currentEvent?.event_name ? `<div class="qr-event">${escapeHtml(currentEvent.event_name)}</div>` : ""}`;
   document.getElementById("qrTicketNo").textContent = a.ticket_no || `ID-${a.attendee_id}`;
 
   // QR payload = ticket_no (หรือ fallback attendee_id) — scanner ใช้เทียบกับ DB
@@ -1723,9 +1748,88 @@ window.copyBulkMessages = async function () {
   }
 };
 
+// ═══════════════════════════════════════════════════════════
+// AUTO-REFRESH — poll Supabase ทุก 20 วิ + เมื่อ tab โฟกัสกลับมา
+// ข้ามการ refresh ถ้าผู้ใช้กำลังแก้ไข/เปิด modal/save ค้าง
+// ═══════════════════════════════════════════════════════════
+const AUTO_REFRESH_MS = 20000;
+let _autoRefreshTimer = null;
+let _refreshInFlight = false;
+
+function startAutoRefresh() {
+  if (_autoRefreshTimer) return;
+  _autoRefreshTimer = setInterval(refreshAttendeesSilent, AUTO_REFRESH_MS);
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") refreshAttendeesSilent();
+  });
+  window.addEventListener("focus", refreshAttendeesSilent);
+}
+
+function _isUserBusy() {
+  // 1) Any modal/overlay open → skip
+  if (document.querySelector('[class*="-overlay"].open, [class*="-overlay"].show')) return true;
+  // 2) User typing in a new-row (ยังไม่กด save)
+  if (newRows.some((r) => r.name || r.phone || r.memberCode || r.saving)) return true;
+  // 3) Focused input inside the saved-rows table (filter/edit)
+  const act = document.activeElement;
+  if (act && act.tagName === "INPUT" && act.closest("tbody")) return true;
+  return false;
+}
+
+function _snapshotAttendees(arr) {
+  return (arr || [])
+    .map((a) =>
+      [
+        a.attendee_id,
+        a.name || "",
+        a.ticket_no || "",
+        a.member_code || "",
+        a.phone || "",
+        a.payment_status || "",
+        a.paid_amount || 0,
+        a.position_level || "",
+        a.checked_in ? 1 : 0,
+        a.check_in_at || "",
+        (a.tags || []).join("|"),
+      ].join("¦"),
+    )
+    .join("‖");
+}
+
+async function refreshAttendeesSilent() {
+  if (!currentEventId) return;
+  if (_refreshInFlight) return;
+  if (document.visibilityState === "hidden") return;
+  if (_isUserBusy()) return;
+
+  _refreshInFlight = true;
+  try {
+    const fresh = await fetchAttendees(currentEventId);
+    if (!fresh) return;
+    if (_snapshotAttendees(fresh) === _snapshotAttendees(allAttendees)) return;
+    // Re-check busy before clobbering (user may have started editing mid-fetch)
+    if (_isUserBusy()) return;
+
+    const prevCheckedCount = allAttendees.filter((a) => a.checked_in).length;
+    allAttendees = fresh;
+    populateTagFilter();
+    updateStats();
+    filterTable();
+
+    const newCheckedCount = fresh.filter((a) => a.checked_in).length;
+    if (newCheckedCount > prevCheckedCount) {
+      showToast(`🔄 มีคน check-in เพิ่ม (+${newCheckedCount - prevCheckedCount})`, "success");
+    }
+  } catch (e) {
+    console.warn("auto-refresh failed:", e.message || e);
+  } finally {
+    _refreshInFlight = false;
+  }
+}
+
 // ── START ─────────────────────────────────────────────────
 if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", initPage);
+  document.addEventListener("DOMContentLoaded", () => initPage().then(startAutoRefresh));
 } else {
-  initPage();
+  initPage().then(startAutoRefresh);
 }

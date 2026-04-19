@@ -295,22 +295,14 @@ window.switchListTab = function (tab, btn) {
   const isEvents = tab === "events";
   document.getElementById("tabContentEvents").style.display = isEvents ? "" : "none";
   document.getElementById("tabContentChatrooms").style.display = !isEvents ? "" : "none";
-  document.getElementById("toolbarEvents").style.display = isEvents ? "" : "none";
-  document.getElementById("statsEvents").style.display = isEvents ? "" : "none";
   document.getElementById("tableCount").style.display = isEvents ? "" : "none";
   if (tab === "chatrooms") renderChatrooms();
 };
 
 function renderChatrooms() {
-  const today = new Date().toISOString().split("T")[0];
-  // filter: has messages & event not yet passed (end_date >= today)
+  // filter: show every event that has messages (regardless of date)
   const rooms = allEvents
-    .filter((e) => {
-      const total = _evChatCountCache[e.event_id]?.total || 0;
-      if (total === 0) return false;
-      const endDate = e.end_date || e.event_date;
-      return endDate >= today;
-    })
+    .filter((e) => (_evChatCountCache[e.event_id]?.total || 0) > 0)
     .sort((a, b) => {
       const la = _evChatCountCache[a.event_id]?.latest || "";
       const lb = _evChatCountCache[b.event_id]?.latest || "";
@@ -367,9 +359,8 @@ function renderChatrooms() {
 }
 
 function updateChatroomBadge() {
-  const today = new Date().toISOString().split("T")[0];
   const totalUnread = allEvents
-    .filter(e => (_evChatCountCache[e.event_id]?.total || 0) > 0 && (e.end_date || e.event_date) >= today)
+    .filter(e => (_evChatCountCache[e.event_id]?.total || 0) > 0)
     .reduce((sum, e) => sum + getEvChatUnread(e.event_id), 0);
   const badge = document.getElementById("chatroomBadge");
   if (badge) {
@@ -704,7 +695,7 @@ function renderTable(events) {
       </td>
       <td>
         <div class="event-name">${escapeHtml(e.event_name || "—")}${unreadBadge}</div>
-        <div class="event-code">${escapeHtml(e.event_code || "—")}${e._seriesBadge || ''}${e.registration_enabled ? ' <span style="display:inline-block;padding:1px 6px;border-radius:4px;font-size:9.5px;font-weight:600;background:#d1fae5;color:#065f46;margin-left:3px">📋 ลงทะเบียน</span>' : ''}${e.members_only ? '<span style="display:inline-block;padding:1px 6px;border-radius:4px;font-size:9.5px;font-weight:600;background:#fef3c7;color:#92400e;margin-left:3px">👤 MLM Only</span>' : ''}</div>
+        <div class="event-code">${e._seriesBadge || ''}${e.registration_enabled ? '<span style="display:inline-block;padding:1px 6px;border-radius:4px;font-size:9.5px;font-weight:600;background:#d1fae5;color:#065f46;margin-right:3px">📋 ลงทะเบียน</span>' : ''}${e.members_only ? '<span style="display:inline-block;padding:1px 6px;border-radius:4px;font-size:9.5px;font-weight:600;background:#fef3c7;color:#92400e;margin-right:3px">👤 MLM Only</span>' : ''}</div>
       </td>
       <td>${escapeHtml(e.location || "—")}</td>
       <td>
@@ -718,6 +709,7 @@ function renderTable(events) {
         <div class="action-group">
           <button class="btn-icon ${pinned ? "btn-pin-active" : "btn-pin"}" title="${pinned ? "ยกเลิกปักหมุด" : "ปักหมุด"}" onclick="window.togglePin(${e.event_id}, event)">📌</button>
           <button class="btn-icon" title="ผู้เข้าร่วม" onclick="window.location.href='./attendees.html?event=${e.event_id}'">👥</button>
+          <button class="btn-icon" title="แผนงาน" onclick="window.location.href='../work-plan/work-plan-list.html?scope=event&event_id=${e.event_id}'">📋</button>
           <button class="btn-icon" title="แก้ไข" onclick="window.location.href='./event-form.html?id=${e.event_id}'">✏️</button>
           <button class="btn-icon danger" title="ลบ" onclick="window.deleteEvent(${e.event_id})">🗑</button>
         </div>
@@ -1239,9 +1231,12 @@ async function loadPopupChat(silent = false) {
       if (isRight) { bg = "#ede9fe"; border = "#c4b5fd"; textColor = "#4c1d95"; }
       else { bg = "#fffbeb"; border = "#fcd34d"; textColor = "#92400e"; }
       const br = isRight ? "14px 4px 14px 14px" : "4px 14px 14px 14px";
-      return `<div style="display:flex;flex-direction:column;max-width:82%;align-self:${isRight ? "flex-end" : "flex-start"};align-items:${isRight ? "flex-end" : "flex-start"}">
+      return `<div class="popup-bubble-row" style="display:flex;flex-direction:column;max-width:82%;align-self:${isRight ? "flex-end" : "flex-start"};align-items:${isRight ? "flex-end" : "flex-start"}">
         <div style="font-size:10px;font-weight:700;color:#94a3b8;margin-bottom:3px">${escapeHtml(author)}</div>
-        <div style="background:${bg};border:1.5px solid ${border};border-radius:${br};padding:8px 12px;font-size:13px;line-height:1.5;color:${textColor};word-break:break-word">${escapeHtml(l.message || "")}</div>
+        <div style="position:relative;display:flex;align-items:center;gap:6px;flex-direction:${isRight ? "row-reverse" : "row"}">
+          <div style="background:${bg};border:1.5px solid ${border};border-radius:${br};padding:8px 12px;font-size:13px;line-height:1.5;color:${textColor};word-break:break-word">${escapeHtml(l.message || "")}</div>
+          <button class="popup-bubble-del" onclick="window.deletePopupChat(${l.id})" title="ลบ" style="opacity:0;transition:opacity .12s;background:#fff;border:1px solid #e2e8f0;border-radius:6px;padding:2px 6px;font-size:12px;cursor:pointer;color:#64748b">🗑</button>
+        </div>
         <div style="font-size:10px;color:#94a3b8;margin-top:3px">${time}</div>
       </div>`;
     }).join("");
@@ -1251,6 +1246,20 @@ async function loadPopupChat(silent = false) {
     if (!silent) log.innerHTML = `<p style="text-align:center;color:#ef4444;font-size:12px">โหลดไม่ได้</p>`;
   }
 }
+
+window.deletePopupChat = function (logId) {
+  DeleteModal.open("ต้องการลบข้อความนี้หรือไม่?", async () => {
+    const { url, key } = getSBLocal();
+    try {
+      await fetch(`${url}/rest/v1/event_chat_logs?id=eq.${logId}`, {
+        method: "DELETE",
+        headers: { apikey: key, Authorization: `Bearer ${key}`, Prefer: "return=minimal" },
+      });
+      await loadPopupChat();
+      await refreshEvChatCounts();
+    } catch {}
+  });
+};
 
 window.submitPopupChat = async function () {
   const input = document.getElementById("popupChatInput");

@@ -47,6 +47,26 @@ function showLoading(on) {
   if (el) el.style.display = on ? 'flex' : 'none';
 }
 
+/* Custom confirm dialog — returns Promise<boolean> */
+let _dsConfirmResolver = null;
+function dsConfirm(msg, opts = {}) {
+  const modal = $('dsConfirm');
+  $('dsConfirmTitle').textContent = opts.title || 'ยืนยัน';
+  $('dsConfirmMsg').innerHTML = msg;
+  $('dsConfirmIcon').textContent = opts.icon || '⚠️';
+  modal.classList.add('open');
+  return new Promise(resolve => { _dsConfirmResolver = resolve; });
+}
+function dsConfirmResolve(result) {
+  $('dsConfirm').classList.remove('open');
+  if (_dsConfirmResolver) { _dsConfirmResolver(result); _dsConfirmResolver = null; }
+}
+document.addEventListener('keydown', (e) => {
+  if (!$('dsConfirm')?.classList.contains('open')) return;
+  if (e.key === 'Escape') dsConfirmResolve(false);
+  if (e.key === 'Enter') dsConfirmResolve(true);
+});
+
 async function sbGet(path) {
   const res = await fetch(`${SB_URL}/rest/v1/${path}`, {
     headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` },
@@ -425,7 +445,11 @@ async function dsSyncNow() {
     return;
   }
 
-  if (!confirm('สั่ง GitHub Actions sync Daily Sale ตอนนี้?')) return;
+  const ok = await dsConfirm('สั่ง GitHub Actions sync Daily Sale ตอนนี้?', {
+    title: 'ยืนยันการ Sync',
+    icon: '🔄',
+  });
+  if (!ok) return;
 
   showLoading(true);
   try {
@@ -533,5 +557,6 @@ window.dsCloseSyncProgress = dsCloseSyncProgress;
 window.dsRecPrefill = dsRecPrefill;
 window.dsRecSave = dsRecSave;
 window.dsRecOpen = dsRecOpen;
+window.dsConfirmResolve = dsConfirmResolve;
 
 document.addEventListener('DOMContentLoaded', init);

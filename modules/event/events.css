@@ -880,6 +880,10 @@ tr.row-has-unread .event-name {
 .bubble-wrap:hover .bubble-del-btn { opacity: 1; }
 .bubble-del-btn:hover { background: #fee2e2; }
 
+/* popup chat delete button */
+.popup-bubble-row:hover .popup-bubble-del { opacity: 1 !important; }
+.popup-bubble-del:hover { background: #fee2e2 !important; color: #ef4444 !important; }
+
 .bubble-time {
   font-size: 10px;
   color: #94a3b8;

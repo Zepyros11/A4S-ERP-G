@@ -57,6 +57,35 @@
 .wp-hero.scope-cs    { background: linear-gradient(135deg, #0c4a6e, #0ea5e9); }
 .wp-hero.scope-trip  { background: linear-gradient(135deg, #9a3412, #f97316); }
 
+/* ── Event link banner (when ?event_id= is set) ── */
+.wp-event-banner {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: linear-gradient(135deg, #1e40af, #3b82f6);
+  color: #fff;
+  border-radius: 10px;
+  padding: 12px 18px;
+  margin-bottom: 14px;
+  box-shadow: 0 4px 14px rgba(30, 64, 175, 0.2);
+}
+.wp-event-banner-icon {
+  font-size: 24px;
+  line-height: 1;
+}
+.wp-event-banner-body { flex: 1; line-height: 1.3; }
+.wp-event-banner-lbl {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .6px;
+  opacity: 0.85;
+}
+.wp-event-banner-name {
+  font-size: 15px;
+  font-weight: 700;
+}
+
 /* ── FILTER BAR ────────────────────────────────────────── */
 .wp-filter {
   background: var(--surface);
@@ -73,44 +102,117 @@
 .wp-filter select, .wp-filter input { min-width: 140px; }
 
 /* ── CARDS GRID ───────────────────────────────────────── */
-.wp-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 14px;
-}
-.wp-card {
+/* LIST (table) view — แทน card grid */
+.wp-list-wrap {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-left: 4px solid #4a90e2;
   border-radius: 10px;
-  padding: 14px 16px;
-  cursor: pointer;
-  transition: all 0.15s;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  min-height: 110px;
+  overflow: hidden;
 }
-.wp-card:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08); }
-.wp-card-name { font-size: 15px; font-weight: 700; color: var(--text); line-height: 1.3; }
-.wp-card-meta { font-size: 11.5px; color: var(--text3); display: flex; gap: 10px; flex-wrap: wrap; }
-.wp-card-dept {
+.wp-list {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  font-family: inherit;
+}
+.wp-list thead th {
+  background: #f9fafb;
+  text-align: left;
+  padding: 10px 12px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--text2);
+  text-transform: uppercase;
+  letter-spacing: .4px;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+[data-theme="dark"] .wp-list thead th { background: #1f2937; }
+
+.wp-list tbody tr {
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  transition: background .12s;
+}
+.wp-list tbody tr:last-child { border-bottom: none; }
+.wp-list tbody tr:hover { background: #eff6ff; }
+[data-theme="dark"] .wp-list tbody tr:hover { background: #1e3a5f; }
+
+.wp-list td {
+  padding: 10px 12px;
+  vertical-align: middle;
+  color: var(--text);
+}
+.wp-list-no {
+  color: var(--text3);
+  font-size: 12px;
+  text-align: center;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.wp-list-name {
+  font-weight: 700;
+  color: var(--text);
+  font-size: 13.5px;
+}
+.wp-list-date {
+  font-size: 12.5px;
+  color: var(--text2);
+  font-variant-numeric: tabular-nums;
+}
+.wp-list-loc {
+  font-size: 12.5px;
+  color: var(--text2);
+  display: inline-block;
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+.wp-list-count {
   display: inline-flex;
-  align-items: center;
+  min-width: 26px;
+  padding: 2px 8px;
+  background: var(--bg);
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text2);
+  justify-content: center;
+  font-variant-numeric: tabular-nums;
+}
+.wp-dept-pill {
+  display: inline-block;
+  max-width: 140px;
   font-size: 11px;
   font-weight: 600;
-  padding: 2px 8px;
+  padding: 3px 9px;
   border-radius: 10px;
   color: #fff;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: middle;
 }
-.wp-card-footer { display: flex; justify-content: space-between; align-items: center; margin-top: auto; }
-.wp-card-rows { font-size: 11.5px; color: var(--text3); }
-.wp-card-actions { display: flex; gap: 4px; }
-.wp-card-actions button {
-  border: none; background: transparent; cursor: pointer;
-  padding: 3px 6px; border-radius: 4px; font-size: 13px;
+.wp-list-actions {
+  text-align: right;
+  white-space: nowrap;
 }
-.wp-card-actions button:hover { background: var(--border); }
+.wp-list-actions button {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  padding: 4px 7px;
+  border-radius: 5px;
+  font-size: 13px;
+  color: var(--text3);
+  transition: all .12s;
+}
+.wp-list-actions button:hover {
+  background: var(--bg);
+  color: var(--text);
+}
 
 .wp-empty {
   text-align: center;
@@ -892,6 +994,47 @@
 }
 [data-theme="dark"] .wp-type-btn:hover { background: #1e3a5f; color: #93c5fd; border-color: #3b82f6; }
 [data-theme="dark"] .wp-type-btn.active { background: #1e3a5f; color: #bfdbfe; border-color: #3b82f6; }
+
+/* ── Scope badge (read-only indicator) ─────────── */
+.wp-scope-badge {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  margin-bottom: 14px;
+  border-left: 4px solid;
+}
+.wp-scope-badge.scope-event { background: #dbeafe; border-left-color: #1e40af; color: #1e3a8a; }
+.wp-scope-badge.scope-cs    { background: #e0f2fe; border-left-color: #0ea5e9; color: #075985; }
+.wp-scope-badge.scope-trip  { background: #ffedd5; border-left-color: #ea580c; color: #9a3412; }
+[data-theme="dark"] .wp-scope-badge.scope-event { background: #1e3a5f; color: #bfdbfe; }
+[data-theme="dark"] .wp-scope-badge.scope-cs    { background: #0c4a6e; color: #bae6fd; }
+[data-theme="dark"] .wp-scope-badge.scope-trip  { background: #431407; color: #fed7aa; }
+
+.wp-scope-badge-icon {
+  font-size: 20px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.wp-scope-badge-body { flex: 1; line-height: 1.3; }
+.wp-scope-badge-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .6px;
+  opacity: 0.75;
+}
+.wp-scope-badge-value {
+  font-size: 14px;
+  font-weight: 700;
+}
+.wp-scope-badge-hint {
+  font-size: 10.5px;
+  opacity: 0.7;
+  text-align: right;
+  flex-shrink: 0;
+}
 
 /* ── Duration quick-pick ──────────────────────────── */
 .wp-duration-picker {

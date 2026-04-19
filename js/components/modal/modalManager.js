@@ -1,67 +1,102 @@
 /* =========================================================
    modalManager.js
    Global Modal/Popup ESC-close Controller for A4S-ERP
+
+   Auto-handles ESC keypress on any element matching overlay
+   class patterns. Also provides closeAllModals() utility.
+
+   Generic rules cover *-overlay classes toggled with .open/.show.
+   Special rules handle non-overlay modals (id + .hidden pattern,
+   side panels, imgPopup, etc.).
    ========================================================= */
 
 (function () {
-  // ── SELECTORS for all modal/popup patterns in the system ──
-  // Priority: close the topmost (last matched) first
-  const MODAL_SELECTORS = [
-    // Pattern 0: .promo-modal-overlay.open (promotion modals)
-    { selector: ".promo-modal-overlay.open", close: (el) => el.classList.remove("open") },
-    // Pattern 1: .modal-overlay.open (standard modals)
-    { selector: ".modal-overlay.open", close: (el) => el.classList.remove("open") },
-    // Pattern 2: .pt-modal-overlay.show (place type manager)
-    { selector: ".pt-modal-overlay.show", close: (el) => el.classList.remove("show") },
-    // Pattern 3: [id*="Modal"]:not(.hidden) (booking room modals using hidden class)
+  // ── SPECIAL patterns (non-overlay or non-standard) ──
+  // These run BEFORE the generic rules; order defines priority
+  // when multiple modals are open (last-opened should close first).
+  const SPECIAL_PATTERNS = [
+    // Booking/conflict/request modals using id + .hidden toggle
     { selector: "#bookingModal:not(.hidden)", close: (el) => el.classList.add("hidden") },
     { selector: "#conflictModal:not(.hidden)", close: (el) => el.classList.add("hidden") },
     { selector: "#requestDetailModal:not(.hidden)", close: (el) => el.classList.add("hidden") },
-    // Pattern 4: #popup:not(.hidden) (poster gallery popup)
+    // Poster gallery popup
     { selector: "#popup:not(.hidden)", close: (el) => el.classList.add("hidden") },
-    // Pattern 5: panels with .open class
-    { selector: ".ev-side-panel.open", close: (el) => {
-      el.classList.remove("open");
-      const overlay = document.getElementById("plPanelOverlay");
-      if (overlay) overlay.style.display = "none";
-    }},
-    // Pattern 6: icon picker
-    { selector: ".icon-picker-overlay.show", close: (el) => el.classList.remove("show") },
-    // Pattern 7: imgPopup
-    { selector: "#imgPopupOverlay.show, #imgPopupOverlay[style*='display: flex']", close: (el) => {
-      if (typeof ImgPopup !== "undefined" && ImgPopup.close) ImgPopup.close();
-      else el.style.display = "none";
-    }},
-    // Pattern 8: delete modal
-    { selector: "#deleteModalOverlay.open, .del-modal-overlay.open", close: (el) => el.classList.remove("open") },
+    // Event side panel (with backing overlay element)
+    {
+      selector: ".ev-side-panel.open",
+      close: (el) => {
+        el.classList.remove("open");
+        const overlay = document.getElementById("plPanelOverlay");
+        if (overlay) overlay.style.display = "none";
+      },
+    },
+    // Image popup (inline style driven)
+    {
+      selector: "#imgPopupOverlay.show, #imgPopupOverlay[style*='display: flex']",
+      close: (el) => {
+        if (typeof ImgPopup !== "undefined" && ImgPopup.close) ImgPopup.close();
+        else el.style.display = "none";
+      },
+    },
   ];
+
+  // ── GENERIC patterns ──
+  // Any element with a class ending in "-overlay" that is toggled
+  // with .open or .show counts as a modal. Exclude loading spinners.
+  const GENERIC_PATTERNS = [
+    {
+      selector: '[class*="-overlay"].open:not(.loading-overlay):not(.plPanelOverlay)',
+      close: (el) => el.classList.remove("open"),
+    },
+    {
+      selector: '[class*="-overlay"].show:not(.loading-overlay):not(.plPanelOverlay)',
+      close: (el) => el.classList.remove("show"),
+    },
+  ];
+
+  const ALL_PATTERNS = [...SPECIAL_PATTERNS, ...GENERIC_PATTERNS];
 
   /* ── ESC handler ── */
   document.addEventListener("keydown", function (e) {
     if (e.key !== "Escape") return;
 
-    // find first visible modal and close it
-    for (const pattern of MODAL_SELECTORS) {
-      const el = document.querySelector(pattern.selector);
-      if (el) {
-        e.preventDefault();
-        e.stopPropagation();
-        pattern.close(el);
-        return;
-      }
+    // Ignore ESC when user is in an input and their IME might be composing,
+    // or when focus is on something that expects ESC (shouldn't apply here)
+    if (e.isComposing) return;
+
+    // Collect all currently-open modals across all patterns
+    const openEls = [];
+    for (const pattern of ALL_PATTERNS) {
+      document.querySelectorAll(pattern.selector).forEach((el) => {
+        openEls.push({ el, close: pattern.close });
+      });
     }
+    if (!openEls.length) return;
+
+    // Close the topmost visible modal — use highest z-index, fallback to last in DOM
+    openEls.sort((a, b) => {
+      const za = parseInt(getComputedStyle(a.el).zIndex, 10) || 0;
+      const zb = parseInt(getComputedStyle(b.el).zIndex, 10) || 0;
+      if (za !== zb) return zb - za;
+      // fallback: later in DOM wins
+      const pos = a.el.compareDocumentPosition(b.el);
+      return pos & Node.DOCUMENT_POSITION_FOLLOWING ? 1 : -1;
+    });
+
+    e.preventDefault();
+    e.stopPropagation();
+    openEls[0].close(openEls[0].el);
   });
 
-  /* ── Close all modals (utility) ── */
+  /* ── closeAllModals utility ── */
   function closeAllModals() {
-    MODAL_SELECTORS.forEach((pattern) => {
+    ALL_PATTERNS.forEach((pattern) => {
       document.querySelectorAll(pattern.selector).forEach((el) => pattern.close(el));
     });
   }
 
-  /* ── Click overlay to close ── */
+  /* ── Click overlay background to close (legacy behavior kept for compatibility) ── */
   document.addEventListener("click", function (e) {
-    // only close if clicking directly on the overlay background
     if (e.target.classList.contains("modal-overlay") && e.target.classList.contains("open")) {
       e.target.classList.remove("open");
     }

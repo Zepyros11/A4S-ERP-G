@@ -64,12 +64,22 @@ export async function deleteDepartment(id) {
 }
 
 /* ── Plans ──────────────────────────────────────────────── */
-export async function fetchPlans({ scope, year, deptId }) {
+export async function fetchPlans({ scope, year, deptId, eventId }) {
   const q = [`scope=eq.${scope}`];
   if (year) q.push(`year=eq.${year}`);
   if (deptId) q.push(`dept_id=eq.${deptId}`);
+  if (eventId) q.push(`event_id=eq.${eventId}`);
+  // Embed row count ผ่าน PostgREST (FK relationship → work_plan_rows)
+  q.push("select=*,work_plan_rows(count)");
   q.push("order=event_start.desc.nullslast,created_at.desc");
   return (await sbFetch("work_plans", "?" + q.join("&"))) || [];
+}
+
+/* ── ดึงข้อมูล event (สำหรับ prefill เวลาสร้างแผน) ── */
+export async function fetchEventById(eventId) {
+  // ใช้ select=* เพราะ schema events มี column ไม่แน่นอน (หลีกเลี่ยง 400)
+  const rows = await sbFetch("events", `?event_id=eq.${eventId}&select=*`);
+  return rows?.[0] || null;
 }
 
 export async function fetchPlan(id) {

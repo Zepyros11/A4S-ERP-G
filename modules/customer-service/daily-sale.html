@@ -194,6 +194,19 @@
   </div>
 </div>
 
+<!-- ── Confirm Dialog ── -->
+<div class="ds-confirm" id="dsConfirm" onclick="if(event.target===this)dsConfirmResolve(false)">
+  <div class="ds-confirm-box" role="dialog" aria-modal="true" aria-labelledby="dsConfirmTitle">
+    <div class="ds-confirm-icon" id="dsConfirmIcon">🔄</div>
+    <div class="ds-confirm-title" id="dsConfirmTitle">ยืนยัน</div>
+    <div class="ds-confirm-msg" id="dsConfirmMsg"></div>
+    <div class="ds-confirm-actions">
+      <button class="ds-confirm-cancel" onclick="dsConfirmResolve(false)">ยกเลิก</button>
+      <button class="ds-confirm-ok" onclick="dsConfirmResolve(true)">ตกลง</button>
+    </div>
+  </div>
+</div>
+
 <!-- ── Sync Progress Modal (same pattern as members-sync) ── -->
 <div class="sp-overlay" id="spOverlay" style="position:fixed;inset:0;background:rgba(15,23,42,.6);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;z-index:9998;">
   <div style="background:#fff;border-radius:14px;max-width:440px;width:90%;box-shadow:0 18px 44px rgba(0,0,0,.28);overflow:hidden;">
@@ -229,5 +242,6 @@
   loadTopbar("📊 Daily Sale");
 </script>
 <script src="../../js/components/navigation/sidebar.js"></script>
+<script src="../../js/components/modal/modalManager.js"></script>
 </body>
 </html>

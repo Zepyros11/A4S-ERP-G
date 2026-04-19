@@ -49,14 +49,21 @@ async function init() {
   try {
     const rows = await sbFetch(
       "events",
-      `?event_id=eq.${eventId}&select=event_id,event_name,event_code,event_date,location&limit=1`,
+      `?event_id=eq.${eventId}&select=event_id,event_name,event_code,event_date,location,poster_url&limit=1`,
     );
     eventInfo = rows?.[0];
     if (eventInfo) {
-      document.getElementById("ciEventName").textContent =
-        `✅ ${eventInfo.event_name}`;
-      document.getElementById("ciEventSub").textContent =
-        `[${eventInfo.event_code}] ${eventInfo.location || ""}`;
+      document.getElementById("ciEventName").textContent = eventInfo.event_name;
+      document.getElementById("ciEventSub").textContent = eventInfo.location || "";
+      const posterEl = document.getElementById("ciHeroPoster");
+      if (posterEl) {
+        if (eventInfo.poster_url) {
+          posterEl.innerHTML = `<img src="${eventInfo.poster_url}" alt="${eventInfo.event_name || ""}" />`;
+          posterEl.style.display = "block";
+        } else {
+          posterEl.style.display = "none";
+        }
+      }
     }
   } catch (e) {
     console.warn("load event:", e);
@@ -81,12 +88,27 @@ async function init() {
       `<div style="padding:30px;text-align:center;color:#94a3b8;font-size:13px">กำลังโหลด QR library...</div>`;
   }
 
-  // Manual: Enter key
+  // Manual: Enter key + force latin (strip Thai/non-ASCII, uppercase)
   const manualInput = document.getElementById("manualCode");
   manualInput.addEventListener("keydown", (e) => {
     if (e.key === "Enter") {
       e.preventDefault();
       window.ciManualCheckin();
+    }
+  });
+  manualInput.addEventListener("input", (e) => {
+    const v = e.target.value;
+    const hasThai = /[\u0E00-\u0E7F]/.test(v);
+    const cleaned = v.replace(/[^A-Za-z0-9\-]/g, "").toUpperCase();
+    if (cleaned !== v) {
+      e.target.value = cleaned;
+      if (hasThai) {
+        setResult(
+          "error",
+          "⚠️ Keyboard เป็นภาษาไทย",
+          "เปลี่ยนเป็น EN ก่อนสแกน/พิมพ์ กด ~ หรือ Alt+Shift",
+        );
+      }
     }
   });
 }
@@ -98,6 +120,61 @@ window.ciManualCheckin = async function () {
   await handleScan(code);
 };
 
+// ── SHARE REGISTER LINK ─────────────────────────────────
+function buildRegisterUrl() {
+  if (!eventId) return "";
+  const base = `${location.origin}${location.pathname.replace(/check-in\.html.*$/, "register.html")}`;
+  return `${base}?event=${eventId}`;
+}
+
+window.ciOpenShareLink = function () {
+  const url = buildRegisterUrl();
+  if (!url) {
+    alert("ไม่มี event_id");
+    return;
+  }
+  document.getElementById("shareLinkInput").value = url;
+
+  const wrap = document.getElementById("shareQrCode");
+  wrap.innerHTML = "";
+  try {
+    new QRCode(wrap, {
+      text: url,
+      width: 220,
+      height: 220,
+      correctLevel: QRCode.CorrectLevel.M,
+    });
+  } catch (e) {
+    wrap.textContent = "QR library ยังไม่โหลด — รีเฟรชหน้าอีกครั้ง";
+  }
+  document.getElementById("shareModal").classList.add("open");
+};
+
+window.ciCloseShareLink = function () {
+  document.getElementById("shareModal").classList.remove("open");
+};
+
+window.ciCopyShareLink = async function () {
+  const input = document.getElementById("shareLinkInput");
+  const url = input.value;
+  try {
+    await navigator.clipboard.writeText(url);
+    showCopiedToast();
+  } catch {
+    input.select();
+    document.execCommand("copy");
+    showCopiedToast();
+  }
+};
+
+function showCopiedToast() {
+  const t = document.getElementById("toast");
+  if (!t) return;
+  t.textContent = "✅ คัดลอกลิงก์แล้ว";
+  t.className = "toast toast-success show";
+  setTimeout(() => { t.className = "toast"; }, 1800);
+}
+
 // Debounce duplicate scans within 2 seconds
 async function handleScan(scannedText) {
   const now = Date.now();
@@ -105,8 +182,27 @@ async function handleScan(scannedText) {
   lastScanText = scannedText;
   lastScanAt = now;
 
-  const code = scannedText.trim();
-  if (!code) return;
+  // Normalize: strip whitespace/zero-width, keep alphanumerics + dash, uppercase
+  const raw = String(scannedText || "");
+  const hasThai = /[\u0E00-\u0E7F]/.test(raw);
+  const code = raw
+    .trim()
+    .replace(/[\u200B-\u200D\uFEFF]/g, "")
+    .replace(/[^A-Za-z0-9\-]/g, "")
+    .toUpperCase();
+
+  if (hasThai) {
+    setResult(
+      "error",
+      "⚠️ Keyboard เป็นภาษาไทย",
+      "เปลี่ยนเป็น EN ก่อนสแกน กด ~ หรือ Alt+Shift",
+    );
+    return;
+  }
+  if (!code) {
+    setResult("error", "❌ ไม่สามารถอ่าน QR ได้", "");
+    return;
+  }
 
   setResult("warn", "🔍 กำลังค้นหา...", code);
   try {

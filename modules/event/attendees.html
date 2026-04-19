@@ -233,16 +233,18 @@
          QR CODE MODAL
          ═══════════════════════════════════════ -->
     <div class="att-modal-overlay" id="qrModal">
-      <div class="att-modal qr-modal" style="width:380px">
+      <div class="att-modal qr-modal" style="width:420px;max-width:92vw">
         <div class="att-modal-header">
           <div>🎫 บัตรเข้างาน (QR)</div>
           <button class="btn-icon" onclick="window.closeQrModal()">✕</button>
         </div>
-        <div class="att-modal-body" style="text-align:center">
-          <div id="qrInfo" style="margin-bottom:12px;color:var(--text2)"></div>
-          <div id="qrCodeWrap" style="display:inline-block;padding:12px;background:#fff;border:1px solid var(--border,#e2e8f0);border-radius:10px"></div>
-          <div id="qrTicketNo" style="margin-top:10px;font-family:'IBM Plex Mono',monospace;font-size:15px;font-weight:700;color:#1e40af"></div>
-          <div id="qrHint" style="margin-top:6px;font-size:11px;color:var(--text3)">สแกนเพื่อ Check-in หน้างาน</div>
+        <div class="att-modal-body qr-body">
+          <div id="qrInfo" class="qr-info"></div>
+          <div class="qr-code-frame">
+            <div id="qrCodeWrap" class="qr-code-wrap"></div>
+            <div id="qrTicketNo" class="qr-ticket-no"></div>
+          </div>
+          <div id="qrHint" class="qr-hint">📱 สแกนเพื่อ Check-in หน้างาน</div>
         </div>
         <div class="att-modal-footer">
           <button class="btn btn-secondary" onclick="window.closeQrModal()">ปิด</button>

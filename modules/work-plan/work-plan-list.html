@@ -51,8 +51,24 @@
                    placeholder="ชื่อแผน / สถานที่" oninput="window.onFilterChange()" />
           </div>
 
-          <!-- CARDS -->
-          <div id="wpGrid" class="wp-grid"></div>
+          <!-- LIST (table) -->
+          <div class="wp-list-wrap">
+            <table class="wp-list">
+              <thead>
+                <tr>
+                  <th style="width:40px">#</th>
+                  <th>ชื่อแผน</th>
+                  <th style="width:140px">แผนก</th>
+                  <th style="width:70px">ปี</th>
+                  <th style="width:160px">วันที่</th>
+                  <th>สถานที่</th>
+                  <th style="width:70px;text-align:center">แถว</th>
+                  <th style="width:70px"></th>
+                </tr>
+              </thead>
+              <tbody id="wpListBody"></tbody>
+            </table>
+          </div>
           <div id="wpEmpty" class="wp-empty" style="display:none">
             ยังไม่มีแผนงาน — กด <b>"＋ สร้างแผนงาน"</b> เพื่อเริ่ม
           </div>
@@ -64,6 +80,7 @@
     <div class="wp-modal-overlay" id="planModal">
       <div class="wp-modal">
         <h3 id="planModalTitle">สร้างแผนงานใหม่</h3>
+        <div id="planScopeBadge" class="wp-scope-badge"></div>
         <div class="form-group">
           <label class="form-label">ชื่อแผน *</label>
           <input class="form-input" id="planNameInput" type="text" placeholder="เช่น SUMMIT Avani Plus 2569" />
@@ -142,6 +159,7 @@
     <script src="../../js/core/authz.js"></script>
     <script type="module" src="./work-plan-list.js"></script>
     <script src="../../js/components/modal/deleteModal.js"></script>
+    <script src="../../js/components/modal/modalManager.js"></script>
     <script type="module">
       import { loadTopbar } from "../../js/components/navigation/topbar.js";
       loadTopbar("📋 แผนงาน");

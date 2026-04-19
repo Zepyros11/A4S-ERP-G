@@ -927,6 +927,82 @@
   transform: translateY(-1px);
 }
 
+/* ── QR Modal layout ───────────────────────────── */
+.qr-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 20px 18px !important;
+}
+.qr-info {
+  width: 100%;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-bottom: 12px;
+  border-bottom: 1px dashed var(--border, #e2e8f0);
+}
+.qr-info .qr-name {
+  font-size: 18px;
+  font-weight: 800;
+  color: #0f172a;
+  line-height: 1.3;
+}
+.qr-info .qr-member {
+  font-size: 12px;
+  color: var(--text3, #94a3b8);
+  font-family: "IBM Plex Mono", monospace;
+}
+.qr-info .qr-event {
+  display: inline-block;
+  margin: 8px auto 0;
+  padding: 6px 16px;
+  background: linear-gradient(135deg, #eff6ff, #dbeafe);
+  color: #1e40af;
+  border-radius: 20px;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  align-self: center;
+}
+.qr-code-frame {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 16px 12px;
+  background: #fff;
+  border: 2px solid #1e40af;
+  border-radius: 14px;
+  box-shadow: 0 4px 16px rgba(30, 64, 175, 0.12);
+}
+.qr-code-wrap {
+  display: inline-block;
+  line-height: 0;
+}
+.qr-code-wrap img,
+.qr-code-wrap canvas {
+  display: block;
+}
+.qr-ticket-no {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 18px;
+  font-weight: 700;
+  color: #1e40af;
+  letter-spacing: 1.5px;
+  padding-top: 8px;
+  border-top: 1px dashed #cbd5e1;
+  width: 100%;
+  text-align: center;
+}
+.qr-hint {
+  font-size: 12px;
+  color: var(--text3, #94a3b8);
+  text-align: center;
+}
+
 /* Print mode — show only QR */
 @media print {
   body * { visibility: hidden; }
@@ -938,4 +1014,9 @@
   }
   #qrModal .att-modal-header,
   #qrModal .att-modal-footer { display: none !important; }
+  #qrModal .att-modal-overlay,
+  #qrModal .att-modal {
+    box-shadow: none !important;
+    border: none !important;
+  }
 }
