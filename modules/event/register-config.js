@@ -16,5 +16,6 @@ window.REGISTER_CONFIG = {
   sb_url: "https://dtiynydgkcqausqktreg.supabase.co",
 
   // REPLACE with your ANON (public) key — NOT service_role:
-  sb_key: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...(key จริง)",
+  sb_key:
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR0aXlueWRna2NxYXVzcWt0cmVnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIyNjEwNTcsImV4cCI6MjA4NzgzNzA1N30.DmXwvBBvx3zK7rw21179ro65mTm0B4lQ20ktVMpAUQE",
 };
