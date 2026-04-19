@@ -95,6 +95,8 @@ body{font-family:'Sarabun',sans-serif;background:#f1f5f9;min-height:100vh;displa
 
 <div class="toast" id="toast"></div>
 
+<script src="./register-config.js"></script>
+
 <div class="reg-card">
   <!-- Loading -->
   <div class="reg-loading show" id="regLoading">⏳ กำลังโหลดข้อมูล...</div>
@@ -127,8 +129,11 @@ body{font-family:'Sarabun',sans-serif;background:#f1f5f9;min-height:100vh;displa
    Member authenticates with member_code + password
    ============================================================ */
 
-const SB_URL = localStorage.getItem('sb_url') || '';
-const SB_KEY = localStorage.getItem('sb_key') || '';
+/* ── Public Supabase config ──
+   anon key = public-safe when RLS is enabled.
+   Override via localStorage (admin mode) takes precedence. */
+const SB_URL = localStorage.getItem('sb_url') || window.REGISTER_CONFIG?.sb_url || '';
+const SB_KEY = localStorage.getItem('sb_key') || window.REGISTER_CONFIG?.sb_key || '';
 
 let _event = null;
 let _series = null;
