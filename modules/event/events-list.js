@@ -59,6 +59,37 @@ function getPanelSenderName() {
   return u.full_name || [u.first_name, u.last_name].filter(Boolean).join(" ") || u.username || "Admin";
 }
 let _evChatCountCache = {}; // { [event_id]: { total, latest } }
+let _evAuxCountCache = {}; // { [event_id]: { attendees, plans } }
+
+/* ── Aux counts: attendees + work_plans per event ── */
+async function refreshEvAuxCounts() {
+  if (!allEvents.length) return;
+  const { url, key } = getSBLocal();
+  if (!url || !key) return;
+  const ids = allEvents.map((e) => e.event_id).join(",");
+  const h = { apikey: key, Authorization: `Bearer ${key}` };
+  try {
+    const [attRes, planRes] = await Promise.all([
+      fetch(`${url}/rest/v1/event_attendees?event_id=in.(${ids})&select=event_id`, { headers: h }),
+      fetch(`${url}/rest/v1/work_plans?scope=eq.event&event_id=in.(${ids})&select=event_id`, { headers: h }),
+    ]);
+    const atts = attRes.ok ? await attRes.json() : [];
+    const plans = planRes.ok ? await planRes.json() : [];
+    const map = {};
+    (atts || []).forEach((r) => {
+      const id = r.event_id;
+      if (!map[id]) map[id] = { attendees: 0, plans: 0 };
+      map[id].attendees++;
+    });
+    (plans || []).forEach((r) => {
+      const id = r.event_id;
+      if (!map[id]) map[id] = { attendees: 0, plans: 0 };
+      map[id].plans++;
+    });
+    _evAuxCountCache = map;
+    filterTable();
+  } catch {}
+}
 
 /* ── Pin helpers ── */
 function getPinnedIds() {
@@ -395,6 +426,7 @@ async function loadData() {
     updateStatCards();
     filterTable();
     await refreshEvChatCounts();
+    refreshEvAuxCounts();
     updateChatroomBadge();
   } catch (e) {
     showToast("โหลดข้อมูลไม่ได้: " + e.message, "error");
@@ -708,8 +740,8 @@ function renderTable(events) {
       <td class="col-center" onclick="event.stopPropagation()">
         <div class="action-group">
           <button class="btn-icon ${pinned ? "btn-pin-active" : "btn-pin"}" title="${pinned ? "ยกเลิกปักหมุด" : "ปักหมุด"}" onclick="window.togglePin(${e.event_id}, event)">📌</button>
-          <button class="btn-icon" title="ผู้เข้าร่วม" onclick="window.location.href='./attendees.html?event=${e.event_id}'">👥</button>
-          <button class="btn-icon" title="แผนงาน" onclick="window.location.href='../work-plan/work-plan-list.html?scope=event&event_id=${e.event_id}'">📋</button>
+          <button class="btn-icon${(_evAuxCountCache[e.event_id]?.attendees || 0) === 0 ? ' btn-icon-dim' : ''}" title="ผู้เข้าร่วม${_evAuxCountCache[e.event_id]?.attendees ? ' ('+_evAuxCountCache[e.event_id].attendees+')' : ''}" onclick="event.stopPropagation();window.open('./attendees.html?event=${e.event_id}', '_blank')">👥</button>
+          <button class="btn-icon${(_evAuxCountCache[e.event_id]?.plans || 0) === 0 ? ' btn-icon-dim' : ''}" title="แผนงาน${_evAuxCountCache[e.event_id]?.plans ? ' ('+_evAuxCountCache[e.event_id].plans+')' : ''}" onclick="event.stopPropagation();window.open('../work-plan/work-plan-list.html?scope=event&event_id=${e.event_id}', '_blank')">📋</button>
           <button class="btn-icon" title="แก้ไข" onclick="window.location.href='./event-form.html?id=${e.event_id}'">✏️</button>
           <button class="btn-icon danger" title="ลบ" onclick="window.deleteEvent(${e.event_id})">🗑</button>
         </div>
