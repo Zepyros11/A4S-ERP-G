@@ -156,10 +156,27 @@ async function sbPost(path, body) {
   return res.json();
 }
 
+/* ── Extract eventId from URL (support LIFF redirect via liff.state) ── */
+function getEventIdFromUrl() {
+  const params = new URLSearchParams(location.search);
+  let eventId = params.get('event') || params.get('event_id');
+  if (eventId) return eventId;
+  // LIFF redirect: ?liff.state=%2F%3Fevent%3D93  →  "/?event=93"
+  const liffState = params.get('liff.state');
+  if (liffState) {
+    try {
+      const decoded = decodeURIComponent(liffState);
+      const q = decoded.includes('?') ? decoded.split('?').pop() : decoded;
+      const sp = new URLSearchParams(q);
+      eventId = sp.get('event') || sp.get('event_id');
+    } catch {}
+  }
+  return eventId;
+}
+
 /* ── Init ── */
 (async () => {
-  const params = new URLSearchParams(location.search);
-  const eventId = params.get('event');
+  const eventId = getEventIdFromUrl();
   if (!eventId || !SB_URL) {
     document.getElementById('regLoading').innerHTML = '❌ ไม่พบ event หรือยังไม่ได้ตั้งค่า';
     return;
