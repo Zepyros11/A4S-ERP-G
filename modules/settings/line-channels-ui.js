@@ -67,8 +67,17 @@
     }
   };
 
-  window.clearMasterKey = function () {
-    if (!confirm("ล้าง master key? ถ้ามี token encrypted อยู่จะ decrypt ไม่ได้")) return;
+  window.clearMasterKey = async function () {
+    const ok = window.ConfirmModal
+      ? await window.ConfirmModal.open({
+          icon: "🗑️",
+          title: "ล้าง Master Key",
+          message: "ล้าง master key? ถ้ามี token encrypted อยู่จะ decrypt ไม่ได้",
+          okText: "ล้าง",
+          tone: "danger",
+        })
+      : confirm("ล้าง master key? ถ้ามี token encrypted อยู่จะ decrypt ไม่ได้");
+    if (!ok) return;
     window.ERPCrypto.clearMasterKey();
     _updateMasterKeyStatus();
     showToast("ล้าง master key แล้ว", "success");
@@ -231,7 +240,16 @@
   };
 
   window.deleteLineChannel = async function (id) {
-    if (!confirm("ลบ channel นี้? การกระทำนี้ย้อนกลับไม่ได้")) return;
+    const ok = window.ConfirmModal
+      ? await window.ConfirmModal.open({
+          icon: "🗑️",
+          title: "ลบ LINE Channel",
+          message: "ลบ channel นี้? การกระทำนี้ย้อนกลับไม่ได้",
+          okText: "ลบ",
+          tone: "danger",
+        })
+      : confirm("ลบ channel นี้? การกระทำนี้ย้อนกลับไม่ได้");
+    if (!ok) return;
     try {
       await window.LineAPI.deleteChannel(id);
       showToast("ลบแล้ว", "success");

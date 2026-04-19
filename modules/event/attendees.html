@@ -287,10 +287,12 @@
             📱 LINE: <span id="bulkLineLinked">—</span> คนที่เชื่อม LINE แล้ว
           </div>
         </div>
-        <div class="att-modal-footer">
+        <div class="att-modal-footer" style="flex-wrap:wrap;gap:6px">
           <button class="btn btn-secondary" onclick="window.closeBulkMsgModal()">ยกเลิก</button>
-          <button class="btn btn-primary" onclick="window.copyBulkMessages()">📋 Copy ทั้งหมด</button>
-          <button class="btn" style="background:#06c755;color:#fff" id="btnBulkLinePush" onclick="window.sendBulkLinePush()" title="ส่งให้เฉพาะคนที่เชื่อม LINE">📱 ส่ง LINE OA</button>
+          <button class="btn btn-primary" onclick="window.copyBulkMessages()">📋 Copy</button>
+          <button class="btn" style="background:#06c755;color:#fff" id="btnBulkLinePush" onclick="window.sendBulkLinePush()" title="ส่งข้อความ text ให้แต่ละคน (personalize)">📱 ส่ง Text</button>
+          <button class="btn" style="background:#1e40af;color:#fff" id="btnBulkTicketFlex" onclick="window.sendBulkTicketFlex()" title="ส่งบัตร Flex + QR ให้แต่ละคน">🎫 ส่ง Ticket</button>
+          <button class="btn" style="background:#f59e0b;color:#fff" id="btnBulkLineBroadcast" onclick="window.sendBulkLineBroadcast()" title="Broadcast ให้ทุกเพื่อน OA (ไม่ personalize)">📢 Broadcast</button>
         </div>
       </div>
     </div>
@@ -301,6 +303,7 @@
     <script src="../../js/core/auth.js"></script>
     <script src="../../js/core/crypto.js"></script>
     <script src="../../js/core/line.js"></script>
+    <script src="../../js/components/modal/confirmModal.js"></script>
     <script src="../../js/core/authz.js"></script>
     <script>AuthZ.requirePerm("attendee_view");</script>
     <script type="module" src="./attendees.js"></script>

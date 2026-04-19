@@ -1696,8 +1696,10 @@ window.onBulkMsgFilterChange = function () {
   const linkedCount = targets.filter(a => a.line_user_id).length;
   const el = document.getElementById("bulkLineLinked");
   if (el) el.textContent = `${linkedCount} / ${targets.length}`;
-  const btn = document.getElementById("btnBulkLinePush");
-  if (btn) btn.disabled = linkedCount === 0;
+  const pushBtn = document.getElementById("btnBulkLinePush");
+  if (pushBtn) pushBtn.disabled = linkedCount === 0;
+  const flexBtn = document.getElementById("btnBulkTicketFlex");
+  if (flexBtn) flexBtn.disabled = linkedCount === 0;
   window.onBulkMsgTplChange();
 };
 
@@ -1753,6 +1755,201 @@ window.copyBulkMessages = async function () {
   }
 };
 
+// ── Build Flex ticket message ────────────────────────────────
+function _qrImageUrl(text) {
+  // Use qrserver.com as a free QR-image service (no auth, HTTPS, served directly)
+  return `https://api.qrserver.com/v1/create-qr-code/?size=400x400&margin=20&data=${encodeURIComponent(text)}`;
+}
+
+function _fmtDateTH(d) {
+  if (!d) return "";
+  try {
+    return new Date(d).toLocaleDateString("th-TH", { year: "numeric", month: "short", day: "numeric" });
+  } catch {
+    return d;
+  }
+}
+
+function buildTicketFlex(event, attendee) {
+  const poster = (event?.image_urls?.[0]) || event?.poster_url || "";
+  const ticketNo = attendee.ticket_no || `A4S-${event?.event_id || ""}-${attendee.attendee_id}`;
+  const qrUrl = _qrImageUrl(ticketNo);
+  const eventName = event?.event_name || "Event";
+  const dateText = _fmtDateTH(event?.event_date);
+  const timeText = (event?.start_time && event?.end_time)
+    ? `${event.start_time.slice(0, 5)} — ${event.end_time.slice(0, 5)} น.`
+    : "";
+  const loc = event?.location || "";
+  const memberCode = attendee.member_code ? `[${attendee.member_code}] ` : "";
+
+  const bubble = {
+    type: "bubble",
+    size: "kilo",
+    ...(poster ? {
+      hero: {
+        type: "image",
+        url: poster,
+        size: "full",
+        aspectRatio: "20:13",
+        aspectMode: "cover",
+      },
+    } : {}),
+    body: {
+      type: "box",
+      layout: "vertical",
+      spacing: "md",
+      contents: [
+        { type: "text", text: "🎫 บัตรเข้างาน", size: "xs", color: "#6B7280", weight: "bold" },
+        { type: "text", text: eventName, weight: "bold", size: "xl", wrap: true, color: "#0f172a" },
+        { type: "separator", margin: "sm" },
+        {
+          type: "box", layout: "vertical", spacing: "sm", margin: "md",
+          contents: [
+            {
+              type: "box", layout: "baseline", spacing: "sm",
+              contents: [
+                { type: "text", text: "👤", size: "sm", flex: 1 },
+                { type: "text", text: `${memberCode}${attendee.name || ""}`, size: "sm", flex: 10, weight: "bold", wrap: true, color: "#0f172a" },
+              ],
+            },
+            ...(dateText ? [{
+              type: "box", layout: "baseline", spacing: "sm",
+              contents: [
+                { type: "text", text: "📅", size: "sm", flex: 1 },
+                { type: "text", text: dateText + (timeText ? `  ·  ${timeText}` : ""), size: "sm", flex: 10, color: "#334155" },
+              ],
+            }] : []),
+            ...(loc ? [{
+              type: "box", layout: "baseline", spacing: "sm",
+              contents: [
+                { type: "text", text: "📍", size: "sm", flex: 1 },
+                { type: "text", text: loc, size: "sm", flex: 10, color: "#334155", wrap: true },
+              ],
+            }] : []),
+          ],
+        },
+        {
+          type: "box", layout: "vertical", margin: "lg",
+          backgroundColor: "#f8fafc", cornerRadius: "md", paddingAll: "md",
+          contents: [
+            {
+              type: "image",
+              url: qrUrl,
+              aspectMode: "fit",
+              size: "full",
+            },
+            { type: "text", text: ticketNo, align: "center", weight: "bold", size: "lg", color: "#1e40af", margin: "md" },
+          ],
+        },
+      ],
+    },
+    footer: {
+      type: "box", layout: "vertical",
+      contents: [
+        { type: "text", text: "📱 สแกน QR นี้เมื่อถึงงาน", size: "xs", color: "#6B7280", align: "center" },
+      ],
+    },
+  };
+
+  return {
+    type: "flex",
+    altText: `🎫 Ticket: ${ticketNo} — ${eventName}`,
+    contents: bubble,
+  };
+}
+
+// ── Send Ticket Flex to each attendee (personalized) ──────────
+window.sendBulkTicketFlex = async function () {
+  if (!window.LineAPI) { showToast("LINE module ยังไม่โหลด — refresh หน้า", "error"); return; }
+  if (!window.ERPCrypto?.hasMasterKey()) { showToast("ตั้ง Master Key ในหน้า settings ก่อน", "error"); return; }
+
+  const targets = _bulkMsgTargets().filter(a => a.line_user_id);
+  if (!targets.length) { showToast("ไม่มีคนที่เชื่อม LINE", "error"); return; }
+
+  const ok = await (window.ConfirmModal
+    ? window.ConfirmModal.open({
+        icon: "🎫",
+        title: "ส่ง Ticket (Flex) ผ่าน LINE OA",
+        message: `จะส่งบัตร + QR ให้ ${targets.length} คน — ยืนยัน?`,
+        okText: "ส่งบัตร",
+        cancelText: "ยกเลิก",
+        tone: "primary",
+      })
+    : Promise.resolve(confirm(`ส่ง Ticket Flex ให้ ${targets.length} คน?`)));
+  if (!ok) return;
+
+  const btn = document.getElementById("btnBulkTicketFlex");
+  btn.disabled = true;
+  const originalText = btn.textContent;
+  btn.textContent = `⏳ 0/${targets.length}`;
+
+  try {
+    const channel = await window.LineAPI.getChannelForEvent(currentEvent);
+    if (!channel) throw new Error("ไม่พบ LINE channel");
+
+    const sendTargets = targets.map(a => ({
+      userId: a.line_user_id,
+      message: buildTicketFlex(currentEvent, a),
+    }));
+
+    const result = await window.LineAPI.sendPersonalized({
+      channel,
+      targets: sendTargets,
+      onProgress: ({ done, total }) => { btn.textContent = `⏳ ${done}/${total}`; },
+    });
+
+    if (result.fail === 0) {
+      showToast(`✅ ส่งบัตรสำเร็จ ${result.ok}/${targets.length} คน`, "success");
+    } else {
+      showToast(`⚠️ สำเร็จ ${result.ok} · ล้มเหลว ${result.fail} — ดู console`, "error");
+      console.warn("LINE flex errors:", result.errors);
+    }
+  } catch (e) {
+    showToast("ส่งไม่ได้: " + e.message, "error");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = originalText;
+  }
+};
+
+// ── Broadcast to all friends of the OA ───────────────────────
+window.sendBulkLineBroadcast = async function () {
+  const tpl = document.getElementById("bulkMsgTpl").value.trim();
+  if (!tpl) { showToast("กรุณาพิมพ์ข้อความ", "error"); return; }
+  if (!window.LineAPI) { showToast("LINE module ยังไม่โหลด", "error"); return; }
+  if (!window.ERPCrypto?.hasMasterKey()) { showToast("ตั้ง Master Key ก่อน", "error"); return; }
+
+  const ok = await (window.ConfirmModal
+    ? window.ConfirmModal.open({
+        icon: "📢",
+        title: "Broadcast ให้ทุกเพื่อน OA",
+        message: `ส่งข้อความให้ทุก friends ของ OA — ไม่สามารถเจาะจงคนได้\n\n⚠️ ข้อความไม่สามารถ personalize ได้ (placeholder เช่น {ชื่อ} จะไม่ถูกแทน)`,
+        okText: "Broadcast",
+        cancelText: "ยกเลิก",
+        tone: "warning",
+      })
+    : Promise.resolve(confirm(`Broadcast ให้ทุก friends ของ OA?`)));
+  if (!ok) return;
+
+  const btn = document.getElementById("btnBulkLineBroadcast");
+  btn.disabled = true;
+  const originalText = btn.textContent;
+  btn.textContent = `⏳ กำลังส่ง...`;
+
+  try {
+    const channel = await window.LineAPI.getChannelForEvent(currentEvent);
+    if (!channel) throw new Error("ไม่พบ LINE channel");
+    // Broadcast doesn't support personalization — send template as-is with placeholders intact
+    await window.LineAPI.broadcast({ channel, message: tpl });
+    showToast(`✅ Broadcast สำเร็จ`, "success");
+  } catch (e) {
+    showToast("Broadcast ไม่ได้: " + e.message, "error");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = originalText;
+  }
+};
+
 // ── Send via LINE OA (per-user push) ─────────────────────────
 window.sendBulkLinePush = async function () {
   const tpl = document.getElementById("bulkMsgTpl").value.trim();
@@ -1764,7 +1961,17 @@ window.sendBulkLinePush = async function () {
   if (!targets.length) { showToast("ไม่มีคนที่เชื่อม LINE", "error"); return; }
 
   const btn = document.getElementById("btnBulkLinePush");
-  if (!confirm(`ส่งข้อความผ่าน LINE OA ให้ ${targets.length} คน?`)) return;
+  const ok = await (window.ConfirmModal
+    ? window.ConfirmModal.open({
+        icon: "📱",
+        title: "ส่งข้อความผ่าน LINE OA",
+        message: `จะส่งให้ ${targets.length} คนที่เชื่อม LINE แล้ว — ยืนยัน?`,
+        okText: "ส่งเลย",
+        cancelText: "ยกเลิก",
+        tone: "success",
+      })
+    : Promise.resolve(confirm(`ส่งข้อความผ่าน LINE OA ให้ ${targets.length} คน?`)));
+  if (!ok) return;
 
   btn.disabled = true;
   const originalText = btn.textContent;
