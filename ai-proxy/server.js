@@ -214,6 +214,7 @@ app.post('/line/broadcast', async (req, res) => {
    ══════════════════════════════════════════════════════════ */
 
 const LINE_CHANNEL_SECRET = process.env.LINE_CHANNEL_SECRET || '';
+const LINE_CHANNEL_TOKEN  = process.env.LINE_CHANNEL_TOKEN || '';       // Bot-Assistant long-lived token (for webhook replies)
 const SB_URL_WEBHOOK      = (process.env.SB_URL || '').replace(/\/+$/, '');
 const SB_SERVICE_KEY      = process.env.SB_SERVICE_KEY || '';
 
@@ -253,42 +254,197 @@ async function _sbPatch(table, query, body) {
   }
 }
 
+async function _sbGet(table, query) {
+  if (!SB_URL_WEBHOOK || !SB_SERVICE_KEY) return null;
+  try {
+    const res = await fetch(`${SB_URL_WEBHOOK}/rest/v1/${table}?${query}`, {
+      headers: { apikey: SB_SERVICE_KEY, Authorization: `Bearer ${SB_SERVICE_KEY}` },
+    });
+    if (!res.ok) { console.warn(`[webhook SB GET ${table}] ${res.status}`); return null; }
+    return res.json();
+  } catch (e) {
+    console.warn(`[webhook SB GET ${table}] ${e.message}`);
+    return null;
+  }
+}
+
+async function _sbUpsertMemberLine({ memberCode, userId, displayName, pictureUrl }) {
+  if (!SB_URL_WEBHOOK || !SB_SERVICE_KEY) return false;
+  const nowIso = new Date().toISOString();
+  // 1) Upsert history row
+  try {
+    const r1 = await fetch(
+      `${SB_URL_WEBHOOK}/rest/v1/member_line_accounts?on_conflict=member_code,line_user_id`,
+      {
+        method: 'POST',
+        headers: {
+          apikey: SB_SERVICE_KEY,
+          Authorization: `Bearer ${SB_SERVICE_KEY}`,
+          'Content-Type': 'application/json',
+          Prefer: 'resolution=merge-duplicates,return=minimal',
+        },
+        body: JSON.stringify({
+          member_code: memberCode,
+          line_user_id: userId,
+          line_display_name: displayName || null,
+          line_picture_url: pictureUrl || null,
+          last_active_at: nowIso,
+          is_active: true,
+          source: 'webhook',
+        }),
+      },
+    );
+    if (!r1.ok) console.warn('[webhook] upsert mla failed:', r1.status);
+  } catch (e) { console.warn('[webhook] upsert mla error:', e.message); }
+
+  // 2) Update members (primary/current)
+  await _sbPatch(
+    'members',
+    `member_code=eq.${encodeURIComponent(memberCode)}`,
+    {
+      line_user_id: userId,
+      line_display_name: displayName || null,
+      line_picture_url: pictureUrl || null,
+      line_linked_at: nowIso,
+    },
+  );
+  return true;
+}
+
+async function _lineReply(replyToken, text) {
+  if (!LINE_CHANNEL_TOKEN || !replyToken) return false;
+  try {
+    const r = await fetch('https://api.line.me/v2/bot/message/reply', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${LINE_CHANNEL_TOKEN}`,
+      },
+      body: JSON.stringify({
+        replyToken,
+        messages: [{ type: 'text', text: String(text).slice(0, 5000) }],
+      }),
+    });
+    if (!r.ok) console.warn('[webhook] reply failed:', r.status, await r.text().catch(() => ''));
+    return r.ok;
+  } catch (e) {
+    console.warn('[webhook] reply error:', e.message);
+    return false;
+  }
+}
+
+async function _getLineProfile(userId) {
+  if (!LINE_CHANNEL_TOKEN || !userId) return null;
+  try {
+    const r = await fetch(`https://api.line.me/v2/bot/profile/${encodeURIComponent(userId)}`, {
+      headers: { Authorization: `Bearer ${LINE_CHANNEL_TOKEN}` },
+    });
+    if (!r.ok) return null;
+    return r.json();
+  } catch { return null; }
+}
+
+const WELCOME_MSG =
+  "ยินดีต้อนรับสู่ A4S 🎉\n\n" +
+  "เพื่อรับแจ้งเตือน event + tracking ผ่าน LINE\n" +
+  "กรุณาส่ง \"รหัสสมาชิก\" ของคุณ (5-6 หลัก)\n\n" +
+  "ตัวอย่าง: 10271";
+
+const INVALID_CODE_MSG =
+  "❌ ไม่พบรหัสสมาชิกนี้ในระบบ\n\n" +
+  "กรุณาส่งรหัสเป็นตัวเลข 5-6 หลัก\n" +
+  "หากไม่ทราบรหัส ติดต่อแอดมิน";
+
+function _buildLinkedReply(memberName, memberCode) {
+  return (
+    `✅ ผูก LINE สำเร็จ!\n\n` +
+    `สมาชิก: ${memberName || memberCode}\n` +
+    `รหัส: ${memberCode}\n\n` +
+    `🔔 จากนี้คุณจะได้รับแจ้งเตือน event และข้อมูลสำคัญทาง LINE`
+  );
+}
+
 app.post('/line/webhook', async (req, res) => {
-  // LINE will send a verification request from Developers Console — always 200
   const verify = _verifyLineSignature(req);
   if (!verify.ok) {
     console.warn('[LINE webhook] signature invalid:', verify.reason || 'mismatch');
-    // Still return 200 to avoid LINE retries, but log for debug
     return res.status(200).json({ ok: false, error: verify.reason || 'invalid signature' });
   }
 
   const events = req.body?.events || [];
-  const userIds = new Set();
+  const nowIso = new Date().toISOString();
+
   for (const ev of events) {
     const uid = ev?.source?.userId;
     if (!uid) continue;
-    userIds.add(uid);
-    console.log(`[LINE webhook] ${ev.type} from ${uid.slice(0, 10)}...`);
+
+    try {
+      // === FOLLOW event: user added OA as friend ===
+      if (ev.type === 'follow') {
+        console.log(`[LINE webhook] follow from ${uid.slice(0, 10)}...`);
+        await _lineReply(ev.replyToken, WELCOME_MSG);
+        continue;
+      }
+
+      // === MESSAGE event ===
+      if (ev.type === 'message' && ev.message?.type === 'text') {
+        const text = (ev.message.text || '').trim();
+        console.log(`[LINE webhook] message "${text}" from ${uid.slice(0, 10)}...`);
+
+        // Update last_active_at for existing linked accounts
+        await _sbPatch(
+          'member_line_accounts',
+          `line_user_id=eq.${encodeURIComponent(uid)}`,
+          { last_active_at: nowIso },
+        );
+
+        // Check if text looks like member_code (3-8 digits)
+        const codeMatch = text.match(/^(\d{3,8})$/);
+        if (!codeMatch) {
+          await _lineReply(ev.replyToken, WELCOME_MSG);
+          continue;
+        }
+
+        const memberCode = codeMatch[1];
+        const members = await _sbGet(
+          'members',
+          `member_code=eq.${encodeURIComponent(memberCode)}&select=member_code,full_name,member_name,line_user_id&limit=1`,
+        );
+        const member = members?.[0];
+
+        if (!member) {
+          await _lineReply(ev.replyToken, INVALID_CODE_MSG);
+          continue;
+        }
+
+        // Fetch LINE profile (displayName + pictureUrl)
+        const profile = await _getLineProfile(uid);
+
+        // Link
+        await _sbUpsertMemberLine({
+          memberCode,
+          userId: uid,
+          displayName: profile?.displayName || null,
+          pictureUrl: profile?.pictureUrl || null,
+        });
+
+        const name = member.full_name || member.member_name || memberCode;
+        await _lineReply(ev.replyToken, _buildLinkedReply(name, memberCode));
+        continue;
+      }
+
+      // === Other events (sticker, image, etc.) — just update last_active ===
+      await _sbPatch(
+        'member_line_accounts',
+        `line_user_id=eq.${encodeURIComponent(uid)}`,
+        { last_active_at: nowIso },
+      );
+    } catch (e) {
+      console.error('[webhook event error]', ev.type, e.message);
+    }
   }
 
-  if (!userIds.size) return res.status(200).json({ ok: true, events: 0 });
-
-  // Update last_active_at for each user
-  const nowIso = new Date().toISOString();
-  for (const uid of userIds) {
-    await _sbPatch(
-      'member_line_accounts',
-      `line_user_id=eq.${encodeURIComponent(uid)}`,
-      { last_active_at: nowIso },
-    );
-    await _sbPatch(
-      'members',
-      `line_user_id=eq.${encodeURIComponent(uid)}`,
-      { line_linked_at: nowIso },
-    );
-  }
-
-  return res.status(200).json({ ok: true, events: events.length, users: userIds.size });
+  return res.status(200).json({ ok: true, events: events.length });
 });
 
 /* ── Get OA info (bot name, picture) — quick health check ── */
