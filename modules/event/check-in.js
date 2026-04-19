@@ -132,6 +132,69 @@ async function fetchMemberPasswordEnc(memberCode) {
   return rows?.[0]?.password_encrypted || null;
 }
 
+// Prompt staff to enter master key (one-time per device).
+// Verifies by attempting to decrypt the given sample ciphertext.
+function promptMasterKey(sampleEnc) {
+  return new Promise((resolve) => {
+    const modal = document.getElementById("ciPinModal");
+    const input = document.getElementById("ciPinInput");
+    const err = document.getElementById("ciPinError");
+    const title = document.getElementById("ciPinTitle");
+    const hint = document.getElementById("ciPinHint");
+    const submit = document.getElementById("ciPinSubmit");
+    const cancel = document.getElementById("ciPinCancel");
+
+    title.textContent = "🔑 ตั้งค่า Master Key";
+    hint.innerHTML = `<div class="ci-pin-sub" style="font-size:13px;line-height:1.5">กรอก master key ของระบบ<br>(รหัสเดียวกับที่ใช้บนเครื่อง desktop)<br><span style="font-size:11px;color:#94a3b8">อุปกรณ์นี้จะจำไว้ — ตั้งครั้งเดียว</span></div>`;
+    submit.textContent = "บันทึก";
+    err.textContent = "";
+    input.value = "";
+    input.type = "password";
+    modal.classList.add("open");
+    setTimeout(() => input.focus(), 50);
+
+    const cleanup = () => {
+      modal.classList.remove("open");
+      submit.onclick = null;
+      cancel.onclick = null;
+      input.onkeydown = null;
+    };
+    const finish = (ok) => { cleanup(); resolve(ok); };
+
+    const tryIt = async () => {
+      const v = input.value.trim();
+      if (v.length < 8) {
+        err.textContent = "master key ต้องยาวอย่างน้อย 8 ตัวอักษร";
+        return;
+      }
+      try {
+        ERPCrypto.setMasterKey(v);
+        const r = await ERPCrypto.decrypt(sampleEnc);
+        if (r) {
+          finish(true);
+        } else {
+          ERPCrypto.clearMasterKey();
+          err.textContent = "❌ master key ไม่ถูกต้อง";
+          input.value = "";
+          input.focus();
+        }
+      } catch {
+        ERPCrypto.clearMasterKey();
+        err.textContent = "❌ master key ไม่ถูกต้อง";
+        input.value = "";
+        input.focus();
+      }
+    };
+
+    submit.onclick = tryIt;
+    cancel.onclick = () => finish(false);
+    input.onkeydown = (e) => {
+      if (e.key === "Enter") { e.preventDefault(); tryIt(); }
+      else if (e.key === "Escape") { e.preventDefault(); finish(false); }
+    };
+  });
+}
+
 function requireMemberPassword(attendee) {
   return new Promise(async (resolve) => {
     const modal = document.getElementById("ciPinModal");
@@ -145,11 +208,7 @@ function requireMemberPassword(attendee) {
     // No member_code → can't verify (e.g. guest attendee) → just allow
     if (!attendee.member_code) return resolve(true);
 
-    // Check master key available
-    if (!window.ERPCrypto || !ERPCrypto.hasMasterKey()) {
-      alert("⚠️ ยังไม่ได้ตั้ง master key บนอุปกรณ์นี้ — ไปที่ตั้งค่าเพื่อกรอกก่อน");
-      return resolve(false);
-    }
+    if (!window.ERPCrypto) return resolve(true);
 
     // Fetch encrypted password
     let enc = null;
@@ -160,15 +219,19 @@ function requireMemberPassword(attendee) {
     // No password on record → allow (fallback)
     if (!enc) return resolve(true);
 
-    // Decrypt
+    // Decrypt — if fails, prompt for master key setup
     let real = null;
-    try {
-      real = await ERPCrypto.decrypt(enc);
-    } catch {
-      alert("⚠️ ถอดรหัสไม่สำเร็จ — master key อาจผิด");
-      return resolve(false);
+    const tryDecrypt = async () => {
+      if (!ERPCrypto.hasMasterKey()) return null;
+      try { return await ERPCrypto.decrypt(enc); } catch { return null; }
+    };
+    real = await tryDecrypt();
+    if (!real) {
+      const gotKey = await promptMasterKey(enc);
+      if (!gotKey) return resolve(false);
+      real = await tryDecrypt();
+      if (!real) return resolve(false);
     }
-    if (!real) return resolve(true);
 
     title.textContent = "🔒 ยืนยันตัวตน";
     hint.innerHTML = `<div class="ci-pin-name">${escapeHtml(attendee.name || "")}</div><div class="ci-pin-sub">กรอกรหัสผ่านของคุณ</div>`;
