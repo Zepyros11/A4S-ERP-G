@@ -40,6 +40,14 @@
         padding: 16px;
         margin-bottom: 16px;
       }
+      .ci-scanner-title {
+        font-size: 15px;
+        font-weight: 700;
+        color: #0f172a;
+        text-align: center;
+        margin-bottom: 12px;
+        letter-spacing: 0.3px;
+      }
       #qr-reader {
         width: 100%;
         max-width: 420px;
@@ -47,10 +55,24 @@
         border-radius: 10px;
         overflow: hidden;
       }
+      .ci-manual-card {
+        background: #fff;
+        border: 1px solid var(--border, #e2e8f0);
+        border-radius: 14px;
+        padding: 14px 16px 16px;
+        margin-top: 14px;
+      }
+      .ci-manual-label {
+        font-size: 12.5px;
+        font-weight: 700;
+        color: var(--text2, #475569);
+        margin-bottom: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+      }
       .ci-manual {
         display: flex;
         gap: 8px;
-        margin-top: 12px;
       }
       .ci-manual input {
         flex: 1;
@@ -203,8 +225,30 @@
         justify-content: flex-end;
       }
       @media (max-width: 520px) {
-        .ci-hero { flex-direction: column; align-items: stretch; }
-        .ci-hero-actions { justify-content: flex-start; }
+        .ci-hero {
+          flex-direction: row;
+          align-items: center;
+          flex-wrap: wrap;
+          gap: 10px;
+        }
+        .ci-hero-info {
+          flex: 1 1 0;
+          min-width: 0;
+        }
+        .ci-hero-title {
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+        .ci-hero-sub {
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+        .ci-hero-actions {
+          flex: 0 0 auto;
+          justify-content: flex-end;
+        }
       }
       .ci-share-btn {
         padding: 8px 14px;
@@ -402,26 +446,153 @@
         to { width: 0%; }
       }
 
+      /* ── PIN Modal ── */
+      .ci-pin-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(15, 23, 42, 0.6);
+        backdrop-filter: blur(4px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10001;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.18s;
+      }
+      .ci-pin-overlay.open { opacity: 1; pointer-events: all; }
+      .ci-pin-card {
+        background: #fff;
+        width: 380px;
+        max-width: 92vw;
+        border-radius: 16px;
+        overflow: hidden;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+        transform: scale(0.95);
+        transition: transform 0.18s;
+      }
+      .ci-pin-overlay.open .ci-pin-card { transform: scale(1); }
+      .ci-pin-header {
+        background: linear-gradient(135deg, #1e40af, #3b82f6);
+        color: #fff;
+        padding: 14px 18px;
+        font-size: 15px;
+        font-weight: 700;
+      }
+      .ci-pin-body { padding: 18px 20px 20px; }
+      .ci-pin-hint {
+        margin-bottom: 16px;
+        text-align: center;
+      }
+      .ci-pin-name {
+        font-size: 19px;
+        font-weight: 800;
+        color: #0f172a;
+        line-height: 1.25;
+        word-break: break-word;
+      }
+      .ci-pin-sub {
+        font-size: 12.5px;
+        color: #64748b;
+        margin-top: 4px;
+      }
+      .ci-pin-input {
+        width: 100%;
+        padding: 14px 16px;
+        border: 2px solid #e2e8f0;
+        border-radius: 10px;
+        font-size: 18px;
+        font-family: "IBM Plex Mono", monospace;
+        letter-spacing: 0.3em;
+        text-align: center;
+        outline: none;
+        transition: border-color 0.15s;
+        box-sizing: border-box;
+      }
+      .ci-pin-input:focus { border-color: #3b82f6; }
+      .ci-pin-error {
+        font-size: 12.5px;
+        color: #dc2626;
+        min-height: 18px;
+        margin-top: 8px;
+        text-align: center;
+      }
+      .ci-pin-actions {
+        display: flex;
+        gap: 8px;
+        margin-top: 14px;
+      }
+      .ci-pin-actions button {
+        flex: 1;
+        padding: 12px 14px;
+        border: none;
+        border-radius: 10px;
+        font-family: inherit;
+        font-size: 14px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 0.15s;
+      }
+      .ci-pin-cancel {
+        background: #f1f5f9;
+        color: #475569;
+      }
+      .ci-pin-cancel:hover { background: #e2e8f0; }
+      .ci-pin-submit {
+        background: linear-gradient(135deg, #1e40af, #3b82f6);
+        color: #fff;
+      }
+      .ci-pin-submit:hover { filter: brightness(1.08); }
+      .ci-pin-reset {
+        margin-top: 10px;
+        text-align: center;
+        font-size: 11.5px;
+      }
+      .ci-pin-reset a {
+        color: #64748b;
+        text-decoration: underline;
+        cursor: pointer;
+      }
+      .ci-pin-reset a:hover { color: #dc2626; }
+
       /* ───────────────────── MOBILE ───────────────────── */
       @media (max-width: 640px) {
         .ci-page { padding: 12px 10px; }
 
         .ci-hero {
-          padding: 14px;
+          padding: 12px;
           border-radius: 12px;
           margin-bottom: 12px;
+          gap: 10px;
         }
-        .ci-hero-title { font-size: 17px; }
-        .ci-hero-sub { font-size: 12px; }
-        .ci-hero-poster { width: 52px; height: 52px; }
-        .ci-share-btn { padding: 7px 12px; font-size: 12px; }
+        .ci-hero-title { font-size: 16px; line-height: 1.2; }
+        .ci-hero-sub { font-size: 11.5px; margin-top: 2px; }
+        .ci-hero-poster {
+          width: 46px;
+          height: 46px;
+          border-radius: 8px;
+          border-width: 1.5px;
+        }
+        .ci-share-btn {
+          padding: 6px 10px;
+          font-size: 11.5px;
+          border-radius: 8px;
+          white-space: nowrap;
+        }
 
         .ci-scanner-card {
           padding: 10px;
           border-radius: 12px;
         }
+        .ci-scanner-title { font-size: 14px; margin-bottom: 8px; }
         #qr-reader { max-width: 100%; }
 
+        .ci-manual-card {
+          padding: 12px 12px 14px;
+          border-radius: 12px;
+          margin-top: 12px;
+        }
+        .ci-manual-label { font-size: 11.5px; margin-bottom: 8px; }
         .ci-manual { flex-direction: column; gap: 8px; }
         .ci-manual input { width: 100%; font-size: 15px; padding: 12px 14px; }
         .ci-manual button { width: 100%; padding: 14px 18px; font-size: 14px; }
@@ -466,6 +637,9 @@
 
       @media (max-width: 380px) {
         .ci-hero-title { font-size: 15px; }
+        .ci-hero-poster { width: 42px; height: 42px; }
+        .ci-share-btn { padding: 6px 8px; font-size: 11px; }
+        .ci-share-btn .share-label { display: none; }
         .ci-success-check { width: 58px; height: 58px; font-size: 32px; }
         .ci-success-title { font-size: 17px; }
         .ci-success-name { font-size: 15px; }
@@ -489,7 +663,7 @@
           <div class="ci-hero-sub" id="ciEventSub">กำลังโหลด...</div>
         </div>
         <div class="ci-hero-actions">
-          <button class="ci-share-btn" onclick="window.ciOpenShareLink()">🔗 แชร์ลิงก์ลงทะเบียน</button>
+          <button class="ci-share-btn" onclick="window.ciOpenShareLink()" title="แชร์ลิงก์ลงทะเบียน">🔗<span class="share-label"> แชร์ลิงก์ลงทะเบียน</span></button>
         </div>
       </div>
 
@@ -511,21 +685,8 @@
       </div>
 
       <div class="ci-scanner-card">
+        <div class="ci-scanner-title">📷 Scan QR Code</div>
         <div id="qr-reader"></div>
-        <div class="ci-manual">
-          <input
-            id="manualCode"
-            type="text"
-            placeholder="หรือพิมพ์ Ticket No / รหัสสมาชิก"
-            autocomplete="off"
-            autocapitalize="characters"
-            autocorrect="off"
-            spellcheck="false"
-            inputmode="latin"
-            lang="en"
-          />
-          <button onclick="window.ciManualCheckin()">Check-in</button>
-        </div>
       </div>
 
       <div id="ciResult" class="ci-result">
@@ -534,9 +695,55 @@
         </div>
       </div>
 
+      <div class="ci-manual-card">
+        <div class="ci-manual-label">⌨️ หรือพิมพ์รหัสด้วยตนเอง</div>
+        <div class="ci-manual">
+          <input
+            id="manualCode"
+            name="ci_code_nofill"
+            type="text"
+            placeholder="Ticket No / รหัสสมาชิก"
+            autocomplete="off"
+            data-lpignore="true"
+            data-form-type="other"
+            data-1p-ignore="true"
+            autocapitalize="characters"
+            autocorrect="off"
+            spellcheck="false"
+            inputmode="latin"
+            lang="en"
+            readonly
+            onfocus="this.removeAttribute('readonly')"
+          />
+          <button onclick="window.ciManualCheckin()">Check-in</button>
+        </div>
+      </div>
+
       <div class="ci-recent">
         <div class="ci-recent-title">🕐 Check-in ล่าสุด</div>
         <div id="ciRecent"></div>
+      </div>
+    </div>
+
+    <!-- PASSWORD MODAL (for manual check-in) -->
+    <div class="ci-pin-overlay" id="ciPinModal">
+      <div class="ci-pin-card">
+        <div class="ci-pin-header" id="ciPinTitle">🔒 ยืนยันรหัสผ่านสมาชิก</div>
+        <div class="ci-pin-body">
+          <div class="ci-pin-hint" id="ciPinHint"><div class="ci-pin-sub">กรอกรหัสผ่านของคุณ</div></div>
+          <input
+            id="ciPinInput"
+            class="ci-pin-input"
+            type="password"
+            autocomplete="off"
+            placeholder="• • • • • •"
+          />
+          <div class="ci-pin-error" id="ciPinError"></div>
+          <div class="ci-pin-actions">
+            <button id="ciPinCancel" class="ci-pin-cancel">ยกเลิก</button>
+            <button id="ciPinSubmit" class="ci-pin-submit">ยืนยัน</button>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -553,6 +760,7 @@
       </div>
     </div>
 
+    <script src="../../js/core/crypto.js"></script>
     <script type="module" src="./check-in.js"></script>
     <script src="../../js/components/modal/modalManager.js"></script>
   </body>

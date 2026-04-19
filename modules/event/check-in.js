@@ -90,6 +90,9 @@ async function init() {
 
   // Manual: Enter key + force latin (strip Thai/non-ASCII, uppercase)
   const manualInput = document.getElementById("manualCode");
+  // Prevent browser autofill (e.g. "Pob" from saved profile)
+  manualInput.value = "";
+  setTimeout(() => { manualInput.value = ""; }, 100);
   manualInput.addEventListener("keydown", (e) => {
     if (e.key === "Enter") {
       e.preventDefault();
@@ -117,8 +120,101 @@ window.ciManualCheckin = async function () {
   const code = document.getElementById("manualCode").value.trim();
   if (!code) return;
   document.getElementById("manualCode").value = "";
-  await handleScan(code);
+  await handleScan(code, { requirePassword: true });
 };
+
+// ── MEMBER PASSWORD VERIFICATION (manual check-in only) ──
+async function fetchMemberPasswordEnc(memberCode) {
+  const rows = await sbFetch(
+    "members",
+    `?member_code=eq.${encodeURIComponent(memberCode)}&select=password_encrypted&limit=1`,
+  ).catch(() => null);
+  return rows?.[0]?.password_encrypted || null;
+}
+
+function requireMemberPassword(attendee) {
+  return new Promise(async (resolve) => {
+    const modal = document.getElementById("ciPinModal");
+    const input = document.getElementById("ciPinInput");
+    const err = document.getElementById("ciPinError");
+    const title = document.getElementById("ciPinTitle");
+    const hint = document.getElementById("ciPinHint");
+    const submit = document.getElementById("ciPinSubmit");
+    const cancel = document.getElementById("ciPinCancel");
+
+    // No member_code → can't verify (e.g. guest attendee) → just allow
+    if (!attendee.member_code) return resolve(true);
+
+    // Check master key available
+    if (!window.ERPCrypto || !ERPCrypto.hasMasterKey()) {
+      alert("⚠️ ยังไม่ได้ตั้ง master key บนอุปกรณ์นี้ — ไปที่ตั้งค่าเพื่อกรอกก่อน");
+      return resolve(false);
+    }
+
+    // Fetch encrypted password
+    let enc = null;
+    try {
+      enc = await fetchMemberPasswordEnc(attendee.member_code);
+    } catch {}
+
+    // No password on record → allow (fallback)
+    if (!enc) return resolve(true);
+
+    // Decrypt
+    let real = null;
+    try {
+      real = await ERPCrypto.decrypt(enc);
+    } catch {
+      alert("⚠️ ถอดรหัสไม่สำเร็จ — master key อาจผิด");
+      return resolve(false);
+    }
+    if (!real) return resolve(true);
+
+    title.textContent = "🔒 ยืนยันตัวตน";
+    hint.innerHTML = `<div class="ci-pin-name">${escapeHtml(attendee.name || "")}</div><div class="ci-pin-sub">กรอกรหัสผ่านของคุณ</div>`;
+    submit.textContent = "ยืนยัน";
+    err.textContent = "";
+    input.value = "";
+    input.type = "password";
+    modal.classList.add("open");
+    setTimeout(() => input.focus(), 50);
+
+    let attempts = 0;
+    const cleanup = () => {
+      modal.classList.remove("open");
+      submit.onclick = null;
+      cancel.onclick = null;
+      input.onkeydown = null;
+    };
+    const finish = (ok) => { cleanup(); resolve(ok); };
+
+    const tryIt = () => {
+      const v = input.value;
+      if (!v) {
+        err.textContent = "กรุณาใส่รหัสผ่าน";
+        return;
+      }
+      if (v === real) {
+        finish(true);
+      } else {
+        attempts++;
+        err.textContent = `❌ รหัสผ่านไม่ถูกต้อง (${attempts}/3)`;
+        input.value = "";
+        input.focus();
+        if (attempts >= 3) {
+          setTimeout(() => finish(false), 600);
+        }
+      }
+    };
+
+    submit.onclick = tryIt;
+    cancel.onclick = () => finish(false);
+    input.onkeydown = (e) => {
+      if (e.key === "Enter") { e.preventDefault(); tryIt(); }
+      else if (e.key === "Escape") { e.preventDefault(); finish(false); }
+    };
+  });
+}
 
 // ── SHARE REGISTER LINK ─────────────────────────────────
 function buildRegisterUrl() {
@@ -176,7 +272,7 @@ function showCopiedToast() {
 }
 
 // Debounce duplicate scans within 2 seconds
-async function handleScan(scannedText) {
+async function handleScan(scannedText, opts = {}) {
   const now = Date.now();
   if (scannedText === lastScanText && now - lastScanAt < 2000) return;
   lastScanText = scannedText;
@@ -226,6 +322,18 @@ async function handleScan(scannedText) {
       return;
     }
 
+    // Verify member password for manual check-in
+    if (opts.requirePassword) {
+      const ok = await requireMemberPassword(a);
+      if (!ok) {
+        setResult("error", "❌ ยกเลิกการ check-in", "ยืนยันรหัสผ่านไม่สำเร็จ");
+        // Reset debounce so same code can be retried immediately
+        lastScanText = "";
+        lastScanAt = 0;
+        return;
+      }
+    }
+
     // Mark checked_in
     const res = await sbFetch(
       "event_attendees",
@@ -245,37 +353,29 @@ async function handleScan(scannedText) {
 }
 
 async function lookupAttendee(code) {
-  // 1) Try ticket_no
-  let rows = await sbFetch(
-    "event_attendees",
-    `?ticket_no=eq.${encodeURIComponent(code)}&select=*&limit=1`,
-  );
-  if (rows?.length) return rows[0];
-
-  // 2) A4S-ATT-<id> format (fallback QR)
+  // Combine ticket_no + attendee_id (from A4S-ATT-N or raw numeric) into one OR query.
+  // member_code requires event filter so runs as a parallel second query.
+  const conds = [`ticket_no.eq.${encodeURIComponent(code)}`];
   const m = code.match(/^A4S-ATT-(\d+)$/);
-  if (m) {
-    rows = await sbFetch(
-      "event_attendees",
-      `?attendee_id=eq.${m[1]}&select=*&limit=1`,
-    );
-    if (rows?.length) return rows[0];
-  }
+  if (m) conds.push(`attendee_id.eq.${m[1]}`);
+  if (/^\d+$/.test(code)) conds.push(`attendee_id.eq.${code}`);
 
-  // 3) member_code within this event
-  rows = await sbFetch(
-    "event_attendees",
-    `?member_code=eq.${encodeURIComponent(code)}&event_id=eq.${eventId}&select=*&limit=1`,
-  );
-  if (rows?.length) return rows[0];
-
-  // 4) Try attendee_id raw
-  if (/^\d+$/.test(code)) {
-    rows = await sbFetch(
+  const [globalRows, memberRows] = await Promise.all([
+    sbFetch(
       "event_attendees",
-      `?attendee_id=eq.${code}&select=*&limit=1`,
-    );
-    if (rows?.length) return rows[0];
+      `?or=(${conds.join(",")})&select=*&limit=5`,
+    ).catch(() => []),
+    sbFetch(
+      "event_attendees",
+      `?member_code=eq.${encodeURIComponent(code)}&event_id=eq.${eventId}&select=*&limit=1`,
+    ).catch(() => []),
+  ]);
+
+  const all = [...(globalRows || []), ...(memberRows || [])];
+  if (all.length) {
+    // Prefer the attendee registered for current event
+    const inEvent = all.find((r) => r.event_id === eventId);
+    return inEvent || all[0];
   }
 
   return null;
