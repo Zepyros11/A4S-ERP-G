@@ -13,8 +13,8 @@
 
 window.REGISTER_CONFIG = {
   // REPLACE with your Supabase project URL:
-  sb_url: 'https://dtiynydgkcqausqktreg.supabase.co',
+  sb_url: "https://dtiynydgkcqausqktreg.supabase.co",
 
   // REPLACE with your ANON (public) key — NOT service_role:
-  sb_key: 'REPLACE_WITH_YOUR_SUPABASE_ANON_KEY',
+  sb_key: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...(key จริง)",
 };
