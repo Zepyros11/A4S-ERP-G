@@ -237,6 +237,7 @@ async function handleScan(scannedText) {
     );
     const updated = res?.[0] || a;
     setResultFromAttendee("success", "✅ Check-in สำเร็จ", updated);
+    showSuccessPopup(updated);
     pushRecent(updated);
   } catch (e) {
     setResult("error", "❌ Error", e.message);
@@ -320,6 +321,61 @@ function setResultFromAttendee(cls, title, a) {
     ${awardBanner}
   `;
 }
+
+let _successCloseTimer = null;
+function showSuccessPopup(a) {
+  const modal = document.getElementById("ciSuccessModal");
+  if (!modal) return;
+
+  document.getElementById("ciSuccessName").textContent =
+    (a.member_code ? `[${a.member_code}] ` : "") + (a.name || "");
+  document.getElementById("ciSuccessTicket").textContent = a.ticket_no
+    ? `🎫 ${a.ticket_no}`
+    : "";
+
+  const chips = [
+    a.payment_status === "PAID"
+      ? '<span class="ci-status-chip ok">💳 ชำระแล้ว</span>'
+      : a.payment_status === "COMPLIMENTARY"
+      ? '<span class="ci-status-chip ok">🎫 ฟรี</span>'
+      : '<span class="ci-status-chip warn">⏳ ยังไม่ชำระ</span>',
+    a.position_level
+      ? `<span class="ci-status-chip" style="background:#fef3c7;color:#92400e">⭐ ${escapeHtml(a.position_level)}</span>`
+      : "",
+  ].join("");
+  document.getElementById("ciSuccessChips").innerHTML = chips;
+
+  const award = document.getElementById("ciSuccessAward");
+  const tags = a.tags || [];
+  if (tags.length) {
+    award.innerHTML =
+      `🏆 รางวัล / กลุ่มพิเศษ<br>` +
+      tags.map((t) => `<span class="ci-award-tag">${escapeHtml(t)}</span>`).join("");
+    award.style.display = "block";
+  } else {
+    award.style.display = "none";
+  }
+
+  // Restart progress animation
+  const bar = modal.querySelector(".ci-success-progress");
+  if (bar) {
+    const clone = bar.cloneNode(true);
+    bar.parentNode.replaceChild(clone, bar);
+  }
+
+  modal.classList.add("open");
+  try {
+    if (navigator.vibrate) navigator.vibrate(80);
+  } catch {}
+
+  clearTimeout(_successCloseTimer);
+  _successCloseTimer = setTimeout(() => modal.classList.remove("open"), 2200);
+}
+
+window.ciCloseSuccess = function () {
+  clearTimeout(_successCloseTimer);
+  document.getElementById("ciSuccessModal")?.classList.remove("open");
+};
 
 function pushRecent(a) {
   recentCheckins.unshift({

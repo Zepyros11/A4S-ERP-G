@@ -307,6 +307,175 @@
         color: #64748b;
         margin-top: 10px;
       }
+      /* ── Success Popup ── */
+      .ci-success-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(15, 23, 42, 0.55);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10000;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.2s;
+        backdrop-filter: blur(4px);
+      }
+      .ci-success-overlay.open { opacity: 1; pointer-events: all; }
+      .ci-success-card {
+        background: linear-gradient(135deg, #ecfdf5, #d1fae5);
+        border: 3px solid #10b981;
+        width: 440px;
+        max-width: 92vw;
+        border-radius: 20px;
+        padding: 28px 24px 24px;
+        text-align: center;
+        box-shadow: 0 25px 70px rgba(16, 185, 129, 0.35);
+        transform: scale(0.7);
+        transition: transform 0.25s cubic-bezier(0.18, 1.35, 0.55, 1);
+      }
+      .ci-success-overlay.open .ci-success-card { transform: scale(1); }
+      .ci-success-check {
+        width: 84px;
+        height: 84px;
+        margin: 0 auto 14px;
+        border-radius: 50%;
+        background: #10b981;
+        color: #fff;
+        font-size: 48px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        animation: ciCheckPop 0.45s cubic-bezier(0.18, 1.35, 0.55, 1);
+        box-shadow: 0 8px 24px rgba(16, 185, 129, 0.4);
+      }
+      @keyframes ciCheckPop {
+        0% { transform: scale(0); }
+        60% { transform: scale(1.15); }
+        100% { transform: scale(1); }
+      }
+      .ci-success-title {
+        font-size: 22px;
+        font-weight: 800;
+        color: #065f46;
+        margin-bottom: 4px;
+      }
+      .ci-success-name {
+        font-size: 20px;
+        font-weight: 800;
+        color: #0f172a;
+        margin-top: 10px;
+      }
+      .ci-success-meta {
+        font-size: 13px;
+        color: #475569;
+        margin-top: 4px;
+      }
+      .ci-success-chips { margin-top: 12px; }
+      .ci-success-award {
+        margin-top: 14px;
+        padding: 12px 16px;
+        background: linear-gradient(135deg, #fbbf24, #f59e0b);
+        color: #7c2d12;
+        border-radius: 12px;
+        font-size: 15px;
+        font-weight: 700;
+        box-shadow: 0 4px 16px rgba(245, 158, 11, 0.4);
+      }
+      .ci-success-progress {
+        width: 100%;
+        height: 4px;
+        background: rgba(16, 185, 129, 0.18);
+        border-radius: 2px;
+        margin-top: 18px;
+        overflow: hidden;
+      }
+      .ci-success-progress::after {
+        content: "";
+        display: block;
+        height: 100%;
+        background: #10b981;
+        animation: ciProgress 2.2s linear forwards;
+      }
+      @keyframes ciProgress {
+        from { width: 100%; }
+        to { width: 0%; }
+      }
+
+      /* ───────────────────── MOBILE ───────────────────── */
+      @media (max-width: 640px) {
+        .ci-page { padding: 12px 10px; }
+
+        .ci-hero {
+          padding: 14px;
+          border-radius: 12px;
+          margin-bottom: 12px;
+        }
+        .ci-hero-title { font-size: 17px; }
+        .ci-hero-sub { font-size: 12px; }
+        .ci-hero-poster { width: 52px; height: 52px; }
+        .ci-share-btn { padding: 7px 12px; font-size: 12px; }
+
+        .ci-scanner-card {
+          padding: 10px;
+          border-radius: 12px;
+        }
+        #qr-reader { max-width: 100%; }
+
+        .ci-manual { flex-direction: column; gap: 8px; }
+        .ci-manual input { width: 100%; font-size: 15px; padding: 12px 14px; }
+        .ci-manual button { width: 100%; padding: 14px 18px; font-size: 14px; }
+
+        .ci-result {
+          padding: 14px;
+          border-radius: 12px;
+          min-height: 90px;
+        }
+        .ci-name { font-size: 17px; }
+        .ci-meta { font-size: 12px; }
+        .ci-award-banner { padding: 10px 14px; font-size: 14px; }
+
+        .ci-recent-title { font-size: 12px; margin-bottom: 8px; }
+        .ci-recent-item { padding: 8px 12px; }
+        .ci-recent-name { font-size: 13px; }
+
+        /* Success popup */
+        .ci-success-card {
+          padding: 22px 18px 18px;
+          border-radius: 16px;
+          border-width: 2px;
+        }
+        .ci-success-check {
+          width: 68px;
+          height: 68px;
+          font-size: 38px;
+          margin-bottom: 10px;
+        }
+        .ci-success-title { font-size: 19px; }
+        .ci-success-name { font-size: 17px; margin-top: 8px; }
+        .ci-success-meta { font-size: 12px; }
+        .ci-success-award { padding: 10px 14px; font-size: 13px; }
+
+        /* Share modal */
+        .share-modal-body { padding: 14px; }
+        #shareQrCode { padding: 10px; }
+        .share-link-row { flex-direction: column; }
+        .share-link-row input { width: 100%; }
+        .share-link-row button { width: 100%; }
+      }
+
+      @media (max-width: 380px) {
+        .ci-hero-title { font-size: 15px; }
+        .ci-success-check { width: 58px; height: 58px; font-size: 32px; }
+        .ci-success-title { font-size: 17px; }
+        .ci-success-name { font-size: 15px; }
+      }
+
+      /* Better touch targets on coarse pointers */
+      @media (pointer: coarse) {
+        .ci-manual input, .ci-manual button { min-height: 48px; }
+        .ci-share-btn { min-height: 40px; }
+      }
     </style>
   </head>
   <body>
@@ -368,6 +537,19 @@
       <div class="ci-recent">
         <div class="ci-recent-title">🕐 Check-in ล่าสุด</div>
         <div id="ciRecent"></div>
+      </div>
+    </div>
+
+    <!-- SUCCESS POPUP -->
+    <div class="ci-success-overlay" id="ciSuccessModal" onclick="window.ciCloseSuccess()">
+      <div class="ci-success-card" onclick="event.stopPropagation()">
+        <div class="ci-success-check">✓</div>
+        <div class="ci-success-title">Check-in สำเร็จ</div>
+        <div class="ci-success-name" id="ciSuccessName">—</div>
+        <div class="ci-success-meta" id="ciSuccessTicket">—</div>
+        <div class="ci-success-chips" id="ciSuccessChips"></div>
+        <div class="ci-success-award" id="ciSuccessAward" style="display:none"></div>
+        <div class="ci-success-progress"></div>
       </div>
     </div>
 
