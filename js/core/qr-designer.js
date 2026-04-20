@@ -33,14 +33,19 @@
     return _libPromise;
   }
 
-  /* ── Locked design: "Neon Cyber" ── */
+  /* ── Locked design: "Neon Cyber" (tuned for cross-device scan reliability) ──
+     Tuning notes:
+     - type "rounded" (not "dots") → modules stay contiguous, decodes on webcam/gun scanners
+     - 600x600 render → survives LINE's image compression without blurring modules
+     - H error correction → tolerates logo occlusion + some print damage
+  */
   const NEON_CYBER_CONFIG = {
-    width: 300,
-    height: 300,
-    margin: 10,
+    width: 600,
+    height: 600,
+    margin: 16,
     qrOptions: { errorCorrectionLevel: "H" },
     dotsOptions: {
-      type: "dots",
+      type: "rounded",
       color: "#06b6d4",
       gradient: {
         type: "linear",
@@ -56,8 +61,8 @@
     cornersDotOptions: { type: "dot", color: "#d946ef" },
     imageOptions: {
       hideBackgroundDots: true,
-      imageSize: 0.38,
-      margin: 10,
+      imageSize: 0.32,
+      margin: 12,
       crossOrigin: "anonymous",
     },
     useLogo: true,
