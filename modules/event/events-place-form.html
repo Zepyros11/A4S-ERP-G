@@ -63,11 +63,12 @@
                 <div class="ef-field">
                   <label class="ef-label">ประเภทสถานที่ <span class="ef-required">*</span></label>
                   <div style="display:flex;gap:6px">
-                    <select class="ef-input" id="fPlaceType" style="flex:1">
+                    <select class="ef-input ef-place-type" id="fPlaceType" style="flex:1">
                       <option value="">— เลือกประเภท —</option>
                     </select>
                     <button class="btn btn-outline" type="button" onclick="window.openPlaceTypeManager()" title="จัดการประเภท" style="padding:8px 10px;flex-shrink:0">⚙️</button>
                   </div>
+                  <div class="ef-hint" id="placeTypeHint">👆 เลือกประเภทก่อน เพื่อให้ระบบแสดงช่องกรอกรายละเอียดที่เกี่ยวข้อง (ห้องพัก / ห้องประชุม / ห้องอาหาร)</div>
                 </div>
               </div>
               <input type="hidden" id="fRegion" />

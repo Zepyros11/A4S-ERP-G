@@ -14,6 +14,7 @@ const SB_KEY = localStorage.getItem("sb_key") || "";
 
 let currentCfg = null;
 let currentEvent = null;
+let currentPosterUrl = null;
 let qrInstance = null;
 let presets = [];
 let activePresetId = null;
@@ -45,17 +46,33 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (EVENT_ID) {
       try {
         const rows = await sbGet(
-          `events?event_id=eq.${encodeURIComponent(EVENT_ID)}&select=event_id,event_name,qr_style_config&limit=1`,
+          `events?event_id=eq.${encodeURIComponent(EVENT_ID)}&select=event_id,event_name,qr_style_config,poster_url,image_urls&limit=1`,
         );
         currentEvent = rows?.[0];
         if (currentEvent) {
+          currentPosterUrl = currentEvent.poster_url
+            || (Array.isArray(currentEvent.image_urls) ? currentEvent.image_urls[0] : null)
+            || null;
           document.getElementById("qdEventChip").textContent = currentEvent.event_name || `Event ${EVENT_ID}`;
           document.getElementById("qdEventChip").style.display = "inline-block";
           document.getElementById("qdSaveBtn").style.display = "inline-block";
           document.getElementById("qdSubtitle").textContent =
             `กำหนด QR style สำหรับ "${currentEvent.event_name}" โดยเฉพาะ — หากยังไม่บันทึกจะใช้ preset default`;
+          // Update poster section hint
+          const hint = document.getElementById("qdPosterEventHint");
+          if (hint) {
+            hint.textContent = currentPosterUrl
+              ? "(ใช้ poster จาก event นี้)"
+              : "(event นี้ยังไม่มี poster)";
+          }
         }
       } catch (e) { console.warn("load event fail:", e); }
+    } else {
+      // Standalone — no event poster; disable poster toggle
+      const hint = document.getElementById("qdPosterEventHint");
+      if (hint) hint.textContent = "(ไม่มี event — poster bg ใช้งานได้เฉพาะตอนเปิดจาก event)";
+      const toggle = document.getElementById("qdUsePoster");
+      if (toggle) { toggle.disabled = true; toggle.title = "เปิดหน้านี้ผ่าน event form เพื่อใช้ poster bg"; }
     }
 
     // 2) โหลด config ปัจจุบัน (event override ถ้ามี, ไม่งั้น default preset, ไม่งั้น hard default)
@@ -86,7 +103,9 @@ async function renderPreview() {
     || document.getElementById("qdPayload").textContent;
   document.getElementById("qdPayload").textContent = payload;
   try {
-    const result = await window.QRDesigner.renderQR(wrap, payload, currentCfg);
+    const result = await window.QRDesigner.renderQR(wrap, payload, currentCfg, {
+      posterUrl: currentPosterUrl,
+    });
     qrInstance = result;
   } catch (e) {
     wrap.innerHTML = `<div style="padding:30px;color:#dc2626;">${e.message}</div>`;
@@ -94,14 +113,15 @@ async function renderPreview() {
 }
 
 async function updatePreviewOnly() {
-  if (!qrInstance) return renderPreview();
+  // Poster composite mode needs full re-render every time
+  const usePoster = !!(currentCfg?.posterBackground?.enabled && currentPosterUrl);
+  if (usePoster || !qrInstance) return renderPreview();
   const payload = document.getElementById("qdCustomPayload").value || "SAMPLE";
   document.getElementById("qdPayload").textContent = payload;
   try {
     qrInstance.updateConfig(currentCfg);
     qrInstance.updatePayload(payload);
   } catch (e) {
-    // fallback: full re-render
     await renderPreview();
   }
 }
@@ -114,6 +134,7 @@ function applyCfgToControls(cfg) {
   const cs = cfg.cornersSquareOptions || {};
   const cd = cfg.cornersDotOptions || {};
   const img = cfg.imageOptions || {};
+  const pb = cfg.posterBackground || {};
   g("qdDotType").value = dots.type || "rounded";
   g("qdDotColor").value = dots.color || "#06c755";
   g("qdDotColorHex").value = dots.color || "#06c755";
@@ -130,6 +151,15 @@ function applyCfgToControls(cfg) {
   g("qdLogoMargin").value = img.margin ?? 8;
   g("qdSize").value = cfg.width || 300;
   g("qdErrorLevel").value = cfg.qrOptions?.errorCorrectionLevel || "H";
+  // Poster background
+  const useP = !!pb.enabled;
+  g("qdUsePoster").checked = useP;
+  g("qdPosterCtls").style.display = useP ? "" : "none";
+  g("qdPosterOpacity").value = pb.opacity ?? 0.3;
+  g("qdPosterScale").value = pb.scale ?? 1;
+  g("qdPosterOffsetX").value = pb.offsetX ?? 0;
+  g("qdPosterOffsetY").value = pb.offsetY ?? 0;
+  g("qdPosterFit").value = pb.fit || "cover";
 }
 
 /* ── Read controls → build config ── */
@@ -151,6 +181,14 @@ function readControls() {
       crossOrigin: "anonymous",
     },
     useLogo: g("qdUseLogo").checked,
+    posterBackground: {
+      enabled: g("qdUsePoster").checked,
+      opacity: parseFloat(g("qdPosterOpacity").value) || 0,
+      scale: parseFloat(g("qdPosterScale").value) || 1,
+      offsetX: parseFloat(g("qdPosterOffsetX").value) || 0,
+      offsetY: parseFloat(g("qdPosterOffsetY").value) || 0,
+      fit: g("qdPosterFit").value || "cover",
+    },
   };
 }
 
@@ -171,9 +209,16 @@ function bindControls() {
   [
     "qdDotType", "qdCornerType", "qdCornerDotType", "qdUseLogo",
     "qdLogoSize", "qdLogoMargin", "qdSize", "qdErrorLevel", "qdCustomPayload",
+    "qdPosterOpacity", "qdPosterScale", "qdPosterOffsetX", "qdPosterOffsetY", "qdPosterFit",
   ].forEach((id) => {
     document.getElementById(id).addEventListener("change", onCtlChange);
     document.getElementById(id).addEventListener("input", onCtlChange);
+  });
+
+  // Toggle poster bg — also show/hide poster controls panel
+  document.getElementById("qdUsePoster").addEventListener("change", (e) => {
+    document.getElementById("qdPosterCtls").style.display = e.target.checked ? "" : "none";
+    onCtlChange();
   });
 }
 

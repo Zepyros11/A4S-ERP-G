@@ -117,7 +117,25 @@
         crossOrigin: "anonymous",
       },
       useLogo: true,
+      posterBackground: {
+        enabled: false,
+        opacity: 0.3,      // 0-1
+        scale: 1.0,        // 0.5-3
+        offsetX: 0,        // -100 to 100 (% of width)
+        offsetY: 0,        // -100 to 100 (% of height)
+        fit: "cover",      // 'cover' | 'contain'
+      },
     };
+  }
+
+  function _loadImage(url) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => resolve(img);
+      img.onerror = () => reject(new Error("โหลดรูป poster ไม่ได้ (CORS หรือ URL ผิด)"));
+      img.src = url;
+    });
   }
 
   function deepMerge(target, src) {
@@ -137,51 +155,130 @@
     return deepMerge(baseCfg || getDefaultConfig(), userCfg || {});
   }
 
-  /* ── Render ── */
-  async function renderQR(targetEl, payload, config, overrides = {}) {
+  /* ── Render ──
+     opts: { posterUrl?: string }  — if provided AND config.posterBackground.enabled,
+                                     composite poster behind QR
+  */
+  async function renderQR(targetEl, payload, config, opts = {}) {
     if (!targetEl) throw new Error("ต้องระบุ target element");
     const QRCodeStyling = await ensureLib();
-    const finalCfg = mergeConfig(config, overrides);
+    const finalCfg = mergeConfig(getDefaultConfig(), config || {});
+    const posterUrl = opts.posterUrl || null;
+    const pb = finalCfg.posterBackground || {};
+    const useComposite = !!(pb.enabled && posterUrl);
 
-    const options = {
+    const qrOptions = {
       width: finalCfg.width || 300,
       height: finalCfg.height || 300,
       margin: finalCfg.margin ?? 10,
-      type: finalCfg.type || "canvas",
+      type: "canvas",
       data: String(payload || ""),
       qrOptions: finalCfg.qrOptions || { errorCorrectionLevel: "H" },
       dotsOptions: finalCfg.dotsOptions,
-      backgroundOptions: finalCfg.backgroundOptions,
+      backgroundOptions: useComposite
+        ? { color: "rgba(0,0,0,0)" }   // transparent so poster shows through
+        : finalCfg.backgroundOptions,
       cornersSquareOptions: finalCfg.cornersSquareOptions,
       cornersDotOptions: finalCfg.cornersDotOptions,
       imageOptions: finalCfg.imageOptions,
     };
-    if (finalCfg.useLogo) options.image = LOGO_URL();
+    if (finalCfg.useLogo) qrOptions.image = LOGO_URL();
 
     targetEl.innerHTML = "";
-    const instance = new QRCodeStyling(options);
-    instance.append(targetEl);
+
+    // --- Simple mode (no poster): append qr-code-styling directly ---
+    if (!useComposite) {
+      const instance = new QRCodeStyling(qrOptions);
+      instance.append(targetEl);
+      return {
+        instance,
+        download: (name = "qr", ext = "png") =>
+          instance.download({ name, extension: ext }),
+        updatePayload: (p) => instance.update({ data: String(p || "") }),
+        updateConfig: (newCfg) => {
+          const merged = mergeConfig(getDefaultConfig(), newCfg || {});
+          instance.update({
+            width: merged.width,
+            height: merged.height,
+            margin: merged.margin,
+            qrOptions: merged.qrOptions,
+            dotsOptions: merged.dotsOptions,
+            backgroundOptions: merged.backgroundOptions,
+            cornersSquareOptions: merged.cornersSquareOptions,
+            cornersDotOptions: merged.cornersDotOptions,
+            imageOptions: merged.imageOptions,
+            image: merged.useLogo ? LOGO_URL() : undefined,
+          });
+        },
+      };
+    }
+
+    // --- Composite mode: poster bg + QR on top ---
+    const width = finalCfg.width || 300;
+    const height = finalCfg.height || 300;
+    const outer = document.createElement("canvas");
+    outer.width = width;
+    outer.height = height;
+    const ctx = outer.getContext("2d");
+
+    // base bg color (below poster)
+    ctx.fillStyle = finalCfg.backgroundOptions?.color || "#ffffff";
+    ctx.fillRect(0, 0, width, height);
+
+    // draw poster with opacity + scale + offset + fit
+    try {
+      const img = await _loadImage(posterUrl);
+      const fit = pb.fit || "cover";
+      const scale = Math.max(0.1, pb.scale ?? 1);
+      const iw = img.naturalWidth || img.width;
+      const ih = img.naturalHeight || img.height;
+      const baseRatio = fit === "cover"
+        ? Math.max(width / iw, height / ih)
+        : Math.min(width / iw, height / ih);
+      const ratio = baseRatio * scale;
+      const dw = iw * ratio;
+      const dh = ih * ratio;
+      const dx = (width - dw) / 2 + ((pb.offsetX ?? 0) / 100) * width;
+      const dy = (height - dh) / 2 + ((pb.offsetY ?? 0) / 100) * height;
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, Math.min(1, pb.opacity ?? 0.3));
+      ctx.drawImage(img, dx, dy, dw, dh);
+      ctx.restore();
+    } catch (e) {
+      console.warn("[QR poster]", e.message);
+    }
+
+    // render QR into offscreen container, then composite
+    const hidden = document.createElement("div");
+    hidden.style.cssText = "position:absolute;left:-99999px;top:-99999px;pointer-events:none;";
+    document.body.appendChild(hidden);
+    const instance = new QRCodeStyling(qrOptions);
+    instance.append(hidden);
+    // qr-code-styling uses async image for logo — wait a tick then re-check
+    await new Promise((r) => setTimeout(r, finalCfg.useLogo ? 120 : 30));
+    const qrCanvas = hidden.querySelector("canvas");
+    if (qrCanvas) ctx.drawImage(qrCanvas, 0, 0, width, height);
+    try { document.body.removeChild(hidden); } catch {}
+
+    targetEl.appendChild(outer);
+
+    const download = (name = "qr", ext = "png") => {
+      const mime = ext === "jpg" || ext === "jpeg" ? "image/jpeg" : "image/png";
+      const a = document.createElement("a");
+      a.href = outer.toDataURL(mime);
+      a.download = `${name}.${ext === "jpeg" ? "jpg" : ext}`;
+      a.click();
+    };
+
+    const reRender = (newPayload, newCfg) =>
+      renderQR(targetEl, newPayload ?? payload, newCfg ?? config, opts);
 
     return {
-      instance,
-      download: (name = "qr", ext = "png") =>
-        instance.download({ name, extension: ext }),
-      updatePayload: (newPayload) => instance.update({ data: String(newPayload || "") }),
-      updateConfig: (newCfg) => {
-        const merged = mergeConfig(newCfg, {});
-        instance.update({
-          width: merged.width,
-          height: merged.height,
-          margin: merged.margin,
-          qrOptions: merged.qrOptions,
-          dotsOptions: merged.dotsOptions,
-          backgroundOptions: merged.backgroundOptions,
-          cornersSquareOptions: merged.cornersSquareOptions,
-          cornersDotOptions: merged.cornersDotOptions,
-          imageOptions: merged.imageOptions,
-          image: merged.useLogo ? LOGO_URL() : undefined,
-        });
-      },
+      instance: null,
+      canvas: outer,
+      download,
+      updatePayload: (p) => reRender(p, config),
+      updateConfig: (newCfg) => reRender(payload, newCfg),
     };
   }
 

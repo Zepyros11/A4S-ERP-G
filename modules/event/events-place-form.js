@@ -423,6 +423,18 @@ async function loadPlaceData() {
     }
     renderRooms();
 
+    // load dining rooms
+    const dinings = await fetchPlaceDiningRooms(editId);
+    diningRows = (dinings || []).map((r) => ({
+      ...r,
+      _images: (r.image_urls || []).map((u) => ({ url: u })),
+    }));
+    if (diningRows.length > 0) {
+      document.getElementById("chkDining").checked = true;
+      window.toggleSection("diningBody", true);
+    }
+    renderDining();
+
     // โหลดรูปตามหมวด — image_urls เก็บเป็น object {exterior:[], room:[], food:[]}
     // backward compat: ถ้าเป็น array เดิม → ใส่ใน exterior
     const imgs = p.image_urls || [];
@@ -727,9 +739,27 @@ window.savePlace = async function () {
         }
         roomsData[r].image_urls = urls.length > 0 ? urls : null;
       }
+      // upload dining images
+      const diningData = collectDiningFromForm();
+      // filter state rows to match diningData (rows with room_name)
+      const diningFilteredRows = diningRows.filter((r) => (r.room_name || "").trim());
+      for (let d = 0; d < diningData.length; d++) {
+        const imgs = diningFilteredRows[d]?._images || [];
+        const urls = [];
+        for (let i = 0; i < imgs.length; i++) {
+          if (imgs[i].file) {
+            const uploaded = await uploadPlaceImage(placeId, imgs[i].file, `dining_${d}_${i}`);
+            urls.push(uploaded);
+          } else if (imgs[i].url) {
+            urls.push(imgs[i].url);
+          }
+        }
+        diningData[d].image_urls = urls.length > 0 ? urls : null;
+      }
       await Promise.all([
         upsertPlaceRooms(placeId, roomsData),
         upsertPlaceRoomTypes(placeId, accomData),
+        upsertPlaceDiningRooms(placeId, diningData),
       ]);
     }
 
@@ -1239,6 +1269,261 @@ window.removeRoom = function (idx) {
   renderRooms();
 };
 
+// ── DINING ROOMS ─────────────────────────
+const DINING_IMG_LIMIT = 10;
+const DINING_PRICING_MODELS = [
+  { val: "menu", icon: "📖", label: "ตามราคาเมนู" },
+  { val: "buffet", icon: "🍱", label: "Buffet" },
+  { val: "set_per_head", icon: "👤", label: "Set ต่อหัว" },
+  { val: "room_charter", icon: "🏷", label: "เหมาห้อง" },
+];
+const DINING_CUISINES = [
+  { val: "thai", icon: "🇹🇭", label: "ไทย" },
+  { val: "chinese", icon: "🥢", label: "จีน" },
+  { val: "japanese", icon: "🍣", label: "ญี่ปุ่น" },
+  { val: "western", icon: "🍝", label: "ตะวันตก" },
+  { val: "fusion", icon: "🌀", label: "ฟิวชั่น" },
+  { val: "isan", icon: "🌶", label: "อีสาน" },
+  { val: "seafood", icon: "🦞", label: "ซีฟู้ด" },
+];
+const DINING_OPTIONS = [
+  { key: "is_halal", icon: "🕌", label: "Halal" },
+  { key: "is_vegetarian", icon: "🥦", label: "มังสวิรัติ" },
+  { key: "allow_alcohol", icon: "🍷", label: "เสิร์ฟแอลกอฮอล์" },
+];
+
+const diningGrids = {};
+
+function renderDining() {
+  const container = document.getElementById("diningContainer");
+  if (!container) return;
+  container.innerHTML = "";
+  Object.keys(diningGrids).forEach((k) => delete diningGrids[k]);
+  diningRows.forEach((r, idx) => {
+    container.appendChild(buildDiningCard(r, idx));
+    renderDiningImages(idx);
+  });
+}
+
+function renderDiningImages(idx) {
+  const container = document.getElementById(`dining-img-grid-${idx}`);
+  if (!container) return;
+  if (!diningRows[idx]._images) diningRows[idx]._images = [];
+  const countEl = document.getElementById(`dining-cnt-${idx}`);
+
+  if (diningGrids[idx]) {
+    diningGrids[idx].setImages(diningRows[idx]._images);
+    if (countEl) countEl.textContent = `${diningRows[idx]._images.length}/${DINING_IMG_LIMIT}`;
+    return;
+  }
+
+  diningGrids[idx] = new ImageGrid({
+    container,
+    maxImages: DINING_IMG_LIMIT,
+    columns: 5,
+    aspectRatio: "4/3",
+    images: diningRows[idx]._images,
+    countEl,
+    onAdd: async (files) => {
+      for (const f of files) {
+        const compressed = await compressImage(f);
+        diningRows[idx]._images.push({ file: compressed });
+      }
+      diningGrids[idx].setImages(diningRows[idx]._images);
+      if (countEl) countEl.textContent = `${diningRows[idx]._images.length}/${DINING_IMG_LIMIT}`;
+    },
+    onRemove: (imgIdx) => {
+      diningRows[idx]._images.splice(imgIdx, 1);
+      if (countEl) countEl.textContent = `${diningRows[idx]._images.length}/${DINING_IMG_LIMIT}`;
+    },
+  });
+}
+
+function buildDiningCard(r, idx) {
+  const card = document.createElement("div");
+  card.className = "room-card";
+  const pricingModels = r.pricing_models || [];
+  const cuisines = r.cuisine_types || [];
+  card.innerHTML = `
+    <div class="room-card-header">
+      <strong>ห้องอาหาร ${idx + 1}</strong>
+      <button class="btn-icon-sm" type="button" onclick="window.removeDining(${idx})">✕</button>
+    </div>
+    <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:8px">
+      <div class="ef-field">
+        <label class="ef-label">ชื่อห้อง/โซน</label>
+        <input class="ef-input dining-f" data-idx="${idx}" data-key="room_name" value="${r.room_name || ""}" placeholder="เช่น Grand Ballroom, Private Room 1" />
+      </div>
+      <div class="ef-field">
+        <label class="ef-label">ชั้น</label>
+        <input class="ef-input dining-f" data-idx="${idx}" data-key="floor" value="${r.floor || ""}" placeholder="เช่น G" />
+      </div>
+      <div class="ef-field">
+        <label class="ef-label">ความจุ (ที่นั่ง)</label>
+        <input class="ef-input dining-f" data-idx="${idx}" data-key="capacity" type="number" value="${r.capacity || ""}" placeholder="เช่น 80" />
+      </div>
+    </div>
+
+    <div class="ef-field">
+      <label class="ef-label">รูปแบบการคิดเงิน (เลือกได้หลายอย่าง)</label>
+      <div class="room-amenity-toggles">
+        ${DINING_PRICING_MODELS.map((p) => `
+          <label class="facility-toggle-item compact">
+            <div class="toggle-switch toggle-sm"><input type="checkbox" class="dining-pricing-cb" data-idx="${idx}" value="${p.val}" ${pricingModels.includes(p.val) ? "checked" : ""}><span class="toggle-slider"></span></div>
+            <span>${p.icon} ${p.label}</span>
+          </label>
+        `).join("")}
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px">
+      <div class="ef-field">
+        <label class="ef-label">ราคา/หัว (บาท)</label>
+        <input class="ef-input dining-f" data-idx="${idx}" data-key="price_per_head" type="number" value="${r.price_per_head || ""}" placeholder="เช่น 690" />
+      </div>
+      <div class="ef-field">
+        <label class="ef-label">เหมาห้อง/ครั้ง (บาท)</label>
+        <input class="ef-input dining-f" data-idx="${idx}" data-key="price_per_event" type="number" value="${r.price_per_event || ""}" placeholder="เช่น 15000" />
+      </div>
+      <div class="ef-field">
+        <label class="ef-label">เหมาห้อง/ชม. (บาท)</label>
+        <input class="ef-input dining-f" data-idx="${idx}" data-key="price_per_hour" type="number" value="${r.price_per_hour || ""}" placeholder="เช่น 2000" />
+      </div>
+      <div class="ef-field">
+        <label class="ef-label">Corkage (บาท/ขวด)</label>
+        <input class="ef-input dining-f" data-idx="${idx}" data-key="corkage_fee" type="number" value="${r.corkage_fee || ""}" placeholder="เช่น 500" />
+      </div>
+    </div>
+
+    <div class="ef-field">
+      <label class="ef-label">ประเภทอาหาร (เลือกได้หลายอย่าง)</label>
+      <div class="room-amenity-toggles">
+        ${DINING_CUISINES.map((c) => `
+          <label class="facility-toggle-item compact">
+            <div class="toggle-switch toggle-sm"><input type="checkbox" class="dining-cuisine-cb" data-idx="${idx}" value="${c.val}" ${cuisines.includes(c.val) ? "checked" : ""}><span class="toggle-slider"></span></div>
+            <span>${c.icon} ${c.label}</span>
+          </label>
+        `).join("")}
+      </div>
+    </div>
+
+    <div class="ef-field">
+      <label class="ef-label">ตัวเลือกพิเศษ</label>
+      <div class="room-amenity-toggles">
+        ${DINING_OPTIONS.map((o) => `
+          <label class="facility-toggle-item compact">
+            <div class="toggle-switch toggle-sm"><input type="checkbox" class="dining-opt-cb" data-idx="${idx}" data-key="${o.key}" ${r[o.key] ? "checked" : ""}><span class="toggle-slider"></span></div>
+            <span>${o.icon} ${o.label}</span>
+          </label>
+        `).join("")}
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr 2fr;gap:8px">
+      <div class="ef-field">
+        <label class="ef-label">เวลาเปิด</label>
+        <input class="ef-input dining-f" data-idx="${idx}" data-key="open_time" type="time" value="${r.open_time || ""}" />
+      </div>
+      <div class="ef-field">
+        <label class="ef-label">เวลาปิด</label>
+        <input class="ef-input dining-f" data-idx="${idx}" data-key="close_time" type="time" value="${r.close_time || ""}" />
+      </div>
+      <div class="ef-field">
+        <label class="ef-label">รายละเอียดเพิ่มเติม</label>
+        <input class="ef-input dining-f" data-idx="${idx}" data-key="notes" value="${r.notes || ""}" placeholder="เช่น รับจัด birthday, private party" />
+      </div>
+    </div>
+
+    <div class="ef-field">
+      <label class="ef-label">🖼 รูปห้องอาหาร (สูงสุด ${DINING_IMG_LIMIT} รูป) <span class="room-img-count" id="dining-cnt-${idx}">${(r._images || []).length}/${DINING_IMG_LIMIT}</span></label>
+      <div id="dining-img-grid-${idx}"></div>
+    </div>
+  `;
+  return card;
+}
+
+function syncDiningFormToState() {
+  const textKeys = ["room_name", "floor", "open_time", "close_time", "notes"];
+  const numKeys = ["capacity", "price_per_head", "price_per_event", "price_per_hour", "corkage_fee"];
+  document.querySelectorAll(".dining-f").forEach((el) => {
+    const idx = parseInt(el.dataset.idx);
+    const key = el.dataset.key;
+    if (!diningRows[idx]) return;
+    if (numKeys.includes(key)) {
+      diningRows[idx][key] = parseFloat(el.value) || null;
+    } else if (textKeys.includes(key)) {
+      diningRows[idx][key] = el.value.trim() || null;
+    }
+  });
+  diningRows.forEach((r) => { r.pricing_models = []; r.cuisine_types = []; });
+  DINING_OPTIONS.forEach((o) => {
+    diningRows.forEach((r) => { r[o.key] = false; });
+  });
+  document.querySelectorAll(".dining-pricing-cb:checked").forEach((cb) => {
+    const idx = parseInt(cb.dataset.idx);
+    if (diningRows[idx]) diningRows[idx].pricing_models.push(cb.value);
+  });
+  document.querySelectorAll(".dining-cuisine-cb:checked").forEach((cb) => {
+    const idx = parseInt(cb.dataset.idx);
+    if (diningRows[idx]) diningRows[idx].cuisine_types.push(cb.value);
+  });
+  document.querySelectorAll(".dining-opt-cb:checked").forEach((cb) => {
+    const idx = parseInt(cb.dataset.idx);
+    const key = cb.dataset.key;
+    if (diningRows[idx]) diningRows[idx][key] = true;
+  });
+}
+
+function collectDiningFromForm() {
+  syncDiningFormToState();
+  return diningRows
+    .filter((r) => (r.room_name || "").trim())
+    .map((r) => {
+      const { _images, ...rest } = r;
+      return {
+        room_name: rest.room_name,
+        floor: rest.floor || null,
+        capacity: rest.capacity || null,
+        pricing_models: (rest.pricing_models || []).length > 0 ? rest.pricing_models : null,
+        price_per_head: rest.price_per_head || null,
+        price_per_event: rest.price_per_event || null,
+        price_per_hour: rest.price_per_hour || null,
+        cuisine_types: (rest.cuisine_types || []).length > 0 ? rest.cuisine_types : null,
+        is_halal: !!rest.is_halal,
+        is_vegetarian: !!rest.is_vegetarian,
+        allow_alcohol: !!rest.allow_alcohol,
+        corkage_fee: rest.corkage_fee || null,
+        open_time: rest.open_time || null,
+        close_time: rest.close_time || null,
+        notes: rest.notes || null,
+      };
+    });
+}
+
+window.addDining = function () {
+  syncDiningFormToState();
+  diningRows.push({
+    room_name: "",
+    floor: "",
+    capacity: 0,
+    pricing_models: [],
+    cuisine_types: [],
+    is_halal: false,
+    is_vegetarian: false,
+    allow_alcohol: false,
+    _images: [],
+  });
+  renderDining();
+  const container = document.getElementById("diningContainer");
+  if (container) container.lastElementChild?.scrollIntoView({ behavior: "smooth" });
+};
+
+window.removeDining = function (idx) {
+  syncDiningFormToState();
+  diningRows.splice(idx, 1);
+  renderDining();
+};
+
 // ── UTILS ────────────────────────────────
 function getSB() {
   return {
@@ -1374,6 +1659,10 @@ function renderPTModal() {
         <input type="checkbox" class="pt-meeting" ${t.has_meeting !== false ? "checked" : ""} />
         <span>🏛</span>
       </label>
+      <label class="pt-flag" title="มีห้องอาหาร">
+        <input type="checkbox" class="pt-dining" ${t.has_dining !== false ? "checked" : ""} />
+        <span>🍽</span>
+      </label>
       <input class="ef-input pt-sort" type="number" value="${t.sort_order ?? 0}" style="width:50px" />
       <button class="btn-icon-sm pt-del" type="button">🗑</button>
     </div>
@@ -1435,6 +1724,7 @@ async function savePlaceTypes() {
     const sort = parseInt(row.querySelector(".pt-sort").value) || 0;
     const hasAccom = row.querySelector(".pt-accom").checked;
     const hasMeeting = row.querySelector(".pt-meeting").checked;
+    const hasDining = row.querySelector(".pt-dining").checked;
     if (!code || !name) continue;
     const data = {
       type_code: code,
@@ -1443,6 +1733,7 @@ async function savePlaceTypes() {
       sort_order: sort,
       has_accommodation: hasAccom,
       has_meeting: hasMeeting,
+      has_dining: hasDining,
     };
 
     if (id && id !== "new") {
@@ -1471,6 +1762,7 @@ window.toggleSection = function (bodyId, show) {
   if (show) {
     if (bodyId === "accomBody" && accomRows.length === 0) window.addAccom();
     if (bodyId === "meetingBody" && roomRows.length === 0) window.addRoom();
+    if (bodyId === "diningBody" && diningRows.length === 0) window.addDining();
   }
 };
 
@@ -1478,31 +1770,43 @@ window.toggleSection = function (bodyId, show) {
 // ซ่อน/โชว์ section "ห้องพัก" และ "ห้องประชุม" ตาม flag ของประเภทที่เลือก
 // ประเภทที่ยังไม่ได้เลือก → โชว์ทุก section (คงพฤติกรรมเดิม)
 function applyPlaceTypeFilter() {
-  const code = document.getElementById("fPlaceType").value;
+  const sel = document.getElementById("fPlaceType");
+  const code = sel.value;
   const type = allPlaceTypes.find((t) => t.type_code === code);
-  // ยังไม่เลือกประเภท → ซ่อนทั้ง 2 section จนกว่าจะเลือก
+
+  // highlight + hint เมื่อยังไม่เลือก — เป็นตัวบอกผู้ใช้ว่าต้องเลือกก่อน
+  const hint = document.getElementById("placeTypeHint");
+  if (!code) {
+    sel.classList.add("needs-pick");
+    if (hint) hint.classList.add("show");
+  } else {
+    sel.classList.remove("needs-pick");
+    if (hint) hint.classList.remove("show");
+  }
+  // ยังไม่เลือกประเภท → ซ่อนทุก section จนกว่าจะเลือก
   const showAccom = !!type && type.has_accommodation !== false;
   const showMeeting = !!type && type.has_meeting !== false;
+  const showDining = !!type && type.has_dining !== false;
 
   const accomSec = document.getElementById("sectionAccom");
   const meetingSec = document.getElementById("sectionMeeting");
+  const diningSec = document.getElementById("sectionDining");
   if (accomSec) accomSec.style.display = showAccom ? "" : "none";
   if (meetingSec) meetingSec.style.display = showMeeting ? "" : "none";
+  if (diningSec) diningSec.style.display = showDining ? "" : "none";
 
   // ปิด toggle + ซ่อน body ของ section ที่ถูกซ่อน (กันข้อมูลหลงไปตอน save)
   if (!showAccom) {
     const cb = document.getElementById("chkAccom");
-    if (cb && cb.checked) {
-      cb.checked = false;
-      window.toggleSection("accomBody", false);
-    }
+    if (cb && cb.checked) { cb.checked = false; window.toggleSection("accomBody", false); }
   }
   if (!showMeeting) {
     const cb = document.getElementById("chkMeeting");
-    if (cb && cb.checked) {
-      cb.checked = false;
-      window.toggleSection("meetingBody", false);
-    }
+    if (cb && cb.checked) { cb.checked = false; window.toggleSection("meetingBody", false); }
+  }
+  if (!showDining) {
+    const cb = document.getElementById("chkDining");
+    if (cb && cb.checked) { cb.checked = false; window.toggleSection("diningBody", false); }
   }
 }
 window.applyPlaceTypeFilter = applyPlaceTypeFilter;

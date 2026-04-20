@@ -212,6 +212,48 @@
             </div>
           </div>
 
+          <div class="qd-section" id="qdPosterSection">
+            <div class="qd-section-label">
+              🖼️ Poster Background
+              <span id="qdPosterEventHint" style="text-transform:none;font-weight:500;color:#94a3b8;font-size:10.5px;"></span>
+            </div>
+            <div class="qd-row" style="grid-template-columns:1fr;">
+              <label class="qd-toggle">
+                <input type="checkbox" id="qdUsePoster">
+                <span class="qd-toggle-lbl">ใช้ poster event เป็นพื้นหลัง</span>
+              </label>
+            </div>
+            <div id="qdPosterCtls" style="display:none;">
+              <div class="qd-row">
+                <label>Opacity</label>
+                <input type="number" id="qdPosterOpacity" min="0" max="1" step="0.05" value="0.3">
+              </div>
+              <div class="qd-row">
+                <label>Scale (zoom)</label>
+                <input type="number" id="qdPosterScale" min="0.5" max="3" step="0.05" value="1">
+              </div>
+              <div class="qd-row">
+                <label>Offset X (%)</label>
+                <input type="number" id="qdPosterOffsetX" min="-100" max="100" step="1" value="0">
+              </div>
+              <div class="qd-row">
+                <label>Offset Y (%)</label>
+                <input type="number" id="qdPosterOffsetY" min="-100" max="100" step="1" value="0">
+              </div>
+              <div class="qd-row">
+                <label>Fit mode</label>
+                <select id="qdPosterFit">
+                  <option value="cover">cover (เต็ม)</option>
+                  <option value="contain">contain (พอดี)</option>
+                </select>
+              </div>
+              <div style="font-size:10.5px;color:#94a3b8;margin-top:6px;line-height:1.5;">
+                💡 ปิด opacity ต่ำ (~0.2-0.4) เพื่อให้ QR ยัง scan ได้<br>
+                ใช้ error correction H เพื่อทน pattern รบกวน
+              </div>
+            </div>
+          </div>
+
           <div class="qd-section">
             <div class="qd-section-label">Logo (รูปตรงกลาง)</div>
             <div class="qd-row" style="grid-template-columns:1fr;">
