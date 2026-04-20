@@ -152,6 +152,8 @@ function render() {
   const start = (_page - 1) * PAGE_SIZE;
   const pageRows = _filtered.slice(start, start + PAGE_SIZE);
 
+  const canEdit = !window.AuthZ || AuthZ.hasPerm('member_edit');
+
   tbody.innerHTML = pageRows.map(r => {
     const name = esc(r.full_name || r.member_name || '—');
     const avatar = r.line_picture_url
@@ -167,7 +169,12 @@ function render() {
         <div class="lm-date">${formatDateThai(r.line_linked_at)}</div>
         ${r.last_active_at ? `<div class="lm-relative ${isStale(r.last_active_at) ? 'stale' : ''}">Active: ${relativeTime(r.last_active_at)}</div>` : ''}
       </td>
-      <td><button class="lm-action" onclick="copyUserId('${escAttr(r.line_user_id)}')" title="Copy LINE User ID">📋 ID</button></td>
+      <td>
+        <div class="lm-row-actions">
+          <button class="lm-action" onclick="copyUserId('${escAttr(r.line_user_id)}')" title="Copy LINE User ID">📋 ID</button>
+          ${canEdit ? `<button class="lm-action danger" onclick="unlinkLine('${escAttr(r.member_code)}')" title="ลบข้อมูลเชื่อม LINE">🗑️ ลบ</button>` : ''}
+        </div>
+      </td>
     </tr>`;
   }).join('');
 
@@ -196,6 +203,64 @@ function renderPaginate(totalPages) {
 window.goPage = function (p) {
   _page = p;
   render();
+};
+
+/* ── Unlink LINE: ลบจาก member_line_accounts + clear line fields ใน members ── */
+window.unlinkLine = async function (memberCode) {
+  if (!memberCode) return;
+  const row = _rows.find(r => r.member_code === memberCode);
+  const name = row?.full_name || row?.member_name || memberCode;
+  const lineName = row?.line_display_name || '-';
+
+  const ok = await ConfirmModal.open({
+    icon: '🗑️',
+    title: 'ลบการเชื่อม LINE?',
+    tone: 'danger',
+    message: 'ข้อมูลการเชื่อม LINE ของสมาชิกนี้จะถูกลบออกจากฐานข้อมูล',
+    details: {
+      'รหัสสมาชิก': memberCode,
+      'ชื่อ': name,
+      'LINE Name': lineName,
+    },
+    note: '⚠️ สมาชิกยังอยู่ในระบบ — หากต้องการเชื่อมใหม่ ต้อง add LINE OA แล้วส่งรหัสสมาชิกในแชทอีกครั้ง',
+    okText: 'ลบการเชื่อม',
+    cancelText: 'ยกเลิก',
+  });
+  if (!ok) return;
+
+  showLoading(true);
+  try {
+    const codeParam = encodeURIComponent(memberCode);
+
+    // 1) DELETE member_line_accounts rows for this member
+    const delRes = await fetch(`${SB_URL}/rest/v1/member_line_accounts?member_code=eq.${codeParam}`, {
+      method: 'DELETE',
+      headers: _sbHeaders({ Prefer: 'return=minimal' }),
+    });
+    if (!delRes.ok) throw new Error('DELETE member_line_accounts: ' + (await delRes.text().catch(() => delRes.status)));
+
+    // 2) PATCH members — clear line_* columns
+    const patchRes = await fetch(`${SB_URL}/rest/v1/members?member_code=eq.${codeParam}`, {
+      method: 'PATCH',
+      headers: _sbHeaders({ 'Content-Type': 'application/json', Prefer: 'return=minimal' }),
+      body: JSON.stringify({
+        line_user_id: null,
+        line_display_name: null,
+        line_picture_url: null,
+        line_linked_at: null,
+      }),
+    });
+    if (!patchRes.ok) throw new Error('PATCH members: ' + (await patchRes.text().catch(() => patchRes.status)));
+
+    // 3) Update local state + re-render
+    _rows = _rows.filter(r => r.member_code !== memberCode);
+    applyFilter();
+    updateStats();
+    showToast(`ลบการเชื่อม LINE ของ ${memberCode} แล้ว 🗑️`, 'success');
+  } catch (e) {
+    showToast('ลบไม่สำเร็จ: ' + e.message, 'error');
+  }
+  showLoading(false);
 };
 
 window.copyUserId = async function (uid) {

@@ -10,6 +10,12 @@
        okText: 'ส่งเลย',
        cancelText: 'ยกเลิก',
        tone: 'primary',      // 'primary' | 'danger' | 'warning' | 'success'
+       details: {            // optional — key-value grid (shown below message)
+         'รหัสสมาชิก': '84968',
+         'ชื่อ': 'นาย ปฐกพ มีโภคา',
+       },
+       note: '⚠️ การกระทำนี้ถาวร',  // optional — warning panel (HTML allowed)
+       hideCancel: false,    // true → alert-mode (single OK button, no cancel)
      });
      if (!ok) return;
    ============================================================ */
@@ -25,7 +31,11 @@ window.ConfirmModal = (() => {
         <div class="cm-modal">
           <div class="cm-icon-wrap" id="cmIconWrap"><span id="cmIcon">❓</span></div>
           <div class="cm-title" id="cmTitle">ยืนยัน</div>
-          <div class="cm-body"><p id="cmMessage"></p></div>
+          <div class="cm-body">
+            <p id="cmMessage"></p>
+            <div class="cm-details" id="cmDetails" style="display:none"></div>
+            <div class="cm-note" id="cmNote" style="display:none"></div>
+          </div>
           <div class="cm-footer">
             <button class="cm-btn cm-cancel" onclick="ConfirmModal.close(false)" id="cmCancelBtn">ยกเลิก</button>
             <button class="cm-btn cm-ok" onclick="ConfirmModal.close(true)" id="cmOkBtn">ตกลง</button>
@@ -88,7 +98,50 @@ window.ConfirmModal = (() => {
         margin-bottom: 18px;
         word-break: break-word;
       }
-      .cm-body p { margin: 0; }
+      .cm-body p { margin: 0; white-space: pre-line; text-align: center; }
+
+      .cm-details {
+        margin-top: 14px;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 10px 14px;
+        font-size: 12.5px;
+        line-height: 1.7;
+        font-family: 'IBM Plex Mono', monospace;
+        text-align: left;
+      }
+      .cm-details .row {
+        display: flex;
+        justify-content: space-between;
+        gap: 14px;
+      }
+      .cm-details .k {
+        color: #64748b;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: .3px;
+      }
+      .cm-details .v {
+        color: #0f172a;
+        font-weight: 600;
+        text-align: right;
+        word-break: break-all;
+      }
+
+      .cm-note {
+        margin-top: 12px;
+        padding: 10px 14px;
+        background: #fef2f2;
+        border-left: 3px solid #dc2626;
+        border-radius: 6px;
+        font-size: 12px;
+        color: #7f1d1d;
+        line-height: 1.6;
+        text-align: left;
+      }
+      .cm-note.info { background: #eff6ff; border-left-color: #3b82f6; color: #1e40af; }
+      .cm-note.warning { background: #fffbeb; border-left-color: #f59e0b; color: #92400e; }
 
       .cm-footer {
         display: flex;
@@ -134,6 +187,10 @@ window.ConfirmModal = (() => {
     else if (e.key === "Enter") close(true);
   }
 
+  function escHtml(s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
+  }
+
   function open(opts = {}) {
     ensureModal();
     const {
@@ -143,6 +200,10 @@ window.ConfirmModal = (() => {
       okText = "ตกลง",
       cancelText = "ยกเลิก",
       tone = "primary",
+      details = null,
+      note = null,
+      noteTone = "",       // "" (danger) | "info" | "warning"
+      hideCancel = false,
     } = opts;
 
     document.getElementById("cmTitle").textContent = title;
@@ -150,6 +211,26 @@ window.ConfirmModal = (() => {
     document.getElementById("cmIcon").textContent = icon;
     document.getElementById("cmOkBtn").textContent = okText;
     document.getElementById("cmCancelBtn").textContent = cancelText;
+    document.getElementById("cmCancelBtn").style.display = hideCancel ? "none" : "";
+
+    const detailsEl = document.getElementById("cmDetails");
+    if (details && Object.keys(details).length) {
+      detailsEl.innerHTML = Object.entries(details)
+        .map(([k, v]) => `<div class="row"><span class="k">${escHtml(k)}</span><span class="v">${escHtml(v)}</span></div>`)
+        .join("");
+      detailsEl.style.display = "block";
+    } else {
+      detailsEl.style.display = "none";
+    }
+
+    const noteEl = document.getElementById("cmNote");
+    if (note) {
+      noteEl.innerHTML = note;
+      noteEl.className = "cm-note" + (noteTone ? " " + noteTone : "");
+      noteEl.style.display = "block";
+    } else {
+      noteEl.style.display = "none";
+    }
 
     const iconWrap = document.getElementById("cmIconWrap");
     iconWrap.className = "cm-icon-wrap " + tone;

@@ -242,7 +242,17 @@ function previewMessage() {
   const targets = getTargets();
   const names = targets.slice(0, 5).map((u) => u.full_name || u.username).join(", ");
   const more = targets.length > 5 ? ` และอีก ${targets.length - 5} คน` : "";
-  alert(`📤 พรีวิว\n\nส่งถึง: ${targets.length} คน\n${names}${more}\n\n--- ข้อความ ---\n${msg}`);
+  ConfirmModal.open({
+    icon: "👁️",
+    title: "พรีวิวข้อความ",
+    tone: "primary",
+    message: msg,
+    details: { "ส่งถึง": `${targets.length} คน`, "ผู้รับ": names + more || "-" },
+    note: "นี่เป็นเพียงตัวอย่าง — กดปุ่ม 📤 ส่งข้อความ เพื่อส่งจริง",
+    noteTone: "info",
+    okText: "ปิด",
+    hideCancel: true,
+  });
 }
 
 async function sendMessages() {
@@ -253,7 +263,22 @@ async function sendMessages() {
   const targets = getTargets();
   if (!targets.length) return showToast("ยังไม่ได้เลือกพนักงาน", "warning");
 
-  if (!confirm(`ยืนยันส่งข้อความถึงพนักงาน ${targets.length} คน?`)) return;
+  const names = targets.slice(0, 5).map((u) => u.full_name || u.username).join(", ");
+  const more = targets.length > 5 ? ` และอีก ${targets.length - 5} คน` : "";
+  const ok = await ConfirmModal.open({
+    icon: "📤",
+    title: "ยืนยันส่งข้อความ",
+    tone: "primary",
+    message: "ข้อความจะถูกส่งผ่าน LINE OA ถึงพนักงานที่เลือกไว้",
+    details: {
+      "จำนวน": `${targets.length} คน`,
+      "ผู้รับ": names + more,
+      "Channel": currentChannel?.channel_name || "-",
+    },
+    okText: "ส่งเลย",
+    cancelText: "ยกเลิก",
+  });
+  if (!ok) return;
 
   if (!window.ERPCrypto?.hasMasterKey()) {
     return showToast("ยังไม่ได้ตั้ง Master Key — ไปที่หน้าตั้งค่า", "error");

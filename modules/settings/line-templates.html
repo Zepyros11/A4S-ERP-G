@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ข้อความตอบกลับ LINE Bot — A4S-ERP</title>
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../css/main.css">
+<style>
+.page{max-width:900px;margin:0 auto;padding:24px 20px 80px;}
+.page-header{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:18px;}
+.page-title{font-size:20px;font-weight:700;display:flex;align-items:center;gap:10px;color:var(--text);}
+.page-subtitle{font-size:12.5px;color:var(--text3);margin-top:2px;}
+
+.tpl-hint{padding:12px 16px;background:#fef9c3;border:1px solid #fde68a;border-radius:10px;margin-bottom:18px;font-size:12.5px;color:#854d0e;line-height:1.6;}
+.tpl-hint b{color:#713f12;}
+.tpl-hint code{background:#fde68a;padding:1px 6px;border-radius:4px;font-size:12px;}
+
+.tpl-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;margin-bottom:14px;overflow:hidden;}
+.tpl-head{padding:13px 16px;background:var(--surface2);border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;}
+.tpl-head-left{display:flex;flex-direction:column;gap:2px;min-width:0;}
+.tpl-key{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--accent);font-weight:700;}
+.tpl-desc{font-size:12.5px;color:var(--text2);}
+.tpl-placeholders{display:flex;gap:5px;flex-wrap:wrap;}
+.tpl-ph{font-family:'IBM Plex Mono',monospace;font-size:11px;background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:6px;font-weight:600;cursor:pointer;transition:all .15s;}
+.tpl-ph:hover{background:#1e40af;color:#fff;}
+.tpl-ph.tpl-ph-extra{background:var(--surface2);color:var(--text3);border:1px dashed var(--border);}
+.tpl-ph.tpl-ph-extra:hover{background:#1e40af;color:#fff;border-color:#1e40af;border-style:solid;}
+
+.tpl-body{padding:14px 16px;}
+.tpl-textarea{width:100%;box-sizing:border-box;min-height:130px;padding:11px 14px;border:1px solid var(--border);border-radius:8px;font-family:'Sarabun',sans-serif;font-size:13.5px;resize:vertical;background:var(--surface);color:var(--text);line-height:1.6;}
+.tpl-textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-pale);}
+.tpl-meta{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:8px;font-size:11.5px;color:var(--text3);}
+.tpl-charcount{font-variant-numeric:tabular-nums;}
+.tpl-dirty{color:#d97706;font-weight:600;}
+.tpl-saved{color:#15803d;font-weight:600;}
+
+.tpl-preview{margin-top:10px;padding:12px 14px;background:#f0fdf4;border:1px dashed #86efac;border-radius:8px;white-space:pre-wrap;font-size:13px;color:#166534;line-height:1.6;display:none;}
+.tpl-preview.show{display:block;}
+.tpl-preview-hdr{font-size:10.5px;font-weight:700;color:#15803d;letter-spacing:.5px;text-transform:uppercase;margin-bottom:5px;}
+
+.tpl-actions{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;}
+.tpl-btn{padding:7px 14px;border:1px solid var(--border);background:var(--surface);border-radius:7px;font-family:inherit;font-size:12.5px;cursor:pointer;color:var(--text2);}
+.tpl-btn:hover{background:var(--accent-pale);border-color:var(--accent);color:var(--accent);}
+.tpl-btn-primary{background:var(--accent);color:#fff;border-color:var(--accent);font-weight:600;}
+.tpl-btn-primary:hover{background:var(--accent-dark,#0b5ea8);color:#fff;}
+.tpl-btn-primary:disabled{opacity:.5;cursor:not-allowed;}
+.tpl-btn-danger{color:#dc2626;border-color:#fecaca;}
+.tpl-btn-danger:hover{background:#fef2f2;border-color:#dc2626;color:#dc2626;}
+
+.global-bar{position:sticky;bottom:12px;z-index:50;background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:0 -4px 16px rgba(0,0,0,.08);padding:12px 18px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-top:20px;}
+.global-bar-status{font-size:13px;color:var(--text2);}
+.global-bar-actions{display:flex;gap:10px;}
+
+@media(max-width:767px){
+  .page{padding:14px;}
+}
+</style>
+</head>
+<body>
+
+<div class="loading-overlay" id="loadingOverlay"><div class="spinner"></div></div>
+<div class="toast" id="toast"></div>
+
+<div class="topbar"></div>
+
+<div class="layout">
+  <div id="sidebar-container"></div>
+
+  <div class="content-area">
+    <div class="page">
+      <div class="page-header">
+        <div>
+          <div class="page-title">💬 ข้อความตอบกลับ LINE Bot</div>
+          <div class="page-subtitle">ปรับแต่งข้อความที่ Bot-Assistant ตอบอัตโนมัติ — บันทึกแล้วมีผลทันที (cache 60 วิ)</div>
+        </div>
+      </div>
+
+      <div class="tpl-hint">
+        <b>💡 วิธีใช้ placeholder:</b> ใส่ <code>{name}</code>, <code>{code}</code>, <code>{username}</code>, <code>{role}</code>
+        ลงในข้อความ — ระบบจะแทนที่ด้วยข้อมูลจริงก่อนส่ง
+        &nbsp;|&nbsp;<b>คลิก placeholder</b> ด้านบน textarea เพื่อเพิ่มลงในข้อความ
+      </div>
+
+      <div id="tplList">
+        <div style="text-align:center;padding:40px;color:var(--text3);">⏳ กำลังโหลด...</div>
+      </div>
+
+      <div class="global-bar" id="globalBar" style="display:none;">
+        <div class="global-bar-status" id="globalStatus">มีการแก้ไข — ยังไม่ได้บันทึก</div>
+        <div class="global-bar-actions">
+          <button class="tpl-btn" onclick="reloadAll()">↻ ยกเลิกการแก้ไข</button>
+          <button class="tpl-btn tpl-btn-primary" onclick="saveAll()">💾 บันทึกทั้งหมด</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="../../js/core/auth.js"></script>
+<script src="../../js/core/authz.js"></script>
+<script>AuthZ.requirePerm("sys_settings_view");</script>
+<script src="./line-templates.js"></script>
+<script type="module">
+  import { loadTopbar } from "../../js/components/navigation/topbar.js";
+  loadTopbar("💬 ข้อความตอบกลับ LINE");
+</script>
+<script src="../../js/components/navigation/sidebar.js"></script>
+<script src="../../js/components/modal/modalManager.js"></script>
+</body>
+</html>

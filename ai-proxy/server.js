@@ -359,35 +359,61 @@ async function _getLineProfile(userId) {
   } catch { return null; }
 }
 
-const WELCOME_MSG =
-  "ยินดีต้อนรับสู่ A4S 🎉\n\n" +
-  "📱 สมาชิก: ส่ง \"รหัสสมาชิก\" (ตัวเลข 5-6 หลัก)\n" +
-  "👤 พนักงาน: ส่ง \"username\" ของคุณ\n\n" +
-  "ตัวอย่าง: 10271 หรือ somchai";
+/* ── Reply template loader (DB-backed with 60s cache) ── */
+const DEFAULT_TEMPLATES = {
+  welcome:
+    'ยินดีต้อนรับสู่ A4S 🎉\n\n' +
+    '📱 สมาชิก: ส่ง "รหัสสมาชิก" (ตัวเลข 5-6 หลัก)\n' +
+    '👤 พนักงาน: ส่ง "username" ของคุณ\n\n' +
+    'ตัวอย่าง: 10271 หรือ somchai',
+  invalid_code:
+    '❌ ไม่พบข้อมูลนี้ในระบบ\n\n' +
+    '• สมาชิก: ตัวเลข 5-6 หลัก\n' +
+    '• พนักงาน: username ที่ใช้ login ERP\n\n' +
+    'หากไม่ทราบข้อมูล ติดต่อแอดมิน',
+  linked_member:
+    '✅ ผูก LINE สำเร็จ!\n\nสมาชิก: {name}\nรหัส: {code}\n\n' +
+    '🔔 จากนี้คุณจะได้รับแจ้งเตือน event และข้อมูลสำคัญทาง LINE',
+  linked_staff:
+    '✅ ผูก LINE พนักงานสำเร็จ!\n\nชื่อ: {name}\nUsername: {username}\nRole: {role}\n\n' +
+    '🔔 คุณจะได้รับแจ้งเตือนภายในองค์กรผ่าน LINE',
+  staff_inactive: '⚠️ บัญชีพนักงานนี้ถูกปิดใช้งาน — ติดต่อแอดมิน',
+};
 
-const INVALID_CODE_MSG =
-  "❌ ไม่พบข้อมูลนี้ในระบบ\n\n" +
-  "• สมาชิก: ตัวเลข 5-6 หลัก\n" +
-  "• พนักงาน: username ที่ใช้ login ERP\n\n" +
-  "หากไม่ทราบข้อมูล ติดต่อแอดมิน";
+let _tplCache = null;   // { key: text }
+let _tplCacheAt = 0;
+const TPL_TTL_MS = 60_000;
 
-function _buildLinkedReply(memberName, memberCode) {
-  return (
-    `✅ ผูก LINE สำเร็จ!\n\n` +
-    `สมาชิก: ${memberName || memberCode}\n` +
-    `รหัส: ${memberCode}\n\n` +
-    `🔔 จากนี้คุณจะได้รับแจ้งเตือน event และข้อมูลสำคัญทาง LINE`
-  );
+async function _loadTemplates() {
+  const now = Date.now();
+  if (_tplCache && now - _tplCacheAt < TPL_TTL_MS) return _tplCache;
+  try {
+    const rows = await _sbGet('line_reply_templates', 'select=key,text');
+    if (Array.isArray(rows) && rows.length) {
+      const map = {};
+      rows.forEach((r) => { if (r.key) map[r.key] = r.text || ''; });
+      _tplCache = { ...DEFAULT_TEMPLATES, ...map };
+      _tplCacheAt = now;
+      return _tplCache;
+    }
+  } catch (e) { console.warn('[tpl load]', e.message); }
+  _tplCache = { ...DEFAULT_TEMPLATES };
+  _tplCacheAt = now;
+  return _tplCache;
 }
 
-function _buildStaffLinkedReply(fullName, username, role) {
-  return (
-    `✅ ผูก LINE พนักงานสำเร็จ!\n\n` +
-    `ชื่อ: ${fullName || username}\n` +
-    `Username: ${username}\n` +
-    (role ? `Role: ${role}\n` : '') +
-    `\n🔔 คุณจะได้รับแจ้งเตือนภายในองค์กรผ่าน LINE`
-  );
+function _fillTemplate(text, vars) {
+  if (!text) return '';
+  let out = String(text);
+  for (const [k, v] of Object.entries(vars || {})) {
+    out = out.split(`{${k}}`).join(v ?? '');
+  }
+  return out;
+}
+
+async function _tpl(key, vars) {
+  const all = await _loadTemplates();
+  return _fillTemplate(all[key] || DEFAULT_TEMPLATES[key] || '', vars);
 }
 
 app.post('/line/webhook', async (req, res) => {
@@ -408,7 +434,7 @@ app.post('/line/webhook', async (req, res) => {
       // === FOLLOW event: user added OA as friend ===
       if (ev.type === 'follow') {
         console.log(`[LINE webhook] follow from ${uid.slice(0, 10)}...`);
-        await _lineReply(ev.replyToken, WELCOME_MSG);
+        await _lineReply(ev.replyToken, await _tpl('welcome'));
         continue;
       }
 
@@ -434,7 +460,7 @@ app.post('/line/webhook', async (req, res) => {
           );
           const member = members?.[0];
           if (!member) {
-            await _lineReply(ev.replyToken, INVALID_CODE_MSG);
+            await _lineReply(ev.replyToken, await _tpl('invalid_code'));
             continue;
           }
           const profile = await _getLineProfile(uid);
@@ -445,7 +471,10 @@ app.post('/line/webhook', async (req, res) => {
             pictureUrl: profile?.pictureUrl || null,
           });
           const name = member.full_name || member.member_name || memberCode;
-          await _lineReply(ev.replyToken, _buildLinkedReply(name, memberCode));
+          await _lineReply(
+            ev.replyToken,
+            await _tpl('linked_member', { name, code: memberCode }),
+          );
           continue;
         }
 
@@ -453,18 +482,17 @@ app.post('/line/webhook', async (req, res) => {
         const usernameMatch = text.match(/^[A-Za-z0-9_.\-]{2,40}$/);
         if (usernameMatch) {
           const username = text.toLowerCase();
-          // ilike เพื่อ case-insensitive match กับ username (lower-cased index)
           const users = await _sbGet(
             'users',
             `username=ilike.${encodeURIComponent(username)}&select=user_id,username,full_name,role,is_active&limit=1`,
           );
           const user = users?.[0];
           if (!user) {
-            await _lineReply(ev.replyToken, INVALID_CODE_MSG);
+            await _lineReply(ev.replyToken, await _tpl('invalid_code'));
             continue;
           }
           if (user.is_active === false) {
-            await _lineReply(ev.replyToken, '⚠️ บัญชีพนักงานนี้ถูกปิดใช้งาน — ติดต่อแอดมิน');
+            await _lineReply(ev.replyToken, await _tpl('staff_inactive'));
             continue;
           }
           const profile = await _getLineProfile(uid);
@@ -476,13 +504,17 @@ app.post('/line/webhook', async (req, res) => {
           });
           await _lineReply(
             ev.replyToken,
-            _buildStaffLinkedReply(user.full_name, user.username, user.role),
+            await _tpl('linked_staff', {
+              name: user.full_name || user.username,
+              username: user.username,
+              role: user.role || '',
+            }),
           );
           continue;
         }
 
         // ไม่ match รูปแบบใดเลย
-        await _lineReply(ev.replyToken, WELCOME_MSG);
+        await _lineReply(ev.replyToken, await _tpl('welcome'));
         continue;
       }
 
@@ -498,6 +530,14 @@ app.post('/line/webhook', async (req, res) => {
   }
 
   return res.status(200).json({ ok: true, events: events.length });
+});
+
+/* ── Force-reload templates (call after UI saves a template) ── */
+app.post('/line/templates/reload', async (_req, res) => {
+  _tplCache = null;
+  _tplCacheAt = 0;
+  const tpls = await _loadTemplates();
+  return res.json({ ok: true, keys: Object.keys(tpls) });
 });
 
 /* ── Get OA info (bot name, picture) — quick health check ── */

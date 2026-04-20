@@ -312,6 +312,12 @@
           path: BASE_PATH + "/modules/settings/staff-messaging.html",
         },
         {
+          id: "line-templates",
+          icon: "📝",
+          label: "ตอบกลับอัตโนมัติ",
+          path: BASE_PATH + "/modules/settings/line-templates.html",
+        },
+        {
           id: "roles",
           icon: "🔐",
           label: "จัดการ Role",
@@ -379,6 +385,7 @@
     db_viewer: "db_viewer_view",
     users: "users_view",
     "staff-messaging": "users_view",
+    "line-templates": "sys_settings_view",
     roles: "roles_view",
     suppliers: "supplier_view",
 
@@ -453,6 +460,7 @@
     "suppliers",
     "users",
     "staff-messaging",
+    "line-templates",
     "roles",
 
     "members",
