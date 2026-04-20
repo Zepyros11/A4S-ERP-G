@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>สมาชิกที่เชื่อม LINE — A4S-ERP</title>
+<link rel="stylesheet" href="../../css/main.css">
+<style>
+.page{padding:20px 24px;}
+.page-header{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:18px;}
+.page-title{font-size:20px;font-weight:700;display:flex;align-items:center;gap:10px;color:var(--text);}
+.page-subtitle{font-size:12.5px;color:var(--text3);margin-top:2px;}
+
+.lm-stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:18px;}
+.lm-stat{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 18px;display:flex;align-items:center;gap:14px;}
+.lm-stat-icon{width:46px;height:46px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;}
+.lm-stat-label{font-size:11.5px;color:var(--text3);font-weight:600;letter-spacing:.3px;text-transform:uppercase;}
+.lm-stat-value{font-size:24px;font-weight:700;color:var(--text);font-variant-numeric:tabular-nums;line-height:1.1;margin-top:2px;}
+.lm-stat-sub{font-size:11px;color:var(--text3);margin-top:2px;}
+.lm-stat.linked .lm-stat-icon{background:#dcfce7;color:#15803d;}
+.lm-stat.recent .lm-stat-icon{background:#dbeafe;color:#1e40af;}
+.lm-stat.total .lm-stat-icon{background:#fef3c7;color:#92400e;}
+
+.lm-toolbar{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px;}
+.lm-search{flex:1;min-width:240px;display:flex;align-items:center;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:0 12px;}
+.lm-search input{border:none;background:transparent;padding:9px 6px;flex:1;outline:none;font-family:inherit;font-size:13.5px;}
+.lm-search-icon{color:var(--text3);font-size:14px;}
+.lm-clear{background:none;border:none;cursor:pointer;color:var(--text3);font-size:18px;display:none;padding:0 4px;}
+.lm-clear.show{display:block;}
+.lm-refresh-btn{padding:8px 14px;border:1px solid var(--border);background:var(--surface);border-radius:10px;cursor:pointer;font-family:inherit;font-size:12.5px;font-weight:600;color:var(--text2);display:flex;align-items:center;gap:6px;}
+.lm-refresh-btn:hover{background:var(--accent-pale);border-color:var(--accent);color:var(--accent);}
+.lm-export-btn{padding:8px 14px;border:none;background:linear-gradient(135deg,#065f46,#10b981);color:#fff;border-radius:10px;cursor:pointer;font-family:inherit;font-size:12.5px;font-weight:700;display:flex;align-items:center;gap:6px;}
+
+.lm-table-wrap{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;}
+.lm-table{width:100%;border-collapse:collapse;font-size:13px;}
+.lm-table th{padding:11px 14px;background:var(--surface2);font-size:11px;font-weight:700;letter-spacing:.5px;color:var(--text3);text-align:left;border-bottom:2px solid var(--border);white-space:nowrap;text-transform:uppercase;}
+.lm-table td{padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:middle;}
+.lm-table tr:hover td{background:var(--accent-pale);}
+.lm-table tr:last-child td{border-bottom:none;}
+
+.lm-avatar{width:38px;height:38px;border-radius:50%;object-fit:cover;background:#06c755;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex-shrink:0;overflow:hidden;}
+.lm-avatar img{width:100%;height:100%;object-fit:cover;}
+.lm-name{font-weight:600;color:var(--text);}
+.lm-member-code{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--accent);font-weight:700;}
+.lm-line-name{color:var(--text2);font-size:12.5px;}
+.lm-phone{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--text2);}
+.lm-date{font-size:12px;color:var(--text3);font-variant-numeric:tabular-nums;white-space:nowrap;}
+.lm-relative{font-size:11px;color:#10b981;font-weight:600;}
+.lm-relative.stale{color:#94a3b8;}
+.lm-empty{text-align:center;padding:48px 20px;color:var(--text3);}
+.lm-empty-icon{font-size:52px;opacity:.4;margin-bottom:12px;}
+
+.lm-paginate{display:flex;align-items:center;gap:6px;padding:14px;justify-content:center;flex-wrap:wrap;border-top:1px solid var(--border);}
+.lm-paginate button{min-width:36px;height:32px;border:1px solid var(--border);background:var(--surface);border-radius:6px;font-family:inherit;cursor:pointer;font-size:12px;}
+.lm-paginate button:hover{background:var(--accent-pale);border-color:var(--accent);}
+.lm-paginate button.active{background:var(--accent);color:#fff;border-color:var(--accent);}
+.lm-paginate button:disabled{opacity:.4;cursor:not-allowed;}
+.lm-paginate-info{font-size:12px;color:var(--text3);margin:0 10px;font-variant-numeric:tabular-nums;}
+
+.lm-badge{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:10px;font-size:10.5px;font-weight:700;background:#06c755;color:#fff;}
+.lm-action{padding:4px 10px;border:1px solid var(--border);background:var(--surface);border-radius:6px;font-family:inherit;font-size:11.5px;cursor:pointer;color:var(--text2);}
+.lm-action:hover{background:#06c755;color:#fff;border-color:#06c755;}
+
+@media(max-width:767px){
+  .page{padding:14px;}
+  .lm-stat-grid{grid-template-columns:1fr 1fr;}
+  .lm-table th:nth-child(4),.lm-table td:nth-child(4){display:none;}
+  .lm-table th:nth-child(5),.lm-table td:nth-child(5){display:none;}
+}
+</style>
+</head>
+<body>
+
+<div class="loading-overlay" id="loadingOverlay"><div class="spinner"></div></div>
+<div class="toast" id="toast"></div>
+
+<div class="topbar"></div>
+
+<div class="layout">
+  <div id="sidebar-container"></div>
+
+  <div class="content-area">
+    <div class="page">
+
+      <div class="page-header">
+        <div>
+          <div class="page-title">💬 สมาชิกที่เชื่อม LINE แล้ว</div>
+          <div class="page-subtitle">รายการสมาชิกที่ผูก LINE account กับ Bot-Assistant ผ่าน register / webhook</div>
+        </div>
+      </div>
+
+      <!-- Stats cards -->
+      <div class="lm-stat-grid">
+        <div class="lm-stat linked">
+          <div class="lm-stat-icon">💬</div>
+          <div><div class="lm-stat-label">สมาชิกเชื่อม LINE</div><div class="lm-stat-value" id="lmTotalLinked">—</div><div class="lm-stat-sub">Active only</div></div>
+        </div>
+        <div class="lm-stat recent">
+          <div class="lm-stat-icon">📅</div>
+          <div><div class="lm-stat-label">เพิ่ม 7 วันล่าสุด</div><div class="lm-stat-value" id="lmRecent7">—</div><div class="lm-stat-sub">ที่ผูกใหม่</div></div>
+        </div>
+        <div class="lm-stat total">
+          <div class="lm-stat-icon">👥</div>
+          <div><div class="lm-stat-label">สมาชิกทั้งระบบ</div><div class="lm-stat-value" id="lmTotalMembers">—</div><div class="lm-stat-sub" id="lmCoverage">— coverage</div></div>
+        </div>
+      </div>
+
+      <!-- Toolbar -->
+      <div class="lm-toolbar">
+        <div class="lm-search">
+          <span class="lm-search-icon">🔍</span>
+          <input type="text" id="lmSearchInput" placeholder="ค้นหา รหัส / ชื่อ / LINE name / เบอร์ ...">
+          <button class="lm-clear" id="lmSearchClear" onclick="clearSearch()">✕</button>
+        </div>
+        <button class="lm-refresh-btn" onclick="refresh()">🔄 Refresh</button>
+        <button class="lm-export-btn" onclick="exportCsv()">📥 Export CSV</button>
+      </div>
+
+      <!-- Table -->
+      <div class="lm-table-wrap">
+        <table class="lm-table">
+          <thead>
+            <tr>
+              <th>&nbsp;</th>
+              <th>รหัสสมาชิก</th>
+              <th>ชื่อสมาชิก</th>
+              <th>LINE Name</th>
+              <th>เบอร์</th>
+              <th>ผูกเมื่อ</th>
+              <th style="width:80px"></th>
+            </tr>
+          </thead>
+          <tbody id="lmTableBody"></tbody>
+        </table>
+        <div class="lm-paginate" id="lmPaginate"></div>
+      </div>
+
+    </div><!-- /.page -->
+  </div><!-- /.content-area -->
+</div><!-- /.layout -->
+
+<script src="../../js/core/auth.js"></script>
+<script src="../../js/core/authz.js"></script>
+<script src="../../js/core/date-format.js"></script>
+<script>AuthZ.requirePerm("member_view");</script>
+<script src="line-members.js"></script>
+<script type="module">
+  import { loadTopbar } from "../../js/components/navigation/topbar.js";
+  loadTopbar("💬 สมาชิกที่เชื่อม LINE");
+</script>
+<script src="../../js/components/navigation/sidebar.js"></script>
+<script src="../../js/components/modal/modalManager.js"></script>
+</body>
+</html>

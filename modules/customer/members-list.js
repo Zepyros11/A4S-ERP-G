@@ -20,6 +20,42 @@ const PKG_BADGE = {
   DM: '💎 DM', SI: '⭐ SI', PL: '💠 PL', MB: '🎁 MB', EM: '🌟 EM',
 };
 
+/* ── Country code → flag emoji + ชื่อภาษาไทย ── */
+const COUNTRY_INFO = {
+  TH:  { flag: '🇹🇭', name: 'ไทย' },
+  KH:  { flag: '🇰🇭', name: 'Cambodia' },
+  LA:  { flag: '🇱🇦', name: 'Laos' },
+  MM:  { flag: '🇲🇲', name: 'Myanmar' },
+  VN:  { flag: '🇻🇳', name: 'Vietnam' },
+  MY:  { flag: '🇲🇾', name: 'Malaysia' },
+  SG:  { flag: '🇸🇬', name: 'Singapore' },
+  ID:  { flag: '🇮🇩', name: 'Indonesia' },
+  PH:  { flag: '🇵🇭', name: 'Philippines' },
+  CN:  { flag: '🇨🇳', name: 'China' },
+  HK:  { flag: '🇭🇰', name: 'Hong Kong' },
+  TW:  { flag: '🇹🇼', name: 'Taiwan' },
+  JP:  { flag: '🇯🇵', name: 'Japan' },
+  KR:  { flag: '🇰🇷', name: 'Korea' },
+  IN:  { flag: '🇮🇳', name: 'India' },
+  US:  { flag: '🇺🇸', name: 'USA' },
+  GB:  { flag: '🇬🇧', name: 'UK' },
+  AU:  { flag: '🇦🇺', name: 'Australia' },
+  NG:  { flag: '🇳🇬', name: 'Nigeria' },
+  CIV: { flag: '🇨🇮', name: 'Côte d\'Ivoire' },
+  CI:  { flag: '🇨🇮', name: 'Côte d\'Ivoire' },
+  GH:  { flag: '🇬🇭', name: 'Ghana' },
+  KE:  { flag: '🇰🇪', name: 'Kenya' },
+  ZA:  { flag: '🇿🇦', name: 'South Africa' },
+  EG:  { flag: '🇪🇬', name: 'Egypt' },
+  AE:  { flag: '🇦🇪', name: 'UAE' },
+};
+function _countryFlag(code) {
+  return COUNTRY_INFO[code]?.flag || '🌐';
+}
+function _countryName(code) {
+  return COUNTRY_INFO[code]?.name || code;
+}
+
 /* ── Supabase helper ── */
 function _sbHeaders(extra = {}) {
   return {
@@ -165,11 +201,42 @@ async function loadPage() {
   showLoading(false);
 }
 
+/* ── โหลดประเทศที่มีจริงใน DB → populate dropdown ── */
+async function loadCountries() {
+  const sel = document.getElementById('filterCountry');
+  if (!sel) return;
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/member_countries`, {
+      method: 'POST',
+      headers: {
+        apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: '{}',
+    });
+    if (!res.ok) return;
+    const rows = await res.json();
+    if (!Array.isArray(rows) || !rows.length) return;
+    const prev = sel.value;
+    const opts = ['<option value="">ทุกประเทศ</option>'];
+    for (const r of rows) {
+      const code = r.code;
+      const name = _countryName(code);
+      const flag = _countryFlag(code);
+      const cnt  = (r.cnt || 0).toLocaleString();
+      opts.push(`<option value="${escapeHtml(code)}">${flag} ${escapeHtml(name)} (${cnt})</option>`);
+    }
+    sel.innerHTML = opts.join('');
+    if (prev) sel.value = prev;
+  } catch {}
+}
+
 /* ── Public entry — โหลดตารางก่อน (เร็ว) แล้ว stats ตามหลัง ── */
 async function loadData() {
   page = 1;
   await loadPage();
-  loadStats();  // fire-and-forget — ไม่ block หน้า
+  loadStats();      // fire-and-forget
+  loadCountries();  // fire-and-forget — populate filter dropdown
 }
 
 /* ── Search / filter handlers (server-side) ── */
@@ -214,7 +281,7 @@ function render() {
 
   tbody.innerHTML = rows.map(m => {
     const pkg = m.package ? `<span class="pkg-badge pkg-${m.package}">${PKG_BADGE[m.package] || m.package}</span>` : '';
-    const flag = m.country_code === 'KH' ? '🇰🇭' : (m.country_code === 'TH' ? '🇹🇭' : '🌐');
+    const flag = _countryFlag(m.country_code);
     const pwCell = m.password_encrypted
       ? (decryptMode
           ? `<span class="mask" data-code="${m.member_code}" data-field="password">⏳</span>`

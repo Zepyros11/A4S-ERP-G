@@ -1664,13 +1664,12 @@ window.openShareRegisterModal = async function () {
   document.getElementById("shareRegLiffInput").value = liffUrl || "— ไม่มี LIFF (ตั้งค่าใน channel ก่อน)";
   document.getElementById("shareRegPlainInput").value = plainUrl;
 
-  // Build QR — prefer LIFF URL, fallback to plain
+  // Build QR — use Plain URL (LIFF doesn't work until channel is Published)
   const qrWrap = document.getElementById("shareRegQrWrap");
   qrWrap.innerHTML = "";
   try {
-    const qrText = liffUrl || plainUrl;
     new QRCode(qrWrap, {
-      text: qrText,
+      text: plainUrl,
       width: 220,
       height: 220,
       correctLevel: QRCode.CorrectLevel.M,
