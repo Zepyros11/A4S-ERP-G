@@ -274,3 +274,13 @@ function isStale(iso) {
   const days = (Date.now() - new Date(iso).getTime()) / (24 * 60 * 60 * 1000);
   return days > 30;
 }
+
+function showLoading(on) {
+  document.getElementById('loadingOverlay').style.display = on ? 'flex' : 'none';
+}
+function showToast(msg, type = 'info') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = `toast show toast-${type}`;
+  setTimeout(() => t.className = 'toast', 3500);
+}

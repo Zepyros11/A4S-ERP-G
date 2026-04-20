@@ -1,0 +1,26 @@
+name: Keep Render Alive
+
+# Render free tier sleeps after 15min of inactivity.
+# This workflow pings the health endpoint every 10 minutes
+# to prevent LINE webhook timeouts.
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'    # every 10 minutes
+  workflow_dispatch:          # allow manual trigger from Actions tab
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Ping ai-proxy health endpoint
+        run: |
+          echo "Pinging https://a4s-erp-proxy.onrender.com/ ..."
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 60 https://a4s-erp-proxy.onrender.com/)
+          echo "HTTP status: $HTTP_CODE"
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "::warning::Unexpected status $HTTP_CODE — proxy may be down"
+            exit 1
+          fi
+          echo "✅ Proxy alive"
