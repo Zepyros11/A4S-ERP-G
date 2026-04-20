@@ -2115,6 +2115,19 @@ window.sendBulkTicketFlex = async function () {
     const channel = await window.LineAPI.getChannelForEvent(currentEvent);
     if (!channel) throw new Error("ไม่พบ LINE channel");
 
+    // currentEvent is loaded with a trimmed column list (no qr_style_config / poster_url).
+    // Fetch the full row once so QR render can use poster bg + event-specific style.
+    let fullEvent = currentEvent;
+    try {
+      const { url, key } = getSB();
+      const r = await fetch(
+        `${url}/rest/v1/events?event_id=eq.${currentEventId}&select=*&limit=1`,
+        { headers: { apikey: key, Authorization: `Bearer ${key}` } },
+      );
+      const rows = await r.json();
+      if (rows?.[0]) fullEvent = { ...currentEvent, ...rows[0] };
+    } catch (e) { console.warn("load full event fail:", e.message); }
+
     // Pre-generate styled QR images (upload to Supabase) before building Flex
     btn.textContent = `⏳ QR 0/${targets.length}`;
     const sendTargets = [];
@@ -2122,14 +2135,14 @@ window.sendBulkTicketFlex = async function () {
       const a = targets[i];
       let qrUrl;
       try {
-        qrUrl = await getStyledQrUrl(currentEvent, a);
+        qrUrl = await getStyledQrUrl(fullEvent, a);
       } catch (e) {
         console.warn("styled QR fail for", a.attendee_id, e.message);
         qrUrl = null;  // buildTicketFlex will fallback to plain service
       }
       sendTargets.push({
         userId: a.line_user_id,
-        message: buildTicketFlex(currentEvent, a, qrUrl),
+        message: buildTicketFlex(fullEvent, a, qrUrl),
       });
       btn.textContent = `⏳ QR ${i + 1}/${targets.length}`;
     }
