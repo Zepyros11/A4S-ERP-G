@@ -2010,6 +2010,11 @@ function buildTicketFlex(event, attendee, qrUrlOverride) {
   const loc = event?.location || "";
   const memberCode = attendee.member_code ? `[${attendee.member_code}] ` : "";
 
+  // Layout (3-section sketch):
+  //   [Hero Poster]         ← large, 1:1 square
+  //   ─── separator ───
+  //   [Event detail]        ← name + attendee + date + location
+  //   [QR Code box]         ← bordered box with ticket_no
   const bubble = {
     type: "bubble",
     size: "kilo",
@@ -2018,7 +2023,7 @@ function buildTicketFlex(event, attendee, qrUrlOverride) {
         type: "image",
         url: poster,
         size: "full",
-        aspectRatio: "20:13",
+        aspectRatio: "1:1",
         aspectMode: "cover",
       },
     } : {}),
@@ -2026,10 +2031,10 @@ function buildTicketFlex(event, attendee, qrUrlOverride) {
       type: "box",
       layout: "vertical",
       spacing: "md",
+      paddingAll: "lg",
       contents: [
-        { type: "text", text: "🎫 บัตรเข้างาน", size: "xs", color: "#6B7280", weight: "bold" },
+        // ── Event detail ──
         { type: "text", text: eventName, weight: "bold", size: "xl", wrap: true, color: "#0f172a" },
-        { type: "separator", margin: "sm" },
         {
           type: "box", layout: "vertical", spacing: "sm", margin: "md",
           contents: [
@@ -2056,25 +2061,28 @@ function buildTicketFlex(event, attendee, qrUrlOverride) {
             }] : []),
           ],
         },
+        // ── QR Code box (bordered, prominent) ──
         {
-          type: "box", layout: "vertical", margin: "lg",
-          backgroundColor: "#f8fafc", cornerRadius: "md", paddingAll: "md",
+          type: "box", layout: "vertical", margin: "xl",
+          borderWidth: "2px", borderColor: "#0f172a", cornerRadius: "md", paddingAll: "lg",
+          backgroundColor: "#ffffff",
           contents: [
             {
               type: "image",
               url: qrUrl,
               aspectMode: "fit",
+              aspectRatio: "1:1",
               size: "full",
             },
-            { type: "text", text: ticketNo, align: "center", weight: "bold", size: "lg", color: "#1e40af", margin: "md" },
+            { type: "text", text: ticketNo, align: "center", weight: "bold", size: "xl", color: "#0f172a", margin: "lg" },
           ],
         },
       ],
     },
     footer: {
-      type: "box", layout: "vertical",
+      type: "box", layout: "vertical", paddingAll: "md",
       contents: [
-        { type: "text", text: "📱 สแกน QR นี้เมื่อถึงงาน", size: "xs", color: "#6B7280", align: "center" },
+        { type: "text", text: "📱 แสดง QR นี้ที่หน้างานเพื่อ check-in", size: "xs", color: "#6B7280", align: "center" },
       ],
     },
   };

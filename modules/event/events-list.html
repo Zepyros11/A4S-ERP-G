@@ -198,7 +198,17 @@
         <script src="../../js/components/modal/enterSave.js"></script>
         <script type="module">
           import { loadTopbar } from "../../js/components/navigation/topbar.js";
-          loadTopbar("🗓️ รายการกิจกรรม");
+          loadTopbar("🗓️ รายการกิจกรรม", {
+            actions: [
+              {
+                label: "Event Calendar",
+                icon: "📅",
+                href: "./cs-view/events-calendar.html",
+                target: "_blank",
+                title: "เปิดปฏิทินกิจกรรม"
+              }
+            ]
+          });
         </script>
         <script src="../../js/components/navigation/imgPopup.js"></script>
         <script src="../../js/components/navigation/sidebar.js"></script>

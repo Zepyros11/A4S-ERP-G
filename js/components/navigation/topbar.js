@@ -1,4 +1,4 @@
-export function loadTopbar(title = "") {
+export function loadTopbar(title = "", options = {}) {
   /* ---------------- CSS (inject ครั้งเดียว) ---------------- */
 
   if (!document.getElementById("topbar-style")) {
@@ -48,6 +48,36 @@ export function loadTopbar(title = "") {
 
 .topbar-spacer{
   flex:1;
+}
+
+/* ── Action Links ── */
+.topbar-actions{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  margin-right:4px;
+}
+
+.topbar-action{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  background:rgba(255,255,255,0.12);
+  border:1px solid rgba(255,255,255,0.2);
+  border-radius:20px;
+  padding:6px 14px;
+  color:#fff;
+  font-size:13px;
+  font-weight:500;
+  text-decoration:none;
+  font-family:inherit;
+  cursor:pointer;
+  transition:background 0.15s;
+}
+
+.topbar-action:hover{
+  background:rgba(255,255,255,0.22);
+  color:#fff;
 }
 
 /* ── User Menu ── */
@@ -278,6 +308,20 @@ export function loadTopbar(title = "") {
 
   const roleLabel = session?.role || "";
 
+  /* ---------------- Action Links (optional) ---------------- */
+  const actions = Array.isArray(options.actions) ? options.actions : [];
+  const actionsHtml = actions.length
+    ? `<div class="topbar-actions">${actions
+        .map((a) => {
+          const target = a.target ? ` target="${a.target}"` : "";
+          const title = a.title ? ` title="${a.title}"` : "";
+          const icon = a.icon ? `<span>${a.icon}</span>` : "";
+          const label = a.label || "";
+          return `<a class="topbar-action" href="${a.href}"${target}${title}>${icon}${label}</a>`;
+        })
+        .join("")}</div>`
+    : "";
+
   /* ---------------- HTML ---------------- */
 
   const container = document.querySelector(".topbar");
@@ -290,6 +334,7 @@ export function loadTopbar(title = "") {
   <div class="topbar-sep"></div>
   <div class="topbar-title">${title}</div>
   <div class="topbar-spacer"></div>
+  ${actionsHtml}
   <div class="topbar-user" id="topbarUserWrap">
     <button class="topbar-user-btn" id="topbarUserBtn" onclick="window._topbarToggleUserMenu()" aria-expanded="false">
       <div class="topbar-avatar" id="topbarAvatar">${initials}</div>
