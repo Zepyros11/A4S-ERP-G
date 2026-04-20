@@ -167,60 +167,33 @@ async function uploadQrBlob(eventId, attendeeId, blob) {
   return publicUrl;
 }
 
-/* Render styled QR (using event.qr_style_config) to PNG Blob.
-   Note: poster bg is intentionally disabled here — the Flex bubble already
-   shows the poster as hero, so duplicating it as QR frame is redundant. */
-async function _renderStyledQrBlob(event, payload) {
+/* Render locked Neon Cyber styled QR → PNG Blob */
+async function _renderStyledQrBlob(payload) {
   if (!window.QRDesigner) throw new Error("QRDesigner ยังไม่โหลด — refresh หน้า");
-  const rawCfg = event?.qr_style_config
-    || (await window.QRDesigner.getEffectiveConfig(event?.event_id));
-  // Clone + force-disable poster background for the QR that goes into LINE Flex
-  const cfg = {
-    ...rawCfg,
-    posterBackground: { ...(rawCfg?.posterBackground || {}), enabled: false },
-  };
-  const posterUrl = null;
   const hidden = document.createElement("div");
   hidden.style.cssText = "position:absolute;left:-99999px;top:-99999px;pointer-events:none;";
   document.body.appendChild(hidden);
   try {
-    const result = await window.QRDesigner.renderQR(hidden, payload, cfg, { posterUrl });
+    const result = await window.QRDesigner.renderQR(hidden, payload);
     let blob = null;
-
-    // Composite mode (poster): we have the composed canvas directly — toBlob after render waits already done inside renderQR
-    if (result?.canvas) {
-      blob = await new Promise((resolve, reject) => {
-        result.canvas.toBlob(
-          (b) => b ? resolve(b) : reject(new Error("toBlob returned null (canvas tainted?)")),
-          "image/png",
-        );
-      });
+    if (result?.instance?.getRawData) {
+      try { blob = await result.instance.getRawData("png"); }
+      catch (e) { console.warn("[QR getRawData fail]", e.message); }
     }
-    // Simple mode: use lib's async-safe getRawData (waits for logo image to finish loading)
-    else if (result?.instance?.getRawData) {
-      try {
-        blob = await result.instance.getRawData("png");
-      } catch (e) {
-        console.warn("[QR getRawData fail]", e.message);
-      }
-    }
-
-    // Last-resort fallback: wait longer then toBlob from DOM
     if (!blob || blob.size < 500) {
       await new Promise((r) => setTimeout(r, 400));
       const canvas = hidden.querySelector("canvas");
       if (canvas) {
         blob = await new Promise((resolve, reject) => {
           canvas.toBlob(
-            (b) => b ? resolve(b) : reject(new Error("fallback toBlob null")),
+            (b) => b ? resolve(b) : reject(new Error("toBlob null")),
             "image/png",
           );
         });
       }
     }
-
     if (!blob || blob.size < 500) {
-      throw new Error(`blob เล็กผิดปกติ (${blob?.size ?? 0} bytes) — อาจ render ไม่เสร็จ`);
+      throw new Error(`blob เล็กผิดปกติ (${blob?.size ?? 0} bytes)`);
     }
     console.log(`[QR render] payload=${payload} blob=${Math.round(blob.size/1024)}KB`);
     return blob;
@@ -229,13 +202,13 @@ async function _renderStyledQrBlob(event, payload) {
   }
 }
 
-/* Get styled QR image URL (uploaded) — with memoization to avoid re-uploading */
+/* Get styled QR image URL (uploaded) — memoize to avoid re-uploading */
 const _qrUrlCache = new Map();  // key: `${event_id}:${ticketNo}`
 async function getStyledQrUrl(event, attendee) {
   const ticketNo = attendee.ticket_no || `A4S-${event?.event_id || ""}-${attendee.attendee_id}`;
   const key = `${event?.event_id}:${ticketNo}`;
   if (_qrUrlCache.has(key)) return _qrUrlCache.get(key);
-  const blob = await _renderStyledQrBlob(event, ticketNo);
+  const blob = await _renderStyledQrBlob(ticketNo);
   const url = await uploadQrBlob(event.event_id, attendee.attendee_id, blob);
   _qrUrlCache.set(key, url);
   return url;
@@ -1737,11 +1710,6 @@ window.openCheckinPage = function () {
   window.open(`check-in.html?event_id=${currentEventId}`, "_blank");
 };
 
-window.openTicketGenerator = function () {
-  if (!currentEventId) return alert("เลือก event ก่อน");
-  window.open(`ticket-generator.html?event=${currentEventId}`, "_blank");
-};
-
 // ── SHARE REGISTER LINK (LIFF + plain URL) ─────────────────
 function _buildPlainRegisterUrl() {
   if (!currentEventId) return "";
@@ -2147,8 +2115,8 @@ window.sendBulkTicketFlex = async function () {
     const channel = await window.LineAPI.getChannelForEvent(currentEvent);
     if (!channel) throw new Error("ไม่พบ LINE channel");
 
-    // currentEvent is loaded with a trimmed column list (no qr_style_config / poster_url).
-    // Fetch the full row once so QR render can use poster bg + event-specific style.
+    // currentEvent is loaded with a trimmed column list (no poster_url).
+    // Fetch the full row once so Flex hero can use the poster image.
     let fullEvent = currentEvent;
     try {
       const { url, key } = getSB();
