@@ -268,6 +268,21 @@ async function _sbGet(table, query) {
   }
 }
 
+async function _sbUpdateUserLine({ userRowId, userId, displayName, pictureUrl }) {
+  if (!SB_URL_WEBHOOK || !SB_SERVICE_KEY) return false;
+  const nowIso = new Date().toISOString();
+  return _sbPatch(
+    'users',
+    `user_id=eq.${encodeURIComponent(userRowId)}`,
+    {
+      line_user_id: userId,
+      line_display_name: displayName || null,
+      line_picture_url: pictureUrl || null,
+      line_linked_at: nowIso,
+    },
+  );
+}
+
 async function _sbUpsertMemberLine({ memberCode, userId, displayName, pictureUrl }) {
   if (!SB_URL_WEBHOOK || !SB_SERVICE_KEY) return false;
   const nowIso = new Date().toISOString();
@@ -346,14 +361,15 @@ async function _getLineProfile(userId) {
 
 const WELCOME_MSG =
   "ยินดีต้อนรับสู่ A4S 🎉\n\n" +
-  "เพื่อรับแจ้งเตือน event + tracking ผ่าน LINE\n" +
-  "กรุณาส่ง \"รหัสสมาชิก\" ของคุณ (5-6 หลัก)\n\n" +
-  "ตัวอย่าง: 10271";
+  "📱 สมาชิก: ส่ง \"รหัสสมาชิก\" (ตัวเลข 5-6 หลัก)\n" +
+  "👤 พนักงาน: ส่ง \"username\" ของคุณ\n\n" +
+  "ตัวอย่าง: 10271 หรือ somchai";
 
 const INVALID_CODE_MSG =
-  "❌ ไม่พบรหัสสมาชิกนี้ในระบบ\n\n" +
-  "กรุณาส่งรหัสเป็นตัวเลข 5-6 หลัก\n" +
-  "หากไม่ทราบรหัส ติดต่อแอดมิน";
+  "❌ ไม่พบข้อมูลนี้ในระบบ\n\n" +
+  "• สมาชิก: ตัวเลข 5-6 หลัก\n" +
+  "• พนักงาน: username ที่ใช้ login ERP\n\n" +
+  "หากไม่ทราบข้อมูล ติดต่อแอดมิน";
 
 function _buildLinkedReply(memberName, memberCode) {
   return (
@@ -361,6 +377,16 @@ function _buildLinkedReply(memberName, memberCode) {
     `สมาชิก: ${memberName || memberCode}\n` +
     `รหัส: ${memberCode}\n\n` +
     `🔔 จากนี้คุณจะได้รับแจ้งเตือน event และข้อมูลสำคัญทาง LINE`
+  );
+}
+
+function _buildStaffLinkedReply(fullName, username, role) {
+  return (
+    `✅ ผูก LINE พนักงานสำเร็จ!\n\n` +
+    `ชื่อ: ${fullName || username}\n` +
+    `Username: ${username}\n` +
+    (role ? `Role: ${role}\n` : '') +
+    `\n🔔 คุณจะได้รับแจ้งเตือนภายในองค์กรผ่าน LINE`
   );
 }
 
@@ -398,38 +424,65 @@ app.post('/line/webhook', async (req, res) => {
           { last_active_at: nowIso },
         );
 
-        // Check if text looks like member_code (3-8 digits)
+        // === Branch A: ตัวเลข 3-8 หลัก → member_code ===
         const codeMatch = text.match(/^(\d{3,8})$/);
-        if (!codeMatch) {
-          await _lineReply(ev.replyToken, WELCOME_MSG);
+        if (codeMatch) {
+          const memberCode = codeMatch[1];
+          const members = await _sbGet(
+            'members',
+            `member_code=eq.${encodeURIComponent(memberCode)}&select=member_code,full_name,member_name,line_user_id&limit=1`,
+          );
+          const member = members?.[0];
+          if (!member) {
+            await _lineReply(ev.replyToken, INVALID_CODE_MSG);
+            continue;
+          }
+          const profile = await _getLineProfile(uid);
+          await _sbUpsertMemberLine({
+            memberCode,
+            userId: uid,
+            displayName: profile?.displayName || null,
+            pictureUrl: profile?.pictureUrl || null,
+          });
+          const name = member.full_name || member.member_name || memberCode;
+          await _lineReply(ev.replyToken, _buildLinkedReply(name, memberCode));
           continue;
         }
 
-        const memberCode = codeMatch[1];
-        const members = await _sbGet(
-          'members',
-          `member_code=eq.${encodeURIComponent(memberCode)}&select=member_code,full_name,member_name,line_user_id&limit=1`,
-        );
-        const member = members?.[0];
-
-        if (!member) {
-          await _lineReply(ev.replyToken, INVALID_CODE_MSG);
+        // === Branch B: ตัวอักษร (มีตัวหนังสือ) → username พนักงาน ===
+        const usernameMatch = text.match(/^[A-Za-z0-9_.\-]{2,40}$/);
+        if (usernameMatch) {
+          const username = text.toLowerCase();
+          // ilike เพื่อ case-insensitive match กับ username (lower-cased index)
+          const users = await _sbGet(
+            'users',
+            `username=ilike.${encodeURIComponent(username)}&select=user_id,username,full_name,role,is_active&limit=1`,
+          );
+          const user = users?.[0];
+          if (!user) {
+            await _lineReply(ev.replyToken, INVALID_CODE_MSG);
+            continue;
+          }
+          if (user.is_active === false) {
+            await _lineReply(ev.replyToken, '⚠️ บัญชีพนักงานนี้ถูกปิดใช้งาน — ติดต่อแอดมิน');
+            continue;
+          }
+          const profile = await _getLineProfile(uid);
+          await _sbUpdateUserLine({
+            userRowId: user.user_id,
+            userId: uid,
+            displayName: profile?.displayName || null,
+            pictureUrl: profile?.pictureUrl || null,
+          });
+          await _lineReply(
+            ev.replyToken,
+            _buildStaffLinkedReply(user.full_name, user.username, user.role),
+          );
           continue;
         }
 
-        // Fetch LINE profile (displayName + pictureUrl)
-        const profile = await _getLineProfile(uid);
-
-        // Link
-        await _sbUpsertMemberLine({
-          memberCode,
-          userId: uid,
-          displayName: profile?.displayName || null,
-          pictureUrl: profile?.pictureUrl || null,
-        });
-
-        const name = member.full_name || member.member_name || memberCode;
-        await _lineReply(ev.replyToken, _buildLinkedReply(name, memberCode));
+        // ไม่ match รูปแบบใดเลย
+        await _lineReply(ev.replyToken, WELCOME_MSG);
         continue;
       }
 

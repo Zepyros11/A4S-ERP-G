@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ส่งข้อความพนักงาน (LINE) — A4S-ERP</title>
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../css/main.css">
+<style>
+.page{padding:20px 24px;}
+.page-header{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:18px;}
+.page-title{font-size:20px;font-weight:700;display:flex;align-items:center;gap:10px;color:var(--text);}
+.page-subtitle{font-size:12.5px;color:var(--text3);margin-top:2px;}
+
+.sm-grid{display:grid;grid-template-columns:1fr 380px;gap:18px;align-items:start;}
+@media(max-width:1024px){.sm-grid{grid-template-columns:1fr;}}
+
+/* Stats */
+.sm-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:14px;}
+.sm-stat{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 16px;display:flex;align-items:center;gap:12px;}
+.sm-stat-icon{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;}
+.sm-stat.linked .sm-stat-icon{background:#dcfce7;color:#15803d;}
+.sm-stat.total .sm-stat-icon{background:#fef3c7;color:#92400e;}
+.sm-stat.selected .sm-stat-icon{background:#dbeafe;color:#1e40af;}
+.sm-stat-label{font-size:11px;color:var(--text3);font-weight:600;letter-spacing:.3px;text-transform:uppercase;}
+.sm-stat-value{font-size:22px;font-weight:700;color:var(--text);font-variant-numeric:tabular-nums;line-height:1.1;margin-top:2px;}
+
+/* Toolbar */
+.sm-toolbar{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:10px 14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px;}
+.sm-search{flex:1;min-width:200px;display:flex;align-items:center;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:0 12px;}
+.sm-search input{border:none;background:transparent;padding:9px 6px;flex:1;outline:none;font-family:inherit;font-size:13px;}
+.sm-filter{padding:8px 12px;border:1px solid var(--border);border-radius:10px;font-family:inherit;font-size:13px;background:var(--surface);}
+
+/* Table */
+.sm-table-wrap{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;}
+.sm-table{width:100%;border-collapse:collapse;font-size:13px;}
+.sm-table th{padding:10px 12px;background:var(--surface2);font-size:11px;font-weight:700;letter-spacing:.5px;color:var(--text3);text-align:left;border-bottom:2px solid var(--border);white-space:nowrap;text-transform:uppercase;}
+.sm-table td{padding:9px 12px;border-bottom:1px solid var(--border);vertical-align:middle;}
+.sm-table tr:hover td{background:var(--accent-pale);}
+.sm-table tr.selected td{background:#eff6ff;}
+.sm-table tr.unlinked td{opacity:.55;}
+.sm-table tr:last-child td{border-bottom:none;}
+.sm-check{width:16px;height:16px;cursor:pointer;}
+.sm-avatar{width:32px;height:32px;border-radius:50%;background:#06c755;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;flex-shrink:0;overflow:hidden;}
+.sm-avatar img{width:100%;height:100%;object-fit:cover;}
+.sm-name{font-weight:600;color:var(--text);}
+.sm-username{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--text2);}
+.sm-role-badge{display:inline-block;padding:2px 8px;border-radius:8px;font-size:10.5px;font-weight:700;background:var(--surface2);color:var(--text2);}
+.sm-line-badge{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:10px;font-size:10.5px;font-weight:700;background:#06c755;color:#fff;}
+.sm-line-none{font-size:11px;color:var(--text3);font-style:italic;}
+
+/* Compose panel */
+.sm-compose{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;position:sticky;top:72px;}
+.sm-compose h3{font-size:14px;font-weight:700;margin:0 0 12px;display:flex;align-items:center;gap:8px;color:var(--text);}
+.sm-field{margin-bottom:12px;}
+.sm-field label{display:block;font-size:11.5px;font-weight:600;color:var(--text3);margin-bottom:5px;text-transform:uppercase;letter-spacing:.3px;}
+.sm-field select,.sm-field textarea{width:100%;box-sizing:border-box;padding:9px 11px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:var(--surface);color:var(--text);}
+.sm-field textarea{min-height:130px;resize:vertical;}
+.sm-charcount{font-size:11px;color:var(--text3);text-align:right;margin-top:3px;font-variant-numeric:tabular-nums;}
+.sm-target-info{padding:10px 12px;background:var(--surface2);border-radius:8px;font-size:12.5px;color:var(--text2);margin-bottom:12px;}
+.sm-target-info strong{color:var(--accent);font-size:14px;}
+.sm-btn-send{width:100%;padding:12px;background:linear-gradient(135deg,#06c755,#0ea5e9);color:#fff;border:none;border-radius:10px;font-weight:700;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;}
+.sm-btn-send:hover{filter:brightness(1.08);}
+.sm-btn-send:disabled{opacity:.5;cursor:not-allowed;filter:none;}
+.sm-btn-secondary{width:100%;padding:9px;background:var(--surface2);color:var(--text2);border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:12.5px;cursor:pointer;margin-top:8px;}
+.sm-btn-secondary:hover{background:var(--accent-pale);}
+
+.sm-hint{font-size:11.5px;color:var(--text3);line-height:1.5;padding:10px 12px;background:#fef9c3;border:1px solid #fde68a;border-radius:8px;margin-top:10px;}
+.sm-hint b{color:#854d0e;}
+
+.sm-empty{text-align:center;padding:42px 20px;color:var(--text3);}
+.sm-empty-icon{font-size:48px;opacity:.4;margin-bottom:10px;}
+
+@media(max-width:767px){
+  .page{padding:14px;}
+  .sm-stats{grid-template-columns:1fr 1fr;}
+  .sm-table th:nth-child(5),.sm-table td:nth-child(5){display:none;}
+}
+</style>
+</head>
+<body>
+
+<div class="loading-overlay" id="loadingOverlay"><div class="spinner"></div></div>
+<div class="toast" id="toast"></div>
+
+<div class="topbar"></div>
+
+<div class="layout">
+  <div id="sidebar-container"></div>
+
+  <div class="content-area">
+    <div class="page">
+
+      <div class="page-header">
+        <div>
+          <div class="page-title">💬 ส่งข้อความพนักงานผ่าน LINE</div>
+          <div class="page-subtitle">ส่งข้อความภายในองค์กรผ่าน LINE Bot — พนักงานต้องผูก LINE ก่อน โดยพิมพ์ username ในแชท Bot</div>
+        </div>
+      </div>
+
+      <!-- Stats -->
+      <div class="sm-stats">
+        <div class="sm-stat linked">
+          <div class="sm-stat-icon">💬</div>
+          <div><div class="sm-stat-label">ผูก LINE แล้ว</div><div class="sm-stat-value" id="smStatLinked">—</div></div>
+        </div>
+        <div class="sm-stat total">
+          <div class="sm-stat-icon">👥</div>
+          <div><div class="sm-stat-label">พนักงานทั้งหมด</div><div class="sm-stat-value" id="smStatTotal">—</div></div>
+        </div>
+        <div class="sm-stat selected">
+          <div class="sm-stat-icon">✓</div>
+          <div><div class="sm-stat-label">เลือกไว้</div><div class="sm-stat-value" id="smStatSelected">0</div></div>
+        </div>
+      </div>
+
+      <div class="sm-grid">
+        <div>
+          <!-- Toolbar -->
+          <div class="sm-toolbar">
+            <div class="sm-search">
+              <span>🔍</span>
+              <input type="text" id="smSearchInput" placeholder="ค้นหา ชื่อ / username / LINE name ...">
+            </div>
+            <select class="sm-filter" id="smFilterRole">
+              <option value="">ทุก Role</option>
+            </select>
+            <select class="sm-filter" id="smFilterLinked">
+              <option value="linked">เฉพาะที่ผูก LINE</option>
+              <option value="">ทั้งหมด</option>
+              <option value="unlinked">ยังไม่ผูก</option>
+            </select>
+            <button class="sm-filter" onclick="loadStaff()">🔄 Refresh</button>
+          </div>
+
+          <!-- Table -->
+          <div class="sm-table-wrap">
+            <table class="sm-table">
+              <thead>
+                <tr>
+                  <th style="width:30px"><input type="checkbox" id="smCheckAll" class="sm-check" onchange="toggleAll(this.checked)"></th>
+                  <th style="width:42px"></th>
+                  <th>ชื่อ-นามสกุล</th>
+                  <th>Username</th>
+                  <th>Role</th>
+                  <th>LINE Name</th>
+                  <th>สถานะ</th>
+                </tr>
+              </thead>
+              <tbody id="smTableBody">
+                <tr><td colspan="7" class="sm-empty"><div class="sm-empty-icon">⏳</div>กำลังโหลด...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Compose panel -->
+        <aside class="sm-compose">
+          <h3>✉️ เขียนข้อความ</h3>
+
+          <div class="sm-field">
+            <label>Channel</label>
+            <select id="smChannel"></select>
+          </div>
+
+          <div class="sm-target-info">
+            ส่งถึง: <strong id="smTargetCount">0</strong> คน
+            <span id="smTargetNote" style="display:block;font-size:11px;color:var(--text3);margin-top:3px;">(เลือกพนักงานที่ผูก LINE แล้วจากตาราง)</span>
+          </div>
+
+          <div class="sm-field">
+            <label>ข้อความ</label>
+            <textarea id="smMessage" placeholder="พิมพ์ข้อความที่จะส่ง..." maxlength="5000" oninput="updateCharCount()"></textarea>
+            <div class="sm-charcount"><span id="smCharCount">0</span> / 5000</div>
+          </div>
+
+          <button class="sm-btn-send" id="smSendBtn" onclick="sendMessages()">
+            <span>📤</span> ส่งข้อความ
+          </button>
+          <button class="sm-btn-secondary" onclick="previewMessage()">👁️ ดูตัวอย่าง</button>
+
+          <div class="sm-hint">
+            <b>💡 วิธีผูก LINE สำหรับพนักงาน:</b><br>
+            1. เพิ่ม Bot <code>@949bctau</code> เป็นเพื่อน<br>
+            2. พิมพ์ <code>username</code> ของตัวเองในแชท<br>
+            3. Bot จะตอบกลับ "ผูก LINE สำเร็จ"
+          </div>
+        </aside>
+      </div>
+
+    </div><!-- /.page -->
+  </div>
+</div>
+
+<script src="../../js/core/auth.js"></script>
+<script src="../../js/core/authz.js"></script>
+<script src="../../js/core/crypto.js"></script>
+<script src="../../js/core/line.js"></script>
+<script src="../../js/core/date-format.js"></script>
+<script>AuthZ.requirePerm("users_view");</script>
+<script src="./staff-messaging.js"></script>
+<script type="module">
+  import { loadTopbar } from "../../js/components/navigation/topbar.js";
+  loadTopbar("💬 ส่งข้อความพนักงาน");
+</script>
+<script src="../../js/components/navigation/sidebar.js"></script>
+<script src="../../js/components/modal/modalManager.js"></script>
+</body>
+</html>

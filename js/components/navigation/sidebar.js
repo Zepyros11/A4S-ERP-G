@@ -306,6 +306,12 @@
           path: BASE_PATH + "/modules/settings/users.html",
         },
         {
+          id: "staff-messaging",
+          icon: "💬",
+          label: "ส่งข้อความพนักงาน",
+          path: BASE_PATH + "/modules/settings/staff-messaging.html",
+        },
+        {
           id: "roles",
           icon: "🔐",
           label: "จัดการ Role",
@@ -337,6 +343,12 @@
           label: "ตั้งค่า Automation",
           path: BASE_PATH + "/modules/dev-tool/settings.html",
         },
+        {
+          id: "autocheck",
+          icon: "🩺",
+          label: "System Health Check",
+          path: BASE_PATH + "/modules/dev-tool/autocheck.html",
+        },
       ],
     },
   ];
@@ -366,6 +378,7 @@
     settings: "sys_settings_view",
     db_viewer: "db_viewer_view",
     users: "users_view",
+    "staff-messaging": "users_view",
     roles: "roles_view",
     suppliers: "supplier_view",
 
@@ -381,6 +394,7 @@
     automation: "devtool_view",
     wizard: "devtool_manage",
     "devtool-settings": "devtool_manage",
+    autocheck: "devtool_view",
   };
 
   /* ── อ่าน effective_perms จาก session (ไม่พึ่ง AuthZ) ── */
@@ -438,6 +452,7 @@
     "settings",
     "suppliers",
     "users",
+    "staff-messaging",
     "roles",
 
     "members",
@@ -458,6 +473,7 @@
     "automation",
     "wizard",
     "devtool-settings",
+    "autocheck",
     // "reports",
     // "db_viewer",
   ];

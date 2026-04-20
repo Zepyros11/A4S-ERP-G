@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>System Health Check — A4S-ERP</title>
+<link rel="stylesheet" href="../../css/main.css">
+<style>
+.page{padding:20px 24px;max-width:900px;margin:0 auto;}
+.page-header{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:20px;}
+.page-title{font-size:20px;font-weight:700;display:flex;align-items:center;gap:10px;}
+.page-subtitle{font-size:12.5px;color:var(--text3);margin-top:3px;}
+
+.ac-summary{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px 20px;margin-bottom:18px;display:flex;align-items:center;gap:16px;}
+.ac-summary-icon{width:52px;height:52px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0;}
+.ac-summary.ok .ac-summary-icon{background:#dcfce7;color:#15803d;}
+.ac-summary.warn .ac-summary-icon{background:#fef3c7;color:#92400e;}
+.ac-summary.error .ac-summary-icon{background:#fee2e2;color:#b91c1c;}
+.ac-summary-title{font-size:16px;font-weight:700;}
+.ac-summary-detail{font-size:12.5px;color:var(--text3);margin-top:2px;}
+
+.ac-controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
+.ac-run-btn{padding:9px 18px;border:none;background:linear-gradient(135deg,#1e40af,#3b82f6);color:#fff;border-radius:10px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px;}
+.ac-run-btn:hover{filter:brightness(1.1);}
+.ac-run-btn:disabled{opacity:.5;cursor:not-allowed;}
+
+.ac-group{background:var(--surface);border:1px solid var(--border);border-radius:12px;margin-bottom:14px;overflow:hidden;}
+.ac-group-head{padding:12px 18px;background:var(--surface2);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.ac-group-title{font-size:13px;font-weight:700;color:var(--text2);letter-spacing:.4px;text-transform:uppercase;display:flex;align-items:center;gap:8px;}
+.ac-group-badge{font-size:11px;font-weight:700;padding:2px 10px;border-radius:10px;}
+.ac-group-badge.ok{background:#dcfce7;color:#15803d;}
+.ac-group-badge.warn{background:#fef3c7;color:#92400e;}
+.ac-group-badge.error{background:#fee2e2;color:#b91c1c;}
+.ac-group-body{padding:6px 18px 10px;}
+
+.ac-item{display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);font-size:13.5px;}
+.ac-item:last-child{border-bottom:none;}
+.ac-status{width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;margin-top:1px;}
+.ac-status.running{background:#e0f2fe;animation:spin 1s linear infinite;}
+.ac-status.ok{background:#dcfce7;color:#15803d;}
+.ac-status.warn{background:#fef3c7;color:#92400e;}
+.ac-status.error{background:#fee2e2;color:#b91c1c;}
+.ac-status.pending{background:var(--surface2);color:var(--text3);}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+.ac-name{flex:1;min-width:0;}
+.ac-name-title{font-weight:600;color:var(--text);}
+.ac-name-desc{font-size:11.5px;color:var(--text3);margin-top:2px;}
+.ac-result{font-size:12px;color:var(--text2);font-family:'IBM Plex Mono',monospace;text-align:right;max-width:50%;word-break:break-word;}
+.ac-result.ok{color:#15803d;}
+.ac-result.warn{color:#b45309;}
+.ac-result.error{color:#b91c1c;}
+.ac-result.pending{color:var(--text3);font-style:italic;}
+
+.ac-fix{display:block;margin-top:4px;font-size:11px;color:var(--accent);text-decoration:underline;cursor:pointer;font-family:inherit;}
+.ac-fix:hover{color:var(--accent-light);}
+
+.ac-last-run{font-size:11px;color:var(--text3);margin-left:auto;}
+</style>
+</head>
+<body>
+
+<div class="loading-overlay" id="loadingOverlay"><div class="spinner"></div></div>
+<div class="toast" id="toast"></div>
+
+<div class="topbar"></div>
+
+<div class="layout">
+  <div id="sidebar-container"></div>
+
+  <div class="content-area">
+    <div class="page">
+
+      <div class="page-header">
+        <div>
+          <div class="page-title">🩺 System Health Check</div>
+          <div class="page-subtitle">ตรวจสอบสถานะระบบทั้งหมด — Supabase · AI Proxy · LINE · Database · Data</div>
+        </div>
+        <div class="ac-controls">
+          <span class="ac-last-run" id="acLastRun"></span>
+          <button class="ac-run-btn" id="acRunBtn" onclick="runAllChecks()">🔄 Run All Checks</button>
+        </div>
+      </div>
+
+      <!-- Summary card -->
+      <div class="ac-summary" id="acSummary">
+        <div class="ac-summary-icon">⏸️</div>
+        <div>
+          <div class="ac-summary-title" id="acSummaryTitle">ยังไม่ได้ run</div>
+          <div class="ac-summary-detail" id="acSummaryDetail">กด "Run All Checks" เพื่อเริ่มตรวจ</div>
+        </div>
+      </div>
+
+      <!-- Check groups (populated by JS) -->
+      <div id="acGroups"></div>
+
+    </div>
+  </div>
+</div>
+
+<script src="../../js/core/auth.js"></script>
+<script src="../../js/core/authz.js"></script>
+<script src="../../js/core/crypto.js"></script>
+<script>AuthZ.requirePerm("devtool_view");</script>
+<script src="autocheck.js"></script>
+<script type="module">
+  import { loadTopbar } from "../../js/components/navigation/topbar.js";
+  loadTopbar("🩺 System Health Check");
+</script>
+<script src="../../js/components/navigation/sidebar.js"></script>
+<script src="../../js/components/modal/modalManager.js"></script>
+</body>
+</html>
