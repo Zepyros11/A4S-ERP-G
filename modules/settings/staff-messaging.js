@@ -23,6 +23,20 @@ async function sb(path) {
   return res.json();
 }
 
+async function sbPatch(path, body) {
+  const res = await fetch(`${SB_URL}/rest/v1/${path}`, {
+    method: "PATCH",
+    headers: {
+      apikey: SB_KEY,
+      Authorization: `Bearer ${SB_KEY}`,
+      "Content-Type": "application/json",
+      Prefer: "return=minimal",
+    },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`${res.status}: ${await res.text().catch(() => "")}`);
+}
+
 function showLoading(on) {
   const el = document.getElementById("loadingOverlay");
   if (el) el.classList.toggle("active", on);
@@ -130,7 +144,13 @@ function renderTable() {
       <td><span class="sm-role-badge">${u.role || "—"}</span></td>
       <td>${u.line_display_name || "<span class=\"sm-line-none\">—</span>"}</td>
       <td>${linked
-        ? `<span class="sm-line-badge">💬 ${linkedDate || "ผูกแล้ว"}</span>`
+        ? `<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+             <span class="sm-line-badge">💬 ${linkedDate || "ผูกแล้ว"}</span>
+             <button class="sm-unlink-btn" title="ลบการเชื่อม LINE"
+               onclick="unlinkUser(${u.user_id}, '${(u.full_name || u.username || "").replace(/'/g, "\\'")}')">
+               ✕
+             </button>
+           </div>`
         : `<span class="sm-line-none">ยังไม่ผูก</span>`}</td>
     </tr>`;
   }).join("");
@@ -337,9 +357,43 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 // Expose for inline onclick
+async function unlinkUser(userId, displayName) {
+  let ok = true;
+  if (window.ConfirmModal?.open) {
+    ok = await window.ConfirmModal.open({
+      icon: "⚠️",
+      title: "ลบการเชื่อม LINE?",
+      tone: "danger",
+      message: `${displayName || "พนักงาน"} จะไม่ได้รับข้อความผ่าน LINE อีกจนกว่าจะผูกใหม่ (พิมพ์ username ในแชท Bot)`,
+      okText: "ลบการเชื่อม",
+      cancelText: "ยกเลิก",
+    });
+  } else {
+    ok = confirm(`ลบการเชื่อม LINE ของ ${displayName || userId}?`);
+  }
+  if (!ok) return;
+  showLoading(true);
+  try {
+    await sbPatch(`users?user_id=eq.${encodeURIComponent(userId)}`, {
+      line_user_id: null,
+      line_display_name: null,
+      line_picture_url: null,
+      line_linked_at: null,
+    });
+    selectedIds.delete(userId);
+    showToast(`ลบการเชื่อม LINE ของ ${displayName || userId} แล้ว`, "success");
+    await loadStaff();
+  } catch (e) {
+    showToast("ลบไม่สำเร็จ: " + e.message, "error");
+  } finally {
+    showLoading(false);
+  }
+}
+
 window.toggleRow = toggleRow;
 window.toggleAll = toggleAll;
 window.sendMessages = sendMessages;
 window.previewMessage = previewMessage;
 window.loadStaff = loadStaff;
 window.updateCharCount = updateCharCount;
+window.unlinkUser = unlinkUser;

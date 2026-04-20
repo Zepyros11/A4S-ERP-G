@@ -273,6 +273,11 @@ const SESSION_TTL_MIN = 5;
 const MAX_ATTEMPTS = 3;
 const BLOCK_MIN = 30;
 
+// SHA-256 hex (same scheme as ERPCrypto.hash in js/core/crypto.js)
+function _sha256Hex(str) {
+  return crypto.createHash('sha256').update(String(str)).digest('hex');
+}
+
 async function _getSession(uid) {
   const rows = await _sbGet(
     'line_verify_sessions',
@@ -518,7 +523,7 @@ app.post('/line/webhook', async (req, res) => {
           if (sess.pending_type === 'member') {
             const members = await _sbGet(
               'members',
-              `member_code=eq.${encodeURIComponent(sess.pending_id)}&select=member_code,full_name,member_name,password,line_user_id&limit=1`,
+              `member_code=eq.${encodeURIComponent(sess.pending_id)}&select=member_code,full_name,member_name,password_hash,line_user_id&limit=1`,
             );
             const member = members?.[0];
             if (!member) {
@@ -526,7 +531,8 @@ app.post('/line/webhook', async (req, res) => {
               await _lineReply(ev.replyToken, await _tpl('invalid_code'));
               continue;
             }
-            if (text === String(member.password ?? '')) {
+            const match = !!member.password_hash && _sha256Hex(text) === member.password_hash;
+            if (match) {
               const profile = await _getLineProfile(uid);
               await _sbUpsertMemberLine({
                 memberCode: member.member_code,
@@ -563,7 +569,7 @@ app.post('/line/webhook', async (req, res) => {
           if (sess.pending_type === 'staff') {
             const users = await _sbGet(
               'users',
-              `user_id=eq.${encodeURIComponent(sess.pending_id)}&select=user_id,username,full_name,role,is_active,password&limit=1`,
+              `user_id=eq.${encodeURIComponent(sess.pending_id)}&select=user_id,username,full_name,role,is_active,password,password_hash&limit=1`,
             );
             const user = users?.[0];
             if (!user) {
@@ -576,7 +582,9 @@ app.post('/line/webhook', async (req, res) => {
               await _lineReply(ev.replyToken, await _tpl('staff_inactive'));
               continue;
             }
-            if (text === String(user.password ?? '')) {
+            const hashMatch = !!user.password_hash && _sha256Hex(text) === user.password_hash;
+            const plainMatch = !user.password_hash && user.password && text === user.password;
+            if (hashMatch || plainMatch) {
               const profile = await _getLineProfile(uid);
               await _sbUpdateUserLine({
                 userRowId: user.user_id,
@@ -628,14 +636,14 @@ app.post('/line/webhook', async (req, res) => {
           const memberCode = codeMatch[1];
           const members = await _sbGet(
             'members',
-            `member_code=eq.${encodeURIComponent(memberCode)}&select=member_code,full_name,member_name,password&limit=1`,
+            `member_code=eq.${encodeURIComponent(memberCode)}&select=member_code,full_name,member_name,password_hash&limit=1`,
           );
           const member = members?.[0];
           if (!member) {
             await _lineReply(ev.replyToken, await _tpl('invalid_code'));
             continue;
           }
-          if (!member.password) {
+          if (!member.password_hash) {
             await _lineReply(ev.replyToken, await _tpl('no_password_set'));
             continue;
           }
@@ -662,7 +670,7 @@ app.post('/line/webhook', async (req, res) => {
           const username = text.toLowerCase();
           const users = await _sbGet(
             'users',
-            `username=ilike.${encodeURIComponent(username)}&select=user_id,username,full_name,role,is_active,password&limit=1`,
+            `username=ilike.${encodeURIComponent(username)}&select=user_id,username,full_name,role,is_active,password,password_hash&limit=1`,
           );
           const user = users?.[0];
           if (!user) {
@@ -673,7 +681,7 @@ app.post('/line/webhook', async (req, res) => {
             await _lineReply(ev.replyToken, await _tpl('staff_inactive'));
             continue;
           }
-          if (!user.password) {
+          if (!user.password_hash && !user.password) {
             await _lineReply(ev.replyToken, await _tpl('no_password_set'));
             continue;
           }
