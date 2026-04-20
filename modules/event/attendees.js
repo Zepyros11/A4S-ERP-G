@@ -179,22 +179,44 @@ async function _renderStyledQrBlob(event, payload) {
   hidden.style.cssText = "position:absolute;left:-99999px;top:-99999px;pointer-events:none;";
   document.body.appendChild(hidden);
   try {
-    await window.QRDesigner.renderQR(hidden, payload, cfg, { posterUrl });
-    const canvas = hidden.querySelector("canvas");
-    if (!canvas) throw new Error("ไม่พบ canvas หลัง render (lib อาจไม่โหลด)");
-    // Test if canvas is tainted (happens when poster loaded without CORS)
-    let blob;
-    try {
+    const result = await window.QRDesigner.renderQR(hidden, payload, cfg, { posterUrl });
+    let blob = null;
+
+    // Composite mode (poster): we have the composed canvas directly — toBlob after render waits already done inside renderQR
+    if (result?.canvas) {
       blob = await new Promise((resolve, reject) => {
-        canvas.toBlob(
-          (b) => b ? resolve(b) : reject(new Error("toBlob returned null")),
+        result.canvas.toBlob(
+          (b) => b ? resolve(b) : reject(new Error("toBlob returned null (canvas tainted?)")),
           "image/png",
         );
       });
-    } catch (e) {
-      throw new Error(`Canvas tainted (poster CORS): ${e.message}`);
     }
-    if (!blob || blob.size === 0) throw new Error("blob ว่าง");
+    // Simple mode: use lib's async-safe getRawData (waits for logo image to finish loading)
+    else if (result?.instance?.getRawData) {
+      try {
+        blob = await result.instance.getRawData("png");
+      } catch (e) {
+        console.warn("[QR getRawData fail]", e.message);
+      }
+    }
+
+    // Last-resort fallback: wait longer then toBlob from DOM
+    if (!blob || blob.size < 500) {
+      await new Promise((r) => setTimeout(r, 400));
+      const canvas = hidden.querySelector("canvas");
+      if (canvas) {
+        blob = await new Promise((resolve, reject) => {
+          canvas.toBlob(
+            (b) => b ? resolve(b) : reject(new Error("fallback toBlob null")),
+            "image/png",
+          );
+        });
+      }
+    }
+
+    if (!blob || blob.size < 500) {
+      throw new Error(`blob เล็กผิดปกติ (${blob?.size ?? 0} bytes) — อาจ render ไม่เสร็จ`);
+    }
     console.log(`[QR render] payload=${payload} blob=${Math.round(blob.size/1024)}KB`);
     return blob;
   } finally {
