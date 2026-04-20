@@ -268,6 +268,50 @@ async function _sbGet(table, query) {
   }
 }
 
+/* ── Verify session helpers ── */
+const SESSION_TTL_MIN = 5;
+const MAX_ATTEMPTS = 3;
+const BLOCK_MIN = 30;
+
+async function _getSession(uid) {
+  const rows = await _sbGet(
+    'line_verify_sessions',
+    `line_user_id=eq.${encodeURIComponent(uid)}&select=*&limit=1`,
+  );
+  return rows?.[0] || null;
+}
+
+async function _setSession(uid, data) {
+  if (!SB_URL_WEBHOOK || !SB_SERVICE_KEY) return false;
+  try {
+    const res = await fetch(
+      `${SB_URL_WEBHOOK}/rest/v1/line_verify_sessions?on_conflict=line_user_id`,
+      {
+        method: 'POST',
+        headers: {
+          apikey: SB_SERVICE_KEY,
+          Authorization: `Bearer ${SB_SERVICE_KEY}`,
+          'Content-Type': 'application/json',
+          Prefer: 'resolution=merge-duplicates,return=minimal',
+        },
+        body: JSON.stringify({ line_user_id: uid, ...data }),
+      },
+    );
+    if (!res.ok) console.warn('[session upsert]', res.status);
+    return res.ok;
+  } catch (e) { console.warn('[session upsert]', e.message); return false; }
+}
+
+async function _clearSession(uid) {
+  if (!SB_URL_WEBHOOK || !SB_SERVICE_KEY) return;
+  try {
+    await fetch(
+      `${SB_URL_WEBHOOK}/rest/v1/line_verify_sessions?line_user_id=eq.${encodeURIComponent(uid)}`,
+      { method: 'DELETE', headers: { apikey: SB_SERVICE_KEY, Authorization: `Bearer ${SB_SERVICE_KEY}` } },
+    );
+  } catch (e) { console.warn('[session clear]', e.message); }
+}
+
 async function _sbUpdateUserLine({ userRowId, userId, displayName, pictureUrl }) {
   if (!SB_URL_WEBHOOK || !SB_SERVICE_KEY) return false;
   const nowIso = new Date().toISOString();
@@ -441,50 +485,184 @@ app.post('/line/webhook', async (req, res) => {
       // === MESSAGE event ===
       if (ev.type === 'message' && ev.message?.type === 'text') {
         const text = (ev.message.text || '').trim();
-        console.log(`[LINE webhook] message "${text}" from ${uid.slice(0, 10)}...`);
+        console.log(`[LINE webhook] message from ${uid.slice(0, 10)}... len=${text.length}`);
 
-        // Update last_active_at for existing linked accounts
         await _sbPatch(
           'member_line_accounts',
           `line_user_id=eq.${encodeURIComponent(uid)}`,
           { last_active_at: nowIso },
         );
 
-        // === Branch A: ตัวเลข 3-8 หลัก → member_code ===
+        const now = new Date();
+        const sess = await _getSession(uid);
+
+        // ── Step 0: ถ้ายัง block อยู่ — ปฏิเสธก่อน ──
+        if (sess?.blocked_until && new Date(sess.blocked_until) > now) {
+          const mins = Math.max(1, Math.ceil((new Date(sess.blocked_until) - now) / 60000));
+          await _lineReply(ev.replyToken, await _tpl('rate_limited', { minutes: mins }));
+          continue;
+        }
+
+        // ── Step 1: มี session pending — รับ password (หรือ "ยกเลิก") ──
+        const sessionAlive =
+          sess?.pending_type && sess?.expires_at && new Date(sess.expires_at) > now;
+
+        if (sessionAlive) {
+          // user cancel
+          if (text === 'ยกเลิก' || text.toLowerCase() === 'cancel') {
+            await _clearSession(uid);
+            await _lineReply(ev.replyToken, await _tpl('cancelled'));
+            continue;
+          }
+
+          if (sess.pending_type === 'member') {
+            const members = await _sbGet(
+              'members',
+              `member_code=eq.${encodeURIComponent(sess.pending_id)}&select=member_code,full_name,member_name,password,line_user_id&limit=1`,
+            );
+            const member = members?.[0];
+            if (!member) {
+              await _clearSession(uid);
+              await _lineReply(ev.replyToken, await _tpl('invalid_code'));
+              continue;
+            }
+            if (text === String(member.password ?? '')) {
+              const profile = await _getLineProfile(uid);
+              await _sbUpsertMemberLine({
+                memberCode: member.member_code,
+                userId: uid,
+                displayName: profile?.displayName || null,
+                pictureUrl: profile?.pictureUrl || null,
+              });
+              await _clearSession(uid);
+              const name = member.full_name || member.member_name || member.member_code;
+              await _lineReply(
+                ev.replyToken,
+                await _tpl('linked_member', { name, code: member.member_code }),
+              );
+            } else {
+              const attempts = (sess.attempts || 0) + 1;
+              if (attempts >= MAX_ATTEMPTS) {
+                const blockedUntil = new Date(now.getTime() + BLOCK_MIN * 60000).toISOString();
+                await _setSession(uid, {
+                  pending_type: null, pending_id: null,
+                  attempts: 0, expires_at: null, blocked_until: blockedUntil,
+                });
+                await _lineReply(ev.replyToken, await _tpl('rate_limited', { minutes: BLOCK_MIN }));
+              } else {
+                await _setSession(uid, { attempts });
+                await _lineReply(
+                  ev.replyToken,
+                  await _tpl('wrong_password', { attempts_left: MAX_ATTEMPTS - attempts }),
+                );
+              }
+            }
+            continue;
+          }
+
+          if (sess.pending_type === 'staff') {
+            const users = await _sbGet(
+              'users',
+              `user_id=eq.${encodeURIComponent(sess.pending_id)}&select=user_id,username,full_name,role,is_active,password&limit=1`,
+            );
+            const user = users?.[0];
+            if (!user) {
+              await _clearSession(uid);
+              await _lineReply(ev.replyToken, await _tpl('invalid_code'));
+              continue;
+            }
+            if (user.is_active === false) {
+              await _clearSession(uid);
+              await _lineReply(ev.replyToken, await _tpl('staff_inactive'));
+              continue;
+            }
+            if (text === String(user.password ?? '')) {
+              const profile = await _getLineProfile(uid);
+              await _sbUpdateUserLine({
+                userRowId: user.user_id,
+                userId: uid,
+                displayName: profile?.displayName || null,
+                pictureUrl: profile?.pictureUrl || null,
+              });
+              await _clearSession(uid);
+              await _lineReply(
+                ev.replyToken,
+                await _tpl('linked_staff', {
+                  name: user.full_name || user.username,
+                  username: user.username,
+                  role: user.role || '',
+                }),
+              );
+            } else {
+              const attempts = (sess.attempts || 0) + 1;
+              if (attempts >= MAX_ATTEMPTS) {
+                const blockedUntil = new Date(now.getTime() + BLOCK_MIN * 60000).toISOString();
+                await _setSession(uid, {
+                  pending_type: null, pending_id: null,
+                  attempts: 0, expires_at: null, blocked_until: blockedUntil,
+                });
+                await _lineReply(ev.replyToken, await _tpl('rate_limited', { minutes: BLOCK_MIN }));
+              } else {
+                await _setSession(uid, { attempts });
+                await _lineReply(
+                  ev.replyToken,
+                  await _tpl('wrong_password', { attempts_left: MAX_ATTEMPTS - attempts }),
+                );
+              }
+            }
+            continue;
+          }
+        }
+
+        // ── Step 2: session หมดอายุแล้ว (แต่ยังมี record) แจ้งเตือน + ล้าง ──
+        if (sess?.pending_type && sess?.expires_at && new Date(sess.expires_at) <= now) {
+          await _clearSession(uid);
+        }
+
+        // ── Step 3: ไม่มี session → user ส่ง code/username ครั้งแรก ──
+        const expiresAt = new Date(now.getTime() + SESSION_TTL_MIN * 60000).toISOString();
+
+        // Branch A: digits 3-8 → member
         const codeMatch = text.match(/^(\d{3,8})$/);
         if (codeMatch) {
           const memberCode = codeMatch[1];
           const members = await _sbGet(
             'members',
-            `member_code=eq.${encodeURIComponent(memberCode)}&select=member_code,full_name,member_name,line_user_id&limit=1`,
+            `member_code=eq.${encodeURIComponent(memberCode)}&select=member_code,full_name,member_name,password&limit=1`,
           );
           const member = members?.[0];
           if (!member) {
             await _lineReply(ev.replyToken, await _tpl('invalid_code'));
             continue;
           }
-          const profile = await _getLineProfile(uid);
-          await _sbUpsertMemberLine({
-            memberCode,
-            userId: uid,
-            displayName: profile?.displayName || null,
-            pictureUrl: profile?.pictureUrl || null,
+          if (!member.password) {
+            await _lineReply(ev.replyToken, await _tpl('no_password_set'));
+            continue;
+          }
+          await _setSession(uid, {
+            pending_type: 'member',
+            pending_id: memberCode,
+            attempts: 0,
+            expires_at: expiresAt,
+            blocked_until: null,
           });
-          const name = member.full_name || member.member_name || memberCode;
           await _lineReply(
             ev.replyToken,
-            await _tpl('linked_member', { name, code: memberCode }),
+            await _tpl('ask_password_member', {
+              name: member.full_name || member.member_name || memberCode,
+              code: memberCode,
+            }),
           );
           continue;
         }
 
-        // === Branch B: ตัวอักษร (มีตัวหนังสือ) → username พนักงาน ===
+        // Branch B: text → staff username
         const usernameMatch = text.match(/^[A-Za-z0-9_.\-]{2,40}$/);
         if (usernameMatch) {
           const username = text.toLowerCase();
           const users = await _sbGet(
             'users',
-            `username=ilike.${encodeURIComponent(username)}&select=user_id,username,full_name,role,is_active&limit=1`,
+            `username=ilike.${encodeURIComponent(username)}&select=user_id,username,full_name,role,is_active,password&limit=1`,
           );
           const user = users?.[0];
           if (!user) {
@@ -495,25 +673,28 @@ app.post('/line/webhook', async (req, res) => {
             await _lineReply(ev.replyToken, await _tpl('staff_inactive'));
             continue;
           }
-          const profile = await _getLineProfile(uid);
-          await _sbUpdateUserLine({
-            userRowId: user.user_id,
-            userId: uid,
-            displayName: profile?.displayName || null,
-            pictureUrl: profile?.pictureUrl || null,
+          if (!user.password) {
+            await _lineReply(ev.replyToken, await _tpl('no_password_set'));
+            continue;
+          }
+          await _setSession(uid, {
+            pending_type: 'staff',
+            pending_id: String(user.user_id),
+            attempts: 0,
+            expires_at: expiresAt,
+            blocked_until: null,
           });
           await _lineReply(
             ev.replyToken,
-            await _tpl('linked_staff', {
+            await _tpl('ask_password_staff', {
               name: user.full_name || user.username,
               username: user.username,
-              role: user.role || '',
             }),
           );
           continue;
         }
 
-        // ไม่ match รูปแบบใดเลย
+        // ไม่ match อะไรเลย → welcome
         await _lineReply(ev.replyToken, await _tpl('welcome'));
         continue;
       }

@@ -129,12 +129,15 @@ function onTextChange(key) {
   const meta = document.getElementById(`meta-${key}`);
   const status = document.getElementById(`status-${key}`);
   if (meta) meta.textContent = `${curr.length} ตัวอักษร`;
+  const card = document.getElementById(`card-${key}`);
   if (curr !== orig) {
     dirty.add(key);
-    if (status) { status.textContent = "● มีการแก้ไข"; status.className = "tpl-dirty"; }
+    if (status) { status.textContent = "มีการแก้ไข"; status.className = "tpl-dirty"; }
+    card?.classList.add("dirty");
   } else {
     dirty.delete(key);
     if (status) { status.textContent = "✓ บันทึกไว้แล้ว"; status.className = "tpl-saved"; }
+    card?.classList.remove("dirty");
   }
   // live-update preview ถ้าเปิดอยู่
   const prev = document.getElementById(`preview-${key}`);
@@ -187,8 +190,18 @@ function resetOne(key) {
   showToast(`ยกเลิกการแก้ไข: ${key}`, "success");
 }
 
-function reloadAll() {
-  if (dirty.size > 0 && !confirm("ทิ้งการแก้ไขทั้งหมด?")) return;
+async function reloadAll() {
+  if (dirty.size > 0) {
+    const ok = await ConfirmModal.open({
+      icon: "⚠️",
+      title: "ทิ้งการแก้ไข?",
+      tone: "warning",
+      message: `มี ${dirty.size} template ที่ยังไม่ได้บันทึก — โหลดใหม่จะสูญเสียการแก้ไขทั้งหมด`,
+      okText: "ทิ้งและโหลดใหม่",
+      cancelText: "ยกเลิก",
+    });
+    if (!ok) return;
+  }
   loadTemplates();
 }
 
