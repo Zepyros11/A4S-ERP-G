@@ -125,6 +125,62 @@ async function uploadSlip(eventId, file) {
   }
   return `${url}/storage/v1/object/public/event-files/${path}`;
 }
+
+/* Upload a Blob (styled QR PNG) to event-files/qr/ → return public URL */
+async function uploadQrBlob(eventId, attendeeId, blob) {
+  const { url, key } = getSB();
+  const path = `qr/${eventId}/${attendeeId}_${Date.now()}.png`;
+  const res = await fetch(`${url}/storage/v1/object/event-files/${path}`, {
+    method: "POST",
+    headers: {
+      apikey: key,
+      Authorization: `Bearer ${key}`,
+      "Content-Type": "image/png",
+      "x-upsert": "true",
+    },
+    body: blob,
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || `QR upload failed (${res.status})`);
+  }
+  return `${url}/storage/v1/object/public/event-files/${path}`;
+}
+
+/* Render styled QR (using event.qr_style_config + poster) to PNG Blob */
+async function _renderStyledQrBlob(event, payload) {
+  if (!window.QRDesigner) throw new Error("QRDesigner ยังไม่โหลด");
+  const cfg = event?.qr_style_config
+    || (await window.QRDesigner.getEffectiveConfig(event?.event_id));
+  const posterUrl = event?.poster_url
+    || (Array.isArray(event?.image_urls) ? event.image_urls[0] : null)
+    || null;
+  const hidden = document.createElement("div");
+  hidden.style.cssText = "position:absolute;left:-99999px;top:-99999px;pointer-events:none;";
+  document.body.appendChild(hidden);
+  try {
+    await window.QRDesigner.renderQR(hidden, payload, cfg, { posterUrl });
+    const canvas = hidden.querySelector("canvas");
+    if (!canvas) throw new Error("ไม่พบ canvas หลัง render");
+    return await new Promise((resolve, reject) => {
+      canvas.toBlob((b) => b ? resolve(b) : reject(new Error("toBlob failed")), "image/png");
+    });
+  } finally {
+    try { document.body.removeChild(hidden); } catch {}
+  }
+}
+
+/* Get styled QR image URL (uploaded) — with memoization to avoid re-uploading */
+const _qrUrlCache = new Map();  // key: `${event_id}:${ticketNo}`
+async function getStyledQrUrl(event, attendee) {
+  const ticketNo = attendee.ticket_no || `A4S-${event?.event_id || ""}-${attendee.attendee_id}`;
+  const key = `${event?.event_id}:${ticketNo}`;
+  if (_qrUrlCache.has(key)) return _qrUrlCache.get(key);
+  const blob = await _renderStyledQrBlob(event, ticketNo);
+  const url = await uploadQrBlob(event.event_id, attendee.attendee_id, blob);
+  _qrUrlCache.set(key, url);
+  return url;
+}
 // Generate short event code from event_name (initials) — fallback to event_code tail / event_id
 function getEventShortCode(ev) {
   if (!ev) return "";
@@ -1887,10 +1943,11 @@ function _fmtDateTH(d) {
   }
 }
 
-function buildTicketFlex(event, attendee) {
+function buildTicketFlex(event, attendee, qrUrlOverride) {
   const poster = (event?.image_urls?.[0]) || event?.poster_url || "";
   const ticketNo = attendee.ticket_no || `A4S-${event?.event_id || ""}-${attendee.attendee_id}`;
-  const qrUrl = _qrImageUrl(ticketNo);
+  // Use styled QR if pre-generated, else fallback to plain QR service
+  const qrUrl = qrUrlOverride || _qrImageUrl(ticketNo);
   const eventName = event?.event_name || "Event";
   const dateText = _fmtDateTH(event?.event_date);
   const timeText = (event?.start_time && event?.end_time)
@@ -2004,15 +2061,29 @@ window.sendBulkTicketFlex = async function () {
     const channel = await window.LineAPI.getChannelForEvent(currentEvent);
     if (!channel) throw new Error("ไม่พบ LINE channel");
 
-    const sendTargets = targets.map(a => ({
-      userId: a.line_user_id,
-      message: buildTicketFlex(currentEvent, a),
-    }));
+    // Pre-generate styled QR images (upload to Supabase) before building Flex
+    btn.textContent = `⏳ QR 0/${targets.length}`;
+    const sendTargets = [];
+    for (let i = 0; i < targets.length; i++) {
+      const a = targets[i];
+      let qrUrl;
+      try {
+        qrUrl = await getStyledQrUrl(currentEvent, a);
+      } catch (e) {
+        console.warn("styled QR fail for", a.attendee_id, e.message);
+        qrUrl = null;  // buildTicketFlex will fallback to plain service
+      }
+      sendTargets.push({
+        userId: a.line_user_id,
+        message: buildTicketFlex(currentEvent, a, qrUrl),
+      });
+      btn.textContent = `⏳ QR ${i + 1}/${targets.length}`;
+    }
 
     const result = await window.LineAPI.sendPersonalized({
       channel,
       targets: sendTargets,
-      onProgress: ({ done, total }) => { btn.textContent = `⏳ ${done}/${total}`; },
+      onProgress: ({ done, total }) => { btn.textContent = `⏳ ส่ง ${done}/${total}`; },
     });
 
     if (result.fail === 0) {

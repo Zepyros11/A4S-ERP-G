@@ -69,10 +69,18 @@
       <input type="hidden" id="fLat">
       <input type="hidden" id="fLon">
 
-      <!-- 🔍 Search (Nominatim) -->
+      <!-- 📍 Google Map URL + 🔍 Search (autofill source) -->
       <div class="form-grid" id="supSearchWrap">
         <div class="form-group full">
-          <label class="form-label">🔍 ค้นหาสถานที่ / บริษัท</label>
+          <label class="form-label">📍 Google Map URL <span style="font-weight:400;color:var(--text3);font-size:11px">(วางลิงก์ก่อนเพื่อ autofill)</span></label>
+          <div style="display:flex;gap:6px">
+            <input class="form-control" id="fMap" placeholder="วาง link Google Maps ที่นี่..." style="flex:1">
+            <a id="btnOpenMap" href="#" target="_blank" class="btn btn-outline" style="padding:8px 12px;flex-shrink:0;text-decoration:none" title="เปิด Google Maps">🗺️</a>
+          </div>
+          <div id="mapPreview" style="display:none"></div>
+        </div>
+        <div class="form-group full">
+          <label class="form-label">🔍 หรือค้นหาสถานที่ / บริษัท</label>
           <div class="sup-search-box">
             <input class="form-control" id="supSearchInput" placeholder="เช่น บริษัท ABC, ร้านค้าส่ง ..." style="flex:1">
             <button class="btn btn-primary" type="button" onclick="searchSupplierPlace()" style="white-space:nowrap">🔍 ค้นหา</button>
@@ -122,14 +130,6 @@
         <div class="form-group full">
           <label class="form-label">ที่อยู่</label>
           <textarea class="form-control" id="fAddress" rows="2" style="resize:vertical" placeholder="ที่อยู่บริษัท"></textarea>
-        </div>
-        <div class="form-group full">
-          <label class="form-label">📍 Google Map URL</label>
-          <div style="display:flex;gap:6px">
-            <input class="form-control" id="fMap" placeholder="วาง link Google Maps ที่นี่..." style="flex:1">
-            <a id="btnOpenMap" href="#" target="_blank" class="btn btn-outline" style="padding:8px 12px;flex-shrink:0;text-decoration:none" title="เปิด Google Maps">🗺️</a>
-          </div>
-          <div id="mapPreview" style="display:none"></div>
         </div>
         <div class="form-group full">
           <label class="form-label">หมายเหตุ</label>

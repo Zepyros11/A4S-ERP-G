@@ -184,6 +184,30 @@ function openModal(data = null) {
   setTimeout(() => document.getElementById('fName').focus(), 100);
 }
 
+async function reverseGeocodeAndFill(lat, lon, url) {
+  // ดึงชื่อจาก URL pattern /place/Name/
+  const placeMatch = url.match(/\/place\/([^/@]+)/);
+  if (placeMatch) {
+    const nameFromUrl = decodeURIComponent(placeMatch[1].replace(/\+/g, ' '));
+    const nameEl = document.getElementById('fName');
+    if (nameEl && !nameEl.value.trim()) nameEl.value = nameFromUrl;
+  }
+  try {
+    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&addressdetails=1&accept-language=th`, {
+      headers: { 'User-Agent': 'A4S-ERP/1.0' }
+    });
+    const data = await res.json();
+    if (!data || data.error) return;
+    const addr = data.address || {};
+    const fAddr = document.getElementById('fAddress');
+    if (fAddr && !fAddr.value.trim()) {
+      const parts = [addr.road, addr.suburb, addr.town || addr.village, addr.city_district, addr.city, addr.state].filter(Boolean);
+      const postcode = addr.postcode || '';
+      fAddr.value = parts.join(' ') + (postcode ? ' ' + postcode : '');
+    }
+  } catch (_) {}
+}
+
 function parseLatLonFromUrl(url) {
   if (!url) return null;
   const m = url.match(/[?&@]q?=?([-\d.]+),([-\d.]+)/) || url.match(/@([-\d.]+),([-\d.]+)/);
@@ -355,9 +379,21 @@ window.addEventListener('DOMContentLoaded', () => {
     if (e.key === 'Enter') { e.preventDefault(); searchSupplierPlace(); }
   });
   const fm = document.getElementById('fMap');
-  if (fm) fm.addEventListener('input', () => {
-    updateOpenMapLink();
-    const p = parseLatLonFromUrl(fm.value.trim());
-    if (p) { document.getElementById('fLat').value = p.lat; document.getElementById('fLon').value = p.lon; initSupMap(p.lat, p.lon); }
-  });
+  if (fm) {
+    let lastUrl = '';
+    const onMapChange = async () => {
+      updateOpenMapLink();
+      const url = fm.value.trim();
+      if (!url || url === lastUrl) return;
+      lastUrl = url;
+      const p = parseLatLonFromUrl(url);
+      if (!p) return;
+      document.getElementById('fLat').value = p.lat;
+      document.getElementById('fLon').value = p.lon;
+      initSupMap(p.lat, p.lon);
+      await reverseGeocodeAndFill(p.lat, p.lon, url);
+    };
+    fm.addEventListener('change', onMapChange);
+    fm.addEventListener('paste', () => setTimeout(onMapChange, 50));
+  }
 });
