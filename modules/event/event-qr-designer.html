@@ -121,11 +121,15 @@
           </div>
           <div class="qd-subtitle" id="qdSubtitle">ออกแบบ QR Code พร้อม preview ทันที · preset หรือแก้ได้เอง</div>
         </div>
-        <div style="display:flex;gap:8px;">
-          <button class="qd-btn" onclick="location.href='events-list.html'">← กลับ</button>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+          <select class="qd-btn" id="qdEventPicker" style="min-width:200px;cursor:pointer;"
+            onchange="onEventPickerChange()">
+            <option value="">— เลือก event ที่จะบันทึก —</option>
+          </select>
           <button class="qd-btn qd-btn-primary" id="qdSaveBtn" onclick="saveToEvent()" style="display:none;">
-            💾 บันทึก QR ของ event นี้
+            💾 บันทึกให้ event นี้
           </button>
+          <button class="qd-btn" onclick="location.href='events-list.html'">← กลับ</button>
         </div>
       </div>
 

@@ -1622,6 +1622,11 @@ window.openCheckinPage = function () {
   window.open(`check-in.html?event_id=${currentEventId}`, "_blank");
 };
 
+window.openTicketGenerator = function () {
+  if (!currentEventId) return alert("เลือก event ก่อน");
+  window.open(`ticket-generator.html?event=${currentEventId}`, "_blank");
+};
+
 // ── SHARE REGISTER LINK (LIFF + plain URL) ─────────────────
 function _buildPlainRegisterUrl() {
   if (!currentEventId) return "";

@@ -120,6 +120,10 @@ function selectSupplier(id) {
 
   document.getElementById('panelAddress').textContent = s.address || '—';
 
+  const mapEl = document.getElementById('panelMap');
+  if (s.map_url) { mapEl.textContent = 'เปิดแผนที่ 🗺️'; mapEl.href = s.map_url; }
+  else { mapEl.textContent = '—'; mapEl.href = '#'; }
+
   const noteSection = document.getElementById('panelNoteSection');
   if (s.note) { document.getElementById('panelNote').textContent = s.note; noteSection.style.display = 'block'; }
   else noteSection.style.display = 'none';
@@ -144,10 +148,16 @@ function closePanel() {
   selectedId = null;
 }
 
+function generateNextSupplierCode() {
+  const codes = allSuppliers.map(s => (s.supplier_code || '').match(/^SUP-(\d+)$/)?.[1]).filter(Boolean).map(Number);
+  const next = codes.length ? Math.max(...codes) + 1 : 1;
+  return 'SUP-' + String(next).padStart(3, '0');
+}
+
 function openModal(data = null) {
   document.getElementById('modalTitle').textContent  = data ? 'แก้ไข Supplier' : 'เพิ่ม Supplier ใหม่';
   document.getElementById('editId').value    = data?.supplier_id || '';
-  document.getElementById('fCode').value     = data?.supplier_code || '';
+  document.getElementById('fCode').value     = data?.supplier_code || (data ? '' : generateNextSupplierCode());
   document.getElementById('fName').value     = data?.supplier_name || '';
   document.getElementById('fContact').value  = data?.contact_person || '';
   document.getElementById('fPhone').value    = data?.phone || '';
@@ -158,9 +168,124 @@ function openModal(data = null) {
   document.getElementById('fAddress').value  = data?.address || '';
   document.getElementById('fNote').value     = data?.note || '';
   document.getElementById('fStatus').value   = data ? String(data.is_active !== false) : 'true';
+  document.getElementById('fMap').value      = data?.map_url || '';
+  const parsed = parseLatLonFromUrl(data?.map_url || '');
+  document.getElementById('fLat').value      = parsed?.lat || '';
+  document.getElementById('fLon').value      = parsed?.lon || '';
+  document.getElementById('supSearchInput').value = '';
+  document.getElementById('supSearchResults').innerHTML = '';
+  const mapEl = document.getElementById('mapPreview');
+  mapEl.style.display = 'none';
+  mapEl.innerHTML = '';
+  supMap = null; supMarker = null;
+  if (parsed?.lat && parsed?.lon) initSupMap(parsed.lat, parsed.lon);
+  updateOpenMapLink();
   document.getElementById('modalOverlay').classList.add('open');
-  setTimeout(() => document.getElementById('fCode').focus(), 100);
+  setTimeout(() => document.getElementById('fName').focus(), 100);
 }
+
+function parseLatLonFromUrl(url) {
+  if (!url) return null;
+  const m = url.match(/[?&@]q?=?([-\d.]+),([-\d.]+)/) || url.match(/@([-\d.]+),([-\d.]+)/);
+  if (m) return { lat: parseFloat(m[1]), lon: parseFloat(m[2]) };
+  return null;
+}
+
+// ── Leaflet map preview ──
+let supMap = null, supMarker = null;
+function initSupMap(lat, lon) {
+  if (typeof L === 'undefined') return;
+  const el = document.getElementById('mapPreview');
+  if (!el) return;
+  el.style.display = 'block';
+  if (!supMap) {
+    supMap = L.map(el).setView([lat || 13.75, lon || 100.5], lat ? 15 : 6);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap', maxZoom: 19 }).addTo(supMap);
+    supMap.on('click', (e) => {
+      const { lat, lng } = e.latlng;
+      setSupMarker(lat, lng);
+      document.getElementById('fMap').value = `https://www.google.com/maps?q=${lat},${lng}`;
+      updateOpenMapLink();
+    });
+  }
+  if (lat && lon) { setSupMarker(lat, lon); supMap.setView([lat, lon], 15); }
+  setTimeout(() => supMap.invalidateSize(), 100);
+}
+function setSupMarker(lat, lon) {
+  if (!supMap) return;
+  if (supMarker) supMarker.setLatLng([lat, lon]);
+  else supMarker = L.marker([lat, lon]).addTo(supMap);
+  document.getElementById('fLat').value = lat;
+  document.getElementById('fLon').value = lon;
+}
+function updateOpenMapLink() {
+  const url = document.getElementById('fMap').value.trim();
+  const btn = document.getElementById('btnOpenMap');
+  if (btn) btn.href = url || '#';
+}
+
+// ── Place search (Nominatim) ──
+async function searchSupplierPlace() {
+  const input = document.getElementById('supSearchInput');
+  const results = document.getElementById('supSearchResults');
+  const q = (input?.value || '').trim();
+  if (!q) { results.innerHTML = ''; return; }
+  results.innerHTML = '<div class="sup-search-loading">🔍 กำลังค้นหา...</div>';
+  try {
+    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&addressdetails=1&limit=5&countrycodes=th&accept-language=th`;
+    const res = await fetch(url, { headers: { 'User-Agent': 'A4S-ERP/1.0' } });
+    const data = await res.json();
+    if (!data.length) { results.innerHTML = '<div class="sup-search-loading">ไม่พบผลลัพธ์</div>'; return; }
+    results.innerHTML = data.map((p, i) => {
+      const fullAddr = p.display_name || '';
+      const type = p.type ? p.type.replace(/_/g, ' ') : '';
+      return `<div class="sup-result-item" data-idx="${i}">
+        <div style="font-size:20px;flex-shrink:0;padding-top:2px">📍</div>
+        <div style="flex:1;min-width:0">
+          <div class="sup-result-name">${p.name || q}</div>
+          <div class="sup-result-addr">${fullAddr}</div>
+          ${type ? `<div class="sup-result-type">${type}</div>` : ''}
+        </div></div>`;
+    }).join('');
+    results.querySelectorAll('[data-idx]').forEach((el) => {
+      el.addEventListener('click', () => {
+        fillSupplierFromSearch(data[parseInt(el.dataset.idx)]);
+        results.innerHTML = '';
+        input.value = '';
+      });
+    });
+  } catch (e) {
+    results.innerHTML = '<div class="sup-search-loading">เกิดข้อผิดพลาด: ' + e.message + '</div>';
+  }
+}
+
+function fillSupplierFromSearch(p) {
+  const addr = p.address || {};
+  if (!document.getElementById('fName').value.trim()) document.getElementById('fName').value = p.name || '';
+  const parts = [addr.road, addr.suburb, addr.town || addr.village, addr.city_district, addr.city, addr.state].filter(Boolean);
+  const postcode = addr.postcode || '';
+  document.getElementById('fAddress').value = parts.join(' ') + (postcode ? ' ' + postcode : '');
+  if (p.lat && p.lon) {
+    const lat = parseFloat(p.lat), lon = parseFloat(p.lon);
+    document.getElementById('fMap').value = `https://www.google.com/maps?q=${lat},${lon}`;
+    document.getElementById('fLat').value = lat;
+    document.getElementById('fLon').value = lon;
+    initSupMap(lat, lon);
+    updateOpenMapLink();
+  }
+  if (p.osm_type && p.osm_id) {
+    const typeChar = p.osm_type === 'relation' ? 'R' : p.osm_type === 'way' ? 'W' : 'N';
+    fetch(`https://nominatim.openstreetmap.org/details?osmtype=${typeChar}&osmid=${p.osm_id}&format=json&addressdetails=1&extratags=1`, {
+      headers: { 'User-Agent': 'A4S-ERP/1.0' }
+    }).then(r => r.json()).then(detail => {
+      const tags = detail.extratags || {};
+      if (tags.phone && !document.getElementById('fPhone').value) document.getElementById('fPhone').value = tags.phone;
+      if (tags.website && !document.getElementById('fWebsite').value) document.getElementById('fWebsite').value = tags.website;
+      if (tags.email && !document.getElementById('fEmail').value) document.getElementById('fEmail').value = tags.email;
+    }).catch(() => {});
+  }
+}
+window.searchSupplierPlace = searchSupplierPlace;
 
 function editSelected() { if (!selectedId) return; openModal(allSuppliers.find(s => s.supplier_id === selectedId)); }
 function closeModal() { document.getElementById('modalOverlay').classList.remove('open'); }
@@ -172,7 +297,7 @@ async function saveSupplier() {
   if (!SUPABASE_URL || !SUPABASE_KEY) { showToast('กรุณาเชื่อมต่อ Supabase ก่อน', 'warning'); return; }
 
   const payload = {
-    supplier_code:  document.getElementById('fCode').value.trim() || null,
+    supplier_code:  document.getElementById('fCode').value.trim() || generateNextSupplierCode(),
     supplier_name:  name,
     contact_person: document.getElementById('fContact').value.trim() || null,
     phone:          document.getElementById('fPhone').value.trim() || null,
@@ -181,6 +306,7 @@ async function saveSupplier() {
     tax_id:         document.getElementById('fTaxId').value.trim() || null,
     credit_days:    parseInt(document.getElementById('fCredit').value) || null,
     address:        document.getElementById('fAddress').value.trim() || null,
+    map_url:        document.getElementById('fMap').value.trim() || null,
     note:           document.getElementById('fNote').value.trim() || null,
     is_active:      document.getElementById('fStatus').value === 'true',
   };
@@ -223,4 +349,15 @@ function showLoading(show) { document.getElementById('loadingOverlay').classList
 
 window.addEventListener('DOMContentLoaded', () => {
   if (SUPABASE_URL && SUPABASE_KEY) setTimeout(() => loadData(), 50);
+
+  const si = document.getElementById('supSearchInput');
+  if (si) si.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); searchSupplierPlace(); }
+  });
+  const fm = document.getElementById('fMap');
+  if (fm) fm.addEventListener('input', () => {
+    updateOpenMapLink();
+    const p = parseLatLonFromUrl(fm.value.trim());
+    if (p) { document.getElementById('fLat').value = p.lat; document.getElementById('fLon').value = p.lon; initSupMap(p.lat, p.lon); }
+  });
 });

@@ -84,7 +84,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     // 4) โหลด presets
     await loadPresets();
 
-    // 5) Bind events
+    // 5) โหลด event picker
+    await loadEventPicker();
+
+    // 6) Bind events
     bindControls();
   } catch (e) {
     console.error(e);
@@ -111,17 +114,10 @@ async function renderPreview() {
 }
 
 async function updatePreviewOnly() {
-  // Poster composite mode needs full re-render every time
-  const usePoster = !!(currentCfg?.posterBackground?.enabled && currentPosterUrl);
-  if (usePoster || !qrInstance) return renderPreview();
-  const payload = document.getElementById("qdCustomPayload").value || "SAMPLE";
-  document.getElementById("qdPayload").textContent = payload;
-  try {
-    qrInstance.updateConfig(currentCfg);
-    qrInstance.updatePayload(payload);
-  } catch (e) {
-    await renderPreview();
-  }
+  // Always full re-render — qr-code-styling's .update() merges config,
+  // causing stale fields (gradient, image, etc.) to leak between previews.
+  // Full re-render is only ~50-100ms with 150ms debounce on user input.
+  return renderPreview();
 }
 
 /* ── Apply config → form controls ── */
@@ -322,11 +318,18 @@ function markActivePreset() {
 window.applyPreset = async function (id) {
   const p = presets.find((x) => x.id === id);
   if (!p) return;
-  currentCfg = { ...p.config };
+  // Deep clone + merge with default to guarantee fresh config
+  // (prevents stale gradient/options from previous preset leaking via qr-code-styling's internal merge)
+  currentCfg = window.QRDesigner.mergeConfig(
+    window.QRDesigner.getDefaultConfig(),
+    JSON.parse(JSON.stringify(p.config)),
+  );
   activePresetId = id;
   applyCfgToControls(currentCfg);
   markActivePreset();
-  await updatePreviewOnly();
+  // Force full re-render (not updateConfig) — qr-code-styling's update() merges,
+  // so old fields like dotsOptions.gradient can persist when switching presets
+  await renderPreview();
   showToast(`ใช้ preset "${p.name}"`, "success");
 };
 
@@ -402,13 +405,86 @@ window.savePreset = async function () {
   }
 };
 
+/* ── Event picker (bulk-select target event to save to) ── */
+async function loadEventPicker() {
+  const sel = document.getElementById("qdEventPicker");
+  if (!sel) return;
+  try {
+    const rows = await sbGet(
+      "events?select=event_id,event_name,event_date,qr_style_config&order=event_date.desc&limit=200",
+    );
+    // Preserve first option (placeholder)
+    sel.innerHTML = '<option value="">— เลือก event ที่จะบันทึก —</option>';
+    (rows || []).forEach((r) => {
+      const hasStyle = r.qr_style_config ? " 🎨" : "";
+      const opt = document.createElement("option");
+      opt.value = r.event_id;
+      opt.textContent = `${r.event_name}${hasStyle}`;
+      opt.dataset.eventName = r.event_name;
+      opt.dataset.posterUrl = r.poster_url || "";
+      sel.appendChild(opt);
+    });
+    if (EVENT_ID) sel.value = EVENT_ID;
+  } catch (e) {
+    console.warn("loadEventPicker:", e.message);
+  }
+}
+
+window.onEventPickerChange = async function () {
+  const sel = document.getElementById("qdEventPicker");
+  const btn = document.getElementById("qdSaveBtn");
+  const chip = document.getElementById("qdEventChip");
+  const val = sel.value;
+  if (!val) {
+    btn.style.display = "none";
+    chip.style.display = "none";
+    currentEvent = null;
+    currentPosterUrl = null;
+    return;
+  }
+  // Load selected event's poster_url + existing qr_style_config
+  try {
+    const rows = await sbGet(
+      `events?event_id=eq.${encodeURIComponent(val)}&select=event_id,event_name,poster_url,image_urls,qr_style_config&limit=1`,
+    );
+    currentEvent = rows?.[0];
+    if (currentEvent) {
+      currentPosterUrl = currentEvent.poster_url
+        || (Array.isArray(currentEvent.image_urls) ? currentEvent.image_urls[0] : null)
+        || null;
+      chip.textContent = currentEvent.event_name;
+      chip.style.display = "inline-block";
+      btn.style.display = "inline-block";
+      // Update poster section hint
+      const hint = document.getElementById("qdPosterEventHint");
+      if (hint) {
+        hint.textContent = currentPosterUrl
+          ? `(ใช้ poster จาก "${currentEvent.event_name}")`
+          : `(event "${currentEvent.event_name}" ยังไม่มี poster)`;
+      }
+      // re-render to pick up new poster
+      await renderPreview();
+    }
+  } catch (e) {
+    showToast("โหลด event ไม่สำเร็จ: " + e.message, "error");
+  }
+};
+
 /* ── Save to event ── */
 window.saveToEvent = async function () {
-  if (!EVENT_ID) return;
+  const targetId = document.getElementById("qdEventPicker")?.value || EVENT_ID;
+  if (!targetId) {
+    showToast("กรุณาเลือก event ก่อนบันทึก", "warning");
+    return;
+  }
   showLoading(true);
   try {
-    await window.QRDesigner.saveEventConfig(EVENT_ID, currentCfg);
-    showToast(`บันทึก QR ของ "${currentEvent?.event_name || EVENT_ID}" แล้ว`, "success");
+    await window.QRDesigner.saveEventConfig(targetId, currentCfg);
+    const name = currentEvent?.event_name || `Event ${targetId}`;
+    showToast(`บันทึก QR ของ "${name}" แล้ว`, "success");
+    // Refresh picker to show 🎨 marker
+    await loadEventPicker();
+    document.getElementById("qdEventPicker").value = targetId;
   } catch (e) {
     showToast("บันทึกไม่สำเร็จ: " + e.message, "error");
   } finally {
