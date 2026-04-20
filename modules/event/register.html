@@ -561,8 +561,9 @@ async function doRegister() {
       }
     } catch {}
 
-    // 8. Create attendee
+    // 8. Create attendee — register via link/QR = ถือว่าเข้างานแล้ว (auto check-in)
     const name = member.full_name || member.member_name || code;
+    const nowIso = new Date().toISOString();
     const payload = [{
       event_id: _event.event_id,
       name,
@@ -571,11 +572,13 @@ async function doRegister() {
       attend_type: 'ONSITE',
       ticket_no: ticketNo,
       payment_status: 'FREE',
+      checked_in: true,
+      check_in_at: nowIso,
       ...(_lineProfile ? {
         line_user_id: _lineProfile.userId,
         line_display_name: _lineProfile.displayName || null,
         line_picture_url: _lineProfile.pictureUrl || null,
-        line_linked_at: new Date().toISOString(),
+        line_linked_at: nowIso,
       } : {}),
     }];
     await sbPost('event_attendees', payload);
@@ -589,11 +592,11 @@ async function doRegister() {
     // Success!
     document.getElementById('regForm').innerHTML = `
       <div class="reg-msg success">
-        <div style="font-size:32px;margin-bottom:8px">🎉</div>
-        <div style="font-weight:700;font-size:16px">ลงทะเบียนสำเร็จ!</div>
+        <div style="font-size:32px;margin-bottom:8px">✅</div>
+        <div style="font-weight:700;font-size:16px">เข้างานเรียบร้อย!</div>
         <div style="margin-top:4px">${esc(name)} (${code})</div>
         <div class="reg-success-ticket">🎫 ${ticketNo}</div>
-        <div style="margin-top:12px;font-size:12px;color:#64748b">กรุณาแสดงหน้านี้เมื่อเข้างาน</div>
+        <div style="margin-top:12px;font-size:12px;color:#64748b">ระบบบันทึกการเข้างานอัตโนมัติแล้ว</div>
       </div>`;
 
   } catch (e) {
