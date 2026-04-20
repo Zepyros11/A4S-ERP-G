@@ -1,8 +1,8 @@
 /* ============================================================
-   qr-designer.js — QR Code rendering helper (Neon Cyber locked)
+   qr-designer.js — QR Code rendering helper (B&W locked)
    ------------------------------------------------------------
-   Design ของ QR ถูก fix เป็น "Neon Cyber" (พื้นดำ + dots นีออน
-   cyan-magenta + logo A4S) ตามคำสั่งผู้ใช้
+   Design fix: ขาว-ดำ + logo A4S กลาง
+   จุดประสงค์: scan ได้ทุกอุปกรณ์ (notebook camera, scanner gun, มือถือ)
    API:
      renderQR(targetEl, payload) → { instance, download, ... }
    ============================================================ */
@@ -33,36 +33,20 @@
     return _libPromise;
   }
 
-  /* ── Locked design: "Neon Cyber" (tuned for cross-device scan reliability) ──
-     Tuning notes:
-     - type "rounded" (not "dots") → modules stay contiguous, decodes on webcam/gun scanners
-     - 600x600 render → survives LINE's image compression without blurring modules
-     - H error correction → tolerates logo occlusion + some print damage
-  */
+  /* ── Locked design: ขาว-ดำ + logo A4S ── */
   const NEON_CYBER_CONFIG = {
     width: 600,
     height: 600,
     margin: 16,
     qrOptions: { errorCorrectionLevel: "H" },
-    dotsOptions: {
-      type: "rounded",
-      color: "#06b6d4",
-      gradient: {
-        type: "linear",
-        rotation: 45,
-        colorStops: [
-          { offset: 0, color: "#06b6d4" },
-          { offset: 1, color: "#d946ef" },
-        ],
-      },
-    },
-    backgroundOptions: { color: "#0f172a" },
-    cornersSquareOptions: { type: "extra-rounded", color: "#06b6d4" },
-    cornersDotOptions: { type: "dot", color: "#d946ef" },
+    dotsOptions: { type: "square", color: "#000000" },
+    backgroundOptions: { color: "#ffffff" },
+    cornersSquareOptions: { type: "square", color: "#000000" },
+    cornersDotOptions: { type: "square", color: "#000000" },
     imageOptions: {
       hideBackgroundDots: true,
-      imageSize: 0.32,
-      margin: 12,
+      imageSize: 0.28,
+      margin: 10,
       crossOrigin: "anonymous",
     },
     useLogo: true,
