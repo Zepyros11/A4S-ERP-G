@@ -167,14 +167,19 @@ async function uploadQrBlob(eventId, attendeeId, blob) {
   return publicUrl;
 }
 
-/* Render styled QR (using event.qr_style_config + poster) to PNG Blob */
+/* Render styled QR (using event.qr_style_config) to PNG Blob.
+   Note: poster bg is intentionally disabled here — the Flex bubble already
+   shows the poster as hero, so duplicating it as QR frame is redundant. */
 async function _renderStyledQrBlob(event, payload) {
   if (!window.QRDesigner) throw new Error("QRDesigner ยังไม่โหลด — refresh หน้า");
-  const cfg = event?.qr_style_config
+  const rawCfg = event?.qr_style_config
     || (await window.QRDesigner.getEffectiveConfig(event?.event_id));
-  const posterUrl = event?.poster_url
-    || (Array.isArray(event?.image_urls) ? event.image_urls[0] : null)
-    || null;
+  // Clone + force-disable poster background for the QR that goes into LINE Flex
+  const cfg = {
+    ...rawCfg,
+    posterBackground: { ...(rawCfg?.posterBackground || {}), enabled: false },
+  };
+  const posterUrl = null;
   const hidden = document.createElement("div");
   hidden.style.cssText = "position:absolute;left:-99999px;top:-99999px;pointer-events:none;";
   document.body.appendChild(hidden);
@@ -1997,11 +2002,29 @@ function _fmtDateTH(d) {
   }
 }
 
-function buildTicketFlex(event, attendee, qrUrlOverride) {
+/* Detect image natural dimensions (for matching LINE Flex aspectRatio) */
+async function _detectPosterAspectRatio(posterUrl, fallback = "1.91:1") {
+  if (!posterUrl) return fallback;
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const w = img.naturalWidth || img.width;
+      const h = img.naturalHeight || img.height;
+      if (!w || !h) return resolve(fallback);
+      // LINE accepts fractional ratios like "0.67:1" but also raw "W:H"
+      resolve(`${w}:${h}`);
+    };
+    img.onerror = () => resolve(fallback);
+    img.src = posterUrl;
+  });
+}
+
+function buildTicketFlex(event, attendee, qrUrlOverride, posterAspectRatio) {
   const poster = (event?.image_urls?.[0]) || event?.poster_url || "";
   const ticketNo = attendee.ticket_no || `A4S-${event?.event_id || ""}-${attendee.attendee_id}`;
   // Use styled QR if pre-generated, else fallback to plain QR service
   const qrUrl = qrUrlOverride || _qrImageUrl(ticketNo);
+  const heroAspect = posterAspectRatio || "1:1";
   const eventName = event?.event_name || "Event";
   const dateText = _fmtDateTH(event?.event_date);
   const timeText = (event?.start_time && event?.end_time)
@@ -2023,8 +2046,9 @@ function buildTicketFlex(event, attendee, qrUrlOverride) {
         type: "image",
         url: poster,
         size: "full",
-        aspectRatio: "1:1",
-        aspectMode: "cover",
+        aspectRatio: heroAspect,
+        aspectMode: "fit",         // show whole poster (no cropping)
+        backgroundColor: "#0f172a", // letterbox color if aspect mismatches
       },
     } : {}),
     body: {
@@ -2136,6 +2160,12 @@ window.sendBulkTicketFlex = async function () {
       if (rows?.[0]) fullEvent = { ...currentEvent, ...rows[0] };
     } catch (e) { console.warn("load full event fail:", e.message); }
 
+    // Detect poster aspect ratio once (so Flex hero shows entire poster without cropping)
+    const posterUrl = fullEvent.poster_url
+      || (Array.isArray(fullEvent.image_urls) ? fullEvent.image_urls[0] : null);
+    const posterAspect = await _detectPosterAspectRatio(posterUrl);
+    console.log("[poster aspect]", posterAspect);
+
     // Pre-generate styled QR images (upload to Supabase) before building Flex
     btn.textContent = `⏳ QR 0/${targets.length}`;
     const sendTargets = [];
@@ -2150,7 +2180,7 @@ window.sendBulkTicketFlex = async function () {
       }
       sendTargets.push({
         userId: a.line_user_id,
-        message: buildTicketFlex(fullEvent, a, qrUrl),
+        message: buildTicketFlex(fullEvent, a, qrUrl, posterAspect),
       });
       btn.textContent = `⏳ QR ${i + 1}/${targets.length}`;
     }
