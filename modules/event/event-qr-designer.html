@@ -23,10 +23,27 @@
 
 /* Preset list (left) */
 .qd-preset-list{display:flex;flex-direction:column;gap:8px;max-height:520px;overflow-y:auto;padding-right:4px;}
-.qd-preset-item{border:1.5px solid #e2e8f0;border-radius:10px;padding:10px 12px;cursor:pointer;transition:all .15s;background:#fff;position:relative;}
-.qd-preset-item:hover{border-color:#06c755;box-shadow:0 3px 10px rgba(6,199,85,.12);}
-.qd-preset-item.active{border-color:#06c755;background:#f0fdf4;}
-.qd-preset-item.active::after{content:'✓';position:absolute;top:8px;right:10px;color:#06c755;font-weight:700;}
+.qd-preset-item{border:1.5px solid #e2e8f0;border-radius:10px;padding:12px 14px;cursor:pointer;transition:all .18s ease;background:#fff;position:relative;}
+.qd-preset-item:hover{border-color:#06c755;box-shadow:0 3px 10px rgba(6,199,85,.12);transform:translateY(-1px);}
+.qd-preset-item.active{
+  border-color:#06c755;background:linear-gradient(135deg,#ecfdf5,#f0fdf4);
+  box-shadow:0 0 0 3px rgba(6,199,85,.18), 0 6px 16px rgba(6,199,85,.25);
+  transform:translateY(-2px);
+}
+.qd-preset-item.active::before{
+  content:'● กำลังใช้';position:absolute;top:-9px;left:12px;
+  background:linear-gradient(135deg,#06c755,#10b981);color:#fff;
+  font-size:9.5px;font-weight:700;padding:3px 10px;border-radius:999px;
+  letter-spacing:.3px;box-shadow:0 2px 6px rgba(6,199,85,.35);
+}
+.qd-preset-item.active::after{
+  content:'✓';position:absolute;top:12px;right:14px;
+  color:#fff;background:#06c755;font-weight:700;
+  width:22px;height:22px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;font-size:13px;
+  box-shadow:0 2px 6px rgba(6,199,85,.4);
+}
+.qd-preset-item.active .qd-preset-name{color:#065f46;}
 .qd-preset-name{font-size:13px;font-weight:700;color:#0f172a;}
 .qd-preset-name .qd-sys{font-size:10px;color:#64748b;font-weight:500;margin-left:4px;background:#f1f5f9;padding:1px 6px;border-radius:4px;}
 .qd-preset-name .qd-def{font-size:10px;color:#b45309;font-weight:700;margin-left:4px;background:#fef3c7;padding:1px 6px;border-radius:4px;}
@@ -220,13 +237,23 @@
             <div class="qd-row" style="grid-template-columns:1fr;">
               <label class="qd-toggle">
                 <input type="checkbox" id="qdUsePoster">
-                <span class="qd-toggle-lbl">ใช้ poster event เป็นพื้นหลัง</span>
+                <span class="qd-toggle-lbl">ใช้ poster เป็นพื้นหลัง</span>
+              </label>
+            </div>
+            <div class="qd-row" style="grid-template-columns:1fr;" id="qdPosterUploadRow">
+              <label for="qdPosterUpload" style="display:block;padding:7px 10px;border:1px dashed #cbd5e1;border-radius:7px;text-align:center;cursor:pointer;font-size:11.5px;color:#64748b;">
+                📤 <span id="qdPosterUploadLbl">อัปโหลดรูปทดสอบ (preview only)</span>
+                <input type="file" id="qdPosterUpload" accept="image/*" style="display:none;">
               </label>
             </div>
             <div id="qdPosterCtls" style="display:none;">
               <div class="qd-row">
+                <label>ขอบ poster (px)</label>
+                <input type="number" id="qdPosterPadding" min="0" max="100" step="2" value="40">
+              </div>
+              <div class="qd-row">
                 <label>Opacity</label>
-                <input type="number" id="qdPosterOpacity" min="0" max="1" step="0.05" value="0.3">
+                <input type="number" id="qdPosterOpacity" min="0" max="1" step="0.05" value="1">
               </div>
               <div class="qd-row">
                 <label>Scale (zoom)</label>
@@ -248,8 +275,8 @@
                 </select>
               </div>
               <div style="font-size:10.5px;color:#94a3b8;margin-top:6px;line-height:1.5;">
-                💡 ปิด opacity ต่ำ (~0.2-0.4) เพื่อให้ QR ยัง scan ได้<br>
-                ใช้ error correction H เพื่อทน pattern รบกวน
+                💡 QR ยังคงเป็น background แข็งของตัวเอง (scan ได้ 100%)<br>
+                Poster จะโผล่เป็นกรอบรอบ QR ตามค่า "ขอบ poster"
               </div>
             </div>
           </div>

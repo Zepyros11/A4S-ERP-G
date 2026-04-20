@@ -702,8 +702,7 @@ app.post('/line/webhook', async (req, res) => {
           continue;
         }
 
-        // ไม่ match อะไรเลย → welcome
-        await _lineReply(ev.replyToken, await _tpl('welcome'));
+        // ไม่ match อะไรเลย → เงียบ (ใช้ rich menu นำทางแทน)
         continue;
       }
 

@@ -68,11 +68,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
       } catch (e) { console.warn("load event fail:", e); }
     } else {
-      // Standalone — no event poster; disable poster toggle
+      // Standalone — no event; user can upload a test poster for preview
       const hint = document.getElementById("qdPosterEventHint");
-      if (hint) hint.textContent = "(ไม่มี event — poster bg ใช้งานได้เฉพาะตอนเปิดจาก event)";
-      const toggle = document.getElementById("qdUsePoster");
-      if (toggle) { toggle.disabled = true; toggle.title = "เปิดหน้านี้ผ่าน event form เพื่อใช้ poster bg"; }
+      if (hint) hint.textContent = "(ไม่มี event — อัปโหลดรูปเพื่อทดสอบ preview)";
     }
 
     // 2) โหลด config ปัจจุบัน (event override ถ้ามี, ไม่งั้น default preset, ไม่งั้น hard default)
@@ -155,11 +153,12 @@ function applyCfgToControls(cfg) {
   const useP = !!pb.enabled;
   g("qdUsePoster").checked = useP;
   g("qdPosterCtls").style.display = useP ? "" : "none";
-  g("qdPosterOpacity").value = pb.opacity ?? 0.3;
+  g("qdPosterOpacity").value = pb.opacity ?? 1;
   g("qdPosterScale").value = pb.scale ?? 1;
   g("qdPosterOffsetX").value = pb.offsetX ?? 0;
   g("qdPosterOffsetY").value = pb.offsetY ?? 0;
   g("qdPosterFit").value = pb.fit || "cover";
+  g("qdPosterPadding").value = pb.padding ?? 40;
 }
 
 /* ── Read controls → build config ── */
@@ -188,6 +187,7 @@ function readControls() {
       offsetX: parseFloat(g("qdPosterOffsetX").value) || 0,
       offsetY: parseFloat(g("qdPosterOffsetY").value) || 0,
       fit: g("qdPosterFit").value || "cover",
+      padding: parseInt(g("qdPosterPadding").value, 10) || 0,
     },
   };
 }
@@ -209,7 +209,7 @@ function bindControls() {
   [
     "qdDotType", "qdCornerType", "qdCornerDotType", "qdUseLogo",
     "qdLogoSize", "qdLogoMargin", "qdSize", "qdErrorLevel", "qdCustomPayload",
-    "qdPosterOpacity", "qdPosterScale", "qdPosterOffsetX", "qdPosterOffsetY", "qdPosterFit",
+    "qdPosterOpacity", "qdPosterScale", "qdPosterOffsetX", "qdPosterOffsetY", "qdPosterFit", "qdPosterPadding",
   ].forEach((id) => {
     document.getElementById(id).addEventListener("change", onCtlChange);
     document.getElementById(id).addEventListener("input", onCtlChange);
@@ -218,7 +218,35 @@ function bindControls() {
   // Toggle poster bg — also show/hide poster controls panel
   document.getElementById("qdUsePoster").addEventListener("change", (e) => {
     document.getElementById("qdPosterCtls").style.display = e.target.checked ? "" : "none";
+    // If user turns on but no poster yet → prompt to upload
+    if (e.target.checked && !currentPosterUrl) {
+      document.getElementById("qdPosterUpload").click();
+    }
     onCtlChange();
+  });
+
+  // File upload — for standalone mode or overriding event poster
+  document.getElementById("qdPosterUpload").addEventListener("change", (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      showToast("กรุณาเลือกไฟล์รูปภาพ", "warning");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      currentPosterUrl = reader.result;
+      document.getElementById("qdPosterUploadLbl").textContent =
+        `✅ ${file.name} · คลิกเพื่อเปลี่ยน`;
+      // auto-enable toggle
+      const toggle = document.getElementById("qdUsePoster");
+      if (!toggle.checked) {
+        toggle.checked = true;
+        document.getElementById("qdPosterCtls").style.display = "";
+      }
+      onCtlChange();
+    };
+    reader.readAsDataURL(file);
   });
 }
 
@@ -235,11 +263,28 @@ function onCtlChange() {
 async function loadPresets() {
   try {
     presets = await window.QRDesigner.listPresets();
+    // Auto-detect which preset matches current config (for initial highlight)
+    if (activePresetId == null && currentCfg) {
+      const match = presets.find(
+        (p) => _cfgEquals(p.config, currentCfg),
+      );
+      if (match) activePresetId = match.id;
+      else if (!currentEvent?.qr_style_config) {
+        // Event hasn't overridden → default preset is being used
+        const def = presets.find((p) => p.is_default);
+        if (def) activePresetId = def.id;
+      }
+    }
     renderPresets();
   } catch (e) {
     document.getElementById("qdPresetList").innerHTML =
       `<div class="qd-empty">❌ โหลดไม่ได้: ${e.message}</div>`;
   }
+}
+
+function _cfgEquals(a, b) {
+  try { return JSON.stringify(a) === JSON.stringify(b); }
+  catch { return false; }
 }
 
 function renderPresets() {

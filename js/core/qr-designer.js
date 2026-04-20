@@ -119,11 +119,12 @@
       useLogo: true,
       posterBackground: {
         enabled: false,
-        opacity: 0.3,      // 0-1
+        opacity: 1.0,      // 0-1
         scale: 1.0,        // 0.5-3
         offsetX: 0,        // -100 to 100 (% of width)
         offsetY: 0,        // -100 to 100 (% of height)
         fit: "cover",      // 'cover' | 'contain'
+        padding: 40,       // px ของ poster ที่มองเห็นรอบ QR
       },
     };
   }
@@ -175,9 +176,7 @@
       data: String(payload || ""),
       qrOptions: finalCfg.qrOptions || { errorCorrectionLevel: "H" },
       dotsOptions: finalCfg.dotsOptions,
-      backgroundOptions: useComposite
-        ? { color: "rgba(0,0,0,0)" }   // transparent so poster shows through
-        : finalCfg.backgroundOptions,
+      backgroundOptions: finalCfg.backgroundOptions,   // always solid (QR stays readable)
       cornersSquareOptions: finalCfg.cornersSquareOptions,
       cornersDotOptions: finalCfg.cornersDotOptions,
       imageOptions: finalCfg.imageOptions,
@@ -213,19 +212,23 @@
       };
     }
 
-    // --- Composite mode: poster bg + QR on top ---
+    // --- Composite "frame" mode: poster surrounds QR ---
     const width = finalCfg.width || 300;
     const height = finalCfg.height || 300;
+    const pad = Math.max(0, Math.min(Math.floor(width / 2 - 30), pb.padding ?? 40));
+    const qrW = Math.max(80, width - pad * 2);
+    const qrH = Math.max(80, height - pad * 2);
+
     const outer = document.createElement("canvas");
     outer.width = width;
     outer.height = height;
     const ctx = outer.getContext("2d");
 
-    // base bg color (below poster)
+    // base bg color (shown if poster doesn't cover or has low opacity)
     ctx.fillStyle = finalCfg.backgroundOptions?.color || "#ffffff";
     ctx.fillRect(0, 0, width, height);
 
-    // draw poster with opacity + scale + offset + fit
+    // draw poster FULL canvas (will be framed by QR on top of inset area)
     try {
       const img = await _loadImage(posterUrl);
       const fit = pb.fit || "cover";
@@ -241,23 +244,22 @@
       const dx = (width - dw) / 2 + ((pb.offsetX ?? 0) / 100) * width;
       const dy = (height - dh) / 2 + ((pb.offsetY ?? 0) / 100) * height;
       ctx.save();
-      ctx.globalAlpha = Math.max(0, Math.min(1, pb.opacity ?? 0.3));
+      ctx.globalAlpha = Math.max(0, Math.min(1, pb.opacity ?? 1));
       ctx.drawImage(img, dx, dy, dw, dh);
       ctx.restore();
     } catch (e) {
       console.warn("[QR poster]", e.message);
     }
 
-    // render QR into offscreen container, then composite
+    // render QR at inset size, then composite on top (covers center, poster stays as frame)
     const hidden = document.createElement("div");
     hidden.style.cssText = "position:absolute;left:-99999px;top:-99999px;pointer-events:none;";
     document.body.appendChild(hidden);
-    const instance = new QRCodeStyling(qrOptions);
+    const instance = new QRCodeStyling({ ...qrOptions, width: qrW, height: qrH });
     instance.append(hidden);
-    // qr-code-styling uses async image for logo — wait a tick then re-check
     await new Promise((r) => setTimeout(r, finalCfg.useLogo ? 120 : 30));
     const qrCanvas = hidden.querySelector("canvas");
-    if (qrCanvas) ctx.drawImage(qrCanvas, 0, 0, width, height);
+    if (qrCanvas) ctx.drawImage(qrCanvas, pad, pad, qrW, qrH);
     try { document.body.removeChild(hidden); } catch {}
 
     targetEl.appendChild(outer);
