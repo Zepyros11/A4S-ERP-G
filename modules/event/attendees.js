@@ -126,11 +126,14 @@ async function uploadSlip(eventId, file) {
   return `${url}/storage/v1/object/public/event-files/${path}`;
 }
 
-/* Upload a Blob (styled QR PNG) to event-files/qr/ → return public URL */
+/* Upload a Blob (styled QR PNG) to event-files/ → return public URL */
 async function uploadQrBlob(eventId, attendeeId, blob) {
   const { url, key } = getSB();
-  const path = `qr/${eventId}/${attendeeId}_${Date.now()}.png`;
-  const res = await fetch(`${url}/storage/v1/object/event-files/${path}`, {
+  // Flat path like slips/ (known working) — avoids subfolder RLS weirdness
+  const path = `qr_${eventId}_${attendeeId}_${Date.now()}.png`;
+  const uploadUrl = `${url}/storage/v1/object/event-files/${path}`;
+  console.log(`[QR upload] → ${path} (${Math.round(blob.size / 1024)}KB)`);
+  const res = await fetch(uploadUrl, {
     method: "POST",
     headers: {
       apikey: key,
@@ -141,15 +144,32 @@ async function uploadQrBlob(eventId, attendeeId, blob) {
     body: blob,
   });
   if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.message || `QR upload failed (${res.status})`);
+    const errText = await res.text().catch(() => "");
+    console.error(`[QR upload FAIL ${res.status}]`, errText);
+    throw new Error(`QR upload ${res.status}: ${errText.slice(0, 120)}`);
   }
-  return `${url}/storage/v1/object/public/event-files/${path}`;
+  const publicUrl = `${url}/storage/v1/object/public/event-files/${path}`;
+  // Verify URL is actually accessible (LINE needs to fetch it from the public internet)
+  let head;
+  try {
+    head = await fetch(publicUrl, { method: "HEAD" });
+  } catch (e) {
+    console.error("[QR verify network fail]", publicUrl, e.message);
+    throw new Error(`QR URL ไม่ accessible (network): ${e.message}`);
+  }
+  if (!head.ok) {
+    console.error(`[QR verify HTTP ${head.status}]`, publicUrl);
+    throw new Error(
+      `bucket event-files ไม่ public — HEAD ${head.status} (ตรวจ Supabase Storage policies)`,
+    );
+  }
+  console.log("[QR upload ✅]", publicUrl);
+  return publicUrl;
 }
 
 /* Render styled QR (using event.qr_style_config + poster) to PNG Blob */
 async function _renderStyledQrBlob(event, payload) {
-  if (!window.QRDesigner) throw new Error("QRDesigner ยังไม่โหลด");
+  if (!window.QRDesigner) throw new Error("QRDesigner ยังไม่โหลด — refresh หน้า");
   const cfg = event?.qr_style_config
     || (await window.QRDesigner.getEffectiveConfig(event?.event_id));
   const posterUrl = event?.poster_url
@@ -161,10 +181,22 @@ async function _renderStyledQrBlob(event, payload) {
   try {
     await window.QRDesigner.renderQR(hidden, payload, cfg, { posterUrl });
     const canvas = hidden.querySelector("canvas");
-    if (!canvas) throw new Error("ไม่พบ canvas หลัง render");
-    return await new Promise((resolve, reject) => {
-      canvas.toBlob((b) => b ? resolve(b) : reject(new Error("toBlob failed")), "image/png");
-    });
+    if (!canvas) throw new Error("ไม่พบ canvas หลัง render (lib อาจไม่โหลด)");
+    // Test if canvas is tainted (happens when poster loaded without CORS)
+    let blob;
+    try {
+      blob = await new Promise((resolve, reject) => {
+        canvas.toBlob(
+          (b) => b ? resolve(b) : reject(new Error("toBlob returned null")),
+          "image/png",
+        );
+      });
+    } catch (e) {
+      throw new Error(`Canvas tainted (poster CORS): ${e.message}`);
+    }
+    if (!blob || blob.size === 0) throw new Error("blob ว่าง");
+    console.log(`[QR render] payload=${payload} blob=${Math.round(blob.size/1024)}KB`);
+    return blob;
   } finally {
     try { document.body.removeChild(hidden); } catch {}
   }
