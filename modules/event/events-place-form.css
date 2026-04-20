@@ -594,12 +594,33 @@
 .pt-modal {
   background: var(--surface, #fff);
   border-radius: 16px;
-  width: 520px;
+  width: 680px;
   max-width: 95vw;
   max-height: 80vh;
   display: flex;
   flex-direction: column;
   box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+}
+.pt-flag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 8px;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 8px;
+  background: var(--surface2, #f8fafc);
+  cursor: pointer;
+  font-size: 14px;
+  flex-shrink: 0;
+  user-select: none;
+}
+.pt-flag:has(input:checked) {
+  border-color: #6366f1;
+  background: #eef2ff;
+}
+.pt-flag input {
+  margin: 0;
+  cursor: pointer;
 }
 .pt-modal-header {
   display: flex;

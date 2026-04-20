@@ -2,7 +2,7 @@
    events-place-form.js — Controller for Place Form page
 ============================================================ */
 
-import { createPlace, fetchPlaceById, updatePlace, fetchPlaceRooms, upsertPlaceRooms, fetchPlaceRoomTypes, upsertPlaceRoomTypes, fetchPlaceTypes, createPlaceType, updatePlaceType, removePlaceType } from "./events-api.js";
+import { createPlace, fetchPlaceById, updatePlace, fetchPlaceRooms, upsertPlaceRooms, fetchPlaceRoomTypes, upsertPlaceRoomTypes, fetchPlaceDiningRooms, upsertPlaceDiningRooms, fetchPlaceTypes, createPlaceType, updatePlaceType, removePlaceType } from "./events-api.js";
 import { withLoading } from "../../js/components/ui/loadingButton.js";
 import { openIconPicker, renderIcon } from "../../js/components/ui/iconPicker.js";
 import { ImageGrid } from "../../js/components/ui/imageGrid.js";
@@ -315,6 +315,7 @@ setInterval(syncMapLink, 1000);
 let editId = null;
 let roomRows = [];
 let accomRows = []; // accommodation room types
+let diningRows = []; // dining rooms
 let gallery = { exterior: [], food: [] };
 let docFiles = []; // [{url, name, file}]
 let bankImages = []; // [{url}|{file}] — bank account / QR images
@@ -437,6 +438,9 @@ async function loadPlaceData() {
     // โหลดเอกสาร
     docFiles = (p.document_urls || []).map((u) => ({ url: u, name: u.split("/").pop() }));
     renderDocList();
+
+    // apply filter หลังใส่ค่า fPlaceType แล้ว
+    applyPlaceTypeFilter();
   } catch (err) {
     showToast("โหลดข้อมูลไม่ได้: " + err.message, "error");
   }
@@ -1258,6 +1262,7 @@ let allPlaceTypes = [];
 async function loadPlaceTypes() {
   allPlaceTypes = await fetchPlaceTypes();
   renderPlaceTypeSelect();
+  if (typeof applyPlaceTypeFilter === "function") applyPlaceTypeFilter();
 }
 
 function iconToEmoji(icon) {
@@ -1313,6 +1318,10 @@ function renderPlaceTypeSelect() {
     sel.appendChild(opt);
   });
   if (current) sel.value = current;
+  if (!sel.dataset.filterBound) {
+    sel.addEventListener("change", applyPlaceTypeFilter);
+    sel.dataset.filterBound = "1";
+  }
 }
 
 window.openPlaceTypeManager = function () {
@@ -1349,18 +1358,27 @@ function bindPTRowEvents(container) {
 
 function renderPTModal() {
   const modal = document.getElementById("ptModal");
-  const rows = allPlaceTypes.map((t) => `
-    <div class="pt-row" data-id="${t.type_id}">
+  const rowHtml = (t) => `
+    <div class="pt-row" data-id="${t.type_id ?? "new"}">
       <button class="pt-icon-btn" type="button" title="เลือก icon">
         <span class="pt-icon-preview">${renderIcon(t.icon || "❓", 20)}</span>
       </button>
       <input class="pt-icon" type="hidden" value="${t.icon || ""}" />
-      <input class="ef-input pt-code" value="${t.type_code || ""}" placeholder="CODE" style="width:120px" />
-      <input class="ef-input pt-name" value="${t.type_name || ""}" placeholder="ชื่อ" style="flex:1" />
-      <input class="ef-input pt-sort" type="number" value="${t.sort_order || 0}" style="width:50px" />
+      <input class="ef-input pt-code" value="${t.type_code || ""}" placeholder="CODE" style="width:110px" />
+      <input class="ef-input pt-name" value="${t.type_name || ""}" placeholder="ชื่อ" style="flex:1;min-width:120px" />
+      <label class="pt-flag" title="มีห้องพัก">
+        <input type="checkbox" class="pt-accom" ${t.has_accommodation !== false ? "checked" : ""} />
+        <span>🛏</span>
+      </label>
+      <label class="pt-flag" title="มีห้องประชุม">
+        <input type="checkbox" class="pt-meeting" ${t.has_meeting !== false ? "checked" : ""} />
+        <span>🏛</span>
+      </label>
+      <input class="ef-input pt-sort" type="number" value="${t.sort_order ?? 0}" style="width:50px" />
       <button class="btn-icon-sm pt-del" type="button">🗑</button>
     </div>
-  `).join("");
+  `;
+  const rows = allPlaceTypes.map(rowHtml).join("");
 
   modal.innerHTML = `
     <div class="pt-modal">
@@ -1385,19 +1403,9 @@ function renderPTModal() {
 
   modal.querySelector("#ptAddBtn").addEventListener("click", () => {
     const list = modal.querySelector(".pt-list");
-    const div = document.createElement("div");
-    div.className = "pt-row";
-    div.dataset.id = "new";
-    div.innerHTML = `
-      <button class="pt-icon-btn" type="button" title="เลือก icon">
-        <span class="pt-icon-preview">${renderIcon("❓", 20)}</span>
-      </button>
-      <input class="pt-icon" type="hidden" value="" />
-      <input class="ef-input pt-code" value="" placeholder="CODE" style="width:120px" />
-      <input class="ef-input pt-name" value="" placeholder="ชื่อ" style="flex:1" />
-      <input class="ef-input pt-sort" type="number" value="${allPlaceTypes.length + 1}" style="width:50px" />
-      <button class="btn-icon-sm pt-del" type="button">🗑</button>
-    `;
+    const wrap = document.createElement("div");
+    wrap.innerHTML = rowHtml({ sort_order: allPlaceTypes.length + 1 });
+    const div = wrap.firstElementChild;
     list.appendChild(div);
     bindPTRowEvents(div);
     div.querySelector(".pt-code").focus();
@@ -1425,8 +1433,17 @@ async function savePlaceTypes() {
     const code = row.querySelector(".pt-code").value.trim().toUpperCase();
     const name = row.querySelector(".pt-name").value.trim();
     const sort = parseInt(row.querySelector(".pt-sort").value) || 0;
+    const hasAccom = row.querySelector(".pt-accom").checked;
+    const hasMeeting = row.querySelector(".pt-meeting").checked;
     if (!code || !name) continue;
-    const data = { type_code: code, type_name: name, icon, sort_order: sort };
+    const data = {
+      type_code: code,
+      type_name: name,
+      icon,
+      sort_order: sort,
+      has_accommodation: hasAccom,
+      has_meeting: hasMeeting,
+    };
 
     if (id && id !== "new") {
       const tid = parseInt(id);
@@ -1456,6 +1473,39 @@ window.toggleSection = function (bodyId, show) {
     if (bodyId === "meetingBody" && roomRows.length === 0) window.addRoom();
   }
 };
+
+// ── FILTER SECTIONS BY PLACE TYPE ──────────
+// ซ่อน/โชว์ section "ห้องพัก" และ "ห้องประชุม" ตาม flag ของประเภทที่เลือก
+// ประเภทที่ยังไม่ได้เลือก → โชว์ทุก section (คงพฤติกรรมเดิม)
+function applyPlaceTypeFilter() {
+  const code = document.getElementById("fPlaceType").value;
+  const type = allPlaceTypes.find((t) => t.type_code === code);
+  // ยังไม่เลือกประเภท → ซ่อนทั้ง 2 section จนกว่าจะเลือก
+  const showAccom = !!type && type.has_accommodation !== false;
+  const showMeeting = !!type && type.has_meeting !== false;
+
+  const accomSec = document.getElementById("sectionAccom");
+  const meetingSec = document.getElementById("sectionMeeting");
+  if (accomSec) accomSec.style.display = showAccom ? "" : "none";
+  if (meetingSec) meetingSec.style.display = showMeeting ? "" : "none";
+
+  // ปิด toggle + ซ่อน body ของ section ที่ถูกซ่อน (กันข้อมูลหลงไปตอน save)
+  if (!showAccom) {
+    const cb = document.getElementById("chkAccom");
+    if (cb && cb.checked) {
+      cb.checked = false;
+      window.toggleSection("accomBody", false);
+    }
+  }
+  if (!showMeeting) {
+    const cb = document.getElementById("chkMeeting");
+    if (cb && cb.checked) {
+      cb.checked = false;
+      window.toggleSection("meetingBody", false);
+    }
+  }
+}
+window.applyPlaceTypeFilter = applyPlaceTypeFilter;
 
 // ── PROVINCE AUTOCOMPLETE ─────────────────
 const PROVINCES = [

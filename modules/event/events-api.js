@@ -248,6 +248,18 @@ export async function upsertPlaceRooms(placeId, rooms) {
   return sbFetch("place_rooms", "", { method: "POST", body: payload }) || [];
 }
 
+/* ── PLACE DINING ROOMS ── */
+export async function fetchPlaceDiningRooms(placeId) {
+  return sbFetch("place_dining_rooms", `?place_id=eq.${placeId}&select=*&order=sort_order.asc`) || [];
+}
+
+export async function upsertPlaceDiningRooms(placeId, rows) {
+  await sbFetch("place_dining_rooms", `?place_id=eq.${placeId}`, { method: "DELETE" });
+  if (!rows || rows.length === 0) return [];
+  const payload = rows.map((r, i) => ({ ...r, place_id: placeId, sort_order: i }));
+  return sbFetch("place_dining_rooms", "", { method: "POST", body: payload }) || [];
+}
+
 /* ── EVENT CATEGORIES ── */
 export async function fetchEventCategories() {
   return (

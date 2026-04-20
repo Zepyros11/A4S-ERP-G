@@ -190,7 +190,7 @@
             </div>
 
             <!-- SECTION: ห้องพัก -->
-            <div class="ef-section">
+            <div class="ef-section" id="sectionAccom">
               <label class="ef-section-toggle">
                 <div class="toggle-switch"><input type="checkbox" id="chkAccom" onchange="window.toggleSection('accomBody', this.checked)" /><span class="toggle-slider"></span></div>
                 <span class="ef-section-title" style="margin:0;cursor:pointer">🛏️ มีห้องพัก (Accommodation)</span>
@@ -208,7 +208,7 @@
             </div>
 
             <!-- SECTION: ห้องประชุม -->
-            <div class="ef-section">
+            <div class="ef-section" id="sectionMeeting">
               <label class="ef-section-toggle">
                 <div class="toggle-switch"><input type="checkbox" id="chkMeeting" onchange="window.toggleSection('meetingBody', this.checked)" /><span class="toggle-slider"></span></div>
                 <span class="ef-section-title" style="margin:0;cursor:pointer">🏛️ มีห้องประชุม (Meeting)</span>
@@ -224,6 +224,24 @@
                 <button class="btn-add-card" type="button" onclick="window.addRoom()">＋ เพิ่มห้องประชุม</button>
               </div>
               </div><!-- /meetingBody -->
+            </div>
+
+            <!-- SECTION: ห้องอาหาร -->
+            <div class="ef-section" id="sectionDining">
+              <label class="ef-section-toggle">
+                <div class="toggle-switch"><input type="checkbox" id="chkDining" onchange="window.toggleSection('diningBody', this.checked)" /><span class="toggle-slider"></span></div>
+                <span class="ef-section-title" style="margin:0;cursor:pointer">🍽️ มีห้องอาหาร (Dining)</span>
+              </label>
+              <div id="diningBody" class="toggle-body" style="display:none">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+                  <strong style="font-size:13px">🍽️ รายละเอียดห้องอาหารแต่ละห้อง</strong>
+                  <button class="btn btn-outline btn-sm" type="button" onclick="window.addDining()">＋ เพิ่มห้อง</button>
+                </div>
+                <div id="diningContainer"></div>
+                <div style="text-align:center;margin-top:16px">
+                  <button class="btn-add-card" type="button" onclick="window.addDining()">＋ เพิ่มห้องอาหาร</button>
+                </div>
+              </div>
             </div>
 
             <!-- SECTION: สิ่งอำนวยความสะดวก -->

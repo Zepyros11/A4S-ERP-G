@@ -62,10 +62,37 @@ async function initPage() {
     const btnSave = document.getElementById("btnSave") || document.getElementById("floatingSaveBtn");
     if (btnSave) btnSave.title = "บันทึกการแก้ไข";
     await loadEventData();
+    await refreshQrStatus();
   } else {
     await autoGenerateCode();
   }
 }
+
+// ── QR Designer ────────────────────────────────────────────
+async function refreshQrStatus() {
+  const lbl = document.getElementById("qrStatusLbl");
+  if (!lbl || !editId) return;
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/events?event_id=eq.${editId}&select=qr_style_config&limit=1`,
+      { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } },
+    );
+    const rows = await res.json();
+    const hasCustom = !!(rows?.[0]?.qr_style_config);
+    lbl.textContent = hasCustom
+      ? "✅ event นี้มี QR style เฉพาะตัวแล้ว · กดเพื่อแก้ไข"
+      : "ใช้ preset default · กดปุ่มเพื่อปรับแต่งเฉพาะ event นี้";
+    lbl.style.color = hasCustom ? "#15803d" : "";
+  } catch (e) { /* silent */ }
+}
+
+window.openQrDesigner = function () {
+  if (!editId) {
+    alert("กรุณาบันทึก event ก่อน แล้วกลับมากดปุ่มนี้อีกครั้ง\n(Designer ต้องมี event_id เพื่อบันทึก style)");
+    return;
+  }
+  location.href = `event-qr-designer.html?event_id=${editId}`;
+};
 
 // ── LOAD USERS ─────────────────────────────────────────────
 async function loadUsers() {

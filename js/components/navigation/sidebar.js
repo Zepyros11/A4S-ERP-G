@@ -97,6 +97,13 @@
           path: BASE_PATH + "/modules/event/course-series.html",
           section: "setup",
         },
+        {
+          id: "event-qr-designer",
+          icon: "🎨",
+          label: "QR Code Designer",
+          path: BASE_PATH + "/modules/event/event-qr-designer.html",
+          section: "setup",
+        },
       ],
     },
     //  **************** STOCK *****************
@@ -372,6 +379,7 @@
     "event-budget": "evt_budget_view",
     attendees: "attendee_view",
     "event-media": "media_view",
+    "event-qr-designer": "events_view",
     categories: "inv_cat_view",
     warehouses: "warehouse_view",
     products: "product_view",
@@ -448,6 +456,7 @@
     "event-budget",
     "attendees",
     "event-media",
+    "event-qr-designer",
     //  **** Inventory ****
     "categories",
     "warehouses",
