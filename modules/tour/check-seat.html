@@ -1318,18 +1318,45 @@ const NATIONALITY_OPTIONS = ['', 'Beninese', 'Burkinabé', 'Cameroonian', 'Franc
 /* ═══════════════════════════════════════════════════════════
    CONFIG
 ═══════════════════════════════════════════════════════════ */
+function _isValidSupabaseUrl(url) {
+  if (!url || typeof url !== 'string') return false;
+  if (!/^https?:\/\//i.test(url)) return false;
+  // Reject obvious placeholders
+  if (/\bxxx\b|your-project|example\.com|<.*>/i.test(url)) return false;
+  try {
+    const u = new URL(url);
+    // must have a hostname with a dot (e.g. foo.supabase.co)
+    if (!u.hostname || u.hostname.length < 4 || !u.hostname.includes('.')) return false;
+    return true;
+  } catch { return false; }
+}
+
 function loadConfig() {
   // รับค่าจาก URL query params ก่อน (เพื่อรองรับการแชร์ URL)
   const qp = new URLSearchParams(window.location.search);
   const qUrl   = qp.get('sb_url');
   const qKey   = qp.get('sb_key');
   const qProxy = qp.get('ai_proxy');
-  if (qUrl)   localStorage.setItem('cs_sb_url',   qUrl);
-  if (qKey)   localStorage.setItem('cs_sb_key',   qKey);
-  if (qProxy) localStorage.setItem('cs_ai_proxy', qProxy);
+  // Only save query params that pass basic validation — placeholders like xxx.supabase.co
+  // in a shared URL would otherwise silently poison localStorage + hide config panel.
+  const qUrlOk = _isValidSupabaseUrl(qUrl);
+  const qKeyOk = qKey && qKey.startsWith('eyJ') && qKey.length > 100;
+  if (qUrlOk)  localStorage.setItem('cs_sb_url',   qUrl);
+  if (qKeyOk)  localStorage.setItem('cs_sb_key',   qKey);
+  if (qProxy)  localStorage.setItem('cs_ai_proxy', qProxy);
+  if (qUrl && !qUrlOk) console.warn('[check-seat] sb_url in URL looks invalid:', qUrl);
+  if (qKey && !qKeyOk) console.warn('[check-seat] sb_key in URL looks invalid');
 
-  // ซ่อน Config Panel เมื่อเปิดผ่าน Share URL
-  if (qUrl && qKey) {
+  // If stored URL is invalid (e.g. from old bad share), wipe it so default kicks in
+  const stored = localStorage.getItem('cs_sb_url') || '';
+  if (stored && !_isValidSupabaseUrl(stored)) {
+    console.warn('[check-seat] clearing invalid stored sb_url:', stored);
+    localStorage.removeItem('cs_sb_url');
+    localStorage.removeItem('cs_sb_key');
+  }
+
+  // ซ่อน Config Panel เมื่อเปิดผ่าน Share URL (ที่ valid แล้วเท่านั้น)
+  if (qUrlOk && qKeyOk) {
     document.getElementById('config-panel').style.display = 'none';
   }
 
@@ -1350,7 +1377,7 @@ function saveConfig() {
 }
 
 function initSupabase(url, key) {
-  const resolvedUrl = (url && url.startsWith('http')) ? url : SB_URL_DEFAULT;
+  const resolvedUrl = _isValidSupabaseUrl(url) ? url : SB_URL_DEFAULT;
   const isValidKey  = key && key.startsWith('eyJ') && key.length > 100;
   const resolvedKey = isValidKey ? key : SB_KEY_DEFAULT;
   try {
