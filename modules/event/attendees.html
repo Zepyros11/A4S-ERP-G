@@ -98,25 +98,71 @@
           <div id="tierInfoBanner" style="display:none"></div>
 
           <!-- TOOLBAR (filters only — search รวมอยู่ในช่องด้านล่างของตาราง) -->
+          <style>
+            .filter-pill-row{display:flex;gap:6px;flex-wrap:wrap;align-items:center;}
+            .filter-pill-row + .filter-pill-row{padding-left:10px;border-left:1px solid var(--border);margin-left:4px;}
+            .filter-pill{
+              padding:7px 13px;border:1.5px solid var(--border);background:var(--surface);
+              border-radius:999px;font-family:inherit;font-size:12.5px;font-weight:600;
+              color:var(--text2);cursor:pointer;transition:all .15s;white-space:nowrap;
+              display:inline-flex;align-items:center;gap:5px;
+            }
+            .filter-pill:hover{border-color:var(--accent);color:var(--accent);}
+            .filter-pill.active{
+              background:linear-gradient(135deg,#06c755,#10b981);color:#fff;
+              border-color:transparent;box-shadow:0 2px 8px rgba(6,199,85,.28);
+            }
+            .filter-pill-group-lbl{font-size:11px;font-weight:700;color:var(--text3);
+              text-transform:uppercase;letter-spacing:.5px;margin-right:2px;}
+          </style>
           <div id="attToolbar" style="display: none">
-            <div class="toolbar" style="justify-content:flex-end">
-              <select class="filter-select" id="filterCheckin">
+            <div class="toolbar" style="justify-content:flex-end;gap:10px;flex-wrap:wrap;">
+              <div class="filter-pill-row" id="filterPillsCheckin" data-for="filterCheckin"></div>
+              <div class="filter-pill-row" id="filterPillsPayment" data-for="filterPayment"></div>
+              <!-- Hidden source-of-truth selects (filterTable reads .value from these) -->
+              <select id="filterCheckin" style="display:none">
                 <option value="">⚪ ทุกสถานะ Check-in</option>
                 <option value="true">✅ Check-in แล้ว</option>
                 <option value="false">⏳ ยังไม่ Check-in</option>
               </select>
-              <select class="filter-select" id="filterPayment">
+              <select id="filterPayment" style="display:none">
                 <option value="">⚪ ทุกสถานะชำระ</option>
                 <option value="PAID">💳 ชำระแล้ว</option>
                 <option value="UNPAID">⏳ ยังไม่ชำระ</option>
                 <option value="EXPIRED">⌛ เกิน grace period</option>
                 <option value="COMPLIMENTARY">🎫 ฟรี / ยกเว้น</option>
               </select>
-              <select class="filter-select" id="filterTag">
-                <option value="">🏷️ ทุก tag</option>
-              </select>
             </div>
           </div>
+          <script>
+            (function(){
+              function buildPills(containerId){
+                const c = document.getElementById(containerId);
+                if (!c) return;
+                const sel = document.getElementById(c.dataset.for);
+                if (!sel) return;
+                c.innerHTML = "";
+                [...sel.options].forEach(opt => {
+                  const b = document.createElement("button");
+                  b.type = "button";
+                  b.className = "filter-pill" + (opt.value === sel.value ? " active" : "");
+                  b.dataset.value = opt.value;
+                  b.textContent = opt.textContent;
+                  b.onclick = () => {
+                    sel.value = opt.value;
+                    c.querySelectorAll(".filter-pill").forEach(x => x.classList.remove("active"));
+                    b.classList.add("active");
+                    sel.dispatchEvent(new Event("change", { bubbles: true }));
+                  };
+                  c.appendChild(b);
+                });
+              }
+              window.addEventListener("DOMContentLoaded", () => {
+                buildPills("filterPillsCheckin");
+                buildPills("filterPillsPayment");
+              });
+            })();
+          </script>
 
           <!-- TABLE -->
           <div id="attTableSection" style="display: none">

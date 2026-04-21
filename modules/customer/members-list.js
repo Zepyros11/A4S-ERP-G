@@ -231,12 +231,36 @@ async function loadCountries() {
   } catch {}
 }
 
+/* ── Load last-run date ของ automation "Export All Member" ── */
+async function loadLastSyncInfo() {
+  const el = document.getElementById('lastSyncDate');
+  const box = document.getElementById('syncInfo');
+  if (!el) return;
+  try {
+    const url = `${SUPABASE_URL}/rest/v1/automation_tasks?select=last_run_at&name=eq.Export%20All%20Member&limit=1`;
+    const res = await fetch(url, { headers: _sbHeaders() });
+    if (!res.ok) return;
+    const rows = await res.json();
+    const iso = rows?.[0]?.last_run_at;
+    if (iso) {
+      el.textContent = DateFmt.formatDMYTime(iso);
+      // เตือนถ้า > 36 ชั่วโมง (automation รันทุก 24h)
+      const hrs = (Date.now() - new Date(iso).getTime()) / 36e5;
+      if (box) box.classList.toggle('stale', hrs > 36);
+    } else {
+      el.textContent = 'ยังไม่เคยรัน';
+      if (box) box.classList.add('stale');
+    }
+  } catch {}
+}
+
 /* ── Public entry — โหลดตารางก่อน (เร็ว) แล้ว stats ตามหลัง ── */
 async function loadData() {
   page = 1;
   await loadPage();
-  loadStats();      // fire-and-forget
-  loadCountries();  // fire-and-forget — populate filter dropdown
+  loadStats();          // fire-and-forget
+  loadCountries();      // fire-and-forget — populate filter dropdown
+  loadLastSyncInfo();   // fire-and-forget — last run ของ Export All Member
 }
 
 /* ── Search / filter handlers (server-side) ── */

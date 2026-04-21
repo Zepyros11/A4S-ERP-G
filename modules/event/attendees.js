@@ -1793,9 +1793,12 @@ window.copyShareRegisterUrl = async function (type) {
 };
 
 // ── AUTO CHECK-IN TOGGLE ──────────────────────────────────
+// Global setting (1 key ใช้ทุก event) — default ON
+const AUTOCHECKIN_KEY = "autoCheckin_default";
+
 function _loadAutoCheckinState() {
-  const key = `autoCheckin_${currentEventId}`;
-  _autoCheckin = localStorage.getItem(key) === "1";
+  const saved = localStorage.getItem(AUTOCHECKIN_KEY);
+  _autoCheckin = saved === null ? true : saved === "1";
   const input = document.getElementById("autoCheckinInput");
   if (input) input.checked = _autoCheckin;
   _syncAutoCheckinUi();
@@ -1820,11 +1823,10 @@ function _syncAutoCheckinUi() {
 
 window.onAutoCheckinToggle = function (checked) {
   _autoCheckin = !!checked;
-  const key = `autoCheckin_${currentEventId}`;
-  localStorage.setItem(key, _autoCheckin ? "1" : "0");
+  localStorage.setItem(AUTOCHECKIN_KEY, _autoCheckin ? "1" : "0");
   _syncAutoCheckinUi();
   showToast(
-    _autoCheckin ? "โหมดหน้างาน: ON — save แล้ว check-in ทันที" : "โหมดหน้างาน: OFF",
+    _autoCheckin ? "โหมดหน้างาน: ON — save แล้ว check-in ทันที (ทุก event)" : "โหมดหน้างาน: OFF (ทุก event)",
     _autoCheckin ? "success" : "info",
   );
 };
