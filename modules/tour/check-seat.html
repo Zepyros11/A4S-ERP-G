@@ -210,6 +210,37 @@
     .cs-stat-card.s-instead .cs-stat-value { color: #0891b2; }
     .cs-stat-card.s-staff  .cs-stat-icon { background: #e0e7ff; }
     .cs-stat-card.s-staff  .cs-stat-value { color: #4f46e5; }
+    .cs-stat-card.s-paid   .cs-stat-icon { background: #dcfce7; }
+    .cs-stat-card.s-paid   .cs-stat-value { color: #15803d; }
+
+    /* Tier summary block inside report modal */
+    #report-tier-summary {
+      margin: 0 0 14px;
+      padding: 12px 14px;
+      background: #f0fdf4;
+      border: 1px solid #bbf7d0;
+      border-radius: 10px;
+    }
+    #report-tier-summary h4 {
+      margin: 0 0 8px; font-size: 12px; font-weight: 700;
+      color: #15803d; letter-spacing: .4px; text-transform: uppercase;
+    }
+    .tier-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+      gap: 8px;
+    }
+    .tier-chip {
+      display: flex; flex-direction: column; align-items: center;
+      padding: 8px 10px; background: #fff;
+      border: 1px solid #bbf7d0; border-radius: 8px;
+    }
+    .tier-chip .t-label { font-size: 12px; font-weight: 700; color: #166534; }
+    .tier-chip .t-count { font-size: 18px; font-weight: 700; color: #15803d; line-height: 1.1; }
+    .tier-chip .t-pct   { font-size: 10px; color: #4b5563; margin-top: 2px; }
+    .tier-chip.t-none   { border-color: #e5e7eb; background: #f9fafb; }
+    .tier-chip.t-none .t-label { color: var(--text3); }
+    .tier-chip.t-none .t-count { color: var(--text2); }
     /* clickable cards */
     .cs-stat-card { cursor: pointer; }
     .cs-stat-card:active { transform: translateY(1px); }
@@ -388,7 +419,8 @@
     .col-pimg    { width: 100px; min-width: 100px; }
     .col-pid     { width: 150px; min-width: 130px; }
     .col-pexp    { width: 120px; min-width: 110px; }
-    .col-visa    { width: 100px; min-width: 100px; }
+    .col-slip    { width: 100px; min-width: 100px; }
+    .col-paid    { width: 90px; min-width: 80px; text-align: center; }
     .col-tel     { width: 140px; min-width: 120px; }
     .col-shirt   { width: 90px; min-width: 80px; }
     .col-waive   { width: 70px; min-width: 60px; text-align: center; }
@@ -986,6 +1018,15 @@
       </div>
     </div>
   </div>
+  <div class="cs-stats-row">
+    <div class="cs-stat-card s-paid" data-report="paid">
+      <div class="cs-stat-icon">💰</div>
+      <div>
+        <div class="cs-stat-value" id="st-paid">0</div>
+        <div class="cs-stat-label">Paid</div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- ══ Legend ════════════════════════════════════════════ -->
@@ -1033,7 +1074,8 @@
         <th class="col-arrive">Date&Time<br>(Arrival)</th>
         <th class="col-comeback sortable" data-sort="comeback" onclick="sortBy('comeback')">Comeback Flight<span class="sort-arrow"></span></th>
         <th class="col-comeback-dt">Date&amp;Time<br>(Comeback)</th>
-        <th class="col-visa">Visa</th>
+        <th class="col-slip">Slip</th>
+        <th class="col-paid sortable" data-sort="paid" onclick="sortBy('paid')">Paid<span class="sort-arrow"></span></th>
         <th class="col-tel sortable" data-sort="tel" onclick="sortBy('tel')">WhatsApp<span class="sort-arrow"></span></th>
         <th class="col-shirt sortable" data-sort="shirt" onclick="sortBy('shirt')">T-Shirt<span class="sort-arrow"></span></th>
         <th class="col-waive">Waive</th>
@@ -1042,7 +1084,7 @@
     </thead>
     <tbody id="table-body">
       <tr id="empty-row">
-        <td colspan="23">No data — click Import Excel or add a row manually</td>
+        <td colspan="24">No data — click Import Excel or add a row manually</td>
       </tr>
     </tbody>
   </table>
@@ -1213,6 +1255,7 @@ app.listen(3001, () => console.log('Proxy running on port 3001'));
       <button id="report-close" onclick="closeReport()" title="ปิด">✕</button>
     </div>
     <div id="report-body">
+      <div id="report-tier-summary" style="display:none"></div>
       <table id="report-table">
         <thead>
           <tr>
@@ -1227,6 +1270,7 @@ app.listen(3001, () => console.log('Proxy running on port 3001'));
             <th>Flight</th>
             <th>Pass. ID</th>
             <th>WhatsApp</th>
+            <th class="report-col-paid" style="display:none">Paid</th>
           </tr>
         </thead>
         <tbody id="report-tbody"></tbody>
@@ -1300,7 +1344,7 @@ const IMG_DB = {
 /* ═══════════════════════════════════════════════════════════
    STATE
 ═══════════════════════════════════════════════════════════ */
-let rows = [];          // { id, code, name, pin, group, flight, departureDateTime, arrivalDateTime, comeback, comebackDateTime, seat, nationality, passImg, passImgFile, passId, passExp, visaImg, visaImgFile, tel, shirt, isEditing, isSubRow, parentId }
+let rows = [];          // { id, code, name, pin, group, flight, departureDateTime, arrivalDateTime, comeback, comebackDateTime, seat, nationality, passImg, passImgFile, passId, passExp, visaImg, visaImgFile, paid, tel, shirt, isEditing, isSubRow, parentId }
 let sbClient = null;
 let _rowCounter = 0;
 let _sortCol = null, _sortAsc = true;
@@ -1313,6 +1357,7 @@ const PORT_OPTIONS        = ['', 'Lagos', 'Abidjan'];
 const PIN_OPTIONS         = ['', 'SVP', 'VP', 'AVP', 'SD', 'DR'];
 const GROUP_OPTIONS       = ['', 'G1', 'G2', 'G3', 'G4', 'G5'];
 const SHIRT_OPTIONS       = ['', '5XL', '4XL', '3XL', '2XL', 'XL', 'L', 'M', 'S'];
+const PAID_OPTIONS        = ['', '0.25', '0.50', '0.75', '1.00', '1.25', '1.50', '1.75', '2.00', '2.25', '2.50', '2.75'];
 const NATIONALITY_OPTIONS = ['', 'Beninese', 'Burkinabé', 'Cameroonian', 'France', 'Ghanaian', 'Ivoirienne', 'Nigerian', 'Togolese'];
 
 /* ═══════════════════════════════════════════════════════════
@@ -1411,6 +1456,7 @@ function makeRow(overrides = {}) {
     passExp:           '',
     visaImg:           null,
     visaImgFile:       null,
+    paid:              '',
     tel:               '',
     shirt:             '',
     highlighted:       false,
@@ -1468,6 +1514,7 @@ function importExcel(event) {
       const colPassExp    = findKey('passport exp', 'pass exp', 'วันหมดอายุ', 'Passport Exp');
       const colTel        = findKey('tel', 'whatsapp', 'โทร', 'phone', 'Tel');
       const colShirt      = findKey('shirt', 'เสื้อ', 'T-Shirt', 'size');
+      const colPaid       = findKey('paid', 'จ่าย', 'ชำระ', 'Paid');
       const colWaive      = findKey('waive', 'ยกเว้น', 'Waive');
       const colInstead    = findKey('instead', 'แทน', 'คนแทน', 'Instead');
       const colSubRow     = findKey('sub row', 'subrow', 'sub_row');
@@ -1507,6 +1554,7 @@ function importExcel(event) {
           passExp:           (colPassExp  ? r[colPassExp]  : '').toString().trim(),
           tel:               (colTel      ? r[colTel]      : '').toString().trim(),
           shirt:             (colShirt    ? r[colShirt]    : '').toString().trim(),
+          paid:              (colPaid     ? r[colPaid]     : '').toString().trim(),
           waive:             truthy(colWaive ? r[colWaive] : ''),
         });
 
@@ -1963,6 +2011,7 @@ function saveLocal() {
     passImg:  r.passImg  && !r.passImg.startsWith('data:')  ? r.passImg  : null,
     passId: r.passId, passExp: r.passExp,
     visaImg:  r.visaImg  && !r.visaImg.startsWith('data:')  ? r.visaImg  : null,
+    paid: r.paid || '',
     tel: r.tel, shirt: r.shirt, isSubRow: r.isSubRow, parentId: r.parentId,
   }));
   try { localStorage.setItem('cs_rows', JSON.stringify(slim)); } catch(e) {}
@@ -2031,6 +2080,7 @@ function rowToRecord(row) {
     passport_id:        row.passId || null,
     passport_exp_date:  row.passExp || null,
     visa_image_url:     (row.visaImg && !row.visaImg.startsWith('data:')) ? row.visaImg : null,
+    paid:               row.paid !== '' && row.paid != null ? parseFloat(row.paid) : null,
     tel:                row.tel   || null,
     tshirt_size:        row.shirt || null,
     highlighted:        row.highlighted || false,
@@ -2051,7 +2101,9 @@ function recordToRow(r, idMap) {
     comeback: r.comeback || '', comebackDateTime: r.comeback_datetime || '',
     seat: r.seat ?? '', nationality: r.nationality || '', passImg: r.passport_image_url || null,
     passId: r.passport_id || '', passExp: r.passport_exp_date || '',
-    visaImg: r.visa_image_url || null, tel: r.tel || '',
+    visaImg: r.visa_image_url || null,
+    paid: r.paid != null ? (Number(r.paid).toFixed(2)) : '',
+    tel: r.tel || '',
     shirt: r.tshirt_size || '', highlighted: r.highlighted || false,
     waive: r.waive || false, isSubRow: r.is_sub_row || false,
     parentId,
@@ -2244,7 +2296,7 @@ function _snapshotRows(arr) {
   return arr.map(r => [
     r.code, r.name, r.instead, r.pin, r.port, r.group, r.flight,
     r.departureDateTime, r.arrivalDateTime, r.comeback, r.comebackDateTime,
-    r.seat, r.nationality, r.passId, r.passExp, r.tel, r.shirt,
+    r.seat, r.nationality, r.passId, r.passExp, r.tel, r.shirt, r.paid || '',
     r.waive ? 1 : 0, r.highlighted ? 1 : 0, r.isSubRow ? 1 : 0,
     r.passImg || '', r.visaImg || ''
   ].join('¦')).join('‖');
@@ -2329,6 +2381,7 @@ function updateStats() {
   const waive       = all.filter(r => r.waive).length;
   const insteadCnt  = all.filter(r => (r.instead || '').trim() !== '').length;
   const staffCnt    = all.filter(r => (r.code || '').trim().toUpperCase().startsWith('STAFF')).length;
+  const paidCnt     = all.filter(r => (r.paid || '').toString().trim() !== '').length;
 
   document.getElementById('st-total').textContent    = total;
   document.getElementById('st-conf').textContent     = conf;
@@ -2342,6 +2395,7 @@ function updateStats() {
   document.getElementById('st-waive').textContent    = waive;
   document.getElementById('st-instead').textContent  = insteadCnt;
   document.getElementById('st-staff').textContent    = staffCnt;
+  document.getElementById('st-paid').textContent     = paidCnt;
 }
 
 function sortBy(col) {
@@ -2349,7 +2403,7 @@ function sortBy(col) {
   else { _sortCol = col; _sortAsc = true; }
 
   const getVal = v => {
-    if (col === 'seat') return parseFloat(v) || 0;
+    if (col === 'seat' || col === 'paid') return parseFloat(v) || 0;
     return (v ?? '').toString().toLowerCase();
   };
 
@@ -2578,8 +2632,13 @@ function buildRow(row) {
             `<span class="field-view">${row.comebackDateTime ? row.comebackDateTime.replace('T',' ') : '—'}</span>`}
     </td>
 
-    <!-- Visa -->
-    <td class="col-visa img-cell" data-label="Visa">${imgCell(row, 'visaImg', 'visaImgFile', 'Visa')}</td>
+    <!-- Slip -->
+    <td class="col-slip img-cell" data-label="Slip">${imgCell(row, 'visaImg', 'visaImgFile', 'Slip')}</td>
+
+    <!-- Paid -->
+    <td class="col-paid" data-label="Paid">
+      ${e ? paidDropdown(row) : `<span class="field-view">${row.paid ? esc(row.paid) : '—'}</span>`}
+    </td>
 
     <!-- Tel -->
     <td class="col-tel" data-label="WhatsApp">
@@ -2637,6 +2696,11 @@ function groupDropdown(row) {
 function shirtDropdown(row) {
   return `<select class="field-input" style="width:76px" onchange="setField('${row.id}','shirt',this.value)">
     ${SHIRT_OPTIONS.map(s => `<option value="${s}" ${row.shirt===s?'selected':''}>${s||'— Select —'}</option>`).join('')}
+  </select>`;
+}
+function paidDropdown(row) {
+  return `<select class="field-input" style="width:78px" onchange="setField('${row.id}','paid',this.value)">
+    ${PAID_OPTIONS.map(p => `<option value="${p}" ${String(row.paid)===p?'selected':''}>${p||'— Select —'}</option>`).join('')}
   </select>`;
 }
 function nationalityDropdown(row) {
@@ -3108,6 +3172,7 @@ function exportExcel() {
     'Passport Exp Date': row.passExp,
     'Tel (WhatsApp)':    row.tel,
     'T-Shirt Size':      row.shirt,
+    'Paid':              row.paid || '',
     'Waive':             row.waive ? 'ใช่' : '',
     'Sub Row':           row.isSubRow ? 'ใช่' : '',
   }));
@@ -3211,6 +3276,8 @@ const REPORT_CONFIG = {
                  filter: r => (r.instead || '').trim() !== '' },
   staff:       { title: '👔 Staff — รหัสขึ้นต้นด้วย STAFF',
                  filter: r => (r.code || '').trim().toUpperCase().startsWith('STAFF') },
+  paid:        { title: '💰 Paid — จำนวนคนตาม Tier',
+                 filter: r => (r.paid || '').toString().trim() !== '' },
 };
 
 let _currentReportKey = null;
@@ -3220,9 +3287,39 @@ function openReport(key) {
   if (!cfg) return;
   _currentReportKey = key;
   const matched = rows.filter(cfg.filter);
+  const isPaid = key === 'paid';
 
   document.getElementById('report-title').textContent = cfg.title;
   document.getElementById('report-count').textContent = `${matched.length} รายการ`;
+
+  // Toggle Paid column header + tier summary panel
+  const paidTh = document.querySelector('#report-table .report-col-paid');
+  if (paidTh) paidTh.style.display = isPaid ? '' : 'none';
+
+  const tierBox = document.getElementById('report-tier-summary');
+  if (isPaid) {
+    const tierCounts = {};
+    PAID_OPTIONS.filter(p => p !== '').forEach(p => { tierCounts[p] = 0; });
+    matched.forEach(r => {
+      const key = Number(r.paid).toFixed(2);
+      if (tierCounts[key] != null) tierCounts[key]++;
+    });
+    const total = matched.length;
+    const chips = Object.entries(tierCounts).map(([tier, count]) => {
+      const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+      const none = count === 0;
+      return `<div class="tier-chip${none ? ' t-none' : ''}">
+        <div class="t-label">${tier}</div>
+        <div class="t-count">${count}</div>
+        <div class="t-pct">${pct}%</div>
+      </div>`;
+    }).join('');
+    tierBox.innerHTML = `<h4>สรุปจำนวนคนตาม Tier</h4><div class="tier-grid">${chips}</div>`;
+    tierBox.style.display = '';
+  } else {
+    tierBox.style.display = 'none';
+    tierBox.innerHTML = '';
+  }
 
   const tbody = document.getElementById('report-tbody');
   const empty = document.getElementById('report-empty');
@@ -3246,6 +3343,7 @@ function openReport(key) {
         <td>${esc(r.flight) || '—'}</td>
         <td>${esc(r.passId) || '—'}</td>
         <td>${esc(r.tel) || '—'}</td>
+        ${isPaid ? `<td style="text-align:center;font-weight:700;color:#15803d">${esc(r.paid) || '—'}</td>` : ''}
       `;
       tbody.appendChild(tr);
     });
@@ -3285,6 +3383,7 @@ function exportReportExcel() {
     'Passport Exp':      r.passExp,
     'WhatsApp':          r.tel,
     'T-Shirt':           r.shirt,
+    'Paid':              r.paid || '',
     'Waive':             r.waive ? 'ใช่' : '',
     'Sub Row':           r.isSubRow ? 'ใช่' : '',
   }));
