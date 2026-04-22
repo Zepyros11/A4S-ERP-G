@@ -212,6 +212,8 @@
     .cs-stat-card.s-staff  .cs-stat-value { color: #4f46e5; }
     .cs-stat-card.s-paid   .cs-stat-icon { background: #dcfce7; }
     .cs-stat-card.s-paid   .cs-stat-value { color: #15803d; }
+    .cs-stat-card.s-nobook .cs-stat-icon { background: #ffedd5; }
+    .cs-stat-card.s-nobook .cs-stat-value { color: #c2410c; }
 
     /* Tier summary block inside report modal */
     #report-tier-summary {
@@ -1024,6 +1026,13 @@
       <div>
         <div class="cs-stat-value" id="st-paid">0</div>
         <div class="cs-stat-label">Paid</div>
+      </div>
+    </div>
+    <div class="cs-stat-card s-nobook" data-report="no-booking">
+      <div class="cs-stat-icon">📭</div>
+      <div>
+        <div class="cs-stat-value" id="st-no-booking">0</div>
+        <div class="cs-stat-label">No Booking</div>
       </div>
     </div>
   </div>
@@ -2382,6 +2391,7 @@ function updateStats() {
   const insteadCnt  = all.filter(r => (r.instead || '').trim() !== '').length;
   const staffCnt    = all.filter(r => (r.code || '').trim().toUpperCase().startsWith('STAFF')).length;
   const paidCnt     = all.filter(r => (r.paid || '').toString().trim() !== '').length;
+  const noBookCnt   = all.filter(r => !r.group || r.group.trim() === '').length;
 
   document.getElementById('st-total').textContent    = total;
   document.getElementById('st-conf').textContent     = conf;
@@ -2396,6 +2406,7 @@ function updateStats() {
   document.getElementById('st-instead').textContent  = insteadCnt;
   document.getElementById('st-staff').textContent    = staffCnt;
   document.getElementById('st-paid').textContent     = paidCnt;
+  document.getElementById('st-no-booking').textContent = noBookCnt;
 }
 
 function sortBy(col) {
@@ -3278,6 +3289,8 @@ const REPORT_CONFIG = {
                  filter: r => (r.code || '').trim().toUpperCase().startsWith('STAFF') },
   paid:        { title: '💰 Paid — จำนวนคนตาม Tier',
                  filter: r => (r.paid || '').toString().trim() !== '' },
+  'no-booking':{ title: '📭 No Booking — ยังไม่มี Group',
+                 filter: r => !r.group || r.group.trim() === '' },
 };
 
 let _currentReportKey = null;
