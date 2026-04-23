@@ -638,7 +638,7 @@ function renderTable(list) {
 function _buildSavedRowsHtml(list) {
   return list.length
     ? list.map(renderSavedRow).join("")
-    : `<tr class="empty-state-row"><td colspan="6"><div class="empty-state" style="padding:20px">
+    : `<tr class="empty-state-row"><td colspan="7"><div class="empty-state" style="padding:20px">
         <div class="empty-icon" style="font-size:28px">👥</div>
         <div class="empty-text" style="font-size:12px">ยังไม่มีผู้เข้าร่วมที่ตรง — พิมพ์ที่แถวบนเพื่อเพิ่ม</div>
       </div></td></tr>`;
@@ -710,6 +710,7 @@ function renderNewRow(r) {
       ${prereq}
     </td>
     <td class="col-center">${posBadge}</td>
+    <td class="col-center">${r.phone ? `<span class="cell-phone">${escapeHtml(r.phone)}</span>` : '<span style="color:var(--text3);font-size:11px">—</span>'}</td>
     <td class="col-center"><span class="cell-ticket">auto</span></td>
     <td class="col-center">
       <select class="inline-select" onchange="window.onNewRowPayment('${r.id}', this.value)">
@@ -739,12 +740,14 @@ function renderSavedRow(a) {
         <div style="font-weight:600;cursor:text" title="คลิกเพื่อแก้ไข">
           ${a.member_code ? `<span style="font-family:'IBM Plex Mono',monospace;font-size:10px;background:#1e40af;color:#fff;padding:2px 7px;border-radius:10px;font-weight:700;margin-right:6px">${escapeHtml(a.member_code)}</span>` : ""}${escapeHtml(a.name)}
         </div>
-        ${a.phone ? `<div style="font-size:11px;color:var(--text3)">📱 ${escapeHtml(a.phone)}</div>` : ""}
         ${renderTagsInline(a)}
       </div>
     </td>
     <td class="col-center">
       ${a.position_level ? `<span class="cell-member-pos">⭐ ${escapeHtml(a.position_level)}</span>` : '<span style="color:var(--text3);font-size:11px">—</span>'}
+    </td>
+    <td class="col-center">
+      ${a.phone ? `<span class="cell-phone">${escapeHtml(a.phone)}</span>` : '<span style="color:var(--text3);font-size:11px">—</span>'}
     </td>
     <td class="col-center">
       <div class="cell-ticket">${a.ticket_no || "—"}</div>
