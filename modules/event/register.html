@@ -771,9 +771,13 @@ async function doRegister() {
   msgEl.style.display = 'none';
 
   try {
-    // 1. Find member
+    // 1. Find member — ลอง members (MLM) ก่อน · fallback ไป test_members (mock สำหรับทดสอบ)
     const members = await sbGet(`members?member_code=eq.${encodeURIComponent(code)}&select=member_code,member_name,full_name,phone,password_hash&limit=1`);
-    const member = members[0];
+    let member = members[0];
+    if (!member) {
+      const testRows = await sbGet(`test_members?member_code=eq.${encodeURIComponent(code)}&select=member_code,member_name,full_name,phone,password_hash&limit=1`);
+      member = testRows[0];
+    }
     if (!member) { showMsg('❌ ไม่พบรหัสสมาชิกนี้', 'error'); btn.disabled = false; btn.textContent = '🎫 ลงทะเบียน'; return; }
 
     // 2. Verify password via hash (no master key needed — works anywhere)

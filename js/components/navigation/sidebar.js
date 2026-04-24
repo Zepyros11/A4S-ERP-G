@@ -367,6 +367,12 @@
           label: "System Health Check",
           path: BASE_PATH + "/modules/dev-tool/autocheck.html",
         },
+        {
+          id: "test-members",
+          icon: "🧪",
+          label: "Test Members (Mock)",
+          path: BASE_PATH + "/modules/dev-tool/test-members.html",
+        },
       ],
     },
   ];
@@ -417,6 +423,7 @@
     wizard: "devtool_manage",
     "devtool-settings": "devtool_manage",
     autocheck: "devtool_view",
+    "test-members": "devtool_view",
   };
 
   /* ── อ่าน effective_perms จาก session (ไม่พึ่ง AuthZ) ── */
@@ -499,6 +506,7 @@
     "wizard",
     "devtool-settings",
     "autocheck",
+    "test-members",
     // "reports",
     // "db_viewer",
   ];

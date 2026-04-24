@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Test Members — A4S-ERP Dev Tool</title>
+<link rel="stylesheet" href="../../css/main.css">
+<style>
+/* ── Hero ── */
+.tm-hero{background:linear-gradient(135deg,#1e293b,#334155);color:#fff;border-radius:14px;padding:22px 26px;margin-bottom:18px;box-shadow:0 8px 24px rgba(30,41,59,.3);position:relative;overflow:hidden;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;}
+.tm-hero::before{content:'';position:absolute;top:-40px;right:-40px;width:160px;height:160px;border-radius:50%;background:rgba(255,255,255,.04);}
+.tm-hero h1{font-size:20px;font-weight:700;margin:0 0 4px;display:flex;align-items:center;gap:10px;position:relative;z-index:1;}
+.tm-hero p{margin:0;font-size:13px;opacity:.85;line-height:1.55;position:relative;z-index:1;}
+.tm-hero-actions{display:flex;gap:8px;flex-shrink:0;position:relative;z-index:1;}
+.tm-btn-hero{padding:10px 18px;border:none;border-radius:22px;background:rgba(255,255,255,.15);color:#fff;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;backdrop-filter:blur(6px);border:1.5px solid rgba(255,255,255,.2);transition:all .15s;display:flex;align-items:center;gap:7px;}
+.tm-btn-hero:hover{background:rgba(255,255,255,.25);transform:translateY(-1px);}
+.tm-btn-hero.primary{background:linear-gradient(135deg,#f59e0b,#f97316);border-color:transparent;box-shadow:0 3px 10px rgba(249,115,22,.35);}
+.tm-btn-hero.primary:hover{box-shadow:0 6px 16px rgba(249,115,22,.45);}
+
+/* ── Toolbar ── */
+.tm-toolbar{display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap;}
+.tm-search{flex:1;min-width:240px;max-width:480px;padding:9px 14px;border:1.5px solid var(--border);border-radius:20px;font-family:inherit;font-size:13px;background:var(--surface);outline:none;transition:border-color .15s;}
+.tm-search:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(15,76,117,.12);}
+.tm-filter{padding:9px 14px;border:1.5px solid var(--border);border-radius:20px;font-family:inherit;font-size:13px;background:var(--surface);cursor:pointer;}
+
+/* ── Table ── */
+.tm-panel{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;}
+.tm-table{width:100%;border-collapse:collapse;font-size:13px;}
+.tm-table th{padding:10px 12px;background:var(--surface2);font-size:11px;font-weight:700;letter-spacing:.5px;color:var(--text3);text-align:left;border-bottom:2px solid var(--border);white-space:nowrap;}
+.tm-table td{padding:10px 12px;border-bottom:1px solid var(--border);vertical-align:middle;}
+.tm-table tr:last-child td{border-bottom:none;}
+.tm-table tr:hover td{background:var(--accent-pale);}
+.tm-code{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--text2);font-weight:600;}
+.tm-name{font-weight:600;color:var(--text);}
+.tm-mask{font-family:'IBM Plex Mono',monospace;color:var(--text3);letter-spacing:1px;}
+.tm-plain{font-family:'IBM Plex Mono',monospace;color:#065f46;background:#f0fdf4;padding:2px 8px;border-radius:4px;font-size:12px;}
+
+.tm-pkg{display:inline-flex;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;}
+.tm-pkg-DM{background:#ddd6fe;color:#5b21b6;}
+.tm-pkg-SI{background:#fef3c7;color:#92400e;}
+.tm-pkg-PL{background:#cffafe;color:#0e7490;}
+.tm-pkg-MB{background:#fce7f3;color:#9f1239;}
+.tm-pkg-EM{background:#d1fae5;color:#065f46;}
+
+.tm-row-actions{display:flex;gap:6px;justify-content:flex-end;}
+.tm-row-btn{width:28px;height:28px;border:1px solid var(--border);background:var(--surface);border-radius:6px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;font-size:13px;color:var(--text3);transition:all .12s;}
+.tm-row-btn:hover{background:var(--accent);color:#fff;border-color:var(--accent);}
+.tm-row-btn.danger:hover{background:#dc2626;border-color:#dc2626;}
+
+.tm-empty{padding:60px 20px;text-align:center;color:var(--text3);}
+.tm-empty-icon{font-size:48px;margin-bottom:10px;opacity:.5;}
+
+/* ── Modal ── */
+.tm-overlay{position:fixed;inset:0;background:rgba(15,23,42,.45);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;z-index:2000;padding:16px;}
+.tm-overlay.open{display:flex;}
+.tm-modal{background:#fff;border-radius:14px;width:100%;max-width:720px;max-height:92vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.25);}
+.tm-modal-head{padding:18px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:10px;}
+.tm-modal-head h2{font-size:17px;font-weight:700;color:var(--text);margin:0;display:flex;align-items:center;gap:8px;}
+.tm-close{background:none;border:none;font-size:20px;cursor:pointer;color:var(--text3);width:32px;height:32px;border-radius:6px;display:flex;align-items:center;justify-content:center;}
+.tm-close:hover{background:var(--surface2);color:var(--text);}
+.tm-modal-body{padding:18px 22px;overflow-y:auto;flex:1;}
+.tm-modal-foot{padding:14px 22px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:space-between;align-items:center;background:var(--surface2);}
+
+.tm-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;}
+.tm-row.triple{grid-template-columns:1fr 1fr 1fr;}
+.tm-field{display:flex;flex-direction:column;gap:5px;}
+.tm-field label{font-size:11.5px;font-weight:600;color:var(--text2);letter-spacing:.3px;}
+.tm-field label .req{color:var(--danger);}
+.tm-field input, .tm-field select, .tm-field textarea{padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:#fff;outline:none;transition:border-color .15s;}
+.tm-field input:focus, .tm-field select:focus, .tm-field textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(15,76,117,.12);}
+.tm-field textarea{resize:vertical;min-height:60px;}
+.tm-field .hint{font-size:10.5px;color:var(--text3);}
+
+.tm-section{border-top:1px dashed var(--border);margin-top:14px;padding-top:14px;}
+.tm-section-title{font-size:12px;font-weight:700;color:var(--text2);margin-bottom:10px;letter-spacing:.4px;text-transform:uppercase;display:flex;align-items:center;gap:6px;}
+
+.tm-btn{padding:9px 18px;border:none;border-radius:20px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;gap:6px;}
+.tm-btn.ghost{background:transparent;color:var(--text2);border:1.5px solid var(--border);}
+.tm-btn.ghost:hover{background:var(--surface2);border-color:var(--text3);}
+.tm-btn.primary{background:linear-gradient(135deg,var(--accent),var(--accent-light));color:#fff;box-shadow:0 3px 10px rgba(15,76,117,.3);}
+.tm-btn.primary:hover{transform:translateY(-1px);box-shadow:0 5px 14px rgba(15,76,117,.4);}
+.tm-btn.random{background:linear-gradient(135deg,#f59e0b,#f97316);color:#fff;box-shadow:0 3px 10px rgba(249,115,22,.3);}
+.tm-btn.random:hover{transform:translateY(-1px);box-shadow:0 5px 14px rgba(249,115,22,.4);}
+
+/* ── Stats ── */
+.tm-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:18px;}
+.tm-stat{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px;display:flex;align-items:center;gap:12px;}
+.tm-stat-icon{width:42px;height:42px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;}
+.tm-stat-label{font-size:11.5px;color:var(--text3);font-weight:600;}
+.tm-stat-val{font-size:20px;font-weight:700;color:var(--text);font-variant-numeric:tabular-nums;}
+
+@media(max-width:640px){
+  .tm-row,.tm-row.triple{grid-template-columns:1fr;}
+  .tm-stats{grid-template-columns:1fr 1fr;}
+}
+</style>
+</head>
+<body>
+
+<div class="loading-overlay" id="loadingOverlay"><div class="spinner"></div></div>
+<div class="toast" id="toast"></div>
+
+<div class="topbar"></div>
+
+<div class="page">
+
+  <!-- Hero -->
+  <div class="tm-hero">
+    <div>
+      <h1>🧪 Test Members</h1>
+      <p>สร้างสมาชิกจำลอง (mock) สำหรับทดสอบ flow ฝั่ง member<br>
+      <span style="opacity:.7;font-size:12px">แยกจาก MLM members · schema เหมือนกัน · ใช้ test ID/PW กับ register / LIFF / LINE login ได้</span></p>
+    </div>
+    <div class="tm-hero-actions">
+      <button class="tm-btn-hero" onclick="toggleDecrypt()" id="btnDecrypt">🔓 ถอดรหัส</button>
+      <button class="tm-btn-hero primary" onclick="openCreateModal()">➕ สร้าง Test Member</button>
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div class="tm-stats">
+    <div class="tm-stat">
+      <div class="tm-stat-icon" style="background:#e0f2fe;color:#0369a1">🧪</div>
+      <div><div class="tm-stat-label">Test Members</div><div class="tm-stat-val" id="statTotal">—</div></div>
+    </div>
+    <div class="tm-stat">
+      <div class="tm-stat-icon" style="background:#fef3c7;color:#92400e">🔑</div>
+      <div><div class="tm-stat-label">มี Password Hash</div><div class="tm-stat-val" id="statWithHash">—</div></div>
+    </div>
+    <div class="tm-stat">
+      <div class="tm-stat-icon" style="background:#ddd6fe;color:#5b21b6">🌲</div>
+      <div><div class="tm-stat-label">มี Upline</div><div class="tm-stat-val" id="statWithUpline">—</div></div>
+    </div>
+    <div class="tm-stat">
+      <div class="tm-stat-icon" style="background:#d1fae5;color:#065f46">📦</div>
+      <div><div class="tm-stat-label">Packages</div><div class="tm-stat-val" id="statPackages">—</div></div>
+    </div>
+  </div>
+
+  <!-- Toolbar -->
+  <div class="tm-toolbar">
+    <input class="tm-search" id="searchInput" placeholder="🔎 ค้นหา: รหัส / ชื่อ / เบอร์ / sponsor / upline" oninput="renderTable()">
+    <select class="tm-filter" id="filterPackage" onchange="renderTable()">
+      <option value="">ทุก Package</option>
+      <option value="DM">DM</option>
+      <option value="SI">SI</option>
+      <option value="PL">PL</option>
+      <option value="MB">MB</option>
+      <option value="EM">EM</option>
+    </select>
+    <button class="tm-btn ghost" onclick="loadData()">🔄 รีเฟรช</button>
+  </div>
+
+  <!-- Table -->
+  <div class="tm-panel">
+    <div style="overflow-x:auto">
+      <table class="tm-table">
+        <thead>
+          <tr>
+            <th>รหัส</th>
+            <th>ชื่อ</th>
+            <th>เบอร์</th>
+            <th>รหัสผ่าน</th>
+            <th>Package</th>
+            <th>Sponsor</th>
+            <th>Upline</th>
+            <th>ด้าน</th>
+            <th style="text-align:right">จัดการ</th>
+          </tr>
+        </thead>
+        <tbody id="tbody">
+          <tr><td colspan="9" class="tm-empty"><div class="tm-empty-icon">🧪</div>กำลังโหลด...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<!-- Create/Edit Modal -->
+<div class="tm-overlay" id="formOverlay">
+  <div class="tm-modal">
+    <div class="tm-modal-head">
+      <h2 id="formTitle">➕ สร้าง Test Member</h2>
+      <button class="tm-close" onclick="closeFormModal()">✕</button>
+    </div>
+    <div class="tm-modal-body">
+
+      <!-- ── IDENTITY ── -->
+      <div class="tm-section-title">👤 ข้อมูลสมาชิก</div>
+      <div class="tm-row triple">
+        <div class="tm-field">
+          <label>รหัสสมาชิก <span class="req">*</span></label>
+          <input id="fCode" placeholder="1234" maxlength="4">
+          <div class="hint">ตัวเลข 4 หลัก</div>
+        </div>
+        <div class="tm-field">
+          <label>Package</label>
+          <select id="fPackage">
+            <option value="">—</option>
+            <option value="DM">💎 DM</option>
+            <option value="SI">⭐ SI</option>
+            <option value="PL">💠 PL</option>
+            <option value="MB">🎁 MB</option>
+            <option value="EM">🌟 EM</option>
+          </select>
+        </div>
+        <div class="tm-field">
+          <label>ประเทศ</label>
+          <select id="fCountry">
+            <option value="TH">🇹🇭 ไทย</option>
+            <option value="KH">🇰🇭 Cambodia</option>
+            <option value="LA">🇱🇦 Laos</option>
+            <option value="MM">🇲🇲 Myanmar</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="tm-row">
+        <div class="tm-field">
+          <label>ชื่อ-นามสกุล (full_name)</label>
+          <input id="fFullName" placeholder="นาย สมชาย ทดสอบ">
+        </div>
+        <div class="tm-field">
+          <label>ชื่อแสดง (member_name)</label>
+          <input id="fMemberName" placeholder="สมชาย ทดสอบ">
+        </div>
+      </div>
+
+      <div class="tm-row triple">
+        <div class="tm-field">
+          <label>เบอร์โทร</label>
+          <input id="fPhone" placeholder="0812345678">
+        </div>
+        <div class="tm-field">
+          <label>อีเมล</label>
+          <input id="fEmail" type="email" placeholder="test@example.com">
+        </div>
+        <div class="tm-field">
+          <label>วันสมัคร</label>
+          <input id="fRegisteredAt" type="date">
+        </div>
+      </div>
+
+      <!-- ── CREDENTIALS ── -->
+      <div class="tm-section">
+        <div class="tm-section-title">🔐 Credentials (สำหรับ test login)</div>
+        <div class="tm-row">
+          <div class="tm-field">
+            <label>รหัสผ่าน <span class="req">*</span></label>
+            <input id="fPassword" type="text" placeholder="test1234">
+            <div class="hint">จะเก็บทั้ง encrypted + SHA-256 hash</div>
+          </div>
+          <div class="tm-field">
+            <label>เลขบัตรประชาชน</label>
+            <input id="fNationalId" type="text" placeholder="1234567890123" maxlength="13">
+            <div class="hint">encrypted · ต้องมี master key ถ้าอยาก decrypt</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── MLM STRUCTURE ── -->
+      <div class="tm-section">
+        <div class="tm-section-title">🌲 โครงสร้าง MLM (จำลอง)</div>
+        <div class="tm-row triple">
+          <div class="tm-field">
+            <label>Sponsor Code</label>
+            <input id="fSponsor" placeholder="T00000">
+          </div>
+          <div class="tm-field">
+            <label>Upline Code</label>
+            <input id="fUpline" placeholder="T00000">
+          </div>
+          <div class="tm-field">
+            <label>ด้าน (side)</label>
+            <select id="fSide">
+              <option value="">—</option>
+              <option value="ซ้าย">ซ้าย</option>
+              <option value="ขวา">ขวา</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── NOTES ── -->
+      <div class="tm-section">
+        <div class="tm-field">
+          <label>หมายเหตุ</label>
+          <textarea id="fNote" placeholder="เช่น: ใช้ทดสอบ LIFF event register flow"></textarea>
+        </div>
+      </div>
+
+    </div>
+    <div class="tm-modal-foot">
+      <button class="tm-btn random" onclick="fillRandom()" type="button">🎲 สุ่มข้อมูล</button>
+      <div style="display:flex;gap:10px">
+        <button class="tm-btn ghost" onclick="closeFormModal()">ยกเลิก</button>
+        <button class="tm-btn primary" onclick="saveForm()" id="btnSaveForm">💾 บันทึก</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="../../js/core/auth.js"></script>
+<script src="../../js/core/authz.js"></script>
+<script src="../../js/core/crypto.js"></script>
+<script src="../../js/core/date-format.js"></script>
+<script>AuthZ.requirePerm("devtool_view");</script>
+<script src="./test-members.js"></script>
+<script src="../../js/components/modal/confirmModal.js"></script>
+<script src="../../js/components/modal/modalManager.js"></script>
+<script type="module">
+  import { loadTopbar } from "../../js/components/navigation/topbar.js";
+  loadTopbar("🧪 Test Members");
+</script>
+<script src="../../js/components/navigation/sidebar.js"></script>
+</body>
+</html>
