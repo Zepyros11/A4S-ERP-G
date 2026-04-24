@@ -320,7 +320,6 @@ export function loadTopbar(title = "", options = {}) {
           label: "Event Calendar",
           icon: "📅",
           href: `${BASE_PATH}/modules/event/cs-view/events-calendar.html`,
-          target: "_blank",
           title: "เปิดปฏิทินกิจกรรม",
         },
       ];
