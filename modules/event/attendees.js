@@ -56,17 +56,20 @@ async function _enrichWithMemberLineId(attendees) {
   if (!codes.length) return;
   try {
     const inList = codes.map(c => encodeURIComponent(c)).join(",");
-    const rows = await sbFetch(
-      "members",
-      `?member_code=in.(${inList})&select=member_code,line_user_id,line_display_name,line_picture_url,line_linked_at`,
-    );
-    if (!rows?.length) return;
+    const cols = "member_code,line_user_id,line_display_name,line_picture_url,line_linked_at";
+    // Query both tables in parallel — test_members อาจยังไม่มี (degrade ถ้า error)
+    const [mlmRows, testRows] = await Promise.all([
+      sbFetch("members", `?member_code=in.(${inList})&select=${cols}`),
+      sbFetch("test_members", `?member_code=in.(${inList})&select=${cols}`).catch(() => []),
+    ]);
     const byCode = {};
-    rows.forEach(r => { byCode[r.member_code] = r; });
+    (mlmRows || []).forEach(r => { byCode[r.member_code] = r; });
+    (testRows || []).forEach(r => { if (!byCode[r.member_code]) byCode[r.member_code] = r; });
+    if (!Object.keys(byCode).length) return;
     attendees.forEach(a => {
       const m = byCode[a.member_code];
       if (!m) return;
-      // Prefer members.line_user_id (latest); fallback to event_attendees value for legacy data
+      // Prefer members/test_members.line_user_id (latest); fallback to event_attendees value for legacy data
       if (m.line_user_id) {
         a.line_user_id = m.line_user_id;
         a.line_display_name = m.line_display_name || a.line_display_name;
