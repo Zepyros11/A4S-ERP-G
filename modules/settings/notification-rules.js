@@ -2,9 +2,13 @@
    Settings — Notification Rules CRUD
    ============================================================ */
 
+// kind:
+//   'on_status'  → event-driven (trigger ตอน status เปลี่ยน) — ใช้ฮุคใน browser ผ่าน Notify.evaluateRules
+//   'scheduled'  → time-driven  (cron ใน ai-proxy ยิงทุก 15 นาที) ต้องตั้ง schedule_anchor + schedule_*
 const TRIGGERS = {
   "event.confirmed": {
     label: "📌 Event ยืนยัน (CONFIRMED)",
+    kind: "on_status",
     placeholders: ["event_code", "event_name", "event_type", "event_date", "end_date", "location", "dept", "attendees_count", "request_code", "approver"],
     sample: {
       event_code:      "EVT-2026-05-001",
@@ -21,6 +25,7 @@ const TRIGGERS = {
   },
   "booking.approved": {
     label: "🏢 จองห้องประชุมอนุมัติ",
+    kind: "on_status",
     placeholders: ["room_name", "place_name", "booking_date", "start_time", "end_time", "booked_by_name", "cs_name", "request_code", "approver"],
     sample: {
       room_name:      "ห้องประชุมใหญ่",
@@ -32,6 +37,55 @@ const TRIGGERS = {
       cs_name:        "น้องส้ม",
       request_code:   "RBKQ-2026-05-001",
       approver:       "ภพ (admin)",
+    },
+  },
+  "event.scheduled": {
+    label: "⏰ Event — แจ้งตามเวลา (cron)",
+    kind: "scheduled",
+    anchor: "event_date",
+    placeholders: ["event_code", "event_name", "event_type", "event_date", "end_date", "location", "attendees_count", "start_time", "end_time"],
+    sample: {
+      event_code:      "EVT-2026-05-001",
+      event_name:      "Tech Summit 2026",
+      event_type:      "EVENT",
+      event_date:      "15/05/2026",
+      end_date:        "16/05/2026",
+      location:        "Bangkok Convention Center",
+      attendees_count: 120,
+      start_time:      "09:00",
+      end_time:        "17:00",
+    },
+  },
+  "booking.scheduled": {
+    label: "⏰ Booking — แจ้งตามเวลา (cron)",
+    kind: "scheduled",
+    anchor: "booking_date",
+    placeholders: ["request_code", "room_name", "place_name", "booking_date", "start_time", "end_time", "booked_by_name", "cs_name"],
+    sample: {
+      request_code:   "RBKQ-2026-05-001",
+      room_name:      "ห้องประชุมใหญ่",
+      place_name:     "ออฟฟิศ BKK",
+      booking_date:   "20/05/2026",
+      start_time:     "09:00",
+      end_time:       "12:00",
+      booked_by_name: "วิชัย ตั้งใจ",
+      cs_name:        "น้องส้ม",
+    },
+  },
+  "booking.before_start": {
+    label: "⏰ Booking — ก่อนเริ่ม N นาที",
+    kind: "scheduled",
+    anchor: "booking_start_time",
+    placeholders: ["request_code", "room_name", "place_name", "booking_date", "start_time", "end_time", "booked_by_name", "cs_name"],
+    sample: {
+      request_code:   "RBKQ-2026-05-001",
+      room_name:      "ห้องประชุมใหญ่",
+      place_name:     "ออฟฟิศ BKK",
+      booking_date:   "20/05/2026",
+      start_time:     "09:00",
+      end_time:       "12:00",
+      booked_by_name: "วิชัย ตั้งใจ",
+      cs_name:        "น้องส้ม",
     },
   },
 };
@@ -70,6 +124,7 @@ let allGroups = [];     // distinct group names
 let editingId = null;
 let editingTargetType = "role";
 let editingTargetValues = [];
+let editingSchedule = { offset_days: 0, offset_minutes: 0, time: "" };
 
 // ── Init ──────────────────────────────────────────────────
 async function init() {
@@ -115,7 +170,8 @@ function renderTable() {
     return;
   }
   tb.innerHTML = allRules.map((r) => {
-    const trig = TRIGGERS[r.trigger_key]?.label || r.trigger_key;
+    const meta = TRIGGERS[r.trigger_key];
+    const trig = meta?.label || r.trigger_key;
     const targetVals = Array.isArray(r.target_value) ? r.target_value : [];
     const targetText = targetVals.slice(0, 3).map((v) => {
       if (r.target_type === "user") {
@@ -126,10 +182,24 @@ function renderTable() {
     }).join(", ") + (targetVals.length > 3 ? ` +${targetVals.length - 3}` : "");
     const ch = allChannels.find((c) => c.id === r.channel_id);
     const chText = ch ? ch.name : `<span style="color:var(--text3)">default</span>`;
+    let schedBadge = "";
+    if (r.schedule_anchor) {
+      const d = r.schedule_offset_days ?? 0;
+      const t = r.schedule_time ? String(r.schedule_time).slice(0, 5) : "";
+      const m = r.schedule_offset_minutes ?? 0;
+      let info = "";
+      if (r.schedule_anchor === "booking_start_time") {
+        info = m < 0 ? `ก่อนเริ่ม ${Math.abs(m)} นาที` : `ตอนเริ่ม +${m}`;
+      } else {
+        const dayPhrase = d === 0 ? "วันงาน" : (d < 0 ? `ก่อน ${Math.abs(d)}d` : `+${d}d`);
+        info = `${dayPhrase} · ${t}`;
+      }
+      schedBadge = `<span style="display:inline-block;margin-left:6px;padding:2px 7px;border-radius:6px;font-size:10px;font-weight:700;background:#fef3c7;color:#92400e;">⏰ ${info}</span>`;
+    }
     return `
       <tr>
         <td><div class="nr-name">${escapeHtml(r.rule_name)}</div></td>
-        <td><span class="nr-trigger-chip">${escapeHtml(trig)}</span></td>
+        <td><span class="nr-trigger-chip">${escapeHtml(trig)}</span>${schedBadge}</td>
         <td>
           <span class="nr-target-type">${r.target_type}</span>
           <span style="font-size:12.5px;color:var(--text2);">${escapeHtml(targetText) || "—"}</span>
@@ -213,6 +283,11 @@ function openRuleModal(id) {
 
   editingTargetType = rule?.target_type || "role";
   editingTargetValues = Array.isArray(rule?.target_value) ? [...rule.target_value] : [];
+  editingSchedule = {
+    offset_days:    rule?.schedule_offset_days ?? 0,
+    offset_minutes: rule?.schedule_offset_minutes ?? 0,
+    time:           rule?.schedule_time ? String(rule.schedule_time).slice(0, 5) : "",
+  };
 
   // set radio
   document.querySelectorAll("#fTargetTypeGroup .nr-radio").forEach((el) => {
@@ -246,6 +321,93 @@ function onTriggerChange() {
   bar.innerHTML = meta.placeholders.map((p) =>
     `<span class="nr-ph" onclick="insertPlaceholder('${p}')">{{${p}}}</span>`
   ).join("");
+
+  // โชว์/ซ่อน schedule fields ตาม trigger.kind
+  const wrap = document.getElementById("fScheduleWrap");
+  const chHint = document.getElementById("fChannelHint");
+  if (meta.kind === "scheduled") {
+    wrap.style.display = "block";
+    chHint.style.display = "block";
+    renderScheduleFields(meta);
+  } else {
+    wrap.style.display = "none";
+    chHint.style.display = "none";
+  }
+}
+
+function renderScheduleFields(meta) {
+  const box = document.getElementById("fScheduleFields");
+  if (meta.anchor === "booking_start_time") {
+    box.innerHTML = `
+      <div class="nr-row-2">
+        <div class="nr-field" style="margin-bottom:0;">
+          <label>Offset นาที (ก่อน start_time) *</label>
+          <input type="number" id="fSchedMin" value="${editingSchedule.offset_minutes ?? -30}" oninput="updateScheduleState()">
+          <div class="nr-hint">ลบ = ก่อนเริ่ม · เช่น <code>-30</code> = ก่อนเริ่ม 30 นาที</div>
+        </div>
+        <div class="nr-field" style="margin-bottom:0;">
+          <label>Offset วัน</label>
+          <input type="number" id="fSchedDays" value="${editingSchedule.offset_days ?? 0}" oninput="updateScheduleState()">
+          <div class="nr-hint">ปกติ <code>0</code> (ถ้าจะ "เตือนเมื่อวานก่อน" ใช้ <code>-1</code>)</div>
+        </div>
+      </div>`;
+  } else {
+    // event_date / booking_date
+    box.innerHTML = `
+      <div class="nr-row-2">
+        <div class="nr-field" style="margin-bottom:0;">
+          <label>Offset วัน *</label>
+          <input type="number" id="fSchedDays" value="${editingSchedule.offset_days ?? 0}" oninput="updateScheduleState()">
+          <div class="nr-hint"><code>0</code> = วันงาน · <code>-1</code> = ล่วงหน้า 1 วัน · <code>-7</code> = ล่วงหน้า 7 วัน</div>
+        </div>
+        <div class="nr-field" style="margin-bottom:0;">
+          <label>เวลา (HH:MM) *</label>
+          <input type="time" id="fSchedTime" value="${editingSchedule.time || "09:00"}" oninput="updateScheduleState()">
+          <div class="nr-hint">cron ยิงทุก 15 นาที — เลือก HH:MM ใดก็ได้</div>
+        </div>
+      </div>`;
+  }
+  // sync state จาก default values
+  updateScheduleState();
+}
+
+function updateScheduleState() {
+  const tk = document.getElementById("fTrigger").value;
+  const meta = TRIGGERS[tk];
+  if (!meta || meta.kind !== "scheduled") return;
+  const days = parseInt(document.getElementById("fSchedDays")?.value, 10);
+  editingSchedule.offset_days = isNaN(days) ? 0 : days;
+  if (meta.anchor === "booking_start_time") {
+    const m = parseInt(document.getElementById("fSchedMin")?.value, 10);
+    editingSchedule.offset_minutes = isNaN(m) ? 0 : m;
+    editingSchedule.time = "";
+  } else {
+    editingSchedule.time = document.getElementById("fSchedTime")?.value || "";
+    editingSchedule.offset_minutes = 0;
+  }
+  renderSchedulePreview(meta);
+}
+
+function renderSchedulePreview(meta) {
+  const el = document.getElementById("fSchedulePreview");
+  if (!el) return;
+  const d = editingSchedule.offset_days || 0;
+  const t = editingSchedule.time || "";
+  const m = editingSchedule.offset_minutes || 0;
+
+  let txt = "";
+  if (meta.anchor === "event_date") {
+    const phrase = d === 0 ? "ในวันงาน" : (d < 0 ? `ล่วงหน้า ${Math.abs(d)} วัน` : `หลังงาน ${d} วัน`);
+    txt = `📅 ส่ง <b>${phrase}</b> เวลา <b>${t || "??:??"}</b> น. — สำหรับทุก event ที่ <b>status=CONFIRMED</b>`;
+  } else if (meta.anchor === "booking_date") {
+    const phrase = d === 0 ? "ในวันจอง" : (d < 0 ? `ล่วงหน้า ${Math.abs(d)} วัน` : `หลังจอง ${d} วัน`);
+    txt = `📅 ส่ง <b>${phrase}</b> เวลา <b>${t || "??:??"}</b> น. — สำหรับทุก booking ที่ <b>status=APPROVED</b>`;
+  } else if (meta.anchor === "booking_start_time") {
+    const phrase = m < 0 ? `ก่อนเริ่ม <b>${Math.abs(m)} นาที</b>` : (m > 0 ? `หลังเริ่ม <b>${m} นาที</b>` : `ตอนเริ่ม`);
+    const dayPhrase = d === 0 ? "วันนั้น" : (d < 0 ? `${Math.abs(d)} วันก่อน` : `${d} วันหลัง`);
+    txt = `⏱ ส่ง ${phrase} ของแต่ละ booking (${dayPhrase})`;
+  }
+  el.innerHTML = txt;
 }
 
 function insertPlaceholder(name) {
@@ -446,6 +608,16 @@ async function saveRule() {
   if (!editingTargetValues.length) return showToast("กรุณาเลือก target อย่างน้อย 1", "error");
   if (!tpl) return showToast("กรุณาใส่ข้อความ template", "error");
 
+  const meta = TRIGGERS[trigger];
+  const isScheduled = meta?.kind === "scheduled";
+
+  // Validate scheduled fields
+  if (isScheduled) {
+    if (meta.anchor !== "booking_start_time" && !editingSchedule.time) {
+      return showToast("กรุณาเลือกเวลา (HH:MM)", "error");
+    }
+  }
+
   const payload = {
     rule_name: name,
     trigger_key: trigger,
@@ -454,6 +626,13 @@ async function saveRule() {
     channel_id: channelId,
     message_template: tpl,
     is_active: isActive,
+    // schedule fields — set เฉพาะ scheduled, ถ้าไม่ใช่ให้เคลียร์ทุกตัว
+    schedule_anchor:          isScheduled ? meta.anchor : null,
+    schedule_offset_days:     isScheduled ? (editingSchedule.offset_days || 0) : 0,
+    schedule_offset_minutes:  isScheduled ? (editingSchedule.offset_minutes || 0) : 0,
+    schedule_time:            (isScheduled && meta.anchor !== "booking_start_time" && editingSchedule.time)
+                                ? editingSchedule.time
+                                : null,
   };
 
   const btn = document.getElementById("nrSaveBtn");
@@ -560,5 +739,6 @@ window.onTagInputBlur = onTagInputBlur;
 window.pickTagSuggestion = pickTagSuggestion;
 window.filterUserPicker = filterUserPicker;
 window.testSendRule = testSendRule;
+window.updateScheduleState = updateScheduleState;
 
 document.addEventListener("DOMContentLoaded", init);

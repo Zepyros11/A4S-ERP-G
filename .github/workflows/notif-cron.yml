@@ -1,0 +1,41 @@
+name: Scheduled LINE Notifications
+
+# Triggers the ai-proxy /cron/notifications endpoint every 15 minutes.
+# Endpoint queries notification_rules with schedule_anchor IS NOT NULL,
+# matches against events/bookings, and sends LINE multicast to staff groups.
+#
+# Optional auth: set GitHub repo secret CRON_SECRET to require x-cron-secret header.
+#   (must match Render env var CRON_SECRET on ai-proxy)
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'    # every 15 minutes (UTC, but logic uses Bangkok TZ inside)
+  workflow_dispatch:           # allow manual trigger from Actions tab
+
+jobs:
+  fire:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Trigger /cron/notifications
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          URL="https://a4s-erp-proxy.onrender.com/cron/notifications"
+          echo "POST $URL"
+          if [ -n "$CRON_SECRET" ]; then
+            HEADER="-H x-cron-secret:$CRON_SECRET"
+          else
+            HEADER=""
+          fi
+          RESPONSE=$(curl -s -w "\nHTTP_CODE:%{http_code}" --max-time 120 -X POST $HEADER "$URL")
+          BODY=$(echo "$RESPONSE" | sed '$d')
+          CODE=$(echo "$RESPONSE" | tail -n1 | sed 's/HTTP_CODE://')
+          echo "HTTP $CODE"
+          echo "Response:"
+          echo "$BODY"
+          if [ "$CODE" != "200" ]; then
+            echo "::warning::Unexpected status $CODE"
+            exit 1
+          fi
+          echo "✅ Cron tick processed"

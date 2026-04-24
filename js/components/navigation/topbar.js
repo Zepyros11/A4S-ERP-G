@@ -309,8 +309,11 @@ export function loadTopbar(title = "", options = {}) {
   const roleLabel = session?.role || "";
 
   /* ---------------- Action Links ---------------- */
-  // Global action: Event Calendar (shown on every page unless skipDefaults=true)
-  const defaultActions = options.skipDefaults
+  // Global action: Event Calendar (gated by evt_calendar_view perm)
+  const canSeeCalendar = window.AuthZ
+    ? window.AuthZ.hasPerm("evt_calendar_view")
+    : true;
+  const defaultActions = options.skipDefaults || !canSeeCalendar
     ? []
     : [
         {

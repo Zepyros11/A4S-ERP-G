@@ -744,6 +744,316 @@ app.post('/line/info', async (req, res) => {
   }
 });
 
+/* ══════════════════════════════════════════════════════════
+   Scheduled Notifications (cron-driven)
+   ──────────────────────────────────────────────────────────
+   POST /cron/notifications
+     Triggered every ~15 min by GitHub Actions.
+     Reads notification_rules where schedule_anchor IS NOT NULL,
+     finds events/bookings whose anchor time matches "now ± 15 min",
+     resolves staff targets, sends LINE multicast, logs.
+
+   Limitation: Uses LINE_CHANNEL_TOKEN env var (single OA) for ALL
+   scheduled sends — rule.channel_id is ignored because per-channel
+   tokens are encrypted with browser-side master key (not available here).
+   ══════════════════════════════════════════════════════════ */
+
+const CRON_WINDOW_MIN = 15;
+const CRON_SECRET = process.env.CRON_SECRET || '';
+
+function _bangkokNow() {
+  const d = new Date();
+  const bkk = new Date(d.getTime() + 7 * 60 * 60 * 1000);
+  const yyyy = bkk.getUTCFullYear();
+  const mm = String(bkk.getUTCMonth() + 1).padStart(2, '0');
+  const dd = String(bkk.getUTCDate()).padStart(2, '0');
+  const hh = bkk.getUTCHours();
+  const min = bkk.getUTCMinutes();
+  return {
+    date: `${yyyy}-${mm}-${dd}`,
+    hh, mm: min,
+    totalMinutes: hh * 60 + min,
+    iso: `${yyyy}-${mm}-${dd}T${String(hh).padStart(2,'0')}:${String(min).padStart(2,'0')}:00+07:00`,
+  };
+}
+
+function _addDays(yyyymmdd, days) {
+  const [y, m, d] = String(yyyymmdd).split('-').map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  dt.setUTCDate(dt.getUTCDate() + days);
+  const yy = dt.getUTCFullYear();
+  const mm = String(dt.getUTCMonth() + 1).padStart(2, '0');
+  const dd = String(dt.getUTCDate()).padStart(2, '0');
+  return `${yy}-${mm}-${dd}`;
+}
+
+function _formatDMY(yyyymmdd) {
+  if (!yyyymmdd) return '';
+  const m = String(yyyymmdd).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!m) return yyyymmdd;
+  return `${m[3]}/${m[2]}/${m[1]}`;
+}
+
+function _renderTpl(template, payload) {
+  if (!template) return '';
+  return String(template).replace(/\{\{\s*([a-zA-Z0-9_.]+)\s*\}\}/g, (_, key) => {
+    const v = payload?.[key];
+    return v == null ? '' : String(v);
+  });
+}
+
+// ตรวจว่า want time (HH:MM) อยู่ใน window [now, now-windowMin) ของวันนั้น
+function _timeInWindow(wantTimeStr, now, windowMin) {
+  if (!wantTimeStr) return false;
+  const m = String(wantTimeStr).match(/^(\d{1,2}):(\d{2})/);
+  if (!m) return false;
+  const wantMin = parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
+  // fire if now ∈ [wantMin, wantMin + windowMin)
+  return now.totalMinutes >= wantMin && now.totalMinutes < wantMin + windowMin;
+}
+
+async function _resolveRuleTargets(rule) {
+  const type = rule.target_type;
+  const values = Array.isArray(rule.target_value) ? rule.target_value : [];
+  if (!values.length) return [];
+
+  let filter = '';
+  if (type === 'role') {
+    const list = values.map(v => encodeURIComponent(v)).join(',');
+    filter = `role=in.(${list})`;
+  } else if (type === 'group') {
+    const list = values.map(v => `"${String(v).replace(/"/g, '\\"')}"`).join(',');
+    filter = `notification_groups=ov.{${list}}`;
+  } else if (type === 'user') {
+    const ids = values.filter(v => v != null).join(',');
+    if (!ids) return [];
+    filter = `user_id=in.(${ids})`;
+  } else {
+    return [];
+  }
+
+  const rows = await _sbGet('users',
+    `select=user_id,line_user_id&is_active=eq.true&line_user_id=not.is.null&${filter}`);
+  return rows || [];
+}
+
+async function _checkDedupe(ruleId, refKey, refId) {
+  if (refId == null) return false;
+  const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  // PostgREST JSONB filter: payload_ref->>event_id=eq.123
+  const rows = await _sbGet('notification_log',
+    `select=id&rule_id=eq.${ruleId}&status=eq.sent&sent_at=gte.${encodeURIComponent(since)}&payload_ref->>${encodeURIComponent(refKey)}=eq.${encodeURIComponent(String(refId))}&limit=1`);
+  return Array.isArray(rows) && rows.length > 0;
+}
+
+async function _logBatch(rule, refKey, refId, recipients, status, error) {
+  if (!SB_URL_WEBHOOK || !SB_SERVICE_KEY) return;
+  const payload_ref = refId != null ? { [refKey]: refId } : null;
+  const entries = (recipients?.length ? recipients : [{ user_id: null, line_user_id: null }]).map(r => ({
+    rule_id: rule.id,
+    trigger_key: rule.trigger_key,
+    payload_ref,
+    recipient_user_id: r.user_id || null,
+    recipient_line_id: r.line_user_id || null,
+    channel_id: null,
+    status,
+    error: error || null,
+  }));
+  try {
+    await fetch(`${SB_URL_WEBHOOK}/rest/v1/notification_log`, {
+      method: 'POST',
+      headers: {
+        apikey: SB_SERVICE_KEY,
+        Authorization: `Bearer ${SB_SERVICE_KEY}`,
+        'Content-Type': 'application/json',
+        Prefer: 'return=minimal',
+      },
+      body: JSON.stringify(entries),
+    });
+  } catch (e) {
+    console.warn('[cron log]', e.message);
+  }
+}
+
+async function _multicastViaCronToken(lineIds, text) {
+  if (!LINE_CHANNEL_TOKEN) throw new Error('LINE_CHANNEL_TOKEN not set');
+  if (!lineIds?.length) return;
+  for (let i = 0; i < lineIds.length; i += 500) {
+    const chunk = lineIds.slice(i, i + 500);
+    const r = await fetch('https://api.line.me/v2/bot/message/multicast', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${LINE_CHANNEL_TOKEN}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        to: chunk,
+        messages: [{ type: 'text', text: String(text).slice(0, 5000) }],
+      }),
+    });
+    if (!r.ok) {
+      const errTxt = await r.text().catch(() => '');
+      throw new Error(`LINE ${r.status}: ${errTxt.slice(0, 200)}`);
+    }
+  }
+}
+
+function _payloadFromEvent(rec) {
+  return {
+    event_id:        rec.event_id,
+    event_code:      rec.event_code || '',
+    event_name:      rec.event_name || '',
+    event_type:      rec.event_type || '',
+    event_date:      _formatDMY(rec.event_date),
+    end_date:        _formatDMY(rec.end_date),
+    location:        rec.location || '',
+    attendees_count: rec.max_attendees || '',
+    start_time:      (rec.start_time || '').slice(0, 5),
+    end_time:        (rec.end_time || '').slice(0, 5),
+  };
+}
+
+function _payloadFromBooking(rec) {
+  return {
+    request_id:     rec.request_id,
+    request_code:   rec.request_code || '',
+    room_name:      rec.room_name || '',
+    place_name:     rec.place_name || '',
+    booking_date:   _formatDMY(rec.booking_date),
+    start_time:     (rec.start_time || '').slice(0, 5),
+    end_time:       rec.end_time === 'ALLDAY' ? 'ทั้งวัน' : (rec.end_time || '').slice(0, 5),
+    booked_by_name: rec.booked_by_name || '',
+    cs_name:        rec.cs_name || '',
+  };
+}
+
+async function _processRule(rule, now) {
+  const offsetDays = rule.schedule_offset_days || 0;
+  const offsetMin  = rule.schedule_offset_minutes || 0;
+  const result = { rule_id: rule.id, sent: 0, skipped: 0, failed: 0, matched: 0, reason: null };
+
+  // 1) เลือก records + เช็ค time window
+  let records = [];
+  let refKey;
+
+  if (rule.schedule_anchor === 'event_date') {
+    if (!_timeInWindow(rule.schedule_time, now, CRON_WINDOW_MIN)) {
+      result.reason = 'time-window';
+      return result;
+    }
+    // event_date = today - offset_days  (เช่น offset=-1 → event_date = today + 1)
+    const targetDate = _addDays(now.date, -offsetDays);
+    records = (await _sbGet('events',
+      `select=*&event_date=eq.${targetDate}&status=eq.CONFIRMED`)) || [];
+    refKey = 'event_id';
+  } else if (rule.schedule_anchor === 'booking_date') {
+    if (!_timeInWindow(rule.schedule_time, now, CRON_WINDOW_MIN)) {
+      result.reason = 'time-window';
+      return result;
+    }
+    const targetDate = _addDays(now.date, -offsetDays);
+    records = (await _sbGet('room_booking_requests',
+      `select=*&booking_date=eq.${targetDate}&status=eq.APPROVED`)) || [];
+    refKey = 'request_id';
+  } else if (rule.schedule_anchor === 'booking_start_time') {
+    // วันที่อ้างอิง = today (offset_days อาจเป็น -1 ถ้าอยากเทียบเมื่อวาน)
+    const targetDate = _addDays(now.date, -offsetDays);
+    const all = (await _sbGet('room_booking_requests',
+      `select=*&booking_date=eq.${targetDate}&status=eq.APPROVED&start_time=not.is.null`)) || [];
+    records = all.filter(b => {
+      const m = String(b.start_time || '').match(/^(\d{1,2}):(\d{2})/);
+      if (!m) return false;
+      const startMin = parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
+      const fireMin = startMin + offsetMin;  // offset อาจเป็น negative
+      return fireMin >= now.totalMinutes && fireMin < now.totalMinutes + CRON_WINDOW_MIN;
+    });
+    refKey = 'request_id';
+  } else {
+    result.reason = 'unknown anchor';
+    return result;
+  }
+
+  result.matched = records.length;
+  if (!records.length) return result;
+
+  // 2) Resolve recipients ครั้งเดียว (ใช้ทุก record ของ rule นี้)
+  const recipients = await _resolveRuleTargets(rule);
+  if (!recipients.length) {
+    result.reason = 'no recipients';
+    for (const rec of records) {
+      const refId = rec[refKey];
+      const dup = await _checkDedupe(rule.id, refKey, refId);
+      if (!dup) await _logBatch(rule, refKey, refId, [], 'skipped', 'no recipients');
+      result.skipped++;
+    }
+    return result;
+  }
+  const lineIds = recipients.map(r => r.line_user_id).filter(Boolean);
+
+  // 3) ส่งทีละ record (กัน dedupe + log แยก)
+  for (const rec of records) {
+    const refId = rec[refKey];
+    if (await _checkDedupe(rule.id, refKey, refId)) {
+      result.skipped++;
+      continue;
+    }
+    const payload = rule.schedule_anchor === 'event_date'
+      ? _payloadFromEvent(rec)
+      : _payloadFromBooking(rec);
+    const text = _renderTpl(rule.message_template, payload);
+    try {
+      await _multicastViaCronToken(lineIds, text);
+      await _logBatch(rule, refKey, refId, recipients, 'sent');
+      result.sent += recipients.length;
+    } catch (e) {
+      await _logBatch(rule, refKey, refId, recipients, 'failed', e.message);
+      result.failed += recipients.length;
+    }
+  }
+  return result;
+}
+
+app.post('/cron/notifications', async (req, res) => {
+  // Optional shared-secret auth
+  if (CRON_SECRET) {
+    const got = req.get('x-cron-secret') || (req.body && req.body.secret) || '';
+    if (got !== CRON_SECRET) return res.status(401).json({ error: 'unauthorized' });
+  }
+  if (!SB_URL_WEBHOOK || !SB_SERVICE_KEY) {
+    return res.status(503).json({ error: 'SB_URL/SB_SERVICE_KEY not configured' });
+  }
+  if (!LINE_CHANNEL_TOKEN) {
+    return res.status(503).json({ error: 'LINE_CHANNEL_TOKEN not configured' });
+  }
+
+  const now = _bangkokNow();
+  console.log(`[cron] notifications tick @ ${now.iso}`);
+
+  const rules = await _sbGet('notification_rules',
+    `select=*&is_active=eq.true&schedule_anchor=not.is.null`);
+  if (!rules?.length) {
+    return res.json({ ok: true, now: now.iso, processed: 0, message: 'no scheduled rules' });
+  }
+
+  const summary = { ok: true, now: now.iso, window_min: CRON_WINDOW_MIN, processed: rules.length, sent: 0, skipped: 0, failed: 0, details: [] };
+  for (const rule of rules) {
+    try {
+      const r = await _processRule(rule, now);
+      summary.sent    += r.sent;
+      summary.skipped += r.skipped;
+      summary.failed  += r.failed;
+      summary.details.push(r);
+    } catch (e) {
+      console.warn(`[cron rule ${rule.id}]`, e.message);
+      summary.failed++;
+      summary.details.push({ rule_id: rule.id, error: e.message });
+    }
+  }
+
+  console.log(`[cron] done — sent=${summary.sent} skipped=${summary.skipped} failed=${summary.failed}`);
+  return res.json(summary);
+});
+
 /* ── Start ─────────────────────────────────────────────── */
 app.listen(PORT, () => {
   console.log('');
@@ -762,10 +1072,11 @@ app.listen(PORT, () => {
   console.log(`  → http://localhost:${PORT}/line/broadcast   (LINE broadcast)`);
   console.log(`  → http://localhost:${PORT}/line/info        (LINE bot info — test token)`);
   console.log(`  → http://localhost:${PORT}/line/webhook     (LINE webhook ${LINE_CHANNEL_SECRET ? '✅' : '❌ no secret'})`);
+  console.log(`  → http://localhost:${PORT}/cron/notifications (Scheduled LINE — every 15 min)${CRON_SECRET ? ' 🔒' : ''}`);
   if (SB_URL_WEBHOOK && SB_SERVICE_KEY) {
-    console.log(`  ✅ Webhook will update Supabase on LINE events`);
+    console.log(`  ✅ Webhook + cron will update Supabase`);
   } else {
-    console.log(`  ⚠️  Webhook DB updates disabled (set SB_URL + SB_SERVICE_KEY)`);
+    console.log(`  ⚠️  Webhook + cron DB updates disabled (set SB_URL + SB_SERVICE_KEY)`);
   }
   console.log('');
 });

@@ -19,6 +19,8 @@
 
     <!-- AUTH (must run before topbar so ERP_USER is available) -->
     <script src="../../../js/core/auth.js"></script>
+    <script src="../../../js/core/authz.js"></script>
+    <script>AuthZ.requirePerm("evt_calendar_view");</script>
 
     <!-- CAL TOPBAR -->
     <div id="calTopbarContainer"></div>

@@ -34,6 +34,9 @@ window.AppPermissions = (() => {
           { key: "events_edit",   label: "แก้ไข" },
           { key: "events_delete", label: "ลบ" },
         ]},
+        { key: "evt_calendar", label: "ปฏิทินกิจกรรม", icon: "📅", perms: [
+          { key: "evt_calendar_view", label: "ดู" },
+        ]},
         { key: "evt_cat", label: "ประเภทกิจกรรม", icon: "🏷️", perms: [
           { key: "evt_cat_view",   label: "ดูรายการ" },
           { key: "evt_cat_create", label: "สร้าง" },
@@ -233,6 +236,7 @@ window.AppPermissions = (() => {
         "dashboard_view",
         "poster_view","poster_create","poster_edit",
         "events_view","events_create","events_edit",
+        "evt_calendar_view",
         "evt_cat_view","evt_cat_create","evt_cat_edit",
         "evt_place_view","evt_place_create","evt_place_edit",
         "evt_req_view","evt_req_create","evt_req_approve",
@@ -270,7 +274,7 @@ window.AppPermissions = (() => {
       label: "Sales", icon: "💰", color: "role-SALES",
       perms: [
         "dashboard_view",
-        "poster_view","events_view",
+        "poster_view","events_view","evt_calendar_view",
         "product_view",
         "so_view","so_create","so_edit",
         "req_view","req_create",
@@ -282,7 +286,7 @@ window.AppPermissions = (() => {
       label: "Viewer", icon: "👁️", color: "role-VIEWER",
       perms: [
         "dashboard_view",
-        "poster_view","events_view",
+        "poster_view","events_view","evt_calendar_view",
         "product_view",
         "po_view","so_view",
         "report_stock_view",
