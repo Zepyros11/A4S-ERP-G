@@ -207,6 +207,19 @@ window.AppPermissions = (() => {
       ],
     },
 
+    /* ── ทริป (TRIP) ── */
+    {
+      key: "trip", label: "ทริป (TRIP)", icon: "✈️",
+      children: [
+        { key: "trip_wp", label: "แผนงานทริป", icon: "📋", perms: [
+          { key: "trip_wp_view",   label: "ดูรายการ" },
+          { key: "trip_wp_create", label: "สร้าง" },
+          { key: "trip_wp_edit",   label: "แก้ไข" },
+          { key: "trip_wp_delete", label: "ลบ" },
+        ]},
+      ],
+    },
+
     /* ── Dev Tool ── */
     {
       key: "devtool", label: "Dev Tool", icon: "🛠️",
@@ -254,6 +267,7 @@ window.AppPermissions = (() => {
         "report_stock_view","report_stock_export",
         "supplier_view","supplier_create","supplier_edit",
         "customer_view","customer_create","customer_edit",
+        "trip_wp_view","trip_wp_create","trip_wp_edit",
       ],
     },
     WAREHOUSE: {

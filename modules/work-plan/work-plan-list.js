@@ -56,6 +56,13 @@ async function init() {
   $("heroSub").textContent = SCOPE_META[SCOPE].sub;
   $("wpHero").className = `wp-hero scope-${SCOPE}`;
 
+  // Scope-aware data-perm for static hero buttons (TRIP only)
+  if (SCOPE === "trip") {
+    document.querySelector('[onclick="window.openPlanModal()"]')?.setAttribute("data-perm", "trip_wp_create");
+    document.querySelector('[onclick="window.openDeptModal()"]')?.setAttribute("data-perm", "trip_wp_edit");
+    window.AuthZ?.applyDomPerms();
+  }
+
   // Central Esc handler — closes topmost overlay/modal first
   document.addEventListener("keydown", onGlobalEsc);
 
@@ -413,6 +420,9 @@ function renderCards() {
   document.querySelector(".wp-list-wrap").style.display = "block";
   $("wpEmpty").style.display = "none";
 
+  const editPerm   = SCOPE === "trip" ? ` data-perm="trip_wp_edit"`   : "";
+  const deletePerm = SCOPE === "trip" ? ` data-perm="trip_wp_delete"` : "";
+
   body.innerHTML = filtered
     .map((p, idx) => {
       const dept = deptMap[p.dept_id];
@@ -431,12 +441,14 @@ function renderCards() {
           <td>${p.location ? `<span class="wp-list-loc">📍 ${escapeHtml(p.location)}</span>` : `<span style="color:var(--text3)">—</span>`}</td>
           <td style="text-align:center"><span class="wp-list-count">${rowCount}</span></td>
           <td class="wp-list-actions" onclick="event.stopPropagation()">
-            <button title="แก้ข้อมูล" onclick="window.editPlanInfo(${p.id})">✏️</button>
-            <button title="ลบ" onclick="window.removePlan(${p.id})">🗑</button>
+            <button title="แก้ข้อมูล" onclick="window.editPlanInfo(${p.id})"${editPerm}>✏️</button>
+            <button title="ลบ" onclick="window.removePlan(${p.id})"${deletePerm}>🗑</button>
           </td>
         </tr>`;
     })
     .join("");
+
+  if (SCOPE === "trip") window.AuthZ?.applyDomPerms(body);
 }
 
 function formatPlanDate(start, end) {

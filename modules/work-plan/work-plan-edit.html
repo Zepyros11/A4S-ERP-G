@@ -131,6 +131,14 @@
 
     <script src="../../js/core/auth.js"></script>
     <script src="../../js/core/authz.js"></script>
+    <script>
+      // Scope-aware page guard — TRIP scope requires trip_wp_view
+      (function () {
+        const scope = new URLSearchParams(location.search).get("scope");
+        if (scope !== "trip") return;
+        window.AuthZ.requirePerm("trip_wp_view");
+      })();
+    </script>
     <script type="module" src="./work-plan-edit.js"></script>
     <script src="../../js/components/modal/deleteModal.js"></script>
     <script src="../../js/components/modal/modalManager.js"></script>

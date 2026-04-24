@@ -412,6 +412,7 @@
     promotions: "view_promotions",
     "promotion-gallery": "view_promotions",
     "daily-sale": "daily_sale_view",
+    "trip-work-plan": "trip_wp_view",
     automation: "devtool_view",
     wizard: "devtool_manage",
     "devtool-settings": "devtool_manage",
