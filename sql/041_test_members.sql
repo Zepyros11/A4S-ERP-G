@@ -43,9 +43,21 @@ CREATE TABLE IF NOT EXISTS test_members (
   note               TEXT,
   extra_data         JSONB,
 
+  -- LINE integration (mirror members table — ให้ flow LIFF ผูก LINE ได้)
+  line_user_id       TEXT,
+  line_display_name  TEXT,
+  line_picture_url   TEXT,
+  line_linked_at     TIMESTAMPTZ,
+
   created_at         TIMESTAMPTZ DEFAULT now(),
   updated_at         TIMESTAMPTZ DEFAULT now()
 );
+
+-- Idempotent add สำหรับตารางที่สร้างก่อนเพิ่ม LINE columns
+ALTER TABLE test_members ADD COLUMN IF NOT EXISTS line_user_id      TEXT;
+ALTER TABLE test_members ADD COLUMN IF NOT EXISTS line_display_name TEXT;
+ALTER TABLE test_members ADD COLUMN IF NOT EXISTS line_picture_url  TEXT;
+ALTER TABLE test_members ADD COLUMN IF NOT EXISTS line_linked_at    TIMESTAMPTZ;
 
 CREATE INDEX IF NOT EXISTS idx_test_members_phone   ON test_members(phone);
 CREATE INDEX IF NOT EXISTS idx_test_members_sponsor ON test_members(sponsor_code);

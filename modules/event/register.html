@@ -715,9 +715,10 @@ function renderPage() {
 
 /* ── Link LINE account to member (persistent, cross-event) ───
    1) Upsert history row in member_line_accounts (ตัวเก็บทุก LINE ID)
-   2) Set members.line_user_id = this one (primary/current)
+   2) Set <table>.line_user_id = this one (primary/current)
+   table = 'members' (default, MLM) หรือ 'test_members' (mock)
 */
-async function linkLineToMember(memberCode, profile) {
+async function linkLineToMember(memberCode, profile, table = 'members') {
   if (!memberCode || !profile?.userId) return;
   const now = new Date().toISOString();
 
@@ -741,8 +742,8 @@ async function linkLineToMember(memberCode, profile) {
     }),
   });
 
-  // 2) Set as primary on members (latest login = current target)
-  await fetch(`${SB_URL}/rest/v1/members?member_code=eq.${encodeURIComponent(memberCode)}`, {
+  // 2) Set as primary on members / test_members (latest login = current target)
+  await fetch(`${SB_URL}/rest/v1/${table}?member_code=eq.${encodeURIComponent(memberCode)}`, {
     method: 'PATCH',
     headers: {
       apikey: SB_KEY,
@@ -774,9 +775,11 @@ async function doRegister() {
     // 1. Find member — ลอง members (MLM) ก่อน · fallback ไป test_members (mock สำหรับทดสอบ)
     const members = await sbGet(`members?member_code=eq.${encodeURIComponent(code)}&select=member_code,member_name,full_name,phone,password_hash&limit=1`);
     let member = members[0];
+    let memberTable = 'members';
     if (!member) {
       const testRows = await sbGet(`test_members?member_code=eq.${encodeURIComponent(code)}&select=member_code,member_name,full_name,phone,password_hash&limit=1`);
       member = testRows[0];
+      if (member) memberTable = 'test_members';
     }
     if (!member) { showMsg('❌ ไม่พบรหัสสมาชิกนี้', 'error'); btn.disabled = false; btn.textContent = '🎫 ลงทะเบียน'; return; }
 
@@ -852,7 +855,7 @@ async function doRegister() {
 
     // 8b. Link LINE account to member (persistent, cross-event)
     if (_lineProfile) {
-      try { await linkLineToMember(code, _lineProfile); }
+      try { await linkLineToMember(code, _lineProfile, memberTable); }
       catch (e) { console.warn('linkLineToMember failed:', e?.message || e); }
     }
 
