@@ -200,53 +200,63 @@
 
     <!-- Booking Modal -->
     <div id="bookingModal" class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6 md:p-8 relative max-h-[90vh] overflow-y-auto">
+      <div class="bg-white rounded-2xl shadow-2xl w-full max-w-3xl p-6 md:p-8 relative max-h-[90vh] overflow-y-auto">
         <button id="closeModal" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 text-xl font-bold">&times;</button>
         <h2 class="text-lg font-black text-slate-900 mb-1">จองห้องประชุม</h2>
         <p class="text-sm text-slate-400 mb-6" id="modalRoomName">-</p>
-        <div class="space-y-4">
 
-          <!-- ชื่อผู้จอง + ชื่อ CS -->
-          <div class="flex flex-col sm:flex-row gap-3">
-            <div class="flex-1 relative">
+        <div class="flex flex-col md:flex-row gap-6 md:divide-x md:divide-slate-100">
+
+          <!-- LEFT: ชื่อผู้จอง + ชื่อ CS + วันที่ -->
+          <div class="flex-1 space-y-4 md:pr-6">
+            <div class="relative">
               <label class="text-xs font-bold text-slate-500 uppercase tracking-widest">ชื่อผู้จอง</label>
               <input id="inputBookerName" type="text" placeholder="พิมพ์หรือเลือกชื่อ..."
                 autocomplete="off"
                 class="mt-1 w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300" />
               <div id="bookerDropdownPanel" class="hidden absolute z-20 left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden" style="max-height:180px;overflow-y:auto"></div>
             </div>
-            <div class="flex-1 relative">
+
+            <div class="relative">
               <label class="text-xs font-bold text-slate-500 uppercase tracking-widest">ชื่อ CS</label>
               <input id="inputCsName" type="text" placeholder="พิมพ์หรือเลือกชื่อ..."
                 autocomplete="off"
                 class="mt-1 w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300" />
               <div id="csDropdownPanel" class="hidden absolute z-20 left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden" style="max-height:180px;overflow-y:auto"></div>
             </div>
-          </div>
 
-          <!-- วันที่ -->
-          <div>
-            <label class="text-xs font-bold text-slate-500 uppercase tracking-widest">วันที่</label>
-            <input id="inputDate" type="text" placeholder="dd/mm/yyyy" class="mt-1 w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300" />
-          </div>
-
-          <!-- เวลา -->
-          <div class="flex gap-4">
-            <div class="flex-1">
-              <label class="text-xs font-bold text-slate-500 uppercase tracking-widest">เวลาเริ่ม</label>
-              <input type="hidden" id="inputStart" />
-              <div id="startTimeGrid" class="mt-1 grid grid-cols-2 gap-1 max-h-44 overflow-y-auto pr-0.5"></div>
+            <div>
+              <label class="text-xs font-bold text-slate-500 uppercase tracking-widest">วันที่</label>
+              <input id="inputDate" type="text" placeholder="dd/mm/yyyy" class="mt-1 w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300" />
             </div>
-            <div class="flex-1">
-              <label class="text-xs font-bold text-slate-500 uppercase tracking-widest">เวลาสิ้นสุด</label>
-              <input type="hidden" id="inputEnd" />
-              <div id="endTimeGrid" class="mt-1 grid grid-cols-2 gap-1 max-h-44 overflow-y-auto pr-0.5"></div>
+
+            <div>
+              <label class="text-xs font-bold text-slate-500 uppercase tracking-widest">หมายเหตุ</label>
+              <textarea id="inputNote" rows="3" placeholder="รายละเอียดเพิ่มเติม (ถ้ามี)..."
+                class="mt-1 w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 resize-none"></textarea>
             </div>
           </div>
 
-          <button id="btnConfirmBook" class="w-full py-3 bg-indigo-600 text-white rounded-xl font-bold text-sm hover:bg-indigo-700 transition">
-            ยืนยันการจอง
-          </button>
+          <!-- RIGHT: เวลา + ปุ่มยืนยัน -->
+          <div class="flex-1 flex flex-col md:pl-6">
+            <div class="flex gap-4 flex-1">
+              <div class="flex-1">
+                <label class="text-xs font-bold text-slate-500 uppercase tracking-widest">เวลาเริ่ม</label>
+                <input type="hidden" id="inputStart" />
+                <div id="startTimeGrid" class="mt-1 grid grid-cols-2 gap-1 max-h-56 overflow-y-auto pr-0.5"></div>
+              </div>
+              <div class="flex-1">
+                <label class="text-xs font-bold text-slate-500 uppercase tracking-widest">เวลาสิ้นสุด</label>
+                <input type="hidden" id="inputEnd" />
+                <div id="endTimeGrid" class="mt-1 grid grid-cols-2 gap-1 max-h-56 overflow-y-auto pr-0.5"></div>
+              </div>
+            </div>
+
+            <button id="btnConfirmBook" class="mt-4 w-full py-3 bg-indigo-600 text-white rounded-xl font-bold text-sm hover:bg-indigo-700 transition">
+              ยืนยันการจอง
+            </button>
+          </div>
+
         </div>
       </div>
     </div>

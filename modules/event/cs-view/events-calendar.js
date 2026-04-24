@@ -8,6 +8,7 @@ const SB_KEY_DEFAULT =
 
 let allEvents = [];
 let allCategories = [];
+let allBookings = [];
 let _calSeriesMap = {};
 let _calLevelMap = {};
 let currentYear = new Date().getFullYear();
@@ -98,7 +99,7 @@ async function initPage() {
       year: "numeric",
     });
   }
-  await Promise.all([loadEvents(), loadCategories()]);
+  await Promise.all([loadEvents(), loadCategories(), loadBookings()]);
   renderCalendar();
   await refreshCalChatCounts();
   setInterval(refreshCalChatCounts, 15000);
@@ -137,6 +138,27 @@ async function loadEvents() {
     allEvents = [];
   }
   showLoading(false);
+}
+
+async function loadBookings() {
+  try {
+    const { url, key } = getSB();
+    const res = await fetch(
+      `${url}/rest/v1/room_booking_requests?status=eq.APPROVED&select=*&order=booking_date.asc`,
+      { headers: { apikey: key, Authorization: `Bearer ${key}` } },
+    );
+    if (res.ok) allBookings = await res.json();
+  } catch (_) {
+    allBookings = [];
+  }
+}
+
+function formatBookingTime(b) {
+  if (b.end_time === "ALLDAY" || (!b.start_time && !b.end_time)) return "ตลอดทั้งวัน";
+  const s = (b.start_time || "").slice(0, 5);
+  const e = (b.end_time || "").slice(0, 5);
+  if (s && e) return `${s} – ${e}`;
+  return s || e || "—";
 }
 
 async function loadCategories() {
@@ -180,12 +202,17 @@ async function loadCategories() {
   // inject legend
   const legend = document.getElementById("calLegend");
   if (legend) {
-    legend.innerHTML = allCategories.map(c =>
+    const catItems = allCategories.map(c =>
       `<div class="cal-legend-item">
         <div class="cal-legend-dot" style="background:${c.color || "#6366f1"}"></div>
         ${c.icon || ""} ${c.category_name}
       </div>`
     ).join("");
+    const bookingItem = `<div class="cal-legend-item">
+      <div class="cal-legend-dot" style="background:#8b5cf6"></div>
+      🚪 ห้องจอง (อนุมัติแล้ว)
+    </div>`;
+    legend.innerHTML = catItems + bookingItem;
   }
 }
 
@@ -273,6 +300,17 @@ function renderCalendar() {
       }
     });
 
+    // Approved bookings by date (only when no category filter is active — bookings are orthogonal to event categories)
+    const bookingMap = {};
+    if (!activeCalCatId) {
+      allBookings.forEach((b) => {
+        const d = b.booking_date;
+        if (!d || d < weekStart || d > weekEnd) return;
+        if (!bookingMap[d]) bookingMap[d] = [];
+        bookingMap[d].push(b);
+      });
+    }
+
     // Assign stacking lanes for multi-day bars
     const lanes = assignLanes(multiDayEvts, week);
     const numLanes = lanes.length;
@@ -318,6 +356,7 @@ function renderCalendar() {
         const dow = new Date(dateStr + "T00:00:00").getDay();
         const isWeekend = dow === 0 || dow === 6;
         const dayEvents = singleMap[dateStr] || [];
+        const dayBookings = bookingMap[dateStr] || [];
         const cls = [
           "cal-cell",
           !inMonth ? "other-month" : "",
@@ -327,9 +366,11 @@ function renderCalendar() {
         ]
           .filter(Boolean)
           .join(" ");
-        const shown = dayEvents.slice(0, MAX_PILLS);
-        const extra = dayEvents.length - MAX_PILLS;
-        const pillsHtml = shown
+        const evShown = dayEvents.slice(0, MAX_PILLS);
+        const bkSlots = Math.max(0, MAX_PILLS - evShown.length);
+        const bkShown = dayBookings.slice(0, bkSlots);
+        const extra = dayEvents.length + dayBookings.length - evShown.length - bkShown.length;
+        const pillsHtml = evShown
           .map((ev) => {
             const { color, icon } = getCatStyle(ev);
             const pillUnread = getCalUnread(ev.event_id);
@@ -345,8 +386,17 @@ function renderCalendar() {
               title="${ev.event_name}">${icon} ${ev.event_name}${pillBadge}</div>`;
           })
           .join("");
+        const bookingsHtml = bkShown
+          .map((b) => {
+            const label = b.room_name || b.place_name || "ห้องจอง";
+            const tip = `${label} · ${formatBookingTime(b)}${b.booked_by_name ? " · " + b.booked_by_name : ""}`;
+            return `<div class="cal-event-pill cal-booking-pill"
+              onclick="openBookingPanel(${b.request_id});event.stopPropagation();"
+              title="${tip}">🚪 ${label}</div>`;
+          })
+          .join("");
         const moreHtml = extra > 0 ? `<div class="cal-more">+${extra}</div>` : "";
-        return `<div class="${cls}" style="grid-column:${colIdx + 1};grid-row:${cellRow}"><div class="cal-date-num">${day}</div><div class="cal-pills-wrap">${pillsHtml}${moreHtml}</div></div>`;
+        return `<div class="${cls}" style="grid-column:${colIdx + 1};grid-row:${cellRow}"><div class="cal-date-num">${day}</div><div class="cal-pills-wrap">${pillsHtml}${bookingsHtml}${moreHtml}</div></div>`;
       })
       .join("");
 
@@ -498,6 +548,39 @@ function openEventPanel(eventId) {
   }
 }
 
+function openBookingPanel(requestId) {
+  const b = allBookings.find((x) => String(x.request_id) === String(requestId));
+  if (!b) return;
+  const overlay = document.getElementById("bookingPanelOverlay");
+  const title = b.room_name || b.place_name || "ห้องจอง";
+  const place = b.place_name && b.room_name && b.place_name !== b.room_name
+    ? `${b.place_name} — ${b.room_name}`
+    : (b.place_name || b.room_name || "—");
+  const dateStr = b.booking_date ? formatDate(b.booking_date) : "—";
+  const timeStr = formatBookingTime(b);
+  const noteHtml = b.note
+    ? `<div class="bk-panel-row"><div class="bk-panel-label">หมายเหตุ</div><div class="bk-panel-value">${String(b.note).replace(/</g, "&lt;").replace(/\n/g, "<br>")}</div></div>`
+    : "";
+  document.getElementById("bookingPanelBody").innerHTML = `
+    <div class="bk-panel-title">🚪 ${title}</div>
+    <div class="bk-panel-badge">✅ อนุมัติแล้ว</div>
+    <div class="bk-panel-rows">
+      <div class="bk-panel-row"><div class="bk-panel-label">สถานที่</div><div class="bk-panel-value">${place}</div></div>
+      <div class="bk-panel-row"><div class="bk-panel-label">วันที่</div><div class="bk-panel-value">${dateStr}</div></div>
+      <div class="bk-panel-row"><div class="bk-panel-label">เวลา</div><div class="bk-panel-value">${timeStr}</div></div>
+      <div class="bk-panel-row"><div class="bk-panel-label">ผู้จอง</div><div class="bk-panel-value">${b.booked_by_name || "—"}</div></div>
+      <div class="bk-panel-row"><div class="bk-panel-label">CS</div><div class="bk-panel-value">${b.cs_name || "—"}</div></div>
+      ${noteHtml}
+    </div>`;
+  overlay.classList.add("open");
+  document.body.style.overflow = "hidden";
+}
+
+function closeBookingPanel() {
+  document.getElementById("bookingPanelOverlay").classList.remove("open");
+  document.body.style.overflow = "";
+}
+
 /* ── Chat Panel Functions ── */
 function openChatPanel(eventId, eventName) {
   _chatEventId = eventId;
@@ -616,7 +699,7 @@ function saveSettings() {
   document.getElementById("noConfigBanner").style.display = "none";
   setTimeout(async () => {
     closeSettings();
-    await loadEvents();
+    await Promise.all([loadEvents(), loadBookings()]);
     renderCalendar();
   }, 800);
 }
@@ -729,6 +812,10 @@ document.addEventListener("keydown", function (e) {
   if (e.key !== "Escape") return;
   if (document.getElementById("settingsOverlay").classList.contains("open")) {
     closeSettings();
+  } else if (
+    document.getElementById("bookingPanelOverlay")?.classList.contains("open")
+  ) {
+    closeBookingPanel();
   } else if (
     document.getElementById("evPanelOverlay").style.display === "flex"
   ) {

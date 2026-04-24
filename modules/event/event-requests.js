@@ -118,7 +118,32 @@ async function createEventFromRequest(req) {
     status: "CONFIRMED",
   };
   const result = await sbFetch("events", "", { method: "POST", body: payload });
-  return result?.[0];
+  const created = result?.[0];
+  if (created) fireEventConfirmedNotification(created, req);
+  return created;
+}
+
+function fireEventConfirmedNotification(eventRow, srcReq) {
+  if (!eventRow || !window.Notify) return;
+  const dept = srcReq && (allDepts.find(d => String(d.dept_id) === String(srcReq.dept_id)) || {}).dept_name || "";
+  const fmt = (d) => (window.DateFmt?.formatDMY?.(d) || d || "");
+  let approver = "";
+  try {
+    const raw = localStorage.getItem("erp_session") || sessionStorage.getItem("erp_session");
+    if (raw) approver = JSON.parse(raw).full_name || JSON.parse(raw).username || "";
+  } catch (_) {}
+  window.Notify.evaluateRules("event.confirmed", {
+    event_code:      eventRow.event_code || "",
+    event_name:      eventRow.event_name || "",
+    event_type:      eventRow.event_type || "",
+    event_date:      fmt(eventRow.event_date),
+    end_date:        fmt(eventRow.end_date),
+    location:        eventRow.location || "",
+    dept,
+    attendees_count: eventRow.max_attendees || "",
+    request_code:    srcReq?.request_code || "",
+    approver,
+  });
 }
 
 // ── STATE ─────────────────────────────────────────────────
@@ -356,6 +381,7 @@ async function quickApprove(id, btn) {
   try {
     const req = allRequests.find(r => String(r.request_id) === String(id));
     await updateRequest(id, { status: "APPROVED" });
+    // createEventFromRequest จะ fire event.confirmed notification เอง (ผ่าน fireEventConfirmedNotification)
     if (req) {
       try { await createEventFromRequest(req); } catch (_) {}
     }

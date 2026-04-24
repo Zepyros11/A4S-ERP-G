@@ -71,6 +71,7 @@
                   <option value="CANCELLED">🚫 ยกเลิก</option>
                 </select>
                 <div class="toolbar-right">
+                  <button id="btnNewBkq" class="btn btn-primary" onclick="openBkqCreate()">🚪 จองห้อง</button>
                   <button id="btnDeleteSelectedBkq" class="btn btn-danger-outline" style="display:none" onclick="deleteSelectedBkq()">🗑 ลบที่เลือก</button>
                 </div>
               </div>
@@ -95,6 +96,7 @@
                       </th>
                       <th>ห้อง</th>
                       <th class="col-center">ผู้จอง</th>
+                      <th class="col-center">หมายเหตุ</th>
                       <th class="col-center">CS</th>
                       <th class="col-center">วันที่</th>
                       <th class="col-center">เวลา</th>
@@ -104,7 +106,7 @@
                     </tr>
                   </thead>
                   <tbody id="rbkqTableBody">
-                    <tr><td colspan="9"><div class="empty-state"><div class="empty-icon">🚪</div><div class="empty-text">กำลังโหลด...</div></div></td></tr>
+                    <tr><td colspan="10"><div class="empty-state"><div class="empty-icon">🚪</div><div class="empty-text">กำลังโหลด...</div></div></td></tr>
                   </tbody>
                 </table>
               </div>
@@ -318,13 +320,13 @@
         display:block; font-size:10px; font-weight:700; color:#64748b;
         text-transform:uppercase; letter-spacing:0.06em; margin-bottom:5px;
       }
-      .bkq-field input, .bkq-field select {
+      .bkq-field input, .bkq-field select, .bkq-field textarea {
         width:100%; padding:9px 12px; border:1px solid #e2e8f0;
         border-radius:10px; font-size:13px; color:#1e293b;
         outline:none; transition:border-color .15s, box-shadow .15s;
         box-sizing:border-box;
       }
-      .bkq-field input:focus, .bkq-field select:focus {
+      .bkq-field input:focus, .bkq-field select:focus, .bkq-field textarea:focus {
         border-color:#6366f1; box-shadow:0 0 0 3px rgba(99,102,241,.12);
       }
       .bkq-field-row { display:flex; gap:12px; }
@@ -383,6 +385,84 @@
       /* row hover */
       #rbkqTableBody tr { cursor:pointer; transition:background .12s; }
       #rbkqTableBody tr:hover { background:#f5f3ff; }
+      /* Create Booking Modal */
+      #bkqCreateOverlay {
+        display:none; position:fixed; inset:0; background:rgba(0,0,0,0.45);
+        backdrop-filter:blur(4px); z-index:550;
+        align-items:center; justify-content:center;
+      }
+      #bkqCreateOverlay.open { display:flex; }
+      .bkq-create-modal {
+        background:#fff; border-radius:18px; box-shadow:0 20px 60px rgba(0,0,0,0.18);
+        width:820px; max-width:95vw; max-height:88vh;
+        display:flex; flex-direction:column; overflow:hidden;
+      }
+      .bkq-create-body {
+        padding:20px; overflow-y:auto;
+        display:grid;
+        grid-template-columns:1fr 1px 1fr;
+        gap:24px;
+      }
+      .bkq-create-col { display:flex; flex-direction:column; gap:14px; }
+      .bkq-create-divider {
+        background:#e2e8f0;
+        width:1px;
+        align-self:stretch;
+      }
+      @media (max-width: 720px) {
+        .bkq-create-body { grid-template-columns:1fr; gap:14px; }
+        .bkq-create-divider { display:none; }
+      }
+      /* Custom name dropdown (matches events-bookingRoom) */
+      .bkq-name-panel {
+        display:none;
+        position:absolute; left:0; right:0; top:100%;
+        margin-top:4px;
+        background:#ffffff;
+        border:1px solid #e2e8f0;
+        border-radius:12px;
+        box-shadow:0 8px 24px rgba(0,0,0,0.08);
+        max-height:180px; overflow-y:auto;
+        z-index:10;
+      }
+      .bkq-name-panel.show { display:block; }
+      .bkq-name-opt {
+        padding:9px 14px;
+        font-size:13px;
+        color:#334155;
+        cursor:pointer;
+        border-bottom:1px solid #f1f5f9;
+        transition:background .12s, color .12s;
+      }
+      .bkq-name-opt:last-child { border-bottom:none; }
+      .bkq-name-opt:hover { background:#eef2ff; color:#4338ca; }
+      /* Time slot grids (match events-bookingRoom) */
+      .bkq-time-grid {
+        margin-top:4px;
+        display:grid;
+        grid-template-columns:1fr 1fr;
+        gap:4px;
+        max-height:260px;
+        overflow-y:auto;
+        padding-right:2px;
+      }
+      .bkq-time-btn {
+        font-size:12px; font-weight:600;
+        padding:6px 4px;
+        border-radius:8px;
+        border:1px solid #e2e8f0;
+        background:#fff;
+        color:#475569;
+        text-align:center;
+        cursor:pointer;
+        transition:border-color .12s, background .12s, color .12s;
+        font-family:inherit;
+      }
+      .bkq-time-btn:hover { border-color:#818cf8; background:#eef2ff; }
+      .bkq-time-btn.active {
+        border-color:#6366f1; background:#4f46e5; color:#fff;
+      }
+      .bkq-time-btn.span2 { grid-column:span 2; }
     </style>
 
     <!-- Booking Detail Modal -->
@@ -485,8 +565,84 @@
       </div>
     </div>
 
+    <!-- Create Booking Modal -->
+    <div id="bkqCreateOverlay">
+      <div class="bkq-create-modal">
+        <div class="bkq-modal-header">
+          <div class="bkq-modal-title">🚪 จองห้องประชุม</div>
+          <button class="btn-icon" onclick="closeBkqCreate()">✕</button>
+        </div>
+        <div class="bkq-create-body">
+
+          <!-- LEFT: details -->
+          <div class="bkq-create-col">
+            <div class="bkq-field-row">
+              <div class="bkq-field">
+                <label>สถานที่</label>
+                <select id="bkqNewPlace" onchange="onBkqPlaceChange()"></select>
+              </div>
+              <div class="bkq-field">
+                <label>ห้อง</label>
+                <select id="bkqNewRoom"></select>
+              </div>
+            </div>
+
+            <div class="bkq-field-row">
+              <div class="bkq-field" style="position:relative">
+                <label>ผู้จอง</label>
+                <input type="text" id="bkqNewBooker" placeholder="พิมพ์หรือเลือกชื่อ..." autocomplete="off" />
+                <div id="bkqNewBookerPanel" class="bkq-name-panel"></div>
+              </div>
+              <div class="bkq-field">
+                <label>CS</label>
+                <input type="text" id="bkqNewCS" readonly style="background:#f1f5f9;cursor:not-allowed" />
+              </div>
+            </div>
+
+            <div class="bkq-field">
+              <label>วันที่</label>
+              <input type="date" id="bkqNewDate" />
+            </div>
+
+            <div class="bkq-field">
+              <label>หมายเหตุ</label>
+              <textarea id="bkqNewNote" rows="3" placeholder="รายละเอียดเพิ่มเติม..." style="resize:vertical;min-height:70px;font-family:inherit"></textarea>
+            </div>
+          </div>
+
+          <!-- DIVIDER -->
+          <div class="bkq-create-divider" aria-hidden="true"></div>
+
+          <!-- RIGHT: time grids -->
+          <div class="bkq-create-col">
+            <div class="bkq-field-row">
+              <div class="bkq-field">
+                <label>เวลาเริ่ม</label>
+                <input type="hidden" id="bkqNewStart" value="09:00" />
+                <div id="bkqNewStartGrid" class="bkq-time-grid"></div>
+              </div>
+              <div class="bkq-field">
+                <label>เวลาสิ้นสุด</label>
+                <input type="hidden" id="bkqNewEnd" value="10:00" />
+                <div id="bkqNewEndGrid" class="bkq-time-grid"></div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+        <div class="bkq-edit-footer">
+          <button class="btn btn-secondary" onclick="closeBkqCreate()">ยกเลิก</button>
+          <button class="btn btn-primary" id="bkqCreateBtn" onclick="submitBkqCreate()">📤 ส่งคำขอจอง</button>
+        </div>
+      </div>
+    </div>
+
     <script src="../../js/core/auth.js"></script>
     <script src="../../js/core/authz.js"></script>
+    <script src="../../js/core/date-format.js"></script>
+    <script src="../../js/core/crypto.js"></script>
+    <script src="../../js/core/line.js"></script>
+    <script src="../../js/core/notify.js"></script>
     <script>AuthZ.requirePerm("evt_req_view");</script>
     <script type="module" src="./event-requests.js"></script>
     <script src="../../js/components/modal/deleteModal.js"></script>
@@ -515,7 +671,12 @@
         },
         body: body ? JSON.stringify(body) : undefined,
       });
-      if (!res.ok) return method==="DELETE" ? null : [];
+      if (!res.ok) {
+        // GET stays lenient (preserve existing silent behavior); write methods throw with details
+        if (method === "GET") return [];
+        const txt = await res.text().catch(() => "");
+        throw new Error(`${res.status} ${res.statusText}${txt ? " — " + txt : ""}`);
+      }
       return method==="DELETE" ? null : res.json().catch(()=>[]);
     }
 
@@ -596,7 +757,7 @@
       }
 
       if (rows.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state"><div class="empty-icon">🚪</div><div class="empty-text">ยังไม่มีรายการจองห้อง</div></div></td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="10"><div class="empty-state"><div class="empty-icon">🚪</div><div class="empty-text">ยังไม่มีรายการจองห้อง</div></div></td></tr>`;
         return;
       }
 
@@ -609,6 +770,10 @@
         const unreadBadge = unread > 0
           ? `<span style="display:inline-flex;align-items:center;gap:2px;background:#f97316;color:#fff;font-size:9px;font-weight:700;padding:1px 6px;border-radius:999px;line-height:1.5;margin-left:4px">💬 ${unread}</span>`
           : "";
+        const noteRaw  = (r.note || "").replace(/</g,"&lt;");
+        const noteHtml = noteRaw
+          ? `<span title="${noteRaw.replace(/"/g,'&quot;')}" style="display:inline-block;max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;vertical-align:middle;color:#475569">${noteRaw}</span>`
+          : `<span style="color:#cbd5e1">—</span>`;
         return `
           <tr data-rid="${r.request_id}" style="cursor:pointer">
             <td style="text-align:center" onclick="event.stopPropagation()">
@@ -616,8 +781,9 @@
             </td>
             <td>${r.place_name}${r.room_name ? ` — ${r.room_name}` : ""}${unreadBadge}</td>
             <td class="col-center">${booker}</td>
+            <td class="col-center">${noteHtml}</td>
             <td class="col-center">${cs}</td>
-            <td class="col-center">${r.booking_date}</td>
+            <td class="col-center">${window.DateFmt?.formatDMY(r.booking_date) || r.booking_date || ""}</td>
             <td class="col-center">${timeStr}</td>
             <td class="col-center"><span class="room-bkq-badge ${s.cls}">${s.label}</span></td>
             <td class="col-center" onclick="event.stopPropagation()">
@@ -625,6 +791,7 @@
               <button class="btn-icon" title="ปฏิเสธ"  onclick="updateRoomBooking(${r.request_id},'REJECTED',this)">❌</button>
             </td>
             <td class="col-center" onclick="event.stopPropagation()">
+              <button class="btn-icon" title="ผู้เข้าร่วม" onclick="window.open('./booking-attendees.html?request=${r.request_id}','_blank')" style="color:#6366f1">👥</button>
               <button class="btn-icon" title="แก้ไข" onclick="openBkqDetailById(${r.request_id})" style="color:#f97316">✏️</button>
               <button class="btn-icon" title="ลบ"    onclick="deleteBkqRow(${r.request_id},this)"  style="color:#ef4444">🗑</button>
             </td>
@@ -793,10 +960,39 @@
           headers: { apikey:key, Authorization:`Bearer ${key}`, "Content-Type":"application/json", Prefer:"return=representation" },
           body: JSON.stringify({ status }),
         });
-        if (res.ok) { _bkqListLastSig = ""; loadRoomBookingRequests(); }
+        if (res.ok) {
+          _bkqListLastSig = "";
+          if (status === "APPROVED") {
+            const row = _bkqRows.find((r) => String(r.request_id) === String(id));
+            fireBookingApprovedNotification(row);
+          }
+          loadRoomBookingRequests();
+        }
       } catch { btn.disabled = false; }
     }
     window.updateRoomBooking = updateRoomBooking;
+
+    function fireBookingApprovedNotification(row) {
+      if (!row || !window.Notify) return;
+      const fmt = (d) => (window.DateFmt?.formatDMY?.(d) || d || "");
+      let approver = "";
+      try {
+        const raw = localStorage.getItem("erp_session") || sessionStorage.getItem("erp_session");
+        if (raw) approver = JSON.parse(raw).full_name || JSON.parse(raw).username || "";
+      } catch (_) {}
+      window.Notify.evaluateRules("booking.approved", {
+        request_code:   row.request_code || "",
+        room_name:      row.room_name || "",
+        place_name:     row.place_name || "",
+        booking_date:   fmt(row.booking_date),
+        start_time:     row.start_time || "",
+        end_time:       row.end_time === "ALLDAY" ? "ทั้งวัน" : (row.end_time || ""),
+        booked_by_name: row.booked_by_name || "",
+        cs_name:        row.cs_name || "",
+        approver,
+      });
+    }
+    window.fireBookingApprovedNotification = fireBookingApprovedNotification;
 
     // ── Booking Detail Modal ───────────────────────────────────
     function openBkqDetail(row) {
@@ -841,16 +1037,27 @@
     async function saveBkqDetail() {
       if (!_bkqCurrentId) return;
       const btn = document.getElementById("bkqSaveBtn");
+      const origLabel = btn.textContent;
       btn.disabled = true; btn.textContent = "กำลังบันทึก...";
 
       const isAllday = document.getElementById("bkqAlldayCheck").checked;
+      const place = document.getElementById("bkqEditRoom").value.trim();
+      const date  = document.getElementById("bkqEditDate").value;
+      const start = document.getElementById("bkqEditStart").value;
+      const end   = document.getElementById("bkqEditEnd").value;
+
+      if (!place) { bkqToast("กรุณากรอกชื่อห้อง/สถานที่", "error"); btn.disabled = false; btn.textContent = origLabel; return; }
+      if (!date)  { bkqToast("กรุณาเลือกวันที่", "error");         btn.disabled = false; btn.textContent = origLabel; return; }
+      if (!isAllday && (!start || !end))   { bkqToast("กรุณากรอกเวลา", "error");                   btn.disabled = false; btn.textContent = origLabel; return; }
+      if (!isAllday && start && end && start >= end) { bkqToast("เวลาสิ้นสุดต้องหลังเวลาเริ่มต้น", "error"); btn.disabled = false; btn.textContent = origLabel; return; }
+
       const payload = {
         booked_by_name: document.getElementById("bkqEditBooker").value.trim() || null,
         cs_name:        document.getElementById("bkqEditCS").value.trim()     || null,
-        place_name:     document.getElementById("bkqEditRoom").value.trim()   || null,
-        booking_date:   document.getElementById("bkqEditDate").value          || null,
-        start_time:     isAllday ? null : (document.getElementById("bkqEditStart").value || null),
-        end_time:       isAllday ? "ALLDAY" : (document.getElementById("bkqEditEnd").value || null),
+        place_name:     place,
+        booking_date:   date,
+        start_time:     isAllday ? null : (start || null),
+        end_time:       isAllday ? "ALLDAY" : (end || null),
         status:         document.getElementById("bkqEditStatus").value,
       };
 
@@ -858,9 +1065,13 @@
         await bkqFetch("room_booking_requests", `?request_id=eq.${_bkqCurrentId}`, { method:"PATCH", body:payload });
         _bkqListLastSig = "";
         await loadRoomBookingRequests();
-      } catch(e) { alert("บันทึกไม่สำเร็จ: " + e.message); }
-
-      btn.disabled = false; btn.textContent = "💾 บันทึก";
+        closeBkqDetail();
+        bkqToast("บันทึกการแก้ไขแล้ว ✅", "success");
+      } catch(e) {
+        bkqToast("บันทึกไม่สำเร็จ: " + (e.message || ""), "error");
+      } finally {
+        btn.disabled = false; btn.textContent = origLabel;
+      }
     }
 
     // ── Logs ──────────────────────────────────────────────────
@@ -960,6 +1171,274 @@
     window.submitBkqLog    = submitBkqLog;
     window.toggleBkqAllday = toggleBkqAllday;
 
+    // ── Create Booking Modal ──────────────────────────────────
+    let _bkqPlaces = [];
+    let _bkqRoomsByPlace = {}; // { place_id: [room, ...] }
+    let _bkqUsers = [];
+    let _bkqCreateLoaded = false;
+
+    async function loadBkqCreateData() {
+      if (_bkqCreateLoaded) return;
+      const [placesRes, roomsRes, usersRes] = await Promise.all([
+        bkqFetch("places", "?select=*&status=eq.ACTIVE&order=place_name.asc"),
+        bkqFetch("place_rooms", "?select=*&order=room_name.asc"),
+        bkqFetch("users", "?select=user_id,full_name&is_active=eq.true&order=full_name.asc"),
+      ]);
+      const allPlaces = placesRes || [];
+      const allRooms  = roomsRes  || [];
+      _bkqUsers = usersRes || [];
+      _bkqRoomsByPlace = {};
+      allRooms.forEach(r => {
+        if (!_bkqRoomsByPlace[r.place_id]) _bkqRoomsByPlace[r.place_id] = [];
+        _bkqRoomsByPlace[r.place_id].push(r);
+      });
+      _bkqPlaces = allPlaces.filter(p =>
+        (_bkqRoomsByPlace[p.place_id]?.length > 0) || p.place_type === "MEETING_ROOM"
+      );
+
+      const placeSel = document.getElementById("bkqNewPlace");
+      placeSel.innerHTML = _bkqPlaces.map(p =>
+        `<option value="${p.place_id}">${p.place_name}</option>`
+      ).join("") || `<option value="">— ไม่พบสถานที่ —</option>`;
+
+      setupBkqNameDropdown();
+
+      onBkqPlaceChange();
+      _bkqCreateLoaded = true;
+    }
+
+    function setupBkqNameDropdown() {
+      const input = document.getElementById("bkqNewBooker");
+      const panel = document.getElementById("bkqNewBookerPanel");
+      if (!input || !panel || input._bkqBound) return;
+      input._bkqBound = true;
+
+      function getOptions() {
+        // Unique booker names from existing booking requests only
+        const names = new Set();
+        _bkqRows.forEach(r => { if (r.booked_by_name) names.add(r.booked_by_name); });
+        return [...names].sort((a,b) => a.localeCompare(b, "th"));
+      }
+      function render(q) {
+        const opts = getOptions().filter(n => !q || n.toLowerCase().includes(q.toLowerCase()));
+        if (!opts.length) { panel.classList.remove("show"); return; }
+        panel.innerHTML = opts.map(n =>
+          `<div class="bkq-name-opt" data-val="${n.replace(/"/g,'&quot;')}">${n}</div>`
+        ).join("");
+        panel.classList.add("show");
+        panel.querySelectorAll("[data-val]").forEach(el => {
+          el.addEventListener("mousedown", (e) => {
+            e.preventDefault();
+            input.value = el.dataset.val;
+            panel.classList.remove("show");
+          });
+        });
+      }
+      input.addEventListener("focus", () => render(input.value));
+      input.addEventListener("input", () => render(input.value));
+      input.addEventListener("blur",  () => setTimeout(() => panel.classList.remove("show"), 150));
+    }
+
+    function onBkqPlaceChange() {
+      const placeId = document.getElementById("bkqNewPlace").value;
+      const place   = _bkqPlaces.find(p => String(p.place_id) === String(placeId));
+      const rooms   = _bkqRoomsByPlace[placeId] || [];
+      const roomSel = document.getElementById("bkqNewRoom");
+      if (rooms.length > 0) {
+        roomSel.innerHTML = rooms.map(r => `<option value="${r.room_id}">${r.room_name}</option>`).join("");
+        roomSel.disabled = false;
+      } else {
+        roomSel.innerHTML = `<option value="">— ไม่มีห้องย่อย —</option>`;
+        roomSel.disabled = true;
+      }
+    }
+
+    const BKQ_START_SLOTS = ["09:00","09:30","10:00","10:30","11:00","11:30","12:00","12:30","13:00","13:30","14:00","14:30"];
+    const BKQ_END_PRESETS = [
+      { label: "ทั้งวัน",      value: "ALLDAY" },
+      { label: "จนปิดบริษัท",  value: "18:00"  },
+    ];
+    const BKQ_END_SLOTS = ["13:00","13:30","14:00","14:30","15:00","15:30","16:00","16:30","17:00","17:30","18:00"];
+
+    function bkqNextHour(timeStr, hours = 1) {
+      const [h, m] = timeStr.split(":").map(Number);
+      const total = h * 60 + m + hours * 60;
+      const nh = Math.min(Math.floor(total / 60), 18);
+      const nm = total % 60;
+      return `${String(nh).padStart(2, "0")}:${String(nm).padStart(2, "0")}`;
+    }
+
+    function buildBkqStartGrid(selectedVal) {
+      const grid = document.getElementById("bkqNewStartGrid");
+      grid.innerHTML = BKQ_START_SLOTS.map(t =>
+        `<button type="button" class="bkq-time-btn${t === selectedVal ? " active" : ""}" data-time="${t}">${t}</button>`
+      ).join("");
+      grid.querySelectorAll("button").forEach(btn => {
+        btn.addEventListener("click", () => {
+          const t = btn.dataset.time;
+          document.getElementById("bkqNewStart").value = t;
+          buildBkqStartGrid(t);
+          const endVal = document.getElementById("bkqNewEnd").value;
+          if (endVal !== "ALLDAY" && endVal <= t) {
+            const newEnd = bkqNextHour(t, 1);
+            document.getElementById("bkqNewEnd").value = newEnd;
+            buildBkqEndGrid(newEnd);
+          } else {
+            buildBkqEndGrid(endVal);
+          }
+        });
+      });
+    }
+
+    function buildBkqEndGrid(selectedVal) {
+      const grid = document.getElementById("bkqNewEndGrid");
+      const presetBtns = BKQ_END_PRESETS.map(p =>
+        `<button type="button" class="bkq-time-btn span2${p.value === selectedVal ? " active" : ""}" data-time="${p.value}">${p.label}</button>`
+      ).join("");
+      const slotBtns = BKQ_END_SLOTS.map(t =>
+        `<button type="button" class="bkq-time-btn${t === selectedVal ? " active" : ""}" data-time="${t}">${t}</button>`
+      ).join("");
+      grid.innerHTML = presetBtns + slotBtns;
+      grid.querySelectorAll("button").forEach(btn => {
+        btn.addEventListener("click", () => {
+          const t = btn.dataset.time;
+          document.getElementById("bkqNewEnd").value = t;
+          buildBkqEndGrid(t);
+        });
+      });
+    }
+
+    async function openBkqCreate() {
+      await loadBkqCreateData();
+      const today = new Date().toISOString().slice(0,10);
+      document.getElementById("bkqNewDate").value = today;
+      document.getElementById("bkqNewBooker").value = "";
+      document.getElementById("bkqNewCS").value =
+        window.ERP_USER?.full_name || window.ERP_USER?.username || "Admin";
+      document.getElementById("bkqNewStart").value = "09:00";
+      document.getElementById("bkqNewEnd").value   = "10:00";
+      document.getElementById("bkqNewNote").value  = "";
+      buildBkqStartGrid("09:00");
+      buildBkqEndGrid("10:00");
+      document.getElementById("bkqCreateOverlay").classList.add("open");
+      setTimeout(() => document.getElementById("bkqNewBooker").focus(), 50);
+    }
+
+    function closeBkqCreate() {
+      document.getElementById("bkqCreateOverlay").classList.remove("open");
+    }
+
+    async function generateBkqCode() {
+      const now = new Date();
+      const prefix = `RBKQ-${now.getFullYear()}${String(now.getMonth()+1).padStart(2,"0")}-`;
+      const rows = await bkqFetch("room_booking_requests",
+        `?request_code=like.${prefix}*&select=request_code`);
+      let maxSeq = 0;
+      (rows || []).forEach(r => {
+        const n = parseInt((r.request_code||"").split("-").pop(), 10);
+        if (!isNaN(n) && n > maxSeq) maxSeq = n;
+      });
+      return `${prefix}${String(maxSeq+1).padStart(3,"0")}`;
+    }
+
+    function bkqToast(msg, type = "success") {
+      const t = document.getElementById("toast");
+      if (!t) { console.log(msg); return; }
+      t.className = `toast toast-${type} show`;
+      t.textContent = msg;
+      setTimeout(() => t.classList.remove("show"), 3000);
+    }
+
+    async function submitBkqCreate() {
+      const placeId = document.getElementById("bkqNewPlace").value;
+      const roomId  = document.getElementById("bkqNewRoom").value;
+      const booker  = document.getElementById("bkqNewBooker").value.trim();
+      const csName  = document.getElementById("bkqNewCS").value.trim();
+      const date    = document.getElementById("bkqNewDate").value;
+      const note    = document.getElementById("bkqNewNote").value.trim();
+      const endRaw  = document.getElementById("bkqNewEnd").value;
+      const allday  = endRaw === "ALLDAY";
+      const start   = allday ? null     : document.getElementById("bkqNewStart").value;
+      const end     = allday ? "ALLDAY" : endRaw;
+
+      if (!placeId) { bkqToast("กรุณาเลือกสถานที่", "error"); return; }
+      if (!booker)  { bkqToast("กรุณากรอกชื่อผู้จอง", "error"); return; }
+      if (!date)    { bkqToast("กรุณาเลือกวันที่", "error"); return; }
+      if (!allday && (!start || !end)) { bkqToast("กรุณากรอกเวลา", "error"); return; }
+      if (!allday && start >= end) { bkqToast("เวลาสิ้นสุดต้องหลังเวลาเริ่มต้น", "error"); return; }
+
+      const place = _bkqPlaces.find(p => String(p.place_id) === String(placeId));
+      const room  = roomId ? (_bkqRoomsByPlace[placeId] || []).find(r => String(r.room_id) === String(roomId)) : null;
+      const bookerUser = _bkqUsers.find(u => u.full_name === booker);
+      const csUser     = _bkqUsers.find(u => u.full_name === csName);
+
+      const btn = document.getElementById("bkqCreateBtn");
+      btn.disabled = true;
+      const origLabel = btn.textContent;
+      btn.textContent = "กำลังบันทึก...";
+
+      try {
+        const code = await generateBkqCode();
+        const payload = {
+          request_code: code,
+          place_id:  Number(placeId),
+          place_name: place?.place_name || "",
+          room_id:   room ? Number(room.room_id) : null,
+          room_name: room?.room_name || null,
+          booked_by: bookerUser?.user_id || null,
+          booked_by_name: booker,
+          cs_id:     csUser?.user_id || null,
+          cs_name:   csName || null,
+          booking_date: date,
+          start_time:   start,
+          end_time:     end,
+          note:         note || null,
+          status: "PENDING",
+        };
+        // Retry up to 3 times, stripping any column the DB reports as missing.
+        // Handles schemas that don't have room_id/room_name/created_by/etc.
+        const optionalCols = ["room_id","room_name","created_by","note"];
+        let lastErr;
+        for (let i = 0; i < 4; i++) {
+          try {
+            await bkqFetch("room_booking_requests", "", { method:"POST", body: payload });
+            lastErr = null;
+            break;
+          } catch (err) {
+            lastErr = err;
+            const msg = err.message || "";
+            // Try to find a column from the error message that we can safely drop
+            const dropped = optionalCols.find(c =>
+              new RegExp(`['"\\b]${c}['"\\b]`).test(msg) && c in payload
+            );
+            if (!dropped) break;
+            delete payload[dropped];
+          }
+        }
+        if (lastErr) throw lastErr;
+        closeBkqCreate();
+        bkqToast("ส่งคำขอจองห้องแล้ว 🚪", "success");
+        _bkqListLastSig = "";
+        await loadRoomBookingRequests();
+      } catch (e) {
+        bkqToast("บันทึกไม่สำเร็จ: " + (e.message || ""), "error");
+      } finally {
+        btn.disabled = false;
+        btn.textContent = origLabel;
+      }
+    }
+
+    window.openBkqCreate    = openBkqCreate;
+    window.closeBkqCreate   = closeBkqCreate;
+    window.onBkqPlaceChange = onBkqPlaceChange;
+    window.submitBkqCreate  = submitBkqCreate;
+
+    // Close create modal on backdrop click
+    document.getElementById("bkqCreateOverlay").addEventListener("click", function(e) {
+      if (e.target === this) closeBkqCreate();
+    });
+
+
     // ESC to close modals (innermost first)
     document.addEventListener("keydown", (e) => {
       if (e.key !== "Escape") return;
@@ -969,6 +1448,9 @@
       const dm = document.getElementById("deleteModalOverlay");
       if (dm && dm.classList.contains("active")) {
         DeleteModal.close(); return;
+      }
+      if (document.getElementById("bkqCreateOverlay").classList.contains("open")) {
+        closeBkqCreate(); return;
       }
       if (document.getElementById("bkqDetailOverlay").classList.contains("open")) {
         closeBkqDetail(); return;

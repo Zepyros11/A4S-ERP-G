@@ -676,6 +676,8 @@ function openModal(date = "", start = "") {
     cn.setAttribute("readonly", "readonly");
     cn.classList.add("bg-slate-100", "cursor-not-allowed");
   }
+  const noteEl = document.getElementById("inputNote");
+  if (noteEl) noteEl.value = "";
   buildStartGrid(initStart);
   buildEndGrid(initEnd);
   updateHeader();
@@ -713,6 +715,8 @@ function openEditModal(req) {
     cn.setAttribute("readonly", "readonly");
     cn.classList.add("bg-slate-100", "cursor-not-allowed");
   }
+  const noteEl = document.getElementById("inputNote");
+  if (noteEl) noteEl.value = req.note || "";
   buildStartGrid(startStr);
   buildEndGrid(endStr);
   document.getElementById("modalRoomName").textContent =
@@ -760,6 +764,7 @@ async function confirmBooking() {
   const date  = document.getElementById("inputDate").value;
   const start = document.getElementById("inputStart").value;
   const end   = document.getElementById("inputEnd").value;
+  const note  = (document.getElementById("inputNote")?.value || "").trim();
 
   if (!bookerName || !date || !start || !end) {
     showAlert("กรุณากรอกข้อมูลให้ครบถ้วน", { title: "ข้อมูลไม่ครบ", icon: "⚠️", headerClass: "bg-gradient-to-r from-amber-500 to-orange-500" });
@@ -848,12 +853,27 @@ async function confirmBooking() {
         booking_date: date,
         start_time: start,
         end_time: end,
+        note: note || null,
       };
-      await sbFetch(
-        "room_booking_requests",
-        `?request_id=eq.${_editingRequestId}`,
-        { method: "PATCH", body: patchBody }
-      );
+      try {
+        await sbFetch(
+          "room_booking_requests",
+          `?request_id=eq.${_editingRequestId}`,
+          { method: "PATCH", body: patchBody }
+        );
+      } catch (err) {
+        // Retry without note if column doesn't exist in DB yet
+        if (/note/i.test(err.message || "")) {
+          delete patchBody.note;
+          await sbFetch(
+            "room_booking_requests",
+            `?request_id=eq.${_editingRequestId}`,
+            { method: "PATCH", body: patchBody }
+          );
+        } else {
+          throw err;
+        }
+      }
       _editingRequestId = null;
     } else {
       // --- CREATE mode ---
@@ -871,16 +891,28 @@ async function confirmBooking() {
         booking_date: date,
         start_time: start,
         end_time: end,
+        note: note || null,
         status: "PENDING",
         created_by: window.ERP_USER?.user_id || null,
       };
-      try {
+      async function tryInsert() {
         await sbFetch("room_booking_requests", "", { method: "POST", body: payload });
+      }
+      try {
+        await tryInsert();
       } catch (err) {
-        // Retry without created_by if column doesn't exist in DB yet
-        if (/created_by/i.test(err.message || "")) {
+        const msg = err.message || "";
+        let retried = false;
+        if (/created_by/i.test(msg) && payload.created_by !== undefined) {
           delete payload.created_by;
-          await sbFetch("room_booking_requests", "", { method: "POST", body: payload });
+          retried = true;
+        }
+        if (/note/i.test(msg) && payload.note !== undefined) {
+          delete payload.note;
+          retried = true;
+        }
+        if (retried) {
+          await tryInsert();
         } else {
           throw err;
         }
@@ -1235,6 +1267,7 @@ function openRequestDetail(req) {
       ${infoRow("CS", csName)}
       ${infoRow("วันที่", req.booking_date || "—")}
       ${infoRow("เวลา", timeStr)}
+      ${req.note ? infoRow("หมายเหตุ", String(req.note).replace(/</g, "&lt;").replace(/\n/g, "<br>")) : ""}
       ${infoRow("สร้างเมื่อ", createdAt)}
     </div>
   `;

@@ -21,6 +21,7 @@ import {
 
 // ── STATE ──────────────────────────────────────────────────
 let editId = null;
+let _originalStatus = null;   // status ของ event ก่อนแก้ — ใช้เช็ค transition → CONFIRMED
 // posterFile และ posterUrl ใช้ผ่าน window._posterFile / window._posterUrl
 // (set โดย plain script ใน HTML เพื่อแก้ ES Module timing issue)
 
@@ -362,6 +363,7 @@ async function loadEventData() {
     document.getElementById("fGraceDays").value = e.grace_days != null ? e.grace_days : "";
     document.getElementById("fAssignedTo").value = e.assigned_to || "";
     document.getElementById("fStatus").value = e.status || "DRAFT";
+    _originalStatus = e.status || "DRAFT";
     document.getElementById("fDescription").value = e.description || "";
 
     // Registration toggles
@@ -667,6 +669,14 @@ window._saveEventImpl = async function () {
       }).catch(() => {});
     }
 
+    // 🔔 LINE notification: ยิงเมื่อ event ถูก save ด้วย status=CONFIRMED
+    //   - เคสสร้างใหม่: ยิงทุกครั้งที่ status=CONFIRMED
+    //   - เคสแก้ไข: ยิงเฉพาะ transition non-CONFIRMED → CONFIRMED (ไม่ยิงซ้ำตอน edit ฟิลด์อื่น)
+    const wasConfirmed = _originalStatus === "CONFIRMED";
+    if (payload.status === "CONFIRMED" && !wasConfirmed) {
+      _fireEventConfirmed({ ...payload, event_id: savedId });
+    }
+
     showToast(editId ? "บันทึกการแก้ไขแล้ว" : "สร้างกิจกรรมแล้ว", "success");
     setTimeout(() => {
       window.location.href = "events-list.html";
@@ -676,6 +686,28 @@ window._saveEventImpl = async function () {
   }
   showLoading(false);
 };
+
+function _fireEventConfirmed(eventRow) {
+  if (!eventRow || !window.Notify) return;
+  const fmt = (d) => (window.DateFmt?.formatDMY?.(d) || d || "");
+  let approver = "";
+  try {
+    const raw = localStorage.getItem("erp_session") || sessionStorage.getItem("erp_session");
+    if (raw) approver = JSON.parse(raw).full_name || JSON.parse(raw).username || "";
+  } catch (_) {}
+  window.Notify.evaluateRules("event.confirmed", {
+    event_code:      eventRow.event_code || "",
+    event_name:      eventRow.event_name || "",
+    event_type:      eventRow.event_type || "",
+    event_date:      fmt(eventRow.event_date),
+    end_date:        fmt(eventRow.end_date),
+    location:        eventRow.location || "",
+    dept:            "",
+    attendees_count: eventRow.max_attendees || "",
+    request_code:    "",
+    approver,
+  });
+}
 
 // ── UTILS ──────────────────────────────────────────────────
 function getSB() {

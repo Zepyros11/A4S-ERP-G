@@ -308,8 +308,21 @@ export function loadTopbar(title = "", options = {}) {
 
   const roleLabel = session?.role || "";
 
-  /* ---------------- Action Links (optional) ---------------- */
-  const actions = Array.isArray(options.actions) ? options.actions : [];
+  /* ---------------- Action Links ---------------- */
+  // Global action: Event Calendar (shown on every page unless skipDefaults=true)
+  const defaultActions = options.skipDefaults
+    ? []
+    : [
+        {
+          label: "Event Calendar",
+          icon: "📅",
+          href: `${BASE_PATH}/modules/event/cs-view/events-calendar.html`,
+          target: "_blank",
+          title: "เปิดปฏิทินกิจกรรม",
+        },
+      ];
+  const customActions = Array.isArray(options.actions) ? options.actions : [];
+  const actions = [...defaultActions, ...customActions];
   const actionsHtml = actions.length
     ? `<div class="topbar-actions">${actions
         .map((a) => {

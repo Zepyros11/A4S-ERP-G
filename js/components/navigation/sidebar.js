@@ -318,6 +318,18 @@
           path: BASE_PATH + "/modules/settings/line-templates.html",
         },
         {
+          id: "notification-rules",
+          icon: "🔔",
+          label: "กฎแจ้งเตือน LINE",
+          path: BASE_PATH + "/modules/settings/notification-rules.html",
+        },
+        {
+          id: "staff-groups",
+          icon: "👥",
+          label: "กลุ่มพนักงาน",
+          path: BASE_PATH + "/modules/settings/staff-groups.html",
+        },
+        {
           id: "roles",
           icon: "🔐",
           label: "จัดการ Role",
@@ -386,6 +398,8 @@
     users: "users_view",
     "staff-messaging": "users_view",
     "line-templates": "sys_settings_view",
+    "notification-rules": "sys_settings_view",
+    "staff-groups": "sys_settings_view",
     roles: "roles_view",
     suppliers: "supplier_view",
 
@@ -461,6 +475,8 @@
     "users",
     "staff-messaging",
     "line-templates",
+    "notification-rules",
+    "staff-groups",
     "roles",
 
     "members",

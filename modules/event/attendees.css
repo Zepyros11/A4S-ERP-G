@@ -528,6 +528,12 @@
   color: var(--text2, #475569);
   letter-spacing: 0.3px;
 }
+.att-inline-table tbody tr.saved-row.row-selected td {
+  background: #fef2f2;
+}
+.att-inline-table tbody tr.saved-row.row-selected:hover td {
+  background: #fee2e2;
+}
 
 .prereq-warn-inline {
   display: block;

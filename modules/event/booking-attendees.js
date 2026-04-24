@@ -30,22 +30,39 @@ async function sbFetch(table, query = "", opts = {}) {
   return method === "DELETE" ? null : res.json().catch(() => null);
 }
 
+function _bookingToEventShape(b) {
+  if (!b) return null;
+  return {
+    event_id:          b.request_id,
+    event_code:        b.request_code,
+    event_name:        (b.place_name || "") + (b.room_name ? ` — ${b.room_name}` : ""),
+    event_date:        b.booking_date,
+    start_time:        b.start_time,
+    end_time:          b.end_time,
+    max_attendees:     null,
+    event_category_id: null,
+    price:             0,
+    status:            b.status,
+    booked_by_name:    b.booked_by_name,
+    cs_name:           b.cs_name,
+    note:              b.note,
+  };
+}
 async function fetchEvents() {
-  // Exclude "วันหยุดบริษัท" category events
-  const [events, cats] = await Promise.all([
-    sbFetch("events", "?select=event_id,event_name,event_code,max_attendees,event_category_id,price,event_date,start_time,end_time&order=event_date.desc"),
-    sbFetch("event_categories", "?select=event_category_id,category_name"),
-  ]);
-  const holidayIds = (cats || []).filter(c => c.category_name === "วันหยุดบริษัท").map(c => c.event_category_id);
-  return (events || []).filter(e => !holidayIds.includes(e.event_category_id));
+  // Load booking requests; map to event-shape so the rest of the code works unchanged
+  const bookings = await sbFetch(
+    "room_booking_requests",
+    "?select=request_id,request_code,place_name,room_name,booking_date,start_time,end_time,status,booked_by_name,cs_name,note&order=booking_date.desc"
+  );
+  return (bookings || []).map(_bookingToEventShape);
 }
 async function fetchAttendees(eventId) {
   const rows = await sbFetch(
-    "event_attendees",
-    `?event_id=eq.${eventId}&order=created_at.asc`,
+    "room_booking_attendees",
+    `?request_id=eq.${eventId}&order=created_at.asc`,
   ) || [];
   // Enrich with CURRENT primary line_user_id from members (latest LIFF login across ALL events)
-  // This lets admin-added attendees (never went through LIFF) still receive LINE if their member linked on another event
+  // Keeps parity with the event-attendees flow; harmless for meetings (no member_code = no-op)
   await _enrichWithMemberLineId(rows);
   return rows;
 }
@@ -239,11 +256,13 @@ async function generateTicketNo(eventId) {
   const ev = currentEvent || allEvents.find((e) => e.event_id === eventId);
   const shortCode = getEventShortCode(ev) || String(eventId);
   const newPrefix = `A4S-${shortCode}-`;
-  // Query ALL tickets with this prefix across ALL events (unique constraint is global,
-  // so short-codes colliding between two events would produce duplicate ticket_no).
+  // Query ALL tickets for this event (any prefix) so running number stays continuous
+  // even when legacy tickets used different prefixes (TK-, A4S-<eventId>-, etc.)
+  // Query by ticket_no prefix globally (not just this booking) so short-codes
+  // colliding between two bookings don't produce duplicate ticket_no
   const likeParam = encodeURIComponent(newPrefix + "*");
   const res = await fetch(
-    `${url}/rest/v1/event_attendees?ticket_no=like.${likeParam}&select=ticket_no`,
+    `${url}/rest/v1/room_booking_attendees?ticket_no=like.${likeParam}&select=ticket_no`,
     { headers: { apikey: key, Authorization: `Bearer ${key}` } },
   );
   const raw  = res.ok ? await res.json().catch(() => []) : [];
@@ -257,20 +276,20 @@ async function generateTicketNo(eventId) {
   return `${newPrefix}${String(maxSeq + 1).padStart(4, "0")}`;
 }
 async function createAttendee(data) {
-  const res = await sbFetch("event_attendees", "", {
+  const res = await sbFetch("room_booking_attendees", "", {
     method: "POST",
     body: data,
   });
   return res?.[0];
 }
 async function updateAttendee(id, data) {
-  return sbFetch("event_attendees", `?attendee_id=eq.${id}`, {
+  return sbFetch("room_booking_attendees", `?attendee_id=eq.${id}`, {
     method: "PATCH",
     body: data,
   });
 }
 async function removeAttendee(id) {
-  return sbFetch("event_attendees", `?attendee_id=eq.${id}`, {
+  return sbFetch("room_booking_attendees", `?attendee_id=eq.${id}`, {
     method: "DELETE",
   });
 }
@@ -339,10 +358,13 @@ function buildEventHeroSubtitle(ev) {
   if (!ev) return "ลงทะเบียน · Check-in · ติดตามผู้เข้าร่วม";
   const parts = [];
   if (ev.event_date) parts.push(`📅 ${formatDMY(ev.event_date)}`);
-  if (ev.start_time && ev.end_time) {
+  if (ev.end_time === "ALLDAY") {
+    parts.push("🕐 ตลอดทั้งวัน");
+  } else if (ev.start_time && ev.end_time) {
     parts.push(`🕐 ${String(ev.start_time).slice(0, 5)} — ${String(ev.end_time).slice(0, 5)} น.`);
   }
-  parts.push("ลงทะเบียน · Check-in");
+  if (ev.booked_by_name) parts.push(`👤 ผู้จอง: ${ev.booked_by_name}`);
+  if (ev.note) parts.push(`📝 ${ev.note}`);
   return parts.join(" · ");
 }
 
@@ -399,7 +421,8 @@ async function initPage() {
     populateEventSelect();
 
     const params = new URLSearchParams(window.location.search);
-    const urlEventId = params.get("event_id") || params.get("event");
+    const urlEventId = params.get("request_id") || params.get("request")
+                    || params.get("event_id")   || params.get("event");
     if (urlEventId) {
       document.getElementById("eventSelect").value = urlEventId;
       await loadAttendees(parseInt(urlEventId));
@@ -440,13 +463,14 @@ async function initPage() {
 
 function populateEventSelect() {
   const sel = document.getElementById("eventSelect");
-  sel.innerHTML = '<option value="">-- เลือกกิจกรรม --</option>';
-  allEvents.forEach((e) =>
+  sel.innerHTML = '<option value="">-- เลือกการจอง --</option>';
+  allEvents.forEach((e) => {
+    const dateLabel = window.DateFmt?.formatDMY(e.event_date) || e.event_date || "";
     sel.insertAdjacentHTML(
       "beforeend",
-      `<option value="${e.event_id}">[${e.event_code}] ${e.event_name}</option>`,
-    ),
-  );
+      `<option value="${e.event_id}">[${e.event_code}] ${dateLabel} · ${e.event_name}</option>`,
+    );
+  });
 }
 
 // ── EVENT CHANGE ──────────────────────────────────────────
@@ -1036,7 +1060,6 @@ window.saveNewRow = async function (id) {
       );
       if (res.ok) {
         const rows = await res.json();
-        // Prefer primary; fall back to whichever row exists
         const m = rows?.find(x => x.person_role === "primary") || rows?.[0];
         if (m) {
           r.memberCode = m.member_code;
@@ -1075,7 +1098,7 @@ window.saveNewRow = async function (id) {
     const grace = getEventGraceDays();
     const needsPayment = r.paymentStatus === "UNPAID";
     const payload = {
-      event_id: currentEventId,
+      request_id: currentEventId,
       name,
       phone: r.phone || null,
       position_level: r.positionLevel || null,
@@ -1343,8 +1366,8 @@ let _currentEvent = null;
 async function _loadCurrentEvent() {
   if (_currentEvent && _currentEvent.event_id === currentEventId) return _currentEvent;
   try {
-    const rows = await sbFetch("events", `?event_id=eq.${currentEventId}&select=*&limit=1`);
-    _currentEvent = rows?.[0] || null;
+    const rows = await sbFetch("room_booking_requests", `?request_id=eq.${currentEventId}&select=*&limit=1`);
+    _currentEvent = rows?.[0] ? _bookingToEventShape(rows[0]) : null;
   } catch { _currentEvent = null; }
   return _currentEvent;
 }
@@ -1446,7 +1469,6 @@ function _positionSuggestUnderActiveRow() {
   const rect = input.getBoundingClientRect();
   // กว้างพอให้ชื่อยาวๆ + role chip + ตำแหน่ง + ประเทศ ไม่ตก/ไม่ wrap
   const desiredWidth = Math.max(rect.width, 520);
-  // กันล้นขอบขวา viewport
   const maxWidth = Math.min(desiredWidth, window.innerWidth - rect.left - 16);
   sug.style.top = (rect.bottom + window.scrollY + 2) + "px";
   sug.style.left = (rect.left + window.scrollX) + "px";
@@ -2267,12 +2289,12 @@ window.sendBulkTicketFlex = async function () {
     try {
       const { url, key } = getSB();
       const r = await fetch(
-        `${url}/rest/v1/events?event_id=eq.${currentEventId}&select=*&limit=1`,
+        `${url}/rest/v1/room_booking_requests?request_id=eq.${currentEventId}&select=*&limit=1`,
         { headers: { apikey: key, Authorization: `Bearer ${key}` } },
       );
       const rows = await r.json();
-      if (rows?.[0]) fullEvent = { ...currentEvent, ...rows[0] };
-    } catch (e) { console.warn("load full event fail:", e.message); }
+      if (rows?.[0]) fullEvent = { ...currentEvent, ..._bookingToEventShape(rows[0]) };
+    } catch (e) { console.warn("load full booking fail:", e.message); }
 
     // Detect poster aspect ratio once (so Flex hero shows entire poster without cropping)
     const posterUrl = fullEvent.poster_url
@@ -2494,6 +2516,67 @@ async function refreshAttendeesSilent() {
     _refreshInFlight = false;
   }
 }
+
+// ── GUEST ADD MODAL (attendees without member code) ───────
+window.openGuestAddModal = function () {
+  if (!currentEventId) { showToast("เลือกการจองก่อน", "error"); return; }
+  document.getElementById("guestAddName").value    = "";
+  document.getElementById("guestAddPhone").value   = "";
+  document.getElementById("guestAddCompany").value = "";
+  document.getElementById("guestAddOverlay").style.display = "flex";
+  setTimeout(() => document.getElementById("guestAddName").focus(), 50);
+};
+
+window.closeGuestAddModal = function () {
+  document.getElementById("guestAddOverlay").style.display = "none";
+};
+
+window.submitGuestAdd = async function () {
+  const name    = document.getElementById("guestAddName").value.trim();
+  const phone   = document.getElementById("guestAddPhone").value.trim();
+  const company = document.getElementById("guestAddCompany").value.trim();
+  if (!name) { showToast("กรุณาระบุชื่อ", "error"); return; }
+  if (!currentEventId) { showToast("ไม่มีการจองที่เลือก", "error"); return; }
+
+  const btn = document.getElementById("guestAddSubmitBtn");
+  const origLabel = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = "กำลังบันทึก...";
+
+  try {
+    const payload = {
+      request_id:     currentEventId,
+      name,
+      phone:          phone || null,
+      company:        company || null,
+      person_role:    "guest",
+      payment_status: "COMPLIMENTARY",
+      checked_in:     _autoCheckin ? true : false,
+      check_in_at:    _autoCheckin ? buildCheckinTimestamp() : null,
+    };
+    payload.ticket_no = await generateTicketNo(currentEventId);
+    await createAttendee(payload);
+    showToast("เพิ่มผู้เข้าร่วมแล้ว 👤", "success");
+    window.closeGuestAddModal();
+    allAttendees = await fetchAttendees(currentEventId);
+    updateStats();
+    filterTable();
+  } catch (e) {
+    showToast("บันทึกไม่สำเร็จ: " + (e.message || ""), "error");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = origLabel;
+  }
+};
+
+// Close on backdrop click + ESC
+document.addEventListener("DOMContentLoaded", () => {
+  const ov = document.getElementById("guestAddOverlay");
+  if (ov) ov.addEventListener("click", e => { if (e.target === ov) window.closeGuestAddModal(); });
+  document.addEventListener("keydown", e => {
+    if (e.key === "Escape" && ov && ov.style.display === "flex") window.closeGuestAddModal();
+  });
+});
 
 // ── START ─────────────────────────────────────────────────
 if (document.readyState === "loading") {

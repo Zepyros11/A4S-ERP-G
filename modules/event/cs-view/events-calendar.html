@@ -238,6 +238,18 @@
       </div>
     </div>
 
+    <!-- BOOKING INFO POPUP -->
+    <div
+      id="bookingPanelOverlay"
+      class="bk-panel-overlay"
+      onclick="if(event.target===this)closeBookingPanel()"
+    >
+      <div class="bk-panel-modal">
+        <button class="bk-panel-close" onclick="closeBookingPanel()">✕</button>
+        <div id="bookingPanelBody"></div>
+      </div>
+    </div>
+
     <script src="./events-calendar.js"></script>
     <script src="../../../js/components/modal/modalManager.js"></script>
   </body>

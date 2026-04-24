@@ -329,9 +329,12 @@ CREATE TABLE public.event_attendees (
   checked_in boolean DEFAULT false,
   check_in_at timestamp without time zone,
   note text,
+  member_code text,
+  person_role text DEFAULT 'primary' CHECK (person_role IN ('primary','co_applicant','guest')),
   created_at timestamp without time zone DEFAULT now(),
   CONSTRAINT event_attendees_pkey PRIMARY KEY (attendee_id),
   CONSTRAINT event_attendees_event_id_fkey FOREIGN KEY (event_id) REFERENCES public.events(event_id)
+  -- UNIQUE INDEX (event_id, member_code, person_role) WHERE member_code IS NOT NULL
 );
 CREATE TABLE public.event_budget (
   budget_id integer NOT NULL DEFAULT nextval('event_budget_budget_id_seq'::regclass),
@@ -511,6 +514,48 @@ CREATE TABLE public.room_booking_logs (
   CONSTRAINT room_booking_logs_pkey PRIMARY KEY (log_id),
   CONSTRAINT room_booking_logs_request_id_fkey FOREIGN KEY (request_id) REFERENCES public.room_booking_requests(request_id)
 );
+CREATE TABLE public.room_booking_attendees (
+  attendee_id        bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  request_id         bigint NOT NULL,
+  name               text   NOT NULL,
+  phone              text,
+  email              character varying,
+  company            character varying,
+  attend_type        character varying,
+  ticket_no          character varying,
+  ticket_type        character varying,
+  paid_amount        numeric,
+  payment_status     character varying,
+  payment_method     character varying,
+  payment_ref        character varying,
+  payment_deadline   timestamp without time zone,
+  slip_url           text,
+  checked_in         boolean DEFAULT false,
+  check_in_at        timestamp without time zone,
+  position_level     text,
+  member_code        text,
+  person_role        text DEFAULT 'primary' CHECK (person_role IN ('primary','co_applicant','guest')),
+  tier_id            integer,
+  line_user_id       text,
+  line_display_name  text,
+  line_picture_url   text,
+  tags               jsonb,
+  note               text,
+  created_at         timestamp with time zone DEFAULT now(),
+  CONSTRAINT room_booking_attendees_pkey PRIMARY KEY (attendee_id),
+  CONSTRAINT room_booking_attendees_request_id_fkey FOREIGN KEY (request_id) REFERENCES public.room_booking_requests(request_id) ON DELETE CASCADE
+  -- UNIQUE INDEX (request_id, member_code, person_role) WHERE member_code IS NOT NULL
+);
+
+-- ============================================================
+-- VIEW: member_persons — แตก members เป็นรายบุคคล (1-2 rows ต่อ member_code)
+-- ============================================================
+-- บริษัท → ใช้ full_name (ชื่อบุคคลธรรมดา) เป็น primary
+-- บุคคล → ใช้ member_name เป็น primary
+-- มี co_applicant_name → เพิ่ม row role='co_applicant'
+-- Columns: member_code, person_role, person_name, phone, email,
+--          position_level, position, country_code, is_company
+-- ใช้สำหรับ: dropdown ลงทะเบียน event/booking attendees
 
 -- ============================================================
 -- GROUP 4: SYSTEM
