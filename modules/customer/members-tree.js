@@ -53,7 +53,7 @@ async function suggestByName(q) {
   try {
     const esc = q.replace(/[,()*]/g, '');
     const rows = await sb(
-      `members?select=member_code,full_name,member_name,country_code,package` +
+      `members?select=member_code,full_name,member_name,country_code,position_level` +
       `&or=(full_name.ilike.*${esc}*,member_name.ilike.*${esc}*)&limit=5`
     );
     if (!rows.length) { _hideSuggest(); return; }
@@ -62,7 +62,7 @@ async function suggestByName(q) {
       return `<div onclick="loadMember('${m.member_code}')" style="padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--border);transition:background .12s" onmouseover="this.style.background='var(--accent-pale)'" onmouseout="this.style.background='transparent'">
         <span style="font-family:'IBM Plex Mono',monospace;color:var(--accent);font-weight:600;font-size:12px">${m.member_code}</span>
         <span style="margin-left:10px;font-size:13px">${escapeHtml(name)}</span>
-        <span style="margin-left:8px;font-size:11px;color:var(--text3)">${m.country_code || ''} · ${m.package || ''}</span>
+        <span style="margin-left:8px;font-size:11px;color:var(--text3)">${m.country_code || ''} · ${m.position_level || ''}</span>
       </div>`;
     }).join('');
     const sug = document.getElementById('searchSuggest');
@@ -99,8 +99,8 @@ function _renderMemberCard(m) {
   document.getElementById('mCode').textContent = `🔖 ${m.member_code} · ${_flag(m.country_code)} ${m.country_code || '—'}`;
 
   const pkgEl = document.getElementById('mPkgBadge');
-  if (m.package) {
-    pkgEl.innerHTML = `<span class="tree-pkg pkg-${m.package}" style="font-size:13px;padding:5px 12px">${PKG_LABEL[m.package] || m.package}</span>`;
+  if (m.position_level) {
+    pkgEl.innerHTML = `<span class="tree-pos" style="font-size:13px;padding:5px 12px">⭐ ${escapeHtml(m.position_level)}</span>`;
   } else pkgEl.innerHTML = '';
 
   document.getElementById('mSponsor').textContent = m.sponsor_code || '— (root)';
@@ -190,10 +190,10 @@ function _buildBinaryNode(member, depth, isRoot = false) {
   const card = document.createElement('div');
   card.className = 'bt-card' + (isRoot ? ' root' : '');
   card.innerHTML = `
-    <div class="bt-code tt" data-tip="${escapeHtml(name)}${member.package ? ' · ' + member.package : ''}" onclick="event.stopPropagation();loadMember('${member.member_code}')">${member.member_code}</div>
+    <div class="bt-code tt" data-tip="${escapeHtml(name)}${member.position_level ? ' · ' + escapeHtml(member.position_level) : ''}" onclick="event.stopPropagation();loadMember('${member.member_code}')">${member.member_code}</div>
     <div class="bt-name" title="${escapeHtml(name)}">${escapeHtml(name)}</div>
     <div class="bt-meta">
-      ${member.package ? `<span class="tree-pkg pkg-${member.package}">${member.package}</span>` : ''}
+      ${member.position_level ? `<span class="tree-pos">⭐ ${escapeHtml(member.position_level)}</span>` : ''}
       ${member.side && !isRoot ? `<span class="tree-side ${member.side==='ซ้าย'?'left':'right'}">${member.side}</span>` : ''}
       <span>${_flag(member.country_code)} ${member.country_code || ''}</span>
     </div>
@@ -312,9 +312,9 @@ async function renderUplineChain(field) {
   bc.innerHTML = chain.slice().reverse().map((m, i, arr) => {
     const isLast = i === arr.length - 1;
     const nm = escapeHtml(MemberFmt.displayName(m));
-    const pkg = m.package ? ` · ${m.package}` : '';
+    const pos = m.position_level ? ` · ${escapeHtml(m.position_level)}` : '';
     const flag = _flag(m.country_code);
-    const ttl = `${flag} ${nm}${pkg}`;
+    const ttl = `${flag} ${nm}${pos}`;
     const tag = isLast
       ? `<span class="tt" data-tip="${ttl}" style="background:var(--accent);color:#fff;padding:4px 10px;border-radius:6px;font-family:'IBM Plex Mono',monospace;font-weight:600">${m.member_code} (คุณ)</span>`
       : `<span class="upline-link tt" data-tip="${ttl}" onclick="loadMember('${m.member_code}')">${m.member_code}</span>`;
@@ -346,7 +346,8 @@ async function renderUplineChain(field) {
     for (const { m, i } of rows) {
       const isMe = i === 0;
       const nm = escapeHtml(MemberFmt.displayName(m));
-      const tip = `${nm}${m.package ? ' · ' + m.package : ''}${m.side ? ' · ' + m.side : ''}`;
+      const posTxt = m.position_level ? escapeHtml(m.position_level) : '';
+      const tip = `${nm}${posTxt ? ' · ' + posTxt : ''}${m.side ? ' · ' + m.side : ''}`;
       const row = document.createElement('div');
       row.style.cssText = `padding:9px 12px;border:1px solid ${isMe ? 'var(--accent)' : 'var(--border)'};border-radius:8px;margin-top:6px;display:flex;align-items:center;gap:10px;${isMe ? 'background:var(--accent-pale)' : 'background:var(--surface)'}`;
       row.innerHTML = `
@@ -355,7 +356,7 @@ async function renderUplineChain(field) {
           <div style="display:flex;gap:8px;align-items:baseline;flex-wrap:wrap">
             <span class="tree-code tt" data-tip="${tip}" onclick="loadMember('${m.member_code}')" style="cursor:pointer">${m.member_code}</span>
             <span class="tree-name" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${nm}</span>
-            ${m.package ? `<span class="tree-pkg pkg-${m.package}">${m.package}</span>` : ''}
+            ${posTxt ? `<span class="tree-pos">⭐ ${posTxt}</span>` : ''}
           </div>
         </div>
         <span style="font-size:11px;color:var(--text3);flex-shrink:0">${_flag(m.country_code)}</span>
@@ -441,14 +442,15 @@ function _buildNodeFromData(member, field, depth) {
   row.className = 'tree-node';
   const name = MemberFmt.displayName(member);
   const isLeaf = childCount === 0;
-  const tip = `${escapeHtml(name)}${member.package ? ' · ' + member.package : ''}${member.side ? ' · ' + member.side : ''}${childCount ? ' · ลูกทีม ' + childCount.toLocaleString() : ''}`;
+  const posTxt = member.position_level ? escapeHtml(member.position_level) : '';
+  const tip = `${escapeHtml(name)}${posTxt ? ' · ' + posTxt : ''}${member.side ? ' · ' + member.side : ''}${childCount ? ' · ลูกทีม ' + childCount.toLocaleString() : ''}`;
   row.innerHTML = `
     <div class="tree-toggle ${isLeaf ? 'leaf' : ''}" data-expanded="false">${isLeaf ? '' : '▶'}</div>
     <span class="tree-icon">${depth === 0 ? '🌳' : '👤'}</span>
     <div class="tree-info">
       <span class="tree-code tt" data-tip="${tip}" onclick="event.stopPropagation();loadMember('${member.member_code}')" style="cursor:pointer">${member.member_code}</span>
       <span class="tree-name">${escapeHtml(name)}</span>
-      ${member.package ? `<span class="tree-pkg pkg-${member.package}">${member.package}</span>` : ''}
+      ${posTxt ? `<span class="tree-pos">⭐ ${posTxt}</span>` : ''}
       ${member.side && depth > 0 ? `<span class="tree-side ${member.side==='ซ้าย'?'left':'right'}">${member.side}</span>` : ''}
       <span class="tree-meta">${_flag(member.country_code)} ${member.country_code || ''}</span>
     </div>
