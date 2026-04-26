@@ -121,10 +121,18 @@ function setMode(mode) {
 
 /* ── Render tree based on mode ── */
 const MODE_HINT = {
-  'sponsor-down': '⭐ <b>ลูกทีมของคุณ</b> — คนที่<b>คุณชวน</b>มาสมัคร ไล่ลงไปเรื่อยๆ · คลิก <b>▶</b> ขยายดูลูก · แยกเป็น 2 คอลัมน์ <span style="color:#1e40af;font-weight:600">ซ้าย</span>/<span style="color:#991b1b;font-weight:600">ขวา</span> ตามตำแหน่ง binary',
-  'sponsor-up':   '⬆️ <b>แม่ทีมของคุณ</b> — คนที่<b>ชวนคุณ</b>มา ไล่ขึ้นไปถึง root · คลิก<b>รหัส</b>หรือ<b>ปุ่ม breadcrumb</b>เพื่อกระโดดไปดูคนนั้นแทน',
-  'upline-down':  '🌲 <b>Downline Binary</b> — ใครอยู่<b>ใต้คุณ</b>ในผังคำนวณโบนัส (ซ้าย/ขวา max 2 คน) · คลิก <b>▼ ขยาย</b> เปิดชั้นต่อไป · ช่องว่าง = ยังไม่มีคนในตำแหน่งนั้น',
-  'upline-up':    '⬆️ <b>Upline Binary</b> — <b>คุณอยู่ใต้ใคร</b>ในผังคำนวณโบนัส ไล่ขึ้นยอดบน · คลิก<b>รหัส</b>เพื่อเปลี่ยนคนที่ดู · L = ระดับห่างจากคุณ',
+  'sponsor-down':    '⭐ <b>ลูกทีมของคุณ</b> — คนที่<b>คุณชวน</b>มาสมัคร ไล่ลงไปเรื่อยๆ · คลิก <b>▶</b> ขยายดูลูก · แยกเป็น 2 คอลัมน์ <span style="color:#1e40af;font-weight:600">ซ้าย</span>/<span style="color:#991b1b;font-weight:600">ขวา</span> ตามตำแหน่ง binary',
+  'sponsor-up':      '⬆️ <b>แม่ทีมของคุณ</b> — คนที่<b>ชวนคุณ</b>มา ไล่ขึ้นไปถึง root · คลิก<b>รหัส</b>หรือ<b>ปุ่ม breadcrumb</b>เพื่อกระโดดไปดูคนนั้นแทน',
+  'sponsor-leaders': '👑 <b>หัวหน้าทีม</b> — คนในสาย<b>แม่ทีม (Sponsor)</b>ที่มีตำแหน่ง <b>SVP / VP / AVP</b> เรียงจากตำแหน่งสูงสุดลงมา · คลิกแถวเพื่อกระโดดไปดูคนนั้น',
+  'upline-down':     '🌲 <b>Downline Binary</b> — ใครอยู่<b>ใต้คุณ</b>ในผังคำนวณโบนัส (ซ้าย/ขวา max 2 คน) · คลิก <b>▼ ขยาย</b> เปิดชั้นต่อไป · ช่องว่าง = ยังไม่มีคนในตำแหน่งนั้น',
+  'upline-up':       '⬆️ <b>Upline Binary</b> — <b>คุณอยู่ใต้ใคร</b>ในผังคำนวณโบนัส ไล่ขึ้นยอดบน · คลิก<b>รหัส</b>เพื่อเปลี่ยนคนที่ดู · L = ระดับห่างจากคุณ',
+};
+
+const LEADER_RANKS = { SVP: 1, VP: 2, AVP: 3 };
+const LEADER_POS_STYLE = {
+  SVP: { bg: '#fce7f3', color: '#9f1239' },
+  VP:  { bg: '#fef3c7', color: '#92400e' },
+  AVP: { bg: '#cffafe', color: '#0e7490' },
 };
 
 function _makeHint() {
@@ -145,6 +153,8 @@ async function renderTree() {
     } else if (currentMode === 'upline-up') {
       await renderUplineChain('upline_code');
       wrap.insertBefore(_makeHint(), wrap.firstChild);
+    } else if (currentMode === 'sponsor-leaders') {
+      await renderSponsorLeaders();
     } else if (currentMode === 'upline-down') {
       await renderBinaryTree();
     } else {
@@ -395,6 +405,88 @@ async function renderUplineChain(field) {
     note.textContent = `🏛️ คุณคือ root ของสาย ${field === 'sponsor_code' ? 'Sponsor' : 'Upline'} นี้`;
     wrap.appendChild(note);
   }
+}
+
+/* ── Render sponsor leaders (filter chain by SVP/VP/AVP, sort by rank) ── */
+async function renderSponsorLeaders() {
+  const wrap = document.getElementById('treeWrap');
+  let chain = [];
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/get_chain_up`, {
+      method: 'POST',
+      headers: {
+        apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ start_code: currentMember.member_code, field_name: 'sponsor_code' }),
+    });
+    if (res.ok) chain = await res.json();
+    else throw new Error('RPC not available');
+  } catch (e) {
+    console.warn('RPC fallback:', e.message);
+    chain = [currentMember];
+    let curr = currentMember, depth = 0;
+    while (curr.sponsor_code && depth < 30) {
+      try {
+        const rows = await sb(`members?select=*&member_code=eq.${encodeURIComponent(curr.sponsor_code)}&limit=1`);
+        if (!rows.length) break;
+        chain.push(rows[0]); curr = rows[0]; depth++;
+      } catch { break; }
+    }
+  }
+
+  // Skip self (chain[0]); keep only SVP/VP/AVP; sort by rank
+  const leaders = chain.slice(1).filter(m => LEADER_RANKS[m.position_level]);
+  leaders.sort((a, b) => LEADER_RANKS[a.position_level] - LEADER_RANKS[b.position_level]);
+
+  wrap.innerHTML = '';
+  wrap.appendChild(_makeHint());
+
+  if (!leaders.length) {
+    const empty = document.createElement('div');
+    empty.className = 'tree-empty';
+    empty.innerHTML = '<div class="tree-empty-icon">👑</div>ไม่มีแม่ทีมที่มีตำแหน่ง SVP / VP / AVP ในสายของคุณ';
+    wrap.appendChild(empty);
+    return;
+  }
+
+  const table = document.createElement('table');
+  table.style.cssText = 'width:100%;border-collapse:separate;border-spacing:0;margin-top:6px;font-size:13px;background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden';
+  table.innerHTML = `
+    <thead>
+      <tr style="background:var(--surface2);text-align:left">
+        <th style="padding:11px 14px;border-bottom:1px solid var(--border);font-weight:700;color:var(--text2);font-size:11.5px;letter-spacing:.4px;width:140px">ตำแหน่ง</th>
+        <th style="padding:11px 14px;border-bottom:1px solid var(--border);font-weight:700;color:var(--text2);font-size:11.5px;letter-spacing:.4px">ชื่อ</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  `;
+  const tbody = table.querySelector('tbody');
+
+  leaders.forEach((m, idx) => {
+    const name = MemberFmt.displayName(m);
+    const c = LEADER_POS_STYLE[m.position_level] || { bg: '#e2e8f0', color: '#334155' };
+    const isLast = idx === leaders.length - 1;
+    const tr = document.createElement('tr');
+    tr.style.cssText = 'cursor:pointer;transition:background .12s';
+    tr.onmouseover = () => tr.style.background = 'var(--accent-pale)';
+    tr.onmouseout  = () => tr.style.background = '';
+    tr.onclick = () => loadMember(m.member_code);
+    const cellBorder = isLast ? '' : 'border-bottom:1px solid var(--border)';
+    tr.innerHTML = `
+      <td style="padding:11px 14px;${cellBorder}">
+        <span style="display:inline-block;padding:4px 11px;border-radius:6px;background:${c.bg};color:${c.color};font-weight:700;font-size:12px">⭐ ${escapeHtml(m.position_level)}</span>
+      </td>
+      <td style="padding:11px 14px;${cellBorder};color:var(--text)">
+        <span style="font-family:'IBM Plex Mono',monospace;color:var(--accent);font-weight:600;font-size:12px;margin-right:10px">${m.member_code}</span>
+        <span>${escapeHtml(name)}</span>
+        <span style="margin-left:8px;font-size:11px;color:var(--text3)">${_flag(m.country_code)} ${m.country_code || ''}</span>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  wrap.appendChild(table);
 }
 
 /* ── Fetch children + their child counts in 1 query (RPC) ── */
