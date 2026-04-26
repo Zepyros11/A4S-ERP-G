@@ -309,6 +309,37 @@ body.is-picker .reg-card{
   .reg-picker-poster,.reg-picker-poster-ph{width:72px;height:72px;}
 }
 
+/* ── Person picker modal (สมาชิก / บุคคลธรรมดา / ผู้สมัครร่วม) ── */
+.pp-overlay{position:fixed;inset:0;background:rgba(15,23,42,.55);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;padding:18px;z-index:1000;}
+.pp-overlay.open{display:flex;animation:pp-fade .22s ease both;}
+@keyframes pp-fade{from{opacity:0}to{opacity:1}}
+.pp-card{background:#fff;border-radius:18px;width:100%;max-width:440px;box-shadow:0 30px 60px rgba(0,0,0,.35);overflow:hidden;animation:pp-rise .28s cubic-bezier(.22,.9,.35,1) both;}
+@keyframes pp-rise{from{opacity:0;transform:translateY(10px) scale(.98)}to{opacity:1;transform:none}}
+.pp-head{padding:20px 22px 12px;}
+.pp-title{font-size:17px;font-weight:800;color:#0f172a;letter-spacing:-.01em;}
+.pp-sub{font-size:12.5px;color:#64748b;margin-top:4px;}
+.pp-body{padding:6px 16px 18px;display:flex;flex-direction:column;gap:9px;}
+.pp-opt{display:flex;align-items:center;gap:12px;padding:13px 14px;border:1.5px solid #e2e8f0;border-radius:13px;background:#fff;cursor:pointer;transition:all .16s;text-align:left;font-family:inherit;width:100%;}
+.pp-opt:hover:not(:disabled){border-color:#3b82f6;background:#eff6ff;transform:translateY(-1px);box-shadow:0 6px 14px rgba(30,64,175,.12);}
+.pp-opt:disabled{opacity:.55;cursor:not-allowed;background:#f8fafc;}
+.pp-icon{width:42px;height:42px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;}
+.pp-icon.primary{background:#dbeafe;color:#1e40af;}
+.pp-icon.coapp{background:#f3e8ff;color:#9333ea;}
+.pp-icon.both{background:linear-gradient(135deg,#dbeafe,#f3e8ff);color:#6366f1;}
+.pp-info{flex:1;min-width:0;}
+.pp-name{font-weight:700;font-size:14px;color:#0f172a;line-height:1.3;}
+.pp-meta{font-size:11.5px;color:#64748b;margin-top:3px;display:flex;gap:6px;flex-wrap:wrap;align-items:center;}
+.pp-chip{padding:1px 7px;border-radius:5px;font-size:10.5px;font-weight:700;}
+.pp-chip.role-primary{background:#dbeafe;color:#1e40af;}
+.pp-chip.role-coapp{background:#f3e8ff;color:#9333ea;}
+.pp-chip.done{background:#dcfce7;color:#166534;}
+.pp-chip.warn{background:#fef3c7;color:#92400e;}
+.pp-arrow{color:#cbd5e1;font-size:22px;flex-shrink:0;}
+.pp-opt:hover:not(:disabled) .pp-arrow{color:#3b82f6;}
+.pp-foot{padding:8px 16px 16px;text-align:center;}
+.pp-cancel{background:none;border:none;color:#64748b;font-family:inherit;font-size:12.5px;cursor:pointer;padding:6px 14px;border-radius:8px;}
+.pp-cancel:hover{background:#f1f5f9;color:#0f172a;}
+
 /* ── LINE connect panel ── */
 .reg-line-panel{margin:0 20px 14px;padding:12px 14px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;display:flex;align-items:center;gap:10px;}
 .reg-line-panel.linked{background:#f0fdf4;border-color:#86efac;}
@@ -326,6 +357,8 @@ body.is-picker .reg-card{
 <body>
 
 <div class="toast" id="toast"></div>
+
+<div class="pp-overlay" id="ppOverlay" role="dialog" aria-modal="true" aria-labelledby="ppTitle"></div>
 
 <script src="./register-config.js"></script>
 
@@ -796,13 +829,39 @@ async function doRegister() {
       showMsg('❌ Event นี้สำหรับสมาชิก MLM เท่านั้น', 'error'); btn.disabled = false; btn.textContent = '🎫 ลงทะเบียน'; return;
     }
 
-    // 4. Check duplicate registration
-    const existing = await sbGet(`event_attendees?event_id=eq.${_event.event_id}&member_code=eq.${code}&select=attendee_id&limit=1`);
-    if (existing.length) { showMsg('⚠️ คุณลงทะเบียนแล้ว', 'error'); btn.disabled = false; btn.textContent = '🎫 ลงทะเบียน'; return; }
+    // 4. Load attendable persons (1-2 rows: primary + co_applicant)
+    const persons = await sbGet(`member_persons?member_code=eq.${encodeURIComponent(code)}&select=member_code,person_role,person_name,phone,is_company&order=person_role`);
+    if (!persons.length) {
+      // Fallback — สมาชิกที่ไม่อยู่ใน view (data ไม่ครบ): สร้าง row primary จาก members
+      persons.push({
+        member_code: code,
+        person_role: 'primary',
+        person_name: member.full_name || member.member_name || code,
+        phone: member.phone || null,
+        is_company: false,
+      });
+    }
+    const primary = persons.find(p => p.person_role === 'primary');
+    const coApplicant = persons.find(p => p.person_role === 'co_applicant');
 
-    // 5. Check prerequisite
+    // 5. Check existing registration (per role) — UNIQUE (event_id, member_code, person_role)
+    const existing = await sbGet(`event_attendees?event_id=eq.${_event.event_id}&member_code=eq.${encodeURIComponent(code)}&select=attendee_id,person_role`);
+    const hasPrimary = existing.some(r => r.person_role === 'primary');
+    const hasCoApp = existing.some(r => r.person_role === 'co_applicant');
+
+    // ถ้ามีแค่ 1 person ที่ register ได้ และลงไปแล้ว → block
+    if (persons.length === 1) {
+      const role = persons[0].person_role;
+      if ((role === 'primary' && hasPrimary) || (role === 'co_applicant' && hasCoApp)) {
+        showMsg('⚠️ คุณลงทะเบียนแล้ว', 'error'); btn.disabled = false; btn.textContent = '🎫 ลงทะเบียน'; return;
+      }
+    } else if (persons.length === 2 && hasPrimary && hasCoApp) {
+      showMsg('⚠️ ทั้ง 2 รายชื่อลงทะเบียนแล้ว', 'error'); btn.disabled = false; btn.textContent = '🎫 ลงทะเบียน'; return;
+    }
+
+    // 6. Check prerequisite
     if (_prereqLevel && _event.series_id) {
-      const attended = await sbGet(`event_attendees?member_code=eq.${code}&checked_in=eq.true&select=event_id`);
+      const attended = await sbGet(`event_attendees?member_code=eq.${encodeURIComponent(code)}&checked_in=eq.true&select=event_id`);
       let passed = false;
       if (attended.length) {
         const eids = attended.map(a => a.event_id).join(',');
@@ -815,57 +874,90 @@ async function doRegister() {
       }
     }
 
-    // 6. Check capacity (recheck)
-    if (_event.max_attendees > 0 && _attendeeCount >= _event.max_attendees) {
+    // 7. Determine selection — popup เฉพาะตอนมี 2 rows
+    const seatsLeft = _event.max_attendees > 0 ? Math.max(0, _event.max_attendees - _attendeeCount) : Infinity;
+    if (_event.max_attendees > 0 && seatsLeft <= 0) {
       showMsg('❌ เต็มแล้ว', 'error'); btn.disabled = false; btn.textContent = '🎫 ลงทะเบียน'; return;
     }
 
-    // 7. Generate ticket
+    let selectedRoles;
+    if (persons.length === 1) {
+      selectedRoles = [persons[0].person_role];
+    } else {
+      const pick = await showPersonPicker({ primary, coApplicant, hasPrimary, hasCoApp, seatsLeft });
+      if (!pick) {
+        // user cancelled
+        btn.disabled = false; btn.textContent = '🎫 ลงทะเบียน'; return;
+      }
+      selectedRoles = pick;
+    }
+
+    if (_event.max_attendees > 0 && selectedRoles.length > seatsLeft) {
+      showMsg('❌ ที่นั่งเหลือไม่พอสำหรับ 2 รายชื่อ', 'error'); btn.disabled = false; btn.textContent = '🎫 ลงทะเบียน'; return;
+    }
+
+    // 8. Generate ticket(s)
     const prefix = `TK-${_event.event_id}-`;
-    let ticketNo = prefix + '0001';
+    let baseNum = 1;
     try {
       const tix = await sbGet(`event_attendees?ticket_no=like.${prefix}*&select=ticket_no&order=ticket_no.desc&limit=1`);
       if (tix.length) {
-        const lastNum = parseInt(tix[0].ticket_no.split('-').pop(), 10) || 0;
-        ticketNo = prefix + String(lastNum + 1).padStart(4, '0');
+        const lastBase = parseInt(String(tix[0].ticket_no).slice(prefix.length).split('-')[0], 10) || 0;
+        baseNum = lastBase + 1;
       }
     } catch {}
+    const baseStr = String(baseNum).padStart(4, '0');
+    const tickets = selectedRoles.length === 2
+      ? [`${prefix}${baseStr}-A`, `${prefix}${baseStr}-B`]   // primary=A, co_applicant=B
+      : [`${prefix}${baseStr}`];
 
-    // 8. Create attendee — register via link/QR = ถือว่าเข้างานแล้ว (auto check-in)
-    const name = member.full_name || member.member_name || code;
+    // 9. Build payload — LINE ผูกเฉพาะ "เจ้าของเครื่องที่กดลงทะเบียน"
+    //    - เลือกคนเดียว → คนนั้นเป็น LINE owner
+    //    - เลือกทั้งคู่ → primary เป็น LINE owner (co_applicant ไม่ผูก LINE)
+    const lineOwnerRole = selectedRoles.length === 2 ? 'primary' : selectedRoles[0];
     const nowIso = new Date().toISOString();
-    const payload = [{
-      event_id: _event.event_id,
-      name,
-      phone: member.phone || null,
-      member_code: code,
-      attend_type: 'ONSITE',
-      ticket_no: ticketNo,
-      payment_status: 'FREE',
-      checked_in: true,
-      check_in_at: nowIso,
-      ...(_lineProfile ? {
-        line_user_id: _lineProfile.userId,
-        line_display_name: _lineProfile.displayName || null,
-        line_picture_url: _lineProfile.pictureUrl || null,
-        line_linked_at: nowIso,
-      } : {}),
-    }];
+    const payload = selectedRoles.map((role, i) => {
+      const p = role === 'primary' ? primary : coApplicant;
+      const isLineOwner = _lineProfile && role === lineOwnerRole;
+      return {
+        event_id: _event.event_id,
+        name: p?.person_name || code,
+        phone: p?.phone || null,
+        member_code: code,
+        person_role: role,
+        attend_type: 'ONSITE',
+        ticket_no: tickets[i],
+        payment_status: 'FREE',
+        checked_in: true,
+        check_in_at: nowIso,
+        ...(isLineOwner ? {
+          line_user_id: _lineProfile.userId,
+          line_display_name: _lineProfile.displayName || null,
+          line_picture_url: _lineProfile.pictureUrl || null,
+          line_linked_at: nowIso,
+        } : {}),
+      };
+    });
     await sbPost('event_attendees', payload);
 
-    // 8b. Link LINE account to member (persistent, cross-event)
+    // 9b. Link LINE account to member (persistent, cross-event)
     if (_lineProfile) {
       try { await linkLineToMember(code, _lineProfile, memberTable); }
       catch (e) { console.warn('linkLineToMember failed:', e?.message || e); }
     }
 
     // Success!
+    const ticketLines = payload.map(p =>
+      `<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 12px;background:#f8fafc;border-radius:8px;margin-top:6px">
+         <span style="font-size:13px;color:#0f172a;font-weight:600">${p.person_role === 'co_applicant' ? '👥' : '👤'} ${esc(p.name)}</span>
+         <span style="font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:700;color:#1e40af">${p.ticket_no}</span>
+       </div>`).join('');
     document.getElementById('regForm').innerHTML = `
       <div class="reg-msg success">
         <div style="font-size:32px;margin-bottom:8px">✅</div>
         <div style="font-weight:700;font-size:16px">เข้างานเรียบร้อย!</div>
-        <div style="margin-top:4px">${esc(name)} (${code})</div>
-        <div class="reg-success-ticket">🎫 ${ticketNo}</div>
+        <div style="margin-top:4px;font-size:12.5px;color:#64748b">รหัส ${code}${payload.length === 2 ? ' · 2 รายชื่อ' : ''}</div>
+        <div style="margin-top:10px">${ticketLines}</div>
         <div style="margin-top:12px;font-size:12px;color:#64748b">ระบบบันทึกการเข้างานอัตโนมัติแล้ว</div>
       </div>`;
 
@@ -873,6 +965,88 @@ async function doRegister() {
     showMsg('❌ เกิดข้อผิดพลาด: ' + (e.message || '').slice(0, 100), 'error');
     btn.disabled = false; btn.textContent = '🎫 ลงทะเบียน';
   }
+}
+
+/* ── Person picker — เลือก primary / co_applicant / ทั้งคู่ ──
+   Returns Promise<['primary'] | ['co_applicant'] | ['primary','co_applicant'] | null>
+   null = user cancelled */
+function showPersonPicker({ primary, coApplicant, hasPrimary, hasCoApp, seatsLeft }) {
+  return new Promise(resolve => {
+    const ov = document.getElementById('ppOverlay');
+    const pName = primary?.person_name || '—';
+    const cName = coApplicant?.person_name || '—';
+    const primaryChip = primary?.is_company
+      ? '<span class="pp-chip role-primary">🏢 บุคคลธรรมดา</span>'
+      : '<span class="pp-chip role-primary">👤 ผู้สมัคร</span>';
+    const bothDisabled = hasPrimary || hasCoApp || seatsLeft < 2;
+    const bothNote = hasPrimary || hasCoApp
+      ? '<span class="pp-chip warn">มีรายชื่อที่ลงไปแล้ว</span>'
+      : (seatsLeft < 2 ? '<span class="pp-chip warn">ที่นั่งเหลือ ' + seatsLeft + '</span>' : '');
+
+    ov.innerHTML = `
+      <div class="pp-card" role="document">
+        <div class="pp-head">
+          <div class="pp-title" id="ppTitle">เลือกผู้เข้างาน</div>
+          <div class="pp-sub">รหัสนี้มี 2 รายชื่อ — เลือกคนที่จะเข้างาน</div>
+        </div>
+        <div class="pp-body">
+          <button class="pp-opt" data-pick="primary" ${hasPrimary ? 'disabled' : ''}>
+            <div class="pp-icon primary">👤</div>
+            <div class="pp-info">
+              <div class="pp-name">${esc(pName)}</div>
+              <div class="pp-meta">${primaryChip}${hasPrimary ? '<span class="pp-chip done">✅ ลงทะเบียนแล้ว</span>' : ''}</div>
+            </div>
+            <div class="pp-arrow">›</div>
+          </button>
+          <button class="pp-opt" data-pick="co_applicant" ${hasCoApp ? 'disabled' : ''}>
+            <div class="pp-icon coapp">👥</div>
+            <div class="pp-info">
+              <div class="pp-name">${esc(cName)}</div>
+              <div class="pp-meta"><span class="pp-chip role-coapp">👥 ผู้สมัครร่วม</span>${hasCoApp ? '<span class="pp-chip done">✅ ลงทะเบียนแล้ว</span>' : ''}</div>
+            </div>
+            <div class="pp-arrow">›</div>
+          </button>
+          <button class="pp-opt" data-pick="both" ${bothDisabled ? 'disabled' : ''}>
+            <div class="pp-icon both">👫</div>
+            <div class="pp-info">
+              <div class="pp-name">เข้างานทั้ง 2 รายชื่อ</div>
+              <div class="pp-meta"><span class="pp-chip role-primary">2 คน</span>${bothNote}</div>
+            </div>
+            <div class="pp-arrow">›</div>
+          </button>
+        </div>
+        <div class="pp-foot">
+          <button type="button" class="pp-cancel" data-pick="cancel">ยกเลิก</button>
+        </div>
+      </div>`;
+    ov.classList.add('open');
+
+    // Watch for external close (modalManager.js handles ESC by removing .open)
+    const observer = new MutationObserver(() => {
+      if (!ov.classList.contains('open')) close(null);
+    });
+    observer.observe(ov, { attributes: true, attributeFilter: ['class'] });
+
+    const close = (result) => {
+      observer.disconnect();
+      ov.classList.remove('open');
+      ov.removeEventListener('click', onClick);
+      resolve(result);
+    };
+    const onClick = (e) => {
+      const btn = e.target.closest('[data-pick]');
+      if (btn) {
+        if (btn.disabled) return;
+        const v = btn.dataset.pick;
+        if (v === 'cancel') return close(null);
+        if (v === 'both') return close(['primary', 'co_applicant']);
+        return close([v]);
+      }
+      // Click on overlay backdrop = cancel
+      if (e.target === ov) close(null);
+    };
+    ov.addEventListener('click', onClick);
+  });
 }
 
 function showMsg(msg, type) {
