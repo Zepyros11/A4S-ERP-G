@@ -37,6 +37,25 @@ let recentCheckins = []; // last 8
 let lastScanAt = 0;
 let lastScanText = "";
 
+// ── TAG-FLEX RESEND BLOCK (toggle) ────────────────────────
+// ON  = check tag_notified_at flag → ส่งครั้งเดียว (default)
+// OFF = ส่ง flex ทุกครั้งที่ check-in สำเร็จ
+const TAG_RESEND_BLOCK_KEY = "ci_tag_resend_block";
+function isTagResendBlocked() {
+  const v = localStorage.getItem(TAG_RESEND_BLOCK_KEY);
+  return v === null ? true : v === "1";
+}
+function _syncTagResendUi() {
+  const input = document.getElementById("tagResendBlockInput");
+  const label = document.getElementById("tagResendLabel");
+  if (input) input.checked = isTagResendBlocked();
+  if (label) label.textContent = isTagResendBlocked() ? "🏷️ กัน Flex ซ้ำ" : "🏷️ ส่ง Flex ทุกครั้ง";
+}
+window.onTagResendToggle = function (checked) {
+  localStorage.setItem(TAG_RESEND_BLOCK_KEY, checked ? "1" : "0");
+  _syncTagResendUi();
+};
+
 // ── INIT ──────────────────────────────────────────────────
 async function init() {
   const params = new URLSearchParams(window.location.search);
@@ -68,6 +87,9 @@ async function init() {
   } catch (e) {
     console.warn("load event:", e);
   }
+
+  // Sync tag-resend toggle UI from saved state
+  _syncTagResendUi();
 
   // Start QR scanner (if library loaded)
   if (window.Html5Qrcode) {
@@ -342,12 +364,13 @@ async function handleScan(scannedText, opts = {}) {
 
 // ── LINE TAG NOTIFICATION ─────────────────────────────────
 // ส่ง flex รายการ tag ให้ attendee ตอน check-in สำเร็จ
-// Guards: ต้องมี line_user_id + tags ไม่ว่าง + ยังไม่เคยส่ง (tag_notified_at IS NULL)
+// Guards: ต้องมี line_user_id + tags ไม่ว่าง + (toggle ON → tag_notified_at IS NULL)
 async function notifyTagsOnCheckin(attendee) {
   if (!attendee?.line_user_id) return;
   const tags = Array.isArray(attendee.tags) ? attendee.tags.filter(Boolean) : [];
   if (!tags.length) return;
-  if (attendee.tag_notified_at) return; // already notified
+  // Block resend only when toggle ON (default). OFF = ส่งทุกครั้งที่ check-in
+  if (isTagResendBlocked() && attendee.tag_notified_at) return;
   if (!window.LineAPI) return;
   try {
     const channel = await window.LineAPI.getChannelForEvent(eventInfo);

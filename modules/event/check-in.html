@@ -663,6 +663,11 @@
           <div class="ci-hero-sub" id="ciEventSub">กำลังโหลด...</div>
         </div>
         <div class="ci-hero-actions">
+          <label id="tagResendToggle" title="ON = กันส่ง Tag Flex ซ้ำ (เช็ค flag) · OFF = ส่งทุกครั้งที่ check-in"
+            style="display:flex;align-items:center;gap:6px;padding:7px 12px;border-radius:16px;background:rgba(255,255,255,.12);border:1.5px solid rgba(255,255,255,.25);cursor:pointer;font-size:12px;font-weight:600;color:#fff;user-select:none">
+            <input type="checkbox" id="tagResendBlockInput" onchange="window.onTagResendToggle(this.checked)" style="accent-color:#10b981;width:15px;height:15px;cursor:pointer" checked>
+            <span id="tagResendLabel">🏷️ กัน Flex ซ้ำ</span>
+          </label>
           <button class="ci-share-btn" onclick="window.ciOpenShareLink()" title="แชร์ลิงก์ลงทะเบียน">🔗<span class="share-label"> แชร์ลิงก์ลงทะเบียน</span></button>
         </div>
       </div>
