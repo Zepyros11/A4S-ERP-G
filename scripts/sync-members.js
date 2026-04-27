@@ -203,105 +203,48 @@ async function main() {
     await page.waitForTimeout(1500);
     await _screenshot(page, '06-advance-search');
 
-    // ── Step 5+: Loop 3 date ranges → fill date → Export → parse → upsert ──
+    // ── Step 5+: Loop date ranges with per-bucket retry (partial success allowed) ──
+    const failedBuckets = [];
+    const MAX_ATTEMPTS = 2;       // 1 retry per bucket
+
     for (let i = 0; i < DATE_RANGES.length; i++) {
       const range = DATE_RANGES[i];
       console.log(`\n━━━ Round ${i+1}/${DATE_RANGES.length}: ${range.label} (${range.from} → ${range.to}) ━━━`);
 
-      // Fill date range via JS (datepicker is readonly — must remove first)
-      await page.evaluate(({from, to}) => {
-        for (const [id, val] of [['mdate1', from], ['mdate2', to]]) {
-          const el = document.getElementById(id);
-          if (el) {
-            el.removeAttribute('readonly');
-            el.value = val;
-            el.dispatchEvent(new Event('change', { bubbles: true }));
+      let bucketOk = false;
+      for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+        if (attempt > 1) {
+          console.log(`   🔁 Retry ${attempt-1}/${MAX_ATTEMPTS-1} for ${range.label} — re-navigating...`);
+          try {
+            await page.goto(MEMBER_LIST_URL, { waitUntil: 'domcontentloaded', timeout: 30000 });
+            await page.waitForLoadState('networkidle', { timeout: 15000 }).catch(() => {});
+            await page.evaluate(() => {
+              const btn = document.querySelector('a[href="#collapseOne"]') ||
+                          document.querySelector('a.accordion-toggle');
+              if (btn) btn.click();
+            });
+            await page.waitForTimeout(1500);
+          } catch (navErr) {
+            console.error(`   ⚠️ Re-nav failed: ${navErr.message}`);
           }
         }
-      }, { from: range.from, to: range.to });
-      await _screenshot(page, `07-filter-${range.label}`);
-
-      // Step 6: Click Search — specific selector (button with fa-search icon) + JS click
-      console.log(`   🔍 Clicking ค้นหา (with fa-search icon)...`);
-      await page.evaluate(() => {
-        const buttons = document.querySelectorAll('button[type="submit"]');
-        for (const btn of buttons) {
-          if (btn.querySelector('i.fa-search') || btn.querySelector('i[class*="fa-search"]')) {
-            btn.click();
-            return;
+        try {
+          const r = await processBucket(page, range);
+          totalInserted += r.inserted;
+          totalFailed += r.failed;
+          totalSeen += r.seen;
+          bucketOk = true;
+          break;
+        } catch (e) {
+          console.error(`   ❌ Attempt ${attempt}/${MAX_ATTEMPTS} for ${range.label}: ${e.message}`);
+          if (attempt === MAX_ATTEMPTS) {
+            failedBuckets.push({ label: range.label, error: e.message });
           }
         }
-        // Fallback: text match
-        for (const btn of buttons) {
-          if (/ค้นหา/.test(btn.textContent || '')) {
-            btn.click();
-            return;
-          }
-        }
-      });
-
-      // Wait for DataTables processing indicator to disappear
-      console.log(`   ⏳ Waiting for table to load data...`);
-      await page.waitForTimeout(3000);       // initial wait for AJAX to start
-      await page.waitForSelector('#datable_processing', {
-        state: 'hidden',
-        timeout: 600000,                      // 10 min — large data can be slow
-      }).catch(() => {});
-      await page.waitForTimeout(2000);
-      await _screenshot(page, `08-searched-${range.label}`);
-
-      // Step 7a: Click Export Excel (JS click — use exportExcel partial class)
-      console.log(`   📊 Clicking Export Excel...`);
-      await page.evaluate(() => {
-        const btn = document.querySelector('a[class*="exportExcel"]');
-        if (btn) btn.click();
-        else throw new Error('Export Excel button not found');
-      });
-
-      // Step 7b: Wait for confirm dialog (specific — inside sa-confirm-button-container)
-      console.log(`   ✓ Waiting for confirm dialog...`);
-      const confirmSel = 'div.sa-confirm-button-container > button.confirm';
-      await page.waitForSelector(confirmSel, { timeout: 15000 });
-      await _screenshot(page, `09-confirm-${range.label}`);
-
-      // Step 7c+d: Click confirm → wait for download
-      const downloadDir = LOCAL
-        ? join(homedir(), 'Downloads', 'A4S')
-        : './downloads';
-      mkdirSync(downloadDir, { recursive: true });
-
-      const downloadPromise = page.waitForEvent('download', { timeout: 1800000 });   // 30 min
-      await page.waitForTimeout(1000);     // give dialog a moment (Python does this)
-      await page.evaluate((sel) => {
-        document.querySelector(sel)?.click();
-      }, confirmSel);
-      console.log(`   ⏳ Generating .xls file (may take 1-15 min for large year)...`);
-
-      const download = await downloadPromise;
-      const filename = `members-${range.label}-${Date.now()}.xls`;
-      const filePath = join(downloadDir, filename);
-      await download.saveAs(filePath);
-      console.log(`   ✅ Downloaded: ${filePath}`);
-
-      // Step 8: Parse .xls → encrypt sensitive fields → upsert Supabase
-      if (DRY_RUN) {
-        console.log(`   (DRY_RUN) skipped parse+upsert for ${range.label}`);
-      } else {
-        console.log(`   📖 Parsing + upserting...`);
-        const records = await parseXlsToRecords(filePath, {
-          masterKey: MASTER_KEY,
-          sourceFile: filename,
-        });
-        console.log(`      Parsed ${records.length} rows`);
-        const result = await sb.upsertMembers(records, 500);
-        totalInserted += result.inserted;
-        totalFailed += result.failed;
-        totalSeen += records.length;
-        console.log(`      Upserted ${result.inserted} · Failed ${result.failed}`);
       }
 
-      // Navigate back to member list for next round (reset search)
-      if (i < DATE_RANGES.length - 1) {
+      // Navigate back to member list for next round (failed retries already navigated)
+      if (i < DATE_RANGES.length - 1 && bucketOk) {
         await page.goto(MEMBER_LIST_URL, { waitUntil: 'domcontentloaded', timeout: 30000 });
         await page.waitForTimeout(2000);
         await page.evaluate(() => {
@@ -313,12 +256,15 @@ async function main() {
       }
     }
 
-    status = totalFailed === 0 ? 'success' : (totalInserted === 0 ? 'failed' : 'partial');
-
-    // ── Parse + upsert (Phase 2C) ──
-    // const rows = parseXls(downloadedFile);
-    // const { inserted, failed } = await sb.upsertMembers(rows);
-    // totalInserted = inserted; totalFailed = failed; totalSeen = rows.length;
+    if (failedBuckets.length === 0) {
+      status = 'success';
+    } else if (failedBuckets.length === DATE_RANGES.length) {
+      status = 'failed';
+      errorMsg = `All ${DATE_RANGES.length} buckets failed. First: ${failedBuckets[0].error}`;
+    } else {
+      status = 'partial';
+      errorMsg = `${failedBuckets.length}/${DATE_RANGES.length} buckets failed: ${failedBuckets.map(b => `${b.label}(${b.error.slice(0, 60)})`).join('; ')}`;
+    }
 
   } catch (e) {
     errorMsg = e.message;
@@ -397,6 +343,93 @@ async function main() {
   console.log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
 
   process.exitCode = status === 'failed' ? 1 : 0;
+}
+
+/* ── Process one date-range bucket: search → export → download → parse → upsert ──
+   Throws on any error so caller can retry. */
+async function processBucket(page, range) {
+  // Fill date range (datepicker is readonly — must remove first)
+  await page.evaluate(({from, to}) => {
+    for (const [id, val] of [['mdate1', from], ['mdate2', to]]) {
+      const el = document.getElementById(id);
+      if (el) {
+        el.removeAttribute('readonly');
+        el.value = val;
+        el.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+    }
+  }, { from: range.from, to: range.to });
+  await _screenshot(page, `07-filter-${range.label}`);
+
+  console.log(`   🔍 Clicking ค้นหา...`);
+  await page.evaluate(() => {
+    const buttons = document.querySelectorAll('button[type="submit"]');
+    for (const btn of buttons) {
+      if (btn.querySelector('i.fa-search') || btn.querySelector('i[class*="fa-search"]')) {
+        btn.click();
+        return;
+      }
+    }
+    for (const btn of buttons) {
+      if (/ค้นหา/.test(btn.textContent || '')) {
+        btn.click();
+        return;
+      }
+    }
+  });
+
+  console.log(`   ⏳ Waiting for table to load...`);
+  await page.waitForTimeout(3000);
+  await page.waitForSelector('#datable_processing', {
+    state: 'hidden',
+    timeout: 600000,
+  }).catch(() => {});
+  await page.waitForTimeout(2000);
+  await _screenshot(page, `08-searched-${range.label}`);
+
+  console.log(`   📊 Clicking Export Excel...`);
+  await page.evaluate(() => {
+    const btn = document.querySelector('a[class*="exportExcel"]');
+    if (btn) btn.click();
+    else throw new Error('Export Excel button not found');
+  });
+
+  console.log(`   ✓ Waiting for confirm dialog...`);
+  const confirmSel = 'div.sa-confirm-button-container > button.confirm';
+  await page.waitForSelector(confirmSel, { timeout: 15000 });
+  await _screenshot(page, `09-confirm-${range.label}`);
+
+  // Click confirm → wait for download (10 min — typical 1y bucket finishes <2 min)
+  const downloadDir = LOCAL
+    ? join(homedir(), 'Downloads', 'A4S')
+    : './downloads';
+  mkdirSync(downloadDir, { recursive: true });
+
+  const downloadPromise = page.waitForEvent('download', { timeout: 600000 });
+  await page.waitForTimeout(1000);
+  await page.evaluate((sel) => { document.querySelector(sel)?.click(); }, confirmSel);
+  console.log(`   ⏳ Generating .xls (typical 1-3 min)...`);
+
+  const download = await downloadPromise;
+  const filename = `members-${range.label}-${Date.now()}.xls`;
+  const filePath = join(downloadDir, filename);
+  await download.saveAs(filePath);
+  console.log(`   ✅ Downloaded: ${filePath}`);
+
+  if (DRY_RUN) {
+    console.log(`   (DRY_RUN) skipped parse+upsert`);
+    return { inserted: 0, failed: 0, seen: 0 };
+  }
+
+  console.log(`   📖 Parsing + upserting...`);
+  const records = await parseXlsToRecords(filePath, {
+    masterKey: MASTER_KEY,
+    sourceFile: filename,
+  });
+  console.log(`      Parsed ${records.length} rows`);
+  const result = await sb.upsertMembers(records, 500);
+  console.log(`      Upserted ${result.inserted} · Failed ${result.failed}`);
+  return { inserted: result.inserted, failed: result.failed, seen: records.length };
 }
 
 /* ── Screenshot helper (only saved when LOCAL=1) ── */
