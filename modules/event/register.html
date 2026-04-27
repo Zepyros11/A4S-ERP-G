@@ -407,6 +407,7 @@ let _prereqLevel = null;
 let _attendeeCount = 0;
 let _lineChannel = null;      // { liff_id, friend_url, ... } or null
 let _lineProfile = null;      // { userId, displayName, pictureUrl } when logged in
+let _registeredCode = null;   // member_code after successful register (form is destroyed)
 
 async function sbGet(path) {
   const res = await fetch(`${SB_URL}/rest/v1/${path}`, {
@@ -656,12 +657,20 @@ function renderLinePanel() {
 }
 
 /* Open LINE OA chat with member_code pre-filled — webhook auto-links on Send.
-   Works for all users (no LIFF channel publish required). */
-window.connectViaOA = function () {
+   Works for all users (no LIFF channel publish required).
+   Source for code: rCode input (pre-register) → _registeredCode (post-register). */
+window.connectViaOA = async function () {
   const codeEl = document.getElementById('rCode');
-  const code = codeEl?.value.trim();
+  const code = (codeEl?.value.trim()) || _registeredCode || '';
   if (!code) {
-    alert('กรุณากรอกรหัสสมาชิกในฟอร์มด้านล่างก่อน');
+    await ConfirmModal.open({
+      icon: '📝',
+      title: 'กรุณากรอกรหัสสมาชิก',
+      tone: 'warning',
+      message: 'กรอกรหัสสมาชิกในฟอร์มด้านล่างก่อน แล้วค่อยกดเชื่อม LINE',
+      hideCancel: true,
+      okText: 'ตกลง',
+    });
     codeEl?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     setTimeout(() => codeEl?.focus(), 300);
     return;
@@ -962,6 +971,7 @@ async function doRegister() {
          <span style="font-size:13px;color:#0f172a;font-weight:600">${p.person_role === 'co_applicant' ? '👥' : '👤'} ${esc(p.name)}</span>
          <span style="font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:700;color:#1e40af">${p.ticket_no}</span>
        </div>`).join('');
+    _registeredCode = code;     // remember after form is destroyed (for connectViaOA)
     document.getElementById('regForm').innerHTML = `
       <div class="reg-msg success">
         <div style="font-size:32px;margin-bottom:8px">✅</div>
@@ -1080,5 +1090,6 @@ function showToast(msg, type) {
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 <script src="../../js/core/crypto.js"></script>
 <script src="../../js/components/modal/modalManager.js"></script>
+<script src="../../js/components/modal/confirmModal.js"></script>
 </body>
 </html>
