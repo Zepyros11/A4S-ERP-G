@@ -28,18 +28,17 @@ const LOCAL = process.env.LOCAL_TEST === '1';
 const TEST_LINE = process.env.TEST_LINE === 'true' || process.env.TEST_LINE === '1';
 const FORCE = process.env.FORCE === 'true' || process.env.FORCE === '1';
 
-/* ── Date ranges — auto-split into 3-year buckets ──
+/* ── Date ranges — auto-split into 1-year buckets ──
    Default: skip legacy 2015-2020 bucket (data static, already imported).
    Set env INCLUDE_LEGACY=1 to re-import legacy (e.g. on first setup).
 
    Examples (default, no legacy):
-     2026: [2021-2023, 2024-now]
-     2028: [2021-2023, 2024-2026, 2027-now]
+     2026: [2021, 2022, 2023, 2024, 2025, 2026-now]
    With legacy:
-     2026: [2015-2017, 2018-2020, 2021-2023, 2024-now]
+     2026: [2015, 2016, 2017, 2018, 2019, 2020, 2021, ..., 2026-now]
 */
 const INCLUDE_LEGACY = process.env.INCLUDE_LEGACY === '1' || process.env.INCLUDE_LEGACY === 'true';
-const BUCKET_YEARS = 3;
+const BUCKET_YEARS = 1;
 
 function buildDateRanges() {
   const today = new Date();
