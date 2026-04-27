@@ -648,17 +648,27 @@ function renderLinePanel() {
       <div class="reg-line-avatar">💬</div>
       <div class="reg-line-info">
         <div class="reg-line-title">เชื่อม LINE (ไม่บังคับ)</div>
-        <div class="reg-line-sub">เพื่อรับข้อความแจ้งเตือน/ตั๋วผ่าน LINE OA</div>
+        <div class="reg-line-sub">กรอกรหัสสมาชิกด้านล่างก่อน → กดปุ่มนี้ → กด Send ใน LINE</div>
       </div>
-      <button class="reg-line-btn" onclick="loginLine()">เชื่อม LINE</button>`;
+      <button class="reg-line-btn" onclick="connectViaOA()">เชื่อม LINE</button>`;
     el.style.display = 'flex';
   }
 }
 
-window.loginLine = function () {
-  if (!liff?.isLoggedIn) return;
-  if (liff.isLoggedIn()) return;
-  liff.login({ redirectUri: window.location.href });
+/* Open LINE OA chat with member_code pre-filled — webhook auto-links on Send.
+   Works for all users (no LIFF channel publish required). */
+window.connectViaOA = function () {
+  const codeEl = document.getElementById('rCode');
+  const code = codeEl?.value.trim();
+  if (!code) {
+    alert('กรุณากรอกรหัสสมาชิกในฟอร์มด้านล่างก่อน');
+    codeEl?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    setTimeout(() => codeEl?.focus(), 300);
+    return;
+  }
+  const oaId = '@949bctau'; // A4S-Bot-Assistant basic ID
+  const url = `https://line.me/R/oaMessage/${encodeURIComponent(oaId)}/?${encodeURIComponent(code)}`;
+  window.open(url, '_blank');
 };
 
 function renderPage() {
