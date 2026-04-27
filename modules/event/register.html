@@ -88,8 +88,8 @@ body{font-family:'Sarabun',sans-serif;background:#f1f5f9;min-height:100vh;displa
       "hero info"
       "hero prereq"
       "hero capacity"
-      "hero line"
-      "hero form";
+      "hero form"
+      "hero line";
   }
   body.has-event #regHero{grid-area:hero;min-height:100%;background:#0f172a;position:relative;}
   body.has-event #regInfo{grid-area:info;}
@@ -380,11 +380,11 @@ body.is-picker .reg-card{
     <!-- Capacity bar -->
     <div id="regCapacity" style="display:none"></div>
 
-    <!-- LINE connect panel -->
-    <div id="regLinePanel" style="display:none"></div>
-
     <!-- Auth + Register form -->
     <div id="regForm"></div>
+
+    <!-- LINE connect panel (below form — optional, post-register CTA) -->
+    <div id="regLinePanel" style="display:none"></div>
   </div>
 </div>
 
@@ -648,8 +648,7 @@ function renderLinePanel() {
     el.innerHTML = `
       <div class="reg-line-avatar">💬</div>
       <div class="reg-line-info">
-        <div class="reg-line-title">เชื่อม LINE (ไม่บังคับ)</div>
-        <div class="reg-line-sub">กรอกรหัสสมาชิกด้านล่างก่อน → กดปุ่มนี้ → กด Send ใน LINE</div>
+        <div class="reg-line-title">เชื่อม LINE เพื่อรับการแจ้งข่าวกิจกรรมจากทางบริษัท</div>
       </div>
       <button class="reg-line-btn" onclick="connectViaOA()">เชื่อม LINE</button>`;
     el.style.display = 'flex';
@@ -665,9 +664,9 @@ window.connectViaOA = async function () {
   if (!code) {
     await ConfirmModal.open({
       icon: '📝',
-      title: 'กรุณากรอกรหัสสมาชิก',
+      title: 'ต้องลงทะเบียนก่อน',
       tone: 'warning',
-      message: 'กรอกรหัสสมาชิกในฟอร์มด้านล่างก่อน แล้วค่อยกดเชื่อม LINE',
+      message: 'กรุณาลงทะเบียนด้านบนให้เสร็จก่อน แล้วค่อยกดเชื่อม LINE',
       hideCancel: true,
       okText: 'ตกลง',
     });
