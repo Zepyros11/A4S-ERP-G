@@ -65,6 +65,12 @@ async function main() {
     throw new Error('Credentials not set in sync_config — ตั้งค่าที่ ERP UI ก่อน');
   }
 
+  // Respect per-task schedule + pause flag from automation_tasks
+  const gate = await sb.gateScheduledRun('sync-daily-sale.yml', FORCE);
+  console.log(`   ${gate.reason}`);
+  if (!gate.shouldRun) return;
+  const task = gate.task;
+
   const username = decrypt(config.username_encrypted, MASTER_KEY);
   const password = decrypt(config.password_encrypted, MASTER_KEY);
   console.log(`🔐 Logged as: ${username}`);
@@ -263,6 +269,18 @@ async function main() {
     error_message: errorMsg,
     duration_sec: duration,
   });
+
+  // Update automation_tasks (last_run_at always; rows + status reflect outcome)
+  if (task) {
+    try {
+      await sb.updateAutomationTask(task.id, {
+        last_run_at: new Date().toISOString(),
+        last_row_count: totalInserted,
+        status: status === 'failed' ? 'error' : (task.status === 'error' ? 'active' : task.status),
+        last_error: errorMsg || null,
+      });
+    } catch (e) { console.warn('automation_tasks update:', e.message); }
+  }
 
   // LINE notify on failure/partial (success only if opted-in)
   const shouldNotify = (status === 'failed' || status === 'partial') ||

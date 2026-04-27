@@ -82,21 +82,18 @@ async function main() {
   const config = await sb.getConfig();
   if (!config) throw new Error('sync_config row not found — run 001_members.sql');
   if (!config.enabled && !FORCE) {
-    console.log('⏸️  Auto-sync disabled — exiting (use FORCE=1 to override)');
+    console.log('⏸️  Auto-sync disabled (sync_config.enabled=false) — exiting (use FORCE=1 to override)');
     return;
-  }
-  // Check if it's time to sync (respect frequency setting)
-  if (!FORCE && config.next_sync_at) {
-    const now = new Date();
-    const next = new Date(config.next_sync_at);
-    if (now < next) {
-      console.log(`⏰ Not due yet — next sync at ${config.next_sync_at} (use FORCE=1 to override)`);
-      return;
-    }
   }
   if (!config.username_encrypted || !config.password_encrypted) {
     throw new Error('Credentials not set in sync_config — ไปตั้งค่าที่ ERP UI ก่อน');
   }
+
+  // Respect per-task schedule + pause flag from automation_tasks
+  const gate = await sb.gateScheduledRun('sync-members.yml', FORCE || TEST_LINE);
+  console.log(`   ${gate.reason}`);
+  if (!gate.shouldRun) return;
+  const task = gate.task;
 
   // ── TEST_LINE mode: send test message + exit ──
   if (TEST_LINE) {
@@ -182,7 +179,7 @@ async function main() {
     }
 
     // ── Wait for dashboard to settle ──
-    await page.waitForLoadState('networkidle', { timeout: 15000 });
+    await page.waitForLoadState('networkidle', { timeout: 15000 }).catch(() => {});
     await _screenshot(page, '04-dashboard');
 
     // Verify login success via user badge (Phop (BKK01))
@@ -192,7 +189,8 @@ async function main() {
 
     // ── Step 3: Navigate to member list ──
     console.log('\n📋 Navigating to member list (01 รายชื่อสมาชิก)...');
-    await page.goto(MEMBER_LIST_URL, { waitUntil: 'networkidle', timeout: 20000 });
+    await page.goto(MEMBER_LIST_URL, { waitUntil: 'domcontentloaded', timeout: 30000 });
+    await page.waitForLoadState('networkidle', { timeout: 15000 }).catch(() => {});
     await _screenshot(page, '05-member-list');
     console.log(`   ✓ Reached: ${page.url()}`);
 
@@ -343,7 +341,7 @@ async function main() {
     duration_sec: duration,
   });
 
-  // 7. Update next_sync_at
+  // 7. Update next_sync_at (legacy field — kept for any other consumers)
   if (status !== 'failed') {
     const nextMs = {
       '1h': 3600e3, '6h': 6*3600e3, '24h': 86400e3, 'weekly': 7*86400e3,
@@ -352,6 +350,18 @@ async function main() {
       last_sync_at: new Date().toISOString(),
       next_sync_at: new Date(Date.now() + nextMs).toISOString(),
     });
+  }
+
+  // Update automation_tasks (last_run_at always; rows + status reflect outcome)
+  if (task) {
+    try {
+      await sb.updateAutomationTask(task.id, {
+        last_run_at: new Date().toISOString(),
+        last_row_count: totalInserted,
+        status: status === 'failed' ? 'error' : (task.status === 'error' ? 'active' : task.status),
+        last_error: errorMsg || null,
+      });
+    } catch (e) { console.warn('automation_tasks update:', e.message); }
   }
 
   // 8. LINE notify (fail always · success only if opted in)

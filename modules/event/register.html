@@ -863,18 +863,18 @@ async function doRegister() {
     const coApplicant = persons.find(p => p.person_role === 'co_applicant');
 
     // 5. Check existing registration (per role) — UNIQUE (event_id, member_code, person_role)
-    const existing = await sbGet(`event_attendees?event_id=eq.${_event.event_id}&member_code=eq.${encodeURIComponent(code)}&select=attendee_id,person_role`);
+    const existing = await sbGet(`event_attendees?event_id=eq.${_event.event_id}&member_code=eq.${encodeURIComponent(code)}&select=attendee_id,person_role,ticket_no,name`);
     const hasPrimary = existing.some(r => r.person_role === 'primary');
     const hasCoApp = existing.some(r => r.person_role === 'co_applicant');
 
-    // ถ้ามีแค่ 1 person ที่ register ได้ และลงไปแล้ว → block
+    // ถ้ามีแค่ 1 person ที่ register ได้ และลงไปแล้ว → แสดงบัตรเดิม
     if (persons.length === 1) {
       const role = persons[0].person_role;
       if ((role === 'primary' && hasPrimary) || (role === 'co_applicant' && hasCoApp)) {
-        showMsg('⚠️ คุณลงทะเบียนแล้ว', 'error'); btn.disabled = false; btn.textContent = '🎫 ลงทะเบียน'; return;
+        showAlreadyRegistered(code, existing); return;
       }
     } else if (persons.length === 2 && hasPrimary && hasCoApp) {
-      showMsg('⚠️ ทั้ง 2 รายชื่อลงทะเบียนแล้ว', 'error'); btn.disabled = false; btn.textContent = '🎫 ลงทะเบียน'; return;
+      showAlreadyRegistered(code, existing); return;
     }
 
     // 6. Check prerequisite
@@ -1074,6 +1074,25 @@ function showMsg(msg, type) {
   el.className = `reg-msg ${type}`;
   el.innerHTML = msg;
   el.style.display = 'block';
+}
+
+function showAlreadyRegistered(code, existing) {
+  const order = { primary: 0, co_applicant: 1 };
+  const sorted = [...existing].sort((a, b) => (order[a.person_role] ?? 9) - (order[b.person_role] ?? 9));
+  const ticketLines = sorted.map(p =>
+    `<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 12px;background:#f8fafc;border-radius:8px;margin-top:6px">
+       <span style="font-size:13px;color:#0f172a;font-weight:600">${p.person_role === 'co_applicant' ? '👥' : '👤'} ${esc(p.name || code)}</span>
+       <span style="font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:700;color:#1e40af">${esc(p.ticket_no || '-')}</span>
+     </div>`).join('');
+  _registeredCode = code;
+  document.getElementById('regForm').innerHTML = `
+    <div class="reg-msg success">
+      <div style="font-size:32px;margin-bottom:8px">✅</div>
+      <div style="font-weight:700;font-size:16px">คุณลงทะเบียนแล้ว</div>
+      <div style="margin-top:4px;font-size:12.5px;color:#64748b">รหัส ${esc(code)}${sorted.length === 2 ? ' · 2 รายชื่อ' : ''}</div>
+      <div style="margin-top:10px">${ticketLines}</div>
+      <div style="margin-top:12px;font-size:12px;color:#64748b">📱 แสดงบัตรนี้ที่หน้างานเพื่อ check-in</div>
+    </div>`;
 }
 
 function esc(s) { return String(s || '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }

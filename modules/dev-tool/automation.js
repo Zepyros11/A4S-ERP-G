@@ -83,6 +83,9 @@ function renderTasks() {
         <button class="task-btn" onclick="deleteTask('${t.id}','${escapeHtml(t.name)}')">🗑️</button>
         <a class="task-btn" href="./wizard.html?task=${t.id}" style="text-decoration:none">🧙 Steps</a>
         ${t.config_url ? `<a class="task-btn" href="${escapeHtml(t.config_url)}" style="text-decoration:none">⚙️ Detail</a>` : ''}
+        ${t.status === 'active'
+          ? `<button class="task-btn" onclick="togglePause('${t.id}')" title="หยุด auto-sync (Run manual ยังใช้ได้)" style="background:#fef3c7;color:#92400e;border-color:#fde68a">⏸️ หยุด</button>`
+          : `<button class="task-btn" onclick="togglePause('${t.id}')" title="เริ่ม auto-sync ตาม schedule" style="background:#d1fae5;color:#065f46;border-color:#a7f3d0">▶️ เริ่ม auto</button>`}
         ${_spPolling && _spTaskId === t.id ? `<button class="task-btn" onclick="reopenProgress()" style="background:var(--accent-pale);color:var(--accent);border-color:var(--accent)">📡 ดูความคืบหน้า</button>` : ''}
         <button class="task-btn run" onclick="runTask('${t.id}')">▶️ Run</button>
       </div>
@@ -361,6 +364,36 @@ async function trackSyncProgress(pat, startedAt, taskName) {
     _spPollTimer = setTimeout(tick, 5000);
   };
   tick();
+}
+
+/* ── Pause / Resume auto schedule ── */
+async function togglePause(id) {
+  const t = tasks.find(x => x.id === id);
+  if (!t) return;
+  const willPause = t.status === 'active';
+
+  if (willPause) {
+    const ok = await ConfirmModal.open({
+      title: 'หยุด auto-sync?',
+      message: 'งานจะไม่รันอัตโนมัติตาม schedule จนกว่าจะกด ▶️ เริ่ม auto หรือกด Run แบบ manual',
+      icon: '⏸️',
+      okText: 'หยุด auto',
+      cancelText: 'ยกเลิก',
+      tone: 'danger',
+    });
+    if (!ok) return;
+  }
+
+  try {
+    await sb(`automation_tasks?id=eq.${id}`, {
+      method: 'PATCH',
+      body: { status: willPause ? 'inactive' : 'active', updated_at: new Date().toISOString() },
+    });
+    showToast(willPause ? '⏸️ หยุด auto-sync แล้ว' : '▶️ เริ่ม auto-sync แล้ว', 'success');
+    await loadTasks();
+  } catch (e) {
+    showToast('เปลี่ยน status ไม่ได้: ' + e.message, 'error');
+  }
 }
 
 /* ── Load logs ── */

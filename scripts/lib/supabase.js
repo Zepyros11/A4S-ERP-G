@@ -49,6 +49,53 @@ export async function updateConfig(patch) {
   });
 }
 
+/* ── Get automation_tasks row by workflow filename (e.g. 'sync-members.yml') ── */
+export async function getAutomationTaskByWorkflow(workflow) {
+  const rows = await _request(`automation_tasks?workflow=eq.${encodeURIComponent(workflow)}&limit=1`);
+  return rows?.[0] || null;
+}
+
+/* ── Update automation_tasks row (id) ── */
+export async function updateAutomationTask(id, patch) {
+  return _request(`automation_tasks?id=eq.${id}`, {
+    method: 'PATCH',
+    body: { ...patch, updated_at: new Date().toISOString() },
+  });
+}
+
+/* ── Schedule → interval ms ('1h'|'3h'|'6h'|'12h'|'24h'|'weekly').
+       Returns null for 'manual' or unknown (= no auto-runs). ── */
+export function scheduleIntervalMs(schedule) {
+  const map = {
+    '1h': 3600e3, '3h': 3*3600e3, '6h': 6*3600e3,
+    '12h': 12*3600e3, '24h': 86400e3, 'weekly': 7*86400e3,
+  };
+  return map[schedule] || null;
+}
+
+/* ── Gate scheduled run by automation_tasks (status + schedule + last_run_at).
+       Returns { shouldRun, task, reason }. FORCE=true bypasses gating. ── */
+export async function gateScheduledRun(workflow, force) {
+  const task = await getAutomationTaskByWorkflow(workflow).catch(() => null);
+  if (!task) return { shouldRun: true, task: null, reason: 'no automation_tasks row — running' };
+  if (force) return { shouldRun: true, task, reason: 'FORCE=1 — bypass gating' };
+  if (task.status === 'inactive') {
+    return { shouldRun: false, task, reason: '⏸️  Paused via ERP UI (status=inactive)' };
+  }
+  const intervalMs = scheduleIntervalMs(task.schedule);
+  if (!intervalMs) {
+    return { shouldRun: false, task, reason: `🖐️  schedule='${task.schedule || 'manual'}' — no auto-runs (manual only)` };
+  }
+  if (task.last_run_at) {
+    const elapsed = Date.now() - new Date(task.last_run_at).getTime();
+    if (elapsed < intervalMs) {
+      const remainMin = Math.ceil((intervalMs - elapsed) / 60000);
+      return { shouldRun: false, task, reason: `⏰ Not due yet — schedule='${task.schedule}', ${remainMin}m left until next run` };
+    }
+  }
+  return { shouldRun: true, task, reason: `✓ Due to run (schedule='${task.schedule}')` };
+}
+
 /* ── Start a sync_log entry (returns id) ── */
 export async function startLog({ source, triggered_by = 'github-actions' }) {
   const rows = await _request('sync_log', {

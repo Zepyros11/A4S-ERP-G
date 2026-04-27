@@ -185,7 +185,7 @@ async function loadPage() {
     const filter = _buildFilterQuery();
     const from = (page - 1) * PAGE_SIZE;
     const to = from + PAGE_SIZE - 1;
-    const cols = 'member_code,member_name,full_name,email,phone,password_encrypted,national_id_encrypted,package,sponsor_code,upline_code,side,registered_at,country_code';
+    const cols = 'member_code,member_name,full_name,email,phone,password_encrypted,national_id_encrypted,package,position_level,sponsor_code,upline_code,side,registered_at,country_code';
     const url = `${SUPABASE_URL}/rest/v1/members?select=${cols}${filter ? '&' + filter : ''}&order=${sortKey}.${sortAsc ? 'asc' : 'desc'}`;
 
     const res = await fetch(url + `&limit=${PAGE_SIZE}&offset=${from}`, {
@@ -304,7 +304,7 @@ function render() {
   const rows = currentPage;
 
   tbody.innerHTML = rows.map(m => {
-    const pkg = m.package ? `<span class="pkg-badge pkg-${m.package}">${PKG_BADGE[m.package] || m.package}</span>` : '';
+    const pos = m.position_level ? `<span class="pkg-badge pos-badge">⭐ ${escapeHtml(m.position_level)}</span>` : '';
     const flag = _countryFlag(m.country_code);
     const pwCell = m.password_encrypted
       ? (decryptMode
@@ -326,7 +326,7 @@ function render() {
       <td><span class="mem-code">${escapeHtml(m.phone || '—')}</span></td>
       <td>${idCell}</td>
       <td>${pwCell}</td>
-      <td>${pkg}</td>
+      <td>${pos}</td>
       <td><span class="mem-code">${escapeHtml(m.sponsor_code || '—')}</span></td>
       <td><span class="mem-code">${escapeHtml(m.upline_code || '—')}</span></td>
       <td>${escapeHtml(m.side || '—')}</td>

@@ -811,7 +811,7 @@ function renderSavedRow(a) {
     <td class="col-center">
       <button class="btn-checkin ${a.checked_in ? "undo-checkin" : "do-checkin"}"
         onclick="window.toggleCheckin(${a.attendee_id}, ${a.checked_in})">
-        ${a.checked_in ? "✅ เข้างานแล้ว" : "⬜ Check-in"}
+        ${a.checked_in ? "✅ เข้างานแล้ว" : "⬜ ยังไม่เข้างาน"}
       </button>
       ${a.check_in_at ? `<div style="font-size:10px;color:var(--text3);margin-top:2px">${formatDateTime(a.check_in_at)}</div>` : ""}
     </td>

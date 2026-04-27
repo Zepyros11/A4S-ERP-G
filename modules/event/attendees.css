@@ -99,18 +99,18 @@
   transition: 0.15s;
 }
 .btn-checkin.do-checkin {
-  background: #d1fae5;
-  color: #059669;
-}
-.btn-checkin.do-checkin:hover {
-  background: #a7f3d0;
-}
-.btn-checkin.undo-checkin {
   background: #fee2e2;
   color: #dc2626;
 }
-.btn-checkin.undo-checkin:hover {
+.btn-checkin.do-checkin:hover {
   background: #fecaca;
+}
+.btn-checkin.undo-checkin {
+  background: #d1fae5;
+  color: #059669;
+}
+.btn-checkin.undo-checkin:hover {
+  background: #a7f3d0;
 }
 
 /* ── ATTENDEE MODAL ── */
