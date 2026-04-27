@@ -49,7 +49,7 @@ async function init() {
   try {
     const rows = await sbFetch(
       "events",
-      `?event_id=eq.${eventId}&select=event_id,event_name,event_code,event_date,location,poster_url&limit=1`,
+      `?event_id=eq.${eventId}&select=event_id,event_name,event_code,event_date,location,poster_url,line_channel_id&limit=1`,
     );
     eventInfo = rows?.[0];
     if (eventInfo) {
@@ -332,9 +332,189 @@ async function handleScan(scannedText, opts = {}) {
     setResultFromAttendee("success", "✅ Check-in สำเร็จ", updated);
     showSuccessPopup(updated);
     pushRecent(updated);
+    notifyTagsOnCheckin(updated).catch((e) =>
+      console.warn("notifyTagsOnCheckin:", e?.message || e),
+    );
   } catch (e) {
     setResult("error", "❌ Error", e.message);
   }
+}
+
+// ── LINE TAG NOTIFICATION ─────────────────────────────────
+// ส่ง flex รายการ tag ให้ attendee ตอน check-in สำเร็จ
+// Guards: ต้องมี line_user_id + tags ไม่ว่าง + ยังไม่เคยส่ง (tag_notified_at IS NULL)
+async function notifyTagsOnCheckin(attendee) {
+  if (!attendee?.line_user_id) return;
+  const tags = Array.isArray(attendee.tags) ? attendee.tags.filter(Boolean) : [];
+  if (!tags.length) return;
+  if (attendee.tag_notified_at) return; // already notified
+  if (!window.LineAPI) return;
+  try {
+    const channel = await window.LineAPI.getChannelForEvent(eventInfo);
+    if (!channel) return;
+    const flex = buildCheckinTagFlex(attendee, eventInfo, tags);
+    await window.LineAPI.push({
+      channel,
+      to: attendee.line_user_id,
+      message: flex,
+    });
+    // Mark notified — กันส่งซ้ำตอน undo+re-checkin
+    await sbFetch(
+      "event_attendees",
+      `?attendee_id=eq.${attendee.attendee_id}`,
+      {
+        method: "PATCH",
+        body: { tag_notified_at: new Date().toISOString() },
+      },
+    );
+  } catch (e) {
+    console.warn("LINE tag flex push failed:", e?.message || e);
+  }
+}
+
+function buildCheckinTagFlex(attendee, event, tags) {
+  const eventName = event?.event_name || "งานกิจกรรม";
+  const eventDate = event?.event_date ? formatThaiDate(event.event_date) : "";
+  const name = attendee.name || attendee.member_code || "";
+  const ticketNo = attendee.ticket_no || `ID-${attendee.attendee_id}`;
+
+  const tagBoxes = tags.map((t) => ({
+    type: "box",
+    layout: "horizontal",
+    paddingAll: "sm",
+    cornerRadius: "md",
+    backgroundColor: "#fef3c7",
+    margin: "sm",
+    contents: [
+      {
+        type: "text",
+        text: `🏷️  ${t}`,
+        size: "sm",
+        color: "#92400e",
+        weight: "bold",
+        wrap: true,
+      },
+    ],
+  }));
+
+  const bubble = {
+    type: "bubble",
+    size: "kilo",
+    header: {
+      type: "box",
+      layout: "vertical",
+      paddingAll: "lg",
+      backgroundColor: "#10b981",
+      contents: [
+        {
+          type: "text",
+          text: "🎉 Check-in สำเร็จ",
+          weight: "bold",
+          size: "lg",
+          color: "#ffffff",
+        },
+        {
+          type: "text",
+          text: eventName,
+          size: "sm",
+          color: "#d1fae5",
+          margin: "xs",
+          wrap: true,
+        },
+        ...(eventDate
+          ? [
+              {
+                type: "text",
+                text: `📅 ${eventDate}`,
+                size: "xs",
+                color: "#d1fae5",
+                margin: "xs",
+              },
+            ]
+          : []),
+      ],
+    },
+    body: {
+      type: "box",
+      layout: "vertical",
+      spacing: "sm",
+      paddingAll: "lg",
+      contents: [
+        {
+          type: "box",
+          layout: "baseline",
+          contents: [
+            { type: "text", text: "👤", size: "sm", flex: 0 },
+            {
+              type: "text",
+              text: ` ${name}`,
+              size: "sm",
+              color: "#0f172a",
+              weight: "bold",
+              margin: "sm",
+              wrap: true,
+            },
+          ],
+        },
+        {
+          type: "box",
+          layout: "baseline",
+          contents: [
+            { type: "text", text: "🎫", size: "sm", flex: 0 },
+            {
+              type: "text",
+              text: ` ${ticketNo}`,
+              size: "sm",
+              color: "#1e40af",
+              weight: "bold",
+              margin: "sm",
+            },
+          ],
+        },
+        { type: "separator", margin: "md" },
+        {
+          type: "text",
+          text: "📋 รายการของคุณ",
+          weight: "bold",
+          size: "sm",
+          color: "#0f172a",
+          margin: "md",
+        },
+        ...tagBoxes,
+      ],
+    },
+    footer: {
+      type: "box",
+      layout: "vertical",
+      paddingAll: "md",
+      contents: [
+        {
+          type: "text",
+          text: "📱 แสดงข้อความนี้ที่จุดรับเพื่อยืนยัน",
+          size: "xs",
+          color: "#6B7280",
+          align: "center",
+          wrap: true,
+        },
+      ],
+    },
+  };
+
+  return {
+    type: "flex",
+    altText: `🎉 Check-in สำเร็จ — ${eventName}`,
+    contents: bubble,
+  };
+}
+
+function formatThaiDate(iso) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return iso;
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const yyyy = d.getFullYear();
+  return `${dd}/${mm}/${yyyy}`;
 }
 
 async function lookupAttendee(code) {
