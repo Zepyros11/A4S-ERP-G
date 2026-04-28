@@ -418,13 +418,17 @@
           <!-- Add new category -->
           <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:12px;margin-bottom:14px">
             <div style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:8px">➕ เพิ่มหมวดใหม่</div>
-            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px">
               <input id="tagCatNewName" type="text" class="form-input" maxlength="40"
-                placeholder="เช่น เข็มทอง, VIP, รับหมวก"
-                style="flex:1;min-width:180px;padding:8px 10px"
-                onkeydown="if(event.key==='Enter'){event.preventDefault();window.createTagCategory();}">
+                placeholder="ชื่อหมวด — เช่น เข็มทอง, VIP, รับหมวก"
+                style="flex:1;min-width:180px;padding:8px 10px">
               <div id="tagCatColorPicker" class="tag-color-picker"></div>
-              <button class="btn btn-primary" onclick="window.createTagCategory()" style="padding:8px 16px">เพิ่ม</button>
+            </div>
+            <textarea id="tagCatNewDetail" class="form-input" rows="3" maxlength="800"
+              placeholder="รายละเอียด — ส่งใน LINE ตอน check-in (เช่น สถานที่รับเข็ม, รหัสรับของ ฯลฯ)"
+              style="width:100%;padding:8px 10px;font-size:12.5px;line-height:1.5;resize:vertical"></textarea>
+            <div style="display:flex;justify-content:flex-end;margin-top:8px">
+              <button class="btn btn-primary" onclick="window.createTagCategory()" style="padding:8px 18px">บันทึก</button>
             </div>
           </div>
 

@@ -64,13 +64,64 @@ export async function updateAutomationTask(id, patch) {
 }
 
 /* ── Schedule → interval ms ('1h'|'3h'|'6h'|'12h'|'24h'|'weekly').
-       Returns null for 'manual' or unknown (= no auto-runs). ── */
+       Returns null for 'manual', 'weekdays', or unknown (= no fixed interval). ── */
 export function scheduleIntervalMs(schedule) {
   const map = {
     '1h': 3600e3, '3h': 3*3600e3, '6h': 6*3600e3,
     '12h': 12*3600e3, '24h': 86400e3, 'weekly': 7*86400e3,
   };
   return map[schedule] || null;
+}
+
+/* ── Date parts in Asia/Bangkok timezone ── */
+function _bangkokParts(d) {
+  const fmt = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Bangkok',
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit',
+    weekday: 'short', hourCycle: 'h23',
+  });
+  const parts = Object.fromEntries(fmt.formatToParts(d).map(p => [p.type, p.value]));
+  const wkMap = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+  return {
+    year: Number(parts.year),
+    month: Number(parts.month),
+    day: Number(parts.day),
+    hour: Number(parts.hour),
+    minute: Number(parts.minute),
+    weekday: wkMap[parts.weekday],
+  };
+}
+
+/* ── Build UTC Date for given Bangkok-local Y/M/D HH:mm (Bangkok = UTC+7, no DST) ── */
+function _bkkDateToUtc(y, m, d, h, mn = 0) {
+  return new Date(Date.UTC(y, m - 1, d, h - 7, mn));
+}
+
+/* ── Gate for schedule='weekdays' — checks (Asia/Bangkok TZ):
+       1. today's weekday ∈ schedule_days
+       2. current hour >= schedule_hour
+       3. last_run_at < today's HH:00 (i.e. haven't already run since today's slot)
+   Returns same shape as gateScheduledRun. ── */
+function _gateWeekdays(task) {
+  const days = Array.isArray(task.schedule_days) ? task.schedule_days.map(Number) : [];
+  const hour = task.schedule_hour != null ? Number(task.schedule_hour) : 9;
+  if (!days.length) {
+    return { shouldRun: false, task, reason: `📅 schedule='weekdays' but no days selected — configure in ERP UI` };
+  }
+  const now = new Date();
+  const bkk = _bangkokParts(now);
+  if (!days.includes(bkk.weekday)) {
+    return { shouldRun: false, task, reason: `📅 weekdays=[${days.join(',')}] — today (bkk wkday=${bkk.weekday}) not selected` };
+  }
+  if (bkk.hour < hour) {
+    return { shouldRun: false, task, reason: `🕒 today's slot ${String(hour).padStart(2,'0')}:00 not reached (bkk now ${String(bkk.hour).padStart(2,'0')}:${String(bkk.minute).padStart(2,'0')})` };
+  }
+  const todaySlot = _bkkDateToUtc(bkk.year, bkk.month, bkk.day, hour, 0).getTime();
+  if (task.last_run_at && new Date(task.last_run_at).getTime() >= todaySlot) {
+    return { shouldRun: false, task, reason: `✅ already ran today's ${String(hour).padStart(2,'0')}:00 slot` };
+  }
+  return { shouldRun: true, task, reason: `✓ Due to run (weekdays slot ${String(hour).padStart(2,'0')}:00 bkk)` };
 }
 
 /* ── Gate scheduled run by automation_tasks (status + schedule + last_run_at).
@@ -81,6 +132,9 @@ export async function gateScheduledRun(workflow, force) {
   if (force) return { shouldRun: true, task, reason: 'FORCE=1 — bypass gating' };
   if (task.status === 'inactive') {
     return { shouldRun: false, task, reason: '⏸️  Paused via ERP UI (status=inactive)' };
+  }
+  if (task.schedule === 'weekdays') {
+    return _gateWeekdays(task);
   }
   const intervalMs = scheduleIntervalMs(task.schedule);
   if (!intervalMs) {

@@ -501,14 +501,16 @@ async function loadAttendees(eventId) {
   if (sub) sub.textContent = buildEventHeroSubtitle(currentEvent);
   showLoading(true);
   try {
-    const [atts, tiers] = await Promise.all([
+    const [atts, tiers, tagCats] = await Promise.all([
       fetchAttendees(eventId),
       fetchTiers(eventId),
+      fetchTagCategories(eventId),
     ]);
     allAttendees = atts || [];
     currentTiers = tiers || [];
     currentTiersById = {};
     currentTiers.forEach((t) => { currentTiersById[t.tier_id] = t; });
+    currentTagCategories = tagCats || [];
     // Reset inline new-rows (ราคา default ขึ้นกับ active tier)
     newRows = [makeEmptyNewRow()];
     showSections(true);
@@ -878,11 +880,17 @@ function renderDeadlineChip(a) {
   return `<div class="deadline-chip ${cls}" title="ครบกำหนด ${formatDMYShort(a.payment_deadline)}">${icon} ${label}</div>`;
 }
 
+function _tagColorClass(name) {
+  const cat = currentTagCategories.find((c) => c.tag_name === name);
+  const color = cat?.color || "yellow";
+  return TAG_COLOR_PRESETS.includes(color) ? `tag-color-${color}` : "tag-color-yellow";
+}
+
 function renderTagsInline(a, prefixHtml = "") {
   const tags = a.tags || [];
   const chips = tags
     .map(
-      (t) => `<span class="tag-chip">${escapeHtml(t)}<span class="tag-chip-remove"
+      (t) => `<span class="tag-chip ${_tagColorClass(t)}">${escapeHtml(t)}<span class="tag-chip-remove"
         onclick="event.stopPropagation();window.removeAttendeeTag(${a.attendee_id},'${escapeJS(t)}')">✕</span></span>`,
     )
     .join("");
@@ -890,7 +898,7 @@ function renderTagsInline(a, prefixHtml = "") {
     ${prefixHtml}
     ${chips}
     <button class="tag-chip" style="background:#e2e8f0;color:#475569;border:none;cursor:pointer;font-size:10px"
-      onclick="event.stopPropagation();window.promptAddTag(${a.attendee_id})">+ tag</button>
+      onclick="event.stopPropagation();window.openTagPicker(${a.attendee_id}, this)">+ tag</button>
   </div>`;
 }
 function escapeJS(s) {
@@ -1647,46 +1655,23 @@ window.addEventListener("resize", () => {
 });
 
 // ============================================================
-// ── TAG POPULATE + CRUD ───────────────────────────────────
+// ── TAG CATEGORIES + ATTENDEE TAGS ─────────────────────────
+// Categories = master list per event (event_tag_categories table)
+// Attendee tags = subset of category names (text[] บน event_attendees.tags)
 // ============================================================
 function populateTagFilter() {
+  // Category-based filter dropdown (รวม category ที่ attendee อาจไม่ใช้แล้ว)
   const sel = document.getElementById("filterTag");
   if (!sel) return;
-  const allTags = new Set();
-  allAttendees.forEach((a) => (a.tags || []).forEach((t) => allTags.add(t)));
   const current = sel.value;
-  sel.innerHTML =
-    '<option value="">🏷️ ทุก tag</option>' +
-    [...allTags]
-      .sort()
-      .map((t) => `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`)
-      .join("");
-  if (current && allTags.has(current)) sel.value = current;
+  const opts = currentTagCategories
+    .map((c) => `<option value="${escapeHtml(c.tag_name)}">${escapeHtml(c.tag_name)}</option>`)
+    .join("");
+  sel.innerHTML = '<option value="">🏷️ ทุก tag</option>' + opts;
+  if (current && currentTagCategories.some((c) => c.tag_name === current)) {
+    sel.value = current;
+  }
 }
-
-window.promptAddTag = async function (attendeeId) {
-  const tag = prompt("เพิ่ม tag ใหม่ (เช่น เข็มทอง, VIP, โทฟี่):");
-  if (!tag) return;
-  const t = tag.trim();
-  if (!t) return;
-  const a = allAttendees.find((x) => x.attendee_id === attendeeId);
-  if (!a) return;
-  const current = a.tags || [];
-  if (current.includes(t)) {
-    showToast("มี tag นี้อยู่แล้ว", "error");
-    return;
-  }
-  const next = [...current, t];
-  try {
-    await updateAttendee(attendeeId, { tags: next });
-    a.tags = next;
-    populateTagFilter();
-    filterTable();
-    showToast(`+ tag "${t}" 🏷️`, "success");
-  } catch (e) {
-    showToast("เพิ่ม tag ไม่สำเร็จ: " + e.message, "error");
-  }
-};
 
 window.removeAttendeeTag = async function (attendeeId, tag) {
   const a = allAttendees.find((x) => x.attendee_id === attendeeId);
@@ -1695,12 +1680,412 @@ window.removeAttendeeTag = async function (attendeeId, tag) {
   try {
     await updateAttendee(attendeeId, { tags: next.length ? next : null });
     a.tags = next;
-    populateTagFilter();
     filterTable();
     showToast(`- tag "${tag}"`, "success");
   } catch (e) {
     showToast("ลบ tag ไม่สำเร็จ: " + e.message, "error");
   }
+};
+
+// ── TAG PICKER POPOVER (เลือกจาก categories ของ event) ────
+let _tagPickerAttId = null;
+window.openTagPicker = function (attendeeId, anchorEl) {
+  const pop = document.getElementById("tagPickerPopover");
+  if (!pop) return;
+  _tagPickerAttId = attendeeId;
+  const a = allAttendees.find((x) => x.attendee_id === attendeeId);
+  const used = new Set(a?.tags || []);
+  const list = document.getElementById("tagPickerList");
+  const empty = document.getElementById("tagPickerEmpty");
+  if (!currentTagCategories.length) {
+    list.innerHTML = "";
+    empty.style.display = "block";
+  } else {
+    empty.style.display = "none";
+    list.innerHTML = currentTagCategories
+      .map((c) => {
+        const disabled = used.has(c.tag_name);
+        const colorCls = `tag-color-${TAG_COLOR_PRESETS.includes(c.color) ? c.color : "yellow"}`;
+        return `<div class="tag-picker-item ${disabled ? "disabled" : ""}"
+          ${disabled ? "" : `onclick="window.pickTagFromCategory('${escapeJS(c.tag_name)}')"`}>
+          <span class="tag-cat-preview ${colorCls}">${escapeHtml(c.tag_name)}</span>
+          ${disabled ? '<span style="font-size:10px;color:var(--text3)">มีแล้ว</span>' : ""}
+        </div>`;
+      })
+      .join("");
+  }
+  // Position popover under anchor
+  const rect = anchorEl.getBoundingClientRect();
+  pop.style.display = "block";
+  pop.style.top = (window.scrollY + rect.bottom + 4) + "px";
+  pop.style.left = (window.scrollX + rect.left) + "px";
+  // Close on outside click — remove any prior listener first to avoid stacking
+  document.removeEventListener("click", _tagPickerOutside, true);
+  setTimeout(() => document.addEventListener("click", _tagPickerOutside, true), 0);
+};
+function _tagPickerOutside(e) {
+  const pop = document.getElementById("tagPickerPopover");
+  if (!pop) return;
+  if (!pop.contains(e.target)) {
+    pop.style.display = "none";
+    document.removeEventListener("click", _tagPickerOutside, true);
+  }
+}
+window.pickTagFromCategory = async function (tagName) {
+  const id = _tagPickerAttId;
+  document.getElementById("tagPickerPopover").style.display = "none";
+  if (!id) return;
+  const a = allAttendees.find((x) => x.attendee_id === id);
+  if (!a) return;
+  const current = a.tags || [];
+  if (current.includes(tagName)) return;
+  const next = [...current, tagName];
+  try {
+    await updateAttendee(id, { tags: next });
+    a.tags = next;
+    filterTable();
+    showToast(`+ tag "${tagName}" 🏷️`, "success");
+  } catch (e) {
+    showToast("เพิ่ม tag ไม่สำเร็จ: " + e.message, "error");
+  }
+};
+window.closeTagPickerAndOpenManage = function () {
+  document.getElementById("tagPickerPopover").style.display = "none";
+  window.openTagCategoriesModal();
+};
+
+// ── TAG CATEGORIES — MANAGEMENT MODAL ─────────────────────
+window.openTagCategoriesModal = function () {
+  if (!currentEventId) {
+    showToast("เลือกกิจกรรมก่อน", "error");
+    return;
+  }
+  const m = document.getElementById("tagCatModal");
+  if (!m) return;
+  document.getElementById("tagCatEventName").textContent =
+    currentEvent ? `· ${currentEvent.event_name}` : "";
+  document.getElementById("tagCatNewName").value = "";
+  const detailEl = document.getElementById("tagCatNewDetail");
+  if (detailEl) detailEl.value = "";
+  _tagCatNewColor = "yellow";
+  _renderTagCatColorPicker();
+  _renderTagCatList();
+  m.classList.add("open");
+};
+window.closeTagCategoriesModal = function () {
+  document.getElementById("tagCatModal")?.classList.remove("open");
+};
+
+function _renderTagCatColorPicker() {
+  const wrap = document.getElementById("tagCatColorPicker");
+  if (!wrap) return;
+  wrap.innerHTML = TAG_COLOR_PRESETS.map((c) =>
+    `<div class="tag-color-swatch sw-${c} ${c === _tagCatNewColor ? "selected" : ""}"
+       title="${c}" onclick="window.pickTagCatNewColor('${c}')"></div>`,
+  ).join("");
+}
+window.pickTagCatNewColor = function (c) {
+  _tagCatNewColor = c;
+  _renderTagCatColorPicker();
+};
+
+function _tagCatUsageCount(name) {
+  return allAttendees.filter((a) => (a.tags || []).includes(name)).length;
+}
+
+function _renderTagCatList() {
+  const wrap = document.getElementById("tagCatList");
+  const countEl = document.getElementById("tagCatCount");
+  if (!wrap) return;
+  countEl.textContent = currentTagCategories.length;
+  if (!currentTagCategories.length) {
+    wrap.innerHTML = `<div class="tag-cat-empty">ยังไม่มีหมวด — เพิ่มหมวดแรกที่ช่องด้านบน</div>`;
+    return;
+  }
+  wrap.innerHTML = currentTagCategories
+    .map((c) => {
+      const colorCls = `tag-color-${TAG_COLOR_PRESETS.includes(c.color) ? c.color : "yellow"}`;
+      const used = _tagCatUsageCount(c.tag_name);
+      const swatches = TAG_COLOR_PRESETS.map((p) =>
+        `<div class="tag-color-swatch sw-${p} ${p === c.color ? "selected" : ""}"
+          title="${p}" onclick="window.changeTagCatColor(${c.tag_category_id},'${p}')"></div>`,
+      ).join("");
+      const detailPreview = (c.detail || "").trim()
+        ? escapeHtml(c.detail.length > 60 ? c.detail.slice(0, 60) + "…" : c.detail)
+        : '<span style="color:var(--text3);font-style:italic">ยังไม่มีรายละเอียด</span>';
+      return `<div class="tag-cat-item-wrap">
+        <div class="tag-cat-item">
+          <span class="tag-cat-preview ${colorCls}">${escapeHtml(c.tag_name)}</span>
+          <span class="tag-cat-name">${escapeHtml(c.tag_name)}</span>
+          <span class="tag-cat-usage">${used} คน</span>
+          <div class="tag-color-picker" style="gap:3px">${swatches}</div>
+          <div class="tag-cat-actions">
+            <button class="tag-cat-btn" onclick="window.toggleTagCatDetail(${c.tag_category_id})" title="แก้รายละเอียด">📝</button>
+            <button class="tag-cat-btn" onclick="window.renameTagCat(${c.tag_category_id})" title="เปลี่ยนชื่อ">✏️</button>
+            <button class="tag-cat-btn danger" onclick="window.askDeleteTagCat(${c.tag_category_id})" title="ลบ">🗑</button>
+          </div>
+        </div>
+        <div class="tag-cat-detail-preview" id="tagCatDetailPrev_${c.tag_category_id}">${detailPreview}</div>
+        <div class="tag-cat-detail-edit" id="tagCatDetailEdit_${c.tag_category_id}" style="display:none">
+          <textarea class="form-input" id="tagCatDetailInput_${c.tag_category_id}" rows="3" maxlength="800"
+            placeholder="รายละเอียดที่ส่งทาง LINE ตอน check-in"
+            style="width:100%;padding:7px 10px;font-size:12.5px;line-height:1.5;resize:vertical">${escapeHtml(c.detail || "")}</textarea>
+          <div style="display:flex;gap:6px;justify-content:flex-end;margin-top:6px">
+            <button class="tag-cat-btn" onclick="window.cancelTagCatDetailEdit(${c.tag_category_id})">ยกเลิก</button>
+            <button class="tag-cat-btn" style="background:#1e40af;color:#fff;border-color:#1e40af"
+              onclick="window.saveTagCatDetail(${c.tag_category_id})">บันทึก</button>
+          </div>
+        </div>
+      </div>`;
+    })
+    .join("");
+}
+
+window.toggleTagCatDetail = function (id) {
+  const prev = document.getElementById(`tagCatDetailPrev_${id}`);
+  const edit = document.getElementById(`tagCatDetailEdit_${id}`);
+  if (!prev || !edit) return;
+  const opening = edit.style.display === "none";
+  prev.style.display = opening ? "none" : "block";
+  edit.style.display = opening ? "block" : "none";
+  if (opening) {
+    const input = document.getElementById(`tagCatDetailInput_${id}`);
+    input?.focus();
+  }
+};
+
+window.cancelTagCatDetailEdit = function (id) {
+  const cat = currentTagCategories.find((c) => c.tag_category_id === id);
+  const input = document.getElementById(`tagCatDetailInput_${id}`);
+  if (input && cat) input.value = cat.detail || "";
+  window.toggleTagCatDetail(id);
+};
+
+window.saveTagCatDetail = async function (id) {
+  const cat = currentTagCategories.find((c) => c.tag_category_id === id);
+  if (!cat) return;
+  const input = document.getElementById(`tagCatDetailInput_${id}`);
+  if (!input) return;
+  const detail = input.value || "";
+  if ((detail || "") === (cat.detail || "")) {
+    window.toggleTagCatDetail(id);
+    return;
+  }
+  try {
+    await updateTagCategoryDB(id, { detail: detail.trim() ? detail : null });
+    cat.detail = detail.trim() ? detail : null;
+    _renderTagCatList();
+    showToast(`บันทึกรายละเอียด "${cat.tag_name}" แล้ว`, "success");
+  } catch (e) {
+    showToast("บันทึกไม่สำเร็จ: " + e.message, "error");
+  }
+};
+
+window.createTagCategory = async function () {
+  const input = document.getElementById("tagCatNewName");
+  const detailEl = document.getElementById("tagCatNewDetail");
+  const name = (input.value || "").trim();
+  if (!name) { showToast("ใส่ชื่อหมวดก่อน", "error"); return; }
+  if (currentTagCategories.some((c) => c.tag_name === name)) {
+    showToast("มีหมวดนี้อยู่แล้ว", "error");
+    return;
+  }
+  const detailRaw = detailEl ? detailEl.value : "";
+  const detail = detailRaw.trim() ? detailRaw : null;
+  try {
+    const row = await createTagCategoryDB({
+      event_id: currentEventId,
+      tag_name: name,
+      color: _tagCatNewColor,
+      detail,
+      sort_order: currentTagCategories.length,
+    });
+    if (row) currentTagCategories.push(row);
+    input.value = "";
+    if (detailEl) detailEl.value = "";
+    _renderTagCatList();
+    populateTagFilter();
+    showToast(`+ หมวด "${name}" 🏷️`, "success");
+  } catch (e) {
+    showToast("สร้างหมวดไม่สำเร็จ: " + e.message, "error");
+  }
+};
+
+window.changeTagCatColor = async function (id, color) {
+  const cat = currentTagCategories.find((c) => c.tag_category_id === id);
+  if (!cat || cat.color === color) return;
+  try {
+    await updateTagCategoryDB(id, { color });
+    cat.color = color;
+    _renderTagCatList();
+    filterTable();
+  } catch (e) {
+    showToast("เปลี่ยนสีไม่สำเร็จ: " + e.message, "error");
+  }
+};
+
+window.renameTagCat = function (id) {
+  // Replace .tag-cat-name span with an input; commit on Enter/blur, cancel on Esc
+  const cat = currentTagCategories.find((c) => c.tag_category_id === id);
+  if (!cat) return;
+  const wrap = document.getElementById("tagCatList");
+  if (!wrap) return;
+  const items = wrap.querySelectorAll(".tag-cat-item");
+  const idx = currentTagCategories.indexOf(cat);
+  const item = items[idx];
+  if (!item) return;
+  const nameSpan = item.querySelector(".tag-cat-name");
+  if (!nameSpan || nameSpan.querySelector("input")) return;
+
+  const original = cat.tag_name;
+  nameSpan.innerHTML = `<input type="text" class="form-input" value="${escapeHtml(original)}"
+    style="width:100%;padding:4px 8px;font-size:13px;font-weight:600" maxlength="40">`;
+  const input = nameSpan.querySelector("input");
+  input.focus();
+  input.select();
+
+  let done = false;
+  const commit = async () => {
+    if (done) return;
+    done = true;
+    const name = (input.value || "").trim();
+    if (!name || name === original) {
+      _renderTagCatList();
+      return;
+    }
+    if (currentTagCategories.some((c) => c.tag_name === name)) {
+      showToast("ชื่อนี้มีหมวดอยู่แล้ว", "error");
+      _renderTagCatList();
+      return;
+    }
+    showLoading(true);
+    try {
+      await updateTagCategoryDB(id, { tag_name: name });
+      cat.tag_name = name;
+      const affected = allAttendees.filter((a) => (a.tags || []).includes(original));
+      for (const a of affected) {
+        const nextTags = a.tags.map((t) => (t === original ? name : t));
+        await updateAttendee(a.attendee_id, { tags: nextTags });
+        a.tags = nextTags;
+      }
+      _renderTagCatList();
+      populateTagFilter();
+      filterTable();
+      showToast(`เปลี่ยนชื่อ → "${name}"`, "success");
+    } catch (e) {
+      showToast("เปลี่ยนชื่อไม่สำเร็จ: " + e.message, "error");
+      _renderTagCatList();
+    }
+    showLoading(false);
+  };
+  const cancel = () => { if (!done) { done = true; _renderTagCatList(); } };
+  input.addEventListener("blur", commit);
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") { e.preventDefault(); input.blur(); }
+    else if (e.key === "Escape") { e.preventDefault(); cancel(); }
+  });
+};
+
+window.askDeleteTagCat = function (id) {
+  const cat = currentTagCategories.find((c) => c.tag_category_id === id);
+  if (!cat) return;
+  _tagCatDeleting = cat;
+
+  const usage = allAttendees.filter((a) => (a.tags || []).includes(cat.tag_name));
+  document.getElementById("tagCatDeleteHeader").innerHTML =
+    `จะลบหมวด <b>"${escapeHtml(cat.tag_name)}"</b> ออกจากกิจกรรมนี้`;
+
+  const usageBox = document.getElementById("tagCatDeleteUsageBox");
+  const actionWrap = document.getElementById("tagCatDeleteActionWrap");
+  const replaceOpt = document.getElementById("tagCatDeleteReplaceOpt");
+  const replaceSel = document.getElementById("tagCatDeleteReplaceSel");
+
+  if (usage.length) {
+    usageBox.style.display = "block";
+    document.getElementById("tagCatDeleteUsageCount").textContent = usage.length;
+    document.getElementById("tagCatDeleteUsageList").innerHTML = usage
+      .map((a) => `• ${escapeHtml(a.name || "—")}${a.member_code ? ` <span style="color:#92400e">(${escapeHtml(a.member_code)})</span>` : ""}`)
+      .join("<br>");
+    actionWrap.style.display = "block";
+
+    // Build replace dropdown (categories อื่นๆ)
+    const others = currentTagCategories.filter((c) => c.tag_category_id !== cat.tag_category_id);
+    if (others.length) {
+      replaceOpt.style.display = "block";
+      replaceSel.innerHTML =
+        '<option value="">-- เลือก tag ทดแทน --</option>' +
+        others.map((c) => `<option value="${escapeHtml(c.tag_name)}">${escapeHtml(c.tag_name)}</option>`).join("");
+    } else {
+      replaceOpt.style.display = "none";
+    }
+    // Reset radio + show/hide replace select
+    document.querySelectorAll('input[name="tagCatDeleteAction"]').forEach((r) => {
+      r.checked = r.value === "clear";
+      r.onchange = () => {
+        replaceSel.style.display = (document.querySelector('input[name="tagCatDeleteAction"]:checked')?.value === "replace") ? "block" : "none";
+      };
+    });
+    replaceSel.style.display = "none";
+  } else {
+    usageBox.style.display = "none";
+    actionWrap.style.display = "none";
+  }
+
+  document.getElementById("tagCatDeleteModal").classList.add("open");
+};
+
+window.closeTagCatDeleteModal = function () {
+  document.getElementById("tagCatDeleteModal")?.classList.remove("open");
+  _tagCatDeleting = null;
+};
+
+window.confirmTagCatDelete = async function () {
+  const cat = _tagCatDeleting;
+  if (!cat) return;
+  const oldName = cat.tag_name;
+  const usage = allAttendees.filter((a) => (a.tags || []).includes(oldName));
+
+  let action = "clear";
+  let replaceWith = "";
+  if (usage.length) {
+    action = document.querySelector('input[name="tagCatDeleteAction"]:checked')?.value || "clear";
+    if (action === "replace") {
+      replaceWith = document.getElementById("tagCatDeleteReplaceSel").value;
+      if (!replaceWith) {
+        showToast("เลือก tag ทดแทนก่อน", "error");
+        return;
+      }
+    }
+  }
+
+  showLoading(true);
+  try {
+    // 1) Update each affected attendee's tags
+    for (const a of usage) {
+      let next;
+      if (action === "replace") {
+        next = a.tags.map((t) => (t === oldName ? replaceWith : t));
+        // Dedupe (กรณี attendee มี replaceWith อยู่แล้ว)
+        next = [...new Set(next)];
+      } else {
+        next = a.tags.filter((t) => t !== oldName);
+      }
+      await updateAttendee(a.attendee_id, { tags: next.length ? next : null });
+      a.tags = next;
+    }
+    // 2) Delete the category itself
+    await deleteTagCategoryDB(cat.tag_category_id);
+    currentTagCategories = currentTagCategories.filter((c) => c.tag_category_id !== cat.tag_category_id);
+
+    window.closeTagCatDeleteModal();
+    _renderTagCatList();
+    populateTagFilter();
+    filterTable();
+    showToast(`ลบหมวด "${oldName}" แล้ว`, "success");
+  } catch (e) {
+    showToast("ลบไม่สำเร็จ: " + e.message, "error");
+  }
+  showLoading(false);
 };
 
 // ============================================================

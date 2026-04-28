@@ -59,6 +59,8 @@ let SUPABASE_KEY = localStorage.getItem('sb_key') || '';
 let config = {
   enabled: false,
   frequency: '24h',
+  frequency_days: null,        // [0..6] when frequency='weekdays'
+  frequency_hour: null,        // 0..23 Bangkok TZ hour when frequency='weekdays'
   username_encrypted: null,
   password_encrypted: null,
   last_sync_at: null,
@@ -74,6 +76,8 @@ let config = {
   line_target_type: 'group',
   line_notify_on_success: false,
 };
+
+const SYNC_WORKFLOW = 'sync-members.yml';
 
 /* ============================================================
    LOAD CONFIG + LOG
@@ -137,9 +141,26 @@ function _renderUI() {
   document.querySelectorAll('.freq-btn').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.freq === config.frequency);
   });
+
+  // Weekdays panel
+  const wkPanel = document.getElementById('weekdaysPanel');
+  wkPanel.classList.toggle('show', config.frequency === 'weekdays');
+  const days = Array.isArray(config.frequency_days) ? config.frequency_days : [];
+  document.querySelectorAll('.day-chip').forEach(chip => {
+    chip.classList.toggle('on', days.includes(Number(chip.dataset.day)));
+  });
+  document.getElementById('hourSelect').value =
+    (config.frequency_hour != null ? config.frequency_hour : 9);
 }
 
+const DAY_LABEL = ['อา.', 'จ.', 'อ.', 'พ.', 'พฤ.', 'ศ.', 'ส.'];
 function _freqLabel(f) {
+  if (f === 'weekdays') {
+    const days = Array.isArray(config.frequency_days) ? [...config.frequency_days].sort() : [];
+    const hour = config.frequency_hour != null ? String(config.frequency_hour).padStart(2, '0') : '09';
+    if (!days.length) return 'เลือกวัน (ยังไม่ได้เลือก)';
+    return `${days.map(d => DAY_LABEL[d]).join(' ')} เวลา ${hour}:00`;
+  }
   return { '1h': 'ทุก 1 ชั่วโมง', '6h': 'ทุก 6 ชั่วโมง', '24h': 'ทุกวัน', 'weekly': 'ทุกสัปดาห์' }[f] || f;
 }
 function _relativeTime(iso) {
@@ -160,18 +181,62 @@ function toggleEnabled() {
 }
 function setFreq(f) {
   config.frequency = f;
+  if (f === 'weekdays') {
+    if (!Array.isArray(config.frequency_days) || !config.frequency_days.length) {
+      config.frequency_days = [1, 2, 3, 4, 5];        // default จ.-ศ.
+    }
+    if (config.frequency_hour == null) config.frequency_hour = 9;   // default 09:00
+  }
   _renderUI();
+}
+
+function toggleDay(d) {
+  const days = Array.isArray(config.frequency_days) ? [...config.frequency_days] : [];
+  const idx = days.indexOf(d);
+  if (idx >= 0) days.splice(idx, 1);
+  else days.push(d);
+  days.sort();
+  config.frequency_days = days;
+  _renderUI();
+}
+
+function setHour(h) {
+  const n = Number(h);
+  config.frequency_hour = (n >= 0 && n <= 23) ? n : 9;
+}
+
+function _populateHourSelect() {
+  const sel = document.getElementById('hourSelect');
+  if (!sel || sel.options.length) return;
+  for (let h = 0; h < 24; h++) {
+    const opt = document.createElement('option');
+    opt.value = h;
+    opt.textContent = `${String(h).padStart(2, '0')}:00`;
+    sel.appendChild(opt);
+  }
 }
 /* ============================================================
    SAVE CONFIG (Automation toggle + frequency only)
    Credentials moved to dev-tool/automation task modal
    ============================================================ */
 async function saveConfig() {
+  // Validate weekdays selection
+  if (config.frequency === 'weekdays') {
+    const days = Array.isArray(config.frequency_days) ? config.frequency_days : [];
+    if (!days.length) {
+      showToast('กรุณาเลือกอย่างน้อย 1 วัน', 'error');
+      return;
+    }
+  }
+
   showLoading(true);
   try {
+    const isWeekdays = config.frequency === 'weekdays';
     const patch = {
       enabled: !!config.enabled,
       frequency: config.frequency,
+      frequency_days: isWeekdays ? config.frequency_days : null,
+      frequency_hour: isWeekdays ? config.frequency_hour : null,
       updated_at: new Date().toISOString(),
     };
 
@@ -182,6 +247,7 @@ async function saveConfig() {
       patch.next_sync_at = null;
     }
 
+    // 1) sync_config
     const res = await fetch(`${SUPABASE_URL}/rest/v1/sync_config?id=eq.1`, {
       method: 'PATCH',
       headers: {
@@ -191,6 +257,32 @@ async function saveConfig() {
       body: JSON.stringify(patch),
     });
     if (!res.ok) throw new Error(await res.text());
+
+    // 2) automation_tasks (mirror schedule for the gate logic)
+    const taskPatch = {
+      schedule: config.frequency,
+      schedule_days: isWeekdays ? config.frequency_days : null,
+      schedule_hour: isWeekdays ? config.frequency_hour : null,
+      status: config.enabled ? 'active' : 'inactive',
+      updated_at: new Date().toISOString(),
+    };
+    const tRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/automation_tasks?workflow=eq.${encodeURIComponent(SYNC_WORKFLOW)}`,
+      {
+        method: 'PATCH',
+        headers: {
+          apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(taskPatch),
+      }
+    );
+    if (!tRes.ok) {
+      // ไม่ throw เพราะ sync_config บันทึกสำเร็จแล้ว — แค่ warn
+      console.warn('automation_tasks mirror failed:', await tRes.text());
+      showToast('⚠️ บันทึกแล้วแต่ sync schedule ไม่สมบูรณ์', 'error');
+    }
+
     await loadConfig();
     showToast('✅ บันทึกแล้ว', 'success');
   } catch (e) {
@@ -199,10 +291,59 @@ async function saveConfig() {
   showLoading(false);
 }
 
+/* ── Compute next_sync_at (for UI display only — gate logic recomputes server-side) ──
+   weekdays: หา occurrence ถัดไปของ (วันที่เลือก, ชั่วโมง) ใน Asia/Bangkok timezone */
 function _computeNextSync(freq) {
   const now = new Date();
+  if (freq === 'weekdays') {
+    const days = Array.isArray(config.frequency_days) ? config.frequency_days : [];
+    if (!days.length) return null;
+    const hour = config.frequency_hour != null ? config.frequency_hour : 9;
+    return _nextWeekdayOccurrence(now, days, hour);
+  }
   const ms = { '1h': 3600e3, '6h': 6*3600e3, '24h': 86400e3, 'weekly': 7*86400e3 }[freq] || 86400e3;
   return new Date(now.getTime() + ms).toISOString();
+}
+
+/* ── Find next datetime where weekday ∈ days at given hour, in Asia/Bangkok TZ.
+       Returns ISO string (UTC) ── */
+function _nextWeekdayOccurrence(fromDate, days, hour) {
+  // Compute current Bangkok-time components
+  const bkkNow = _bangkokParts(fromDate);
+  for (let offset = 0; offset < 8; offset++) {
+    const candidate = new Date(fromDate.getTime() + offset * 86400e3);
+    const parts = _bangkokParts(candidate);
+    if (!days.includes(parts.weekday)) continue;
+    // Build target instant: that bkk-day at HH:00 Bangkok = UTC HH-7:00
+    const targetUtc = _bkkDateToUtc(parts.year, parts.month, parts.day, hour, 0);
+    if (targetUtc.getTime() > fromDate.getTime()) return targetUtc.toISOString();
+  }
+  return null;
+}
+
+/* ── Date parts in Asia/Bangkok timezone ── */
+function _bangkokParts(d) {
+  const fmt = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Bangkok',
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+    weekday: 'short', hourCycle: 'h23',
+  });
+  const parts = Object.fromEntries(fmt.formatToParts(d).map(p => [p.type, p.value]));
+  const wkMap = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+  return {
+    year: Number(parts.year),
+    month: Number(parts.month),
+    day: Number(parts.day),
+    hour: Number(parts.hour),
+    minute: Number(parts.minute),
+    weekday: wkMap[parts.weekday],
+  };
+}
+
+/* ── Build UTC Date for given Bangkok-local Y/M/D HH:mm (Bangkok = UTC+7, no DST) ── */
+function _bkkDateToUtc(y, m, d, h, mn) {
+  return new Date(Date.UTC(y, m - 1, d, h - 7, mn));
 }
 
 /* ============================================================
@@ -600,6 +741,7 @@ function showToast(msg, type='info') {
 
 /* ── Init ── */
 window.addEventListener('DOMContentLoaded', () => {
+  _populateHourSelect();
   loadConfig();
   loadLog();
 });

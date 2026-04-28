@@ -36,6 +36,7 @@ let eventInfo = null;
 let recentCheckins = []; // last 8
 let lastScanAt = 0;
 let lastScanText = "";
+let tagCategoriesByName = {}; // { tag_name: { detail, color, ... } } for current event
 
 // ── TAG-FLEX RESEND BLOCK (toggle) ────────────────────────
 // ON  = check tag_notified_at flag → ส่งครั้งเดียว (default)
@@ -86,6 +87,19 @@ async function init() {
     }
   } catch (e) {
     console.warn("load event:", e);
+  }
+
+  // Load event-scoped tag categories (for LINE flex detail) — degrade silently if table missing
+  try {
+    const cats = await sbFetch(
+      "event_tag_categories",
+      `?event_id=eq.${eventId}&select=tag_name,detail,color`,
+    );
+    tagCategoriesByName = {};
+    (cats || []).forEach((c) => { tagCategoriesByName[c.tag_name] = c; });
+  } catch (e) {
+    console.warn("load tag categories:", e?.message || e);
+    tagCategoriesByName = {};
   }
 
   // Sync tag-resend toggle UI from saved state
@@ -401,14 +415,11 @@ function buildCheckinTagFlex(attendee, event, tags) {
   const name = attendee.name || attendee.member_code || "";
   const ticketNo = attendee.ticket_no || `ID-${attendee.attendee_id}`;
 
-  const tagBoxes = tags.map((t) => ({
-    type: "box",
-    layout: "horizontal",
-    paddingAll: "sm",
-    cornerRadius: "md",
-    backgroundColor: "#fef3c7",
-    margin: "sm",
-    contents: [
+  // Each tag → box with name + (optional) detail from event_tag_categories
+  const tagBoxes = tags.map((t) => {
+    const cat = tagCategoriesByName[t];
+    const detail = (cat?.detail || "").trim();
+    const inner = [
       {
         type: "text",
         text: `🏷️  ${t}`,
@@ -417,8 +428,27 @@ function buildCheckinTagFlex(attendee, event, tags) {
         weight: "bold",
         wrap: true,
       },
-    ],
-  }));
+    ];
+    if (detail) {
+      inner.push({
+        type: "text",
+        text: detail,
+        size: "xs",
+        color: "#78350f",
+        wrap: true,
+        margin: "sm",
+      });
+    }
+    return {
+      type: "box",
+      layout: "vertical",
+      paddingAll: "sm",
+      cornerRadius: "md",
+      backgroundColor: "#fef3c7",
+      margin: "sm",
+      contents: inner,
+    };
+  });
 
   const bubble = {
     type: "bubble",

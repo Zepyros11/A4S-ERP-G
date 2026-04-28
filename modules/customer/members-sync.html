@@ -41,6 +41,20 @@
 .freq-btn:hover{border-color:var(--accent);color:var(--accent);}
 .freq-btn.active{background:linear-gradient(135deg,var(--accent),var(--accent-light));color:#fff;border-color:var(--accent);font-weight:600;box-shadow:0 3px 10px rgba(15,76,117,.3);}
 
+/* ── Weekdays panel (visible only when frequency=weekdays) ── */
+.weekdays-panel{display:none;margin-top:14px;padding:14px 16px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;}
+.weekdays-panel.show{display:block;animation:fadeSlide .2s ease;}
+@keyframes fadeSlide{from{opacity:0;transform:translateY(-4px);}to{opacity:1;transform:translateY(0);}}
+.weekdays-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;}
+.day-chip{min-width:42px;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text2);cursor:pointer;font-family:inherit;font-size:12.5px;font-weight:600;text-align:center;transition:all .15s;user-select:none;}
+.day-chip:hover{border-color:var(--accent);color:var(--accent);}
+.day-chip.on{background:linear-gradient(135deg,var(--accent),var(--accent-light));color:#fff;border-color:var(--accent);box-shadow:0 2px 6px rgba(15,76,117,.25);}
+.hour-row{display:flex;align-items:center;gap:10px;}
+.hour-row label{font-size:12.5px;font-weight:600;color:var(--text2);}
+.hour-select{padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;outline:none;font-variant-numeric:tabular-nums;}
+.hour-select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(15,76,117,.1);}
+.hour-row .hint{font-size:11.5px;color:var(--text3);}
+
 /* ── Credential input ── */
 .cred-row{margin-bottom:12px;}
 .cred-label{font-size:12px;font-weight:600;color:var(--text2);margin-bottom:6px;display:flex;align-items:center;gap:6px;}
@@ -212,10 +226,28 @@
     <div style="margin-top:14px">
       <div class="sync-toggle-label">ความถี่</div>
       <div class="freq-row">
-        <button class="freq-btn" data-freq="1h"     onclick="setFreq('1h')">ทุก 1 ชั่วโมง</button>
-        <button class="freq-btn" data-freq="6h"     onclick="setFreq('6h')">ทุก 6 ชั่วโมง</button>
+        <button class="freq-btn" data-freq="1h"       onclick="setFreq('1h')">ทุก 1 ชั่วโมง</button>
+        <button class="freq-btn" data-freq="6h"       onclick="setFreq('6h')">ทุก 6 ชั่วโมง</button>
         <button class="freq-btn active" data-freq="24h" onclick="setFreq('24h')">ทุกวัน</button>
-        <button class="freq-btn" data-freq="weekly" onclick="setFreq('weekly')">ทุกสัปดาห์</button>
+        <button class="freq-btn" data-freq="weekly"   onclick="setFreq('weekly')">ทุกสัปดาห์</button>
+        <button class="freq-btn" data-freq="weekdays" onclick="setFreq('weekdays')">เลือกวัน</button>
+      </div>
+      <div class="weekdays-panel" id="weekdaysPanel">
+        <div style="font-size:12px;color:var(--text3);margin-bottom:8px;font-weight:600">เลือกวันในสัปดาห์ (เวลาไทย)</div>
+        <div class="weekdays-row" id="weekdaysRow">
+          <div class="day-chip" data-day="0" onclick="toggleDay(0)" title="อาทิตย์">อา.</div>
+          <div class="day-chip" data-day="1" onclick="toggleDay(1)" title="จันทร์">จ.</div>
+          <div class="day-chip" data-day="2" onclick="toggleDay(2)" title="อังคาร">อ.</div>
+          <div class="day-chip" data-day="3" onclick="toggleDay(3)" title="พุธ">พ.</div>
+          <div class="day-chip" data-day="4" onclick="toggleDay(4)" title="พฤหัส">พฤ.</div>
+          <div class="day-chip" data-day="5" onclick="toggleDay(5)" title="ศุกร์">ศ.</div>
+          <div class="day-chip" data-day="6" onclick="toggleDay(6)" title="เสาร์">ส.</div>
+        </div>
+        <div class="hour-row">
+          <label for="hourSelect">เวลา:</label>
+          <select id="hourSelect" class="hour-select" onchange="setHour(this.value)"></select>
+          <span class="hint">น. (Asia/Bangkok)</span>
+        </div>
       </div>
     </div>
   </div>
