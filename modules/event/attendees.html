@@ -38,6 +38,7 @@
               <button style="padding:8px 14px;border:none;border-radius:16px;background:rgba(255,255,255,.18);color:#fff;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;border:1.5px solid rgba(255,255,255,.25);display:flex;align-items:center;gap:5px" onclick="window.openCheckinPage()">📱 หน้า Check-in</button>
               <button style="padding:8px 14px;border:none;border-radius:16px;background:rgba(255,255,255,.18);color:#fff;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;border:1.5px solid rgba(255,255,255,.25);display:flex;align-items:center;gap:5px" onclick="window.openShareRegisterModal()">🔗 แชร์ลิงก์ลงทะเบียน</button>
               <button style="padding:8px 14px;border:none;border-radius:16px;background:rgba(255,255,255,.18);color:#fff;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;border:1.5px solid rgba(255,255,255,.25);display:flex;align-items:center;gap:5px" onclick="window.openBulkMsgModal()">📢 ส่งข้อความกลุ่ม</button>
+              <button style="padding:8px 14px;border:none;border-radius:16px;background:rgba(255,255,255,.18);color:#fff;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;border:1.5px solid rgba(255,255,255,.25);display:flex;align-items:center;gap:5px" onclick="window.openTagCategoriesModal()">🏷️ จัดการหมวด Tag</button>
               <button style="padding:8px 14px;border:none;border-radius:16px;background:rgba(255,255,255,.18);color:#fff;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;border:1.5px solid rgba(255,255,255,.25);display:flex;align-items:center;gap:5px" onclick="window.exportCSV()">📥 Export CSV</button>
             </div>
           </div>
@@ -397,6 +398,92 @@
         <div class="att-modal-footer">
           <button class="btn btn-secondary" onclick="window.closeShareRegisterModal()">ปิด</button>
         </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════
+         TAG CATEGORIES — MANAGEMENT MODAL
+         ═══════════════════════════════════════ -->
+    <div class="att-modal-overlay" id="tagCatModal">
+      <div class="att-modal" style="width:560px;max-width:94vw">
+        <div class="att-modal-header">
+          <div>🏷️ จัดการหมวด Tag <span id="tagCatEventName" style="font-weight:500;font-size:12px;color:var(--text3);margin-left:6px"></span></div>
+          <button class="btn-icon" onclick="window.closeTagCategoriesModal()">✕</button>
+        </div>
+        <div class="att-modal-body">
+          <div style="font-size:12px;color:var(--text3);background:#f1f5f9;padding:8px 12px;border-radius:8px;margin-bottom:12px">
+            💡 หมวด Tag เหล่านี้ใช้เฉพาะใน event นี้เท่านั้น (ไม่นำไปใช้ในงานอื่น)
+          </div>
+
+          <!-- Add new category -->
+          <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:12px;margin-bottom:14px">
+            <div style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:8px">➕ เพิ่มหมวดใหม่</div>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+              <input id="tagCatNewName" type="text" class="form-input" maxlength="40"
+                placeholder="เช่น เข็มทอง, VIP, รับหมวก"
+                style="flex:1;min-width:180px;padding:8px 10px"
+                onkeydown="if(event.key==='Enter'){event.preventDefault();window.createTagCategory();}">
+              <div id="tagCatColorPicker" class="tag-color-picker"></div>
+              <button class="btn btn-primary" onclick="window.createTagCategory()" style="padding:8px 16px">เพิ่ม</button>
+            </div>
+          </div>
+
+          <!-- Existing categories list -->
+          <div style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:6px">📋 หมวดที่มี (<span id="tagCatCount">0</span>)</div>
+          <div id="tagCatList" class="tag-cat-list"></div>
+        </div>
+        <div class="att-modal-footer">
+          <button class="btn btn-secondary" onclick="window.closeTagCategoriesModal()">ปิด</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════
+         TAG CATEGORY — DELETE WITH REPLACE MODAL
+         ═══════════════════════════════════════ -->
+    <div class="att-modal-overlay" id="tagCatDeleteModal">
+      <div class="att-modal" style="width:520px;max-width:94vw">
+        <div class="att-modal-header">
+          <div>🗑️ ลบหมวด Tag</div>
+          <button class="btn-icon" onclick="window.closeTagCatDeleteModal()">✕</button>
+        </div>
+        <div class="att-modal-body">
+          <div id="tagCatDeleteHeader" style="font-size:14px;color:#0f172a;margin-bottom:10px"></div>
+
+          <div id="tagCatDeleteUsageBox" style="background:#fffbeb;border:1px solid #fcd34d;border-radius:10px;padding:10px 12px;margin-bottom:14px;display:none">
+            <div style="font-size:12px;font-weight:700;color:#92400e;margin-bottom:6px">⚠️ มีผู้เข้าร่วมใช้ tag นี้อยู่ <span id="tagCatDeleteUsageCount">0</span> คน</div>
+            <div id="tagCatDeleteUsageList" style="font-size:11.5px;color:#78350f;line-height:1.7;max-height:140px;overflow-y:auto"></div>
+          </div>
+
+          <div class="form-group" id="tagCatDeleteActionWrap">
+            <label class="form-label">เลือกการดำเนินการ</label>
+            <label class="tag-cat-action-opt">
+              <input type="radio" name="tagCatDeleteAction" value="clear" checked>
+              <span>🧹 ลบ tag ออกจากผู้เข้าร่วม (ใส่ค่าว่าง)</span>
+            </label>
+            <label class="tag-cat-action-opt" id="tagCatDeleteReplaceOpt">
+              <input type="radio" name="tagCatDeleteAction" value="replace">
+              <span>🔄 แทนด้วย tag อื่น</span>
+              <select id="tagCatDeleteReplaceSel" class="form-input" style="margin-top:6px;display:none"></select>
+            </label>
+          </div>
+        </div>
+        <div class="att-modal-footer">
+          <button class="btn btn-secondary" onclick="window.closeTagCatDeleteModal()">ยกเลิก</button>
+          <button class="btn" style="background:linear-gradient(135deg,#b91c1c,#ef4444);color:#fff" onclick="window.confirmTagCatDelete()">ลบหมวด</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════
+         TAG PICKER POPOVER (anchor to + tag button)
+         ═══════════════════════════════════════ -->
+    <div id="tagPickerPopover" class="tag-picker-popover" style="display:none">
+      <div class="tag-picker-hdr">เลือก tag</div>
+      <div id="tagPickerList" class="tag-picker-list"></div>
+      <div class="tag-picker-empty" id="tagPickerEmpty" style="display:none">
+        ยังไม่มีหมวด Tag<br>
+        <button onclick="window.closeTagPickerAndOpenManage()" style="margin-top:8px;padding:6px 12px;border:none;border-radius:6px;background:#1e40af;color:#fff;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer">➕ จัดการหมวด Tag</button>
       </div>
     </div>
 

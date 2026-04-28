@@ -278,6 +278,31 @@ async function removeAttendee(id) {
   });
 }
 
+// ── TAG CATEGORIES (event-scoped) ─────────────────────────
+async function fetchTagCategories(eventId) {
+  try {
+    const rows = await sbFetch(
+      "event_tag_categories",
+      `?event_id=eq.${eventId}&select=*&order=sort_order.asc,tag_category_id.asc`,
+    );
+    return rows || [];
+  } catch (e) {
+    // Table may not exist yet (migration 043 not applied) — degrade gracefully
+    console.warn("fetchTagCategories:", e.message);
+    return [];
+  }
+}
+async function createTagCategoryDB(data) {
+  const res = await sbFetch("event_tag_categories", "", { method: "POST", body: data });
+  return res?.[0];
+}
+async function updateTagCategoryDB(id, data) {
+  return sbFetch("event_tag_categories", `?tag_category_id=eq.${id}`, { method: "PATCH", body: data });
+}
+async function deleteTagCategoryDB(id) {
+  return sbFetch("event_tag_categories", `?tag_category_id=eq.${id}`, { method: "DELETE" });
+}
+
 // ── STATE ─────────────────────────────────────────────────
 let allEvents = [];
 let currentEventId = null;
@@ -285,10 +310,16 @@ let currentEvent = null;
 let allAttendees = [];
 let currentTiers = [];       // Tiers สำหรับ event ปัจจุบัน
 let currentTiersById = {};   // lookup tier_id → tier
+let currentTagCategories = []; // Tag categories สำหรับ event ปัจจุบัน
 let defaultGraceDays = 3;    // จาก app_settings.default_grace_days
 let _paymentModalAtt = null; // attendee object while modal open
 let _qrModalAtt = null;      // attendee object while QR modal open
 let selectedAttendeeIds = new Set(); // bulk-delete selection
+
+// Tag-category modal local state
+let _tagCatNewColor = "yellow";       // ปัจจุบันที่เลือกใน color picker
+let _tagCatDeleting = null;           // category object ที่กำลังลบ
+const TAG_COLOR_PRESETS = ["yellow", "blue", "green", "pink", "purple", "red", "gray"];
 
 // Inline new rows (not yet saved)
 let newRows = [];

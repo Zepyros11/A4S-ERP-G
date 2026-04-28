@@ -908,6 +908,179 @@
   padding: 2px 4px;
 }
 
+/* ── TAG COLOR PRESETS (chip background + text) ── */
+.tag-chip.tag-color-yellow { background: #fde68a; color: #78350f; }
+.tag-chip.tag-color-blue   { background: #dbeafe; color: #1e3a8a; }
+.tag-chip.tag-color-green  { background: #d1fae5; color: #065f46; }
+.tag-chip.tag-color-pink   { background: #fce7f3; color: #9d174d; }
+.tag-chip.tag-color-purple { background: #ede9fe; color: #5b21b6; }
+.tag-chip.tag-color-red    { background: #fee2e2; color: #991b1b; }
+.tag-chip.tag-color-gray   { background: #e2e8f0; color: #334155; }
+
+/* ── TAG COLOR PICKER (in management modal) ── */
+.tag-color-picker {
+  display: inline-flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.tag-color-swatch {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: transform .12s, border-color .12s;
+}
+.tag-color-swatch:hover { transform: scale(1.12); }
+.tag-color-swatch.selected { border-color: #1e40af; transform: scale(1.12); }
+.tag-color-swatch.sw-yellow { background: #fde68a; }
+.tag-color-swatch.sw-blue   { background: #dbeafe; }
+.tag-color-swatch.sw-green  { background: #d1fae5; }
+.tag-color-swatch.sw-pink   { background: #fce7f3; }
+.tag-color-swatch.sw-purple { background: #ede9fe; }
+.tag-color-swatch.sw-red    { background: #fee2e2; }
+.tag-color-swatch.sw-gray   { background: #e2e8f0; }
+
+/* ── TAG CATEGORY LIST (in management modal) ── */
+.tag-cat-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 320px;
+  overflow-y: auto;
+  padding: 2px;
+}
+.tag-cat-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #fff;
+}
+.tag-cat-item .tag-cat-preview {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 12px;
+  white-space: nowrap;
+}
+.tag-cat-item .tag-cat-name {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 600;
+  color: #0f172a;
+}
+.tag-cat-item .tag-cat-usage {
+  font-size: 11px;
+  color: var(--text3);
+  white-space: nowrap;
+}
+.tag-cat-item .tag-cat-actions {
+  display: flex;
+  gap: 4px;
+}
+.tag-cat-item button.tag-cat-btn {
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  border-radius: 6px;
+  padding: 4px 8px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  color: #475569;
+}
+.tag-cat-item button.tag-cat-btn:hover { background: #f1f5f9; }
+.tag-cat-item button.tag-cat-btn.danger { color: #b91c1c; border-color: #fecaca; }
+.tag-cat-item button.tag-cat-btn.danger:hover { background: #fef2f2; }
+.tag-cat-empty {
+  text-align: center;
+  padding: 24px 12px;
+  color: var(--text3);
+  font-size: 12.5px;
+}
+
+/* ── DELETE-WITH-REPLACE MODAL ── */
+.tag-cat-action-opt {
+  display: block;
+  padding: 10px 12px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 8px;
+  margin-top: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  color: #334155;
+  transition: all .12s;
+}
+.tag-cat-action-opt:has(input:checked) {
+  border-color: #1e40af;
+  background: #eff6ff;
+  color: #1e3a8a;
+}
+.tag-cat-action-opt input { margin-right: 8px; }
+
+/* ── TAG PICKER POPOVER (anchored to + tag button) ── */
+.tag-picker-popover {
+  position: absolute;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, .18);
+  z-index: 600;
+  min-width: 220px;
+  max-width: 280px;
+  padding: 8px;
+}
+.tag-picker-hdr {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: .4px;
+  padding: 4px 8px 6px;
+}
+.tag-picker-list {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  max-height: 220px;
+  overflow-y: auto;
+}
+.tag-picker-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: #334155;
+}
+.tag-picker-item:hover { background: #f1f5f9; }
+.tag-picker-item.disabled {
+  opacity: .5;
+  cursor: not-allowed;
+}
+.tag-picker-item.disabled:hover { background: transparent; }
+.tag-picker-item .tag-cat-preview {
+  font-size: 10.5px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 10px;
+  white-space: nowrap;
+}
+.tag-picker-empty {
+  text-align: center;
+  padding: 16px 8px;
+  font-size: 12px;
+  color: var(--text3);
+  line-height: 1.5;
+}
+
 /* ── BULK MESSAGE PREVIEW ── */
 .bulk-msg-preview {
   padding: 10px 14px;
