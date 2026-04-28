@@ -23,23 +23,24 @@
       <div class="content-area">
         <div class="page">
           <!-- HERO -->
-          <div style="background:linear-gradient(135deg,#1e40af,#3b82f6);color:#fff;border-radius:14px;padding:20px 24px;margin-bottom:18px;box-shadow:0 8px 24px rgba(30,64,175,.3);position:relative;overflow:hidden;display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap">
-            <div style="position:absolute;top:-40px;right:-40px;width:140px;height:140px;border-radius:50%;background:rgba(255,255,255,.06)"></div>
-            <div style="position:relative;z-index:1">
-              <div id="heroTitle" style="font-size:18px;font-weight:700;display:flex;align-items:center;gap:8px">👥 ผู้เข้าร่วมกิจกรรม</div>
-              <div id="heroSubtitle" style="font-size:12.5px;opacity:.85;margin-top:3px">ลงทะเบียน · Check-in · ติดตามผู้เข้าร่วม</div>
+          <div class="att-hero">
+            <div class="att-hero-blob"></div>
+            <div class="att-hero-text">
+              <div id="heroTitle" class="att-hero-title">👥 ผู้เข้าร่วมกิจกรรม</div>
+              <div id="heroSubtitle" class="att-hero-sub">ลงทะเบียน · Check-in · ติดตามผู้เข้าร่วม</div>
             </div>
-            <div id="eventActionBtns" style="display:none;gap:8px;flex-shrink:0;position:relative;z-index:1;flex-wrap:wrap;align-items:center">
-              <label id="autoCheckinToggle" title="เปิด = save แล้ว check-in ทันที (ใช้ตอนหน้างาน)"
-                style="display:flex;align-items:center;gap:6px;padding:7px 12px;border-radius:16px;background:rgba(255,255,255,.12);border:1.5px solid rgba(255,255,255,.25);cursor:pointer;font-size:12px;font-weight:600;color:#fff;user-select:none">
-                <input type="checkbox" id="autoCheckinInput" onchange="window.onAutoCheckinToggle(this.checked)" style="accent-color:#10b981;width:15px;height:15px;cursor:pointer">
-                <span id="autoCheckinLabel">⚡ โหมดหน้างาน</span>
+            <div id="eventActionBtns" class="att-hero-actions" style="display:none">
+              <label id="autoCheckinToggle" class="att-onsite-toggle" title="เปิด = save แล้ว check-in ทันที (ใช้ตอนหน้างาน)">
+                <input type="checkbox" id="autoCheckinInput" onchange="window.onAutoCheckinToggle(this.checked)">
+                <span class="att-onsite-knob"></span>
+                <span id="autoCheckinLabel" class="att-onsite-label">⚡ โหมดหน้างาน</span>
               </label>
-              <button style="padding:8px 14px;border:none;border-radius:16px;background:rgba(255,255,255,.18);color:#fff;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;border:1.5px solid rgba(255,255,255,.25);display:flex;align-items:center;gap:5px" onclick="window.openCheckinPage()">📱 หน้า Check-in</button>
-              <button style="padding:8px 14px;border:none;border-radius:16px;background:rgba(255,255,255,.18);color:#fff;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;border:1.5px solid rgba(255,255,255,.25);display:flex;align-items:center;gap:5px" onclick="window.openShareRegisterModal()">🔗 แชร์ลิงก์ลงทะเบียน</button>
-              <button style="padding:8px 14px;border:none;border-radius:16px;background:rgba(255,255,255,.18);color:#fff;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;border:1.5px solid rgba(255,255,255,.25);display:flex;align-items:center;gap:5px" onclick="window.openBulkMsgModal()">📢 ส่งข้อความกลุ่ม</button>
-              <button style="padding:8px 14px;border:none;border-radius:16px;background:rgba(255,255,255,.18);color:#fff;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;border:1.5px solid rgba(255,255,255,.25);display:flex;align-items:center;gap:5px" onclick="window.openTagCategoriesModal()">🏷️ จัดการหมวด Tag</button>
-              <button style="padding:8px 14px;border:none;border-radius:16px;background:rgba(255,255,255,.18);color:#fff;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;border:1.5px solid rgba(255,255,255,.25);display:flex;align-items:center;gap:5px" onclick="window.exportCSV()">📥 Export CSV</button>
+              <div class="att-hero-divider"></div>
+              <button class="att-hero-btn" onclick="window.openCheckinPage()" title="เปิดหน้า Check-in"><span class="ico">📱</span><span class="lbl">Check-in</span></button>
+              <button class="att-hero-btn" onclick="window.openShareRegisterModal()" title="แชร์ลิงก์ลงทะเบียน"><span class="ico">🔗</span><span class="lbl">แชร์ลิงก์</span></button>
+              <button class="att-hero-btn" onclick="window.openBulkMsgModal()" title="ส่งข้อความกลุ่ม"><span class="ico">📢</span><span class="lbl">ส่งข้อความ</span></button>
+              <button class="att-hero-btn" onclick="window.openTagCategoriesModal()" title="จัดการหมวด Tag"><span class="ico">🏷️</span><span class="lbl">หมวด Tag</span></button>
+              <button class="att-hero-btn" onclick="window.exportCSV()" title="Export CSV"><span class="ico">📥</span><span class="lbl">Export</span></button>
             </div>
           </div>
 
@@ -54,43 +55,40 @@
           <!-- STATS (hidden until event selected) -->
           <div id="attStatsSection" style="display: none">
             <div class="att-stats">
-              <div class="att-stat-card">
-                <div class="att-stat-label">ลงทะเบียนทั้งหมด</div>
-                <div class="att-stat-value" id="statTotal">0</div>
-              </div>
-              <div class="att-stat-card">
-                <div class="att-stat-label">Check-in แล้ว</div>
-                <div
-                  class="att-stat-value"
-                  id="statCheckedIn"
-                  style="color: var(--success)"
-                >
-                  0
+              <div class="att-stat-card sc-total">
+                <div class="att-stat-icon">👥</div>
+                <div class="att-stat-body">
+                  <div class="att-stat-label">ลงทะเบียนทั้งหมด</div>
+                  <div class="att-stat-value" id="statTotal">0</div>
                 </div>
               </div>
-              <div class="att-stat-card">
-                <div class="att-stat-label">ยังไม่ Check-in</div>
-                <div
-                  class="att-stat-value"
-                  id="statNotCheckedIn"
-                  style="color: var(--text3)"
-                >
-                  0
+              <div class="att-stat-card sc-checkin">
+                <div class="att-stat-icon">✅</div>
+                <div class="att-stat-body">
+                  <div class="att-stat-label">Check-in แล้ว</div>
+                  <div class="att-stat-value" id="statCheckedIn">0</div>
                 </div>
               </div>
-              <div class="att-stat-card">
-                <div class="att-stat-label">ชำระแล้ว</div>
-                <div
-                  class="att-stat-value"
-                  id="statPaid"
-                  style="color: var(--accent)"
-                >
-                  0
+              <div class="att-stat-card sc-pending">
+                <div class="att-stat-icon">⏳</div>
+                <div class="att-stat-body">
+                  <div class="att-stat-label">ยังไม่ Check-in</div>
+                  <div class="att-stat-value" id="statNotCheckedIn">0</div>
                 </div>
               </div>
-              <div class="att-stat-card">
-                <div class="att-stat-label">รายรับรวม (฿)</div>
-                <div class="att-stat-value" id="statRevenue">0</div>
+              <div class="att-stat-card sc-paid">
+                <div class="att-stat-icon">💳</div>
+                <div class="att-stat-body">
+                  <div class="att-stat-label">ชำระแล้ว</div>
+                  <div class="att-stat-value" id="statPaid">0</div>
+                </div>
+              </div>
+              <div class="att-stat-card sc-revenue">
+                <div class="att-stat-icon">💰</div>
+                <div class="att-stat-body">
+                  <div class="att-stat-label">รายรับรวม (฿)</div>
+                  <div class="att-stat-value" id="statRevenue">0</div>
+                </div>
               </div>
             </div>
           </div>
@@ -405,7 +403,7 @@
          TAG CATEGORIES — MANAGEMENT MODAL
          ═══════════════════════════════════════ -->
     <div class="att-modal-overlay" id="tagCatModal">
-      <div class="att-modal" style="width:560px;max-width:94vw">
+      <div class="att-modal" style="width:920px;max-width:96vw">
         <div class="att-modal-header">
           <div>🏷️ จัดการหมวด Tag <span id="tagCatEventName" style="font-weight:500;font-size:12px;color:var(--text3);margin-left:6px"></span></div>
           <button class="btn-icon" onclick="window.closeTagCategoriesModal()">✕</button>
@@ -415,26 +413,30 @@
             💡 หมวด Tag เหล่านี้ใช้เฉพาะใน event นี้เท่านั้น (ไม่นำไปใช้ในงานอื่น)
           </div>
 
-          <!-- Add new category -->
-          <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:12px;margin-bottom:14px">
-            <div style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:8px">➕ เพิ่มหมวดใหม่</div>
-            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px">
-              <input id="tagCatNewName" type="text" class="form-input" maxlength="40"
-                placeholder="ชื่อหมวด — เช่น เข็มทอง, VIP, รับหมวก"
-                style="flex:1;min-width:180px;padding:8px 10px">
-              <div id="tagCatColorPicker" class="tag-color-picker"></div>
+          <div class="tag-cat-modal-grid">
+            <!-- LEFT: Add new category -->
+            <div class="tag-cat-col tag-cat-col-add">
+              <div class="tag-cat-col-hdr">➕ เพิ่มหมวดใหม่</div>
+              <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px">
+                <input id="tagCatNewName" type="text" class="form-input" maxlength="40"
+                  placeholder="ชื่อหมวด — เช่น เข็มทอง, VIP, รับหมวก"
+                  style="flex:1;min-width:160px;padding:8px 10px">
+                <div id="tagCatColorPicker" class="tag-color-picker"></div>
+              </div>
+              <textarea id="tagCatNewDetail" class="form-input" rows="6" maxlength="800"
+                placeholder="รายละเอียด — ส่งใน LINE ตอน check-in (เช่น สถานที่รับเข็ม, รหัสรับของ ฯลฯ)"
+                style="width:100%;padding:8px 10px;font-size:12.5px;line-height:1.5;resize:vertical"></textarea>
+              <div style="display:flex;justify-content:flex-end;margin-top:10px">
+                <button class="btn btn-primary" onclick="window.createTagCategory()" style="padding:8px 18px">บันทึก</button>
+              </div>
             </div>
-            <textarea id="tagCatNewDetail" class="form-input" rows="3" maxlength="800"
-              placeholder="รายละเอียด — ส่งใน LINE ตอน check-in (เช่น สถานที่รับเข็ม, รหัสรับของ ฯลฯ)"
-              style="width:100%;padding:8px 10px;font-size:12.5px;line-height:1.5;resize:vertical"></textarea>
-            <div style="display:flex;justify-content:flex-end;margin-top:8px">
-              <button class="btn btn-primary" onclick="window.createTagCategory()" style="padding:8px 18px">บันทึก</button>
+
+            <!-- RIGHT: Existing categories list -->
+            <div class="tag-cat-col tag-cat-col-list">
+              <div class="tag-cat-col-hdr">📋 หมวดที่มี (<span id="tagCatCount">0</span>)</div>
+              <div id="tagCatList" class="tag-cat-list"></div>
             </div>
           </div>
-
-          <!-- Existing categories list -->
-          <div style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:6px">📋 หมวดที่มี (<span id="tagCatCount">0</span>)</div>
-          <div id="tagCatList" class="tag-cat-list"></div>
         </div>
         <div class="att-modal-footer">
           <button class="btn btn-secondary" onclick="window.closeTagCategoriesModal()">ปิด</button>

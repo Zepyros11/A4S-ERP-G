@@ -178,6 +178,7 @@ function _relativeTime(iso) {
 function toggleEnabled() {
   config.enabled = !config.enabled;
   _renderUI();
+  _scheduleAutoSave();
 }
 function setFreq(f) {
   config.frequency = f;
@@ -188,6 +189,7 @@ function setFreq(f) {
     if (config.frequency_hour == null) config.frequency_hour = 9;   // default 09:00
   }
   _renderUI();
+  _scheduleAutoSave();
 }
 
 function toggleDay(d) {
@@ -198,11 +200,23 @@ function toggleDay(d) {
   days.sort();
   config.frequency_days = days;
   _renderUI();
+  _scheduleAutoSave();
 }
 
 function setHour(h) {
   const n = Number(h);
   config.frequency_hour = (n >= 0 && n <= 23) ? n : 9;
+  _scheduleAutoSave();
+}
+
+/* ── Debounced auto-save: ทุก setter เรียก → รวม changes → save ครั้งเดียวหลัง 600ms ── */
+let _autoSaveTimer = null;
+function _scheduleAutoSave() {
+  if (_autoSaveTimer) clearTimeout(_autoSaveTimer);
+  _autoSaveTimer = setTimeout(() => {
+    _autoSaveTimer = null;
+    saveConfig();
+  }, 600);
 }
 
 function _populateHourSelect() {
@@ -414,7 +428,10 @@ async function syncNow() {
         'X-GitHub-Api-Version': '2022-11-28',
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ ref: config.github_branch || 'main' }),
+      body: JSON.stringify({
+        ref: config.github_branch || 'main',
+        inputs: { force: 'true' },          // explicit user click — bypass schedule gate
+      }),
     });
 
     if (ghRes.status === 204) {

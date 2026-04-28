@@ -1815,8 +1815,7 @@ function _renderTagCatList() {
         : '<span style="color:var(--text3);font-style:italic">ยังไม่มีรายละเอียด</span>';
       return `<div class="tag-cat-item-wrap">
         <div class="tag-cat-item">
-          <span class="tag-cat-preview ${colorCls}">${escapeHtml(c.tag_name)}</span>
-          <span class="tag-cat-name">${escapeHtml(c.tag_name)}</span>
+          <span class="tag-cat-preview ${colorCls}" data-cat-id="${c.tag_category_id}">${escapeHtml(c.tag_name)}</span>
           <span class="tag-cat-usage">${used} คน</span>
           <div class="tag-color-picker" style="gap:3px">${swatches}</div>
           <div class="tag-cat-actions">
@@ -1830,10 +1829,9 @@ function _renderTagCatList() {
           <textarea class="form-input" id="tagCatDetailInput_${c.tag_category_id}" rows="3" maxlength="800"
             placeholder="รายละเอียดที่ส่งทาง LINE ตอน check-in"
             style="width:100%;padding:7px 10px;font-size:12.5px;line-height:1.5;resize:vertical">${escapeHtml(c.detail || "")}</textarea>
-          <div style="display:flex;gap:6px;justify-content:flex-end;margin-top:6px">
-            <button class="tag-cat-btn" onclick="window.cancelTagCatDetailEdit(${c.tag_category_id})">ยกเลิก</button>
-            <button class="tag-cat-btn" style="background:#1e40af;color:#fff;border-color:#1e40af"
-              onclick="window.saveTagCatDetail(${c.tag_category_id})">บันทึก</button>
+          <div class="tag-cat-detail-btns">
+            <button class="tag-cat-detail-btn cancel" onclick="window.cancelTagCatDetailEdit(${c.tag_category_id})">ยกเลิก</button>
+            <button class="tag-cat-detail-btn save" onclick="window.saveTagCatDetail(${c.tag_category_id})">💾 บันทึก</button>
           </div>
         </div>
       </div>`;
@@ -1925,22 +1923,21 @@ window.changeTagCatColor = async function (id, color) {
 };
 
 window.renameTagCat = function (id) {
-  // Replace .tag-cat-name span with an input; commit on Enter/blur, cancel on Esc
+  // Replace the chip with an inline input; commit on Enter/blur, cancel on Esc
   const cat = currentTagCategories.find((c) => c.tag_category_id === id);
   if (!cat) return;
   const wrap = document.getElementById("tagCatList");
   if (!wrap) return;
-  const items = wrap.querySelectorAll(".tag-cat-item");
-  const idx = currentTagCategories.indexOf(cat);
-  const item = items[idx];
-  if (!item) return;
-  const nameSpan = item.querySelector(".tag-cat-name");
-  if (!nameSpan || nameSpan.querySelector("input")) return;
+  const chip = wrap.querySelector(`.tag-cat-preview[data-cat-id="${id}"]`);
+  if (!chip || chip.querySelector("input")) return;
 
   const original = cat.tag_name;
-  nameSpan.innerHTML = `<input type="text" class="form-input" value="${escapeHtml(original)}"
-    style="width:100%;padding:4px 8px;font-size:13px;font-weight:600" maxlength="40">`;
-  const input = nameSpan.querySelector("input");
+  // Approximate chip width by current text length so input doesn't collapse to nothing
+  const minChars = Math.max(original.length, 12);
+  chip.innerHTML = `<input type="text" value="${escapeHtml(original)}" maxlength="40"
+    style="width:${minChars}ch;border:none;outline:none;background:transparent;
+    font:inherit;color:inherit;padding:0">`;
+  const input = chip.querySelector("input");
   input.focus();
   input.select();
 
@@ -2368,20 +2365,8 @@ function _loadAutoCheckinState() {
 }
 
 function _syncAutoCheckinUi() {
-  const toggle = document.getElementById("autoCheckinToggle");
   const label = document.getElementById("autoCheckinLabel");
-  if (!toggle || !label) return;
-  if (_autoCheckin) {
-    toggle.style.background = "rgba(16,185,129,.95)";
-    toggle.style.border = "1.5px solid #10b981";
-    toggle.style.boxShadow = "0 0 0 3px rgba(16,185,129,.25)";
-    label.textContent = "⚡ โหมดหน้างาน: ON";
-  } else {
-    toggle.style.background = "rgba(255,255,255,.12)";
-    toggle.style.border = "1.5px solid rgba(255,255,255,.25)";
-    toggle.style.boxShadow = "none";
-    label.textContent = "⚡ โหมดหน้างาน";
-  }
+  if (label) label.textContent = _autoCheckin ? "⚡ โหมดหน้างาน: ON" : "⚡ โหมดหน้างาน";
 }
 
 window.onAutoCheckinToggle = function (checked) {
