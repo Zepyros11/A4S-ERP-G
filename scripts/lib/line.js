@@ -74,7 +74,7 @@ export function buildSyncMessage({ status, durationSec, rowsInserted, rowsFailed
     body: {
       type: 'box', layout: 'vertical', spacing: 'sm',
       contents: [
-        _row('🕒 เวลา', new Date().toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'short' })),
+        _row('🕒 เวลา', new Date().toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'short', timeZone: 'Asia/Bangkok' })),
         _row('⏱️ ใช้เวลา', dur),
         _row('✅ Inserted', String(rowsInserted ?? 0)),
         _row('⚠️ Failed', String(rowsFailed ?? 0)),
