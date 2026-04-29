@@ -26,62 +26,66 @@
       group: "กิจกรรม (Event)",
       icon: "🗓️",
       id: "g-event",
+      subgroups: [
+        { key: "overview", label: "ภาพรวม", icon: "📊" },
+        { key: "manage", label: "จัดงาน", icon: "🗓️" },
+        { key: "promote", label: "ประชาสัมพันธ์", icon: "📢" },
+        { key: "setup", label: "ตั้งค่า", icon: "⚙️" },
+      ],
       items: [
+        /* ── OVERVIEW ── */
         {
           id: "event-poster-gallery",
           icon: "🖼️",
           label: "Poster Gallery",
           path: BASE_PATH + "/modules/event/event-poster-gallery.html",
+          section: "overview",
         },
         {
           id: "events-dashboard",
           icon: "📊",
           label: "Event Dashboard",
           path: BASE_PATH + "/modules/event/events-dashboard.html",
+          section: "overview",
         },
+        /* ── MANAGE ── */
         {
           id: "events",
           icon: "🗓️",
           label: "รายการกิจกรรม",
           path: BASE_PATH + "/modules/event/events-list.html",
-        },
-        {
-          id: "event-requests",
-          icon: "📋",
-          label: "คำขอจัดกิจกรรม",
-          path: BASE_PATH + "/modules/event/event-requests.html",
+          section: "manage",
         },
         {
           id: "event-budget",
           icon: "💰",
           label: "งบประมาณ",
           path: BASE_PATH + "/modules/event/event-budget.html",
-        },
-        {
-          id: "attendees",
-          icon: "👥",
-          label: "ผู้เข้าร่วม",
-          path: BASE_PATH + "/modules/event/attendees.html",
-        },
-        {
-          id: "event-media",
-          icon: "📅",
-          label: "ตารางโพสต์ FB",
-          path: BASE_PATH + "/modules/event/media-schedule.html",
-        },
-        {
-          id: "line-promote",
-          icon: "📢",
-          label: "ตารางโพสต์ LINE",
-          path: BASE_PATH + "/modules/event/line-promote.html",
+          section: "manage",
         },
         {
           id: "event-work-plan",
           icon: "📋",
           label: "แผนงาน",
           path: BASE_PATH + "/modules/work-plan/work-plan-list.html?scope=event",
+          section: "manage",
         },
-        /* ── SETUP items ── */
+        /* ── PROMOTE ── */
+        {
+          id: "event-media",
+          icon: "📅",
+          label: "ตารางโพสต์ FB",
+          path: BASE_PATH + "/modules/event/media-schedule.html",
+          section: "promote",
+        },
+        {
+          id: "line-promote",
+          icon: "📢",
+          label: "ตารางโพสต์ LINE",
+          path: BASE_PATH + "/modules/event/line-promote.html",
+          section: "promote",
+        },
+        /* ── SETUP ── */
         {
           id: "events-category",
           icon: "🏷️",
@@ -392,9 +396,7 @@
     "events-category": "evt_cat_view",
     "course-series": "evt_cat_view",
     "events-place-list": "evt_place_view",
-    "event-requests": "evt_req_view",
     "event-budget": "evt_budget_view",
-    attendees: "attendee_view",
     "event-media": "media_fb_view",
     "line-promote": "line_promote_view",
     categories: "inv_cat_view",
@@ -475,9 +477,7 @@
     "events-category",
     "course-series",
     "events-place-list",
-    "event-requests",
     "event-budget",
-    "attendees",
     "event-media",
     "line-promote",
     //  **** Inventory ****
@@ -599,8 +599,8 @@
     #erp-sidebar.collapsed .sb-grp-arrow{display:none;}
 
     /* ── DROPDOWN ITEMS ── */
-    .sb-items{overflow:hidden;max-height:0;transition:max-height .25s ease;}
-    .sb-items.open{max-height:500px;}
+    .sb-items{overflow:hidden;max-height:0;transition:max-height .3s ease;}
+    .sb-items.open{max-height:900px;}
     #erp-sidebar.collapsed .sb-items{max-height:0!important;}
 
     .sb-item{
@@ -710,15 +710,26 @@
       openGroups.push(g.id);
   });
 
-  /* Load open sub-groups from localStorage + auto-expand ถ้า active อยู่ใน setup */
-  let openSubgroups = JSON.parse(localStorage.getItem("sb_open_subgroups") || "[]");
+  /* Load open sub-groups from localStorage + auto-expand
+     - ถ้ามี activeId อยู่ใน section ใด → เปิด sub-group นั้น
+     - ถ้า group มี subgroups[] config และเป็นครั้งแรก (ไม่เคย save) → เปิด non-setup ทั้งหมดโดย default */
+  const SUBGROUPS_LS_KEY = "sb_open_subgroups";
+  const hadSubgroupsLS = localStorage.getItem(SUBGROUPS_LS_KEY) !== null;
+  let openSubgroups = JSON.parse(localStorage.getItem(SUBGROUPS_LS_KEY) || "[]");
   for (const g of MENU) {
-    const hasActiveSetup = g.items.some(
-      (i) => i.section === "setup" && i.id === activeId,
-    );
-    const subKey = g.id + "-setup";
-    if (hasActiveSetup && !openSubgroups.includes(subKey)) {
-      openSubgroups.push(subKey);
+    /* auto-expand subgroup ที่มี active item */
+    const activeItem = g.items.find((i) => i.id === activeId);
+    if (activeItem && activeItem.section) {
+      const subKey = g.id + "-" + activeItem.section;
+      if (!openSubgroups.includes(subKey)) openSubgroups.push(subKey);
+    }
+    /* first-time default: เปิด non-setup subgroups ทั้งหมด */
+    if (!hadSubgroupsLS && Array.isArray(g.subgroups)) {
+      for (const sg of g.subgroups) {
+        if (sg.key === "setup") continue;
+        const subKey = g.id + "-" + sg.key;
+        if (!openSubgroups.includes(subKey)) openSubgroups.push(subKey);
+      }
     }
   }
 
@@ -741,15 +752,30 @@
     </a>`;
   }
 
+  /* helper — render หนึ่ง sub-group block */
+  function renderSubgroup(gId, sgKey, sgLabel, sgIcon, items, gLabel) {
+    if (!items.length) return "";
+    const subKey = gId + "-" + sgKey;
+    const subOpen = openSubgroups.includes(subKey);
+    let html = `
+      <div class="sb-subgroup ${subOpen ? "open" : ""}" id="${subKey}">
+        <div class="sb-subgrp-hdr" onclick="toggleSubgroup('${subKey}')">
+          <span class="sb-subgrp-icon">${sgIcon}</span>
+          <span class="sb-subgrp-lbl">${sgLabel}</span>
+          <span class="sb-subgrp-arrow">›</span>
+          <span class="sb-subgrp-tip">${sgLabel} ${gLabel}</span>
+        </div>
+        <div class="sb-subgrp-items">`;
+    for (const item of items) html += renderSbItem(item, true);
+    html += `</div></div>`;
+    return html;
+  }
+
   let menuHTML = "";
   for (const g of MENU) {
     /* filter items ที่ user ไม่มีสิทธิ์ดู */
     const visibleItems = g.items.filter((item) => canSeeItem(item.id));
     if (visibleItems.length === 0) continue; /* group ที่ว่างเปล่า → ข้าม */
-
-    /* แยก main vs setup */
-    const mainItems = visibleItems.filter((i) => i.section !== "setup");
-    const setupItems = visibleItems.filter((i) => i.section === "setup");
 
     const isOpen = openGroups.includes(g.id);
     menuHTML += `<div class="sb-group" id="${g.id}">
@@ -761,28 +787,24 @@
       </div>
       <div class="sb-items ${isOpen ? "open" : ""}">`;
 
-    /* Main items */
-    for (const item of mainItems) {
-      menuHTML += renderSbItem(item, false);
-    }
-
-    /* Setup sub-section (collapsible) */
-    if (setupItems.length > 0) {
-      const subKey = g.id + "-setup";
-      const subOpen = openSubgroups.includes(subKey);
-      menuHTML += `
-        <div class="sb-subgroup ${subOpen ? "open" : ""}" id="${subKey}">
-          <div class="sb-subgrp-hdr" onclick="toggleSubgroup('${subKey}')">
-            <span class="sb-subgrp-icon">⚙️</span>
-            <span class="sb-subgrp-lbl">ตั้งค่า</span>
-            <span class="sb-subgrp-arrow">›</span>
-            <span class="sb-subgrp-tip">ตั้งค่า ${g.group}</span>
-          </div>
-          <div class="sb-subgrp-items">`;
-      for (const item of setupItems) {
-        menuHTML += renderSbItem(item, true);
+    if (Array.isArray(g.subgroups) && g.subgroups.length) {
+      /* Multi-subgroup mode: render ตามลำดับ subgroups[] */
+      const known = new Set(g.subgroups.map((s) => s.key));
+      /* items ที่ไม่มี section หรือ section ไม่อยู่ใน config → main (อยู่ก่อน sub-groups) */
+      const mainItems = visibleItems.filter(
+        (i) => !i.section || !known.has(i.section),
+      );
+      for (const item of mainItems) menuHTML += renderSbItem(item, false);
+      for (const sg of g.subgroups) {
+        const sgItems = visibleItems.filter((i) => i.section === sg.key);
+        menuHTML += renderSubgroup(g.id, sg.key, sg.label, sg.icon, sgItems, g.group);
       }
-      menuHTML += `</div></div>`;
+    } else {
+      /* Legacy mode: main + setup hardcoded */
+      const mainItems = visibleItems.filter((i) => i.section !== "setup");
+      const setupItems = visibleItems.filter((i) => i.section === "setup");
+      for (const item of mainItems) menuHTML += renderSbItem(item, false);
+      menuHTML += renderSubgroup(g.id, "setup", "ตั้งค่า", "⚙️", setupItems, g.group);
     }
 
     menuHTML += `</div></div>`;

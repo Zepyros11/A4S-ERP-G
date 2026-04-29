@@ -19,6 +19,47 @@
       .date-custom-sep{font-size:11px;color:var(--text3,#94a3b8);}
       .btn-icon-dim{filter:grayscale(1);opacity:.38;transition:opacity .15s,filter .15s;}
       .btn-icon-dim:hover{opacity:.75;filter:grayscale(.5);}
+
+      /* ── Kebab menu (⋮) for pin/edit/delete ── */
+      .act-kebab-wrap{position:relative;display:inline-block;}
+      .act-kebab-btn{
+        display:inline-flex;align-items:center;justify-content:center;
+        width:28px;height:28px;
+        background:transparent;color:#475569;
+        border:none;border-radius:6px;
+        font-size:18px;font-weight:700;line-height:1;
+        cursor:pointer;
+        transition:background .15s;
+      }
+      .act-kebab-btn:hover{background:#f1f5f9;color:#0f172a;}
+      .act-kebab-wrap.open .act-kebab-btn{background:#e2e8f0;color:#0f172a;}
+
+      .act-kebab-menu{
+        position:absolute;
+        top:calc(100% + 4px);right:0;
+        min-width:160px;
+        background:#fff;
+        border:1px solid #e2e8f0;
+        border-radius:10px;
+        box-shadow:0 8px 24px rgba(15,23,42,.15);
+        padding:4px;
+        z-index:50;
+        display:none;
+      }
+      .act-kebab-wrap.open .act-kebab-menu{display:block;}
+      .act-kebab-item{
+        display:flex;align-items:center;gap:10px;
+        padding:8px 12px;
+        border-radius:6px;
+        background:transparent;border:none;width:100%;
+        font-family:inherit;font-size:13px;color:#0f172a;
+        cursor:pointer;text-align:left;
+        transition:background .12s;
+      }
+      .act-kebab-item:hover{background:#f1f5f9;}
+      .act-kebab-item.danger{color:#dc2626;}
+      .act-kebab-item.danger:hover{background:#fef2f2;}
+      .act-kebab-item .act-kebab-icon{font-size:14px;width:18px;text-align:center;}
     </style>
   </head>
   <body>

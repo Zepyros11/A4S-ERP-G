@@ -55,13 +55,6 @@
             </div>
           </div>
 
-          <!-- EVENT SELECTOR -->
-          <div id="eventSelectWrap" style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 16px;display:flex;align-items:center;gap:12px;margin-bottom:18px">
-            <span style="font-size:13px;font-weight:600;color:var(--text2);white-space:nowrap">🗓 เลือกกิจกรรม:</span>
-            <select class="form-input" id="eventSelect" style="flex:1;max-width:500px" onchange="window.onEventChange()">
-              <option value="">-- เลือกกิจกรรม --</option>
-            </select>
-          </div>
 
           <!-- STATS (hidden until event selected) -->
           <div id="attStatsSection" style="display: none">
@@ -204,7 +197,13 @@
           <div id="noEventState">
             <div class="empty-state" style="min-height: 300px">
               <div class="empty-icon">👥</div>
-              <div class="empty-text">เลือกกิจกรรมเพื่อดูผู้เข้าร่วม</div>
+              <div class="empty-text" style="margin-bottom:14px">ยังไม่ได้เลือก event</div>
+              <a href="./events-list.html" class="btn btn-primary" style="text-decoration:none">
+                → ไปหน้ารายการกิจกรรม
+              </a>
+              <div style="font-size:12px;color:var(--text3);margin-top:10px">
+                คลิกปุ่ม 👥 ของ event ที่ต้องการเพื่อเปิดหน้านี้
+              </div>
             </div>
           </div>
         </div>

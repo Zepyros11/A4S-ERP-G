@@ -428,28 +428,32 @@ function ensureTrailingEmptyRow() {
 async function initPage() {
   showLoading(true);
   try {
-    defaultGraceDays = await fetchDefaultGrace();
-    allEvents = (await fetchEvents()) || [];
-    populateEventSelect();
-
     const params = new URLSearchParams(window.location.search);
     const urlEventId = params.get("event_id") || params.get("event");
-    if (urlEventId) {
-      document.getElementById("eventSelect").value = urlEventId;
-      await loadAttendees(parseInt(urlEventId));
-      // Lock to this event: hide selector, show event name big in hero
-      const ev = allEvents.find(e => e.event_id === parseInt(urlEventId));
-      if (ev) {
-        const wrap = document.getElementById("eventSelectWrap");
-        if (wrap) wrap.style.display = "none";
-        const title = document.getElementById("heroTitle");
-        if (title) {
-          title.innerHTML = `👥 ${ev.event_name}`;
-          title.style.fontSize = "24px";
-        }
-        const sub = document.getElementById("heroSubtitle");
-        if (sub) sub.textContent = buildEventHeroSubtitle(ev);
+
+    // ไม่มี event_id ใน URL → no-event state เท่านั้น (เหมือน line-promote)
+    if (!urlEventId) {
+      showSections(false);
+      showLoading(false);
+      return;
+    }
+
+    defaultGraceDays = await fetchDefaultGrace();
+    allEvents = (await fetchEvents()) || [];
+
+    await loadAttendees(parseInt(urlEventId));
+    const ev = allEvents.find(e => e.event_id === parseInt(urlEventId));
+    if (ev) {
+      const title = document.getElementById("heroTitle");
+      if (title) {
+        title.innerHTML = `👥 ${ev.event_name}`;
+        title.style.fontSize = "24px";
       }
+      const sub = document.getElementById("heroSubtitle");
+      if (sub) sub.textContent = buildEventHeroSubtitle(ev);
+    } else {
+      showToast("ไม่พบ event ที่ระบุ", "error");
+      showSections(false);
     }
   } catch (e) {
     showToast("โหลดข้อมูลไม่ได้: " + e.message, "error");
@@ -472,27 +476,8 @@ async function initPage() {
     ?.addEventListener("change", _onSlipFileChange);
 }
 
-function populateEventSelect() {
-  const sel = document.getElementById("eventSelect");
-  sel.innerHTML = '<option value="">-- เลือกกิจกรรม --</option>';
-  allEvents.forEach((e) =>
-    sel.insertAdjacentHTML(
-      "beforeend",
-      `<option value="${e.event_id}">[${e.event_code}] ${e.event_name}</option>`,
-    ),
-  );
-}
-
-// ── EVENT CHANGE ──────────────────────────────────────────
-window.onEventChange = async function () {
-  const val = document.getElementById("eventSelect").value;
-  if (!val) {
-    currentEventId = null;
-    showSections(false);
-    return;
-  }
-  await loadAttendees(parseInt(val));
-};
+// populateEventSelect / onEventChange ถูกเอาออก —
+// หน้านี้รับ event_id จาก URL parameter อย่างเดียว (เปิดผ่านปุ่ม 👥 ของ events-list)
 
 async function loadAttendees(eventId) {
   currentEventId = eventId;

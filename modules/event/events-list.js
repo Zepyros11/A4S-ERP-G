@@ -102,6 +102,25 @@ window.togglePin = function (eventId, e) {
   filterTable();
 };
 
+/* ── Kebab menu (⋮) ── */
+window.closeKebabs = function () {
+  document.querySelectorAll(".act-kebab-wrap.open").forEach((el) => el.classList.remove("open"));
+};
+window.toggleKebab = function (eventId, e) {
+  e.stopPropagation();
+  const wrap = document.querySelector(`.act-kebab-wrap[data-event-id="${eventId}"]`);
+  if (!wrap) return;
+  const isOpen = wrap.classList.contains("open");
+  window.closeKebabs();
+  if (!isOpen) wrap.classList.add("open");
+};
+document.addEventListener("click", (ev) => {
+  if (!ev.target.closest(".act-kebab-wrap")) window.closeKebabs();
+});
+document.addEventListener("keydown", (ev) => {
+  if (ev.key === "Escape") window.closeKebabs();
+});
+
 /* ── Unread chat badge helpers ── */
 async function refreshEvChatCounts() {
   if (!allEvents.length) return;
@@ -736,12 +755,26 @@ function renderTable(events) {
       </td>
       <td class="col-center" onclick="event.stopPropagation()">
         <div class="action-group">
-          <button class="btn-icon ${pinned ? "btn-pin-active" : "btn-pin"}" title="${pinned ? "ยกเลิกปักหมุด" : "ปักหมุด"}" onclick="window.togglePin(${e.event_id}, event)">📌</button>
           <button class="btn-icon${(_evAuxCountCache[e.event_id]?.attendees || 0) === 0 ? ' btn-icon-dim' : ''}" title="ผู้เข้าร่วม${_evAuxCountCache[e.event_id]?.attendees ? ' ('+_evAuxCountCache[e.event_id].attendees+')' : ''}" onclick="event.stopPropagation();window.open('./attendees.html?event=${e.event_id}', '_blank')">👥</button>
           <button class="btn-icon${(_evAuxCountCache[e.event_id]?.plans || 0) === 0 ? ' btn-icon-dim' : ''}" title="แผนงาน${_evAuxCountCache[e.event_id]?.plans ? ' ('+_evAuxCountCache[e.event_id].plans+')' : ''}" onclick="event.stopPropagation();window.open('../work-plan/work-plan-list.html?scope=event&event_id=${e.event_id}', '_blank')">📋</button>
           <button class="btn-icon${(_evAuxCountCache[e.event_id]?.linePosts || 0) === 0 ? ' btn-icon-dim' : ''}" data-perm="line_promote_view" title="ตารางโพสต์ LINE${_evAuxCountCache[e.event_id]?.linePosts ? ' ('+_evAuxCountCache[e.event_id].linePosts+')' : ''}" onclick="event.stopPropagation();window.open('./line-promote.html?event_id=${e.event_id}', '_blank')">📢</button>
-          <button class="btn-icon" title="แก้ไข" onclick="window.location.href='./event-form.html?id=${e.event_id}'">✏️</button>
-          <button class="btn-icon danger" title="ลบ" onclick="window.deleteEvent(${e.event_id})">🗑</button>
+          <div class="act-kebab-wrap" data-event-id="${e.event_id}">
+            <button class="act-kebab-btn" title="ตัวเลือกเพิ่มเติม" onclick="event.stopPropagation();window.toggleKebab(${e.event_id}, event)">⋮</button>
+            <div class="act-kebab-menu" onclick="event.stopPropagation()">
+              <button class="act-kebab-item" onclick="window.togglePin(${e.event_id}, event);window.closeKebabs()">
+                <span class="act-kebab-icon">📌</span>
+                <span>${pinned ? "ยกเลิกปักหมุด" : "ปักหมุด"}</span>
+              </button>
+              <button class="act-kebab-item" onclick="window.location.href='./event-form.html?id=${e.event_id}'">
+                <span class="act-kebab-icon">✏️</span>
+                <span>แก้ไข</span>
+              </button>
+              <button class="act-kebab-item danger" onclick="window.closeKebabs();window.deleteEvent(${e.event_id})">
+                <span class="act-kebab-icon">🗑</span>
+                <span>ลบ</span>
+              </button>
+            </div>
+          </div>
         </div>
       </td>
     </tr>`;
