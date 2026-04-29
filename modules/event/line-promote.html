@@ -23,6 +23,27 @@
       <div id="sidebar-container"></div>
       <div class="content-area">
         <div class="page">
+          <!-- TOP ACTION BAR (เครื่องมือทั้งหมดของระบบ LINE Promote) -->
+          <div class="lp-action-bar">
+            <div class="lp-action-bar-title">
+              📢 ระบบโพสต์ LINE
+            </div>
+            <div class="lp-action-bar-buttons">
+              <button class="lp-action-btn" onclick="window.openGroupsModal()" title="จัดการกลุ่ม LINE ที่บอทอยู่">
+                <span class="lp-action-icon">👥</span>
+                <span>จัดการกลุ่ม</span>
+              </button>
+              <button class="lp-action-btn" onclick="window.openTemplatesModal()" title="แก้ไขข้อความตอบกลับอัตโนมัติของบอท">
+                <span class="lp-action-icon">📝</span>
+                <span>ข้อความตอบกลับ</span>
+              </button>
+              <button class="lp-action-btn" onclick="window.openDiagModal()" title="ตรวจสอบสถานะระบบ + env + tables">
+                <span class="lp-action-icon">🩺</span>
+                <span>ตรวจสอบระบบ</span>
+              </button>
+            </div>
+          </div>
+
           <!-- EVENT SELECTOR -->
           <div class="lp-toolbar">
             <span class="lp-toolbar-label">📢 เลือกกิจกรรม:</span>
@@ -34,14 +55,6 @@
             >
               <option value="">-- เลือกกิจกรรม --</option>
             </select>
-            <button
-              class="btn btn-secondary"
-              onclick="window.openGroupsModal()"
-              style="white-space:nowrap"
-              title="จัดการกลุ่ม LINE"
-            >
-              👥 จัดการกลุ่ม
-            </button>
             <div id="lpActionBtns" style="display: none">
               <button
                 id="btnAddLpPost"
@@ -161,14 +174,10 @@
         <div class="med-modal-body">
           <input type="hidden" id="fLpId" />
           <div class="med-form-grid">
-            <div class="form-group mspan2">
-              <label class="form-label">
-                กลุ่ม LINE <span style="color: var(--danger)">*</span>
-              </label>
+            <div class="form-group mspan2" id="fLpGroupRow">
+              <!-- rebuilt by openLpModal — create mode: chips, edit mode: dropdown -->
+              <label class="form-label">กลุ่ม LINE</label>
               <select class="form-input" id="fLpGroup"></select>
-              <div class="lp-hint-sm">
-                💡 บอท @949bctau ต้องถูกเชิญเข้ากลุ่มก่อน — ดูคู่มือที่ Settings
-              </div>
             </div>
 
             <div class="form-group">
@@ -254,15 +263,62 @@
 
           <div class="fb-hint" style="margin-top:10px">
             💡 ปกติเมื่อเชิญบอท <b>@949bctau (A4S-Lyra)</b> เข้ากลุ่ม → row จะถูกสร้างอัตโนมัติผ่าน webhook<br/>
-            🔧 ถ้าไม่ทำงาน เช็ค: (1) Render deploy โค้ดใหม่แล้วยัง? (2) Webhook URL ตั้งใน LINE Developers Console? (3) รัน migration 051 แล้วยัง?
+            🔧 ถ้าไม่ทำงาน → กดปุ่ม "🩺 ตรวจสอบระบบ" บน main menu เพื่อ diagnose
           </div>
+        </div>
+        <div class="med-modal-footer">
+          <button class="btn btn-secondary" onclick="window.closeGroupsModal()">ปิด</button>
+        </div>
+      </div>
+    </div>
 
-          <div style="display:flex;gap:6px;margin-top:8px">
-            <button class="btn btn-secondary" onclick="window.runLpDiag()" style="flex:1">
-              🩺 ตรวจสอบสถานะระบบ (Diagnostic)
+    <!-- ── EVENT-LEVEL GROUPS MODAL (เลือกกลุ่มที่ event นี้จะส่งเข้า) ── -->
+    <div class="med-modal-overlay" id="evtGroupsModalOverlay">
+      <div class="med-modal med-modal-fb lp-modal-line">
+        <div class="med-modal-header">
+          <div style="font-weight: 700; font-size: 15px">
+            📨 ส่งกลุ่ม LINE — เลือกกลุ่มสำหรับ event นี้
+          </div>
+          <button class="btn-icon" onclick="window.closeEventGroupsModal()">✕</button>
+        </div>
+        <div class="med-modal-body">
+          <div class="fb-hint" style="margin-bottom:12px">
+            💡 เลือกกลุ่ม LINE ที่จะส่งโพสต์ promote ของ event นี้เข้าไป<br/>
+            <span style="font-size:11px;opacity:.8">เมื่อสร้างโพสต์ใหม่ → จะ replicate 1 โพสต์ต่อ 1 กลุ่มที่เลือก</span>
+          </div>
+          <div id="evtGroupsCheckList">
+            <!-- rendered by JS -->
+          </div>
+        </div>
+        <div class="med-modal-footer">
+          <button class="btn btn-secondary" onclick="window.closeEventGroupsModal()">ยกเลิก</button>
+          <button class="btn btn-primary" onclick="window.saveEventGroups()" id="btnSaveEvtGroups">
+            💾 บันทึก
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── DIAGNOSTIC MODAL ── -->
+    <div class="med-modal-overlay" id="diagModalOverlay">
+      <div class="med-modal med-modal-fb lp-modal-line">
+        <div class="med-modal-header">
+          <div style="font-weight: 700; font-size: 15px">
+            🩺 ตรวจสอบสถานะระบบ
+          </div>
+          <button class="btn-icon" onclick="window.closeDiagModal()">✕</button>
+        </div>
+        <div class="med-modal-body">
+          <div class="fb-hint" style="margin-bottom:10px">
+            💡 ตรวจสอบสถานะ env variables, ตารางใน Supabase, และความพร้อมของระบบ webhook + cron<br/>
+            <span style="font-size:11px;opacity:.8">ครั้งแรกอาจรอ ~30 วินาที ถ้า Render service หลับอยู่</span>
+          </div>
+          <div style="display:flex;gap:6px;margin-bottom:10px">
+            <button class="btn btn-primary" onclick="window.runLpDiag()" style="flex:1">
+              🔄 รีเฟรช
             </button>
             <button class="btn btn-secondary" onclick="window.openDiagInNewTab()"
-              title="เปิดผลลัพธ์ในแท็บใหม่ (อ่านง่ายกว่า)" style="white-space:nowrap">
+              title="เปิดผลลัพธ์ JSON ในแท็บใหม่" style="white-space:nowrap">
               ↗ Tab ใหม่
             </button>
             <button class="btn btn-secondary" onclick="window.copyDiagOutput()"
@@ -271,10 +327,39 @@
             </button>
           </div>
           <pre id="lpDiagOutput"
-            style="display:none;background:#0d1117;color:#e6edf3;padding:14px;border-radius:8px;font-size:12px;line-height:1.6;margin-top:8px;min-height:340px;max-height:60vh;height:340px;overflow:auto;font-family:'IBM Plex Mono',monospace;white-space:pre-wrap;word-break:break-word;resize:vertical;width:100%;box-sizing:border-box"></pre>
+            style="background:#0d1117;color:#e6edf3;padding:14px;border-radius:8px;font-size:12px;line-height:1.6;min-height:340px;max-height:60vh;height:340px;overflow:auto;font-family:'IBM Plex Mono',monospace;white-space:pre-wrap;word-break:break-word;resize:vertical;width:100%;box-sizing:border-box;margin:0">⏳ กำลังตรวจสอบ...</pre>
         </div>
         <div class="med-modal-footer">
-          <button class="btn btn-secondary" onclick="window.closeGroupsModal()">ปิด</button>
+          <button class="btn btn-secondary" onclick="window.closeDiagModal()">ปิด</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── REPLY TEMPLATES MODAL ── -->
+    <div class="med-modal-overlay" id="templatesModalOverlay">
+      <div class="med-modal med-modal-fb lp-modal-line">
+        <div class="med-modal-header">
+          <div style="font-weight: 700; font-size: 15px">
+            📝 ข้อความตอบกลับอัตโนมัติของบอท
+          </div>
+          <button class="btn-icon" onclick="window.closeTemplatesModal()">✕</button>
+        </div>
+        <div class="med-modal-body">
+          <div class="fb-hint" style="margin-bottom:14px">
+            💡 ข้อความที่บอทจะตอบเมื่อมีเหตุการณ์ต่างๆ — แก้ตรงนี้ได้เลย ไม่ต้องไปหน้าอื่น<br/>
+            <span style="font-size:11px;opacity:.8">บันทึกแล้วจะ apply ทันที (force-reload cache ของ webhook)</span>
+          </div>
+          <div id="lpTemplatesList">
+            <div style="text-align:center;padding:30px;color:var(--text3)">
+              ⏳ กำลังโหลด...
+            </div>
+          </div>
+        </div>
+        <div class="med-modal-footer">
+          <button class="btn btn-secondary" onclick="window.closeTemplatesModal()">ปิด</button>
+          <button class="btn btn-primary" onclick="window.saveAllTemplates()" id="btnSaveTpl">
+            💾 บันทึกทั้งหมด
+          </button>
         </div>
       </div>
     </div>

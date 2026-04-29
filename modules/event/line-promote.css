@@ -3,6 +3,174 @@
    ใช้ร่วมกับ media-schedule.css (modal/form styles ที่ใช้ซ้ำ)
 ========================================================= */
 
+/* ── MAIN MENU (sticky top — system-level tools for LINE Promote) ── */
+.lp-action-bar {
+  background: linear-gradient(135deg, #06c755 0%, #00b900 100%);
+  border-radius: 14px;
+  padding: 16px 22px;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  box-shadow: 0 6px 20px rgba(6, 199, 85, 0.28);
+  flex-wrap: wrap;
+  position: sticky;
+  top: 12px;
+  z-index: 50;
+  backdrop-filter: saturate(140%);
+  -webkit-backdrop-filter: saturate(140%);
+}
+.lp-action-bar::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(135deg, rgba(255,255,255,0.08) 0%, transparent 50%);
+  pointer-events: none;
+}
+.lp-action-bar-title {
+  color: #fff;
+  font-weight: 800;
+  font-size: 16px;
+  letter-spacing: 0.4px;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  position: relative;
+}
+.lp-action-bar-title::after {
+  content: "";
+  display: block;
+  width: 1px;
+  height: 22px;
+  background: rgba(255, 255, 255, 0.35);
+  margin-left: 6px;
+}
+.lp-action-bar-buttons {
+  flex: 1;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  position: relative;
+}
+.lp-action-btn {
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.32);
+  padding: 9px 16px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  transition: all 0.18s ease;
+  font-family: inherit;
+  white-space: nowrap;
+  backdrop-filter: blur(2px);
+}
+.lp-action-btn:hover {
+  background: #fff;
+  color: #06c755;
+  border-color: #fff;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.18);
+}
+.lp-action-btn:active {
+  transform: translateY(0);
+}
+.lp-action-icon {
+  font-size: 16px;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.15));
+}
+
+/* shadow ใหญ่ขึ้นเล็กน้อยเมื่อ stick (scroll past initial position) */
+@supports (animation-timeline: scroll()) {
+  .lp-action-bar {
+    animation: lpStickShadow linear both;
+    animation-timeline: scroll();
+    animation-range: 0 80px;
+  }
+  @keyframes lpStickShadow {
+    to { box-shadow: 0 10px 26px rgba(6, 199, 85, 0.4); }
+  }
+}
+
+/* ── TEMPLATE EDITOR ROW ── */
+.lp-tpl-row {
+  background: #fff;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-bottom: 10px;
+}
+.lp-tpl-row.dirty {
+  border-color: #f59e0b;
+  background: #fffbeb;
+}
+.lp-tpl-row-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.lp-tpl-key-badge {
+  background: #06c755;
+  color: #fff;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  font-family: "IBM Plex Mono", monospace;
+}
+.lp-tpl-desc {
+  font-size: 12px;
+  color: var(--text2, #475569);
+  flex: 1;
+}
+.lp-tpl-dirty-badge {
+  background: #f59e0b;
+  color: #fff;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+}
+.lp-tpl-textarea {
+  width: 100%;
+  min-height: 80px;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 13px;
+  font-family: inherit;
+  line-height: 1.5;
+  resize: vertical;
+  box-sizing: border-box;
+}
+.lp-tpl-textarea:focus {
+  outline: none;
+  border-color: #06c755;
+  box-shadow: 0 0 0 3px rgba(6, 199, 85, 0.15);
+}
+.lp-tpl-placeholders {
+  font-size: 11px;
+  color: var(--text3, #94a3b8);
+  margin-top: 4px;
+}
+.lp-tpl-placeholders code {
+  background: #f1f5f9;
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-family: "IBM Plex Mono", monospace;
+  color: #1e40af;
+  margin-right: 4px;
+}
+
 /* ── TOOLBAR (event selector + add button) ── */
 .lp-toolbar {
   background: var(--surface);
@@ -60,6 +228,86 @@
   font-size: 12px;
   font-weight: 600;
   white-space: nowrap;
+}
+.lp-evt-action-btn {
+  background: rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  color: #fff;
+  padding: 7px 14px;
+  border-radius: 18px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  font-family: inherit;
+  transition: all 0.18s ease;
+  white-space: nowrap;
+}
+.lp-evt-action-btn:hover {
+  background: #fff;
+  color: #06c755;
+  border-color: #fff;
+}
+.lp-evt-group-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.lp-evt-group-badge-empty {
+  opacity: 0.85;
+  font-style: italic;
+}
+
+/* Checkbox list สำหรับเลือกกลุ่มของ event */
+.lp-grp-check-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: #fff;
+  border: 1.5px solid var(--border, #e2e8f0);
+  border-radius: 10px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.lp-grp-check-row:hover {
+  border-color: #06c755;
+  background: #f0fdf4;
+}
+.lp-grp-check-row input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: #06c755;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.lp-grp-check-row.checked {
+  border-color: #06c755;
+  background: linear-gradient(135deg, #f0fdf4 0%, #fff 100%);
+}
+.lp-grp-check-info {
+  flex: 1;
+  min-width: 0;
+}
+.lp-grp-check-name {
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--text, #0f172a);
+}
+.lp-grp-check-meta {
+  font-size: 11px;
+  color: var(--text3, #94a3b8);
+  font-family: "IBM Plex Mono", monospace;
+}
+.lp-grp-default-badge {
+  background: #06c755;
+  color: #fff;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 700;
 }
 
 /* ── D-DAY BADGE in table ── */

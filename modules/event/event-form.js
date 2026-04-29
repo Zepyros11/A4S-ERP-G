@@ -784,6 +784,20 @@ async function _autoCreateLinePromotePosts(eventId, payload) {
     const err = await insRes.json().catch(() => ({}));
     throw new Error(err.message || `insert failed (${insRes.status})`);
   }
+
+  // Set events.line_group_ids = [defaultGroup.group_id] เพื่อ consistency
+  // ทำให้ user ที่เข้าหน้า line-promote เห็นว่า event นี้ผูกกลุ่ม default แล้ว
+  await fetch(`${url}/rest/v1/events?event_id=eq.${eventId}`, {
+    method: "PATCH",
+    headers: {
+      apikey: key,
+      Authorization: `Bearer ${key}`,
+      "Content-Type": "application/json",
+      Prefer: "return=minimal",
+    },
+    body: JSON.stringify({ line_group_ids: [defaultGroup.group_id] }),
+  }).catch(() => {});
+
   showToast("สร้างกำหนดโพสต์ LINE 4 รายการ (D-7,3,2,1) แล้ว 📢", "success");
 }
 

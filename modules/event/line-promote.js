@@ -41,7 +41,7 @@ async function fetchEvents() {
   return (
     sbFetch(
       "events",
-      `?select=event_id,event_name,event_code,event_date,end_date,start_time,end_time,location&event_date=gte.${since}&order=event_date.asc&limit=500`,
+      `?select=event_id,event_name,event_code,event_date,end_date,start_time,end_time,location,line_group_ids&event_date=gte.${since}&order=event_date.asc&limit=500`,
     ) || []
   );
 }
@@ -154,14 +154,27 @@ function renderEventHeader() {
   ]
     .filter(Boolean)
     .join(" · ");
+
+  // กลุ่มที่ event นี้ผูกอยู่ — แสดง count
+  const evtGroupIds = Array.isArray(currentEvent.line_group_ids) ? currentEvent.line_group_ids : [];
+  const groupCount = evtGroupIds.length;
+  const groupBadge = groupCount > 0
+    ? `<span class="lp-evt-group-badge">📨 ${groupCount} กลุ่ม</span>`
+    : `<span class="lp-evt-group-badge lp-evt-group-badge-empty">📨 ยังไม่ผูกกลุ่ม</span>`;
+
   el.innerHTML = `
     <div class="lp-evt-icon">📢</div>
     <div class="lp-evt-info">
       <div class="lp-evt-name">${escapeHtml(currentEvent.event_name || "")}</div>
       <div class="lp-evt-meta">${meta}</div>
     </div>
+    <button class="lp-evt-action-btn" data-perm="line_promote_edit" onclick="window.openEventGroupsModal()" title="เลือกกลุ่ม LINE ที่จะส่งโพสต์ promote">
+      ${groupBadge}
+      <span style="margin-left:6px">⚙️</span>
+    </button>
     <div class="lp-evt-count">${allPosts.length} โพสต์</div>
   `;
+  if (window.AuthZ) window.AuthZ.applyDomPerms(el);
 }
 
 function updateStats() {
@@ -278,22 +291,49 @@ window.openLpModal = function (id = null) {
     showToast("ยังไม่มีกลุ่ม LINE — เชิญบอท @949bctau เข้ากลุ่มก่อน", "error");
     return;
   }
+  // ตอนสร้างใหม่ — บังคับให้ event ผูกกลุ่มก่อน
+  if (!id) {
+    const targets = _resolveTargetGroupsForEvent();
+    if (!targets.length) {
+      showToast('กรุณากด "📨 ส่งกลุ่ม LINE" เพื่อเลือกกลุ่มก่อนสร้างโพสต์', "error");
+      window.openEventGroupsModal();
+      return;
+    }
+  }
   editingId = id;
 
-  document.getElementById("lpModalTitle").textContent = id ? "✏️ แก้ไขโพสต์ LINE" : "📅 สร้างโพสต์ LINE";
+  document.getElementById("lpModalTitle").textContent = id ? "✏️ แก้ไขโพสต์ LINE" : `📅 สร้างโพสต์ LINE`;
   document.getElementById("fLpId").value = id || "";
 
-  // populate groups
-  const grpSel = document.getElementById("fLpGroup");
-  const defaultGrp = allGroups.find((g) => g.is_default) || allGroups[0];
-  grpSel.innerHTML = allGroups
-    .map((g) => {
-      const tag = g.is_default ? " ⭐" : "";
-      const name = g.group_name || g.group_id.slice(0, 10) + "…";
-      return `<option value="${escapeHtml(g.group_id)}">${escapeHtml(name)}${tag}</option>`;
-    })
-    .join("");
-  grpSel.value = defaultGrp?.group_id || "";
+  // Rebuild กลุ่ม section ใน modal ทุกครั้ง
+  const grpRow = document.getElementById("fLpGroupRow");
+  const targets = _resolveTargetGroupsForEvent();
+  if (grpRow) {
+    if (id) {
+      // edit mode — dropdown เลือกกลุ่มเดียว
+      grpRow.innerHTML = `
+        <label class="form-label">กลุ่ม LINE <span style="color: var(--danger)">*</span></label>
+        <select class="form-input" id="fLpGroup">
+          ${allGroups.map((g) => {
+            const tag = g.is_default ? " ⭐" : "";
+            const name = g.group_name || g.group_id.slice(0, 10) + "…";
+            return `<option value="${escapeHtml(g.group_id)}">${escapeHtml(name)}${tag}</option>`;
+          }).join("")}
+        </select>
+      `;
+    } else {
+      // create mode — แสดงรายชื่อกลุ่มที่ event ผูก (replicate)
+      const chips = targets
+        .map((g) => `<span style="background:#06c755;color:#fff;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:600;margin-right:4px;display:inline-block">${escapeHtml(g.group_name || g.group_id.slice(0, 10) + "…")}</span>`)
+        .join("");
+      grpRow.innerHTML = `
+        <label class="form-label">📨 จะส่งเข้า ${targets.length} กลุ่ม (ผูกที่ event)</label>
+        <div style="padding:10px 13px;background:#f0fdf4;border:1.5px solid #06c755;border-radius:10px;line-height:1.8">${chips}</div>
+        <div class="lp-hint-sm">💡 แก้กลุ่มที่ผูก: ปุ่ม "📨 ส่งกลุ่ม LINE" บน event header</div>
+        <input type="hidden" id="fLpGroup" value="" />
+      `;
+    }
+  }
 
   // defaults: D-1 at 09:00
   document.getElementById("fLpOffset").value = "1";
@@ -380,9 +420,6 @@ window.saveLpPost = async function () {
   if (!message) return showToast("กรุณาใส่ข้อความ", "error");
   if (message.length > 5000) return showToast("ข้อความเกิน 5000 ตัวอักษร", "error");
 
-  const groupId = document.getElementById("fLpGroup").value;
-  if (!groupId) return showToast("กรุณาเลือกกลุ่ม LINE", "error");
-
   const dateStr = document.getElementById("fLpDate").value;
   const timeStr = document.getElementById("fLpTime").value;
   if (!dateStr || !timeStr) return showToast("กรุณาเลือกวันเวลา", "error");
@@ -391,9 +428,6 @@ window.saveLpPost = async function () {
   const promote_offset = offsetStr === "" ? null : parseInt(offsetStr, 10);
 
   const scheduled_at = `${dateStr}T${timeStr}:00+07:00`;
-
-  const grp = allGroups.find((g) => g.group_id === groupId);
-  const channel_id = grp?.channel_id || null;
 
   const session = (() => {
     try {
@@ -407,27 +441,50 @@ window.saveLpPost = async function () {
   showLoading(true);
 
   try {
-    const body = {
-      event_id: currentEventId,
-      target_type: "group",
-      target_id: groupId,
-      channel_id,
-      promote_offset,
-      message_text: message,
-      scheduled_at,
-      status: "SCHEDULED",
-    };
-
     if (editingId) {
+      // Edit mode — แก้ row เดียว target_id ตาม dropdown
+      const groupId = document.getElementById("fLpGroup").value;
+      if (!groupId) {
+        showLoading(false);
+        btn.disabled = false;
+        btn.textContent = "📅 บันทึก";
+        return showToast("กรุณาเลือกกลุ่ม LINE", "error");
+      }
+      const grp = allGroups.find((g) => g.group_id === groupId);
       await sbFetch("line_scheduled_posts", `?id=eq.${editingId}`, {
         method: "PATCH",
-        body,
+        body: {
+          target_id: groupId,
+          channel_id: grp?.channel_id || null,
+          promote_offset,
+          message_text: message,
+          scheduled_at,
+          status: "SCHEDULED",
+        },
       });
       showToast("แก้ไขโพสต์แล้ว", "success");
     } else {
-      body.created_by = session?.user_id || null;
-      await sbFetch("line_scheduled_posts", "", { method: "POST", body });
-      showToast("schedule โพสต์ LINE แล้ว 📅", "success");
+      // Create mode — replicate ตามกลุ่มที่ผูกกับ event
+      const targets = _resolveTargetGroupsForEvent();
+      if (!targets.length) {
+        showLoading(false);
+        btn.disabled = false;
+        btn.textContent = "📅 บันทึก";
+        return showToast('ยังไม่ได้เลือกกลุ่ม LINE สำหรับ event — กดปุ่ม "📨 ส่งกลุ่ม LINE" ก่อน', "error");
+      }
+      const rows = targets.map((grp) => ({
+        event_id: currentEventId,
+        target_type: "group",
+        target_id: grp.group_id,
+        channel_id: grp.channel_id || null,
+        promote_offset,
+        message_text: message,
+        scheduled_at,
+        status: "SCHEDULED",
+        created_by: session?.user_id || null,
+      }));
+      await sbFetch("line_scheduled_posts", "", { method: "POST", body: rows });
+      showToast(`schedule ${rows.length} โพสต์ (${targets.length} กลุ่ม) แล้ว 📅`, "success");
     }
     window.closeLpModal();
     allPosts = await fetchPosts(currentEventId);
@@ -439,6 +496,273 @@ window.saveLpPost = async function () {
   } finally {
     btn.disabled = false;
     btn.textContent = "📅 บันทึก";
+    showLoading(false);
+  }
+};
+
+// ── Event-level Groups Modal (เลือกกลุ่ม LINE ที่ event จะส่งเข้า) ─
+let _evtSelectedGroupIds = new Set();
+
+window.openEventGroupsModal = async function () {
+  if (!currentEvent) return showToast("กรุณาเลือก event ก่อน", "error");
+  showLoading(true);
+  try {
+    if (!allGroups.length) {
+      _allGroupsIncludingInactive = await fetchLineGroups(true);
+      allGroups = _allGroupsIncludingInactive.filter((g) => g.is_active);
+    }
+    const current = Array.isArray(currentEvent.line_group_ids) ? currentEvent.line_group_ids : [];
+    _evtSelectedGroupIds = new Set(current);
+    renderEvtGroupsCheckList();
+    document.getElementById("evtGroupsModalOverlay").classList.add("open");
+  } catch (e) {
+    showToast("โหลดกลุ่มไม่ได้: " + e.message, "error");
+  }
+  showLoading(false);
+};
+
+window.closeEventGroupsModal = function () {
+  document.getElementById("evtGroupsModalOverlay").classList.remove("open");
+};
+
+function renderEvtGroupsCheckList() {
+  const box = document.getElementById("evtGroupsCheckList");
+  if (!box) return;
+  if (!allGroups.length) {
+    box.innerHTML = `<div class="empty-state" style="padding:30px">
+      <div class="empty-icon">👥</div>
+      <div class="empty-text">ยังไม่มีกลุ่ม LINE — เปิด "จัดการกลุ่ม" เพื่อเพิ่มกลุ่มก่อน</div>
+    </div>`;
+    return;
+  }
+  box.innerHTML = allGroups
+    .map((g) => {
+      const checked = _evtSelectedGroupIds.has(g.group_id);
+      const name = g.group_name || "(ยังไม่ตั้งชื่อ)";
+      return `<label class="lp-grp-check-row ${checked ? "checked" : ""}">
+        <input type="checkbox" ${checked ? "checked" : ""}
+          onchange="window.toggleEvtGroupCheck('${escapeHtml(g.group_id)}', this.checked, this)" />
+        <div class="lp-grp-check-info">
+          <div class="lp-grp-check-name">
+            ${escapeHtml(name)}
+            ${g.is_default ? `<span class="lp-grp-default-badge">⭐ DEFAULT</span>` : ""}
+          </div>
+          <div class="lp-grp-check-meta">${escapeHtml(g.group_id.slice(0, 20))}…</div>
+        </div>
+      </label>`;
+    })
+    .join("");
+}
+
+window.toggleEvtGroupCheck = function (groupId, checked, inputEl) {
+  if (checked) _evtSelectedGroupIds.add(groupId);
+  else _evtSelectedGroupIds.delete(groupId);
+  // toggle row class
+  const row = inputEl?.closest(".lp-grp-check-row");
+  if (row) row.classList.toggle("checked", checked);
+};
+
+window.saveEventGroups = async function () {
+  if (!currentEvent) return;
+  const ids = Array.from(_evtSelectedGroupIds);
+  const btn = document.getElementById("btnSaveEvtGroups");
+  btn.disabled = true;
+  btn.textContent = "⏳ กำลังบันทึก...";
+  showLoading(true);
+  try {
+    await sbFetch("events", `?event_id=eq.${currentEventId}`, {
+      method: "PATCH",
+      body: { line_group_ids: ids.length ? ids : null },
+    });
+    currentEvent.line_group_ids = ids.length ? ids : null;
+    // also update cached row in allEvents
+    const evIdx = allEvents.findIndex((e) => e.event_id === currentEventId);
+    if (evIdx >= 0) allEvents[evIdx].line_group_ids = currentEvent.line_group_ids;
+    showToast(`บันทึก ${ids.length} กลุ่มแล้ว ✅`, "success");
+    renderEventHeader();
+    window.closeEventGroupsModal();
+  } catch (e) {
+    showToast("บันทึกไม่สำเร็จ: " + e.message, "error");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "💾 บันทึก";
+    showLoading(false);
+  }
+};
+
+// helper: หากลุ่มที่จะส่งสำหรับ event ปัจจุบัน — ใช้ event.line_group_ids ก่อน, fallback default
+function _resolveTargetGroupsForEvent() {
+  const ids = Array.isArray(currentEvent?.line_group_ids) ? currentEvent.line_group_ids : [];
+  if (ids.length) {
+    return allGroups.filter((g) => ids.includes(g.group_id));
+  }
+  const def = allGroups.find((g) => g.is_default);
+  return def ? [def] : [];
+}
+
+// ── Reply Templates Modal ─────────────────────────────────
+// แก้เฉพาะ template ที่เกี่ยวกับ group (1-on-1 chat templates อยู่หน้า settings/line-templates)
+const TEMPLATE_META = {
+  group_joined: {
+    label: "🎉 บอทเข้ากลุ่มสำเร็จ",
+    desc: "ตอบเมื่อบอทถูกเชิญเข้ากลุ่ม LINE ครั้งแรก",
+    placeholders: [],
+    priority: 1,
+  },
+};
+
+let _allTemplates = [];   // [{ key, text, description, placeholders, ... }]
+let _tplOriginal = {};    // key → original text
+let _tplDirty = new Set();
+
+window.openTemplatesModal = async function () {
+  showLoading(true);
+  try {
+    const rows = await sbFetch("line_reply_templates", "?select=*&order=key.asc");
+    const dbMap = {};
+    (rows || []).forEach((r) => { dbMap[r.key] = r; });
+
+    // รวม template จาก DB + meta ที่รู้จัก (ถ้า DB ยังไม่มี ให้แสดง row เปล่าให้แก้ได้)
+    const knownKeys = Object.keys(TEMPLATE_META);
+    _allTemplates = knownKeys.map((k) => {
+      const fromDb = dbMap[k];
+      const meta = TEMPLATE_META[k];
+      return {
+        key: k,
+        text: fromDb?.text || "",
+        description: fromDb?.description || meta.desc,
+        label: meta.label,
+        placeholders: meta.placeholders,
+        priority: meta.priority,
+        existsInDb: !!fromDb,
+      };
+    });
+    _allTemplates.sort((a, b) => a.priority - b.priority);
+    _tplOriginal = {};
+    _allTemplates.forEach((t) => { _tplOriginal[t.key] = t.text; });
+    _tplDirty.clear();
+
+    renderTemplatesList();
+    document.getElementById("templatesModalOverlay").classList.add("open");
+  } catch (e) {
+    showToast("โหลด template ไม่ได้: " + e.message, "error");
+  }
+  showLoading(false);
+};
+
+window.closeTemplatesModal = function () {
+  if (_tplDirty.size > 0) {
+    if (!confirm(`มีการแก้ไข ${_tplDirty.size} รายการที่ยังไม่บันทึก — ปิดเลยหรือไม่?`)) return;
+  }
+  document.getElementById("templatesModalOverlay").classList.remove("open");
+};
+
+function renderTemplatesList() {
+  const box = document.getElementById("lpTemplatesList");
+  if (!box) return;
+  if (!_allTemplates.length) {
+    box.innerHTML = `<div style="text-align:center;padding:30px;color:var(--text3)">ไม่มี template — รัน migration ก่อน</div>`;
+    return;
+  }
+  box.innerHTML = _allTemplates
+    .map((t) => {
+      const isDirty = _tplDirty.has(t.key);
+      const placeholderHtml = (t.placeholders || []).length
+        ? `<div class="lp-tpl-placeholders">ใช้ตัวแปรได้: ${t.placeholders.map((p) => `<code>${escapeHtml(p)}</code>`).join("")}</div>`
+        : "";
+      return `<div class="lp-tpl-row ${isDirty ? "dirty" : ""}" data-key="${escapeHtml(t.key)}">
+        <div class="lp-tpl-row-header">
+          <span class="lp-tpl-key-badge">${escapeHtml(t.key)}</span>
+          <span class="lp-tpl-desc">${escapeHtml(t.label || t.description || "")}</span>
+          ${isDirty ? `<span class="lp-tpl-dirty-badge">✏️ แก้แล้ว</span>` : ""}
+        </div>
+        <textarea class="lp-tpl-textarea" rows="3"
+          oninput="window.onTplChange('${escapeHtml(t.key)}', this.value)"
+          placeholder="ใส่ข้อความ...">${escapeHtml(t.text)}</textarea>
+        ${placeholderHtml}
+      </div>`;
+    })
+    .join("");
+}
+
+window.onTplChange = function (key, newText) {
+  const t = _allTemplates.find((x) => x.key === key);
+  if (!t) return;
+  t.text = newText;
+  if (newText !== _tplOriginal[key]) _tplDirty.add(key);
+  else _tplDirty.delete(key);
+  // Update only the dirty badge (avoid full re-render which loses focus)
+  const row = document.querySelector(`.lp-tpl-row[data-key="${cssEscape(key)}"]`);
+  if (row) {
+    row.classList.toggle("dirty", _tplDirty.has(key));
+    let badge = row.querySelector(".lp-tpl-dirty-badge");
+    if (_tplDirty.has(key) && !badge) {
+      const hdr = row.querySelector(".lp-tpl-row-header");
+      hdr.insertAdjacentHTML("beforeend", `<span class="lp-tpl-dirty-badge">✏️ แก้แล้ว</span>`);
+    } else if (!_tplDirty.has(key) && badge) {
+      badge.remove();
+    }
+  }
+};
+
+function cssEscape(s) {
+  return String(s).replace(/[\\"]/g, "\\$&");
+}
+
+window.saveAllTemplates = async function () {
+  if (_tplDirty.size === 0) {
+    showToast("ไม่มีการเปลี่ยนแปลง", "info");
+    return;
+  }
+  const btn = document.getElementById("btnSaveTpl");
+  btn.disabled = true;
+  btn.textContent = "⏳ กำลังบันทึก...";
+  showLoading(true);
+
+  try {
+    for (const key of _tplDirty) {
+      const t = _allTemplates.find((x) => x.key === key);
+      if (!t) continue;
+      if (t.existsInDb) {
+        // PATCH
+        await sbFetch("line_reply_templates", `?key=eq.${encodeURIComponent(key)}`, {
+          method: "PATCH",
+          body: { text: t.text },
+        });
+      } else {
+        // INSERT
+        await sbFetch("line_reply_templates", "", {
+          method: "POST",
+          body: {
+            key,
+            text: t.text,
+            description: t.description || null,
+            placeholders: t.placeholders || [],
+          },
+        });
+        t.existsInDb = true;
+      }
+      _tplOriginal[key] = t.text;
+    }
+    _tplDirty.clear();
+
+    // Force webhook reload cache
+    const proxyBase = (localStorage.getItem("erp_proxy_url") || "").replace(/\/+$/, "");
+    if (proxyBase) {
+      try {
+        await fetch(`${proxyBase}/line/templates/reload`, { method: "POST" });
+      } catch (e) {
+        console.warn("reload templates cache failed:", e.message);
+      }
+    }
+
+    showToast(`บันทึก ${_allTemplates.filter((t) => t.existsInDb).length} template แล้ว ✅`, "success");
+    renderTemplatesList();
+  } catch (e) {
+    showToast("บันทึกไม่สำเร็จ: " + e.message, "error");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "💾 บันทึกทั้งหมด";
     showLoading(false);
   }
 };
@@ -538,6 +862,16 @@ window.setDefaultGroup = async function (id) {
   showLoading(false);
 };
 
+window.openDiagModal = function () {
+  document.getElementById("diagModalOverlay").classList.add("open");
+  // auto-run diagnostic เมื่อเปิด modal
+  window.runLpDiag();
+};
+
+window.closeDiagModal = function () {
+  document.getElementById("diagModalOverlay").classList.remove("open");
+};
+
 window.openDiagInNewTab = function () {
   const proxyBase = (localStorage.getItem("erp_proxy_url") || "").replace(/\/+$/, "");
   if (!proxyBase) return showToast("ยังไม่ได้ตั้ง erp_proxy_url", "error");
@@ -560,7 +894,6 @@ window.runLpDiag = async function () {
   const out = document.getElementById("lpDiagOutput");
   if (!out) return;
   const proxyBase = (localStorage.getItem("erp_proxy_url") || "").replace(/\/+$/, "");
-  out.style.display = "block";
   out.textContent = "⏳ กำลังตรวจสอบ...\n(ครั้งแรกอาจรอ ~30s ถ้า Render หลับอยู่)";
 
   if (!proxyBase) {
@@ -660,7 +993,11 @@ window.autoCreateLpPosts = async function () {
   if (!allGroups.length) {
     return showToast("ยังไม่มีกลุ่ม LINE — เชิญบอท @949bctau เข้ากลุ่มก่อน", "error");
   }
-  const defaultGroup = allGroups.find((g) => g.is_default) || allGroups[0];
+  // ใช้กลุ่มที่ผูกกับ event นี้ (multi-select) — ถ้ายังไม่ผูก → fallback default
+  const targetGroups = _resolveTargetGroupsForEvent();
+  if (!targetGroups.length) {
+    return showToast('ยังไม่ได้เลือกกลุ่ม LINE — กดปุ่ม "📨 ส่งกลุ่ม LINE" บน event header เพื่อเลือก', "error");
+  }
 
   const session = (() => {
     try {
@@ -688,26 +1025,31 @@ window.autoCreateLpPosts = async function () {
   const eventDate = parseYMD(currentEvent.event_date);
   if (!eventDate) return showToast("วันที่งานไม่ถูกต้อง", "error");
 
-  const rows = [7, 3, 2, 1].map((offset) => {
+  // Replicate: สำหรับแต่ละ offset → 1 row ต่อ 1 group ที่ผูก
+  const rows = [];
+  for (const offset of [7, 3, 2, 1]) {
     const d = new Date(eventDate);
     d.setDate(d.getDate() - offset);
-    return {
-      event_id: currentEventId,
-      target_type: "group",
-      target_id: defaultGroup.group_id,
-      channel_id: defaultGroup.channel_id || null,
-      promote_offset: offset,
-      message_text: templates[offset],
-      scheduled_at: `${toBkkDateStr(d)}T09:00:00+07:00`,
-      status: "SCHEDULED",
-      created_by: session?.user_id || null,
-    };
-  });
+    const scheduled_at = `${toBkkDateStr(d)}T09:00:00+07:00`;
+    for (const grp of targetGroups) {
+      rows.push({
+        event_id: currentEventId,
+        target_type: "group",
+        target_id: grp.group_id,
+        channel_id: grp.channel_id || null,
+        promote_offset: offset,
+        message_text: templates[offset],
+        scheduled_at,
+        status: "SCHEDULED",
+        created_by: session?.user_id || null,
+      });
+    }
+  }
 
   showLoading(true);
   try {
     await sbFetch("line_scheduled_posts", "", { method: "POST", body: rows });
-    showToast("สร้างกำหนดการ 4 รายการ (D-7/3/2/1) แล้ว 📢", "success");
+    showToast(`สร้างกำหนดการ ${rows.length} รายการ (4 D-day × ${targetGroups.length} กลุ่ม) แล้ว 📢`, "success");
     allPosts = await fetchPosts(currentEventId);
     renderEventHeader();
     updateStats();
