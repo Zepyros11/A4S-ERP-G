@@ -26,15 +26,43 @@ async function sb(path, extraHeaders = {}) {
   return { res, json: await res.json() };
 }
 
+/* ── ดึง error message แบบสั้น + แปลง postgres timeout (57014) เป็นไทย ── */
+function _friendlyDbError(rawText, status) {
+  let code = '', msg = '';
+  try { const j = JSON.parse(rawText); code = j.code || ''; msg = j.message || ''; } catch (_) {}
+  if (code === '57014' || /statement timeout|canceling statement/i.test(msg)) {
+    return 'เซิร์ฟเวอร์ตอบช้า ลองรีเฟรชอีกครั้ง';
+  }
+  if (status === 504 || status === 408) return 'เซิร์ฟเวอร์ตอบช้า ลองรีเฟรชอีกครั้ง';
+  return msg ? msg.slice(0, 80) : `${status} ${rawText.slice(0, 80)}`;
+}
+
+/* ── fetch + auto-retry 1 ครั้ง ถ้าโดน timeout ── */
+async function _fetchWithRetry(url, opts, retries = 1) {
+  for (let i = 0; i <= retries; i++) {
+    const res = await fetch(url, opts);
+    if (res.ok) return res;
+    /* retry เฉพาะ timeout/server error */
+    if (i < retries && (res.status >= 500 || res.status === 408)) {
+      await new Promise(r => setTimeout(r, 800));
+      continue;
+    }
+    const txt = await res.text();
+    const friendly = _friendlyDbError(txt, res.status);
+    const err = new Error(friendly);
+    err.isTimeout = /ตอบช้า/.test(friendly);
+    throw err;
+  }
+}
+
 /* ── Load summary stats (RPC — faster than view) ── */
 async function loadStats() {
   try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/member_quality_stats`, {
+    const res = await _fetchWithRetry(`${SUPABASE_URL}/rest/v1/rpc/member_quality_stats`, {
       method: 'POST',
       headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json' },
       body: '{}',
     });
-    if (!res.ok) throw new Error(`${res.status}: ${(await res.text()).slice(0, 120)}`);
     const s = await res.json();
     const total = s.total || 0;
     const pct = (n) => total ? ((n || 0) / total * 100).toFixed(1) + '%' : '0%';
@@ -49,8 +77,9 @@ async function loadStats() {
     renderDonut(s.company_count || 0, s.individual_count || 0);
     renderMissList(s);
   } catch (e) {
-    console.error(e);
-    showToast('โหลด stats ไม่ได้: ' + e.message, 'error');
+    console.warn('[loadStats]', e);
+    /* timeout = warning (subtle), อื่นๆ = error */
+    showToast(e.message, e.isTimeout ? 'warning' : 'error');
   }
 }
 
