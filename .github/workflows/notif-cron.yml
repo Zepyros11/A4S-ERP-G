@@ -15,13 +15,19 @@ on:
 jobs:
   fire:
     runs-on: ubuntu-latest
-    timeout-minutes: 3
+    timeout-minutes: 5
+    strategy:
+      fail-fast: false
+      matrix:
+        endpoint:
+          - notifications     # event/booking-anchored rules
+          - line-promote      # ad-hoc LINE posts (line_scheduled_posts)
     steps:
-      - name: Trigger /cron/notifications
+      - name: Trigger /cron/${{ matrix.endpoint }}
         env:
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
         run: |
-          URL="https://a4s-erp-proxy.onrender.com/cron/notifications"
+          URL="https://a4s-erp-proxy.onrender.com/cron/${{ matrix.endpoint }}"
           echo "POST $URL"
           if [ -n "$CRON_SECRET" ]; then
             HEADER="-H x-cron-secret:$CRON_SECRET"

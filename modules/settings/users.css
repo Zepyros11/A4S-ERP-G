@@ -411,6 +411,88 @@
   margin-top: 2px;
 }
 
+/* ── ROLE SLOT LIST (form modal — multi-role per user) ── */
+.role-slot-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.role-slot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.role-slot-num {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  background: var(--accent-pale);
+  color: var(--accent);
+  flex-shrink: 0;
+}
+.role-slot-num.is-primary {
+  background: var(--accent);
+  color: #fff;
+}
+.role-slot select {
+  flex: 1;
+}
+.role-slot-remove {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: none;
+  background: var(--danger-pale);
+  color: var(--danger);
+  cursor: pointer;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.12s;
+  flex-shrink: 0;
+}
+.role-slot-remove:hover {
+  background: var(--danger);
+  color: #fff;
+}
+.role-slot-remove:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+  background: var(--surface2);
+  color: var(--text3);
+}
+.btn-add-role {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: 8px;
+  border: 1.5px dashed var(--accent);
+  background: var(--surface);
+  color: var(--accent);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.btn-add-role:hover {
+  background: var(--accent-pale);
+}
+.btn-add-role:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  border-style: solid;
+  border-color: var(--border);
+  color: var(--text3);
+}
+
 /* ── PERMISSION TREE (form modal) ── */
 .perm-toggle-grid {
   display: flex;

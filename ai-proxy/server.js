@@ -332,6 +332,27 @@ async function _sbUpdateUserLine({ userRowId, userId, displayName, pictureUrl })
   );
 }
 
+async function _sbUpsertLineGroup(groupId, fields) {
+  if (!SB_URL_WEBHOOK || !SB_SERVICE_KEY) return false;
+  try {
+    const r = await fetch(
+      `${SB_URL_WEBHOOK}/rest/v1/line_groups?on_conflict=group_id`,
+      {
+        method: 'POST',
+        headers: {
+          apikey: SB_SERVICE_KEY,
+          Authorization: `Bearer ${SB_SERVICE_KEY}`,
+          'Content-Type': 'application/json',
+          Prefer: 'resolution=merge-duplicates,return=minimal',
+        },
+        body: JSON.stringify({ group_id: groupId, ...fields }),
+      },
+    );
+    if (!r.ok) console.warn('[upsert line_group]', r.status, await r.text().catch(() => ''));
+    return r.ok;
+  } catch (e) { console.warn('[upsert line_group]', e.message); return false; }
+}
+
 async function _sbUpsertMemberLine({ memberCode, userId, displayName, pictureUrl }) {
   if (!SB_URL_WEBHOOK || !SB_SERVICE_KEY) return false;
   const nowIso = new Date().toISOString();
@@ -476,6 +497,38 @@ app.post('/line/webhook', async (req, res) => {
   const nowIso = new Date().toISOString();
 
   for (const ev of events) {
+    // === GROUP/ROOM events (no userId required) ===
+    const groupId = ev?.source?.groupId || ev?.source?.roomId;
+    if (groupId) {
+      // ALWAYS log groupId — ทำให้ admin หา groupId ได้จาก Render logs ได้ง่าย
+      console.log(`[LINE webhook] event=${ev.type} groupId=${groupId}`);
+      try {
+        // leave: bot was removed → mark inactive
+        if (ev.type === 'leave') {
+          console.log(`[LINE webhook] leave group ${groupId.slice(0, 10)}...`);
+          await _sbPatch(
+            'line_groups',
+            `group_id=eq.${encodeURIComponent(groupId)}`,
+            { is_active: false },
+          );
+          continue;
+        }
+        // join (or any other event in group) → upsert + ensure active
+        // ใช้ upsert เผื่อกรณี 'join' webhook พลาด (เช่น ตอน deploy ใหม่) — ทุก event ที่มี groupId จะ ensure row
+        const fields = { last_seen_at: nowIso, is_active: true };
+        if (ev.type === 'join') fields.joined_at = nowIso;
+        await _sbUpsertLineGroup(groupId, fields);
+        if (ev.type === 'join') {
+          console.log(`[LINE webhook] join group ${groupId.slice(0, 10)}...`);
+          await _lineReply(ev.replyToken, '✅ ผูกกลุ่มกับระบบ A4S-ERP สำเร็จ\n\n📢 พร้อมส่ง promote กิจกรรมเข้ากลุ่มนี้แล้ว — ตั้งกำหนดการได้ที่หน้า "ตารางโพสต์ LINE"');
+          continue;
+        }
+      } catch (e) {
+        console.warn('[webhook group event]', ev.type, e.message);
+      }
+      // continue to user-level handling below if there's also a userId (e.g. message in group)
+    }
+
     const uid = ev?.source?.userId;
     if (!uid) continue;
 
@@ -1054,6 +1107,162 @@ app.post('/cron/notifications', async (req, res) => {
   return res.json(summary);
 });
 
+/* ══════════════════════════════════════════════════════════
+   Cron: LINE Promote Posts (line_scheduled_posts)
+   ──────────────────────────────────────────────────────────
+   POST /cron/line-promote
+     Triggered every ~15 min by GitHub Actions.
+     Reads line_scheduled_posts WHERE status='SCHEDULED' AND scheduled_at <= now+15min
+     Sends via LINE push API (works for both userId and groupId targets).
+     Substitutes {{event_name}}, {{event_date}}, {{location}}, {{start_time}},
+                 {{end_time}}, {{event_code}}, {{days_left}} placeholders.
+
+   Limitation: Uses LINE_CHANNEL_TOKEN env var (single OA) for ALL sends —
+   line_scheduled_posts.channel_id is informational only.
+   ══════════════════════════════════════════════════════════ */
+
+async function _pushLineMessage(to, text) {
+  if (!LINE_CHANNEL_TOKEN) throw new Error('LINE_CHANNEL_TOKEN not set');
+  const r = await fetch('https://api.line.me/v2/bot/message/push', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${LINE_CHANNEL_TOKEN}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      to,
+      messages: [{ type: 'text', text: String(text).slice(0, 5000) }],
+    }),
+  });
+  if (!r.ok) {
+    const errTxt = await r.text().catch(() => '');
+    throw new Error(`LINE ${r.status}: ${errTxt.slice(0, 300)}`);
+  }
+  return true;
+}
+
+async function _broadcastLineMessage(text) {
+  if (!LINE_CHANNEL_TOKEN) throw new Error('LINE_CHANNEL_TOKEN not set');
+  const r = await fetch('https://api.line.me/v2/bot/message/broadcast', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${LINE_CHANNEL_TOKEN}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      messages: [{ type: 'text', text: String(text).slice(0, 5000) }],
+    }),
+  });
+  if (!r.ok) {
+    const errTxt = await r.text().catch(() => '');
+    throw new Error(`LINE ${r.status}: ${errTxt.slice(0, 300)}`);
+  }
+  return true;
+}
+
+function _daysBetween(yyyymmdd, refDate) {
+  if (!yyyymmdd) return null;
+  const m = String(yyyymmdd).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!m) return null;
+  const target = new Date(Date.UTC(parseInt(m[1]), parseInt(m[2]) - 1, parseInt(m[3])));
+  const now = new Date(refDate);
+  const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  return Math.round((target - today) / 86400000);
+}
+
+function _renderLinePostText(post, eventRow) {
+  const ev = eventRow || {};
+  const daysLeft = _daysBetween(ev.event_date, new Date());
+  const payload = {
+    event_id:    ev.event_id ?? '',
+    event_code:  ev.event_code || '',
+    event_name:  ev.event_name || '',
+    event_date:  _formatDMY(ev.event_date),
+    end_date:    _formatDMY(ev.end_date),
+    start_time:  (ev.start_time || '').slice(0, 5),
+    end_time:    (ev.end_time || '').slice(0, 5),
+    location:    ev.location || '',
+    days_left:   daysLeft != null ? String(daysLeft) : '',
+    promote_offset: post.promote_offset != null ? String(post.promote_offset) : '',
+  };
+  return _renderTpl(post.message_text || '', payload);
+}
+
+app.post('/cron/line-promote', async (req, res) => {
+  if (CRON_SECRET) {
+    const got = req.get('x-cron-secret') || (req.body && req.body.secret) || '';
+    if (got !== CRON_SECRET) return res.status(401).json({ error: 'unauthorized' });
+  }
+  if (!SB_URL_WEBHOOK || !SB_SERVICE_KEY) {
+    return res.status(503).json({ error: 'SB_URL/SB_SERVICE_KEY not configured' });
+  }
+  if (!LINE_CHANNEL_TOKEN) {
+    return res.status(503).json({ error: 'LINE_CHANNEL_TOKEN not configured' });
+  }
+
+  // Window: ดึง posts ที่ scheduled_at <= now + window (จะส่งแม้ overdue)
+  const windowEnd = new Date(Date.now() + CRON_WINDOW_MIN * 60000).toISOString();
+  console.log(`[cron line-promote] tick — fetching posts due before ${windowEnd}`);
+
+  const posts = await _sbGet(
+    'line_scheduled_posts',
+    `select=*&status=eq.SCHEDULED&scheduled_at=lte.${encodeURIComponent(windowEnd)}&order=scheduled_at.asc&limit=200`,
+  );
+  if (!posts?.length) {
+    return res.json({ ok: true, processed: 0, message: 'no due posts' });
+  }
+
+  // Load events ครั้งเดียว (cache by event_id)
+  const eventIds = [...new Set(posts.map(p => p.event_id).filter(Boolean))];
+  const eventCache = {};
+  if (eventIds.length) {
+    const evRows = await _sbGet('events',
+      `select=event_id,event_code,event_name,event_date,end_date,start_time,end_time,location&event_id=in.(${eventIds.join(',')})`);
+    (evRows || []).forEach(e => { eventCache[e.event_id] = e; });
+  }
+
+  const summary = { ok: true, processed: posts.length, sent: 0, failed: 0, details: [] };
+
+  for (const post of posts) {
+    const detail = { id: post.id, event_id: post.event_id, target_type: post.target_type, target_id: post.target_id };
+    try {
+      const eventRow = post.event_id ? eventCache[post.event_id] : null;
+      const text = _renderLinePostText(post, eventRow);
+      if (!text || !text.trim()) throw new Error('rendered text is empty');
+
+      if (post.target_type === 'broadcast') {
+        await _broadcastLineMessage(text);
+      } else {
+        if (!post.target_id) throw new Error('missing target_id');
+        await _pushLineMessage(post.target_id, text);
+      }
+
+      // Mark SENT
+      await _sbPatch('line_scheduled_posts', `id=eq.${post.id}`, {
+        status: 'SENT',
+        sent_at: new Date().toISOString(),
+        error_message: null,
+      });
+      summary.sent++;
+      detail.status = 'SENT';
+    } catch (e) {
+      console.warn(`[cron line-promote ${post.id}]`, e.message);
+      await _sbPatch('line_scheduled_posts', `id=eq.${post.id}`, {
+        status: 'FAILED',
+        error_message: e.message.slice(0, 500),
+        retry_count: (post.retry_count || 0) + 1,
+      });
+      summary.failed++;
+      detail.status = 'FAILED';
+      detail.error = e.message;
+    }
+    summary.details.push(detail);
+  }
+
+  console.log(`[cron line-promote] done — sent=${summary.sent} failed=${summary.failed}`);
+  return res.json(summary);
+});
+
 /* ── Start ─────────────────────────────────────────────── */
 app.listen(PORT, () => {
   console.log('');
@@ -1073,6 +1282,7 @@ app.listen(PORT, () => {
   console.log(`  → http://localhost:${PORT}/line/info        (LINE bot info — test token)`);
   console.log(`  → http://localhost:${PORT}/line/webhook     (LINE webhook ${LINE_CHANNEL_SECRET ? '✅' : '❌ no secret'})`);
   console.log(`  → http://localhost:${PORT}/cron/notifications (Scheduled LINE — every 15 min)${CRON_SECRET ? ' 🔒' : ''}`);
+  console.log(`  → http://localhost:${PORT}/cron/line-promote  (LINE Promote scheduler — every 15 min)${CRON_SECRET ? ' 🔒' : ''}`);
   if (SB_URL_WEBHOOK && SB_SERVICE_KEY) {
     console.log(`  ✅ Webhook + cron will update Supabase`);
   } else {

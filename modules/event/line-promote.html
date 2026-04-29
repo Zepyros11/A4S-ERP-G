@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ตารางโพสต์ LINE — A4S-ERP</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../../css/main.css" />
+    <link rel="stylesheet" href="./media-schedule.css" />
+    <link rel="stylesheet" href="./line-promote.css" />
+  </head>
+  <body>
+    <div class="loading-overlay" id="loadingOverlay">
+      <div class="spinner"></div>
+    </div>
+    <div class="toast" id="toast"></div>
+
+    <div class="topbar"></div>
+    <div class="layout">
+      <div id="sidebar-container"></div>
+      <div class="content-area">
+        <div class="page">
+          <!-- EVENT SELECTOR -->
+          <div class="lp-toolbar">
+            <span class="lp-toolbar-label">📢 เลือกกิจกรรม:</span>
+            <select
+              class="form-input"
+              id="eventSelect"
+              style="flex: 1; max-width: 400px"
+              onchange="window.onEventChange()"
+            >
+              <option value="">-- เลือกกิจกรรม --</option>
+            </select>
+            <button
+              class="btn btn-secondary"
+              onclick="window.openGroupsModal()"
+              style="white-space:nowrap"
+              title="จัดการกลุ่ม LINE"
+            >
+              👥 จัดการกลุ่ม
+            </button>
+            <div id="lpActionBtns" style="display: none">
+              <button
+                id="btnAddLpPost"
+                class="btn btn-primary"
+                data-perm="line_promote_create"
+                onclick="window.openLpModal()"
+              >
+                ＋ เพิ่มโพสต์
+              </button>
+            </div>
+          </div>
+
+          <!-- ── LINE PROMOTE CONTENT ── -->
+          <div id="lpContent" style="display: none">
+            <!-- EVENT HEADER -->
+            <div class="lp-event-header" id="lpEventHeader"></div>
+
+            <!-- STATS -->
+            <div class="stats-row">
+              <div class="stat-card">
+                <div class="stat-icon">📊</div>
+                <div>
+                  <div class="stat-value" id="lpStatTotal">0</div>
+                  <div class="stat-label">โพสต์ทั้งหมด</div>
+                </div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-icon">📅</div>
+                <div>
+                  <div class="stat-value" id="lpStatScheduled" style="color: var(--accent)">0</div>
+                  <div class="stat-label">รอส่ง</div>
+                </div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-icon">✅</div>
+                <div>
+                  <div class="stat-value" id="lpStatSent" style="color: var(--success)">0</div>
+                  <div class="stat-label">ส่งแล้ว</div>
+                </div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-icon">❌</div>
+                <div>
+                  <div class="stat-value" id="lpStatFailed" style="color: var(--danger)">0</div>
+                  <div class="stat-label">ล้มเหลว</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- TABLE -->
+            <div class="table-card">
+              <div class="toolbar">
+                <div class="search-wrap">
+                  <span class="search-icon">🔍</span>
+                  <input class="search-input" id="lpSearchInput" placeholder="ค้นหาข้อความ..." />
+                </div>
+                <select class="filter-select" id="lpFilterStatus">
+                  <option value="">⚪ ทุกสถานะ</option>
+                  <option value="SCHEDULED">📅 รอส่ง</option>
+                  <option value="SENT">✅ ส่งแล้ว</option>
+                  <option value="FAILED">❌ ล้มเหลว</option>
+                  <option value="CANCELLED">🚫 ยกเลิก</option>
+                </select>
+              </div>
+
+              <div class="table-hdr">
+                <div class="table-title">📅 รายการโพสต์ LINE</div>
+                <div class="table-count" id="lpCount">0 โพสต์</div>
+              </div>
+              <div class="table-wrap">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th class="col-center" style="width:90px">D-day</th>
+                      <th>ข้อความ</th>
+                      <th class="col-center" style="width:160px">กลุ่ม LINE</th>
+                      <th class="col-center" style="width:160px">เวลาส่ง</th>
+                      <th class="col-center" style="width:120px">สถานะ</th>
+                      <th class="col-center" style="width:130px">จัดการ</th>
+                    </tr>
+                  </thead>
+                  <tbody id="lpTableBody">
+                    <tr>
+                      <td colspan="6">
+                        <div class="empty-state">
+                          <div class="empty-icon">📅</div>
+                          <div class="empty-text">ยังไม่มีโพสต์ที่ schedule</div>
+                        </div>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- No Event State -->
+          <div id="noEventState">
+            <div class="empty-state" style="min-height: 300px">
+              <div class="empty-icon">📅</div>
+              <div class="empty-text">เลือกกิจกรรมเพื่อดูตารางโพสต์ LINE</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── LINE POST COMPOSE MODAL ── -->
+    <div class="med-modal-overlay" id="lpModalOverlay">
+      <div class="med-modal med-modal-fb lp-modal-line">
+        <div class="med-modal-header">
+          <div style="font-weight: 700; font-size: 15px" id="lpModalTitle">
+            📅 สร้างโพสต์ LINE
+          </div>
+          <button class="btn-icon" onclick="window.closeLpModal()">✕</button>
+        </div>
+        <div class="med-modal-body">
+          <input type="hidden" id="fLpId" />
+          <div class="med-form-grid">
+            <div class="form-group mspan2">
+              <label class="form-label">
+                กลุ่ม LINE <span style="color: var(--danger)">*</span>
+              </label>
+              <select class="form-input" id="fLpGroup"></select>
+              <div class="lp-hint-sm">
+                💡 บอท @949bctau ต้องถูกเชิญเข้ากลุ่มก่อน — ดูคู่มือที่ Settings
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">D-day (วันก่อน Event)</label>
+              <select class="form-input" id="fLpOffset">
+                <option value="">— ไม่ผูก —</option>
+                <option value="7">D-7 (7 วันก่อน)</option>
+                <option value="3">D-3 (3 วันก่อน)</option>
+                <option value="2">D-2 (2 วันก่อน)</option>
+                <option value="1">D-1 (1 วันก่อน)</option>
+                <option value="0">D-day (วันงาน)</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">เวลาส่ง <span style="color: var(--danger)">*</span></label>
+              <input class="form-input" id="fLpTime" type="time" />
+            </div>
+
+            <div class="form-group mspan2">
+              <label class="form-label">วันที่ส่ง <span style="color: var(--danger)">*</span></label>
+              <input class="form-input" id="fLpDate" type="date" />
+              <div class="lp-hint-sm" id="lpDayHint"></div>
+            </div>
+
+            <div class="form-group mspan2">
+              <label class="form-label">
+                ข้อความ <span style="color: var(--danger)">*</span>
+                <span style="font-weight:400;color:var(--text3);margin-left:6px;font-size:11px"
+                  id="fLpCharCount">0 ตัวอักษร</span>
+              </label>
+              <textarea class="form-input" id="fLpMessage" rows="8"
+                placeholder="ข้อความที่จะส่งเข้ากลุ่ม LINE...&#10;ใช้ emoji ได้ 🎉"
+                oninput="window.lpUpdateCharCount()"></textarea>
+              <div class="lp-hint-sm">
+                💡 ใส่ <code>{{event_name}}</code>, <code>{{event_date}}</code>, <code>{{location}}</code>, <code>{{start_time}}</code>, <code>{{days_left}}</code> เพื่อแทนค่าอัตโนมัติ
+              </div>
+            </div>
+
+            <div class="fb-hint mspan2">
+              ⚠️ <b>LINE</b> รองรับข้อความสูงสุด <b>5,000 ตัวอักษร</b> · cron วิ่งทุก <b>15 นาที</b> (ตั้งเวลาแม่นในระดับ ±15 นาที)
+            </div>
+          </div>
+        </div>
+        <div class="med-modal-footer">
+          <button class="btn btn-secondary" onclick="window.closeLpModal()">ยกเลิก</button>
+          <button class="btn btn-primary" id="btnSaveLp" onclick="window.saveLpPost()">
+            📅 บันทึก
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── GROUPS MANAGEMENT MODAL ── -->
+    <div class="med-modal-overlay" id="groupsModalOverlay">
+      <div class="med-modal med-modal-fb lp-modal-line">
+        <div class="med-modal-header">
+          <div style="font-weight: 700; font-size: 15px">
+            👥 จัดการกลุ่ม LINE
+          </div>
+          <button class="btn-icon" onclick="window.closeGroupsModal()">✕</button>
+        </div>
+        <div class="med-modal-body">
+          <div id="groupsList">
+            <!-- rendered by JS -->
+          </div>
+
+          <details style="margin-top:14px;border:1px dashed #cbd5e1;border-radius:8px;padding:10px 14px">
+            <summary style="cursor:pointer;font-weight:600;font-size:13px;color:var(--text2)">
+              ➕ เพิ่มกลุ่มด้วยตัวเอง (ถ้า webhook ยังไม่ทำงาน)
+            </summary>
+            <div style="margin-top:10px;display:flex;flex-direction:column;gap:8px">
+              <input class="form-input" id="fManualGroupId" placeholder="Cxxxxxxxxxxxxxxxx (groupId จาก LINE)" />
+              <input class="form-input" id="fManualGroupName" placeholder="ตั้งชื่อกลุ่ม (optional)" />
+              <button class="btn btn-primary" onclick="window.manualAddGroup()" style="margin-top:4px">
+                ➕ เพิ่มกลุ่ม
+              </button>
+              <div class="lp-hint-sm">
+                💡 หา groupId ได้จาก: Render logs (ดู console.log ของ webhook), หรือใช้ <code>/line/groupinfo</code> endpoint
+              </div>
+            </div>
+          </details>
+
+          <div class="fb-hint" style="margin-top:10px">
+            💡 ปกติเมื่อเชิญบอท <b>@949bctau (A4S-Lyra)</b> เข้ากลุ่ม → row จะถูกสร้างอัตโนมัติผ่าน webhook<br/>
+            🔧 ถ้าไม่ทำงาน เช็ค: (1) Render deploy โค้ดใหม่แล้วยัง? (2) Webhook URL ตั้งใน LINE Developers Console?
+          </div>
+        </div>
+        <div class="med-modal-footer">
+          <button class="btn btn-secondary" onclick="window.closeGroupsModal()">ปิด</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="../../js/core/auth.js"></script>
+    <script src="../../js/core/authz.js"></script>
+    <script>AuthZ.requirePerm("line_promote_view");</script>
+    <script type="module" src="./line-promote.js"></script>
+    <script src="../../js/components/modal/deleteModal.js"></script>
+    <script src="../../js/components/modal/modalManager.js"></script>
+    <script src="../../js/components/modal/enterSave.js"></script>
+    <script type="module">
+      import { loadTopbar } from "../../js/components/navigation/topbar.js";
+      loadTopbar("📢 ตารางโพสต์ LINE");
+    </script>
+    <script src="../../js/components/navigation/sidebar.js"></script>
+  </body>
+</html>

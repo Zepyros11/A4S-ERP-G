@@ -573,18 +573,31 @@
             return;
           }
 
-          /* ── Fetch role permissions + landing_path → คำนวณ effective_perms ── */
+          /* ── Fetch role permissions + landing_path → คำนวณ effective_perms ──
+             รองรับ user หลาย role: union perms ทุก role, landing_path = role แรก */
+          const userRoles = (Array.isArray(user.roles) && user.roles.length)
+            ? user.roles.filter(Boolean)
+            : (user.role ? [user.role] : []);
           let rolePerms = [];
           let roleLandingPath = null;
           try {
-            const roleRes = await fetch(
-              `${SUPABASE_URL}/rest/v1/role_configs?role_key=eq.${encodeURIComponent(user.role || "")}&select=*`,
-              { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } },
-            );
-            const roleData = await roleRes.json();
-            if (roleData && roleData[0]) {
-              if (Array.isArray(roleData[0].permissions)) rolePerms = roleData[0].permissions;
-              if (roleData[0].landing_path) roleLandingPath = roleData[0].landing_path;
+            if (userRoles.length) {
+              const inList = userRoles.map((k) => `"${k}"`).join(",");
+              const roleRes = await fetch(
+                `${SUPABASE_URL}/rest/v1/role_configs?role_key=in.(${encodeURIComponent(inList)})&select=*`,
+                { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } },
+              );
+              const roleData = await roleRes.json();
+              if (Array.isArray(roleData)) {
+                /* index by key เพื่อให้ landing_path ใช้ของ role แรกตามลำดับ user.roles */
+                const byKey = Object.fromEntries(roleData.map((r) => [r.role_key, r]));
+                userRoles.forEach((k) => {
+                  const r = byKey[k];
+                  if (r && Array.isArray(r.permissions)) rolePerms = rolePerms.concat(r.permissions);
+                });
+                const primary = byKey[userRoles[0]];
+                if (primary && primary.landing_path) roleLandingPath = primary.landing_path;
+              }
             }
           } catch (e) {
             console.warn("Failed to fetch role_configs:", e);
@@ -598,7 +611,8 @@
             full_name: user.full_name,
             first_name: user.first_name,
             last_name: user.last_name,
-            role: user.role,
+            role: userRoles[0] || user.role,
+            roles: userRoles,
             email: user.email,
             custom_permissions: customPerms,
             effective_perms: effectivePerms,

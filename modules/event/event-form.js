@@ -247,6 +247,7 @@ function placeTypeIcon(type) {
 
 // ── LOAD EVENT CATEGORIES ──────────────────────────────────
 let holidayCatIds = [];
+let courseCompanyCatIds = [];   // หมวด "คอร์สบริษัท" → trigger auto-create LINE promote posts
 
 async function loadEventCategories() {
   try {
@@ -262,6 +263,10 @@ async function loadEventCategories() {
       // เก็บ ID หมวด "วันหยุดบริษัท" ไว้กรอง autocomplete
       if (c.category_name === "วันหยุดบริษัท") {
         holidayCatIds.push(c.event_category_id);
+      }
+      // เก็บ ID หมวด "คอร์สบริษัท" ไว้สั่ง auto-generate LINE promote posts
+      if (c.category_name === "คอร์สบริษัท") {
+        courseCompanyCatIds.push(c.event_category_id);
       }
     });
   } catch (e) {
@@ -634,11 +639,19 @@ window._saveEventImpl = async function () {
     };
 
     let savedId = editId;
+    const isCreate = !editId;
     if (editId) {
       await updateEvent(editId, payload);
     } else {
       const res = await createEvent(payload);
       savedId = res?.event_id;
+    }
+
+    // Auto-create LINE promote posts สำหรับ event ประเภท "คอร์สบริษัท" (เฉพาะตอนสร้างใหม่)
+    if (isCreate && savedId && courseCompanyCatIds.includes(payload.event_category_id)) {
+      await _autoCreateLinePromotePosts(savedId, payload).catch((e) => {
+        console.warn("auto-create LINE promote:", e.message);
+      });
     }
 
     // อัปโหลดรูปภาพใหม่ และรวม URLs
@@ -686,6 +699,93 @@ window._saveEventImpl = async function () {
   }
   showLoading(false);
 };
+
+// ── Auto-create 4 LINE promote posts (D-7, D-3, D-2, D-1) ─
+// เรียกหลัง createEvent สำเร็จ + event_category_id = "คอร์สบริษัท"
+async function _autoCreateLinePromotePosts(eventId, payload) {
+  if (!payload?.event_date) return;
+  // หา default LINE group + channel
+  const { url, key } = getSB();
+  const grpRes = await fetch(
+    `${url}/rest/v1/line_groups?select=group_id,channel_id,is_default&is_active=eq.true&order=is_default.desc&limit=1`,
+    { headers: { apikey: key, Authorization: `Bearer ${key}` } },
+  );
+  const grpRows = grpRes.ok ? await grpRes.json() : [];
+  const defaultGroup = grpRows?.[0];
+  if (!defaultGroup) {
+    showToast("ยังไม่มีกลุ่ม LINE ที่ตั้ง default — ข้าม auto-schedule", "info");
+    return;
+  }
+
+  const session = (() => {
+    try {
+      return JSON.parse(localStorage.getItem("erp_session") || sessionStorage.getItem("erp_session") || "{}");
+    } catch { return {}; }
+  })();
+
+  // Templates ต่อ D-day (user แก้ภายหลังได้ในหน้า line-promote)
+  const eventName = payload.event_name || "";
+  const eventDateStr = (() => {
+    const m = String(payload.event_date).match(/^(\d{4})-(\d{2})-(\d{2})/);
+    return m ? `${m[3]}/${m[2]}/${m[1]}` : payload.event_date;
+  })();
+  const startTime = (payload.start_time || "").slice(0, 5);
+  const location = payload.location || "";
+  const meta = [
+    eventDateStr ? `📅 ${eventDateStr}` : "",
+    startTime ? `🕐 ${startTime}` : "",
+    location ? `📍 ${location}` : "",
+  ].filter(Boolean).join("\n");
+
+  const templates = {
+    7: `📢 ขอประชาสัมพันธ์คอร์สบริษัท\n\n🎯 ${eventName}\n\n${meta}\n\n⏰ เหลืออีก 7 วัน — เตรียมตัวให้พร้อม!`,
+    3: `🔔 อีก 3 วันก่อนถึงวันงาน!\n\n🎯 ${eventName}\n\n${meta}\n\n👉 อย่าลืมจัดเตรียมข้อมูลและเอกสารที่เกี่ยวข้อง`,
+    2: `⚡ พรุ่งนี้พรุ่งนี้นี่เอง! เหลืออีก 2 วัน\n\n🎯 ${eventName}\n\n${meta}\n\n💪 เตรียมตัวให้พร้อมนะคะ`,
+    1: `🚨 พรุ่งนี้แล้ว! D-1\n\n🎯 ${eventName}\n\n${meta}\n\n✅ Check-in 30 นาทีก่อนเริ่ม\n📝 เตรียมเอกสาร/อุปกรณ์ครบพร้อม`,
+  };
+
+  // Compute scheduled_at = event_date - offset @ 09:00 Bangkok
+  const eventDate = (() => {
+    const m = String(payload.event_date).match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (!m) return null;
+    return new Date(parseInt(m[1]), parseInt(m[2]) - 1, parseInt(m[3]));
+  })();
+  if (!eventDate) return;
+
+  const rows = [];
+  for (const offset of [7, 3, 2, 1]) {
+    const d = new Date(eventDate);
+    d.setDate(d.getDate() - offset);
+    const ymd = d.toLocaleDateString("sv", { timeZone: "Asia/Bangkok" });
+    rows.push({
+      event_id: eventId,
+      target_type: "group",
+      target_id: defaultGroup.group_id,
+      channel_id: defaultGroup.channel_id || null,
+      promote_offset: offset,
+      message_text: templates[offset],
+      scheduled_at: `${ymd}T09:00:00+07:00`,
+      status: "SCHEDULED",
+      created_by: session?.user_id || null,
+    });
+  }
+
+  const insRes = await fetch(`${url}/rest/v1/line_scheduled_posts`, {
+    method: "POST",
+    headers: {
+      apikey: key,
+      Authorization: `Bearer ${key}`,
+      "Content-Type": "application/json",
+      Prefer: "return=minimal",
+    },
+    body: JSON.stringify(rows),
+  });
+  if (!insRes.ok) {
+    const err = await insRes.json().catch(() => ({}));
+    throw new Error(err.message || `insert failed (${insRes.status})`);
+  }
+  showToast("สร้างกำหนดโพสต์ LINE 4 รายการ (D-7,3,2,1) แล้ว 📢", "success");
+}
 
 function _fireEventConfirmed(eventRow) {
   if (!eventRow || !window.Notify) return;

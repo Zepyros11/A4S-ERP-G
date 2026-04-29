@@ -115,7 +115,8 @@
       });
     },
 
-    /* รีเฟรช effective_perms จาก Supabase (ใช้หลัง role/perm เปลี่ยน) */
+    /* รีเฟรช effective_perms จาก Supabase (ใช้หลัง role/perm เปลี่ยน)
+       — รองรับ user หลาย role: union perms ทุก role */
     async refresh() {
       const user = window.ERP_USER;
       if (!user || !user.user_id) return;
@@ -123,20 +124,35 @@
       const key = localStorage.getItem("sb_key");
       if (!url || !key) return;
       try {
-        const [userRes, roleRes] = await Promise.all([
-          fetch(`${url}/rest/v1/users?user_id=eq.${user.user_id}&select=*`, {
-            headers: { apikey: key, Authorization: `Bearer ${key}` },
-          }).then((r) => r.json()),
-          fetch(`${url}/rest/v1/role_configs?role_key=eq.${encodeURIComponent(user.role)}&select=*`, {
-            headers: { apikey: key, Authorization: `Bearer ${key}` },
-          }).then((r) => r.json()),
-        ]);
+        const userRes = await fetch(`${url}/rest/v1/users?user_id=eq.${user.user_id}&select=*`, {
+          headers: { apikey: key, Authorization: `Bearer ${key}` },
+        }).then((r) => r.json());
         const fresh = (userRes && userRes[0]) || {};
-        const role = (roleRes && roleRes[0]) || null;
-        const rolePerms = (role && role.permissions) || [];
+        const userRoles = (Array.isArray(fresh.roles) && fresh.roles.length)
+          ? fresh.roles.filter(Boolean)
+          : (fresh.role ? [fresh.role] : (user.role ? [user.role] : []));
+        let rolePerms = [];
+        if (userRoles.length) {
+          const inList = userRoles.map((k) => `"${k}"`).join(",");
+          const roleRes = await fetch(
+            `${url}/rest/v1/role_configs?role_key=in.(${encodeURIComponent(inList)})&select=*`,
+            { headers: { apikey: key, Authorization: `Bearer ${key}` } },
+          ).then((r) => r.json());
+          if (Array.isArray(roleRes)) {
+            roleRes.forEach((r) => {
+              if (Array.isArray(r.permissions)) rolePerms = rolePerms.concat(r.permissions);
+            });
+          }
+        }
         const customPerms = fresh.custom_permissions || [];
         const effective = Array.from(new Set([...rolePerms, ...customPerms]));
-        const updated = { ...user, effective_perms: effective, custom_permissions: customPerms };
+        const updated = {
+          ...user,
+          role: userRoles[0] || user.role,
+          roles: userRoles,
+          effective_perms: effective,
+          custom_permissions: customPerms,
+        };
         window.ERP_USER = updated;
         if (localStorage.getItem("erp_session"))
           localStorage.setItem("erp_session", JSON.stringify(updated));

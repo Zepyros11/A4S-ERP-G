@@ -70,6 +70,12 @@
           path: BASE_PATH + "/modules/event/media-schedule.html",
         },
         {
+          id: "line-promote",
+          icon: "📢",
+          label: "ตารางโพสต์ LINE",
+          path: BASE_PATH + "/modules/event/line-promote.html",
+        },
+        {
           id: "event-work-plan",
           icon: "📋",
           label: "แผนงาน",
@@ -390,6 +396,7 @@
     "event-budget": "evt_budget_view",
     attendees: "attendee_view",
     "event-media": "media_fb_view",
+    "line-promote": "line_promote_view",
     categories: "inv_cat_view",
     warehouses: "warehouse_view",
     products: "product_view",
@@ -472,6 +479,7 @@
     "event-budget",
     "attendees",
     "event-media",
+    "line-promote",
     //  **** Inventory ****
     "categories",
     "warehouses",

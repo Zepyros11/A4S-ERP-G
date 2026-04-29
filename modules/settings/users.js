@@ -8,7 +8,6 @@ const SUPABASE_KEY = localStorage.getItem("sb_key") || "";
 
 /* ── Role config — โหลดจาก Supabase, fallback เป็น defaultRoles ── */
 let ROLE_PERMISSIONS = { ...AppPermissions.defaultRoles };
-const ALL_PERMISSIONS = AppPermissions.allPerms;
 const AVATAR_COLORS = [
   "#0f4c75",
   "#065f46",
@@ -22,7 +21,8 @@ let allUsers = [];
 let selectedId = null;
 let sortKey = "full_name";
 let sortAsc = true;
-let customPerms = {};
+/* ── State ของ role slots ในฟอร์ม (รายการ role_keys, slot 0 = role หลัก) ── */
+let roleSlots = [];
 
 async function sbFetch(table, opts = {}) {
   const { method = "GET", query = "", body } = opts;
@@ -75,25 +75,15 @@ async function loadData() {
 }
 
 function populateRoleSelects() {
+  /* Filter dropdown (filterRole) */
   const keys = Object.keys(ROLE_PERMISSIONS);
   if (!keys.length) return;
-
   const buildOption = (k) => {
     const r = ROLE_PERMISSIONS[k];
     const emoji = AppPermissions.iconToEmoji(r.icon);
     const prefix = emoji ? `${emoji}  ` : "";
     return `<option value="${k}">${prefix}${r.label}</option>`;
   };
-
-  /* Modal dropdown (fRole) */
-  const fRole = document.getElementById("fRole");
-  if (fRole) {
-    const cur = fRole.value;
-    fRole.innerHTML = keys.map(buildOption).join("");
-    if (cur && keys.includes(cur)) fRole.value = cur;
-  }
-
-  /* Filter dropdown (filterRole) */
   const filterRole = document.getElementById("filterRole");
   if (filterRole) {
     const cur = filterRole.value;
@@ -103,13 +93,20 @@ function populateRoleSelects() {
   }
 }
 
+/* ── อ่าน roles จาก user record (รองรับทั้ง roles[] และ role เดี่ยว) ── */
+function getUserRoles(u) {
+  if (Array.isArray(u?.roles) && u.roles.length) return u.roles.filter(Boolean);
+  if (u?.role) return [u.role];
+  return [];
+}
+
 function updateStats() {
   document.getElementById("statTotal").textContent = allUsers.length;
   document.getElementById("statAdmin").textContent = allUsers.filter(
-    (u) => u.role === "ADMIN",
+    (u) => getUserRoles(u).includes("ADMIN"),
   ).length;
   document.getElementById("statManager").textContent = allUsers.filter(
-    (u) => u.role === "MANAGER",
+    (u) => getUserRoles(u).includes("MANAGER"),
   ).length;
   document.getElementById("statActive").textContent = allUsers.filter(
     (u) => u.is_active !== false,
@@ -126,15 +123,20 @@ function filterTable() {
   let list = allUsers.filter((u) => {
     const full =
       `${u.full_name || ""} ${u.username || ""} ${u.email || ""}`.toLowerCase();
+    const roles = getUserRoles(u);
     return (
       (!search || full.includes(search)) &&
-      (!role || u.role === role) &&
+      (!role || roles.includes(role)) &&
       (status === "" || String(u.is_active !== false) === status)
     );
   });
   list.sort((a, b) => {
     let av = a[sortKey] ?? "",
       bv = b[sortKey] ?? "";
+    if (sortKey === "role") {
+      av = getUserRoles(a)[0] || "";
+      bv = getUserRoles(b)[0] || "";
+    }
     if (typeof av === "string") av = av.toLowerCase();
     if (typeof bv === "string") bv = bv.toLowerCase();
     return sortAsc ? (av > bv ? 1 : -1) : av < bv ? 1 : -1;
@@ -160,23 +162,34 @@ function renderTable(list) {
   }
   const html = list
     .map((u) => {
-      const role = ROLE_PERMISSIONS[u.role] || {
-        label: u.role,
+      const userRoles = getUserRoles(u);
+      const primaryKey = userRoles[0];
+      const primary = ROLE_PERMISSIONS[primaryKey] || {
+        label: primaryKey || "—",
         color: "role-VIEWER",
+        icon: "",
       };
+      const extraCount = userRoles.length - 1;
+      const extraTitle = userRoles
+        .slice(1)
+        .map((k) => ROLE_PERMISSIONS[k]?.label || k)
+        .join(", ");
       const nameParts = (u.full_name || "?").split(" ");
       const initials = (
         nameParts[0][0] + (nameParts[1]?.[0] || "")
       ).toUpperCase();
       const color = AVATAR_COLORS[(u.user_id || 0) % AVATAR_COLORS.length];
       const isActive = u.is_active !== false;
+      const extraBadge = extraCount > 0
+        ? ` <span class="role-badge role-VIEWER" title="${extraTitle}" style="font-size:10px">+${extraCount}</span>`
+        : "";
       return `<tr>
       <td><div style="display:flex;align-items:center;gap:10px">
         <div class="avatar" style="background:${color};width:32px;height:32px;font-size:12px">${initials}</div>
         <div style="font-weight:600">${u.full_name || "—"}</div>
       </div></td>
       <td><span style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--text2)">${u.username || "—"}</span></td>
-      <td><span class="role-badge ${role.color}">${AppPermissions.iconToEmoji(role.icon)} ${role.label}</span></td>
+      <td><span class="role-badge ${primary.color}">${AppPermissions.iconToEmoji(primary.icon)} ${primary.label}</span>${extraBadge}</td>
       <td><span style="font-size:12.5px;color:var(--text2)">${u.email || "—"}</span></td>
       <td><span class="status-badge ${isActive ? "status-on" : "status-off"}">${isActive ? "● ใช้งาน" : "● ปิด"}</span></td>
       <td class="col-center" onclick="event.stopPropagation()">
@@ -193,181 +206,72 @@ function renderTable(list) {
   if (window.AuthZ) window.AuthZ.applyDomPerms(tbody);
 }
 
-
-/* ── Helpers to find sub / count states ── */
-function _findSub(subKey) {
-  for (const m of AppPermissions.modules) {
-    const s = m.children.find(c => c.key === subKey);
-    if (s) return { mod: m, sub: s };
+/* ============================================================
+   Role slots (multi-role per user)
+   ============================================================ */
+function renderRoleSlots() {
+  const container = document.getElementById("roleSlotList");
+  if (!container) return;
+  const allKeys = Object.keys(ROLE_PERMISSIONS);
+  if (!allKeys.length) {
+    container.innerHTML = `<div class="form-hint">ยังไม่มี Role ในระบบ — ไปที่หน้า "จัดการ Role" ก่อน</div>`;
+    return;
   }
-  return null;
-}
-function _modAllPerms(mod) {
-  return mod.children.flatMap(c => c.perms);
-}
+  /* บังคับให้มีอย่างน้อย 1 slot */
+  if (!roleSlots.length) roleSlots = [allKeys[0]];
 
-function buildPermToggles(rolePerms, customP = []) {
-  customPerms = {};
-  customP.forEach(k => customPerms[k] = true);
+  const buildOptionHtml = (selectedKey) => allKeys.map((k) => {
+    const r = ROLE_PERMISSIONS[k];
+    const emoji = AppPermissions.iconToEmoji(r.icon);
+    const prefix = emoji ? `${emoji}  ` : "";
+    const sel = k === selectedKey ? " selected" : "";
+    return `<option value="${k}"${sel}>${prefix}${r.label}</option>`;
+  }).join("");
 
-  document.getElementById("permToggles").innerHTML = AppPermissions.modules.map(mod => {
-    const allModPerms = _modAllPerms(mod);
-    const modActive = allModPerms.filter(p => rolePerms.includes(p.key) || customPerms[p.key]).length;
-    const modState = modActive === 0 ? "none" : modActive === allModPerms.length ? "all" : "partial";
-    const modCbTxt = modState === "all" ? "✓" : modState === "partial" ? "—" : "";
-
-    const subsHtml = mod.children.map(sub => {
-      const subActive = sub.perms.filter(p => rolePerms.includes(p.key) || customPerms[p.key]).length;
-      const subState = subActive === 0 ? "none" : subActive === sub.perms.length ? "all" : "partial";
-      const subCbTxt = subState === "all" ? "✓" : subState === "partial" ? "—" : "";
-
-      const items = sub.perms.map(p => {
-        const fromRole = rolePerms.includes(p.key);
-        const isCustom = !fromRole && !!customPerms[p.key];
-        const cbCls = fromRole ? "cb-role" : isCustom ? "cb-custom" : "cb-empty";
-        const cbTxt = (fromRole || isCustom) ? "✓" : "";
-        return `<div class="tree-item${fromRole ? " tree-from-role" : ""}" onclick="${fromRole ? "" : `toggleTreePerm('${p.key}','${sub.key}','${mod.key}')`}">
-          <span class="tree-cb ${cbCls}" id="tcb-${p.key}">${cbTxt}</span>
-          <span class="tree-item-label">${p.label}</span>
-          ${fromRole ? '<span class="tree-role-tag">Role</span>' : ""}
-        </div>`;
-      }).join("");
-
-      return `<div class="tree-sub" id="tsub-${sub.key}">
-        <div class="tree-sub-hdr">
-          <span class="tree-sub-cb state-${subState}" id="subcb-${sub.key}"
-            onclick="event.stopPropagation();toggleSubCustom('${sub.key}','${mod.key}')">${subCbTxt}</span>
-          <span class="tree-sub-icon">${sub.icon}</span>
-          <span class="tree-sub-label" onclick="toggleSubCollapse('${sub.key}')">${sub.label}</span>
-          <span class="tree-sub-count" id="subcount-${sub.key}">${subActive}/${sub.perms.length}</span>
-          <span class="tree-sub-expand" id="subexp-${sub.key}" onclick="toggleSubCollapse('${sub.key}')">▸</span>
-        </div>
-        <div class="tree-sub-children collapsed" id="tsubchildren-${sub.key}">${items}</div>
-      </div>`;
-    }).join("");
-
-    return `<div class="tree-module" id="tmod-${mod.key}">
-      <div class="tree-mod-hdr">
-        <span class="tree-mod-cb state-${modState}" id="modcb-${mod.key}"
-          onclick="event.stopPropagation();toggleModuleCustom('${mod.key}')">${modCbTxt}</span>
-        <span class="tree-mod-icon">${mod.icon}</span>
-        <span class="tree-mod-label" onclick="toggleModuleCollapse('${mod.key}')">${mod.label}</span>
-        <span class="tree-mod-count" id="modcount-${mod.key}">${modActive}/${allModPerms.length}</span>
-        <span class="tree-expand-icon" id="expicon-${mod.key}" onclick="toggleModuleCollapse('${mod.key}')">▸</span>
-      </div>
-      <div class="tree-children collapsed" id="tchildren-${mod.key}">${subsHtml}</div>
+  container.innerHTML = roleSlots.map((roleKey, idx) => {
+    const isPrimary = idx === 0;
+    const numLabel = isPrimary ? "1" : String(idx + 1);
+    const numClass = isPrimary ? "role-slot-num is-primary" : "role-slot-num";
+    const numTitle = isPrimary ? "Role หลัก (กำหนดหน้าแรก)" : `Role เสริม #${idx}`;
+    const removeDisabled = isPrimary && roleSlots.length === 1 ? "disabled" : "";
+    return `<div class="role-slot" data-idx="${idx}">
+      <span class="${numClass}" title="${numTitle}">${numLabel}</span>
+      <select class="form-control" onchange="onRoleSlotChange(${idx}, this.value)">${buildOptionHtml(roleKey)}</select>
+      <button type="button" class="role-slot-remove" onclick="removeRoleSlot(${idx})" ${removeDisabled} title="ลบ Role นี้">✕</button>
     </div>`;
   }).join("");
+
+  /* ปิดปุ่ม "+ เพิ่ม" ถ้าครบทุก role แล้ว */
+  const btn = document.getElementById("btnAddRole");
+  if (btn) btn.disabled = roleSlots.length >= allKeys.length;
 }
 
-function toggleTreePerm(key, subKey, modKey) {
-  customPerms[key] = !customPerms[key];
-  const cbEl = document.getElementById(`tcb-${key}`);
-  if (cbEl) {
-    const isOn = customPerms[key];
-    cbEl.className = `tree-cb ${isOn ? "cb-custom" : "cb-empty"}`;
-    cbEl.textContent = isOn ? "✓" : "";
-  }
-  _syncSubCount(subKey);
-  _syncModCount(modKey);
-}
-
-function toggleSubCustom(subKey, modKey) {
-  const found = _findSub(subKey);
-  if (!found) return;
-  const role = document.getElementById("fRole").value;
-  const rolePerms = ROLE_PERMISSIONS[role]?.perms || [];
-  const hasOff = found.sub.perms.some(p => !rolePerms.includes(p.key) && !customPerms[p.key]);
-  found.sub.perms.forEach(p => {
-    if (!rolePerms.includes(p.key)) {
-      customPerms[p.key] = hasOff;
-      const cbEl = document.getElementById(`tcb-${p.key}`);
-      if (cbEl) {
-        cbEl.className = `tree-cb ${hasOff ? "cb-custom" : "cb-empty"}`;
-        cbEl.textContent = hasOff ? "✓" : "";
-      }
-    }
+function onRoleSlotChange(idx, val) {
+  if (idx < 0 || idx >= roleSlots.length) return;
+  roleSlots[idx] = val;
+  /* ถ้า slot ถูกซ้ำ ให้ลบตัวที่ซ้ำกว่าออก (เก็บ slot ที่เพิ่งเลือก) */
+  const seen = new Set();
+  roleSlots = roleSlots.filter((k, i) => {
+    if (i === idx) { seen.add(k); return true; }
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
   });
-  _syncSubCount(subKey);
-  _syncModCount(modKey);
+  renderRoleSlots();
 }
 
-function toggleModuleCustom(modKey) {
-  const mod = AppPermissions.modules.find(m => m.key === modKey);
-  if (!mod) return;
-  const role = document.getElementById("fRole").value;
-  const rolePerms = ROLE_PERMISSIONS[role]?.perms || [];
-  const allPerms = _modAllPerms(mod);
-  const hasOff = allPerms.some(p => !rolePerms.includes(p.key) && !customPerms[p.key]);
-  allPerms.forEach(p => {
-    if (!rolePerms.includes(p.key)) {
-      customPerms[p.key] = hasOff;
-      const cbEl = document.getElementById(`tcb-${p.key}`);
-      if (cbEl) {
-        cbEl.className = `tree-cb ${hasOff ? "cb-custom" : "cb-empty"}`;
-        cbEl.textContent = hasOff ? "✓" : "";
-      }
-    }
-  });
-  mod.children.forEach(c => _syncSubCount(c.key));
-  _syncModCount(modKey);
+function addRoleSlot() {
+  const allKeys = Object.keys(ROLE_PERMISSIONS);
+  const next = allKeys.find((k) => !roleSlots.includes(k));
+  if (!next) return;
+  roleSlots.push(next);
+  renderRoleSlots();
 }
 
-function toggleModuleCollapse(modKey) {
-  const children = document.getElementById(`tchildren-${modKey}`);
-  const icon = document.getElementById(`expicon-${modKey}`);
-  if (!children) return;
-  const collapsed = children.classList.toggle("collapsed");
-  if (icon) icon.textContent = collapsed ? "▸" : "▾";
-}
-
-function toggleSubCollapse(subKey) {
-  const children = document.getElementById(`tsubchildren-${subKey}`);
-  const icon = document.getElementById(`subexp-${subKey}`);
-  if (!children) return;
-  const collapsed = children.classList.toggle("collapsed");
-  if (icon) icon.textContent = collapsed ? "▸" : "▾";
-}
-
-function _syncSubCount(subKey) {
-  const found = _findSub(subKey);
-  if (!found) return;
-  const role = document.getElementById("fRole").value;
-  const rolePerms = ROLE_PERMISSIONS[role]?.perms || [];
-  const active = found.sub.perms.filter(p => rolePerms.includes(p.key) || customPerms[p.key]).length;
-  const total = found.sub.perms.length;
-  const state = active === 0 ? "none" : active === total ? "all" : "partial";
-  const txt = state === "all" ? "✓" : state === "partial" ? "—" : "";
-  const cb = document.getElementById(`subcb-${subKey}`);
-  const cnt = document.getElementById(`subcount-${subKey}`);
-  if (cb) { cb.className = `tree-sub-cb state-${state}`; cb.textContent = txt; }
-  if (cnt) cnt.textContent = `${active}/${total}`;
-}
-
-function _syncModCount(modKey) {
-  const mod = AppPermissions.modules.find(m => m.key === modKey);
-  if (!mod) return;
-  const role = document.getElementById("fRole").value;
-  const rolePerms = ROLE_PERMISSIONS[role]?.perms || [];
-  const allPerms = _modAllPerms(mod);
-  const active = allPerms.filter(p => rolePerms.includes(p.key) || customPerms[p.key]).length;
-  const total = allPerms.length;
-  const state = active === 0 ? "none" : active === total ? "all" : "partial";
-  const txt = state === "all" ? "✓" : state === "partial" ? "—" : "";
-  const cb = document.getElementById(`modcb-${mod.key}`);
-  const cnt = document.getElementById(`modcount-${mod.key}`);
-  if (cb) { cb.className = `tree-mod-cb state-${state}`; cb.textContent = txt; }
-  if (cnt) cnt.textContent = `${active}/${total}`;
-}
-
-function onRoleChange() {
-  const role = document.getElementById("fRole").value;
-  const cfg = ROLE_PERMISSIONS[role];
-  if (!cfg) return;
-  buildPermToggles(
-    cfg.perms || [],
-    Object.keys(customPerms).filter((k) => customPerms[k]),
-  );
+function removeRoleSlot(idx) {
+  if (roleSlots.length <= 1) return;
+  roleSlots.splice(idx, 1);
+  renderRoleSlots();
 }
 
 function generateUserCode() {
@@ -404,24 +308,19 @@ function openModal(data = null) {
   document.getElementById("fStatus").value = data
     ? String(data.is_active !== false)
     : "true";
-  const roleKeys = Object.keys(ROLE_PERMISSIONS);
-  const fallbackRole = roleKeys[0] || "VIEWER";
-  document.getElementById("fRole").value = (data?.role && ROLE_PERMISSIONS[data.role]) ? data.role : fallbackRole;
+
+  /* Role slots — โหลดจาก data หรือ default เป็น role แรกในระบบ */
+  const allKeys = Object.keys(ROLE_PERMISSIONS);
+  const fallback = allKeys[0] || "VIEWER";
+  const dataRoles = getUserRoles(data).filter((k) => ROLE_PERMISSIONS[k]);
+  roleSlots = dataRoles.length ? dataRoles : [fallback];
+  renderRoleSlots();
+
   /* แสดง hint เมื่อแก้ไข, ซ่อน * เมื่อ optional */
   document.getElementById("pwdHint").style.display      = isEdit ? "block" : "none";
   document.getElementById("pwdReq").style.display       = isEdit ? "none" : "inline";
   document.getElementById("pwdConfirmReq").style.display = isEdit ? "none" : "inline";
-  customPerms = {};
-  onRoleChange();
-  if (data?.custom_permissions) {
-    const validKeys = new Set(AppPermissions.allPermKeys);
-    const validCustom = data.custom_permissions.filter(k => validKeys.has(k));
-    validCustom.forEach((k) => { customPerms[k] = true; });
-    buildPermToggles(
-      ROLE_PERMISSIONS[data.role]?.perms || [],
-      validCustom,
-    );
-  }
+
   document.getElementById("modalOverlay").classList.add("open");
   setTimeout(() => document.getElementById("fFullName").focus(), 100);
 }
@@ -466,11 +365,12 @@ async function saveUser() {
     return;
   }
 
-  const role = document.getElementById("fRole").value;
-  const rolePerms = ROLE_PERMISSIONS[role]?.perms || [];
-  const extras = Object.keys(customPerms).filter(
-    (k) => customPerms[k] && !rolePerms.includes(k),
-  );
+  /* รวบรวม roles จาก slots — กัน duplicate */
+  const cleanRoles = Array.from(new Set(roleSlots.filter((k) => ROLE_PERMISSIONS[k])));
+  if (!cleanRoles.length) {
+    showToast("กรุณาเลือก Role อย่างน้อย 1 รายการ", "error");
+    return;
+  }
 
   const userCode = document.getElementById("fUserCode").value.trim().toUpperCase();
   if (!userCode) { showToast("กรุณากรอกรหัสพนักงาน", "error"); return; }
@@ -481,8 +381,8 @@ async function saveUser() {
     user_code: userCode,
     email: document.getElementById("fEmail")?.value.trim() || null,
     phone: document.getElementById("fPhone")?.value.trim() || null,
-    role,
-    custom_permissions: extras.length ? extras : null,
+    role: cleanRoles[0],          /* backward compat — role หลัก */
+    roles: cleanRoles,            /* รายการ role ทั้งหมด */
     is_active: document.getElementById("fStatus").value === "true",
     ...(password ? { password_hash: await hashPassword(password) } : {}),
   };
@@ -498,7 +398,7 @@ async function saveUser() {
       /* อัปเดต session ถ้าแก้ไขตัวเอง */
       const currentUser = window.ERP_USER;
       if (currentUser && String(currentUser.user_id) === String(editId)) {
-        const updated = { ...currentUser, full_name: fullName, username, role, email: payload.email };
+        const updated = { ...currentUser, full_name: fullName, username, role: payload.role, roles: cleanRoles, email: payload.email };
         if (localStorage.getItem("erp_session")) localStorage.setItem("erp_session", JSON.stringify(updated));
         if (sessionStorage.getItem("erp_session")) sessionStorage.setItem("erp_session", JSON.stringify(updated));
         window.ERP_USER = updated;
@@ -553,7 +453,6 @@ function showLoading(show) {
 
 window.addEventListener("DOMContentLoaded", () => {
   populateRoleSelects();
-  onRoleChange();
   if (SUPABASE_URL && SUPABASE_KEY) setTimeout(() => loadData(), 50);
 });
 

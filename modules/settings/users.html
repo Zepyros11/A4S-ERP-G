@@ -200,18 +200,15 @@
             </div>
             <div class="form-section">🔐 Role & สิทธิ์การใช้งาน</div>
             <div class="form-group full">
-              <label class="form-label">Role <span class="req">*</span></label>
-              <select class="form-control" id="fRole" onchange="onRoleChange()"></select>
+              <label class="form-label">
+                Role <span class="req">*</span>
+                <span class="form-hint" style="margin-left:6px;display:inline">— Role ตัวแรกใช้กำหนดหน้าแรกหลัง login</span>
+              </label>
+              <div class="role-slot-list" id="roleSlotList"></div>
+              <button type="button" class="btn-add-role" id="btnAddRole" onclick="addRoleSlot()">
+                <span style="font-size:14px;font-weight:700">＋</span> เพิ่มสิทธิ์ Role
+              </button>
             </div>
-            <div class="perm-section-header">
-              <span class="perm-section-title">สิทธิ์การใช้งาน</span>
-              <div class="perm-legend">
-                <span class="legend-item legend-role">✓ จาก Role</span>
-                <span class="legend-item legend-custom">✓ เพิ่มเติม</span>
-                <span class="legend-item legend-off">☐ คลิกเพิ่ม</span>
-              </div>
-            </div>
-            <div class="perm-toggle-grid" id="permToggles"></div>
           </div>
         </div>
         <div class="modal-footer">

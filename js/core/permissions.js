@@ -60,6 +60,12 @@ window.AppPermissions = (() => {
           { key: "media_fb_edit",   label: "แก้ไข" },
           { key: "media_fb_cancel", label: "ยกเลิก" },
         ]},
+        { key: "line_promote", label: "ตารางโพสต์ LINE", icon: "📢", perms: [
+          { key: "line_promote_view",   label: "ดูรายการ" },
+          { key: "line_promote_create", label: "สร้างกำหนดการ" },
+          { key: "line_promote_edit",   label: "แก้ไข" },
+          { key: "line_promote_cancel", label: "ยกเลิก" },
+        ]},
         { key: "evt_wp", label: "แผนงานกิจกรรม", icon: "📋", perms: [
           { key: "evt_wp_view",   label: "ดูรายการ" },
           { key: "evt_wp_create", label: "สร้าง" },
@@ -294,6 +300,7 @@ window.AppPermissions = (() => {
         "evt_budget_view","evt_budget_create","evt_budget_edit",
         "attendee_view","attendee_edit",
         "media_fb_view","media_fb_create","media_fb_edit","media_fb_cancel",
+        "line_promote_view","line_promote_create","line_promote_edit","line_promote_cancel",
         "inv_cat_view","inv_cat_create","inv_cat_edit",
         "warehouse_view","warehouse_create","warehouse_edit",
         "product_view","product_create","product_edit",
