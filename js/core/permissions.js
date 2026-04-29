@@ -8,7 +8,7 @@
 /* global AppPermissions */
 window.AppPermissions = (() => {
   const modules = [
-    /* ── ภาพรวม ── */
+    /* ── 1. ภาพรวม ── */
     {
       key: "dashboard", label: "ภาพรวม", icon: "📊",
       children: [
@@ -18,9 +18,9 @@ window.AppPermissions = (() => {
       ],
     },
 
-    /* ── กิจกรรม (EVENT) ── */
+    /* ── 2. กิจกรรม (EVENT) ── */
     {
-      key: "event", label: "กิจกรรม (EVENT)", icon: "🗓️",
+      key: "event", label: "กิจกรรม (Event)", icon: "🗓️",
       children: [
         { key: "poster", label: "Poster Gallery", icon: "🖼️", perms: [
           { key: "poster_view",   label: "ดูรายการ" },
@@ -36,18 +36,6 @@ window.AppPermissions = (() => {
         ]},
         { key: "evt_calendar", label: "ปฏิทินกิจกรรม", icon: "📅", perms: [
           { key: "evt_calendar_view", label: "ดู" },
-        ]},
-        { key: "evt_cat", label: "ประเภทกิจกรรม", icon: "🏷️", perms: [
-          { key: "evt_cat_view",   label: "ดูรายการ" },
-          { key: "evt_cat_create", label: "สร้าง" },
-          { key: "evt_cat_edit",   label: "แก้ไข" },
-          { key: "evt_cat_delete", label: "ลบ" },
-        ]},
-        { key: "evt_place", label: "สถานที่", icon: "📍", perms: [
-          { key: "evt_place_view",   label: "ดูรายการ" },
-          { key: "evt_place_create", label: "สร้าง" },
-          { key: "evt_place_edit",   label: "แก้ไข" },
-          { key: "evt_place_delete", label: "ลบ" },
         ]},
         { key: "evt_req", label: "คำขอจัดกิจกรรม", icon: "📋", perms: [
           { key: "evt_req_view",    label: "ดูรายการ" },
@@ -72,13 +60,43 @@ window.AppPermissions = (() => {
           { key: "media_fb_edit",   label: "แก้ไข" },
           { key: "media_fb_cancel", label: "ยกเลิก" },
         ]},
+        { key: "evt_wp", label: "แผนงานกิจกรรม", icon: "📋", perms: [
+          { key: "evt_wp_view",   label: "ดูรายการ" },
+          { key: "evt_wp_create", label: "สร้าง" },
+          { key: "evt_wp_edit",   label: "แก้ไข" },
+          { key: "evt_wp_delete", label: "ลบ" },
+        ]},
+        /* ── ตั้งค่า Event ── */
+        { key: "evt_cat", label: "ประเภทกิจกรรม", icon: "🏷️", perms: [
+          { key: "evt_cat_view",   label: "ดูรายการ" },
+          { key: "evt_cat_create", label: "สร้าง" },
+          { key: "evt_cat_edit",   label: "แก้ไข" },
+          { key: "evt_cat_delete", label: "ลบ" },
+        ]},
+        { key: "evt_place", label: "สถานที่", icon: "📍", perms: [
+          { key: "evt_place_view",   label: "ดูรายการ" },
+          { key: "evt_place_create", label: "สร้าง" },
+          { key: "evt_place_edit",   label: "แก้ไข" },
+          { key: "evt_place_delete", label: "ลบ" },
+        ]},
       ],
     },
 
-    /* ── ตั้งค่า Stock ── */
+    /* ── 3. คลังสินค้า (STOCK) ── */
     {
-      key: "stock", label: "ตั้งค่า Stock", icon: "📦",
+      key: "stock", label: "คลังสินค้า (Stock)", icon: "📦",
       children: [
+        { key: "product", label: "รายการสินค้า", icon: "✏️", perms: [
+          { key: "product_view",   label: "ดูรายการ" },
+          { key: "product_create", label: "สร้าง" },
+          { key: "product_edit",   label: "แก้ไข" },
+          { key: "product_delete", label: "ลบ" },
+        ]},
+        { key: "stock_move", label: "ความเคลื่อนไหว", icon: "🔄", perms: [
+          { key: "stock_move_view",   label: "ดูรายการ" },
+          { key: "stock_move_create", label: "บันทึกรายการ" },
+        ]},
+        /* ── ตั้งค่า Stock ── */
         { key: "inv_cat", label: "หมวดหมู่", icon: "🏷️", perms: [
           { key: "inv_cat_view",   label: "ดูรายการ" },
           { key: "inv_cat_create", label: "สร้าง" },
@@ -91,25 +109,15 @@ window.AppPermissions = (() => {
           { key: "warehouse_edit",   label: "แก้ไข" },
           { key: "warehouse_delete", label: "ลบ" },
         ]},
-        { key: "product", label: "รายการสินค้า", icon: "✏️", perms: [
-          { key: "product_view",   label: "ดูรายการ" },
-          { key: "product_create", label: "สร้าง" },
-          { key: "product_edit",   label: "แก้ไข" },
-          { key: "product_delete", label: "ลบ" },
-        ]},
         { key: "stock_init", label: "Stock เริ่มต้น", icon: "📦", perms: [
           { key: "stock_init_view",   label: "ดูรายการ" },
           { key: "stock_init_create", label: "สร้าง" },
           { key: "stock_init_edit",   label: "แก้ไข" },
         ]},
-        { key: "stock_move", label: "ความเคลื่อนไหว", icon: "🔄", perms: [
-          { key: "stock_move_view",   label: "ดูรายการ" },
-          { key: "stock_move_create", label: "บันทึกรายการ" },
-        ]},
       ],
     },
 
-    /* ── เอกสาร ── */
+    /* ── 4. เอกสาร ── */
     {
       key: "docs", label: "เอกสาร", icon: "📄",
       children: [
@@ -135,7 +143,76 @@ window.AppPermissions = (() => {
       ],
     },
 
-    /* ── รายงาน ── */
+    /* ── 5. ลูกค้า (CRM) ── */
+    {
+      key: "crm", label: "ลูกค้า (CRM)", icon: "🧑",
+      children: [
+        { key: "member", label: "สมาชิก (MLM)", icon: "👤", perms: [
+          { key: "member_view",         label: "ดูรายการ" },
+          { key: "member_import",       label: "นำเข้า Excel" },
+          { key: "member_export",       label: "ส่งออก" },
+          { key: "member_edit",         label: "แก้ไข" },
+          { key: "member_delete",       label: "ลบ" },
+          { key: "member_decrypt",      label: "ถอดรหัสข้อมูลลับ" },
+          { key: "member_sync_config",  label: "ตั้งค่า Auto-Sync" },
+          { key: "member_sync_trigger", label: "กด Sync Now" },
+        ]},
+      ],
+    },
+
+    /* ── 6. ซัพพลายเออร์ ── */
+    {
+      key: "supplier_grp", label: "ซัพพลายเออร์ (Supplier)", icon: "🚚",
+      children: [
+        { key: "supplier", label: "ข้อมูล Supplier", icon: "🚚", perms: [
+          { key: "supplier_view",   label: "ดูรายการ" },
+          { key: "supplier_create", label: "สร้าง" },
+          { key: "supplier_edit",   label: "แก้ไข" },
+          { key: "supplier_delete", label: "ลบ" },
+        ]},
+      ],
+    },
+
+    /* ── 7. บริการลูกค้า (Customer Service) ── */
+    {
+      key: "customer_service", label: "บริการลูกค้า (CS)", icon: "🎁",
+      children: [
+        { key: "daily_sale", label: "Daily Sale", icon: "📊", perms: [
+          { key: "daily_sale_view",      label: "ดูข้อมูล" },
+          { key: "daily_sale_sync",      label: "สั่ง Sync" },
+          { key: "daily_sale_reconcile", label: "บันทึกตรวจบิล" },
+        ]},
+        { key: "promotion_gallery", label: "Catalog ประจำเดือน", icon: "📰", perms: [
+          { key: "view_promotions",   label: "ดูรายการ" },
+        ]},
+        { key: "promotion", label: "จัดการโปรโมชัน", icon: "🎁", perms: [
+          { key: "promotion_create", label: "สร้าง" },
+          { key: "promotion_edit",   label: "แก้ไข" },
+          { key: "promotion_delete", label: "ลบ" },
+        ]},
+        { key: "cs_wp", label: "แผนงาน CS", icon: "📋", perms: [
+          { key: "cs_wp_view",   label: "ดูรายการ" },
+          { key: "cs_wp_create", label: "สร้าง" },
+          { key: "cs_wp_edit",   label: "แก้ไข" },
+          { key: "cs_wp_delete", label: "ลบ" },
+        ]},
+      ],
+    },
+
+    /* ── 8. ทริป (TRIP) ── */
+    {
+      key: "trip", label: "ทริป (Trip)", icon: "✈️",
+      children: [
+        { key: "trip_wp", label: "แผนงานทริป", icon: "📋", perms: [
+          { key: "trip_wp_view",   label: "ดูรายการ" },
+          { key: "trip_wp_create", label: "สร้าง" },
+          { key: "trip_wp_edit",   label: "แก้ไข" },
+          { key: "trip_wp_delete", label: "ลบ" },
+        ]},
+      ],
+    },
+
+    /* ── 9. รายงาน ── */
     {
       key: "report", label: "รายงาน", icon: "📈",
       children: [
@@ -146,7 +223,7 @@ window.AppPermissions = (() => {
       ],
     },
 
-    /* ── ตั้งค่า ── */
+    /* ── 10. ตั้งค่า ── */
     {
       key: "settings", label: "ตั้งค่า", icon: "⚙️",
       children: [
@@ -169,59 +246,10 @@ window.AppPermissions = (() => {
           { key: "roles_edit",   label: "แก้ไข" },
           { key: "roles_delete", label: "ลบ" },
         ]},
-        { key: "supplier", label: "Supplier", icon: "🚚", perms: [
-          { key: "supplier_view",   label: "ดูรายการ" },
-          { key: "supplier_create", label: "สร้าง" },
-          { key: "supplier_edit",   label: "แก้ไข" },
-          { key: "supplier_delete", label: "ลบ" },
-        ]},
-        { key: "member", label: "สมาชิก (MLM)", icon: "👤", perms: [
-          { key: "member_view",         label: "ดูรายการ" },
-          { key: "member_import",       label: "นำเข้า Excel" },
-          { key: "member_export",       label: "ส่งออก" },
-          { key: "member_edit",         label: "แก้ไข" },
-          { key: "member_delete",       label: "ลบ" },
-          { key: "member_decrypt",      label: "ถอดรหัสข้อมูลลับ" },
-          { key: "member_sync_config",  label: "ตั้งค่า Auto-Sync" },
-          { key: "member_sync_trigger", label: "กด Sync Now" },
-        ]},
       ],
     },
 
-    /* ── บริการลูกค้า (Customer Service) ── */
-    {
-      key: "customer_service", label: "บริการลูกค้า (CS)", icon: "🎁",
-      children: [
-        { key: "daily_sale", label: "Daily Sale", icon: "📊", perms: [
-          { key: "daily_sale_view",      label: "ดูข้อมูล" },
-          { key: "daily_sale_sync",      label: "สั่ง Sync" },
-          { key: "daily_sale_reconcile", label: "บันทึกตรวจบิล" },
-        ]},
-        { key: "promotion_gallery", label: "Promotion Gallery", icon: "🖼️", perms: [
-          { key: "view_promotions",   label: "ดูรายการ" },
-        ]},
-        { key: "promotion", label: "รายการโปรโมชัน", icon: "🎁", perms: [
-          { key: "promotion_create", label: "สร้าง" },
-          { key: "promotion_edit",   label: "แก้ไข" },
-          { key: "promotion_delete", label: "ลบ" },
-        ]},
-      ],
-    },
-
-    /* ── ทริป (TRIP) ── */
-    {
-      key: "trip", label: "ทริป (TRIP)", icon: "✈️",
-      children: [
-        { key: "trip_wp", label: "แผนงานทริป", icon: "📋", perms: [
-          { key: "trip_wp_view",   label: "ดูรายการ" },
-          { key: "trip_wp_create", label: "สร้าง" },
-          { key: "trip_wp_edit",   label: "แก้ไข" },
-          { key: "trip_wp_delete", label: "ลบ" },
-        ]},
-      ],
-    },
-
-    /* ── Dev Tool ── */
+    /* ── 11. Dev Tool ── */
     {
       key: "devtool", label: "Dev Tool", icon: "🛠️",
       children: [

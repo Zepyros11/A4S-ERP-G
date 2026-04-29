@@ -340,6 +340,128 @@
   color: var(--text3);
   margin-top: 1px;
 }
+.panel-hdr-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+#toggleAllCollapseBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+#toggleAllCollapseBtn #toggleAllCollapseIcon {
+  display: inline-block;
+  transition: transform 0.15s;
+  font-size: 11px;
+}
+#toggleAllCollapseBtn.collapsed #toggleAllCollapseIcon {
+  transform: rotate(-90deg);
+}
+
+/* ── LANDING PATH BUTTON ── */
+#landingPathBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  max-width: 240px;
+  white-space: nowrap;
+  overflow: hidden;
+}
+#landingPathBtn #landingPathLabel {
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+/* ── LANDING PICKER MODAL ── */
+.landing-picker-modal {
+  width: 520px;
+  max-width: 92vw;
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+}
+.landing-picker-modal .modal-body {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+  padding: 14px 20px;
+}
+.landing-picker-modal .modal-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+#landingPickerRoleBadge {
+  font-size: 12px;
+  padding: 3px 12px;
+}
+.landing-picker-hint {
+  font-size: 12px;
+  color: var(--text3);
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  background: var(--surface2);
+  border-radius: 8px;
+  border-left: 3px solid var(--accent);
+}
+.landing-picker-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.landing-group-hdr {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text2);
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--border);
+}
+.landing-group-items {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.landing-opt {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.12s;
+  border: 1.5px solid transparent;
+}
+.landing-opt:hover {
+  background: var(--accent-pale);
+}
+.landing-opt.selected {
+  background: var(--accent-pale);
+  border-color: var(--accent);
+}
+.landing-opt-icon {
+  font-size: 14px;
+  flex-shrink: 0;
+  width: 22px;
+  text-align: center;
+}
+.landing-opt-label {
+  flex: 1;
+  font-size: 13px;
+  color: var(--text);
+}
+.landing-opt-check {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--accent);
+}
 
 /* Search */
 .perm-search-wrap {

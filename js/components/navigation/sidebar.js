@@ -418,6 +418,8 @@
     promotions: "view_promotions",
     "promotion-gallery": "view_promotions",
     "daily-sale": "daily_sale_view",
+    "event-work-plan": "evt_wp_view",
+    "cs-work-plan": "cs_wp_view",
     "trip-work-plan": "trip_wp_view",
     automation: "devtool_view",
     wizard: "devtool_manage",

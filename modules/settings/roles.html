@@ -47,7 +47,15 @@
                     <div class="panel-role-name" id="panelTitle">—</div>
                     <div class="panel-role-meta" id="panelMeta">—</div>
                   </div>
-                  <button class="btn btn-primary" data-perm="roles_edit" onclick="saveRole()">💾 บันทึก</button>
+                  <div class="panel-hdr-actions">
+                    <button class="btn btn-outline btn-sm" id="landingPathBtn" onclick="openLandingPicker()" title="หน้าแรกหลัง Login">
+                      🏠 <span id="landingPathLabel">หน้าแรก: ยังไม่ตั้ง</span>
+                    </button>
+                    <button class="btn btn-outline btn-sm" id="toggleAllCollapseBtn" onclick="toggleAllCollapse()" title="ย่อ/ขยายทั้งหมด">
+                      <span id="toggleAllCollapseIcon">▾</span> <span id="toggleAllCollapseLabel">ย่อทั้งหมด</span>
+                    </button>
+                    <button class="btn btn-primary" data-perm="roles_edit" onclick="saveRole()">💾 บันทึก</button>
+                  </div>
                 </div>
 
                 <!-- Search -->
@@ -85,6 +93,27 @@
           loadTopbar("🔐 จัดการ Role & สิทธิ์");
         </script>
         <script src="../../js/components/navigation/sidebar.js"></script>
+      </div>
+    </div>
+
+    <!-- LANDING PAGE PICKER MODAL -->
+    <div class="modal-overlay" id="landingPickerOverlay" onclick="closeLandingPickerBg(event)">
+      <div class="modal landing-picker-modal">
+        <div class="modal-hdr">
+          <div class="modal-title">
+            🏠 หน้าแรกหลัง Login —
+            <span id="landingPickerRoleBadge" class="role-badge"></span>
+          </div>
+          <button class="btn-modal-close" onclick="closeLandingPicker()">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="landing-picker-hint" id="landingPickerHint">เลือกหน้าที่ user role นี้จะเปิดทันทีหลัง login (ถ้าไม่ตั้งจะไปที่ Dashboard)</div>
+          <div class="landing-picker-list" id="landingPickerList"></div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-outline" onclick="clearLandingPath()">ยกเลิกการตั้งค่า</button>
+          <button class="btn btn-outline" onclick="closeLandingPicker()">ปิด</button>
+        </div>
       </div>
     </div>
 

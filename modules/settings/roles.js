@@ -10,6 +10,64 @@ let roleConfigs  = [];
 let selectedRole = null;
 let activePerms  = new Set();
 let editingRoleKey = null; /* null = create mode, roleKey = edit mode */
+let activeLandingPath = null; /* path สำหรับ role ที่เลือกอยู่ */
+
+/* ── LANDING PAGES CONFIG (สำหรับ picker) ──
+   path เก็บแบบ relative จาก root เพื่อให้ login.html ใช้ตรงๆ ได้ */
+const LANDING_PAGES = [
+  { group: "ภาพรวม", icon: "📊", pages: [
+    { label: "Dashboard", icon: "📊", path: "./modules/dashboard/dashboard.html" },
+  ]},
+  { group: "กิจกรรม (Event)", icon: "🗓️", pages: [
+    { label: "Poster Gallery",     icon: "🖼️", path: "./modules/event/event-poster-gallery.html" },
+    { label: "Event Dashboard",    icon: "📊",  path: "./modules/event/events-dashboard.html" },
+    { label: "รายการกิจกรรม",       icon: "🗓️", path: "./modules/event/events-list.html" },
+    { label: "คำขอจัดกิจกรรม",      icon: "📋", path: "./modules/event/event-requests.html" },
+    { label: "งบประมาณ",            icon: "💰", path: "./modules/event/event-budget.html" },
+    { label: "ผู้เข้าร่วม",          icon: "👥", path: "./modules/event/attendees.html" },
+    { label: "ตารางโพสต์ FB",       icon: "📅", path: "./modules/event/media-schedule.html" },
+    { label: "แผนงานกิจกรรม",       icon: "📋", path: "./modules/work-plan/work-plan-list.html?scope=event" },
+  ]},
+  { group: "คลังสินค้า (Stock)", icon: "📦", pages: [
+    { label: "รายการสินค้า",        icon: "✏️", path: "./modules/inventory/products-list.html" },
+    { label: "ความเคลื่อนไหว",      icon: "🔄", path: "./modules/inventory/movements.html" },
+  ]},
+  { group: "เอกสาร", icon: "📄", pages: [
+    { label: "ใบสั่งซื้อ (PO)",      icon: "🛒", path: "./modules/transactions/purchase_order/po-list.html" },
+    { label: "ใบขาย (SO)",          icon: "💰", path: "./modules/transactions/sales_order/so_form.html" },
+    { label: "ใบเบิก (REQ)",         icon: "📋", path: "./modules/transactions/requisition/requisition.html" },
+  ]},
+  { group: "ลูกค้า (CRM)", icon: "🧑", pages: [
+    { label: "Customer Dashboard",  icon: "📊",  path: "./modules/customer/members-dashboard.html" },
+    { label: "ข้อมูลสมาชิก (MLM)",   icon: "👤", path: "./modules/customer/members-list.html" },
+    { label: "MLM Tree View",       icon: "🌳",  path: "./modules/customer/members-tree.html" },
+    { label: "สมาชิกที่เชื่อม LINE", icon: "💬", path: "./modules/customer/line-members.html" },
+  ]},
+  { group: "ซัพพลายเออร์", icon: "🚚", pages: [
+    { label: "ข้อมูล Supplier",     icon: "🚚", path: "./modules/supplier/suppliers.html" },
+  ]},
+  { group: "บริการลูกค้า (CS)", icon: "🎁", pages: [
+    { label: "Daily Sale",           icon: "📊",  path: "./modules/customer-service/daily-sale.html" },
+    { label: "Catalog ประจำเดือน",   icon: "📰", path: "./modules/customer-service/promotion-gallery.html" },
+    { label: "จัดการโปรโมชัน",       icon: "🎁", path: "./modules/customer-service/promotion-list.html" },
+    { label: "แผนงาน CS",           icon: "📋", path: "./modules/work-plan/work-plan-list.html?scope=cs" },
+  ]},
+  { group: "ทริป (Trip)", icon: "✈️", pages: [
+    { label: "แผนงานทริป",          icon: "📋", path: "./modules/work-plan/work-plan-list.html?scope=trip" },
+  ]},
+  { group: "ตั้งค่า", icon: "⚙️", pages: [
+    { label: "ตั้งค่าระบบ",         icon: "⚙️", path: "./modules/settings/settings.html" },
+    { label: "ผู้ใช้งาน",            icon: "👥", path: "./modules/settings/users.html" },
+    { label: "จัดการ Role",         icon: "🔐", path: "./modules/settings/roles.html" },
+  ]},
+];
+
+/* ── lookup map: path → label (สำหรับโชว์ชื่อใน button) ── */
+const _landingPathToLabel = (() => {
+  const map = {};
+  LANDING_PAGES.forEach(g => g.pages.forEach(p => { map[p.path] = p.label; }));
+  return map;
+})();
 
 /* ── SUPABASE ── */
 async function sbFetch(table, opts = {}) {
@@ -90,6 +148,7 @@ function selectRole(roleKey) {
   /* filter out stale permission keys ที่ไม่อยู่ใน tree ปัจจุบัน */
   const validKeys = new Set(AppPermissions.allPermKeys);
   activePerms = new Set((role.permissions || []).filter(k => validKeys.has(k)));
+  activeLandingPath = role.landing_path || null;
 
   renderRoleList();
   document.getElementById("panelEmpty").style.display = "none";
@@ -100,6 +159,72 @@ function selectRole(roleKey) {
 
   document.getElementById("permSearch").value = "";
   renderTree();
+  syncLandingPathBtn();
+}
+
+/* ── LANDING PATH PICKER ── */
+function syncLandingPathBtn() {
+  const lbl = document.getElementById("landingPathLabel");
+  if (!lbl) return;
+  if (activeLandingPath) {
+    const name = _landingPathToLabel[activeLandingPath] || activeLandingPath.replace(/^\.\//, "");
+    lbl.textContent = `หน้าแรก: ${name}`;
+  } else {
+    lbl.textContent = "หน้าแรก: ยังไม่ตั้ง";
+  }
+}
+
+function openLandingPicker() {
+  /* show role name in modal header */
+  const role = roleConfigs.find(r => r.role_key === selectedRole);
+  const badge = document.getElementById("landingPickerRoleBadge");
+  if (badge && role) {
+    badge.className = `role-badge ${role.color || "role-VIEWER"}`;
+    badge.textContent = role.label;
+  }
+  const hint = document.getElementById("landingPickerHint");
+  if (hint && role) {
+    hint.innerHTML = `เลือกหน้าที่ user role <b>${role.label}</b> จะเปิดทันทีหลัง login (ถ้าไม่ตั้งจะไปที่ Dashboard)`;
+  }
+
+  const list = document.getElementById("landingPickerList");
+  list.innerHTML = LANDING_PAGES.map(g => {
+    const items = g.pages.map(p => {
+      const active = p.path === activeLandingPath;
+      return `<div class="landing-opt${active ? " selected" : ""}" onclick="pickLanding('${p.path.replace(/'/g, "\\'")}')">
+        <span class="landing-opt-icon">${p.icon}</span>
+        <span class="landing-opt-label">${p.label}</span>
+        ${active ? '<span class="landing-opt-check">✓</span>' : ''}
+      </div>`;
+    }).join("");
+    return `<div class="landing-group">
+      <div class="landing-group-hdr">${g.icon} ${g.group}</div>
+      <div class="landing-group-items">${items}</div>
+    </div>`;
+  }).join("");
+  document.getElementById("landingPickerOverlay").classList.add("open");
+}
+
+function closeLandingPicker() {
+  document.getElementById("landingPickerOverlay").classList.remove("open");
+}
+
+function closeLandingPickerBg(e) {
+  if (e.target === document.getElementById("landingPickerOverlay")) closeLandingPicker();
+}
+
+function pickLanding(path) {
+  activeLandingPath = path;
+  syncLandingPathBtn();
+  closeLandingPicker();
+  showToast("เลือกหน้าแรกแล้ว — อย่าลืมกดบันทึก", "success");
+}
+
+function clearLandingPath() {
+  activeLandingPath = null;
+  syncLandingPathBtn();
+  closeLandingPicker();
+  showToast("ยกเลิกการตั้งหน้าแรก — อย่าลืมกดบันทึก", "success");
 }
 
 /* ── PERMISSION TREE (3-Level) ── */
@@ -169,6 +294,7 @@ function renderTree(filter = "") {
 
   updateAllCb();
   updateTotalCount();
+  syncToggleAllCollapseBtn();
 }
 
 function toggleCollapseRole(modKey) {
@@ -177,6 +303,7 @@ function toggleCollapseRole(modKey) {
   if (!children) return;
   const collapsed = children.classList.toggle("collapsed");
   if (icon) icon.textContent = collapsed ? "▸" : "▾";
+  syncToggleAllCollapseBtn();
 }
 
 function toggleCollapseSub(subKey) {
@@ -185,6 +312,35 @@ function toggleCollapseSub(subKey) {
   if (!children) return;
   const collapsed = children.classList.toggle("collapsed");
   if (icon) icon.textContent = collapsed ? "▸" : "▾";
+}
+
+/* ── COLLAPSE/EXPAND ALL ── */
+function toggleAllCollapse() {
+  const tree = document.getElementById("permTree");
+  if (!tree) return;
+  const moduleChildren = tree.querySelectorAll('[id^="rchildren-"]');
+  /* ถ้ามี module ใดยังขยายอยู่ → ย่อทั้งหมด, มิฉะนั้น → ขยายทั้งหมด */
+  const anyExpanded = Array.from(moduleChildren).some(el => !el.classList.contains("collapsed"));
+  const collapse = anyExpanded;
+  moduleChildren.forEach(el => {
+    el.classList.toggle("collapsed", collapse);
+    const modKey = el.id.replace(/^rchildren-/, "");
+    const icon = document.getElementById(`rexp-${modKey}`);
+    if (icon) icon.textContent = collapse ? "▸" : "▾";
+  });
+  syncToggleAllCollapseBtn();
+}
+
+function syncToggleAllCollapseBtn() {
+  const btn = document.getElementById("toggleAllCollapseBtn");
+  const lbl = document.getElementById("toggleAllCollapseLabel");
+  const tree = document.getElementById("permTree");
+  if (!btn || !tree) return;
+  const moduleChildren = tree.querySelectorAll('[id^="rchildren-"]');
+  if (!moduleChildren.length) return;
+  const allCollapsed = Array.from(moduleChildren).every(el => el.classList.contains("collapsed"));
+  btn.classList.toggle("collapsed", allCollapsed);
+  if (lbl) lbl.textContent = allCollapsed ? "ขยายทั้งหมด" : "ย่อทั้งหมด";
 }
 
 function filterTree() {
@@ -339,10 +495,17 @@ async function saveRole() {
     await sbFetch("role_configs", {
       method: "PATCH",
       query: `?role_key=eq.${selectedRole}`,
-      body: { permissions: [...activePerms], updated_at: new Date().toISOString() },
+      body: {
+        permissions: [...activePerms],
+        landing_path: activeLandingPath,
+        updated_at: new Date().toISOString(),
+      },
     });
     const role = roleConfigs.find((r) => r.role_key === selectedRole);
-    if (role) role.permissions = [...activePerms];
+    if (role) {
+      role.permissions = [...activePerms];
+      role.landing_path = activeLandingPath;
+    }
     renderRoleList();
     showToast("✅ บันทึกสิทธิ์สำเร็จ!", "success");
   } catch (e) {
@@ -555,7 +718,10 @@ function deleteRoleCard(roleKey, e) {
 
 /* ── KEYBOARD ── */
 window.addEventListener("keydown", (e) => {
-  if (e.key === "Escape") closeAddRole();
+  if (e.key === "Escape") {
+    closeAddRole();
+    closeLandingPicker();
+  }
 });
 
 /* ── TOAST / LOADING ── */
