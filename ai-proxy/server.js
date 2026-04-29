@@ -443,6 +443,9 @@ async function _getLineProfile(userId) {
 
 /* ── Reply template loader (DB-backed with 60s cache) ── */
 const DEFAULT_TEMPLATES = {
+  group_joined:
+    '✅ ผูกกลุ่มกับระบบ A4S-ERP สำเร็จ\n\n' +
+    '📢 พร้อมส่ง promote กิจกรรมเข้ากลุ่มนี้แล้ว — ตั้งกำหนดการได้ที่หน้า "ตารางโพสต์ LINE"',
   welcome:
     'ยินดีต้อนรับสู่ A4S 🎉\n\n' +
     '📱 สมาชิก: ส่ง "รหัสสมาชิก" (ตัวเลข 5-6 หลัก)\n' +
@@ -532,7 +535,7 @@ app.post('/line/webhook', async (req, res) => {
         await _sbUpsertLineGroup(groupId, fields);
         if (ev.type === 'join') {
           console.log(`[LINE webhook] join group ${groupId.slice(0, 10)}...`);
-          await _lineReply(ev.replyToken, '✅ ผูกกลุ่มกับระบบ A4S-ERP สำเร็จ\n\n📢 พร้อมส่ง promote กิจกรรมเข้ากลุ่มนี้แล้ว — ตั้งกำหนดการได้ที่หน้า "ตารางโพสต์ LINE"');
+          await _lineReply(ev.replyToken, await _tpl('group_joined'));
           continue;
         }
       } catch (e) {

@@ -538,6 +538,24 @@ window.setDefaultGroup = async function (id) {
   showLoading(false);
 };
 
+window.openDiagInNewTab = function () {
+  const proxyBase = (localStorage.getItem("erp_proxy_url") || "").replace(/\/+$/, "");
+  if (!proxyBase) return showToast("ยังไม่ได้ตั้ง erp_proxy_url", "error");
+  window.open(`${proxyBase}/line/diag`, "_blank");
+};
+
+window.copyDiagOutput = async function () {
+  const out = document.getElementById("lpDiagOutput");
+  const txt = out?.textContent || "";
+  if (!txt) return showToast("ยังไม่มีผลลัพธ์ — กดปุ่ม Diagnostic ก่อน", "error");
+  try {
+    await navigator.clipboard.writeText(txt);
+    showToast("Copy แล้ว ✅", "success");
+  } catch {
+    showToast("Copy ไม่สำเร็จ", "error");
+  }
+};
+
 window.runLpDiag = async function () {
   const out = document.getElementById("lpDiagOutput");
   if (!out) return;

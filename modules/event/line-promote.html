@@ -257,10 +257,21 @@
             🔧 ถ้าไม่ทำงาน เช็ค: (1) Render deploy โค้ดใหม่แล้วยัง? (2) Webhook URL ตั้งใน LINE Developers Console? (3) รัน migration 051 แล้วยัง?
           </div>
 
-          <button class="btn btn-secondary" onclick="window.runLpDiag()" style="margin-top:8px;width:100%">
-            🩺 ตรวจสอบสถานะระบบ (Diagnostic)
-          </button>
-          <pre id="lpDiagOutput" style="display:none;background:#0d1117;color:#e6edf3;padding:12px;border-radius:8px;font-size:11px;line-height:1.5;margin-top:8px;max-height:280px;overflow:auto;font-family:'IBM Plex Mono',monospace;white-space:pre-wrap;word-break:break-all"></pre>
+          <div style="display:flex;gap:6px;margin-top:8px">
+            <button class="btn btn-secondary" onclick="window.runLpDiag()" style="flex:1">
+              🩺 ตรวจสอบสถานะระบบ (Diagnostic)
+            </button>
+            <button class="btn btn-secondary" onclick="window.openDiagInNewTab()"
+              title="เปิดผลลัพธ์ในแท็บใหม่ (อ่านง่ายกว่า)" style="white-space:nowrap">
+              ↗ Tab ใหม่
+            </button>
+            <button class="btn btn-secondary" onclick="window.copyDiagOutput()"
+              title="copy ข้อความ diagnostic" id="btnCopyDiag" style="white-space:nowrap">
+              📋 Copy
+            </button>
+          </div>
+          <pre id="lpDiagOutput"
+            style="display:none;background:#0d1117;color:#e6edf3;padding:14px;border-radius:8px;font-size:12px;line-height:1.6;margin-top:8px;min-height:340px;max-height:60vh;height:340px;overflow:auto;font-family:'IBM Plex Mono',monospace;white-space:pre-wrap;word-break:break-word;resize:vertical;width:100%;box-sizing:border-box"></pre>
         </div>
         <div class="med-modal-footer">
           <button class="btn btn-secondary" onclick="window.closeGroupsModal()">ปิด</button>
