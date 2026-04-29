@@ -313,9 +313,13 @@
             💡 ตรวจสอบสถานะ env variables, ตารางใน Supabase, และความพร้อมของระบบ webhook + cron<br/>
             <span style="font-size:11px;opacity:.8">ครั้งแรกอาจรอ ~30 วินาที ถ้า Render service หลับอยู่</span>
           </div>
-          <div style="display:flex;gap:6px;margin-bottom:10px">
-            <button class="btn btn-primary" onclick="window.runLpDiag()" style="flex:1">
+          <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">
+            <button class="btn btn-primary" onclick="window.runLpDiag()" style="flex:1;min-width:120px">
               🔄 รีเฟรช
+            </button>
+            <button class="btn btn-primary" onclick="window.triggerCronNow()" style="flex:1;min-width:120px;background:linear-gradient(135deg,#f59e0b,#d97706)"
+              title="เรียก /cron/line-promote ทันที — ส่งโพสต์ที่ scheduled_at ผ่านแล้ว (ภายใน 15 นาทีข้างหน้า)">
+              🚀 ทดสอบ cron ทันที
             </button>
             <button class="btn btn-secondary" onclick="window.openDiagInNewTab()"
               title="เปิดผลลัพธ์ JSON ในแท็บใหม่" style="white-space:nowrap">

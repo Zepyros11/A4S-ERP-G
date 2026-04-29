@@ -383,6 +383,7 @@ async function saveUser() {
     phone: document.getElementById("fPhone")?.value.trim() || null,
     role: cleanRoles[0],          /* backward compat — role หลัก */
     roles: cleanRoles,            /* รายการ role ทั้งหมด */
+    custom_permissions: null,     /* perms มาจาก roles อย่างเดียว — เคลียร์ของเก่าทิ้ง */
     is_active: document.getElementById("fStatus").value === "true",
     ...(password ? { password_hash: await hashPassword(password) } : {}),
   };

@@ -570,16 +570,28 @@ window.saveEventGroups = async function () {
   btn.textContent = "⏳ กำลังบันทึก...";
   showLoading(true);
   try {
+    // 1) Update events.line_group_ids
     await sbFetch("events", `?event_id=eq.${currentEventId}`, {
       method: "PATCH",
       body: { line_group_ids: ids.length ? ids : null },
     });
     currentEvent.line_group_ids = ids.length ? ids : null;
-    // also update cached row in allEvents
     const evIdx = allEvents.findIndex((e) => e.event_id === currentEventId);
     if (evIdx >= 0) allEvents[evIdx].line_group_ids = currentEvent.line_group_ids;
-    showToast(`บันทึก ${ids.length} กลุ่มแล้ว ✅`, "success");
+
+    // 2) Auto-sync SCHEDULED posts ของ event นี้ให้ตรงกับกลุ่มที่เลือก
+    const syncResult = await _syncScheduledPostsToGroups(ids);
+
+    let msg = `บันทึก ${ids.length} กลุ่มแล้ว ✅`;
+    if (syncResult.moved || syncResult.added || syncResult.removed) {
+      msg += `\n🔄 sync posts: เพิ่ม ${syncResult.added}, ลบ ${syncResult.removed} รายการ`;
+    }
+    showToast(msg, "success");
+
+    allPosts = await fetchPosts(currentEventId);
     renderEventHeader();
+    updateStats();
+    renderTable();
     window.closeEventGroupsModal();
   } catch (e) {
     showToast("บันทึกไม่สำเร็จ: " + e.message, "error");
@@ -589,6 +601,81 @@ window.saveEventGroups = async function () {
     showLoading(false);
   }
 };
+
+// Sync scheduled posts ของ event ให้ตรงกับ target groups ใหม่
+// Strategy:
+//   1. Group posts ทั้งหมดเป็น "templates" (offset + time + message) ก่อนทำอะไร
+//   2. สำหรับแต่ละ template — ดู groups ที่ยังไม่ครอบใน new ids → insert
+//   3. ลบ posts ที่ target_id ไม่อยู่ใน new ids
+async function _syncScheduledPostsToGroups(newGroupIds) {
+  const result = { added: 0, removed: 0, moved: 0 };
+  if (!currentEventId) return result;
+
+  // โหลด scheduled posts ของ event นี้
+  const scheduled = (await sbFetch(
+    "line_scheduled_posts",
+    `?event_id=eq.${currentEventId}&status=eq.SCHEDULED&select=*`,
+  )) || [];
+  if (!scheduled.length) return result;
+
+  const newIdsSet = new Set(newGroupIds);
+
+  // Step 1: Group เป็น templates (ใช้ posts ทั้งหมดเพื่อ backup template ก่อนลบ)
+  const templates = {};
+  scheduled.forEach((p) => {
+    const key = `${p.promote_offset == null ? "null" : p.promote_offset}|${p.scheduled_at}|${(p.message_text || "").slice(0, 200)}`;
+    if (!templates[key]) {
+      templates[key] = {
+        promote_offset: p.promote_offset,
+        scheduled_at: p.scheduled_at,
+        message_text: p.message_text,
+        existing_target_ids: new Set(),
+      };
+    }
+    templates[key].existing_target_ids.add(p.target_id);
+  });
+
+  // Step 2: Insert posts ใหม่สำหรับ groups ที่ยังไม่ครอบในแต่ละ template
+  const session = (() => {
+    try {
+      return JSON.parse(localStorage.getItem("erp_session") || sessionStorage.getItem("erp_session") || "{}");
+    } catch { return {}; }
+  })();
+
+  const newRows = [];
+  for (const tpl of Object.values(templates)) {
+    for (const gid of newGroupIds) {
+      if (!tpl.existing_target_ids.has(gid)) {
+        const grp = allGroups.find((g) => g.group_id === gid);
+        newRows.push({
+          event_id: currentEventId,
+          target_type: "group",
+          target_id: gid,
+          channel_id: grp?.channel_id || null,
+          promote_offset: tpl.promote_offset,
+          message_text: tpl.message_text,
+          scheduled_at: tpl.scheduled_at,
+          status: "SCHEDULED",
+          created_by: session?.user_id || null,
+        });
+      }
+    }
+  }
+  if (newRows.length) {
+    await sbFetch("line_scheduled_posts", "", { method: "POST", body: newRows });
+    result.added = newRows.length;
+  }
+
+  // Step 3: ลบ posts ที่ target_id ไม่อยู่ใน newGroupIds (หลัง insert ใหม่แล้วเพื่อความปลอดภัย)
+  const toDelete = scheduled.filter((p) => !newIdsSet.has(p.target_id));
+  if (toDelete.length) {
+    const ids = toDelete.map((p) => p.id).join(",");
+    await sbFetch("line_scheduled_posts", `?id=in.(${ids})`, { method: "DELETE" });
+    result.removed = toDelete.length;
+  }
+
+  return result;
+}
 
 // helper: หากลุ่มที่จะส่งสำหรับ event ปัจจุบัน — ใช้ event.line_group_ids ก่อน, fallback default
 function _resolveTargetGroupsForEvent() {
@@ -858,6 +945,47 @@ window.setDefaultGroup = async function (id) {
     renderGroupsList();
   } catch (e) {
     showToast("ตั้ง default ไม่ได้: " + e.message, "error");
+  }
+  showLoading(false);
+};
+
+window.triggerCronNow = async function () {
+  const proxyBase = (localStorage.getItem("erp_proxy_url") || "").replace(/\/+$/, "");
+  if (!proxyBase) return showToast("ยังไม่ได้ตั้ง erp_proxy_url", "error");
+  const out = document.getElementById("lpDiagOutput");
+  if (out) out.textContent = "🚀 กำลัง trigger cron /cron/line-promote...\n(ครั้งแรกอาจรอ ~30s ถ้า Render หลับอยู่)";
+  showLoading(true);
+  try {
+    const r = await fetch(`${proxyBase}/cron/line-promote`, { method: "POST" });
+    const data = await r.json();
+    let txt = `🚀 Cron triggered at ${new Date().toLocaleTimeString("th-TH")}\n\n`;
+    txt += `📊 Summary:\n`;
+    txt += `  Processed: ${data.processed ?? 0}\n`;
+    txt += `  ✅ Sent:   ${data.sent ?? 0}\n`;
+    txt += `  ❌ Failed: ${data.failed ?? 0}\n`;
+    if (data.message) txt += `  💬 ${data.message}\n`;
+    if (data.details?.length) {
+      txt += `\n📋 Details:\n`;
+      data.details.forEach((d) => {
+        txt += `  • Post #${d.id} → ${d.target_type}/${(d.target_id || "").slice(0, 16)} → ${d.status}`;
+        if (d.error) txt += ` (${d.error})`;
+        txt += `\n`;
+      });
+    }
+    if (out) out.textContent = txt;
+    if (data.sent > 0) showToast(`ส่งแล้ว ${data.sent} โพสต์ ✅`, "success");
+    else if (data.failed > 0) showToast(`ส่งล้มเหลว ${data.failed} โพสต์`, "error");
+    else showToast("ไม่มีโพสต์ที่ถึงเวลาส่ง (scheduled_at > now+15min)", "info");
+
+    // refresh posts list
+    if (currentEventId) {
+      allPosts = await fetchPosts(currentEventId);
+      updateStats();
+      renderTable();
+    }
+  } catch (e) {
+    if (out) out.textContent = `❌ trigger cron ไม่สำเร็จ: ${e.message}`;
+    showToast("ไม่สำเร็จ: " + e.message, "error");
   }
   showLoading(false);
 };
