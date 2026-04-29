@@ -1,230 +1,364 @@
 /* =========================================================
-   media-schedule.css — Event Media Module
+   media-schedule.css — FB Post Scheduler
 ========================================================= */
-
-/* ── MEDIA TYPE BADGE ── */
-.media-type-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 3px 10px;
-  border-radius: 20px;
-  font-size: 12px;
-  font-weight: 600;
-}
-.mtype-PHOTO {
-  background: #dbeafe;
-  color: #1d4ed8;
-}
-.mtype-VIDEO {
-  background: #fce7f3;
-  color: #be185d;
-}
-.mtype-GRAPHIC {
-  background: #ede9fe;
-  color: #7c3aed;
-}
-.mtype-LIVE {
-  background: #fee2e2;
-  color: #dc2626;
-}
-.mtype-DOCUMENT {
-  background: #f0fdf4;
-  color: #15803d;
-}
-.mtype-OTHER {
-  background: #f3f4f6;
-  color: #6b7280;
-}
-
-/* ── STATUS BADGE ── */
-.media-status-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 3px 10px;
-  border-radius: 20px;
-  font-size: 12px;
-  font-weight: 600;
-}
-.mstatus-TODO {
-  background: #f3f4f6;
-  color: #6b7280;
-}
-.mstatus-INPROGRESS {
-  background: #fef3c7;
-  color: #d97706;
-}
-.mstatus-DONE {
-  background: #d1fae5;
-  color: #059669;
-}
-.mstatus-CANCELLED {
-  background: #fee2e2;
-  color: #dc2626;
-}
-
-/* ── DUE DATE ── */
-.due-overdue {
-  color: #dc2626;
-  font-weight: 700;
-}
-.due-today {
-  color: #d97706;
-  font-weight: 700;
-}
-.due-normal {
-  color: var(--text2);
-}
 
 /* ── MEDIA MODAL ── */
 .med-modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.55);
-  backdrop-filter: blur(4px);
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
   display: none;
   align-items: center;
   justify-content: center;
   z-index: 400;
+  padding: 20px;
 }
 .med-modal-overlay.open {
   display: flex;
+  animation: medFade 0.2s ease;
+}
+@keyframes medFade {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 .med-modal {
-  background: var(--surface);
-  border-radius: 16px;
+  background: var(--surface, #fff);
+  border-radius: 18px;
   width: 580px;
-  max-width: 95vw;
-  max-height: 90vh;
+  max-width: 100%;
+  max-height: 92vh;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
-  animation: medPop 0.2s ease;
+  box-shadow:
+    0 24px 70px rgba(15, 23, 42, 0.35),
+    0 2px 8px rgba(15, 23, 42, 0.08);
+  overflow: hidden;
+  animation: medPop 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.med-modal-fb {
+  width: 720px;
+}
+@media (max-width: 768px) {
+  .med-modal-fb { width: 100%; }
 }
 @keyframes medPop {
-  from {
-    transform: scale(0.95);
-    opacity: 0;
-  }
-  to {
-    transform: scale(1);
-    opacity: 1;
-  }
+  from { transform: scale(0.92); opacity: 0; }
+  to   { transform: scale(1);    opacity: 1; }
 }
+
+/* ── HEADER (gradient) ── */
 .med-modal-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 20px;
-  border-bottom: 1px solid var(--border);
+  padding: 18px 24px;
+  background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
+  color: #fff;
+  position: relative;
   flex-shrink: 0;
+  border-bottom: 0;
 }
+.med-modal-header::after {
+  content: "";
+  position: absolute;
+  top: -40px;
+  right: -40px;
+  width: 140px;
+  height: 140px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+  pointer-events: none;
+}
+.med-modal-header > div {
+  font-size: 16px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.2px;
+  z-index: 1;
+}
+.med-modal-header .btn-icon {
+  background: rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  color: #fff;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.15s;
+  z-index: 1;
+}
+.med-modal-header .btn-icon:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: rotate(90deg);
+}
+
+/* ── BODY ── */
 .med-modal-body {
   flex: 1;
   overflow-y: auto;
-  padding: 20px;
+  padding: 22px 24px;
   display: flex;
   flex-direction: column;
   gap: 14px;
+  background: var(--surface2, #f8fafc);
 }
+.med-modal-body::-webkit-scrollbar {
+  width: 8px;
+}
+.med-modal-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+.med-modal-body::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+/* ── FOOTER (polished buttons) ── */
 .med-modal-footer {
-  padding: 14px 20px;
-  border-top: 1px solid var(--border);
+  padding: 14px 24px;
+  border-top: 1px solid var(--border, #e2e8f0);
+  background: var(--surface, #fff);
   display: flex;
-  gap: 8px;
+  gap: 10px;
   justify-content: flex-end;
   flex-shrink: 0;
+}
+.med-modal-footer .btn {
+  padding: 9px 20px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  border: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.med-modal-footer .btn-secondary {
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+}
+.med-modal-footer .btn-secondary:hover {
+  background: #e2e8f0;
+}
+.med-modal-footer .btn-primary {
+  background: linear-gradient(135deg, #1e40af, #3b82f6);
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.35);
+}
+.med-modal-footer .btn-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(59, 130, 246, 0.45);
+}
+.med-modal-footer .btn-primary:active {
+  transform: translateY(0);
+}
+.med-modal-footer .btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
 }
 
 /* ── FORM GRID ── */
 .med-form-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  gap: 14px 16px;
 }
 .med-form-grid .mspan2 {
   grid-column: span 2;
 }
 
-/* ── FILE UPLOAD ── */
-.med-upload-area {
-  border: 2px dashed var(--border2);
-  border-radius: 10px;
-  padding: 16px;
-  text-align: center;
-  cursor: pointer;
-  background: var(--surface2);
-  transition: border-color 0.15s;
-  font-size: 13px;
-  color: var(--text3);
-}
-.med-upload-area:hover {
-  border-color: var(--accent);
-}
-
-/* ── STATS ── */
-.med-stats {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-  gap: 12px;
-  margin-bottom: 16px;
-}
-.med-stat-card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 12px 14px;
+/* ── FORM ELEMENTS (scoped to FB modal) ── */
+.med-modal-body .form-group {
   display: flex;
   flex-direction: column;
+  gap: 6px;
+}
+.med-modal-body .form-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text2, #475569);
+  letter-spacing: 0.2px;
+  display: flex;
+  align-items: center;
   gap: 4px;
 }
-.med-stat-label {
-  font-size: 11px;
-  color: var(--text3);
-  font-weight: 600;
-  text-transform: uppercase;
+.med-modal-body .form-input {
+  padding: 10px 13px;
+  border: 1.5px solid var(--border, #e2e8f0);
+  border-radius: 10px;
+  font-size: 13px;
+  font-family: inherit;
+  background: #fff;
+  color: var(--text, #0f172a);
+  transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+  width: 100%;
+  box-sizing: border-box;
 }
-.med-stat-value {
-  font-size: 22px;
-  font-weight: 800;
-  font-family: "IBM Plex Mono", monospace;
+.med-modal-body .form-input:hover {
+  border-color: #cbd5e1;
+}
+.med-modal-body .form-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+  background: #fff;
+}
+.med-modal-body textarea.form-input {
+  resize: vertical;
+  min-height: 80px;
+  line-height: 1.5;
+}
+.med-modal-body select.form-input {
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 34px;
+}
+.med-modal-body input[type="date"].form-input,
+.med-modal-body input[type="time"].form-input {
+  font-variant-numeric: tabular-nums;
 }
 
-/* ── FILE LINK ── */
-.file-link {
+/* ── FB HINT BOX ── */
+.fb-hint {
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--text2);
+  background: linear-gradient(135deg, #fef9c3 0%, #fef3c7 100%);
+  border: 1px solid #fde68a;
+  padding: 10px 14px;
+  border-radius: 8px;
+  word-break: keep-all;
+}
+.fb-hint b {
+  color: #92400e;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* ── FILE UPLOAD ── */
+.med-upload-area {
+  border: 2px dashed #cbd5e1;
+  border-radius: 12px;
+  padding: 22px 16px;
+  text-align: center;
+  cursor: pointer;
+  background: #fff;
+  transition: border-color 0.15s, background 0.15s, transform 0.15s;
+  font-size: 13px;
+  color: var(--text2, #475569);
+  font-weight: 500;
+}
+.med-upload-area:hover {
+  border-color: #3b82f6;
+  background: #eff6ff;
+  color: #1e40af;
+}
+.med-upload-area:active {
+  transform: scale(0.99);
+}
+
+/* ── FB STATUS BADGE ── */
+.fb-status-badge {
   display: inline-flex;
   align-items: center;
   gap: 4px;
+  padding: 3px 10px;
+  border-radius: 20px;
   font-size: 12px;
-  color: var(--accent);
-  text-decoration: none;
-  padding: 2px 8px;
-  border-radius: 6px;
-  background: var(--surface2);
-  transition: background 0.15s;
+  font-weight: 600;
 }
-.file-link:hover {
-  background: var(--border);
+.fbstat-DRAFT     { background: #f3f4f6; color: #6b7280; }
+.fbstat-SCHEDULED { background: #dbeafe; color: #1d4ed8; }
+.fbstat-PUBLISHED { background: #d1fae5; color: #059669; }
+.fbstat-FAILED    { background: #fee2e2; color: #dc2626; }
+.fbstat-CANCELLED { background: #fef3c7; color: #92400e; }
+
+/* ── FB FILES PREVIEW ── */
+.fb-files-preview {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+  gap: 8px;
+  margin-top: 8px;
+}
+.fb-files-preview:empty {
+  display: none;
+}
+.fb-file-item {
+  position: relative;
+  aspect-ratio: 1;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  color: var(--text3);
+}
+.fb-file-item img,
+.fb-file-item video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.fb-file-item .fb-file-remove {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.65);
+  color: white;
+  border: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  line-height: 1;
+}
+.fb-file-item .fb-file-remove:hover {
+  background: var(--danger);
+}
+.fb-file-name {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(0, 0, 0, 0.65);
+  color: white;
+  padding: 2px 6px;
+  font-size: 10px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-/* ── PROGRESS BAR ── */
-.med-progress-wrap {
-  background: var(--border);
-  border-radius: 99px;
-  height: 6px;
+/* ── FB CAPTION CELL ── */
+.fb-caption-cell {
+  max-width: 320px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
   overflow: hidden;
-  margin-top: 4px;
-}
-.med-progress-bar {
-  height: 100%;
-  border-radius: 99px;
-  background: var(--accent);
-  transition: width 0.3s;
-}
-.med-progress-bar.done {
-  background: var(--success);
-}
-.med-progress-bar.over80 {
-  background: var(--warning);
+  text-overflow: ellipsis;
+  font-size: 13px;
+  line-height: 1.4;
+  white-space: pre-wrap;
 }

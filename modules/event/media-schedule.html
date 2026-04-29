@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>ตารางงาน Media — A4S-ERP</title>
+    <title>ตารางโพสต์ FB — A4S-ERP</title>
     <link
       href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
       rel="stylesheet"
@@ -22,20 +22,6 @@
       <div id="sidebar-container"></div>
       <div class="content-area">
         <div class="page">
-          <!-- PAGE HEADER -->
-          <div
-            style="
-              display: flex;
-              align-items: center;
-              justify-content: space-between;
-              margin-bottom: 20px;
-            "
-          >
-            <div style="font-size: 20px; font-weight: 700">
-              🎬 ตารางงาน Media
-            </div>
-          </div>
-
           <!-- EVENT SELECTOR -->
           <div
             style="
@@ -46,7 +32,7 @@
               display: flex;
               align-items: center;
               gap: 12px;
-              margin-bottom: 20px;
+              margin-bottom: 16px;
             "
           >
             <span
@@ -68,151 +54,98 @@
               <option value="">-- เลือกกิจกรรม --</option>
             </select>
             <div id="mediaActionBtns" style="display: none">
-              <button class="btn btn-primary" data-perm="media_upload" onclick="window.openMedModal()">
-                ＋ เพิ่มงาน Media
+              <button
+                id="btnAddFbPost"
+                class="btn btn-primary"
+                data-perm="media_fb_create"
+                onclick="window.openFbModal()"
+              >
+                ＋ สร้างโพสต์ FB
               </button>
             </div>
           </div>
 
-          <!-- STATS -->
-          <div id="medStatsSection" style="display: none">
-            <div class="med-stats">
-              <div class="med-stat-card">
-                <div class="med-stat-label">งานทั้งหมด</div>
-                <div class="med-stat-value" id="statTotal">0</div>
-              </div>
-              <div class="med-stat-card">
-                <div class="med-stat-label">เสร็จแล้ว</div>
-                <div
-                  class="med-stat-value"
-                  id="statDone"
-                  style="color: var(--success)"
-                >
-                  0
+          <!-- ── FB SCHEDULE ── -->
+          <div id="fbContent" style="display: none">
+            <!-- FB STATS -->
+            <div class="stats-row">
+              <div class="stat-card">
+                <div class="stat-icon">📊</div>
+                <div>
+                  <div class="stat-value" id="fbStatTotal">0</div>
+                  <div class="stat-label">โพสต์ทั้งหมด</div>
                 </div>
               </div>
-              <div class="med-stat-card">
-                <div class="med-stat-label">กำลังทำ</div>
-                <div
-                  class="med-stat-value"
-                  id="statInprogress"
-                  style="color: var(--warning)"
-                >
-                  0
+              <div class="stat-card">
+                <div class="stat-icon">📅</div>
+                <div>
+                  <div class="stat-value" id="fbStatScheduled" style="color: var(--accent)">0</div>
+                  <div class="stat-label">รอเผยแพร่</div>
                 </div>
               </div>
-              <div class="med-stat-card">
-                <div class="med-stat-label">เกิน Deadline</div>
-                <div
-                  class="med-stat-value"
-                  id="statOverdue"
-                  style="color: var(--danger)"
-                >
-                  0
+              <div class="stat-card">
+                <div class="stat-icon">✅</div>
+                <div>
+                  <div class="stat-value" id="fbStatPublished" style="color: var(--success)">0</div>
+                  <div class="stat-label">เผยแพร่แล้ว</div>
+                </div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-icon">❌</div>
+                <div>
+                  <div class="stat-value" id="fbStatFailed" style="color: var(--danger)">0</div>
+                  <div class="stat-label">ล้มเหลว</div>
                 </div>
               </div>
             </div>
-            <!-- Overall Progress -->
-            <div
-              style="
-                background: var(--surface);
-                border: 1px solid var(--border);
-                border-radius: 10px;
-                padding: 14px 16px;
-                margin-bottom: 16px;
-              "
-            >
-              <div
-                style="
-                  display: flex;
-                  justify-content: space-between;
-                  font-size: 13px;
-                  margin-bottom: 6px;
-                "
-              >
-                <span style="font-weight: 600">ความคืบหน้าโดยรวม</span>
-                <span
-                  id="progressPct"
-                  style="font-family: &quot;IBM Plex Mono&quot;, monospace"
-                  >0%</span
-                >
-              </div>
-              <div class="med-progress-wrap">
-                <div
-                  class="med-progress-bar"
-                  id="progressBar"
-                  style="width: 0%"
-                ></div>
-              </div>
-            </div>
-          </div>
 
-          <!-- TOOLBAR -->
-          <div id="medToolbar" style="display: none">
-            <div class="toolbar">
-              <div class="search-wrap">
-                <span class="search-icon">🔍</span>
-                <input
-                  class="search-input"
-                  id="searchInput"
-                  placeholder="ค้นหาชื่องาน / ผู้รับผิดชอบ..."
-                />
+            <!-- FB TOOLBAR + TABLE -->
+            <div class="table-card">
+              <div class="toolbar">
+                <div class="search-wrap">
+                  <span class="search-icon">🔍</span>
+                  <input class="search-input" id="fbSearchInput" placeholder="ค้นหา caption..." />
+                </div>
+                <select class="filter-select" id="fbFilterStatus">
+                  <option value="">⚪ ทุกสถานะ</option>
+                  <option value="DRAFT">📝 Draft</option>
+                  <option value="SCHEDULED">📅 Scheduled</option>
+                  <option value="PUBLISHED">✅ Published</option>
+                  <option value="FAILED">❌ Failed</option>
+                  <option value="CANCELLED">🚫 Cancelled</option>
+                </select>
+                <select class="filter-select" id="fbFilterPage">
+                  <option value="">⚪ ทุกเพจ</option>
+                </select>
               </div>
-              <select class="filter-select" id="filterType">
-                <option value="">⚪ ทุกประเภท</option>
-                <option value="PHOTO">📷 Photo</option>
-                <option value="VIDEO">🎥 Video</option>
-                <option value="GRAPHIC">🎨 Graphic</option>
-                <option value="LIVE">🔴 Live</option>
-                <option value="DOCUMENT">📄 Document</option>
-                <option value="OTHER">📁 Other</option>
-              </select>
-              <select class="filter-select" id="filterStatus">
-                <option value="">⚪ ทุกสถานะ</option>
-                <option value="TODO">📋 Todo</option>
-                <option value="INPROGRESS">⚡ In Progress</option>
-                <option value="DONE">✅ Done</option>
-                <option value="CANCELLED">❌ Cancelled</option>
-              </select>
-              <select class="filter-select" id="filterAssigned">
-                <option value="">⚪ ทุกคน</option>
-              </select>
-            </div>
-          </div>
 
-          <!-- TABLE -->
-          <div id="medTableSection" style="display: none">
-            <div class="content-wrap">
-              <div class="table-card">
-                <div class="table-hdr">
-                  <div class="table-title">🎬 รายการงาน Media</div>
-                  <div class="table-count" id="medCount">0 งาน</div>
-                </div>
-                <div class="table-wrap">
-                  <table class="data-table">
-                    <thead>
-                      <tr>
-                        <th>ชื่องาน</th>
-                        <th class="col-center">ประเภท</th>
-                        <th class="col-center">ผู้รับผิดชอบ</th>
-                        <th class="col-center">Deadline</th>
-                        <th class="col-center">สถานะ</th>
-                        <th class="col-center">ไฟล์</th>
-                        <th class="col-center">จัดการ</th>
-                      </tr>
-                    </thead>
-                    <tbody id="medTableBody">
-                      <tr>
-                        <td colspan="7">
-                          <div class="empty-state">
-                            <div class="empty-icon">🎬</div>
-                            <div class="empty-text">ยังไม่มีงาน Media</div>
-                          </div>
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
+              <div class="table-hdr">
+                <div class="table-title">📅 รายการโพสต์ FB</div>
+                <div class="table-count" id="fbCount">0 โพสต์</div>
+              </div>
+              <div class="table-wrap">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>Caption</th>
+                      <th class="col-center">เพจ</th>
+                      <th class="col-center">รูป/วิดีโอ</th>
+                      <th class="col-center">เวลาเผยแพร่</th>
+                      <th class="col-center">สถานะ</th>
+                      <th class="col-center">จัดการ</th>
+                    </tr>
+                  </thead>
+                  <tbody id="fbTableBody">
+                    <tr>
+                      <td colspan="6">
+                        <div class="empty-state">
+                          <div class="empty-icon">📅</div>
+                          <div class="empty-text">ยังไม่มีโพสต์ที่ schedule</div>
+                        </div>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>
@@ -220,118 +153,76 @@
           <!-- No Event State -->
           <div id="noEventState">
             <div class="empty-state" style="min-height: 300px">
-              <div class="empty-icon">🎬</div>
-              <div class="empty-text">เลือกกิจกรรมเพื่อดูตารางงาน Media</div>
+              <div class="empty-icon">📅</div>
+              <div class="empty-text">เลือกกิจกรรมเพื่อดูตารางโพสต์ FB</div>
             </div>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- ── MEDIA MODAL ── -->
-    <div class="med-modal-overlay" id="medModalOverlay">
-      <div class="med-modal">
+    <!-- ── FB POST COMPOSE MODAL ── -->
+    <div class="med-modal-overlay" id="fbModalOverlay">
+      <div class="med-modal med-modal-fb">
         <div class="med-modal-header">
-          <div style="font-weight: 700; font-size: 15px" id="medModalTitle">
-            🎬 เพิ่มงาน Media
+          <div style="font-weight: 700; font-size: 15px" id="fbModalTitle">
+            📅 สร้างโพสต์ FB
           </div>
-          <button class="btn-icon" onclick="window.closeMedModal()">✕</button>
+          <button class="btn-icon" onclick="window.closeFbModal()">✕</button>
         </div>
         <div class="med-modal-body">
-          <input type="hidden" id="fMedId" />
+          <input type="hidden" id="fFbId" />
           <div class="med-form-grid">
             <div class="form-group mspan2">
-              <label class="form-label"
-                >ชื่องาน <span style="color: var(--danger)">*</span></label
-              >
-              <input
-                class="form-input"
-                id="fMedTitle"
-                placeholder="ชื่องาน Media"
-              />
-            </div>
-
-            <div class="form-group">
-              <label class="form-label">ประเภท</label>
-              <select class="form-input" id="fMedType">
-                <option value="PHOTO">📷 Photo</option>
-                <option value="VIDEO">🎥 Video</option>
-                <option value="GRAPHIC">🎨 Graphic</option>
-                <option value="LIVE">🔴 Live</option>
-                <option value="DOCUMENT">📄 Document</option>
-                <option value="OTHER">📁 Other</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label class="form-label">สถานะ</label>
-              <select class="form-input" id="fMedStatus">
-                <option value="TODO">📋 Todo</option>
-                <option value="INPROGRESS">⚡ In Progress</option>
-                <option value="DONE">✅ Done</option>
-                <option value="CANCELLED">❌ Cancelled</option>
-              </select>
-            </div>
-
-            <div class="form-group">
-              <label class="form-label">ผู้รับผิดชอบ</label>
-              <select class="form-input" id="fMedAssigned">
-                <option value="">-- ไม่ระบุ --</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label class="form-label">Deadline</label>
-              <input type="date" class="form-input" id="fMedDueDate" />
+              <label class="form-label">เพจ <span style="color: var(--danger)">*</span></label>
+              <select class="form-input" id="fFbPage"></select>
             </div>
 
             <div class="form-group mspan2">
-              <label class="form-label">รายละเอียด</label>
-              <textarea
-                class="form-input"
-                id="fMedDetail"
-                rows="3"
-                placeholder="รายละเอียดงาน..."
-              ></textarea>
+              <label class="form-label">
+                Caption <span style="color: var(--danger)">*</span>
+                <span style="font-weight:400;color:var(--text3);margin-left:6px;font-size:11px"
+                  id="fFbCharCount">0 ตัวอักษร</span>
+              </label>
+              <textarea class="form-input" id="fFbCaption" rows="5"
+                placeholder="ข้อความที่จะโพสต์...&#10;ใช้ # tag, @ mention, emoji ได้"
+                oninput="window.fbUpdateCharCount()"></textarea>
             </div>
 
-            <!-- File Upload -->
             <div class="form-group mspan2">
-              <label class="form-label">แนบไฟล์</label>
-              <div
-                class="med-upload-area"
-                onclick="document.getElementById('fMedFile').click()"
-              >
-                📎 คลิกเพื่ออัปโหลดไฟล์ (รูป / วิดีโอ / PDF)
+              <label class="form-label">รูป/วิดีโอ (เลือกได้หลายไฟล์)</label>
+              <div class="med-upload-area" onclick="document.getElementById('fFbFiles').click()">
+                📎 คลิกเพื่อเลือกไฟล์ (รูปหลายใบ หรือ วิดีโอ 1 ไฟล์)
               </div>
-              <input
-                type="file"
-                id="fMedFile"
-                style="display: none"
-                accept="image/*,video/*,.pdf,.doc,.docx"
-                onchange="window.handleMedFileChange(this)"
-              />
-              <div
-                id="fMedFileInfo"
-                style="
-                  font-size: 12px;
-                  color: var(--text3);
-                  margin-top: 6px;
-                  display: none;
-                "
-              ></div>
-              <input type="hidden" id="fMedFileUrl" />
+              <input type="file" id="fFbFiles" multiple
+                accept="image/*,video/*" style="display:none"
+                onchange="window.handleFbFilesChange(this)" />
+              <div id="fFbFilesPreview" class="fb-files-preview"></div>
+            </div>
+
+            <div class="form-group mspan2">
+              <label class="form-label">ลิงก์แนบ (optional)</label>
+              <input class="form-input" id="fFbLink" type="url" placeholder="https://..." />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">วันที่เผยแพร่ <span style="color: var(--danger)">*</span></label>
+              <input class="form-input" id="fFbDate" type="date" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">เวลา <span style="color: var(--danger)">*</span></label>
+              <input class="form-input" id="fFbTime" type="time" />
+            </div>
+
+            <div class="fb-hint mspan2">
+              💡 FB กำหนดให้ schedule ล่วงหน้าอย่างน้อย <b>10 นาที</b> และไม่เกิน <b>6 เดือน</b>
             </div>
           </div>
         </div>
         <div class="med-modal-footer">
-          <button class="btn btn-secondary" onclick="window.closeMedModal()">
-            ยกเลิก
-          </button>
-          <button
-            class="btn btn-primary"
-            id="btnSaveMed"
-            onclick="window.saveMedia()"
-          >
-            💾 บันทึก
+          <button class="btn btn-secondary" onclick="window.closeFbModal()">ยกเลิก</button>
+          <button class="btn btn-primary" id="btnSaveFb" onclick="window.saveFbPost()">
+            📅 Schedule
           </button>
         </div>
       </div>
@@ -339,14 +230,15 @@
 
     <script src="../../js/core/auth.js"></script>
     <script src="../../js/core/authz.js"></script>
-    <script>AuthZ.requirePerm("media_view");</script>
+    <script src="../../js/core/fb-api.js"></script>
+    <script>AuthZ.requirePerm("media_fb_view");</script>
     <script type="module" src="./media-schedule.js"></script>
     <script src="../../js/components/modal/deleteModal.js"></script>
     <script src="../../js/components/modal/modalManager.js"></script>
     <script src="../../js/components/modal/enterSave.js"></script>
     <script type="module">
       import { loadTopbar } from "../../js/components/navigation/topbar.js";
-      loadTopbar("🎬 ตารางงาน Media");
+      loadTopbar("📅 ตารางโพสต์ FB");
     </script>
     <script src="../../js/components/navigation/sidebar.js"></script>
   </body>

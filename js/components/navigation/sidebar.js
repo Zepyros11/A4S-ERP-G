@@ -65,8 +65,8 @@
         },
         {
           id: "event-media",
-          icon: "🎬",
-          label: "สื่อ & มีเดีย",
+          icon: "📅",
+          label: "ตารางโพสต์ FB",
           path: BASE_PATH + "/modules/event/media-schedule.html",
         },
         {
@@ -389,7 +389,7 @@
     "event-requests": "evt_req_view",
     "event-budget": "evt_budget_view",
     attendees: "attendee_view",
-    "event-media": "media_view",
+    "event-media": "media_fb_view",
     categories: "inv_cat_view",
     warehouses: "warehouse_view",
     products: "product_view",

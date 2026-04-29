@@ -30,17 +30,28 @@
               <div id="heroSubtitle" class="att-hero-sub">ลงทะเบียน · Check-in · ติดตามผู้เข้าร่วม</div>
             </div>
             <div id="eventActionBtns" class="att-hero-actions" style="display:none">
-              <label id="autoCheckinToggle" class="att-onsite-toggle" title="เปิด = save แล้ว check-in ทันที (ใช้ตอนหน้างาน)">
-                <input type="checkbox" id="autoCheckinInput" onchange="window.onAutoCheckinToggle(this.checked)">
-                <span class="att-onsite-knob"></span>
-                <span id="autoCheckinLabel" class="att-onsite-label">⚡ โหมดหน้างาน</span>
-              </label>
-              <div class="att-hero-divider"></div>
-              <button class="att-hero-btn" onclick="window.openCheckinPage()" title="เปิดหน้า Check-in"><span class="ico">📱</span><span class="lbl">Check-in</span></button>
-              <button class="att-hero-btn" onclick="window.openShareRegisterModal()" title="แชร์ลิงก์ลงทะเบียน"><span class="ico">🔗</span><span class="lbl">แชร์ลิงก์</span></button>
-              <button class="att-hero-btn" onclick="window.openBulkMsgModal()" title="ส่งข้อความกลุ่ม"><span class="ico">📢</span><span class="lbl">ส่งข้อความ</span></button>
-              <button class="att-hero-btn" onclick="window.openTagCategoriesModal()" title="จัดการหมวด Tag"><span class="ico">🏷️</span><span class="lbl">หมวด Tag</span></button>
-              <button class="att-hero-btn" onclick="window.exportCSV()" title="Export CSV"><span class="ico">📥</span><span class="lbl">Export</span></button>
+              <!-- GROUP 1: หน้างาน — โหมด + เปิดหน้า Check-in -->
+              <div class="att-hero-group" data-group="หน้างาน">
+                <label id="autoCheckinToggle" class="att-onsite-toggle" title="เปิด = save แล้ว check-in ทันที (ใช้ตอนหน้างาน)">
+                  <input type="checkbox" id="autoCheckinInput" onchange="window.onAutoCheckinToggle(this.checked)">
+                  <span class="att-onsite-knob"></span>
+                  <span id="autoCheckinLabel" class="att-onsite-label">⚡ โหมดหน้างาน</span>
+                </label>
+                <button class="att-hero-btn" onclick="window.openCheckinPage()" title="เปิดหน้า Check-in"><span class="ico">📱</span><span class="lbl">Check-in</span></button>
+              </div>
+
+              <!-- GROUP 2: สื่อสาร — แชร์ + ส่งข้อความ -->
+              <div class="att-hero-group" data-group="สื่อสาร">
+                <button class="att-hero-btn" onclick="window.openShareRegisterModal()" title="แชร์ลิงก์ลงทะเบียน"><span class="ico">🔗</span><span class="lbl">แชร์ลิงก์</span></button>
+                <button class="att-hero-btn" onclick="window.openBulkMsgModal()" title="ส่งข้อความกลุ่ม"><span class="ico">📢</span><span class="lbl">ส่งข้อความ</span></button>
+              </div>
+
+              <!-- GROUP 3: จัดการข้อมูล — Density + Tag + Export -->
+              <div class="att-hero-group" data-group="ข้อมูล">
+                <button class="att-hero-btn" id="densityToggleBtn" onclick="window.toggleTableDensity()" title="สลับ Compact / Comfortable"><span class="ico" id="densityIco">📋</span><span class="lbl" id="densityLbl">Comfortable</span></button>
+                <button class="att-hero-btn" onclick="window.openTagCategoriesModal()" title="จัดการหมวด Tag"><span class="ico">🏷️</span><span class="lbl">หมวด Tag</span></button>
+                <button class="att-hero-btn" onclick="window.exportCSV()" title="Export CSV"><span class="ico">📥</span><span class="lbl">Export</span></button>
+              </div>
             </div>
           </div>
 
@@ -97,38 +108,28 @@
           <div id="tierInfoBanner" style="display:none"></div>
 
           <!-- TOOLBAR (filters only — search รวมอยู่ในช่องด้านล่างของตาราง) -->
-          <style>
-            .filter-pill-row{display:flex;gap:6px;flex-wrap:wrap;align-items:center;}
-            .filter-pill-row + .filter-pill-row{padding-left:10px;border-left:1px solid var(--border);margin-left:4px;}
-            .filter-pill{
-              padding:7px 13px;border:1.5px solid var(--border);background:var(--surface);
-              border-radius:999px;font-family:inherit;font-size:12.5px;font-weight:600;
-              color:var(--text2);cursor:pointer;transition:all .15s;white-space:nowrap;
-              display:inline-flex;align-items:center;gap:5px;
-            }
-            .filter-pill:hover{border-color:var(--accent);color:var(--accent);}
-            .filter-pill.active{
-              background:linear-gradient(135deg,#06c755,#10b981);color:#fff;
-              border-color:transparent;box-shadow:0 2px 8px rgba(6,199,85,.28);
-            }
-            .filter-pill-group-lbl{font-size:11px;font-weight:700;color:var(--text3);
-              text-transform:uppercase;letter-spacing:.5px;margin-right:2px;}
-          </style>
-          <div id="attToolbar" style="display: none">
-            <div class="toolbar" style="justify-content:flex-end;gap:10px;flex-wrap:wrap;">
-              <div class="filter-pill-row" id="filterPillsCheckin" data-for="filterCheckin"></div>
-              <div class="filter-pill-row" id="filterPillsPayment" data-for="filterPayment"></div>
+          <div id="attToolbar" style="display:none">
+            <div class="att-filter-card">
+              <div class="att-filter-group" data-accent="green">
+                <span class="att-filter-lbl">✅ Check-in</span>
+                <div class="att-filter-pills" id="filterPillsCheckin" data-for="filterCheckin"></div>
+              </div>
+              <div class="att-filter-divider"></div>
+              <div class="att-filter-group" data-accent="blue">
+                <span class="att-filter-lbl">💰 ชำระ</span>
+                <div class="att-filter-pills" id="filterPillsPayment" data-for="filterPayment"></div>
+              </div>
               <!-- Hidden source-of-truth selects (filterTable reads .value from these) -->
               <select id="filterCheckin" style="display:none">
-                <option value="">⚪ ทุกสถานะ Check-in</option>
-                <option value="true">✅ Check-in แล้ว</option>
-                <option value="false">⏳ ยังไม่ Check-in</option>
+                <option value="">ทั้งหมด</option>
+                <option value="true">✅ แล้ว</option>
+                <option value="false">⏳ ยังไม่</option>
               </select>
               <select id="filterPayment" style="display:none">
-                <option value="">⚪ ทุกสถานะชำระ</option>
+                <option value="">ทั้งหมด</option>
                 <option value="PAID">💳 ชำระแล้ว</option>
                 <option value="UNPAID">⏳ ยังไม่ชำระ</option>
-                <option value="EXPIRED">⌛ เกิน grace period</option>
+                <option value="EXPIRED">⌛ เกิน grace</option>
                 <option value="COMPLIMENTARY">🎫 ฟรี / ยกเว้น</option>
               </select>
             </div>
@@ -144,12 +145,13 @@
                 [...sel.options].forEach(opt => {
                   const b = document.createElement("button");
                   b.type = "button";
-                  b.className = "filter-pill" + (opt.value === sel.value ? " active" : "");
+                  const isAll = !opt.value;
+                  b.className = "att-fp" + (opt.value === sel.value ? " active" : "") + (isAll ? " all" : "");
                   b.dataset.value = opt.value;
                   b.textContent = opt.textContent;
                   b.onclick = () => {
                     sel.value = opt.value;
-                    c.querySelectorAll(".filter-pill").forEach(x => x.classList.remove("active"));
+                    c.querySelectorAll(".att-fp").forEach(x => x.classList.remove("active"));
                     b.classList.add("active");
                     sel.dispatchEvent(new Event("change", { bubbles: true }));
                   };
@@ -327,9 +329,19 @@
             <div id="bulkMsgCount" style="font-size:12px;color:var(--text3);margin-top:6px"></div>
           </div>
           <div class="form-group">
-            <label class="form-label">ข้อความ
-              <span style="font-weight:400;font-size:11px;color:var(--text3)">— ใช้ {ชื่อ} {รหัส} {ตำแหน่ง} {ราคา} {deadline} ได้</span>
+            <label class="form-label">
+              ข้อความ
+              <span style="font-weight:400;font-size:11px;color:var(--text3)">— คลิก placeholder ด้านล่างเพื่อแทรกที่ตำแหน่ง cursor</span>
             </label>
+            <div class="bulk-ph-row">
+              <span class="bulk-ph" onclick="window.insertBulkPh('{ชื่อ}')" title="ชื่อผู้รับ">{ชื่อ}</span>
+              <span class="bulk-ph" onclick="window.insertBulkPh('{รหัส}')" title="รหัสสมาชิก">{รหัส}</span>
+              <span class="bulk-ph" onclick="window.insertBulkPh('{ตำแหน่ง}')" title="ตำแหน่ง / position level">{ตำแหน่ง}</span>
+              <span class="bulk-ph" onclick="window.insertBulkPh('{ราคา}')" title="ราคาที่ต้องชำระ (฿)">{ราคา}</span>
+              <span class="bulk-ph" onclick="window.insertBulkPh('{deadline}')" title="กำหนดชำระ (DD/MM/YY)">{deadline}</span>
+              <span class="bulk-ph" onclick="window.insertBulkPh('{tier}')" title="ชื่อ tier (ถ้ามี)">{tier}</span>
+              <span class="bulk-ph" onclick="window.insertBulkPh('{ticket}')" title="หมายเลข ticket">{ticket}</span>
+            </div>
             <textarea id="bulkMsgTpl" class="form-input" rows="5" oninput="window.onBulkMsgTplChange()"
               placeholder="สวัสดี {ชื่อ} — กรุณาโอนค่าบัตร {ราคา} บาท ภายใน {deadline}"></textarea>
           </div>
@@ -340,13 +352,28 @@
           <div id="bulkLineStats" style="font-size:12px;color:var(--text3);background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:8px 12px;margin-top:6px">
             📱 LINE: <span id="bulkLineLinked">—</span> คนที่เชื่อม LINE แล้ว
           </div>
+
+          <!-- Send-button guide -->
+          <div class="bulk-guide">
+            <div class="bulk-guide-hdr">💡 ปุ่มส่งทำอะไร?</div>
+            <div class="bulk-guide-row">
+              <span class="bulk-guide-tag" style="background:#06c755">📱 ส่ง Text</span>
+              <span>ส่ง <b>ข้อความด้านบน</b> ให้แต่ละคน (personalize ด้วย placeholder)</span>
+            </div>
+            <div class="bulk-guide-row">
+              <span class="bulk-guide-tag" style="background:#7c3aed">🏷️ ส่งข้อความ Tag</span>
+              <span>ส่ง <b>flex card</b> ที่มี detail ของ tag ที่แต่ละคนมี (จากหมวด Tag) — ไม่ใช้ข้อความด้านบน</span>
+            </div>
+            <div class="bulk-guide-row">
+              <span class="bulk-guide-tag" style="background:#1e40af">🎫 ส่ง Ticket</span>
+              <span>ส่ง <b>บัตร flex + QR code</b> ให้ใช้ check-in หน้างาน — ไม่ใช้ข้อความด้านบน</span>
+            </div>
+          </div>
         </div>
         <div class="att-modal-footer" style="flex-wrap:wrap;gap:6px">
-          <button class="btn btn-secondary" onclick="window.closeBulkMsgModal()">ยกเลิก</button>
-          <button class="btn btn-primary" onclick="window.copyBulkMessages()">📋 Copy</button>
           <button class="btn" style="background:#06c755;color:#fff" id="btnBulkLinePush" onclick="window.sendBulkLinePush()" title="ส่งข้อความ text ให้แต่ละคน (personalize)">📱 ส่ง Text</button>
+          <button class="btn" style="background:#7c3aed;color:#fff" id="btnBulkTagDetail" onclick="window.sendBulkLineTagDetail()" title="ส่ง detail ของ tag ที่แต่ละคนมี (ตามหมวด Tag)">🏷️ ส่งข้อความ Tag</button>
           <button class="btn" style="background:#1e40af;color:#fff" id="btnBulkTicketFlex" onclick="window.sendBulkTicketFlex()" title="ส่งบัตร Flex + QR ให้แต่ละคน">🎫 ส่ง Ticket</button>
-          <button class="btn" style="background:#f59e0b;color:#fff" id="btnBulkLineBroadcast" onclick="window.sendBulkLineBroadcast()" title="Broadcast ให้ทุกเพื่อน OA (ไม่ personalize)">📢 Broadcast</button>
         </div>
       </div>
     </div>
@@ -485,11 +512,19 @@
          TAG PICKER POPOVER (anchor to + tag button)
          ═══════════════════════════════════════ -->
     <div id="tagPickerPopover" class="tag-picker-popover" style="display:none">
-      <div class="tag-picker-hdr">เลือก tag</div>
-      <div id="tagPickerList" class="tag-picker-list"></div>
-      <div class="tag-picker-empty" id="tagPickerEmpty" style="display:none">
-        ยังไม่มีหมวด Tag<br>
-        <button onclick="window.closeTagPickerAndOpenManage()" style="margin-top:8px;padding:6px 12px;border:none;border-radius:6px;background:#1e40af;color:#fff;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer">➕ จัดการหมวด Tag</button>
+      <div class="tag-picker-body">
+        <div class="tag-picker-main">
+          <div class="tag-picker-hdr">เลือก tag</div>
+          <div id="tagPickerList" class="tag-picker-list"></div>
+          <div class="tag-picker-empty" id="tagPickerEmpty" style="display:none">
+            ยังไม่มีหมวด Tag<br>
+            <button onclick="window.closeTagPickerAndOpenManage()" style="margin-top:8px;padding:6px 12px;border:none;border-radius:6px;background:#1e40af;color:#fff;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer">➕ จัดการหมวด Tag</button>
+          </div>
+        </div>
+        <div class="tag-picker-side" id="tagPickerSide">
+          <div class="tag-picker-side-hdr" id="tagPickerSideHdr">รายละเอียด</div>
+          <div class="tag-picker-side-body" id="tagPickerSideBody">— hover ที่ tag เพื่อดูรายละเอียด —</div>
+        </div>
       </div>
     </div>
 

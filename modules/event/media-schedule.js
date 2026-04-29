@@ -1,8 +1,8 @@
 /* ============================================================
-   media-schedule.js — Controller for Media Schedule page
+   media-schedule.js — FB Post Scheduler (per event)
 ============================================================ */
 
-// ── API ───────────────────────────────────────────────────
+// ── Supabase helpers ──────────────────────────────────────
 function getSB() {
   return {
     url: localStorage.getItem("sb_url") || "",
@@ -38,39 +38,268 @@ async function fetchEvents() {
     ) || []
   );
 }
-async function fetchMediaList(eventId) {
-  return (
-    sbFetch("event_media", `?event_id=eq.${eventId}&order=created_at.asc`) || []
-  );
-}
-async function fetchUsers() {
-  return (
-    sbFetch(
-      "users",
-      "?select=user_id,full_name&is_active=eq.true&order=full_name",
-    ) || []
-  );
-}
-async function createMedia(data) {
-  const res = await sbFetch("event_media", "", { method: "POST", body: data });
-  return res?.[0];
-}
-async function updateMedia(id, data) {
-  return sbFetch("event_media", `?media_id=eq.${id}`, {
-    method: "PATCH",
-    body: data,
-  });
-}
-async function removeMedia(id) {
-  return sbFetch("event_media", `?media_id=eq.${id}`, { method: "DELETE" });
+
+// ── STATE ─────────────────────────────────────────────────
+let allEvents = [];
+let currentEventId = null;
+let allFbPages = [];
+let allFbPosts = [];
+let editingFbId = null;
+let pendingFbFiles = [];
+
+// ── INIT ──────────────────────────────────────────────────
+async function initPage() {
+  showLoading(true);
+  try {
+    allEvents = await fetchEvents();
+    populateEventSelect();
+
+    const params = new URLSearchParams(window.location.search);
+    const urlEventId = params.get("event_id");
+    if (urlEventId) {
+      document.getElementById("eventSelect").value = urlEventId;
+      await loadEvent(parseInt(urlEventId));
+    }
+  } catch (e) {
+    showToast("โหลดข้อมูลไม่ได้: " + e.message, "error");
+  }
+  showLoading(false);
+
+  bindFbFilterListeners();
 }
 
-async function uploadMediaFile(eventId, file) {
+function populateEventSelect() {
+  const sel = document.getElementById("eventSelect");
+  sel.innerHTML = '<option value="">-- เลือกกิจกรรม --</option>';
+  allEvents.forEach((e) =>
+    sel.insertAdjacentHTML(
+      "beforeend",
+      `<option value="${e.event_id}">[${e.event_code}] ${e.event_name}</option>`,
+    ),
+  );
+}
+
+// ── EVENT CHANGE ──────────────────────────────────────────
+window.onEventChange = async function () {
+  const val = document.getElementById("eventSelect").value;
+  if (!val) {
+    showSections(false);
+    return;
+  }
+  await loadEvent(parseInt(val));
+};
+
+async function loadEvent(eventId) {
+  currentEventId = eventId;
+  showLoading(true);
+  try {
+    const [pages, posts] = await Promise.all([
+      window.FbApi ? window.FbApi.loadPages() : Promise.resolve([]),
+      window.FbApi
+        ? window.FbApi.listScheduledPosts({ event_id: eventId })
+        : Promise.resolve([]),
+    ]);
+    allFbPages = pages || [];
+    allFbPosts = posts || [];
+    showSections(true);
+    populateFbPageFilters();
+    updateFbStats();
+    renderFbTable();
+  } catch (e) {
+    showToast("โหลดข้อมูลไม่ได้: " + e.message, "error");
+  }
+  showLoading(false);
+}
+
+function showSections(show) {
+  document.getElementById("fbContent").style.display = show ? "block" : "none";
+  document.getElementById("noEventState").style.display = show ? "none" : "block";
+  document.getElementById("mediaActionBtns").style.display = show ? "block" : "none";
+}
+
+// ===========================================================
+// FB SCHEDULE
+// ===========================================================
+
+function populateFbPageFilters() {
+  const filterSel = document.getElementById("fbFilterPage");
+  const modalSel = document.getElementById("fFbPage");
+  const opts = allFbPages
+    .map((p) => `<option value="${p.id}">${escapeHtml(p.page_name)}</option>`)
+    .join("");
+  if (filterSel) {
+    filterSel.innerHTML = `<option value="">⚪ ทุกเพจ</option>${opts}`;
+  }
+  if (modalSel) {
+    modalSel.innerHTML = opts || `<option value="">— ยังไม่มีเพจที่ตั้งค่า —</option>`;
+  }
+}
+
+function updateFbStats() {
+  const total = allFbPosts.length;
+  const sched = allFbPosts.filter((p) => p.status === "SCHEDULED").length;
+  const pub = allFbPosts.filter((p) => p.status === "PUBLISHED").length;
+  const fail = allFbPosts.filter((p) => p.status === "FAILED").length;
+  setText("fbStatTotal", total);
+  setText("fbStatScheduled", sched);
+  setText("fbStatPublished", pub);
+  setText("fbStatFailed", fail);
+  setText("fbCount", `${total} โพสต์`);
+}
+
+function renderFbTable() {
+  const tbody = document.getElementById("fbTableBody");
+  if (!tbody) return;
+  const search = (document.getElementById("fbSearchInput")?.value || "").toLowerCase();
+  const stat = document.getElementById("fbFilterStatus")?.value || "";
+  const pageFilter = document.getElementById("fbFilterPage")?.value || "";
+
+  const list = allFbPosts.filter((p) => {
+    if (search && !(p.caption || "").toLowerCase().includes(search)) return false;
+    if (stat && p.status !== stat) return false;
+    if (pageFilter && String(p.fb_page_id) !== pageFilter) return false;
+    return true;
+  });
+
+  document.getElementById("fbCount").textContent = `${list.length} โพสต์`;
+
+  if (!list.length) {
+    tbody.innerHTML = `<tr><td colspan="6">
+      <div class="empty-state">
+        <div class="empty-icon">📅</div>
+        <div class="empty-text">ยังไม่มีโพสต์</div>
+      </div></td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = list
+    .map((p) => {
+      const page = allFbPages.find((x) => x.id === p.fb_page_id);
+      const mediaCount = (p.media_urls || []).length;
+      const canEdit = p.status === "SCHEDULED";
+      return `<tr>
+        <td><div class="fb-caption-cell">${escapeHtml(p.caption || "")}</div></td>
+        <td class="col-center" style="font-size:12px">${page ? escapeHtml(page.page_name) : "—"}</td>
+        <td class="col-center" style="font-size:12px">${mediaCount > 0 ? `📎 ${mediaCount}` : "—"}</td>
+        <td class="col-center" style="font-size:12px">${formatDateTime(p.scheduled_at)}</td>
+        <td class="col-center"><span class="fb-status-badge fbstat-${p.status}">${fbStatusLabel(p.status)}</span></td>
+        <td class="col-center">
+          <div class="action-group">
+            ${
+              p.fb_post_url || p.fb_published_id
+                ? `<a class="btn-icon" target="_blank"
+                    href="${p.fb_post_url || `https://www.facebook.com/${p.fb_published_id}`}"
+                    title="ดูบน FB">🔗</a>`
+                : ""
+            }
+            ${canEdit ? `<button class="btn-icon" data-perm="media_fb_edit" onclick="window.openFbModal(${p.id})" title="แก้ไข">✏️</button>` : ""}
+            ${canEdit ? `<button class="btn-icon danger" data-perm="media_fb_cancel" onclick="window.cancelFbPost(${p.id})" title="ยกเลิก">🚫</button>` : ""}
+          </div>
+        </td>
+      </tr>`;
+    })
+    .join("");
+
+  if (window.AuthZ) window.AuthZ.applyDomPerms(tbody);
+}
+
+function bindFbFilterListeners() {
+  document.getElementById("fbSearchInput")?.addEventListener("input", renderFbTable);
+  document.getElementById("fbFilterStatus")?.addEventListener("change", renderFbTable);
+  document.getElementById("fbFilterPage")?.addEventListener("change", renderFbTable);
+}
+
+// ── Modal ─────────────────────────────────────────────────
+window.openFbModal = function (id = null) {
+  if (!allFbPages.length) {
+    showToast("ยังไม่มีเพจที่ตั้งค่าใน fb_pages", "error");
+    return;
+  }
+  editingFbId = id;
+  pendingFbFiles = [];
+
+  document.getElementById("fbModalTitle").textContent = id ? "✏️ แก้ไขโพสต์ FB" : "📅 สร้างโพสต์ FB";
+  document.getElementById("fFbId").value = id || "";
+  document.getElementById("fFbCaption").value = "";
+  document.getElementById("fFbLink").value = "";
+  document.getElementById("fFbFiles").value = "";
+  document.getElementById("fFbFilesPreview").innerHTML = "";
+
+  // Default scheduled = +1 hour, on the hour mark
+  const now = new Date(Date.now() + 60 * 60 * 1000);
+  now.setSeconds(0, 0);
+  document.getElementById("fFbDate").value = toBkkDateStr(now);
+  document.getElementById("fFbTime").value = toBkkTimeStr(now);
+
+  if (id) {
+    const p = allFbPosts.find((x) => x.id === id);
+    if (p) {
+      document.getElementById("fFbCaption").value = p.caption || "";
+      document.getElementById("fFbLink").value = p.link_url || "";
+      const sched = new Date(p.scheduled_at);
+      document.getElementById("fFbDate").value = toBkkDateStr(sched);
+      document.getElementById("fFbTime").value = toBkkTimeStr(sched);
+      const pageSel = document.getElementById("fFbPage");
+      if (pageSel) pageSel.value = String(p.fb_page_id);
+      if ((p.media_urls || []).length) {
+        document.getElementById("fFbFilesPreview").innerHTML =
+          (p.media_urls || [])
+            .map((u) => `<div class="fb-file-item"><img src="${u}" /></div>`)
+            .join("") +
+          `<div class="fb-file-item" style="font-size:10px;text-align:center;padding:4px">FB ไม่ให้แก้ไฟล์หลัง schedule</div>`;
+      }
+    }
+  }
+
+  fbUpdateCharCount();
+  document.getElementById("fbModalOverlay").classList.add("open");
+};
+
+window.closeFbModal = function () {
+  document.getElementById("fbModalOverlay").classList.remove("open");
+  editingFbId = null;
+  pendingFbFiles = [];
+};
+
+window.fbUpdateCharCount = function () {
+  const len = (document.getElementById("fFbCaption").value || "").length;
+  document.getElementById("fFbCharCount").textContent = `${len} ตัวอักษร`;
+};
+
+// ── File handling ─────────────────────────────────────────
+window.handleFbFilesChange = function (input) {
+  const files = Array.from(input.files || []);
+  if (!files.length) return;
+  pendingFbFiles = pendingFbFiles.concat(files);
+  renderFbFilePreview();
+  input.value = "";
+};
+
+function renderFbFilePreview() {
+  const wrap = document.getElementById("fFbFilesPreview");
+  wrap.innerHTML = pendingFbFiles
+    .map((f, idx) => {
+      const isVideo = f.type.startsWith("video/");
+      const url = URL.createObjectURL(f);
+      return `<div class="fb-file-item">
+        ${isVideo ? `<video src="${url}" muted></video>` : `<img src="${url}" />`}
+        <button class="fb-file-remove" onclick="window.removeFbFile(${idx})">✕</button>
+        <div class="fb-file-name">${escapeHtml(f.name)}</div>
+      </div>`;
+    })
+    .join("");
+}
+
+window.removeFbFile = function (idx) {
+  pendingFbFiles.splice(idx, 1);
+  renderFbFilePreview();
+};
+
+async function uploadFbFile(eventId, file) {
   const { url, key } = getSB();
   const ext = file.name.split(".").pop().toLowerCase();
-  const name = `media_${eventId}_${Date.now()}.${ext}`;
-  const path = `media/${name}`;
-
+  const name = `fb_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
+  const path = `fb-posts/${eventId}/${name}`;
   const res = await fetch(`${url}/storage/v1/object/event-files/${path}`, {
     method: "POST",
     headers: {
@@ -88,418 +317,127 @@ async function uploadMediaFile(eventId, file) {
   return `${url}/storage/v1/object/public/event-files/${path}`;
 }
 
-// ── STATE ─────────────────────────────────────────────────
-let allEvents = [];
-let allUsers = [];
-let currentEventId = null;
-let allMedia = [];
-let editingMedId = null;
-let pendingFile = null;
+// ── Save / Schedule ───────────────────────────────────────
+window.saveFbPost = async function () {
+  const caption = document.getElementById("fFbCaption").value.trim();
+  if (!caption) return showToast("กรุณาใส่ caption", "error");
 
-// ── INIT ──────────────────────────────────────────────────
-async function initPage() {
-  showLoading(true);
-  try {
-    [allEvents, allUsers] = await Promise.all([fetchEvents(), fetchUsers()]);
-    populateEventSelect();
-    populateUserFilter();
+  const fb_page_id = parseInt(document.getElementById("fFbPage").value);
+  if (!fb_page_id) return showToast("กรุณาเลือกเพจ", "error");
 
-    const params = new URLSearchParams(window.location.search);
-    const urlEventId = params.get("event_id");
-    if (urlEventId) {
-      document.getElementById("eventSelect").value = urlEventId;
-      await loadMedia(parseInt(urlEventId));
-    }
-  } catch (e) {
-    showToast("โหลดข้อมูลไม่ได้: " + e.message, "error");
-  }
-  showLoading(false);
+  const dateStr = document.getElementById("fFbDate").value;
+  const timeStr = document.getElementById("fFbTime").value;
+  if (!dateStr || !timeStr) return showToast("กรุณาเลือกวันเวลา", "error");
 
-  document
-    .getElementById("searchInput")
-    ?.addEventListener("input", filterTable);
-  document
-    .getElementById("filterType")
-    ?.addEventListener("change", filterTable);
-  document
-    .getElementById("filterStatus")
-    ?.addEventListener("change", filterTable);
-  document
-    .getElementById("filterAssigned")
-    ?.addEventListener("change", filterTable);
-}
+  // Treat input as Bangkok TZ (UTC+7)
+  const scheduled_at = `${dateStr}T${timeStr}:00+07:00`;
+  const link_url = document.getElementById("fFbLink").value.trim() || null;
 
-function populateEventSelect() {
-  const sel = document.getElementById("eventSelect");
-  sel.innerHTML = '<option value="">-- เลือกกิจกรรม --</option>';
-  allEvents.forEach((e) =>
-    sel.insertAdjacentHTML(
-      "beforeend",
-      `<option value="${e.event_id}">[${e.event_code}] ${e.event_name}</option>`,
-    ),
-  );
-}
-
-function populateUserFilter() {
-  const sel = document.getElementById("filterAssigned");
-  const fSel = document.getElementById("fMedAssigned");
-  const opts = allUsers
-    .map((u) => `<option value="${u.user_id}">${u.full_name}</option>`)
-    .join("");
-  if (sel) sel.insertAdjacentHTML("beforeend", opts);
-  if (fSel) fSel.insertAdjacentHTML("beforeend", opts);
-}
-
-// ── EVENT CHANGE ──────────────────────────────────────────
-window.onEventChange = async function () {
-  const val = document.getElementById("eventSelect").value;
-  if (!val) {
-    showSections(false);
-    return;
-  }
-  await loadMedia(parseInt(val));
-};
-
-async function loadMedia(eventId) {
-  currentEventId = eventId;
-  showLoading(true);
-  try {
-    allMedia = (await fetchMediaList(eventId)) || [];
-    showSections(true);
-    updateStats();
-    filterTable();
-  } catch (e) {
-    showToast("โหลดข้อมูลไม่ได้: " + e.message, "error");
-  }
-  showLoading(false);
-}
-
-function showSections(show) {
-  ["medStatsSection", "medToolbar", "medTableSection"].forEach((id) => {
-    document.getElementById(id).style.display = show ? "block" : "none";
-  });
-  document.getElementById("noEventState").style.display = show
-    ? "none"
-    : "block";
-  document.getElementById("mediaActionBtns").style.display = show
-    ? "block"
-    : "none";
-}
-
-// ── STATS + PROGRESS ──────────────────────────────────────
-function updateStats() {
-  const today = new Date().toLocaleDateString("sv", {
-    timeZone: "Asia/Bangkok",
-  });
-  const total = allMedia.length;
-  const done = allMedia.filter((m) => m.status === "DONE").length;
-  const inprog = allMedia.filter((m) => m.status === "INPROGRESS").length;
-  const overdue = allMedia.filter(
-    (m) =>
-      m.due_date &&
-      m.due_date < today &&
-      m.status !== "DONE" &&
-      m.status !== "CANCELLED",
-  ).length;
-
-  document.getElementById("statTotal").textContent = total;
-  document.getElementById("statDone").textContent = done;
-  document.getElementById("statInprogress").textContent = inprog;
-  document.getElementById("statOverdue").textContent = overdue;
-
-  const activeTasks = allMedia.filter((m) => m.status !== "CANCELLED").length;
-  const pct = activeTasks ? Math.round((done / activeTasks) * 100) : 0;
-  document.getElementById("progressPct").textContent = `${pct}%`;
-  const bar = document.getElementById("progressBar");
-  bar.style.width = `${pct}%`;
-  bar.className = `med-progress-bar${pct === 100 ? " done" : pct >= 80 ? " over80" : ""}`;
-}
-
-// ── FILTER + RENDER ───────────────────────────────────────
-function filterTable() {
-  const search =
-    document.getElementById("searchInput")?.value.toLowerCase() || "";
-  const type = document.getElementById("filterType")?.value || "";
-  const status = document.getElementById("filterStatus")?.value || "";
-  const assigned = document.getElementById("filterAssigned")?.value || "";
-
-  const filtered = allMedia.filter((m) => {
-    const assignedUser = allUsers.find((u) => u.user_id === m.assigned_to);
-    const matchSearch =
-      !search ||
-      (m.title || "").toLowerCase().includes(search) ||
-      (assignedUser?.full_name || "").toLowerCase().includes(search);
-    const matchType = !type || m.media_type === type;
-    const matchStatus = !status || m.status === status;
-    const matchAssigned = !assigned || String(m.assigned_to) === assigned;
-    return matchSearch && matchType && matchStatus && matchAssigned;
-  });
-
-  renderTable(filtered);
-}
-
-function renderTable(list) {
-  const tbody = document.getElementById("medTableBody");
-  const countEl = document.getElementById("medCount");
-  if (countEl) countEl.textContent = `${list.length} งาน`;
-
-  if (!list.length) {
-    tbody.innerHTML = `<tr><td colspan="7">
-      <div class="empty-state">
-        <div class="empty-icon">🔍</div>
-        <div class="empty-text">ไม่พบรายการ</div>
-      </div></td></tr>`;
-    return;
-  }
-
-  const today = new Date().toLocaleDateString("sv", {
-    timeZone: "Asia/Bangkok",
-  });
-
-  tbody.innerHTML = list
-    .map((m) => {
-      const assignedUser = allUsers.find((u) => u.user_id === m.assigned_to);
-      const dueCls = !m.due_date
-        ? ""
-        : m.due_date < today && m.status !== "DONE"
-          ? "due-overdue"
-          : m.due_date === today
-            ? "due-today"
-            : "due-normal";
-
-      return `<tr>
-      <td>
-        <div style="font-weight:600">${m.title}</div>
-        ${
-          m.detail
-            ? `<div style="font-size:11px;color:var(--text3);
-              max-width:240px;white-space:nowrap;overflow:hidden;
-              text-overflow:ellipsis">${m.detail}</div>`
-            : ""
-        }
-      </td>
-      <td class="col-center">
-        <span class="media-type-badge mtype-${m.media_type || "OTHER"}">
-          ${mediaTypeLabel(m.media_type)}
-        </span>
-      </td>
-      <td class="col-center" style="font-size:13px">
-        ${assignedUser ? assignedUser.full_name : '<span style="color:var(--text3)">—</span>'}
-      </td>
-      <td class="col-center">
-        <span class="font-size:13px ${dueCls}">
-          ${m.due_date ? formatDate(m.due_date) : "—"}
-        </span>
-        ${
-          dueCls === "due-overdue"
-            ? `<div style="font-size:10px;color:#dc2626">⚠ เกิน deadline</div>`
-            : ""
-        }
-      </td>
-      <td class="col-center">
-        <select class="form-input" style="font-size:12px;padding:3px 6px;width:auto"
-          onchange="window.updateMediaStatus(${m.media_id}, this.value)">
-          ${["TODO", "INPROGRESS", "DONE", "CANCELLED"]
-            .map(
-              (s) =>
-                `<option value="${s}" ${m.status === s ? "selected" : ""}>
-              ${statusLabel(s)}</option>`,
-            )
-            .join("")}
-        </select>
-      </td>
-      <td class="col-center">
-        ${
-          m.file_url
-            ? `<a class="file-link" href="${m.file_url}" target="_blank">
-              📎 ดูไฟล์</a>`
-            : '<span style="color:var(--text3);font-size:12px">—</span>'
-        }
-      </td>
-      <td style="text-align:center">
-        <div class="action-group">
-          <button class="btn-icon"
-            onclick="window.openMedModal(${m.media_id})">✏️</button>
-          <button class="btn-icon danger"
-            onclick="window.deleteMedia(${m.media_id})">🗑</button>
-        </div>
-      </td>
-    </tr>`;
-    })
-    .join("");
-}
-
-// ── INLINE STATUS UPDATE ──────────────────────────────────
-window.updateMediaStatus = async function (id, status) {
-  try {
-    await updateMedia(id, { status });
-    const m = allMedia.find((x) => x.media_id === id);
-    if (m) m.status = status;
-    updateStats();
-    showToast("อัปเดตสถานะแล้ว", "success");
-  } catch (e) {
-    showToast("อัปเดตไม่สำเร็จ: " + e.message, "error");
-    filterTable(); // revert UI
-  }
-};
-
-// ── MODAL ─────────────────────────────────────────────────
-window.openMedModal = function (id = null) {
-  editingMedId = id;
-  pendingFile = null;
-  document.getElementById("medModalTitle").textContent = id
-    ? "✏️ แก้ไขงาน Media"
-    : "🎬 เพิ่มงาน Media";
-
-  ["fMedId", "fMedTitle", "fMedDetail", "fMedDueDate", "fMedFileUrl"].forEach(
-    (f) => (document.getElementById(f).value = ""),
-  );
-  document.getElementById("fMedType").value = "PHOTO";
-  document.getElementById("fMedStatus").value = "TODO";
-  document.getElementById("fMedAssigned").value = "";
-  document.getElementById("fMedFile").value = "";
-  document.getElementById("fMedFileInfo").style.display = "none";
-
-  if (id) {
-    const m = allMedia.find((x) => x.media_id === id);
-    if (m) {
-      document.getElementById("fMedId").value = m.media_id;
-      document.getElementById("fMedTitle").value = m.title || "";
-      document.getElementById("fMedType").value = m.media_type || "PHOTO";
-      document.getElementById("fMedStatus").value = m.status || "TODO";
-      document.getElementById("fMedDetail").value = m.detail || "";
-      document.getElementById("fMedDueDate").value = m.due_date || "";
-      document.getElementById("fMedAssigned").value = m.assigned_to || "";
-      document.getElementById("fMedFileUrl").value = m.file_url || "";
-      if (m.file_url) {
-        const info = document.getElementById("fMedFileInfo");
-        info.style.display = "block";
-        info.textContent = "📎 ไฟล์ปัจจุบัน: " + m.file_url.split("/").pop();
-      }
-    }
-  }
-  document.getElementById("medModalOverlay").classList.add("open");
-};
-
-window.closeMedModal = function () {
-  document.getElementById("medModalOverlay").classList.remove("open");
-  editingMedId = null;
-  pendingFile = null;
-};
-
-window.handleMedFileChange = function (input) {
-  const file = input.files?.[0];
-  if (!file) return;
-  pendingFile = file;
-  const info = document.getElementById("fMedFileInfo");
-  info.style.display = "block";
-  info.textContent = `📎 ${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
-};
-
-window.saveMedia = async function () {
-  const title = document.getElementById("fMedTitle").value.trim();
-  if (!title) {
-    showToast("กรุณาระบุชื่องาน", "error");
-    return;
-  }
-
-  const btn = document.getElementById("btnSaveMed");
+  const btn = document.getElementById("btnSaveFb");
   btn.disabled = true;
   btn.textContent = "⏳ กำลังบันทึก...";
   showLoading(true);
 
   try {
-    let fileUrl = document.getElementById("fMedFileUrl").value || null;
-
-    if (pendingFile) {
-      fileUrl = await uploadMediaFile(currentEventId, pendingFile);
-    }
-
-    const payload = {
-      event_id: currentEventId,
-      title,
-      media_type: document.getElementById("fMedType").value,
-      status: document.getElementById("fMedStatus").value,
-      detail: document.getElementById("fMedDetail").value || null,
-      due_date: document.getElementById("fMedDueDate").value || null,
-      assigned_to:
-        parseInt(document.getElementById("fMedAssigned").value) || null,
-      file_url: fileUrl,
-    };
-
-    if (editingMedId) {
-      await updateMedia(editingMedId, payload);
-      showToast("แก้ไขงาน Media แล้ว", "success");
+    if (editingFbId) {
+      const row = allFbPosts.find((x) => x.id === editingFbId);
+      await window.FbApi.editAndSave(row, { caption, scheduled_at });
+      showToast("แก้ไขโพสต์แล้ว", "success");
     } else {
-      await createMedia(payload);
-      showToast("เพิ่มงาน Media แล้ว 🎬", "success");
-    }
+      let media_urls = [];
+      if (pendingFbFiles.length) {
+        for (const f of pendingFbFiles) {
+          const u = await uploadFbFile(currentEventId, f);
+          media_urls.push(u);
+        }
+      }
 
-    window.closeMedModal();
-    allMedia = await fetchMediaList(currentEventId);
-    updateStats();
-    filterTable();
+      await window.FbApi.scheduleAndSave({
+        fb_page_id,
+        event_id: currentEventId,
+        caption,
+        media_urls,
+        link_url,
+        scheduled_at,
+        created_by: window.ERP_USER?.user_id || null,
+      });
+      showToast("schedule โพสต์ FB แล้ว 📅", "success");
+    }
+    window.closeFbModal();
+    allFbPosts = await window.FbApi.listScheduledPosts({ event_id: currentEventId });
+    updateFbStats();
+    renderFbTable();
   } catch (e) {
     showToast("บันทึกไม่สำเร็จ: " + e.message, "error");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "📅 Schedule";
+    showLoading(false);
   }
-
-  btn.disabled = false;
-  btn.textContent = "💾 บันทึก";
-  showLoading(false);
 };
 
-// ── DELETE ────────────────────────────────────────────────
-window.deleteMedia = function (id) {
-  const m = allMedia.find((x) => x.media_id === id);
-  if (!m) return;
-  DeleteModal.open(`ต้องการลบงาน "${m.title}" หรือไม่?`, async () => {
+// ── Cancel ────────────────────────────────────────────────
+window.cancelFbPost = function (id) {
+  const row = allFbPosts.find((x) => x.id === id);
+  if (!row) return;
+  DeleteModal.open(`ต้องการยกเลิก schedule โพสต์นี้หรือไม่?`, async () => {
     showLoading(true);
     try {
-      await removeMedia(id);
-      showToast("ลบงาน Media แล้ว", "success");
-      allMedia = await fetchMediaList(currentEventId);
-      updateStats();
-      filterTable();
+      await window.FbApi.cancelAndSave(row);
+      showToast("ยกเลิก schedule แล้ว", "success");
+      allFbPosts = await window.FbApi.listScheduledPosts({ event_id: currentEventId });
+      updateFbStats();
+      renderFbTable();
     } catch (e) {
-      showToast("ลบไม่สำเร็จ: " + e.message, "error");
+      showToast("ยกเลิกไม่สำเร็จ: " + e.message, "error");
     }
     showLoading(false);
   });
 };
 
 // ── HELPERS ───────────────────────────────────────────────
-function mediaTypeLabel(t) {
+function fbStatusLabel(s) {
   return (
     {
-      PHOTO: "📷 Photo",
-      VIDEO: "🎥 Video",
-      GRAPHIC: "🎨 Graphic",
-      LIVE: "🔴 Live",
-      DOCUMENT: "📄 Document",
-      OTHER: "📁 Other",
-    }[t] ||
-    t ||
-    "—"
+      DRAFT: "📝 Draft",
+      SCHEDULED: "📅 Scheduled",
+      PUBLISHED: "✅ Published",
+      FAILED: "❌ Failed",
+      CANCELLED: "🚫 Cancelled",
+    }[s] || s || "—"
   );
 }
-function statusLabel(s) {
-  return (
-    {
-      TODO: "📋 Todo",
-      INPROGRESS: "⚡ In Progress",
-      DONE: "✅ Done",
-      CANCELLED: "❌ Cancelled",
-    }[s] ||
-    s ||
-    "—"
+function escapeHtml(s) {
+  return String(s ?? "").replace(/[&<>"']/g, (c) =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c],
   );
 }
-function formatDate(d) {
-  if (!d) return "—";
-  return new Date(d + "T00:00:00").toLocaleDateString("th-TH", {
-    day: "numeric",
-    month: "short",
+function setText(id, v) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = v;
+}
+function toBkkDateStr(d) {
+  return d.toLocaleDateString("sv", { timeZone: "Asia/Bangkok" });
+}
+function toBkkTimeStr(d) {
+  return d.toLocaleTimeString("en-GB", {
+    timeZone: "Asia/Bangkok",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+}
+function formatDateTime(iso) {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  return d.toLocaleString("th-TH", {
+    timeZone: "Asia/Bangkok",
+    day: "2-digit",
+    month: "2-digit",
     year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
   });
 }
 function showToast(msg, type = "success") {

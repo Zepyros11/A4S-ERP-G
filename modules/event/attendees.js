@@ -517,6 +517,7 @@ async function loadAttendees(eventId) {
     renderTierBanner();
     populateTagFilter();
     _loadAutoCheckinState();
+    _loadTableDensity();
     updateStats();
     filterTable();
   } catch (e) {
@@ -755,7 +756,7 @@ function filterTableSavedOnly() {
 function renderNewRow(r) {
   const posBadge = r.positionLevel
     ? `<span class="cell-member-pos">⭐ ${escapeHtml(r.positionLevel)}</span>`
-    : `<span style="color:var(--text3);font-size:11px">—</span>`;
+    : `<span class="att-empty">·</span>`;
   const prereq = r.prereq
     ? `<div class="prereq-warn-inline ${r.prereq.ok ? "ok" : ""}">${r.prereq.ok ? "✅" : "⚠️"} ${escapeHtml(r.prereq.msg)}</div>`
     : "";
@@ -767,7 +768,7 @@ function renderNewRow(r) {
        ${roleBadge}<button class="member-chip-close" onclick="window.clearNewRowMember('${r.id}')" title="ยกเลิกสมาชิก" style="margin-right:4px">✕</button>`
     : "";
   return `<tr class="new-row" data-nrid="${r.id}">
-    <td class="col-center"><span style="color:var(--text3);font-size:11px">—</span></td>
+    <td class="col-center"><span class="att-empty">·</span></td>
     <td>
       <div style="display:flex;align-items:center;gap:4px;flex-wrap:nowrap">
         ${codeChip}
@@ -782,7 +783,7 @@ function renderNewRow(r) {
       ${prereq}
     </td>
     <td class="col-center">${posBadge}</td>
-    <td class="col-center">${r.phone ? `<span class="cell-phone">${escapeHtml(r.phone)}</span>` : '<span style="color:var(--text3);font-size:11px">—</span>'}</td>
+    <td class="col-center">${r.phone ? `<span class="cell-phone">${escapeHtml(r.phone)}</span>` : '<span class="att-empty">·</span>'}</td>
     <td class="col-center"><span class="cell-ticket">auto</span></td>
     <td class="col-center">
       <select class="inline-select" onchange="window.onNewRowPayment('${r.id}', this.value)">
@@ -791,7 +792,7 @@ function renderNewRow(r) {
         <option value="COMPLIMENTARY" ${r.paymentStatus === "COMPLIMENTARY" ? "selected" : ""}>🎫 ฟรี</option>
       </select>
     </td>
-    <td class="col-center"><span style="color:var(--text3);font-size:11px">—</span></td>
+    <td class="col-center"><span class="att-empty">·</span></td>
     <td class="col-center">
       <button class="inline-save-btn" ${!r.name || r.saving ? "disabled" : ""} onclick="window.saveNewRow('${r.id}')">
         ${r.saving ? "⏳" : "💾"}
@@ -822,10 +823,10 @@ function renderSavedRow(a) {
       </div>
     </td>
     <td class="col-center">
-      ${a.position_level ? `<span class="cell-member-pos">⭐ ${escapeHtml(a.position_level)}</span>` : '<span style="color:var(--text3);font-size:11px">—</span>'}
+      ${a.position_level ? `<span class="cell-member-pos">⭐ ${escapeHtml(a.position_level)}</span>` : '<span class="att-empty">·</span>'}
     </td>
     <td class="col-center">
-      ${a.phone ? `<span class="cell-phone">${escapeHtml(a.phone)}</span>` : '<span style="color:var(--text3);font-size:11px">—</span>'}
+      ${a.phone ? `<span class="cell-phone">${escapeHtml(a.phone)}</span>` : '<span class="att-empty">·</span>'}
     </td>
     <td class="col-center">
       <div class="cell-ticket">${a.ticket_no || "—"}</div>
@@ -1706,13 +1707,20 @@ window.openTagPicker = function (attendeeId, anchorEl) {
       .map((c) => {
         const disabled = used.has(c.tag_name);
         const colorCls = `tag-color-${TAG_COLOR_PRESETS.includes(c.color) ? c.color : "yellow"}`;
+        const detail = (c.detail || "").trim();
         return `<div class="tag-picker-item ${disabled ? "disabled" : ""}"
-          ${disabled ? "" : `onclick="window.pickTagFromCategory('${escapeJS(c.tag_name)}')"`}>
+          data-name="${escapeHtml(c.tag_name)}"
+          data-detail="${escapeHtml(detail)}"
+          ${disabled ? "" : `onclick="window.pickTagFromCategory('${escapeJS(c.tag_name)}')"`}
+          onmouseenter="window._showTagPickerSide(this)">
           <span class="tag-cat-preview ${colorCls}">${escapeHtml(c.tag_name)}</span>
-          ${disabled ? '<span style="font-size:10px;color:var(--text3)">มีแล้ว</span>' : ""}
+          ${disabled ? '<span style="font-size:10px;color:var(--text3);margin-left:auto">มีแล้ว</span>' : ""}
+          ${detail ? '<span class="tag-picker-info" title="มีรายละเอียด">ℹ️</span>' : ""}
         </div>`;
       })
       .join("");
+    // Reset side panel
+    _resetTagPickerSide();
   }
   // Position popover under anchor
   const rect = anchorEl.getBoundingClientRect();
@@ -1731,6 +1739,32 @@ function _tagPickerOutside(e) {
     document.removeEventListener("click", _tagPickerOutside, true);
   }
 }
+function _resetTagPickerSide() {
+  const hdr = document.getElementById("tagPickerSideHdr");
+  const body = document.getElementById("tagPickerSideBody");
+  if (hdr) hdr.textContent = "รายละเอียด";
+  if (body) {
+    body.textContent = "— hover ที่ tag เพื่อดูรายละเอียด —";
+    body.classList.add("empty");
+  }
+}
+window._showTagPickerSide = function (el) {
+  const name = el.getAttribute("data-name") || "";
+  const detail = el.getAttribute("data-detail") || "";
+  const hdr = document.getElementById("tagPickerSideHdr");
+  const body = document.getElementById("tagPickerSideBody");
+  if (hdr) hdr.textContent = name || "รายละเอียด";
+  if (body) {
+    if (detail) {
+      body.textContent = detail;
+      body.classList.remove("empty");
+    } else {
+      body.textContent = "ยังไม่มีรายละเอียดสำหรับ tag นี้";
+      body.classList.add("empty");
+    }
+  }
+};
+
 window.pickTagFromCategory = async function (tagName) {
   const id = _tagPickerAttId;
   document.getElementById("tagPickerPopover").style.display = "none";
@@ -2352,6 +2386,32 @@ window.copyShareRegisterUrl = async function (type) {
   }
 };
 
+// ── TABLE DENSITY TOGGLE ─────────────────────────────────
+// Global setting — default Comfortable
+const DENSITY_KEY = "att_table_density"; // "compact" | "comfortable"
+
+function _applyTableDensity(mode) {
+  const tbl = document.querySelector(".att-inline-table");
+  const ico = document.getElementById("densityIco");
+  const lbl = document.getElementById("densityLbl");
+  const isCompact = mode === "compact";
+  if (tbl) tbl.classList.toggle("density-compact", isCompact);
+  if (ico) ico.textContent = isCompact ? "🔍" : "📋";
+  if (lbl) lbl.textContent = isCompact ? "Compact" : "Comfortable";
+}
+
+function _loadTableDensity() {
+  const mode = localStorage.getItem(DENSITY_KEY) || "comfortable";
+  _applyTableDensity(mode);
+}
+
+window.toggleTableDensity = function () {
+  const cur = localStorage.getItem(DENSITY_KEY) || "comfortable";
+  const next = cur === "compact" ? "comfortable" : "compact";
+  localStorage.setItem(DENSITY_KEY, next);
+  _applyTableDensity(next);
+};
+
 // ── AUTO CHECK-IN TOGGLE ──────────────────────────────────
 // Global setting (1 key ใช้ทุก event) — default ON
 const AUTOCHECKIN_KEY = "autoCheckin_default";
@@ -2438,6 +2498,17 @@ function _fillBulkTemplate(tpl, a) {
     .replace(/\{deadline\}/g, a.payment_deadline ? formatDMYShort(a.payment_deadline) : "—")
     .replace(/\{ticket\}/g, a.ticket_no || "");
 }
+
+window.insertBulkPh = function (ph) {
+  const ta = document.getElementById("bulkMsgTpl");
+  if (!ta) return;
+  const s = ta.selectionStart ?? ta.value.length;
+  const e = ta.selectionEnd ?? ta.value.length;
+  ta.value = ta.value.slice(0, s) + ph + ta.value.slice(e);
+  ta.focus();
+  ta.selectionStart = ta.selectionEnd = s + ph.length;
+  window.onBulkMsgTplChange();
+};
 
 window.onBulkMsgFilterChange = function () {
   const targets = _bulkMsgTargets();
@@ -2723,43 +2794,90 @@ window.sendBulkTicketFlex = async function () {
   }
 };
 
-// ── Broadcast to all friends of the OA ───────────────────────
-window.sendBulkLineBroadcast = async function () {
-  const tpl = document.getElementById("bulkMsgTpl").value.trim();
-  if (!tpl) { showToast("กรุณาพิมพ์ข้อความ", "error"); return; }
-  if (!window.LineAPI) { showToast("LINE module ยังไม่โหลด", "error"); return; }
-  if (!window.ERPCrypto?.hasMasterKey()) { showToast("ตั้ง Master Key ก่อน", "error"); return; }
+// ── Build flex for "ส่ง Text" — wrap personalized text in green bubble ──
+function _buildBulkTextFlex(event, attendee, messageText) {
+  const eventName = event?.event_name || "งานกิจกรรม";
+  const dateText = event?.event_date ? _fmtDateTH(event.event_date) : "";
+  const name = attendee.name || attendee.member_code || "";
 
-  const ok = await (window.ConfirmModal
-    ? window.ConfirmModal.open({
-        icon: "📢",
-        title: "Broadcast ให้ทุกเพื่อน OA",
-        message: `ส่งข้อความให้ทุก friends ของ OA — ไม่สามารถเจาะจงคนได้\n\n⚠️ ข้อความไม่สามารถ personalize ได้ (placeholder เช่น {ชื่อ} จะไม่ถูกแทน)`,
-        okText: "Broadcast",
-        cancelText: "ยกเลิก",
-        tone: "warning",
-      })
-    : Promise.resolve(confirm(`Broadcast ให้ทุก friends ของ OA?`)));
-  if (!ok) return;
-
-  const btn = document.getElementById("btnBulkLineBroadcast");
-  btn.disabled = true;
-  const originalText = btn.textContent;
-  btn.textContent = `⏳ กำลังส่ง...`;
-
-  try {
-    const channel = await window.LineAPI.getChannelForEvent(currentEvent);
-    if (!channel) throw new Error("ไม่พบ LINE channel");
-    // Broadcast doesn't support personalization — send template as-is with placeholders intact
-    await window.LineAPI.broadcast({ channel, message: tpl });
-    showToast(`✅ Broadcast สำเร็จ`, "success");
-  } catch (e) {
-    showToast("Broadcast ไม่ได้: " + e.message, "error");
-  } finally {
-    btn.disabled = false;
-    btn.textContent = originalText;
+  const headerContents = [
+    {
+      type: "text",
+      text: "📢 ข้อความถึงคุณ",
+      weight: "bold",
+      size: "lg",
+      color: "#ffffff",
+    },
+    {
+      type: "text",
+      text: eventName,
+      size: "sm",
+      color: "#d1fae5",
+      margin: "xs",
+      wrap: true,
+    },
+  ];
+  if (dateText) {
+    headerContents.push({
+      type: "text",
+      text: `📅 ${dateText}`,
+      size: "xs",
+      color: "#d1fae5",
+      margin: "xs",
+    });
   }
-};
+
+  const bubble = {
+    type: "bubble",
+    size: "kilo",
+    header: {
+      type: "box",
+      layout: "vertical",
+      paddingAll: "lg",
+      backgroundColor: "#06c755",
+      contents: headerContents,
+    },
+    body: {
+      type: "box",
+      layout: "vertical",
+      spacing: "sm",
+      paddingAll: "lg",
+      contents: [
+        {
+          type: "box",
+          layout: "baseline",
+          contents: [
+            { type: "text", text: "👤", size: "sm", flex: 0 },
+            {
+              type: "text",
+              text: ` ${name}`,
+              size: "sm",
+              color: "#0f172a",
+              weight: "bold",
+              margin: "sm",
+              wrap: true,
+            },
+          ],
+        },
+        { type: "separator", margin: "md" },
+        {
+          type: "text",
+          text: messageText,
+          size: "sm",
+          color: "#0f172a",
+          wrap: true,
+          margin: "md",
+        },
+      ],
+    },
+  };
+
+  return {
+    type: "flex",
+    altText: `📢 ${eventName} — ${messageText.slice(0, 40)}`,
+    contents: bubble,
+  };
+}
 
 // ── Send via LINE OA (per-user push) ─────────────────────────
 window.sendBulkLinePush = async function () {
@@ -2795,7 +2913,7 @@ window.sendBulkLinePush = async function () {
 
     const sendTargets = targets.map(a => ({
       userId: a.line_user_id,
-      message: _fillBulkTemplate(tpl, a),
+      message: _buildBulkTextFlex(currentEvent, a, _fillBulkTemplate(tpl, a)),
     }));
 
     const result = await window.LineAPI.sendPersonalized({
@@ -2811,6 +2929,242 @@ window.sendBulkLinePush = async function () {
     } else {
       showToast(`⚠️ สำเร็จ ${result.ok} · ล้มเหลว ${result.fail} คน — ดู console`, "error");
       console.warn("LINE push errors:", result.errors);
+    }
+  } catch (e) {
+    showToast("ส่งไม่ได้: " + e.message, "error");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = originalText;
+  }
+};
+
+// ── Send tag detail per attendee (FLEX) ─────────────────────
+// สำหรับคนที่ถูก filter อยู่ใน bulk modal: ส่ง flex bubble ที่มี detail ของ tag ที่ตัวเองมี
+// คนติดหลาย tag = หลาย box ใน 1 bubble (สีตาม category)
+// คนไม่มี tag / tag ไม่มี detail / ไม่มี LINE = skip
+const FLEX_TAG_COLORS = {
+  yellow: { bg: "#fef3c7", title: "#92400e", body: "#78350f" },
+  blue:   { bg: "#dbeafe", title: "#1e40af", body: "#1e3a8a" },
+  green:  { bg: "#d1fae5", title: "#047857", body: "#065f46" },
+  pink:   { bg: "#fce7f3", title: "#be185d", body: "#9d174d" },
+  purple: { bg: "#ede9fe", title: "#6d28d9", body: "#5b21b6" },
+  red:    { bg: "#fee2e2", title: "#b91c1c", body: "#991b1b" },
+  gray:   { bg: "#e2e8f0", title: "#475569", body: "#334155" },
+};
+
+function _buildTagDetailFlex(event, attendee, taggedItems) {
+  const eventName = event?.event_name || "งานกิจกรรม";
+  const dateText = event?.event_date ? _fmtDateTH(event.event_date) : "";
+  const name = attendee.name || attendee.member_code || "";
+
+  const tagBoxes = taggedItems.map((it) => {
+    const c = FLEX_TAG_COLORS[it.color] || FLEX_TAG_COLORS.yellow;
+    return {
+      type: "box",
+      layout: "vertical",
+      margin: "md",
+      paddingAll: "md",
+      cornerRadius: "lg",
+      backgroundColor: c.bg,
+      contents: [
+        {
+          type: "text",
+          text: `🏷️  ${it.name}`,
+          weight: "bold",
+          size: "sm",
+          color: c.title,
+          wrap: true,
+        },
+        {
+          type: "text",
+          text: it.detail,
+          size: "xs",
+          color: c.body,
+          wrap: true,
+          margin: "sm",
+        },
+      ],
+    };
+  });
+
+  const headerContents = [
+    {
+      type: "text",
+      text: "🏷️ ข้อมูลกิจกรรม",
+      weight: "bold",
+      size: "lg",
+      color: "#ffffff",
+    },
+    {
+      type: "text",
+      text: eventName,
+      size: "sm",
+      color: "#e9d5ff",
+      margin: "xs",
+      wrap: true,
+    },
+  ];
+  if (dateText) {
+    headerContents.push({
+      type: "text",
+      text: `📅 ${dateText}`,
+      size: "xs",
+      color: "#e9d5ff",
+      margin: "xs",
+    });
+  }
+
+  const bubble = {
+    type: "bubble",
+    size: "kilo",
+    header: {
+      type: "box",
+      layout: "vertical",
+      paddingAll: "lg",
+      backgroundColor: "#7c3aed",
+      contents: headerContents,
+    },
+    body: {
+      type: "box",
+      layout: "vertical",
+      spacing: "sm",
+      paddingAll: "lg",
+      contents: [
+        {
+          type: "box",
+          layout: "baseline",
+          contents: [
+            { type: "text", text: "👤", size: "sm", flex: 0 },
+            {
+              type: "text",
+              text: ` ${name}`,
+              size: "sm",
+              color: "#0f172a",
+              weight: "bold",
+              margin: "sm",
+              wrap: true,
+            },
+          ],
+        },
+        { type: "separator", margin: "md" },
+        {
+          type: "text",
+          text: "📋 รายการของคุณ",
+          weight: "bold",
+          size: "sm",
+          color: "#0f172a",
+          margin: "md",
+        },
+        ...tagBoxes,
+      ],
+    },
+    footer: {
+      type: "box",
+      layout: "vertical",
+      paddingAll: "md",
+      contents: [
+        {
+          type: "text",
+          text: "📱 แสดงข้อความนี้ที่จุดรับเพื่อยืนยัน",
+          size: "xs",
+          color: "#6B7280",
+          align: "center",
+          wrap: true,
+        },
+      ],
+    },
+  };
+
+  return {
+    type: "flex",
+    altText: `🏷️ ${eventName} — ${taggedItems.map((t) => t.name).join(", ")}`,
+    contents: bubble,
+  };
+}
+
+window.sendBulkLineTagDetail = async function () {
+  if (!window.LineAPI) { showToast("LINE module ยังไม่โหลด — refresh หน้า", "error"); return; }
+  if (!window.ERPCrypto?.hasMasterKey()) { showToast("ตั้ง Master Key ในหน้า settings ก่อน", "error"); return; }
+  if (!currentTagCategories.length) {
+    showToast("ยังไม่มีหมวด Tag ใน event นี้", "error");
+    return;
+  }
+
+  // Build category lookup: tag_name → { detail, color }
+  const catByTag = {};
+  currentTagCategories.forEach((c) => {
+    const d = (c.detail || "").trim();
+    if (d) {
+      catByTag[c.tag_name] = {
+        detail: d,
+        color: TAG_COLOR_PRESETS.includes(c.color) ? c.color : "yellow",
+      };
+    }
+  });
+  if (!Object.keys(catByTag).length) {
+    showToast("ยังไม่มีหมวด Tag ที่กรอกรายละเอียดไว้", "error");
+    return;
+  }
+
+  // For each filtered attendee with LINE: build flex from their tags' details
+  const pool = _bulkMsgTargets().filter((a) => a.line_user_id);
+  const targets = [];
+  let skipNoTag = 0, skipNoDetail = 0;
+  pool.forEach((a) => {
+    const tags = (a.tags || []).filter(Boolean);
+    if (!tags.length) { skipNoTag++; return; }
+    const items = tags
+      .map((t) => catByTag[t] ? { name: t, ...catByTag[t] } : null)
+      .filter(Boolean);
+    if (!items.length) { skipNoDetail++; return; }
+    targets.push({
+      userId: a.line_user_id,
+      message: _buildTagDetailFlex(currentEvent, a, items),
+    });
+  });
+
+  if (!targets.length) {
+    showToast("ไม่มีคนเข้าเงื่อนไข (ต้องมี LINE + tag ที่มี detail)", "error");
+    return;
+  }
+
+  const ok = await (window.ConfirmModal
+    ? window.ConfirmModal.open({
+        icon: "🏷️",
+        title: "ส่งข้อความ Tag (Flex)",
+        message: `แต่ละคนจะได้ flex บัตรเฉพาะของตัวเองตาม tag ที่มี`,
+        details: {
+          "ส่งให้": `${targets.length} คน`,
+          "ไม่มี tag": `${skipNoTag} คน (skip)`,
+          "tag ไม่มี detail": `${skipNoDetail} คน (skip)`,
+        },
+        okText: "ส่งเลย",
+        cancelText: "ยกเลิก",
+        tone: "primary",
+      })
+    : Promise.resolve(confirm(`ส่ง flex tag detail ให้ ${targets.length} คน?`)));
+  if (!ok) return;
+
+  const btn = document.getElementById("btnBulkTagDetail");
+  btn.disabled = true;
+  const originalText = btn.textContent;
+  btn.textContent = `⏳ 0/${targets.length}`;
+
+  try {
+    const channel = await window.LineAPI.getChannelForEvent(currentEvent);
+    if (!channel) throw new Error("ไม่พบ LINE channel — ตั้งค่าในหน้า settings");
+
+    const result = await window.LineAPI.sendPersonalized({
+      channel,
+      targets,
+      onProgress: ({ done, total }) => { btn.textContent = `⏳ ${done}/${total}`; },
+    });
+
+    if (result.fail === 0) {
+      showToast(`✅ ส่งสำเร็จ ${result.ok}/${targets.length} คน`, "success");
+    } else {
+      showToast(`⚠️ สำเร็จ ${result.ok} · ล้มเหลว ${result.fail} — ดู console`, "error");
+      console.warn("LINE tag-detail flex errors:", result.errors);
     }
   } catch (e) {
     showToast("ส่งไม่ได้: " + e.message, "error");
