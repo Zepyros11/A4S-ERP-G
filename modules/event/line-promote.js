@@ -51,7 +51,7 @@ async function fetchLineGroups(includeInactive = false) {
   return (
     sbFetch(
       "line_groups",
-      `?select=*${filter}&order=is_default.desc,is_active.desc,group_name.asc`,
+      `?select=*${filter}&order=is_active.desc,group_name.asc`,
     ) || []
   );
 }
@@ -395,17 +395,22 @@ window.bulkSendNow = async function () {
   });
   if (!ok) return;
   showLoading(true);
+  let sent = 0, failed = 0;
   try {
-    // 1) เลื่อน scheduled_at ของทั้งหมดเป็น 1 นาทีก่อน
-    const past = new Date(Date.now() - 60_000).toISOString();
-    await sbFetch("line_scheduled_posts", `?id=in.(${ids.join(",")})`, {
-      method: "PATCH",
-      body: { scheduled_at: past },
-    });
-    // 2) Trigger cron
-    const r = await fetch(`${proxyBase}/cron/line-promote`, { method: "POST" });
-    const data = await r.json();
-    showToast(`ส่ง ${data.sent || 0} ✅ · ล้มเหลว ${data.failed || 0} ❌`, data.failed > 0 ? "error" : "success");
+    // ส่งทีละ post ผ่าน endpoint ใหม่ (กระทบเฉพาะที่เลือก ไม่ใช่ post อื่นใน event)
+    for (const id of ids) {
+      try {
+        const r = await fetch(`${proxyBase}/line/send-scheduled-post`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id }),
+        });
+        const data = await r.json().catch(() => ({}));
+        if (data.status === "SENT") sent++;
+        else failed++;
+      } catch { failed++; }
+    }
+    showToast(`ส่ง ${sent} ✅ · ล้มเหลว ${failed} ❌`, failed > 0 ? "error" : "success");
     _selectedPostIds.clear();
     allPosts = await fetchPosts(currentEventId);
     updateStats();
@@ -473,9 +478,8 @@ window.openLpModal = function (id = null) {
         <label class="form-label">กลุ่ม LINE <span style="color: var(--danger)">*</span></label>
         <select class="form-input" id="fLpGroup">
           ${allGroups.map((g) => {
-            const tag = g.is_default ? " ⭐" : "";
             const name = g.group_name || g.group_id.slice(0, 10) + "…";
-            return `<option value="${escapeHtml(g.group_id)}">${escapeHtml(name)}${tag}</option>`;
+            return `<option value="${escapeHtml(g.group_id)}">${escapeHtml(name)}</option>`;
           }).join("")}
         </select>
       `;
@@ -667,10 +671,9 @@ window.openEventGroupsModal = async function () {
   if (!currentEvent) return showToast("กรุณาเลือก event ก่อน", "error");
   showLoading(true);
   try {
-    if (!allGroups.length) {
-      _allGroupsIncludingInactive = await fetchLineGroups(true);
-      allGroups = _allGroupsIncludingInactive.filter((g) => g.is_active);
-    }
+    // โหลดทุกกลุ่ม รวม inactive — เพื่อให้ user เห็น/uncheck กลุ่มที่ผูกไว้ก่อนหน้าได้
+    _allGroupsIncludingInactive = await fetchLineGroups(true);
+    allGroups = _allGroupsIncludingInactive.filter((g) => g.is_active);
     const current = Array.isArray(currentEvent.line_group_ids) ? currentEvent.line_group_ids : [];
     _evtSelectedGroupIds = new Set(current);
     renderEvtGroupsCheckList();
@@ -685,34 +688,117 @@ window.closeEventGroupsModal = function () {
   document.getElementById("evtGroupsModalOverlay").classList.remove("open");
 };
 
+let _collapsedEvtCategories = new Set();
+
 function renderEvtGroupsCheckList() {
   const box = document.getElementById("evtGroupsCheckList");
   if (!box) return;
-  if (!allGroups.length) {
+
+  const sourceList = _allGroupsIncludingInactive.length
+    ? _allGroupsIncludingInactive
+    : allGroups;
+
+  if (!sourceList.length) {
     box.innerHTML = `<div class="empty-state" style="padding:30px">
       <div class="empty-icon">👥</div>
       <div class="empty-text">ยังไม่มีกลุ่ม LINE — เปิด "จัดการกลุ่ม" เพื่อเพิ่มกลุ่มก่อน</div>
     </div>`;
     return;
   }
-  box.innerHTML = allGroups
-    .map((g) => {
-      const checked = _evtSelectedGroupIds.has(g.group_id);
-      const name = g.group_name || "(ยังไม่ตั้งชื่อ)";
-      return `<label class="lp-grp-check-row ${checked ? "checked" : ""}">
-        <input type="checkbox" ${checked ? "checked" : ""}
-          onchange="window.toggleEvtGroupCheck('${escapeHtml(g.group_id)}', this.checked, this)" />
-        <div class="lp-grp-check-info">
-          <div class="lp-grp-check-name">
-            ${escapeHtml(name)}
-            ${g.is_default ? `<span class="lp-grp-default-badge">⭐ DEFAULT</span>` : ""}
-          </div>
-          <div class="lp-grp-check-meta">${escapeHtml(g.group_id.slice(0, 20))}…</div>
+
+  // Detect orphan group_ids — selected ids ที่ไม่เจอใน DB เลย (กลุ่มถูกลบไป)
+  const knownIds = new Set(sourceList.map((g) => g.group_id));
+  const orphanIds = [..._evtSelectedGroupIds].filter((id) => !knownIds.has(id));
+
+  // Group by category
+  const grouped = {};
+  sourceList.forEach((g) => {
+    const cat = g.category || "__uncategorized__";
+    if (!grouped[cat]) grouped[cat] = [];
+    grouped[cat].push(g);
+  });
+  if (orphanIds.length) {
+    grouped["__orphan__"] = orphanIds.map((id) => ({
+      group_id: id,
+      group_name: "(กลุ่มถูกลบจากระบบแล้ว)",
+      is_active: false,
+      __orphan: true,
+    }));
+  }
+
+  const sortedCats = Object.keys(grouped).sort((a, b) => {
+    if (a === "__orphan__") return 1;
+    if (b === "__orphan__") return -1;
+    if (a === "__uncategorized__") return 1;
+    if (b === "__uncategorized__") return -1;
+    return a.localeCompare(b);
+  });
+
+  box.innerHTML = sortedCats
+    .map((cat) => {
+      const rows = grouped[cat];
+      const isCollapsed = _collapsedEvtCategories.has(cat);
+      const catLabel = cat === "__uncategorized__"
+        ? "ไม่จัดหมวด"
+        : cat === "__orphan__"
+          ? "⚠️ กลุ่มที่ถูกลบ (uncheck เพื่อล้าง)"
+          : cat;
+      const catEmoji = cat === "__uncategorized__" ? "📂" : cat === "__orphan__" ? "❌" : "📁";
+      // count selected in this category
+      const selCount = rows.filter((g) => _evtSelectedGroupIds.has(g.group_id)).length;
+      const allChecked = selCount === rows.length;
+      const someChecked = selCount > 0 && !allChecked;
+      return `<div class="lp-grp-section ${isCollapsed ? "collapsed" : ""}">
+        <div class="lp-grp-section-hdr" style="cursor:default">
+          <span class="lp-grp-section-arrow" onclick="window.toggleEvtCategory('${escapeHtml(cat)}')" style="cursor:pointer">▾</span>
+          <span class="lp-grp-section-title" onclick="window.toggleEvtCategory('${escapeHtml(cat)}')" style="cursor:pointer">${catEmoji} ${escapeHtml(catLabel)}</span>
+          <button class="lp-grp-cat-select-all" onclick="window.toggleEvtCategoryAll('${escapeHtml(cat)}', ${!allChecked})"
+            title="${allChecked ? "ยกเลิกเลือกทั้งหมดในหมวดนี้" : "เลือกทั้งหมดในหมวดนี้"}">
+            ${allChecked ? "☑ ทั้งหมด" : someChecked ? `◧ ${selCount}/${rows.length}` : "☐ เลือกทั้งหมด"}
+          </button>
+          <span class="lp-grp-section-count">${rows.length}</span>
         </div>
-      </label>`;
+        <div class="lp-grp-section-body" style="padding:6px">
+          ${rows.map(_renderEvtCheckRow).join("")}
+        </div>
+      </div>`;
     })
     .join("");
 }
+
+function _renderEvtCheckRow(g) {
+  const checked = _evtSelectedGroupIds.has(g.group_id);
+  const name = g.group_name || "(ยังไม่ตั้งชื่อ)";
+  const statusBadge = g.__orphan
+    ? `<span class="lp-grp-check-badge lp-grp-check-badge-orphan">orphan</span>`
+    : !g.is_active
+      ? `<span class="lp-grp-check-badge lp-grp-check-badge-inactive">inactive</span>`
+      : "";
+  const rowClass = `lp-grp-check-row ${checked ? "checked" : ""} ${!g.is_active || g.__orphan ? "is-inactive-row" : ""}`;
+  return `<label class="${rowClass}">
+    <input type="checkbox" ${checked ? "checked" : ""}
+      onchange="window.toggleEvtGroupCheck('${escapeHtml(g.group_id)}', this.checked, this)" />
+    <div class="lp-grp-check-info">
+      <div class="lp-grp-check-name">${escapeHtml(name)} ${statusBadge}</div>
+      <div class="lp-grp-check-meta">${escapeHtml(g.group_id.slice(0, 20))}…</div>
+    </div>
+  </label>`;
+}
+
+window.toggleEvtCategory = function (cat) {
+  if (_collapsedEvtCategories.has(cat)) _collapsedEvtCategories.delete(cat);
+  else _collapsedEvtCategories.add(cat);
+  renderEvtGroupsCheckList();
+};
+
+window.toggleEvtCategoryAll = function (cat, checkAll) {
+  const groupsInCat = allGroups.filter((g) => (g.category || "__uncategorized__") === cat);
+  groupsInCat.forEach((g) => {
+    if (checkAll) _evtSelectedGroupIds.add(g.group_id);
+    else _evtSelectedGroupIds.delete(g.group_id);
+  });
+  renderEvtGroupsCheckList();
+};
 
 window.toggleEvtGroupCheck = function (groupId, checked, inputEl) {
   if (checked) _evtSelectedGroupIds.add(groupId);
@@ -842,14 +928,11 @@ async function _syncScheduledPostsToGroups(newGroupIds) {
   return result;
 }
 
-// helper: หากลุ่มที่จะส่งสำหรับ event ปัจจุบัน — ใช้ event.line_group_ids ก่อน, fallback default
+// helper: หากลุ่มที่จะส่งสำหรับ event ปัจจุบัน — ต้องผูกกลุ่มที่ event ก่อน (ไม่มี default fallback)
 function _resolveTargetGroupsForEvent() {
   const ids = Array.isArray(currentEvent?.line_group_ids) ? currentEvent.line_group_ids : [];
-  if (ids.length) {
-    return allGroups.filter((g) => ids.includes(g.group_id));
-  }
-  const def = allGroups.find((g) => g.is_default);
-  return def ? [def] : [];
+  if (!ids.length) return [];
+  return allGroups.filter((g) => ids.includes(g.group_id));
 }
 
 // ── Reply Templates Modal ─────────────────────────────────
@@ -1045,7 +1128,10 @@ window.closeGroupsModal = function () {
   document.getElementById("groupsModalOverlay").classList.remove("open");
 };
 
-function renderGroupsList() {
+// _collapsedCategories — track which sections are collapsed
+let _collapsedCategories = new Set();
+
+window.renderGroupsList = function () {
   const box = document.getElementById("groupsList");
   if (!box) return;
   const list = _allGroupsIncludingInactive;
@@ -1054,40 +1140,164 @@ function renderGroupsList() {
       <div class="empty-icon">👥</div>
       <div class="empty-text">ยังไม่มีกลุ่ม LINE — เชิญบอท @949bctau เข้ากลุ่มก่อน</div>
     </div>`;
+    _populateCategoryFilter([]);
     return;
   }
-  box.innerHTML = list
-    .map((g) => {
-      const joined = g.joined_at
-        ? new Date(g.joined_at).toLocaleDateString("th-TH", { timeZone: "Asia/Bangkok", day: "2-digit", month: "2-digit", year: "numeric" })
-        : "—";
-      return `<div class="lp-group-row ${g.is_default ? "is-default" : ""} ${!g.is_active ? "is-inactive" : ""}">
-        <div class="lp-group-info">
-          <div style="display:flex;gap:6px;align-items:center">
-            <input type="text" class="form-input lp-group-name-input"
-              value="${escapeHtml(g.group_name || "")}"
-              placeholder="ตั้งชื่อกลุ่ม..."
-              onchange="window.renameGroup(${g.id}, this.value)"
-              style="flex:1" />
-            <button class="btn-icon" title="ดึงชื่อกลุ่มจาก LINE auto"
-              onclick="window.fetchGroupNameFromLine('${escapeHtml(g.group_id)}', ${g.id})">🔄</button>
-          </div>
-          <div class="lp-group-meta">
-            <code>${escapeHtml(g.group_id.slice(0, 16))}…</code>
-            · เข้าเมื่อ ${joined}
-            ${g.is_active ? "" : ' · <span style="color:var(--danger)">inactive</span>'}
-          </div>
+
+  // Collect categories
+  const allCats = [...new Set(list.map((g) => g.category).filter(Boolean))].sort();
+  _populateCategoryFilter(allCats);
+
+  // Apply filters
+  const searchEl = document.getElementById("lpGrpSearch");
+  const catEl = document.getElementById("lpGrpCatFilter");
+  const search = (searchEl?.value || "").toLowerCase().trim();
+  const catFilter = catEl?.value || "";
+
+  const filtered = list.filter((g) => {
+    if (catFilter && (g.category || "") !== catFilter) return false;
+    if (search) {
+      const hay = [g.group_name, g.group_id, g.category].filter(Boolean).join(" ").toLowerCase();
+      if (!hay.includes(search)) return false;
+    }
+    return true;
+  });
+
+  if (!filtered.length) {
+    box.innerHTML = `<div class="empty-state" style="padding:24px">
+      <div class="empty-text" style="font-size:13px;color:var(--text3)">ไม่เจอกลุ่มที่ตรงเงื่อนไข</div>
+    </div>`;
+    return;
+  }
+
+  // Group by category
+  const grouped = {};
+  filtered.forEach((g) => {
+    const cat = g.category || "__uncategorized__";
+    if (!grouped[cat]) grouped[cat] = [];
+    grouped[cat].push(g);
+  });
+
+  // Render sections
+  const sortedCats = Object.keys(grouped).sort((a, b) => {
+    if (a === "__uncategorized__") return 1;
+    if (b === "__uncategorized__") return -1;
+    return a.localeCompare(b);
+  });
+
+  box.innerHTML = sortedCats
+    .map((cat) => {
+      const rows = grouped[cat];
+      const isCollapsed = _collapsedCategories.has(cat);
+      const catLabel = cat === "__uncategorized__" ? "ไม่จัดหมวด" : cat;
+      const catEmoji = cat === "__uncategorized__" ? "📂" : "📁";
+      return `<div class="lp-grp-section ${isCollapsed ? "collapsed" : ""}">
+        <div class="lp-grp-section-hdr" onclick="window.toggleCategory('${escapeHtml(cat)}')">
+          <span class="lp-grp-section-arrow">▾</span>
+          <span class="lp-grp-section-title">${catEmoji} ${escapeHtml(catLabel)}</span>
+          <span class="lp-grp-section-count">${rows.length}</span>
         </div>
-        <div class="lp-group-actions">
-          ${g.is_default
-            ? `<span class="lp-default-badge">⭐ default</span>`
-            : `<button class="btn-icon" title="ตั้งเป็น default" onclick="window.setDefaultGroup(${g.id})">⭐</button>`}
-          <button class="btn-icon ${g.is_active ? "" : "btn-icon-dim"}" title="${g.is_active ? "ปิดใช้งาน" : "เปิดใช้งาน"}" onclick="window.toggleGroupActive(${g.id}, ${!g.is_active})">${g.is_active ? "🔕" : "🔔"}</button>
+        <div class="lp-grp-section-body">
+          ${rows.map(_renderGroupRow).join("")}
         </div>
       </div>`;
     })
     .join("");
+};
+
+function _populateCategoryFilter(cats) {
+  const el = document.getElementById("lpGrpCatFilter");
+  if (!el) return;
+  const current = el.value;
+  el.innerHTML =
+    `<option value="">📁 ทุกหมวด</option>` +
+    cats.map((c) => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join("");
+  el.value = current;
 }
+
+window.toggleCategory = function (cat) {
+  if (_collapsedCategories.has(cat)) _collapsedCategories.delete(cat);
+  else _collapsedCategories.add(cat);
+  window.renderGroupsList();
+};
+
+function _renderGroupRow(g) {
+  const inactiveTip = g.is_active
+    ? ""
+    : ` · <span style="color:var(--danger)" title="บอทไม่อยู่ในกลุ่มแล้ว">inactive</span>`;
+  const catChip = g.category
+    ? `<span class="lp-grp-cat-chip" onclick="window.editGroupCategory(${g.id})" title="คลิกเพื่อเปลี่ยนหมวด">${escapeHtml(g.category)}</span>`
+    : `<button class="lp-grp-cat-add" onclick="window.editGroupCategory(${g.id})" title="ตั้งหมวดหมู่">+ หมวด</button>`;
+  return `<div class="lp-group-row ${!g.is_active ? "is-inactive" : ""}">
+    <div class="lp-group-info">
+      <div class="lp-group-row-line1">
+        <input type="text" class="form-input lp-group-name-input"
+          value="${escapeHtml(g.group_name || "")}"
+          placeholder="ตั้งชื่อกลุ่ม..."
+          onchange="window.renameGroup(${g.id}, this.value)" />
+        ${catChip}
+        <button class="btn-icon" title="ดึงชื่อจาก LINE"
+          onclick="window.fetchGroupNameFromLine('${escapeHtml(g.group_id)}', ${g.id})">🔄</button>
+        <button class="btn-icon ${g.is_active ? "" : "btn-icon-dim"}"
+          title="${g.is_active ? "ปิดใช้งาน" : "เปิดใช้งาน"}"
+          onclick="window.toggleGroupActive(${g.id}, ${!g.is_active})">${g.is_active ? "🔕" : "🔔"}</button>
+        <button class="btn-icon danger" title="ลบ"
+          onclick="window.deleteGroup(${g.id}, '${escapeHtml(g.group_name || g.group_id.slice(0, 12))}')">🗑</button>
+      </div>
+      <div class="lp-group-meta">
+        <code>${escapeHtml(g.group_id.slice(0, 16))}…</code>${inactiveTip}
+      </div>
+    </div>
+  </div>`;
+}
+
+window.editGroupCategory = async function (id) {
+  const grp = _allGroupsIncludingInactive.find((g) => g.id === id);
+  if (!grp) return;
+  const existing = [...new Set(_allGroupsIncludingInactive.map((g) => g.category).filter(Boolean))].sort();
+
+  const ok = await ConfirmModal.open({
+    title: "ตั้งหมวดหมู่กลุ่ม",
+    message: grp.group_name || grp.group_id.slice(0, 16) + "…",
+    icon: "📁",
+    okText: "บันทึก",
+    cancelText: "ยกเลิก",
+    tone: "primary",
+    note:
+      `<div style="display:flex;flex-direction:column;gap:8px">` +
+      (existing.length
+        ? `<div style="font-size:12px;color:#475569">หมวดที่มีอยู่ — คลิกเพื่อเลือก:</div>
+           <div style="display:flex;flex-wrap:wrap;gap:6px">
+             ${existing.map((c) => `<button type="button" class="lp-grp-cat-chip" style="cursor:pointer"
+                onclick="document.getElementById('catInput').value='${escapeHtml(c)}'">${escapeHtml(c)}</button>`).join("")}
+             <button type="button" class="lp-grp-cat-chip" style="cursor:pointer;background:#fef3c7;color:#92400e"
+                onclick="document.getElementById('catInput').value=''">ล้างหมวด</button>
+           </div>`
+        : "") +
+      `<input type="text" id="catInput" class="form-input"
+         value="${escapeHtml(grp.category || "")}"
+         placeholder="พิมพ์ชื่อหมวด เช่น ลูกค้า / ทีมงาน / ผู้บริหาร"
+         style="margin-top:4px" />` +
+      `</div>`,
+  });
+  if (!ok) return;
+
+  const newCat = (document.getElementById("catInput")?.value || "").trim() || null;
+  showLoading(true);
+  try {
+    await sbFetch("line_groups", `?id=eq.${id}`, {
+      method: "PATCH",
+      body: { category: newCat },
+    });
+    showToast(newCat ? `ตั้งหมวด "${newCat}" แล้ว ✅` : "ล้างหมวดแล้ว", "success");
+    _allGroupsIncludingInactive = await fetchLineGroups(true);
+    allGroups = _allGroupsIncludingInactive.filter((g) => g.is_active);
+    window.renderGroupsList();
+  } catch (e) {
+    showToast("บันทึกไม่สำเร็จ: " + e.message, "error");
+  }
+  showLoading(false);
+};
 
 window.fetchAllGroupNames = async function () {
   const proxyBase = (localStorage.getItem("erp_proxy_url") || "").replace(/\/+$/, "");
@@ -1175,29 +1385,6 @@ window.renameGroup = async function (id, name) {
   } catch (e) {
     showToast("เปลี่ยนชื่อไม่ได้: " + e.message, "error");
   }
-};
-
-window.setDefaultGroup = async function (id) {
-  showLoading(true);
-  try {
-    // unset existing defaults ก่อน
-    await sbFetch("line_groups", `?is_default=eq.true`, {
-      method: "PATCH",
-      body: { is_default: false },
-    });
-    // set new default
-    await sbFetch("line_groups", `?id=eq.${id}`, {
-      method: "PATCH",
-      body: { is_default: true },
-    });
-    showToast("ตั้งเป็น default แล้ว ⭐", "success");
-    _allGroupsIncludingInactive = await fetchLineGroups(true);
-    allGroups = _allGroupsIncludingInactive.filter((g) => g.is_active);
-    renderGroupsList();
-  } catch (e) {
-    showToast("ตั้ง default ไม่ได้: " + e.message, "error");
-  }
-  showLoading(false);
 };
 
 window.triggerCronNow = async function () {
@@ -1345,6 +1532,86 @@ window.manualAddGroup = async function () {
     } else {
       showToast("เพิ่มไม่สำเร็จ: " + msg, "error");
     }
+  }
+  showLoading(false);
+};
+
+window.deleteGroup = async function (id, name) {
+  const grp = _allGroupsIncludingInactive.find((g) => g.id === id);
+  if (!grp) return;
+  const gid = grp.group_id;
+
+  // เช็คผลกระทบก่อนลบ
+  const [linkedPosts, linkedEvents] = await Promise.all([
+    sbFetch("line_scheduled_posts", `?target_id=eq.${encodeURIComponent(gid)}&select=id,status&limit=500`).catch(() => []),
+    sbFetch("events", `?line_group_ids=cs.%7B${encodeURIComponent(gid)}%7D&select=event_id,line_group_ids&limit=500`).catch(() => []),
+  ]);
+
+  const pendingCount = (linkedPosts || []).filter((p) => p.status === "SCHEDULED").length;
+  const eventCount = (linkedEvents || []).length;
+
+  let warningNote = "";
+  const warns = [];
+  if (eventCount > 0) warns.push(`📋 จะถอด groupId ออกจาก <b>${eventCount} event</b> ที่ผูกกลุ่มนี้ไว้`);
+  if (pendingCount > 0) warns.push(`⚠️ มี <b>${pendingCount} โพสต์</b> ที่รอส่ง — จะถูกลบทิ้งด้วย`);
+  if (warns.length) warningNote = warns.join("<br/>");
+
+  const ok = await ConfirmModal.open({
+    title: "ลบกลุ่มออกจากระบบ?",
+    message: `กลุ่ม "${name}" จะถูกลบจาก ERP — ไม่กระทบกลุ่ม LINE จริง (บอทยังอยู่ในกลุ่มถ้ายังไม่ถูก kick)`,
+    icon: "🗑",
+    okText: "ลบกลุ่ม + cleanup",
+    cancelText: "ยกเลิก",
+    tone: "danger",
+    note: warningNote || undefined,
+  });
+  if (!ok) return;
+
+  showLoading(true);
+  try {
+    // 1) ลบ scheduled posts ที่ status=SCHEDULED ของกลุ่มนี้ (ไม่แตะ history SENT/CANCELLED)
+    if (pendingCount > 0) {
+      const ids = (linkedPosts || []).filter((p) => p.status === "SCHEDULED").map((p) => p.id);
+      if (ids.length) {
+        await sbFetch("line_scheduled_posts", `?id=in.(${ids.join(",")})`, { method: "DELETE" });
+      }
+    }
+
+    // 2) ถอด groupId ออกจาก events.line_group_ids ของทุก event ที่มี
+    for (const ev of (linkedEvents || [])) {
+      const newIds = (ev.line_group_ids || []).filter((x) => x !== gid);
+      await sbFetch("events", `?event_id=eq.${ev.event_id}`, {
+        method: "PATCH",
+        body: { line_group_ids: newIds.length ? newIds : null },
+      });
+      // อัพเดต cache ถ้าเป็น event ปัจจุบัน
+      if (currentEvent && currentEvent.event_id === ev.event_id) {
+        currentEvent.line_group_ids = newIds.length ? newIds : null;
+      }
+    }
+
+    // 3) ลบ row group เอง
+    await sbFetch("line_groups", `?id=eq.${id}`, { method: "DELETE" });
+
+    let toastMsg = `ลบกลุ่ม "${name}" 🗑`;
+    if (eventCount > 0 || pendingCount > 0) {
+      toastMsg += ` · cleanup ${eventCount} event${pendingCount ? ` + ${pendingCount} posts` : ""}`;
+    }
+    showToast(toastMsg, "success");
+
+    _allGroupsIncludingInactive = await fetchLineGroups(true);
+    allGroups = _allGroupsIncludingInactive.filter((g) => g.is_active);
+    renderGroupsList();
+
+    // refresh event header + posts table ถ้าเปิด event อยู่
+    if (currentEventId) {
+      allPosts = await fetchPosts(currentEventId);
+      renderEventHeader();
+      updateStats();
+      renderTable();
+    }
+  } catch (e) {
+    showToast("ลบไม่สำเร็จ: " + e.message, "error");
   }
   showLoading(false);
 };
@@ -1602,26 +1869,22 @@ window.sendLpPostNow = async function (id) {
 
   showLoading(true);
   try {
-    // 1) เลื่อน scheduled_at ให้เป็นเมื่อ 1 นาทีก่อน → cron จะ pickup ทันที
-    const past = new Date(Date.now() - 60_000).toISOString();
-    await sbFetch("line_scheduled_posts", `?id=eq.${id}`, {
-      method: "PATCH",
-      body: { scheduled_at: past },
+    // ส่งเฉพาะ post นี้ — ไม่กระทบ post อื่นๆ
+    const r = await fetch(`${proxyBase}/line/send-scheduled-post`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
     });
-
-    // 2) Trigger cron ทันที
-    const r = await fetch(`${proxyBase}/cron/line-promote`, { method: "POST" });
-    const data = await r.json();
-
-    // 3) เช็คผล
-    const detail = (data.details || []).find((d) => d.id === id);
-    if (detail?.status === "SENT") {
-      showToast("ส่งแล้ว ✅", "success");
-    } else if (detail?.status === "FAILED") {
-      showToast(`ส่งล้มเหลว: ${detail.error || "?"}`, "error");
-    } else {
-      showToast("Cron processed แต่ไม่เจอ post นี้ — รีเฟรชดูสถานะ", "info");
+    const ct = r.headers.get("content-type") || "";
+    if (!ct.includes("application/json")) {
+      showToast(`Endpoint ยังไม่พร้อม (${r.status}) — Render ยัง deploy ไม่เสร็จ?`, "error");
+      return;
     }
+    const data = await r.json();
+    if (data.status === "SENT") showToast("ส่งแล้ว ✅", "success");
+    else if (data.status === "FAILED") showToast(`ส่งล้มเหลว: ${data.error || "?"}`, "error");
+    else showToast(data.error || "ไม่สำเร็จ", "error");
+
     allPosts = await fetchPosts(currentEventId);
     updateStats();
     renderTable();

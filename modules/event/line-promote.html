@@ -222,6 +222,17 @@
           <button class="btn-icon" onclick="window.closeGroupsModal()">✕</button>
         </div>
         <div class="med-modal-body">
+          <!-- Search + Category filter -->
+          <div class="lp-grp-toolbar">
+            <input type="text" class="form-input lp-grp-search"
+              id="lpGrpSearch" placeholder="🔍 ค้นหากลุ่ม / หมวด..."
+              oninput="window.renderGroupsList()" />
+            <select class="form-input lp-grp-cat-filter"
+              id="lpGrpCatFilter" onchange="window.renderGroupsList()">
+              <option value="">📁 ทุกหมวด</option>
+            </select>
+          </div>
+
           <div id="groupsList">
             <!-- rendered by JS -->
           </div>
@@ -229,27 +240,6 @@
           <button class="btn btn-secondary" onclick="window.fetchAllGroupNames()" style="margin-top:8px;width:100%">
             🔄 ดึงชื่อกลุ่มที่ยังไม่มีชื่อทั้งหมดจาก LINE
           </button>
-
-          <details style="margin-top:14px;border:1px dashed #cbd5e1;border-radius:8px;padding:10px 14px">
-            <summary style="cursor:pointer;font-weight:600;font-size:13px;color:var(--text2)">
-              ➕ เพิ่มกลุ่มด้วยตัวเอง (ถ้า webhook ยังไม่ทำงาน)
-            </summary>
-            <div style="margin-top:10px;display:flex;flex-direction:column;gap:8px">
-              <input class="form-input" id="fManualGroupId" placeholder="Cxxxxxxxxxxxxxxxx (groupId จาก LINE)" />
-              <input class="form-input" id="fManualGroupName" placeholder="ตั้งชื่อกลุ่ม (optional)" />
-              <button class="btn btn-primary" onclick="window.manualAddGroup()" style="margin-top:4px">
-                ➕ เพิ่มกลุ่ม
-              </button>
-              <div class="lp-hint-sm">
-                💡 หา groupId ได้จาก: Render logs (ดู console.log ของ webhook), หรือใช้ <code>/line/groupinfo</code> endpoint
-              </div>
-            </div>
-          </details>
-
-          <div class="fb-hint" style="margin-top:10px">
-            💡 ปกติเมื่อเชิญบอท <b>@949bctau (A4S-Lyra)</b> เข้ากลุ่ม → row จะถูกสร้างอัตโนมัติผ่าน webhook<br/>
-            🔧 ถ้าไม่ทำงาน → กดปุ่ม "🩺 ตรวจสอบระบบ" บน main menu เพื่อ diagnose
-          </div>
         </div>
         <div class="med-modal-footer">
           <button class="btn btn-secondary" onclick="window.closeGroupsModal()">ปิด</button>
@@ -267,10 +257,13 @@
           <button class="btn-icon" onclick="window.closeAutoCreateModal()">✕</button>
         </div>
         <div class="med-modal-body">
-          <div class="fb-hint" style="margin-bottom:14px">
-            💡 ระบบจะสร้าง <b>4 โพสต์</b> (D-7, D-3, D-2, D-1) ที่ <b>09:00 น.</b> โดยใช้ข้อความเดียวกันทั้ง 4 วัน<br/>
-            <span style="font-size:11px;opacity:.8">ใส่ <code>{{days_left}}</code> เพื่อให้ระบบแทนค่าจำนวนวันที่เหลือตอนส่งจริง</span>
-          </div>
+          <details class="lp-collapsible-hint" style="margin-bottom:14px">
+            <summary>💡 คำอธิบาย</summary>
+            <div class="lp-collapsible-hint-body">
+              ระบบจะสร้าง <b>4 โพสต์</b> (D-7, D-3, D-2, D-1) ที่ <b>09:00 น.</b> โดยใช้ข้อความเดียวกันทั้ง 4 วัน<br/>
+              <span style="font-size:11px;opacity:.8">ใส่ <code>{{days_left}}</code> เพื่อให้ระบบแทนค่าจำนวนวันที่เหลือตอนส่งจริง</span>
+            </div>
+          </details>
 
           <div class="form-group">
             <label class="form-label">
@@ -308,10 +301,13 @@
           <button class="btn-icon" onclick="window.closeEventGroupsModal()">✕</button>
         </div>
         <div class="med-modal-body">
-          <div class="fb-hint" style="margin-bottom:12px">
-            💡 เลือกกลุ่ม LINE ที่จะส่งโพสต์ promote ของ event นี้เข้าไป<br/>
-            <span style="font-size:11px;opacity:.8">เมื่อสร้างโพสต์ใหม่ → จะ replicate 1 โพสต์ต่อ 1 กลุ่มที่เลือก</span>
-          </div>
+          <details class="lp-collapsible-hint">
+            <summary>💡 คำอธิบาย</summary>
+            <div class="lp-collapsible-hint-body">
+              เลือกกลุ่ม LINE ที่จะส่งโพสต์ promote ของ event นี้เข้าไป<br/>
+              <span style="font-size:11px;opacity:.8">เมื่อสร้างโพสต์ใหม่ → จะ replicate 1 โพสต์ต่อ 1 กลุ่มที่เลือก</span>
+            </div>
+          </details>
           <div id="evtGroupsCheckList">
             <!-- rendered by JS -->
           </div>
@@ -335,10 +331,13 @@
           <button class="btn-icon" onclick="window.closeDiagModal()">✕</button>
         </div>
         <div class="med-modal-body">
-          <div class="fb-hint" style="margin-bottom:10px">
-            💡 ตรวจสอบสถานะ env variables, ตารางใน Supabase, และความพร้อมของระบบ webhook + cron<br/>
-            <span style="font-size:11px;opacity:.8">ครั้งแรกอาจรอ ~30 วินาที ถ้า Render service หลับอยู่</span>
-          </div>
+          <details class="lp-collapsible-hint" style="margin-bottom:10px">
+            <summary>💡 คำอธิบาย</summary>
+            <div class="lp-collapsible-hint-body">
+              ตรวจสอบสถานะ env variables, ตารางใน Supabase, และความพร้อมของระบบ webhook + cron<br/>
+              <span style="font-size:11px;opacity:.8">ครั้งแรกอาจรอ ~30 วินาที ถ้า Render service หลับอยู่</span>
+            </div>
+          </details>
           <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">
             <button class="btn btn-primary" onclick="window.runLpDiag()" style="flex:1;min-width:120px">
               🔄 รีเฟรช
@@ -375,10 +374,13 @@
           <button class="btn-icon" onclick="window.closeTemplatesModal()">✕</button>
         </div>
         <div class="med-modal-body">
-          <div class="fb-hint" style="margin-bottom:14px">
-            💡 ข้อความที่บอทจะตอบเมื่อมีเหตุการณ์ต่างๆ — แก้ตรงนี้ได้เลย ไม่ต้องไปหน้าอื่น<br/>
-            <span style="font-size:11px;opacity:.8">บันทึกแล้วจะ apply ทันที (force-reload cache ของ webhook)</span>
-          </div>
+          <details class="lp-collapsible-hint" style="margin-bottom:14px">
+            <summary>💡 คำอธิบาย</summary>
+            <div class="lp-collapsible-hint-body">
+              ข้อความที่บอทจะตอบเมื่อมีเหตุการณ์ต่างๆ — แก้ตรงนี้ได้เลย ไม่ต้องไปหน้าอื่น<br/>
+              <span style="font-size:11px;opacity:.8">บันทึกแล้วจะ apply ทันที (force-reload cache ของ webhook)</span>
+            </div>
+          </details>
           <div id="lpTemplatesList">
             <div style="text-align:center;padding:30px;color:var(--text3)">
               ⏳ กำลังโหลด...

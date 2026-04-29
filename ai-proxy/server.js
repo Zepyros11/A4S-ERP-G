@@ -1312,6 +1312,61 @@ function _renderLinePostText(post, eventRow) {
   return _renderTpl(post.message_text || '', payload);
 }
 
+/* ── Send a single scheduled post NOW (bypass cron) ──
+   Frontend ใช้ปุ่ม "📤 ส่งทันที" — ส่ง post id ที่เลือก ไม่กระทบ post อื่น */
+app.post('/line/send-scheduled-post', async (req, res) => {
+  const { id } = req.body || {};
+  if (!id) return res.status(400).json({ ok: false, error: 'missing id' });
+  if (!SB_URL_WEBHOOK || !SB_SERVICE_KEY) return res.status(503).json({ ok: false, error: 'SB env not set' });
+  if (!LINE_CHANNEL_TOKEN) return res.status(503).json({ ok: false, error: 'LINE_CHANNEL_TOKEN not set' });
+
+  const posts = await _sbGet('line_scheduled_posts', `id=eq.${encodeURIComponent(id)}&select=*&limit=1`);
+  const post = posts?.[0];
+  if (!post) return res.status(404).json({ ok: false, error: 'post not found' });
+  if (post.status === 'SENT') return res.status(400).json({ ok: false, error: 'post already SENT', status: 'SENT' });
+
+  // โหลด event เพื่อ render placeholders
+  let evtRow = null;
+  if (post.event_id) {
+    const ev = await _sbGet('events',
+      `event_id=eq.${post.event_id}&select=event_id,event_code,event_name,event_date,end_date,start_time,end_time,location&limit=1`);
+    evtRow = ev?.[0] || null;
+  }
+
+  const text = _renderLinePostText(post, evtRow);
+  if (!text || !text.trim()) {
+    await _sbPatch('line_scheduled_posts', `id=eq.${id}`, {
+      status: 'FAILED',
+      error_message: 'rendered text is empty',
+    });
+    return res.status(400).json({ ok: false, status: 'FAILED', error: 'rendered text is empty' });
+  }
+
+  try {
+    if (post.target_type === 'broadcast') {
+      await _broadcastLineMessage(text);
+    } else {
+      if (!post.target_id) throw new Error('missing target_id');
+      await _pushLineMessage(post.target_id, text);
+    }
+    await _sbPatch('line_scheduled_posts', `id=eq.${id}`, {
+      status: 'SENT',
+      sent_at: new Date().toISOString(),
+      error_message: null,
+    });
+    console.log(`[send-now ${id}] OK target=${post.target_type}/${(post.target_id || '').slice(0, 12)}`);
+    return res.json({ ok: true, status: 'SENT', id: post.id });
+  } catch (e) {
+    console.warn(`[send-now ${id}] FAILED:`, e.message);
+    await _sbPatch('line_scheduled_posts', `id=eq.${id}`, {
+      status: 'FAILED',
+      error_message: e.message.slice(0, 500),
+      retry_count: (post.retry_count || 0) + 1,
+    });
+    return res.json({ ok: false, status: 'FAILED', error: e.message, id: post.id });
+  }
+});
+
 app.post('/cron/line-promote', async (req, res) => {
   if (CRON_SECRET) {
     const got = req.get('x-cron-secret') || (req.body && req.body.secret) || '';
