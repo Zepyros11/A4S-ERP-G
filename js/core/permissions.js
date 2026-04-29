@@ -147,7 +147,10 @@ window.AppPermissions = (() => {
     {
       key: "crm", label: "ลูกค้า (CRM)", icon: "🧑",
       children: [
-        { key: "member", label: "สมาชิก (MLM)", icon: "👤", perms: [
+        { key: "customer_dashboard", label: "Customer Dashboard", icon: "📊", perms: [
+          { key: "customer_dashboard_view", label: "ดู" },
+        ]},
+        { key: "member", label: "ข้อมูลสมาชิก (MLM)", icon: "👤", perms: [
           { key: "member_view",         label: "ดูรายการ" },
           { key: "member_import",       label: "นำเข้า Excel" },
           { key: "member_export",       label: "ส่งออก" },
@@ -156,6 +159,12 @@ window.AppPermissions = (() => {
           { key: "member_decrypt",      label: "ถอดรหัสข้อมูลลับ" },
           { key: "member_sync_config",  label: "ตั้งค่า Auto-Sync" },
           { key: "member_sync_trigger", label: "กด Sync Now" },
+        ]},
+        { key: "members_tree", label: "MLM Tree View", icon: "🌳", perms: [
+          { key: "members_tree_view", label: "ดู" },
+        ]},
+        { key: "line_members", label: "สมาชิกที่เชื่อม LINE", icon: "💬", perms: [
+          { key: "line_members_view", label: "ดู" },
         ]},
       ],
     },

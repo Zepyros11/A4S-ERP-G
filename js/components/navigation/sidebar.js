@@ -410,9 +410,9 @@
     suppliers: "supplier_view",
 
     members: "member_view",
-    "members-dashboard": "member_view",
-    "members-tree": "member_view",
-    "line-members": "member_view",
+    "members-dashboard": "customer_dashboard_view",
+    "members-tree": "members_tree_view",
+    "line-members": "line_members_view",
     "members-import": "member_import",
     "members-sync": "member_sync_config",
     promotions: "view_promotions",
