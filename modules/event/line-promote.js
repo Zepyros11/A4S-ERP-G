@@ -538,6 +538,52 @@ window.setDefaultGroup = async function (id) {
   showLoading(false);
 };
 
+window.runLpDiag = async function () {
+  const out = document.getElementById("lpDiagOutput");
+  if (!out) return;
+  const proxyBase = (localStorage.getItem("erp_proxy_url") || "").replace(/\/+$/, "");
+  out.style.display = "block";
+  out.textContent = "⏳ กำลังตรวจสอบ...\n(ครั้งแรกอาจรอ ~30s ถ้า Render หลับอยู่)";
+
+  if (!proxyBase) {
+    out.textContent = "❌ ยังไม่ได้ตั้ง erp_proxy_url ใน localStorage\n→ ไปที่หน้า Settings ตั้งค่า Proxy URL ก่อน";
+    return;
+  }
+
+  try {
+    const r = await fetch(`${proxyBase}/line/diag`, { cache: "no-store" });
+    const data = await r.json();
+    let txt = "";
+    txt += `🕐 Server time: ${data.server_time}\n\n`;
+
+    txt += "📦 Environment Variables (Render):\n";
+    for (const [k, v] of Object.entries(data.env || {})) {
+      txt += `  ${v ? "✅" : "❌"} ${k}\n`;
+    }
+    txt += "\n";
+
+    txt += "🗄️  Database Tables:\n";
+    for (const [name, info] of Object.entries(data.tables || {})) {
+      txt += `  ${info.exists ? "✅" : "❌"} ${name}`;
+      if (info.exists) txt += ` (${info.rows} row visible)\n`;
+      else txt += ` — ${info.error || "?"}\n${info.hint ? "      💡 " + info.hint + "\n" : ""}`;
+    }
+    txt += "\n";
+
+    txt += `🚦 Ready for webhook insert: ${data.ready_for_webhook_insert ? "✅ YES" : "❌ NO"}\n`;
+    txt += `🚦 Ready for cron send:      ${data.ready_for_cron_send ? "✅ YES" : "❌ NO"}\n`;
+
+    if (data.issues?.length) {
+      txt += "\n⚠️  Issues to fix:\n";
+      data.issues.forEach((i) => { txt += `  • ${i}\n`; });
+    }
+
+    out.textContent = txt;
+  } catch (e) {
+    out.textContent = `❌ ติดต่อ proxy ไม่ได้: ${e.message}\n\nProxy URL: ${proxyBase}\n\nเช็ค:\n  • Render service อยู่หรือไม่ (เปิด ${proxyBase}/ ในแท็บใหม่)\n  • erp_proxy_url ใน localStorage ถูกต้องไหม`;
+  }
+};
+
 window.manualAddGroup = async function () {
   const gid = document.getElementById("fManualGroupId").value.trim();
   const gname = document.getElementById("fManualGroupName").value.trim();

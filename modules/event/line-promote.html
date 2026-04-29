@@ -254,8 +254,13 @@
 
           <div class="fb-hint" style="margin-top:10px">
             💡 ปกติเมื่อเชิญบอท <b>@949bctau (A4S-Lyra)</b> เข้ากลุ่ม → row จะถูกสร้างอัตโนมัติผ่าน webhook<br/>
-            🔧 ถ้าไม่ทำงาน เช็ค: (1) Render deploy โค้ดใหม่แล้วยัง? (2) Webhook URL ตั้งใน LINE Developers Console?
+            🔧 ถ้าไม่ทำงาน เช็ค: (1) Render deploy โค้ดใหม่แล้วยัง? (2) Webhook URL ตั้งใน LINE Developers Console? (3) รัน migration 051 แล้วยัง?
           </div>
+
+          <button class="btn btn-secondary" onclick="window.runLpDiag()" style="margin-top:8px;width:100%">
+            🩺 ตรวจสอบสถานะระบบ (Diagnostic)
+          </button>
+          <pre id="lpDiagOutput" style="display:none;background:#0d1117;color:#e6edf3;padding:12px;border-radius:8px;font-size:11px;line-height:1.5;margin-top:8px;max-height:280px;overflow:auto;font-family:'IBM Plex Mono',monospace;white-space:pre-wrap;word-break:break-all"></pre>
         </div>
         <div class="med-modal-footer">
           <button class="btn btn-secondary" onclick="window.closeGroupsModal()">ปิด</button>

@@ -333,8 +333,12 @@ async function _sbUpdateUserLine({ userRowId, userId, displayName, pictureUrl })
 }
 
 async function _sbUpsertLineGroup(groupId, fields) {
-  if (!SB_URL_WEBHOOK || !SB_SERVICE_KEY) return false;
+  if (!SB_URL_WEBHOOK || !SB_SERVICE_KEY) {
+    console.warn('[upsert line_group] SKIPPED — SB_URL or SB_SERVICE_KEY not set in Render env');
+    return false;
+  }
   try {
+    const payload = { group_id: groupId, ...fields };
     const r = await fetch(
       `${SB_URL_WEBHOOK}/rest/v1/line_groups?on_conflict=group_id`,
       {
@@ -345,12 +349,20 @@ async function _sbUpsertLineGroup(groupId, fields) {
           'Content-Type': 'application/json',
           Prefer: 'resolution=merge-duplicates,return=minimal',
         },
-        body: JSON.stringify({ group_id: groupId, ...fields }),
+        body: JSON.stringify(payload),
       },
     );
-    if (!r.ok) console.warn('[upsert line_group]', r.status, await r.text().catch(() => ''));
-    return r.ok;
-  } catch (e) { console.warn('[upsert line_group]', e.message); return false; }
+    if (!r.ok) {
+      const errText = await r.text().catch(() => '');
+      console.error(`[upsert line_group] FAILED status=${r.status} body=${errText.slice(0, 400)} payload=${JSON.stringify(payload).slice(0, 200)}`);
+      return false;
+    }
+    console.log(`[upsert line_group] OK group=${groupId.slice(0, 12)}... fields=${Object.keys(fields).join(',')}`);
+    return true;
+  } catch (e) {
+    console.error('[upsert line_group] EXCEPTION', e.message);
+    return false;
+  }
 }
 
 async function _sbUpsertMemberLine({ memberCode, userId, displayName, pictureUrl }) {
@@ -779,6 +791,79 @@ app.post('/line/templates/reload', async (_req, res) => {
   _tplCacheAt = 0;
   const tpls = await _loadTemplates();
   return res.json({ ok: true, keys: Object.keys(tpls) });
+});
+
+/* ── Diagnostic — เช็คว่า env + table + permissions พร้อมส่ง LINE หรือไม่ ── */
+app.get('/line/diag', async (_req, res) => {
+  const result = {
+    server_time: new Date().toISOString(),
+    env: {
+      SB_URL: !!SB_URL_WEBHOOK,
+      SB_SERVICE_KEY: !!SB_SERVICE_KEY,
+      LINE_CHANNEL_SECRET: !!LINE_CHANNEL_SECRET,
+      LINE_CHANNEL_TOKEN: !!LINE_CHANNEL_TOKEN,
+      CRON_SECRET: !!CRON_SECRET,
+    },
+    tables: {},
+  };
+
+  if (!SB_URL_WEBHOOK || !SB_SERVICE_KEY) {
+    result.error = 'SB_URL or SB_SERVICE_KEY not set in Render env vars';
+    return res.json(result);
+  }
+
+  // เช็คว่าตารางมีอยู่ไหม (lookup _คอลัมน์_ count via PostgREST HEAD-like)
+  const checkTable = async (table) => {
+    try {
+      const r = await fetch(`${SB_URL_WEBHOOK}/rest/v1/${table}?select=*&limit=1`, {
+        headers: {
+          apikey: SB_SERVICE_KEY,
+          Authorization: `Bearer ${SB_SERVICE_KEY}`,
+        },
+      });
+      if (r.ok) {
+        const rows = await r.json().catch(() => []);
+        return { exists: true, status: r.status, rows: Array.isArray(rows) ? rows.length : 0 };
+      }
+      const errText = await r.text().catch(() => '');
+      let parsed = {};
+      try { parsed = JSON.parse(errText); } catch {}
+      return {
+        exists: false,
+        status: r.status,
+        error: parsed.message || errText.slice(0, 300),
+        hint: r.status === 404 || (parsed.message || '').includes('does not exist')
+          ? 'ตารางยังไม่มี — รัน migration sql/051_line_promote.sql ใน Supabase SQL Editor'
+          : null,
+      };
+    } catch (e) {
+      return { exists: false, error: e.message };
+    }
+  };
+
+  result.tables.line_groups = await checkTable('line_groups');
+  result.tables.line_scheduled_posts = await checkTable('line_scheduled_posts');
+  result.tables.line_channels = await checkTable('line_channels');
+  result.tables.events = await checkTable('events');
+
+  // สรุปสถานะ
+  const allTablesOk = Object.values(result.tables).every((t) => t.exists);
+  const allEnvOk = result.env.SB_URL && result.env.SB_SERVICE_KEY && result.env.LINE_CHANNEL_TOKEN;
+  result.ready_for_webhook_insert = allTablesOk && allEnvOk;
+  result.ready_for_cron_send = result.ready_for_webhook_insert;
+
+  if (!result.ready_for_webhook_insert) {
+    const issues = [];
+    if (!result.env.SB_URL) issues.push('SB_URL env missing');
+    if (!result.env.SB_SERVICE_KEY) issues.push('SB_SERVICE_KEY env missing');
+    if (!result.env.LINE_CHANNEL_TOKEN) issues.push('LINE_CHANNEL_TOKEN env missing');
+    Object.entries(result.tables).forEach(([t, info]) => {
+      if (!info.exists) issues.push(`table "${t}" missing — ${info.hint || info.error || 'unknown'}`);
+    });
+    result.issues = issues;
+  }
+
+  return res.json(result);
 });
 
 /* ── Get OA info (bot name, picture) — quick health check ── */
