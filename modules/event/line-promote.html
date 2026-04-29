@@ -23,7 +23,7 @@
       <div id="sidebar-container"></div>
       <div class="content-area">
         <div class="page">
-          <!-- TOP ACTION BAR (เครื่องมือทั้งหมดของระบบ LINE Promote) -->
+          <!-- TOP ACTION BAR (system-level tools) -->
           <div class="lp-action-bar">
             <div class="lp-action-bar-title">
               📢 ระบบโพสต์ LINE
@@ -40,29 +40,6 @@
               <button class="lp-action-btn" onclick="window.openDiagModal()" title="ตรวจสอบสถานะระบบ + env + tables">
                 <span class="lp-action-icon">🩺</span>
                 <span>ตรวจสอบระบบ</span>
-              </button>
-            </div>
-          </div>
-
-          <!-- EVENT SELECTOR -->
-          <div class="lp-toolbar">
-            <span class="lp-toolbar-label">📢 เลือกกิจกรรม:</span>
-            <select
-              class="form-input"
-              id="eventSelect"
-              style="flex: 1; max-width: 400px"
-              onchange="window.onEventChange()"
-            >
-              <option value="">-- เลือกกิจกรรม --</option>
-            </select>
-            <div id="lpActionBtns" style="display: none">
-              <button
-                id="btnAddLpPost"
-                class="btn btn-primary"
-                data-perm="line_promote_create"
-                onclick="window.openLpModal()"
-              >
-                ＋ เพิ่มโพสต์
               </button>
             </div>
           </div>
@@ -106,28 +83,26 @@
 
             <!-- TABLE -->
             <div class="table-card">
-              <div class="toolbar">
-                <div class="search-wrap">
-                  <span class="search-icon">🔍</span>
-                  <input class="search-input" id="lpSearchInput" placeholder="ค้นหาข้อความ..." />
-                </div>
-                <select class="filter-select" id="lpFilterStatus">
-                  <option value="">⚪ ทุกสถานะ</option>
-                  <option value="SCHEDULED">📅 รอส่ง</option>
-                  <option value="SENT">✅ ส่งแล้ว</option>
-                  <option value="FAILED">❌ ล้มเหลว</option>
-                  <option value="CANCELLED">🚫 ยกเลิก</option>
-                </select>
-              </div>
-
               <div class="table-hdr">
                 <div class="table-title">📅 รายการโพสต์ LINE</div>
                 <div class="table-count" id="lpCount">0 โพสต์</div>
+              </div>
+              <div id="lpBulkBar" class="lp-bulk-bar" style="display:none">
+                <span class="lp-bulk-info">เลือกแล้ว <strong id="lpBulkCount">0</strong> รายการ</span>
+                <div class="lp-bulk-actions">
+                  <button class="btn btn-secondary lp-bulk-btn" data-perm="line_promote_edit" onclick="window.bulkSendNow()" title="ส่งโพสต์ที่เลือก (เฉพาะ SCHEDULED) ทันที">📤 ส่งทันที</button>
+                  <button class="btn btn-secondary lp-bulk-btn" data-perm="line_promote_cancel" onclick="window.bulkCancel()" title="ยกเลิกโพสต์ที่เลือก (เฉพาะ SCHEDULED)">🚫 ยกเลิก</button>
+                  <button class="btn btn-secondary lp-bulk-btn lp-bulk-btn-danger" data-perm="line_promote_cancel" onclick="window.bulkDelete()" title="ลบโพสต์ที่เลือกทั้งหมด">🗑 ลบ</button>
+                  <button class="btn btn-secondary lp-bulk-btn" onclick="window.clearLpSelection()" title="ยกเลิกการเลือก">✕ เลิกเลือก</button>
+                </div>
               </div>
               <div class="table-wrap">
                 <table class="data-table">
                   <thead>
                     <tr>
+                      <th class="col-center" style="width:40px">
+                        <input type="checkbox" id="lpSelectAll" onchange="window.toggleSelectAllLp(this.checked)" title="เลือกทั้งหมด" />
+                      </th>
                       <th class="col-center" style="width:90px">D-day</th>
                       <th>ข้อความ</th>
                       <th class="col-center" style="width:160px">กลุ่ม LINE</th>
@@ -138,7 +113,7 @@
                   </thead>
                   <tbody id="lpTableBody">
                     <tr>
-                      <td colspan="6">
+                      <td colspan="7">
                         <div class="empty-state">
                           <div class="empty-icon">📅</div>
                           <div class="empty-text">ยังไม่มีโพสต์ที่ schedule</div>
@@ -155,7 +130,13 @@
           <div id="noEventState">
             <div class="empty-state" style="min-height: 300px">
               <div class="empty-icon">📅</div>
-              <div class="empty-text">เลือกกิจกรรมเพื่อดูตารางโพสต์ LINE</div>
+              <div class="empty-text" style="margin-bottom:14px">ยังไม่ได้เลือก event</div>
+              <a href="./events-list.html" class="btn btn-primary" style="text-decoration:none">
+                → ไปหน้ารายการกิจกรรม
+              </a>
+              <div style="font-size:12px;color:var(--text3);margin-top:10px">
+                คลิกปุ่ม 📢 ของ event ที่ต้องการเพื่อเปิดหน้านี้
+              </div>
             </div>
           </div>
         </div>
@@ -245,6 +226,10 @@
             <!-- rendered by JS -->
           </div>
 
+          <button class="btn btn-secondary" onclick="window.fetchAllGroupNames()" style="margin-top:8px;width:100%">
+            🔄 ดึงชื่อกลุ่มที่ยังไม่มีชื่อทั้งหมดจาก LINE
+          </button>
+
           <details style="margin-top:14px;border:1px dashed #cbd5e1;border-radius:8px;padding:10px 14px">
             <summary style="cursor:pointer;font-weight:600;font-size:13px;color:var(--text2)">
               ➕ เพิ่มกลุ่มด้วยตัวเอง (ถ้า webhook ยังไม่ทำงาน)
@@ -268,6 +253,47 @@
         </div>
         <div class="med-modal-footer">
           <button class="btn btn-secondary" onclick="window.closeGroupsModal()">ปิด</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── AUTO-CREATE MODAL (กรอกข้อความเดียวสำหรับ D-7/3/2/1) ── -->
+    <div class="med-modal-overlay" id="autoCreateModalOverlay">
+      <div class="med-modal med-modal-fb lp-modal-line">
+        <div class="med-modal-header">
+          <div style="font-weight: 700; font-size: 15px">
+            ⚡ สร้างกำหนดการอัตโนมัติ
+          </div>
+          <button class="btn-icon" onclick="window.closeAutoCreateModal()">✕</button>
+        </div>
+        <div class="med-modal-body">
+          <div class="fb-hint" style="margin-bottom:14px">
+            💡 ระบบจะสร้าง <b>4 โพสต์</b> (D-7, D-3, D-2, D-1) ที่ <b>09:00 น.</b> โดยใช้ข้อความเดียวกันทั้ง 4 วัน<br/>
+            <span style="font-size:11px;opacity:.8">ใส่ <code>{{days_left}}</code> เพื่อให้ระบบแทนค่าจำนวนวันที่เหลือตอนส่งจริง</span>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">
+              ข้อความ <span style="color: var(--danger)">*</span>
+              <span style="font-weight:400;color:var(--text3);margin-left:6px;font-size:11px" id="autoCreateCharCount">0 ตัวอักษร</span>
+            </label>
+            <textarea class="form-input" id="fAutoCreateMessage" rows="10"
+              oninput="window.autoCreateUpdateCount()"
+              placeholder="พิมพ์ข้อความ promote..."></textarea>
+            <div class="lp-hint-sm">
+              💡 placeholder ที่ใช้ได้: <code>{{event_name}}</code> <code>{{event_date}}</code> <code>{{location}}</code> <code>{{start_time}}</code> <code>{{days_left}}</code>
+            </div>
+          </div>
+
+          <button class="btn btn-secondary" onclick="window.fillAutoCreateDefault()" style="margin-top:6px;width:100%">
+            ✨ ใช้ template default
+          </button>
+        </div>
+        <div class="med-modal-footer">
+          <button class="btn btn-secondary" onclick="window.closeAutoCreateModal()">ยกเลิก</button>
+          <button class="btn btn-primary" onclick="window.confirmAutoCreate()" id="btnConfirmAutoCreate">
+            ⚡ สร้าง 4 โพสต์
+          </button>
         </div>
       </div>
     </div>
@@ -373,6 +399,7 @@
     <script>AuthZ.requirePerm("line_promote_view");</script>
     <script type="module" src="./line-promote.js"></script>
     <script src="../../js/components/modal/deleteModal.js"></script>
+    <script src="../../js/components/modal/confirmModal.js"></script>
     <script src="../../js/components/modal/modalManager.js"></script>
     <script src="../../js/components/modal/enterSave.js"></script>
     <script type="module">

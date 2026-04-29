@@ -72,25 +72,44 @@ let allPosts = [];
 let currentEventId = null;
 let currentEvent = null;
 let editingId = null;
+let _selectedPostIds = new Set();   // bulk selection
 
 // ── INIT ──────────────────────────────────────────────────
 async function initPage() {
   showLoading(true);
   try {
-    // โหลด events (จำเป็น) + line_groups (ไม่ต้องบล็อก ถ้า migration 051 ยังไม่รันก็ปล่อยว่างได้)
-    allEvents = await fetchEvents();
+    const params = new URLSearchParams(window.location.search);
+    const urlEventId = params.get("event_id");
+
+    // ถ้าไม่มี event_id ใน URL → no-event state ไม่ต้องโหลด events
+    if (!urlEventId) {
+      showSections(false);
+      // โหลด groups เผื่อกดปุ่ม "จัดการกลุ่ม"
+      allGroups = await fetchLineGroups().catch(() => []);
+      _allGroupsIncludingInactive = allGroups;
+      showLoading(false);
+      bindFilterListeners();
+      return;
+    }
+
+    // โหลด event เดียวที่ต้องใช้ + groups
+    const evtRow = await sbFetch(
+      "events",
+      `?event_id=eq.${parseInt(urlEventId)}&select=event_id,event_name,event_code,event_date,end_date,start_time,end_time,location,line_group_ids&limit=1`,
+    );
+    allEvents = evtRow || [];
     allGroups = await fetchLineGroups().catch((e) => {
       console.warn("fetchLineGroups failed:", e.message);
       showToast("ยังไม่มีตาราง line_groups — รัน migration 051 ก่อน", "error");
       return [];
     });
-    populateEventSelect();
+    _allGroupsIncludingInactive = allGroups;
 
-    const params = new URLSearchParams(window.location.search);
-    const urlEventId = params.get("event_id");
-    if (urlEventId) {
-      document.getElementById("eventSelect").value = urlEventId;
+    if (allEvents.length) {
       await loadEvent(parseInt(urlEventId));
+    } else {
+      showToast("ไม่พบ event ที่ระบุ", "error");
+      showSections(false);
     }
   } catch (e) {
     showToast("โหลดข้อมูลไม่ได้: " + e.message, "error");
@@ -99,30 +118,10 @@ async function initPage() {
   bindFilterListeners();
 }
 
-function populateEventSelect() {
-  const sel = document.getElementById("eventSelect");
-  sel.innerHTML = '<option value="">-- เลือกกิจกรรม --</option>';
-  allEvents.forEach((e) =>
-    sel.insertAdjacentHTML(
-      "beforeend",
-      `<option value="${e.event_id}">[${e.event_code || ""}] ${escapeHtml(e.event_name)}</option>`,
-    ),
-  );
-}
-
-// ── EVENT CHANGE ──────────────────────────────────────────
-window.onEventChange = async function () {
-  const val = document.getElementById("eventSelect").value;
-  if (!val) {
-    showSections(false);
-    return;
-  }
-  await loadEvent(parseInt(val));
-};
-
 async function loadEvent(eventId) {
   currentEventId = eventId;
   currentEvent = allEvents.find((e) => e.event_id === eventId) || null;
+  _selectedPostIds.clear();
   showLoading(true);
   try {
     allPosts = await fetchPosts(eventId);
@@ -137,9 +136,12 @@ async function loadEvent(eventId) {
 }
 
 function showSections(show) {
-  document.getElementById("lpContent").style.display = show ? "block" : "none";
-  document.getElementById("noEventState").style.display = show ? "none" : "block";
-  document.getElementById("lpActionBtns").style.display = show ? "block" : "none";
+  const setDisplay = (id, val) => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = val;
+  };
+  setDisplay("lpContent", show ? "block" : "none");
+  setDisplay("noEventState", show ? "none" : "block");
 }
 
 function renderEventHeader() {
@@ -173,6 +175,9 @@ function renderEventHeader() {
       <span style="margin-left:6px">⚙️</span>
     </button>
     <div class="lp-evt-count">${allPosts.length} โพสต์</div>
+    <button class="lp-evt-add-btn" data-perm="line_promote_create" onclick="window.openLpModal()" title="เพิ่มโพสต์ใหม่">
+      ＋ เพิ่มโพสต์
+    </button>
   `;
   if (window.AuthZ) window.AuthZ.applyDomPerms(el);
 }
@@ -192,21 +197,13 @@ function updateStats() {
 function renderTable() {
   const tbody = document.getElementById("lpTableBody");
   if (!tbody) return;
-  const search = (document.getElementById("lpSearchInput")?.value || "").toLowerCase();
-  const stat = document.getElementById("lpFilterStatus")?.value || "";
-
-  const list = allPosts.filter((p) => {
-    if (search && !(p.message_text || "").toLowerCase().includes(search)) return false;
-    if (stat && p.status !== stat) return false;
-    return true;
-  });
-
+  const list = allPosts;
   document.getElementById("lpCount").textContent = `${list.length} โพสต์`;
 
   if (!list.length) {
     const totalPosts = allPosts.length;
     const showAutoCreate = totalPosts === 0 && !!currentEvent?.event_date;
-    tbody.innerHTML = `<tr><td colspan="6">
+    tbody.innerHTML = `<tr><td colspan="7">
       <div class="empty-state">
         <div class="empty-icon">📅</div>
         <div class="empty-text">ยังไม่มีโพสต์${totalPosts > 0 ? "ที่ตรงเงื่อนไข filter" : ""}</div>
@@ -222,6 +219,7 @@ function renderTable() {
         ` : ""}
       </div></td></tr>`;
     if (window.AuthZ) window.AuthZ.applyDomPerms(tbody);
+    updateBulkBar();
     return;
   }
 
@@ -237,7 +235,12 @@ function renderTable() {
             : "—";
       const canEdit = p.status === "SCHEDULED" || p.status === "DRAFT";
       const canCancel = p.status === "SCHEDULED";
-      return `<tr>
+      const checked = _selectedPostIds.has(p.id);
+      return `<tr class="${checked ? "lp-row-selected" : ""}">
+        <td class="col-center">
+          <input type="checkbox" ${checked ? "checked" : ""}
+            onchange="window.toggleLpRow(${p.id}, this.checked)" />
+        </td>
         <td class="col-center">${ddayBadge(p.promote_offset)}</td>
         <td><div class="lp-msg-cell">${escapeHtml(p.message_text || "")}</div></td>
         <td class="col-center" style="font-size:12px">${groupLabel}</td>
@@ -245,9 +248,13 @@ function renderTable() {
         <td class="col-center"><span class="lp-status-badge lpstat-${p.status}">${statusLabel(p.status)}</span></td>
         <td class="col-center">
           <div class="action-group">
+            ${p.status === "SCHEDULED" ? `<button class="btn-icon" data-perm="line_promote_edit" onclick="window.sendLpPostNow(${p.id})" title="ส่งทันที (ไม่รอ scheduled_at)">📤</button>` : ""}
             ${canEdit ? `<button class="btn-icon" data-perm="line_promote_edit" onclick="window.openLpModal(${p.id})" title="แก้ไข">✏️</button>` : ""}
             ${canCancel ? `<button class="btn-icon danger" data-perm="line_promote_cancel" onclick="window.cancelLpPost(${p.id})" title="ยกเลิก">🚫</button>` : ""}
             ${p.status === "FAILED" ? `<button class="btn-icon" data-perm="line_promote_edit" onclick="window.retryLpPost(${p.id})" title="ลองใหม่">🔄</button>` : ""}
+            ${(p.status === "CANCELLED" || p.status === "SENT") ? `<button class="btn-icon" data-perm="line_promote_edit" onclick="window.cloneLpPost(${p.id})" title="สร้างซ้ำ (clone เป็นโพสต์ใหม่)">📋</button>` : ""}
+            ${p.status === "CANCELLED" ? `<button class="btn-icon" data-perm="line_promote_edit" onclick="window.reactivateLpPost(${p.id})" title="ใช้งานใหม่ (กลับเป็น SCHEDULED)">↩️</button>` : ""}
+            <button class="btn-icon danger" data-perm="line_promote_cancel" onclick="window.deleteLpPost(${p.id})" title="ลบทิ้งถาวร">🗑</button>
           </div>
         </td>
       </tr>`;
@@ -255,7 +262,159 @@ function renderTable() {
     .join("");
 
   if (window.AuthZ) window.AuthZ.applyDomPerms(tbody);
+  updateBulkBar();
 }
+
+// ── Bulk selection helpers ────────────────────────────────
+function updateBulkBar() {
+  const bar = document.getElementById("lpBulkBar");
+  const count = _selectedPostIds.size;
+  if (!bar) return;
+  bar.style.display = count > 0 ? "flex" : "none";
+  const cntEl = document.getElementById("lpBulkCount");
+  if (cntEl) cntEl.textContent = count;
+  // Update select-all state
+  const selectAll = document.getElementById("lpSelectAll");
+  if (selectAll) {
+    const visibleIds = _getVisiblePostIds();
+    if (!visibleIds.length) {
+      selectAll.checked = false;
+      selectAll.indeterminate = false;
+    } else {
+      const allChecked = visibleIds.every((id) => _selectedPostIds.has(id));
+      const anyChecked = visibleIds.some((id) => _selectedPostIds.has(id));
+      selectAll.checked = allChecked;
+      selectAll.indeterminate = anyChecked && !allChecked;
+    }
+  }
+}
+
+function _getVisiblePostIds() {
+  return allPosts.map((p) => p.id);
+}
+
+window.toggleLpRow = function (id, checked) {
+  if (checked) _selectedPostIds.add(id);
+  else _selectedPostIds.delete(id);
+  // toggle row class
+  const row = document.querySelector(`#lpTableBody tr td input[type="checkbox"]:checked`);
+  document.querySelectorAll("#lpTableBody tr").forEach((tr) => {
+    const cb = tr.querySelector('input[type="checkbox"]');
+    if (cb) tr.classList.toggle("lp-row-selected", cb.checked);
+  });
+  updateBulkBar();
+};
+
+window.toggleSelectAllLp = function (checked) {
+  const visibleIds = _getVisiblePostIds();
+  if (checked) visibleIds.forEach((id) => _selectedPostIds.add(id));
+  else visibleIds.forEach((id) => _selectedPostIds.delete(id));
+  renderTable();
+};
+
+window.clearLpSelection = function () {
+  _selectedPostIds.clear();
+  renderTable();
+};
+
+window.bulkDelete = async function () {
+  const ids = Array.from(_selectedPostIds);
+  if (!ids.length) return;
+  const ok = await ConfirmModal.open({
+    title: `ลบ ${ids.length} โพสต์ทิ้งถาวร?`,
+    message: "การกระทำนี้ไม่สามารถกู้คืนได้",
+    icon: "🗑",
+    okText: "ลบทั้งหมด",
+    cancelText: "ยกเลิก",
+    tone: "danger",
+  });
+  if (!ok) return;
+  showLoading(true);
+  try {
+    await sbFetch("line_scheduled_posts", `?id=in.(${ids.join(",")})`, { method: "DELETE" });
+    showToast(`ลบ ${ids.length} โพสต์แล้ว 🗑`, "success");
+    _selectedPostIds.clear();
+    allPosts = await fetchPosts(currentEventId);
+    updateStats();
+    renderTable();
+  } catch (e) {
+    showToast("ลบไม่สำเร็จ: " + e.message, "error");
+  }
+  showLoading(false);
+};
+
+window.bulkCancel = async function () {
+  // เลือกเฉพาะที่ status=SCHEDULED
+  const ids = Array.from(_selectedPostIds).filter((id) => {
+    const p = allPosts.find((x) => x.id === id);
+    return p?.status === "SCHEDULED";
+  });
+  if (!ids.length) return showToast("ไม่มีโพสต์ที่อยู่ในสถานะ รอส่ง ในรายการที่เลือก", "info");
+  const ok = await ConfirmModal.open({
+    title: `ยกเลิก ${ids.length} โพสต์?`,
+    message: "เปลี่ยนสถานะเป็น CANCELLED — กลับมาใช้ใหม่ได้ภายหลัง",
+    icon: "🚫",
+    okText: "ยกเลิกทั้งหมด",
+    cancelText: "ปิด",
+    tone: "warning",
+  });
+  if (!ok) return;
+  showLoading(true);
+  try {
+    await sbFetch("line_scheduled_posts", `?id=in.(${ids.join(",")})`, {
+      method: "PATCH",
+      body: { status: "CANCELLED" },
+    });
+    showToast(`ยกเลิก ${ids.length} โพสต์แล้ว 🚫`, "success");
+    _selectedPostIds.clear();
+    allPosts = await fetchPosts(currentEventId);
+    updateStats();
+    renderTable();
+  } catch (e) {
+    showToast("ยกเลิกไม่สำเร็จ: " + e.message, "error");
+  }
+  showLoading(false);
+};
+
+window.bulkSendNow = async function () {
+  const proxyBase = (localStorage.getItem("erp_proxy_url") || "").replace(/\/+$/, "");
+  if (!proxyBase) return showToast("ยังไม่ได้ตั้ง erp_proxy_url", "error");
+  // เลือกเฉพาะที่ status=SCHEDULED
+  const ids = Array.from(_selectedPostIds).filter((id) => {
+    const p = allPosts.find((x) => x.id === id);
+    return p?.status === "SCHEDULED";
+  });
+  if (!ids.length) return showToast("ไม่มีโพสต์ที่อยู่ในสถานะ รอส่ง ในรายการที่เลือก", "info");
+  const ok = await ConfirmModal.open({
+    title: `ส่ง ${ids.length} โพสต์ทันที?`,
+    message: "ระบบจะ trigger cron — ส่งทุกโพสต์ที่เลือกเข้า LINE ทันที",
+    icon: "📤",
+    okText: "ส่งเลย",
+    cancelText: "ยกเลิก",
+    tone: "primary",
+  });
+  if (!ok) return;
+  showLoading(true);
+  try {
+    // 1) เลื่อน scheduled_at ของทั้งหมดเป็น 1 นาทีก่อน
+    const past = new Date(Date.now() - 60_000).toISOString();
+    await sbFetch("line_scheduled_posts", `?id=in.(${ids.join(",")})`, {
+      method: "PATCH",
+      body: { scheduled_at: past },
+    });
+    // 2) Trigger cron
+    const r = await fetch(`${proxyBase}/cron/line-promote`, { method: "POST" });
+    const data = await r.json();
+    showToast(`ส่ง ${data.sent || 0} ✅ · ล้มเหลว ${data.failed || 0} ❌`, data.failed > 0 ? "error" : "success");
+    _selectedPostIds.clear();
+    allPosts = await fetchPosts(currentEventId);
+    updateStats();
+    renderTable();
+  } catch (e) {
+    showToast("ส่งไม่สำเร็จ: " + e.message, "error");
+  }
+  showLoading(false);
+};
 
 function ddayBadge(offset) {
   if (offset == null) return `<span class="lp-dday-badge lp-dday-manual">manual</span>`;
@@ -281,8 +440,7 @@ function statusLabel(s) {
 }
 
 function bindFilterListeners() {
-  document.getElementById("lpSearchInput")?.addEventListener("input", renderTable);
-  document.getElementById("lpFilterStatus")?.addEventListener("change", renderTable);
+  // search/filter ถูกเอาออกแล้ว — keep stub เผื่อมีคน call
 }
 
 // ── Modal ─────────────────────────────────────────────────
@@ -343,7 +501,9 @@ window.openLpModal = function (id = null) {
   if (id) {
     const p = allPosts.find((x) => x.id === id);
     if (p) {
-      grpSel.value = p.target_id || "";
+      // grpSel ต้อง query ใหม่ทุกครั้งเพราะ rebuilt จาก grpRow.innerHTML ด้านบน
+      const grpSel = document.getElementById("fLpGroup");
+      if (grpSel) grpSel.value = p.target_id || "";
       document.getElementById("fLpOffset").value = p.promote_offset != null ? String(p.promote_offset) : "";
       document.getElementById("fLpMessage").value = p.message_text || "";
       const sched = new Date(p.scheduled_at);
@@ -582,9 +742,12 @@ window.saveEventGroups = async function () {
     // 2) Auto-sync SCHEDULED posts ของ event นี้ให้ตรงกับกลุ่มที่เลือก
     const syncResult = await _syncScheduledPostsToGroups(ids);
 
-    let msg = `บันทึก ${ids.length} กลุ่มแล้ว ✅`;
-    if (syncResult.moved || syncResult.added || syncResult.removed) {
-      msg += `\n🔄 sync posts: เพิ่ม ${syncResult.added}, ลบ ${syncResult.removed} รายการ`;
+    console.log("[saveEventGroups] sync result:", syncResult);
+    let msg = `บันทึก ${ids.length} กลุ่ม`;
+    if (syncResult.scanned > 0) {
+      msg += ` · scan ${syncResult.scanned} pending posts → เพิ่ม ${syncResult.added}, ลบ ${syncResult.removed}`;
+    } else {
+      msg += ` (ไม่มี pending posts ให้ migrate)`;
     }
     showToast(msg, "success");
 
@@ -608,14 +771,16 @@ window.saveEventGroups = async function () {
 //   2. สำหรับแต่ละ template — ดู groups ที่ยังไม่ครอบใน new ids → insert
 //   3. ลบ posts ที่ target_id ไม่อยู่ใน new ids
 async function _syncScheduledPostsToGroups(newGroupIds) {
-  const result = { added: 0, removed: 0, moved: 0 };
+  const result = { added: 0, removed: 0, moved: 0, scanned: 0 };
   if (!currentEventId) return result;
 
-  // โหลด scheduled posts ของ event นี้
+  // โหลด scheduled posts ของ event นี้ (เฉพาะ status=SCHEDULED — ไม่แตะ SENT/CANCELLED/FAILED)
   const scheduled = (await sbFetch(
     "line_scheduled_posts",
     `?event_id=eq.${currentEventId}&status=eq.SCHEDULED&select=*`,
   )) || [];
+  result.scanned = scheduled.length;
+  console.log(`[sync] scanned ${scheduled.length} SCHEDULED posts; new groups:`, newGroupIds);
   if (!scheduled.length) return result;
 
   const newIdsSet = new Set(newGroupIds);
@@ -737,9 +902,17 @@ window.openTemplatesModal = async function () {
   showLoading(false);
 };
 
-window.closeTemplatesModal = function () {
+window.closeTemplatesModal = async function () {
   if (_tplDirty.size > 0) {
-    if (!confirm(`มีการแก้ไข ${_tplDirty.size} รายการที่ยังไม่บันทึก — ปิดเลยหรือไม่?`)) return;
+    const ok = await ConfirmModal.open({
+      title: "ปิดโดยไม่บันทึก?",
+      message: `มีการแก้ไข ${_tplDirty.size} รายการที่ยังไม่บันทึก`,
+      icon: "⚠️",
+      okText: "ปิดเลย",
+      cancelText: "บันทึกก่อน",
+      tone: "warning",
+    });
+    if (!ok) return;
   }
   document.getElementById("templatesModalOverlay").classList.remove("open");
 };
@@ -890,10 +1063,15 @@ function renderGroupsList() {
         : "—";
       return `<div class="lp-group-row ${g.is_default ? "is-default" : ""} ${!g.is_active ? "is-inactive" : ""}">
         <div class="lp-group-info">
-          <input type="text" class="form-input lp-group-name-input"
-            value="${escapeHtml(g.group_name || "")}"
-            placeholder="ตั้งชื่อกลุ่ม..."
-            onchange="window.renameGroup(${g.id}, this.value)" />
+          <div style="display:flex;gap:6px;align-items:center">
+            <input type="text" class="form-input lp-group-name-input"
+              value="${escapeHtml(g.group_name || "")}"
+              placeholder="ตั้งชื่อกลุ่ม..."
+              onchange="window.renameGroup(${g.id}, this.value)"
+              style="flex:1" />
+            <button class="btn-icon" title="ดึงชื่อกลุ่มจาก LINE auto"
+              onclick="window.fetchGroupNameFromLine('${escapeHtml(g.group_id)}', ${g.id})">🔄</button>
+          </div>
           <div class="lp-group-meta">
             <code>${escapeHtml(g.group_id.slice(0, 16))}…</code>
             · เข้าเมื่อ ${joined}
@@ -910,6 +1088,79 @@ function renderGroupsList() {
     })
     .join("");
 }
+
+window.fetchAllGroupNames = async function () {
+  const proxyBase = (localStorage.getItem("erp_proxy_url") || "").replace(/\/+$/, "");
+  if (!proxyBase) return showToast("ยังไม่ได้ตั้ง erp_proxy_url", "error");
+  const need = _allGroupsIncludingInactive.filter((g) => !g.group_name);
+  if (!need.length) return showToast("ทุกกลุ่มมีชื่อแล้ว ✅", "info");
+
+  showLoading(true);
+  let ok = 0, fail = 0;
+  for (const g of need) {
+    try {
+      const r = await fetch(`${proxyBase}/line/group-summary`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ groupId: g.group_id }),
+      });
+      const ct = r.headers.get("content-type") || "";
+      if (!ct.includes("application/json")) {
+        fail++;
+        continue;
+      }
+      const data = await r.json();
+      if (data.ok && data.groupName) {
+        await sbFetch("line_groups", `?id=eq.${g.id}`, {
+          method: "PATCH",
+          body: { group_name: data.groupName },
+        });
+        ok++;
+      } else {
+        fail++;
+      }
+    } catch { fail++; }
+  }
+  showToast(`ดึงชื่อสำเร็จ ${ok}/${need.length} กลุ่ม${fail ? ` (ล้มเหลว ${fail})` : ""}`, ok ? "success" : "error");
+  _allGroupsIncludingInactive = await fetchLineGroups(true);
+  allGroups = _allGroupsIncludingInactive.filter((g) => g.is_active);
+  renderGroupsList();
+  showLoading(false);
+};
+
+window.fetchGroupNameFromLine = async function (groupId, id) {
+  const proxyBase = (localStorage.getItem("erp_proxy_url") || "").replace(/\/+$/, "");
+  if (!proxyBase) return showToast("ยังไม่ได้ตั้ง erp_proxy_url", "error");
+  showLoading(true);
+  try {
+    const r = await fetch(`${proxyBase}/line/group-summary`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ groupId }),
+    });
+    const ct = r.headers.get("content-type") || "";
+    if (!ct.includes("application/json")) {
+      showToast(`Endpoint ยังไม่พร้อม (${r.status}) — Render ยัง deploy ไม่เสร็จ?`, "error");
+      return;
+    }
+    const data = await r.json();
+    if (!data.ok || !data.groupName) {
+      showToast(data.error || "ดึงชื่อไม่สำเร็จ", "error");
+      return;
+    }
+    await sbFetch("line_groups", `?id=eq.${id}`, {
+      method: "PATCH",
+      body: { group_name: data.groupName },
+    });
+    showToast(`ดึงชื่อแล้ว: ${data.groupName} ✅`, "success");
+    _allGroupsIncludingInactive = await fetchLineGroups(true);
+    allGroups = _allGroupsIncludingInactive.filter((g) => g.is_active);
+    renderGroupsList();
+  } catch (e) {
+    showToast("ดึงชื่อไม่สำเร็จ: " + e.message, "error");
+  }
+  showLoading(false);
+};
 
 window.renameGroup = async function (id, name) {
   try {
@@ -1114,18 +1365,59 @@ window.toggleGroupActive = async function (id, makeActive) {
 };
 
 // ── Auto-create D-7/3/2/1 posts for current event ─────────
-window.autoCreateLpPosts = async function () {
+// เปิด modal ให้ user กรอกข้อความก่อน
+window.autoCreateLpPosts = function () {
   if (!currentEvent || !currentEvent.event_date) {
     return showToast("ไม่พบข้อมูล event", "error");
   }
   if (!allGroups.length) {
     return showToast("ยังไม่มีกลุ่ม LINE — เชิญบอท @949bctau เข้ากลุ่มก่อน", "error");
   }
-  // ใช้กลุ่มที่ผูกกับ event นี้ (multi-select) — ถ้ายังไม่ผูก → fallback default
   const targetGroups = _resolveTargetGroupsForEvent();
   if (!targetGroups.length) {
     return showToast('ยังไม่ได้เลือกกลุ่ม LINE — กดปุ่ม "📨 ส่งกลุ่ม LINE" บน event header เพื่อเลือก', "error");
   }
+
+  // เคลียร์ + fill default
+  document.getElementById("fAutoCreateMessage").value = _buildDefaultAutoCreateMessage();
+  window.autoCreateUpdateCount();
+  document.getElementById("autoCreateModalOverlay").classList.add("open");
+};
+
+window.closeAutoCreateModal = function () {
+  document.getElementById("autoCreateModalOverlay").classList.remove("open");
+};
+
+window.autoCreateUpdateCount = function () {
+  const len = (document.getElementById("fAutoCreateMessage").value || "").length;
+  const el = document.getElementById("autoCreateCharCount");
+  if (el) el.textContent = `${len} ตัวอักษร`;
+};
+
+window.fillAutoCreateDefault = function () {
+  document.getElementById("fAutoCreateMessage").value = _buildDefaultAutoCreateMessage();
+  window.autoCreateUpdateCount();
+};
+
+function _buildDefaultAutoCreateMessage() {
+  const meta = [
+    currentEvent?.event_date ? `📅 {{event_date}}` : "",
+    (currentEvent?.start_time || "").trim() ? `🕐 {{start_time}}` : "",
+    currentEvent?.location ? `📍 {{location}}` : "",
+  ].filter(Boolean).join("\n");
+  return `📢 ขอประชาสัมพันธ์กิจกรรม\n\n🎯 {{event_name}}\n\n${meta}\n\n⏰ เหลืออีก {{days_left}} วัน — เตรียมตัวให้พร้อม!`;
+}
+
+window.confirmAutoCreate = async function () {
+  const message = document.getElementById("fAutoCreateMessage").value.trim();
+  if (!message) return showToast("กรุณาใส่ข้อความ", "error");
+  if (message.length > 5000) return showToast("ข้อความเกิน 5000 ตัวอักษร", "error");
+
+  const targetGroups = _resolveTargetGroupsForEvent();
+  if (!targetGroups.length) return showToast("ไม่มีกลุ่มที่ผูก", "error");
+
+  const eventDate = parseYMD(currentEvent.event_date);
+  if (!eventDate) return showToast("วันที่งานไม่ถูกต้อง", "error");
 
   const session = (() => {
     try {
@@ -1133,27 +1425,8 @@ window.autoCreateLpPosts = async function () {
     } catch { return {}; }
   })();
 
-  const eventName = currentEvent.event_name || "";
-  const eventDateStr = formatDMY(currentEvent.event_date);
-  const startTime = (currentEvent.start_time || "").slice(0, 5);
-  const location = currentEvent.location || "";
-  const meta = [
-    eventDateStr ? `📅 ${eventDateStr}` : "",
-    startTime ? `🕐 ${startTime}` : "",
-    location ? `📍 ${location}` : "",
-  ].filter(Boolean).join("\n");
-
-  const templates = {
-    7: `📢 ขอประชาสัมพันธ์กิจกรรม\n\n🎯 ${eventName}\n\n${meta}\n\n⏰ เหลืออีก 7 วัน — เตรียมตัวให้พร้อม!`,
-    3: `🔔 อีก 3 วันก่อนถึงวันงาน!\n\n🎯 ${eventName}\n\n${meta}\n\n👉 อย่าลืมจัดเตรียมข้อมูลและเอกสารที่เกี่ยวข้อง`,
-    2: `⚡ อีก 2 วัน!\n\n🎯 ${eventName}\n\n${meta}\n\n💪 เตรียมตัวให้พร้อมนะคะ`,
-    1: `🚨 พรุ่งนี้แล้ว! D-1\n\n🎯 ${eventName}\n\n${meta}\n\n✅ Check-in 30 นาทีก่อนเริ่ม\n📝 เตรียมเอกสาร/อุปกรณ์ครบพร้อม`,
-  };
-
-  const eventDate = parseYMD(currentEvent.event_date);
-  if (!eventDate) return showToast("วันที่งานไม่ถูกต้อง", "error");
-
-  // Replicate: สำหรับแต่ละ offset → 1 row ต่อ 1 group ที่ผูก
+  // Replicate: สำหรับแต่ละ offset (7,3,2,1) × 1 group → 1 row
+  // ใช้ message เดียวกัน — placeholder จะ render ตอนส่งจริงผ่าน /cron/line-promote
   const rows = [];
   for (const offset of [7, 3, 2, 1]) {
     const d = new Date(eventDate);
@@ -1166,7 +1439,7 @@ window.autoCreateLpPosts = async function () {
         target_id: grp.group_id,
         channel_id: grp.channel_id || null,
         promote_offset: offset,
-        message_text: templates[offset],
+        message_text: message,
         scheduled_at,
         status: "SCHEDULED",
         created_by: session?.user_id || null,
@@ -1174,18 +1447,25 @@ window.autoCreateLpPosts = async function () {
     }
   }
 
+  const btn = document.getElementById("btnConfirmAutoCreate");
+  btn.disabled = true;
+  btn.textContent = "⏳ กำลังสร้าง...";
   showLoading(true);
   try {
     await sbFetch("line_scheduled_posts", "", { method: "POST", body: rows });
-    showToast(`สร้างกำหนดการ ${rows.length} รายการ (4 D-day × ${targetGroups.length} กลุ่ม) แล้ว 📢`, "success");
+    showToast(`สร้าง ${rows.length} โพสต์ (4 D-day × ${targetGroups.length} กลุ่ม) แล้ว 📢`, "success");
+    window.closeAutoCreateModal();
     allPosts = await fetchPosts(currentEventId);
     renderEventHeader();
     updateStats();
     renderTable();
   } catch (e) {
     showToast("สร้างไม่สำเร็จ: " + e.message, "error");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "⚡ สร้าง 4 โพสต์";
+    showLoading(false);
   }
-  showLoading(false);
 };
 
 // ── Cancel ────────────────────────────────────────────────
@@ -1208,6 +1488,147 @@ window.cancelLpPost = function (id) {
     }
     showLoading(false);
   });
+};
+
+// ── Clone — สร้าง post ใหม่จาก post เดิม (status SCHEDULED, scheduled_at = +1h) ─
+window.cloneLpPost = async function (id) {
+  const src = allPosts.find((x) => x.id === id);
+  if (!src) return;
+  const grp = allGroups.find((g) => g.group_id === src.target_id);
+  const preview = (src.message_text || "").slice(0, 120);
+  const ok = await ConfirmModal.open({
+    title: "สร้างโพสต์ใหม่จากโพสต์นี้?",
+    message: `Clone โพสต์เข้ากลุ่ม "${grp?.group_name || "—"}" + ตั้งเวลาส่ง = อีก 1 ชั่วโมงข้างหน้า`,
+    icon: "📋",
+    okText: "Clone",
+    cancelText: "ยกเลิก",
+    tone: "primary",
+    note: `<b>ข้อความที่จะ clone:</b><br/><div style="white-space:pre-wrap;font-size:12px;color:#475569;margin-top:4px">${escapeHtml(preview)}${src.message_text?.length > 120 ? "…" : ""}</div>`,
+  });
+  if (!ok) return;
+  showLoading(true);
+  try {
+    const session = (() => {
+      try { return JSON.parse(localStorage.getItem("erp_session") || sessionStorage.getItem("erp_session") || "{}"); }
+      catch { return {}; }
+    })();
+    const newScheduled = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+    await sbFetch("line_scheduled_posts", "", {
+      method: "POST",
+      body: {
+        event_id: src.event_id,
+        target_type: src.target_type,
+        target_id: src.target_id,
+        channel_id: src.channel_id,
+        promote_offset: null,
+        message_text: src.message_text,
+        scheduled_at: newScheduled,
+        status: "SCHEDULED",
+        created_by: session?.user_id || null,
+      },
+    });
+    showToast("Clone โพสต์ใหม่แล้ว ✅", "success");
+    allPosts = await fetchPosts(currentEventId);
+    updateStats();
+    renderTable();
+  } catch (e) {
+    showToast("Clone ไม่สำเร็จ: " + e.message, "error");
+  }
+  showLoading(false);
+};
+
+// ── Reactivate — ส่ง post ที่ CANCELLED กลับเป็น SCHEDULED ─
+window.reactivateLpPost = async function (id) {
+  const ok = await ConfirmModal.open({
+    title: "ใช้งานโพสต์นี้ใหม่?",
+    message: "เปลี่ยนสถานะจาก ยกเลิก → รอส่ง",
+    icon: "↩️",
+    okText: "ใช้งานใหม่",
+    cancelText: "ยกเลิก",
+    tone: "primary",
+  });
+  if (!ok) return;
+  showLoading(true);
+  try {
+    await sbFetch("line_scheduled_posts", `?id=eq.${id}`, {
+      method: "PATCH",
+      body: { status: "SCHEDULED", error_message: null },
+    });
+    showToast("กลับเป็น รอส่ง แล้ว ↩️", "success");
+    allPosts = await fetchPosts(currentEventId);
+    updateStats();
+    renderTable();
+  } catch (e) {
+    showToast("ไม่สำเร็จ: " + e.message, "error");
+  }
+  showLoading(false);
+};
+
+// ── Delete — ลบทิ้งถาวร ─
+window.deleteLpPost = function (id) {
+  DeleteModal.open("ต้องการลบโพสต์นี้ทิ้งถาวรหรือไม่? (ไม่สามารถกู้คืนได้)", async () => {
+    showLoading(true);
+    try {
+      await sbFetch("line_scheduled_posts", `?id=eq.${id}`, { method: "DELETE" });
+      showToast("ลบแล้ว 🗑", "success");
+      allPosts = await fetchPosts(currentEventId);
+      updateStats();
+      renderTable();
+    } catch (e) {
+      showToast("ลบไม่สำเร็จ: " + e.message, "error");
+    }
+    showLoading(false);
+  });
+};
+
+// ── Send Now — บังคับส่ง post นี้ทันทีไม่รอ scheduled_at ─
+window.sendLpPostNow = async function (id) {
+  const proxyBase = (localStorage.getItem("erp_proxy_url") || "").replace(/\/+$/, "");
+  if (!proxyBase) return showToast("ยังไม่ได้ตั้ง erp_proxy_url", "error");
+
+  const post = allPosts.find((x) => x.id === id);
+  const grp = post && allGroups.find((g) => g.group_id === post.target_id);
+  const preview = (post?.message_text || "").slice(0, 120);
+  const ok = await ConfirmModal.open({
+    title: "ส่งโพสต์นี้เข้า LINE ทันที?",
+    message: `ส่งเข้ากลุ่ม "${grp?.group_name || "—"}" — ระบบจะ trigger cron ทันที`,
+    icon: "📤",
+    okText: "ส่งเลย",
+    cancelText: "ยกเลิก",
+    tone: "primary",
+    note: post ? `<b>ข้อความที่จะส่ง:</b><br/><div style="white-space:pre-wrap;font-size:12px;color:#475569;margin-top:4px">${escapeHtml(preview)}${post.message_text?.length > 120 ? "…" : ""}</div>` : undefined,
+  });
+  if (!ok) return;
+
+  showLoading(true);
+  try {
+    // 1) เลื่อน scheduled_at ให้เป็นเมื่อ 1 นาทีก่อน → cron จะ pickup ทันที
+    const past = new Date(Date.now() - 60_000).toISOString();
+    await sbFetch("line_scheduled_posts", `?id=eq.${id}`, {
+      method: "PATCH",
+      body: { scheduled_at: past },
+    });
+
+    // 2) Trigger cron ทันที
+    const r = await fetch(`${proxyBase}/cron/line-promote`, { method: "POST" });
+    const data = await r.json();
+
+    // 3) เช็คผล
+    const detail = (data.details || []).find((d) => d.id === id);
+    if (detail?.status === "SENT") {
+      showToast("ส่งแล้ว ✅", "success");
+    } else if (detail?.status === "FAILED") {
+      showToast(`ส่งล้มเหลว: ${detail.error || "?"}`, "error");
+    } else {
+      showToast("Cron processed แต่ไม่เจอ post นี้ — รีเฟรชดูสถานะ", "info");
+    }
+    allPosts = await fetchPosts(currentEventId);
+    updateStats();
+    renderTable();
+  } catch (e) {
+    showToast("ส่งไม่สำเร็จ: " + e.message, "error");
+  }
+  showLoading(false);
 };
 
 // ── Retry (reset FAILED → SCHEDULED) ──────────────────────

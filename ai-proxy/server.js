@@ -332,6 +332,24 @@ async function _sbUpdateUserLine({ userRowId, userId, displayName, pictureUrl })
   );
 }
 
+async function _fetchLineGroupSummary(groupId) {
+  if (!LINE_CHANNEL_TOKEN || !groupId) return null;
+  try {
+    const r = await fetch(`https://api.line.me/v2/bot/group/${encodeURIComponent(groupId)}/summary`, {
+      headers: { Authorization: `Bearer ${LINE_CHANNEL_TOKEN}` },
+    });
+    if (!r.ok) {
+      const errText = await r.text().catch(() => '');
+      console.warn(`[group summary] ${r.status}: ${errText.slice(0, 200)}`);
+      return null;
+    }
+    return r.json();   // { groupId, groupName, pictureUrl }
+  } catch (e) {
+    console.warn('[group summary]', e.message);
+    return null;
+  }
+}
+
 async function _sbUpsertLineGroup(groupId, fields) {
   if (!SB_URL_WEBHOOK || !SB_SERVICE_KEY) {
     console.warn('[upsert line_group] SKIPPED — SB_URL or SB_SERVICE_KEY not set in Render env');
@@ -531,7 +549,15 @@ app.post('/line/webhook', async (req, res) => {
         // join (or any other event in group) → upsert + ensure active
         // ใช้ upsert เผื่อกรณี 'join' webhook พลาด (เช่น ตอน deploy ใหม่) — ทุก event ที่มี groupId จะ ensure row
         const fields = { last_seen_at: nowIso, is_active: true };
-        if (ev.type === 'join') fields.joined_at = nowIso;
+        if (ev.type === 'join') {
+          fields.joined_at = nowIso;
+          // Auto-fetch ชื่อกลุ่มจาก LINE API (เฉพาะตอน join เพื่อกัน rate limit)
+          const summary = await _fetchLineGroupSummary(groupId);
+          if (summary?.groupName) {
+            fields.group_name = summary.groupName;
+            console.log(`[LINE webhook] auto-fill group_name: ${summary.groupName}`);
+          }
+        }
         await _sbUpsertLineGroup(groupId, fields);
         if (ev.type === 'join') {
           console.log(`[LINE webhook] join group ${groupId.slice(0, 10)}...`);
@@ -794,6 +820,16 @@ app.post('/line/templates/reload', async (_req, res) => {
   _tplCacheAt = 0;
   const tpls = await _loadTemplates();
   return res.json({ ok: true, keys: Object.keys(tpls) });
+});
+
+/* ── Get LINE group summary (groupName, pictureUrl) — for UI auto-fill ── */
+app.post('/line/group-summary', async (req, res) => {
+  const { groupId } = req.body || {};
+  if (!groupId) return res.status(400).json({ ok: false, error: 'missing groupId' });
+  if (!LINE_CHANNEL_TOKEN) return res.status(503).json({ ok: false, error: 'LINE_CHANNEL_TOKEN not set' });
+  const summary = await _fetchLineGroupSummary(groupId);
+  if (!summary) return res.status(404).json({ ok: false, error: 'group not found / bot not in group / no permission' });
+  return res.json({ ok: true, ...summary });
 });
 
 /* ── Diagnostic — เช็คว่า env + table + permissions พร้อมส่ง LINE หรือไม่ ── */
