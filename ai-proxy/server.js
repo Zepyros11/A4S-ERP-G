@@ -1245,7 +1245,7 @@ app.post('/cron/notifications', async (req, res) => {
    line_scheduled_posts.channel_id is informational only.
    ══════════════════════════════════════════════════════════ */
 
-async function _pushLineMessage(to, text) {
+async function _pushLineMessages(to, messages) {
   if (!LINE_CHANNEL_TOKEN) throw new Error('LINE_CHANNEL_TOKEN not set');
   const r = await fetch('https://api.line.me/v2/bot/message/push', {
     method: 'POST',
@@ -1253,10 +1253,7 @@ async function _pushLineMessage(to, text) {
       Authorization: `Bearer ${LINE_CHANNEL_TOKEN}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({
-      to,
-      messages: [{ type: 'text', text: String(text).slice(0, 5000) }],
-    }),
+    body: JSON.stringify({ to, messages }),
   });
   if (!r.ok) {
     const errTxt = await r.text().catch(() => '');
@@ -1265,7 +1262,7 @@ async function _pushLineMessage(to, text) {
   return true;
 }
 
-async function _broadcastLineMessage(text) {
+async function _broadcastLineMessages(messages) {
   if (!LINE_CHANNEL_TOKEN) throw new Error('LINE_CHANNEL_TOKEN not set');
   const r = await fetch('https://api.line.me/v2/bot/message/broadcast', {
     method: 'POST',
@@ -1273,15 +1270,33 @@ async function _broadcastLineMessage(text) {
       Authorization: `Bearer ${LINE_CHANNEL_TOKEN}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({
-      messages: [{ type: 'text', text: String(text).slice(0, 5000) }],
-    }),
+    body: JSON.stringify({ messages }),
   });
   if (!r.ok) {
     const errTxt = await r.text().catch(() => '');
     throw new Error(`LINE ${r.status}: ${errTxt.slice(0, 300)}`);
   }
   return true;
+}
+
+// Build messages: text + poster หลักรูปเดียวตามหลัง
+function _buildMessagesWithPoster(text, eventRow) {
+  const messages = [{ type: 'text', text: String(text).slice(0, 5000) }];
+  if (!eventRow) return messages;
+
+  // ใช้ poster_url ก่อน — ถ้าไม่มีค่อย fallback image_urls[0]
+  let url = eventRow.poster_url;
+  if (!url && Array.isArray(eventRow.image_urls) && eventRow.image_urls.length) {
+    url = eventRow.image_urls.find(Boolean);
+  }
+  if (url && /^https:\/\//i.test(url)) {
+    messages.push({
+      type: 'image',
+      originalContentUrl: url,
+      previewImageUrl: url,
+    });
+  }
+  return messages;
 }
 
 function _daysBetween(yyyymmdd, refDate) {
@@ -1325,11 +1340,11 @@ app.post('/line/send-scheduled-post', async (req, res) => {
   if (!post) return res.status(404).json({ ok: false, error: 'post not found' });
   if (post.status === 'SENT') return res.status(400).json({ ok: false, error: 'post already SENT', status: 'SENT' });
 
-  // โหลด event เพื่อ render placeholders
+  // โหลด event เพื่อ render placeholders + ดึง poster
   let evtRow = null;
   if (post.event_id) {
     const ev = await _sbGet('events',
-      `event_id=eq.${post.event_id}&select=event_id,event_code,event_name,event_date,end_date,start_time,end_time,location&limit=1`);
+      `event_id=eq.${post.event_id}&select=event_id,event_code,event_name,event_date,end_date,start_time,end_time,location,poster_url,image_urls&limit=1`);
     evtRow = ev?.[0] || null;
   }
 
@@ -1342,12 +1357,14 @@ app.post('/line/send-scheduled-post', async (req, res) => {
     return res.status(400).json({ ok: false, status: 'FAILED', error: 'rendered text is empty' });
   }
 
+  const messages = _buildMessagesWithPoster(text, evtRow);
+
   try {
     if (post.target_type === 'broadcast') {
-      await _broadcastLineMessage(text);
+      await _broadcastLineMessages(messages);
     } else {
       if (!post.target_id) throw new Error('missing target_id');
-      await _pushLineMessage(post.target_id, text);
+      await _pushLineMessages(post.target_id, messages);
     }
     await _sbPatch('line_scheduled_posts', `id=eq.${id}`, {
       status: 'SENT',
@@ -1391,12 +1408,12 @@ app.post('/cron/line-promote', async (req, res) => {
     return res.json({ ok: true, processed: 0, message: 'no due posts' });
   }
 
-  // Load events ครั้งเดียว (cache by event_id)
+  // Load events ครั้งเดียว (cache by event_id) — รวม poster_url + image_urls สำหรับแนบรูป
   const eventIds = [...new Set(posts.map(p => p.event_id).filter(Boolean))];
   const eventCache = {};
   if (eventIds.length) {
     const evRows = await _sbGet('events',
-      `select=event_id,event_code,event_name,event_date,end_date,start_time,end_time,location&event_id=in.(${eventIds.join(',')})`);
+      `select=event_id,event_code,event_name,event_date,end_date,start_time,end_time,location,poster_url,image_urls&event_id=in.(${eventIds.join(',')})`);
     (evRows || []).forEach(e => { eventCache[e.event_id] = e; });
   }
 
@@ -1409,11 +1426,13 @@ app.post('/cron/line-promote', async (req, res) => {
       const text = _renderLinePostText(post, eventRow);
       if (!text || !text.trim()) throw new Error('rendered text is empty');
 
+      const messages = _buildMessagesWithPoster(text, eventRow);
+
       if (post.target_type === 'broadcast') {
-        await _broadcastLineMessage(text);
+        await _broadcastLineMessages(messages);
       } else {
         if (!post.target_id) throw new Error('missing target_id');
-        await _pushLineMessage(post.target_id, text);
+        await _pushLineMessages(post.target_id, messages);
       }
 
       // Mark SENT
