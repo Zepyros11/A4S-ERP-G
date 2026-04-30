@@ -279,7 +279,7 @@
     },
     // **************** IBD (International Business Dev) *****************
     {
-      group: "International Business Dev (IBD)",
+      group: "IBD",
       icon: "🌍",
       id: "g-ibd",
       items: [
