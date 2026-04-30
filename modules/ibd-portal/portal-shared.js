@@ -407,16 +407,16 @@
     const html = `
       <div class="pp-topbar">
         <div class="pp-brand">
-          <span class="pp-brand-icon">🌍</span>
-          <div>
+          <img class="pp-brand-logo" src="../../assets/logo/logo-a4s.png" alt="A4S" />
+          <div class="pp-brand-text">
             <div>${t('brand')}</div>
             <div class="pp-brand-sub">${t('brand_sub')}</div>
           </div>
         </div>
         <div class="pp-spacer"></div>
         <div class="pp-lang">
-          <button class="pp-lang-btn ${lang==='en'?'active':''}" onclick="IBDPortal.setLang('en')">🇬🇧 EN</button>
-          <button class="pp-lang-btn ${lang==='fr'?'active':''}" onclick="IBDPortal.setLang('fr')">🇫🇷 FR</button>
+          <button class="pp-lang-btn ${lang==='en'?'active':''}" onclick="IBDPortal.setLang('en')">EN</button>
+          <button class="pp-lang-btn ${lang==='fr'?'active':''}" onclick="IBDPortal.setLang('fr')">FR</button>
         </div>
         ${userHtml}
       </div>`;
