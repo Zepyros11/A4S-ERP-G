@@ -106,7 +106,9 @@
       f2_confirm_text: 'Dear A4S, I would like to receive my commission in my E-wallet.',
       f2_confirm_yes: 'Confirmed',
       f2_id_doc: 'Herewith please attach your NIN or National ID card or Passport photo',
+      f2_id_doc_example: 'Example — your ID document',
       f2_holding: 'Herewith please snap and attach your photo holding the requested form',
+      f2_holding_example: 'Example — selfie holding your ID',
       f2_accept: 'Thank you for your completed process regarding commission payment to E-wallet. It will take 3–7 days to verify and approve. If it takes more than 2 weeks and you did not receive your E-wallet, kindly contact WhatsApp +66 625 684 476.',
       f2_accept_yes: 'I confirm and accept',
       // Form 3
@@ -208,7 +210,9 @@
       f2_confirm_text: 'Cher A4S, je souhaite recevoir ma commission sur mon E-wallet.',
       f2_confirm_yes: 'Confirmé',
       f2_id_doc: 'Veuillez joindre votre NIN, carte d\'identité ou passeport',
+      f2_id_doc_example: 'Exemple — votre document d\'identité',
       f2_holding: 'Veuillez prendre et joindre une photo de vous tenant le formulaire',
+      f2_holding_example: 'Exemple — selfie tenant votre carte',
       f2_accept: 'Merci pour votre démarche concernant le paiement de commission. Il faudra 3–7 jours pour vérifier et approuver. Si cela prend plus de 2 semaines, veuillez contacter WhatsApp +66 625 684 476.',
       f2_accept_yes: 'Je confirme et accepte',
       // Form 3

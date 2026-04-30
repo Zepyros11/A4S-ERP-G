@@ -1384,6 +1384,12 @@ app.post('/line/send-scheduled-post', async (req, res) => {
   }
 });
 
+// Throttle: prevent stampede when multiple browser tabs ping at once.
+// GitHub Actions cron + cron-job.org + ERP keepalive all hit the same endpoint —
+// throttle to 30s minimum spacing. Idempotent anyway (status filter), but saves DB calls.
+let _lastLpTickAt = 0;
+const LP_THROTTLE_MS = 30 * 1000;
+
 app.post('/cron/line-promote', async (req, res) => {
   if (CRON_SECRET) {
     const got = req.get('x-cron-secret') || (req.body && req.body.secret) || '';
@@ -1395,6 +1401,13 @@ app.post('/cron/line-promote', async (req, res) => {
   if (!LINE_CHANNEL_TOKEN) {
     return res.status(503).json({ error: 'LINE_CHANNEL_TOKEN not configured' });
   }
+
+  const now = Date.now();
+  const sinceLast = now - _lastLpTickAt;
+  if (sinceLast < LP_THROTTLE_MS) {
+    return res.json({ ok: true, throttled: true, retry_after_ms: LP_THROTTLE_MS - sinceLast });
+  }
+  _lastLpTickAt = now;
 
   // Window: ดึง posts ที่ scheduled_at <= now + window (จะส่งแม้ overdue)
   const windowEnd = new Date(Date.now() + CRON_WINDOW_MIN * 60000).toISOString();

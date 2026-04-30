@@ -390,6 +390,30 @@ body {
   margin-bottom: 20px;
 }
 
+/* ── Example image (shown above file-wrap as reference) ── */
+.pp-example {
+  display: block;
+  margin: 0 auto 10px;
+  max-width: 220px;
+  width: 100%;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #f8fafc;
+  padding: 8px;
+  cursor: zoom-in;
+  transition: border-color .15s, transform .15s;
+}
+.pp-example:hover { border-color: #c4b5fd; transform: scale(1.015); }
+.pp-example-label {
+  text-align: center;
+  font-size: 11.5px;
+  color: #94a3b8;
+  font-weight: 600;
+  margin-bottom: 4px;
+  letter-spacing: .3px;
+  text-transform: uppercase;
+}
+
 /* ── My Requests list ── */
 .pp-req-list { display: flex; flex-direction: column; gap: 10px; }
 .pp-req-item {

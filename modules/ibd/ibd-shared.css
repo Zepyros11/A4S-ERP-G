@@ -150,6 +150,87 @@
 .ibd-badge-paid       { background: #bbf7d0; color: #166534; }
 .ibd-badge-rejected   { background: #fecaca; color: #991b1b; }
 
+/* ── Progress dropdown (in-cell) ── */
+.ibd-prog-select {
+  padding: 4px 8px;
+  border-radius: 14px;
+  border: 1.5px solid transparent;
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  outline: none;
+  transition: all .15s;
+  min-width: 130px;
+}
+.ibd-prog-select:focus { border-color: var(--accent); }
+.ibd-prog-select.pending     { background: #fef3c7; color: #92400e; }
+.ibd-prog-select.in_progress { background: #bfdbfe; color: #1e40af; }
+.ibd-prog-select.stuck       { background: #fecaca; color: #991b1b; }
+
+/* ── Note input (in-cell, autosave) ── */
+.ibd-note-input {
+  width: 100%;
+  min-width: 160px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 12.5px;
+  background: #fff;
+  outline: none;
+  transition: border-color .15s, box-shadow .15s;
+}
+.ibd-note-input:focus { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(15,76,117,.12); }
+.ibd-note-input.saving { border-color: #f59e0b; background: #fffbeb; }
+.ibd-note-input.saved  { border-color: #10b981; background: #f0fdf4; }
+
+/* ── Pin button ── */
+.ibd-pin-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 14px;
+  display: inline-flex; align-items: center; justify-content: center;
+  transition: all .15s;
+  color: var(--text3);
+}
+.ibd-pin-btn:hover { border-color: var(--accent); color: var(--accent); }
+.ibd-pin-btn.pinned {
+  background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  color: #fff;
+  border-color: #f59e0b;
+}
+.ibd-pin-btn.pinned:hover { filter: brightness(1.05); }
+
+/* Action button group (pin + delete) */
+.ibd-action-group { display: inline-flex; gap: 6px; align-items: center; }
+.ibd-del-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 14px;
+  display: inline-flex; align-items: center; justify-content: center;
+  transition: all .15s;
+  color: var(--text3);
+}
+.ibd-del-btn:hover {
+  background: #fef2f2;
+  border-color: #dc2626;
+  color: #dc2626;
+}
+
+/* Pinned row highlight */
+.ibd-table tr.pinned td { background: #fffbeb; border-left-color: #f59e0b; }
+.ibd-table tr.pinned td:first-child {
+  border-left: 3px solid #f59e0b;
+  padding-left: 9px;
+}
+
 /* ── Pagination ── */
 .ibd-paginate {
   display: flex; align-items: center; gap: 6px;

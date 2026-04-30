@@ -21,9 +21,14 @@
     <div class="page">
 
       <!-- ── Hero ── -->
-      <div class="ibd-hero">
-        <div class="ibd-hero-title">🌍 IBD Dashboard</div>
-        <div class="ibd-hero-sub">International Business Development — สรุปคำขอจากสมาชิก MLM โซน Africa</div>
+      <div class="ibd-hero" style="display:flex;align-items:center;gap:14px">
+        <div style="flex:1">
+          <div class="ibd-hero-title">🌍 IBD Dashboard</div>
+          <div class="ibd-hero-sub">International Business Development — สรุปคำขอจากสมาชิก MLM โซน Africa</div>
+        </div>
+        <button class="ibd-btn ibd-btn-primary" style="background:rgba(255,255,255,.18);color:#fff;backdrop-filter:blur(4px);border:1px solid rgba(255,255,255,.25)" onclick="exportOverview()">
+          📥 Export ภาพรวม
+        </button>
       </div>
 
       <!-- ── Summary cards ── -->
@@ -100,6 +105,7 @@
 <script src="../../js/core/authz.js"></script>
 <script src="../../js/core/date-format.js"></script>
 <script>AuthZ.requirePerm("ibd_dashboard_view");</script>
+<script src="./ibd-export-modal.js"></script>
 <script src="./ibd-dashboard.js"></script>
 <script type="module">
   import { loadTopbar } from "../../js/components/navigation/topbar.js";

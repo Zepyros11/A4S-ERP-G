@@ -68,5 +68,29 @@
     return base.replace(/^\d{10,}_/, '');
   }
 
-  window.IBDStorage = { getSignedUrl, getSignedUrls, isImage, isPdf, fileIcon, fileName };
+  /* ── Bulk delete (cascade-cleanup when row is deleted) ── */
+  async function deleteFiles(keys) {
+    if (!Array.isArray(keys) || !keys.length) return { deleted: 0, failed: 0, errors: [] };
+    const results = await Promise.allSettled(keys.map(async (k) => {
+      const res = await fetch(`${SB_URL}/storage/v1/object/${BUCKET}/${k}`, {
+        method: 'DELETE',
+        headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` },
+      });
+      if (!res.ok) {
+        const txt = await res.text().catch(() => '');
+        throw new Error(`${k}: ${res.status} ${txt.slice(0, 80)}`);
+      }
+      cache.delete(k); // bust signed URL cache
+      return k;
+    }));
+    let deleted = 0, failed = 0;
+    const errors = [];
+    results.forEach(r => {
+      if (r.status === 'fulfilled') deleted++;
+      else { failed++; errors.push(r.reason.message); }
+    });
+    return { deleted, failed, errors };
+  }
+
+  window.IBDStorage = { getSignedUrl, getSignedUrls, deleteFiles, isImage, isPdf, fileIcon, fileName };
 })();

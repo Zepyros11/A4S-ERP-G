@@ -191,6 +191,154 @@ function escapeHtml(s) {
   return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
+/* ============================================================
+   Export Overview — 3 forms combined CSV (summary + detail sections)
+   ============================================================ */
+const STATUS_LABELS = {
+  // complaints
+  new: 'New', in_progress: 'In Progress', resolved: 'Resolved', closed: 'Closed',
+  // ewallet
+  pending: 'Pending', approved: 'Approved', paid: 'Paid', rejected: 'Rejected',
+};
+
+function csvCell(v) {
+  return `"${String(v ?? '').replace(/"/g, '""').replace(/[\r\n]+/g, ' ')}"`;
+}
+function csvRow(arr) { return arr.map(csvCell).join(','); }
+
+window.exportOverview = async function () {
+  const range = await IBDExportModal.open({
+    title: 'Export ภาพรวม IBD (รวม 3 form)',
+    defaultPreset: 'thismonth',
+  });
+  if (!range) return;
+
+  showLoading(true);
+  try {
+    const dateFilter = IBDExportModal.bkkRangeFilter(range.from, range.to);
+
+    // Load all 3 tables in parallel
+    const [complaints, ewallets, relocations, countries] = await Promise.all([
+      sbGet(`ibd_complaints?select=*&order=created_at.desc&limit=10000${dateFilter}`),
+      sbGet(`ibd_ewallet_requests?select=*&order=created_at.desc&limit=10000${dateFilter}`),
+      sbGet(`ibd_relocation_requests?select=*&order=created_at.desc&limit=10000${dateFilter}`),
+      sbGet('ibd_countries?select=code,name_en,flag_emoji&active=eq.true'),
+    ]);
+    const cMap = {};
+    countries.forEach(c => { cMap[c.code] = c.name_en; });
+
+    const lines = [];
+
+    // ── HEADER ──
+    const rangeLabel = range.from && range.to
+      ? (range.from === range.to ? range.from : `${range.from} ถึง ${range.to}`)
+      : 'ทั้งหมด';
+    lines.push('=== IBD OVERVIEW REPORT ===');
+    lines.push(`ช่วงเวลา: ${rangeLabel}`);
+    lines.push(`สร้างเมื่อ: ${fmtTime(new Date().toISOString())}`);
+    lines.push('');
+
+    // ── SUMMARY ──
+    lines.push('=== สรุปภาพรวม ===');
+    lines.push(csvRow(['ประเภท', 'ทั้งหมด', 'รอ/ใหม่', 'กำลังดำเนินการ', 'เสร็จสิ้น/อนุมัติ', 'ปฏิเสธ/ปิด']));
+    lines.push(csvRow([
+      'Complaints',
+      complaints.length,
+      complaints.filter(r => r.status === 'new').length,
+      complaints.filter(r => r.status === 'in_progress').length,
+      complaints.filter(r => r.status === 'resolved').length,
+      complaints.filter(r => r.status === 'closed').length,
+    ]));
+    lines.push(csvRow([
+      'E-Wallet',
+      ewallets.length,
+      ewallets.filter(r => r.status === 'pending').length,
+      ewallets.filter(r => r.status === 'approved').length,
+      ewallets.filter(r => r.status === 'paid').length,
+      ewallets.filter(r => r.status === 'rejected').length,
+    ]));
+    lines.push(csvRow([
+      'Relocation',
+      relocations.length,
+      relocations.filter(r => r.status === 'pending').length,
+      0,
+      relocations.filter(r => r.status === 'approved').length,
+      relocations.filter(r => r.status === 'rejected').length,
+    ]));
+    lines.push(csvRow([
+      'รวม',
+      complaints.length + ewallets.length + relocations.length,
+      '', '', '', '',
+    ]));
+    lines.push('');
+
+    // ── COMPLAINTS ──
+    lines.push(`=== Complaints (${complaints.length} รายการ) ===`);
+    lines.push(csvRow(['ID', 'วันที่ส่ง', 'Member Code', 'ชื่อสมาชิก', 'Topic', 'สาขา', 'WhatsApp', 'รายละเอียด', 'Status', 'การดำเนินงาน', 'หมายเหตุ', 'ปักหมุด', 'Resolution']));
+    complaints.forEach(r => {
+      lines.push(csvRow([
+        r.id, fmtTime(r.created_at), r.member_code, r.member_name,
+        TOPIC_LABELS[r.topic] || r.topic,
+        cMap[r.branch_code] || r.branch_code || '',
+        r.whatsapp_used, r.details,
+        STATUS_LABELS[r.status] || r.status,
+        r.progress_status || '', r.note || '',
+        r.pinned ? 'YES' : '',
+        r.resolution_note || '',
+      ]));
+    });
+    lines.push('');
+
+    // ── E-WALLET ──
+    lines.push(`=== E-Wallet (${ewallets.length} รายการ) ===`);
+    lines.push(csvRow(['ID', 'วันที่ส่ง', 'Member Code', 'ชื่อ-นามสกุล', 'WhatsApp', 'Email', 'Confirmed', 'Accepted', 'Status', 'การดำเนินงาน', 'หมายเหตุ', 'ปักหมุด', 'Ref No', 'Paid At']));
+    ewallets.forEach(r => {
+      lines.push(csvRow([
+        r.id, fmtTime(r.created_at), r.member_code, r.member_full_name,
+        r.whatsapp, r.email,
+        r.confirmed ? 'YES' : '', r.accepted ? 'YES' : '',
+        STATUS_LABELS[r.status] || r.status,
+        r.progress_status || '', r.note || '',
+        r.pinned ? 'YES' : '',
+        r.ref_no || '', fmtTime(r.paid_at),
+      ]));
+    });
+    lines.push('');
+
+    // ── RELOCATION ──
+    lines.push(`=== Relocation (${relocations.length} รายการ) ===`);
+    lines.push(csvRow(['ID', 'วันที่ส่ง', 'Member Code', 'ชื่อสมาชิก', 'จาก', 'ไป', 'WhatsApp', 'Email', 'Acknowledged', 'Status', 'การดำเนินงาน', 'หมายเหตุ', 'ปักหมุด', 'Effective Date']));
+    relocations.forEach(r => {
+      lines.push(csvRow([
+        r.id, fmtTime(r.created_at), r.member_code, r.member_name,
+        cMap[r.from_country] || r.from_country,
+        cMap[r.to_country] || r.to_country,
+        r.whatsapp, r.email,
+        r.acknowledged ? 'YES' : '',
+        STATUS_LABELS[r.status] || r.status,
+        r.progress_status || '', r.note || '',
+        r.pinned ? 'YES' : '',
+        r.effective_date || '',
+      ]));
+    });
+
+    // ── DOWNLOAD ──
+    const blob = new Blob(['﻿' + lines.join('\n')], { type: 'text/csv;charset=utf-8' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = `ibd-overview-${range.label}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast(`Export ภาพรวม ${complaints.length + ewallets.length + relocations.length} รายการแล้ว`);
+  } catch (e) {
+    console.error(e);
+    toast('Export ไม่สำเร็จ: ' + e.message, 'error');
+  } finally {
+    showLoading(false);
+  }
+};
+
 /* ── Init ── */
 async function init() {
   showLoading(true);

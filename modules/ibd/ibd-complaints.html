@@ -26,13 +26,13 @@
         <div class="ibd-hero-sub">รายการเรื่องร้องเรียน / ติดตามงาน จากสมาชิก MLM (Form 1)</div>
       </div>
 
-      <!-- ── KPI strip ── -->
+      <!-- ── KPI strip (วันนี้) ── -->
       <div class="ibd-kpis">
-        <div class="ibd-kpi"><div class="ibd-kpi-label">ทั้งหมด</div><div class="ibd-kpi-value" id="kpiTotal">—</div></div>
-        <div class="ibd-kpi"><div class="ibd-kpi-label">New</div><div class="ibd-kpi-value" id="kpiNew">—</div></div>
-        <div class="ibd-kpi"><div class="ibd-kpi-label">In Progress</div><div class="ibd-kpi-value" id="kpiProgress">—</div></div>
-        <div class="ibd-kpi"><div class="ibd-kpi-label">Resolved</div><div class="ibd-kpi-value" id="kpiResolved">—</div></div>
-        <div class="ibd-kpi"><div class="ibd-kpi-label">Closed</div><div class="ibd-kpi-value" id="kpiClosed">—</div></div>
+        <div class="ibd-kpi"><div class="ibd-kpi-label">ทั้งหมด · วันนี้</div><div class="ibd-kpi-value" id="kpiTotal">—</div></div>
+        <div class="ibd-kpi"><div class="ibd-kpi-label">New · วันนี้</div><div class="ibd-kpi-value" id="kpiNew">—</div></div>
+        <div class="ibd-kpi"><div class="ibd-kpi-label">In Progress · วันนี้</div><div class="ibd-kpi-value" id="kpiProgress">—</div></div>
+        <div class="ibd-kpi"><div class="ibd-kpi-label">Resolved · วันนี้</div><div class="ibd-kpi-value" id="kpiResolved">—</div></div>
+        <div class="ibd-kpi"><div class="ibd-kpi-label">Closed · วันนี้</div><div class="ibd-kpi-value" id="kpiClosed">—</div></div>
       </div>
 
       <!-- ── Filter bar ── -->
@@ -77,6 +77,7 @@
           <table class="ibd-table">
             <thead>
               <tr>
+                <th>Status</th>
                 <th>วันที่ส่ง</th>
                 <th>Member</th>
                 <th>Topic</th>
@@ -84,11 +85,13 @@
                 <th>WhatsApp</th>
                 <th>รายละเอียด</th>
                 <th>ไฟล์</th>
-                <th>Status</th>
+                <th>การดำเนินงาน</th>
+                <th>หมายเหตุ</th>
+                <th style="text-align:center">จัดการ</th>
               </tr>
             </thead>
             <tbody id="tbody">
-              <tr><td colspan="8" class="ibd-empty">กำลังโหลด...</td></tr>
+              <tr><td colspan="11" class="ibd-empty">กำลังโหลด...</td></tr>
             </tbody>
           </table>
         </div>
@@ -125,6 +128,7 @@
 <script src="../../js/core/date-format.js"></script>
 <script>AuthZ.requirePerm("ibd_complaints_view");</script>
 <script src="./ibd-storage.js"></script>
+<script src="./ibd-export-modal.js"></script>
 <script src="./ibd-complaints.js"></script>
 <script type="module">
   import { loadTopbar } from "../../js/components/navigation/topbar.js";
@@ -133,5 +137,6 @@
 <script src="../../js/components/navigation/sidebar.js"></script>
 <script src="../../js/components/modal/modalManager.js"></script>
 <script src="../../js/components/modal/promptModal.js"></script>
+<script src="../../js/components/modal/confirmModal.js"></script>
 </body>
 </html>

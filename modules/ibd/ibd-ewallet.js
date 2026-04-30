@@ -69,7 +69,7 @@ async function loadList() {
     }
 
     const offset = (state.page - 1) * PAGE_SIZE;
-    const path = `ibd_ewallet_requests?select=*&${conds.join('&')}&order=created_at.desc&limit=${PAGE_SIZE}&offset=${offset}`;
+    const path = `ibd_ewallet_requests?select=*&${conds.join('&')}&order=pinned.desc,created_at.desc&limit=${PAGE_SIZE}&offset=${offset}`;
     const res = await sbFetch(path, { headers: { Prefer: 'count=exact' } });
     state.total = +res.headers.get('content-range')?.split('/')[1] || 0;
     state.rows = await res.json();
@@ -80,15 +80,18 @@ async function loadList() {
   } catch (e) {
     console.error(e);
     toast('โหลดไม่สำเร็จ: ' + e.message, 'error');
-    $('tbody').innerHTML = `<tr><td colspan="8" class="ibd-empty">${escapeHtml(e.message)}</td></tr>`;
+    $('tbody').innerHTML = `<tr><td colspan="11" class="ibd-empty">${escapeHtml(e.message)}</td></tr>`;
   } finally {
     showLoading(false);
   }
 }
 
 async function loadKpis() {
+  const today = window.IBDExportModal ? IBDExportModal.todayBkk() : new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Bangkok' });
+  const dayFilter = window.IBDExportModal ? IBDExportModal.bkkRangeFilter(today, today) : '';
+
   async function count(extra) {
-    const res = await sbFetch(`ibd_ewallet_requests?select=id&limit=1${extra ? '&' + extra : ''}`, { headers: { Prefer: 'count=exact' } });
+    const res = await sbFetch(`ibd_ewallet_requests?select=id&limit=1${extra ? '&' + extra : ''}${dayFilter}`, { headers: { Prefer: 'count=exact' } });
     return +res.headers.get('content-range')?.split('/')[1] || 0;
   }
   const [total, p, a, paid, r] = await Promise.all([
@@ -108,13 +111,14 @@ async function loadKpis() {
 function renderTable() {
   const tbody = $('tbody');
   if (!state.rows.length) {
-    tbody.innerHTML = '<tr><td colspan="8" class="ibd-empty">ยังไม่มีรายการ</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="11" class="ibd-empty">ยังไม่มีรายการ</td></tr>';
     return;
   }
   tbody.innerHTML = state.rows.map(r => {
     const docCount = Array.isArray(r.id_document_urls) ? r.id_document_urls.length : 0;
     return `
-      <tr onclick="openDetail(${r.id})">
+      <tr class="${r.pinned ? 'pinned' : ''}" onclick="openDetail(${r.id})">
+        <td>${statusBadge(r.status)}</td>
         <td style="white-space:nowrap;font-size:12px;color:var(--text2)">${fmtTime(r.created_at)}</td>
         <td>
           <div class="ibd-cell-name">${escapeHtml(r.member_full_name || '—')}</div>
@@ -125,10 +129,113 @@ function renderTable() {
         <td style="text-align:center">${docCount ? `📎 ${docCount}` : '—'}</td>
         <td style="text-align:center">${r.holding_photo_url ? '🖼️' : '—'}</td>
         <td style="text-align:center">${r.confirmed && r.accepted ? '✅' : '⚠️'}</td>
-        <td>${statusBadge(r.status)}</td>
+        <td onclick="event.stopPropagation()">${progressSelect(r)}</td>
+        <td onclick="event.stopPropagation()">${noteInput(r)}</td>
+        <td style="text-align:center" onclick="event.stopPropagation()"><div class="ibd-action-group">${pinBtn(r)}${deleteBtn(r)}</div></td>
       </tr>`;
   }).join('');
 }
+
+/* ── Progress dropdown / Note input / Pin button ── */
+const PROG_LABELS = { pending: 'รอดำเนินการ', in_progress: 'ดำเนินการแล้ว', stuck: 'ติดปัญหา' };
+function progressSelect(r) {
+  const v = r.progress_status || 'pending';
+  const opts = Object.keys(PROG_LABELS).map(k => `<option value="${k}" ${k === v ? 'selected' : ''}>${PROG_LABELS[k]}</option>`).join('');
+  return `<select class="ibd-prog-select ${v}" onchange="updateProgress(${r.id}, this)">${opts}</select>`;
+}
+function noteInput(r) {
+  return `<input type="text" class="ibd-note-input" id="note-${r.id}" value="${escapeHtml(r.note || '')}" placeholder="เพิ่มหมายเหตุ..." oninput="onNoteInput(${r.id}, this)" onclick="event.stopPropagation()" />`;
+}
+function pinBtn(r) {
+  return `<button class="ibd-pin-btn ${r.pinned ? 'pinned' : ''}" onclick="togglePin(${r.id}, this)" title="${r.pinned ? 'ยกเลิกปักหมุด' : 'ปักหมุด'}">${r.pinned ? '📍' : '📌'}</button>`;
+}
+function deleteBtn(r) {
+  if (window.AuthZ && !AuthZ.hasPerm('ibd_ewallet_delete')) return '';
+  return `<button class="ibd-del-btn" onclick="deleteRow(${r.id})" title="ลบรายการ">🗑️</button>`;
+}
+
+window.updateProgress = async function (id, sel) {
+  const v = sel.value;
+  sel.className = `ibd-prog-select ${v}`;
+  try {
+    await sbFetch(`ibd_ewallet_requests?id=eq.${id}`, { method: 'PATCH', body: JSON.stringify({ progress_status: v }) });
+    const row = state.rows.find(x => x.id === id); if (row) row.progress_status = v;
+  } catch (e) { toast('บันทึกไม่สำเร็จ: ' + e.message, 'error'); }
+};
+
+const noteTimers = new Map();
+window.onNoteInput = function (id, input) {
+  if (noteTimers.has(id)) clearTimeout(noteTimers.get(id));
+  input.classList.remove('saved');
+  noteTimers.set(id, setTimeout(async () => {
+    input.classList.add('saving');
+    try {
+      await sbFetch(`ibd_ewallet_requests?id=eq.${id}`, { method: 'PATCH', body: JSON.stringify({ note: input.value }) });
+      const row = state.rows.find(x => x.id === id); if (row) row.note = input.value;
+      input.classList.remove('saving');
+      input.classList.add('saved');
+      setTimeout(() => input.classList.remove('saved'), 1200);
+    } catch (e) {
+      input.classList.remove('saving');
+      toast('บันทึกหมายเหตุไม่สำเร็จ', 'error');
+    }
+  }, 600));
+};
+
+window.togglePin = async function (id, btn) {
+  const row = state.rows.find(x => x.id === id); if (!row) return;
+  const newVal = !row.pinned;
+  btn.disabled = true;
+  try {
+    await sbFetch(`ibd_ewallet_requests?id=eq.${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ pinned: newVal, pinned_at: newVal ? new Date().toISOString() : null }),
+    });
+    loadList();
+  } catch (e) {
+    btn.disabled = false;
+    toast('ปักหมุดไม่สำเร็จ: ' + e.message, 'error');
+  }
+};
+
+window.deleteRow = async function (id) {
+  const row = state.rows.find(x => x.id === id); if (!row) return;
+  const ok = await ConfirmModal.open({
+    title: 'ลบคำขอโอน E-Wallet?',
+    message: 'การลบเป็นการถาวร — ข้อมูลจะหายไปจาก database',
+    icon: '🗑️',
+    tone: 'danger',
+    okText: 'ลบเลย',
+    cancelText: 'ยกเลิก',
+    details: {
+      'Member': row.member_full_name || '—',
+      'รหัส': row.member_code || '—',
+      'Status': row.status || '—',
+    },
+    note: 'ไฟล์ ID + ภาพถือเอกสารใน Storage จะถูกลบอัตโนมัติพร้อมกัน',
+  });
+  if (!ok) return;
+  showLoading(true);
+  try {
+    const fileKeys = [
+      ...(Array.isArray(row.id_document_urls) ? row.id_document_urls : []),
+      ...(row.holding_photo_url ? [row.holding_photo_url] : []),
+    ];
+    await sbFetch(`ibd_ewallet_requests?id=eq.${id}`, { method: 'DELETE' });
+    if (fileKeys.length) {
+      const r = await IBDStorage.deleteFiles(fileKeys);
+      if (r.failed) toast(`ลบ row แล้ว · ลบไฟล์ ${r.deleted}/${fileKeys.length} (${r.failed} ลบไม่สำเร็จ)`, 'error');
+      else toast(`ลบรายการ + ${r.deleted} ไฟล์แล้ว`);
+    } else {
+      toast('ลบรายการแล้ว');
+    }
+    loadList();
+  } catch (e) {
+    toast('ลบไม่สำเร็จ: ' + e.message, 'error');
+  } finally {
+    showLoading(false);
+  }
+};
 
 function renderPaginate() {
   const totalPages = Math.max(1, Math.ceil(state.total / PAGE_SIZE));
@@ -371,19 +478,23 @@ window.rejectReq = async function () {
 };
 
 window.exportCsv = async function () {
+  const range = await IBDExportModal.open({ title: 'ส่งออก E-Wallet Requests', defaultPreset: 'today' });
+  if (!range) return;
+
   showLoading(true);
   try {
     const f = state.filters;
     const conds = [];
     if (f.status) conds.push(`status=eq.${f.status}`);
-    const path = `ibd_ewallet_requests?select=*&${conds.join('&')}&order=created_at.desc&limit=10000`;
+    const dateFilter = IBDExportModal.bkkRangeFilter(range.from, range.to);
+    const path = `ibd_ewallet_requests?select=*&${conds.join('&')}&order=created_at.desc&limit=10000${dateFilter}`;
     const res = await sbFetch(path);
     const rows = await res.json();
 
-    const headers = ['ID', 'Date', 'Member Code', 'Full Name', 'WhatsApp', 'Email', 'Confirmed', 'Accepted', 'Status', 'Ref No', 'Paid At', 'Reject Reason'];
+    const headers = ['ID', 'Date', 'Member Code', 'Full Name', 'WhatsApp', 'Email', 'Confirmed', 'Accepted', 'Status', 'Progress', 'Note', 'Pinned', 'Ref No', 'Paid At', 'Reject Reason'];
     const csvRows = [headers.join(',')];
     rows.forEach(r => {
-      const cols = [r.id, fmtTime(r.created_at), r.member_code, r.member_full_name, r.whatsapp, r.email, r.confirmed, r.accepted, r.status, r.ref_no, fmtTime(r.paid_at), r.reject_reason]
+      const cols = [r.id, fmtTime(r.created_at), r.member_code, r.member_full_name, r.whatsapp, r.email, r.confirmed, r.accepted, r.status, r.progress_status, r.note, r.pinned ? 'YES' : '', r.ref_no, fmtTime(r.paid_at), r.reject_reason]
         .map(v => `"${String(v ?? '').replace(/"/g, '""').replace(/\n/g, ' ')}"`);
       csvRows.push(cols.join(','));
     });
@@ -391,7 +502,7 @@ window.exportCsv = async function () {
     const url  = URL.createObjectURL(blob);
     const a    = document.createElement('a');
     a.href     = url;
-    a.download = `ibd-ewallet-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.download = `ibd-ewallet-${range.label}.csv`;
     a.click();
     URL.revokeObjectURL(url);
     toast(`Export ${rows.length} รายการแล้ว`);

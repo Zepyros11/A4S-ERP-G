@@ -419,6 +419,9 @@
     },
   ];
 
+  /* ── Expose nav config for other modules (e.g. roles.js landing-page picker) ── */
+  window.A4S_NAV = { MENU, BASE_PATH };
+
   /* ── Permission key ต่อ menu item id ── */
   const ID_TO_PERM = {
     dashboard: "dashboard_view",
@@ -472,6 +475,9 @@
     autocheck: "devtool_view",
     "test-members": "devtool_view",
   };
+
+  /* ── re-export พร้อม perm map (สำหรับ roles.js filter landing picker) ── */
+  window.A4S_NAV.ID_TO_PERM = ID_TO_PERM;
 
   /* ── อ่าน effective_perms จาก session (ไม่พึ่ง AuthZ) ── */
   function _getEffectivePerms() {
@@ -943,4 +949,17 @@
     else if (!isOpen) osg = osg.filter((id) => id !== subgroupId);
     localStorage.setItem("sb_open_subgroups", JSON.stringify(osg));
   };
+
+  // ── Auto-load LINE Promote keepalive ────────────────────
+  // GitHub Actions cron throttle bypass — fires /cron/line-promote
+  // when overdue posts exist + a logged-in user has any ERP page open.
+  // See js/utils/lineCronPing.js for details.
+  (function injectLineCronPing() {
+    if (window.__lpCronPingLoaded) return;
+    window.__lpCronPingLoaded = true;
+    const s = document.createElement("script");
+    s.src = BASE_PATH + "/js/utils/lineCronPing.js";
+    s.async = true;
+    document.head.appendChild(s);
+  })();
 })();

@@ -12,62 +12,47 @@ let activePerms  = new Set();
 let editingRoleKey = null; /* null = create mode, roleKey = edit mode */
 let activeLandingPath = null; /* path สำหรับ role ที่เลือกอยู่ */
 
-/* ── LANDING PAGES CONFIG (สำหรับ picker) ──
-   path เก็บแบบ relative จาก root เพื่อให้ login.html ใช้ตรงๆ ได้ */
-const LANDING_PAGES = [
-  { group: "ภาพรวม", icon: "📊", pages: [
-    { label: "Dashboard", icon: "📊", path: "./modules/dashboard/dashboard.html" },
-  ]},
-  { group: "กิจกรรม (Event)", icon: "🗓️", pages: [
-    { label: "Poster Gallery",     icon: "🖼️", path: "./modules/event/event-poster-gallery.html" },
-    { label: "Event Dashboard",    icon: "📊",  path: "./modules/event/events-dashboard.html" },
-    { label: "รายการกิจกรรม",       icon: "🗓️", path: "./modules/event/events-list.html" },
-    { label: "คำขอจัดกิจกรรม",      icon: "📋", path: "./modules/event/event-requests.html" },
-    { label: "งบประมาณ",            icon: "💰", path: "./modules/event/event-budget.html" },
-    { label: "ผู้เข้าร่วม",          icon: "👥", path: "./modules/event/attendees.html" },
-    { label: "ตารางโพสต์ FB",       icon: "📅", path: "./modules/event/media-schedule.html" },
-    { label: "แผนงานกิจกรรม",       icon: "📋", path: "./modules/work-plan/work-plan-list.html?scope=event" },
-  ]},
-  { group: "คลังสินค้า (Stock)", icon: "📦", pages: [
-    { label: "รายการสินค้า",        icon: "✏️", path: "./modules/inventory/products-list.html" },
-    { label: "ความเคลื่อนไหว",      icon: "🔄", path: "./modules/inventory/movements.html" },
-  ]},
-  { group: "เอกสาร", icon: "📄", pages: [
-    { label: "ใบสั่งซื้อ (PO)",      icon: "🛒", path: "./modules/transactions/purchase_order/po-list.html" },
-    { label: "ใบขาย (SO)",          icon: "💰", path: "./modules/transactions/sales_order/so_form.html" },
-    { label: "ใบเบิก (REQ)",         icon: "📋", path: "./modules/transactions/requisition/requisition.html" },
-  ]},
-  { group: "ลูกค้า (CRM)", icon: "🧑", pages: [
-    { label: "Customer Dashboard",  icon: "📊",  path: "./modules/customer/members-dashboard.html" },
-    { label: "ข้อมูลสมาชิก (MLM)",   icon: "👤", path: "./modules/customer/members-list.html" },
-    { label: "MLM Tree View",       icon: "🌳",  path: "./modules/customer/members-tree.html" },
-    { label: "สมาชิกที่เชื่อม LINE", icon: "💬", path: "./modules/customer/line-members.html" },
-  ]},
-  { group: "ซัพพลายเออร์", icon: "🚚", pages: [
-    { label: "ข้อมูล Supplier",     icon: "🚚", path: "./modules/supplier/suppliers.html" },
-  ]},
-  { group: "บริการลูกค้า (CS)", icon: "🎁", pages: [
-    { label: "Daily Sale",           icon: "📊",  path: "./modules/customer-service/daily-sale.html" },
-    { label: "Catalog ประจำเดือน",   icon: "📰", path: "./modules/customer-service/promotion-gallery.html" },
-    { label: "จัดการโปรโมชัน",       icon: "🎁", path: "./modules/customer-service/promotion-list.html" },
-    { label: "แผนงาน CS",           icon: "📋", path: "./modules/work-plan/work-plan-list.html?scope=cs" },
-  ]},
-  { group: "ทริป (Trip)", icon: "✈️", pages: [
-    { label: "แผนงานทริป",          icon: "📋", path: "./modules/work-plan/work-plan-list.html?scope=trip" },
-  ]},
-  { group: "ตั้งค่า", icon: "⚙️", pages: [
-    { label: "ตั้งค่าระบบ",         icon: "⚙️", path: "./modules/settings/settings.html" },
-    { label: "ผู้ใช้งาน",            icon: "👥", path: "./modules/settings/users.html" },
-    { label: "จัดการ Role",         icon: "🔐", path: "./modules/settings/roles.html" },
-  ]},
-];
+/* ── LANDING PAGES (auto-sync จาก sidebar) ──
+   sidebar.js export `window.A4S_NAV = { MENU, BASE_PATH }`. เราอ่าน lazy
+   ตอนเปิด picker เพื่อไม่ผูกลำดับ script load. path ใน DB เก็บแบบ
+   relative `./modules/...` เพื่อให้ login.html redirect ตรงๆ ได้ */
+function _normalizeLandingPath(p, basePath) {
+  let s = p || "";
+  if (basePath && s.startsWith(basePath)) s = s.slice(basePath.length);
+  if (s.startsWith("/")) return "." + s;
+  if (s.startsWith("./")) return s;
+  return "./" + s;
+}
 
-/* ── lookup map: path → label (สำหรับโชว์ชื่อใน button) ── */
-const _landingPathToLabel = (() => {
+function getLandingPages(filterPerms /* Set | null = ไม่ filter */) {
+  const nav = window.A4S_NAV;
+  if (!nav || !Array.isArray(nav.MENU)) return [];
+  const basePath = nav.BASE_PATH || "";
+  const idToPerm = nav.ID_TO_PERM || {};
+  const allowItem = (it) => {
+    if (!filterPerms) return true;
+    const need = idToPerm[it.id];
+    return !need || filterPerms.has(need); /* ไม่มี perm-gate = แสดงเสมอ */
+  };
+  return nav.MENU
+    .map(g => ({
+      group: g.group,
+      icon: g.icon,
+      pages: (g.items || []).filter(allowItem).map(it => ({
+        label: it.label,
+        icon: it.icon,
+        path: _normalizeLandingPath(it.path, basePath),
+      })),
+    }))
+    .filter(g => g.pages.length > 0);
+}
+
+function getLandingPathToLabel() {
+  /* lookup ใช้โชว์ label บนปุ่ม → ไม่ filter (รองรับ path ที่ role อาจไม่เห็นแล้ว) */
   const map = {};
-  LANDING_PAGES.forEach(g => g.pages.forEach(p => { map[p.path] = p.label; }));
+  getLandingPages(null).forEach(g => g.pages.forEach(p => { map[p.path] = p.label; }));
   return map;
-})();
+}
 
 /* ── SUPABASE ── */
 async function sbFetch(table, opts = {}) {
@@ -167,7 +152,7 @@ function syncLandingPathBtn() {
   const lbl = document.getElementById("landingPathLabel");
   if (!lbl) return;
   if (activeLandingPath) {
-    const name = _landingPathToLabel[activeLandingPath] || activeLandingPath.replace(/^\.\//, "");
+    const name = getLandingPathToLabel()[activeLandingPath] || activeLandingPath.replace(/^\.\//, "");
     lbl.textContent = `หน้าแรก: ${name}`;
   } else {
     lbl.textContent = "หน้าแรก: ยังไม่ตั้ง";
@@ -188,7 +173,18 @@ function openLandingPicker() {
   }
 
   const list = document.getElementById("landingPickerList");
-  list.innerHTML = LANDING_PAGES.map(g => {
+  const groups = getLandingPages(activePerms);
+  if (groups.length === 0) {
+    const hasNav = !!(window.A4S_NAV && window.A4S_NAV.MENU);
+    list.innerHTML = `<div class="landing-picker-hint" style="text-align:center;padding:20px">
+      ${hasNav
+        ? "⚠️ Role นี้ยังไม่มีสิทธิ์ดูหน้าใดเลย — เลือกสิทธิ์ก่อนแล้วกลับมาเลือกหน้าแรก"
+        : "⚠️ ไม่พบเมนู (sidebar.js ยังไม่โหลด) — ลองรีเฟรชหน้านี้"}
+    </div>`;
+    document.getElementById("landingPickerOverlay").classList.add("open");
+    return;
+  }
+  list.innerHTML = groups.map(g => {
     const items = g.pages.map(p => {
       const active = p.path === activeLandingPath;
       return `<div class="landing-opt${active ? " selected" : ""}" onclick="pickLanding('${p.path.replace(/'/g, "\\'")}')">

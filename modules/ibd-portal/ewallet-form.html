@@ -49,6 +49,8 @@
 
       <div class="pp-field">
         <label class="pp-label" id="lblIdDoc">ID Document <span class="req">*</span></label>
+        <div class="pp-example-label" id="lblIdDocEx">Example — your ID document</div>
+        <img class="pp-example" src="../../assets/ibd/unnamed%20(1).jpg" alt="ID document example" onclick="openExample(this.src)" />
         <div class="pp-file-wrap" id="docWrap">
           <div class="pp-file-icon">🆔</div>
           <div class="pp-file-text" id="lblDocDrop">Click to add files</div>
@@ -61,6 +63,8 @@
 
       <div class="pp-field">
         <label class="pp-label" id="lblHolding">Holding Photo <span class="req">*</span></label>
+        <div class="pp-example-label" id="lblHoldEx">Example — selfie holding your ID</div>
+        <img class="pp-example" src="../../assets/ibd/unnamed.jpg" alt="Holding photo example" onclick="openExample(this.src)" />
         <div class="pp-file-wrap" id="holdWrap">
           <div class="pp-file-icon">📸</div>
           <div class="pp-file-text" id="lblHoldDrop">Click to add files</div>
@@ -84,6 +88,11 @@
         <span id="lblSubmit">Submit</span>
       </button>
     </div>
+  </div>
+
+  <!-- Example image lightbox -->
+  <div id="exLightbox" onclick="closeExample()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:2000;align-items:center;justify-content:center;padding:30px;cursor:zoom-out">
+    <img id="exLightboxImg" src="" alt="" style="max-width:92vw;max-height:88vh;object-fit:contain;border-radius:6px;box-shadow:0 8px 40px rgba(0,0,0,.6)" />
   </div>
 
   <div class="pp-card" id="successView" style="display:none">
@@ -119,9 +128,11 @@
   document.getElementById('lblConfirmText').textContent = t('f2_confirm_text');
   document.getElementById('lblConfirmYes').textContent = t('f2_confirm_yes');
   document.getElementById('lblIdDoc').innerHTML = t('f2_id_doc') + ' <span class="req">*</span>';
+  document.getElementById('lblIdDocEx').textContent = t('f2_id_doc_example');
   document.getElementById('lblDocDrop').textContent = t('file_drop');
   document.getElementById('lblDocHint').textContent = t('file_hint_id_doc');
   document.getElementById('lblHolding').innerHTML = t('f2_holding') + ' <span class="req">*</span>';
+  document.getElementById('lblHoldEx').textContent = t('f2_holding_example');
   document.getElementById('lblHoldDrop').textContent = t('file_drop');
   document.getElementById('lblHoldHint').textContent = t('file_hint_holding_photo');
   document.getElementById('lblAccept').innerHTML = t('f2_accept') ? t('f2_accept').split('.')[0] + '. <span class="req">*</span>' : '';
@@ -149,6 +160,19 @@
   // File inputs
   IBDPortal.attachFileInput({ wrapId: 'docWrap',  inputId: 'docInput',  listId: 'docList',  max: 5 });
   IBDPortal.attachFileInput({ wrapId: 'holdWrap', inputId: 'holdInput', listId: 'holdList', max: 1 });
+
+  // Example lightbox (zoom on click)
+  window.openExample = function (src) {
+    document.getElementById('exLightboxImg').src = src;
+    document.getElementById('exLightbox').style.display = 'flex';
+  };
+  window.closeExample = function () {
+    document.getElementById('exLightbox').style.display = 'none';
+    document.getElementById('exLightboxImg').src = '';
+  };
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && document.getElementById('exLightbox').style.display === 'flex') closeExample();
+  });
 
   async function doSubmit() {
     const fullName = document.getElementById('fFullName').value.trim();

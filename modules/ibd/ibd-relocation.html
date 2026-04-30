@@ -26,10 +26,10 @@
       </div>
 
       <div class="ibd-kpis">
-        <div class="ibd-kpi"><div class="ibd-kpi-label">ทั้งหมด</div><div class="ibd-kpi-value" id="kpiTotal">—</div></div>
-        <div class="ibd-kpi"><div class="ibd-kpi-label">Pending</div><div class="ibd-kpi-value" id="kpiPending">—</div></div>
-        <div class="ibd-kpi"><div class="ibd-kpi-label">Approved</div><div class="ibd-kpi-value" id="kpiApproved">—</div></div>
-        <div class="ibd-kpi"><div class="ibd-kpi-label">Rejected</div><div class="ibd-kpi-value" id="kpiRejected">—</div></div>
+        <div class="ibd-kpi"><div class="ibd-kpi-label">ทั้งหมด · วันนี้</div><div class="ibd-kpi-value" id="kpiTotal">—</div></div>
+        <div class="ibd-kpi"><div class="ibd-kpi-label">Pending · วันนี้</div><div class="ibd-kpi-value" id="kpiPending">—</div></div>
+        <div class="ibd-kpi"><div class="ibd-kpi-label">Approved · วันนี้</div><div class="ibd-kpi-value" id="kpiApproved">—</div></div>
+        <div class="ibd-kpi"><div class="ibd-kpi-label">Rejected · วันนี้</div><div class="ibd-kpi-value" id="kpiRejected">—</div></div>
       </div>
 
       <div class="ibd-filters">
@@ -60,6 +60,7 @@
           <table class="ibd-table">
             <thead>
               <tr>
+                <th>Status</th>
                 <th>วันที่ส่ง</th>
                 <th>Member</th>
                 <th>From → To</th>
@@ -67,11 +68,13 @@
                 <th>Email</th>
                 <th>Acknowledged</th>
                 <th>Effective Date</th>
-                <th>Status</th>
+                <th>การดำเนินงาน</th>
+                <th>หมายเหตุ</th>
+                <th style="text-align:center">จัดการ</th>
               </tr>
             </thead>
             <tbody id="tbody">
-              <tr><td colspan="8" class="ibd-empty">กำลังโหลด...</td></tr>
+              <tr><td colspan="11" class="ibd-empty">กำลังโหลด...</td></tr>
             </tbody>
           </table>
         </div>
@@ -100,6 +103,7 @@
 <script src="../../js/core/authz.js"></script>
 <script src="../../js/core/date-format.js"></script>
 <script>AuthZ.requirePerm("ibd_relocation_view");</script>
+<script src="./ibd-export-modal.js"></script>
 <script src="./ibd-relocation.js"></script>
 <script type="module">
   import { loadTopbar } from "../../js/components/navigation/topbar.js";
@@ -108,5 +112,6 @@
 <script src="../../js/components/navigation/sidebar.js"></script>
 <script src="../../js/components/modal/modalManager.js"></script>
 <script src="../../js/components/modal/promptModal.js"></script>
+<script src="../../js/components/modal/confirmModal.js"></script>
 </body>
 </html>
