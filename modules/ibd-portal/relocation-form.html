@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>A4S — Change Location Base</title>
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./portal-shared.css">
+</head>
+<body>
+
+<div class="pp-main">
+  <a class="pp-back" onclick="location.href='./home.html'"><span>‹</span><span id="lblBack">Back</span></a>
+
+  <div class="pp-card" id="formView">
+    <div class="pp-card-head">
+      <div class="pp-card-title" id="ttl">Changing Location Base Requisition</div>
+      <div class="pp-card-sub" id="sub"></div>
+    </div>
+    <div class="pp-card-body">
+      <div class="pp-field">
+        <label class="pp-label" id="lblMember">Member ID <span class="req">*</span></label>
+        <input type="text" id="fMember" class="pp-input" readonly style="background:#f8fafc" />
+      </div>
+
+      <div class="pp-field">
+        <label class="pp-label" id="lblName">Member Name <span class="req">*</span></label>
+        <input type="text" id="fName" class="pp-input" />
+      </div>
+
+      <div class="pp-field">
+        <label class="pp-label" id="lblFrom">From base location <span class="req">*</span></label>
+        <div class="pp-radio-group" id="fromGroup">
+          <div style="text-align:center;color:#94a3b8;font-size:12px;padding:8px">Loading...</div>
+        </div>
+      </div>
+
+      <div class="pp-field">
+        <label class="pp-label" id="lblTo">New base location <span class="req">*</span></label>
+        <div class="pp-radio-group" id="toGroup"></div>
+      </div>
+
+      <div class="pp-field">
+        <label class="pp-label" id="lblWa">WhatsApp <span class="req">*</span></label>
+        <input type="tel" id="fWa" class="pp-input" placeholder="+234..." />
+      </div>
+
+      <div class="pp-field">
+        <label class="pp-label" id="lblEmail">E-Mail</label>
+        <input type="email" id="fEmail" class="pp-input" />
+      </div>
+
+      <div class="pp-field">
+        <label class="pp-label" id="lblAck">Acknowledgement <span class="req">*</span></label>
+        <div class="pp-notice info" id="lblAckText"></div>
+        <label class="pp-radio-item" id="ackWrap">
+          <input type="radio" name="ack" value="yes" />
+          <span id="lblAckYes">Noted</span>
+        </label>
+      </div>
+
+      <button class="pp-btn" id="btnSubmit" onclick="doSubmit()">
+        <span id="lblSubmit">Submit</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="pp-card" id="successView" style="display:none">
+    <div class="pp-success">
+      <div class="pp-success-icon">✓</div>
+      <div class="pp-success-title" id="okTitle">Request Submitted!</div>
+      <div class="pp-success-msg" id="okMsg"></div>
+      <div class="pp-success-ref" id="okRef"></div>
+      <button class="pp-btn pp-btn-ghost" onclick="location.href='./home.html'">
+        <span id="okBackBtn">Back to Home</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<script src="./portal-config.js"></script>
+<script src="../../js/core/crypto.js"></script>
+<script src="./portal-shared.js"></script>
+<script>
+  const session = IBDPortal.requireAuth();
+  IBDPortal.renderTopbar();
+
+  const t = IBDPortal.t;
+  document.title = t('brand') + ' — ' + t('relocation_title');
+  document.getElementById('lblBack').textContent = t('back');
+  document.getElementById('ttl').textContent = t('relocation_title');
+  document.getElementById('sub').textContent = t('relocation_sub');
+  document.getElementById('lblMember').innerHTML = t('f3_member_id') + ' <span class="req">*</span>';
+  document.getElementById('lblName').innerHTML = t('f3_member_name') + ' <span class="req">*</span>';
+  document.getElementById('lblFrom').innerHTML = t('f3_from') + ' <span class="req">*</span>';
+  document.getElementById('lblTo').innerHTML = t('f3_to') + ' <span class="req">*</span>';
+  document.getElementById('lblWa').innerHTML = t('f3_whatsapp') + ' <span class="req">*</span>';
+  document.getElementById('lblEmail').textContent = t('f3_email');
+  document.getElementById('lblAck').innerHTML = t('f3_ack').slice(0,40) + '... <span class="req">*</span>';
+  document.getElementById('lblAckText').textContent = t('f3_ack');
+  document.getElementById('lblAckYes').textContent = t('f3_ack_yes');
+  document.getElementById('lblSubmit').textContent = t('submit');
+  document.getElementById('okTitle').textContent = t('success_title');
+  document.getElementById('okMsg').textContent = t('success_msg_relocation');
+  document.getElementById('okBackBtn').textContent = t('back_to_home');
+
+  // Pre-fill
+  document.getElementById('fMember').value = session.member_code;
+  document.getElementById('fName').value = session.member_name || session.full_name || '';
+  document.getElementById('fWa').value = session.phone || '';
+
+  // Load countries (for relocation: only entries that are NOT city sub-codes — i.e. no '-' in code)
+  (async () => {
+    try {
+      const all = await IBDPortal.sbGet('ibd_countries?select=code,name_en,name_fr,flag_emoji,display_order&active=eq.true&order=display_order.asc');
+      const useFr = IBDPortal.getLang() === 'fr';
+      const countries = all.filter(c => !c.code.includes('-'));
+      const renderInto = (rootId, name) => {
+        const root = document.getElementById(rootId);
+        let html = '';
+        let lastBucket = null;
+        countries.forEach((c) => {
+          const bucket = Math.floor(c.display_order / 10);
+          if (lastBucket !== null && bucket !== lastBucket) html += '<div class="pp-radio-divider"></div>';
+          lastBucket = bucket;
+          const lbl = (useFr && c.name_fr) ? c.name_fr : c.name_en;
+          html += `<label class="pp-radio-item" data-val="${c.code}">
+            <input type="radio" name="${name}" value="${c.code}" />
+            <span>${c.flag_emoji || ''} ${IBDPortal.escapeHtml(lbl)}</span>
+          </label>`;
+        });
+        root.innerHTML = html;
+      };
+      renderInto('fromGroup', 'fromCountry');
+      renderInto('toGroup',   'toCountry');
+      ['fromGroup', 'toGroup'].forEach(wireRadioVisuals);
+    } catch (e) {
+      document.getElementById('fromGroup').innerHTML = `<div style="color:#dc2626;font-size:12px;padding:8px">${IBDPortal.escapeHtml(e.message)}</div>`;
+    }
+  })();
+
+  function wireRadioVisuals(groupId) {
+    const grp = document.getElementById(groupId);
+    grp.addEventListener('change', () => {
+      grp.querySelectorAll('.pp-radio-item').forEach(it => {
+        const r = it.querySelector('input[type="radio"]');
+        it.classList.toggle('selected', r && r.checked);
+      });
+    });
+  }
+  // Acknowledge
+  document.getElementById('ackWrap').addEventListener('change', (e) => {
+    e.currentTarget.classList.toggle('selected', e.target.checked);
+  });
+
+  async function doSubmit() {
+    const name = document.getElementById('fName').value.trim();
+    const wa   = document.getElementById('fWa').value.trim();
+    const email = document.getElementById('fEmail').value.trim();
+    const fromEl = document.querySelector('input[name="fromCountry"]:checked');
+    const toEl   = document.querySelector('input[name="toCountry"]:checked');
+    const ack    = !!document.querySelector('input[name="ack"]:checked');
+    const fromVal = fromEl ? fromEl.value : '';
+    const toVal   = toEl ? toEl.value : '';
+
+    if (!name)   return IBDPortal.toast(t('required') + ': ' + t('f3_member_name'), 'error');
+    if (!fromVal)return IBDPortal.toast(t('required') + ': ' + t('f3_from'), 'error');
+    if (!toVal)  return IBDPortal.toast(t('required') + ': ' + t('f3_to'), 'error');
+    if (fromVal === toVal) return IBDPortal.toast('From and To must be different', 'error');
+    if (!wa)     return IBDPortal.toast(t('required') + ': ' + t('f3_whatsapp'), 'error');
+    if (!ack)    return IBDPortal.toast(t('required') + ': ' + t('f3_ack_yes'), 'error');
+
+    const btn = document.getElementById('btnSubmit');
+    btn.disabled = true;
+    document.getElementById('lblSubmit').textContent = t('submitting');
+    IBDPortal.showLoading(true);
+
+    try {
+      const payload = {
+        source_form: 'relocation',
+        member_code: session.member_code,
+        member_name: name,
+        from_country: fromVal,
+        to_country: toVal,
+        whatsapp: wa,
+        email: email || null,
+        acknowledged: ack,
+        language: IBDPortal.getLang(),
+        user_agent: navigator.userAgent.slice(0, 200),
+      };
+      const result = await IBDPortal.sbPost('ibd_relocation_requests', payload);
+      const newId = Array.isArray(result) ? result[0]?.id : result?.id;
+
+      // Read country labels from the radio span text (already translated)
+      const fromLbl = fromEl?.parentElement?.querySelector('span')?.textContent?.trim() || fromVal;
+      const toLbl   = toEl?.parentElement?.querySelector('span')?.textContent?.trim() || toVal;
+      IBDPortal.notifyTrigger('ibd.relocation.created', {
+        submission_id: newId,
+        member_code: session.member_code,
+        member_name: name,
+        from_country_label: fromLbl,
+        to_country_label: toLbl,
+        whatsapp: wa,
+      });
+
+      document.getElementById('formView').style.display = 'none';
+      document.getElementById('successView').style.display = 'block';
+      document.getElementById('okRef').textContent = `#${newId}`;
+      window.scrollTo(0, 0);
+    } catch (e) {
+      console.error(e);
+      IBDPortal.toast(t('submit_failed') + e.message, 'error');
+      btn.disabled = false;
+      document.getElementById('lblSubmit').textContent = t('submit');
+    } finally {
+      IBDPortal.showLoading(false);
+    }
+  }
+</script>
+</body>
+</html>

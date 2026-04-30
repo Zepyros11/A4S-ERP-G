@@ -227,6 +227,35 @@ window.AppPermissions = (() => {
       ],
     },
 
+    /* ── 8.5 International Business Development (IBD) ── */
+    {
+      key: "ibd", label: "International Business Dev (IBD)", icon: "🌍",
+      children: [
+        { key: "ibd_dashboard", label: "IBD Dashboard", icon: "📊", perms: [
+          { key: "ibd_dashboard_view", label: "ดู" },
+        ]},
+        { key: "ibd_complaints", label: "เรื่องร้องเรียน/ติดตาม", icon: "📋", perms: [
+          { key: "ibd_complaints_view",    label: "ดูรายการ" },
+          { key: "ibd_complaints_assign",  label: "มอบหมาย" },
+          { key: "ibd_complaints_resolve", label: "ปิดเรื่อง" },
+          { key: "ibd_complaints_export",  label: "ส่งออก" },
+        ]},
+        { key: "ibd_ewallet", label: "ขอโอน E-Wallet", icon: "💳", perms: [
+          { key: "ibd_ewallet_view",      label: "ดูรายการ" },
+          { key: "ibd_ewallet_approve",   label: "อนุมัติ" },
+          { key: "ibd_ewallet_mark_paid", label: "บันทึกโอนแล้ว" },
+          { key: "ibd_ewallet_reject",    label: "ปฏิเสธ" },
+          { key: "ibd_ewallet_export",    label: "ส่งออก" },
+        ]},
+        { key: "ibd_relocation", label: "ย้ายฐานประเทศ", icon: "🌐", perms: [
+          { key: "ibd_relocation_view",    label: "ดูรายการ" },
+          { key: "ibd_relocation_approve", label: "อนุมัติ" },
+          { key: "ibd_relocation_reject",  label: "ปฏิเสธ" },
+          { key: "ibd_relocation_export",  label: "ส่งออก" },
+        ]},
+      ],
+    },
+
     /* ── 9. รายงาน ── */
     {
       key: "report", label: "รายงาน", icon: "📈",
@@ -349,6 +378,17 @@ window.AppPermissions = (() => {
         "product_view",
         "po_view","so_view",
         "report_stock_view",
+      ],
+    },
+    IBD_STAFF: {
+      label: "IBD Staff", icon: "🌍", color: "role-IBD_STAFF",
+      perms: [
+        "dashboard_view",
+        "ibd_dashboard_view",
+        "ibd_complaints_view","ibd_complaints_assign","ibd_complaints_resolve","ibd_complaints_export",
+        "ibd_ewallet_view","ibd_ewallet_approve","ibd_ewallet_mark_paid","ibd_ewallet_reject","ibd_ewallet_export",
+        "ibd_relocation_view","ibd_relocation_approve","ibd_relocation_reject","ibd_relocation_export",
+        "member_view",
       ],
     },
   };

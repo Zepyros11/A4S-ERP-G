@@ -1648,6 +1648,21 @@ window.autoCreateLpPosts = function () {
   // เคลียร์ + fill default
   document.getElementById("fAutoCreateMessage").value = _buildDefaultAutoCreateMessage();
   window.autoCreateUpdateCount();
+
+  // populate hour select (00-23) + default 09:00
+  const hourSel = document.getElementById("fAutoCreateHour");
+  if (hourSel && !hourSel.options.length) {
+    for (let h = 0; h < 24; h++) {
+      const v = String(h).padStart(2, "0");
+      const opt = document.createElement("option");
+      opt.value = v; opt.textContent = v;
+      hourSel.appendChild(opt);
+    }
+  }
+  if (hourSel) hourSel.value = "09";
+  const minSel = document.getElementById("fAutoCreateMinute");
+  if (minSel) minSel.value = "00";
+
   document.getElementById("autoCreateModalOverlay").classList.add("open");
 };
 
@@ -1686,6 +1701,9 @@ window.confirmAutoCreate = async function () {
   const eventDate = parseYMD(currentEvent.event_date);
   if (!eventDate) return showToast("วันที่งานไม่ถูกต้อง", "error");
 
+  const hh = document.getElementById("fAutoCreateHour")?.value || "09";
+  const mm = document.getElementById("fAutoCreateMinute")?.value || "00";
+
   const session = (() => {
     try {
       return JSON.parse(localStorage.getItem("erp_session") || sessionStorage.getItem("erp_session") || "{}");
@@ -1698,7 +1716,7 @@ window.confirmAutoCreate = async function () {
   for (const offset of [7, 3, 2, 1]) {
     const d = new Date(eventDate);
     d.setDate(d.getDate() - offset);
-    const scheduled_at = `${toBkkDateStr(d)}T09:00:00+07:00`;
+    const scheduled_at = `${toBkkDateStr(d)}T${hh}:${mm}:00+07:00`;
     for (const grp of targetGroups) {
       rows.push({
         event_id: currentEventId,

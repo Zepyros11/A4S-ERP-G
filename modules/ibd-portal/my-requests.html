@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>A4S — My Requests</title>
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./portal-shared.css">
+</head>
+<body>
+
+<div class="pp-main">
+  <a class="pp-back" onclick="location.href='./home.html'"><span>‹</span><span id="lblBack">Back</span></a>
+
+  <div class="pp-card">
+    <div class="pp-card-head">
+      <div class="pp-card-title" id="ttl">My Requests</div>
+      <div class="pp-card-sub" id="sub"></div>
+    </div>
+    <div class="pp-card-body">
+      <div class="pp-req-list" id="reqList">
+        <div style="text-align:center;padding:30px;color:#94a3b8;font-size:13px">⏳ Loading...</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="./portal-config.js"></script>
+<script src="../../js/core/crypto.js"></script>
+<script src="./portal-shared.js"></script>
+<script>
+  const session = IBDPortal.requireAuth();
+  IBDPortal.renderTopbar();
+
+  const t = IBDPortal.t;
+  document.title = t('brand') + ' — ' + t('my_title');
+  document.getElementById('lblBack').textContent = t('back');
+  document.getElementById('ttl').textContent = t('my_title');
+  document.getElementById('sub').textContent = t('my_sub');
+
+  const TOPIC_LABELS = {
+    product_order:  t('tp_product_order'),
+    info_change:    t('tp_info_change'),
+    password:       t('tp_password'),
+    commission:     t('tp_commission'),
+    service:        t('tp_service'),
+    wrong_sponsor:  t('tp_wrong_sponsor'),
+    other:          t('tp_other'),
+  };
+
+  function fmtTime(iso) {
+    if (!iso) return '—';
+    const d = new Date(iso);
+    return d.toLocaleString(IBDPortal.getLang() === 'fr' ? 'fr-FR' : 'en-GB', {
+      day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit',
+    });
+  }
+  function statusBadge(status) {
+    return `<span class="pp-status pp-status-${status}">${t('my_status_' + status) || status}</span>`;
+  }
+
+  async function loadAll() {
+    const code = encodeURIComponent(session.member_code);
+    const [c, e, r, countries] = await Promise.all([
+      IBDPortal.sbGet(`ibd_complaints?member_code=eq.${code}&select=id,topic,topic_other,status,created_at&order=created_at.desc&limit=50`),
+      IBDPortal.sbGet(`ibd_ewallet_requests?member_code=eq.${code}&select=id,member_full_name,status,ref_no,created_at&order=created_at.desc&limit=50`),
+      IBDPortal.sbGet(`ibd_relocation_requests?member_code=eq.${code}&select=id,from_country,to_country,status,effective_date,created_at&order=created_at.desc&limit=50`),
+      IBDPortal.sbGet('ibd_countries?select=code,name_en,name_fr,flag_emoji&active=eq.true'),
+    ]);
+    const useFr = IBDPortal.getLang() === 'fr';
+    const cMap = {};
+    countries.forEach(x => { cMap[x.code] = (x.flag_emoji || '') + ' ' + ((useFr && x.name_fr) ? x.name_fr : x.name_en); });
+
+    const items = [
+      ...c.map(x => ({
+        kind: 'complaint',
+        icon: '📋',
+        kindLabel: t('my_kind_complaint'),
+        title: TOPIC_LABELS[x.topic] || x.topic_other || x.topic,
+        extra: '',
+        status: x.status,
+        id: x.id,
+        created_at: x.created_at,
+      })),
+      ...e.map(x => ({
+        kind: 'ewallet',
+        icon: '💳',
+        kindLabel: t('my_kind_ewallet'),
+        title: x.member_full_name || '—',
+        extra: x.ref_no ? `Ref: ${x.ref_no}` : '',
+        status: x.status,
+        id: x.id,
+        created_at: x.created_at,
+      })),
+      ...r.map(x => ({
+        kind: 'relocation',
+        icon: '🌐',
+        kindLabel: t('my_kind_relocation'),
+        title: `${cMap[x.from_country] || x.from_country} → ${cMap[x.to_country] || x.to_country}`,
+        extra: x.effective_date ? `Effective: ${x.effective_date}` : '',
+        status: x.status,
+        id: x.id,
+        created_at: x.created_at,
+      })),
+    ].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+    const root = document.getElementById('reqList');
+    if (!items.length) {
+      root.innerHTML = `<div style="text-align:center;padding:30px;color:#94a3b8;font-size:13.5px">${t('my_empty')}</div>`;
+      return;
+    }
+    root.innerHTML = items.map(it => `
+      <div class="pp-req-item">
+        <div class="pp-req-icon ${it.kind}">${it.icon}</div>
+        <div class="pp-req-body">
+          <div class="pp-req-title">${IBDPortal.escapeHtml(it.title)}</div>
+          <div class="pp-req-meta">
+            <span>${it.kindLabel} #${it.id}</span>
+            <span>${t('my_submitted')}: ${fmtTime(it.created_at)}</span>
+          </div>
+          ${it.extra ? `<div class="pp-req-extra">${IBDPortal.escapeHtml(it.extra)}</div>` : ''}
+        </div>
+        ${statusBadge(it.status)}
+      </div>
+    `).join('');
+  }
+
+  IBDPortal.showLoading(true);
+  loadAll()
+    .catch(e => {
+      console.error(e);
+      IBDPortal.toast('Load failed: ' + e.message, 'error');
+      document.getElementById('reqList').innerHTML = `<div style="color:#dc2626;text-align:center;padding:30px;font-size:12.5px">${IBDPortal.escapeHtml(e.message)}</div>`;
+    })
+    .finally(() => IBDPortal.showLoading(false));
+</script>
+</body>
+</html>

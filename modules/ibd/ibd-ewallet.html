@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>IBD — ขอโอน E-Wallet — A4S-ERP</title>
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../css/main.css" />
+  <link rel="stylesheet" href="./ibd-shared.css" />
+</head>
+<body>
+
+<div class="loading-overlay" id="loadingOverlay"><div class="spinner"></div></div>
+<div class="toast" id="toast"></div>
+
+<div class="topbar"></div>
+<div class="layout">
+  <div id="sidebar-container"></div>
+
+  <div class="content-area">
+    <div class="page">
+
+      <div class="ibd-hero">
+        <div class="ibd-hero-title">💳 IBD — Commission to E-Wallet Requisition</div>
+        <div class="ibd-hero-sub">รายการคำขอโอนคอมมิชชั่นเข้า E-Wallet จากสมาชิก MLM (Form 2)</div>
+      </div>
+
+      <div class="ibd-kpis">
+        <div class="ibd-kpi"><div class="ibd-kpi-label">ทั้งหมด</div><div class="ibd-kpi-value" id="kpiTotal">—</div></div>
+        <div class="ibd-kpi"><div class="ibd-kpi-label">Pending</div><div class="ibd-kpi-value" id="kpiPending">—</div></div>
+        <div class="ibd-kpi"><div class="ibd-kpi-label">Approved</div><div class="ibd-kpi-value" id="kpiApproved">—</div></div>
+        <div class="ibd-kpi"><div class="ibd-kpi-label">Paid</div><div class="ibd-kpi-value" id="kpiPaid">—</div></div>
+        <div class="ibd-kpi"><div class="ibd-kpi-label">Rejected</div><div class="ibd-kpi-value" id="kpiRejected">—</div></div>
+      </div>
+
+      <div class="ibd-filters">
+        <input type="text" class="ibd-search" id="filtSearch" placeholder="🔎 ค้นหา ID, ชื่อ, WhatsApp, email..." />
+        <div class="ibd-filter-group">
+          <span class="ibd-filter-label">📌 Status</span>
+          <select class="ibd-filter-select" id="filtStatus">
+            <option value="">ทั้งหมด</option>
+            <option value="pending">Pending</option>
+            <option value="approved">Approved</option>
+            <option value="paid">Paid</option>
+            <option value="rejected">Rejected</option>
+          </select>
+        </div>
+        <button class="ibd-btn ibd-btn-ghost" onclick="reload()">🔄 รีเฟรช</button>
+        <button class="ibd-btn ibd-btn-primary" data-perm="ibd_ewallet_export" onclick="exportCsv()">📥 Export CSV</button>
+      </div>
+
+      <div class="ibd-table-wrap">
+        <div style="overflow-x:auto">
+          <table class="ibd-table">
+            <thead>
+              <tr>
+                <th>วันที่ส่ง</th>
+                <th>Member</th>
+                <th>WhatsApp</th>
+                <th>Email</th>
+                <th>เอกสาร</th>
+                <th>ภาพถือเอกสาร</th>
+                <th>Confirm</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="tbody">
+              <tr><td colspan="8" class="ibd-empty">กำลังโหลด...</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="ibd-paginate" id="paginate"></div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ── Lightbox (image preview) ── -->
+<div class="ibd-lightbox" id="lightbox" onclick="if(event.target===this)closeLightbox()">
+  <button class="ibd-lightbox-close" onclick="closeLightbox()">×</button>
+  <img id="lightboxImg" src="" alt="" />
+  <div class="ibd-lightbox-info" id="lightboxInfo"></div>
+</div>
+
+<!-- ── Detail Modal ── -->
+<div class="ibd-modal-overlay" id="detailModal" onclick="if(event.target===this)closeModal()">
+  <div class="ibd-modal">
+    <div class="ibd-modal-head">
+      <span style="font-size:22px">💳</span>
+      <div class="ibd-modal-title" id="modalTitle">E-Wallet Request Detail</div>
+      <button class="ibd-modal-close" onclick="closeModal()">×</button>
+    </div>
+    <div class="ibd-modal-body" id="modalBody"></div>
+    <div class="ibd-modal-foot" id="modalFoot"></div>
+  </div>
+</div>
+
+<script src="../../js/core/permissions.js"></script>
+<script src="../../js/core/auth.js"></script>
+<script src="../../js/core/authz.js"></script>
+<script src="../../js/core/date-format.js"></script>
+<script>AuthZ.requirePerm("ibd_ewallet_view");</script>
+<script src="./ibd-storage.js"></script>
+<script src="./ibd-ewallet.js"></script>
+<script type="module">
+  import { loadTopbar } from "../../js/components/navigation/topbar.js";
+  loadTopbar("💳 IBD E-Wallet Requests");
+</script>
+<script src="../../js/components/navigation/sidebar.js"></script>
+<script src="../../js/components/modal/modalManager.js"></script>
+<script src="../../js/components/modal/promptModal.js"></script>
+</body>
+</html>

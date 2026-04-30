@@ -277,6 +277,38 @@
         },
       ],
     },
+    // **************** IBD (International Business Dev) *****************
+    {
+      group: "International Business Dev (IBD)",
+      icon: "🌍",
+      id: "g-ibd",
+      items: [
+        {
+          id: "ibd-dashboard",
+          icon: "📊",
+          label: "IBD Dashboard",
+          path: BASE_PATH + "/modules/ibd/ibd-dashboard.html",
+        },
+        {
+          id: "ibd-complaints",
+          icon: "📋",
+          label: "เรื่องร้องเรียน/ติดตาม",
+          path: BASE_PATH + "/modules/ibd/ibd-complaints.html",
+        },
+        {
+          id: "ibd-ewallet",
+          icon: "💳",
+          label: "ขอโอน E-Wallet",
+          path: BASE_PATH + "/modules/ibd/ibd-ewallet.html",
+        },
+        {
+          id: "ibd-relocation",
+          icon: "🌐",
+          label: "ย้ายฐานประเทศ",
+          path: BASE_PATH + "/modules/ibd/ibd-relocation.html",
+        },
+      ],
+    },
     //  **************** REPORT *****************
     {
       group: "รายงาน",
@@ -430,6 +462,10 @@
     "event-work-plan": "evt_wp_view",
     "cs-work-plan": "cs_wp_view",
     "trip-work-plan": "trip_wp_view",
+    "ibd-dashboard": "ibd_dashboard_view",
+    "ibd-complaints": "ibd_complaints_view",
+    "ibd-ewallet": "ibd_ewallet_view",
+    "ibd-relocation": "ibd_relocation_view",
     automation: "devtool_view",
     wizard: "devtool_manage",
     "devtool-settings": "devtool_manage",
@@ -511,6 +547,11 @@
     "event-work-plan",
     "cs-work-plan",
     "trip-work-plan",
+    //**** IBD ****
+    "ibd-dashboard",
+    "ibd-complaints",
+    "ibd-ewallet",
+    "ibd-relocation",
     //**** DEV TOOL ****
     "automation",
     "wizard",

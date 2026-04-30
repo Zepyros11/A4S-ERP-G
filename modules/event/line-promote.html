@@ -260,10 +260,25 @@
           <details class="lp-collapsible-hint" style="margin-bottom:14px">
             <summary>💡 คำอธิบาย</summary>
             <div class="lp-collapsible-hint-body">
-              ระบบจะสร้าง <b>4 โพสต์</b> (D-7, D-3, D-2, D-1) ที่ <b>09:00 น.</b> โดยใช้ข้อความเดียวกันทั้ง 4 วัน<br/>
+              ระบบจะสร้าง <b>4 โพสต์</b> (D-7, D-3, D-2, D-1) ตามเวลาที่กำหนด โดยใช้ข้อความเดียวกันทั้ง 4 วัน<br/>
               <span style="font-size:11px;opacity:.8">ใส่ <code>{{days_left}}</code> เพื่อให้ระบบแทนค่าจำนวนวันที่เหลือตอนส่งจริง</span>
             </div>
           </details>
+
+          <div class="form-group" style="margin-bottom:14px">
+            <label class="form-label">⏰ เวลาส่ง (เวลาไทย)</label>
+            <div style="display:flex;align-items:center;gap:6px">
+              <select class="form-input" id="fAutoCreateHour" style="width:auto;min-width:70px"></select>
+              <span style="font-weight:700;font-size:16px">:</span>
+              <select class="form-input" id="fAutoCreateMinute" style="width:auto;min-width:70px">
+                <option value="00" selected>00</option>
+                <option value="15">15</option>
+                <option value="30">30</option>
+                <option value="45">45</option>
+              </select>
+              <span style="font-size:11px;color:var(--text3);margin-left:4px">น.</span>
+            </div>
+          </div>
 
           <div class="form-group">
             <label class="form-label">

@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>IBD — เรื่องร้องเรียน — A4S-ERP</title>
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../css/main.css" />
+  <link rel="stylesheet" href="./ibd-shared.css" />
+</head>
+<body>
+
+<div class="loading-overlay" id="loadingOverlay"><div class="spinner"></div></div>
+<div class="toast" id="toast"></div>
+
+<div class="topbar"></div>
+<div class="layout">
+  <div id="sidebar-container"></div>
+
+  <div class="content-area">
+    <div class="page">
+
+      <!-- ── Hero ── -->
+      <div class="ibd-hero">
+        <div class="ibd-hero-title">📋 IBD — Service Progress & Complaints</div>
+        <div class="ibd-hero-sub">รายการเรื่องร้องเรียน / ติดตามงาน จากสมาชิก MLM (Form 1)</div>
+      </div>
+
+      <!-- ── KPI strip ── -->
+      <div class="ibd-kpis">
+        <div class="ibd-kpi"><div class="ibd-kpi-label">ทั้งหมด</div><div class="ibd-kpi-value" id="kpiTotal">—</div></div>
+        <div class="ibd-kpi"><div class="ibd-kpi-label">New</div><div class="ibd-kpi-value" id="kpiNew">—</div></div>
+        <div class="ibd-kpi"><div class="ibd-kpi-label">In Progress</div><div class="ibd-kpi-value" id="kpiProgress">—</div></div>
+        <div class="ibd-kpi"><div class="ibd-kpi-label">Resolved</div><div class="ibd-kpi-value" id="kpiResolved">—</div></div>
+        <div class="ibd-kpi"><div class="ibd-kpi-label">Closed</div><div class="ibd-kpi-value" id="kpiClosed">—</div></div>
+      </div>
+
+      <!-- ── Filter bar ── -->
+      <div class="ibd-filters">
+        <input type="text" class="ibd-search" id="filtSearch" placeholder="🔎 ค้นหา ID, ชื่อ, รายละเอียด..." />
+        <div class="ibd-filter-group">
+          <span class="ibd-filter-label">📌 Status</span>
+          <select class="ibd-filter-select" id="filtStatus">
+            <option value="">ทั้งหมด</option>
+            <option value="new">New</option>
+            <option value="in_progress">In Progress</option>
+            <option value="resolved">Resolved</option>
+            <option value="closed">Closed</option>
+          </select>
+        </div>
+        <div class="ibd-filter-group">
+          <span class="ibd-filter-label">🏷️ Topic</span>
+          <select class="ibd-filter-select" id="filtTopic">
+            <option value="">ทั้งหมด</option>
+            <option value="product_order">Product Order follow up</option>
+            <option value="info_change">Member Information Change</option>
+            <option value="password">Member Login Password</option>
+            <option value="commission">Commission Checking & Payment</option>
+            <option value="service">Service Complaint</option>
+            <option value="wrong_sponsor">Wrong Sponsor / Team Placement</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+        <div class="ibd-filter-group">
+          <span class="ibd-filter-label">🏢 สาขา</span>
+          <select class="ibd-filter-select" id="filtBranch">
+            <option value="">ทั้งหมด</option>
+          </select>
+        </div>
+        <button class="ibd-btn ibd-btn-ghost" onclick="reload()">🔄 รีเฟรช</button>
+        <button class="ibd-btn ibd-btn-primary" data-perm="ibd_complaints_export" onclick="exportCsv()">📥 Export CSV</button>
+      </div>
+
+      <!-- ── Table ── -->
+      <div class="ibd-table-wrap">
+        <div style="overflow-x:auto">
+          <table class="ibd-table">
+            <thead>
+              <tr>
+                <th>วันที่ส่ง</th>
+                <th>Member</th>
+                <th>Topic</th>
+                <th>สาขา</th>
+                <th>WhatsApp</th>
+                <th>รายละเอียด</th>
+                <th>ไฟล์</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="tbody">
+              <tr><td colspan="8" class="ibd-empty">กำลังโหลด...</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="ibd-paginate" id="paginate"></div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ── Lightbox (image preview) ── -->
+<div class="ibd-lightbox" id="lightbox" onclick="if(event.target===this)closeLightbox()">
+  <button class="ibd-lightbox-close" onclick="closeLightbox()">×</button>
+  <img id="lightboxImg" src="" alt="" />
+  <div class="ibd-lightbox-info" id="lightboxInfo"></div>
+</div>
+
+<!-- ── Detail Modal ── -->
+<div class="ibd-modal-overlay" id="detailModal" onclick="if(event.target===this)closeModal()">
+  <div class="ibd-modal">
+    <div class="ibd-modal-head">
+      <span style="font-size:22px">📋</span>
+      <div class="ibd-modal-title" id="modalTitle">Complaint Detail</div>
+      <button class="ibd-modal-close" onclick="closeModal()">×</button>
+    </div>
+    <div class="ibd-modal-body" id="modalBody"></div>
+    <div class="ibd-modal-foot" id="modalFoot"></div>
+  </div>
+</div>
+
+<script src="../../js/core/permissions.js"></script>
+<script src="../../js/core/auth.js"></script>
+<script src="../../js/core/authz.js"></script>
+<script src="../../js/core/date-format.js"></script>
+<script>AuthZ.requirePerm("ibd_complaints_view");</script>
+<script src="./ibd-storage.js"></script>
+<script src="./ibd-complaints.js"></script>
+<script type="module">
+  import { loadTopbar } from "../../js/components/navigation/topbar.js";
+  loadTopbar("📋 IBD Complaints");
+</script>
+<script src="../../js/components/navigation/sidebar.js"></script>
+<script src="../../js/components/modal/modalManager.js"></script>
+<script src="../../js/components/modal/promptModal.js"></script>
+</body>
+</html>

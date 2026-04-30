@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>A4S — Service Progress & Complaints</title>
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./portal-shared.css">
+</head>
+<body>
+
+<div class="pp-main">
+  <a class="pp-back" onclick="location.href='./home.html'"><span>‹</span><span id="lblBack">Back</span></a>
+
+  <!-- Form view -->
+  <div class="pp-card" id="formView">
+    <div class="pp-card-head">
+      <div class="pp-card-title" id="ttl">Service Progress & Customer Complaints</div>
+      <div class="pp-card-sub" id="sub"></div>
+    </div>
+    <div class="pp-card-body">
+      <div class="pp-field">
+        <label class="pp-label" id="lblName">Name <span class="req">*</span></label>
+        <input type="text" id="fName" class="pp-input" />
+      </div>
+
+      <div class="pp-field">
+        <label class="pp-label" id="lblMember">A4S Member ID <span class="req">*</span></label>
+        <input type="text" id="fMember" class="pp-input" readonly style="background:#f8fafc" />
+      </div>
+
+      <div class="pp-field">
+        <label class="pp-label" id="lblWhatsappUsed">WhatsApp number used to contact us <span class="req">*</span></label>
+        <input type="tel" id="fWhatsappUsed" class="pp-input" placeholder="+234..." />
+      </div>
+
+      <div class="pp-field">
+        <label class="pp-label" id="lblTopic">Topic <span class="req">*</span></label>
+        <div class="pp-radio-group" id="topicGroup"></div>
+      </div>
+
+      <div class="pp-field">
+        <label class="pp-label" id="lblBranch">A4S branch contacted <span class="req">*</span></label>
+        <div class="pp-radio-group" id="branchGroup">
+          <div style="text-align:center;color:#94a3b8;font-size:12px;padding:8px">Loading...</div>
+        </div>
+      </div>
+
+      <div class="pp-field">
+        <label class="pp-label" id="lblCsWa">A4S CS WhatsApp number you contacted</label>
+        <input type="tel" id="fCsWa" class="pp-input" />
+      </div>
+
+      <div class="pp-field">
+        <label class="pp-label" id="lblDetails">Details</label>
+        <textarea id="fDetails" class="pp-textarea" placeholder=""></textarea>
+      </div>
+
+      <div class="pp-field">
+        <label class="pp-label" id="lblAttach">Attachments <span class="req">*</span></label>
+        <div class="pp-file-wrap" id="fileWrap">
+          <div class="pp-file-icon">📎</div>
+          <div class="pp-file-text" id="lblFileDrop">Click to add files</div>
+          <div class="pp-file-hint" id="lblFileHint"></div>
+          <input type="file" id="fileInput" class="pp-file-input" multiple
+                 accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.mp3,.mp4,.wav,.mov" />
+        </div>
+        <div class="pp-file-list" id="fileList"></div>
+      </div>
+
+      <div class="pp-field">
+        <label class="pp-label" id="lblOthers">Others (optional)</label>
+        <input type="text" id="fOthers" class="pp-input" />
+      </div>
+
+      <div class="pp-notice info" id="noticeBox"></div>
+
+      <button class="pp-btn" id="btnSubmit" onclick="doSubmit()">
+        <span id="lblSubmit">Submit</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Success view -->
+  <div class="pp-card" id="successView" style="display:none">
+    <div class="pp-success">
+      <div class="pp-success-icon">✓</div>
+      <div class="pp-success-title" id="okTitle">Request Submitted!</div>
+      <div class="pp-success-msg" id="okMsg"></div>
+      <div class="pp-success-ref" id="okRef"></div>
+      <button class="pp-btn pp-btn-ghost" onclick="location.href='./home.html'">
+        <span id="okBackBtn">Back to Home</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<script src="./portal-config.js"></script>
+<script src="../../js/core/crypto.js"></script>
+<script src="./portal-shared.js"></script>
+<script>
+  const session = IBDPortal.requireAuth();
+  IBDPortal.renderTopbar();
+
+  // i18n labels
+  const t = IBDPortal.t;
+  document.title = t('brand') + ' — ' + t('complaint_title');
+  document.getElementById('lblBack').textContent = t('back');
+  document.getElementById('ttl').textContent = t('complaint_title');
+  document.getElementById('sub').textContent = t('complaint_sub');
+  document.getElementById('lblName').innerHTML = t('f1_name') + ' <span class="req">*</span>';
+  document.getElementById('lblMember').innerHTML = t('f1_member_id') + ' <span class="req">*</span>';
+  document.getElementById('lblWhatsappUsed').innerHTML = t('f1_whatsapp_used') + ' <span class="req">*</span>';
+  document.getElementById('lblTopic').innerHTML = t('f1_topic') + ' <span class="req">*</span>';
+  document.getElementById('lblBranch').innerHTML = t('f1_branch') + ' <span class="req">*</span>';
+  document.getElementById('lblCsWa').textContent = t('f1_cs_whatsapp');
+  document.getElementById('lblDetails').textContent = t('f1_details');
+  document.getElementById('lblAttach').innerHTML = t('f1_attach') + ' <span class="req">*</span>';
+  document.getElementById('lblOthers').textContent = t('f1_others');
+  document.getElementById('lblFileDrop').textContent = t('file_drop');
+  document.getElementById('lblFileHint').textContent = t('file_hint_complaint');
+  document.getElementById('lblSubmit').textContent = t('submit');
+  document.getElementById('noticeBox').textContent = t('success_msg_complaint');
+  document.getElementById('okTitle').textContent = t('success_title');
+  document.getElementById('okMsg').textContent = t('success_msg_complaint');
+  document.getElementById('okBackBtn').textContent = t('back_to_home');
+
+  // Pre-fill member info
+  document.getElementById('fName').value = session.member_name || session.full_name || '';
+  document.getElementById('fMember').value = session.member_code;
+  document.getElementById('fWhatsappUsed').value = session.phone || '';
+
+  // Build topic radios
+  const TOPICS = [
+    { v: 'product_order',  l: 'tp_product_order' },
+    { v: 'info_change',    l: 'tp_info_change' },
+    { v: 'password',       l: 'tp_password' },
+    { v: 'commission',     l: 'tp_commission' },
+    { v: 'service',        l: 'tp_service' },
+    { v: 'wrong_sponsor',  l: 'tp_wrong_sponsor' },
+    { v: 'other',          l: 'tp_other' },
+  ];
+  const topicGroup = document.getElementById('topicGroup');
+  topicGroup.innerHTML = TOPICS.map((tp, i) => {
+    if (tp.v === 'other') {
+      return `<label class="pp-radio-item" data-val="${tp.v}">
+        <input type="radio" name="topic" value="${tp.v}" />
+        <span>${t(tp.l)}:</span>
+        <input type="text" class="pp-other-input" id="topicOther" placeholder="" />
+      </label>`;
+    }
+    return `<label class="pp-radio-item" data-val="${tp.v}">
+      <input type="radio" name="topic" value="${tp.v}" />
+      <span>${t(tp.l)}</span>
+    </label>`;
+  }).join('');
+
+  // Load branches (sorted with dividers via display_order)
+  let branchList = [];
+  (async () => {
+    try {
+      branchList = await IBDPortal.sbGet('ibd_countries?select=code,name_en,name_fr,flag_emoji,display_order,parent_country&is_branch=eq.true&active=eq.true&order=display_order.asc');
+      const useFr = IBDPortal.getLang() === 'fr';
+      const root = document.getElementById('branchGroup');
+      let html = '';
+      let lastBucket = null;
+      branchList.forEach((b) => {
+        // Bucket by display_order tens digit (10s vs 20s vs 30s) → divider
+        const bucket = Math.floor(b.display_order / 10);
+        if (lastBucket !== null && bucket !== lastBucket) {
+          html += '<div class="pp-radio-divider"></div>';
+        }
+        lastBucket = bucket;
+        const name = (useFr && b.name_fr) ? b.name_fr : b.name_en;
+        html += `<label class="pp-radio-item" data-val="${b.code}">
+          <input type="radio" name="branch" value="${b.code}" />
+          <span>${b.flag_emoji || ''} ${IBDPortal.escapeHtml(name)}</span>
+        </label>`;
+      });
+      // "Other" row
+      html += '<div class="pp-radio-divider"></div>';
+      html += `<label class="pp-radio-item" data-val="__other">
+        <input type="radio" name="branch" value="__other" />
+        <span>${t('f1_other')}:</span>
+        <input type="text" class="pp-other-input" id="branchOther" placeholder="" />
+      </label>`;
+      root.innerHTML = html;
+      wireRadioVisuals('branchGroup');
+    } catch (e) {
+      document.getElementById('branchGroup').innerHTML = `<div style="color:#dc2626;font-size:12px;padding:8px">${IBDPortal.escapeHtml(e.message)}</div>`;
+    }
+  })();
+
+  // Visual selection state for radios
+  function wireRadioVisuals(groupId) {
+    const grp = document.getElementById(groupId);
+    grp.addEventListener('change', () => {
+      grp.querySelectorAll('.pp-radio-item').forEach(it => {
+        const r = it.querySelector('input[type="radio"]');
+        it.classList.toggle('selected', r && r.checked);
+      });
+    });
+  }
+  wireRadioVisuals('topicGroup');
+
+  // File input
+  IBDPortal.attachFileInput({
+    wrapId: 'fileWrap',
+    inputId: 'fileInput',
+    listId: 'fileList',
+    max: 10,
+    maxSize: 10 * 1024 * 1024,
+  });
+
+  async function doSubmit() {
+    const name = document.getElementById('fName').value.trim();
+    const wa   = document.getElementById('fWhatsappUsed').value.trim();
+    const topicEl = document.querySelector('input[name="topic"]:checked');
+    const topic = topicEl ? topicEl.value : '';
+    const topicOther = topic === 'other' ? document.getElementById('topicOther').value.trim() : '';
+    const branchEl = document.querySelector('input[name="branch"]:checked');
+    const branchVal = branchEl ? branchEl.value : '';
+    const branchOther = branchVal === '__other' ? document.getElementById('branchOther').value.trim() : '';
+    const csWa = document.getElementById('fCsWa').value.trim();
+    const details = document.getElementById('fDetails').value.trim();
+    const others = document.getElementById('fOthers').value.trim();
+    const wrap = document.getElementById('fileWrap');
+    const files = wrap._files || [];
+
+    if (!name)  { return IBDPortal.toast(t('required') + ': ' + t('f1_name'), 'error'); }
+    if (!wa)    { return IBDPortal.toast(t('required') + ': WhatsApp', 'error'); }
+    if (!topic) { return IBDPortal.toast(t('required') + ': ' + t('f1_topic'), 'error'); }
+    if (topic === 'other' && !topicOther) { return IBDPortal.toast(t('required') + ': ' + t('f1_other'), 'error'); }
+    if (!branchVal) { return IBDPortal.toast(t('required') + ': ' + t('f1_branch'), 'error'); }
+    if (branchVal === '__other' && !branchOther) { return IBDPortal.toast(t('required') + ': ' + t('f1_other'), 'error'); }
+    if (!files.length) { return IBDPortal.toast(t('required') + ': ' + t('f1_attach'), 'error'); }
+
+    const btn = document.getElementById('btnSubmit');
+    btn.disabled = true;
+    document.getElementById('lblSubmit').textContent = t('submitting');
+    IBDPortal.showLoading(true);
+
+    try {
+      // 1) Upload files
+      IBDPortal.toast(t('uploading'));
+      const keys = await IBDPortal.uploadFiles(files, `complaint/${session.member_code}`);
+
+      // 2) Insert row
+      const payload = {
+        source_form: 'complaint',
+        member_code: session.member_code,
+        member_name: name,
+        whatsapp_used: wa,
+        topic: topic,
+        topic_other: topicOther || null,
+        branch_code: branchVal === '__other' ? null : branchVal,
+        branch_other: branchVal === '__other' ? branchOther : null,
+        cs_whatsapp: csWa || null,
+        details: details || null,
+        others: others || null,
+        attachment_urls: keys,
+        language: IBDPortal.getLang(),
+        user_agent: navigator.userAgent.slice(0, 200),
+      };
+      const result = await IBDPortal.sbPost('ibd_complaints', payload);
+      const newId = Array.isArray(result) ? result[0]?.id : result?.id;
+
+      // 2.5) Fire LINE notification (fire-and-forget)
+      const topicLabelKey = TOPICS.find(x => x.v === topic)?.l || 'tp_other';
+      const branchObj = branchList.find(b => b.code === branchVal);
+      const branchLabel = branchVal === '__other'
+        ? branchOther
+        : (branchObj ? `${branchObj.flag_emoji || ''} ${branchObj.name_en}` : branchVal);
+      IBDPortal.notifyTrigger('ibd.complaint.created', {
+        submission_id: newId,
+        member_code: session.member_code,
+        member_name: name,
+        topic: topic,
+        topic_label: t(topicLabelKey),
+        branch_label: branchLabel,
+        whatsapp_used: wa,
+        details_short: (details || '').slice(0, 200),
+      });
+
+      // 3) Show success
+      document.getElementById('formView').style.display = 'none';
+      document.getElementById('successView').style.display = 'block';
+      document.getElementById('okRef').textContent = `#${newId}`;
+      window.scrollTo(0, 0);
+    } catch (e) {
+      console.error(e);
+      IBDPortal.toast(t('submit_failed') + e.message, 'error');
+      btn.disabled = false;
+      document.getElementById('lblSubmit').textContent = t('submit');
+    } finally {
+      IBDPortal.showLoading(false);
+    }
+  }
+</script>
+</body>
+</html>

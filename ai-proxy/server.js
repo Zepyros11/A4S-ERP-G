@@ -1461,6 +1461,76 @@ app.post('/cron/line-promote', async (req, res) => {
   return res.json(summary);
 });
 
+/* ══════════════════════════════════════════════════════════
+   IBD: instant notification when a new submission arrives
+   ──────────────────────────────────────────────────────────
+   POST /ibd/notify
+     body: { trigger_key, payload }
+     trigger_key whitelist:
+       'ibd.complaint.created'
+       'ibd.ewallet.created'
+       'ibd.relocation.created'
+
+   Looks up active notification_rules with matching trigger_key,
+   resolves staff targets (line_user_id), renders message, multicasts.
+
+   Called from member-facing portal (anon role) — security limited to
+   the whitelist; rule must be ACTIVE for any message to go out.
+   ══════════════════════════════════════════════════════════ */
+const IBD_TRIGGER_WHITELIST = new Set([
+  'ibd.complaint.created',
+  'ibd.ewallet.created',
+  'ibd.relocation.created',
+]);
+
+app.post('/ibd/notify', async (req, res) => {
+  try {
+    const { trigger_key, payload } = req.body || {};
+    if (!trigger_key || !IBD_TRIGGER_WHITELIST.has(trigger_key)) {
+      return res.status(400).json({ error: 'invalid trigger_key' });
+    }
+    if (!SB_URL_WEBHOOK || !SB_SERVICE_KEY) {
+      return res.status(503).json({ error: 'SB_URL/SB_SERVICE_KEY not configured' });
+    }
+    if (!LINE_CHANNEL_TOKEN) {
+      return res.status(503).json({ error: 'LINE_CHANNEL_TOKEN not configured' });
+    }
+
+    const rules = await _sbGet('notification_rules',
+      `select=*&is_active=eq.true&trigger_key=eq.${encodeURIComponent(trigger_key)}`);
+    if (!rules?.length) return res.json({ ok: true, sent: 0, message: 'no active rules' });
+
+    const summary = { ok: true, trigger_key, processed: 0, sent: 0, failed: 0, skipped: 0 };
+    const refKey = 'submission_id';
+    const refId  = payload?.submission_id ?? payload?.id ?? null;
+
+    for (const rule of rules) {
+      summary.processed++;
+      try {
+        const recipients = await _resolveRuleTargets(rule);
+        if (!recipients.length) {
+          await _logBatch(rule, refKey, refId, [], 'skipped', 'no recipients');
+          summary.skipped++;
+          continue;
+        }
+        const lineIds = recipients.map(r => r.line_user_id).filter(Boolean);
+        const text = _renderTpl(rule.message_template, payload || {});
+        await _multicastViaCronToken(lineIds, text);
+        await _logBatch(rule, refKey, refId, recipients, 'sent');
+        summary.sent += recipients.length;
+      } catch (e) {
+        console.warn(`[ibd/notify rule ${rule.id}]`, e.message);
+        await _logBatch(rule, refKey, refId, [], 'failed', e.message);
+        summary.failed++;
+      }
+    }
+    return res.json(summary);
+  } catch (e) {
+    console.warn('[ibd/notify]', e.message);
+    return res.status(500).json({ error: e.message });
+  }
+});
+
 /* ── Start ─────────────────────────────────────────────── */
 app.listen(PORT, () => {
   console.log('');

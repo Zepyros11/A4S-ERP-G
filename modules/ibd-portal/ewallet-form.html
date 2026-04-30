@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>A4S — Commission to E-Wallet</title>
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./portal-shared.css">
+</head>
+<body>
+
+<div class="pp-main">
+  <a class="pp-back" onclick="location.href='./home.html'"><span>‹</span><span id="lblBack">Back</span></a>
+
+  <div class="pp-card" id="formView">
+    <div class="pp-card-head">
+      <div class="pp-card-title" id="ttl">Commission Payment to E-Wallet Requisition</div>
+      <div class="pp-card-sub" id="sub"></div>
+    </div>
+    <div class="pp-card-body">
+      <div class="pp-field">
+        <label class="pp-label" id="lblA4sId">A4S ID <span class="req">*</span></label>
+        <input type="text" id="fMember" class="pp-input" readonly style="background:#f8fafc" />
+      </div>
+
+      <div class="pp-field">
+        <label class="pp-label" id="lblFullName">Name and Surname when applied membership <span class="req">*</span></label>
+        <input type="text" id="fFullName" class="pp-input" />
+      </div>
+
+      <div class="pp-field">
+        <label class="pp-label" id="lblWa">WhatsApp contact number <span class="req">*</span></label>
+        <input type="tel" id="fWa" class="pp-input" placeholder="+234..." />
+      </div>
+
+      <div class="pp-field">
+        <label class="pp-label" id="lblEmail">E-mail</label>
+        <input type="email" id="fEmail" class="pp-input" />
+      </div>
+
+      <div class="pp-field">
+        <label class="pp-label" id="lblConfirm">Confirmation <span class="req">*</span></label>
+        <div class="pp-notice" id="lblConfirmText"></div>
+        <label class="pp-radio-item" id="confirmRadioWrap">
+          <input type="radio" name="confirmed" value="yes" />
+          <span id="lblConfirmYes">Confirmed</span>
+        </label>
+      </div>
+
+      <div class="pp-field">
+        <label class="pp-label" id="lblIdDoc">ID Document <span class="req">*</span></label>
+        <div class="pp-file-wrap" id="docWrap">
+          <div class="pp-file-icon">🆔</div>
+          <div class="pp-file-text" id="lblDocDrop">Click to add files</div>
+          <div class="pp-file-hint" id="lblDocHint"></div>
+          <input type="file" id="docInput" class="pp-file-input" multiple
+                 accept="image/*,.pdf" />
+        </div>
+        <div class="pp-file-list" id="docList"></div>
+      </div>
+
+      <div class="pp-field">
+        <label class="pp-label" id="lblHolding">Holding Photo <span class="req">*</span></label>
+        <div class="pp-file-wrap" id="holdWrap">
+          <div class="pp-file-icon">📸</div>
+          <div class="pp-file-text" id="lblHoldDrop">Click to add files</div>
+          <div class="pp-file-hint" id="lblHoldHint"></div>
+          <input type="file" id="holdInput" class="pp-file-input"
+                 accept="image/*,.pdf" />
+        </div>
+        <div class="pp-file-list" id="holdList"></div>
+      </div>
+
+      <div class="pp-field">
+        <label class="pp-label" id="lblAccept">Final acknowledgement <span class="req">*</span></label>
+        <div class="pp-notice" id="lblAcceptText"></div>
+        <label class="pp-check-item" id="acceptWrap">
+          <input type="checkbox" id="fAccept" />
+          <span id="lblAcceptYes">I confirm and accept</span>
+        </label>
+      </div>
+
+      <button class="pp-btn" id="btnSubmit" onclick="doSubmit()">
+        <span id="lblSubmit">Submit</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="pp-card" id="successView" style="display:none">
+    <div class="pp-success">
+      <div class="pp-success-icon">✓</div>
+      <div class="pp-success-title" id="okTitle">Request Submitted!</div>
+      <div class="pp-success-msg" id="okMsg"></div>
+      <div class="pp-success-ref" id="okRef"></div>
+      <button class="pp-btn pp-btn-ghost" onclick="location.href='./home.html'">
+        <span id="okBackBtn">Back to Home</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<script src="./portal-config.js"></script>
+<script src="../../js/core/crypto.js"></script>
+<script src="./portal-shared.js"></script>
+<script>
+  const session = IBDPortal.requireAuth();
+  IBDPortal.renderTopbar();
+
+  const t = IBDPortal.t;
+  document.title = t('brand') + ' — ' + t('ewallet_title');
+  document.getElementById('lblBack').textContent = t('back');
+  document.getElementById('ttl').textContent = t('ewallet_title');
+  document.getElementById('sub').textContent = t('ewallet_sub');
+  document.getElementById('lblA4sId').innerHTML = t('f2_a4s_id') + ' <span class="req">*</span>';
+  document.getElementById('lblFullName').innerHTML = t('f2_full_name') + ' <span class="req">*</span>';
+  document.getElementById('lblWa').innerHTML = t('f2_whatsapp') + ' <span class="req">*</span>';
+  document.getElementById('lblEmail').textContent = t('f2_email');
+  document.getElementById('lblConfirm').innerHTML = t('f2_confirm') + ' <span class="req">*</span>';
+  document.getElementById('lblConfirmText').textContent = t('f2_confirm_text');
+  document.getElementById('lblConfirmYes').textContent = t('f2_confirm_yes');
+  document.getElementById('lblIdDoc').innerHTML = t('f2_id_doc') + ' <span class="req">*</span>';
+  document.getElementById('lblDocDrop').textContent = t('file_drop');
+  document.getElementById('lblDocHint').textContent = t('file_hint_id_doc');
+  document.getElementById('lblHolding').innerHTML = t('f2_holding') + ' <span class="req">*</span>';
+  document.getElementById('lblHoldDrop').textContent = t('file_drop');
+  document.getElementById('lblHoldHint').textContent = t('file_hint_holding_photo');
+  document.getElementById('lblAccept').innerHTML = t('f2_accept') ? t('f2_accept').split('.')[0] + '. <span class="req">*</span>' : '';
+  document.getElementById('lblAcceptText').textContent = t('f2_accept');
+  document.getElementById('lblAcceptYes').textContent = t('f2_accept_yes');
+  document.getElementById('lblSubmit').textContent = t('submit');
+  document.getElementById('okTitle').textContent = t('success_title');
+  document.getElementById('okMsg').textContent = t('success_msg_ewallet');
+  document.getElementById('okBackBtn').textContent = t('back_to_home');
+
+  // Pre-fill
+  document.getElementById('fMember').value = session.member_code;
+  document.getElementById('fFullName').value = session.full_name || session.member_name || '';
+  document.getElementById('fWa').value = session.phone || '';
+
+  // Visual selection for confirm radio
+  document.getElementById('confirmRadioWrap').addEventListener('change', (e) => {
+    e.currentTarget.classList.toggle('selected', e.target.checked);
+  });
+  // Visual selection for accept checkbox
+  document.getElementById('fAccept').addEventListener('change', (e) => {
+    document.getElementById('acceptWrap').classList.toggle('selected', e.target.checked);
+  });
+
+  // File inputs
+  IBDPortal.attachFileInput({ wrapId: 'docWrap',  inputId: 'docInput',  listId: 'docList',  max: 5 });
+  IBDPortal.attachFileInput({ wrapId: 'holdWrap', inputId: 'holdInput', listId: 'holdList', max: 1 });
+
+  async function doSubmit() {
+    const fullName = document.getElementById('fFullName').value.trim();
+    const wa = document.getElementById('fWa').value.trim();
+    const email = document.getElementById('fEmail').value.trim();
+    const confirmed = !!document.querySelector('input[name="confirmed"]:checked');
+    const accepted  = document.getElementById('fAccept').checked;
+    const docWrap  = document.getElementById('docWrap');
+    const holdWrap = document.getElementById('holdWrap');
+    const docs  = docWrap._files || [];
+    const holds = holdWrap._files || [];
+
+    if (!fullName)  return IBDPortal.toast(t('required') + ': ' + t('f2_full_name'), 'error');
+    if (!wa)        return IBDPortal.toast(t('required') + ': WhatsApp', 'error');
+    if (!confirmed) return IBDPortal.toast(t('required') + ': ' + t('f2_confirm'), 'error');
+    if (!docs.length)  return IBDPortal.toast(t('required') + ': ' + t('f2_id_doc'), 'error');
+    if (!holds.length) return IBDPortal.toast(t('required') + ': ' + t('f2_holding'), 'error');
+    if (!accepted)  return IBDPortal.toast(t('required') + ': ' + t('f2_accept_yes'), 'error');
+
+    const btn = document.getElementById('btnSubmit');
+    btn.disabled = true;
+    document.getElementById('lblSubmit').textContent = t('submitting');
+    IBDPortal.showLoading(true);
+
+    try {
+      IBDPortal.toast(t('uploading'));
+      const docKeys  = await IBDPortal.uploadFiles(docs,  `ewallet/${session.member_code}/id-doc`);
+      const holdKeys = await IBDPortal.uploadFiles(holds, `ewallet/${session.member_code}/holding`);
+
+      const payload = {
+        source_form: 'ewallet',
+        member_code: session.member_code,
+        member_full_name: fullName,
+        whatsapp: wa,
+        email: email || null,
+        confirmed: confirmed,
+        id_document_urls: docKeys,
+        holding_photo_url: holdKeys[0] || null,
+        accepted: accepted,
+        language: IBDPortal.getLang(),
+        user_agent: navigator.userAgent.slice(0, 200),
+      };
+      const result = await IBDPortal.sbPost('ibd_ewallet_requests', payload);
+      const newId = Array.isArray(result) ? result[0]?.id : result?.id;
+
+      IBDPortal.notifyTrigger('ibd.ewallet.created', {
+        submission_id: newId,
+        member_code: session.member_code,
+        member_full_name: fullName,
+        whatsapp: wa,
+        email: email || '',
+      });
+
+      document.getElementById('formView').style.display = 'none';
+      document.getElementById('successView').style.display = 'block';
+      document.getElementById('okRef').textContent = `#${newId}`;
+      window.scrollTo(0, 0);
+    } catch (e) {
+      console.error(e);
+      IBDPortal.toast(t('submit_failed') + e.message, 'error');
+      btn.disabled = false;
+      document.getElementById('lblSubmit').textContent = t('submit');
+    } finally {
+      IBDPortal.showLoading(false);
+    }
+  }
+</script>
+</body>
+</html>
