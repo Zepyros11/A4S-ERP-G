@@ -214,19 +214,6 @@ window.AppPermissions = (() => {
       ],
     },
 
-    /* ── 8. ทริป (TRIP) ── */
-    {
-      key: "trip", label: "ทริป (Trip)", icon: "✈️",
-      children: [
-        { key: "trip_wp", label: "แผนงานทริป", icon: "📋", perms: [
-          { key: "trip_wp_view",   label: "ดูรายการ" },
-          { key: "trip_wp_create", label: "สร้าง" },
-          { key: "trip_wp_edit",   label: "แก้ไข" },
-          { key: "trip_wp_delete", label: "ลบ" },
-        ]},
-      ],
-    },
-
     /* ── 8.5 International Business Development (IBD) ── */
     {
       key: "ibd", label: "International Business Dev (IBD)", icon: "🌍",
@@ -255,6 +242,20 @@ window.AppPermissions = (() => {
           { key: "ibd_relocation_reject",  label: "ปฏิเสธ" },
           { key: "ibd_relocation_delete",  label: "ลบ" },
           { key: "ibd_relocation_export",  label: "ส่งออก" },
+        ]},
+      ],
+    },
+
+    /* ── 8.6 ทริป (Trip) ── */
+    {
+      key: "trip", label: "ทริป (Trip)", icon: "✈️",
+      children: [
+        { key: "trip_check_seat", label: "Check Seat", icon: "💺", perms: [
+          { key: "trip_check_seat_view",   label: "ดูรายการ" },
+          { key: "trip_check_seat_edit",   label: "แก้ไข/บันทึก" },
+          { key: "trip_check_seat_import", label: "นำเข้า Excel" },
+          { key: "trip_check_seat_export", label: "ส่งออก Excel" },
+          { key: "trip_check_seat_delete", label: "ลบรายการ" },
         ]},
       ],
     },
@@ -358,7 +359,6 @@ window.AppPermissions = (() => {
         "report_stock_view","report_stock_export",
         "supplier_view","supplier_create","supplier_edit",
         "customer_view","customer_create","customer_edit",
-        "trip_wp_view","trip_wp_create","trip_wp_edit",
       ],
     },
     WAREHOUSE: {

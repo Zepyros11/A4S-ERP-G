@@ -263,20 +263,6 @@
         },
       ],
     },
-    // **************** TRIP / TOUR *****************
-    {
-      group: "ทริป (Trip)",
-      icon: "✈️",
-      id: "g-trip",
-      items: [
-        {
-          id: "trip-work-plan",
-          icon: "📋",
-          label: "แผนงาน",
-          path: BASE_PATH + "/modules/work-plan/work-plan-list.html?scope=trip",
-        },
-      ],
-    },
     // **************** IBD (International Business Dev) *****************
     {
       group: "IBD",
@@ -306,6 +292,20 @@
           icon: "🌐",
           label: "ย้ายฐานประเทศ",
           path: BASE_PATH + "/modules/ibd/ibd-relocation.html",
+        },
+      ],
+    },
+    //  **************** TRIP *****************
+    {
+      group: "ทริป (Trip)",
+      icon: "✈️",
+      id: "g-trip",
+      items: [
+        {
+          id: "trip-check-seat",
+          icon: "💺",
+          label: "Check Seat",
+          path: BASE_PATH + "/modules/trip/check-seat.html",
         },
       ],
     },
@@ -478,11 +478,11 @@
     "daily-sale": "daily_sale_view",
     "event-work-plan": "evt_wp_view",
     "cs-work-plan": "cs_wp_view",
-    "trip-work-plan": "trip_wp_view",
     "ibd-dashboard": "ibd_dashboard_view",
     "ibd-complaints": "ibd_complaints_view",
     "ibd-ewallet": "ibd_ewallet_view",
     "ibd-relocation": "ibd_relocation_view",
+    "trip-check-seat": "trip_check_seat_view",
     manual: "manual_view",
     automation: "devtool_view",
     wizard: "devtool_manage",
@@ -567,12 +567,13 @@
     //**** WORK PLAN ****
     "event-work-plan",
     "cs-work-plan",
-    "trip-work-plan",
     //**** IBD ****
     "ibd-dashboard",
     "ibd-complaints",
     "ibd-ewallet",
     "ibd-relocation",
+    //**** TRIP ****
+    "trip-check-seat",
     //**** MANUAL ****
     "manual",
     //**** DEV TOOL ****

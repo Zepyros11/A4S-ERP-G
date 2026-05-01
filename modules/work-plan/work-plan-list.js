@@ -1,6 +1,6 @@
 /* ============================================================
    work-plan-list.js — หน้า list แผนงาน
-   URL: work-plan-list.html?scope=event|cs|trip
+   URL: work-plan-list.html?scope=event|cs
 ============================================================ */
 
 import {
@@ -27,14 +27,13 @@ const toast = (msg, type = "info") => {
   setTimeout(() => (t.className = "toast"), 2500);
 };
 const qs = new URLSearchParams(location.search);
-const SCOPE = ["event", "cs", "trip"].includes(qs.get("scope"))
+const SCOPE = ["event", "cs"].includes(qs.get("scope"))
   ? qs.get("scope")
   : "event";
 const EVENT_ID = qs.get("event_id") ? parseInt(qs.get("event_id"), 10) : null;
 const SCOPE_META = {
   event: { title: "📋 แผนงาน — Event", sub: "วางแผนกิจกรรม (Event) เป็นตาราง" },
   cs:    { title: "📋 แผนงาน — CS",    sub: "วางแผนงานฝั่ง Customer Service" },
-  trip:  { title: "📋 แผนงาน — Trip",  sub: "วางแผนทริป/ทัวร์" },
 };
 
 /* ── State ───────────────────────────────────────────── */
@@ -55,13 +54,6 @@ async function init() {
   $("heroTitle").textContent = SCOPE_META[SCOPE].title;
   $("heroSub").textContent = SCOPE_META[SCOPE].sub;
   $("wpHero").className = `wp-hero scope-${SCOPE}`;
-
-  // Scope-aware data-perm for static hero buttons (TRIP only)
-  if (SCOPE === "trip") {
-    document.querySelector('[onclick="window.openPlanModal()"]')?.setAttribute("data-perm", "trip_wp_create");
-    document.querySelector('[onclick="window.openDeptModal()"]')?.setAttribute("data-perm", "trip_wp_edit");
-    window.AuthZ?.applyDomPerms();
-  }
 
   // Central Esc handler — closes topmost overlay/modal first
   document.addEventListener("keydown", onGlobalEsc);
@@ -420,9 +412,6 @@ function renderCards() {
   document.querySelector(".wp-list-wrap").style.display = "block";
   $("wpEmpty").style.display = "none";
 
-  const editPerm   = SCOPE === "trip" ? ` data-perm="trip_wp_edit"`   : "";
-  const deletePerm = SCOPE === "trip" ? ` data-perm="trip_wp_delete"` : "";
-
   body.innerHTML = filtered
     .map((p, idx) => {
       const dept = deptMap[p.dept_id];
@@ -441,14 +430,12 @@ function renderCards() {
           <td>${p.location ? `<span class="wp-list-loc">📍 ${escapeHtml(p.location)}</span>` : `<span style="color:var(--text3)">—</span>`}</td>
           <td style="text-align:center"><span class="wp-list-count">${rowCount}</span></td>
           <td class="wp-list-actions" onclick="event.stopPropagation()">
-            <button title="แก้ข้อมูล" onclick="window.editPlanInfo(${p.id})"${editPerm}>✏️</button>
-            <button title="ลบ" onclick="window.removePlan(${p.id})"${deletePerm}>🗑</button>
+            <button title="แก้ข้อมูล" onclick="window.editPlanInfo(${p.id})">✏️</button>
+            <button title="ลบ" onclick="window.removePlan(${p.id})">🗑</button>
           </td>
         </tr>`;
     })
     .join("");
-
-  if (SCOPE === "trip") window.AuthZ?.applyDomPerms(body);
 }
 
 function formatPlanDate(start, end) {
@@ -496,7 +483,6 @@ function renderScopeBadge() {
   const meta = {
     event: { icon: "🗓️", label: "Event", cls: "scope-event" },
     cs:    { icon: "🎁", label: "CS", cls: "scope-cs" },
-    trip:  { icon: "✈️", label: "Trip", cls: "scope-trip" },
   }[SCOPE];
   badge.className = `wp-scope-badge ${meta.cls}`;
   badge.innerHTML = `

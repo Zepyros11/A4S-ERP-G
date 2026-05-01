@@ -1,6 +1,6 @@
 /* ============================================================
    work-plan-edit.js — หน้าแก้ตารางแผนงาน (spreadsheet + autosave)
-   URL: work-plan-edit.html?id={planId}&scope=event|cs|trip
+   URL: work-plan-edit.html?id={planId}&scope=event|cs
 ============================================================ */
 
 import {
@@ -27,7 +27,7 @@ const toast = (msg, type = "info") => {
 };
 const qs = new URLSearchParams(location.search);
 const PLAN_ID = parseInt(qs.get("id"), 10);
-const SCOPE = ["event", "cs", "trip"].includes(qs.get("scope"))
+const SCOPE = ["event", "cs"].includes(qs.get("scope"))
   ? qs.get("scope")
   : "event";
 
@@ -982,7 +982,7 @@ function injectPrintHeader() {
         : fmtDate(p.event_start))
     : "—";
 
-  const scopeLabel = { event: "Event", cs: "Customer Service", trip: "Trip" }[SCOPE] || SCOPE;
+  const scopeLabel = { event: "Event", cs: "Customer Service" }[SCOPE] || SCOPE;
 
   const header = document.createElement("div");
   header.className = "wp-print-header";

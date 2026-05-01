@@ -1,3 +1,7 @@
+const BASE_PATH = window.location.hostname.includes("github.io")
+  ? "/" + window.location.pathname.split("/")[1]
+  : "";
+
 export function loadTopbar(title = "", options = {}) {
   /* ---------------- CSS (inject ครั้งเดียว) ---------------- */
 

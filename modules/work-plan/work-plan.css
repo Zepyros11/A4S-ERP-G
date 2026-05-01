@@ -55,7 +55,6 @@
 
 .wp-hero.scope-event { background: linear-gradient(135deg, #1e40af, #3b82f6); }
 .wp-hero.scope-cs    { background: linear-gradient(135deg, #0c4a6e, #0ea5e9); }
-.wp-hero.scope-trip  { background: linear-gradient(135deg, #9a3412, #f97316); }
 
 /* ── Event link banner (when ?event_id= is set) ── */
 .wp-event-banner {
@@ -1007,10 +1006,8 @@
 }
 .wp-scope-badge.scope-event { background: #dbeafe; border-left-color: #1e40af; color: #1e3a8a; }
 .wp-scope-badge.scope-cs    { background: #e0f2fe; border-left-color: #0ea5e9; color: #075985; }
-.wp-scope-badge.scope-trip  { background: #ffedd5; border-left-color: #ea580c; color: #9a3412; }
 [data-theme="dark"] .wp-scope-badge.scope-event { background: #1e3a5f; color: #bfdbfe; }
 [data-theme="dark"] .wp-scope-badge.scope-cs    { background: #0c4a6e; color: #bae6fd; }
-[data-theme="dark"] .wp-scope-badge.scope-trip  { background: #431407; color: #fed7aa; }
 
 .wp-scope-badge-icon {
   font-size: 20px;
