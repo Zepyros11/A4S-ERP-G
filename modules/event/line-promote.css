@@ -1046,18 +1046,20 @@
   white-space: nowrap;
   overflow: hidden;
 }
-.lp-cal-cell-item.lpstat-SENT      { background: #d1fae5; color: #059669; }
-.lp-cal-cell-item.lpstat-FAILED    { background: #fee2e2; color: #dc2626; }
-.lp-cal-cell-item.lpstat-CANCELLED { background: #fef3c7; color: #92400e; }
-.lp-cal-cell-item.lpstat-DRAFT     { background: #f3f4f6; color: #6b7280; }
 .lp-cal-cell-item-dot {
   display: inline-block;
-  width: 5px;
-  height: 5px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
-  background: currentColor;
+  background: #1d4ed8;
   flex-shrink: 0;
+  box-shadow: 0 0 0 1.5px #fff;
 }
+.lp-cal-cell-item-dot.lpstat-SCHEDULED { background: #1d4ed8; }
+.lp-cal-cell-item-dot.lpstat-SENT      { background: #059669; }
+.lp-cal-cell-item-dot.lpstat-FAILED    { background: #dc2626; }
+.lp-cal-cell-item-dot.lpstat-CANCELLED { background: #92400e; }
+.lp-cal-cell-item-dot.lpstat-DRAFT     { background: #6b7280; }
 .lp-cal-cell-item-text {
   overflow: hidden;
   text-overflow: ellipsis;

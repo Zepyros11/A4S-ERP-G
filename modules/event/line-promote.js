@@ -2120,6 +2120,36 @@ const TH_MONTHS = [
   "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม",
 ];
 
+// Palette สำหรับ event แต่ละงาน — pastel bg + dark fg + matching border
+// hash ของ event_id → index → สีคงที่ต่อ event (ทั้ง 4 D-day จะได้สีเดียวกัน)
+const EVT_COLOR_PALETTE = [
+  { bg: "#dbeafe", fg: "#1d4ed8", border: "#93c5fd" }, // blue
+  { bg: "#dcfce7", fg: "#166534", border: "#86efac" }, // green
+  { bg: "#fef3c7", fg: "#b45309", border: "#fcd34d" }, // amber
+  { bg: "#fce7f3", fg: "#be185d", border: "#f9a8d4" }, // pink
+  { bg: "#ede9fe", fg: "#6d28d9", border: "#c4b5fd" }, // purple
+  { bg: "#fed7aa", fg: "#c2410c", border: "#fb923c" }, // orange
+  { bg: "#cffafe", fg: "#0e7490", border: "#67e8f9" }, // cyan
+  { bg: "#fee2e2", fg: "#dc2626", border: "#fca5a5" }, // red
+  { bg: "#e0e7ff", fg: "#3730a3", border: "#a5b4fc" }, // indigo
+  { bg: "#d1fae5", fg: "#065f46", border: "#6ee7b7" }, // emerald
+  { bg: "#fef9c3", fg: "#854d0e", border: "#fde047" }, // yellow
+  { bg: "#f3e8ff", fg: "#7e22ce", border: "#d8b4fe" }, // fuchsia
+];
+
+function _hashStr(s) {
+  let h = 0;
+  const str = String(s ?? "");
+  for (let i = 0; i < str.length; i++) {
+    h = ((h << 5) - h) + str.charCodeAt(i);
+    h |= 0;
+  }
+  return Math.abs(h);
+}
+function _evtColor(eventId) {
+  return EVT_COLOR_PALETTE[_hashStr(eventId) % EVT_COLOR_PALETTE.length];
+}
+
 async function initLpCalendar() {
   if (!_lpCalCursor) {
     const now = new Date();
@@ -2240,10 +2270,13 @@ function renderLpCalendar() {
     const itemsHtml = eventEntries.map(([eid, info]) => {
       const ev = _lpCalEventsMap[eid];
       const name = ev ? ev.event_name : "(ไม่ทราบ event)";
-      // dominant status — เลือก status ที่นับมากที่สุด
+      // dominant status — เลือก status ที่นับมากที่สุด (ใช้ระบายจุด status)
       const dominant = Object.entries(info.statuses).sort((a, b) => b[1] - a[1])[0]?.[0] || "SCHEDULED";
-      return `<div class="lp-cal-cell-item lpstat-${dominant}" title="${escapeHtml(name)} · ${info.posts.length} โพสต์">
-        <span class="lp-cal-cell-item-dot"></span>
+      // สี event — hash จาก event_id → สีคงที่ทั้ง 4 D-day
+      const c = _evtColor(eid);
+      const style = `background:${c.bg};color:${c.fg};border-left:3px solid ${c.border}`;
+      return `<div class="lp-cal-cell-item" style="${style}" title="${escapeHtml(name)} · ${info.posts.length} โพสต์ · ${statusLabel(dominant)}">
+        <span class="lp-cal-cell-item-dot lpstat-${dominant}"></span>
         <span class="lp-cal-cell-item-text">${escapeHtml(name)}</span>
       </div>`;
     }).join("");
@@ -2321,7 +2354,8 @@ window.openLpDayDetail = function (dateStr) {
 
     const tplHtml = [...tplMap.values()].map((siblings) => {
       const p = siblings[0];
-      const time = (p.scheduled_at || "").slice(11, 16);
+      // แสดงเวลาเป็น Bangkok TZ — Postgres คืน timestamptz เป็น UTC ดังนั้นต้องแปลงก่อน
+      const time = p.scheduled_at ? toBkkTimeStr(new Date(p.scheduled_at)) : "";
       const offsetBadge = ddayBadge(p.promote_offset);
       const groupChips = siblings.map((s) => {
         const grp = allGroups.find((g) => g.group_id === s.target_id);
