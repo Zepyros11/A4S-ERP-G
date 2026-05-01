@@ -145,16 +145,14 @@
 
     /* ── Status Cards ─────────────────────────────────── */
     #stats-panel {
-      display: flex; flex-direction: column; gap: 10px;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
       padding: 14px 20px;
       background: var(--bg);
       border-bottom: 1px solid var(--border);
     }
-    .cs-stats-row {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 10px;
-    }
+    .cs-stats-row { display: contents; }
     .cs-stat-card {
       background: var(--surface);
       border: 1px solid var(--border);
@@ -208,6 +206,10 @@
     .cs-stat-card.s-staff  .cs-stat-value { color: #4f46e5; }
     .cs-stat-card.s-paid   .cs-stat-icon { background: #dcfce7; }
     .cs-stat-card.s-paid   .cs-stat-value { color: #15803d; }
+    .cs-stat-card.s-male   .cs-stat-icon { background: #dbeafe; }
+    .cs-stat-card.s-male   .cs-stat-value { color: #1d4ed8; }
+    .cs-stat-card.s-female .cs-stat-icon { background: #fce7f3; }
+    .cs-stat-card.s-female .cs-stat-value { color: #be185d; }
     .cs-stat-card.s-nobook .cs-stat-icon { background: #ffedd5; }
     .cs-stat-card.s-nobook .cs-stat-value { color: #c2410c; }
 
@@ -243,7 +245,7 @@
     .cs-stat-card { cursor: pointer; }
     .cs-stat-card:active { transform: translateY(1px); }
     @media (max-width: 640px) {
-      .cs-stats-row { grid-template-columns: repeat(3, 1fr); gap: 6px; }
+      #stats-panel { grid-template-columns: repeat(2, 1fr); gap: 6px; }
       .cs-stat-card { padding: 10px 10px; gap: 8px; }
       .cs-stat-icon { width: 34px; height: 34px; font-size: 16px; }
       .cs-stat-value { font-size: 18px; }
@@ -404,6 +406,7 @@
     .col-code    { width: 70px; min-width: 70px; }
     .col-name    { width: 160px; min-width: 130px; }
     .col-instead { width: 150px; min-width: 130px; }
+    .col-gender  { width: 90px; min-width: 80px; }
     .col-pin     { width: 90px; min-width: 80px; }
     .col-port    { width: 100px; min-width: 90px; }
     .col-group   { width: 110px; min-width: 90px; }
@@ -990,6 +993,20 @@
         <div class="cs-stat-label">No Booking</div>
       </div>
     </div>
+    <div class="cs-stat-card s-male" data-report="male">
+      <div class="cs-stat-icon">👨</div>
+      <div>
+        <div class="cs-stat-value" id="st-male">0</div>
+        <div class="cs-stat-label">Male</div>
+      </div>
+    </div>
+    <div class="cs-stat-card s-female" data-report="female">
+      <div class="cs-stat-icon">👩</div>
+      <div>
+        <div class="cs-stat-value" id="st-female">0</div>
+        <div class="cs-stat-label">Female</div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -1025,6 +1042,7 @@
         <th class="col-code">Code</th>
         <th class="col-name">Name</th>
         <th class="col-instead">Instead</th>
+        <th class="col-gender">Gender</th>
         <th class="col-pin">PIN</th>
         <th class="col-seat">Seat</th>
         <th class="col-nat">Nationality</th>
@@ -1048,7 +1066,7 @@
     </thead>
     <tbody id="table-body">
       <tr id="empty-row">
-        <td colspan="24">No data — click Import Excel or add a row manually</td>
+        <td colspan="25">No data — click Import Excel or add a row manually</td>
       </tr>
     </tbody>
   </table>
@@ -1136,6 +1154,14 @@ app.listen(3001, () => console.log('Proxy running on port 3001'));
       <div class="ap-field">
         <label>Name</label>
         <input id="ap-name" type="text" placeholder="ชื่อ-นามสกุล">
+      </div>
+      <div class="ap-field">
+        <label>Gender</label>
+        <select id="ap-gender">
+          <option value="">— Select —</option>
+          <option value="male">male</option>
+          <option value="female">female</option>
+        </select>
       </div>
       <div class="ap-field">
         <label>PIN</label>
@@ -1317,6 +1343,7 @@ let comebackFlightMemory = {}; // { "YY": { comebackDateTime: "..." } } — memo
 
 const PORT_OPTIONS        = ['', 'Lagos', 'Abidjan'];
 const PIN_OPTIONS         = ['', 'SVP', 'VP', 'AVP', 'SD', 'DR'];
+const GENDER_OPTIONS      = ['', 'male', 'female'];
 const GROUP_OPTIONS       = ['', 'G1', 'G2', 'G3', 'G4', 'G5'];
 const SHIRT_OPTIONS       = ['', '5XL', '4XL', '3XL', '2XL', 'XL', 'L', 'M', 'S'];
 const PAID_OPTIONS        = ['', '0.25', '0.50', '0.75', '1.00', '1.25', '1.50', '1.75', '2.00', '2.25', '2.50', '2.75'];
@@ -1359,6 +1386,7 @@ function makeRow(overrides = {}) {
     code:              '',
     name:              '',
     instead:           '',
+    gender:            '',
     pin:               '',
     port:              '',
     group:             '',
@@ -1542,7 +1570,7 @@ function closeAddPerson() {
   const modal = document.getElementById('add-person-modal');
   modal.classList.remove('open');
   // clear form
-  ['ap-code','ap-name','ap-pin','ap-nationality','ap-passid','ap-passexp',
+  ['ap-code','ap-name','ap-gender','ap-pin','ap-nationality','ap-passid','ap-passexp',
    'ap-tel','ap-shirt','ap-port','ap-group','ap-flight','ap-seat'].forEach(id => {
     document.getElementById(id).value = '';
   });
@@ -1559,6 +1587,7 @@ function submitAddPerson() {
   const row = makeRow({
     code:       document.getElementById('ap-code').value.trim(),
     name:       name,
+    gender:     document.getElementById('ap-gender').value,
     pin:        document.getElementById('ap-pin').value.trim(),
     nationality:document.getElementById('ap-nationality').value,
     passId:     document.getElementById('ap-passid').value.trim(),
@@ -1985,6 +2014,7 @@ function rowToRecord(row) {
     code:               row.code || null,
     name:               row.name || null,
     instead:            row.instead || null,
+    gender:             row.gender || null,
     pin:                row.pin  || null,
     port:               row.port || null,
     group_name:         row.group || null,
@@ -2014,7 +2044,7 @@ function recordToRow(r, idMap) {
   const id = 'sb_' + r.code;
   const parentId = r.parent_code ? (idMap[r.parent_code] || null) : null;
   return makeRow({
-    id, code: r.code || '', name: r.name || '', instead: r.instead || '', pin: r.pin || '',
+    id, code: r.code || '', name: r.name || '', instead: r.instead || '', gender: r.gender || '', pin: r.pin || '',
     port: r.port || '', group: r.group_name || '', flight: r.flight || '',
     departureDateTime: r.departure_datetime || '', arrivalDateTime: r.arrival_datetime || '',
     comeback: r.comeback || '', comebackDateTime: r.comeback_datetime || '',
@@ -2116,7 +2146,7 @@ async function loadFromSupabase() {
 
   // แสดง loading
   document.getElementById('table-body').innerHTML =
-    `<tr><td colspan="23" style="text-align:center;padding:40px;color:var(--text3)">⏳ Loading data from Supabase...</td></tr>`;
+    `<tr><td colspan="25" style="text-align:center;padding:40px;color:var(--text3)">⏳ Loading data from Supabase...</td></tr>`;
 
   try {
     const { data, error } = await sbClient
@@ -2224,7 +2254,7 @@ function _snapshotRows(arr) {
     return isNaN(n) ? '' : n.toFixed(2);
   };
   return arr.map(r => [
-    norm(r.code), norm(r.name), norm(r.instead), norm(r.pin), norm(r.port),
+    norm(r.code), norm(r.name), norm(r.instead), norm(r.gender), norm(r.pin), norm(r.port),
     norm(r.group), norm(r.flight),
     norm(r.departureDateTime), norm(r.arrivalDateTime),
     norm(r.comeback), norm(r.comebackDateTime),
@@ -2317,6 +2347,8 @@ function updateStats() {
   const staffCnt    = all.filter(r => (r.code || '').trim().toUpperCase().startsWith('STAFF')).length;
   const paidCnt     = all.filter(r => (r.paid || '').toString().trim() !== '').length;
   const noBookCnt   = all.filter(r => !r.group || r.group.trim() === '').length;
+  const maleCnt     = all.filter(r => r.gender === 'male').length;
+  const femaleCnt   = all.filter(r => r.gender === 'female').length;
 
   document.getElementById('st-total').textContent    = total;
   document.getElementById('st-conf').textContent     = conf;
@@ -2332,6 +2364,8 @@ function updateStats() {
   document.getElementById('st-staff').textContent    = staffCnt;
   document.getElementById('st-paid').textContent     = paidCnt;
   document.getElementById('st-no-booking').textContent = noBookCnt;
+  document.getElementById('st-male').textContent     = maleCnt;
+  document.getElementById('st-female').textContent   = femaleCnt;
 }
 
 // Fixed sort: Code ASC, with sub-rows (code "X-N") grouped under parent "X".
@@ -2462,6 +2496,11 @@ function buildRow(row) {
       <input class="field-input" style="width:135px" value="${esc(row.instead)}"
              placeholder="ชื่อคนไปแทน"
              onchange="setInsteadField('${row.id}', this.value)" />
+    </td>
+
+    <!-- Gender -->
+    <td class="col-gender" data-label="Gender">
+      ${e ? genderDropdown(row) : `<span class="field-view">${esc(row.gender)}</span>`}
     </td>
 
     <!-- PIN -->
@@ -2608,6 +2647,11 @@ function formatDate(d) {
 function pinDropdown(row) {
   return `<select class="field-input" style="width:76px" onchange="setField('${row.id}','pin',this.value)">
     ${PIN_OPTIONS.map(p => `<option value="${p}" ${row.pin===p?'selected':''}>${p||'— Select —'}</option>`).join('')}
+  </select>`;
+}
+function genderDropdown(row) {
+  return `<select class="field-input" style="width:80px" onchange="setField('${row.id}','gender',this.value)">
+    ${GENDER_OPTIONS.map(g => `<option value="${g}" ${row.gender===g?'selected':''}>${g||'— Select —'}</option>`).join('')}
   </select>`;
 }
 function portDropdown(row) {
@@ -3086,6 +3130,7 @@ function exportExcel() {
     'รหัส':              row.code,
     'รายชื่อ':           row.name,
     'Instead':           row.instead || '',
+    'Gender':            row.gender || '',
     'PIN':               row.pin,
     'Port':              row.port,
     'Group':             row.group,
@@ -3208,6 +3253,10 @@ const REPORT_CONFIG = {
                  filter: r => (r.paid || '').toString().trim() !== '' },
   'no-booking':{ title: '📭 No Booking — ยังไม่มี Group',
                  filter: r => !r.group || r.group.trim() === '' },
+  male:        { title: '👨 Male',
+                 filter: r => r.gender === 'male' },
+  female:      { title: '👩 Female',
+                 filter: r => r.gender === 'female' },
 };
 
 let _currentReportKey = null;
