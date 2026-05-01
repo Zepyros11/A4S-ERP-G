@@ -115,11 +115,13 @@
 
     table {
       width: max-content;
-      min-width: 100%;
-      border-collapse: collapse;
+      /* ห้ามใส่ min-width: 100% — จะทำให้ resize ย่อคอลัมไม่ได้
+         (เนื้อที่ที่ย่อจะถูก distribute กลับเข้าคอลัมอื่นเพื่อรักษา 100% parent) */
+      border-collapse: separate;
+      border-spacing: 0;
       background: var(--surface);
       border-radius: 10px;
-      overflow: hidden;
+      /* ห้ามใส่ overflow: hidden ที่นี่ — จะ break position:sticky บน td/th */
       box-shadow: 0 1px 4px rgba(0,0,0,.07);
     }
 
@@ -130,7 +132,94 @@
     }
     thead th:last-child { border-right: none; }
 
-    tbody tr { border-bottom: 1px solid var(--border); transition: background .1s; }
+    /* ── Column Resize: allow shrink past content (text clips) ── */
+    #main-table { table-layout: fixed; }
+    #main-table th, #main-table td { box-sizing: border-box; }
+    #main-table th[class*="col-"],
+    #main-table td {
+      overflow: hidden !important;
+      text-overflow: ellipsis;
+      white-space: nowrap !important;
+    }
+    /* ทำลาย min-width เดิม + width fix เดิม ให้ย่อ/ขยายได้อิสระ */
+    #main-table th[class*="col-"],
+    #main-table td[class*="col-"] {
+      min-width: 30px !important;
+      max-width: none !important;
+    }
+    /* td ห้ามล็อก width จาก CSS class — ปล่อยให้ table-layout:fixed อ้างอิงจาก th */
+    #main-table td[class*="col-"] { width: auto !important; }
+    /* span ภายใน td ก็ต้อง clip ด้วย กัน inline content ดันให้กว้าง */
+    #main-table td > * {
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    /* input/select inside cell: ห้ามดัน cell ให้กว้าง */
+    #main-table td .field-input,
+    #main-table td input,
+    #main-table td select { max-width: 100% !important; box-sizing: border-box; }
+
+    /* ── Column Resize Handle ───────────────────────── */
+    #main-table thead th { position: relative; }
+    .col-resizer {
+      position: absolute;
+      right: 0; top: 0; bottom: 0;
+      width: 6px;
+      cursor: col-resize;
+      user-select: none;
+      background: transparent;
+      z-index: 13;  /* above frozen th (z:12) */
+      transition: background .12s;
+    }
+    .col-resizer:hover,
+    .col-resizer.dragging { background: rgba(255,255,255,.45); }
+    body.col-resizing { cursor: col-resize !important; user-select: none !important; }
+    body.col-resizing * { user-select: none !important; }
+
+    /* ── Freeze Column UI ────────────────────────────── */
+    .th-content { display: inline-flex; align-items: center; gap: 6px; line-height: 1.2; }
+    .col-freeze-cb {
+      width: 12px; height: 12px; flex-shrink: 0; cursor: pointer; margin: 0;
+      accent-color: #fbbf24;
+    }
+    .col-freeze-cb:hover { transform: scale(1.15); }
+    /* Hide radios when toggle-off (default state ซ่อน) */
+    body.freeze-ui-hidden .col-freeze-cb { display: none; }
+    #toggle-freeze-ui.active {
+      background: #fef3c7;
+      border-color: #fbbf24;
+      color: #92400e;
+    }
+    /* ── Sticky frozen columns ─────────────────────── */
+    #main-table th.col-frozen,
+    #main-table td.col-frozen { position: sticky; z-index: 4; }
+    #main-table thead th.col-frozen {
+      z-index: 12; background-color: var(--accent);
+      box-shadow: 2px 0 4px -2px rgba(0,0,0,.25);
+    }
+    #main-table thead th.col-frozen.col-frozen-last {
+      box-shadow: 4px 0 6px -3px rgba(0,0,0,.4);
+    }
+    /* default cell bg for frozen — inherit row color via overrides below */
+    #main-table tbody td.col-frozen { background-color: var(--surface); }
+    #main-table tbody td.col-frozen.col-frozen-last {
+      box-shadow: 4px 0 6px -3px rgba(0,0,0,.18);
+    }
+    /* match row-status backgrounds on frozen cells */
+    #main-table tbody tr.sub-row > td.col-frozen          { background-color: #ede9fe; }
+    #main-table tbody tr.editing > td.col-frozen          { background-color: #fffbea; }
+    #main-table tbody tr.row-confirmed > td.col-frozen    { background-color: #bbf7d0; }
+    #main-table tbody tr.row-confirmed.sub-row > td.col-frozen { background-color: #c4b5fd; }
+    #main-table tbody tr.row-has-passid > td.col-frozen   { background-color: #bfdbfe; }
+    #main-table tbody tr.row-has-passid.sub-row > td.col-frozen { background-color: #ddd6fe; }
+    #main-table tbody tr.row-highlighted > td.col-frozen  { background-color: #fef08a; }
+    #main-table tbody tr.row-waive > td.col-frozen        { background-color: #fecaca; }
+
+    tbody tr { transition: background .1s; }
+    /* border-collapse:separate → ใส่ border ที่ td แทน tr */
+    tbody td { border-bottom: 1px solid var(--border); }
     tbody tr:hover:not(.sub-row) { background: var(--surface2); }
     tbody tr.sub-row { background: #ede9fe; box-shadow: inset 4px 0 0 #8b5cf6; }
     tbody tr.sub-row:hover { background: #ddd6fe; }
@@ -1025,6 +1114,12 @@
     <span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:#fffbea;border:1px solid #fde68a;flex-shrink:0;"></span>
     Editing
   </span>
+  <span style="flex:1"></span>
+  <button id="toggle-freeze-ui" type="button" onclick="toggleFreezeUI()"
+          style="padding:4px 10px;border:1px solid var(--border2);border-radius:6px;background:var(--surface);color:var(--text2);font-size:11px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:5px;"
+          title="แสดง/ซ่อนปุ่มตรึงคอลัมที่หัวตาราง">
+    📌 <span id="toggle-freeze-label">ตรึงคอลัม</span>
+  </button>
 </div>
 
 <!-- ══ Flight Autocomplete Dropdown ═════════════════════ -->
@@ -1039,27 +1134,27 @@
       <tr>
         <th class="col-cb"></th>
         <th class="col-no">#</th>
-        <th class="col-code">Code</th>
-        <th class="col-name">Name</th>
-        <th class="col-instead">Instead</th>
-        <th class="col-gender">Gender</th>
-        <th class="col-pin">PIN</th>
-        <th class="col-seat">Seat</th>
-        <th class="col-nat">Nationality</th>
-        <th class="col-pimg">Pass.<br>Image</th>
-        <th class="col-pid">Pass. ID</th>
-        <th class="col-pexp">Pass.<br>Exp.</th>
-        <th class="col-port">Port</th>
-        <th class="col-group">Group</th>
-        <th class="col-flight">Flight</th>
-        <th class="col-depart">Date&Time<br>(Departure)</th>
-        <th class="col-arrive">Date&Time<br>(Arrival)</th>
-        <th class="col-comeback">Comeback Flight</th>
-        <th class="col-comeback-dt">Date&amp;Time<br>(Comeback)</th>
-        <th class="col-slip">Slip</th>
-        <th class="col-paid">Paid</th>
-        <th class="col-tel">WhatsApp</th>
-        <th class="col-shirt">T-Shirt</th>
+        <th class="col-code"><span class="th-content"><input type="radio" name="freeze-col" class="col-freeze-cb" data-col="code" title="ตรึงคอลัม (กดซ้ำเพื่อปลด)"><span>Code</span></span></th>
+        <th class="col-name"><span class="th-content"><input type="radio" name="freeze-col" class="col-freeze-cb" data-col="name" title="ตรึงคอลัม (กดซ้ำเพื่อปลด)"><span>Name</span></span></th>
+        <th class="col-instead"><span class="th-content"><input type="radio" name="freeze-col" class="col-freeze-cb" data-col="instead" title="ตรึงคอลัม (กดซ้ำเพื่อปลด)"><span>Instead</span></span></th>
+        <th class="col-gender"><span class="th-content"><input type="radio" name="freeze-col" class="col-freeze-cb" data-col="gender" title="ตรึงคอลัม (กดซ้ำเพื่อปลด)"><span>Gender</span></span></th>
+        <th class="col-pin"><span class="th-content"><input type="radio" name="freeze-col" class="col-freeze-cb" data-col="pin" title="ตรึงคอลัม (กดซ้ำเพื่อปลด)"><span>PIN</span></span></th>
+        <th class="col-seat"><span class="th-content"><input type="radio" name="freeze-col" class="col-freeze-cb" data-col="seat" title="ตรึงคอลัม (กดซ้ำเพื่อปลด)"><span>Seat</span></span></th>
+        <th class="col-nat"><span class="th-content"><input type="radio" name="freeze-col" class="col-freeze-cb" data-col="nat" title="ตรึงคอลัม (กดซ้ำเพื่อปลด)"><span>Nationality</span></span></th>
+        <th class="col-pimg"><span class="th-content"><input type="radio" name="freeze-col" class="col-freeze-cb" data-col="pimg" title="ตรึงคอลัม (กดซ้ำเพื่อปลด)"><span>Pass.<br>Image</span></span></th>
+        <th class="col-pid"><span class="th-content"><input type="radio" name="freeze-col" class="col-freeze-cb" data-col="pid" title="ตรึงคอลัม (กดซ้ำเพื่อปลด)"><span>Pass. ID</span></span></th>
+        <th class="col-pexp"><span class="th-content"><input type="radio" name="freeze-col" class="col-freeze-cb" data-col="pexp" title="ตรึงคอลัม (กดซ้ำเพื่อปลด)"><span>Pass.<br>Exp.</span></span></th>
+        <th class="col-port"><span class="th-content"><input type="radio" name="freeze-col" class="col-freeze-cb" data-col="port" title="ตรึงคอลัม (กดซ้ำเพื่อปลด)"><span>Port</span></span></th>
+        <th class="col-group"><span class="th-content"><input type="radio" name="freeze-col" class="col-freeze-cb" data-col="group" title="ตรึงคอลัม (กดซ้ำเพื่อปลด)"><span>Group</span></span></th>
+        <th class="col-flight"><span class="th-content"><input type="radio" name="freeze-col" class="col-freeze-cb" data-col="flight" title="ตรึงคอลัม (กดซ้ำเพื่อปลด)"><span>Flight</span></span></th>
+        <th class="col-depart"><span class="th-content"><input type="radio" name="freeze-col" class="col-freeze-cb" data-col="depart" title="ตรึงคอลัม (กดซ้ำเพื่อปลด)"><span>Date&amp;Time<br>(Departure)</span></span></th>
+        <th class="col-arrive"><span class="th-content"><input type="radio" name="freeze-col" class="col-freeze-cb" data-col="arrive" title="ตรึงคอลัม (กดซ้ำเพื่อปลด)"><span>Date&amp;Time<br>(Arrival)</span></span></th>
+        <th class="col-comeback"><span class="th-content"><input type="radio" name="freeze-col" class="col-freeze-cb" data-col="comeback" title="ตรึงคอลัม (กดซ้ำเพื่อปลด)"><span>Comeback Flight</span></span></th>
+        <th class="col-comeback-dt"><span class="th-content"><input type="radio" name="freeze-col" class="col-freeze-cb" data-col="comeback-dt" title="ตรึงคอลัม (กดซ้ำเพื่อปลด)"><span>Date&amp;Time<br>(Comeback)</span></span></th>
+        <th class="col-slip"><span class="th-content"><input type="radio" name="freeze-col" class="col-freeze-cb" data-col="slip" title="ตรึงคอลัม (กดซ้ำเพื่อปลด)"><span>Slip</span></span></th>
+        <th class="col-paid"><span class="th-content"><input type="radio" name="freeze-col" class="col-freeze-cb" data-col="paid" title="ตรึงคอลัม (กดซ้ำเพื่อปลด)"><span>Paid</span></span></th>
+        <th class="col-tel"><span class="th-content"><input type="radio" name="freeze-col" class="col-freeze-cb" data-col="tel" title="ตรึงคอลัม (กดซ้ำเพื่อปลด)"><span>WhatsApp</span></span></th>
+        <th class="col-shirt"><span class="th-content"><input type="radio" name="freeze-col" class="col-freeze-cb" data-col="shirt" title="ตรึงคอลัม (กดซ้ำเพื่อปลด)"><span>T-Shirt</span></span></th>
         <th class="col-waive">Waive</th>
         <th class="col-del">Del</th>
       </tr>
@@ -2406,6 +2501,207 @@ function sortRowsByCodeAsc() {
   rows = newRows;
 }
 
+/* ═══════════════════════════════════════════════════════════
+   COLUMN RESIZE — ลากขอบขวาของ th เพื่อขยาย/หดคอลัม
+═══════════════════════════════════════════════════════════ */
+const COL_WIDTHS_KEY = 'cs_col_widths';
+function _getColKey(th) {
+  // หา class "col-xxx" → return "xxx"
+  const m = th.className.match(/(?:^|\s)col-([\w-]+)/);
+  return m ? m[1] : null;
+}
+function injectColResizers() {
+  document.querySelectorAll('#main-table thead th').forEach(th => {
+    if (th.querySelector('.col-resizer')) return;
+    const r = document.createElement('span');
+    r.className = 'col-resizer';
+    r.title = 'ลากเพื่อปรับความกว้างคอลัม';
+    th.appendChild(r);
+  });
+}
+function applyColWidths() {
+  let widths = {};
+  try { widths = JSON.parse(localStorage.getItem(COL_WIDTHS_KEY) || '{}'); } catch {}
+  Object.entries(widths).forEach(([key, w]) => {
+    const th = document.querySelector(`#main-table thead th.col-${key}`);
+    if (th && Number.isFinite(w) && w > 0) th.style.width = w + 'px';
+  });
+}
+
+let _resizeState = null;
+document.addEventListener('mousedown', e => {
+  const resizer = e.target.closest('.col-resizer');
+  if (!resizer) return;
+  const th = resizer.parentElement;
+  if (!th) return;
+  e.preventDefault();
+  e.stopPropagation();
+  _resizeState = {
+    th,
+    key: _getColKey(th),
+    startX: e.clientX,
+    startWidth: th.getBoundingClientRect().width,
+    resizer,
+  };
+  resizer.classList.add('dragging');
+  document.body.classList.add('col-resizing');
+});
+
+document.addEventListener('mousemove', e => {
+  if (!_resizeState) return;
+  const delta = e.clientX - _resizeState.startX;
+  const newWidth = Math.max(40, _resizeState.startWidth + delta);
+  _resizeState.th.style.width = newWidth + 'px';
+  // ถ้ามี frozen → recalc sticky offsets ทันทีตอนลาก
+  if (_freezeThrough) applyFrozenCols();
+});
+
+document.addEventListener('mouseup', () => {
+  if (!_resizeState) return;
+  const { th, key, resizer } = _resizeState;
+  if (key) {
+    let widths = {};
+    try { widths = JSON.parse(localStorage.getItem(COL_WIDTHS_KEY) || '{}'); } catch {}
+    widths[key] = Math.round(th.getBoundingClientRect().width);
+    localStorage.setItem(COL_WIDTHS_KEY, JSON.stringify(widths));
+  }
+  resizer.classList.remove('dragging');
+  document.body.classList.remove('col-resizing');
+  _resizeState = null;
+});
+
+/* ═══════════════════════════════════════════════════════════
+   FREEZE COLUMNS — เลือก radio ที่ th ใดๆ จะตรึงทุกคอลัมตั้งแต่
+   ซ้ายสุดจนถึงคอลัมนั้น (เหมือน "Freeze Panes" ของ Excel)
+═══════════════════════════════════════════════════════════ */
+const FREEZE_UI_KEY = 'cs_freeze_ui_visible';
+function toggleFreezeUI() {
+  const wasHidden = document.body.classList.contains('freeze-ui-hidden');
+  const isVisible = wasHidden; // toggle: ถ้าเดิมซ่อน → จะแสดง
+  document.body.classList.toggle('freeze-ui-hidden', !isVisible);
+  localStorage.setItem(FREEZE_UI_KEY, isVisible ? '1' : '0');
+  // ถ้ากำลังจะซ่อน → ปลดการตรึงทั้งหมดด้วย
+  if (!isVisible && _freezeThrough) {
+    _freezeThrough = '';
+    localStorage.setItem(FREEZE_KEY, '');
+    applyFrozenCols();
+  }
+  syncFreezeUIButton(isVisible);
+}
+function syncFreezeUIButton(isVisible) {
+  const btn = document.getElementById('toggle-freeze-ui');
+  const lbl = document.getElementById('toggle-freeze-label');
+  if (!btn) return;
+  btn.classList.toggle('active', isVisible);
+  if (lbl) lbl.textContent = isVisible ? 'ซ่อนปุ่มตรึง' : 'ตรึงคอลัม';
+  btn.title = isVisible ? 'ซ่อนปุ่มตรึงคอลัม' : 'แสดงปุ่มตรึงคอลัมที่หัวตาราง';
+}
+// Init: default ซ่อน radio ไว้ก่อน → user กดปุ่มเพื่อแสดง
+{
+  const saved = localStorage.getItem(FREEZE_UI_KEY);
+  const isVisible = saved === '1';
+  document.body.classList.toggle('freeze-ui-hidden', !isVisible);
+  // sync button label หลัง DOM พร้อม
+  document.addEventListener('DOMContentLoaded', () => syncFreezeUIButton(isVisible));
+}
+
+const FREEZE_KEY = 'cs_freeze_through';
+let _freezeThrough = localStorage.getItem(FREEZE_KEY) || '';
+// Migrate legacy multi-col format (cs_frozen_cols) → first entry
+{
+  const legacy = localStorage.getItem('cs_frozen_cols');
+  if (!_freezeThrough && legacy) {
+    try {
+      const arr = JSON.parse(legacy);
+      if (Array.isArray(arr) && arr.length) _freezeThrough = arr[0];
+    } catch {}
+  }
+  if (legacy) localStorage.removeItem('cs_frozen_cols');
+}
+
+function applyFrozenCols() {
+  const headerRow = document.querySelector('#main-table thead tr');
+  if (!headerRow) return;
+  const ths = Array.from(headerRow.children);
+  const bodyRows = document.querySelectorAll('#main-table tbody tr');
+
+  // 1) clear all existing frozen state
+  ths.forEach(th => {
+    th.classList.remove('col-frozen', 'col-frozen-last');
+    th.style.left = '';
+  });
+  bodyRows.forEach(tr => {
+    Array.from(tr.children).forEach(td => {
+      td.classList.remove('col-frozen', 'col-frozen-last');
+      td.style.left = '';
+    });
+  });
+
+  // 2) sync radios + หา threshold column index
+  let thresholdIdx = -1;
+  ths.forEach((th, idx) => {
+    const r = th.querySelector('.col-freeze-cb');
+    if (r) {
+      r.checked = !!_freezeThrough && r.dataset.col === _freezeThrough;
+      if (r.checked) thresholdIdx = idx;
+    }
+  });
+
+  if (thresholdIdx < 0) return;
+
+  // 3) freeze ทุกคอลัมตั้งแต่ index 0 ถึง thresholdIdx (inclusive)
+  let cumLeft = 0;
+  for (let idx = 0; idx <= thresholdIdx; idx++) {
+    const th = ths[idx];
+    const w = th.getBoundingClientRect().width;
+    th.classList.add('col-frozen');
+    th.style.left = cumLeft + 'px';
+    bodyRows.forEach(tr => {
+      if (tr.children.length === 1 && tr.children[0].hasAttribute('colspan')) return;
+      const td = tr.children[idx];
+      if (td) {
+        td.classList.add('col-frozen');
+        td.style.left = cumLeft + 'px';
+      }
+    });
+    cumLeft += w;
+  }
+
+  // 4) เน้นคอลัมสุดท้ายเป็นเส้นแบ่งภาพ
+  ths[thresholdIdx].classList.add('col-frozen-last');
+  bodyRows.forEach(tr => {
+    if (tr.children.length === 1 && tr.children[0].hasAttribute('colspan')) return;
+    const td = tr.children[thresholdIdx];
+    if (td) td.classList.add('col-frozen-last');
+  });
+}
+
+// Track pre-click state — กด radio ที่เลือกอยู่แล้ว = ปลด
+document.addEventListener('mousedown', e => {
+  const r = e.target.closest('.col-freeze-cb');
+  if (r) r._wasChecked = r.checked;
+});
+document.addEventListener('click', e => {
+  const r = e.target.closest('.col-freeze-cb');
+  if (r && r._wasChecked) {
+    r.checked = false;
+    r._wasChecked = false;
+    r.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+});
+
+document.addEventListener('change', e => {
+  const r = e.target.closest('.col-freeze-cb');
+  if (!r) return;
+  _freezeThrough = r.checked ? r.dataset.col : '';
+  localStorage.setItem(FREEZE_KEY, _freezeThrough);
+  applyFrozenCols();
+});
+
+window.addEventListener('resize', () => {
+  if (_freezeThrough) applyFrozenCols();
+});
+
 function renderTable() {
   const tbody = document.getElementById('table-body');
   const empty = document.getElementById('empty-row');
@@ -2431,6 +2727,7 @@ function renderTable() {
     if (empty) empty.style.display = '';
     document.getElementById('row-count').textContent = '0 items';
     updateStats();
+    applyFrozenCols();
     return;
   }
   if (empty) empty.style.display = 'none';
@@ -2444,6 +2741,7 @@ function renderTable() {
   document.getElementById('row-count').textContent =
     `${mainCount} items (${rows.length} rows)`;
   updateStats();
+  applyFrozenCols();
 }
 
 /* ── Build a single <tr> ──────────────────────────────── */
@@ -3413,6 +3711,8 @@ function copyShareUrl() {
 migrateLegacyProxyKey();
 loadFlightMemory();
 loadComebackMemory();
+injectColResizers();
+applyColWidths();
 initSupabase();
 loadFromSupabase().then(() => startAutoRefresh()); // โหลด → แล้วเริ่ม auto-refresh
 </script>
