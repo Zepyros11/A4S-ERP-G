@@ -388,6 +388,21 @@ async function saveUser() {
     ...(password ? { password_hash: await hashPassword(password) } : {}),
   };
 
+  /* pre-check ชนกับ user อื่นใน list ก่อนยิง API — กัน duplicate key */
+  const dup = allUsers.find((u) =>
+    String(u.user_id) !== String(editId) &&
+    (u.username?.toLowerCase() === username.toLowerCase() ||
+     u.user_code?.toUpperCase() === userCode));
+  if (dup) {
+    const isUsernameDup = dup.username?.toLowerCase() === username.toLowerCase();
+    await showDuplicateAlert({
+      field: isUsernameDup ? "Username" : "รหัสพนักงาน",
+      value: isUsernameDup ? username : userCode,
+      owner: dup,
+    });
+    return;
+  }
+
   showLoading(true);
   try {
     if (editId) {
@@ -418,7 +433,19 @@ async function saveUser() {
     closeModal();
     await loadData();
   } catch (e) {
-    showToast("เกิดข้อผิดพลาด: " + e.message, "error");
+    const msg = String(e.message || "");
+    if (/users_username_key/i.test(msg)) {
+      await showDuplicateAlert({ field: "Username", value: username });
+    } else if (/users_user_code_key/i.test(msg)) {
+      await showDuplicateAlert({ field: "รหัสพนักงาน", value: userCode });
+    } else if (/users_email_key/i.test(msg)) {
+      await showDuplicateAlert({
+        field: "อีเมล",
+        value: document.getElementById("fEmail")?.value.trim() || "",
+      });
+    } else {
+      showToast("เกิดข้อผิดพลาด: " + msg, "error");
+    }
   }
   showLoading(false);
 }
@@ -440,6 +467,37 @@ function deleteSelected() {
     }
     showLoading(false);
   });
+}
+
+/* แสดง popup แจ้ง duplicate field — ใช้ ConfirmModal (alert mode) */
+async function showDuplicateAlert({ field, value, owner }) {
+  if (!window.ConfirmModal) {
+    showToast(`${field} "${value}" ถูกใช้แล้ว`, "error");
+    return;
+  }
+  const details = { [field]: value };
+  if (owner) {
+    details["ใช้โดย"] = owner.full_name || "—";
+    if (owner.user_code) details["รหัสพนักงาน"] = owner.user_code;
+    if (owner.username && field !== "Username") details["Username"] = owner.username;
+  }
+  await window.ConfirmModal.open({
+    title: "ข้อมูลซ้ำ",
+    icon: "⚠️",
+    tone: "warning",
+    message: `${field}นี้ถูกใช้งานแล้วในระบบ — กรุณาเปลี่ยนเป็นค่าอื่น`,
+    details,
+    okText: "เข้าใจแล้ว",
+    hideCancel: true,
+  });
+  /* focus ช่องที่ซ้ำให้ผู้ใช้แก้ทันที */
+  const focusMap = {
+    "Username": "fUsername",
+    "รหัสพนักงาน": "fUserCode",
+    "อีเมล": "fEmail",
+  };
+  const el = document.getElementById(focusMap[field]);
+  if (el) { el.focus(); el.select?.(); }
 }
 
 function showToast(msg, type = "success") {
