@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>คู่มือการใช้งาน — A4S-ERP</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&family=Playfair+Display:wght@600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../../css/main.css" />
+    <link rel="stylesheet" href="./manual.css" />
+  </head>
+  <body>
+    <div class="loading-overlay" id="loadingOverlay"><div class="spinner"></div></div>
+    <div class="toast" id="toast"></div>
+
+    <div class="topbar"></div>
+
+    <div class="layout">
+      <div id="sidebar-container"></div>
+
+      <div class="content-area manual-bg">
+        <div class="manual-page">
+
+          <!-- HERO (book cover) -->
+          <div class="man-hero">
+            <div class="man-hero-eyebrow">A4S-ERP · User Manual</div>
+            <div class="man-hero-title">คู่มือการใช้งานระบบ</div>
+            <div class="man-hero-sub">
+              เรียนรู้ระบบ ERP ทีละขั้น — เปิดอ่านเป็นบท ๆ เหมือนหนังสือ
+              พร้อมรูปประกอบและตัวอย่างจริง
+            </div>
+            <div class="man-hero-stats">
+              <span class="man-hero-stat">📚 <b id="statChapters">0</b> บท</span>
+              <span class="man-hero-stat">📄 <b id="statPages">0</b> หน้า</span>
+              <span class="man-hero-stat">⏱ <b id="statMinutes">0</b> นาที</span>
+            </div>
+          </div>
+
+          <!-- TOOLBAR -->
+          <div class="man-toolbar">
+            <div class="man-search">
+              <input id="searchInput" type="search" placeholder="ค้นหาในคู่มือ — ชื่อหน้า / สรุป" autocomplete="off" />
+              <div class="man-search-results" id="searchResults"></div>
+            </div>
+            <button class="btn btn-outline" id="btnShowDrafts" data-perm="manual_edit" onclick="window.toggleDrafts()">
+              👁 แสดง draft
+            </button>
+            <button class="btn btn-primary" data-perm="manual_edit" onclick="window.openNewChapter()">
+              ＋ เพิ่มบท
+            </button>
+          </div>
+
+          <!-- SHELF -->
+          <div class="man-shelf" id="shelf">
+            <div class="man-empty"><div class="man-empty-ico">⏳</div><div class="man-empty-msg">กำลังโหลด...</div></div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- Chapter editor modal -->
+    <div class="modal-overlay" id="chapterModal">
+      <div class="modal" style="max-width:520px" onclick="event.stopPropagation()">
+        <div class="modal-hdr">
+          <span class="modal-title" id="chapterModalTitle">เพิ่มบทใหม่</span>
+          <button class="btn-modal-close" onclick="window.closeChapterModal()">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="man-field">
+            <label>ชื่อบท *</label>
+            <input id="chTitle" type="text" placeholder="เช่น เริ่มต้นใช้งาน" />
+          </div>
+          <div class="man-field">
+            <label>Slug (URL-friendly)</label>
+            <input id="chSlug" type="text" placeholder="getting-started" />
+          </div>
+          <div class="man-field">
+            <label>คำอธิบายสั้น</label>
+            <textarea id="chDesc" rows="2" placeholder="แนะนำการเข้าสู่ระบบและภาพรวมของแต่ละเมนู"></textarea>
+          </div>
+          <div class="man-field-row">
+            <div class="man-field">
+              <label>Icon (emoji)</label>
+              <input id="chIcon" type="text" placeholder="🚀" maxlength="4" style="font-size:18px;text-align:center" />
+            </div>
+            <div class="man-field">
+              <label>ลำดับ</label>
+              <input id="chOrder" type="number" min="0" value="0" />
+            </div>
+          </div>
+          <div class="man-field">
+            <label>สีปกบท</label>
+            <div class="man-palette" id="chPalette"></div>
+          </div>
+          <div class="man-field">
+            <label style="display:flex;align-items:center;gap:8px;text-transform:none;font-size:13px;font-weight:600">
+              <input id="chPublished" type="checkbox" checked style="width:auto"> เผยแพร่ (visible to all)
+            </label>
+          </div>
+        </div>
+        <div class="modal-footer" style="display:flex;justify-content:space-between">
+          <button class="btn btn-danger btn-outline" id="btnDeleteChapter" data-perm="manual_delete" style="display:none" onclick="window.deleteChapter()">
+            🗑 ลบบท
+          </button>
+          <div style="display:flex;gap:8px;margin-left:auto">
+            <button class="btn btn-outline" onclick="window.closeChapterModal()">ยกเลิก</button>
+            <button class="btn btn-primary" onclick="window.saveChapter()">💾 บันทึก</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="../../js/core/permissions.js"></script>
+    <script src="../../js/core/auth.js"></script>
+    <script src="../../js/core/authz.js"></script>
+    <script>AuthZ.requirePerm("manual_view");</script>
+    <script type="module" src="./manual-list.js"></script>
+    <script type="module">
+      import { loadTopbar } from "../../js/components/navigation/topbar.js";
+      loadTopbar("📖 คู่มือการใช้งาน");
+    </script>
+    <script src="../../js/components/navigation/sidebar.js"></script>
+    <script src="../../js/components/modal/modalManager.js"></script>
+    <script src="../../js/components/modal/confirmModal.js"></script>
+  </body>
+</html>

@@ -81,7 +81,7 @@ async function initPage() {
     const params = new URLSearchParams(window.location.search);
     const urlEventId = params.get("event_id");
 
-    // ถ้าไม่มี event_id ใน URL → no-event state ไม่ต้องโหลด events
+    // ถ้าไม่มี event_id ใน URL → no-event state พร้อม calendar รวม
     if (!urlEventId) {
       showSections(false);
       // โหลด groups เผื่อกดปุ่ม "จัดการกลุ่ม"
@@ -89,6 +89,8 @@ async function initPage() {
       _allGroupsIncludingInactive = allGroups;
       showLoading(false);
       bindFilterListeners();
+      // โหลด + render calendar รวมทุก event
+      await initLpCalendar().catch((e) => console.warn("initLpCalendar:", e));
       return;
     }
 
@@ -194,6 +196,71 @@ function updateStats() {
   setText("lpCount", `${total} โพสต์`);
 }
 
+// Template key — โพสต์ที่ shared template (offset + scheduled_at + message) ถือเป็นชุดเดียวกัน
+// ต่างกันแค่ target group → รวมเป็น 1 row ในตาราง
+function _templateKey(p) {
+  return [
+    p.promote_offset == null ? "manual" : p.promote_offset,
+    p.scheduled_at || "",
+    p.message_text || "",
+  ].join("|");
+}
+
+function _findSiblings(post) {
+  if (!post) return [];
+  const key = _templateKey(post);
+  return allPosts.filter((x) => _templateKey(x) === key);
+}
+
+function _findSiblingsById(id) {
+  const post = allPosts.find((x) => x.id === id);
+  return _findSiblings(post);
+}
+
+function _aggregateStatus(siblings) {
+  const counts = {};
+  siblings.forEach((s) => {
+    counts[s.status] = (counts[s.status] || 0) + 1;
+  });
+  const keys = Object.keys(counts);
+  if (keys.length === 1) return { status: keys[0], mixed: false, counts };
+  return { status: "MIXED", mixed: true, counts };
+}
+
+function _renderGroupChips(siblings) {
+  // chip ต่อ 1 target group — ใส่ tooltip บอก status ของ chip นั้น
+  return siblings
+    .map((p) => {
+      const grp = allGroups.find((g) => g.group_id === p.target_id);
+      const label = grp
+        ? grp.group_name || grp.group_id.slice(0, 10) + "…"
+        : p.target_type === "broadcast"
+          ? "📣 ทุกคน"
+          : p.target_id
+            ? p.target_id.slice(0, 10) + "…"
+            : "—";
+      const title = `${label} · ${statusLabel(p.status)}`;
+      return `<span class="lp-grp-chip lp-grp-chip-${p.status}" title="${escapeHtml(title)}">
+        <span class="lp-grp-chip-dot"></span>${escapeHtml(label)}
+      </span>`;
+    })
+    .join("");
+}
+
+function _renderAggStatusBadge(agg) {
+  if (!agg.mixed) {
+    return `<span class="lp-status-badge lpstat-${agg.status}">${statusLabel(agg.status)}</span>`;
+  }
+  // mixed — แสดง breakdown แบบสั้น เช่น ✅2 · 📅1
+  const ICON = { DRAFT: "📝", SCHEDULED: "📅", SENT: "✅", FAILED: "❌", CANCELLED: "🚫" };
+  const parts = Object.entries(agg.counts)
+    .map(([s, n]) => `${ICON[s] || ""}${n}`)
+    .join(" · ");
+  return `<span class="lp-status-badge lpstat-MIXED" title="ผสม: ${escapeHtml(
+    Object.entries(agg.counts).map(([s, n]) => `${statusLabel(s)} ${n}`).join(", "),
+  )}">${parts}</span>`;
+}
+
 function renderTable() {
   const tbody = document.getElementById("lpTableBody");
   if (!tbody) return;
@@ -223,43 +290,71 @@ function renderTable() {
     return;
   }
 
-  tbody.innerHTML = list
-    .map((p) => {
-      const grp = allGroups.find((g) => g.group_id === p.target_id);
-      const groupLabel = grp
-        ? escapeHtml(grp.group_name || grp.group_id.slice(0, 10) + "…")
-        : p.target_type === "broadcast"
-          ? "📣 ทุกคน"
-          : p.target_id
-            ? `<span style="color:var(--text3)">${p.target_id.slice(0, 10)}…</span>`
-            : "—";
-      const canEdit = p.status === "SCHEDULED" || p.status === "DRAFT";
-      const canCancel = p.status === "SCHEDULED";
-      const checked = _selectedPostIds.has(p.id);
-      return `<tr class="${checked ? "lp-row-selected" : ""}">
+  // Group posts by template key — รวมโพสต์ที่ share offset+scheduled_at+message
+  const groupedRows = [];
+  const seen = new Map();
+  for (const p of list) {
+    const key = _templateKey(p);
+    if (seen.has(key)) {
+      groupedRows[seen.get(key)].siblings.push(p);
+    } else {
+      seen.set(key, groupedRows.length);
+      groupedRows.push({ key, primary: p, siblings: [p] });
+    }
+  }
+
+  tbody.innerHTML = groupedRows
+    .map(({ primary: p, siblings }) => {
+      const agg = _aggregateStatus(siblings);
+      const ids = siblings.map((s) => s.id);
+      const idsAttr = ids.join(",");
+      const groupCell = siblings.length > 1
+        ? `<div class="lp-grp-chips">${_renderGroupChips(siblings)}</div>`
+        : _renderGroupChips(siblings);
+
+      // canEdit/canCancel/canRetry/canReactivate/canClone — ตัดสินจาก siblings ทั้งหมด
+      const hasScheduled = siblings.some((s) => s.status === "SCHEDULED");
+      const hasFailed = siblings.some((s) => s.status === "FAILED");
+      const hasCancelled = siblings.some((s) => s.status === "CANCELLED");
+      const hasSentOrCancelled = siblings.some((s) => s.status === "SENT" || s.status === "CANCELLED");
+      const canEdit = siblings.some((s) => s.status === "SCHEDULED" || s.status === "DRAFT");
+
+      const checkedCount = ids.filter((id) => _selectedPostIds.has(id)).length;
+      const checked = checkedCount === ids.length;
+      const indeterminate = checkedCount > 0 && checkedCount < ids.length;
+      const countBadge = siblings.length > 1
+        ? `<span class="lp-grp-count-badge" title="${siblings.length} กลุ่ม">${siblings.length}</span>`
+        : "";
+
+      return `<tr class="${checked ? "lp-row-selected" : ""}" data-ids="${idsAttr}">
         <td class="col-center">
-          <input type="checkbox" ${checked ? "checked" : ""}
-            onchange="window.toggleLpRow(${p.id}, this.checked)" />
+          <input type="checkbox" ${checked ? "checked" : ""} ${indeterminate ? "data-indeterminate=\"1\"" : ""}
+            onchange="window.toggleLpRow('${idsAttr}', this.checked)" />
         </td>
-        <td class="col-center">${ddayBadge(p.promote_offset)}</td>
+        <td class="col-center">${ddayBadge(p.promote_offset)}${countBadge}</td>
         <td><div class="lp-msg-cell">${escapeHtml(p.message_text || "")}</div></td>
-        <td class="col-center" style="font-size:12px">${groupLabel}</td>
+        <td class="col-center" style="font-size:12px">${groupCell}</td>
         <td class="col-center" style="font-size:12px">${formatDateTime(p.scheduled_at)}</td>
-        <td class="col-center"><span class="lp-status-badge lpstat-${p.status}">${statusLabel(p.status)}</span></td>
+        <td class="col-center">${_renderAggStatusBadge(agg)}</td>
         <td class="col-center">
           <div class="action-group">
-            ${p.status === "SCHEDULED" ? `<button class="btn-icon" data-perm="line_promote_edit" onclick="window.sendLpPostNow(${p.id})" title="ส่งทันที (ไม่รอ scheduled_at)">📤</button>` : ""}
+            ${hasScheduled ? `<button class="btn-icon" data-perm="line_promote_edit" onclick="window.sendLpPostNow(${p.id})" title="ส่งทันที (ไม่รอ scheduled_at)">📤</button>` : ""}
             ${canEdit ? `<button class="btn-icon" data-perm="line_promote_edit" onclick="window.openLpModal(${p.id})" title="แก้ไข">✏️</button>` : ""}
-            ${canCancel ? `<button class="btn-icon danger" data-perm="line_promote_cancel" onclick="window.cancelLpPost(${p.id})" title="ยกเลิก">🚫</button>` : ""}
-            ${p.status === "FAILED" ? `<button class="btn-icon" data-perm="line_promote_edit" onclick="window.retryLpPost(${p.id})" title="ลองใหม่">🔄</button>` : ""}
-            ${(p.status === "CANCELLED" || p.status === "SENT") ? `<button class="btn-icon" data-perm="line_promote_edit" onclick="window.cloneLpPost(${p.id})" title="สร้างซ้ำ (clone เป็นโพสต์ใหม่)">📋</button>` : ""}
-            ${p.status === "CANCELLED" ? `<button class="btn-icon" data-perm="line_promote_edit" onclick="window.reactivateLpPost(${p.id})" title="ใช้งานใหม่ (กลับเป็น SCHEDULED)">↩️</button>` : ""}
+            ${hasScheduled ? `<button class="btn-icon danger" data-perm="line_promote_cancel" onclick="window.cancelLpPost(${p.id})" title="ยกเลิก">🚫</button>` : ""}
+            ${hasFailed ? `<button class="btn-icon" data-perm="line_promote_edit" onclick="window.retryLpPost(${p.id})" title="ลองใหม่">🔄</button>` : ""}
+            ${hasSentOrCancelled ? `<button class="btn-icon" data-perm="line_promote_edit" onclick="window.cloneLpPost(${p.id})" title="สร้างซ้ำ (clone เป็นโพสต์ใหม่)">📋</button>` : ""}
+            ${hasCancelled ? `<button class="btn-icon" data-perm="line_promote_edit" onclick="window.reactivateLpPost(${p.id})" title="ใช้งานใหม่ (กลับเป็น SCHEDULED)">↩️</button>` : ""}
             <button class="btn-icon danger" data-perm="line_promote_cancel" onclick="window.deleteLpPost(${p.id})" title="ลบทิ้งถาวร">🗑</button>
           </div>
         </td>
       </tr>`;
     })
     .join("");
+
+  // set indeterminate on partial-selected checkboxes
+  tbody.querySelectorAll('input[type="checkbox"][data-indeterminate="1"]').forEach((cb) => {
+    cb.indeterminate = true;
+  });
 
   if (window.AuthZ) window.AuthZ.applyDomPerms(tbody);
   updateBulkBar();
@@ -293,11 +388,17 @@ function _getVisiblePostIds() {
   return allPosts.map((p) => p.id);
 }
 
-window.toggleLpRow = function (id, checked) {
-  if (checked) _selectedPostIds.add(id);
-  else _selectedPostIds.delete(id);
+window.toggleLpRow = function (idsArg, checked) {
+  // ids อาจเป็น string "1,2,3" (grouped row) หรือ number/string เลขเดียว
+  const ids = String(idsArg)
+    .split(",")
+    .map((s) => parseInt(s.trim(), 10))
+    .filter((n) => !isNaN(n));
+  ids.forEach((id) => {
+    if (checked) _selectedPostIds.add(id);
+    else _selectedPostIds.delete(id);
+  });
   // toggle row class
-  const row = document.querySelector(`#lpTableBody tr td input[type="checkbox"]:checked`);
   document.querySelectorAll("#lpTableBody tr").forEach((tr) => {
     const cb = tr.querySelector('input[type="checkbox"]');
     if (cb) tr.classList.toggle("lp-row-selected", cb.checked);
@@ -465,15 +566,22 @@ window.openLpModal = function (id = null) {
   }
   editingId = id;
 
-  document.getElementById("lpModalTitle").textContent = id ? "✏️ แก้ไขโพสต์ LINE" : `📅 สร้างโพสต์ LINE`;
+  // ตรวจ template siblings ตอน edit — ถ้า > 1 กลุ่ม ให้ edit เป็นชุด (ไม่มี dropdown เลือกกลุ่ม)
+  const editingPost = id ? allPosts.find((x) => x.id === id) : null;
+  const editingSiblings = editingPost ? _findSiblings(editingPost) : [];
+  const isGroupEdit = editingSiblings.length > 1;
+
+  document.getElementById("lpModalTitle").textContent = id
+    ? (isGroupEdit ? `✏️ แก้ไขโพสต์ LINE (${editingSiblings.length} กลุ่ม)` : "✏️ แก้ไขโพสต์ LINE")
+    : `📅 สร้างโพสต์ LINE`;
   document.getElementById("fLpId").value = id || "";
 
   // Rebuild กลุ่ม section ใน modal ทุกครั้ง
   const grpRow = document.getElementById("fLpGroupRow");
   const targets = _resolveTargetGroupsForEvent();
   if (grpRow) {
-    if (id) {
-      // edit mode — dropdown เลือกกลุ่มเดียว
+    if (id && !isGroupEdit) {
+      // edit mode (single) — dropdown เลือกกลุ่มเดียว
       grpRow.innerHTML = `
         <label class="form-label">กลุ่ม LINE <span style="color: var(--danger)">*</span></label>
         <select class="form-input" id="fLpGroup">
@@ -482,6 +590,21 @@ window.openLpModal = function (id = null) {
             return `<option value="${escapeHtml(g.group_id)}">${escapeHtml(name)}</option>`;
           }).join("")}
         </select>
+      `;
+    } else if (id && isGroupEdit) {
+      // edit mode (multi-group) — แสดง chips ของทุกกลุ่มในชุด (ไม่ให้แก้กลุ่ม)
+      const chips = editingSiblings
+        .map((s) => {
+          const g = allGroups.find((x) => x.group_id === s.target_id);
+          const name = g?.group_name || s.target_id?.slice(0, 10) + "…" || "—";
+          return `<span style="background:#06c755;color:#fff;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:600;margin-right:4px;display:inline-block">${escapeHtml(name)}</span>`;
+        })
+        .join("");
+      grpRow.innerHTML = `
+        <label class="form-label">📨 ${editingSiblings.length} กลุ่มในชุดนี้</label>
+        <div style="padding:10px 13px;background:#f0fdf4;border:1.5px solid #06c755;border-radius:10px;line-height:1.8">${chips}</div>
+        <div class="lp-hint-sm">💡 แก้ข้อความ/วันเวลาจะ apply ทุกกลุ่ม · เปลี่ยนกลุ่มที่ส่ง: ปุ่ม "📨 ส่งกลุ่ม LINE" บน event header</div>
+        <input type="hidden" id="fLpGroup" value="" />
       `;
     } else {
       // create mode — แสดงรายชื่อกลุ่มที่ event ผูก (replicate)
@@ -606,27 +729,46 @@ window.saveLpPost = async function () {
 
   try {
     if (editingId) {
-      // Edit mode — แก้ row เดียว target_id ตาม dropdown
-      const groupId = document.getElementById("fLpGroup").value;
-      if (!groupId) {
-        showLoading(false);
-        btn.disabled = false;
-        btn.textContent = "📅 บันทึก";
-        return showToast("กรุณาเลือกกลุ่ม LINE", "error");
+      const editingPost = allPosts.find((x) => x.id === editingId);
+      const siblings = editingPost ? _findSiblings(editingPost) : [];
+      const isGroupEdit = siblings.length > 1;
+
+      if (isGroupEdit) {
+        // Multi-group edit — apply offset/datetime/message ให้ทุก sibling (เก็บ target_id เดิม)
+        const ids = siblings.map((s) => s.id);
+        await sbFetch("line_scheduled_posts", `?id=in.(${ids.join(",")})`, {
+          method: "PATCH",
+          body: {
+            promote_offset,
+            message_text: message,
+            scheduled_at,
+            status: "SCHEDULED",
+          },
+        });
+        showToast(`แก้ไข ${ids.length} โพสต์ในชุดนี้แล้ว`, "success");
+      } else {
+        // Single edit — แก้ row เดียว target_id ตาม dropdown
+        const groupId = document.getElementById("fLpGroup").value;
+        if (!groupId) {
+          showLoading(false);
+          btn.disabled = false;
+          btn.textContent = "📅 บันทึก";
+          return showToast("กรุณาเลือกกลุ่ม LINE", "error");
+        }
+        const grp = allGroups.find((g) => g.group_id === groupId);
+        await sbFetch("line_scheduled_posts", `?id=eq.${editingId}`, {
+          method: "PATCH",
+          body: {
+            target_id: groupId,
+            channel_id: grp?.channel_id || null,
+            promote_offset,
+            message_text: message,
+            scheduled_at,
+            status: "SCHEDULED",
+          },
+        });
+        showToast("แก้ไขโพสต์แล้ว", "success");
       }
-      const grp = allGroups.find((g) => g.group_id === groupId);
-      await sbFetch("line_scheduled_posts", `?id=eq.${editingId}`, {
-        method: "PATCH",
-        body: {
-          target_id: groupId,
-          channel_id: grp?.channel_id || null,
-          promote_offset,
-          message_text: message,
-          scheduled_at,
-          status: "SCHEDULED",
-        },
-      });
-      showToast("แก้ไขโพสต์แล้ว", "success");
     } else {
       // Create mode — replicate ตามกลุ่มที่ผูกกับ event
       const targets = _resolveTargetGroupsForEvent();
@@ -1757,14 +1899,18 @@ window.confirmAutoCreate = async function () {
 window.cancelLpPost = function (id) {
   const row = allPosts.find((x) => x.id === id);
   if (!row) return;
-  DeleteModal.open(`ต้องการยกเลิกโพสต์ LINE นี้หรือไม่?`, async () => {
+  // expand to siblings — ยกเลิกเฉพาะ SCHEDULED ในชุดเดียวกัน
+  const ids = _findSiblings(row).filter((s) => s.status === "SCHEDULED").map((s) => s.id);
+  if (!ids.length) return showToast("ไม่มีโพสต์ที่อยู่ในสถานะ รอส่ง", "info");
+  const label = ids.length > 1 ? `${ids.length} โพสต์ (ทุกกลุ่มในชุดนี้)` : "โพสต์ LINE นี้";
+  DeleteModal.open(`ต้องการยกเลิก${label}หรือไม่?`, async () => {
     showLoading(true);
     try {
-      await sbFetch("line_scheduled_posts", `?id=eq.${id}`, {
+      await sbFetch("line_scheduled_posts", `?id=in.(${ids.join(",")})`, {
         method: "PATCH",
         body: { status: "CANCELLED" },
       });
-      showToast("ยกเลิกโพสต์แล้ว", "success");
+      showToast(`ยกเลิก ${ids.length} โพสต์แล้ว`, "success");
       allPosts = await fetchPosts(currentEventId);
       updateStats();
       renderTable();
@@ -1779,11 +1925,16 @@ window.cancelLpPost = function (id) {
 window.cloneLpPost = async function (id) {
   const src = allPosts.find((x) => x.id === id);
   if (!src) return;
-  const grp = allGroups.find((g) => g.group_id === src.target_id);
+  const siblings = _findSiblings(src);
   const preview = (src.message_text || "").slice(0, 120);
+  const groupNames = siblings
+    .map((s) => allGroups.find((g) => g.group_id === s.target_id)?.group_name || "—")
+    .join(", ");
   const ok = await ConfirmModal.open({
-    title: "สร้างโพสต์ใหม่จากโพสต์นี้?",
-    message: `Clone โพสต์เข้ากลุ่ม "${grp?.group_name || "—"}" + ตั้งเวลาส่ง = อีก 1 ชั่วโมงข้างหน้า`,
+    title: siblings.length > 1
+      ? `สร้างโพสต์ใหม่ ${siblings.length} กลุ่ม จากชุดนี้?`
+      : "สร้างโพสต์ใหม่จากโพสต์นี้?",
+    message: `Clone เข้ากลุ่ม "${groupNames}" + ตั้งเวลาส่ง = อีก 1 ชั่วโมงข้างหน้า`,
     icon: "📋",
     okText: "Clone",
     cancelText: "ยกเลิก",
@@ -1798,21 +1949,19 @@ window.cloneLpPost = async function (id) {
       catch { return {}; }
     })();
     const newScheduled = new Date(Date.now() + 60 * 60 * 1000).toISOString();
-    await sbFetch("line_scheduled_posts", "", {
-      method: "POST",
-      body: {
-        event_id: src.event_id,
-        target_type: src.target_type,
-        target_id: src.target_id,
-        channel_id: src.channel_id,
-        promote_offset: null,
-        message_text: src.message_text,
-        scheduled_at: newScheduled,
-        status: "SCHEDULED",
-        created_by: session?.user_id || null,
-      },
-    });
-    showToast("Clone โพสต์ใหม่แล้ว ✅", "success");
+    const rows = siblings.map((s) => ({
+      event_id: s.event_id,
+      target_type: s.target_type,
+      target_id: s.target_id,
+      channel_id: s.channel_id,
+      promote_offset: null,
+      message_text: s.message_text,
+      scheduled_at: newScheduled,
+      status: "SCHEDULED",
+      created_by: session?.user_id || null,
+    }));
+    await sbFetch("line_scheduled_posts", "", { method: "POST", body: rows });
+    showToast(`Clone ${rows.length} โพสต์แล้ว ✅`, "success");
     allPosts = await fetchPosts(currentEventId);
     updateStats();
     renderTable();
@@ -1824,8 +1973,12 @@ window.cloneLpPost = async function (id) {
 
 // ── Reactivate — ส่ง post ที่ CANCELLED กลับเป็น SCHEDULED ─
 window.reactivateLpPost = async function (id) {
+  const src = allPosts.find((x) => x.id === id);
+  if (!src) return;
+  const ids = _findSiblings(src).filter((s) => s.status === "CANCELLED").map((s) => s.id);
+  if (!ids.length) return showToast("ไม่มีโพสต์ที่ยกเลิกในชุดนี้", "info");
   const ok = await ConfirmModal.open({
-    title: "ใช้งานโพสต์นี้ใหม่?",
+    title: ids.length > 1 ? `ใช้งาน ${ids.length} โพสต์นี้ใหม่?` : "ใช้งานโพสต์นี้ใหม่?",
     message: "เปลี่ยนสถานะจาก ยกเลิก → รอส่ง",
     icon: "↩️",
     okText: "ใช้งานใหม่",
@@ -1835,11 +1988,11 @@ window.reactivateLpPost = async function (id) {
   if (!ok) return;
   showLoading(true);
   try {
-    await sbFetch("line_scheduled_posts", `?id=eq.${id}`, {
+    await sbFetch("line_scheduled_posts", `?id=in.(${ids.join(",")})`, {
       method: "PATCH",
       body: { status: "SCHEDULED", error_message: null },
     });
-    showToast("กลับเป็น รอส่ง แล้ว ↩️", "success");
+    showToast(`กลับเป็น รอส่ง ${ids.length} โพสต์ ↩️`, "success");
     allPosts = await fetchPosts(currentEventId);
     updateStats();
     renderTable();
@@ -1851,11 +2004,17 @@ window.reactivateLpPost = async function (id) {
 
 // ── Delete — ลบทิ้งถาวร ─
 window.deleteLpPost = function (id) {
-  DeleteModal.open("ต้องการลบโพสต์นี้ทิ้งถาวรหรือไม่? (ไม่สามารถกู้คืนได้)", async () => {
+  const src = allPosts.find((x) => x.id === id);
+  if (!src) return;
+  const ids = _findSiblings(src).map((s) => s.id);
+  const label = ids.length > 1
+    ? `ต้องการลบ ${ids.length} โพสต์ในชุดนี้ทิ้งถาวรหรือไม่? (ไม่สามารถกู้คืนได้)`
+    : "ต้องการลบโพสต์นี้ทิ้งถาวรหรือไม่? (ไม่สามารถกู้คืนได้)";
+  DeleteModal.open(label, async () => {
     showLoading(true);
     try {
-      await sbFetch("line_scheduled_posts", `?id=eq.${id}`, { method: "DELETE" });
-      showToast("ลบแล้ว 🗑", "success");
+      await sbFetch("line_scheduled_posts", `?id=in.(${ids.join(",")})`, { method: "DELETE" });
+      showToast(`ลบ ${ids.length} โพสต์แล้ว 🗑`, "success");
       allPosts = await fetchPosts(currentEventId);
       updateStats();
       renderTable();
@@ -1872,37 +2031,55 @@ window.sendLpPostNow = async function (id) {
   if (!proxyBase) return showToast("ยังไม่ได้ตั้ง erp_proxy_url", "error");
 
   const post = allPosts.find((x) => x.id === id);
-  const grp = post && allGroups.find((g) => g.group_id === post.target_id);
-  const preview = (post?.message_text || "").slice(0, 120);
+  if (!post) return;
+  // ส่งเฉพาะ siblings ที่ยังเป็น SCHEDULED ในชุดเดียวกัน
+  const sendIds = _findSiblings(post).filter((s) => s.status === "SCHEDULED").map((s) => s.id);
+  if (!sendIds.length) return showToast("ไม่มีโพสต์ที่อยู่ในสถานะ รอส่ง", "info");
+
+  const groupNames = _findSiblings(post)
+    .filter((s) => s.status === "SCHEDULED")
+    .map((s) => allGroups.find((g) => g.group_id === s.target_id)?.group_name || "—")
+    .join(", ");
+  const preview = (post.message_text || "").slice(0, 120);
   const ok = await ConfirmModal.open({
-    title: "ส่งโพสต์นี้เข้า LINE ทันที?",
-    message: `ส่งเข้ากลุ่ม "${grp?.group_name || "—"}" — ระบบจะ trigger cron ทันที`,
+    title: sendIds.length > 1
+      ? `ส่งโพสต์ทั้ง ${sendIds.length} กลุ่มเข้า LINE ทันที?`
+      : "ส่งโพสต์นี้เข้า LINE ทันที?",
+    message: `ส่งเข้ากลุ่ม "${groupNames}" — ระบบจะ trigger cron ทันที`,
     icon: "📤",
     okText: "ส่งเลย",
     cancelText: "ยกเลิก",
     tone: "primary",
-    note: post ? `<b>ข้อความที่จะส่ง:</b><br/><div style="white-space:pre-wrap;font-size:12px;color:#475569;margin-top:4px">${escapeHtml(preview)}${post.message_text?.length > 120 ? "…" : ""}</div>` : undefined,
+    note: `<b>ข้อความที่จะส่ง:</b><br/><div style="white-space:pre-wrap;font-size:12px;color:#475569;margin-top:4px">${escapeHtml(preview)}${post.message_text?.length > 120 ? "…" : ""}</div>`,
   });
   if (!ok) return;
 
   showLoading(true);
+  let sent = 0, failed = 0;
   try {
-    // ส่งเฉพาะ post นี้ — ไม่กระทบ post อื่นๆ
-    const r = await fetch(`${proxyBase}/line/send-scheduled-post`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id }),
-    });
-    const ct = r.headers.get("content-type") || "";
-    if (!ct.includes("application/json")) {
-      showToast(`Endpoint ยังไม่พร้อม (${r.status}) — Render ยัง deploy ไม่เสร็จ?`, "error");
-      return;
+    for (const sid of sendIds) {
+      try {
+        const r = await fetch(`${proxyBase}/line/send-scheduled-post`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: sid }),
+        });
+        const ct = r.headers.get("content-type") || "";
+        if (!ct.includes("application/json")) {
+          failed++;
+          continue;
+        }
+        const data = await r.json();
+        if (data.status === "SENT") sent++;
+        else failed++;
+      } catch { failed++; }
     }
-    const data = await r.json();
-    if (data.status === "SENT") showToast("ส่งแล้ว ✅", "success");
-    else if (data.status === "FAILED") showToast(`ส่งล้มเหลว: ${data.error || "?"}`, "error");
-    else showToast(data.error || "ไม่สำเร็จ", "error");
-
+    if (sendIds.length === 1) {
+      if (sent) showToast("ส่งแล้ว ✅", "success");
+      else showToast("ส่งล้มเหลว ❌", "error");
+    } else {
+      showToast(`ส่ง ${sent} ✅ · ล้มเหลว ${failed} ❌`, failed > 0 ? "error" : "success");
+    }
     allPosts = await fetchPosts(currentEventId);
     updateStats();
     renderTable();
@@ -1914,13 +2091,17 @@ window.sendLpPostNow = async function (id) {
 
 // ── Retry (reset FAILED → SCHEDULED) ──────────────────────
 window.retryLpPost = async function (id) {
+  const src = allPosts.find((x) => x.id === id);
+  if (!src) return;
+  const ids = _findSiblings(src).filter((s) => s.status === "FAILED").map((s) => s.id);
+  if (!ids.length) return showToast("ไม่มีโพสต์ที่ FAILED ในชุดนี้", "info");
   showLoading(true);
   try {
-    await sbFetch("line_scheduled_posts", `?id=eq.${id}`, {
+    await sbFetch("line_scheduled_posts", `?id=in.(${ids.join(",")})`, {
       method: "PATCH",
       body: { status: "SCHEDULED", error_message: null },
     });
-    showToast("ส่งกลับเข้า queue แล้ว", "success");
+    showToast(`ส่งกลับเข้า queue ${ids.length} โพสต์`, "success");
     allPosts = await fetchPosts(currentEventId);
     updateStats();
     renderTable();
@@ -1928,6 +2109,283 @@ window.retryLpPost = async function (id) {
     showToast("ลองใหม่ไม่สำเร็จ: " + e.message, "error");
   }
   showLoading(false);
+};
+
+// ── CALENDAR (no-event state) ─────────────────────────────
+let _lpCalCursor = null;       // Date — first day of visible month
+let _lpCalPosts = [];          // posts for visible month
+let _lpCalEventsMap = {};      // event_id → event row
+const TH_MONTHS = [
+  "มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน",
+  "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม",
+];
+
+async function initLpCalendar() {
+  if (!_lpCalCursor) {
+    const now = new Date();
+    _lpCalCursor = new Date(now.getFullYear(), now.getMonth(), 1);
+  }
+  await loadLpCalendarData();
+  renderLpCalendar();
+}
+
+function _monthRangeISO(cursor) {
+  // คืน [start, endExclusive] ของเดือนใน Bangkok TZ — ใช้สำหรับ filter scheduled_at
+  const y = cursor.getFullYear();
+  const m = cursor.getMonth();
+  const first = new Date(y, m, 1);
+  const next = new Date(y, m + 1, 1);
+  const startStr = `${toBkkDateStr(first)}T00:00:00+07:00`;
+  const endStr = `${toBkkDateStr(next)}T00:00:00+07:00`;
+  return [startStr, endStr];
+}
+
+async function loadLpCalendarData() {
+  showLoading(true);
+  try {
+    const [startISO, endISO] = _monthRangeISO(_lpCalCursor);
+    // posts ทั้งหมดในเดือนที่กำลังดู — ครอบทุก event
+    const posts = await sbFetch(
+      "line_scheduled_posts",
+      `?select=id,event_id,target_id,channel_id,promote_offset,message_text,scheduled_at,status&scheduled_at=gte.${encodeURIComponent(startISO)}&scheduled_at=lt.${encodeURIComponent(endISO)}&order=scheduled_at.asc&limit=2000`,
+    ).catch(() => []);
+    _lpCalPosts = Array.isArray(posts) ? posts : [];
+
+    // โหลด event metadata เฉพาะ id ที่ปรากฏใน posts
+    const eventIds = [...new Set(_lpCalPosts.map((p) => p.event_id).filter(Boolean))];
+    if (eventIds.length) {
+      const evs = await sbFetch(
+        "events",
+        `?select=event_id,event_name,event_code,event_date,location,poster_url&event_id=in.(${eventIds.join(",")})&limit=1000`,
+      ).catch(() => []);
+      _lpCalEventsMap = {};
+      (evs || []).forEach((e) => { _lpCalEventsMap[e.event_id] = e; });
+    } else {
+      _lpCalEventsMap = {};
+    }
+
+    // ensure groups ถูกโหลด (สำหรับ tooltip ในปฏิทิน)
+    if (!allGroups.length) {
+      allGroups = await fetchLineGroups().catch(() => []);
+    }
+  } finally {
+    showLoading(false);
+  }
+}
+
+function _bkkDateOf(iso) {
+  // คืน "YYYY-MM-DD" (Bangkok) ของ scheduled_at
+  return toBkkDateStr(new Date(iso));
+}
+
+function renderLpCalendar() {
+  const grid = document.getElementById("lpCalGrid");
+  const label = document.getElementById("lpCalMonthLabel");
+  if (!grid || !_lpCalCursor) return;
+
+  const y = _lpCalCursor.getFullYear();
+  const m = _lpCalCursor.getMonth();
+  if (label) label.textContent = `${TH_MONTHS[m]} ${y + 543}`;
+
+  // Group posts by Bangkok date
+  const byDate = {};
+  _lpCalPosts.forEach((p) => {
+    const d = _bkkDateOf(p.scheduled_at);
+    if (!byDate[d]) byDate[d] = [];
+    byDate[d].push(p);
+  });
+
+  // Build 6×7 grid starting from Sunday before/at the 1st of month
+  const first = new Date(y, m, 1);
+  const startWeekday = first.getDay(); // 0=Sun
+  const gridStart = new Date(y, m, 1 - startWeekday);
+  const todayStr = toBkkDateStr(new Date());
+
+  let html = "";
+  for (let i = 0; i < 42; i++) {
+    const cellDate = new Date(gridStart);
+    cellDate.setDate(gridStart.getDate() + i);
+    const dStr = toBkkDateStr(cellDate);
+    const inMonth = cellDate.getMonth() === m;
+    const isToday = dStr === todayStr;
+    const wd = cellDate.getDay();
+    const isWeekend = wd === 0 || wd === 6;
+
+    const dayPosts = byDate[dStr] || [];
+    // Group by event for compact display
+    const byEvent = {};
+    dayPosts.forEach((p) => {
+      const eid = p.event_id || "_";
+      if (!byEvent[eid]) byEvent[eid] = { posts: [], statuses: {} };
+      byEvent[eid].posts.push(p);
+      byEvent[eid].statuses[p.status] = (byEvent[eid].statuses[p.status] || 0) + 1;
+    });
+
+    const eventEntries = Object.entries(byEvent).slice(0, 3); // โชว์ ≤ 3 event ต่อ cell
+    const moreCount = Object.keys(byEvent).length - eventEntries.length;
+
+    const cls = [
+      "lp-cal-cell",
+      inMonth ? "" : "is-other-month",
+      isToday ? "is-today" : "",
+      isWeekend ? "is-weekend" : "",
+      dayPosts.length ? "has-posts" : "",
+    ].filter(Boolean).join(" ");
+
+    const dayNum = cellDate.getDate();
+    const totalBadge = dayPosts.length
+      ? `<span class="lp-cal-cell-badge" title="${dayPosts.length} โพสต์">${dayPosts.length}</span>`
+      : "";
+
+    const itemsHtml = eventEntries.map(([eid, info]) => {
+      const ev = _lpCalEventsMap[eid];
+      const name = ev ? ev.event_name : "(ไม่ทราบ event)";
+      // dominant status — เลือก status ที่นับมากที่สุด
+      const dominant = Object.entries(info.statuses).sort((a, b) => b[1] - a[1])[0]?.[0] || "SCHEDULED";
+      return `<div class="lp-cal-cell-item lpstat-${dominant}" title="${escapeHtml(name)} · ${info.posts.length} โพสต์">
+        <span class="lp-cal-cell-item-dot"></span>
+        <span class="lp-cal-cell-item-text">${escapeHtml(name)}</span>
+      </div>`;
+    }).join("");
+    const moreHtml = moreCount > 0
+      ? `<div class="lp-cal-cell-more">+${moreCount} อื่นๆ</div>`
+      : "";
+
+    const onclick = dayPosts.length
+      ? `onclick="window.openLpDayDetail('${dStr}')"`
+      : "";
+
+    html += `<div class="${cls}" ${onclick}>
+      <div class="lp-cal-cell-hdr">
+        <span class="lp-cal-cell-day">${dayNum}</span>
+        ${totalBadge}
+      </div>
+      <div class="lp-cal-cell-body">${itemsHtml}${moreHtml}</div>
+    </div>`;
+  }
+
+  grid.innerHTML = html;
+}
+
+window.lpCalChangeMonth = async function (delta) {
+  if (!_lpCalCursor) _lpCalCursor = new Date();
+  _lpCalCursor = new Date(_lpCalCursor.getFullYear(), _lpCalCursor.getMonth() + delta, 1);
+  await loadLpCalendarData();
+  renderLpCalendar();
+};
+
+window.lpCalGoToday = async function () {
+  const now = new Date();
+  _lpCalCursor = new Date(now.getFullYear(), now.getMonth(), 1);
+  await loadLpCalendarData();
+  renderLpCalendar();
+};
+
+window.openLpDayDetail = function (dateStr) {
+  const overlay = document.getElementById("lpDayDetailOverlay");
+  const titleEl = document.getElementById("lpDayDetailTitle");
+  const body = document.getElementById("lpDayDetailBody");
+  if (!overlay || !body) return;
+
+  const posts = _lpCalPosts.filter((p) => _bkkDateOf(p.scheduled_at) === dateStr);
+  posts.sort((a, b) => (a.scheduled_at || "").localeCompare(b.scheduled_at || ""));
+
+  if (titleEl) titleEl.textContent = `📅 โพสต์วันที่ ${formatDMY(dateStr)} · ${posts.length} โพสต์`;
+
+  if (!posts.length) {
+    body.innerHTML = `<div class="empty-state" style="padding:30px"><div class="empty-icon">📭</div><div class="empty-text">ไม่มีโพสต์ในวันนี้</div></div>`;
+    overlay.classList.add("open");
+    return;
+  }
+
+  // Group by event → template (offset+time+message) → list of groups
+  const byEvent = {};
+  posts.forEach((p) => {
+    const eid = p.event_id || "_";
+    if (!byEvent[eid]) byEvent[eid] = [];
+    byEvent[eid].push(p);
+  });
+
+  const sections = Object.entries(byEvent).map(([eid, evPosts]) => {
+    const ev = _lpCalEventsMap[eid];
+    const evName = ev ? ev.event_name : "(ไม่ทราบ event)";
+    const evCode = ev?.event_code ? ` <span style="color:#64748b;font-size:11px">(${escapeHtml(ev.event_code)})</span>` : "";
+
+    // group by template key
+    const tplMap = new Map();
+    evPosts.forEach((p) => {
+      const key = [p.promote_offset == null ? "manual" : p.promote_offset, p.scheduled_at, p.message_text || ""].join("|");
+      if (!tplMap.has(key)) tplMap.set(key, []);
+      tplMap.get(key).push(p);
+    });
+
+    const tplHtml = [...tplMap.values()].map((siblings) => {
+      const p = siblings[0];
+      const time = (p.scheduled_at || "").slice(11, 16);
+      const offsetBadge = ddayBadge(p.promote_offset);
+      const groupChips = siblings.map((s) => {
+        const grp = allGroups.find((g) => g.group_id === s.target_id);
+        const name = grp?.group_name || s.target_id?.slice(0, 10) + "…" || "—";
+        return `<span class="lp-grp-chip lp-grp-chip-${s.status}" title="${escapeHtml(name + " · " + statusLabel(s.status))}">
+          <span class="lp-grp-chip-dot"></span>${escapeHtml(name)}
+        </span>`;
+      }).join("");
+      const preview = (p.message_text || "").slice(0, 200);
+      const ellipsis = (p.message_text || "").length > 200 ? "…" : "";
+
+      // aggregate status
+      const statuses = {};
+      siblings.forEach((s) => { statuses[s.status] = (statuses[s.status] || 0) + 1; });
+      const skeys = Object.keys(statuses);
+      const statBadge = skeys.length === 1
+        ? `<span class="lp-status-badge lpstat-${skeys[0]}">${statusLabel(skeys[0])}</span>`
+        : `<span class="lp-status-badge lpstat-MIXED">${Object.entries(statuses).map(([s, n]) => `${({DRAFT:"📝",SCHEDULED:"📅",SENT:"✅",FAILED:"❌",CANCELLED:"🚫"})[s]||""}${n}`).join(" · ")}</span>`;
+
+      return `<div class="lp-day-tpl">
+        <div class="lp-day-tpl-hdr">
+          <span class="lp-day-tpl-time">🕐 ${time}</span>
+          ${offsetBadge}
+          ${statBadge}
+        </div>
+        <div class="lp-day-tpl-msg">${escapeHtml(preview)}${ellipsis}</div>
+        <div class="lp-day-tpl-groups">${groupChips}</div>
+      </div>`;
+    }).join("");
+
+    const goLink = eid !== "_"
+      ? `<a class="btn btn-secondary lp-day-evt-link" href="./line-promote.html?event_id=${encodeURIComponent(eid)}">→ ดูในหน้า event</a>`
+      : "";
+
+    const posterUrl = ev?.poster_url || "";
+    const posterCol = posterUrl
+      ? `<div class="lp-day-evt-poster">
+           <img src="${escapeHtml(posterUrl)}" alt="${escapeHtml(evName)}" loading="lazy"
+             onclick="window.open('${escapeHtml(posterUrl)}','_blank')"
+             onerror="this.parentElement.classList.add('is-error');this.style.display='none'" />
+         </div>`
+      : `<div class="lp-day-evt-poster is-empty"><span>🖼️</span><small>ไม่มีโปสเตอร์</small></div>`;
+
+    return `<div class="lp-day-evt-section">
+      <div class="lp-day-evt-hdr">
+        <div class="lp-day-evt-name">📢 ${escapeHtml(evName)}${evCode}</div>
+        ${goLink}
+      </div>
+      <div class="lp-day-evt-body">
+        ${posterCol}
+        <div class="lp-day-evt-content">
+          ${tplHtml}
+        </div>
+      </div>
+    </div>`;
+  }).join("");
+
+  body.innerHTML = sections;
+  overlay.classList.add("open");
+};
+
+window.closeLpDayDetail = function () {
+  const ov = document.getElementById("lpDayDetailOverlay");
+  if (ov) ov.classList.remove("open");
 };
 
 // ── HELPERS ───────────────────────────────────────────────

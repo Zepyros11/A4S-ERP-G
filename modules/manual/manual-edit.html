@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>แก้ไขคู่มือ — A4S-ERP</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&family=Playfair+Display:wght@600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../../css/main.css" />
+    <link rel="stylesheet" href="./manual.css" />
+  </head>
+  <body>
+    <div class="loading-overlay" id="loadingOverlay"><div class="spinner"></div></div>
+    <div class="toast" id="toast"></div>
+
+    <div class="topbar"></div>
+
+    <div class="layout">
+      <div id="sidebar-container"></div>
+
+      <div class="content-area manual-bg">
+        <div class="manual-page">
+
+          <!-- Top bar -->
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap">
+            <a href="manual-list.html" class="btn btn-outline">← สารบัญ</a>
+            <div style="flex:1">
+              <div style="font-size:12px;color:#6366f1;font-weight:700;letter-spacing:1px;text-transform:uppercase">
+                <span id="modeLabel">หน้าใหม่</span>
+              </div>
+              <div style="font-size:18px;font-weight:700" id="pageTitleHeader">—</div>
+            </div>
+            <a id="btnPreview" class="btn btn-outline" target="_blank">👁 พรีวิว</a>
+          </div>
+
+          <!-- Layout -->
+          <div class="man-edit-layout">
+            <!-- MAIN -->
+            <div class="man-edit-main">
+              <div class="man-field">
+                <label>ชื่อหน้า *</label>
+                <input id="pgTitle" type="text" placeholder="เช่น การเข้าสู่ระบบ" />
+              </div>
+              <div class="man-field">
+                <label>สรุปสั้น (1–2 บรรทัด — แสดงในสารบัญ)</label>
+                <textarea id="pgSummary" rows="2" placeholder="อธิบายเนื้อหาคร่าวๆ"></textarea>
+              </div>
+
+              <!-- BLOCKS -->
+              <div class="man-blocks" id="blocksList"></div>
+
+              <!-- Add block toolbar -->
+              <div class="man-add-block">
+                <div class="man-add-block-title">＋ เพิ่ม Block</div>
+                <div class="man-add-block-grid">
+                  <button class="man-add-block-btn" onclick="window.addBlock('heading')"><span class="ic">🏷</span>หัวข้อ</button>
+                  <button class="man-add-block-btn" onclick="window.addBlock('paragraph')"><span class="ic">📝</span>ข้อความ</button>
+                  <button class="man-add-block-btn" onclick="window.addBlock('image')"><span class="ic">🖼️</span>รูป</button>
+                  <button class="man-add-block-btn" onclick="window.addBlock('steps')"><span class="ic">📋</span>ขั้นตอน</button>
+                  <button class="man-add-block-btn" onclick="window.addBlock('callout')"><span class="ic">💡</span>Callout</button>
+                  <button class="man-add-block-btn" onclick="window.addBlock('video')"><span class="ic">🎬</span>วิดีโอ</button>
+                  <button class="man-add-block-btn" onclick="window.addBlock('table')"><span class="ic">📊</span>ตาราง</button>
+                  <button class="man-add-block-btn" onclick="window.addBlock('code')"><span class="ic">💻</span>โค้ด</button>
+                  <button class="man-add-block-btn" onclick="window.addBlock('divider')"><span class="ic">➖</span>เส้นคั่น</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- SIDE -->
+            <aside class="man-edit-side">
+              <div class="man-field">
+                <label>บท *</label>
+                <select id="pgChapter"></select>
+              </div>
+              <div class="man-field">
+                <label>Slug (URL-friendly)</label>
+                <input id="pgSlug" type="text" placeholder="login" />
+              </div>
+              <div class="man-field-row">
+                <div class="man-field">
+                  <label>ลำดับ</label>
+                  <input id="pgOrder" type="number" min="0" value="0" />
+                </div>
+                <div class="man-field">
+                  <label>เวลาอ่าน (น.)</label>
+                  <input id="pgMinutes" type="number" min="1" value="3" />
+                </div>
+              </div>
+              <div class="man-field">
+                <label style="display:flex;align-items:center;gap:8px;text-transform:none;font-size:13px;font-weight:600">
+                  <input id="pgPublished" type="checkbox" style="width:auto"> เผยแพร่ให้ผู้อื่นเห็น
+                </label>
+              </div>
+              <div style="font-size:11.5px;color:#94a3b8;line-height:1.7;border-top:1px dashed #e2e8f0;padding-top:10px;margin-top:10px">
+                💡 รองรับ <code>**ตัวหนา**</code> · <code>*ตัวเอียง*</code> · <code>`code`</code>
+                ในข้อความ ขั้นตอน และ callout
+              </div>
+            </aside>
+          </div>
+
+          <!-- Save bar -->
+          <div class="man-savebar">
+            <div class="man-savebar-status saved" id="saveStatus">บันทึกล่าสุดเมื่อโหลดหน้า</div>
+            <div class="man-savebar-actions">
+              <button class="btn btn-danger btn-outline" id="btnDelete" data-perm="manual_delete" style="display:none" onclick="window.deletePage()">🗑 ลบหน้านี้</button>
+              <button class="btn btn-primary" data-perm="manual_edit" onclick="window.savePage()">💾 บันทึก</button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <script src="../../js/core/permissions.js"></script>
+    <script src="../../js/core/auth.js"></script>
+    <script src="../../js/core/authz.js"></script>
+    <script>AuthZ.requirePerm("manual_edit");</script>
+    <script type="module" src="./manual-edit.js"></script>
+    <script type="module">
+      import { loadTopbar } from "../../js/components/navigation/topbar.js";
+      loadTopbar("✏️ แก้ไขคู่มือ");
+    </script>
+    <script src="../../js/components/navigation/sidebar.js"></script>
+    <script src="../../js/components/modal/modalManager.js"></script>
+    <script src="../../js/components/modal/confirmModal.js"></script>
+  </body>
+</html>

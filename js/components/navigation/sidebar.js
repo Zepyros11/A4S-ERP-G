@@ -309,6 +309,20 @@
         },
       ],
     },
+    //  **************** MANUAL *****************
+    {
+      group: "คู่มือ",
+      icon: "📖",
+      id: "g-manual",
+      items: [
+        {
+          id: "manual",
+          icon: "📖",
+          label: "คู่มือการใช้งาน",
+          path: BASE_PATH + "/modules/manual/manual-list.html",
+        },
+      ],
+    },
     //  **************** REPORT *****************
     {
       group: "รายงาน",
@@ -469,6 +483,7 @@
     "ibd-complaints": "ibd_complaints_view",
     "ibd-ewallet": "ibd_ewallet_view",
     "ibd-relocation": "ibd_relocation_view",
+    manual: "manual_view",
     automation: "devtool_view",
     wizard: "devtool_manage",
     "devtool-settings": "devtool_manage",
@@ -558,6 +573,8 @@
     "ibd-complaints",
     "ibd-ewallet",
     "ibd-relocation",
+    //**** MANUAL ****
+    "manual",
     //**** DEV TOOL ****
     "automation",
     "wizard",

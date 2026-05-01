@@ -126,16 +126,60 @@
             </div>
           </div>
 
-          <!-- No Event State -->
+          <!-- No Event State — แสดง Calendar รวมทุก event -->
           <div id="noEventState">
-            <div class="empty-state" style="min-height: 300px">
-              <div class="empty-icon">📅</div>
-              <div class="empty-text" style="margin-bottom:14px">ยังไม่ได้เลือก event</div>
-              <a href="./events-list.html" class="btn btn-primary" style="text-decoration:none">
-                → ไปหน้ารายการกิจกรรม
-              </a>
-              <div style="font-size:12px;color:var(--text3);margin-top:10px">
-                คลิกปุ่ม 📢 ของ event ที่ต้องการเพื่อเปิดหน้านี้
+            <div class="lp-cal-card">
+              <div class="lp-cal-header">
+                <div class="lp-cal-nav">
+                  <button class="lp-cal-nav-btn" onclick="window.lpCalChangeMonth(-1)" title="เดือนก่อน">‹</button>
+                  <div class="lp-cal-month-label" id="lpCalMonthLabel">—</div>
+                  <button class="lp-cal-nav-btn" onclick="window.lpCalChangeMonth(1)" title="เดือนถัดไป">›</button>
+                  <button class="lp-cal-today-btn" onclick="window.lpCalGoToday()">วันนี้</button>
+                </div>
+                <div class="lp-cal-legend">
+                  <span class="lp-cal-legend-item"><span class="lp-cal-legend-dot lpstat-SCHEDULED"></span>รอส่ง</span>
+                  <span class="lp-cal-legend-item"><span class="lp-cal-legend-dot lpstat-SENT"></span>ส่งแล้ว</span>
+                  <span class="lp-cal-legend-item"><span class="lp-cal-legend-dot lpstat-FAILED"></span>ล้มเหลว</span>
+                  <span class="lp-cal-legend-item"><span class="lp-cal-legend-dot lpstat-CANCELLED"></span>ยกเลิก</span>
+                </div>
+              </div>
+              <div class="lp-cal-grid-wrap">
+                <div class="lp-cal-day-headers">
+                  <div class="lp-cal-day-hdr weekend">อา</div>
+                  <div class="lp-cal-day-hdr">จ</div>
+                  <div class="lp-cal-day-hdr">อ</div>
+                  <div class="lp-cal-day-hdr">พ</div>
+                  <div class="lp-cal-day-hdr">พฤ</div>
+                  <div class="lp-cal-day-hdr">ศ</div>
+                  <div class="lp-cal-day-hdr weekend">ส</div>
+                </div>
+                <div class="lp-cal-grid" id="lpCalGrid">
+                  <div class="lp-cal-empty">⏳ กำลังโหลด...</div>
+                </div>
+              </div>
+              <div class="lp-cal-footer">
+                <a href="./events-list.html" class="btn btn-secondary" style="text-decoration:none">
+                  → ไปหน้ารายการกิจกรรม
+                </a>
+                <span style="font-size:11px;color:var(--text3)">
+                  คลิกวันที่ในปฏิทินเพื่อดูรายละเอียดโพสต์
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Day Detail Modal — รายการโพสต์ในวันที่เลือก -->
+          <div class="med-modal-overlay" id="lpDayDetailOverlay">
+            <div class="med-modal med-modal-fb lp-modal-line">
+              <div class="med-modal-header">
+                <div style="font-weight:700;font-size:15px" id="lpDayDetailTitle">📅 รายการโพสต์</div>
+                <button class="btn-icon" onclick="window.closeLpDayDetail()">✕</button>
+              </div>
+              <div class="med-modal-body" id="lpDayDetailBody">
+                <!-- rendered by JS -->
+              </div>
+              <div class="med-modal-footer">
+                <button class="btn btn-secondary" onclick="window.closeLpDayDetail()">ปิด</button>
               </div>
             </div>
           </div>

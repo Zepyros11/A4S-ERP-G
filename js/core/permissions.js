@@ -270,7 +270,20 @@ window.AppPermissions = (() => {
       ],
     },
 
-    /* ── 10. ตั้งค่า ── */
+    /* ── 10. คู่มือ (Manual) ── */
+    {
+      key: "manual", label: "คู่มือการใช้งาน", icon: "📖",
+      children: [
+        { key: "manual", label: "คู่มือการใช้งาน", icon: "📖", perms: [
+          { key: "manual_view",    label: "อ่านคู่มือ" },
+          { key: "manual_edit",    label: "เขียน/แก้ไข" },
+          { key: "manual_publish", label: "เผยแพร่" },
+          { key: "manual_delete",  label: "ลบ" },
+        ]},
+      ],
+    },
+
+    /* ── 11. ตั้งค่า ── */
     {
       key: "settings", label: "ตั้งค่า", icon: "⚙️",
       children: [
@@ -296,7 +309,7 @@ window.AppPermissions = (() => {
       ],
     },
 
-    /* ── 11. Dev Tool ── */
+    /* ── 12. Dev Tool ── */
     {
       key: "devtool", label: "Dev Tool", icon: "🛠️",
       children: [
@@ -323,6 +336,7 @@ window.AppPermissions = (() => {
       label: "Manager", icon: "🏢", color: "role-MANAGER",
       perms: [
         "dashboard_view",
+        "manual_view",
         "poster_view","poster_create","poster_edit",
         "events_view","events_create","events_edit",
         "evt_calendar_view",
@@ -351,6 +365,7 @@ window.AppPermissions = (() => {
       label: "Warehouse", icon: "🏭", color: "role-WAREHOUSE",
       perms: [
         "dashboard_view",
+        "manual_view",
         "inv_cat_view","inv_cat_create","inv_cat_edit","inv_cat_delete",
         "warehouse_view","warehouse_create","warehouse_edit","warehouse_delete",
         "product_view","product_create","product_edit","product_delete",
@@ -365,6 +380,7 @@ window.AppPermissions = (() => {
       label: "Sales", icon: "💰", color: "role-SALES",
       perms: [
         "dashboard_view",
+        "manual_view",
         "poster_view","events_view","evt_calendar_view",
         "product_view",
         "so_view","so_create","so_edit",
@@ -377,6 +393,7 @@ window.AppPermissions = (() => {
       label: "Viewer", icon: "👁️", color: "role-VIEWER",
       perms: [
         "dashboard_view",
+        "manual_view",
         "poster_view","events_view","evt_calendar_view",
         "product_view",
         "po_view","so_view",
@@ -387,6 +404,7 @@ window.AppPermissions = (() => {
       label: "IBD Staff", icon: "🌍", color: "role-IBD_STAFF",
       perms: [
         "dashboard_view",
+        "manual_view",
         "ibd_dashboard_view",
         "ibd_complaints_view","ibd_complaints_assign","ibd_complaints_resolve","ibd_complaints_export",
         "ibd_ewallet_view","ibd_ewallet_approve","ibd_ewallet_mark_paid","ibd_ewallet_reject","ibd_ewallet_export",

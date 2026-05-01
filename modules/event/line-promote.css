@@ -445,6 +445,58 @@
 .lpstat-SENT      { background: #d1fae5; color: #059669; }
 .lpstat-FAILED    { background: #fee2e2; color: #dc2626; }
 .lpstat-CANCELLED { background: #fef3c7; color: #92400e; }
+.lpstat-MIXED     { background: #ede9fe; color: #6d28d9; gap: 6px; }
+
+/* ── GROUP CHIPS in table "กลุ่ม LINE" cell ── */
+.lp-grp-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  justify-content: center;
+}
+.lp-grp-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
+  background: #f0fdf4;
+  color: #166534;
+  border: 1px solid #bbf7d0;
+  white-space: nowrap;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.lp-grp-chip-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.55;
+  flex-shrink: 0;
+}
+.lp-grp-chip-SCHEDULED { background: #dbeafe; color: #1d4ed8; border-color: #bfdbfe; }
+.lp-grp-chip-SENT      { background: #d1fae5; color: #059669; border-color: #a7f3d0; }
+.lp-grp-chip-FAILED    { background: #fee2e2; color: #dc2626; border-color: #fecaca; }
+.lp-grp-chip-CANCELLED { background: #fef3c7; color: #92400e; border-color: #fde68a; }
+.lp-grp-chip-DRAFT     { background: #f3f4f6; color: #6b7280; border-color: #e5e7eb; }
+
+/* badge แสดงจำนวนกลุ่มข้าง D-day เมื่อ row นี้รวม > 1 กลุ่ม */
+.lp-grp-count-badge {
+  display: inline-block;
+  margin-left: 4px;
+  background: #06c755;
+  color: #fff;
+  padding: 1px 6px;
+  border-radius: 8px;
+  font-size: 10px;
+  font-weight: 700;
+  vertical-align: middle;
+}
 
 /* ── COLLAPSIBLE HINT (modal-level) ── */
 .lp-collapsible-hint {
@@ -756,4 +808,411 @@
 
 .btn-icon-dim {
   opacity: 0.4;
+}
+
+/* ============================================================
+   CALENDAR (no-event state — รวมทุก event)
+============================================================ */
+.lp-cal-card {
+  background: #fff;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 14px;
+  padding: 16px 18px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+.lp-cal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.lp-cal-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.lp-cal-nav-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid var(--border, #e2e8f0);
+  background: #fff;
+  color: var(--text, #0f172a);
+  font-size: 18px;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+  font-family: inherit;
+}
+.lp-cal-nav-btn:hover {
+  background: #06c755;
+  color: #fff;
+  border-color: #06c755;
+}
+.lp-cal-month-label {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text, #0f172a);
+  min-width: 170px;
+  text-align: center;
+}
+.lp-cal-today-btn {
+  margin-left: 6px;
+  padding: 6px 14px;
+  border-radius: 18px;
+  border: 1px solid #06c755;
+  background: #f0fdf4;
+  color: #166534;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s;
+}
+.lp-cal-today-btn:hover {
+  background: #06c755;
+  color: #fff;
+}
+.lp-cal-legend {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-size: 11px;
+  color: var(--text3, #64748b);
+}
+.lp-cal-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.lp-cal-legend-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+.lp-cal-legend-dot.lpstat-SCHEDULED { background: #1d4ed8; }
+.lp-cal-legend-dot.lpstat-SENT      { background: #059669; }
+.lp-cal-legend-dot.lpstat-FAILED    { background: #dc2626; }
+.lp-cal-legend-dot.lpstat-CANCELLED { background: #92400e; }
+
+.lp-cal-grid-wrap {
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.lp-cal-day-headers {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  background: #f8fafc;
+  border-bottom: 1px solid var(--border, #e2e8f0);
+}
+.lp-cal-day-hdr {
+  padding: 8px 6px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: #475569;
+  border-right: 1px solid var(--border, #e2e8f0);
+}
+.lp-cal-day-hdr:last-child {
+  border-right: none;
+}
+.lp-cal-day-hdr.weekend {
+  color: #dc2626;
+  background: #fef2f2;
+}
+
+.lp-cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+}
+.lp-cal-empty {
+  grid-column: 1 / -1;
+  padding: 40px;
+  text-align: center;
+  color: var(--text3, #64748b);
+  font-size: 13px;
+}
+
+.lp-cal-cell {
+  min-height: 92px;
+  padding: 6px 7px;
+  border-right: 1px solid var(--border, #e2e8f0);
+  border-bottom: 1px solid var(--border, #e2e8f0);
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  position: relative;
+  overflow: hidden;
+}
+.lp-cal-cell:nth-child(7n) {
+  border-right: none;
+}
+.lp-cal-cell.is-other-month {
+  background: #fafafa;
+  color: #cbd5e1;
+}
+.lp-cal-cell.is-weekend:not(.is-other-month) {
+  background: #fef7f7;
+}
+.lp-cal-cell.is-weekend.is-other-month {
+  background: #fcf3f3;
+}
+.lp-cal-cell.is-weekend .lp-cal-cell-day {
+  color: #dc2626;
+}
+.lp-cal-cell.is-today {
+  background: #fefce8;
+}
+.lp-cal-cell.is-today.is-weekend:not(.is-other-month) {
+  background: #fef9c3;
+}
+.lp-cal-cell.has-posts {
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.lp-cal-cell.has-posts:hover {
+  background: #f0fdf4;
+}
+.lp-cal-cell.has-posts.is-weekend:hover {
+  background: #fdf2f8;
+}
+.lp-cal-cell-hdr {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 2px;
+}
+.lp-cal-cell-day {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text, #0f172a);
+}
+.lp-cal-cell.is-other-month .lp-cal-cell-day {
+  color: #cbd5e1;
+}
+.lp-cal-cell.is-today .lp-cal-cell-day {
+  background: #1e40af;
+  color: #fff;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  box-shadow: 0 1px 3px rgba(30, 64, 175, 0.4);
+}
+.lp-cal-cell-badge {
+  background: #06c755;
+  color: #fff;
+  padding: 1px 7px 1px 5px;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  line-height: 1;
+}
+.lp-cal-cell-badge::before {
+  content: "📨";
+  font-size: 9px;
+}
+.lp-cal-cell-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-height: 0;
+}
+.lp-cal-cell-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 5px;
+  border-radius: 4px;
+  font-size: 10.5px;
+  font-weight: 600;
+  background: #dbeafe;
+  color: #1d4ed8;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.lp-cal-cell-item.lpstat-SENT      { background: #d1fae5; color: #059669; }
+.lp-cal-cell-item.lpstat-FAILED    { background: #fee2e2; color: #dc2626; }
+.lp-cal-cell-item.lpstat-CANCELLED { background: #fef3c7; color: #92400e; }
+.lp-cal-cell-item.lpstat-DRAFT     { background: #f3f4f6; color: #6b7280; }
+.lp-cal-cell-item-dot {
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+}
+.lp-cal-cell-item-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+.lp-cal-cell-more {
+  font-size: 10px;
+  color: var(--text3, #64748b);
+  padding: 1px 5px;
+  font-style: italic;
+}
+
+.lp-cal-footer {
+  margin-top: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+@media (max-width: 768px) {
+  .lp-cal-cell {
+    min-height: 70px;
+    padding: 4px 5px;
+  }
+  .lp-cal-cell-item-text {
+    display: none;
+  }
+  .lp-cal-cell-item {
+    padding: 2px 3px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+  }
+}
+
+/* ── DAY DETAIL MODAL — sections per event ─────────────── */
+.lp-day-evt-section {
+  margin-bottom: 18px;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 10px;
+  padding: 12px 14px;
+  background: #fafafa;
+}
+.lp-day-evt-section:last-child {
+  margin-bottom: 0;
+}
+.lp-day-evt-hdr {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px dashed var(--border, #e2e8f0);
+}
+.lp-day-evt-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text, #0f172a);
+}
+.lp-day-evt-link {
+  padding: 5px 12px !important;
+  font-size: 11.5px !important;
+}
+.lp-day-evt-body {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  gap: 14px;
+  align-items: start;
+}
+.lp-day-evt-poster {
+  width: 140px;
+  aspect-ratio: 3 / 4;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #f1f5f9;
+  border: 1px solid var(--border, #e2e8f0);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 4px;
+}
+.lp-day-evt-poster img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  cursor: zoom-in;
+  transition: transform 0.15s;
+}
+.lp-day-evt-poster img:hover {
+  transform: scale(1.03);
+}
+.lp-day-evt-poster.is-empty,
+.lp-day-evt-poster.is-error {
+  color: #94a3b8;
+  font-size: 11px;
+}
+.lp-day-evt-poster.is-empty span,
+.lp-day-evt-poster.is-error::before {
+  font-size: 32px;
+  opacity: 0.5;
+}
+.lp-day-evt-content {
+  min-width: 0;
+}
+@media (max-width: 600px) {
+  .lp-day-evt-body {
+    grid-template-columns: 1fr;
+  }
+  .lp-day-evt-poster {
+    width: 100%;
+    max-width: 220px;
+    margin: 0 auto;
+  }
+}
+.lp-day-tpl {
+  background: #fff;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+}
+.lp-day-tpl:last-child {
+  margin-bottom: 0;
+}
+.lp-day-tpl-hdr {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+.lp-day-tpl-time {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #1d4ed8;
+}
+.lp-day-tpl-msg {
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: #334155;
+  white-space: pre-wrap;
+  background: #f8fafc;
+  padding: 8px 10px;
+  border-radius: 6px;
+  border-left: 3px solid #06c755;
+  margin-bottom: 8px;
+}
+.lp-day-tpl-groups {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
 }
