@@ -501,8 +501,8 @@ function openEventPanel(eventId) {
   const panelCode = document.getElementById("panelCode");
   if (panelCode) {
     let regHtml = '';
-    if (e.registration_enabled) regHtml += `<a href="../attendees.html?event=${e.event_id}" target="_blank" rel="noopener" title="ดูรายชื่อผู้ลงทะเบียน" style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:600;background:#d1fae5;color:#065f46;margin-left:4px;text-decoration:none;cursor:pointer">📋 ลงทะเบียน</a>`;
-    if (e.members_only) regHtml += '<span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:600;background:#fef3c7;color:#92400e;margin-left:4px">👤 MLM Only</span>';
+    if (e.registration_enabled) regHtml += `<a href="../attendees.html?event=${e.event_id}" target="_blank" rel="noopener" title="ดูรายชื่อผู้ลงทะเบียน" class="ev-reg-badge reg-on is-link">📋 กดลงทะเบียน</a>`;
+    if (e.members_only) regHtml += '<span class="ev-reg-badge reg-mlm">👤 MLM Only</span>';
     panelCode.insertAdjacentHTML('beforeend', regHtml);
   }
 

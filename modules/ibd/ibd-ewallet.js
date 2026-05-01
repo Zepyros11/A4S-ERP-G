@@ -150,8 +150,7 @@ function pinBtn(r) {
   return `<button class="ibd-pin-btn ${r.pinned ? 'pinned' : ''}" onclick="togglePin(${r.id}, this)" title="${r.pinned ? 'ยกเลิกปักหมุด' : 'ปักหมุด'}">${r.pinned ? '📍' : '📌'}</button>`;
 }
 function deleteBtn(r) {
-  if (window.AuthZ && !AuthZ.hasPerm('ibd_ewallet_delete')) return '';
-  return `<button class="ibd-del-btn" onclick="deleteRow(${r.id})" title="ลบรายการ">🗑️</button>`;
+  return '';
 }
 
 window.updateProgress = async function (id, sel) {
