@@ -443,11 +443,172 @@ body {
   cursor: pointer;
   padding: 1px 6px;
   font-weight: 700;
-  transition: color 0.12s;
+  transition: color 0.12s, background 0.12s;
+  border-radius: 4px;
+  display: inline-block;
 }
 .cal-more:hover {
-  color: #6366f1;
-  text-decoration: underline;
+  color: #fff;
+  background: #6366f1;
+  text-decoration: none;
+}
+
+/* ── DAY EVENTS POPUP ── */
+.day-pop-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(4px);
+  z-index: 450;
+  align-items: center;
+  justify-content: center;
+}
+.day-pop-overlay.open {
+  display: flex;
+}
+.day-pop-modal {
+  background: #fff;
+  border-radius: 14px;
+  width: min(560px, 92vw);
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.3);
+  overflow: hidden;
+  animation: dayPopIn 0.18s ease-out;
+}
+@keyframes dayPopIn {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.day-pop-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px 22px 14px;
+  border-bottom: 1px solid #e2e8f0;
+  flex-shrink: 0;
+}
+.day-pop-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #0f172a;
+  font-family: "IBM Plex Sans Thai", sans-serif;
+}
+.day-pop-count {
+  font-size: 12px;
+  color: #64748b;
+  margin-top: 2px;
+}
+.day-pop-close {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: none;
+  background: #f1f5f9;
+  color: #64748b;
+  cursor: pointer;
+  font-size: 14px;
+  flex-shrink: 0;
+  transition: all 0.15s;
+}
+.day-pop-close:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+.day-pop-body {
+  padding: 12px 18px 18px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.day-pop-empty {
+  padding: 32px 16px;
+  text-align: center;
+  color: #94a3b8;
+  font-size: 13px;
+}
+.day-pop-item {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-left: 4px solid #6366f1;
+  border-radius: 10px;
+  padding: 12px 14px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.day-pop-item:hover {
+  background: #fff;
+  border-color: #cbd5e1;
+  transform: translateX(2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+}
+.day-pop-item-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.day-pop-item-icon {
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+.day-pop-item-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #0f172a;
+  flex: 1;
+  min-width: 0;
+  word-break: break-word;
+  font-family: "IBM Plex Sans Thai", sans-serif;
+}
+.day-pop-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+.day-pop-badge.unread {
+  background: #ef4444;
+  color: #fff;
+}
+.day-pop-badge.read {
+  background: #e2e8f0;
+  color: #64748b;
+}
+.day-pop-item-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  font-size: 11.5px;
+  color: #64748b;
+  padding-left: 34px;
+}
+.day-pop-cat {
+  font-size: 10.5px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+@media (max-width: 600px) {
+  .day-pop-modal {
+    width: 96vw;
+    max-height: 90vh;
+  }
+  .day-pop-header { padding: 14px 16px 12px; }
+  .day-pop-title { font-size: 16px; }
+  .day-pop-body { padding: 10px 12px 14px; }
+  .day-pop-item-meta { padding-left: 0; }
 }
 
 .cal-empty {

@@ -632,12 +632,31 @@
     #erp-sidebar::-webkit-scrollbar-thumb{background:#21262d;border-radius:2px;}
     #erp-main{flex:1;min-width:0;overflow-y:auto;height:calc(100vh - 56px);}
 
-    .sb-logo{padding:14px 16px;border-bottom:1px solid #21262d;display:flex;align-items:center;justify-content:space-between;gap:8px;}
+    .sb-logo{padding:10px 12px;border-bottom:1px solid #21262d;display:flex;align-items:center;justify-content:space-between;gap:8px;}
     .sb-logo-text{font-size:15px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;transition:opacity .2s,width .25s;}
     .sb-logo-text em{color:#6e7681;font-style:normal;font-weight:400;}
     #erp-sidebar.collapsed .sb-logo-text{opacity:0;width:0;}
+    .sb-search-wrap{flex:1;min-width:0;position:relative;display:flex;align-items:center;}
+    .sb-search-icon{position:absolute;left:8px;font-size:12px;color:#6e7681;pointer-events:none;}
+    .sb-search{width:100%;box-sizing:border-box;background:#161b22;border:1px solid #21262d;border-radius:6px;color:#e6edf3;padding:6px 26px 6px 26px;font-size:12px;font-family:'Sarabun',sans-serif;outline:none;transition:border-color .15s,background .15s;}
+    .sb-search::placeholder{color:#6e7681;}
+    .sb-search:focus{border-color:#388bfd;background:#0d1117;}
+    .sb-search-clear{position:absolute;right:6px;width:18px;height:18px;border:none;background:transparent;color:#6e7681;cursor:pointer;font-size:14px;line-height:1;display:none;align-items:center;justify-content:center;border-radius:3px;padding:0;}
+    .sb-search-clear:hover{color:#e6edf3;background:#21262d;}
+    .sb-search-wrap.has-value .sb-search-clear{display:flex;}
+    #erp-sidebar.collapsed .sb-search-wrap{display:none;}
     .sb-toggle{width:28px;height:28px;border-radius:6px;border:none;background:#21262d;color:#8b949e;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;transition:all .18s;}
     .sb-toggle:hover{background:#30363d;color:#e6edf3;}
+
+    /* search filter — hide non-matching */
+    .sb-group.sb-hidden,.sb-subgroup.sb-hidden,.sb-item.sb-hidden{display:none!important;}
+    /* when searching → force expand groups/subgroups */
+    #erp-sidebar.searching .sb-items{max-height:9999px!important;}
+    #erp-sidebar.searching .sb-subgrp-items{max-height:9999px!important;}
+    #erp-sidebar.searching .sb-grp-arrow,
+    #erp-sidebar.searching .sb-subgrp-arrow{transform:rotate(90deg);}
+    .sb-no-result{padding:20px 14px;color:#6e7681;font-size:12px;text-align:center;display:none;}
+    #erp-sidebar.searching.no-match .sb-no-result{display:block;}
 
     /* ── GROUP HEADER ── */
     .sb-group{border-bottom:1px solid #161b22;}
@@ -897,11 +916,17 @@
     if (collapsed) sidebar.classList.add("collapsed");
     sidebar.innerHTML = `
       <div class="sb-logo">
+        <div class="sb-search-wrap">
+          <span class="sb-search-icon">🔍</span>
+          <input type="text" class="sb-search" id="sb-search" placeholder="ค้นหาเมนู..." autocomplete="off" />
+          <button type="button" class="sb-search-clear" id="sb-search-clear" title="ล้าง">×</button>
+        </div>
         <button class="sb-toggle" onclick="toggleSidebar()" title="ย่อ/ขยาย">
           <span id="sb-icon">${collapsed ? "›" : "‹"}</span>
         </button>
       </div>
-      ${menuHTML}`;
+      ${menuHTML}
+      <div class="sb-no-result">ไม่พบเมนูที่ค้นหา</div>`;
 
     const main = document.createElement("div");
     main.id = "erp-main";
@@ -920,6 +945,65 @@
       const active = sidebar.querySelector(".sb-item.active");
       if (active) active.scrollIntoView({ block: "center", behavior: "instant" });
     });
+
+    // ── Wire search filter ──
+    const searchInput = document.getElementById("sb-search");
+    const searchClear = document.getElementById("sb-search-clear");
+    const searchWrap = sidebar.querySelector(".sb-search-wrap");
+    if (searchInput) {
+      const applyFilter = (q) => {
+        const query = q.trim().toLowerCase();
+        searchWrap.classList.toggle("has-value", query.length > 0);
+        sidebar.classList.toggle("searching", query.length > 0);
+
+        if (!query) {
+          sidebar.querySelectorAll(".sb-hidden").forEach((el) => el.classList.remove("sb-hidden"));
+          sidebar.classList.remove("no-match");
+          return;
+        }
+
+        let anyMatch = false;
+        sidebar.querySelectorAll(".sb-group").forEach((grp) => {
+          let groupHasMatch = false;
+
+          // direct items (not inside subgroup)
+          grp.querySelectorAll(":scope > .sb-items > .sb-item").forEach((it) => {
+            const lbl = (it.querySelector(".sb-lbl")?.textContent || "").toLowerCase();
+            const match = lbl.includes(query);
+            it.classList.toggle("sb-hidden", !match);
+            if (match) groupHasMatch = true;
+          });
+
+          // subgroup items
+          grp.querySelectorAll(".sb-subgroup").forEach((sg) => {
+            let sgHasMatch = false;
+            sg.querySelectorAll(".sb-item").forEach((it) => {
+              const lbl = (it.querySelector(".sb-lbl")?.textContent || "").toLowerCase();
+              const match = lbl.includes(query);
+              it.classList.toggle("sb-hidden", !match);
+              if (match) sgHasMatch = true;
+            });
+            sg.classList.toggle("sb-hidden", !sgHasMatch);
+            if (sgHasMatch) groupHasMatch = true;
+          });
+
+          grp.classList.toggle("sb-hidden", !groupHasMatch);
+          if (groupHasMatch) anyMatch = true;
+        });
+
+        sidebar.classList.toggle("no-match", !anyMatch);
+      };
+
+      searchInput.addEventListener("input", (e) => applyFilter(e.target.value));
+      searchInput.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") { searchInput.value = ""; applyFilter(""); searchInput.blur(); }
+      });
+      searchClear.addEventListener("click", () => {
+        searchInput.value = "";
+        applyFilter("");
+        searchInput.focus();
+      });
+    }
   });
 
   window.toggleSidebar = function () {

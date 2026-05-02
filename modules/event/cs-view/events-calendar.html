@@ -241,6 +241,24 @@
       </div>
     </div>
 
+    <!-- DAY EVENTS POPUP (shows full list when "+N" clicked) -->
+    <div
+      id="dayPopupOverlay"
+      class="day-pop-overlay"
+      onclick="if(event.target===this)closeDayPopup()"
+    >
+      <div class="day-pop-modal">
+        <div class="day-pop-header">
+          <div>
+            <div class="day-pop-title" id="dayPopupTitle">—</div>
+            <div class="day-pop-count" id="dayPopupCount">—</div>
+          </div>
+          <button class="day-pop-close" onclick="closeDayPopup()">✕</button>
+        </div>
+        <div class="day-pop-body" id="dayPopupBody"></div>
+      </div>
+    </div>
+
     <!-- BOOKING INFO POPUP -->
     <div
       id="bookingPanelOverlay"

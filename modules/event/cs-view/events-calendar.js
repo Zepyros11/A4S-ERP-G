@@ -395,7 +395,7 @@ function renderCalendar() {
               title="${tip}">🚪 ${label}</div>`;
           })
           .join("");
-        const moreHtml = extra > 0 ? `<div class="cal-more">+${extra}</div>` : "";
+        const moreHtml = extra > 0 ? `<div class="cal-more" onclick="openDayPopup('${dateStr}');event.stopPropagation()">+${extra}</div>` : "";
         return `<div class="${cls}" style="grid-column:${colIdx + 1};grid-row:${cellRow}"><div class="cal-date-num">${day}</div><div class="cal-pills-wrap">${pillsHtml}${bookingsHtml}${moreHtml}</div></div>`;
       })
       .join("");
@@ -546,6 +546,99 @@ function openEventPanel(eventId) {
   if (calTotal > 0) {
     openChatPanel(e.event_id, e.event_name);
   }
+}
+
+/* ── Day-events popup (shows full list when "+N" clicked) ── */
+function openDayPopup(dateStr) {
+  const filtered = allEvents.filter(
+    (e) => !activeCalCatId || String(e.event_category_id) === activeCalCatId,
+  );
+  // events that overlap this date (single-day OR multi-day spans)
+  const dayEvents = filtered.filter((e) => {
+    const eEnd = e.end_date || e.event_date;
+    return e.event_date <= dateStr && eEnd >= dateStr;
+  });
+  // bookings on this date (only when no category filter)
+  const dayBookings = !activeCalCatId
+    ? allBookings.filter((b) => b.booking_date === dateStr)
+    : [];
+
+  const overlay = document.getElementById("dayPopupOverlay");
+  document.getElementById("dayPopupTitle").textContent = formatDate(dateStr);
+  document.getElementById("dayPopupCount").textContent =
+    `${dayEvents.length + dayBookings.length} รายการ`;
+
+  const evHtml = dayEvents
+    .map((e) => {
+      const { color, icon, name } = getCatStyle(e);
+      const eEnd = e.end_date || e.event_date;
+      const isMulti = eEnd > e.event_date;
+      const dateLabel = isMulti
+        ? `${formatDate(e.event_date)} — ${formatDate(eEnd)}`
+        : formatDate(e.event_date);
+      const timeLabel = e.start_time && e.end_time
+        ? `${e.start_time.slice(0, 5)} — ${e.end_time.slice(0, 5)}`
+        : "";
+      const unread = getCalUnread(e.event_id);
+      const total = getCalTotal(e.event_id);
+      const badge = unread > 0
+        ? `<span class="day-pop-badge unread">${unread}</span>`
+        : total > 0
+          ? `<span class="day-pop-badge read">${total}</span>`
+          : "";
+      return `<div class="day-pop-item" style="border-left-color:${color}"
+        onclick="closeDayPopup();openEventPanel(${e.event_id})">
+        <div class="day-pop-item-head">
+          <span class="day-pop-item-icon" style="background:${color}22;color:${color}">${icon}</span>
+          <span class="day-pop-item-name">${e.event_name}</span>
+          ${badge}
+        </div>
+        <div class="day-pop-item-meta">
+          <span class="day-pop-cat" style="background:${color}15;color:${color}">${name}</span>
+          <span>📅 ${dateLabel}</span>
+          ${timeLabel ? `<span>🕐 ${timeLabel}</span>` : ""}
+          ${e.location ? `<span>📍 ${e.location}</span>` : ""}
+        </div>
+      </div>`;
+    })
+    .join("");
+
+  const bkHtml = dayBookings
+    .map((b) => {
+      const label = b.room_name || b.place_name || "ห้องจอง";
+      const time = formatBookingTime(b);
+      const place = b.place_name && b.room_name && b.place_name !== b.room_name
+        ? `${b.place_name} — ${b.room_name}`
+        : (b.place_name || b.room_name || "—");
+      return `<div class="day-pop-item" style="border-left-color:#8b5cf6"
+        onclick="closeDayPopup();openBookingPanel(${b.request_id})">
+        <div class="day-pop-item-head">
+          <span class="day-pop-item-icon" style="background:#8b5cf622;color:#8b5cf6">🚪</span>
+          <span class="day-pop-item-name">${label}</span>
+        </div>
+        <div class="day-pop-item-meta">
+          <span class="day-pop-cat" style="background:#8b5cf615;color:#8b5cf6">ห้องจอง</span>
+          <span>🕐 ${time}</span>
+          <span>📍 ${place}</span>
+          ${b.booked_by_name ? `<span>👤 ${b.booked_by_name}</span>` : ""}
+        </div>
+      </div>`;
+    })
+    .join("");
+
+  document.getElementById("dayPopupBody").innerHTML =
+    evHtml + bkHtml ||
+    `<div class="day-pop-empty">ไม่มีรายการในวันนี้</div>`;
+
+  overlay.classList.add("open");
+  document.body.style.overflow = "hidden";
+}
+
+function closeDayPopup() {
+  const overlay = document.getElementById("dayPopupOverlay");
+  if (!overlay) return;
+  overlay.classList.remove("open");
+  document.body.style.overflow = "";
 }
 
 function openBookingPanel(requestId) {
@@ -816,6 +909,10 @@ document.addEventListener("keydown", function (e) {
     document.getElementById("bookingPanelOverlay")?.classList.contains("open")
   ) {
     closeBookingPanel();
+  } else if (
+    document.getElementById("dayPopupOverlay")?.classList.contains("open")
+  ) {
+    closeDayPopup();
   } else if (
     document.getElementById("evPanelOverlay").style.display === "flex"
   ) {
