@@ -20,7 +20,7 @@
     <div class="pp-card-body">
       <div class="pp-field">
         <label class="pp-label" id="lblA4sId">A4S ID <span class="req">*</span></label>
-        <input type="text" id="fMember" class="pp-input" readonly style="background:#f8fafc" />
+        <input type="text" id="fMember" class="pp-input" />
       </div>
 
       <div class="pp-field">
@@ -143,10 +143,7 @@
   document.getElementById('okMsg').textContent = t('success_msg_ewallet');
   document.getElementById('okBackBtn').textContent = t('back_to_home');
 
-  // Pre-fill
-  document.getElementById('fMember').value = session.member_code;
-  document.getElementById('fFullName').value = session.full_name || session.member_name || '';
-  document.getElementById('fWa').value = session.phone || '';
+  // Pre-fill disabled — user fills A4S ID / name / WhatsApp themselves
 
   // Visual selection for confirm radio
   document.getElementById('confirmRadioWrap').addEventListener('change', (e) => {
@@ -175,6 +172,7 @@
   });
 
   async function doSubmit() {
+    const memberCode = document.getElementById('fMember').value.trim();
     const fullName = document.getElementById('fFullName').value.trim();
     const wa = document.getElementById('fWa').value.trim();
     const email = document.getElementById('fEmail').value.trim();
@@ -185,6 +183,7 @@
     const docs  = docWrap._files || [];
     const holds = holdWrap._files || [];
 
+    if (!memberCode) return IBDPortal.toast(t('required') + ': ' + t('f2_a4s_id'), 'error');
     if (!fullName)  return IBDPortal.toast(t('required') + ': ' + t('f2_full_name'), 'error');
     if (!wa)        return IBDPortal.toast(t('required') + ': WhatsApp', 'error');
     if (!confirmed) return IBDPortal.toast(t('required') + ': ' + t('f2_confirm'), 'error');
@@ -199,12 +198,12 @@
 
     try {
       IBDPortal.toast(t('uploading'));
-      const docKeys  = await IBDPortal.uploadFiles(docs,  `ewallet/${session.member_code}/id-doc`);
-      const holdKeys = await IBDPortal.uploadFiles(holds, `ewallet/${session.member_code}/holding`);
+      const docKeys  = await IBDPortal.uploadFiles(docs,  `ewallet/${memberCode}/id-doc`);
+      const holdKeys = await IBDPortal.uploadFiles(holds, `ewallet/${memberCode}/holding`);
 
       const payload = {
         source_form: 'ewallet',
-        member_code: session.member_code,
+        member_code: memberCode,
         member_full_name: fullName,
         whatsapp: wa,
         email: email || null,
@@ -220,7 +219,7 @@
 
       IBDPortal.notifyTrigger('ibd.ewallet.created', {
         submission_id: newId,
-        member_code: session.member_code,
+        member_code: memberCode,
         member_full_name: fullName,
         whatsapp: wa,
         email: email || '',

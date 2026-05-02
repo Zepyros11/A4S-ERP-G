@@ -26,7 +26,7 @@
 
       <div class="pp-field">
         <label class="pp-label" id="lblMember">A4S Member ID <span class="req">*</span></label>
-        <input type="text" id="fMember" class="pp-input" readonly style="background:#f8fafc" />
+        <input type="text" id="fMember" class="pp-input" />
       </div>
 
       <div class="pp-field">
@@ -125,10 +125,7 @@
   document.getElementById('okMsg').textContent = t('success_msg_complaint');
   document.getElementById('okBackBtn').textContent = t('back_to_home');
 
-  // Pre-fill member info
-  document.getElementById('fName').value = session.member_name || session.full_name || '';
-  document.getElementById('fMember').value = session.member_code;
-  document.getElementById('fWhatsappUsed').value = session.phone || '';
+  // Pre-fill disabled — user fills name / member id / WhatsApp themselves
 
   // Build topic radios
   const TOPICS = [
@@ -214,6 +211,7 @@
 
   async function doSubmit() {
     const name = document.getElementById('fName').value.trim();
+    const memberCode = document.getElementById('fMember').value.trim();
     const wa   = document.getElementById('fWhatsappUsed').value.trim();
     const topicEl = document.querySelector('input[name="topic"]:checked');
     const topic = topicEl ? topicEl.value : '';
@@ -227,8 +225,9 @@
     const wrap = document.getElementById('fileWrap');
     const files = wrap._files || [];
 
-    if (!name)  { return IBDPortal.toast(t('required') + ': ' + t('f1_name'), 'error'); }
-    if (!wa)    { return IBDPortal.toast(t('required') + ': WhatsApp', 'error'); }
+    if (!name)        { return IBDPortal.toast(t('required') + ': ' + t('f1_name'), 'error'); }
+    if (!memberCode)  { return IBDPortal.toast(t('required') + ': ' + t('f1_member_id'), 'error'); }
+    if (!wa)          { return IBDPortal.toast(t('required') + ': WhatsApp', 'error'); }
     if (!topic) { return IBDPortal.toast(t('required') + ': ' + t('f1_topic'), 'error'); }
     if (topic === 'other' && !topicOther) { return IBDPortal.toast(t('required') + ': ' + t('f1_other'), 'error'); }
     if (!branchVal) { return IBDPortal.toast(t('required') + ': ' + t('f1_branch'), 'error'); }
@@ -243,12 +242,12 @@
     try {
       // 1) Upload files
       IBDPortal.toast(t('uploading'));
-      const keys = await IBDPortal.uploadFiles(files, `complaint/${session.member_code}`);
+      const keys = await IBDPortal.uploadFiles(files, `complaint/${memberCode}`);
 
       // 2) Insert row
       const payload = {
         source_form: 'complaint',
-        member_code: session.member_code,
+        member_code: memberCode,
         member_name: name,
         whatsapp_used: wa,
         topic: topic,
@@ -273,7 +272,7 @@
         : (branchObj ? `${branchObj.flag_emoji || ''} ${branchObj.name_en}` : branchVal);
       IBDPortal.notifyTrigger('ibd.complaint.created', {
         submission_id: newId,
-        member_code: session.member_code,
+        member_code: memberCode,
         member_name: name,
         topic: topic,
         topic_label: t(topicLabelKey),

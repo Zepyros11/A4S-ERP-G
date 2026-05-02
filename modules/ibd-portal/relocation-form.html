@@ -20,7 +20,7 @@
     <div class="pp-card-body">
       <div class="pp-field">
         <label class="pp-label" id="lblMember">Member ID <span class="req">*</span></label>
-        <input type="text" id="fMember" class="pp-input" readonly style="background:#f8fafc" />
+        <input type="text" id="fMember" class="pp-input" />
       </div>
 
       <div class="pp-field">
@@ -104,9 +104,7 @@
   document.getElementById('okMsg').textContent = t('success_msg_relocation');
   document.getElementById('okBackBtn').textContent = t('back_to_home');
 
-  // Pre-fill
-  document.getElementById('fMember').value = session.member_code;
-  document.getElementById('fName').value = session.member_name || session.full_name || '';
+  // Pre-fill (only WhatsApp; member id/name left blank for user to fill)
   document.getElementById('fWa').value = session.phone || '';
 
   // Load countries (for relocation: only entries that are NOT city sub-codes — i.e. no '-' in code)
@@ -154,6 +152,7 @@
   });
 
   async function doSubmit() {
+    const memberCode = document.getElementById('fMember').value.trim();
     const name = document.getElementById('fName').value.trim();
     const wa   = document.getElementById('fWa').value.trim();
     const email = document.getElementById('fEmail').value.trim();
@@ -163,6 +162,7 @@
     const fromVal = fromEl ? fromEl.value : '';
     const toVal   = toEl ? toEl.value : '';
 
+    if (!memberCode) return IBDPortal.toast(t('required') + ': ' + t('f3_member_id'), 'error');
     if (!name)   return IBDPortal.toast(t('required') + ': ' + t('f3_member_name'), 'error');
     if (!fromVal)return IBDPortal.toast(t('required') + ': ' + t('f3_from'), 'error');
     if (!toVal)  return IBDPortal.toast(t('required') + ': ' + t('f3_to'), 'error');
@@ -178,7 +178,7 @@
     try {
       const payload = {
         source_form: 'relocation',
-        member_code: session.member_code,
+        member_code: memberCode,
         member_name: name,
         from_country: fromVal,
         to_country: toVal,
@@ -196,7 +196,7 @@
       const toLbl   = toEl?.parentElement?.querySelector('span')?.textContent?.trim() || toVal;
       IBDPortal.notifyTrigger('ibd.relocation.created', {
         submission_id: newId,
-        member_code: session.member_code,
+        member_code: memberCode,
         member_name: name,
         from_country_label: fromLbl,
         to_country_label: toLbl,
