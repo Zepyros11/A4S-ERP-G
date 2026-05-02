@@ -14,6 +14,7 @@ const TOPIC_LABELS = {
   commission:     'Commission Checking & Payment',
   service:        'Service Complaint',
   wrong_sponsor:  'Wrong Sponsor / Team Placement',
+  ethics:         'Ethics',
   other:          'Other',
 };
 

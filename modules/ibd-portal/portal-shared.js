@@ -94,6 +94,7 @@
       tp_commission:     'Commission Checking and Payment Request',
       tp_service:        'Service Complaint',
       tp_wrong_sponsor:  'Wrong Sponsor or Team Placement',
+      tp_ethics:         'Ethics',
       tp_other:          'Other',
       // Form 2
       ewallet_title: 'Commission Payment to E-Wallet Requisition',
@@ -198,6 +199,7 @@
       tp_commission:     'Vérification et paiement de commission',
       tp_service:        'Réclamation de service',
       tp_wrong_sponsor:  'Mauvais parrain ou placement d\'équipe',
+      tp_ethics:         'Éthique',
       tp_other:          'Autre',
       // Form 2
       ewallet_title: 'Demande de Paiement de Commission vers E-Wallet',
