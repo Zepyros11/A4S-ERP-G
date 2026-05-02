@@ -142,7 +142,14 @@ function renderGallery() {
 
   body.innerHTML = sortedKeys
     .map((key) => {
-      const events = groups[key];
+      const events = groups[key].slice().sort((a, b) => {
+        const da = a.event_date || "";
+        const db = b.event_date || "";
+        if (da !== db) return da.localeCompare(db);
+        const ta = a.start_time || "";
+        const tb = b.start_time || "";
+        return ta.localeCompare(tb);
+      });
       const monthLabel = formatMonthLabel(key);
       const cards = events.map((e) => buildCard(e)).join("");
       return `
