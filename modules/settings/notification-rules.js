@@ -2,93 +2,11 @@
    Settings — Notification Rules CRUD
    ============================================================ */
 
+// TRIGGERS = runtime cache โหลดจากตาราง notification_triggers (sql/067)
 // kind:
-//   'on_status'  → event-driven (trigger ตอน status เปลี่ยน) — ใช้ฮุคใน browser ผ่าน Notify.evaluateRules
-//   'scheduled'  → time-driven  (cron ใน ai-proxy ยิงทุก 15 นาที) ต้องตั้ง schedule_anchor + schedule_*
-const TRIGGERS = {
-  "event.confirmed": {
-    label: "📌 Event ยืนยัน (CONFIRMED)",
-    kind: "on_status",
-    placeholders: ["event_code", "event_name", "event_type", "event_date", "end_date", "location", "dept", "attendees_count", "request_code", "approver"],
-    sample: {
-      event_code:      "EVT-2026-05-001",
-      event_name:      "Tech Summit 2026",
-      event_type:      "EVENT",
-      event_date:      "15/05/2026",
-      end_date:        "16/05/2026",
-      location:        "Bangkok Convention Center",
-      dept:            "ทีมจัดงาน",
-      attendees_count: 120,
-      request_code:    "REQ-2026-05-001",
-      approver:        "ภพ (admin)",
-    },
-  },
-  "booking.approved": {
-    label: "🏢 จองห้องประชุมอนุมัติ",
-    kind: "on_status",
-    placeholders: ["room_name", "place_name", "booking_date", "start_time", "end_time", "booked_by_name", "cs_name", "request_code", "approver"],
-    sample: {
-      room_name:      "ห้องประชุมใหญ่",
-      place_name:     "ออฟฟิศ BKK",
-      booking_date:   "20/05/2026",
-      start_time:     "09:00",
-      end_time:       "12:00",
-      booked_by_name: "วิชัย ตั้งใจ",
-      cs_name:        "น้องส้ม",
-      request_code:   "RBKQ-2026-05-001",
-      approver:       "ภพ (admin)",
-    },
-  },
-  "event.scheduled": {
-    label: "⏰ Event — แจ้งตามเวลา (cron)",
-    kind: "scheduled",
-    anchor: "event_date",
-    placeholders: ["event_code", "event_name", "event_type", "event_date", "end_date", "location", "attendees_count", "start_time", "end_time"],
-    sample: {
-      event_code:      "EVT-2026-05-001",
-      event_name:      "Tech Summit 2026",
-      event_type:      "EVENT",
-      event_date:      "15/05/2026",
-      end_date:        "16/05/2026",
-      location:        "Bangkok Convention Center",
-      attendees_count: 120,
-      start_time:      "09:00",
-      end_time:        "17:00",
-    },
-  },
-  "booking.scheduled": {
-    label: "⏰ Booking — แจ้งตามเวลา (cron)",
-    kind: "scheduled",
-    anchor: "booking_date",
-    placeholders: ["request_code", "room_name", "place_name", "booking_date", "start_time", "end_time", "booked_by_name", "cs_name"],
-    sample: {
-      request_code:   "RBKQ-2026-05-001",
-      room_name:      "ห้องประชุมใหญ่",
-      place_name:     "ออฟฟิศ BKK",
-      booking_date:   "20/05/2026",
-      start_time:     "09:00",
-      end_time:       "12:00",
-      booked_by_name: "วิชัย ตั้งใจ",
-      cs_name:        "น้องส้ม",
-    },
-  },
-  "booking.before_start": {
-    label: "⏰ Booking — ก่อนเริ่ม N นาที",
-    kind: "scheduled",
-    anchor: "booking_start_time",
-    placeholders: ["request_code", "room_name", "place_name", "booking_date", "start_time", "end_time", "booked_by_name", "cs_name"],
-    sample: {
-      request_code:   "RBKQ-2026-05-001",
-      room_name:      "ห้องประชุมใหญ่",
-      place_name:     "ออฟฟิศ BKK",
-      booking_date:   "20/05/2026",
-      start_time:     "09:00",
-      end_time:       "12:00",
-      booked_by_name: "วิชัย ตั้งใจ",
-      cs_name:        "น้องส้ม",
-    },
-  },
-};
+//   'on_status'  → event-driven — ฮุคใน browser ผ่าน Notify.evaluateRules
+//   'scheduled'  → time-driven  — cron ใน ai-proxy ยิงทุก 15 นาที (ต้องมี anchor)
+let TRIGGERS = {};
 
 function getSB() {
   return {
@@ -130,7 +48,7 @@ let editingSchedule = { offset_days: 0, offset_minutes: 0, time: "" };
 async function init() {
   showLoading(true);
   try {
-    await Promise.all([loadRules(), loadChannels(), loadUsersAndRoles()]);
+    await Promise.all([loadTriggers(), loadRules(), loadChannels(), loadUsersAndRoles()]);
     renderTable();
     populateTriggers();
     populateChannels();
@@ -139,6 +57,25 @@ async function init() {
   } finally {
     showLoading(false);
   }
+}
+
+async function loadTriggers() {
+  const rows = (await sbFetch("notification_triggers?select=*&order=sort_order.asc,trigger_key.asc")) || [];
+  const map = {};
+  for (const r of rows) {
+    map[r.trigger_key] = {
+      label:        r.label,
+      kind:         r.kind,
+      anchor:       r.anchor || undefined,
+      placeholders: Array.isArray(r.placeholders) ? r.placeholders : [],
+      sample:       r.sample && typeof r.sample === "object" ? r.sample : {},
+      description:  r.description || "",
+      is_builtin:   !!r.is_builtin,
+      is_active:    r.is_active !== false,
+      sort_order:   r.sort_order ?? 100,
+    };
+  }
+  TRIGGERS = map;
 }
 
 async function loadRules() {
@@ -257,11 +194,19 @@ async function deleteRule(id) {
 }
 
 // ── Modal: open / close ───────────────────────────────────
-function populateTriggers() {
+function populateTriggers(currentKey) {
   const sel = document.getElementById("fTrigger");
-  sel.innerHTML = Object.entries(TRIGGERS)
-    .map(([k, v]) => `<option value="${k}">${v.label}</option>`)
+  const entries = Object.entries(TRIGGERS)
+    .filter(([k, v]) => v.is_active || k === currentKey)
+    .sort((a, b) => (a[1].sort_order ?? 100) - (b[1].sort_order ?? 100));
+  let html = entries
+    .map(([k, v]) => `<option value="${k}">${escapeHtml(v.label)}${v.is_active ? "" : " (ปิดใช้งาน)"}</option>`)
     .join("");
+  // กรณี rule.trigger_key หายไปจาก triggers table (เช่นถูกลบ) → แสดง option warning เพื่อไม่ให้ค่าหาย
+  if (currentKey && !TRIGGERS[currentKey]) {
+    html = `<option value="${escapeAttr(currentKey)}">⚠️ ${escapeHtml(currentKey)} (trigger ไม่อยู่ในระบบแล้ว)</option>` + html;
+  }
+  sel.innerHTML = html;
 }
 
 function populateChannels() {
@@ -275,7 +220,10 @@ function openRuleModal(id) {
   const rule = id ? allRules.find((r) => r.id === id) : null;
   document.getElementById("nrModalTitle").textContent = rule ? "แก้ไขกฎ" : "เพิ่มกฎแจ้งเตือน";
   document.getElementById("fRuleName").value = rule?.rule_name || "";
-  document.getElementById("fTrigger").value = rule?.trigger_key || Object.keys(TRIGGERS)[0];
+  // re-populate dropdown แต่ละครั้งที่เปิด เผื่อ rule ใช้ trigger ที่ inactive/หายไป
+  const wantKey = rule?.trigger_key || Object.keys(TRIGGERS).find((k) => TRIGGERS[k].is_active);
+  populateTriggers(wantKey);
+  document.getElementById("fTrigger").value = wantKey || "";
   document.getElementById("fChannel").value = rule?.channel_id || "";
   document.getElementById("fTemplate").value = rule?.message_template || "";
   document.getElementById("fActive").checked = rule ? !!rule.is_active : true;
@@ -722,6 +670,247 @@ function showToast(msg, type = "success") {
   setTimeout(() => el.classList.remove("show"), 2800);
 }
 
+/* ============================================================
+   Trigger Manager — CRUD สำหรับ notification_triggers
+   ============================================================ */
+let editingTrigKey = null;       // null = สร้างใหม่ · string = key เดิม (PK ห้ามแก้)
+let editingTrigPlaceholders = []; // tag input state
+
+function openTriggerManager() {
+  renderTriggerTable();
+  document.getElementById("trigModal").classList.add("open");
+}
+
+function closeTriggerManager() {
+  document.getElementById("trigModal").classList.remove("open");
+}
+
+function renderTriggerTable() {
+  const tb = document.getElementById("trigTbody");
+  const list = Object.entries(TRIGGERS)
+    .sort((a, b) => (a[1].sort_order ?? 100) - (b[1].sort_order ?? 100));
+  if (!list.length) {
+    tb.innerHTML = `<tr><td colspan="5" class="nr-empty"><div class="nr-empty-icon">⚡</div>ยังไม่มี trigger</td></tr>`;
+    return;
+  }
+  tb.innerHTML = list.map(([k, t]) => {
+    const ruleCnt = allRules.filter((r) => r.trigger_key === k).length;
+    const builtin = t.is_builtin
+      ? `<span style="display:inline-block;margin-left:6px;padding:1px 7px;border-radius:6px;font-size:10px;font-weight:700;background:#e0e7ff;color:#3730a3;">BUILT-IN</span>`
+      : "";
+    const usage = ruleCnt
+      ? `<span style="font-size:11px;color:var(--text3);margin-left:6px;">· ${ruleCnt} กฎใช้อยู่</span>`
+      : "";
+    const kindChip = t.kind === "scheduled"
+      ? `<span style="display:inline-block;padding:2px 7px;border-radius:6px;font-size:10px;font-weight:700;background:#fef3c7;color:#92400e;">⏰ scheduled</span>`
+      : `<span style="display:inline-block;padding:2px 7px;border-radius:6px;font-size:10px;font-weight:700;background:#dcfce7;color:#15803d;">⚡ on_status</span>`;
+    return `
+      <tr>
+        <td>
+          <div class="nr-name">${escapeHtml(t.label)}${builtin}</div>
+          <div style="font-size:11.5px;color:var(--text3);font-family:'IBM Plex Mono',monospace;margin-top:2px;">${escapeHtml(k)}${usage}</div>
+        </td>
+        <td>${kindChip}</td>
+        <td style="font-size:12px;font-family:'IBM Plex Mono',monospace;color:var(--text2);">${escapeHtml(t.anchor || "—")}</td>
+        <td style="text-align:center;">
+          <label class="nr-toggle">
+            <input type="checkbox" ${t.is_active ? "checked" : ""} onchange="toggleTriggerActive('${escapeAttr(k)}', this.checked)">
+            <span class="nr-toggle-slider"></span>
+          </label>
+        </td>
+        <td>
+          <div class="nr-row-actions">
+            <button class="btn-icon" title="แก้ไข" onclick="openTriggerEditor('${escapeAttr(k)}')">✏️</button>
+            ${t.is_builtin ? "" : `<button class="btn-icon btn-danger" title="ลบ" onclick="deleteTriggerByKey('${escapeAttr(k)}')">🗑️</button>`}
+          </div>
+        </td>
+      </tr>`;
+  }).join("");
+}
+
+async function toggleTriggerActive(key, on) {
+  try {
+    await sbFetch(`notification_triggers?trigger_key=eq.${encodeURIComponent(key)}`, {
+      method: "PATCH",
+      body: { is_active: on },
+    });
+    if (TRIGGERS[key]) TRIGGERS[key].is_active = on;
+    showToast(on ? "เปิดใช้งานแล้ว" : "ปิดใช้งานแล้ว", "success");
+    renderTriggerTable();
+    populateTriggers();
+  } catch (e) {
+    showToast("เปลี่ยนสถานะไม่สำเร็จ: " + e.message, "error");
+  }
+}
+
+function openTriggerEditor(key) {
+  editingTrigKey = key;
+  const t = key ? TRIGGERS[key] : null;
+  document.getElementById("trigEditTitle").textContent = key ? "แก้ไข Trigger" : "เพิ่ม Trigger";
+  document.getElementById("tfKey").value = key || "";
+  document.getElementById("tfKey").disabled = !!key;
+  document.getElementById("tfLabel").value = t?.label || "";
+  document.getElementById("tfKind").value = t?.kind || "on_status";
+  document.getElementById("tfAnchor").value = t?.anchor || "event_date";
+  document.getElementById("tfDesc").value = t?.description || "";
+  document.getElementById("tfActive").checked = t ? !!t.is_active : true;
+  document.getElementById("tfSample").value = t?.sample
+    ? JSON.stringify(t.sample, null, 2)
+    : "{\n  \n}";
+  document.getElementById("tfSampleErr").style.display = "none";
+
+  editingTrigPlaceholders = Array.isArray(t?.placeholders) ? [...t.placeholders] : [];
+  renderTrigPhTags();
+  onTrigKindChange();
+
+  // built-in: ลบไม่ได้ + เตือน + lock kind/anchor (เพราะ code ผูกอยู่)
+  const isBuiltin = !!t?.is_builtin;
+  document.getElementById("tfBuiltinHint").style.display = isBuiltin ? "block" : "none";
+  document.getElementById("tfDeleteBtn").style.display = (key && !isBuiltin) ? "inline-flex" : "none";
+  document.getElementById("tfKind").disabled = isBuiltin;
+  document.getElementById("tfAnchor").disabled = isBuiltin;
+
+  document.getElementById("trigEditModal").classList.add("open");
+}
+
+function closeTriggerEditor() {
+  document.getElementById("trigEditModal").classList.remove("open");
+  editingTrigKey = null;
+}
+
+function onTrigKindChange() {
+  const kind = document.getElementById("tfKind").value;
+  document.getElementById("tfAnchorWrap").style.display = kind === "scheduled" ? "block" : "none";
+}
+
+function renderTrigPhTags() {
+  const wrap = document.getElementById("tfPhWrap");
+  if (!wrap) return;
+  wrap.innerHTML = editingTrigPlaceholders.map((p, i) =>
+    `<span class="nr-tag">${escapeHtml(p)}<span class="nr-tag-remove" onclick="removeTrigPh(${i})">×</span></span>`
+  ).join("") +
+  `<input type="text" class="nr-tags-input" id="tfPhInput"
+          placeholder="พิมพ์ชื่อ placeholder แล้วกด Enter"
+          onkeydown="onTrigPhKey(event)" autocomplete="off">`;
+}
+
+function removeTrigPh(i) {
+  editingTrigPlaceholders.splice(i, 1);
+  renderTrigPhTags();
+  setTimeout(() => document.getElementById("tfPhInput")?.focus(), 0);
+}
+
+function onTrigPhKey(ev) {
+  if (ev.key !== "Enter" && ev.key !== ",") return;
+  ev.preventDefault();
+  const v = ev.target.value.trim().replace(/[^a-zA-Z0-9_]/g, "");
+  if (!v) return;
+  if (!editingTrigPlaceholders.includes(v)) editingTrigPlaceholders.push(v);
+  renderTrigPhTags();
+  setTimeout(() => document.getElementById("tfPhInput")?.focus(), 0);
+}
+
+async function saveTrigger() {
+  const key = document.getElementById("tfKey").value.trim();
+  const label = document.getElementById("tfLabel").value.trim();
+  const kind = document.getElementById("tfKind").value;
+  const anchor = document.getElementById("tfAnchor").value;
+  const desc = document.getElementById("tfDesc").value.trim();
+  const isActive = document.getElementById("tfActive").checked;
+  const sampleRaw = document.getElementById("tfSample").value.trim() || "{}";
+
+  if (!key) return showToast("กรุณาใส่ Trigger Key", "error");
+  if (!/^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$/i.test(key)) {
+    return showToast("Key ต้องเป็นรูปแบบ module.action เช่น event.confirmed", "error");
+  }
+  if (!label) return showToast("กรุณาใส่ Label", "error");
+
+  let sample;
+  try {
+    sample = JSON.parse(sampleRaw);
+    if (typeof sample !== "object" || Array.isArray(sample) || sample === null) {
+      throw new Error("ต้องเป็น object {}");
+    }
+    document.getElementById("tfSampleErr").style.display = "none";
+  } catch (e) {
+    const errEl = document.getElementById("tfSampleErr");
+    errEl.textContent = "Sample JSON ไม่ถูกต้อง: " + e.message;
+    errEl.style.display = "block";
+    return;
+  }
+
+  const payload = {
+    trigger_key:  key,
+    label,
+    kind,
+    anchor:       kind === "scheduled" ? anchor : null,
+    placeholders: editingTrigPlaceholders,
+    sample,
+    description:  desc || null,
+    is_active:    isActive,
+  };
+
+  const btn = document.getElementById("tfSaveBtn");
+  btn.disabled = true;
+  try {
+    if (editingTrigKey) {
+      // PATCH (ไม่อนุญาตให้แก้ trigger_key)
+      const { trigger_key, ...patch } = payload;
+      await sbFetch(`notification_triggers?trigger_key=eq.${encodeURIComponent(editingTrigKey)}`, {
+        method: "PATCH",
+        body: patch,
+      });
+    } else {
+      payload.is_builtin = false;
+      payload.sort_order = 200; // custom triggers อยู่ท้าย
+      await sbFetch(`notification_triggers`, { method: "POST", body: payload });
+    }
+    closeTriggerEditor();
+    await loadTriggers();
+    renderTriggerTable();
+    populateTriggers();
+    showToast("บันทึกแล้ว", "success");
+  } catch (e) {
+    showToast("บันทึกไม่สำเร็จ: " + e.message, "error");
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function deleteTrigger() {
+  if (!editingTrigKey) return;
+  await deleteTriggerByKey(editingTrigKey, true);
+}
+
+async function deleteTriggerByKey(key, fromEditor = false) {
+  const t = TRIGGERS[key];
+  if (!t) return;
+  if (t.is_builtin) {
+    showToast("Built-in trigger ลบไม่ได้", "error");
+    return;
+  }
+  const ruleCnt = allRules.filter((r) => r.trigger_key === key).length;
+  const ok = await window.ConfirmModal.open({
+    title: "ลบ Trigger?",
+    message: ruleCnt
+      ? `Trigger "${t.label}" ถูกใช้โดย ${ruleCnt} กฎ — ถ้าลบกฎเหล่านั้นจะใช้ trigger ที่ไม่มีอยู่ในระบบ\nยืนยันลบ?`
+      : `ลบ trigger "${t.label}" — ไม่สามารถกู้คืนได้`,
+    confirmText: "ลบ",
+    danger: true,
+  });
+  if (!ok) return;
+  try {
+    await sbFetch(`notification_triggers?trigger_key=eq.${encodeURIComponent(key)}`, { method: "DELETE" });
+    if (fromEditor) closeTriggerEditor();
+    await loadTriggers();
+    renderTriggerTable();
+    populateTriggers();
+    showToast("ลบแล้ว", "success");
+  } catch (e) {
+    showToast("ลบไม่สำเร็จ: " + e.message, "error");
+  }
+}
+
 // ── Globals ───────────────────────────────────────────────
 window.openRuleModal = openRuleModal;
 window.closeRuleModal = closeRuleModal;
@@ -740,5 +929,17 @@ window.pickTagSuggestion = pickTagSuggestion;
 window.filterUserPicker = filterUserPicker;
 window.testSendRule = testSendRule;
 window.updateScheduleState = updateScheduleState;
+
+window.openTriggerManager = openTriggerManager;
+window.closeTriggerManager = closeTriggerManager;
+window.openTriggerEditor = openTriggerEditor;
+window.closeTriggerEditor = closeTriggerEditor;
+window.onTrigKindChange = onTrigKindChange;
+window.removeTrigPh = removeTrigPh;
+window.onTrigPhKey = onTrigPhKey;
+window.saveTrigger = saveTrigger;
+window.deleteTrigger = deleteTrigger;
+window.deleteTriggerByKey = deleteTriggerByKey;
+window.toggleTriggerActive = toggleTriggerActive;
 
 document.addEventListener("DOMContentLoaded", init);

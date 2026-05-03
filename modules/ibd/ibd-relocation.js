@@ -12,6 +12,7 @@ let state = {
   total: 0,
   rows: [],
   countries: [],
+  caretakers: [],
   filters: { search: '', status: '', from: '', to: '' },
   current: null,
 };
@@ -82,6 +83,20 @@ function countryLabel(code) {
   return c ? `${c.flag_emoji || ''} ${c.name_en}` : code || '—';
 }
 
+async function loadCaretakers() {
+  // เฉพาะคนแผนก IBD: role หลัก (slot 1) ต้องเป็น role ที่ key หรือ label ขึ้นต้นด้วย "IBD"
+  // — ไม่นับ Admin/BRE/CS แม้จะมี IBD เป็น role เสริม (เพราะไม่ได้อยู่แผนก IBD โดยตรง)
+  const cfgRes = await sbFetch(`role_configs?select=role_key,label`);
+  const cfgs = await cfgRes.json();
+  const ibdKeys = (cfgs || [])
+    .filter(c => /^IBD/i.test(c.role_key || '') || /^IBD/i.test(c.label || ''))
+    .map(c => c.role_key);
+  if (!ibdKeys.length) { state.caretakers = []; return; }
+  const inList = ibdKeys.map(k => encodeURIComponent(k)).join(',');
+  const res = await sbFetch(`users?select=user_id,full_name,role&is_active=eq.true&role=in.(${inList})&order=full_name.asc`);
+  state.caretakers = await res.json();
+}
+
 async function loadList() {
   showLoading(true);
   try {
@@ -107,7 +122,7 @@ async function loadList() {
   } catch (e) {
     console.error(e);
     toast('โหลดไม่สำเร็จ: ' + e.message, 'error');
-    $('tbody').innerHTML = `<tr><td colspan="11" class="ibd-empty">${escapeHtml(e.message)}</td></tr>`;
+    $('tbody').innerHTML = `<tr><td colspan="12" class="ibd-empty">${escapeHtml(e.message)}</td></tr>`;
   } finally {
     showLoading(false);
   }
@@ -136,7 +151,7 @@ async function loadKpis() {
 function renderTable() {
   const tbody = $('tbody');
   if (!state.rows.length) {
-    tbody.innerHTML = '<tr><td colspan="11" class="ibd-empty">ยังไม่มีรายการ</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="12" class="ibd-empty">ยังไม่มีรายการ</td></tr>';
     return;
   }
   tbody.innerHTML = state.rows.map(r => `
@@ -152,11 +167,37 @@ function renderTable() {
       <td style="font-size:12px">${escapeHtml(r.email || '—')}</td>
       <td style="text-align:center">${r.acknowledged ? '✅' : '❌'}</td>
       <td>${fmtDate(r.effective_date)}</td>
+      <td onclick="event.stopPropagation()">${caretakerSelect(r)}</td>
       <td onclick="event.stopPropagation()">${progressSelect(r)}</td>
       <td onclick="event.stopPropagation()">${noteInput(r)}</td>
       <td style="text-align:center" onclick="event.stopPropagation()"><div class="ibd-action-group">${pinBtn(r)}${deleteBtn(r)}</div></td>
     </tr>`).join('');
+  if (window.AuthZ) AuthZ.applyDomPerms(tbody);
 }
+
+function caretakerSelect(r) {
+  const v = r.caretaker_user_id || '';
+  const opts = ['<option value="">— ยังไม่ระบุ —</option>']
+    .concat(state.caretakers.map(u => `<option value="${u.user_id}" ${String(u.user_id) === String(v) ? 'selected' : ''}>${escapeHtml(u.full_name)}</option>`))
+    .join('');
+  return `<select class="ibd-caretaker-select ${v ? 'assigned' : ''}" onchange="updateCaretaker(${r.id}, this)">${opts}</select>`;
+}
+
+window.updateCaretaker = async function (id, sel) {
+  const v = sel.value ? Number(sel.value) : null;
+  sel.classList.add('saving');
+  try {
+    await sbFetch(`ibd_relocation_requests?id=eq.${id}`, { method: 'PATCH', body: JSON.stringify({ caretaker_user_id: v }) });
+    const row = state.rows.find(x => x.id === id); if (row) row.caretaker_user_id = v;
+    sel.classList.remove('saving');
+    sel.classList.toggle('assigned', !!v);
+    sel.classList.add('saved');
+    setTimeout(() => sel.classList.remove('saved'), 1200);
+  } catch (e) {
+    sel.classList.remove('saving');
+    toast('บันทึกผู้ดูแลไม่สำเร็จ: ' + e.message, 'error');
+  }
+};
 
 /* ── Progress dropdown / Note input / Pin button ── */
 const PROG_LABELS = { pending: 'รอดำเนินการ', in_progress: 'ดำเนินการแล้ว', stuck: 'ติดปัญหา' };
@@ -172,7 +213,7 @@ function pinBtn(r) {
   return `<button class="ibd-pin-btn ${r.pinned ? 'pinned' : ''}" onclick="togglePin(${r.id}, this)" title="${r.pinned ? 'ยกเลิกปักหมุด' : 'ปักหมุด'}">${r.pinned ? '📍' : '📌'}</button>`;
 }
 function deleteBtn(r) {
-  return '';
+  return `<button class="ibd-del-btn" data-perm="ibd_relocation_delete" onclick="deleteRow(${r.id})" title="ลบรายการ">🗑️</button>`;
 }
 
 window.updateProgress = async function (id, sel) {
@@ -432,6 +473,7 @@ async function init() {
   });
 
   await loadCountries();
+  await loadCaretakers();
   await loadList();
 }
 

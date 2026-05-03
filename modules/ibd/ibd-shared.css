@@ -185,6 +185,25 @@
 .ibd-note-input.saving { border-color: #f59e0b; background: #fffbeb; }
 .ibd-note-input.saved  { border-color: #10b981; background: #f0fdf4; }
 
+/* ── Caretaker dropdown ── */
+.ibd-caretaker-select {
+  min-width: 140px;
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 12px;
+  background: #fff;
+  color: var(--text);
+  cursor: pointer;
+  outline: none;
+  transition: border-color .15s, box-shadow .15s;
+}
+.ibd-caretaker-select:focus { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(15,76,117,.12); }
+.ibd-caretaker-select.assigned { background: #eff6ff; border-color: #93c5fd; color: #1e40af; font-weight: 500; }
+.ibd-caretaker-select.saving   { border-color: #f59e0b; background: #fffbeb; }
+.ibd-caretaker-select.saved    { border-color: #10b981; background: #f0fdf4; }
+
 /* ── Pin button ── */
 .ibd-pin-btn {
   background: transparent;

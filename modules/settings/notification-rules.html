@@ -122,8 +122,9 @@
           <div class="page-title">🔔 กฎแจ้งเตือน LINE</div>
           <div class="page-subtitle">ตั้งค่าให้ส่ง LINE อัตโนมัติเมื่อมี Event/Booking ถูกอนุมัติ</div>
         </div>
-        <div style="display:flex;gap:8px;">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
           <a href="./staff-groups.html" class="btn-ghost">👥 จัดการกลุ่มพนักงาน</a>
+          <button class="btn-ghost" onclick="openTriggerManager()">⚡ จัดการ Trigger</button>
           <button class="btn-primary" onclick="openRuleModal(null)">➕ เพิ่มกฎ</button>
         </div>
       </div>
@@ -219,6 +220,123 @@
       <div style="flex:1;"></div>
       <button class="btn-ghost" onclick="closeRuleModal()">ยกเลิก</button>
       <button class="btn-primary" id="nrSaveBtn" onclick="saveRule()">💾 บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<!-- Trigger Manager Modal -->
+<div class="nr-modal" id="trigModal">
+  <div class="nr-modal-card" style="max-width:880px;">
+    <div class="nr-modal-head">
+      <div class="nr-modal-title">⚡ จัดการ Trigger</div>
+      <button class="nr-modal-close" onclick="closeTriggerManager()">×</button>
+    </div>
+    <div class="nr-modal-body">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:12px;flex-wrap:wrap;">
+        <div class="nr-hint" style="margin:0;max-width:560px;">
+          <b>Built-in</b> = key ที่ผูกกับโค้ดอยู่ — ลบไม่ได้ แต่แก้ label/placeholders/sample ได้ ·
+          <b>Custom</b> = สร้างใหม่ ลบได้ (ต้อง wire โค้ด <code>Notify.evaluateRules('key', payload)</code> เอง สำหรับ on_status)
+        </div>
+        <button class="btn-primary" onclick="openTriggerEditor(null)">➕ เพิ่ม Trigger</button>
+      </div>
+      <div class="nr-table-wrap">
+        <table class="nr-table">
+          <thead>
+            <tr>
+              <th>Key / Label</th>
+              <th style="width:90px;">Kind</th>
+              <th style="width:130px;">Anchor</th>
+              <th style="width:60px;text-align:center;">เปิด</th>
+              <th style="width:120px;text-align:right;">จัดการ</th>
+            </tr>
+          </thead>
+          <tbody id="trigTbody">
+            <tr><td colspan="5" class="nr-empty"><div class="nr-empty-icon">⏳</div>กำลังโหลด...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="nr-modal-foot">
+      <div style="flex:1;"></div>
+      <button class="btn-ghost" onclick="closeTriggerManager()">ปิด</button>
+    </div>
+  </div>
+</div>
+
+<!-- Trigger Editor Modal -->
+<div class="nr-modal" id="trigEditModal">
+  <div class="nr-modal-card">
+    <div class="nr-modal-head">
+      <div class="nr-modal-title" id="trigEditTitle">เพิ่ม Trigger</div>
+      <button class="nr-modal-close" onclick="closeTriggerEditor()">×</button>
+    </div>
+    <div class="nr-modal-body">
+      <div class="nr-row-2">
+        <div class="nr-field">
+          <label>Trigger Key * <span style="color:#dc2626;">(แก้ไม่ได้หลังบันทึก)</span></label>
+          <input type="text" id="tfKey" placeholder="เช่น mymodule.something.created" autocomplete="off">
+          <div class="nr-hint">ภาษาอังกฤษ + จุด + underscore เท่านั้น (รูปแบบ <code>module.event.action</code>)</div>
+        </div>
+        <div class="nr-field">
+          <label>Label * (ที่โชว์ใน dropdown)</label>
+          <input type="text" id="tfLabel" placeholder="เช่น 📋 เปิดบิลใหม่">
+        </div>
+      </div>
+
+      <div class="nr-row-2">
+        <div class="nr-field">
+          <label>Kind *</label>
+          <select id="tfKind" onchange="onTrigKindChange()">
+            <option value="on_status">on_status — ยิงตอน status เปลี่ยน (จากโค้ด JS)</option>
+            <option value="scheduled">scheduled — cron ยิงตามเวลา</option>
+          </select>
+        </div>
+        <div class="nr-field" id="tfAnchorWrap" style="display:none;">
+          <label>Anchor *</label>
+          <select id="tfAnchor">
+            <option value="event_date">event_date (events.event_date)</option>
+            <option value="booking_date">booking_date (room_booking_requests.booking_date)</option>
+            <option value="booking_start_time">booking_start_time (start_time ของแต่ละ booking)</option>
+          </select>
+          <div class="nr-hint">ai-proxy รองรับเฉพาะ 3 ตัวนี้ — ถ้าจะรองรับ anchor อื่นต้องแก้ <code>_processRule</code></div>
+        </div>
+      </div>
+
+      <div class="nr-field">
+        <label>Placeholders (กด Enter เพิ่ม)</label>
+        <div class="nr-tags-wrap-outer">
+          <div class="nr-tags-wrap" id="tfPhWrap"></div>
+        </div>
+        <div class="nr-hint">ตัวแปรที่จะเอาไปใช้ในข้อความ template — ตัวอย่าง: <code>event_name</code>, <code>booking_date</code></div>
+      </div>
+
+      <div class="nr-field">
+        <label>Sample data (JSON — ใช้ตอน "ทดสอบส่ง")</label>
+        <textarea id="tfSample" style="font-family:'IBM Plex Mono',monospace;font-size:12px;min-height:140px;" placeholder='{"event_name":"...", "event_date":"15/05/2026"}'></textarea>
+        <div class="nr-hint" id="tfSampleErr" style="color:#dc2626;display:none;"></div>
+      </div>
+
+      <div class="nr-field">
+        <label>คำอธิบาย (อธิบายว่ายิงเมื่อไหร่ จากที่ไหน)</label>
+        <textarea id="tfDesc" style="min-height:60px;" placeholder="เช่น: ยิงจาก my-module.js เมื่อสถานะเป็น..."></textarea>
+      </div>
+
+      <div class="nr-field">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+          <input type="checkbox" id="tfActive" checked>
+          เปิดใช้งาน (โชว์ใน dropdown ของกฎ)
+        </label>
+      </div>
+
+      <div id="tfBuiltinHint" style="display:none;background:#fef3c7;border:1px solid #fde68a;border-radius:8px;padding:10px 14px;font-size:12.5px;color:#92400e;">
+        ⚠️ <b>Built-in trigger</b> — แก้ได้แต่ลบไม่ได้ (เพราะถูกอ้างจากโค้ด)
+      </div>
+    </div>
+    <div class="nr-modal-foot">
+      <button class="btn-icon btn-danger" id="tfDeleteBtn" title="ลบ trigger" onclick="deleteTrigger()" style="display:none;width:auto;padding:0 12px;">🗑️ ลบ</button>
+      <div style="flex:1;"></div>
+      <button class="btn-ghost" onclick="closeTriggerEditor()">ยกเลิก</button>
+      <button class="btn-primary" id="tfSaveBtn" onclick="saveTrigger()">💾 บันทึก</button>
     </div>
   </div>
 </div>

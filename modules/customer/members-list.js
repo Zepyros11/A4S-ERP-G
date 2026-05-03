@@ -15,6 +15,7 @@ const PAGE_SIZE = 50;
 let decryptMode = false;
 let decryptedCache = {};
 let _searchDebounce = null;
+let activePositions = new Set();   // multi-select: empty = ทั้งหมด
 
 const PKG_BADGE = {
   DM: '💎 DM', SI: '⭐ SI', PL: '💠 PL', MB: '🎁 MB', EM: '🌟 EM',
@@ -75,6 +76,10 @@ function _buildFilterQuery() {
 
   if (country) parts.push(`country_code=eq.${encodeURIComponent(country)}`);
   if (pkg) parts.push(`package=eq.${encodeURIComponent(pkg)}`);
+  if (activePositions.size > 0) {
+    const list = Array.from(activePositions).map(encodeURIComponent).join(',');
+    parts.push(`position_level=in.(${list})`);
+  }
 
   if (q) {
     const esc = q.replace(/[,()*]/g, '');
@@ -745,6 +750,154 @@ async function confirmPurge() {
   }
   btn.textContent = '🗑️ ลบทั้งหมด';
 }
+
+/* ============================================================
+   POSITION FILTER (multi-select chips)
+   ============================================================ */
+function togglePos(btn, pos) {
+  if (pos === '') {
+    activePositions.clear();
+  } else {
+    if (activePositions.has(pos)) activePositions.delete(pos);
+    else activePositions.add(pos);
+  }
+  _updatePosChips();
+  applyFilter();
+}
+window.togglePos = togglePos;
+
+function _updatePosChips() {
+  document.querySelectorAll('.pos-chip').forEach(b => {
+    const p = b.dataset.pos;
+    if (p === '') b.classList.toggle('active', activePositions.size === 0);
+    else b.classList.toggle('active', activePositions.has(p));
+  });
+  const cnt = document.getElementById('posFilterCount');
+  if (cnt) {
+    cnt.textContent = activePositions.size > 0
+      ? `เลือก ${activePositions.size} ตำแหน่ง: ${Array.from(activePositions).join(', ')}`
+      : '';
+  }
+}
+
+/* ============================================================
+   EXPORT EXCEL — ใช้ filter ปัจจุบัน, paginate ทุก row
+   ============================================================ */
+async function exportExcel() {
+  if (typeof XLSX === 'undefined') {
+    showToast('XLSX library ยังไม่โหลด — ลองรีเฟรช', 'error');
+    return;
+  }
+  if (!SUPABASE_URL || !SUPABASE_KEY) {
+    showToast('ยังไม่ได้ตั้งค่า Supabase', 'error');
+    return;
+  }
+
+  const btn = document.getElementById('btnExport');
+  const oldLabel = btn ? btn.innerHTML : '';
+  if (btn) { btn.disabled = true; btn.innerHTML = '⏳ นับจำนวน...'; }
+  showLoading(true);
+
+  try {
+    const filter = _buildFilterQuery();
+    const cols = 'member_code,member_name,full_name,co_applicant_name,phone,email,package,position_level,position,sponsor_code,upline_code,side,registered_at,country_code';
+    const baseUrl = `${SUPABASE_URL}/rest/v1/members?select=${cols}${filter ? '&' + filter : ''}&order=${sortKey}.${sortAsc ? 'asc' : 'desc'}`;
+
+    // Count จริงตาม filter ก่อน (ใช้ count=exact + Range 0-0)
+    const countRes = await fetch(`${baseUrl}&limit=1`, {
+      headers: _sbHeaders({ Prefer: 'count=exact', Range: '0-0' }),
+    });
+    if (!countRes.ok) throw new Error(await countRes.text());
+    const range = countRes.headers.get('content-range') || '*/0';
+    const filteredCount = parseInt(range.split('/')[1], 10) || 0;
+
+    if (!filteredCount) {
+      showToast('ไม่มีข้อมูลให้ export', 'error');
+      return;
+    }
+
+    // Confirm ถ้า > 5,000 row
+    if (filteredCount > 5000 && window.ConfirmModal) {
+      showLoading(false);
+      if (btn) btn.innerHTML = oldLabel;
+      const ok = await ConfirmModal.open({
+        title: '📤 Export Excel',
+        message: `จะ export สมาชิก ${filteredCount.toLocaleString()} รายการ\nอาจใช้เวลาหลายวินาที`,
+        icon: '📤',
+        okText: 'ดำเนินการต่อ',
+        tone: 'primary',
+      });
+      if (!ok) {
+        if (btn) btn.disabled = false;
+        return;
+      }
+      showLoading(true);
+      if (btn) { btn.disabled = true; btn.innerHTML = '⏳ กำลังโหลด...'; }
+    }
+
+    const BATCH = 1000;
+    let from = 0;
+    const rows = [];
+    while (true) {
+      const res = await fetch(`${baseUrl}&limit=${BATCH}&offset=${from}`, { headers: _sbHeaders() });
+      if (!res.ok) throw new Error(await res.text());
+      const batch = await res.json();
+      rows.push(...batch);
+      if (btn) btn.innerHTML = `⏳ ${rows.length.toLocaleString()} / ${filteredCount.toLocaleString()}`;
+      if (batch.length < BATCH) break;
+      from += BATCH;
+    }
+
+    if (!rows.length) {
+      showToast('ไม่มีข้อมูลให้ export', 'error');
+      return;
+    }
+
+    const out = rows.map(m => ({
+      'รหัสสมาชิก'    : m.member_code || '',
+      'ชื่อ-นามสกุล'   : window.MemberFmt ? MemberFmt.displayName(m) : (m.full_name || m.member_name || ''),
+      'ชื่อคู่สมัคร'   : m.co_applicant_name || '',
+      'เบอร์โทร'      : m.phone || '',
+      'Email'         : m.email || '',
+      'Package'       : m.package || '',
+      'ตำแหน่งสูงสุด' : m.position_level || '',
+      'ตำแหน่งปัจจุบัน': m.position || '',
+      'Sponsor'       : m.sponsor_code || '',
+      'Upline'        : m.upline_code || '',
+      'ด้าน'          : m.side || '',
+      'วันที่สมัคร'    : (window.DateFmt && DateFmt.formatDMY(m.registered_at)) || m.registered_at || '',
+      'ประเทศ'        : m.country_code || '',
+    }));
+
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(out);
+    ws['!cols'] = [
+      {wch:12},{wch:32},{wch:32},{wch:14},{wch:26},{wch:8},
+      {wch:14},{wch:14},{wch:12},{wch:12},{wch:8},
+      {wch:12},{wch:8},
+    ];
+    XLSX.utils.book_append_sheet(wb, ws, 'Members');
+
+    // ตั้งชื่อไฟล์ — date + filter summary
+    const today = new Date().toISOString().slice(0, 10);
+    const tag = [];
+    if (activePositions.size > 0) tag.push(Array.from(activePositions).join('-'));
+    const country = document.getElementById('filterCountry')?.value;
+    const pkg = document.getElementById('filterPackage')?.value;
+    if (country) tag.push(country);
+    if (pkg) tag.push(pkg);
+    const suffix = tag.length ? '_' + tag.join('_') : '';
+
+    XLSX.writeFile(wb, `members_${today}${suffix}.xlsx`);
+    showToast(`📤 Export ${rows.length.toLocaleString()} รายการสำเร็จ`, 'success');
+  } catch (e) {
+    showToast('Export ไม่สำเร็จ: ' + (e.message || e), 'error');
+  } finally {
+    showLoading(false);
+    if (btn) { btn.disabled = false; btn.innerHTML = oldLabel; }
+  }
+}
+window.exportExcel = exportExcel;
 
 /* ── Init ── */
 window.addEventListener('DOMContentLoaded', loadData);

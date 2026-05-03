@@ -125,6 +125,14 @@
 .sync-info strong{color:var(--text);font-family:'IBM Plex Mono',monospace;font-weight:600;}
 .sync-info.stale{background:#fef3c7;border-color:#fde68a;color:#92400e;}
 .sync-info.stale .sync-info-label,.sync-info.stale strong{color:#78350f;}
+
+/* ── Position filter chips (multi-select) ── */
+.pos-filter-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:10px 14px;margin-top:10px;background:var(--surface);border:1px solid var(--border);border-radius:10px;}
+.pos-filter-label{font-size:12.5px;color:var(--text2);font-weight:600;margin-right:4px;display:inline-flex;align-items:center;gap:5px;}
+.pos-chip{padding:5px 14px;background:var(--surface2);border:1.5px solid var(--border);border-radius:99px;font-family:inherit;font-size:12.5px;font-weight:600;color:var(--text2);cursor:pointer;transition:all .15s;letter-spacing:.3px;}
+.pos-chip:hover{border-color:var(--accent);color:var(--accent);}
+.pos-chip.active{background:var(--accent);color:#fff;border-color:var(--accent);box-shadow:0 2px 6px rgba(15,76,117,.25);}
+.pos-filter-count{margin-left:auto;font-size:11.5px;color:var(--text3);font-family:'IBM Plex Mono',monospace;}
 </style>
 </head>
 <body>
@@ -205,8 +213,21 @@
       <button class="btn btn-outline" data-perm="member_decrypt" onclick="toggleDecrypt()" id="btnDecrypt">🔓 ถอดรหัส</button>
       <button class="btn btn-outline" data-perm="member_decrypt" onclick="backfillPasswordHash()" id="btnBackfillHash" title="สร้าง password_hash จาก password_encrypted (ใช้ครั้งเดียวหลัง migration)">🔁 Backfill hash</button>
       <button class="btn btn-outline btn-danger-outline" data-perm="member_delete" onclick="openPurgeModal()">🗑️ ลบทั้งหมด</button>
+      <button class="btn btn-outline" onclick="exportExcel()" id="btnExport" title="Export ตาม filter ปัจจุบัน">📤 Export Excel</button>
       <button class="btn btn-primary" data-perm="member_import" onclick="location.href='./members-import.html'">📥 นำเข้า Excel</button>
     </div>
+  </div>
+
+  <!-- Position filter chips (multi-select) -->
+  <div class="pos-filter-bar">
+    <span class="pos-filter-label">⭐ ตำแหน่งสูงสุด:</span>
+    <button class="pos-chip active" data-pos="" onclick="togglePos(this, '')">ทั้งหมด</button>
+    <button class="pos-chip" data-pos="DR"  onclick="togglePos(this, 'DR')">DR</button>
+    <button class="pos-chip" data-pos="SD"  onclick="togglePos(this, 'SD')">SD</button>
+    <button class="pos-chip" data-pos="AVP" onclick="togglePos(this, 'AVP')">AVP</button>
+    <button class="pos-chip" data-pos="VP"  onclick="togglePos(this, 'VP')">VP</button>
+    <button class="pos-chip" data-pos="SVP" onclick="togglePos(this, 'SVP')">SVP</button>
+    <span class="pos-filter-count" id="posFilterCount"></span>
   </div>
 
   <!-- Table -->
@@ -375,11 +396,13 @@
   </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="../../js/core/auth.js"></script>
 <script src="../../js/core/authz.js"></script>
 <script src="../../js/core/crypto.js"></script>
 <script src="../../js/core/date-format.js"></script>
 <script src="../../js/core/member-format.js"></script>
+<script src="../../js/components/modal/confirmModal.js"></script>
 <script>AuthZ.requirePerm("member_view");</script>
 <script src="./members-list.js"></script>
 <script type="module">
