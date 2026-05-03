@@ -17,7 +17,9 @@
 
 /* Stats */
 .sm-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:14px;}
-.sm-stat{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 16px;display:flex;align-items:center;gap:12px;}
+.sm-stat{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 16px;display:flex;align-items:center;gap:12px;cursor:pointer;transition:transform .12s,box-shadow .12s,border-color .12s;}
+.sm-stat:hover{transform:translateY(-1px);border-color:var(--accent);box-shadow:0 4px 14px rgba(0,0,0,.06);}
+.sm-stat:active{transform:translateY(0);}
 .sm-stat-icon{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;}
 .sm-stat.linked .sm-stat-icon{background:#dcfce7;color:#15803d;}
 .sm-stat.total .sm-stat-icon{background:#fef3c7;color:#92400e;}
@@ -73,6 +75,35 @@
 .sm-empty{text-align:center;padding:42px 20px;color:var(--text3);}
 .sm-empty-icon{font-size:48px;opacity:.4;margin-bottom:10px;}
 
+/* Staff list modal */
+.sm-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9000;display:none;align-items:center;justify-content:center;padding:20px;}
+.sm-modal-overlay.open{display:flex;}
+.sm-modal{background:var(--surface);border-radius:14px;width:100%;max-width:640px;max-height:85vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.25);}
+.sm-modal-header{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;}
+.sm-modal-title{font-size:15px;font-weight:700;color:var(--text);flex:1;display:flex;align-items:center;gap:8px;}
+.sm-modal-count{font-size:12px;font-weight:600;color:var(--text3);background:var(--surface2);padding:3px 10px;border-radius:10px;}
+.sm-modal-close{width:30px;height:30px;border:none;background:var(--surface2);color:var(--text2);border-radius:8px;cursor:pointer;font-size:16px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;}
+.sm-modal-close:hover{background:#fef2f2;color:#dc2626;}
+.sm-modal-body{padding:6px 6px;overflow-y:auto;flex:1;}
+.sm-modal-search{padding:10px 14px;border-bottom:1px solid var(--border);background:var(--surface);position:sticky;top:0;z-index:1;}
+.sm-modal-search input{width:100%;box-sizing:border-box;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:var(--surface2);outline:none;}
+.sm-modal-search input:focus{border-color:var(--accent);background:var(--surface);}
+.sm-modal-list{padding:6px 0;}
+.sm-modal-row{display:flex;align-items:center;gap:10px;padding:8px 14px;border-bottom:1px solid var(--border);}
+.sm-modal-row:last-child{border-bottom:none;}
+.sm-modal-row:hover{background:var(--accent-pale);}
+.sm-modal-num{font-size:11px;font-weight:700;color:var(--text3);font-variant-numeric:tabular-nums;width:22px;text-align:right;}
+.sm-modal-info{flex:1;min-width:0;}
+.sm-modal-name{font-size:13px;font-weight:600;color:var(--text);}
+.sm-modal-meta{font-size:11.5px;color:var(--text3);font-family:'IBM Plex Mono',monospace;margin-top:1px;}
+.sm-modal-status{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:10px;font-size:10.5px;font-weight:700;flex-shrink:0;}
+.sm-modal-status.linked{background:#dcfce7;color:#15803d;}
+.sm-modal-status.unlinked{background:#fef3c7;color:#92400e;}
+.sm-modal-footer{padding:10px 16px;border-top:1px solid var(--border);background:var(--surface2);display:flex;justify-content:flex-end;gap:8px;}
+.sm-modal-btn{padding:8px 16px;border:1px solid var(--border);background:var(--surface);color:var(--text2);border-radius:8px;font-family:inherit;font-size:12.5px;font-weight:600;cursor:pointer;}
+.sm-modal-btn:hover{background:var(--accent-pale);}
+.sm-modal-empty{padding:40px 20px;text-align:center;color:var(--text3);font-size:13px;}
+
 @media(max-width:767px){
   .page{padding:14px;}
   .sm-stats{grid-template-columns:1fr 1fr;}
@@ -102,15 +133,15 @@
 
       <!-- Stats -->
       <div class="sm-stats">
-        <div class="sm-stat linked">
+        <div class="sm-stat linked" onclick="openStaffReport('linked')" title="คลิกเพื่อดูรายชื่อ">
           <div class="sm-stat-icon">💬</div>
           <div><div class="sm-stat-label">ผูก LINE แล้ว</div><div class="sm-stat-value" id="smStatLinked">—</div></div>
         </div>
-        <div class="sm-stat total">
+        <div class="sm-stat total" onclick="openStaffReport('all')" title="คลิกเพื่อดูรายชื่อทั้งหมด">
           <div class="sm-stat-icon">👥</div>
           <div><div class="sm-stat-label">พนักงานทั้งหมด</div><div class="sm-stat-value" id="smStatTotal">—</div></div>
         </div>
-        <div class="sm-stat selected">
+        <div class="sm-stat selected" onclick="openStaffReport('selected')" title="คลิกเพื่อดูรายชื่อที่เลือก">
           <div class="sm-stat-icon">✓</div>
           <div><div class="sm-stat-label">เลือกไว้</div><div class="sm-stat-value" id="smStatSelected">0</div></div>
         </div>
@@ -191,6 +222,29 @@
       </div>
 
     </div><!-- /.page -->
+  </div>
+</div>
+
+<!-- Staff list report modal -->
+<div class="sm-modal-overlay" id="smReportModal" onclick="if(event.target===this)closeStaffReport()">
+  <div class="sm-modal" role="dialog" aria-modal="true">
+    <div class="sm-modal-header">
+      <div class="sm-modal-title">
+        <span id="smReportIcon">👥</span>
+        <span id="smReportTitle">รายชื่อพนักงาน</span>
+        <span class="sm-modal-count" id="smReportCount">0 คน</span>
+      </div>
+      <button class="sm-modal-close" onclick="closeStaffReport()" title="ปิด">✕</button>
+    </div>
+    <div class="sm-modal-search">
+      <input type="text" id="smReportSearch" placeholder="🔍 ค้นหา ชื่อ / username / role / LINE name ...">
+    </div>
+    <div class="sm-modal-body">
+      <div class="sm-modal-list" id="smReportList"></div>
+    </div>
+    <div class="sm-modal-footer">
+      <button class="sm-modal-btn" onclick="closeStaffReport()">ปิด</button>
+    </div>
   </div>
 </div>
 

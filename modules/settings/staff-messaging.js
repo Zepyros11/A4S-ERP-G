@@ -352,9 +352,82 @@ document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("smSearchInput").addEventListener("input", renderTable);
   document.getElementById("smFilterRole").addEventListener("change", renderTable);
   document.getElementById("smFilterLinked").addEventListener("change", renderTable);
+  document.getElementById("smReportSearch").addEventListener("input", renderReportList);
   loadStaff();
   loadChannels();
 });
+
+/* ── Staff list report modal ── */
+let reportMode = "all"; // all | linked | selected
+
+function openStaffReport(mode) {
+  reportMode = mode;
+  const titleEl = document.getElementById("smReportTitle");
+  const iconEl = document.getElementById("smReportIcon");
+  if (mode === "linked") {
+    iconEl.textContent = "💬";
+    titleEl.textContent = "พนักงานที่ผูก LINE แล้ว";
+  } else if (mode === "selected") {
+    iconEl.textContent = "✓";
+    titleEl.textContent = "พนักงานที่เลือกไว้";
+  } else {
+    iconEl.textContent = "👥";
+    titleEl.textContent = "พนักงานทั้งหมด";
+  }
+  document.getElementById("smReportSearch").value = "";
+  renderReportList();
+  document.getElementById("smReportModal").classList.add("open");
+}
+
+function closeStaffReport() {
+  document.getElementById("smReportModal").classList.remove("open");
+}
+
+function getReportRows() {
+  let rows = allStaff.slice();
+  if (reportMode === "linked") rows = rows.filter((u) => u.line_user_id);
+  else if (reportMode === "selected") rows = rows.filter((u) => selectedIds.has(u.user_id));
+  const q = document.getElementById("smReportSearch").value.trim().toLowerCase();
+  if (q) {
+    rows = rows.filter((u) => {
+      const hay = [u.full_name, u.username, u.line_display_name, u.role]
+        .filter(Boolean).join(" ").toLowerCase();
+      return hay.includes(q);
+    });
+  }
+  return rows;
+}
+
+function renderReportList() {
+  const rows = getReportRows();
+  const listEl = document.getElementById("smReportList");
+  document.getElementById("smReportCount").textContent = `${rows.length} คน`;
+
+  if (!rows.length) {
+    listEl.innerHTML = `<div class="sm-modal-empty">— ไม่พบรายชื่อ —</div>`;
+    return;
+  }
+
+  listEl.innerHTML = rows.map((u, i) => {
+    const linked = !!u.line_user_id;
+    const role = u.role ? `<span class="sm-role-badge">${u.role}</span>` : "";
+    const lineName = u.line_display_name ? ` · ${u.line_display_name}` : "";
+    return `<div class="sm-modal-row">
+      <span class="sm-modal-num">${i + 1}.</span>
+      ${renderAvatar(u)}
+      <div class="sm-modal-info">
+        <div class="sm-modal-name">${u.full_name || "—"} ${role}</div>
+        <div class="sm-modal-meta">${u.username || ""}${lineName}</div>
+      </div>
+      <span class="sm-modal-status ${linked ? "linked" : "unlinked"}">
+        ${linked ? "💬 ผูกแล้ว" : "ยังไม่ผูก"}
+      </span>
+    </div>`;
+  }).join("");
+}
+
+window.openStaffReport = openStaffReport;
+window.closeStaffReport = closeStaffReport;
 
 // Expose for inline onclick
 async function unlinkUser(userId, displayName) {
