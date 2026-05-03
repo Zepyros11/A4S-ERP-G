@@ -1593,12 +1593,7 @@ window._onMemberSearchKey = function (ev) {
     const m = _lastMemberResults[_memberHighlight];
     if (m) {
       const name = m.person_name || '—';
-      const rowId = activeSearchRowId;
       window.selectMember(m.member_code, m.person_role || 'primary', name, m.phone || '', m.position_level || '');
-      // Auto-save immediately after Enter-selecting a member
-      if (rowId) {
-        requestAnimationFrame(() => window.saveNewRow(rowId));
-      }
     }
   }
 };
@@ -1613,12 +1608,10 @@ window.selectMember = function (code, role, name, phone, positionLevel) {
   document.getElementById("memberSuggest").style.display = "none";
   _lastMemberResults = [];
   if (!activeSearchRowId) return;
-  _applyMemberToRow(activeSearchRowId, code, role || "primary", name, phone || "", positionLevel || "");
-  // Focus save button (user can press Enter to save immediately)
-  requestAnimationFrame(() => {
-    const saveBtn = document.querySelector(`tr[data-nrid="${activeSearchRowId}"] .inline-save-btn`);
-    saveBtn?.focus();
-  });
+  const rowId = activeSearchRowId;
+  _applyMemberToRow(rowId, code, role || "primary", name, phone || "", positionLevel || "");
+  // Auto-save immediately — เลือก = enter รายการเข้า list ทันที
+  requestAnimationFrame(() => window.saveNewRow(rowId));
 };
 
 // Close member suggest on click outside any new-row search input
