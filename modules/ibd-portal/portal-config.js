@@ -11,5 +11,5 @@ window.PORTAL_CONFIG = {
   // ai-proxy URL — used for LINE notification when a member submits
   // (e.g. "https://your-proxy.onrender.com" or "http://localhost:3001")
   // Leave empty to disable notifications (form submission still works).
-  proxy_url: "",
+  proxy_url: "https://a4s-erp-proxy.onrender.com",
 };
