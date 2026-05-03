@@ -257,6 +257,123 @@ export function loadTopbar(title = "", options = {}) {
   margin:2px 0;
 }
 
+/* ── Bell (notification) ── */
+.topbar-bell{
+  position:relative;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  width:36px;
+  height:36px;
+  border-radius:50%;
+  background:rgba(255,255,255,0.12);
+  border:1px solid rgba(255,255,255,0.2);
+  cursor:pointer;
+  color:#fff;
+  font-size:16px;
+  transition:background 0.15s;
+  font-family:inherit;
+}
+.topbar-bell:hover{ background:rgba(255,255,255,0.22); }
+.topbar-bell-badge{
+  position:absolute;
+  top:-2px;
+  right:-2px;
+  min-width:18px;
+  height:18px;
+  padding:0 5px;
+  border-radius:9px;
+  background:#ef4444;
+  color:#fff;
+  font-size:10px;
+  font-weight:700;
+  display:none;
+  align-items:center;
+  justify-content:center;
+  border:1.5px solid var(--accent);
+  box-sizing:content-box;
+}
+.topbar-bell-badge.show{ display:inline-flex; }
+.topbar-bell-dd{
+  position:absolute;
+  top:calc(100% + 8px);
+  right:0;
+  width:380px;
+  max-height:520px;
+  background:#fff;
+  border-radius:10px;
+  box-shadow:0 8px 24px rgba(0,0,0,0.15);
+  display:none;
+  z-index:300;
+  border:1px solid rgba(0,0,0,0.07);
+  flex-direction:column;
+  overflow:hidden;
+}
+.topbar-bell-dd.open{ display:flex; animation:dropdownFadeIn 0.15s ease; }
+.topbar-bell-head{
+  padding:12px 16px;
+  border-bottom:1px solid #f0f0f0;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+  flex-shrink:0;
+}
+.topbar-bell-head-title{ font-size:14px; font-weight:600; color:#1a202c; }
+.topbar-bell-head-link{
+  font-size:11px;
+  color:var(--accent);
+  cursor:pointer;
+  border:none;
+  background:none;
+  padding:2px 6px;
+  border-radius:4px;
+  font-family:inherit;
+}
+.topbar-bell-head-link:hover{ background:#f0f9ff; text-decoration:underline; }
+.topbar-bell-list{
+  flex:1;
+  overflow-y:auto;
+  min-height:80px;
+}
+.topbar-bell-item{
+  padding:10px 16px;
+  border-bottom:1px solid #f7f8fa;
+  cursor:pointer;
+  transition:background 0.1s;
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+}
+.topbar-bell-item:last-child{ border-bottom:none; }
+.topbar-bell-item:hover{ background:#f7f8fa; }
+.topbar-bell-item.unread{ background:#eff6ff; }
+.topbar-bell-item.unread:hover{ background:#dbeafe; }
+.topbar-bell-item-title{ font-size:12.5px; font-weight:500; color:#1a202c; line-height:1.4; }
+.topbar-bell-item.unread .topbar-bell-item-title{ font-weight:600; }
+.topbar-bell-item-time{ font-size:10.5px; color:#718096; }
+.topbar-bell-empty{
+  padding:32px 16px;
+  text-align:center;
+  color:#a0aec0;
+  font-size:12.5px;
+}
+.topbar-bell-foot{
+  padding:8px;
+  border-top:1px solid #f0f0f0;
+  text-align:center;
+  flex-shrink:0;
+}
+.topbar-bell-foot a{
+  display:inline-block;
+  padding:6px 12px;
+  font-size:12px;
+  color:var(--accent);
+  text-decoration:none;
+  font-weight:500;
+}
+.topbar-bell-foot a:hover{ text-decoration:underline; }
+
 `;
 
     document.head.appendChild(style);
@@ -355,6 +472,25 @@ export function loadTopbar(title = "", options = {}) {
   <div class="topbar-title">${title}</div>
   <div class="topbar-spacer"></div>
   ${actionsHtml}
+  ${session?.user_id ? `
+  <div class="topbar-bell-wrap" id="topbarBellWrap" style="position:relative">
+    <button class="topbar-bell" id="topbarBellBtn" onclick="window._topbarToggleBell()" title="แจ้งเตือน">
+      🔔
+      <span class="topbar-bell-badge" id="topbarBellBadge">0</span>
+    </button>
+    <div class="topbar-bell-dd" id="topbarBellDd">
+      <div class="topbar-bell-head">
+        <span class="topbar-bell-head-title">🔔 แจ้งเตือน</span>
+        <button class="topbar-bell-head-link" onclick="window._topbarMarkAllRead()">อ่านทั้งหมด</button>
+      </div>
+      <div class="topbar-bell-list" id="topbarBellList">
+        <div class="topbar-bell-empty">กำลังโหลด...</div>
+      </div>
+      <div class="topbar-bell-foot">
+        <a href="${BASE_PATH}/modules/notifications/notifications.html">ดูทั้งหมด →</a>
+      </div>
+    </div>
+  </div>` : ''}
   <div class="topbar-user" id="topbarUserWrap">
     <button class="topbar-user-btn" id="topbarUserBtn" onclick="window._topbarToggleUserMenu()" aria-expanded="false">
       <div class="topbar-avatar" id="topbarAvatar">${initials}</div>
@@ -409,5 +545,138 @@ export function loadTopbar(title = "", options = {}) {
       dd.classList.remove("open");
       if (btn) btn.setAttribute("aria-expanded", "false");
     }
+    // close bell dropdown too
+    const bellWrap = document.getElementById("topbarBellWrap");
+    const bellDd   = document.getElementById("topbarBellDd");
+    if (bellWrap && bellDd && !bellWrap.contains(e.target)) {
+      bellDd.classList.remove("open");
+    }
   }, { capture: true });
+
+  /* ============================================================
+     Notification Bell — polling + dropdown render + mark read
+     ============================================================ */
+  if (session?.user_id) _initBell(session.user_id);
+}
+
+/* ── Bell logic (top-level so it can poll across reloads) ── */
+function _initBell(userId) {
+  const sbUrl = localStorage.getItem("sb_url") || "";
+  const sbKey = localStorage.getItem("sb_key") || "";
+  if (!sbUrl || !sbKey) return;
+
+  const POLL_MS = 30000;   // poll every 30s
+  const LIST_LIMIT = 15;
+  const BASE_PATH = window.location.hostname.includes("github.io")
+    ? "/" + window.location.pathname.split("/")[1]
+    : "";
+
+  async function _sb(path, opts = {}) {
+    return fetch(`${sbUrl}/rest/v1/${path}`, {
+      ...opts,
+      headers: {
+        apikey: sbKey,
+        Authorization: `Bearer ${sbKey}`,
+        "Content-Type": "application/json",
+        ...(opts.headers || {}),
+      },
+    });
+  }
+
+  async function loadCount() {
+    try {
+      const res = await _sb(
+        `user_notifications?select=id&user_id=eq.${userId}&read_at=is.null&limit=1`,
+        { headers: { Prefer: "count=exact" } }
+      );
+      const total = +(res.headers.get("content-range") || "0/0").split("/")[1] || 0;
+      const badge = document.getElementById("topbarBellBadge");
+      if (!badge) return;
+      if (total > 0) {
+        badge.textContent = total > 99 ? "99+" : String(total);
+        badge.classList.add("show");
+      } else {
+        badge.classList.remove("show");
+      }
+    } catch (_) { /* silent */ }
+  }
+
+  async function loadList() {
+    const list = document.getElementById("topbarBellList");
+    if (!list) return;
+    try {
+      const res = await _sb(
+        `user_notifications?select=id,trigger_key,title,link_url,payload_ref,read_at,created_at&user_id=eq.${userId}&order=created_at.desc&limit=${LIST_LIMIT}`
+      );
+      const rows = await res.json();
+      if (!Array.isArray(rows) || !rows.length) {
+        list.innerHTML = `<div class="topbar-bell-empty">ยังไม่มีแจ้งเตือน</div>`;
+        return;
+      }
+      list.innerHTML = rows.map(r => {
+        const unread = !r.read_at ? "unread" : "";
+        const t = _fmtRelTime(r.created_at);
+        const safeTitle = String(r.title || "—").replace(/[<>&"']/g, c => ({
+          "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;", "'": "&#39;"
+        }[c]));
+        return `<div class="topbar-bell-item ${unread}" onclick="window._topbarOpenNotif(${r.id}, '${(r.link_url || "").replace(/'/g, "\\'")}')">
+          <div class="topbar-bell-item-title">${safeTitle}</div>
+          <div class="topbar-bell-item-time">${t}</div>
+        </div>`;
+      }).join("");
+    } catch (e) {
+      list.innerHTML = `<div class="topbar-bell-empty">โหลดไม่สำเร็จ</div>`;
+    }
+  }
+
+  function _fmtRelTime(iso) {
+    if (!iso) return "";
+    const diff = Date.now() - new Date(iso).getTime();
+    const m = Math.floor(diff / 60000);
+    if (m < 1)   return "เมื่อสักครู่";
+    if (m < 60)  return `${m} นาทีที่แล้ว`;
+    const h = Math.floor(m / 60);
+    if (h < 24)  return `${h} ชม.ที่แล้ว`;
+    const d = Math.floor(h / 24);
+    if (d < 7)   return `${d} วันที่แล้ว`;
+    try {
+      return new Date(iso).toLocaleDateString("en-GB", {
+        day: "2-digit", month: "2-digit", year: "numeric", timeZone: "Asia/Bangkok"
+      });
+    } catch { return iso; }
+  }
+
+  window._topbarToggleBell = function () {
+    const dd = document.getElementById("topbarBellDd");
+    if (!dd) return;
+    const isOpen = dd.classList.toggle("open");
+    if (isOpen) loadList();
+  };
+
+  window._topbarOpenNotif = async function (id, linkUrl) {
+    // mark this row as read (fire-and-forget)
+    _sb(`user_notifications?id=eq.${id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ read_at: new Date().toISOString() }),
+    }).catch(() => {});
+    if (linkUrl) {
+      window.location.href = BASE_PATH + linkUrl;
+    } else {
+      loadCount(); loadList();
+    }
+  };
+
+  window._topbarMarkAllRead = async function () {
+    try {
+      await _sb(`user_notifications?user_id=eq.${userId}&read_at=is.null`, {
+        method: "PATCH",
+        body: JSON.stringify({ read_at: new Date().toISOString() }),
+      });
+      loadCount(); loadList();
+    } catch (_) {}
+  };
+
+  // initial load + interval polling
+  loadCount();
+  setInterval(loadCount, POLL_MS);
 }

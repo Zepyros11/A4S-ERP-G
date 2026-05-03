@@ -1009,9 +1009,84 @@ async function _resolveRuleTargets(rule) {
     return [];
   }
 
+  // คืน user ทุกคนที่ตรง rule (รวมคนที่ยังไม่ผูก LINE) — ฝั่ง LINE callsite filter line_user_id เอง
+  // เพื่อให้ inbox (user_notifications) ได้ row ของทุกคน ไม่ใช่เฉพาะคนผูก LINE
   const rows = await _sbGet('users',
-    `select=user_id,line_user_id&is_active=eq.true&line_user_id=not.is.null&${filter}`);
+    `select=user_id,line_user_id&is_active=eq.true&${filter}`);
   return rows || [];
+}
+
+/* ── In-app inbox (user_notifications) ──
+   เขียน 1 row ต่อ recipient — สำหรับกระดิ่งใน topbar + หน้า inbox
+   เรียกจาก /ibd/notify และ _processRule (cron) หลัง LINE multicast
+*/
+function _titleForTrigger(triggerKey, payload) {
+  // หัวข้อสั้น 1 บรรทัดสำหรับแสดงใน list (ไม่เกิน ~80 ตัวอักษร)
+  const p = payload || {};
+  switch (triggerKey) {
+    case 'ibd.complaint.created':
+      return `📋 IBD: Complaint ใหม่ — ${p.member_name || p.member_code || '—'}`;
+    case 'ibd.ewallet.created':
+      return `💳 IBD: คำขอโอน E-Wallet — ${p.member_full_name || p.member_code || '—'}`;
+    case 'ibd.relocation.created':
+      return `🌐 IBD: คำขอย้ายฐาน — ${p.member_name || p.member_code || '—'} (${p.from_country_label || ''}→${p.to_country_label || ''})`;
+    case 'event.confirmed':
+      return `📌 Event ยืนยันแล้ว — ${p.event_name || p.event_code || '—'}`;
+    case 'event.scheduled':
+      return `⏰ Event ใกล้ถึง — ${p.event_name || p.event_code || '—'}`;
+    case 'booking.approved':
+      return `🏢 จองห้องอนุมัติแล้ว — ${p.room_name || p.request_code || '—'}`;
+    case 'booking.scheduled':
+      return `⏰ Booking ใกล้ถึง — ${p.room_name || p.request_code || '—'}`;
+    case 'booking.before_start':
+      return `⏰ Booking กำลังจะเริ่ม — ${p.room_name || p.request_code || '—'}`;
+    default:
+      return `🔔 ${triggerKey}`;
+  }
+}
+
+function _linkForTrigger(triggerKey) {
+  // path สำหรับเปิดเมื่อคลิก notification (relative path — frontend prepend BASE_PATH)
+  if (triggerKey.startsWith('ibd.complaint'))  return '/modules/ibd/ibd-complaints.html';
+  if (triggerKey.startsWith('ibd.ewallet'))    return '/modules/ibd/ibd-ewallet.html';
+  if (triggerKey.startsWith('ibd.relocation')) return '/modules/ibd/ibd-relocation.html';
+  if (triggerKey.startsWith('event.'))         return '/modules/event/events.html';
+  if (triggerKey.startsWith('booking.'))       return '/modules/event/booking-room.html';
+  return '';
+}
+
+async function _writeInbox(rule, triggerKey, payload, body, recipients, refKey, refId) {
+  if (!SB_URL_WEBHOOK || !SB_SERVICE_KEY) return;
+  if (!recipients?.length) return;
+  const title = _titleForTrigger(triggerKey, payload);
+  const link  = _linkForTrigger(triggerKey);
+  const ref   = refId != null ? { [refKey]: refId } : null;
+  const entries = recipients
+    .filter(r => r.user_id != null)
+    .map(r => ({
+      user_id:     r.user_id,
+      rule_id:     rule?.id || null,
+      trigger_key: triggerKey,
+      title,
+      body:        body || '',
+      link_url:    link,
+      payload_ref: ref,
+    }));
+  if (!entries.length) return;
+  try {
+    await fetch(`${SB_URL_WEBHOOK}/rest/v1/user_notifications`, {
+      method: 'POST',
+      headers: {
+        apikey: SB_SERVICE_KEY,
+        Authorization: `Bearer ${SB_SERVICE_KEY}`,
+        'Content-Type': 'application/json',
+        Prefer: 'return=minimal',
+      },
+      body: JSON.stringify(entries),
+    });
+  } catch (e) {
+    console.warn('[inbox]', e.message);
+  }
 }
 
 async function _checkDedupe(ruleId, refKey, refId) {
@@ -1165,7 +1240,8 @@ async function _processRule(rule, now) {
     }
     return result;
   }
-  const lineIds = recipients.map(r => r.line_user_id).filter(Boolean);
+  const lineRecipients = recipients.filter(r => r.line_user_id);
+  const lineIds = lineRecipients.map(r => r.line_user_id);
 
   // 3) ส่งทีละ record (กัน dedupe + log แยก)
   for (const rec of records) {
@@ -1179,11 +1255,14 @@ async function _processRule(rule, now) {
       : _payloadFromBooking(rec);
     const text = _renderTpl(rule.message_template, payload);
     try {
-      await _multicastViaCronToken(lineIds, text);
-      await _logBatch(rule, refKey, refId, recipients, 'sent');
+      if (lineIds.length) await _multicastViaCronToken(lineIds, text);
+      // log only LINE recipients ใน notification_log (รักษา semantic เดิม)
+      // แต่ inbox เขียน "ทุก" recipient (รวมคนยังไม่ผูก LINE)
+      await _logBatch(rule, refKey, refId, lineRecipients, 'sent');
+      await _writeInbox(rule, rule.trigger_key, payload, text, recipients, refKey, refId);
       result.sent += recipients.length;
     } catch (e) {
-      await _logBatch(rule, refKey, refId, recipients, 'failed', e.message);
+      await _logBatch(rule, refKey, refId, lineRecipients, 'failed', e.message);
       result.failed += recipients.length;
     }
   }
@@ -1526,10 +1605,12 @@ app.post('/ibd/notify', async (req, res) => {
           summary.skipped++;
           continue;
         }
-        const lineIds = recipients.map(r => r.line_user_id).filter(Boolean);
+        const lineRecipients = recipients.filter(r => r.line_user_id);
+        const lineIds = lineRecipients.map(r => r.line_user_id);
         const text = _renderTpl(rule.message_template, payload || {});
-        await _multicastViaCronToken(lineIds, text);
-        await _logBatch(rule, refKey, refId, recipients, 'sent');
+        if (lineIds.length) await _multicastViaCronToken(lineIds, text);
+        await _logBatch(rule, refKey, refId, lineRecipients, 'sent');
+        await _writeInbox(rule, trigger_key, payload || {}, text, recipients, refKey, refId);
         summary.sent += recipients.length;
       } catch (e) {
         console.warn(`[ibd/notify rule ${rule.id}]`, e.message);

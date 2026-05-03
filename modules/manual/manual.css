@@ -7,13 +7,13 @@
   background: linear-gradient(180deg, #fdf8f0 0%, #f8fafc 60%, #eef2ff 100%);
   min-height: 100vh;
 }
-.manual-page {
+.content-area.manual-bg .page {
   max-width: 1180px;
   margin: 0 auto;
   padding: 28px 22px 100px;
 }
 @media (max-width: 767px) {
-  .manual-page { padding: 16px 14px 90px; }
+  .content-area.manual-bg .page { padding: 16px 14px 90px; }
 }
 
 /* ── Hero ── */
