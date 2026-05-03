@@ -279,6 +279,8 @@ window.deleteRow = async function (id) {
   showLoading(true);
   try {
     await sbFetch(`ibd_relocation_requests?id=eq.${id}`, { method: 'DELETE' });
+    // cascade: ลบ in-app notification ที่อ้างถึง submission นี้
+    sbFetch(`user_notifications?trigger_key=eq.ibd.relocation.created&payload_ref->>submission_id=eq.${id}`, { method: 'DELETE' }).catch(() => {});
     toast('ลบรายการแล้ว');
     loadList();
   } catch (e) {
@@ -475,8 +477,22 @@ async function init() {
   await loadCountries();
   await loadCaretakers();
   await loadList();
+  startAutoRefresh();
 }
 
 function debounce(fn, ms) { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; }
+
+// auto-refresh ทุก 30s — ข้ามถ้าหน้าโดนซ่อน, modal เปิด, หรือผู้ใช้กำลังพิมพ์
+function startAutoRefresh() {
+  const AUTO_REFRESH_MS = 30000;
+  setInterval(() => {
+    if (document.hidden) return;
+    if ($('detailModal')?.classList.contains('open')) return;
+    if (document.querySelector('.cm-overlay.open, .pm-overlay.open')) return;
+    const tag = document.activeElement?.tagName;
+    if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
+    loadList();
+  }, AUTO_REFRESH_MS);
+}
 
 window.addEventListener('DOMContentLoaded', init);

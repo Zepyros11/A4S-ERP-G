@@ -571,6 +571,80 @@ function _initBell(userId) {
     ? "/" + window.location.pathname.split("/")[1]
     : "";
 
+  /* ── Notification sound ──
+     ลำดับความสำคัญ:
+       1. ไฟล์ custom ถ้ามี (assets/sounds/notification.mp3 หรือ override ผ่าน localStorage)
+       2. fallback → Web Audio synth (สังเคราะห์เสียง ไม่ต้องมีไฟล์)
+     Browser autoplay policy: AudioContext/HTMLAudio ต้องผูกกับ user gesture
+     จึงผูก lazy-init ใน first click/keydown */
+  const SOUND_FILE = localStorage.getItem("erp_notif_sound_path")
+                  || `${BASE_PATH}/assets/sounds/notification.mp3`;
+  let _audioCtx = null;
+  let _soundFileEl = null;     // <audio> element (lazy)
+  let _soundFileReady = false; // โหลดสำเร็จแล้ว
+  function _initAudio() {
+    if (_audioCtx) return;
+    try {
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      if (Ctx) _audioCtx = new Ctx();
+    } catch (_) {}
+    // ลองโหลดไฟล์ custom — ถ้าไม่มีก็ fallback ไป synth
+    try {
+      _soundFileEl = new Audio(SOUND_FILE);
+      _soundFileEl.preload = "auto";
+      _soundFileEl.addEventListener("canplaythrough", () => { _soundFileReady = true; }, { once: true });
+      _soundFileEl.addEventListener("error", () => { _soundFileEl = null; }, { once: true });
+    } catch (_) {}
+  }
+  document.addEventListener("click", _initAudio, { once: true, capture: true });
+  document.addEventListener("keydown", _initAudio, { once: true, capture: true });
+
+  // expose สำหรับทดสอบ — เปิด console แล้วเรียก: window._erpTestNotifSound()
+  window._erpTestNotifSound = () => _playNotifSound();
+
+  function _playNotifSound() {
+    // ปิดเสียงได้: localStorage.setItem('erp_notif_mute','1')
+    if (localStorage.getItem("erp_notif_mute") === "1") return;
+
+    // 1) ใช้ไฟล์ custom ถ้าโหลดสำเร็จ
+    if (_soundFileEl && _soundFileReady) {
+      try {
+        _soundFileEl.currentTime = 0;
+        const vol = parseFloat(localStorage.getItem("erp_notif_sound_volume") || "1");
+        _soundFileEl.volume = Math.max(0, Math.min(1, vol));
+        _soundFileEl.play().catch(() => {}); // กัน promise warning
+        return;
+      } catch (_) { /* fallback */ }
+    }
+
+    // 2) fallback → synth two-tone "ding-dong"
+    try {
+      if (!_audioCtx) return; // ยังไม่เคย interact — เงียบไว้
+      if (_audioCtx.state === "suspended") _audioCtx.resume();
+      const now = _audioCtx.currentTime;
+      const tones = [
+        { freq: 880, start: 0,    dur: 0.18 },
+        { freq: 660, start: 0.16, dur: 0.30 },
+      ];
+      for (const t of tones) {
+        const osc  = _audioCtx.createOscillator();
+        const gain = _audioCtx.createGain();
+        osc.type = "sine";
+        osc.frequency.value = t.freq;
+        gain.gain.setValueAtTime(0, now + t.start);
+        gain.gain.linearRampToValueAtTime(0.18, now + t.start + 0.01);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + t.start + t.dur);
+        osc.connect(gain);
+        gain.connect(_audioCtx.destination);
+        osc.start(now + t.start);
+        osc.stop(now + t.start + t.dur);
+      }
+    } catch (_) {}
+  }
+
+  // -1 = ยังไม่เคยโหลด (จะไม่เล่นเสียงรอบแรก)
+  let _lastUnreadCount = -1;
+
   async function _sb(path, opts = {}) {
     return fetch(`${sbUrl}/rest/v1/${path}`, {
       ...opts,
@@ -583,6 +657,51 @@ function _initBell(userId) {
     });
   }
 
+  // ลบ in-app notification ที่ "row ต้นทางถูกลบไปแล้ว" (orphan)
+  // เกิดจาก notification เก่าก่อน cascade-delete หรือมีคนลบ row นอก ERP
+  const ORPHAN_MAP = {
+    "ibd.relocation.created": "ibd_relocation_requests",
+    "ibd.complaint.created":  "ibd_complaints",
+    "ibd.ewallet.created":    "ibd_ewallet_requests",
+  };
+  let _orphanCleanupRan = false;
+  async function cleanupOrphans() {
+    try {
+      const triggerList = Object.keys(ORPHAN_MAP).join(",");
+      const res = await _sb(
+        `user_notifications?select=id,trigger_key,payload_ref&user_id=eq.${userId}&trigger_key=in.(${triggerList})&order=created_at.desc&limit=200`
+      );
+      const rows = await res.json();
+      if (!Array.isArray(rows) || !rows.length) return false;
+
+      const buckets = {};
+      for (const r of rows) {
+        const sid = r.payload_ref?.submission_id;
+        if (sid == null) continue;
+        const tbl = ORPHAN_MAP[r.trigger_key];
+        if (!tbl) continue;
+        (buckets[tbl] ||= []).push({ notifId: r.id, sid });
+      }
+
+      const orphanIds = [];
+      for (const [tbl, items] of Object.entries(buckets)) {
+        const sids = [...new Set(items.map(x => x.sid))];
+        if (!sids.length) continue;
+        const res2 = await _sb(`${tbl}?id=in.(${sids.join(",")})&select=id`);
+        const existing = new Set((await res2.json()).map(x => x.id));
+        for (const it of items) {
+          if (!existing.has(it.sid)) orphanIds.push(it.notifId);
+        }
+      }
+
+      if (orphanIds.length) {
+        await _sb(`user_notifications?id=in.(${orphanIds.join(",")})`, { method: "DELETE" });
+        return true;
+      }
+      return false;
+    } catch (_) { return false; }
+  }
+
   async function loadCount() {
     try {
       const res = await _sb(
@@ -590,6 +709,13 @@ function _initBell(userId) {
         { headers: { Prefer: "count=exact" } }
       );
       const total = +(res.headers.get("content-range") || "0/0").split("/")[1] || 0;
+
+      // เล่นเสียงเมื่อ unread เพิ่มขึ้น (ข้ามรอบแรกเพื่อกัน beep ตอนโหลดหน้า)
+      if (_lastUnreadCount >= 0 && total > _lastUnreadCount) {
+        _playNotifSound();
+      }
+      _lastUnreadCount = total;
+
       const badge = document.getElementById("topbarBellBadge");
       if (!badge) return;
       if (total > 0) {
@@ -605,6 +731,9 @@ function _initBell(userId) {
     const list = document.getElementById("topbarBellList");
     if (!list) return;
     try {
+      // เช็ค orphan ก่อนแสดง — ถ้ามีลบแล้ว refresh badge ด้วย
+      const cleaned = await cleanupOrphans();
+      if (cleaned) loadCount();
       const res = await _sb(
         `user_notifications?select=id,trigger_key,title,link_url,payload_ref,read_at,created_at&user_id=eq.${userId}&order=created_at.desc&limit=${LIST_LIMIT}`
       );
@@ -654,11 +783,13 @@ function _initBell(userId) {
   };
 
   window._topbarOpenNotif = async function (id, linkUrl) {
-    // mark this row as read (fire-and-forget)
-    _sb(`user_notifications?id=eq.${id}`, {
-      method: "PATCH",
-      body: JSON.stringify({ read_at: new Date().toISOString() }),
-    }).catch(() => {});
+    // mark as read first so the badge reflects the change after navigation
+    try {
+      await _sb(`user_notifications?id=eq.${id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ read_at: new Date().toISOString() }),
+      });
+    } catch (_) {}
     if (linkUrl) {
       window.location.href = BASE_PATH + linkUrl;
     } else {
@@ -677,6 +808,13 @@ function _initBell(userId) {
   };
 
   // initial load + interval polling
-  loadCount();
+  // ทำ orphan cleanup ครั้งเดียวตอน init เพื่อให้ badge แรกถูกต้อง
+  (async () => {
+    if (!_orphanCleanupRan) {
+      _orphanCleanupRan = true;
+      await cleanupOrphans();
+    }
+    loadCount();
+  })();
   setInterval(loadCount, POLL_MS);
 }

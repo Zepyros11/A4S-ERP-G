@@ -43,6 +43,7 @@ let editingId = null;
 let editingTargetType = "role";
 let editingTargetValues = [];
 let editingSchedule = { offset_days: 0, offset_minutes: 0, time: "" };
+let selectedRuleIds = new Set();
 
 // ── Init ──────────────────────────────────────────────────
 async function init() {
@@ -102,8 +103,13 @@ async function loadUsersAndRoles() {
 // ── Render table ──────────────────────────────────────────
 function renderTable() {
   const tb = document.getElementById("nrTbody");
+  // ตัด selection ที่ rule ถูกลบไปแล้วออก
+  const validIds = new Set(allRules.map((r) => r.id));
+  for (const id of [...selectedRuleIds]) if (!validIds.has(id)) selectedRuleIds.delete(id);
+
   if (!allRules.length) {
-    tb.innerHTML = `<tr><td colspan="6" class="nr-empty"><div class="nr-empty-icon">🔔</div>ยังไม่มีกฎ — กดปุ่ม "เพิ่มกฎ" ด้านบน</td></tr>`;
+    tb.innerHTML = `<tr><td colspan="7" class="nr-empty"><div class="nr-empty-icon">🔔</div>ยังไม่มีกฎ — กดปุ่ม "เพิ่มกฎ" ด้านบน</td></tr>`;
+    updateBulkBar();
     return;
   }
   tb.innerHTML = allRules.map((r) => {
@@ -133,8 +139,10 @@ function renderTable() {
       }
       schedBadge = `<span style="display:inline-block;margin-left:6px;padding:2px 7px;border-radius:6px;font-size:10px;font-weight:700;background:#fef3c7;color:#92400e;">⏰ ${info}</span>`;
     }
+    const isChecked = selectedRuleIds.has(r.id) ? "checked" : "";
     return `
       <tr>
+        <td class="nr-check-col"><input type="checkbox" ${isChecked} onchange="toggleSelectRule(${r.id}, this.checked)"></td>
         <td><div class="nr-name">${escapeHtml(r.rule_name)}</div></td>
         <td><span class="nr-trigger-chip">${escapeHtml(trig)}</span>${schedBadge}</td>
         <td>
@@ -157,6 +165,66 @@ function renderTable() {
       </tr>
     `;
   }).join("");
+  updateBulkBar();
+}
+
+// ── Bulk selection ────────────────────────────────────────
+function toggleSelectRule(id, on) {
+  if (on) selectedRuleIds.add(id); else selectedRuleIds.delete(id);
+  updateBulkBar();
+}
+
+function toggleSelectAll(on) {
+  selectedRuleIds.clear();
+  if (on) allRules.forEach((r) => selectedRuleIds.add(r.id));
+  // sync row checkboxes โดยไม่ต้อง re-render ทั้งตาราง
+  document.querySelectorAll('#nrTbody .nr-check-col input[type="checkbox"]').forEach((cb) => {
+    cb.checked = on;
+  });
+  updateBulkBar();
+}
+
+function clearBulkSelection() {
+  selectedRuleIds.clear();
+  document.querySelectorAll('#nrTbody .nr-check-col input[type="checkbox"]').forEach((cb) => cb.checked = false);
+  const all = document.getElementById("nrCheckAll");
+  if (all) { all.checked = false; all.indeterminate = false; }
+  updateBulkBar();
+}
+
+function updateBulkBar() {
+  const bar = document.getElementById("nrBulkBar");
+  const cnt = document.getElementById("nrBulkCount");
+  const all = document.getElementById("nrCheckAll");
+  const n = selectedRuleIds.size;
+  if (bar) bar.classList.toggle("show", n > 0);
+  if (cnt) cnt.textContent = `เลือก ${n} กฎ`;
+  if (all) {
+    all.checked = n > 0 && n === allRules.length;
+    all.indeterminate = n > 0 && n < allRules.length;
+  }
+}
+
+async function bulkDeleteRules() {
+  const ids = [...selectedRuleIds];
+  if (!ids.length) return;
+  const ok = await window.ConfirmModal.open({
+    title: `ลบ ${ids.length} กฎที่เลือก?`,
+    message: `จะลบกฎทั้งหมด ${ids.length} รายการ — ไม่สามารถกู้คืนได้`,
+    confirmText: "ลบทั้งหมด",
+    danger: true,
+  });
+  if (!ok) return;
+  try {
+    // PostgREST: ใช้ in.(id1,id2,...) สำหรับลบหลายแถว
+    await sbFetch(`notification_rules?id=in.(${ids.join(",")})`, { method: "DELETE" });
+    showToast(`ลบแล้ว ${ids.length} กฎ`, "success");
+    selectedRuleIds.clear();
+    await loadRules();
+    renderTable();
+  } catch (e) {
+    showToast("ลบไม่สำเร็จ: " + e.message, "error");
+  }
 }
 
 async function toggleActive(id, on) {
@@ -917,6 +985,10 @@ window.closeRuleModal = closeRuleModal;
 window.saveRule = saveRule;
 window.deleteRule = deleteRule;
 window.toggleActive = toggleActive;
+window.toggleSelectRule = toggleSelectRule;
+window.toggleSelectAll = toggleSelectAll;
+window.clearBulkSelection = clearBulkSelection;
+window.bulkDeleteRules = bulkDeleteRules;
 window.onTriggerChange = onTriggerChange;
 window.insertPlaceholder = insertPlaceholder;
 window.togglePreview = togglePreview;

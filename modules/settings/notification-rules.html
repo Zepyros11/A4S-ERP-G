@@ -44,6 +44,16 @@
 .nr-empty{text-align:center;padding:50px 20px;color:var(--text3);}
 .nr-empty-icon{font-size:42px;opacity:.4;margin-bottom:8px;}
 
+.nr-check-col{width:36px;text-align:center;padding-left:14px;padding-right:6px;}
+.nr-check-col input{cursor:pointer;width:16px;height:16px;accent-color:#06c755;}
+.nr-bulkbar{display:none;align-items:center;gap:12px;padding:10px 14px;background:linear-gradient(135deg,#fef2f2,#fee2e2);border:1px solid #fecaca;border-radius:10px;margin-bottom:10px;}
+.nr-bulkbar.show{display:flex;}
+.nr-bulkbar-count{font-size:13px;font-weight:700;color:#991b1b;}
+.nr-bulkbar .btn-bulk-del{padding:7px 14px;background:#dc2626;color:#fff;border:none;border-radius:8px;font-weight:600;font-size:12.5px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;}
+.nr-bulkbar .btn-bulk-del:hover{background:#b91c1c;}
+.nr-bulkbar .btn-bulk-clear{padding:6px 12px;background:transparent;color:#991b1b;border:1px solid #fecaca;border-radius:8px;font-weight:600;font-size:12px;cursor:pointer;}
+.nr-bulkbar .btn-bulk-clear:hover{background:#fff;}
+
 /* Modal */
 .nr-modal{display:none;position:fixed;inset:0;background:rgba(15,23,42,.5);z-index:200;align-items:center;justify-content:center;padding:20px;}
 .nr-modal.open{display:flex;}
@@ -129,10 +139,18 @@
         </div>
       </div>
 
+      <div class="nr-bulkbar" id="nrBulkBar">
+        <span class="nr-bulkbar-count" id="nrBulkCount">เลือก 0 กฎ</span>
+        <div style="flex:1;"></div>
+        <button class="btn-bulk-clear" onclick="clearBulkSelection()">ยกเลิก</button>
+        <button class="btn-bulk-del" onclick="bulkDeleteRules()">🗑️ ลบที่เลือก</button>
+      </div>
+
       <div class="nr-table-wrap">
         <table class="nr-table">
           <thead>
             <tr>
+              <th class="nr-check-col"><input type="checkbox" id="nrCheckAll" onchange="toggleSelectAll(this.checked)" title="เลือกทั้งหมด"></th>
               <th>ชื่อกฎ</th>
               <th>Trigger</th>
               <th>Target</th>
@@ -142,7 +160,7 @@
             </tr>
           </thead>
           <tbody id="nrTbody">
-            <tr><td colspan="6" class="nr-empty"><div class="nr-empty-icon">⏳</div>กำลังโหลด...</td></tr>
+            <tr><td colspan="7" class="nr-empty"><div class="nr-empty-icon">⏳</div>กำลังโหลด...</td></tr>
           </tbody>
         </table>
       </div>
