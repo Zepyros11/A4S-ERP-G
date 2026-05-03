@@ -275,6 +275,15 @@ export function loadTopbar(title = "", options = {}) {
   font-family:inherit;
 }
 .topbar-bell:hover{ background:rgba(255,255,255,0.22); }
+/* shake animation เมื่อ notification ใหม่เข้ามา (ติดสายตาแม้ไม่มีเสียง) */
+.topbar-bell.ring{ animation: bellShake 0.8s ease-in-out 2; }
+@keyframes bellShake{
+  0%,100%{ transform:rotate(0); }
+  10%,30%,50%{ transform:rotate(-12deg); }
+  20%,40%,60%{ transform:rotate(12deg); }
+  70%{ transform:rotate(-6deg); }
+  80%{ transform:rotate(6deg); }
+}
 .topbar-bell-badge{
   position:absolute;
   top:-2px;
@@ -596,11 +605,28 @@ function _initBell(userId) {
       _soundFileEl.addEventListener("error", () => { _soundFileEl = null; }, { once: true });
     } catch (_) {}
   }
-  document.addEventListener("click", _initAudio, { once: true, capture: true });
-  document.addEventListener("keydown", _initAudio, { once: true, capture: true });
+  // ขยาย gesture detection ให้ครอบคลุม pointer/touch ด้วย
+  ["click", "keydown", "pointerdown", "touchstart"].forEach(ev =>
+    document.addEventListener(ev, _initAudio, { once: true, capture: true })
+  );
 
   // expose สำหรับทดสอบ — เปิด console แล้วเรียก: window._erpTestNotifSound()
   window._erpTestNotifSound = () => _playNotifSound();
+
+  // diagnostic — ดูสถานะ audio system
+  window._erpNotifDiag = () => {
+    const path = SOUND_FILE;
+    const info = {
+      "audio context":   _audioCtx ? `ok (state=${_audioCtx.state})` : "❌ not initialized — click หน้านี้ก่อน",
+      "sound file path": path,
+      "sound file ready": _soundFileReady ? "✅ loaded" : (_soundFileEl ? "⏳ loading..." : "❌ failed/not started"),
+      "muted":           localStorage.getItem("erp_notif_mute") === "1" ? "🔇 muted" : "🔔 on",
+      "volume":          localStorage.getItem("erp_notif_sound_volume") || "1.0 (default)",
+      "last unread":     _lastUnreadCount,
+    };
+    console.table(info);
+    return info;
+  };
 
   function _playNotifSound() {
     // ปิดเสียงได้: localStorage.setItem('erp_notif_mute','1')
@@ -710,9 +736,16 @@ function _initBell(userId) {
       );
       const total = +(res.headers.get("content-range") || "0/0").split("/")[1] || 0;
 
-      // เล่นเสียงเมื่อ unread เพิ่มขึ้น (ข้ามรอบแรกเพื่อกัน beep ตอนโหลดหน้า)
+      // เล่นเสียง + เขย่ากระดิ่งเมื่อ unread เพิ่มขึ้น (ข้ามรอบแรกเพื่อกัน beep ตอนโหลดหน้า)
       if (_lastUnreadCount >= 0 && total > _lastUnreadCount) {
         _playNotifSound();
+        const bellBtn = document.getElementById("topbarBellBtn");
+        if (bellBtn) {
+          bellBtn.classList.remove("ring");
+          // re-trigger animation
+          void bellBtn.offsetWidth;
+          bellBtn.classList.add("ring");
+        }
       }
       _lastUnreadCount = total;
 

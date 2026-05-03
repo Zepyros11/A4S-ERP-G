@@ -193,13 +193,13 @@
         {
           id: "members",
           icon: "👤",
-          label: "ข้อมูลสมาชิก (MLM)",
+          label: "ข้อมูลสมาชิก (A4S)",
           path: BASE_PATH + "/modules/customer/members-list.html",
         },
         {
           id: "members-tree",
           icon: "🌳",
-          label: "MLM Tree View",
+          label: "A4S Tree View",
           path: BASE_PATH + "/modules/customer/members-tree.html",
         },
         {
@@ -290,7 +290,7 @@
         {
           id: "ibd-relocation",
           icon: "🌐",
-          label: "ย้ายฐานประเทศ",
+          label: "ย้าย Location Base",
           path: BASE_PATH + "/modules/ibd/ibd-relocation.html",
         },
       ],

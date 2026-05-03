@@ -212,7 +212,13 @@ function noteInput(r) {
 function pinBtn(r) {
   return `<button class="ibd-pin-btn ${r.pinned ? 'pinned' : ''}" onclick="togglePin(${r.id}, this)" title="${r.pinned ? 'ยกเลิกปักหมุด' : 'ปักหมุด'}">${r.pinned ? '📍' : '📌'}</button>`;
 }
+function isAdmin() {
+  const u = window.ERP_USER || {};
+  if (Array.isArray(u.roles) && u.roles.includes('ADMIN')) return true;
+  return u.role === 'ADMIN';
+}
 function deleteBtn(r) {
+  if (!isAdmin()) return '';
   return `<button class="ibd-del-btn" data-perm="ibd_relocation_delete" onclick="deleteRow(${r.id})" title="ลบรายการ">🗑️</button>`;
 }
 
@@ -371,7 +377,7 @@ window.closeModal = function () { $('detailModal').classList.remove('open'); sta
 window.approveReq = async function () {
   if (!state.current) return;
   const eff = await PromptModal.open({
-    title: 'อนุมัติย้ายฐานประเทศ',
+    title: 'อนุมัติย้าย Location Base',
     message: 'เลือกวันที่มีผลย้ายฐาน (Effective Date)',
     icon: '✓',
     tone: 'success',

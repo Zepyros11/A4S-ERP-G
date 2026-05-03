@@ -108,6 +108,30 @@
 .nr-ph{display:inline-block;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:600;background:#fef3c7;color:#92400e;cursor:pointer;font-family:'IBM Plex Mono',monospace;border:1px dashed #fcd34d;}
 .nr-ph:hover{background:#fcd34d;color:#713f12;}
 
+/* Variable category buttons (แทน chip ตัวแปรเดี่ยว) */
+.nr-ph-cat{display:inline-flex;align-items:center;gap:7px;padding:6px 12px;border-radius:8px;font-size:12px;font-weight:600;background:#eef2ff;color:#3730a3;cursor:pointer;border:1px solid #c7d2fe;font-family:inherit;transition:.15s;}
+.nr-ph-cat:hover{background:#c7d2fe;border-color:#6366f1;color:#312e81;}
+.nr-ph-cat-dim{opacity:.55;}
+.nr-ph-cat-dim:hover{opacity:1;}
+.nr-ph-cat-count{display:inline-block;padding:1px 7px;border-radius:999px;background:rgba(255,255,255,.65);font-size:10.5px;font-weight:700;color:#4338ca;font-family:'IBM Plex Mono',monospace;}
+
+/* Variable Picker — modal items */
+.vp-trigger-bar{padding:8px 12px;background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;font-size:12px;color:#075985;margin-bottom:12px;}
+.vp-trigger-bar b{color:#0c4a6e;}
+.vp-list{display:flex;flex-direction:column;gap:8px;}
+.vp-item{padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:var(--surface);cursor:pointer;transition:.15s;}
+.vp-item:hover{border-color:#06c755;box-shadow:0 0 0 2px rgba(6,199,85,.12);}
+.vp-item-warn{background:#fffbf5;border-color:#fed7aa;}
+.vp-item-warn:hover{border-color:#f97316;box-shadow:0 0 0 2px rgba(249,115,22,.12);}
+.vp-item-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px;}
+.vp-item-name{font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:700;color:#1e40af;}
+.vp-item-badge{font-size:10.5px;padding:2px 8px;border-radius:6px;font-weight:700;white-space:nowrap;}
+.vp-item-badge.vp-ok{background:#dcfce7;color:#15803d;}
+.vp-item-badge.vp-warn{background:#fed7aa;color:#9a3412;}
+.vp-item-desc{font-size:12.5px;color:var(--text2);line-height:1.5;margin-bottom:3px;}
+.vp-item-sample{font-size:11px;color:var(--text3);}
+.vp-item-sample code{padding:1px 6px;background:var(--surface2);border-radius:4px;font-family:'IBM Plex Mono',monospace;color:var(--text2);}
+
 .nr-preview{margin-top:10px;padding:12px 14px;background:#f0fdf4;border:1px dashed #86efac;border-radius:8px;font-size:12.5px;color:#166534;line-height:1.7;white-space:pre-wrap;display:none;}
 .nr-preview.show{display:block;}
 
@@ -242,6 +266,30 @@
   </div>
 </div>
 
+<!-- Variable Picker Modal -->
+<div class="nr-modal" id="vpModal">
+  <div class="nr-modal-card" style="max-width:560px;">
+    <div class="nr-modal-head">
+      <div>
+        <div class="nr-modal-title" id="vpTitle">หมวดตัวแปร</div>
+        <div style="font-size:11.5px;color:var(--text3);margin-top:2px;" id="vpDesc"></div>
+      </div>
+      <button class="nr-modal-close" onclick="closeVarPicker()">×</button>
+    </div>
+    <div class="nr-modal-body">
+      <div class="vp-trigger-bar">
+        Trigger ปัจจุบัน: <b id="vpTriggerName">—</b><br>
+        <span style="font-size:11px;">คลิกตัวแปรเพื่อแทรกลง template — ✅ = trigger รองรับ · ⚠️ = ไม่อยู่ใน trigger นี้ (จะ render เป็นค่าว่าง)</span>
+      </div>
+      <div class="vp-list" id="vpBody"></div>
+    </div>
+    <div class="nr-modal-foot">
+      <div style="flex:1;"></div>
+      <button class="btn-ghost" onclick="closeVarPicker()">ปิด</button>
+    </div>
+  </div>
+</div>
+
 <!-- Trigger Manager Modal -->
 <div class="nr-modal" id="trigModal">
   <div class="nr-modal-card" style="max-width:880px;">
@@ -315,8 +363,9 @@
             <option value="event_date">event_date (events.event_date)</option>
             <option value="booking_date">booking_date (room_booking_requests.booking_date)</option>
             <option value="booking_start_time">booking_start_time (start_time ของแต่ละ booking)</option>
+            <option value="daily_summary">daily_summary (สรุป events + bookings ของวัน → 1 ข้อความ)</option>
           </select>
-          <div class="nr-hint">ai-proxy รองรับเฉพาะ 3 ตัวนี้ — ถ้าจะรองรับ anchor อื่นต้องแก้ <code>_processRule</code></div>
+          <div class="nr-hint">ai-proxy รองรับเฉพาะ 4 ตัวนี้ — ถ้าจะรองรับ anchor อื่นต้องแก้ <code>_processRule</code></div>
         </div>
       </div>
 

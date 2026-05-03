@@ -189,7 +189,13 @@ function noteInput(r) {
 function pinBtn(r) {
   return `<button class="ibd-pin-btn ${r.pinned ? 'pinned' : ''}" onclick="togglePin(${r.id}, this)" title="${r.pinned ? 'ยกเลิกปักหมุด' : 'ปักหมุด'}">${r.pinned ? '📍' : '📌'}</button>`;
 }
+function isAdmin() {
+  const u = window.ERP_USER || {};
+  if (Array.isArray(u.roles) && u.roles.includes('ADMIN')) return true;
+  return u.role === 'ADMIN';
+}
 function deleteBtn(r) {
+  if (!isAdmin()) return '';
   return `<button class="ibd-del-btn" data-perm="ibd_ewallet_delete" onclick="deleteRow(${r.id})" title="ลบรายการ">🗑️</button>`;
 }
 

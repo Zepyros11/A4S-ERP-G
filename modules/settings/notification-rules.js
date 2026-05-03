@@ -8,6 +8,85 @@
 //   'scheduled'  → time-driven  — cron ใน ai-proxy ยิงทุก 15 นาที (ต้องมี anchor)
 let TRIGGERS = {};
 
+// ── Variable catalog (จัดกลุ่ม + คำอธิบาย สำหรับ Variable Picker modal) ──
+// ตัวแปรไหนใช้ได้กับ trigger ใดๆ → ดูจาก TRIGGERS[key].placeholders ตอน render
+const VAR_CATALOG = {
+  event: {
+    label: "📅 Event / กิจกรรม",
+    desc: "ตัวแปรของ event (event.confirmed / event.scheduled)",
+    vars: [
+      ["event_code",      "รหัส event",                  "EVT-2026-05-001"],
+      ["event_name",      "ชื่อ event",                  "Tech Summit 2026"],
+      ["event_type",      "ประเภท (EVENT/COURSE/...)",   "EVENT"],
+      ["event_date",      "วันที่จัด (DD/MM/YYYY)",       "15/05/2026"],
+      ["end_date",        "วันสิ้นสุด (DD/MM/YYYY)",      "16/05/2026"],
+      ["location",        "สถานที่",                     "Bangkok Convention Center"],
+      ["dept",            "แผนกผู้จัด",                  "ทีมจัดงาน"],
+      ["attendees_count", "จำนวนผู้เข้าร่วม",             "120"],
+      ["start_time",      "เวลาเริ่ม (HH:MM)",            "09:00"],
+      ["end_time",        "เวลาเลิก (HH:MM)",             "17:00"],
+    ],
+  },
+  booking: {
+    label: "🏢 Booking ห้องประชุม",
+    desc: "ตัวแปรของ room booking (booking.approved / scheduled / before_start)",
+    vars: [
+      ["request_code",    "รหัสคำขอจอง",                  "RBKQ-2026-05-001"],
+      ["room_name",       "ชื่อห้อง",                     "ห้องประชุมใหญ่"],
+      ["place_name",      "สถานที่/อาคาร",                "ออฟฟิศ BKK"],
+      ["booking_date",    "วันที่จอง (DD/MM/YYYY)",       "20/05/2026"],
+      ["start_time",      "เวลาเริ่ม (HH:MM)",            "09:00"],
+      ["end_time",        "เวลาเลิก (HH:MM หรือ ทั้งวัน)", "12:00"],
+      ["booked_by_name",  "ผู้จอง",                       "วิชัย ตั้งใจ"],
+      ["cs_name",         "CS ผู้รับผิดชอบ",              "น้องส้ม"],
+    ],
+  },
+  ibd_member: {
+    label: "🌍 IBD: ข้อมูลสมาชิก",
+    desc: "ตัวแปรเกี่ยวกับสมาชิก IBD (complaint / ewallet / relocation)",
+    vars: [
+      ["member_name",      "ชื่อสมาชิก",                  "John Doe"],
+      ["member_full_name", "ชื่อเต็มสมาชิก (ใช้ใน E-Wallet)", "John Doe"],
+      ["member_code",      "รหัสสมาชิก",                  "M00012345"],
+      ["whatsapp",         "WhatsApp",                    "+65 9123 4567"],
+      ["whatsapp_used",    "WhatsApp ที่ใช้แจ้ง complaint", "+65 9123 4567"],
+      ["email",            "อีเมล",                       "john@example.com"],
+    ],
+  },
+  ibd_topic: {
+    label: "🌍 IBD: รายละเอียดคำขอ",
+    desc: "ตัวแปรเฉพาะแต่ละแบบฟอร์ม IBD",
+    vars: [
+      ["topic_label",         "หัวข้อ complaint",           "การเงิน"],
+      ["branch_label",        "สาขาที่ติดต่อ",              "Singapore"],
+      ["details_short",       "รายละเอียดย่อ (complaint)",  "ขอตรวจสอบยอดโบนัส..."],
+      ["from_country_label",  "ประเทศต้นทาง (relocation)",  "Singapore"],
+      ["to_country_label",    "ประเทศปลายทาง (relocation)", "Thailand"],
+    ],
+  },
+  common: {
+    label: "⚙️ ทั่วไป",
+    desc: "ตัวแปรที่ใช้ได้หลาย trigger",
+    vars: [
+      ["approver",      "ผู้อนุมัติ (event.confirmed / booking.approved)", "ภพ (admin)"],
+      ["submission_id", "ID ของ submission (IBD)",                       "1"],
+    ],
+  },
+  daily_summary: {
+    label: "📊 Daily Summary",
+    desc: "ตัวแปรของ trigger สรุปงานรวมประจำวัน (daily.event_booking_summary)",
+    vars: [
+      ["date",               "วันที่สรุป (DD/MM/YYYY)",                          "03/05/2026"],
+      ["total_events",       "จำนวน events (ตัวเลข)",                            "2"],
+      ["total_bookings",     "จำนวน bookings (ตัวเลข)",                          "3"],
+      ["event_count_text",   "ข้อความ '2 events' (ว่างถ้าไม่มี — เหมาะกับ inline)", "2 events"],
+      ["booking_count_text", "ข้อความ '3 bookings' (ว่างถ้าไม่มี)",                "3 bookings"],
+      ["event_list",         "รายการ events (multi-line bulleted)",              "• 09:00-12:00 | Tech Summit @ Hall A"],
+      ["booking_list",       "รายการ bookings (multi-line bulleted)",            "• 09:00-10:00 | ห้องประชุมเล็ก (วิชัย)"],
+    ],
+  },
+};
+
 function getSB() {
   return {
     url: localStorage.getItem("sb_url") || "",
@@ -334,9 +413,17 @@ function onTriggerChange() {
   const meta = TRIGGERS[tk];
   const bar = document.getElementById("fPlaceholders");
   if (!meta) { bar.innerHTML = ""; return; }
-  bar.innerHTML = meta.placeholders.map((p) =>
-    `<span class="nr-ph" onclick="insertPlaceholder('${p}')">{{${p}}}</span>`
-  ).join("");
+
+  // แสดงเป็น category buttons แทน chips ของแต่ละ placeholder
+  // user กดดูตัวแปรในหมวดได้ทุกหมวด ไม่ใช่แค่ที่ trigger รองรับ
+  bar.innerHTML = Object.entries(VAR_CATALOG).map(([key, cat]) => {
+    const supportedCount = cat.vars.filter(([n]) => meta.placeholders.includes(n)).length;
+    const dim = supportedCount === 0 ? " nr-ph-cat-dim" : "";
+    return `<button type="button" class="nr-ph-cat${dim}" onclick="openVarPicker('${key}')">
+      ${escapeHtml(cat.label)}
+      <span class="nr-ph-cat-count">${supportedCount}/${cat.vars.length}</span>
+    </button>`;
+  }).join("");
 
   // โชว์/ซ่อน schedule fields ตาม trigger.kind
   const wrap = document.getElementById("fScheduleWrap");
@@ -369,21 +456,64 @@ function renderScheduleFields(meta) {
       </div>`;
   } else {
     // event_date / booking_date
+    const presets = [
+      { v: 0,  label: "วันงาน" },
+      { v: -1, label: "ก่อน 1 วัน" },
+      { v: -3, label: "ก่อน 3 วัน" },
+      { v: -7, label: "ก่อน 7 วัน" },
+    ];
+    const cur = editingSchedule.offset_days ?? 0;
+    const isPreset = presets.some((p) => p.v === cur);
+
     box.innerHTML = `
-      <div class="nr-row-2">
-        <div class="nr-field" style="margin-bottom:0;">
-          <label>Offset วัน *</label>
-          <input type="number" id="fSchedDays" value="${editingSchedule.offset_days ?? 0}" oninput="updateScheduleState()">
-          <div class="nr-hint"><code>0</code> = วันงาน · <code>-1</code> = ล่วงหน้า 1 วัน · <code>-7</code> = ล่วงหน้า 7 วัน</div>
+      <div class="nr-field" style="margin-bottom:10px;">
+        <label>เมื่อไหร่ *</label>
+        <div class="nr-radio-group" id="fSchedDaysRadio">
+          ${presets.map((p) => `
+            <label class="nr-radio ${cur === p.v ? "checked" : ""}" data-val="${p.v}">
+              <input type="radio" name="schedDays" ${cur === p.v ? "checked" : ""}>${p.label}
+            </label>
+          `).join("")}
+          <label class="nr-radio ${!isPreset ? "checked" : ""}" data-val="custom">
+            <input type="radio" name="schedDays" ${!isPreset ? "checked" : ""}>กำหนดเอง
+          </label>
         </div>
-        <div class="nr-field" style="margin-bottom:0;">
-          <label>เวลา (HH:MM) *</label>
-          <input type="time" id="fSchedTime" value="${editingSchedule.time || "09:00"}" oninput="updateScheduleState()">
-          <div class="nr-hint">cron ยิงทุก 15 นาที — เลือก HH:MM ใดก็ได้</div>
-        </div>
+        <input type="number" id="fSchedDays"
+               value="${cur}"
+               placeholder="เช่น -14, +1"
+               style="margin-top:8px;max-width:200px;display:${isPreset ? "none" : "block"};"
+               oninput="updateScheduleState()">
+        <div class="nr-hint">ค่าลบ = ก่อนงาน · ค่าบวก = หลังงาน · <code>0</code> = วันงาน</div>
+      </div>
+      <div class="nr-field" style="margin-bottom:0;">
+        <label>เวลา (HH:MM) *</label>
+        <input type="time" id="fSchedTime" value="${editingSchedule.time || "09:00"}" oninput="updateScheduleState()">
+        <div class="nr-hint">cron ยิงทุก 15 นาที — เลือก HH:MM ใดก็ได้</div>
       </div>`;
+
+    // attach radio onchange
+    document.querySelectorAll("#fSchedDaysRadio .nr-radio").forEach((el) => {
+      const inp = el.querySelector("input");
+      inp.onchange = () => onSchedDaysRadio(el.dataset.val);
+    });
   }
   // sync state จาก default values
+  updateScheduleState();
+}
+
+function onSchedDaysRadio(val) {
+  const numInp = document.getElementById("fSchedDays");
+  document.querySelectorAll("#fSchedDaysRadio .nr-radio").forEach((el) => {
+    el.classList.toggle("checked", el.dataset.val === val);
+  });
+  if (val === "custom") {
+    numInp.style.display = "block";
+    numInp.focus();
+    numInp.select();
+  } else {
+    numInp.style.display = "none";
+    numInp.value = val;
+  }
   updateScheduleState();
 }
 
@@ -434,6 +564,46 @@ function insertPlaceholder(name) {
   ta.focus();
   const pos = before.length + name.length + 4;
   ta.setSelectionRange(pos, pos);
+}
+
+// ── Variable Picker (modal แสดงตัวแปรในหมวด + คำอธิบาย) ──
+function openVarPicker(category) {
+  const cat = VAR_CATALOG[category];
+  if (!cat) return;
+  const tk = document.getElementById("fTrigger").value;
+  const meta = TRIGGERS[tk];
+  const triggerVars = new Set(meta?.placeholders || []);
+  const triggerLabel = meta?.label || tk || "—";
+
+  document.getElementById("vpTitle").textContent = cat.label;
+  document.getElementById("vpDesc").textContent = cat.desc;
+  document.getElementById("vpTriggerName").textContent = triggerLabel;
+
+  document.getElementById("vpBody").innerHTML = cat.vars.map(([name, desc, sample]) => {
+    const supported = triggerVars.has(name);
+    return `
+      <div class="vp-item ${supported ? "vp-item-ok" : "vp-item-warn"}" onclick="pickVarFromPicker('${escapeAttr(name)}')">
+        <div class="vp-item-head">
+          <span class="vp-item-name">{{${escapeHtml(name)}}}</span>
+          ${supported
+            ? `<span class="vp-item-badge vp-ok">✅ ใช้ได้</span>`
+            : `<span class="vp-item-badge vp-warn">⚠️ trigger นี้ไม่มี — render ว่าง</span>`}
+        </div>
+        <div class="vp-item-desc">${escapeHtml(desc)}</div>
+        <div class="vp-item-sample">ตัวอย่าง: <code>${escapeHtml(sample)}</code></div>
+      </div>
+    `;
+  }).join("");
+  document.getElementById("vpModal").classList.add("open");
+}
+
+function closeVarPicker() {
+  document.getElementById("vpModal").classList.remove("open");
+}
+
+function pickVarFromPicker(name) {
+  insertPlaceholder(name);
+  closeVarPicker();
 }
 
 function togglePreview() {
@@ -989,6 +1159,9 @@ window.toggleSelectRule = toggleSelectRule;
 window.toggleSelectAll = toggleSelectAll;
 window.clearBulkSelection = clearBulkSelection;
 window.bulkDeleteRules = bulkDeleteRules;
+window.openVarPicker = openVarPicker;
+window.closeVarPicker = closeVarPicker;
+window.pickVarFromPicker = pickVarFromPicker;
 window.onTriggerChange = onTriggerChange;
 window.insertPlaceholder = insertPlaceholder;
 window.togglePreview = togglePreview;

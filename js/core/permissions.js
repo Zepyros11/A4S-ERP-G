@@ -156,7 +156,7 @@ window.AppPermissions = (() => {
         { key: "customer_dashboard", label: "Customer Dashboard", icon: "📊", perms: [
           { key: "customer_dashboard_view", label: "ดู" },
         ]},
-        { key: "member", label: "ข้อมูลสมาชิก (MLM)", icon: "👤", perms: [
+        { key: "member", label: "ข้อมูลสมาชิก (A4S)", icon: "👤", perms: [
           { key: "member_view",         label: "ดูรายการ" },
           { key: "member_import",       label: "นำเข้า Excel" },
           { key: "member_export",       label: "ส่งออก" },
@@ -166,7 +166,7 @@ window.AppPermissions = (() => {
           { key: "member_sync_config",  label: "ตั้งค่า Auto-Sync" },
           { key: "member_sync_trigger", label: "กด Sync Now" },
         ]},
-        { key: "members_tree", label: "MLM Tree View", icon: "🌳", perms: [
+        { key: "members_tree", label: "A4S Tree View", icon: "🌳", perms: [
           { key: "members_tree_view", label: "ดู" },
         ]},
         { key: "line_members", label: "สมาชิกที่เชื่อม LINE", icon: "💬", perms: [
@@ -236,7 +236,7 @@ window.AppPermissions = (() => {
           { key: "ibd_ewallet_delete",    label: "ลบ" },
           { key: "ibd_ewallet_export",    label: "ส่งออก" },
         ]},
-        { key: "ibd_relocation", label: "ย้ายฐานประเทศ", icon: "🌐", perms: [
+        { key: "ibd_relocation", label: "ย้าย Location Base", icon: "🌐", perms: [
           { key: "ibd_relocation_view",    label: "ดูรายการ" },
           { key: "ibd_relocation_approve", label: "อนุมัติ" },
           { key: "ibd_relocation_reject",  label: "ปฏิเสธ" },

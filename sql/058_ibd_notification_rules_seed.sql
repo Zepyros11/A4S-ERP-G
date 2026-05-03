@@ -35,11 +35,11 @@ VALUES
     false
   ),
   (
-    '🌍 IBD: คำขอย้ายฐานประเทศใหม่',
+    '🌍 IBD: คำขอย้าย Location Base ใหม่',
     'ibd.relocation.created',
     'role',
     '["IBD_STAFF","ADMIN"]'::jsonb,
-    '🌐 มีคำขอย้ายฐานประเทศใหม่ — IBD' || E'\n\n' ||
+    '🌐 มีคำขอย้าย Location Base ใหม่ — IBD' || E'\n\n' ||
     '👤 {{member_name}} ({{member_code}})' || E'\n' ||
     '🛬 จาก: {{from_country_label}}' || E'\n' ||
     '🛫 ไป: {{to_country_label}}' || E'\n' ||

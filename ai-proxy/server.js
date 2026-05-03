@@ -1040,6 +1040,8 @@ function _titleForTrigger(triggerKey, payload) {
       return `⏰ Booking ใกล้ถึง — ${p.room_name || p.request_code || '—'}`;
     case 'booking.before_start':
       return `⏰ Booking กำลังจะเริ่ม — ${p.room_name || p.request_code || '—'}`;
+    case 'daily.event_booking_summary':
+      return `📊 สรุปงาน ${p.date || ''} — ${p.total_events||0} events + ${p.total_bookings||0} bookings`;
     default:
       return `🔔 ${triggerKey}`;
   }
@@ -1052,6 +1054,7 @@ function _linkForTrigger(triggerKey) {
   if (triggerKey.startsWith('ibd.relocation')) return '/modules/ibd/ibd-relocation.html';
   if (triggerKey.startsWith('event.'))         return '/modules/event/events.html';
   if (triggerKey.startsWith('booking.'))       return '/modules/event/booking-room.html';
+  if (triggerKey.startsWith('daily.'))         return '/modules/event/events-dashboard.html';
   return '';
 }
 
@@ -1220,6 +1223,57 @@ async function _processRule(rule, now) {
       return fireMin >= now.totalMinutes && fireMin < now.totalMinutes + CRON_WINDOW_MIN;
     });
     refKey = 'request_id';
+  } else if (rule.schedule_anchor === 'daily_summary') {
+    // รวม events + bookings ของวัน → 1 record summary → 1 message
+    if (!_timeInWindow(rule.schedule_time, now, CRON_WINDOW_MIN)) {
+      result.reason = 'time-window';
+      return result;
+    }
+    const targetDate = _addDays(now.date, -offsetDays);
+    const events = (await _sbGet('events',
+      `select=*&event_date=eq.${targetDate}&status=eq.CONFIRMED&order=start_time.asc.nullsfirst`)) || [];
+    const bookings = (await _sbGet('room_booking_requests',
+      `select=*&booking_date=eq.${targetDate}&status=eq.APPROVED&order=start_time.asc.nullsfirst`)) || [];
+
+    if (!events.length && !bookings.length) {
+      result.reason = 'empty day — skip';
+      return result;
+    }
+
+    const fmtTime = (s) => (s ? String(s).slice(0, 5) : '');
+    const eventList = events.length
+      ? events.map(e => {
+          const st = fmtTime(e.start_time);
+          const et = fmtTime(e.end_time);
+          const time = (st && et) ? `${st}-${et}` : (st || 'ทั้งวัน');
+          const loc = e.location ? ` @ ${e.location}` : '';
+          return `• ${time} | ${e.event_name || '-'}${loc}`;
+        }).join('\n')
+      : '(ไม่มี)';
+
+    const bookingList = bookings.length
+      ? bookings.map(b => {
+          const st = fmtTime(b.start_time);
+          const et = b.end_time === 'ALLDAY' ? 'ทั้งวัน' : fmtTime(b.end_time);
+          const time = (st && et) ? `${st}-${et}` : (st || 'ทั้งวัน');
+          const by = b.booked_by_name ? ` (${b.booked_by_name})` : '';
+          return `• ${time} | ${b.room_name || '-'}${by}`;
+        }).join('\n')
+      : '(ไม่มี)';
+
+    const summaryPayload = {
+      date:               _formatDMY(targetDate),
+      total_events:       events.length,
+      total_bookings:     bookings.length,
+      event_count_text:   events.length   ? `${events.length} events`     : '',
+      booking_count_text: bookings.length ? `${bookings.length} bookings` : '',
+      event_list:         eventList,
+      booking_list:       bookingList,
+    };
+
+    // ใช้ targetDate เป็น refId → กันส่งซ้ำในวันเดียวกัน (ภายใน 24 ชม.)
+    records = [{ summary_date: targetDate, _payload: summaryPayload }];
+    refKey = 'summary_date';
   } else {
     result.reason = 'unknown anchor';
     return result;
@@ -1250,9 +1304,9 @@ async function _processRule(rule, now) {
       result.skipped++;
       continue;
     }
-    const payload = rule.schedule_anchor === 'event_date'
-      ? _payloadFromEvent(rec)
-      : _payloadFromBooking(rec);
+    const payload = rule.schedule_anchor === 'event_date'    ? _payloadFromEvent(rec)
+                  : rule.schedule_anchor === 'daily_summary' ? rec._payload
+                  : _payloadFromBooking(rec);
     const text = _renderTpl(rule.message_template, payload);
     try {
       if (lineIds.length) await _multicastViaCronToken(lineIds, text);

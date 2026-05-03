@@ -125,11 +125,11 @@ VALUES
   ),
   (
     'ibd.relocation.created',
-    '🌍 IBD: คำขอย้ายฐานประเทศใหม่',
+    '🌍 IBD: คำขอย้าย Location Base ใหม่',
     'on_status', NULL,
     ARRAY['member_name','member_code','from_country_label','to_country_label','whatsapp','submission_id'],
     '{"member_name":"John Doe","member_code":"M00012345","from_country_label":"Singapore","to_country_label":"Thailand","whatsapp":"+65 9123 4567","submission_id":3}'::jsonb,
-    'ยิงจาก ai-proxy POST /ibd/notify เมื่อ portal IBD รับคำขอย้ายฐานประเทศใหม่',
+    'ยิงจาก ai-proxy POST /ibd/notify เมื่อ portal IBD รับคำขอย้าย Location Base ใหม่',
     true, 80
   )
 ON CONFLICT (trigger_key) DO NOTHING;

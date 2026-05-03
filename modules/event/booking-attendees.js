@@ -1399,7 +1399,7 @@ async function _enforceRegistration(payload) {
 
   // 2. Check members_only
   if (ev.members_only && !payload.member_code) {
-    showToast("❌ Event นี้สำหรับสมาชิก MLM เท่านั้น — กรุณาเลือกสมาชิกก่อน", "error");
+    showToast("❌ Event นี้สำหรับสมาชิก A4S เท่านั้น — กรุณาเลือกสมาชิกก่อน", "error");
     return true;
   }
 
