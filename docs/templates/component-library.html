@@ -992,6 +992,26 @@
       border-radius: 0;
       padding: 16px 4px 14px;
     }
+    /* D · Text Accent (transparent bg · only title text has sage color) */
+    .page-hero.v-text-accent {
+      background: transparent;
+      box-shadow: none;
+      border: none;
+      border-radius: 0;
+      padding: 14px 4px 12px;
+    }
+    .page-hero.v-text-accent .page-hero-title { color: var(--accent); }
+    .page-hero.v-text-accent .page-hero-sub   { color: var(--text3); }
+    /* E · Pill (sage pale + fully rounded chip-like header) */
+    .page-hero.v-pill {
+      background: var(--accent-pale);
+      box-shadow: none;
+      border: 1px solid rgba(var(--accent-rgb), 0.2);
+      border-radius: 999px;
+      padding: 10px 24px;
+    }
+    .page-hero.v-pill .page-hero-title { color: var(--accent); }
+    .page-hero.v-pill .page-hero-sub   { color: var(--accent); opacity: .75; }
 
     /* ---------- Section Card ---------- */
     /* B · Crisp (white + light border, no shadow) */
@@ -1644,6 +1664,15 @@
                   </div>
                 </div>
                 <label class="cl-pick" data-cid="page-hero:c"><input type="checkbox"> ติดตั้ง C</label>
+              </div>
+              <div class="cl-variant">
+                <div class="cl-variant-title">D · Text Accent <small>transparent bg · sage colored text only</small></div>
+                <div class="cl-variant-demo is-stack">
+                  <div class="page-hero v-text-accent" style="margin:0;">
+                    <div><h1 class="page-hero-title">📊 Dashboard</h1><p class="page-hero-sub">ภาพรวมกิจกรรม</p></div>
+                  </div>
+                </div>
+                <label class="cl-pick" data-cid="page-hero:d"><input type="checkbox"> ติดตั้ง D</label>
               </div>
             </div>
           </div>
