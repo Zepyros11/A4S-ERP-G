@@ -20,25 +20,22 @@
 
     <div class="topbar"></div>
         <div class="page">
+          <!-- HERO -->
+          <div class="page-hero page-hero--simple page-hero--compact">
+            <div>
+              <h1 class="page-hero-title">🖼️ Poster Gallery</h1>
+              <p class="page-hero-sub" id="pageSubtitle">กำลังโหลด...</p>
+            </div>
+            <div class="page-hero-actions">
+              <button class="btn-on-hero" onclick="window.location.href = 'events-list.html'">← กลับ</button>
+            </div>
+          </div>
+
           <!-- MAIN CARD (floating content like events-list) -->
           <div class="table-card">
 
-            <!-- TOOLBAR (header + filter) -->
+            <!-- TOOLBAR (filter + grid toggle) -->
             <div class="toolbar">
-              <div class="epg-toolbar-left">
-                <button
-                  class="btn btn-outline epg-back-btn"
-                  onclick="window.location.href = 'events-list.html'"
-                >
-                  ← กลับ
-                </button>
-                <div class="epg-header-divider"></div>
-                <div class="epg-header-info">
-                  <div class="epg-header-title">🖼️ Poster Gallery</div>
-                  <div class="epg-header-subtitle" id="pageSubtitle">กำลังโหลด...</div>
-                </div>
-              </div>
-
               <div class="epg-header-actions">
                 <!-- Grid Toggle -->
                 <div class="epg-grid-toggle">

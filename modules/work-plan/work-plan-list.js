@@ -53,7 +53,7 @@ document.addEventListener("DOMContentLoaded", init);
 async function init() {
   $("heroTitle").textContent = SCOPE_META[SCOPE].title;
   $("heroSub").textContent = SCOPE_META[SCOPE].sub;
-  $("wpHero").className = `page-hero scope-${SCOPE}`;
+  $("wpHero").className = `page-hero page-hero--simple page-hero--compact scope-${SCOPE}`;
 
   // Central Esc handler — closes topmost overlay/modal first
   document.addEventListener("keydown", onGlobalEsc);
