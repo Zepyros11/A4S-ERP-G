@@ -73,7 +73,7 @@
 }
 .epg-toggle-btn.active {
   background: var(--surface);
-  color: #6366f1;
+  color: var(--accent-light);
   box-shadow: 0 1px 4px rgba(99, 102, 241, 0.18), 0 0 0 1px rgba(99,102,241,0.15);
 }
 .epg-toggle-btn:hover:not(.active) {
@@ -117,7 +117,7 @@
   color: var(--text);
 }
 .epg-chip.active {
-  background: #6366f1;
+  background: var(--accent-light);
   color: #fff;
   box-shadow: 0 2px 6px rgba(99, 102, 241, 0.35);
   font-weight: 700;
@@ -137,7 +137,7 @@
   transition: border-color 0.15s;
 }
 .filter-select:focus {
-  border-color: #6366f1;
+  border-color: var(--accent-light);
 }
 
 /* ── MONTH SECTION ── */
@@ -178,7 +178,7 @@
   border-radius: 999px;
   font-size: 10px;
   font-weight: 700;
-  color: #6366f1;
+  color: var(--accent-light);
   letter-spacing: 1.5px;
   white-space: nowrap;
 }
@@ -401,7 +401,7 @@
 .epg-date-mon {
   font-size: 9px;
   font-weight: 700;
-  color: #6366f1;
+  color: var(--accent-light);
   letter-spacing: 1.5px;
   margin-top: 2px;
 }

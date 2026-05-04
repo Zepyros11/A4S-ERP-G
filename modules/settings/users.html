@@ -22,8 +22,6 @@
 
     <div class="layout">
       <!-- SIDEBAR -->
-      <div id="sidebar-container"></div>
-
       <!-- CONTENT -->
       <div class="content-area">
         <div class="page">
@@ -31,42 +29,39 @@
           <!-- STATS -->
           <div class="stats-row">
             <div class="stat-card">
-              <div class="stat-icon" style="background:#e0f2fe;color:#0369a1">👥</div>
+              <div class="stat-icon">👥</div>
               <div>
                 <div class="stat-value" id="statTotal">—</div>
                 <div class="stat-label">ผู้ใช้ทั้งหมด</div>
               </div>
             </div>
             <div class="stat-card">
-              <div class="stat-icon" style="background:var(--warning-pale);color:var(--warning)">👑</div>
+              <div class="stat-icon">👑</div>
               <div>
                 <div class="stat-value" id="statAdmin" style="color:var(--warning)">—</div>
                 <div class="stat-label">Admin</div>
               </div>
             </div>
             <div class="stat-card">
-              <div class="stat-icon" style="background:var(--accent-pale);color:var(--accent)">🏢</div>
+              <div class="stat-icon">🏢</div>
               <div>
                 <div class="stat-value" id="statManager" style="color:var(--accent)">—</div>
                 <div class="stat-label">Manager</div>
               </div>
             </div>
             <div class="stat-card">
-              <div class="stat-icon" style="background:var(--success-pale);color:var(--success)">✅</div>
+              <div class="stat-icon">✅</div>
               <div>
                 <div class="stat-value" id="statActive" style="color:var(--success)">—</div>
                 <div class="stat-label">ใช้งาน</div>
               </div>
             </div>
             <div class="stat-card">
-              <div class="stat-icon" style="background:var(--danger-pale);color:var(--danger)">❌</div>
+              <div class="stat-icon">❌</div>
               <div>
                 <div class="stat-value" id="statInactive" style="color:var(--danger)">—</div>
                 <div class="stat-label">ปิดใช้งาน</div>
               </div>
-            </div>
-          </div>
-
           <!-- TABLE CARD -->
           <div class="table-card">
 
@@ -132,6 +127,7 @@
         <script src="../../js/core/permissions.js"></script>
         <script src="../../js/core/auth.js"></script>
         <script src="../../js/core/authz.js"></script>
+<script src="../../js/core/date-format.js"></script>
         <script>AuthZ.requirePerm("users_view");</script>
         <script src="./users.js"></script>
         <script src="../../js/components/modal/deleteModal.js"></script>

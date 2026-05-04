@@ -14,29 +14,27 @@
 <div class="toast" id="toast"></div>
 
 <div class="topbar"></div>
-<div class="layout">
-  <div id="sidebar-container"></div>
 
-  <div class="content-area">
-    <div class="page">
+<div class="page">
 
-      <div class="ibd-hero" style="display:flex;align-items:center;gap:14px">
-        <div style="flex:1">
-          <div class="ibd-hero-title">🌐 IBD — Changing Location Base Requisition</div>
-          <div class="ibd-hero-sub">รายการคำขอย้าย Location Base จากสมาชิก A4S (Form 3)</div>
-        </div>
-        <a class="ibd-btn" style="background:rgba(255,255,255,.18);color:#fff;backdrop-filter:blur(4px);border:1px solid rgba(255,255,255,.25);text-decoration:none;display:inline-flex;align-items:center;gap:6px"
-           href="../ibd-portal/relocation-form.html" target="_blank" rel="noopener">
-          🔗 เปิดหน้า Form ลูกค้า
-        </a>
-      </div>
+  <div class="page-hero">
+    <div>
+      <h1 class="page-hero-title">🌐 IBD — Changing Location Base Requisition</h1>
+      <p class="page-hero-sub">รายการคำขอย้าย Location Base จากสมาชิก A4S (Form 3)</p>
+    </div>
+    <div class="page-hero-actions">
+      <a class="btn-on-hero" href="../ibd-portal/relocation-form.html" target="_blank" rel="noopener" style="text-decoration:none">
+        🔗 เปิดหน้า Form ลูกค้า
+      </a>
+    </div>
+  </div>
 
-      <div class="ibd-kpis">
-        <div class="ibd-kpi"><div class="ibd-kpi-label">ทั้งหมด · วันนี้</div><div class="ibd-kpi-value" id="kpiTotal">—</div></div>
-        <div class="ibd-kpi"><div class="ibd-kpi-label">Pending · วันนี้</div><div class="ibd-kpi-value" id="kpiPending">—</div></div>
-        <div class="ibd-kpi"><div class="ibd-kpi-label">Approved · วันนี้</div><div class="ibd-kpi-value" id="kpiApproved">—</div></div>
-        <div class="ibd-kpi"><div class="ibd-kpi-label">Rejected · วันนี้</div><div class="ibd-kpi-value" id="kpiRejected">—</div></div>
-      </div>
+  <div class="kpi-strip">
+    <div class="kpi-card"><div class="kpi-label">ทั้งหมด · วันนี้</div><div class="kpi-value" id="kpiTotal">—</div></div>
+    <div class="kpi-card"><div class="kpi-label">Pending · วันนี้</div><div class="kpi-value" id="kpiPending">—</div></div>
+    <div class="kpi-card"><div class="kpi-label">Approved · วันนี้</div><div class="kpi-value" id="kpiApproved">—</div></div>
+    <div class="kpi-card"><div class="kpi-label">Rejected · วันนี้</div><div class="kpi-value" id="kpiRejected">—</div></div>
+  </div>
 
       <div class="ibd-filters">
         <input type="text" class="ibd-search" id="filtSearch" placeholder="🔎 ค้นหา ID, ชื่อ, WhatsApp, email..." />
@@ -81,15 +79,13 @@
               </tr>
             </thead>
             <tbody id="tbody">
-              <tr><td colspan="12" class="ibd-empty">กำลังโหลด...</td></tr>
+              <tr><td colspan="12" style="text-align:center;color:var(--text3);padding:30px 0">กำลังโหลด...</td></tr>
             </tbody>
           </table>
         </div>
-        <div class="ibd-paginate" id="paginate"></div>
+        <div class="pagination" id="paginate"></div>
       </div>
 
-    </div>
-  </div>
 </div>
 
 <!-- ── Detail Modal ── -->

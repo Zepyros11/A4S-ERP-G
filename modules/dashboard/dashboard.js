@@ -274,7 +274,7 @@ function _renderTrendChart(rows) {
         label: 'สมัครใหม่',
         data,
         borderColor: '#0f4c75',
-        backgroundColor: 'rgba(15,76,117,.12)',
+        backgroundColor: 'rgba(var(--accent-rgb),.12)',
         borderWidth: 2,
         fill: true,
         tension: 0.35,

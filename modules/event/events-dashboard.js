@@ -376,7 +376,7 @@ function renderTopMembers(attendees) {
 
   const el = document.getElementById("topMembersList");
   if (!sorted.length) {
-    el.innerHTML = `<div class="ed-empty"><div class="ed-empty-icon">👥</div>ไม่มีข้อมูล</div>`;
+    el.innerHTML = `<div class="empty-state"><div class="empty-state-icon">👥</div><div class="empty-state-title">ไม่มีข้อมูล</div></div>`;
     return;
   }
   el.innerHTML = sorted.map((r, i) => {
@@ -415,7 +415,7 @@ function renderTopSponsors(attendees) {
 
   const el = document.getElementById("topSponsorsList");
   if (!sorted.length) {
-    el.innerHTML = `<div class="ed-empty"><div class="ed-empty-icon">🤝</div>ไม่มีข้อมูล sponsor</div>`;
+    el.innerHTML = `<div class="empty-state"><div class="empty-state-icon">🤝</div><div class="empty-state-title">ไม่มีข้อมูล sponsor</div></div>`;
     return;
   }
   el.innerHTML = sorted.map((r, i) => {
@@ -444,7 +444,7 @@ function renderUpcoming() {
   sub.textContent = upcoming.length ? `${upcoming.length} รายการ` : "";
 
   if (!upcoming.length) {
-    el.innerHTML = `<div class="ed-empty"><div class="ed-empty-icon">📅</div>ไม่มีกิจกรรมที่กำลังจะถึง</div>`;
+    el.innerHTML = `<div class="empty-state"><div class="empty-state-icon">📅</div><div class="empty-state-title">ไม่มีกิจกรรมที่กำลังจะถึง</div></div>`;
     return;
   }
 

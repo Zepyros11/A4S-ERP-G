@@ -410,7 +410,7 @@
   color: #166534;
   border: 1px solid #bbf7d0;
 }
-.lp-dday-7 { background: #dbeafe; color: #1d4ed8; border-color: #bfdbfe; }
+.lp-dday-7 { background: var(--accent-pale); color: #1d4ed8; border-color: #bfdbfe; }
 .lp-dday-3 { background: #fef3c7; color: #b45309; border-color: #fde68a; }
 .lp-dday-2 { background: #fed7aa; color: #c2410c; border-color: #fdba74; }
 .lp-dday-1 { background: #fecaca; color: #b91c1c; border-color: #fca5a5; }
@@ -441,7 +441,7 @@
   font-weight: 600;
 }
 .lpstat-DRAFT     { background: #f3f4f6; color: #6b7280; }
-.lpstat-SCHEDULED { background: #dbeafe; color: #1d4ed8; }
+.lpstat-SCHEDULED { background: var(--accent-pale); color: #1d4ed8; }
 .lpstat-SENT      { background: #d1fae5; color: #059669; }
 .lpstat-FAILED    { background: #fee2e2; color: #dc2626; }
 .lpstat-CANCELLED { background: #fef3c7; color: #92400e; }
@@ -479,7 +479,7 @@
   opacity: 0.55;
   flex-shrink: 0;
 }
-.lp-grp-chip-SCHEDULED { background: #dbeafe; color: #1d4ed8; border-color: #bfdbfe; }
+.lp-grp-chip-SCHEDULED { background: var(--accent-pale); color: #1d4ed8; border-color: #bfdbfe; }
 .lp-grp-chip-SENT      { background: #d1fae5; color: #059669; border-color: #a7f3d0; }
 .lp-grp-chip-FAILED    { background: #fee2e2; color: #dc2626; border-color: #fecaca; }
 .lp-grp-chip-CANCELLED { background: #fef3c7; color: #92400e; border-color: #fde68a; }
@@ -769,7 +769,7 @@
 
 /* Category chip */
 .lp-grp-cat-chip {
-  background: #dbeafe;
+  background: var(--accent-pale);
   color: #1e40af;
   padding: 4px 10px;
   border-radius: 14px;
@@ -801,7 +801,7 @@
   white-space: nowrap;
 }
 .lp-grp-cat-add:hover {
-  background: #dbeafe;
+  background: var(--accent-pale);
   color: #1e40af;
   border-color: #60a5fa;
 }
@@ -1008,7 +1008,7 @@
   align-items: center;
   justify-content: center;
   font-size: 12px;
-  box-shadow: 0 1px 3px rgba(30, 64, 175, 0.4);
+  box-shadow: 0 1px 3px rgba(var(--accent-rgb), 0.4);
 }
 .lp-cal-cell-badge {
   background: #06c755;
@@ -1041,7 +1041,7 @@
   border-radius: 4px;
   font-size: 10.5px;
   font-weight: 600;
-  background: #dbeafe;
+  background: var(--accent-pale);
   color: #1d4ed8;
   white-space: nowrap;
   overflow: hidden;

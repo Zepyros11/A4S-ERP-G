@@ -10,7 +10,7 @@
 
 /* ── PROFILE HEADER ── */
 .account-header {
-  background: linear-gradient(135deg, #0f4c75 0%, #1b6ca8 100%);
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-light) 100%);
   border-radius: 16px;
   padding: 26px 30px;
   color: #fff;
@@ -18,7 +18,7 @@
   align-items: center;
   gap: 20px;
   margin-bottom: 18px;
-  box-shadow: 0 8px 30px rgba(15, 76, 117, 0.18);
+  box-shadow: 0 8px 30px rgba(var(--accent-rgb), 0.18);
   position: relative;
   overflow: hidden;
 }
@@ -180,7 +180,7 @@
 }
 .section-tab:hover {
   color: var(--text);
-  background: rgba(15, 76, 117, 0.04);
+  background: rgba(var(--accent-rgb), 0.04);
 }
 .section-tab.active {
   color: var(--accent);

@@ -21,8 +21,6 @@
     <div class="topbar"></div>
     <div class="layout">
       <!-- SIDEBAR -->
-      <div id="sidebar-container"></div>
-
       <!-- CONTENT -->
       <div class="content-area">
         <!-- PAGE -->
@@ -49,9 +47,6 @@
                 <div class="stat-value" id="cardInactive">0</div>
                 <div class="stat-label">ปิดใช้งาน</div>
               </div>
-            </div>
-          </div>
-
         <!-- TABLE -->
 <div class="content-wrap">
   <div class="table-card" id="tableCard">
@@ -176,6 +171,7 @@
         <!-- Core -->
         <script src="../../js/core/auth.js"></script>
         <script src="../../js/core/authz.js"></script>
+<script src="../../js/core/date-format.js"></script>
         <script>AuthZ.requirePerm("product_view");</script>
         <!-- product -->
         <script type="module" src="./products-list.js"></script>

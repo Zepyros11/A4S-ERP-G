@@ -15,8 +15,8 @@
 .wz-btn{padding:8px 16px;border:none;border-radius:18px;font-family:inherit;font-size:12.5px;font-weight:600;cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:6px;}
 .wz-btn.ghost{background:rgba(255,255,255,.15);color:#fff;border:1.5px solid rgba(255,255,255,.2);}
 .wz-btn.ghost:hover{background:rgba(255,255,255,.25);}
-.wz-btn.primary{background:linear-gradient(135deg,var(--accent),var(--accent-light));color:#fff;box-shadow:0 3px 10px rgba(15,76,117,.3);}
-.wz-btn.primary:hover{transform:translateY(-1px);box-shadow:0 5px 14px rgba(15,76,117,.4);}
+.wz-btn.primary{background:linear-gradient(135deg,var(--accent),var(--accent-light));color:#fff;box-shadow:0 3px 10px rgba(var(--accent-rgb),.3);}
+.wz-btn.primary:hover{transform:translateY(-1px);box-shadow:0 5px 14px rgba(var(--accent-rgb),.4);}
 
 /* ── Task selector ── */
 .wz-task-select{display:flex;align-items:center;gap:10px;margin-bottom:16px;}
@@ -29,7 +29,7 @@
 
 .wz-step{display:flex;align-items:stretch;gap:12px;position:relative;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px;transition:all .15s;margin-bottom:8px;}
 .wz-step:hover{border-color:var(--accent);box-shadow:0 4px 12px rgba(0,0,0,.06);}
-.wz-step.active{border-color:var(--accent);box-shadow:0 0 0 3px rgba(15,76,117,.1);}
+.wz-step.active{border-color:var(--accent);box-shadow:0 0 0 3px rgba(var(--accent-rgb),.1);}
 
 .wz-step-num{position:absolute;left:-28px;top:50%;transform:translateY(-50%);width:24px;height:24px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;z-index:2;border:2px solid var(--surface);}
 .wz-step-icon{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;}
@@ -107,14 +107,14 @@
 <div class="page">
 
   <!-- Hero -->
-  <div class="wz-hero">
+  <div class="page-hero">
     <div>
-      <h1>🧙 Step Wizard</h1>
-      <p>สร้าง automation flow แบบ step-by-step · กำหนด selector, URL, credentials ผ่าน UI</p>
+      <h1 class="page-hero-title">🧙 Step Wizard</h1>
+      <p class="page-hero-sub">สร้าง automation flow แบบ step-by-step · กำหนด selector, URL, credentials ผ่าน UI</p>
     </div>
-    <div class="wz-hero-actions">
-      <button class="wz-btn ghost" onclick="togglePreview()">👁️ Preview</button>
-      <button class="wz-btn primary" onclick="saveSteps()">💾 Save</button>
+    <div class="page-hero-actions">
+      <button class="btn-on-hero" onclick="togglePreview()">👁️ Preview</button>
+      <button class="btn-on-hero btn-primary" onclick="saveSteps()">💾 Save</button>
     </div>
   </div>
 

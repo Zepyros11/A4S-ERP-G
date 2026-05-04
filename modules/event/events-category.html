@@ -22,8 +22,6 @@
     <div class="topbar"></div>
     <div class="layout">
       <!-- SIDEBAR -->
-      <div id="sidebar-container"></div>
-
       <!-- CONTENT -->
       <div class="content-area">
         <div class="page">
@@ -83,6 +81,7 @@
 
         <script src="../../js/core/auth.js"></script>
         <script src="../../js/core/authz.js"></script>
+<script src="../../js/core/date-format.js"></script>
         <script>AuthZ.requirePerm("evt_cat_view");</script>
         <script type="module" src="./events-category.js"></script>
         <script src="../../js/components/modal/deleteModal.js"></script>
@@ -167,9 +166,6 @@
             <input type="hidden" id="fCatIcon" value="🏷️" />
             <div class="ecat-emoji-picker" id="emojiPicker">
               <div class="ecat-emoji-grid" id="emojiGrid"></div>
-            </div>
-          </div>
-
           <!-- สี -->
           <div class="ecat-field">
             <label class="ecat-label">

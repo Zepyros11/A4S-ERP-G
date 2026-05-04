@@ -93,9 +93,13 @@
     <script src="../../js/core/supabase.js"></script>
     <script src="../../js/core/auth.js"></script>
     <script src="../../js/core/authz.js"></script>
+<script src="../../js/core/date-format.js"></script>
     <script>AuthZ.requirePerm("db_viewer_view");</script>
     <script src="../../js/core/responsive.js"></script>
     <script src="../../js/components/navigation/sidebar.js"></script>
+    <script src="../../js/components/modal/modalManager.js"></script>
+    <script src="../../js/components/modal/confirmModal.js"></script>
+    <script src="../../js/components/modal/promptModal.js"></script>
 
     <script>
       let supabaseClient;
@@ -108,7 +112,14 @@
 
       function initSupabase() {
         if (!window.supabaseConfig) {
-          alert("Supabase config missing");
+          ConfirmModal.open({
+            title: "Config missing",
+            message: "Supabase config missing",
+            tone: "danger",
+            icon: "⚠️",
+            hideCancel: true,
+            okText: "ตกลง",
+          });
           return;
         }
 
@@ -214,7 +225,16 @@
       }
 
       async function deleteRow(id) {
-        if (!confirm("ลบข้อมูล ?")) return;
+        const ok = await ConfirmModal.open({
+          title: "ยืนยันการลบ",
+          message: `ลบข้อมูลใน ${currentTable} (id=${id}) ?`,
+          tone: "danger",
+          icon: "🗑️",
+          okText: "ลบ",
+          cancelText: "ยกเลิก",
+          note: "⚠️ ย้อนกลับไม่ได้",
+        });
+        if (!ok) return;
 
         const pk = await getPrimaryKey();
 
@@ -224,7 +244,14 @@
           .eq(pk, id);
 
         if (error) {
-          alert(error.message);
+          ConfirmModal.open({
+            title: "ลบไม่สำเร็จ",
+            message: error.message,
+            tone: "danger",
+            icon: "❌",
+            hideCancel: true,
+            okText: "ปิด",
+          });
           return;
         }
 
@@ -232,7 +259,17 @@
       }
 
       async function editRow(row) {
-        const json = prompt("แก้ไข JSON", JSON.stringify(row));
+        const json = await PromptModal.open({
+          title: "แก้ไข JSON",
+          message: `แก้ค่าใน ${currentTable}`,
+          icon: "✏️",
+          okText: "บันทึก",
+          tone: "primary",
+          inputType: "textarea",
+          multiline: true,
+          defaultValue: JSON.stringify(row, null, 2),
+          required: true,
+        });
 
         if (!json) return;
 
@@ -241,7 +278,14 @@
         try {
           data = JSON.parse(json);
         } catch {
-          alert("JSON ผิด");
+          ConfirmModal.open({
+            title: "JSON ผิด",
+            message: "ตรวจสอบ syntax ของ JSON อีกครั้ง",
+            tone: "warning",
+            icon: "⚠️",
+            hideCancel: true,
+            okText: "ปิด",
+          });
           return;
         }
 
@@ -253,7 +297,14 @@
           .eq(pk, row[pk]);
 
         if (error) {
-          alert(error.message);
+          ConfirmModal.open({
+            title: "แก้ไขไม่สำเร็จ",
+            message: error.message,
+            tone: "danger",
+            icon: "❌",
+            hideCancel: true,
+            okText: "ปิด",
+          });
           return;
         }
 
@@ -261,7 +312,17 @@
       }
 
       async function insertRow() {
-        const json = prompt("เพิ่ม JSON");
+        const json = await PromptModal.open({
+          title: "เพิ่มข้อมูลใหม่",
+          message: `เพิ่ม row ใน ${currentTable} (รูปแบบ JSON)`,
+          icon: "＋",
+          okText: "เพิ่ม",
+          tone: "success",
+          inputType: "textarea",
+          multiline: true,
+          placeholder: '{ "column1": "value", "column2": "value" }',
+          required: true,
+        });
 
         if (!json) return;
 
@@ -270,14 +331,28 @@
         try {
           data = JSON.parse(json);
         } catch {
-          alert("JSON ผิด");
+          ConfirmModal.open({
+            title: "JSON ผิด",
+            message: "ตรวจสอบ syntax ของ JSON อีกครั้ง",
+            tone: "warning",
+            icon: "⚠️",
+            hideCancel: true,
+            okText: "ปิด",
+          });
           return;
         }
 
         const { error } = await supabaseClient.from(currentTable).insert(data);
 
         if (error) {
-          alert(error.message);
+          ConfirmModal.open({
+            title: "เพิ่มไม่สำเร็จ",
+            message: error.message,
+            tone: "danger",
+            icon: "❌",
+            hideCancel: true,
+            okText: "ปิด",
+          });
           return;
         }
 

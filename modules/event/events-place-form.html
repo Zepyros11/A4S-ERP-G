@@ -22,9 +22,6 @@
     <div class="toast" id="toast"></div>
     <div class="topbar"></div>
 
-    <div class="layout">
-      <div id="sidebar-container"></div>
-      <div class="content-area">
         <div class="page">
           <!-- HEADER -->
 
@@ -148,10 +145,6 @@
                   <button class="btn btn-outline btn-sm" type="button" onclick="window.addDocSlot()">＋ เพิ่มไฟล์</button>
                 </div>
                 <div class="doc-list" id="docList"></div>
-              </div>
-            </div>
-
-
             <!-- SECTION: Contact -->
             <div class="ef-section">
               <div class="ef-section-title">📞 Contact</div>
@@ -342,6 +335,7 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script type="module" src="./events-place-form.js"></script>
     <script src="../../js/core/auth.js"></script>
+<script src="../../js/core/date-format.js"></script>
     <script src="../../js/components/navigation/sidebar.js"></script>
     <script type="module">
       import { loadTopbar } from "../../js/components/navigation/topbar.js";

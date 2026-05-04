@@ -1,0 +1,96 @@
+<!--
+  ============================================================================
+  A4S-ERP Page Template — copy-paste skeleton for new internal pages
+  ============================================================================
+  Slots to fill:
+    {{TITLE}}        — page title shown in <title> tag and topbar (e.g. "🌍 IBD Dashboard")
+    {{MODULE_CSS}}   — optional module css filename (e.g. "ibd-dashboard")
+                       OR remove the <link> line if not needed
+    {{MODULE_JS}}    — module js filename (e.g. "ibd-dashboard")
+    {{PERM_KEY}}     — permission key (e.g. "ibd_dashboard_view")
+                       OR remove the permission gate block if page is open
+
+  Path assumption: file lives at  modules/<area>/<page>.html  (depth 2 from root)
+  ─ if depth differs, adjust  ../../  prefix in CSS/JS hrefs accordingly
+============================================================================
+-->
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{{TITLE}} — A4S-ERP</title>
+
+  <!-- Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+
+  <!-- Core CSS bundle (theme + layout + components) -->
+  <link rel="stylesheet" href="../../css/main.css" />
+
+  <!-- Optional module CSS — delete line if not used -->
+  <link rel="stylesheet" href="./{{MODULE_CSS}}.css" />
+</head>
+<body>
+
+  <!-- ────── REQUIRED OVERLAYS ────── -->
+  <div class="loading-overlay" id="loadingOverlay"><div class="spinner"></div></div>
+  <div class="toast" id="toast"></div>
+
+  <!-- ────── TOPBAR (filled by loadTopbar()) ────── -->
+  <div class="topbar"></div>
+
+  <!-- ────── PAGE CONTENT ────── -->
+  <div class="page">
+
+    <!-- your content here -->
+
+  </div>
+
+  <!-- ────── MODALS (optional, place before scripts) ────── -->
+  <!--
+  <div class="modal-overlay" id="myModal">
+    <div class="modal" style="width:600px">
+      <div class="modal-hdr">
+        <div class="modal-title">หัวข้อ</div>
+        <button class="btn-modal-close" onclick="closeModal('myModal')">✕</button>
+      </div>
+      <div class="modal-body">...</div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closeModal('myModal')">ยกเลิก</button>
+        <button class="btn btn-primary" onclick="save()">บันทึก</button>
+      </div>
+    </div>
+  </div>
+  -->
+
+
+  <!-- ============================================================
+       SCRIPTS — order matters
+       ============================================================ -->
+
+  <!-- 1) Core (always) -->
+  <script src="../../js/core/auth.js"></script>
+  <script src="../../js/core/authz.js"></script>
+  <script src="../../js/core/date-format.js"></script>
+
+  <!-- 2) Permission gate (optional — for permission-protected pages) -->
+  <!--
+  <script src="../../js/core/permissions.js"></script>
+  <script>AuthZ.requirePerm("{{PERM_KEY}}");</script>
+  -->
+
+  <!-- 3) Module-specific JS -->
+  <script src="./{{MODULE_JS}}.js"></script>
+
+  <!-- 4) Topbar (loads sidebar drawer via burger) + Sidebar -->
+  <script type="module">
+    import { loadTopbar } from "../../js/components/navigation/topbar.js";
+    loadTopbar("{{TITLE}}");
+  </script>
+  <script src="../../js/components/navigation/sidebar.js"></script>
+
+  <!-- 5) Modal manager (always — ESC-close + focus trap) -->
+  <script src="../../js/components/modal/modalManager.js"></script>
+
+</body>
+</html>

@@ -64,7 +64,7 @@
 .ef-input:focus {
   outline: none;
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+  box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.12);
 }
 .ef-input::placeholder {
   color: var(--text3);
@@ -114,7 +114,7 @@
 }
 .ef-poster-preview.drag-over {
   border-color: var(--accent);
-  background: rgba(59, 130, 246, 0.06);
+  background: rgba(var(--accent-rgb), 0.06);
 }
 
 /* ── UPLOAD ZONE ── */
@@ -129,7 +129,7 @@
 .ef-upload-zone:hover,
 .ef-upload-zone.drag-over {
   border-color: var(--accent);
-  background: rgba(59, 130, 246, 0.04);
+  background: rgba(var(--accent-rgb), 0.04);
 }
 .ef-upload-icon {
   font-size: 28px;
@@ -178,7 +178,7 @@
   transition: background 0.1s;
 }
 .tier-row:hover {
-  background: rgba(59, 130, 246, 0.03);
+  background: rgba(var(--accent-rgb), 0.03);
 }
 .tier-row.tier-active {
   background: rgba(16, 185, 129, 0.06);
@@ -200,7 +200,7 @@
 .tier-row input:focus {
   outline: none;
   border-color: var(--accent);
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+  box-shadow: 0 0 0 2px rgba(var(--accent-rgb), 0.1);
 }
 .tier-row input[type="number"] {
   text-align: right;
@@ -254,7 +254,7 @@
 .btn-add-tier:hover {
   border-color: var(--accent);
   color: var(--accent);
-  background: rgba(59, 130, 246, 0.03);
+  background: rgba(var(--accent-rgb), 0.03);
 }
 
 /* ── floating-save-btn: moved to main.css ── */

@@ -145,15 +145,11 @@
 
 <div class="topbar"></div>
 
-<div class="layout">
-  <div id="sidebar-container"></div>
-
-  <div class="content-area">
     <div class="page">
 
-      <div class="page-header">
+      <div class="page-hero">
         <div>
-          <div class="page-title">🔔 กฎแจ้งเตือน LINE</div>
+          <div class="page-hero-title">🔔 กฎแจ้งเตือน LINE</div>
           <div class="page-subtitle">ตั้งค่าให้ส่ง LINE อัตโนมัติเมื่อมี Event/Booking ถูกอนุมัติ</div>
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
@@ -405,11 +401,9 @@
       <button class="btn-ghost" onclick="closeTriggerEditor()">ยกเลิก</button>
       <button class="btn-primary" id="tfSaveBtn" onclick="saveTrigger()">💾 บันทึก</button>
     </div>
-  </div>
-</div>
-
 <script src="../../js/core/auth.js"></script>
 <script src="../../js/core/authz.js"></script>
+<script src="../../js/core/date-format.js"></script>
 <script src="../../js/core/crypto.js"></script>
 <script src="../../js/core/line.js"></script>
 <script src="../../js/core/notify.js"></script>

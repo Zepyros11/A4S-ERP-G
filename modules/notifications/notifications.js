@@ -227,7 +227,7 @@ function renderPaginate() {
     html += `<button class="${p === state.page ? 'active' : ''}" onclick="gotoPage(${p})">${p}</button>`;
   }
   html += `<button onclick="gotoPage(${state.page + 1})" ${state.page >= totalPages ? 'disabled' : ''}>›</button>`;
-  html += `<span class="ibd-paginate-info">${state.total} รายการ · หน้า ${state.page}/${totalPages}</span>`;
+  html += `<span class="pagination-info">${state.total} รายการ · หน้า ${state.page}/${totalPages}</span>`;
   root.innerHTML = html;
 }
 

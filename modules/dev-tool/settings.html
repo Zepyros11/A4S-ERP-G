@@ -55,7 +55,7 @@
 .ui-confirm-actions{display:flex;gap:10px;padding:18px 26px 22px;justify-content:flex-end;}
 .ui-confirm-btn{padding:10px 22px;border-radius:22px;border:none;font-family:inherit;font-size:13.5px;font-weight:600;cursor:pointer;transition:all .15s;}
 .ui-confirm-btn.cancel{background:#e5e7eb;color:#374151;}
-.ui-confirm-btn.ok{background:linear-gradient(135deg,var(--accent),var(--accent-light));color:#fff;box-shadow:0 3px 10px rgba(15,76,117,.3);}
+.ui-confirm-btn.ok{background:linear-gradient(135deg,var(--accent),var(--accent-light));color:#fff;box-shadow:0 3px 10px rgba(var(--accent-rgb),.3);}
 </style>
 </head>
 <body>
@@ -68,7 +68,7 @@
 <div class="page">
 
   <!-- Hero -->
-  <div class="st-hero">
+  <div class="page-hero">
     <h1>⚙️ ตั้งค่า Automation</h1>
     <p>Config ที่ใช้ร่วมกันทุก automation task — GitHub Actions + LINE Notify</p>
   </div>

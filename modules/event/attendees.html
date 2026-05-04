@@ -18,9 +18,6 @@
     <div class="toast" id="toast"></div>
 
     <div class="topbar"></div>
-    <div class="layout">
-      <div id="sidebar-container"></div>
-      <div class="content-area">
         <div class="page">
           <!-- HERO -->
           <div class="att-hero">
@@ -52,10 +49,6 @@
                 <button class="att-hero-btn" onclick="window.openTagCategoriesModal()" title="จัดการหมวด Tag"><span class="ico">🏷️</span><span class="lbl">หมวด Tag</span></button>
                 <button class="att-hero-btn" onclick="window.exportCSV()" title="Export CSV"><span class="ico">📥</span><span class="lbl">Export</span></button>
               </div>
-            </div>
-          </div>
-
-
           <!-- STATS (hidden until event selected) -->
           <div id="attStatsSection" style="display: none">
             <div class="att-stats">
@@ -536,6 +529,7 @@
     <script src="../../js/core/qr-designer.js"></script>
     <script src="../../js/components/modal/confirmModal.js"></script>
     <script src="../../js/core/authz.js"></script>
+<script src="../../js/core/date-format.js"></script>
     <script>AuthZ.requirePerm("attendee_view");</script>
     <script type="module" src="./attendees.js"></script>
     <script src="../../js/components/modal/deleteModal.js"></script>

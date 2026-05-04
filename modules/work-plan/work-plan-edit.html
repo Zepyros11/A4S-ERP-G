@@ -16,24 +16,21 @@
     <div class="toast" id="toast"></div>
 
     <div class="topbar"></div>
-    <div class="layout">
-      <div id="sidebar-container"></div>
-      <div class="content-area">
         <div class="page">
           <!-- HERO -->
-          <div id="wpHero" class="wp-hero scope-event">
+          <div id="wpHero" class="page-hero">
             <div>
-              <div class="wp-hero-title">
+              <h1 class="page-hero-title">
                 <a id="backLink" href="./work-plan-list.html?scope=event"
-                   style="color:#fff;text-decoration:none;opacity:.75;margin-right:6px">← กลับ</a>
+                   style="color:var(--text2);text-decoration:none;margin-right:6px;font-weight:600">← กลับ</a>
                 <span id="heroTitle">กำลังโหลด…</span>
-              </div>
-              <div id="heroSub" class="wp-hero-sub">แก้ตารางแผนงาน — autosave</div>
+              </h1>
+              <p id="heroSub" class="page-hero-sub">แก้ตารางแผนงาน — autosave</p>
             </div>
-            <div class="wp-hero-actions">
-              <button type="button" class="wp-hero-btn" onclick="window.exportCSV()"
+            <div class="page-hero-actions">
+              <button type="button" class="btn-on-hero" onclick="window.exportCSV()"
                 title="Export เป็นไฟล์ CSV">📥 CSV</button>
-              <button type="button" class="wp-hero-btn" onclick="window.printPlan()"
+              <button type="button" class="btn-on-hero" onclick="window.printPlan()"
                 title="พิมพ์ / บันทึกเป็น PDF">🖨 พิมพ์/PDF</button>
               <span id="saveState" class="wp-save-state">พร้อม</span>
             </div>
@@ -126,11 +123,9 @@
           <button class="btn btn-secondary" onclick="window.closeColModal()">ยกเลิก</button>
           <button class="btn btn-primary" onclick="window.submitColModal()">เพิ่มคอลัมน์</button>
         </div>
-      </div>
-    </div>
-
     <script src="../../js/core/auth.js"></script>
     <script src="../../js/core/authz.js"></script>
+<script src="../../js/core/date-format.js"></script>
     <script type="module" src="./work-plan-edit.js"></script>
     <script src="../../js/components/modal/deleteModal.js"></script>
     <script src="../../js/components/modal/modalManager.js"></script>

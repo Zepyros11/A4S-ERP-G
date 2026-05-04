@@ -43,16 +43,12 @@
 <div class="toast" id="toast"></div>
 
 <div class="topbar"></div>
-<div class="layout">
-  <div id="sidebar-container"></div>
-
-  <div class="content-area">
     <div class="page">
 
-      <div class="ibd-hero" style="display:flex;align-items:center;gap:14px">
+      <div class="page-hero" style="display:flex;align-items:center;gap:14px">
         <div style="flex:1">
-          <div class="ibd-hero-title">🔔 แจ้งเตือนของฉัน</div>
-          <div class="ibd-hero-sub">รายการแจ้งเตือนทั้งหมดที่คุณได้รับ — เรียงใหม่สุดก่อน</div>
+          <div class="page-hero-title">🔔 แจ้งเตือนของฉัน</div>
+          <div class="page-hero-sub">รายการแจ้งเตือนทั้งหมดที่คุณได้รับ — เรียงใหม่สุดก่อน</div>
         </div>
         <button class="ibd-btn ibd-btn-primary" onclick="markAllRead()">✓ อ่านทั้งหมด</button>
       </div>
@@ -100,16 +96,14 @@
             </tbody>
           </table>
         </div>
-        <div class="ibd-paginate" id="paginate"></div>
+        <div class="pagination" id="paginate"></div>
       </div>
 
     </div>
-  </div>
-</div>
-
 <script src="../../js/core/permissions.js"></script>
 <script src="../../js/core/auth.js"></script>
 <script src="../../js/core/authz.js"></script>
+<script src="../../js/core/date-format.js"></script>
 <script src="./notifications.js"></script>
 <script type="module">
   import { loadTopbar } from "../../js/components/navigation/topbar.js";

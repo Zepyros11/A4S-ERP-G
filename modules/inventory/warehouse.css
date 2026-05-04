@@ -236,7 +236,7 @@
 }
 
 .country-item.selected {
-  background: #eff6ff;
+  background: var(--accent-pale);
   color: var(--primary, #2563eb);
   font-weight: 600;
 }
@@ -344,7 +344,7 @@
 }
 
 .country-add-btn:hover {
-  background: #eff6ff;
+  background: var(--accent-pale);
 }
 
 /* ======================================================

@@ -1,0 +1,594 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Style Guide — A4S-ERP</title>
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../css/main.css" />
+
+  <style>
+    /* =====================================================================
+       PROPOSED SHARED PRIMITIVES — to be moved into css/core/common.css
+       (เก็บไว้ inline ที่นี่ก่อน เพื่อ review)
+       ===================================================================== */
+
+    /* ── 1. Page hero ─────────────────────────────────────────────── */
+    .page-hero {
+      position: relative;
+      overflow: hidden;
+      padding: 22px 26px;
+      border-radius: 14px;
+      margin-bottom: 18px;
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 14px; flex-wrap: wrap;
+    }
+    .page-hero-title { font-size: 20px; font-weight: 700; margin: 0;
+      display: flex; align-items: center; gap: 8px; position: relative; z-index: 1; }
+    .page-hero-sub   { font-size: 13px; opacity: .85; margin: 4px 0 0;
+      position: relative; z-index: 1; }
+    .page-hero-actions { display: flex; gap: 8px; flex-shrink: 0;
+      position: relative; z-index: 1; flex-wrap: wrap; }
+
+    /* default variant: gradient blue (สำหรับ Dashboard / Overview pages) */
+    .page-hero {
+      background: linear-gradient(135deg, #1e40af, #3b82f6);
+      color: #fff;
+      box-shadow: 0 8px 24px rgba(30,64,175,.25);
+    }
+    .page-hero::before {
+      content: ''; position: absolute; top: -40px; right: -40px;
+      width: 140px; height: 140px; border-radius: 50%;
+      background: rgba(255,255,255,.06);
+    }
+
+    /* variant: simple — สำหรับ List/Form pages */
+    .page-hero--simple {
+      background: var(--surface);
+      color: var(--text);
+      border: 1px solid var(--border);
+      box-shadow: none;
+      padding: 18px 22px;
+    }
+    .page-hero--simple::before { display: none; }
+    .page-hero--simple .page-hero-sub { color: var(--text3); opacity: 1; }
+
+    /* variant: solid-dark — สำหรับ admin/setup section bar */
+    .page-hero--solid-dark {
+      background: linear-gradient(135deg, #111827, #374151);
+      color: #fff;
+      box-shadow: 0 4px 14px rgba(17,24,39,.20);
+    }
+    .page-hero--solid-dark::before { display: none; }
+
+    /* hero buttons ที่อยู่บน gradient (white outline pill) */
+    .page-hero .btn-on-hero {
+      padding: 8px 14px;
+      border: 1.5px solid rgba(255,255,255,.3);
+      border-radius: 10px;
+      background: rgba(255,255,255,.18);
+      color: #fff;
+      font-size: 12.5px; font-weight: 600;
+      cursor: pointer; transition: background .15s;
+      display: inline-flex; align-items: center; gap: 5px;
+    }
+    .page-hero .btn-on-hero:hover { background: rgba(255,255,255,.28); }
+
+
+    /* ── 2. KPI row + card ─────────────────────────────────────────── */
+    .kpi-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 14px;
+      margin-bottom: 18px;
+    }
+    .kpi-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px 18px;
+      display: flex; align-items: center; gap: 14px;
+      transition: box-shadow .15s, transform .15s;
+    }
+    .kpi-card:hover {
+      box-shadow: 0 6px 18px rgba(0,0,0,.08);
+      transform: translateY(-1px);
+    }
+    .kpi-card.is-clickable { cursor: pointer; }
+
+    .kpi-icon {
+      width: 48px; height: 48px;
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 24px; flex-shrink: 0;
+    }
+    .kpi-info { flex: 1; min-width: 0; }
+    .kpi-label {
+      font-size: 11.5px; color: var(--text3);
+      font-weight: 600; letter-spacing: .3px;
+      text-transform: uppercase;
+    }
+    .kpi-value {
+      font-size: 26px; font-weight: 700; color: var(--text);
+      font-variant-numeric: tabular-nums;
+      line-height: 1.1; margin-top: 2px;
+    }
+    .kpi-sub { font-size: 11px; color: var(--text3); margin-top: 2px; }
+
+    /* color variants — ใช้กับ .kpi-card */
+    .kpi-card.blue   .kpi-icon { background: #dbeafe; color: #1e40af; }
+    .kpi-card.green  .kpi-icon { background: #d1fae5; color: #065f46; }
+    .kpi-card.amber  .kpi-icon { background: #fef3c7; color: #92400e; }
+    .kpi-card.purple .kpi-icon { background: #ede9fe; color: #5b21b6; }
+    .kpi-card.pink   .kpi-icon { background: #fce7f3; color: #9d174d; }
+    .kpi-card.gray   .kpi-icon { background: #f1f5f9; color: #475569; }
+
+
+    /* ── 3. Section card (กรอบกลุ่ม content ใน page) ─────────────── */
+    .section-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px 18px;
+      margin-bottom: 14px;
+    }
+    .section-head {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    .section-title {
+      font-size: 14px; font-weight: 700; color: var(--text);
+      display: flex; align-items: center; gap: 7px;
+    }
+    .section-sub { font-size: 11.5px; color: var(--text3); }
+
+
+    /* ── 4. Empty state ────────────────────────────────────────────── */
+    .empty-state {
+      padding: 50px 20px;
+      text-align: center;
+      color: var(--text3);
+    }
+    .empty-state-icon {
+      font-size: 44px;
+      opacity: .5;
+      margin-bottom: 10px;
+    }
+    .empty-state-title {
+      font-size: 14px; font-weight: 600;
+      color: var(--text2);
+      margin-bottom: 4px;
+    }
+    .empty-state-hint {
+      font-size: 12px;
+      color: var(--text3);
+      max-width: 320px;
+      margin: 0 auto;
+      line-height: 1.5;
+    }
+    .empty-state-actions {
+      margin-top: 16px;
+      display: inline-flex; gap: 8px;
+    }
+
+
+    /* =====================================================================
+       Style guide page chrome (ไม่ใช่ primitive — ใช้แค่ในไฟล์นี้)
+       ===================================================================== */
+    .sg-section { margin-bottom: 36px; }
+    .sg-section-head { margin-bottom: 12px; }
+    .sg-section-title { font-size: 18px; font-weight: 700; }
+    .sg-section-desc { font-size: 12.5px; color: var(--text3); margin-top: 2px; }
+
+    .sg-demo {
+      background: #f8fafc;
+      border: 1px dashed var(--border);
+      border-radius: 10px;
+      padding: 18px;
+      margin-bottom: 10px;
+    }
+    .sg-code {
+      background: #0f172a;
+      color: #e2e8f0;
+      padding: 14px 16px;
+      border-radius: 8px;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11.5px;
+      line-height: 1.6;
+      overflow-x: auto;
+      white-space: pre;
+      margin: 0;
+    }
+    .sg-code .tag    { color: #93c5fd; }
+    .sg-code .attr   { color: #fbbf24; }
+    .sg-code .str    { color: #86efac; }
+    .sg-code .com    { color: #64748b; }
+    .sg-tag {
+      display: inline-block;
+      font-size: 10px; font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 4px;
+      letter-spacing: .5px;
+      vertical-align: middle;
+      margin-left: 6px;
+    }
+    .sg-tag.new   { background: #d1fae5; color: #065f46; }
+    .sg-tag.exist { background: #e2e8f0; color: #475569; }
+    .sg-toc {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px 16px;
+      margin-bottom: 24px;
+      font-size: 12.5px;
+    }
+    .sg-toc-title { font-weight: 700; margin-bottom: 6px; }
+    .sg-toc a { display: block; padding: 3px 0; color: var(--text2); text-decoration: none; }
+    .sg-toc a:hover { color: var(--accent); }
+  </style>
+</head>
+<body>
+
+<div class="loading-overlay" id="loadingOverlay"><div class="spinner"></div></div>
+<div class="toast" id="toast"></div>
+
+<div class="topbar"></div>
+
+<div class="page">
+
+  <!-- ── Style guide own hero ── -->
+  <div class="page-hero">
+    <div>
+      <h1 class="page-hero-title">🎨 A4S-ERP Style Guide</h1>
+      <p class="page-hero-sub">Visual primitives ที่เสนอให้ใส่ใน <code>css/core/common.css</code> · review ก่อน migrate</p>
+    </div>
+    <div class="page-hero-actions">
+      <button class="btn-on-hero" onclick="document.querySelector('#sec-hero').scrollIntoView({behavior:'smooth'})">→ ลงไปดู</button>
+    </div>
+  </div>
+
+  <!-- ── TOC ── -->
+  <div class="sg-toc">
+    <div class="sg-toc-title">เนื้อหา</div>
+    <a href="#sec-hero">1. Page hero (3 variants)</a>
+    <a href="#sec-kpi">2. KPI row / card (color variants)</a>
+    <a href="#sec-section">3. Section card</a>
+    <a href="#sec-empty">4. Empty state</a>
+    <a href="#sec-toolbar">5. Toolbar (มีอยู่แล้วใน core)</a>
+    <a href="#sec-existing">6. Existing primitives ที่ดีอยู่แล้ว (ปุ่ม/ฟอร์ม/badge/modal)</a>
+  </div>
+
+
+  <!-- =================================================================
+       1. PAGE HERO
+       ================================================================= -->
+  <div class="sg-section" id="sec-hero">
+    <div class="sg-section-head">
+      <div class="sg-section-title">1. Page hero <span class="sg-tag new">NEW</span></div>
+      <div class="sg-section-desc">หัวหน้าทุกหน้าใช้ class นี้ (มี 3 variants) แทนที่ <code>ds-hero / ed-hero / ibd-hero / wp-hero / tm-hero / ...</code> (21 prefixes) ที่กระจายอยู่</div>
+    </div>
+
+    <!-- variant default: gradient blue -->
+    <h4 style="margin:14px 0 6px;font-size:13px;">1.1 Default — gradient blue (สำหรับ Dashboard / Overview)</h4>
+    <div class="sg-demo">
+      <div class="page-hero">
+        <div>
+          <h1 class="page-hero-title">📊 Events Dashboard</h1>
+          <p class="page-hero-sub">ภาพรวมกิจกรรมทั้งหมด · ผู้เข้าร่วม · รายรับ</p>
+        </div>
+        <div class="page-hero-actions">
+          <button class="btn-on-hero">📥 Export</button>
+          <button class="btn-on-hero">+ สร้างกิจกรรม</button>
+        </div>
+      </div>
+    </div>
+<pre class="sg-code">&lt;div class="page-hero"&gt;
+  &lt;div&gt;
+    &lt;h1 class="page-hero-title"&gt;📊 Events Dashboard&lt;/h1&gt;
+    &lt;p class="page-hero-sub"&gt;ภาพรวมกิจกรรมทั้งหมด · ผู้เข้าร่วม · รายรับ&lt;/p&gt;
+  &lt;/div&gt;
+  &lt;div class="page-hero-actions"&gt;
+    &lt;button class="btn-on-hero"&gt;📥 Export&lt;/button&gt;
+  &lt;/div&gt;
+&lt;/div&gt;</pre>
+
+    <!-- variant simple -->
+    <h4 style="margin:18px 0 6px;font-size:13px;">1.2 Simple — กรอบขาว (สำหรับ List / Form pages)</h4>
+    <div class="sg-demo">
+      <div class="page-hero page-hero--simple">
+        <div>
+          <h1 class="page-hero-title">👥 จัดการกลุ่มพนักงาน</h1>
+          <p class="page-hero-sub">เพิ่ม/ลบกลุ่มของแต่ละพนักงาน — ใช้เป็น target ในกฎแจ้งเตือน LINE</p>
+        </div>
+        <div class="page-hero-actions">
+          <button class="btn btn-outline">🔔 กฎแจ้งเตือน LINE →</button>
+        </div>
+      </div>
+    </div>
+<pre class="sg-code">&lt;div class="page-hero page-hero--simple"&gt;...&lt;/div&gt;</pre>
+
+    <!-- variant solid-dark -->
+    <h4 style="margin:18px 0 6px;font-size:13px;">1.3 Solid dark — สำหรับ section bar (ตาม line-promote)</h4>
+    <div class="sg-demo">
+      <div class="page-hero page-hero--solid-dark">
+        <div>
+          <h1 class="page-hero-title">📢 ระบบโพสต์ LINE</h1>
+        </div>
+        <div class="page-hero-actions">
+          <button class="btn-on-hero">🧑‍🤝‍🧑 จัดการกลุ่ม</button>
+          <button class="btn-on-hero">✉️ ข้อความเปิดตัว</button>
+          <button class="btn-on-hero">🔍 ตรวจสอบระบบ</button>
+        </div>
+      </div>
+    </div>
+<pre class="sg-code">&lt;div class="page-hero page-hero--solid-dark"&gt;...&lt;/div&gt;</pre>
+  </div>
+
+
+  <!-- =================================================================
+       2. KPI ROW
+       ================================================================= -->
+  <div class="sg-section" id="sec-kpi">
+    <div class="sg-section-head">
+      <div class="sg-section-title">2. KPI row / card <span class="sg-tag new">NEW</span></div>
+      <div class="sg-section-desc">แทน <code>ed-kpi / ibd-kpi / cs-stats / sp-stats / member-stats / ...</code> (13 prefixes) · มี 6 colors</div>
+    </div>
+
+    <div class="sg-demo">
+      <div class="kpi-row">
+        <div class="kpi-card blue is-clickable">
+          <div class="kpi-icon">📅</div>
+          <div class="kpi-info">
+            <div class="kpi-label">Events ทั้งหมด</div>
+            <div class="kpi-value">43</div>
+            <div class="kpi-sub">12 ยังไม่จัด · 31 จบแล้ว</div>
+          </div>
+        </div>
+        <div class="kpi-card purple">
+          <div class="kpi-icon">👥</div>
+          <div class="kpi-info">
+            <div class="kpi-label">ผู้เข้าร่วม</div>
+            <div class="kpi-value">67</div>
+            <div class="kpi-sub">จากทุก events</div>
+          </div>
+        </div>
+        <div class="kpi-card green">
+          <div class="kpi-icon">✅</div>
+          <div class="kpi-info">
+            <div class="kpi-label">Check-in rate</div>
+            <div class="kpi-value">100%</div>
+            <div class="kpi-sub">67 / 67</div>
+          </div>
+        </div>
+        <div class="kpi-card amber">
+          <div class="kpi-icon">💰</div>
+          <div class="kpi-info">
+            <div class="kpi-label">รายรับรวม (฿)</div>
+            <div class="kpi-value">1.2M</div>
+            <div class="kpi-sub">รอชำระ ฿0.00</div>
+          </div>
+        </div>
+        <div class="kpi-card pink">
+          <div class="kpi-icon">⭐</div>
+          <div class="kpi-info">
+            <div class="kpi-label">สมาชิก unique</div>
+            <div class="kpi-value">38</div>
+            <div class="kpi-sub">จาก 67 attendees</div>
+          </div>
+        </div>
+      </div>
+    </div>
+<pre class="sg-code">&lt;div class="kpi-row"&gt;
+  &lt;div class="kpi-card blue is-clickable"&gt;
+    &lt;div class="kpi-icon"&gt;📅&lt;/div&gt;
+    &lt;div class="kpi-info"&gt;
+      &lt;div class="kpi-label"&gt;Events ทั้งหมด&lt;/div&gt;
+      &lt;div class="kpi-value"&gt;43&lt;/div&gt;
+      &lt;div class="kpi-sub"&gt;12 ยังไม่จัด · 31 จบแล้ว&lt;/div&gt;
+    &lt;/div&gt;
+  &lt;/div&gt;
+  &lt;!-- colors: blue / green / amber / purple / pink / gray --&gt;
+&lt;/div&gt;</pre>
+  </div>
+
+
+  <!-- =================================================================
+       3. SECTION CARD
+       ================================================================= -->
+  <div class="sg-section" id="sec-section">
+    <div class="sg-section-head">
+      <div class="sg-section-title">3. Section card <span class="sg-tag new">NEW</span></div>
+      <div class="sg-section-desc">กรอบกลุ่ม content ใน page · แทน <code>ed-section / ibd-section / *-card</code> ที่ใช้เป็น page-level container</div>
+    </div>
+    <div class="sg-demo">
+      <div class="section-card">
+        <div class="section-head">
+          <div class="section-title">📊 Events ต่อเดือน</div>
+          <div class="section-sub">ทุกช่วงเวลา</div>
+        </div>
+        <div style="height:140px;background:var(--surface2);border-radius:8px;display:flex;align-items:center;justify-content:center;color:var(--text3);font-size:12px;">[ chart placeholder ]</div>
+      </div>
+    </div>
+<pre class="sg-code">&lt;div class="section-card"&gt;
+  &lt;div class="section-head"&gt;
+    &lt;div class="section-title"&gt;📊 Events ต่อเดือน&lt;/div&gt;
+    &lt;div class="section-sub"&gt;ทุกช่วงเวลา&lt;/div&gt;
+  &lt;/div&gt;
+  &lt;!-- content --&gt;
+&lt;/div&gt;</pre>
+  </div>
+
+
+  <!-- =================================================================
+       4. EMPTY STATE
+       ================================================================= -->
+  <div class="sg-section" id="sec-empty">
+    <div class="sg-section-head">
+      <div class="sg-section-title">4. Empty state <span class="sg-tag new">NEW</span></div>
+      <div class="sg-section-desc">แทน <code>ibd-empty / man-empty / picker-empty / ...</code> (38 prefixes)</div>
+    </div>
+    <div class="sg-demo" style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+      <div class="section-card" style="margin:0">
+        <div class="empty-state">
+          <div class="empty-state-icon">📭</div>
+          <div class="empty-state-title">ยังไม่มีข้อมูล</div>
+          <div class="empty-state-hint">เริ่มสร้างรายการแรกของคุณได้เลย</div>
+        </div>
+      </div>
+      <div class="section-card" style="margin:0">
+        <div class="empty-state">
+          <div class="empty-state-icon">🔍</div>
+          <div class="empty-state-title">ไม่พบผลที่ค้นหา</div>
+          <div class="empty-state-hint">ลองปรับคำค้นหรือ filter ดู</div>
+          <div class="empty-state-actions">
+            <button class="btn btn-outline">ล้างตัวกรอง</button>
+          </div>
+        </div>
+      </div>
+    </div>
+<pre class="sg-code">&lt;div class="empty-state"&gt;
+  &lt;div class="empty-state-icon"&gt;📭&lt;/div&gt;
+  &lt;div class="empty-state-title"&gt;ยังไม่มีข้อมูล&lt;/div&gt;
+  &lt;div class="empty-state-hint"&gt;คำอธิบายสั้นๆ&lt;/div&gt;
+  &lt;!-- optional: --&gt;
+  &lt;div class="empty-state-actions"&gt;
+    &lt;button class="btn btn-outline"&gt;Action&lt;/button&gt;
+  &lt;/div&gt;
+&lt;/div&gt;</pre>
+  </div>
+
+
+  <!-- =================================================================
+       5. TOOLBAR (existing)
+       ================================================================= -->
+  <div class="sg-section" id="sec-toolbar">
+    <div class="sg-section-head">
+      <div class="sg-section-title">5. Toolbar <span class="sg-tag exist">EXISTING</span></div>
+      <div class="sg-section-desc"><code>.toolbar</code> มีอยู่แล้วใน <code>core/layout.css</code> · ปัจจุบัน 17 modules ทำของตัวเอง · แค่ migrate ใช้อันเดียว</div>
+    </div>
+    <div class="sg-demo">
+      <div class="toolbar">
+        <div class="search-wrap">
+          <span class="search-icon">🔍</span>
+          <input class="search-input" placeholder="ค้นหา ชื่อ / username / กลุ่ม..." />
+        </div>
+        <select class="filter-select">
+          <option>ทุก Role</option>
+        </select>
+        <select class="filter-select">
+          <option>ทุกกลุ่ม</option>
+        </select>
+        <div class="toolbar-right">
+          <button class="btn btn-outline">↻ Refresh</button>
+          <button class="btn btn-primary">+ เพิ่ม</button>
+        </div>
+      </div>
+    </div>
+<pre class="sg-code">&lt;div class="toolbar"&gt;
+  &lt;div class="search-wrap"&gt;
+    &lt;span class="search-icon"&gt;🔍&lt;/span&gt;
+    &lt;input class="search-input" placeholder="ค้นหา..." /&gt;
+  &lt;/div&gt;
+  &lt;select class="filter-select"&gt;...&lt;/select&gt;
+  &lt;div class="toolbar-right"&gt;
+    &lt;button class="btn btn-primary"&gt;+ เพิ่ม&lt;/button&gt;
+  &lt;/div&gt;
+&lt;/div&gt;</pre>
+  </div>
+
+
+  <!-- =================================================================
+       6. EXISTING (สั้นๆ)
+       ================================================================= -->
+  <div class="sg-section" id="sec-existing">
+    <div class="sg-section-head">
+      <div class="sg-section-title">6. Primitives ที่ดีอยู่แล้ว <span class="sg-tag exist">EXISTING</span></div>
+      <div class="sg-section-desc">อยู่ใน <code>main.css</code> ใช้ได้เลย ไม่ต้องเปลี่ยน</div>
+    </div>
+    <div class="sg-demo">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;">
+        <button class="btn btn-primary">btn btn-primary</button>
+        <button class="btn btn-outline">btn btn-outline</button>
+        <button class="btn btn-danger">btn btn-danger</button>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;">
+        <span class="status-badge status-active">status-active</span>
+        <span class="status-badge status-inactive">status-inactive</span>
+      </div>
+      <div style="max-width:300px;">
+        <div class="form-group">
+          <label class="form-label">form-label <span class="req">*</span></label>
+          <input class="form-control" placeholder="form-control" />
+        </div>
+      </div>
+      <div class="table-card" style="margin-top:14px">
+        <div class="table-hdr">
+          <div class="table-title">table-card / table-hdr</div>
+          <div class="table-count">2 รายการ</div>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr><th>Col 1</th><th>Col 2</th></tr></thead>
+            <tbody>
+              <tr><td>row a-1</td><td>row a-2</td></tr>
+              <tr><td>row b-1</td><td>row b-2</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- =================================================================
+       Migration mapping (สรุป)
+       ================================================================= -->
+  <div class="sg-section">
+    <div class="sg-section-head">
+      <div class="sg-section-title">📋 Migration mapping (จาก class เก่า → ใหม่)</div>
+      <div class="sg-section-desc">เมื่อ migrate แต่ละหน้า ใช้ตารางนี้ replace</div>
+    </div>
+    <div class="section-card">
+      <table class="data-table">
+        <thead>
+          <tr><th>เก่า</th><th>ใหม่</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>ed-hero / ibd-hero / ds-hero / wp-hero / ...</code></td><td><code>page-hero</code> (default = gradient blue)</td></tr>
+          <tr><td><code>ed-hero h1 / ibd-hero-title</code></td><td><code>page-hero-title</code></td></tr>
+          <tr><td><code>ed-hero p / ibd-hero-sub</code></td><td><code>page-hero-sub</code></td></tr>
+          <tr><td><code>ed-hero-right / ibd-hero-actions</code></td><td><code>page-hero-actions</code></td></tr>
+          <tr><td><code>ed-btn / ibd-btn-primary (บน hero)</code></td><td><code>btn-on-hero</code></td></tr>
+          <tr><td><code>ed-kpi-grid / *-stats-row</code></td><td><code>kpi-row</code></td></tr>
+          <tr><td><code>ed-kpi / ibd-kpi / *-stat-card</code></td><td><code>kpi-card</code> + color modifier</td></tr>
+          <tr><td><code>ed-kpi-icon / ibd-kpi-icon</code></td><td><code>kpi-icon</code></td></tr>
+          <tr><td><code>ed-kpi-label / ibd-kpi-label</code></td><td><code>kpi-label</code></td></tr>
+          <tr><td><code>ed-kpi-value / ibd-kpi-value</code></td><td><code>kpi-value</code></td></tr>
+          <tr><td><code>ed-section / ibd-section</code></td><td><code>section-card</code></td></tr>
+          <tr><td><code>ed-section-head / ed-section-title</code></td><td><code>section-head</code> / <code>section-title</code></td></tr>
+          <tr><td><code>ibd-empty / man-empty / picker-empty / ...</code></td><td><code>empty-state</code></td></tr>
+          <tr><td><code>*-toolbar (per module)</code></td><td><code>toolbar</code> (มีอยู่แล้ว)</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+
+  <div style="height:60px"></div>
+</div>
+
+
+<!-- ── Core JS ── -->
+<script src="../../js/core/auth.js"></script>
+<script src="../../js/core/authz.js"></script>
+<script src="../../js/core/date-format.js"></script>
+
+<script type="module">
+  import { loadTopbar } from "../../js/components/navigation/topbar.js";
+  loadTopbar("🎨 Style Guide");
+</script>
+<script src="../../js/components/navigation/sidebar.js"></script>
+<script src="../../js/components/modal/modalManager.js"></script>
+
+</body>
+</html>

@@ -127,7 +127,7 @@ async function loadList() {
   } catch (e) {
     console.error(e);
     toast('โหลดไม่สำเร็จ: ' + e.message, 'error');
-    $('tbody').innerHTML = `<tr><td colspan="12" class="ibd-empty">${escapeHtml(e.message)}</td></tr>`;
+    $('tbody').innerHTML = `<tr><td colspan="12" style="text-align:center;color:var(--text3);padding:30px 0">${escapeHtml(e.message)}</td></tr>`;
   } finally {
     showLoading(false);
   }
@@ -159,7 +159,7 @@ async function loadKpis() {
 function renderTable() {
   const tbody = $('tbody');
   if (!state.rows.length) {
-    tbody.innerHTML = '<tr><td colspan="12" class="ibd-empty">ยังไม่มีรายการ</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="12" style="text-align:center;color:var(--text3);padding:30px 0">ยังไม่มีรายการ</td></tr>';
     return;
   }
   tbody.innerHTML = state.rows.map(r => {
@@ -326,7 +326,7 @@ function renderPaginate() {
     html += `<button class="${p === state.page ? 'active' : ''}" onclick="gotoPage(${p})">${p}</button>`;
   }
   html += `<button onclick="gotoPage(${state.page + 1})" ${state.page >= totalPages ? 'disabled' : ''}>›</button>`;
-  html += `<span class="ibd-paginate-info">${state.total} รายการ · หน้า ${state.page}/${totalPages}</span>`;
+  html += `<span class="pagination-info">${state.total} รายการ · หน้า ${state.page}/${totalPages}</span>`;
   root.innerHTML = html;
 }
 
@@ -352,7 +352,7 @@ window.openDetail = function (id) {
     : '<span style="color:var(--text3)">ไม่มีไฟล์แนบ</span>';
 
   $('modalBody').innerHTML = `
-    <dl class="ibd-dl">
+    <dl class="detail-list">
       <dt>วันที่ส่ง</dt>      <dd>${fmtTime(row.created_at)}</dd>
       <dt>Member ID</dt>     <dd class="ibd-cell-mono">${escapeHtml(row.member_code || '—')}</dd>
       <dt>Member Name</dt>   <dd>${escapeHtml(row.member_name || '—')}</dd>

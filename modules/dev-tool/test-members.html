@@ -20,7 +20,7 @@
 /* ── Toolbar ── */
 .tm-toolbar{display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap;}
 .tm-search{flex:1;min-width:240px;max-width:480px;padding:9px 14px;border:1.5px solid var(--border);border-radius:20px;font-family:inherit;font-size:13px;background:var(--surface);outline:none;transition:border-color .15s;}
-.tm-search:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(15,76,117,.12);}
+.tm-search:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(var(--accent-rgb),.12);}
 .tm-filter{padding:9px 14px;border:1.5px solid var(--border);border-radius:20px;font-family:inherit;font-size:13px;background:var(--surface);cursor:pointer;}
 
 /* ── Table ── */
@@ -67,7 +67,7 @@
 .tm-field label{font-size:11.5px;font-weight:600;color:var(--text2);letter-spacing:.3px;}
 .tm-field label .req{color:var(--danger);}
 .tm-field input, .tm-field select, .tm-field textarea{padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:#fff;outline:none;transition:border-color .15s;}
-.tm-field input:focus, .tm-field select:focus, .tm-field textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(15,76,117,.12);}
+.tm-field input:focus, .tm-field select:focus, .tm-field textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(var(--accent-rgb),.12);}
 .tm-field textarea{resize:vertical;min-height:60px;}
 .tm-field .hint{font-size:10.5px;color:var(--text3);}
 
@@ -77,8 +77,8 @@
 .tm-btn{padding:9px 18px;border:none;border-radius:20px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;gap:6px;}
 .tm-btn.ghost{background:transparent;color:var(--text2);border:1.5px solid var(--border);}
 .tm-btn.ghost:hover{background:var(--surface2);border-color:var(--text3);}
-.tm-btn.primary{background:linear-gradient(135deg,var(--accent),var(--accent-light));color:#fff;box-shadow:0 3px 10px rgba(15,76,117,.3);}
-.tm-btn.primary:hover{transform:translateY(-1px);box-shadow:0 5px 14px rgba(15,76,117,.4);}
+.tm-btn.primary{background:linear-gradient(135deg,var(--accent),var(--accent-light));color:#fff;box-shadow:0 3px 10px rgba(var(--accent-rgb),.3);}
+.tm-btn.primary:hover{transform:translateY(-1px);box-shadow:0 5px 14px rgba(var(--accent-rgb),.4);}
 .tm-btn.random{background:linear-gradient(135deg,#f59e0b,#f97316);color:#fff;box-shadow:0 3px 10px rgba(249,115,22,.3);}
 .tm-btn.random:hover{transform:translateY(-1px);box-shadow:0 5px 14px rgba(249,115,22,.4);}
 
@@ -105,15 +105,15 @@
 <div class="page">
 
   <!-- Hero -->
-  <div class="tm-hero">
+  <div class="page-hero">
     <div>
-      <h1>🧪 Test Members</h1>
-      <p>สร้างสมาชิกจำลอง (mock) สำหรับทดสอบ flow ฝั่ง member<br>
-      <span style="opacity:.7;font-size:12px">แยกจาก MLM members · schema เหมือนกัน · ใช้ test ID/PW กับ register / LIFF / LINE login ได้</span></p>
+      <h1 class="page-hero-title">🧪 Test Members</h1>
+      <p class="page-hero-sub">สร้างสมาชิกจำลอง (mock) สำหรับทดสอบ flow ฝั่ง member<br>
+      <span style="font-size:12px">แยกจาก MLM members · schema เหมือนกัน · ใช้ test ID/PW กับ register / LIFF / LINE login ได้</span></p>
     </div>
-    <div class="tm-hero-actions">
-      <button class="tm-btn-hero" onclick="toggleDecrypt()" id="btnDecrypt">🔓 ถอดรหัส</button>
-      <button class="tm-btn-hero primary" onclick="openCreateModal()">➕ สร้าง Test Member</button>
+    <div class="page-hero-actions">
+      <button class="btn-on-hero" onclick="toggleDecrypt()" id="btnDecrypt">🔓 ถอดรหัส</button>
+      <button class="btn-on-hero btn-primary" onclick="openCreateModal()">➕ สร้าง Test Member</button>
     </div>
   </div>
 

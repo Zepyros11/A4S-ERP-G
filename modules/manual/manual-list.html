@@ -17,48 +17,42 @@
 
     <div class="topbar"></div>
 
-    <div class="layout">
-      <div id="sidebar-container"></div>
+    <div class="page manual-bg">
 
-      <div class="content-area manual-bg">
-        <div class="page">
-
-          <!-- HERO (book cover) -->
-          <div class="man-hero">
-            <div class="man-hero-eyebrow">A4S-ERP · User Manual</div>
-            <div class="man-hero-title">คู่มือการใช้งานระบบ</div>
-            <div class="man-hero-sub">
-              เรียนรู้ระบบ ERP ทีละขั้น — เปิดอ่านเป็นบท ๆ เหมือนหนังสือ
-              พร้อมรูปประกอบและตัวอย่างจริง
-            </div>
-            <div class="man-hero-stats">
-              <span class="man-hero-stat">📚 <b id="statChapters">0</b> บท</span>
-              <span class="man-hero-stat">📄 <b id="statPages">0</b> หน้า</span>
-              <span class="man-hero-stat">⏱ <b id="statMinutes">0</b> นาที</span>
-            </div>
-          </div>
-
-          <!-- TOOLBAR -->
-          <div class="man-toolbar">
-            <div class="man-search">
-              <input id="searchInput" type="search" placeholder="ค้นหาในคู่มือ — ชื่อหน้า / สรุป" autocomplete="off" />
-              <div class="man-search-results" id="searchResults"></div>
-            </div>
-            <button class="btn btn-outline" id="btnShowDrafts" data-perm="manual_edit" onclick="window.toggleDrafts()">
-              👁 แสดง draft
-            </button>
-            <button class="btn btn-primary" data-perm="manual_edit" onclick="window.openNewChapter()">
-              ＋ เพิ่มบท
-            </button>
-          </div>
-
-          <!-- SHELF -->
-          <div class="man-shelf" id="shelf">
-            <div class="man-empty"><div class="man-empty-ico">⏳</div><div class="man-empty-msg">กำลังโหลด...</div></div>
-          </div>
-
+      <!-- HERO (book cover — intentional distinct gradient) -->
+      <div class="man-hero">
+        <div class="man-hero-eyebrow">A4S-ERP · User Manual</div>
+        <div class="man-hero-title">คู่มือการใช้งานระบบ</div>
+        <div class="man-hero-sub">
+          เรียนรู้ระบบ ERP ทีละขั้น — เปิดอ่านเป็นบท ๆ เหมือนหนังสือ
+          พร้อมรูปประกอบและตัวอย่างจริง
+        </div>
+        <div class="man-hero-stats">
+          <span class="man-hero-stat">📚 <b id="statChapters">0</b> บท</span>
+          <span class="man-hero-stat">📄 <b id="statPages">0</b> หน้า</span>
+          <span class="man-hero-stat">⏱ <b id="statMinutes">0</b> นาที</span>
         </div>
       </div>
+
+      <!-- TOOLBAR -->
+      <div class="man-toolbar">
+        <div class="man-search">
+          <input id="searchInput" type="search" placeholder="ค้นหาในคู่มือ — ชื่อหน้า / สรุป" autocomplete="off" />
+          <div class="man-search-results" id="searchResults"></div>
+        </div>
+        <button class="btn btn-outline" id="btnShowDrafts" data-perm="manual_edit" onclick="window.toggleDrafts()">
+          👁 แสดง draft
+        </button>
+        <button class="btn btn-primary" data-perm="manual_edit" onclick="window.openNewChapter()">
+          ＋ เพิ่มบท
+        </button>
+      </div>
+
+      <!-- SHELF -->
+      <div class="man-shelf" id="shelf">
+        <div class="empty-state"><div class="empty-state-icon">⏳</div><div class="empty-state-title">กำลังโหลด...</div></div>
+      </div>
+
     </div>
 
     <!-- Chapter editor modal -->
@@ -110,12 +104,10 @@
             <button class="btn btn-primary" onclick="window.saveChapter()">💾 บันทึก</button>
           </div>
         </div>
-      </div>
-    </div>
-
     <script src="../../js/core/permissions.js"></script>
     <script src="../../js/core/auth.js"></script>
     <script src="../../js/core/authz.js"></script>
+<script src="../../js/core/date-format.js"></script>
     <script>AuthZ.requirePerm("manual_view");</script>
     <script type="module" src="./manual-list.js"></script>
     <script type="module">

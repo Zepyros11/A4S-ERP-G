@@ -429,6 +429,12 @@
           label: "Test Members (Mock)",
           path: BASE_PATH + "/modules/dev-tool/test-members.html",
         },
+        {
+          id: "component-library",
+          icon: "📚",
+          label: "Component Library",
+          path: BASE_PATH + "/docs/templates/component-library.html",
+        },
       ],
     },
   ];
@@ -489,6 +495,7 @@
     "devtool-settings": "devtool_manage",
     autocheck: "devtool_view",
     "test-members": "devtool_view",
+    "component-library": "devtool_view",
   };
 
   /* ── re-export พร้อม perm map (สำหรับ roles.js filter landing picker) ── */
@@ -582,6 +589,7 @@
     "devtool-settings",
     "autocheck",
     "test-members",
+    "component-library",
     // "reports",
     // "db_viewer",
   ];

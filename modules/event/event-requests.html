@@ -18,9 +18,6 @@
     <div class="toast" id="toast"></div>
 
     <div class="topbar"></div>
-    <div class="layout">
-      <div id="sidebar-container"></div>
-      <div class="content-area">
         <div class="page">
           <!-- STATS -->
           <div class="stats-row">
@@ -634,9 +631,6 @@
           <button class="btn btn-secondary" onclick="closeBkqCreate()">ยกเลิก</button>
           <button class="btn btn-primary" id="bkqCreateBtn" onclick="submitBkqCreate()">📤 ส่งคำขอจอง</button>
         </div>
-      </div>
-    </div>
-
     <script src="../../js/core/auth.js"></script>
     <script src="../../js/core/authz.js"></script>
     <script src="../../js/core/date-format.js"></script>
@@ -1142,7 +1136,7 @@
 
     function deleteBkqLog(idx) {
       const log = _bkqLogsCache[idx];
-      if (!log) { alert("ไม่พบข้อความ"); return; }
+      if (!log) { showToast?.("ไม่พบข้อความ", "toast-error"); return; }
 
       const filter = `?log_id=eq.${log.log_id}`;
 
@@ -1155,7 +1149,7 @@
           });
           if (_bkqCurrentId) await loadBkqLogs(_bkqCurrentId);
         } catch (e) {
-          alert("ลบไม่ได้: " + e.message);
+          showToast?.("ลบไม่ได้: " + e.message, "toast-error");
         }
       });
     }
@@ -1271,7 +1265,7 @@
     function buildBkqStartGrid(selectedVal) {
       const grid = document.getElementById("bkqNewStartGrid");
       grid.innerHTML = BKQ_START_SLOTS.map(t =>
-        `<button type="button" class="bkq-time-btn${t === selectedVal ? " active" : ""}" data-time="${t}">${t}</button>`
+        `<button type="button" class="bkq-time-btn${t === selectedVal ?" active" : ""}" data-time="${t}">${t}</button>`
       ).join("");
       grid.querySelectorAll("button").forEach(btn => {
         btn.addEventListener("click", () => {
@@ -1293,10 +1287,10 @@
     function buildBkqEndGrid(selectedVal) {
       const grid = document.getElementById("bkqNewEndGrid");
       const presetBtns = BKQ_END_PRESETS.map(p =>
-        `<button type="button" class="bkq-time-btn span2${p.value === selectedVal ? " active" : ""}" data-time="${p.value}">${p.label}</button>`
+        `<button type="button" class="bkq-time-btn span2${p.value === selectedVal ?" active" : ""}" data-time="${p.value}">${p.label}</button>`
       ).join("");
       const slotBtns = BKQ_END_SLOTS.map(t =>
-        `<button type="button" class="bkq-time-btn${t === selectedVal ? " active" : ""}" data-time="${t}">${t}</button>`
+        `<button type="button" class="bkq-time-btn${t === selectedVal ?" active" : ""}" data-time="${t}">${t}</button>`
       ).join("");
       grid.innerHTML = presetBtns + slotBtns;
       grid.querySelectorAll("button").forEach(btn => {

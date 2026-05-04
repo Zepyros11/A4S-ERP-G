@@ -86,21 +86,21 @@ async function loadTopicChart() {
     const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 7);
 
     const root = $('topicChart');
-    if (!sorted.length) { root.innerHTML = '<div class="ibd-empty">ยังไม่มีข้อมูล 30 วันล่าสุด</div>'; return; }
+    if (!sorted.length) { root.innerHTML = '<div class="empty-state"><div class="empty-state-title">ยังไม่มีข้อมูล 30 วันล่าสุด</div></div>'; return; }
 
     const max = sorted[0][1];
     root.innerHTML = sorted.map(([key, v]) => {
       const pct = (v / max) * 100;
       const label = TOPIC_LABELS[key] || key;
       return `
-        <div class="ibd-bar-row">
-          <div class="ibd-bar-label" title="${label}">${label}</div>
-          <div class="ibd-bar-track"><div class="ibd-bar-fill" style="width:${pct}%"></div></div>
-          <div class="ibd-bar-value">${v}</div>
+        <div class="bar-row">
+          <div class="bar-label" title="${label}">${label}</div>
+          <div class="bar-track"><div class="bar-fill" style="width:${pct}%"></div></div>
+          <div class="bar-value">${v}</div>
         </div>`;
     }).join('');
   } catch (e) {
-    $('topicChart').innerHTML = `<div class="ibd-empty">โหลดไม่สำเร็จ: ${e.message}</div>`;
+    $('topicChart').innerHTML = `<div class="empty-state"><div class="empty-state-title">โหลดไม่สำเร็จ: ${e.message}</div></div>`;
   }
 }
 
@@ -123,20 +123,20 @@ async function loadBranchChart() {
     const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 7);
 
     const root = $('branchChart');
-    if (!sorted.length) { root.innerHTML = '<div class="ibd-empty">ยังไม่มีข้อมูล 30 วันล่าสุด</div>'; return; }
+    if (!sorted.length) { root.innerHTML = '<div class="empty-state"><div class="empty-state-title">ยังไม่มีข้อมูล 30 วันล่าสุด</div></div>'; return; }
 
     const max = sorted[0][1];
     root.innerHTML = sorted.map(([label, v]) => {
       const pct = (v / max) * 100;
       return `
-        <div class="ibd-bar-row">
-          <div class="ibd-bar-label" title="${label}">${label}</div>
-          <div class="ibd-bar-track"><div class="ibd-bar-fill" style="width:${pct}%"></div></div>
-          <div class="ibd-bar-value">${v}</div>
+        <div class="bar-row">
+          <div class="bar-label" title="${label}">${label}</div>
+          <div class="bar-track"><div class="bar-fill" style="width:${pct}%"></div></div>
+          <div class="bar-value">${v}</div>
         </div>`;
     }).join('');
   } catch (e) {
-    $('branchChart').innerHTML = `<div class="ibd-empty">โหลดไม่สำเร็จ: ${e.message}</div>`;
+    $('branchChart').innerHTML = `<div class="empty-state"><div class="empty-state-title">โหลดไม่สำเร็จ: ${e.message}</div></div>`;
   }
 }
 
@@ -156,7 +156,7 @@ async function loadRecent() {
     ].sort((a, b) => new Date(b.created_at) - new Date(a.created_at)).slice(0, 12);
 
     const root = $('recentList');
-    if (!items.length) { root.innerHTML = '<div class="ibd-empty">ยังไม่มีคำขอจากลูกค้า</div>'; return; }
+    if (!items.length) { root.innerHTML = '<div class="empty-state"><div class="empty-state-title">ยังไม่มีคำขอจากลูกค้า</div></div>'; return; }
 
     root.innerHTML = items.map(it => `
       <div class="ibd-recent-row" onclick="location.href='${it.href}'">
@@ -169,7 +169,7 @@ async function loadRecent() {
       </div>
     `).join('');
   } catch (e) {
-    $('recentList').innerHTML = `<div class="ibd-empty">โหลดไม่สำเร็จ: ${e.message}</div>`;
+    $('recentList').innerHTML = `<div class="empty-state"><div class="empty-state-title">โหลดไม่สำเร็จ: ${e.message}</div></div>`;
   }
 }
 

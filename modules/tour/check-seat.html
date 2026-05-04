@@ -604,10 +604,10 @@
     .ap-btn-submit {
       background: linear-gradient(135deg, var(--accent-light), var(--accent));
       color: #fff;
-      box-shadow: 0 4px 12px rgba(15, 76, 117, .3);
+      box-shadow: 0 4px 12px rgba(var(--accent-rgb), .3);
     }
     .ap-btn-submit:hover {
-      box-shadow: 0 6px 18px rgba(15, 76, 117, .42);
+      box-shadow: 0 6px 18px rgba(var(--accent-rgb), .42);
       filter: brightness(1.08);
     }
     @media (max-width: 640px) {
@@ -1667,7 +1667,16 @@ function submitAddPerson() {
 }
 
 async function clearAll() {
-  if (!confirm('Clear all data? (This will also delete from Supabase and all images in the browser)')) return;
+  const ok = await ConfirmModal.open({
+    title: "ล้างข้อมูลทั้งหมด?",
+    message: "การดำเนินการนี้จะลบข้อมูลใน Supabase และรูปทั้งหมดในเบราว์เซอร์",
+    tone: "danger",
+    icon: "🗑️",
+    okText: "ล้างทั้งหมด",
+    cancelText: "ยกเลิก",
+    note: "⚠️ ย้อนกลับไม่ได้",
+  });
+  if (!ok) return;
   rows = [];
   localStorage.removeItem('cs_rows');
   IMG_DB.clearAll(); // ล้างรูปใน IndexedDB ด้วย
@@ -3431,7 +3440,14 @@ function copyShareUrl() {
   navigator.clipboard.writeText(shareUrl)
     .then(() => toast('คัดลอก Share URL แล้ว', 'success'))
     .catch(() => {
-      prompt('คัดลอก URL นี้:', shareUrl);
+      PromptModal.open({
+        title: "คัดลอก URL นี้",
+        message: "เบราว์เซอร์ไม่อนุญาตให้คัดลอกอัตโนมัติ — เลือก URL ด้านล่างแล้วคัดลอกด้วยตัวเอง",
+        icon: "🔗",
+        okText: "ปิด",
+        cancelText: "",
+        defaultValue: shareUrl,
+      });
     });
 }
 
@@ -3447,6 +3463,8 @@ initSupabase(
 );
 loadFromSupabase().then(() => startAutoRefresh()); // โหลด → แล้วเริ่ม auto-refresh
 </script>
+<script src="../../js/components/modal/confirmModal.js"></script>
+<script src="../../js/components/modal/promptModal.js"></script>
 <script src="../../js/components/modal/modalManager.js"></script>
 </body>
 </html>

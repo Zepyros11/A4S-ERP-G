@@ -41,7 +41,7 @@
 .task-btn{padding:6px 14px;border:1px solid var(--border);background:var(--surface);border-radius:16px;font-family:inherit;font-size:11.5px;cursor:pointer;color:var(--text2);font-weight:600;transition:all .12s;display:flex;align-items:center;gap:5px;}
 .task-btn:hover{background:var(--accent-pale);border-color:var(--accent);color:var(--accent);}
 .task-btn.run{background:linear-gradient(135deg,var(--accent),var(--accent-light));color:#fff;border-color:var(--accent);}
-.task-btn.run:hover{transform:translateY(-1px);box-shadow:0 3px 10px rgba(15,76,117,.3);}
+.task-btn.run:hover{transform:translateY(-1px);box-shadow:0 3px 10px rgba(var(--accent-rgb),.3);}
 
 /* ── Log panel ── */
 .log-section{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px;margin-top:18px;}
@@ -80,15 +80,15 @@
 .dt-modal-foot button{padding:9px 20px;border-radius:20px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;border:none;}
 .dt-modal-foot .cancel{background:#e5e7eb;color:#374151;}
 .dt-modal-foot .cancel:hover{background:#d1d5db;}
-.dt-modal-foot .save{background:linear-gradient(135deg,var(--accent),var(--accent-light));color:#fff;box-shadow:0 3px 10px rgba(15,76,117,.3);}
-.dt-modal-foot .save:hover{transform:translateY(-1px);box-shadow:0 5px 14px rgba(15,76,117,.4);}
+.dt-modal-foot .save{background:linear-gradient(135deg,var(--accent),var(--accent-light));color:#fff;box-shadow:0 3px 10px rgba(var(--accent-rgb),.3);}
+.dt-modal-foot .save:hover{transform:translateY(-1px);box-shadow:0 5px 14px rgba(var(--accent-rgb),.4);}
 
 /* ── Sync Progress Modal ── */
 .sp-overlay{position:fixed;inset:0;background:rgba(15,23,42,.6);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;z-index:9998;opacity:0;transition:opacity .2s;}
 .sp-overlay.show{display:flex;opacity:1;}
 .sp-modal{background:#fff;border-radius:14px;max-width:420px;width:90%;box-shadow:0 18px 44px rgba(0,0,0,.28);overflow:hidden;transform:scale(.94) translateY(8px);transition:transform .22s cubic-bezier(.34,1.56,.64,1);}
 .sp-overlay.show .sp-modal{transform:scale(1) translateY(0);}
-.sp-hero{background:linear-gradient(135deg,#0f4c75,#1b6ca8);color:#fff;padding:16px 18px 14px;position:relative;overflow:hidden;display:flex;align-items:center;gap:12px;}
+.sp-hero{background:linear-gradient(135deg,var(--accent),var(--accent-light));color:#fff;padding:16px 18px 14px;position:relative;overflow:hidden;display:flex;align-items:center;gap:12px;}
 .sp-hero::before{content:'';position:absolute;top:-40px;right:-40px;width:120px;height:120px;border-radius:50%;background:rgba(255,255,255,.07);}
 .sp-hero.success{background:linear-gradient(135deg,#065f46,#10b981);}
 .sp-hero.fail{background:linear-gradient(135deg,#991b1b,#dc2626);}
@@ -106,7 +106,7 @@
 .sp-step.fail{background:#fee2e2;color:#991b1b;}
 .sp-dot{width:14px;height:14px;border-radius:50%;background:var(--surface);border:2px solid currentColor;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;}
 .sp-step.active .sp-dot{animation:spPulse 1.2s ease-in-out infinite;}
-@keyframes spPulse{0%,100%{box-shadow:0 0 0 0 rgba(15,76,117,.5)}50%{box-shadow:0 0 0 4px rgba(15,76,117,0)}}
+@keyframes spPulse{0%,100%{box-shadow:0 0 0 0 rgba(var(--accent-rgb),.5)}50%{box-shadow:0 0 0 4px rgba(var(--accent-rgb),0)}}
 .sp-step.done .sp-dot{background:currentColor;color:#fff;}
 .sp-step.done .sp-dot::before{content:'✓';}
 .sp-step.fail .sp-dot{background:currentColor;color:#fff;}
@@ -119,7 +119,7 @@
 .sp-log .ts{color:#64748b;margin-right:6px;}.sp-log .msg{color:#e2e8f0;}.sp-log .ok{color:#4ade80;}.sp-log .err{color:#f87171;}
 .sp-actions{display:flex;gap:8px;padding:10px 16px 14px;justify-content:space-between;flex-wrap:wrap;align-items:center;}
 .sp-actions a{color:var(--accent);text-decoration:none;font-size:11.5px;font-weight:600;display:flex;align-items:center;gap:4px;}
-.sp-close{padding:7px 16px;border:none;border-radius:16px;background:linear-gradient(135deg,var(--accent),var(--accent-light));color:#fff;font-family:inherit;font-size:11.5px;font-weight:600;cursor:pointer;box-shadow:0 2px 8px rgba(15,76,117,.3);transition:all .15s;}
+.sp-close{padding:7px 16px;border:none;border-radius:16px;background:linear-gradient(135deg,var(--accent),var(--accent-light));color:#fff;font-family:inherit;font-size:11.5px;font-weight:600;cursor:pointer;box-shadow:0 2px 8px rgba(var(--accent-rgb),.3);transition:all .15s;}
 .sp-close:hover{transform:translateY(-1px);}
 .sp-close.danger{background:linear-gradient(135deg,#dc2626,#991b1b);}
 .sp-close.success{background:linear-gradient(135deg,#059669,#10b981);}
@@ -135,12 +135,14 @@
 <div class="page">
 
   <!-- Hero -->
-  <div class="dt-hero">
-    <div class="dt-hero-text">
-      <h1>🤖 Web Automation</h1>
-      <p>ตั้งค่า automation สำหรับ download file จากเว็บ · รันผ่าน GitHub Actions · ดู log/history</p>
+  <div class="page-hero">
+    <div>
+      <h1 class="page-hero-title">🤖 Web Automation</h1>
+      <p class="page-hero-sub">ตั้งค่า automation สำหรับ download file จากเว็บ · รันผ่าน GitHub Actions · ดู log/history</p>
     </div>
-    <button class="dt-add-btn" onclick="openAddModal()">➕ เพิ่มงาน</button>
+    <div class="page-hero-actions">
+      <button class="btn-on-hero btn-primary" onclick="openAddModal()">➕ เพิ่มงาน</button>
+    </div>
   </div>
 
   <!-- Task cards -->

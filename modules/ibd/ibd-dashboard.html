@@ -14,90 +14,91 @@
 <div class="toast" id="toast"></div>
 
 <div class="topbar"></div>
-<div class="layout">
-  <div id="sidebar-container"></div>
 
-  <div class="content-area">
-    <div class="page">
+<div class="page">
 
-      <!-- ── Hero ── -->
-      <div class="ibd-hero" style="display:flex;align-items:center;gap:14px">
-        <div style="flex:1">
-          <div class="ibd-hero-title">🌍 IBD Dashboard</div>
-          <div class="ibd-hero-sub">International Business Development — สรุปคำขอจากสมาชิก A4S โซน Africa</div>
-        </div>
-        <button class="ibd-btn ibd-btn-primary" style="background:rgba(255,255,255,.18);color:#fff;backdrop-filter:blur(4px);border:1px solid rgba(255,255,255,.25)" onclick="exportOverview()">
-          📥 Export ภาพรวม
-        </button>
-      </div>
-
-      <!-- ── Summary cards ── -->
-      <div class="ibd-cards">
-        <div class="ibd-card" onclick="location.href='./ibd-complaints.html'">
-          <div class="ibd-card-icon complaint">📋</div>
-          <div class="ibd-card-body">
-            <div class="ibd-card-label">เรื่องร้องเรียน</div>
-            <div class="ibd-card-value" id="cardComplaintTotal">—</div>
-            <div class="ibd-card-foot">
-              <span class="pending" id="cardComplaintPending">—</span> รอจัดการ
-            </div>
-          </div>
-        </div>
-
-        <div class="ibd-card" onclick="location.href='./ibd-ewallet.html'">
-          <div class="ibd-card-icon ewallet">💳</div>
-          <div class="ibd-card-body">
-            <div class="ibd-card-label">ขอโอน E-Wallet</div>
-            <div class="ibd-card-value" id="cardEwalletTotal">—</div>
-            <div class="ibd-card-foot">
-              <span class="pending" id="cardEwalletPending">—</span> รออนุมัติ
-            </div>
-          </div>
-        </div>
-
-        <div class="ibd-card" onclick="location.href='./ibd-relocation.html'">
-          <div class="ibd-card-icon relocation">🌐</div>
-          <div class="ibd-card-body">
-            <div class="ibd-card-label">ย้าย Location Base</div>
-            <div class="ibd-card-value" id="cardRelocationTotal">—</div>
-            <div class="ibd-card-foot">
-              <span class="pending" id="cardRelocationPending">—</span> รออนุมัติ
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- ── Two columns: chart + recent ── -->
-      <div class="ibd-row2">
-
-        <!-- Top topics (complaints) -->
-        <div class="ibd-section">
-          <div class="ibd-section-title">📊 หัวข้อที่ร้องเรียนมากที่สุด (30 วัน)</div>
-          <div class="ibd-bars" id="topicChart">
-            <div class="ibd-empty">กำลังโหลด...</div>
-          </div>
-        </div>
-
-        <!-- Top branches contacted -->
-        <div class="ibd-section">
-          <div class="ibd-section-title">🏢 สาขา/ประเทศที่ลูกค้าติดต่อ (30 วัน)</div>
-          <div class="ibd-bars" id="branchChart">
-            <div class="ibd-empty">กำลังโหลด...</div>
-          </div>
-        </div>
-
-      </div>
-
-      <!-- ── Recent submissions ── -->
-      <div class="ibd-section">
-        <div class="ibd-section-title">🕐 คำขอล่าสุด (รวมทุกประเภท)</div>
-        <div class="ibd-recent" id="recentList">
-          <div class="ibd-empty">กำลังโหลด...</div>
-        </div>
-      </div>
-
+  <!-- ── Hero ── -->
+  <div class="page-hero">
+    <div>
+      <h1 class="page-hero-title">🌍 IBD Dashboard</h1>
+      <p class="page-hero-sub">International Business Development — สรุปคำขอจากสมาชิก A4S โซน Africa</p>
+    </div>
+    <div class="page-hero-actions">
+      <button class="btn-on-hero" onclick="exportOverview()">📥 Export ภาพรวม</button>
     </div>
   </div>
+
+  <!-- ── Summary cards ── -->
+  <div class="kpi-row">
+    <div class="kpi-card amber is-clickable" onclick="location.href='./ibd-complaints.html'">
+      <div class="kpi-icon">📋</div>
+      <div class="kpi-info">
+        <div class="kpi-label">เรื่องร้องเรียน</div>
+        <div class="kpi-value" id="cardComplaintTotal">—</div>
+        <div class="kpi-sub">
+          <span class="ibd-foot-pending" id="cardComplaintPending">—</span> รอจัดการ
+        </div>
+      </div>
+    </div>
+
+    <div class="kpi-card blue is-clickable" onclick="location.href='./ibd-ewallet.html'">
+      <div class="kpi-icon">💳</div>
+      <div class="kpi-info">
+        <div class="kpi-label">ขอโอน E-Wallet</div>
+        <div class="kpi-value" id="cardEwalletTotal">—</div>
+        <div class="kpi-sub">
+          <span class="ibd-foot-pending" id="cardEwalletPending">—</span> รออนุมัติ
+        </div>
+      </div>
+    </div>
+
+    <div class="kpi-card green is-clickable" onclick="location.href='./ibd-relocation.html'">
+      <div class="kpi-icon">🌐</div>
+      <div class="kpi-info">
+        <div class="kpi-label">ย้าย Location Base</div>
+        <div class="kpi-value" id="cardRelocationTotal">—</div>
+        <div class="kpi-sub">
+          <span class="ibd-foot-pending" id="cardRelocationPending">—</span> รออนุมัติ
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Two columns: chart + recent ── -->
+  <div class="ibd-row2">
+
+    <!-- Top topics (complaints) -->
+    <div class="section-card">
+      <div class="section-head">
+        <div class="section-title">📊 หัวข้อที่ร้องเรียนมากที่สุด (30 วัน)</div>
+      </div>
+      <div class="bar-chart" id="topicChart">
+        <div class="empty-state"><div class="empty-state-title">กำลังโหลด...</div></div>
+      </div>
+    </div>
+
+    <!-- Top branches contacted -->
+    <div class="section-card">
+      <div class="section-head">
+        <div class="section-title">🏢 สาขา/ประเทศที่ลูกค้าติดต่อ (30 วัน)</div>
+      </div>
+      <div class="bar-chart" id="branchChart">
+        <div class="empty-state"><div class="empty-state-title">กำลังโหลด...</div></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── Recent submissions ── -->
+  <div class="section-card">
+    <div class="section-head">
+      <div class="section-title">🕐 คำขอล่าสุด (รวมทุกประเภท)</div>
+    </div>
+    <div class="ibd-recent" id="recentList">
+      <div class="empty-state"><div class="empty-state-title">กำลังโหลด...</div></div>
+    </div>
+  </div>
+
 </div>
 
 <script src="../../js/core/permissions.js"></script>

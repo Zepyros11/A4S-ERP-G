@@ -67,7 +67,7 @@
 
 .modal-btn{padding:9px 18px;border-radius:18px;border:none;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;}
 .modal-btn.cancel{background:#e5e7eb;color:#374151;}
-.modal-btn.save{background:linear-gradient(135deg,var(--accent),var(--accent-light));color:#fff;box-shadow:0 3px 10px rgba(15,76,117,.3);}
+.modal-btn.save{background:linear-gradient(135deg,var(--accent),var(--accent-light));color:#fff;box-shadow:0 3px 10px rgba(var(--accent-rgb),.3);}
 .modal-btn.save:hover{transform:translateY(-1px);}
 
 /* ── Icon picker ── */
@@ -89,7 +89,7 @@
 <div class="page">
 
   <!-- Hero -->
-  <div class="cs-hero">
+  <div class="page-hero">
     <div>
       <h1>📚 จัดการหลักสูตร (Course Series)</h1>
       <p>สร้างหลักสูตรที่มีหลาย levels + กำหนด prerequisites (เช่น ต้องเรียน Basic ก่อน Advance)</p>

@@ -1,52 +1,14 @@
 /* ======================================================
-   A4S ERP — CARD COMPONENT
-====================================================== */
+   A4S-ERP — STAT CARD
+   ----------------------------------------------------------
+   ⚠️ Style ทั้งหมดอยู่ใน css/core/common.css แล้ว
+   (.stat-card / .kpi-card แชร์ rule เดียวกันด้วย comma selector)
+   ====================================================== */
 
+/* legacy alias — .stats-grid → .stats-row (ทุกหน้าควร migrate ไป .stats-row) */
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 16px;
-  margin-bottom: 20px;
-}
-
-.stat-card {
-  display: flex;
-  align-items: center;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 14px;
-
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-
-  padding: 16px 20px;
-  box-shadow: var(--shadow);
-}
-
-.stat-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
-
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  font-size: 18px;
-}
-
-.stat-label {
-  font-size: 11px;
-  color: var(--text3);
-  font-weight: 600;
-}
-
-.stat-value {
-  font-size: 22px;
-  font-weight: 700;
-  font-family: "IBM Plex Mono", monospace;
-}
-.stat-value {
-  font-size: 24px;
-  font-weight: 700;
-  transition: all 0.2s;
+  margin-bottom: 18px;
 }

@@ -22,8 +22,8 @@
 }
 .ev-tab:hover:not(.active) { color: #475569; }
 .ev-tab.active {
-  color: #6366f1;
-  border-bottom-color: #6366f1;
+  color: var(--accent-light);
+  border-bottom-color: var(--accent-light);
 }
 
 /* ── TAB NOTIFICATION BADGE ── */

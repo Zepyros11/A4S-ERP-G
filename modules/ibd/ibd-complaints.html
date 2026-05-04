@@ -14,32 +14,30 @@
 <div class="toast" id="toast"></div>
 
 <div class="topbar"></div>
-<div class="layout">
-  <div id="sidebar-container"></div>
 
-  <div class="content-area">
-    <div class="page">
+<div class="page">
 
-      <!-- ── Hero ── -->
-      <div class="ibd-hero" style="display:flex;align-items:center;gap:14px">
-        <div style="flex:1">
-          <div class="ibd-hero-title">📋 IBD — Service Progress & Complaints</div>
-          <div class="ibd-hero-sub">รายการเรื่องร้องเรียน / ติดตามงาน จากสมาชิก A4S (Form 1)</div>
-        </div>
-        <a class="ibd-btn" style="background:rgba(255,255,255,.18);color:#fff;backdrop-filter:blur(4px);border:1px solid rgba(255,255,255,.25);text-decoration:none;display:inline-flex;align-items:center;gap:6px"
-           href="../ibd-portal/complaint-form.html" target="_blank" rel="noopener">
-          🔗 เปิดหน้า Form ลูกค้า
-        </a>
-      </div>
+  <!-- ── Hero ── -->
+  <div class="page-hero">
+    <div>
+      <h1 class="page-hero-title">📋 IBD — Service Progress & Complaints</h1>
+      <p class="page-hero-sub">รายการเรื่องร้องเรียน / ติดตามงาน จากสมาชิก A4S (Form 1)</p>
+    </div>
+    <div class="page-hero-actions">
+      <a class="btn-on-hero" href="../ibd-portal/complaint-form.html" target="_blank" rel="noopener" style="text-decoration:none">
+        🔗 เปิดหน้า Form ลูกค้า
+      </a>
+    </div>
+  </div>
 
-      <!-- ── KPI strip (วันนี้) ── -->
-      <div class="ibd-kpis">
-        <div class="ibd-kpi"><div class="ibd-kpi-label">ทั้งหมด · วันนี้</div><div class="ibd-kpi-value" id="kpiTotal">—</div></div>
-        <div class="ibd-kpi"><div class="ibd-kpi-label">New · วันนี้</div><div class="ibd-kpi-value" id="kpiNew">—</div></div>
-        <div class="ibd-kpi"><div class="ibd-kpi-label">In Progress · วันนี้</div><div class="ibd-kpi-value" id="kpiProgress">—</div></div>
-        <div class="ibd-kpi"><div class="ibd-kpi-label">Resolved · วันนี้</div><div class="ibd-kpi-value" id="kpiResolved">—</div></div>
-        <div class="ibd-kpi"><div class="ibd-kpi-label">Closed · วันนี้</div><div class="ibd-kpi-value" id="kpiClosed">—</div></div>
-      </div>
+  <!-- ── KPI strip (วันนี้) ── -->
+  <div class="kpi-strip">
+    <div class="kpi-card"><div class="kpi-label">ทั้งหมด · วันนี้</div><div class="kpi-value" id="kpiTotal">—</div></div>
+    <div class="kpi-card"><div class="kpi-label">New · วันนี้</div><div class="kpi-value" id="kpiNew">—</div></div>
+    <div class="kpi-card"><div class="kpi-label">In Progress · วันนี้</div><div class="kpi-value" id="kpiProgress">—</div></div>
+    <div class="kpi-card"><div class="kpi-label">Resolved · วันนี้</div><div class="kpi-value" id="kpiResolved">—</div></div>
+    <div class="kpi-card"><div class="kpi-label">Closed · วันนี้</div><div class="kpi-value" id="kpiClosed">—</div></div>
+  </div>
 
       <!-- ── Filter bar ── -->
       <div class="ibd-filters">
@@ -99,15 +97,13 @@
               </tr>
             </thead>
             <tbody id="tbody">
-              <tr><td colspan="12" class="ibd-empty">กำลังโหลด...</td></tr>
+              <tr><td colspan="12" style="text-align:center;color:var(--text3);padding:30px 0">กำลังโหลด...</td></tr>
             </tbody>
           </table>
         </div>
-        <div class="ibd-paginate" id="paginate"></div>
+        <div class="pagination" id="paginate"></div>
       </div>
 
-    </div>
-  </div>
 </div>
 
 <!-- ── Lightbox (image preview) ── -->

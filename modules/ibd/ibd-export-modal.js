@@ -195,7 +195,7 @@ window.IBDExportModal = (() => {
         background: linear-gradient(135deg, #0f4c75, #1b6ca8);
         color: #fff;
       }
-      .iem-btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(15,76,117,.3); }
+      .iem-btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(var(--accent-rgb),.3); }
       .iem-btn-ghost {
         background: transparent;
         border: 1px solid #cbd5e1;

@@ -256,7 +256,7 @@ body {
   margin-bottom: 14px;
 }
 .pp-notice.info {
-  background: #dbeafe;
+  background: var(--accent-pale);
   border-color: #93c5fd;
   color: #1e40af;
 }
@@ -319,7 +319,7 @@ body {
   flex-shrink: 0;
 }
 .pp-hub-icon.complaint  { background: #fef3c7; }
-.pp-hub-icon.ewallet    { background: #dbeafe; }
+.pp-hub-icon.ewallet    { background: var(--accent-pale); }
 .pp-hub-icon.relocation { background: #dcfce7; }
 .pp-hub-body { flex: 1; min-width: 0; }
 .pp-hub-title { font-size: 15px; font-weight: 700; color: #0f172a; margin-bottom: 2px; }
@@ -445,7 +445,7 @@ body {
   flex-shrink: 0;
 }
 .pp-req-icon.complaint  { background: #fef3c7; }
-.pp-req-icon.ewallet    { background: #dbeafe; }
+.pp-req-icon.ewallet    { background: var(--accent-pale); }
 .pp-req-icon.relocation { background: #dcfce7; }
 .pp-req-body { flex: 1; min-width: 0; }
 .pp-req-title { font-size: 14px; font-weight: 700; color: #0f172a; margin-bottom: 2px; }

@@ -14,10 +14,6 @@
 <div class="toast" id="toast"></div>
 
 <div class="topbar"></div>
-<div class="layout">
-  <div id="sidebar-container"></div>
-
-  <div class="content-area">
     <div class="page">
 
       <!-- ── Hero ── -->
@@ -210,7 +206,7 @@
 <!-- ── Sync Progress Modal (same pattern as members-sync) ── -->
 <div class="sp-overlay" id="spOverlay" style="position:fixed;inset:0;background:rgba(15,23,42,.6);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;z-index:9998;">
   <div style="background:#fff;border-radius:14px;max-width:440px;width:90%;box-shadow:0 18px 44px rgba(0,0,0,.28);overflow:hidden;">
-    <div id="spHero" style="background:linear-gradient(135deg,#0f4c75,#1b6ca8);color:#fff;padding:16px 18px;display:flex;align-items:center;gap:12px">
+    <div id="spHero" style="background:linear-gradient(135deg,var(--accent),var(--accent-light));color:#fff;padding:16px 18px;display:flex;align-items:center;gap:12px">
       <div id="spSpinner" style="width:42px;height:42px;display:flex;align-items:center;justify-content:center;font-size:22px;background:rgba(255,255,255,.18);border-radius:50%;border:2px solid rgba(255,255,255,.3);animation:spin 2s linear infinite">🔄</div>
       <div style="flex:1">
         <div id="spTitle" style="font-size:14px;font-weight:700">กำลัง Sync Daily Sale</div>
@@ -228,9 +224,6 @@
       <a id="spGhLink" href="#" target="_blank" style="color:var(--accent);font-size:11.5px;font-weight:600">📂 GitHub Actions</a>
       <button onclick="dsCloseSyncProgress()" style="padding:7px 16px;border:none;border-radius:16px;background:linear-gradient(135deg,var(--accent),var(--accent-light));color:#fff;font-size:12px;font-weight:600;cursor:pointer">ปิด</button>
     </div>
-  </div>
-</div>
-
 <script src="../../js/core/auth.js"></script>
 <script src="../../js/core/authz.js"></script>
 <script src="../../js/core/crypto.js"></script>

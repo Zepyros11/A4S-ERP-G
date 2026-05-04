@@ -25,8 +25,6 @@
     <div class="topbar"></div>
     <div class="layout">
       <!-- SIDEBAR -->
-      <div id="sidebar-container"></div>
-
       <!-- CONTENT -->
       <div class="content-area">
         <div class="page">
@@ -186,9 +184,6 @@
                       ว่างไว้ = ใช้ default ของระบบ (ตั้งใน app_settings.default_grace_days)
                     </div>
                   </div>
-                </div>
-              </div>
-
               <!-- SECTION: TICKET TIERS (เรียงตามวันที่) -->
               <div class="ef-section">
                 <div class="ef-section-title">
@@ -318,7 +313,16 @@
                   window._saveEventImpl();
                 } else if (waited >= 5000) {
                   clearInterval(check);
-                  alert("ระบบยังโหลดไม่เสร็จ กรุณารอสักครู่แล้วลองใหม่");
+                  if (window.ConfirmModal) {
+                    ConfirmModal.open({
+                      title: "ระบบยังโหลดไม่เสร็จ",
+                      message: "กรุณารอสักครู่แล้วลองใหม่",
+                      tone: "warning",
+                      icon: "⏳",
+                      hideCancel: true,
+                      okText: "ตกลง",
+                    });
+                  }
                 }
               }, 100);
             }
@@ -384,6 +388,7 @@
         <script type="module" src="./event-form.js"></script>
         <script src="../../js/core/auth.js"></script>
         <script src="../../js/components/modal/deleteModal.js"></script>
+        <script src="../../js/components/modal/confirmModal.js"></script>
         <script src="../../js/components/modal/modalManager.js"></script>
         <script type="module">
           import { loadTopbar } from "../../js/components/navigation/topbar.js";

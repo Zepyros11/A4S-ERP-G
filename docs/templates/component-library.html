@@ -1,0 +1,3704 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Component Library — A4S-ERP</title>
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../css/main.css" />
+
+  <style>
+    /* =====================================================================
+       Component Library page chrome
+       ===================================================================== */
+    .cl-layout {
+      display: grid;
+      grid-template-columns: 240px 1fr;
+      gap: 22px;
+      align-items: start;
+    }
+    @media (max-width: 900px) { .cl-layout { grid-template-columns: 1fr; } }
+
+    .cl-toc {
+      position: sticky; top: 76px;
+      background: var(--surface-soft);
+      border-radius: 14px;
+      padding: 14px 16px;
+      box-shadow: var(--shadow-soft-md), inset 0 1px 0 rgba(255,255,255,.6);
+      max-height: calc(100vh - 90px);
+      overflow-y: auto;
+    }
+    .cl-toc-title {
+      font-size: 11px; font-weight: 700;
+      color: var(--text3); letter-spacing: .5px;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+    .cl-toc-group { margin-bottom: 12px; }
+    .cl-toc-group h4 {
+      font-size: 10.5px; font-weight: 700;
+      color: var(--accent);
+      letter-spacing: .4px;
+      text-transform: uppercase;
+      margin: 8px 0 4px;
+    }
+    .cl-toc a {
+      display: block;
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-size: 12.5px;
+      color: var(--text2);
+      text-decoration: none;
+      transition: all .12s;
+    }
+    .cl-toc a:hover { background: var(--accent-pale); color: var(--accent); }
+    .cl-toc a .badge-new {
+      display: inline-block;
+      font-size: 9px; font-weight: 700;
+      padding: 1px 5px; border-radius: 3px;
+      background: var(--accent); color: #fff;
+      margin-left: 4px; vertical-align: middle;
+      letter-spacing: .3px;
+    }
+
+    .cl-section {
+      background: var(--surface);
+      border-radius: 14px;
+      padding: 22px 26px;
+      margin-bottom: 22px;
+      box-shadow: var(--shadow-md);
+    }
+    .cl-section-head {
+      display: flex; align-items: baseline;
+      gap: 14px;
+      flex-wrap: wrap;
+      padding-bottom: 12px;
+      border-bottom: 1px dashed var(--border);
+      margin-bottom: 18px;
+    }
+    .cl-section-head h2 {
+      font-size: 18px; font-weight: 700;
+      color: var(--text);
+      margin: 0;
+    }
+    .cl-section-head .desc {
+      font-size: 12.5px;
+      color: var(--text3);
+      flex: 1;
+    }
+    .cl-section-head .tag {
+      font-size: 10px; font-weight: 700;
+      padding: 3px 8px; border-radius: 4px;
+      letter-spacing: .4px;
+    }
+    .tag-existing { background: var(--success-pale); color: var(--success); }
+    .tag-new      { background: var(--accent-pale); color: var(--accent); }
+    .tag-legacy   { background: var(--warning-pale); color: var(--warning); }
+
+    .cl-block { margin-bottom: 22px; }
+    .cl-block-label {
+      font-size: 11px; font-weight: 700;
+      color: var(--text3);
+      letter-spacing: .5px;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+    .cl-block-desc {
+      font-size: 12.5px;
+      color: var(--text2);
+      line-height: 1.6;
+      margin-bottom: 10px;
+      padding: 8px 12px;
+      background: var(--accent-pale);
+      border-left: 3px solid var(--accent-light);
+      border-radius: 6px;
+    }
+    .cl-block-desc b { color: var(--text); }
+    .cl-block-desc .pages {
+      display: block;
+      margin-top: 4px;
+      font-size: 11.5px;
+      color: var(--text3);
+      font-family: 'IBM Plex Mono', monospace;
+    }
+    .cl-demo {
+      background: var(--bg);
+      border: 1px dashed var(--border);
+      border-radius: 10px;
+      padding: 18px;
+      margin-bottom: 8px;
+    }
+    .cl-code {
+      background: #0f172a;
+      color: #e2e8f0;
+      padding: 12px 14px;
+      border-radius: 8px;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11.5px;
+      line-height: 1.6;
+      overflow-x: auto;
+      white-space: pre;
+      margin: 0;
+      display: none;       /* hidden by default — toggle via .show-code on body */
+    }
+    body.show-code .cl-code { display: block; }
+
+    /* Floating toggle button for code snippets */
+    .cl-code-toggle {
+      position: fixed;
+      bottom: 20px; right: 20px;
+      z-index: 100;
+      padding: 10px 18px;
+      border: none;
+      border-radius: 999px;
+      background: linear-gradient(180deg, var(--accent-light), var(--accent));
+      color: #fff;
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow:
+        4px 4px 12px rgba(var(--accent-rgb), 0.35),
+        inset 0 1px 0 rgba(255, 255, 255, 0.3);
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      transition: transform 0.15s, box-shadow 0.15s;
+    }
+    .cl-code-toggle:hover {
+      transform: translateY(-2px);
+      box-shadow:
+        6px 6px 16px rgba(var(--accent-rgb), 0.45),
+        inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    }
+    .cl-code-toggle:active { transform: translateY(0); }
+
+    /* ===== Install picker (checkbox below each demo) ===== */
+    .cl-pick {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 10px;
+      padding: 4px 12px 4px 10px;
+      background: rgba(var(--accent-rgb), 0.05);
+      border: 1px dashed rgba(var(--accent-rgb), 0.3);
+      border-radius: 999px;
+      font-size: 11.5px;
+      color: var(--text2);
+      cursor: pointer;
+      user-select: none;
+      transition: all .15s;
+    }
+    .cl-pick:hover { border-style: solid; color: var(--accent); }
+    .cl-pick input { width: 13px; height: 13px; accent-color: var(--accent); cursor: pointer; }
+    .cl-pick.is-checked {
+      background: var(--accent-pale);
+      border-style: solid;
+      border-color: var(--accent-light);
+      color: var(--accent);
+      font-weight: 600;
+    }
+    .cl-pick code { font-size: 10.5px; }
+
+    .cl-install-panel {
+      position: fixed;
+      top: calc(var(--topbar-h, 56px) + 14px);
+      right: 20px;
+      z-index: 100;
+      width: 260px;
+      background: var(--surface-soft);
+      border-radius: 14px;
+      box-shadow: var(--shadow-soft-lg);
+      padding: 12px 14px;
+      font-size: 12px;
+      max-height: 60vh;
+      display: flex;
+      flex-direction: column;
+    }
+    .cl-install-head {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    .cl-install-title {
+      font-weight: 700; color: var(--accent); font-size: 12.5px;
+      display: inline-flex; align-items: center; gap: 6px;
+    }
+    .cl-install-count {
+      background: var(--accent);
+      color: #fff;
+      font-size: 11px;
+      font-weight: 700;
+      min-width: 20px; height: 20px;
+      padding: 0 6px;
+      border-radius: 10px;
+      display: inline-flex; align-items: center; justify-content: center;
+    }
+    .cl-install-count.is-zero { background: var(--text3); }
+    .cl-install-collapse {
+      background: none; border: none; color: var(--text3); cursor: pointer;
+      font-size: 14px; line-height: 1;
+    }
+    .cl-install-list {
+      flex: 1;
+      overflow-y: auto;
+      max-height: 35vh;
+      margin: 4px 0 8px;
+      padding: 6px 8px;
+      background: var(--surface);
+      border-radius: 8px;
+      font-family: ui-monospace, "SF Mono", monospace;
+      font-size: 11.5px;
+      color: var(--text);
+      line-height: 1.7;
+      word-break: break-word;
+    }
+    .cl-install-list:empty::before {
+      content: 'ยังไม่ได้เลือก component';
+      color: var(--text3); font-style: italic;
+    }
+    .cl-install-actions { display: flex; gap: 6px; }
+    .cl-install-btn {
+      flex: 1;
+      padding: 7px 10px;
+      border: none;
+      border-radius: 8px;
+      font-family: inherit;
+      font-size: 11.5px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all .15s;
+    }
+    .cl-install-btn.primary {
+      background: linear-gradient(180deg, var(--accent-light), var(--accent));
+      color: #fff;
+    }
+    .cl-install-btn.primary:hover { transform: translateY(-1px); box-shadow: 0 3px 8px rgba(var(--accent-rgb), .3); }
+    .cl-install-btn.ghost {
+      background: var(--surface);
+      color: var(--text2);
+      border: 1px solid var(--border);
+    }
+    .cl-install-btn.ghost:hover { color: var(--danger); border-color: var(--danger); }
+    .cl-install-panel.is-collapsed .cl-install-list,
+    .cl-install-panel.is-collapsed .cl-install-actions { display: none; }
+    .cl-install-panel.is-collapsed { width: auto; }
+    .cl-install-panel.is-collapsed .cl-install-head { margin-bottom: 0; }
+
+    .cl-note {
+      font-size: 12px;
+      color: var(--text2);
+      background: var(--accent-pale);
+      border-left: 3px solid var(--accent-light);
+      padding: 8px 12px;
+      border-radius: 6px;
+      margin-top: 8px;
+      line-height: 1.6;
+    }
+    .cl-note.warn {
+      background: var(--warning-pale);
+      border-left-color: #f59e0b;
+      color: #92400e;
+    }
+
+    /* =====================================================================
+       Variant grid layout (used to compare 3 design alternatives)
+       ===================================================================== */
+    .cl-variants {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 14px;
+      width: 100%;
+    }
+    /* แนวตั้ง 1 คอลัมน์ — สำหรับ component แนวนอนกว้าง (KPI strip, table, form, search) */
+    .cl-variants.is-rows { grid-template-columns: 1fr; }
+    .cl-variant {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding: 14px 14px 12px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      transition: border-color .15s, box-shadow .15s, background .15s;
+    }
+    .cl-variant:has(.cl-pick.is-checked) {
+      border-color: var(--accent-light);
+      background: rgba(var(--accent-rgb), 0.03);
+      box-shadow: 0 0 0 2px rgba(var(--accent-rgb), 0.18);
+    }
+    .cl-variant-title {
+      font-size: 10.5px;
+      font-weight: 700;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .cl-variant-title small {
+      display: block;
+      font-size: 10.5px;
+      font-weight: 500;
+      color: var(--text3);
+      text-transform: none;
+      letter-spacing: 0;
+      margin-top: 2px;
+    }
+    .cl-variant-demo {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 10px 6px;
+      min-height: 60px;
+    }
+    .cl-variant-demo.is-stack {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 8px;
+    }
+
+    /* =====================================================================
+       PROPOSED component styles (preview only — not yet in common.css)
+       ===================================================================== */
+
+    /* Pagination */
+    .pagination {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 6px;
+      background: var(--surface-soft);
+      border-radius: 10px;
+      box-shadow: var(--shadow-soft-md);
+    }
+    .pagination-btn {
+      min-width: 32px;
+      height: 32px;
+      padding: 0 10px;
+      border: none;
+      background: transparent;
+      color: var(--text2);
+      font-family: inherit;
+      font-size: 12.5px;
+      font-weight: 600;
+      border-radius: 7px;
+      cursor: pointer;
+      transition: all .12s;
+    }
+    .pagination-btn:hover:not(:disabled):not(.active) { background: var(--surface); color: var(--text); }
+    .pagination-btn.active {
+      background: linear-gradient(135deg, var(--accent-light), var(--accent));
+      color: #fff;
+      box-shadow: 0 2px 6px rgba(var(--accent-rgb), .35);
+    }
+    .pagination-btn:disabled { opacity: .35; cursor: not-allowed; }
+    .pagination-info {
+      font-size: 11.5px;
+      color: var(--text3);
+      margin: 0 10px;
+      font-variant-numeric: tabular-nums;
+    }
+    /* Pagination Variant B: Minimal (flat outline) */
+    .pagination.v-minimal {
+      background: transparent;
+      box-shadow: none;
+      border: 1px solid var(--border);
+      padding: 4px;
+      border-radius: 8px;
+    }
+    .pagination.v-minimal .pagination-btn.active {
+      background: var(--accent-pale);
+      color: var(--accent);
+      box-shadow: none;
+    }
+    /* Pagination Variant C: Compact (text + underline active) */
+    .pagination.v-compact {
+      background: transparent;
+      box-shadow: none;
+      padding: 0;
+      gap: 6px;
+    }
+    .pagination.v-compact .pagination-btn {
+      min-width: auto;
+      height: auto;
+      padding: 4px 8px;
+    }
+    .pagination.v-compact .pagination-btn.active {
+      background: transparent;
+      color: var(--accent);
+      box-shadow: none;
+      border-bottom: 2px solid var(--accent);
+      border-radius: 0;
+      padding-bottom: 2px;
+    }
+
+    /* Detail list */
+    .detail-list {
+      display: grid;
+      grid-template-columns: 140px 1fr;
+      gap: 0 14px;
+      font-size: 13px;
+      background: var(--surface-soft);
+      padding: 4px 18px;
+      border-radius: 12px;
+      box-shadow: var(--shadow-soft-md);
+    }
+    .detail-list dt,
+    .detail-list dd {
+      padding: 10px 0;
+      border-bottom: 1px dashed rgba(var(--accent-rgb), 0.18);
+      align-self: center;
+    }
+    .detail-list dt:nth-last-of-type(1),
+    .detail-list dd:nth-last-of-type(1) {
+      border-bottom: none;
+    }
+    .detail-list dt {
+      color: var(--text3);
+      font-weight: 600;
+      font-size: 11.5px;
+      letter-spacing: .3px;
+      text-transform: uppercase;
+    }
+    .detail-list dd {
+      margin: 0;
+      color: var(--text);
+      word-break: break-word;
+    }
+    .detail-list dd a { color: var(--accent); text-decoration: none; }
+    .detail-list dd a:hover { text-decoration: underline; }
+    /* Variant: zebra stripe (สำหรับ list ยาวๆ — readability ดีกว่า dashed line) */
+    .detail-list.is-striped {
+      gap: 0;
+      padding: 4px 0;        /* horizontal padding ย้ายไป cell เพื่อให้ stripe เต็มความกว้าง */
+      overflow: hidden;       /* radius clip stripe rows */
+    }
+    .detail-list.is-striped dt,
+    .detail-list.is-striped dd {
+      padding: 10px 18px;
+      border-bottom: none;
+    }
+    .detail-list.is-striped dt:nth-of-type(odd),
+    .detail-list.is-striped dt:nth-of-type(odd) + dd {
+      background: rgba(var(--accent-rgb), 0.05);
+    }
+    /* Detail List Variant C: Compact (no card, tight spacing) */
+    .detail-list.v-compact {
+      background: transparent;
+      box-shadow: none;
+      padding: 0;
+    }
+    .detail-list.v-compact dt,
+    .detail-list.v-compact dd {
+      padding: 4px 0;
+      border-bottom: none;
+    }
+
+    /* Dropdown menu */
+    .dropdown { position: relative; display: inline-block; }
+    .dropdown-toggle {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 8px 14px;
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      font-size: 13px; font-weight: 600;
+      color: var(--text);
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .dropdown-toggle:hover { border-color: var(--accent-light); }
+    .dropdown-menu {
+      position: absolute;
+      top: calc(100% + 4px); left: 0;
+      min-width: 180px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 4px;
+      box-shadow: var(--shadow-lg);
+      z-index: 50;
+    }
+    .dropdown-item {
+      display: flex; align-items: center; gap: 10px;
+      width: 100%;
+      padding: 8px 12px;
+      border: none;
+      background: transparent;
+      border-radius: 6px;
+      font-family: inherit;
+      font-size: 13px;
+      color: var(--text);
+      cursor: pointer;
+      text-align: left;
+      transition: background .12s;
+    }
+    .dropdown-item:hover { background: var(--accent-pale); }
+    .dropdown-item.danger { color: #b91c1c; }
+    .dropdown-item.danger:hover { background: #fef2f2; }
+    .dropdown-divider {
+      height: 1px;
+      background: var(--border);
+      margin: 4px 0;
+    }
+    /* Dropdown Variant B: Bordered (no shadow, sage border) */
+    .dropdown-menu.v-bordered {
+      box-shadow: none;
+      border: 1.5px solid var(--accent-light);
+    }
+    /* Dropdown Variant C: Soft (warm bg + neumorphic shadow) */
+    .dropdown-menu.v-soft {
+      background: var(--surface-soft);
+      border: 1px solid rgba(var(--accent-rgb), .15);
+      box-shadow: var(--shadow-soft-md);
+    }
+
+    /* Skeleton */
+    .skeleton {
+      background: linear-gradient(90deg, var(--border) 0%, var(--surface2) 50%, var(--border) 100%);
+      background-size: 200% 100%;
+      animation: clShimmer 1.2s infinite;
+      border-radius: 6px;
+      height: 14px;
+    }
+    .skeleton.title { height: 22px; width: 60%; margin-bottom: 8px; }
+    .skeleton.line { width: 100%; margin-bottom: 6px; }
+    .skeleton.line.short { width: 70%; }
+    .skeleton.avatar { width: 42px; height: 42px; border-radius: 50%; }
+    @keyframes clShimmer {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+    /* Skeleton Variant B: Pulse (opacity breathing) */
+    @keyframes clPulse {
+      0%, 100% { opacity: .55; }
+      50% { opacity: .9; }
+    }
+    .skeleton.v-pulse {
+      background: var(--border);
+      animation: clPulse 1.5s ease-in-out infinite;
+    }
+    /* Skeleton Variant C: Wave (translucent sweep) */
+    @keyframes clWave {
+      0% { transform: translateX(-100%); }
+      100% { transform: translateX(100%); }
+    }
+    .skeleton.v-wave {
+      background: var(--border);
+      position: relative;
+      overflow: hidden;
+    }
+    .skeleton.v-wave::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,.7), transparent);
+      animation: clWave 1.6s ease-in-out infinite;
+    }
+
+    /* Banner / Alert */
+    .banner {
+      display: flex; align-items: flex-start;
+      gap: 12px;
+      padding: 12px 16px;
+      border-radius: 10px;
+      border-left: 4px solid;
+      font-size: 13px;
+      line-height: 1.55;
+    }
+    .banner-icon { font-size: 18px; flex-shrink: 0; line-height: 1; padding-top: 1px; }
+    .banner-body { flex: 1; }
+    .banner-title { font-weight: 700; }
+    .banner-actions { margin-left: auto; display: flex; gap: 6px; flex-shrink: 0; }
+    .banner.info {
+      background: var(--info-pale);
+      border-left-color: var(--info);
+      color: #1e3a8a;
+    }
+    .banner.success {
+      background: var(--success-pale);
+      border-left-color: var(--success);
+      color: #065f46;
+    }
+    .banner.warning {
+      background: var(--warning-pale);
+      border-left-color: #f59e0b;
+      color: #92400e;
+    }
+    .banner.danger {
+      background: var(--danger-pale);
+      border-left-color: var(--danger);
+      color: #7f1d1d;
+    }
+    /* Banner Variant B: Filled (solid colored bg, white text) */
+    .banner.v-filled { border-left: none; color: #fff; }
+    .banner.v-filled.info    { background: var(--info); }
+    .banner.v-filled.success { background: var(--success); }
+    .banner.v-filled.warning { background: #d97706; }
+    .banner.v-filled.danger  { background: var(--danger); }
+    /* Banner Variant C: Outlined (white bg + colored border) */
+    .banner.v-outlined {
+      background: var(--surface);
+      border: 1px solid;
+      border-left-width: 4px;
+    }
+    .banner.v-outlined.info    { border-color: var(--info);    color: var(--info); }
+    .banner.v-outlined.success { border-color: var(--success); color: var(--success); }
+    .banner.v-outlined.warning { border-color: #d97706;        color: #92400e; }
+    .banner.v-outlined.danger  { border-color: var(--danger);  color: var(--danger); }
+
+    /* Bar chart */
+    .bar-chart {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      background: var(--surface-soft);
+      padding: 14px 18px;
+      border-radius: 12px;
+      box-shadow: var(--shadow-soft-md);
+    }
+    /* Bar Chart Variant B: Outlined */
+    .bar-chart.v-outline .bar-fill {
+      background: transparent;
+      border: 2px solid var(--accent-light);
+      box-sizing: border-box;
+    }
+    /* Bar Chart Variant C: Multi-color (different tone per row) */
+    .bar-chart.v-multi .bar-row:nth-child(1) .bar-fill { background: linear-gradient(90deg, var(--accent-light), var(--accent)); }
+    .bar-chart.v-multi .bar-row:nth-child(2) .bar-fill { background: linear-gradient(90deg, #818cf8, #6366f1); }
+    .bar-chart.v-multi .bar-row:nth-child(3) .bar-fill { background: linear-gradient(90deg, #fbbf24, #f59e0b); }
+    .bar-chart.v-multi .bar-row:nth-child(4) .bar-fill { background: linear-gradient(90deg, #2dd4bf, #0e7490); }
+    .bar-row { display: flex; align-items: center; gap: 10px; font-size: 12.5px; }
+    .bar-label {
+      width: 130px;
+      color: var(--text2);
+      flex-shrink: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .bar-track {
+      flex: 1;
+      height: 16px;
+      background: var(--surface2);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    .bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent-light), var(--accent-lighter));
+      border-radius: 4px;
+      transition: width .4s;
+    }
+    .bar-value {
+      width: 50px;
+      text-align: right;
+      font-weight: 600;
+      color: var(--text);
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Progress bar */
+    .progress {
+      height: 8px;
+      background: var(--surface2);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    /* wrapper สำหรับโชว์หลาย progress bar รวมกันเป็น widget */
+    .progress-group {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      background: var(--surface-soft);
+      padding: 14px 18px;
+      border-radius: 12px;
+      box-shadow: var(--shadow-soft-md);
+    }
+    /* Progress Variant B: Thin (4px) */
+    .progress.v-thin { height: 4px; }
+    /* Progress Variant C: Thick with inline label */
+    .progress.v-thick { height: 18px; border-radius: 9px; }
+    .progress.v-thick .progress-fill {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      padding-right: 8px;
+      color: #fff;
+      font-size: 10.5px;
+      font-weight: 700;
+    }
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent-light), var(--accent));
+      border-radius: 4px;
+      transition: width .4s;
+    }
+    .progress-fill.warn { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+    .progress-fill.danger { background: linear-gradient(90deg, #dc2626, #ef4444); }
+
+    /* Tag (removable chip) */
+    .tag-chip {
+      display: inline-flex; align-items: center;
+      gap: 6px;
+      padding: 3px 4px 3px 10px;
+      background: var(--accent-pale);
+      color: var(--accent);
+      border-radius: 999px;
+      font-size: 11.5px;
+      font-weight: 600;
+    }
+    .tag-chip-close {
+      width: 18px; height: 18px;
+      border: none;
+      background: rgba(0,0,0,.08);
+      color: inherit;
+      border-radius: 50%;
+      cursor: pointer;
+      font-size: 11px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .tag-chip-close:hover { background: rgba(0,0,0,.18); }
+    /* Tag Chip Variant B: Square */
+    .tag-chip.v-square { border-radius: 6px; }
+    .tag-chip.v-square .tag-chip-close { border-radius: 4px; }
+    /* Tag Chip Variant C: Outlined */
+    .tag-chip.v-outlined {
+      background: transparent;
+      border: 1px solid var(--accent-light);
+    }
+    .tag-chip.v-outlined .tag-chip-close { background: rgba(var(--accent-rgb), .12); }
+
+    /* Breadcrumb */
+    .breadcrumb {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12.5px;
+      color: var(--text3);
+      flex-wrap: wrap;
+    }
+    .breadcrumb a {
+      color: var(--accent);
+      text-decoration: none;
+      padding: 3px 6px;
+      border-radius: 4px;
+    }
+    .breadcrumb a:hover { background: var(--accent-pale); }
+    .breadcrumb-sep { color: var(--border2); user-select: none; }
+    .breadcrumb-current { color: var(--text2); font-weight: 600; }
+    /* Breadcrumb Variant B: Slash separator */
+    .breadcrumb.v-slash .breadcrumb-sep { font-size: 0; }
+    .breadcrumb.v-slash .breadcrumb-sep::before {
+      content: '/';
+      font-size: 12.5px;
+      color: var(--border2);
+    }
+    /* Breadcrumb Variant C: Pills */
+    .breadcrumb.v-pills { gap: 4px; }
+    .breadcrumb.v-pills a,
+    .breadcrumb.v-pills .breadcrumb-current {
+      padding: 4px 12px;
+      border-radius: 999px;
+      font-size: 11.5px;
+      font-weight: 600;
+    }
+    .breadcrumb.v-pills a {
+      background: var(--surface2);
+      color: var(--text2);
+    }
+    .breadcrumb.v-pills a:hover { background: var(--border); }
+    .breadcrumb.v-pills .breadcrumb-current {
+      background: var(--accent-pale);
+      color: var(--accent);
+    }
+    .breadcrumb.v-pills .breadcrumb-sep { display: none; }
+
+    /* Tooltip */
+    .tooltip-wrap { position: relative; display: inline-block; }
+    .tooltip {
+      position: absolute;
+      bottom: calc(100% + 6px); left: 50%;
+      transform: translateX(-50%);
+      background: #0f172a;
+      color: #fff;
+      font-size: 11.5px;
+      padding: 5px 10px;
+      border-radius: 6px;
+      white-space: nowrap;
+      pointer-events: none;
+      box-shadow: 0 4px 12px rgba(15, 23, 42, .25);
+      opacity: 0; transition: opacity .15s;
+    }
+    .tooltip::after {
+      content: '';
+      position: absolute;
+      top: 100%; left: 50%;
+      transform: translateX(-50%);
+      border: 4px solid transparent;
+      border-top-color: #0f172a;
+    }
+    .tooltip-wrap:hover .tooltip { opacity: 1; }
+    /* Tooltip Variant B: Light */
+    .tooltip.v-light {
+      background: var(--surface);
+      color: var(--text);
+      border: 1px solid var(--border);
+      box-shadow: 0 4px 12px rgba(0,0,0,.08);
+    }
+    .tooltip.v-light::after { border-top-color: var(--surface); }
+    /* Tooltip Variant C: Sage */
+    .tooltip.v-sage {
+      background: var(--accent);
+      color: #fff;
+    }
+    .tooltip.v-sage::after { border-top-color: var(--accent); }
+
+    /* Stepper */
+    .stepper {
+      display: flex;
+      align-items: center;
+      gap: 0;
+    }
+    .step {
+      display: flex; align-items: center; gap: 8px;
+    }
+    .step-circle {
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      background: var(--surface2);
+      color: var(--text3);
+      font-size: 12px;
+      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      border: 2px solid var(--border);
+    }
+    .step.done .step-circle {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+    }
+    .step.active .step-circle {
+      background: var(--accent-pale);
+      color: var(--accent);
+      border-color: var(--accent);
+    }
+    .step-label {
+      font-size: 12.5px;
+      color: var(--text3);
+      font-weight: 600;
+    }
+    .step.done .step-label, .step.active .step-label { color: var(--text); }
+    .step-connector {
+      flex: 1;
+      height: 2px;
+      background: var(--border);
+      margin: 0 12px;
+    }
+    .step.done + .step-connector { background: var(--accent-light); }
+
+    /* Stepper Variant B: Pills (numbered pills) */
+    .stepper.v-pills {
+      counter-reset: step;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .stepper.v-pills .step {
+      counter-increment: step;
+      padding: 5px 14px 5px 10px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text3);
+    }
+    .stepper.v-pills .step::before {
+      content: counter(step);
+      width: 18px; height: 18px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text2);
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center; justify-content: center;
+      font-size: 10.5px;
+      margin-right: 7px;
+    }
+    .stepper.v-pills .step.done {
+      background: var(--accent-pale);
+      border-color: var(--accent-light);
+      color: var(--accent);
+    }
+    .stepper.v-pills .step.done::before { background: var(--accent); border-color: var(--accent); color: #fff; content: '✓'; }
+    .stepper.v-pills .step.active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+    .stepper.v-pills .step.active::before { background: #fff; border-color: #fff; color: var(--accent); }
+    .stepper.v-pills .step-circle, .stepper.v-pills .step-connector { display: none; }
+
+    /* Stepper Variant C: Lines (underline progress bar) */
+    .stepper.v-lines { gap: 8px; }
+    .stepper.v-lines .step {
+      flex: 1;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 6px;
+    }
+    .stepper.v-lines .step::after {
+      content: '';
+      display: block;
+      height: 3px;
+      background: var(--border);
+      border-radius: 2px;
+    }
+    .stepper.v-lines .step.done::after  { background: var(--accent); }
+    .stepper.v-lines .step.active::after { background: var(--accent-light); }
+    .stepper.v-lines .step-circle, .stepper.v-lines .step-connector { display: none; }
+    .stepper.v-lines .step-label { font-size: 11.5px; }
+    .stepper.v-lines .step-num {
+      font-size: 10.5px;
+      color: var(--text3);
+      font-weight: 600;
+      letter-spacing: 0.4px;
+    }
+    .stepper.v-lines .step.done .step-num,
+    .stepper.v-lines .step.active .step-num { color: var(--accent); }
+
+    /* =====================================================================
+       EXISTING component variants (preview · for evaluation)
+       ===================================================================== */
+
+    /* ---------- Page Hero ---------- */
+    /* B · Bold (sage gradient bg + white text) */
+    .page-hero.v-bold {
+      background: linear-gradient(135deg, var(--accent-light), var(--accent));
+      color: #fff;
+      box-shadow: 0 8px 22px rgba(var(--accent-rgb), .35);
+    }
+    .page-hero.v-bold .page-hero-title { color: #fff; }
+    .page-hero.v-bold .page-hero-sub { color: rgba(255, 255, 255, .85); }
+    /* C · Minimal (transparent + bottom border) */
+    .page-hero.v-minimal {
+      background: transparent;
+      box-shadow: none;
+      border-bottom: 2px solid var(--border);
+      border-radius: 0;
+      padding: 16px 4px 14px;
+    }
+
+    /* ---------- Section Card ---------- */
+    /* B · Crisp (white + light border, no shadow) */
+    .section-card.v-crisp {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      box-shadow: none;
+    }
+    /* C · Outlined (transparent + thicker accent border) */
+    .section-card.v-outlined {
+      background: transparent;
+      border: 1.5px solid rgba(var(--accent-rgb), .25);
+      box-shadow: none;
+    }
+
+    /* ---------- Stat Card ---------- */
+    /* B · Flat (white + thin border, no shadow) */
+    .stat-card.v-flat {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      box-shadow: none;
+    }
+    /* C · Accent (sage left border, larger) */
+    .stat-card.v-accent {
+      background: var(--surface);
+      border-left: 4px solid var(--accent);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, .04);
+    }
+    .stat-card.v-accent .stat-icon {
+      background: var(--accent-pale);
+      box-shadow: none;
+      color: var(--accent);
+    }
+
+    /* ---------- Status Badge ---------- */
+    /* B · Square (4px corners) */
+    .status-badge.v-square { border-radius: 4px; }
+    /* C · Dot (circle dot + text, transparent bg) */
+    .status-badge.v-dot {
+      background: transparent !important;
+      padding: 2px 4px;
+    }
+    .status-badge.v-dot::before {
+      content: '';
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: currentColor;
+    }
+    .status-badge.v-dot.status-active   { color: var(--success); }
+    .status-badge.v-dot.status-inactive { color: var(--danger); }
+
+    /* ---------- Avatar ---------- */
+    /* B · Square (4px corners) */
+    .avatar.v-square { border-radius: 4px; }
+    /* C · Rounded (12px corners) */
+    .avatar.v-rounded { border-radius: 12px; }
+
+    /* ---------- Filter Chips ---------- */
+    /* B · Underline (no container · text + bottom border for active) */
+    .filter-chips.v-underline {
+      background: transparent;
+      border: none;
+      border-bottom: 1px solid var(--border);
+      border-radius: 0;
+      padding: 0;
+      gap: 6px;
+    }
+    .filter-chips.v-underline .filter-chip,
+    .filter-chips.v-underline .date-chip {
+      padding: 8px 14px;
+      border-radius: 0;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+    }
+    .filter-chips.v-underline .filter-chip.active,
+    .filter-chips.v-underline .date-chip.active {
+      background: transparent;
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+      box-shadow: none;
+    }
+    /* C · Solid pill (no container · individual sage pills) */
+    .filter-chips.v-pills {
+      background: transparent;
+      border: none;
+      padding: 0;
+      gap: 6px;
+    }
+    .filter-chips.v-pills .filter-chip,
+    .filter-chips.v-pills .date-chip {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 5px 14px;
+    }
+    .filter-chips.v-pills .filter-chip.active,
+    .filter-chips.v-pills .date-chip.active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+      box-shadow: 0 2px 6px rgba(var(--accent-rgb), .25);
+    }
+
+    /* ---------- Page Tabs ---------- */
+    /* B · Pill (rounded buttons, no underline) */
+    .page-tabs.v-pills {
+      gap: 4px;
+      margin-bottom: 14px;
+      padding: 4px;
+      background: var(--surface2);
+      border-radius: 10px;
+      display: inline-flex;
+    }
+    .page-tabs.v-pills .page-tab,
+    .page-tabs.v-pills .ev-tab {
+      padding: 7px 16px;
+      border-radius: 7px;
+      border-bottom: none;
+    }
+    .page-tabs.v-pills .page-tab.active,
+    .page-tabs.v-pills .ev-tab.active {
+      background: var(--accent);
+      color: #fff;
+      border-bottom-color: transparent;
+      box-shadow: 0 2px 6px rgba(var(--accent-rgb), .3);
+    }
+    /* C · Segment (joined together) */
+    .page-tabs.v-segment {
+      gap: 0;
+      margin-bottom: 14px;
+      display: inline-flex;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .page-tabs.v-segment .page-tab,
+    .page-tabs.v-segment .ev-tab {
+      padding: 7px 18px;
+      border-radius: 0;
+      border-bottom: none;
+      border-right: 1px solid var(--border);
+    }
+    .page-tabs.v-segment .page-tab:last-child,
+    .page-tabs.v-segment .ev-tab:last-child { border-right: none; }
+    .page-tabs.v-segment .page-tab.active,
+    .page-tabs.v-segment .ev-tab.active {
+      background: var(--accent-pale);
+      color: var(--accent);
+      border-bottom-color: transparent;
+    }
+
+    /* ---------- Empty State ---------- */
+    /* B · With Action (icon + text + CTA button below) */
+    .empty-state.v-action { padding: 44px 20px 38px; }
+    .empty-state.v-action .empty-cta {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 14px;
+      padding: 8px 18px;
+      background: linear-gradient(180deg, var(--accent-light), var(--accent));
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 2px 6px rgba(var(--accent-rgb), .25);
+    }
+    /* C · Compact (left-aligned · icon left + text right) */
+    .empty-state.v-compact {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      text-align: left;
+      padding: 20px 24px;
+      background: var(--surface-soft);
+      border: 1px dashed rgba(var(--accent-rgb), .25);
+      border-radius: 10px;
+    }
+    .empty-state.v-compact .empty-state-icon,
+    .empty-state.v-compact .empty-icon {
+      font-size: 32px;
+      margin-bottom: 0;
+      opacity: 1;
+    }
+    .empty-state.v-compact .empty-state-title { font-size: 13px; margin-bottom: 2px; }
+
+    /* ---------- KPI Strip ---------- */
+    /* B · Bordered (with vertical separators between cards) */
+    .kpi-strip.v-bordered {
+      gap: 0;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--surface);
+      padding: 0;
+      overflow: hidden;
+    }
+    .kpi-strip.v-bordered .kpi-card,
+    .kpi-strip.v-bordered .stat-card {
+      border: none;
+      border-right: 1px solid var(--border);
+      border-radius: 0;
+      box-shadow: none;
+      background: transparent;
+    }
+    .kpi-strip.v-bordered .kpi-card:last-child,
+    .kpi-strip.v-bordered .stat-card:last-child { border-right: none; }
+    /* C · Boxed (each KPI is a sage-tinted raised card) */
+    .kpi-strip.v-boxed .kpi-card,
+    .kpi-strip.v-boxed .stat-card {
+      background: var(--surface-soft);
+      border: 1px solid rgba(var(--accent-rgb), .15);
+      box-shadow: var(--shadow-soft-md);
+    }
+
+    /* ---------- Buttons (shape variants — orthogonal to semantic primary/outline) ---------- */
+    /* B · Pill (fully rounded) */
+    .btn.v-pill { border-radius: 999px; }
+    /* C · Sharp (3px corners) */
+    .btn.v-sharp { border-radius: 3px; }
+
+    /* ---------- Btn on Hero ---------- */
+    /* B · Outline (transparent + sage border) */
+    .btn-on-hero.v-outline {
+      background: transparent;
+      border: 1.5px solid var(--accent-light);
+      color: var(--accent);
+      box-shadow: none;
+    }
+    /* C · Solid (sage filled) */
+    .btn-on-hero.v-solid {
+      background: linear-gradient(180deg, var(--accent-light), var(--accent));
+      color: #fff;
+      border: none;
+      box-shadow: 0 2px 6px rgba(var(--accent-rgb), .3);
+    }
+
+    /* ---------- Btn Icon ---------- */
+    /* B · Square (3px corners) */
+    .btn-icon.v-square { border-radius: 3px; }
+    /* C · Circle (50%) */
+    .btn-icon.v-circle { border-radius: 50%; }
+
+    /* ---------- FAB ---------- */
+    /* B · Pill (oval with text label) */
+    .fab.v-pill {
+      width: auto !important;
+      height: 48px !important;
+      padding: 0 22px !important;
+      border-radius: 999px !important;
+      font-size: 14px !important;
+      gap: 6px;
+    }
+    /* C · Mini (40px small) */
+    .fab.v-mini {
+      width: 40px !important;
+      height: 40px !important;
+      font-size: 18px !important;
+    }
+
+    /* ---------- Form Controls ---------- */
+    /* B · Underline (only bottom border) */
+    .form-control.v-underline {
+      background: transparent;
+      border: none;
+      border-bottom: 2px solid var(--border);
+      border-radius: 0;
+      padding: 8px 0;
+      box-shadow: none;
+    }
+    .form-control.v-underline:focus {
+      border-bottom-color: var(--accent);
+      box-shadow: none;
+      outline: none;
+    }
+    /* C · Filled (surface-soft bg) */
+    .form-control.v-filled {
+      background: var(--surface-soft);
+      border: 1px solid transparent;
+    }
+    .form-control.v-filled:focus {
+      background: var(--surface);
+      border-color: var(--accent-light);
+    }
+
+    /* ---------- Search ---------- */
+    /* B · Filled (surface-soft bg, no border) */
+    .search-input.v-filled {
+      background: var(--surface-soft);
+      border-color: transparent;
+    }
+    .search-input.v-filled:focus {
+      background: var(--surface);
+      border-color: var(--accent-light);
+    }
+    /* C · Pill (fully rounded) */
+    .search-input.v-pill { border-radius: 999px; padding-left: 38px; padding-right: 18px; }
+
+    /* ---------- Toast ---------- */
+    /* B · Soft (pale bg + neumorphic shadow) */
+    .toast.v-soft.toast-success { background: var(--success-pale); color: var(--success); box-shadow: var(--shadow-soft-md); }
+    .toast.v-soft.toast-error   { background: var(--danger-pale);  color: var(--danger);  box-shadow: var(--shadow-soft-md); }
+    .toast.v-soft.toast-warning { background: var(--warning-pale); color: var(--warning); box-shadow: var(--shadow-soft-md); }
+    /* C · Outlined (white bg + colored left border) */
+    .toast.v-outlined {
+      background: var(--surface);
+      color: var(--text);
+      box-shadow: var(--shadow-md);
+      border-left: 4px solid var(--text2);
+    }
+    .toast.v-outlined.toast-success { border-color: var(--success); color: var(--success); }
+    .toast.v-outlined.toast-error   { border-color: var(--danger);  color: var(--danger); }
+    .toast.v-outlined.toast-warning { border-color: #f59e0b;        color: var(--warning); }
+
+    /* ---------- Loading (spinner variants) ---------- */
+    /* B · Dots (3 bouncing dots) */
+    .spinner.v-dots {
+      width: auto; height: auto;
+      border: none; border-radius: 0;
+      animation: none;
+      display: inline-flex; gap: 6px;
+    }
+    .spinner.v-dots::before,
+    .spinner.v-dots::after,
+    .spinner.v-dots > i {
+      content: '';
+      width: 9px; height: 9px;
+      background: var(--accent);
+      border-radius: 50%;
+      animation: clDot 1.2s ease-in-out infinite;
+    }
+    .spinner.v-dots::before { animation-delay: -0.32s; }
+    .spinner.v-dots > i { animation-delay: -0.16s; display: inline-block; }
+    @keyframes clDot {
+      0%, 80%, 100% { transform: scale(0.5); opacity: .3; }
+      40%           { transform: scale(1.0); opacity: 1; }
+    }
+    /* C · Pulse (pulsating circle) */
+    .spinner.v-pulse {
+      border: none;
+      background: var(--accent);
+      animation: clPulseRing 1.2s ease-in-out infinite;
+    }
+    @keyframes clPulseRing {
+      0%   { transform: scale(0.4); opacity: 1; }
+      100% { transform: scale(1.0); opacity: 0; }
+    }
+
+    /* ---------- Switch (existing common.css has .switch — variants) ---------- */
+    /* Demo switch since common.css implementation may vary */
+    .cl-switch {
+      position: relative;
+      display: inline-block;
+      width: 42px; height: 22px;
+    }
+    .cl-switch input { opacity: 0; width: 0; height: 0; }
+    .cl-switch-slider {
+      position: absolute; cursor: pointer; inset: 0;
+      background: var(--border);
+      border-radius: 22px;
+      transition: .25s;
+    }
+    .cl-switch-slider::before {
+      content: ''; position: absolute;
+      width: 16px; height: 16px;
+      left: 3px; top: 3px;
+      background: #fff;
+      border-radius: 50%;
+      transition: .25s;
+    }
+    .cl-switch input:checked + .cl-switch-slider { background: var(--accent); }
+    .cl-switch input:checked + .cl-switch-slider::before { transform: translateX(20px); }
+    /* B · Pill long */
+    .cl-switch.v-pill { width: 56px; height: 26px; }
+    .cl-switch.v-pill .cl-switch-slider { border-radius: 26px; }
+    .cl-switch.v-pill .cl-switch-slider::before { width: 20px; height: 20px; }
+    .cl-switch.v-pill input:checked + .cl-switch-slider::before { transform: translateX(30px); }
+    /* C · Square */
+    .cl-switch.v-square .cl-switch-slider { border-radius: 4px; }
+    .cl-switch.v-square .cl-switch-slider::before { border-radius: 3px; }
+
+    /* ---------- Data Table ---------- */
+    /* B · Striped (zebra rows) */
+    .data-table.v-striped tbody tr:nth-child(odd) {
+      background: rgba(var(--accent-rgb), .04);
+    }
+    /* C · Borderless (minimal — no row borders) */
+    .data-table.v-borderless td {
+      border-bottom: none;
+    }
+    .data-table.v-borderless thead th {
+      border-bottom: 1px solid var(--border);
+      background: transparent;
+      color: var(--text2);
+    }
+
+    /* ---------- Modal (size + style variants) ---------- */
+    .modal.v-small { max-width: 380px; }
+    .modal.v-large { max-width: 760px; }
+    /* D · Sage Header (gradient sage bar — theme-strong) */
+    .modal.v-sage-header .modal-hdr {
+      background: linear-gradient(180deg, var(--accent-light), var(--accent));
+      color: #fff;
+      border-bottom: none;
+    }
+    .modal.v-sage-header .modal-title { color: #fff; }
+    .modal.v-sage-header .btn-modal-close {
+      color: rgba(255,255,255,.85);
+      background: rgba(255,255,255,.12);
+    }
+    .modal.v-sage-header .btn-modal-close:hover {
+      background: rgba(255,255,255,.22);
+      color: #fff;
+    }
+    /* E · Borderless (no separator lines — minimal) */
+    .modal.v-borderless .modal-hdr,
+    .modal.v-borderless .modal-footer {
+      border-color: transparent;
+    }
+    .modal.v-borderless .modal-footer { background: transparent; }
+    /* F · Compact (dense — smaller padding/fonts) */
+    .modal.v-compact .modal-hdr { padding: 10px 14px; }
+    .modal.v-compact .modal-body { padding: 12px 14px; font-size: 12.5px; }
+    .modal.v-compact .modal-footer { padding: 8px 14px; }
+    .modal.v-compact .modal-title { font-size: 14px; }
+
+    /* ---------- Side Panel (width variants) ---------- */
+    .side-panel.v-narrow { width: 320px; }
+    .side-panel.v-wide   { width: 480px; }
+  </style>
+</head>
+<body>
+
+<div class="loading-overlay" id="loadingOverlay"><div class="spinner"></div></div>
+<div class="toast" id="toast"></div>
+
+<button class="cl-code-toggle" id="codeToggle" type="button">
+  <span id="codeToggleIcon">{ }</span>
+  <span id="codeToggleLabel">แสดง Code</span>
+</button>
+
+<div class="cl-install-panel" id="installPanel">
+  <div class="cl-install-head">
+    <span class="cl-install-title">
+      📦 เลือกติดตั้ง
+      <span class="cl-install-count is-zero" id="installCount">0</span>
+    </span>
+    <button class="cl-install-collapse" id="installCollapse" type="button" title="ย่อ/ขยาย">−</button>
+  </div>
+  <div class="cl-install-list" id="installList"></div>
+  <div class="cl-install-actions">
+    <button class="cl-install-btn primary" id="installCopy" type="button">📋 Copy List</button>
+    <button class="cl-install-btn ghost" id="installClear" type="button">ล้าง</button>
+  </div>
+</div>
+
+<div class="topbar"></div>
+
+<div class="page">
+
+  <div class="page-hero page-hero--simple page-hero--compact">
+    <h1 class="page-hero-title">📚 Component Library</h1>
+    <span class="page-hero-sub">F-Hybrid Sage Green · ทุก component พร้อม code snippet</span>
+  </div>
+
+  <div class="cl-layout">
+
+    <!-- ─────────── TOC ─────────── -->
+    <aside class="cl-toc">
+      <div class="cl-toc-title">Components</div>
+
+      <div class="cl-toc-group">
+        <h4>🏗️ Layout</h4>
+        <a href="#page-hero">Page Hero</a>
+        <a href="#section-card">Section Card</a>
+        <a href="#table-card">Table Card</a>
+      </div>
+
+      <div class="cl-toc-group">
+        <h4>📊 Data Display</h4>
+        <a href="#stat-card">Stat / KPI Card</a>
+        <a href="#kpi-strip">KPI Strip</a>
+        <a href="#data-table">Data Table</a>
+        <a href="#detail-list">Detail List <span class="badge-new">NEW</span></a>
+        <a href="#bar-chart">Bar Chart <span class="badge-new">NEW</span></a>
+        <a href="#progress">Progress Bar <span class="badge-new">NEW</span></a>
+      </div>
+
+      <div class="cl-toc-group">
+        <h4>🔘 Buttons</h4>
+        <a href="#buttons">Buttons</a>
+        <a href="#btn-on-hero">Button on Hero</a>
+        <a href="#btn-icon">Icon Button</a>
+        <a href="#fab">FAB</a>
+      </div>
+
+      <div class="cl-toc-group">
+        <h4>📝 Forms</h4>
+        <a href="#form-controls">Inputs / Select</a>
+        <a href="#search">Search</a>
+        <a href="#switch">Switch / Toggle</a>
+      </div>
+
+      <div class="cl-toc-group">
+        <h4>🎚️ Filter / Tabs</h4>
+        <a href="#filter-chips">Filter Chips</a>
+        <a href="#page-tabs">Page Tabs</a>
+        <a href="#tag-chip">Tag Chip <span class="badge-new">NEW</span></a>
+        <a href="#dropdown-menu">Dropdown Menu <span class="badge-new">NEW</span></a>
+      </div>
+
+      <div class="cl-toc-group">
+        <h4>🪟 Overlay</h4>
+        <a href="#modal">Modal</a>
+        <a href="#side-panel">Side Panel</a>
+        <a href="#tooltip">Tooltip <span class="badge-new">NEW</span></a>
+      </div>
+
+      <div class="cl-toc-group">
+        <h4>🏷️ Status</h4>
+        <a href="#status-badge">Status Badge</a>
+        <a href="#avatar">Avatar</a>
+      </div>
+
+      <div class="cl-toc-group">
+        <h4>💬 Feedback</h4>
+        <a href="#empty-state">Empty State</a>
+        <a href="#toast">Toast</a>
+        <a href="#loading">Loading / Spinner</a>
+        <a href="#skeleton">Skeleton <span class="badge-new">NEW</span></a>
+        <a href="#banner">Banner / Alert <span class="badge-new">NEW</span></a>
+      </div>
+
+      <div class="cl-toc-group">
+        <h4>🧭 Navigation</h4>
+        <a href="#breadcrumb">Breadcrumb <span class="badge-new">NEW</span></a>
+        <a href="#pagination">Pagination <span class="badge-new">NEW</span></a>
+        <a href="#stepper">Stepper <span class="badge-new">NEW</span></a>
+      </div>
+    </aside>
+
+
+    <!-- ─────────── CONTENT ─────────── -->
+    <main>
+
+      <!-- =================================================================
+           PAGE HERO
+           ================================================================= -->
+      <div class="cl-section" id="page-hero">
+        <div class="cl-section-head">
+          <h2>Page Hero</h2>
+          <div class="desc">หัวหน้าด้านบน · มี 3 variants</div>
+          <span class="tag tag-existing">EXISTING</span>
+        </div>
+
+        <div class="cl-block">
+          <div class="cl-block-label">Default — gradient sage (Dashboard pages)</div>
+          <div class="cl-block-desc">
+            <b>ใช้กับ:</b> หน้า dashboard / overview ที่เป็น "หัวใจ" ของ module · มี chart, KPI, ภาพรวมเยอะ
+            ใช้ ribbon บนสุด + neumorphic warm soft + accent stripe สำหรับเน้น "นี่คือหน้าเอกของ module"
+            <span class="pages">ตัวอย่าง: events-dashboard · ibd-dashboard · members-dashboard · inventory/dashboard</span>
+          </div>
+          <div class="cl-demo">
+            <div class="page-hero">
+              <div>
+                <h1 class="page-hero-title">📊 Events Dashboard</h1>
+                <p class="page-hero-sub">ภาพรวมกิจกรรมทั้งหมด · ผู้เข้าร่วม · รายรับ</p>
+              </div>
+              <div class="page-hero-actions">
+                <button class="btn-on-hero">📥 Export</button>
+                <button class="btn-on-hero btn-primary">+ สร้างกิจกรรม</button>
+              </div>
+            </div>
+          </div>
+<pre class="cl-code">&lt;div class="page-hero"&gt;
+  &lt;div&gt;
+    &lt;h1 class="page-hero-title"&gt;📊 Events Dashboard&lt;/h1&gt;
+    &lt;p class="page-hero-sub"&gt;...&lt;/p&gt;
+  &lt;/div&gt;
+  &lt;div class="page-hero-actions"&gt;
+    &lt;button class="btn-on-hero"&gt;Export&lt;/button&gt;
+    &lt;button class="btn-on-hero btn-primary"&gt;+ สร้าง&lt;/button&gt;
+  &lt;/div&gt;
+&lt;/div&gt;</pre>
+        </div>
+
+        <div class="cl-block">
+          <div class="cl-block-label">--simple — accent stripe (List/Form pages)</div>
+          <div class="cl-block-desc">
+            <b>ใช้กับ:</b> หน้า list/form ที่เป็นเครื่องมือทำงาน · ไม่ต้องเด่นเท่า Dashboard
+            ไม่มี ribbon บนสุด · มี accent stripe ซ้ายแทน เพื่อให้ดู subtle กว่า
+            <span class="pages">ตัวอย่าง: events-list · settings/users · settings/roles · staff-groups · staff-messaging · supplier · po-list</span>
+          </div>
+          <div class="cl-demo">
+            <div class="page-hero page-hero--simple">
+              <div>
+                <h1 class="page-hero-title">👥 จัดการกลุ่มพนักงาน</h1>
+                <p class="page-hero-sub">เพิ่ม/ลบกลุ่มของแต่ละพนักงาน</p>
+              </div>
+            </div>
+          </div>
+<pre class="cl-code">&lt;div class="page-hero page-hero--simple"&gt;...&lt;/div&gt;</pre>
+        </div>
+
+        <div class="cl-block">
+          <div class="cl-block-label">--compact — single line</div>
+          <div class="cl-block-desc">
+            <b>ใช้กับ:</b> หน้าที่ stats/filter อยู่ติดบน hero · ต้องการประหยัดพื้นที่แนวตั้งเพื่อให้เห็น content ด้านล่างเร็วๆ
+            ความสูง ~50px · title + sub อยู่บรรทัดเดียว
+            <span class="pages">ตัวอย่าง: events-list (ปัจจุบัน) · เหมาะกับหน้า list ทั่วไปที่มี stats row ตามมาทันที</span>
+          </div>
+          <div class="cl-demo">
+            <div class="page-hero page-hero--simple page-hero--compact">
+              <h1 class="page-hero-title">🗓️ รายการกิจกรรม</h1>
+            </div>
+          </div>
+<pre class="cl-code">&lt;div class="page-hero page-hero--simple page-hero--compact"&gt;
+  &lt;h1 class="page-hero-title"&gt;🗓️ รายการกิจกรรม&lt;/h1&gt;
+&lt;/div&gt;</pre>
+        </div>
+
+        <div class="cl-block">
+          <div class="cl-block-label">💡 Visual style alternatives <small style="font-weight:500;color:var(--text3);">(orthogonal — รวมกับ --simple / --compact ได้)</small></div>
+          <div class="cl-demo">
+            <div class="cl-variants">
+              <div class="cl-variant">
+                <div class="cl-variant-title">A · Soft <small>cream + neumorphic (current)</small></div>
+                <div class="cl-variant-demo is-stack">
+                  <div class="page-hero" style="margin:0;">
+                    <div><h1 class="page-hero-title">📊 Dashboard</h1><p class="page-hero-sub">ภาพรวมกิจกรรม</p></div>
+                  </div>
+                </div>
+                <label class="cl-pick" data-cid="page-hero:a"><input type="checkbox"> ติดตั้ง A</label>
+              </div>
+              <div class="cl-variant">
+                <div class="cl-variant-title">B · Bold <small>sage gradient + white text</small></div>
+                <div class="cl-variant-demo is-stack">
+                  <div class="page-hero v-bold" style="margin:0;">
+                    <div><h1 class="page-hero-title">📊 Dashboard</h1><p class="page-hero-sub">ภาพรวมกิจกรรม</p></div>
+                  </div>
+                </div>
+                <label class="cl-pick" data-cid="page-hero:b"><input type="checkbox"> ติดตั้ง B</label>
+              </div>
+              <div class="cl-variant">
+                <div class="cl-variant-title">C · Minimal <small>flat + bottom border</small></div>
+                <div class="cl-variant-demo is-stack">
+                  <div class="page-hero v-minimal" style="margin:0;">
+                    <div><h1 class="page-hero-title">📊 Dashboard</h1><p class="page-hero-sub">ภาพรวมกิจกรรม</p></div>
+                  </div>
+                </div>
+                <label class="cl-pick" data-cid="page-hero:c"><input type="checkbox"> ติดตั้ง C</label>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+
+      <!-- =================================================================
+           SECTION CARD
+           ================================================================= -->
+      <div class="cl-section" id="section-card">
+        <div class="cl-section-head">
+          <h2>Section Card</h2>
+          <div class="desc">กรอบ content card ใน page</div>
+          <span class="tag tag-existing">EXISTING</span>
+        </div>
+        <div class="cl-block-desc">
+          <b>ใช้กับ:</b> ห่อ content groups (chart, table panel, form group) ภายใน page · ทำให้แต่ละกลุ่ม "ลอย" แยกจากกัน
+          ใช้ warm soft bg + neumorphic shadow เดียวกับ stat-card · มี <code>section-head</code> สำหรับ title+sub ของกลุ่ม
+          <span class="pages">ตัวอย่าง: events-dashboard ใช้สำหรับห่อ chart "Events ต่อเดือน" · ibd-dashboard ห่อ "Top topics"</span>
+        </div>
+        <div class="cl-demo">
+          <div class="cl-variants">
+            <div class="cl-variant">
+              <div class="cl-variant-title">A · Soft <small>cream bg + neumorphic (current)</small></div>
+              <div class="cl-variant-demo is-stack">
+                <div class="section-card" style="margin:0;">
+                  <div class="section-head"><div class="section-title">📊 Events</div></div>
+                  <div style="height:50px;background:var(--bg);border-radius:6px;"></div>
+                </div>
+              </div>
+              <label class="cl-pick" data-cid="section-card:a"><input type="checkbox"> ติดตั้ง A</label>
+            </div>
+            <div class="cl-variant">
+              <div class="cl-variant-title">B · Crisp <small>white + thin border</small></div>
+              <div class="cl-variant-demo is-stack">
+                <div class="section-card v-crisp" style="margin:0;">
+                  <div class="section-head"><div class="section-title">📊 Events</div></div>
+                  <div style="height:50px;background:var(--bg);border-radius:6px;"></div>
+                </div>
+              </div>
+              <label class="cl-pick" data-cid="section-card:b"><input type="checkbox"> ติดตั้ง B</label>
+            </div>
+            <div class="cl-variant">
+              <div class="cl-variant-title">C · Outlined <small>transparent + sage border</small></div>
+              <div class="cl-variant-demo is-stack">
+                <div class="section-card v-outlined" style="margin:0;">
+                  <div class="section-head"><div class="section-title">📊 Events</div></div>
+                  <div style="height:50px;background:var(--bg);border-radius:6px;"></div>
+                </div>
+              </div>
+              <label class="cl-pick" data-cid="section-card:c"><input type="checkbox"> ติดตั้ง C</label>
+            </div>
+          </div>
+        </div>
+<pre class="cl-code">&lt;div class="section-card"&gt;
+  &lt;div class="section-head"&gt;
+    &lt;div class="section-title"&gt;หัวข้อ&lt;/div&gt;
+    &lt;div class="section-sub"&gt;คำอธิบายสั้น&lt;/div&gt;
+  &lt;/div&gt;
+  &lt;!-- content --&gt;
+&lt;/div&gt;</pre>
+      </div>
+
+
+      <!-- =================================================================
+           STAT / KPI CARD
+           ================================================================= -->
+      <div class="cl-section" id="stat-card">
+        <div class="cl-section-head">
+          <h2>Stat / KPI Card</h2>
+          <div class="desc"><code>.stat-card</code> = canonical · <code>.kpi-card</code> = alias · 6 colors</div>
+          <span class="tag tag-existing">EXISTING</span>
+        </div>
+        <div class="cl-block-desc">
+          <b>ใช้กับ:</b> แสดงตัวเลขสำคัญ (KPI metric) ที่อยากให้ user เห็นทันทีตอนเปิดหน้า · มี icon + label + ค่าตัวเลข + sub
+          เลือก color modifier (<code>.blue/.green/.amber/.purple/.pink/.gray</code>) ตาม semantic ของ metric — เช่น <code>green</code> สำหรับ success metric, <code>amber</code> สำหรับเงิน
+          วางใน <code>.stats-row</code> (grid auto-fit min 200px) · ใช้กับหน้า dashboard 4-5 cards / ใน list page 3-4 cards บนสุด
+          <span class="pages">ตัวอย่าง: events-dashboard (5 colors), ibd-dashboard (3 cards · is-clickable), members-list (top 4)</span>
+        </div>
+        <div class="cl-demo">
+          <div class="cl-variants">
+            <div class="cl-variant">
+              <div class="cl-variant-title">A · Neumorphic <small>cream + soft shadow (current)</small></div>
+              <div class="cl-variant-demo is-stack">
+                <div class="stat-card blue"><div class="stat-icon">📅</div><div class="stat-info"><div class="stat-label">Events</div><div class="stat-value">43</div><div class="stat-sub">12 ยังไม่จัด</div></div></div>
+                <div class="stat-card green"><div class="stat-icon">✅</div><div class="stat-info"><div class="stat-label">Check-in</div><div class="stat-value">100%</div><div class="stat-sub">67/67</div></div></div>
+              </div>
+              <label class="cl-pick" data-cid="stat-card:a"><input type="checkbox"> ติดตั้ง A</label>
+            </div>
+            <div class="cl-variant">
+              <div class="cl-variant-title">B · Flat <small>white + thin border</small></div>
+              <div class="cl-variant-demo is-stack">
+                <div class="stat-card v-flat blue"><div class="stat-icon">📅</div><div class="stat-info"><div class="stat-label">Events</div><div class="stat-value">43</div><div class="stat-sub">12 ยังไม่จัด</div></div></div>
+                <div class="stat-card v-flat green"><div class="stat-icon">✅</div><div class="stat-info"><div class="stat-label">Check-in</div><div class="stat-value">100%</div><div class="stat-sub">67/67</div></div></div>
+              </div>
+              <label class="cl-pick" data-cid="stat-card:b"><input type="checkbox"> ติดตั้ง B</label>
+            </div>
+            <div class="cl-variant">
+              <div class="cl-variant-title">C · Accent <small>sage left border</small></div>
+              <div class="cl-variant-demo is-stack">
+                <div class="stat-card v-accent blue"><div class="stat-icon">📅</div><div class="stat-info"><div class="stat-label">Events</div><div class="stat-value">43</div><div class="stat-sub">12 ยังไม่จัด</div></div></div>
+                <div class="stat-card v-accent green"><div class="stat-icon">✅</div><div class="stat-info"><div class="stat-label">Check-in</div><div class="stat-value">100%</div><div class="stat-sub">67/67</div></div></div>
+              </div>
+              <label class="cl-pick" data-cid="stat-card:c"><input type="checkbox"> ติดตั้ง C</label>
+            </div>
+          </div>
+        </div>
+<pre class="cl-code">&lt;div class="stats-row"&gt;
+  &lt;div class="stat-card blue"&gt;
+    &lt;div class="stat-icon"&gt;📅&lt;/div&gt;
+    &lt;div class="stat-info"&gt;
+      &lt;div class="stat-label"&gt;Events&lt;/div&gt;
+      &lt;div class="stat-value"&gt;43&lt;/div&gt;
+      &lt;div class="stat-sub"&gt;12 ยังไม่จัด&lt;/div&gt;
+    &lt;/div&gt;
+  &lt;/div&gt;
+  &lt;!-- colors: blue / green / amber / purple / pink / gray --&gt;
+&lt;/div&gt;</pre>
+      </div>
+
+
+      <!-- =================================================================
+           KPI STRIP
+           ================================================================= -->
+      <div class="cl-section" id="kpi-strip">
+        <div class="cl-section-head">
+          <h2>KPI Strip</h2>
+          <div class="desc">Compact label+value · ไม่มี icon · สำหรับ list page header</div>
+          <span class="tag tag-existing">EXISTING</span>
+        </div>
+        <div class="cl-block-desc">
+          <b>ใช้กับ:</b> หน้า list ที่มี 4-6 metric เล็กๆ (เช่น "ทั้งหมด · รออนุมัติ · อนุมัติ · ปฏิเสธ") · compact + ไม่มี icon
+          ขนาดเล็กกว่า <code>.stat-card</code> ปกติ · เหมาะกับหัวตารางที่ไม่ใช่ dashboard
+          <span class="pages">ตัวอย่าง: ibd-complaints, ibd-ewallet, ibd-relocation (5 metrics: ทั้งหมด · New · Progress · Resolved · Closed)</span>
+        </div>
+        <div class="cl-demo">
+          <div class="cl-variants is-rows">
+            <div class="cl-variant">
+              <div class="cl-variant-title">A · Default <small>flat strip · simple cards (current)</small></div>
+              <div class="cl-variant-demo is-stack">
+                <div class="kpi-strip">
+                  <div class="stat-card"><div class="stat-label">ทั้งหมด</div><div class="stat-value">125</div></div>
+                  <div class="stat-card"><div class="stat-label">รออนุมัติ</div><div class="stat-value">12</div></div>
+                  <div class="stat-card"><div class="stat-label">อนุมัติ</div><div class="stat-value">98</div></div>
+                  <div class="stat-card"><div class="stat-label">ปฏิเสธ</div><div class="stat-value">15</div></div>
+                </div>
+              </div>
+              <label class="cl-pick" data-cid="kpi-strip:a"><input type="checkbox"> ติดตั้ง A</label>
+            </div>
+            <div class="cl-variant">
+              <div class="cl-variant-title">B · Bordered <small>single rounded box + vertical separators</small></div>
+              <div class="cl-variant-demo is-stack">
+                <div class="kpi-strip v-bordered">
+                  <div class="stat-card"><div class="stat-label">ทั้งหมด</div><div class="stat-value">125</div></div>
+                  <div class="stat-card"><div class="stat-label">รออนุมัติ</div><div class="stat-value">12</div></div>
+                  <div class="stat-card"><div class="stat-label">อนุมัติ</div><div class="stat-value">98</div></div>
+                  <div class="stat-card"><div class="stat-label">ปฏิเสธ</div><div class="stat-value">15</div></div>
+                </div>
+              </div>
+              <label class="cl-pick" data-cid="kpi-strip:b"><input type="checkbox"> ติดตั้ง B</label>
+            </div>
+            <div class="cl-variant">
+              <div class="cl-variant-title">C · Boxed <small>raised sage-tinted cards</small></div>
+              <div class="cl-variant-demo is-stack">
+                <div class="kpi-strip v-boxed">
+                  <div class="stat-card"><div class="stat-label">ทั้งหมด</div><div class="stat-value">125</div></div>
+                  <div class="stat-card"><div class="stat-label">รออนุมัติ</div><div class="stat-value">12</div></div>
+                  <div class="stat-card"><div class="stat-label">อนุมัติ</div><div class="stat-value">98</div></div>
+                  <div class="stat-card"><div class="stat-label">ปฏิเสธ</div><div class="stat-value">15</div></div>
+                </div>
+              </div>
+              <label class="cl-pick" data-cid="kpi-strip:c"><input type="checkbox"> ติดตั้ง C</label>
+            </div>
+          </div>
+        </div>
+<pre class="cl-code">&lt;div class="kpi-strip"&gt;
+  &lt;div class="stat-card"&gt;
+    &lt;div class="stat-label"&gt;ทั้งหมด&lt;/div&gt;
+    &lt;div class="stat-value"&gt;125&lt;/div&gt;
+  &lt;/div&gt;
+&lt;/div&gt;</pre>
+      </div>
+
+
+      <!-- =================================================================
+           BUTTONS
+           ================================================================= -->
+      <div class="cl-section" id="buttons">
+        <div class="cl-section-head">
+          <h2>Buttons</h2>
+          <div class="desc">Primary / Outline / Danger / Success / Warning</div>
+          <span class="tag tag-existing">EXISTING</span>
+        </div>
+        <div class="cl-block-desc">
+          <b>เลือก variant ตามความหมาย:</b>
+          <code>btn-primary</code> = action หลัก (Save, สร้าง, ยืนยัน) ·
+          <code>btn-outline</code> = action รอง (Cancel, ยกเลิก) ·
+          <code>btn-danger</code> = action ทำลาย (Delete, ลบ) ·
+          <code>btn-success</code> = action เสร็จสมบูรณ์ (Confirm, อนุมัติ) ·
+          <code>btn-warning</code> = action เตือน (Reject, ปฏิเสธ)<br>
+          ✗ <b>ห้าม:</b> ใช้ 2 primary ติดกัน (1 หน้า → 1 primary action เท่านั้น)
+        </div>
+        <div class="cl-demo">
+          <div class="cl-variants is-rows">
+            <div class="cl-variant">
+              <div class="cl-variant-title">A · Default <small>7px corners (current)</small></div>
+              <div class="cl-variant-demo" style="flex-wrap:wrap;gap:8px;justify-content:flex-start;">
+                <button class="btn btn-primary">Primary</button>
+                <button class="btn btn-outline">Outline</button>
+                <button class="btn btn-danger">Danger</button>
+                <button class="btn btn-success">Success</button>
+                <button class="btn btn-warning">Warning</button>
+              </div>
+              <label class="cl-pick" data-cid="buttons:a"><input type="checkbox"> ติดตั้ง A</label>
+            </div>
+            <div class="cl-variant">
+              <div class="cl-variant-title">B · Pill <small>fully rounded</small></div>
+              <div class="cl-variant-demo" style="flex-wrap:wrap;gap:8px;justify-content:flex-start;">
+                <button class="btn v-pill btn-primary">Primary</button>
+                <button class="btn v-pill btn-outline">Outline</button>
+                <button class="btn v-pill btn-danger">Danger</button>
+                <button class="btn v-pill btn-success">Success</button>
+                <button class="btn v-pill btn-warning">Warning</button>
+              </div>
+              <label class="cl-pick" data-cid="buttons:b"><input type="checkbox"> ติดตั้ง B</label>
+            </div>
+            <div class="cl-variant">
+              <div class="cl-variant-title">C · Sharp <small>3px corners (more architectural)</small></div>
+              <div class="cl-variant-demo" style="flex-wrap:wrap;gap:8px;justify-content:flex-start;">
+                <button class="btn v-sharp btn-primary">Primary</button>
+                <button class="btn v-sharp btn-outline">Outline</button>
+                <button class="btn v-sharp btn-danger">Danger</button>
+                <button class="btn v-sharp btn-success">Success</button>
+                <button class="btn v-sharp btn-warning">Warning</button>
+              </div>
+              <label class="cl-pick" data-cid="buttons:c"><input type="checkbox"> ติดตั้ง C</label>
+            </div>
+          </div>
+        </div>
+<pre class="cl-code">&lt;!-- A: default (7px) --&gt;
+&lt;button class="btn btn-primary"&gt;...&lt;/button&gt;
+
+&lt;!-- B: pill --&gt;
+&lt;button class="btn v-pill btn-primary"&gt;...&lt;/button&gt;
+
+&lt;!-- C: sharp (3px) --&gt;
+&lt;button class="btn v-sharp btn-primary"&gt;...&lt;/button&gt;</pre>
+      </div>
+
+
+      <!-- =================================================================
+           BUTTON ON HERO
+           ================================================================= -->
+      <div class="cl-section" id="btn-on-hero">
+        <div class="cl-section-head">
+          <h2>Button on Hero</h2>
+          <div class="desc">Soft neumorphic button สำหรับวางบน page-hero</div>
+          <span class="tag tag-existing">EXISTING</span>
+        </div>
+        <div class="cl-block-desc">
+          <b>ใช้กับ:</b> ปุ่ม action ที่อยู่ใน <code>.page-hero-actions</code> เท่านั้น · มี neumorphic shadow ดูกลืนกับ hero
+          <code>.btn-primary</code> เพิ่มเป็น sage gradient solid + glow · <code>.btn-on-hero</code> เปล่า = cream raised
+          <span class="pages">ตัวอย่าง: events-dashboard (📥 Export, + สร้าง), ibd-* (📥 Export ภาพรวม)</span>
+        </div>
+        <div class="cl-demo">
+          <div class="cl-variants is-rows">
+            <div class="cl-variant">
+              <div class="cl-variant-title">A · Neumorphic <small>cream raised + sage primary (current)</small></div>
+              <div class="cl-variant-demo is-stack" style="background:var(--surface-soft);border-radius:8px;padding:12px;">
+                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                  <button class="btn-on-hero">Default</button>
+                  <button class="btn-on-hero btn-primary">+ สร้าง</button>
+                </div>
+              </div>
+              <label class="cl-pick" data-cid="btn-on-hero:a"><input type="checkbox"> ติดตั้ง A</label>
+            </div>
+            <div class="cl-variant">
+              <div class="cl-variant-title">B · Outline <small>transparent + sage border</small></div>
+              <div class="cl-variant-demo is-stack" style="background:var(--surface-soft);border-radius:8px;padding:12px;">
+                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                  <button class="btn-on-hero v-outline">Default</button>
+                  <button class="btn-on-hero v-outline">+ สร้าง</button>
+                </div>
+              </div>
+              <label class="cl-pick" data-cid="btn-on-hero:b"><input type="checkbox"> ติดตั้ง B</label>
+            </div>
+            <div class="cl-variant">
+              <div class="cl-variant-title">C · Solid <small>sage gradient filled</small></div>
+              <div class="cl-variant-demo is-stack" style="background:var(--surface-soft);border-radius:8px;padding:12px;">
+                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                  <button class="btn-on-hero v-solid">Default</button>
+                  <button class="btn-on-hero v-solid">+ สร้าง</button>
+                </div>
+              </div>
+              <label class="cl-pick" data-cid="btn-on-hero:c"><input type="checkbox"> ติดตั้ง C</label>
+            </div>
+          </div>
+        </div>
+
+
+      <!-- =================================================================
+           ICON BUTTON
+           ================================================================= -->
+      <div class="cl-section" id="btn-icon">
+        <div class="cl-section-head">
+          <h2>Icon Button</h2>
+          <div class="desc">ปุ่มสี่เหลี่ยมจัตุรัสสำหรับ icon-only actions</div>
+          <span class="tag tag-existing">EXISTING</span>
+        </div>
+        <div class="cl-demo">
+          <div class="cl-variants">
+            <div class="cl-variant">
+              <div class="cl-variant-title">A · Default <small>8px corners (current)</small></div>
+              <div class="cl-variant-demo" style="gap:8px;">
+                <button class="btn-icon">✏️</button>
+                <button class="btn-icon">🗑️</button>
+                <button class="btn-icon">⋮</button>
+              </div>
+              <label class="cl-pick" data-cid="btn-icon:a"><input type="checkbox"> ติดตั้ง A</label>
+            </div>
+            <div class="cl-variant">
+              <div class="cl-variant-title">B · Square <small>3px corners (sharp)</small></div>
+              <div class="cl-variant-demo" style="gap:8px;">
+                <button class="btn-icon v-square">✏️</button>
+                <button class="btn-icon v-square">🗑️</button>
+                <button class="btn-icon v-square">⋮</button>
+              </div>
+              <label class="cl-pick" data-cid="btn-icon:b"><input type="checkbox"> ติดตั้ง B</label>
+            </div>
+            <div class="cl-variant">
+              <div class="cl-variant-title">C · Circle <small>fully round</small></div>
+              <div class="cl-variant-demo" style="gap:8px;">
+                <button class="btn-icon v-circle">✏️</button>
+                <button class="btn-icon v-circle">🗑️</button>
+                <button class="btn-icon v-circle">⋮</button>
+              </div>
+              <label class="cl-pick" data-cid="btn-icon:c"><input type="checkbox"> ติดตั้ง C</label>
+            </div>
+          </div>
+        </div>
+
+
+      <!-- =================================================================
+           FAB
+           ================================================================= -->
+      <div class="cl-section" id="fab">
+        <div class="cl-section-head">
+          <h2>Floating Action Button (FAB)</h2>
+          <div class="desc">ปุ่มลอยมุมขวาล่างของหน้าจอ</div>
+          <span class="tag tag-existing">EXISTING</span>
+        </div>
+        <div class="cl-block-desc">
+          <b>ใช้กับ:</b> ปุ่ม primary action ที่ต้องการให้กดได้ตลอดเวลา · ลอยอยู่บน scrollable content
+          ❗ <code>.fab</code> default = <code>display:none</code> · ต้อง toggle เป็น <code>display:flex</code> ผ่าน JS เมื่อต้องการแสดง
+          ✗ ไม่ใช้ใน modal/side-panel · ✗ จำกัด 1 FAB ต่อหน้า เท่านั้น
+          <span class="pages">ใช้ที่: ทดแทนปุ่ม "＋ สร้าง" บน mobile · activity-add scenarios · ปัจจุบันยังไม่มีหน้าใช้</span>
+        </div>
+        <div class="cl-demo">
+          <div class="cl-variants">
+            <div class="cl-variant">
+              <div class="cl-variant-title">A · Circle <small>52px round (current)</small></div>
+              <div class="cl-variant-demo" style="min-height:80px;">
+                <button class="fab" style="position:relative;display:flex;bottom:auto;right:auto;">＋</button>
+              </div>
+              <label class="cl-pick" data-cid="fab:a"><input type="checkbox"> ติดตั้ง A</label>
+            </div>
+            <div class="cl-variant">
+              <div class="cl-variant-title">B · Pill <small>oval with text label</small></div>
+              <div class="cl-variant-demo" style="min-height:80px;">
+                <button class="fab v-pill" style="position:relative;display:flex;bottom:auto;right:auto;">＋ สร้าง</button>
+              </div>
+              <label class="cl-pick" data-cid="fab:b"><input type="checkbox"> ติดตั้ง B</label>
+            </div>
+            <div class="cl-variant">
+              <div class="cl-variant-title">C · Mini <small>40px small circle</small></div>
+              <div class="cl-variant-demo" style="min-height:80px;">
+                <button class="fab v-mini" style="position:relative;display:flex;bottom:auto;right:auto;">＋</button>
+              </div>
+              <label class="cl-pick" data-cid="fab:c"><input type="checkbox"> ติดตั้ง C</label>
+            </div>
+          </div>
+        </div>
+
+
+      <!-- =================================================================
+           FORM CONTROLS
+           ================================================================= -->
+      <div class="cl-section" id="form-controls">
+        <div class="cl-section-head">
+          <h2>Form Controls</h2>
+          <div class="desc">input / select / textarea</div>
+          <span class="tag tag-existing">EXISTING</span>
+        </div>
+        <div class="cl-demo">
+          <div class="cl-variants is-rows">
+            <div class="cl-variant">
+              <div class="cl-variant-title">A · Default <small>rounded + soft (current)</small></div>
+              <div class="cl-variant-demo is-stack" style="max-width:400px;">
+                <div class="form-group"><label class="form-label">ชื่อกิจกรรม <span class="req">*</span></label><input class="form-control" placeholder="UNLOCK THE WORLD" /></div>
+                <div class="form-group"><label class="form-label">สถานะ</label><select class="form-control"><option>Confirmed</option><option>Draft</option></select></div>
+              </div>
+              <label class="cl-pick" data-cid="form-controls:a"><input type="checkbox"> ติดตั้ง A</label>
+            </div>
+            <div class="cl-variant">
+              <div class="cl-variant-title">B · Underline <small>only bottom border (Material-style)</small></div>
+              <div class="cl-variant-demo is-stack" style="max-width:400px;">
+                <div class="form-group"><label class="form-label">ชื่อกิจกรรม <span class="req">*</span></label><input class="form-control v-underline" placeholder="UNLOCK THE WORLD" /></div>
+                <div class="form-group"><label class="form-label">สถานะ</label><select class="form-control v-underline"><option>Confirmed</option><option>Draft</option></select></div>
+              </div>
+              <label class="cl-pick" data-cid="form-controls:b"><input type="checkbox"> ติดตั้ง B</label>
+            </div>
+            <div class="cl-variant">
+              <div class="cl-variant-title">C · Filled <small>surface-soft bg (subtle)</small></div>
+              <div class="cl-variant-demo is-stack" style="max-width:400px;">
+                <div class="form-group"><label class="form-label">ชื่อกิจกรรม <span class="req">*</span></label><input class="form-control v-filled" placeholder="UNLOCK THE WORLD" /></div>
+                <div class="form-group"><label class="form-label">สถานะ</label><select class="form-control v-filled"><option>Confirmed</option><option>Draft</option></select></div>
+              </div>
+              <label class="cl-pick" data-cid="form-controls:c"><input type="checkbox"> ติดตั้ง C</label>
+            </div>
+          </div>
+        </div>
+<pre class="cl-code">&lt;!-- A: default --&gt;
+&lt;input class="form-control" /&gt;
+
+&lt;!-- B: underline --&gt;
+&lt;input class="form-control v-underline" /&gt;
+
+&lt;!-- C: filled --&gt;
+&lt;input class="form-control v-filled" /&gt;</pre>
+      </div>
+
+
+      <!-- =================================================================
+           SEARCH
+           ================================================================= -->
+      <div class="cl-section" id="search">
+        <div class="cl-section-head">
+          <h2>Search</h2>
+          <div class="desc">Search input ที่มี icon นำหน้า</div>
+          <span class="tag tag-existing">EXISTING</span>
+        </div>
+        <div class="cl-demo">
+          <div class="cl-variants is-rows">
+            <div class="cl-variant">
+              <div class="cl-variant-title">A · Default <small>white + border (current)</small></div>
+              <div class="cl-variant-demo is-stack" style="max-width:400px;">
+                <div class="search-wrap" style="max-width:100%;">
+                  <span class="search-icon">🔍</span>
+                  <input class="search-input" placeholder="ค้นหาชื่อ..." />
+                </div>
+              </div>
+              <label class="cl-pick" data-cid="search:a"><input type="checkbox"> ติดตั้ง A</label>
+            </div>
+            <div class="cl-variant">
+              <div class="cl-variant-title">B · Filled <small>surface-soft bg (no border)</small></div>
+              <div class="cl-variant-demo is-stack" style="max-width:400px;">
+                <div class="search-wrap" style="max-width:100%;">
+                  <span class="search-icon">🔍</span>
+                  <input class="search-input v-filled" placeholder="ค้นหาชื่อ..." />
+                </div>
+              </div>
+              <label class="cl-pick" data-cid="search:b"><input type="checkbox"> ติดตั้ง B</label>
+            </div>
+            <div class="cl-variant">
+              <div class="cl-variant-title">C · Pill <small>fully rounded</small></div>
+              <div class="cl-variant-demo is-stack" style="max-width:400px;">
+                <div class="search-wrap" style="max-width:100%;">
+                  <span class="search-icon">🔍</span>
+                  <input class="search-input v-pill" placeholder="ค้นหาชื่อ..." />
+                </div>
+              </div>
+              <label class="cl-pick" data-cid="search:c"><input type="checkbox"> ติดตั้ง C</label>
+            </div>
+          </div>
+        </div>
+<pre class="cl-code">&lt;!-- A: default --&gt;
+&lt;div class="search-wrap"&gt;&lt;span class="search-icon"&gt;🔍&lt;/span&gt;&lt;input class="search-input" /&gt;&lt;/div&gt;
+
+&lt;!-- B: filled --&gt;
+&lt;input class="search-input v-filled" /&gt;
+
+&lt;!-- C: pill --&gt;
+&lt;input class="search-input v-pill" /&gt;</pre>
+      </div>
+
+
+      <!-- =================================================================
+           FILTER CHIPS
+           ================================================================= -->
+      <div class="cl-section" id="filter-chips">
+        <div class="cl-section-head">
+          <h2>Filter Chips</h2>
+          <div class="desc">Pill toggle group · canonical = <code>.filter-chips/.filter-chip</code> · legacy = <code>.date-filter-chips/.date-chip</code></div>
+          <span class="tag tag-existing">EXISTING</span>
+        </div>
+        <div class="cl-block-desc">
+          <b>ใช้กับ:</b> filter ที่ user เห็นทุกตัวเลือกได้พร้อมกัน · เลือกได้ 1 ตัว (radio-like)
+          เช่น "ทั้งหมด/วันนี้/อาทิตย์/เดือน" หรือ "ทุกสถานะ/Draft/Confirmed/..."
+          ✓ ใช้ตอนตัวเลือกน้อย (3-7) · ❌ ถ้าเกิน 8 ตัวเลือก ใช้ <code>filter-select</code> หรือ <code>dropdown-menu</code> แทน
+          <span class="pages">ตัวอย่าง: events-list date+status, ibd filter, customer-service tabs</span>
+        </div>
+        <div class="cl-demo">
+          <div class="cl-variants">
+            <div class="cl-variant">
+              <div class="cl-variant-title">A · Container <small>surface2 group + sage gradient (current)</small></div>
+              <div class="cl-variant-demo is-stack">
+                <div class="filter-chips">
+                  <button class="filter-chip">ทั้งหมด</button>
+                  <button class="filter-chip active">เดือนนี้</button>
+                  <button class="filter-chip">อาทิตย์</button>
+                </div>
+              </div>
+              <label class="cl-pick" data-cid="filter-chips:a"><input type="checkbox"> ติดตั้ง A</label>
+            </div>
+            <div class="cl-variant">
+              <div class="cl-variant-title">B · Underline <small>flat + sage underline active</small></div>
+              <div class="cl-variant-demo is-stack">
+                <div class="filter-chips v-underline">
+                  <button class="filter-chip">ทั้งหมด</button>
+                  <button class="filter-chip active">เดือนนี้</button>
+                  <button class="filter-chip">อาทิตย์</button>
+                </div>
+              </div>
+              <label class="cl-pick" data-cid="filter-chips:b"><input type="checkbox"> ติดตั้ง B</label>
+            </div>
+            <div class="cl-variant">
+              <div class="cl-variant-title">C · Pills <small>individual rounded buttons</small></div>
+              <div class="cl-variant-demo is-stack">
+                <div class="filter-chips v-pills">
+                  <button class="filter-chip">ทั้งหมด</button>
+                  <button class="filter-chip active">เดือนนี้</button>
+                  <button class="filter-chip">อาทิตย์</button>
+                </div>
+              </div>
+              <label class="cl-pick" data-cid="filter-chips:c"><input type="checkbox"> ติดตั้ง C</label>
+            </div>
+          </div>
+        </div>
+<pre class="cl-code">&lt;!-- A: container (default) --&gt;
+&lt;div class="filter-chips"&gt;...&lt;/div&gt;
+
+&lt;!-- B: underline --&gt;
+&lt;div class="filter-chips v-underline"&gt;...&lt;/div&gt;
+
+&lt;!-- C: pills --&gt;
+&lt;div class="filter-chips v-pills"&gt;...&lt;/div&gt;</pre>
+      </div>
+
+
+      <!-- =================================================================
+           PAGE TABS
+           ================================================================= -->
+      <div class="cl-section" id="page-tabs">
+        <div class="cl-section-head">
+          <h2>Page Tabs</h2>
+          <div class="desc">Tab สลับ view ใน panel</div>
+          <span class="tag tag-existing">EXISTING</span>
+        </div>
+        <div class="cl-block-desc">
+          <b>ใช้กับ:</b> สลับระหว่าง views ใน panel/card เดียวกัน · ใช้คนละ pattern กับ <code>filter-chips</code> (ตัวกรอง)
+          ✓ tab = เปลี่ยนหน้า/มุมมอง (เช่น "รายการ" / "สถิติ") · ✗ filter = กรองข้อมูลในมุมมองเดียวกัน
+          วางใน <code>.table-hdr</code> (มี border-bottom) · underline ของ active tab จะชนกับ border ของ table-hdr พอดี
+          <span class="pages">ตัวอย่าง: events-list (รายการ/ห้องสนทนา/คำขอจองห้อง), member-tree views</span>
+        </div>
+        <div class="cl-demo">
+          <div class="cl-variants">
+            <div class="cl-variant">
+              <div class="cl-variant-title">A · Underline <small>sage underline + pale bg (current)</small></div>
+              <div class="cl-variant-demo is-stack" style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px;">
+                <div class="page-tabs" style="margin-bottom:0;">
+                  <button class="page-tab active">รายการ</button>
+                  <button class="page-tab">ห้องสนทนา</button>
+                  <button class="page-tab">คำขอจอง</button>
+                </div>
+              </div>
+              <label class="cl-pick" data-cid="page-tabs:a"><input type="checkbox"> ติดตั้ง A</label>
+            </div>
+            <div class="cl-variant">
+              <div class="cl-variant-title">B · Pills <small>rounded buttons in container</small></div>
+              <div class="cl-variant-demo is-stack" style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px;">
+                <div class="page-tabs v-pills" style="margin-bottom:0;">
+                  <button class="page-tab active">รายการ</button>
+                  <button class="page-tab">ห้องสนทนา</button>
+                  <button class="page-tab">คำขอจอง</button>
+                </div>
+              </div>
+              <label class="cl-pick" data-cid="page-tabs:b"><input type="checkbox"> ติดตั้ง B</label>
+            </div>
+            <div class="cl-variant">
+              <div class="cl-variant-title">C · Segment <small>joined buttons (segmented control)</small></div>
+              <div class="cl-variant-demo is-stack" style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px;">
+                <div class="page-tabs v-segment" style="margin-bottom:0;">
+                  <button class="page-tab active">รายการ</button>
+                  <button class="page-tab">ห้องสนทนา</button>
+                  <button class="page-tab">คำขอจอง</button>
+                </div>
+              </div>
+              <label class="cl-pick" data-cid="page-tabs:c"><input type="checkbox"> ติดตั้ง C</label>
+            </div>
+          </div>
+        </div>
+<pre class="cl-code">&lt;!-- A: underline (default) --&gt;
+&lt;div class="page-tabs"&gt;...&lt;/div&gt;
+
+&lt;!-- B: pills --&gt;
+&lt;div class="page-tabs v-pills"&gt;...&lt;/div&gt;
+
+&lt;!-- C: segment --&gt;
+&lt;div class="page-tabs v-segment"&gt;...&lt;/div&gt;</pre>
+      </div>
+
+
+      <!-- =================================================================
+           STATUS BADGE
+           ================================================================= -->
+      <div class="cl-section" id="status-badge">
+        <div class="cl-section-head">
+          <h2>Status Badge</h2>
+          <div class="desc">Badge สีตามสถานะ (semantic universal)</div>
+          <span class="tag tag-existing">EXISTING</span>
+        </div>
+        <div class="cl-block-desc">
+          <b>ใช้กับ:</b> แสดง state เล็กๆ ของ row ในตาราง · เช่น Active/Inactive, Approved/Pending, Confirmed/Draft
+          ✓ ใช้สีตามความหมาย (success-green, danger-red, warning-amber, info-blue) — ไม่ใช้ accent
+          ✗ Badge ของ event/IBD/inventory มี variants เฉพาะ module — ไม่ใช้ตัวนี้
+          <span class="pages">ใช้ที่: members status, user role badges, generic on/off indicators</span>
+        </div>
+        <div class="cl-demo">
+          <div class="cl-variants">
+            <div class="cl-variant">
+              <div class="cl-variant-title">A · Pill <small>rounded · filled (current)</small></div>
+              <div class="cl-variant-demo" style="flex-wrap:wrap;gap:6px;">
+                <span class="status-badge status-active">Active</span>
+                <span class="status-badge status-inactive">Inactive</span>
+              </div>
+              <label class="cl-pick" data-cid="status-badge:a"><input type="checkbox"> ติดตั้ง A</label>
+            </div>
+            <div class="cl-variant">
+              <div class="cl-variant-title">B · Square <small>4px corners</small></div>
+              <div class="cl-variant-demo" style="flex-wrap:wrap;gap:6px;">
+                <span class="status-badge v-square status-active">Active</span>
+                <span class="status-badge v-square status-inactive">Inactive</span>
+              </div>
+              <label class="cl-pick" data-cid="status-badge:b"><input type="checkbox"> ติดตั้ง B</label>
+            </div>
+            <div class="cl-variant">
+              <div class="cl-variant-title">C · Dot <small>colored dot + text</small></div>
+              <div class="cl-variant-demo" style="flex-wrap:wrap;gap:6px;">
+                <span class="status-badge v-dot status-active">Active</span>
+                <span class="status-badge v-dot status-inactive">Inactive</span>
+              </div>
+              <label class="cl-pick" data-cid="status-badge:c"><input type="checkbox"> ติดตั้ง C</label>
+            </div>
+          </div>
+        </div>
+<pre class="cl-code">&lt;!-- A: pill (default) --&gt;
+&lt;span class="status-badge status-active"&gt;Active&lt;/span&gt;
+
+&lt;!-- B: square --&gt;
+&lt;span class="status-badge v-square status-active"&gt;Active&lt;/span&gt;
+
+&lt;!-- C: dot --&gt;
+&lt;span class="status-badge v-dot status-active"&gt;Active&lt;/span&gt;</pre>
+      </div>
+
+
+      <!-- =================================================================
+           AVATAR
+           ================================================================= -->
+      <div class="cl-section" id="avatar">
+        <div class="cl-section-head">
+          <h2>Avatar</h2>
+          <div class="desc">Profile circle · text initials หรือ image</div>
+          <span class="tag tag-existing">EXISTING</span>
+        </div>
+        <div class="cl-demo">
+          <div class="cl-variants">
+            <div class="cl-variant">
+              <div class="cl-variant-title">A · Circle <small>fully round (current)</small></div>
+              <div class="cl-variant-demo" style="gap:10px;">
+                <div class="avatar" style="background:var(--accent);color:#fff;">ภพ</div>
+                <div class="avatar" style="background:#6366f1;color:#fff;">JD</div>
+                <div class="avatar" style="background:var(--success-pale);color:var(--success);">A4</div>
+              </div>
+              <label class="cl-pick" data-cid="avatar:a"><input type="checkbox"> ติดตั้ง A</label>
+            </div>
+            <div class="cl-variant">
+              <div class="cl-variant-title">B · Square <small>4px corners</small></div>
+              <div class="cl-variant-demo" style="gap:10px;">
+                <div class="avatar v-square" style="background:var(--accent);color:#fff;">ภพ</div>
+                <div class="avatar v-square" style="background:#6366f1;color:#fff;">JD</div>
+                <div class="avatar v-square" style="background:var(--success-pale);color:var(--success);">A4</div>
+              </div>
+              <label class="cl-pick" data-cid="avatar:b"><input type="checkbox"> ติดตั้ง B</label>
+            </div>
+            <div class="cl-variant">
+              <div class="cl-variant-title">C · Rounded <small>12px corners</small></div>
+              <div class="cl-variant-demo" style="gap:10px;">
+                <div class="avatar v-rounded" style="background:var(--accent);color:#fff;">ภพ</div>
+                <div class="avatar v-rounded" style="background:#6366f1;color:#fff;">JD</div>
+                <div class="avatar v-rounded" style="background:var(--success-pale);color:var(--success);">A4</div>
+              </div>
+              <label class="cl-pick" data-cid="avatar:c"><input type="checkbox"> ติดตั้ง C</label>
+            </div>
+          </div>
+        </div>
+<pre class="cl-code">&lt;!-- A: circle (default) --&gt;
+&lt;div class="avatar"&gt;ภพ&lt;/div&gt;
+
+&lt;!-- B: square --&gt;
+&lt;div class="avatar v-square"&gt;ภพ&lt;/div&gt;
+
+&lt;!-- C: rounded --&gt;
+&lt;div class="avatar v-rounded"&gt;ภพ&lt;/div&gt;</pre>
+      </div>
+
+
+      <!-- =================================================================
+           EMPTY STATE
+           ================================================================= -->
+      <div class="cl-section" id="empty-state">
+        <div class="cl-section-head">
+          <h2>Empty State</h2>
+          <div class="desc">หน้าจอว่าง · แจ้งสถานะ + คำแนะนำ</div>
+          <span class="tag tag-existing">EXISTING</span>
+        </div>
+        <div class="cl-block-desc">
+          <b>ใช้กับ:</b> placeholder เมื่อยังไม่มี data · ดีกว่าตารางว่าง
+          ✓ มี icon (emoji) + title + hint + optional CTA button → user รู้ว่าจะทำอะไรต่อ
+          variants: ไม่มีข้อมูลใหม่ (📭 default) · search ไม่เจอ (🔍) · error (❌) · permission denied (🔒)
+          <span class="pages">ใช้ที่: ทุกตาราง/list ที่ data array ว่าง · empty modal preview · empty side-panel</span>
+        </div>
+        <div class="cl-demo">
+          <div class="cl-variants">
+            <div class="cl-variant">
+              <div class="cl-variant-title">A · Centered <small>icon + text + CTA (current)</small></div>
+              <div class="cl-variant-demo is-stack">
+                <div class="empty-state" style="padding:30px 20px;">
+                  <div class="empty-state-icon">📭</div>
+                  <div class="empty-state-title">ยังไม่มีข้อมูล</div>
+                  <div class="empty-state-hint">กดปุ่ม "+ เพิ่ม" ด้านบน</div>
+                </div>
+              </div>
+              <label class="cl-pick" data-cid="empty-state:a"><input type="checkbox"> ติดตั้ง A</label>
+            </div>
+            <div class="cl-variant">
+              <div class="cl-variant-title">B · With CTA <small>centered + action button</small></div>
+              <div class="cl-variant-demo is-stack">
+                <div class="empty-state v-action" style="padding:30px 20px;">
+                  <div class="empty-state-icon">📭</div>
+                  <div class="empty-state-title">ยังไม่มีข้อมูล</div>
+                  <div class="empty-state-hint">เริ่มเพิ่มรายการแรกของคุณ</div>
+                  <button class="empty-cta">+ เพิ่มรายการ</button>
+                </div>
+              </div>
+              <label class="cl-pick" data-cid="empty-state:b"><input type="checkbox"> ติดตั้ง B</label>
+            </div>
+            <div class="cl-variant">
+              <div class="cl-variant-title">C · Compact <small>horizontal · in-line for small areas</small></div>
+              <div class="cl-variant-demo is-stack">
+                <div class="empty-state v-compact">
+                  <div class="empty-state-icon">📭</div>
+                  <div>
+                    <div class="empty-state-title">ยังไม่มีข้อมูล</div>
+                    <div class="empty-state-hint">กดปุ่มเพิ่มด้านบน</div>
+                  </div>
+                </div>
+              </div>
+              <label class="cl-pick" data-cid="empty-state:c"><input type="checkbox"> ติดตั้ง C</label>
+            </div>
+          </div>
+        </div>
+<pre class="cl-code">&lt;!-- A: centered (default) --&gt;
+&lt;div class="empty-state"&gt;
+  &lt;div class="empty-state-icon"&gt;📭&lt;/div&gt;
+  &lt;div class="empty-state-title"&gt;...&lt;/div&gt;
+  &lt;div class="empty-state-hint"&gt;...&lt;/div&gt;
+&lt;/div&gt;
+
+&lt;!-- B: with CTA button --&gt;
+&lt;div class="empty-state v-action"&gt;
+  ...
+  &lt;button class="empty-cta"&gt;+ เพิ่ม&lt;/button&gt;
+&lt;/div&gt;
+
+&lt;!-- C: compact horizontal --&gt;
+&lt;div class="empty-state v-compact"&gt;...&lt;/div&gt;</pre>
+      </div>
+
+
+      <!-- =================================================================
+           TOAST
+           ================================================================= -->
+      <div class="cl-section" id="toast">
+        <div class="cl-section-head">
+          <h2>Toast</h2>
+          <div class="desc">Notification ลอย · 4 colors</div>
+          <span class="tag tag-existing">EXISTING</span>
+        </div>
+        <div class="cl-block-desc">
+          <b>ใช้กับ:</b> feedback ของ action ทันที · "บันทึกสำเร็จ", "ลบแล้ว", "เกิดข้อผิดพลาด" · หายเองใน 3 วิ
+          ต่างกับ <code>banner</code>: toast = ชั่วคราว, banner = ค้างไว้
+          variants: <code>toast-success</code> (เขียว) · <code>toast-error</code> (แดง) · <code>toast-warning</code> (เหลือง) · default (เทา)
+          ใช้ผ่าน JS: <code>showToast("ข้อความ", "toast-success")</code>
+          <span class="pages">ใช้ที่: ทุกหน้าที่มี save/delete/sync action</span>
+        </div>
+        <div class="cl-demo">
+          <div class="cl-variants is-rows">
+            <div class="cl-variant">
+              <div class="cl-variant-title">A · Default <small>colored solid bg (current)</small></div>
+              <div class="cl-variant-demo is-stack" style="align-items:flex-start;">
+                <div class="toast toast-success" style="position:static;display:inline-block;">✓ บันทึกสำเร็จ</div>
+                <div class="toast toast-error"   style="position:static;display:inline-block;">❌ เกิดข้อผิดพลาด</div>
+                <div class="toast toast-warning" style="position:static;display:inline-block;">⚠️ ตรวจสอบข้อมูล</div>
+              </div>
+              <label class="cl-pick" data-cid="toast:a"><input type="checkbox"> ติดตั้ง A</label>
+            </div>
+            <div class="cl-variant">
+              <div class="cl-variant-title">B · Soft <small>pale bg + neumorphic shadow</small></div>
+              <div class="cl-variant-demo is-stack" style="align-items:flex-start;">
+                <div class="toast v-soft toast-success" style="position:static;display:inline-block;">✓ บันทึกสำเร็จ</div>
+                <div class="toast v-soft toast-error"   style="position:static;display:inline-block;">❌ เกิดข้อผิดพลาด</div>
+                <div class="toast v-soft toast-warning" style="position:static;display:inline-block;">⚠️ ตรวจสอบข้อมูล</div>
+              </div>
+              <label class="cl-pick" data-cid="toast:b"><input type="checkbox"> ติดตั้ง B</label>
+            </div>
+            <div class="cl-variant">
+              <div class="cl-variant-title">C · Outlined <small>white bg + colored left border</small></div>
+              <div class="cl-variant-demo is-stack" style="align-items:flex-start;">
+                <div class="toast v-outlined toast-success" style="position:static;display:inline-block;">✓ บันทึกสำเร็จ</div>
+                <div class="toast v-outlined toast-error"   style="position:static;display:inline-block;">❌ เกิดข้อผิดพลาด</div>
+                <div class="toast v-outlined toast-warning" style="position:static;display:inline-block;">⚠️ ตรวจสอบข้อมูล</div>
+              </div>
+              <label class="cl-pick" data-cid="toast:c"><input type="checkbox"> ติดตั้ง C</label>
+            </div>
+          </div>
+        </div>
+<pre class="cl-code">&lt;!-- A: default (colored solid) --&gt;
+&lt;div class="toast toast-success"&gt;...&lt;/div&gt;
+
+&lt;!-- B: soft (pale bg) --&gt;
+&lt;div class="toast v-soft toast-success"&gt;...&lt;/div&gt;
+
+&lt;!-- C: outlined (left border) --&gt;
+&lt;div class="toast v-outlined toast-success"&gt;...&lt;/div&gt;</pre>
+      </div>
+
+
+      <!-- =================================================================
+           LOADING
+           ================================================================= -->
+      <div class="cl-section" id="loading">
+        <div class="cl-section-head">
+          <h2>Loading / Spinner</h2>
+          <span class="tag tag-existing">EXISTING</span>
+        </div>
+        <div class="cl-demo">
+          <div class="cl-variants">
+            <div class="cl-variant">
+              <div class="cl-variant-title">A · Spinner <small>circle border (current)</small></div>
+              <div class="cl-variant-demo" style="min-height:80px;">
+                <div class="spinner"></div>
+              </div>
+              <label class="cl-pick" data-cid="loading:a"><input type="checkbox"> ติดตั้ง A</label>
+            </div>
+            <div class="cl-variant">
+              <div class="cl-variant-title">B · Dots <small>3 bouncing dots</small></div>
+              <div class="cl-variant-demo" style="min-height:80px;">
+                <div class="spinner v-dots"><i></i></div>
+              </div>
+              <label class="cl-pick" data-cid="loading:b"><input type="checkbox"> ติดตั้ง B</label>
+            </div>
+            <div class="cl-variant">
+              <div class="cl-variant-title">C · Pulse <small>pulsating circle ring</small></div>
+              <div class="cl-variant-demo" style="min-height:80px;">
+                <div class="spinner v-pulse"></div>
+              </div>
+              <label class="cl-pick" data-cid="loading:c"><input type="checkbox"> ติดตั้ง C</label>
+            </div>
+          </div>
+        </div>
+<pre class="cl-code">&lt;!-- A: spinner (default) --&gt;
+&lt;div class="spinner"&gt;&lt;/div&gt;
+
+&lt;!-- B: dots (3 bouncing) --&gt;
+&lt;div class="spinner v-dots"&gt;&lt;i&gt;&lt;/i&gt;&lt;/div&gt;
+
+&lt;!-- C: pulse --&gt;
+&lt;div class="spinner v-pulse"&gt;&lt;/div&gt;</pre>
+      </div>
+
+
+      <!-- =================================================================
+           DATA TABLE
+           ================================================================= -->
+      <div class="cl-section" id="data-table">
+        <div class="cl-section-head">
+          <h2>Data Table</h2>
+          <div class="desc"><code>.table-card</code> + <code>.data-table</code></div>
+          <span class="tag tag-existing">EXISTING</span>
+        </div>
+        <div class="cl-demo">
+          <div class="cl-variants is-rows">
+            <div class="cl-variant">
+              <div class="cl-variant-title">A · Default <small>sage header + hover row (current)</small></div>
+              <div class="cl-variant-demo is-stack">
+                <div class="table-card">
+                  <div class="table-hdr"><div class="table-title">รายการสมาชิก</div><div class="table-count">3 รายการ</div></div>
+                  <div class="table-wrap">
+                    <table class="data-table">
+                      <thead><tr><th>ชื่อ</th><th>Role</th><th>Status</th></tr></thead>
+                      <tbody>
+                        <tr><td>Admin ภพ</td><td>ADMIN</td><td><span class="status-badge status-active">Active</span></td></tr>
+                        <tr><td>BRE พี่นิด</td><td>BRE</td><td><span class="status-badge status-active">Active</span></td></tr>
+                        <tr><td>CS ตาน้ำ</td><td>CS</td><td><span class="status-badge status-inactive">Inactive</span></td></tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+              <label class="cl-pick" data-cid="data-table:a"><input type="checkbox"> ติดตั้ง A</label>
+            </div>
+            <div class="cl-variant">
+              <div class="cl-variant-title">B · Striped <small>zebra alternating rows</small></div>
+              <div class="cl-variant-demo is-stack">
+                <div class="table-card">
+                  <div class="table-hdr"><div class="table-title">รายการสมาชิก</div><div class="table-count">3 รายการ</div></div>
+                  <div class="table-wrap">
+                    <table class="data-table v-striped">
+                      <thead><tr><th>ชื่อ</th><th>Role</th><th>Status</th></tr></thead>
+                      <tbody>
+                        <tr><td>Admin ภพ</td><td>ADMIN</td><td><span class="status-badge status-active">Active</span></td></tr>
+                        <tr><td>BRE พี่นิด</td><td>BRE</td><td><span class="status-badge status-active">Active</span></td></tr>
+                        <tr><td>CS ตาน้ำ</td><td>CS</td><td><span class="status-badge status-inactive">Inactive</span></td></tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+              <label class="cl-pick" data-cid="data-table:b"><input type="checkbox"> ติดตั้ง B</label>
+            </div>
+            <div class="cl-variant">
+              <div class="cl-variant-title">C · Borderless <small>minimal · no row borders</small></div>
+              <div class="cl-variant-demo is-stack">
+                <div class="table-card">
+                  <div class="table-hdr"><div class="table-title">รายการสมาชิก</div><div class="table-count">3 รายการ</div></div>
+                  <div class="table-wrap">
+                    <table class="data-table v-borderless">
+                      <thead><tr><th>ชื่อ</th><th>Role</th><th>Status</th></tr></thead>
+                      <tbody>
+                        <tr><td>Admin ภพ</td><td>ADMIN</td><td><span class="status-badge status-active">Active</span></td></tr>
+                        <tr><td>BRE พี่นิด</td><td>BRE</td><td><span class="status-badge status-active">Active</span></td></tr>
+                        <tr><td>CS ตาน้ำ</td><td>CS</td><td><span class="status-badge status-inactive">Inactive</span></td></tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+              <label class="cl-pick" data-cid="data-table:c"><input type="checkbox"> ติดตั้ง C</label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+
+      <!-- =================================================================
+           ★ NEW: PAGINATION
+           ================================================================= -->
+      <div class="cl-section" id="pagination">
+        <div class="cl-section-head">
+          <h2>Pagination</h2>
+          <div class="desc">เปลี่ยนหน้าตาราง</div>
+          <span class="tag tag-new">NEW</span>
+        </div>
+        <div class="cl-block-desc">
+          <b>ใช้กับ:</b> ทุก list page ที่มีข้อมูลมากกว่า 50 row · วางท้ายตารางหรือใต้ <code>.table-card</code>
+          มี prev/next + ตัวเลขหน้า + info "1–50 จาก 234"
+          แทน <code>.ibd-paginate</code> ที่ทำเองในแต่ละ module
+          <span class="pages">ใช้ที่: members-list (มี paginate ของตัวเอง), ibd-* (มี ibd-paginate), events-list (ยังไม่มี — ควรเพิ่ม)</span>
+        </div>
+        <div class="cl-demo">
+          <div class="cl-variants">
+            <div class="cl-variant">
+              <div class="cl-variant-title">A · Neumorphic <small>raised pill + sage gradient active</small></div>
+              <div class="cl-variant-demo">
+                <nav class="pagination">
+                  <button class="pagination-btn" disabled>‹</button>
+                  <button class="pagination-btn active">1</button>
+                  <button class="pagination-btn">2</button>
+                  <button class="pagination-btn">3</button>
+                  <button class="pagination-btn">›</button>
+                </nav>
+              </div>
+              <label class="cl-pick" data-cid="pagination:a"><input type="checkbox"> ติดตั้ง A</label>
+            </div>
+            <div class="cl-variant">
+              <div class="cl-variant-title">B · Minimal <small>flat outline + pale active</small></div>
+              <div class="cl-variant-demo">
+                <nav class="pagination v-minimal">
+                  <button class="pagination-btn" disabled>‹</button>
+                  <button class="pagination-btn active">1</button>
+                  <button class="pagination-btn">2</button>
+                  <button class="pagination-btn">3</button>
+                  <button class="pagination-btn">›</button>
+                </nav>
+              </div>
+              <label class="cl-pick" data-cid="pagination:b"><input type="checkbox"> ติดตั้ง B</label>
+            </div>
+            <div class="cl-variant">
+              <div class="cl-variant-title">C · Compact <small>text + underline active</small></div>
+              <div class="cl-variant-demo">
+                <nav class="pagination v-compact">
+                  <button class="pagination-btn" disabled>‹</button>
+                  <button class="pagination-btn active">1</button>
+                  <button class="pagination-btn">2</button>
+                  <button class="pagination-btn">3</button>
+                  <button class="pagination-btn">›</button>
+                </nav>
+              </div>
+              <label class="cl-pick" data-cid="pagination:c"><input type="checkbox"> ติดตั้ง C</label>
+            </div>
+          </div>
+        </div>
+<pre class="cl-code">&lt;!-- A: default --&gt;
+&lt;nav class="pagination"&gt;...&lt;/nav&gt;
+
+&lt;!-- B: minimal --&gt;
+&lt;nav class="pagination v-minimal"&gt;...&lt;/nav&gt;
+
+&lt;!-- C: compact --&gt;
+&lt;nav class="pagination v-compact"&gt;...&lt;/nav&gt;</pre>
+      </div>
+
+
+      <!-- =================================================================
+           ★ NEW: DETAIL LIST
+           ================================================================= -->
+      <div class="cl-section" id="detail-list">
+        <div class="cl-section-head">
+          <h2>Detail List (key-value)</h2>
+          <div class="desc">2-col grid สำหรับ modal/side-panel detail</div>
+          <span class="tag tag-new">NEW</span>
+        </div>
+        <div class="cl-block-desc">
+          <b>ใช้กับ:</b> แสดงข้อมูลรายละเอียดเป็นคู่ key-value · เหมาะกับ modal detail view, side-panel, info card
+          ใช้ semantic <code>&lt;dl&gt;&lt;dt&gt;&lt;dd&gt;</code> · uppercase label + dark value · accessible และ SEO-friendly
+          แทน <code>.ibd-dl</code> ที่ใช้เฉพาะใน IBD module
+          <span class="pages">ใช้ที่: ibd-* detail modal, event-form info section, supplier detail panel</span>
+        </div>
+        <div class="cl-demo">
+          <div class="cl-variants">
+            <div class="cl-variant">
+              <div class="cl-variant-title">A · Dashed <small>card + dashed divider</small></div>
+              <div class="cl-variant-demo is-stack">
+                <dl class="detail-list">
+                  <dt>ID</dt><dd><code>EVT-001</code></dd>
+                  <dt>วันที่</dt><dd>03/05/2026</dd>
+                  <dt>สถานที่</dt><dd>ห้องประชุม A</dd>
+                  <dt>ผู้รับผิดชอบ</dt><dd><a href="#">Admin ภพ</a></dd>
+                </dl>
+              </div>
+              <label class="cl-pick" data-cid="detail-list:a"><input type="checkbox"> ติดตั้ง A</label>
+            </div>
+            <div class="cl-variant">
+              <div class="cl-variant-title">B · Striped <small>card + zebra rows</small></div>
+              <div class="cl-variant-demo is-stack">
+                <dl class="detail-list is-striped">
+                  <dt>ID</dt><dd><code>EVT-001</code></dd>
+                  <dt>วันที่</dt><dd>03/05/2026</dd>
+                  <dt>สถานที่</dt><dd>ห้องประชุม A</dd>
+                  <dt>ผู้รับผิดชอบ</dt><dd><a href="#">Admin ภพ</a></dd>
+                </dl>
+              </div>
+              <label class="cl-pick" data-cid="detail-list:b"><input type="checkbox"> ติดตั้ง B</label>
+            </div>
+            <div class="cl-variant">
+              <div class="cl-variant-title">C · Compact <small>flat, no card, tight</small></div>
+              <div class="cl-variant-demo is-stack">
+                <dl class="detail-list v-compact">
+                  <dt>ID</dt><dd><code>EVT-001</code></dd>
+                  <dt>วันที่</dt><dd>03/05/2026</dd>
+                  <dt>สถานที่</dt><dd>ห้องประชุม A</dd>
+                  <dt>ผู้รับผิดชอบ</dt><dd><a href="#">Admin ภพ</a></dd>
+                </dl>
+              </div>
+              <label class="cl-pick" data-cid="detail-list:c"><input type="checkbox"> ติดตั้ง C</label>
+            </div>
+          </div>
+        </div>
+<pre class="cl-code">&lt;!-- A: dashed (default) --&gt;
+&lt;dl class="detail-list"&gt;...&lt;/dl&gt;
+
+&lt;!-- B: striped --&gt;
+&lt;dl class="detail-list is-striped"&gt;...&lt;/dl&gt;
+
+&lt;!-- C: compact (flat, no card) --&gt;
+&lt;dl class="detail-list v-compact"&gt;...&lt;/dl&gt;</pre>
+      </div>
+
+
+      <!-- =================================================================
+           ★ NEW: BAR CHART
+           ================================================================= -->
+      <div class="cl-section" id="bar-chart">
+        <div class="cl-section-head">
+          <h2>Bar Chart (CSS-only)</h2>
+          <div class="desc">Horizontal bar chart โดยไม่ต้องโหลด chart library</div>
+          <span class="tag tag-new">NEW</span>
+        </div>
+        <div class="cl-block-desc">
+          <b>ใช้กับ:</b> Top-N rankings (top 10 events, top branches, top sponsors) · ไม่ต้องโหลด Chart.js
+          เร็ว lightweight · ใช้แค่ CSS + inline width % · เหมาะกับ section card บนหน้า dashboard
+          ✗ ถ้าข้อมูลซับซ้อน (multi-series, axis, tooltip) ใช้ Chart.js แทน
+          <span class="pages">ใช้ที่: ibd-dashboard (top topics + branches), events-dashboard (top 10 events ใช้ Chart.js — เปลี่ยนได้)</span>
+        </div>
+        <div class="cl-demo">
+          <div class="cl-variants">
+            <div class="cl-variant">
+              <div class="cl-variant-title">A · Sage Filled <small>uniform sage gradient</small></div>
+              <div class="cl-variant-demo is-stack">
+                <div class="bar-chart">
+                  <div class="bar-row"><div class="bar-label">Tech Summit</div><div class="bar-track"><div class="bar-fill" style="width:90%"></div></div><div class="bar-value">450</div></div>
+                  <div class="bar-row"><div class="bar-label">UNLOCK</div><div class="bar-track"><div class="bar-fill" style="width:75%"></div></div><div class="bar-value">380</div></div>
+                  <div class="bar-row"><div class="bar-label">A4S</div><div class="bar-track"><div class="bar-fill" style="width:55%"></div></div><div class="bar-value">280</div></div>
+                  <div class="bar-row"><div class="bar-label">Wellness</div><div class="bar-track"><div class="bar-fill" style="width:35%"></div></div><div class="bar-value">170</div></div>
+                </div>
+              </div>
+              <label class="cl-pick" data-cid="bar-chart:a"><input type="checkbox"> ติดตั้ง A</label>
+            </div>
+            <div class="cl-variant">
+              <div class="cl-variant-title">B · Outlined <small>stroke only, no fill</small></div>
+              <div class="cl-variant-demo is-stack">
+                <div class="bar-chart v-outline">
+                  <div class="bar-row"><div class="bar-label">Tech Summit</div><div class="bar-track"><div class="bar-fill" style="width:90%"></div></div><div class="bar-value">450</div></div>
+                  <div class="bar-row"><div class="bar-label">UNLOCK</div><div class="bar-track"><div class="bar-fill" style="width:75%"></div></div><div class="bar-value">380</div></div>
+                  <div class="bar-row"><div class="bar-label">A4S</div><div class="bar-track"><div class="bar-fill" style="width:55%"></div></div><div class="bar-value">280</div></div>
+                  <div class="bar-row"><div class="bar-label">Wellness</div><div class="bar-track"><div class="bar-fill" style="width:35%"></div></div><div class="bar-value">170</div></div>
+                </div>
+              </div>
+              <label class="cl-pick" data-cid="bar-chart:b"><input type="checkbox"> ติดตั้ง B</label>
+            </div>
+            <div class="cl-variant">
+              <div class="cl-variant-title">C · Multi-color <small>different tone per row</small></div>
+              <div class="cl-variant-demo is-stack">
+                <div class="bar-chart v-multi">
+                  <div class="bar-row"><div class="bar-label">Tech Summit</div><div class="bar-track"><div class="bar-fill" style="width:90%"></div></div><div class="bar-value">450</div></div>
+                  <div class="bar-row"><div class="bar-label">UNLOCK</div><div class="bar-track"><div class="bar-fill" style="width:75%"></div></div><div class="bar-value">380</div></div>
+                  <div class="bar-row"><div class="bar-label">A4S</div><div class="bar-track"><div class="bar-fill" style="width:55%"></div></div><div class="bar-value">280</div></div>
+                  <div class="bar-row"><div class="bar-label">Wellness</div><div class="bar-track"><div class="bar-fill" style="width:35%"></div></div><div class="bar-value">170</div></div>
+                </div>
+              </div>
+              <label class="cl-pick" data-cid="bar-chart:c"><input type="checkbox"> ติดตั้ง C</label>
+            </div>
+          </div>
+        </div>
+<pre class="cl-code">&lt;!-- A: sage filled (default) --&gt;
+&lt;div class="bar-chart"&gt;...&lt;/div&gt;
+
+&lt;!-- B: outlined --&gt;
+&lt;div class="bar-chart v-outline"&gt;...&lt;/div&gt;
+
+&lt;!-- C: multi-color --&gt;
+&lt;div class="bar-chart v-multi"&gt;...&lt;/div&gt;</pre>
+      </div>
+
+
+      <!-- =================================================================
+           ★ NEW: PROGRESS BAR
+           ================================================================= -->
+      <div class="cl-section" id="progress">
+        <div class="cl-section-head">
+          <h2>Progress Bar</h2>
+          <div class="desc">แสดงความก้าวหน้า 0-100%</div>
+          <span class="tag tag-new">NEW</span>
+        </div>
+        <div class="cl-block-desc">
+          <b>ใช้กับ:</b> สัดส่วน completion / capacity utilization · เช่น "ลงทะเบียน 45/100", "พื้นที่ใช้ 78%"
+          มี variant สีตามระดับ: ปกติ sage (default) · <code>.warn</code> amber (>80%) · <code>.danger</code> red (=100%/full)
+          ✓ คู่กับ label ด้านบน "ลงทะเบียน 45/100 (45%)" เพื่อชัดเจน
+          <span class="pages">ใช้ที่: events-dashboard upcoming card (event capacity), inventory stock level, daily-sale shift fill</span>
+        </div>
+        <div class="cl-demo">
+          <div class="cl-variants">
+            <div class="cl-variant">
+              <div class="cl-variant-title">A · Default <small>8px height</small></div>
+              <div class="cl-variant-demo is-stack">
+                <div><div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text3);margin-bottom:4px;"><span>ลงทะเบียน</span><span>45%</span></div><div class="progress"><div class="progress-fill" style="width:45%"></div></div></div>
+                <div><div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text3);margin-bottom:4px;"><span>เกือบเต็ม</span><span>85%</span></div><div class="progress"><div class="progress-fill warn" style="width:85%"></div></div></div>
+                <div><div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text3);margin-bottom:4px;"><span>เต็ม</span><span>100%</span></div><div class="progress"><div class="progress-fill danger" style="width:100%"></div></div></div>
+              </div>
+              <label class="cl-pick" data-cid="progress:a"><input type="checkbox"> ติดตั้ง A</label>
+            </div>
+            <div class="cl-variant">
+              <div class="cl-variant-title">B · Thin <small>4px minimal line</small></div>
+              <div class="cl-variant-demo is-stack">
+                <div><div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text3);margin-bottom:4px;"><span>ลงทะเบียน</span><span>45%</span></div><div class="progress v-thin"><div class="progress-fill" style="width:45%"></div></div></div>
+                <div><div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text3);margin-bottom:4px;"><span>เกือบเต็ม</span><span>85%</span></div><div class="progress v-thin"><div class="progress-fill warn" style="width:85%"></div></div></div>
+                <div><div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text3);margin-bottom:4px;"><span>เต็ม</span><span>100%</span></div><div class="progress v-thin"><div class="progress-fill danger" style="width:100%"></div></div></div>
+              </div>
+              <label class="cl-pick" data-cid="progress:b"><input type="checkbox"> ติดตั้ง B</label>
+            </div>
+            <div class="cl-variant">
+              <div class="cl-variant-title">C · Thick <small>18px with inline %</small></div>
+              <div class="cl-variant-demo is-stack">
+                <div style="font-size:11px;color:var(--text3);margin-bottom:4px;">ลงทะเบียน</div>
+                <div class="progress v-thick"><div class="progress-fill" style="width:45%">45%</div></div>
+                <div style="font-size:11px;color:var(--text3);margin-bottom:4px;margin-top:4px;">เกือบเต็ม</div>
+                <div class="progress v-thick"><div class="progress-fill warn" style="width:85%">85%</div></div>
+                <div style="font-size:11px;color:var(--text3);margin-bottom:4px;margin-top:4px;">เต็ม</div>
+                <div class="progress v-thick"><div class="progress-fill danger" style="width:100%">100%</div></div>
+              </div>
+              <label class="cl-pick" data-cid="progress:c"><input type="checkbox"> ติดตั้ง C</label>
+            </div>
+          </div>
+        </div>
+<pre class="cl-code">&lt;div class="progress"&gt;
+  &lt;div class="progress-fill" style="width:45%"&gt;&lt;/div&gt;
+&lt;/div&gt;
+&lt;!-- variants: .warn (>80%) · .danger (=100%) --&gt;</pre>
+      </div>
+
+
+      <!-- =================================================================
+           ★ NEW: TAG CHIP (removable)
+           ================================================================= -->
+      <div class="cl-section" id="tag-chip">
+        <div class="cl-section-head">
+          <h2>Tag Chip (removable)</h2>
+          <div class="desc">Chip ที่กดปิด ✕ ได้ · สำหรับ multi-select / selected filters</div>
+          <span class="tag tag-new">NEW</span>
+        </div>
+        <div class="cl-block-desc">
+          <b>ใช้กับ:</b> แสดง filter หลายตัวที่ active อยู่ · multi-select tags · selected items
+          ต่างจาก <code>filter-chip</code>: tag-chip มีปุ่ม ✕ ปิดได้ทีละตัว · ใช้สำหรับเลือกหลายค่าพร้อมกัน
+          ✓ ใช้คู่กับ search/dropdown ที่เพิ่ม tag เข้ามา · clear ทีละตัว
+          <span class="pages">ใช้ที่: events attendees tag system (มี tag-picker), members search filter, IBD multi-branch select</span>
+        </div>
+        <div class="cl-demo">
+          <div class="cl-variants">
+            <div class="cl-variant">
+              <div class="cl-variant-title">A · Pill <small>rounded · sage pale fill</small></div>
+              <div class="cl-variant-demo" style="flex-wrap:wrap;gap:6px;">
+                <span class="tag-chip">📍 Bangkok <button class="tag-chip-close">✕</button></span>
+                <span class="tag-chip">🏷️ VIP <button class="tag-chip-close">✕</button></span>
+                <span class="tag-chip">📅 พ.ค. <button class="tag-chip-close">✕</button></span>
+              </div>
+              <label class="cl-pick" data-cid="tag-chip:a"><input type="checkbox"> ติดตั้ง A</label>
+            </div>
+            <div class="cl-variant">
+              <div class="cl-variant-title">B · Square <small>sharp corners</small></div>
+              <div class="cl-variant-demo" style="flex-wrap:wrap;gap:6px;">
+                <span class="tag-chip v-square">📍 Bangkok <button class="tag-chip-close">✕</button></span>
+                <span class="tag-chip v-square">🏷️ VIP <button class="tag-chip-close">✕</button></span>
+                <span class="tag-chip v-square">📅 พ.ค. <button class="tag-chip-close">✕</button></span>
+              </div>
+              <label class="cl-pick" data-cid="tag-chip:b"><input type="checkbox"> ติดตั้ง B</label>
+            </div>
+            <div class="cl-variant">
+              <div class="cl-variant-title">C · Outlined <small>transparent · sage border</small></div>
+              <div class="cl-variant-demo" style="flex-wrap:wrap;gap:6px;">
+                <span class="tag-chip v-outlined">📍 Bangkok <button class="tag-chip-close">✕</button></span>
+                <span class="tag-chip v-outlined">🏷️ VIP <button class="tag-chip-close">✕</button></span>
+                <span class="tag-chip v-outlined">📅 พ.ค. <button class="tag-chip-close">✕</button></span>
+              </div>
+              <label class="cl-pick" data-cid="tag-chip:c"><input type="checkbox"> ติดตั้ง C</label>
+            </div>
+          </div>
+        </div>
+<pre class="cl-code">&lt;!-- A: pill (default) --&gt;
+&lt;span class="tag-chip"&gt;...&lt;/span&gt;
+
+&lt;!-- B: square --&gt;
+&lt;span class="tag-chip v-square"&gt;...&lt;/span&gt;
+
+&lt;!-- C: outlined --&gt;
+&lt;span class="tag-chip v-outlined"&gt;...&lt;/span&gt;</pre>
+      </div>
+
+
+      <!-- =================================================================
+           ★ NEW: DROPDOWN MENU
+           ================================================================= -->
+      <div class="cl-section" id="dropdown-menu">
+        <div class="cl-section-head">
+          <h2>Dropdown Menu</h2>
+          <div class="desc">Popover menu · kebab actions · context menu</div>
+          <span class="tag tag-new">NEW</span>
+        </div>
+        <div class="cl-block-desc">
+          <b>ใช้กับ:</b> menu actions ที่ไม่ควรเด่น (secondary actions) · kebab ⋮ ในตาราง row · "More" dropdown
+          มี <code>.dropdown-divider</code> คั่นระหว่างกลุ่ม · <code>.dropdown-item.danger</code> สำหรับ destructive action
+          ❗ ต้องการ JavaScript ปิด/เปิด — เพิ่ม class <code>.open</code> บน <code>.dropdown</code>
+          <span class="pages">ใช้ที่: events-list table action ⋮ (มี act-kebab-menu), บางหน้า settings ที่มี secondary actions เยอะ</span>
+        </div>
+        <div class="cl-demo">
+          <div class="cl-variants">
+            <div class="cl-variant">
+              <div class="cl-variant-title">A · Default <small>white + drop shadow</small></div>
+              <div class="cl-variant-demo" style="min-height:220px;align-items:flex-start;padding-top:10px;">
+                <div class="dropdown" style="position:relative;">
+                  <button class="dropdown-toggle">Actions ▾</button>
+                  <div class="dropdown-menu" style="position:static;display:block;margin-top:4px;min-width:170px;">
+                    <button class="dropdown-item">✏️ แก้ไข</button>
+                    <button class="dropdown-item">📋 คัดลอก</button>
+                    <div class="dropdown-divider"></div>
+                    <button class="dropdown-item danger">🗑️ ลบ</button>
+                  </div>
+                </div>
+              </div>
+              <label class="cl-pick" data-cid="dropdown-menu:a"><input type="checkbox"> ติดตั้ง A</label>
+            </div>
+            <div class="cl-variant">
+              <div class="cl-variant-title">B · Bordered <small>no shadow + sage border</small></div>
+              <div class="cl-variant-demo" style="min-height:220px;align-items:flex-start;padding-top:10px;">
+                <div class="dropdown" style="position:relative;">
+                  <button class="dropdown-toggle">Actions ▾</button>
+                  <div class="dropdown-menu v-bordered" style="position:static;display:block;margin-top:4px;min-width:170px;">
+                    <button class="dropdown-item">✏️ แก้ไข</button>
+                    <button class="dropdown-item">📋 คัดลอก</button>
+                    <div class="dropdown-divider"></div>
+                    <button class="dropdown-item danger">🗑️ ลบ</button>
+                  </div>
+                </div>
+              </div>
+              <label class="cl-pick" data-cid="dropdown-menu:b"><input type="checkbox"> ติดตั้ง B</label>
+            </div>
+            <div class="cl-variant">
+              <div class="cl-variant-title">C · Soft <small>warm bg + neumorphic</small></div>
+              <div class="cl-variant-demo" style="min-height:220px;align-items:flex-start;padding-top:10px;">
+                <div class="dropdown" style="position:relative;">
+                  <button class="dropdown-toggle">Actions ▾</button>
+                  <div class="dropdown-menu v-soft" style="position:static;display:block;margin-top:4px;min-width:170px;">
+                    <button class="dropdown-item">✏️ แก้ไข</button>
+                    <button class="dropdown-item">📋 คัดลอก</button>
+                    <div class="dropdown-divider"></div>
+                    <button class="dropdown-item danger">🗑️ ลบ</button>
+                  </div>
+                </div>
+              </div>
+              <label class="cl-pick" data-cid="dropdown-menu:c"><input type="checkbox"> ติดตั้ง C</label>
+            </div>
+          </div>
+        </div>
+<pre class="cl-code">&lt;!-- A: default --&gt;
+&lt;div class="dropdown-menu"&gt;...&lt;/div&gt;
+
+&lt;!-- B: bordered --&gt;
+&lt;div class="dropdown-menu v-bordered"&gt;...&lt;/div&gt;
+
+&lt;!-- C: soft --&gt;
+&lt;div class="dropdown-menu v-soft"&gt;...&lt;/div&gt;</pre>
+      </div>
+
+
+      <!-- =================================================================
+           ★ NEW: SKELETON
+           ================================================================= -->
+      <div class="cl-section" id="skeleton">
+        <div class="cl-section-head">
+          <h2>Skeleton</h2>
+          <div class="desc">Placeholder ระหว่าง load · animation shimmer</div>
+          <span class="tag tag-new">NEW</span>
+        </div>
+        <div class="cl-block-desc">
+          <b>ใช้กับ:</b> แสดงตอน loading data · ดีกว่า "กำลังโหลด..." spinner เพราะแสดงโครงข้อมูลที่กำลังจะมา (perceived performance ดีกว่า)
+          variants: <code>.title</code> (22px h) · <code>.line</code> (14px) · <code>.line.short</code> (70% width) · <code>.avatar</code> (circle 42x42)
+          แสดง 2-5 บรรทัดต่อ skeleton group · ใช้ <code>display:none</code> ทับเมื่อข้อมูลโหลดเสร็จ
+          <span class="pages">ใช้ที่: events-dashboard มี ed-skeleton, ทุก list page ที่โหลด table — แทนข้อความ "กำลังโหลด..." ปัจจุบัน</span>
+        </div>
+        <div class="cl-demo">
+          <div class="cl-variants">
+            <div class="cl-variant">
+              <div class="cl-variant-title">A · Shimmer <small>gradient sweep</small></div>
+              <div class="cl-variant-demo is-stack">
+                <div style="display:flex;gap:10px;align-items:center;">
+                  <div class="skeleton avatar"></div>
+                  <div style="flex:1;">
+                    <div class="skeleton title"></div>
+                    <div class="skeleton line"></div>
+                    <div class="skeleton line short"></div>
+                  </div>
+                </div>
+              </div>
+              <label class="cl-pick" data-cid="skeleton:a"><input type="checkbox"> ติดตั้ง A</label>
+            </div>
+            <div class="cl-variant">
+              <div class="cl-variant-title">B · Pulse <small>opacity breathing</small></div>
+              <div class="cl-variant-demo is-stack">
+                <div style="display:flex;gap:10px;align-items:center;">
+                  <div class="skeleton v-pulse avatar"></div>
+                  <div style="flex:1;">
+                    <div class="skeleton v-pulse title"></div>
+                    <div class="skeleton v-pulse line"></div>
+                    <div class="skeleton v-pulse line short"></div>
+                  </div>
+                </div>
+              </div>
+              <label class="cl-pick" data-cid="skeleton:b"><input type="checkbox"> ติดตั้ง B</label>
+            </div>
+            <div class="cl-variant">
+              <div class="cl-variant-title">C · Wave <small>translucent sweep</small></div>
+              <div class="cl-variant-demo is-stack">
+                <div style="display:flex;gap:10px;align-items:center;">
+                  <div class="skeleton v-wave avatar"></div>
+                  <div style="flex:1;">
+                    <div class="skeleton v-wave title"></div>
+                    <div class="skeleton v-wave line"></div>
+                    <div class="skeleton v-wave line short"></div>
+                  </div>
+                </div>
+              </div>
+              <label class="cl-pick" data-cid="skeleton:c"><input type="checkbox"> ติดตั้ง C</label>
+            </div>
+          </div>
+        </div>
+<pre class="cl-code">&lt;!-- A: shimmer (default) --&gt;
+&lt;div class="skeleton title"&gt;&lt;/div&gt;
+
+&lt;!-- B: pulse --&gt;
+&lt;div class="skeleton v-pulse title"&gt;&lt;/div&gt;
+
+&lt;!-- C: wave --&gt;
+&lt;div class="skeleton v-wave title"&gt;&lt;/div&gt;</pre>
+      </div>
+
+
+      <!-- =================================================================
+           ★ NEW: BANNER / ALERT
+           ================================================================= -->
+      <div class="cl-section" id="banner">
+        <div class="cl-section-head">
+          <h2>Banner / Alert</h2>
+          <div class="desc">In-page notification (ไม่ใช่ toast) · 4 tones</div>
+          <span class="tag tag-new">NEW</span>
+        </div>
+        <div class="cl-block-desc">
+          <b>ใช้กับ:</b> ข้อความ in-page ที่ user ต้องเห็นต่อเนื่อง · ไม่หายเอง (ต่างกับ toast ที่หายใน 3 วิ)
+          ตัวอย่าง: "มี 3 คำขอรออนุมัติ", "บันทึกสำเร็จ", "ตรวจสอบข้อมูล", "เชื่อมต่อ Supabase ไม่สำเร็จ"
+          variants: <code>.info</code> (blue · ข้อมูล) · <code>.success</code> (green · สำเร็จ) · <code>.warning</code> (amber · เตือน) · <code>.danger</code> (red · ผิดพลาด)
+          ✓ มี <code>.banner-actions</code> เพิ่มปุ่ม "ดู / Dismiss" ได้
+          <span class="pages">ใช้ที่: settings ที่ต้องเตือนการตั้งค่าผิด, dashboard ที่มี notification รอจัดการ, form ที่ validation ไม่ผ่าน</span>
+        </div>
+        <div class="cl-demo">
+          <div class="cl-variants">
+            <div class="cl-variant">
+              <div class="cl-variant-title">A · Soft <small>pale bg + left border</small></div>
+              <div class="cl-variant-demo is-stack">
+                <div class="banner info"><div class="banner-icon">ℹ️</div><div class="banner-body">มีคำขอใหม่ 3 รายการ</div></div>
+                <div class="banner success"><div class="banner-icon">✅</div><div class="banner-body">บันทึกสำเร็จ</div></div>
+                <div class="banner warning"><div class="banner-icon">⚠️</div><div class="banner-body">ตรวจสอบข้อมูล</div></div>
+                <div class="banner danger"><div class="banner-icon">❌</div><div class="banner-body">เชื่อมต่อไม่สำเร็จ</div></div>
+              </div>
+              <label class="cl-pick" data-cid="banner:a"><input type="checkbox"> ติดตั้ง A</label>
+            </div>
+            <div class="cl-variant">
+              <div class="cl-variant-title">B · Filled <small>solid colored + white text</small></div>
+              <div class="cl-variant-demo is-stack">
+                <div class="banner v-filled info"><div class="banner-icon">ℹ️</div><div class="banner-body">มีคำขอใหม่ 3 รายการ</div></div>
+                <div class="banner v-filled success"><div class="banner-icon">✅</div><div class="banner-body">บันทึกสำเร็จ</div></div>
+                <div class="banner v-filled warning"><div class="banner-icon">⚠️</div><div class="banner-body">ตรวจสอบข้อมูล</div></div>
+                <div class="banner v-filled danger"><div class="banner-icon">❌</div><div class="banner-body">เชื่อมต่อไม่สำเร็จ</div></div>
+              </div>
+              <label class="cl-pick" data-cid="banner:b"><input type="checkbox"> ติดตั้ง B</label>
+            </div>
+            <div class="cl-variant">
+              <div class="cl-variant-title">C · Outlined <small>white bg + colored border</small></div>
+              <div class="cl-variant-demo is-stack">
+                <div class="banner v-outlined info"><div class="banner-icon">ℹ️</div><div class="banner-body">มีคำขอใหม่ 3 รายการ</div></div>
+                <div class="banner v-outlined success"><div class="banner-icon">✅</div><div class="banner-body">บันทึกสำเร็จ</div></div>
+                <div class="banner v-outlined warning"><div class="banner-icon">⚠️</div><div class="banner-body">ตรวจสอบข้อมูล</div></div>
+                <div class="banner v-outlined danger"><div class="banner-icon">❌</div><div class="banner-body">เชื่อมต่อไม่สำเร็จ</div></div>
+              </div>
+              <label class="cl-pick" data-cid="banner:c"><input type="checkbox"> ติดตั้ง C</label>
+            </div>
+          </div>
+        </div>
+<pre class="cl-code">&lt;!-- A: soft (default) --&gt;
+&lt;div class="banner info"&gt;...&lt;/div&gt;
+
+&lt;!-- B: filled --&gt;
+&lt;div class="banner v-filled info"&gt;...&lt;/div&gt;
+
+&lt;!-- C: outlined --&gt;
+&lt;div class="banner v-outlined info"&gt;...&lt;/div&gt;
+
+&lt;!-- tones: .info / .success / .warning / .danger --&gt;</pre>
+      </div>
+
+
+      <!-- =================================================================
+           ★ NEW: BREADCRUMB
+           ================================================================= -->
+      <div class="cl-section" id="breadcrumb">
+        <div class="cl-section-head">
+          <h2>Breadcrumb</h2>
+          <div class="desc">Path navigation</div>
+          <span class="tag tag-new">NEW</span>
+        </div>
+        <div class="cl-block-desc">
+          <b>ใช้กับ:</b> หน้าที่ลึกหลายชั้น (3+ levels) · ช่วยให้ user รู้ว่าอยู่ตรงไหน + กลับไป level บนได้ง่าย
+          ✗ ไม่จำเป็นในหน้าที่ flat (1-2 level) — sidebar เพียงพอ
+          <span class="pages">ใช้ที่: manual chapters (Manual › บทที่ 3 › หัวข้อ 5), settings nested (Settings › Notification Rules › Edit Rule)</span>
+        </div>
+        <div class="cl-demo">
+          <div class="cl-variants">
+            <div class="cl-variant">
+              <div class="cl-variant-title">A · Chevron <small>› separator</small></div>
+              <div class="cl-variant-demo is-stack">
+                <nav class="breadcrumb">
+                  <a href="#">หน้าหลัก</a>
+                  <span class="breadcrumb-sep">›</span>
+                  <a href="#">คู่มือ</a>
+                  <span class="breadcrumb-sep">›</span>
+                  <span class="breadcrumb-current">เข้าสู่ระบบ</span>
+                </nav>
+              </div>
+              <label class="cl-pick" data-cid="breadcrumb:a"><input type="checkbox"> ติดตั้ง A</label>
+            </div>
+            <div class="cl-variant">
+              <div class="cl-variant-title">C · Pills <small>chip-style segments</small></div>
+              <div class="cl-variant-demo is-stack">
+                <nav class="breadcrumb v-pills">
+                  <a href="#">หน้าหลัก</a>
+                  <a href="#">คู่มือ</a>
+                  <span class="breadcrumb-current">เข้าสู่ระบบ</span>
+                </nav>
+              </div>
+              <label class="cl-pick" data-cid="breadcrumb:b"><input type="checkbox"> ติดตั้ง B</label>
+            </div>
+            <div class="cl-variant">
+              <div class="cl-variant-title">C · Slash <small>/ separator (web-style)</small></div>
+              <div class="cl-variant-demo is-stack">
+                <nav class="breadcrumb v-slash">
+                  <a href="#">หน้าหลัก</a>
+                  <span class="breadcrumb-sep"></span>
+                  <a href="#">คู่มือ</a>
+                  <span class="breadcrumb-sep"></span>
+                  <span class="breadcrumb-current">เข้าสู่ระบบ</span>
+                </nav>
+              </div>
+              <label class="cl-pick" data-cid="breadcrumb:c"><input type="checkbox"> ติดตั้ง C</label>
+            </div>
+          </div>
+        </div>
+<pre class="cl-code">&lt;!-- A: chevron (default) --&gt;
+&lt;nav class="breadcrumb"&gt;
+  &lt;a href="#"&gt;...&lt;/a&gt; &lt;span class="breadcrumb-sep"&gt;›&lt;/span&gt; ...
+&lt;/nav&gt;
+
+&lt;!-- B: pills (no separator) --&gt;
+&lt;nav class="breadcrumb v-pills"&gt;
+  &lt;a&gt;...&lt;/a&gt; &lt;a&gt;...&lt;/a&gt; &lt;span class="breadcrumb-current"&gt;...&lt;/span&gt;
+&lt;/nav&gt;
+
+&lt;!-- C: slash --&gt;
+&lt;nav class="breadcrumb v-slash"&gt;...&lt;/nav&gt;</pre>
+      </div>
+
+
+      <!-- =================================================================
+           ★ NEW: TOOLTIP
+           ================================================================= -->
+      <div class="cl-section" id="tooltip">
+        <div class="cl-section-head">
+          <h2>Tooltip</h2>
+          <div class="desc">Hover hint text</div>
+          <span class="tag tag-new">NEW</span>
+        </div>
+        <div class="cl-block-desc">
+          <b>ใช้กับ:</b> ข้อความสั้นที่อธิบายปุ่ม icon-only หรือ field abbreviation · แสดงเมื่อ hover
+          ปัจจุบันใช้ <code>title=""</code> attribute ทั่วไป (browser default) · tooltip สวยกว่า + ควบคุม style ได้
+          ✓ short text (1-2 คำ) · ✗ ข้อความยาวใช้ popover แทน
+          <span class="pages">ใช้ที่: ทุกตัวที่มี <code>title=""</code> เช่น attendees action group buttons, kebab menu icons, status badges</span>
+        </div>
+        <div class="cl-demo">
+          <div class="cl-variants">
+            <div class="cl-variant">
+              <div class="cl-variant-title">A · Dark <small>navy bg + white text</small></div>
+              <div class="cl-variant-demo" style="padding:40px 10px 14px;">
+                <span class="tooltip-wrap">
+                  <button class="btn btn-outline">Hover</button>
+                  <span class="tooltip" style="opacity:1;">ดูรายละเอียด</span>
+                </span>
+              </div>
+              <label class="cl-pick" data-cid="tooltip:a"><input type="checkbox"> ติดตั้ง A</label>
+            </div>
+            <div class="cl-variant">
+              <div class="cl-variant-title">B · Light <small>white + border</small></div>
+              <div class="cl-variant-demo" style="padding:40px 10px 14px;">
+                <span class="tooltip-wrap">
+                  <button class="btn btn-outline">Hover</button>
+                  <span class="tooltip v-light" style="opacity:1;">ดูรายละเอียด</span>
+                </span>
+              </div>
+              <label class="cl-pick" data-cid="tooltip:b"><input type="checkbox"> ติดตั้ง B</label>
+            </div>
+            <div class="cl-variant">
+              <div class="cl-variant-title">C · Sage <small>accent bg</small></div>
+              <div class="cl-variant-demo" style="padding:40px 10px 14px;">
+                <span class="tooltip-wrap">
+                  <button class="btn btn-outline">Hover</button>
+                  <span class="tooltip v-sage" style="opacity:1;">ดูรายละเอียด</span>
+                </span>
+              </div>
+              <label class="cl-pick" data-cid="tooltip:c"><input type="checkbox"> ติดตั้ง C</label>
+            </div>
+          </div>
+        </div>
+<pre class="cl-code">&lt;!-- A: dark (default) --&gt;
+&lt;span class="tooltip-wrap"&gt;
+  &lt;button&gt;Hover&lt;/button&gt;
+  &lt;span class="tooltip"&gt;...&lt;/span&gt;
+&lt;/span&gt;
+
+&lt;!-- B: light --&gt;
+&lt;span class="tooltip v-light"&gt;...&lt;/span&gt;
+
+&lt;!-- C: sage --&gt;
+&lt;span class="tooltip v-sage"&gt;...&lt;/span&gt;</pre>
+      </div>
+
+
+      <!-- =================================================================
+           ★ NEW: STEPPER
+           ================================================================= -->
+      <div class="cl-section" id="stepper">
+        <div class="cl-section-head">
+          <h2>Stepper</h2>
+          <div class="desc">Multi-step wizard navigation</div>
+          <span class="tag tag-new">NEW</span>
+        </div>
+        <div class="cl-block-desc">
+          <b>ใช้กับ:</b> form ที่แบ่งเป็นหลายขั้นตอน (3+ steps) · ช่วยให้ user รู้ว่าอยู่ขั้นไหน + เหลือกี่ขั้น
+          state: <code>.done</code> (✓ เสร็จแล้ว) · <code>.active</code> (กำลังทำ) · default (ยังไม่ถึง)
+          ✗ ไม่ใช้กับ form ขั้นตอนเดียว · ✗ ไม่ใช้กับ wizard ที่มี &lt;3 steps (ใช้ tabs แทน)
+          <span class="pages">ใช้ที่: dev-tool/wizard.html (มี wz-step ของตัวเอง), event-form ถ้าจะแบ่งเป็น "ข้อมูล → กำหนดการ → ยืนยัน"</span>
+        </div>
+        <div class="cl-demo">
+          <div class="cl-variants">
+            <div class="cl-variant">
+              <div class="cl-variant-title">A · Circles <small>circle + connector line</small></div>
+              <div class="cl-variant-demo is-stack">
+                <div class="stepper">
+                  <div class="step done"><div class="step-circle">✓</div><div class="step-label">ข้อมูล</div></div>
+                  <div class="step-connector"></div>
+                  <div class="step active"><div class="step-circle">2</div><div class="step-label">รายละเอียด</div></div>
+                  <div class="step-connector"></div>
+                  <div class="step"><div class="step-circle">3</div><div class="step-label">ยืนยัน</div></div>
+                </div>
+              </div>
+              <label class="cl-pick" data-cid="stepper:a"><input type="checkbox"> ติดตั้ง A</label>
+            </div>
+            <div class="cl-variant">
+              <div class="cl-variant-title">B · Pills <small>numbered pill chips</small></div>
+              <div class="cl-variant-demo is-stack">
+                <div class="stepper v-pills">
+                  <div class="step done">ข้อมูล</div>
+                  <div class="step active">รายละเอียด</div>
+                  <div class="step">ยืนยัน</div>
+                </div>
+              </div>
+              <label class="cl-pick" data-cid="stepper:b"><input type="checkbox"> ติดตั้ง B</label>
+            </div>
+            <div class="cl-variant">
+              <div class="cl-variant-title">C · Lines <small>underline progress bar</small></div>
+              <div class="cl-variant-demo is-stack">
+                <div class="stepper v-lines">
+                  <div class="step done"><div class="step-num">STEP 1</div><div class="step-label">ข้อมูล</div></div>
+                  <div class="step active"><div class="step-num">STEP 2</div><div class="step-label">รายละเอียด</div></div>
+                  <div class="step"><div class="step-num">STEP 3</div><div class="step-label">ยืนยัน</div></div>
+                </div>
+              </div>
+              <label class="cl-pick" data-cid="stepper:c"><input type="checkbox"> ติดตั้ง C</label>
+            </div>
+          </div>
+        </div>
+<pre class="cl-code">&lt;!-- A: circles (default) --&gt;
+&lt;div class="stepper"&gt;
+  &lt;div class="step done"&gt;&lt;div class="step-circle"&gt;✓&lt;/div&gt;&lt;div class="step-label"&gt;...&lt;/div&gt;&lt;/div&gt;
+  &lt;div class="step-connector"&gt;&lt;/div&gt;
+  ...
+&lt;/div&gt;
+
+&lt;!-- B: pills --&gt;
+&lt;div class="stepper v-pills"&gt;
+  &lt;div class="step done"&gt;ข้อมูล&lt;/div&gt;
+  ...
+&lt;/div&gt;
+
+&lt;!-- C: lines --&gt;
+&lt;div class="stepper v-lines"&gt;
+  &lt;div class="step done"&gt;&lt;div class="step-num"&gt;STEP 1&lt;/div&gt;&lt;div class="step-label"&gt;...&lt;/div&gt;&lt;/div&gt;
+  ...
+&lt;/div&gt;
+
+&lt;!-- state: .done / .active / (default) --&gt;</pre>
+      </div>
+
+
+      <!-- =================================================================
+           SWITCH (existing — short ref)
+           ================================================================= -->
+      <div class="cl-section" id="switch">
+        <div class="cl-section-head">
+          <h2>Switch / Toggle</h2>
+          <span class="tag tag-existing">EXISTING</span>
+        </div>
+        <div class="cl-demo">
+          <div class="cl-variants">
+            <div class="cl-variant">
+              <div class="cl-variant-title">A · Default <small>rounded · 42×22 (current)</small></div>
+              <div class="cl-variant-demo" style="gap:14px;">
+                <label class="cl-switch"><input type="checkbox" /><span class="cl-switch-slider"></span></label>
+                <label class="cl-switch"><input type="checkbox" checked /><span class="cl-switch-slider"></span></label>
+              </div>
+              <label class="cl-pick" data-cid="switch:a"><input type="checkbox"> ติดตั้ง A</label>
+            </div>
+            <div class="cl-variant">
+              <div class="cl-variant-title">B · Pill <small>longer 56×26 (more space)</small></div>
+              <div class="cl-variant-demo" style="gap:14px;">
+                <label class="cl-switch v-pill"><input type="checkbox" /><span class="cl-switch-slider"></span></label>
+                <label class="cl-switch v-pill"><input type="checkbox" checked /><span class="cl-switch-slider"></span></label>
+              </div>
+              <label class="cl-pick" data-cid="switch:b"><input type="checkbox"> ติดตั้ง B</label>
+            </div>
+            <div class="cl-variant">
+              <div class="cl-variant-title">C · Square <small>4px corners</small></div>
+              <div class="cl-variant-demo" style="gap:14px;">
+                <label class="cl-switch v-square"><input type="checkbox" /><span class="cl-switch-slider"></span></label>
+                <label class="cl-switch v-square"><input type="checkbox" checked /><span class="cl-switch-slider"></span></label>
+              </div>
+              <label class="cl-pick" data-cid="switch:c"><input type="checkbox"> ติดตั้ง C</label>
+            </div>
+          </div>
+        </div>
+<pre class="cl-code">&lt;label class="switch"&gt;
+  &lt;input type="checkbox" /&gt;
+  &lt;span class="slider"&gt;&lt;/span&gt;
+&lt;/label&gt;</pre>
+      </div>
+
+
+      <!-- =================================================================
+           Modal / Side panel — short reference (full demo อยู่ใน real pages)
+           ================================================================= -->
+      <div class="cl-section" id="modal">
+        <div class="cl-section-head">
+          <h2>Modal</h2>
+          <div class="desc"><code>.modal-overlay</code> + <code>.modal</code> + <code>.modal-hdr/.modal-body/.modal-footer</code></div>
+          <span class="tag tag-existing">EXISTING</span>
+        </div>
+        <div class="cl-block-desc">
+          <b>ใช้กับ:</b> form กรอกข้อมูล (สร้าง/แก้ไข) · confirm dialog · detail viewer
+          ใช้ class <code>.modal-overlay.open</code> เพื่อแสดง · ปิดด้วย <code>modalManager.js</code> (ESC + click outside)
+          ✗ <b>ห้าม</b> nested modals (เปิด modal ใน modal) · ✗ <b>ห้าม</b> ใช้ native confirm/alert/prompt → ใช้ <code>ConfirmModal/PromptModal</code> shared component แทน
+          <span class="pages">ใช้ที่: ทุกหน้าที่มี form หรือ confirm dialog</span>
+        </div>
+        <div class="cl-demo">
+          <div class="cl-variants is-rows">
+            <div class="cl-variant">
+              <div class="cl-variant-title">A · Default <small>medium width (current)</small></div>
+              <div class="cl-variant-demo is-stack" style="background:rgba(15,23,42,.06);border-radius:10px;padding:16px;">
+                <div class="modal" style="position:static;transform:none;">
+                  <div class="modal-hdr"><div class="modal-title">ยืนยันการลบ</div><button class="btn-modal-close">✕</button></div>
+                  <div class="modal-body">ต้องการลบรายการนี้หรือไม่?</div>
+                  <div class="modal-footer"><button class="btn btn-outline">ยกเลิก</button><button class="btn btn-danger">ลบ</button></div>
+                </div>
+              </div>
+              <label class="cl-pick" data-cid="modal:a"><input type="checkbox"> ติดตั้ง A</label>
+            </div>
+            <div class="cl-variant">
+              <div class="cl-variant-title">B · Small <small>380px max — confirmation/alert</small></div>
+              <div class="cl-variant-demo is-stack" style="background:rgba(15,23,42,.06);border-radius:10px;padding:16px;">
+                <div class="modal v-small" style="position:static;transform:none;">
+                  <div class="modal-hdr"><div class="modal-title">ลบ?</div><button class="btn-modal-close">✕</button></div>
+                  <div class="modal-body">รายการนี้จะถูกลบถาวร</div>
+                  <div class="modal-footer"><button class="btn btn-outline">ยกเลิก</button><button class="btn btn-danger">ลบ</button></div>
+                </div>
+              </div>
+              <label class="cl-pick" data-cid="modal:b"><input type="checkbox"> ติดตั้ง B</label>
+            </div>
+            <div class="cl-variant">
+              <div class="cl-variant-title">C · Large <small>760px max — long forms</small></div>
+              <div class="cl-variant-demo is-stack" style="background:rgba(15,23,42,.06);border-radius:10px;padding:16px;">
+                <div class="modal v-large" style="position:static;transform:none;">
+                  <div class="modal-hdr"><div class="modal-title">แก้ไขข้อมูลกิจกรรม</div><button class="btn-modal-close">✕</button></div>
+                  <div class="modal-body">
+                    <div class="form-group"><label class="form-label">ชื่อ</label><input class="form-control" value="UNLOCK THE WORLD" /></div>
+                    <div class="form-group"><label class="form-label">รายละเอียด</label><textarea class="form-control" rows="2">คำอธิบาย...</textarea></div>
+                  </div>
+                  <div class="modal-footer"><button class="btn btn-outline">ยกเลิก</button><button class="btn btn-primary">บันทึก</button></div>
+                </div>
+              </div>
+              <label class="cl-pick" data-cid="modal:c"><input type="checkbox"> ติดตั้ง C</label>
+            </div>
+            <div class="cl-variant">
+              <div class="cl-variant-title">D · Sage Header <small>gradient sage bar — branded</small></div>
+              <div class="cl-variant-demo is-stack" style="background:rgba(15,23,42,.06);border-radius:10px;padding:16px;">
+                <div class="modal v-sage-header" style="position:static;transform:none;">
+                  <div class="modal-hdr"><div class="modal-title">ยืนยันการลบ</div><button class="btn-modal-close">✕</button></div>
+                  <div class="modal-body">ต้องการลบรายการนี้หรือไม่?</div>
+                  <div class="modal-footer"><button class="btn btn-outline">ยกเลิก</button><button class="btn btn-danger">ลบ</button></div>
+                </div>
+              </div>
+              <label class="cl-pick" data-cid="modal:d"><input type="checkbox"> ติดตั้ง D</label>
+            </div>
+            <div class="cl-variant">
+              <div class="cl-variant-title">E · Borderless <small>no separator lines — clean minimal</small></div>
+              <div class="cl-variant-demo is-stack" style="background:rgba(15,23,42,.06);border-radius:10px;padding:16px;">
+                <div class="modal v-borderless" style="position:static;transform:none;">
+                  <div class="modal-hdr"><div class="modal-title">ยืนยันการลบ</div><button class="btn-modal-close">✕</button></div>
+                  <div class="modal-body">ต้องการลบรายการนี้หรือไม่?</div>
+                  <div class="modal-footer"><button class="btn btn-outline">ยกเลิก</button><button class="btn btn-danger">ลบ</button></div>
+                </div>
+              </div>
+              <label class="cl-pick" data-cid="modal:e"><input type="checkbox"> ติดตั้ง E</label>
+            </div>
+            <div class="cl-variant">
+              <div class="cl-variant-title">F · Compact <small>dense — smaller padding/fonts</small></div>
+              <div class="cl-variant-demo is-stack" style="background:rgba(15,23,42,.06);border-radius:10px;padding:16px;">
+                <div class="modal v-compact" style="position:static;transform:none;">
+                  <div class="modal-hdr"><div class="modal-title">ยืนยันการลบ</div><button class="btn-modal-close">✕</button></div>
+                  <div class="modal-body">ต้องการลบรายการนี้หรือไม่?</div>
+                  <div class="modal-footer"><button class="btn btn-outline">ยกเลิก</button><button class="btn btn-danger">ลบ</button></div>
+                </div>
+              </div>
+              <label class="cl-pick" data-cid="modal:f"><input type="checkbox"> ติดตั้ง F</label>
+            </div>
+          </div>
+        </div>
+<pre class="cl-code">&lt;div class="modal-overlay open" id="myModal"&gt;
+  &lt;div class="modal"&gt;
+    &lt;div class="modal-hdr"&gt;
+      &lt;div class="modal-title"&gt;หัวข้อ&lt;/div&gt;
+      &lt;button class="btn-modal-close" onclick="closeModal('myModal')"&gt;✕&lt;/button&gt;
+    &lt;/div&gt;
+    &lt;div class="modal-body"&gt;...&lt;/div&gt;
+    &lt;div class="modal-footer"&gt;
+      &lt;button class="btn btn-outline"&gt;ยกเลิก&lt;/button&gt;
+      &lt;button class="btn btn-primary"&gt;บันทึก&lt;/button&gt;
+    &lt;/div&gt;
+  &lt;/div&gt;
+&lt;/div&gt;</pre>
+      </div>
+
+
+      <div class="cl-section" id="side-panel">
+        <div class="cl-section-head">
+          <h2>Side Panel (Drawer)</h2>
+          <div class="desc"><code>.side-panel</code> + <code>.panel-hdr/.panel-body/.panel-actions</code></div>
+          <span class="tag tag-existing">EXISTING</span>
+        </div>
+        <div class="cl-block-desc">
+          <b>ใช้กับ:</b> drawer slide-in จากขวา · ใช้กับ filter advanced, detail viewer, side editor
+          ดู demo จริงใน <a href="../../modules/event/events-list.html" target="_blank">events-list.html</a>
+          <span class="pages">ตัวอย่าง: events-list filter, ibd-* detail panel, members-list bulk action</span>
+        </div>
+        <div class="cl-demo">
+          <div class="cl-variants">
+            <div class="cl-variant">
+              <div class="cl-variant-title">A · Narrow <small>320px (filter/quick view)</small></div>
+              <div class="cl-variant-demo is-stack" style="min-height:120px;">
+                <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px;width:160px;">
+                  <div style="font-weight:700;font-size:13px;margin-bottom:6px;">Filter</div>
+                  <div style="font-size:11.5px;color:var(--text3);">320px wide</div>
+                </div>
+              </div>
+              <label class="cl-pick" data-cid="side-panel:a"><input type="checkbox"> ติดตั้ง A (narrow)</label>
+            </div>
+            <div class="cl-variant">
+              <div class="cl-variant-title">B · Default <small>360px (current — balanced)</small></div>
+              <div class="cl-variant-demo is-stack" style="min-height:120px;">
+                <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px;width:200px;">
+                  <div style="font-weight:700;font-size:13px;margin-bottom:6px;">Detail Panel</div>
+                  <div style="font-size:11.5px;color:var(--text3);">360px wide (current)</div>
+                </div>
+              </div>
+              <label class="cl-pick" data-cid="side-panel:b"><input type="checkbox"> ติดตั้ง B (default)</label>
+            </div>
+            <div class="cl-variant">
+              <div class="cl-variant-title">C · Wide <small>480px (form editor)</small></div>
+              <div class="cl-variant-demo is-stack" style="min-height:120px;">
+                <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px;width:240px;">
+                  <div style="font-weight:700;font-size:13px;margin-bottom:6px;">Form Editor</div>
+                  <div style="font-size:11.5px;color:var(--text3);">480px wide</div>
+                </div>
+              </div>
+              <label class="cl-pick" data-cid="side-panel:c"><input type="checkbox"> ติดตั้ง C (wide)</label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+
+      <!-- =================================================================
+           Migration table
+           ================================================================= -->
+      <div class="cl-section">
+        <div class="cl-section-head">
+          <h2>📋 Migration map (legacy → canonical)</h2>
+          <div class="desc">Class เก่าที่มี alias ไป class ใหม่</div>
+        </div>
+        <div class="cl-demo">
+          <table class="data-table" style="font-size:12.5px">
+            <thead><tr><th>Legacy class</th><th>Canonical class</th><th>Status</th></tr></thead>
+            <tbody>
+              <tr><td><code>.kpi-card</code></td><td><code>.stat-card</code></td><td><span class="status-badge status-active">aliased</span></td></tr>
+              <tr><td><code>.kpi-row</code></td><td><code>.stats-row</code></td><td><span class="status-badge status-active">aliased</span></td></tr>
+              <tr><td><code>.kpi-icon/label/value/sub/info</code></td><td><code>.stat-icon/label/value/sub/info</code></td><td><span class="status-badge status-active">aliased</span></td></tr>
+              <tr><td><code>.date-filter-chips</code></td><td><code>.filter-chips</code></td><td><span class="status-badge status-active">aliased</span></td></tr>
+              <tr><td><code>.date-chip</code></td><td><code>.filter-chip</code></td><td><span class="status-badge status-active">aliased</span></td></tr>
+              <tr><td><code>.ev-tabs</code></td><td><code>.page-tabs</code></td><td><span class="status-badge status-active">aliased</span></td></tr>
+              <tr><td><code>.ev-tab</code></td><td><code>.page-tab</code></td><td><span class="status-badge status-active">aliased</span></td></tr>
+              <tr><td><code>.ibd-paginate</code></td><td><code>.pagination</code></td><td><span class="status-badge status-active">migrated</span></td></tr>
+              <tr><td><code>.ibd-bars/.ibd-bar-*</code></td><td><code>.bar-chart/.bar-row/.bar-label/.bar-track/.bar-fill/.bar-value</code></td><td><span class="status-badge status-active">migrated</span></td></tr>
+              <tr><td><code>.ibd-dl</code></td><td><code>.detail-list</code></td><td><span class="status-badge status-active">migrated</span></td></tr>
+              <tr><td><code>.act-kebab-menu</code></td><td><code>.dropdown-menu</code></td><td><span class="status-badge status-inactive">events-list only (page-scoped)</span></td></tr>
+              <tr><td><code>.ed-skeleton</code></td><td><code>.skeleton</code></td><td><span class="status-badge status-active">migrated</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+
+    </main>
+  </div>
+
+  <div style="height:60px"></div>
+</div>
+
+
+<script>
+  // Toggle code snippets show/hide (default = hidden)
+  (function () {
+    const btn = document.getElementById('codeToggle');
+    const icon = document.getElementById('codeToggleIcon');
+    const label = document.getElementById('codeToggleLabel');
+    btn.addEventListener('click', () => {
+      const isShowing = document.body.classList.toggle('show-code');
+      icon.textContent = isShowing ? '✕' : '{ }';
+      label.textContent = isShowing ? 'ซ่อน Code' : 'แสดง Code';
+    });
+  })();
+
+  // Install picker — inject checkbox to NEW sections + persist + panel
+  (function () {
+    const STORAGE_KEY = 'cl-install-picks';
+    const listEl = document.getElementById('installList');
+    const countEl = document.getElementById('installCount');
+    const copyBtn = document.getElementById('installCopy');
+    const clearBtn = document.getElementById('installClear');
+    const collapseBtn = document.getElementById('installCollapse');
+    const panel = document.getElementById('installPanel');
+
+    const picks = new Set(JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'));
+
+    function save() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify([...picks]));
+    }
+    function render() {
+      const arr = [...picks];
+      countEl.textContent = arr.length;
+      countEl.classList.toggle('is-zero', arr.length === 0);
+      listEl.textContent = arr.join(', ');
+    }
+
+    function bindPick(label) {
+      const cid = label.dataset.cid;
+      const input = label.querySelector('input');
+      if (!cid || !input) return;
+      input.checked = picks.has(cid);
+      label.classList.toggle('is-checked', input.checked);
+      input.addEventListener('change', () => {
+        if (input.checked) picks.add(cid); else picks.delete(cid);
+        label.classList.toggle('is-checked', input.checked);
+        save(); render();
+      });
+    }
+
+    // 1) Auto-inject .cl-pick at end of .cl-demo for NEW sections
+    //    that don't already have manual picks inside.
+    document.querySelectorAll('.cl-section').forEach(sec => {
+      const head = sec.querySelector('.cl-section-head');
+      if (!head || !head.querySelector('.tag-new')) return;
+      if (sec.querySelector('.cl-pick')) return; // skip if manual picks exist
+      const id = sec.id;
+      const demo = sec.querySelector('.cl-demo');
+      if (!id || !demo) return;
+
+      const label = document.createElement('label');
+      label.className = 'cl-pick';
+      label.dataset.cid = id;
+      label.innerHTML = '<input type="checkbox"> ติดตั้ง';
+      demo.appendChild(label);
+    });
+
+    // 2) Wire up ALL .cl-pick (manual + auto-injected)
+    document.querySelectorAll('.cl-pick').forEach(bindPick);
+
+    // 3) Cleanup stale picks (cids ที่หายไปหลัง refactor)
+    const validIds = new Set(
+      [...document.querySelectorAll('.cl-pick')].map(el => el.dataset.cid).filter(Boolean)
+    );
+    let stale = false;
+    [...picks].forEach(id => {
+      if (!validIds.has(id)) { picks.delete(id); stale = true; }
+    });
+    if (stale) { save(); render(); }
+
+    copyBtn.addEventListener('click', async () => {
+      const text = [...picks].join(', ');
+      if (!text) {
+        copyBtn.textContent = '⚠ ยังไม่ได้เลือก';
+        setTimeout(() => copyBtn.textContent = '📋 Copy List', 1500);
+        return;
+      }
+      try {
+        await navigator.clipboard.writeText(text);
+        copyBtn.textContent = '✓ Copied!';
+      } catch {
+        copyBtn.textContent = '✗ Copy failed';
+      }
+      setTimeout(() => copyBtn.textContent = '📋 Copy List', 1500);
+    });
+
+    clearBtn.addEventListener('click', () => {
+      if (!picks.size) return;
+      picks.clear();
+      save();
+      render();
+      document.querySelectorAll('.cl-pick').forEach(label => {
+        const i = label.querySelector('input');
+        if (i) i.checked = false;
+        label.classList.remove('is-checked');
+      });
+    });
+
+    collapseBtn.addEventListener('click', () => {
+      const collapsed = panel.classList.toggle('is-collapsed');
+      collapseBtn.textContent = collapsed ? '+' : '−';
+    });
+
+    render();
+  })();
+</script>
+<script src="../../js/core/auth.js"></script>
+<script src="../../js/core/authz.js"></script>
+<script src="../../js/core/date-format.js"></script>
+<script type="module">
+  import { loadTopbar } from "../../js/components/navigation/topbar.js";
+  loadTopbar("📚 Component Library");
+</script>
+<script src="../../js/components/navigation/sidebar.js"></script>
+<script src="../../js/components/modal/modalManager.js"></script>
+
+</body>
+</html>

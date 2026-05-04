@@ -7,10 +7,10 @@ body {
   background:
     radial-gradient(
       circle at top right,
-      rgba(59, 130, 246, 0.12),
+      rgba(var(--accent-rgb), 0.12),
       transparent 24%
     ),
-    linear-gradient(180deg, #f8fbff 0%, #eef4fb 100%);
+    linear-gradient(180deg, var(--surface) 0%, #eef4fb 100%);
 }
 
 .po-page {
@@ -32,14 +32,14 @@ body {
       rgba(255, 255, 255, 0.94),
       rgba(255, 255, 255, 0.82)
     ),
-    linear-gradient(135deg, rgba(99, 102, 241, 0.12), rgba(59, 130, 246, 0.08));
+    linear-gradient(135deg, rgba(99, 102, 241, 0.12), rgba(var(--accent-rgb), 0.08));
   border: 1px solid rgba(148, 163, 184, 0.18);
   box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
 }
 
 .po-eyebrow {
   margin-bottom: 6px;
-  color: #6366f1;
+  color: var(--accent-light);
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.16em;
@@ -98,7 +98,7 @@ body {
 }
 
 .po-stat-icon.indigo {
-  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+  background: linear-gradient(135deg, var(--accent-light) 0%, var(--accent) 100%);
 }
 
 .po-stat-icon.amber {
@@ -146,7 +146,7 @@ body {
 }
 
 .po-tab.active {
-  background: linear-gradient(135deg, #eef2ff 0%, #dbeafe 100%);
+  background: linear-gradient(135deg, var(--accent-pale) 0%, var(--accent-pale) 100%);
   color: #4338ca;
 }
 
@@ -174,12 +174,12 @@ body {
 
 .po-table-hdr {
   background:
-    linear-gradient(135deg, rgba(99, 102, 241, 0.06), rgba(59, 130, 246, 0.04)),
+    linear-gradient(135deg, rgba(99, 102, 241, 0.06), rgba(var(--accent-rgb), 0.04)),
     var(--surface);
 }
 
 .po-data-table th {
-  background: #f8fbff;
+  background: var(--surface);
   color: #64748b;
   font-size: 11px;
   text-transform: uppercase;
@@ -202,7 +202,7 @@ body {
 }
 
 .po-data-table tbody tr:hover {
-  background: #f8fbff;
+  background: var(--surface);
 }
 
 .po-number {
@@ -245,7 +245,7 @@ body {
   justify-content: center;
   padding: 4px 10px;
   border-radius: 999px;
-  background: #eff6ff;
+  background: var(--accent-pale);
   color: #1d4ed8;
   font-size: 11px;
   font-weight: 700;
@@ -297,7 +297,7 @@ body {
 }
 
 .po-status-badge.status-ordered {
-  background: #eef2ff;
+  background: var(--accent-pale);
   color: #4338ca;
 }
 
@@ -324,14 +324,14 @@ body {
   height: 34px;
   border: 0;
   border-radius: 10px;
-  background: #eef2ff;
+  background: var(--accent-pale);
   color: #4338ca;
   cursor: pointer;
   transition: all 0.16s ease;
 }
 
 .po-row-action:hover {
-  background: #dbeafe;
+  background: var(--accent-pale);
   transform: translateY(-1px);
 }
 
@@ -404,7 +404,7 @@ body {
 .po-panel-hero {
   padding: 18px;
   border-radius: 18px;
-  background: linear-gradient(135deg, #eef2ff 0%, #eff6ff 100%);
+  background: linear-gradient(135deg, var(--accent-pale) 0%, var(--accent-pale) 100%);
   border: 1px solid rgba(99, 102, 241, 0.14);
 }
 

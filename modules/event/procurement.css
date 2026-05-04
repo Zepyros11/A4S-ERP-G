@@ -98,7 +98,7 @@
   color: #dc2626;
 }
 .sup-PAID {
-  background: #dbeafe;
+  background: var(--accent-pale);
   color: #1d4ed8;
 }
 

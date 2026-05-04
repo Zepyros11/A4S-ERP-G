@@ -72,15 +72,11 @@
 
 <div class="topbar"></div>
 
-<div class="layout">
-  <div id="sidebar-container"></div>
-
-  <div class="content-area">
     <div class="page">
 
-      <div class="page-header">
+      <div class="page-hero">
         <div>
-          <div class="page-title">👥 จัดการกลุ่มพนักงาน</div>
+          <div class="page-hero-title">👥 จัดการกลุ่มพนักงาน</div>
           <div class="page-subtitle">เพิ่ม/ลบกลุ่มของแต่ละพนักงาน — ใช้เป็น target ในกฎแจ้งเตือน LINE</div>
         </div>
         <a href="./notification-rules.html" class="btn-ghost">🔔 กฎแจ้งเตือน LINE →</a>
@@ -143,11 +139,9 @@
       </div>
 
     </div>
-  </div>
-</div>
-
 <script src="../../js/core/auth.js"></script>
 <script src="../../js/core/authz.js"></script>
+<script src="../../js/core/date-format.js"></script>
 <script>AuthZ.requirePerm("sys_settings_view");</script>
 <script src="./staff-groups.js"></script>
 <script type="module">

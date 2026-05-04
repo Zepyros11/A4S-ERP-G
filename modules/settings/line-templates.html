@@ -7,9 +7,8 @@
 <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../../css/main.css">
 <style>
-/* Page background — soft gradient */
-.content-area{background:linear-gradient(180deg,#eef7f3 0%,#f0f9ff 45%,#fef3f9 100%);min-height:100vh;}
-.page{max-width:980px;margin:0 auto;padding:28px 20px 100px;}
+/* Page background — soft LINE-themed gradient (intentional) */
+.page.tpl-bg{background:linear-gradient(180deg,#eef7f3 0%,#f0f9ff 45%,#fef3f9 100%);min-height:calc(100vh - var(--topbar-h));max-width:980px;margin:0 auto;padding:28px 20px 100px;}
 
 /* Hero header */
 .tpl-hero{background:linear-gradient(135deg,#06c755 0%,#0ea5e9 60%,#6366f1 100%);border-radius:18px;padding:26px 28px;color:#fff;margin-bottom:22px;position:relative;overflow:hidden;box-shadow:0 10px 30px rgba(6,199,85,.18);}
@@ -87,11 +86,7 @@
 
 <div class="topbar"></div>
 
-<div class="layout">
-  <div id="sidebar-container"></div>
-
-  <div class="content-area">
-    <div class="page">
+    <div class="page tpl-bg">
       <div class="tpl-hero">
         <div class="tpl-hero-title">💬 ข้อความตอบกลับอัตโนมัติ</div>
         <div class="tpl-hero-sub">ปรับแต่งข้อความที่ Bot-Assistant ตอบอัตโนมัติเมื่อพนักงาน / สมาชิกส่งข้อความมา — บันทึกแล้วมีผลทันที</div>
@@ -116,11 +111,9 @@
         </div>
       </div>
     </div>
-  </div>
-</div>
-
 <script src="../../js/core/auth.js"></script>
 <script src="../../js/core/authz.js"></script>
+<script src="../../js/core/date-format.js"></script>
 <script>AuthZ.requirePerm("sys_settings_view");</script>
 <script src="./line-templates.js"></script>
 <script type="module">

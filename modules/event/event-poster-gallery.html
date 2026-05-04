@@ -19,10 +19,6 @@
     <div class="toast" id="toast"></div>
 
     <div class="topbar"></div>
-    <div class="layout">
-      <div id="sidebar-container"></div>
-
-      <div class="content-area">
         <div class="page">
           <!-- MAIN CARD (floating content like events-list) -->
           <div class="table-card">
@@ -77,11 +73,9 @@
               <!-- จะ render เป็น Section แยกตาม Month -->
             </div>
 
-          </div>
-        </div>
-
         <script src="../../js/core/auth.js"></script>
         <script src="../../js/core/authz.js"></script>
+<script src="../../js/core/date-format.js"></script>
         <script>AuthZ.requirePerm("poster_view");</script>
         <script type="module" src="./event-poster-gallery.js"></script>
         <script src="../../js/components/modal/deleteModal.js"></script>

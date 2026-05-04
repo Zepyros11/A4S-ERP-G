@@ -71,7 +71,7 @@
   white-space: nowrap;
 }
 .ptype-HOTEL {
-  background: #dbeafe;
+  background: var(--accent-pale);
   color: #1d4ed8;
 }
 .ptype-MEETING_ROOM {
@@ -167,7 +167,7 @@
 .panel-input:focus {
   outline: none;
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+  box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.12);
 }
 .panel-textarea {
   height: 72px;

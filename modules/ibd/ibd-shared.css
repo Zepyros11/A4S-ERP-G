@@ -1,19 +1,8 @@
 /* ============================================================
-   ibd-shared.css — shared styles for 3 report pages
-   (complaints / ewallet / relocation)
+   ibd-shared.css — IBD page-specific styles
+   shared: page-hero, kpi-row, kpi-strip, kpi-card, section-card,
+           empty-state, btn-on-hero — อยู่ใน css/core/common.css
    ============================================================ */
-
-/* ── Hero ── */
-.ibd-hero {
-  background: linear-gradient(135deg, #0f4c75, #1b6ca8);
-  color: #fff;
-  padding: 18px 22px;
-  border-radius: 12px;
-  margin-bottom: 16px;
-  box-shadow: 0 4px 14px rgba(15, 76, 117, 0.15);
-}
-.ibd-hero-title { font-size: 20px; font-weight: 700; margin: 0 0 3px; }
-.ibd-hero-sub   { font-size: 12.5px; opacity: .9; }
 
 /* ── Filter bar ── */
 .ibd-filters {
@@ -34,7 +23,7 @@
   border-radius: 6px;
   font-family: inherit;
   font-size: 13px;
-  background: #fff;
+  background: var(--surface);
   min-width: 150px;
 }
 .ibd-filter-input:focus,
@@ -65,7 +54,7 @@
   background: linear-gradient(135deg, var(--accent), var(--accent-light));
   color: #fff;
 }
-.ibd-btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(15,76,117,.25); }
+.ibd-btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(var(--accent-rgb), .25); }
 .ibd-btn-ghost {
   background: transparent;
   border: 1px solid var(--border);
@@ -73,26 +62,9 @@
 }
 .ibd-btn-ghost:hover { background: var(--surface2); }
 
-/* ── KPI strip ── */
-.ibd-kpis {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 10px;
-  margin-bottom: 14px;
-}
-.ibd-kpi {
-  background: #fff;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 11px 14px;
-  text-align: center;
-}
-.ibd-kpi-label { font-size: 11px; color: var(--text3); font-weight: 600; text-transform: uppercase; letter-spacing: .4px; }
-.ibd-kpi-value { font-size: 22px; font-weight: 700; color: var(--text); margin-top: 4px; }
-
 /* ── Table ── */
 .ibd-table-wrap {
-  background: #fff;
+  background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 10px;
   overflow: hidden;
@@ -124,8 +96,6 @@
 .ibd-table tr:last-child td { border-bottom: none; }
 .ibd-table tr { cursor: pointer; transition: background .12s; }
 .ibd-table tr:hover td { background: var(--accent-pale); }
-.ibd-table .ibd-empty { text-align: center; padding: 30px 0; color: var(--text3); cursor: default; }
-.ibd-table .ibd-empty:hover td { background: transparent; }
 
 .ibd-cell-mono { font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--text3); font-weight: 600; }
 .ibd-cell-name { font-weight: 600; color: var(--text); }
@@ -177,11 +147,11 @@
   border-radius: 6px;
   font-family: inherit;
   font-size: 12.5px;
-  background: #fff;
+  background: var(--surface);
   outline: none;
   transition: border-color .15s, box-shadow .15s;
 }
-.ibd-note-input:focus { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(15,76,117,.12); }
+.ibd-note-input:focus { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-pale); }
 .ibd-note-input.saving { border-color: #f59e0b; background: #fffbeb; }
 .ibd-note-input.saved  { border-color: #10b981; background: #f0fdf4; }
 
@@ -193,14 +163,14 @@
   border-radius: 6px;
   font-family: inherit;
   font-size: 12px;
-  background: #fff;
+  background: var(--surface);
   color: var(--text);
   cursor: pointer;
   outline: none;
   transition: border-color .15s, box-shadow .15s;
 }
-.ibd-caretaker-select:focus { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(15,76,117,.12); }
-.ibd-caretaker-select.assigned { background: #eff6ff; border-color: #93c5fd; color: #1e40af; font-weight: 500; }
+.ibd-caretaker-select:focus { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-pale); }
+.ibd-caretaker-select.assigned { background: var(--accent-pale); border-color: var(--accent-light); color: var(--accent); font-weight: 500; }
 .ibd-caretaker-select.saving   { border-color: #f59e0b; background: #fffbeb; }
 .ibd-caretaker-select.saved    { border-color: #10b981; background: #f0fdf4; }
 
@@ -250,25 +220,7 @@
   padding-left: 9px;
 }
 
-/* ── Pagination ── */
-.ibd-paginate {
-  display: flex; align-items: center; gap: 6px;
-  padding: 14px 0;
-  justify-content: center;
-}
-.ibd-paginate button {
-  min-width: 34px; height: 30px;
-  border: 1px solid var(--border);
-  background: var(--surface);
-  border-radius: 5px;
-  font-family: inherit;
-  cursor: pointer;
-  font-size: 12px;
-}
-.ibd-paginate button:hover  { background: var(--accent-pale); border-color: var(--accent); }
-.ibd-paginate button.active { background: var(--accent); color: #fff; border-color: var(--accent); }
-.ibd-paginate button:disabled { opacity: .4; cursor: not-allowed; }
-.ibd-paginate-info { font-size: 12px; color: var(--text3); margin: 0 10px; }
+/* Pagination → migrated to canonical .pagination in core/common.css */
 
 /* ── Detail Modal ── */
 .ibd-modal-overlay {
@@ -282,7 +234,7 @@
 }
 .ibd-modal-overlay.open { display: flex; }
 .ibd-modal {
-  background: #fff;
+  background: var(--surface);
   border-radius: 12px;
   max-width: 720px; width: 100%;
   max-height: 90vh;
@@ -292,7 +244,7 @@
 }
 .ibd-modal-head {
   padding: 16px 20px;
-  background: linear-gradient(135deg, #0f4c75, #1b6ca8);
+  background: linear-gradient(135deg, var(--accent), var(--accent-light));
   color: #fff;
   display: flex; align-items: center; gap: 10px;
 }
@@ -311,16 +263,11 @@
 .ibd-modal-foot {
   padding: 12px 20px;
   border-top: 1px solid var(--border);
-  background: var(--surface);
+  background: var(--surface2);
   display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap;
 }
 
-/* Detail rows */
-.ibd-dl { display: grid; grid-template-columns: 150px 1fr; gap: 8px 12px; font-size: 13px; }
-.ibd-dl dt { color: var(--text3); font-weight: 600; }
-.ibd-dl dd { margin: 0; color: var(--text); word-break: break-word; }
-.ibd-dl dd a { color: var(--accent); text-decoration: none; }
-.ibd-dl dd a:hover { text-decoration: underline; }
+/* Detail rows → migrated to canonical .detail-list in core/common.css */
 
 .ibd-section-divider {
   margin: 16px 0 10px;

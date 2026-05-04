@@ -1,31 +1,62 @@
 /* =========================================================
-   A4S ERP THEME
+   A4S-ERP THEME — F-Hybrid · Sage Green
+   ----------------------------------------------------------
+   Warm off-white bg + sage green accent + soft dual shadow
+   เปลี่ยน 5 ตัว (--accent / --accent-light / --accent-lighter
+   / --accent-pale / --accent-rgb) เพื่อ re-skin (เช่น customer
+   portal ใช้ brand ลูกค้าแต่ละราย)
    ========================================================= */
 
-/* ===== DEFAULT THEME ===== */
-
 :root {
-  --accent: #0f4c75;
-  --accent-light: #1b6ca8;
-  --accent-pale: #e8f0fb;
+  /* ── BASE ──────────────────────────────────────────── */
+  --bg:           #f1eee8;   /* warm off-white (page background) */
+  --surface:      #ffffff;   /* white card (tables/forms — keep crisp) */
+  --surface2:     #f5f1ea;   /* hover row / muted panel */
+  --surface-soft: #f9f7f3;   /* raised neumorphic surface (Hero/KPI/Modal) */
 
-  --success: #057a55;
+  --border:       #e4ddd2;
+  --border2:      #cfc7b9;
+
+  /* ── TEXT ──────────────────────────────────────────── */
+  --text:  #3a3530;
+  --text2: #6a635b;
+  --text3: #9d958b;
+
+  /* ── ACCENT (Sage Green) ───────────────────────────── */
+  --accent:         #3d6b4f;   /* dark — topbar, links, page titles */
+  --accent-light:   #5b8a6e;   /* medium — primary action */
+  --accent-lighter: #7da480;   /* gradient lighter stop */
+  --accent-pale:    #d8e7d2;   /* pale bg, active state, focus ring */
+  --accent-rgb:     61, 107, 79;
+
+  /* ── STATUS (universal — ห้ามเปลี่ยน — semantic) ──── */
+  --success:      #057a55;
   --success-pale: #def7ec;
-
-  --danger: #9b1c1c;
-  --danger-pale: #fde8e8;
-
-  --warning: #92400e;
+  --danger:       #9b1c1c;
+  --danger-pale:  #fde8e8;
+  --warning:      #92400e;
   --warning-pale: #fef3c7;
+  --info:         #1e40af;
+  --info-pale:    #dbeafe;
+  --teal:         #0e7490;
+  --teal-pale:    #cffafe;
 
-  --bg: #f0f2f5;
-  --surface: #ffffff;
-  --surface2: #f8f9fb;
+  /* ── SHADOWS ───────────────────────────────────────── */
+  /* warm soft (neumorphic-ish — สำหรับ Hero/KPI/Modal) */
+  --shadow-soft-d: rgba(130, 118, 100, .22);  /* dark side */
+  --shadow-soft-l: rgba(255, 255, 255, .92);  /* light side */
+  --shadow-soft-md: 6px 6px 14px var(--shadow-soft-d), -6px -6px 14px var(--shadow-soft-l);
+  --shadow-soft-lg: 10px 10px 22px var(--shadow-soft-d), -10px -10px 22px var(--shadow-soft-l);
 
-  --border: #e4e8ef;
-  --border2: #d0d6e2;
+  /* drop shadow (สำหรับ table card / modal overlay) */
+  --shadow:    0 1px 3px rgba(0, 0, 0, 0.07), 0 4px 12px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.06), 0 1px 3px rgba(0, 0, 0, 0.04);
+  --shadow-lg: 0 12px 28px rgba(0, 0, 0, 0.10), 0 2px 6px rgba(0, 0, 0, 0.05);
 
-  --text: #111827;
-  --text2: #4b5563;
-  --text3: #9ca3af;
+  /* ── SHAPE ─────────────────────────────────────────── */
+  --radius:    10px;
+  --radius-lg: 14px;
+  --panel-w:   360px;
+  --topbar-h:  56px;
+  --page-pad:  28px;
 }

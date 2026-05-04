@@ -53,7 +53,7 @@ async function init() {
     return;
   }
   $("backLink").href = `./work-plan-list.html?scope=${SCOPE}`;
-  $("wpHero").className = `wp-hero scope-${SCOPE}`;
+  $("wpHero").className = `page-hero scope-${SCOPE}`;
 
   try {
     showLoading(true);

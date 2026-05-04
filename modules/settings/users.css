@@ -45,7 +45,7 @@
   background: var(--accent-pale);
 }
 .usr-table tr.selected td {
-  background: #dbeafe;
+  background: var(--accent-pale);
 }
 
 /* ── AVATAR ── */

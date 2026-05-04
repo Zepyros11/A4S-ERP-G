@@ -16,23 +16,16 @@
     <div class="toast" id="toast"></div>
 
     <div class="topbar"></div>
-    <div class="layout">
-      <div id="sidebar-container"></div>
-      <div class="content-area">
         <div class="page">
           <!-- HERO -->
-          <div id="wpHero" class="wp-hero scope-event">
+          <div id="wpHero" class="page-hero">
             <div>
-              <div id="heroTitle" class="wp-hero-title">📋 แผนงาน</div>
-              <div id="heroSub" class="wp-hero-sub">วางแผนงานเป็นตาราง — แยกแผนก / ปี / งาน</div>
+              <h1 id="heroTitle" class="page-hero-title">📋 แผนงาน</h1>
+              <p id="heroSub" class="page-hero-sub">วางแผนงานเป็นตาราง — แยกแผนก / ปี / งาน</p>
             </div>
-            <div class="wp-hero-actions">
-              <button class="btn"
-                style="padding:8px 14px;border:1.5px solid rgba(255,255,255,.25);border-radius:16px;background:rgba(255,255,255,.18);color:#fff;font-weight:600;font-size:12px"
-                onclick="window.openDeptModal()">🏷️ จัดการแผนก</button>
-              <button class="btn"
-                style="padding:8px 14px;border:none;border-radius:16px;background:#fff;color:#1e40af;font-weight:700;font-size:12px"
-                onclick="window.openPlanModal()">＋ สร้างแผนงาน</button>
+            <div class="page-hero-actions">
+              <button class="btn-on-hero" onclick="window.openDeptModal()">🏷️ จัดการแผนก</button>
+              <button class="btn-on-hero btn-primary" onclick="window.openPlanModal()">＋ สร้างแผนงาน</button>
             </div>
           </div>
 
@@ -152,11 +145,9 @@
         <div class="wp-modal-footer">
           <button class="btn btn-secondary" onclick="window.closeDeptModal()">ปิด</button>
         </div>
-      </div>
-    </div>
-
     <script src="../../js/core/auth.js"></script>
     <script src="../../js/core/authz.js"></script>
+<script src="../../js/core/date-format.js"></script>
     <script type="module" src="./work-plan-list.js"></script>
     <script src="../../js/components/modal/deleteModal.js"></script>
     <script src="../../js/components/modal/modalManager.js"></script>
