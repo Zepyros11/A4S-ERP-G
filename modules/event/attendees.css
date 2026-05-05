@@ -764,10 +764,25 @@
   padding: 10px 14px;
   border-radius: 8px;
   position: relative;
-  transition: background .15s;
+  transition: background .15s, transform .15s, box-shadow .15s;
   min-width: 0;
+  cursor: pointer;
+  user-select: none;
 }
-.att-stat:hover { background: var(--surface2, #f8fafc); }
+.att-stat:hover { background: var(--surface2, #f8fafc); transform: translateY(-1px); box-shadow: 0 2px 6px rgba(15, 23, 42, .06); }
+.att-stat:focus-visible { outline: 2px solid var(--accent, #16a34a); outline-offset: 2px; }
+.att-stat::after {
+  content: "›";
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 18px;
+  color: var(--text3, #94a3b8);
+  opacity: 0;
+  transition: opacity .15s, right .15s;
+}
+.att-stat:hover::after { opacity: .85; right: 6px; }
 .att-stat-icon {
   font-size: 18px;
   width: 32px;
@@ -814,6 +829,222 @@
 }
 @media (max-width: 720px) {
   .att-stats-strip { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* ─────────────────────────────────────────────────────────
+   STAT REPORT MODAL (popup จาก stat card 5 อัน)
+   ───────────────────────────────────────────────────────── */
+.stat-report-modal { width: 820px; max-width: 96vw; }
+.stat-report-modal .att-modal-body { gap: 14px; }
+.sr-header-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  z-index: 1;
+}
+.sr-header-btn {
+  background: rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: #fff;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .15s;
+}
+.sr-header-btn:hover { background: rgba(255, 255, 255, 0.3); }
+
+.sr-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+  background: linear-gradient(135deg, #f8fafc 0%, #ffffff 100%);
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 12px;
+  padding: 12px;
+}
+.sr-summary-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #fff;
+  border: 1px solid var(--border, #eef2f6);
+}
+.sr-summary-cell .sr-lbl {
+  font-size: 11px;
+  color: var(--text3, #64748b);
+  font-weight: 600;
+  letter-spacing: .2px;
+}
+.sr-summary-cell .sr-val {
+  font-size: 18px;
+  font-weight: 800;
+  font-family: "IBM Plex Mono", monospace;
+  color: #0f172a;
+  line-height: 1.1;
+}
+.sr-summary-cell .sr-sub {
+  font-size: 11px;
+  color: var(--text3, #64748b);
+}
+.sr-summary-cell.is-accent .sr-val { color: var(--accent, #16a34a); }
+
+.sr-section-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 4px 0 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.sr-section-title .sr-section-count {
+  font-weight: 600;
+  color: var(--text3, #64748b);
+  font-size: 12px;
+}
+
+/* Breakdown rows (tier / payment method / role) */
+.sr-breakdown {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 10px;
+  padding: 8px 10px;
+  background: #fff;
+}
+.sr-bd-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 4px;
+  border-bottom: 1px dashed var(--border, #f1f5f9);
+}
+.sr-bd-row:last-child { border-bottom: 0; }
+.sr-bd-label { font-size: 13px; color: #0f172a; font-weight: 500; }
+.sr-bd-count {
+  font-size: 12px;
+  font-weight: 700;
+  font-family: "IBM Plex Mono", monospace;
+  color: #0f172a;
+  min-width: 56px;
+  text-align: right;
+}
+.sr-bd-bar {
+  width: 110px;
+  height: 6px;
+  background: #f1f5f9;
+  border-radius: 999px;
+  overflow: hidden;
+  position: relative;
+}
+.sr-bd-bar > span {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: var(--accent, #16a34a);
+  border-radius: 999px;
+}
+
+/* List of attendees */
+.sr-list {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 10px;
+  background: #fff;
+  max-height: 360px;
+  overflow-y: auto;
+}
+.sr-list-row {
+  display: grid;
+  grid-template-columns: 28px minmax(160px, 2fr) 100px 130px 1fr;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border, #f1f5f9);
+  font-size: 13px;
+}
+.sr-list-row.is-head {
+  position: sticky;
+  top: 0;
+  background: #f8fafc;
+  z-index: 1;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .4px;
+  color: var(--text3, #64748b);
+  padding-top: 10px;
+  padding-bottom: 10px;
+}
+.sr-list-row:last-child { border-bottom: 0; }
+.sr-list-row .sr-no {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11px;
+  color: var(--text3, #94a3b8);
+}
+.sr-list-row .sr-name {
+  font-weight: 600;
+  color: #0f172a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sr-list-row .sr-name small {
+  display: block;
+  font-weight: 400;
+  font-size: 11px;
+  color: var(--text3, #64748b);
+}
+.sr-list-row .sr-meta {
+  font-size: 12px;
+  color: var(--text3, #64748b);
+  white-space: nowrap;
+}
+.sr-empty {
+  padding: 36px 16px;
+  text-align: center;
+  color: var(--text3, #94a3b8);
+  font-size: 13px;
+}
+
+/* Print mode — only the report visible */
+@media print {
+  body * { visibility: hidden; }
+  #statReportModal, #statReportModal * { visibility: visible; }
+  #statReportModal {
+    position: absolute !important;
+    inset: 0 !important;
+    background: #fff !important;
+    display: block !important;
+  }
+  #statReportModal .att-modal-overlay,
+  #statReportModal .att-modal {
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    max-height: none !important;
+    animation: none !important;
+  }
+  #statReportModal .att-modal-header { background: #fff !important; color: #000 !important; }
+  #statReportModal .att-modal-header .btn-icon,
+  #statReportModal #statReportCsvBtn,
+  #statReportModal #statReportPrintBtn,
+  #statReportModal .att-modal-footer { display: none !important; }
+  #statReportModal .sr-list { max-height: none !important; overflow: visible !important; }
+}
+
+@media (max-width: 720px) {
+  .sr-list-row {
+    grid-template-columns: 24px minmax(120px, 2fr) 1fr;
+  }
+  .sr-list-row .sr-meta-hide-sm { display: none; }
 }
 
 /* ── LEGACY STATS (used by booking-attendees.html) ── */

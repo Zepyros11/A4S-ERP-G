@@ -37,6 +37,7 @@ let recentCheckins = []; // last 8
 let lastScanAt = 0;
 let lastScanText = "";
 let tagCategoriesByName = {}; // { tag_name: { detail, color, ... } } for current event
+let qrScanner = null; // Html5Qrcode instance, null when stopped
 
 // ── TAG-FLEX RESEND BLOCK (toggle) ────────────────────────
 // ON  = check tag_notified_at flag → ส่งครั้งเดียว (default)
@@ -107,18 +108,7 @@ async function init() {
 
   // Start QR scanner (if library loaded)
   if (window.Html5Qrcode) {
-    const scanner = new Html5Qrcode("qr-reader");
-    scanner
-      .start(
-        { facingMode: "environment" },
-        { fps: 10, qrbox: { width: 240, height: 240 } },
-        (decoded) => handleScan(decoded),
-        () => {},
-      )
-      .catch((err) => {
-        document.getElementById("qr-reader").innerHTML =
-          `<div style="padding:30px;text-align:center;color:#94a3b8;font-size:13px">⚠️ เปิดกล้องไม่ได้ (${err.message || err}) — ใช้ช่องพิมพ์ด้านล่างแทน</div>`;
-      });
+    startCamera();
   } else {
     document.getElementById("qr-reader").innerHTML =
       `<div style="padding:30px;text-align:center;color:#94a3b8;font-size:13px">กำลังโหลด QR library...</div>`;
@@ -151,6 +141,66 @@ async function init() {
     }
   });
 }
+
+// ── CAMERA TOGGLE ─────────────────────────────────────────
+function startCamera() {
+  if (!window.Html5Qrcode) return;
+  const reader = document.getElementById("qr-reader");
+  if (reader) {
+    reader.innerHTML = "";
+    reader.classList.remove("hidden");
+  }
+  qrScanner = new Html5Qrcode("qr-reader");
+  qrScanner
+    .start(
+      { facingMode: "environment" },
+      { fps: 10, qrbox: { width: 240, height: 240 } },
+      (decoded) => handleScan(decoded),
+      () => {},
+    )
+    .catch((err) => {
+      qrScanner = null;
+      if (reader) {
+        reader.innerHTML =
+          `<div style="padding:30px;text-align:center;color:#94a3b8;font-size:13px">⚠️ เปิดกล้องไม่ได้ (${err.message || err}) — ใช้ช่องพิมพ์ด้านล่างแทน</div>`;
+      }
+    });
+  _syncCameraToggleUi(true);
+}
+
+async function stopCamera() {
+  if (!qrScanner) return;
+  try {
+    await qrScanner.stop();
+    await qrScanner.clear();
+  } catch (e) {
+    console.warn("stop camera:", e?.message || e);
+  }
+  qrScanner = null;
+  const reader = document.getElementById("qr-reader");
+  if (reader) {
+    reader.classList.add("hidden");
+    reader.innerHTML = "";
+  }
+  _syncCameraToggleUi(false);
+}
+
+function _syncCameraToggleUi(on) {
+  const btn = document.getElementById("ciCameraToggle");
+  if (!btn) return;
+  if (on) {
+    btn.textContent = "⏸ ปิดกล้อง";
+    btn.classList.remove("off");
+  } else {
+    btn.textContent = "▶ เปิดกล้อง";
+    btn.classList.add("off");
+  }
+}
+
+window.ciToggleCamera = function () {
+  if (qrScanner) stopCamera();
+  else startCamera();
+};
 
 window.ciManualCheckin = async function () {
   const code = document.getElementById("manualCode").value.trim();
@@ -570,7 +620,6 @@ function setResultFromAttendee(cls, title, a) {
   `;
 }
 
-let _successCloseTimer = null;
 function showSuccessPopup(a) {
   const modal = document.getElementById("ciSuccessModal");
   if (!modal) return;
@@ -602,24 +651,13 @@ function showSuccessPopup(a) {
     award.style.display = "none";
   }
 
-  // Restart progress animation
-  const bar = modal.querySelector(".ci-success-progress");
-  if (bar) {
-    const clone = bar.cloneNode(true);
-    bar.parentNode.replaceChild(clone, bar);
-  }
-
   modal.classList.add("open");
   try {
     if (navigator.vibrate) navigator.vibrate(80);
   } catch {}
-
-  clearTimeout(_successCloseTimer);
-  _successCloseTimer = setTimeout(() => modal.classList.remove("open"), 2200);
 }
 
 window.ciCloseSuccess = function () {
-  clearTimeout(_successCloseTimer);
   document.getElementById("ciSuccessModal")?.classList.remove("open");
 };
 

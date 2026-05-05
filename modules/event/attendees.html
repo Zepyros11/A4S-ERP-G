@@ -43,29 +43,29 @@
             </div>
           </div>
 
-          <!-- STATS — compact strip -->
+          <!-- STATS — compact strip (clickable → popup report) -->
           <div id="attStatsSection" class="att-stats-strip" style="display:none">
-            <div class="att-stat sc-total">
+            <div class="att-stat sc-total" role="button" tabindex="0" title="ดูรายงาน — ลงทะเบียนทั้งหมด" onclick="window.openStatReport('total')">
               <span class="att-stat-icon">👥</span>
               <span class="att-stat-label">ลงทะเบียน</span>
               <span class="att-stat-value" id="statTotal">0</span>
             </div>
-            <div class="att-stat sc-checkin">
+            <div class="att-stat sc-checkin" role="button" tabindex="0" title="ดูรายงาน — ผู้ที่ Check-in แล้ว" onclick="window.openStatReport('checkin')">
               <span class="att-stat-icon">✅</span>
               <span class="att-stat-label">Check-in แล้ว</span>
               <span class="att-stat-value" id="statCheckedIn">0</span>
             </div>
-            <div class="att-stat sc-pending">
+            <div class="att-stat sc-pending" role="button" tabindex="0" title="ดูรายงาน — ผู้ที่ยังไม่ Check-in" onclick="window.openStatReport('pending')">
               <span class="att-stat-icon">⏳</span>
               <span class="att-stat-label">ยังไม่ Check-in</span>
               <span class="att-stat-value" id="statNotCheckedIn">0</span>
             </div>
-            <div class="att-stat sc-paid">
+            <div class="att-stat sc-paid" role="button" tabindex="0" title="ดูรายงาน — ผู้ที่ชำระแล้ว" onclick="window.openStatReport('paid')">
               <span class="att-stat-icon">💳</span>
               <span class="att-stat-label">ชำระแล้ว</span>
               <span class="att-stat-value" id="statPaid">0</span>
             </div>
-            <div class="att-stat sc-revenue">
+            <div class="att-stat sc-revenue" role="button" tabindex="0" title="ดูรายงาน — รายรับ" onclick="window.openStatReport('revenue')">
               <span class="att-stat-icon">💰</span>
               <span class="att-stat-label">รายรับ (฿)</span>
               <span class="att-stat-value" id="statRevenue">0</span>
@@ -175,6 +175,26 @@
 
     <!-- Shared member search suggest dropdown (positioned dynamically per row) -->
     <div id="memberSuggest" style="display:none;position:absolute;background:var(--surface,#fff);border:1px solid var(--border,#e2e8f0);border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,.15);z-index:500;max-height:240px;overflow-y:auto;min-width:280px"></div>
+
+    <!-- ═══════════════════════════════════════
+         STAT REPORT MODAL (popup จาก stat card 5 อัน)
+         ═══════════════════════════════════════ -->
+    <div class="att-modal-overlay" id="statReportModal">
+      <div class="att-modal stat-report-modal">
+        <div class="att-modal-header">
+          <div id="statReportTitle">📊 รายงาน</div>
+          <div class="sr-header-actions">
+            <button id="statReportCsvBtn" class="sr-header-btn" onclick="window.exportStatReportCSV()" title="ดาวน์โหลด CSV">📥 CSV</button>
+            <button id="statReportPrintBtn" class="sr-header-btn" onclick="window.printStatReport()" title="พิมพ์รายงาน">🖨 พิมพ์</button>
+            <button class="btn-icon" onclick="window.closeStatReport()">✕</button>
+          </div>
+        </div>
+        <div class="att-modal-body" id="statReportBody"></div>
+        <div class="att-modal-footer">
+          <button class="btn btn-secondary" onclick="window.closeStatReport()">ปิด</button>
+        </div>
+      </div>
+    </div>
 
     <!-- ═══════════════════════════════════════
          PAYMENT MODAL (บันทึกการชำระเงิน)

@@ -647,6 +647,325 @@ function updateStats() {
   document.getElementById("statRevenue").textContent = formatNum(revenue);
 }
 
+// ── STAT REPORT POPUP ─────────────────────────────────────
+// เปิดเมื่อกด stat card 5 อัน — แสดง summary + breakdown + รายชื่อตามมุมมอง
+let _statReportContext = null; // { type, title, rows, summary, headers } — ใช้สำหรับ CSV/print
+
+function _payMethodLabel(m) {
+  return ({
+    slip_kbank: "🏦 K+ (กสิกร โอน)",
+    slip_ktb: "🏦 KTB (กรุงไทย โอน)",
+    cash: "💵 เงินสด",
+    credit_card: "💳 Credit Card",
+  }[m] || m || "—");
+}
+
+function _attTierName(a) {
+  return a.tier_id && currentTiersById[a.tier_id]
+    ? currentTiersById[a.tier_id].tier_name
+    : "";
+}
+
+function _payStatusBadge(a) {
+  if (a.payment_status === "PAID") return "💳 ชำระแล้ว";
+  if (a.payment_status === "COMPLIMENTARY") return "🎫 ฟรี / ยกเว้น";
+  if (isAttendeeExpired(a)) return "⌛ เกิน grace";
+  return "⏳ ยังไม่ชำระ";
+}
+
+function _renderBreakdownRows(map, total) {
+  const entries = Object.entries(map).sort((a, b) => b[1] - a[1]);
+  if (!entries.length) {
+    return `<div class="sr-empty" style="padding:14px">— ไม่มีข้อมูล —</div>`;
+  }
+  return entries
+    .map(([label, count]) => {
+      const pct = total ? Math.round((count / total) * 100) : 0;
+      return `<div class="sr-bd-row">
+        <div class="sr-bd-label">${escapeHtml(label)}</div>
+        <div class="sr-bd-bar"><span style="width:${pct}%"></span></div>
+        <div class="sr-bd-count">${count} <span style="color:var(--text3);font-weight:500">(${pct}%)</span></div>
+      </div>`;
+    })
+    .join("");
+}
+
+function _attendeeListRows(list, opts = {}) {
+  const { showCheckinTime = false, showPaidInfo = false } = opts;
+  if (!list.length) {
+    return `<div class="sr-empty">— ไม่มีรายการ —</div>`;
+  }
+  const head = `<div class="sr-list-row is-head">
+    <div class="sr-no">#</div>
+    <div>ชื่อ / รหัส</div>
+    <div>🎫 Ticket</div>
+    <div>📱 เบอร์โทร</div>
+    <div>${showCheckinTime ? "⏱ เช็คอิน" : showPaidInfo ? "💰 ชำระ" : "สถานะ"}</div>
+  </div>`;
+  const body = list
+    .map((a, i) => {
+      const tier = _attTierName(a);
+      const right = showCheckinTime
+        ? (a.checked_in_at ? formatDateTime(a.checked_in_at) : "—")
+        : showPaidInfo
+        ? `${_payMethodLabel(a.payment_method)} · ฿${formatNum(a.paid_amount || 0)}${a.paid_at ? `<br><span style="font-size:11px;color:var(--text3)">${formatDateTime(a.paid_at)}</span>` : ""}`
+        : _payStatusBadge(a);
+      return `<div class="sr-list-row">
+        <div class="sr-no">${i + 1}</div>
+        <div class="sr-name" title="${escapeHtml(a.name || "")}">
+          ${escapeHtml(a.name || "—")}
+          <small>${escapeHtml(a.member_code || "")}${tier ? ` · ${escapeHtml(tier)}` : ""}</small>
+        </div>
+        <div class="sr-meta sr-meta-hide-sm">${escapeHtml(a.ticket_no || "—")}</div>
+        <div class="sr-meta sr-meta-hide-sm">${escapeHtml(a.phone || "—")}</div>
+        <div class="sr-meta">${right}</div>
+      </div>`;
+    })
+    .join("");
+  return head + body;
+}
+
+function _buildStatReport(type) {
+  const total = allAttendees.length;
+  const checkedIn = allAttendees.filter((a) => a.checked_in);
+  const pending = allAttendees.filter((a) => !a.checked_in);
+  const paid = allAttendees.filter((a) => a.payment_status === "PAID");
+  const evName = currentEvent?.event_name || "—";
+
+  if (type === "total") {
+    // Breakdown ตาม Tier + ตาม role + check-in/payment summary
+    const byTier = {};
+    const byRole = {};
+    allAttendees.forEach((a) => {
+      const t = _attTierName(a) || "— ไม่มี tier —";
+      byTier[t] = (byTier[t] || 0) + 1;
+      const r = a.role || "—";
+      byRole[r] = (byRole[r] || 0) + 1;
+    });
+    const summary = [
+      { label: "ลงทะเบียน", value: total },
+      { label: "Check-in แล้ว", value: checkedIn.length, sub: total ? `${Math.round((checkedIn.length / total) * 100)}%` : "0%", accent: true },
+      { label: "ยังไม่ Check-in", value: pending.length },
+      { label: "ชำระแล้ว", value: paid.length, sub: total ? `${Math.round((paid.length / total) * 100)}%` : "0%" },
+      { label: "ฟรี / ยกเว้น", value: allAttendees.filter((a) => a.payment_status === "COMPLIMENTARY").length },
+      { label: "ยังไม่ชำระ", value: allAttendees.filter((a) => a.payment_status === "UNPAID").length },
+    ];
+    return {
+      title: `👥 รายงานลงทะเบียน — ${evName}`,
+      summary,
+      sections: [
+        { title: "🎟️ แยกตาม Tier", count: Object.keys(byTier).length, html: `<div class="sr-breakdown">${_renderBreakdownRows(byTier, total)}</div>` },
+        { title: "⭐ แยกตามตำแหน่ง", count: Object.keys(byRole).length, html: `<div class="sr-breakdown">${_renderBreakdownRows(byRole, total)}</div>` },
+      ],
+      list: allAttendees,
+      listMode: "default",
+    };
+  }
+
+  if (type === "checkin") {
+    const sorted = [...checkedIn].sort((a, b) => {
+      const ta = a.checked_in_at ? new Date(a.checked_in_at).getTime() : 0;
+      const tb = b.checked_in_at ? new Date(b.checked_in_at).getTime() : 0;
+      return tb - ta;
+    });
+    const summary = [
+      { label: "Check-in แล้ว", value: checkedIn.length, accent: true },
+      { label: "จากทั้งหมด", value: total, sub: total ? `${Math.round((checkedIn.length / total) * 100)}%` : "0%" },
+    ];
+    return {
+      title: `✅ รายงาน Check-in — ${evName}`,
+      summary,
+      sections: [],
+      list: sorted,
+      listMode: "checkin",
+    };
+  }
+
+  if (type === "pending") {
+    const sorted = [...pending].sort((a, b) => (a.name || "").localeCompare(b.name || "", "th"));
+    const byPay = {};
+    pending.forEach((a) => {
+      const k = isAttendeeExpired(a) ? "⌛ เกิน grace" : a.payment_status === "PAID" ? "💳 ชำระแล้ว" : a.payment_status === "COMPLIMENTARY" ? "🎫 ฟรี / ยกเว้น" : "⏳ ยังไม่ชำระ";
+      byPay[k] = (byPay[k] || 0) + 1;
+    });
+    const summary = [
+      { label: "ยังไม่ Check-in", value: pending.length, accent: true },
+      { label: "จากทั้งหมด", value: total, sub: total ? `${Math.round((pending.length / total) * 100)}%` : "0%" },
+    ];
+    return {
+      title: `⏳ ยังไม่ Check-in — ${evName}`,
+      summary,
+      sections: [
+        { title: "💰 แยกตามสถานะการชำระ", count: Object.keys(byPay).length, html: `<div class="sr-breakdown">${_renderBreakdownRows(byPay, pending.length)}</div>` },
+      ],
+      list: sorted,
+      listMode: "default",
+    };
+  }
+
+  if (type === "paid") {
+    const sorted = [...paid].sort((a, b) => {
+      const ta = a.paid_at ? new Date(a.paid_at).getTime() : 0;
+      const tb = b.paid_at ? new Date(b.paid_at).getTime() : 0;
+      return tb - ta;
+    });
+    const byMethod = {};
+    let revenueByMethod = {};
+    paid.forEach((a) => {
+      const k = _payMethodLabel(a.payment_method);
+      byMethod[k] = (byMethod[k] || 0) + 1;
+      revenueByMethod[k] = (revenueByMethod[k] || 0) + parseFloat(a.paid_amount || 0);
+    });
+    const totalRev = paid.reduce((s, a) => s + parseFloat(a.paid_amount || 0), 0);
+    const summary = [
+      { label: "ชำระแล้ว", value: paid.length, accent: true },
+      { label: "รายรับรวม", value: `฿${formatNum(totalRev)}` },
+      { label: "เฉลี่ย/คน", value: paid.length ? `฿${formatNum(totalRev / paid.length)}` : "฿0.00" },
+    ];
+    return {
+      title: `💳 รายงานการชำระเงิน — ${evName}`,
+      summary,
+      sections: [
+        { title: "💰 แยกตามวิธีชำระ (จำนวนคน)", count: Object.keys(byMethod).length, html: `<div class="sr-breakdown">${_renderBreakdownRows(byMethod, paid.length)}</div>` },
+      ],
+      list: sorted,
+      listMode: "paid",
+    };
+  }
+
+  if (type === "revenue") {
+    const revenueByMethod = {};
+    const revenueByTier = {};
+    let totalRev = 0;
+    paid.forEach((a) => {
+      const amt = parseFloat(a.paid_amount || 0);
+      totalRev += amt;
+      const m = _payMethodLabel(a.payment_method);
+      revenueByMethod[m] = (revenueByMethod[m] || 0) + amt;
+      const t = _attTierName(a) || "— ไม่มี tier —";
+      revenueByTier[t] = (revenueByTier[t] || 0) + amt;
+    });
+    const renderMoneyRows = (map) => {
+      const entries = Object.entries(map).sort((a, b) => b[1] - a[1]);
+      if (!entries.length) return `<div class="sr-empty" style="padding:14px">— ไม่มีรายรับ —</div>`;
+      return entries
+        .map(([label, amt]) => {
+          const pct = totalRev ? Math.round((amt / totalRev) * 100) : 0;
+          return `<div class="sr-bd-row">
+            <div class="sr-bd-label">${escapeHtml(label)}</div>
+            <div class="sr-bd-bar"><span style="width:${pct}%"></span></div>
+            <div class="sr-bd-count">฿${formatNum(amt)} <span style="color:var(--text3);font-weight:500">(${pct}%)</span></div>
+          </div>`;
+        })
+        .join("");
+    };
+    const summary = [
+      { label: "รายรับรวม", value: `฿${formatNum(totalRev)}`, accent: true },
+      { label: "จำนวนใบ", value: paid.length },
+      { label: "เฉลี่ย/คน", value: paid.length ? `฿${formatNum(totalRev / paid.length)}` : "฿0.00" },
+    ];
+    const sortedPaid = [...paid].sort((a, b) => parseFloat(b.paid_amount || 0) - parseFloat(a.paid_amount || 0));
+    return {
+      title: `💰 รายงานรายรับ — ${evName}`,
+      summary,
+      sections: [
+        { title: "🏦 แยกตามวิธีชำระ", count: Object.keys(revenueByMethod).length, html: `<div class="sr-breakdown">${renderMoneyRows(revenueByMethod)}</div>` },
+        { title: "🎟️ แยกตาม Tier", count: Object.keys(revenueByTier).length, html: `<div class="sr-breakdown">${renderMoneyRows(revenueByTier)}</div>` },
+      ],
+      list: sortedPaid,
+      listMode: "paid",
+    };
+  }
+
+  return { title: "—", summary: [], sections: [], list: [], listMode: "default" };
+}
+
+window.openStatReport = function (type) {
+  if (!allAttendees.length && type !== "total") {
+    showToast("ยังไม่มีข้อมูลผู้ลงทะเบียน", "info");
+    return;
+  }
+  const report = _buildStatReport(type);
+  _statReportContext = { type, ...report };
+
+  document.getElementById("statReportTitle").textContent = report.title;
+
+  const summaryHtml = `<div class="sr-summary">
+    ${report.summary
+      .map((c) => `<div class="sr-summary-cell ${c.accent ? "is-accent" : ""}">
+        <div class="sr-lbl">${escapeHtml(c.label)}</div>
+        <div class="sr-val">${typeof c.value === "number" ? c.value.toLocaleString("th-TH") : c.value}</div>
+        ${c.sub ? `<div class="sr-sub">${escapeHtml(c.sub)}</div>` : ""}
+      </div>`)
+      .join("")}
+  </div>`;
+
+  const sectionsHtml = report.sections
+    .map((s) => `<div>
+      <div class="sr-section-title">${s.title}<span class="sr-section-count">(${s.count})</span></div>
+      ${s.html}
+    </div>`)
+    .join("");
+
+  const listOpts =
+    report.listMode === "checkin" ? { showCheckinTime: true } :
+    report.listMode === "paid" ? { showPaidInfo: true } : {};
+  const listHtml = `<div>
+    <div class="sr-section-title">📋 รายชื่อ <span class="sr-section-count">(${report.list.length} คน)</span></div>
+    <div class="sr-list">${_attendeeListRows(report.list, listOpts)}</div>
+  </div>`;
+
+  document.getElementById("statReportBody").innerHTML = summaryHtml + sectionsHtml + listHtml;
+  document.getElementById("statReportModal").classList.add("open");
+};
+
+window.closeStatReport = function () {
+  document.getElementById("statReportModal").classList.remove("open");
+  _statReportContext = null;
+};
+
+window.printStatReport = function () {
+  if (!_statReportContext) return;
+  window.print();
+};
+
+window.exportStatReportCSV = function () {
+  const ctx = _statReportContext;
+  if (!ctx) return;
+  const list = ctx.list || [];
+  const cols = ["ลำดับ", "ชื่อ", "รหัสสมาชิก", "ตำแหน่ง", "Ticket", "เบอร์โทร", "Tier", "Check-in", "เวลาเช็คอิน", "สถานะชำระ", "วิธีชำระ", "จำนวนเงิน", "วันที่ชำระ"];
+  const csvRows = [cols.join(",")];
+  list.forEach((a, i) => {
+    const row = [
+      i + 1,
+      a.name || "",
+      a.member_code || "",
+      a.role || "",
+      a.ticket_no || "",
+      a.phone || "",
+      _attTierName(a),
+      a.checked_in ? "ใช่" : "ไม่",
+      a.checked_in_at ? formatDateTime(a.checked_in_at) : "",
+      a.payment_status === "PAID" ? "ชำระแล้ว" : a.payment_status === "COMPLIMENTARY" ? "ฟรี/ยกเว้น" : isAttendeeExpired(a) ? "เกิน grace" : "ยังไม่ชำระ",
+      a.payment_method ? _payMethodLabel(a.payment_method) : "",
+      parseFloat(a.paid_amount || 0).toFixed(2),
+      a.paid_at ? formatDateTime(a.paid_at) : "",
+    ];
+    csvRows.push(row.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(","));
+  });
+  const blob = new Blob(["﻿" + csvRows.join("\r\n")], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  const evCode = currentEvent?.event_code || "event";
+  const today = new Date().toISOString().slice(0, 10);
+  link.href = url;
+  link.download = `report-${ctx.type}-${evCode}-${today}.csv`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+};
+
 // ── FILTER + RENDER ───────────────────────────────────────
 function filterTable() {
   const search = (_searchKeyword || "").toLowerCase();

@@ -44,10 +44,32 @@
         font-size: 15px;
         font-weight: 700;
         color: #0f172a;
-        text-align: center;
         margin-bottom: 12px;
         letter-spacing: 0.3px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
       }
+      .ci-cam-toggle {
+        font-family: inherit;
+        font-size: 12px;
+        font-weight: 600;
+        padding: 5px 12px;
+        border-radius: 16px;
+        border: 1.5px solid #cbd5e1;
+        background: #f8fafc;
+        color: #475569;
+        cursor: pointer;
+        transition: all 0.15s;
+      }
+      .ci-cam-toggle:hover { background: #e2e8f0; }
+      .ci-cam-toggle.off {
+        background: #ecfdf5;
+        border-color: #6ee7b7;
+        color: #047857;
+      }
+      .ci-cam-toggle.off:hover { background: #d1fae5; }
       #qr-reader {
         width: 100%;
         max-width: 420px;
@@ -55,6 +77,7 @@
         border-radius: 10px;
         overflow: hidden;
       }
+      #qr-reader.hidden { display: none; }
       .ci-manual-card {
         background: #fff;
         border: 1px solid var(--border, #e2e8f0);
@@ -608,7 +631,10 @@
       </div>
 
       <div class="ci-scanner-card">
-        <div class="ci-scanner-title">📷 Scan QR Code</div>
+        <div class="ci-scanner-title">
+          <span>📷 Scan QR Code</span>
+          <button id="ciCameraToggle" class="ci-cam-toggle" onclick="window.ciToggleCamera()">⏸ ปิดกล้อง</button>
+        </div>
         <div id="qr-reader"></div>
       </div>
 
