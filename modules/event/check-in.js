@@ -328,34 +328,64 @@ async function handleScan(scannedText) {
       selected = pick;
     }
 
+    // Process all check-ins → split into newly-CI vs already-CI
+    const newlyCI = [];
+    const alreadyCI = [];
     for (const a of selected) {
-      await checkInOne(a);
+      if (a.checked_in) {
+        alreadyCI.push(a);
+        continue;
+      }
+      const res = await sbFetch(
+        "event_attendees",
+        `?attendee_id=eq.${a.attendee_id}`,
+        {
+          method: "PATCH",
+          body: { checked_in: true, check_in_at: new Date().toISOString() },
+        },
+      );
+      const updated = res?.[0] || a;
+      newlyCI.push(updated);
+      pushRecent(updated);
+      notifyTagsOnCheckin(updated).catch((e) =>
+        console.warn("notifyTagsOnCheckin:", e?.message || e),
+      );
     }
+
+    // Display: inline result + popup (single card if 1, side-by-side if multi)
+    if (newlyCI.length === 0) {
+      // ทุกคนเช็คอินไปแล้ว
+      if (alreadyCI.length === 1) {
+        setResultFromAttendee("warn", "⚠️ เช็คอินไปแล้ว", alreadyCI[0]);
+      } else {
+        setResult(
+          "warn",
+          `⚠️ เช็คอินไปแล้วทั้งหมด ${alreadyCI.length} คน`,
+          alreadyCI.map((a) => a.name).join(" / "),
+        );
+      }
+      return;
+    }
+
+    if (newlyCI.length === 1 && alreadyCI.length === 0) {
+      setResultFromAttendee("success", "✅ Check-in สำเร็จ", newlyCI[0]);
+    } else {
+      const all = [...newlyCI, ...alreadyCI];
+      setResult(
+        "success",
+        `✅ Check-in สำเร็จ ${newlyCI.length}/${all.length} คน`,
+        all.map((a) => a.name).join(" / "),
+      );
+    }
+    // Popup: ใหม่ + เก่า (เก่าจะมี chip เตือน)
+    const popupList = [
+      ...newlyCI.map((a) => ({ ...a, _already: false })),
+      ...alreadyCI.map((a) => ({ ...a, _already: true })),
+    ];
+    showSuccessPopupMulti(popupList);
   } catch (e) {
     setResult("error", "❌ Error", e.message);
   }
-}
-
-async function checkInOne(a) {
-  if (a.checked_in) {
-    setResultFromAttendee("warn", "⚠️ เช็คอินไปแล้ว", a);
-    return;
-  }
-  const res = await sbFetch(
-    "event_attendees",
-    `?attendee_id=eq.${a.attendee_id}`,
-    {
-      method: "PATCH",
-      body: { checked_in: true, check_in_at: new Date().toISOString() },
-    },
-  );
-  const updated = res?.[0] || a;
-  setResultFromAttendee("success", "✅ Check-in สำเร็จ", updated);
-  showSuccessPopup(updated);
-  pushRecent(updated);
-  notifyTagsOnCheckin(updated).catch((e) =>
-    console.warn("notifyTagsOnCheckin:", e?.message || e),
-  );
 }
 
 // ── PERSON PICKER ─────────────────────────────────────────
@@ -753,15 +783,13 @@ function setResultFromAttendee(cls, title, a) {
   `;
 }
 
-function showSuccessPopup(a) {
-  const modal = document.getElementById("ciSuccessModal");
-  if (!modal) return;
-
-  document.getElementById("ciSuccessName").textContent =
-    (a.member_code ? `[${a.member_code}] ` : "") + (a.name || "");
-  document.getElementById("ciSuccessTicket").textContent = a.ticket_no
-    ? `🎫 ${a.ticket_no}`
-    : "";
+function _buildSuccessCardHTML(a) {
+  const already = !!a._already;
+  const cardClass = already ? "ci-success-card is-already" : "ci-success-card";
+  const title = already ? "⚠️ เช็คอินไปแล้ว" : "Check-in สำเร็จ";
+  const checkIcon = already ? "!" : "✓";
+  const name = (a.member_code ? `[${escapeHtml(a.member_code)}] ` : "") + escapeHtml(a.name || "");
+  const ticket = a.ticket_no ? `🎫 ${escapeHtml(a.ticket_no)}` : "";
 
   const chips = [
     a.payment_status === "PAID"
@@ -772,21 +800,46 @@ function showSuccessPopup(a) {
     a.position_level
       ? `<span class="ci-status-chip" style="background:#fef3c7;color:#92400e">⭐ ${escapeHtml(a.position_level)}</span>`
       : "",
-  ].join("");
-  document.getElementById("ciSuccessChips").innerHTML = chips;
+    a.person_role === "co_applicant"
+      ? '<span class="ci-status-chip" style="background:#f3e8ff;color:#9333ea">👥 ผู้สมัครร่วม</span>'
+      : "",
+  ].filter(Boolean).join("");
 
-  const award = document.getElementById("ciSuccessAward");
-  const tags = a.tags || [];
-  if (tags.length) {
-    award.innerHTML = buildAwardBannerHTML(tags, { headerOnly: true });
-    award.style.display = "block";
-  } else {
-    award.style.display = "none";
-  }
+  const tags = Array.isArray(a.tags) ? a.tags.filter(Boolean) : [];
+  const awardHtml = tags.length
+    ? `<div class="ci-success-award" style="display:block">${buildAwardBannerHTML(tags, { headerOnly: true })}</div>`
+    : "";
+
+  return `
+    <div class="${cardClass}" onclick="event.stopPropagation()">
+      <div class="ci-success-check">${checkIcon}</div>
+      <div class="ci-success-title">${title}</div>
+      <div class="ci-success-name">${name}</div>
+      <div class="ci-success-meta">${ticket}</div>
+      <div class="ci-success-chips">${chips}</div>
+      ${awardHtml}
+      <div class="ci-success-progress"></div>
+    </div>`;
+}
+
+function showSuccessPopup(a) {
+  showSuccessPopupMulti([a]);
+}
+
+function showSuccessPopupMulti(list) {
+  const modal = document.getElementById("ciSuccessModal");
+  if (!modal || !list?.length) return;
+
+  const cardsHtml = list.map(_buildSuccessCardHTML).join("");
+  modal.innerHTML = list.length > 1
+    ? `<div class="ci-success-multi">${cardsHtml}</div>`
+    : cardsHtml;
 
   modal.classList.add("open");
   try {
-    if (navigator.vibrate) navigator.vibrate(80);
+    if (navigator.vibrate) {
+      navigator.vibrate(list.length > 1 ? [80, 60, 80] : 80);
+    }
   } catch {}
 }
 
