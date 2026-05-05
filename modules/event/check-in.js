@@ -152,12 +152,18 @@ async function init() {
   });
 }
 
-window.ciManualCheckin = async function () {
+window.ciManualCheckin = async function (skipPassword = false) {
   const code = document.getElementById("manualCode").value.trim();
   if (!code) return;
   document.getElementById("manualCode").value = "";
-  await handleScan(code, { requirePassword: true });
+  manualInputFirstCharAt = 0;
+  await handleScan(code, { requirePassword: !skipPassword });
 };
+
+// Track first-char timestamp to distinguish hardware QR scanner gun
+// (ทุกตัวอักษร + Enter เข้ามาเร็วมาก) from human typing
+let manualInputFirstCharAt = 0;
+const HARDWARE_SCAN_MAX_MS = 150;
 
 // ── MEMBER PASSWORD VERIFICATION (manual check-in only) ──
 async function fetchMemberPasswordHash(memberCode) {

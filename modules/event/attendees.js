@@ -129,11 +129,14 @@ async function uploadSlip(eventId, file) {
   return `${url}/storage/v1/object/public/event-files/${path}`;
 }
 
-/* Upload a Blob (styled QR PNG) to event-files/ → return public URL */
+/* Deterministic public URL for an attendee QR (no Date.now → re-upload OVERWRITES
+   instead of creating orphans; cuts Storage Cached Egress dramatically). */
+function _qrPublicUrl(url, eventId, attendeeId) {
+  return `${url}/storage/v1/object/public/event-files/qr_${eventId}_${attendeeId}.png`;
+}
 async function uploadQrBlob(eventId, attendeeId, blob) {
   const { url, key } = getSB();
-  // Flat path like slips/ (known working) — avoids subfolder RLS weirdness
-  const path = `qr_${eventId}_${attendeeId}_${Date.now()}.png`;
+  const path = `qr_${eventId}_${attendeeId}.png`;
   const uploadUrl = `${url}/storage/v1/object/event-files/${path}`;
   console.log(`[QR upload] → ${path} (${Math.round(blob.size / 1024)}KB)`);
   const res = await fetch(uploadUrl, {
@@ -151,23 +154,7 @@ async function uploadQrBlob(eventId, attendeeId, blob) {
     console.error(`[QR upload FAIL ${res.status}]`, errText);
     throw new Error(`QR upload ${res.status}: ${errText.slice(0, 120)}`);
   }
-  const publicUrl = `${url}/storage/v1/object/public/event-files/${path}`;
-  // Verify URL is actually accessible (LINE needs to fetch it from the public internet)
-  let head;
-  try {
-    head = await fetch(publicUrl, { method: "HEAD" });
-  } catch (e) {
-    console.error("[QR verify network fail]", publicUrl, e.message);
-    throw new Error(`QR URL ไม่ accessible (network): ${e.message}`);
-  }
-  if (!head.ok) {
-    console.error(`[QR verify HTTP ${head.status}]`, publicUrl);
-    throw new Error(
-      `bucket event-files ไม่ public — HEAD ${head.status} (ตรวจ Supabase Storage policies)`,
-    );
-  }
-  console.log("[QR upload ✅]", publicUrl);
-  return publicUrl;
+  return _qrPublicUrl(url, eventId, attendeeId);
 }
 
 /* Render locked Neon Cyber styled QR → PNG Blob */
@@ -205,16 +192,28 @@ async function _renderStyledQrBlob(payload) {
   }
 }
 
-/* Get styled QR image URL (uploaded) — memoize to avoid re-uploading */
+/* Get styled QR image URL — checks Storage first (cross-session cache via
+   deterministic filename) so we don't re-render+re-upload on every page load. */
 const _qrUrlCache = new Map();  // key: `${event_id}:${ticketNo}`
 async function getStyledQrUrl(event, attendee) {
   const ticketNo = attendee.ticket_no || `A4S-${event?.event_id || ""}-${attendee.attendee_id}`;
   const key = `${event?.event_id}:${ticketNo}`;
   if (_qrUrlCache.has(key)) return _qrUrlCache.get(key);
+  const { url } = getSB();
+  const publicUrl = _qrPublicUrl(url, event.event_id, attendee.attendee_id);
+  // HEAD-check existing file — small request vs full re-render+upload
+  try {
+    const head = await fetch(publicUrl, { method: "HEAD" });
+    if (head.ok) {
+      _qrUrlCache.set(key, publicUrl);
+      return publicUrl;
+    }
+  } catch {}
+  // Not in Storage → render + upload (first time only)
   const blob = await _renderStyledQrBlob(ticketNo);
-  const url = await uploadQrBlob(event.event_id, attendee.attendee_id, blob);
-  _qrUrlCache.set(key, url);
-  return url;
+  const newUrl = await uploadQrBlob(event.event_id, attendee.attendee_id, blob);
+  _qrUrlCache.set(key, newUrl);
+  return newUrl;
 }
 // Generate short event code from event_name (initials) — fallback to event_code tail / event_id
 function getEventShortCode(ev) {
@@ -814,7 +813,9 @@ function renderSavedRow(a) {
       ${a.phone ? `<span class="cell-phone">${escapeHtml(a.phone)}</span>` : '<span class="att-empty">·</span>'}
     </td>
     <td class="col-center">
-      <div class="cell-ticket">${a.ticket_no || "—"}</div>
+      ${a.ticket_no
+        ? `<div class="cell-ticket cell-ticket-clickable" onclick="window.openQrModal(${a.attendee_id})" title="คลิกเพื่อดู QR บัตร">${a.ticket_no}</div>`
+        : `<div class="cell-ticket">—</div>`}
     </td>
     <td class="col-center">
       <span class="pay-badge pay-${displayPayStatus}"

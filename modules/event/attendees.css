@@ -554,6 +554,19 @@
   font-size: 11px;
   color: var(--text3, #94a3b8);
 }
+.cell-ticket-clickable {
+  cursor: pointer;
+  color: var(--primary, #1e40af);
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 6px;
+  display: inline-block;
+  transition: background 0.15s, color 0.15s;
+}
+.cell-ticket-clickable:hover {
+  background: rgba(30, 64, 175, 0.08);
+  text-decoration: underline;
+}
 .cell-phone {
   font-family: 'IBM Plex Mono', monospace;
   font-size: 12px;
