@@ -509,6 +509,32 @@ async function lookupAttendee(code) {
   return null;
 }
 
+// Build award banner HTML — shows each tag chip + its detail lines
+// (detail comes from event_tag_categories, multiline → one row per line)
+//   headerOnly = true → just the inner content (banner wrapper provided by caller, e.g. #ciSuccessAward)
+//   headerOnly = false → wrapped in .ci-award-banner
+function buildAwardBannerHTML(tags, opts = {}) {
+  if (!tags || !tags.length) return "";
+  const items = tags
+    .map((t) => {
+      const cat = tagCategoriesByName[t] || {};
+      const detail = String(cat.detail || "").trim();
+      const lines = detail
+        ? detail.split(/\r?\n/).map((l) => l.trim()).filter(Boolean)
+        : [];
+      const detailHTML = lines.length
+        ? `<div class="ci-award-detail">${lines.map((l) => `<div>• ${escapeHtml(l)}</div>`).join("")}</div>`
+        : "";
+      return `<div class="ci-award-item">
+        <span class="ci-award-tag">${escapeHtml(t)}</span>
+        ${detailHTML}
+      </div>`;
+    })
+    .join("");
+  const inner = `🏆 รางวัล / กลุ่มพิเศษ<div class="ci-award-list">${items}</div>`;
+  return opts.headerOnly ? inner : `<div class="ci-award-banner">${inner}</div>`;
+}
+
 function setResult(cls, title, detail) {
   const el = document.getElementById("ciResult");
   el.className = `ci-result ${cls}`;
@@ -531,13 +557,7 @@ function setResultFromAttendee(cls, title, a) {
       : "",
   ].join("");
 
-  const tags = a.tags || [];
-  const awardBanner = tags.length
-    ? `<div class="ci-award-banner">
-         🏆 รางวัล / กลุ่มพิเศษ<br>
-         ${tags.map((t) => `<span class="ci-award-tag">${escapeHtml(t)}</span>`).join("")}
-       </div>`
-    : "";
+  const awardBanner = buildAwardBannerHTML(a.tags || []);
 
   el.innerHTML = `
     <div>${statusChips}</div>
@@ -576,9 +596,7 @@ function showSuccessPopup(a) {
   const award = document.getElementById("ciSuccessAward");
   const tags = a.tags || [];
   if (tags.length) {
-    award.innerHTML =
-      `🏆 รางวัล / กลุ่มพิเศษ<br>` +
-      tags.map((t) => `<span class="ci-award-tag">${escapeHtml(t)}</span>`).join("");
+    award.innerHTML = buildAwardBannerHTML(tags, { headerOnly: true });
     award.style.display = "block";
   } else {
     award.style.display = "none";
