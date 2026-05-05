@@ -132,18 +132,11 @@ async function init() {
   manualInput.addEventListener("keydown", (e) => {
     if (e.key === "Enter") {
       e.preventDefault();
-      const elapsed = manualInputFirstCharAt
-        ? Date.now() - manualInputFirstCharAt
-        : Infinity;
-      const code = manualInput.value.trim();
-      const isHardwareScan = code.length >= 4 && elapsed < HARDWARE_SCAN_MAX_MS;
-      window.ciManualCheckin(isHardwareScan);
+      window.ciManualCheckin();
     }
   });
   manualInput.addEventListener("input", (e) => {
     const v = e.target.value;
-    if (!manualInputFirstCharAt && v) manualInputFirstCharAt = Date.now();
-    if (!v) manualInputFirstCharAt = 0;
     const hasThai = /[\u0E00-\u0E7F]/.test(v);
     const cleaned = v.replace(/[^A-Za-z0-9\-]/g, "").toUpperCase();
     if (cleaned !== v) {
@@ -159,96 +152,12 @@ async function init() {
   });
 }
 
-window.ciManualCheckin = async function (skipPassword = false) {
+window.ciManualCheckin = async function () {
   const code = document.getElementById("manualCode").value.trim();
   if (!code) return;
   document.getElementById("manualCode").value = "";
-  manualInputFirstCharAt = 0;
-  await handleScan(code, { requirePassword: !skipPassword });
+  await handleScan(code);
 };
-
-// Track first-char timestamp to distinguish hardware QR scanner gun
-// (ทุกตัวอักษร + Enter เข้ามาเร็วมาก) from human typing
-let manualInputFirstCharAt = 0;
-const HARDWARE_SCAN_MAX_MS = 150;
-
-// ── MEMBER PASSWORD VERIFICATION (manual check-in only) ──
-async function fetchMemberPasswordHash(memberCode) {
-  const rows = await sbFetch(
-    "members",
-    `?member_code=eq.${encodeURIComponent(memberCode)}&select=password_hash&limit=1`,
-  ).catch(() => null);
-  return rows?.[0]?.password_hash || null;
-}
-
-function requireMemberPassword(attendee) {
-  return new Promise(async (resolve) => {
-    const modal = document.getElementById("ciPinModal");
-    const input = document.getElementById("ciPinInput");
-    const err = document.getElementById("ciPinError");
-    const title = document.getElementById("ciPinTitle");
-    const hint = document.getElementById("ciPinHint");
-    const submit = document.getElementById("ciPinSubmit");
-    const cancel = document.getElementById("ciPinCancel");
-
-    // No member_code → can't verify (e.g. guest attendee) → just allow
-    if (!attendee.member_code) return resolve(true);
-    if (!window.ERPCrypto) return resolve(true);
-
-    // Fetch stored hash (no master key needed — works on any device)
-    let storedHash = null;
-    try {
-      storedHash = await fetchMemberPasswordHash(attendee.member_code);
-    } catch {}
-    // No hash on record → allow (degrade gracefully for un-backfilled rows)
-    if (!storedHash) return resolve(true);
-
-    title.textContent = "🔒 ยืนยันตัวตน";
-    hint.innerHTML = `<div class="ci-pin-name">${escapeHtml(attendee.name || "")}</div><div class="ci-pin-sub">กรอกรหัสผ่านของคุณ</div>`;
-    submit.textContent = "ยืนยัน";
-    err.textContent = "";
-    input.value = "";
-    input.type = "password";
-    modal.classList.add("open");
-    setTimeout(() => input.focus(), 50);
-
-    let attempts = 0;
-    const cleanup = () => {
-      modal.classList.remove("open");
-      submit.onclick = null;
-      cancel.onclick = null;
-      input.onkeydown = null;
-    };
-    const finish = (ok) => { cleanup(); resolve(ok); };
-
-    const tryIt = async () => {
-      const v = input.value;
-      if (!v) {
-        err.textContent = "กรุณาใส่รหัสผ่าน";
-        return;
-      }
-      const inputHash = await ERPCrypto.hash(v);
-      if (inputHash === storedHash) {
-        finish(true);
-      } else {
-        attempts++;
-        err.textContent = `❌ รหัสผ่านไม่ถูกต้อง (${attempts}/3)`;
-        input.value = "";
-        input.focus();
-        if (attempts >= 3) {
-          setTimeout(() => finish(false), 600);
-        }
-      }
-    };
-
-    submit.onclick = tryIt;
-    cancel.onclick = () => finish(false);
-    input.onkeydown = (e) => {
-      if (e.key === "Enter") { e.preventDefault(); tryIt(); }
-      else if (e.key === "Escape") { e.preventDefault(); finish(false); }
-    };
-  });
-}
 
 // ── SHARE REGISTER LINK ─────────────────────────────────
 function buildRegisterUrl() {
@@ -306,7 +215,7 @@ function showCopiedToast() {
 }
 
 // Debounce duplicate scans within 2 seconds
-async function handleScan(scannedText, opts = {}) {
+async function handleScan(scannedText) {
   const now = Date.now();
   if (scannedText === lastScanText && now - lastScanAt < 2000) return;
   lastScanText = scannedText;
@@ -354,18 +263,6 @@ async function handleScan(scannedText, opts = {}) {
     if (a.checked_in) {
       setResultFromAttendee("warn", "⚠️ เช็คอินไปแล้ว", a);
       return;
-    }
-
-    // Verify member password for manual check-in
-    if (opts.requirePassword) {
-      const ok = await requireMemberPassword(a);
-      if (!ok) {
-        setResult("error", "❌ ยกเลิกการ check-in", "ยืนยันรหัสผ่านไม่สำเร็จ");
-        // Reset debounce so same code can be retried immediately
-        lastScanText = "";
-        lastScanAt = 0;
-        return;
-      }
     }
 
     // Mark checked_in
