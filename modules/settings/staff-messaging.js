@@ -14,6 +14,7 @@ const SB_KEY = localStorage.getItem("sb_key") || "";
 let allStaff = [];
 let selectedIds = new Set();
 let currentChannel = null;
+let pendingImage = null; // { file, dataUrl }
 
 async function sb(path) {
   const res = await fetch(`${SB_URL}/rest/v1/${path}`, {
@@ -217,6 +218,89 @@ function updateTargetCount() {
   if (btn) btn.disabled = n === 0;
 }
 
+/* ── Image upload ── */
+function handleImageSelect(file) {
+  if (!file) return;
+  if (!/^image\/(jpe?g|png)$/i.test(file.type)) {
+    return showToast("รองรับเฉพาะ JPG / PNG", "warning");
+  }
+  if (file.size > 10 * 1024 * 1024) {
+    return showToast("รูปต้องไม่เกิน 10MB", "warning");
+  }
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    pendingImage = { file, dataUrl: e.target.result };
+    document.getElementById("smImageZone").style.display = "none";
+    document.getElementById("smImagePreview").style.display = "block";
+    document.getElementById("smImagePreviewImg").src = e.target.result;
+    const kb = file.size / 1024;
+    const sizeText = kb < 1024 ? `${kb.toFixed(0)} KB` : `${(kb / 1024).toFixed(2)} MB`;
+    document.getElementById("smImageName").textContent = `${file.name} · ${sizeText}`;
+  };
+  reader.readAsDataURL(file);
+}
+
+function clearImage() {
+  pendingImage = null;
+  const input = document.getElementById("smImageInput");
+  if (input) input.value = "";
+  document.getElementById("smImageZone").style.display = "";
+  document.getElementById("smImagePreview").style.display = "none";
+}
+
+// Generate a small preview JPEG via canvas (max 240px, quality 0.7) — guarantees ≤1MB for LINE
+async function makeImagePreviewBlob(file) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const objUrl = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(objUrl);
+      const MAX = 240;
+      let w = img.naturalWidth, h = img.naturalHeight;
+      const scale = Math.min(1, MAX / Math.max(w, h));
+      w = Math.max(1, Math.round(w * scale));
+      h = Math.max(1, Math.round(h * scale));
+      const cv = document.createElement("canvas");
+      cv.width = w; cv.height = h;
+      cv.getContext("2d").drawImage(img, 0, 0, w, h);
+      cv.toBlob((b) => b ? resolve(b) : reject(new Error("preview gen failed")), "image/jpeg", 0.72);
+    };
+    img.onerror = () => { URL.revokeObjectURL(objUrl); reject(new Error("image load failed")); };
+    img.src = objUrl;
+  });
+}
+
+async function uploadToStorage(blob, ext) {
+  const yyyymmdd = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+  const name = `sm_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
+  const path = `staff-messaging/${yyyymmdd}/${name}`;
+  const res = await fetch(`${SB_URL}/storage/v1/object/event-files/${path}`, {
+    method: "POST",
+    headers: {
+      apikey: SB_KEY,
+      Authorization: `Bearer ${SB_KEY}`,
+      "Content-Type": blob.type || "application/octet-stream",
+      "x-upsert": "true",
+    },
+    body: blob,
+  });
+  if (!res.ok) {
+    const txt = await res.text().catch(() => "");
+    throw new Error(`อัพโหลดรูปไม่สำเร็จ (${res.status}): ${txt}`);
+  }
+  return `${SB_URL}/storage/v1/object/public/event-files/${path}`;
+}
+
+async function uploadImageForLine(file) {
+  const ext = /png/i.test(file.type) ? "png" : "jpg";
+  const previewBlob = await makeImagePreviewBlob(file);
+  const [originalUrl, previewUrl] = await Promise.all([
+    uploadToStorage(file, ext),
+    uploadToStorage(previewBlob, "jpg"),
+  ]);
+  return { originalUrl, previewUrl };
+}
+
 /* ── Channel load ── */
 async function loadChannels() {
   try {
@@ -258,16 +342,18 @@ function updateCharCount() {
 
 function previewMessage() {
   const msg = document.getElementById("smMessage").value.trim();
-  if (!msg) return showToast("ยังไม่มีข้อความ", "warning");
+  if (!msg && !pendingImage) return showToast("ยังไม่มีข้อความหรือรูปภาพ", "warning");
   const targets = getTargets();
   const names = targets.slice(0, 5).map((u) => u.full_name || u.username).join(", ");
   const more = targets.length > 5 ? ` และอีก ${targets.length - 5} คน` : "";
+  const details = { "ส่งถึง": `${targets.length} คน`, "ผู้รับ": names + more || "-" };
+  if (pendingImage) details["รูปภาพ"] = `${pendingImage.file.name}`;
   ConfirmModal.open({
     icon: "👁️",
     title: "พรีวิวข้อความ",
     tone: "primary",
-    message: msg,
-    details: { "ส่งถึง": `${targets.length} คน`, "ผู้รับ": names + more || "-" },
+    message: msg || "(ไม่มีข้อความ — ส่งเฉพาะรูปภาพ)",
+    details,
     note: "นี่เป็นเพียงตัวอย่าง — กดปุ่ม 📤 ส่งข้อความ เพื่อส่งจริง",
     noteTone: "info",
     okText: "ปิด",
@@ -277,7 +363,7 @@ function previewMessage() {
 
 async function sendMessages() {
   const msg = document.getElementById("smMessage").value.trim();
-  if (!msg) return showToast("กรุณากรอกข้อความ", "warning");
+  if (!msg && !pendingImage) return showToast("กรุณากรอกข้อความ หรือเลือกรูปภาพ", "warning");
   if (!currentChannel) return showToast("ยังไม่ได้เลือก channel", "warning");
 
   const targets = getTargets();
@@ -285,20 +371,26 @@ async function sendMessages() {
 
   const names = targets.slice(0, 5).map((u) => u.full_name || u.username).join(", ");
   const more = targets.length > 5 ? ` และอีก ${targets.length - 5} คน` : "";
-  const ok = await ConfirmModal.open({
+  const details = {
+    "จำนวน": `${targets.length} คน`,
+    "ผู้รับ": names + more,
+    "Channel": currentChannel?.channel_name || currentChannel?.name || "-",
+  };
+  if (pendingImage) details["รูปภาพ"] = pendingImage.file.name;
+  const okConfirm = await ConfirmModal.open({
     icon: "📤",
     title: "ยืนยันส่งข้อความ",
     tone: "primary",
-    message: "ข้อความจะถูกส่งผ่าน LINE OA ถึงพนักงานที่เลือกไว้",
-    details: {
-      "จำนวน": `${targets.length} คน`,
-      "ผู้รับ": names + more,
-      "Channel": currentChannel?.channel_name || "-",
-    },
+    message: pendingImage && msg
+      ? "รูปภาพและข้อความจะถูกส่งผ่าน LINE OA ถึงพนักงานที่เลือกไว้"
+      : pendingImage
+        ? "รูปภาพจะถูกส่งผ่าน LINE OA ถึงพนักงานที่เลือกไว้"
+        : "ข้อความจะถูกส่งผ่าน LINE OA ถึงพนักงานที่เลือกไว้",
+    details,
     okText: "ส่งเลย",
     cancelText: "ยกเลิก",
   });
-  if (!ok) return;
+  if (!okConfirm) return;
 
   if (!window.ERPCrypto?.hasMasterKey()) {
     return showToast("ยังไม่ได้ตั้ง Master Key — ไปที่หน้าตั้งค่า", "error");
@@ -306,37 +398,50 @@ async function sendMessages() {
 
   const btn = document.getElementById("smSendBtn");
   btn.disabled = true;
-  btn.innerHTML = "⏳ กำลังส่ง...";
   showLoading(true);
 
   try {
+    // Upload image once (if any), reuse URL across all batches
+    const messages = [];
+    if (pendingImage) {
+      btn.innerHTML = "⏳ กำลังอัพโหลดรูป...";
+      const { originalUrl, previewUrl } = await uploadImageForLine(pendingImage.file);
+      messages.push({
+        type: "image",
+        originalContentUrl: originalUrl,
+        previewImageUrl: previewUrl,
+      });
+    }
+    if (msg) messages.push({ type: "text", text: msg });
+
+    btn.innerHTML = "⏳ กำลังส่ง...";
     const userIds = targets.map((u) => u.line_user_id);
-    // multicast supports up to 500 per call — chunk if needed
     const CHUNK = 500;
-    let ok = 0, fail = 0;
+    let okCount = 0, fail = 0;
     for (let i = 0; i < userIds.length; i += CHUNK) {
       const batch = userIds.slice(i, i + CHUNK);
       try {
         await window.LineAPI.multicast({
           channel: currentChannel,
           to: batch,
-          message: msg,
+          messages,
         });
-        ok += batch.length;
+        okCount += batch.length;
       } catch (e) {
         console.error("multicast failed", e);
         fail += batch.length;
       }
     }
     if (fail === 0) {
-      showToast(`✅ ส่งสำเร็จ ${ok} คน`, "success");
+      showToast(`✅ ส่งสำเร็จ ${okCount} คน`, "success");
       document.getElementById("smMessage").value = "";
       updateCharCount();
+      clearImage();
       selectedIds.clear();
       renderTable();
       updateStats();
     } else {
-      showToast(`ส่งสำเร็จ ${ok} / ล้มเหลว ${fail}`, "warning");
+      showToast(`ส่งสำเร็จ ${okCount} / ล้มเหลว ${fail}`, "warning");
     }
   } catch (e) {
     showToast("ส่งไม่สำเร็จ: " + e.message, "error");
@@ -353,6 +458,31 @@ document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("smFilterRole").addEventListener("change", renderTable);
   document.getElementById("smFilterLinked").addEventListener("change", renderTable);
   document.getElementById("smReportSearch").addEventListener("input", renderReportList);
+
+  // Image upload wiring
+  const zone = document.getElementById("smImageZone");
+  const input = document.getElementById("smImageInput");
+  if (zone && input) {
+    zone.addEventListener("click", () => input.click());
+    input.addEventListener("change", (e) => handleImageSelect(e.target.files?.[0]));
+    ["dragenter", "dragover"].forEach((ev) => {
+      zone.addEventListener(ev, (e) => {
+        e.preventDefault(); e.stopPropagation();
+        zone.classList.add("dragover");
+      });
+    });
+    ["dragleave", "drop"].forEach((ev) => {
+      zone.addEventListener(ev, (e) => {
+        e.preventDefault(); e.stopPropagation();
+        zone.classList.remove("dragover");
+      });
+    });
+    zone.addEventListener("drop", (e) => {
+      const f = e.dataTransfer?.files?.[0];
+      if (f) handleImageSelect(f);
+    });
+  }
+
   loadStaff();
   loadChannels();
 });
@@ -470,3 +600,5 @@ window.previewMessage = previewMessage;
 window.loadStaff = loadStaff;
 window.updateCharCount = updateCharCount;
 window.unlinkUser = unlinkUser;
+window.handleImageSelect = handleImageSelect;
+window.clearImage = clearImage;
