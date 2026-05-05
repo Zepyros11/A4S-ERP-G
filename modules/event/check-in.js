@@ -648,7 +648,23 @@ function formatThaiDate(iso) {
 
 // คืน array ของ matches (อาจเป็น 0, 1, หรือ 2 rows) — caller ตัดสินใจเอง
 // 2 rows เกิดเมื่อ member_code เดียวกันลง primary + co_applicant ใน event เดียวกัน
+//
+// QR payload formats ที่รองรับ:
+//   ticket_no       (e.g. A4S-EVT-0001)         → ตรงกับ row เดียว
+//   A4S-ATT-{N}     (legacy attendee_id link)    → ตรงกับ row เดียว
+//   MC-{member_code} (shared QR ของคู่)          → ตรงกับ 1-2 rows ใน event นี้
 async function lookupAttendee(code) {
+  // Shared-pair QR: "MC-{member_code}" → ค้น member_code ใน event นี้ตรงๆ
+  const mc = code.match(/^MC-(.+)$/);
+  if (mc) {
+    const memberCode = mc[1];
+    const rows = await sbFetch(
+      "event_attendees",
+      `?member_code=eq.${encodeURIComponent(memberCode)}&event_id=eq.${eventId}&select=*&limit=5`,
+    ).catch(() => []);
+    return rows || [];
+  }
+
   const conds = [`ticket_no.eq.${encodeURIComponent(code)}`];
   const m = code.match(/^A4S-ATT-(\d+)$/);
   if (m) conds.push(`attendee_id.eq.${m[1]}`);

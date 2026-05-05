@@ -192,15 +192,42 @@ async function _renderStyledQrBlob(payload) {
   }
 }
 
+/* ── Pair detection / shared QR ────────────────────────────────────
+   ถ้า attendee มีคู่ใน event เดียวกัน (member_code เดียวกัน, role ต่างกัน) →
+   QR payload = "MC-{member_code}" → สแกนแล้ว check-in.js เปิด picker เลือกคน
+   ไม่งั้นใช้ ticket_no ปกติ */
+function _hasPairedSibling(attendee) {
+  if (!attendee?.member_code || !attendee?.event_id) return false;
+  return (allAttendees || []).some((a) =>
+    a.attendee_id !== attendee.attendee_id &&
+    a.event_id === attendee.event_id &&
+    a.member_code === attendee.member_code
+  );
+}
+function _getQrPayload(attendee) {
+  if (attendee?.member_code && _hasPairedSibling(attendee)) {
+    return `MC-${attendee.member_code}`;
+  }
+  return attendee?.ticket_no || `A4S-ATT-${attendee?.attendee_id ?? ""}`;
+}
+function _qrFileName(eventId, attendee, payload) {
+  // Pair shares ONE file (qr_{eid}_pair_{code}.png) — render+upload ครั้งเดียวพอ
+  if (payload?.startsWith("MC-")) {
+    return `qr_${eventId}_pair_${attendee.member_code}.png`;
+  }
+  return `qr_${eventId}_${attendee.attendee_id}.png`;
+}
+
 /* Get styled QR image URL — checks Storage first (cross-session cache via
    deterministic filename) so we don't re-render+re-upload on every page load. */
-const _qrUrlCache = new Map();  // key: `${event_id}:${ticketNo}`
+const _qrUrlCache = new Map();  // key: `${event_id}:${payload}`
 async function getStyledQrUrl(event, attendee) {
-  const ticketNo = attendee.ticket_no || `A4S-${event?.event_id || ""}-${attendee.attendee_id}`;
-  const key = `${event?.event_id}:${ticketNo}`;
+  const payload = _getQrPayload(attendee);
+  const fileName = _qrFileName(event.event_id, attendee, payload);
+  const key = `${event?.event_id}:${payload}`;
   if (_qrUrlCache.has(key)) return _qrUrlCache.get(key);
-  const { url } = getSB();
-  const publicUrl = _qrPublicUrl(url, event.event_id, attendee.attendee_id);
+  const { url, key: sbKey } = getSB();
+  const publicUrl = `${url}/storage/v1/object/public/event-files/${fileName}`;
   // HEAD-check existing file — small request vs full re-render+upload
   try {
     const head = await fetch(publicUrl, { method: "HEAD" });
@@ -210,10 +237,19 @@ async function getStyledQrUrl(event, attendee) {
     }
   } catch {}
   // Not in Storage → render + upload (first time only)
-  const blob = await _renderStyledQrBlob(ticketNo);
-  const newUrl = await uploadQrBlob(event.event_id, attendee.attendee_id, blob);
-  _qrUrlCache.set(key, newUrl);
-  return newUrl;
+  const blob = await _renderStyledQrBlob(payload);
+  const uploadUrl = `${url}/storage/v1/object/event-files/${fileName}`;
+  const upRes = await fetch(uploadUrl, {
+    method: "POST",
+    headers: { apikey: sbKey, Authorization: `Bearer ${sbKey}`, "Content-Type": "image/png", "x-upsert": "true" },
+    body: blob,
+  });
+  if (!upRes.ok) {
+    const errText = await upRes.text().catch(() => "");
+    throw new Error(`QR upload ${upRes.status}: ${errText.slice(0, 120)}`);
+  }
+  _qrUrlCache.set(key, publicUrl);
+  return publicUrl;
 }
 // Generate short event code from event_name (initials) — fallback to event_code tail / event_id
 function getEventShortCode(ev) {
@@ -1853,11 +1889,22 @@ function escapeHtml(s) {
   return String(s || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
+// Detect pair: 2 results, same member_code, primary + co_applicant
+function _detectPairFromResults(results) {
+  if (!results || results.length !== 2) return null;
+  const [a, b] = results;
+  if (a.member_code !== b.member_code) return null;
+  const primary = results.find((r) => r.person_role !== "co_applicant");
+  const coapp = results.find((r) => r.person_role === "co_applicant");
+  if (!primary || !coapp) return null;
+  return { primary, coapp, code: a.member_code };
+}
+
 function _renderMemberSuggest() {
   const sug = document.getElementById("memberSuggest");
   if (!_lastMemberResults.length) { sug.style.display = "none"; return; }
   _positionSuggestUnderActiveRow();
-  sug.innerHTML = _lastMemberResults.map((m, i) => {
+  const rowsHtml = _lastMemberResults.map((m, i) => {
     const name = m.person_name || '—';
     const safeName = escapeHtml(name).replace(/'/g, "&#39;");
     const role = m.person_role || 'primary';
@@ -1876,6 +1923,18 @@ function _renderMemberSuggest() {
       ${m.country_code ? `<span style="font-size:10.5px;color:var(--text3,#94a3b8);background:#f1f5f9;padding:1px 6px;border-radius:4px">${m.country_code}</span>` : ''}
     </div>`;
   }).join('');
+
+  // ถ้าเป็นคู่ (primary + co_applicant ใน member_code เดียวกัน) → เพิ่มแถว "เพิ่มทั้ง 2 คน"
+  const pair = _detectPairFromResults(_lastMemberResults);
+  const pairRow = pair
+    ? `<div onclick="window.selectBothMembers()" style="padding:11px 12px;cursor:pointer;font-size:12.5px;display:flex;align-items:center;gap:8px;background:linear-gradient(90deg,#eef2ff,#f3e8ff);border-top:2px solid #c7d2fe;font-weight:700;color:#4338ca" onmouseover="this.style.background='linear-gradient(90deg,#dbeafe,#e9d5ff)'" onmouseout="this.style.background='linear-gradient(90deg,#eef2ff,#f3e8ff)'">
+      <span style="font-size:18px">👫</span>
+      <span style="flex:1">เพิ่มทั้ง 2 คน — QR ใช้ร่วมกัน</span>
+      <span style="font-size:10.5px;color:#6366f1;background:#fff;padding:2px 7px;border-radius:5px;border:1px solid #c7d2fe">2 รายการ</span>
+    </div>`
+    : '';
+
+  sug.innerHTML = rowsHtml + pairRow;
   sug.style.display = "block";
 }
 
@@ -1932,6 +1991,33 @@ window.selectMember = function (code, role, name, phone, positionLevel) {
   _applyMemberToRow(rowId, code, role || "primary", name, phone || "", positionLevel || "");
   // Auto-save immediately — เลือก = enter รายการเข้า list ทันที
   requestAnimationFrame(() => window.saveNewRow(rowId));
+};
+
+// เพิ่มทั้ง primary + co_applicant ที่ใช้ member_code เดียวกัน — QR shared
+// (saveNewRow รับ rowId เดียว → ทำ sequential save 2 รอบ; allAttendees refresh หลังบันทึกครั้งแรก
+//  → _hasPairedSibling เริ่มเห็นคู่ทันทีตอน QR render = MC-{code})
+window.selectBothMembers = async function () {
+  const pair = _detectPairFromResults(_lastMemberResults);
+  if (!pair || !activeSearchRowId) return;
+  document.getElementById("memberSuggest").style.display = "none";
+  _lastMemberResults = [];
+
+  const { primary, coapp } = pair;
+
+  // 1) Save primary in current active row
+  const rowId1 = activeSearchRowId;
+  _applyMemberToRow(rowId1, primary.member_code, "primary", primary.person_name || "", primary.phone || "", primary.position_level || "");
+  await window.saveNewRow(rowId1);
+
+  // 2) Save co_applicant in trailing empty row (saveNewRow ensureTrailingEmptyRow แล้ว)
+  const trailing = newRows[newRows.length - 1];
+  if (!trailing) {
+    showToast("⚠️ เพิ่มผู้สมัครหลักแล้ว แต่ไม่พบช่องว่างสำหรับผู้สมัครร่วม — ค้นรหัสอีกครั้งเพื่อเพิ่ม", "warn");
+    return;
+  }
+  _applyMemberToRow(trailing.id, coapp.member_code, "co_applicant", coapp.person_name || "", coapp.phone || "", coapp.position_level || "");
+  await window.saveNewRow(trailing.id);
+  showToast("✅ เพิ่มทั้ง 2 คนแล้ว — QR ใช้ร่วมกัน", "success");
 };
 
 // Close member suggest on click outside any new-row search input
@@ -2562,18 +2648,24 @@ window.openQrModal = function (attendeeId) {
   if (!a) return;
   _qrModalAtt = a;
 
+  const qrPayload = _getQrPayload(a);
+  const isPair = qrPayload.startsWith("MC-");
+  const pairBadge = isPair
+    ? `<div class="qr-pair-badge" style="margin-top:6px;display:inline-block;padding:3px 10px;background:#f3e8ff;color:#9333ea;border-radius:6px;font-size:11px;font-weight:700">👫 QR ใช้ร่วมกับผู้สมัครร่วม</div>`
+    : "";
   document.getElementById("qrInfo").innerHTML = `
     <div class="qr-name">${escapeHtml(a.name)}</div>
     ${a.member_code ? `<div class="qr-member">${escapeHtml(a.member_code)}</div>` : ""}
-    ${currentEvent?.event_name ? `<div class="qr-event">${escapeHtml(currentEvent.event_name)}</div>` : ""}`;
+    ${currentEvent?.event_name ? `<div class="qr-event">${escapeHtml(currentEvent.event_name)}</div>` : ""}
+    ${pairBadge}`;
   document.getElementById("qrTicketNo").textContent = a.ticket_no || `ID-${a.attendee_id}`;
 
-  // QR payload = ticket_no (หรือ fallback attendee_id) — scanner ใช้เทียบกับ DB
+  // QR payload = ticket_no (หรือ MC-{member_code} ถ้ามีคู่ → ขึ้น picker ตอน scan)
   const wrap = document.getElementById("qrCodeWrap");
   wrap.innerHTML = "";
   try {
     new QRCode(wrap, {
-      text: a.ticket_no || `A4S-ATT-${a.attendee_id}`,
+      text: qrPayload,
       width: 200,
       height: 200,
       correctLevel: QRCode.CorrectLevel.M,
