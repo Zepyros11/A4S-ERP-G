@@ -137,10 +137,10 @@ function render() {
   if (!_filtered.length) {
     tbody.innerHTML = `
       <tr><td colspan="7">
-        <div class="lm-empty">
-          <div class="lm-empty-icon">💬</div>
-          <div style="font-size:14px;font-weight:600;color:var(--text2)">ยังไม่มีสมาชิกที่เชื่อม LINE</div>
-          <div style="font-size:12px;margin-top:4px">บอกสมาชิกให้ add @949bctau แล้วส่งรหัสสมาชิกในแชท</div>
+        <div class="empty-state">
+          <div class="empty-state-icon">💬</div>
+          <div class="empty-state-title">ยังไม่มีสมาชิกที่เชื่อม LINE</div>
+          <div class="empty-state-hint">บอกสมาชิกให้ add @949bctau แล้วส่งรหัสสมาชิกในแชท</div>
         </div>
       </td></tr>`;
     document.getElementById('lmPaginate').innerHTML = '';
@@ -169,10 +169,10 @@ function render() {
         <div class="lm-date">${formatDateThai(r.line_linked_at)}</div>
         ${r.last_active_at ? `<div class="lm-relative ${isStale(r.last_active_at) ? 'stale' : ''}">Active: ${relativeTime(r.last_active_at)}</div>` : ''}
       </td>
-      <td>
-        <div class="lm-row-actions">
-          <button class="lm-action" onclick="copyUserId('${escAttr(r.line_user_id)}')" title="Copy LINE User ID">📋 ID</button>
-          ${canEdit ? `<button class="lm-action danger" onclick="unlinkLine('${escAttr(r.member_code)}')" title="ลบข้อมูลเชื่อม LINE">🗑️ ลบ</button>` : ''}
+      <td class="col-center">
+        <div style="display:flex;gap:6px;justify-content:center;">
+          <button class="btn-icon lm-line-hover" onclick="copyUserId('${escAttr(r.line_user_id)}')" title="Copy LINE User ID">📋</button>
+          ${canEdit ? `<button class="btn-icon danger" onclick="unlinkLine('${escAttr(r.member_code)}')" title="ลบข้อมูลเชื่อม LINE">🗑️</button>` : ''}
         </div>
       </td>
     </tr>`;
@@ -183,20 +183,24 @@ function render() {
 
 function renderPaginate(totalPages) {
   const el = document.getElementById('lmPaginate');
-  if (totalPages <= 1) { el.innerHTML = `<div class="lm-paginate-info">แสดง ${_filtered.length} รายการ</div>`; return; }
+  el.style.display = '';
+  if (totalPages <= 1) {
+    el.innerHTML = `<span class="pagination-info">แสดง ${_filtered.length} รายการ</span>`;
+    return;
+  }
   const btns = [];
-  btns.push(`<button ${_page === 1 ? 'disabled' : ''} onclick="goPage(1)">«</button>`);
-  btns.push(`<button ${_page === 1 ? 'disabled' : ''} onclick="goPage(${_page - 1})">‹</button>`);
+  btns.push(`<button class="pagination-btn" ${_page === 1 ? 'disabled' : ''} onclick="goPage(1)">«</button>`);
+  btns.push(`<button class="pagination-btn" ${_page === 1 ? 'disabled' : ''} onclick="goPage(${_page - 1})">‹</button>`);
   const maxBtns = 5;
   let startP = Math.max(1, _page - Math.floor(maxBtns / 2));
   let endP = Math.min(totalPages, startP + maxBtns - 1);
   startP = Math.max(1, endP - maxBtns + 1);
   for (let i = startP; i <= endP; i++) {
-    btns.push(`<button class="${i === _page ? 'active' : ''}" onclick="goPage(${i})">${i}</button>`);
+    btns.push(`<button class="pagination-btn ${i === _page ? 'active' : ''}" onclick="goPage(${i})">${i}</button>`);
   }
-  btns.push(`<button ${_page === totalPages ? 'disabled' : ''} onclick="goPage(${_page + 1})">›</button>`);
-  btns.push(`<button ${_page === totalPages ? 'disabled' : ''} onclick="goPage(${totalPages})">»</button>`);
-  btns.push(`<span class="lm-paginate-info">หน้า ${_page}/${totalPages} · รวม ${_filtered.length.toLocaleString()} รายการ</span>`);
+  btns.push(`<button class="pagination-btn" ${_page === totalPages ? 'disabled' : ''} onclick="goPage(${_page + 1})">›</button>`);
+  btns.push(`<button class="pagination-btn" ${_page === totalPages ? 'disabled' : ''} onclick="goPage(${totalPages})">»</button>`);
+  btns.push(`<span class="pagination-info">หน้า ${_page}/${totalPages} · รวม ${_filtered.length.toLocaleString()} รายการ</span>`);
   el.innerHTML = btns.join('');
 }
 

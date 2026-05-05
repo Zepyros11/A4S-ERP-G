@@ -2,8 +2,11 @@
   ============================================================================
   A4S-ERP Page Template — copy-paste skeleton for new internal pages
   ============================================================================
+  Pattern: Compact sage hero + stats + table-card · matches design system
+
   Slots to fill:
-    {{TITLE}}        — page title shown in <title> tag and topbar (e.g. "🌍 IBD Dashboard")
+    {{TITLE}}        — page title shown in <title> tag, topbar, AND hero
+                       (e.g. "🌍 IBD Dashboard", "📦 รายการสินค้า")
     {{MODULE_CSS}}   — optional module css filename (e.g. "ibd-dashboard")
                        OR remove the <link> line if not needed
     {{MODULE_JS}}    — module js filename (e.g. "ibd-dashboard")
@@ -12,6 +15,16 @@
 
   Path assumption: file lives at  modules/<area>/<page>.html  (depth 2 from root)
   ─ if depth differs, adjust  ../../  prefix in CSS/JS hrefs accordingly
+
+  Sections (delete/keep as needed):
+    [HERO]      always required — sage gradient compact bar
+    [STATS]     for list pages with summary metrics
+    [FILTER]    for date/status filter chips
+    [TABLE]     for list pages with data table
+    [EMPTY]     fallback when no data
+    [PAGINATE]  for long lists
+
+  Reference: docs/templates/component-library.html — all components + variants
 ============================================================================
 -->
 <!doctype html>
@@ -42,14 +55,139 @@
   <!-- ────── PAGE CONTENT ────── -->
   <div class="page">
 
-    <!-- your content here -->
+    <!-- ───────────────────────── [HERO] — required ───────────────────────── -->
+    <!--
+         Compact sage gradient header. For dashboard pages (large hero),
+         remove .page-hero--simple and .page-hero--compact (use defaults).
+    -->
+    <div class="page-hero page-hero--simple page-hero--compact">
+      <div>
+        <h1 class="page-hero-title">{{TITLE}}</h1>
+        <p class="page-hero-sub">คำอธิบายสั้นๆ (ลบบรรทัดนี้ถ้าไม่ต้องการ)</p>
+      </div>
+      <!-- Optional actions — delete .page-hero-actions block if no buttons -->
+      <div class="page-hero-actions">
+        <button class="btn-on-hero" onclick="onRefresh()">🔄 รีเฟรช</button>
+        <button class="btn-on-hero btn-primary" data-perm="{{PERM_KEY}}_create" onclick="onCreate()">＋ เพิ่มรายการ</button>
+      </div>
+    </div>
 
-  </div>
+    <!-- ───────────────────────── [STATS] — optional ───────────────────────── -->
+    <!--
+         Use .stats-row + .stat-card for summary metrics.
+         Color modifiers: .blue / .green / .amber / .purple / .pink / .gray
+    -->
+    <div class="stats-row">
+      <div class="stat-card blue">
+        <div class="stat-icon">📊</div>
+        <div class="stat-info">
+          <div class="stat-label">ทั้งหมด</div>
+          <div class="stat-value" id="statTotal">0</div>
+          <div class="stat-sub">รายการ</div>
+        </div>
+      </div>
+      <div class="stat-card green">
+        <div class="stat-icon">✅</div>
+        <div class="stat-info">
+          <div class="stat-label">Active</div>
+          <div class="stat-value" id="statActive">0</div>
+        </div>
+      </div>
+      <div class="stat-card amber">
+        <div class="stat-icon">⏳</div>
+        <div class="stat-info">
+          <div class="stat-label">Pending</div>
+          <div class="stat-value" id="statPending">0</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ───────────────────────── [FILTER] — optional ─────────────────────── -->
+    <!--
+         Filter chips for date/status. Use radio-like select-one behavior.
+         JS: toggle .active class via dsSwitchTab-style helper.
+    -->
+    <!--
+    <div class="filter-chips">
+      <button class="filter-chip active" onclick="filterBy('all')">ทั้งหมด</button>
+      <button class="filter-chip" onclick="filterBy('active')">Active</button>
+      <button class="filter-chip" onclick="filterBy('inactive')">Inactive</button>
+    </div>
+    -->
+
+    <!-- ───────────────────────── [TABLE] — optional ──────────────────────── -->
+    <div class="table-card">
+
+      <!-- Toolbar: search + filter selects + actions -->
+      <div class="table-toolbar">
+        <div class="search-wrap" style="max-width:none;flex:1;">
+          <span class="search-icon">🔍</span>
+          <input class="search-input" id="searchInput" placeholder="ค้นหา..." />
+        </div>
+        <select class="filter-select" id="filterStatus">
+          <option value="">⚪ ทุกสถานะ</option>
+          <option value="active">✅ Active</option>
+          <option value="inactive">⛔ Inactive</option>
+        </select>
+        <div class="toolbar-right">
+          <button class="btn btn-outline" onclick="onExport()">📥 Export</button>
+        </div>
+      </div>
+
+      <!-- Table header (above thead) — title + count -->
+      <div class="table-hdr">
+        <div class="table-title">📋 รายการ</div>
+        <div class="table-count" id="tableCount">0 รายการ</div>
+      </div>
+
+      <!-- Data table — use .col-center on TH/TD for centered columns -->
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th class="col-center" style="width:40px">
+                <input type="checkbox" id="chkAll" onclick="toggleAllCheckbox(this)" />
+              </th>
+              <th onclick="sortTable('name')" style="cursor:pointer">ชื่อ <span class="sort-icon">⇅</span></th>
+              <th class="col-center">สถานะ</th>
+              <th class="col-center" style="width:120px">จัดการ</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody">
+            <!-- [EMPTY] state — show when data is empty -->
+            <tr>
+              <td colspan="4">
+                <div class="empty-state">
+                  <div class="empty-state-icon">📭</div>
+                  <div class="empty-state-title">ยังไม่มีข้อมูล</div>
+                  <div class="empty-state-hint">กดปุ่ม "+ เพิ่มรายการ" ด้านบนเพื่อเริ่มต้น</div>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- [PAGINATE] — optional, render via JS -->
+      <nav class="pagination" id="paginate" style="margin:14px auto;display:none;" aria-label="pagination">
+        <!-- buttons rendered by JS:
+             <button class="pagination-btn" disabled>‹</button>
+             <button class="pagination-btn active">1</button>
+             <button class="pagination-btn">2</button>
+             <button class="pagination-btn">›</button>
+             <span class="pagination-info">1–50 จาก 234</span>
+        -->
+      </nav>
+
+    </div><!-- /.table-card -->
+
+  </div><!-- /.page -->
+
 
   <!-- ────── MODALS (optional, place before scripts) ────── -->
   <!--
   <div class="modal-overlay" id="myModal">
-    <div class="modal" style="width:600px">
+    <div class="modal" style="max-width:600px">
       <div class="modal-hdr">
         <div class="modal-title">หัวข้อ</div>
         <button class="btn-modal-close" onclick="closeModal('myModal')">✕</button>
@@ -91,6 +229,14 @@
 
   <!-- 5) Modal manager (always — ESC-close + focus trap) -->
   <script src="../../js/components/modal/modalManager.js"></script>
+
+  <!-- 6) Optional shared modals — uncomment if used -->
+  <!--
+  <script src="../../js/components/modal/confirmModal.js"></script>
+  <script src="../../js/components/modal/promptModal.js"></script>
+  <script src="../../js/components/modal/deleteModal.js"></script>
+  <script src="../../js/components/modal/enterSave.js"></script>
+  -->
 
 </body>
 </html>

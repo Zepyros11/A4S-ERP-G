@@ -25,31 +25,15 @@
       <!-- CONTENT -->
       <div class="content-area">
         <div class="page">
-          <!-- PAGE HEADER -->
-          <div class="toolbar" style="margin-bottom: 20px">
-            <div style="display: flex; align-items: center; gap: 12px">
-              <button
-                class="btn btn-outline"
-                onclick="window.location.href = 'events-list.html'"
-              >
-                ← กลับ
-              </button>
-              <div>
-                <div style="font-size: 18px; font-weight: 700">
-                  💬 Log กิจกรรม
-                </div>
-                <div
-                  style="font-size: 12px; color: var(--text3)"
-                  id="pageSubtitle"
-                >
-                  กำลังโหลด...
-                </div>
-              </div>
+          <!-- HERO -->
+          <div class="page-hero page-hero--simple page-hero--compact">
+            <div>
+              <h1 class="page-hero-title">💬 Log กิจกรรม</h1>
+              <p class="page-hero-sub" id="pageSubtitle">กำลังโหลด...</p>
             </div>
-            <div class="toolbar-right">
-              <button class="btn btn-outline" id="btnEditEvent">
-                ✏️ แก้ไขกิจกรรม
-              </button>
+            <div class="page-hero-actions">
+              <button class="btn-on-hero" onclick="window.location.href = 'events-list.html'">← กลับ</button>
+              <button class="btn-on-hero" id="btnEditEvent">✏️ แก้ไขกิจกรรม</button>
             </div>
           </div>
 

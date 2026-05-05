@@ -85,6 +85,7 @@ async function refreshEvAuxCounts() {
     (linePosts || []).forEach((r) => { ensure(r.event_id); map[r.event_id].linePosts++; });
     _evAuxCountCache = map;
     filterTable();
+    updateStatCards();
   } catch {}
 }
 
@@ -419,6 +420,10 @@ function updateChatroomBadge() {
 async function initPage() {
   await loadData();
   bindEvents();
+  if (window.location.hash === "#chatrooms") {
+    const chatBtn = document.querySelector('.ev-tabs .ev-tab[onclick*="chatrooms"]');
+    if (chatBtn) window.switchListTab("chatrooms", chatBtn);
+  }
   setInterval(() => {
     refreshEvChatCounts().then(() => updateChatroomBadge());
   }, 5000);
@@ -535,10 +540,147 @@ function updateStatCards() {
   document.getElementById("cardOngoing").textContent = allEvents.filter(
     (e) => e.status === "ONGOING",
   ).length;
-  document.getElementById("cardDraft").textContent = allEvents.filter(
-    (e) => e.status === "DRAFT",
+  document.getElementById("cardRegistered").textContent = allEvents.filter(
+    (e) =>
+      (_evAuxCountCache[e.event_id]?.attendees || 0) > 0 &&
+      e.event_date >= monthStart && e.event_date <= monthEnd,
   ).length;
 }
+
+/* ───────── Stat-card report popup ───────── */
+function _statReportConfig(type) {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = now.getMonth();
+  const monthStart = `${y}-${String(m + 1).padStart(2, "0")}-01`;
+  const lastDay = new Date(y, m + 1, 0).getDate();
+  const monthEnd = `${y}-${String(m + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+  const day = now.getDay();
+  const diffToMon = day === 0 ? 6 : day - 1;
+  const mon = new Date(now); mon.setDate(now.getDate() - diffToMon);
+  const sun = new Date(mon); sun.setDate(mon.getDate() + 6);
+  const weekStart = mon.toISOString().split("T")[0];
+  const weekEnd = sun.toISOString().split("T")[0];
+
+  if (type === "month") return {
+    title: "📅 รายงาน: กิจกรรมเดือนนี้",
+    subtitle: `ช่วง ${formatDate(monthStart)} – ${formatDate(monthEnd)}`,
+    filter: (e) => e.event_date >= monthStart && e.event_date <= monthEnd,
+  };
+  if (type === "week") return {
+    title: "⏳ รายงาน: กิจกรรมสัปดาห์นี้",
+    subtitle: `ช่วง ${formatDate(weekStart)} – ${formatDate(weekEnd)}`,
+    filter: (e) => e.event_date >= weekStart && e.event_date <= weekEnd,
+  };
+  if (type === "ongoing") return {
+    title: "▶️ รายงาน: กิจกรรมกำลังดำเนินการ",
+    subtitle: "สถานะ Ongoing",
+    filter: (e) => e.status === "ONGOING",
+  };
+  if (type === "registered") return {
+    title: "👥 รายงาน: งานที่มีคนลงทะเบียน (เดือนนี้)",
+    subtitle: `เฉพาะเดือน ${formatDate(monthStart)} – ${formatDate(monthEnd)} · มีผู้ลงทะเบียน ≥ 1`,
+    filter: (e) =>
+      (_evAuxCountCache[e.event_id]?.attendees || 0) > 0 &&
+      e.event_date >= monthStart && e.event_date <= monthEnd,
+    showCount: true,
+  };
+  return null;
+}
+
+function _statPill(status) {
+  const map = {
+    DRAFT: ["draft", "📝 Draft"],
+    CONFIRMED: ["confirmed", "✔️ Confirmed"],
+    ONGOING: ["ongoing", "▶️ Ongoing"],
+    DONE: ["done", "✅ Done"],
+    CANCELLED: ["cancelled", "❌ Cancelled"],
+  };
+  const [cls, label] = map[status] || ["draft", status || "—"];
+  return `<span class="stat-rep-pill ${cls}">${label}</span>`;
+}
+
+window.openStatReport = function (type) {
+  const cfg = _statReportConfig(type);
+  if (!cfg) return;
+  const list = (allEvents || []).filter(cfg.filter)
+    .slice().sort((a, b) => (a.event_date || "").localeCompare(b.event_date || ""));
+  document.getElementById("statReportTitle").textContent = cfg.title;
+
+  let summaryExtra = "";
+  if (cfg.showCount) {
+    const total = list.reduce((s, e) => s + (_evAuxCountCache[e.event_id]?.attendees || 0), 0);
+    summaryExtra = ` · <strong>${total}</strong> คน`;
+  }
+  document.getElementById("statReportSummary").innerHTML =
+    `<strong>${list.length}</strong> รายการ${summaryExtra} · <span style="color:var(--text3)">${cfg.subtitle}</span>`;
+
+  const head = document.getElementById("statReportHead");
+  head.innerHTML = `<tr>
+    <th style="width:120px">วันที่</th>
+    <th>ชื่องาน</th>
+    <th>สถานที่</th>
+    ${cfg.showCount ? '<th class="col-center" style="width:130px">ผู้ลงทะเบียน</th>' : ''}
+  </tr>`;
+
+  const tbody = document.getElementById("statReportBody");
+  const colspan = cfg.showCount ? 4 : 3;
+  if (!list.length) {
+    tbody.innerHTML = `<tr><td colspan="${colspan}"><div class="empty-state"><div class="empty-icon">📭</div><div class="empty-text">ไม่มีรายการ</div></div></td></tr>`;
+  } else {
+    tbody.innerHTML = list.map((e) => {
+      const cnt = _evAuxCountCache[e.event_id]?.attendees || 0;
+      return `
+      <tr style="cursor:pointer" onclick="window.closeStatReport();window.openBadgePopup(${e.event_id})">
+        <td>${formatDate(e.event_date)}</td>
+        <td>${e.event_name || "—"}</td>
+        <td>${e.location || "—"}</td>
+        ${cfg.showCount ? `<td class="col-center"><strong>${cnt}</strong> คน</td>` : ''}
+      </tr>`;
+    }).join("");
+  }
+  document.getElementById("statReportOverlay").classList.add("open");
+};
+
+window.closeStatReport = function () {
+  document.getElementById("statReportOverlay").classList.remove("open");
+};
+
+window.printStatReport = function () {
+  const title = document.getElementById("statReportTitle").textContent;
+  const summary = document.getElementById("statReportSummary").innerHTML;
+  const tableHead = document.getElementById("statReportHead").innerHTML;
+  const tableBody = document.getElementById("statReportBody").innerHTML;
+  const w = window.open("", "_blank", "width=900,height=700");
+  if (!w) return;
+  w.document.write(`
+    <html><head><title>${title}</title>
+    <style>
+      body{font-family:'Sarabun',sans-serif;padding:24px;color:#0f172a;}
+      h1{font-size:18px;margin:0 0 6px;}
+      .sum{font-size:12px;color:#64748b;margin-bottom:16px;}
+      table{width:100%;border-collapse:collapse;font-size:13px;}
+      th,td{padding:8px 10px;border-bottom:1px solid #e2e8f0;text-align:left;vertical-align:top;}
+      th{background:#f1f5f9;font-weight:600;}
+      .col-center{text-align:center;}
+      .stat-rep-pill{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600;}
+      .stat-rep-pill.draft{background:#f1f5f9;color:#475569;}
+      .stat-rep-pill.confirmed{background:#dbeafe;color:#1d4ed8;}
+      .stat-rep-pill.ongoing{background:#fef3c7;color:#a16207;}
+      .stat-rep-pill.done{background:#dcfce7;color:#15803d;}
+      .stat-rep-pill.cancelled{background:#fee2e2;color:#b91c1c;}
+    </style></head><body>
+    <h1>${title}</h1>
+    <div class="sum">${summary}</div>
+    <table>
+      <thead>${tableHead}</thead>
+      <tbody>${tableBody}</tbody>
+    </table>
+    <script>window.onload=()=>{window.print();}<\/script>
+    </body></html>
+  `);
+  w.document.close();
+};
 
 window.setDateFilter = function (btn, range) {
   document.querySelectorAll("#dateFilterChips .date-chip").forEach((b) => b.classList.remove("active"));
@@ -580,9 +722,7 @@ function _toISO(d) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-window.setStatusFilter = function (btn, status) {
-  document.querySelectorAll("#statusFilterChips .date-chip").forEach((b) => b.classList.remove("active"));
-  btn.classList.add("active");
+window.setStatusFilter = function (_el, status) {
   activeStatusFilter = status;
   filterTable();
 };

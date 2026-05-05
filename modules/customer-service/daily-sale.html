@@ -16,52 +16,51 @@
 <div class="topbar"></div>
     <div class="page">
 
-      <!-- ── Hero ── -->
-      <div class="ds-hero" id="dsHero">
-        <div class="ds-hero-top">
-          <div class="ds-hero-left">
-            <div class="ds-hero-status"><span class="ds-hero-dot"></span><span id="dsHeroStatus">กำลังโหลด...</span></div>
-            <div class="ds-hero-title">📊 Daily Sale — สรุปยอดรายวัน</div>
-            <div class="ds-hero-sub">Sync จาก answerforsuccess.com อัตโนมัติทุก 1 ชม. (เวลา 08:00–20:00) · แทน Google Sheet DailySaleCS</div>
-          </div>
-          <button class="ds-sync-btn" data-perm="daily_sale_sync" onclick="dsSyncNow()">
-            <span style="font-size:18px">🔄</span><span>Sync Now</span>
-          </button>
+      <!-- ── HERO ── -->
+      <div class="page-hero page-hero--simple page-hero--compact">
+        <div>
+          <h1 class="page-hero-title">📊 Daily Sale — สรุปยอดรายวัน</h1>
+          <p class="page-hero-sub">Sync จาก answerforsuccess.com อัตโนมัติทุก 1 ชม. (08:00–20:00) · <span id="dsHeroStatus">กำลังโหลด...</span></p>
         </div>
-        <div class="ds-hero-grid">
-          <div class="ds-hero-cell">บิลวันนี้<strong id="dsKpiBills">—</strong></div>
-          <div class="ds-hero-cell">ยอดขาย (THB)<strong id="dsKpiAmount">—</strong></div>
-          <div class="ds-hero-cell">เงินสด<strong id="dsKpiCash">—</strong></div>
-          <div class="ds-hero-cell">เงินโอน<strong id="dsKpiTransfer">—</strong></div>
-          <div class="ds-hero-cell">บัตรเครดิต<strong id="dsKpiCredit">—</strong></div>
-          <div class="ds-hero-cell">E-Wallet<strong id="dsKpiEwallet">—</strong></div>
-          <div class="ds-hero-cell">Sync ล่าสุด<strong id="dsKpiSync">—</strong></div>
+        <div class="page-hero-actions">
+          <button class="btn-on-hero" data-perm="daily_sale_sync" onclick="dsSyncNow()">🔄 Sync Now</button>
         </div>
       </div>
 
-      <!-- ── Filter bar ── -->
-      <div class="ds-filters">
-        <div class="ds-filter-group">
-          <span class="ds-filter-label">📅 วันที่</span>
-          <input type="date" class="ds-filter-input" id="dsDate" />
+      <!-- ── KPI STRIP ── -->
+      <div class="kpi-strip">
+        <div class="stat-card"><div class="stat-info"><div class="stat-label">บิลวันนี้</div><div class="stat-value" id="dsKpiBills">—</div></div></div>
+        <div class="stat-card"><div class="stat-info"><div class="stat-label">ยอดขาย (THB)</div><div class="stat-value" id="dsKpiAmount">—</div></div></div>
+        <div class="stat-card"><div class="stat-info"><div class="stat-label">เงินสด</div><div class="stat-value" id="dsKpiCash">—</div></div></div>
+        <div class="stat-card"><div class="stat-info"><div class="stat-label">เงินโอน</div><div class="stat-value" id="dsKpiTransfer">—</div></div></div>
+        <div class="stat-card"><div class="stat-info"><div class="stat-label">บัตรเครดิต</div><div class="stat-value" id="dsKpiCredit">—</div></div></div>
+        <div class="stat-card"><div class="stat-info"><div class="stat-label">E-Wallet</div><div class="stat-value" id="dsKpiEwallet">—</div></div></div>
+        <div class="stat-card"><div class="stat-info"><div class="stat-label">Sync ล่าสุด</div><div class="stat-value" id="dsKpiSync">—</div></div></div>
+      </div>
+
+      <!-- ── FILTER BAR ── -->
+      <div class="section-card" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:12px 16px;margin-bottom:14px;">
+        <label style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--text2);font-weight:600;">
+          📅 วันที่
+          <input type="date" class="form-control" id="dsDate" style="width:auto;min-width:160px;" />
+        </label>
+        <div class="filter-chips">
+          <button class="filter-chip" onclick="dsShiftDate(-1)">← เมื่อวาน</button>
+          <button class="filter-chip active" onclick="dsShiftDate(0)">วันนี้</button>
         </div>
-        <div class="ds-filter-group">
-          <button class="ds-filter-pill" onclick="dsShiftDate(-1)">← เมื่อวาน</button>
-          <button class="ds-filter-pill active" onclick="dsShiftDate(0)">วันนี้</button>
-        </div>
-        <div class="ds-filter-group" style="margin-left:auto">
-          <span class="ds-filter-label">🏢 สาขา</span>
-          <select class="ds-filter-input" id="dsBranch">
+        <label style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--text2);font-weight:600;margin-left:auto;">
+          🏢 สาขา
+          <select class="form-control" id="dsBranch" style="width:auto;min-width:160px;">
             <option value="">ทุกสาขา</option>
           </select>
-        </div>
+        </label>
       </div>
 
-      <!-- ── Tabs ── -->
-      <div class="ds-tabs">
-        <button class="ds-tab active" data-tab="sale"    onclick="dsSwitchTab('sale')">💰 บิลขาย</button>
-        <button class="ds-tab"        data-tab="topup"   onclick="dsSwitchTab('topup')">🔋 เติม E-Wallet</button>
-        <button class="ds-tab"        data-tab="reconcile" onclick="dsSwitchTab('reconcile')">📋 ตรวจบิล</button>
+      <!-- ── TABS ── -->
+      <div class="page-tabs" style="margin-bottom:14px;">
+        <button class="page-tab active" data-tab="sale"      onclick="dsSwitchTab('sale')">💰 บิลขาย</button>
+        <button class="page-tab"        data-tab="topup"     onclick="dsSwitchTab('topup')">🔋 เติม E-Wallet</button>
+        <button class="page-tab"        data-tab="reconcile" onclick="dsSwitchTab('reconcile')">📋 ตรวจบิล</button>
       </div>
 
       <!-- ── Tab: Sale (bills + payments JOIN) ── -->

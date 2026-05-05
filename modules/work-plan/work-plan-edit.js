@@ -52,7 +52,6 @@ async function init() {
     toast("ไม่พบ plan id", "error");
     return;
   }
-  $("backLink").href = `./work-plan-list.html?scope=${SCOPE}`;
   $("wpHero").className = `page-hero page-hero--simple page-hero--compact scope-${SCOPE}`;
 
   try {

@@ -16,28 +16,15 @@
     <!-- TOPBAR -->
     <div class="topbar"></div>
         <div class="page">
-          <!-- PAGE HEADER -->
-          <div class="toolbar" style="margin-bottom: 20px">
-            <div style="display: flex; align-items: center; gap: 12px">
-              <button
-                class="btn btn-outline"
-                onclick="window.location.href = './users.html'"
-              >
-                ← กลับ
-              </button>
-              <div>
-                <div style="font-size: 18px; font-weight: 700">
-                  🔐 จัดการ Role & สิทธิ์
-                </div>
-                <div style="font-size: 12px; color: var(--text3)">
-                  กำหนดสิทธิ์การใช้งานสำหรับแต่ละ Role
-                </div>
-              </div>
+          <!-- HERO -->
+          <div class="page-hero page-hero--simple page-hero--compact">
+            <div>
+              <h1 class="page-hero-title">🔐 จัดการ Role & สิทธิ์</h1>
+              <p class="page-hero-sub">กำหนดสิทธิ์การใช้งานสำหรับแต่ละ Role</p>
             </div>
-            <div class="toolbar-right">
-              <button class="btn btn-primary" onclick="window.openRoleModal()">
-                ＋ เพิ่ม Role
-              </button>
+            <div class="page-hero-actions">
+              <button class="btn-on-hero" onclick="window.location.href = './users.html'">← กลับ</button>
+              <button class="btn-on-hero btn-primary" onclick="window.openRoleModal()">＋ เพิ่ม Role</button>
             </div>
           </div>
 

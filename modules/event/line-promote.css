@@ -3,99 +3,6 @@
    ใช้ร่วมกับ media-schedule.css (modal/form styles ที่ใช้ซ้ำ)
 ========================================================= */
 
-/* ── MAIN MENU (dark theme — system-level tools, ต่างจาก event header สีเขียว) ── */
-.lp-action-bar {
-  background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
-  border-radius: 12px;
-  padding: 12px 18px;
-  margin-bottom: 14px;
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
-  flex-wrap: wrap;
-  position: relative;
-  border: 1px solid #374151;
-}
-.lp-action-bar-title {
-  color: #f3f4f6;
-  font-weight: 700;
-  font-size: 14px;
-  letter-spacing: 0.3px;
-  white-space: nowrap;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  position: relative;
-}
-.lp-action-bar-title::after {
-  content: "";
-  display: block;
-  width: 1px;
-  height: 20px;
-  background: #4b5563;
-  margin-left: 6px;
-}
-.lp-action-bar-buttons {
-  flex: 1;
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  position: relative;
-}
-.lp-action-btn {
-  background: rgba(255, 255, 255, 0.08);
-  color: #e5e7eb;
-  border: 1px solid #4b5563;
-  padding: 7px 14px;
-  border-radius: 8px;
-  font-size: 12.5px;
-  font-weight: 600;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  transition: all 0.15s ease;
-  font-family: inherit;
-  white-space: nowrap;
-}
-.lp-action-btn:hover {
-  background: #06c755;
-  color: #fff;
-  border-color: #06c755;
-  transform: translateY(-1px);
-}
-.lp-action-btn:active {
-  transform: translateY(0);
-}
-.lp-action-icon {
-  font-size: 14px;
-}
-
-/* event selector ใน main menu */
-.lp-action-event-select {
-  flex: 1;
-  min-width: 200px;
-  max-width: 380px;
-  padding: 8px 14px !important;
-  border-radius: 10px !important;
-  border: 1px solid rgba(255, 255, 255, 0.5) !important;
-  background: rgba(255, 255, 255, 0.95) !important;
-  color: #0f172a !important;
-  font-size: 13px !important;
-  font-weight: 600 !important;
-  font-family: inherit !important;
-  cursor: pointer;
-  height: auto !important;
-}
-.lp-action-event-select:focus {
-  outline: none;
-  border-color: #fff !important;
-  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.4) !important;
-}
-
-
 /* ── TEMPLATE EDITOR ROW ── */
 .lp-tpl-row {
   background: #fff;
@@ -576,11 +483,6 @@
   font-size: 11px;
   color: #1e40af;
   font-family: "IBM Plex Mono", monospace;
-}
-
-/* ── MODAL — LINE-themed header (override gradient) ── */
-.lp-modal-line .med-modal-header {
-  background: linear-gradient(135deg, #06c755 0%, #00b900 100%);
 }
 
 /* ── GROUP empty state ── */

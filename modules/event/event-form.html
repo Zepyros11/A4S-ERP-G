@@ -28,15 +28,17 @@
       <!-- CONTENT -->
       <div class="content-area">
         <div class="page">
-          <!-- PAGE HEADER -->
-          <div style="margin-bottom: 16px; background: #fff; padding: 16px 20px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.06)">
-            <div style="font-size: 18px; font-weight: 700" id="pageTitle">✨ สร้างกิจกรรมใหม่</div>
-            <div style="font-size: 12px; color: var(--text3)" id="pageSubtitle">กรอกข้อมูลกิจกรรมให้ครบถ้วน</div>
+          <!-- HERO -->
+          <div class="page-hero page-hero--simple page-hero--compact">
+            <div>
+              <h1 class="page-hero-title" id="pageTitle">✨ สร้างกิจกรรมใหม่</h1>
+              <p class="page-hero-sub" id="pageSubtitle">กรอกข้อมูลกิจกรรมให้ครบถ้วน</p>
+            </div>
           </div>
 
           <!-- SECTION: รูปภาพ (full width) -->
           <div class="ef-section">
-            <div class="ef-section-title">🖼️ รูปภาพกิจกรรม <span style="font-weight:400;font-size:11px;color:var(--text3)">(สูงสุด 5 ภาพ — ภาพแรก = โปสเตอร์หลัก)</span></div>
+            <div class="ef-section-title">🖼️ รูปภาพกิจกรรม</div>
             <div id="imgGrid"></div>
           </div>
 
@@ -87,17 +89,23 @@
                   </div>
                 </div>
 
-                <div class="ef-row-2">
-                  <div class="ef-field">
-                    <label class="ef-label">📋 ลงทะเบียน</label>
-                    <div style="display:flex;gap:16px;padding:8px 0">
-                      <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text2);cursor:pointer">
-                        <input type="checkbox" id="fRegEnabled" style="width:16px;height:16px;cursor:pointer"> เปิดลงทะเบียน
-                      </label>
-                      <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text2);cursor:pointer">
-                        <input type="checkbox" id="fMembersOnly" style="width:16px;height:16px;cursor:pointer"> สมาชิก A4S เท่านั้น
-                      </label>
-                    </div>
+                <div class="ef-field">
+                  <label class="ef-label">📋 ลงทะเบียน</label>
+                  <div class="ef-toggle-group">
+                    <label class="ef-toggle-row">
+                      <span class="switch">
+                        <input type="checkbox" id="fRegEnabled">
+                        <span class="slider"></span>
+                      </span>
+                      <span class="ef-toggle-title">เปิดลงทะเบียน</span>
+                    </label>
+                    <label class="ef-toggle-row">
+                      <span class="switch">
+                        <input type="checkbox" id="fMembersOnly">
+                        <span class="slider"></span>
+                      </span>
+                      <span class="ef-toggle-title">สมาชิก A4S เท่านั้น</span>
+                    </label>
                   </div>
                 </div>
 
@@ -114,19 +122,47 @@
                   </div>
                 </div>
 
-                <div class="ef-row-2">
+                <div class="ef-allday-row">
+                  <label class="ef-toggle-row">
+                    <span class="switch">
+                      <input type="checkbox" id="fAllDay">
+                      <span class="slider"></span>
+                    </span>
+                    <span class="ef-toggle-title">⏱ ทั้งวัน (ไม่ระบุเวลา)</span>
+                  </label>
+                </div>
+
+                <div class="ef-row-2 ef-time-row">
                   <div class="ef-field">
                     <label class="ef-label">เวลาเริ่ม</label>
-                    <input class="ef-input" type="time" id="fStartTime" />
+                    <div class="ef-time-pair">
+                      <select class="ef-input" id="fStartHour" aria-label="ชั่วโมงเริ่ม">
+                        <option value="">ชม.</option>
+                      </select>
+                      <span class="ef-time-sep">:</span>
+                      <select class="ef-input" id="fStartMin" aria-label="นาทีเริ่ม">
+                        <option value="">นาที</option>
+                      </select>
+                    </div>
+                    <input type="hidden" id="fStartTime">
                   </div>
                   <div class="ef-field">
                     <label class="ef-label">เวลาสิ้นสุด</label>
-                    <input class="ef-input" type="time" id="fEndTime" />
+                    <div class="ef-time-pair">
+                      <select class="ef-input" id="fEndHour" aria-label="ชั่วโมงสิ้นสุด">
+                        <option value="">ชม.</option>
+                      </select>
+                      <span class="ef-time-sep">:</span>
+                      <select class="ef-input" id="fEndMin" aria-label="นาทีสิ้นสุด">
+                        <option value="">นาที</option>
+                      </select>
+                    </div>
+                    <input type="hidden" id="fEndTime">
                   </div>
                 </div>
 
-           <div class="ef-field">
-  <label class="ef-label">สถานที่</label>
+                <div class="ef-field">
+                  <label class="ef-label">สถานที่</label>
   <div class="ef-location-wrap" id="locationWrap">
     <input
       class="ef-input"
@@ -163,35 +199,16 @@
                       min="0"
                       step="0.01"
                     />
-                    <div style="font-size:11px;color:var(--text3);margin-top:4px">
-                      ใช้เป็นราคามาตรฐาน — ถ้ามี Tier จะใช้ราคา Tier แทน
-                    </div>
                   </div>
                 </div>
 
-                <div class="ef-row-2">
-                  <div class="ef-field">
-                    <label class="ef-label">⏳ ให้เวลาชำระเงิน (วัน)</label>
-                    <input
-                      class="ef-input"
-                      type="number"
-                      id="fGraceDays"
-                      placeholder="ใช้ค่า default"
-                      min="0"
-                      max="90"
-                    />
-                    <div style="font-size:11px;color:var(--text3);margin-top:4px">
-                      ว่างไว้ = ใช้ default ของระบบ (ตั้งใน app_settings.default_grace_days)
-                    </div>
-                  </div>
+                <input type="hidden" id="fGraceDays">
+              </div>
+              <!-- end ef-section ข้อมูลหลัก -->
+
               <!-- SECTION: TICKET TIERS (เรียงตามวันที่) -->
               <div class="ef-section">
-                <div class="ef-section-title">
-                  🎟️ ระดับราคาตามเวลา (Early Bird / Regular / Walk-in)
-                  <span style="font-weight:400;font-size:11px;color:var(--text3);text-transform:none;letter-spacing:0">
-                    — ระบบจะเลือก tier ที่ active ตอนลงทะเบียน แล้วล็อกราคาไว้
-                  </span>
-                </div>
+                <div class="ef-section-title">🎟️ ระดับราคาตามเวลา (Early Bird / Regular / Walk-in)</div>
 
                 <div class="tier-table">
                   <div class="tier-hdr">
@@ -230,15 +247,6 @@
                     id="fEventCode"
                     placeholder="EVT-YYYYMM-001 (สร้างอัตโนมัติ)"
                   />
-                  <div
-                    style="
-                      font-size: 11px;
-                      color: var(--text3);
-                      margin-top: 4px;
-                    "
-                  >
-                    ระบบจะสร้างให้อัตโนมัติ หรือกรอกเองได้
-                  </div>
                 </div>
               </div>
 
@@ -250,9 +258,6 @@
                   <select class="ef-input" id="fLineChannelId">
                     <option value="">— ใช้ default ของระบบ —</option>
                   </select>
-                  <div style="font-size:11px;color:var(--text3);margin-top:4px">
-                    ใช้ตั้ง LIFF login + ส่งข้อความให้ผู้เข้าร่วม · ว่าง = ใช้ default purpose=event
-                  </div>
                 </div>
               </div>
 
@@ -332,6 +337,63 @@
           var MAX_IMGS = 5;
           window._imageFiles = new Array(MAX_IMGS).fill(null);
           window._imageUrls  = new Array(MAX_IMGS).fill(null);
+
+          // ── populate time selects (hour 09–18, minute 00/15/30/45) ──
+          (function () {
+            var hourSels = ["fStartHour", "fEndHour"].map(function(id){ return document.getElementById(id); });
+            var minSels  = ["fStartMin",  "fEndMin"].map(function(id){ return document.getElementById(id); });
+            for (var h = 9; h <= 18; h++) {
+              var hh = h < 10 ? "0" + h : "" + h;
+              hourSels.forEach(function (s) {
+                if (s) s.insertAdjacentHTML("beforeend", '<option value="'+hh+'">'+hh+'</option>');
+              });
+            }
+            ["00","15","30","45"].forEach(function (m) {
+              minSels.forEach(function (s) {
+                if (s) s.insertAdjacentHTML("beforeend", '<option value="'+m+'">'+m+'</option>');
+              });
+            });
+
+            // bind hidden input ↔ hour/min selects
+            function bindTime(hiddenId, hourId, minId) {
+              var hidden = document.getElementById(hiddenId);
+              var hour   = document.getElementById(hourId);
+              var min    = document.getElementById(minId);
+              if (!hidden || !hour || !min) return;
+              Object.defineProperty(hidden, "value", {
+                get: function () { return (hour.value && min.value) ? hour.value + ":" + min.value : ""; },
+                set: function (v) {
+                  if (typeof v === "string" && /^\d{2}:\d{2}/.test(v)) {
+                    hour.value = v.slice(0, 2);
+                    min.value  = v.slice(3, 5);
+                  } else {
+                    hour.value = "";
+                    min.value  = "";
+                  }
+                },
+                configurable: true,
+              });
+            }
+            bindTime("fStartTime", "fStartHour", "fStartMin");
+            bindTime("fEndTime",   "fEndHour",   "fEndMin");
+
+            // ── "ทั้งวัน" toggle: disable + clear time selects when on ──
+            var allDay   = document.getElementById("fAllDay");
+            var timeRow  = document.querySelector(".ef-time-row");
+            var timeSels = ["fStartHour","fStartMin","fEndHour","fEndMin"]
+              .map(function (id) { return document.getElementById(id); })
+              .filter(Boolean);
+            if (allDay) {
+              allDay.addEventListener("change", function () {
+                var on = allDay.checked;
+                if (timeRow) timeRow.classList.toggle("is-disabled", on);
+                timeSels.forEach(function (s) {
+                  s.disabled = on;
+                  if (on) s.value = "";
+                });
+              });
+            }
+          })();
         </script>
 
         <!-- Image grid via shared component (ES module) -->
@@ -400,9 +462,6 @@
 
     <!-- FLOATING SAVE BUTTON -->
     <script src="../../js/components/ui/floatingSave.js" data-save-fn="window.saveEvent"></script>
-    </div>
-
-    </div>
 
   </body>
 </html>

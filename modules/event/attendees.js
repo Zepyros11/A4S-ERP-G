@@ -513,7 +513,7 @@ async function loadAttendees(eventId) {
 
 function showSections(show) {
   ["attStatsSection", "attToolbar", "attTableSection"].forEach((id) => {
-    document.getElementById(id).style.display = show ? "block" : "none";
+    document.getElementById(id).style.display = show ? "" : "none";
   });
   document.getElementById("noEventState").style.display = show
     ? "none"

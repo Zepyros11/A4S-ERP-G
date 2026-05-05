@@ -1243,3 +1243,7 @@
   .wp-table tr { page-break-inside: avoid; }
   .wp-table thead { display: table-header-group; }
 }
+
+/* hero title: bigger on edit page */
+#wpHero .page-hero-title { font-size: 22px; }
+#wpHero .page-hero-sub   { font-size: 13.5px; }

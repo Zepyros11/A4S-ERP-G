@@ -27,42 +27,41 @@
               <p class="page-hero-sub" id="pageSubtitle">กำลังโหลด...</p>
             </div>
             <div class="page-hero-actions">
-              <button class="btn-on-hero" onclick="window.location.href = 'events-list.html'">← กลับ</button>
+              <div class="epg-grid-toggle">
+                <button class="epg-toggle-btn" id="btnGrid3" onclick="window.setGrid(3)">⊞ 3</button>
+                <button class="epg-toggle-btn active" id="btnGrid4" onclick="window.setGrid(4)">⊟ 4</button>
+                <button class="epg-toggle-btn" id="btnGrid5" onclick="window.setGrid(5)">▦ 5</button>
+              </div>
             </div>
           </div>
 
           <!-- MAIN CARD (floating content like events-list) -->
           <div class="table-card">
 
-            <!-- TOOLBAR (filter + grid toggle) -->
-            <div class="toolbar">
-              <div class="epg-header-actions">
-                <!-- Grid Toggle -->
-                <div class="epg-grid-toggle">
-                  <button class="epg-toggle-btn" id="btnGrid3" onclick="window.setGrid(3)">⊞ 3</button>
-                  <button class="epg-toggle-btn active" id="btnGrid4" onclick="window.setGrid(4)">⊟ 4</button>
-                  <button class="epg-toggle-btn" id="btnGrid5" onclick="window.setGrid(5)">▦ 5</button>
-                </div>
-              </div>
-            </div>
-
             <!-- Filter Chips -->
             <div class="epg-filter-chips" id="filterChipsWrap">
-              <button
-                class="epg-chip active"
-                id="btnThisMonth"
-                onclick="window.toggleThisMonth(this)"
-              >
-                📅 เดือนนี้
-              </button>
-              <button
-                class="epg-chip"
-                data-cat=""
-                onclick="window.setTypeFilter(this, '')"
-              >
-                ทั้งหมด
-              </button>
-              <!-- dynamic category chips injected by JS -->
+              <span class="epg-filter-label">⏱ ช่วงเวลา</span>
+              <span class="tooltip-wrap">
+                <button
+                  class="epg-chip active"
+                  id="btnThisMonth"
+                  onclick="window.toggleThisMonth(this)"
+                >
+                  📅 เดือนนี้
+                </button>
+                <span class="tooltip tooltip-below" id="btnThisMonthTip">คลิกเพื่อดูทั้งหมด</span>
+              </span>
+              <span class="epg-filter-divider" aria-hidden="true"></span>
+              <span class="epg-filter-label">🏷 ประเภท</span>
+              <div class="dropdown filter-dropdown" id="epgCatDropdown">
+                <button class="dropdown-toggle filter-dropdown-toggle" type="button" onclick="window.toggleCatDropdown(event)">
+                  <span class="filter-dropdown-label" id="epgCatLabel">⚪ ทั้งหมด</span>
+                  <span class="filter-dropdown-chevron">▾</span>
+                </button>
+                <div class="dropdown-menu" id="epgCatMenu">
+                  <!-- items populated by JS, with default "ทั้งหมด" -->
+                </div>
+              </div>
             </div>
 
             <!-- GALLERY BODY -->

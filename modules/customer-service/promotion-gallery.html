@@ -20,18 +20,16 @@
     <div class="topbar"></div>
         <div class="page">
 
-          <!-- ─── HERO HEADER ─── -->
-          <div class="cat-hero">
-            <div class="cat-hero-inner">
-              <div class="cat-hero-badge">📰 PROMOTION CATALOG</div>
-              <h1 class="cat-hero-title" id="heroTitle">โปรโมชันประจำเดือน</h1>
-              <div class="cat-hero-subtitle" id="heroSubtitle">กำลังโหลด...</div>
-              <!-- Month Nav -->
-              <div class="cat-hero-nav">
-                <button class="cat-nav-btn" onclick="window.prevMonth()">‹</button>
-                <span class="cat-nav-label" id="monthLabel">—</span>
-                <button class="cat-nav-btn" onclick="window.nextMonth()">›</button>
-              </div>
+          <!-- ─── HERO ─── -->
+          <div class="page-hero page-hero--simple page-hero--compact">
+            <div>
+              <h1 class="page-hero-title" id="heroTitle">📰 โปรโมชันประจำเดือน</h1>
+              <p class="page-hero-sub" id="heroSubtitle">กำลังโหลด...</p>
+            </div>
+            <div class="page-hero-actions">
+              <button class="btn-on-hero" onclick="window.prevMonth()" title="เดือนก่อน">‹</button>
+              <span class="btn-on-hero" id="monthLabel" style="cursor:default;pointer-events:none;min-width:140px;text-align:center;">—</span>
+              <button class="btn-on-hero" onclick="window.nextMonth()" title="เดือนถัดไป">›</button>
             </div>
           </div>
 

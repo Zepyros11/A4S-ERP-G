@@ -19,105 +19,113 @@
 
     <div class="topbar"></div>
         <div class="page">
-          <!-- HERO -->
+          <!-- HERO — single unified event cockpit -->
           <div class="att-hero">
-            <div class="att-hero-blob"></div>
-            <div class="att-hero-text">
-              <div id="heroTitle" class="att-hero-title">👥 ผู้เข้าร่วมกิจกรรม</div>
+            <div class="att-hero-left">
+              <div class="att-hero-eyebrow">ผู้เข้าร่วมกิจกรรม</div>
+              <h1 id="heroTitle" class="att-hero-title">👥 เลือก Event</h1>
               <div id="heroSubtitle" class="att-hero-sub">ลงทะเบียน · Check-in · ติดตามผู้เข้าร่วม</div>
             </div>
             <div id="eventActionBtns" class="att-hero-actions" style="display:none">
-              <!-- GROUP 1: หน้างาน — โหมด + เปิดหน้า Check-in -->
-              <div class="att-hero-group" data-group="หน้างาน">
-                <label id="autoCheckinToggle" class="att-onsite-toggle" title="เปิด = save แล้ว check-in ทันที (ใช้ตอนหน้างาน)">
-                  <input type="checkbox" id="autoCheckinInput" onchange="window.onAutoCheckinToggle(this.checked)">
-                  <span class="att-onsite-knob"></span>
-                  <span id="autoCheckinLabel" class="att-onsite-label">⚡ โหมดหน้างาน</span>
-                </label>
-                <button class="att-hero-btn" onclick="window.openCheckinPage()" title="เปิดหน้า Check-in"><span class="ico">📱</span><span class="lbl">Check-in</span></button>
-              </div>
+              <label id="autoCheckinToggle" class="att-onsite-toggle" title="เปิด = save แล้ว check-in ทันที (ใช้ตอนหน้างาน)">
+                <input type="checkbox" id="autoCheckinInput" onchange="window.onAutoCheckinToggle(this.checked)">
+                <span class="att-onsite-knob"></span>
+                <span id="autoCheckinLabel" class="att-onsite-label">⚡ โหมดหน้างาน</span>
+              </label>
+              <span class="att-hero-divider"></span>
+              <button class="att-hero-btn" onclick="window.openCheckinPage()" title="เปิดหน้า Check-in"><span class="ico">📱</span><span class="lbl">Check-in</span></button>
+              <button class="att-hero-btn" onclick="window.openShareRegisterModal()" title="แชร์ลิงก์ลงทะเบียน"><span class="ico">🔗</span><span class="lbl">แชร์ลิงก์</span></button>
+              <button class="att-hero-btn" onclick="window.openBulkMsgModal()" title="ส่งข้อความกลุ่ม"><span class="ico">📢</span><span class="lbl">ส่งข้อความ</span></button>
+              <span class="att-hero-divider"></span>
+              <button class="att-hero-btn" id="densityToggleBtn" onclick="window.toggleTableDensity()" title="สลับ Compact / Comfortable"><span class="ico" id="densityIco">📋</span><span class="lbl" id="densityLbl">Comfortable</span></button>
+              <button class="att-hero-btn" onclick="window.openTagCategoriesModal()" title="จัดการหมวด Tag"><span class="ico">🏷️</span><span class="lbl">หมวด Tag</span></button>
+              <button class="att-hero-btn" onclick="window.exportCSV()" title="Export CSV"><span class="ico">📥</span><span class="lbl">Export</span></button>
+            </div>
+          </div>
 
-              <!-- GROUP 2: สื่อสาร — แชร์ + ส่งข้อความ -->
-              <div class="att-hero-group" data-group="สื่อสาร">
-                <button class="att-hero-btn" onclick="window.openShareRegisterModal()" title="แชร์ลิงก์ลงทะเบียน"><span class="ico">🔗</span><span class="lbl">แชร์ลิงก์</span></button>
-                <button class="att-hero-btn" onclick="window.openBulkMsgModal()" title="ส่งข้อความกลุ่ม"><span class="ico">📢</span><span class="lbl">ส่งข้อความ</span></button>
-              </div>
-
-              <!-- GROUP 3: จัดการข้อมูล — Density + Tag + Export -->
-              <div class="att-hero-group" data-group="ข้อมูล">
-                <button class="att-hero-btn" id="densityToggleBtn" onclick="window.toggleTableDensity()" title="สลับ Compact / Comfortable"><span class="ico" id="densityIco">📋</span><span class="lbl" id="densityLbl">Comfortable</span></button>
-                <button class="att-hero-btn" onclick="window.openTagCategoriesModal()" title="จัดการหมวด Tag"><span class="ico">🏷️</span><span class="lbl">หมวด Tag</span></button>
-                <button class="att-hero-btn" onclick="window.exportCSV()" title="Export CSV"><span class="ico">📥</span><span class="lbl">Export</span></button>
-              </div>
-          <!-- STATS (hidden until event selected) -->
-          <div id="attStatsSection" style="display: none">
-            <div class="att-stats">
-              <div class="att-stat-card sc-total">
-                <div class="att-stat-icon">👥</div>
-                <div class="att-stat-body">
-                  <div class="att-stat-label">ลงทะเบียนทั้งหมด</div>
-                  <div class="att-stat-value" id="statTotal">0</div>
-                </div>
-              </div>
-              <div class="att-stat-card sc-checkin">
-                <div class="att-stat-icon">✅</div>
-                <div class="att-stat-body">
-                  <div class="att-stat-label">Check-in แล้ว</div>
-                  <div class="att-stat-value" id="statCheckedIn">0</div>
-                </div>
-              </div>
-              <div class="att-stat-card sc-pending">
-                <div class="att-stat-icon">⏳</div>
-                <div class="att-stat-body">
-                  <div class="att-stat-label">ยังไม่ Check-in</div>
-                  <div class="att-stat-value" id="statNotCheckedIn">0</div>
-                </div>
-              </div>
-              <div class="att-stat-card sc-paid">
-                <div class="att-stat-icon">💳</div>
-                <div class="att-stat-body">
-                  <div class="att-stat-label">ชำระแล้ว</div>
-                  <div class="att-stat-value" id="statPaid">0</div>
-                </div>
-              </div>
-              <div class="att-stat-card sc-revenue">
-                <div class="att-stat-icon">💰</div>
-                <div class="att-stat-body">
-                  <div class="att-stat-label">รายรับรวม (฿)</div>
-                  <div class="att-stat-value" id="statRevenue">0</div>
-                </div>
-              </div>
+          <!-- STATS — compact strip -->
+          <div id="attStatsSection" class="att-stats-strip" style="display:none">
+            <div class="att-stat sc-total">
+              <span class="att-stat-icon">👥</span>
+              <span class="att-stat-label">ลงทะเบียน</span>
+              <span class="att-stat-value" id="statTotal">0</span>
+            </div>
+            <div class="att-stat sc-checkin">
+              <span class="att-stat-icon">✅</span>
+              <span class="att-stat-label">Check-in แล้ว</span>
+              <span class="att-stat-value" id="statCheckedIn">0</span>
+            </div>
+            <div class="att-stat sc-pending">
+              <span class="att-stat-icon">⏳</span>
+              <span class="att-stat-label">ยังไม่ Check-in</span>
+              <span class="att-stat-value" id="statNotCheckedIn">0</span>
+            </div>
+            <div class="att-stat sc-paid">
+              <span class="att-stat-icon">💳</span>
+              <span class="att-stat-label">ชำระแล้ว</span>
+              <span class="att-stat-value" id="statPaid">0</span>
+            </div>
+            <div class="att-stat sc-revenue">
+              <span class="att-stat-icon">💰</span>
+              <span class="att-stat-label">รายรับ (฿)</span>
+              <span class="att-stat-value" id="statRevenue">0</span>
             </div>
           </div>
 
           <!-- TIER INFO BANNER -->
           <div id="tierInfoBanner" style="display:none"></div>
 
-          <!-- TOOLBAR (filters only — search รวมอยู่ในช่องด้านล่างของตาราง) -->
-          <div id="attToolbar" style="display:none">
-            <div class="att-filter-card">
-              <div class="att-filter-group" data-accent="green">
-                <span class="att-filter-lbl">✅ Check-in</span>
-                <div class="att-filter-pills" id="filterPillsCheckin" data-for="filterCheckin"></div>
+          <!-- Hidden filter source selects (filterTable reads .value) -->
+          <select id="filterCheckin" style="display:none">
+            <option value="">ทั้งหมด</option>
+            <option value="true">✅ แล้ว</option>
+            <option value="false">⏳ ยังไม่</option>
+          </select>
+          <select id="filterPayment" style="display:none">
+            <option value="">ทั้งหมด</option>
+            <option value="PAID">💳 ชำระแล้ว</option>
+            <option value="UNPAID">⏳ ยังไม่ชำระ</option>
+            <option value="EXPIRED">⌛ เกิน grace</option>
+            <option value="COMPLIMENTARY">🎫 ฟรี / ยกเว้น</option>
+          </select>
+
+          <!-- TABLE — toolbar (filters) integrated above table -->
+          <div id="attTableSection" style="display:none">
+            <div class="table-card">
+              <div id="attToolbar" class="att-table-toolbar">
+                <div class="att-tt-group">
+                  <span class="att-tt-lbl">✅ Check-in</span>
+                  <div class="filter-chips" id="filterPillsCheckin" data-for="filterCheckin"></div>
+                </div>
+                <div class="att-tt-group">
+                  <span class="att-tt-lbl">💰 ชำระ</span>
+                  <div class="filter-chips" id="filterPillsPayment" data-for="filterPayment"></div>
+                </div>
+                <div class="att-tt-spacer"></div>
+                <button id="btnBulkDelete" onclick="window.bulkDeleteSelected()" class="att-tt-bulk-del" style="display:none">
+                  🗑 ลบที่เลือก (<span id="bulkDeleteCount">0</span>)
+                </button>
+                <div class="att-tt-count" id="attCount">0 คน</div>
               </div>
-              <div class="att-filter-divider"></div>
-              <div class="att-filter-group" data-accent="blue">
-                <span class="att-filter-lbl">💰 ชำระ</span>
-                <div class="att-filter-pills" id="filterPillsPayment" data-for="filterPayment"></div>
+              <div class="table-wrap">
+                <table class="data-table att-inline-table">
+                  <thead>
+                    <tr>
+                      <th class="col-center" style="min-width:36px;width:36px">
+                        <input type="checkbox" id="selectAllAttendees" onchange="window.toggleSelectAll(this.checked)" style="cursor:pointer;width:16px;height:16px">
+                      </th>
+                      <th style="min-width:240px">🔍 ค้นหา / เพิ่ม / filter</th>
+                      <th class="col-center" style="min-width:100px">⭐ ตำแหน่ง</th>
+                      <th class="col-center" style="min-width:130px">📱 เบอร์โทร</th>
+                      <th class="col-center" style="min-width:110px">🎫 Ticket</th>
+                      <th class="col-center" style="min-width:130px">💰 ชำระ</th>
+                      <th class="col-center" style="min-width:90px">✅ Check-in</th>
+                      <th class="col-center" style="min-width:90px">จัดการ</th>
+                    </tr>
+                  </thead>
+                  <tbody id="attTableBody"></tbody>
+                </table>
               </div>
-              <!-- Hidden source-of-truth selects (filterTable reads .value from these) -->
-              <select id="filterCheckin" style="display:none">
-                <option value="">ทั้งหมด</option>
-                <option value="true">✅ แล้ว</option>
-                <option value="false">⏳ ยังไม่</option>
-              </select>
-              <select id="filterPayment" style="display:none">
-                <option value="">ทั้งหมด</option>
-                <option value="PAID">💳 ชำระแล้ว</option>
-                <option value="UNPAID">⏳ ยังไม่ชำระ</option>
-                <option value="EXPIRED">⌛ เกิน grace</option>
-                <option value="COMPLIMENTARY">🎫 ฟรี / ยกเว้น</option>
-              </select>
             </div>
           </div>
           <script>
@@ -131,13 +139,12 @@
                 [...sel.options].forEach(opt => {
                   const b = document.createElement("button");
                   b.type = "button";
-                  const isAll = !opt.value;
-                  b.className = "att-fp" + (opt.value === sel.value ? " active" : "") + (isAll ? " all" : "");
+                  b.className = "filter-chip" + (opt.value === sel.value ? " active" : "");
                   b.dataset.value = opt.value;
                   b.textContent = opt.textContent;
                   b.onclick = () => {
                     sel.value = opt.value;
-                    c.querySelectorAll(".att-fp").forEach(x => x.classList.remove("active"));
+                    c.querySelectorAll(".filter-chip").forEach(x => x.classList.remove("active"));
                     b.classList.add("active");
                     sel.dispatchEvent(new Event("change", { bubbles: true }));
                   };
@@ -150,41 +157,6 @@
               });
             })();
           </script>
-
-          <!-- TABLE -->
-          <div id="attTableSection" style="display: none">
-            <div class="content-wrap">
-              <div class="table-card">
-                <div class="table-hdr">
-                  <div class="table-title">👥 รายชื่อผู้เข้าร่วม</div>
-                  <button id="btnBulkDelete" onclick="window.bulkDeleteSelected()"
-                    style="display:none;margin-left:auto;margin-right:12px;padding:7px 14px;border:none;border-radius:8px;background:#ef4444;color:#fff;font-family:inherit;font-size:12.5px;font-weight:700;cursor:pointer;box-shadow:0 2px 6px rgba(239,68,68,.3)">
-                    🗑 ลบที่เลือก (<span id="bulkDeleteCount">0</span>)
-                  </button>
-                  <div class="table-count" id="attCount">0 คน</div>
-                </div>
-                <div class="table-wrap">
-                  <table class="data-table att-inline-table">
-                    <thead>
-                      <tr>
-                        <th class="col-center" style="min-width:36px;width:36px">
-                          <input type="checkbox" id="selectAllAttendees" onchange="window.toggleSelectAll(this.checked)" style="cursor:pointer;width:16px;height:16px">
-                        </th>
-                        <th style="min-width:240px">🔍 ค้นหา / เพิ่ม / filter</th>
-                        <th class="col-center" style="min-width:100px">⭐ ตำแหน่ง</th>
-                        <th class="col-center" style="min-width:130px">📱 เบอร์โทร</th>
-                        <th class="col-center" style="min-width:110px">🎫 Ticket</th>
-                        <th class="col-center" style="min-width:130px">💰 ชำระ</th>
-                        <th class="col-center" style="min-width:90px">✅ Check-in</th>
-                        <th class="col-center" style="min-width:90px">จัดการ</th>
-                      </tr>
-                    </thead>
-                    <tbody id="attTableBody"></tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          </div>
 
           <!-- Empty state -->
           <div id="noEventState">
@@ -200,8 +172,6 @@
             </div>
           </div>
         </div>
-      </div>
-    </div>
 
     <!-- Shared member search suggest dropdown (positioned dynamically per row) -->
     <div id="memberSuggest" style="display:none;position:absolute;background:var(--surface,#fff);border:1px solid var(--border,#e2e8f0);border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,.15);z-index:500;max-height:240px;overflow-y:auto;min-width:280px"></div>

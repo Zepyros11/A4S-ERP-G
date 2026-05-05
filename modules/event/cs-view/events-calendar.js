@@ -204,7 +204,7 @@ async function loadCategories() {
   if (legend) {
     const catItems = allCategories.map(c =>
       `<div class="cal-legend-item">
-        <div class="cal-legend-dot" style="background:${c.color || "#6366f1"}"></div>
+        <div class="cal-legend-dot" style="background:${c.color || "#5b8a6e"}"></div>
         ${c.icon || ""} ${c.category_name}
       </div>`
     ).join("");
@@ -235,7 +235,7 @@ function setCalCatFromSelect(sel) {
 
 function getCatStyle(event) {
   const cat = allCategories.find((c) => c.event_category_id === event.event_category_id);
-  const color = cat?.color || "#6366f1";
+  const color = cat?.color || "#5b8a6e";
   const icon = cat?.icon || "📌";
   const name = cat?.category_name || "อื่นๆ";
   return { color, icon, name };

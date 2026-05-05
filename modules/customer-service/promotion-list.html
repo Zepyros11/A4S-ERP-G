@@ -19,34 +19,30 @@
 
     <div class="topbar"></div>
         <div class="page">
+
+          <!-- ─── HERO ─── -->
+          <div class="page-hero page-hero--simple page-hero--compact">
+            <div>
+              <h1 class="page-hero-title">🎁 โปรโมชันประจำเดือน</h1>
+              <p class="page-hero-sub" id="pageSubtitle">กำลังโหลด...</p>
+            </div>
+            <div class="page-hero-actions">
+              <button class="btn-on-hero" id="btnPrevMonth" onclick="window.prevMonth()" title="เดือนก่อน">‹</button>
+              <span class="btn-on-hero" id="monthLabel" style="cursor:default;pointer-events:none;min-width:140px;text-align:center;">—</span>
+              <button class="btn-on-hero" id="btnNextMonth" onclick="window.nextMonth()" title="เดือนถัดไป">›</button>
+              <button class="btn-on-hero btn-primary" data-perm="promotion_create" onclick="window.openUpload()">＋ อัปโหลดโปสเตอร์</button>
+            </div>
+          </div>
+
           <div class="table-card">
 
-            <!-- ─── TOOLBAR ─── -->
-            <div class="toolbar promo-toolbar">
-              <div class="promo-toolbar-left">
-                <div class="promo-header-info">
-                  <div class="promo-header-title">🎁 โปรโมชันประจำเดือน</div>
-                  <div class="promo-header-subtitle" id="pageSubtitle">กำลังโหลด...</div>
-                </div>
-              </div>
-              <div class="promo-toolbar-right">
-                <!-- Month Navigator -->
-                <div class="promo-month-nav">
-                  <button class="promo-month-btn" id="btnPrevMonth" onclick="window.prevMonth()">‹</button>
-                  <span class="promo-month-label" id="monthLabel">—</span>
-                  <button class="promo-month-btn" id="btnNextMonth" onclick="window.nextMonth()">›</button>
-                </div>
-                <!-- Grid Toggle -->
-                <div class="promo-grid-toggle">
-                  <button class="promo-toggle-btn" id="btnGrid3" onclick="window.setGrid(3)">⊞ 3</button>
-                  <button class="promo-toggle-btn" id="btnGrid4" onclick="window.setGrid(4)">⊟ 4</button>
-                  <button class="promo-toggle-btn active" id="btnGrid5" onclick="window.setGrid(5)">▦ 5</button>
-                  <button class="promo-toggle-btn" id="btnGrid6" onclick="window.setGrid(6)">⊡ 6</button>
-                </div>
-                <!-- Upload -->
-                <button class="btn btn-primary" data-perm="promotion_create" onclick="window.openUpload()">
-                  ＋ อัปโหลดโปสเตอร์
-                </button>
+            <!-- ─── TOOLBAR (grid toggle only) ─── -->
+            <div class="toolbar promo-toolbar" style="justify-content:flex-end;">
+              <div class="promo-grid-toggle">
+                <button class="promo-toggle-btn" id="btnGrid3" onclick="window.setGrid(3)">⊞ 3</button>
+                <button class="promo-toggle-btn" id="btnGrid4" onclick="window.setGrid(4)">⊟ 4</button>
+                <button class="promo-toggle-btn active" id="btnGrid5" onclick="window.setGrid(5)">▦ 5</button>
+                <button class="promo-toggle-btn" id="btnGrid6" onclick="window.setGrid(6)">⊡ 6</button>
               </div>
             </div>
 

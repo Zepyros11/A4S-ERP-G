@@ -85,19 +85,50 @@
 .epg-filter-chips {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
   flex-wrap: wrap;
-  margin: 0;
-  padding: 3px;
-  background: var(--surface2);
+  padding: 10px 14px;
+  background: var(--surface-soft);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 10px;
   margin: 14px 18px;
 }
+/* Group label before each chip group */
+.epg-filter-label {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: .4px;
+  padding: 0 4px;
+  white-space: nowrap;
+}
+/* Divider between filter groups */
+.epg-filter-divider {
+  width: 1px;
+  height: 20px;
+  background: var(--border);
+  margin: 0 6px;
+  flex-shrink: 0;
+}
+/* Category dropdown → uses canonical .filter-dropdown in core/common.css */
 
-/* ── GALLERY CONTENT WRAPPER ── */
+/* ── OUTER WRAPPER (table-card scoped to this page) ── */
+/* Remove the default table-card bg/border — let inner pieces stand alone */
+.page > .table-card {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  overflow: visible;
+}
+
+/* ── GALLERY CONTENT WRAPPER (raised neumorphic card) ── */
 .epg-gallery-wrap {
-  padding: 18px;
+  margin: 14px 18px;
+  padding: 22px;
+  background: var(--surface-soft);
+  border-radius: 14px;
+  box-shadow: var(--shadow-soft-md);
 }
 .epg-chip {
   padding: 5px 14px;
@@ -117,28 +148,13 @@
   color: var(--text);
 }
 .epg-chip.active {
-  background: var(--accent-light);
+  background: linear-gradient(135deg, var(--accent-light), var(--accent));
   color: #fff;
-  box-shadow: 0 2px 6px rgba(99, 102, 241, 0.35);
+  box-shadow: 0 2px 6px rgba(var(--accent-rgb), 0.35);
   font-weight: 700;
 }
 
-/* Poster filter select */
-.filter-select {
-  padding: 6px 12px;
-  border-radius: 8px;
-  border: 1px solid var(--border);
-  background: var(--surface2);
-  color: var(--text2);
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  outline: none;
-  transition: border-color 0.15s;
-}
-.filter-select:focus {
-  border-color: var(--accent-light);
-}
+/* (Local .filter-select override removed — canonical in core/common.css now) */
 
 /* ── MONTH SECTION ── */
 .epg-month-section {
@@ -424,7 +440,7 @@
   transform: translateY(-3px);
 }
 
-/* ── TYPE CHIP ── */
+/* ── TYPE CHIP — hidden by default, slide-in on hover ── */
 .epg-type-chip {
   display: inline-flex;
   align-items: center;
@@ -437,7 +453,17 @@
   width: fit-content;
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
+  opacity: 0;
+  transform: translateY(6px);
+  transition: opacity 0.25s ease, transform 0.25s ease;
 }
+.epg-card:hover .epg-type-chip {
+  opacity: 1;
+  transform: translateY(0);
+}
+/* Card meta — also subtle by default, full reveal on hover */
+.epg-card-meta { opacity: 0.7; transition: opacity 0.25s ease; }
+.epg-card:hover .epg-card-meta { opacity: 1; }
 
 /* ── CARD NAME (white on overlay) ── */
 .epg-card-name {

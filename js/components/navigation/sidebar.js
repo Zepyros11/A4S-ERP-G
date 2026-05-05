@@ -208,13 +208,6 @@
           label: "สมาชิกที่เชื่อม LINE",
           path: BASE_PATH + "/modules/customer/line-members.html",
         },
-        {
-          id: "members-import",
-          icon: "📥",
-          label: "นำเข้า Excel",
-          path: BASE_PATH + "/modules/customer/members-import.html",
-          section: "setup",
-        },
       ],
     },
     //  **************** SUPPLIER *****************
@@ -477,7 +470,6 @@
     "members-dashboard": "customer_dashboard_view",
     "members-tree": "members_tree_view",
     "line-members": "line_members_view",
-    "members-import": "member_import",
     "members-sync": "member_sync_config",
     promotions: "view_promotions",
     "promotion-gallery": "view_promotions",
@@ -565,7 +557,6 @@
     "members-dashboard",
     "members-tree",
     "line-members",
-    "members-import",
     "members-sync",
     //**** CUSTOMER SERVICE ****
     "daily-sale",

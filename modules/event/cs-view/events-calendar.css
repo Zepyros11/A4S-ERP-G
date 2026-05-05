@@ -2,7 +2,7 @@
 
 /* ── STANDALONE PAGE (ไม่มี sidebar/topbar) ── */
 body {
-  background: linear-gradient(135deg, #eef2ff 0%, #f0fdf4 50%, #fdf4ff 100%);
+  background: linear-gradient(135deg, #f1eee8 0%, #e8efe6 55%, #d8e7d2 100%);
   min-height: 100vh;
   font-family: "Plus Jakarta Sans", "IBM Plex Sans Thai", sans-serif;
 }
@@ -67,9 +67,9 @@ body {
 }
 .btn-today {
   padding: 5px 16px;
-  background: #eef2ff;
-  color: #6366f1;
-  border: 1px solid #a5b4fc;
+  background: #d8e7d2;
+  color: #3d6b4f;
+  border: 1px solid #7da480;
   border-radius: 50px;
   font-size: 13px;
   font-weight: 600;
@@ -78,8 +78,8 @@ body {
   transition: background 0.15s, border-color 0.15s;
 }
 .btn-today:hover {
-  background: #e0e7ff;
-  border-color: #6366f1;
+  background: #c6dabd;
+  border-color: #3d6b4f;
 }
 .cal-filter-wrap {
   display: flex;
@@ -125,10 +125,10 @@ body {
   border-color: #cbd5e1;
 }
 .epg-chip.active {
-  background: #eef2ff;
-  color: #6366f1;
-  border-color: #6366f1;
-  box-shadow: 0 0 0 2px #a5b4fc;
+  background: #d8e7d2;
+  color: #3d6b4f;
+  border-color: #3d6b4f;
+  box-shadow: 0 0 0 2px #7da480;
 }
 
 /* ── GRID WRAP ── */
@@ -439,7 +439,7 @@ body {
 
 .cal-more {
   font-size: 11px;
-  color: #818cf8;
+  color: #5b8a6e;
   cursor: pointer;
   padding: 1px 6px;
   font-weight: 700;
@@ -449,7 +449,7 @@ body {
 }
 .cal-more:hover {
   color: #fff;
-  background: #6366f1;
+  background: #3d6b4f;
   text-decoration: none;
 }
 
@@ -534,7 +534,7 @@ body {
 .day-pop-item {
   background: #f8fafc;
   border: 1px solid #e2e8f0;
-  border-left: 4px solid #6366f1;
+  border-left: 4px solid #3d6b4f;
   border-radius: 10px;
   padding: 12px 14px;
   cursor: pointer;
@@ -759,7 +759,7 @@ body {
   transform: translateY(-50%);
   width: 18px;
   height: 52px;
-  background: #4f46e5;
+  background: #3d6b4f;
   border: none;
   border-radius: 0 6px 6px 0;
   color: #fff;
@@ -774,13 +774,13 @@ body {
   transition: background 0.15s, width 0.15s;
 }
 .ev-chat-tab:hover {
-  background: #4338ca;
+  background: #2d5039;
   width: 22px;
 }
 
 .ev-chat-header {
   padding: 14px 16px;
-  background: #4f46e5;
+  background: #3d6b4f;
   color: #fff;
   display: flex;
   align-items: center;
@@ -840,11 +840,11 @@ body {
   transition: border-color 0.15s;
 }
 .ev-chat-input:focus {
-  border-color: #818cf8;
+  border-color: #7da480;
 }
 .ev-chat-send-btn {
   padding: 8px 16px;
-  background: #4f46e5;
+  background: #3d6b4f;
   color: #fff;
   border: none;
   border-radius: 12px;
@@ -855,7 +855,7 @@ body {
   transition: background 0.15s;
 }
 .ev-chat-send-btn:hover {
-  background: #4338ca;
+  background: #2d5039;
 }
 .ev-chat-send-btn:disabled {
   opacity: 0.5;
@@ -898,10 +898,10 @@ body {
   font-size: 12px;
   font-weight: 700;
   color: #fff;
-  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  background: linear-gradient(135deg, #3d6b4f, #7da480);
   border-radius: 20px;
   padding: 4px 14px;
-  box-shadow: 0 2px 6px rgba(99,102,241,0.35);
+  box-shadow: 0 2px 6px rgba(61,107,79,0.35);
 }
 .ev-popup-badges {
   display: flex;
@@ -1064,7 +1064,7 @@ body {
 }
 .ev-popup-footer .btn-primary,
 .ev-popup-footer .btn.btn-primary {
-  background: #3b82f6;
+  background: #5b8a6e;
   color: #fff;
   border: none;
   border-radius: 10px;
@@ -1079,7 +1079,7 @@ body {
 }
 .ev-popup-footer .btn-primary:hover,
 .ev-popup-footer .btn.btn-primary:hover {
-  background: #2563eb;
+  background: #3d6b4f;
   transform: translateY(-1px);
 }
 
@@ -1105,7 +1105,7 @@ body {
   z-index: 200;
 }
 .btn-settings-float:hover {
-  box-shadow: 0 12px 32px rgba(99, 102, 241, 0.2);
+  box-shadow: 0 12px 32px rgba(61, 107, 79, 0.2);
   transform: translateY(-2px);
 }
 
@@ -1181,8 +1181,8 @@ body {
 }
 .settings-input:focus {
   outline: none;
-  border-color: #818cf8;
-  box-shadow: 0 0 0 3px rgba(129, 140, 248, 0.1);
+  border-color: #7da480;
+  box-shadow: 0 0 0 3px rgba(61, 107, 79, 0.12);
 }
 .settings-actions {
   display: flex;
@@ -1224,7 +1224,7 @@ body {
   gap: 10px;
 }
 .no-config-banner a {
-  color: #6366f1;
+  color: #3d6b4f;
   cursor: pointer;
   font-weight: 600;
   text-decoration: underline;
@@ -1270,16 +1270,16 @@ body {
     height: 40px;
     padding: 0 16px;
     border-radius: 999px;
-    border: 1.5px solid #a5b4fc;
-    background: #eef2ff;
-    color: #6366f1;
+    border: 1.5px solid #7da480;
+    background: #d8e7d2;
+    color: #3d6b4f;
     font-size: 13px;
     font-weight: 600;
     font-family: "Plus Jakarta Sans", "IBM Plex Sans Thai", sans-serif;
-    box-shadow: 0 0 0 2px rgba(165,180,252,0.25);
+    box-shadow: 0 0 0 2px rgba(125,164,128,0.25);
     appearance: none;
     -webkit-appearance: none;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236366f1' stroke-width='1.8' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%233d6b4f' stroke-width='1.8' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
     background-repeat: no-repeat;
     background-position: right 14px center;
     padding-right: 36px;

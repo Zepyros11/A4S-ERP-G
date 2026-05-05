@@ -1519,6 +1519,7 @@
       <div class="cl-toc-group">
         <h4>🎚️ Filter / Tabs</h4>
         <a href="#filter-chips">Filter Chips</a>
+        <a href="#filter-dropdown">Filter Dropdown <span class="badge-new">NEW</span></a>
         <a href="#page-tabs">Page Tabs</a>
         <a href="#tag-chip">Tag Chip <span class="badge-new">NEW</span></a>
         <a href="#dropdown-menu">Dropdown Menu <span class="badge-new">NEW</span></a>
@@ -3025,6 +3026,74 @@
 
 &lt;!-- C: soft --&gt;
 &lt;div class="dropdown-menu v-soft"&gt;...&lt;/div&gt;</pre>
+      </div>
+
+
+      <!-- =================================================================
+           ★ NEW: FILTER DROPDOWN
+           ================================================================= -->
+      <div class="cl-section" id="filter-dropdown">
+        <div class="cl-section-head">
+          <h2>Filter Dropdown</h2>
+          <div class="desc">sage-themed select-like dropdown · custom-styled menu</div>
+          <span class="tag tag-new">NEW</span>
+        </div>
+        <div class="cl-block-desc">
+          <b>ใช้กับ:</b> filter category/type ที่มี options เกิน 5-7 ตัว (ใช้แทน <code>filter-chips</code> ที่จะ wrap)
+          ✓ มี active state (sage gradient) · hover state · chevron rotate animation · max-height + scroll
+          ✗ ไม่ใช้กับ options &lt;5 ตัว — ใช้ <code>filter-chips</code> แทน
+          ✗ ไม่ใช้แทน <code>dropdown-menu</code> ปกติ (ที่เป็น action menu kebab) — filter-dropdown คือ select-like
+          <span class="pages">ใช้ที่: event-poster-gallery (category filter), members-list (filter status)</span>
+        </div>
+        <div class="cl-demo">
+          <div class="cl-variants">
+            <div class="cl-variant">
+              <div class="cl-variant-title">A · Default <small>sage border + chevron</small></div>
+              <div class="cl-variant-demo" style="min-height:280px;align-items:flex-start;padding-top:14px;">
+                <div class="dropdown filter-dropdown" id="cl-fdd-1">
+                  <button class="dropdown-toggle filter-dropdown-toggle" type="button" onclick="this.parentElement.classList.toggle('open')">
+                    <span class="filter-dropdown-label">⚪ ทั้งหมด</span>
+                    <span class="filter-dropdown-chevron">▾</span>
+                  </button>
+                  <div class="dropdown-menu" style="position:static;display:block;margin-top:4px;">
+                    <button class="dropdown-item active">⚪ ทั้งหมด</button>
+                    <button class="dropdown-item">🏢 งานประชุมบริษัท</button>
+                    <button class="dropdown-item">📝 คอร์สเรียน บริษัท</button>
+                    <button class="dropdown-item">👥 งานประชุมผู้นำ</button>
+                    <button class="dropdown-item">💻 ประชุม Online</button>
+                    <button class="dropdown-item">✨ งานพิเศษ ของบริษัท</button>
+                    <button class="dropdown-item">📌 วันหยุดบริษัท</button>
+                    <button class="dropdown-item">👥 Sponser คนใหม่</button>
+                  </div>
+                </div>
+              </div>
+              <label class="cl-pick" data-cid="filter-dropdown:a"><input type="checkbox"> ติดตั้ง A</label>
+            </div>
+          </div>
+        </div>
+<pre class="cl-code">&lt;div class="dropdown filter-dropdown"&gt;
+  &lt;button class="dropdown-toggle filter-dropdown-toggle" onclick="toggleDD(event)"&gt;
+    &lt;span class="filter-dropdown-label"&gt;⚪ ทั้งหมด&lt;/span&gt;
+    &lt;span class="filter-dropdown-chevron"&gt;▾&lt;/span&gt;
+  &lt;/button&gt;
+  &lt;div class="dropdown-menu"&gt;
+    &lt;button class="dropdown-item active" data-value=""&gt;⚪ ทั้งหมด&lt;/button&gt;
+    &lt;button class="dropdown-item" data-value="1"&gt;🏢 งานประชุม&lt;/button&gt;
+  &lt;/div&gt;
+&lt;/div&gt;
+
+&lt;script&gt;
+function toggleDD(e) {
+  e.stopPropagation();
+  e.target.closest('.dropdown').classList.toggle('open');
+}
+// Close on outside click
+document.addEventListener('click', e =&gt; {
+  document.querySelectorAll('.dropdown.open').forEach(dd =&gt; {
+    if (!dd.contains(e.target)) dd.classList.remove('open');
+  });
+});
+&lt;/script&gt;</pre>
       </div>
 
 

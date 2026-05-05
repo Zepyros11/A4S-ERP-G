@@ -1149,6 +1149,41 @@ select.form-control {
   box-shadow: none;
 }
 
+/* ── btn-on-hero on sage gradient hero (compact + v-bold) ──────────
+   ใช้ glass-style — translucent white + thin border + no neumorphic shadow
+   เพื่อกลืนกับพื้นหลัง sage solid (ไม่ใช่ cream)                           */
+.page-hero--compact .btn-on-hero,
+.page-hero.v-bold .btn-on-hero {
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  box-shadow: none;
+}
+.page-hero--compact .btn-on-hero:hover,
+.page-hero.v-bold .btn-on-hero:hover {
+  background: rgba(255, 255, 255, 0.26);
+  box-shadow: none;
+}
+.page-hero--compact .btn-on-hero:active,
+.page-hero.v-bold .btn-on-hero:active {
+  background: rgba(0, 0, 0, 0.12);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.18);
+}
+/* primary action on compact hero — solid white-ish to stand out */
+.page-hero--compact .btn-on-hero.btn-primary,
+.page-hero.v-bold .btn-on-hero.btn-primary {
+  background: #fff;
+  color: var(--accent);
+  border: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, .12);
+}
+.page-hero--compact .btn-on-hero.btn-primary:hover,
+.page-hero.v-bold .btn-on-hero.btn-primary:hover {
+  background: #fff;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, .18);
+  transform: translateY(-1px);
+}
+
 
 /* ── STAT CARD / KPI CARD (canonical = .stat-card; .kpi-card = alias) ─
    หน้าใหม่ใช้ .stat-card · .kpi-card เก็บไว้ให้หน้าที่ migrate แล้วยังทำงานได้
@@ -1832,6 +1867,80 @@ select.form-control {
   box-shadow: var(--shadow-soft-md);
 }
 
+/* ── FILTER DROPDOWN — sage-themed select-like dropdown ──────────
+   Markup:
+     <div class="dropdown filter-dropdown" id="myFilter">
+       <button class="dropdown-toggle filter-dropdown-toggle" onclick="...">
+         <span class="filter-dropdown-label">⚪ ทั้งหมด</span>
+         <span class="filter-dropdown-chevron">▾</span>
+       </button>
+       <div class="dropdown-menu">
+         <button class="dropdown-item active" data-value="">⚪ ทั้งหมด</button>
+         <button class="dropdown-item" data-value="1">🏢 งานประชุม</button>
+       </div>
+     </div>                                                              */
+.filter-dropdown { display: inline-block; }
+.filter-dropdown-toggle {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  min-width: 220px;
+  padding: 7px 12px 7px 14px !important;
+  border: 1.5px solid var(--accent-light) !important;
+  border-radius: 8px !important;
+  background: var(--surface) !important;
+  color: var(--text) !important;
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.filter-dropdown-toggle:hover {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 3px rgba(var(--accent-rgb), .08);
+}
+.filter-dropdown.open .filter-dropdown-toggle {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 3px rgba(var(--accent-rgb), .15);
+}
+.filter-dropdown-chevron {
+  color: var(--accent);
+  font-size: 11px;
+  transition: transform 0.2s;
+}
+.filter-dropdown.open .filter-dropdown-chevron { transform: rotate(180deg); }
+/* Themed dropdown menu inside filter-dropdown */
+.filter-dropdown .dropdown-menu {
+  min-width: 100%;
+  max-height: 360px;
+  overflow-y: auto;
+  margin-top: 4px;
+  border: 1px solid rgba(var(--accent-rgb), 0.18);
+  box-shadow: var(--shadow-soft-lg);
+}
+.filter-dropdown .dropdown-item {
+  font-size: 12.5px;
+  padding: 9px 14px;
+  font-weight: 500;
+  color: var(--text2);
+}
+.filter-dropdown .dropdown-item:hover {
+  background: var(--accent-pale);
+  color: var(--accent);
+}
+.filter-dropdown .dropdown-item.active {
+  background: linear-gradient(135deg, var(--accent-light), var(--accent));
+  color: #fff;
+  font-weight: 700;
+}
+.filter-dropdown .dropdown-item.active:hover {
+  background: linear-gradient(135deg, var(--accent-light), var(--accent));
+  color: #fff;
+}
+
 /* ── SKELETON — shimmer animation ───────────────────────────────── */
 .skeleton {
   background: linear-gradient(90deg, var(--border) 0%, var(--surface2) 50%, var(--border) 100%);
@@ -1908,18 +2017,21 @@ select.form-control {
 .tooltip-wrap { position: relative; display: inline-block; }
 .tooltip {
   position: absolute;
-  bottom: calc(100% + 6px);
+  bottom: calc(100% + 8px);
   left: 50%;
   transform: translateX(-50%);
   background: #0f172a;
   color: #fff;
-  font-size: 11.5px;
-  padding: 5px 10px;
+  font-family: inherit;
+  font-size: 12px;
+  line-height: 1.6;          /* extra space for Thai upper marks */
+  padding: 7px 12px;          /* taller padding so vowels aren't clipped */
   border-radius: 6px;
   white-space: nowrap;
   pointer-events: none;
   box-shadow: 0 4px 12px rgba(15, 23, 42, .25);
   opacity: 0;
+  z-index: 100;               /* above sibling elements */
   transition: opacity .15s;
 }
 .tooltip::after {
@@ -1935,6 +2047,21 @@ select.form-control {
 /* Variant: v-sage (accent bg) */
 .tooltip.v-sage { background: var(--accent); color: #fff; }
 .tooltip.v-sage::after { border-top-color: var(--accent); }
+/* Variant: tooltip-below — flip to point UP from beneath the wrap */
+.tooltip.tooltip-below {
+  bottom: auto;
+  top: calc(100% + 8px);
+}
+.tooltip.tooltip-below::after {
+  top: auto;
+  bottom: 100%;
+  border-top-color: transparent;
+  border-bottom-color: #0f172a;
+}
+.tooltip.tooltip-below.v-sage::after {
+  border-top-color: transparent;
+  border-bottom-color: var(--accent);
+}
 
 /* ── STEPPER — installed with v-lines variant (underline progress) */
 .stepper {

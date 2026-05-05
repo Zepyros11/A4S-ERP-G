@@ -29,40 +29,59 @@ async function initPage() {
 }
 
 function renderCategoryChips() {
-  const wrap = document.getElementById("filterChipsWrap");
-  // remove old dynamic chips (keep first "ทั้งหมด" and last poster-filter div)
+  // Sync month toggle active state with filter state
   const monthBtn = document.getElementById("btnThisMonth");
-  const allChipBtn = wrap.querySelector('[data-cat=""]');
-  wrap.innerHTML = "";
-  if (monthBtn) wrap.appendChild(monthBtn);
-  wrap.appendChild(allChipBtn);
+  if (monthBtn) monthBtn.classList.toggle("active", filterThisMonth);
 
-  // Sync active chip with current filter state (defaults to "เดือนนี้")
-  [monthBtn, allChipBtn].forEach((b) => b && b.classList.remove("active"));
-  if (filterThisMonth && monthBtn) monthBtn.classList.add("active");
-  else if (!activeCatId) allChipBtn.classList.add("active");
-
-  allCategories.forEach((cat) => {
-    const btn = document.createElement("button");
-    btn.className = "epg-chip";
-    btn.dataset.cat = cat.event_category_id;
-    btn.textContent = `${cat.icon || ""} ${cat.category_name}`.trim();
-    btn.onclick = () => window.setTypeFilter(btn, String(cat.event_category_id));
-    wrap.appendChild(btn);
-  });
-
-  // populate mobile select
-  const sel = document.getElementById("epgCatSelect");
-  if (sel) {
-    sel.innerHTML = '<option value="">ทั้งหมด</option>';
+  // Populate category dropdown menu
+  const menu = document.getElementById("epgCatMenu");
+  if (menu) {
+    const items = [{ id: "", label: "⚪ ทั้งหมด" }];
     allCategories.forEach((cat) => {
-      const opt = document.createElement("option");
-      opt.value = cat.event_category_id;
-      opt.textContent = `${cat.icon || ""} ${cat.category_name}`.trim();
-      sel.appendChild(opt);
+      items.push({
+        id: String(cat.event_category_id),
+        label: `${cat.icon || ""} ${cat.category_name}`.trim(),
+      });
     });
+    menu.innerHTML = items
+      .map(
+        (it) => `<button class="dropdown-item${it.id === (activeCatId || "") ? " active" : ""}"
+            data-cat-id="${it.id}"
+            onclick="window.selectCat('${it.id}', this.textContent.trim())">${it.label}</button>`
+      )
+      .join("");
+    // sync trigger label
+    const active = items.find((it) => it.id === (activeCatId || ""));
+    const lbl = document.getElementById("epgCatLabel");
+    if (lbl && active) lbl.textContent = active.label;
   }
 }
+
+window.toggleCatDropdown = function (e) {
+  e.stopPropagation();
+  const dd = document.getElementById("epgCatDropdown");
+  dd.classList.toggle("open");
+};
+window.selectCat = function (catId, label) {
+  activeCatId = catId;
+  // close dropdown
+  document.getElementById("epgCatDropdown").classList.remove("open");
+  // update active highlight
+  document.querySelectorAll("#epgCatMenu .dropdown-item").forEach((b) => {
+    b.classList.toggle("active", b.dataset.catId === catId);
+  });
+  // update trigger label
+  const lbl = document.getElementById("epgCatLabel");
+  if (lbl) lbl.textContent = label;
+  renderGallery();
+};
+// Close dropdown on outside click
+document.addEventListener("click", (e) => {
+  const dd = document.getElementById("epgCatDropdown");
+  if (dd && dd.classList.contains("open") && !dd.contains(e.target)) {
+    dd.classList.remove("open");
+  }
+});
 
 // ── FILTER ─────────────────────────────────────────────────
 window.setGrid = function (cols) {
@@ -73,37 +92,14 @@ window.setGrid = function (cols) {
   renderGallery();
 };
 
-window.setTypeFilter = function (btn, catId) {
-  document.querySelectorAll(".epg-chip").forEach((b) => b.classList.remove("active"));
-  btn.classList.add("active");
-  activeCatId = catId;
-  filterThisMonth = false;
-  const sel = document.getElementById("epgCatSelect");
-  if (sel) sel.value = catId;
-  renderGallery();
-};
-
 window.toggleThisMonth = function (btn) {
   filterThisMonth = !filterThisMonth;
-  // clear all chip active states then set correctly
-  document.querySelectorAll(".epg-chip").forEach((b) => b.classList.remove("active"));
-  if (filterThisMonth) {
-    btn.classList.add("active");
-  } else {
-    // back to "ทั้งหมด"
-    const allBtn = document.querySelector('.epg-chip[data-cat=""]');
-    if (allBtn) allBtn.classList.add("active");
-  }
+  btn.classList.toggle("active", filterThisMonth);
+  const tip = document.getElementById("btnThisMonthTip");
+  if (tip) tip.textContent = filterThisMonth ? "คลิกเพื่อดูทั้งหมด" : "คลิกเพื่อดูเฉพาะเดือนนี้";
   renderGallery();
 };
 
-window.setTypeFilterFromSelect = function (sel) {
-  activeCatId = sel.value;
-  document.querySelectorAll(".epg-chip").forEach((b) => {
-    b.classList.toggle("active", b.dataset.cat === sel.value);
-  });
-  renderGallery();
-};
 
 // ── RENDER ─────────────────────────────────────────────────
 function renderGallery() {

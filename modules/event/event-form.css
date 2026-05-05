@@ -15,8 +15,8 @@
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 12px;
-  padding: 20px;
-  margin-bottom: 16px;
+  padding: 22px 22px 24px;
+  margin-bottom: 18px;
 }
 .ef-section-title {
   font-size: 13px;
@@ -24,14 +24,14 @@
   color: var(--text2);
   text-transform: uppercase;
   letter-spacing: 0.6px;
-  margin-bottom: 16px;
-  padding-bottom: 10px;
+  margin-bottom: 20px;
+  padding-bottom: 12px;
   border-bottom: 1px solid var(--border);
 }
 
 /* ── FIELD ── */
 .ef-field {
-  margin-bottom: 14px;
+  margin-bottom: 20px;
 }
 .ef-field:last-child {
   margin-bottom: 0;
@@ -42,6 +42,9 @@
   font-weight: 600;
   color: var(--text);
   margin-bottom: 6px;
+  padding-left: 8px;
+  border-left: 3px solid var(--accent-light);
+  line-height: 1.2;
 }
 .ef-required {
   color: var(--danger);
@@ -76,11 +79,71 @@
   line-height: 1.6;
 }
 
+/* ── ALL-DAY TOGGLE ROW ── */
+.ef-allday-row {
+  margin-bottom: 14px;
+  padding: 8px 12px;
+  background: var(--surface2, #f8fafc);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  display: inline-flex;
+}
+.ef-time-row.is-disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+/* ── TIME PAIR (hour : minute) ── */
+.ef-time-pair {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.ef-time-pair .ef-input {
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+  font-family: "IBM Plex Mono", monospace;
+  padding: 0 6px;
+}
+.ef-time-sep {
+  font-weight: 700;
+  color: var(--text3);
+  font-size: 16px;
+  user-select: none;
+}
+
+/* ── TOGGLE GROUP ── */
+.ef-toggle-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 22px;
+  padding: 4px 0;
+}
+.ef-toggle-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+.ef-toggle-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+}
+
 /* ── 2-COLUMN ROW ── */
 .ef-row-2 {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+.ef-row-2:last-child {
+  margin-bottom: 0;
+}
+.ef-row-2 .ef-field {
+  margin-bottom: 0;
 }
 
 /* ── POSTER PREVIEW ── */

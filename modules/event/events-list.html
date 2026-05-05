@@ -60,6 +60,19 @@
       .act-kebab-item.danger{color:#dc2626;}
       .act-kebab-item.danger:hover{background:#fef2f2;}
       .act-kebab-item .act-kebab-icon{font-size:14px;width:18px;text-align:center;}
+
+      /* Clickable stat cards (open report popup) */
+      .stat-card--clickable{cursor:pointer;transition:transform .15s,box-shadow .15s;}
+      .stat-card--clickable:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgba(15,23,42,.08);}
+      .stat-card--clickable:active{transform:translateY(0);}
+
+      /* Status pill inside report table */
+      .stat-rep-pill{display:inline-block;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:600;}
+      .stat-rep-pill.draft{background:#f1f5f9;color:#475569;}
+      .stat-rep-pill.confirmed{background:#dbeafe;color:#1d4ed8;}
+      .stat-rep-pill.ongoing{background:#fef3c7;color:#a16207;}
+      .stat-rep-pill.done{background:#dcfce7;color:#15803d;}
+      .stat-rep-pill.cancelled{background:#fee2e2;color:#b91c1c;}
     </style>
   </head>
   <body>
@@ -83,36 +96,59 @@
 
           <!-- ① STATS: Events (default visible) -->
           <div class="stats-row" id="statsEvents">
-            <div class="stat-card">
+            <div class="stat-card stat-card--clickable" onclick="window.openStatReport('month')">
               <div class="stat-icon">📅</div>
               <div>
                 <div class="stat-value" id="cardMonth">0</div>
                 <div class="stat-label">เดือนนี้</div>
               </div>
             </div>
-            <div class="stat-card">
+            <div class="stat-card stat-card--clickable" onclick="window.openStatReport('week')">
               <div class="stat-icon">⏳</div>
               <div>
                 <div class="stat-value" id="cardWeek">0</div>
                 <div class="stat-label">สัปดาห์นี้</div>
               </div>
             </div>
-            <div class="stat-card">
+            <div class="stat-card stat-card--clickable" onclick="window.openStatReport('ongoing')">
               <div class="stat-icon">▶️</div>
               <div>
                 <div class="stat-value" id="cardOngoing">0</div>
                 <div class="stat-label">กำลังดำเนินการ</div>
               </div>
             </div>
-            <div class="stat-card">
-              <div class="stat-icon">📝</div>
+            <div class="stat-card stat-card--clickable" onclick="window.openStatReport('registered')">
+              <div class="stat-icon">👥</div>
               <div>
-                <div class="stat-value" id="cardDraft">0</div>
-                <div class="stat-label">Draft / รออนุมัติ</div>
+                <div class="stat-value" id="cardRegistered">0</div>
+                <div class="stat-label">มีคนลงทะเบียน</div>
               </div>
             </div>
           </div>
           <!-- end .stats-row -->
+
+          <!-- STAT REPORT MODAL -->
+          <div class="modal-overlay" id="statReportOverlay" onclick="if(event.target===this)window.closeStatReport()">
+            <div class="modal" style="width:760px">
+              <div class="modal-hdr">
+                <div class="modal-title" id="statReportTitle">รายงาน</div>
+                <button class="btn-modal-close" onclick="window.closeStatReport()">✕</button>
+              </div>
+              <div class="modal-body" style="padding:0">
+                <div id="statReportSummary" style="padding:14px 24px;border-bottom:1px solid var(--border);font-size:13px;color:var(--text2);"></div>
+                <div class="table-wrap" style="border:none;border-radius:0;max-height:60vh;overflow:auto">
+                  <table class="data-table">
+                    <thead id="statReportHead"></thead>
+                    <tbody id="statReportBody"></tbody>
+                  </table>
+                </div>
+              </div>
+              <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="window.closeStatReport()">ปิด</button>
+                <button class="btn btn-primary" onclick="window.printStatReport()">🖨 พิมพ์</button>
+              </div>
+            </div>
+          </div>
 
           <!-- ② TOOLBAR + TABLE -->
           <div class="table-card">
@@ -127,6 +163,14 @@
                   placeholder="ค้นหาชื่อกิจกรรม หรือสถานที่..."
                 />
               </div>
+              <select class="filter-select" id="statusFilterSelect" onchange="window.setStatusFilter(this,this.value)">
+                <option value="">ทุกสถานะ</option>
+                <option value="DRAFT">📝 Draft</option>
+                <option value="CONFIRMED">✔️ Confirmed</option>
+                <option value="ONGOING">▶️ Ongoing</option>
+                <option value="DONE">✅ Done</option>
+                <option value="CANCELLED">❌ Cancelled</option>
+              </select>
               <!-- Date filter chips -->
               <div class="date-filter-chips" id="dateFilterChips">
                 <button class="date-chip" data-range="all" onclick="window.setDateFilter(this,'all')">ทั้งหมด</button>
@@ -140,22 +184,7 @@
                   <input type="text" class="date-custom-input" id="dateCustomTo" placeholder="ถึง" autocomplete="off">
                 </div>
               </div>
-              <div class="date-filter-chips" id="statusFilterChips">
-                <button class="date-chip active" data-status="" onclick="window.setStatusFilter(this,'')">ทุกสถานะ</button>
-                <button class="date-chip" data-status="DRAFT" onclick="window.setStatusFilter(this,'DRAFT')">📝 Draft</button>
-                <button class="date-chip" data-status="CONFIRMED" onclick="window.setStatusFilter(this,'CONFIRMED')">✔️ Confirmed</button>
-                <button class="date-chip" data-status="ONGOING" onclick="window.setStatusFilter(this,'ONGOING')">▶️ Ongoing</button>
-                <button class="date-chip" data-status="DONE" onclick="window.setStatusFilter(this,'DONE')">✅ Done</button>
-                <button class="date-chip" data-status="CANCELLED" onclick="window.setStatusFilter(this,'CANCELLED')">❌ Cancelled</button>
-              </div>
               <div class="toolbar-right">
-                <button
-                  class="btn btn-primary"
-                  data-perm="evt_calendar_view"
-                  onclick="window.open('./cs-view/events-calendar.html', '_blank')"
-                >
-                  Event Calendar
-                </button>
                 <button
                   class="btn btn-primary"
                   data-perm="events_create"

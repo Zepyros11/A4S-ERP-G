@@ -416,7 +416,7 @@ function dsRecOpen(date, branch) {
    ============================================================ */
 function dsSwitchTab(tab) {
   state.tab = tab;
-  document.querySelectorAll('.ds-tab').forEach(el => el.classList.toggle('active', el.dataset.tab === tab));
+  document.querySelectorAll('.page-tab[data-tab]').forEach(el => el.classList.toggle('active', el.dataset.tab === tab));
   $('dsPanelSale').style.display = tab === 'sale' ? '' : 'none';
   $('dsPanelTopup').style.display = tab === 'topup' ? '' : 'none';
   $('dsPanelReconcile').style.display = tab === 'reconcile' ? '' : 'none';
