@@ -132,11 +132,18 @@ async function init() {
   manualInput.addEventListener("keydown", (e) => {
     if (e.key === "Enter") {
       e.preventDefault();
-      window.ciManualCheckin();
+      const elapsed = manualInputFirstCharAt
+        ? Date.now() - manualInputFirstCharAt
+        : Infinity;
+      const code = manualInput.value.trim();
+      const isHardwareScan = code.length >= 4 && elapsed < HARDWARE_SCAN_MAX_MS;
+      window.ciManualCheckin(isHardwareScan);
     }
   });
   manualInput.addEventListener("input", (e) => {
     const v = e.target.value;
+    if (!manualInputFirstCharAt && v) manualInputFirstCharAt = Date.now();
+    if (!v) manualInputFirstCharAt = 0;
     const hasThai = /[\u0E00-\u0E7F]/.test(v);
     const cleaned = v.replace(/[^A-Za-z0-9\-]/g, "").toUpperCase();
     if (cleaned !== v) {
