@@ -295,13 +295,15 @@ async function handleScan(scannedText) {
 
   setResult("warn", "🔍 กำลังค้นหา...", code);
   try {
-    // Try ticket_no first, then member_code, then attendee_id
-    let a = await lookupAttendee(code);
-    if (!a) {
+    const matches = await lookupAttendee(code);
+    if (!matches.length) {
       setResult("error", "❌ ไม่พบในระบบ", `รหัส: ${code}`);
       return;
     }
-    if (a.event_id !== eventId) {
+
+    const inEvent = matches.filter((m) => m.event_id === eventId);
+    if (!inEvent.length) {
+      const a = matches[0];
       setResult(
         "error",
         "❌ ไม่ใช่ event นี้",
@@ -310,30 +312,144 @@ async function handleScan(scannedText) {
       return;
     }
 
-    if (a.checked_in) {
-      setResultFromAttendee("warn", "⚠️ เช็คอินไปแล้ว", a);
-      return;
+    let selected;
+    if (inEvent.length === 1) {
+      selected = [inEvent[0]];
+    } else {
+      // 2 rows = primary + co_applicant ใน event เดียวกัน → เปิด picker
+      const wasCameraOn = !!qrScanner;
+      if (wasCameraOn) await stopCamera();
+      const pick = await showCheckinPersonPicker(inEvent);
+      if (wasCameraOn) startCamera();
+      if (!pick || !pick.length) {
+        setResult("warn", "ยกเลิก", "ผู้ใช้ยกเลิกการเลือก");
+        return;
+      }
+      selected = pick;
     }
 
-    // Mark checked_in
-    const res = await sbFetch(
-      "event_attendees",
-      `?attendee_id=eq.${a.attendee_id}`,
-      {
-        method: "PATCH",
-        body: { checked_in: true, check_in_at: new Date().toISOString() },
-      },
-    );
-    const updated = res?.[0] || a;
-    setResultFromAttendee("success", "✅ Check-in สำเร็จ", updated);
-    showSuccessPopup(updated);
-    pushRecent(updated);
-    notifyTagsOnCheckin(updated).catch((e) =>
-      console.warn("notifyTagsOnCheckin:", e?.message || e),
-    );
+    for (const a of selected) {
+      await checkInOne(a);
+    }
   } catch (e) {
     setResult("error", "❌ Error", e.message);
   }
+}
+
+async function checkInOne(a) {
+  if (a.checked_in) {
+    setResultFromAttendee("warn", "⚠️ เช็คอินไปแล้ว", a);
+    return;
+  }
+  const res = await sbFetch(
+    "event_attendees",
+    `?attendee_id=eq.${a.attendee_id}`,
+    {
+      method: "PATCH",
+      body: { checked_in: true, check_in_at: new Date().toISOString() },
+    },
+  );
+  const updated = res?.[0] || a;
+  setResultFromAttendee("success", "✅ Check-in สำเร็จ", updated);
+  showSuccessPopup(updated);
+  pushRecent(updated);
+  notifyTagsOnCheckin(updated).catch((e) =>
+    console.warn("notifyTagsOnCheckin:", e?.message || e),
+  );
+}
+
+// ── PERSON PICKER ─────────────────────────────────────────
+// แสดง popup เลือกคนเมื่อ member_code มีทั้ง primary + co_applicant
+// คืน Promise<attendee[]>: [primary] | [coapp] | [primary, coapp] | null
+function showCheckinPersonPicker(rows) {
+  return new Promise((resolve) => {
+    const ov = document.getElementById("ppOverlay");
+    if (!ov) { resolve(null); return; }
+
+    // แยก primary / co_applicant
+    const primary = rows.find((r) => r.person_role === "primary") || rows.find((r) => r.person_role !== "co_applicant");
+    const coapp = rows.find((r) => r.person_role === "co_applicant");
+    const pName = primary?.name || "—";
+    const cName = coapp?.name || "—";
+    const pDone = !!primary?.checked_in;
+    const cDone = !!coapp?.checked_in;
+    const bothDisabled = pDone && cDone;
+
+    ov.innerHTML = `
+      <div class="pp-card" role="document">
+        <div class="pp-head">
+          <div class="pp-title" id="ppTitle">เลือกผู้ที่จะ Check-in</div>
+          <div class="pp-sub">รหัสนี้มี 2 รายชื่อ — เลือกคนที่จะเช็คอิน</div>
+        </div>
+        <div class="pp-body">
+          ${primary ? `
+          <button class="pp-opt" data-pick="primary" ${pDone ? "disabled" : ""}>
+            <div class="pp-icon primary">👤</div>
+            <div class="pp-info">
+              <div class="pp-name">${escapeHtml(pName)}</div>
+              <div class="pp-meta">
+                <span class="pp-chip role-primary">👤 ผู้สมัคร</span>
+                ${pDone ? '<span class="pp-chip done">✅ เช็คอินแล้ว</span>' : ""}
+              </div>
+            </div>
+            <div class="pp-arrow">›</div>
+          </button>` : ""}
+          ${coapp ? `
+          <button class="pp-opt" data-pick="co_applicant" ${cDone ? "disabled" : ""}>
+            <div class="pp-icon coapp">👥</div>
+            <div class="pp-info">
+              <div class="pp-name">${escapeHtml(cName)}</div>
+              <div class="pp-meta">
+                <span class="pp-chip role-coapp">👥 ผู้สมัครร่วม</span>
+                ${cDone ? '<span class="pp-chip done">✅ เช็คอินแล้ว</span>' : ""}
+              </div>
+            </div>
+            <div class="pp-arrow">›</div>
+          </button>` : ""}
+          ${primary && coapp ? `
+          <button class="pp-opt" data-pick="both" ${bothDisabled ? "disabled" : ""}>
+            <div class="pp-icon both">👫</div>
+            <div class="pp-info">
+              <div class="pp-name">เช็คอินทั้ง 2 รายชื่อ</div>
+              <div class="pp-meta">
+                <span class="pp-chip role-primary">2 คน</span>
+                ${bothDisabled ? '<span class="pp-chip warn">เช็คอินครบแล้ว</span>' : ""}
+              </div>
+            </div>
+            <div class="pp-arrow">›</div>
+          </button>` : ""}
+        </div>
+        <div class="pp-foot">
+          <button type="button" class="pp-cancel" data-pick="cancel">ยกเลิก</button>
+        </div>
+      </div>`;
+    ov.classList.add("open");
+
+    const observer = new MutationObserver(() => {
+      if (!ov.classList.contains("open")) close(null);
+    });
+    observer.observe(ov, { attributes: true, attributeFilter: ["class"] });
+
+    const close = (result) => {
+      observer.disconnect();
+      ov.classList.remove("open");
+      ov.removeEventListener("click", onClick);
+      resolve(result);
+    };
+    const onClick = (e) => {
+      const btn = e.target.closest("[data-pick]");
+      if (btn) {
+        if (btn.disabled) return;
+        const v = btn.dataset.pick;
+        if (v === "cancel") return close(null);
+        if (v === "both") return close([primary, coapp].filter(Boolean));
+        if (v === "primary") return close(primary ? [primary] : null);
+        if (v === "co_applicant") return close(coapp ? [coapp] : null);
+      }
+      if (e.target === ov) close(null);
+    };
+    ov.addEventListener("click", onClick);
+  });
 }
 
 // ── LINE TAG NOTIFICATION ─────────────────────────────────
@@ -530,9 +646,9 @@ function formatThaiDate(iso) {
   return `${dd}/${mm}/${yyyy}`;
 }
 
+// คืน array ของ matches (อาจเป็น 0, 1, หรือ 2 rows) — caller ตัดสินใจเอง
+// 2 rows เกิดเมื่อ member_code เดียวกันลง primary + co_applicant ใน event เดียวกัน
 async function lookupAttendee(code) {
-  // Combine ticket_no + attendee_id (from A4S-ATT-N or raw numeric) into one OR query.
-  // member_code requires event filter so runs as a parallel second query.
   const conds = [`ticket_no.eq.${encodeURIComponent(code)}`];
   const m = code.match(/^A4S-ATT-(\d+)$/);
   if (m) conds.push(`attendee_id.eq.${m[1]}`);
@@ -545,18 +661,19 @@ async function lookupAttendee(code) {
     ).catch(() => []),
     sbFetch(
       "event_attendees",
-      `?member_code=eq.${encodeURIComponent(code)}&event_id=eq.${eventId}&select=*&limit=1`,
+      `?member_code=eq.${encodeURIComponent(code)}&event_id=eq.${eventId}&select=*&limit=5`,
     ).catch(() => []),
   ]);
 
-  const all = [...(globalRows || []), ...(memberRows || [])];
-  if (all.length) {
-    // Prefer the attendee registered for current event
-    const inEvent = all.find((r) => r.event_id === eventId);
-    return inEvent || all[0];
+  // De-dup โดยใช้ attendee_id (member_code ใน event นี้อาจซ้ำกับ global ที่ match ticket_no)
+  const seen = new Set();
+  const all = [];
+  for (const r of [...(globalRows || []), ...(memberRows || [])]) {
+    if (!r || seen.has(r.attendee_id)) continue;
+    seen.add(r.attendee_id);
+    all.push(r);
   }
-
-  return null;
+  return all;
 }
 
 // Build award banner HTML — shows each tag chip + its detail lines
