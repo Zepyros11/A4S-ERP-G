@@ -36,12 +36,32 @@ async function _ensureMasterKey() {
     if (!res.ok) return false;
     const rows = await res.json();
     const key = rows?.[0]?.value;
-    if (!key || key === 'REPLACE_ME_WITH_REAL_KEY') return false;
+    // กัน placeholder ที่ admin ลืมแทนด้วย key จริง
+    if (!key || /^(REPLACE_ME|PASTE_KEY|YOUR_REAL|YOUR_KEY|TODO|XXX)/i.test(key)) {
+      console.warn('[members-list] master key in app_settings looks like a placeholder:', key);
+      return false;
+    }
+    if (key.length < 8) return false;
     ERPCrypto.setMasterKey(key);
-    // Verify decrypt works (ถ้า key ผิด จะ false → ลบออกป้องกัน cache เสีย)
-    const ok = await ERPCrypto.verifyMasterKey();
-    if (!ok) { ERPCrypto.clearMasterKey(); return false; }
-    return true;
+    // Verify โดย decrypt blob จริงจาก members (round-trip "test" ไม่พอ
+    // เพราะ encrypt+decrypt ด้วย key ผิดก็ผ่าน — ต้องเทียบกับ data จริง)
+    try {
+      const probeRes = await fetch(
+        `${SUPABASE_URL}/rest/v1/members?password_encrypted=not.is.null&select=password_encrypted&limit=1`,
+        { headers: _sbHeaders() }
+      );
+      const probeRows = await probeRes.json();
+      const blob = probeRows?.[0]?.password_encrypted;
+      if (blob) {
+        const plain = await ERPCrypto.decrypt(blob);
+        if (plain == null) throw new Error('decrypt returned null');
+      }
+      return true;
+    } catch (e) {
+      console.warn('[members-list] master key from app_settings is wrong — clearing:', e.message);
+      ERPCrypto.clearMasterKey();
+      return false;
+    }
   } catch {
     return false;
   }
