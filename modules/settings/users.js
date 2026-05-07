@@ -174,18 +174,18 @@ function renderTable(list) {
         .slice(1)
         .map((k) => ROLE_PERMISSIONS[k]?.label || k)
         .join(", ");
-      const nameParts = (u.full_name || "?").split(" ");
-      const initials = (
-        nameParts[0][0] + (nameParts[1]?.[0] || "")
-      ).toUpperCase();
-      const color = AVATAR_COLORS[(u.user_id || 0) % AVATAR_COLORS.length];
+      const firstWord = (u.full_name || "?").trim().split(/\s+/)[0] || "?";
+      const initials = firstWord.slice(0, 3).toUpperCase();
+      let hash = 0;
+      for (let i = 0; i < initials.length; i++) hash = (hash * 31 + initials.charCodeAt(i)) >>> 0;
+      const color = AVATAR_COLORS[hash % AVATAR_COLORS.length];
       const isActive = u.is_active !== false;
       const extraBadge = extraCount > 0
         ? ` <span class="role-badge role-VIEWER" title="${extraTitle}" style="font-size:10px">+${extraCount}</span>`
         : "";
       return `<tr>
       <td><div style="display:flex;align-items:center;gap:10px">
-        <div class="avatar" style="background:${color};width:32px;height:32px;font-size:12px">${initials}</div>
+        <div class="avatar" style="background:${color};width:32px;height:32px;font-size:10px;letter-spacing:0">${initials}</div>
         <div style="font-weight:600">${u.full_name || "—"}</div>
       </div></td>
       <td><span style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--text2)">${u.username || "—"}</span></td>

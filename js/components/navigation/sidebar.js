@@ -631,7 +631,7 @@
     #erp-sidebar::-webkit-scrollbar-thumb{background:#21262d;border-radius:2px;}
     #erp-main{flex:1;min-width:0;overflow-y:auto;height:calc(100vh - 56px);}
 
-    .sb-logo{padding:10px 12px;border-bottom:1px solid #21262d;display:flex;align-items:center;justify-content:space-between;gap:8px;}
+    .sb-logo{position:sticky;top:0;z-index:10;background:#0d1117;padding:10px 12px;border-bottom:1px solid #21262d;display:flex;align-items:center;justify-content:space-between;gap:8px;}
     .sb-logo-text{font-size:15px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;transition:opacity .2s,width .25s;}
     .sb-logo-text em{color:#6e7681;font-style:normal;font-weight:400;}
     #erp-sidebar.collapsed .sb-logo-text{opacity:0;width:0;}
