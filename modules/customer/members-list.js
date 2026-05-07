@@ -19,6 +19,33 @@ function _canDecrypt() {
   return !!(window.AuthZ && AuthZ.hasPerm('member_decrypt')
          && window.ERPCrypto && ERPCrypto.hasMasterKey());
 }
+
+/* ── Auto-fetch master key จาก app_settings (สำหรับ user ที่มี perm
+      แต่ยังไม่มี key ใน localStorage — เช่น login บนเครื่องใหม่)
+      Return true ถ้า key พร้อมใช้, false ถ้ายังไม่มี/ดึงไม่ได้ ── */
+async function _ensureMasterKey() {
+  if (!window.AuthZ || !AuthZ.hasPerm('member_decrypt')) return false;
+  if (!window.ERPCrypto) return false;
+  if (ERPCrypto.hasMasterKey()) return true;
+  if (!SUPABASE_URL || !SUPABASE_KEY) return false;
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/app_settings?key=eq.member_master_key&select=value`,
+      { headers: _sbHeaders() }
+    );
+    if (!res.ok) return false;
+    const rows = await res.json();
+    const key = rows?.[0]?.value;
+    if (!key || key === 'REPLACE_ME_WITH_REAL_KEY') return false;
+    ERPCrypto.setMasterKey(key);
+    // Verify decrypt works (ถ้า key ผิด จะ false → ลบออกป้องกัน cache เสีย)
+    const ok = await ERPCrypto.verifyMasterKey();
+    if (!ok) { ERPCrypto.clearMasterKey(); return false; }
+    return true;
+  } catch {
+    return false;
+  }
+}
 let _searchDebounce = null;
 let activePositions = new Set();   // multi-select: empty = ทั้งหมด
 
@@ -267,6 +294,9 @@ async function loadLastSyncInfo() {
 /* ── Public entry — โหลดตารางก่อน (เร็ว) แล้ว stats ตามหลัง ── */
 async function loadData() {
   page = 1;
+  // Ensure master key พร้อมก่อน render เพื่อให้ canDecrypt() ตอบ true
+  // ทันใน frame เดียว (ไม่ต้องรอ user click — auto สำหรับคนมี perm)
+  await _ensureMasterKey();
   await loadPage();
   loadStats();          // fire-and-forget
   loadCountries();      // fire-and-forget — populate filter dropdown
