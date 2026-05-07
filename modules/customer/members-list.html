@@ -104,20 +104,6 @@
 .pg-confirm-input:focus{outline:none;border-color:var(--danger);}
 .pg-confirm-input.match{border-color:var(--success);background:var(--success-pale);}
 
-/* ── Master Key Modal ── */
-.mk-icon{width:54px;height:54px;border-radius:50%;background:linear-gradient(135deg,#fde68a,#f59e0b);display:flex;align-items:center;justify-content:center;font-size:28px;margin:0 auto 14px;box-shadow:0 6px 16px rgba(245,158,11,.35);}
-.mk-title{font-size:17px;font-weight:700;color:var(--text);text-align:center;margin-bottom:6px;}
-.mk-desc{font-size:13px;color:var(--text2);text-align:center;line-height:1.6;margin-bottom:20px;padding:0 6px;}
-.mk-input-wrap{position:relative;}
-.mk-input-wrap input{width:100%;padding:13px 44px 13px 14px;font-family:'IBM Plex Mono',monospace;font-size:14px;letter-spacing:1px;border:2px solid var(--border);border-radius:8px;transition:border-color .15s;}
-.mk-input-wrap input:focus{outline:none;border-color:var(--accent);}
-.mk-toggle-eye{position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:18px;opacity:.5;transition:opacity .15s;}
-.mk-toggle-eye:hover{opacity:1;}
-.mk-hint{font-size:11.5px;color:var(--text3);margin-top:10px;display:flex;align-items:center;gap:6px;}
-.mk-error{background:var(--danger-pale);color:var(--danger);padding:10px 14px;border-radius:7px;font-size:12.5px;margin-top:12px;border:1px solid #fca5a5;display:none;}
-.mk-error.show{display:block;animation:shake .3s;}
-@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
-
 /* ── Sync info pill (last-run date ของ automation Export All Member) ── */
 .sync-info{display:inline-flex;align-items:center;gap:8px;padding:7px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:20px;font-size:12.5px;color:var(--text2);white-space:nowrap;}
 .sync-info-icon{font-size:13px;}
@@ -214,7 +200,6 @@
     </div>
     <div class="toolbar-right">
       <button class="btn btn-outline" onclick="loadData()">🔄 รีเฟรช</button>
-      <button class="btn btn-outline" data-perm="member_decrypt" onclick="toggleDecrypt()" id="btnDecrypt">🔓 ถอดรหัส</button>
       <button class="btn btn-outline" data-perm="member_decrypt" onclick="backfillPasswordHash()" id="btnBackfillHash" title="สร้าง password_hash จาก password_encrypted (ใช้ครั้งเดียวหลัง migration)">🔁 Backfill hash</button>
       <button class="btn btn-outline btn-danger-outline" data-perm="member_delete" onclick="openPurgeModal()">🗑️ ลบทั้งหมด</button>
       <button class="btn btn-outline" onclick="exportExcel()" id="btnExport" title="Export ตาม filter ปัจจุบัน">📤 Export Excel</button>
@@ -292,28 +277,6 @@
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closePurgeModal()">ยกเลิก</button>
       <button class="btn btn-danger-solid" id="btnConfirmPurge" disabled onclick="confirmPurge()">🗑️ ลบทั้งหมด</button>
-    </div>
-  </div>
-</div>
-
-<!-- Master Key Modal -->
-<div class="modal-overlay" id="mkModalOverlay" onclick="if(event.target===this)closeMKModal()">
-  <div class="modal" style="max-width:420px">
-    <div class="modal-body" style="padding:28px 28px 20px">
-      <div class="mk-icon">🔐</div>
-      <div class="mk-title">กรอก Master Key</div>
-      <div class="mk-desc">เพื่อถอดรหัส <strong>รหัสผ่าน</strong> และ <strong>เลขบัตรประชาชน</strong> ของสมาชิก</div>
-      <div class="mk-input-wrap">
-        <input id="mkInput" type="password" placeholder="Master Key ของคุณ" autocomplete="off"
-               onkeydown="if(event.key==='Enter')confirmMK()">
-        <button class="mk-toggle-eye" onclick="toggleMKEye()" id="mkEye" title="แสดง/ซ่อน">👁️</button>
-      </div>
-      <div class="mk-hint">💡 ใช้ Key เดียวกับตอน import</div>
-      <div class="mk-error" id="mkError"></div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-outline" onclick="closeMKModal()">ยกเลิก</button>
-      <button class="btn btn-primary" onclick="confirmMK()">🔓 ปลดล็อก</button>
     </div>
   </div>
 </div>

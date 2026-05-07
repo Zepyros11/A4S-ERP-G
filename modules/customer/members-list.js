@@ -12,8 +12,13 @@ let sortKey = 'registered_at';
 let sortAsc = false;
 let page = 1;
 const PAGE_SIZE = 50;
-let decryptMode = false;
 let decryptedCache = {};
+
+/* ── ถอดรหัสได้หรือไม่ — มี perm + master key ใน localStorage แล้ว ── */
+function _canDecrypt() {
+  return !!(window.AuthZ && AuthZ.hasPerm('member_decrypt')
+         && window.ERPCrypto && ERPCrypto.hasMasterKey());
+}
 let _searchDebounce = null;
 let activePositions = new Set();   // multi-select: empty = ทั้งหมด
 
@@ -307,17 +312,18 @@ function render() {
   }
 
   const rows = currentPage;
+  const canDecrypt = _canDecrypt();
 
   tbody.innerHTML = rows.map(m => {
     const pos = m.position_level ? `<span class="pkg-badge pos-badge">⭐ ${escapeHtml(m.position_level)}</span>` : '';
     const flag = _countryFlag(m.country_code);
     const pwCell = m.password_encrypted
-      ? (decryptMode
+      ? (canDecrypt
           ? `<span class="mask" data-code="${m.member_code}" data-field="password">⏳</span>`
           : '<span class="mask">••••••</span>')
       : '<span class="mask">—</span>';
     const idCell = m.national_id_encrypted
-      ? (decryptMode
+      ? (canDecrypt
           ? `<span class="mask" data-code="${m.member_code}" data-field="national_id">⏳</span>`
           : '<span class="mask">x-xxxx-xxxxx-xx-x</span>')
       : '<span class="mask">—</span>';
@@ -343,8 +349,8 @@ function render() {
 
   renderPaginate();
 
-  // Decrypt cells in viewport if mode on
-  if (decryptMode) decryptVisibleCells(rows);
+  // Auto-decrypt cells if user has permission + master key
+  if (canDecrypt) decryptVisibleCells(rows);
 }
 
 function renderPaginate() {
@@ -373,37 +379,13 @@ function renderPaginate() {
   }
 }
 
-/* ── Decrypt mode ── */
-async function toggleDecrypt() {
-  if (decryptMode) {
-    // ปิดโหมด
-    decryptMode = false;
-    decryptedCache = {};
-    document.getElementById('btnDecrypt').textContent = '🔓 ถอดรหัส';
-    render();
-    return;
-  }
-  // เปิดโหมด — ถ้ามี key อยู่แล้ว verify เลย ถ้าไม่มี open modal
-  if (window.ERPCrypto && ERPCrypto.hasMasterKey()) {
-    const ok = await ERPCrypto.verifyMasterKey();
-    if (ok) { _enableDecrypt(); return; }
-  }
-  openMKModal();
-}
-
-function _enableDecrypt() {
-  decryptMode = true;
-  document.getElementById('btnDecrypt').textContent = '🔒 ปิดถอดรหัส';
-  render();
-}
-
 /* ── Backfill password_hash from password_encrypted ──────────
    ใช้ครั้งเดียวหลัง migration 028 — ต้องมี master key เพื่อ decrypt
    password_encrypted ก่อน hash และ update กลับ
 ============================================================ */
 async function backfillPasswordHash() {
   if (!window.ERPCrypto || !ERPCrypto.hasMasterKey()) {
-    showToast('ต้องกด 🔓 ถอดรหัส ก่อน (เพื่อใส่ master key)', 'error');
+    showToast('ยังไม่ได้ตั้ง master key — ตั้งที่หน้า import ก่อน', 'error');
     return;
   }
   const okKey = await ERPCrypto.verifyMasterKey();
@@ -562,50 +544,6 @@ function _ensureCancelBtn() {
     btn.disabled = true;
   };
   sub.parentElement.appendChild(btn);
-}
-
-/* ── Master Key Modal ── */
-function openMKModal() {
-  const overlay = document.getElementById('mkModalOverlay');
-  overlay.classList.add('open');
-  const input = document.getElementById('mkInput');
-  input.value = '';
-  input.type = 'password';
-  document.getElementById('mkEye').textContent = '👁️';
-  document.getElementById('mkError').classList.remove('show');
-  setTimeout(() => input.focus(), 50);
-}
-function closeMKModal() {
-  document.getElementById('mkModalOverlay').classList.remove('open');
-}
-function toggleMKEye() {
-  const inp = document.getElementById('mkInput');
-  const eye = document.getElementById('mkEye');
-  if (inp.type === 'password') { inp.type = 'text';     eye.textContent = '🙈'; }
-  else                         { inp.type = 'password'; eye.textContent = '👁️'; }
-}
-async function confirmMK() {
-  const key = document.getElementById('mkInput').value;
-  const err = document.getElementById('mkError');
-  err.classList.remove('show');
-  if (!key || key.length < 8) {
-    err.textContent = '❌ ต้องยาวอย่างน้อย 8 ตัวอักษร';
-    err.classList.add('show');
-    return;
-  }
-  try { ERPCrypto.setMasterKey(key); }
-  catch (e) { err.textContent = '❌ ' + e.message; err.classList.add('show'); return; }
-
-  const ok = await ERPCrypto.verifyMasterKey();
-  if (!ok) {
-    err.textContent = '❌ Master Key ไม่ถูกต้อง — ลองอีกครั้ง';
-    err.classList.add('show');
-    ERPCrypto.clearMasterKey();
-    return;
-  }
-  closeMKModal();
-  _enableDecrypt();
-  showToast('🔓 ปลดล็อกแล้ว', 'success');
 }
 
 async function decryptVisibleCells(rows) {
