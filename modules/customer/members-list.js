@@ -190,7 +190,7 @@ async function loadPage() {
     const filter = _buildFilterQuery();
     const from = (page - 1) * PAGE_SIZE;
     const to = from + PAGE_SIZE - 1;
-    const cols = 'member_code,member_name,full_name,email,phone,password_encrypted,national_id_encrypted,package,position_level,sponsor_code,upline_code,side,registered_at,country_code';
+    const cols = 'member_code,member_name,full_name,co_applicant_name,email,phone,password_encrypted,national_id_encrypted,package,position_level,sponsor_code,upline_code,side,registered_at,country_code';
     const url = `${SUPABASE_URL}/rest/v1/members?select=${cols}${filter ? '&' + filter : ''}&order=${sortKey}.${sortAsc ? 'asc' : 'desc'}`;
 
     const res = await fetch(url + `&limit=${PAGE_SIZE}&offset=${from}`, {
@@ -301,7 +301,7 @@ function gotoPage(n) {
 function render() {
   const tbody = document.getElementById('tbody');
   if (!currentPage.length) {
-    tbody.innerHTML = `<tr><td colspan="11" style="text-align:center;padding:40px;color:var(--text3)">ไม่พบข้อมูล</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="12" style="text-align:center;padding:40px;color:var(--text3)">ไม่พบข้อมูล</td></tr>`;
     document.getElementById('paginate').innerHTML = '';
     return;
   }
@@ -328,6 +328,7 @@ function render() {
         <div class="mem-name">${escapeHtml(window.MemberFmt ? MemberFmt.displayName(m) : (m.full_name || m.member_name || '—'))}</div>
         ${m.email ? `<div class="mem-contact">${escapeHtml(m.email)}</div>` : ''}
       </td>
+      <td>${m.co_applicant_name ? `<span class="mem-name">${escapeHtml(m.co_applicant_name)}</span>` : '<span class="mask">—</span>'}</td>
       <td><span class="mem-code">${escapeHtml(m.phone || '—')}</span></td>
       <td>${idCell}</td>
       <td>${pwCell}</td>
