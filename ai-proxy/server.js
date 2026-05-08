@@ -273,6 +273,16 @@ const SESSION_TTL_MIN = 5;
 const MAX_ATTEMPTS = 3;
 const BLOCK_MIN = 30;
 
+// Noise filter: ข้อความสั้นมาก หรือเลขซ้ำตัวเดียว ("555", "5555", "7777") = หัวเราะ/สแปม
+// ใช้เพื่อ "ไม่นับเป็น failed attempt" ตอนอยู่ในโหมดรอ password
+function _looksLikeNoise(text) {
+  if (!text) return true;
+  const t = String(text).trim();
+  if (t.length < 3) return true;
+  if (/^(\d)\1+$/.test(t)) return true; // 555, 5555, 55555, 7777, 0000
+  return false;
+}
+
 // SHA-256 hex (same scheme as ERPCrypto.hash in js/core/crypto.js)
 function _sha256Hex(str) {
   return crypto.createHash('sha256').update(String(str)).digest('hex');
@@ -466,9 +476,20 @@ const DEFAULT_TEMPLATES = {
     '📢 พร้อมส่ง promote กิจกรรมเข้ากลุ่มนี้แล้ว — ตั้งกำหนดการได้ที่หน้า "ตารางโพสต์ LINE"',
   welcome:
     'ยินดีต้อนรับสู่ A4S 🎉\n\n' +
-    '📱 สมาชิก: ส่ง "รหัสสมาชิก" (ตัวเลข 5-6 หลัก)\n' +
-    '👤 พนักงาน: ส่ง "username" ของคุณ\n\n' +
-    'ตัวอย่าง: 10271 หรือ somchai',
+    '🔗 กดปุ่ม "ผูกบัญชี" บนเมนูด้านล่าง เพื่อเริ่มผูก LINE กับระบบ\n' +
+    '   (สมาชิก = รับแจ้งเตือน event / พนักงาน = แจ้งเตือนภายในองค์กร)\n\n' +
+    '— หากไม่เห็นเมนู ลองปิด-เปิดแชทใหม่ —',
+  ask_id:
+    '🔗 ผูกบัญชี LINE กับระบบ A4S\n\n' +
+    '📱 สมาชิก: พิมพ์ "รหัสสมาชิก" (ตัวเลข 5-6 หลัก)\n' +
+    '👤 พนักงาน: พิมพ์ "username" ของคุณ\n\n' +
+    'ตัวอย่าง: 10271 หรือ somchai\n' +
+    '⏱ หมดเวลาภายใน 5 นาที\n' +
+    '💬 พิมพ์ "ยกเลิก" เพื่อออก',
+  password_hint:
+    '💡 ระบบรอ "รหัสผ่าน" เพื่อยืนยันตัวตน\n' +
+    'พิมพ์รหัสผ่านที่ใช้ login ERP\n' +
+    'หรือพิมพ์ "ยกเลิก" เพื่อออก',
   invalid_code:
     '❌ ไม่พบข้อมูลนี้ในระบบ\n\n' +
     '• สมาชิก: ตัวเลข 5-6 หลัก\n' +
@@ -583,6 +604,48 @@ app.post('/line/webhook', async (req, res) => {
         continue;
       }
 
+      // === POSTBACK event (rich menu / template button) ===
+      if (ev.type === 'postback') {
+        const data = ev.postback?.data || '';
+        console.log(`[LINE webhook] postback from ${uid.slice(0, 10)}... data="${data}"`);
+
+        // Parse "key=value&key=value" style
+        const params = new URLSearchParams(data);
+        const action = params.get('action');
+
+        if (action === 'link_start') {
+          const now = new Date();
+          const sess = await _getSession(uid);
+
+          // ถ้าโดน block อยู่ → แจ้งและไม่เปิด session ใหม่
+          if (sess?.blocked_until && new Date(sess.blocked_until) > now) {
+            const mins = Math.max(1, Math.ceil((new Date(sess.blocked_until) - now) / 60000));
+            await _lineReply(ev.replyToken, await _tpl('rate_limited', { minutes: mins }));
+            continue;
+          }
+
+          const expiresAt = new Date(now.getTime() + SESSION_TTL_MIN * 60000).toISOString();
+          await _setSession(uid, {
+            pending_type: 'await_id',
+            pending_id: null,
+            attempts: 0,
+            expires_at: expiresAt,
+            blocked_until: null,
+          });
+          await _lineReply(ev.replyToken, await _tpl('ask_id'));
+          continue;
+        }
+
+        if (action === 'cancel') {
+          await _clearSession(uid);
+          await _lineReply(ev.replyToken, await _tpl('cancelled'));
+          continue;
+        }
+
+        // postback อื่น ๆ ที่ยังไม่รู้จัก → เงียบ
+        continue;
+      }
+
       // === MESSAGE event ===
       if (ev.type === 'message' && ev.message?.type === 'text') {
         const text = (ev.message.text || '').trim();
@@ -613,6 +676,102 @@ app.post('/line/webhook', async (req, res) => {
           if (text === 'ยกเลิก' || text.toLowerCase() === 'cancel') {
             await _clearSession(uid);
             await _lineReply(ev.replyToken, await _tpl('cancelled'));
+            continue;
+          }
+
+          // ── await_id mode: รอรหัสสมาชิก/username (เริ่มจาก postback "ผูกบัญชี") ──
+          if (sess.pending_type === 'await_id') {
+            // กรอง noise: เลขซ้ำ/ข้อความสั้น → ส่ง hint ซ้ำ ไม่ปิด session
+            if (_looksLikeNoise(text)) {
+              await _lineReply(ev.replyToken, await _tpl('ask_id'));
+              continue;
+            }
+
+            const expiresAt = new Date(now.getTime() + SESSION_TTL_MIN * 60000).toISOString();
+
+            // Branch A: digits 3-8 → member
+            const codeMatch = text.match(/^(\d{3,8})$/);
+            if (codeMatch) {
+              const memberCode = codeMatch[1];
+              const members = await _sbGet(
+                'members',
+                `member_code=eq.${encodeURIComponent(memberCode)}&select=member_code,full_name,member_name,password_hash&limit=1`,
+              );
+              const member = members?.[0];
+              if (!member) {
+                await _lineReply(ev.replyToken, await _tpl('invalid_code'));
+                continue;
+              }
+              if (!member.password_hash) {
+                await _lineReply(ev.replyToken, await _tpl('no_password_set'));
+                continue;
+              }
+              await _setSession(uid, {
+                pending_type: 'member',
+                pending_id: memberCode,
+                attempts: 0,
+                expires_at: expiresAt,
+                blocked_until: null,
+              });
+              await _lineReply(
+                ev.replyToken,
+                await _tpl('ask_password_member', {
+                  name: member.full_name || member.member_name || memberCode,
+                  code: memberCode,
+                }),
+              );
+              continue;
+            }
+
+            // Branch B: text → staff username
+            const usernameMatch = text.match(/^[A-Za-z0-9_.\-]{2,40}$/);
+            if (usernameMatch) {
+              const username = text.toLowerCase();
+              const users = await _sbGet(
+                'users',
+                `username=ilike.${encodeURIComponent(username)}&select=user_id,username,full_name,role,is_active,password,password_hash&limit=1`,
+              );
+              const user = users?.[0];
+              if (!user) {
+                await _lineReply(ev.replyToken, await _tpl('invalid_code'));
+                continue;
+              }
+              if (user.is_active === false) {
+                await _lineReply(ev.replyToken, await _tpl('staff_inactive'));
+                continue;
+              }
+              if (!user.password_hash && !user.password) {
+                await _lineReply(ev.replyToken, await _tpl('no_password_set'));
+                continue;
+              }
+              await _setSession(uid, {
+                pending_type: 'staff',
+                pending_id: String(user.user_id),
+                attempts: 0,
+                expires_at: expiresAt,
+                blocked_until: null,
+              });
+              await _lineReply(
+                ev.replyToken,
+                await _tpl('ask_password_staff', {
+                  name: user.full_name || user.username,
+                  username: user.username,
+                }),
+              );
+              continue;
+            }
+
+            // ใน await_id mode แต่ format ไม่เข้า → ส่ง hint อีกครั้ง
+            await _lineReply(ev.replyToken, await _tpl('ask_id'));
+            continue;
+          }
+
+          // ── password mode: noise filter ก่อนนับ failed attempt ──
+          if (
+            (sess.pending_type === 'member' || sess.pending_type === 'staff') &&
+            _looksLikeNoise(text)
+          ) {
+            await _lineReply(ev.replyToken, await _tpl('password_hint'));
             continue;
           }
 
@@ -718,87 +877,14 @@ app.post('/line/webhook', async (req, res) => {
           }
         }
 
-        // ── Step 2: session หมดอายุแล้ว (แต่ยังมี record) แจ้งเตือน + ล้าง ──
+        // ── Step 2: session หมดอายุแล้ว (แต่ยังมี record) → ล้าง ──
         if (sess?.pending_type && sess?.expires_at && new Date(sess.expires_at) <= now) {
           await _clearSession(uid);
         }
 
-        // ── Step 3: ไม่มี session → user ส่ง code/username ครั้งแรก ──
-        const expiresAt = new Date(now.getTime() + SESSION_TTL_MIN * 60000).toISOString();
-
-        // Branch A: digits 3-8 → member
-        const codeMatch = text.match(/^(\d{3,8})$/);
-        if (codeMatch) {
-          const memberCode = codeMatch[1];
-          const members = await _sbGet(
-            'members',
-            `member_code=eq.${encodeURIComponent(memberCode)}&select=member_code,full_name,member_name,password_hash&limit=1`,
-          );
-          const member = members?.[0];
-          if (!member) {
-            await _lineReply(ev.replyToken, await _tpl('invalid_code'));
-            continue;
-          }
-          if (!member.password_hash) {
-            await _lineReply(ev.replyToken, await _tpl('no_password_set'));
-            continue;
-          }
-          await _setSession(uid, {
-            pending_type: 'member',
-            pending_id: memberCode,
-            attempts: 0,
-            expires_at: expiresAt,
-            blocked_until: null,
-          });
-          await _lineReply(
-            ev.replyToken,
-            await _tpl('ask_password_member', {
-              name: member.full_name || member.member_name || memberCode,
-              code: memberCode,
-            }),
-          );
-          continue;
-        }
-
-        // Branch B: text → staff username
-        const usernameMatch = text.match(/^[A-Za-z0-9_.\-]{2,40}$/);
-        if (usernameMatch) {
-          const username = text.toLowerCase();
-          const users = await _sbGet(
-            'users',
-            `username=ilike.${encodeURIComponent(username)}&select=user_id,username,full_name,role,is_active,password,password_hash&limit=1`,
-          );
-          const user = users?.[0];
-          if (!user) {
-            await _lineReply(ev.replyToken, await _tpl('invalid_code'));
-            continue;
-          }
-          if (user.is_active === false) {
-            await _lineReply(ev.replyToken, await _tpl('staff_inactive'));
-            continue;
-          }
-          if (!user.password_hash && !user.password) {
-            await _lineReply(ev.replyToken, await _tpl('no_password_set'));
-            continue;
-          }
-          await _setSession(uid, {
-            pending_type: 'staff',
-            pending_id: String(user.user_id),
-            attempts: 0,
-            expires_at: expiresAt,
-            blocked_until: null,
-          });
-          await _lineReply(
-            ev.replyToken,
-            await _tpl('ask_password_staff', {
-              name: user.full_name || user.username,
-              username: user.username,
-            }),
-          );
-          continue;
-        }
-
-        // ไม่ match อะไรเลย → เงียบ (ใช้ rich menu นำทางแทน)
+        // ── Step 3: ไม่มี session active → เงียบ ──
+        // การผูก LINE ต้องเริ่มจาก postback "ผูกบัญชี" (rich menu) เท่านั้น
+        // เพื่อกัน "555/หัวเราะ" หรือเลขสุ่มอื่น ๆ ไป trigger flow ผูกบัญชีโดยไม่ตั้งใจ
         continue;
       }
 

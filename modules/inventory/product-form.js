@@ -411,6 +411,7 @@ function initImgUploadGrid() {
     slot.dataset.idx = i;
     slot.innerHTML = `<span class="img-plus">＋</span>`;
     slot.onclick = () => openImgPicker(i);
+    attachSlotDnD(slot, i);
     grid.appendChild(slot);
   }
 }
@@ -421,22 +422,61 @@ function openImgPicker(idx) {
   document.getElementById("imgFileInput").click();
 }
 
+function placeImageInSlot(file, idx) {
+  if (idx < 0 || idx >= IMG_SLOTS) return;
+  imgFiles[idx] = file;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    const slot = document.querySelector(`.img-slot[data-idx="${idx}"]`);
+    if (!slot) return;
+    slot.innerHTML = `
+      <img src="${ev.target.result}" alt="product-img-${idx}" draggable="false" />
+      <div class="img-remove" onclick="removeImg(event, ${idx})">✕</div>`;
+    if (idx === 0) slot.classList.add("img-main-badge");
+  };
+  reader.readAsDataURL(file);
+}
+
+function attachSlotDnD(slot, idx) {
+  const hasFiles = (dt) =>
+    !!dt && [...(dt.types || [])].includes("Files");
+
+  slot.addEventListener("dragenter", (e) => {
+    if (!hasFiles(e.dataTransfer)) return;
+    e.preventDefault();
+    slot.classList.add("drag-over");
+  });
+  slot.addEventListener("dragover", (e) => {
+    if (!hasFiles(e.dataTransfer)) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "copy";
+  });
+  slot.addEventListener("dragleave", (e) => {
+    if (!slot.contains(e.relatedTarget)) slot.classList.remove("drag-over");
+  });
+  slot.addEventListener("drop", (e) => {
+    e.preventDefault();
+    slot.classList.remove("drag-over");
+    const files = [...(e.dataTransfer?.files || [])].filter((f) =>
+      f.type.startsWith("image/"),
+    );
+    if (files.length === 0) return;
+
+    let target = idx;
+    for (const f of files) {
+      if (target >= IMG_SLOTS) break;
+      placeImageInSlot(f, target);
+      do {
+        target++;
+      } while (target < IMG_SLOTS && imgFiles[target]);
+    }
+  });
+}
+
 function onImgFileSelected(e) {
   const file = e.target.files[0];
   if (!file || imgSlotTarget === null) return;
-  const reader = new FileReader();
-  reader.onload = (ev) => {
-    imgFiles[imgSlotTarget] = file;
-    const slot = document.querySelector(
-      `.img-slot[data-idx="${imgSlotTarget}"]`,
-    );
-    if (!slot) return;
-    slot.innerHTML = `
-      <img src="${ev.target.result}" alt="product-img-${imgSlotTarget}" />
-      <div class="img-remove" onclick="removeImg(event, ${imgSlotTarget})">✕</div>`;
-    if (imgSlotTarget === 0) slot.classList.add("img-main-badge");
-  };
-  reader.readAsDataURL(file);
+  placeImageInSlot(file, imgSlotTarget);
 }
 
 function removeImg(e, idx) {

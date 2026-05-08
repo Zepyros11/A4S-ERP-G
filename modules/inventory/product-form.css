@@ -1102,6 +1102,17 @@
   background: var(--accent-pale);
 }
 
+.img-slot.drag-over {
+  border-color: var(--accent);
+  background: var(--accent-pale);
+  box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.18);
+  transform: scale(1.02);
+}
+
+.img-slot.drag-over .img-plus {
+  color: var(--accent);
+}
+
 .img-slot .img-plus {
   font-size: 28px;
   color: var(--text3);
