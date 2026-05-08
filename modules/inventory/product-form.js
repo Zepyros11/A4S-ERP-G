@@ -186,7 +186,6 @@ function selectProductType(type) {
   });
 
   showSection(3);
-  showSection(4);
 
   const varSec = document.getElementById("variantSkuSection");
   if (varSec) varSec.style.display = isVariable ? "" : "none";
