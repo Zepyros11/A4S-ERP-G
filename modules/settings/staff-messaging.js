@@ -292,10 +292,13 @@ async function uploadToStorage(blob, ext) {
 }
 
 async function uploadImageForLine(file) {
-  const ext = /png/i.test(file.type) ? "png" : "jpg";
+  // Compress original ก่อน upload (resize 1600px + JPEG q0.82) ลด egress + ตรง LINE limit
+  const fullBlob = window.ImageCompressor
+    ? await window.ImageCompressor.compress(file)
+    : file;
   const previewBlob = await makeImagePreviewBlob(file);
   const [originalUrl, previewUrl] = await Promise.all([
-    uploadToStorage(file, ext),
+    uploadToStorage(fullBlob, "jpg"),
     uploadToStorage(previewBlob, "jpg"),
   ]);
   return { originalUrl, previewUrl };

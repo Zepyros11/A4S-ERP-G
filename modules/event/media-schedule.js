@@ -297,24 +297,14 @@ window.removeFbFile = function (idx) {
 
 async function uploadFbFile(eventId, file) {
   const { url, key } = getSB();
-  const ext = file.name.split(".").pop().toLowerCase();
-  const name = `fb_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
-  const path = `fb-posts/${eventId}/${name}`;
-  const res = await fetch(`${url}/storage/v1/object/event-files/${path}`, {
-    method: "POST",
-    headers: {
-      apikey: key,
-      Authorization: `Bearer ${key}`,
-      "Content-Type": file.type,
-      "x-upsert": "true",
-    },
-    body: file,
-  });
-  if (!res.ok) {
-    const e = await res.json().catch(() => ({}));
-    throw new Error(e.message || "Upload failed");
-  }
-  return `${url}/storage/v1/object/public/event-files/${path}`;
+  const rand = Math.random().toString(36).slice(2, 8);
+  // ImageCompressor.uploadViaRest จะ compress ถ้าเป็นรูป, ส่งดิบ ๆ ถ้าเป็นวิดีโอ
+  const path = `fb-posts/${eventId}/fb_${Date.now()}_${rand}`;
+  const publicUrl = await window.ImageCompressor.uploadViaRest(
+    url, key, "event-files", path, file,
+  );
+  if (!publicUrl) throw new Error("Upload failed");
+  return publicUrl;
 }
 
 // ── Save / Schedule ───────────────────────────────────────

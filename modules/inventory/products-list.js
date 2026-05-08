@@ -23,7 +23,7 @@ let allProducts = [];
 let categories = [];
 let units = [];
 let productImages = [];
-let sortKey = "product_code";
+let sortKey = "product_name";
 let sortAsc = true;
 
 const EP_IMG_MAX = 5;
@@ -98,9 +98,7 @@ function filterTable() {
 
   const filtered = allProducts.filter((p) => {
     const matchSearch =
-      !search ||
-      (p.product_name || "").toLowerCase().includes(search) ||
-      (p.product_code || "").toLowerCase().includes(search);
+      !search || (p.product_name || "").toLowerCase().includes(search);
     const matchCat = !catId || String(p.category_id) === catId;
     const matchStatus = !status || String(p.is_active) === status;
     return matchSearch && matchCat && matchStatus;

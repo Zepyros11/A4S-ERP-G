@@ -135,25 +135,13 @@ export async function reorderPages(updates /* [{id, sort_order}] */) {
 /* ── IMAGE UPLOAD ──────────────────────────────────────── */
 export async function uploadManualImage(file) {
   const { url, key } = getSB();
-  const ext = (file.name.split(".").pop() || "png").toLowerCase();
-  const fname = `manual_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
-  const path = `pages/${fname}`;
-
-  const res = await fetch(`${url}/storage/v1/object/manual-files/${path}`, {
-    method: "POST",
-    headers: {
-      apikey: key,
-      Authorization: `Bearer ${key}`,
-      "Content-Type": file.type || "image/png",
-      "x-upsert": "true",
-    },
-    body: file,
-  });
-  if (!res.ok) {
-    const e = await res.json().catch(() => ({}));
-    throw new Error(e.message || "Upload failed");
-  }
-  return `${url}/storage/v1/object/public/manual-files/${path}`;
+  const rand = Math.random().toString(36).slice(2, 8);
+  const path = `pages/manual_${Date.now()}_${rand}`;
+  const publicUrl = await window.ImageCompressor.uploadViaRest(
+    url, key, "manual-files", path, file,
+  );
+  if (!publicUrl) throw new Error("Upload failed");
+  return publicUrl;
 }
 
 /* ── SEARCH (title/summary/blocks text) ────────────────── */

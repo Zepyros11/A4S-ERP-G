@@ -79,7 +79,7 @@ async function loadMovements() {
 function populateFilterDropdowns() {
   const fp = document.getElementById('filterProduct');
   fp.innerHTML = '<option value="">ทุกสินค้า</option>';
-  products.forEach(p => fp.insertAdjacentHTML('beforeend', `<option value="${p.product_id}">${p.product_code} — ${p.product_name}</option>`));
+  products.forEach(p => fp.insertAdjacentHTML('beforeend', `<option value="${p.product_id}">${p.product_name}</option>`));
 
   const fw = document.getElementById('filterWarehouse');
   fw.innerHTML = '<option value="">ทุกคลัง</option>';
@@ -89,7 +89,7 @@ function populateFilterDropdowns() {
 function populateModalDropdowns() {
   const mp = document.getElementById('fProduct');
   mp.innerHTML = '<option value="">— เลือกสินค้า —</option>';
-  products.forEach(p => mp.insertAdjacentHTML('beforeend', `<option value="${p.product_id}">${p.product_code} — ${p.product_name}</option>`));
+  products.forEach(p => mp.insertAdjacentHTML('beforeend', `<option value="${p.product_id}">${p.product_name}</option>`));
 
   const mw = document.getElementById('fWarehouse');
   mw.innerHTML = '<option value="">— เลือกคลัง —</option>';
@@ -118,7 +118,6 @@ function applyFilters() {
     const prod = products.find(p => p.product_id === m.product_id);
     const matchSearch = !search ||
       (prod?.product_name || '').toLowerCase().includes(search) ||
-      (prod?.product_code || '').toLowerCase().includes(search) ||
       (m.ref_doc_id || '').toLowerCase().includes(search);
     const matchProd = !prodId || String(m.product_id) === prodId;
     const matchWh   = !whId  || String(m.warehouse_id) === whId;

@@ -68,23 +68,13 @@ async function autoGenerateRequestCode() {
 
 async function uploadRequestFile(requestId, file) {
   const { url, key } = getSB();
-  const ext = file.name.split(".").pop().toLowerCase();
-  const fileName = `req_${requestId}_${Date.now()}.${ext}`;
-  const res = await fetch(
-    `${url}/storage/v1/object/event-files/documents/${fileName}`,
-    {
-      method: "POST",
-      headers: {
-        apikey: key,
-        Authorization: `Bearer ${key}`,
-        "Content-Type": file.type,
-        "x-upsert": "true",
-      },
-      body: file,
-    }
+  // รับทั้งรูป (compress) และ PDF (upload ดิบ) ผ่าน ImageCompressor
+  const path = `documents/req_${requestId}_${Date.now()}`;
+  const publicUrl = await window.ImageCompressor.uploadViaRest(
+    url, key, "event-files", path, file,
   );
-  if (!res.ok) throw new Error("Upload failed");
-  return `${url}/storage/v1/object/public/event-files/documents/${fileName}`;
+  if (!publicUrl) throw new Error("Upload failed");
+  return publicUrl;
 }
 
 async function createEventFromRequest(req) {

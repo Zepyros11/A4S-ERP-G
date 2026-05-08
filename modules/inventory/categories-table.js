@@ -15,13 +15,6 @@ export function renderCategoriesTable(categories, products) {
     ).length;
     const color = c.color || "#0f4c75";
     const bg = color + "22";
-    const lbl = c.sku_labels || {};
-
-    const skuFmt = lbl.prefix
-      ? `${lbl.prefix}-${(lbl.segments || [])
-          .map((s) => `[${typeof s === "string" ? s : s.label}]`)
-          .join("-")}-001`
-      : "—";
 
     html += `
       <tr>
@@ -46,10 +39,6 @@ export function renderCategoriesTable(categories, products) {
           <strong>${count}</strong>
         </td>
 
-        <td class="col-center" style="font-family:monospace;font-size:12px">
-          ${skuFmt}
-        </td>
-
         <td class="col-center">
           <button class="btn-icon" onclick="editCategory(${c.category_id})">✏️</button>
           <button class="btn-icon danger" onclick="deleteCategory(${c.category_id},'${c.category_name}')">🗑️</button>
@@ -62,7 +51,7 @@ export function renderCategoriesTable(categories, products) {
   if (!html) {
     html = `
       <tr>
-        <td colspan="4" style="text-align:center;padding:40px;color:var(--text3)">
+        <td colspan="3" style="text-align:center;padding:40px;color:var(--text3)">
           ไม่พบข้อมูล
         </td>
       </tr>

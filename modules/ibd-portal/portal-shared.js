@@ -295,9 +295,27 @@
     return res.json().catch(() => null);
   }
 
-  /* ── Storage upload — anon role uploads private file ── */
+  /* ── Storage upload — anon role uploads private file ──
+     ถ้าเป็นรูปจะ compress ก่อน (resize 1600px + JPEG q0.82) ลด egress ~90%
+     ถ้าเป็น PDF/อื่น ๆ upload ดิบ ๆ ตามเดิม */
   async function uploadFile(file, pathPrefix) {
-    const safeName = file.name.replace(/[^\w.\-]+/g, '_');
+    const isImage = (file.type || '').startsWith('image/');
+    let body = file;
+    let contentType = file.type || 'application/octet-stream';
+    let fileExt;
+    if (isImage && window.ImageCompressor) {
+      try {
+        body = await window.ImageCompressor.compress(file);
+        contentType = 'image/jpeg';
+        fileExt = 'jpg';
+      } catch (e) {
+        console.warn('compress failed, using original:', e.message);
+      }
+    }
+    const origName = file.name.replace(/[^\w.\-]+/g, '_');
+    const safeName = fileExt
+      ? origName.replace(/\.[^.]+$/, '') + '.' + fileExt
+      : origName;
     const key = `${pathPrefix}/${Date.now()}_${safeName}`;
     const url = `${SB_URL}/storage/v1/object/${BUCKET}/${key}`;
     const res = await fetch(url, {
@@ -305,10 +323,10 @@
       headers: {
         apikey: SB_KEY,
         Authorization: `Bearer ${SB_KEY}`,
-        'Content-Type': file.type || 'application/octet-stream',
+        'Content-Type': contentType,
         'x-upsert': 'false',
       },
-      body: file,
+      body,
     });
     if (!res.ok) throw new Error(`Upload ${safeName} → ${res.status}: ${(await res.text()).slice(0, 200)}`);
     // Return storage object key — staff will create signed URL when viewing

@@ -6,37 +6,15 @@ export function renderProductsTable(
   products,
   categories,
   productImages,
-  sortKey = "product_code",
+  sortKey = "product_name",
   sortAsc = true,
 ) {
-  function getSkuSeq(code) {
-    if (!code) return 9999;
-    const parts = code.split("-");
-    const n = parseInt(parts[parts.length - 1], 10);
-    return isNaN(n) ? 9999 : n;
-  }
-
   const sorted = [...products].sort((a, b) => {
-    if (sortKey === "product_code") {
-      const ac = (a.product_code || "").toUpperCase();
-      const bc = (b.product_code || "").toUpperCase();
-      const aParts = ac.split("-");
-      const bParts = bc.split("-");
-      const aPrefix = aParts.slice(0, -2).join("-");
-      const bPrefix = bParts.slice(0, -2).join("-");
-      const aSeq = getSkuSeq(ac);
-      const bSeq = getSkuSeq(bc);
-      if (aPrefix !== bPrefix) {
-        return sortAsc
-          ? aPrefix.localeCompare(bPrefix)
-          : bPrefix.localeCompare(aPrefix);
-      }
-      return sortAsc ? aSeq - bSeq : bSeq - aSeq;
-    }
-    let av = a[sortKey] || "",
-      bv = b[sortKey] || "";
+    let av = a[sortKey] ?? "";
+    let bv = b[sortKey] ?? "";
     if (typeof av === "string") av = av.toLowerCase();
     if (typeof bv === "string") bv = bv.toLowerCase();
+    if (av === bv) return 0;
     return sortAsc ? (av > bv ? 1 : -1) : av < bv ? 1 : -1;
   });
 
@@ -70,7 +48,6 @@ export function renderProductsTable(
 </td>
 <td>
   <div class="prod-name">${p.product_name}</div>
-  <div class="prod-category">${p.product_code || "—"}</div>
 </td>
 <td class="col-center">
   <div class="cat-badge" style="background:${cat?.color || "#eee"}20;"

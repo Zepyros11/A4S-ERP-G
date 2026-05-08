@@ -121,26 +121,12 @@ async function fetchDefaultGrace() {
 }
 async function uploadSlip(eventId, file) {
   const { url, key } = getSB();
-  const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
-  const path = `slips/${eventId}_${Date.now()}.${ext}`;
-  const res = await fetch(
-    `${url}/storage/v1/object/event-files/${path}`,
-    {
-      method: "POST",
-      headers: {
-        apikey: key,
-        Authorization: `Bearer ${key}`,
-        "Content-Type": file.type || "image/jpeg",
-        "x-upsert": "true",
-      },
-      body: file,
-    },
+  const path = `slips/${eventId}_${Date.now()}`;
+  const publicUrl = await window.ImageCompressor.uploadViaRest(
+    url, key, "event-files", path, file,
   );
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.message || "Slip upload failed");
-  }
-  return `${url}/storage/v1/object/public/event-files/${path}`;
+  if (!publicUrl) throw new Error("Slip upload failed");
+  return publicUrl;
 }
 
 /* Deterministic public URL for an attendee QR (no Date.now → re-upload OVERWRITES

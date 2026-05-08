@@ -9,7 +9,6 @@
 
 let selectedEmoji = "📦";
 let selectedColor = "#0f4c75";
-let skuSegments = [{ label: "", locked: false }];
 
 /* ================================
    CONSTANTS
@@ -247,18 +246,7 @@ export function openCategoryModal(data = null) {
   document.getElementById("categoryName").value = data?.category_name || "";
   document.getElementById("categoryDesc").value = data?.description || "";
 
-  /* SKU */
-  const labels = data?.sku_labels || {};
-  document.getElementById("skuPrefix").value = labels.prefix || "";
-
-  skuSegments = labels.segments?.length
-    ? labels.segments.map((s) =>
-        typeof s === "string" ? { label: s, locked: false } : s,
-      )
-    : [{ label: "", locked: false }];
-
   buildPickers();
-  renderSegments();
   updateCategoryPreview();
 
   modal.classList.add("open");
@@ -329,121 +317,10 @@ window.updateCategoryPreview = function () {
 };
 
 /* ================================
-   SKU SEGMENTS
-================================ */
-
-window.addSegment = function () {
-  syncSegmentInputs();
-  if (skuSegments.length >= 6) {
-    showFormToast("เพิ่มได้สูงสุด 6 ช่อง", "warning");
-    return;
-  }
-  skuSegments.push({ label: "", locked: false });
-  renderSegments();
-};
-
-window.removeSegment = function (i) {
-  if (skuSegments.length <= 1) return;
-  skuSegments.splice(i, 1);
-  renderSegments();
-};
-
-window.toggleLock = function (i) {
-  syncSegmentInputs();
-  skuSegments[i].locked = !skuSegments[i].locked;
-  renderSegments();
-};
-
-window.updateSegment = function (i, val) {
-  skuSegments[i].label = val;
-  updateSkuPreview();
-};
-
-function renderSegments() {
-  const wrap = document.getElementById("segmentContainer");
-  if (!wrap) return;
-
-  wrap.innerHTML = "";
-
-  skuSegments.forEach((seg, i) => {
-    const label = seg.label || "";
-    const locked = seg.locked || false;
-
-    const row = document.createElement("div");
-    row.className = "form-group";
-    row.innerHTML = `
-      <label class="form-label">ช่อง ${i + 2}</label>
-      <div style="display:flex;gap:6px;align-items:center">
-        <input
-          class="form-control"
-          value="${label}"
-          placeholder="เช่น Type / Color / Size"
-          oninput="updateSegment(${i}, this.value)"
-        />
-        <button type="button" class="btn-icon" onclick="toggleLock(${i})" title="ล็อค Segment">
-          ${locked ? "🔒" : "🔓"}
-        </button>
-        ${
-          i === 0
-            ? ""
-            : `
-          <button class="btn-icon danger" onclick="removeSegment(${i})">🗑</button>
-        `
-        }
-      </div>
-    `;
-    wrap.appendChild(row);
-  });
-
-  updateSkuPreview();
-}
-
-/* ================================
-   SKU PREVIEW
-================================ */
-
-window.updateSkuPreview = function () {
-  syncSegmentInputs();
-
-  const prefix = (
-    document.getElementById("skuPrefix")?.value || "XXX"
-  ).toUpperCase();
-
-  const segPreview = skuSegments.map((s) => `[${s.label || "?"}]`).join("-");
-
-  const segExample = skuSegments
-    .map((s) => (s.label || "X").substring(0, 4).toUpperCase())
-    .join("-");
-
-  const prev = document.getElementById("skuPreview");
-  const ex = document.getElementById("skuExample");
-
-  if (prev) prev.textContent = `${prefix}-${segPreview}-001`;
-  if (ex) ex.textContent = `${prefix}-${segExample}-001`;
-};
-
-/* ================================
-   SYNC INPUTS → STATE
-================================ */
-
-function syncSegmentInputs() {
-  const inputs =
-    document.getElementById("segmentContainer")?.querySelectorAll("input") ||
-    [];
-
-  inputs.forEach((el, idx) => {
-    if (skuSegments[idx]) skuSegments[idx].label = el.value;
-  });
-}
-
-/* ================================
    SAVE — dispatch event ให้ list รับ
 ================================ */
 
-// แก้ — แยก id ออก ไม่ส่งติดไปใน payload
 window.saveCategoryForm = function () {
-  syncSegmentInputs();
-
   const name = document.getElementById("categoryName")?.value.trim();
   if (!name) {
     showFormToast("กรุณากรอกชื่อหมวดหมู่", "error");
@@ -457,20 +334,8 @@ window.saveCategoryForm = function () {
     description: document.getElementById("categoryDesc")?.value.trim() || null,
     icon: selectedEmoji,
     color: selectedColor,
-    sku_labels: {
-      prefix:
-        document
-          .getElementById("skuPrefix")
-          ?.value.toUpperCase()
-          .replace(/[^A-Z]/g, "")
-          .trim() || null,
-      segments: skuSegments
-        .map((s) => ({ label: s.label.trim(), locked: s.locked || false }))
-        .filter((s) => s.label),
-    },
   };
 
-  // ส่ง id แยกต่างหาก ไม่รวมใน payload
   window.dispatchEvent(
     new CustomEvent("category-saved", {
       detail: { ...payload, category_id: editId },

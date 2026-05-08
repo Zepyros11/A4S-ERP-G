@@ -185,28 +185,14 @@ window.submitLog = async function () {
 
   showLoading(true);
   try {
-    // Upload attachment ถ้ามี
+    // Upload attachment ถ้ามี (รูป compress, PDF upload ดิบ)
     let attachUrl = null;
     if (attachFile) {
       const { url, key } = getSB();
-      const ext = attachFile.name.split(".").pop();
-      const fileName = `${eventId}_${Date.now()}.${ext}`;
-      const res = await fetch(
-        `${url}/storage/v1/object/event-files/documents/${fileName}`,
-        {
-          method: "POST",
-          headers: {
-            apikey: key,
-            Authorization: `Bearer ${key}`,
-            "Content-Type": attachFile.type,
-            "x-upsert": "true",
-          },
-          body: attachFile,
-        },
+      const path = `documents/${eventId}_${Date.now()}`;
+      attachUrl = await window.ImageCompressor.uploadViaRest(
+        url, key, "event-files", path, attachFile,
       );
-      if (res.ok) {
-        attachUrl = `${url}/storage/v1/object/public/event-files/documents/${fileName}`;
-      }
     }
 
     // Save log

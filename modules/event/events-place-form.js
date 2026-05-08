@@ -776,21 +776,12 @@ window.savePlace = async function () {
 // ── UPLOAD ────────────────────────────────
 async function uploadPlaceImage(placeId, file, index) {
   const { url, key } = getSB();
-  const ext = file.name.split(".").pop().toLowerCase();
-  const fileName = `place_${placeId}_${index}_${Date.now()}.${ext}`;
-  const path = `places/${fileName}`;
-  const res = await fetch(`${url}/storage/v1/object/event-files/${path}`, {
-    method: "POST",
-    headers: {
-      apikey: key,
-      Authorization: `Bearer ${key}`,
-      "Content-Type": file.type,
-      "x-upsert": "true",
-    },
-    body: file,
-  });
-  if (!res.ok) throw new Error("Upload failed");
-  return `${url}/storage/v1/object/public/event-files/${path}`;
+  const path = `places/place_${placeId}_${index}_${Date.now()}`;
+  const publicUrl = await window.ImageCompressor.uploadViaRest(
+    url, key, "event-files", path, file,
+  );
+  if (!publicUrl) throw new Error("Upload failed");
+  return publicUrl;
 }
 
 async function patchPlace(placeId, data) {

@@ -60,7 +60,7 @@
     <div class="table-toolbar">
       <div class="search-wrap">
         <span class="search-icon">🔍</span>
-        <input class="search-input" id="searchInput" placeholder="ค้นหาชื่อหรือรหัสสินค้า..." />
+        <input class="search-input" id="searchInput" placeholder="ค้นหาชื่อสินค้า..." />
       </div>
       <select class="filter-select" id="filterCategory">
         <option value="">⚪ ทุกหมวดหมู่</option>
@@ -180,6 +180,7 @@
 <script src="../../js/core/date-format.js"></script>
         <script>AuthZ.requirePerm("product_view");</script>
         <!-- product -->
+        <script src="../../js/core/imageCompressor.js"></script>
         <script type="module" src="./products-list.js"></script>
         <!-- MODALS -->
         <script src="../../js/components/modal/deleteModal.js"></script>

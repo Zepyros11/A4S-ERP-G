@@ -40,6 +40,25 @@
 }
 
 /* =========================================================
+   CATEGORY FORM (2-column layout)
+========================================================= */
+
+.cat-form-body {
+  padding: 22px 20px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  overflow-y: auto;
+  max-height: 70vh;
+}
+
+@media (max-width: 640px) {
+  .cat-form-body {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* =========================================================
    EMOJI PICKER
 ========================================================= */
 

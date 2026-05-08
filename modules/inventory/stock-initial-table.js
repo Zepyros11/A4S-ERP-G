@@ -40,7 +40,7 @@ export function renderTable({
   );
 
   let list = products.filter((p) => {
-    const q = (p.product_name + " " + p.product_code).toLowerCase();
+    const q = (p.product_name || "").toLowerCase();
     if (search && !q.includes(search)) return false;
     if (catId && String(p.category_id) !== catId) return false;
     if (status === "has" && !productIdsWithInit.has(p.product_id)) return false;
@@ -60,22 +60,6 @@ export function renderTable({
         return currentSort.dir === "asc"
           ? x.localeCompare(y)
           : y.localeCompare(x);
-      }
-      if (currentSort.field === "product_name") {
-        const ac = (a.product_code || "").toUpperCase();
-        const bc = (b.product_code || "").toUpperCase();
-        const aParts = ac.split("-");
-        const bParts = bc.split("-");
-        const aPrefix = aParts.slice(0, -2).join("-");
-        const bPrefix = bParts.slice(0, -2).join("-");
-        const aSeq = parseInt(aParts[aParts.length - 1]) || 9999;
-        const bSeq = parseInt(bParts[bParts.length - 1]) || 9999;
-        if (aPrefix !== bPrefix) {
-          return currentSort.dir === "asc"
-            ? aPrefix.localeCompare(bPrefix)
-            : bPrefix.localeCompare(aPrefix);
-        }
-        return currentSort.dir === "asc" ? aSeq - bSeq : bSeq - aSeq;
       }
       const x = a[currentSort.field] || "";
       const y = b[currentSort.field] || "";
@@ -118,7 +102,6 @@ export function renderTable({
   </td>
   <td>
     <strong>${p.product_name}</strong>
-    <div class="si-code">${p.product_code}</div>
   </td>
   <td class="col-center">
     <div class="cat-badge" style="background:${cat?.color || "#eee"}20">

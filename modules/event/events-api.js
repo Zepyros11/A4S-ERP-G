@@ -121,30 +121,12 @@ export async function createEventLog(data) {
 /* ── UPLOAD POSTER ── */
 export async function uploadEventPoster(eventId, file) {
   const { url, key } = getSB();
-  const ext = file.name.split(".").pop().toLowerCase();
-  const fileName = `${eventId}_poster_${Date.now()}.${ext}`;
-  const uploadPath = `posters/${fileName}`;
-
-  const uploadRes = await fetch(
-    `${url}/storage/v1/object/event-files/${uploadPath}`,
-    {
-      method: "POST",
-      headers: {
-        apikey: key,
-        Authorization: `Bearer ${key}`,
-        "Content-Type": file.type,
-        "x-upsert": "true",
-      },
-      body: file,
-    },
+  const uploadPath = `posters/${eventId}_poster_${Date.now()}`;
+  const publicUrl = await window.ImageCompressor.uploadViaRest(
+    url, key, "event-files", uploadPath, file,
   );
-
-  if (!uploadRes.ok) {
-    const err = await uploadRes.json().catch(() => ({}));
-    throw new Error(err.message || "Upload failed");
-  }
-
-  return `${url}/storage/v1/object/public/event-files/${uploadPath}`;
+  if (!publicUrl) throw new Error("Upload failed");
+  return publicUrl;
 }
 
 /* ── NOTIFICATIONS ── */

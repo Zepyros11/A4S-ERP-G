@@ -10,6 +10,8 @@
   <!-- Supabase JS -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="../../js/core/supabase.js"></script>
+  <!-- Image compressor (resize+compress ก่อน upload Storage) -->
+  <script src="../../js/core/imageCompressor.js"></script>
   <style>
     /* ── Reset & Base ─────────────────────────────────── */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -2101,15 +2103,6 @@ async function restoreImagesFromIDB() {
    PERSISTENCE — SUPABASE
 ═══════════════════════════════════════════════════════════ */
 
-/* แปลง data URL → File object (สำหรับ upload รูป) */
-function dataUrlToFile(dataUrl, filename) {
-  const [header, b64] = dataUrl.split(',');
-  const mime = header.match(/:(.*?);/)[1];
-  const bin  = atob(b64);
-  const arr  = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
-  return new File([arr], filename, { type: mime });
-}
 
 /* row object → Supabase record */
 function rowToRecord(row) {
@@ -2163,26 +2156,10 @@ function recordToRow(r, idMap) {
   });
 }
 
-/* Upload รูปไปยัง Supabase Storage → return public URL */
+/* Upload รูปไปยัง Supabase Storage (auto resize+compress ใน ImageCompressor)
+   → return public URL หรือ null ถ้า upload ไม่สำเร็จ */
 async function uploadImageToStorage(dataUrlOrFile, path) {
-  if (!sbClient) return null;
-  try {
-    let file;
-    if (typeof dataUrlOrFile === 'string' && dataUrlOrFile.startsWith('data:')) {
-      const ext = dataUrlOrFile.split(';')[0].split('/')[1] || 'jpg';
-      file = dataUrlToFile(dataUrlOrFile, `${path}.${ext}`);
-    } else {
-      file = dataUrlOrFile;
-    }
-    const ext = file.name ? file.name.split('.').pop() : 'jpg';
-    const { data, error } = await sbClient.storage
-      .from('tour-seat-images')
-      .upload(`${path}.${ext}`, file, { upsert: true });
-    if (error) throw error;
-    const { data: { publicUrl } } = sbClient.storage
-      .from('tour-seat-images').getPublicUrl(data.path);
-    return publicUrl;
-  } catch(e) { console.warn('Upload image failed:', e.message); return null; }
+  return await ImageCompressor.uploadViaClient(sbClient, 'tour-seat-images', path, dataUrlOrFile);
 }
 
 /* Save แถวเดียวไป Supabase (พร้อม upload รูปถ้ามี) */

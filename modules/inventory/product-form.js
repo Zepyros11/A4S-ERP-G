@@ -19,8 +19,6 @@ const state = {
   allProducts: [],
   units: [],
   unitRowCount: 0,
-  variantMode: "list",
-  attributes: [],
   variants: [],
 };
 
@@ -81,8 +79,7 @@ async function loadInitData() {
         query: "?select=*&order=sort_order.asc.nullslast",
       }),
       supabaseFetch("products", {
-        query:
-          "?select=product_id,product_code,product_name,category_id&order=product_code",
+        query: "?select=product_id,product_code,product_name,category_id",
       }),
       supabaseFetch("product_units", { query: "?select=*" }),
     ]);
@@ -106,11 +103,6 @@ function updateSidebarProgress(currentStep) {
   document.querySelectorAll(".pf-step-connector").forEach((el, i) => {
     el.classList.toggle("done", i + 1 < currentStep);
   });
-}
-
-function getCurrentStep() {
-  const active = document.querySelector(".pf-step.active");
-  return active ? parseInt(active.dataset.step) : 1;
 }
 
 // ── CATEGORY ──────────────────────────────────────────────
@@ -195,21 +187,15 @@ function selectProductType(type) {
 
   showSection(3);
   showSection(4);
-  showSection(5);
 
-  const varSkuSec = document.getElementById("variantSkuSection");
-  if (varSkuSec) varSkuSec.style.display = isVariable ? "" : "none";
+  const varSec = document.getElementById("variantSkuSection");
+  if (varSec) varSec.style.display = isVariable ? "" : "none";
 
   const singlePriceSec = document.getElementById("singlePriceSection");
-  const parentPriceSec = document.getElementById("parentPriceSection");
   if (singlePriceSec) singlePriceSec.style.display = isVariable ? "none" : "";
-  if (parentPriceSec) parentPriceSec.style.display = isVariable ? "" : "none";
 
   state.variants = [];
-  state.attributes = [];
   if (isVariable) renderVariantSkuRows();
-
-  buildSkuFields();
 
   state.unitRowCount = 0;
   const unitsContainer = document.getElementById("unitsContainer");
@@ -247,117 +233,15 @@ function goToStep(step) {
     );
 }
 
-// ── SKU BUILDER ───────────────────────────────────────────
-function buildSkuFields() {
-  if (!state.category) return;
-  const cat = state.category;
-  const skuLabels =
-    typeof cat.sku_labels === "string"
-      ? tryParseJson(cat.sku_labels)
-      : cat.sku_labels || {};
-  const prefix =
-    skuLabels.prefix ||
-    cat.category_code ||
-    cat.category_name?.substring(0, 3).toUpperCase() ||
-    "XXX";
-  const segments = skuLabels.segments || [];
-
-  const grid = document.getElementById("skuFieldsGrid");
-  if (!grid) return;
-
-  let html = `<div>
-    <div class="sku-field-label">PREFIX <span class="sku-field-tag tag-fix">FIX</span></div>
-    <input id="sku_prefix" class="form-control" value="${prefix}" readonly
-      style="font-family:monospace;font-weight:700;text-align:center;">
-  </div>`;
-
-  segments.slice(0, 5).forEach((seg, i) => {
-    html += `<div>
-      <div class="sku-field-label">${seg.label || "ช่อง " + (i + 2)}
-        ${seg.locked ? '<span class="sku-field-tag tag-fix">LOCK</span>' : ""}
-      </div>
-      <input id="sku_s${i}" class="form-control" placeholder="ค่า"
-        style="font-family:monospace;text-align:center;text-transform:uppercase;" maxlength="10"
-        oninput="this.value=this.value.toUpperCase().replace(/[^A-Z0-9]/g,'');updateSkuPreview();">
-    </div>`;
+// ── PRODUCT CODE GENERATOR ────────────────────────────────
+// internal id เท่านั้น ไม่ใช้แสดง user
+function generateNextProductCode(usedCodes) {
+  const nums = (usedCodes || []).map((code) => {
+    const m = String(code || "").match(/^P-(\d+)/);
+    return m ? parseInt(m[1], 10) : 0;
   });
-
-  html += `<div>
-    <div class="sku-field-label">ลำดับ <span class="sku-field-tag tag-auto">AUTO</span></div>
-    <input id="sku_seq" class="form-control" value="001" readonly
-      style="font-family:monospace;font-weight:700;text-align:center;">
-  </div>`;
-
-  grid.innerHTML = html;
-  updateSkuPreview();
-}
-
-function tryParseJson(raw) {
-  if (!raw) return {};
-  try {
-    return JSON.parse(raw);
-  } catch {
-    return {};
-  }
-}
-
-function autoSeq(skuPrefix) {
-  if (!skuPrefix || skuPrefix.includes("?")) return "001";
-  const prefixUpper = skuPrefix.toUpperCase();
-  const usedSeqs = state.allProducts
-    .map((p) => {
-      const code = (p.product_code || "").toUpperCase();
-      const parts = code.split("-");
-      if (parts.length < 2) return 0;
-      const codePrefix = parts.slice(0, -2).join("-");
-      if (codePrefix !== prefixUpper) return 0;
-      return parseInt(parts[parts.length - 1]) || 0;
-    })
-    .filter((n) => n > 0);
-  const maxSeq = usedSeqs.length ? Math.max(...usedSeqs) : 0;
-  return String(maxSeq + 1).padStart(3, "0");
-}
-
-function updateSkuPreview() {
-  const prefix = document.getElementById("sku_prefix")?.value || "?";
-  const segments = [];
-  for (let i = 0; i < 5; i++) {
-    const el = document.getElementById("sku_s" + i);
-    if (!el) continue;
-    const v = el.value?.trim();
-    segments.push(v ? v.toUpperCase() : "?");
-    const prevVal = el.dataset.prevVal;
-    if (prevVal !== undefined && prevVal !== el.value) {
-      const seqInput = document.getElementById("sku_seq");
-      if (seqInput) delete seqInput.dataset.manualEdit;
-    }
-    el.dataset.prevVal = el.value || "";
-  }
-  const seqEl = document.getElementById("sku_seq");
-  const allSegsValues = segments.filter((s) => s !== "?");
-  const seqPrefix =
-    allSegsValues.length >= 1
-      ? [prefix, ...allSegsValues.slice(0, -1)].join("-")
-      : prefix || null;
-  if (seqEl && seqPrefix && !seqEl.dataset.manualEdit) {
-    seqEl.value = autoSeq(seqPrefix);
-  }
-  const seq = seqEl?.value || "001";
-  const sku = [prefix, ...segments, seq].join("-");
-  const preview = document.getElementById("skuPreviewVal");
-  if (preview) preview.textContent = sku;
-  return sku;
-}
-
-function getCurrentSku() {
-  const prefix = document.getElementById("sku_prefix")?.value || "?";
-  const segs = [];
-  for (let i = 0; i < 5; i++) {
-    const el = document.getElementById(`sku_s${i}`);
-    if (el) segs.push(el.value || "?");
-  }
-  const seq = document.getElementById("sku_seq")?.value || "?";
-  return [prefix, ...segs, seq].filter(Boolean).join("-").toUpperCase();
+  const nextNum = (nums.length ? Math.max(...nums) : 0) + 1;
+  return `P-${String(nextNum).padStart(6, "0")}`;
 }
 
 // ── UNIT ROWS ─────────────────────────────────────────────
@@ -400,26 +284,11 @@ function markBaseUnit(id) {
   });
 }
 
-// ── VARIANT SKU ROWS ──────────────────────────────────────
+// ── VARIANT ROWS ──────────────────────────────────────────
 function addVariantSkuRow() {
-  const parentSku = getCurrentSku();
-  if (parentSku.includes("?")) {
-    showToast("กรอก SKU หลักให้ครบก่อน", "warning");
-    return;
-  }
-  const cat = state.category;
-  const skuLabels =
-    typeof cat?.sku_labels === "string"
-      ? tryParseJson(cat.sku_labels)
-      : cat?.sku_labels || {};
-  const baseSeq = parseInt(document.getElementById("sku_seq")?.value) || 1;
-  const nextSeq = baseSeq + state.variants.length + 1;
-  const seqStr = String(nextSeq).padStart(3, "0");
   state.variants.push({
     enabled: true,
-    sku: "",
     variantLabel: "",
-    seq: seqStr,
     cost: 0,
     sale: 0,
   });
@@ -430,183 +299,67 @@ function renderVariantSkuRows() {
   const container = document.getElementById("variantSkuRows");
   if (!container) return;
 
-  const cat = state.category;
-  const skuLabels =
-    typeof cat?.sku_labels === "string"
-      ? tryParseJson(cat.sku_labels)
-      : cat?.sku_labels || {};
-  const segments = skuLabels.segments || [];
-  const f1Val = document.getElementById("sku_prefix")?.value || "???";
-  const seqVal = document.getElementById("sku_seq")?.value || "?";
-  const catColor = cat?.color || "#0f4c75";
-
-  // อ่าน segment ตามลำดับจาก DOM
-  // อ่าน segment เฉพาะที่ buildSkuFields() สร้างจริง (ตาม segments.length)
-  const allSegments = [];
-  const segCount = Math.min(segments.length, 5); // render แค่ตาม segment ที่มีจริง
-  for (let i = 0; i < segCount; i++) {
-    const el = document.getElementById(`sku_s${i}`);
-    if (!el) continue;
-    const segDef = segments[i] || {};
-    allSegments.push({
-      value: el.value || "?",
-      label: segDef.label || `ช่อง ${i + 2}`,
-      locked: !!segDef.locked,
-      index: i,
-    });
-  }
-
-  // หา editable segment แรก (ตัวที่ variant กรอก)
-  const variantSegDef = allSegments.find((s) => !s.locked) || {
-    label: "ตัวเลือก",
-  };
-
   if (state.variants.length === 0) {
     container.innerHTML = `
       <div style="text-align:center;padding:20px;color:var(--text3);
         border:1.5px dashed var(--border);border-radius:8px;font-size:12px;">
-        กด "+ เพิ่มตัวเลือก" เพื่อเพิ่ม SKU ย่อย เช่น สีแดง, ไซส์ S
+        กด "+ เพิ่มตัวเลือก" เพื่อเพิ่มตัวเลือก
       </div>`;
     updateSummary();
     return;
   }
 
   container.innerHTML = state.variants
-    .map((v, vi) => {
-      const varSuffix = v.variantLabel ? v.variantLabel.toUpperCase() : "?";
-      const vSeq = v.seq || seqVal;
-
-      // สร้าง SKU ตามลำดับจริง
-      const skuParts = [f1Val];
-      allSegments.forEach((seg) => {
-        skuParts.push(seg.locked ? seg.value : varSuffix);
-      });
-      skuParts.push(vSeq);
-      const autoSku = skuParts.join("-").toUpperCase();
-      state.variants[vi].sku = autoSku;
-
-      // render columns ตามลำดับจริง (ไม่แยก locked/editable ออกจากกัน)
-      const segCols = allSegments
-        .map((seg) => {
-          if (seg.locked) {
-            return `
-            <div style="flex:1;min-width:0;">
-              <div style="font-size:11px;font-weight:700;color:var(--text3);margin-bottom:3px;">
-                ${seg.label}
-                <span style="font-size:9px;background:#e5e7eb;color:#6b7280;
-                  padding:1px 4px;border-radius:3px;">LOCK</span>
-              </div>
-              <input class="form-control" value="${seg.value}" readonly
-                style="width:100%;font-family:monospace;font-size:12px;text-align:center;
-                background:var(--surface3,#f3f4f6);color:var(--text2);cursor:not-allowed;">
-            </div>`;
-          } else {
-            return `
-            <div style="flex:1;min-width:0;">
-              <div style="font-size:11px;font-weight:700;color:var(--accent);margin-bottom:3px;">
-                ${seg.label}
-              </div>
-              <input class="form-control variant-label-input" value="${v.variantLabel}"
-                placeholder="เช่น RED, S, XL"
-                style="width:100%;font-family:monospace;text-transform:uppercase;font-weight:700;
-                  font-size:13px;color:var(--accent);text-align:center;
-                  border-color:var(--accent);background:var(--accent-pale);"
-                oninput="updateVariantSkuLabel(${vi}, this.value)">
-            </div>`;
-          }
-        })
-        .join("");
-
-      return `
+    .map(
+      (v, vi) => `
     <div style="background:var(--surface2);border:1.5px solid var(--border);
       border-radius:10px;padding:12px 14px;margin-bottom:10px;">
-
-      <div style="display:flex;gap:10px;align-items:flex-end;margin-bottom:8px;">
-
-        <!-- PREFIX -->
-        <div style="width:80px;flex-shrink:0;">
-          <div style="font-size:11px;font-weight:700;color:var(--text3);margin-bottom:3px;">
-            PREFIX
-            <span style="font-size:9px;background:${catColor}22;color:${catColor};
-              padding:1px 4px;border-radius:3px;">FIX</span>
+      <div style="display:flex;gap:10px;align-items:flex-end;">
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:11px;font-weight:700;color:var(--accent);margin-bottom:3px;">
+            ชื่อตัวเลือก
           </div>
-          <input class="form-control" value="${f1Val}" readonly
-            style="width:100%;font-family:monospace;font-size:12px;font-weight:700;text-align:center;
-            background:${catColor}22;color:${catColor};border-color:${catColor}44;cursor:not-allowed;">
+          <input class="form-control" value="${v.variantLabel || ""}"
+            placeholder="เช่น สีแดง, Size S"
+            style="width:100%;font-size:13px;"
+            oninput="updateVariantLabel(${vi}, this.value)">
         </div>
-
-        <!-- Segments ตามลำดับจริง -->
-        ${segCols}
-
-        <!-- ลำดับ -->
-        <div style="width:70px;flex-shrink:0;">
-          <div style="font-size:11px;font-weight:700;color:var(--text3);margin-bottom:3px;">ลำดับ</div>
-          <input class="form-control" value="${vSeq}" readonly
-            style="width:100%;font-family:monospace;font-size:12px;font-weight:700;text-align:center;
-            background:#f0fdf4;color:#166534;cursor:not-allowed;">
+        <div style="width:110px;flex-shrink:0;">
+          <div style="font-size:11px;font-weight:700;color:var(--text3);margin-bottom:3px;">
+            ราคาทุน (฿)
+          </div>
+          <input type="number" value="${v.cost}" min="0" step="0.01"
+            class="form-control"
+            style="width:100%;font-family:monospace;text-align:right;font-size:12px;"
+            oninput="state.variants[${vi}].cost=parseFloat(this.value)||0">
         </div>
-
-        <!-- ลบ -->
+        <div style="width:110px;flex-shrink:0;">
+          <div style="font-size:11px;font-weight:700;color:var(--text3);margin-bottom:3px;">
+            ราคาขาย (฿)
+          </div>
+          <input type="number" value="${v.sale}" min="0" step="0.01"
+            class="form-control"
+            style="width:100%;font-family:monospace;text-align:right;font-size:12px;color:var(--accent);"
+            oninput="state.variants[${vi}].sale=parseFloat(this.value)||0">
+        </div>
         <div style="flex-shrink:0;">
           <button onclick="removeVariant(${vi})"
             style="width:34px;height:38px;border:1px solid #fca5a5;background:#fff5f5;
               color:#dc2626;border-radius:8px;cursor:pointer;font-size:16px;">✕</button>
         </div>
       </div>
-
-      <!-- SKU Preview -->
-      <div style="font-size:11px;color:var(--text3);margin-top:4px;">
-        SKU: <span style="font-family:monospace;font-weight:700;color:var(--text1);">${autoSku}</span>
-        &nbsp;&nbsp;
-        ราคาทุน: <input type="number" value="${v.cost}" min="0" step="0.01"
-          style="width:80px;font-size:12px;padding:3px 6px;border:1px solid var(--border);
-            border-radius:5px;font-family:monospace;text-align:right;"
-          oninput="state.variants[${vi}].cost=parseFloat(this.value)||0">
-        &nbsp;
-        ราคาขาย: <input type="number" value="${v.sale}" min="0" step="0.01"
-          style="width:80px;font-size:12px;padding:3px 6px;border:1px solid var(--border);
-            border-radius:5px;font-family:monospace;text-align:right;"
-          oninput="state.variants[${vi}].sale=parseFloat(this.value)||0">
-      </div>
-    </div>`;
-    })
+    </div>`,
+    )
     .join("");
 
   updateSummary();
 }
-function updateVariantSkuLabel(vi, val) {
-  state.variants[vi].variantLabel = val.toUpperCase();
 
-  const cat = state.category;
-  const skuLabels =
-    typeof cat?.sku_labels === "string"
-      ? tryParseJson(cat.sku_labels)
-      : cat?.sku_labels || {};
-  const segments = skuLabels.segments || [];
-  const f1 = document.getElementById("sku_prefix")?.value || "?";
-  const vSeq =
-    state.variants[vi].seq || document.getElementById("sku_seq")?.value || "?";
-  const label = val.trim().toUpperCase() || "?";
-
-  // สร้าง SKU ตามลำดับจริง
-  const skuParts = [f1];
-  const segCount2 = Math.min(segments.length, 5);
-  for (let i = 0; i < segCount2; i++) {
-    const el = document.getElementById(`sku_s${i}`);
-    if (!el) continue;
-    const segDef = segments[i] || {};
-    skuParts.push(segDef.locked ? el.value || "?" : label);
-  }
-  skuParts.push(vSeq);
-  state.variants[vi].sku = skuParts.join("-").toUpperCase();
-
-  // update SKU preview text ใน row
-  const rows = document.querySelectorAll("#variantSkuRows > div");
-  if (rows[vi]) {
-    const skuSpan = rows[vi].querySelector("span[style*='monospace']");
-    if (skuSpan) skuSpan.textContent = state.variants[vi].sku;
-  }
+function updateVariantLabel(vi, val) {
+  state.variants[vi].variantLabel = val;
+  updateSummary();
 }
+
 function removeVariant(vi) {
   state.variants.splice(vi, 1);
   renderVariantSkuRows();
@@ -625,7 +378,6 @@ function showSection(step) {
 function updateSummary() {
   const catEl = document.getElementById("summCat");
   const typeEl = document.getElementById("summType");
-  const skuEl = document.getElementById("summSku");
   const varEl = document.getElementById("summVars");
   if (catEl)
     catEl.textContent = state.category
@@ -638,11 +390,10 @@ function updateSummary() {
         : state.productType === "variable"
           ? "ชุด"
           : "—";
-  if (skuEl) skuEl.textContent = getCurrentSku() || "—";
   if (varEl)
     varEl.textContent =
       state.productType === "variable"
-        ? `${state.variants.filter((v) => v.enabled).length} variants`
+        ? `${state.variants.filter((v) => v.enabled && v.variantLabel).length} variants`
         : "—";
 }
 
@@ -725,27 +476,11 @@ async function uploadProductImages(productId) {
       continue;
     }
     try {
-      const ext = file.name.split(".").pop().toLowerCase();
-      const fileName = `${productId}_${idx}_${Date.now()}.${ext}`;
-      const uploadPath = `products/${fileName}`;
-      const uploadRes = await fetch(
-        `${url}/storage/v1/object/product-images/${uploadPath}`,
-        {
-          method: "POST",
-          headers: {
-            apikey: key,
-            Authorization: `Bearer ${key}`,
-            "Content-Type": file.type,
-            "x-upsert": "true",
-          },
-          body: file,
-        },
+      const path = `products/${productId}_${idx}_${Date.now()}`;
+      const publicUrl = await window.ImageCompressor.uploadViaRest(
+        url, key, "product-images", path, file,
       );
-      if (!uploadRes.ok)
-        throw new Error(
-          (await uploadRes.json().catch(() => ({}))).message || "Upload failed",
-        );
-      const publicUrl = `${url}/storage/v1/object/public/product-images/${uploadPath}`;
+      if (!publicUrl) throw new Error("Upload failed");
       await supabaseFetch("product_images", {
         method: "POST",
         body: { product_id: productId, url: publicUrl, sort_order: idx },
@@ -756,6 +491,30 @@ async function uploadProductImages(productId) {
         "error",
       );
     }
+  }
+}
+
+async function saveUnitsForProduct(productId) {
+  await supabaseFetch("product_units", {
+    method: "DELETE",
+    query: `?product_id=eq.${productId}`,
+  }).catch(() => {});
+  for (const div of document.querySelectorAll('[id^="unit-row-"]')) {
+    const rowId = div.id.replace("unit-row-", "");
+    const uname = document.getElementById(`uname-${rowId}`)?.value?.trim();
+    const uconv =
+      parseFloat(document.getElementById(`uconv-${rowId}`)?.value) || 1;
+    const ubase = document.getElementById(`ubase-${rowId}`)?.checked || false;
+    if (uname)
+      await supabaseFetch("product_units", {
+        method: "POST",
+        body: {
+          product_id: productId,
+          unit_name: uname,
+          conversion_qty: uconv,
+          is_base_unit: ubase,
+        },
+      });
   }
 }
 
@@ -775,31 +534,9 @@ async function saveProduct() {
     return;
   }
 
-  let sku;
-  if (state.productType === "variable") {
-    const prefix = document.getElementById("sku_prefix")?.value || "?";
-    const segs = [];
-    for (let i = 0; i < 5; i++) {
-      const el = document.getElementById(`sku_s${i}`);
-      if (el) segs.push(el.value || "?");
-    }
-    const seq = document.getElementById("sku_seq")?.value || "?";
-    sku = [prefix, ...segs, seq].filter(Boolean).join("-").toUpperCase();
-  } else {
-    sku = getCurrentSku();
-  }
-
   const name = document.getElementById("fName")?.value?.trim();
   const base = document.getElementById("fBaseUnit")?.value?.trim();
 
-  if (!sku || sku.includes("?")) {
-    showToast("กรุณากรอก SKU ให้ครบ", "error");
-    return;
-  }
-  if (sku.length > 50) {
-    showToast(`SKU ยาวเกินไป (${sku.length} ตัว)`, "error");
-    return;
-  }
   if (!name) {
     showToast("กรุณากรอกชื่อสินค้า", "error");
     return;
@@ -809,18 +546,9 @@ async function saveProduct() {
     return;
   }
 
-  const isDup = state.allProducts.some(
-    (p) =>
-      p.product_code === sku && String(p.product_id) !== String(state.editId),
-  );
-  if (isDup) {
-    showToast("รหัสสินค้า (SKU) ซ้ำกับที่มีอยู่แล้ว!", "error");
-    return;
-  }
-
   if (state.productType === "variable") {
     const activeVariants = state.variants.filter(
-      (v) => v.enabled && v.variantLabel,
+      (v) => v.enabled && v.variantLabel?.trim(),
     );
     if (activeVariants.length === 0) {
       showToast("กรุณาเพิ่มตัวเลือกอย่างน้อย 1 รายการ", "error");
@@ -834,129 +562,44 @@ async function saveProduct() {
       parseFloat(document.getElementById("fReorder")?.value) || 0;
 
     if (state.productType === "variable") {
-      const f1 = document.getElementById("sku_prefix")?.value || "?";
-      const seq = document.getElementById("sku_seq")?.value || "?";
-
-      // อ่าน segments พร้อม locked flag ตามลำดับจริง
-      const skuLabelsSave =
-        typeof state.category?.sku_labels === "string"
-          ? tryParseJson(state.category.sku_labels)
-          : state.category?.sku_labels || {};
-      const segDefsSave = skuLabelsSave.segments || [];
-      const segCountSave = Math.min(segDefsSave.length, 5);
-      const allSegObjsSave = [];
-      for (let i = 0; i < segCountSave; i++) {
-        const el = document.getElementById(`sku_s${i}`);
-        if (!el) continue;
-        allSegObjsSave.push({
-          value: el.value || "?",
-          locked: !!segDefsSave[i]?.locked,
-        });
-      }
-
-      // helper: สร้าง SKU จาก variantLabel ตาม locked flag จริง
-      function buildVariantSku(label, vSeq) {
-        const parts = [f1];
-        allSegObjsSave.forEach((seg) => {
-          parts.push(seg.locked ? seg.value : label);
-        });
-        parts.push(vSeq || seq);
-        return parts.join("-").toUpperCase();
-      }
-
-      // sync variant labels from DOM
-      const variantInputs = document.querySelectorAll(".variant-label-input");
-      state.variants.forEach((v, vi) => {
-        if (variantInputs[vi]) {
-          const label = variantInputs[vi].value.trim().toUpperCase();
-          if (label) {
-            state.variants[vi].variantLabel = label;
-            state.variants[vi].sku = buildVariantSku(label, v.seq || seq);
-          }
-        }
-      });
-
-      // parent variant — ค่าจาก editable segment แรกใน SKU Builder
-      const editableSegSave = allSegObjsSave.find((s) => !s.locked);
-      const parentVariantLabel = (editableSegSave?.value || "").toUpperCase();
-      const parentSku = buildVariantSku(parentVariantLabel, seq);
-      const alreadyHasParent = state.variants.some(
-        (v) => v.variantLabel.toUpperCase() === parentVariantLabel,
-      );
-      if (
-        parentVariantLabel &&
-        parentVariantLabel !== "?" &&
-        !alreadyHasParent
-      ) {
-        state.variants.unshift({
-          enabled: true,
-          variantLabel: parentVariantLabel,
-          sku: parentSku,
-          seq,
-          cost: parseFloat(document.getElementById("parentCost")?.value) || 0,
-          sale: parseFloat(document.getElementById("parentSale")?.value) || 0,
-        });
-      }
+      // ใช้ codes ทั้งจาก DB + ที่ gen ใน loop เพื่อกัน duplicate
+      const usedCodes = state.allProducts.map((p) => p.product_code);
 
       for (const v of state.variants.filter(
-        (v) => v.enabled && v.variantLabel,
+        (vt) => vt.enabled && vt.variantLabel?.trim(),
       )) {
-        if (!state.allProducts.find((p) => p.product_code === v.sku)) {
-          const vPayload = {
-            product_code: v.sku,
-            product_name: `${name} (${v.variantLabel})`,
-            category_id: state.category.category_id,
-            base_unit: base,
-            cost_price:
-              v.cost ||
-              parseFloat(document.getElementById("parentCost")?.value) ||
-              0,
-            sale_price:
-              v.sale ||
-              parseFloat(document.getElementById("parentSale")?.value) ||
-              0,
-            reorder_point: reorderPoint,
-          };
-          const res = await supabaseFetch("products", {
-            method: "POST",
-            body: vPayload,
-          });
-          const variantId = res[0].product_id;
-          for (const div of document.querySelectorAll('[id^="unit-row-"]')) {
-            const rowId = div.id.replace("unit-row-", "");
-            const uname = document
-              .getElementById(`uname-${rowId}`)
-              ?.value?.trim();
-            const uconv =
-              parseFloat(document.getElementById(`uconv-${rowId}`)?.value) || 1;
-            const ubase =
-              document.getElementById(`ubase-${rowId}`)?.checked || false;
-            if (uname)
-              await supabaseFetch("product_units", {
-                method: "POST",
-                body: {
-                  product_id: variantId,
-                  unit_name: uname,
-                  conversion_qty: uconv,
-                  is_base_unit: ubase,
-                },
-              });
-          }
-          await uploadProductImages(variantId);
-        }
+        const productCode = generateNextProductCode(usedCodes);
+        usedCodes.push(productCode);
+
+        const vPayload = {
+          product_code: productCode,
+          product_name: `${name} (${v.variantLabel.trim()})`,
+          category_id: state.category.category_id,
+          base_unit: base,
+          cost_price: v.cost || 0,
+          sale_price: v.sale || 0,
+          reorder_point: reorderPoint,
+        };
+        const res = await supabaseFetch("products", {
+          method: "POST",
+          body: vPayload,
+        });
+        const variantId = res[0].product_id;
+
+        await saveUnitsForProduct(variantId);
+        await uploadProductImages(variantId);
       }
     } else {
-      const payload = {
-        product_code: sku,
-        product_name: name,
-        category_id: state.category.category_id,
-        base_unit: base,
-        reorder_point: reorderPoint,
-        cost_price: parseFloat(document.getElementById("fCost")?.value) || 0,
-        sale_price: parseFloat(document.getElementById("fSale")?.value) || 0,
-      };
       let productId;
       if (state.editId) {
+        const payload = {
+          product_name: name,
+          category_id: state.category.category_id,
+          base_unit: base,
+          reorder_point: reorderPoint,
+          cost_price: parseFloat(document.getElementById("fCost")?.value) || 0,
+          sale_price: parseFloat(document.getElementById("fSale")?.value) || 0,
+        };
         await supabaseFetch("products", {
           method: "PATCH",
           body: payload,
@@ -964,34 +607,25 @@ async function saveProduct() {
         });
         productId = parseInt(state.editId);
       } else {
+        const productCode = generateNextProductCode(
+          state.allProducts.map((p) => p.product_code),
+        );
+        const payload = {
+          product_code: productCode,
+          product_name: name,
+          category_id: state.category.category_id,
+          base_unit: base,
+          reorder_point: reorderPoint,
+          cost_price: parseFloat(document.getElementById("fCost")?.value) || 0,
+          sale_price: parseFloat(document.getElementById("fSale")?.value) || 0,
+        };
         const res = await supabaseFetch("products", {
           method: "POST",
           body: payload,
         });
         productId = res[0].product_id;
       }
-      await supabaseFetch("product_units", {
-        method: "DELETE",
-        query: `?product_id=eq.${productId}`,
-      }).catch(() => {});
-      for (const div of document.querySelectorAll('[id^="unit-row-"]')) {
-        const rowId = div.id.replace("unit-row-", "");
-        const uname = document.getElementById(`uname-${rowId}`)?.value?.trim();
-        const uconv =
-          parseFloat(document.getElementById(`uconv-${rowId}`)?.value) || 1;
-        const ubase =
-          document.getElementById(`ubase-${rowId}`)?.checked || false;
-        if (uname)
-          await supabaseFetch("product_units", {
-            method: "POST",
-            body: {
-              product_id: productId,
-              unit_name: uname,
-              conversion_qty: uconv,
-              is_base_unit: ubase,
-            },
-          });
-      }
+      await saveUnitsForProduct(productId);
       await uploadProductImages(productId);
     }
 
@@ -1022,18 +656,14 @@ async function loadEditProduct(id) {
       catSel.value = p.category_id;
       onCategoryChange();
     }
-    selectProductType(p.product_type === "variable" ? "variable" : "single");
-    const parts = (p.product_code || "").split("-");
-    for (let i = 0; i < 5; i++) {
-      const el = document.getElementById(`sku_s${i}`);
-      if (el) el.value = parts[i + 1] || "";
-    }
-    updateSkuPreview();
+    selectProductType("single"); // edit รองรับ single เท่านั้น (variant = หลาย row)
+
     document.getElementById("fName").value = p.product_name || "";
     document.getElementById("fBaseUnit").value = p.base_unit || "";
     document.getElementById("fReorder").value = p.reorder_point || "";
     document.getElementById("fCost").value = p.cost_price || "";
     document.getElementById("fSale").value = p.sale_price || "";
+
     const unitsContainer = document.getElementById("unitsContainer");
     if (unitsContainer) {
       unitsContainer.innerHTML = "";
@@ -1049,6 +679,7 @@ async function loadEditProduct(id) {
           is_base_unit: true,
         });
     }
+
     try {
       const imgs = await supabaseFetch("product_images", {
         query: `?product_id=eq.${id}&order=sort_order.asc`,

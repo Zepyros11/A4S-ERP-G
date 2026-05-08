@@ -98,30 +98,11 @@ export async function createProductImage(data) {
 
 export async function uploadProductImage(productId, file, slotIndex) {
   const { url, key } = getSB();
-  const ext = file.name.split(".").pop().toLowerCase();
-  const fileName = `${productId}_${slotIndex}_${Date.now()}_${Math.random()
-    .toString(36)
-    .slice(2, 6)}.${ext}`;
-  const uploadPath = `products/${fileName}`;
-
-  const uploadRes = await fetch(
-    `${url}/storage/v1/object/product-images/${uploadPath}`,
-    {
-      method: "POST",
-      headers: {
-        apikey: key,
-        Authorization: `Bearer ${key}`,
-        "Content-Type": file.type,
-        "x-upsert": "true",
-      },
-      body: file,
-    },
+  const rand = Math.random().toString(36).slice(2, 6);
+  const path = `products/${productId}_${slotIndex}_${Date.now()}_${rand}`;
+  const publicUrl = await window.ImageCompressor.uploadViaRest(
+    url, key, "product-images", path, file,
   );
-
-  if (!uploadRes.ok) {
-    const err = await uploadRes.json().catch(() => ({}));
-    throw new Error(err.message || "Upload failed");
-  }
-
-  return `${url}/storage/v1/object/public/product-images/${uploadPath}`;
+  if (!publicUrl) throw new Error("Upload failed");
+  return publicUrl;
 }

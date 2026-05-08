@@ -567,7 +567,9 @@ app.post('/line/webhook', async (req, res) => {
       } catch (e) {
         console.warn('[webhook group event]', ev.type, e.message);
       }
-      // continue to user-level handling below if there's also a userId (e.g. message in group)
+      // ไม่ต้อง handle register flow ในกลุ่ม — สมาชิก/พนักงานต้องลงทะเบียนผ่าน 1-on-1 chat กับ OA เท่านั้น
+      // (กันกรณีคนพิมพ์ "555" หัวเราะ หรือเลขอื่นในกลุ่มแล้ว bot ไปตอบ "ไม่พบข้อมูลนี้ในระบบ")
+      continue;
     }
 
     const uid = ev?.source?.userId;

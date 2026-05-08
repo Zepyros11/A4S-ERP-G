@@ -101,28 +101,11 @@ export async function removePromotionCategory(id) {
 /* ── UPLOAD POSTER IMAGE ── */
 export async function uploadPosterFile(file) {
   const { url, key } = getSB();
-  const ext = file.name.split(".").pop().toLowerCase();
-  const fileName = `promo_${Date.now()}_${Math.random().toString(36).slice(2, 6)}.${ext}`;
-  const uploadPath = `promotions/${fileName}`;
-
-  const uploadRes = await fetch(
-    `${url}/storage/v1/object/promotion-files/${uploadPath}`,
-    {
-      method: "POST",
-      headers: {
-        apikey: key,
-        Authorization: `Bearer ${key}`,
-        "Content-Type": file.type,
-        "x-upsert": "true",
-      },
-      body: file,
-    },
+  const rand = Math.random().toString(36).slice(2, 6);
+  const path = `promotions/promo_${Date.now()}_${rand}`;
+  const publicUrl = await window.ImageCompressor.uploadViaRest(
+    url, key, "promotion-files", path, file,
   );
-
-  if (!uploadRes.ok) {
-    const err = await uploadRes.json().catch(() => ({}));
-    throw new Error(err.message || "Upload failed");
-  }
-
-  return `${url}/storage/v1/object/public/promotion-files/${uploadPath}`;
+  if (!publicUrl) throw new Error("Upload failed");
+  return publicUrl;
 }
