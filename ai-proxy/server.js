@@ -283,6 +283,22 @@ function _looksLikeNoise(text) {
   return false;
 }
 
+// Trigger keywords: เริ่ม flow ผูกบัญชีจากข้อความ (ทำงานคู่กับ rich menu postback)
+// Primary keyword: "ลงทะเบียน Line"
+function _isLinkTrigger(text) {
+  if (!text) return false;
+  const t = String(text).trim().toLowerCase().replace(/\s+/g, ' ');
+  return (
+    t === 'ลงทะเบียน line' ||
+    t === 'ลงทะเบียน' ||
+    t === 'ผูก line' ||
+    t === 'ผูก' ||
+    t === 'ผูกบัญชี' ||
+    t === 'register' ||
+    t === 'link'
+  );
+}
+
 // SHA-256 hex (same scheme as ERPCrypto.hash in js/core/crypto.js)
 function _sha256Hex(str) {
   return crypto.createHash('sha256').update(String(str)).digest('hex');
@@ -476,9 +492,8 @@ const DEFAULT_TEMPLATES = {
     '📢 พร้อมส่ง promote กิจกรรมเข้ากลุ่มนี้แล้ว — ตั้งกำหนดการได้ที่หน้า "ตารางโพสต์ LINE"',
   welcome:
     'ยินดีต้อนรับสู่ A4S 🎉\n\n' +
-    '🔗 กดปุ่ม "ผูกบัญชี" บนเมนูด้านล่าง เพื่อเริ่มผูก LINE กับระบบ\n' +
-    '   (สมาชิก = รับแจ้งเตือน event / พนักงาน = แจ้งเตือนภายในองค์กร)\n\n' +
-    '— หากไม่เห็นเมนู ลองปิด-เปิดแชทใหม่ —',
+    '🔗 พิมพ์ "ลงทะเบียน Line" เพื่อเริ่มผูก LINE กับระบบ\n' +
+    '   (สมาชิก = รับแจ้งเตือน event / พนักงาน = แจ้งเตือนภายในองค์กร)',
   ask_id:
     '🔗 ผูกบัญชี LINE กับระบบ A4S\n\n' +
     '📱 สมาชิก: พิมพ์ "รหัสสมาชิก" (ตัวเลข 5-6 หลัก)\n' +
@@ -664,6 +679,21 @@ app.post('/line/webhook', async (req, res) => {
         if (sess?.blocked_until && new Date(sess.blocked_until) > now) {
           const mins = Math.max(1, Math.ceil((new Date(sess.blocked_until) - now) / 60000));
           await _lineReply(ev.replyToken, await _tpl('rate_limited', { minutes: mins }));
+          continue;
+        }
+
+        // ── Step 0.5: trigger keyword ("ลงทะเบียน"/"ผูก"/...) → เปิด await_id session ──
+        // วางก่อน sessionAlive check เพื่อให้ user "เริ่มใหม่" ได้แม้มี session ค้าง
+        if (_isLinkTrigger(text)) {
+          const expiresAt = new Date(now.getTime() + SESSION_TTL_MIN * 60000).toISOString();
+          await _setSession(uid, {
+            pending_type: 'await_id',
+            pending_id: null,
+            attempts: 0,
+            expires_at: expiresAt,
+            blocked_until: null,
+          });
+          await _lineReply(ev.replyToken, await _tpl('ask_id'));
           continue;
         }
 
