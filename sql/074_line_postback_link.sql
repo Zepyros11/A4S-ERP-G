@@ -8,8 +8,7 @@
 --         bot เข้าโหมดผูกบัญชีโดยไม่ตั้งใจ + นับ failed attempt
 --         จนโดน rate limit
 --
--- Trigger keywords ที่รองรับ: "ลงทะเบียน Line", "ลงทะเบียน", "ผูก",
--- "ผูกบัญชี", "ผูก line", "register", "link" (case-insensitive)
+-- Trigger keywords ที่รองรับ: "ลงทะเบียน Line", "ผูก Line" (case-insensitive)
 --
 -- พร้อมเพิ่ม noise filter ใน password mode (ไม่นับ "555"/"7777"/text สั้น
 -- เป็น failed attempt)

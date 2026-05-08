@@ -284,19 +284,11 @@ function _looksLikeNoise(text) {
 }
 
 // Trigger keywords: เริ่ม flow ผูกบัญชีจากข้อความ (ทำงานคู่กับ rich menu postback)
-// Primary keyword: "ลงทะเบียน Line"
+// ต้องมีคำว่า "Line" ต่อท้ายเสมอ เพื่อกัน user พิมพ์ "ลงทะเบียน" / "ผูก" โดยไม่ตั้งใจ
 function _isLinkTrigger(text) {
   if (!text) return false;
   const t = String(text).trim().toLowerCase().replace(/\s+/g, ' ');
-  return (
-    t === 'ลงทะเบียน line' ||
-    t === 'ลงทะเบียน' ||
-    t === 'ผูก line' ||
-    t === 'ผูก' ||
-    t === 'ผูกบัญชี' ||
-    t === 'register' ||
-    t === 'link'
-  );
+  return t === 'ลงทะเบียน line' || t === 'ผูก line';
 }
 
 // SHA-256 hex (same scheme as ERPCrypto.hash in js/core/crypto.js)
