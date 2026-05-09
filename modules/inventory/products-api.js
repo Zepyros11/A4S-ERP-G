@@ -79,6 +79,13 @@ export async function updateProductStatus(id, isActive) {
   });
 }
 
+export async function updateProductStockAlert(id, disabled) {
+  return sbFetch("products", `?product_id=eq.${id}`, {
+    method: "PATCH",
+    body: { disable_stock_alert: disabled },
+  });
+}
+
 export async function updateProductCategory(id, categoryId) {
   return sbFetch("products", `?product_id=eq.${id}`, {
     method: "PATCH",

@@ -758,6 +758,28 @@ document.getElementById("conflictModal").addEventListener("click", (e) => {
 });
 // Esc close for conflictModal handled by modalManager.js
 
+function fireBookingCreatedNotification(payload) {
+  if (!payload || !window.Notify) return;
+  const fmt = (d) => (window.DateFmt?.formatDMY?.(d) || d || "");
+  let requester = "";
+  try {
+    const raw = localStorage.getItem("erp_session") || sessionStorage.getItem("erp_session");
+    if (raw) requester = JSON.parse(raw).full_name || JSON.parse(raw).username || "";
+  } catch (_) {}
+  window.Notify.evaluateRules("booking.created", {
+    request_code:   payload.request_code || "",
+    room_name:      payload.room_name || "",
+    place_name:     payload.place_name || "",
+    booking_date:   fmt(payload.booking_date),
+    start_time:     payload.start_time || "",
+    end_time:       payload.end_time === "ALLDAY" ? "ทั้งวัน" : (payload.end_time || ""),
+    booked_by_name: payload.booked_by_name || "",
+    cs_name:        payload.cs_name || "",
+    note:           payload.note || "",
+    requester,
+  });
+}
+
 async function confirmBooking() {
   const bookerName = (document.getElementById("inputBookerName")?.value || "").trim();
   const csName     = (document.getElementById("inputCsName")?.value || "").trim();
@@ -917,6 +939,7 @@ async function confirmBooking() {
           throw err;
         }
       }
+      fireBookingCreatedNotification(payload);
     }
     closeModal();
     await loadRoomBookings();

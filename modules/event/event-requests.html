@@ -973,6 +973,29 @@
     }
     window.updateRoomBooking = updateRoomBooking;
 
+    function fireBookingCreatedNotification(payload) {
+      if (!payload || !window.Notify) return;
+      const fmt = (d) => (window.DateFmt?.formatDMY?.(d) || d || "");
+      let requester = "";
+      try {
+        const raw = localStorage.getItem("erp_session") || sessionStorage.getItem("erp_session");
+        if (raw) requester = JSON.parse(raw).full_name || JSON.parse(raw).username || "";
+      } catch (_) {}
+      window.Notify.evaluateRules("booking.created", {
+        request_code:   payload.request_code || "",
+        room_name:      payload.room_name || "",
+        place_name:     payload.place_name || "",
+        booking_date:   fmt(payload.booking_date),
+        start_time:     payload.start_time || "",
+        end_time:       payload.end_time === "ALLDAY" ? "ทั้งวัน" : (payload.end_time || ""),
+        booked_by_name: payload.booked_by_name || "",
+        cs_name:        payload.cs_name || "",
+        note:           payload.note || "",
+        requester,
+      });
+    }
+    window.fireBookingCreatedNotification = fireBookingCreatedNotification;
+
     function fireBookingApprovedNotification(row) {
       if (!row || !window.Notify) return;
       const fmt = (d) => (window.DateFmt?.formatDMY?.(d) || d || "");
@@ -1417,6 +1440,7 @@
           }
         }
         if (lastErr) throw lastErr;
+        fireBookingCreatedNotification(payload);
         closeBkqCreate();
         bkqToast("ส่งคำขอจองห้องแล้ว 🚪", "success");
         _bkqListLastSig = "";

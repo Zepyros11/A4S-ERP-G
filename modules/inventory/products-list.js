@@ -10,6 +10,7 @@ import {
   removeProduct,
   removeProductUnits,
   updateProductStatus,
+  updateProductStockAlert,
   updateProductCategory,
   removeProductImages,
   createProductImage,
@@ -228,8 +229,29 @@ function getSelectedProducts() {
 }
 
 window.updateDeleteButton = function () {
-  const btn = document.getElementById("btnDeleteSelected");
-  btn.style.display = getSelectedProducts().length ? "inline-flex" : "none";
+  const ids = getSelectedProducts();
+  const has = ids.length > 0;
+  document.getElementById("btnDeleteSelected").style.display = has
+    ? "inline-flex"
+    : "none";
+
+  const alertBtn = document.getElementById("btnToggleStockAlert");
+  if (alertBtn) {
+    alertBtn.style.display = has ? "inline-flex" : "none";
+    if (has) {
+      // ปุ่มสลับตามสถานะ: ถ้ามีอย่างน้อย 1 ตัวที่ยัง "เปิดแจ้งเตือน" → action = ปิด
+      // ถ้าทุกตัวที่เลือก "ปิดแจ้งเตือน" อยู่แล้ว → action = เปิด
+      const sel = ids
+        .map((id) => allProducts.find((p) => p.product_id === id))
+        .filter(Boolean);
+      const allDisabled =
+        sel.length > 0 && sel.every((p) => p.disable_stock_alert);
+      alertBtn.textContent = allDisabled
+        ? "🔔 เปิดแจ้งเตือนสินค้าหมด"
+        : "🔕 ปิดแจ้งเตือนสินค้าหมด";
+      alertBtn.dataset.action = allDisabled ? "enable" : "disable";
+    }
+  }
 };
 
 window.toggleAllCheckbox = function (el) {
@@ -237,6 +259,56 @@ window.toggleAllCheckbox = function (el) {
     .querySelectorAll(".row-check")
     .forEach((c) => (c.checked = el.checked));
   window.updateDeleteButton();
+};
+
+// ── BULK TOGGLE STOCK ALERT ───────────────────────────────
+window.bulkToggleStockAlert = async function () {
+  const ids = getSelectedProducts();
+  if (!ids.length) return;
+  const action = document.getElementById("btnToggleStockAlert")?.dataset
+    .action || "disable";
+  const disable = action === "disable";
+
+  // ขยายไปยัง variants — เลือก parent → cascade ถึงลูกทั้งชุด
+  const idSet = new Set(ids);
+  ids.forEach((id) => {
+    allProducts
+      .filter((p) => p.parent_product_id === id)
+      .forEach((k) => idSet.add(k.product_id));
+  });
+  const targetIds = [...idSet];
+
+  const ok = await ConfirmModal.open({
+    title: disable ? "ปิดการแจ้งเตือน" : "เปิดการแจ้งเตือน",
+    message: disable
+      ? `ปิดการแจ้งเตือน "สินค้าหมด" สำหรับ ${targetIds.length} รายการ ?`
+      : `เปิดการแจ้งเตือน "สินค้าหมด" สำหรับ ${targetIds.length} รายการ ?`,
+    icon: disable ? "🔕" : "🔔",
+    okText: disable ? "ปิดแจ้งเตือน" : "เปิดแจ้งเตือน",
+    tone: disable ? "warning" : "success",
+  });
+  if (!ok) return;
+
+  showLoading(true);
+  try {
+    await Promise.all(
+      targetIds.map((id) =>
+        updateProductStockAlert(id, disable).then(() => {
+          const p = allProducts.find((x) => x.product_id === id);
+          if (p) p.disable_stock_alert = disable;
+        }),
+      ),
+    );
+    filterTable();
+    window.updateDeleteButton();
+    showToast(
+      `${disable ? "ปิด" : "เปิด"}การแจ้งเตือนแล้ว ${targetIds.length} รายการ`,
+      "success",
+    );
+  } catch (e) {
+    showToast("อัปเดตไม่สำเร็จ: " + e.message, "error");
+  }
+  showLoading(false);
 };
 
 window.deleteSelectedProducts = async function () {
@@ -307,6 +379,42 @@ window.toggleProductActive = async function (productId, el) {
   } catch (e) {
     showToast("อัปเดตสถานะไม่สำเร็จ", "error");
     el.checked = !isActive;
+  }
+};
+
+// ── TOGGLE DISABLE STOCK ALERT ────────────────────────────
+// parent → cascade ไปทุก variants · child/singleton → เฉพาะตัวเอง
+window.toggleStockAlertDisabled = async function (productId, el) {
+  const disabled = el.checked;
+  const prod = allProducts.find((p) => p.product_id === productId);
+  if (!prod) return;
+  const kids = allProducts.filter((p) => p.parent_product_id === productId);
+
+  try {
+    await updateProductStockAlert(productId, disabled);
+    prod.disable_stock_alert = disabled;
+
+    if (kids.length) {
+      await Promise.all(
+        kids.map((k) =>
+          updateProductStockAlert(k.product_id, disabled).then(() => {
+            k.disable_stock_alert = disabled;
+          }),
+        ),
+      );
+      filterTable();
+    }
+    showToast(
+      kids.length
+        ? `${disabled ? "ปิด" : "เปิด"}แจ้งเตือนพร้อมตัวเลือก ${kids.length} รายการ`
+        : disabled
+          ? "ปิดการแจ้งเตือนสินค้าหมดแล้ว"
+          : "เปิดการแจ้งเตือนสินค้าหมดแล้ว",
+      "success",
+    );
+  } catch (e) {
+    showToast("อัปเดตการแจ้งเตือนไม่สำเร็จ", "error");
+    el.checked = !disabled;
   }
 };
 

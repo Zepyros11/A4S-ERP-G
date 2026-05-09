@@ -1,5 +1,7 @@
 /* ============================================================
-   stock-initial-table.js — Table renderer for Stock Initial
+   stock-initial-table.js — Renderers for Stock Initial
+   - renderProductList: product-centric list (1 row per parent/singleton)
+   - renderMatrix: variants × warehouses inside modal
    ============================================================ */
 
 const WH_TYPE_ICONS = {
@@ -10,106 +12,109 @@ const WH_TYPE_ICONS = {
 };
 const whIcon = (w) => WH_TYPE_ICONS[w?.warehouse_type] || "🏭";
 
-export function buildTableHeader(warehouses, activeWarehouseId) {
-  const thead = document.getElementById("siThead");
-  if (!thead) return;
-  const wh = warehouses.find((w) => w.warehouse_id === activeWarehouseId);
-  thead.innerHTML = `
-  <tr>
-    <th style="width:64px;text-align:center">ภาพ</th>
-    <th onclick="window.sortTable('product_name')" style="cursor:pointer;width:30%">
-      ชื่อสินค้า <span class="sort-icon" id="sort-product_name">⇅</span>
-    </th>
-    <th onclick="window.sortTable('category_name')" style="cursor:pointer;width:15%">
-      หมวดหมู่ <span class="sort-icon" id="sort-category_name">⇅</span>
-    </th>
-    <th class="col-center" style="width:15%">
-      <div class="si-wh-name">
-        ${whIcon(wh)} ${wh?.warehouse_name || ""}
-      </div>
-    </th>
-  </tr>`;
-}
-
-export function renderTable({
+// ════════════════════════════════════════════════════════════
+// PRODUCT LIST (main page)
+// ════════════════════════════════════════════════════════════
+export function renderProductList({
   products,
   categories,
   productImages,
+  warehouses,
   initMap,
-  originalValues,
-  activeWarehouseId,
   currentSort,
   search,
-  catId,
-  status,
+  fillStatus,
 }) {
-  const productIdsWithInit = new Set(
-    Object.keys(initMap).map((k) => parseInt(k.split("-")[0])),
-  );
+  // group: parent + children
+  const parents = products.filter((p) => !p.parent_product_id);
+  const childrenByParent = {};
+  products
+    .filter((p) => p.parent_product_id)
+    .forEach((c) => {
+      (childrenByParent[c.parent_product_id] ||= []).push(c);
+    });
 
-  let list = products.filter((p) => {
-    const q = (p.product_name || "").toLowerCase();
+  // each row = parent (or singleton); compute fill summary
+  const rows = parents.map((p) => {
+    const kids = childrenByParent[p.product_id] || [];
+    const skus = kids.length > 0 ? kids : [p];
+    const totalCells = skus.length * warehouses.length;
+    let setCells = 0;
+    skus.forEach((sku) => {
+      warehouses.forEach((w) => {
+        if (initMap[`${sku.product_id}-${w.warehouse_id}`]) setCells++;
+      });
+    });
+    const status =
+      setCells === 0 ? "none" : setCells === totalCells ? "full" : "partial";
+    return { p, kids, skuCount: skus.length, totalCells, setCells, status };
+  });
+
+  // filter
+  const list = rows.filter((r) => {
+    const q = (r.p.product_name || "").toLowerCase();
     if (search && !q.includes(search)) return false;
-    if (catId && String(p.category_id) !== catId) return false;
-    if (status === "has" && !productIdsWithInit.has(p.product_id)) return false;
-    if (status === "none" && productIdsWithInit.has(p.product_id)) return false;
+    if (fillStatus && r.status !== fillStatus) return false;
     return true;
   });
 
-  if (currentSort.field) {
-    list = [...list].sort((a, b) => {
+  // sort
+  if (currentSort?.field) {
+    const dir = currentSort.dir === "asc" ? 1 : -1;
+    list.sort((a, b) => {
+      let av, bv;
       if (currentSort.field === "category_name") {
-        const x =
-          categories.find((c) => c.category_id === a.category_id)
+        av =
+          categories.find((c) => c.category_id === a.p.category_id)
             ?.category_name || "";
-        const y =
-          categories.find((c) => c.category_id === b.category_id)
+        bv =
+          categories.find((c) => c.category_id === b.p.category_id)
             ?.category_name || "";
-        return currentSort.dir === "asc"
-          ? x.localeCompare(y)
-          : y.localeCompare(x);
+      } else {
+        av = a.p[currentSort.field] ?? "";
+        bv = b.p[currentSort.field] ?? "";
       }
-      const x = a[currentSort.field] || "";
-      const y = b[currentSort.field] || "";
-      return currentSort.dir === "asc" ? (x > y ? 1 : -1) : x < y ? 1 : -1;
+      if (typeof av === "string") av = av.toLowerCase();
+      if (typeof bv === "string") bv = bv.toLowerCase();
+      if (av === bv) return 0;
+      return av > bv ? dir : -dir;
     });
   }
 
   const countEl = document.getElementById("productCount");
-  if (countEl) countEl.textContent = list.length + " รายการ";
+  if (countEl) countEl.textContent = `${list.length} ชุด`;
 
   const tbody = document.getElementById("productTable");
   if (!tbody) return;
 
   if (list.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;padding:30px">ไม่พบข้อมูล</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:30px;color:var(--text3)">ไม่พบข้อมูล</td></tr>`;
     return;
   }
 
   tbody.innerHTML = list
-    .map((p) => {
+    .map(({ p, kids, skuCount, totalCells, setCells, status }) => {
       const cat = categories.find((c) => c.category_id === p.category_id);
-      const key = `${p.product_id}-${activeWarehouseId}`;
-      const val = initMap[key]?.qty || "";
-
-      if (!(key in originalValues)) {
-        originalValues[key] = val === "" ? "" : parseFloat(val);
-      }
-
       const img = productImages.find((i) => i.product_id === p.product_id);
+
       const imgCell = img
         ? `<img src="${img.url}" style="width:48px;height:48px;object-fit:cover;border-radius:6px;cursor:pointer;"
-             onclick="window.openImgPopup(${p.product_id})"
-             onerror="this.parentElement.innerHTML='<span>📦</span>'">`
+             onclick="event.stopPropagation();window.openImgPopup(${p.product_id})"
+             onerror="this.parentElement.innerHTML='<span style=\\'font-size:24px\\'>📦</span>'">`
         : `<span style="font-size:24px">📦</span>`;
 
+      const variantBadge =
+        kids.length > 0
+          ? `<span class="si-variant-badge">${kids.length} ตัวเลือก</span>`
+          : "";
+
+      const fillPill = renderFillPill(status, setCells, totalCells, skuCount);
+
       return `
-<tr class="si-data-row" id="row-${p.product_id}">
-  <td style="text-align:center;cursor:pointer" onclick="window.openImgPopup(${p.product_id})">
-    ${imgCell}
-  </td>
+<tr class="si-prod-row" onclick="window.openStockModal(${p.product_id})">
+  <td style="text-align:center">${imgCell}</td>
   <td>
-    <strong>${p.product_name}</strong>
+    <div class="si-prod-name">${escapeHtml(p.product_name)}${variantBadge}</div>
   </td>
   <td class="col-center">
     <div class="cat-badge" style="background:${cat?.color || "#eee"}20">
@@ -117,70 +122,185 @@ export function renderTable({
       <span>${cat?.category_name || "-"}</span>
     </div>
   </td>
-  <td class="col-center si-input-cell">
-    <input
-      type="number"
-      class="si-qty-input"
-      id="inp-${p.product_id}-${activeWarehouseId}"
-      value="${val}"
-      min="0"
-      placeholder="-"
-      oninput="window.onAnyInput()"
-    />
+  <td class="col-center">${fillPill}</td>
+  <td class="col-center">
+    <button class="si-set-btn" onclick="event.stopPropagation();window.openStockModal(${p.product_id})">
+      ✏️ ตั้ง Stock
+    </button>
   </td>
 </tr>`;
     })
     .join("");
 }
 
-export function buildWarehouseTabs(
-  warehouses,
-  activeCountry,
-  activeParent,
-  activeWarehouseId,
-) {
-  // Country
-  const countries = [
-    ...new Set(warehouses.map((w) => w.country).filter(Boolean)),
-  ];
-  const countryEl = document.getElementById("countryTabs");
-  if (countryEl) {
-    countryEl.innerHTML = countries
-      .map(
-        (c) =>
-          `<option value="${c}" ${c === activeCountry ? "selected" : ""}>${c}</option>`,
-      )
-      .join("");
-    countryEl.onchange = () => window.setCountry(countryEl.value);
+function renderFillPill(status, set, total, skuCount) {
+  const pct = total === 0 ? 0 : Math.round((set / total) * 100);
+  if (status === "full") {
+    return `<span class="si-fill-pill si-fill-pill--full">
+      ✅ ครบ ${total} ช่อง
+    </span>`;
+  }
+  if (status === "partial") {
+    return `<span class="si-fill-pill si-fill-pill--partial">
+      🟡 ${set}/${total} ช่อง
+      <span class="si-fill-bar"><span class="si-fill-bar-fg" style="width:${pct}%"></span></span>
+    </span>`;
+  }
+  return `<span class="si-fill-pill si-fill-pill--none">
+    ⏳ ยังไม่ตั้ง (${total} ช่อง)
+  </span>`;
+}
+
+// ════════════════════════════════════════════════════════════
+// MATRIX (inside modal): rows × warehouses
+// ════════════════════════════════════════════════════════════
+export function renderMatrix({ parent, rows, warehouses, initMap }) {
+  const table = document.getElementById("simMatrix");
+  if (!table) return;
+
+  // group warehouses by country (ถ้ามีหลายประเทศ → แสดง country header row)
+  const byCountry = {};
+  const countryOrder = [];
+  warehouses.forEach((w) => {
+    const c = w.country || "—";
+    if (!byCountry[c]) {
+      byCountry[c] = [];
+      countryOrder.push(c);
+    }
+    byCountry[c].push(w);
+  });
+  const multiCountry = countryOrder.length > 1;
+
+  // จัดลำดับ warehouses ใหม่ตาม country group เพื่อให้ตรงกับ country header colspan
+  const orderedWh = countryOrder.flatMap((c) => byCountry[c]);
+
+  // ── HEAD ──
+  let countryRow = "";
+  if (multiCountry) {
+    countryRow = `<tr class="sim-country-row">
+      <th class="sim-th-variant"></th>
+      ${countryOrder
+        .map(
+          (c) =>
+            `<th class="sim-th-wh" colspan="${byCountry[c].length}">🌍 ${escapeHtml(c)}</th>`,
+        )
+        .join("")}
+    </tr>`;
   }
 
-  // Parent
-  const parents = warehouses.filter(
-    (w) => !w.parent_id && w.country === activeCountry,
-  );
-  const parentEl = document.getElementById("parentTabs");
-  if (parentEl) {
-    parentEl.innerHTML = parents
+  const whHeaderRow = `<tr>
+    <th class="sim-th-variant">ตัวเลือก</th>
+    ${orderedWh
       .map(
-        (p) =>
-          `<option value="${p.warehouse_id}" ${p.warehouse_id === activeParent ? "selected" : ""}>${whIcon(p)} ${p.warehouse_name}</option>`,
+        (w) =>
+          `<th class="sim-th-wh" title="${escapeAttr(w.warehouse_name)}">${whIcon(w)} ${escapeHtml(shortenWh(w.warehouse_name))}</th>`,
       )
-      .join("");
-    parentEl.onchange = () => window.setParent(parseInt(parentEl.value));
-  }
+      .join("")}
+  </tr>`;
 
-  // Child
-  const children = warehouses.filter((w) => w.parent_id === activeParent);
-  const childEl = document.getElementById("childTabs");
-  if (childEl) {
-    childEl.innerHTML = children.length
-      ? children
-          .map(
-            (c) =>
-              `<option value="${c.warehouse_id}" ${c.warehouse_id === activeWarehouseId ? "selected" : ""}>${whIcon(c)} ${c.warehouse_name}</option>`,
-          )
-          .join("")
-      : `<option value="">— ไม่มีคลังย่อย —</option>`;
-    childEl.onchange = () => window.setWarehouse(parseInt(childEl.value));
+  // ── BODY (each variant or singleton) ──
+  const bodyRows = rows
+    .map((sku) => {
+      const isVariant = !!sku.parent_product_id;
+      const variantLabel = isVariant
+        ? variantSubName(sku.product_name, parent.product_name)
+        : sku.product_name;
+
+      const cells = orderedWh
+        .map((w) => {
+          const key = `${sku.product_id}-${w.warehouse_id}`;
+          const val = initMap[key]?.qty ?? "";
+          const hasVal = val !== "" && val != null;
+          return `<td>
+          <input
+            type="number"
+            class="sim-qty-input${hasVal ? " has-value" : ""}"
+            id="sim-inp-${key}"
+            data-key="${key}"
+            value="${val}"
+            min="0"
+            placeholder="—"
+            oninput="window.onMatrixInput(this)"
+          />
+        </td>`;
+        })
+        .join("");
+
+      return `<tr>
+      <td class="sim-td-variant">
+        <div class="sim-variant-name">${escapeHtml(variantLabel)}</div>
+      </td>
+      ${cells}
+    </tr>`;
+    })
+    .join("");
+
+  // ── FOOT (Σ row per warehouse) ──
+  const sumCells = orderedWh
+    .map((w) => {
+      let sum = 0;
+      let any = false;
+      rows.forEach((sku) => {
+        const v = initMap[`${sku.product_id}-${w.warehouse_id}`]?.qty;
+        if (v != null && v !== "") {
+          sum += parseFloat(v) || 0;
+          any = true;
+        }
+      });
+      return `<td id="sim-sum-${w.warehouse_id}">${any ? formatNum(sum) : "—"}</td>`;
+    })
+    .join("");
+  const footRow = `<tr>
+    <td class="sim-td-variant">Σ ผลรวมต่อคลัง</td>
+    ${sumCells}
+  </tr>`;
+
+  table.innerHTML = `
+    <thead>${countryRow}${whHeaderRow}</thead>
+    <tbody>${bodyRows}</tbody>
+    <tfoot>${footRow}</tfoot>
+  `;
+}
+
+export function buildMatrixSubtitle(rows, warehouses) {
+  return `${rows.length} ตัวเลือก × ${warehouses.length} คลัง · กรอกแล้วกด 💾 บันทึก`;
+}
+
+// ── Helpers ──────────────────────────────────────────────────
+// "PO Director 6 เดือน ปกทอง (2XL)" → "2XL"  (ดึงเฉพาะส่วนที่ต่างจากชื่อ parent)
+function variantSubName(childName, parentName) {
+  const c = (childName || "").trim();
+  const p = (parentName || "").trim();
+  if (c.startsWith(p)) {
+    const rest = c.slice(p.length).trim();
+    // ตัดวงเล็บออกถ้ามี (XXL) → XXL
+    const m = rest.match(/^\((.+)\)$/);
+    return m ? m[1] : rest || c;
   }
+  return c;
+}
+
+function shortenWh(name, max = 18) {
+  if (!name) return "";
+  return name.length <= max ? name : name.slice(0, max - 1) + "…";
+}
+
+function formatNum(n) {
+  return parseFloat(n || 0).toLocaleString("th-TH", {
+    maximumFractionDigits: 2,
+  });
+}
+
+function escapeHtml(s) {
+  return String(s ?? "").replace(/[<>&"']/g, (c) => ({
+    "<": "&lt;",
+    ">": "&gt;",
+    "&": "&amp;",
+    '"': "&quot;",
+    "'": "&#39;",
+  })[c]);
+}
+
+function escapeAttr(s) {
+  return escapeHtml(s).replace(/`/g, "&#96;");
 }

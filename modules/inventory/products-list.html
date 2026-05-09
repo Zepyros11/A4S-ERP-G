@@ -78,6 +78,7 @@
         <option value="false">⛔ ปิดใช้งาน</option>
       </select>
       <div class="toolbar-right">
+        <button class="btn btn-outline" id="btnToggleStockAlert" style="display:none" onclick="window.bulkToggleStockAlert()">🔕 ปิดแจ้งเตือนสินค้าหมด</button>
         <button class="btn btn-danger-outline" id="btnDeleteSelected" style="display:none" onclick="window.deleteSelectedProducts()">🗑 ลบที่เลือก</button>
         <button class="btn btn-primary" data-perm="product_create" onclick="window.location.href = './product-form.html'">＋ เพิ่มสินค้า</button>
       </div>
@@ -100,11 +101,12 @@
             <th class="col-center" onclick="window.sortTable('cost_price')" style="cursor:pointer">ราคาทุน <span class="sort-icon">⇅</span></th>
             <th class="col-center" onclick="window.sortTable('sale_price')" style="cursor:pointer">ราคาขาย <span class="sort-icon">⇅</span></th>
             <th class="col-center">สถานะ</th>
+            <th class="col-center" title="เปิด = ไม่แจ้งเตือนเมื่อสินค้าหมด/ใกล้หมด">ปิดแจ้งเตือนสินค้าหมด</th>
             <th class="col-center">จัดการ</th>
           </tr>
         </thead>
         <tbody id="tableBody">
-          <tr><td colspan="8"><div class="empty-state"><div class="empty-icon">📦</div><div class="empty-text">ยังไม่มีข้อมูล</div></div></td></tr>
+          <tr><td colspan="9"><div class="empty-state"><div class="empty-icon">📦</div><div class="empty-text">ยังไม่มีข้อมูล</div></div></td></tr>
         </tbody>
       </table>
     </div>
@@ -191,6 +193,7 @@
         <script type="module" src="./products-list.js"></script>
         <!-- MODALS -->
         <script src="../../js/components/modal/deleteModal.js"></script>
+        <script src="../../js/components/modal/confirmModal.js"></script>
         <script src="../../js/components/modal/modalManager.js"></script>
         <script src="../../js/components/modal/enterSave.js"></script>
 

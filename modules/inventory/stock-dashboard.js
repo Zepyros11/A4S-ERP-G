@@ -51,7 +51,7 @@ async function loadAll() {
     const [prods, cats, whs, sb, mvs] = await Promise.all([
       sbFetch(
         "products",
-        "?select=product_id,product_code,product_name,category_id,cost_price,sale_price,reorder_point,parent_product_id,is_active",
+        "?select=product_id,product_code,product_name,category_id,cost_price,sale_price,reorder_point,parent_product_id,is_active,disable_stock_alert",
       ),
       sbFetch("categories", "?select=*"),
       sbFetch(
@@ -144,12 +144,15 @@ function renderKpis(idx) {
   const inStock = skus.filter(
     (p) => (idx.totalQtyByProduct[p.product_id] || 0) > 0,
   ).length;
+  // KPI ใกล้หมด/หมด — เคารพ flag disable_stock_alert (ไม่นับสินค้าที่ปิดแจ้งเตือน)
   const lowStock = skus.filter((p) => {
+    if (p.disable_stock_alert) return false;
     const q = idx.totalQtyByProduct[p.product_id] || 0;
     return q > 0 && q <= (p.reorder_point || 0);
   }).length;
   const outOfStock = skus.filter(
-    (p) => !(idx.totalQtyByProduct[p.product_id] > 0),
+    (p) =>
+      !p.disable_stock_alert && !(idx.totalQtyByProduct[p.product_id] > 0),
   ).length;
 
   $("kpiTotalValue").textContent = "฿" + fmtNum(totalValue, 0);
@@ -255,6 +258,7 @@ function renderByCategory(idx) {
 function renderLowStock(idx) {
   const skus = state.products.filter(idx.isSku);
   const rows = skus
+    .filter((p) => !p.disable_stock_alert)
     .map((p) => ({
       p,
       qty: idx.totalQtyByProduct[p.product_id] || 0,
@@ -285,7 +289,8 @@ function renderLowStock(idx) {
 function renderOutOfStock(idx) {
   const skus = state.products.filter(idx.isSku);
   const rows = skus.filter(
-    (p) => !(idx.totalQtyByProduct[p.product_id] > 0),
+    (p) =>
+      !p.disable_stock_alert && !(idx.totalQtyByProduct[p.product_id] > 0),
   );
 
   $("outCount").textContent = `${rows.length} รายการ`;

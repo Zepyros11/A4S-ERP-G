@@ -558,7 +558,7 @@
     "warehouses",
     "products",
     "stock-initial",
-    // "stock-move",
+    "stock-move",
     //**** SETTING ****
     "settings",
     "suppliers",

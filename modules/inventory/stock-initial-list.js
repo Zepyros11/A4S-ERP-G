@@ -1,5 +1,5 @@
 /* ============================================================
-   stock-initial-list.js — Controller for Stock Initial page
+   stock-initial-list.js — Controller (Product-centric + Modal)
    ============================================================ */
 
 import {
@@ -13,9 +13,9 @@ import {
 } from "./stock-initial-api.js";
 
 import {
-  buildTableHeader,
-  renderTable,
-  buildWarehouseTabs,
+  renderProductList,
+  renderMatrix,
+  buildMatrixSubtitle,
 } from "./stock-initial-table.js";
 
 // ── State ────────────────────────────────────────────────────
@@ -23,29 +23,22 @@ let products = [];
 let warehouses = [];
 let categories = [];
 let productImages = [];
-let initMap = {};
-let originalValues = {};
+let initMap = {}; // key: `${productId}-${warehouseId}` → record
 let currentSort = { field: "product_name", dir: "asc" };
 
-let activeCountry = null;
-let activeParent = null;
-let activeWarehouseId = null;
+// modal state
+let modalParent = null; // current product (parent or singleton) being edited
+let modalRows = []; // SKUs in matrix (singleton → [product]; parent → variants)
+let modalOriginal = {}; // key `${productId}-${whId}` → original qty (for change detection)
 
 // ── Init ─────────────────────────────────────────────────────
 async function initPage() {
-  const { url } = { url: localStorage.getItem("sb_url") };
+  const url = localStorage.getItem("sb_url");
   if (!url) return;
   await loadData();
   bindEvents();
 }
 
-function bindEvents() {
-  document.getElementById("searchInput")?.addEventListener("input", redraw);
-  document.getElementById("filterCategory")?.addEventListener("change", redraw);
-  document.getElementById("filterStatus")?.addEventListener("change", redraw);
-}
-
-// ── Load Data ────────────────────────────────────────────────
 async function loadData() {
   showLoading(true);
   try {
@@ -62,31 +55,13 @@ async function loadData() {
     categories = _cats || [];
     productImages = _imgs || [];
 
+    // build init map · last-write wins (in case of duplicate INIT records)
     initMap = {};
     (inits || []).forEach((r) => {
       initMap[`${r.product_id}-${r.warehouse_id}`] = r;
     });
-    originalValues = {};
 
-    // set initial active warehouse
-    if (warehouses.length) {
-      activeCountry = warehouses[0]?.country || null;
-      const firstParent = warehouses.find(
-        (w) => !w.parent_id && w.country === activeCountry,
-      );
-      activeParent = firstParent?.warehouse_id || null;
-      activeWarehouseId = activeParent || warehouses[0]?.warehouse_id;
-    }
-
-    buildCategoryFilter();
     renderStats();
-    buildWarehouseTabs(
-      warehouses,
-      activeCountry,
-      activeParent,
-      activeWarehouseId,
-    );
-    buildTableHeader(warehouses, activeWarehouseId);
     redraw();
   } catch (err) {
     console.error(err);
@@ -96,53 +71,78 @@ async function loadData() {
   }
 }
 
-// ── Redraw Table ─────────────────────────────────────────────
+function bindEvents() {
+  document.getElementById("searchInput")?.addEventListener("input", redraw);
+  document
+    .getElementById("filterFillStatus")
+    ?.addEventListener("change", redraw);
+}
+
+// ── Redraw product list ──────────────────────────────────────
 function redraw() {
   const search =
     document.getElementById("searchInput")?.value.toLowerCase() || "";
-  const catId = document.getElementById("filterCategory")?.value || "";
-  const status = document.getElementById("filterStatus")?.value || "";
+  const fillStatus =
+    document.getElementById("filterFillStatus")?.value || "";
 
-  renderTable({
+  renderProductList({
     products,
     categories,
     productImages,
+    warehouses,
     initMap,
-    originalValues,
-    activeWarehouseId,
     currentSort,
     search,
-    catId,
-    status,
-  });
-
-  updateSaveAllBtn();
-}
-
-// ── Category Filter ──────────────────────────────────────────
-function buildCategoryFilter() {
-  const sel = document.getElementById("filterCategory");
-  if (!sel) return;
-  sel.innerHTML = `<option value="">🏷️ ทุกหมวดหมู่</option>`;
-  categories.forEach((c) => {
-    sel.innerHTML += `<option value="${c.category_id}">${c.category_name}</option>`;
+    fillStatus,
   });
 }
 
 // ── Stats ─────────────────────────────────────────────────────
 function renderStats() {
-  const productIdsWithInit = new Set(
-    Object.keys(initMap).map((k) => parseInt(k.split("-")[0])),
+  // SKU = parent_product_id != null OR singleton (no kids)
+  const parentIdsWithKids = new Set(
+    products.filter((p) => p.parent_product_id).map((c) => c.parent_product_id),
   );
-  const hasStock = products.filter((p) =>
-    productIdsWithInit.has(p.product_id),
-  ).length;
+  const isSku = (p) =>
+    p.parent_product_id || !parentIdsWithKids.has(p.product_id);
+  const skuList = products.filter(isSku);
+  const parentList = products.filter((p) => !p.parent_product_id);
 
-  document.getElementById("statTotal").textContent = products.length;
-  document.getElementById("statHasStock").textContent = hasStock;
-  document.getElementById("statNoStock").textContent =
-    products.length - hasStock;
+  // ตั้งครบ vs บางส่วน — ใช้ระดับ "ชุดสินค้า"
+  let fully = 0,
+    partial = 0;
+  parentList.forEach((p) => {
+    const skus = parentIdsWithKids.has(p.product_id)
+      ? products.filter((c) => c.parent_product_id === p.product_id)
+      : [p];
+    let setCount = 0;
+    skus.forEach((sku) => {
+      warehouses.forEach((w) => {
+        if (initMap[`${sku.product_id}-${w.warehouse_id}`]) setCount++;
+      });
+    });
+    const total = skus.length * warehouses.length;
+    if (total === 0) return;
+    if (setCount === total) fully++;
+    else if (setCount > 0) partial++;
+  });
+
+  document.getElementById("statTotal").textContent = skuList.length;
+  document.getElementById("statParents").textContent =
+    `${parentList.length} ชุดสินค้า`;
+
+  document.getElementById("statFullySet").textContent = fully;
+  document.getElementById("statFullySetSub").textContent =
+    `จาก ${parentList.length} ชุด`;
+
+  document.getElementById("statPartial").textContent = partial;
+  document.getElementById("statPartialSub").textContent =
+    `จาก ${parentList.length} ชุด`;
+
   document.getElementById("statWarehouses").textContent = warehouses.length;
+  const countries = new Set(warehouses.map((w) => w.country).filter(Boolean));
+  document.getElementById("statCountries").textContent =
+    `${countries.size} ประเทศ`;
 }
 
 // ── Sort ──────────────────────────────────────────────────────
@@ -165,101 +165,7 @@ window.sortTable = function (field) {
   redraw();
 };
 
-// ── Warehouse Navigation ─────────────────────────────────────
-window.setCountry = function (code) {
-  activeCountry = code;
-  const firstParent = warehouses.find(
-    (w) => !w.parent_id && w.country === code,
-  );
-  activeParent = firstParent?.warehouse_id || null;
-  activeWarehouseId = activeParent;
-  buildWarehouseTabs(
-    warehouses,
-    activeCountry,
-    activeParent,
-    activeWarehouseId,
-  );
-  buildTableHeader(warehouses, activeWarehouseId);
-  redraw();
-};
-
-window.setParent = function (id) {
-  activeParent = id;
-  activeWarehouseId = id;
-  buildWarehouseTabs(
-    warehouses,
-    activeCountry,
-    activeParent,
-    activeWarehouseId,
-  );
-  buildTableHeader(warehouses, activeWarehouseId);
-  redraw();
-};
-
-window.setWarehouse = function (id) {
-  activeWarehouseId = id;
-  buildWarehouseTabs(
-    warehouses,
-    activeCountry,
-    activeParent,
-    activeWarehouseId,
-  );
-  buildTableHeader(warehouses, activeWarehouseId);
-  redraw();
-};
-
-// ── Change Detection ─────────────────────────────────────────
-window.onAnyInput = function () {
-  updateSaveAllBtn();
-};
-
-function updateSaveAllBtn() {
-  const btn = document.getElementById("saveAllBtn");
-  if (!btn) return;
-  const hasChange = getChangedRows().length > 0;
-  btn.style.display = hasChange ? "inline-flex" : "none";
-}
-
-function getChangedRows() {
-  const changed = [];
-  document.querySelectorAll(".si-qty-input").forEach((input) => {
-    const parts = input.id.replace("inp-", "").split("-");
-    const productId = parseInt(parts[0]);
-    const whId = parseInt(parts[1]);
-    const key = `${productId}-${whId}`;
-    const currentVal = input.value === "" ? "" : parseFloat(input.value);
-    const original = originalValues[key] ?? "";
-    if (currentVal !== original && input.value !== "") {
-      changed.push({ productId, whId, qty: parseFloat(input.value) });
-    }
-  });
-  return changed;
-}
-
-// ── Save ──────────────────────────────────────────────────────
-window.saveAll = async function () {
-  const changed = getChangedRows();
-  if (changed.length === 0) {
-    showToast("ไม่มีการเปลี่ยนแปลง", "warning");
-    return;
-  }
-  showLoading(true);
-  try {
-    for (const { productId, whId, qty } of changed) {
-      const key = `${productId}-${whId}`;
-      const existing = initMap[key];
-      if (existing) await deleteStockInit(existing.movement_id);
-      await createStockInit(productId, whId, qty);
-    }
-    await loadData();
-    showToast(`บันทึกสำเร็จ ${changed.length} รายการ`);
-  } catch (e) {
-    showToast("บันทึกไม่สำเร็จ: " + e.message, "error");
-  }
-  showLoading(false);
-};
-
-// ── Image Popup ───────────────────────────────────────────────
+// ── Image popup (from product list) ──────────────────────────
 window.openImgPopup = function (productId) {
   const imgs = productImages
     .filter((i) => i.product_id === productId)
@@ -267,7 +173,190 @@ window.openImgPopup = function (productId) {
   if (imgs.length) ImgPopup.open(imgs, 0);
 };
 
-// ── Toast / Loading ───────────────────────────────────────────
+// ── Open / Close stock modal ─────────────────────────────────
+window.openStockModal = function (productId) {
+  const parent = products.find((p) => p.product_id === productId);
+  if (!parent) return;
+
+  // determine SKUs to show in matrix
+  // sort by product_id ASC (= ลำดับที่สร้าง: S/M/L/XL/2XL ตามที่กรอกใน product-form)
+  const kids = products
+    .filter((p) => p.parent_product_id === productId)
+    .sort((a, b) => a.product_id - b.product_id);
+  modalParent = parent;
+  modalRows = kids.length > 0 ? kids : [parent]; // variants OR singleton
+
+  // snapshot original values for change detection
+  modalOriginal = {};
+  modalRows.forEach((sku) => {
+    warehouses.forEach((w) => {
+      const key = `${sku.product_id}-${w.warehouse_id}`;
+      modalOriginal[key] = initMap[key]?.qty ?? "";
+    });
+  });
+
+  // populate modal
+  document.getElementById("simTitle").textContent =
+    `ตั้ง Stock เริ่มต้น: ${parent.product_name}`;
+  document.getElementById("simSubtitle").textContent = buildMatrixSubtitle(
+    modalRows,
+    warehouses,
+  );
+
+  renderMatrix({
+    parent,
+    rows: modalRows,
+    warehouses,
+    initMap,
+  });
+
+  updateChangedBadge();
+  document.getElementById("simOverlay").classList.add("open");
+  document.getElementById("simModal").classList.add("open");
+  document.addEventListener("keydown", modalKeyHandler);
+};
+
+window.closeStockModal = async function (e) {
+  // ถ้า click ที่ overlay (e exists) แต่มีค่าเปลี่ยน → ขอ confirm
+  if (e && hasModalChanges()) {
+    const ok = await ConfirmModal.open({
+      title: "ออกโดยไม่บันทึก?",
+      message: "มีการเปลี่ยนแปลงที่ยังไม่บันทึก ต้องการปิดหรือไม่?",
+      icon: "⚠️",
+      okText: "ปิดเลย",
+      cancelText: "ทำต่อ",
+      tone: "warning",
+    });
+    if (!ok) return;
+  }
+  document.getElementById("simOverlay").classList.remove("open");
+  document.getElementById("simModal").classList.remove("open");
+  document.removeEventListener("keydown", modalKeyHandler);
+  modalParent = null;
+  modalRows = [];
+  modalOriginal = {};
+};
+
+function modalKeyHandler(e) {
+  if (e.key === "Escape") window.closeStockModal();
+  else if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+    e.preventDefault();
+    window.saveStockModal();
+  }
+}
+
+// ── Track changes inside modal ───────────────────────────────
+window.onMatrixInput = function (input) {
+  const key = input.dataset.key; // `${productId}-${whId}`
+  const val = input.value === "" ? "" : parseFloat(input.value);
+  const orig = modalOriginal[key];
+  const changed = val !== orig && !(val === "" && (orig === "" || orig == null));
+
+  input.classList.toggle("changed", changed);
+  input.classList.toggle("has-value", input.value !== "" && !changed);
+  updateRowSums();
+  updateChangedBadge();
+};
+
+function updateRowSums() {
+  // update Σ row at bottom of matrix
+  warehouses.forEach((w) => {
+    let sum = 0;
+    let hasAny = false;
+    modalRows.forEach((sku) => {
+      const inp = document.getElementById(
+        `sim-inp-${sku.product_id}-${w.warehouse_id}`,
+      );
+      if (inp && inp.value !== "") {
+        sum += parseFloat(inp.value) || 0;
+        hasAny = true;
+      }
+    });
+    const cell = document.getElementById(`sim-sum-${w.warehouse_id}`);
+    if (cell) cell.textContent = hasAny ? formatNum(sum) : "—";
+  });
+}
+
+function hasModalChanges() {
+  const inputs = document.querySelectorAll(".sim-qty-input");
+  for (const inp of inputs) {
+    if (inp.classList.contains("changed")) return true;
+  }
+  return false;
+}
+
+function getModalChanges() {
+  const changes = [];
+  document.querySelectorAll(".sim-qty-input.changed").forEach((inp) => {
+    const [productId, whId] = inp.dataset.key.split("-").map((n) => parseInt(n));
+    const val = inp.value === "" ? null : parseFloat(inp.value);
+    changes.push({ productId, whId, qty: val });
+  });
+  return changes;
+}
+
+function updateChangedBadge() {
+  const count = document.querySelectorAll(".sim-qty-input.changed").length;
+  const badge = document.getElementById("simChangedBadge");
+  const btn = document.getElementById("simSaveBtn");
+  if (count === 0) {
+    badge.textContent = "";
+    btn.disabled = true;
+    btn.style.opacity = "0.55";
+    btn.style.cursor = "not-allowed";
+  } else {
+    badge.textContent = `🟡 มีการเปลี่ยนแปลง ${count} ช่อง`;
+    btn.disabled = false;
+    btn.style.opacity = "";
+    btn.style.cursor = "";
+  }
+}
+
+// ── Save modal ───────────────────────────────────────────────
+window.saveStockModal = async function () {
+  const changes = getModalChanges();
+  if (changes.length === 0) {
+    showToast("ไม่มีการเปลี่ยนแปลง", "warning");
+    return;
+  }
+
+  showLoading(true);
+  let saved = 0,
+    failed = 0;
+  try {
+    for (const { productId, whId, qty } of changes) {
+      const key = `${productId}-${whId}`;
+      const existing = initMap[key];
+      try {
+        // ลบของเดิมก่อน (ถ้ามี) แล้วสร้างใหม่ — ยกเว้นกรณี clear ค่า (qty == null) ก็แค่ลบ
+        if (existing) await deleteStockInit(existing.movement_id);
+        if (qty != null) await createStockInit(productId, whId, qty);
+        saved++;
+      } catch (err) {
+        console.error("save fail", key, err);
+        failed++;
+      }
+    }
+    await loadData();
+    if (failed === 0) {
+      showToast(`บันทึกสำเร็จ ${saved} ช่อง`, "success");
+      window.closeStockModal();
+    } else {
+      showToast(`บันทึก ${saved} สำเร็จ · ${failed} ล้มเหลว`, "error");
+    }
+  } catch (e) {
+    showToast("บันทึกไม่สำเร็จ: " + e.message, "error");
+  }
+  showLoading(false);
+};
+
+// ── Utils ────────────────────────────────────────────────────
+function formatNum(n) {
+  return parseFloat(n || 0).toLocaleString("th-TH", {
+    maximumFractionDigits: 2,
+  });
+}
+
 function showToast(msg, type = "success") {
   const t = document.getElementById("toast");
   if (!t) return;
@@ -280,5 +369,5 @@ function showLoading(show) {
   document.getElementById("loadingOverlay")?.classList.toggle("show", show);
 }
 
-// ── Boot ──────────────────────────────────────────────────────
+// ── Boot ─────────────────────────────────────────────────────
 document.addEventListener("DOMContentLoaded", initPage);

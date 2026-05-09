@@ -49,7 +49,7 @@ async function loadAll() {
   loadMemberStats();   // fire-and-forget — render MLM charts
   try {
     const [products, stockBalance, pos, sos, movements] = await Promise.all([
-      sbFetch('products', '?select=product_id,product_code,product_name,reorder_point,is_active&is_active=eq.true'),
+      sbFetch('products', '?select=product_id,product_code,product_name,reorder_point,is_active,disable_stock_alert&is_active=eq.true'),
       sbFetch('stock_balance', '?select=product_id,warehouse_id,qty_on_hand'),
       sbFetch('purchase_orders', '?select=po_id,po_number,order_date,total_amount,status&order=order_date.desc&limit=100'),
       sbFetch('sales_orders', '?select=so_id,so_number,order_date,total_amount,status&order=order_date.desc&limit=100'),
@@ -89,7 +89,7 @@ function renderKPIs(products, stockBalance, pos, sos) {
 
   const stockMap = {};
   stockBalance.forEach(b => { stockMap[b.product_id] = (stockMap[b.product_id] || 0) + (b.qty_on_hand || 0); });
-  const alertCount = products.filter(p => (stockMap[p.product_id] || 0) <= (p.reorder_point || 0)).length;
+  const alertCount = products.filter(p => !p.disable_stock_alert && (stockMap[p.product_id] || 0) <= (p.reorder_point || 0)).length;
   document.getElementById('kpiAlert').textContent = alertCount;
   document.getElementById('kpiAlertSub').textContent = alertCount > 0 ? 'ต้องสั่งซื้อเพิ่ม' : 'Stock ปกติ ✓';
   document.getElementById('trendAlert').textContent = alertCount > 0 ? `⚠️ ${alertCount}` : '✓ ปกติ';
@@ -100,6 +100,7 @@ function renderStockAlerts(products, stockBalance) {
   const stockMap = {};
   stockBalance.forEach(b => { stockMap[b.product_id] = (stockMap[b.product_id] || 0) + (b.qty_on_hand || 0); });
   const alerts = products
+    .filter(p => !p.disable_stock_alert)
     .map(p => ({ ...p, qty: stockMap[p.product_id] || 0 }))
     .filter(p => p.qty <= (p.reorder_point || 0))
     .sort((a, b) => a.qty - b.qty).slice(0, 6);

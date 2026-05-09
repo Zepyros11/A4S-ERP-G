@@ -21,101 +21,135 @@
     <div class="topbar"></div>
 
     <!-- PAGE -->
-    <div class="page">      <!-- HERO -->
+    <div class="page">
+      <!-- HERO -->
       <div class="page-hero page-hero--simple page-hero--compact">
-        <h1 class="page-hero-title">📦 Stock เริ่มต้น</h1>
+        <div>
+          <h1 class="page-hero-title">📦 Stock เริ่มต้น</h1>
+          <p class="page-hero-sub">คลิกที่สินค้าเพื่อตั้งจำนวนพร้อมกันทุกคลัง</p>
+        </div>
       </div>
 
       <div class="stats-row">
         <div class="stat-card">
           <div class="stat-icon">📦</div>
-          <div>
+          <div class="stat-info">
+            <div class="stat-label">ตัวเลือกทั้งหมด</div>
             <div class="stat-value" id="statTotal">0</div>
-            <div class="stat-label">สินค้าทั้งหมด</div>
+            <div class="stat-sub" id="statParents">0 ชุดสินค้า</div>
           </div>
         </div>
         <div class="stat-card">
           <div class="stat-icon">✅</div>
-          <div>
-            <div class="stat-value" id="statHasStock">0</div>
-            <div class="stat-label">มี Stock แล้ว</div>
+          <div class="stat-info">
+            <div class="stat-label">ตั้ง Stock ครบทุกคลัง</div>
+            <div class="stat-value" id="statFullySet">0</div>
+            <div class="stat-sub" id="statFullySetSub">0 ชุดสินค้า</div>
           </div>
         </div>
         <div class="stat-card">
           <div class="stat-icon">⏳</div>
-          <div>
-            <div class="stat-value" id="statNoStock">0</div>
-            <div class="stat-label">ยังไม่มี Stock</div>
+          <div class="stat-info">
+            <div class="stat-label">ยังตั้งไม่ครบ</div>
+            <div class="stat-value" id="statPartial">0</div>
+            <div class="stat-sub" id="statPartialSub">0 ชุดสินค้า</div>
           </div>
         </div>
         <div class="stat-card">
           <div class="stat-icon">🏭</div>
-          <div>
-            <div class="stat-value" id="statWarehouses">0</div>
+          <div class="stat-info">
             <div class="stat-label">คลังที่ใช้งาน</div>
+            <div class="stat-value" id="statWarehouses">0</div>
+            <div class="stat-sub" id="statCountries">0 ประเทศ</div>
           </div>
         </div>
       </div>
 
-
-  <!-- TABLE -->
-<div class="content-wrap">
-  <div class="table-card">
-
-    <div class="table-toolbar si-toolbar">
-
-      <!-- แถว 1: Warehouse Filter -->
-      <div class="si-wh-row">
-        <div class="wh-filter-group">
-          <label class="wh-filter-label">🌍 ประเทศ</label>
-          <select class="filter-select" id="countryTabs"></select>
+      <!-- PRODUCT LIST -->
+      <div class="si-card">
+        <div class="si-card-hdr">
+          <div>
+            <div class="si-card-title">📋 รายการสินค้า</div>
+            <div class="si-card-sub">คลิกที่แถวสินค้าเพื่อตั้ง Stock พร้อมกันทุกคลัง</div>
+          </div>
+          <div class="table-count" id="productCount">0 ชุด</div>
         </div>
-        <div class="wh-filter-group">
-          <label class="wh-filter-label">🏬 คลังหลัก</label>
-          <select class="filter-select" id="parentTabs"></select>
+
+        <div class="si-search-row">
+          <div class="search-wrap">
+            <span class="search-icon">🔍</span>
+            <input class="search-input" id="searchInput" placeholder="ค้นหาสินค้า / รหัส" />
+          </div>
+          <select class="filter-select" id="filterFillStatus">
+            <option value="">⚪ ทั้งหมด</option>
+            <option value="full">✅ ตั้งครบทุกคลัง</option>
+            <option value="partial">🟡 ตั้งบางคลัง</option>
+            <option value="none">⏳ ยังไม่ตั้ง</option>
+          </select>
         </div>
-        <div class="wh-filter-group">
-          <label class="wh-filter-label">🏠 คลังย่อย</label>
-          <select class="filter-select" id="childTabs"></select>
+
+        <div class="table-wrap">
+          <table class="data-table si-table">
+            <thead>
+              <tr>
+                <th style="width:64px;text-align:center">ภาพ</th>
+                <th onclick="window.sortTable('product_name')" style="cursor:pointer">
+                  ชื่อสินค้า <span class="sort-icon" id="sort-product_name">⇅</span>
+                </th>
+                <th class="col-center" style="width:18%">หมวดหมู่</th>
+                <th class="col-center" style="width:22%">สถานะ Stock</th>
+                <th class="col-center" style="width:130px">จัดการ</th>
+              </tr>
+            </thead>
+            <tbody id="productTable"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════════════════════════════════════════════
+         MATRIX MODAL — variants × warehouses
+         ════════════════════════════════════════════════ -->
+    <div class="sim-overlay" id="simOverlay" onclick="window.closeStockModal(event)"></div>
+    <div class="sim-modal" id="simModal" role="dialog" aria-modal="true">
+      <div class="sim-modal-hdr v-sage-header">
+        <div class="sim-modal-title">
+          <span class="sim-modal-icon">📦</span>
+          <div>
+            <div class="sim-modal-title-text" id="simTitle">ตั้ง Stock เริ่มต้น</div>
+            <div class="sim-modal-title-sub" id="simSubtitle"></div>
+          </div>
+        </div>
+        <button class="sim-modal-close" onclick="window.closeStockModal()" title="ปิด">✕</button>
+      </div>
+
+      <div class="sim-modal-body">
+        <div class="sim-matrix-wrap">
+          <table class="sim-matrix" id="simMatrix"></table>
+        </div>
+        <div class="sim-modal-hint">
+          💡 กด <kbd>Tab</kbd> เลื่อน · <kbd>Enter</kbd> = บันทึก · ค่าเปลี่ยนไฮไลต์สีเหลือง
         </div>
       </div>
 
-      <!-- แถว 2: Search + Filter -->
-      <div class="si-search-row">
-        <div class="search-wrap">
-          <span class="search-icon">🔍</span>
-          <input class="search-input" id="searchInput" placeholder="ค้นหาสินค้า / รหัส" />
-        </div>
-       
-        <div class="toolbar-right">
-          <button class="btn btn-primary" id="saveAllBtn" onclick="window.saveAll()" style="display:none">💾 Save All</button>
+      <div class="sim-modal-ftr">
+        <div class="sim-changed-badge" id="simChangedBadge"></div>
+        <div class="sim-modal-actions">
+          <button class="btn btn-secondary" onclick="window.closeStockModal()">ยกเลิก</button>
+          <button class="btn btn-primary" id="simSaveBtn" onclick="window.saveStockModal()">💾 บันทึก</button>
         </div>
       </div>
-
     </div>
-
-    <div class="table-hdr">
-      <div class="table-title">📋 รายการสินค้า</div>
-      <div class="table-count" id="productCount">0 รายการ</div>
-    </div>
-    <div class="table-wrap">
-      <table class="data-table si-table">
-        <thead id="siThead"></thead>
-        <tbody id="productTable"></tbody>
-      </table>
-    </div>
-
-  </div>
-</div>
 
     <!-- Core -->
     <script src="../../js/core/auth.js"></script>
     <script src="../../js/core/authz.js"></script>
-<script src="../../js/core/date-format.js"></script>
+    <script src="../../js/core/date-format.js"></script>
     <script>AuthZ.requirePerm("stock_init_view");</script>
     <script type="module" src="./stock-initial-list.js"></script>
     <!-- MODALS -->
     <script src="../../js/components/modal/deleteModal.js"></script>
+    <script src="../../js/components/modal/confirmModal.js"></script>
     <script src="../../js/components/modal/modalManager.js"></script>
     <script src="../../js/components/modal/enterSave.js"></script>
 
@@ -126,6 +160,5 @@
     </script>
     <script src="../../js/components/navigation/imgPopup.js"></script>
     <script src="../../js/components/navigation/sidebar.js"></script>
-</div>
   </body>
 </html>

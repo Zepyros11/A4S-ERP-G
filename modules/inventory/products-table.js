@@ -31,7 +31,7 @@ export function renderProductsTable(
   if (countEl) countEl.textContent = `${products.length} รายการ`;
 
   if (products.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="8"><div class="empty-state"><div class="empty-icon">🔍</div><div class="empty-text">ไม่พบสินค้า</div></div></td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state"><div class="empty-icon">🔍</div><div class="empty-text">ไม่พบสินค้า</div></div></td></tr>`;
     return;
   }
 
@@ -149,6 +149,16 @@ function renderRow(
     <span class="slider"></span>
   </label>`;
 
+  // ปิดแจ้งเตือนสินค้าหมด — parent toggle cascade ไปทุก variant
+  const alertOffTitle = isVariantParent
+    ? "เปิด = ปิดแจ้งเตือนทุกตัวเลือกในชุด"
+    : "เปิด = ไม่แจ้งเตือนเมื่อสินค้าหมด/ใกล้หมด";
+  const alertOffCell = `<label class="switch" onclick="event.stopPropagation()" title="${alertOffTitle}">
+    <input type="checkbox" ${p.disable_stock_alert ? "checked" : ""}
+      onchange="window.toggleStockAlertDisabled(${p.product_id}, this)">
+    <span class="slider"></span>
+  </label>`;
+
   // actions — variant child ไม่มีปุ่มแก้ไข (แก้ที่ parent), เหลือแค่ลบรายตัว
   const editLabel = isVariantParent ? "แก้ไขสินค้าชุด" : "แก้ไข";
   const deleteLabel = isVariantParent
@@ -194,6 +204,7 @@ function renderRow(
 <td class="col-center">${costCell}</td>
 <td class="col-center">${saleCell}</td>
 <td style="text-align:center">${statusCell}</td>
+<td style="text-align:center">${alertOffCell}</td>
 <td style="text-align:center">${actionsCell}</td>
 </tr>`;
 }
