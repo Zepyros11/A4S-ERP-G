@@ -783,6 +783,15 @@ async function saveProduct() {
     const reorderPoint =
       parseFloat(document.getElementById("fReorder")?.value) || 0;
 
+    // refetch products เพื่อหลีกเลี่ยง product_code ซ้ำ (กรณี state.allProducts stale
+    // เช่น save ก่อนหน้าล้มกลางคันแต่ products ถูก insert ไปแล้ว)
+    try {
+      const fresh = await supabaseFetch("products", {
+        query: "?select=product_id,product_code,product_name,category_id",
+      });
+      if (Array.isArray(fresh)) state.allProducts = fresh;
+    } catch {}
+
     if (state.productType === "variable") {
       const usedCodes = state.allProducts.map((p) => p.product_code);
       const formVariants = state.variants.filter(
