@@ -940,6 +940,12 @@ select.form-control {
   border-bottom: 1px solid var(--border);
 }
 
+.data-table th.col-center,
+.data-table td.col-center,
+.col-center {
+  text-align: center;
+}
+
 .data-table tr:hover {
   background: var(--accent-pale);
 }

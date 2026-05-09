@@ -3,14 +3,23 @@
    Render Warehouse Table — Group: Country → Parent → Child
 ===================================================== */
 
-export const TYPE = {
-  MAIN: { label: "🏣 คลังหลัก", color: "type-main" },
-  BRANCH: { label: "🏪 คลังสาขา", color: "type-branch" },
-  TRANSIT: { label: "📦 จุดพักสินค้า", color: "type-transit" },
-  RETURN: { label: "↩️ จุดคืนสินค้า", color: "type-return" },
-};
+/* types injected ผ่าน parameter — fallback ใช้ defaults
+   เผื่อ table ถูก render ก่อน fetch (rare) */
+const DEFAULT_TYPES = [
+  { type_code: "MAIN",    type_name: "คลังหลัก",     icon: "🏣", color: "#0369a1" },
+  { type_code: "BRANCH",  type_name: "คลังสาขา",     icon: "🏪", color: "#15803d" },
+  { type_code: "TRANSIT", type_name: "จุดพักสินค้า", icon: "📦", color: "#c2410c" },
+  { type_code: "RETURN",  type_name: "จุดคืนสินค้า", icon: "↩️", color: "#b91c1c" },
+];
 
-export function renderWarehousesTable(warehouses, stock, countries) {
+let _types = DEFAULT_TYPES;
+const findType = (code) =>
+  _types.find((t) => t.type_code === code) || { icon: "🏭", color: "#64748b", type_name: code };
+
+export const whIcon = (w) => findType(w?.warehouse_type).icon;
+
+export function renderWarehousesTable(warehouses, stock, countries, types) {
+  if (Array.isArray(types) && types.length) _types = types;
   const search =
     document.getElementById("searchInput")?.value.toLowerCase() || "";
   const type = document.getElementById("filterType")?.value || "";
@@ -28,7 +37,7 @@ export function renderWarehousesTable(warehouses, stock, countries) {
   document.getElementById("whCount").textContent = list.length + " รายการ";
 
   if (list.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:30px;color:var(--text3)">ไม่พบข้อมูล</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:30px;color:var(--text3)">ไม่พบข้อมูล</td></tr>`;
     return;
   }
 
@@ -53,7 +62,7 @@ export function renderWarehousesTable(warehouses, stock, countries) {
 
     html += `
 <tr class="wh-country-row">
-  <td colspan="7">
+  <td colspan="6">
     <span class="wh-country-label">🌍 ${name}</span>
     <span class="wh-country-count">${whs.length} คลัง</span>
   </td>
@@ -83,7 +92,7 @@ export function renderWarehousesTable(warehouses, stock, countries) {
   if (withoutCountry.length > 0) {
     html += `
 <tr class="wh-country-row wh-country-unknown">
-  <td colspan="7">
+  <td colspan="6">
     <span class="wh-country-label">🌍 ไม่ระบุประเทศ</span>
     <span class="wh-country-count">${withoutCountry.length} คลัง</span>
   </td>
@@ -104,22 +113,22 @@ function renderRow(w, isChild, stock) {
       ? `<span class="stock-warning">มีสินค้าตกค้าง</span>`
       : "";
 
+  const ic = whIcon(w);
   const nameCell = isChild
-    ? `<span class="wh-child-indent">└</span> ${w.warehouse_icon || "🏭"} <strong>${w.warehouse_name}</strong>`
-    : `${w.warehouse_icon || "🏭"} <strong>${w.warehouse_name}</strong>`;
+    ? `<span class="wh-child-indent">└</span> <strong>${w.warehouse_name}</strong>`
+    : `<strong>${w.warehouse_name}</strong>`;
 
   return `
 <tr class="${isChild ? "wh-child-row" : "wh-parent-row"}"
-    onclick="openWarehouseStock(${w.warehouse_id},'${w.warehouse_name}','${w.warehouse_icon || "🏭"}')">
-
-  <td class="col-center">${w.warehouse_code}</td>
+    onclick="openWarehouseStock(${w.warehouse_id},'${w.warehouse_name}','${ic}')">
 
   <td>${nameCell}</td>
 
   <td class="col-center">
-    <span class="type-badge ${TYPE[w.warehouse_type]?.color || ""}">
-      ${TYPE[w.warehouse_type]?.label || ""}
-    </span>
+    ${(() => {
+      const t = findType(w.warehouse_type);
+      return `<span class="type-badge" style="background:${t.color}22;color:${t.color}">${t.icon} ${t.type_name}</span>`;
+    })()}
   </td>
 
   <td class="col-center">

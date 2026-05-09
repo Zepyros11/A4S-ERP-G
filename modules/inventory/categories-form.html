@@ -5,7 +5,7 @@
 
 <div class="modal-overlay" id="categoryModal">
 
-  <div class="modal" style="width:720px;max-width:96vw">
+  <div class="modal v-sage-header" style="width:580px;max-width:96vw">
 
     <!-- HEADER -->
     <div class="modal-hdr">
@@ -18,83 +18,45 @@
 
       <input type="hidden" id="categoryEditId" />
 
-      <!-- LEFT COLUMN: ข้อมูลหมวดหมู่ + Preview -->
-      <div style="display:flex;flex-direction:column;gap:14px;">
-
-        <div style="
-          font-size:11px;font-weight:700;color:var(--text3);
-          letter-spacing:1px;text-transform:uppercase;
-          border-bottom:1px solid var(--border);padding-bottom:8px;
-        ">
-          📋 ข้อมูลหมวดหมู่
+      <!-- LIVE PREVIEW (top, full width) -->
+      <div class="cat-preview-card" id="catPreviewCard">
+        <div id="prevIcon" class="cat-preview-icon">📦</div>
+        <div class="cat-preview-text">
+          <div id="prevName" class="cat-preview-name">ชื่อหมวดหมู่</div>
         </div>
+        <div class="cat-preview-badge">PREVIEW</div>
+      </div>
 
-        <!-- ชื่อ -->
-        <div class="form-group">
-          <label class="form-label">ชื่อหมวดหมู่ <span class="req">*</span></label>
-          <input
-            class="form-control"
-            id="categoryName"
-            placeholder="เช่น เสื้อผ้า"
-            oninput="updateCategoryPreview()"
-          />
-        </div>
+      <!-- TOP: ข้อมูลหมวดหมู่ (full width) -->
+      <div class="cat-form-section-title">📋 ข้อมูลหมวดหมู่</div>
 
-        <!-- คำอธิบาย -->
-        <div class="form-group">
-          <label class="form-label">คำอธิบาย</label>
-          <input
-            class="form-control"
-            id="categoryDesc"
-            placeholder="คำอธิบายสั้นๆ (ถ้ามี)"
-            oninput="updateCategoryPreview()"
-          />
-        </div>
+      <div class="form-group">
+        <label class="form-label">ชื่อหมวดหมู่ <span class="req">*</span></label>
+        <input
+          class="form-control"
+          id="categoryName"
+          placeholder="เช่น เสื้อผ้า"
+          oninput="updateCategoryPreview()"
+        />
+      </div>
 
-        <!-- Preview Card -->
-        <div style="
-          margin-top:auto;padding:12px 14px;border-radius:9px;
-          border:1.5px solid var(--border);background:var(--surface2);
-          display:flex;align-items:center;gap:12px;
-        ">
-          <div id="prevIcon" style="
-            width:42px;height:42px;border-radius:10px;
-            display:flex;align-items:center;justify-content:center;
-            font-size:22px;background:#0f4c7522;color:#0f4c75;flex-shrink:0;
-          ">📦</div>
-          <div style="min-width:0">
-            <div id="prevName" style="font-size:14px;font-weight:700;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
-              ชื่อหมวดหมู่
-            </div>
-            <div id="prevDesc" style="font-size:11px;color:var(--text3);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
-              คำอธิบาย
-            </div>
+      <!-- 2-col grid: สี (left) + ไอคอน (right) -->
+      <div class="cat-form-grid">
+
+        <!-- LEFT: สี -->
+        <div class="cat-form-col">
+          <div class="cat-form-section-title">🎨 สีหมวดหมู่</div>
+          <div class="form-group">
+            <div class="color-grid" id="colorPicker"></div>
           </div>
         </div>
 
-      </div>
-
-      <!-- RIGHT COLUMN: ไอคอน + สี -->
-      <div style="display:flex;flex-direction:column;gap:14px;">
-
-        <div style="
-          font-size:11px;font-weight:700;color:var(--text3);
-          letter-spacing:1px;text-transform:uppercase;
-          border-bottom:1px solid var(--border);padding-bottom:8px;
-        ">
-          🎨 รูปลักษณ์
-        </div>
-
-        <!-- ไอคอน -->
-        <div class="form-group">
-          <label class="form-label">ไอคอน</label>
-          <div class="emoji-row" id="emojiPicker" style="max-height:200px"></div>
-        </div>
-
-        <!-- สี -->
-        <div class="form-group">
-          <label class="form-label">สีหมวดหมู่</label>
-          <div class="color-row" id="colorPicker"></div>
+        <!-- RIGHT: ไอคอน -->
+        <div class="cat-form-col">
+          <div class="cat-form-section-title">😀 ไอคอน</div>
+          <div class="form-group">
+            <div class="emoji-grid" id="emojiPicker"></div>
+          </div>
         </div>
 
       </div>

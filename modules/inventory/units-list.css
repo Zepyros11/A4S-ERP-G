@@ -1,0 +1,25 @@
+/* ============================================================
+   units-list.css — small page-specific styles
+   ============================================================ */
+
+.units-name-cell {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.units-usage-badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 600;
+  background: var(--surface2);
+  color: var(--text2);
+  font-family: "IBM Plex Mono", monospace;
+}
+.units-usage-badge.used {
+  background: var(--accent-pale);
+  color: var(--accent);
+}
+

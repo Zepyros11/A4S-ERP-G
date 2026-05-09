@@ -1031,6 +1031,38 @@ app.post('/line/info', async (req, res) => {
   }
 });
 
+/* ── Get LINE message quota + consumption (this month) ──────
+   Uses server-side LINE_CHANNEL_TOKEN env (same OA used by cron sender),
+   so frontend doesn't need to pass token — matches what scheduler actually consumes.
+   GET /line/quota → { ok, type, value (limit), totalUsage, remaining, percent }
+   ─────────────────────────────────────────────────────────── */
+app.get('/line/quota', async (_req, res) => {
+  if (!LINE_CHANNEL_TOKEN) {
+    return res.status(503).json({ ok: false, error: 'LINE_CHANNEL_TOKEN not configured' });
+  }
+  try {
+    const headers = { Authorization: `Bearer ${LINE_CHANNEL_TOKEN}` };
+    const [qRes, cRes] = await Promise.all([
+      fetch('https://api.line.me/v2/bot/message/quota', { headers }),
+      fetch('https://api.line.me/v2/bot/message/quota/consumption', { headers }),
+    ]);
+    const q = await qRes.json().catch(() => ({}));
+    const c = await cRes.json().catch(() => ({}));
+    if (!qRes.ok) return res.status(qRes.status).json({ ok: false, source: 'quota', ...q });
+    if (!cRes.ok) return res.status(cRes.status).json({ ok: false, source: 'consumption', ...c });
+
+    const type = q.type || 'none';                    // 'none' | 'limited'
+    const value = type === 'limited' ? (q.value || 0) : null;   // null = unlimited
+    const totalUsage = c.totalUsage || 0;
+    const remaining = value == null ? null : Math.max(0, value - totalUsage);
+    const percent = value && value > 0 ? Math.min(100, Math.round((totalUsage / value) * 100)) : null;
+
+    return res.json({ ok: true, type, value, totalUsage, remaining, percent });
+  } catch (err) {
+    return res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
 /* ══════════════════════════════════════════════════════════
    Scheduled Notifications (cron-driven)
    ──────────────────────────────────────────────────────────
@@ -1806,6 +1838,7 @@ app.listen(PORT, () => {
   console.log(`  → http://localhost:${PORT}/line/multicast   (LINE multicast)`);
   console.log(`  → http://localhost:${PORT}/line/broadcast   (LINE broadcast)`);
   console.log(`  → http://localhost:${PORT}/line/info        (LINE bot info — test token)`);
+  console.log(`  → http://localhost:${PORT}/line/quota       (LINE quota + usage this month)`);
   console.log(`  → http://localhost:${PORT}/line/webhook     (LINE webhook ${LINE_CHANNEL_SECRET ? '✅' : '❌ no secret'})`);
   console.log(`  → http://localhost:${PORT}/cron/notifications (Scheduled LINE — every 15 min)${CRON_SECRET ? ' 🔒' : ''}`);
   console.log(`  → http://localhost:${PORT}/cron/line-promote  (LINE Promote scheduler — every 15 min)${CRON_SECRET ? ' 🔒' : ''}`);

@@ -244,7 +244,6 @@ export function openCategoryModal(data = null) {
 
   document.getElementById("categoryEditId").value = data?.category_id || "";
   document.getElementById("categoryName").value = data?.category_name || "";
-  document.getElementById("categoryDesc").value = data?.description || "";
 
   buildPickers();
   updateCategoryPreview();
@@ -298,21 +297,17 @@ window.selectColor = function (c) {
 
 window.updateCategoryPreview = function () {
   const name = document.getElementById("categoryName")?.value || "ชื่อหมวดหมู่";
-  const desc = document.getElementById("categoryDesc")?.value || "—";
   const icon = document.getElementById("prevIcon");
   const pName = document.getElementById("prevName");
-  const pDesc = document.getElementById("prevDesc");
 
   if (icon) {
     icon.textContent = selectedEmoji;
-    icon.style.background = selectedColor + "22";
+    icon.style.background = selectedColor + "33";
     icon.style.color = selectedColor;
+    icon.style.border = `1.5px solid ${selectedColor}`;
   }
   if (pName) {
     pName.textContent = name;
-  }
-  if (pDesc) {
-    pDesc.textContent = desc;
   }
 };
 
@@ -331,7 +326,6 @@ window.saveCategoryForm = function () {
 
   const payload = {
     category_name: name,
-    description: document.getElementById("categoryDesc")?.value.trim() || null,
     icon: selectedEmoji,
     color: selectedColor,
   };

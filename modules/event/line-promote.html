@@ -24,6 +24,13 @@
           <div class="page-hero page-hero--simple page-hero--compact">
             <h1 class="page-hero-title">📢 ตารางโพสต์ LINE</h1>
             <div class="page-hero-actions">
+              <div class="lp-quota-badge" id="lpQuotaBadge"
+                onclick="window.loadLineQuota(true)"
+                title="โควตา LINE Messaging API เดือนนี้ — คลิกเพื่อรีเฟรช">
+                <span class="lp-quota-icon">💬</span>
+                <span class="lp-quota-text" id="lpQuotaText">— / —</span>
+                <div class="lp-quota-bar"><div class="lp-quota-bar-fill" id="lpQuotaBarFill"></div></div>
+              </div>
               <button class="btn-on-hero" onclick="window.openGroupsModal()" title="จัดการกลุ่ม LINE ที่บอทอยู่">
                 👥 จัดการกลุ่ม
               </button>

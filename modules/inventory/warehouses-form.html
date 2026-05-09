@@ -4,7 +4,7 @@
 ===================================================== -->
 
 <div class="modal-overlay" id="warehouseModal">
-  <div class="modal" style="width: 660px">
+  <div class="modal v-sage-header" style="width: 620px; max-width: 96vw">
     <div class="modal-hdr">
       <div class="modal-title" id="warehouseModalTitle">
         เพิ่มคลังสินค้าใหม่
@@ -12,75 +12,57 @@
       <button class="btn-modal-close" onclick="closeWarehouseModal()">✕</button>
     </div>
 
-    <div class="modal-body">
+    <div class="wh-form-body">
       <input type="hidden" id="whEditId" />
+      <input type="hidden" id="fCode" />
+      <input type="hidden" id="fStatus" value="true" />
 
-      <div class="form-grid">
-        <!-- Row 1: รหัส | ประเภท | Icon -->
-        <div class="form-group">
-          <label class="form-label">รหัสคลัง *</label>
-          <input class="form-control" id="fCode" />
+      <!-- LIVE PREVIEW -->
+      <div class="wh-preview-card">
+        <div id="whPrevIcon" class="wh-preview-icon">🏭</div>
+        <div class="wh-preview-text">
+          <div id="whPrevName" class="wh-preview-name">ชื่อคลัง</div>
+          <div id="whPrevCode" class="wh-preview-code">WH-001</div>
         </div>
+        <div class="wh-preview-badge">PREVIEW</div>
+      </div>
 
+      <!-- ข้อมูลคลัง -->
+      <div class="wh-form-section-title">📋 ข้อมูลคลัง</div>
+
+      <div class="wh-form-grid">
+        <div class="form-group">
+          <label class="form-label">ชื่อคลัง <span class="req">*</span></label>
+          <input
+            class="form-control"
+            id="fName"
+            oninput="updateWarehousePreview()"
+          />
+        </div>
         <div class="form-group">
           <label class="form-label">ประเภทคลัง</label>
-          <select class="form-control" id="fType">
-            <option value="MAIN">🏣 คลังหลัก</option>
-            <option value="BRANCH">🏪 คลังสาขา</option>
-            <option value="TRANSIT">📦 จุดพักสินค้า</option>
-            <option value="RETURN">↩️ จุดคืนสินค้า</option>
-          </select>
+          <input type="hidden" id="fType" value="MAIN" />
+          <div class="country-dropdown-wrap" id="whtDropdownWrap">
+            <button
+              type="button"
+              class="country-trigger"
+              id="whtTrigger"
+              onclick="toggleWhtDropdown(event)"
+            >
+              — เลือกประเภท —
+              <span class="country-trigger-arrow">▾</span>
+            </button>
+            <div class="country-panel" id="whtPanel">
+              <div class="country-list" id="whtList"></div>
+            </div>
+          </div>
         </div>
+      </div>
 
-        <div class="form-group">
-          <label class="form-label">Icon คลัง</label>
-          <select class="form-control" id="fIcon">
-            <option value="🏭">🏭 โรงงาน</option>
-            <option value="🏣">🏣 อาคารสินค้า</option>
-            <option value="🏢">🏢 อาคารสำนักงาน</option>
-            <option value="🏪">🏪 ร้านค้า/สาขา</option>
-            <option value="🏠">🏠 บ้าน</option>
-          </select>
-        </div>
+      <!-- ที่ตั้ง -->
+      <div class="wh-form-section-title">📍 ที่ตั้ง</div>
 
-        <!-- Row 2: ชื่อคลัง -->
-        <div class="form-group full">
-          <label class="form-label">ชื่อคลัง *</label>
-          <input class="form-control" id="fName" />
-        </div>
-
-        <!-- Row 3: ที่อยู่ -->
-        <div class="form-group full">
-          <label class="form-label">ที่อยู่</label>
-          <textarea class="form-control" id="fAddress" rows="2"></textarea>
-        </div>
-
-        <!-- Row 4: ผู้ดูแล | เบอร์โทร -->
-        <div class="form-group">
-          <label class="form-label">ผู้ดูแล</label>
-          <input class="form-control" id="fManager" />
-        </div>
-
-        <div class="form-group">
-          <label class="form-label">เบอร์โทร</label>
-          <input class="form-control" id="fPhone" />
-        </div>
-
-        <!-- Row 5: ความจุ | สถานะ -->
-        <div class="form-group">
-          <label class="form-label">ความจุ</label>
-          <input class="form-control" type="number" id="fCapacity" />
-        </div>
-
-        <div class="form-group">
-          <label class="form-label">สถานะ</label>
-          <select class="form-control" id="fStatus">
-            <option value="true">ใช้งาน</option>
-            <option value="false">ปิด</option>
-          </select>
-        </div>
-
-        <!-- Row 6: ประเทศ | คลังแม่ -->
+      <div class="wh-form-grid">
         <div class="form-group">
           <label class="form-label">ประเทศ</label>
           <div class="country-dropdown-wrap" id="countryDropdownWrap">
@@ -98,18 +80,43 @@
             </div>
           </div>
         </div>
-
         <div class="form-group">
           <label class="form-label">คลังแม่ (Parent)</label>
           <select class="form-control" id="fParent">
             <option value="">— ไม่มี (คลังหลัก) —</option>
           </select>
         </div>
+      </div>
 
-        <!-- Row 7: หมายเหตุ -->
-        <div class="form-group full">
+      <div class="form-group">
+        <label class="form-label">ที่อยู่</label>
+        <textarea class="form-control" id="fAddress" rows="2"></textarea>
+      </div>
+
+      <!-- ติดต่อ + ความจุ -->
+      <div class="wh-form-section-title">👤 ติดต่อ</div>
+
+      <div class="wh-form-grid">
+        <div class="form-group">
+          <label class="form-label">ผู้ดูแล</label>
+          <select class="form-control" id="fManager">
+            <option value="">— ไม่กำหนด —</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">เบอร์โทร</label>
+          <input class="form-control" id="fPhone" />
+        </div>
+      </div>
+
+      <div class="wh-form-grid">
+        <div class="form-group">
+          <label class="form-label">ความจุ</label>
+          <input class="form-control" type="number" id="fCapacity" />
+        </div>
+        <div class="form-group">
           <label class="form-label">หมายเหตุ</label>
-          <textarea class="form-control" id="fNote" rows="2"></textarea>
+          <input class="form-control" id="fNote" />
         </div>
       </div>
     </div>

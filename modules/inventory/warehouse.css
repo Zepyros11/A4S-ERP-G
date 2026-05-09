@@ -352,29 +352,49 @@
 ====================================================== */
 
 .wh-country-row td {
-  background: var(--bg2, #f1f5f9);
-  padding: 8px 16px !important;
-  border-top: 2px solid var(--border, #e2e8f0);
+  background: var(--accent-pale);
+  padding: 10px 16px !important;
+  border-top: 2px solid var(--accent);
+  border-bottom: 1px solid var(--accent);
+  position: sticky;
+  z-index: 1;
+}
+
+.wh-country-row:hover td {
+  background: var(--accent-pale);
 }
 
 .wh-country-label {
   font-weight: 700;
   font-size: 14px;
-  color: var(--text1, #1e293b);
+  color: var(--accent);
+  letter-spacing: 0.3px;
 }
 
 .wh-country-count {
   margin-left: 10px;
-  font-size: 12px;
-  color: var(--text3, #94a3b8);
-  background: var(--bg1, #fff);
-  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent);
+  background: var(--surface);
+  padding: 2px 9px;
   border-radius: 10px;
-  border: 1px solid var(--border, #e2e8f0);
+  border: 1px solid var(--accent);
+}
+
+.wh-country-unknown td {
+  background: var(--surface2);
+  border-top-color: var(--border2);
+  border-bottom-color: var(--border2);
 }
 
 .wh-country-unknown .wh-country-label {
-  color: var(--text3, #94a3b8);
+  color: var(--text3);
+}
+
+.wh-country-unknown .wh-country-count {
+  color: var(--text3);
+  border-color: var(--border2);
 }
 
 .wh-parent-row td {
@@ -390,13 +410,106 @@
   margin-right: 6px;
   font-size: 14px;
 }
-/* Modal 3-col grid */
-.modal .form-grid {
-  grid-template-columns: 1fr 1fr 1fr;
+/* ======================================================
+   WAREHOUSE FORM (template: preview + sections + 2-col)
+====================================================== */
+
+.wh-form-body {
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
-.modal .form-grid .form-group.full {
-  grid-column: 1 / -1;
+.wh-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  align-items: start;
+}
+
+@media (max-width: 560px) {
+  .wh-form-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+}
+
+.wh-form-section-title {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text3);
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 5px;
+  margin-top: 4px;
+}
+
+/* Live Preview Card */
+.wh-preview-card {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: 9px;
+  border: 1.5px solid var(--border);
+  background: linear-gradient(135deg, var(--surface2), var(--surface));
+  transition: 0.2s;
+}
+
+.wh-preview-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.05);
+}
+
+.wh-preview-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  background: #0f4c7522;
+  color: #0f4c75;
+  flex-shrink: 0;
+}
+
+.wh-preview-text {
+  min-width: 0;
+  flex: 1;
+}
+
+.wh-preview-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wh-preview-code {
+  font-size: 11px;
+  font-family: "IBM Plex Mono", monospace;
+  color: var(--text3);
+  margin-top: 1px;
+}
+
+.wh-preview-badge {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  color: var(--text3);
+  background: var(--surface);
+  padding: 1px 5px;
+  border-radius: 3px;
+  border: 1px solid var(--border);
 }
 /* ซ่อน scrollbar แนวตั้งของ table */
 .table-wrap {

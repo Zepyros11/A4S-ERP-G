@@ -14,23 +14,22 @@ export function renderCategoriesTable(categories, products) {
       (p) => p.category_id === c.category_id,
     ).length;
     const color = c.color || "#0f4c75";
-    const bg = color + "22";
+    const bg = color + "33";
 
     html += `
       <tr>
 
+        <td style="text-align:center">
+          <input type="checkbox" class="row-check" value="${c.category_id}" onchange="window.updateDeleteButton()">
+        </td>
+
         <td>
           <div style="display:flex;align-items:center;gap:12px">
-            <div class="cat-color" style="background:${bg};color:${color}">
+            <div class="cat-color" style="background:${bg};color:${color};border:1.5px solid ${color}">
               ${c.icon || "📦"}
             </div>
             <div>
               <div style="font-weight:700">${c.category_name}</div>
-              ${
-                c.description
-                  ? `<div style="font-size:12px;color:var(--text3)">${c.description}</div>`
-                  : ""
-              }
             </div>
           </div>
         </td>
@@ -51,7 +50,7 @@ export function renderCategoriesTable(categories, products) {
   if (!html) {
     html = `
       <tr>
-        <td colspan="3" style="text-align:center;padding:40px;color:var(--text3)">
+        <td colspan="4" style="text-align:center;padding:40px;color:var(--text3)">
           ไม่พบข้อมูล
         </td>
       </tr>

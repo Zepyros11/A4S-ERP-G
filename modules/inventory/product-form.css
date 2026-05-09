@@ -2,181 +2,6 @@
    product_form.css — A4S-ERP Product Form Page
    ============================================================ */
 
-/* ── PAGE LAYOUT ── */
-.pf-layout {
-  display: flex;
-  min-height: calc(100vh - var(--topbar-h));
-}
-
-/* ── LEFT SIDEBAR (Sticky Steps) ── */
-.pf-sidebar {
-  width: 240px;
-  min-width: 240px;
-  background: var(--surface);
-  border-right: 1px solid var(--border);
-  padding: 28px 0;
-  position: sticky;
-  top: var(--topbar-h);
-  height: calc(100vh - var(--topbar-h));
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-}
-
-.pf-sidebar-title {
-  font-size: 10px;
-  font-weight: 700;
-  color: var(--text3);
-  letter-spacing: 1.2px;
-  text-transform: uppercase;
-  padding: 0 20px 14px;
-  border-bottom: 1px solid var(--border);
-  margin-bottom: 16px;
-}
-
-/* Step Items */
-.pf-steps {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 0 12px;
-}
-
-.pf-step {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  padding: 10px 10px;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.18s;
-  position: relative;
-}
-.pf-step:hover {
-  background: var(--accent-pale);
-}
-.pf-step.active {
-  background: var(--accent-pale);
-}
-.pf-step.done .pf-step-num {
-  background: var(--success);
-  border-color: var(--success);
-  color: #fff;
-}
-.pf-step.done .pf-step-num::after {
-  content: "✓";
-}
-.pf-step.done .pf-step-num span {
-  display: none;
-}
-
-.pf-step-num {
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
-  border: 2px solid var(--border2);
-  background: var(--surface);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 12px;
-  font-weight: 700;
-  font-family: "IBM Plex Mono", monospace;
-  flex-shrink: 0;
-  transition: all 0.18s;
-  color: var(--text3);
-}
-.pf-step.active .pf-step-num {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #fff;
-}
-
-.pf-step-info {
-  flex: 1;
-  min-width: 0;
-}
-.pf-step-label {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text2);
-  line-height: 1.3;
-}
-.pf-step.active .pf-step-label {
-  color: var(--accent);
-}
-.pf-step-sub {
-  font-size: 11px;
-  color: var(--text3);
-  margin-top: 2px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-/* Connector line between steps */
-.pf-step-connector {
-  width: 2px;
-  height: 14px;
-  background: var(--border);
-  margin: 0 0 0 22px;
-  transition: background 0.18s;
-}
-.pf-step-connector.done {
-  background: var(--success);
-}
-
-/* Summary box at bottom of sidebar */
-.pf-sidebar-summary {
-  margin-top: auto;
-  padding: 16px;
-  border-top: 1px solid var(--border);
-}
-.pf-summary-box {
-  background: var(--surface2);
-  border: 1.5px solid var(--border);
-  border-radius: 8px;
-  padding: 12px;
-}
-.pf-summary-title {
-  font-size: 10px;
-  font-weight: 700;
-  color: var(--text3);
-  letter-spacing: 0.8px;
-  margin-bottom: 8px;
-}
-.pf-summary-item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  color: var(--text2);
-  margin-bottom: 5px;
-}
-.pf-summary-item:last-child {
-  margin-bottom: 0;
-}
-.pf-summary-val {
-  font-family: "IBM Plex Mono", monospace;
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--accent);
-  margin-left: auto;
-  max-width: 100px;
-  text-align: right;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-/* ── MAIN CONTENT ── */
-.pf-main {
-  flex: 1;
-  min-width: 0;
-  padding: 28px 32px;
-  max-width: 900px;
-}
-
 /* Section Card */
 .pf-section {
   background: var(--surface);
@@ -199,12 +24,12 @@
 
 .pf-section-hdr {
   padding: 14px 20px;
-  border-bottom: 1px solid var(--border);
-  background: var(--surface2);
+  border-bottom: none;
+  background: linear-gradient(180deg, var(--accent-light), var(--accent));
   display: flex;
   align-items: center;
   gap: 10px;
-  border-radius: var(--radius) var(--radius) 0 0; /* ← เพิ่มบรรทัดนี้ */
+  border-radius: var(--radius) var(--radius) 0 0;
 }
 .pf-section-icon {
   width: 32px;
@@ -215,82 +40,192 @@
   justify-content: center;
   font-size: 16px;
   flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.18) !important;
+  color: #fff !important;
 }
 .pf-section-title {
   font-size: 14px;
   font-weight: 700;
-  color: var(--text);
+  color: #fff;
 }
 .pf-section-sub {
   font-size: 12px;
-  color: var(--text3);
+  color: rgba(255, 255, 255, 0.85);
   margin-left: auto;
 }
 .pf-section-body {
   padding: 20px;
 }
 
-/* ── STEP 1: TYPE SELECTOR ── */
-.type-selector {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 14px;
+/* ── STEP 1+2: COMPACT PILL SELECTOR ── */
+.pf-pill-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px 28px;
+  align-items: flex-start;
 }
-
-.type-card {
-  border: 2px solid var(--border);
-  border-radius: 10px;
-  padding: 20px;
-  cursor: pointer;
-  transition: all 0.18s;
-  background: var(--surface);
-  text-align: center;
+.pf-pill-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.pf-pill-group + .pf-pill-group {
+  padding-left: 24px;
+  border-left: 1px solid var(--border);
+}
+.pf-pill-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text3);
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+}
+.pf-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
   position: relative;
 }
-.type-card:hover {
+.pf-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border: 1.5px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text2);
+  font-size: 13px;
+  font-weight: 500;
+  font-family: "Sarabun", sans-serif;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+  user-select: none;
+}
+.pf-pill:hover {
   border-color: var(--accent-light);
   background: var(--accent-pale);
-  transform: translateY(-2px);
 }
-.type-card.selected {
+.pf-pill.selected {
   border-color: var(--accent);
   background: var(--accent-pale);
-  box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.1);
+  color: var(--accent);
+  font-weight: 600;
+  box-shadow: 0 0 0 2px rgba(var(--accent-rgb), 0.12);
 }
-.type-card-check {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  background: var(--accent);
-  color: #fff;
-  font-size: 11px;
-  display: none;
-  align-items: center;
-  justify-content: center;
+.pf-pill.dragging {
+  opacity: 0.5;
+  transform: scale(0.95);
 }
-.type-card.selected .type-card-check {
-  display: flex;
-}
-.type-card-icon {
-  font-size: 32px;
-  margin-bottom: 10px;
-}
-.type-card-label {
+.pf-pill-icon {
   font-size: 14px;
-  font-weight: 700;
-  color: var(--text);
-  margin-bottom: 4px;
+  line-height: 1;
 }
-.type-card-desc {
-  font-size: 11.5px;
+.pf-pill-empty {
+  font-size: 12px;
   color: var(--text3);
-  line-height: 1.5;
+  padding: 7px 0;
 }
 
-/* ── STEP 2: SKU BUILDER ── */
+/* "ดูทั้งหมด" button + searchable picker dropdown */
+.pf-pill-more {
+  border-style: dashed !important;
+  color: var(--text3);
+  gap: 4px;
+}
+.pf-pill-more:hover {
+  border-color: var(--accent) !important;
+  color: var(--accent);
+  background: var(--accent-pale);
+}
+.pf-pill-more-caret {
+  font-size: 10px;
+  margin-left: 2px;
+  opacity: 0.7;
+}
+.pf-pill-picker {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  width: min(380px, 92vw);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.14);
+  padding: 10px;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 340px;
+}
+.pf-pill-picker-search {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  font-size: 13px;
+  font-family: "Sarabun", sans-serif;
+  outline: none;
+  transition: border-color 0.15s;
+  box-sizing: border-box;
+}
+.pf-pill-picker-search:focus {
+  border-color: var(--accent);
+}
+.pf-pill-picker-list {
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-height: 0;
+}
+.pf-pill-picker-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text2);
+  transition: background 0.12s;
+  user-select: none;
+}
+.pf-pill-picker-item:hover {
+  background: var(--accent-pale);
+  color: var(--accent);
+}
+.pf-pill-picker-item.selected {
+  background: var(--accent-pale);
+  color: var(--accent);
+  font-weight: 600;
+}
+.pf-pill-picker-item-icon {
+  font-size: 16px;
+  line-height: 1;
+}
+.pf-pill-picker-empty {
+  text-align: center;
+  color: var(--text3);
+  font-size: 12px;
+  padding: 16px 0;
+}
+@media (max-width: 640px) {
+  .pf-pill-group + .pf-pill-group {
+    padding-left: 0;
+    border-left: none;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+    width: 100%;
+  }
+}
+
+/* ── SKU BUILDER ── */
 .sku-builder {
   background: var(--surface2);
   border: 1.5px solid var(--border);
@@ -375,6 +310,26 @@
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 14px;
+}
+
+/* 2-col layout: ซ้าย=ฟิลด์หลัก · ขวา=หน่วยนับ */
+.pf-fields-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 28px;
+  margin-bottom: 18px;
+}
+.pf-fields-col {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+@media (max-width: 900px) {
+  .pf-fields-grid {
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
 }
 .form-grid-3 {
   display: grid;
@@ -700,6 +655,78 @@
   background: var(--border);
 }
 
+/* ── Variant Block (sub-section card) ── */
+.pf-variant-block {
+  margin-top: 24px;
+  border: 1.5px solid rgba(var(--accent-rgb), 0.25);
+  border-radius: 12px;
+  background: linear-gradient(
+    180deg,
+    rgba(var(--accent-rgb), 0.04),
+    rgba(var(--accent-rgb), 0.01)
+  );
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(var(--accent-rgb), 0.06);
+}
+.pf-variant-hdr {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: linear-gradient(
+    180deg,
+    rgba(var(--accent-rgb), 0.12),
+    rgba(var(--accent-rgb), 0.06)
+  );
+  border-bottom: 1px solid rgba(var(--accent-rgb), 0.18);
+}
+.pf-variant-hdr-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  flex-shrink: 0;
+  background: rgba(var(--accent-rgb), 0.18);
+  color: var(--accent);
+}
+.pf-variant-hdr-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.pf-variant-hdr-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text1);
+  letter-spacing: 0.2px;
+}
+.pf-variant-hdr-sub {
+  font-size: 12px;
+  color: var(--text3);
+  line-height: 1.4;
+}
+.pf-variant-body {
+  padding: 14px 16px 16px;
+}
+.pf-variant-empty {
+  text-align: center;
+  padding: 22px;
+  color: var(--text3);
+  border: 1.5px dashed rgba(var(--accent-rgb), 0.25);
+  border-radius: 8px;
+  font-size: 12px;
+  background: var(--surface);
+}
+.pf-variant-add {
+  margin-top: 10px;
+  font-size: 13px;
+  padding: 8px 16px;
+}
+
 /* Info Tooltip Tag */
 .info-tag {
   display: inline-flex;
@@ -721,14 +748,6 @@
 
 /* ── Tablet landscape (≤1200px) ── */
 @media (max-width: 1200px) {
-  .pf-sidebar {
-    width: 210px;
-    min-width: 210px;
-  }
-  .pf-main {
-    padding: 24px 24px;
-    max-width: 100%;
-  }
   .sku-fields {
     grid-template-columns:
       minmax(0, 80px) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr)
@@ -738,13 +757,6 @@
 
 /* ── Tablet portrait (≤1024px) ── */
 @media (max-width: 1024px) {
-  .pf-sidebar {
-    width: 190px;
-    min-width: 190px;
-  }
-  .pf-main {
-    padding: 20px 20px;
-  }
   .sku-fields {
     grid-template-columns: 72px 1fr 1fr 1fr 68px;
     gap: 8px;
@@ -762,61 +774,6 @@
 
 /* ── Mobile landscape / small tablet (≤767px) ── */
 @media (max-width: 767px) {
-  .pf-layout {
-    flex-direction: column;
-  }
-
-  .pf-sidebar {
-    width: 100%;
-    min-width: unset;
-    height: auto;
-    position: static;
-    border-right: none;
-    border-bottom: 1px solid var(--border);
-    padding: 10px 0 6px;
-  }
-
-  .pf-sidebar-title {
-    display: none;
-  }
-  .pf-steps {
-    flex-direction: row;
-    overflow-x: auto;
-    padding: 0 12px 6px;
-    gap: 0;
-    scrollbar-width: none;
-  }
-  .pf-steps::-webkit-scrollbar {
-    display: none;
-  }
-  .pf-step {
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-    min-width: 80px;
-    padding: 8px 6px;
-    border-radius: 8px;
-    gap: 4px;
-  }
-  .pf-step-info {
-    min-width: 0;
-  }
-  .pf-step-label {
-    font-size: 11px;
-  }
-  .pf-step-sub {
-    display: none;
-  }
-  .pf-step-connector {
-    display: none;
-  }
-  .pf-sidebar-summary {
-    display: none;
-  }
-
-  .pf-main {
-    padding: 14px 14px;
-  }
   .pf-section {
     margin-bottom: 16px;
   }
@@ -837,23 +794,6 @@
   }
   .pf-section-body {
     padding: 14px;
-  }
-
-  .type-selector {
-    grid-template-columns: 1fr;
-    gap: 10px;
-  }
-  .type-card {
-    padding: 14px;
-    text-align: left;
-    display: flex;
-    gap: 12px;
-    align-items: flex-start;
-  }
-  .type-card-icon {
-    font-size: 24px;
-    margin-bottom: 0;
-    flex-shrink: 0;
   }
 
   .sku-builder {
@@ -929,22 +869,8 @@
 
 /* ── Mobile portrait (≤480px) ── */
 @media (max-width: 480px) {
-  .pf-main {
-    padding: 10px 10px;
-  }
   .pf-section-body {
     padding: 12px;
-  }
-  .pf-step {
-    min-width: 68px;
-  }
-  .pf-step-num {
-    width: 22px;
-    height: 22px;
-    font-size: 11px;
-  }
-  .pf-step-label {
-    font-size: 10px;
   }
 
   .sku-fields {
@@ -973,19 +899,6 @@
 
   #variantSkuRows > div > div:last-of-type input {
     width: 100% !important;
-  }
-
-  .type-card {
-    padding: 12px;
-  }
-  .type-card-icon {
-    font-size: 20px;
-  }
-  .type-card-label {
-    font-size: 13px;
-  }
-  .type-card-desc {
-    font-size: 11px;
   }
 
   .pf-section-title {
@@ -1174,16 +1087,6 @@
   }
 }
 
-.cat-card.dragging {
-  opacity: 0.5;
-  transform: scale(0.95);
-}
-
-.cat-card-grid {
-  display: flex;
-  gap: 14px;
-  flex-wrap: wrap;
-}
 #skuFieldsGrid {
   display: grid;
   grid-template-columns: 90px repeat(5, 120px) 70px;
@@ -1209,19 +1112,64 @@
   border-radius: 3px;
   margin-left: 4px;
 }
+/* ── FLOATING ACTION BUTTON: Save (go-to-top style) ── */
+.pf-fab-save {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  border: none;
+  background: linear-gradient(180deg, var(--accent-light), var(--accent));
+  color: #fff;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow:
+    0 6px 16px rgba(var(--accent-rgb), 0.32),
+    0 2px 4px rgba(0, 0, 0, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  transition:
+    transform 0.18s,
+    box-shadow 0.18s;
+}
+.pf-fab-save:hover {
+  transform: translateY(-2px) scale(1.04);
+  box-shadow:
+    0 10px 22px rgba(var(--accent-rgb), 0.4),
+    0 4px 8px rgba(0, 0, 0, 0.1);
+}
+.pf-fab-save:active {
+  transform: translateY(0) scale(0.98);
+}
+@media (max-width: 480px) {
+  .pf-fab-save {
+    right: 16px;
+    bottom: 16px;
+    width: 48px;
+    height: 48px;
+    font-size: 20px;
+  }
+}
+
 /* ── TOPBAR (Product Form) ── */
 
 .topbar {
-  height: 56px;
-  background: #1e5678;
+  height: var(--topbar-h, 56px);
+  background: var(--accent);
   color: #fff;
 
   display: flex;
   align-items: center;
   gap: 14px;
 
-  padding: 0 18px;
+  padding: 0 32px;
   border-bottom: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
 /* separator */
@@ -1277,6 +1225,6 @@
 /* primary button */
 .btn-topbar.btn-white {
   background: #fff;
-  color: #1e5678;
+  color: var(--accent);
   font-weight: 600;
 }

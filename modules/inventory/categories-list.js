@@ -100,7 +100,7 @@ function renderFiltered() {
   const filter = document.getElementById("filterStatus")?.value || "";
 
   const list = categories.filter((c) => {
-    const text = (c.category_name + " " + (c.description || "")).toLowerCase();
+    const text = (c.category_name || "").toLowerCase();
     const count = products.filter(
       (p) => p.category_id === c.category_id,
     ).length;
@@ -168,6 +168,64 @@ window.deleteCategory = async function (id, name) {
     }
     showLoading(false);
   });
+};
+
+/* ================================
+   BULK DELETE
+================================ */
+
+function getSelectedCategories() {
+  return Array.from(document.querySelectorAll(".row-check:checked")).map((c) =>
+    parseInt(c.value),
+  );
+}
+
+window.updateDeleteButton = function () {
+  const btn = document.getElementById("btnDeleteSelected");
+  if (!btn) return;
+  btn.style.display = getSelectedCategories().length ? "inline-flex" : "none";
+};
+
+window.toggleAllCheckbox = function (el) {
+  document
+    .querySelectorAll(".row-check")
+    .forEach((c) => (c.checked = el.checked));
+  window.updateDeleteButton();
+};
+
+window.deleteSelectedCategories = async function () {
+  const ids = getSelectedCategories();
+  if (!ids.length) return;
+
+  const blocked = ids.filter(
+    (id) => products.filter((p) => p.category_id === id).length > 0,
+  );
+  if (blocked.length) {
+    showToast(
+      `ลบไม่ได้: มี ${blocked.length} หมวดที่ยังมีสินค้าอยู่`,
+      "error",
+    );
+    return;
+  }
+
+  DeleteModal.open(
+    `ต้องการลบหมวดหมู่ ${ids.length} รายการ หรือไม่ ?`,
+    async () => {
+      showLoading(true);
+      try {
+        for (const id of ids) {
+          await removeCategory(id);
+        }
+        showToast("ลบหมวดหมู่ที่เลือกแล้ว");
+        document.getElementById("chkAll").checked = false;
+        await loadData();
+        window.updateDeleteButton();
+      } catch (e) {
+        showToast("ลบไม่สำเร็จ: " + e.message, "error");
+      }
+      showLoading(false);
+    },
+  );
 };
 /* ================================
    SAVE EVENT (จาก categories-form.js)

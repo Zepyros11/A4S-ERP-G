@@ -2,6 +2,14 @@
    stock-initial-table.js — Table renderer for Stock Initial
    ============================================================ */
 
+const WH_TYPE_ICONS = {
+  MAIN: "🏣",
+  BRANCH: "🏪",
+  TRANSIT: "📦",
+  RETURN: "↩️",
+};
+const whIcon = (w) => WH_TYPE_ICONS[w?.warehouse_type] || "🏭";
+
 export function buildTableHeader(warehouses, activeWarehouseId) {
   const thead = document.getElementById("siThead");
   if (!thead) return;
@@ -17,7 +25,7 @@ export function buildTableHeader(warehouses, activeWarehouseId) {
     </th>
     <th class="col-center" style="width:15%">
       <div class="si-wh-name">
-        ${wh?.warehouse_icon || "🏭"} ${wh?.warehouse_name || ""}
+        ${whIcon(wh)} ${wh?.warehouse_name || ""}
       </div>
     </th>
   </tr>`;
@@ -155,7 +163,7 @@ export function buildWarehouseTabs(
     parentEl.innerHTML = parents
       .map(
         (p) =>
-          `<option value="${p.warehouse_id}" ${p.warehouse_id === activeParent ? "selected" : ""}>${p.warehouse_icon || "🏬"} ${p.warehouse_name}</option>`,
+          `<option value="${p.warehouse_id}" ${p.warehouse_id === activeParent ? "selected" : ""}>${whIcon(p)} ${p.warehouse_name}</option>`,
       )
       .join("");
     parentEl.onchange = () => window.setParent(parseInt(parentEl.value));
@@ -169,7 +177,7 @@ export function buildWarehouseTabs(
       ? children
           .map(
             (c) =>
-              `<option value="${c.warehouse_id}" ${c.warehouse_id === activeWarehouseId ? "selected" : ""}>${c.warehouse_icon || "🏠"} ${c.warehouse_name}</option>`,
+              `<option value="${c.warehouse_id}" ${c.warehouse_id === activeWarehouseId ? "selected" : ""}>${whIcon(c)} ${c.warehouse_name}</option>`,
           )
           .join("")
       : `<option value="">— ไม่มีคลังย่อย —</option>`;

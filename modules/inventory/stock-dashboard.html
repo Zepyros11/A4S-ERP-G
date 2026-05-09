@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>📊 Stock Dashboard — A4S-ERP</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../../css/main.css" />
+    <link rel="stylesheet" href="./stock-dashboard.css" />
+  </head>
+  <body>
+    <div class="loading-overlay" id="loadingOverlay">
+      <div class="spinner"></div>
+    </div>
+    <div class="toast" id="toast"></div>
+
+    <!-- TOPBAR -->
+    <div class="topbar"></div>
+
+    <!-- PAGE -->
+    <div class="page">
+      <!-- HERO -->
+      <div class="page-hero page-hero--simple page-hero--compact">
+        <div>
+          <h1 class="page-hero-title">📊 Stock Dashboard</h1>
+          <p class="page-hero-sub">
+            ภาพรวมสต็อก · มูลค่าคงคลัง · จุดสั่งซื้อ · สินค้าหมด
+          </p>
+        </div>
+        <div class="page-hero-actions">
+          <button class="btn-on-hero" onclick="window.refreshDashboard()">
+            🔄 รีเฟรช
+          </button>
+        </div>
+      </div>
+
+      <!-- KPI ROW -->
+      <div class="stats-row">
+        <div class="stat-card green">
+          <div class="stat-icon">💰</div>
+          <div class="stat-info">
+            <div class="stat-label">มูลค่าสต็อกรวม</div>
+            <div class="stat-value" id="kpiTotalValue">฿0</div>
+            <div class="stat-sub" id="kpiTotalQty">0 ชิ้น</div>
+          </div>
+        </div>
+        <div class="stat-card blue">
+          <div class="stat-icon">📦</div>
+          <div class="stat-info">
+            <div class="stat-label">SKU ในสต็อก</div>
+            <div class="stat-value" id="kpiInStock">0</div>
+            <div class="stat-sub" id="kpiSkuTotal">/ 0 SKU</div>
+          </div>
+        </div>
+        <div class="stat-card amber">
+          <div class="stat-icon">🔻</div>
+          <div class="stat-info">
+            <div class="stat-label">ใกล้สั่งซื้อ</div>
+            <div class="stat-value" id="kpiLowStock">0</div>
+            <div class="stat-sub">≤ จุดสั่งซื้อ</div>
+          </div>
+        </div>
+        <div class="stat-card pink">
+          <div class="stat-icon">❌</div>
+          <div class="stat-info">
+            <div class="stat-label">หมดสต็อก</div>
+            <div class="stat-value" id="kpiOutOfStock">0</div>
+            <div class="stat-sub">ต้องเติมสต็อก</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2-COL: BY WAREHOUSE / BY CATEGORY -->
+      <div class="sd-grid-2">
+        <div class="sd-panel">
+          <div class="sd-panel-hdr">
+            <span>🏭 มูลค่าตามคลัง</span>
+            <span class="sd-panel-hdr-sub" id="warehouseCount">0 คลัง</span>
+          </div>
+          <div class="sd-bar-list" id="warehouseList">
+            <div class="sd-empty">— ไม่มีข้อมูล —</div>
+          </div>
+        </div>
+
+        <div class="sd-panel">
+          <div class="sd-panel-hdr">
+            <span>🏷️ มูลค่าตามหมวดหมู่</span>
+            <span class="sd-panel-hdr-sub" id="categoryCount">0 หมวด</span>
+          </div>
+          <div class="sd-bar-list" id="categoryList">
+            <div class="sd-empty">— ไม่มีข้อมูล —</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ALERTS: NEAR REORDER + OUT OF STOCK -->
+      <div class="sd-grid-2">
+        <div class="sd-panel">
+          <div class="sd-panel-hdr">
+            <span>🔻 ใกล้ถึงจุดสั่งซื้อ</span>
+            <span class="sd-panel-hdr-sub" id="lowCount">0 รายการ</span>
+          </div>
+          <div class="sd-table-wrap">
+            <table class="sd-table" id="lowStockTable">
+              <thead>
+                <tr>
+                  <th>สินค้า</th>
+                  <th class="sd-th-right">คงเหลือ</th>
+                  <th class="sd-th-right">จุดสั่งซื้อ</th>
+                </tr>
+              </thead>
+              <tbody id="lowStockBody">
+                <tr>
+                  <td colspan="3" class="sd-empty">— ไม่มีรายการ —</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="sd-panel">
+          <div class="sd-panel-hdr">
+            <span>❌ หมดสต็อก</span>
+            <span class="sd-panel-hdr-sub" id="outCount">0 รายการ</span>
+          </div>
+          <div class="sd-table-wrap">
+            <table class="sd-table" id="outStockTable">
+              <thead>
+                <tr>
+                  <th>สินค้า</th>
+                  <th class="sd-th-right">หมวดหมู่</th>
+                </tr>
+              </thead>
+              <tbody id="outStockBody">
+                <tr>
+                  <td colspan="2" class="sd-empty">— ไม่มีรายการ —</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- TOP VALUE SKUs -->
+      <div class="sd-panel">
+        <div class="sd-panel-hdr">
+          <span>💎 Top 10 สต็อกมูลค่าสูงสุด</span>
+        </div>
+        <div class="sd-table-wrap">
+          <table class="sd-table" id="topValueTable">
+            <thead>
+              <tr>
+                <th style="width:40px">#</th>
+                <th>สินค้า</th>
+                <th class="sd-th-right">หมวดหมู่</th>
+                <th class="sd-th-right">คงเหลือ</th>
+                <th class="sd-th-right">มูลค่า (฿)</th>
+              </tr>
+            </thead>
+            <tbody id="topValueBody">
+              <tr>
+                <td colspan="5" class="sd-empty">— ไม่มีรายการ —</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- RECENT MOVEMENTS -->
+      <div class="sd-panel">
+        <div class="sd-panel-hdr">
+          <span>🔄 ความเคลื่อนไหวล่าสุด</span>
+          <a href="./movements.html" class="sd-panel-hdr-link">ดูทั้งหมด →</a>
+        </div>
+        <div class="sd-table-wrap">
+          <table class="sd-table" id="recentMovesTable">
+            <thead>
+              <tr>
+                <th style="width:90px">เวลา</th>
+                <th style="width:80px">ประเภท</th>
+                <th>สินค้า</th>
+                <th>คลัง</th>
+                <th class="sd-th-right">จำนวน</th>
+              </tr>
+            </thead>
+            <tbody id="recentMovesBody">
+              <tr>
+                <td colspan="5" class="sd-empty">— ยังไม่มีการเคลื่อนไหว —</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <script src="./stock-dashboard.js"></script>
+    <script src="../../js/core/auth.js"></script>
+    <script src="../../js/core/date-format.js"></script>
+    <script src="../../js/components/navigation/sidebar.js"></script>
+    <script type="module">
+      import { loadTopbar } from "../../js/components/navigation/topbar.js";
+      loadTopbar("📊 Stock Dashboard");
+    </script>
+  </body>
+</html>

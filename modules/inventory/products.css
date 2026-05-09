@@ -19,6 +19,74 @@
   transition: transform 0.15s ease;
 }
 
+/* ── PARENT / VARIANT-CHILD ROWS ── */
+.prod-parent-row td {
+  background: var(--surface);
+  font-weight: 500;
+}
+.prod-child-row td {
+  background: var(--surface2, #f8fafc);
+  color: var(--text2);
+}
+.prod-child-row td:nth-child(3) {
+  padding-left: 6px;
+}
+.prod-child-indent {
+  color: var(--text3, #94a3b8);
+  margin-right: 4px;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 14px;
+}
+.prod-name-child {
+  font-size: 13px;
+}
+.variant-badge {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 8px;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  background: var(--accent-pale);
+  color: var(--accent);
+  border: 1px solid rgba(var(--accent-rgb), 0.25);
+  border-radius: 999px;
+  vertical-align: middle;
+}
+
+/* collapse / expand chevron บน parent row */
+.prod-collapse-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  margin-right: 6px;
+  padding: 0;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  color: var(--text2);
+  font-size: 12px;
+  cursor: pointer;
+  vertical-align: middle;
+  transition:
+    transform 0.18s ease,
+    background 0.15s,
+    border-color 0.15s;
+}
+.prod-collapse-btn:hover {
+  background: var(--accent-pale);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.prod-collapse-btn.collapsed {
+  transform: rotate(-90deg);
+}
+.row-collapsed {
+  display: none !important;
+}
+
 /* ── STATUS TOGGLE ── */
 .switch {
   position: relative;

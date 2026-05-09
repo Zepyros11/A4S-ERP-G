@@ -83,6 +83,7 @@
         <option value="empty">ไม่มีสินค้า</option>
       </select>
       <div class="toolbar-right">
+        <button class="btn btn-danger-outline" id="btnDeleteSelected" style="display:none" onclick="window.deleteSelectedCategories()">🗑 ลบที่เลือก</button>
         <button class="btn btn-primary" id="btnAddCategory" data-perm="inv_cat_create">＋ เพิ่มหมวดหมู่</button>
       </div>
     </div>
@@ -96,13 +97,16 @@
       <table class="data-table table-categories">
         <thead>
           <tr>
+            <th style="width:40px;text-align:center">
+              <input type="checkbox" id="chkAll" onclick="window.toggleAllCheckbox(this)" />
+            </th>
             <th onclick="sortTable('category_name')">หมวดหมู่ <span class="sort-icon">⇅</span></th>
             <th class="col-center" onclick="sortTable('product_count')">จำนวนสินค้า <span class="sort-icon">⇅</span></th>
             <th class="col-center">จัดการ</th>
           </tr>
         </thead>
         <tbody id="catTableBody">
-          <tr><td colspan="3" style="text-align:center;padding:40px;color:var(--text3)">กำลังโหลด...</td></tr>
+          <tr><td colspan="4" style="text-align:center;padding:40px;color:var(--text3)">กำลังโหลด...</td></tr>
         </tbody>
       </table>
     </div>

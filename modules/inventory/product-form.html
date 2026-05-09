@@ -10,80 +10,6 @@
     />
     <link rel="stylesheet" href="../../css/main.css" />
     <link rel="stylesheet" href="./product-form.css" />
-    <style>
-      /* ── Category Card Grid ── */
-      .category-card-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
-        gap: 10px;
-      }
-      .cat-card {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        gap: 8px;
-        padding: 16px 10px;
-        border: 2px solid var(--border);
-        border-radius: 12px;
-        background: var(--surface);
-        cursor: pointer;
-        transition: all 0.18s;
-        text-align: center;
-        position: relative;
-        user-select: none;
-      }
-      .cat-card:hover {
-        border-color: var(--accent);
-        background: var(--accent-pale);
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(var(--accent-rgb), 0.12);
-      }
-      .cat-card.selected {
-        border-color: var(--accent);
-        background: var(--accent-pale);
-        box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.12);
-      }
-      .cat-card.selected::after {
-        content: "✓";
-        position: absolute;
-        top: 6px;
-        right: 8px;
-        font-size: 11px;
-        font-weight: 700;
-        color: var(--accent);
-      }
-      .cat-card-icon {
-        font-size: 28px;
-        line-height: 1;
-      }
-      .cat-card-name {
-        font-size: 12px;
-        font-weight: 600;
-        color: var(--text2);
-        line-height: 1.3;
-      }
-      .cat-card.selected .cat-card-name {
-        color: var(--accent);
-      }
-      .cat-card-empty {
-        grid-column: 1 / -1;
-        padding: 24px;
-        text-align: center;
-        color: var(--text3);
-        font-size: 13px;
-      }
-      @media (max-width: 480px) {
-        .category-card-grid {
-          grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-          gap: 8px;
-        }
-      }
-      .cat-card.dragging {
-        opacity: 0.5;
-        transform: scale(0.95);
-      }
-    </style>
   </head>
   <body>
     <div class="loading-overlay" id="loadingOverlay">
@@ -98,69 +24,21 @@
       <div class="topbar-logo">📦 <span>A4S</span>-ERP</div>
       <div class="topbar-sep"></div>
       <div class="topbar-title" id="pageTitle">เพิ่มสินค้าใหม่</div>
-      <div class="topbar-actions">
-        <button class="btn-topbar btn-ghost" onclick="goBack()">ยกเลิก</button>
-        <button class="btn-topbar btn-white" onclick="saveProduct()">
-          💾 บันทึกสินค้า
-        </button>
-      </div>
     </div>
 
-    <!-- PAGE LAYOUT -->
-    <div class="pf-layout">
-      <!-- LEFT SIDEBAR -->
-      <aside class="pf-sidebar">
-        <div class="pf-sidebar-title">ขั้นตอนการเพิ่มสินค้า</div>
-        <div class="pf-steps">
-          <div class="pf-step active" data-step="1" onclick="goToStep(1)">
-            <div class="pf-step-num"><span>1</span></div>
-            <div class="pf-step-info">
-              <div class="pf-step-label">หมวดหมู่</div>
-              <div class="pf-step-sub" id="summCatStep">เลือกหมวดหมู่</div>
-            </div>
-          </div>
-          <div class="pf-step-connector" id="conn-1"></div>
+    <!-- FLOATING SAVE BUTTON -->
+    <button
+      class="pf-fab-save"
+      onclick="saveProduct()"
+      title="บันทึกสินค้า"
+      aria-label="บันทึกสินค้า"
+    >
+      💾
+    </button>
 
-          <div class="pf-step" data-step="2" onclick="goToStep(2)">
-            <div class="pf-step-num"><span>2</span></div>
-            <div class="pf-step-info">
-              <div class="pf-step-label">ประเภทสินค้า</div>
-              <div class="pf-step-sub">เดี่ยว / ชุด</div>
-            </div>
-          </div>
-          <div class="pf-step-connector" id="conn-2"></div>
-
-          <div class="pf-step" data-step="3" onclick="goToStep(3)">
-            <div class="pf-step-num"><span>3</span></div>
-            <div class="pf-step-info">
-              <div class="pf-step-label">ข้อมูลสินค้า</div>
-              <div class="pf-step-sub">ชื่อ, ราคา, รูป</div>
-            </div>
-          </div>
-        </div>
-
-        <div class="pf-sidebar-summary">
-          <div class="pf-summary-box">
-            <div class="pf-summary-title">สรุปข้อมูล</div>
-            <div class="pf-summary-item">
-              <span>หมวดหมู่</span
-              ><span class="pf-summary-val" id="summCat">—</span>
-            </div>
-            <div class="pf-summary-item">
-              <span>ประเภท</span
-              ><span class="pf-summary-val" id="summType">—</span>
-            </div>
-            <div class="pf-summary-item">
-              <span>Variants</span
-              ><span class="pf-summary-val" id="summVars">—</span>
-            </div>
-          </div>
-        </div>
-      </aside>
-
-      <!-- MAIN CONTENT -->
-      <main class="pf-main">
-        <!-- STEP 1: หมวดหมู่ -->
+    <!-- PAGE CONTENT (.page → app sidebar injected รอบนอกโดย sidebar.js) -->
+    <div class="page">
+        <!-- STEP 1+2: COMPACT SELECTOR (หมวดหมู่ + ประเภทสินค้า) -->
         <div class="pf-section" data-step="1">
           <div class="pf-section-hdr">
             <div
@@ -170,81 +48,48 @@
               🏷️
             </div>
             <div>
-              <div class="pf-section-title">Step 1 — เลือกหมวดหมู่</div>
+              <div class="pf-section-title">เลือกหมวดหมู่ และ ประเภทสินค้า</div>
             </div>
             <div class="pf-section-sub">จำเป็นต้องเลือกก่อน</div>
           </div>
           <div class="pf-section-body">
-            <div
-              style="
-                font-size: 11.5px;
-                color: var(--text3);
-                margin-bottom: 14px;
-              "
-            >
-              เลือกหมวดหมู่ของสินค้า
-            </div>
             <select
               id="fCategory"
               style="display: none"
               onchange="onCategoryChange()"
             ></select>
-            <div id="categoryCardGrid" class="category-card-grid">
-              <div class="cat-card-empty">กำลังโหลดหมวดหมู่...</div>
-            </div>
-          </div>
-        </div>
-
-        <!-- STEP 2: ประเภทสินค้า -->
-        <div class="pf-section" data-step="2" style="display: none">
-          <div class="pf-section-hdr">
-            <div
-              class="pf-section-icon"
-              style="background: #fce7f3; color: #9d174d"
-            >
-              📦
-            </div>
-            <div><div class="pf-section-title">Step 2 — ประเภทสินค้า</div></div>
-            <span
-              id="catBadge"
-              style="
-                display: none;
-                font-size: 12px;
-                font-weight: 600;
-                background: var(--accent-pale);
-                color: var(--accent);
-                padding: 3px 10px;
-                border-radius: 5px;
-                margin-left: auto;
-              "
-            ></span>
-          </div>
-          <div class="pf-section-body">
-            <div class="type-selector">
-              <div
-                class="type-card"
-                data-type="single"
-                onclick="selectProductType('single')"
-              >
-                <div class="type-card-check">✓</div>
-                <div class="type-card-icon">📦</div>
-                <div class="type-card-label">สินค้าเดี่ยว</div>
-                <div class="type-card-desc">
-                  สินค้าชิ้นเดียว ไม่มีตัวเลือก<br />เช่น กระดาษ A4, ปากกา,
-                  แฟ้มเจาะรู
+            <div class="pf-pill-bar">
+              <div class="pf-pill-group">
+                <div class="pf-pill-label">
+                  หมวดหมู่ <span class="req">*</span>
+                </div>
+                <div class="pf-pills" id="categoryPills">
+                  <div class="pf-pill-empty">กำลังโหลดหมวดหมู่...</div>
                 </div>
               </div>
-              <div
-                class="type-card"
-                data-type="variable"
-                onclick="selectProductType('variable')"
-              >
-                <div class="type-card-check">✓</div>
-                <div class="type-card-icon">👕</div>
-                <div class="type-card-label">สินค้าชุด (Variants)</div>
-                <div class="type-card-desc">
-                  สินค้าที่มีหลายตัวเลือก เช่น หลายสี หลายไซส์<br />แต่ละตัวเลือกมี
-                  Stock แยกกัน
+              <div class="pf-pill-group">
+                <div class="pf-pill-label">
+                  ประเภทสินค้า <span class="req">*</span>
+                </div>
+                <div class="pf-pills" id="typePills">
+                  <button
+                    type="button"
+                    class="pf-pill"
+                    data-type="single"
+                    onclick="selectProductType('single')"
+                  >
+                    <span class="pf-pill-icon">📦</span
+                    ><span>สินค้าเดี่ยว</span>
+                  </button>
+                  <button
+                    type="button"
+                    class="pf-pill"
+                    data-type="variable"
+                    onclick="selectProductType('variable')"
+                  >
+                    <span class="pf-pill-icon">👕</span
+                    ><span>สินค้าชุด (Variants)</span>
+                  </button>
                 </div>
               </div>
             </div>
@@ -260,7 +105,7 @@
             >
               📋
             </div>
-            <div><div class="pf-section-title">Step 3 — ข้อมูลสินค้า</div></div>
+            <div><div class="pf-section-title">ข้อมูลสินค้า</div></div>
           </div>
           <div class="pf-section-body">
             <div class="section-divider" style="margin-top: 0">
@@ -284,20 +129,7 @@
               onchange="onImgFileSelected(event)"
             />
 
-            <div class="form-group" style="margin-bottom: 16px">
-              <label class="form-label"
-                >ชื่อสินค้า <span class="req">*</span></label
-              >
-              <input
-                class="form-control"
-                id="fName"
-                placeholder="ชื่อสินค้า"
-                style="font-size: 15px; font-weight: 500"
-                oninput="updateSummary()"
-              />
-            </div>
-
-            <!-- ราคา (สินค้าเดี่ยว) -->
+            <!-- ราคา (สินค้าเดี่ยว) — แสดงเฉพาะ single -->
             <div
               id="singlePriceSection"
               class="form-grid-2"
@@ -327,83 +159,92 @@
               </div>
             </div>
 
-            <div class="form-grid-2" style="margin-bottom: 16px">
-              <div class="form-group">
-                <label class="form-label"
-                  >หน่วยฐาน <span class="req">*</span></label
-                >
-                <input
-                  class="form-control"
-                  id="fBaseUnit"
-                  placeholder="เช่น ชิ้น, ตัว, อัน"
-                />
-              </div>
-              <div class="form-group">
-                <label class="form-label">จุดสั่งซื้อ (Reorder Point)</label>
-                <input
-                  class="form-control"
-                  id="fReorder"
-                  type="number"
-                  min="0"
-                  placeholder="0"
-                />
-              </div>
-            </div>
-
-            <div class="section-divider">หน่วยนับ (Units)</div>
-            <div
-              style="font-size: 12px; color: var(--text3); margin-bottom: 10px"
-            >
-              กำหนดหน่วยนับและอัตราการแปลง เช่น 1 กล่อง = 12 ชิ้น
-            </div>
-            <div id="unitsContainer"></div>
-            <button
-              class="btn btn-outline"
-              style="width: 100%; justify-content: center; margin-top: 8px"
-              onclick="addUnitRow()"
-            >
-              ＋ เพิ่มหน่วยนับ
-            </button>
-
-            <!-- Variant Section -->
-            <div id="variantSkuSection" style="display: none; margin-top: 20px">
-              <div class="section-divider" style="margin-bottom: 12px">
-                ตัวเลือก (Variants)
-              </div>
-              <div
-                style="
-                  font-size: 12px;
-                  color: var(--text3);
-                  margin-bottom: 10px;
-                "
-              >
-                กำหนดตัวเลือกของสินค้า เช่น สีแดง / สีน้ำเงิน หรือ Size S / M / L
-              </div>
-              <div id="variantSkuRows">
-                <div
-                  style="
-                    text-align: center;
-                    padding: 20px;
-                    color: var(--text3);
-                    border: 1.5px dashed var(--border);
-                    border-radius: 8px;
-                    font-size: 12px;
-                  "
-                >
-                  กด "+ เพิ่มตัวเลือก" เพื่อเพิ่มตัวเลือก
+            <!-- 2-COL: ซ้าย = ชื่อ/หน่วยฐาน/จุดสั่งซื้อ · ขวา = หน่วยนับ -->
+            <div class="pf-fields-grid">
+              <div class="pf-fields-col">
+                <div class="form-group">
+                  <label class="form-label"
+                    >ชื่อสินค้า <span class="req">*</span></label
+                  >
+                  <input
+                    class="form-control"
+                    id="fName"
+                    placeholder="ชื่อสินค้า"
+                    style="font-size: 15px; font-weight: 500"
+                    oninput="updateSummary()"
+                  />
+                </div>
+                <div class="form-group">
+                  <label class="form-label"
+                    >หน่วยฐาน <span class="req">*</span></label
+                  >
+                  <select class="form-control" id="fBaseUnit">
+                    <option value="">— เลือกหน่วย —</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">จุดสั่งซื้อ (Reorder Point)</label>
+                  <input
+                    class="form-control"
+                    id="fReorder"
+                    type="number"
+                    min="0"
+                    placeholder="0"
+                  />
                 </div>
               </div>
-              <button
-                class="btn btn-outline"
-                style="margin-top: 10px; font-size: 13px; padding: 8px 16px"
-                onclick="addVariantSkuRow()"
-              >
-                ＋ เพิ่มตัวเลือก
-              </button>
+
+              <div class="pf-fields-col">
+                <div class="section-divider" style="margin-top: 0">
+                  หน่วยนับ (Units)
+                </div>
+                <div
+                  style="
+                    font-size: 12px;
+                    color: var(--text3);
+                    margin-bottom: 10px;
+                  "
+                >
+                  กำหนดหน่วยนับและอัตราการแปลง เช่น 1 กล่อง = 12 ชิ้น
+                </div>
+                <div id="unitsContainer"></div>
+                <button
+                  class="btn btn-outline"
+                  style="width: 100%; justify-content: center; margin-top: 8px"
+                  onclick="addUnitRow()"
+                >
+                  ＋ เพิ่มหน่วยนับ
+                </button>
+              </div>
+            </div>
+
+            <!-- Variant Section -->
+            <div id="variantSkuSection" class="pf-variant-block" style="display: none">
+              <div class="pf-variant-hdr">
+                <div class="pf-variant-hdr-icon">🎨</div>
+                <div class="pf-variant-hdr-text">
+                  <div class="pf-variant-hdr-title">ตัวเลือกสินค้า (Variants)</div>
+                  <div class="pf-variant-hdr-sub">
+                    กำหนดตัวเลือกของสินค้า เช่น สีแดง / สีน้ำเงิน หรือ Size S / M / L
+                  </div>
+                </div>
+              </div>
+              <div class="pf-variant-body">
+                <div id="variantSkuRows">
+                  <div class="pf-variant-empty">
+                    กด "+ เพิ่มตัวเลือก" เพื่อเพิ่มตัวเลือก
+                  </div>
+                </div>
+                <button
+                  class="btn btn-outline pf-variant-add"
+                  onclick="addVariantSkuRow()"
+                >
+                  ＋ เพิ่มตัวเลือก
+                </button>
+              </div>
             </div>
           </div>
         </div>
-      </main>
     </div>
 
     <script src="../../js/core/imageCompressor.js"></script>

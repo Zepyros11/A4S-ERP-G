@@ -23,8 +23,12 @@ let allProducts = [];
 let categories = [];
 let units = [];
 let productImages = [];
-let sortKey = "product_name";
+// default = product_id ASC → ตามลำดับสร้าง (S/M/L/XL/2XL ตามที่กรอก)
+let sortKey = "product_id";
 let sortAsc = true;
+
+// parents ที่ user ขยายอยู่ (default = ย่อทั้งหมด · persist ระหว่าง re-render)
+const expandedParents = new Set();
 
 const EP_IMG_MAX = 5;
 let epImagesState = [];
@@ -96,24 +100,77 @@ function filterTable() {
   const catId = document.getElementById("filterCategory")?.value || "";
   const status = document.getElementById("filterStatus")?.value || "";
 
-  const filtered = allProducts.filter((p) => {
+  // group-aware filter: parent match → โชว์พร้อม variants ทั้งหมด
+  const parents = allProducts.filter((p) => !p.parent_product_id);
+  const childrenByParent = {};
+  allProducts
+    .filter((p) => p.parent_product_id)
+    .forEach((c) => {
+      (childrenByParent[c.parent_product_id] ||= []).push(c);
+    });
+
+  const matchProd = (p) => {
     const matchSearch =
       !search || (p.product_name || "").toLowerCase().includes(search);
     const matchCat = !catId || String(p.category_id) === catId;
     const matchStatus = !status || String(p.is_active) === status;
     return matchSearch && matchCat && matchStatus;
+  };
+
+  const filtered = [];
+  parents.forEach((p) => {
+    if (matchProd(p)) {
+      filtered.push(p);
+      (childrenByParent[p.product_id] || []).forEach((k) => filtered.push(k));
+    }
   });
 
-  renderProductsTable(filtered, categories, productImages, sortKey, sortAsc);
+  renderProductsTable(
+    filtered,
+    categories,
+    productImages,
+    sortKey,
+    sortAsc,
+    expandedParents,
+  );
 }
 
 function updateStatusCards() {
-  const total = allProducts.length;
-  const active = allProducts.filter((p) => p.is_active).length;
-  document.getElementById("cardTotal").textContent = total;
-  document.getElementById("cardActive").textContent = active;
-  document.getElementById("cardInactive").textContent = total - active;
+  // ชุดสินค้า = parents/singletons (top-level, ไม่มี parent_product_id)
+  // ตัวเลือก (SKU ขายจริง) = variants + singletons — ไม่นับ parent ที่เป็น umbrella ของ variants
+  const parentIdsWithKids = new Set(
+    allProducts
+      .filter((p) => p.parent_product_id)
+      .map((c) => c.parent_product_id),
+  );
+  const isSku = (p) =>
+    p.parent_product_id || !parentIdsWithKids.has(p.product_id);
+
+  const products = allProducts.filter((p) => !p.parent_product_id).length;
+  const skus = allProducts.filter(isSku).length;
+  const activeSkus = allProducts.filter((p) => isSku(p) && p.is_active).length;
+
+  document.getElementById("cardProducts").textContent = products;
+  document.getElementById("cardSkus").textContent = skus;
+  document.getElementById("cardActive").textContent = activeSkus;
+  document.getElementById("cardInactive").textContent = skus - activeSkus;
 }
+
+// ── COLLAPSE / EXPAND VARIANT GROUP ──────────────────────
+// default = collapsed · expandedParents เก็บเฉพาะที่ user กดขยายไว้
+window.toggleVariantGroup = function (parentId) {
+  const willExpand = !expandedParents.has(parentId);
+  if (willExpand) expandedParents.add(parentId);
+  else expandedParents.delete(parentId);
+
+  const willCollapse = !willExpand;
+  document
+    .querySelector(`.prod-collapse-btn[data-parent="${parentId}"]`)
+    ?.classList.toggle("collapsed", willCollapse);
+  document
+    .querySelectorAll(`tr[data-parent-id="${parentId}"]`)
+    .forEach((r) => r.classList.toggle("row-collapsed", willCollapse));
+};
 
 // ── SORT ──────────────────────────────────────────────────
 window.sortTable = function (key) {
@@ -126,25 +183,41 @@ window.sortTable = function (key) {
 };
 
 // ── DELETE ────────────────────────────────────────────────
+async function deleteProductCascade(productId) {
+  // หา variants ที่เป็น children ของ parent นี้
+  const kids = allProducts.filter((p) => p.parent_product_id === productId);
+  // ลบ children's units/images/row ก่อน (กัน orphan ใน product_units/product_images)
+  for (const k of kids) {
+    await removeProductUnits(k.product_id).catch(() => {});
+    await removeProductImages(k.product_id).catch(() => {});
+    await removeProduct(k.product_id);
+  }
+  // ลบ parent (หรือ singleton) — DB จะ cascade ลบ variants ที่เหลือผ่าน FK ด้วย
+  await removeProductUnits(productId).catch(() => {});
+  await removeProductImages(productId).catch(() => {});
+  await removeProduct(productId);
+}
+
 window.deleteProduct = function (productId) {
   const prod = allProducts.find((p) => p.product_id === productId);
   if (!prod) return;
 
-  DeleteModal.open(
-    `ต้องการลบสินค้า "${prod.product_name}" หรือไม่ ?`,
-    async () => {
-      showLoading(true);
-      try {
-        await removeProductUnits(productId).catch(() => {});
-        await removeProduct(productId);
-        showToast("ลบสินค้าแล้ว", "success");
-        await loadData();
-      } catch (e) {
-        showToast("ลบสินค้าไม่ได้: " + e.message, "error");
-      }
-      showLoading(false);
-    },
-  );
+  const kids = allProducts.filter((p) => p.parent_product_id === productId);
+  const msg = kids.length
+    ? `ต้องการลบ "${prod.product_name}" พร้อมตัวเลือก ${kids.length} รายการ หรือไม่ ?`
+    : `ต้องการลบสินค้า "${prod.product_name}" หรือไม่ ?`;
+
+  DeleteModal.open(msg, async () => {
+    showLoading(true);
+    try {
+      await deleteProductCascade(productId);
+      showToast("ลบสินค้าแล้ว", "success");
+      await loadData();
+    } catch (e) {
+      showToast("ลบสินค้าไม่ได้: " + e.message, "error");
+    }
+    showLoading(false);
+  });
 };
 
 // ── BULK DELETE ───────────────────────────────────────────
@@ -170,14 +243,23 @@ window.deleteSelectedProducts = async function () {
   const ids = getSelectedProducts();
   if (!ids.length) return;
 
+  // ถ้าเลือกทั้ง parent และ child ของ parent นั้น → ลบ parent แล้ว cascade ครอบคลุม child
+  const idSet = new Set(ids);
+  const toDelete = ids.filter((id) => {
+    const prod = allProducts.find((p) => p.product_id === id);
+    if (!prod) return false;
+    if (prod.parent_product_id && idSet.has(prod.parent_product_id))
+      return false;
+    return true;
+  });
+
   DeleteModal.open(
     `ต้องการลบสินค้า ${ids.length} รายการ หรือไม่ ?`,
     async () => {
       showLoading(true);
       try {
-        for (const id of ids) {
-          await removeProductUnits(id).catch(() => {});
-          await removeProduct(id);
+        for (const id of toDelete) {
+          await deleteProductCascade(id);
         }
         showToast("ลบสินค้าที่เลือกแล้ว", "success");
         await loadData();
@@ -190,15 +272,36 @@ window.deleteSelectedProducts = async function () {
 };
 
 // ── TOGGLE STATUS ─────────────────────────────────────────
+// parent → cascade ไปทุก variants · child → เฉพาะตัวเอง
 window.toggleProductActive = async function (productId, el) {
   const isActive = el.checked;
+  const prod = allProducts.find((p) => p.product_id === productId);
+  if (!prod) return;
+  const kids = allProducts.filter((p) => p.parent_product_id === productId);
+
   try {
     await updateProductStatus(productId, isActive);
-    const prod = allProducts.find((p) => p.product_id === productId);
-    if (prod) prod.is_active = isActive;
+    prod.is_active = isActive;
+
+    if (kids.length) {
+      // cascade — update children พร้อมกัน
+      await Promise.all(
+        kids.map((k) =>
+          updateProductStatus(k.product_id, isActive).then(() => {
+            k.is_active = isActive;
+          }),
+        ),
+      );
+      // re-render เพื่อ sync child checkboxes
+      filterTable();
+    }
     updateStatusCards();
     showToast(
-      isActive ? "เปิดใช้งานสินค้าแล้ว" : "ปิดใช้งานสินค้าแล้ว",
+      kids.length
+        ? `${isActive ? "เปิด" : "ปิด"}ใช้งานพร้อมตัวเลือก ${kids.length} รายการ`
+        : isActive
+          ? "เปิดใช้งานสินค้าแล้ว"
+          : "ปิดใช้งานสินค้าแล้ว",
       "success",
     );
   } catch (e) {
@@ -236,6 +339,13 @@ function closeCategoryPicker(e) {
 window.changeProductCategory = async function (productId, categoryId) {
   try {
     await updateProductCategory(productId, categoryId);
+    // cascade ไปยัง variants (ถ้าเป็น parent) — variants ใช้หมวดหมู่ร่วมกับ parent
+    const kids = allProducts.filter((p) => p.parent_product_id === productId);
+    if (kids.length) {
+      await Promise.all(
+        kids.map((k) => updateProductCategory(k.product_id, categoryId)),
+      );
+    }
     document.getElementById("catPicker").style.display = "none";
     showToast("เปลี่ยนหมวดหมู่แล้ว", "success");
     await loadData();
@@ -341,10 +451,20 @@ let epProductId = null;
 let epSlotTarget = null;
 
 window.openEditPanel = function (productId) {
-  epProductId = productId;
   const prod = allProducts.find((p) => p.product_id === productId);
   if (!prod) return;
 
+  // ถ้าเป็น parent ของ variants → ไปหน้า form (แก้รวมทั้งชุด)
+  const isVariantParent = allProducts.some(
+    (p) => p.parent_product_id === productId,
+  );
+  if (isVariantParent) {
+    window.location.href = `./product-form.html?id=${productId}`;
+    return;
+  }
+
+  // Singleton → ใช้ modal เดิม
+  epProductId = productId;
   document.getElementById("epName").value = prod.product_name || "";
   document.getElementById("epCost").value = prod.cost_price || "";
   document.getElementById("epSale").value = prod.sale_price || "";

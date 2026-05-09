@@ -78,10 +78,6 @@
       </div>
       <select class="filter-select" id="filterType">
         <option value="">🏢 ทุกประเภท</option>
-        <option value="MAIN">🏣 คลังหลัก</option>
-        <option value="BRANCH">🏪 คลังสาขา</option>
-        <option value="TRANSIT">📦 จุดพักสินค้า</option>
-        <option value="RETURN">↩️ จุดคืนสินค้า</option>
       </select>
       <select class="filter-select" id="filterStatus">
         <option value="">⚪ ทุกสถานะ</option>
@@ -104,7 +100,6 @@
       <table class="data-table">
         <thead>
           <tr>
-            <th onclick="sortTable('warehouse_code')">รหัส <span class="sort-icon" id="sort-warehouse_code">⇅</span></th>
             <th onclick="sortTable('warehouse_name')">ชื่อคลัง <span class="sort-icon" id="sort-warehouse_name">⇅</span></th>
             <th onclick="sortTable('warehouse_type')">ประเภท <span class="sort-icon" id="sort-warehouse_type">⇅</span></th>
             <th onclick="sortTable('manager_name')">ผู้ดูแล <span class="sort-icon" id="sort-manager_name">⇅</span></th>
@@ -114,7 +109,7 @@
           </tr>
         </thead>
         <tbody id="whTable">
-          <tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text3)">กำลังโหลด...</td></tr>
+          <tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text3)">กำลังโหลด...</td></tr>
         </tbody>
       </table>
     </div>

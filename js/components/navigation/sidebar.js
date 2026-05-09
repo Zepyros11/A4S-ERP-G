@@ -116,6 +116,12 @@
       id: "g-stock",
       items: [
         {
+          id: "stock-dashboard",
+          icon: "📊",
+          label: "Stock Dashboard",
+          path: BASE_PATH + "/modules/inventory/stock-dashboard.html",
+        },
+        {
           id: "products",
           icon: "✏️",
           label: "รายการสินค้า",
@@ -133,6 +139,13 @@
           icon: "🏷️",
           label: "หมวดหมู่",
           path: BASE_PATH + "/modules/inventory/categories-list.html",
+          section: "setup",
+        },
+        {
+          id: "units",
+          icon: "📐",
+          label: "หน่วยนับ",
+          path: BASE_PATH + "/modules/inventory/units-list.html",
           section: "setup",
         },
         {
@@ -448,8 +461,10 @@
     "event-media": "media_fb_view",
     "line-promote": "line_promote_view",
     categories: "inv_cat_view",
+    units: "inv_cat_view",
     warehouses: "warehouse_view",
     products: "product_view",
+    "stock-dashboard": "product_view",
     "stock-initial": "stock_init_view",
     "stock-move": "stock_move_view",
     po: "po_view",
@@ -537,11 +552,12 @@
     "event-media",
     "line-promote",
     //  **** Inventory ****
+    "stock-dashboard",
     "categories",
+    "units",
     "warehouses",
     "products",
     "stock-initial",
-    // "dashboard",
     // "stock-move",
     //**** SETTING ****
     "settings",
@@ -631,7 +647,8 @@
     #erp-sidebar::-webkit-scrollbar-thumb{background:#21262d;border-radius:2px;}
     #erp-main{flex:1;min-width:0;overflow-y:auto;height:calc(100vh - 56px);}
 
-    .sb-logo{position:sticky;top:0;z-index:10;background:#0d1117;padding:10px 12px;border-bottom:1px solid #21262d;display:flex;align-items:center;justify-content:space-between;gap:8px;}
+    .sb-logo{position:sticky;top:0;z-index:10;background:#0d1117;padding:10px 12px;border-bottom:1px solid #21262d;display:flex;align-items:center;justify-content:space-between;gap:6px;}
+    #erp-sidebar.collapsed .sb-collapse-all{display:none;}
     .sb-logo-text{font-size:15px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;transition:opacity .2s,width .25s;}
     .sb-logo-text em{color:#6e7681;font-style:normal;font-weight:400;}
     #erp-sidebar.collapsed .sb-logo-text{opacity:0;width:0;}
@@ -646,6 +663,8 @@
     #erp-sidebar.collapsed .sb-search-wrap{display:none;}
     .sb-toggle{width:28px;height:28px;border-radius:6px;border:none;background:#21262d;color:#8b949e;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;transition:all .18s;}
     .sb-toggle:hover{background:#30363d;color:#e6edf3;}
+    .sb-collapse-all{width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;border-radius:6px;border:none;background:#21262d;color:#8b949e;cursor:pointer;font-size:13px;line-height:1;flex-shrink:0;transition:all .18s;}
+    .sb-collapse-all:hover{background:#30363d;color:#e6edf3;}
 
     /* search filter — hide non-matching */
     .sb-group.sb-hidden,.sb-subgroup.sb-hidden,.sb-item.sb-hidden{display:none!important;}
@@ -920,6 +939,7 @@
           <input type="text" class="sb-search" id="sb-search" placeholder="ค้นหาเมนู..." autocomplete="off" />
           <button type="button" class="sb-search-clear" id="sb-search-clear" title="ล้าง">×</button>
         </div>
+        <button class="sb-collapse-all" onclick="collapseAllGroups()" title="ย่อเมนูทั้งหมด">⇈</button>
         <button class="sb-toggle" onclick="toggleSidebar()" title="ย่อ/ขยาย">
           <span id="sb-icon">${collapsed ? "›" : "‹"}</span>
         </button>
@@ -1036,6 +1056,22 @@
     if (isOpen) og = og.filter((id) => id !== groupId);
     else if (!og.includes(groupId)) og.push(groupId);
     localStorage.setItem("sb_open_groups", JSON.stringify(og));
+  };
+
+  window.collapseAllGroups = function () {
+    const sb = document.getElementById("erp-sidebar");
+    if (!sb) return;
+    sb.querySelectorAll(".sb-grp-hdr.open").forEach((h) =>
+      h.classList.remove("open"),
+    );
+    sb.querySelectorAll(".sb-items.open").forEach((i) =>
+      i.classList.remove("open"),
+    );
+    sb.querySelectorAll(".sb-subgroup.open").forEach((s) =>
+      s.classList.remove("open"),
+    );
+    localStorage.setItem("sb_open_groups", "[]");
+    localStorage.setItem("sb_open_subgroups", "[]");
   };
 
   window.toggleSubgroup = function (subgroupId) {

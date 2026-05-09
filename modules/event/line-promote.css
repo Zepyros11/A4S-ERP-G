@@ -3,6 +3,59 @@
    ใช้ร่วมกับ media-schedule.css (modal/form styles ที่ใช้ซ้ำ)
 ========================================================= */
 
+/* ── LINE QUOTA BADGE (in page-hero) ── */
+.lp-quota-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 8px;
+  color: #fff;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .15s, border-color .15s, transform .1s;
+  position: relative;
+  min-width: 130px;
+}
+.lp-quota-badge:hover {
+  background: rgba(255, 255, 255, 0.28);
+  border-color: rgba(255, 255, 255, 0.45);
+}
+.lp-quota-badge:active { transform: scale(0.97); }
+.lp-quota-icon { font-size: 14px; }
+.lp-quota-text {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 12px;
+  letter-spacing: .2px;
+  white-space: nowrap;
+}
+.lp-quota-bar {
+  position: absolute;
+  left: 8px; right: 8px; bottom: 3px;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.22);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.lp-quota-bar-fill {
+  height: 100%;
+  width: 0%;
+  background: #4ade80;
+  transition: width .4s ease, background .2s;
+  border-radius: 2px;
+}
+.lp-quota-badge.warn .lp-quota-bar-fill { background: #facc15; }
+.lp-quota-badge.danger .lp-quota-bar-fill { background: #f87171; }
+.lp-quota-badge.danger .lp-quota-text { color: #fecaca; }
+.lp-quota-badge.loading .lp-quota-text { opacity: .65; }
+.lp-quota-badge.error {
+  background: rgba(248, 113, 113, 0.18);
+  border-color: rgba(248, 113, 113, 0.45);
+}
+
 /* ── TEMPLATE EDITOR ROW ── */
 .lp-tpl-row {
   background: #fff;

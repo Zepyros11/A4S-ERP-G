@@ -77,6 +77,8 @@ let _selectedPostIds = new Set();   // bulk selection
 // ── INIT ──────────────────────────────────────────────────
 async function initPage() {
   showLoading(true);
+  // โหลด LINE quota แบบ background (ไม่บล็อก UI)
+  loadLineQuota().catch(() => {});
   try {
     const params = new URLSearchParams(window.location.search);
     const urlEventId = params.get("event_id");
@@ -1595,6 +1597,65 @@ window.copyDiagOutput = async function () {
     showToast("Copy แล้ว ✅", "success");
   } catch {
     showToast("Copy ไม่สำเร็จ", "error");
+  }
+};
+
+// โหลด LINE quota + แสดงใน badge บน hero
+//   silent=false → toast เมื่อกดเอง (refresh manual)
+//   silent=true  → ไม่ toast (เรียกตอน init page)
+window.loadLineQuota = async function (manualRefresh = false) {
+  const badge = document.getElementById("lpQuotaBadge");
+  const text  = document.getElementById("lpQuotaText");
+  const fill  = document.getElementById("lpQuotaBarFill");
+  if (!badge || !text || !fill) return;
+
+  const proxyBase = (localStorage.getItem("erp_proxy_url") || "").replace(/\/+$/, "");
+  if (!proxyBase) {
+    badge.classList.remove("warn", "danger", "loading");
+    badge.classList.add("error");
+    text.textContent = "no proxy";
+    badge.title = "ยังไม่ได้ตั้ง erp_proxy_url ใน localStorage";
+    return;
+  }
+
+  badge.classList.add("loading");
+  badge.classList.remove("error");
+  if (manualRefresh) text.textContent = "...";
+
+  try {
+    const r = await fetch(`${proxyBase}/line/quota`, { cache: "no-store" });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok || !data.ok) throw new Error(data.error || `HTTP ${r.status}`);
+
+    badge.classList.remove("loading", "error", "warn", "danger");
+
+    if (data.type === "none" || data.value == null) {
+      // unlimited (paid plan with no cap)
+      text.textContent = `${data.totalUsage.toLocaleString()} / ∞`;
+      fill.style.width = "0%";
+      badge.title = `ส่งไปแล้วเดือนนี้: ${data.totalUsage.toLocaleString()} ข้อความ\nแพ็กเกจไม่จำกัดโควตา`;
+    } else {
+      const used = data.totalUsage;
+      const limit = data.value;
+      const pct = data.percent ?? 0;
+      text.textContent = `${used.toLocaleString()} / ${limit.toLocaleString()}`;
+      fill.style.width = `${pct}%`;
+      if (pct >= 90) badge.classList.add("danger");
+      else if (pct >= 70) badge.classList.add("warn");
+      badge.title =
+        `📊 LINE Messaging quota เดือนนี้\n` +
+        `  ใช้ไป: ${used.toLocaleString()} / ${limit.toLocaleString()} (${pct}%)\n` +
+        `  เหลือ: ${data.remaining.toLocaleString()} ข้อความ\n` +
+        `(reset วันที่ 1 ของเดือนถัดไป) — คลิกเพื่อรีเฟรช`;
+    }
+
+    if (manualRefresh && typeof showToast === "function") showToast("รีเฟรชโควตาแล้ว", "success");
+  } catch (e) {
+    badge.classList.remove("loading", "warn", "danger");
+    badge.classList.add("error");
+    text.textContent = "error";
+    badge.title = `ดึงโควตาไม่ได้: ${e.message}\nคลิกเพื่อลองใหม่`;
+    console.warn("loadLineQuota:", e.message);
   }
 };
 

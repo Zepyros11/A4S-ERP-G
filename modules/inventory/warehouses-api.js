@@ -83,6 +83,53 @@ export async function fetchStock() {
 }
 
 /* ================================
+   USERS (สำหรับ dropdown ผู้ดูแล)
+================================ */
+
+export async function fetchUsers() {
+  try {
+    return await sbFetch("users", {
+      query: "?select=user_id,full_name&order=full_name.asc",
+    });
+  } catch {
+    return [];
+  }
+}
+
+/* ================================
+   WAREHOUSE TYPES
+================================ */
+
+export async function fetchWarehouseTypes() {
+  try {
+    return await sbFetch("warehouse_types", {
+      query: "?select=*&order=sort_order.asc,type_id.asc",
+    });
+  } catch {
+    return [];
+  }
+}
+
+export async function createWarehouseType(data) {
+  return sbFetch("warehouse_types", { method: "POST", body: data });
+}
+
+export async function updateWarehouseType(id, data) {
+  return sbFetch("warehouse_types", {
+    method: "PATCH",
+    query: `?type_id=eq.${id}`,
+    body: data,
+  });
+}
+
+export async function removeWarehouseType(id) {
+  return sbFetch("warehouse_types", {
+    method: "DELETE",
+    query: `?type_id=eq.${id}`,
+  });
+}
+
+/* ================================
    COUNTRIES
 ================================ */
 

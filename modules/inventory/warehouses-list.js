@@ -7,6 +7,8 @@ import {
   fetchWarehouses,
   fetchStock,
   fetchCountries,
+  fetchUsers,
+  fetchWarehouseTypes,
   createWarehouse,
   updateWarehouse,
   removeWarehouse,
@@ -23,6 +25,8 @@ import { renderWarehousesTable } from "./warehouses-table.js";
 let warehouses = [];
 let stock = [];
 let countries = [];
+let users = [];
+let types = [];
 let currentSort = { field: "", dir: "asc" };
 let currentPanelItems = [];
 
@@ -57,17 +61,22 @@ async function loadFormModal() {
 async function loadData() {
   showLoading(true);
   try {
-    [warehouses, stock, countries] = await Promise.all([
+    [warehouses, stock, countries, users, types] = await Promise.all([
       fetchWarehouses(),
       fetchStock(),
       fetchCountries(),
+      fetchUsers(),
+      fetchWarehouseTypes(),
     ]);
 
     warehouses = warehouses || [];
     stock = stock || [];
     countries = countries || [];
+    users = users || [];
+    types = types || [];
 
-    setFormState(warehouses, countries);
+    setFormState(warehouses, countries, users, types);
+    populateTypeFilter();
     renderTable();
     renderStats();
   } catch (e) {
@@ -81,7 +90,22 @@ async function loadData() {
 ================================ */
 
 function renderTable() {
-  renderWarehousesTable(warehouses, stock, countries);
+  renderWarehousesTable(warehouses, stock, countries, types);
+}
+
+function populateTypeFilter() {
+  const sel = document.getElementById("filterType");
+  if (!sel) return;
+  const cur = sel.value;
+  sel.innerHTML =
+    `<option value="">🏢 ทุกประเภท</option>` +
+    types
+      .map(
+        (t) =>
+          `<option value="${t.type_code}">${t.icon || "📦"} ${t.type_name}</option>`,
+      )
+      .join("");
+  sel.value = cur;
 }
 
 /* ================================
