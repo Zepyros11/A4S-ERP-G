@@ -61,6 +61,7 @@ async function loadData() {
       initMap[`${r.product_id}-${r.warehouse_id}`] = r;
     });
 
+    populateCategoryFilter();
     renderStats();
     redraw();
   } catch (err) {
@@ -76,6 +77,21 @@ function bindEvents() {
   document
     .getElementById("filterFillStatus")
     ?.addEventListener("change", redraw);
+  document
+    .getElementById("filterCategory")
+    ?.addEventListener("change", redraw);
+}
+
+function populateCategoryFilter() {
+  const sel = document.getElementById("filterCategory");
+  if (!sel) return;
+  sel.innerHTML = '<option value="">⚪ ทุกหมวดหมู่</option>';
+  categories.forEach((c) =>
+    sel.insertAdjacentHTML(
+      "beforeend",
+      `<option value="${c.category_id}">${c.icon || ""} ${c.category_name}</option>`,
+    ),
+  );
 }
 
 // ── Redraw product list ──────────────────────────────────────
@@ -84,6 +100,8 @@ function redraw() {
     document.getElementById("searchInput")?.value.toLowerCase() || "";
   const fillStatus =
     document.getElementById("filterFillStatus")?.value || "";
+  const categoryId =
+    document.getElementById("filterCategory")?.value || "";
 
   renderProductList({
     products,
@@ -94,6 +112,7 @@ function redraw() {
     currentSort,
     search,
     fillStatus,
+    categoryId,
   });
 }
 

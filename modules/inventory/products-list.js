@@ -12,10 +12,6 @@ import {
   updateProductStatus,
   updateProductStockAlert,
   updateProductCategory,
-  removeProductImages,
-  createProductImage,
-  uploadProductImage,
-  updateProduct,
 } from "./products-api.js";
 import { renderProductsTable } from "./products-table.js";
 
@@ -30,9 +26,6 @@ let sortAsc = true;
 
 // parents ที่ user ขยายอยู่ (default = ย่อทั้งหมด · persist ระหว่าง re-render)
 const expandedParents = new Set();
-
-const EP_IMG_MAX = 5;
-let epImagesState = [];
 
 // ── INIT ──────────────────────────────────────────────────
 async function initPage() {
@@ -76,10 +69,6 @@ function bindEvents() {
   document
     .getElementById("filterStatus")
     ?.addEventListener("change", filterTable);
-
-  // epUpload
-  const epUpload = document.getElementById("epUpload");
-  if (epUpload) epUpload.addEventListener("change", handleEpUpload);
 }
 
 // ── FILTERS ───────────────────────────────────────────────
@@ -554,129 +543,7 @@ if (document.readyState === "loading") {
 } else {
   initPage();
 }
-// ── EDIT MODAL ────────────────────────────────────────────
-let epProductId = null;
-let epSlotTarget = null;
-
+// ── EDIT → ไปหน้า form หลักเสมอ (ทั้ง variant parent และ singleton) ──
 window.openEditPanel = function (productId) {
-  const prod = allProducts.find((p) => p.product_id === productId);
-  if (!prod) return;
-
-  // ถ้าเป็น parent ของ variants → ไปหน้า form (แก้รวมทั้งชุด)
-  const isVariantParent = allProducts.some(
-    (p) => p.parent_product_id === productId,
-  );
-  if (isVariantParent) {
-    window.location.href = `./product-form.html?id=${productId}`;
-    return;
-  }
-
-  // Singleton → ใช้ modal เดิม
-  epProductId = productId;
-  document.getElementById("epName").value = prod.product_name || "";
-  document.getElementById("epCost").value = prod.cost_price || "";
-  document.getElementById("epSale").value = prod.sale_price || "";
-
-  // โหลดรูปภาพ
-  epImagesState = productImages
-    .filter((i) => i.product_id === productId)
-    .sort((a, b) => a.sort_order - b.sort_order)
-    .map((i) => ({ url: i.url, file: null, imageId: i.image_id }));
-
-  renderEpGrid();
-  document.getElementById("epOverlay").classList.add("open");
-  document.getElementById("epModal").classList.add("open");
-};
-
-window.closeEditPanel = function () {
-  document.getElementById("epOverlay").classList.remove("open");
-  document.getElementById("epModal").classList.remove("open");
-  epProductId = null;
-  epImagesState = [];
-};
-
-function renderEpGrid() {
-  const grid = document.getElementById("epImageGrid");
-  const slots = [];
-  for (let i = 0; i < EP_IMG_MAX; i++) {
-    const img = epImagesState[i];
-    if (img) {
-      slots.push(`
-        <div class="ep-slot">
-          <img src="${img.url}" style="width:100%;height:100%;object-fit:cover;border-radius:6px">
-          <button class="ep-slot-remove" onclick="window.epRemoveSlot(${i})">✕</button>
-        </div>`);
-    } else {
-      slots.push(`
-        <div class="ep-slot" onclick="window.epPickSlot(${i})">
-          <span class="ep-slot-plus">＋</span>
-        </div>`);
-    }
-  }
-  grid.innerHTML = slots.join("");
-}
-
-window.epPickSlot = function (idx) {
-  epSlotTarget = idx;
-  document.getElementById("epUpload").value = "";
-  document.getElementById("epUpload").click();
-};
-
-window.epRemoveSlot = function (idx) {
-  epImagesState.splice(idx, 1);
-  renderEpGrid();
-};
-
-async function handleEpUpload(e) {
-  const file = e.target.files[0];
-  if (!file || epSlotTarget === null) return;
-  const tempUrl = URL.createObjectURL(file);
-  epImagesState[epSlotTarget] = { url: tempUrl, file, imageId: null };
-  renderEpGrid();
-}
-
-window.saveEditPanel = async function () {
-  if (!epProductId) return;
-  const name = document.getElementById("epName").value.trim();
-  const cost = parseFloat(document.getElementById("epCost").value) || 0;
-  const sale = parseFloat(document.getElementById("epSale").value) || 0;
-  if (!name) {
-    showToast("กรุณากรอกชื่อสินค้า", "error");
-    return;
-  }
-
-  showLoading(true);
-  try {
-    await updateProduct(epProductId, {
-      product_name: name,
-      cost_price: cost,
-      sale_price: sale,
-    });
-
-    // อัปโหลดรูปใหม่ที่มี file
-    for (let i = 0; i < epImagesState.length; i++) {
-      const slot = epImagesState[i];
-      if (slot.file) {
-        const uploadedUrl = await uploadProductImage(epProductId, slot.file, i);
-        epImagesState[i] = { url: uploadedUrl, file: null, imageId: null };
-      }
-    }
-
-    // ลบรูปเดิมแล้ว insert ใหม่
-    await removeProductImages(epProductId);
-    for (let i = 0; i < epImagesState.length; i++) {
-      await createProductImage({
-        product_id: epProductId,
-        url: epImagesState[i].url,
-        sort_order: i,
-      });
-    }
-
-    showToast("บันทึกสำเร็จ", "success");
-    window.closeEditPanel();
-    await loadData();
-  } catch (err) {
-    showToast("บันทึกไม่สำเร็จ: " + err.message, "error");
-  }
-  showLoading(false);
+  window.location.href = `./product-form.html?id=${productId}`;
 };

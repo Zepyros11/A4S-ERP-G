@@ -24,6 +24,7 @@ export function renderProductList({
   currentSort,
   search,
   fillStatus,
+  categoryId,
 }) {
   // group: parent + children
   const parents = products.filter((p) => !p.parent_product_id);
@@ -51,10 +52,12 @@ export function renderProductList({
   });
 
   // filter
+  const catFilter = categoryId ? String(categoryId) : "";
   const list = rows.filter((r) => {
     const q = (r.p.product_name || "").toLowerCase();
     if (search && !q.includes(search)) return false;
     if (fillStatus && r.status !== fillStatus) return false;
+    if (catFilter && String(r.p.category_id) !== catFilter) return false;
     return true;
   });
 
