@@ -36,7 +36,7 @@ function renderCategoryChips() {
   // Populate category dropdown menu
   const menu = document.getElementById("epgCatMenu");
   if (menu) {
-    const items = [{ id: "", label: "⚪ ทั้งหมด" }];
+    const items = [{ id: "", label: "🧿 ทั้งหมด" }];
     allCategories.forEach((cat) => {
       items.push({
         id: String(cat.event_category_id),

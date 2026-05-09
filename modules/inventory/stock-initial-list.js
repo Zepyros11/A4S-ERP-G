@@ -85,7 +85,7 @@ function bindEvents() {
 function populateCategoryFilter() {
   const sel = document.getElementById("filterCategory");
   if (!sel) return;
-  sel.innerHTML = '<option value="">⚪ ทุกหมวดหมู่</option>';
+  sel.innerHTML = '<option value="">🧿 ทุกหมวดหมู่</option>';
   categories.forEach((c) =>
     sel.insertAdjacentHTML(
       "beforeend",

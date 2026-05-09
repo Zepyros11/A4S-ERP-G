@@ -128,7 +128,7 @@ function populateFbPageFilters() {
     .map((p) => `<option value="${p.id}">${escapeHtml(p.page_name)}</option>`)
     .join("");
   if (filterSel) {
-    filterSel.innerHTML = `<option value="">⚪ ทุกเพจ</option>${opts}`;
+    filterSel.innerHTML = `<option value="">🧿 ทุกเพจ</option>${opts}`;
   }
   if (modalSel) {
     modalSel.innerHTML = opts || `<option value="">— ยังไม่มีเพจที่ตั้งค่า —</option>`;

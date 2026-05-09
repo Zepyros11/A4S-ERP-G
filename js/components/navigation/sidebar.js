@@ -122,6 +122,12 @@
           path: BASE_PATH + "/modules/inventory/stock-dashboard.html",
         },
         {
+          id: "stock-balance",
+          icon: "📦",
+          label: "Stock สินค้า",
+          path: BASE_PATH + "/modules/inventory/stock-balance.html",
+        },
+        {
           id: "products",
           icon: "✏️",
           label: "รายการสินค้า",
@@ -465,6 +471,7 @@
     warehouses: "warehouse_view",
     products: "product_view",
     "stock-dashboard": "product_view",
+    "stock-balance": "product_view",
     "stock-initial": "stock_init_view",
     "stock-move": "stock_move_view",
     po: "po_view",
@@ -553,6 +560,7 @@
     "line-promote",
     //  **** Inventory ****
     "stock-dashboard",
+    "stock-balance",
     "categories",
     "units",
     "warehouses",

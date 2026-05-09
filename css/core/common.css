@@ -1877,11 +1877,11 @@ select.form-control {
    Markup:
      <div class="dropdown filter-dropdown" id="myFilter">
        <button class="dropdown-toggle filter-dropdown-toggle" onclick="...">
-         <span class="filter-dropdown-label">⚪ ทั้งหมด</span>
+         <span class="filter-dropdown-label">🧿 ทั้งหมด</span>
          <span class="filter-dropdown-chevron">▾</span>
        </button>
        <div class="dropdown-menu">
-         <button class="dropdown-item active" data-value="">⚪ ทั้งหมด</button>
+         <button class="dropdown-item active" data-value="">🧿 ทั้งหมด</button>
          <button class="dropdown-item" data-value="1">🏢 งานประชุม</button>
        </div>
      </div>                                                              */

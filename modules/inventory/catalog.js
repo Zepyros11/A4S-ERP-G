@@ -1,6 +1,6 @@
 /* ============================================================
-   catalog.js — Product Catalog (Editorial scroll webapp)
-   Hero + sticky tabs + per-category sections + product grid
+   catalog.js — Product Catalog (Sidebar + Grid)
+   Left: category list · Right: search + sort + product cards
    ============================================================ */
 
 import {
@@ -11,31 +11,31 @@ import {
 } from "./products-api.js";
 
 // ── STATE ─────────────────────────────────────────────────
+const NO_IMAGE_SRC = "../../assets/images/NoImage.png";
+
 let allProducts = [];
 let categories = [];
 let units = [];
 let productImages = [];
 let imagesByProduct = {};
+let stockByProduct = {}; // product_id -> total signed qty (number)
+let stockByProductWh = {}; // product_id -> { warehouse_id: qty }
+let warehouses = [];
 
-let activeCatId = "all";
+let activeCatId = "all"; // "all" | category_id
+let activeFilter = "all"; // "all" | "instock" | "outstock"
 let searchTerm = "";
-let scrollSpyObserver = null;
+let sortMode = "default";
+let viewMode = localStorage.getItem("cat_view_mode") || "grid"; // "grid" | "list"
 
 // ── INIT ──────────────────────────────────────────────────
 window.addEventListener("DOMContentLoaded", () => {
   bindEvents();
   loadAll();
-  // set Buddhist year
-  const buddhist = new Date().getFullYear() + 543;
-  const volEl = document.getElementById("catVol");
-  if (volEl) volEl.textContent = buddhist;
 });
 
 function bindEvents() {
   document.getElementById("btnRefresh")?.addEventListener("click", loadAll);
-  document.getElementById("btnBackTop")?.addEventListener("click", () => {
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  });
   document.getElementById("catModalClose")?.addEventListener("click", closeModal);
   document.getElementById("catModalOv")?.addEventListener("click", closeModal);
   document.addEventListener("keydown", (e) => {
@@ -47,19 +47,54 @@ function bindEvents() {
     clearTimeout(searchTimer);
     searchTimer = setTimeout(() => {
       searchTerm = (e.target.value || "").toLowerCase().trim();
-      renderSections();
+      renderGrid();
     }, 180);
   });
+
+  document.getElementById("catSort")?.addEventListener("change", (e) => {
+    sortMode = e.target.value;
+    renderGrid();
+  });
+
+  // view mode toggle
+  document.querySelectorAll(".cat-view-btn[data-view]").forEach((btn) => {
+    btn.classList.toggle("active", btn.dataset.view === viewMode);
+    btn.addEventListener("click", () => {
+      viewMode = btn.dataset.view;
+      localStorage.setItem("cat_view_mode", viewMode);
+      document.querySelectorAll(".cat-view-btn[data-view]").forEach((x) =>
+        x.classList.toggle("active", x === btn)
+      );
+      renderGrid();
+    });
+  });
+}
+
+async function sbGet(path) {
+  const url = localStorage.getItem("sb_url") || "";
+  const key = localStorage.getItem("sb_key") || "";
+  if (!url || !key) return [];
+  try {
+    const res = await fetch(`${url}/rest/v1/${path}`, {
+      headers: { apikey: key, Authorization: `Bearer ${key}` },
+    });
+    if (!res.ok) return [];
+    return res.json();
+  } catch {
+    return [];
+  }
 }
 
 async function loadAll() {
   showLoading(true);
   try {
-    const [prods, cats, uts, imgs] = await Promise.all([
+    const [prods, cats, uts, imgs, mvs, whs] = await Promise.all([
       fetchProducts(),
       fetchCategories(),
       fetchProductUnits(),
       fetchProductImages(),
+      sbGet("stock_movements?select=product_id,warehouse_id,movement_type,qty"),
+      sbGet("warehouses?select=warehouse_id,warehouse_name,country,is_active"),
     ]);
     allProducts = prods || [];
     categories = (cats || [])
@@ -67,6 +102,7 @@ async function loadAll() {
       .sort((a, b) => (a.sort_order ?? 999) - (b.sort_order ?? 999));
     units = uts || [];
     productImages = imgs || [];
+    warehouses = whs || [];
 
     imagesByProduct = {};
     for (const im of productImages) {
@@ -78,9 +114,35 @@ async function loadAll() {
       );
     }
 
-    renderHeroStats();
-    renderTabs();
-    renderSections();
+    // build stockByProduct (totals) + stockByProductWh (per-warehouse)
+    // INIT/IN/ADJUST = +qty · OUT = -qty · INTERNAL = 0 (warehouse-to-warehouse transfer)
+    stockByProduct = {};
+    stockByProductWh = {};
+    for (const m of (mvs || [])) {
+      const q = +m.qty || 0;
+      let signed = 0;
+      switch (m.movement_type) {
+        case "OUT":
+          signed = -q;
+          break;
+        case "INTERNAL":
+          signed = 0;
+          break;
+        case "INIT":
+        case "IN":
+        case "ADJUST":
+        default:
+          signed = q;
+      }
+      stockByProduct[m.product_id] = (stockByProduct[m.product_id] || 0) + signed;
+      if (m.warehouse_id != null) {
+        const bucket = (stockByProductWh[m.product_id] ||= {});
+        bucket[m.warehouse_id] = (bucket[m.warehouse_id] || 0) + signed;
+      }
+    }
+
+    renderSidebar();
+    renderGrid();
   } catch (e) {
     showToast("โหลดข้อมูลไม่ได้: " + (e?.message || e), "error");
   }
@@ -97,6 +159,13 @@ function fmtNum(n) {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
+}
+
+function fmtQty(n) {
+  const v = +n || 0;
+  // integer if whole number, else up to 2 decimals
+  if (Number.isInteger(v)) return v.toLocaleString("th-TH");
+  return v.toLocaleString("th-TH", { maximumFractionDigits: 2 });
 }
 
 function escapeHtml(s) {
@@ -117,274 +186,286 @@ function getCategory(catId) {
   return categories.find((c) => c.category_id === catId);
 }
 
-function pad2(n) {
-  return String(n).padStart(2, "0");
+// Per-product current stock (already signed-summed across all movements)
+function getVariantStock(productId) {
+  return stockByProduct[productId] || 0;
 }
 
-function priceText(p) {
+// Per-warehouse breakdown for a product (for variants, sum across all variant ids)
+function getStockByWarehouse(productIds) {
+  const ids = Array.isArray(productIds) ? productIds : [productIds];
+  const totals = {};
+  for (const pid of ids) {
+    const bucket = stockByProductWh[pid] || {};
+    for (const whId in bucket) {
+      totals[whId] = (totals[whId] || 0) + bucket[whId];
+    }
+  }
+  // turn into array, attach warehouse meta, drop zero-only
+  return Object.entries(totals)
+    .map(([whId, qty]) => {
+      const wh = warehouses.find((w) => String(w.warehouse_id) === String(whId));
+      return {
+        warehouse_id: +whId,
+        warehouse_name: wh?.warehouse_name || `คลัง #${whId}`,
+        country: wh?.country || "",
+        qty,
+      };
+    })
+    .filter((x) => x.qty !== 0)
+    .sort((a, b) => b.qty - a.qty);
+}
+
+function priceMin(p) {
   const variants = getVariants(p.product_id);
   if (variants.length) {
     const prices = variants.map((v) => +v.sale_price).filter((x) => x > 0);
-    if (!prices.length)
-      return `<span class="cat-card-price-empty">— ราคา —</span>`;
-    const min = Math.min(...prices);
-    const max = Math.max(...prices);
-    if (min === max) return `฿${fmtNum(min)}`;
-    return `฿${fmtNum(min)}–${fmtNum(max)}`;
+    return prices.length ? Math.min(...prices) : 0;
   }
-  if (!p.sale_price)
-    return `<span class="cat-card-price-empty">— ราคา —</span>`;
-  return `฿${fmtNum(p.sale_price)}`;
+  return +p.sale_price || 0;
 }
 
-// ── FILTERED / GROUPED ────────────────────────────────────
-function getFilteredParents() {
+// total stock for a product (sum of variants, or self if singleton)
+function getTotalStock(p) {
+  const variants = getVariants(p.product_id);
+  const ids = variants.length ? variants.map((v) => v.product_id) : [p.product_id];
+  return ids.reduce((s, id) => s + getVariantStock(id), 0);
+}
+
+// ── FILTER + SORT ─────────────────────────────────────────
+function getFilteredProducts() {
   const parents = allProducts.filter((p) => !p.parent_product_id);
-  return parents.filter((p) => {
+  let list = parents.filter((p) => {
+    if (activeCatId !== "all" && String(p.category_id) !== String(activeCatId))
+      return false;
+    if (activeFilter === "instock" && getTotalStock(p) <= 0) return false;
+    if (activeFilter === "outstock" && getTotalStock(p) > 0) return false;
     if (searchTerm) {
       const hay = `${p.product_name || ""} ${p.product_code || ""}`.toLowerCase();
       if (!hay.includes(searchTerm)) return false;
     }
     return true;
   });
+
+  // sort
+  switch (sortMode) {
+    case "name-asc":
+      list.sort((a, b) => (a.product_name || "").localeCompare(b.product_name || "", "th"));
+      break;
+    case "name-desc":
+      list.sort((a, b) => (b.product_name || "").localeCompare(a.product_name || "", "th"));
+      break;
+    case "price-asc":
+      list.sort((a, b) => priceMin(a) - priceMin(b));
+      break;
+    case "price-desc":
+      list.sort((a, b) => priceMin(b) - priceMin(a));
+      break;
+    default:
+      // group by category sort_order, then product_name
+      list.sort((a, b) => {
+        const ca = getCategory(a.category_id);
+        const cb = getCategory(b.category_id);
+        const oa = ca?.sort_order ?? 999;
+        const ob = cb?.sort_order ?? 999;
+        if (oa !== ob) return oa - ob;
+        return (a.product_name || "").localeCompare(b.product_name || "", "th");
+      });
+  }
+
+  return list;
 }
 
-function groupByCategory(products) {
-  const byCat = new Map();
-  for (const p of products) {
-    const cid = p.category_id ?? "_none";
-    if (!byCat.has(cid)) byCat.set(cid, []);
-    byCat.get(cid).push(p);
-  }
-  const ordered = [];
-  for (const c of categories) {
-    if (byCat.has(c.category_id)) {
-      ordered.push({ cat: c, products: byCat.get(c.category_id) });
-      byCat.delete(c.category_id);
-    }
-  }
-  for (const [cid, prods] of byCat.entries()) {
-    ordered.push({
-      cat: { category_id: cid, category_name: "อื่น ๆ", icon: "📦" },
-      products: prods,
-    });
-  }
-  return ordered;
-}
-
-// ── RENDER: HERO STATS ────────────────────────────────────
-function renderHeroStats() {
-  const parents = allProducts.filter((p) => !p.parent_product_id);
-  const variantCount = allProducts.filter((p) => p.parent_product_id).length;
-  const leafParents = parents.filter(
-    (p) => getVariants(p.product_id).length === 0
-  ).length;
-  const totalSkus = leafParents + variantCount;
-
-  setText("kpiProducts", parents.length);
-  setText("kpiSkus", totalSkus);
-  setText("kpiCats", categories.length);
-  setText("catTotalItems", parents.length);
-}
-
-// ── RENDER: TABS ──────────────────────────────────────────
-function renderTabs() {
-  const wrap = document.getElementById("catTabs");
+// ── RENDER: SIDEBAR ───────────────────────────────────────
+function renderSidebar() {
+  const wrap = document.getElementById("catSideList");
   if (!wrap) return;
 
-  const grouped = groupByCategory(allProducts.filter((p) => !p.parent_product_id));
-  const allCount = allProducts.filter((p) => !p.parent_product_id).length;
+  const parents = allProducts.filter((p) => !p.parent_product_id);
+  const cntByCat = {};
+  for (const p of parents) {
+    const cid = p.category_id ?? "_none";
+    cntByCat[cid] = (cntByCat[cid] || 0) + 1;
+  }
 
-  const parts = [
-    `<a class="cat-tab${activeCatId === "all" ? " active" : ""}" data-cat="all" href="#cat-top">⚪ ทั้งหมด <span class="cat-tab-count">${allCount}</span></a>`,
+  // Set "All Product" count
+  const cntAll = document.getElementById("cntAll");
+  if (cntAll) cntAll.textContent = parents.length;
+
+  // First child: "All Product" — already in HTML, just rebind
+  const itemsHtml = [
+    `<button class="cat-side-item${activeCatId === "all" ? " active" : ""}" data-cat="all">
+      <span class="cat-side-icon">📦</span>
+      <span class="cat-side-name">All Product</span>
+      <span class="cat-side-count">${parents.length}</span>
+    </button>`,
   ];
-  for (const { cat, products } of grouped) {
-    parts.push(
-      `<a class="cat-tab" data-cat="${cat.category_id}" href="#cat-sec-${cat.category_id}">${escapeHtml(cat.icon || "📦")} ${escapeHtml(cat.category_name)} <span class="cat-tab-count">${products.length}</span></a>`
+  for (const c of categories) {
+    const n = cntByCat[c.category_id] || 0;
+    if (!n) continue; // hide empty categories
+    itemsHtml.push(
+      `<button class="cat-side-item${String(activeCatId) === String(c.category_id) ? " active" : ""}" data-cat="${escapeAttr(c.category_id)}">
+        <span class="cat-side-icon">${escapeHtml(c.icon || "📦")}</span>
+        <span class="cat-side-name">${escapeHtml(c.category_name || "—")}</span>
+        <span class="cat-side-count">${n}</span>
+      </button>`
     );
   }
-  wrap.innerHTML = parts.join("");
+  wrap.innerHTML = itemsHtml.join("");
 
-  // smooth scroll handler
-  wrap.querySelectorAll(".cat-tab").forEach((tab) => {
-    tab.addEventListener("click", (e) => {
-      e.preventDefault();
-      const cid = tab.dataset.cat;
-      activeCatId = cid;
-      setActiveTab(cid);
-      const targetSel = cid === "all" ? "#cat-top" : `#cat-sec-${cid}`;
-      const el = document.querySelector(targetSel);
-      if (el) {
-        const top =
-          el.getBoundingClientRect().top + window.scrollY - getStickyOffset();
-        window.scrollTo({ top, behavior: "smooth" });
-      }
+  wrap.querySelectorAll(".cat-side-item[data-cat]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      activeCatId = btn.dataset.cat === "all" ? "all" : btn.dataset.cat;
+      // numeric ids? keep as-is string; comparison uses String() everywhere
+      wrap
+        .querySelectorAll(".cat-side-item[data-cat]")
+        .forEach((x) => x.classList.toggle("active", x === btn));
+      renderGrid();
+    });
+  });
+
+  // Filter buttons
+  document.querySelectorAll(".cat-side-filter[data-filter]").forEach((btn) => {
+    btn.classList.toggle("active", btn.dataset.filter === activeFilter);
+    btn.addEventListener("click", () => {
+      activeFilter = btn.dataset.filter;
+      document
+        .querySelectorAll(".cat-side-filter[data-filter]")
+        .forEach((x) => x.classList.toggle("active", x === btn));
+      renderGrid();
     });
   });
 }
 
-function setActiveTab(catId) {
-  document.querySelectorAll(".cat-tab").forEach((t) => {
-    t.classList.toggle("active", t.dataset.cat === String(catId));
-  });
-  // scroll active tab into view inside the tab strip
-  const active = document.querySelector(".cat-tab.active");
-  if (active) {
-    const wrap = document.getElementById("catTabs");
-    if (wrap) {
-      const wrapRect = wrap.getBoundingClientRect();
-      const activeRect = active.getBoundingClientRect();
-      if (activeRect.left < wrapRect.left || activeRect.right > wrapRect.right) {
-        active.scrollIntoView({
-          behavior: "smooth",
-          inline: "center",
-          block: "nearest",
-        });
-      }
-    }
-  }
-}
-
-function getStickyOffset() {
-  // topbar height (~56) + sticky bar height (~58) + small gap
-  const topbar = document.querySelector(".topbar");
-  const sticky = document.querySelector(".cat-sticky");
-  return (topbar?.offsetHeight || 56) + (sticky?.offsetHeight || 58) - 1;
-}
-
-// ── RENDER: SECTIONS ──────────────────────────────────────
-function renderSections() {
-  const root = document.getElementById("catSections");
+// ── RENDER: GRID ──────────────────────────────────────────
+function renderGrid() {
+  const grid = document.getElementById("catGrid");
   const empty = document.getElementById("catEmpty");
-  if (!root) return;
+  const countEl = document.getElementById("catResultCount");
+  if (!grid) return;
 
-  const filtered = getFilteredParents();
-  if (!filtered.length) {
-    root.innerHTML = "";
+  const list = getFilteredProducts();
+
+  // Update current label
+  const labelIcon = document.querySelector(".cat-current-icon");
+  const labelName = document.querySelector(".cat-current-name");
+  if (activeCatId === "all") {
+    if (labelIcon) labelIcon.textContent = "📦";
+    if (labelName) labelName.textContent = "All Product";
+  } else {
+    const c = getCategory(activeCatId) ||
+      (typeof activeCatId === "string"
+        ? categories.find((x) => String(x.category_id) === activeCatId)
+        : null);
+    if (labelIcon) labelIcon.textContent = c?.icon || "📦";
+    if (labelName) labelName.textContent = c?.category_name || "—";
+  }
+
+  if (countEl) countEl.textContent = `${list.length} รายการ`;
+
+  // toggle layout class on grid container
+  grid.classList.toggle("cat-grid--list", viewMode === "list");
+  grid.classList.toggle("cat-grid--gridmode", viewMode === "grid");
+
+  if (!list.length) {
+    grid.innerHTML = "";
     if (empty) empty.style.display = "";
-    teardownScrollSpy();
     return;
   }
   if (empty) empty.style.display = "none";
 
-  const grouped = groupByCategory(filtered);
-
-  // anchor for "ทั้งหมด" tab top scroll
-  const html = [`<div id="cat-top"></div>`];
-  let secNum = 0;
-  for (const { cat, products } of grouped) {
-    secNum++;
-    html.push(renderSection(cat, products, secNum));
+  if (viewMode === "list") {
+    grid.innerHTML =
+      `<div class="cat-list-head">
+        <span class="cat-list-col cat-list-col-name">ชื่อสินค้า</span>
+        <span class="cat-list-col cat-list-col-cat">หมวดหมู่</span>
+        <span class="cat-list-col cat-list-col-opts">ตัวเลือก</span>
+        <span class="cat-list-col cat-list-col-stock">คงเหลือ</span>
+      </div>` + list.map((p) => renderListItem(p)).join("");
+  } else {
+    grid.innerHTML = list.map((p) => renderCard(p)).join("");
   }
-  root.innerHTML = html.join("");
 
-  // bind product clicks
-  root.querySelectorAll(".cat-card[data-id]").forEach((el) => {
-    el.addEventListener("click", () => {
-      const id = +el.dataset.id;
-      openModal(id);
-    });
+  grid.querySelectorAll("[data-id]").forEach((el) => {
+    const id = +el.dataset.id;
+    el.addEventListener("click", () => openModal(id));
   });
-
-  setupScrollSpy();
 }
 
-function renderSection(cat, products, secNum) {
-  const cards = products
-    .map((p, i) => renderCard(p, i + 1))
-    .join("");
+function renderListItem(p) {
+  const variants = getVariants(p.product_id);
+  const cat = getCategory(p.category_id);
+  const variantIds = variants.length ? variants.map((v) => v.product_id) : [p.product_id];
+  const totalStock = variantIds.reduce((s, id) => s + getVariantStock(id), 0);
+  const stockClass =
+    totalStock <= 0 ? "out" : totalStock < (p.reorder_point || 0) ? "low" : "ok";
+  const imgs = imagesByProduct[p.product_id] || [];
+  const thumbSrc = imgs[0]?.url || NO_IMAGE_SRC;
+
   return `
-    <section class="cat-section" id="cat-sec-${escapeAttr(cat.category_id)}" data-cat="${escapeAttr(cat.category_id)}">
-      <header class="cat-section-hdr">
-        <span class="cat-section-num">SEC.${pad2(secNum)}</span>
-        <span class="cat-section-icon">${escapeHtml(cat.icon || "📦")}</span>
-        <h2 class="cat-section-title">${escapeHtml(cat.category_name || "—")}</h2>
-        <span class="cat-section-meta">${products.length} item${products.length > 1 ? "s" : ""}</span>
-      </header>
-      <div class="cat-grid">${cards}</div>
-    </section>
+    <div class="cat-list-row" data-id="${p.product_id}">
+      <span class="cat-list-col cat-list-col-name">
+        <img class="cat-list-thumb" src="${escapeAttr(thumbSrc)}" alt="" loading="lazy" onerror="this.onerror=null;this.src='${NO_IMAGE_SRC}'">
+        <span class="cat-list-name-text">
+          <span class="cat-list-name">${escapeHtml(p.product_name)}</span>
+          ${p.product_code ? `<span class="cat-list-code">${escapeHtml(p.product_code)}</span>` : ""}
+        </span>
+      </span>
+      <span class="cat-list-col cat-list-col-cat">
+        ${escapeHtml(cat?.icon || "📦")} ${escapeHtml(cat?.category_name || "—")}
+      </span>
+      <span class="cat-list-col cat-list-col-opts">
+        ${variants.length ? `${variants.length} ตัวเลือก` : "—"}
+      </span>
+      <span class="cat-list-col cat-list-col-stock">
+        <span class="cat-card-stock cat-card-stock--${stockClass}">${fmtQty(totalStock)}</span>
+      </span>
+    </div>
   `;
 }
 
-function renderCard(p, indexInSection) {
+function renderCard(p) {
   const imgs = imagesByProduct[p.product_id] || [];
   const img = imgs[0];
   const variants = getVariants(p.product_id);
+  const cat = getCategory(p.category_id);
 
-  const variantTag = variants.length
-    ? `<span class="cat-card-tag">${variants.length} OPT</span>`
-    : "";
+  // total stock across self + variants
+  const variantIds = variants.length ? variants.map((v) => v.product_id) : [p.product_id];
+  const totalStock = variantIds.reduce((s, id) => s + getVariantStock(id), 0);
+  const stockClass =
+    totalStock <= 0 ? "out" : totalStock < (p.reorder_point || 0) ? "low" : "ok";
+  const stockBadge = `<span class="cat-card-stock cat-card-stock--${stockClass}">In Stock: ${fmtQty(totalStock)}</span>`;
+
+  const subText = variants.length
+    ? `${escapeHtml(cat?.icon || "📦")} ${escapeHtml(cat?.category_name || "—")} · ${variants.length} ตัวเลือก`
+    : `${escapeHtml(cat?.icon || "📦")} ${escapeHtml(cat?.category_name || "—")}`;
+
   const inactiveTag =
     !p.is_active && !variants.length
-      ? `<span class="cat-card-tag-inactive">OFF</span>`
+      ? `<span class="cat-card-inactive-tag">OFF</span>`
       : "";
 
   const imgHtml = img
-    ? `<img src="${escapeAttr(img.url)}" alt="${escapeAttr(p.product_name)}" loading="lazy" onerror="this.outerHTML='<span class=\\'cat-card-img-placeholder\\'>📦</span>'">`
-    : `<span class="cat-card-img-placeholder">📦</span>`;
+    ? `<img src="${escapeAttr(img.url)}" alt="${escapeAttr(p.product_name)}" loading="lazy" onerror="this.onerror=null;this.src='${NO_IMAGE_SRC}'">`
+    : `<img src="${NO_IMAGE_SRC}" alt="${escapeAttr(p.product_name)}" class="cat-card-img-noimg" loading="lazy">`;
 
   return `
     <article class="cat-card" data-id="${p.product_id}">
       <div class="cat-card-img">
         ${imgHtml}
-        ${variantTag}
         ${inactiveTag}
       </div>
-      <div class="cat-card-meta">
-        <span class="cat-card-num">№ ${pad2(indexInSection)}</span>
-        <span class="cat-card-code">${escapeHtml(p.product_code || "")}</span>
+      <div class="cat-card-body">
+        <h3 class="cat-card-name">${escapeHtml(p.product_name)}</h3>
+        <p class="cat-card-desc">${subText}</p>
+        <div class="cat-card-stock-row">${stockBadge}</div>
       </div>
-      <div class="cat-card-name">${escapeHtml(p.product_name)}</div>
-      <div class="cat-card-price">${priceText(p)}</div>
     </article>
   `;
 }
 
-// ── SCROLL SPY (highlight tab as user scrolls) ────────────
-function teardownScrollSpy() {
-  if (scrollSpyObserver) {
-    scrollSpyObserver.disconnect();
-    scrollSpyObserver = null;
-  }
-}
-
-function setupScrollSpy() {
-  teardownScrollSpy();
-  const sections = document.querySelectorAll(".cat-section[data-cat]");
-  if (!sections.length) return;
-
-  const offset = getStickyOffset() + 20;
-  const visible = new Set();
-
-  scrollSpyObserver = new IntersectionObserver(
-    (entries) => {
-      for (const e of entries) {
-        if (e.isIntersecting) visible.add(e.target);
-        else visible.delete(e.target);
-      }
-      if (!visible.size) return;
-      // pick the one whose top is highest but still under offset (= top-most visible)
-      let best = null;
-      let bestTop = Infinity;
-      for (const el of visible) {
-        const t = el.getBoundingClientRect().top;
-        if (t < bestTop) {
-          bestTop = t;
-          best = el;
-        }
-      }
-      if (best) setActiveTab(best.dataset.cat);
-    },
-    {
-      rootMargin: `-${offset}px 0px -55% 0px`,
-      threshold: 0,
-    }
-  );
-
-  for (const s of sections) scrollSpyObserver.observe(s);
-}
-
-// ── MODAL (product detail) ────────────────────────────────
+// ── MODAL (product detail — matrix style) ─────────────────
 function openModal(productId) {
   const p = allProducts.find((x) => x.product_id === productId);
   if (!p) return;
@@ -392,19 +473,13 @@ function openModal(productId) {
   const cat = getCategory(p.category_id);
   const imgs = imagesByProduct[p.product_id] || [];
   const variants = getVariants(p.product_id);
-  const productUnits = units.filter(
-    (u) =>
-      u.product_id === p.product_id ||
-      variants.some((v) => v.product_id === u.product_id)
-  );
-  const unitNames = [
-    ...new Set(productUnits.map((u) => u.unit_name).filter(Boolean)),
-  ];
+  // rows for the matrix: variants OR singleton (parent itself)
+  const rows = variants.length ? variants : [p];
 
   const mainImg = imgs[0];
   const mainImgHtml = mainImg
-    ? `<img id="catModalMainImg" src="${escapeAttr(mainImg.url)}" alt="${escapeAttr(p.product_name)}">`
-    : `<span class="cat-card-img-placeholder">📦</span>`;
+    ? `<img id="catModalMainImg" src="${escapeAttr(mainImg.url)}" alt="${escapeAttr(p.product_name)}" onerror="this.onerror=null;this.src='${NO_IMAGE_SRC}'">`
+    : `<img id="catModalMainImg" src="${NO_IMAGE_SRC}" alt="${escapeAttr(p.product_name)}" class="cat-md-img-noimg">`;
 
   const thumbsHtml =
     imgs.length > 1
@@ -420,42 +495,129 @@ function openModal(productId) {
     ? `style="background:${escapeAttr(cat.color)}22;"`
     : "";
 
-  let priceHtml = "";
+  // ── Build matrix: rows × warehouses ──
+  // 1. Find warehouses that have ANY stock for this product family
+  const usedWhIds = new Set();
+  for (const r of rows) {
+    const bucket = stockByProductWh[r.product_id] || {};
+    for (const whId in bucket) {
+      if (bucket[whId] !== 0) usedWhIds.add(String(whId));
+    }
+  }
+  const activeWh = warehouses
+    .filter((w) => usedWhIds.has(String(w.warehouse_id)))
+    .sort((a, b) => {
+      // sort by country then name
+      const c = (a.country || "").localeCompare(b.country || "");
+      return c !== 0 ? c : (a.warehouse_name || "").localeCompare(b.warehouse_name || "", "th");
+    });
+
+  // 2. Group by country + mark country boundary indices for column separators
+  const countriesMap = new Map();
+  for (const w of activeWh) {
+    const key = w.country || "—";
+    if (!countriesMap.has(key)) countriesMap.set(key, []);
+    countriesMap.get(key).push(w);
+  }
+  const countries = [...countriesMap.entries()];
+  const hasMultiCountry = countries.length > 1;
+  // boundary set: index of warehouse in activeWh where a NEW country begins (skip index 0)
+  const boundarySet = new Set();
+  let cursor = 0;
+  for (const [, whs] of countries) {
+    if (cursor !== 0) boundarySet.add(cursor);
+    cursor += whs.length;
+  }
+
+  // 3. Compute prices range
+  let priceText = "";
   if (variants.length) {
     const prices = variants.map((v) => +v.sale_price).filter((x) => x > 0);
     if (prices.length) {
       const min = Math.min(...prices);
       const max = Math.max(...prices);
-      priceHtml =
-        min === max
-          ? `<div class="cat-md-price">฿${fmtNum(min)}</div>`
-          : `<div class="cat-md-price cat-md-price-range">฿${fmtNum(min)} – ฿${fmtNum(max)}</div>`;
+      priceText = min === max ? `฿${fmtNum(min)}` : `฿${fmtNum(min)} – ฿${fmtNum(max)}`;
     }
   } else if (p.sale_price) {
-    priceHtml = `<div class="cat-md-price">฿${fmtNum(p.sale_price)}</div>`;
+    priceText = `฿${fmtNum(p.sale_price)}`;
   }
 
-  const variantsHtml = variants.length
-    ? `<div class="cat-md-section-title">ตัวเลือก (${variants.length})</div>
-       <div class="cat-md-variants">
-         ${variants
-           .map(
-             (v) => `
-           <div class="cat-md-variant${!v.is_active ? " inactive" : ""}">
-             <span class="cat-md-variant-name">${escapeHtml(extractVariantLabel(v.product_name, p.product_name))}</span>
-             <span class="cat-md-variant-price">${v.sale_price ? "฿" + fmtNum(v.sale_price) : "—"}</span>
-           </div>`
-           )
-           .join("")}
-       </div>`
-    : "";
+  // 4. Build matrix HTML
+  let matrixHtml = "";
+  if (activeWh.length === 0) {
+    matrixHtml = `<div class="cat-md-matrix-empty">— ยังไม่มีข้อมูลสต็อกในคลังใด —</div>`;
+  } else {
+    // Header rows
+    let countryHeaderRow = "";
+    if (hasMultiCountry) {
+      countryHeaderRow = `<tr class="cat-md-mtx-country-row">
+        <th class="cat-md-mtx-corner-empty"></th>
+        ${countries
+          .map(
+            ([cn, whs], i) => `<th colspan="${whs.length}" class="cat-md-mtx-country${i > 0 ? " is-boundary" : ""}">🌐 ${escapeHtml(cn)}</th>`
+          )
+          .join("")}
+        <th class="cat-md-mtx-total-th"></th>
+      </tr>`;
+    }
 
-  const unitsHtml = unitNames.length
-    ? `<div class="cat-md-section-title">หน่วยที่มี</div>
-       <div class="cat-md-units">
-         ${unitNames.map((n) => `<span class="cat-md-unit">${escapeHtml(n)}</span>`).join("")}
-       </div>`
-    : "";
+    const whHeaderRow = `<tr class="cat-md-mtx-wh-row">
+      <th class="cat-md-mtx-corner">ตัวเลือก</th>
+      ${activeWh
+        .map(
+          (w, i) => `<th class="cat-md-mtx-wh${boundarySet.has(i) ? " is-boundary" : ""}" title="${escapeAttr(w.warehouse_name)}">
+            <span class="cat-md-mtx-wh-icon">🏭</span>
+            <span class="cat-md-mtx-wh-name">${escapeHtml(w.warehouse_name)}</span>
+          </th>`
+        )
+        .join("")}
+      <th class="cat-md-mtx-total-th">รวม</th>
+    </tr>`;
+
+    // Body
+    const bodyRows = rows
+      .map((r) => {
+        const isVariant = !!r.parent_product_id;
+        const label = isVariant ? extractVariantLabel(r.product_name, p.product_name) : "—";
+        const bucket = stockByProductWh[r.product_id] || {};
+        let total = 0;
+        const cells = activeWh
+          .map((w, i) => {
+            const q = +bucket[w.warehouse_id] || 0;
+            total += q;
+            const zeroCls = q <= 0 ? "cat-md-mtx-cell-zero" : "";
+            const boundaryCls = boundarySet.has(i) ? "is-boundary" : "";
+            return `<td class="cat-md-mtx-cell ${zeroCls} ${boundaryCls}">${q === 0 ? "—" : fmtQty(q)}</td>`;
+          })
+          .join("");
+        const totalCls = total <= 0 ? "out" : "";
+        const inactive = isVariant && !r.is_active ? " inactive" : !isVariant && !p.is_active ? " inactive" : "";
+        const priceLabel = +r.sale_price > 0 ? `฿${fmtNum(r.sale_price)}` : "";
+        const labelHtml = isVariant
+          ? `<span class="cat-md-mtx-label">${escapeHtml(label)}</span>${priceLabel ? `<span class="cat-md-mtx-label-price">${priceLabel}</span>` : ""}`
+          : `<span class="cat-md-mtx-label">ทั้งหมด</span>`;
+        return `<tr class="cat-md-mtx-body-row${inactive}">
+          <td class="cat-md-mtx-rowlabel">${labelHtml}</td>
+          ${cells}
+          <td class="cat-md-mtx-total ${totalCls}">${fmtQty(total)}</td>
+        </tr>`;
+      })
+      .join("");
+
+    matrixHtml = `
+      <div class="cat-md-matrix-wrap">
+        <table class="cat-md-matrix-table">
+          <thead>
+            ${countryHeaderRow}
+            ${whHeaderRow}
+          </thead>
+          <tbody>
+            ${bodyRows}
+          </tbody>
+        </table>
+      </div>
+    `;
+  }
 
   const inactiveBanner =
     !p.is_active && !variants.length
@@ -469,18 +631,20 @@ function openModal(productId) {
     </div>
     <div class="cat-md-info">
       ${inactiveBanner}
-      <span class="cat-md-cat" ${catBg}>
-        <span>${escapeHtml(cat?.icon || "📦")}</span>
-        <span>${escapeHtml(cat?.category_name || "—")}</span>
-      </span>
-      <div class="cat-md-name">${escapeHtml(p.product_name)}</div>
-      ${p.product_code ? `<div class="cat-md-code">รหัส: ${escapeHtml(p.product_code)}</div>` : ""}
-      ${priceHtml}
-      ${variantsHtml}
-      ${unitsHtml}
+      <div class="cat-md-title-row">
+        <h2 class="cat-md-name">${escapeHtml(p.product_name)}</h2>
+        <span class="cat-md-cat" ${catBg}>
+          <span>${escapeHtml(cat?.icon || "📦")}</span>
+          <span>${escapeHtml(cat?.category_name || "—")}</span>
+        </span>
+      </div>
+      ${priceText ? `<div class="cat-md-price-line"><span class="cat-md-price">${priceText}</span></div>` : ""}
+      <div class="cat-md-divider"></div>
+      ${matrixHtml}
     </div>
   `;
 
+  // ── Thumb click handler ──
   document.querySelectorAll("#catModalBody .cat-md-thumb").forEach((th) => {
     th.addEventListener("click", () => {
       const url = th.dataset.url;
@@ -493,8 +657,25 @@ function openModal(productId) {
     });
   });
 
-  document.getElementById("catModal").classList.add("open");
+  const modalEl = document.getElementById("catModal");
+  modalEl.classList.add("open");
   document.getElementById("catModalOv").classList.add("open");
+
+  // ── Auto-fit modal width to table ──
+  // After layout, check if matrix wrap has horizontal scroll. If so and viewport
+  // still has room, grow the modal width to absorb the overflow.
+  modalEl.style.width = ""; // reset any prior inline width
+  requestAnimationFrame(() => {
+    const wrap = modalEl.querySelector(".cat-md-matrix-wrap");
+    const table = modalEl.querySelector(".cat-md-matrix-table");
+    if (!wrap || !table) return;
+    const overflow = table.scrollWidth - wrap.clientWidth;
+    if (overflow <= 0) return; // already fits
+    const current = modalEl.getBoundingClientRect().width;
+    const maxAllowed = window.innerWidth * 0.95;
+    const target = Math.min(current + overflow + 4, maxAllowed);
+    modalEl.style.width = target + "px";
+  });
 }
 
 function closeModal() {
@@ -514,11 +695,6 @@ function extractVariantLabel(childName, parentName) {
 }
 
 // ── UTIL ──────────────────────────────────────────────────
-function setText(id, val) {
-  const el = document.getElementById(id);
-  if (el) el.textContent = val;
-}
-
 function showLoading(on) {
   const ov = document.getElementById("loadingOverlay");
   if (!ov) return;

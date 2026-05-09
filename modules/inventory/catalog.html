@@ -20,70 +20,92 @@
     <!-- TOPBAR -->
     <div class="topbar"></div>
 
-    <!-- HERO -->
+    <!-- HERO (slim band) -->
     <section class="cat-hero">
-      <div class="cat-hero-bg"></div>
       <div class="cat-hero-inner">
-        <div class="cat-hero-eyebrow">A4S · PRODUCT LOOKBOOK</div>
-        <h1 class="cat-hero-title">Product<br />Catalog</h1>
-        <p class="cat-hero-sub">
-          คอลเลกชันสินค้าทั้งหมดของ A4S — เลือกชม จัดหมวดหมู่ และค้นหาได้ในเล่มเดียว
-        </p>
-        <div class="cat-hero-stats">
-          <div class="cat-hero-stat">
-            <span class="cat-hero-stat-num" id="kpiProducts">0</span>
-            <span class="cat-hero-stat-label">ชุดสินค้า</span>
-          </div>
-          <div class="cat-hero-stat">
-            <span class="cat-hero-stat-num" id="kpiSkus">0</span>
-            <span class="cat-hero-stat-label">ตัวเลือก</span>
-          </div>
-          <div class="cat-hero-stat">
-            <span class="cat-hero-stat-num" id="kpiCats">0</span>
-            <span class="cat-hero-stat-label">หมวดหมู่</span>
-          </div>
-        </div>
-        <div class="cat-hero-foot">
-          <span>VOL. <span id="catVol">2569</span></span>
-          <span class="cat-hero-foot-sep">·</span>
-          <span><span id="catTotalItems">0</span> items</span>
+        <div class="cat-hero-left">
+          <h1 class="cat-hero-title">Product Catalog</h1>
+          <span class="cat-hero-sub">— A4S Lookbook</span>
         </div>
       </div>
     </section>
 
-    <!-- STICKY TOOLBAR -->
-    <div class="cat-sticky">
-      <div class="cat-sticky-inner">
-        <div class="cat-search">
-          <span class="cat-search-icon">🔍</span>
-          <input
-            id="catSearch"
-            class="cat-search-input"
-            placeholder="ค้นหาสินค้า / รหัส..."
-            autocomplete="off"
-          />
+    <!-- LAYOUT: SIDEBAR + MAIN -->
+    <div class="cat-layout">
+      <!-- SIDEBAR -->
+      <aside class="cat-sidebar" id="catSidebar">
+        <div class="cat-sidebar-inner">
+          <div class="cat-sidebar-title">Category</div>
+          <nav class="cat-side-list" id="catSideList">
+            <button class="cat-side-item active" data-cat="all">
+              <span class="cat-side-icon">📦</span>
+              <span class="cat-side-name">All Product</span>
+              <span class="cat-side-count" id="cntAll">0</span>
+            </button>
+          </nav>
+
+          <div class="cat-sidebar-divider"></div>
+
+          <div class="cat-sidebar-title">Filter</div>
+          <nav class="cat-side-list">
+            <button class="cat-side-item cat-side-filter" data-filter="all">
+              <span class="cat-side-name">🧿 ทั้งหมด</span>
+            </button>
+            <button class="cat-side-item cat-side-filter" data-filter="instock">
+              <span class="cat-side-name">✅ มีของ</span>
+            </button>
+            <button class="cat-side-item cat-side-filter" data-filter="outstock">
+              <span class="cat-side-name">❌ ของหมด</span>
+            </button>
+          </nav>
         </div>
-        <nav class="cat-tabs" id="catTabs"></nav>
-        <button class="cat-tool-btn" id="btnRefresh" title="รีเฟรช">🔄</button>
-      </div>
+      </aside>
+
+      <!-- MAIN -->
+      <main class="cat-main">
+        <!-- COMBINED HEADER + TOOLBAR -->
+        <div class="cat-toolbar" id="catCurrentLabel">
+          <div class="cat-current-label">
+            <span class="cat-current-icon">📦</span>
+            <span class="cat-current-name">All Product</span>
+          </div>
+          <div class="cat-search">
+            <span class="cat-search-icon">🔍</span>
+            <input
+              id="catSearch"
+              class="cat-search-input"
+              placeholder="ค้นหาสินค้า / รหัส..."
+              autocomplete="off"
+            />
+          </div>
+          <div class="cat-view-toggle" role="group" aria-label="มุมมอง">
+            <button class="cat-view-btn active" data-view="grid" type="button" title="มุมมองภาพ" aria-label="มุมมองภาพ">▦</button>
+            <button class="cat-view-btn" data-view="list" type="button" title="มุมมองรายการ" aria-label="มุมมองรายการ">≡</button>
+          </div>
+          <div class="cat-toolbar-right">
+            <span class="cat-result-count" id="catResultCount">— รายการ</span>
+            <select id="catSort" class="cat-sort">
+              <option value="default">เรียงตามหมวด</option>
+              <option value="name-asc">ชื่อ A → Z</option>
+              <option value="name-desc">ชื่อ Z → A</option>
+              <option value="price-asc">ราคา น้อย → มาก</option>
+              <option value="price-desc">ราคา มาก → น้อย</option>
+            </select>
+            <button class="cat-tool-btn" id="btnRefresh" title="รีเฟรช">🔄</button>
+          </div>
+        </div>
+
+        <!-- GRID -->
+        <div class="cat-grid" id="catGrid"></div>
+
+        <!-- EMPTY -->
+        <div class="cat-empty-state" id="catEmpty" style="display:none">
+          <div class="cat-empty-icon">🔎</div>
+          <div class="cat-empty-title">ไม่พบสินค้า</div>
+          <div class="cat-empty-sub">ลองเปลี่ยนคำค้นหาหรือเลือกหมวดอื่น</div>
+        </div>
+      </main>
     </div>
-
-    <!-- CONTENT -->
-    <main class="cat-main" id="catMain">
-      <div class="cat-empty-state" id="catEmpty" style="display:none">
-        <div class="cat-empty-icon">🔎</div>
-        <div class="cat-empty-title">ไม่พบสินค้า</div>
-        <div class="cat-empty-sub">ลองเปลี่ยนคำค้นหาหรือเลือกหมวดอื่น</div>
-      </div>
-      <div id="catSections"></div>
-    </main>
-
-    <!-- FOOTER (end-of-catalog flourish) -->
-    <footer class="cat-foot">
-      <div class="cat-foot-mark"></div>
-      <div class="cat-foot-text">END OF CATALOG · THANK YOU</div>
-      <button class="cat-foot-back" id="btnBackTop">↑ กลับขึ้นบนสุด</button>
-    </footer>
 
     <!-- DETAIL MODAL -->
     <div class="cat-modal-overlay" id="catModalOv"></div>

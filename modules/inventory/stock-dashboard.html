@@ -37,9 +37,12 @@
         </div>
       </div>
 
+      <!-- DATA QUALITY WARNINGS (hidden by default) -->
+      <div id="sdWarnings"></div>
+
       <!-- KPI ROW -->
       <div class="stats-row">
-        <div class="stat-card green">
+        <div class="stat-card green is-clickable" onclick="openReport('totalValue')">
           <div class="stat-icon">💰</div>
           <div class="stat-info">
             <div class="stat-label">มูลค่าสต็อกรวม</div>
@@ -47,7 +50,7 @@
             <div class="stat-sub" id="kpiTotalQty">0 ชิ้น</div>
           </div>
         </div>
-        <div class="stat-card blue">
+        <div class="stat-card blue is-clickable" onclick="openReport('inStock')">
           <div class="stat-icon">📦</div>
           <div class="stat-info">
             <div class="stat-label">SKU ในสต็อก</div>
@@ -55,7 +58,7 @@
             <div class="stat-sub" id="kpiSkuTotal">/ 0 SKU</div>
           </div>
         </div>
-        <div class="stat-card amber">
+        <div class="stat-card amber is-clickable" onclick="openReport('lowStock')">
           <div class="stat-icon">🔻</div>
           <div class="stat-info">
             <div class="stat-label">ใกล้สั่งซื้อ</div>
@@ -63,12 +66,38 @@
             <div class="stat-sub">≤ จุดสั่งซื้อ</div>
           </div>
         </div>
-        <div class="stat-card pink">
+        <div class="stat-card pink is-clickable" onclick="openReport('outOfStock')">
           <div class="stat-icon">❌</div>
           <div class="stat-info">
             <div class="stat-label">หมดสต็อก</div>
             <div class="stat-value" id="kpiOutOfStock">0</div>
             <div class="stat-sub">ต้องเติมสต็อก</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- REPORT MODAL -->
+      <div class="sd-report-overlay modal-overlay" id="reportModal">
+        <div class="sd-report" onclick="event.stopPropagation()">
+          <div class="sd-report-hdr">
+            <div>
+              <div class="sd-report-title" id="reportTitle">รายงาน</div>
+              <div class="sd-report-sub" id="reportSubtitle"></div>
+            </div>
+            <button class="sd-report-close" onclick="closeReport()" aria-label="ปิด">✕</button>
+          </div>
+          <div class="sd-report-toolbar">
+            <div class="sd-report-search-wrap">
+              <span class="sd-report-search-icon">🔍</span>
+              <input class="sd-report-search" id="reportSearch" placeholder="ค้นหาสินค้า / หมวดหมู่..." />
+            </div>
+            <span class="sd-report-count" id="reportCount">0 รายการ</span>
+          </div>
+          <div class="sd-report-body">
+            <table class="sd-table" id="reportTable">
+              <thead id="reportThead"></thead>
+              <tbody id="reportTbody"></tbody>
+            </table>
           </div>
         </div>
       </div>
@@ -169,36 +198,14 @@
         </div>
       </div>
 
-      <!-- RECENT MOVEMENTS -->
-      <div class="sd-panel">
-        <div class="sd-panel-hdr">
-          <span>🔄 ความเคลื่อนไหวล่าสุด</span>
-          <a href="./movements.html" class="sd-panel-hdr-link">ดูทั้งหมด →</a>
-        </div>
-        <div class="sd-table-wrap">
-          <table class="sd-table" id="recentMovesTable">
-            <thead>
-              <tr>
-                <th style="width:90px">เวลา</th>
-                <th style="width:80px">ประเภท</th>
-                <th>สินค้า</th>
-                <th>คลัง</th>
-                <th class="sd-th-right">จำนวน</th>
-              </tr>
-            </thead>
-            <tbody id="recentMovesBody">
-              <tr>
-                <td colspan="5" class="sd-empty">— ยังไม่มีการเคลื่อนไหว —</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
     </div>
 
-    <script src="./stock-dashboard.js"></script>
     <script src="../../js/core/auth.js"></script>
+    <script src="../../js/core/authz.js"></script>
     <script src="../../js/core/date-format.js"></script>
+    <script>AuthZ.requirePerm("report_stock_view");</script>
+    <script src="./stock-dashboard.js"></script>
+    <script src="../../js/components/modal/modalManager.js"></script>
     <script src="../../js/components/navigation/sidebar.js"></script>
     <script type="module">
       import { loadTopbar } from "../../js/components/navigation/topbar.js";

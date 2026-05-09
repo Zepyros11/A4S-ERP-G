@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>📦 Stock สินค้า — A4S-ERP</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../../css/main.css" />
+    <link rel="stylesheet" href="./stock-dashboard.css" />
+    <link rel="stylesheet" href="./stock-balance.css" />
+  </head>
+  <body>
+    <div class="loading-overlay" id="loadingOverlay">
+      <div class="spinner"></div>
+    </div>
+    <div class="toast" id="toast"></div>
+
+    <div class="topbar"></div>
+
+    <div class="page">
+      <!-- HERO -->
+      <div class="page-hero page-hero--simple page-hero--compact">
+        <div>
+          <h1 class="page-hero-title">📦 Stock สินค้า</h1>
+          <p class="page-hero-sub">
+            ยอดคงเหลือต่อ SKU · On-hand / Reserved / Available · จาก PO+INIT − SO/REQ/ทิ้ง
+          </p>
+        </div>
+        <div class="page-hero-actions">
+          <label class="sb-neg-toggle" title="ถ้าปิด → ระบบจะเตือน/บล็อกการตัดสต็อกเกินยอดที่ฟอร์ม SO/REQ (จะ enforce ใน phase ถัดไป)">
+            <input type="checkbox" id="negToggle" />
+            <span class="sb-neg-toggle-track"><span class="sb-neg-toggle-thumb"></span></span>
+            <span class="sb-neg-toggle-label">อนุญาตติดลบ</span>
+          </label>
+          <button class="btn-on-hero" onclick="window.refreshBalance()">
+            🔄 รีเฟรช
+          </button>
+        </div>
+      </div>
+
+      <!-- DATA QUALITY WARNINGS -->
+      <div id="sbWarnings"></div>
+
+      <!-- KPI ROW -->
+      <div class="stats-row">
+        <div class="stat-card blue">
+          <div class="stat-icon">📦</div>
+          <div class="stat-info">
+            <div class="stat-label">SKU มีของ</div>
+            <div class="stat-value" id="kpiInStock">0</div>
+            <div class="stat-sub" id="kpiSkuTotal">/ 0 SKU</div>
+          </div>
+        </div>
+        <div class="stat-card amber">
+          <div class="stat-icon">🔻</div>
+          <div class="stat-info">
+            <div class="stat-label">ใกล้สั่งซื้อ</div>
+            <div class="stat-value" id="kpiLowStock">0</div>
+            <div class="stat-sub">≤ จุดสั่งซื้อ</div>
+          </div>
+        </div>
+        <div class="stat-card pink">
+          <div class="stat-icon">❌</div>
+          <div class="stat-info">
+            <div class="stat-label">หมดสต็อก</div>
+            <div class="stat-value" id="kpiOutOfStock">0</div>
+            <div class="stat-sub">Available ≤ 0</div>
+          </div>
+        </div>
+        <div class="stat-card green">
+          <div class="stat-icon">⏳</div>
+          <div class="stat-info">
+            <div class="stat-label">ใกล้หมดอายุ</div>
+            <div class="stat-value" id="kpiExpiring">0</div>
+            <div class="stat-sub">≤ 30 วัน</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- FILTER TOOLBAR -->
+      <div class="sb-toolbar">
+        <div class="sb-search-wrap">
+          <span class="sb-search-icon">🔍</span>
+          <input id="sbSearch" class="sb-search" placeholder="ค้นหาด้วยชื่อ / รหัสสินค้า..." />
+        </div>
+        <select id="sbCategory" class="sb-select">
+          <option value="">ทุกหมวดหมู่</option>
+        </select>
+        <select id="sbWarehouse" class="sb-select">
+          <option value="">ทุกคลัง</option>
+        </select>
+        <select id="sbStatus" class="sb-select">
+          <option value="">ทุกสถานะ</option>
+          <option value="ok">ปกติ</option>
+          <option value="low">ใกล้สั่งซื้อ</option>
+          <option value="out">หมดสต็อก</option>
+          <option value="negative">ติดลบ</option>
+          <option value="expiring">ใกล้หมดอายุ</option>
+        </select>
+        <button class="sb-reset-btn" onclick="window.resetFilters()">↺ ล้าง</button>
+        <span class="sb-result-count" id="sbCount">0 รายการ</span>
+      </div>
+
+      <!-- TABLE -->
+      <div class="sd-panel">
+        <div class="sd-panel-hdr">
+          <span>📋 ตารางสต็อกสินค้า</span>
+          <span class="sd-panel-hdr-sub" id="sbScopeNote">ทุกคลัง</span>
+        </div>
+        <div class="sd-table-wrap" style="max-height:none">
+          <table class="sd-table sb-table">
+            <thead>
+              <tr>
+                <th style="width:46px"></th>
+                <th>สินค้า</th>
+                <th>หมวดหมู่</th>
+                <th class="sd-th-right">On-hand</th>
+                <th class="sd-th-right">Reserved</th>
+                <th class="sd-th-right">Available</th>
+                <th class="sd-th-right">จุดสั่งซื้อ</th>
+                <th class="sd-th-right">สถานะ</th>
+                <th style="width:90px"></th>
+              </tr>
+            </thead>
+            <tbody id="sbBody">
+              <tr><td colspan="9" class="sd-empty">— กำลังโหลด —</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- DRILL-DOWN MODAL: Per-product detail (3 tabs) -->
+    <div class="sd-report-overlay modal-overlay" id="detailModal">
+      <div class="sd-report sb-detail" onclick="event.stopPropagation()">
+        <div class="sd-report-hdr">
+          <div>
+            <div class="sd-report-title" id="detailTitle">รายละเอียดสินค้า</div>
+            <div class="sd-report-sub" id="detailSubtitle"></div>
+          </div>
+          <button class="sd-report-close" onclick="closeDetail()" aria-label="ปิด">✕</button>
+        </div>
+        <div class="sb-tabs">
+          <button class="sb-tab active" data-tab="warehouses" onclick="switchTab('warehouses')">🏭 ตามคลัง</button>
+          <button class="sb-tab" data-tab="movements" onclick="switchTab('movements')">📜 ประวัติ Movement</button>
+          <button class="sb-tab" data-tab="lots" onclick="switchTab('lots')">🏷️ Lot / หมดอายุ</button>
+        </div>
+        <div class="sd-report-body">
+          <div class="sb-tab-pane" id="paneWarehouses">
+            <table class="sd-table">
+              <thead>
+                <tr>
+                  <th>คลัง</th>
+                  <th class="sd-th-right">On-hand</th>
+                  <th class="sd-th-right">Reserved</th>
+                  <th class="sd-th-right">Available</th>
+                </tr>
+              </thead>
+              <tbody id="paneWarehousesBody"></tbody>
+            </table>
+          </div>
+          <div class="sb-tab-pane" id="paneMovements" style="display:none">
+            <table class="sd-table">
+              <thead>
+                <tr>
+                  <th>วันที่/เวลา</th>
+                  <th>ประเภท</th>
+                  <th>คลัง</th>
+                  <th>เอกสาร</th>
+                  <th class="sd-th-right">จำนวน</th>
+                  <th>หมายเหตุ</th>
+                </tr>
+              </thead>
+              <tbody id="paneMovementsBody"></tbody>
+            </table>
+          </div>
+          <div class="sb-tab-pane" id="paneLots" style="display:none">
+            <table class="sd-table">
+              <thead>
+                <tr>
+                  <th>Lot No.</th>
+                  <th>คลัง</th>
+                  <th class="sd-th-right">รับเข้า</th>
+                  <th>วันที่หมดอายุ</th>
+                  <th class="sd-th-right">เหลือ (วัน)</th>
+                </tr>
+              </thead>
+              <tbody id="paneLotsBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="../../js/core/auth.js"></script>
+    <script src="../../js/core/authz.js"></script>
+    <script src="../../js/core/date-format.js"></script>
+    <script>AuthZ.requirePerm("product_view");</script>
+    <script src="./stock-balance.js"></script>
+    <script src="../../js/components/modal/modalManager.js"></script>
+    <script src="../../js/components/navigation/sidebar.js"></script>
+    <script type="module">
+      import { loadTopbar } from "../../js/components/navigation/topbar.js";
+      loadTopbar("📦 Stock สินค้า");
+    </script>
+  </body>
+</html>

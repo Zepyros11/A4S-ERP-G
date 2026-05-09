@@ -1,0 +1,253 @@
+/* ============================================================
+   stock-balance.css — Stock สินค้า page-specific styles
+   (extends stock-dashboard.css — sb-* prefix สำหรับของเฉพาะหน้านี้)
+   ============================================================ */
+
+/* ── Toolbar (filter row) ── */
+.sb-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 12px 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 14px;
+  box-shadow: var(--shadow);
+}
+
+.sb-search-wrap {
+  position: relative;
+  flex: 1;
+  min-width: 240px;
+}
+.sb-search-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 13px;
+  pointer-events: none;
+  opacity: 0.6;
+}
+.sb-search {
+  width: 100%;
+  padding: 8px 12px 8px 32px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 13px;
+  background: var(--surface);
+  font-family: inherit;
+}
+.sb-search:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.12);
+}
+
+.sb-select {
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 13px;
+  font-family: inherit;
+  background: var(--surface);
+  cursor: pointer;
+  min-width: 140px;
+}
+.sb-select:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.sb-reset-btn {
+  padding: 8px 14px;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  border-radius: 6px;
+  font-size: 12.5px;
+  cursor: pointer;
+  color: var(--text2);
+  transition: background 0.15s;
+}
+.sb-reset-btn:hover {
+  background: var(--accent-pale);
+  border-color: var(--accent);
+}
+
+.sb-result-count {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text2);
+  background: var(--accent-pale);
+  padding: 5px 12px;
+  border-radius: 999px;
+  white-space: nowrap;
+  margin-left: auto;
+}
+
+/* ── Negative-stock toggle (in hero) ── */
+.sb-neg-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.95);
+  user-select: none;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.15);
+  transition: background 0.15s;
+}
+.sb-neg-toggle:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+.sb-neg-toggle input {
+  display: none;
+}
+.sb-neg-toggle-track {
+  width: 32px;
+  height: 18px;
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 999px;
+  position: relative;
+  transition: background 0.2s;
+}
+.sb-neg-toggle-thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  background: #fff;
+  border-radius: 50%;
+  transition: transform 0.2s;
+}
+.sb-neg-toggle input:checked + .sb-neg-toggle-track {
+  background: #22c55e;
+}
+.sb-neg-toggle input:checked + .sb-neg-toggle-track .sb-neg-toggle-thumb {
+  transform: translateX(14px);
+}
+
+/* ── Table cells ── */
+.sb-table th {
+  white-space: nowrap;
+}
+.sb-thumb {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  background: var(--surface2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  border: 1px solid var(--border);
+}
+.sb-prod-name {
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--text);
+}
+.sb-prod-code {
+  font-size: 11px;
+  color: var(--text3);
+  font-family: "IBM Plex Mono", monospace;
+  margin-top: 2px;
+}
+
+.sb-reserved {
+  color: #b45309;
+  font-weight: 600;
+}
+
+.sb-act-btn {
+  padding: 5px 10px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: 6px;
+  font-size: 11.5px;
+  cursor: pointer;
+  color: var(--accent);
+  font-weight: 600;
+  transition: background 0.15s;
+}
+.sb-act-btn:hover {
+  background: var(--accent-pale);
+  border-color: var(--accent);
+}
+
+/* ── Status badges ── */
+.sb-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+}
+.sb-badge-ok {
+  background: #dcfce7;
+  color: #166534;
+}
+.sb-badge-low {
+  background: #fef3c7;
+  color: #92400e;
+}
+.sb-badge-out {
+  background: #fee2e2;
+  color: #991b1b;
+}
+.sb-badge-neg {
+  background: #fde8e8;
+  color: #7f1d1d;
+  border: 1px solid #ef4444;
+}
+.sb-exp-chip {
+  display: inline-block;
+  margin-left: 4px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: #fef9c3;
+  color: #854d0e;
+  font-size: 10.5px;
+  font-weight: 600;
+}
+
+/* ── Detail modal: tabs ── */
+.sb-detail {
+  width: min(1024px, 100%);
+}
+.sb-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface2);
+  padding: 0 6px;
+}
+.sb-tab {
+  background: transparent;
+  border: none;
+  padding: 12px 18px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text3);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.15s;
+  font-family: inherit;
+}
+.sb-tab:hover {
+  color: var(--text);
+  background: var(--surface);
+}
+.sb-tab.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+.sb-tab-pane {
+  padding: 0;
+}
