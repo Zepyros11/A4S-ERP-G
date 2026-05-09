@@ -439,21 +439,31 @@ export function loadTopbar(title = "", options = {}) {
   const roleLabel = session?.role || "";
 
   /* ---------------- Action Links ---------------- */
-  // Global action: Event Calendar (gated by evt_calendar_view perm)
+  // Global actions: Catalog + Event Calendar (gated by perms)
   const canSeeCalendar = window.AuthZ
     ? window.AuthZ.hasPerm("evt_calendar_view")
     : true;
-  const defaultActions = options.skipDefaults || !canSeeCalendar
+  const canSeeCatalog = window.AuthZ
+    ? window.AuthZ.hasPerm("product_view")
+    : true;
+  const defaultActions = options.skipDefaults
     ? []
     : [
-        {
+        canSeeCatalog && {
+          label: "Catalog",
+          icon: "🛍️",
+          href: `${BASE_PATH}/modules/inventory/catalog.html`,
+          target: "_blank",
+          title: "เปิด Product Catalog",
+        },
+        canSeeCalendar && {
           label: "Event Calendar",
           icon: "📅",
           href: `${BASE_PATH}/modules/event/cs-view/events-calendar.html`,
           target: "_blank",
           title: "เปิดปฏิทินกิจกรรม",
         },
-      ];
+      ].filter(Boolean);
   const customActions = Array.isArray(options.actions) ? options.actions : [];
   const actions = [...defaultActions, ...customActions];
   const actionsHtml = actions.length

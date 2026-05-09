@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>🛍️ Product Catalog — A4S-ERP</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Playfair+Display:wght@400;600;700;900&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../../css/main.css" />
+    <link rel="stylesheet" href="./catalog.css" />
+  </head>
+  <body class="catalog-body">
+    <div class="loading-overlay" id="loadingOverlay">
+      <div class="spinner"></div>
+    </div>
+    <div class="toast" id="toast"></div>
+
+    <!-- TOPBAR -->
+    <div class="topbar"></div>
+
+    <!-- HERO -->
+    <section class="cat-hero">
+      <div class="cat-hero-bg"></div>
+      <div class="cat-hero-inner">
+        <div class="cat-hero-eyebrow">A4S · PRODUCT LOOKBOOK</div>
+        <h1 class="cat-hero-title">Product<br />Catalog</h1>
+        <p class="cat-hero-sub">
+          คอลเลกชันสินค้าทั้งหมดของ A4S — เลือกชม จัดหมวดหมู่ และค้นหาได้ในเล่มเดียว
+        </p>
+        <div class="cat-hero-stats">
+          <div class="cat-hero-stat">
+            <span class="cat-hero-stat-num" id="kpiProducts">0</span>
+            <span class="cat-hero-stat-label">ชุดสินค้า</span>
+          </div>
+          <div class="cat-hero-stat">
+            <span class="cat-hero-stat-num" id="kpiSkus">0</span>
+            <span class="cat-hero-stat-label">ตัวเลือก</span>
+          </div>
+          <div class="cat-hero-stat">
+            <span class="cat-hero-stat-num" id="kpiCats">0</span>
+            <span class="cat-hero-stat-label">หมวดหมู่</span>
+          </div>
+        </div>
+        <div class="cat-hero-foot">
+          <span>VOL. <span id="catVol">2569</span></span>
+          <span class="cat-hero-foot-sep">·</span>
+          <span><span id="catTotalItems">0</span> items</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- STICKY TOOLBAR -->
+    <div class="cat-sticky">
+      <div class="cat-sticky-inner">
+        <div class="cat-search">
+          <span class="cat-search-icon">🔍</span>
+          <input
+            id="catSearch"
+            class="cat-search-input"
+            placeholder="ค้นหาสินค้า / รหัส..."
+            autocomplete="off"
+          />
+        </div>
+        <nav class="cat-tabs" id="catTabs"></nav>
+        <button class="cat-tool-btn" id="btnRefresh" title="รีเฟรช">🔄</button>
+      </div>
+    </div>
+
+    <!-- CONTENT -->
+    <main class="cat-main" id="catMain">
+      <div class="cat-empty-state" id="catEmpty" style="display:none">
+        <div class="cat-empty-icon">🔎</div>
+        <div class="cat-empty-title">ไม่พบสินค้า</div>
+        <div class="cat-empty-sub">ลองเปลี่ยนคำค้นหาหรือเลือกหมวดอื่น</div>
+      </div>
+      <div id="catSections"></div>
+    </main>
+
+    <!-- FOOTER (end-of-catalog flourish) -->
+    <footer class="cat-foot">
+      <div class="cat-foot-mark"></div>
+      <div class="cat-foot-text">END OF CATALOG · THANK YOU</div>
+      <button class="cat-foot-back" id="btnBackTop">↑ กลับขึ้นบนสุด</button>
+    </footer>
+
+    <!-- DETAIL MODAL -->
+    <div class="cat-modal-overlay" id="catModalOv"></div>
+    <div class="cat-modal" id="catModal" role="dialog" aria-modal="true">
+      <button class="cat-modal-close" id="catModalClose" aria-label="ปิด">✕</button>
+      <div class="cat-modal-body" id="catModalBody"></div>
+    </div>
+
+    <!-- Core -->
+    <script src="../../js/core/auth.js"></script>
+    <script src="../../js/core/authz.js"></script>
+    <script src="../../js/core/date-format.js"></script>
+    <script>AuthZ.requirePerm("product_view");</script>
+
+    <!-- Page logic -->
+    <script type="module" src="./catalog.js"></script>
+
+    <!-- MODALS -->
+    <script src="../../js/components/modal/modalManager.js"></script>
+
+    <!-- Topbar / Sidebar -->
+    <script type="module">
+      import { loadTopbar } from "../../js/components/navigation/topbar.js";
+      loadTopbar("🛍️ Product Catalog");
+    </script>
+    <script src="../../js/components/navigation/sidebar.js"></script>
+  </body>
+</html>
