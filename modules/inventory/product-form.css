@@ -723,16 +723,89 @@
 }
 .pf-variant-add-bar {
   display: flex;
-  align-items: stretch;
-  gap: 8px;
+  align-items: center;
+  gap: 12px;
   margin-top: 10px;
+  flex-wrap: wrap;
 }
-.pf-variant-add-count {
-  width: 72px;
-  text-align: center;
+.pf-variant-add-slider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 220px;
+  padding: 6px 12px;
+  background: var(--surface);
+  border: 1px solid rgba(var(--accent-rgb), 0.25);
+  border-radius: 999px;
+  height: 38px;
+}
+.pf-variant-add-range {
+  flex: 1;
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  height: 22px;
+  cursor: pointer;
+  margin: 0;
+  padding: 0;
+}
+.pf-variant-add-range::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    rgba(var(--accent-rgb), 0.55) 0%,
+    rgba(var(--accent-rgb), 0.15) 100%
+  );
+}
+.pf-variant-add-range::-moz-range-track {
+  height: 6px;
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    rgba(var(--accent-rgb), 0.55) 0%,
+    rgba(var(--accent-rgb), 0.15) 100%
+  );
+}
+.pf-variant-add-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid #fff;
+  box-shadow: 0 2px 6px rgba(var(--accent-rgb), 0.4);
+  margin-top: -6px;
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+.pf-variant-add-range::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+}
+.pf-variant-add-range::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid #fff;
+  box-shadow: 0 2px 6px rgba(var(--accent-rgb), 0.4);
+  cursor: pointer;
+}
+.pf-variant-add-val {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 30px;
+  height: 26px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
   font-size: 13px;
-  font-weight: 600;
-  padding: 8px 8px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
   flex-shrink: 0;
 }
 .pf-variant-add {

@@ -236,16 +236,20 @@
                   </div>
                 </div>
                 <div class="pf-variant-add-bar">
-                  <input
-                    id="variantAddCount"
-                    class="form-control pf-variant-add-count"
-                    type="number"
-                    min="1"
-                    max="10"
-                    value="1"
-                    title="จำนวนแถวที่จะเพิ่ม (สูงสุด 10)"
-                    onchange="this.value = Math.max(1, Math.min(10, parseInt(this.value, 10) || 1))"
-                  />
+                  <div class="pf-variant-add-slider">
+                    <input
+                      id="variantAddCount"
+                      class="pf-variant-add-range"
+                      type="range"
+                      min="1"
+                      max="10"
+                      step="1"
+                      value="1"
+                      oninput="document.getElementById('variantAddCountVal').textContent = this.value"
+                      title="เลื่อนเลือกจำนวนแถว (1-10)"
+                    />
+                    <span class="pf-variant-add-val" id="variantAddCountVal">1</span>
+                  </div>
                   <button
                     class="btn btn-outline pf-variant-add"
                     onclick="addVariantSkuRows()"

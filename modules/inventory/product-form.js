@@ -476,6 +476,8 @@ function addVariantSkuRows() {
   }
   renderVariantSkuRows();
   if (input) input.value = 1;
+  const valEl = document.getElementById("variantAddCountVal");
+  if (valEl) valEl.textContent = "1";
 }
 
 function renderVariantSkuRows() {
