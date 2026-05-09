@@ -461,6 +461,23 @@ function addVariantSkuRow() {
   renderVariantSkuRows();
 }
 
+function addVariantSkuRows() {
+  const input = document.getElementById("variantAddCount");
+  let n = parseInt(input?.value, 10);
+  if (!Number.isFinite(n) || n < 1) n = 1;
+  if (n > 10) n = 10;
+  for (let i = 0; i < n; i++) {
+    state.variants.push({
+      enabled: true,
+      variantLabel: "",
+      cost: 0,
+      sale: 0,
+    });
+  }
+  renderVariantSkuRows();
+  if (input) input.value = 1;
+}
+
 function renderVariantSkuRows() {
   const container = document.getElementById("variantSkuRows");
   if (!container) return;

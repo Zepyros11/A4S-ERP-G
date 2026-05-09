@@ -721,8 +721,21 @@
   font-size: 12px;
   background: var(--surface);
 }
-.pf-variant-add {
+.pf-variant-add-bar {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
   margin-top: 10px;
+}
+.pf-variant-add-count {
+  width: 72px;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 8px;
+  flex-shrink: 0;
+}
+.pf-variant-add {
   font-size: 13px;
   padding: 8px 16px;
 }

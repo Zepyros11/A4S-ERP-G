@@ -235,12 +235,24 @@
                     กด "+ เพิ่มตัวเลือก" เพื่อเพิ่มตัวเลือก
                   </div>
                 </div>
-                <button
-                  class="btn btn-outline pf-variant-add"
-                  onclick="addVariantSkuRow()"
-                >
-                  ＋ เพิ่มตัวเลือก
-                </button>
+                <div class="pf-variant-add-bar">
+                  <input
+                    id="variantAddCount"
+                    class="form-control pf-variant-add-count"
+                    type="number"
+                    min="1"
+                    max="10"
+                    value="1"
+                    title="จำนวนแถวที่จะเพิ่ม (สูงสุด 10)"
+                    onchange="this.value = Math.max(1, Math.min(10, parseInt(this.value, 10) || 1))"
+                  />
+                  <button
+                    class="btn btn-outline pf-variant-add"
+                    onclick="addVariantSkuRows()"
+                  >
+                    ＋ เพิ่มตัวเลือก
+                  </button>
+                </div>
               </div>
             </div>
           </div>
