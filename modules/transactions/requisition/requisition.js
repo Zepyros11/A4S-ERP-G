@@ -66,21 +66,42 @@ async function supabaseFetch(table, options = {}) {
 // ============================================================
 async function autoFillUserDept() {
   const sel = document.getElementById('deptId');
-  if (!sel || sel.value) return;
+  if (!sel) { console.warn('[autoFillDept] no #deptId element'); return; }
+  if (sel.value) { console.log('[autoFillDept] already has value, skip'); return; }
   const userId = window.ERP_USER?.user_id;
-  if (!userId) return;
+  if (!userId) { console.warn('[autoFillDept] no ERP_USER.user_id'); return; }
 
+  console.log('[autoFillDept] fetching department for user', userId, '...');
   try {
     const rows = await supabaseFetch('users', {
       query: `?user_id=eq.${encodeURIComponent(userId)}&select=department`
     });
-    const deptCode = rows?.[0]?.department;
-    if (!deptCode) return;
+    console.log('[autoFillDept] users response:', rows);
 
-    const match = Array.from(sel.options).find(o => o.dataset.deptCode === deptCode);
-    if (match) sel.value = match.value;
+    const deptCode = (rows?.[0]?.department || '').trim();
+    if (!deptCode) {
+      console.warn('[autoFillDept] users.department is empty for user', userId,
+        '— ตรวจว่า column "department" มีและ user คนนี้ตั้งค่าไว้แล้วหรือยัง');
+      return;
+    }
+
+    const codeUp = deptCode.toUpperCase();
+    const opts = Array.from(sel.options);
+    console.log('[autoFillDept] dept dropdown options:',
+      opts.slice(1).map(o => ({ id: o.value, code: o.dataset.deptCode, name: o.text })));
+
+    // case-insensitive match by code, fallback by name
+    let match = opts.find(o => (o.dataset.deptCode || '').toUpperCase() === codeUp);
+    if (!match) match = opts.find(o => o.text.toUpperCase() === codeUp);
+
+    if (match) {
+      sel.value = match.value;
+      console.log('[autoFillDept] ✅ matched dept_code', deptCode, '→ dept_id', match.value);
+    } else {
+      console.warn('[autoFillDept] ❌ no dropdown option matches dept_code', deptCode);
+    }
   } catch (e) {
-    console.warn('autoFillUserDept failed:', e);
+    console.warn('[autoFillDept] fetch failed:', e);
   }
 }
 
@@ -91,13 +112,14 @@ async function loadDropdowns() {
   const [depts, warehouses, users, prods, units, purposes] = await Promise.all([
     supabaseFetch('departments',          { query: '?select=dept_id,dept_code,dept_name&order=sort_order,dept_code' }),
     supabaseFetch('warehouses',           { query: '?select=warehouse_id,warehouse_name&is_active=eq.true' }),
-    supabaseFetch('users',                { query: '?select=user_id,first_name,last_name&is_active=eq.true' }),
+    supabaseFetch('users',                { query: '?select=user_id,full_name&is_active=eq.true&order=full_name.asc' }),
     supabaseFetch('products',             { query: '?select=product_id,product_code,product_name&is_active=eq.true&order=product_name' }),
     supabaseFetch('product_units',        { query: '?select=unit_id,product_id,unit_name' }),
     supabaseFetch('requisition_purposes', { query: '?select=purpose_id,purpose_code,purpose_name,purpose_type&is_active=eq.true' }),
   ]);
 
   // Departments — ใส่ data-dept-code เพื่อให้ autoFillUserDept match ได้
+  console.log('[loadDropdowns] departments:', depts);
   const selDept = document.getElementById('deptId');
   selDept.innerHTML = '<option value="">— เลือกแผนก —</option>';
   depts?.forEach(d => selDept.insertAdjacentHTML('beforeend',
@@ -115,7 +137,7 @@ async function loadDropdowns() {
     const sel = document.getElementById(id);
     sel.innerHTML = `<option value="">— ${id === 'requestedBy' ? 'เลือกผู้ขอเบิก' : 'เลือกผู้อนุมัติ'} —</option>`;
     users?.forEach(u => sel.insertAdjacentHTML('beforeend',
-      `<option value="${u.user_id}">${u.first_name} ${u.last_name}</option>`));
+      `<option value="${u.user_id}">${u.full_name || ''}</option>`));
   });
 
   // Products & Units
@@ -476,5 +498,9 @@ window.addEventListener('DOMContentLoaded', () => {
   document.getElementById('reqDate').value = new Date().toISOString().split('T')[0];
   renderPurposeCards(DEFAULT_PURPOSES);
   addItemRow();
-  if (SUPABASE_URL && SUPABASE_KEY) loadDropdowns().catch(console.error);
+  if (SUPABASE_URL && SUPABASE_KEY) {
+    loadDropdowns().catch(console.error);
+  } else {
+    console.warn('[REQ] Supabase not configured — sb_url/sb_key missing in localStorage. Dropdowns will be empty.');
+  }
 });
