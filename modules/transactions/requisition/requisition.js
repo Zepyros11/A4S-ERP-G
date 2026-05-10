@@ -563,8 +563,7 @@ function previewREQ() {
   const logoEl = document.getElementById('docLogo');
   logoEl.style.backgroundImage = `url("${COMPANY_PROFILE.logoUrl}")`;
 
-  document.getElementById('docNumber').textContent  = data.reqNumber;
-  document.getElementById('docDate').textContent    = fmtDate(data.reqDate);
+  document.getElementById('docNumber').textContent = data.reqNumber;
 
   // Info grid (metadata only — ผู้ขอเบิก/ผู้อนุมัติ อยู่ในช่องลายเซ็นด้านล่างแทน)
   document.getElementById('docPurpose').textContent = purposeName;

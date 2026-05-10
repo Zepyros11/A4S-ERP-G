@@ -14,6 +14,7 @@
       .trip-status-pill{
         display:inline-block;padding:3px 10px;border-radius:999px;
         font-size:11px;font-weight:600;letter-spacing:.2px;
+        white-space:nowrap;
       }
       .trip-status-ACTIVE   { background:#dbeafe; color:#1d4ed8; }
       .trip-status-DONE     { background:#dcfce7; color:#15803d; }
@@ -27,6 +28,15 @@
         background:#f1f5f9;color:#475569;font-size:11.5px;font-weight:600;
       }
       .trip-seat-badge.has{background:#e0f2fe;color:#0369a1;}
+
+      /* action group: keep all 4 icons on one row */
+      .action-group{
+        display:flex;flex-direction:row;align-items:center;
+        justify-content:center;gap:4px;flex-wrap:nowrap;
+      }
+      .action-group .btn-icon{
+        width:30px;height:30px;font-size:14px;flex-shrink:0;
+      }
     </style>
   </head>
   <body>
@@ -114,15 +124,15 @@
               <table class="data-table">
                 <thead>
                   <tr>
-                    <th style="width:50px;text-align:center">#</th>
+                    <th style="width:48px;text-align:center">#</th>
                     <th onclick="window.sortTable('trip_name')" style="cursor:pointer">
                       ชื่อทริป <span class="sort-icon">⇅</span>
                     </th>
-                    <th onclick="window.sortTable('start_date')" style="cursor:pointer">
+                    <th onclick="window.sortTable('start_date')" class="col-center" style="cursor:pointer;white-space:nowrap">
                       ช่วงวันที่ <span class="sort-icon">⇅</span>
                     </th>
-                    <th class="col-center" style="width:130px">ผู้โดยสาร</th>
-                    <th class="col-center" style="width:120px">สถานะ</th>
+                    <th class="col-center" style="width:90px">ผู้โดยสาร</th>
+                    <th class="col-center" style="width:130px">สถานะ</th>
                     <th class="col-center" style="width:160px">จัดการ</th>
                   </tr>
                 </thead>

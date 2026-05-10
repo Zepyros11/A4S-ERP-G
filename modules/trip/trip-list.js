@@ -150,7 +150,7 @@ function renderTable(rows) {
           <div class="trip-name-cell">${escapeHtml(t.trip_name || "—")}</div>
           ${t.description ? `<div style="font-size:12px;color:var(--text3);margin-top:2px">${escapeHtml(t.description)}</div>` : ""}
         </td>
-        <td><div class="trip-date-range">${dateRange}</div></td>
+        <td class="col-center"><div class="trip-date-range" style="white-space:nowrap">${dateRange}</div></td>
         <td class="col-center">
           <span class="trip-seat-badge${seatCount > 0 ? " has" : ""}">${seatCount} คน</span>
         </td>
@@ -188,7 +188,7 @@ function renderTable(rows) {
 function statusLabel(s) {
   return (
     {
-      ACTIVE: "🟢 กำลังดำเนินการ",
+      ACTIVE: "🟢 ดำเนินการ",
       DONE: "✅ เสร็จสิ้น",
       CANCELLED: "❌ ยกเลิก",
     }[s] || (s || "ACTIVE")
