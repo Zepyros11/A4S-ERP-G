@@ -51,6 +51,80 @@
 .form-block-title .required { color:var(--danger); margin-left:3px; }
 .form-block-sub { font-size:11.5px; color:var(--text3); font-weight:500; }
 
+/* PRODUCT THUMBNAIL (in items table + preview) */
+.prod-thumb {
+  width:36px; height:36px; flex-shrink:0;
+  border:1px solid var(--border); border-radius:6px;
+  background:var(--surface);
+  display:inline-flex; align-items:center; justify-content:center;
+  overflow:hidden; vertical-align:middle;
+  transition:transform .12s, border-color .12s, box-shadow .12s;
+}
+.prod-thumb img { width:100%; height:100%; object-fit:cover; display:block; }
+.prod-thumb-placeholder { font-size:16px; color:var(--text3); }
+.prod-thumb.is-clickable { cursor:zoom-in; }
+.prod-thumb.is-clickable:hover {
+  transform:scale(1.08); border-color:var(--accent);
+  box-shadow:0 4px 12px rgba(var(--accent-rgb),.18);
+}
+.req-doc-table .prod-thumb { width:30px; height:30px; cursor:default; }
+.req-doc-table .prod-thumb-placeholder { font-size:14px; }
+
+/* HANDWRITE LINE — เซลล์ว่างสำหรับเขียนมือบนใบที่พิมพ์ออก */
+.hand-write-line {
+  display:inline-block;
+  width:80px; height:20px;
+  border-bottom:1.5px dashed var(--border2);
+  vertical-align:middle;
+}
+
+/* QTY-ACTUAL CELL — (legacy) ปุ่ม ✓ (เติมเต็ม) + input ในเซลล์เดียว */
+.qty-actual-wrap { display:flex; align-items:center; gap:5px; }
+.qty-actual-wrap .td-input { flex:1; min-width:0; padding-left:6px; padding-right:6px; }
+.qty-fill-btn {
+  width:26px; height:26px; flex-shrink:0;
+  border:1.5px solid var(--border2); border-radius:5px;
+  background:var(--surface);
+  cursor:pointer;
+  font-size:13px; font-weight:700; color:var(--text3);
+  display:flex; align-items:center; justify-content:center;
+  transition:all .15s;
+  font-family:inherit;
+}
+.qty-fill-btn:hover { border-color:var(--accent); color:var(--accent); }
+.qty-fill-btn.is-full {
+  background:var(--accent); border-color:var(--accent); color:#fff;
+}
+
+/* COMBO (searchable product picker — portal-based เพื่อหลบ overflow ของ table wrap) */
+.combo { position:relative; width:100%; }
+.combo-input { width:100%; }
+.combo-portal {
+  position:fixed; display:none;
+  background:var(--surface);
+  border:1.5px solid var(--accent);
+  border-radius:7px;
+  max-height:280px; overflow-y:auto;
+  z-index:1000;
+  box-shadow:0 8px 24px rgba(0,0,0,.15);
+  font-size:13px;
+}
+.combo-portal.open { display:block; }
+.combo-item {
+  padding:8px 12px; cursor:pointer;
+  display:flex; gap:8px; align-items:baseline;
+  border-bottom:1px solid var(--border);
+}
+.combo-item:last-child { border-bottom:none; }
+.combo-item:hover, .combo-item.kbd-active { background:var(--accent-pale); }
+.combo-item .combo-code {
+  font-family:'IBM Plex Mono',monospace;
+  font-size:11.5px; font-weight:600; color:var(--accent);
+  white-space:nowrap; flex-shrink:0;
+}
+.combo-item .combo-name { color:var(--text); flex:1; }
+.combo-empty { padding:14px; color:var(--text3); font-style:italic; text-align:center; font-size:12px; }
+
 /* SIGNATURES (form mode — dropdowns under signature lines) */
 .doc-signatures-form {
   display:grid; grid-template-columns:repeat(3,1fr); gap:24px;
@@ -74,6 +148,20 @@
 .td-input { padding:8px 10px; border:1.5px solid transparent; border-radius:6px; font-size:13.5px; font-family:'Sarabun',sans-serif; width:100%; background:transparent; outline:none; transition:all .15s; color:var(--text); }
 .td-input:focus { border-color:var(--accent); background:#fff; box-shadow:0 0 0 3px rgba(var(--accent-rgb),.08); }
 .td-input.text-right { text-align:right; }
+/* Centered columns ใน items-table — header + content + input/widget */
+.items-table th.text-center,
+.items-table td.text-center { text-align:center; }
+/* input block + margin:auto → กล่อง input อยู่กลางเซลล์ (ตัวเลขข้างในยังขวาตามปกติ) */
+.items-table td.text-center > .td-input {
+  display:block; max-width:90px; width:100%; margin:0 auto;
+}
+/* wrap shrink-to-content → ทั้งกล่อง center ใน cell */
+.items-table td.text-center .qty-actual-wrap {
+  display:inline-flex; vertical-align:middle;
+}
+.items-table td.text-center .qty-actual-wrap .td-input {
+  width:60px; flex:0 0 60px;
+}
 select.td-input { cursor:pointer; appearance:none; }
 .btn-remove { width:28px; height:28px; border-radius:6px; border:none; background:transparent; color:var(--text3); cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:16px; transition:all .15s; }
 .btn-remove:hover { background:var(--danger-pale); color:var(--danger); }
@@ -167,19 +255,18 @@ textarea.form-control { resize:vertical; min-height:80px; line-height:1.6; }
 .req-doc-meta-row b { color:#52606d; font-weight:600; min-width:60px; text-align:left; }
 .req-doc-meta-row span { font-family:'IBM Plex Mono',monospace; font-weight:700; min-width:120px; text-align:right; }
 
-/* Info grid */
+/* Info grid (3 cells row) */
 .req-doc-info {
-  display:grid; grid-template-columns:1fr 1fr; gap:0;
+  display:grid; grid-template-columns:repeat(3, 1fr); gap:0;
   border:1px solid #cbd2d9; border-radius:6px; overflow:hidden;
   margin-bottom:14px; background:#fafbfc;
 }
 .req-doc-info-cell {
   padding:8px 12px;
-  border-bottom:1px solid #e4e7eb; border-right:1px solid #e4e7eb;
+  border-right:1px solid #e4e7eb;
   display:flex; gap:8px; align-items:baseline;
 }
-.req-doc-info-cell:nth-child(2n) { border-right:none; }
-.req-doc-info-cell:nth-last-child(-n+2) { border-bottom:none; }
+.req-doc-info-cell:last-child { border-right:none; }
 .req-doc-info-label { font-size:11px; font-weight:600; color:#52606d; min-width:90px; }
 .req-doc-info-value { font-size:13px; color:#1f2933; font-weight:500; flex:1; }
 
@@ -200,6 +287,7 @@ textarea.form-control { resize:vertical; min-height:80px; line-height:1.6; }
   font-size:12px; color:#1f2933;
 }
 .req-doc-table tr:nth-child(even) td { background:#fafbfc; }
+.req-doc-table td.doc-handwrite-cell { min-height:32px; height:32px; background:#fff !important; }
 .req-doc-table tfoot td {
   font-weight:700; background:#f1f3f5; font-size:12px;
 }
@@ -253,6 +341,7 @@ textarea.form-control { resize:vertical; min-height:80px; line-height:1.6; }
 <body>
 <div class="loading-overlay" id="loadingOverlay"><div class="spinner"></div></div>
 <div class="toast" id="toast"></div>
+<div class="combo-portal" id="comboPortal"></div>
 
 <div class="topbar"></div>
 <div class="page">
@@ -316,7 +405,16 @@ textarea.form-control { resize:vertical; min-height:80px; line-height:1.6; }
       <div class="purpose-grid" id="purposeGrid"><!-- populated by JS --></div>
     </div>
 
-    <!-- 3) ข้อมูลการเบิก -->
+    <!-- 3) หมายเหตุ -->
+    <div class="form-block">
+      <div class="form-block-head">
+        <div class="form-block-title">📝 หมายเหตุ / รายละเอียดเพิ่มเติม</div>
+      </div>
+      <textarea class="form-control" id="note"
+        placeholder="ระบุรายละเอียดการใช้งาน เช่น ชื่องาน, วันที่จัดงาน, สถานที่..."></textarea>
+    </div>
+
+    <!-- 4) ข้อมูลการเบิก -->
     <div class="form-block">
       <div class="form-block-head">
         <div class="form-block-title">📍 ข้อมูลการเบิก</div>
@@ -326,14 +424,10 @@ textarea.form-control { resize:vertical; min-height:80px; line-height:1.6; }
           <label class="form-label">แผนกที่เบิก <span class="required">*</span></label>
           <select class="form-control" id="deptId"><option value="">— เลือกแผนก —</option></select>
         </div>
-        <div class="form-group">
-          <label class="form-label">คลังที่เบิก <span class="required">*</span></label>
-          <select class="form-control" id="warehouseId"><option value="">— เลือกคลัง —</option></select>
-        </div>
       </div>
     </div>
 
-    <!-- 4) รายการสินค้า -->
+    <!-- 5) รายการสินค้า -->
     <div class="form-block">
       <div class="form-block-head">
         <div class="form-block-title">📋 รายการสินค้าที่ขอเบิก <span class="required">*</span></div>
@@ -342,13 +436,12 @@ textarea.form-control { resize:vertical; min-height:80px; line-height:1.6; }
       <div class="items-table-wrap">
         <table class="items-table">
           <thead><tr>
-            <th style="width:40px">#</th>
+            <th style="width:40px" class="text-center">#</th>
+            <th style="width:48px" class="text-center">ภาพ</th>
             <th style="min-width:200px">สินค้า <span style="color:var(--danger)">*</span></th>
-            <th style="width:110px">หน่วย</th>
-            <th style="width:110px">จำนวนที่ขอ <span style="color:var(--danger)">*</span></th>
-            <th style="width:110px">จำนวนอนุมัติ</th>
-            <th style="width:110px">จำนวนจ่ายจริง</th>
-            <th style="width:150px">หมายเหตุรายการ</th>
+            <th style="width:110px" class="text-center">จำนวนที่ขอ <span style="color:var(--danger)">*</span></th>
+            <th style="width:140px" class="text-center">จำนวนจ่ายจริง</th>
+            <th style="width:170px">หมายเหตุรายการ</th>
             <th style="width:40px"></th>
           </tr></thead>
           <tbody id="itemsBody"></tbody>
@@ -367,15 +460,6 @@ textarea.form-control { resize:vertical; min-height:80px; line-height:1.6; }
           </div>
         </div>
       </div>
-    </div>
-
-    <!-- 5) หมายเหตุ -->
-    <div class="form-block">
-      <div class="form-block-head">
-        <div class="form-block-title">📝 หมายเหตุ / รายละเอียดเพิ่มเติม</div>
-      </div>
-      <textarea class="form-control" id="note"
-        placeholder="ระบุรายละเอียดการใช้งาน เช่น ชื่องาน, วันที่จัดงาน, สถานที่..."></textarea>
     </div>
 
     <!-- 6) ผู้เกี่ยวข้อง / ลายเซ็น -->
@@ -434,8 +518,6 @@ textarea.form-control { resize:vertical; min-height:80px; line-height:1.6; }
       <div>
         <div class="req-doc-company-th" id="docCompanyTh">—</div>
         <div class="req-doc-company-en" id="docCompanyEn">—</div>
-        <div class="req-doc-company-addr" id="docCompanyAddr">—</div>
-        <div class="req-doc-company-meta" id="docCompanyMeta">—</div>
       </div>
       <div class="req-doc-title-block">
         <div class="req-doc-title">ใบเบิกสินค้า</div>
@@ -451,19 +533,17 @@ textarea.form-control { resize:vertical; min-height:80px; line-height:1.6; }
     <div class="req-doc-info">
       <div class="req-doc-info-cell"><span class="req-doc-info-label">วัตถุประสงค์</span><span class="req-doc-info-value" id="docPurpose">—</span></div>
       <div class="req-doc-info-cell"><span class="req-doc-info-label">แผนกที่เบิก</span><span class="req-doc-info-value" id="docDept">—</span></div>
-      <div class="req-doc-info-cell"><span class="req-doc-info-label">คลังที่เบิก</span><span class="req-doc-info-value" id="docWarehouse">—</span></div>
       <div class="req-doc-info-cell"><span class="req-doc-info-label">วันที่เบิก</span><span class="req-doc-info-value" id="docDate2">—</span></div>
     </div>
 
     <table class="req-doc-table">
       <thead>
         <tr>
-          <th style="width:36px" class="text-center">#</th>
+          <th style="width:30px" class="text-center">#</th>
+          <th style="width:42px" class="text-center">ภาพ</th>
           <th>รายการสินค้า</th>
-          <th style="width:70px" class="text-center">หน่วย</th>
           <th style="width:80px" class="text-right">จำนวนที่ขอ</th>
-          <th style="width:80px" class="text-right">อนุมัติ</th>
-          <th style="width:80px" class="text-right">จ่ายจริง</th>
+          <th style="width:100px" class="text-right">จำนวนจ่ายจริง</th>
           <th style="width:120px">หมายเหตุ</th>
         </tr>
       </thead>
@@ -472,7 +552,7 @@ textarea.form-control { resize:vertical; min-height:80px; line-height:1.6; }
         <tr>
           <td colspan="3" class="text-right">รวมทั้งสิ้น</td>
           <td class="text-right" id="docTotalQty">0</td>
-          <td colspan="3" class="text-right" id="docTotalItems">0 รายการ</td>
+          <td colspan="2" class="text-right" id="docTotalItems">0 รายการ</td>
         </tr>
       </tfoot>
     </table>
@@ -517,6 +597,7 @@ textarea.form-control { resize:vertical; min-height:80px; line-height:1.6; }
   import { loadTopbar } from "../../../js/components/navigation/topbar.js";
   loadTopbar("📋 ใบเบิกสินค้า (REQ)");
 </script>
+<script src="../../../js/components/navigation/imgPopup.js"></script>
 <script src="requisition.js"></script>
 <script src="../../../js/components/modal/modalManager.js"></script>
 </body>

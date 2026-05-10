@@ -3410,26 +3410,30 @@ async function saveAllToSupabase() {
 ═══════════════════════════════════════════════════════════ */
 function exportExcel() {
   if (rows.length === 0) { toast('ไม่มีข้อมูลให้ Export', 'error'); return; }
-  const data = rows.map(row => ({
-    'รหัส':              row.code,
-    'รายชื่อ':           row.name,
+  const httpUrl = v => (v && typeof v === 'string' && !v.startsWith('data:')) ? v : '';
+  const data = rows.map((row, i) => ({
+    '#':                 i + 1,
+    'Code':              row.code,
+    'Name':              row.name,
     'Instead':           row.instead || '',
     'Gender':            row.gender || '',
     'PIN':               row.pin,
+    'Seat':              row.seat,
+    'Nationality':       row.nationality,
+    'Pass. Image':       httpUrl(row.passImg),
+    'Pass. ID':          row.passId,
+    'Pass. Exp.':        row.passExp,
     'Port':              row.port,
     'Group':             row.group,
     'Flight':            row.flight,
-    'Departure (ออกสนามบิน)': row.departureDateTime,
-    'Arrival (ถึงไทย)':  row.arrivalDateTime,
+    'Date&Time (Departure)': row.departureDateTime,
+    'Date&Time (Arrival)':   row.arrivalDateTime,
     'Comeback Flight':   row.comeback,
-    'Comeback Date&Time': row.comebackDateTime,
-    'Seat':              row.seat,
-    'Nationality':       row.nationality,
-    'Passport ID':       row.passId,
-    'Passport Exp Date': row.passExp,
-    'Tel (WhatsApp)':    row.tel,
-    'T-Shirt Size':      row.shirt,
+    'Date&Time (Comeback)': row.comebackDateTime,
+    'Slip':              httpUrl(row.visaImg),
     'Paid':              row.paid || '',
+    'WhatsApp':          row.tel,
+    'T-Shirt':           row.shirt,
     'Waive':             row.waive ? 'ใช่' : '',
     'Sub Row':           row.isSubRow ? 'ใช่' : '',
   }));

@@ -4,61 +4,105 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ตั้งค่าระบบ — A4S-ERP</title>
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../../css/main.css">
 <style>
-/* Settings-specific */
-.page { max-width:720px; margin:0 auto; padding:32px 24px 80px; }
-.section { margin-bottom:28px; }
-.section-title { font-size:13px;font-weight:700;color:var(--text2);letter-spacing:.8px;text-transform:uppercase;margin-bottom:12px;display:flex;align-items:center;gap:8px; }
-.section-title::after { content:'';flex:1;height:1px;background:var(--border); }
+/* ── Settings page chrome ─────────────────────────────── */
+.settings-page { max-width: 920px; margin: 0 auto; }
 
-.card { background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden;margin-bottom:14px; }
-.card-header { padding:16px 20px;border-bottom:1px solid var(--border);background:var(--surface2);display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap; }
-.card-header-left { display:flex;align-items:center;gap:10px; }
-.card-icon { width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0; }
-.card-title { font-size:14px;font-weight:600;color:var(--text); }
-.card-subtitle { font-size:12px;color:var(--text3);margin-top:2px; }
-.card-body { padding:20px; }
+/* group divider — separates clusters of section-cards */
+.settings-group {
+  font-size: 11px; font-weight: 700;
+  color: var(--text3); letter-spacing: .8px;
+  text-transform: uppercase;
+  margin: 22px 4px 10px;
+  display: flex; align-items: center; gap: 10px;
+}
+.settings-group::after {
+  content: ''; flex: 1; height: 1px;
+  background: linear-gradient(90deg, var(--border), transparent);
+}
+.settings-group:first-of-type { margin-top: 4px; }
 
-.status-dot { display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:600;flex-shrink:0; }
-.dot-connected { background:var(--success-pale);color:var(--success); }
-.dot-disconnected { background:var(--danger-pale);color:var(--danger); }
-.dot-pulse { width:7px;height:7px;border-radius:50%;background:currentColor;animation:pulse 1.5s infinite; }
+/* circular icon used inside .section-title */
+.section-icon {
+  width: 32px; height: 32px;
+  border-radius: 9px;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 16px; flex-shrink: 0;
+}
+
+/* status pill (right side of section-head) */
+.status-dot {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 4px 10px; border-radius: 20px;
+  font-size: 11px; font-weight: 600; flex-shrink: 0;
+}
+.dot-connected    { background: var(--success-pale); color: var(--success); }
+.dot-disconnected { background: var(--danger-pale);  color: var(--danger); }
+.dot-pulse        { width: 7px; height: 7px; border-radius: 50%; background: currentColor; animation: pulse 1.5s infinite; }
 @keyframes pulse { 0%,100%{opacity:1;transform:scale(1);} 50%{opacity:.5;transform:scale(.8);} }
 
-.form-group { display:flex;flex-direction:column;gap:6px;margin-bottom:14px; }
-.form-group:last-child { margin-bottom:0; }
-.form-label { font-size:12px;font-weight:700;color:var(--text2);letter-spacing:.3px;display:flex;align-items:center;justify-content:space-between; }
-.form-hint { font-size:11px;color:var(--text3); }
-.form-control.mono { font-family:'IBM Plex Mono',monospace;font-size:13px; }
-.key-wrap { position:relative;display:flex; }
-.key-wrap .form-control { flex:1;padding-right:40px; }
-.key-toggle { position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text3);font-size:16px;padding:4px; }
-.key-toggle:hover { color:var(--accent); }
-
-.db-info-grid { display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px; }
-.db-info-item { background:var(--surface2);border-radius:7px;padding:10px 14px; }
-.db-info-label { font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.8px;margin-bottom:3px; }
-.db-info-value { font-size:14px;font-weight:600;color:var(--text);font-family:'IBM Plex Mono',monospace; }
-
-.btn-success { background:var(--success);color:#fff; }
-.btn-success:hover { background:#065f46; }
-.btn-row { display:flex;gap:10px;margin-top:16px;flex-wrap:wrap; }
-
-.danger-zone { border:1.5px solid #fca5a5;border-radius:var(--radius);padding:18px 20px;background:#fff5f5; }
-.danger-title { font-size:13px;font-weight:700;color:var(--danger);margin-bottom:6px; }
-.danger-desc { font-size:12px;color:var(--text2);margin-bottom:14px; }
-
-/* Category form */
-.cat-form-grid { display:grid;grid-template-columns:1fr 2fr auto;gap:10px;align-items:end; }
-
-@media (max-width:767px) {
-  .page { padding:16px 14px 80px; }
-  .cat-form-grid { grid-template-columns:1fr; }
-  .db-info-grid { grid-template-columns:1fr 1fr; }
+/* mono input + show/hide key */
+.form-control.mono { font-family: 'IBM Plex Mono', monospace; font-size: 13px; }
+.key-wrap { position: relative; display: flex; }
+.key-wrap .form-control { flex: 1; padding-right: 40px; }
+.key-toggle {
+  position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+  background: none; border: none; cursor: pointer;
+  color: var(--text3); font-size: 16px; padding: 4px;
 }
-@media (max-width:480px) {
-  .db-info-grid { grid-template-columns:1fr 1fr; }
+.key-toggle:hover { color: var(--accent); }
+
+.form-hint { font-size: 11px; font-weight: 500; color: var(--text3); }
+
+/* small DB info tiles */
+.db-info-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: 10px; margin-top: 14px;
+}
+.db-info-item {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px; padding: 10px 14px;
+}
+.db-info-label { font-size: 10px; font-weight: 700; color: var(--text3); letter-spacing: .8px; margin-bottom: 3px; }
+.db-info-value { font-size: 14px; font-weight: 600; color: var(--text); font-family: 'IBM Plex Mono', monospace; }
+
+/* button row inside section */
+.btn-row { display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
+
+/* danger zone — same shape as section-card but red-tinted */
+.section-card.is-danger {
+  background: #fff5f5;
+  border: 1.5px solid #fca5a5;
+  box-shadow: none;
+}
+.section-card.is-danger .section-title { color: var(--danger); }
+
+/* category quick form */
+.cat-form {
+  background: var(--surface);
+  border: 1.5px dashed var(--border);
+  border-radius: 10px;
+  padding: 14px;
+  margin-bottom: 14px;
+}
+.cat-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 2fr auto;
+  gap: 10px; align-items: end;
+}
+
+/* document prefix grid */
+.prefix-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px;
+}
+
+@media (max-width: 767px) {
+  .cat-form-grid { grid-template-columns: 1fr; }
+  .prefix-grid   { grid-template-columns: 1fr; }
+  .db-info-grid  { grid-template-columns: 1fr 1fr; }
 }
 </style>
 </head>
@@ -67,299 +111,389 @@
 <div class="loading-overlay" id="loadingOverlay"><div class="spinner"></div></div>
 <div class="toast" id="toast"></div>
 
-<!-- TOPBAR -->
 <div class="topbar"></div>
 
 <div class="layout">
-  <!-- SIDEBAR -->
-  <!-- CONTENT -->
   <div class="content-area">
-<div class="page">
-          <!-- HERO -->
-          <div class="page-hero page-hero--simple page-hero--compact">
-            <h1 class="page-hero-title">⚙️ ตั้งค่าระบบ</h1>
-          </div>
+    <div class="page">
+      <div class="settings-page">
 
+        <!-- HERO -->
+        <div class="page-hero page-hero--simple page-hero--compact">
+          <h1 class="page-hero-title">⚙️ ตั้งค่าระบบ</h1>
+        </div>
 
-  <div class="section">
-    <div class="section-title">🔌 การเชื่อมต่อฐานข้อมูล</div>
-    <div class="card">
-      <div class="card-header">
-        <div class="card-header-left">
-          <div class="card-icon" style="background:#e0f2fe;color:#0369a1">🗄️</div>
-          <div>
-            <div class="card-title">Supabase Database</div>
-            <div class="card-subtitle">PostgreSQL · stock-order-system</div>
-          </div>
-        </div>
-        <span class="status-dot dot-disconnected" id="connStatus">
-          <span class="dot-pulse"></span> ยังไม่เชื่อมต่อ
-        </span>
-      </div>
-      <div class="card-body">
-        <div class="form-group">
-          <label class="form-label">Project URL <span class="form-hint">จาก Settings → API</span></label>
-          <input class="form-control mono" id="inputUrl" placeholder="https://xxxxxxxxxxxx.supabase.co">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Anon Public Key <span class="form-hint">จาก Settings → API</span></label>
-          <div class="key-wrap">
-            <input class="form-control mono" id="inputKey" type="password" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...">
-            <button class="key-toggle" onclick="toggleKeyVisibility()" id="keyToggleBtn" title="แสดง/ซ่อน Key">👁</button>
-          </div>
-        </div>
-        <div class="btn-row">
-          <button class="btn btn-primary" data-perm="sys_settings_edit" onclick="saveAndConnect()">🔌 บันทึกและเชื่อมต่อ</button>
-          <button class="btn btn-outline" onclick="testConnection()">🧪 ทดสอบการเชื่อมต่อ</button>
-          <button class="btn btn-sm-danger" onclick="clearCredentials()">🗑 ล้างค่า</button>
-        </div>
-        <div id="dbInfo" style="display:none">
-          <div class="db-info-grid">
-            <div class="db-info-item"><div class="db-info-label">สินค้า</div><div class="db-info-value" id="countProducts">—</div></div>
-            <div class="db-info-item"><div class="db-info-label">คลังสินค้า</div><div class="db-info-value" id="countWarehouses">—</div></div>
-            <div class="db-info-item"><div class="db-info-label">Supplier</div><div class="db-info-value" id="countSuppliers">—</div></div>
+        <!-- ============================================================
+             GROUP: การเชื่อมต่อฐานข้อมูล
+             ============================================================ -->
+        <div class="settings-group">🔌 การเชื่อมต่อฐานข้อมูล</div>
 
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="section">
-    <div class="section-title">⚙️ ข้อมูลระบบ</div>
-    <div class="card">
-      <div class="card-header">
-        <div class="card-header-left">
-          <div class="card-icon" style="background:#ede9fe;color:#6d28d9">🏢</div>
-          <div><div class="card-title">ข้อมูลบริษัท</div><div class="card-subtitle">ชื่อที่แสดงในใบสั่งซื้อ / ใบขาย</div></div>
-        </div>
-      </div>
-      <div class="card-body">
-        <div class="form-grid">
-          <div class="form-group"><label class="form-label">ชื่อบริษัท</label><input class="form-control" id="companyName" placeholder="บริษัท A4S จำกัด"></div>
-          <div class="form-group"><label class="form-label">เลขที่ผู้เสียภาษี</label><input class="form-control mono" id="taxId" placeholder="0-0000-00000-00-0"></div>
-          <div class="form-group full"><label class="form-label">ที่อยู่</label><input class="form-control" id="companyAddress" placeholder="ที่อยู่บริษัท"></div>
-          <div class="form-group"><label class="form-label">เบอร์โทร</label><input class="form-control" id="companyPhone" placeholder="02-xxx-xxxx"></div>
-          <div class="form-group"><label class="form-label">อีเมล</label><input class="form-control" id="companyEmail" placeholder="contact@company.com"></div>
-        </div>
-        <div class="btn-row"><button class="btn btn-primary" data-perm="sys_settings_edit" onclick="saveCompanyInfo()">💾 บันทึกข้อมูลบริษัท</button></div>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-header">
-        <div class="card-header-left">
-          <div class="card-icon" style="background:#fef3c7;color:#92400e">🔢</div>
-          <div><div class="card-title">รูปแบบเลขที่เอกสาร</div><div class="card-subtitle">Prefix สำหรับ Auto-generate เลขที่</div></div>
-        </div>
-      </div>
-      <div class="card-body">
-        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px">
-          <div class="form-group"><label class="form-label">ใบสั่งซื้อ (PO)</label><input class="form-control mono" id="prefixPo" placeholder="PO-2025-" value="PO-2025-"></div>
-          <div class="form-group"><label class="form-label">ใบขาย (SO)</label><input class="form-control mono" id="prefixSo" placeholder="SO-2025-" value="SO-2025-"></div>
-          <div class="form-group"><label class="form-label">ใบเบิก (REQ)</label><input class="form-control mono" id="prefixReq" placeholder="REQ-2025-" value="REQ-2025-"></div>
-        </div>
-        <div class="btn-row"><button class="btn btn-primary" data-perm="sys_settings_edit" onclick="savePrefixes()">💾 บันทึก Prefix</button></div>
-      </div>
-    </div>
-  </div>
-
-  <div class="section">
-    <div class="section-title">🏷️ หมวดหมู่สินค้า</div>
-    <div class="card">
-      <div class="card-header">
-        <div class="card-header-left">
-          <div class="card-icon" style="background:#fce7f3;color:#9d174d">🏷️</div>
-          <div><div class="card-title">จัดการหมวดหมู่</div><div class="card-subtitle">เพิ่ม / แก้ไข / ลบหมวดหมู่สินค้า</div></div>
-        </div>
-        <button class="btn btn-primary" onclick="openCatForm()">＋ เพิ่มหมวดหมู่</button>
-      </div>
-      <div class="card-body">
-        <div id="catForm" style="display:none;background:var(--surface2);border:1.5px solid var(--border);border-radius:8px;padding:16px;margin-bottom:16px">
-          <div class="cat-form-grid">
-            <div class="form-group" style="margin:0">
-              <label class="form-label">ชื่อหมวดหมู่ <span style="color:var(--danger)">*</span></label>
-              <input class="form-control" id="catName" placeholder="เช่น สินค้าทั่วไป">
+        <div class="section-card">
+          <div class="section-head">
+            <div class="section-title">
+              <span class="section-icon" style="background:#e0f2fe;color:#0369a1">🗄️</span>
+              <div>
+                <div>Supabase Database</div>
+                <div class="section-sub">PostgreSQL · stock-order-system</div>
+              </div>
             </div>
-            <div class="form-group" style="margin:0">
-              <label class="form-label">คำอธิบาย</label>
-              <input class="form-control" id="catDesc" placeholder="รายละเอียดหมวดหมู่ (ไม่บังคับ)">
-            </div>
-            <div style="display:flex;gap:8px">
-              <button class="btn btn-primary" onclick="saveCategory()">💾 บันทึก</button>
-              <button class="btn btn-outline" onclick="closeCatForm()">ยกเลิก</button>
+            <span class="status-dot dot-disconnected" id="connStatus">
+              <span class="dot-pulse"></span> ยังไม่เชื่อมต่อ
+            </span>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">
+              Project URL
+              <span class="form-hint">จาก Settings → API</span>
+            </label>
+            <input class="form-control mono" id="inputUrl" placeholder="https://xxxxxxxxxxxx.supabase.co">
+          </div>
+          <div class="form-group">
+            <label class="form-label">
+              Anon Public Key
+              <span class="form-hint">จาก Settings → API</span>
+            </label>
+            <div class="key-wrap">
+              <input class="form-control mono" id="inputKey" type="password" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...">
+              <button class="key-toggle" onclick="toggleKeyVisibility()" id="keyToggleBtn" title="แสดง/ซ่อน Key">👁</button>
             </div>
           </div>
-          <input type="hidden" id="catEditId">
-        </div>
-        <div id="catList">
-          <div style="text-align:center;padding:24px;color:var(--text3)">
-            <div style="font-size:28px;margin-bottom:8px">🏷️</div>
-            <div style="font-size:13px">เชื่อมต่อ Supabase เพื่อดูหมวดหมู่</div>
+
+          <div class="btn-row">
+            <button class="btn btn-primary" data-perm="sys_settings_edit" onclick="saveAndConnect()">🔌 บันทึกและเชื่อมต่อ</button>
+            <button class="btn btn-outline" onclick="testConnection()">🧪 ทดสอบการเชื่อมต่อ</button>
+            <button class="btn btn-sm-danger" onclick="clearCredentials()">🗑 ล้างค่า</button>
+          </div>
+
+          <div id="dbInfo" style="display:none">
+            <div class="db-info-grid">
+              <div class="db-info-item"><div class="db-info-label">สินค้า</div><div class="db-info-value" id="countProducts">—</div></div>
+              <div class="db-info-item"><div class="db-info-label">คลังสินค้า</div><div class="db-info-value" id="countWarehouses">—</div></div>
+              <div class="db-info-item"><div class="db-info-label">Supplier</div><div class="db-info-value" id="countSuppliers">—</div></div>
+            </div>
           </div>
         </div>
+
+        <!-- ============================================================
+             GROUP: ข้อมูลระบบ
+             ============================================================ -->
+        <div class="settings-group">⚙️ ข้อมูลระบบ</div>
+
+        <div class="section-card">
+          <div class="section-head">
+            <div class="section-title">
+              <span class="section-icon" style="background:#ede9fe;color:#6d28d9">🏢</span>
+              <div>
+                <div>ข้อมูลบริษัท</div>
+                <div class="section-sub">ชื่อที่แสดงในใบสั่งซื้อ / ใบขาย</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">ชื่อบริษัท</label>
+              <input class="form-control" id="companyName" placeholder="บริษัท A4S จำกัด">
+            </div>
+            <div class="form-group">
+              <label class="form-label">เลขที่ผู้เสียภาษี</label>
+              <input class="form-control mono" id="taxId" placeholder="0-0000-00000-00-0">
+            </div>
+            <div class="form-group full">
+              <label class="form-label">ที่อยู่</label>
+              <input class="form-control" id="companyAddress" placeholder="ที่อยู่บริษัท">
+            </div>
+            <div class="form-group">
+              <label class="form-label">เบอร์โทร</label>
+              <input class="form-control" id="companyPhone" placeholder="02-xxx-xxxx">
+            </div>
+            <div class="form-group">
+              <label class="form-label">อีเมล</label>
+              <input class="form-control" id="companyEmail" placeholder="contact@company.com">
+            </div>
+          </div>
+
+          <div class="btn-row">
+            <button class="btn btn-primary" data-perm="sys_settings_edit" onclick="saveCompanyInfo()">💾 บันทึกข้อมูลบริษัท</button>
+          </div>
+        </div>
+
+        <div class="section-card">
+          <div class="section-head">
+            <div class="section-title">
+              <span class="section-icon" style="background:#fef3c7;color:#92400e">🔢</span>
+              <div>
+                <div>รูปแบบเลขที่เอกสาร</div>
+                <div class="section-sub">Prefix สำหรับ Auto-generate เลขที่</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="prefix-grid">
+            <div class="form-group">
+              <label class="form-label">ใบสั่งซื้อ (PO)</label>
+              <input class="form-control mono" id="prefixPo" placeholder="PO-2025-" value="PO-2025-">
+            </div>
+            <div class="form-group">
+              <label class="form-label">ใบขาย (SO)</label>
+              <input class="form-control mono" id="prefixSo" placeholder="SO-2025-" value="SO-2025-">
+            </div>
+            <div class="form-group">
+              <label class="form-label">ใบเบิก (REQ)</label>
+              <input class="form-control mono" id="prefixReq" placeholder="REQ-2025-" value="REQ-2025-">
+            </div>
+          </div>
+
+          <div class="btn-row">
+            <button class="btn btn-primary" data-perm="sys_settings_edit" onclick="savePrefixes()">💾 บันทึก Prefix</button>
+          </div>
+        </div>
+
+        <!-- ============================================================
+             GROUP: หมวดหมู่สินค้า
+             ============================================================ -->
+        <div class="settings-group">🏷️ หมวดหมู่สินค้า</div>
+
+        <div class="section-card">
+          <div class="section-head">
+            <div class="section-title">
+              <span class="section-icon" style="background:#fce7f3;color:#9d174d">🏷️</span>
+              <div>
+                <div>จัดการหมวดหมู่</div>
+                <div class="section-sub">เพิ่ม / แก้ไข / ลบหมวดหมู่สินค้า</div>
+              </div>
+            </div>
+            <button class="btn btn-primary" onclick="openCatForm()">＋ เพิ่มหมวดหมู่</button>
+          </div>
+
+          <div class="cat-form" id="catForm" style="display:none">
+            <div class="cat-form-grid">
+              <div class="form-group">
+                <label class="form-label">ชื่อหมวดหมู่ <span style="color:var(--danger)">*</span></label>
+                <input class="form-control" id="catName" placeholder="เช่น สินค้าทั่วไป">
+              </div>
+              <div class="form-group">
+                <label class="form-label">คำอธิบาย</label>
+                <input class="form-control" id="catDesc" placeholder="รายละเอียดหมวดหมู่ (ไม่บังคับ)">
+              </div>
+              <div style="display:flex;gap:8px">
+                <button class="btn btn-primary" onclick="saveCategory()">💾 บันทึก</button>
+                <button class="btn btn-outline" onclick="closeCatForm()">ยกเลิก</button>
+              </div>
+            </div>
+            <input type="hidden" id="catEditId">
+          </div>
+
+          <div id="catList">
+            <div class="empty-state">
+              <div class="empty-state-icon">🏷️</div>
+              <div class="empty-state-title">เชื่อมต่อ Supabase เพื่อดูหมวดหมู่</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ============================================================
+             GROUP: LINE Messaging API
+             ============================================================ -->
+        <div class="settings-group">📱 LINE Messaging API</div>
+
+        <div class="section-card">
+          <div class="section-head">
+            <div class="section-title">
+              <span class="section-icon" style="background:#dcfce7;color:#15803d">🔗</span>
+              <div>
+                <div>Proxy Server (ai-proxy)</div>
+                <div class="section-sub">ใช้ forward LINE API + AI OCR — ต้องรัน server ก่อนใช้งาน</div>
+              </div>
+            </div>
+            <span class="status-dot dot-disconnected" id="proxyStatus">
+              <span class="dot-pulse"></span> ยังไม่ทดสอบ
+            </span>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">
+              Proxy Base URL
+              <span class="form-hint">เช่น http://localhost:3001 หรือ https://your-proxy.example.com</span>
+            </label>
+            <input class="form-control mono" id="proxyUrl" placeholder="http://localhost:3001">
+          </div>
+
+          <div class="btn-row">
+            <button class="btn btn-primary" data-perm="sys_settings_edit" onclick="saveProxyUrl()">💾 บันทึก</button>
+            <button class="btn btn-outline" onclick="testProxy()">🧪 ทดสอบ</button>
+          </div>
+        </div>
+
+        <div class="section-card">
+          <div class="section-head">
+            <div class="section-title">
+              <span class="section-icon" style="background:#fef3c7;color:#92400e">🔐</span>
+              <div>
+                <div>Master Key</div>
+                <div class="section-sub">Passphrase ใช้ encrypt/decrypt LINE tokens (เก็บใน localStorage)</div>
+              </div>
+            </div>
+            <span class="status-dot dot-disconnected" id="masterKeyStatus">
+              <span class="dot-pulse"></span> ยังไม่ตั้ง
+            </span>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">
+              Master Key
+              <span class="form-hint">อย่างน้อย 8 ตัวอักษร · จำให้ดี ถ้าลืมจะ decrypt token ของเก่าไม่ได้</span>
+            </label>
+            <div class="key-wrap">
+              <input class="form-control mono" id="masterKey" type="password" placeholder="passphrase ใช้ unlock tokens">
+              <button class="key-toggle" onclick="toggleMasterKeyVisibility()" title="แสดง/ซ่อน">👁</button>
+            </div>
+          </div>
+
+          <div class="btn-row">
+            <button class="btn btn-primary" data-perm="sys_settings_edit" onclick="saveMasterKey()">💾 ตั้ง Master Key</button>
+            <button class="btn btn-sm-danger" onclick="clearMasterKey()">🗑 ล้าง</button>
+          </div>
+        </div>
+
+        <div class="section-card">
+          <div class="section-head">
+            <div class="section-title">
+              <span class="section-icon" style="background:#dbeafe;color:#1e40af">📡</span>
+              <div>
+                <div>LINE Channels</div>
+                <div class="section-sub">จัดการหลาย OA แยกตาม purpose (event / sync / announcement)</div>
+              </div>
+            </div>
+            <div style="display:flex;gap:6px">
+              <button class="btn btn-outline" onclick="importFromSyncConfig()" title="Import token จาก LINE Notify (dev-tool) มาเป็น channel">📥 Import</button>
+              <button class="btn btn-primary" onclick="openLineChannelForm()">＋ เพิ่ม Channel</button>
+            </div>
+          </div>
+
+          <div id="lineChannelList">
+            <div class="empty-state">
+              <div class="empty-state-icon">📡</div>
+              <div class="empty-state-title">ยังไม่มี channel</div>
+              <div class="empty-state-hint">กด "เพิ่ม Channel" เพื่อเริ่ม</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ============================================================
+             GROUP: Danger Zone
+             ============================================================ -->
+        <div class="settings-group">⚠️ Danger Zone</div>
+
+        <div class="section-card is-danger">
+          <div class="section-head">
+            <div class="section-title">
+              <span class="section-icon" style="background:#fee2e2;color:#b91c1c">🗑️</span>
+              <div>
+                <div>ล้างข้อมูลทั้งหมดใน Browser</div>
+                <div class="section-sub">ลบ Supabase Key, ข้อมูลบริษัท และ Prefix ทั้งหมดออกจาก localStorage · ไม่กระทบข้อมูลใน Database</div>
+              </div>
+            </div>
+          </div>
+          <div class="btn-row">
+            <button class="btn btn-sm-danger" onclick="confirmClearAll()">🗑 ล้าง localStorage ทั้งหมด</button>
+          </div>
+        </div>
+
+      </div><!-- /.settings-page -->
+    </div><!-- /.page -->
+  </div><!-- /.content-area -->
+</div><!-- /.layout -->
+
+
+<!-- ============================================================
+     LINE Channel Form Modal (kept at root level)
+     ============================================================ -->
+<div class="modal-overlay" id="lineChannelModal">
+  <div class="modal" style="width:520px;max-width:92vw">
+    <div class="modal-header" style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+      <div style="font-weight:700" id="lineChannelModalTitle">เพิ่ม LINE Channel</div>
+      <button class="btn-icon" onclick="closeLineChannelForm()" style="background:none;border:none;font-size:18px;cursor:pointer">✕</button>
+    </div>
+    <div class="modal-body" style="padding:20px;max-height:70vh;overflow-y:auto">
+      <input type="hidden" id="lcId">
+      <div class="form-group">
+        <label class="form-label">ชื่อ Channel <span style="color:var(--danger)">*</span></label>
+        <input class="form-control" id="lcName" placeholder="เช่น Bot-Assistant (dev) / A4S.Global (prod)">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Purpose <span style="color:var(--danger)">*</span></label>
+        <select class="form-control" id="lcPurpose">
+          <option value="event">event — ลงทะเบียน/แจ้ง attendees</option>
+          <option value="sync">sync — แจ้งเตือน sync ภายใน</option>
+          <option value="announcement">announcement — broadcast ทั่วไป</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">
+          Channel Access Token <span style="color:var(--danger)">*</span>
+          <span class="form-hint">long-lived · จาก LINE Developers → Messaging API</span>
+        </label>
+        <div class="key-wrap">
+          <input class="form-control mono" id="lcToken" type="password" placeholder="แปะ Channel Access Token (~170 ตัวอักษร)">
+          <button class="key-toggle" onclick="toggleLcTokenVisibility()" title="แสดง/ซ่อน">👁</button>
+        </div>
+        <div class="form-hint" id="lcTokenHint" style="margin-top:4px"></div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">
+          Channel ID
+          <span class="form-hint">ตัวเลข · optional (ใช้อ้างอิง)</span>
+        </label>
+        <input class="form-control mono" id="lcChannelId" placeholder="1234567890">
+      </div>
+      <div class="form-group">
+        <label class="form-label">
+          LIFF ID
+          <span class="form-hint">เฉพาะ purpose=event ที่จะใช้ LIFF login</span>
+        </label>
+        <input class="form-control mono" id="lcLiffId" placeholder="1234567890-xxxxxxxx">
+      </div>
+      <div class="form-group">
+        <label class="form-label">
+          LIFF Endpoint URL
+          <span class="form-hint">URL ของ register.html ที่ผูกกับ LIFF</span>
+        </label>
+        <input class="form-control mono" id="lcLiffEndpoint" placeholder="https://yourdomain.com/modules/event/register.html">
+      </div>
+      <div class="form-group">
+        <label class="form-label">
+          Friend URL
+          <span class="form-hint">ลิงก์ add friend (เอาไปใส่ QR register)</span>
+        </label>
+        <input class="form-control mono" id="lcFriendUrl" placeholder="https://line.me/R/ti/p/@xxxxx">
+      </div>
+      <div class="form-group">
+        <label class="form-label">
+          Note
+          <span class="form-hint">โน้ตภายใน</span>
+        </label>
+        <textarea class="form-control" id="lcNote" rows="2" placeholder="รายละเอียดเพิ่มเติม..."></textarea>
+      </div>
+      <div style="display:flex;gap:18px;margin-top:10px">
+        <label style="display:flex;gap:6px;align-items:center;font-size:13px;cursor:pointer">
+          <input type="checkbox" id="lcIsDefault"> เป็น default ของ purpose นี้
+        </label>
+        <label style="display:flex;gap:6px;align-items:center;font-size:13px;cursor:pointer">
+          <input type="checkbox" id="lcIsActive" checked> ใช้งานอยู่
+        </label>
+      </div>
+    </div>
+    <div class="modal-footer" style="padding:14px 18px;border-top:1px solid var(--border);display:flex;justify-content:space-between;gap:8px">
+      <button class="btn btn-outline" onclick="testLineChannelToken()">🧪 ทดสอบ Token</button>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-outline" onclick="closeLineChannelForm()">ยกเลิก</button>
+        <button class="btn btn-primary" onclick="saveLineChannel()">💾 บันทึก</button>
       </div>
     </div>
   </div>
-
-  <div class="section">
-    <div class="section-title">📱 LINE Messaging API</div>
-
-    <div class="card">
-      <div class="card-header">
-        <div class="card-header-left">
-          <div class="card-icon" style="background:#dcfce7;color:#15803d">🔗</div>
-          <div>
-            <div class="card-title">Proxy Server (ai-proxy)</div>
-            <div class="card-subtitle">ใช้ forward LINE API + AI OCR — ต้องรัน server ก่อนใช้งาน</div>
-          </div>
-        </div>
-        <span class="status-dot dot-disconnected" id="proxyStatus">
-          <span class="dot-pulse"></span> ยังไม่ทดสอบ
-        </span>
-      </div>
-      <div class="card-body">
-        <div class="form-group">
-          <label class="form-label">Proxy Base URL <span class="form-hint">เช่น http://localhost:3001 หรือ https://your-proxy.example.com</span></label>
-          <input class="form-control mono" id="proxyUrl" placeholder="http://localhost:3001">
-        </div>
-        <div class="btn-row">
-          <button class="btn btn-primary" data-perm="sys_settings_edit" onclick="saveProxyUrl()">💾 บันทึก</button>
-          <button class="btn btn-outline" onclick="testProxy()">🧪 ทดสอบ</button>
-        </div>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-header">
-        <div class="card-header-left">
-          <div class="card-icon" style="background:#fef3c7;color:#92400e">🔐</div>
-          <div>
-            <div class="card-title">Master Key</div>
-            <div class="card-subtitle">Passphrase ใช้ encrypt/decrypt LINE tokens (เก็บใน localStorage)</div>
-          </div>
-        </div>
-        <span class="status-dot dot-disconnected" id="masterKeyStatus">
-          <span class="dot-pulse"></span> ยังไม่ตั้ง
-        </span>
-      </div>
-      <div class="card-body">
-        <div class="form-group">
-          <label class="form-label">Master Key <span class="form-hint">อย่างน้อย 8 ตัวอักษร · จำให้ดี ถ้าลืมจะ decrypt token ของเก่าไม่ได้</span></label>
-          <div class="key-wrap">
-            <input class="form-control mono" id="masterKey" type="password" placeholder="passphrase ใช้ unlock tokens">
-            <button class="key-toggle" onclick="toggleMasterKeyVisibility()" title="แสดง/ซ่อน">👁</button>
-          </div>
-        </div>
-        <div class="btn-row">
-          <button class="btn btn-primary" data-perm="sys_settings_edit" onclick="saveMasterKey()">💾 ตั้ง Master Key</button>
-          <button class="btn btn-sm-danger" onclick="clearMasterKey()">🗑 ล้าง</button>
-        </div>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-header">
-        <div class="card-header-left">
-          <div class="card-icon" style="background:#dbeafe;color:#1e40af">📡</div>
-          <div>
-            <div class="card-title">LINE Channels</div>
-            <div class="card-subtitle">จัดการหลาย OA แยกตาม purpose (event / sync / announcement)</div>
-          </div>
-        </div>
-        <div style="display:flex;gap:6px">
-          <button class="btn btn-outline" onclick="importFromSyncConfig()" title="Import token จาก LINE Notify (dev-tool) มาเป็น channel">📥 Import</button>
-          <button class="btn btn-primary" onclick="openLineChannelForm()">＋ เพิ่ม Channel</button>
-        </div>
-      </div>
-      <div class="card-body">
-        <div id="lineChannelList">
-          <div style="text-align:center;padding:24px;color:var(--text3)">
-            <div style="font-size:28px;margin-bottom:8px">📡</div>
-            <div style="font-size:13px">ยังไม่มี channel — กด "เพิ่ม Channel" เพื่อเริ่ม</div>
-          </div>
-        </div>
-      </div>
-  <!-- LINE Channel Form Modal -->
-  <div class="modal-overlay" id="lineChannelModal">
-    <div class="modal" style="width:520px;max-width:92vw">
-      <div class="modal-header" style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
-        <div style="font-weight:700" id="lineChannelModalTitle">เพิ่ม LINE Channel</div>
-        <button class="btn-icon" onclick="closeLineChannelForm()" style="background:none;border:none;font-size:18px;cursor:pointer">✕</button>
-      </div>
-      <div class="modal-body" style="padding:20px;max-height:70vh;overflow-y:auto">
-        <input type="hidden" id="lcId">
-        <div class="form-group">
-          <label class="form-label">ชื่อ Channel <span style="color:var(--danger)">*</span></label>
-          <input class="form-control" id="lcName" placeholder="เช่น Bot-Assistant (dev) / A4S.Global (prod)">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Purpose <span style="color:var(--danger)">*</span></label>
-          <select class="form-control" id="lcPurpose">
-            <option value="event">event — ลงทะเบียน/แจ้ง attendees</option>
-            <option value="sync">sync — แจ้งเตือน sync ภายใน</option>
-            <option value="announcement">announcement — broadcast ทั่วไป</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Channel Access Token <span style="color:var(--danger)">*</span> <span class="form-hint">long-lived · จาก LINE Developers → Messaging API</span></label>
-          <div class="key-wrap">
-            <input class="form-control mono" id="lcToken" type="password" placeholder="แปะ Channel Access Token (~170 ตัวอักษร)">
-            <button class="key-toggle" onclick="toggleLcTokenVisibility()" title="แสดง/ซ่อน">👁</button>
-          </div>
-          <div class="form-hint" id="lcTokenHint" style="margin-top:4px"></div>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Channel ID <span class="form-hint">ตัวเลข · optional (ใช้อ้างอิง)</span></label>
-          <input class="form-control mono" id="lcChannelId" placeholder="1234567890">
-        </div>
-        <div class="form-group">
-          <label class="form-label">LIFF ID <span class="form-hint">เฉพาะ purpose=event ที่จะใช้ LIFF login</span></label>
-          <input class="form-control mono" id="lcLiffId" placeholder="1234567890-xxxxxxxx">
-        </div>
-        <div class="form-group">
-          <label class="form-label">LIFF Endpoint URL <span class="form-hint">URL ของ register.html ที่ผูกกับ LIFF</span></label>
-          <input class="form-control mono" id="lcLiffEndpoint" placeholder="https://yourdomain.com/modules/event/register.html">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Friend URL <span class="form-hint">ลิงก์ add friend (เอาไปใส่ QR register)</span></label>
-          <input class="form-control mono" id="lcFriendUrl" placeholder="https://line.me/R/ti/p/@xxxxx">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Note <span class="form-hint">โน้ตภายใน</span></label>
-          <textarea class="form-control" id="lcNote" rows="2" placeholder="รายละเอียดเพิ่มเติม..."></textarea>
-        </div>
-        <div style="display:flex;gap:18px;margin-top:10px">
-          <label style="display:flex;gap:6px;align-items:center;font-size:13px;cursor:pointer">
-            <input type="checkbox" id="lcIsDefault"> เป็น default ของ purpose นี้
-          </label>
-          <label style="display:flex;gap:6px;align-items:center;font-size:13px;cursor:pointer">
-            <input type="checkbox" id="lcIsActive" checked> ใช้งานอยู่
-          </label>
-        </div>
-      </div>
-      <div class="modal-footer" style="padding:14px 18px;border-top:1px solid var(--border);display:flex;justify-content:space-between;gap:8px">
-        <button class="btn btn-outline" onclick="testLineChannelToken()">🧪 ทดสอบ Token</button>
-        <div style="display:flex;gap:8px">
-          <button class="btn btn-outline" onclick="closeLineChannelForm()">ยกเลิก</button>
-          <button class="btn btn-primary" onclick="saveLineChannel()">💾 บันทึก</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="section">
-    <div class="section-title">⚠️ Danger Zone</div>
-    <div class="danger-zone">
-      <div class="danger-title">ล้างข้อมูลทั้งหมดใน Browser</div>
-      <div class="danger-desc">ลบ Supabase Key, ข้อมูลบริษัท และ Prefix ทั้งหมดออกจาก localStorage ไม่กระทบข้อมูลใน Database</div>
-      <button class="btn btn-sm-danger" onclick="confirmClearAll()">🗑 ล้าง localStorage ทั้งหมด</button>
-    </div>
-  </div>
-
 </div>
-  </div><!-- end .content-area -->
-</div><!-- end .layout -->
 
 <script src="../../js/core/auth.js"></script>
 <script src="../../js/core/authz.js"></script>
@@ -376,9 +510,6 @@
 </script>
 <script src="../../js/components/navigation/sidebar.js"></script>
 <script src="../../js/components/modal/modalManager.js"></script>
-  </div>
-
-  </div>
 
 </body>
 </html>
