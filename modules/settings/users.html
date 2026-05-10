@@ -104,7 +104,7 @@
                     <th onclick="sortBy('full_name')" style="cursor:pointer">ชื่อ-นามสกุล <span class="sort-icon">⇅</span></th>
                     <th onclick="sortBy('username')" style="cursor:pointer">Username <span class="sort-icon">⇅</span></th>
                     <th onclick="sortBy('role')" style="cursor:pointer">Role <span class="sort-icon">⇅</span></th>
-                    <th>อีเมล</th>
+                    <th onclick="sortBy('department')" style="cursor:pointer">แผนก <span class="sort-icon">⇅</span></th>
                     <th class="col-center">สถานะ</th>
                     <th class="col-center">จัดการ</th>
                   </tr>
@@ -162,13 +162,19 @@
               <label class="form-label">ชื่อ-นามสกุล <span class="req">*</span></label>
               <input class="form-control" id="fFullName" placeholder="ชื่อ นามสกุล" />
             </div>
-            <div class="form-group">
-              <label class="form-label">รหัสพนักงาน <span class="req">*</span></label>
-              <input class="form-control" id="fUserCode" placeholder="EMP001" style="font-family:'IBM Plex Mono',monospace;text-transform:uppercase" />
-            </div>
+            <input type="hidden" id="fUserCode" />
             <div class="form-group">
               <label class="form-label">Username <span class="req">*</span></label>
               <input class="form-control" id="fUsername" placeholder="username" style="font-family:'IBM Plex Mono',monospace" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">
+                แผนก
+                <button type="button" class="dept-manage-link" onclick="openDeptManager()" title="จัดการรายชื่อแผนก">⚙️ จัดการ</button>
+              </label>
+              <select class="form-control" id="fDepartment">
+                <option value="">— ไม่ระบุ —</option>
+              </select>
             </div>
             <div class="form-group">
               <label class="form-label">รหัสผ่าน <span class="req" id="pwdReq">*</span></label>
@@ -220,7 +226,31 @@
       </div>
     </div>
 
+    <!-- DEPARTMENT MANAGER MODAL -->
+    <div class="modal-overlay" id="deptModalOverlay" onclick="closeDeptManagerBg(event)">
+      <div class="modal v-sage-header" style="width:540px;max-height:85vh;display:flex;flex-direction:column">
+        <div class="modal-hdr">
+          <div class="modal-title">🏢 จัดการแผนก</div>
+          <button class="btn-modal-close" onclick="closeDeptManager()">✕</button>
+        </div>
+        <div class="modal-body" style="flex:1;overflow-y:auto;min-height:0">
+          <!-- ADD ROW -->
+          <div class="dept-add-row">
+            <input class="form-control" id="deptNewName" placeholder="ชื่อแผนก (เช่น ฝ่ายขาย, BRE, IBD)" onkeydown="if(event.key==='Enter'){event.preventDefault();addDept()}" />
+            <button class="btn btn-primary" onclick="addDept()">＋ เพิ่ม</button>
+          </div>
+          <div class="form-hint" style="margin:6px 0 12px">รหัสภายในจะถูกสร้างให้อัตโนมัติ</div>
 
+          <!-- LIST -->
+          <div class="dept-list" id="deptList">
+            <div class="empty-state"><div class="empty-icon">🏢</div><div>กำลังโหลด...</div></div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-outline" onclick="closeDeptManager()">ปิด</button>
+        </div>
+      </div>
+    </div>
 
   </body>
 </html>

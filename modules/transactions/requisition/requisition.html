@@ -8,65 +8,60 @@
 <style>
 .page { max-width:960px; margin:0 auto; padding:32px 24px 100px; }
 
-/* PURPOSE GRID */
-.purpose-section { margin-bottom:20px; }
-.purpose-section-label { font-size:12px; font-weight:700; color:var(--text2); letter-spacing:.8px; margin-bottom:10px; }
-.purpose-grid { display:grid; grid-template-columns:repeat(5,1fr); gap:10px; }
+/* PAGE-HERO actions อยู่ขวา (เก็บ status badge) */
+.page-hero-actions .req-status-badge { align-self:center; }
+
+/* PURPOSE — pill/chip style (compact) */
+.purpose-grid { display:flex; flex-wrap:wrap; gap:8px; }
 .purpose-card {
-  background:var(--surface); border:1.5px solid var(--border); border-radius:10px;
-  padding:14px 10px; cursor:pointer; transition:all .18s;
-  display:flex; flex-direction:column; align-items:center; gap:6px; text-align:center;
+  background:var(--surface); border:1.5px solid var(--border); border-radius:999px;
+  padding:7px 14px; cursor:pointer; transition:all .15s;
+  display:inline-flex; align-items:center; gap:7px; line-height:1.2;
 }
 .purpose-card:hover { border-color:var(--accent); background:var(--accent-pale); }
-.purpose-card.active { border-color:var(--accent); background:var(--accent-pale); box-shadow:0 0 0 3px rgba(109,40,217,.1); }
-.purpose-icon { font-size:24px; line-height:1; }
-.purpose-label { font-size:12px; font-weight:600; color:var(--text2); }
-.purpose-card.active .purpose-label { color:var(--accent); }
-.purpose-type { font-size:10px; color:var(--text3); }
-.purpose-card.active .purpose-type { color:var(--accent-light); }
+.purpose-card.active { border-color:var(--accent); background:var(--accent-pale); box-shadow:0 0 0 3px rgba(var(--accent-rgb),.1); }
+.purpose-icon { font-size:15px; line-height:1; }
+.purpose-label { font-size:13px; font-weight:500; color:var(--text); }
+.purpose-card.active .purpose-label { color:var(--accent); font-weight:600; }
+.purpose-type { display:none; }
 
-/* STATUS BAR */
-.status-bar { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:20px 32px; margin-bottom:20px; display:flex; align-items:center; box-shadow:var(--shadow); }
-.step { display:flex; flex-direction:column; align-items:center; gap:6px; }
-.step-circle { width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:700; border:2px solid var(--border2); background:var(--surface); color:var(--text3); transition:all .3s; }
-.step.active .step-circle { background:var(--accent); border-color:var(--accent); color:#fff; }
-.step-label { font-size:11px; color:var(--text3); font-weight:600; white-space:nowrap; }
-.step.active .step-label { color:var(--accent); }
-.step-line { flex:1; height:2px; background:var(--border); margin:0 8px; margin-bottom:18px; }
-
-/* CARD */
-.card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); margin-bottom:20px; box-shadow:var(--shadow); overflow:hidden; }
-.card-header { padding:14px 20px; border-bottom:1px solid var(--border); background:var(--surface2); display:flex; align-items:center; justify-content:space-between; }
-.card-title { display:flex; align-items:center; gap:8px; font-size:14px; font-weight:700; }
-.card-title-icon { width:28px; height:28px; border-radius:7px; background:var(--accent-pale); display:flex; align-items:center; justify-content:center; font-size:14px; }
-.card-body { padding:20px; }
-
-/* REQ HEADER */
-.req-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; }
-.req-number-label { font-size:11px; font-weight:700; color:var(--text3); letter-spacing:.8px; margin-bottom:4px; }
-.req-number-value { font-family:'IBM Plex Mono',monospace; font-size:22px; font-weight:700; color:var(--accent); }
+/* STATUS BADGE (used in page-hero actions) */
 .req-status-badge { padding:5px 12px; border-radius:20px; font-size:12px; font-weight:700; letter-spacing:.5px; }
 .badge-draft { background:var(--bg); color:var(--text2); border:1px solid var(--border2); }
 
-/* FORM */
+/* FORM grid + input-prefix (form-group/form-label/form-control inherited from common.css) */
 .form-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
-.form-group { display:flex; flex-direction:column; gap:6px; }
-.form-label { font-size:12px; font-weight:600; color:var(--text2); letter-spacing:.3px; }
-.form-label .required { color:var(--danger); margin-left:3px; }
-.form-control { padding:10px 14px; border:1.5px solid var(--border); border-radius:7px; font-size:14px; font-family:'Sarabun',sans-serif; color:var(--text); background:var(--surface); outline:none; appearance:none; transition:all .18s; }
-.form-control:focus { border-color:var(--accent); box-shadow:0 0 0 3px rgba(109,40,217,.08); }
-select.form-control { background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%239ca3af' d='M6 8L1 3h10z'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 12px center; padding-right:36px; cursor:pointer; }
-.form-hint { font-size:11px; color:var(--text3); margin-top:2px; }
 .input-prefix { display:flex; align-items:center; border:1.5px solid var(--border); border-radius:7px; overflow:hidden; transition:all .18s; }
-.input-prefix:focus-within { border-color:var(--accent); box-shadow:0 0 0 3px rgba(109,40,217,.08); }
+.input-prefix:focus-within { border-color:var(--accent); box-shadow:0 0 0 3px rgba(var(--accent-rgb),.08); }
 .input-prefix-text { padding:10px 12px; background:var(--surface2); font-size:13px; color:var(--text2); border-right:1.5px solid var(--border); white-space:nowrap; }
 .input-prefix .form-control { border:none; border-radius:0; box-shadow:none; flex:1; }
 
-/* APPROVER BLOCK */
-.approver-block { background:linear-gradient(135deg,#faf5ff 0%,#f3e8ff 100%); border:1.5px solid #ddd6fe; border-radius:8px; padding:16px 20px; display:flex; align-items:center; gap:16px; margin-top:16px; }
-.approver-icon { font-size:28px; flex-shrink:0; }
-.approver-content { flex:1; display:grid; grid-template-columns:1fr 1fr; gap:12px; }
-.approver-label { font-size:11px; font-weight:700; color:var(--accent); letter-spacing:.8px; margin-bottom:4px; }
+/* SUB-BLOCK ภายใน .section-card เดียวกัน (คั่นด้วยเส้นบางๆ) */
+.form-block { padding:18px 0; border-bottom:1px solid var(--border); }
+.form-block:first-child { padding-top:0; }
+.form-block:last-child  { padding-bottom:0; border-bottom:none; }
+.form-block-head {
+  display:flex; align-items:center; justify-content:space-between;
+  flex-wrap:wrap; gap:8px; margin-bottom:12px;
+}
+.form-block-title {
+  font-size:13px; font-weight:700; color:var(--text);
+  display:flex; align-items:center; gap:7px;
+}
+.form-block-title .required { color:var(--danger); margin-left:3px; }
+.form-block-sub { font-size:11.5px; color:var(--text3); font-weight:500; }
+
+/* SIGNATURES (form mode — dropdowns under signature lines) */
+.doc-signatures-form {
+  display:grid; grid-template-columns:repeat(3,1fr); gap:24px;
+  margin-top:8px;
+}
+.doc-sig-block { text-align:center; }
+.doc-sig-line { border-top:1px solid var(--text); margin:30px 12px 10px; }
+.doc-sig-label { font-weight:700; color:var(--text); font-size:13px; margin-bottom:8px; }
+.doc-sig-label .required { color:var(--danger); margin-left:3px; }
+.doc-sig-select { width:100%; }
+.doc-sig-placeholder { font-size:12px; color:var(--text3); font-style:italic; padding:10px 0; }
 
 /* ITEMS TABLE */
 .items-table-wrap { overflow-x:auto; }
@@ -77,7 +72,7 @@ select.form-control { background-image:url("data:image/svg+xml,%3Csvg xmlns='htt
 .items-table tr:hover td { background:var(--surface2); }
 .item-num { width:32px; height:32px; background:var(--bg); border-radius:6px; display:flex; align-items:center; justify-content:center; font-size:12px; color:var(--text3); font-family:'IBM Plex Mono',monospace; }
 .td-input { padding:8px 10px; border:1.5px solid transparent; border-radius:6px; font-size:13.5px; font-family:'Sarabun',sans-serif; width:100%; background:transparent; outline:none; transition:all .15s; color:var(--text); }
-.td-input:focus { border-color:var(--accent); background:#fff; box-shadow:0 0 0 3px rgba(109,40,217,.08); }
+.td-input:focus { border-color:var(--accent); background:#fff; box-shadow:0 0 0 3px rgba(var(--accent-rgb),.08); }
 .td-input.text-right { text-align:right; }
 select.td-input { cursor:pointer; appearance:none; }
 .btn-remove { width:28px; height:28px; border-radius:6px; border:none; background:transparent; color:var(--text3); cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:16px; transition:all .15s; }
@@ -104,17 +99,154 @@ select.td-input { cursor:pointer; appearance:none; }
 .btn-outline:hover { border-color:var(--text2); color:var(--text); }
 .btn-danger-outline { background:transparent; border:1.5px solid var(--border2); color:var(--text3); }
 .btn-danger-outline:hover { border-color:var(--danger); color:var(--danger); background:var(--danger-pale); }
-.btn-warning { background:var(--warning-pale); color:var(--warning); border:1.5px solid #fcd34d; }
-.btn-warning:hover { background:#fef9c3; }
+.btn-warning { background:var(--warning-pale); color:var(--warning); border:1.5px solid #e8c97a; }
+.btn-warning:hover { background:#fdebd0; }
 .btn-success { background:var(--accent); color:#fff; }
 .btn-success:hover { background:var(--accent-light); }
 textarea.form-control { resize:vertical; min-height:80px; line-height:1.6; }
 
 @media (max-width:640px) {
   .form-grid { grid-template-columns:1fr; }
-  .purpose-grid { grid-template-columns:repeat(3,1fr); }
-  .approver-content { grid-template-columns:1fr; }
-  .status-bar { display:none; }
+  .doc-signatures-form { grid-template-columns:1fr; gap:18px; }
+  .stepper { display:none; }
+}
+
+/* ================================================================
+   FORMAL PREVIEW / PRINT DOCUMENT
+   ================================================================ */
+.preview-overlay {
+  position:fixed; inset:0; z-index:9999;
+  background:rgba(15,23,30,.55);
+  display:none; flex-direction:column; align-items:center;
+  overflow-y:auto; padding:24px 16px 40px;
+}
+.preview-overlay.open { display:flex; }
+.preview-toolbar {
+  position:sticky; top:0; z-index:10;
+  width:100%; max-width:210mm;
+  background:var(--surface); border:1px solid var(--border); border-radius:10px;
+  padding:10px 14px; margin-bottom:18px;
+  display:flex; align-items:center; justify-content:space-between; gap:10px;
+  box-shadow:0 6px 24px rgba(0,0,0,.18);
+}
+.preview-toolbar .toolbar-title { font-size:13px; font-weight:600; color:var(--text2); }
+.preview-toolbar .toolbar-actions { display:flex; gap:8px; }
+
+/* A4 document */
+.req-doc {
+  background:#fff;
+  width:210mm; min-height:297mm;
+  padding:18mm 16mm;
+  box-shadow:0 12px 40px rgba(0,0,0,.25);
+  font-family:'Sarabun',sans-serif;
+  font-size:13px; color:#1f2933; line-height:1.55;
+  box-sizing:border-box;
+}
+.req-doc * { box-sizing:border-box; }
+
+/* Header */
+.req-doc-header {
+  display:grid; grid-template-columns:84px 1fr auto;
+  align-items:center; gap:18px;
+  padding-bottom:14px; margin-bottom:18px;
+  border-bottom:2px solid #1f2933;
+}
+.req-doc-logo {
+  width:84px; height:84px; border:1px solid #cbd2d9; border-radius:10px;
+  background:#fff center/64px auto no-repeat;
+}
+.req-doc-company-th { font-size:16px; font-weight:700; color:#1f2933; }
+.req-doc-company-en { font-size:11px; color:#52606d; letter-spacing:.5px; margin-top:2px; }
+.req-doc-company-addr { font-size:11px; color:#52606d; margin-top:6px; line-height:1.45; }
+.req-doc-company-meta { font-size:11px; color:#52606d; margin-top:2px; }
+.req-doc-title-block { text-align:right; min-width:210px; }
+.req-doc-title { font-size:20px; font-weight:800; color:#1f2933; letter-spacing:1px; }
+.req-doc-title-en { font-size:11px; color:#52606d; letter-spacing:1.5px; margin-top:1px; }
+.req-doc-meta { margin-top:10px; font-size:12px; color:#1f2933; text-align:right; }
+.req-doc-meta-row { display:flex; justify-content:flex-end; gap:8px; margin-top:2px; }
+.req-doc-meta-row b { color:#52606d; font-weight:600; min-width:60px; text-align:left; }
+.req-doc-meta-row span { font-family:'IBM Plex Mono',monospace; font-weight:700; min-width:120px; text-align:right; }
+
+/* Info grid */
+.req-doc-info {
+  display:grid; grid-template-columns:1fr 1fr; gap:0;
+  border:1px solid #cbd2d9; border-radius:6px; overflow:hidden;
+  margin-bottom:14px; background:#fafbfc;
+}
+.req-doc-info-cell {
+  padding:8px 12px;
+  border-bottom:1px solid #e4e7eb; border-right:1px solid #e4e7eb;
+  display:flex; gap:8px; align-items:baseline;
+}
+.req-doc-info-cell:nth-child(2n) { border-right:none; }
+.req-doc-info-cell:nth-last-child(-n+2) { border-bottom:none; }
+.req-doc-info-label { font-size:11px; font-weight:600; color:#52606d; min-width:90px; }
+.req-doc-info-value { font-size:13px; color:#1f2933; font-weight:500; flex:1; }
+
+/* Items table */
+.req-doc-table { width:100%; border-collapse:collapse; margin-bottom:12px; font-size:12px; }
+.req-doc-table th {
+  background:#1f2933; color:#fff;
+  padding:8px 10px; font-weight:600; text-align:left;
+  font-size:11px; letter-spacing:.4px;
+  border:1px solid #1f2933;
+}
+.req-doc-table th.text-right,
+.req-doc-table td.text-right { text-align:right; }
+.req-doc-table th.text-center,
+.req-doc-table td.text-center { text-align:center; }
+.req-doc-table td {
+  padding:7px 10px; border:1px solid #cbd2d9; vertical-align:top;
+  font-size:12px; color:#1f2933;
+}
+.req-doc-table tr:nth-child(even) td { background:#fafbfc; }
+.req-doc-table tfoot td {
+  font-weight:700; background:#f1f3f5; font-size:12px;
+}
+.req-doc-empty-row td { color:#9aa5b1; text-align:center; padding:18px; font-style:italic; }
+
+/* Note */
+.req-doc-note {
+  border:1px solid #cbd2d9; border-radius:6px;
+  padding:10px 12px; margin-bottom:18px; font-size:12px;
+  background:#fafbfc; min-height:48px;
+}
+.req-doc-note-label { font-weight:700; color:#52606d; margin-bottom:4px; font-size:11px; letter-spacing:.4px; }
+.req-doc-note-body { color:#1f2933; white-space:pre-wrap; }
+
+/* Signatures */
+.req-doc-signatures {
+  display:grid; grid-template-columns:repeat(3,1fr); gap:24px;
+  margin-top:32px;
+}
+.sig-block { text-align:center; font-size:12px; color:#1f2933; }
+.sig-line { border-top:1px solid #1f2933; margin:30px 12px 8px; }
+.sig-label { font-weight:700; color:#1f2933; margin-bottom:4px; }
+.sig-name { color:#52606d; font-size:11px; }
+.sig-date { color:#9aa5b1; font-size:11px; margin-top:6px; }
+
+.req-doc-footer-note {
+  margin-top:24px; padding-top:10px; border-top:1px dashed #cbd2d9;
+  font-size:10px; color:#9aa5b1; text-align:center; letter-spacing:.4px;
+}
+
+/* PRINT — strip everything except the doc */
+@media print {
+  @page { size:A4; margin:0; }
+  body { background:#fff !important; }
+  .topbar, #erp-sidebar, .page, .form-footer, .preview-toolbar,
+  .loading-overlay, .toast { display:none !important; }
+  .preview-overlay {
+    position:static !important; padding:0 !important; background:#fff !important;
+    display:block !important; overflow:visible !important;
+  }
+  .req-doc {
+    width:100%; min-height:auto;
+    box-shadow:none; padding:14mm 12mm;
+    page-break-inside:avoid;
+  }
+  .req-doc-table tr { page-break-inside:avoid; }
+  .req-doc-signatures { page-break-inside:avoid; }
 }
 </style>
 </head>
@@ -122,60 +254,74 @@ textarea.form-control { resize:vertical; min-height:80px; line-height:1.6; }
 <div class="loading-overlay" id="loadingOverlay"><div class="spinner"></div></div>
 <div class="toast" id="toast"></div>
 
-<div class="topbar">
-  <div class="topbar-logo">📦 <span>A4S</span>-ERP</div>
-  <div class="topbar-sep"></div>
-  <div class="topbar-title">ใบเบิกสินค้า (REQ)</div>
-  <div class="topbar-actions">
-    <button class="btn-topbar btn-ghost" onclick="window.history.back()">← กลับ</button>
-  </div>
-</div>
+<div class="topbar"></div>
 <div class="page">
 
-  <!-- PURPOSE CARDS -->
-  <div class="purpose-section">
-    <div class="purpose-section-label">วัตถุประสงค์การเบิก <span style="color:var(--danger)">*</span></div>
-    <div class="purpose-grid" id="purposeGrid">
-      <!-- populated by JS -->
+  <!-- PAGE HERO (canonical: simple variant for form pages) -->
+  <div class="page-hero page-hero--simple">
+    <div>
+      <h1 class="page-hero-title">📋 ใบเบิกสินค้า</h1>
+      <p class="page-hero-sub">Requisition Form · กรอกข้อมูลเพื่อขอเบิกสินค้าจากคลัง</p>
+    </div>
+    <div class="page-hero-actions">
+      <span class="req-status-badge badge-draft" id="statusBadge">● DRAFT</span>
     </div>
   </div>
 
-  <!-- STATUS STEPS -->
-  <div class="status-bar">
-    <div class="step active"><div class="step-circle">1</div><div class="step-label">กรอกข้อมูล</div></div>
-    <div class="step-line"></div>
-    <div class="step pending"><div class="step-circle">2</div><div class="step-label">รออนุมัติ</div></div>
-    <div class="step-line"></div>
-    <div class="step pending"><div class="step-circle">3</div><div class="step-label">อนุมัติแล้ว</div></div>
-    <div class="step-line"></div>
-    <div class="step pending"><div class="step-circle">4</div><div class="step-label">จ่ายของออก</div></div>
-    <div class="step-line"></div>
-    <div class="step pending"><div class="step-circle">✓</div><div class="step-label">เสร็จสิ้น</div></div>
+  <!-- STEPPER (canonical) -->
+  <div class="section-card">
+    <div class="stepper">
+      <div class="step active"><div class="step-circle">1</div><div class="step-label">กรอกข้อมูล</div></div>
+      <div class="step-connector"></div>
+      <div class="step"><div class="step-circle">2</div><div class="step-label">รออนุมัติ</div></div>
+      <div class="step-connector"></div>
+      <div class="step"><div class="step-circle">3</div><div class="step-label">อนุมัติแล้ว</div></div>
+      <div class="step-connector"></div>
+      <div class="step"><div class="step-circle">4</div><div class="step-label">จ่ายของออก</div></div>
+      <div class="step-connector"></div>
+      <div class="step"><div class="step-circle">✓</div><div class="step-label">เสร็จสิ้น</div></div>
+    </div>
   </div>
 
-  <!-- REQ NUMBER & INFO -->
-  <div class="card">
-    <div class="card-body">
-      <div class="req-header">
-        <div>
-          <div class="req-number-label">เลขที่ใบเบิก</div>
-          <div class="req-number-value" id="reqNumberDisplay">REQ-2025-001</div>
-        </div>
-        <span class="req-status-badge badge-draft" id="statusBadge">● DRAFT</span>
+  <!-- FORM CARD (รวมทุก sub-section อยู่ใน block เดียว คั่นด้วยเส้นบางๆ) -->
+  <div class="section-card">
+
+    <!-- 1) รายละเอียดเอกสาร -->
+    <div class="form-block">
+      <div class="form-block-head">
+        <div class="form-block-title">📄 รายละเอียดเอกสาร</div>
       </div>
       <div class="form-grid">
         <div class="form-group">
           <label class="form-label">เลขที่ REQ <span class="required">*</span></label>
           <div class="input-prefix">
-            <span class="input-prefix-text" id="reqPrefix">REQ-2025-</span>
-            <input type="text" class="form-control" id="reqNumber" placeholder="001" value="001"
-              oninput="document.getElementById('reqNumberDisplay').textContent=document.getElementById('reqPrefix').textContent+this.value">
+            <span class="input-prefix-text" id="reqPrefix">REQ-2026-01-</span>
+            <input type="text" class="form-control" id="reqNumber" placeholder="001" value="001">
           </div>
         </div>
         <div class="form-group">
           <label class="form-label">วันที่เบิก <span class="required">*</span></label>
           <input type="date" class="form-control" id="reqDate">
         </div>
+      </div>
+      <span id="reqNumberDisplay" hidden></span>
+    </div>
+
+    <!-- 2) วัตถุประสงค์ -->
+    <div class="form-block">
+      <div class="form-block-head">
+        <div class="form-block-title">🎯 วัตถุประสงค์การเบิก <span class="required">*</span></div>
+        <div class="form-block-sub">เลือก 1 วัตถุประสงค์ที่ตรงกับลักษณะการใช้งาน</div>
+      </div>
+      <div class="purpose-grid" id="purposeGrid"><!-- populated by JS --></div>
+    </div>
+
+    <!-- 3) ข้อมูลการเบิก -->
+    <div class="form-block">
+      <div class="form-block-head">
+        <div class="form-block-title">📍 ข้อมูลการเบิก</div>
+      </div>
+      <div class="form-grid">
         <div class="form-group">
           <label class="form-label">แผนกที่เบิก <span class="required">*</span></label>
           <select class="form-control" id="deptId"><option value="">— เลือกแผนก —</option></select>
@@ -185,31 +331,14 @@ textarea.form-control { resize:vertical; min-height:80px; line-height:1.6; }
           <select class="form-control" id="warehouseId"><option value="">— เลือกคลัง —</option></select>
         </div>
       </div>
+    </div>
 
-      <!-- APPROVER BLOCK -->
-      <div class="approver-block">
-        <span class="approver-icon">🔐</span>
-        <div class="approver-content">
-          <div class="form-group">
-            <div class="approver-label">ผู้ขอเบิก <span style="color:var(--danger)">*</span></div>
-            <select class="form-control" id="requestedBy"><option value="">— เลือกผู้ขอเบิก —</option></select>
-          </div>
-          <div class="form-group">
-            <div class="approver-label">ผู้อนุมัติ</div>
-            <select class="form-control" id="approvedBy"><option value="">— เลือกผู้อนุมัติ —</option></select>
-          </div>
-        </div>
+    <!-- 4) รายการสินค้า -->
+    <div class="form-block">
+      <div class="form-block-head">
+        <div class="form-block-title">📋 รายการสินค้าที่ขอเบิก <span class="required">*</span></div>
+        <div class="form-block-sub" id="itemCount">0 รายการ</div>
       </div>
-    </div>
-  </div>
-
-  <!-- ITEMS -->
-  <div class="card">
-    <div class="card-header">
-      <div class="card-title"><div class="card-title-icon">📋</div>รายการสินค้าที่ขอเบิก</div>
-      <div style="font-size:12px;color:var(--text3)" id="itemCount">0 รายการ</div>
-    </div>
-    <div class="card-body">
       <div class="items-table-wrap">
         <table class="items-table">
           <thead><tr>
@@ -239,17 +368,41 @@ textarea.form-control { resize:vertical; min-height:80px; line-height:1.6; }
         </div>
       </div>
     </div>
-  </div>
 
-  <!-- NOTE -->
-  <div class="card">
-    <div class="card-header">
-      <div class="card-title"><div class="card-title-icon">📝</div>หมายเหตุ / รายละเอียดเพิ่มเติม</div>
-    </div>
-    <div class="card-body">
+    <!-- 5) หมายเหตุ -->
+    <div class="form-block">
+      <div class="form-block-head">
+        <div class="form-block-title">📝 หมายเหตุ / รายละเอียดเพิ่มเติม</div>
+      </div>
       <textarea class="form-control" id="note"
         placeholder="ระบุรายละเอียดการใช้งาน เช่น ชื่องาน, วันที่จัดงาน, สถานที่..."></textarea>
     </div>
+
+    <!-- 6) ผู้เกี่ยวข้อง / ลายเซ็น -->
+    <div class="form-block">
+      <div class="form-block-head">
+        <div class="form-block-title">✍️ ผู้เกี่ยวข้อง</div>
+        <div class="form-block-sub">ผู้ขอเบิก / ผู้อนุมัติ จะแสดงเป็นช่องลงนามในใบเบิกที่พิมพ์ออก</div>
+      </div>
+      <div class="doc-signatures-form">
+        <div class="doc-sig-block">
+          <div class="doc-sig-line"></div>
+          <div class="doc-sig-label">ผู้ขอเบิก <span class="required">*</span></div>
+          <select class="form-control doc-sig-select" id="requestedBy"><option value="">— เลือกผู้ขอเบิก —</option></select>
+        </div>
+        <div class="doc-sig-block">
+          <div class="doc-sig-line"></div>
+          <div class="doc-sig-label">ผู้อนุมัติ</div>
+          <select class="form-control doc-sig-select" id="approvedBy"><option value="">— เลือกผู้อนุมัติ —</option></select>
+        </div>
+        <div class="doc-sig-block">
+          <div class="doc-sig-line"></div>
+          <div class="doc-sig-label">ผู้จ่ายของออก</div>
+          <div class="doc-sig-placeholder">(ระบุตอนจ่ายของจริง)</div>
+        </div>
+      </div>
+    </div>
+
   </div>
 
 </div>
@@ -266,12 +419,104 @@ textarea.form-control { resize:vertical; min-height:80px; line-height:1.6; }
   </div>
 </div>
 
+<!-- FORMAL PREVIEW / PRINT -->
+<div class="preview-overlay" id="previewOverlay" onclick="if(event.target===this)closePreview()">
+  <div class="preview-toolbar">
+    <span class="toolbar-title">📄 ตัวอย่างใบเบิก (A4)</span>
+    <div class="toolbar-actions">
+      <button class="btn btn-outline" onclick="closePreview()">✕ ปิด</button>
+      <button class="btn btn-success" onclick="printREQ()">🖨 พิมพ์ / บันทึก PDF</button>
+    </div>
+  </div>
+  <div class="req-doc" id="reqDoc">
+    <div class="req-doc-header">
+      <div class="req-doc-logo" id="docLogo"></div>
+      <div>
+        <div class="req-doc-company-th" id="docCompanyTh">—</div>
+        <div class="req-doc-company-en" id="docCompanyEn">—</div>
+        <div class="req-doc-company-addr" id="docCompanyAddr">—</div>
+        <div class="req-doc-company-meta" id="docCompanyMeta">—</div>
+      </div>
+      <div class="req-doc-title-block">
+        <div class="req-doc-title">ใบเบิกสินค้า</div>
+        <div class="req-doc-title-en">REQUISITION FORM</div>
+        <div class="req-doc-meta">
+          <div class="req-doc-meta-row"><b>เลขที่</b><span id="docNumber">—</span></div>
+          <div class="req-doc-meta-row"><b>วันที่</b><span id="docDate">—</span></div>
+          <div class="req-doc-meta-row"><b>สถานะ</b><span id="docStatus">DRAFT</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="req-doc-info">
+      <div class="req-doc-info-cell"><span class="req-doc-info-label">วัตถุประสงค์</span><span class="req-doc-info-value" id="docPurpose">—</span></div>
+      <div class="req-doc-info-cell"><span class="req-doc-info-label">แผนกที่เบิก</span><span class="req-doc-info-value" id="docDept">—</span></div>
+      <div class="req-doc-info-cell"><span class="req-doc-info-label">คลังที่เบิก</span><span class="req-doc-info-value" id="docWarehouse">—</span></div>
+      <div class="req-doc-info-cell"><span class="req-doc-info-label">วันที่เบิก</span><span class="req-doc-info-value" id="docDate2">—</span></div>
+    </div>
+
+    <table class="req-doc-table">
+      <thead>
+        <tr>
+          <th style="width:36px" class="text-center">#</th>
+          <th>รายการสินค้า</th>
+          <th style="width:70px" class="text-center">หน่วย</th>
+          <th style="width:80px" class="text-right">จำนวนที่ขอ</th>
+          <th style="width:80px" class="text-right">อนุมัติ</th>
+          <th style="width:80px" class="text-right">จ่ายจริง</th>
+          <th style="width:120px">หมายเหตุ</th>
+        </tr>
+      </thead>
+      <tbody id="docItemsBody"></tbody>
+      <tfoot>
+        <tr>
+          <td colspan="3" class="text-right">รวมทั้งสิ้น</td>
+          <td class="text-right" id="docTotalQty">0</td>
+          <td colspan="3" class="text-right" id="docTotalItems">0 รายการ</td>
+        </tr>
+      </tfoot>
+    </table>
+
+    <div class="req-doc-note">
+      <div class="req-doc-note-label">หมายเหตุ / รายละเอียดเพิ่มเติม</div>
+      <div class="req-doc-note-body" id="docNote">—</div>
+    </div>
+
+    <div class="req-doc-signatures">
+      <div class="sig-block">
+        <div class="sig-line"></div>
+        <div class="sig-label">ผู้ขอเบิก</div>
+        <div class="sig-name">( <span id="sigRequester">—</span> )</div>
+        <div class="sig-date">วันที่ ____ / ____ / ________</div>
+      </div>
+      <div class="sig-block">
+        <div class="sig-line"></div>
+        <div class="sig-label">ผู้อนุมัติ</div>
+        <div class="sig-name">( <span id="sigApprover">—</span> )</div>
+        <div class="sig-date">วันที่ ____ / ____ / ________</div>
+      </div>
+      <div class="sig-block">
+        <div class="sig-line"></div>
+        <div class="sig-label">ผู้จ่ายของออก</div>
+        <div class="sig-name">( ______________________ )</div>
+        <div class="sig-date">วันที่ ____ / ____ / ________</div>
+      </div>
+    </div>
+
+    <div class="req-doc-footer-note">เอกสารนี้สร้างโดยระบบ A4S-ERP · พิมพ์เมื่อ <span id="docPrintedAt">—</span></div>
+  </div>
+</div>
+
 <script src="../../../js/core/auth.js"></script>
 <script src="../../../js/core/authz.js"></script>
 <script src="../../../js/core/date-format.js"></script>
 <script>AuthZ.requirePerm("req_view");</script>
 <script src="../../../js/core/responsive.js"></script>
 <script src="../../../js/components/navigation/sidebar.js"></script>
+<script type="module">
+  import { loadTopbar } from "../../../js/components/navigation/topbar.js";
+  loadTopbar("📋 ใบเบิกสินค้า (REQ)");
+</script>
 <script src="requisition.js"></script>
 <script src="../../../js/components/modal/modalManager.js"></script>
 </body>

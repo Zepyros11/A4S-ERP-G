@@ -8,6 +8,22 @@ let productUnits      = {};
 let rowCount          = 0;
 let selectedPurposeId = null;
 
+function getReqPrefix(d = new Date()) {
+  const y  = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  return `REQ-${y}-${mm}-`;
+}
+
+const COMPANY_PROFILE = Object.freeze({
+  nameTh:  'บริษัทเอโฟร์เอส แคน คอร์ปอเรชั่น จำกัด',
+  nameEn:  'A4S CAN CORPORATION CO., LTD.',
+  address: '88/88 ถนนตัวอย่าง แขวงตัวอย่าง เขตตัวอย่าง กรุงเทพมหานคร 10200',
+  taxId:   '0105559999999',
+  phone:   '02-123-4567',
+  email:   'info@a4scan.example',
+  logoUrl: '../../../assets/logo/logo-a4s.png',
+});
+
 // ============================================================
 // PURPOSE DEFINITIONS  (static fallback — overridden by DB)
 // ============================================================
@@ -44,11 +60,36 @@ async function supabaseFetch(table, options = {}) {
 }
 
 // ============================================================
+// AUTO-FILL DEPT FROM USER
+// users.department (dept_code) → match กับ option ใน dropdown
+// (option มี data-dept-code attribute ที่ตั้งจากตอน loadDropdowns)
+// ============================================================
+async function autoFillUserDept() {
+  const sel = document.getElementById('deptId');
+  if (!sel || sel.value) return;
+  const userId = window.ERP_USER?.user_id;
+  if (!userId) return;
+
+  try {
+    const rows = await supabaseFetch('users', {
+      query: `?user_id=eq.${encodeURIComponent(userId)}&select=department`
+    });
+    const deptCode = rows?.[0]?.department;
+    if (!deptCode) return;
+
+    const match = Array.from(sel.options).find(o => o.dataset.deptCode === deptCode);
+    if (match) sel.value = match.value;
+  } catch (e) {
+    console.warn('autoFillUserDept failed:', e);
+  }
+}
+
+// ============================================================
 // LOAD DROPDOWNS
 // ============================================================
 async function loadDropdowns() {
   const [depts, warehouses, users, prods, units, purposes] = await Promise.all([
-    supabaseFetch('departments',          { query: '?select=dept_id,dept_name&is_active=eq.true&order=dept_name' }),
+    supabaseFetch('departments',          { query: '?select=dept_id,dept_code,dept_name&order=sort_order,dept_code' }),
     supabaseFetch('warehouses',           { query: '?select=warehouse_id,warehouse_name&is_active=eq.true' }),
     supabaseFetch('users',                { query: '?select=user_id,first_name,last_name&is_active=eq.true' }),
     supabaseFetch('products',             { query: '?select=product_id,product_code,product_name&is_active=eq.true&order=product_name' }),
@@ -56,11 +97,12 @@ async function loadDropdowns() {
     supabaseFetch('requisition_purposes', { query: '?select=purpose_id,purpose_code,purpose_name,purpose_type&is_active=eq.true' }),
   ]);
 
-  // Departments
+  // Departments — ใส่ data-dept-code เพื่อให้ autoFillUserDept match ได้
   const selDept = document.getElementById('deptId');
   selDept.innerHTML = '<option value="">— เลือกแผนก —</option>';
   depts?.forEach(d => selDept.insertAdjacentHTML('beforeend',
-    `<option value="${d.dept_id}">${d.dept_name}</option>`));
+    `<option value="${d.dept_id}" data-dept-code="${d.dept_code || ''}">${d.dept_name}</option>`));
+  await autoFillUserDept();
 
   // Warehouses
   const selWH = document.getElementById('warehouseId');
@@ -97,9 +139,8 @@ async function loadDropdowns() {
     sel.value = cur;
   });
 
-  // Update REQ prefix with current year
-  const year   = new Date().getFullYear();
-  const prefix = `REQ-${year}-`;
+  // Update REQ prefix with current year/month
+  const prefix = getReqPrefix();
   document.getElementById('reqPrefix').textContent       = prefix;
   document.getElementById('reqNumberDisplay').textContent = prefix + document.getElementById('reqNumber').value;
 
@@ -214,8 +255,7 @@ function calcSummary() {
 // COLLECT & SUBMIT
 // ============================================================
 function collectFormData(validate = true) {
-  const year      = new Date().getFullYear();
-  const reqNumber = `REQ-${year}-` + document.getElementById('reqNumber').value.trim();
+  const reqNumber = getReqPrefix() + document.getElementById('reqNumber').value.trim();
   const reqDate     = document.getElementById('reqDate').value;
   const deptId      = document.getElementById('deptId').value;
   const warehouseId = document.getElementById('warehouseId').value;
@@ -292,26 +332,116 @@ async function submitREQ() {
 
 function saveDraft() { showToast('💾 บันทึก Draft แล้ว', 'success'); }
 
+// ============================================================
+// FORMAL PREVIEW / PRINT
+// ============================================================
+function selectText(selectEl) {
+  if (!selectEl) return '—';
+  return selectEl.options[selectEl.selectedIndex]?.text?.trim() || '—';
+}
+
 function previewREQ() {
   const data = collectFormData(false);
   if (!data) return;
+
   const purposeCard = document.querySelector('.purpose-card.active');
   const purposeName = purposeCard
-    ? purposeCard.querySelector('.purpose-label').textContent : '—';
-  const dept = document.getElementById('deptId');
-  const deptName = dept.options[dept.selectedIndex]?.text || '—';
-  alert(`📋 Preview ใบเบิก\n\nเลขที่: ${data.reqNumber}\nวันที่: ${data.reqDate}\nแผนก: ${deptName}\nวัตถุประสงค์: ${purposeName}\nรายการ: ${data.items.length} รายการ`);
+    ? purposeCard.querySelector('.purpose-label').textContent.trim() : '—';
+  const purposeType = purposeCard
+    ? purposeCard.querySelector('.purpose-type')?.textContent.trim() : '';
+
+  const deptName       = selectText(document.getElementById('deptId'));
+  const warehouseName  = selectText(document.getElementById('warehouseId'));
+  const requesterName  = selectText(document.getElementById('requestedBy'));
+  const approverName   = data.approvedBy ? selectText(document.getElementById('approvedBy')) : '—';
+
+  const fmtDate = (iso) => (window.DateFmt?.formatDMY?.(iso)) || iso || '—';
+
+  // Header
+  document.getElementById('docCompanyTh').textContent   = COMPANY_PROFILE.nameTh;
+  document.getElementById('docCompanyEn').textContent   = COMPANY_PROFILE.nameEn;
+  document.getElementById('docCompanyAddr').textContent = COMPANY_PROFILE.address;
+  document.getElementById('docCompanyMeta').textContent =
+    `เลขผู้เสียภาษี ${COMPANY_PROFILE.taxId} · โทร ${COMPANY_PROFILE.phone} · ${COMPANY_PROFILE.email}`;
+  const logoEl = document.getElementById('docLogo');
+  logoEl.style.backgroundImage = `url("${COMPANY_PROFILE.logoUrl}")`;
+
+  document.getElementById('docNumber').textContent  = data.reqNumber;
+  document.getElementById('docDate').textContent    = fmtDate(data.reqDate);
+  document.getElementById('docStatus').textContent  = 'DRAFT';
+
+  // Info grid (metadata only — ผู้ขอเบิก/ผู้อนุมัติ อยู่ในช่องลายเซ็นด้านล่างแทน)
+  document.getElementById('docPurpose').textContent   = purposeType ? `${purposeName} (${purposeType})` : purposeName;
+  document.getElementById('docDept').textContent      = deptName;
+  document.getElementById('docWarehouse').textContent = warehouseName;
+  document.getElementById('docDate2').textContent     = fmtDate(data.reqDate);
+
+  // Items
+  const tbody = document.getElementById('docItemsBody');
+  tbody.innerHTML = '';
+  let totalQty = 0;
+  if (data.items.length === 0) {
+    tbody.innerHTML = '<tr class="req-doc-empty-row"><td colspan="7">— ไม่มีรายการ —</td></tr>';
+  } else {
+    data.items.forEach((item, idx) => {
+      const product = products.find(p => String(p.product_id) === String(item.productId));
+      const productLabel = product
+        ? `${product.product_code} — ${product.product_name}` : '—';
+      const unitName = (productUnits[item.productId] || [])
+        .find(u => String(u.unit_id) === String(item.unitId))?.unit_name || '—';
+      const rowId       = document.querySelectorAll('#itemsBody tr')[idx]?.id?.replace('row-','');
+      const qtyApproved = rowId ? document.getElementById(`qty-app-${rowId}`)?.value : '';
+      const qtyActual   = rowId ? document.getElementById(`qty-actual-${rowId}`)?.value : '';
+      const qty = parseFloat(item.qty) || 0;
+      totalQty += qty;
+      tbody.insertAdjacentHTML('beforeend', `
+        <tr>
+          <td class="text-center">${idx + 1}</td>
+          <td>${escapeHtml(productLabel)}</td>
+          <td class="text-center">${escapeHtml(unitName)}</td>
+          <td class="text-right">${qty.toLocaleString('th-TH')}</td>
+          <td class="text-right">${qtyApproved ? parseFloat(qtyApproved).toLocaleString('th-TH') : '—'}</td>
+          <td class="text-right">${qtyActual ? parseFloat(qtyActual).toLocaleString('th-TH') : '—'}</td>
+          <td>${escapeHtml(item.note || '')}</td>
+        </tr>`);
+    });
+  }
+  document.getElementById('docTotalQty').textContent   = totalQty.toLocaleString('th-TH');
+  document.getElementById('docTotalItems').textContent = `${data.items.length} รายการ`;
+
+  // Note + signatures
+  document.getElementById('docNote').textContent       = data.note?.trim() || '—';
+  document.getElementById('sigRequester').textContent  = requesterName;
+  document.getElementById('sigApprover').textContent   = approverName;
+  document.getElementById('docPrintedAt').textContent  =
+    window.DateFmt?.formatDMYTime?.(new Date().toISOString()) || new Date().toLocaleString('th-TH');
+
+  document.getElementById('previewOverlay').classList.add('open');
+}
+
+function closePreview() {
+  document.getElementById('previewOverlay').classList.remove('open');
+}
+
+function printREQ() {
+  window.print();
+}
+
+function escapeHtml(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c => (
+    { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]
+  ));
 }
 
 function resetForm() {
-  const year   = new Date().getFullYear();
-  const prefix = `REQ-${year}-`;
+  const prefix = getReqPrefix();
   document.getElementById('reqPrefix').textContent        = prefix;
   document.getElementById('reqNumber').value              = '001';
   document.getElementById('reqNumberDisplay').textContent = prefix + '001';
   document.getElementById('reqDate').value                = new Date().toISOString().split('T')[0];
   document.getElementById('deptId').value                 = '';
   document.getElementById('warehouseId').value            = '';
+  autoFillUserDept().catch(console.error);
   document.getElementById('requestedBy').value            = '';
   document.getElementById('approvedBy').value             = '';
   document.getElementById('note').value                   = '';
@@ -340,9 +470,9 @@ function showLoading(show) { document.getElementById('loadingOverlay').classList
 window.addEventListener('DOMContentLoaded', () => {
   SUPABASE_URL = localStorage.getItem('sb_url') || '';
   SUPABASE_KEY = localStorage.getItem('sb_key') || '';
-  const year   = new Date().getFullYear();
-  document.getElementById('reqPrefix').textContent        = `REQ-${year}-`;
-  document.getElementById('reqNumberDisplay').textContent = `REQ-${year}-001`;
+  const prefix = getReqPrefix();
+  document.getElementById('reqPrefix').textContent        = prefix;
+  document.getElementById('reqNumberDisplay').textContent = prefix + '001';
   document.getElementById('reqDate').value = new Date().toISOString().split('T')[0];
   renderPurposeCards(DEFAULT_PURPOSES);
   addItemRow();

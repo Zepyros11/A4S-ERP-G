@@ -18,6 +18,7 @@ const AVATAR_COLORS = [
 ];
 
 let allUsers = [];
+let allDepartments = [];   /* [{dept_id, dept_code, dept_name, sort_order}] */
 let selectedId = null;
 let sortKey = "full_name";
 let sortAsc = true;
@@ -47,10 +48,13 @@ async function loadData() {
   }
   showLoading(true);
   try {
-    const [users, roleData] = await Promise.all([
+    const [users, roleData, deptData] = await Promise.all([
       sbFetch("users", { query: "?select=*&order=full_name" }),
       sbFetch("role_configs", { query: "?select=*&order=sort_order" }).catch(() => null),
+      sbFetch("departments", { query: "?select=*&order=sort_order,dept_code" }).catch(() => null),
     ]);
+    allDepartments = deptData || [];
+    populateDeptSelect();
     /* อัปเดต ROLE_PERMISSIONS จาก Supabase — filter stale keys */
     if (roleData && roleData.length > 0) {
       const validKeys = new Set(AppPermissions.allPermKeys);
@@ -137,6 +141,10 @@ function filterTable() {
       av = getUserRoles(a)[0] || "";
       bv = getUserRoles(b)[0] || "";
     }
+    if (sortKey === "department") {
+      av = getDeptName(a.department) === "—" ? "zzz" : getDeptName(a.department);
+      bv = getDeptName(b.department) === "—" ? "zzz" : getDeptName(b.department);
+    }
     if (typeof av === "string") av = av.toLowerCase();
     if (typeof bv === "string") bv = bv.toLowerCase();
     return sortAsc ? (av > bv ? 1 : -1) : av < bv ? 1 : -1;
@@ -190,7 +198,7 @@ function renderTable(list) {
       </div></td>
       <td><span style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--text2)">${u.username || "—"}</span></td>
       <td><span class="role-badge ${primary.color}">${AppPermissions.iconToEmoji(primary.icon)} ${primary.label}</span>${extraBadge}</td>
-      <td><span style="font-size:12.5px;color:var(--text2)">${u.email || "—"}</span></td>
+      <td><span style="font-size:12.5px;color:var(--text2)">${getDeptName(u.department)}</span></td>
       <td><span class="status-badge ${isActive ? "status-on" : "status-off"}">${isActive ? "● ใช้งาน" : "● ปิด"}</span></td>
       <td class="col-center" onclick="event.stopPropagation()">
         <div class="action-group">
@@ -274,6 +282,147 @@ function removeRoleSlot(idx) {
   renderRoleSlots();
 }
 
+/* ============================================================
+   Departments — dropdown + inline CRUD
+   ============================================================ */
+function getDeptName(deptCode) {
+  if (!deptCode) return "—";
+  const d = allDepartments.find((x) => x.dept_code === deptCode);
+  return d ? d.dept_name : deptCode;  /* fallback แสดง code ถ้าหาไม่เจอ (orphan) */
+}
+
+function populateDeptSelect() {
+  const sel = document.getElementById("fDepartment");
+  if (!sel) return;
+  const cur = sel.value;
+  const opts = allDepartments
+    .map((d) => `<option value="${d.dept_code}">${d.dept_name}</option>`)
+    .join("");
+  sel.innerHTML = `<option value="">— ไม่ระบุ —</option>${opts}`;
+  if (cur && allDepartments.some((d) => d.dept_code === cur)) sel.value = cur;
+}
+
+function openDeptManager() {
+  renderDeptList();
+  document.getElementById("deptModalOverlay").classList.add("open");
+  document.getElementById("deptNewName").focus();
+}
+
+/* auto-gen dept_code: DEPT001, DEPT002, ... — รับประกันไม่ชนของเดิมและไม่ชนเอง */
+function generateDeptCode() {
+  let max = 0;
+  for (const d of allDepartments) {
+    const m = /^DEPT(\d+)$/i.exec(d.dept_code || "");
+    if (m) max = Math.max(max, parseInt(m[1], 10) || 0);
+  }
+  return "DEPT" + String(max + 1).padStart(3, "0");
+}
+function closeDeptManager() {
+  document.getElementById("deptModalOverlay").classList.remove("open");
+}
+function closeDeptManagerBg(e) {
+  if (e.target === document.getElementById("deptModalOverlay")) closeDeptManager();
+}
+
+function renderDeptList() {
+  const list = document.getElementById("deptList");
+  if (!list) return;
+  if (!allDepartments.length) {
+    list.innerHTML = `<div class="empty-state"><div class="empty-icon">🏢</div><div>ยังไม่มีแผนก</div></div>`;
+    return;
+  }
+  list.innerHTML = allDepartments.map((d) => `
+    <div class="dept-row" data-id="${d.dept_id}">
+      <input class="form-control" data-edit="${d.dept_id}" value="${(d.dept_name || "").replace(/"/g, "&quot;")}" />
+      <div class="dept-actions">
+        <button class="btn-icon" title="บันทึก" onclick="saveDeptName(${d.dept_id})">💾</button>
+        <button class="btn-icon danger" title="ลบ" onclick="deleteDept(${d.dept_id})">🗑</button>
+      </div>
+    </div>
+  `).join("");
+}
+
+async function addDept() {
+  const nameEl = document.getElementById("deptNewName");
+  const dept_name = nameEl.value.trim();
+  if (!dept_name) {
+    showToast("กรุณากรอกชื่อแผนก", "error");
+    return;
+  }
+  if (allDepartments.some((d) => (d.dept_name || "").toLowerCase() === dept_name.toLowerCase())) {
+    showToast(`แผนก "${dept_name}" มีอยู่แล้ว`, "error");
+    return;
+  }
+  const dept_code = generateDeptCode();
+  const sort_order = (allDepartments.reduce((m, d) => Math.max(m, d.sort_order || 0), 0)) + 1;
+  showLoading(true);
+  try {
+    const created = await sbFetch("departments", {
+      method: "POST",
+      body: { dept_code, dept_name, sort_order },
+    });
+    if (Array.isArray(created) && created[0]) allDepartments.push(created[0]);
+    else allDepartments.push({ dept_code, dept_name, sort_order });
+    nameEl.value = "";
+    nameEl.focus();
+    populateDeptSelect();
+    renderDeptList();
+    showToast("✅ เพิ่มแผนกแล้ว", "success");
+  } catch (e) {
+    showToast("เพิ่มไม่ได้: " + e.message, "error");
+  }
+  showLoading(false);
+}
+
+async function saveDeptName(id) {
+  const input = document.querySelector(`input[data-edit="${id}"]`);
+  if (!input) return;
+  const dept_name = input.value.trim();
+  if (!dept_name) { showToast("ชื่อแผนกห้ามว่าง", "error"); return; }
+  showLoading(true);
+  try {
+    await sbFetch("departments", {
+      method: "PATCH",
+      query: `?dept_id=eq.${id}`,
+      body: { dept_name, updated_at: new Date().toISOString() },
+    });
+    const d = allDepartments.find((x) => x.dept_id === id);
+    if (d) d.dept_name = dept_name;
+    populateDeptSelect();
+    showToast("✅ บันทึกชื่อแผนกแล้ว", "success");
+  } catch (e) {
+    showToast("บันทึกไม่ได้: " + e.message, "error");
+  }
+  showLoading(false);
+}
+
+function deleteDept(id) {
+  const d = allDepartments.find((x) => x.dept_id === id);
+  if (!d) return;
+  const inUse = allUsers.filter((u) => u.department === d.dept_code).length;
+  const warn = inUse > 0
+    ? `แผนก "${d.dept_name}" (${d.dept_code}) มีพนักงาน ${inUse} คนอยู่ — หากลบ คอลัมน์แผนกของคนเหล่านั้นจะกลายเป็น "ไม่ระบุ"\n\nยืนยันลบ?`
+    : `ลบแผนก "${d.dept_name}" (${d.dept_code}) หรือไม่?`;
+  const onConfirm = async () => {
+    showLoading(true);
+    try {
+      await sbFetch("departments", {
+        method: "DELETE",
+        query: `?dept_id=eq.${id}`,
+      });
+      allDepartments = allDepartments.filter((x) => x.dept_id !== id);
+      populateDeptSelect();
+      renderDeptList();
+      showToast("ลบแผนกแล้ว", "success");
+    } catch (e) {
+      showToast("ลบไม่ได้: " + e.message, "error");
+    }
+    showLoading(false);
+  };
+  if (window.DeleteModal) DeleteModal.open(warn, onConfirm);
+  else onConfirm();
+}
+
 function generateUserCode() {
   const max = allUsers.reduce((acc, u) => {
     const n = parseInt((u.user_code || "").replace(/\D/g, "")) || 0;
@@ -301,6 +450,7 @@ function openModal(data = null) {
   document.getElementById("fFullName").value = data?.full_name || "";
   document.getElementById("fUserCode").value = data?.user_code || (isEdit ? "" : generateUserCode());
   document.getElementById("fUsername").value = data?.username || "";
+  document.getElementById("fDepartment").value = data?.department || "";
   document.getElementById("fPassword").value = "";
   document.getElementById("fPasswordConfirm").value = "";
   document.getElementById("fEmail").value = data?.email || "";
@@ -372,13 +522,16 @@ async function saveUser() {
     return;
   }
 
-  const userCode = document.getElementById("fUserCode").value.trim().toUpperCase();
-  if (!userCode) { showToast("กรุณากรอกรหัสพนักงาน", "error"); return; }
+  /* user_code: edit = ค่าเดิม, create = auto-gen — ไม่แสดงใน UI แล้ว */
+  const userCodeRaw = document.getElementById("fUserCode").value.trim().toUpperCase();
+  const userCode = userCodeRaw || generateUserCode();
+  const department = document.getElementById("fDepartment")?.value.trim() || null;
 
   const payload = {
     full_name: fullName,
     username,
     user_code: userCode,
+    department,
     email: document.getElementById("fEmail")?.value.trim() || null,
     phone: document.getElementById("fPhone")?.value.trim() || null,
     role: cleanRoles[0],          /* backward compat — role หลัก */
@@ -388,16 +541,14 @@ async function saveUser() {
     ...(password ? { password_hash: await hashPassword(password) } : {}),
   };
 
-  /* pre-check ชนกับ user อื่นใน list ก่อนยิง API — กัน duplicate key */
+  /* pre-check ชน Username ก่อนยิง API — user_code auto-gen แล้ว ไม่ต้องเช็ค */
   const dup = allUsers.find((u) =>
     String(u.user_id) !== String(editId) &&
-    (u.username?.toLowerCase() === username.toLowerCase() ||
-     u.user_code?.toUpperCase() === userCode));
+    u.username?.toLowerCase() === username.toLowerCase());
   if (dup) {
-    const isUsernameDup = dup.username?.toLowerCase() === username.toLowerCase();
     await showDuplicateAlert({
-      field: isUsernameDup ? "Username" : "รหัสพนักงาน",
-      value: isUsernameDup ? username : userCode,
+      field: "Username",
+      value: username,
       owner: dup,
     });
     return;
@@ -515,9 +666,4 @@ window.addEventListener("DOMContentLoaded", () => {
   if (SUPABASE_URL && SUPABASE_KEY) setTimeout(() => loadData(), 50);
 });
 
-window.addEventListener("keydown", (e) => {
-  if (e.key !== "Escape") return;
-  if (document.getElementById("modalOverlay").classList.contains("open")) {
-    closeModal();
-  }
-});
+/* ESC-close จัดการโดย modalManager.js (ส่วนกลาง) — ไม่ต้องลงเอง */
