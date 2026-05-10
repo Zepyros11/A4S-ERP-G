@@ -36,15 +36,30 @@
       .ra-pax-toolbar{display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap}
       .ra-pax-toolbar input,.ra-pax-toolbar select{padding:6px 9px;border:1px solid var(--border);border-radius:8px;font-size:12px;font-family:inherit;background:#fff;flex:1;min-width:90px}
       .ra-pax-list{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:6px;padding-right:2px}
-      .ra-pax-row{display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;cursor:pointer;background:#fff;transition:.12s;font-size:12.5px}
+      .ra-pax-row{
+        display:flex;flex-direction:column;gap:3px;
+        padding:8px 10px;border:1px solid var(--border);border-radius:8px;
+        cursor:pointer;background:#fff;transition:.12s;
+      }
       .ra-pax-row:hover{background:#f1f5f9;border-color:#94a3b8}
       .ra-pax-row.selected{border-color:#3b82f6;background:#dbeafe}
       .ra-pax-row.assigned{opacity:.55;background:#f8fafc}
-      .ra-pax-row.assigned .ra-pax-meta::after{content:" · 🛏️"}
-      .ra-pax-name{font-weight:600;color:var(--text)}
-      .ra-pax-meta{color:var(--text2);font-size:11px}
+      .ra-pax-row-top{
+        display:flex;justify-content:space-between;align-items:center;gap:6px;
+        font-size:11px;color:var(--text2);
+      }
+      .ra-pax-code{font-family:'IBM Plex Mono',monospace;font-weight:600;color:var(--text2)}
+      .ra-pax-nat{color:var(--text3);font-size:11px;text-align:right;max-width:55%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+      .ra-pax-row-bot{
+        display:flex;justify-content:space-between;align-items:center;gap:6px;
+      }
+      .ra-pax-name{font-weight:600;color:var(--text);font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0}
+      .ra-pax-name.clickable{cursor:pointer;border-bottom:1px dashed transparent;transition:.12s}
+      .ra-pax-name.clickable:hover{color:var(--accent,#0f4c75);border-bottom-color:var(--accent,#0f4c75)}
+      .ra-pax-img-ind{font-size:10px;opacity:.55;margin-left:3px}
+      .ra-pax-room-tag{font-size:10.5px;color:#0369a1;background:#e0f2fe;padding:2px 7px;border-radius:6px;align-self:flex-start;font-weight:600}
       .ra-pax-empty{padding:20px;text-align:center;color:var(--text3);font-size:12px}
-      .ra-gender-tag{display:inline-block;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:600;margin-left:4px}
+      .ra-gender-tag{display:inline-block;padding:2px 8px;border-radius:99px;font-size:10.5px;font-weight:700;flex-shrink:0;letter-spacing:.3px}
       .ra-gender-M{background:#dbeafe;color:#1d4ed8}
       .ra-gender-F{background:#fce7f3;color:#9d174d}
 
@@ -58,6 +73,13 @@
       .ra-grp-title{font-weight:700;color:var(--text);font-size:14px}
       .ra-grp-title .ra-grp-icon{margin-right:6px}
       .ra-grp-count{color:var(--text2);font-size:12px;font-weight:500}
+      .ra-grp-del{
+        background:transparent;border:1px solid #fca5a5;color:#b91c1c;
+        padding:4px 10px;border-radius:8px;font-size:11.5px;font-weight:600;
+        cursor:pointer;display:inline-flex;align-items:center;gap:4px;
+        transition:.12s;font-family:inherit;
+      }
+      .ra-grp-del:hover{background:#fef2f2;border-color:#dc2626;color:#7f1d1d}
 
       .ra-rooms-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px}
       .ra-room-card{border:1px solid var(--border);border-radius:10px;padding:10px;background:#fff;display:flex;flex-direction:column;gap:8px;transition:.15s;position:relative}
@@ -82,12 +104,19 @@
 
       .ra-room-gender select{padding:2px 6px;border:1px solid var(--border);border-radius:6px;font-size:11px;background:#fff;font-family:inherit}
 
-      .ra-room-occupants{display:flex;flex-direction:column;gap:4px;margin-top:2px}
-      .ra-occ{display:flex;align-items:center;justify-content:space-between;background:#f1f5f9;border-radius:6px;padding:5px 8px;font-size:11.5px}
-      .ra-occ-name{font-weight:600;color:var(--text)}
-      .ra-occ-meta{color:var(--text3);font-size:10px;margin-left:6px}
-      .ra-occ-remove{background:transparent;border:none;color:#b91c1c;cursor:pointer;font-weight:700;padding:0 4px;font-size:14px;line-height:1}
-      .ra-occ-remove:hover{color:#7f1d1d}
+      .ra-room-occupants{display:flex;flex-direction:column;gap:5px;margin-top:2px}
+      .ra-occ{
+        position:relative;
+        display:flex;flex-direction:column;gap:3px;
+        background:#f8fafc;border:1px solid var(--border);border-radius:8px;
+        padding:7px 28px 7px 10px;
+      }
+      .ra-occ-remove{
+        position:absolute;top:4px;right:4px;
+        background:transparent;border:none;color:#b91c1c;cursor:pointer;
+        font-weight:700;padding:2px 6px;font-size:14px;line-height:1;border-radius:4px;
+      }
+      .ra-occ-remove:hover{background:#fee2e2;color:#7f1d1d}
 
       .ra-empty-rooms{padding:30px;text-align:center;color:var(--text3);background:#fff;border:1px dashed var(--border);border-radius:12px}
 
@@ -126,7 +155,10 @@
               <div class="ra-stat-icon">👥</div>
               <div>
                 <div class="ra-stat-val" id="statTotal">0</div>
-                <div class="ra-stat-lbl">ผู้โดยสารทั้งหมด</div>
+                <div class="ra-stat-lbl">
+                  ผู้โดยสารทั้งหมด
+                  <span id="statTotalSub" style="color:var(--text3);font-size:10.5px;margin-left:3px"></span>
+                </div>
               </div>
             </div>
             <div class="ra-stat">
@@ -234,15 +266,6 @@
           </div>
 
           <div class="form-group" style="margin-top:14px">
-            <label class="form-label">เพศที่กำหนด (Staff ตั้งเอง — ไม่บังคับ)</label>
-            <select class="form-control" id="rbGender">
-              <option value="">ผสม / ยังไม่กำหนด</option>
-              <option value="M">ชาย (Male only)</option>
-              <option value="F">หญิง (Female only)</option>
-            </select>
-          </div>
-
-          <div class="form-group" style="margin-top:14px">
             <label class="form-label">หมายเหตุ</label>
             <input class="form-control" id="rbNote" placeholder="เช่น ห้องชั้น 5, ห้อง connecting" autocomplete="off" />
           </div>
@@ -262,8 +285,10 @@
     <script src="./room-assign.js"></script>
     <script src="../../js/components/modal/deleteModal.js"></script>
     <script src="../../js/components/modal/confirmModal.js"></script>
+    <script src="../../js/components/modal/promptModal.js"></script>
     <script src="../../js/components/modal/modalManager.js"></script>
     <script src="../../js/components/modal/enterSave.js"></script>
+    <script src="../../js/components/navigation/imgPopup.js"></script>
     <script src="../../js/components/navigation/sidebar.js"></script>
     <script type="module">
       import { loadTopbar } from "../../js/components/navigation/topbar.js";

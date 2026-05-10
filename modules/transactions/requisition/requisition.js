@@ -557,18 +557,24 @@ function previewREQ() {
 
   const fmtDate = (iso) => (window.DateFmt?.formatDMY?.(iso)) || iso || '—';
 
-  // Header (internal-use form — แสดงแค่ชื่อบริษัท ไม่ใส่ที่อยู่/Tax/โทร/email)
-  document.getElementById('docCompanyTh').textContent = COMPANY_PROFILE.nameTh;
-  document.getElementById('docCompanyEn').textContent = COMPANY_PROFILE.nameEn;
-  const logoEl = document.getElementById('docLogo');
-  logoEl.style.backgroundImage = `url("${COMPANY_PROFILE.logoUrl}")`;
+  // helper — กัน null reference เผื่อ HTML/JS sync ไม่ทัน (browser cache)
+  const setText = (id, val) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = val;
+  };
 
-  document.getElementById('docNumber').textContent = data.reqNumber;
+  // Header (internal-use form — แสดงแค่ชื่อบริษัท ไม่ใส่ที่อยู่/Tax/โทร/email)
+  setText('docCompanyTh', COMPANY_PROFILE.nameTh);
+  setText('docCompanyEn', COMPANY_PROFILE.nameEn);
+  const logoEl = document.getElementById('docLogo');
+  if (logoEl) logoEl.style.backgroundImage = `url("${COMPANY_PROFILE.logoUrl}")`;
+
+  setText('docNumber', data.reqNumber);
 
   // Info grid (metadata only — ผู้ขอเบิก/ผู้อนุมัติ อยู่ในช่องลายเซ็นด้านล่างแทน)
-  document.getElementById('docPurpose').textContent = purposeName;
-  document.getElementById('docDept').textContent    = deptName;
-  document.getElementById('docDate2').textContent   = fmtDate(data.reqDate);
+  setText('docPurpose', purposeName);
+  setText('docDept',    deptName);
+  setText('docDate2',   fmtDate(data.reqDate));
 
   // Items
   const tbody = document.getElementById('docItemsBody');
@@ -595,13 +601,13 @@ function previewREQ() {
         </tr>`);
     });
   }
-  document.getElementById('docTotalQty').textContent   = totalQty.toLocaleString('th-TH');
-  document.getElementById('docTotalItems').textContent = `${data.items.length} รายการ`;
+  setText('docTotalQty',   totalQty.toLocaleString('th-TH'));
+  setText('docTotalItems', `${data.items.length} รายการ`);
 
   // Note (signatures = ช่องว่างให้เซ็นมือบนใบที่พิมพ์ออก)
-  document.getElementById('docNote').textContent      = data.note?.trim() || '—';
-  document.getElementById('docPrintedAt').textContent =
-    window.DateFmt?.formatDMYTime?.(new Date().toISOString()) || new Date().toLocaleString('th-TH');
+  setText('docNote', data.note?.trim() || '—');
+  setText('docPrintedAt',
+    window.DateFmt?.formatDMYTime?.(new Date().toISOString()) || new Date().toLocaleString('th-TH'));
 
   document.getElementById('previewOverlay').classList.add('open');
 }

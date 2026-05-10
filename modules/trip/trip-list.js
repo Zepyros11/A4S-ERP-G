@@ -161,12 +161,12 @@ function renderTable(rows) {
         </td>
         <td class="col-center" onclick="event.stopPropagation()">
           <div class="action-group">
-            <button class="btn-icon" title="Check Seat"
+            <button class="btn-icon" title="Check Seat (เปิดแท็บใหม่)"
               data-perm="trip_check_seat_view"
-              onclick="window.location.href='./check-seat.html?trip_id=${t.trip_id}'">💺</button>
-            <button class="btn-icon" title="จัดห้องพัก"
+              onclick="window.open('./check-seat.html?trip_id=${t.trip_id}', '_blank')">💺</button>
+            <button class="btn-icon" title="จัดห้องพัก (เปิดแท็บใหม่)"
               data-perm="trip_rooms_view"
-              onclick="window.location.href='./room-assign.html?trip_id=${t.trip_id}'">🛏️</button>
+              onclick="window.open('./room-assign.html?trip_id=${t.trip_id}', '_blank')">🛏️</button>
             <button class="btn-icon" title="แก้ไข"
               data-perm="trip_list_edit"
               onclick="window.openTripModal(${t.trip_id})">✏️</button>
