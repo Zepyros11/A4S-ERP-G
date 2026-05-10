@@ -9,6 +9,7 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="../../css/main.css" />
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <style>
       .ra-trip-banner{
         display:inline-flex;align-items:center;gap:10px;
@@ -20,11 +21,19 @@
       .ra-trip-banner a{color:var(--accent,#0f4c75);text-decoration:none;font-weight:600;opacity:.85}
       .ra-trip-banner a:hover{opacity:1}
 
-      .ra-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px}
-      .ra-stat{background:#fff;border:1px solid var(--border);border-radius:10px;padding:12px 14px;display:flex;align-items:center;gap:10px}
+      .ra-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:14px}
+      .ra-stat{background:#fff;border:1px solid var(--border);border-radius:10px;padding:12px 14px;display:flex;align-items:center;gap:10px;transition:.15s;cursor:pointer}
+      .ra-stat:hover{transform:translateY(-1px);box-shadow:0 2px 8px rgba(15,23,42,.08)}
       .ra-stat-icon{font-size:22px}
       .ra-stat-val{font-size:22px;font-weight:700;line-height:1}
       .ra-stat-lbl{font-size:11.5px;color:var(--text2);margin-top:3px}
+      /* warning tones */
+      .ra-stat--ok{background:#f0fdf4;border-color:#86efac}
+      .ra-stat--ok .ra-stat-val{color:#15803d}
+      .ra-stat--warn{background:#fff7ed;border-color:#fdba74}
+      .ra-stat--warn .ra-stat-val{color:#c2410c}
+      .ra-stat--err{background:#fef2f2;border-color:#fca5a5}
+      .ra-stat--err .ra-stat-val{color:#b91c1c}
 
       .ra-grid{display:grid;grid-template-columns:340px 1fr;gap:14px;align-items:flex-start}
       @media(max-width:960px){ .ra-grid{grid-template-columns:1fr} }
@@ -33,7 +42,11 @@
       .ra-passengers{background:#fff;border:1px solid var(--border);border-radius:12px;padding:12px;position:sticky;top:14px;max-height:calc(100vh - 90px);display:flex;flex-direction:column}
       .ra-pax-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid var(--border)}
       .ra-pax-title{font-weight:700;font-size:14px}
-      .ra-pax-toolbar{display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap}
+      .ra-pax-toolbar{
+        display:flex;gap:6px;flex-wrap:wrap;
+        padding-bottom:10px;margin-bottom:10px;
+        border-bottom:3px solid var(--border);
+      }
       .ra-pax-toolbar input,.ra-pax-toolbar select{padding:6px 9px;border:1px solid var(--border);border-radius:8px;font-size:12px;font-family:inherit;background:#fff;flex:1;min-width:90px}
       .ra-pax-list{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:6px;padding-right:2px}
       .ra-pax-row{
@@ -70,22 +83,110 @@
 
       .ra-rooms-grp{background:#fff;border:1px solid var(--border);border-radius:12px;padding:12px}
       .ra-rooms-grp-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;padding-bottom:8px;border-bottom:1px dashed var(--border)}
-      .ra-grp-title{font-weight:700;color:var(--text);font-size:14px}
-      .ra-grp-title .ra-grp-icon{margin-right:6px}
-      .ra-grp-count{color:var(--text2);font-size:12px;font-weight:500}
-      .ra-grp-del{
-        background:transparent;border:1px solid #fca5a5;color:#b91c1c;
-        padding:4px 10px;border-radius:8px;font-size:11.5px;font-weight:600;
-        cursor:pointer;display:inline-flex;align-items:center;gap:4px;
-        transition:.12s;font-family:inherit;
+      .ra-grp-title{font-weight:700;color:var(--text);font-size:14px;display:flex;align-items:center;flex-wrap:wrap;gap:4px}
+      .ra-grp-title .ra-grp-icon{margin-right:2px}
+      .ra-grp-toggle{
+        background:transparent;border:1px solid var(--border);
+        width:24px;height:24px;border-radius:6px;
+        font-size:12px;color:var(--text2);cursor:pointer;
+        display:inline-flex;align-items:center;justify-content:center;
+        transition:.12s;font-family:inherit;line-height:1;
+        margin-right:4px;flex-shrink:0;
       }
-      .ra-grp-del:hover{background:#fef2f2;border-color:#dc2626;color:#7f1d1d}
+      .ra-grp-toggle:hover{background:#f1f5f9;color:var(--text);border-color:#94a3b8}
+      .ra-grp-toggle.locked{opacity:.5;cursor:not-allowed;color:#94a3b8;background:#f8fafc}
+      .ra-grp-toggle.locked:hover{background:#f8fafc;color:#94a3b8;border-color:var(--border)}
+      .ra-rooms-grp.locked{opacity:.7}
+      .ra-rooms-grp.locked .ra-rooms-grp-hdr{background:#f8fafc;border-radius:8px;padding:6px 10px;margin:0 -8px}
+      .ra-rooms-grp.collapsed .ra-rooms-grp-hdr{margin-bottom:0;padding-bottom:0;border-bottom:none}
+      .ra-grp-count{color:var(--text2);font-size:12px;font-weight:500}
+      .ra-grp-hotel{color:#0f4c75;font-size:14px}
+      .ra-grp-room{color:var(--text);font-size:13.5px}
+      .ra-grp-hotel.clickable,.ra-grp-room.clickable{
+        cursor:zoom-in;border-bottom:1px dashed transparent;transition:.12s;
+      }
+      .ra-grp-hotel.clickable:hover{color:#0a3a5c;border-bottom-color:#0f4c75}
+      .ra-grp-room.clickable:hover{color:#0f4c75;border-bottom-color:#0f4c75}
+      .ra-grp-sep{color:var(--text3);font-weight:400;font-size:12px;margin:0 2px}
+      .ra-grp-dates{
+        display:inline-flex;align-items:center;
+        background:var(--accent-pale,#e8f0fb);color:var(--accent,#0f4c75);
+        padding:3px 9px;border-radius:99px;
+        font-size:11.5px;font-weight:600;
+      }
+      .ra-grp-pill{
+        display:inline-flex;align-items:center;gap:3px;
+        padding:3px 9px;border-radius:99px;
+        font-size:11.5px;font-weight:700;
+      }
+      .ra-grp-line2{
+        flex-basis:100%;
+        display:flex;align-items:center;flex-wrap:wrap;gap:6px;
+        margin-top:4px;
+      }
+      .ra-grp-pill-ok{background:#dcfce7;color:#15803d;border:1px solid #86efac}
+      .ra-grp-pill-warn{background:#fef3c7;color:#a16207;border:1px solid #fde68a}
+      /* "ห้องว่าง" toggle button — green active / gray inactive */
+      .ra-toggle-empty{
+        display:inline-flex;align-items:center;gap:5px;
+        padding:4px 10px;border-radius:8px;border:1px solid var(--border);
+        background:#f1f5f9;color:var(--text2);
+        font-size:11.5px;font-weight:600;cursor:pointer;
+        transition:.12s;font-family:inherit;
+        white-space:nowrap;flex-shrink:0;
+      }
+      .ra-toggle-empty:hover{background:#e2e8f0}
+      .ra-toggle-empty.active{
+        background:#dcfce7;border-color:#22c55e;color:#15803d;
+      }
+      .ra-toggle-empty.active:hover{background:#bbf7d0}
+      .ra-toggle-empty.ra-add-room{
+        background:#eff6ff;border-color:#bfdbfe;color:#1d4ed8;
+      }
+      .ra-toggle-empty.ra-add-room:hover{
+        background:#dbeafe;border-color:#3b82f6;
+      }
+
+      /* Kebab menu (⋮) per group */
+      .ra-grp-kebab-wrap{position:relative;display:inline-block}
+      .ra-grp-kebab{
+        background:transparent;border:1px solid var(--border);
+        width:30px;height:30px;border-radius:8px;
+        font-size:18px;font-weight:700;color:var(--text2);cursor:pointer;
+        display:inline-flex;align-items:center;justify-content:center;
+        line-height:1;transition:.12s;font-family:inherit;
+      }
+      .ra-grp-kebab:hover{background:#f1f5f9;color:var(--text)}
+      .ra-grp-kebab-wrap.open .ra-grp-kebab{background:#e2e8f0;color:var(--text)}
+      .ra-grp-kebab-menu{
+        position:absolute;top:calc(100% + 4px);right:0;
+        min-width:170px;
+        background:#fff;border:1px solid var(--border);border-radius:10px;
+        box-shadow:0 8px 24px rgba(15,23,42,.15);
+        padding:4px;z-index:50;display:none;
+      }
+      .ra-grp-kebab-wrap.open .ra-grp-kebab-menu{display:block}
+      .ra-grp-kebab-menu button{
+        display:flex;align-items:center;gap:8px;
+        padding:8px 12px;border-radius:6px;
+        background:transparent;border:none;width:100%;
+        font-family:inherit;font-size:13px;color:var(--text);
+        cursor:pointer;text-align:left;transition:background .12s;
+      }
+      .ra-grp-kebab-menu button:hover{background:#f1f5f9}
+      .ra-grp-kebab-menu button.danger{color:#dc2626}
+      .ra-grp-kebab-menu button.danger:hover{background:#fef2f2}
+      .ra-kebab-icon{font-size:14px;width:18px;text-align:center}
 
       .ra-rooms-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px}
-      .ra-room-card{border:1px solid var(--border);border-radius:10px;padding:10px;background:#fff;display:flex;flex-direction:column;gap:8px;transition:.15s;position:relative}
-      .ra-room-card.full{border-color:#cbd5e1;background:#f8fafc}
+      .ra-room-card{
+        border:1.5px solid #cbd5e1;border-radius:10px;padding:10px;background:#fff;
+        display:flex;flex-direction:column;gap:8px;transition:.15s;position:relative;
+        box-shadow:0 1px 3px rgba(15,23,42,.08);
+      }
+      .ra-room-card.full{border-color:#22c55e;background:#dcfce7;box-shadow:0 1px 3px rgba(34,197,94,.18)}
       .ra-room-card.assignable{cursor:pointer}
-      .ra-room-card.assignable:hover{border-color:#3b82f6;box-shadow:0 0 0 3px rgba(59,130,246,.12)}
+      .ra-room-card.assignable:hover{border-color:#3b82f6;box-shadow:0 0 0 3px rgba(59,130,246,.18),0 1px 3px rgba(15,23,42,.08)}
 
       .ra-room-card-hdr{display:flex;align-items:center;justify-content:space-between;gap:6px}
       .ra-room-name{font-weight:700;font-size:13px;color:var(--text);flex:1;border:none;background:transparent;padding:2px 4px;border-radius:4px;font-family:inherit;outline:none;min-width:0;overflow:hidden;text-overflow:ellipsis}
@@ -94,6 +195,20 @@
       .ra-room-actions button{background:transparent;border:none;cursor:pointer;padding:3px 5px;border-radius:4px;font-size:11px;color:var(--text2)}
       .ra-room-actions button:hover{background:#f1f5f9;color:var(--text)}
       .ra-room-actions button.danger:hover{background:#fee2e2;color:#b91c1c}
+      .ra-room-actions button.has-note{background:#fef3c7;color:#a16207}
+      .ra-room-actions button.has-note:hover{background:#fde68a;color:#78350f}
+
+      .ra-room-note{
+        font-size:11px;color:#a16207;background:#fef3c7;
+        padding:4px 8px;border-radius:6px;border:1px solid #fde68a;
+        overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+        margin-top:2px;
+      }
+      .ra-room-dates{
+        font-size:11px;color:var(--text2);
+        padding:3px 0;
+        white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+      }
 
       .ra-room-meta{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--text2)}
       .ra-cap-bar{flex:1;height:6px;background:#e2e8f0;border-radius:99px;overflow:hidden}
@@ -122,9 +237,113 @@
 
       /* Modal */
       .ra-form-row-2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+      .rb-rt-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px}
+      .rb-rt-card{
+        border:1px solid var(--border);border-radius:8px;padding:8px;
+        cursor:pointer;background:#fff;transition:.12s;font-size:12px;
+        display:flex;flex-direction:column;gap:4px;
+      }
+      .rb-rt-card:hover{border-color:var(--accent,#0f4c75);background:var(--accent-pale,#e8f0fb)}
+      .rb-rt-card.selected{border-color:#16a34a;background:#dcfce7;box-shadow:0 0 0 2px #86efac80}
+      .rb-rt-card.selected .rb-rt-name{color:#15803d}
+      .rb-rt-img{
+        width:100%;aspect-ratio:4/3;object-fit:cover;
+        border-radius:6px;background:#f1f5f9;
+        display:block;
+      }
+      .rb-rt-img.clickable{cursor:zoom-in;transition:.12s}
+      .rb-rt-img.clickable:hover{filter:brightness(1.05);transform:scale(1.01)}
+      .rb-rt-name{font-weight:700;color:var(--text);font-size:13px;margin-bottom:3px}
+      .rb-rt-meta{font-size:11px;color:var(--text2)}
+      .rb-rt-price{font-size:11.5px;color:#0369a1;font-weight:600;margin-top:2px}
+      .rb-rt-extra{font-size:11px;color:var(--text2);margin-top:1px}
+      .rb-rt-empty{padding:14px;text-align:center;color:var(--text3);font-size:12px;background:#f8fafc;border-radius:8px}
+
+      /* duration day chips */
+      .rb-days-chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
+      .rb-day-chip{
+        display:inline-flex;align-items:center;justify-content:center;
+        min-width:38px;height:32px;padding:0 10px;
+        border:1px solid var(--border);border-radius:8px;background:#fff;
+        font-size:13px;font-weight:600;color:var(--text2);cursor:pointer;
+        user-select:none;transition:.12s;
+      }
+      .rb-day-chip:hover{border-color:#3b82f6;color:#1d4ed8}
+      .rb-day-chip input{display:none}
+      .rb-day-chip:has(input:checked){
+        background:#3b82f6;border-color:#3b82f6;color:#fff;
+      }
+
+      /* hotel select: orange = ยังไม่เลือก, green = เลือกแล้ว */
+      #rbHotel,
+      #paxFilterBatch{
+        border-color:#fb923c !important;
+        background:#fff7ed !important;
+        color:#9a3412 !important;
+        font-weight:600;
+      }
+      #rbHotel.has-value,
+      #paxFilterBatch.has-value{
+        border-color:#16a34a !important;
+        background:#dcfce7 !important;
+        color:#15803d !important;
+      }
 
       .ra-banner-back{background:transparent;border:none;color:var(--accent);text-decoration:none;font-weight:600;font-size:12px;cursor:pointer;padding:0;opacity:.85}
       .ra-banner-back:hover{opacity:1}
+
+      /* Export dropdown */
+      .ra-export-wrap{position:relative;display:inline-block}
+      .ra-export-btn{
+        display:inline-flex;align-items:center;gap:6px;
+        background:#fff;border:1px solid var(--border);border-radius:8px;
+        padding:6px 12px;font-size:13px;font-weight:600;color:var(--text);
+        cursor:pointer;font-family:inherit;transition:.12s;
+      }
+      .ra-export-btn:hover{background:#f1f5f9;border-color:#94a3b8}
+      .ra-export-wrap.open .ra-export-btn{background:#e2e8f0}
+      .ra-export-menu{
+        position:absolute;top:calc(100% + 4px);right:0;min-width:160px;
+        background:#fff;border:1px solid var(--border);border-radius:10px;
+        box-shadow:0 8px 24px rgba(15,23,42,.15);padding:4px;z-index:50;display:none;
+      }
+      .ra-export-wrap.open .ra-export-menu{display:block}
+      .ra-export-menu button{
+        display:flex;align-items:center;gap:8px;
+        padding:8px 12px;border-radius:6px;
+        background:transparent;border:none;width:100%;
+        font-family:inherit;font-size:13px;color:var(--text);
+        cursor:pointer;text-align:left;transition:background .12s;
+      }
+      .ra-export-menu button:hover{background:#f1f5f9}
+
+      /* Print: only show #raPrintArea */
+      @media print {
+        body * { visibility: hidden !important; }
+        #raPrintArea, #raPrintArea * { visibility: visible !important; }
+        #raPrintArea {
+          position: absolute !important; left: 0 !important; top: 0 !important;
+          width: 100% !important; height: auto !important;
+          overflow: visible !important; padding: 12px;
+        }
+        .ra-print-section { page-break-inside: avoid; margin-bottom: 14px; }
+        .ra-print-section h3 { margin: 6px 0; font-size: 14px; color: #0f4c75; }
+        .ra-print-section table { width: 100%; border-collapse: collapse; font-size: 11px; }
+        .ra-print-section th, .ra-print-section td { border: 1px solid #94a3b8; padding: 4px 6px; text-align: left; vertical-align: top; }
+        .ra-print-section th { background: #f1f5f9; text-align: center; }
+        .ra-print-title { font-size: 16px; font-weight: 700; margin-bottom: 12px; }
+      }
+
+      /* Report modal styles */
+      .ra-report-section{background:#fff;border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:8px}
+      .ra-report-section-hdr{font-weight:700;font-size:13px;color:var(--text);margin-bottom:6px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+      .ra-report-pill{display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:99px;font-size:11px;font-weight:600;background:#f1f5f9;color:var(--text2)}
+      .ra-report-pill.warn{background:#fff7ed;color:#c2410c;border:1px solid #fdba74}
+      .ra-report-pill.err{background:#fef2f2;color:#b91c1c;border:1px solid #fca5a5}
+      .ra-report-pill.ok{background:#f0fdf4;color:#15803d;border:1px solid #86efac}
+      .ra-report-list{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--text2);max-height:240px;overflow-y:auto}
+      .ra-report-row{display:flex;align-items:center;gap:8px;padding:4px 8px;border-radius:6px;background:#f8fafc}
+      .ra-report-empty{padding:20px;text-align:center;color:var(--text3);font-size:12.5px}
     </style>
   </head>
   <body>
@@ -140,46 +359,64 @@
 
           <!-- HERO -->
           <div class="page-hero page-hero--simple page-hero--compact">
-            <h1 class="page-hero-title">🛏️ จัดห้องพัก</h1>
-            <span id="raTripBanner" class="ra-trip-banner" style="display:none">
-              <a href="./trip-list.html">← รายการทริป</a>
-              <span style="opacity:.4">|</span>
-              <span id="raTripName" style="font-weight:700">—</span>
-              <span id="raTripDates" style="color:var(--text2);font-size:11.5px;font-weight:500"></span>
-            </span>
+            <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+              <h1 class="page-hero-title" style="margin:0">🛏️ จัดห้องพัก</h1>
+              <span id="raTripBanner" class="ra-trip-banner" style="display:none;margin-left:0">
+                <a href="./trip-list.html">← รายการทริป</a>
+                <span style="opacity:.4">|</span>
+                <span id="raTripName" style="font-weight:700">—</span>
+                <span id="raTripDates" style="color:var(--text2);font-size:11.5px;font-weight:500"></span>
+              </span>
+            </div>
+            <!-- Export dropdown (right) -->
+            <div class="ra-export-wrap" id="raExportWrap">
+              <button class="ra-export-btn" onclick="window.toggleRaExport(event)">📥 Export ▾</button>
+              <div class="ra-export-menu" onclick="event.stopPropagation()">
+                <button onclick="window.exportRaExcel();window.closeRaExport()">📊 Excel (.xlsx)</button>
+                <button onclick="window.exportRaPdf();window.closeRaExport()">📄 PDF (Print)</button>
+              </div>
+            </div>
           </div>
+
+          <!-- Print-only area (filled by exportRaPdf before window.print, hidden off-screen normally) -->
+          <div id="raPrintArea" style="position:absolute;left:-9999px;top:-9999px;width:1px;overflow:hidden"></div>
 
           <!-- STATS -->
           <div class="ra-stats">
-            <div class="ra-stat">
+            <!-- 1) ลูกค้าทั้งหมด (baseline) -->
+            <div class="ra-stat" id="statTotalCard" onclick="window.openRaReport('total')">
               <div class="ra-stat-icon">👥</div>
               <div>
                 <div class="ra-stat-val" id="statTotal">0</div>
-                <div class="ra-stat-lbl">
-                  ผู้โดยสารทั้งหมด
-                  <span id="statTotalSub" style="color:var(--text3);font-size:10.5px;margin-left:3px"></span>
+                <div class="ra-stat-lbl">ลูกค้าทั้งหมด</div>
+              </div>
+            </div>
+            <!-- 2) โรงแรมที่ยังจัดคนไม่ครบ -->
+            <div class="ra-stat" id="statBatchPendingCard" title="คลิกดูรายละเอียดโรงแรม/ช่วงที่ยังจัดไม่ครบ" onclick="window.openRaReport('batchPending')">
+              <div class="ra-stat-icon">🏨</div>
+              <div>
+                <div class="ra-stat-val" id="statBatchPending">0</div>
+                <div class="ra-stat-lbl">โรงแรมที่ยังจัดคนไม่ครบ</div>
+              </div>
+            </div>
+            <!-- 3) เพศปนกัน -->
+            <div class="ra-stat" id="statMixedCard" title="คลิกดูห้องที่ M+F นอนรวมกัน" onclick="window.openRaReport('mixed')">
+              <div class="ra-stat-icon">🚻</div>
+              <div>
+                <div class="ra-stat-val" id="statMixed">0</div>
+                <div class="ra-stat-lbl">เพศปนกัน <span style="font-size:10.5px;color:var(--text3)">(ห้อง)</span></div>
+              </div>
+            </div>
+            <!-- 4) จำนวนโรงแรม | ห้องทั้งหมด -->
+            <div class="ra-stat" id="statHotelRoomsCard" title="คลิกดูรายการโรงแรมและห้องทั้งหมด" onclick="window.openRaReport('hotelRooms')">
+              <div class="ra-stat-icon">📊</div>
+              <div>
+                <div class="ra-stat-val">
+                  <span id="statHotelCount">0</span>
+                  <span style="color:var(--text3);font-weight:400;margin:0 6px">|</span>
+                  <span id="statRoomCount">0</span>
                 </div>
-              </div>
-            </div>
-            <div class="ra-stat">
-              <div class="ra-stat-icon">✅</div>
-              <div>
-                <div class="ra-stat-val" id="statAssigned">0</div>
-                <div class="ra-stat-lbl">จัดห้องแล้ว</div>
-              </div>
-            </div>
-            <div class="ra-stat">
-              <div class="ra-stat-icon">⏳</div>
-              <div>
-                <div class="ra-stat-val" id="statUnassigned">0</div>
-                <div class="ra-stat-lbl">ยังไม่จัด</div>
-              </div>
-            </div>
-            <div class="ra-stat">
-              <div class="ra-stat-icon">🛏️</div>
-              <div>
-                <div class="ra-stat-val" id="statRooms">0</div>
-                <div class="ra-stat-lbl">ห้องพัก</div>
+                <div class="ra-stat-lbl">โรงแรม | ห้องทั้งหมด</div>
               </div>
             </div>
           </div>
@@ -190,29 +427,32 @@
             <!-- LEFT: passengers -->
             <div class="ra-passengers">
               <div class="ra-pax-hdr">
-                <div class="ra-pax-title">👥 ผู้โดยสาร</div>
-                <div style="font-size:11.5px;color:var(--text2)">
-                  <span id="paxFilteredCount">0</span> คน
+                <div class="ra-pax-title">👥 ลูกค้า</div>
+                <div style="font-size:12px;color:var(--text2)">
+                  <span id="paxFilteredCount" style="color:#dc2626;font-weight:700;font-size:14px">0</span> คน
                 </div>
               </div>
               <div class="ra-pax-toolbar">
-                <input type="text" id="paxSearch" placeholder="🔍 ค้นหา..." />
-                <select id="paxFilterStatus">
+                <input type="text" id="paxSearch" placeholder="🔍 ค้นหา..." style="flex:1 1 100%" />
+                <select id="paxFilterBatch" title="กรองตามโรงแรม (ช่วงพัก)" style="flex:1 1 100%">
+                  <option value="">🏨 เลือกโรงแรม</option>
+                </select>
+                <select id="paxFilterStatus" title="ยังไม่จัด = ในช่วงที่เลือก · ครบ = มีห้องในช่วงที่เลือก">
                   <option value="unassigned">ยังไม่จัด</option>
                   <option value="all">ทั้งหมด</option>
                   <option value="assigned">จัดแล้ว</option>
                 </select>
                 <select id="paxFilterGender">
-                  <option value="">ทุกเพศ</option>
-                  <option value="M">ชาย (M)</option>
-                  <option value="F">หญิง (F)</option>
+                  <option value="">⚥ ทุกเพศ</option>
+                  <option value="M">♂ ชาย</option>
+                  <option value="F">♀ หญิง</option>
                 </select>
               </div>
               <div class="ra-pax-list" id="paxList">
                 <div class="ra-pax-empty">กำลังโหลด...</div>
               </div>
               <div style="font-size:11px;color:var(--text3);margin-top:8px;padding-top:8px;border-top:1px dashed var(--border);text-align:center">
-                💡 คลิกเลือกผู้โดยสาร แล้วคลิกห้อง → assign
+                💡 คลิกเลือกลูกค้า แล้วคลิกห้อง → assign
               </div>
             </div>
 
@@ -220,11 +460,11 @@
             <div class="ra-rooms">
               <div class="ra-rooms-toolbar">
                 <div class="ra-hint">
-                  <span id="selectedHint" style="color:var(--text2);font-size:12px">ยังไม่ได้เลือกผู้โดยสาร</span>
+                  <span id="selectedHint" style="color:var(--text2);font-size:12px">ยังไม่ได้เลือกลูกค้า</span>
                 </div>
                 <div style="display:flex;gap:8px">
                   <button class="btn btn-outline" id="btnClearSelection" style="display:none" onclick="window.clearPaxSelection()">ยกเลิกเลือก</button>
-                  <button class="btn btn-primary" data-perm="trip_rooms_create" onclick="window.openRoomBatchModal()">＋ เพิ่มประเภทห้อง</button>
+                  <button class="btn btn-primary" data-perm="trip_rooms_create" onclick="window.openRoomBatchModal()">＋ เพิ่มโรงแรม</button>
                 </div>
               </div>
 
@@ -244,35 +484,84 @@
     <div class="modal-overlay" id="roomBatchOverlay" onclick="window.closeRoomBatchModal(event)">
       <div class="modal v-sage-header" onclick="event.stopPropagation()">
         <div class="modal-hdr">
-          <div class="modal-title">เพิ่มประเภทห้องพัก</div>
+          <div class="modal-title" id="rbModalTitle">เพิ่มประเภทห้องพัก</div>
           <button class="btn-modal-close" onclick="window.closeRoomBatchModal()">✕</button>
         </div>
         <div class="modal-body">
+          <!-- Step 1: เลือกโรงแรม -->
           <div class="form-group">
-            <label class="form-label">ชื่อแบบห้อง <span class="req">*</span></label>
-            <input class="form-control" id="rbName" placeholder="เช่น Twin, Single, Suite, Deluxe..." autocomplete="off" />
-            <div style="font-size:11px;color:var(--text3);margin-top:4px">ระบบจะสร้างห้อง auto-numbering: เช่น "Twin-1", "Twin-2" ตามจำนวน (rename ภายหลังได้)</div>
+            <label class="form-label">เลือกโรงแรม <span class="req">*</span></label>
+            <div style="display:flex;gap:8px;align-items:stretch">
+              <select class="form-control" id="rbHotel" style="flex:1;min-width:0">
+                <option value="">— เลือกโรงแรม —</option>
+              </select>
+              <a href="../event/events-place-form.html" target="_blank" rel="noopener"
+                class="btn btn-outline" style="white-space:nowrap;text-decoration:none;padding:0 14px;display:inline-flex;align-items:center;gap:4px"
+                title="เปิดหน้าเพิ่มสถานที่ในแท็บใหม่">
+                ＋ เพิ่มสถานที่
+              </a>
+            </div>
           </div>
 
+          <!-- Step 2: เลือกประเภทห้อง -->
+          <div class="form-group" style="margin-top:14px">
+            <label class="form-label">เลือกประเภทห้อง <span class="req">*</span></label>
+            <div id="rbRoomTypes" style="margin-top:4px">
+              <div class="rb-rt-empty">เลือกโรงแรมก่อน</div>
+            </div>
+          </div>
+
+          <!-- Step 3: ช่วงวัน check-in / check-out -->
           <div class="ra-form-row-2" style="margin-top:14px">
             <div class="form-group">
-              <label class="form-label">ความจุ (คน/ห้อง) <span class="req">*</span></label>
-              <input class="form-control" type="number" id="rbCapacity" value="2" min="1" max="20" />
+              <label class="form-label">Check-in</label>
+              <input class="form-control" type="date" id="rbCheckIn" oninput="window.refreshDurationChips()" />
             </div>
             <div class="form-group">
-              <label class="form-label">จำนวนห้อง <span class="req">*</span></label>
-              <input class="form-control" type="number" id="rbCount" value="1" min="1" max="100" />
+              <label class="form-label">Check-out</label>
+              <input class="form-control" type="date" id="rbCheckOut" oninput="window.refreshDurationChips()" />
             </div>
           </div>
 
-          <div class="form-group" style="margin-top:14px">
-            <label class="form-label">หมายเหตุ</label>
-            <input class="form-control" id="rbNote" placeholder="เช่น ห้องชั้น 5, ห้อง connecting" autocomplete="off" />
+          <!-- Quick duration presets -->
+          <div class="form-group" style="margin-top:8px">
+            <label class="form-label" style="font-size:11.5px;color:var(--text2)">Days (เลือกระยะวัน · กดเพื่อตั้ง check-out)</label>
+            <div class="rb-days-chips" id="rbDaysChips">
+              <label class="rb-day-chip"><input type="checkbox" data-days="1" onchange="window.setStayDays(1, this)" /><span>1</span></label>
+              <label class="rb-day-chip"><input type="checkbox" data-days="2" onchange="window.setStayDays(2, this)" /><span>2</span></label>
+              <label class="rb-day-chip"><input type="checkbox" data-days="3" onchange="window.setStayDays(3, this)" /><span>3</span></label>
+              <label class="rb-day-chip"><input type="checkbox" data-days="4" onchange="window.setStayDays(4, this)" /><span>4</span></label>
+              <label class="rb-day-chip"><input type="checkbox" data-days="5" onchange="window.setStayDays(5, this)" /><span>5</span></label>
+              <label class="rb-day-chip"><input type="checkbox" data-days="7" onchange="window.setStayDays(7, this)" /><span>7</span></label>
+            </div>
+          </div>
+
+          <!-- Step 4: จำนวนห้อง / เพิ่มห้องอีก -->
+          <div class="form-group" id="rbCountWrap" style="margin-top:14px">
+            <label class="form-label" id="rbCountLabel">จำนวนห้อง <span class="req">*</span></label>
+            <input class="form-control" type="number" id="rbCount" value="1" min="0" max="100" />
+            <div id="rbCountHint" style="font-size:11px;color:var(--text3);margin-top:4px;display:none">
+              💡 ใส่ 0 = ไม่เพิ่ม · ห้องเดิมจะถูกอัปเดตด้วย
+            </div>
           </div>
         </div>
         <div class="modal-footer">
           <button class="btn btn-ghost" onclick="window.closeRoomBatchModal()">ยกเลิก</button>
-          <button class="btn btn-primary" onclick="window.saveRoomBatch()">💾 สร้างห้อง</button>
+          <button class="btn btn-primary" id="rbSaveBtn" onclick="window.saveRoomBatch()">💾 สร้างห้อง</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════ STATS REPORT MODAL ═══════════ -->
+    <div class="modal-overlay" id="raReportOverlay" onclick="window.closeRaReport(event)">
+      <div class="modal v-sage-header" onclick="event.stopPropagation()" style="max-width:680px">
+        <div class="modal-hdr">
+          <div class="modal-title" id="raReportTitle">รายงาน</div>
+          <button class="btn-modal-close" onclick="window.closeRaReport()">✕</button>
+        </div>
+        <div class="modal-body" id="raReportBody"></div>
+        <div class="modal-footer">
+          <button class="btn btn-ghost" onclick="window.closeRaReport()">ปิด</button>
         </div>
       </div>
     </div>

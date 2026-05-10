@@ -268,7 +268,7 @@ window.deleteTrip = function (tripId) {
   if (!t) return;
   const seatCount = state.seatCounts[tripId] || 0;
   const warn = seatCount > 0
-    ? `ทริป "${t.trip_name}" มีผู้โดยสาร ${seatCount} คน — ลบทริปแล้วรายชื่อจะคงอยู่แต่ไม่ถูกผูกกับทริปใด ดำเนินการต่อ?`
+    ? `ทริป "${t.trip_name}" มีลูกค้า ${seatCount} คน — ลบทริปแล้วรายชื่อจะคงอยู่แต่ไม่ถูกผูกกับทริปใด ดำเนินการต่อ?`
     : `ต้องการลบทริป "${t.trip_name}" หรือไม่?`;
 
   const opener = window.DeleteModal?.open || window.ConfirmModal?.open;
