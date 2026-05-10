@@ -187,7 +187,6 @@ function renderPurposeCards(purposes) {
     card.className   = 'purpose-card';
     card.dataset.id  = p.purpose_id;
     card.innerHTML   = `
-      <span class="purpose-icon">${p.icon}</span>
       <span class="purpose-label">${p.purpose_name}</span>
       <span class="purpose-type">${p.purpose_type}</span>`;
     card.onclick = () => selectPurpose(p.purpose_id, card);
@@ -552,12 +551,9 @@ function previewREQ() {
   const purposeCard = document.querySelector('.purpose-card.active');
   const purposeName = purposeCard
     ? purposeCard.querySelector('.purpose-label').textContent.trim() : '—';
-  const purposeType = purposeCard
-    ? purposeCard.querySelector('.purpose-type')?.textContent.trim() : '';
 
   const deptName       = selectText(document.getElementById('deptId'));
-  const requesterName  = selectText(document.getElementById('requestedBy'));
-  const approverName   = data.approvedBy ? selectText(document.getElementById('approvedBy')) : '—';
+  // requesterName/approverName ไม่ใช้ใน preview แล้ว — ลายเซ็นเป็นช่องว่างเขียนมือ
 
   const fmtDate = (iso) => (window.DateFmt?.formatDMY?.(iso)) || iso || '—';
 
@@ -569,10 +565,9 @@ function previewREQ() {
 
   document.getElementById('docNumber').textContent  = data.reqNumber;
   document.getElementById('docDate').textContent    = fmtDate(data.reqDate);
-  document.getElementById('docStatus').textContent  = 'DRAFT';
 
   // Info grid (metadata only — ผู้ขอเบิก/ผู้อนุมัติ อยู่ในช่องลายเซ็นด้านล่างแทน)
-  document.getElementById('docPurpose').textContent = purposeType ? `${purposeName} (${purposeType})` : purposeName;
+  document.getElementById('docPurpose').textContent = purposeName;
   document.getElementById('docDept').textContent    = deptName;
   document.getElementById('docDate2').textContent   = fmtDate(data.reqDate);
 
@@ -604,11 +599,9 @@ function previewREQ() {
   document.getElementById('docTotalQty').textContent   = totalQty.toLocaleString('th-TH');
   document.getElementById('docTotalItems').textContent = `${data.items.length} รายการ`;
 
-  // Note + signatures
-  document.getElementById('docNote').textContent       = data.note?.trim() || '—';
-  document.getElementById('sigRequester').textContent  = requesterName;
-  document.getElementById('sigApprover').textContent   = approverName;
-  document.getElementById('docPrintedAt').textContent  =
+  // Note (signatures = ช่องว่างให้เซ็นมือบนใบที่พิมพ์ออก)
+  document.getElementById('docNote').textContent      = data.note?.trim() || '—';
+  document.getElementById('docPrintedAt').textContent =
     window.DateFmt?.formatDMYTime?.(new Date().toISOString()) || new Date().toLocaleString('th-TH');
 
   document.getElementById('previewOverlay').classList.add('open');

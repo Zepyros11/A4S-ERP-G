@@ -70,6 +70,35 @@
 .req-doc-table .prod-thumb { width:30px; height:30px; cursor:default; }
 .req-doc-table .prod-thumb-placeholder { font-size:14px; }
 
+/* FORM INFO GRID — mirror PDF (2x2, 2:1 ratio) */
+.info-grid-form {
+  display:grid; grid-template-columns:2fr 1fr; gap:0;
+  border:1.5px solid var(--border); border-radius:8px; overflow:hidden;
+  background:var(--surface-soft);
+}
+.info-cell-form {
+  padding:14px 16px;
+  border-bottom:1px solid var(--border); border-right:1px solid var(--border);
+  background:var(--surface);
+  display:flex; flex-direction:column; gap:8px;
+}
+.info-cell-form:nth-child(2n)        { border-right:none; }
+.info-cell-form:nth-last-child(-n+2) { border-bottom:none; }
+.info-cell-label {
+  font-size:12px; font-weight:600; color:var(--text2);
+  letter-spacing:.3px;
+}
+.info-cell-label .required { color:var(--danger); margin-left:3px; }
+
+/* form-grid variant: 1 column */
+.form-grid--single { grid-template-columns:1fr; max-width:340px; }
+
+@media (max-width:720px) {
+  .info-grid-form { grid-template-columns:1fr; }
+  .info-cell-form { border-right:none; }
+  .info-cell-form:nth-last-child(1) { border-bottom:none; }
+}
+
 /* HANDWRITE LINE — เซลล์ว่างสำหรับเขียนมือบนใบที่พิมพ์ออก */
 .hand-write-line {
   display:inline-block;
@@ -210,15 +239,36 @@ textarea.form-control { resize:vertical; min-height:80px; line-height:1.6; }
 }
 .preview-overlay.open { display:flex; }
 .preview-toolbar {
-  position:sticky; top:0; z-index:10;
-  width:100%; max-width:210mm;
+  position:fixed; top:80px; z-index:10000;
+  /* วางขวาของจอ ชิดด้านซ้ายของกระดาษ A4 (210mm กว้าง วางกลางจอ) */
+  right:calc(50% + 105mm + 12px);
+  width:150px;
   background:var(--surface); border:1px solid var(--border); border-radius:10px;
-  padding:10px 14px; margin-bottom:18px;
-  display:flex; align-items:center; justify-content:space-between; gap:10px;
-  box-shadow:0 6px 24px rgba(0,0,0,.18);
+  padding:12px 14px;
+  display:flex; flex-direction:column; gap:10px;
+  box-shadow:0 8px 28px rgba(0,0,0,.22);
 }
-.preview-toolbar .toolbar-title { font-size:13px; font-weight:600; color:var(--text2); }
-.preview-toolbar .toolbar-actions { display:flex; gap:8px; }
+.preview-toolbar .toolbar-title {
+  font-size:12.5px; font-weight:700; color:var(--text2);
+  text-align:center; padding-bottom:8px;
+  border-bottom:1px solid var(--border);
+}
+.preview-toolbar .toolbar-actions {
+  display:flex; flex-direction:column; gap:8px;
+}
+.preview-toolbar .btn { width:100%; justify-content:center; }
+/* จอเล็กกว่ากระดาษ — fallback ไปซ้ายสุด/ขวาสุด */
+@media (max-width:1100px) {
+  .preview-toolbar { right:20px; }
+}
+@media (max-width:760px) {
+  .preview-toolbar {
+    position:fixed; top:auto; bottom:16px; left:16px; right:16px;
+    width:auto; flex-direction:row;
+  }
+  .preview-toolbar .toolbar-title { display:none; }
+  .preview-toolbar .toolbar-actions { flex-direction:row; flex:1; }
+}
 
 /* A4 document */
 .req-doc {
@@ -229,8 +279,12 @@ textarea.form-control { resize:vertical; min-height:80px; line-height:1.6; }
   font-family:'Sarabun',sans-serif;
   font-size:13px; color:#1f2933; line-height:1.55;
   box-sizing:border-box;
+  /* flex column → ดันลายเซ็น + footer-note ไปล่างสุดของหน้า */
+  display:flex; flex-direction:column;
 }
 .req-doc * { box-sizing:border-box; }
+/* signatures + footer-note อยู่ที่ก้นหน้า */
+.req-doc-signatures { margin-top:auto; }
 
 /* Header */
 .req-doc-header {
@@ -255,18 +309,19 @@ textarea.form-control { resize:vertical; min-height:80px; line-height:1.6; }
 .req-doc-meta-row b { color:#52606d; font-weight:600; min-width:60px; text-align:left; }
 .req-doc-meta-row span { font-family:'IBM Plex Mono',monospace; font-weight:700; min-width:120px; text-align:right; }
 
-/* Info grid (3 cells row) */
+/* Info grid (2x2 — ซ้ายกว้าง 2 เท่าของขวา) */
 .req-doc-info {
-  display:grid; grid-template-columns:repeat(3, 1fr); gap:0;
+  display:grid; grid-template-columns:2fr 1fr; gap:0;
   border:1px solid #cbd2d9; border-radius:6px; overflow:hidden;
   margin-bottom:14px; background:#fafbfc;
 }
 .req-doc-info-cell {
   padding:8px 12px;
-  border-right:1px solid #e4e7eb;
+  border-bottom:1px solid #e4e7eb; border-right:1px solid #e4e7eb;
   display:flex; gap:8px; align-items:baseline;
 }
-.req-doc-info-cell:last-child { border-right:none; }
+.req-doc-info-cell:nth-child(2n) { border-right:none; }
+.req-doc-info-cell:nth-last-child(-n+2) { border-bottom:none; }
 .req-doc-info-label { font-size:11px; font-weight:600; color:#52606d; min-width:90px; }
 .req-doc-info-value { font-size:13px; color:#1f2933; font-weight:500; flex:1; }
 
@@ -293,25 +348,39 @@ textarea.form-control { resize:vertical; min-height:80px; line-height:1.6; }
 }
 .req-doc-empty-row td { color:#9aa5b1; text-align:center; padding:18px; font-style:italic; }
 
-/* Note */
+/* Note (inline label + body) */
 .req-doc-note {
   border:1px solid #cbd2d9; border-radius:6px;
-  padding:10px 12px; margin-bottom:18px; font-size:12px;
-  background:#fafbfc; min-height:48px;
+  padding:8px 12px; margin-bottom:14px; font-size:12px;
+  background:#fafbfc;
+  display:flex; align-items:baseline; gap:8px;
 }
-.req-doc-note-label { font-weight:700; color:#52606d; margin-bottom:4px; font-size:11px; letter-spacing:.4px; }
-.req-doc-note-body { color:#1f2933; white-space:pre-wrap; }
+.req-doc-note-label { font-weight:700; color:#52606d; font-size:12px; flex-shrink:0; }
+.req-doc-note-body { color:#1f2933; white-space:pre-wrap; flex:1; }
 
-/* Signatures */
+/* Signatures — ดันไปล่างสุดของหน้าด้วย margin-top:auto (req-doc เป็น flex column) */
 .req-doc-signatures {
-  display:grid; grid-template-columns:repeat(3,1fr); gap:24px;
-  margin-top:32px;
+  display:grid; grid-template-columns:repeat(3,1fr); gap:14px;
+  margin-top:auto;
+  padding-top:32px;   /* gap ขั้นต่ำเมื่อ content เต็มหน้า */
 }
-.sig-block { text-align:center; font-size:12px; color:#1f2933; }
-.sig-line { border-top:1px solid #1f2933; margin:30px 12px 8px; }
-.sig-label { font-weight:700; color:#1f2933; margin-bottom:4px; }
-.sig-name { color:#52606d; font-size:11px; }
-.sig-date { color:#9aa5b1; font-size:11px; margin-top:6px; }
+.sig-block {
+  text-align:center; font-size:11px; color:#1f2933;
+  min-width:0; overflow:hidden;
+}
+.sig-line   { border-top:1px solid #1f2933; margin:26px 8px 6px; }
+.sig-label  { font-weight:700; color:#1f2933; font-size:12px; margin-bottom:4px; }
+.sig-name   {
+  color:#52606d; font-size:11px;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.sig-date   { color:#9aa5b1; font-size:10.5px; margin-top:6px; white-space:nowrap; }
+/* Blank inline-line สำหรับ "ผู้จ่ายของออก" — ไม่ใช้ text underscore */
+.sig-blank {
+  display:inline-block; width:90px; height:.9em;
+  border-bottom:1px solid #52606d;
+  vertical-align:middle;
+}
 
 .req-doc-footer-note {
   margin-top:24px; padding-top:10px; border-top:1px dashed #cbd2d9;
@@ -375,12 +444,9 @@ textarea.form-control { resize:vertical; min-height:80px; line-height:1.6; }
   <!-- FORM CARD (รวมทุก sub-section อยู่ใน block เดียว คั่นด้วยเส้นบางๆ) -->
   <div class="section-card">
 
-    <!-- 1) รายละเอียดเอกสาร -->
+    <!-- 1) เลขที่ REQ (แยกบนสุด — เหมือน title block ของ PDF) -->
     <div class="form-block">
-      <div class="form-block-head">
-        <div class="form-block-title">📄 รายละเอียดเอกสาร</div>
-      </div>
-      <div class="form-grid">
+      <div class="form-grid form-grid--single">
         <div class="form-group">
           <label class="form-label">เลขที่ REQ <span class="required">*</span></label>
           <div class="input-prefix">
@@ -388,40 +454,27 @@ textarea.form-control { resize:vertical; min-height:80px; line-height:1.6; }
             <input type="text" class="form-control" id="reqNumber" placeholder="001" value="001">
           </div>
         </div>
-        <div class="form-group">
-          <label class="form-label">วันที่เบิก <span class="required">*</span></label>
-          <input type="date" class="form-control" id="reqDate">
-        </div>
       </div>
       <span id="reqNumberDisplay" hidden></span>
     </div>
 
-    <!-- 2) วัตถุประสงค์ -->
+    <!-- 2) Info grid 2x2 (mirror PDF: วัตถุประสงค์ | วันที่ / รายละเอียด | แผนก) -->
     <div class="form-block">
-      <div class="form-block-head">
-        <div class="form-block-title">🎯 วัตถุประสงค์การเบิก <span class="required">*</span></div>
-        <div class="form-block-sub">เลือก 1 วัตถุประสงค์ที่ตรงกับลักษณะการใช้งาน</div>
-      </div>
-      <div class="purpose-grid" id="purposeGrid"><!-- populated by JS --></div>
-    </div>
-
-    <!-- 3) หมายเหตุ -->
-    <div class="form-block">
-      <div class="form-block-head">
-        <div class="form-block-title">📝 หมายเหตุ / รายละเอียดเพิ่มเติม</div>
-      </div>
-      <textarea class="form-control" id="note"
-        placeholder="ระบุรายละเอียดการใช้งาน เช่น ชื่องาน, วันที่จัดงาน, สถานที่..."></textarea>
-    </div>
-
-    <!-- 4) ข้อมูลการเบิก -->
-    <div class="form-block">
-      <div class="form-block-head">
-        <div class="form-block-title">📍 ข้อมูลการเบิก</div>
-      </div>
-      <div class="form-grid">
-        <div class="form-group">
-          <label class="form-label">แผนกที่เบิก <span class="required">*</span></label>
+      <div class="info-grid-form">
+        <div class="info-cell-form">
+          <div class="info-cell-label">วัตถุประสงค์ <span class="required">*</span></div>
+          <div class="purpose-grid" id="purposeGrid"><!-- populated by JS --></div>
+        </div>
+        <div class="info-cell-form">
+          <div class="info-cell-label">วันที่เบิก <span class="required">*</span></div>
+          <input type="date" class="form-control" id="reqDate">
+        </div>
+        <div class="info-cell-form">
+          <div class="info-cell-label">รายละเอียดเพิ่มเติม</div>
+          <input type="text" class="form-control" id="note" placeholder="ระบุรายละเอียดเพิ่มเติม">
+        </div>
+        <div class="info-cell-form">
+          <div class="info-cell-label">แผนกที่เบิก <span class="required">*</span></div>
           <select class="form-control" id="deptId"><option value="">— เลือกแผนก —</option></select>
         </div>
       </div>
@@ -525,15 +578,15 @@ textarea.form-control { resize:vertical; min-height:80px; line-height:1.6; }
         <div class="req-doc-meta">
           <div class="req-doc-meta-row"><b>เลขที่</b><span id="docNumber">—</span></div>
           <div class="req-doc-meta-row"><b>วันที่</b><span id="docDate">—</span></div>
-          <div class="req-doc-meta-row"><b>สถานะ</b><span id="docStatus">DRAFT</span></div>
         </div>
       </div>
     </div>
 
     <div class="req-doc-info">
-      <div class="req-doc-info-cell"><span class="req-doc-info-label">วัตถุประสงค์</span><span class="req-doc-info-value" id="docPurpose">—</span></div>
-      <div class="req-doc-info-cell"><span class="req-doc-info-label">แผนกที่เบิก</span><span class="req-doc-info-value" id="docDept">—</span></div>
-      <div class="req-doc-info-cell"><span class="req-doc-info-label">วันที่เบิก</span><span class="req-doc-info-value" id="docDate2">—</span></div>
+      <div class="req-doc-info-cell"><span class="req-doc-info-label">วัตถุประสงค์ :</span><span class="req-doc-info-value" id="docPurpose">—</span></div>
+      <div class="req-doc-info-cell"><span class="req-doc-info-label">วันที่เบิก :</span><span class="req-doc-info-value" id="docDate2">—</span></div>
+      <div class="req-doc-info-cell"><span class="req-doc-info-label">รายละเอียดเพิ่มเติม :</span><span class="req-doc-info-value" id="docNote">—</span></div>
+      <div class="req-doc-info-cell"><span class="req-doc-info-label">แผนกที่เบิก :</span><span class="req-doc-info-value" id="docDept">—</span></div>
     </div>
 
     <table class="req-doc-table">
@@ -557,28 +610,23 @@ textarea.form-control { resize:vertical; min-height:80px; line-height:1.6; }
       </tfoot>
     </table>
 
-    <div class="req-doc-note">
-      <div class="req-doc-note-label">หมายเหตุ / รายละเอียดเพิ่มเติม</div>
-      <div class="req-doc-note-body" id="docNote">—</div>
-    </div>
-
     <div class="req-doc-signatures">
       <div class="sig-block">
         <div class="sig-line"></div>
         <div class="sig-label">ผู้ขอเบิก</div>
-        <div class="sig-name">( <span id="sigRequester">—</span> )</div>
+        <div class="sig-name">( <span class="sig-blank"></span> )</div>
         <div class="sig-date">วันที่ ____ / ____ / ________</div>
       </div>
       <div class="sig-block">
         <div class="sig-line"></div>
         <div class="sig-label">ผู้อนุมัติ</div>
-        <div class="sig-name">( <span id="sigApprover">—</span> )</div>
+        <div class="sig-name">( <span class="sig-blank"></span> )</div>
         <div class="sig-date">วันที่ ____ / ____ / ________</div>
       </div>
       <div class="sig-block">
         <div class="sig-line"></div>
         <div class="sig-label">ผู้จ่ายของออก</div>
-        <div class="sig-name">( ______________________ )</div>
+        <div class="sig-name">( <span class="sig-blank"></span> )</div>
         <div class="sig-date">วันที่ ____ / ____ / ________</div>
       </div>
     </div>

@@ -250,12 +250,25 @@ window.AppPermissions = (() => {
     {
       key: "trip", label: "ทริป (Trip)", icon: "✈️",
       children: [
+        { key: "trip_list", label: "รายการทริป", icon: "✈️", perms: [
+          { key: "trip_list_view",   label: "ดูรายการ" },
+          { key: "trip_list_create", label: "สร้างทริป" },
+          { key: "trip_list_edit",   label: "แก้ไขทริป" },
+          { key: "trip_list_delete", label: "ลบทริป" },
+        ]},
         { key: "trip_check_seat", label: "Check Seat", icon: "💺", perms: [
           { key: "trip_check_seat_view",   label: "ดูรายการ" },
           { key: "trip_check_seat_edit",   label: "แก้ไข/บันทึก" },
           { key: "trip_check_seat_import", label: "นำเข้า Excel" },
           { key: "trip_check_seat_export", label: "ส่งออก Excel" },
           { key: "trip_check_seat_delete", label: "ลบรายการ" },
+        ]},
+        { key: "trip_rooms", label: "จัดห้องพัก", icon: "🛏️", perms: [
+          { key: "trip_rooms_view",   label: "ดูรายการ" },
+          { key: "trip_rooms_create", label: "เพิ่มห้อง" },
+          { key: "trip_rooms_edit",   label: "แก้ไขห้อง" },
+          { key: "trip_rooms_delete", label: "ลบห้อง" },
+          { key: "trip_rooms_assign", label: "จัดผู้โดยสารเข้าห้อง" },
         ]},
       ],
     },

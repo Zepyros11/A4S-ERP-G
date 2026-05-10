@@ -1433,6 +1433,16 @@ const IMG_DB = {
 let rows = [];          // { id, code, name, pin, group, flight, departureDateTime, arrivalDateTime, comeback, comebackDateTime, seat, nationality, passImg, passImgFile, passId, passExp, visaImg, visaImgFile, paid, tel, shirt, isEditing, isSubRow, parentId }
 let sbClient = null;
 let _rowCounter = 0;
+
+/* ── Trip context: filter table by ?trip_id=X เพื่อให้แต่ละทริปแยกข้อมูลได้
+   ถ้าเปิดหน้านี้ตรงๆ ไม่มี trip_id → ทำงานแบบ legacy (โหลดทุกแถว) */
+const currentTripId = (() => {
+  const qs = new URLSearchParams(location.search);
+  const v  = parseInt(qs.get('trip_id'), 10);
+  return Number.isFinite(v) && v > 0 ? v : null;
+})();
+let currentTrip = null; // { trip_id, trip_name, start_date, end_date, ... } — โหลดหลัง init
+function _lsKey() { return currentTripId != null ? `cs_rows_trip_${currentTripId}` : 'cs_rows'; }
 let _globalEditing = false;
 let flightMemory   = {}; // { "FX1": { departureDateTime, arrivalDateTime, comeback, comebackDateTime } }
 let comebackMemory = []; // [ "2026-05-03T10:00", ... ] — ค่า comeback ที่เคยใช้ (legacy)
@@ -1721,13 +1731,16 @@ async function clearAll() {
   });
   if (!ok) return;
   rows = [];
-  localStorage.removeItem('cs_rows');
+  localStorage.removeItem(_lsKey());
   IMG_DB.clearAll(); // ล้างรูปใน IndexedDB ด้วย
   renderTable();
 
   if (sbClient) {
     try {
-      const { error } = await sbClient.from('tour_seat_check').delete().neq('code', '__never__');
+      let qDel = sbClient.from('tour_seat_check').delete();
+      if (currentTripId != null) qDel = qDel.eq('trip_id', currentTripId);
+      else qDel = qDel.neq('code', '__never__');
+      const { error } = await qDel;
       if (error) throw error;
       toast('Supabase data cleared', 'success');
     } catch(e) {
@@ -2068,12 +2081,12 @@ function saveLocal() {
     paid: r.paid || '',
     tel: r.tel, shirt: r.shirt, isSubRow: r.isSubRow, parentId: r.parentId,
   }));
-  try { localStorage.setItem('cs_rows', JSON.stringify(slim)); } catch(e) {}
+  try { localStorage.setItem(_lsKey(), JSON.stringify(slim)); } catch(e) {}
 }
 
 function loadLocal() {
   try {
-    const saved = localStorage.getItem('cs_rows');
+    const saved = localStorage.getItem(_lsKey());
     if (!saved) return false;
     const parsed = JSON.parse(saved);
     if (!parsed.length) return false;
@@ -2133,6 +2146,7 @@ function rowToRecord(row) {
     waive:              row.waive || false,
     is_sub_row:         row.isSubRow,
     parent_code:        parentRow ? parentRow.code : null,
+    trip_id:            currentTripId, // tag every row with current trip context
   };
 }
 
@@ -2230,17 +2244,25 @@ async function loadFromSupabase() {
     `<tr><td colspan="25" style="text-align:center;padding:40px;color:var(--text3)">⏳ Loading data from Supabase...</td></tr>`;
 
   try {
-    const { data, error } = await sbClient
+    let q = sbClient
       .from('tour_seat_check')
       .select('*')
       .order('created_at', { ascending: true });
+    if (currentTripId != null) q = q.eq('trip_id', currentTripId);
+    const { data, error } = await q;
 
     if (error) throw error;
 
     if (!data || data.length === 0) {
-      loadLocal();
-      renderTable();
-      restoreImagesFromIDB();
+      // ถ้าอยู่ใน trip ใดทริปหนึ่ง — เริ่มต้นด้วยตารางว่าง อย่าล้างข้อมูล local cache ของทริปอื่น
+      if (currentTripId != null) {
+        rows = [];
+        renderTable();
+      } else {
+        loadLocal();
+        renderTable();
+        restoreImagesFromIDB();
+      }
       return;
     }
 
@@ -2356,9 +2378,11 @@ async function refreshFromSupabaseSilent() {
 
   _refreshInFlight = true;
   try {
-    const { data, error } = await sbClient
+    let q = sbClient
       .from('tour_seat_check').select('*')
       .order('created_at', { ascending: true });
+    if (currentTripId != null) q = q.eq('trip_id', currentTripId);
+    const { data, error } = await q;
     if (error || !data) return;
 
     // same sub-row auto-detect logic
@@ -3335,8 +3359,9 @@ async function saveAllToSupabase() {
   /* ─── Pre-save freshness check: เตือนถ้า Supabase มี code ที่ local ไม่มี
          (แปลว่ามีคนเพิ่มข้อมูลจากเครื่องอื่น และเครื่องนี้ยังไม่ reload) ─── */
   try {
-    const { data: serverCodes, error: checkErr } = await sbClient
-      .from('tour_seat_check').select('code');
+    let qCheck = sbClient.from('tour_seat_check').select('code');
+    if (currentTripId != null) qCheck = qCheck.eq('trip_id', currentTripId);
+    const { data: serverCodes, error: checkErr } = await qCheck;
     if (!checkErr && serverCodes) {
       const localCodes = new Set(rows.filter(r => r.code).map(r => r.code));
       const missingLocal = serverCodes.filter(s => !localCodes.has(s.code)).map(s => s.code);
@@ -3703,6 +3728,62 @@ function copyShareUrl() {
 }
 
 /* ═══════════════════════════════════════════════════════════
+   TRIP CONTEXT — load trip meta + render breadcrumb in toolbar
+═══════════════════════════════════════════════════════════ */
+async function loadTripMeta() {
+  if (currentTripId == null || !sbClient) return;
+  try {
+    const { data, error } = await sbClient
+      .from('trips')
+      .select('trip_id,trip_name,start_date,end_date,status')
+      .eq('trip_id', currentTripId)
+      .maybeSingle();
+    if (!error && data) currentTrip = data;
+  } catch (e) { /* silent */ }
+  renderTripBreadcrumb();
+}
+
+function renderTripBreadcrumb() {
+  const toolbar = document.getElementById('toolbar');
+  if (!toolbar) return;
+  // ลบของเก่าก่อน (กันซ้ำเวลา re-render)
+  const old = document.getElementById('trip-breadcrumb');
+  if (old) old.remove();
+
+  if (currentTripId == null) return; // legacy mode (ไม่มี trip context)
+
+  const fmt = (window.DateFmt && window.DateFmt.formatDMY) || (s => s || '');
+  const name = currentTrip?.trip_name || `Trip #${currentTripId}`;
+  const start = currentTrip?.start_date ? fmt(currentTrip.start_date) : '';
+  const end   = currentTrip?.end_date   ? fmt(currentTrip.end_date)   : '';
+  const range = (start || end) ? `<span style="color:var(--text2,#4b5563);font-size:11px;margin-left:6px;font-weight:500">${start || '—'} → ${end || '—'}</span>` : '';
+
+  const wrap = document.createElement('div');
+  wrap.id = 'trip-breadcrumb';
+  wrap.style.cssText = [
+    'display:inline-flex','align-items:center','gap:8px',
+    'background:var(--accent-pale,#e8f0fb)',
+    'border:1px solid var(--accent,#0f4c75)33',
+    'padding:5px 12px','border-radius:999px',
+    'font-size:12px','color:var(--accent,#0f4c75)',
+    'margin-left:8px','margin-right:auto',
+    'white-space:nowrap','line-height:1.2'
+  ].join(';');
+  wrap.innerHTML = `
+    <a href="./trip-list.html" style="color:var(--accent,#0f4c75);text-decoration:none;font-weight:600;opacity:.85" title="กลับไปรายการทริป">← รายการทริป</a>
+    <span style="opacity:.4">|</span>
+    <span style="font-weight:700">✈️ ${name}</span>${range}
+  `;
+  // วาง breadcrumb ต่อจาก h1 ของ toolbar
+  const h1 = toolbar.querySelector('h1');
+  if (h1) h1.parentNode.insertBefore(wrap, h1.nextSibling);
+  else toolbar.insertBefore(wrap, toolbar.firstChild);
+
+  // อัปเดต document title ด้วย
+  document.title = `${name} — Check Seat — A4S-ERP`;
+}
+
+/* ═══════════════════════════════════════════════════════════
    INIT
 ═══════════════════════════════════════════════════════════ */
 migrateLegacyProxyKey();
@@ -3711,6 +3792,7 @@ loadComebackMemory();
 injectColResizers();
 applyColWidths();
 initSupabase();
+loadTripMeta();                                    // load trip context (async, non-blocking)
 loadFromSupabase().then(() => startAutoRefresh()); // โหลด → แล้วเริ่ม auto-refresh
 </script>
 </div> <!-- /page -->

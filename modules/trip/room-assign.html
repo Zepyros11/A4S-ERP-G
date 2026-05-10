@@ -1,0 +1,273 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>จัดห้องพัก — A4S-ERP</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../../css/main.css" />
+    <style>
+      .ra-trip-banner{
+        display:inline-flex;align-items:center;gap:10px;
+        background:var(--accent-pale,#e8f0fb);
+        border:1px solid var(--accent,#0f4c75)33;
+        padding:6px 14px;border-radius:999px;font-size:13px;
+        color:var(--accent,#0f4c75);margin-left:12px;white-space:nowrap;
+      }
+      .ra-trip-banner a{color:var(--accent,#0f4c75);text-decoration:none;font-weight:600;opacity:.85}
+      .ra-trip-banner a:hover{opacity:1}
+
+      .ra-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px}
+      .ra-stat{background:#fff;border:1px solid var(--border);border-radius:10px;padding:12px 14px;display:flex;align-items:center;gap:10px}
+      .ra-stat-icon{font-size:22px}
+      .ra-stat-val{font-size:22px;font-weight:700;line-height:1}
+      .ra-stat-lbl{font-size:11.5px;color:var(--text2);margin-top:3px}
+
+      .ra-grid{display:grid;grid-template-columns:340px 1fr;gap:14px;align-items:flex-start}
+      @media(max-width:960px){ .ra-grid{grid-template-columns:1fr} }
+
+      /* Left panel: passengers */
+      .ra-passengers{background:#fff;border:1px solid var(--border);border-radius:12px;padding:12px;position:sticky;top:14px;max-height:calc(100vh - 90px);display:flex;flex-direction:column}
+      .ra-pax-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid var(--border)}
+      .ra-pax-title{font-weight:700;font-size:14px}
+      .ra-pax-toolbar{display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap}
+      .ra-pax-toolbar input,.ra-pax-toolbar select{padding:6px 9px;border:1px solid var(--border);border-radius:8px;font-size:12px;font-family:inherit;background:#fff;flex:1;min-width:90px}
+      .ra-pax-list{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:6px;padding-right:2px}
+      .ra-pax-row{display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;cursor:pointer;background:#fff;transition:.12s;font-size:12.5px}
+      .ra-pax-row:hover{background:#f1f5f9;border-color:#94a3b8}
+      .ra-pax-row.selected{border-color:#3b82f6;background:#dbeafe}
+      .ra-pax-row.assigned{opacity:.55;background:#f8fafc}
+      .ra-pax-row.assigned .ra-pax-meta::after{content:" · 🛏️"}
+      .ra-pax-name{font-weight:600;color:var(--text)}
+      .ra-pax-meta{color:var(--text2);font-size:11px}
+      .ra-pax-empty{padding:20px;text-align:center;color:var(--text3);font-size:12px}
+      .ra-gender-tag{display:inline-block;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:600;margin-left:4px}
+      .ra-gender-M{background:#dbeafe;color:#1d4ed8}
+      .ra-gender-F{background:#fce7f3;color:#9d174d}
+
+      /* Right panel: rooms */
+      .ra-rooms{background:transparent;display:flex;flex-direction:column;gap:14px}
+      .ra-rooms-toolbar{display:flex;justify-content:space-between;align-items:center;background:#fff;border:1px solid var(--border);border-radius:12px;padding:10px 14px}
+      .ra-rooms-toolbar .ra-hint{color:var(--text2);font-size:12px}
+
+      .ra-rooms-grp{background:#fff;border:1px solid var(--border);border-radius:12px;padding:12px}
+      .ra-rooms-grp-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;padding-bottom:8px;border-bottom:1px dashed var(--border)}
+      .ra-grp-title{font-weight:700;color:var(--text);font-size:14px}
+      .ra-grp-title .ra-grp-icon{margin-right:6px}
+      .ra-grp-count{color:var(--text2);font-size:12px;font-weight:500}
+
+      .ra-rooms-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px}
+      .ra-room-card{border:1px solid var(--border);border-radius:10px;padding:10px;background:#fff;display:flex;flex-direction:column;gap:8px;transition:.15s;position:relative}
+      .ra-room-card.full{border-color:#cbd5e1;background:#f8fafc}
+      .ra-room-card.assignable{cursor:pointer}
+      .ra-room-card.assignable:hover{border-color:#3b82f6;box-shadow:0 0 0 3px rgba(59,130,246,.12)}
+
+      .ra-room-card-hdr{display:flex;align-items:center;justify-content:space-between;gap:6px}
+      .ra-room-name{font-weight:700;font-size:13px;color:var(--text);flex:1;border:none;background:transparent;padding:2px 4px;border-radius:4px;font-family:inherit;outline:none;min-width:0;overflow:hidden;text-overflow:ellipsis}
+      .ra-room-name:hover,.ra-room-name:focus{background:#f1f5f9}
+      .ra-room-actions{display:flex;gap:2px;flex-shrink:0}
+      .ra-room-actions button{background:transparent;border:none;cursor:pointer;padding:3px 5px;border-radius:4px;font-size:11px;color:var(--text2)}
+      .ra-room-actions button:hover{background:#f1f5f9;color:var(--text)}
+      .ra-room-actions button.danger:hover{background:#fee2e2;color:#b91c1c}
+
+      .ra-room-meta{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--text2)}
+      .ra-cap-bar{flex:1;height:6px;background:#e2e8f0;border-radius:99px;overflow:hidden}
+      .ra-cap-fill{height:100%;background:linear-gradient(90deg,#10b981,#059669);transition:width .25s}
+      .ra-cap-fill.warn{background:linear-gradient(90deg,#f59e0b,#d97706)}
+      .ra-cap-fill.full{background:linear-gradient(90deg,#94a3b8,#64748b)}
+      .ra-cap-text{font-weight:600;color:var(--text);font-variant-numeric:tabular-nums}
+
+      .ra-room-gender select{padding:2px 6px;border:1px solid var(--border);border-radius:6px;font-size:11px;background:#fff;font-family:inherit}
+
+      .ra-room-occupants{display:flex;flex-direction:column;gap:4px;margin-top:2px}
+      .ra-occ{display:flex;align-items:center;justify-content:space-between;background:#f1f5f9;border-radius:6px;padding:5px 8px;font-size:11.5px}
+      .ra-occ-name{font-weight:600;color:var(--text)}
+      .ra-occ-meta{color:var(--text3);font-size:10px;margin-left:6px}
+      .ra-occ-remove{background:transparent;border:none;color:#b91c1c;cursor:pointer;font-weight:700;padding:0 4px;font-size:14px;line-height:1}
+      .ra-occ-remove:hover{color:#7f1d1d}
+
+      .ra-empty-rooms{padding:30px;text-align:center;color:var(--text3);background:#fff;border:1px dashed var(--border);border-radius:12px}
+
+      /* Modal */
+      .ra-form-row-2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+
+      .ra-banner-back{background:transparent;border:none;color:var(--accent);text-decoration:none;font-weight:600;font-size:12px;cursor:pointer;padding:0;opacity:.85}
+      .ra-banner-back:hover{opacity:1}
+    </style>
+  </head>
+  <body>
+    <div class="loading-overlay" id="loadingOverlay">
+      <div class="spinner"></div>
+    </div>
+    <div class="toast" id="toast"></div>
+
+    <div class="topbar"></div>
+    <div class="layout">
+      <div class="content-area">
+        <div class="page">
+
+          <!-- HERO -->
+          <div class="page-hero page-hero--simple page-hero--compact">
+            <h1 class="page-hero-title">🛏️ จัดห้องพัก</h1>
+            <span id="raTripBanner" class="ra-trip-banner" style="display:none">
+              <a href="./trip-list.html">← รายการทริป</a>
+              <span style="opacity:.4">|</span>
+              <span id="raTripName" style="font-weight:700">—</span>
+              <span id="raTripDates" style="color:var(--text2);font-size:11.5px;font-weight:500"></span>
+            </span>
+          </div>
+
+          <!-- STATS -->
+          <div class="ra-stats">
+            <div class="ra-stat">
+              <div class="ra-stat-icon">👥</div>
+              <div>
+                <div class="ra-stat-val" id="statTotal">0</div>
+                <div class="ra-stat-lbl">ผู้โดยสารทั้งหมด</div>
+              </div>
+            </div>
+            <div class="ra-stat">
+              <div class="ra-stat-icon">✅</div>
+              <div>
+                <div class="ra-stat-val" id="statAssigned">0</div>
+                <div class="ra-stat-lbl">จัดห้องแล้ว</div>
+              </div>
+            </div>
+            <div class="ra-stat">
+              <div class="ra-stat-icon">⏳</div>
+              <div>
+                <div class="ra-stat-val" id="statUnassigned">0</div>
+                <div class="ra-stat-lbl">ยังไม่จัด</div>
+              </div>
+            </div>
+            <div class="ra-stat">
+              <div class="ra-stat-icon">🛏️</div>
+              <div>
+                <div class="ra-stat-val" id="statRooms">0</div>
+                <div class="ra-stat-lbl">ห้องพัก</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 2-panel grid -->
+          <div class="ra-grid">
+
+            <!-- LEFT: passengers -->
+            <div class="ra-passengers">
+              <div class="ra-pax-hdr">
+                <div class="ra-pax-title">👥 ผู้โดยสาร</div>
+                <div style="font-size:11.5px;color:var(--text2)">
+                  <span id="paxFilteredCount">0</span> คน
+                </div>
+              </div>
+              <div class="ra-pax-toolbar">
+                <input type="text" id="paxSearch" placeholder="🔍 ค้นหา..." />
+                <select id="paxFilterStatus">
+                  <option value="unassigned">ยังไม่จัด</option>
+                  <option value="all">ทั้งหมด</option>
+                  <option value="assigned">จัดแล้ว</option>
+                </select>
+                <select id="paxFilterGender">
+                  <option value="">ทุกเพศ</option>
+                  <option value="M">ชาย (M)</option>
+                  <option value="F">หญิง (F)</option>
+                </select>
+              </div>
+              <div class="ra-pax-list" id="paxList">
+                <div class="ra-pax-empty">กำลังโหลด...</div>
+              </div>
+              <div style="font-size:11px;color:var(--text3);margin-top:8px;padding-top:8px;border-top:1px dashed var(--border);text-align:center">
+                💡 คลิกเลือกผู้โดยสาร แล้วคลิกห้อง → assign
+              </div>
+            </div>
+
+            <!-- RIGHT: rooms -->
+            <div class="ra-rooms">
+              <div class="ra-rooms-toolbar">
+                <div class="ra-hint">
+                  <span id="selectedHint" style="color:var(--text2);font-size:12px">ยังไม่ได้เลือกผู้โดยสาร</span>
+                </div>
+                <div style="display:flex;gap:8px">
+                  <button class="btn btn-outline" id="btnClearSelection" style="display:none" onclick="window.clearPaxSelection()">ยกเลิกเลือก</button>
+                  <button class="btn btn-primary" data-perm="trip_rooms_create" onclick="window.openRoomBatchModal()">＋ เพิ่มประเภทห้อง</button>
+                </div>
+              </div>
+
+              <div id="roomsContainer">
+                <div class="ra-empty-rooms">
+                  ⏳ กำลังโหลด...
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════ ADD ROOM BATCH MODAL ═══════════ -->
+    <div class="modal-overlay" id="roomBatchOverlay" onclick="window.closeRoomBatchModal(event)">
+      <div class="modal v-sage-header" onclick="event.stopPropagation()">
+        <div class="modal-hdr">
+          <div class="modal-title">เพิ่มประเภทห้องพัก</div>
+          <button class="btn-modal-close" onclick="window.closeRoomBatchModal()">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label">ชื่อแบบห้อง <span class="req">*</span></label>
+            <input class="form-control" id="rbName" placeholder="เช่น Twin, Single, Suite, Deluxe..." autocomplete="off" />
+            <div style="font-size:11px;color:var(--text3);margin-top:4px">ระบบจะสร้างห้อง auto-numbering: เช่น "Twin-1", "Twin-2" ตามจำนวน (rename ภายหลังได้)</div>
+          </div>
+
+          <div class="ra-form-row-2" style="margin-top:14px">
+            <div class="form-group">
+              <label class="form-label">ความจุ (คน/ห้อง) <span class="req">*</span></label>
+              <input class="form-control" type="number" id="rbCapacity" value="2" min="1" max="20" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">จำนวนห้อง <span class="req">*</span></label>
+              <input class="form-control" type="number" id="rbCount" value="1" min="1" max="100" />
+            </div>
+          </div>
+
+          <div class="form-group" style="margin-top:14px">
+            <label class="form-label">เพศที่กำหนด (Staff ตั้งเอง — ไม่บังคับ)</label>
+            <select class="form-control" id="rbGender">
+              <option value="">ผสม / ยังไม่กำหนด</option>
+              <option value="M">ชาย (Male only)</option>
+              <option value="F">หญิง (Female only)</option>
+            </select>
+          </div>
+
+          <div class="form-group" style="margin-top:14px">
+            <label class="form-label">หมายเหตุ</label>
+            <input class="form-control" id="rbNote" placeholder="เช่น ห้องชั้น 5, ห้อง connecting" autocomplete="off" />
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-ghost" onclick="window.closeRoomBatchModal()">ยกเลิก</button>
+          <button class="btn btn-primary" onclick="window.saveRoomBatch()">💾 สร้างห้อง</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- SCRIPTS -->
+    <script src="../../js/core/auth.js"></script>
+    <script src="../../js/core/authz.js"></script>
+    <script src="../../js/core/date-format.js"></script>
+    <script>AuthZ.requirePerm("trip_rooms_view");</script>
+    <script src="./room-assign.js"></script>
+    <script src="../../js/components/modal/deleteModal.js"></script>
+    <script src="../../js/components/modal/confirmModal.js"></script>
+    <script src="../../js/components/modal/modalManager.js"></script>
+    <script src="../../js/components/modal/enterSave.js"></script>
+    <script src="../../js/components/navigation/sidebar.js"></script>
+    <script type="module">
+      import { loadTopbar } from "../../js/components/navigation/topbar.js";
+      loadTopbar("🛏️ จัดห้องพัก");
+    </script>
+  </body>
+</html>

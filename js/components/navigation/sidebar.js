@@ -314,10 +314,10 @@
       id: "g-trip",
       items: [
         {
-          id: "trip-check-seat",
-          icon: "💺",
-          label: "Check Seat",
-          path: BASE_PATH + "/modules/trip/check-seat.html",
+          id: "trip-list",
+          icon: "✈️",
+          label: "รายการทริป",
+          path: BASE_PATH + "/modules/trip/trip-list.html",
         },
       ],
     },
@@ -502,6 +502,7 @@
     "ibd-complaints": "ibd_complaints_view",
     "ibd-ewallet": "ibd_ewallet_view",
     "ibd-relocation": "ibd_relocation_view",
+    "trip-list": "trip_list_view",
     "trip-check-seat": "trip_check_seat_view",
     manual: "manual_view",
     automation: "devtool_view",
@@ -595,6 +596,7 @@
     "ibd-ewallet",
     "ibd-relocation",
     //**** TRIP ****
+    "trip-list",
     "trip-check-seat",
     //**** MANUAL ****
     "manual",
