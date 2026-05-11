@@ -926,9 +926,9 @@ function renderRooms() {
     const unassignedInGroup = state.passengers.length - assignedCodesInGroup.size;
 
     const ridsCsv = rooms.map(r => r.room_id).join(",");
-    // apply filter — show only rooms ว่าง if filterEmptyOnly checked
+    // apply filter — show rooms ที่ยังไม่เต็ม (0 occupants OR partially filled)
     const visibleRooms = state.filterEmptyOnly
-      ? rooms.filter(r => (occByRoom[r.room_id]?.length || 0) === 0)
+      ? rooms.filter(r => (occByRoom[r.room_id]?.length || 0) < (r.capacity || 0))
       : rooms;
     const hiddenCount = rooms.length - visibleRooms.length;
 
@@ -983,7 +983,7 @@ function renderRooms() {
             ＋ ห้อง
           </button>
           <button class="ra-toggle-empty${state.filterEmptyOnly ? ' active' : ''}"
-            title="ดูเฉพาะห้องว่าง"
+            title="ดูห้องที่ยังไม่เต็ม (ว่าง + อยู่ไม่ครบ)"
             onclick="window.toggleEmptyOnlyFilter(${!state.filterEmptyOnly})">
             ${state.filterEmptyOnly ? '✓' : '○'} ห้องว่าง
           </button>
@@ -1007,7 +1007,7 @@ function renderRooms() {
         </div>
       </div>
       ${isCollapsed ? "" : `
-        ${hiddenCount > 0 ? `<div style="font-size:11px;color:var(--text3);margin-bottom:6px">ซ่อน ${hiddenCount} ห้องที่มีคนแล้ว</div>` : ""}
+        ${hiddenCount > 0 ? `<div style="font-size:11px;color:var(--text3);margin-bottom:6px">ซ่อน ${hiddenCount} ห้องที่จัดเต็มแล้ว</div>` : ""}
         <div class="ra-rooms-cards">
           ${visibleRooms.length ? visibleRooms.map(r => roomCardHtml(r, occByRoom[r.room_id] || [])).join("") : `<div class="ra-empty-rooms" style="grid-column:1/-1">ห้องในกลุ่มนี้ถูกจัดเต็มแล้ว</div>`}
         </div>
