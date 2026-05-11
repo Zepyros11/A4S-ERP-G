@@ -321,17 +321,48 @@ function _buildExportSections() {
           "ชื่อห้อง": r.room_name || "",
           "Check-in": r.check_in_date  ? fmtDate(r.check_in_date)  : "",
           "Check-out": r.check_out_date ? fmtDate(r.check_out_date) : "",
+          _room: r.room_name || "",
           _code: code || "",
         });
       });
     });
-    rows.sort((a, b) => a._code.localeCompare(b._code));
+    // เรียงตามชื่อห้อง ASC (natural sort: Twin-2 < Twin-3 < Twin-21) แล้วตาม code ใน ห้องเดียวกัน
+    rows.sort((a, b) =>
+      a._room.localeCompare(b._room, undefined, { numeric: true, sensitivity: "base" })
+      || a._code.localeCompare(b._code)
+    );
     return {
       title,
       hotelName,
-      rows: rows.map(({ _code, ...rest }) => rest),
+      rows: rows.map(({ _room, _code, ...rest }) => rest),
     };
   });
+}
+
+// helper: ทาขอบทุกเซลล์ในช่วง + ใส่ header style ที่แถวบนสุด
+function _applyBorders(ws, nCols, nRows, headerRowIdx = 0) {
+  const border = {
+    top:    { style: "thin", color: { rgb: "94A3B8" } },
+    bottom: { style: "thin", color: { rgb: "94A3B8" } },
+    left:   { style: "thin", color: { rgb: "94A3B8" } },
+    right:  { style: "thin", color: { rgb: "94A3B8" } },
+  };
+  for (let r = headerRowIdx; r < headerRowIdx + nRows; r++) {
+    for (let c = 0; c < nCols; c++) {
+      const ref = XLSX.utils.encode_cell({ r, c });
+      if (!ws[ref]) ws[ref] = { v: "", t: "s" };
+      ws[ref].s = ws[ref].s || {};
+      ws[ref].s.border = border;
+      ws[ref].s.alignment = ws[ref].s.alignment || { vertical: "center", wrapText: false };
+      if (r === headerRowIdx) {
+        ws[ref].s.font = { bold: true, sz: 11 };
+        ws[ref].s.fill = { patternType: "solid", fgColor: { rgb: "F1F5F9" } };
+        ws[ref].s.alignment = { vertical: "center", horizontal: "center" };
+      }
+    }
+  }
+  // ขยาย worksheet range เพื่อให้เซลล์เปล่าที่เราเพิ่งสร้างถูก export ด้วย
+  ws["!ref"] = XLSX.utils.encode_range({ s: { c: 0, r: headerRowIdx }, e: { c: nCols - 1, r: headerRowIdx + nRows - 1 } });
 }
 
 window.exportRaExcel = function () {
@@ -415,10 +446,40 @@ window.exportRaExcel = function () {
     { s: { r: 3, c: 0 }, e: { r: 3, c: 7 } },
     { s: { r: 7, c: 0 }, e: { r: 7, c: 7 } },
   ];
+  // borders: ตาราง "สรุปทั้งทริป" (row 4-5, col 0-4) + ตาราง "สรุปต่อโรงแรม" (row 8 ลงมา, col 0-7)
+  _applyBorders(summaryWs, 5, 2, 4);
+  _applyBorders(summaryWs, 8, sections.length + 1, 8);
+  // header styles for title rows (row 0,1,3,7) — bold + center
+  ["A1", "A2", "A4", "A8"].forEach(ref => {
+    if (!summaryWs[ref]) summaryWs[ref] = { v: "", t: "s" };
+    summaryWs[ref].s = {
+      font: { bold: true, sz: ref === "A1" ? 14 : 12 },
+      alignment: { vertical: "center", horizontal: "left" },
+    };
+  });
   used.add("สรุป");
   XLSX.utils.book_append_sheet(wb, summaryWs, "สรุป");
 
   // ─── 1 sheet ต่อ 1 โรงแรม ───
+  // คอลัมน์: 0=รหัส 1=ชื่อ 2=ชื่อห้อง 3=Check-in 4=Check-out
+  // merge cell ของ col 2,3,4 สำหรับแถวที่ "ชื่อห้อง" ติดกันและเหมือนกัน
+  const computeMerges = (rows, headerRowIdx = 0) => {
+    const merges = [];
+    let i = 0;
+    while (i < rows.length) {
+      const cur = rows[i]["ชื่อห้อง"];
+      let j = i + 1;
+      while (j < rows.length && rows[j]["ชื่อห้อง"] === cur && cur !== "") j++;
+      if (j - i > 1) {
+        const r1 = headerRowIdx + 1 + i;
+        const r2 = headerRowIdx + j;
+        // merge ชื่อห้อง (col 2), Check-in (col 3), Check-out (col 4)
+        [2, 3, 4].forEach(c => merges.push({ s: { r: r1, c }, e: { r: r2, c } }));
+      }
+      i = j;
+    }
+    return merges;
+  };
   sections.forEach((sec, i) => {
     const sheetName = safeSheetName(sec.hotelName, i);
     const headerRows = sec.rows.length
@@ -431,6 +492,9 @@ window.exportRaExcel = function () {
       maxLen[k] = Math.max(maxLen[k] || k.length, Math.min(l, 60));
     }));
     ws["!cols"] = Object.keys(headerRows[0]).map(k => ({ wch: (maxLen[k] || 10) + 2 }));
+    if (sec.rows.length) ws["!merges"] = computeMerges(headerRows, 0);
+    // borders + header style ทุกเซลล์ (header 1 row + data N rows)
+    _applyBorders(ws, Object.keys(headerRows[0]).length, headerRows.length + 1, 0);
     XLSX.utils.book_append_sheet(wb, ws, sheetName);
   });
 
@@ -481,12 +545,24 @@ window.exportRaPdf = function () {
     });
     const sample = groupRooms[0];
     const nights = sample ? _nightsBetween(sample.check_in_date, sample.check_out_date) : 0;
-    const trs = sec.rows.map(r => `<tr>
+    // คำนวณ rowspan สำหรับห้องที่ติดกัน
+    const rowspans = new Array(sec.rows.length).fill(1);
+    const isHead   = new Array(sec.rows.length).fill(false);
+    let i = 0;
+    while (i < sec.rows.length) {
+      const cur = sec.rows[i]["ชื่อห้อง"];
+      let j = i + 1;
+      while (j < sec.rows.length && sec.rows[j]["ชื่อห้อง"] === cur && cur !== "") j++;
+      isHead[i] = true;
+      rowspans[i] = j - i;
+      i = j;
+    }
+    const trs = sec.rows.map((r, idx) => `<tr>
       <td>${escapeHtml(r["รหัส"])}</td>
       <td>${escapeHtml(r["ชื่อ"])}</td>
-      <td>${escapeHtml(r["ชื่อห้อง"])}</td>
-      <td>${escapeHtml(r["Check-in"])}</td>
-      <td>${escapeHtml(r["Check-out"])}</td>
+      ${isHead[idx] ? `<td rowspan="${rowspans[idx]}" style="vertical-align:middle">${escapeHtml(r["ชื่อห้อง"])}</td>
+      <td rowspan="${rowspans[idx]}" style="vertical-align:middle">${escapeHtml(r["Check-in"])}</td>
+      <td rowspan="${rowspans[idx]}" style="vertical-align:middle">${escapeHtml(r["Check-out"])}</td>` : ""}
     </tr>`).join("");
     return `<div class="ra-print-section">
       <h3>🏨 ${escapeHtml(sec.title)}
