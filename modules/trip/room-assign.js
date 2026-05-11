@@ -274,6 +274,69 @@ function renderStats() {
 }
 
 // ── EXPORT (Excel / PDF) ───────────────────────────────────
+// i18n สำหรับ export ทั้ง Excel + PDF
+const RA_I18N = {
+  th: {
+    title:        "🛏️ จัดห้องพัก",
+    trip:         "ทริป",
+    days:         "วัน",
+    nights:       "คืน",
+    rooms:        "ห้อง",
+    people:       "คน",
+    summary:      "📊 สรุปทั้งทริป",
+    perHotel:     "🏨 สรุปต่อโรงแรม",
+    summaryTab:   "สรุป",
+    colSeq:       "#",
+    colHotel:     "โรงแรม",
+    colRoomType:  "ประเภทห้อง",
+    colCheckIn:   "Check-in",
+    colCheckOut:  "Check-out",
+    colNights:    "คืน",
+    colRooms:     "ห้อง",
+    colPax:       "ผู้พัก",
+    colDays:      "วันทริป",
+    colTotalRows: "รวมแถว",
+    code:         "รหัส",
+    name:         "ชื่อ",
+    roomName:     "ชื่อห้อง",
+    noOccupant:   "(ยังไม่มีผู้พัก)",
+    noOccupantH:  "ยังไม่มีผู้พักในโรงแรมนี้",
+    noHotel:      "ยังไม่มีโรงแรม",
+    generated:    "Generated",
+    toastTh:      "เปิดหน้าต่าง print — เลือก 'Save as PDF'",
+    excelOk:      (n) => `ดาวน์โหลด Excel แล้ว (${n} โรงแรม + สรุป)`,
+  },
+  en: {
+    title:        "🛏️ Room Assignment",
+    trip:         "Trip",
+    days:         "days",
+    nights:       "nights",
+    rooms:        "rooms",
+    people:       "people",
+    summary:      "📊 Trip Summary",
+    perHotel:     "🏨 By Hotel",
+    summaryTab:   "Summary",
+    colSeq:       "#",
+    colHotel:     "Hotel",
+    colRoomType:  "Room Type",
+    colCheckIn:   "Check-in",
+    colCheckOut:  "Check-out",
+    colNights:    "Nights",
+    colRooms:     "Rooms",
+    colPax:       "People",
+    colDays:      "Trip Days",
+    colTotalRows: "Total Rows",
+    code:         "Code",
+    name:         "Name",
+    roomName:     "Room",
+    noOccupant:   "(No occupants yet)",
+    noOccupantH:  "No occupants at this hotel",
+    noHotel:      "No hotels",
+    generated:    "Generated",
+    toastTh:      "Print dialog opened — choose 'Save as PDF'",
+    excelOk:      (n) => `Excel downloaded (${n} hotels + summary)`,
+  },
+};
 window.toggleRaExport = function (ev) {
   ev?.stopPropagation?.();
   const wrap = document.getElementById("raExportWrap");
@@ -289,7 +352,9 @@ document.addEventListener("click", (ev) => {
 
 // สร้าง sections สำหรับ export — แยกตาม batch (โรงแรม + ประเภท + ช่วงวัน)
 // แต่ละ section มี rows: 1 (คน × ห้อง) = 1 แถว
-function _buildExportSections() {
+// lang: "th" | "en" — กำหนดชื่อคอลัมน์
+function _buildExportSections(lang = "th") {
+  const t = RA_I18N[lang] || RA_I18N.th;
   const groups = {};
   state.rooms.forEach(r => {
     const k = groupKeyOf(r);
@@ -306,7 +371,7 @@ function _buildExportSections() {
     const rooms = groups[k];
     const sample = rooms[0];
     const hotel = state.hotels.find(h => h.place_id === sample.place_id);
-    const hotelName = hotel?.place_name || (sample.place_id ? `Place #${sample.place_id}` : "ไม่ระบุโรงแรม");
+    const hotelName = hotel?.place_name || (sample.place_id ? `Place #${sample.place_id}` : (lang === "en" ? "No hotel" : "ไม่ระบุโรงแรม"));
     const ci = sample.check_in_date  ? fmtDate(sample.check_in_date)  : "—";
     const co = sample.check_out_date ? fmtDate(sample.check_out_date) : "—";
     const title = `${hotelName} · ${sample.room_type || ""} · ${ci}→${co}`;
@@ -316,17 +381,17 @@ function _buildExportSections() {
         const p = state.passengers.find(x => x.code === code);
         const name = (p?.name || p?._inheritedName || "—");
         rows.push({
-          "รหัส": code || "",
-          "ชื่อ": name,
-          "ชื่อห้อง": r.room_name || "",
-          "Check-in": r.check_in_date  ? fmtDate(r.check_in_date)  : "",
-          "Check-out": r.check_out_date ? fmtDate(r.check_out_date) : "",
+          [t.code]:       code || "",
+          [t.name]:       name,
+          [t.roomName]:   r.room_name || "",
+          [t.colCheckIn]: r.check_in_date  ? fmtDate(r.check_in_date)  : "",
+          [t.colCheckOut]:r.check_out_date ? fmtDate(r.check_out_date) : "",
           _room: r.room_name || "",
           _code: code || "",
         });
       });
     });
-    // เรียงตามชื่อห้อง ASC (natural sort: Twin-2 < Twin-3 < Twin-21) แล้วตาม code ใน ห้องเดียวกัน
+    // เรียงตามชื่อห้อง ASC (natural sort: Twin-2 < Twin-3 < Twin-21) แล้วตาม code ในห้องเดียวกัน
     rows.sort((a, b) =>
       a._room.localeCompare(b._room, undefined, { numeric: true, sensitivity: "base" })
       || a._code.localeCompare(b._code)
@@ -365,13 +430,14 @@ function _applyBorders(ws, nCols, nRows, headerRowIdx = 0) {
   ws["!ref"] = XLSX.utils.encode_range({ s: { c: 0, r: headerRowIdx }, e: { c: nCols - 1, r: headerRowIdx + nRows - 1 } });
 }
 
-window.exportRaExcel = function () {
+window.exportRaExcel = function (lang = "th") {
   if (typeof XLSX === "undefined") {
     showToast("XLSX library ยังโหลดไม่เสร็จ — ลองใหม่อีกครั้ง", "error");
     return;
   }
-  const sections = _buildExportSections();
-  if (!sections.length) { showToast("ยังไม่มีห้องให้ export", "info"); return; }
+  const t = RA_I18N[lang] || RA_I18N.th;
+  const sections = _buildExportSections(lang);
+  if (!sections.length) { showToast(lang === "en" ? "No rooms to export" : "ยังไม่มีห้องให้ export", "info"); return; }
 
   const wb = XLSX.utils.book_new();
   const used = new Set();
@@ -399,15 +465,15 @@ window.exportRaExcel = function () {
 
   // sheet 2D array — header + data + spacing + per-hotel breakdown
   const aoa = [
-    [`🛏️ จัดห้องพัก — ${tripName}`],
-    [`ทริป: ${tripStart} → ${tripEnd}${tripDays > 0 ? ` (${tripDays} วัน)` : ""}`],
+    [`${t.title} — ${tripName}`],
+    [`${t.trip}: ${tripStart} → ${tripEnd}${tripDays > 0 ? ` (${tripDays} ${t.days})` : ""}`],
     [],
-    ["📊 สรุปทั้งทริป"],
-    ["โรงแรม", "ห้อง", "คน", "วันทริป", "รวมแถว"],
+    [t.summary],
+    [t.colHotel, t.colRooms, t.colPax, t.colDays, t.colTotalRows],
     [sections.length, totalRooms, totalPax, tripDays || "—", totalRows],
     [],
-    ["🏨 สรุปต่อโรงแรม"],
-    ["#", "โรงแรม", "ประเภทห้อง", "Check-in", "Check-out", "คืน", "ห้อง", "ผู้พัก"],
+    [t.perHotel],
+    [t.colSeq, t.colHotel, t.colRoomType, t.colCheckIn, t.colCheckOut, t.colNights, t.colRooms, t.colPax],
   ];
   sections.forEach((sec, i) => {
     // หาห้องของ section นี้เพื่อดึง dates+capacity
@@ -457,23 +523,22 @@ window.exportRaExcel = function () {
       alignment: { vertical: "center", horizontal: "left" },
     };
   });
-  used.add("สรุป");
-  XLSX.utils.book_append_sheet(wb, summaryWs, "สรุป");
+  used.add(t.summaryTab);
+  XLSX.utils.book_append_sheet(wb, summaryWs, t.summaryTab);
 
   // ─── 1 sheet ต่อ 1 โรงแรม ───
-  // คอลัมน์: 0=รหัส 1=ชื่อ 2=ชื่อห้อง 3=Check-in 4=Check-out
-  // merge cell ของ col 2,3,4 สำหรับแถวที่ "ชื่อห้อง" ติดกันและเหมือนกัน
+  // คอลัมน์: 0=code 1=name 2=room 3=check-in 4=check-out
+  // merge cell ของ col 2,3,4 สำหรับแถวที่ "ชื่อห้อง" (key=t.roomName) ติดกันและเหมือนกัน
   const computeMerges = (rows, headerRowIdx = 0) => {
     const merges = [];
     let i = 0;
     while (i < rows.length) {
-      const cur = rows[i]["ชื่อห้อง"];
+      const cur = rows[i][t.roomName];
       let j = i + 1;
-      while (j < rows.length && rows[j]["ชื่อห้อง"] === cur && cur !== "") j++;
+      while (j < rows.length && rows[j][t.roomName] === cur && cur !== "") j++;
       if (j - i > 1) {
         const r1 = headerRowIdx + 1 + i;
         const r2 = headerRowIdx + j;
-        // merge ชื่อห้อง (col 2), Check-in (col 3), Check-out (col 4)
         [2, 3, 4].forEach(c => merges.push({ s: { r: r1, c }, e: { r: r2, c } }));
       }
       i = j;
@@ -484,7 +549,7 @@ window.exportRaExcel = function () {
     const sheetName = safeSheetName(sec.hotelName, i);
     const headerRows = sec.rows.length
       ? sec.rows
-      : [{ "รหัส": "", "ชื่อ": "(ยังไม่มีผู้พัก)", "ชื่อห้อง": "", "Check-in": "", "Check-out": "" }];
+      : [{ [t.code]: "", [t.name]: t.noOccupant, [t.roomName]: "", [t.colCheckIn]: "", [t.colCheckOut]: "" }];
     const ws = XLSX.utils.json_to_sheet(headerRows);
     const maxLen = {};
     headerRows.forEach(r => Object.entries(r).forEach(([k, v]) => {
@@ -500,8 +565,8 @@ window.exportRaExcel = function () {
 
   const tripSlug = (state.trip?.trip_name || `trip${state.tripId}`).replace(/[^\w฀-๿-]+/g, "_");
   const today = new Date().toISOString().slice(0, 10);
-  XLSX.writeFile(wb, `room_assign_${tripSlug}_${today}.xlsx`);
-  showToast(`ดาวน์โหลด Excel แล้ว (${sections.length} โรงแรม + สรุป)`, "success");
+  XLSX.writeFile(wb, `room_assign_${tripSlug}_${lang}_${today}.xlsx`);
+  showToast(t.excelOk(sections.length), "success");
 };
 
 // helper: นับวัน inclusive (start..end)
@@ -521,7 +586,8 @@ function _nightsBetween(isoIn, isoOut) {
   return Math.max(0, Math.round((b - a) / 86400000));
 }
 
-window.exportRaPdf = function () {
+window.exportRaPdf = function (lang = "th") {
+  const t = RA_I18N[lang] || RA_I18N.th;
   // Build print HTML — แยก section ต่อโรงแรม + ตารางคอลัมน์เดียวกับ Excel
   const tripName = state.trip?.trip_name || `Trip #${state.tripId}`;
   const tripDates = (state.trip?.start_date || state.trip?.end_date)
@@ -529,7 +595,7 @@ window.exportRaPdf = function () {
     : "";
   const tripDays = _daysInclusive(state.trip?.start_date, state.trip?.end_date);
 
-  const sections = _buildExportSections();
+  const sections = _buildExportSections(lang);
   const totalRows = sections.reduce((a, s) => a + s.rows.length, 0);
   const totalRooms = state.rooms.length;
   const totalPax = state.passengers.length;
@@ -550,33 +616,33 @@ window.exportRaPdf = function () {
     const isHead   = new Array(sec.rows.length).fill(false);
     let i = 0;
     while (i < sec.rows.length) {
-      const cur = sec.rows[i]["ชื่อห้อง"];
+      const cur = sec.rows[i][t.roomName];
       let j = i + 1;
-      while (j < sec.rows.length && sec.rows[j]["ชื่อห้อง"] === cur && cur !== "") j++;
+      while (j < sec.rows.length && sec.rows[j][t.roomName] === cur && cur !== "") j++;
       isHead[i] = true;
       rowspans[i] = j - i;
       i = j;
     }
     const trs = sec.rows.map((r, idx) => `<tr>
-      <td>${escapeHtml(r["รหัส"])}</td>
-      <td>${escapeHtml(r["ชื่อ"])}</td>
-      ${isHead[idx] ? `<td rowspan="${rowspans[idx]}" style="vertical-align:middle">${escapeHtml(r["ชื่อห้อง"])}</td>
-      <td rowspan="${rowspans[idx]}" style="vertical-align:middle">${escapeHtml(r["Check-in"])}</td>
-      <td rowspan="${rowspans[idx]}" style="vertical-align:middle">${escapeHtml(r["Check-out"])}</td>` : ""}
+      <td>${escapeHtml(r[t.code])}</td>
+      <td>${escapeHtml(r[t.name])}</td>
+      ${isHead[idx] ? `<td rowspan="${rowspans[idx]}" style="vertical-align:middle">${escapeHtml(r[t.roomName])}</td>
+      <td rowspan="${rowspans[idx]}" style="vertical-align:middle">${escapeHtml(r[t.colCheckIn])}</td>
+      <td rowspan="${rowspans[idx]}" style="vertical-align:middle">${escapeHtml(r[t.colCheckOut])}</td>` : ""}
     </tr>`).join("");
     return `<div class="ra-print-section">
       <h3>🏨 ${escapeHtml(sec.title)}
-        <span style="color:#64748b;font-weight:400;font-size:12px"> · ${groupRooms.length} ห้อง · ${sec.rows.length} คน${nights > 0 ? ` · ${nights} คืน` : ""}</span>
+        <span style="color:#64748b;font-weight:400;font-size:12px"> · ${groupRooms.length} ${t.rooms} · ${sec.rows.length} ${t.people}${nights > 0 ? ` · ${nights} ${t.nights}` : ""}</span>
       </h3>
       <table>
         <thead><tr>
-          <th style="width:14%">รหัส</th>
-          <th style="width:34%">ชื่อ</th>
-          <th style="width:22%">ชื่อห้อง</th>
-          <th style="width:15%">Check-in</th>
-          <th style="width:15%">Check-out</th>
+          <th style="width:14%">${t.code}</th>
+          <th style="width:34%">${t.name}</th>
+          <th style="width:22%">${t.roomName}</th>
+          <th style="width:15%">${t.colCheckIn}</th>
+          <th style="width:15%">${t.colCheckOut}</th>
         </tr></thead>
-        <tbody>${trs || `<tr><td colspan="5" style="text-align:center;color:#94a3b8">ยังไม่มีผู้พักในโรงแรมนี้</td></tr>`}</tbody>
+        <tbody>${trs || `<tr><td colspan="5" style="text-align:center;color:#94a3b8">${t.noOccupantH}</td></tr>`}</tbody>
       </table>
     </div>`;
   }).join("");
@@ -585,11 +651,11 @@ window.exportRaPdf = function () {
   const summaryHtml = `<div class="ra-print-section" style="background:#f8fafc;page-break-inside:avoid">
     <table>
       <thead><tr>
-        <th>โรงแรม</th>
-        <th>ห้อง</th>
-        <th>คน</th>
-        <th>วันทริป</th>
-        <th>รวมแถว</th>
+        <th>${t.colHotel}</th>
+        <th>${t.colRooms}</th>
+        <th>${t.colPax}</th>
+        <th>${t.colDays}</th>
+        <th>${t.colTotalRows}</th>
       </tr></thead>
       <tbody><tr style="font-size:13px;font-weight:700">
         <td style="text-align:center">${sections.length}</td>
@@ -601,18 +667,18 @@ window.exportRaPdf = function () {
     </table>
   </div>`;
 
-  const html = `<div class="ra-print-title">🛏️ จัดห้องพัก — ${escapeHtml(tripName)}${tripDates ? ` · ${tripDates}` : ""}</div>
-    <div style="font-size:11px;color:#64748b;margin:-6px 0 10px">📊 สรุปทั้งทริป</div>
+  const html = `<div class="ra-print-title">${t.title} — ${escapeHtml(tripName)}${tripDates ? ` · ${tripDates}` : ""}</div>
+    <div style="font-size:11px;color:#64748b;margin:-6px 0 10px">${t.summary}</div>
     ${summaryHtml}
-    ${sectionsHtml || `<div class="ra-print-section"><div style="text-align:center;color:#94a3b8;padding:20px">ยังไม่มีโรงแรม</div></div>`}
+    ${sectionsHtml || `<div class="ra-print-section"><div style="text-align:center;color:#94a3b8;padding:20px">${t.noHotel}</div></div>`}
     <div style="margin-top:20px;font-size:10px;color:#64748b">
-      Generated ${new Date().toLocaleString("th-TH", { timeZone: "Asia/Bangkok" })} · A4S-ERP
+      ${t.generated} ${new Date().toLocaleString(lang === "en" ? "en-US" : "th-TH", { timeZone: "Asia/Bangkok" })} · A4S-ERP
     </div>`;
 
   const area = document.getElementById("raPrintArea");
   if (!area) return;
   area.innerHTML = html;
-  showToast("เปิดหน้าต่าง print — เลือก 'Save as PDF'", "info");
+  showToast(t.toastTh, "info");
   setTimeout(() => window.print(), 80);
 };
 

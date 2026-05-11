@@ -372,8 +372,11 @@
             <div class="ra-export-wrap" id="raExportWrap">
               <button class="ra-export-btn" onclick="window.toggleRaExport(event)">📥 Export ▾</button>
               <div class="ra-export-menu" onclick="event.stopPropagation()">
-                <button onclick="window.exportRaExcel();window.closeRaExport()">📊 Excel (.xlsx)</button>
-                <button onclick="window.exportRaPdf();window.closeRaExport()">📄 PDF (Print)</button>
+                <button onclick="window.exportRaExcel('th');window.closeRaExport()">📊 Excel · ไทย</button>
+                <button onclick="window.exportRaExcel('en');window.closeRaExport()">📊 Excel · English</button>
+                <div style="height:1px;background:var(--border);margin:4px 0"></div>
+                <button onclick="window.exportRaPdf('th');window.closeRaExport()">📄 PDF · ไทย</button>
+                <button onclick="window.exportRaPdf('en');window.closeRaExport()">📄 PDF · English</button>
               </div>
             </div>
           </div>
