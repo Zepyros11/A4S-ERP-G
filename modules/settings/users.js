@@ -19,6 +19,7 @@ const AVATAR_COLORS = [
 
 let allUsers = [];
 let allDepartments = [];   /* [{dept_id, dept_code, dept_name, sort_order}] */
+let allCountries = [];     /* [{country_id, country_code, country_name, sort_order}] — SHARED กับคลัง */
 let selectedId = null;
 let sortKey = "full_name";
 let sortAsc = true;
@@ -48,13 +49,16 @@ async function loadData() {
   }
   showLoading(true);
   try {
-    const [users, roleData, deptData] = await Promise.all([
+    const [users, roleData, deptData, countryData] = await Promise.all([
       sbFetch("users", { query: "?select=*&order=full_name" }),
       sbFetch("role_configs", { query: "?select=*&order=sort_order" }).catch(() => null),
       sbFetch("departments", { query: "?select=*&order=sort_order,dept_code" }).catch(() => null),
+      sbFetch("countries",   { query: "?select=*&order=sort_order,country_name" }).catch(() => null),
     ]);
     allDepartments = deptData || [];
+    allCountries   = countryData || [];
     populateDeptSelect();
+    populateCountrySelect();
     /* อัปเดต ROLE_PERMISSIONS จาก Supabase — filter stale keys */
     if (roleData && roleData.length > 0) {
       const validKeys = new Set(AppPermissions.allPermKeys);
@@ -145,6 +149,10 @@ function filterTable() {
       av = getDeptName(a.department) === "—" ? "zzz" : getDeptName(a.department);
       bv = getDeptName(b.department) === "—" ? "zzz" : getDeptName(b.department);
     }
+    if (sortKey === "country") {
+      av = getCountryName(a.country) === "—" ? "zzz" : getCountryName(a.country);
+      bv = getCountryName(b.country) === "—" ? "zzz" : getCountryName(b.country);
+    }
     if (typeof av === "string") av = av.toLowerCase();
     if (typeof bv === "string") bv = bv.toLowerCase();
     return sortAsc ? (av > bv ? 1 : -1) : av < bv ? 1 : -1;
@@ -165,7 +173,7 @@ function renderTable(list) {
   document.getElementById("tableCount").textContent = `${list.length} รายการ`;
   const tbody = document.getElementById("tableBody");
   if (list.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state"><div class="empty-icon">🔍</div><div>ไม่พบผู้ใช้งาน</div></div></td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7"><div class="empty-state"><div class="empty-icon">🔍</div><div>ไม่พบผู้ใช้งาน</div></div></td></tr>`;
     return;
   }
   const html = list
@@ -199,6 +207,7 @@ function renderTable(list) {
       <td><span style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--text2)">${u.username || "—"}</span></td>
       <td><span class="role-badge ${primary.color}">${AppPermissions.iconToEmoji(primary.icon)} ${primary.label}</span>${extraBadge}</td>
       <td><span style="font-size:12.5px;color:var(--text2)">${getDeptName(u.department)}</span></td>
+      <td><span style="font-size:12.5px;color:var(--text2)">${getCountryName(u.country)}</span></td>
       <td><span class="status-badge ${isActive ? "status-on" : "status-off"}">${isActive ? "● ใช้งาน" : "● ปิด"}</span></td>
       <td class="col-center" onclick="event.stopPropagation()">
         <div class="action-group">
@@ -423,6 +432,204 @@ function deleteDept(id) {
   else onConfirm();
 }
 
+/* ============================================================
+   Countries — dropdown + inline CRUD (shared กับคลังสินค้า)
+   ============================================================ */
+function getCountryName(code) {
+  if (!code) return "—";
+  const c = allCountries.find((x) => x.country_code === code);
+  return c ? c.country_name : code;
+}
+
+function populateCountrySelect() {
+  const sel = document.getElementById("fCountry");
+  if (!sel) return;
+  const cur = sel.value;
+  const opts = allCountries
+    .map((c) => `<option value="${c.country_code}">${c.country_name}</option>`)
+    .join("");
+  sel.innerHTML = `<option value="">— ไม่ระบุ —</option>${opts}`;
+  if (cur && allCountries.some((c) => c.country_code === cur)) sel.value = cur;
+}
+
+function openCountryManager() {
+  renderCountryList();
+  document.getElementById("countryModalOverlay").classList.add("open");
+  document.getElementById("countryNewName").focus();
+}
+function closeCountryManager() {
+  document.getElementById("countryModalOverlay").classList.remove("open");
+}
+function closeCountryManagerBg(e) {
+  if (e.target === document.getElementById("countryModalOverlay")) closeCountryManager();
+}
+
+function renderCountryList() {
+  const list = document.getElementById("countryList");
+  if (!list) return;
+  if (!allCountries.length) {
+    list.innerHTML = `<div class="empty-state"><div class="empty-icon">🌐</div><div>ยังไม่มีประเทศ</div></div>`;
+    return;
+  }
+  list.innerHTML = allCountries.map((c) => `
+    <div class="dept-row" data-id="${c.country_id}">
+      <input class="form-control" data-edit-name="${c.country_id}" value="${(c.country_name || "").replace(/"/g, "&quot;")}" placeholder="ชื่อประเทศ" />
+      <div class="dept-actions">
+        <button class="btn-icon" title="บันทึก" onclick="saveCountry(${c.country_id})">💾</button>
+        <button class="btn-icon danger" title="ลบ" onclick="deleteCountry(${c.country_id})">🗑</button>
+      </div>
+    </div>
+  `).join("");
+}
+
+/* auto-gen country_code: CTRY001, CTRY002, ... — กันชนของเดิม + ของเอง */
+function generateCountryCode() {
+  let max = 0;
+  for (const c of allCountries) {
+    const m = /^CTRY(\d+)$/i.exec(c.country_code || "");
+    if (m) max = Math.max(max, parseInt(m[1], 10) || 0);
+  }
+  return "CTRY" + String(max + 1).padStart(3, "0");
+}
+
+async function addCountry() {
+  const nameEl = document.getElementById("countryNewName");
+  const country_name = nameEl.value.trim();
+  if (!country_name) { showToast("กรุณากรอกชื่อประเทศ", "error"); return; }
+  if (allCountries.some((c) => (c.country_name || "").toLowerCase() === country_name.toLowerCase())) {
+    showToast(`ประเทศ "${country_name}" มีอยู่แล้ว`, "error");
+    return;
+  }
+  const country_code = generateCountryCode();
+  const sort_order = (allCountries.reduce((m, c) => Math.max(m, c.sort_order || 0), 0)) + 1;
+  showLoading(true);
+  try {
+    const created = await sbFetch("countries", {
+      method: "POST",
+      body: { country_code, country_name, sort_order },
+    });
+    if (Array.isArray(created) && created[0]) allCountries.push(created[0]);
+    else allCountries.push({ country_code, country_name, sort_order });
+    nameEl.value = "";
+    nameEl.focus();
+    populateCountrySelect();
+    renderCountryList();
+    showToast("✅ เพิ่มประเทศแล้ว", "success");
+  } catch (e) {
+    showToast("เพิ่มไม่ได้: " + e.message, "error");
+  }
+  showLoading(false);
+}
+
+async function saveCountry(id) {
+  const nameInput = document.querySelector(`input[data-edit-name="${id}"]`);
+  if (!nameInput) return;
+  const country_name = nameInput.value.trim();
+  if (!country_name) { showToast("ชื่อประเทศห้ามว่าง", "error"); return; }
+  showLoading(true);
+  try {
+    await sbFetch("countries", {
+      method: "PATCH",
+      query: `?country_id=eq.${id}`,
+      body: { country_name, updated_at: new Date().toISOString() },
+    });
+    const cur = allCountries.find((x) => x.country_id === id);
+    if (cur) cur.country_name = country_name;
+    populateCountrySelect();
+    filterTable();
+    showToast("✅ บันทึกชื่อประเทศแล้ว", "success");
+  } catch (e) {
+    showToast("บันทึกไม่ได้: " + e.message, "error");
+  }
+  showLoading(false);
+}
+
+async function deleteCountry(id) {
+  const c = allCountries.find((x) => x.country_id === id);
+  if (!c) return;
+
+  /* pre-check #1: นับ users ที่ใช้ประเทศนี้ (มีใน memory แล้ว) */
+  const usersInUse = allUsers.filter((u) => u.country === c.country_code).length;
+
+  /* pre-check #2: นับ warehouses ที่ใช้ประเทศนี้ (query สด — head=count) */
+  showLoading(true);
+  let whInUse = 0;
+  let whCheckFailed = false;
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/warehouses?select=warehouse_id&country=eq.${encodeURIComponent(c.country_code)}`,
+      {
+        method: "HEAD",
+        headers: {
+          apikey: SUPABASE_KEY,
+          Authorization: `Bearer ${SUPABASE_KEY}`,
+          Prefer: "count=exact",
+        },
+      },
+    );
+    const range = res.headers.get("content-range") || "";
+    const m = /\/(\d+|\*)$/.exec(range);
+    whInUse = m && m[1] !== "*" ? parseInt(m[1], 10) || 0 : 0;
+  } catch {
+    whCheckFailed = true;
+  }
+  showLoading(false);
+
+  /* ถ้ามีคลังผูกอยู่ → block เลย ลบไม่ได้แน่ (FK ON DELETE จะ block) */
+  if (whInUse > 0) {
+    if (window.ConfirmModal) {
+      await ConfirmModal.open({
+        title: "ลบไม่ได้",
+        icon: "🚫",
+        tone: "danger",
+        message: `ประเทศ "${c.country_name}" มีคลังสินค้าใช้อยู่ ${whInUse} คลัง — กรุณาเปลี่ยนหรือลบคลังเหล่านั้นก่อน`,
+        okText: "เข้าใจแล้ว",
+        hideCancel: true,
+      });
+    } else {
+      showToast(`ลบไม่ได้ — มีคลังสินค้า ${whInUse} แห่งใช้ประเทศนี้อยู่`, "error");
+    }
+    return;
+  }
+
+  /* สร้างข้อความเตือน */
+  const lines = [];
+  if (usersInUse > 0) {
+    lines.push(`• มีผู้ใช้ ${usersInUse} คนใช้ประเทศนี้ — หากลบ จะกลายเป็น "ไม่ระบุ"`);
+  }
+  if (whCheckFailed) {
+    lines.push(`• ⚠️ ตรวจสอบจำนวนคลังไม่ได้ — หากมีคลังผูกอยู่ การลบอาจไม่สำเร็จ`);
+  } else {
+    lines.push(`• ไม่มีคลังสินค้าใช้ประเทศนี้`);
+  }
+  const warn = `ลบประเทศ "${c.country_name}" หรือไม่?\n\n${lines.join("\n")}`;
+
+  const onConfirm = async () => {
+    showLoading(true);
+    try {
+      await sbFetch("countries", {
+        method: "DELETE",
+        query: `?country_id=eq.${id}`,
+      });
+      allCountries = allCountries.filter((x) => x.country_id !== id);
+      populateCountrySelect();
+      renderCountryList();
+      filterTable();
+      showToast("ลบประเทศแล้ว", "success");
+    } catch (e) {
+      const msg = String(e.message || "");
+      if (/foreign key|violates|constraint/i.test(msg)) {
+        showToast("ลบไม่ได้ — มีคลังสินค้าใช้ประเทศนี้อยู่ กรุณาเปลี่ยน/ลบคลังก่อน", "error");
+      } else {
+        showToast("ลบไม่ได้: " + msg, "error");
+      }
+    }
+    showLoading(false);
+  };
+  if (window.DeleteModal) DeleteModal.open(warn, onConfirm);
+  else onConfirm();
+}
+
 function generateUserCode() {
   const max = allUsers.reduce((acc, u) => {
     const n = parseInt((u.user_code || "").replace(/\D/g, "")) || 0;
@@ -451,6 +658,8 @@ function openModal(data = null) {
   document.getElementById("fUserCode").value = data?.user_code || (isEdit ? "" : generateUserCode());
   document.getElementById("fUsername").value = data?.username || "";
   document.getElementById("fDepartment").value = data?.department || "";
+  const countrySel = document.getElementById("fCountry");
+  if (countrySel) countrySel.value = data?.country || "";
   document.getElementById("fPassword").value = "";
   document.getElementById("fPasswordConfirm").value = "";
   document.getElementById("fEmail").value = data?.email || "";
@@ -526,12 +735,14 @@ async function saveUser() {
   const userCodeRaw = document.getElementById("fUserCode").value.trim().toUpperCase();
   const userCode = userCodeRaw || generateUserCode();
   const department = document.getElementById("fDepartment")?.value.trim() || null;
+  const country    = document.getElementById("fCountry")?.value.trim() || null;
 
   const payload = {
     full_name: fullName,
     username,
     user_code: userCode,
     department,
+    country,
     email: document.getElementById("fEmail")?.value.trim() || null,
     phone: document.getElementById("fPhone")?.value.trim() || null,
     role: cleanRoles[0],          /* backward compat — role หลัก */

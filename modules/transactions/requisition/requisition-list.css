@@ -1,0 +1,88 @@
+/* =========================================================
+   requisition-list.css
+   หน้า REQ list — เฉพาะส่วนที่ไม่ได้อยู่ใน common.css
+   (stat-card, table-toolbar, page-hero, empty-state ฯลฯ
+    ใช้ canonical primitives จาก css/core/common.css)
+========================================================= */
+
+/* ── REQ NUMBER cell ────────────────────────────────────── */
+.req-number { display:flex; flex-direction:column; gap:2px; }
+.req-number-main {
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 700;
+  font-family: "IBM Plex Mono", monospace;
+}
+.req-number-sub { color: var(--text3); font-size: 11px; }
+
+/* ── REQUESTER cell ─────────────────────────────────────── */
+.req-requester-name { color: var(--text); font-weight: 600; font-size: 13px; }
+
+/* ── CHIP (department) ──────────────────────────────────── */
+.req-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--accent-pale);
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+/* ── ITEM COUNT cell ────────────────────────────────────── */
+.req-items-meta {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.req-items-count {
+  color: var(--text);
+  font-family: "IBM Plex Mono", monospace;
+  font-weight: 700;
+}
+.req-items-qty { color: var(--text3); font-size: 11px; }
+
+/* ── STATUS BADGES (REQ-specific semantic colors) ───────── */
+/* extends .status-badge from common.css */
+.status-badge.status-pending   { background:#fef3c7; color:#92400e; }
+.status-badge.status-approved  { background:#dcfce7; color:#166534; }
+.status-badge.status-dispensed { background:#dbeafe; color:#1e40af; }
+.status-badge.status-completed { background:#e0e7ff; color:#3730a3; }
+.status-badge.status-cancelled { background:#fee2e2; color:#991b1b; }
+.status-badge.status-default   { background:#f1f5f9; color:#475569; }
+
+/* ── ROW ACTIONS (edit + delete) ─────────────────────────── */
+.req-row-actions {
+  display: inline-flex;
+  gap: 6px;
+  justify-content: center;
+}
+.req-row-action {
+  width: 30px; height: 30px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.req-row-action.edit:hover {
+  background: var(--accent-pale);
+  border-color: var(--accent);
+}
+.req-row-action.delete:hover {
+  background: #fee2e2;
+  border-color: #991b1b;
+}
+.req-row-action.print:hover {
+  background: #e0e7ff;
+  border-color: #4338ca;
+}
+.req-row-action.approve:hover {
+  background: #dcfce7;
+  border-color: #166534;
+}

@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>📋 รายการใบเบิก — A4S-ERP</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../../../css/main.css" />
+    <link rel="stylesheet" href="./requisition-list.css" />
+  </head>
+  <body>
+    <div class="loading-overlay" id="loadingOverlay"><div class="spinner"></div></div>
+    <div class="toast" id="toast"></div>
+
+    <div class="topbar"></div>
+
+    <div class="page">
+      <div class="page-hero page-hero--simple page-hero--compact">
+        <div>
+          <h1 class="page-hero-title">📋 รายการใบเบิกสินค้า</h1>
+          <p class="page-hero-sub">ติดตามใบเบิกทั้งหมด ดูสถานะล่าสุด และเปิดรายละเอียดได้จากหน้าเดียว</p>
+        </div>
+        <div class="page-hero-actions">
+          <button class="btn-on-hero btn-primary" data-perm="req_create" onclick="window.goToREQForm()">＋ สร้างใบเบิก</button>
+        </div>
+      </div>
+
+      <div class="stats-row">
+        <div class="stat-card amber">
+          <div class="stat-icon">📋</div>
+          <div class="stat-info">
+            <div class="stat-label">ใบเบิกทั้งหมด</div>
+            <div class="stat-value" id="cardTotal">0</div>
+          </div>
+        </div>
+        <div class="stat-card purple">
+          <div class="stat-icon">⏳</div>
+          <div class="stat-info">
+            <div class="stat-label">รออนุมัติ</div>
+            <div class="stat-value" id="cardPending">0</div>
+          </div>
+        </div>
+        <div class="stat-card green">
+          <div class="stat-icon">✅</div>
+          <div class="stat-info">
+            <div class="stat-label">อนุมัติแล้ว</div>
+            <div class="stat-value" id="cardApproved">0</div>
+          </div>
+        </div>
+        <div class="stat-card blue">
+          <div class="stat-icon">📦</div>
+          <div class="stat-info">
+            <div class="stat-label">รายการรวม</div>
+            <div class="stat-value" id="cardItems">0</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="table-card">
+        <div class="table-toolbar">
+          <div class="search-wrap" style="max-width:none;flex:1;">
+            <span class="search-icon">🔍</span>
+            <input
+              class="search-input"
+              id="searchInput"
+              placeholder="ค้นหาเลขที่ REQ, ผู้ขอเบิก, หมายเหตุ..."
+            />
+          </div>
+          <select class="filter-select" id="filterStatus">
+            <option value="">🧿 ทุกสถานะ</option>
+            <option value="PENDING">⏳ รออนุมัติ</option>
+            <option value="APPROVED">✅ อนุมัติแล้ว</option>
+            <option value="DISPENSED">📦 จ่ายของออกแล้ว</option>
+            <option value="COMPLETED">🎯 เสร็จสิ้น</option>
+            <option value="CANCELLED">⛔ ยกเลิก</option>
+          </select>
+          <select class="filter-select" id="filterDept">
+            <option value="">🏢 ทุกแผนก</option>
+          </select>
+          <select class="filter-select" id="filterPurpose">
+            <option value="">🎯 ทุกวัตถุประสงค์</option>
+          </select>
+        </div>
+
+        <div class="table-hdr">
+          <div class="table-title">📋 เอกสารใบเบิก</div>
+          <div class="table-count" id="reqCount">0 รายการ</div>
+        </div>
+
+        <div class="table-wrap">
+          <table class="data-table v-striped">
+            <thead>
+              <tr>
+                <th>เลขที่ REQ</th>
+                <th>ผู้ขอเบิก</th>
+                <th class="col-center">แผนก</th>
+                <th class="col-center">วัตถุประสงค์</th>
+                <th class="col-center">วันที่เบิก</th>
+                <th class="col-center">จำนวนรายการ</th>
+                <th class="col-center">สถานะ</th>
+                <th class="col-center" style="width:170px">จัดการ</th>
+              </tr>
+            </thead>
+            <tbody id="reqTableBody">
+              <tr>
+                <td colspan="8">
+                  <div class="empty-state">
+                    <div class="empty-state-icon">📋</div>
+                    <div class="empty-state-title">กำลังโหลดข้อมูล...</div>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <script src="../../../js/core/auth.js"></script>
+    <script src="../../../js/core/authz.js"></script>
+    <script src="../../../js/core/date-format.js"></script>
+    <script>AuthZ.requirePerm("req_view");</script>
+    <script src="./requisition-list.js"></script>
+    <script type="module">
+      import { loadTopbar } from "../../../js/components/navigation/topbar.js";
+      loadTopbar("📋 รายการใบเบิก");
+    </script>
+    <script src="../../../js/components/navigation/sidebar.js"></script>
+    <script src="../../../js/components/modal/confirmModal.js"></script>
+    <script src="../../../js/components/modal/modalManager.js"></script>
+  </body>
+</html>

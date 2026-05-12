@@ -161,190 +161,86 @@
 }
 
 /* ======================================================
-   CUSTOM COUNTRY DROPDOWN
+   IN-CONTEXT CRUD — ⚙️ จัดการ link + nested modal pattern
+   (ใช้กับ dropdown ที่ผู้ใช้ CRUD ตัวเลือกได้)
 ====================================================== */
 
-.country-dropdown-wrap {
-  position: relative;
-  width: 100%;
-}
-
-.country-trigger {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 8px 12px;
-  background: var(--bg1, #fff);
-  border: 1px solid var(--border, #e2e8f0);
-  border-radius: 8px;
-  font-size: 14px;
-  font-family: "Sarabun", sans-serif;
-  color: var(--text1, #1e293b);
-  cursor: pointer;
-  text-align: left;
-  transition: border-color 0.15s;
-}
-
-.country-trigger:hover {
-  border-color: var(--primary, #2563eb);
-}
-
-.country-trigger-arrow {
-  font-size: 11px;
-  color: var(--text3, #94a3b8);
-  flex-shrink: 0;
-}
-
-/* dropdown panel */
-.country-panel {
-  display: none;
-  position: absolute;
-  top: calc(100% + 4px);
-  left: 0;
-  right: 0;
-  background: var(--bg1, #fff);
-  border: 1px solid var(--border, #e2e8f0);
-  border-radius: 10px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
-  z-index: 200;
-  overflow: hidden;
-}
-
-.country-panel.open {
-  display: block;
-}
-
-.country-list {
-  max-height: 220px;
-  overflow-y: auto;
-}
-
-/* each country row */
-.country-item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 7px 12px;
-  font-size: 13px;
-  cursor: pointer;
-  transition: background 0.12s;
-}
-
-.country-item:hover {
-  background: var(--bg2, #f8fafc);
-}
-
-.country-item.selected {
-  background: var(--accent-pale);
-  color: var(--primary, #2563eb);
-  font-weight: 600;
-}
-
-.country-item.editing {
-  background: #fffbeb;
-  gap: 4px;
-  flex-wrap: wrap;
-  cursor: default;
-}
-
-.country-item-label {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.country-code {
-  font-family: "IBM Plex Mono", monospace;
-  font-size: 10px;
-  color: var(--text3, #94a3b8);
-  background: var(--bg2, #f1f5f9);
-  padding: 1px 5px;
-  border-radius: 4px;
-}
-
-.country-item-actions {
-  display: flex;
-  gap: 2px;
-  opacity: 0;
-  transition: opacity 0.12s;
-  flex-shrink: 0;
-}
-
-.country-item:hover .country-item-actions {
-  opacity: 1;
-}
-
-.country-item.editing .country-item-actions {
-  opacity: 1;
-}
-
-/* inline buttons */
-.ci-btn {
+.ic-manage-link {
+  margin-left: 8px;
+  background: none;
   border: none;
-  background: transparent;
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 600;
   cursor: pointer;
-  font-size: 13px;
-  padding: 2px 5px;
+  padding: 2px 6px;
   border-radius: 4px;
-  line-height: 1;
   transition: background 0.12s;
 }
-
-.ci-btn:hover {
-  background: var(--bg2, #f1f5f9);
-}
-.ci-btn.danger:hover {
-  background: #fee2e2;
-}
-.ci-btn.success {
-  color: #15803d;
-}
-.ci-btn.success:hover {
-  background: #dcfce7;
-}
-
-/* inline inputs */
-.ci-input {
-  height: 28px;
-  padding: 3px 7px;
-  font-size: 12px;
-  border: 1px solid var(--border, #e2e8f0);
-  border-radius: 6px;
-  font-family: "Sarabun", sans-serif;
-  background: var(--bg1, #fff);
-  color: var(--text1, #1e293b);
-  flex: 1;
-  min-width: 0;
-}
-
-.ci-input:focus {
-  outline: none;
-  border-color: var(--primary, #2563eb);
-}
-
-/* add button row */
-.country-add-row {
-  border-top: 1px solid var(--border, #e2e8f0);
-  padding: 6px 8px;
-}
-
-.country-add-btn {
-  width: 100%;
-  padding: 6px 10px;
-  border: 1px dashed var(--border, #cbd5e1);
-  border-radius: 6px;
-  background: transparent;
-  color: var(--primary, #2563eb);
-  font-size: 13px;
-  font-family: "Sarabun", sans-serif;
-  cursor: pointer;
-  transition: background 0.12s;
-}
-
-.country-add-btn:hover {
+.ic-manage-link:hover {
   background: var(--accent-pale);
+}
+
+/* add-row (2-col: name + button) — สำหรับ country */
+.ic-add-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  align-items: center;
+}
+
+/* add-row (3-col: icon + name + button) — สำหรับ warehouse type */
+.ic-add-row-type {
+  display: grid;
+  grid-template-columns: 56px 1fr auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.ic-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* edit row — 2 col (name + actions) สำหรับ country */
+.ic-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  align-items: center;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+/* edit row — 3 col (icon + name + actions) สำหรับ warehouse type */
+.ic-row-type {
+  display: grid;
+  grid-template-columns: 56px 1fr auto;
+  gap: 8px;
+  align-items: center;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.ic-row input.form-control,
+.ic-row-type input.form-control {
+  padding: 6px 10px;
+  font-size: 13px;
+}
+
+.ic-actions {
+  display: flex;
+  gap: 4px;
+}
+.ic-actions .btn-icon {
+  width: 28px;
+  height: 28px;
+  font-size: 13px;
 }
 
 /* ======================================================

@@ -81,7 +81,7 @@
         ["warehouse_view", "/modules/inventory/warehouses-list.html"],
         ["po_view",        "/modules/transactions/purchase_order/po-list.html"],
         ["so_view",        "/modules/transactions/sales_order/so_form.html"],
-        ["req_view",       "/modules/transactions/requisition/requisition.html"],
+        ["req_view",       "/modules/transactions/requisition/requisition-list.html"],
         ["users_view",     "/modules/settings/users.html"],
         ["roles_view",     "/modules/settings/roles.html"],
       ];

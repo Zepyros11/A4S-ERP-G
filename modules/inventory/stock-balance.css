@@ -17,12 +17,13 @@
   box-shadow: var(--shadow);
 }
 
-.sb-search-wrap {
+/* prefix sb-flt-* (filter) — กัน collision กับ sidebar.js ที่ inject .sb-search */
+.sb-flt-search-wrap {
   position: relative;
   flex: 1;
   min-width: 240px;
 }
-.sb-search-icon {
+.sb-flt-search-icon {
   position: absolute;
   left: 12px;
   top: 50%;
@@ -31,16 +32,17 @@
   pointer-events: none;
   opacity: 0.6;
 }
-.sb-search {
+.sb-flt-search {
   width: 100%;
   padding: 8px 12px 8px 32px;
   border: 1px solid var(--border);
   border-radius: 6px;
   font-size: 13px;
   background: var(--surface);
+  color: var(--text);
   font-family: inherit;
 }
-.sb-search:focus {
+.sb-flt-search:focus {
   outline: none;
   border-color: var(--accent);
   box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.12);
@@ -53,6 +55,7 @@
   font-size: 13px;
   font-family: inherit;
   background: var(--surface);
+  color: var(--text);
   cursor: pointer;
   min-width: 140px;
 }

@@ -191,9 +191,9 @@
         {
           id: "req",
           icon: "📋",
-          label: "ใบเบิก (REQ)",
+          label: "รายการเบิกสินค้า",
           path:
-            BASE_PATH + "/modules/transactions/requisition/requisition.html",
+            BASE_PATH + "/modules/transactions/requisition/requisition-list.html",
         },
       ],
     },

@@ -1,6 +1,6 @@
 <!-- =====================================================
      warehouses-form.html
-     Warehouse Form Modal
+     Warehouse Form Modal — In-Context CRUD pattern
 ===================================================== -->
 
 <div class="modal-overlay" id="warehouseModal">
@@ -40,22 +40,13 @@
           />
         </div>
         <div class="form-group">
-          <label class="form-label">ประเภทคลัง</label>
-          <input type="hidden" id="fType" value="MAIN" />
-          <div class="country-dropdown-wrap" id="whtDropdownWrap">
-            <button
-              type="button"
-              class="country-trigger"
-              id="whtTrigger"
-              onclick="toggleWhtDropdown(event)"
-            >
-              — เลือกประเภท —
-              <span class="country-trigger-arrow">▾</span>
-            </button>
-            <div class="country-panel" id="whtPanel">
-              <div class="country-list" id="whtList"></div>
-            </div>
-          </div>
+          <label class="form-label">
+            ประเภทคลัง
+            <button type="button" class="ic-manage-link" onclick="openWhtManager()" title="จัดการรายชื่อประเภทคลัง">⚙️ จัดการ</button>
+          </label>
+          <select class="form-control" id="fType" onchange="onWhtSelectChange()">
+            <option value="">— เลือกประเภท —</option>
+          </select>
         </div>
       </div>
 
@@ -64,21 +55,13 @@
 
       <div class="wh-form-grid">
         <div class="form-group">
-          <label class="form-label">ประเทศ</label>
-          <div class="country-dropdown-wrap" id="countryDropdownWrap">
-            <button
-              type="button"
-              class="country-trigger"
-              id="countryTrigger"
-              onclick="toggleCountryDropdown(event)"
-            >
-              — เลือกประเทศ —
-              <span class="country-trigger-arrow">▾</span>
-            </button>
-            <div class="country-panel" id="countryPanel">
-              <div class="country-list" id="countryList"></div>
-            </div>
-          </div>
+          <label class="form-label">
+            ประเทศ
+            <button type="button" class="ic-manage-link" onclick="openCountryManager()" title="จัดการรายชื่อประเทศ (ใช้ร่วมกับหน้าผู้ใช้)">⚙️ จัดการ</button>
+          </label>
+          <select class="form-control" id="fCountry" onchange="onCountrySelectChange()">
+            <option value="">— เลือกประเทศ —</option>
+          </select>
         </div>
         <div class="form-group">
           <label class="form-label">คลังแม่ (Parent)</label>
@@ -128,6 +111,55 @@
       <button class="btn btn-primary" onclick="saveWarehouseForm()">
         💾 บันทึก
       </button>
+    </div>
+  </div>
+</div>
+
+<!-- COUNTRY MANAGER MODAL (nested — In-Context CRUD) -->
+<div class="modal-overlay" id="countryManagerOverlay" onclick="closeCountryManagerBg(event)">
+  <div class="modal v-sage-header" style="width:540px;max-height:85vh;display:flex;flex-direction:column">
+    <div class="modal-hdr">
+      <div class="modal-title">🌐 จัดการประเทศ</div>
+      <button class="btn-modal-close" onclick="closeCountryManager()">✕</button>
+    </div>
+    <div class="modal-body" style="flex:1;overflow-y:auto;min-height:0">
+      <div class="ic-add-row">
+        <input class="form-control" id="countryNewName" placeholder="ชื่อประเทศ (เช่น ไทย, ไนจีเรีย, ลาว)" onkeydown="if(event.key==='Enter'){event.preventDefault();addCountryEntry()}" />
+        <button class="btn btn-primary" onclick="addCountryEntry()">＋ เพิ่ม</button>
+      </div>
+      <div class="form-hint" style="margin:6px 0 12px">รหัสประเทศจะถูกสร้างให้อัตโนมัติ · ข้อมูลใช้ร่วมกับหน้า "ผู้ใช้งาน" — เพิ่ม/แก้/ลบ ที่นี่จะมีผลในหน้านั้นด้วย</div>
+
+      <div class="ic-list" id="countryManagerList">
+        <div class="empty-state"><div class="empty-icon">🌐</div><div>กำลังโหลด...</div></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeCountryManager()">ปิด</button>
+    </div>
+  </div>
+</div>
+
+<!-- WAREHOUSE TYPE MANAGER MODAL (nested — In-Context CRUD) -->
+<div class="modal-overlay" id="whtManagerOverlay" onclick="closeWhtManagerBg(event)">
+  <div class="modal v-sage-header" style="width:540px;max-height:85vh;display:flex;flex-direction:column">
+    <div class="modal-hdr">
+      <div class="modal-title">🏷️ จัดการประเภทคลัง</div>
+      <button class="btn-modal-close" onclick="closeWhtManager()">✕</button>
+    </div>
+    <div class="modal-body" style="flex:1;overflow-y:auto;min-height:0">
+      <div class="ic-add-row-type">
+        <input class="form-control" id="whtNewIcon" placeholder="🏭" maxlength="4" style="text-align:center" />
+        <input class="form-control" id="whtNewName" placeholder="ชื่อประเภท (เช่น คลังหลัก, จุดพักสินค้า)" onkeydown="if(event.key==='Enter'){event.preventDefault();addWhtEntry()}" />
+        <button class="btn btn-primary" onclick="addWhtEntry()">＋ เพิ่ม</button>
+      </div>
+      <div class="form-hint" style="margin:6px 0 12px">รหัสประเภทจะถูกสร้างให้อัตโนมัติ · ไอคอน emoji ใช้แสดงในรายการคลัง</div>
+
+      <div class="ic-list" id="whtManagerList">
+        <div class="empty-state"><div class="empty-icon">🏷️</div><div>กำลังโหลด...</div></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeWhtManager()">ปิด</button>
     </div>
   </div>
 </div>

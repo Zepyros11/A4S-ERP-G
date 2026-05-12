@@ -303,6 +303,27 @@
     .cs-stat-card.s-female .cs-stat-value { color: #be185d; }
     .cs-stat-card.s-nobook .cs-stat-icon { background: #ffedd5; }
     .cs-stat-card.s-nobook .cs-stat-value { color: #c2410c; }
+    .cs-stat-card.s-shirt  .cs-stat-icon { background: #fef3c7; }
+    .cs-stat-card.s-shirt  .cs-stat-value { color: #b45309; }
+
+    /* Full-width card (span all grid columns) */
+    .cs-stat-card.full-row { grid-column: 1 / -1; }
+
+    /* T-Shirt inline breakdown chips */
+    .shirt-breakdown {
+      display: flex; flex-wrap: wrap; gap: 6px;
+      flex: 1; justify-content: flex-end;
+    }
+    .shirt-chip {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 4px 10px; background: #fff;
+      border: 1px solid var(--border); border-radius: 999px;
+      font-size: 11px; font-weight: 600;
+    }
+    .shirt-chip .chip-size  { color: var(--text2); letter-spacing: .3px; }
+    .shirt-chip .chip-count { color: #b45309; font-weight: 700; }
+    .shirt-chip.empty       { background: #f9fafb; opacity: .55; }
+    .shirt-chip.empty .chip-count { color: var(--text3); }
 
     /* Tier summary block inside report modal */
     #report-tier-summary {
@@ -1097,6 +1118,16 @@
         <div class="cs-stat-value" id="st-female">0</div>
         <div class="cs-stat-label">Female</div>
       </div>
+    </div>
+  </div>
+  <div class="cs-stats-row">
+    <div class="cs-stat-card s-shirt full-row" data-report="shirt">
+      <div class="cs-stat-icon">👕</div>
+      <div>
+        <div class="cs-stat-value" id="st-shirt">0</div>
+        <div class="cs-stat-label">T-Shirt</div>
+      </div>
+      <div class="shirt-breakdown" id="st-shirt-breakdown"></div>
     </div>
   </div>
 </div>
@@ -2471,6 +2502,24 @@ function updateStats() {
   document.getElementById('st-no-booking').textContent = noBookCnt;
   document.getElementById('st-male').textContent     = maleCnt;
   document.getElementById('st-female').textContent   = femaleCnt;
+
+  // T-Shirt size breakdown
+  const shirtSizes  = SHIRT_OPTIONS.filter(s => s !== '');
+  const shirtCounts = {};
+  shirtSizes.forEach(s => { shirtCounts[s] = 0; });
+  let shirtFilled = 0;
+  all.forEach(r => {
+    const s = (r.shirt || '').trim();
+    if (s && shirtCounts[s] != null) { shirtCounts[s]++; shirtFilled++; }
+  });
+  document.getElementById('st-shirt').textContent = shirtFilled;
+  const breakdownEl = document.getElementById('st-shirt-breakdown');
+  if (breakdownEl) {
+    breakdownEl.innerHTML = shirtSizes.map(s => {
+      const c = shirtCounts[s];
+      return `<span class="shirt-chip${c === 0 ? ' empty' : ''}"><span class="chip-size">${s}</span><span class="chip-count">${c}</span></span>`;
+    }).join('');
+  }
 }
 
 // Fixed sort: Code ASC, with sub-rows (code "X-N") grouped under parent "X".
@@ -3570,6 +3619,8 @@ const REPORT_CONFIG = {
                  filter: r => r.gender === 'male' },
   female:      { title: '👩 Female',
                  filter: r => r.gender === 'female' },
+  shirt:       { title: '👕 T-Shirt — กรอก Size แล้ว',
+                 filter: r => !!(r.shirt && r.shirt.trim()) },
 };
 
 let _currentReportKey = null;

@@ -4,6 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ใบเบิกสินค้า — Requisition</title>
+<!-- Headless mode: ตั้ง class ทันทีก่อน sidebar.js โหลด เพื่อกันไม่ให้ chrome แสดง -->
+<script>
+  if (new URLSearchParams(location.search).get('headless') === '1') {
+    document.documentElement.classList.add('headless');
+  }
+</script>
 <link rel="stylesheet" href="../../../css/main.css">
 <style>
 .page { max-width:960px; margin:0 auto; padding:32px 24px 100px; }
@@ -11,12 +17,57 @@
 /* PAGE-HERO actions อยู่ขวา (เก็บ status badge) */
 .page-hero-actions .req-status-badge { align-self:center; }
 
+/* HERO เลขที่ REQ — badge อยู่บน, label+input อยู่ล่างเป็น row */
+.hero-req-no {
+  display:flex; flex-direction:column; align-items:stretch;
+  gap:8px; flex:1;   /* stretch ให้กว้างเต็ม space ที่เหลือ */
+}
+.hero-status-row { display:flex; justify-content:flex-end; }   /* badge ชิดขวาสุด */
+.hero-req-no-row { display:flex; align-items:center; gap:10px; flex-wrap:wrap; justify-content:flex-end; }
+.hero-req-no-label {
+  font-size:12px; font-weight:700; letter-spacing:.3px; margin:0;
+  color:rgba(255,255,255,.92); white-space:nowrap;
+}
+.hero-req-no-label .required { color:#fecaca; }   /* ดอกจันแดงซีดเพื่อให้เห็นบนเขียว */
+.hero-req-no .input-prefix {
+  background:var(--surface); width:auto;
+  border-color:rgba(255,255,255,.45);
+  box-shadow:0 2px 6px rgba(0,0,0,.08);
+}
+.hero-req-no .input-prefix-text { padding:7px 10px; font-size:12px; }
+.hero-req-no .form-control { padding:7px 10px; font-size:13px; width:80px; }
+
+/* Status badge — ใช้บน sage bg → พื้นขาวขุ่นเพื่อให้เห็นชัด */
+.page-hero.v-bold .req-status-badge.badge-draft {
+  background:rgba(255,255,255,.92); color:var(--text); border:1px solid rgba(255,255,255,.6);
+}
+
+/* Status badge ใน hero (เล็กลง) */
+.hero-status-row .req-status-badge {
+  padding:3px 9px; font-size:10.5px;
+  letter-spacing:.4px;
+}
+
+/* HEADLESS MODE — ซ่อน chrome ทั้งหมด แสดงเฉพาะ preview overlay (สำหรับ popup พิมพ์) */
+html.headless .topbar,
+html.headless #erp-sidebar,
+html.headless #sb-overlay,
+html.headless .sb-hamburger,
+html.headless #sidebar-container,
+html.headless .sidebar,
+html.headless .page-hero,
+html.headless .section-card,
+html.headless .form-footer { display:none !important; }
+html.headless body { background:#fff; margin:0; padding:0; }
+html.headless .page { padding:0; max-width:none; margin:0; }
+html.headless > body { /* override sidebar shell flex layout */ }
+
 /* PURPOSE — pill/chip style (compact) */
-.purpose-grid { display:flex; flex-wrap:wrap; gap:8px; }
+.purpose-grid { display:grid; grid-template-columns:repeat(3, 1fr); gap:8px; }
 .purpose-card {
   background:var(--surface); border:1.5px solid var(--border); border-radius:999px;
   padding:7px 14px; cursor:pointer; transition:all .15s;
-  display:inline-flex; align-items:center; gap:7px; line-height:1.2;
+  display:flex; align-items:center; justify-content:center; gap:7px; line-height:1.2;
 }
 .purpose-card:hover { border-color:var(--accent); background:var(--accent-pale); }
 .purpose-card.active { border-color:var(--accent); background:var(--accent-pale); box-shadow:0 0 0 3px rgba(var(--accent-rgb),.1); }
@@ -25,9 +76,32 @@
 .purpose-card.active .purpose-label { color:var(--accent); font-weight:600; }
 .purpose-type { display:none; }
 
+/* WAREHOUSE — pill/chip style (auto-fit, wider than purpose) */
+.warehouse-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(140px, 1fr)); gap:8px; }
+.warehouse-card {
+  background:var(--surface); border:1.5px solid var(--border); border-radius:10px;
+  padding:9px 12px; cursor:pointer; transition:all .15s;
+  display:flex; align-items:center; justify-content:center; gap:6px; line-height:1.2;
+  text-align:center;
+}
+.warehouse-card:hover { border-color:var(--accent); background:var(--accent-pale); }
+.warehouse-card.active { border-color:var(--accent); background:var(--accent-pale); box-shadow:0 0 0 3px rgba(var(--accent-rgb),.1); }
+.warehouse-card .wh-icon { font-size:14px; line-height:1; }
+.warehouse-card .wh-label { font-size:13px; font-weight:500; color:var(--text); }
+.warehouse-card.active .wh-label { color:var(--accent); font-weight:600; }
+.warehouse-card.is-child { background:var(--surface-soft); }
+.warehouse-card.is-child .wh-icon { color:var(--text3); font-size:13px; }
+.warehouse-card.is-child .wh-label { font-size:12.5px; color:var(--text2); }
+.warehouse-grid-empty { color:var(--text3); font-size:12px; padding:8px; font-style:italic; }
+
 /* STATUS BADGE (used in page-hero actions) */
 .req-status-badge { padding:5px 12px; border-radius:20px; font-size:12px; font-weight:700; letter-spacing:.5px; }
-.badge-draft { background:var(--bg); color:var(--text2); border:1px solid var(--border2); }
+.badge-draft     { background:var(--bg);  color:var(--text2);  border:1px solid var(--border2); }
+.badge-approved  { background:#dcfce7;    color:#166534;       border:1px solid #86efac; }
+.badge-pending   { background:#fef3c7;    color:#92400e;       border:1px solid #fcd34d; }
+.badge-cancelled { background:#fee2e2;    color:#991b1b;       border:1px solid #fca5a5; }
+.badge-dispensed { background:#dbeafe;    color:#1e40af;       border:1px solid #93c5fd; }
+.badge-completed { background:#e0e7ff;    color:#3730a3;       border:1px solid #a5b4fc; }
 
 /* FORM grid + input-prefix (form-group/form-label/form-control inherited from common.css) */
 .form-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
@@ -45,8 +119,9 @@
   flex-wrap:wrap; gap:8px; margin-bottom:12px;
 }
 .form-block-title {
-  font-size:13px; font-weight:700; color:var(--text);
+  font-size:13px; font-weight:700; color:var(--accent);
   display:flex; align-items:center; gap:7px;
+  padding-left:10px; border-left:3px solid var(--accent);
 }
 .form-block-title .required { color:var(--danger); margin-left:3px; }
 .form-block-sub { font-size:11.5px; color:var(--text3); font-weight:500; }
@@ -85,8 +160,9 @@
 .info-cell-form:nth-child(2n)        { border-right:none; }
 .info-cell-form:nth-last-child(-n+2) { border-bottom:none; }
 .info-cell-label {
-  font-size:12px; font-weight:600; color:var(--text2);
+  font-size:12px; font-weight:700; color:var(--accent);
   letter-spacing:.3px;
+  padding-left:8px; border-left:3px solid var(--accent);
 }
 .info-cell-label .required { color:var(--danger); margin-left:3px; }
 
@@ -126,8 +202,11 @@
 }
 
 /* COMBO (searchable product picker — portal-based เพื่อหลบ overflow ของ table wrap) */
-.combo { position:relative; width:100%; }
-.combo-input { width:100%; }
+.combo { position:relative; width:100%; display:flex; align-items:center; gap:6px; }
+.combo-input { flex:1; min-width:0; }
+.row-stock-badge { flex-shrink:0; }
+.row-stock-badge:empty { display:none; }
+.row-stock-badge .combo-stock { padding:3px 10px; font-size:11.5px; }
 .combo-portal {
   position:fixed; display:none;
   background:var(--surface);
@@ -153,6 +232,19 @@
 }
 .combo-item .combo-name { color:var(--text); flex:1; }
 .combo-empty { padding:14px; color:var(--text3); font-style:italic; text-align:center; font-size:12px; }
+
+/* STOCK BADGE — แสดงจำนวนคงเหลือในคลังที่ user อยู่ */
+.combo-stock {
+  display:inline-flex; align-items:center;
+  padding:2px 9px; border-radius:999px;
+  font-size:11px; font-weight:700; white-space:nowrap;
+  font-family:'IBM Plex Mono', monospace;
+  flex-shrink:0;
+}
+.combo-stock.has   { background:var(--accent-pale); color:var(--accent); }
+.combo-stock.low   { background:#fef3c7;            color:#92400e; }
+.combo-stock.zero  { background:var(--bg);          color:var(--text3); border:1px solid var(--border); }
+.combo-stock.neg   { background:#fee2e2;            color:#991b1b; }
 
 /* SIGNATURES (form mode — dropdowns under signature lines) */
 .doc-signatures-form {
@@ -295,8 +387,10 @@ textarea.form-control { resize:vertical; min-height:80px; line-height:1.6; }
 }
 .req-doc-logo {
   width:84px; height:84px; border:1px solid #cbd2d9; border-radius:10px;
-  background:#fff center/64px auto no-repeat;
+  background:#fff; display:flex; align-items:center; justify-content:center;
+  overflow:hidden;
 }
+.req-doc-logo img { max-width:72px; max-height:72px; object-fit:contain; display:block; }
 .req-doc-company-th { font-size:16px; font-weight:700; color:#1f2933; }
 .req-doc-company-en { font-size:11px; color:#52606d; letter-spacing:.5px; margin-top:2px; }
 .req-doc-company-addr { font-size:11px; color:#52606d; margin-top:6px; line-height:1.45; }
@@ -390,20 +484,29 @@ textarea.form-control { resize:vertical; min-height:80px; line-height:1.6; }
 /* PRINT — strip everything except the doc */
 @media print {
   @page { size:A4; margin:0; }
-  body { background:#fff !important; }
-  .topbar, #erp-sidebar, .page, .form-footer, .preview-toolbar,
+  html, body { margin:0 !important; padding:0 !important; background:#fff !important; height:auto !important; }
+  /* ซ่อน chrome + element อื่น ๆ ทั้งหมด */
+  body > *:not(.preview-overlay) { display:none !important; }
+  .topbar, #erp-sidebar, #sb-overlay, .sb-hamburger,
+  .page, .form-footer, .preview-toolbar,
   .loading-overlay, .toast { display:none !important; }
+  /* preview overlay → ใช้ display:contents ให้ req-doc กลายเป็น direct child ของ body */
   .preview-overlay {
-    position:static !important; padding:0 !important; background:#fff !important;
-    display:block !important; overflow:visible !important;
+    display:contents !important;
+    background:transparent !important;
   }
   .req-doc {
-    width:100%; min-height:auto;
-    box-shadow:none; padding:14mm 12mm;
-    page-break-inside:avoid;
+    width:auto !important;
+    height:297mm !important;                   /* A4 height → ดัน signatures ไปก้นหน้า */
+    max-width:none !important;
+    box-shadow:none !important; padding:12mm 12mm !important; margin:0 !important;
+    display:flex !important; flex-direction:column !important;
+    -webkit-print-color-adjust:exact;
+    print-color-adjust:exact;
   }
+  .req-doc-signatures { margin-top:auto !important; }   /* flex auto → ดันลงล่างสุด */
+  .req-doc-footer-note { margin-top:8mm !important; }
   .req-doc-table tr { page-break-inside:avoid; }
-  .req-doc-signatures { page-break-inside:avoid; }
 }
 </style>
 </head>
@@ -415,48 +518,29 @@ textarea.form-control { resize:vertical; min-height:80px; line-height:1.6; }
 <div class="topbar"></div>
 <div class="page">
 
-  <!-- PAGE HERO (canonical: simple variant for form pages) -->
-  <div class="page-hero page-hero--simple">
+  <!-- PAGE HERO (canonical: sage gradient bold variant — matches template) -->
+  <div class="page-hero v-bold">
     <div>
       <h1 class="page-hero-title">📋 ใบเบิกสินค้า</h1>
       <p class="page-hero-sub">Requisition Form · กรอกข้อมูลเพื่อขอเบิกสินค้าจากคลัง</p>
     </div>
-    <div class="page-hero-actions">
-      <span class="req-status-badge badge-draft" id="statusBadge">● DRAFT</span>
-    </div>
-  </div>
-
-  <!-- STEPPER (canonical) -->
-  <div class="section-card">
-    <div class="stepper">
-      <div class="step active"><div class="step-circle">1</div><div class="step-label">กรอกข้อมูล</div></div>
-      <div class="step-connector"></div>
-      <div class="step"><div class="step-circle">2</div><div class="step-label">รออนุมัติ</div></div>
-      <div class="step-connector"></div>
-      <div class="step"><div class="step-circle">3</div><div class="step-label">อนุมัติแล้ว</div></div>
-      <div class="step-connector"></div>
-      <div class="step"><div class="step-circle">4</div><div class="step-label">จ่ายของออก</div></div>
-      <div class="step-connector"></div>
-      <div class="step"><div class="step-circle">✓</div><div class="step-label">เสร็จสิ้น</div></div>
+    <div class="page-hero-actions hero-req-no">
+      <div class="hero-status-row">
+        <span class="req-status-badge badge-draft" id="statusBadge">● DRAFT</span>
+      </div>
+      <div class="hero-req-no-row">
+        <label class="form-label hero-req-no-label">เลขที่ <span class="required">*</span></label>
+        <div class="input-prefix">
+          <span class="input-prefix-text" id="reqPrefix">REQ-2026-01-</span>
+          <input type="text" class="form-control" id="reqNumber" placeholder="001" value="001">
+        </div>
+      </div>
+      <span id="reqNumberDisplay" hidden></span>
     </div>
   </div>
 
   <!-- FORM CARD (รวมทุก sub-section อยู่ใน block เดียว คั่นด้วยเส้นบางๆ) -->
   <div class="section-card">
-
-    <!-- 1) เลขที่ REQ (แยกบนสุด — เหมือน title block ของ PDF) -->
-    <div class="form-block">
-      <div class="form-grid form-grid--single">
-        <div class="form-group">
-          <label class="form-label">เลขที่ REQ <span class="required">*</span></label>
-          <div class="input-prefix">
-            <span class="input-prefix-text" id="reqPrefix">REQ-2026-01-</span>
-            <input type="text" class="form-control" id="reqNumber" placeholder="001" value="001">
-          </div>
-        </div>
-      </div>
-      <span id="reqNumberDisplay" hidden></span>
-    </div>
 
     <!-- 2) Info grid 2x2 (mirror PDF: วัตถุประสงค์ | วันที่ / รายละเอียด | แผนก) -->
     <div class="form-block">
@@ -470,12 +554,17 @@ textarea.form-control { resize:vertical; min-height:80px; line-height:1.6; }
           <input type="date" class="form-control" id="reqDate">
         </div>
         <div class="info-cell-form">
-          <div class="info-cell-label">รายละเอียดเพิ่มเติม</div>
+          <div class="info-cell-label">รายละเอียดเพิ่มเติม <span class="required">*</span></div>
           <input type="text" class="form-control" id="note" placeholder="ระบุรายละเอียดเพิ่มเติม">
         </div>
         <div class="info-cell-form">
           <div class="info-cell-label">แผนกที่เบิก <span class="required">*</span></div>
           <select class="form-control" id="deptId"><option value="">— เลือกแผนก —</option></select>
+        </div>
+        <div class="info-cell-form" style="grid-column:1 / -1;">
+          <div class="info-cell-label">เบิกจากคลัง <span class="required">*</span></div>
+          <div class="warehouse-grid" id="warehouseGrid"><!-- populated by JS --></div>
+          <input type="hidden" id="warehouseId" value="">
         </div>
       </div>
     </div>
@@ -515,31 +604,6 @@ textarea.form-control { resize:vertical; min-height:80px; line-height:1.6; }
       </div>
     </div>
 
-    <!-- 6) ผู้เกี่ยวข้อง / ลายเซ็น -->
-    <div class="form-block">
-      <div class="form-block-head">
-        <div class="form-block-title">✍️ ผู้เกี่ยวข้อง</div>
-        <div class="form-block-sub">ผู้ขอเบิก / ผู้อนุมัติ จะแสดงเป็นช่องลงนามในใบเบิกที่พิมพ์ออก</div>
-      </div>
-      <div class="doc-signatures-form">
-        <div class="doc-sig-block">
-          <div class="doc-sig-line"></div>
-          <div class="doc-sig-label">ผู้ขอเบิก <span class="required">*</span></div>
-          <select class="form-control doc-sig-select" id="requestedBy"><option value="">— เลือกผู้ขอเบิก —</option></select>
-        </div>
-        <div class="doc-sig-block">
-          <div class="doc-sig-line"></div>
-          <div class="doc-sig-label">ผู้อนุมัติ</div>
-          <select class="form-control doc-sig-select" id="approvedBy"><option value="">— เลือกผู้อนุมัติ —</option></select>
-        </div>
-        <div class="doc-sig-block">
-          <div class="doc-sig-line"></div>
-          <div class="doc-sig-label">ผู้จ่ายของออก</div>
-          <div class="doc-sig-placeholder">(ระบุตอนจ่ายของจริง)</div>
-        </div>
-      </div>
-    </div>
-
   </div>
 
 </div>
@@ -550,9 +614,10 @@ textarea.form-control { resize:vertical; min-height:80px; line-height:1.6; }
     <button class="btn btn-danger-outline" onclick="resetForm()">🗑 ล้างข้อมูล</button>
   </div>
   <div class="footer-right">
-    <button class="btn btn-outline" onclick="saveDraft()">💾 Draft</button>
-    <button class="btn btn-warning" onclick="previewREQ()">👁 Preview</button>
-    <button class="btn btn-success" onclick="submitREQ()">📤 ส่งอนุมัติ</button>
+    <button class="btn btn-outline" onclick="cancelEdit()">✕ ยกเลิก</button>
+    <button class="btn btn-outline" onclick="previewREQ()">🖨 พิมพ์</button>
+    <button class="btn btn-warning" onclick="submitREQ(false)">💾 บันทึก</button>
+    <button class="btn btn-success" onclick="submitREQ(true)">✅ บันทึก+อนุมัติ</button>
   </div>
 </div>
 
@@ -567,7 +632,7 @@ textarea.form-control { resize:vertical; min-height:80px; line-height:1.6; }
   </div>
   <div class="req-doc" id="reqDoc">
     <div class="req-doc-header">
-      <div class="req-doc-logo" id="docLogo"></div>
+      <div class="req-doc-logo"><img id="docLogo" alt="logo" /></div>
       <div>
         <div class="req-doc-company-th" id="docCompanyTh">—</div>
         <div class="req-doc-company-en" id="docCompanyEn">—</div>
@@ -642,7 +707,8 @@ textarea.form-control { resize:vertical; min-height:80px; line-height:1.6; }
   loadTopbar("📋 ใบเบิกสินค้า (REQ)");
 </script>
 <script src="../../../js/components/navigation/imgPopup.js"></script>
-<script src="requisition.js"></script>
+<script src="requisition-form.js"></script>
+<script src="../../../js/components/modal/confirmModal.js"></script>
 <script src="../../../js/components/modal/modalManager.js"></script>
 </body>
 </html>

@@ -105,13 +105,14 @@
                     <th onclick="sortBy('username')" style="cursor:pointer">Username <span class="sort-icon">⇅</span></th>
                     <th onclick="sortBy('role')" style="cursor:pointer">Role <span class="sort-icon">⇅</span></th>
                     <th onclick="sortBy('department')" style="cursor:pointer">แผนก <span class="sort-icon">⇅</span></th>
+                    <th onclick="sortBy('country')" style="cursor:pointer">ประเทศ <span class="sort-icon">⇅</span></th>
                     <th class="col-center">สถานะ</th>
                     <th class="col-center">จัดการ</th>
                   </tr>
                 </thead>
                 <tbody id="tableBody">
                   <tr>
-                    <td colspan="5">
+                    <td colspan="7">
                       <div class="empty-state">
                         <div class="empty-icon">👥</div>
                         <div class="empty-text">กำลังโหลด...</div>
@@ -177,6 +178,15 @@
               </select>
             </div>
             <div class="form-group">
+              <label class="form-label">
+                ประเทศ
+                <button type="button" class="dept-manage-link" onclick="openCountryManager()" title="จัดการรายชื่อประเทศ (ใช้ร่วมกับคลังสินค้า)">⚙️ จัดการ</button>
+              </label>
+              <select class="form-control" id="fCountry">
+                <option value="">— ไม่ระบุ —</option>
+              </select>
+            </div>
+            <div class="form-group">
               <label class="form-label">รหัสผ่าน <span class="req" id="pwdReq">*</span></label>
               <div class="input-with-btn">
                 <input class="form-control" id="fPassword" type="password" placeholder="รหัสผ่าน" autocomplete="new-password" />
@@ -222,6 +232,30 @@
         <div class="modal-footer">
           <button class="btn btn-outline" onclick="closeModal()">ยกเลิก</button>
           <button class="btn btn-primary" onclick="saveUser()">💾 บันทึก</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- COUNTRY MANAGER MODAL (shared with warehouses) -->
+    <div class="modal-overlay" id="countryModalOverlay" onclick="closeCountryManagerBg(event)">
+      <div class="modal v-sage-header" style="width:540px;max-height:85vh;display:flex;flex-direction:column">
+        <div class="modal-hdr">
+          <div class="modal-title">🌐 จัดการประเทศ</div>
+          <button class="btn-modal-close" onclick="closeCountryManager()">✕</button>
+        </div>
+        <div class="modal-body" style="flex:1;overflow-y:auto;min-height:0">
+          <div class="dept-add-row">
+            <input class="form-control" id="countryNewName" placeholder="ชื่อประเทศ (เช่น ไทย, ไนจีเรีย, ลาว)" onkeydown="if(event.key==='Enter'){event.preventDefault();addCountry()}" />
+            <button class="btn btn-primary" onclick="addCountry()">＋ เพิ่ม</button>
+          </div>
+          <div class="form-hint" style="margin:6px 0 12px">รหัสประเทศจะถูกสร้างให้อัตโนมัติ · ข้อมูลใช้ร่วมกับ "คลังสินค้า" — เพิ่ม/แก้/ลบ ที่นี่จะมีผลในหน้าคลังด้วย</div>
+
+          <div class="dept-list" id="countryList">
+            <div class="empty-state"><div class="empty-icon">🌐</div><div>กำลังโหลด...</div></div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-outline" onclick="closeCountryManager()">ปิด</button>
         </div>
       </div>
     </div>
