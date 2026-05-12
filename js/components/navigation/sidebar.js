@@ -179,7 +179,7 @@
         {
           id: "po",
           icon: "🛒",
-          label: "ใบสั่งซื้อ (PO)",
+          label: "รายการสั่งซื้อ",
           path: BASE_PATH + "/modules/transactions/purchase_order/po-list.html",
         },
         {

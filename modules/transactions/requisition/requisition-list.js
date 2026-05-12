@@ -81,6 +81,50 @@ async function fetchProducts() {
   );
 }
 
+// คำนวณ on-hand ปัจจุบันสำหรับ (product_id, warehouse_id) จาก stock_movements
+// คืน Map: { productId: qty }
+async function fetchOnHandForItems(warehouseId, productIds) {
+  if (!productIds.length) return new Map();
+  const inList = productIds.join(",");
+  const moves = await sbFetch(
+    "stock_movements",
+    `?warehouse_id=eq.${warehouseId}&product_id=in.(${inList})&select=product_id,movement_type,qty`
+  );
+  const map = new Map();
+  (moves || []).forEach((m) => {
+    const sign = m.movement_type === "OUT" || m.movement_type === "INTERNAL" ? -1 : 1;
+    const cur = map.get(m.product_id) || 0;
+    map.set(m.product_id, cur + sign * (parseFloat(m.qty) || 0));
+  });
+  return map;
+}
+
+// ตรวจ stock พอจะหักทุก item ของ REQ ไหม — return { ok, shortages: [{name, requested, available, short}] }
+async function checkStockAvailable(warehouseId, items, productsMap) {
+  const pids = [...new Set(items.map((it) => it.product_id))];
+  const onHand = await fetchOnHandForItems(warehouseId, pids);
+  // รวม qty per product (ถ้ามีหลาย row product เดียวกัน)
+  const reqByPid = new Map();
+  items.forEach((it) => {
+    reqByPid.set(it.product_id, (reqByPid.get(it.product_id) || 0) + (parseFloat(it.qty_requested) || 0));
+  });
+  const shortages = [];
+  for (const [pid, requested] of reqByPid) {
+    const available = onHand.get(pid) || 0;
+    if (requested > available) {
+      const p = productsMap?.get(String(pid)) || productsMap?.get(pid);
+      shortages.push({
+        product_id: pid,
+        name: p?.product_name || `Product #${pid}`,
+        requested,
+        available,
+        short: requested - available,
+      });
+    }
+  }
+  return { ok: shortages.length === 0, shortages };
+}
+
 const state = {
   reqs: [],
   depts: [],
@@ -92,10 +136,10 @@ const state = {
 };
 
 const STATUS_META = {
+  DRAFT:     { label: "Draft",             cls: "status-draft"     },
   PENDING:   { label: "รออนุมัติ",        cls: "status-pending"   },
   APPROVED:  { label: "อนุมัติแล้ว",       cls: "status-approved"  },
-  DISPENSED: { label: "จ่ายของออกแล้ว",   cls: "status-dispensed" },
-  COMPLETED: { label: "เสร็จสิ้น",         cls: "status-completed" },
+  ISSUED:    { label: "จ่ายของออกแล้ว",   cls: "status-issued"    },
   CANCELLED: { label: "ยกเลิก",            cls: "status-cancelled" },
 };
 
@@ -246,6 +290,12 @@ function renderTable(rows) {
   const countEl = document.getElementById("reqCount");
   if (!tbody) return;
 
+  // permission gates (fallback = true ถ้า AuthZ ไม่ได้โหลด เพื่อไม่ block dev)
+  const hasPerm = (k) => (window.AuthZ?.hasPerm ? window.AuthZ.hasPerm(k) : true);
+  const canEdit    = hasPerm("req_edit");
+  const canDelete  = hasPerm("req_delete");
+  const canApprove = hasPerm("req_approve");
+
   if (countEl) countEl.textContent = `${rows.length} รายการ`;
 
   if (!rows.length) {
@@ -298,11 +348,15 @@ function renderTable(rows) {
           <td class="col-center">
             <div class="req-row-actions">
               <button class="req-row-action print" title="พิมพ์" onclick="window.printReq(${req.req_id})">🖨️</button>
-              ${(String(req.status || "").toUpperCase() === "DRAFT" || String(req.status || "").toUpperCase() === "PENDING")
+              ${(String(req.status || "").toUpperCase() === "DRAFT" && canApprove)
                 ? `<button class="req-row-action approve" title="อนุมัติ" onclick="window.approveReq(${req.req_id})">✅</button>`
                 : ""}
-              <button class="req-row-action edit" title="แก้ไข" onclick="window.editReq(${req.req_id})">✏️</button>
-              <button class="req-row-action delete" title="ลบ" onclick="window.deleteReq(${req.req_id})">🗑️</button>
+              ${canEdit
+                ? `<button class="req-row-action edit" title="แก้ไข" onclick="window.editReq(${req.req_id})">✏️</button>`
+                : ""}
+              ${canDelete
+                ? `<button class="req-row-action delete" title="ลบ" onclick="window.deleteReq(${req.req_id})">🗑️</button>`
+                : ""}
             </div>
           </td>
         </tr>`;
@@ -451,6 +505,46 @@ window.approveReq = async function approveReq(reqId) {
     showToast("ใบนี้ไม่มีข้อมูลคลัง — กรุณาแก้ไขเลือกคลังก่อนอนุมัติ", "error");
     return;
   }
+  // ตรวจว่าคลังยัง active อยู่ — ถ้า soft-delete แล้วจะแจ้งให้ user รู้
+  try {
+    const whCheck = await sbFetch(
+      "warehouses",
+      `?warehouse_id=eq.${warehouseId}&select=warehouse_name,is_active`
+    );
+    const wh = whCheck?.[0];
+    if (!wh) {
+      showToast("คลังของใบเบิกนี้ไม่อยู่ในระบบแล้ว", "error");
+      return;
+    }
+    if (wh.is_active === false) {
+      showToast(`คลัง "${wh.warehouse_name}" ถูกปิดใช้งาน — แก้ไขเลือกคลังใหม่ก่อนอนุมัติ`, "error");
+      return;
+    }
+  } catch (_) {}
+
+  // ตรวจ stock ในคลังว่าพอจะหักไหม
+  showLoading(true);
+  const productsMap = new Map(state.products.map((p) => [String(p.product_id), p]));
+  const stockCheck = await checkStockAvailable(warehouseId, rowsOfReq, productsMap);
+  showLoading(false);
+  if (!stockCheck.ok) {
+    const lines = stockCheck.shortages
+      .map(
+        (s) =>
+          `<li>${escapeHtml(s.name)} — ต้องการ <b>${s.requested.toLocaleString("th-TH")}</b> · มี ${s.available.toLocaleString("th-TH")} · <span style="color:#991b1b">ขาด ${s.short.toLocaleString("th-TH")}</span></li>`
+      )
+      .join("");
+    const proceed = await ConfirmModal.open({
+      title: "สินค้าไม่พอในคลัง",
+      message: `มีสินค้าไม่พอ ${stockCheck.shortages.length} รายการ`,
+      icon: "⚠️",
+      okText: "อนุมัติต่อ (stock จะติดลบ)",
+      cancelText: "ยกเลิก",
+      tone: "warning",
+      note: `<ul style="margin:6px 0 0 18px;padding:0;font-size:12.5px;line-height:1.7;">${lines}</ul>`,
+    });
+    if (!proceed) return;
+  }
   const productLines = rowsOfReq
     .map((it) => {
       const p = state.products.find(
@@ -481,6 +575,19 @@ window.approveReq = async function approveReq(reqId) {
 
   showLoading(true);
   try {
+    // re-check status ก่อน approve กัน race condition (user อื่นอาจ approve/cancel ไปแล้ว)
+    const cur = await sbFetch(
+      "requisitions",
+      `?req_id=eq.${req.req_id}&select=status`
+    );
+    const curStatus = String(cur?.[0]?.status || "").toUpperCase();
+    if (curStatus !== "DRAFT" && curStatus !== "PENDING") {
+      showToast(`ใบนี้ถูกเปลี่ยนสถานะเป็น "${curStatus}" แล้ว — กรุณา refresh`, "warning");
+      showLoading(false);
+      await loadData();
+      return;
+    }
+
     const approverId = window.ERP_USER?.user_id || null;
     // 1) PATCH header → APPROVED
     await sbFetch("requisitions", `?req_id=eq.${req.req_id}`, {
@@ -488,6 +595,7 @@ window.approveReq = async function approveReq(reqId) {
       body: {
         status: "APPROVED",
         approved_by: approverId ? parseInt(approverId) : null,
+        approved_at: new Date().toISOString(),
       },
     });
     // 2) ลบ stock_movements เดิมของ REQ นี้ (กัน duplicate ถ้าเคยมี — ปกติไม่มี)

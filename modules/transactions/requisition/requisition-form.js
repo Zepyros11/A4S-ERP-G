@@ -15,6 +15,7 @@ let selectedPurposeId = null;
 let selectedWarehouseId = null;
 let editingReqId      = null;    // ถ้ามีค่า = edit mode (PATCH); null = create mode (POST)
 let editingReqRow     = null;    // เก็บ row เดิม (เผื่อเปรียบเทียบ status approved)
+let formDirty         = false;   // true เมื่อ user แก้ field ใด ๆ — ใช้ตอน cancelEdit
 
 // signed qty (เหมือน stock-balance.js)
 function reqSignedQty(m) {
@@ -190,6 +191,7 @@ function renderWarehouseCards(list) {
 }
 
 function selectWarehouse(id, card) {
+  const isUserAction = selectedWarehouseId !== null && selectedWarehouseId !== id;
   selectedWarehouseId = id;
   document.getElementById('warehouseId').value = String(id);
   document.querySelectorAll('.warehouse-card').forEach(c => c.classList.remove('active'));
@@ -198,6 +200,7 @@ function selectWarehouse(id, card) {
   if (activeComboRow != null) comboRender(activeComboRow);
   // อัปเดต badge ใน items rows ที่มีสินค้าเลือกไว้แล้ว
   updateAllRowStockBadges();
+  if (isUserAction) formDirty = true;
 }
 
 // ============================================================
@@ -332,6 +335,44 @@ async function loadUserWarehouseStock() {
   updateAllRowStockBadges();
 }
 
+// Pre-check stock ก่อน auto-approve — return รายการที่ขาด
+async function preCheckStock(data) {
+  const whId = parseInt(data.warehouseId);
+  if (!whId || !data.items?.length) return [];
+  // รวม qty ของ product เดียวกัน (เผื่อมีหลาย row)
+  const reqByPid = new Map();
+  data.items.forEach(it => {
+    const pid = parseInt(it.productId);
+    reqByPid.set(pid, (reqByPid.get(pid) || 0) + parseFloat(it.qty));
+  });
+  const pids = [...reqByPid.keys()];
+  if (!pids.length) return [];
+  // fetch movements
+  const moves = await supabaseFetch('stock_movements', {
+    query: `?warehouse_id=eq.${whId}&product_id=in.(${pids.join(',')})&select=product_id,movement_type,qty`
+  });
+  const onHand = new Map();
+  (moves || []).forEach(m => {
+    const sign = (m.movement_type === 'OUT' || m.movement_type === 'INTERNAL') ? -1 : 1;
+    onHand.set(m.product_id, (onHand.get(m.product_id) || 0) + sign * (parseFloat(m.qty) || 0));
+  });
+  const shortages = [];
+  for (const [pid, requested] of reqByPid) {
+    const available = onHand.get(pid) || 0;
+    if (requested > available) {
+      const p = products.find(x => x.product_id == pid);
+      shortages.push({
+        product_id: pid,
+        name: p?.product_name || `Product #${pid}`,
+        requested,
+        available,
+        short: requested - available,
+      });
+    }
+  }
+  return shortages;
+}
+
 // helper: format stock qty + class (อ่านจากคลังที่เลือก)
 function stockBadgeHtml(productId) {
   if (!selectedWarehouseId) return '';
@@ -373,6 +414,7 @@ function selectPurpose(id, card) {
   selectedPurposeId = id;
   document.querySelectorAll('.purpose-card').forEach(c => c.classList.remove('active'));
   card.classList.add('active');
+  formDirty = true;
 }
 
 // ============================================================
@@ -418,6 +460,7 @@ function addItemRow() {
 
   calcSummary();
   document.getElementById(`combo-input-${rowCount}`).focus();
+  formDirty = true;   // safe: init/load reset formDirty=false หลังเรียบร้อย
 }
 
 // ============================================================
@@ -434,10 +477,18 @@ function comboFocus(rowId) {
 }
 
 function comboInput(rowId) {
-  // เริ่มพิมพ์ใหม่ → invalidate การเลือกเดิม
+  // เริ่มพิมพ์ใหม่ → invalidate การเลือกเดิม (clear product id + thumb + stock badge)
   document.getElementById(`product-${rowId}`).value = '';
   const badge = document.getElementById(`row-stock-${rowId}`);
   if (badge) badge.innerHTML = '';
+  // reset thumb เป็น placeholder
+  const thumb = document.getElementById(`thumb-${rowId}`);
+  if (thumb) {
+    thumb.innerHTML = `<img src="${NO_IMAGE_URL}" alt="">`;
+    thumb.classList.remove('is-clickable');
+    thumb.onclick = null;
+    thumb.title = '';
+  }
   comboKbdIdx = -1;
   comboRender(rowId);
 }
@@ -505,6 +556,11 @@ function comboRender(rowId) {
 function comboPick(rowId, productId) {
   const product = products.find(p => p.product_id == productId);
   if (!product) return;
+  // เช็คว่า product มีหน่วยนับใน DB ไหม — กันไม่ให้ user เลือก แล้วเจอ error ตอน save
+  if (!productUnits[productId]?.length) {
+    showToast(`สินค้า "${product.product_name}" ไม่มีหน่วยนับ — กรุณาตั้งหน่วยใน Master Product ก่อน`, 'error');
+    return;
+  }
   const label = product.product_name || '';
   document.getElementById(`combo-input-${rowId}`).value = label;
   const hidden = document.getElementById(`product-${rowId}`);
@@ -513,6 +569,7 @@ function comboPick(rowId, productId) {
   updateRowThumb(rowId, productId);
   updateRowStockBadge(rowId);
   onProductChange(hidden, rowId);
+  formDirty = true;
 }
 
 // แสดง stock badge ใน row หลังจากเลือกสินค้าแล้ว — อัปเดตเมื่อเปลี่ยนคลังด้วย
@@ -640,6 +697,7 @@ function checkFullStatus(rowId) {
 function removeRow(rowId) {
   document.getElementById(`row-${rowId}`)?.remove();
   calcSummary();
+  formDirty = true;
 }
 
 function calcSummary() {
@@ -676,8 +734,7 @@ async function loadRequisitionForEdit(reqId) {
         DRAFT:     'badge-draft',
         PENDING:   'badge-pending',
         APPROVED:  'badge-approved',
-        DISPENSED: 'badge-dispensed',
-        COMPLETED: 'badge-completed',
+        ISSUED:    'badge-issued',
         CANCELLED: 'badge-cancelled',
       };
       badge.textContent = '● ' + st;
@@ -759,16 +816,35 @@ function collectFormData(validate = true) {
   }
 
   const items = [];
-  document.getElementById('itemsBody').querySelectorAll('tr').forEach(tr => {
+  let badRowFound = null;   // { rowIdx, reason }
+  document.getElementById('itemsBody').querySelectorAll('tr').forEach((tr, idx) => {
     const rowId     = tr.id.replace('row-', '');
     const productId = tr.querySelector('.row-product-select')?.value;
     const qty       = document.getElementById(`qty-req-${rowId}`)?.value;
     const itemNote  = document.getElementById(`note-${rowId}`)?.value;
+    const comboText = document.getElementById(`combo-input-${rowId}`)?.value?.trim();
     const unitId    = (productUnits[productId]?.[0]?.unit_id) || null;   // default = หน่วยแรก
-    // qty_actual ไม่เก็บใน DB — เซ็นด้วยมือบนใบที่พิมพ์ออก
-    if (productId && qty) items.push({ productId, qty, note: itemNote, unitId });
+    const qtyNum    = parseFloat(qty);
+
+    // Empty row (no product chosen, no qty) — silently skip
+    if (!productId && !qty && !comboText) return;
+
+    // Validate row that has SOME data filled
+    if (validate && comboText && !productId) {
+      badRowFound = badRowFound || { idx: idx + 1, reason: `แถวที่ ${idx + 1}: กรุณาเลือกสินค้าจากรายการที่ปรากฏ` };
+      return;
+    }
+    if (validate && productId && (!qty || qtyNum <= 0)) {
+      badRowFound = badRowFound || { idx: idx + 1, reason: `แถวที่ ${idx + 1}: กรุณากรอกจำนวนมากกว่า 0` };
+      return;
+    }
+    if (productId && qtyNum > 0) items.push({ productId, qty, note: itemNote, unitId });
   });
 
+  if (validate && badRowFound) {
+    showToast(badRowFound.reason, 'error');
+    return null;
+  }
   if (validate && items.length === 0) {
     showToast('กรุณาเพิ่มรายการสินค้าอย่างน้อย 1 รายการ', 'error');
     return null;
@@ -779,14 +855,48 @@ function collectFormData(validate = true) {
 }
 
 async function submitREQ(autoApprove = false) {
+  // Permission gate — UI ถูกซ่อนแล้วใน list/sidebar แต่ submit ต้องเช็คซ้ำ (defense in depth)
+  const hasPerm = (k) => (window.AuthZ?.hasPerm ? window.AuthZ.hasPerm(k) : true);
+  const needPerm = editingReqId ? 'req_edit' : 'req_create';
+  if (!hasPerm(needPerm)) {
+    showToast(`ไม่มีสิทธิ์ "${editingReqId ? 'แก้ไข' : 'สร้าง'}" ใบเบิก`, 'error');
+    return;
+  }
+  if (autoApprove && !hasPerm('req_approve')) {
+    showToast('ไม่มีสิทธิ์ "อนุมัติ" ใบเบิก', 'error');
+    return;
+  }
+
   const data = collectFormData();
   if (!data) return;
   if (!SUPABASE_URL || !SUPABASE_KEY) { showToast('กรุณาเชื่อมต่อ Supabase ก่อน', 'warning'); return; }
 
+  // Stock pre-check (เฉพาะตอน "บันทึก+อนุมัติ" เพราะจะหัก stock จริง)
+  if (autoApprove) {
+    const shortages = await preCheckStock(data);
+    if (shortages.length) {
+      const lines = shortages.map(s =>
+        `<li>${escapeHtml(s.name)} — ต้องการ <b>${s.requested.toLocaleString('th-TH')}</b> · มี ${s.available.toLocaleString('th-TH')} · <span style="color:#991b1b">ขาด ${s.short.toLocaleString('th-TH')}</span></li>`
+      ).join('');
+      const proceed = (typeof ConfirmModal !== 'undefined' && ConfirmModal.open)
+        ? await ConfirmModal.open({
+            title: 'สินค้าไม่พอในคลัง',
+            message: `มีสินค้าไม่พอ ${shortages.length} รายการ`,
+            icon: '⚠️',
+            okText: 'อนุมัติต่อ (stock จะติดลบ)',
+            cancelText: 'ยกเลิก',
+            tone: 'warning',
+            note: `<ul style="margin:6px 0 0 18px;padding:0;font-size:12.5px;line-height:1.7;">${lines}</ul>`,
+          })
+        : window.confirm(`สินค้าไม่พอ ${shortages.length} รายการ — อนุมัติต่อ?`);
+      if (!proceed) return;
+    }
+  }
+
   showLoading(true);
   try {
     let reqId;
-    const wasApproved = editingReqRow?.status === 'APPROVED';
+    const wasApproved = String(editingReqRow?.status || '').toUpperCase() === 'APPROVED';
     const headerBody = {
       req_number:    data.reqNumber,
       req_date:      data.reqDate,
@@ -795,6 +905,7 @@ async function submitREQ(autoApprove = false) {
       purpose_id:    parseInt(data.purposeId),
       requested_by:  parseInt(data.requestedBy),
       approved_by:   autoApprove ? parseInt(data.requestedBy) : null,
+      approved_at:   autoApprove ? new Date().toISOString() : null,
       status:        autoApprove ? 'APPROVED' : 'DRAFT',
       note:          data.note || null,
     };
@@ -818,8 +929,21 @@ async function submitREQ(autoApprove = false) {
         query:  `?ref_doc_type=eq.REQ&ref_doc_id=eq.${editingReqId}`,
       }).catch(() => null);
     } else {
-      // POST new
-      const result = await supabaseFetch('requisitions', { method: 'POST', body: headerBody });
+      // POST new — retry once on UNIQUE(req_number) conflict (race condition กับ user อื่น)
+      let result;
+      try {
+        result = await supabaseFetch('requisitions', { method: 'POST', body: headerBody });
+      } catch (e) {
+        if (/duplicate key|unique/i.test(e.message || '')) {
+          const nextSeq = await fetchNextReqNumber();
+          const newNumber = getReqPrefix() + nextSeq;
+          headerBody.req_number = newNumber;
+          data.reqNumber = newNumber;
+          document.getElementById('reqNumber').value = nextSeq;
+          showToast(`มี user อื่น claim เลขเดิมไป → เปลี่ยนเป็น ${newNumber}`, 'warning');
+          result = await supabaseFetch('requisitions', { method: 'POST', body: headerBody });
+        } else { throw e; }
+      }
       reqId = result[0].req_id;
     }
 
@@ -862,6 +986,7 @@ async function submitREQ(autoApprove = false) {
     const msg = autoApprove
       ? `✅ ${verb} + อนุมัติ ${data.reqNumber} สำเร็จ (หัก stock แล้ว)`
       : `💾 ${verb} Draft ${data.reqNumber} สำเร็จ (รออนุมัติ)`;
+    formDirty = false;   // กัน beforeunload เตือนตอน redirect หลัง save สำเร็จ
     showToast(msg, 'success');
     setTimeout(() => { window.location.href = './requisition-list.html'; }, 1200);
   } catch(e) { showToast('เกิดข้อผิดพลาด: ' + e.message, 'error'); }
@@ -899,7 +1024,20 @@ function previewREQ() {
   setText('docCompanyTh', COMPANY_PROFILE.nameTh);
   setText('docCompanyEn', COMPANY_PROFILE.nameEn);
   const logoEl = document.getElementById('docLogo');
-  if (logoEl) logoEl.src = COMPANY_PROFILE.logoUrl;
+  if (logoEl) {
+    logoEl.src = COMPANY_PROFILE.logoUrl;
+    logoEl.onerror = () => {   // ถ้าโหลด logo ไม่ได้ → ซ่อนแล้วใช้ตัวอักษร "A4S" แทน
+      logoEl.style.display = 'none';
+      const parent = logoEl.parentElement;
+      if (parent && !parent.querySelector('.logo-fallback')) {
+        const fb = document.createElement('div');
+        fb.className = 'logo-fallback';
+        fb.textContent = 'A4S';
+        fb.style.cssText = 'font-weight:800;font-size:18px;color:#3d6b4f;letter-spacing:1px;';
+        parent.appendChild(fb);
+      }
+    };
+  }
 
   setText('docNumber', data.reqNumber);
 
@@ -954,8 +1092,12 @@ function printREQ() {
   window.print();
 }
 
-// ยกเลิกการเปลี่ยนแปลง → กลับหน้า list (ถาม confirm กัน user เผลอ)
+// ยกเลิก → กลับหน้า list (ถาม confirm เฉพาะเมื่อมีการแก้ไขจริง)
 async function cancelEdit() {
+  if (!formDirty) {
+    window.location.href = './requisition-list.html';
+    return;
+  }
   const proceed = (typeof ConfirmModal !== 'undefined' && ConfirmModal.open)
     ? await ConfirmModal.open({
         title: 'ยกเลิกการแก้ไข',
@@ -1038,6 +1180,23 @@ function showLoading(show) { document.getElementById('loadingOverlay').classList
 // ============================================================
 // INIT
 // ============================================================
+// Catch-all dirty flag: trigger when ANY input/select inside form changes
+document.addEventListener('input', (e) => {
+  if (e.target.closest('.section-card')) formDirty = true;
+});
+document.addEventListener('change', (e) => {
+  if (e.target.closest('.section-card')) formDirty = true;
+});
+
+// Browser back / close tab guard — เตือนถ้าฟอร์มมีการแก้ไขที่ยังไม่ save
+window.addEventListener('beforeunload', (e) => {
+  // headless print popup ข้าม guard (จะปิดเองหลังพิมพ์)
+  if (document.documentElement.classList.contains('headless')) return;
+  if (!formDirty) return;
+  e.preventDefault();
+  e.returnValue = '';   // จำเป็นสำหรับ Chrome/Edge
+});
+
 window.addEventListener('DOMContentLoaded', async () => {
   SUPABASE_URL = localStorage.getItem('sb_url') || '';
   SUPABASE_KEY = localStorage.getItem('sb_key') || '';
@@ -1064,6 +1223,8 @@ window.addEventListener('DOMContentLoaded', async () => {
   try {
     await loadDropdowns();
     if (editingReqId) await loadRequisitionForEdit(editingReqId);
+    // ตอนนี้ฟอร์มเพิ่งโหลดเสร็จ — reset dirty flag (auto-fill ไม่นับเป็น user change)
+    formDirty = false;
     if (autoPrint) {
       // เปิด preview overlay ก่อน แล้วเรียก window.print() ทันที (browser print dialog)
       setTimeout(() => {

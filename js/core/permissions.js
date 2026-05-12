@@ -127,11 +127,12 @@ window.AppPermissions = (() => {
     {
       key: "docs", label: "เอกสาร", icon: "📄",
       children: [
-        { key: "po", label: "ใบสั่งซื้อ (PO)", icon: "🛒", perms: [
+        { key: "po", label: "รายการสั่งซื้อ", icon: "🛒", perms: [
           { key: "po_view",    label: "ดูรายการ" },
           { key: "po_create",  label: "สร้าง" },
           { key: "po_edit",    label: "แก้ไข" },
           { key: "po_approve", label: "อนุมัติ" },
+          { key: "po_receive", label: "รับของ" },
           { key: "po_delete",  label: "ลบ" },
         ]},
         { key: "so", label: "ใบขาย (SO)", icon: "💰", perms: [
@@ -141,10 +142,12 @@ window.AppPermissions = (() => {
           { key: "so_approve", label: "อนุมัติ" },
           { key: "so_delete",  label: "ลบ" },
         ]},
-        { key: "req", label: "ใบเบิก (REQ)", icon: "📋", perms: [
+        { key: "req", label: "รายการเบิกสินค้า", icon: "📋", perms: [
           { key: "req_view",    label: "ดูรายการ" },
           { key: "req_create",  label: "สร้าง" },
+          { key: "req_edit",    label: "แก้ไข" },
           { key: "req_approve", label: "อนุมัติ" },
+          { key: "req_delete",  label: "ลบ" },
         ]},
       ],
     },
@@ -366,9 +369,9 @@ window.AppPermissions = (() => {
         "product_view","product_create","product_edit",
         "stock_init_view","stock_init_create","stock_init_edit",
         "stock_move_view","stock_move_create",
-        "po_view","po_create","po_edit","po_approve",
+        "po_view","po_create","po_edit","po_approve","po_receive",
         "so_view","so_create","so_edit","so_approve",
-        "req_view","req_create","req_approve",
+        "req_view","req_create","req_edit","req_approve",
         "report_stock_view","report_stock_export",
         "supplier_view","supplier_create","supplier_edit",
         "customer_view","customer_create","customer_edit",
@@ -384,7 +387,7 @@ window.AppPermissions = (() => {
         "product_view","product_create","product_edit","product_delete",
         "stock_init_view","stock_init_create","stock_init_edit",
         "stock_move_view","stock_move_create",
-        "po_view","po_create",
+        "po_view","po_create","po_receive",
         "req_view","req_create",
         "report_stock_view",
       ],

@@ -100,8 +100,7 @@ html.headless > body { /* override sidebar shell flex layout */ }
 .badge-approved  { background:#dcfce7;    color:#166534;       border:1px solid #86efac; }
 .badge-pending   { background:#fef3c7;    color:#92400e;       border:1px solid #fcd34d; }
 .badge-cancelled { background:#fee2e2;    color:#991b1b;       border:1px solid #fca5a5; }
-.badge-dispensed { background:#dbeafe;    color:#1e40af;       border:1px solid #93c5fd; }
-.badge-completed { background:#e0e7ff;    color:#3730a3;       border:1px solid #a5b4fc; }
+.badge-issued    { background:#dbeafe;    color:#1e40af;       border:1px solid #93c5fd; }
 
 /* FORM grid + input-prefix (form-group/form-label/form-control inherited from common.css) */
 .form-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
@@ -483,30 +482,36 @@ textarea.form-control { resize:vertical; min-height:80px; line-height:1.6; }
 
 /* PRINT — strip everything except the doc */
 @media print {
-  @page { size:A4; margin:0; }
+  @page { size:A4; margin:12mm; }
   html, body { margin:0 !important; padding:0 !important; background:#fff !important; height:auto !important; }
-  /* ซ่อน chrome + element อื่น ๆ ทั้งหมด */
   body > *:not(.preview-overlay) { display:none !important; }
   .topbar, #erp-sidebar, #sb-overlay, .sb-hamburger,
   .page, .form-footer, .preview-toolbar,
   .loading-overlay, .toast { display:none !important; }
-  /* preview overlay → ใช้ display:contents ให้ req-doc กลายเป็น direct child ของ body */
   .preview-overlay {
     display:contents !important;
     background:transparent !important;
   }
   .req-doc {
     width:auto !important;
-    height:297mm !important;                   /* A4 height → ดัน signatures ไปก้นหน้า */
+    min-height:auto !important;                /* ไม่ fix height → ไหลข้ามหน้าได้ */
     max-width:none !important;
-    box-shadow:none !important; padding:12mm 12mm !important; margin:0 !important;
-    display:flex !important; flex-direction:column !important;
+    box-shadow:none !important; padding:0 !important; margin:0 !important;
+    display:block !important;                  /* เลิก flex column ให้ content flow ปกติ */
     -webkit-print-color-adjust:exact;
     print-color-adjust:exact;
   }
-  .req-doc-signatures { margin-top:auto !important; }   /* flex auto → ดันลงล่างสุด */
-  .req-doc-footer-note { margin-top:8mm !important; }
-  .req-doc-table tr { page-break-inside:avoid; }
+  /* table: thead repeat ทุกหน้า + row ห้ามตัดกลาง */
+  .req-doc-table { page-break-inside:auto; }
+  .req-doc-table thead { display:table-header-group; }
+  .req-doc-table tfoot { display:table-footer-group; }
+  .req-doc-table tr { page-break-inside:avoid; page-break-after:auto; }
+  /* signatures + footer-note ห้ามตัดกลาง — ดันลงหน้าใหม่ทั้งก้อนถ้าจำเป็น */
+  .req-doc-signatures { page-break-inside:avoid; margin-top:14mm !important; }
+  .req-doc-footer-note { page-break-inside:avoid; margin-top:8mm !important; }
+  /* doc-header ห้ามตัด */
+  .req-doc-header { page-break-inside:avoid; }
+  .req-doc-info { page-break-inside:avoid; }
 }
 </style>
 </head>

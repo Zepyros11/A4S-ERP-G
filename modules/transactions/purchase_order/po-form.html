@@ -1,319 +1,561 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="th">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ระบบออกใบสั่งซื้อ (Purchase Order)</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<title>ใบสั่งซื้อ — Purchase Order</title>
+<!-- Headless mode: ตั้ง class ก่อน sidebar.js โหลด เพื่อกัน chrome แสดง -->
+<script>
+  if (new URLSearchParams(location.search).get('headless') === '1') {
+    document.documentElement.classList.add('headless');
+  }
+</script>
 <link rel="stylesheet" href="../../../css/main.css">
-<link rel="stylesheet" href="./po_form.css">
+<style>
+.page { max-width:960px; margin:0 auto; padding:32px 24px 100px; }
+
+/* PAGE-HERO actions */
+.page-hero-actions .po-status-badge { align-self:center; }
+
+/* HERO เลขที่ PO — badge บน, label+input ล่าง */
+.hero-po-no {
+  display:flex; flex-direction:column; align-items:stretch;
+  gap:8px; flex:1;
+}
+.hero-status-row { display:flex; justify-content:flex-end; }
+.hero-po-no-row {
+  display:flex; align-items:center; gap:10px; flex-wrap:wrap; justify-content:flex-end;
+}
+.hero-po-no-label {
+  font-size:12px; font-weight:700; letter-spacing:.3px; margin:0;
+  color:rgba(255,255,255,.92); white-space:nowrap;
+}
+.hero-po-no-label .required { color:#fecaca; }
+.hero-po-no .input-prefix {
+  background:var(--surface); width:auto;
+  border-color:rgba(255,255,255,.45);
+  box-shadow:0 2px 6px rgba(0,0,0,.08);
+}
+.hero-po-no .input-prefix-text { padding:7px 10px; font-size:12px; }
+.hero-po-no .form-control { padding:7px 10px; font-size:13px; width:80px; }
+
+.page-hero.v-bold .po-status-badge.badge-draft {
+  background:rgba(255,255,255,.92); color:var(--text); border:1px solid rgba(255,255,255,.6);
+}
+.hero-status-row .po-status-badge {
+  padding:3px 9px; font-size:10.5px; letter-spacing:.4px;
+}
+
+/* HEADLESS MODE */
+html.headless .topbar,
+html.headless #erp-sidebar,
+html.headless #sb-overlay,
+html.headless .sb-hamburger,
+html.headless #sidebar-container,
+html.headless .sidebar,
+html.headless .page-hero,
+html.headless .section-card,
+html.headless .form-footer { display:none !important; }
+html.headless body { background:#fff; margin:0; padding:0; }
+html.headless .page { padding:0; max-width:none; margin:0; }
+
+/* SUPPLIER cards — pill style */
+.supplier-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:8px; }
+.supplier-card {
+  background:var(--surface); border:1.5px solid var(--border); border-radius:10px;
+  padding:9px 12px; cursor:pointer; transition:all .15s;
+  display:flex; align-items:center; gap:8px; line-height:1.2;
+}
+.supplier-card:hover { border-color:var(--accent); background:var(--accent-pale); }
+.supplier-card.active { border-color:var(--accent); background:var(--accent-pale); box-shadow:0 0 0 3px rgba(var(--accent-rgb),.1); }
+.supplier-card .sup-icon { font-size:14px; line-height:1; }
+.supplier-card .sup-label { font-size:13px; font-weight:500; color:var(--text); flex:1; min-width:0; }
+.supplier-card.active .sup-label { color:var(--accent); font-weight:600; }
+.supplier-grid-empty { color:var(--text3); font-size:12px; padding:8px; font-style:italic; }
+
+/* WAREHOUSE cards */
+.warehouse-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(140px, 1fr)); gap:8px; }
+.warehouse-card {
+  background:var(--surface); border:1.5px solid var(--border); border-radius:10px;
+  padding:9px 12px; cursor:pointer; transition:all .15s;
+  display:flex; align-items:center; justify-content:center; gap:6px; line-height:1.2;
+}
+.warehouse-card:hover { border-color:var(--accent); background:var(--accent-pale); }
+.warehouse-card.active { border-color:var(--accent); background:var(--accent-pale); box-shadow:0 0 0 3px rgba(var(--accent-rgb),.1); }
+.warehouse-card .wh-icon { font-size:14px; line-height:1; }
+.warehouse-card .wh-label { font-size:13px; font-weight:500; color:var(--text); }
+.warehouse-card.active .wh-label { color:var(--accent); font-weight:600; }
+.warehouse-card.is-child { background:var(--surface-soft); }
+.warehouse-card.is-child .wh-icon { color:var(--text3); font-size:13px; }
+.warehouse-card.is-child .wh-label { font-size:12.5px; color:var(--text2); }
+.warehouse-grid-empty { color:var(--text3); font-size:12px; padding:8px; font-style:italic; }
+
+/* STATUS BADGES */
+.po-status-badge { padding:5px 12px; border-radius:20px; font-size:12px; font-weight:700; letter-spacing:.5px; }
+.badge-draft     { background:var(--bg);  color:var(--text2);  border:1px solid var(--border2); }
+.badge-approved  { background:#fef3c7;    color:#92400e;       border:1px solid #fcd34d; }
+.badge-received  { background:#dcfce7;    color:#166534;       border:1px solid #86efac; }
+.badge-cancelled { background:#fee2e2;    color:#991b1b;       border:1px solid #fca5a5; }
+
+/* FORM grid + input-prefix */
+.form-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+.input-prefix { display:flex; align-items:center; border:1.5px solid var(--border); border-radius:7px; overflow:hidden; transition:all .18s; }
+.input-prefix:focus-within { border-color:var(--accent); box-shadow:0 0 0 3px rgba(var(--accent-rgb),.08); }
+.input-prefix-text { padding:10px 12px; background:var(--surface2); font-size:13px; color:var(--text2); border-right:1.5px solid var(--border); white-space:nowrap; }
+.input-prefix .form-control { border:none; border-radius:0; box-shadow:none; flex:1; }
+
+/* SUB-BLOCK */
+.form-block { padding:18px 0; border-bottom:1px solid var(--border); }
+.form-block:first-child { padding-top:0; }
+.form-block:last-child  { padding-bottom:0; border-bottom:none; }
+.form-block-head { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; margin-bottom:12px; }
+.form-block-title {
+  font-size:13px; font-weight:700; color:var(--accent);
+  display:flex; align-items:center; gap:7px;
+  padding-left:10px; border-left:3px solid var(--accent);
+}
+.form-block-title .required { color:var(--danger); margin-left:3px; }
+.form-block-sub { font-size:11.5px; color:var(--text3); font-weight:500; }
+
+/* PRODUCT THUMBNAIL */
+.prod-thumb {
+  width:36px; height:36px; flex-shrink:0;
+  border:1px solid var(--border); border-radius:6px;
+  background:var(--surface);
+  display:inline-flex; align-items:center; justify-content:center;
+  overflow:hidden; vertical-align:middle;
+}
+.prod-thumb img { width:100%; height:100%; object-fit:cover; display:block; }
+.prod-thumb.is-clickable { cursor:zoom-in; }
+.prod-thumb.is-clickable:hover { transform:scale(1.08); border-color:var(--accent); }
+.po-doc-table .prod-thumb { width:30px; height:30px; cursor:default; }
+
+/* FORM INFO GRID */
+.info-grid-form {
+  display:grid; grid-template-columns:2fr 1fr; gap:0;
+  border:1.5px solid var(--border); border-radius:8px; overflow:hidden;
+  background:var(--surface-soft);
+}
+.info-cell-form {
+  padding:14px 16px;
+  border-bottom:1px solid var(--border); border-right:1px solid var(--border);
+  background:var(--surface);
+  display:flex; flex-direction:column; gap:8px;
+}
+.info-cell-form:nth-child(2n) { border-right:none; }
+.info-cell-label {
+  font-size:12px; font-weight:700; color:var(--accent);
+  letter-spacing:.3px;
+  padding-left:8px; border-left:3px solid var(--accent);
+}
+.info-cell-label .required { color:var(--danger); margin-left:3px; }
+
+@media (max-width:720px) {
+  .info-grid-form { grid-template-columns:1fr; }
+  .info-cell-form { border-right:none; }
+}
+
+/* ITEMS TABLE */
+.items-table-wrap { border:1px solid var(--border); border-radius:8px; overflow:hidden; background:var(--surface); }
+.items-table { width:100%; border-collapse:collapse; font-size:13px; }
+.items-table th { background:var(--surface-soft); padding:10px 12px; text-align:left; font-size:12px; color:var(--text2); border-bottom:1.5px solid var(--border); }
+.items-table th.text-right, .items-table td.text-right { text-align:right; }
+.items-table th.text-center, .items-table td.text-center { text-align:center; }
+.items-table td { padding:10px 12px; border-bottom:1px solid var(--border); }
+.items-table tr:last-child td { border-bottom:none; }
+.item-num { display:inline-flex; width:24px; height:24px; align-items:center; justify-content:center; border-radius:50%; background:var(--accent-pale); color:var(--accent); font-size:11px; font-weight:700; }
+.td-input { width:100%; padding:7px 10px; border:1.5px solid var(--border); border-radius:6px; font-size:13px; background:var(--surface); }
+.td-input:focus { outline:none; border-color:var(--accent); box-shadow:0 0 0 3px rgba(var(--accent-rgb),.08); }
+.text-right { text-align:right; }
+.btn-remove { padding:4px 10px; border-radius:6px; background:#fee2e2; color:#991b1b; border:none; cursor:pointer; font-size:12px; font-weight:600; }
+.btn-remove:hover { background:#fecaca; }
+.btn-add-row {
+  width:100%; padding:12px; border:2px dashed var(--border); border-radius:8px;
+  background:transparent; color:var(--text2); cursor:pointer; font-size:13px; font-weight:600;
+  margin-top:8px; transition:all .15s;
+}
+.btn-add-row:hover { border-color:var(--accent); color:var(--accent); background:var(--accent-pale); }
+
+/* COMBO (searchable product picker) */
+.combo { position:relative; width:100%; display:flex; align-items:center; gap:6px; }
+.combo-input { flex:1; min-width:0; }
+.row-stock-badge { flex-shrink:0; }
+.row-stock-badge:empty { display:none; }
+.row-stock-badge .combo-stock { padding:3px 10px; font-size:11.5px; }
+.combo-portal {
+  position:fixed; display:none;
+  background:var(--surface); border:1.5px solid var(--accent); border-radius:7px;
+  max-height:280px; overflow-y:auto; z-index:1000;
+  box-shadow:0 8px 24px rgba(0,0,0,.15); font-size:13px;
+}
+.combo-portal.open { display:block; }
+.combo-item {
+  padding:8px 12px; cursor:pointer;
+  display:flex; gap:8px; align-items:baseline;
+  border-bottom:1px solid var(--border);
+}
+.combo-item:last-child { border-bottom:none; }
+.combo-item:hover, .combo-item.kbd-active { background:var(--accent-pale); }
+.combo-item .combo-name { color:var(--text); flex:1; }
+.combo-empty { padding:14px; color:var(--text3); font-style:italic; text-align:center; font-size:12px; }
+
+.combo-stock {
+  display:inline-flex; align-items:center;
+  padding:2px 9px; border-radius:999px;
+  font-size:11px; font-weight:700; white-space:nowrap;
+  font-family:'IBM Plex Mono', monospace; flex-shrink:0;
+}
+.combo-stock.has  { background:var(--accent-pale); color:var(--accent); }
+.combo-stock.low  { background:#fef3c7;            color:#92400e; }
+.combo-stock.zero { background:var(--bg);          color:var(--text3); border:1px solid var(--border); }
+.combo-stock.neg  { background:#fee2e2;            color:#991b1b; }
+
+/* SUMMARY */
+.summary-row { display:flex; justify-content:flex-end; gap:24px; padding:14px 4px 0; font-size:13px; }
+.summary-row .label { color:var(--text2); }
+.summary-row .value { color:var(--text); font-weight:700; font-family:'IBM Plex Mono', monospace; }
+.summary-total { font-size:16px; color:var(--accent); font-weight:700; }
+
+/* FOOTER */
+.form-footer {
+  position:fixed; bottom:0; left:0; right:0; z-index:50;
+  display:flex; justify-content:space-between; align-items:center;
+  padding:12px 20px; background:var(--surface); border-top:1px solid var(--border);
+  box-shadow:0 -4px 12px rgba(0,0,0,.06);
+}
+.footer-left { display:flex; gap:10px; }
+.footer-right { display:flex; gap:10px; }
+.btn { padding:8px 16px; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; border:1px solid transparent; transition:all .15s; display:inline-flex; align-items:center; gap:6px; }
+.btn-outline { background:var(--surface); color:var(--text2); border-color:var(--border); }
+.btn-outline:hover { background:var(--surface-soft); }
+.btn-danger-outline { background:var(--surface); color:#991b1b; border-color:#fca5a5; }
+.btn-danger-outline:hover { background:#fee2e2; }
+.btn-warning { background:#fef3c7; color:#92400e; border-color:#fcd34d; }
+.btn-warning:hover { background:#fde68a; }
+.btn-success { background:linear-gradient(135deg, #5b8a6e, #3d6b4f); color:#fff; }
+.btn-success:hover { filter:brightness(1.05); }
+
+/* PREVIEW OVERLAY (printable A4 doc) */
+.preview-overlay {
+  position:fixed; inset:0; z-index:9999;
+  background:rgba(15,23,30,.55);
+  display:none; flex-direction:column; align-items:center;
+  overflow-y:auto; padding:24px 16px 40px;
+}
+.preview-overlay.open { display:flex; }
+.preview-toolbar {
+  position:fixed; top:80px; right:calc(50% + 105mm + 12px); z-index:10000;
+  width:150px; background:var(--surface); border:1px solid var(--border); border-radius:10px;
+  padding:12px 14px; display:flex; flex-direction:column; gap:10px;
+}
+.preview-toolbar .toolbar-title { font-size:12.5px; font-weight:700; color:var(--text2); text-align:center; padding-bottom:8px; border-bottom:1px solid var(--border); }
+.preview-toolbar .toolbar-actions { display:flex; flex-direction:column; gap:8px; }
+.preview-toolbar .btn { width:100%; justify-content:center; }
+@media (max-width:1100px) { .preview-toolbar { right:20px; } }
+@media (max-width:760px) {
+  .preview-toolbar { position:fixed; top:auto; bottom:16px; left:16px; right:16px; width:auto; flex-direction:row; }
+  .preview-toolbar .toolbar-title { display:none; }
+  .preview-toolbar .toolbar-actions { flex-direction:row; flex:1; }
+}
+
+/* A4 document */
+.po-doc {
+  background:#fff;
+  width:210mm; min-height:297mm;
+  padding:18mm 16mm;
+  box-shadow:0 12px 40px rgba(0,0,0,.25);
+  font-family:'Sarabun',sans-serif;
+  font-size:13px; color:#1f2933; line-height:1.55;
+  box-sizing:border-box;
+  display:flex; flex-direction:column;
+}
+.po-doc * { box-sizing:border-box; }
+.po-doc-signatures { margin-top:auto; }
+
+.po-doc-header {
+  display:grid; grid-template-columns:84px 1fr auto;
+  align-items:center; gap:18px;
+  padding-bottom:14px; margin-bottom:18px;
+  border-bottom:2px solid #1f2933;
+}
+.po-doc-logo {
+  width:84px; height:84px; border:1px solid #cbd2d9; border-radius:10px;
+  background:#fff; display:flex; align-items:center; justify-content:center; overflow:hidden;
+}
+.po-doc-logo img { max-width:72px; max-height:72px; object-fit:contain; display:block; }
+.po-doc-company-th { font-size:16px; font-weight:700; color:#1f2933; }
+.po-doc-company-en { font-size:11px; color:#52606d; letter-spacing:.5px; margin-top:2px; }
+.po-doc-title-block { text-align:right; min-width:210px; }
+.po-doc-title { font-size:20px; font-weight:800; color:#1f2933; letter-spacing:1px; }
+.po-doc-title-en { font-size:11px; color:#52606d; letter-spacing:1.5px; margin-top:1px; }
+.po-doc-meta { margin-top:10px; font-size:12px; color:#1f2933; text-align:right; }
+.po-doc-meta-row { display:flex; justify-content:flex-end; gap:8px; margin-top:2px; }
+.po-doc-meta-row b { color:#52606d; font-weight:600; min-width:60px; text-align:left; }
+.po-doc-meta-row span { font-family:'IBM Plex Mono',monospace; font-weight:700; min-width:120px; text-align:right; }
+
+.po-doc-info {
+  display:grid; grid-template-columns:1fr 1fr;
+  border:1px solid #cbd2d9; border-radius:6px; overflow:hidden;
+  margin-bottom:18px;
+}
+.po-doc-info-cell {
+  padding:8px 12px; border-bottom:1px solid #cbd2d9; border-right:1px solid #cbd2d9;
+  display:flex; gap:8px;
+}
+.po-doc-info-cell:nth-child(2n) { border-right:none; }
+.po-doc-info-cell:nth-last-child(-n+2) { border-bottom:none; }
+.po-doc-info-label { font-size:11px; font-weight:600; color:#52606d; min-width:90px; }
+.po-doc-info-value { font-size:13px; color:#1f2933; font-weight:500; flex:1; }
+
+.po-doc-table { width:100%; border-collapse:collapse; margin-bottom:12px; font-size:12px; }
+.po-doc-table th {
+  background:#1f2933; color:#fff;
+  padding:8px 10px; text-align:left; font-weight:700;
+  border:1px solid #1f2933;
+}
+.po-doc-table th.text-right, .po-doc-table td.text-right { text-align:right; }
+.po-doc-table th.text-center, .po-doc-table td.text-center { text-align:center; }
+.po-doc-table td { padding:8px 10px; border:1px solid #cbd2d9; }
+
+.po-doc-total-row { display:flex; justify-content:flex-end; padding:8px 12px; font-size:13px; font-weight:700; }
+.po-doc-total-row b { color:#1f2933; margin-right:12px; }
+.po-doc-total-row span { color:#1f2933; font-family:'IBM Plex Mono', monospace; min-width:140px; text-align:right; }
+
+.po-doc-signatures { display:grid; grid-template-columns:repeat(3, 1fr); gap:16px; margin-top:auto; padding-top:24px; }
+.sig-box { text-align:center; }
+.sig-line { border-bottom:1px solid #1f2933; height:48px; }
+.sig-label { font-weight:700; color:#1f2933; font-size:12px; margin-top:4px; }
+.sig-sub { font-size:10.5px; color:#52606d; margin-top:2px; }
+
+.po-doc-footer-note {
+  margin-top:24px; padding-top:10px; border-top:1px dashed #cbd2d9;
+  font-size:10px; color:#9aa5b1; text-align:center; letter-spacing:.4px;
+}
+
+/* PRINT — strip everything except the doc, support multi-page */
+@media print {
+  @page { size:A4; margin:12mm; }
+  html, body { margin:0 !important; padding:0 !important; background:#fff !important; height:auto !important; }
+  body > *:not(.preview-overlay) { display:none !important; }
+  .topbar, #erp-sidebar, #sb-overlay, .sb-hamburger,
+  .page, .form-footer, .preview-toolbar,
+  .loading-overlay, .toast { display:none !important; }
+  .preview-overlay { display:contents !important; background:transparent !important; }
+  .po-doc {
+    width:auto !important; min-height:auto !important; max-width:none !important;
+    box-shadow:none !important; padding:0 !important; margin:0 !important;
+    display:block !important;
+    -webkit-print-color-adjust:exact; print-color-adjust:exact;
+  }
+  .po-doc-table { page-break-inside:auto; }
+  .po-doc-table thead { display:table-header-group; }
+  .po-doc-table tr { page-break-inside:avoid; page-break-after:auto; }
+  .po-doc-signatures { page-break-inside:avoid; margin-top:14mm !important; }
+  .po-doc-footer-note { page-break-inside:avoid; margin-top:8mm !important; }
+  .po-doc-header, .po-doc-info { page-break-inside:avoid; }
+}
+</style>
 </head>
 <body>
+
 <div class="loading-overlay" id="loadingOverlay"><div class="spinner"></div></div>
 <div class="toast" id="toast"></div>
 
 <div class="topbar"></div>
+
 <div class="page">
-  <div class="status-bar no-print">
-    <div class="step active"><div class="step-circle">1</div><div class="step-label">กรอกข้อมูล</div></div>
-    <div class="step-line"></div>
-    <div class="step pending"><div class="step-circle">2</div><div class="step-label">รออนุมัติ</div></div>
-    <div class="step-line"></div>
-    <div class="step pending"><div class="step-circle">3</div><div class="step-label">อนุมัติแล้ว</div></div>
-    <div class="step-line"></div>
-    <div class="step pending"><div class="step-circle">4</div><div class="step-label">รับของเข้าคลัง</div></div>
-    <div class="step-line"></div>
-    <div class="step pending"><div class="step-circle">&#10003;</div><div class="step-label">เสร็จสิ้น</div></div>
-  </div>
 
-  <div class="card po-cover-card">
-    <div class="card-body">
-      <div class="po-header">
-        <div class="po-brand-block" aria-label="A4S Logo">
-          <div class="po-number-label">เลขที่เอกสาร</div>
-          <div class="po-number-value" id="poNumberDisplay">PO-2026-001</div>
-        </div>
-        <div class="po-company-block">
-          <div class="po-company-name" id="companyNameDisplay">บริษัทเอโฟร์เอส แคน คอร์ปอเรชั่น จำกัด</div>
-          <div class="po-company-subname" id="companyNameEnDisplay">A4S CAN CORPORATION CO., LTD.</div>
-        </div>
-        <div class="po-header-side">
-          <div class="po-company-meta-card">
-            <div class="po-company-meta-title">ข้อมูลบริษัท</div>
-            <div class="po-company-meta-line" id="companyAddressDisplay">88/88 ถนนตัวอย่าง แขวงตัวอย่าง เขตตัวอย่าง กรุงเทพมหานคร 10200</div>
-            <div class="po-company-meta-line">
-              <span>เลขผู้เสียภาษี:</span>
-              <strong id="companyTaxIdDisplay">0105559999999</strong>
-            </div>
-            <div class="po-company-meta-line">
-              <span>โทร:</span>
-              <span id="companyPhoneDisplay">02-123-4567</span>
-            </div>
-            <div class="po-company-meta-line">
-              <span>อีเมล:</span>
-              <span id="companyEmailDisplay">procurement@a4scan.example</span>
-            </div>
-          </div>
+  <!-- PAGE HERO (sage gradient bold) -->
+  <div class="page-hero v-bold">
+    <div>
+      <h1 class="page-hero-title">🧾 ใบสั่งซื้อ</h1>
+      <p class="page-hero-sub">Purchase Order · กรอกข้อมูลสั่งซื้อจาก supplier</p>
+    </div>
+    <div class="page-hero-actions hero-po-no">
+      <div class="hero-status-row">
+        <span class="po-status-badge badge-draft" id="statusBadge">● DRAFT</span>
+      </div>
+      <div class="hero-po-no-row">
+        <label class="form-label hero-po-no-label">เลขที่ <span class="required">*</span></label>
+        <div class="input-prefix">
+          <span class="input-prefix-text" id="poPrefix">PO-2026-01-</span>
+          <input type="text" class="form-control" id="poNumber" placeholder="001" value="001">
         </div>
       </div>
-
-      <div class="po-form-stack">
-        <section class="form-section form-section-split form-section-intro">
-          <div class="section-column">
-            <div class="section-heading-row">
-              <h2 class="section-heading">2. ข้อมูลผู้ขาย (Vendor / Supplier)</h2>
-              <p class="section-caption">เลือกจากระบบหรือกรอกรายละเอียดเพิ่มเติม</p>
-            </div>
-            <div class="form-grid">
-              <div class="form-group">
-                <label class="form-label">Supplier จากระบบ <span class="required">*</span></label>
-                <select class="form-control" id="supplierId">
-                  <option value="">เลือก Supplier</option>
-                </select>
-              </div>
-              <div class="form-group">
-                <label class="form-label">ชื่อบริษัท / ร้านค้า</label>
-                <input type="text" class="form-control" id="vendorName" placeholder="ชื่อบริษัทหรือร้านค้า">
-              </div>
-              <div class="form-group col-span-2">
-                <label class="form-label">ที่อยู่</label>
-                <textarea class="form-control textarea-compact" id="vendorAddress" placeholder="ที่อยู่ผู้ขายหรือร้านค้า"></textarea>
-              </div>
-              <div class="form-group">
-                <label class="form-label">เบอร์โทร / อีเมล</label>
-                <input type="text" class="form-control" id="vendorContact" placeholder="โทรศัพท์หรืออีเมล">
-              </div>
-              <div class="form-group">
-                <label class="form-label">เลขผู้เสียภาษี</label>
-                <input type="text" class="form-control" id="vendorTaxId" placeholder="เลขประจำตัวผู้เสียภาษี">
-              </div>
-            </div>
-          </div>
-
-          <div class="section-column">
-            <div class="section-heading-row">
-              <h2 class="section-heading">1. ข้อมูลพื้นฐานของเอกสาร</h2>
-              <p class="section-caption">ข้อมูลอ้างอิงหลักของใบสั่งซื้อ</p>
-            </div>
-            <div class="form-grid form-grid-basic">
-              <div class="form-group">
-                <label class="form-label">เลขที่เอกสาร (PO Number) <span class="required">*</span></label>
-                <div class="input-prefix">
-                  <span class="input-prefix-text" id="poPrefix">PO-2026-</span>
-                  <input type="text" class="form-control" id="poNumber" placeholder="001" value="001" oninput="syncPoNumber(this.value)">
-                </div>
-              </div>
-              <div class="form-group">
-                <label class="form-label">วันที่ออกเอกสาร <span class="required">*</span></label>
-                <input type="date" class="form-control" id="orderDate">
-              </div>
-              <div class="form-group">
-                <label class="form-label">วันที่ต้องการรับสินค้า / บริการ</label>
-                <input type="date" class="form-control" id="expectedDate">
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section class="form-section form-section-split">
-          <div class="section-column">
-            <div class="section-heading-row">
-              <h2 class="section-heading">5. เงื่อนไขการจัดส่ง</h2>
-              <p class="section-caption">กำหนดปลายทางและผู้รับสินค้า</p>
-            </div>
-            <div class="form-grid">
-              <div class="form-group">
-                <label class="form-label">คลังรับสินค้า <span class="required">*</span></label>
-                <select class="form-control" id="warehouseId">
-                  <option value="">เลือกคลัง</option>
-                </select>
-              </div>
-              <div class="form-group">
-                <label class="form-label">ผู้รับสินค้า</label>
-                <input type="text" class="form-control" id="receivedBy" placeholder="ชื่อผู้รับสินค้า">
-              </div>
-              <div class="form-group col-span-2">
-                <label class="form-label">สถานที่จัดส่ง</label>
-                <textarea class="form-control textarea-compact" id="deliveryLocation" placeholder="สถานที่จัดส่งสินค้า"></textarea>
-              </div>
-              <div class="form-group col-span-2">
-                <label class="form-label">วิธีการจัดส่ง</label>
-                <input type="text" class="form-control" id="deliveryMethod" placeholder="เช่น รถบริษัท, ขนส่งเอกชน, รับเอง">
-              </div>
-            </div>
-          </div>
-
-          <div class="section-column">
-            <div class="section-heading-row">
-              <h2 class="section-heading">6. เงื่อนไขการชำระเงิน</h2>
-              <p class="section-caption">กำหนดรูปแบบและระยะเวลาชำระเงิน</p>
-            </div>
-            <div class="form-grid">
-              <div class="form-group">
-                <label class="form-label">เงินสด / เครดิต</label>
-                <select class="form-control" id="paymentTermType">
-                  <option value="เงินสด">เงินสด</option>
-                  <option value="เครดิต">เครดิต</option>
-                </select>
-              </div>
-              <div class="form-group">
-                <label class="form-label">จำนวนวันเครดิต</label>
-                <input type="number" class="form-control" id="creditDays" min="0" step="1" value="0" placeholder="0">
-              </div>
-              <div class="form-group col-span-2">
-                <label class="form-label">วิธีการชำระเงิน</label>
-                <input type="text" class="form-control" id="paymentMethod" placeholder="เช่น โอนเงิน, เช็ค, เงินสด">
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section class="form-section">
-          <div class="section-heading-row">
-            <h2 class="section-heading">8. การอนุมัติ / ลายเซ็น</h2>
-            <p class="section-caption">ข้อมูลผู้จัดทำและผู้อนุมัติเอกสาร</p>
-          </div>
-          <div class="form-grid">
-            <div class="form-group">
-              <label class="form-label">ผู้จัดทำ</label>
-              <select class="form-control" id="createdBy">
-                <option value="">เลือกผู้ใช้งาน</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label class="form-label">วันที่จัดทำ</label>
-              <input type="date" class="form-control" id="preparedDate">
-            </div>
-            <div class="form-group">
-              <label class="form-label">ผู้อนุมัติ</label>
-              <select class="form-control" id="approvedBy">
-                <option value="">เลือกผู้อนุมัติ</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label class="form-label">วันที่อนุมัติ</label>
-              <input type="date" class="form-control" id="approvedDate">
-            </div>
-          </div>
-
-          <div class="signature-grid">
-            <div class="signature-box">
-              <div class="signature-line"></div>
-              <div class="signature-title">ลายเซ็นผู้จัดทำ</div>
-              <div class="signature-meta">Prepared By</div>
-            </div>
-            <div class="signature-box">
-              <div class="signature-line"></div>
-              <div class="signature-title">ลายเซ็นผู้อนุมัติ</div>
-              <div class="signature-meta">Approved By</div>
-            </div>
-          </div>
-        </section>
-      </div>
+      <span id="poNumberDisplay" hidden></span>
     </div>
   </div>
 
-  <div class="card po-items-card">
-    <div class="card-header">
-      <div class="card-title"><div class="card-title-icon">📦</div>3. รายละเอียดสินค้า / บริการ</div>
-      <div class="card-meta" id="itemCount">0 รายการ</div>
+  <div class="section-card">
+
+    <!-- 1) Supplier (card picker) -->
+    <div class="form-block">
+      <div class="form-block-head">
+        <div class="form-block-title">🏭 Supplier <span class="required">*</span></div>
+      </div>
+      <div class="supplier-grid" id="supplierGrid"></div>
+      <input type="hidden" id="supplierId" value="">
     </div>
-    <div class="card-body">
+
+    <!-- 2) Info grid: order_date / expected_date / note (none in DB, skip) -->
+    <div class="form-block">
+      <div class="info-grid-form">
+        <div class="info-cell-form">
+          <div class="info-cell-label">วันที่สั่งซื้อ <span class="required">*</span></div>
+          <input type="date" class="form-control" id="orderDate">
+        </div>
+        <div class="info-cell-form">
+          <div class="info-cell-label">กำหนดรับ</div>
+          <input type="date" class="form-control" id="expectedDate">
+        </div>
+      </div>
+    </div>
+
+    <!-- 3) Warehouse cards (รับเข้าคลัง) -->
+    <div class="form-block">
+      <div class="form-block-head">
+        <div class="form-block-title">🏬 คลังรับของ <span class="required">*</span></div>
+      </div>
+      <div class="warehouse-grid" id="warehouseGrid"></div>
+      <input type="hidden" id="warehouseId" value="">
+    </div>
+
+    <!-- 4) Items -->
+    <div class="form-block">
+      <div class="form-block-head">
+        <div class="form-block-title">📋 รายการสินค้าที่สั่งซื้อ <span class="required">*</span></div>
+        <div class="form-block-sub" id="itemCount">0 รายการ</div>
+      </div>
       <div class="items-table-wrap">
         <table class="items-table">
           <thead>
             <tr>
               <th style="width:40px">#</th>
-              <th style="min-width:300px">ชื่อสินค้า / รายละเอียด <span style="color:var(--danger)">*</span></th>
-              <th style="width:110px">จำนวน</th>
-              <th style="width:130px">หน่วย</th>
-              <th style="width:140px">ราคาต่อหน่วย</th>
-              <th style="width:140px">ราคารวม</th>
-              <th style="width:40px"></th>
+              <th class="text-center" style="width:52px">ภาพ</th>
+              <th>สินค้า <span class="required">*</span></th>
+              <th class="text-right" style="width:110px">จำนวน <span class="required">*</span></th>
+              <th class="text-right" style="width:130px">ราคา/หน่วย <span class="required">*</span></th>
+              <th class="text-right" style="width:140px">ยอดรวม</th>
+              <th class="text-center" style="width:60px"></th>
             </tr>
           </thead>
           <tbody id="itemsBody"></tbody>
         </table>
       </div>
-      <button class="btn-add-row" type="button" onclick="addItemRow()">+ เพิ่มรายการสินค้า</button>
+      <button class="btn-add-row" onclick="addItemRow()">+ เพิ่มรายการสินค้า</button>
 
-      <div class="summary-heading">4. สรุปราคา</div>
-      <div class="summary-block">
-        <div class="summary-table">
-          <div class="summary-row">
-            <span class="summary-label">ยอดรวม (Subtotal)</span>
-            <span class="summary-value" id="subtotalDisplay">฿0.00</span>
-          </div>
-          <div class="summary-row summary-row-edit">
-            <span class="summary-label">ส่วนลด</span>
-            <label class="summary-inline-input">
-              <span>฿</span>
-              <input type="number" id="additionalDiscount" min="0" step="0.01" value="0" oninput="calcTotal()">
-            </label>
-          </div>
-          <div class="summary-row" id="vatRow">
-            <label class="vat-toggle-label">
-              <div class="vat-checkbox-wrap">
-                <input type="checkbox" id="vatToggle" checked onchange="calcTotal()">
-                <span class="vat-checkmark"></span>
-              </div>
-              <span class="summary-label">ภาษีมูลค่าเพิ่ม (VAT 7%)</span>
-            </label>
-            <span class="summary-value" id="vatDisplay">฿0.00</span>
-          </div>
-          <div class="summary-row summary-total">
-            <span class="summary-label">ยอดสุทธิ (Total Amount)</span>
-            <span class="summary-value" id="totalDisplay">฿0.00</span>
-          </div>
-        </div>
+      <div class="summary-row">
+        <div><span class="label">รวมรายการ:</span> <span class="value" id="totalItemsDisplay">0 รายการ</span></div>
+        <div><span class="label">รวมจำนวน:</span> <span class="value" id="totalQtyDisplay">0 ชิ้น</span></div>
+        <div><span class="label">ยอดรวม:</span> <span class="value summary-total" id="totalAmountDisplay">฿0.00</span></div>
       </div>
     </div>
+
   </div>
 
-  <div class="card po-note-card">
-    <div class="card-header">
-      <div class="card-title"><div class="card-title-icon">📝</div>7. หมายเหตุเพิ่มเติม (Optional)</div>
-    </div>
-    <div class="card-body">
-      <div class="form-grid">
-        <div class="form-group">
-          <label class="form-label">เงื่อนไขพิเศษ</label>
-          <textarea class="form-control textarea-tall" id="specialConditions" placeholder="เงื่อนไขพิเศษ, ข้อตกลง, หรือข้อกำหนดเพิ่มเติม"></textarea>
-        </div>
-        <div class="form-group">
-          <label class="form-label">รายละเอียดเพิ่มเติม / หมายเหตุ</label>
-          <textarea class="form-control textarea-tall" id="note" placeholder="ระบุข้อความเพิ่มเติมของใบสั่งซื้อ"></textarea>
-        </div>
-      </div>
-    </div>
-  </div>
 </div>
 
-<div class="form-footer no-print">
+<!-- FOOTER -->
+<div class="form-footer">
   <div class="footer-left">
-    <button class="btn btn-danger-outline" type="button" onclick="resetForm()">ล้างข้อมูล</button>
+    <button class="btn btn-danger-outline" onclick="resetForm()">🗑 ล้างข้อมูล</button>
   </div>
   <div class="footer-right">
-    <button class="btn btn-outline" type="button" onclick="saveDraft()">บันทึก Draft</button>
-    <button class="btn btn-warning" type="button" onclick="previewPO()">Preview</button>
-    <button class="btn btn-success" type="button" onclick="submitPO()">ส่งอนุมัติ</button>
+    <button class="btn btn-outline" onclick="cancelEdit()">✕ ยกเลิก</button>
+    <button class="btn btn-outline" onclick="previewPO()">🖨 พิมพ์</button>
+    <button class="btn btn-warning" onclick="submitPO(false)">💾 บันทึก</button>
+    <button class="btn btn-success" onclick="submitPO(true)">✅ บันทึก+อนุมัติ</button>
   </div>
 </div>
 
+<!-- PREVIEW OVERLAY (A4 doc) -->
+<div class="preview-overlay" id="previewOverlay">
+  <div class="preview-toolbar">
+    <div class="toolbar-title">📄 ตัวอย่าง<br/>ใบสั่งซื้อ (A4)</div>
+    <div class="toolbar-actions">
+      <button class="btn btn-outline" onclick="closePreview()">✕ ปิด</button>
+      <button class="btn btn-success" onclick="printPO()">🖨 พิมพ์ /<br/>บันทึก PDF</button>
+    </div>
+  </div>
+  <div class="po-doc" id="poDoc">
+    <div class="po-doc-header">
+      <div class="po-doc-logo"><img id="docLogo" alt="logo"/></div>
+      <div>
+        <div class="po-doc-company-th" id="docCompanyTh">—</div>
+        <div class="po-doc-company-en" id="docCompanyEn">—</div>
+      </div>
+      <div class="po-doc-title-block">
+        <div class="po-doc-title">ใบสั่งซื้อ</div>
+        <div class="po-doc-title-en">PURCHASE ORDER</div>
+        <div class="po-doc-meta">
+          <div class="po-doc-meta-row"><b>เลขที่</b><span id="docNumber">—</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="po-doc-info">
+      <div class="po-doc-info-cell"><span class="po-doc-info-label">Supplier :</span><span class="po-doc-info-value" id="docSupplier">—</span></div>
+      <div class="po-doc-info-cell"><span class="po-doc-info-label">วันที่สั่ง :</span><span class="po-doc-info-value" id="docOrderDate">—</span></div>
+      <div class="po-doc-info-cell"><span class="po-doc-info-label">คลังรับ :</span><span class="po-doc-info-value" id="docWarehouse">—</span></div>
+      <div class="po-doc-info-cell"><span class="po-doc-info-label">กำหนดรับ :</span><span class="po-doc-info-value" id="docExpectedDate">—</span></div>
+    </div>
+
+    <table class="po-doc-table">
+      <thead>
+        <tr>
+          <th style="width:6%">#</th>
+          <th style="width:8%">ภาพ</th>
+          <th>รายการสินค้า</th>
+          <th class="text-right" style="width:14%">จำนวน</th>
+          <th class="text-right" style="width:16%">ราคา/หน่วย</th>
+          <th class="text-right" style="width:18%">ยอดรวม</th>
+        </tr>
+      </thead>
+      <tbody id="docItemsBody"></tbody>
+    </table>
+
+    <div class="po-doc-total-row">
+      <b>รวมทั้งสิ้น :</b>
+      <span id="docTotalAmount">฿0.00</span>
+    </div>
+
+    <div class="po-doc-signatures">
+      <div class="sig-box">
+        <div class="sig-line"></div>
+        <div class="sig-label">ผู้สั่งซื้อ</div>
+        <div class="sig-sub">วันที่ ____ / ____ / ____</div>
+      </div>
+      <div class="sig-box">
+        <div class="sig-line"></div>
+        <div class="sig-label">ผู้อนุมัติ</div>
+        <div class="sig-sub">วันที่ ____ / ____ / ____</div>
+      </div>
+      <div class="sig-box">
+        <div class="sig-line"></div>
+        <div class="sig-label">Supplier</div>
+        <div class="sig-sub">วันที่ ____ / ____ / ____</div>
+      </div>
+    </div>
+
+    <div class="po-doc-footer-note">เอกสารนี้สร้างโดยระบบ A4S-ERP · พิมพ์เมื่อ <span id="docPrintedAt">—</span></div>
+  </div>
+</div>
+
+<div class="combo-portal" id="comboPortal"></div>
+
 <script src="../../../js/core/auth.js"></script>
+<script src="../../../js/core/authz.js"></script>
 <script src="../../../js/core/date-format.js"></script>
+<script>AuthZ.requirePerm("po_view");</script>
 <script src="../../../js/core/responsive.js"></script>
 <script src="../../../js/components/navigation/sidebar.js"></script>
 <script type="module">
   import { loadTopbar } from "../../../js/components/navigation/topbar.js";
-
-  loadTopbar("🧾 ใบสั่งซื้อสินค้า (PO)");
+  loadTopbar("🧾 ใบสั่งซื้อ (PO)");
 </script>
-<script src="po_form.js"></script>
+<script src="../../../js/components/navigation/imgPopup.js"></script>
+<script src="po-form.js"></script>
+<script src="../../../js/components/modal/confirmModal.js"></script>
 <script src="../../../js/components/modal/modalManager.js"></script>
 </body>
 </html>
-
-
