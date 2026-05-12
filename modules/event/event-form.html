@@ -338,11 +338,11 @@
           window._imageFiles = new Array(MAX_IMGS).fill(null);
           window._imageUrls  = new Array(MAX_IMGS).fill(null);
 
-          // ── populate time selects (hour 09–18, minute 00/15/30/45) ──
+          // ── populate time selects (hour 09–22, minute 00/15/30/45) ──
           (function () {
             var hourSels = ["fStartHour", "fEndHour"].map(function(id){ return document.getElementById(id); });
             var minSels  = ["fStartMin",  "fEndMin"].map(function(id){ return document.getElementById(id); });
-            for (var h = 9; h <= 18; h++) {
+            for (var h = 9; h <= 22; h++) {
               var hh = h < 10 ? "0" + h : "" + h;
               hourSels.forEach(function (s) {
                 if (s) s.insertAdjacentHTML("beforeend", '<option value="'+hh+'">'+hh+'</option>');

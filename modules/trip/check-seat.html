@@ -305,25 +305,8 @@
     .cs-stat-card.s-nobook .cs-stat-value { color: #c2410c; }
     .cs-stat-card.s-shirt  .cs-stat-icon { background: #fef3c7; }
     .cs-stat-card.s-shirt  .cs-stat-value { color: #b45309; }
-
-    /* Full-width card (span all grid columns) */
-    .cs-stat-card.full-row { grid-column: 1 / -1; }
-
-    /* T-Shirt inline breakdown chips */
-    .shirt-breakdown {
-      display: flex; flex-wrap: wrap; gap: 6px;
-      flex: 1; justify-content: flex-end;
-    }
-    .shirt-chip {
-      display: inline-flex; align-items: center; gap: 5px;
-      padding: 4px 10px; background: #fff;
-      border: 1px solid var(--border); border-radius: 999px;
-      font-size: 11px; font-weight: 600;
-    }
-    .shirt-chip .chip-size  { color: var(--text2); letter-spacing: .3px; }
-    .shirt-chip .chip-count { color: #b45309; font-weight: 700; }
-    .shirt-chip.empty       { background: #f9fafb; opacity: .55; }
-    .shirt-chip.empty .chip-count { color: var(--text3); }
+    .cs-stat-card.s-nat    .cs-stat-icon { background: #ccfbf1; }
+    .cs-stat-card.s-nat    .cs-stat-value { color: #0f766e; }
 
     /* Tier summary block inside report modal */
     #report-tier-summary {
@@ -353,6 +336,64 @@
     .tier-chip.t-none   { border-color: #e5e7eb; background: #f9fafb; }
     .tier-chip.t-none .t-label { color: var(--text3); }
     .tier-chip.t-none .t-count { color: var(--text2); }
+
+    /* T-Shirt size breakdown panel inside report modal */
+    #report-shirt-summary {
+      margin: 0 0 14px;
+      padding: 12px 14px;
+      background: #fffbeb;
+      border: 1px solid #fde68a;
+      border-radius: 10px;
+    }
+    #report-shirt-summary h4 {
+      margin: 0 0 8px; font-size: 12px; font-weight: 700;
+      color: #b45309; letter-spacing: .4px; text-transform: uppercase;
+    }
+    .size-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+      gap: 8px;
+    }
+    .size-chip {
+      display: flex; flex-direction: column; align-items: center;
+      padding: 8px 10px; background: #fff;
+      border: 1px solid #fde68a; border-radius: 8px;
+    }
+    .size-chip .s-label { font-size: 12px; font-weight: 700; color: #92400e; }
+    .size-chip .s-count { font-size: 18px; font-weight: 700; color: #b45309; line-height: 1.1; }
+    .size-chip .s-pct   { font-size: 10px; color: #4b5563; margin-top: 2px; }
+    .size-chip.s-none   { border-color: #e5e7eb; background: #f9fafb; }
+    .size-chip.s-none .s-label { color: var(--text3); }
+    .size-chip.s-none .s-count { color: var(--text2); }
+
+    /* Nationality breakdown panel inside report modal */
+    #report-nat-summary {
+      margin: 0 0 14px;
+      padding: 12px 14px;
+      background: #f0fdfa;
+      border: 1px solid #99f6e4;
+      border-radius: 10px;
+    }
+    #report-nat-summary h4 {
+      margin: 0 0 8px; font-size: 12px; font-weight: 700;
+      color: #0f766e; letter-spacing: .4px; text-transform: uppercase;
+    }
+    .nat-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+      gap: 8px;
+    }
+    .nat-chip {
+      display: flex; flex-direction: column; align-items: center;
+      padding: 8px 10px; background: #fff;
+      border: 1px solid #99f6e4; border-radius: 8px;
+    }
+    .nat-chip .n-label { font-size: 12px; font-weight: 700; color: #115e59; text-align: center; }
+    .nat-chip .n-count { font-size: 18px; font-weight: 700; color: #0f766e; line-height: 1.1; }
+    .nat-chip .n-pct   { font-size: 10px; color: #4b5563; margin-top: 2px; }
+    .nat-chip.n-none   { border-color: #e5e7eb; background: #f9fafb; }
+    .nat-chip.n-none .n-label { color: var(--text3); }
+    .nat-chip.n-none .n-count { color: var(--text2); }
     /* clickable cards */
     .cs-stat-card { cursor: pointer; }
     .cs-stat-card:active { transform: translateY(1px); }
@@ -537,6 +578,8 @@
     .col-tel     { width: 140px; min-width: 120px; }
     .col-shirt   { width: 90px; min-width: 80px; }
     .col-waive   { width: 70px; min-width: 60px; text-align: center; }
+    .col-checkby { width: 110px; min-width: 95px; }
+    .col-checked { width: 80px; min-width: 70px; text-align: center; }
     .col-del     { width: 56px; min-width: 56px; text-align: center; }
     .col-edit    { width: 54px; min-width: 54px; text-align: center; }
 
@@ -1121,13 +1164,19 @@
     </div>
   </div>
   <div class="cs-stats-row">
-    <div class="cs-stat-card s-shirt full-row" data-report="shirt">
+    <div class="cs-stat-card s-shirt" data-report="shirt" title="คลิกเพื่อดู breakdown ตาม Size">
       <div class="cs-stat-icon">👕</div>
       <div>
         <div class="cs-stat-value" id="st-shirt">0</div>
         <div class="cs-stat-label">T-Shirt</div>
       </div>
-      <div class="shirt-breakdown" id="st-shirt-breakdown"></div>
+    </div>
+    <div class="cs-stat-card s-nat" data-report="nationality" title="คลิกเพื่อดู breakdown ตามสัญชาติ">
+      <div class="cs-stat-icon">🌍</div>
+      <div>
+        <div class="cs-stat-value" id="st-nat">0</div>
+        <div class="cs-stat-label">Nationality</div>
+      </div>
     </div>
   </div>
 </div>
@@ -1209,12 +1258,14 @@
         <th class="col-tel"><span class="th-content"><input type="radio" name="freeze-col" class="col-freeze-cb" data-col="tel" title="ตรึงคอลัม (กดซ้ำเพื่อปลด)"><span>WhatsApp</span></span></th>
         <th class="col-shirt"><span class="th-content"><input type="radio" name="freeze-col" class="col-freeze-cb" data-col="shirt" title="ตรึงคอลัม (กดซ้ำเพื่อปลด)"><span>T-Shirt</span></span></th>
         <th class="col-waive">Waive</th>
+        <th class="col-checkby">Checked<br>By</th>
+        <th class="col-checked">Checked</th>
         <th class="col-del">Del</th>
       </tr>
     </thead>
     <tbody id="table-body">
       <tr id="empty-row">
-        <td colspan="25">No data — click Import Excel or add a row manually</td>
+        <td colspan="27">No data — click Import Excel or add a row manually</td>
       </tr>
     </tbody>
   </table>
@@ -1394,6 +1445,8 @@ app.listen(3001, () => console.log('Proxy running on port 3001'));
     </div>
     <div id="report-body">
       <div id="report-tier-summary" style="display:none"></div>
+      <div id="report-shirt-summary" style="display:none"></div>
+      <div id="report-nat-summary" style="display:none"></div>
       <table id="report-table">
         <thead>
           <tr>
@@ -1506,6 +1559,7 @@ const GROUP_OPTIONS       = ['', 'G1', 'G2', 'G3', 'G4', 'G5'];
 const SHIRT_OPTIONS       = ['', '5XL', '4XL', '3XL', '2XL', 'XL', 'L', 'M', 'S'];
 const PAID_OPTIONS        = ['', '0.25', '0.50', '0.75', '1.00', '1.25', '1.50', '1.75', '2.00', '2.25', '2.50', '2.75'];
 const NATIONALITY_OPTIONS = ['', 'Beninese', 'Burkinabé', 'Cameroonian', 'France', 'Ghanaian', 'Ivoirienne', 'Nigerian', 'Togolese'];
+const CHECKED_BY_OPTIONS  = ['', 'Fortunate', 'Bamba'];
 
 /* ═══════════════════════════════════════════════════════════
    CONFIG — Supabase + Proxy URL ใช้ค่ากลางจาก Settings
@@ -1566,6 +1620,8 @@ function makeRow(overrides = {}) {
     shirt:             '',
     highlighted:       false,
     waive:             false,
+    checkedBy:         '',
+    checked:           false,
     isEditing:         false,
     isSubRow:          false,
     parentId:          null,
@@ -1621,6 +1677,11 @@ function importExcel(event) {
       const colShirt      = findKey('shirt', 'เสื้อ', 'T-Shirt', 'size');
       const colPaid       = findKey('paid', 'จ่าย', 'ชำระ', 'Paid');
       const colWaive      = findKey('waive', 'ยกเว้น', 'Waive');
+      const colCheckedBy  = findKey('checked by', 'checkedby', 'ตรวจโดย', 'Checked By');
+      const colChecked    = keys.find(k =>
+        k !== colCheckedBy &&
+        ['checked', 'ตรวจแล้ว'].some(c => k.toString().toLowerCase().includes(c.toLowerCase()))
+      ) || null;
       const colInstead    = findKey('instead', 'แทน', 'คนแทน', 'Instead');
       const colSubRow     = findKey('sub row', 'subrow', 'sub_row');
 
@@ -1661,6 +1722,11 @@ function importExcel(event) {
           shirt:             (colShirt    ? r[colShirt]    : '').toString().trim(),
           paid:              (colPaid     ? r[colPaid]     : '').toString().trim(),
           waive:             truthy(colWaive ? r[colWaive] : ''),
+          checkedBy: (() => {
+            const v = (colCheckedBy ? r[colCheckedBy] : '').toString().trim();
+            return CHECKED_BY_OPTIONS.includes(v) ? v : '';
+          })(),
+          checked:           truthy(colChecked ? r[colChecked] : ''),
         });
 
         /* Mark as sub-row if Excel says so, OR if code matches {parent}-{n} pattern of a prior row */
@@ -2130,7 +2196,9 @@ function saveLocal() {
     passId: r.passId, passExp: r.passExp,
     visaImg:  r.visaImg  && !r.visaImg.startsWith('data:')  ? r.visaImg  : null,
     paid: r.paid || '',
-    tel: r.tel, shirt: r.shirt, isSubRow: r.isSubRow, parentId: r.parentId,
+    tel: r.tel, shirt: r.shirt,
+    checkedBy: r.checkedBy || '', checked: !!r.checked,
+    isSubRow: r.isSubRow, parentId: r.parentId,
   }));
   try { localStorage.setItem(_lsKey(), JSON.stringify(slim)); } catch(e) {}
 }
@@ -2195,6 +2263,8 @@ function rowToRecord(row) {
     tshirt_size:        row.shirt || null,
     highlighted:        row.highlighted || false,
     waive:              row.waive || false,
+    checked_by:         row.checkedBy || null,
+    checked:            row.checked || false,
     is_sub_row:         row.isSubRow,
     parent_code:        parentRow ? parentRow.code : null,
     trip_id:            currentTripId, // tag every row with current trip context
@@ -2216,7 +2286,9 @@ function recordToRow(r, idMap) {
     paid: r.paid != null ? (Number(r.paid).toFixed(2)) : '',
     tel: r.tel || '',
     shirt: r.tshirt_size || '', highlighted: r.highlighted || false,
-    waive: r.waive || false, isSubRow: r.is_sub_row || false,
+    waive: r.waive || false,
+    checkedBy: r.checked_by || '', checked: r.checked || false,
+    isSubRow: r.is_sub_row || false,
     parentId,
   });
 }
@@ -2471,6 +2543,7 @@ function _snapshotRows(arr) {
     normNum(r.seat), norm(r.nationality), norm(r.passId), norm(r.passExp),
     norm(r.tel), norm(r.shirt), normNum(r.paid),
     r.waive ? 1 : 0, r.highlighted ? 1 : 0, r.isSubRow ? 1 : 0,
+    norm(r.checkedBy), r.checked ? 1 : 0,
     norm(r.passImg), norm(r.visaImg)
   ].join('¦')).sort().join('‖');
 }
@@ -2579,23 +2652,15 @@ function updateStats() {
   document.getElementById('st-male').textContent     = maleCnt;
   document.getElementById('st-female').textContent   = femaleCnt;
 
-  // T-Shirt size breakdown
-  const shirtSizes  = SHIRT_OPTIONS.filter(s => s !== '');
-  const shirtCounts = {};
-  shirtSizes.forEach(s => { shirtCounts[s] = 0; });
+  // T-Shirt total (size breakdown shown in popup report)
   let shirtFilled = 0;
-  all.forEach(r => {
-    const s = (r.shirt || '').trim();
-    if (s && shirtCounts[s] != null) { shirtCounts[s]++; shirtFilled++; }
-  });
+  all.forEach(r => { if ((r.shirt || '').trim()) shirtFilled++; });
   document.getElementById('st-shirt').textContent = shirtFilled;
-  const breakdownEl = document.getElementById('st-shirt-breakdown');
-  if (breakdownEl) {
-    breakdownEl.innerHTML = shirtSizes.map(s => {
-      const c = shirtCounts[s];
-      return `<span class="shirt-chip${c === 0 ? ' empty' : ''}"><span class="chip-size">${s}</span><span class="chip-count">${c}</span></span>`;
-    }).join('');
-  }
+
+  // Nationality total (breakdown shown in popup report)
+  let natFilled = 0;
+  all.forEach(r => { if ((r.nationality || '').trim()) natFilled++; });
+  document.getElementById('st-nat').textContent = natFilled;
 }
 
 // Fixed sort: Code ASC, with sub-rows (code "X-N") grouped under parent "X".
@@ -3056,6 +3121,20 @@ function buildRow(row) {
              onchange="toggleWaive('${row.id}',this.checked)" />
     </td>
 
+    <!-- Checked By -->
+    <td class="col-checkby" data-label="Checked By">
+      <select class="field-input" style="width:100px"
+              onchange="setField('${row.id}','checkedBy',this.value)">
+        ${CHECKED_BY_OPTIONS.map(n => `<option value="${n}" ${row.checkedBy===n?'selected':''}>${n||'—'}</option>`).join('')}
+      </select>
+    </td>
+
+    <!-- Checked -->
+    <td class="col-checked" data-label="Checked">
+      <input type="checkbox" class="waive-cb" ${row.checked ? 'checked' : ''}
+             onchange="toggleChecked('${row.id}',this.checked)" />
+    </td>
+
     <!-- Del -->
     <td class="col-del" data-label="Del">
       <button class="btn-del-row" onclick="deleteRow('${row.id}')" title="ลบแถวนี้">🗑</button>
@@ -3195,6 +3274,13 @@ function toggleHighlight(id, checked) {
   row.highlighted = checked;
   const tr = document.getElementById('tr_' + id);
   if (tr) tr.classList.toggle('row-highlighted', checked);
+  scheduleRowSave(row, 200);
+}
+
+function toggleChecked(id, checked) {
+  const row = getRow(id);
+  if (!row) return;
+  row.checked = checked;
   scheduleRowSave(row, 200);
 }
 
@@ -3585,6 +3671,8 @@ function exportExcel() {
     'WhatsApp':          row.tel,
     'T-Shirt':           row.shirt,
     'Waive':             row.waive ? 'ใช่' : '',
+    'Checked By':        row.checkedBy || '',
+    'Checked':           row.checked ? 'ใช่' : '',
     'Sub Row':           row.isSubRow ? 'ใช่' : '',
   }));
   const ws = XLSX.utils.json_to_sheet(data);
@@ -3697,6 +3785,8 @@ const REPORT_CONFIG = {
                  filter: r => r.gender === 'female' },
   shirt:       { title: '👕 T-Shirt — กรอก Size แล้ว',
                  filter: r => !!(r.shirt && r.shirt.trim()) },
+  nationality: { title: '🌍 Nationality — กรอกสัญชาติแล้ว',
+                 filter: r => !!(r.nationality && r.nationality.trim()) },
 };
 
 let _currentReportKey = null;
@@ -3706,7 +3796,9 @@ function openReport(key) {
   if (!cfg) return;
   _currentReportKey = key;
   const matched = rows.filter(cfg.filter);
-  const isPaid = key === 'paid';
+  const isPaid  = key === 'paid';
+  const isShirt = key === 'shirt';
+  const isNat   = key === 'nationality';
 
   document.getElementById('report-title').textContent = cfg.title;
   document.getElementById('report-count').textContent = `${matched.length} รายการ`;
@@ -3738,6 +3830,79 @@ function openReport(key) {
   } else {
     tierBox.style.display = 'none';
     tierBox.innerHTML = '';
+  }
+
+  // T-Shirt size breakdown panel
+  const shirtBox = document.getElementById('report-shirt-summary');
+  if (isShirt) {
+    const sizes = SHIRT_OPTIONS.filter(s => s !== '');
+    const counts = {};
+    sizes.forEach(s => { counts[s] = 0; });
+    let unfilled = 0;
+    rows.forEach(r => {
+      const s = (r.shirt || '').trim();
+      if (s && counts[s] != null) counts[s]++;
+      else unfilled++;
+    });
+    const total = matched.length;
+    const chips = sizes.map(s => {
+      const c = counts[s];
+      const pct = total > 0 ? Math.round((c / total) * 100) : 0;
+      const none = c === 0;
+      return `<div class="size-chip${none ? ' s-none' : ''}">
+        <div class="s-label">${s}</div>
+        <div class="s-count">${c}</div>
+        <div class="s-pct">${pct}%</div>
+      </div>`;
+    }).join('');
+    const noneChip = `<div class="size-chip${unfilled === 0 ? ' s-none' : ''}" title="ยังไม่กรอก Size">
+      <div class="s-label">— ว่าง —</div>
+      <div class="s-count">${unfilled}</div>
+      <div class="s-pct">${rows.length > 0 ? Math.round((unfilled / rows.length) * 100) : 0}%</div>
+    </div>`;
+    shirtBox.innerHTML = `<h4>สรุปจำนวนเสื้อตาม Size</h4><div class="size-grid">${chips}${noneChip}</div>`;
+    shirtBox.style.display = '';
+  } else {
+    shirtBox.style.display = 'none';
+    shirtBox.innerHTML = '';
+  }
+
+  // Nationality breakdown panel
+  const natBox = document.getElementById('report-nat-summary');
+  if (isNat) {
+    const knownList = NATIONALITY_OPTIONS.filter(n => n !== '');
+    const counts = {};
+    knownList.forEach(n => { counts[n] = 0; });
+    let unfilled = 0;
+    const extras = {};   // values กรอกเข้ามาเองที่ไม่อยู่ในลิสต์
+    rows.forEach(r => {
+      const v = (r.nationality || '').trim();
+      if (!v) { unfilled++; return; }
+      if (counts[v] != null) counts[v]++;
+      else extras[v] = (extras[v] || 0) + 1;
+    });
+    const total = matched.length;
+    const mkChip = (label, c, none) => {
+      const pct = total > 0 ? Math.round((c / total) * 100) : 0;
+      return `<div class="nat-chip${none ? ' n-none' : ''}">
+        <div class="n-label">${esc(label)}</div>
+        <div class="n-count">${c}</div>
+        <div class="n-pct">${pct}%</div>
+      </div>`;
+    };
+    const mainChips  = knownList.map(n => mkChip(n, counts[n], counts[n] === 0)).join('');
+    const extraChips = Object.entries(extras).map(([n, c]) => mkChip(n, c, false)).join('');
+    const unfilledPct = rows.length > 0 ? Math.round((unfilled / rows.length) * 100) : 0;
+    const noneChip = `<div class="nat-chip${unfilled === 0 ? ' n-none' : ''}" title="ยังไม่กรอกสัญชาติ">
+      <div class="n-label">— ว่าง —</div>
+      <div class="n-count">${unfilled}</div>
+      <div class="n-pct">${unfilledPct}%</div>
+    </div>`;
+    natBox.innerHTML = `<h4>สรุปจำนวนตามสัญชาติ</h4><div class="nat-grid">${mainChips}${extraChips}${noneChip}</div>`;
+    natBox.style.display = '';
+  } else {
+    natBox.style.display = 'none';
+    natBox.innerHTML = '';
   }
 
   const tbody = document.getElementById('report-tbody');
@@ -3804,6 +3969,8 @@ function exportReportExcel() {
     'T-Shirt':           r.shirt,
     'Paid':              r.paid || '',
     'Waive':             r.waive ? 'ใช่' : '',
+    'Checked By':        r.checkedBy || '',
+    'Checked':           r.checked ? 'ใช่' : '',
     'Sub Row':           r.isSubRow ? 'ใช่' : '',
   }));
 
