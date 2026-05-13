@@ -2190,7 +2190,14 @@ function loadLocal() {
     if (!saved) return false;
     const parsed = JSON.parse(saved);
     if (!parsed.length) return false;
-    rows = parsed.map(r => ({ ...makeRow(), ...r, isEditing: false, passImgFile: null, visaImgFile: null }));
+    rows = parsed.map(r => ({
+      ...makeRow(),
+      ...r,
+      isEditing: false,
+      passImgFile: null,
+      visaImgFile: null,
+      _dbCode: r.code || null, // assume code was synced before cache (rename-cleanup safe: no-op if not in DB)
+    }));
     return true;
   } catch(e) { return false; }
 }
@@ -2267,6 +2274,7 @@ function recordToRow(r, idMap) {
     shirt: r.tshirt_size || '', highlighted: r.highlighted || false,
     waive: r.waive || false, isSubRow: r.is_sub_row || false,
     parentId,
+    _dbCode: r.code || null, // remember code currently in DB → ใช้ลบของเก่าเมื่อ rename
   });
 }
 
@@ -2297,10 +2305,50 @@ async function saveRowToSupabase(row) {
     if (url) { row.visaImg = url; row.visaImgFile = null; }
   }
 
+  // Detect rename: row.code differs from what's currently in DB → ต้องลบของเก่าหลัง upsert
+  const oldCode = row._dbCode;
+  const isRename = oldCode && oldCode !== row.code;
+
+  // กัน rename ทับแถวอื่นใน DB (upsert จะ UPDATE แถวที่ code ตรงกัน = ทับข้อมูลคนอื่น)
+  if (isRename) {
+    const collision = rows.find(r => r !== row && r.code && r.code === row.code);
+    if (collision) {
+      throw new Error(`รหัส "${row.code}" ซ้ำกับแถวอื่น — เปลี่ยนเป็นรหัสที่ไม่ซ้ำ`);
+    }
+  }
+
   const { error } = await sbClient
     .from('tour_seat_check')
     .upsert(rowToRecord(row), { onConflict: 'code' });
   if (error) throw error;
+
+  if (isRename) {
+    // Cascade trip_room_occupants ก่อน (FK by code text — ไม่มี ON UPDATE)
+    // ถ้าไม่ update ห้องจะนับว่าเต็มแต่หาคน render ไม่เจอ
+    const { error: occErr } = await sbClient
+      .from('trip_room_occupants')
+      .update({ code: row.code })
+      .eq('code', oldCode);
+    if (occErr) console.error('rename cascade (trip_room_occupants) failed:', occErr);
+
+    // ลบแถวเก่าใน DB (ก่อนหน้านี้เป็น duplicate เพราะ upsert insert ตัวใหม่แต่ไม่ลบตัวเก่า)
+    const { error: delErr } = await sbClient
+      .from('tour_seat_check')
+      .delete()
+      .eq('code', oldCode);
+    if (delErr) console.error('rename cleanup (delete old code) failed:', delErr);
+
+    // ถ้าเปลี่ยน code ของ parent row → cascade update sub-rows ใน DB ให้ชี้ parent_code ใหม่
+    if (!row.isSubRow) {
+      const { error: cascadeErr } = await sbClient
+        .from('tour_seat_check')
+        .update({ parent_code: row.code })
+        .eq('parent_code', oldCode);
+      if (cascadeErr) console.error('rename cascade (parent_code) failed:', cascadeErr);
+    }
+  }
+
+  row._dbCode = row.code;
 }
 
 /* ───── Auto-save: debounced per-row upsert ─────
@@ -3522,28 +3570,6 @@ async function saveAllToSupabase() {
     return;
   }
 
-  /* ─── Pre-save freshness check: เตือนถ้า Supabase มี code ที่ local ไม่มี
-         (แปลว่ามีคนเพิ่มข้อมูลจากเครื่องอื่น และเครื่องนี้ยังไม่ reload) ─── */
-  try {
-    let qCheck = sbClient.from('tour_seat_check').select('code');
-    if (currentTripId != null) qCheck = qCheck.eq('trip_id', currentTripId);
-    const { data: serverCodes, error: checkErr } = await qCheck;
-    if (!checkErr && serverCodes) {
-      const localCodes = new Set(rows.filter(r => r.code).map(r => r.code));
-      const missingLocal = serverCodes.filter(s => !localCodes.has(s.code)).map(s => s.code);
-      if (missingLocal.length > 0) {
-        const ok = await confirmDialog(
-          `⚠️ Supabase มี <b>${missingLocal.length} แถว</b>ที่ไม่มีในเครื่องนี้:<br>` +
-          `<code style="background:#1e293b;padding:2px 6px;border-radius:4px;font-size:12px">${missingLocal.slice(0, 10).join(', ')}${missingLocal.length > 10 ? '...' : ''}</code><br>` +
-          `<span style="color:#fbbf24">ถ้า Save ต่อ ข้อมูลเหล่านั้นจะ<b>ยังอยู่</b> (upsert ไม่ลบ) แต่ถ้าคุณเพิ่งลบจากเครื่องนี้ก็จะกลับมา</span><br><br>` +
-          `ต้องการ Save ต่อไหม? (แนะนำ Hard Reload แทนถ้าไม่แน่ใจ)`,
-          { title: 'มีข้อมูลใหม่จากเครื่องอื่น', icon: '⚠️', okText: 'Save ต่อ', cancelText: 'ยกเลิก' }
-        );
-        if (!ok) { toast('ยกเลิกการ Save', 'info'); return; }
-      }
-    }
-  } catch(e) { /* freshness check พลาด ไม่ block save */ }
-
   try {
     // Upload รูปที่ยังเป็น data URL ก่อน batch upsert
     const rowsWithImg = rows.filter(r =>
@@ -3586,6 +3612,34 @@ async function saveAllToSupabase() {
       .from('tour_seat_check')
       .upsert(records, { onConflict: 'code' });
     if (error) throw error;
+
+    // Rename cleanup: ลบ code เก่าของแถวที่ถูก rename (ป้องกัน duplicate)
+    // ข้าม oldCode ที่บังเอิญตรงกับ code ใหม่ของแถวอื่น (กรณี swap)
+    const newCodesSet = new Set(rows.filter(r => r.code).map(r => r.code));
+    const renamedPairs = rows
+      .filter(r => r._dbCode && r._dbCode !== r.code && !newCodesSet.has(r._dbCode))
+      .map(r => ({ oldCode: r._dbCode, newCode: r.code }));
+
+    // Cascade trip_room_occupants — ห้ามลบ tour_seat_check ก่อน เดี๋ยวห้องเต็มแต่ไม่มีคน
+    for (const { oldCode, newCode } of renamedPairs) {
+      const { error: occErr } = await sbClient
+        .from('trip_room_occupants')
+        .update({ code: newCode })
+        .eq('code', oldCode);
+      if (occErr) console.error('save-all cascade (trip_room_occupants) failed:', occErr);
+    }
+
+    const oldCodesToDelete = [...new Set(renamedPairs.map(p => p.oldCode))];
+    if (oldCodesToDelete.length > 0) {
+      const { error: delErr } = await sbClient
+        .from('tour_seat_check')
+        .delete()
+        .in('code', oldCodesToDelete);
+      if (delErr) console.error('save-all rename cleanup failed:', delErr);
+    }
+    // อัปเดต _dbCode = code ปัจจุบันของทุกแถว
+    rows.forEach(r => { if (r.code) r._dbCode = r.code; });
+
     saveLocal();
     hideSaveOverlay();
     toast(`บันทึก ${records.length} รายการสำเร็จ`, 'success');

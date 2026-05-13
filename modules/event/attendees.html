@@ -39,6 +39,7 @@
               <span class="att-hero-divider"></span>
               <button class="att-hero-btn" id="densityToggleBtn" onclick="window.toggleTableDensity()" title="สลับ Compact / Comfortable"><span class="ico" id="densityIco">📋</span><span class="lbl" id="densityLbl">Comfortable</span></button>
               <button class="att-hero-btn" onclick="window.openTagCategoriesModal()" title="จัดการหมวด Tag"><span class="ico">🏷️</span><span class="lbl">หมวด Tag</span></button>
+              <button class="att-hero-btn" onclick="window.openFieldConfigModal()" title="ตั้งค่าฟิลด์ลงทะเบียน + คุณสมบัติ"><span class="ico">⚙️</span><span class="lbl">ฟิลด์</span></button>
               <button class="att-hero-btn" onclick="window.exportCSV()" title="Export CSV"><span class="ico">📥</span><span class="lbl">Export</span></button>
             </div>
           </div>
@@ -120,7 +121,7 @@
                       <th class="col-center" style="min-width:110px">🎫 Ticket</th>
                       <th class="col-center" style="min-width:130px">💰 ชำระ</th>
                       <th class="col-center" style="min-width:90px">✅ Check-in</th>
-                      <th class="col-center" style="min-width:90px">จัดการ</th>
+                      <th class="col-center" style="min-width:130px">จัดการ</th>
                     </tr>
                   </thead>
                   <tbody id="attTableBody"></tbody>
@@ -506,6 +507,157 @@
         <div class="tag-picker-side" id="tagPickerSide">
           <div class="tag-picker-side-hdr" id="tagPickerSideHdr">รายละเอียด</div>
           <div class="tag-picker-side-body" id="tagPickerSideBody">— hover ที่ tag เพื่อดูรายละเอียด —</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════
+         ATTENDEE FORM MODAL — guest registration + edit existing
+         (รองรับ member + guest ด้วย form เดียว)
+         ═══════════════════════════════════════ -->
+    <div class="modal-overlay" id="attendeeFormOverlay" onclick="window.closeAttendeeForm(event)">
+      <div class="modal v-sage-header" style="width:720px;max-width:96vw" onclick="event.stopPropagation()">
+        <div class="modal-hdr">
+          <div class="modal-title" id="attFormTitle">➕ ลงทะเบียนผู้เรียนใหม่</div>
+          <button class="btn-modal-close" onclick="window.closeAttendeeForm()">✕</button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="attFormAttId">
+          <input type="hidden" id="attFormMemberCode">
+          <input type="hidden" id="attFormPersonRole">
+
+          <!-- Member info banner (shown only when editing/registering a member row) -->
+          <div id="attFormMemberBanner" style="display:none;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:8px 12px;margin-bottom:12px;font-size:12.5px;color:#1e40af"></div>
+
+          <div class="form-group">
+            <label class="form-label">ชื่อ-นามสกุล <span class="req">*</span></label>
+            <input class="form-control" id="attFormName" placeholder="ระบุชื่อ-นามสกุล" autocomplete="off">
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px">
+            <div class="form-group">
+              <label class="form-label">เบอร์โทร</label>
+              <input class="form-control" id="attFormPhone" placeholder="0XX-XXX-XXXX" autocomplete="off">
+            </div>
+            <div class="form-group" id="attFormPosWrap">
+              <label class="form-label">ตำแหน่ง</label>
+              <input class="form-control" id="attFormPos" placeholder="เช่น SD, DM, DR, SL, ST, MB" autocomplete="off">
+            </div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px">
+            <div class="form-group">
+              <label class="form-label" id="attFormUplineLabel">สายงาน</label>
+              <div style="display:flex;gap:6px;align-items:center">
+                <select class="form-control" id="attFormUpline" style="flex:1">
+                  <option value="">— เลือกสายงาน —</option>
+                </select>
+                <button type="button" title="จัดการสายงาน" onclick="window.openUplineManage()" style="background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe;border-radius:8px;padding:7px 11px;cursor:pointer;font-size:14px">⚙️</button>
+              </div>
+            </div>
+            <div class="form-group" id="attFormCsWrap">
+              <label class="form-label">CS</label>
+              <input class="form-control" id="attFormCs" list="csStaffList" placeholder="เช่น เหน่ง / เกษ / ตาน้ำ" autocomplete="off">
+              <datalist id="csStaffList"></datalist>
+            </div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px" id="attFormLineFbRow">
+            <div class="form-group" id="attFormLineWrap">
+              <label class="form-label">ชื่อไลน์ที่แจ้ง</label>
+              <input class="form-control" id="attFormLineName" autocomplete="off">
+            </div>
+            <div class="form-group" id="attFormFbWrap">
+              <label class="form-label">ชื่อเพจ Facebook</label>
+              <input class="form-control" id="attFormFbPage" autocomplete="off">
+            </div>
+          </div>
+
+          <div class="form-group" style="margin-top:12px" id="attFormHadAttendedWrap">
+            <label class="form-label">เคยเรียนคอร์สนี้แล้วหรือไม่</label>
+            <div style="display:flex;gap:14px;padding:6px 0;flex-wrap:wrap">
+              <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer"><input type="radio" name="attFormHadAttended" value=""> ไม่ระบุ</label>
+              <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer"><input type="radio" name="attFormHadAttended" value="true"> ✅ เคยเรียน</label>
+              <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer"><input type="radio" name="attFormHadAttended" value="false"> ❌ ยังไม่เคย</label>
+            </div>
+          </div>
+
+          <div class="form-group" style="margin-top:12px;display:none" id="attFormQualWrap">
+            <label class="form-label">คุณสมบัติผู้เข้าเรียน</label>
+            <div id="attFormQualList" style="display:flex;flex-direction:column;gap:6px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px 12px"></div>
+          </div>
+
+          <div class="form-group" style="margin-top:12px">
+            <label class="form-label">หมายเหตุ</label>
+            <textarea class="form-control" id="attFormNote" rows="2" placeholder="เช่น ส่งลิงค์เรียบร้อย / ไม่มา / ติดธุระ"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-ghost" onclick="window.closeAttendeeForm()">ยกเลิก</button>
+          <button class="btn btn-primary" onclick="window.saveAttendeeForm()">💾 บันทึก</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════
+         FIELD CONFIG MODAL — per-event toggle which fields to show + qualifications
+         ═══════════════════════════════════════ -->
+    <div class="modal-overlay" id="fieldConfigOverlay" onclick="window.closeFieldConfigModal(event)">
+      <div class="modal v-sage-header" style="width:680px;max-width:96vw" onclick="event.stopPropagation()">
+        <div class="modal-hdr">
+          <div class="modal-title">⚙️ ฟิลด์ลงทะเบียน · คุณสมบัติผู้เรียน</div>
+          <button class="btn-modal-close" onclick="window.closeFieldConfigModal()">✕</button>
+        </div>
+        <div class="modal-body">
+          <div style="font-size:12px;color:var(--text3);background:#f1f5f9;padding:8px 12px;border-radius:8px;margin-bottom:14px">
+            💡 ตั้งค่าเฉพาะ event นี้ — เปิด/ปิดฟิลด์ + กำหนด checklist คุณสมบัติของผู้เรียน
+          </div>
+
+          <div style="font-size:13px;font-weight:700;color:#0f172a;margin-bottom:8px">📋 ฟิลด์ที่แสดงในฟอร์ม</div>
+          <div id="fcFieldsGrid" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px 12px;margin-bottom:16px"></div>
+
+          <div style="font-size:13px;font-weight:700;color:#0f172a;margin-bottom:8px">✓ คุณสมบัติผู้เรียน (checklist)</div>
+          <div style="display:flex;gap:8px;margin-bottom:8px">
+            <input class="form-control" id="fcNewQualLabel" placeholder="เช่น มี Notebook" style="flex:1" autocomplete="off"
+              onkeydown="if(event.key==='Enter'){event.preventDefault();window.addQualification()}">
+            <button class="btn btn-primary" onclick="window.addQualification()">➕ เพิ่ม</button>
+          </div>
+          <div id="fcQualList" style="display:flex;flex-direction:column;gap:6px;max-height:260px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:8px;padding:8px 10px"></div>
+
+          <div style="font-size:11px;color:var(--text3);margin-top:12px;line-height:1.6">
+            💡 ฟิลด์ที่ปิด จะไม่แสดงในฟอร์ม guest + edit · ข้อมูลเดิมไม่ถูกลบ<br>
+            💡 คุณสมบัติ → ลำดับสำคัญ ลากเรียงไม่ได้ในเวอร์ชันนี้ (เพิ่มท้ายเสมอ)
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-ghost" onclick="window.closeFieldConfigModal()">ยกเลิก</button>
+          <button class="btn btn-primary" onclick="window.saveFieldConfig()">💾 บันทึก</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════
+         UPLINE MASTER CRUD MODAL (nested over Attendee Form)
+         ═══════════════════════════════════════ -->
+    <div class="modal-overlay" id="uplineManageOverlay" style="z-index:400" onclick="window.closeUplineManage(event)">
+      <div class="modal v-sage-header" style="width:520px;max-width:94vw" onclick="event.stopPropagation()">
+        <div class="modal-hdr">
+          <div class="modal-title">⚙️ จัดการสายงาน</div>
+          <button class="btn-modal-close" onclick="window.closeUplineManage()">✕</button>
+        </div>
+        <div class="modal-body">
+          <div style="display:flex;gap:8px;margin-bottom:12px">
+            <input class="form-control" id="newUplineName" placeholder="ชื่อสายงาน เช่น พี่โอ๊ค" style="flex:1" autocomplete="off"
+              onkeydown="if(event.key==='Enter'){event.preventDefault();window.addUpline()}">
+            <button class="btn btn-primary" onclick="window.addUpline()">➕ เพิ่ม</button>
+          </div>
+          <div style="font-size:11.5px;color:var(--text3);margin-bottom:8px">
+            💡 คนที่สามารถปั้นทีมได้เอง — SVP หรือ leader ที่มีลูกทีม
+          </div>
+          <div id="uplineMgrList" style="max-height:380px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:8px"></div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-ghost" onclick="window.closeUplineManage()">ปิด</button>
         </div>
       </div>
     </div>

@@ -1141,9 +1141,13 @@ function renderSavedRow(a) {
     </td>
     <td>
       <div class="cell-name-wrap" data-field="name" onclick="window.startEditCell(${a.attendee_id},'name',this)">
-        <div style="font-weight:600;cursor:text" title="คลิกเพื่อแก้ไข">
-          ${a.member_code ? `<span style="font-family:'IBM Plex Mono',monospace;font-size:10px;background:#1e40af;color:#fff;padding:2px 7px;border-radius:10px;font-weight:700;margin-right:6px">${escapeHtml(a.member_code)}</span>` : ""}${escapeHtml(a.name)}
+        <div style="font-weight:600;cursor:text" title="คลิกเพื่อแก้ไขชื่อ">
+          ${a.member_code
+            ? `<span style="font-family:'IBM Plex Mono',monospace;font-size:10px;background:#1e40af;color:#fff;padding:2px 7px;border-radius:10px;font-weight:700;margin-right:6px">${escapeHtml(a.member_code)}</span>`
+            : `<span style="font-size:10px;background:#fef3c7;color:#92400e;padding:2px 7px;border-radius:10px;font-weight:700;margin-right:6px;border:1px solid #fcd34d" title="ยังไม่ใช่สมาชิก">👤 Guest</span>`
+          }${escapeHtml(a.name)}
         </div>
+        ${renderAttendeeMeta(a)}
         ${renderTagsInline(a, a.person_role === "co_applicant" ? `<span style="font-size:10px;color:#9333ea;background:#f3e8ff;padding:1px 7px;border-radius:10px;font-weight:700;white-space:nowrap" title="ผู้สมัครร่วมจากรหัสเดียวกัน">👥 ผู้สมัครร่วม</span>` : "")}
       </div>
     </td>
@@ -1178,11 +1182,52 @@ function renderSavedRow(a) {
     </td>
     <td class="col-center">
       <div style="display:inline-flex;gap:4px;align-items:center">
+        <button onclick="window.openAttendeeEdit(${a.attendee_id})" title="แก้ไขข้อมูล (สายงาน · CS · เพจ · คุณสมบัติ ฯลฯ)"
+          style="background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:13px">✏️</button>
         <button class="btn-qr" onclick="window.openQrModal(${a.attendee_id})" title="ดู QR บัตร">🎫</button>
         <button class="btn-icon danger" onclick="window.deleteAttendee(${a.attendee_id})" title="ลบ">🗑</button>
       </div>
     </td>
   </tr>`;
+}
+
+// Subtitle line under name: สายงาน · CS · เพจ FB · ชื่อไลน์ · เคยเรียน ฯลฯ
+function renderAttendeeMeta(a) {
+  const chips = [];
+  if (a.upline_name_text) {
+    chips.push(`<span style="font-size:10.5px;color:#3730a3;background:#e0e7ff;padding:1px 7px;border-radius:5px;font-weight:600" title="สายงาน">🌿 ${escapeHtml(a.upline_name_text)}</span>`);
+  }
+  if (a.cs_staff) {
+    chips.push(`<span style="font-size:10.5px;color:#7c2d12;background:#fed7aa;padding:1px 7px;border-radius:5px;font-weight:600" title="CS">CS·${escapeHtml(a.cs_staff)}</span>`);
+  }
+  if (a.fb_page_name) {
+    chips.push(`<span style="font-size:10.5px;color:#1e3a8a;background:#dbeafe;padding:1px 7px;border-radius:5px;font-weight:600" title="ชื่อเพจ FB">📘 ${escapeHtml(a.fb_page_name)}</span>`);
+  }
+  if (a.line_name_reported) {
+    chips.push(`<span style="font-size:10.5px;color:#065f46;background:#d1fae5;padding:1px 7px;border-radius:5px;font-weight:600" title="ชื่อไลน์ที่แจ้ง">💬 ${escapeHtml(a.line_name_reported)}</span>`);
+  }
+  if (a.had_attended_before === true) {
+    chips.push(`<span style="font-size:10.5px;color:#065f46;background:#d1fae5;padding:1px 7px;border-radius:5px;font-weight:600" title="เคยเรียนแล้ว">↻ เคยเรียน</span>`);
+  } else if (a.had_attended_before === false) {
+    chips.push(`<span style="font-size:10.5px;color:#7f1d1d;background:#fee2e2;padding:1px 7px;border-radius:5px;font-weight:600" title="ยังไม่เคยเรียน">★ ใหม่</span>`);
+  }
+  // Qualifications — count true ones
+  const quals = a.extra_fields && typeof a.extra_fields === "object" ? a.extra_fields : null;
+  if (quals) {
+    const trueCount = Object.values(quals).filter(v => v === true).length;
+    const totalCount = Object.keys(quals).length;
+    if (totalCount > 0) {
+      const color = trueCount === totalCount ? "#065f46" : (trueCount >= totalCount / 2 ? "#92400e" : "#7f1d1d");
+      const bg = trueCount === totalCount ? "#d1fae5" : (trueCount >= totalCount / 2 ? "#fef3c7" : "#fee2e2");
+      chips.push(`<span style="font-size:10.5px;color:${color};background:${bg};padding:1px 7px;border-radius:5px;font-weight:700" title="คุณสมบัติผ่าน ${trueCount}/${totalCount}">✓ ${trueCount}/${totalCount}</span>`);
+    }
+  }
+  if (a.attendee_note) {
+    const noteShort = a.attendee_note.length > 30 ? a.attendee_note.slice(0, 30) + "…" : a.attendee_note;
+    chips.push(`<span style="font-size:10.5px;color:#475569;background:#f1f5f9;padding:1px 7px;border-radius:5px;font-style:italic" title="${escapeHtml(a.attendee_note)}">📝 ${escapeHtml(noteShort)}</span>`);
+  }
+  if (!chips.length) return "";
+  return `<div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:3px;align-items:center">${chips.join("")}</div>`;
 }
 
 function paymentMethodIcon(m) {
@@ -1858,7 +1903,10 @@ window.searchMember = function (q, rowId) {
       const rows = await res.json();
       if (!rows || !rows.length) {
         _lastMemberResults = [];
-        sug.innerHTML = '<div style="padding:10px 12px;color:var(--text3,#94a3b8);font-size:12px">ไม่พบสมาชิก</div>';
+        sug.innerHTML = `
+          <div style="padding:10px 12px;color:var(--text3,#94a3b8);font-size:12px;border-bottom:1px solid #e2e8f0">ไม่พบสมาชิก</div>
+          ${_guestAddRowHtml()}
+        `;
         return;
       }
       _lastMemberResults = rows;
@@ -1920,9 +1968,24 @@ function _renderMemberSuggest() {
     </div>`
     : '';
 
-  sug.innerHTML = rowsHtml + pairRow;
+  sug.innerHTML = rowsHtml + pairRow + _guestAddRowHtml();
   sug.style.display = "block";
 }
+
+// Footer row: "➕ เพิ่มผู้เรียนใหม่ (ยังไม่ใช่สมาชิก)" → opens guest form modal
+function _guestAddRowHtml() {
+  return `<div onclick="window.openGuestFormFromSearch(window._activeSearchRowIdForGuest())"
+    style="padding:11px 12px;cursor:pointer;font-size:12.5px;display:flex;align-items:center;gap:8px;background:linear-gradient(90deg,#fef3c7,#fde68a);border-top:2px solid #fcd34d;font-weight:700;color:#78350f"
+    onmouseover="this.style.background='linear-gradient(90deg,#fde68a,#fcd34d)'"
+    onmouseout="this.style.background='linear-gradient(90deg,#fef3c7,#fde68a)'">
+    <span style="font-size:16px">➕</span>
+    <span style="flex:1">เพิ่มผู้เรียนใหม่ (ยังไม่ใช่สมาชิก)</span>
+    <span style="font-size:10.5px;color:#92400e;background:#fff;padding:2px 7px;border-radius:5px;border:1px solid #fcd34d">guest</span>
+  </div>`;
+}
+
+// Expose activeSearchRowId for onclick handler (avoid quoting issues in template)
+window._activeSearchRowIdForGuest = function () { return activeSearchRowId; };
 
 window._setMemberHL = function (i) {
   _memberHighlight = i;
@@ -3629,6 +3692,552 @@ async function refreshAttendeesSilent() {
   }
 }
 
+// ============================================================
+// ── FLEXIBLE ATTENDEE FORM (guest + member edit) ────────────
+// ── + UPLINE MASTER CRUD (in-context) ──────────────────────
+// ============================================================
+let _uplinesCache = null;      // [{id, name, sort_order, is_active}]
+let _csStaffCache = null;      // distinct cs_staff values from current event
+let _attFormState = {          // current modal session
+  mode: "new",                 // "new" | "edit"
+  attId: null,
+  memberCode: "",
+  personRole: "",
+  paymentStatus: "UNPAID",     // carried forward when creating from search row
+};
+
+async function fetchUplines() {
+  if (_uplinesCache) return _uplinesCache;
+  try {
+    const rows = await sbFetch(
+      "upline_leaders",
+      "?select=id,name,sort_order,is_active&order=sort_order.asc,name.asc"
+    );
+    _uplinesCache = rows || [];
+  } catch (e) {
+    console.warn("fetchUplines:", e.message);
+    _uplinesCache = [];
+  }
+  return _uplinesCache;
+}
+
+function _invalidateUplinesCache() { _uplinesCache = null; }
+
+// Build set of distinct CS-staff values from currently-loaded attendees
+function _refreshCsStaffDatalist() {
+  const list = document.getElementById("csStaffList");
+  if (!list) return;
+  const set = new Set();
+  (allAttendees || []).forEach(a => { if (a.cs_staff) set.add(a.cs_staff); });
+  list.innerHTML = [...set].sort().map(v => `<option value="${escapeHtml(v)}">`).join("");
+}
+
+// ── Event field config ─────────────────────────────────────
+// Default = all fields shown, none required (except upline & name)
+const DEFAULT_FIELD_CONFIG = {
+  fields: {
+    phone:        { show: true,  required: false },
+    position:     { show: true,  required: false },
+    upline:       { show: true,  required: true  },
+    cs_staff:     { show: true,  required: false },
+    line_name:    { show: true,  required: false },
+    fb_page_name: { show: true,  required: false },
+    had_attended: { show: true,  required: false },
+    note:         { show: true,  required: false },
+  },
+  qualifications: [],
+};
+
+let _eventConfigCache = null;
+async function fetchEventFieldConfig(eventId) {
+  if (_eventConfigCache && _eventConfigCache.eventId === eventId) return _eventConfigCache.config;
+  let cfg = null;
+  try {
+    const rows = await sbFetch(
+      "events",
+      `?event_id=eq.${eventId}&select=attendee_field_config`
+    );
+    cfg = rows?.[0]?.attendee_field_config;
+  } catch (e) {
+    console.warn("fetchEventFieldConfig:", e.message);
+  }
+  const merged = _mergeFieldConfig(cfg);
+  _eventConfigCache = { eventId, config: merged };
+  return merged;
+}
+function _invalidateEventConfigCache() { _eventConfigCache = null; }
+
+function _mergeFieldConfig(custom) {
+  if (!custom || typeof custom !== "object") return DEFAULT_FIELD_CONFIG;
+  const fields = { ...DEFAULT_FIELD_CONFIG.fields };
+  if (custom.fields && typeof custom.fields === "object") {
+    Object.keys(custom.fields).forEach(k => {
+      fields[k] = { ...(fields[k] || {}), ...custom.fields[k] };
+    });
+  }
+  const qualifications = Array.isArray(custom.qualifications) ? custom.qualifications : [];
+  return { fields, qualifications };
+}
+
+// ── ATTENDEE FORM MODAL ────────────────────────────────────
+window.openAttendeeForm = async function (opts = {}) {
+  const mode = opts.attId ? "edit" : "new";
+  _attFormState = {
+    mode,
+    attId: opts.attId || null,
+    memberCode: opts.memberCode || "",
+    personRole: opts.personRole || (opts.memberCode ? "primary" : "guest"),
+    paymentStatus: opts.paymentStatus || "UNPAID",
+    _sourceRowId: opts._sourceRowId || null,
+  };
+
+  // Title
+  const title = document.getElementById("attFormTitle");
+  if (mode === "edit") {
+    title.textContent = opts.memberCode ? "✏️ แก้ไขข้อมูลสมาชิก" : "✏️ แก้ไขข้อมูลผู้เรียน";
+  } else {
+    title.textContent = opts.memberCode ? "➕ ลงทะเบียนสมาชิก — กรอกข้อมูลเพิ่ม" : "➕ ลงทะเบียนผู้เรียนใหม่ (ยังไม่ใช่สมาชิก)";
+  }
+
+  // Member banner
+  const banner = document.getElementById("attFormMemberBanner");
+  if (opts.memberCode) {
+    const roleLabel = (_attFormState.personRole === "co_applicant")
+      ? '<span style="background:#f3e8ff;color:#9333ea;padding:1px 7px;border-radius:5px;font-size:11px;font-weight:700;margin-left:6px">👥 ผู้สมัครร่วม</span>'
+      : '';
+    banner.innerHTML = `🧑 สมาชิกรหัส <b style="font-family:'IBM Plex Mono',monospace">${escapeHtml(opts.memberCode)}</b>${roleLabel}`;
+    banner.style.display = "block";
+  } else {
+    banner.style.display = "none";
+  }
+
+  // Load uplines + render dropdown
+  const uplines = await fetchUplines();
+  const uplineSel = document.getElementById("attFormUpline");
+  uplineSel.innerHTML = '<option value="">— เลือกสายงาน —</option>' +
+    uplines.filter(u => u.is_active).map(u =>
+      `<option value="${u.id}">${escapeHtml(u.name)}</option>`
+    ).join("");
+
+  // Load event field config + show/hide rows
+  const cfg = await fetchEventFieldConfig(currentEventId);
+  _applyFieldConfigToForm(cfg);
+  _renderQualifications(cfg.qualifications, opts.extra_fields || {});
+
+  // CS staff datalist
+  _refreshCsStaffDatalist();
+
+  // Fill form values
+  document.getElementById("attFormAttId").value     = opts.attId || "";
+  document.getElementById("attFormMemberCode").value = opts.memberCode || "";
+  document.getElementById("attFormPersonRole").value = _attFormState.personRole;
+  document.getElementById("attFormName").value      = opts.name || "";
+  document.getElementById("attFormPhone").value     = opts.phone || "";
+  document.getElementById("attFormPos").value       = opts.position_level || "";
+  document.getElementById("attFormUpline").value    = opts.upline_id || "";
+  document.getElementById("attFormCs").value        = opts.cs_staff || "";
+  document.getElementById("attFormLineName").value  = opts.line_name_reported || "";
+  document.getElementById("attFormFbPage").value    = opts.fb_page_name || "";
+  document.getElementById("attFormNote").value      = opts.attendee_note || "";
+
+  // had_attended radio
+  const hadVal = opts.had_attended_before === true ? "true"
+               : opts.had_attended_before === false ? "false" : "";
+  document.querySelectorAll('input[name="attFormHadAttended"]').forEach(r => {
+    r.checked = (r.value === hadVal);
+  });
+
+  // Open
+  document.getElementById("attendeeFormOverlay").classList.add("open");
+  requestAnimationFrame(() => document.getElementById("attFormName")?.focus());
+};
+
+function _applyFieldConfigToForm(cfg) {
+  const showHide = (id, show) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.style.display = show ? "" : "none";
+  };
+  showHide("attFormPosWrap",          cfg.fields.position?.show !== false);
+  showHide("attFormCsWrap",           cfg.fields.cs_staff?.show !== false);
+  showHide("attFormLineWrap",         cfg.fields.line_name?.show !== false);
+  showHide("attFormFbWrap",           cfg.fields.fb_page_name?.show !== false);
+  showHide("attFormHadAttendedWrap",  cfg.fields.had_attended?.show !== false);
+  // Upline label — show * if required
+  const upLbl = document.getElementById("attFormUplineLabel");
+  if (upLbl) {
+    upLbl.innerHTML = cfg.fields.upline?.required
+      ? 'สายงาน <span class="req">*</span>'
+      : 'สายงาน';
+  }
+  // Phone field is always visible in current layout; honor `show` if false
+  const phoneWrap = document.getElementById("attFormPhone")?.closest(".form-group");
+  if (phoneWrap) phoneWrap.style.display = cfg.fields.phone?.show !== false ? "" : "none";
+}
+
+function _renderQualifications(quals, extraFields) {
+  const wrap = document.getElementById("attFormQualWrap");
+  const list = document.getElementById("attFormQualList");
+  if (!wrap || !list) return;
+  const configList = Array.isArray(quals) ? quals : [];
+  const configKeys = new Set(configList.map(q => q.key));
+  // Union: keys from extra_fields that aren't in config → preserve as "legacy"
+  const extraOnlyKeys = Object.keys(extraFields || {}).filter(k => !configKeys.has(k));
+  const allEntries = [
+    ...configList.map(q => ({ key: q.key, label: q.label || q.key, legacy: false })),
+    ...extraOnlyKeys.map(k => ({ key: k, label: k + " (เดิม)", legacy: true })),
+  ];
+  if (!allEntries.length) {
+    wrap.style.display = "none";
+    list.innerHTML = "";
+    return;
+  }
+  wrap.style.display = "";
+  list.innerHTML = allEntries.map(e => {
+    const checked = extraFields?.[e.key] === true ? "checked" : "";
+    const dim = e.legacy ? "color:#64748b;font-style:italic" : "color:#0f172a";
+    return `<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;${dim}">
+      <input type="checkbox" data-qual-key="${escapeHtml(e.key)}" ${checked} style="width:16px;height:16px;cursor:pointer">
+      <span>${escapeHtml(e.label)}</span>
+    </label>`;
+  }).join("");
+}
+
+window.closeAttendeeForm = function (ev) {
+  if (ev && ev.target && !ev.target.classList?.contains("modal-overlay")) return;
+  document.getElementById("attendeeFormOverlay").classList.remove("open");
+};
+
+window.saveAttendeeForm = async function () {
+  const name = document.getElementById("attFormName").value.trim();
+  if (!name) { showToast("กรุณาระบุชื่อ-นามสกุล", "error"); return; }
+
+  const cfg = await fetchEventFieldConfig(currentEventId);
+  const uplineId = document.getElementById("attFormUpline").value || null;
+  if (cfg.fields.upline?.required && !uplineId) {
+    showToast("กรุณาเลือกสายงาน", "error");
+    return;
+  }
+
+  const uplineRow = uplineId ? (_uplinesCache || []).find(u => String(u.id) === String(uplineId)) : null;
+
+  // Collect qualifications
+  const quals = {};
+  document.querySelectorAll('#attFormQualList input[data-qual-key]').forEach(cb => {
+    quals[cb.dataset.qualKey] = cb.checked;
+  });
+
+  const hadVal = document.querySelector('input[name="attFormHadAttended"]:checked')?.value;
+  const had_attended_before = hadVal === "true" ? true : hadVal === "false" ? false : null;
+
+  const payload = {
+    name,
+    phone:               document.getElementById("attFormPhone").value.trim() || null,
+    position_level:      document.getElementById("attFormPos").value.trim() || null,
+    upline_id:           uplineId,
+    upline_name_text:    uplineRow?.name || null,
+    cs_staff:            document.getElementById("attFormCs").value.trim() || null,
+    line_name_reported:  document.getElementById("attFormLineName").value.trim() || null,
+    fb_page_name:        document.getElementById("attFormFbPage").value.trim() || null,
+    had_attended_before,
+    attendee_note:       document.getElementById("attFormNote").value.trim() || null,
+    extra_fields:        quals,
+  };
+
+  try {
+    if (_attFormState.mode === "edit" && _attFormState.attId) {
+      await updateAttendee(_attFormState.attId, payload);
+      showToast("บันทึกข้อมูลแล้ว ✏️", "success");
+    } else {
+      // New attendee — merge with event/payment fields
+      const activeTier = getActiveTier();
+      const price = getCurrentPrice();
+      const grace = getEventGraceDays();
+      const needsPayment = _attFormState.paymentStatus === "UNPAID";
+      const fullPayload = {
+        ...payload,
+        event_id:        currentEventId,
+        paid_amount:     price,
+        payment_status:  _attFormState.paymentStatus,
+        member_code:     _attFormState.memberCode || null,
+        person_role:     _attFormState.memberCode ? (_attFormState.personRole || "primary") : "guest",
+        tier_id:         activeTier?.tier_id || null,
+        payment_deadline: needsPayment ? computeDeadlineISO(grace) : null,
+        checked_in:      _autoCheckin ? true : false,
+        check_in_at:     _autoCheckin ? buildCheckinTimestamp() : null,
+      };
+      const blocked = await _enforceRegistration(fullPayload);
+      if (blocked) return;
+      fullPayload.ticket_no = await generateTicketNo(currentEventId);
+      await createAttendee(fullPayload);
+      showToast(_attFormState.memberCode ? "เพิ่มสมาชิกแล้ว 👤" : "เพิ่มผู้เรียนใหม่แล้ว 👤", "success");
+
+      // Remove the originating new-row (if came from search row) + ensure trailing
+      newRows = newRows.filter(r => r.id !== _attFormState._sourceRowId);
+      ensureTrailingEmptyRow();
+      _searchKeyword = "";
+    }
+
+    allAttendees = await fetchAttendees(currentEventId);
+    populateTagFilter();
+    updateStats();
+    filterTable();
+    window.closeAttendeeForm();
+  } catch (e) {
+    showToast("บันทึกไม่สำเร็จ: " + (e.message || e), "error");
+  }
+};
+
+// ── UPLINE MASTER CRUD ─────────────────────────────────────
+window.openUplineManage = async function () {
+  document.getElementById("uplineManageOverlay").classList.add("open");
+  await _renderUplineMgrList();
+  requestAnimationFrame(() => document.getElementById("newUplineName")?.focus());
+};
+
+window.closeUplineManage = function (ev) {
+  if (ev && ev.target && !ev.target.classList?.contains("modal-overlay")) return;
+  document.getElementById("uplineManageOverlay").classList.remove("open");
+  // Re-render upline dropdown in form (might have new/removed entries)
+  _refreshUplineDropdownInForm();
+};
+
+async function _renderUplineMgrList() {
+  const list = document.getElementById("uplineMgrList");
+  if (!list) return;
+  const uplines = await fetchUplines();
+  if (!uplines.length) {
+    list.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3);font-size:12.5px">ยังไม่มีสายงาน — เพิ่มด้านบน</div>';
+    return;
+  }
+  list.innerHTML = uplines.map(u => `
+    <div data-uid="${u.id}" style="display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid #f1f5f9">
+      <span style="flex:1;font-size:13.5px;color:${u.is_active ? '#0f172a' : '#94a3b8'};${u.is_active ? '' : 'text-decoration:line-through'}">${escapeHtml(u.name)}</span>
+      <button title="${u.is_active ? 'ปิดใช้งาน' : 'เปิดใช้งาน'}" onclick="window.toggleUpline(${u.id}, ${!u.is_active})"
+        style="background:${u.is_active ? '#f1f5f9' : '#dcfce7'};color:${u.is_active ? '#64748b' : '#15803d'};border:none;border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer">
+        ${u.is_active ? '⊘ ปิด' : '✓ เปิด'}
+      </button>
+      <button title="ลบ" onclick="window.deleteUpline(${u.id}, '${escapeJS(u.name)}')"
+        style="background:#fef2f2;color:#b91c1c;border:none;border-radius:6px;padding:4px 8px;font-size:13px;cursor:pointer">🗑</button>
+    </div>
+  `).join("");
+}
+
+window.addUpline = async function () {
+  const inp = document.getElementById("newUplineName");
+  const name = inp.value.trim();
+  if (!name) { inp.focus(); return; }
+  try {
+    await sbFetch("upline_leaders", "", { method: "POST", body: { name, sort_order: 1000 } });
+    inp.value = "";
+    _invalidateUplinesCache();
+    await _renderUplineMgrList();
+    showToast(`เพิ่มสายงาน "${name}" แล้ว`, "success");
+  } catch (e) {
+    if (/duplicate|unique/i.test(e.message || "")) {
+      showToast(`มีสายงาน "${name}" อยู่แล้ว`, "warn");
+    } else {
+      showToast("เพิ่มไม่สำเร็จ: " + e.message, "error");
+    }
+  }
+};
+
+window.toggleUpline = async function (id, makeActive) {
+  try {
+    await sbFetch("upline_leaders", `?id=eq.${id}`, {
+      method: "PATCH",
+      body: { is_active: makeActive },
+    });
+    _invalidateUplinesCache();
+    await _renderUplineMgrList();
+  } catch (e) {
+    showToast("เปลี่ยนสถานะไม่สำเร็จ: " + e.message, "error");
+  }
+};
+
+window.deleteUpline = async function (id, name) {
+  if (!confirm(`ลบสายงาน "${name}"?\n\n— แถวที่อ้างถึงจะคงชื่อไว้ (snapshot) แต่ link จะหาย`)) return;
+  try {
+    await sbFetch("upline_leaders", `?id=eq.${id}`, { method: "DELETE" });
+    _invalidateUplinesCache();
+    await _renderUplineMgrList();
+    showToast(`ลบสายงาน "${name}" แล้ว`, "success");
+  } catch (e) {
+    showToast("ลบไม่สำเร็จ: " + e.message, "error");
+  }
+};
+
+async function _refreshUplineDropdownInForm() {
+  const sel = document.getElementById("attFormUpline");
+  if (!sel || !document.getElementById("attendeeFormOverlay").classList.contains("open")) return;
+  const current = sel.value;
+  const uplines = await fetchUplines();
+  sel.innerHTML = '<option value="">— เลือกสายงาน —</option>' +
+    uplines.filter(u => u.is_active).map(u =>
+      `<option value="${u.id}">${escapeHtml(u.name)}</option>`
+    ).join("");
+  sel.value = current;
+}
+
+// ── FIELD CONFIG MODAL (per-event) ─────────────────────────
+let _fcDraft = null;   // working copy { fields, qualifications }
+
+const FIELD_LABELS = {
+  phone:        "เบอร์โทร",
+  position:     "ตำแหน่ง",
+  upline:       "สายงาน",
+  cs_staff:     "CS",
+  line_name:    "ชื่อไลน์ที่แจ้ง",
+  fb_page_name: "ชื่อเพจ Facebook",
+  had_attended: "เคยเรียน/ไม่เคยเรียน",
+  note:         "หมายเหตุ",
+};
+
+window.openFieldConfigModal = async function () {
+  if (!currentEventId) { showToast("เลือก event ก่อน", "error"); return; }
+  const cfg = await fetchEventFieldConfig(currentEventId);
+  _fcDraft = JSON.parse(JSON.stringify(cfg));
+  _renderFcFields();
+  _renderFcQuals();
+  document.getElementById("fieldConfigOverlay").classList.add("open");
+};
+
+window.closeFieldConfigModal = function (ev) {
+  if (ev && ev.target && !ev.target.classList?.contains("modal-overlay")) return;
+  document.getElementById("fieldConfigOverlay").classList.remove("open");
+  _fcDraft = null;
+};
+
+function _renderFcFields() {
+  const grid = document.getElementById("fcFieldsGrid");
+  if (!grid || !_fcDraft) return;
+  grid.innerHTML = Object.keys(FIELD_LABELS).map(key => {
+    const f = _fcDraft.fields[key] || {};
+    const show = f.show !== false;
+    const req = f.required === true;
+    return `<div style="display:flex;align-items:center;justify-content:space-between;background:#fff;border:1px solid #e2e8f0;border-radius:6px;padding:7px 10px;font-size:12.5px">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;flex:1">
+        <input type="checkbox" data-fc-show="${key}" ${show ? "checked" : ""} onchange="window._fcToggleShow('${key}', this.checked)"
+          style="width:16px;height:16px;cursor:pointer">
+        <span style="${show ? 'color:#0f172a' : 'color:#94a3b8;text-decoration:line-through'}">${FIELD_LABELS[key]}</span>
+      </label>
+      <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:11px;color:#92400e">
+        <input type="checkbox" data-fc-req="${key}" ${req ? "checked" : ""} ${show ? "" : "disabled"} onchange="window._fcToggleReq('${key}', this.checked)"
+          style="width:14px;height:14px;cursor:pointer">
+        บังคับ*
+      </label>
+    </div>`;
+  }).join("");
+}
+
+window._fcToggleShow = function (key, val) {
+  if (!_fcDraft.fields[key]) _fcDraft.fields[key] = {};
+  _fcDraft.fields[key].show = val;
+  if (!val) _fcDraft.fields[key].required = false;
+  _renderFcFields();
+};
+window._fcToggleReq = function (key, val) {
+  if (!_fcDraft.fields[key]) _fcDraft.fields[key] = {};
+  _fcDraft.fields[key].required = val;
+};
+
+function _renderFcQuals() {
+  const list = document.getElementById("fcQualList");
+  if (!list || !_fcDraft) return;
+  if (!_fcDraft.qualifications.length) {
+    list.innerHTML = '<div style="padding:18px;text-align:center;color:var(--text3);font-size:12px">ยังไม่มี checklist — เพิ่มด้านบน</div>';
+    return;
+  }
+  list.innerHTML = _fcDraft.qualifications.map((q, i) => `
+    <div style="display:flex;align-items:center;gap:8px;background:#fff;border:1px solid #e2e8f0;border-radius:6px;padding:6px 10px">
+      <span style="font-size:11px;font-weight:700;color:#64748b;font-family:'IBM Plex Mono',monospace;min-width:24px">${i + 1}.</span>
+      <span style="flex:1;font-size:12.5px;color:#0f172a">${escapeHtml(q.label)}</span>
+      <span style="font-size:10px;color:#7c2d12;background:#fed7aa;padding:1px 6px;border-radius:4px;font-family:'IBM Plex Mono',monospace" title="key">${escapeHtml(q.key)}</span>
+      <button onclick="window.removeQualification(${i})" title="ลบ" style="background:#fef2f2;color:#b91c1c;border:none;border-radius:4px;padding:3px 7px;font-size:12px;cursor:pointer">🗑</button>
+    </div>
+  `).join("");
+}
+
+window.addQualification = function () {
+  const inp = document.getElementById("fcNewQualLabel");
+  const label = inp.value.trim();
+  if (!label) { inp.focus(); return; }
+  // generate key from label (slugify Thai/EN → strip punctuation, replace space _)
+  const baseKey = label.toLowerCase()
+    .replace(/[^\p{L}\p{N}\s_]/gu, "")
+    .replace(/\s+/g, "_")
+    .slice(0, 40);
+  let key = baseKey || `q${Date.now()}`;
+  // dedupe
+  let n = 2;
+  const used = new Set(_fcDraft.qualifications.map(q => q.key));
+  while (used.has(key)) { key = `${baseKey}_${n++}`; }
+  _fcDraft.qualifications.push({ key, label });
+  inp.value = "";
+  _renderFcQuals();
+};
+
+window.removeQualification = function (idx) {
+  _fcDraft.qualifications.splice(idx, 1);
+  _renderFcQuals();
+};
+
+window.saveFieldConfig = async function () {
+  if (!_fcDraft || !currentEventId) return;
+  try {
+    await sbFetch("events", `?event_id=eq.${currentEventId}`, {
+      method: "PATCH",
+      body: { attendee_field_config: _fcDraft },
+    });
+    _invalidateEventConfigCache();
+    showToast("บันทึก config แล้ว ⚙️", "success");
+    window.closeFieldConfigModal();
+  } catch (e) {
+    showToast("บันทึกไม่สำเร็จ: " + e.message, "error");
+  }
+};
+
+// ── PUBLIC ENTRY: open form from search row "+ ผู้เรียนใหม่" ──
+window.openGuestFormFromSearch = function (rowId) {
+  // Hide member-suggest dropdown first
+  const sug = document.getElementById("memberSuggest");
+  if (sug) sug.style.display = "none";
+  _lastMemberResults = [];
+
+  const r = _findRow(rowId);
+  const prefillName = (r?.name || "").trim();
+  // If looks like a digit-only string → don't prefill (user was searching for member code)
+  const looksLikeCode = /^\d{3,10}$/.test(prefillName);
+  window.openAttendeeForm({
+    name: looksLikeCode ? "" : prefillName,
+    paymentStatus: r?.paymentStatus || "UNPAID",
+    _sourceRowId: rowId,
+  });
+};
+
+// ── PUBLIC ENTRY: open form to edit a saved attendee ──
+window.openAttendeeEdit = function (attId) {
+  const a = allAttendees.find(x => x.attendee_id === attId);
+  if (!a) { showToast("ไม่พบรายการ", "error"); return; }
+  window.openAttendeeForm({
+    attId: a.attendee_id,
+    memberCode: a.member_code || "",
+    personRole: a.person_role || "guest",
+    name: a.name,
+    phone: a.phone,
+    position_level: a.position_level,
+    upline_id: a.upline_id,
+    cs_staff: a.cs_staff,
+    line_name_reported: a.line_name_reported,
+    fb_page_name: a.fb_page_name,
+    had_attended_before: a.had_attended_before,
+    attendee_note: a.attendee_note,
+    extra_fields: a.extra_fields || {},
+    paymentStatus: a.payment_status,
+  });
+};
+
+// ============================================================
 // ── START ─────────────────────────────────────────────────
 if (document.readyState === "loading") {
   document.addEventListener("DOMContentLoaded", () => initPage().then(startAutoRefresh));

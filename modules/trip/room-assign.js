@@ -1085,6 +1085,11 @@ function renderRooms() {
     const visibleRooms = state.filterEmptyOnly
       ? rooms.filter(r => (occByRoom[r.room_id]?.length || 0) < (r.capacity || 0))
       : rooms;
+    // เรียงห้องแบบ natural ASC (Twin-2 < Twin-3 < Twin-21 ไม่ใช่ Twin-1 → Twin-10 → Twin-2)
+    visibleRooms.sort((a, b) =>
+      (a.room_name || "").localeCompare(b.room_name || "", undefined, { numeric: true, sensitivity: "base" })
+      || (a.room_id - b.room_id)
+    );
     const hiddenCount = rooms.length - visibleRooms.length;
 
     // ช่วงวันที่ของกลุ่ม — ถ้าทุกห้องใช้ช่วงเดียวกัน แสดงครั้งเดียว, ถ้าต่างกันแสดง "หลายช่วง"
@@ -1637,9 +1642,7 @@ window.saveRoomBatch = async function () {
       // เพิ่มห้องใหม่ในกลุ่มเดียวกัน (ใช้ check_in/out + place + type ใหม่)
       let addedMsg = "";
       if (addCount > 0) {
-        const sameType = state.rooms.filter(r =>
-          (r.room_type || "") === name && r.place_id === state.rbSelectedHotelId);
-        const startIdx = sameType.length + 1;
+        const startIdx = nextRoomIdx(name, state.rbSelectedHotelId);
         const baseSort = state.rooms.length;
         const addPayload = [];
         for (let i = 0; i < addCount; i++) {
@@ -1693,9 +1696,8 @@ window.saveRoomBatch = async function () {
     : (parseInt(document.getElementById("rbCount").value, 10) || 1);
   if (count < 1) { showToast("จำนวนต้อง ≥ 1", "error"); return; }
 
-  // หา start index จากห้องประเภทเดียวกัน (เพื่อต่อเลข Twin-3 ถ้ามี Twin-1, Twin-2 อยู่)
-  const sameTypeRooms = state.rooms.filter(r => (r.room_type || "") === name && r.place_id === state.rbSelectedHotelId);
-  const startIdx = sameTypeRooms.length + 1;
+  // หา start index จากเลข suffix สูงสุดของห้องประเภทเดียวกัน (เพื่อต่อเลข Twin-3 ถ้ามี Twin-1, Twin-2 อยู่)
+  const startIdx = nextRoomIdx(name, state.rbSelectedHotelId);
   const baseSort = state.rooms.length;
 
   const payload = [];
@@ -1879,16 +1881,34 @@ function cssEscape(s) {
   return String(s).replace(/[\\"]/g, "\\$&");
 }
 
+// หา index ถัดไปสำหรับชื่อห้อง "<roomType>-N" โดยอ้างอิงเลข suffix สูงสุดที่ใช้แล้ว
+// (ไม่ใช่ length เพราะถ้าลบห้องตรงกลางจะชนชื่อ)
+// usedNames = Set ของชื่อห้องที่ห้ามทับ (กันกรณี user rename ทับเลขใหม่)
+function nextRoomIdx(roomType, placeId) {
+  const prefix = `${roomType}-`;
+  const sameType = state.rooms.filter(r =>
+    (r.room_type || "") === roomType && r.place_id === placeId);
+  const used = new Set(sameType.map(r => r.room_name || ""));
+  let maxIdx = 0;
+  sameType.forEach(r => {
+    const name = r.room_name || "";
+    if (name.startsWith(prefix)) {
+      const n = parseInt(name.slice(prefix.length), 10);
+      if (Number.isFinite(n) && n > maxIdx) maxIdx = n;
+    }
+  });
+  let idx = maxIdx + 1;
+  while (used.has(`${prefix}${idx}`)) idx++;
+  return idx;
+}
+
 // ── Add 1 room to existing group ──
 // ใช้ค่า hotel + room_type + dates + capacity จากต้นฉบับของกลุ่มนั้น
 window.addOneRoomToGroup = async function (groupKey) {
   const rooms = state.rooms.filter(r => groupKeyOf(r) === groupKey);
   if (!rooms.length) return;
   const sample = rooms[0];
-  // หา index ต่อจากห้องประเภท+โรงแรมเดียวกัน (เช่น Twin-1..2 อยู่ → ห้องใหม่ = Twin-3)
-  const sameType = state.rooms.filter(r =>
-    (r.room_type || "") === sample.room_type && r.place_id === sample.place_id);
-  const nextIdx = sameType.length + 1;
+  const nextIdx = nextRoomIdx(sample.room_type, sample.place_id);
   showLoading(true);
   try {
     await sbFetch("trip_rooms", "", {
