@@ -37,7 +37,6 @@
               <button class="att-hero-btn" onclick="window.openShareRegisterModal()" title="แชร์ลิงก์ลงทะเบียน"><span class="ico">🔗</span><span class="lbl">แชร์ลิงก์</span></button>
               <button class="att-hero-btn" onclick="window.openBulkMsgModal()" title="ส่งข้อความกลุ่ม"><span class="ico">📢</span><span class="lbl">ส่งข้อความ</span></button>
               <span class="att-hero-divider"></span>
-              <button class="att-hero-btn" id="densityToggleBtn" onclick="window.toggleTableDensity()" title="สลับ Compact / Comfortable"><span class="ico" id="densityIco">📋</span><span class="lbl" id="densityLbl">Comfortable</span></button>
               <button class="att-hero-btn" onclick="window.openTagCategoriesModal()" title="จัดการหมวด Tag"><span class="ico">🏷️</span><span class="lbl">หมวด Tag</span></button>
               <button class="att-hero-btn" onclick="window.openFieldConfigModal()" title="ตั้งค่าฟิลด์ลงทะเบียน + คุณสมบัติ"><span class="ico">⚙️</span><span class="lbl">ฟิลด์</span></button>
               <button class="att-hero-btn" onclick="window.exportCSV()" title="Export CSV"><span class="ico">📥</span><span class="lbl">Export</span></button>
@@ -109,20 +108,9 @@
                 <div class="att-tt-count" id="attCount">0 คน</div>
               </div>
               <div class="table-wrap">
-                <table class="data-table att-inline-table">
+                <table class="data-table att-inline-table density-spreadsheet">
                   <thead>
-                    <tr>
-                      <th class="col-center" style="min-width:36px;width:36px">
-                        <input type="checkbox" id="selectAllAttendees" onchange="window.toggleSelectAll(this.checked)" style="cursor:pointer;width:16px;height:16px">
-                      </th>
-                      <th style="min-width:240px">🔍 ค้นหา / เพิ่ม / filter</th>
-                      <th class="col-center" style="min-width:100px">⭐ ตำแหน่ง</th>
-                      <th class="col-center" style="min-width:130px">📱 เบอร์โทร</th>
-                      <th class="col-center" style="min-width:110px">🎫 Ticket</th>
-                      <th class="col-center" style="min-width:130px">💰 ชำระ</th>
-                      <th class="col-center" style="min-width:90px">✅ Check-in</th>
-                      <th class="col-center" style="min-width:130px">จัดการ</th>
-                    </tr>
+                    <tr id="attTableHead"></tr>
                   </thead>
                   <tbody id="attTableBody"></tbody>
                 </table>
@@ -609,8 +597,14 @@
           <button class="btn-modal-close" onclick="window.closeFieldConfigModal()">✕</button>
         </div>
         <div class="modal-body">
-          <div style="font-size:12px;color:var(--text3);background:#f1f5f9;padding:8px 12px;border-radius:8px;margin-bottom:14px">
-            💡 ตั้งค่าเฉพาะ event นี้ — เปิด/ปิดฟิลด์ + กำหนด checklist คุณสมบัติของผู้เรียน
+          <div id="fcSourceBanner" style="font-size:12px;background:#f1f5f9;padding:8px 12px;border-radius:8px;margin-bottom:14px"></div>
+
+          <div id="fcOverrideToggle" style="display:none;background:#fffbeb;border:1px solid #fcd34d;border-radius:8px;padding:10px 12px;margin-bottom:14px">
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:#78350f">
+              <input type="checkbox" id="fcUseTemplate" checked onchange="window._fcOnUseTemplateToggle(this.checked)" style="width:16px;height:16px;cursor:pointer">
+              <span><b>ใช้ตาม template</b> (sync อัตโนมัติเมื่อ template เปลี่ยน)</span>
+            </label>
+            <div id="fcOverrideHint" style="font-size:11px;color:#92400e;margin-top:4px;padding-left:24px"></div>
           </div>
 
           <div style="font-size:13px;font-weight:700;color:#0f172a;margin-bottom:8px">📋 ฟิลด์ที่แสดงในฟอร์ม</div>

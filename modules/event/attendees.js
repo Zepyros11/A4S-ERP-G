@@ -511,6 +511,7 @@ async function loadAttendees(eventId) {
       fetchAttendees(eventId),
       fetchTiers(eventId),
       fetchTagCategories(eventId),
+      fetchEventFieldConfig(eventId).catch(() => {}),  // pre-warm config cache → spreadsheet header ถูกตั้งแต่ first render
     ]);
     allAttendees = atts || [];
     currentTiers = tiers || [];
@@ -523,7 +524,6 @@ async function loadAttendees(eventId) {
     renderTierBanner();
     populateTagFilter();
     _loadAutoCheckinState();
-    _loadTableDensity();
     updateStats();
     filterTable();
   } catch (e) {
@@ -1022,16 +1022,18 @@ function renderTable(list) {
   if (countEl) countEl.textContent = `${list.length} คน`;
 
   ensureTrailingEmptyRow();
+  rebuildTableHeader();   // ensure header matches current event config
 
-  const newRowsHtml = newRows.map(renderNewRow).join("");
+  const newRowsHtml = newRows.map(renderNewRowSpreadsheet).join("");
   tbody.innerHTML = newRowsHtml + _buildSavedRowsHtml(list);
   updateBulkUI();
 }
 
 function _buildSavedRowsHtml(list) {
+  const colCount = getActiveColumns().length;
   return list.length
-    ? list.map(renderSavedRow).join("")
-    : `<tr class="empty-state-row"><td colspan="8"><div class="empty-state" style="padding:20px">
+    ? list.map((a, i) => renderSavedRowSpreadsheet(a, i + 1)).join("")
+    : `<tr class="empty-state-row"><td colspan="${colCount}"><div class="empty-state" style="padding:20px">
         <div class="empty-icon" style="font-size:28px">👥</div>
         <div class="empty-text" style="font-size:12px">ยังไม่มีผู้เข้าร่วมที่ตรง — พิมพ์ที่แถวบนเพื่อเพิ่ม</div>
       </div></td></tr>`;
@@ -1078,24 +1080,155 @@ function filterTableSavedOnly() {
   renderSavedRowsOnly(filtered);
 }
 
-function renderNewRow(r) {
-  const posBadge = r.positionLevel
-    ? `<span class="cell-member-pos">⭐ ${escapeHtml(r.positionLevel)}</span>`
-    : `<span class="att-empty">·</span>`;
-  const prereq = r.prereq
-    ? `<div class="prereq-warn-inline ${r.prereq.ok ? "ok" : ""}">${r.prereq.ok ? "✅" : "⚠️"} ${escapeHtml(r.prereq.msg)}</div>`
-    : "";
-  const roleBadge = r.personRole === "co_applicant"
-    ? `<span style="font-size:10px;color:#9333ea;background:#f3e8ff;padding:1px 6px;border-radius:4px;font-weight:700;margin-right:4px" title="ผู้สมัครร่วม">👥</span>`
-    : "";
+// ── SPREADSHEET ROW RENDERERS ──────────────────────────────
+// adaptive cells ตาม getActiveColumns() · เป็น render path เดียวของหน้านี้
+
+function renderSavedRowSpreadsheet(a, seq) {
+  const expired = isAttendeeExpired(a);
+  const displayPayStatus = expired ? "EXPIRED" : (a.payment_status || "COMPLIMENTARY");
+  const tierName = a.tier_id && currentTiersById[a.tier_id]
+    ? currentTiersById[a.tier_id].tier_name
+    : null;
+  const isSelected = selectedAttendeeIds.has(a.attendee_id);
+  const cols = getActiveColumns();
+  const cells = cols.map(c => _renderSavedCellSpread(c, a, seq, displayPayStatus, tierName, isSelected)).join("");
+  return `<tr class="saved-row${isSelected ? " row-selected" : ""}" data-aid="${a.attendee_id}">${cells}</tr>`;
+}
+
+function _renderSavedCellSpread(col, a, seq, payStatus, tierName, isSelected) {
+  const tdOpen = `<td class="${col.align === "center" ? "col-center" : ""}">`;
+  // base columns
+  switch (col.key) {
+    case "check":
+      return `${tdOpen}<input type="checkbox" class="att-row-check" data-aid="${a.attendee_id}" ${isSelected ? "checked" : ""}
+        onclick="event.stopPropagation();window.toggleSelectAttendee(${a.attendee_id}, this.checked)"
+        style="cursor:pointer;width:16px;height:16px"></td>`;
+    case "num":
+      return `${tdOpen}<span style="font-family:'IBM Plex Mono',monospace;color:var(--text3);font-size:11.5px">${seq}</span></td>`;
+    case "name":
+      return `<td>
+        <div class="cell-name-wrap" data-field="name" onclick="window.startEditCell(${a.attendee_id},'name',this)">
+          <div style="font-weight:600;cursor:text" title="คลิกเพื่อแก้ไขชื่อ">
+            ${a.member_code
+              ? `<span style="font-family:'IBM Plex Mono',monospace;font-size:10px;background:#1e40af;color:#fff;padding:2px 7px;border-radius:10px;font-weight:700;margin-right:6px">${escapeHtml(a.member_code)}</span>`
+              : `<span style="font-size:10px;background:#fef3c7;color:#92400e;padding:2px 7px;border-radius:10px;font-weight:700;margin-right:6px;border:1px solid #fcd34d" title="ยังไม่ใช่สมาชิก">👤 Guest</span>`
+            }${escapeHtml(a.name)}
+          </div>
+          ${renderTagsInline(a, a.person_role === "co_applicant" ? `<span style="font-size:10px;color:#9333ea;background:#f3e8ff;padding:1px 7px;border-radius:10px;font-weight:700;white-space:nowrap" title="ผู้สมัครร่วมจากรหัสเดียวกัน">👥 ผู้สมัครร่วม</span>` : "")}
+        </div>
+      </td>`;
+    case "ticket":
+      return `${tdOpen}${a.ticket_no
+        ? `<div class="cell-ticket cell-ticket-clickable" onclick="window.openQrModal(${a.attendee_id})" title="คลิกเพื่อดู QR บัตร">${a.ticket_no}</div>`
+        : `<div class="cell-ticket">—</div>`}</td>`;
+    case "payment":
+      return `${tdOpen}<span class="pay-badge pay-${payStatus}"
+        onclick="window.startEditCell(${a.attendee_id},'payment_status',this)"
+        style="cursor:pointer" title="คลิกเพื่อบันทึกการชำระ">
+        ${payLabel(payStatus)}
+      </span>
+      ${parseFloat(a.paid_amount || 0) > 0 ? `<div style="font-size:11px;color:var(--text3);margin-top:2px">฿${formatNum(a.paid_amount)}</div>` : ""}
+      ${tierName ? `<div class="tier-chip" title="ราคาที่ lock ตอนลงทะเบียน">🎟️ ${escapeHtml(tierName)}</div>` : ""}
+      ${a.payment_method ? `<div class="tier-chip" style="background:#dbeafe;color:#1e40af" title="วิธีชำระ">${paymentMethodIcon(a.payment_method)}</div>` : ""}
+      ${renderDeadlineChip(a)}</td>`;
+    case "checkin":
+      return `${tdOpen}<button class="btn-checkin ${a.checked_in ? "undo-checkin" : "do-checkin"}"
+        onclick="window.toggleCheckin(${a.attendee_id}, ${a.checked_in})">
+        ${a.checked_in ? "✅" : "⬜"}
+      </button>
+      ${a.check_in_at ? `<div style="font-size:10px;color:var(--text3);margin-top:2px">${formatDateTime(a.check_in_at)}</div>` : ""}</td>`;
+    case "actions":
+      return `${tdOpen}<div style="display:inline-flex;gap:4px;align-items:center">
+        <button onclick="window.openAttendeeEdit(${a.attendee_id})" title="แก้ไขข้อมูล"
+          style="background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:13px">✏️</button>
+        <button class="btn-qr" onclick="window.openQrModal(${a.attendee_id})" title="ดู QR">🎫</button>
+        <button class="btn-icon danger" onclick="window.deleteAttendee(${a.attendee_id})" title="ลบ">🗑</button>
+      </div></td>`;
+  }
+  // field:<key>
+  if (col.key.startsWith("field:")) {
+    return _renderFieldCellSpread(col.key.slice(6), a, tdOpen);
+  }
+  // qual:<key>
+  if (col.key.startsWith("qual:")) {
+    return _renderQualCellSpread(col.key.slice(5), a, tdOpen);
+  }
+  return `${tdOpen}—</td>`;
+}
+
+function _renderFieldCellSpread(fkey, a, tdOpen) {
+  const empty = `${tdOpen}<span class="att-empty">·</span></td>`;
+  switch (fkey) {
+    case "position":
+      return a.position_level
+        ? `${tdOpen}<span class="cell-member-pos">⭐ ${escapeHtml(a.position_level)}</span></td>`
+        : empty;
+    case "phone":
+      return a.phone
+        ? `${tdOpen}<span class="cell-phone">${escapeHtml(a.phone)}</span></td>`
+        : empty;
+    case "upline":
+      return a.upline_name_text
+        ? `${tdOpen}<span style="font-size:11.5px;color:#3730a3;background:#e0e7ff;padding:2px 8px;border-radius:5px;font-weight:600">🌿 ${escapeHtml(a.upline_name_text)}</span></td>`
+        : empty;
+    case "cs_staff":
+      return a.cs_staff
+        ? `${tdOpen}<span style="font-size:11.5px;color:#7c2d12;background:#fed7aa;padding:2px 8px;border-radius:5px;font-weight:600">${escapeHtml(a.cs_staff)}</span></td>`
+        : empty;
+    case "line_name":
+      return a.line_name_reported
+        ? `${tdOpen}<span style="font-size:11.5px;color:#065f46">💬 ${escapeHtml(a.line_name_reported)}</span></td>`
+        : empty;
+    case "fb_page_name":
+      return a.fb_page_name
+        ? `${tdOpen}<span style="font-size:11.5px;color:#1e3a8a">📘 ${escapeHtml(a.fb_page_name)}</span></td>`
+        : empty;
+    case "had_attended":
+      if (a.had_attended_before === true)
+        return `${tdOpen}<span style="font-size:11px;color:#065f46;background:#d1fae5;padding:2px 8px;border-radius:5px;font-weight:700">↻ เคย</span></td>`;
+      if (a.had_attended_before === false)
+        return `${tdOpen}<span style="font-size:11px;color:#7f1d1d;background:#fee2e2;padding:2px 8px;border-radius:5px;font-weight:700">★ ใหม่</span></td>`;
+      return empty;
+    case "note":
+      if (!a.attendee_note) return empty;
+      const noteShort = a.attendee_note.length > 22 ? a.attendee_note.slice(0, 22) + "…" : a.attendee_note;
+      return `${tdOpen}<span style="font-size:11px;color:#475569;font-style:italic" title="${escapeHtml(a.attendee_note)}">${escapeHtml(noteShort)}</span></td>`;
+    default:
+      return empty;
+  }
+}
+
+function _renderQualCellSpread(qkey, a, tdOpen) {
+  const v = a.extra_fields && typeof a.extra_fields === "object" ? a.extra_fields[qkey] : undefined;
+  if (v === true)
+    return `${tdOpen}<span style="font-size:14px;color:#15803d;font-weight:700">✓</span></td>`;
+  if (v === false)
+    return `${tdOpen}<span style="font-size:14px;color:#b91c1c">✗</span></td>`;
+  return `${tdOpen}<span style="color:var(--text3);font-size:11px">—</span></td>`;
+}
+
+function renderNewRowSpreadsheet(r) {
+  const cols = getActiveColumns();
+  // ใช้ colspan ครอบทุกคอลัมน์ตรงกลาง (หลัง check + #) เว้น 4 ตัวท้าย: ticket, payment, checkin, actions
+  // → search input ครอบกว้างให้พิมพ์ง่าย
+  const colCount = cols.length;
+  const trailingCols = ["ticket", "payment", "checkin", "actions"];
+  const trailingCount = cols.filter(c => trailingCols.includes(c.key)).length;
+  const headCount = cols[1]?.key === "num" ? 2 : 1;   // check + (#)
+  const searchSpan = colCount - headCount - trailingCount;
   const codeChip = r.memberCode
-    ? `<span class="member-chip-code" style="margin-right:6px" title="คลิก ✕ เพื่อยกเลิก">${escapeHtml(r.memberCode)}</span>
-       ${roleBadge}<button class="member-chip-close" onclick="window.clearNewRowMember('${r.id}')" title="ยกเลิกสมาชิก" style="margin-right:4px">✕</button>`
+    ? `<span style="font-family:'IBM Plex Mono',monospace;font-size:10px;background:#1e40af;color:#fff;padding:2px 7px;border-radius:10px;font-weight:700;white-space:nowrap">${escapeHtml(r.memberCode)}</span>`
     : "";
+  const posBadge = r.positionLevel
+    ? `<span style="font-size:10px;color:#92400e;background:#fef3c7;padding:1px 6px;border-radius:4px;font-weight:700;white-space:nowrap">⭐ ${escapeHtml(r.positionLevel)}</span>`
+    : "";
+  const phoneBadge = r.phone ? `<span class="cell-phone" style="font-size:11px">${escapeHtml(r.phone)}</span>` : "";
+
   return `<tr class="new-row" data-nrid="${r.id}">
     <td class="col-center"><span class="att-empty">·</span></td>
-    <td>
-      <div style="display:flex;align-items:center;gap:4px;flex-wrap:nowrap">
+    ${cols[1]?.key === "num" ? `<td class="col-center"><span class="att-empty">·</span></td>` : ""}
+    <td colspan="${searchSpan}">
+      <div style="display:flex;align-items:center;gap:6px;flex-wrap:nowrap">
         ${codeChip}
         <input class="inline-input" placeholder="🔍 พิมพ์รหัส/ชื่อ — เพื่อเพิ่ม หรือ filter รายการด้านล่าง" autocomplete="off"
           value="${escapeHtml(r.name)}"
@@ -1103,12 +1236,11 @@ function renderNewRow(r) {
           onkeydown="window.onNewRowKey(event, '${r.id}')"
           onfocus="window.onNewRowFocus('${r.id}')"
           data-role="search"
-          style="flex:1">
+          style="flex:1;min-width:200px">
+        ${posBadge}
+        ${phoneBadge}
       </div>
-      ${prereq}
     </td>
-    <td class="col-center">${posBadge}</td>
-    <td class="col-center">${r.phone ? `<span class="cell-phone">${escapeHtml(r.phone)}</span>` : '<span class="att-empty">·</span>'}</td>
     <td class="col-center"><span class="cell-ticket">auto</span></td>
     <td class="col-center">
       <select class="inline-select" onchange="window.onNewRowPayment('${r.id}', this.value)">
@@ -1124,110 +1256,6 @@ function renderNewRow(r) {
       </button>
     </td>
   </tr>`;
-}
-
-function renderSavedRow(a) {
-  const expired = isAttendeeExpired(a);
-  const displayPayStatus = expired ? "EXPIRED" : (a.payment_status || "COMPLIMENTARY");
-  const tierName = a.tier_id && currentTiersById[a.tier_id]
-    ? currentTiersById[a.tier_id].tier_name
-    : null;
-  const isSelected = selectedAttendeeIds.has(a.attendee_id);
-  return `<tr class="saved-row${isSelected ? " row-selected" : ""}" data-aid="${a.attendee_id}">
-    <td class="col-center">
-      <input type="checkbox" class="att-row-check" data-aid="${a.attendee_id}" ${isSelected ? "checked" : ""}
-        onclick="event.stopPropagation();window.toggleSelectAttendee(${a.attendee_id}, this.checked)"
-        style="cursor:pointer;width:16px;height:16px">
-    </td>
-    <td>
-      <div class="cell-name-wrap" data-field="name" onclick="window.startEditCell(${a.attendee_id},'name',this)">
-        <div style="font-weight:600;cursor:text" title="คลิกเพื่อแก้ไขชื่อ">
-          ${a.member_code
-            ? `<span style="font-family:'IBM Plex Mono',monospace;font-size:10px;background:#1e40af;color:#fff;padding:2px 7px;border-radius:10px;font-weight:700;margin-right:6px">${escapeHtml(a.member_code)}</span>`
-            : `<span style="font-size:10px;background:#fef3c7;color:#92400e;padding:2px 7px;border-radius:10px;font-weight:700;margin-right:6px;border:1px solid #fcd34d" title="ยังไม่ใช่สมาชิก">👤 Guest</span>`
-          }${escapeHtml(a.name)}
-        </div>
-        ${renderAttendeeMeta(a)}
-        ${renderTagsInline(a, a.person_role === "co_applicant" ? `<span style="font-size:10px;color:#9333ea;background:#f3e8ff;padding:1px 7px;border-radius:10px;font-weight:700;white-space:nowrap" title="ผู้สมัครร่วมจากรหัสเดียวกัน">👥 ผู้สมัครร่วม</span>` : "")}
-      </div>
-    </td>
-    <td class="col-center">
-      ${a.position_level ? `<span class="cell-member-pos">⭐ ${escapeHtml(a.position_level)}</span>` : '<span class="att-empty">·</span>'}
-    </td>
-    <td class="col-center">
-      ${a.phone ? `<span class="cell-phone">${escapeHtml(a.phone)}</span>` : '<span class="att-empty">·</span>'}
-    </td>
-    <td class="col-center">
-      ${a.ticket_no
-        ? `<div class="cell-ticket cell-ticket-clickable" onclick="window.openQrModal(${a.attendee_id})" title="คลิกเพื่อดู QR บัตร">${a.ticket_no}</div>`
-        : `<div class="cell-ticket">—</div>`}
-    </td>
-    <td class="col-center">
-      <span class="pay-badge pay-${displayPayStatus}"
-        onclick="window.startEditCell(${a.attendee_id},'payment_status',this)"
-        style="cursor:pointer" title="คลิกเพื่อบันทึกการชำระ">
-        ${payLabel(displayPayStatus)}
-      </span>
-      ${parseFloat(a.paid_amount || 0) > 0 ? `<div style="font-size:11px;color:var(--text3);margin-top:2px">฿${formatNum(a.paid_amount)}</div>` : ""}
-      ${tierName ? `<div class="tier-chip" title="ราคาที่ lock ตอนลงทะเบียน">🎟️ ${escapeHtml(tierName)}</div>` : ""}
-      ${a.payment_method ? `<div class="tier-chip" style="background:#dbeafe;color:#1e40af" title="วิธีชำระ">${paymentMethodIcon(a.payment_method)}</div>` : ""}
-      ${renderDeadlineChip(a)}
-    </td>
-    <td class="col-center">
-      <button class="btn-checkin ${a.checked_in ? "undo-checkin" : "do-checkin"}"
-        onclick="window.toggleCheckin(${a.attendee_id}, ${a.checked_in})">
-        ${a.checked_in ? "✅ เข้างานแล้ว" : "⬜ ยังไม่เข้างาน"}
-      </button>
-      ${a.check_in_at ? `<div style="font-size:10px;color:var(--text3);margin-top:2px">${formatDateTime(a.check_in_at)}</div>` : ""}
-    </td>
-    <td class="col-center">
-      <div style="display:inline-flex;gap:4px;align-items:center">
-        <button onclick="window.openAttendeeEdit(${a.attendee_id})" title="แก้ไขข้อมูล (สายงาน · CS · เพจ · คุณสมบัติ ฯลฯ)"
-          style="background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:13px">✏️</button>
-        <button class="btn-qr" onclick="window.openQrModal(${a.attendee_id})" title="ดู QR บัตร">🎫</button>
-        <button class="btn-icon danger" onclick="window.deleteAttendee(${a.attendee_id})" title="ลบ">🗑</button>
-      </div>
-    </td>
-  </tr>`;
-}
-
-// Subtitle line under name: สายงาน · CS · เพจ FB · ชื่อไลน์ · เคยเรียน ฯลฯ
-function renderAttendeeMeta(a) {
-  const chips = [];
-  if (a.upline_name_text) {
-    chips.push(`<span style="font-size:10.5px;color:#3730a3;background:#e0e7ff;padding:1px 7px;border-radius:5px;font-weight:600" title="สายงาน">🌿 ${escapeHtml(a.upline_name_text)}</span>`);
-  }
-  if (a.cs_staff) {
-    chips.push(`<span style="font-size:10.5px;color:#7c2d12;background:#fed7aa;padding:1px 7px;border-radius:5px;font-weight:600" title="CS">CS·${escapeHtml(a.cs_staff)}</span>`);
-  }
-  if (a.fb_page_name) {
-    chips.push(`<span style="font-size:10.5px;color:#1e3a8a;background:#dbeafe;padding:1px 7px;border-radius:5px;font-weight:600" title="ชื่อเพจ FB">📘 ${escapeHtml(a.fb_page_name)}</span>`);
-  }
-  if (a.line_name_reported) {
-    chips.push(`<span style="font-size:10.5px;color:#065f46;background:#d1fae5;padding:1px 7px;border-radius:5px;font-weight:600" title="ชื่อไลน์ที่แจ้ง">💬 ${escapeHtml(a.line_name_reported)}</span>`);
-  }
-  if (a.had_attended_before === true) {
-    chips.push(`<span style="font-size:10.5px;color:#065f46;background:#d1fae5;padding:1px 7px;border-radius:5px;font-weight:600" title="เคยเรียนแล้ว">↻ เคยเรียน</span>`);
-  } else if (a.had_attended_before === false) {
-    chips.push(`<span style="font-size:10.5px;color:#7f1d1d;background:#fee2e2;padding:1px 7px;border-radius:5px;font-weight:600" title="ยังไม่เคยเรียน">★ ใหม่</span>`);
-  }
-  // Qualifications — count true ones
-  const quals = a.extra_fields && typeof a.extra_fields === "object" ? a.extra_fields : null;
-  if (quals) {
-    const trueCount = Object.values(quals).filter(v => v === true).length;
-    const totalCount = Object.keys(quals).length;
-    if (totalCount > 0) {
-      const color = trueCount === totalCount ? "#065f46" : (trueCount >= totalCount / 2 ? "#92400e" : "#7f1d1d");
-      const bg = trueCount === totalCount ? "#d1fae5" : (trueCount >= totalCount / 2 ? "#fef3c7" : "#fee2e2");
-      chips.push(`<span style="font-size:10.5px;color:${color};background:${bg};padding:1px 7px;border-radius:5px;font-weight:700" title="คุณสมบัติผ่าน ${trueCount}/${totalCount}">✓ ${trueCount}/${totalCount}</span>`);
-    }
-  }
-  if (a.attendee_note) {
-    const noteShort = a.attendee_note.length > 30 ? a.attendee_note.slice(0, 30) + "…" : a.attendee_note;
-    chips.push(`<span style="font-size:10.5px;color:#475569;background:#f1f5f9;padding:1px 7px;border-radius:5px;font-style:italic" title="${escapeHtml(a.attendee_note)}">📝 ${escapeHtml(noteShort)}</span>`);
-  }
-  if (!chips.length) return "";
-  return `<div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:3px;align-items:center">${chips.join("")}</div>`;
 }
 
 function paymentMethodIcon(m) {
@@ -1319,16 +1347,8 @@ window.onNewRowNameInput = function (id, val) {
   }
   // Update saved-rows filter ทันที (ไม่แตะ new-row → ไม่เสีย focus)
   filterTableSavedOnly();
-  // Auto-add trailing empty row เฉพาะตอนเริ่มพิมพ์ในแถวสุดท้าย
-  const isLast = newRows[newRows.length - 1].id === id;
-  const prevCount = newRows.length;
-  if (isLast && val.trim()) {
-    ensureTrailingEmptyRow();
-    // Append เฉพาะ trailing row ใหม่ — ไม่ไปแตะแถวที่ user กำลังพิมพ์
-    if (newRows.length !== prevCount) {
-      _appendLastNewRow();
-    }
-  }
+  // ❌ เลิก auto-add trailing empty row ตอนพิมพ์ (กันแถวซ้อนดูสับสน)
+  //   → trailing row ใหม่จะถูกเพิ่มเฉพาะตอน save สำเร็จ (saveNewRow / saveAttendeeForm)
   _updateSaveBtn(id);
 };
 
@@ -1338,7 +1358,7 @@ function _appendLastNewRow() {
   if (!tbody) return;
   const last = newRows[newRows.length - 1];
   if (!last) return;
-  const html = renderNewRow(last);
+  const html = renderNewRowSpreadsheet(last);
   // Insert ก่อน saved-row ตัวแรก (หรือ empty-state-row)
   const firstSavedOrEmpty = tbody.querySelector("tr.saved-row, tr.empty-state-row");
   if (firstSavedOrEmpty) {
@@ -1849,6 +1869,7 @@ async function _enforceRegistration(payload) {
 
 // ── MEMBER SEARCH + PREREQUISITE CHECK ─────────────────────
 let _memberSearchTimer = null;
+let _memberSearchAbort = null;   // cancel in-flight request when user types more
 
 let _lastMemberResults = [];
 let _memberHighlight = 0;
@@ -1871,6 +1892,8 @@ function _positionSuggestUnderActiveRow() {
 window.searchMember = function (q, rowId) {
   if (rowId) activeSearchRowId = rowId;
   clearTimeout(_memberSearchTimer);
+  // cancel any in-flight request — กัน race condition + กัน response เก่าทับ state ใหม่
+  if (_memberSearchAbort) { try { _memberSearchAbort.abort(); } catch {} }
   const sug = document.getElementById("memberSuggest");
   q = (q || "").trim();
   if (!q) { sug.style.display = "none"; _lastMemberResults = []; return; }
@@ -1881,26 +1904,42 @@ window.searchMember = function (q, rowId) {
   _positionSuggestUnderActiveRow();
 
   _memberSearchTimer = setTimeout(async () => {
-    try {
-      const { url, key } = getSB();
-      const esc = q.replace(/[,()*]/g, '');
-      const isDigits = /^\d+$/.test(esc);
-      // Digits → exact member_code match (อาจได้ 1-2 rows: primary + co_applicant)
-      // Text   → search person_name (ทุก role)
-      const filter = isDigits
-        ? `member_code=eq.${encodeURIComponent(esc)}`
-        : `person_name=ilike.*${esc}*`;
-      const res = await fetch(
-        `${url}/rest/v1/member_persons?select=member_code,person_role,person_name,phone,country_code,position_level,is_company&${filter}&limit=12&order=member_code,person_role`,
-        { headers: { apikey: key, Authorization: `Bearer ${key}` } }
-      );
-      if (!res.ok) {
+    // Strip SQL ilike wildcards + PostgREST reserved chars → safe value
+    // ก่อนหน้านี้ strip แค่ ,()*  → ตอนนี้ strip %, _, \ ด้วย กัน ilike pattern confuse
+    const esc = q.replace(/[,()*%_\\]/g, '');
+    if (!esc) {
+      sug.innerHTML = '<div style="padding:10px 12px;color:var(--text3);font-size:12px">พิมพ์ตัวอักษรหรือเลขรหัส</div>';
+      return;
+    }
+    const isDigits = /^\d+$/.test(esc);
+    const { url, key } = getSB();
+    // ⭐ ทุกค่าใน URL ต้อง encodeURIComponent (กัน space/Thai/พิเศษ → 500)
+    const filter = isDigits
+      ? `member_code=eq.${encodeURIComponent(esc)}`
+      : `person_name=ilike.${encodeURIComponent('*' + esc + '*')}`;
+    const apiUrl = `${url}/rest/v1/member_persons?select=member_code,person_role,person_name,phone,country_code,position_level,is_company&${filter}&limit=12&order=member_code,person_role`;
+    const opts = { headers: { apikey: key, Authorization: `Bearer ${key}` } };
+
+    // ── Retry on 500 (server timeout) — ลองสูงสุด 2 ครั้ง ─────────
+    const tryOnce = async (attempt) => {
+      _memberSearchAbort = new AbortController();
+      const res = await fetch(apiUrl, { ...opts, signal: _memberSearchAbort.signal });
+      if (res.ok) return res;
+      if (res.status >= 500 && attempt < 2) {
         const errText = await res.text().catch(() => '');
-        console.warn('searchMember API error:', res.status, errText);
-        sug.innerHTML = `<div style="padding:10px 12px;color:#dc2626;font-size:12px">⚠️ ค้นหาไม่สำเร็จ (${res.status})</div>`;
-        return;
+        console.warn(`searchMember 500 (attempt ${attempt}):`, errText);
+        await new Promise(r => setTimeout(r, 300));   // brief backoff
+        return tryOnce(attempt + 1);
       }
+      const errText = await res.text().catch(() => '');
+      console.warn('searchMember API error:', res.status, errText);
+      throw new Error(`${res.status}`);
+    };
+
+    try {
+      const res = await tryOnce(1);
       const rows = await res.json();
+      _memberSearchAbort = null;
       if (!rows || !rows.length) {
         _lastMemberResults = [];
         sug.innerHTML = `
@@ -1913,10 +1952,16 @@ window.searchMember = function (q, rowId) {
       _memberHighlight = 0;
       _renderMemberSuggest();
     } catch (e) {
-      console.warn('searchMember:', e);
-      sug.innerHTML = `<div style="padding:10px 12px;color:#dc2626;font-size:12px">⚠️ ${e.message || 'error'}</div>`;
+      if (e.name === "AbortError") return;   // user typed more → silent
+      const msg = /^\d+$/.test(e.message || "")
+        ? `เซิร์ฟเวอร์ตอบช้า (${e.message}) — ลองพิมพ์ใหม่อีกครั้ง`
+        : (e.message || 'error');
+      sug.innerHTML = `
+        <div style="padding:10px 12px;color:#dc2626;font-size:12px;border-bottom:1px solid #e2e8f0">⚠️ ${escapeHtml(msg)}</div>
+        ${_guestAddRowHtml()}
+      `;
     }
-  }, 250);
+  }, 280);
 };
 
 function escapeHtml(s) {
@@ -2037,9 +2082,29 @@ window.selectMember = function (code, role, name, phone, positionLevel) {
   _lastMemberResults = [];
   if (!activeSearchRowId) return;
   const rowId = activeSearchRowId;
-  _applyMemberToRow(rowId, code, role || "primary", name, phone || "", positionLevel || "");
-  // Auto-save immediately — เลือก = enter รายการเข้า list ทันที
-  requestAnimationFrame(() => window.saveNewRow(rowId));
+  const r0 = role || "primary";
+
+  // Duplicate check ก่อนเปิด modal — กันเปิด form แล้วเจอ error ตอน save
+  const dup = allAttendees.find(a =>
+    a.member_code === code && (a.person_role || "primary") === r0
+  );
+  if (dup) {
+    const roleLabel = (r0 === "co_applicant") ? " (ผู้สมัครร่วม)" : "";
+    showToast(`❌ สมาชิก ${code}${roleLabel} (${dup.name}) ลงทะเบียนแล้ว — Ticket: ${dup.ticket_no || "—"}`, "error");
+    return;
+  }
+
+  // เปิด Form Modal พร้อม prefill ข้อมูลสมาชิก (consistent กับ guest flow)
+  const r = _findRow(rowId);
+  window.openAttendeeForm({
+    memberCode: code,
+    personRole: r0,
+    name: name,
+    phone: phone || "",
+    position_level: positionLevel || "",
+    paymentStatus: r?.paymentStatus || "UNPAID",
+    _sourceRowId: rowId,
+  });
 };
 
 // เพิ่มทั้ง primary + co_applicant ที่ใช้ member_code เดียวกัน — QR shared
@@ -2825,31 +2890,60 @@ window.copyShareRegisterUrl = async function (type) {
   }
 };
 
-// ── TABLE DENSITY TOGGLE ─────────────────────────────────
-// Global setting — default Comfortable
-const DENSITY_KEY = "att_table_density"; // "compact" | "comfortable"
+// ── ADAPTIVE COLUMN SYSTEM (Spreadsheet mode — only mode) ──
+// Header + rows show columns ตาม event field config + qualifications แบบ adaptive
 
-function _applyTableDensity(mode) {
-  const tbl = document.querySelector(".att-inline-table");
-  const ico = document.getElementById("densityIco");
-  const lbl = document.getElementById("densityLbl");
-  const isCompact = mode === "compact";
-  if (tbl) tbl.classList.toggle("density-compact", isCompact);
-  if (ico) ico.textContent = isCompact ? "🔍" : "📋";
-  if (lbl) lbl.textContent = isCompact ? "Compact" : "Comfortable";
-}
-
-function _loadTableDensity() {
-  const mode = localStorage.getItem(DENSITY_KEY) || "comfortable";
-  _applyTableDensity(mode);
-}
-
-window.toggleTableDensity = function () {
-  const cur = localStorage.getItem(DENSITY_KEY) || "comfortable";
-  const next = cur === "compact" ? "comfortable" : "compact";
-  localStorage.setItem(DENSITY_KEY, next);
-  _applyTableDensity(next);
+const FIELD_COL_DEFS = {
+  position:     { label: "⭐ ตำแหน่ง",         width: 90,  align: "center" },
+  phone:        { label: "📱 เบอร์โทร",        width: 120, align: "center" },
+  upline:       { label: "🌿 สายงาน",          width: 110, align: "center" },
+  cs_staff:     { label: "👤 CS",              width: 70,  align: "center" },
+  line_name:    { label: "💬 ชื่อไลน์",        width: 130, align: "center" },
+  fb_page_name: { label: "📘 เพจ FB",          width: 140, align: "center" },
+  had_attended: { label: "↻ เคยเรียน",         width: 90,  align: "center" },
+  note:         { label: "📝 หมายเหตุ",        width: 140, align: "center" },
 };
+
+// Get currently effective field config (cached per event)
+function _getActiveFieldConfig() {
+  if (_eventConfigCache && _eventConfigCache.eventId === currentEventId) {
+    return _eventConfigCache.config;
+  }
+  return DEFAULT_FIELD_CONFIG;
+}
+
+function getActiveColumns() {
+  const cols = [
+    { key: "check", label: `<input type="checkbox" id="selectAllAttendees" onchange="window.toggleSelectAll(this.checked)" style="cursor:pointer;width:16px;height:16px">`, width: 36, align: "center" },
+    { key: "num",  label: "#", width: 40, align: "center" },
+    { key: "name", label: "🔍 ค้นหา / เพิ่ม / filter", width: 220 },
+  ];
+  const cfg = _getActiveFieldConfig();
+  Object.keys(FIELD_COL_DEFS).forEach(fkey => {
+    if (cfg.fields?.[fkey]?.show !== false) {
+      cols.push({ key: "field:" + fkey, ...FIELD_COL_DEFS[fkey] });
+    }
+  });
+  (cfg.qualifications || []).forEach(q => {
+    cols.push({ key: "qual:" + q.key, label: `✓ ${q.label}`, width: 95, align: "center", small: true });
+  });
+  cols.push({ key: "ticket",  label: "🎫 Ticket",   width: 110, align: "center" });
+  cols.push({ key: "payment", label: "💰 ชำระ",     width: 130, align: "center" });
+  cols.push({ key: "checkin", label: "✅ Check-in", width: 90,  align: "center" });
+  cols.push({ key: "actions", label: "จัดการ",     width: 130, align: "center" });
+  return cols;
+}
+
+function rebuildTableHeader() {
+  const tr = document.getElementById("attTableHead");
+  if (!tr) return;
+  const cols = getActiveColumns();
+  tr.innerHTML = cols.map(c => {
+    const alignClass = c.align === "center" ? "col-center" : "";
+    const extra = c.small ? ";font-size:10.5px;line-height:1.25" : "";
+    return `<th class="${alignClass}" style="min-width:${c.width}px${extra}" title="${c.small ? (typeof c.label === 'string' ? c.label.replace(/^✓ /, '') : '') : ''}">${c.label}</th>`;
+  }).join("");
+}
 
 // ── AUTO CHECK-IN TOGGLE ──────────────────────────────────
 // Global setting (1 key ใช้ทุก event) — default ON
@@ -3706,6 +3800,43 @@ let _attFormState = {          // current modal session
   paymentStatus: "UNPAID",     // carried forward when creating from search row
 };
 
+// Async: fetch ตำแหน่งสูงสุด/ปัจจุบันจาก members → ใส่ใน form
+//   ทับค่าเก่าเฉพาะถ้า fetch เจอ + รหัสยังตรงกัน (กัน race ตอน user สลับสมาชิก)
+async function _autofillMemberPosition(memberCode) {
+  try {
+    const rows = await sbFetch(
+      "members",
+      `?member_code=eq.${encodeURIComponent(memberCode)}&select=position_level,position`
+    );
+    const m = rows?.[0];
+    if (!m) return;
+    const pos = (m.position_level && m.position_level.trim())
+      || (m.position && m.position.trim())
+      || "";
+    if (!pos) return;
+    const inp = document.getElementById("attFormPos");
+    const codeInp = document.getElementById("attFormMemberCode");
+    if (inp && codeInp?.value === memberCode) {
+      inp.value = pos;
+    }
+  } catch (e) {
+    console.warn("autofill member position:", e.message);
+  }
+}
+
+// ชื่อสั้นของ user ปัจจุบัน (สำหรับ default CS field)
+// Priority: first_name → full_name (first word) → username
+function _getCurrentUserShortName() {
+  const u = window.ERP_USER;
+  if (!u) return "";
+  if (u.first_name && u.first_name.trim()) return u.first_name.trim();
+  if (u.full_name && u.full_name.trim()) {
+    const parts = u.full_name.trim().split(/\s+/);
+    return parts[0] || "";
+  }
+  return u.username || "";
+}
+
 async function fetchUplines() {
   if (_uplinesCache) return _uplinesCache;
   try {
@@ -3748,24 +3879,68 @@ const DEFAULT_FIELD_CONFIG = {
   qualifications: [],
 };
 
-let _eventConfigCache = null;
+let _eventConfigCache = null;   // { eventId, config, source, templateId, templateName }
+
+// Resolve effective config (hybrid: override > template > default)
 async function fetchEventFieldConfig(eventId) {
   if (_eventConfigCache && _eventConfigCache.eventId === eventId) return _eventConfigCache.config;
-  let cfg = null;
+  const info = await _resolveFieldConfigInfo(eventId);
+  _eventConfigCache = { eventId, ...info };
+  return info.config;
+}
+
+// Returns { config, source, templateId, templateName, override, templateConfig }
+//   source = "override" | "template" | "default"
+async function _resolveFieldConfigInfo(eventId) {
+  let override = null;
+  let templateId = null;
+  let templateName = null;
+  let templateConfig = null;
   try {
     const rows = await sbFetch(
       "events",
-      `?event_id=eq.${eventId}&select=attendee_field_config`
+      `?event_id=eq.${eventId}&select=attendee_field_config,template_id`
     );
-    cfg = rows?.[0]?.attendee_field_config;
+    override = rows?.[0]?.attendee_field_config;
+    templateId = rows?.[0]?.template_id || null;
   } catch (e) {
-    console.warn("fetchEventFieldConfig:", e.message);
+    console.warn("_resolveFieldConfigInfo:", e.message);
   }
-  const merged = _mergeFieldConfig(cfg);
-  _eventConfigCache = { eventId, config: merged };
-  return merged;
+  if (templateId) {
+    try {
+      const trows = await sbFetch(
+        "attendee_form_templates",
+        `?id=eq.${templateId}&select=name,config`
+      );
+      templateName = trows?.[0]?.name || null;
+      templateConfig = trows?.[0]?.config || null;
+    } catch (e) {
+      console.warn("_resolveFieldConfigInfo template:", e.message);
+    }
+  }
+  const hasOverride = override && typeof override === "object" && Object.keys(override).length > 0;
+  let config, source;
+  if (hasOverride) {
+    config = _mergeFieldConfig(override);
+    source = "override";
+  } else if (templateConfig) {
+    config = _mergeFieldConfig(templateConfig);
+    source = "template";
+  } else {
+    config = DEFAULT_FIELD_CONFIG;
+    source = "default";
+  }
+  return { config, source, templateId, templateName, override, templateConfig };
 }
+
 function _invalidateEventConfigCache() { _eventConfigCache = null; }
+
+async function getEventConfigInfo(eventId) {
+  if (_eventConfigCache && _eventConfigCache.eventId === eventId) return _eventConfigCache;
+  const info = await _resolveFieldConfigInfo(eventId);
+  _eventConfigCache = { eventId, ...info };
+  return _eventConfigCache;
+}
 
 function _mergeFieldConfig(custom) {
   if (!custom || typeof custom !== "object") return DEFAULT_FIELD_CONFIG;
@@ -3834,8 +4009,17 @@ window.openAttendeeForm = async function (opts = {}) {
   document.getElementById("attFormName").value      = opts.name || "";
   document.getElementById("attFormPhone").value     = opts.phone || "";
   document.getElementById("attFormPos").value       = opts.position_level || "";
+  // ถ้าเป็นสมาชิก → fetch ตำแหน่งสูงสุด (position_level) จาก members ตรงๆ
+  //   ใช้ position_level (สูงสุด) ก่อน → fallback position (ปัจจุบัน) ถ้าไม่มี
+  //   (member_persons view บางครั้ง NULL — fetch ตรงให้แน่นอน)
+  if (opts.memberCode && mode === "new") {
+    _autofillMemberPosition(opts.memberCode);
+  }
   document.getElementById("attFormUpline").value    = opts.upline_id || "";
-  document.getElementById("attFormCs").value        = opts.cs_staff || "";
+  // CS staff default: ถ้า edit → ใช้ค่าเดิม · ถ้าสร้างใหม่ + ไม่ระบุ → ใช้ชื่อ user ที่ login
+  document.getElementById("attFormCs").value        = opts.cs_staff != null
+    ? opts.cs_staff
+    : (mode === "new" ? _getCurrentUserShortName() : "");
   document.getElementById("attFormLineName").value  = opts.line_name_reported || "";
   document.getElementById("attFormFbPage").value    = opts.fb_page_name || "";
   document.getElementById("attFormNote").value      = opts.attendee_note || "";
@@ -4080,7 +4264,9 @@ async function _refreshUplineDropdownInForm() {
 }
 
 // ── FIELD CONFIG MODAL (per-event) ─────────────────────────
-let _fcDraft = null;   // working copy { fields, qualifications }
+let _fcDraft = null;      // working copy { fields, qualifications }
+let _fcInfo = null;       // resolved config info { source, templateId, templateName, templateConfig, ... }
+let _fcUseTemplate = false;  // toggle state: true → save will CLEAR override (use template sync)
 
 const FIELD_LABELS = {
   phone:        "เบอร์โทร",
@@ -4095,17 +4281,69 @@ const FIELD_LABELS = {
 
 window.openFieldConfigModal = async function () {
   if (!currentEventId) { showToast("เลือก event ก่อน", "error"); return; }
-  const cfg = await fetchEventFieldConfig(currentEventId);
-  _fcDraft = JSON.parse(JSON.stringify(cfg));
+  _fcInfo = await getEventConfigInfo(currentEventId);
+  _fcDraft = JSON.parse(JSON.stringify(_fcInfo.config));
+  _fcUseTemplate = (_fcInfo.source === "template");   // initial state: link mode iff currently following template
+  _renderFcSourceBanner();
   _renderFcFields();
   _renderFcQuals();
   document.getElementById("fieldConfigOverlay").classList.add("open");
+};
+
+function _renderFcSourceBanner() {
+  const banner = document.getElementById("fcSourceBanner");
+  const toggleBox = document.getElementById("fcOverrideToggle");
+  const cb = document.getElementById("fcUseTemplate");
+  const hint = document.getElementById("fcOverrideHint");
+  if (!banner || !_fcInfo) return;
+  const { source, templateName } = _fcInfo;
+  if (source === "override") {
+    banner.style.background = "#fffbeb";
+    banner.style.border = "1px solid #fcd34d";
+    banner.style.color = "#78350f";
+    banner.innerHTML = templateName
+      ? `⚡ <b>Override mode</b> — event นี้แก้ฟิลด์เอง (template: <i>${escapeHtml(templateName)}</i> ไม่ propagate)`
+      : `⚡ <b>Custom config</b> — event นี้ไม่ผูก template`;
+  } else if (source === "template") {
+    banner.style.background = "#dcfce7";
+    banner.style.border = "1px solid #86efac";
+    banner.style.color = "#14532d";
+    banner.innerHTML = `🔗 <b>Linked</b> — sync จาก template "<b>${escapeHtml(templateName)}</b>" · แก้ template → propagate มาที่ event นี้`;
+  } else {
+    banner.style.background = "#f1f5f9";
+    banner.style.border = "1px solid #cbd5e1";
+    banner.style.color = "#475569";
+    banner.innerHTML = `💡 ไม่ผูก template + ไม่มี override → ใช้ default config ของระบบ`;
+  }
+
+  if (_fcInfo.templateId) {
+    toggleBox.style.display = "";
+    cb.checked = _fcUseTemplate;
+    hint.textContent = _fcUseTemplate
+      ? `บันทึก = ล้าง override · ฟอร์มจะใช้ template "${_fcInfo.templateName}" สด`
+      : `บันทึก = เซฟค่าด้านล่างเป็น override · template จะไม่ propagate ในอนาคต`;
+  } else {
+    toggleBox.style.display = "none";
+  }
+}
+
+window._fcOnUseTemplateToggle = function (val) {
+  _fcUseTemplate = val;
+  if (val && _fcInfo?.templateConfig) {
+    // Revert draft → template config
+    _fcDraft = _mergeFieldConfig(_fcInfo.templateConfig);
+    _renderFcFields();
+    _renderFcQuals();
+  }
+  _renderFcSourceBanner();
 };
 
 window.closeFieldConfigModal = function (ev) {
   if (ev && ev.target && !ev.target.classList?.contains("modal-overlay")) return;
   document.getElementById("fieldConfigOverlay").classList.remove("open");
   _fcDraft = null;
+  _fcInfo = null;
+  _fcUseTemplate = false;
 };
 
 function _renderFcFields() {
@@ -4130,13 +4368,21 @@ function _renderFcFields() {
   }).join("");
 }
 
+function _fcMarkDirty() {
+  if (_fcUseTemplate && _fcInfo?.templateId) {
+    _fcUseTemplate = false;
+    _renderFcSourceBanner();
+  }
+}
 window._fcToggleShow = function (key, val) {
+  _fcMarkDirty();
   if (!_fcDraft.fields[key]) _fcDraft.fields[key] = {};
   _fcDraft.fields[key].show = val;
   if (!val) _fcDraft.fields[key].required = false;
   _renderFcFields();
 };
 window._fcToggleReq = function (key, val) {
+  _fcMarkDirty();
   if (!_fcDraft.fields[key]) _fcDraft.fields[key] = {};
   _fcDraft.fields[key].required = val;
 };
@@ -4162,6 +4408,7 @@ window.addQualification = function () {
   const inp = document.getElementById("fcNewQualLabel");
   const label = inp.value.trim();
   if (!label) { inp.focus(); return; }
+  _fcMarkDirty();
   // generate key from label (slugify Thai/EN → strip punctuation, replace space _)
   const baseKey = label.toLowerCase()
     .replace(/[^\p{L}\p{N}\s_]/gu, "")
@@ -4178,20 +4425,29 @@ window.addQualification = function () {
 };
 
 window.removeQualification = function (idx) {
+  _fcMarkDirty();
   _fcDraft.qualifications.splice(idx, 1);
   _renderFcQuals();
 };
 
 window.saveFieldConfig = async function () {
   if (!_fcDraft || !currentEventId) return;
+  // If template is linked AND toggle "ใช้ตาม template" is ON → clear override (= {})
+  // Otherwise → save _fcDraft as override
+  const useTemplate = _fcInfo?.templateId && _fcUseTemplate;
+  const body = { attendee_field_config: useTemplate ? {} : _fcDraft };
   try {
     await sbFetch("events", `?event_id=eq.${currentEventId}`, {
       method: "PATCH",
-      body: { attendee_field_config: _fcDraft },
+      body,
     });
     _invalidateEventConfigCache();
-    showToast("บันทึก config แล้ว ⚙️", "success");
+    // Pre-warm cache เพื่อให้ Spreadsheet mode rebuild header ด้วยข้อมูลใหม่
+    await fetchEventFieldConfig(currentEventId).catch(() => {});
+    showToast(useTemplate ? "ล้าง override · sync template แล้ว 🔗" : "บันทึก override แล้ว ⚡", "success");
     window.closeFieldConfigModal();
+    // ถ้า spreadsheet mode → re-render เพื่อให้ column layout sync
+    filterTable();   // re-render เพื่อให้ column layout sync กับ config ใหม่
   } catch (e) {
     showToast("บันทึกไม่สำเร็จ: " + e.message, "error");
   }

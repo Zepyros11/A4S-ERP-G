@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>เทมเพลตฟอร์มลงทะเบียน — A4S-ERP</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../../css/main.css" />
+    <link rel="stylesheet" href="./events.css" />
+  </head>
+  <body>
+    <div class="loading-overlay" id="loadingOverlay">
+      <div class="spinner"></div>
+    </div>
+    <div class="toast" id="toast"></div>
+
+    <div class="topbar"></div>
+    <div class="layout">
+      <div class="content-area">
+        <div class="page">
+          <div class="page-hero page-hero--simple page-hero--compact">
+            <div style="display:flex;align-items:center;justify-content:space-between;width:100%">
+              <div>
+                <h1 class="page-hero-title">📋 เทมเพลตฟอร์มลงทะเบียน</h1>
+                <p class="page-hero-sub">ตั้งฟอร์มลงทะเบียนผู้เรียนแบบ reusable — แต่ละ event เลือกใช้ได้</p>
+              </div>
+              <button class="btn btn-primary" data-perm="attendee_view" onclick="window.openTemplateModal()">
+                ＋ เพิ่มเทมเพลต
+              </button>
+            </div>
+          </div>
+
+          <div class="table-card">
+            <div class="table-hdr">
+              <div class="table-title">📋 เทมเพลตที่มี</div>
+              <div class="table-count" id="tplCount">0 รายการ</div>
+            </div>
+            <div class="table-wrap">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th style="width:50px;text-align:center">#</th>
+                    <th style="min-width:200px">ชื่อเทมเพลต</th>
+                    <th>คำอธิบาย</th>
+                    <th class="col-center" style="width:120px">ฟิลด์ที่ใช้</th>
+                    <th class="col-center" style="width:90px">checklist</th>
+                    <th class="col-center" style="width:100px">ใช้งาน (events)</th>
+                    <th class="col-center" style="width:90px">สถานะ</th>
+                    <th class="col-center" style="width:160px">จัดการ</th>
+                  </tr>
+                </thead>
+                <tbody id="tplTableBody">
+                  <tr><td colspan="8"><div class="empty-state" style="padding:30px"><div class="empty-icon">📋</div><div class="empty-text">กำลังโหลด...</div></div></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═════════════════════════
+         TEMPLATE FORM MODAL
+         ═════════════════════════ -->
+    <div class="modal-overlay" id="tplOverlay" onclick="window.closeTemplateModal(event)">
+      <div class="modal v-sage-header" style="width:760px;max-width:96vw" onclick="event.stopPropagation()">
+        <div class="modal-hdr">
+          <div class="modal-title" id="tplModalTitle">➕ เพิ่มเทมเพลต</div>
+          <button class="btn-modal-close" onclick="window.closeTemplateModal()">✕</button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="tplFormId">
+
+          <div class="form-group">
+            <label class="form-label">ชื่อเทมเพลต <span class="req">*</span></label>
+            <input class="form-control" id="tplName" placeholder="เช่น UNLOCK CH1, ADVANCE, ฯลฯ" autocomplete="off">
+          </div>
+
+          <div class="form-group" style="margin-top:12px">
+            <label class="form-label">คำอธิบาย</label>
+            <input class="form-control" id="tplDesc" placeholder="ไว้แสดงเป็น hint ตอนเลือก template" autocomplete="off">
+          </div>
+
+          <div style="font-size:13px;font-weight:700;color:#0f172a;margin:18px 0 8px">📋 ฟิลด์ที่แสดงในฟอร์มลงทะเบียน</div>
+          <div id="tplFieldsGrid" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px 12px"></div>
+
+          <div style="font-size:13px;font-weight:700;color:#0f172a;margin:18px 0 8px">✓ คุณสมบัติผู้เรียน (checklist)</div>
+          <div style="display:flex;gap:8px;margin-bottom:8px">
+            <input class="form-control" id="tplNewQualLabel" placeholder="เช่น มี Notebook" style="flex:1" autocomplete="off"
+              onkeydown="if(event.key==='Enter'){event.preventDefault();window.tplAddQual()}">
+            <button class="btn btn-primary" onclick="window.tplAddQual()">➕ เพิ่ม</button>
+          </div>
+          <div id="tplQualList" style="display:flex;flex-direction:column;gap:6px;max-height:240px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:8px;padding:8px 10px"></div>
+        </div>
+        <div class="modal-footer" style="justify-content:space-between">
+          <div>
+            <label style="display:inline-flex;align-items:center;gap:6px;font-size:12.5px;cursor:pointer">
+              <input type="checkbox" id="tplIsActive" checked> เปิดใช้งาน
+            </label>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-ghost" onclick="window.closeTemplateModal()">ยกเลิก</button>
+            <button class="btn btn-primary" onclick="window.saveTemplate()">💾 บันทึก</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="../../js/core/auth.js"></script>
+    <script src="../../js/core/authz.js"></script>
+    <script src="../../js/core/date-format.js"></script>
+    <script>AuthZ.requirePerm("attendee_view");</script>
+    <script src="../../js/components/modal/deleteModal.js"></script>
+    <script src="../../js/components/modal/modalManager.js"></script>
+    <script src="./attendee-templates.js"></script>
+    <script type="module">
+      import { loadTopbar } from "../../js/components/navigation/topbar.js";
+      loadTopbar("📋 เทมเพลตฟอร์มลงทะเบียน");
+    </script>
+    <script src="../../js/components/navigation/sidebar.js"></script>
+  </body>
+</html>

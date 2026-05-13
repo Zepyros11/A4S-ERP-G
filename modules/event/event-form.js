@@ -55,7 +55,7 @@ async function initPage() {
   fpEventDate = flatpickr("#fEventDate", fpOpts);
   fpEndDate = flatpickr("#fEndDate", fpOpts);
 
-  await Promise.all([loadUsers(), loadEventCategories(), loadPlaces(), loadCourseSeries(), loadLineChannels()]);
+  await Promise.all([loadUsers(), loadEventCategories(), loadPlaces(), loadCourseSeries(), loadLineChannels(), loadAttendeeTemplates()]);
 
   if (editId) {
     document.getElementById("pageTitle").textContent = "✏️ แก้ไขกิจกรรม";
@@ -340,6 +340,52 @@ window.onSeriesChange = function () {
   sel.disabled = false;
 };
 
+// ── LOAD ATTENDEE FORM TEMPLATES ───────────────────────────
+let _allTemplates = [];
+
+async function loadAttendeeTemplates() {
+  try {
+    const { url, key } = getSB();
+    const res = await fetch(
+      `${url}/rest/v1/attendee_form_templates?select=id,name,description,config,is_active&is_active=eq.true&order=sort_order.asc`,
+      { headers: { apikey: key, Authorization: `Bearer ${key}` } }
+    );
+    _allTemplates = res.ok ? (await res.json()) : [];
+    const sel = document.getElementById('fTemplateId');
+    if (!sel) return;
+    sel.innerHTML = '<option value="">— ไม่ผูก template (ใช้ default) —</option>' +
+      _allTemplates.map(t => `<option value="${t.id}">📋 ${t.name}</option>`).join('');
+  } catch (e) {
+    console.warn('loadAttendeeTemplates:', e.message);
+  }
+}
+
+window.onTemplateChange = function () {
+  const id = document.getElementById('fTemplateId').value;
+  const preview = document.getElementById('templatePreview');
+  const body = document.getElementById('templatePreviewBody');
+  if (!id) { preview.style.display = 'none'; return; }
+  const t = _allTemplates.find(x => String(x.id) === String(id));
+  if (!t) { preview.style.display = 'none'; return; }
+  const cfg = t.config || {};
+  const fieldLabels = {
+    phone: "เบอร์โทร", position: "ตำแหน่ง", upline: "สายงาน", cs_staff: "CS",
+    line_name: "ไลน์ที่แจ้ง", fb_page_name: "เพจ FB", had_attended: "เคยเรียน", note: "หมายเหตุ",
+  };
+  const shownFields = cfg.fields
+    ? Object.entries(cfg.fields)
+        .filter(([_, f]) => f && f.show !== false)
+        .map(([k, f]) => `${fieldLabels[k] || k}${f.required ? '*' : ''}`)
+    : [];
+  const quals = Array.isArray(cfg.qualifications) ? cfg.qualifications : [];
+  body.innerHTML = `
+    ${t.description ? `<div style="margin-bottom:6px;color:#475569">${t.description}</div>` : ''}
+    <div style="margin-bottom:4px"><b>ฟิลด์:</b> ${shownFields.length ? shownFields.join(' · ') : '<i>ไม่มี</i>'}</div>
+    ${quals.length ? `<div><b>คุณสมบัติ (${quals.length}):</b> ${quals.map(q => '☐ ' + q.label).join(' · ')}</div>` : ''}
+  `;
+  preview.style.display = '';
+};
+
 // ── LOAD EVENT DATA (กรณีแก้ไข) ────────────────────────────
 async function loadEventData() {
   showLoading(true);
@@ -386,6 +432,15 @@ async function loadEventData() {
       document.getElementById('fSeries').value = e.series_id;
       onSeriesChange();
       if (e.level_id) document.getElementById('fLevel').value = e.level_id;
+    }
+
+    // Attendee form template
+    if (e.template_id != null) {
+      const tplSel = document.getElementById('fTemplateId');
+      if (tplSel) {
+        tplSel.value = String(e.template_id);
+        window.onTemplateChange();
+      }
     }
 
     // โหลดรูปภาพ — รองรับทั้ง image_urls (array) และ poster_url เดิม
@@ -632,6 +687,10 @@ window._saveEventImpl = async function () {
       level_id: document.getElementById("fLevel").value || null,
       registration_enabled: document.getElementById("fRegEnabled").checked,
       members_only: document.getElementById("fMembersOnly").checked,
+      template_id: (() => {
+        const v = document.getElementById("fTemplateId")?.value || "";
+        return v ? parseInt(v) : null;
+      })(),
       line_channel_id: (() => {
         const v = document.getElementById("fLineChannelId")?.value || "";
         return v ? parseInt(v) : null;
