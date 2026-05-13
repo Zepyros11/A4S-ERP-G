@@ -114,6 +114,10 @@
           <table class="sd-table sb-table">
             <thead>
               <tr>
+                <th class="sb-th-check">
+                  <input type="checkbox" id="sbChkAll" class="sb-row-check"
+                    onclick="window.sbToggleSelectAll(this)" aria-label="เลือกทั้งหมด" />
+                </th>
                 <th style="width:46px"></th>
                 <th>สินค้า</th>
                 <th>หมวดหมู่</th>
@@ -126,10 +130,26 @@
               </tr>
             </thead>
             <tbody id="sbBody">
-              <tr><td colspan="9" class="sd-empty">— กำลังโหลด —</td></tr>
+              <tr><td colspan="10" class="sd-empty">— กำลังโหลด —</td></tr>
             </tbody>
           </table>
         </div>
+      </div>
+    </div>
+
+    <!-- BULK ACTION BAR — โผล่เมื่อ selectedIds.size > 0 -->
+    <div class="sb-bulkbar" id="sbBulkBar" hidden>
+      <div class="sb-bulkbar-info">
+        <span class="sb-bulkbar-count" id="sbBulkCount">0</span>
+        <span class="sb-bulkbar-label">รายการที่เลือก</span>
+      </div>
+      <div class="sb-bulkbar-actions">
+        <button class="sb-bulkbar-btn sb-bulkbar-btn-ghost" onclick="window.sbClearSelection()">
+          ✕ ล้างที่เลือก
+        </button>
+        <button class="sb-bulkbar-btn sb-bulkbar-btn-primary" onclick="window.sbExportSelectedPDF()">
+          📄 Export PDF
+        </button>
       </div>
     </div>
 
@@ -199,6 +219,7 @@
     <script src="../../js/core/authz.js"></script>
     <script src="../../js/core/date-format.js"></script>
     <script>AuthZ.requirePerm("product_view");</script>
+    <script src="../../js/components/navigation/imgPopup.js"></script>
     <script src="./stock-balance.js"></script>
     <script src="../../js/components/modal/modalManager.js"></script>
     <script src="../../js/components/navigation/sidebar.js"></script>

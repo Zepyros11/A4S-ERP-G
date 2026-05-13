@@ -18,10 +18,14 @@ const state = {
   movements: [],          // ALL stock_movements (สำหรับ on-hand + lot)
   reservedSO: [],         // {product_id, warehouse_id, qty}
   reservedREQ: [],        // {product_id, warehouse_id, qty}
+  productImages: [],      // product_images (sorted by sort_order asc)
   allowNegative: true,    // จาก app_settings
 };
 
 const filter = { search: "", categoryId: "", warehouseId: "", status: "" };
+
+// product_id ที่ถูกเลือกในตาราง (persist ระหว่าง re-render)
+const selectedIds = new Set();
 
 const EXPIRING_SOON_DAYS = 30;
 
@@ -96,7 +100,7 @@ window.resetFilters = () => {
 async function loadAll() {
   showLoading(true);
   try {
-    const [prods, cats, whs, mvs, soReserved, reqReserved, negSetting] =
+    const [prods, cats, whs, mvs, soReserved, reqReserved, negSetting, imgs] =
       await Promise.all([
         sbFetch(
           "products",
@@ -124,6 +128,8 @@ async function loadAll() {
         loadReservedSO(),
         loadReservedREQ(),
         loadAllowNegative(),
+        sbFetch("product_images", "?select=product_id,url&order=sort_order.asc")
+          .catch(() => []),
       ]);
 
     state.products = prods || [];
@@ -132,6 +138,7 @@ async function loadAll() {
     state.movements = mvs || [];
     state.reservedSO = soReserved || [];
     state.reservedREQ = reqReserved || [];
+    state.productImages = imgs || [];
     state.allowNegative = negSetting;
 
     populateFilters();
@@ -328,6 +335,22 @@ function buildIndexes() {
       bucket[k].expiry_date = m.expiry_date;
   });
 
+  // รูปทั้งชุดต่อ product_id (เรียงตาม sort_order asc แล้วจาก loadAll)
+  // — fallback ไปรูปของ parent ถ้า variant ไม่มีรูป
+  const imagesByPid = {};
+  state.productImages.forEach((im) => {
+    if (im.product_id == null || !im.url) return;
+    (imagesByPid[im.product_id] ||= []).push(im.url);
+  });
+  const resolveImages = (pid) => {
+    if (imagesByPid[pid]?.length) return imagesByPid[pid];
+    const p = productsById[pid];
+    if (p?.parent_product_id && imagesByPid[p.parent_product_id]?.length)
+      return imagesByPid[p.parent_product_id];
+    return [];
+  };
+  const resolveImage = (pid) => resolveImages(pid)[0] || null;
+
   return {
     productsById,
     categoriesById,
@@ -336,6 +359,8 @@ function buildIndexes() {
     onHandByPidWh,
     reservedByPidWh,
     lotsByPid,
+    resolveImage,
+    resolveImages,
   };
 }
 
@@ -493,7 +518,8 @@ function renderTable(idx) {
 
   const tbody = $("sbBody");
   if (!rows.length) {
-    tbody.innerHTML = `<tr><td colspan="9" class="sd-empty">— ไม่มีรายการ —</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="10" class="sd-empty">— ไม่มีรายการ —</td></tr>`;
+    syncSelectAllState([]);
     return;
   }
 
@@ -514,8 +540,14 @@ function renderTable(idx) {
       const expChip = r.expQty > 0
         ? `<span class="sb-exp-chip" title="ใกล้หมดอายุ ≤${EXPIRING_SOON_DAYS} วัน">⏳ ${fmtNum(r.expQty, 0)}</span>`
         : "";
+      const imgUrl = idx.resolveImage(r.p.product_id);
+      const thumb = imgUrl
+        ? `<div class="sb-thumb sb-thumb-img sb-thumb-clickable" onclick="window.openProductImage(${r.p.product_id})" title="คลิกเพื่อดูรูป"><img src="${escapeHtml(imgUrl)}" alt="" onerror="this.parentElement.innerHTML='📦';this.parentElement.classList.remove('sb-thumb-img','sb-thumb-clickable');this.parentElement.removeAttribute('onclick')"></div>`
+        : `<div class="sb-thumb">📦</div>`;
+      const isChk = selectedIds.has(r.p.product_id) ? "checked" : "";
       return `<tr>
-        <td><div class="sb-thumb">📦</div></td>
+        <td class="sb-td-check"><input type="checkbox" class="sb-row-check" value="${r.p.product_id}" onchange="window.sbToggleRow(this)" ${isChk}></td>
+        <td>${thumb}</td>
         <td>
           <div class="sb-prod-name">${escapeHtml(r.p.product_name)}</div>
           <div class="sb-prod-code">${escapeHtml(r.p.product_code || "")}</div>
@@ -534,6 +566,303 @@ function renderTable(idx) {
       </tr>`;
     })
     .join("");
+
+  syncSelectAllState(rows.map((r) => r.p.product_id));
+}
+
+function syncSelectAllState(visibleIds) {
+  const chkAll = $("sbChkAll");
+  if (!chkAll) return;
+  const visible = visibleIds.filter((id) => id != null);
+  const selectedVisible = visible.filter((id) => selectedIds.has(id)).length;
+  if (!visible.length || selectedVisible === 0) {
+    chkAll.checked = false;
+    chkAll.indeterminate = false;
+  } else if (selectedVisible === visible.length) {
+    chkAll.checked = true;
+    chkAll.indeterminate = false;
+  } else {
+    chkAll.checked = false;
+    chkAll.indeterminate = true;
+  }
+}
+
+window.sbToggleRow = function (cb) {
+  const pid = +cb.value;
+  if (cb.checked) selectedIds.add(pid);
+  else selectedIds.delete(pid);
+  const visibleIds = Array.from(
+    document.querySelectorAll("#sbBody .sb-row-check"),
+  ).map((c) => +c.value);
+  syncSelectAllState(visibleIds);
+  syncBulkBar();
+};
+
+window.sbToggleSelectAll = function (cb) {
+  const boxes = document.querySelectorAll("#sbBody .sb-row-check");
+  boxes.forEach((b) => {
+    const pid = +b.value;
+    b.checked = cb.checked;
+    if (cb.checked) selectedIds.add(pid);
+    else selectedIds.delete(pid);
+  });
+  const chkAll = $("sbChkAll");
+  if (chkAll) chkAll.indeterminate = false;
+  syncBulkBar();
+};
+
+window.sbClearSelection = function () {
+  selectedIds.clear();
+  document
+    .querySelectorAll("#sbBody .sb-row-check")
+    .forEach((b) => (b.checked = false));
+  const chkAll = $("sbChkAll");
+  if (chkAll) {
+    chkAll.checked = false;
+    chkAll.indeterminate = false;
+  }
+  syncBulkBar();
+};
+
+function syncBulkBar() {
+  const bar = $("sbBulkBar");
+  const cnt = $("sbBulkCount");
+  if (!bar || !cnt) return;
+  const n = selectedIds.size;
+  cnt.textContent = fmtNum(n, 0);
+  bar.hidden = n === 0;
+}
+
+// ── EXPORT PDF (ใช้ window.print → user save as PDF) ───────
+window.sbExportSelectedPDF = function () {
+  if (!selectedIds.size) return;
+  const idx = buildIndexes();
+  const rows = Array.from(selectedIds)
+    .map((pid) => idx.productsById[pid])
+    .filter(Boolean)
+    .map((p) => {
+      const onHand = getOnHandScoped(p.product_id, idx);
+      const reserved = getReservedScoped(p.product_id, idx);
+      const expQty = getExpiringSoonQty(p.product_id, idx);
+      return {
+        p,
+        onHand,
+        reserved,
+        available: onHand - reserved,
+        expQty,
+        cat: idx.categoriesById[p.category_id],
+        imgUrl: idx.resolveImage(p.product_id),
+      };
+    })
+    .sort((a, b) =>
+      (a.p.product_name || "").localeCompare(b.p.product_name || ""),
+    );
+
+  if (!rows.length) {
+    showToast("ไม่พบรายการที่เลือกใน state ปัจจุบัน", "warning");
+    return;
+  }
+
+  const scopeLabel = filter.warehouseId
+    ? `คลัง: ${idx.warehousesById[filter.warehouseId]?.warehouse_name || "—"}`
+    : "ทุกคลัง";
+  const nowText = new Date().toLocaleString("th-TH", {
+    timeZone: "Asia/Bangkok",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
+  const trs = rows
+    .map((r, i) => {
+      const reorder = r.p.reorder_point || 0;
+      let statusText = "ปกติ";
+      let statusCls = "ok";
+      if (r.available < 0) { statusText = "ติดลบ"; statusCls = "neg"; }
+      else if (r.available <= 0) { statusText = "หมด"; statusCls = "out"; }
+      else if (r.available <= reorder && !r.p.disable_stock_alert) {
+        statusText = "ใกล้สั่ง"; statusCls = "low";
+      }
+      const expCell = r.expQty > 0 ? `⏳ ${fmtNum(r.expQty, 0)}` : "—";
+      const imgCell = r.imgUrl
+        ? `<img class="thumb" src="${escapeAttr(r.imgUrl)}" alt="" onerror="this.style.display='none'">`
+        : `<div class="thumb thumb-empty">📦</div>`;
+      return `<tr>
+        <td class="c">${i + 1}</td>
+        <td class="c">${imgCell}</td>
+        <td>
+          <div class="prod-name">${escapeHtml(r.p.product_name || "")}</div>
+        </td>
+        <td>${escapeHtml(r.cat?.category_name || "—")}</td>
+        <td class="r">${fmtNum(r.onHand, 0)}</td>
+        <td class="r">${r.reserved > 0 ? fmtNum(r.reserved, 0) : "0"}</td>
+        <td class="r"><b>${fmtNum(r.available, 0)}</b></td>
+        <td class="r">${reorder > 0 ? fmtNum(reorder, 0) : "—"}</td>
+        <td class="c"><span class="badge badge-${statusCls}">${statusText}</span></td>
+        <td class="c">${expCell}</td>
+      </tr>`;
+    })
+    .join("");
+
+  const totalOnHand = rows.reduce((s, r) => s + r.onHand, 0);
+  const totalReserved = rows.reduce((s, r) => s + r.reserved, 0);
+  const totalAvailable = rows.reduce((s, r) => s + r.available, 0);
+
+  const html = `<!doctype html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<title>Stock สินค้า — Export ${rows.length} รายการ</title>
+<style>
+  @page { size: A4 landscape; margin: 12mm 10mm; }
+  * { box-sizing: border-box; }
+  body {
+    font-family: "Sarabun", "Tahoma", sans-serif;
+    font-size: 11px;
+    color: #1f2937;
+    margin: 0;
+    padding: 0;
+  }
+  .hdr {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    border-bottom: 2px solid #4a7c59;
+    padding-bottom: 8px;
+    margin-bottom: 12px;
+  }
+  .hdr h1 {
+    margin: 0;
+    font-size: 18px;
+    color: #2d4a36;
+  }
+  .hdr .meta {
+    text-align: right;
+    font-size: 10px;
+    color: #64748b;
+    line-height: 1.5;
+  }
+  .meta b { color: #1f2937; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 10.5px;
+  }
+  thead th {
+    background: #2d4a36;
+    color: #fff;
+    text-align: left;
+    padding: 6px 8px;
+    font-weight: 600;
+    border: 1px solid #2d4a36;
+  }
+  tbody td {
+    padding: 6px 8px;
+    border: 1px solid #d1d5db;
+    vertical-align: middle;
+  }
+  tbody tr:nth-child(even) td { background: #f9fafb; }
+  td.c, th.c { text-align: center; }
+  td.r, th.r { text-align: right; font-variant-numeric: tabular-nums; }
+  .thumb {
+    width: 120px;
+    height: 100px;
+    border-radius: 8px;
+    object-fit: cover;
+    border: 1px solid #d1d5db;
+    background: #f1f5f9;
+    display: inline-block;
+    vertical-align: middle;
+  }
+  .thumb-empty {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 38px;
+    color: #94a3b8;
+  }
+  .prod-name { font-weight: 600; color: #1f2937; }
+  .prod-code { font-size: 9.5px; color: #6b7280; margin-top: 2px; }
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 9.5px;
+    font-weight: 600;
+  }
+  .badge-ok  { background: #dcfce7; color: #166534; }
+  .badge-low { background: #fef3c7; color: #92400e; }
+  .badge-out { background: #fee2e2; color: #b91c1c; }
+  .badge-neg { background: #fce7f3; color: #9d174d; }
+  tfoot td {
+    background: #ecfdf5;
+    font-weight: 700;
+    border-top: 2px solid #4a7c59;
+  }
+  .footer {
+    margin-top: 14px;
+    font-size: 9.5px;
+    color: #94a3b8;
+    text-align: right;
+  }
+</style>
+</head>
+<body>
+  <div class="hdr">
+    <h1>📦 Stock สินค้า — ${rows.length} รายการ</h1>
+    <div class="meta">
+      <div><b>ขอบเขต:</b> ${escapeHtml(scopeLabel)}</div>
+      <div><b>พิมพ์เมื่อ:</b> ${nowText} · A4S-ERP</div>
+    </div>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th class="c" style="width:30px">#</th>
+        <th class="c" style="width:132px">รูป</th>
+        <th>สินค้า</th>
+        <th style="width:110px">หมวดหมู่</th>
+        <th class="r" style="width:70px">On-hand</th>
+        <th class="r" style="width:70px">Reserved</th>
+        <th class="r" style="width:80px">Available</th>
+        <th class="r" style="width:70px">จุดสั่งซื้อ</th>
+        <th class="c" style="width:70px">สถานะ</th>
+        <th class="c" style="width:60px">ใกล้หมดอายุ</th>
+      </tr>
+    </thead>
+    <tbody>${trs}</tbody>
+    <tfoot>
+      <tr>
+        <td colspan="4" class="r">รวม ${fmtNum(rows.length, 0)} รายการ</td>
+        <td class="r">${fmtNum(totalOnHand, 0)}</td>
+        <td class="r">${fmtNum(totalReserved, 0)}</td>
+        <td class="r">${fmtNum(totalAvailable, 0)}</td>
+        <td colspan="3"></td>
+      </tr>
+    </tfoot>
+  </table>
+  <script>
+    window.addEventListener("load", () => {
+      setTimeout(() => window.print(), 200);
+    });
+  </script>
+</body>
+</html>`;
+
+  const w = window.open("", "stock-balance-export", "width=1100,height=820");
+  if (!w) {
+    showToast("เบราว์เซอร์บล็อก popup — กรุณาเปิด popup ของหน้านี้", "error");
+    return;
+  }
+  w.document.open();
+  w.document.write(html);
+  w.document.close();
+};
+
+function escapeAttr(s) {
+  return String(s ?? "").replace(/"/g, "&quot;");
 }
 
 function statusRank(r) {
@@ -558,6 +887,21 @@ function statusBadge(r) {
 // ── DETAIL MODAL ────────────────────────────────────────────
 let _detailPid = null;
 let _detailIdx = null;
+
+window.openProductImage = function (pid) {
+  const idx = buildIndexes();
+  const imgs = idx.resolveImages(pid);
+  if (!imgs.length) return;
+  const p = idx.productsById[pid];
+  const title = p?.product_name || "";
+  const sku = p?.product_code || "";
+  if (typeof ImgPopup !== "undefined") {
+    ImgPopup.open(imgs, 0, {
+      titles: imgs.map(() => title),
+      skus: imgs.map(() => sku),
+    });
+  }
+};
 
 window.openDetail = function (pid) {
   _detailPid = pid;

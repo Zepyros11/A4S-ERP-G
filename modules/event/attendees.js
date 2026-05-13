@@ -1117,10 +1117,6 @@ function _renderSavedCellSpread(col, a, seq, payStatus, tierName, isSelected) {
           ${renderTagsInline(a, a.person_role === "co_applicant" ? `<span style="font-size:10px;color:#9333ea;background:#f3e8ff;padding:1px 7px;border-radius:10px;font-weight:700;white-space:nowrap" title="ผู้สมัครร่วมจากรหัสเดียวกัน">👥 ผู้สมัครร่วม</span>` : "")}
         </div>
       </td>`;
-    case "ticket":
-      return `${tdOpen}${a.ticket_no
-        ? `<div class="cell-ticket cell-ticket-clickable" onclick="window.openQrModal(${a.attendee_id})" title="คลิกเพื่อดู QR บัตร">${a.ticket_no}</div>`
-        : `<div class="cell-ticket">—</div>`}</td>`;
     case "payment":
       return `${tdOpen}<span class="pay-badge pay-${payStatus}"
         onclick="window.startEditCell(${a.attendee_id},'payment_status',this)"
@@ -1212,7 +1208,7 @@ function renderNewRowSpreadsheet(r) {
   // ใช้ colspan ครอบทุกคอลัมน์ตรงกลาง (หลัง check + #) เว้น 4 ตัวท้าย: ticket, payment, checkin, actions
   // → search input ครอบกว้างให้พิมพ์ง่าย
   const colCount = cols.length;
-  const trailingCols = ["ticket", "payment", "checkin", "actions"];
+  const trailingCols = ["payment", "checkin", "actions"];
   const trailingCount = cols.filter(c => trailingCols.includes(c.key)).length;
   const headCount = cols[1]?.key === "num" ? 2 : 1;   // check + (#)
   const searchSpan = colCount - headCount - trailingCount;
@@ -1241,7 +1237,6 @@ function renderNewRowSpreadsheet(r) {
         ${phoneBadge}
       </div>
     </td>
-    <td class="col-center"><span class="cell-ticket">auto</span></td>
     <td class="col-center">
       <select class="inline-select" onchange="window.onNewRowPayment('${r.id}', this.value)">
         <option value="UNPAID" ${r.paymentStatus === "UNPAID" ? "selected" : ""}>⏳ ยังไม่ชำระ</option>
@@ -2013,7 +2008,8 @@ function _renderMemberSuggest() {
     </div>`
     : '';
 
-  sug.innerHTML = rowsHtml + pairRow + _guestAddRowHtml();
+  // เจอสมาชิก → ไม่ต้องขึ้นปุ่ม "เพิ่ม guest" (ลด clutter · user จะเลือกจากผลที่พบ)
+  sug.innerHTML = rowsHtml + pairRow;
   sug.style.display = "block";
 }
 
@@ -2927,7 +2923,6 @@ function getActiveColumns() {
   (cfg.qualifications || []).forEach(q => {
     cols.push({ key: "qual:" + q.key, label: `✓ ${q.label}`, width: 95, align: "center", small: true });
   });
-  cols.push({ key: "ticket",  label: "🎫 Ticket",   width: 110, align: "center" });
   cols.push({ key: "payment", label: "💰 ชำระ",     width: 130, align: "center" });
   cols.push({ key: "checkin", label: "✅ Check-in", width: 90,  align: "center" });
   cols.push({ key: "actions", label: "จัดการ",     width: 130, align: "center" });
@@ -3800,20 +3795,27 @@ let _attFormState = {          // current modal session
   paymentStatus: "UNPAID",     // carried forward when creating from search row
 };
 
-// Async: fetch ตำแหน่งสูงสุด/ปัจจุบันจาก members → ใส่ใน form
+// Async: fetch ตำแหน่งสูงสุดจาก members + test_members → ใส่ใน form
+//   Priority: position_level (สูงสุด) → position (ปัจจุบัน) → package (DM/SI/PL/MB/EM)
 //   ทับค่าเก่าเฉพาะถ้า fetch เจอ + รหัสยังตรงกัน (กัน race ตอน user สลับสมาชิก)
 async function _autofillMemberPosition(memberCode) {
   try {
-    const rows = await sbFetch(
-      "members",
-      `?member_code=eq.${encodeURIComponent(memberCode)}&select=position_level,position`
-    );
-    const m = rows?.[0];
-    if (!m) return;
-    const pos = (m.position_level && m.position_level.trim())
-      || (m.position && m.position.trim())
+    const cols = "position_level,position,package";
+    const code = encodeURIComponent(memberCode);
+    const [mlm, test] = await Promise.all([
+      sbFetch("members",      `?member_code=eq.${code}&select=${cols}`).catch(() => []),
+      sbFetch("test_members", `?member_code=eq.${code}&select=${cols}`).catch(() => []),
+    ]);
+    const m = (mlm && mlm[0]) || (test && test[0]);
+    if (!m) { console.warn("autofill: no member row for", memberCode); return; }
+    const pos = (m.position_level && String(m.position_level).trim())
+      || (m.position && String(m.position).trim())
+      || (m.package && String(m.package).trim())
       || "";
-    if (!pos) return;
+    if (!pos) {
+      console.warn("autofill: member", memberCode, "has empty position_level/position/package");
+      return;
+    }
     const inp = document.getElementById("attFormPos");
     const codeInp = document.getElementById("attFormMemberCode");
     if (inp && codeInp?.value === memberCode) {
@@ -3824,11 +3826,88 @@ async function _autofillMemberPosition(memberCode) {
   }
 }
 
+// Async: traverse upline chain หา SVP คนแรก (ใกล้สุด) → match upline_leaders → auto-select dropdown
+//   max depth 20 levels (สูงพอสำหรับ MLM ทั่วไป)
+async function _autofillMemberUpline(memberCode) {
+  try {
+    const svp = await _findNearestSVPUpline(memberCode);
+    if (!svp) {
+      console.warn("autofill upline: no SVP found in chain for", memberCode);
+      return;
+    }
+    const uplines = await fetchUplines();
+    let match = null;
+    // 1) exact match by member_code (ถ้า upline_leaders มี link)
+    if (svp.member_code) {
+      match = uplines.find(u => u.member_code === svp.member_code);
+    }
+    // 2) fuzzy match by name (ชื่อ SVP มีคำที่ตรงกับ upline_leaders.name)
+    if (!match) {
+      const svpName = (svp.full_name || svp.member_name || "").trim().toLowerCase();
+      if (svpName) {
+        match = uplines.find(u => {
+          const un = (u.name || "").trim().toLowerCase();
+          if (!un) return false;
+          return svpName.includes(un) || un.includes(svpName);
+        });
+      }
+    }
+    if (!match) {
+      console.warn("autofill upline: SVP", svp.full_name || svp.member_code, "ไม่ตรงกับ upline_leaders ใดๆ");
+      return;
+    }
+    const sel = document.getElementById("attFormUpline");
+    const codeInp = document.getElementById("attFormMemberCode");
+    if (sel && codeInp?.value === memberCode && !sel.value) {
+      sel.value = String(match.id);
+    }
+  } catch (e) {
+    console.warn("autofill member upline:", e.message);
+  }
+}
+
+// Walk **sponsor_code** chain (ผังแนะนำ — "สายงาน") หา SVP ที่ใกล้สุด — ลึกสูงสุด 20 ระดับ
+//   ⚠️ ไม่ใช่ upline_code (Binary tree — ตำแหน่งซ้าย/ขวา) เพราะ "สายงาน" คือสาย sponsor
+async function _findNearestSVPUpline(memberCode, maxDepth = 20) {
+  // Start: ดึง sponsor_code ของสมาชิก (ไม่นับ member เองว่าเป็น SVP)
+  const startRows = await sbFetch(
+    "members",
+    `?member_code=eq.${encodeURIComponent(memberCode)}&select=sponsor_code`
+  ).catch(() => []);
+  let current = startRows?.[0]?.sponsor_code;
+  if (!current) return null;
+  for (let i = 0; i < maxDepth; i++) {
+    const rows = await sbFetch(
+      "members",
+      `?member_code=eq.${encodeURIComponent(current)}&select=member_code,full_name,member_name,position_level,sponsor_code`
+    ).catch(() => []);
+    const m = rows?.[0];
+    if (!m) return null;
+    if (m.position_level === "SVP") return m;
+    if (!m.sponsor_code || m.sponsor_code === current) return null;  // กัน loop
+    current = m.sponsor_code;
+  }
+  return null;
+}
+
 // ชื่อสั้นของ user ปัจจุบัน (สำหรับ default CS field)
-// Priority: first_name → full_name (first word) → username
+// Priority:
+//   1. ตัวอักษรไทยใน full_name / first_name / last_name (เช่น "Admin ภพ" → "ภพ")
+//   2. first_name (ถ้าไม่มีไทย)
+//   3. คำแรกของ full_name
+//   4. username
 function _getCurrentUserShortName() {
   const u = window.ERP_USER;
   if (!u) return "";
+  const candidates = [u.full_name, u.first_name, u.last_name, u.nickname].filter(Boolean);
+  // 1) หาส่วนภาษาไทยใน fields ใดๆ → ใช้ก่อน
+  for (const s of candidates) {
+    const thaiMatch = String(s).match(/[฀-๿]+/g);
+    if (thaiMatch && thaiMatch.length) {
+      return thaiMatch.join("").trim();
+    }
+  }
+  // 2) ไม่มีไทย → fallback ตามเดิม
   if (u.first_name && u.first_name.trim()) return u.first_name.trim();
   if (u.full_name && u.full_name.trim()) {
     const parts = u.full_name.trim().split(/\s+/);
@@ -3842,7 +3921,7 @@ async function fetchUplines() {
   try {
     const rows = await sbFetch(
       "upline_leaders",
-      "?select=id,name,sort_order,is_active&order=sort_order.asc,name.asc"
+      "?select=id,name,member_code,sort_order,is_active&order=sort_order.asc,name.asc"
     );
     _uplinesCache = rows || [];
   } catch (e) {
@@ -4009,11 +4088,10 @@ window.openAttendeeForm = async function (opts = {}) {
   document.getElementById("attFormName").value      = opts.name || "";
   document.getElementById("attFormPhone").value     = opts.phone || "";
   document.getElementById("attFormPos").value       = opts.position_level || "";
-  // ถ้าเป็นสมาชิก → fetch ตำแหน่งสูงสุด (position_level) จาก members ตรงๆ
-  //   ใช้ position_level (สูงสุด) ก่อน → fallback position (ปัจจุบัน) ถ้าไม่มี
-  //   (member_persons view บางครั้ง NULL — fetch ตรงให้แน่นอน)
+  // ถ้าเป็นสมาชิก → autofill ตำแหน่ง + สายงาน (parallel async)
   if (opts.memberCode && mode === "new") {
     _autofillMemberPosition(opts.memberCode);
+    _autofillMemberUpline(opts.memberCode);
   }
   document.getElementById("attFormUpline").value    = opts.upline_id || "";
   // CS staff default: ถ้า edit → ใช้ค่าเดิม · ถ้าสร้างใหม่ + ไม่ระบุ → ใช้ชื่อ user ที่ login
@@ -4197,6 +4275,9 @@ async function _renderUplineMgrList() {
   list.innerHTML = uplines.map(u => `
     <div data-uid="${u.id}" style="display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid #f1f5f9">
       <span style="flex:1;font-size:13.5px;color:${u.is_active ? '#0f172a' : '#94a3b8'};${u.is_active ? '' : 'text-decoration:line-through'}">${escapeHtml(u.name)}</span>
+      <input type="text" value="${escapeHtml(u.member_code || '')}" placeholder="รหัสสมาชิก"
+        onblur="window.updateUplineMemberCode(${u.id}, this.value)"
+        style="width:110px;padding:4px 8px;border:1px solid #e2e8f0;border-radius:6px;font-size:11.5px;font-family:'IBM Plex Mono',monospace">
       <button title="${u.is_active ? 'ปิดใช้งาน' : 'เปิดใช้งาน'}" onclick="window.toggleUpline(${u.id}, ${!u.is_active})"
         style="background:${u.is_active ? '#f1f5f9' : '#dcfce7'};color:${u.is_active ? '#64748b' : '#15803d'};border:none;border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer">
         ${u.is_active ? '⊘ ปิด' : '✓ เปิด'}
@@ -4209,11 +4290,17 @@ async function _renderUplineMgrList() {
 
 window.addUpline = async function () {
   const inp = document.getElementById("newUplineName");
+  const codeInp = document.getElementById("newUplineCode");
   const name = inp.value.trim();
+  const memberCode = codeInp.value.trim() || null;
   if (!name) { inp.focus(); return; }
   try {
-    await sbFetch("upline_leaders", "", { method: "POST", body: { name, sort_order: 1000 } });
+    await sbFetch("upline_leaders", "", {
+      method: "POST",
+      body: { name, member_code: memberCode, sort_order: 1000 },
+    });
     inp.value = "";
+    codeInp.value = "";
     _invalidateUplinesCache();
     await _renderUplineMgrList();
     showToast(`เพิ่มสายงาน "${name}" แล้ว`, "success");
@@ -4223,6 +4310,20 @@ window.addUpline = async function () {
     } else {
       showToast("เพิ่มไม่สำเร็จ: " + e.message, "error");
     }
+  }
+};
+
+window.updateUplineMemberCode = async function (id, value) {
+  const code = (value || "").trim() || null;
+  try {
+    await sbFetch("upline_leaders", `?id=eq.${id}`, {
+      method: "PATCH",
+      body: { member_code: code },
+    });
+    _invalidateUplinesCache();
+    showToast(code ? `Link รหัส ${code} แล้ว` : "ลบ link รหัสแล้ว", "success");
+  } catch (e) {
+    showToast("บันทึกไม่สำเร็จ: " + e.message, "error");
   }
 };
 
