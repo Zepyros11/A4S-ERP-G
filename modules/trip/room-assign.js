@@ -291,6 +291,8 @@ const RA_I18N = {
     colRoomType:  "ประเภทห้อง",
     colCheckIn:   "Check-in",
     colCheckOut:  "Check-out",
+    colCheckedBy: "Checked By",
+    colChecked:   "Checked",
     colNights:    "คืน",
     colRooms:     "ห้อง",
     colPax:       "ผู้พัก",
@@ -321,6 +323,8 @@ const RA_I18N = {
     colRoomType:  "Room Type",
     colCheckIn:   "Check-in",
     colCheckOut:  "Check-out",
+    colCheckedBy: "Checked By",
+    colChecked:   "Checked",
     colNights:    "Nights",
     colRooms:     "Rooms",
     colPax:       "People",
@@ -381,11 +385,13 @@ function _buildExportSections(lang = "th") {
         const p = state.passengers.find(x => x.code === code);
         const name = (p?.name || p?._inheritedName || "—");
         rows.push({
-          [t.code]:       code || "",
-          [t.name]:       name,
-          [t.roomName]:   r.room_name || "",
-          [t.colCheckIn]: r.check_in_date  ? fmtDate(r.check_in_date)  : "",
-          [t.colCheckOut]:r.check_out_date ? fmtDate(r.check_out_date) : "",
+          [t.code]:        code || "",
+          [t.name]:        name,
+          [t.roomName]:    r.room_name || "",
+          [t.colCheckIn]:  r.check_in_date  ? fmtDate(r.check_in_date)  : "",
+          [t.colCheckOut]: r.check_out_date ? fmtDate(r.check_out_date) : "",
+          [t.colCheckedBy]: "",
+          [t.colChecked]:   "",
           _room: r.room_name || "",
           _code: code || "",
         });
@@ -549,13 +555,16 @@ window.exportRaExcel = function (lang = "th") {
     const sheetName = safeSheetName(sec.hotelName, i);
     const headerRows = sec.rows.length
       ? sec.rows
-      : [{ [t.code]: "", [t.name]: t.noOccupant, [t.roomName]: "", [t.colCheckIn]: "", [t.colCheckOut]: "" }];
+      : [{ [t.code]: "", [t.name]: t.noOccupant, [t.roomName]: "", [t.colCheckIn]: "", [t.colCheckOut]: "", [t.colCheckedBy]: "", [t.colChecked]: "" }];
     const ws = XLSX.utils.json_to_sheet(headerRows);
     const maxLen = {};
     headerRows.forEach(r => Object.entries(r).forEach(([k, v]) => {
       const l = String(v ?? "").length;
       maxLen[k] = Math.max(maxLen[k] || k.length, Math.min(l, 60));
     }));
+    // ให้ Checked By กว้างพอเขียนชื่อได้ + Checked เป็นช่อง tick
+    maxLen[t.colCheckedBy] = Math.max(maxLen[t.colCheckedBy] || 0, 14);
+    maxLen[t.colChecked]   = Math.max(maxLen[t.colChecked]   || 0, 9);
     ws["!cols"] = Object.keys(headerRows[0]).map(k => ({ wch: (maxLen[k] || 10) + 2 }));
     if (sec.rows.length) ws["!merges"] = computeMerges(headerRows, 0);
     // borders + header style ทุกเซลล์ (header 1 row + data N rows)
@@ -629,6 +638,8 @@ window.exportRaPdf = function (lang = "th") {
       ${isHead[idx] ? `<td rowspan="${rowspans[idx]}" style="vertical-align:middle">${escapeHtml(r[t.roomName])}</td>
       <td rowspan="${rowspans[idx]}" style="vertical-align:middle">${escapeHtml(r[t.colCheckIn])}</td>
       <td rowspan="${rowspans[idx]}" style="vertical-align:middle">${escapeHtml(r[t.colCheckOut])}</td>` : ""}
+      <td></td>
+      <td style="text-align:center"></td>
     </tr>`).join("");
     return `<div class="ra-print-section">
       <h3>🏨 ${escapeHtml(sec.title)}
@@ -636,13 +647,15 @@ window.exportRaPdf = function (lang = "th") {
       </h3>
       <table>
         <thead><tr>
-          <th style="width:14%">${t.code}</th>
-          <th style="width:34%">${t.name}</th>
-          <th style="width:22%">${t.roomName}</th>
-          <th style="width:15%">${t.colCheckIn}</th>
-          <th style="width:15%">${t.colCheckOut}</th>
+          <th style="width:11%">${t.code}</th>
+          <th style="width:25%">${t.name}</th>
+          <th style="width:18%">${t.roomName}</th>
+          <th style="width:12%">${t.colCheckIn}</th>
+          <th style="width:12%">${t.colCheckOut}</th>
+          <th style="width:14%">${t.colCheckedBy}</th>
+          <th style="width:8%">${t.colChecked}</th>
         </tr></thead>
-        <tbody>${trs || `<tr><td colspan="5" style="text-align:center;color:#94a3b8">${t.noOccupantH}</td></tr>`}</tbody>
+        <tbody>${trs || `<tr><td colspan="7" style="text-align:center;color:#94a3b8">${t.noOccupantH}</td></tr>`}</tbody>
       </table>
     </div>`;
   }).join("");
