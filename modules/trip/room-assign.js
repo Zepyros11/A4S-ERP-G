@@ -2558,11 +2558,13 @@ function renderSeatMapHtml(rows, occMap, opts = {}) {
         const g = state.guides.find(x => x.guide_id === guideId);
         const gname = g?.full_name || `Guide #${guideId}`;
         const lang = g?.languages ? ` (${g.languages})` : "";
-        return `<div class="ba-seat ba-seat-guide" data-seat="${seatNo}"
-          title="🧑‍🏫 ${escapeAttr(gname + lang)} · คลิกเพื่อดูรายละเอียด"
+        return `<div class="ba-seat ba-seat-guide taken" data-seat="${seatNo}"
+          title="🧑‍🏫 ${escapeAttr(gname + lang)} · คลิกเพื่อดูรายละเอียด · กด × เพื่อย้ายออกจาก seat"
           ${interactive ? `onclick="event.stopPropagation();window.viewGuideSeat(${busId}, '${escapeJs(seatNo)}')"` : ""}>
           <span class="ba-seat-num">${seatNo}</span>
           <span class="ba-seat-name">🧑‍🏫 ${escapeHtml(shortName(gname))}</span>
+          ${interactive ? `<button class="ba-seat-remove" title="ย้ายไกด์ออกจาก seat นี้"
+            onclick="event.stopPropagation();window.clearGuideSeatFromMap(${busId}, ${guideId})">×</button>` : ""}
         </div>`;
       }
       const code = occMap[seatNo];
@@ -2756,6 +2758,11 @@ window.viewGuideSeat = function (busId, seatNo) {
   }
 
   document.getElementById("seatDetailOverlay").classList.add("open");
+};
+
+// คลิก × ที่มุม guide seat → ล้าง seat ตรงๆ
+window.clearGuideSeatFromMap = function (busId, guideId) {
+  clearGuideSeatById(busId, guideId);
 };
 
 // ── helper: ล้าง seat_no ของไกด์ (ไกด์ยัง assign คันอยู่)
