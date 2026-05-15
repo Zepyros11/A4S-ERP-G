@@ -560,6 +560,18 @@
         z-index:10;border-color:#3b82f6;
         box-shadow:0 0 0 3px rgba(59,130,246,.18);
       }
+      /* × button at top-right corner of taken seat */
+      .ba-seat-remove{
+        position:absolute;top:-7px;right:-7px;
+        width:18px;height:18px;border-radius:50%;
+        background:#dc2626;border:1.5px solid #fff;color:#fff;
+        font-size:11px;font-weight:700;line-height:1;cursor:pointer;
+        display:none;align-items:center;justify-content:center;
+        padding:0;font-family:inherit;
+        box-shadow:0 1px 3px rgba(0,0,0,.2);transition:.12s;z-index:11;
+      }
+      .ba-seat.taken:hover .ba-seat-remove{display:inline-flex}
+      .ba-seat-remove:hover{background:#b91c1c;transform:scale(1.15)}
       .ba-seat-empty{flex:1 1 0;min-width:90px;height:52px;visibility:hidden}
       .ba-seat-rows{display:flex;flex-direction:column;gap:14px;padding:8px 0}
 

@@ -2572,10 +2572,12 @@ function renderSeatMapHtml(rows, occMap, opts = {}) {
         const gCls = gNorm === "M" ? "taken-M" : (gNorm === "F" ? "taken-F" : "taken-U");
         const dname = passenger.name || passenger._inheritedName || code;
         return `<div class="ba-seat taken ${gCls}" data-seat="${seatNo}"
-          title="${escapeAttr(dname + ' (' + code + ')')} · คลิกเพื่อดูรายละเอียด/ย้ายออก"
+          title="${escapeAttr(dname + ' (' + code + ')')} · คลิกเพื่อดูรายละเอียด · กด × เพื่อย้ายออก"
           ${interactive ? `onclick="event.stopPropagation();window.confirmUnassignSeat(${busId}, '${escapeJs(seatNo)}')"` : ""}>
           <span class="ba-seat-num">${seatNo}</span>
           <span class="ba-seat-name">${escapeHtml(shortName(dname))}</span>
+          ${interactive ? `<button class="ba-seat-remove" title="ย้ายออก"
+            onclick="event.stopPropagation();window.unassignSeat(${busId}, '${escapeJs(seatNo)}')">×</button>` : ""}
         </div>`;
       }
       return `<div class="ba-seat" data-seat="${seatNo}"
