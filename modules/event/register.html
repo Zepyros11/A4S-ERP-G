@@ -731,7 +731,7 @@ function renderPage() {
     <div class="reg-info-row"><span class="reg-info-icon">🕐</span>${_event.start_time && _event.end_time ? _event.start_time.slice(0,5) + ' — ' + _event.end_time.slice(0,5) + ' น.' : '—'}</div>
     <div class="reg-info-row"><span class="reg-info-icon">📍</span>${esc(_event.location || '—')}</div>
     ${_event.description ? `<div class="reg-info-row"><span class="reg-info-icon">📝</span>${esc(_event.description)}</div>` : ''}
-    ${_event.members_only ? '<div class="reg-info-row"><span class="reg-info-icon">👤</span><b>สมาชิก A4S เท่านั้น</b></div>' : ''}`;
+`;
 
   // Prereq
   if (_prereqLevel) {
