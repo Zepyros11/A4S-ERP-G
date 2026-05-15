@@ -756,24 +756,29 @@ function renderPage() {
     const allowGuest = !_event.members_only;
     const memberFormHtml = `
       <div class="reg-field">
-        <label>รหัสสมาชิก</label>
-        <input id="rCode" placeholder="เช่น 10001" autocomplete="off" inputmode="numeric">
+        <label>รหัสสมาชิก <span style="color:#dc2626">*</span></label>
+        <input id="rCode" placeholder="เช่น 10001" autocomplete="off" inputmode="numeric" required>
       </div>
       <div class="reg-field">
-        <label>รหัสผ่าน</label>
-        <input id="rPass" type="password" placeholder="รหัสผ่านของคุณ">
+        <label>รหัสผ่าน <span style="color:#dc2626">*</span></label>
+        <input id="rPass" type="password" placeholder="รหัสผ่านของคุณ" required>
       </div>
       <div id="regMsg" style="display:none"></div>
       <button class="reg-submit" id="btnRegister" onclick="doRegister()">🎫 ลงทะเบียน</button>`;
     const guestFormHtml = `
-      <div class="reg-guest-note">📝 สำหรับผู้ที่ไม่ใช่สมาชิก A4S — กรอกชื่อและเบอร์โทรเพื่อลงทะเบียนเข้างาน</div>
+      <div class="reg-guest-note">📝 สำหรับผู้ที่ไม่ใช่สมาชิก A4S — กรอกข้อมูลให้ครบทุกช่องเพื่อลงทะเบียนเข้างาน</div>
       <div class="reg-field">
-        <label>ชื่อ-นามสกุล</label>
-        <input id="gName" placeholder="กรอกชื่อ-นามสกุล" autocomplete="name">
+        <label>ชื่อ-นามสกุล <span style="color:#dc2626">*</span></label>
+        <input id="gName" placeholder="กรอกชื่อ-นามสกุล" autocomplete="name" required>
       </div>
       <div class="reg-field">
-        <label>เบอร์โทรศัพท์</label>
-        <input id="gPhone" placeholder="08x-xxx-xxxx" inputmode="tel" autocomplete="tel">
+        <label>เบอร์โทรศัพท์ <span style="color:#dc2626">*</span></label>
+        <input id="gPhone" placeholder="08x-xxx-xxxx" inputmode="tel" autocomplete="tel" required>
+      </div>
+      <div class="reg-field">
+        <label>รหัสผู้แนะนำ <span style="color:#dc2626">*</span></label>
+        <input id="gRef" placeholder="รหัสสมาชิกผู้แนะนำ (เช่น 10001)" inputmode="numeric" autocomplete="off" required>
+        <div id="gRefStatus" style="font-size:11.5px;margin-top:4px;min-height:14px"></div>
       </div>
       <div id="regMsgGuest" style="display:none"></div>
       <button class="reg-submit" id="btnRegisterGuest" onclick="doRegisterGuest()">🎫 ลงทะเบียน</button>`;
@@ -800,11 +805,54 @@ function renderPage() {
           </div>
         </div>`;
     }
-    // Enter key
+    // Enter key + referrer live-check
     setTimeout(() => {
       document.getElementById('rPass')?.addEventListener('keydown', e => { if (e.key === 'Enter') doRegister(); });
-      document.getElementById('gPhone')?.addEventListener('keydown', e => { if (e.key === 'Enter') doRegisterGuest(); });
+      document.getElementById('gRef')?.addEventListener('keydown', e => { if (e.key === 'Enter') doRegisterGuest(); });
+      const refEl = document.getElementById('gRef');
+      if (refEl) {
+        let refTimer = null;
+        refEl.addEventListener('input', () => {
+          clearTimeout(refTimer);
+          _referrerCache = null;
+          const v = refEl.value.trim();
+          const st = document.getElementById('gRefStatus');
+          if (!v) { if (st) st.innerHTML = ''; return; }
+          if (st) st.innerHTML = '<span style="color:#94a3b8">⏳ กำลังตรวจสอบ...</span>';
+          refTimer = setTimeout(() => lookupReferrer(v), 400);
+        });
+      }
     }, 50);
+  }
+}
+
+/* ── Referrer lookup (live + on-submit) ──
+   Returns { code, name } when found, null otherwise. */
+let _referrerCache = null;
+async function lookupReferrer(code) {
+  const st = document.getElementById('gRefStatus');
+  const v = (code || '').trim();
+  if (!v) { _referrerCache = null; if (st) st.innerHTML = ''; return null; }
+  try {
+    // members (MLM) → fallback test_members
+    let rows = await sbGet(`members?member_code=eq.${encodeURIComponent(v)}&select=member_code,member_name,full_name&limit=1`);
+    if (!rows.length) {
+      rows = await sbGet(`test_members?member_code=eq.${encodeURIComponent(v)}&select=member_code,member_name,full_name&limit=1`);
+    }
+    if (!rows.length) {
+      _referrerCache = null;
+      if (st) st.innerHTML = '<span style="color:#dc2626">❌ ไม่พบรหัสผู้แนะนำนี้</span>';
+      return null;
+    }
+    const r = rows[0];
+    const name = r.full_name || r.member_name || r.member_code;
+    _referrerCache = { code: r.member_code, name };
+    if (st) st.innerHTML = `<span style="color:#065f46">✅ ${esc(name)}</span>`;
+    return _referrerCache;
+  } catch (e) {
+    _referrerCache = null;
+    if (st) st.innerHTML = '<span style="color:#dc2626">⚠️ ตรวจสอบไม่ได้ ลองอีกครั้ง</span>';
+    return null;
   }
 }
 
@@ -1048,10 +1096,12 @@ async function doRegister() {
 async function doRegisterGuest() {
   const name = document.getElementById('gName').value.trim();
   const phone = document.getElementById('gPhone').value.trim();
+  const refCode = document.getElementById('gRef').value.trim();
   const btn = document.getElementById('btnRegisterGuest');
 
   if (!name) { showGuestMsg('กรุณากรอกชื่อ-นามสกุล', 'error'); return; }
   if (!phone) { showGuestMsg('กรุณากรอกเบอร์โทรศัพท์', 'error'); return; }
+  if (!refCode) { showGuestMsg('กรุณากรอกรหัสผู้แนะนำ', 'error'); return; }
   if (_event.members_only) { showGuestMsg('❌ Event นี้สำหรับสมาชิก A4S เท่านั้น', 'error'); return; }
 
   btn.disabled = true;
@@ -1061,6 +1111,12 @@ async function doRegisterGuest() {
   const resetBtn = () => { btn.disabled = false; btn.textContent = '🎫 ลงทะเบียน'; };
 
   try {
+    // Validate referrer (use cache if same code, else re-fetch)
+    const ref = (_referrerCache && _referrerCache.code === refCode)
+      ? _referrerCache
+      : await lookupReferrer(refCode);
+    if (!ref) { showGuestMsg('❌ ไม่พบรหัสผู้แนะนำนี้ในระบบ', 'error'); resetBtn(); return; }
+
     // Refresh capacity (กันคนอื่นเพิ่งลง)
     if (_event.max_attendees && _event.max_attendees > 0) {
       const attRes = await fetch(`${SB_URL}/rest/v1/event_attendees?event_id=eq.${_event.event_id}&select=attendee_id`, {
@@ -1097,6 +1153,10 @@ async function doRegisterGuest() {
       payment_status: 'FREE',
       checked_in: true,
       check_in_at: nowIso,
+      extra_fields: {
+        referrer_code: ref.code,
+        referrer_name: ref.name,
+      },
       ...(_lineProfile ? {
         line_user_id: _lineProfile.userId,
         line_display_name: _lineProfile.displayName || null,
@@ -1111,7 +1171,7 @@ async function doRegisterGuest() {
       <div class="reg-msg success">
         <div style="font-size:32px;margin-bottom:8px">✅</div>
         <div style="font-weight:700;font-size:16px">เข้างานเรียบร้อย!</div>
-        <div style="margin-top:4px;font-size:12.5px;color:#64748b">บุคคลทั่วไป</div>
+        <div style="margin-top:4px;font-size:12.5px;color:#64748b">บุคคลทั่วไป · ผู้แนะนำ ${esc(ref.code)} ${esc(ref.name)}</div>
         <div style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 12px;background:#fff;border:1px solid #e2e8f0;border-radius:12px;margin-top:10px;box-shadow:0 1px 2px rgba(0,0,0,.04)">
           <div style="font-size:13px;color:#0f172a;font-weight:600">👤 ${esc(name)}</div>
           <div id="gRegQr" data-qr="${esc(ticketNo)}" style="background:#fff;padding:8px;border-radius:8px"></div>

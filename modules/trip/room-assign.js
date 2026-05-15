@@ -2671,13 +2671,19 @@ window.saveBus = async function () {
         preset.rows.forEach(row => row.forEach(c => { if (typeof c === "number") newSeats.add(String(c)); }));
         const lost = Object.keys(occMap).filter(s => !newSeats.has(s));
         if (lost.length) {
-          const ok = await new Promise(resolve => {
-            const opener = window.ConfirmModal?.open;
-            const msg = `เปลี่ยน layout จะทำให้ที่นั่ง ${lost.join(", ")} (${lost.length} คน) ถูกย้ายออก — ดำเนินการต่อ?`;
-            if (opener) opener(msg, () => resolve(true), () => resolve(false));
-            else resolve(confirm(msg));
-          });
-          if (!ok) { showLoading(false); return; }
+          const msg = `เปลี่ยน layout จะทำให้ที่นั่ง ${lost.join(", ")} (${lost.length} คน) ถูกย้ายออก — ดำเนินการต่อ?`;
+          showLoading(false);
+          const ok = window.ConfirmModal?.open
+            ? await window.ConfirmModal.open({
+                title: "เปลี่ยน layout",
+                message: msg,
+                icon: "⚠️",
+                tone: "warning",
+                okText: "ดำเนินการต่อ",
+              })
+            : confirm(msg);
+          if (!ok) return;
+          showLoading(true);
           await sbFetch("trip_bus_occupants",
             `?bus_id=eq.${state.editingBusId}&seat_no=in.(${lost.map(s => encodeURIComponent(s)).join(",")})`,
             { method: "DELETE" });
@@ -2699,45 +2705,72 @@ window.saveBus = async function () {
   showLoading(false);
 };
 
-window.deleteBus = function (busId) {
+window.deleteBus = async function (busId) {
   const b = state.buses.find(x => x.bus_id === busId);
   if (!b) return;
   const occCount = Object.keys(state.busOccupants[busId] || {}).length;
   const msg = occCount > 0
-    ? `ลบรถ ${b.bus_label || `คันที่ ${b.bus_no}`} — มีคน ${occCount} คนนั่งอยู่ ผู้โดยสารจะถูกย้ายออกอัตโนมัติ ดำเนินการต่อ?`
+    ? `ลบรถ ${b.bus_label || `คันที่ ${b.bus_no}`} — มีคน ${occCount} คนนั่งอยู่ ผู้โดยสารจะถูกย้ายออกอัตโนมัติ`
     : `ลบรถ ${b.bus_label || `คันที่ ${b.bus_no}`}?`;
-  const opener = window.DeleteModal?.open || window.ConfirmModal?.open;
-  const doDelete = async () => {
-    showLoading(true);
-    try {
-      await sbFetch("trip_buses", `?bus_id=eq.${busId}`, { method: "DELETE" });
-      showToast("ลบรถแล้ว", "success");
-      await loadAll();
-    } catch (e) {
-      showToast("ลบไม่สำเร็จ: " + e.message, "error");
-    }
-    showLoading(false);
-  };
-  if (opener) opener(msg, doDelete); else if (confirm(msg)) doDelete();
+
+  // DeleteModal ใช้ (msg, callback) ส่วน ConfirmModal ใช้ object → ลอง DeleteModal ก่อน
+  if (window.DeleteModal?.open) {
+    window.DeleteModal.open(msg, async () => {
+      showLoading(true);
+      try {
+        await sbFetch("trip_buses", `?bus_id=eq.${busId}`, { method: "DELETE" });
+        showToast("ลบรถแล้ว", "success");
+        await loadAll();
+      } catch (e) {
+        showToast("ลบไม่สำเร็จ: " + e.message, "error");
+      }
+      showLoading(false);
+    });
+    return;
+  }
+  const ok = window.ConfirmModal?.open
+    ? await window.ConfirmModal.open({
+        title: "ลบรถบัส",
+        message: msg,
+        icon: "🗑",
+        tone: "danger",
+        okText: "ลบ",
+      })
+    : confirm(msg);
+  if (!ok) return;
+  showLoading(true);
+  try {
+    await sbFetch("trip_buses", `?bus_id=eq.${busId}`, { method: "DELETE" });
+    showToast("ลบรถแล้ว", "success");
+    await loadAll();
+  } catch (e) {
+    showToast("ลบไม่สำเร็จ: " + e.message, "error");
+  }
+  showLoading(false);
 };
 
-window.clearBus = function (busId) {
+window.clearBus = async function (busId) {
   const b = state.buses.find(x => x.bus_id === busId);
   if (!b) return;
   const occCount = Object.keys(state.busOccupants[busId] || {}).length;
   if (occCount === 0) { showToast("รถคันนี้ยังไม่มีคนนั่ง", "info"); return; }
-  const msg = `ล้างทุกที่นั่งของรถ ${b.bus_label || `คันที่ ${b.bus_no}`} (${occCount} คน)?`;
-  const opener = window.ConfirmModal?.open;
-  const doClear = async () => {
-    showLoading(true);
-    try {
-      await sbFetch("trip_bus_occupants", `?bus_id=eq.${busId}`, { method: "DELETE" });
-      showToast(`ล้างที่นั่งของรถแล้ว (${occCount} คน)`, "success");
-      await loadAll();
-    } catch (e) { showToast("ล้างไม่สำเร็จ: " + e.message, "error"); }
-    showLoading(false);
-  };
-  if (opener) opener(msg, doClear); else if (confirm(msg)) doClear();
+  const ok = window.ConfirmModal?.open
+    ? await window.ConfirmModal.open({
+        title: "ล้างทุกที่นั่ง",
+        message: `ล้างทุกที่นั่งของรถ ${b.bus_label || `คันที่ ${b.bus_no}`} (${occCount} คน)?`,
+        icon: "🧹",
+        tone: "warning",
+        okText: "ล้าง",
+      })
+    : confirm(`ล้างทุกที่นั่งของรถ ${b.bus_label || `คันที่ ${b.bus_no}`} (${occCount} คน)?`);
+  if (!ok) return;
+  showLoading(true);
+  try {
+    await sbFetch("trip_bus_occupants", `?bus_id=eq.${busId}`, { method: "DELETE" });
+    showToast(`ล้างที่นั่งของรถแล้ว (${occCount} คน)`, "success");
+    await loadAll();
+  } catch (e) { showToast("ล้างไม่สำเร็จ: " + e.message, "error"); }
+  showLoading(false);
 };
 
 window.toggleBusCollapse = function (busId) {
@@ -2787,21 +2820,27 @@ window.autoFillBus = async function (busId) {
   if (!candidates.length) { showToast("ไม่มีคนที่ยังต้องจัดที่นั่ง", "info"); return; }
   const n = Math.min(emptySeats.length, candidates.length);
   const msg = `เติมคน ${n} คนลงรถ ${bus.bus_label || `คันที่ ${bus.bus_no}`} ที่ที่นั่งว่างถัดไป?`;
-  const opener = window.ConfirmModal?.open;
-  const doFill = async () => {
-    showLoading(true);
-    try {
-      const payload = [];
-      for (let i = 0; i < n; i++) {
-        payload.push({ bus_id: busId, seat_no: emptySeats[i], code: candidates[i].code });
-      }
-      await sbFetch("trip_bus_occupants", "", { method: "POST", body: payload });
-      showToast(`เติม ${n} คนลงที่นั่งแล้ว`, "success");
-      await loadAll();
-    } catch (e) { showToast("เติมที่นั่งไม่สำเร็จ: " + e.message, "error"); }
-    showLoading(false);
-  };
-  if (opener) opener(msg, doFill); else if (confirm(msg)) doFill();
+  const ok = window.ConfirmModal?.open
+    ? await window.ConfirmModal.open({
+        title: "เติมที่นั่งอัตโนมัติ",
+        message: msg,
+        icon: "⚡",
+        tone: "primary",
+        okText: "เติม",
+      })
+    : confirm(msg);
+  if (!ok) return;
+  showLoading(true);
+  try {
+    const payload = [];
+    for (let i = 0; i < n; i++) {
+      payload.push({ bus_id: busId, seat_no: emptySeats[i], code: candidates[i].code });
+    }
+    await sbFetch("trip_bus_occupants", "", { method: "POST", body: payload });
+    showToast(`เติม ${n} คนลงที่นั่งแล้ว`, "success");
+    await loadAll();
+  } catch (e) { showToast("เติมที่นั่งไม่สำเร็จ: " + e.message, "error"); }
+  showLoading(false);
 };
 
 // ── SYNC FROM ROOMS: นั่งติดกันตามคู่ห้องพัก ─────────────────
@@ -2903,18 +2942,29 @@ window.syncBusFromRooms = async function () {
   const placed = plan.length;
   const totalNeeded = pairs.reduce((a, g) => a + g.length, 0);
   const remaining = totalNeeded - placed;
-  const msg = `จะจัด ${placed}/${totalNeeded} คนตามคู่ห้องพัก${remaining > 0 ? `<br><span style="color:#b91c1c">เหลือ ${remaining} คนที่หาคู่ที่นั่งไม่ได้ (ที่นั่งว่างไม่พอ)</span>` : ""} — ดำเนินการต่อ?`;
-  const opener = window.ConfirmModal?.open;
-  const doSync = async () => {
-    showLoading(true);
-    try {
-      await sbFetch("trip_bus_occupants", "", { method: "POST", body: plan });
-      showToast(`จัดที่นั่งตามคู่ห้องพักแล้ว ${placed} คน`, "success");
-      await loadAll();
-    } catch (e) { showToast("Sync ไม่สำเร็จ: " + e.message, "error"); }
-    showLoading(false);
-  };
-  if (opener) opener(msg, doSync); else if (confirm(msg.replace(/<[^>]+>/g, ""))) doSync();
+
+  const ok = window.ConfirmModal?.open
+    ? await window.ConfirmModal.open({
+        title: "จัดที่นั่งตามคู่ห้องพัก",
+        message: `จะจัด ${placed}/${totalNeeded} คนตามคู่ห้องพัก — ดำเนินการต่อ?`,
+        icon: "🔗",
+        tone: "primary",
+        okText: "จัดที่นั่ง",
+        note: remaining > 0
+          ? `⚠️ เหลือ ${remaining} คนที่หาที่นั่งไม่ได้ (ที่นั่งว่างไม่พอ)`
+          : null,
+        noteTone: remaining > 0 ? "warning" : "",
+      })
+    : confirm(`จะจัด ${placed}/${totalNeeded} คนตามคู่ห้องพัก — ดำเนินการต่อ?`);
+  if (!ok) return;
+
+  showLoading(true);
+  try {
+    await sbFetch("trip_bus_occupants", "", { method: "POST", body: plan });
+    showToast(`จัดที่นั่งตามคู่ห้องพักแล้ว ${placed} คน`, "success");
+    await loadAll();
+  } catch (e) { showToast("Sync ไม่สำเร็จ: " + e.message, "error"); }
+  showLoading(false);
 };
 
 // ── START ──────────────────────────────────────────────────
