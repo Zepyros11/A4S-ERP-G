@@ -946,13 +946,14 @@ async function doRegister() {
 
   try {
     // 1. Find member — ลอง members (MLM) ก่อน · fallback ไป test_members (mock สำหรับทดสอบ)
-    const members = await sbGet(`members?member_code=eq.${encodeURIComponent(code)}&select=member_code,member_name,full_name,phone,password_hash&limit=1`);
+    //    เพิ่ม co_applicant_name + is_company สำหรับสร้าง persons ใน JS (เลี่ยง view member_persons ที่ timeout)
+    const members = await sbGet(`members?member_code=eq.${encodeURIComponent(code)}&select=member_code,member_name,full_name,phone,password_hash,co_applicant_name,is_company&limit=1`);
     let member = members[0];
     let memberTable = 'members';
     if (!member) {
-      const testRows = await sbGet(`test_members?member_code=eq.${encodeURIComponent(code)}&select=member_code,member_name,full_name,phone,password_hash&limit=1`);
+      const testRows = await sbGet(`test_members?member_code=eq.${encodeURIComponent(code)}&select=member_code,member_name,full_name,phone,password_hash,co_applicant_name&limit=1`);
       member = testRows[0];
-      if (member) memberTable = 'test_members';
+      if (member) { memberTable = 'test_members'; member.is_company = false; }
     }
     if (!member) { showMsg('❌ ไม่พบรหัสสมาชิกนี้', 'error'); btn.disabled = false; btn.textContent = '🎫 ลงทะเบียน'; return; }
 
@@ -969,11 +970,35 @@ async function doRegister() {
       showMsg('❌ Event นี้สำหรับสมาชิก A4S เท่านั้น', 'error'); btn.disabled = false; btn.textContent = '🎫 ลงทะเบียน'; return;
     }
 
-    // 4. Load attendable persons (1-2 rows: primary + co_applicant)
-    //    limit=2 จำเป็น — view scan ทั้ง table แล้วค่อย filter ถ้าไม่มี limit จะ timeout (PG 57014)
-    const persons = await sbGet(`member_persons?member_code=eq.${encodeURIComponent(code)}&select=member_code,person_role,person_name,phone,is_company&order=person_role&limit=2`);
+    // 4. Build attendable persons (1-2 rows: primary + co_applicant) — สร้างใน JS
+    //    เคยใช้ view member_persons แต่ timeout (PG 57014) เพราะ CTE materialize ทั้ง table ก่อน filter
+    //    Logic mirror view: company → full_name (fallback member_name) · personal → member_name · +co_applicant ถ้ามี
+    const persons = [];
+    const isCompany = !!member.is_company;
+    const primaryName = (isCompany
+      ? (member.full_name?.trim() || member.member_name?.trim())
+      : member.member_name?.trim()) || null;
+    if (primaryName) {
+      persons.push({
+        member_code: code,
+        person_role: 'primary',
+        person_name: primaryName,
+        phone: member.phone || null,
+        is_company: isCompany,
+      });
+    }
+    const coAppName = member.co_applicant_name?.trim();
+    if (coAppName) {
+      persons.push({
+        member_code: code,
+        person_role: 'co_applicant',
+        person_name: coAppName,
+        phone: null,
+        is_company: isCompany,
+      });
+    }
     if (!persons.length) {
-      // Fallback — สมาชิกที่ไม่อยู่ใน view (data ไม่ครบ): สร้าง row primary จาก members
+      // Last-resort fallback — data ไม่ครบเลย
       persons.push({
         member_code: code,
         person_role: 'primary',
