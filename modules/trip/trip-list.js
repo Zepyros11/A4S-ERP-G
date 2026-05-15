@@ -166,7 +166,7 @@ function renderTable(rows) {
               onclick="window.open('./check-seat.html?trip_id=${t.trip_id}', '_blank')">💺</button>
             <button class="btn-icon" title="จัดห้องพัก + รถบัส (เปิดแท็บใหม่)"
               data-perm="trip_rooms_view"
-              onclick="window.open('./room-assign.html?trip_id=${t.trip_id}', '_blank')">🛏️🚌</button>
+              onclick="window.open('./room-assign.html?trip_id=${t.trip_id}', '_blank')">📋</button>
             <button class="btn-icon" title="แก้ไข"
               data-perm="trip_list_edit"
               onclick="window.openTripModal(${t.trip_id})">✏️</button>
