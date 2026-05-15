@@ -446,22 +446,23 @@
         overflow-x:auto;
       }
       .ba-seat-driver{
-        display:flex;align-items:center;justify-content:space-between;gap:10px;
-        width:100%;max-width:340px;padding:4px 8px;
-        font-size:11px;color:var(--text2);
-        border-bottom:2px dashed #cbd5e1;margin-bottom:6px;padding-bottom:8px;
+        display:flex;align-items:center;justify-content:space-between;gap:14px;
+        width:100%;max-width:600px;padding:6px 14px;
+        font-size:12.5px;color:var(--text2);font-weight:600;
+        border-bottom:2px dashed #cbd5e1;margin-bottom:8px;padding-bottom:10px;
       }
-      .ba-seat-row{display:flex;align-items:center;justify-content:center;gap:5px}
-      .ba-seat-row .ba-aisle{width:18px;flex-shrink:0}
+      .ba-seat-row{display:flex;align-items:center;justify-content:center;gap:14px}
+      .ba-seat-row .ba-aisle{width:60px;flex-shrink:0}
       .ba-seat{
-        width:38px;height:38px;border:1.5px solid #cbd5e1;border-radius:8px;
+        width:140px;height:52px;border:1.5px solid #cbd5e1;border-radius:10px;
         background:#fff;display:flex;align-items:center;justify-content:center;
-        font-size:11px;font-weight:600;color:var(--text2);cursor:pointer;
+        gap:8px;
+        font-size:13px;font-weight:700;color:var(--text2);cursor:pointer;
         transition:.12s;flex-shrink:0;position:relative;
-        font-family:'IBM Plex Mono',monospace;
+        font-family:'IBM Plex Mono',monospace;padding:0 10px;
       }
-      .ba-seat:hover{border-color:#3b82f6;color:#1d4ed8;background:#eff6ff}
-      .ba-seat.taken{cursor:default}
+      .ba-seat:hover{border-color:#3b82f6;color:#1d4ed8;background:#eff6ff;z-index:5}
+      .ba-seat.taken{cursor:pointer}
       .ba-seat.assignable:hover{
         background:#dbeafe;border-color:#3b82f6;
         box-shadow:0 0 0 3px rgba(59,130,246,.18);
@@ -469,16 +470,79 @@
       .ba-seat.taken-M{background:#dbeafe;border-color:#3b82f6;color:#1d4ed8}
       .ba-seat.taken-F{background:#fce7f3;border-color:#ec4899;color:#9d174d}
       .ba-seat.taken-U{background:#dcfce7;border-color:#22c55e;color:#15803d}
-      .ba-seat.taken .ba-seat-name{
-        position:absolute;top:100%;left:50%;transform:translateX(-50%);
-        margin-top:2px;font-size:9.5px;color:var(--text2);font-weight:500;
-        white-space:nowrap;max-width:90px;overflow:hidden;text-overflow:ellipsis;
-        pointer-events:none;font-family:inherit;
+      .ba-seat-num{
+        flex-shrink:0;font-size:13px;font-weight:700;
+        font-family:'IBM Plex Mono',monospace;
+        background:rgba(15,23,42,.06);padding:2px 7px;border-radius:6px;
       }
-      .ba-seat-empty{width:38px;height:38px;flex-shrink:0;visibility:hidden}
-      .ba-seat-rows{display:flex;flex-direction:column;gap:18px;padding:6px 0}
+      .ba-seat.taken-M .ba-seat-num{background:rgba(29,78,216,.15)}
+      .ba-seat.taken-F .ba-seat-num{background:rgba(157,23,77,.15)}
+      .ba-seat.taken-U .ba-seat-num{background:rgba(21,128,61,.15)}
+      .ba-seat .ba-seat-name{
+        font-size:11.5px;font-weight:600;
+        white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+        flex:1;min-width:0;font-family:inherit;text-align:left;
+      }
+      .ba-seat.taken:hover{
+        z-index:10;border-color:#3b82f6;
+        box-shadow:0 0 0 3px rgba(59,130,246,.18);
+      }
+      .ba-seat-empty{width:140px;height:52px;flex-shrink:0;visibility:hidden}
+      .ba-seat-rows{display:flex;flex-direction:column;gap:14px;padding:8px 0}
 
       .ba-empty-buses{padding:30px;text-align:center;color:var(--text3);background:#fff;border:1px dashed var(--border);border-radius:12px}
+
+      /* ════════════ SEAT DETAIL MODAL ════════════ */
+      .sd-modal{max-width:780px;width:92vw}
+      .sd-body{
+        display:grid;grid-template-columns:1fr 1fr;gap:18px;
+        padding:18px 18px 6px;
+      }
+      @media(max-width:680px){.sd-body{grid-template-columns:1fr}}
+      .sd-info{display:flex;flex-direction:column;gap:10px;min-width:0}
+      .sd-info-name{
+        font-size:18px;font-weight:700;color:var(--text);
+        padding-bottom:8px;border-bottom:2px solid var(--border);
+        word-break:break-word;
+      }
+      .sd-info-grid{
+        display:flex;flex-direction:column;gap:8px;
+        background:#f8fafc;border:1px solid var(--border);border-radius:8px;
+        padding:12px 14px;font-size:13px;
+      }
+      .sd-info-row{
+        display:flex;justify-content:space-between;align-items:flex-start;gap:10px;
+      }
+      .sd-info-k{color:var(--text2);font-size:11.5px;text-transform:uppercase;letter-spacing:.3px;font-weight:600;flex-shrink:0;min-width:80px}
+      .sd-info-v{color:var(--text);font-weight:600;text-align:right;word-break:break-word}
+      .sd-passport{
+        display:flex;flex-direction:column;gap:8px;min-width:0;
+      }
+      .sd-passport-label{
+        font-size:11.5px;color:var(--text2);font-weight:600;
+        letter-spacing:.3px;text-transform:uppercase;
+      }
+      .sd-passport-imgs{
+        display:flex;flex-direction:column;gap:8px;
+        max-height:400px;overflow-y:auto;
+      }
+      .sd-passport-imgs img{
+        width:100%;height:auto;border-radius:8px;
+        border:1px solid var(--border);background:#f8fafc;
+        cursor:zoom-in;transition:.15s;display:block;
+      }
+      .sd-passport-imgs img:hover{
+        border-color:var(--accent,#0f4c75);
+        box-shadow:0 4px 12px rgba(15,23,42,.12);
+      }
+      .sd-img-caption{
+        font-size:10.5px;color:var(--text3);text-align:center;margin-top:-4px;
+      }
+      .sd-no-img{
+        padding:30px 14px;text-align:center;color:var(--text3);
+        background:#f8fafc;border:1px dashed var(--border);border-radius:8px;
+        font-size:13px;
+      }
 
       /* Bus modal preset preview */
       .ba-preset-preview{
@@ -487,9 +551,17 @@
         display:flex;flex-direction:column;align-items:center;gap:6px;
         max-height:280px;overflow-y:auto;
       }
-      .ba-preset-preview .ba-seat{width:24px;height:24px;font-size:9px}
-      .ba-preset-preview .ba-seat-empty{width:24px;height:24px}
-      .ba-preset-preview .ba-aisle{width:12px}
+      .ba-preset-preview .ba-seat{
+        width:50px;height:26px;font-size:10px;padding:0 4px;gap:3px;
+        border-radius:5px;
+      }
+      .ba-preset-preview .ba-seat-num{font-size:10px;padding:1px 3px;border-radius:3px}
+      .ba-preset-preview .ba-seat-name{display:none}
+      .ba-preset-preview .ba-seat-empty{width:50px;height:26px}
+      .ba-preset-preview .ba-aisle{width:18px}
+      .ba-preset-preview .ba-seat-row{gap:6px}
+      .ba-preset-preview .ba-seat-rows{gap:6px}
+      .ba-preset-preview .ba-seat-driver{max-width:300px;font-size:10px}
       .ba-form-row-2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
     </style>
   </head>
@@ -790,6 +862,34 @@
         <div class="modal-footer">
           <button class="btn btn-ghost" onclick="window.closeBusModal()">ยกเลิก</button>
           <button class="btn btn-primary" id="busSaveBtn" onclick="window.saveBus()">💾 บันทึก</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════ SEAT DETAIL MODAL (2-col: info + passport) ═══════════ -->
+    <div class="modal-overlay" id="seatDetailOverlay" onclick="window.closeSeatDetail(event)">
+      <div class="modal v-sage-header sd-modal" onclick="event.stopPropagation()">
+        <div class="modal-hdr">
+          <div class="modal-title">💺 รายละเอียดที่นั่ง</div>
+          <button class="btn-modal-close" onclick="window.closeSeatDetail()">✕</button>
+        </div>
+        <div class="modal-body sd-body">
+          <!-- Info column -->
+          <div class="sd-info">
+            <div class="sd-info-name" id="sdName">—</div>
+            <div class="sd-info-grid" id="sdGrid"></div>
+          </div>
+          <!-- Passport column -->
+          <div class="sd-passport">
+            <div class="sd-passport-label">📷 Passport / Visa</div>
+            <div class="sd-passport-imgs" id="sdImgs">
+              <div class="sd-no-img">ไม่มีรูป passport / visa</div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-ghost" onclick="window.closeSeatDetail()">ปิด</button>
+          <button class="btn btn-danger" id="sdRemoveBtn" onclick="window.doUnassignSeat()">🗑 ย้ายออกจากที่นั่ง</button>
         </div>
       </div>
     </div>

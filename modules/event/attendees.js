@@ -1003,6 +1003,8 @@ function filterTable() {
       (a.phone || "").toLowerCase().includes(search) ||
       (a.member_code || "").toLowerCase().includes(search) ||
       (a.ticket_no || "").toLowerCase().includes(search) ||
+      (a.extra_fields?.referrer_code || "").toLowerCase().includes(search) ||
+      (a.extra_fields?.referrer_name || "").toLowerCase().includes(search) ||
       (a.tags || []).some((t) => (t || "").toLowerCase().includes(search));
     const matchCheckin = !checkin || String(a.checked_in) === checkin;
     const matchPayment =
@@ -1068,6 +1070,8 @@ function filterTableSavedOnly() {
       (a.phone || "").toLowerCase().includes(search) ||
       (a.member_code || "").toLowerCase().includes(search) ||
       (a.ticket_no || "").toLowerCase().includes(search) ||
+      (a.extra_fields?.referrer_code || "").toLowerCase().includes(search) ||
+      (a.extra_fields?.referrer_name || "").toLowerCase().includes(search) ||
       (a.tags || []).some((t) => (t || "").toLowerCase().includes(search));
     const matchCheckin = !checkin || String(a.checked_in) === checkin;
     const matchPayment =
@@ -1176,6 +1180,13 @@ function _renderFieldCellSpread(fkey, a, tdOpen) {
       return a.upline_name_text
         ? `${tdOpen}<span style="font-size:11.5px;color:#3730a3;background:#e0e7ff;padding:2px 8px;border-radius:5px;font-weight:600">🌿 ${escapeHtml(a.upline_name_text)}</span></td>`
         : empty;
+    case "referrer": {
+      const rc = a.extra_fields?.referrer_code;
+      const rn = a.extra_fields?.referrer_name;
+      if (!rc && !rn) return empty;
+      const label = rc && rn ? `${escapeHtml(rc)} · ${escapeHtml(rn)}` : escapeHtml(rc || rn);
+      return `${tdOpen}<span style="font-size:11.5px;color:#92400e;background:#fef3c7;padding:2px 8px;border-radius:5px;font-weight:600" title="${escapeHtml(rn || rc)}">🤝 ${label}</span></td>`;
+    }
     case "cs_staff":
       return a.cs_staff
         ? `${tdOpen}<span style="font-size:11.5px;color:#7c2d12;background:#fed7aa;padding:2px 8px;border-radius:5px;font-weight:600">${escapeHtml(a.cs_staff)}</span></td>`
@@ -1758,6 +1769,11 @@ async function _buildExportData() {
           case "phone":        return a.phone || "";
           case "position":     return a.position_level || "";
           case "upline":       return a.upline_name_text || "";
+          case "referrer": {
+            const rc = a.extra_fields?.referrer_code || "";
+            const rn = a.extra_fields?.referrer_name || "";
+            return rc && rn ? `${rc} · ${rn}` : (rc || rn);
+          }
           case "cs_staff":     return a.cs_staff || "";
           case "line_name":    return a.line_name_reported || "";
           case "fb_page_name": return a.fb_page_name || "";
@@ -1833,6 +1849,7 @@ window.exportAttendeesXLSX = async function () {
         if (c.key === "note") return { wch: 24 };
         if (c.key === "phone") return { wch: 14 };
         if (c.key === "upline") return { wch: 14 };
+        if (c.key === "referrer") return { wch: 22 };
         if (c.key === "cs_staff") return { wch: 10 };
         return { wch: 14 };
       default: return { wch: 12 };
@@ -1991,6 +2008,7 @@ async function _openPrintableReport(autoPrint) {
         if (c.key === "note") return "160px";
         if (c.key === "phone") return "100px";
         if (c.key === "upline") return "100px";
+        if (c.key === "referrer") return "150px";
         if (c.key === "cs_staff") return "70px";
         return "90px";
       default: return "auto";
@@ -3343,6 +3361,7 @@ const FIELD_COL_DEFS = {
   position:     { label: "⭐ ตำแหน่ง",         width: 90,  align: "center" },
   phone:        { label: "📱 เบอร์โทร",        width: 120, align: "center" },
   upline:       { label: "🌿 สายงาน",          width: 110, align: "center" },
+  referrer:     { label: "🤝 ผู้แนะนำ",        width: 150, align: "center" },
   cs_staff:     { label: "👤 CS",              width: 70,  align: "center" },
   line_name:    { label: "💬 ชื่อไลน์",        width: 130, align: "center" },
   fb_page_name: { label: "📘 เพจ FB",          width: 140, align: "center" },
@@ -3351,7 +3370,7 @@ const FIELD_COL_DEFS = {
 };
 // icon prefix per core field (ใช้กับ label override → คง icon เดิมไว้)
 const FIELD_ICONS = {
-  position: "⭐", phone: "📱", upline: "🌿", cs_staff: "👤",
+  position: "⭐", phone: "📱", upline: "🌿", referrer: "🤝", cs_staff: "👤",
   line_name: "💬", fb_page_name: "📘", had_attended: "↻", note: "📝",
 };
 function _colIcon(key) { return FIELD_ICONS[key] ? FIELD_ICONS[key] + " " : ""; }
@@ -4602,12 +4621,13 @@ window._csStaffKey = function (ev) {
 // ── Event field config ─────────────────────────────────────
 // Default = all fields shown, none required (except upline & name)
 // field_order = ลำดับ column ในตาราง spreadsheet · drag-reorder ใน config modal
-const DEFAULT_FIELD_ORDER = ["phone", "position", "upline", "cs_staff", "line_name", "fb_page_name", "had_attended", "note"];
+const DEFAULT_FIELD_ORDER = ["phone", "position", "upline", "referrer", "cs_staff", "line_name", "fb_page_name", "had_attended", "note"];
 const DEFAULT_FIELD_CONFIG = {
   fields: {
     phone:        { show: true,  required: false },
     position:     { show: true,  required: false },
     upline:       { show: true,  required: true  },
+    referrer:     { show: true,  required: false },
     cs_staff:     { show: true,  required: false },
     line_name:    { show: true,  required: false },
     fb_page_name: { show: true,  required: false },
@@ -4794,6 +4814,19 @@ window.openAttendeeForm = async function (opts = {}) {
   document.getElementById("attFormFbPage").value    = opts.fb_page_name || "";
   document.getElementById("attFormNote").value      = opts.attendee_note || "";
 
+  // Referrer (เก็บใน extra_fields.referrer_code / referrer_name)
+  const refCodeInit = opts.extra_fields?.referrer_code || "";
+  const refNameInit = opts.extra_fields?.referrer_name || "";
+  document.getElementById("attFormReferrerCode").value = refCodeInit;
+  const refStatusEl = document.getElementById("attFormReferrerStatus");
+  if (refStatusEl) {
+    refStatusEl.style.color = refNameInit ? "#065f46" : "#64748b";
+    refStatusEl.textContent = refNameInit ? `✅ ${refNameInit}` : "";
+  }
+  _attFormReferrerCache = (refCodeInit && refNameInit)
+    ? { code: refCodeInit, name: refNameInit }
+    : null;
+
   // had_attended radio
   const hadVal = opts.had_attended_before === true ? "true"
                : opts.had_attended_before === false ? "false" : "";
@@ -4806,12 +4839,55 @@ window.openAttendeeForm = async function (opts = {}) {
   requestAnimationFrame(() => document.getElementById("attFormName")?.focus());
 };
 
+// ── Referrer lookup (debounced) + cache for save ──
+let _attFormReferrerCache = null;     // { code, name } when valid
+let _attFormReferrerTimer = null;
+
+window._attFormReferrerInput = function () {
+  clearTimeout(_attFormReferrerTimer);
+  _attFormReferrerCache = null;
+  const v = document.getElementById("attFormReferrerCode").value.trim();
+  const st = document.getElementById("attFormReferrerStatus");
+  if (!v) { if (st) { st.textContent = ""; st.style.color = "#64748b"; } return; }
+  if (st) { st.textContent = "⏳ กำลังตรวจสอบ..."; st.style.color = "#94a3b8"; }
+  _attFormReferrerTimer = setTimeout(() => window._attFormReferrerLookup(false), 350);
+};
+
+window._attFormReferrerLookup = async function (forceOnBlur) {
+  const code = document.getElementById("attFormReferrerCode").value.trim();
+  const st = document.getElementById("attFormReferrerStatus");
+  if (!code) { _attFormReferrerCache = null; if (st) { st.textContent = ""; st.style.color = "#64748b"; } return null; }
+  // ถ้า cache ตรง + ไม่ใช่ blur → skip
+  if (!forceOnBlur && _attFormReferrerCache?.code === code) return _attFormReferrerCache;
+  try {
+    let rows = await sbFetch("members", `?member_code=eq.${encodeURIComponent(code)}&select=member_code,member_name,full_name&limit=1`);
+    if (!rows?.length) {
+      rows = await sbFetch("test_members", `?member_code=eq.${encodeURIComponent(code)}&select=member_code,member_name,full_name&limit=1`).catch(() => []);
+    }
+    if (!rows?.length) {
+      _attFormReferrerCache = null;
+      if (st) { st.textContent = "❌ ไม่พบรหัสผู้แนะนำนี้"; st.style.color = "#dc2626"; }
+      return null;
+    }
+    const r = rows[0];
+    const name = r.full_name || r.member_name || r.member_code;
+    _attFormReferrerCache = { code: r.member_code, name };
+    if (st) { st.textContent = `✅ ${name}`; st.style.color = "#065f46"; }
+    return _attFormReferrerCache;
+  } catch (e) {
+    _attFormReferrerCache = null;
+    if (st) { st.textContent = "⚠️ ตรวจสอบไม่ได้ ลองใหม่"; st.style.color = "#dc2626"; }
+    return null;
+  }
+};
+
 function _applyFieldConfigToForm(cfg) {
   // map key → { wrapId, labelId, defaultLabel }
   const map = {
     phone:        { wrap: "attFormPhoneWrap",        label: "attFormPhoneLabel",        def: "เบอร์โทร" },
     position:     { wrap: "attFormPosWrap",          label: "attFormPosLabel",          def: "ตำแหน่ง" },
     upline:       { wrap: "attFormUplineWrap",       label: "attFormUplineLabel",       def: "สายงาน" },
+    referrer:     { wrap: "attFormReferrerWrap",     label: "attFormReferrerLabel",     def: "ผู้แนะนำ" },
     cs_staff:     { wrap: "attFormCsWrap",           label: "attFormCsLabel",           def: "CS" },
     line_name:    { wrap: "attFormLineWrap",         label: "attFormLineLabel",         def: "ชื่อไลน์ที่แจ้ง" },
     fb_page_name: { wrap: "attFormFbWrap",           label: "attFormFbLabel",           def: "ชื่อเพจ Facebook" },
@@ -4935,6 +5011,28 @@ window.saveAttendeeForm = async function () {
 
   const uplineRow = uplineId ? (_uplinesCache || []).find(u => String(u.id) === String(uplineId)) : null;
 
+  // ── Referrer: validate + ensure cache matches input ──
+  const refCodeInput = document.getElementById("attFormReferrerCode").value.trim();
+  if (cfg.fields.referrer?.required && !refCodeInput) {
+    showToast("กรุณาระบุรหัสผู้แนะนำ", "error");
+    document.getElementById("attFormReferrerCode")?.focus();
+    return;
+  }
+  let referrerData = null;
+  if (refCodeInput) {
+    if (_attFormReferrerCache?.code !== refCodeInput) {
+      // user พิมพ์ใหม่แต่ยังไม่ได้ blur — re-lookup
+      referrerData = await window._attFormReferrerLookup(true);
+    } else {
+      referrerData = _attFormReferrerCache;
+    }
+    if (!referrerData) {
+      showToast("❌ ไม่พบรหัสผู้แนะนำในระบบ", "error");
+      document.getElementById("attFormReferrerCode")?.focus();
+      return;
+    }
+  }
+
   // Collect qualifications (boolean) + custom fields (text) → รวมใน extra_fields เดียวกัน
   const quals = {};
   document.querySelectorAll('#attFormQualList input[data-qual-key]').forEach(cb => {
@@ -4944,6 +5042,10 @@ window.saveAttendeeForm = async function () {
     const v = inp.value.trim();
     if (v) quals[inp.dataset.customKey] = v;
   });
+  if (referrerData) {
+    quals.referrer_code = referrerData.code;
+    quals.referrer_name = referrerData.name;
+  }
 
   const hadVal = document.querySelector('input[name="attFormHadAttended"]:checked')?.value;
   const had_attended_before = hadVal === "true" ? true : hadVal === "false" ? false : null;
@@ -5190,6 +5292,7 @@ const FIELD_LABELS = {
   phone:        "เบอร์โทร",
   position:     "ตำแหน่ง",
   upline:       "สายงาน",
+  referrer:     "ผู้แนะนำ",
   cs_staff:     "CS",
   line_name:    "ชื่อไลน์ที่แจ้ง",
   fb_page_name: "ชื่อเพจ Facebook",

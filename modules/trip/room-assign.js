@@ -2474,14 +2474,16 @@ function renderSeatMapHtml(rows, occMap, opts = {}) {
         const gCls = gNorm === "M" ? "taken-M" : (gNorm === "F" ? "taken-F" : "taken-U");
         const dname = passenger.name || passenger._inheritedName || code;
         return `<div class="ba-seat taken ${gCls}" data-seat="${seatNo}"
-          title="${escapeAttr(dname + ' (' + code + ')')}"
-          ${interactive ? `onclick="event.stopPropagation();window.unassignSeat(${busId}, '${escapeJs(seatNo)}')"` : ""}>
-          ${seatNo}<span class="ba-seat-name">${escapeHtml(shortName(dname))}</span>
+          title="${escapeAttr(dname + ' (' + code + ')')} · คลิกเพื่อดูรายละเอียด/ย้ายออก"
+          ${interactive ? `onclick="event.stopPropagation();window.confirmUnassignSeat(${busId}, '${escapeJs(seatNo)}')"` : ""}>
+          <span class="ba-seat-num">${seatNo}</span>
+          <span class="ba-seat-name">${escapeHtml(shortName(dname))}</span>
         </div>`;
       }
       return `<div class="ba-seat" data-seat="${seatNo}"
         ${interactive ? `onclick="window.assignSeat(${busId}, '${escapeJs(seatNo)}')"` : ""}>
-        ${seatNo}
+        <span class="ba-seat-num">${seatNo}</span>
+        <span class="ba-seat-name" style="opacity:.4;font-weight:500">ว่าง</span>
       </div>`;
     }).join("");
     return `<div class="ba-seat-row">${cellsHtml}</div>`;
@@ -2499,8 +2501,85 @@ function renderSeatMapHtml(rows, occMap, opts = {}) {
 function shortName(name) {
   if (!name) return "";
   const trimmed = String(name).trim();
-  return trimmed.length > 10 ? trimmed.slice(0, 9) + "…" : trimmed;
+  // seat กว้าง ~140px มี ellipsis อัตโนมัติจาก CSS — return เต็มก็ได้
+  // (truncate ที่นี่กันชื่อยาวมาก เผื่อ tooltip)
+  return trimmed.length > 24 ? trimmed.slice(0, 22) + "…" : trimmed;
 }
+
+// คลิกที่นั่งที่มีคนนั่ง → เปิด seat-detail modal (รายละเอียด + passport)
+window.confirmUnassignSeat = function (busId, seatNo) {
+  const code = (state.busOccupants[busId] || {})[seatNo];
+  if (!code) return;
+  const p = state.passengers.find(x => x.code === code);
+  if (!p) return;
+  const bus = state.buses.find(b => b.bus_id === busId);
+
+  const dname = p.name || p._inheritedName || code;
+  const dnat  = p.nationality || p._inheritedNat || "—";
+  const gNorm = normGender(p.gender || p._inheritedGender);
+  const gLbl  = gNorm === "M" ? "♂ ชาย" : (gNorm === "F" ? "♀ หญิง" : "—");
+  const busLbl = bus ? (bus.bus_label || `คันที่ ${bus.bus_no || "?"}`) : `Bus ${busId}`;
+  const groupName = p.group_name || "—";
+  const passId = p.passport_id || "";
+
+  // เก็บ target context ไว้ใช้ตอนกด "ย้ายออก"
+  state.sdContext = { busId, seatNo, code };
+
+  // Info column
+  document.getElementById("sdName").textContent = dname;
+  const grid = document.getElementById("sdGrid");
+  grid.innerHTML = [
+    ["รหัส",   code],
+    ["กลุ่ม",  groupName],
+    ["เพศ",    gLbl],
+    ["สัญชาติ", dnat],
+    passId ? ["Passport", passId] : null,
+    ["รถ",     busLbl],
+    ["ที่นั่ง",  seatNo],
+  ].filter(Boolean).map(([k, v]) =>
+    `<div class="sd-info-row">
+       <span class="sd-info-k">${escapeHtml(k)}</span>
+       <span class="sd-info-v">${escapeHtml(String(v))}</span>
+     </div>`
+  ).join("");
+
+  // Passport column — passport_image_url + visa_image_url
+  const pass = p.passport_image_url || p._inheritedPassImg || null;
+  const visa = p.visa_image_url     || p._inheritedVisaImg || null;
+  const imgsEl = document.getElementById("sdImgs");
+  const imgs = [
+    pass ? { src: pass, label: "Passport" } : null,
+    visa ? { src: visa, label: "Visa" } : null,
+  ].filter(Boolean);
+  if (!imgs.length) {
+    imgsEl.innerHTML = `<div class="sd-no-img">ไม่มีรูป passport / visa</div>`;
+  } else {
+    imgsEl.innerHTML = imgs.map((img, i) => `
+      <div>
+        <img src="${escapeAttr(img.src)}" alt="${img.label}"
+          onclick="window.viewPaxPassport('${escapeJs(code)}')"
+          onerror="this.style.display='none';this.nextElementSibling.textContent='⚠ โหลดรูปไม่ได้'" />
+        <div class="sd-img-caption">${img.label} — คลิกเพื่อขยาย</div>
+      </div>
+    `).join("");
+  }
+
+  document.getElementById("seatDetailOverlay").classList.add("open");
+};
+
+window.closeSeatDetail = function (e) {
+  if (e && e.target.id !== "seatDetailOverlay") return;
+  document.getElementById("seatDetailOverlay")?.classList.remove("open");
+  state.sdContext = null;
+};
+
+window.doUnassignSeat = function () {
+  const ctx = state.sdContext;
+  if (!ctx) { window.closeSeatDetail(); return; }
+  const { busId, seatNo } = ctx;
+  window.closeSeatDetail();
+  window.unassignSeat(busId, seatNo);
+};
 
 function updateSeatAssignableState() {
   document.querySelectorAll(".ba-seat").forEach(el => {
