@@ -880,7 +880,7 @@ function _buildBusExportRows(bus) {
     }
     const p = item.p;
     const name = p.name || p._inheritedName || "";
-    const pin = p.pin || p.passport_id || "";
+    const pin = p.pin || "";
     const rids = state.codeToRooms[p.code];
     const myRooms = (rids ? [...rids] : [])
       .map(rid => state.rooms.find(r => r.room_id === rid))
