@@ -513,9 +513,7 @@ async function showEventPicker() {
           ${events.map(e => {
             const poster = (e.image_urls && e.image_urls[0]) || e.poster_url || '';
             return `<a class="reg-picker-card" href="?event=${e.event_id}">
-              ${poster
-                ? `<img class="reg-picker-poster" src="${poster}" alt="">`
-                : '<div class="reg-picker-poster-ph">🗓️</div>'}
+              <img class="reg-picker-poster" src="${poster || '../../assets/images/NoPoster.png'}" alt="" onerror="this.onerror=null;this.src='../../assets/images/NoPoster.png';">
               <div class="reg-picker-body">
                 <div class="reg-picker-name">${esc(e.event_name)}</div>
                 <div class="reg-picker-meta">
@@ -700,7 +698,7 @@ function renderPage() {
   let badgesHtml = `<span class="reg-badge status">${_event.status}</span>`;
   if (_series) badgesHtml += `<span class="reg-badge series">${_series.icon || '📚'} ${_series.name}${_level ? ' · ' + _level.level_name : ''}</span>`;
   heroEl.innerHTML = `
-    ${posterUrl ? `<img class="reg-poster" src="${posterUrl}" alt="">` : '<div class="reg-poster-placeholder">🗓️</div>'}
+    <img class="reg-poster" src="${posterUrl || '../../assets/images/NoPoster.png'}" alt="" onerror="this.onerror=null;this.src='../../assets/images/NoPoster.png';">
     <div class="reg-hero-overlay">
       <div class="reg-hero-name">${esc(_event.event_name)}</div>
       <div class="reg-hero-badges">${badgesHtml}</div>

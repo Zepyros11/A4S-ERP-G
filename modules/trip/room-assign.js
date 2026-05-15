@@ -237,18 +237,23 @@ async function loadAll() {
       });
     }
 
-    // Load bus_guides relation
-    state.busGuides = {};
-    state.guideToBuses = {};
+    // Load bus_guides relation (รวม seat_no)
+    state.busGuides = {};         // { [bus_id]: [{ guide_id, seat_no }, ...] }
+    state.guideToBuses = {};      // { [guide_id]: Set<bus_id> }
+    state.busGuideSeats = {};     // { [bus_id]: { [seat_no]: guide_id } } — fast lookup
     const busIds2 = state.buses.map(b => b.bus_id);
     if (busIds2.length) {
       const bgRows = await sbFetch("trip_bus_guides",
-        `?bus_id=in.(${busIds2.join(",")})&select=bus_id,guide_id`).catch(() => []);
+        `?bus_id=in.(${busIds2.join(",")})&select=bus_id,guide_id,seat_no`).catch(() => []);
       (bgRows || []).forEach(r => {
         if (!state.busGuides[r.bus_id]) state.busGuides[r.bus_id] = [];
-        state.busGuides[r.bus_id].push(r.guide_id);
+        state.busGuides[r.bus_id].push({ guide_id: r.guide_id, seat_no: r.seat_no || null });
         if (!state.guideToBuses[r.guide_id]) state.guideToBuses[r.guide_id] = new Set();
         state.guideToBuses[r.guide_id].add(r.bus_id);
+        if (r.seat_no) {
+          if (!state.busGuideSeats[r.bus_id]) state.busGuideSeats[r.bus_id] = {};
+          state.busGuideSeats[r.bus_id][r.seat_no] = r.guide_id;
+        }
       });
     }
 
@@ -2516,14 +2521,18 @@ function busCardHtml(b) {
 
 // Render แถวไกด์ของรถคันนี้
 function guidesRowHtml(busId) {
-  const guideIds = state.busGuides[busId] || [];
-  const guides = guideIds.map(gid => state.guides.find(g => g.guide_id === gid)).filter(Boolean);
-  const pills = guides.map(g => {
+  const entries = state.busGuides[busId] || [];
+  const pills = entries.map(entry => {
+    const g = state.guides.find(x => x.guide_id === entry.guide_id);
+    if (!g) return "";
     const lang = g.languages ? ` <span style="opacity:.7;font-weight:500">(${escapeHtml(g.languages)})</span>` : "";
+    const seatTag = entry.seat_no
+      ? ` <span style="background:#fef3c7;color:#92400e;padding:1px 6px;border-radius:4px;font-size:10.5px;font-weight:700">💺 ${escapeHtml(entry.seat_no)}</span>`
+      : ` <span style="color:#dc2626;font-size:10.5px;font-weight:600">⚠ ไม่มีที่นั่ง</span>`;
     return `<button class="ba-guide-pill" data-perm="trip_guides_edit"
       onclick="event.stopPropagation();window.openGuideEditModal(${g.guide_id})"
-      title="คลิกเพื่อแก้ไข/ดูรายละเอียด">
-      🧑‍🏫 ${escapeHtml(g.full_name)}${lang}
+      title="คลิกเพื่อแก้ไข">
+      🧑‍🏫 ${escapeHtml(g.full_name)}${lang}${seatTag}
     </button>`;
   }).join("");
   return `<div class="ba-bus-guides">
@@ -2531,17 +2540,31 @@ function guidesRowHtml(busId) {
     ${pills || '<span style="color:var(--text3);font-size:11.5px">— ยังไม่มี —</span>'}
     <button class="ba-bus-guides-add" data-perm="trip_guides_assign"
       onclick="event.stopPropagation();window.openBusGuidesModal(${busId})"
-      title="จัดการไกด์ของคันนี้">＋ เพิ่มไกด์</button>
+      title="จัดการไกด์ของคันนี้">＋ จัดการไกด์</button>
   </div>`;
 }
 
 function renderSeatMapHtml(rows, occMap, opts = {}) {
   const { interactive = true, busId = 0 } = opts;
+  const guideSeats = state.busGuideSeats?.[busId] || {};
   const rowsHtml = rows.map(row => {
     const cellsHtml = row.map(cell => {
       if (cell === "AISLE") return `<div class="ba-aisle"></div>`;
       if (cell === "EMPTY") return `<div class="ba-seat-empty"></div>`;
       const seatNo = String(cell);
+      // Guide seat (ก่อน passenger เพราะ guide ครองที่ของไกด์)
+      const guideId = guideSeats[seatNo];
+      if (guideId) {
+        const g = state.guides.find(x => x.guide_id === guideId);
+        const gname = g?.full_name || `Guide #${guideId}`;
+        const lang = g?.languages ? ` (${g.languages})` : "";
+        return `<div class="ba-seat ba-seat-guide" data-seat="${seatNo}"
+          title="🧑‍🏫 ${escapeAttr(gname + lang)} · คลิกเพื่อแก้ไข"
+          ${interactive ? `onclick="event.stopPropagation();window.openGuideEditModal(${guideId})"` : ""}>
+          <span class="ba-seat-num">${seatNo}</span>
+          <span class="ba-seat-name">🧑‍🏫 ${escapeHtml(shortName(gname))}</span>
+        </div>`;
+      }
       const code = occMap[seatNo];
       const passenger = code ? state.passengers.find(p => p.code === code) : null;
       if (passenger) {
@@ -2677,6 +2700,11 @@ window.assignSeat = async function (busId, seatNo) {
 
   if ((state.busOccupants[busId] || {})[seatNo]) {
     showToast(`ที่นั่ง ${seatNo} มีคนแล้ว — กดที่นั่งนั้นเพื่อย้ายออกก่อน`, "error");
+    return;
+  }
+  // Block ถ้า seat ถูก guide ครอง
+  if ((state.busGuideSeats[busId] || {})[seatNo]) {
+    showToast(`ที่นั่ง ${seatNo} เป็นที่นั่งไกด์ — เลือกที่นั่งอื่น`, "error");
     return;
   }
 
@@ -3153,15 +3181,56 @@ function renderBusGuidesList() {
     </div>`;
     return;
   }
-  const assignedSet = new Set(state.busGuides[busId] || []);
+  const entries = state.busGuides[busId] || [];
+  const seatByGuide = {};
+  entries.forEach(e => { seatByGuide[e.guide_id] = e.seat_no || null; });
+  const assignedSet = new Set(entries.map(e => e.guide_id));
+
+  // หา seat ที่ว่าง (ทั้ง passenger + guide ของรถคันนี้)
+  const bus = state.buses.find(b => b.bus_id === busId);
+  const preset = BUS_PRESETS[bus?.layout_preset] || BUS_PRESETS.BUS_45_2_2;
+  const occMap = state.busOccupants[busId] || {};
+  const guideSeats = state.busGuideSeats[busId] || {};
+  const availableSeats = [];
+  preset.rows.forEach(row => row.forEach(c => {
+    if (typeof c === "number") {
+      const s = String(c);
+      if (!occMap[s] && !guideSeats[s]) availableSeats.push(s);
+    }
+  }));
+
   list.innerHTML = state.guides.map(g => {
     const checked = assignedSet.has(g.guide_id);
+    const currentSeat = seatByGuide[g.guide_id];
     const lang = g.languages ? `<span class="bgm-row-lang">(${escapeHtml(g.languages)})</span>` : "";
+
+    // dropdown seat — ที่ว่าง + seat ปัจจุบันของไกด์นี้
+    let seatPicker = "";
+    if (checked) {
+      const opts = [`<option value="">— ยังไม่เลือก —</option>`];
+      // เพิ่ม current ถ้ามี (เผื่อไม่อยู่ใน availableSeats เพราะถูกตัวเองครอง)
+      if (currentSeat && !availableSeats.includes(currentSeat)) {
+        opts.push(`<option value="${escapeAttr(currentSeat)}" selected>💺 ${escapeHtml(currentSeat)} (ปัจจุบัน)</option>`);
+      }
+      // sort numeric
+      const sortedAvail = [...availableSeats].sort((a, b) => Number(a) - Number(b));
+      sortedAvail.forEach(s => {
+        const sel = s === currentSeat ? " selected" : "";
+        opts.push(`<option value="${escapeAttr(s)}"${sel}>💺 ${escapeHtml(s)}</option>`);
+      });
+      seatPicker = `<select class="bgm-seat-select"
+        onclick="event.stopPropagation()"
+        onchange="event.stopPropagation();window.setGuideSeat(${g.guide_id}, this.value)">
+        ${opts.join("")}
+      </select>`;
+    }
+
     return `<div class="bgm-row${checked ? " checked" : ""}"
       onclick="window.toggleGuideForBus(${g.guide_id})">
       <span class="bgm-row-check">${checked ? "✓" : ""}</span>
       <span class="bgm-row-name">${escapeHtml(g.full_name)}</span>
       ${lang}
+      ${seatPicker}
       <button class="bgm-row-edit" title="แก้ไขข้อมูลไกด์"
         onclick="event.stopPropagation();window.openGuideEditModal(${g.guide_id})">✏️</button>
     </div>`;
