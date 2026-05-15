@@ -344,6 +344,136 @@
       .ra-report-list{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--text2);max-height:240px;overflow-y:auto}
       .ra-report-row{display:flex;align-items:center;gap:8px;padding:4px 8px;border-radius:6px;background:#f8fafc}
       .ra-report-empty{padding:20px;text-align:center;color:var(--text3);font-size:12.5px}
+
+      /* ════════════ BUSES (merged from bus-assign) ════════════ */
+      .ba-buses-section{margin-top:18px;padding-top:14px;border-top:2px dashed var(--border)}
+      .ba-buses-section-hdr{
+        display:flex;align-items:center;justify-content:space-between;
+        gap:8px;flex-wrap:wrap;margin-bottom:10px;
+      }
+      .ba-buses-section-title{
+        font-weight:700;font-size:15px;color:var(--text);
+        display:inline-flex;align-items:center;gap:6px;
+      }
+      .ba-buses{display:flex;flex-direction:column;gap:14px}
+
+      .ba-bus-card{background:#fff;border:1px solid var(--border);border-radius:12px;padding:12px}
+      .ba-bus-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;padding-bottom:8px;border-bottom:1px dashed var(--border);flex-wrap:wrap;gap:6px}
+      .ba-bus-title{font-weight:700;color:var(--text);font-size:14px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+      .ba-bus-no-badge{
+        display:inline-flex;align-items:center;justify-content:center;
+        min-width:26px;height:26px;padding:0 8px;
+        background:var(--accent,#0f4c75);color:#fff;
+        border-radius:99px;font-size:12px;font-weight:700;
+      }
+      .ba-bus-label{color:var(--text);font-size:14px}
+      .ba-bus-meta-pill{
+        display:inline-flex;align-items:center;gap:3px;
+        padding:3px 9px;border-radius:99px;
+        font-size:11.5px;font-weight:600;
+        background:#f1f5f9;color:var(--text2);
+      }
+      .ba-bus-meta-pill.ok{background:#dcfce7;color:#15803d;border:1px solid #86efac}
+      .ba-bus-meta-pill.warn{background:#fef3c7;color:#a16207;border:1px solid #fde68a}
+      .ba-bus-meta-pill.full{background:#dbeafe;color:#1d4ed8;border:1px solid #93c5fd}
+      .ba-bus-info{display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin-top:4px;font-size:11.5px;color:var(--text2)}
+      .ba-bus-info .sep{color:var(--text3)}
+      .ba-bus-actions{display:flex;align-items:center;gap:8px}
+      .ba-bus-toggle{
+        background:transparent;border:1px solid var(--border);
+        width:24px;height:24px;border-radius:6px;
+        font-size:12px;color:var(--text2);cursor:pointer;
+        display:inline-flex;align-items:center;justify-content:center;
+        transition:.12s;font-family:inherit;line-height:1;
+        margin-right:4px;flex-shrink:0;
+      }
+      .ba-bus-toggle:hover{background:#f1f5f9;color:var(--text);border-color:#94a3b8}
+      .ba-bus-card.collapsed .ba-bus-hdr{margin-bottom:0;padding-bottom:0;border-bottom:none}
+
+      /* Kebab menu (⋮) per bus */
+      .ba-bus-kebab-wrap{position:relative;display:inline-block}
+      .ba-bus-kebab{
+        background:transparent;border:1px solid var(--border);
+        width:30px;height:30px;border-radius:8px;
+        font-size:18px;font-weight:700;color:var(--text2);cursor:pointer;
+        display:inline-flex;align-items:center;justify-content:center;
+        line-height:1;transition:.12s;font-family:inherit;
+      }
+      .ba-bus-kebab:hover{background:#f1f5f9;color:var(--text)}
+      .ba-bus-kebab-wrap.open .ba-bus-kebab{background:#e2e8f0;color:var(--text)}
+      .ba-bus-kebab-menu{
+        position:absolute;top:calc(100% + 4px);right:0;
+        min-width:170px;
+        background:#fff;border:1px solid var(--border);border-radius:10px;
+        box-shadow:0 8px 24px rgba(15,23,42,.15);
+        padding:4px;z-index:50;display:none;
+      }
+      .ba-bus-kebab-wrap.open .ba-bus-kebab-menu{display:block}
+      .ba-bus-kebab-menu button{
+        display:flex;align-items:center;gap:8px;
+        padding:8px 12px;border-radius:6px;
+        background:transparent;border:none;width:100%;
+        font-family:inherit;font-size:13px;color:var(--text);
+        cursor:pointer;text-align:left;transition:background .12s;
+      }
+      .ba-bus-kebab-menu button:hover{background:#f1f5f9}
+      .ba-bus-kebab-menu button.danger{color:#dc2626}
+      .ba-bus-kebab-menu button.danger:hover{background:#fef2f2}
+      .ba-kebab-icon{font-size:14px;width:18px;text-align:center}
+
+      /* Seat map */
+      .ba-seat-map{
+        margin-top:10px;padding:14px 10px;
+        background:#f8fafc;border:1px solid var(--border);border-radius:10px;
+        display:flex;flex-direction:column;align-items:center;gap:6px;
+        overflow-x:auto;
+      }
+      .ba-seat-driver{
+        display:flex;align-items:center;justify-content:space-between;gap:10px;
+        width:100%;max-width:340px;padding:4px 8px;
+        font-size:11px;color:var(--text2);
+        border-bottom:2px dashed #cbd5e1;margin-bottom:6px;padding-bottom:8px;
+      }
+      .ba-seat-row{display:flex;align-items:center;justify-content:center;gap:5px}
+      .ba-seat-row .ba-aisle{width:18px;flex-shrink:0}
+      .ba-seat{
+        width:38px;height:38px;border:1.5px solid #cbd5e1;border-radius:8px;
+        background:#fff;display:flex;align-items:center;justify-content:center;
+        font-size:11px;font-weight:600;color:var(--text2);cursor:pointer;
+        transition:.12s;flex-shrink:0;position:relative;
+        font-family:'IBM Plex Mono',monospace;
+      }
+      .ba-seat:hover{border-color:#3b82f6;color:#1d4ed8;background:#eff6ff}
+      .ba-seat.taken{cursor:default}
+      .ba-seat.assignable:hover{
+        background:#dbeafe;border-color:#3b82f6;
+        box-shadow:0 0 0 3px rgba(59,130,246,.18);
+      }
+      .ba-seat.taken-M{background:#dbeafe;border-color:#3b82f6;color:#1d4ed8}
+      .ba-seat.taken-F{background:#fce7f3;border-color:#ec4899;color:#9d174d}
+      .ba-seat.taken-U{background:#dcfce7;border-color:#22c55e;color:#15803d}
+      .ba-seat.taken .ba-seat-name{
+        position:absolute;top:100%;left:50%;transform:translateX(-50%);
+        margin-top:2px;font-size:9.5px;color:var(--text2);font-weight:500;
+        white-space:nowrap;max-width:90px;overflow:hidden;text-overflow:ellipsis;
+        pointer-events:none;font-family:inherit;
+      }
+      .ba-seat-empty{width:38px;height:38px;flex-shrink:0;visibility:hidden}
+      .ba-seat-rows{display:flex;flex-direction:column;gap:18px;padding:6px 0}
+
+      .ba-empty-buses{padding:30px;text-align:center;color:var(--text3);background:#fff;border:1px dashed var(--border);border-radius:12px}
+
+      /* Bus modal preset preview */
+      .ba-preset-preview{
+        background:#f8fafc;border:1px solid var(--border);border-radius:8px;
+        padding:10px;margin-top:8px;font-size:11px;color:var(--text2);
+        display:flex;flex-direction:column;align-items:center;gap:6px;
+        max-height:280px;overflow-y:auto;
+      }
+      .ba-preset-preview .ba-seat{width:24px;height:24px;font-size:9px}
+      .ba-preset-preview .ba-seat-empty{width:24px;height:24px}
+      .ba-preset-preview .ba-aisle{width:12px}
+      .ba-form-row-2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
     </style>
   </head>
   <body>
@@ -360,7 +490,7 @@
           <!-- HERO -->
           <div class="page-hero page-hero--simple page-hero--compact">
             <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-              <h1 class="page-hero-title" style="margin:0">🛏️ จัดห้องพัก</h1>
+              <h1 class="page-hero-title" style="margin:0">🛏️ จัดห้องพัก + 🚌 รถบัส</h1>
               <span id="raTripBanner" class="ra-trip-banner" style="display:none;margin-left:0">
                 <a href="./trip-list.html">← รายการทริป</a>
                 <span style="opacity:.4">|</span>
@@ -465,15 +595,32 @@
                 <div class="ra-hint">
                   <span id="selectedHint" style="color:var(--text2);font-size:12px">ยังไม่ได้เลือกลูกค้า</span>
                 </div>
-                <div style="display:flex;gap:8px">
+                <div style="display:flex;gap:8px;flex-wrap:wrap">
                   <button class="btn btn-outline" id="btnClearSelection" style="display:none" onclick="window.clearPaxSelection()">ยกเลิกเลือก</button>
                   <button class="btn btn-primary" data-perm="trip_rooms_create" onclick="window.openRoomBatchModal()">＋ เพิ่มโรงแรม</button>
+                  <button class="btn btn-primary" data-perm="trip_bus_create" onclick="window.openBusModal()">＋ เพิ่มรถบัส</button>
                 </div>
               </div>
 
               <div id="roomsContainer">
                 <div class="ra-empty-rooms">
                   ⏳ กำลังโหลด...
+                </div>
+              </div>
+
+              <!-- ════════════ BUSES SECTION ════════════ -->
+              <div class="ba-buses-section">
+                <div class="ba-buses-section-hdr">
+                  <div class="ba-buses-section-title">
+                    🚌 รถบัส
+                    <span id="busesSummary" style="font-weight:500;font-size:12px;color:var(--text2)"></span>
+                  </div>
+                  <button class="btn btn-outline" data-perm="trip_bus_assign" onclick="window.syncBusFromRooms()" title="จัดที่นั่งติดกันตามคู่ห้องพัก" style="font-size:12px;padding:5px 10px">
+                    🔗 ตามคู่ห้องพัก
+                  </button>
+                </div>
+                <div class="ba-buses" id="busesContainer">
+                  <div class="ba-empty-buses">⏳ กำลังโหลด...</div>
                 </div>
               </div>
             </div>
@@ -569,6 +716,67 @@
       </div>
     </div>
 
+    <!-- ═══════════ ADD/EDIT BUS MODAL ═══════════ -->
+    <div class="modal-overlay" id="busOverlay" onclick="window.closeBusModal(event)">
+      <div class="modal v-sage-header" onclick="event.stopPropagation()">
+        <div class="modal-hdr">
+          <div class="modal-title" id="busModalTitle">เพิ่มรถบัส</div>
+          <button class="btn-modal-close" onclick="window.closeBusModal()">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="ba-form-row-2">
+            <div class="form-group">
+              <label class="form-label">คันที่ <span class="req">*</span></label>
+              <input class="form-control" type="number" id="fBusNo" min="1" placeholder="1" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">ชื่อ/ฉายา</label>
+              <input class="form-control" id="fBusLabel" placeholder="เช่น รถ VIP · คันใหญ่" />
+            </div>
+          </div>
+
+          <div class="form-group" style="margin-top:14px">
+            <label class="form-label">รูปแบบที่นั่ง (Layout) <span class="req">*</span></label>
+            <select class="form-control" id="fBusPreset" onchange="window.onBusPresetChange()"></select>
+            <div class="ba-preset-preview" id="busPresetPreview">
+              <div style="color:var(--text3);padding:10px">เลือก layout เพื่อดูตัวอย่าง</div>
+            </div>
+          </div>
+
+          <div class="ba-form-row-2" style="margin-top:14px">
+            <div class="form-group">
+              <label class="form-label">บริษัทรถ</label>
+              <input class="form-control" id="fBusVendor" placeholder="เช่น Greenbus" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">ทะเบียน</label>
+              <input class="form-control" id="fBusPlate" placeholder="เช่น 10-1234" />
+            </div>
+          </div>
+
+          <div class="ba-form-row-2" style="margin-top:14px">
+            <div class="form-group">
+              <label class="form-label">ชื่อคนขับ</label>
+              <input class="form-control" id="fBusDriver" placeholder="ชื่อ-นามสกุล" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">เบอร์คนขับ</label>
+              <input class="form-control" id="fBusDriverPhone" placeholder="08x-xxx-xxxx" />
+            </div>
+          </div>
+
+          <div class="form-group" style="margin-top:14px">
+            <label class="form-label">หมายเหตุ</label>
+            <textarea class="form-control" id="fBusNote" rows="2" placeholder="หมายเหตุเพิ่มเติม"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-ghost" onclick="window.closeBusModal()">ยกเลิก</button>
+          <button class="btn btn-primary" id="busSaveBtn" onclick="window.saveBus()">💾 บันทึก</button>
+        </div>
+      </div>
+    </div>
+
     <!-- SCRIPTS -->
     <script src="../../js/core/auth.js"></script>
     <script src="../../js/core/authz.js"></script>
@@ -584,7 +792,7 @@
     <script src="../../js/components/navigation/sidebar.js"></script>
     <script type="module">
       import { loadTopbar } from "../../js/components/navigation/topbar.js";
-      loadTopbar("🛏️ จัดห้องพัก");
+      loadTopbar("🛏️ จัดห้องพัก + 🚌 รถบัส");
     </script>
   </body>
 </html>

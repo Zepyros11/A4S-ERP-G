@@ -26,6 +26,86 @@ const state = {
   rbSelectedHotelId: null,
   rbSelectedRoomTypeName: null,
   rbSelectedRoomTypeMaxGuests: 0,
+
+  // ── BUS (รวมจาก bus-assign) ──
+  buses: [],                  // trip_buses
+  busOccupants: {},           // { [bus_id]: { [seat_no]: code } }
+  codeToBusSeat: {},          // { [code]: { bus_id, seat_no } }   1 code ต่อทริป (UNIQUE per bus)
+  collapsedBuses: new Set(),
+  editingBusId: null,
+};
+
+// ── SEAT LAYOUT PRESETS ────────────────────────────────────
+// cell: number=ที่นั่ง | "AISLE"=ทางเดิน | "EMPTY"=ช่องว่าง
+const BUS_PRESETS = {
+  BUS_45_2_2: {
+    label: "🚌 รถบัส 45 ที่นั่ง (2+2 · แถวหลัง 5)",
+    capacity: 45,
+    description: "รถบัสมาตรฐาน 11 แถว — 10 แถวแบบ 2+2 + แถวหลังสุด 5 ที่นั่ง",
+    rows: (() => {
+      const rs = []; let n = 1;
+      for (let r = 0; r < 10; r++) { rs.push([n, n + 1, "AISLE", n + 2, n + 3]); n += 4; }
+      rs.push([n, n + 1, n + 2, n + 3, n + 4]);
+      return rs;
+    })(),
+  },
+  BUS_40_2_2: {
+    label: "🚌 รถบัส 40 ที่นั่ง (2+2)",
+    capacity: 40,
+    description: "รถบัส 10 แถว แบบ 2+2 (4 ที่นั่ง/แถว)",
+    rows: (() => {
+      const rs = []; let n = 1;
+      for (let r = 0; r < 10; r++) { rs.push([n, n + 1, "AISLE", n + 2, n + 3]); n += 4; }
+      return rs;
+    })(),
+  },
+  BUS_32_2_1: {
+    label: "🚌 รถบัส VIP 32 ที่นั่ง (2+1)",
+    capacity: 32,
+    description: "รถบัส VIP 10 แถว แบบ 2+1 + แถวหลังสุด 2 ที่นั่ง",
+    rows: (() => {
+      const rs = []; let n = 1;
+      for (let r = 0; r < 10; r++) { rs.push([n, n + 1, "AISLE", n + 2]); n += 3; }
+      rs.push([n, "AISLE", n + 1]);
+      return rs;
+    })(),
+  },
+  VAN_15: {
+    label: "🚐 รถตู้ Hiace 15 ที่นั่ง",
+    capacity: 15,
+    description: "รถตู้ 5 แถว — 2 / 3 / 3 / 3 / 4 (แถวหลัง)",
+    rows: [
+      ["EMPTY", "AISLE", 1, 2],
+      [3, "AISLE", 4, 5],
+      [6, "AISLE", 7, 8],
+      [9, "AISLE", 10, 11],
+      [12, 13, 14, 15],
+    ],
+  },
+  VAN_13: {
+    label: "🚐 รถตู้ Commuter 13 ที่นั่ง",
+    capacity: 13,
+    description: "รถตู้ 4 แถว — 2 / 3 / 3 / 3 / 2 (แถวหลัง)",
+    rows: [
+      ["EMPTY", "AISLE", 1, 2],
+      [3, "AISLE", 4, 5],
+      [6, "AISLE", 7, 8],
+      [9, "AISLE", 10, 11],
+      [12, "AISLE", 13],
+    ],
+  },
+  CUSTOM_10: {
+    label: "🚐 รถเล็ก 10 ที่นั่ง (custom)",
+    capacity: 10,
+    description: "รถเล็ก — แสดงเป็นตาราง 2×5",
+    rows: [
+      [1, "AISLE", 2],
+      [3, "AISLE", 4],
+      [5, "AISLE", 6],
+      [7, "AISLE", 8],
+      [9, "AISLE", 10],
+    ],
+  },
 };
 
 function getSB() {
@@ -80,7 +160,7 @@ async function init() {
 async function loadAll() {
   showLoading(true);
   try {
-    const [trip, paxs, rooms, hotels] = await Promise.all([
+    const [trip, paxs, rooms, hotels, buses] = await Promise.all([
       sbFetch("trips", `?trip_id=eq.${state.tripId}&select=*`).then(r => r?.[0] || null),
       sbFetch("tour_seat_check",
         `?trip_id=eq.${state.tripId}&select=code,name,gender,nationality,passport_image_url,visa_image_url,passport_id,passport_exp_date,group_name,seat,is_sub_row,parent_code&order=group_name.asc.nullslast,name.asc`),
@@ -88,8 +168,11 @@ async function loadAll() {
         `?trip_id=eq.${state.tripId}&select=*&order=sort_order.asc,room_id.asc`),
       sbFetch("places",
         "?place_type=eq.HOTEL&select=*&order=place_name.asc").catch((e) => { console.warn("[room-assign] load hotels:", e.message); return []; }),
+      sbFetch("trip_buses",
+        `?trip_id=eq.${state.tripId}&select=*&order=sort_order.asc,bus_id.asc`).catch(() => []),
     ]);
     state.hotels = hotels || [];
+    state.buses = buses || [];
     populateHotelDropdown();
     state.trip = trip;
     // แสดงทุกแถว (รวม sub-row) — แต่ละแถว = 1 ที่นั่ง = 1 ช่อง assign ให้ห้องได้
@@ -128,12 +211,27 @@ async function loadAll() {
       });
     }
 
+    // Load bus occupants
+    state.busOccupants = {};
+    state.codeToBusSeat = {};
+    const busIds = state.buses.map(b => b.bus_id);
+    if (busIds.length) {
+      const occRows = await sbFetch("trip_bus_occupants",
+        `?bus_id=in.(${busIds.join(",")})&select=bus_id,seat_no,code`);
+      (occRows || []).forEach(o => {
+        if (!state.busOccupants[o.bus_id]) state.busOccupants[o.bus_id] = {};
+        state.busOccupants[o.bus_id][o.seat_no] = o.code;
+        state.codeToBusSeat[o.code] = { bus_id: o.bus_id, seat_no: o.seat_no };
+      });
+    }
+
     renderTripBanner();
     populateBatchFilter();
     syncCollapsedWithBatch();
     renderStats();
     renderPassengers();
     renderRooms();
+    renderBuses();
   } catch (e) {
     showToast("โหลดข้อมูลไม่สำเร็จ: " + e.message, "error");
   }
@@ -220,7 +318,7 @@ function renderTripBanner() {
     : "";
   document.getElementById("raTripDates").textContent = dates;
   document.getElementById("raTripBanner").style.display = "inline-flex";
-  document.title = `${state.trip.trip_name || "Trip"} — จัดห้องพัก — A4S-ERP`;
+  document.title = `${state.trip.trip_name || "Trip"} — จัดห้องพัก+รถบัส — A4S-ERP`;
 }
 
 // ── STATS ──────────────────────────────────────────────────
@@ -966,6 +1064,14 @@ function renderPassengers() {
           ? `🛏️ ${escapeHtml(rooms[0])}`
           : `🛏️ ${rooms.length} ห้อง · ${escapeHtml(rooms.join(", "))}`)
       : "";
+    // bus seat tag (merged)
+    const seatInfo = state.codeToBusSeat?.[p.code];
+    let seatTag = "";
+    if (seatInfo) {
+      const bus = state.buses.find(b => b.bus_id === seatInfo.bus_id);
+      const busLbl = bus ? (bus.bus_label || `คันที่ ${bus.bus_no || "?"}`) : `Bus ${seatInfo.bus_id}`;
+      seatTag = `🚌 ${escapeHtml(busLbl)} · ที่นั่ง ${escapeHtml(seatInfo.seat_no)}`;
+    }
     // sub-row → fallback เป็น parent
     const displayName = p.name || p._inheritedName || "—";
     const displayNat  = p.nationality || p._inheritedNat || "—";
@@ -984,6 +1090,7 @@ function renderPassengers() {
         ${gTag || '<span></span>'}
       </div>
       ${roomTag ? `<div class="ra-pax-room-tag" title="${escapeAttr(rooms.join(", "))}">${roomTag}</div>` : ""}
+      ${seatTag ? `<div class="ra-pax-room-tag" style="background:#dcfce7;color:#15803d">${seatTag}</div>` : ""}
     </div>`;
   }).join("");
 }
@@ -994,6 +1101,7 @@ window.selectPax = function (code) {
   renderPassengers();
   updateSelectionHint();
   updateRoomCardsAssignableState();
+  if (typeof updateSeatAssignableState === "function") updateSeatAssignableState();
 };
 
 window.clearPaxSelection = function () {
@@ -1001,6 +1109,7 @@ window.clearPaxSelection = function () {
   renderPassengers();
   updateSelectionHint();
   updateRoomCardsAssignableState();
+  if (typeof updateSeatAssignableState === "function") updateSeatAssignableState();
 };
 
 function updateSelectionHint() {
@@ -1008,7 +1117,7 @@ function updateSelectionHint() {
   const btn  = document.getElementById("btnClearSelection");
   if (state.selectedPaxCode) {
     const p = state.passengers.find(x => x.code === state.selectedPaxCode);
-    hint.innerHTML = `เลือก: <b style="color:var(--accent)">${escapeHtml(p?.name || state.selectedPaxCode)}</b> — คลิกห้องที่ต้องการ`;
+    hint.innerHTML = `เลือก: <b style="color:var(--accent)">${escapeHtml(p?.name || state.selectedPaxCode)}</b> — คลิกห้องพักหรือที่นั่งรถบัส`;
     btn.style.display = "inline-flex";
   } else {
     hint.textContent = "ยังไม่ได้เลือกลูกค้า — คลิกชื่อด้านซ้ายเพื่อเริ่ม";
@@ -2143,6 +2252,577 @@ function showToast(msg, type = "success") {
 function showLoading(show) {
   document.getElementById("loadingOverlay")?.classList.toggle("show", show);
 }
+
+// ════════════════════════════════════════════════════════════
+//  BUS LOGIC (merged from bus-assign)
+// ════════════════════════════════════════════════════════════
+
+function populateBusPresetDropdown() {
+  const sel = document.getElementById("fBusPreset");
+  if (!sel) return;
+  sel.innerHTML = Object.keys(BUS_PRESETS).map(k =>
+    `<option value="${k}">${BUS_PRESETS[k].label} · ${BUS_PRESETS[k].capacity} ที่นั่ง</option>`
+  ).join("");
+}
+
+window.onBusPresetChange = function () {
+  const sel = document.getElementById("fBusPreset");
+  const key = sel?.value || "BUS_45_2_2";
+  const preset = BUS_PRESETS[key];
+  const previewEl = document.getElementById("busPresetPreview");
+  if (!preset || !previewEl) return;
+  previewEl.innerHTML = `
+    <div style="font-weight:700;color:var(--text);font-size:12px">${escapeHtml(preset.label)}</div>
+    <div style="font-size:11px;color:var(--text2);margin-bottom:6px">${escapeHtml(preset.description)} · ${preset.capacity} ที่นั่ง</div>
+    ${renderSeatMapHtml(preset.rows, {}, { interactive: false })}
+  `;
+};
+
+// ── RENDER BUSES ───────────────────────────────────────────
+function renderBuses() {
+  const c = document.getElementById("busesContainer");
+  const summary = document.getElementById("busesSummary");
+  if (!c) return;
+  if (!state.buses.length) {
+    c.innerHTML = `<div class="ba-empty-buses">
+      ยังไม่มีรถบัส — กด "＋ เพิ่มรถบัส" ด้านบนเพื่อสร้าง
+    </div>`;
+    if (summary) summary.textContent = "";
+    return;
+  }
+  // summary line
+  const totalCap = state.buses.reduce((a, b) => a + (b.capacity || 0), 0);
+  const totalUsed = Object.values(state.busOccupants)
+    .reduce((a, m) => a + Object.keys(m || {}).length, 0);
+  if (summary) {
+    summary.textContent = ` · ${state.buses.length} คัน · ${totalUsed}/${totalCap} ที่นั่ง`;
+  }
+
+  c.innerHTML = state.buses.map(b => busCardHtml(b)).join("");
+  updateSeatAssignableState();
+}
+
+function busCardHtml(b) {
+  const preset = BUS_PRESETS[b.layout_preset] || BUS_PRESETS.BUS_45_2_2;
+  const occMap = state.busOccupants[b.bus_id] || {};
+  const usedCount = Object.keys(occMap).length;
+  const cap = b.capacity || preset.capacity || 0;
+  const availCount = Math.max(0, cap - usedCount);
+  const isCollapsed = state.collapsedBuses.has(b.bus_id);
+  const pctUsed = cap > 0 ? Math.round((usedCount / cap) * 100) : 0;
+  const pillCls = usedCount === 0 ? "" : (usedCount >= cap ? "full" : (pctUsed >= 80 ? "warn" : "ok"));
+  const busLabel = b.bus_label ? escapeHtml(b.bus_label) : "";
+  const driverInfo = b.driver_name
+    ? `<span>👤 ${escapeHtml(b.driver_name)}${b.driver_phone ? ` · ${escapeHtml(b.driver_phone)}` : ""}</span>`
+    : "";
+  const vendorInfo = b.vendor ? `<span>🏢 ${escapeHtml(b.vendor)}</span>` : "";
+  const plateInfo = b.plate ? `<span>🚗 ${escapeHtml(b.plate)}</span>` : "";
+  const noteInfo = b.note ? `<span title="${escapeAttr(b.note)}">📝 ${escapeHtml(b.note)}</span>` : "";
+  return `<div class="ba-bus-card${isCollapsed ? " collapsed" : ""}" data-bus-id="${b.bus_id}">
+    <div class="ba-bus-hdr">
+      <div class="ba-bus-title">
+        <button class="ba-bus-toggle"
+          title="${isCollapsed ? "ขยาย" : "ย่อ"}คันนี้"
+          onclick="window.toggleBusCollapse(${b.bus_id})">${isCollapsed ? "▸" : "▾"}</button>
+        <span class="ba-bus-no-badge">คันที่ ${b.bus_no || "?"}</span>
+        ${busLabel ? `<span class="ba-bus-label">${busLabel}</span>` : ""}
+        <span class="ba-bus-meta-pill">${escapeHtml(preset.label)}</span>
+        <span class="ba-bus-meta-pill ${pillCls}">💺 ${usedCount}/${cap}</span>
+        ${availCount === 0 && cap > 0 ? '<span class="ba-bus-meta-pill full">เต็ม</span>' : ""}
+      </div>
+      <div class="ba-bus-actions">
+        <div class="ba-bus-kebab-wrap" data-bus="${b.bus_id}">
+          <button class="ba-bus-kebab" title="ตัวเลือกเพิ่มเติม"
+            onclick="window.toggleBusKebab(${b.bus_id}, event)">⋮</button>
+          <div class="ba-bus-kebab-menu" onclick="event.stopPropagation()">
+            <button data-perm="trip_bus_edit"
+              onclick="window.editBus(${b.bus_id});window.closeBusKebabs()">
+              <span class="ba-kebab-icon">✏️</span> แก้ไขข้อมูลรถ
+            </button>
+            <button onclick="window.autoFillBus(${b.bus_id});window.closeBusKebabs()">
+              <span class="ba-kebab-icon">⚡</span> เติมที่นั่งอัตโนมัติ
+            </button>
+            <button onclick="window.clearBus(${b.bus_id});window.closeBusKebabs()">
+              <span class="ba-kebab-icon">🧹</span> ล้างทุกที่นั่ง
+            </button>
+            <button class="danger" data-perm="trip_bus_delete"
+              onclick="window.closeBusKebabs();window.deleteBus(${b.bus_id})">
+              <span class="ba-kebab-icon">🗑</span> ลบคันนี้
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+    ${(vendorInfo || plateInfo || driverInfo || noteInfo) ? `
+      <div class="ba-bus-info">
+        ${vendorInfo}${vendorInfo && plateInfo ? '<span class="sep">·</span>' : ""}
+        ${plateInfo}${(vendorInfo || plateInfo) && driverInfo ? '<span class="sep">·</span>' : ""}
+        ${driverInfo}${(vendorInfo || plateInfo || driverInfo) && noteInfo ? '<span class="sep">·</span>' : ""}
+        ${noteInfo}
+      </div>
+    ` : ""}
+    ${isCollapsed ? "" : renderSeatMapHtml(preset.rows, occMap, { interactive: true, busId: b.bus_id })}
+  </div>`;
+}
+
+function renderSeatMapHtml(rows, occMap, opts = {}) {
+  const { interactive = true, busId = 0 } = opts;
+  const rowsHtml = rows.map(row => {
+    const cellsHtml = row.map(cell => {
+      if (cell === "AISLE") return `<div class="ba-aisle"></div>`;
+      if (cell === "EMPTY") return `<div class="ba-seat-empty"></div>`;
+      const seatNo = String(cell);
+      const code = occMap[seatNo];
+      const passenger = code ? state.passengers.find(p => p.code === code) : null;
+      if (passenger) {
+        const gNorm = normGender(passenger.gender || passenger._inheritedGender);
+        const gCls = gNorm === "M" ? "taken-M" : (gNorm === "F" ? "taken-F" : "taken-U");
+        const dname = passenger.name || passenger._inheritedName || code;
+        return `<div class="ba-seat taken ${gCls}" data-seat="${seatNo}"
+          title="${escapeAttr(dname + ' (' + code + ')')}"
+          ${interactive ? `onclick="event.stopPropagation();window.unassignSeat(${busId}, '${escapeJs(seatNo)}')"` : ""}>
+          ${seatNo}<span class="ba-seat-name">${escapeHtml(shortName(dname))}</span>
+        </div>`;
+      }
+      return `<div class="ba-seat" data-seat="${seatNo}"
+        ${interactive ? `onclick="window.assignSeat(${busId}, '${escapeJs(seatNo)}')"` : ""}>
+        ${seatNo}
+      </div>`;
+    }).join("");
+    return `<div class="ba-seat-row">${cellsHtml}</div>`;
+  }).join("");
+  return `<div class="ba-seat-map">
+    <div class="ba-seat-driver">
+      <span>🚪 ประตู</span>
+      <span style="font-size:11px;color:var(--text3)">— หน้ารถ —</span>
+      <span>🪑 คนขับ</span>
+    </div>
+    <div class="ba-seat-rows">${rowsHtml}</div>
+  </div>`;
+}
+
+function shortName(name) {
+  if (!name) return "";
+  const trimmed = String(name).trim();
+  return trimmed.length > 10 ? trimmed.slice(0, 9) + "…" : trimmed;
+}
+
+function updateSeatAssignableState() {
+  document.querySelectorAll(".ba-seat").forEach(el => {
+    if (el.classList.contains("taken")) { el.classList.remove("assignable"); return; }
+    el.classList.toggle("assignable", !!state.selectedPaxCode);
+  });
+}
+
+// ── ASSIGN / UNASSIGN SEAT ─────────────────────────────────
+window.assignSeat = async function (busId, seatNo) {
+  if (!state.selectedPaxCode) {
+    showToast("เลือกลูกค้าทางซ้ายก่อน", "info");
+    return;
+  }
+  const bus = state.buses.find(b => b.bus_id === busId);
+  if (!bus) return;
+  const code = state.selectedPaxCode;
+  const p = state.passengers.find(x => x.code === code);
+  if (!p) return;
+
+  if ((state.busOccupants[busId] || {})[seatNo]) {
+    showToast(`ที่นั่ง ${seatNo} มีคนแล้ว — กดที่นั่งนั้นเพื่อย้ายออกก่อน`, "error");
+    return;
+  }
+
+  const existing = state.codeToBusSeat[code];
+
+  // Optimistic
+  if (existing) delete (state.busOccupants[existing.bus_id] || {})[existing.seat_no];
+  if (!state.busOccupants[busId]) state.busOccupants[busId] = {};
+  state.busOccupants[busId][seatNo] = code;
+  state.codeToBusSeat[code] = { bus_id: busId, seat_no: seatNo };
+  state.selectedPaxCode = null;
+  renderStats();
+  renderPassengers();
+  renderBuses();
+  updateSelectionHint();
+
+  try {
+    if (existing) {
+      await sbFetch("trip_bus_occupants",
+        `?bus_id=eq.${existing.bus_id}&seat_no=eq.${encodeURIComponent(existing.seat_no)}`,
+        { method: "DELETE" });
+    }
+    await sbFetch("trip_bus_occupants", "", {
+      method: "POST",
+      body: { bus_id: busId, seat_no: seatNo, code },
+    });
+    const oldBus = existing ? state.buses.find(b => b.bus_id === existing.bus_id) : null;
+    const verb = oldBus
+      ? `ย้ายจาก ${oldBus.bus_label || `คันที่ ${oldBus.bus_no}`} ที่ ${existing.seat_no} → ${bus.bus_label || `คันที่ ${bus.bus_no}`} ที่ ${seatNo}`
+      : `→ ${bus.bus_label || `คันที่ ${bus.bus_no}`} ที่นั่ง ${seatNo}`;
+    showToast(`✅ ${p.name || code} ${verb}`, "success");
+  } catch (e) {
+    delete (state.busOccupants[busId] || {})[seatNo];
+    if (existing) {
+      if (!state.busOccupants[existing.bus_id]) state.busOccupants[existing.bus_id] = {};
+      state.busOccupants[existing.bus_id][existing.seat_no] = code;
+      state.codeToBusSeat[code] = existing;
+    } else delete state.codeToBusSeat[code];
+    renderStats(); renderPassengers(); renderBuses();
+    showToast("Assign ไม่สำเร็จ: " + e.message, "error");
+  }
+};
+
+window.unassignSeat = async function (busId, seatNo) {
+  const code = (state.busOccupants[busId] || {})[seatNo];
+  if (!code) return;
+  const p = state.passengers.find(x => x.code === code);
+
+  delete state.busOccupants[busId][seatNo];
+  delete state.codeToBusSeat[code];
+  renderStats(); renderPassengers(); renderBuses();
+
+  try {
+    await sbFetch("trip_bus_occupants",
+      `?bus_id=eq.${busId}&seat_no=eq.${encodeURIComponent(seatNo)}`,
+      { method: "DELETE" });
+    showToast(`ย้ายออกจากที่นั่ง ${seatNo}: ${p?.name || code}`, "success");
+  } catch (e) {
+    if (!state.busOccupants[busId]) state.busOccupants[busId] = {};
+    state.busOccupants[busId][seatNo] = code;
+    state.codeToBusSeat[code] = { bus_id: busId, seat_no: seatNo };
+    renderStats(); renderPassengers(); renderBuses();
+    showToast("ย้ายออกไม่สำเร็จ: " + e.message, "error");
+  }
+};
+
+// ── BUS CRUD ───────────────────────────────────────────────
+window.openBusModal = function () {
+  if (!document.getElementById("fBusPreset")?.options?.length) {
+    populateBusPresetDropdown();
+  }
+  state.editingBusId = null;
+  document.getElementById("busModalTitle").textContent = "เพิ่มรถบัส";
+  document.getElementById("busSaveBtn").innerHTML = "💾 บันทึก";
+  document.getElementById("fBusNo").value = (state.buses.length || 0) + 1;
+  document.getElementById("fBusLabel").value = "";
+  document.getElementById("fBusPreset").value = "BUS_45_2_2";
+  document.getElementById("fBusVendor").value = "";
+  document.getElementById("fBusPlate").value = "";
+  document.getElementById("fBusDriver").value = "";
+  document.getElementById("fBusDriverPhone").value = "";
+  document.getElementById("fBusNote").value = "";
+  window.onBusPresetChange();
+  document.getElementById("busOverlay").classList.add("open");
+  setTimeout(() => document.getElementById("fBusNo")?.focus(), 50);
+};
+
+window.closeBusModal = function (e) {
+  if (e && e.target.id !== "busOverlay") return;
+  document.getElementById("busOverlay").classList.remove("open");
+  state.editingBusId = null;
+};
+
+window.editBus = function (busId) {
+  if (!document.getElementById("fBusPreset")?.options?.length) {
+    populateBusPresetDropdown();
+  }
+  const b = state.buses.find(x => x.bus_id === busId);
+  if (!b) return;
+  state.editingBusId = busId;
+  document.getElementById("busModalTitle").textContent = "แก้ไขรถบัส";
+  document.getElementById("busSaveBtn").innerHTML = "💾 บันทึกการแก้ไข";
+  document.getElementById("fBusNo").value = b.bus_no || 1;
+  document.getElementById("fBusLabel").value = b.bus_label || "";
+  document.getElementById("fBusPreset").value = b.layout_preset || "BUS_45_2_2";
+  document.getElementById("fBusVendor").value = b.vendor || "";
+  document.getElementById("fBusPlate").value = b.plate || "";
+  document.getElementById("fBusDriver").value = b.driver_name || "";
+  document.getElementById("fBusDriverPhone").value = b.driver_phone || "";
+  document.getElementById("fBusNote").value = b.note || "";
+  window.onBusPresetChange();
+  document.getElementById("busOverlay").classList.add("open");
+};
+
+window.saveBus = async function () {
+  const busNo = parseInt(document.getElementById("fBusNo").value, 10);
+  if (!Number.isFinite(busNo) || busNo < 1) {
+    showToast("กรอกหมายเลขคัน (≥ 1)", "error");
+    return;
+  }
+  const presetKey = document.getElementById("fBusPreset").value || "BUS_45_2_2";
+  const preset = BUS_PRESETS[presetKey];
+  if (!preset) { showToast("เลือก layout ที่ถูกต้อง", "error"); return; }
+
+  const payload = {
+    trip_id: state.tripId,
+    bus_no: busNo,
+    bus_label: document.getElementById("fBusLabel").value.trim() || null,
+    layout_preset: presetKey,
+    capacity: preset.capacity,
+    vendor: document.getElementById("fBusVendor").value.trim() || null,
+    plate: document.getElementById("fBusPlate").value.trim() || null,
+    driver_name: document.getElementById("fBusDriver").value.trim() || null,
+    driver_phone: document.getElementById("fBusDriverPhone").value.trim() || null,
+    note: document.getElementById("fBusNote").value.trim() || null,
+    updated_at: new Date().toISOString(),
+  };
+
+  showLoading(true);
+  try {
+    if (state.editingBusId) {
+      // ที่นั่งที่ใช้อยู่อาจหายเมื่อเปลี่ยน layout — เตือน
+      const oldBus = state.buses.find(b => b.bus_id === state.editingBusId);
+      const occMap = state.busOccupants[state.editingBusId] || {};
+      const occCount = Object.keys(occMap).length;
+      if (oldBus && oldBus.layout_preset !== presetKey && occCount > 0) {
+        const newSeats = new Set();
+        preset.rows.forEach(row => row.forEach(c => { if (typeof c === "number") newSeats.add(String(c)); }));
+        const lost = Object.keys(occMap).filter(s => !newSeats.has(s));
+        if (lost.length) {
+          const ok = await new Promise(resolve => {
+            const opener = window.ConfirmModal?.open;
+            const msg = `เปลี่ยน layout จะทำให้ที่นั่ง ${lost.join(", ")} (${lost.length} คน) ถูกย้ายออก — ดำเนินการต่อ?`;
+            if (opener) opener(msg, () => resolve(true), () => resolve(false));
+            else resolve(confirm(msg));
+          });
+          if (!ok) { showLoading(false); return; }
+          await sbFetch("trip_bus_occupants",
+            `?bus_id=eq.${state.editingBusId}&seat_no=in.(${lost.map(s => encodeURIComponent(s)).join(",")})`,
+            { method: "DELETE" });
+        }
+      }
+      await sbFetch("trip_buses", `?bus_id=eq.${state.editingBusId}`, { method: "PATCH", body: payload });
+      showToast("แก้ไขรถแล้ว", "success");
+    } else {
+      payload.sort_order = state.buses.length;
+      await sbFetch("trip_buses", "", { method: "POST", body: payload });
+      showToast("เพิ่มรถแล้ว", "success");
+    }
+    document.getElementById("busOverlay").classList.remove("open");
+    state.editingBusId = null;
+    await loadAll();
+  } catch (e) {
+    showToast("บันทึกไม่สำเร็จ: " + e.message, "error");
+  }
+  showLoading(false);
+};
+
+window.deleteBus = function (busId) {
+  const b = state.buses.find(x => x.bus_id === busId);
+  if (!b) return;
+  const occCount = Object.keys(state.busOccupants[busId] || {}).length;
+  const msg = occCount > 0
+    ? `ลบรถ ${b.bus_label || `คันที่ ${b.bus_no}`} — มีคน ${occCount} คนนั่งอยู่ ผู้โดยสารจะถูกย้ายออกอัตโนมัติ ดำเนินการต่อ?`
+    : `ลบรถ ${b.bus_label || `คันที่ ${b.bus_no}`}?`;
+  const opener = window.DeleteModal?.open || window.ConfirmModal?.open;
+  const doDelete = async () => {
+    showLoading(true);
+    try {
+      await sbFetch("trip_buses", `?bus_id=eq.${busId}`, { method: "DELETE" });
+      showToast("ลบรถแล้ว", "success");
+      await loadAll();
+    } catch (e) {
+      showToast("ลบไม่สำเร็จ: " + e.message, "error");
+    }
+    showLoading(false);
+  };
+  if (opener) opener(msg, doDelete); else if (confirm(msg)) doDelete();
+};
+
+window.clearBus = function (busId) {
+  const b = state.buses.find(x => x.bus_id === busId);
+  if (!b) return;
+  const occCount = Object.keys(state.busOccupants[busId] || {}).length;
+  if (occCount === 0) { showToast("รถคันนี้ยังไม่มีคนนั่ง", "info"); return; }
+  const msg = `ล้างทุกที่นั่งของรถ ${b.bus_label || `คันที่ ${b.bus_no}`} (${occCount} คน)?`;
+  const opener = window.ConfirmModal?.open;
+  const doClear = async () => {
+    showLoading(true);
+    try {
+      await sbFetch("trip_bus_occupants", `?bus_id=eq.${busId}`, { method: "DELETE" });
+      showToast(`ล้างที่นั่งของรถแล้ว (${occCount} คน)`, "success");
+      await loadAll();
+    } catch (e) { showToast("ล้างไม่สำเร็จ: " + e.message, "error"); }
+    showLoading(false);
+  };
+  if (opener) opener(msg, doClear); else if (confirm(msg)) doClear();
+};
+
+window.toggleBusCollapse = function (busId) {
+  if (state.collapsedBuses.has(busId)) state.collapsedBuses.delete(busId);
+  else state.collapsedBuses.add(busId);
+  renderBuses();
+};
+
+window.closeBusKebabs = function () {
+  document.querySelectorAll(".ba-bus-kebab-wrap.open").forEach(el => el.classList.remove("open"));
+};
+window.toggleBusKebab = function (busId, ev) {
+  ev.stopPropagation();
+  const wrap = document.querySelector(`.ba-bus-kebab-wrap[data-bus="${busId}"]`);
+  if (!wrap) return;
+  const isOpen = wrap.classList.contains("open");
+  window.closeBusKebabs();
+  if (!isOpen) wrap.classList.add("open");
+};
+document.addEventListener("click", (ev) => {
+  if (!ev.target.closest(".ba-bus-kebab-wrap")) window.closeBusKebabs();
+});
+
+// ── AUTO-FILL ──────────────────────────────────────────────
+window.autoFillBus = async function (busId) {
+  const bus = state.buses.find(b => b.bus_id === busId);
+  if (!bus) return;
+  const preset = BUS_PRESETS[bus.layout_preset] || BUS_PRESETS.BUS_45_2_2;
+  const occMap = state.busOccupants[busId] || {};
+  const emptySeats = [];
+  preset.rows.forEach(row => row.forEach(c => {
+    if (typeof c === "number") {
+      const s = String(c);
+      if (!occMap[s]) emptySeats.push(s);
+    }
+  }));
+  if (!emptySeats.length) { showToast("รถคันนี้เต็มแล้ว", "info"); return; }
+  const candidates = state.passengers
+    .filter(p => !state.codeToBusSeat[p.code])
+    .slice()
+    .sort((a, b) => {
+      const ga = a.group_name || "";
+      const gb = b.group_name || "";
+      if (ga !== gb) return ga.localeCompare(gb);
+      return (a.name || "").localeCompare(b.name || "");
+    });
+  if (!candidates.length) { showToast("ไม่มีคนที่ยังต้องจัดที่นั่ง", "info"); return; }
+  const n = Math.min(emptySeats.length, candidates.length);
+  const msg = `เติมคน ${n} คนลงรถ ${bus.bus_label || `คันที่ ${bus.bus_no}`} ที่ที่นั่งว่างถัดไป?`;
+  const opener = window.ConfirmModal?.open;
+  const doFill = async () => {
+    showLoading(true);
+    try {
+      const payload = [];
+      for (let i = 0; i < n; i++) {
+        payload.push({ bus_id: busId, seat_no: emptySeats[i], code: candidates[i].code });
+      }
+      await sbFetch("trip_bus_occupants", "", { method: "POST", body: payload });
+      showToast(`เติม ${n} คนลงที่นั่งแล้ว`, "success");
+      await loadAll();
+    } catch (e) { showToast("เติมที่นั่งไม่สำเร็จ: " + e.message, "error"); }
+    showLoading(false);
+  };
+  if (opener) opener(msg, doFill); else if (confirm(msg)) doFill();
+};
+
+// ── SYNC FROM ROOMS: นั่งติดกันตามคู่ห้องพัก ─────────────────
+// ใช้ state.occupants (rooms ↔ codes) ที่มีอยู่แล้วใน room-assign — ไม่ต้องโหลดเพิ่ม
+window.syncBusFromRooms = async function () {
+  if (!state.buses.length) { showToast("เพิ่มรถบัสก่อน", "error"); return; }
+  if (!Object.keys(state.occupants).length) {
+    showToast("ทริปนี้ยังไม่มีคู่ห้องพัก — จัดห้องด้านบนก่อน", "error");
+    return;
+  }
+  // เก็บคนตามห้อง (เฉพาะคนที่ยังไม่มีที่นั่ง)
+  const pairs = [];
+  Object.keys(state.occupants).forEach(rid => {
+    const codes = (state.occupants[rid] || []).filter(c => !state.codeToBusSeat[c]);
+    if (codes.length >= 1) pairs.push(codes);
+  });
+  if (!pairs.length) { showToast("ทุกคู่ห้องถูกจัดที่นั่งครบแล้ว", "info"); return; }
+
+  // ที่นั่งคู่ติดกันในรถแต่ละคัน
+  const adjacentPairs = [];
+  state.buses.forEach(bus => {
+    const preset = BUS_PRESETS[bus.layout_preset] || BUS_PRESETS.BUS_45_2_2;
+    const occMap = state.busOccupants[bus.bus_id] || {};
+    preset.rows.forEach(row => {
+      const segments = []; let seg = [];
+      row.forEach(c => {
+        if (c === "AISLE") { if (seg.length) segments.push(seg); seg = []; }
+        else if (typeof c === "number") seg.push(String(c));
+        else { if (seg.length) segments.push(seg); seg = []; }
+      });
+      if (seg.length) segments.push(seg);
+      segments.forEach(s => {
+        for (let i = 0; i < s.length - 1; i++) {
+          if (!occMap[s[i]] && !occMap[s[i + 1]]) {
+            adjacentPairs.push({ bus_id: bus.bus_id, seats: [s[i], s[i + 1]] });
+            i++;
+          }
+        }
+      });
+    });
+  });
+  const singleSeats = [];
+  state.buses.forEach(bus => {
+    const preset = BUS_PRESETS[bus.layout_preset] || BUS_PRESETS.BUS_45_2_2;
+    const occMap = state.busOccupants[bus.bus_id] || {};
+    preset.rows.forEach(row => row.forEach(c => {
+      if (typeof c === "number" && !occMap[String(c)]) {
+        singleSeats.push({ bus_id: bus.bus_id, seat: String(c) });
+      }
+    }));
+  });
+
+  const plan = [];
+  const usedPairs = new Set();
+  const usedSingles = new Set();
+  const seatTaken = (b, s) => plan.some(x => x.bus_id === b && x.seat_no === s);
+  pairs.forEach(group => {
+    if (group.length >= 2) {
+      for (let i = 0; i < group.length - 1; i += 2) {
+        const pairIdx = adjacentPairs.findIndex((p, idx) =>
+          !usedPairs.has(idx) && !seatTaken(p.bus_id, p.seats[0]) && !seatTaken(p.bus_id, p.seats[1]));
+        if (pairIdx >= 0) {
+          usedPairs.add(pairIdx);
+          const pair = adjacentPairs[pairIdx];
+          plan.push({ bus_id: pair.bus_id, seat_no: pair.seats[0], code: group[i] });
+          plan.push({ bus_id: pair.bus_id, seat_no: pair.seats[1], code: group[i + 1] });
+        } else {
+          [group[i], group[i + 1]].forEach(code => {
+            const sIdx = singleSeats.findIndex((s, si) => !usedSingles.has(si) && !seatTaken(s.bus_id, s.seat));
+            if (sIdx >= 0) {
+              usedSingles.add(sIdx);
+              const slot = singleSeats[sIdx];
+              plan.push({ bus_id: slot.bus_id, seat_no: slot.seat, code });
+            }
+          });
+        }
+      }
+      if (group.length % 2 === 1) {
+        const code = group[group.length - 1];
+        const sIdx = singleSeats.findIndex((s, si) => !usedSingles.has(si) && !seatTaken(s.bus_id, s.seat));
+        if (sIdx >= 0) {
+          usedSingles.add(sIdx);
+          const slot = singleSeats[sIdx];
+          plan.push({ bus_id: slot.bus_id, seat_no: slot.seat, code });
+        }
+      }
+    } else if (group.length === 1) {
+      const code = group[0];
+      const sIdx = singleSeats.findIndex((s, si) => !usedSingles.has(si) && !seatTaken(s.bus_id, s.seat));
+      if (sIdx >= 0) {
+        usedSingles.add(sIdx);
+        const slot = singleSeats[sIdx];
+        plan.push({ bus_id: slot.bus_id, seat_no: slot.seat, code });
+      }
+    }
+  });
+
+  if (!plan.length) { showToast("ที่นั่งว่างไม่พอ", "error"); return; }
+  const placed = plan.length;
+  const totalNeeded = pairs.reduce((a, g) => a + g.length, 0);
+  const remaining = totalNeeded - placed;
+  const msg = `จะจัด ${placed}/${totalNeeded} คนตามคู่ห้องพัก${remaining > 0 ? `<br><span style="color:#b91c1c">เหลือ ${remaining} คนที่หาคู่ที่นั่งไม่ได้ (ที่นั่งว่างไม่พอ)</span>` : ""} — ดำเนินการต่อ?`;
+  const opener = window.ConfirmModal?.open;
+  const doSync = async () => {
+    showLoading(true);
+    try {
+      await sbFetch("trip_bus_occupants", "", { method: "POST", body: plan });
+      showToast(`จัดที่นั่งตามคู่ห้องพักแล้ว ${placed} คน`, "success");
+      await loadAll();
+    } catch (e) { showToast("Sync ไม่สำเร็จ: " + e.message, "error"); }
+    showLoading(false);
+  };
+  if (opener) opener(msg, doSync); else if (confirm(msg.replace(/<[^>]+>/g, ""))) doSync();
+};
 
 // ── START ──────────────────────────────────────────────────
 if (document.readyState === "loading") {

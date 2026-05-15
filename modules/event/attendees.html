@@ -39,7 +39,25 @@
               <span class="att-hero-divider"></span>
               <button class="att-hero-btn" onclick="window.openTagCategoriesModal()" title="จัดการหมวด Tag"><span class="ico">🏷️</span><span class="lbl">หมวด Tag</span></button>
               <button class="att-hero-btn" onclick="window.openFieldConfigModal()" title="ตั้งค่าฟิลด์ลงทะเบียน + คุณสมบัติ"><span class="ico">⚙️</span><span class="lbl">ฟิลด์</span></button>
-              <button class="att-hero-btn" onclick="window.exportCSV()" title="Export CSV"><span class="ico">📥</span><span class="lbl">Export</span></button>
+              <div class="att-export-wrap">
+                <button class="att-hero-btn" onclick="window._toggleExportMenu(event)" title="Export ข้อมูลผู้เข้าร่วม">
+                  <span class="ico">📥</span><span class="lbl">Export</span><span class="att-export-caret">▾</span>
+                </button>
+                <div class="att-export-menu" id="attExportMenu">
+                  <button class="att-export-item" onclick="window._exportPick('xlsx')">
+                    <span class="att-export-ico">📊</span>
+                    <span class="att-export-lbl"><b>Excel</b><small>ดาวน์โหลดไฟล์ .xlsx</small></span>
+                  </button>
+                  <button class="att-export-item" onclick="window._exportPick('pdf')">
+                    <span class="att-export-ico">📄</span>
+                    <span class="att-export-lbl"><b>PDF</b><small>เซฟเป็นไฟล์ PDF</small></span>
+                  </button>
+                  <button class="att-export-item" onclick="window._exportPick('print')">
+                    <span class="att-export-ico">🖨️</span>
+                    <span class="att-export-lbl"><b>Print</b><small>พิมพ์รายชื่อ</small></span>
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -503,8 +521,8 @@
          ATTENDEE FORM MODAL — guest registration + edit existing
          (รองรับ member + guest ด้วย form เดียว)
          ═══════════════════════════════════════ -->
-    <div class="modal-overlay" id="attendeeFormOverlay" onclick="window.closeAttendeeForm(event)">
-      <div class="modal v-sage-header" style="width:720px;max-width:96vw" onclick="event.stopPropagation()">
+    <div class="modal-overlay" id="attendeeFormOverlay">
+      <div class="modal v-sage-header" style="width:1000px;max-width:96vw">
         <div class="modal-hdr">
           <div class="modal-title" id="attFormTitle">➕ ลงทะเบียนผู้เรียนใหม่</div>
           <button class="btn-modal-close" onclick="window.closeAttendeeForm()">✕</button>
@@ -515,69 +533,79 @@
           <input type="hidden" id="attFormPersonRole">
 
           <!-- Member info banner (shown only when editing/registering a member row) -->
-          <div id="attFormMemberBanner" style="display:none;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:8px 12px;margin-bottom:12px;font-size:12.5px;color:#1e40af"></div>
+          <div id="attFormMemberBanner" class="aff-member-banner" style="display:none"></div>
 
           <div class="form-group">
             <label class="form-label">ชื่อ-นามสกุล <span class="req">*</span></label>
             <input class="form-control" id="attFormName" placeholder="ระบุชื่อ-นามสกุล" autocomplete="off">
           </div>
 
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px">
-            <div class="form-group">
-              <label class="form-label">เบอร์โทร</label>
+          <!-- ── STANDARD FIELDS GRID (CSS order ตาม field_order) ───── -->
+          <div class="aff-std-grid">
+            <div class="form-group" id="attFormPhoneWrap">
+              <label class="form-label" id="attFormPhoneLabel">เบอร์โทร</label>
               <input class="form-control" id="attFormPhone" placeholder="0XX-XXX-XXXX" autocomplete="off">
             </div>
             <div class="form-group" id="attFormPosWrap">
-              <label class="form-label">ตำแหน่ง</label>
-              <input class="form-control" id="attFormPos" placeholder="เช่น SD, DM, DR, SL, ST, MB" autocomplete="off">
+              <label class="form-label" id="attFormPosLabel">ตำแหน่ง</label>
+              <input class="form-control" id="attFormPos" placeholder="SD, DM, DR, SL, ST, MB" autocomplete="off">
             </div>
-          </div>
-
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px">
-            <div class="form-group">
+            <div class="form-group" id="attFormUplineWrap">
               <label class="form-label" id="attFormUplineLabel">สายงาน</label>
-              <div style="display:flex;gap:6px;align-items:center">
-                <select class="form-control" id="attFormUpline" style="flex:1">
+              <div class="aff-upline-pair">
+                <select class="form-control" id="attFormUpline">
                   <option value="">— เลือกสายงาน —</option>
                 </select>
-                <button type="button" title="จัดการสายงาน" onclick="window.openUplineManage()" style="background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe;border-radius:8px;padding:7px 11px;cursor:pointer;font-size:14px">⚙️</button>
+                <button type="button" class="aff-upline-mgr-btn" title="จัดการสายงาน" onclick="window.openUplineManage()">⚙️</button>
               </div>
             </div>
             <div class="form-group" id="attFormCsWrap">
-              <label class="form-label">CS</label>
-              <input class="form-control" id="attFormCs" list="csStaffList" placeholder="เช่น เหน่ง / เกษ / ตาน้ำ" autocomplete="off">
-              <datalist id="csStaffList"></datalist>
+              <label class="form-label" id="attFormCsLabel">CS</label>
+              <div class="cs-staff-wrap">
+                <input class="form-control" id="attFormCs" placeholder="เช่น เหน่ง / เกษ / ตาน้ำ" autocomplete="off"
+                  onfocus="window._csStaffShow()"
+                  oninput="window._csStaffFilter()"
+                  onkeydown="window._csStaffKey(event)"
+                  onblur="window._csStaffBlur()">
+                <div id="csStaffSuggest" class="cs-staff-suggest" style="display:none" role="listbox"></div>
+              </div>
             </div>
-          </div>
-
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px" id="attFormLineFbRow">
             <div class="form-group" id="attFormLineWrap">
-              <label class="form-label">ชื่อไลน์ที่แจ้ง</label>
+              <label class="form-label" id="attFormLineLabel">ชื่อไลน์ที่แจ้ง</label>
               <input class="form-control" id="attFormLineName" autocomplete="off">
             </div>
             <div class="form-group" id="attFormFbWrap">
-              <label class="form-label">ชื่อเพจ Facebook</label>
+              <label class="form-label" id="attFormFbLabel">ชื่อเพจ Facebook</label>
               <input class="form-control" id="attFormFbPage" autocomplete="off">
             </div>
-          </div>
-
-          <div class="form-group" style="margin-top:12px" id="attFormHadAttendedWrap">
-            <label class="form-label">เคยเรียนคอร์สนี้แล้วหรือไม่</label>
-            <div style="display:flex;gap:14px;padding:6px 0;flex-wrap:wrap">
-              <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer"><input type="radio" name="attFormHadAttended" value=""> ไม่ระบุ</label>
-              <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer"><input type="radio" name="attFormHadAttended" value="true"> ✅ เคยเรียน</label>
-              <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer"><input type="radio" name="attFormHadAttended" value="false"> ❌ ยังไม่เคย</label>
+            <div class="form-group aff-full-row" id="attFormHadAttendedWrap">
+              <label class="form-label" id="attFormHadAttendedLabel">เคยเรียนคอร์สนี้แล้วหรือไม่</label>
+              <div class="aff-radio-group">
+                <label class="aff-radio-opt"><input type="radio" name="attFormHadAttended" value=""><span>ไม่ระบุ</span></label>
+                <label class="aff-radio-opt"><input type="radio" name="attFormHadAttended" value="true"><span>✅ เคยเรียน</span></label>
+                <label class="aff-radio-opt"><input type="radio" name="attFormHadAttended" value="false"><span>❌ ยังไม่เคย</span></label>
+              </div>
+            </div>
+            <div class="form-group aff-full-row" id="attFormNoteWrap">
+              <label class="form-label" id="attFormNoteLabel">หมายเหตุ</label>
+              <textarea class="form-control" id="attFormNote" rows="2" placeholder="เช่น ส่งลิงค์เรียบร้อย / ไม่มา / ติดธุระ"></textarea>
             </div>
           </div>
 
-          <div class="form-group" style="margin-top:12px;display:none" id="attFormQualWrap">
-            <label class="form-label">คุณสมบัติผู้เข้าเรียน</label>
-            <div id="attFormQualList" style="display:flex;flex-direction:column;gap:6px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px 12px"></div>
+          <div class="form-group" style="margin-top:14px;display:none" id="attFormCustomWrap">
+            <label class="form-label">ข้อมูลเพิ่มเติม</label>
+            <div id="attFormCustomFields" class="aff-row-3" style="margin-top:0"></div>
           </div>
 
-          <div class="form-group" style="margin-top:12px">
-            <label class="form-label">หมายเหตุ</label>
-            <textarea class="form-control" id="attFormNote" rows="2" placeholder="เช่น ส่งลิงค์เรียบร้อย / ไม่มา / ติดธุระ"></textarea>
+          <div class="form-group" style="margin-top:14px;display:none" id="attFormQualWrap">
+            <div class="aff-qual-header">
+              <label class="form-label" style="margin:0">คุณสมบัติผู้เข้าเรียน</label>
+              <label class="aff-qual-all" title="กดเพื่อเลือก/ยกเลิกทั้งหมด">
+                <input type="checkbox" id="attFormQualAll" onchange="window._attFormQualToggleAll(this.checked)">
+                <span>ทั้งหมด</span>
+              </label>
+            </div>
+            <div id="attFormQualList" class="aff-qual-list"></div>
           </div>
         </div>
         <div class="modal-footer">
@@ -597,6 +625,18 @@
           <button class="btn-modal-close" onclick="window.closeFieldConfigModal()">✕</button>
         </div>
         <div class="modal-body">
+          <!-- Template picker — ผูก template โดยตรงจากที่นี่ -->
+          <div class="form-group" style="margin-bottom:14px">
+            <label class="form-label">📋 ผูกกับเทมเพลตฟอร์มลงทะเบียน</label>
+            <div style="display:flex;gap:6px;align-items:center">
+              <select class="form-control" id="fcTemplateSelect" style="flex:1;min-width:0" onchange="window._fcOnTemplateChange(this.value)">
+                <option value="">— ไม่ผูก template (ใช้ default) —</option>
+              </select>
+              <a href="./attendee-templates.html" target="_blank" title="เปิดหน้าจัดการเทมเพลตในแท็บใหม่"
+                style="background:#eff6ff;color:#1e40af;border:1.5px solid #93c5fd;border-radius:8px;padding:8px 11px;text-decoration:none;font-size:14px;flex-shrink:0">⚙️</a>
+            </div>
+          </div>
+
           <div id="fcSourceBanner" style="font-size:12px;background:#f1f5f9;padding:8px 12px;border-radius:8px;margin-bottom:14px"></div>
 
           <div id="fcOverrideToggle" style="display:none;background:#fffbeb;border:1px solid #fcd34d;border-radius:8px;padding:10px 12px;margin-bottom:14px">
@@ -607,8 +647,17 @@
             <div id="fcOverrideHint" style="font-size:11px;color:#92400e;margin-top:4px;padding-left:24px"></div>
           </div>
 
-          <div style="font-size:13px;font-weight:700;color:#0f172a;margin-bottom:8px">📋 ฟิลด์ที่แสดงในฟอร์ม</div>
-          <div id="fcFieldsGrid" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px 12px;margin-bottom:16px"></div>
+          <div style="font-size:13px;font-weight:700;color:#0f172a;margin-bottom:8px">📋 ฟิลด์มาตรฐาน <span style="font-weight:400;font-size:11px;color:var(--text3)">— ✏️ แก้ชื่อหัวข้อได้ · ลาก ⋮⋮ จัดลำดับ · 🗑 ลบ</span></div>
+          <div id="fcFieldsGrid" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px 12px;margin-bottom:8px"></div>
+          <div id="fcHiddenFieldsBox" style="display:none;background:#fefce8;border:1px dashed #fcd34d;border-radius:8px;padding:8px 12px;margin-bottom:16px"></div>
+
+          <div style="font-size:13px;font-weight:700;color:#0f172a;margin-bottom:8px">➕ ฟิลด์เพิ่มเติม <span style="font-weight:400;font-size:11px;color:var(--text3)">— กรอกข้อความได้อิสระ (เก็บใน extra_fields)</span></div>
+          <div style="display:flex;gap:8px;margin-bottom:8px">
+            <input class="form-control" id="fcNewCustomLabel" placeholder="เช่น เลขบิล, ชื่อผู้แนะนำ, รุ่นที่" style="flex:1" autocomplete="off"
+              onkeydown="if(event.key==='Enter'){event.preventDefault();window.addCustomField()}">
+            <button class="btn btn-primary" onclick="window.addCustomField()">➕ เพิ่ม</button>
+          </div>
+          <div id="fcCustomList" style="display:flex;flex-direction:column;gap:6px;max-height:200px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:8px;padding:8px 10px;margin-bottom:16px"></div>
 
           <div style="font-size:13px;font-weight:700;color:#0f172a;margin-bottom:8px">✓ คุณสมบัติผู้เรียน (checklist)</div>
           <div style="display:flex;gap:8px;margin-bottom:8px">
@@ -640,17 +689,17 @@
           <button class="btn-modal-close" onclick="window.closeUplineManage()">✕</button>
         </div>
         <div class="modal-body">
-          <div style="display:grid;grid-template-columns:1fr 130px auto;gap:8px;margin-bottom:8px">
+          <div class="upl-add-row">
             <input class="form-control" id="newUplineName" placeholder="ชื่อ/ฉายา เช่น พี่โอ๊ค, ดร.เค้ก" autocomplete="off"
               onkeydown="if(event.key==='Enter'){event.preventDefault();window.addUpline()}">
             <input class="form-control" id="newUplineCode" placeholder="รหัสสมาชิก" autocomplete="off"
               onkeydown="if(event.key==='Enter'){event.preventDefault();window.addUpline()}">
             <button class="btn btn-primary" onclick="window.addUpline()">➕ เพิ่ม</button>
           </div>
-          <div style="font-size:11.5px;color:var(--text3);margin-bottom:8px;line-height:1.5">
+          <div class="upl-hint">
             💡 <b>ฉายา</b> = ชื่อสั้นที่ใช้เรียกใน CS · <b>รหัสสมาชิก</b> (ตัวเลือก) = เพื่อ auto-detect สายงานสมาชิกได้แม่นยำ
           </div>
-          <div id="uplineMgrList" style="max-height:380px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:8px"></div>
+          <div id="uplineMgrList" class="upl-list"></div>
         </div>
         <div class="modal-footer">
           <button class="btn btn-ghost" onclick="window.closeUplineManage()">ปิด</button>
@@ -660,6 +709,7 @@
 
     <!-- QR code library (for ticket QR display) -->
     <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
 
     <script src="../../js/core/auth.js"></script>
     <script src="../../js/core/crypto.js"></script>

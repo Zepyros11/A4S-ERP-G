@@ -13,6 +13,7 @@ const FIELD_LABELS = {
   note:         "หมายเหตุ",
 };
 
+const DEFAULT_FIELD_ORDER = ["phone", "position", "upline", "cs_staff", "line_name", "fb_page_name", "had_attended", "note"];
 const DEFAULT_CONFIG = {
   fields: {
     phone:        { show: true,  required: false },
@@ -24,12 +25,19 @@ const DEFAULT_CONFIG = {
     had_attended: { show: true,  required: false },
     note:         { show: true,  required: false },
   },
+  field_order: DEFAULT_FIELD_ORDER.slice(),
+  hidden_keys: [],
+  custom_fields: [],
   qualifications: [],
 };
+function _tplFieldLabel(key) {
+  return (_draft?.fields?.[key]?.label) || FIELD_LABELS[key] || key;
+}
 
 let _allTemplates = [];
 let _usageCounts = {};          // { template_id: number_of_events }
 let _draft = null;              // working copy of config in modal
+let _selectedIds = new Set();   // bulk-select template ids
 
 // ── API helpers ────────────────────────────────────────────
 function getSB() {
@@ -93,11 +101,15 @@ async function loadTemplates() {
 function renderTemplateTable() {
   const tb = document.getElementById("tplTableBody");
   document.getElementById("tplCount").textContent = `${_allTemplates.length} รายการ`;
+  // drop selections that no longer exist
+  const aliveIds = new Set(_allTemplates.map(t => t.id));
+  _selectedIds.forEach(id => { if (!aliveIds.has(id)) _selectedIds.delete(id); });
   if (!_allTemplates.length) {
-    tb.innerHTML = `<tr><td colspan="8"><div class="empty-state" style="padding:30px">
+    tb.innerHTML = `<tr><td colspan="9"><div class="empty-state" style="padding:30px">
       <div class="empty-icon">📋</div>
       <div class="empty-text">ยังไม่มีเทมเพลต — กด "เพิ่มเทมเพลต"</div>
     </div></td></tr>`;
+    updateBulkBar();
     return;
   }
   tb.innerHTML = _allTemplates.map((t, i) => {
@@ -107,7 +119,13 @@ function renderTemplateTable() {
       : 0;
     const qualsCount = Array.isArray(cfg.qualifications) ? cfg.qualifications.length : 0;
     const usage = _usageCounts[t.id] || 0;
-    return `<tr>
+    const checked = _selectedIds.has(t.id) ? "checked" : "";
+    return `<tr${checked ? ' style="background:#f0fdf4"' : ''}>
+      <td class="col-center">
+        <input type="checkbox" class="tpl-row-check" data-id="${t.id}" ${checked}
+          onclick="window.tplToggleRow(${t.id}, this.checked)"
+          style="width:16px;height:16px;cursor:pointer;accent-color:#16a34a">
+      </td>
       <td class="col-center" style="font-family:'IBM Plex Mono',monospace;color:var(--text3)">${i + 1}</td>
       <td>
         <div style="font-weight:700;color:#0f172a">${escapeHtml(t.name)}</div>
@@ -145,7 +163,70 @@ function renderTemplateTable() {
       </td>
     </tr>`;
   }).join("");
+  updateBulkBar();
 }
+
+// ── Bulk select ────────────────────────────────────────────
+function updateBulkBar() {
+  const bar = document.getElementById("tplBulkBar");
+  const cntEl = document.getElementById("tplBulkCount");
+  const all = document.getElementById("tplSelectAll");
+  const n = _selectedIds.size;
+  if (bar) bar.style.display = n > 0 ? "inline-flex" : "none";
+  if (cntEl) cntEl.textContent = `เลือก ${n} รายการ`;
+  if (all) {
+    const total = _allTemplates.length;
+    all.checked = total > 0 && n === total;
+    all.indeterminate = n > 0 && n < total;
+  }
+}
+
+window.tplToggleRow = function (id, checked) {
+  if (checked) _selectedIds.add(id);
+  else _selectedIds.delete(id);
+  renderTemplateTable();
+};
+
+window.tplToggleAll = function (checked) {
+  if (checked) _allTemplates.forEach(t => _selectedIds.add(t.id));
+  else _selectedIds.clear();
+  renderTemplateTable();
+};
+
+window.tplClearSelection = function () {
+  _selectedIds.clear();
+  renderTemplateTable();
+};
+
+window.bulkDeleteTemplates = async function () {
+  if (!_selectedIds.size) return;
+  const ids = [..._selectedIds];
+  const items = _allTemplates.filter(t => ids.includes(t.id));
+  const usedItems = items.filter(t => (_usageCounts[t.id] || 0) > 0);
+  const namesPreview = items.slice(0, 5).map(t => `• ${t.name}`).join("\n")
+    + (items.length > 5 ? `\n…และอีก ${items.length - 5} รายการ` : "");
+  const ok = await ConfirmModal.open({
+    title: "ยืนยันการลบหลายเทมเพลต",
+    message: `ลบ ${items.length} template?\n\n${namesPreview}`,
+    icon: "🗑",
+    okText: `ลบ ${items.length} รายการ`,
+    cancelText: "ยกเลิก",
+    tone: "danger",
+    note: usedItems.length
+      ? `⚠️ มี <b>${usedItems.length}</b> template ที่กำลังถูก event ใช้งาน — จะ unlink (FK SET NULL) แต่ override ของ event ยังอยู่`
+      : null,
+  });
+  if (!ok) return;
+  try {
+    const inList = ids.join(",");
+    await sbFetch("attendee_form_templates", `?id=in.(${inList})`, { method: "DELETE" });
+    showToast(`ลบ ${items.length} template แล้ว`, "success");
+    _selectedIds.clear();
+    await loadTemplates();
+  } catch (e) {
+    showToast("ลบไม่สำเร็จ: " + e.message, "error");
+  }
+};
 
 // ── Modal ──────────────────────────────────────────────────
 window.openTemplateModal = function (id) {
@@ -153,6 +234,7 @@ window.openTemplateModal = function (id) {
   _draft = t ? JSON.parse(JSON.stringify(t.config || DEFAULT_CONFIG)) : JSON.parse(JSON.stringify(DEFAULT_CONFIG));
   if (!_draft.fields) _draft.fields = JSON.parse(JSON.stringify(DEFAULT_CONFIG.fields));
   if (!Array.isArray(_draft.qualifications)) _draft.qualifications = [];
+  if (!Array.isArray(_draft.custom_fields)) _draft.custom_fields = [];
 
   document.getElementById("tplFormId").value = t?.id || "";
   document.getElementById("tplName").value = t?.name || "";
@@ -161,6 +243,7 @@ window.openTemplateModal = function (id) {
   document.getElementById("tplModalTitle").textContent = t ? `✏️ แก้ไข — ${t.name}` : "➕ เพิ่มเทมเพลต";
 
   renderFields();
+  renderCustomFields();
   renderQuals();
   document.getElementById("tplOverlay").classList.add("open");
   requestAnimationFrame(() => document.getElementById("tplName").focus());
@@ -175,24 +258,177 @@ window.closeTemplateModal = function (ev) {
 function renderFields() {
   const grid = document.getElementById("tplFieldsGrid");
   if (!grid || !_draft) return;
-  grid.innerHTML = Object.keys(FIELD_LABELS).map(key => {
-    const f = _draft.fields[key] || {};
-    const show = f.show !== false;
-    const req = f.required === true;
-    return `<div style="display:flex;align-items:center;justify-content:space-between;background:#fff;border:1px solid #e2e8f0;border-radius:6px;padding:7px 10px;font-size:12.5px">
-      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;flex:1">
-        <input type="checkbox" ${show ? "checked" : ""} onchange="window.tplToggleShow('${key}', this.checked)"
-          style="width:16px;height:16px;cursor:pointer">
-        <span style="${show ? 'color:#0f172a' : 'color:#94a3b8;text-decoration:line-through'}">${FIELD_LABELS[key]}</span>
-      </label>
-      <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:11px;color:#92400e">
-        <input type="checkbox" ${req ? "checked" : ""} ${show ? "" : "disabled"} onchange="window.tplToggleReq('${key}', this.checked)"
-          style="width:14px;height:14px;cursor:pointer">
-        บังคับ*
-      </label>
-    </div>`;
-  }).join("");
+  if (!Array.isArray(_draft.field_order)) _draft.field_order = [];
+  if (!Array.isArray(_draft.hidden_keys)) _draft.hidden_keys = [];
+  // fallback: ถ้าทั้ง order ว่าง + ไม่มี hidden_keys → ตั้ง default
+  if (!_draft.field_order.length && !_draft.hidden_keys.length) {
+    _draft.field_order = DEFAULT_FIELD_ORDER.slice();
+  }
+  const validKeys = Object.keys(FIELD_LABELS);
+  // เติม default ที่ขาดเฉพาะตัวที่ user ยังไม่ได้ลบ
+  validKeys.forEach(k => {
+    if (!_draft.field_order.includes(k) && !_draft.hidden_keys.includes(k)) {
+      _draft.field_order.push(k);
+    }
+  });
+  _draft.field_order = _draft.field_order.filter(k => validKeys.includes(k) && !_draft.hidden_keys.includes(k));
+  _draft.hidden_keys = _draft.hidden_keys.filter(k => validKeys.includes(k));
+  const order = _draft.field_order;
+  // Column-first layout (1 ลงล่าง · ใช้ครึ่งบน → ครึ่งล่าง)
+  const rowsCount = Math.max(1, Math.ceil(order.length / 2));
+  grid.style.gridTemplateRows = `repeat(${rowsCount}, auto)`;
+  grid.style.gridAutoFlow = "column";
+  if (!order.length) {
+    grid.innerHTML = '<div style="grid-column:1/-1;padding:14px;text-align:center;color:var(--text3);font-size:12px">ลบฟิลด์มาตรฐานออกหมดแล้ว — คืนค่าได้ที่ "ฟิลด์ที่ซ่อน" ด้านล่าง</div>';
+  } else {
+    grid.innerHTML = order.map((key, idx) => {
+      if (!FIELD_LABELS[key]) return "";
+      const f = _draft.fields[key] || {};
+      const show = f.show !== false;
+      const req = f.required === true;
+      const lbl = _tplFieldLabel(key);
+      return `<div class="drag-row" draggable="true" data-list="field" data-idx="${idx}"
+        ondragstart="window._tplDragStart(event, 'field', ${idx})"
+        ondragover="window._tplDragOver(event)"
+        ondragleave="window._tplDragLeave(event)"
+        ondrop="window._tplDrop(event, 'field', ${idx})"
+        ondragend="window._tplDragEnd(event)">
+        <span class="drag-handle" title="ลากเพื่อจัดลำดับ">⋮⋮</span>
+        <span class="drag-num">${idx + 1}.</span>
+        <label class="drag-row-main">
+          <input type="checkbox" ${show ? "checked" : ""} onchange="window.tplToggleShow('${key}', this.checked)">
+          <span class="${show ? '' : 'inactive'}">${escapeHtml(lbl)}</span>
+        </label>
+        <button class="drag-row-edit" title="แก้ไขชื่อหัวข้อ" onclick="window.tplRenameField('${key}')">✏️</button>
+        <label class="drag-row-req">
+          <input type="checkbox" ${req ? "checked" : ""} ${show ? "" : "disabled"} onchange="window.tplToggleReq('${key}', this.checked)">
+          บังคับ*
+        </label>
+        <button class="drag-row-del" title="ลบฟิลด์นี้ (คืนค่าได้ภายหลัง)" onclick="window.tplRemoveStandardField('${key}')">🗑</button>
+      </div>`;
+    }).join("");
+  }
+  renderHiddenFields();
 }
+
+function renderHiddenFields() {
+  const box = document.getElementById("tplHiddenFieldsBox");
+  if (!box) return;
+  const hidden = Array.isArray(_draft?.hidden_keys) ? _draft.hidden_keys : [];
+  if (!hidden.length) { box.style.display = "none"; box.innerHTML = ""; return; }
+  box.style.display = "";
+  box.innerHTML = `
+    <div style="font-size:11px;color:#64748b;margin-bottom:6px">🗑 ฟิลด์ที่ซ่อน <span style="color:var(--text3)">— กดเพื่อคืนค่ากลับ</span></div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px">
+      ${hidden.map(k => `
+        <button type="button" class="fc-hidden-chip" onclick="window.tplRestoreStandardField('${k}')" title="คืนค่าฟิลด์นี้">
+          ↺ ${escapeHtml(FIELD_LABELS[k] || k)}
+        </button>
+      `).join("")}
+    </div>`;
+}
+
+window.tplRemoveStandardField = function (key) {
+  if (!_draft) return;
+  if (!Array.isArray(_draft.hidden_keys)) _draft.hidden_keys = [];
+  if (!_draft.hidden_keys.includes(key)) _draft.hidden_keys.push(key);
+  _draft.field_order = (_draft.field_order || []).filter(k => k !== key);
+  renderFields();
+};
+
+window.tplRestoreStandardField = function (key) {
+  if (!_draft) return;
+  _draft.hidden_keys = (_draft.hidden_keys || []).filter(k => k !== key);
+  if (!Array.isArray(_draft.field_order)) _draft.field_order = [];
+  if (!_draft.field_order.includes(key)) _draft.field_order.push(key);
+  renderFields();
+};
+
+window.tplRenameField = async function (key) {
+  const current = _tplFieldLabel(key);
+  const next = await PromptModal.open({
+    title: "แก้ไขชื่อหัวข้อ",
+    message: `หัวข้อปัจจุบัน: "${current}"`,
+    icon: "✏️",
+    okText: "บันทึก",
+    tone: "primary",
+    defaultValue: current,
+    placeholder: "เว้นว่างเพื่อใช้ชื่อเริ่มต้น",
+  });
+  if (next == null) return;
+  const trimmed = next.trim();
+  if (!_draft.fields[key]) _draft.fields[key] = {};
+  if (!trimmed || trimmed === FIELD_LABELS[key]) {
+    delete _draft.fields[key].label;
+  } else {
+    _draft.fields[key].label = trimmed;
+  }
+  renderFields();
+};
+
+// ── Custom text fields ─────────────────────────────────────
+function renderCustomFields() {
+  const list = document.getElementById("tplCustomList");
+  if (!list || !_draft) return;
+  if (!Array.isArray(_draft.custom_fields)) _draft.custom_fields = [];
+  if (!_draft.custom_fields.length) {
+    list.innerHTML = '<div style="padding:14px;text-align:center;color:var(--text3);font-size:12px">ยังไม่มีฟิลด์เพิ่มเติม — เพิ่มด้านบน</div>';
+    return;
+  }
+  list.innerHTML = _draft.custom_fields.map((cf, i) => `
+    <div class="drag-row" draggable="true" data-list="custom" data-idx="${i}"
+      ondragstart="window._tplDragStart(event, 'custom', ${i})"
+      ondragover="window._tplDragOver(event)"
+      ondragleave="window._tplDragLeave(event)"
+      ondrop="window._tplDrop(event, 'custom', ${i})"
+      ondragend="window._tplDragEnd(event)">
+      <span class="drag-handle" title="ลากเพื่อจัดลำดับ">⋮⋮</span>
+      <span class="drag-num">${i + 1}.</span>
+      <span class="drag-row-label">${escapeHtml(cf.label)}</span>
+      <span class="drag-row-key" title="key">${escapeHtml(cf.key)}</span>
+      <button class="drag-row-edit" title="แก้ไขชื่อ" onclick="window.tplRenameCustom(${i})">✏️</button>
+      <button class="drag-row-del" title="ลบ" onclick="window.tplRemoveCustom(${i})">🗑</button>
+    </div>
+  `).join("");
+}
+
+window.tplAddCustom = function () {
+  const inp = document.getElementById("tplNewCustomLabel");
+  const label = inp.value.trim();
+  if (!label) { inp.focus(); return; }
+  const baseKey = "cf_" + label.toLowerCase()
+    .replace(/[^\p{L}\p{N}\s_]/gu, "").replace(/\s+/g, "_").slice(0, 36);
+  let key = baseKey;
+  const used = new Set((_draft.custom_fields || []).map(c => c.key));
+  let n = 2;
+  while (used.has(key)) key = `${baseKey}_${n++}`;
+  if (!Array.isArray(_draft.custom_fields)) _draft.custom_fields = [];
+  _draft.custom_fields.push({ key, label });
+  inp.value = "";
+  renderCustomFields();
+};
+
+window.tplRenameCustom = async function (idx) {
+  const cf = _draft.custom_fields[idx];
+  if (!cf) return;
+  const next = await PromptModal.open({
+    title: "แก้ไขชื่อฟิลด์",
+    message: `ฟิลด์ปัจจุบัน: "${cf.label}"`,
+    icon: "✏️",
+    okText: "บันทึก",
+    tone: "primary",
+    defaultValue: cf.label,
+    required: true,
+  });
+  if (next == null || !next.trim()) return;
+  cf.label = next.trim();
+  renderCustomFields();
+};
+
+window.tplRemoveCustom = function (idx) {
+  _draft.custom_fields.splice(idx, 1);
+  renderCustomFields();
+};
 
 window.tplToggleShow = function (key, val) {
   if (!_draft.fields[key]) _draft.fields[key] = {};
@@ -213,15 +449,58 @@ function renderQuals() {
     return;
   }
   list.innerHTML = _draft.qualifications.map((q, i) => `
-    <div style="display:flex;align-items:center;gap:8px;background:#fff;border:1px solid #e2e8f0;border-radius:6px;padding:6px 10px">
-      <span style="font-size:11px;font-weight:700;color:#64748b;font-family:'IBM Plex Mono',monospace;min-width:24px">${i + 1}.</span>
-      <span style="flex:1;font-size:12.5px;color:#0f172a">${escapeHtml(q.label)}</span>
-      <span style="font-size:10px;color:#7c2d12;background:#fed7aa;padding:1px 6px;border-radius:4px;font-family:'IBM Plex Mono',monospace" title="key">${escapeHtml(q.key)}</span>
-      <button onclick="window.tplRemoveQual(${i})" title="ลบ"
-        style="background:#fef2f2;color:#b91c1c;border:none;border-radius:4px;padding:3px 7px;font-size:12px;cursor:pointer">🗑</button>
+    <div class="drag-row" draggable="true" data-list="qual" data-idx="${i}"
+      ondragstart="window._tplDragStart(event, 'qual', ${i})"
+      ondragover="window._tplDragOver(event)"
+      ondragleave="window._tplDragLeave(event)"
+      ondrop="window._tplDrop(event, 'qual', ${i})"
+      ondragend="window._tplDragEnd(event)">
+      <span class="drag-handle" title="ลากเพื่อจัดลำดับ">⋮⋮</span>
+      <span class="drag-num">${i + 1}.</span>
+      <span class="drag-row-label">${escapeHtml(q.label)}</span>
+      <span class="drag-row-key" title="key">${escapeHtml(q.key)}</span>
+      <button class="drag-row-del" onclick="window.tplRemoveQual(${i})" title="ลบ">🗑</button>
     </div>
   `).join("");
 }
+
+// ── Drag-and-drop (works for both 'field' and 'qual' lists) ─
+let _tplDragSrc = null;
+window._tplDragStart = function (ev, listType, idx) {
+  _tplDragSrc = { listType, idx };
+  ev.dataTransfer.effectAllowed = "move";
+  try { ev.dataTransfer.setData("text/plain", String(idx)); } catch {}
+  ev.currentTarget.classList.add("dragging");
+};
+window._tplDragOver = function (ev) {
+  ev.preventDefault();
+  ev.dataTransfer.dropEffect = "move";
+  ev.currentTarget.classList.add("drag-over");
+};
+window._tplDragLeave = function (ev) {
+  ev.currentTarget.classList.remove("drag-over");
+};
+window._tplDragEnd = function (ev) {
+  ev.currentTarget.classList.remove("dragging");
+  document.querySelectorAll(".drag-row.drag-over").forEach(el => el.classList.remove("drag-over"));
+  _tplDragSrc = null;
+};
+window._tplDrop = function (ev, listType, targetIdx) {
+  ev.preventDefault();
+  ev.currentTarget.classList.remove("drag-over");
+  if (!_tplDragSrc || _tplDragSrc.listType !== listType) return;
+  const srcIdx = _tplDragSrc.idx;
+  if (srcIdx === targetIdx) return;
+  const arr = listType === "field" ? _draft.field_order
+            : listType === "custom" ? _draft.custom_fields
+            : _draft.qualifications;
+  const [moved] = arr.splice(srcIdx, 1);
+  arr.splice(targetIdx, 0, moved);
+  _tplDragSrc = null;
+  if (listType === "field") renderFields();
+  else if (listType === "custom") renderCustomFields();
+  else renderQuals();
+};
 
 window.tplAddQual = function () {
   const inp = document.getElementById("tplNewQualLabel");
@@ -279,10 +558,18 @@ window.deleteTemplate = async function (id) {
   const t = _allTemplates.find(x => x.id === id);
   if (!t) return;
   const usage = _usageCounts[id] || 0;
-  const warn = usage > 0
-    ? `\n\n⚠️ มี ${usage} event ที่ใช้ template นี้ — จะ unlink (FK SET NULL) แต่ override ของ event ยังอยู่`
-    : "";
-  if (!confirm(`ลบ template "${t.name}"?${warn}`)) return;
+  const ok = await ConfirmModal.open({
+    title: "ยืนยันการลบเทมเพลต",
+    message: `ลบ template "${t.name}"?`,
+    icon: "🗑",
+    okText: "ลบเทมเพลต",
+    cancelText: "ยกเลิก",
+    tone: "danger",
+    note: usage > 0
+      ? `⚠️ มี <b>${usage}</b> event ที่ใช้ template นี้ — จะ unlink (FK SET NULL) แต่ override ของ event ยังอยู่`
+      : null,
+  });
+  if (!ok) return;
   try {
     await sbFetch("attendee_form_templates", `?id=eq.${id}`, { method: "DELETE" });
     showToast("ลบ template แล้ว", "success");
@@ -306,7 +593,15 @@ window.toggleTemplateActive = async function (id, active) {
 window.duplicateTemplate = async function (id) {
   const t = _allTemplates.find(x => x.id === id);
   if (!t) return;
-  const newName = prompt(`ทำสำเนา "${t.name}" → ตั้งชื่อใหม่:`, t.name + " (copy)");
+  const newName = await PromptModal.open({
+    title: "ทำสำเนาเทมเพลต",
+    message: `จาก "${t.name}" → ตั้งชื่อใหม่:`,
+    icon: "📑",
+    okText: "ทำสำเนา",
+    tone: "primary",
+    defaultValue: t.name + " (copy)",
+    required: true,
+  });
   if (!newName || !newName.trim()) return;
   try {
     await sbFetch("attendee_form_templates", "", {

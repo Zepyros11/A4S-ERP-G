@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <title>กำลังย้ายไปหน้าจัดห้องพัก+รถบัส...</title>
+    <script>
+      // หน้า bus-assign ถูกรวมเข้ากับ room-assign แล้ว — redirect พร้อมรักษา trip_id
+      (function () {
+        const qs = location.search || "";
+        location.replace("./room-assign.html" + qs);
+      })();
+    </script>
+  </head>
+  <body>
+    <p style="font-family:sans-serif;padding:20px;color:#475569">
+      กำลังย้ายไปหน้าจัดห้องพัก + รถบัส...
+      <br>ถ้าไม่ไปอัตโนมัติ <a href="./room-assign.html">คลิกที่นี่</a>
+    </p>
+  </body>
+</html>

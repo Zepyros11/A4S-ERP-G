@@ -524,6 +524,7 @@ async function loadAttendees(eventId) {
     renderTierBanner();
     populateTagFilter();
     _loadAutoCheckinState();
+    _applyPaymentVisibility();   // hide payment UI ถ้า event ไม่มีราคา
     updateStats();
     filterTable();
   } catch (e) {
@@ -1145,6 +1146,14 @@ function _renderSavedCellSpread(col, a, seq, payStatus, tierName, isSelected) {
   if (col.key.startsWith("field:")) {
     return _renderFieldCellSpread(col.key.slice(6), a, tdOpen);
   }
+  // custom:<key> — text value จาก extra_fields
+  if (col.key.startsWith("custom:")) {
+    const ckey = col.key.slice(7);
+    const v = a.extra_fields && typeof a.extra_fields === "object" ? a.extra_fields[ckey] : null;
+    return v
+      ? `${tdOpen}<span style="font-size:11.5px;color:#0f172a">${escapeHtml(String(v))}</span></td>`
+      : `${tdOpen}<span class="att-empty">·</span></td>`;
+  }
   // qual:<key>
   if (col.key.startsWith("qual:")) {
     return _renderQualCellSpread(col.key.slice(5), a, tdOpen);
@@ -1220,6 +1229,7 @@ function renderNewRowSpreadsheet(r) {
     : "";
   const phoneBadge = r.phone ? `<span class="cell-phone" style="font-size:11px">${escapeHtml(r.phone)}</span>` : "";
 
+  const hasPayment = cols.some(c => c.key === "payment");
   return `<tr class="new-row" data-nrid="${r.id}">
     <td class="col-center"><span class="att-empty">·</span></td>
     ${cols[1]?.key === "num" ? `<td class="col-center"><span class="att-empty">·</span></td>` : ""}
@@ -1237,13 +1247,13 @@ function renderNewRowSpreadsheet(r) {
         ${phoneBadge}
       </div>
     </td>
-    <td class="col-center">
+    ${hasPayment ? `<td class="col-center">
       <select class="inline-select" onchange="window.onNewRowPayment('${r.id}', this.value)">
         <option value="UNPAID" ${r.paymentStatus === "UNPAID" ? "selected" : ""}>⏳ ยังไม่ชำระ</option>
         <option value="PAID" ${r.paymentStatus === "PAID" ? "selected" : ""}>💳 ชำระแล้ว</option>
         <option value="COMPLIMENTARY" ${r.paymentStatus === "COMPLIMENTARY" ? "selected" : ""}>🎫 ฟรี</option>
       </select>
-    </td>
+    </td>` : ""}
     <td class="col-center"><span class="att-empty">·</span></td>
     <td class="col-center">
       <button class="inline-save-btn" ${!r.name || r.saving ? "disabled" : ""} onclick="window.saveNewRow('${r.id}')">
@@ -1681,6 +1691,419 @@ window.bulkDeleteSelected = function () {
 };
 
 // ── EXPORT CSV ────────────────────────────────────────────
+// ── EXPORT MENU TOGGLE ────────────────────────────────────
+window._toggleExportMenu = function (ev) {
+  ev?.stopPropagation();
+  const menu = document.getElementById("attExportMenu");
+  if (!menu) return;
+  menu.classList.toggle("open");
+};
+window._exportPick = function (kind) {
+  document.getElementById("attExportMenu")?.classList.remove("open");
+  if (kind === "xlsx")  window.exportAttendeesXLSX();
+  else if (kind === "pdf")   window.exportAttendeesPDF();
+  else if (kind === "print") window.exportAttendeesPrint();
+};
+// Click outside → close menu
+document.addEventListener("click", (e) => {
+  if (e.target.closest(".att-export-wrap")) return;
+  document.getElementById("attExportMenu")?.classList.remove("open");
+});
+
+// ── EXPORT: shared data builder ───────────────────────────
+// Returns { ev, title1, dateLine, cols, data, firstQualIdx, lastQualIdx, hasQuals }
+async function _buildExportData() {
+  const ev = currentEvent || allEvents.find(e => e.event_id === currentEventId) || {};
+  const cfg = await fetchEventFieldConfig(currentEventId).catch(() => DEFAULT_FIELD_CONFIG);
+  const order = (Array.isArray(cfg.field_order) ? cfg.field_order : DEFAULT_FIELD_ORDER)
+    .filter(k => cfg.fields?.[k]?.show !== false);
+  const tailKeys = order.filter(k => k === "cs_staff" || k === "note");
+  const midKeys  = order.filter(k => k !== "cs_staff" && k !== "note");
+  const quals = (Array.isArray(cfg.qualifications) ? cfg.qualifications : []);
+  const customFields = (Array.isArray(cfg.custom_fields) ? cfg.custom_fields : []);
+  const stdLabel = (key) => cfg.fields?.[key]?.label || FIELD_LABELS[key] || key;
+
+  const cols = [];
+  cols.push({ kind: "index", label: "ลำดับ" });
+  cols.push({ kind: "code",  label: "รหัส" });
+  cols.push({ kind: "name",  label: "ชื่อ-นามสกุล" });
+  midKeys.forEach(k => cols.push({ kind: "std", key: k, label: stdLabel(k) }));
+  quals.forEach(q => cols.push({ kind: "qual", key: q.key, label: q.label || q.key }));
+  customFields.forEach(c => cols.push({ kind: "custom", key: c.key, label: c.label || c.key }));
+  tailKeys.forEach(k => cols.push({ kind: "std", key: k, label: stdLabel(k) }));
+
+  const weekdays = ["อาทิตย์","จันทร์","อังคาร","พุธ","พฤหัสบดี","ศุกร์","เสาร์"];
+  const months   = ["มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน","กรกฎาคม","สิงหาคม","กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม"];
+  let dateLine = "";
+  if (ev.event_date) {
+    const d = new Date(ev.event_date + "T00:00:00");
+    if (!isNaN(d)) {
+      dateLine = `วัน${weekdays[d.getDay()]}ที่ ${String(d.getDate()).padStart(2,"0")} ${months[d.getMonth()]} ${d.getFullYear()}`;
+    }
+  }
+  const title1 = `รายชื่อผู้เรียนคอร์ส ${ev.event_name || ""}`.trim();
+
+  const firstQualIdx = cols.findIndex(c => c.kind === "qual");
+  let lastQualIdx = -1;
+  for (let i = cols.length - 1; i >= 0; i--) { if (cols[i].kind === "qual") { lastQualIdx = i; break; } }
+  const hasQuals = firstQualIdx !== -1;
+
+  const data = allAttendees.map((a, idx) => cols.map(c => {
+    switch (c.kind) {
+      case "index": return idx + 1;
+      case "code":  return a.member_code || "";
+      case "name":  return a.name || "";
+      case "std": {
+        switch (c.key) {
+          case "phone":        return a.phone || "";
+          case "position":     return a.position_level || "";
+          case "upline":       return a.upline_name_text || "";
+          case "cs_staff":     return a.cs_staff || "";
+          case "line_name":    return a.line_name_reported || "";
+          case "fb_page_name": return a.fb_page_name || "";
+          case "had_attended":
+            return a.had_attended_before === true ? "เคย"
+                 : a.had_attended_before === false ? "ยังไม่เคย" : "";
+          case "note":         return a.attendee_note || "";
+          default:             return "";
+        }
+      }
+      case "qual": {
+        const v = a.extra_fields?.[c.key];
+        return v === true ? "TRUE" : v === false ? "FALSE" : "";
+      }
+      case "custom":
+        return a.extra_fields?.[c.key] || "";
+      default: return "";
+    }
+  }));
+
+  return { ev, title1, dateLine, cols, data, firstQualIdx, lastQualIdx, hasQuals };
+}
+
+// ── EXPORT → XLSX ─────────────────────────────────────────
+window.exportAttendeesXLSX = async function () {
+  if (typeof XLSX === "undefined") {
+    showToast("Library โหลดไม่สำเร็จ — refresh แล้วลองใหม่", "error");
+    return;
+  }
+  if (!allAttendees.length) {
+    showToast("ไม่มีข้อมูลให้ Export", "error");
+    return;
+  }
+
+  const { ev, title1, dateLine, cols, data, firstQualIdx, lastQualIdx, hasQuals } = await _buildExportData();
+
+  const headerA = cols.map((c, i) => c.kind === "qual" ? (i === firstQualIdx ? "คุณสมบัติ" : "") : c.label);
+  const headerB = cols.map(c => c.kind === "qual" ? c.label : "");
+
+  const aoa = [
+    [title1],   // row 1
+    [dateLine], // row 2
+    [],         // row 3 blank
+    headerA,    // row 4
+  ];
+  if (hasQuals) aoa.push(headerB);
+  data.forEach(r => aoa.push(r));
+
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  const lastColIdx = cols.length - 1;
+  const headerEndRow = hasQuals ? 4 : 3;     // 0-indexed: row 4 + 5 if quals, else row 4
+  const dataStartRow = headerEndRow + 1;
+  const merges = [
+    { s: { r: 0, c: 0 }, e: { r: 0, c: lastColIdx } },
+    { s: { r: 1, c: 0 }, e: { r: 1, c: lastColIdx } },
+  ];
+  if (hasQuals) {
+    merges.push({ s: { r: 3, c: firstQualIdx }, e: { r: 3, c: lastQualIdx } });
+    cols.forEach((c, i) => {
+      if (c.kind !== "qual") merges.push({ s: { r: 3, c: i }, e: { r: 4, c: i } });
+    });
+  }
+  ws["!merges"] = merges;
+
+  ws["!cols"] = cols.map(c => {
+    switch (c.kind) {
+      case "index":  return { wch: 6 };
+      case "code":   return { wch: 10 };
+      case "name":   return { wch: 28 };
+      case "qual":   return { wch: 24 };
+      case "custom": return { wch: 18 };
+      case "std":
+        if (c.key === "note") return { wch: 24 };
+        if (c.key === "phone") return { wch: 14 };
+        if (c.key === "upline") return { wch: 14 };
+        if (c.key === "cs_staff") return { wch: 10 };
+        return { wch: 14 };
+      default: return { wch: 12 };
+    }
+  });
+
+  // Row heights — title rows + header rows ให้สูงขึ้นนิด
+  ws["!rows"] = [
+    { hpt: 26 },                  // row 1 title
+    { hpt: 20 },                  // row 2 date
+    { hpt: 6 },                   // row 3 blank
+    { hpt: hasQuals ? 32 : 22 },  // row 4 header
+  ];
+  if (hasQuals) ws["!rows"].push({ hpt: 40 }); // row 5 sub-header (qual labels — มักยาว → wrap)
+
+  // ── Cell styles (ต้องการ xlsx-js-style) ─────────────────
+  const border = {
+    top:    { style: "thin", color: { rgb: "94A3B8" } },
+    bottom: { style: "thin", color: { rgb: "94A3B8" } },
+    left:   { style: "thin", color: { rgb: "94A3B8" } },
+    right:  { style: "thin", color: { rgb: "94A3B8" } },
+  };
+  const sCenter = { horizontal: "center", vertical: "center", wrapText: true };
+  const sLeft   = { horizontal: "left",   vertical: "center", wrapText: true };
+
+  const styleTitle1 = {
+    font: { name: "Sarabun", sz: 16, bold: true, color: { rgb: "064E3B" } },
+    alignment: sCenter,
+    fill: { fgColor: { rgb: "D1FAE5" } }, // sage green pale
+  };
+  const styleTitle2 = {
+    font: { name: "Sarabun", sz: 12, bold: true, color: { rgb: "065F46" } },
+    alignment: sCenter,
+    fill: { fgColor: { rgb: "ECFDF5" } },
+  };
+  const styleHeader = {
+    font: { name: "Sarabun", sz: 11, bold: true, color: { rgb: "064E3B" } },
+    alignment: sCenter,
+    fill: { fgColor: { rgb: "A7F3D0" } }, // sage green
+    border,
+  };
+  const styleHeaderQualGroup = {
+    font: { name: "Sarabun", sz: 12, bold: true, color: { rgb: "064E3B" } },
+    alignment: sCenter,
+    fill: { fgColor: { rgb: "6EE7B7" } }, // sage stronger
+    border,
+  };
+  const styleData = (align) => ({
+    font: { name: "Sarabun", sz: 11, color: { rgb: "0F172A" } },
+    alignment: { horizontal: align, vertical: "center", wrapText: align === "left" },
+    border,
+  });
+  const styleQualTrue = {
+    font: { name: "Sarabun", sz: 10.5, bold: true, color: { rgb: "15803D" } },
+    alignment: sCenter,
+    border,
+  };
+  const styleQualFalse = {
+    font: { name: "Sarabun", sz: 10.5, bold: true, color: { rgb: "B91C1C" } },
+    alignment: sCenter,
+    border,
+  };
+
+  // Apply Title row 1 + 2
+  const setCell = (r, c, v, s) => {
+    const ref = XLSX.utils.encode_cell({ r, c });
+    if (!ws[ref]) ws[ref] = { t: "s", v: v ?? "" };
+    if (s) ws[ref].s = s;
+  };
+  setCell(0, 0, title1, styleTitle1);
+  setCell(1, 0, dateLine, styleTitle2);
+
+  // Apply header styles
+  cols.forEach((c, i) => {
+    const isQual = c.kind === "qual";
+    const row3v = ws[XLSX.utils.encode_cell({ r: 3, c: i })]?.v ?? "";
+    // Row 4 (index 3) — group label "คุณสมบัติ" for first qual, otherwise std header
+    if (isQual && i === firstQualIdx) {
+      setCell(3, i, "คุณสมบัติ", styleHeaderQualGroup);
+    } else {
+      setCell(3, i, row3v, styleHeader);
+    }
+    // Row 5 (index 4) — sub-header (qual labels for qual cols)
+    if (hasQuals) {
+      const v5 = isQual ? c.label : (ws[XLSX.utils.encode_cell({ r: 4, c: i })]?.v ?? "");
+      setCell(4, i, v5, styleHeader);
+    }
+  });
+
+  // Apply data row styles
+  data.forEach((row, ri) => {
+    const r = dataStartRow + ri;
+    row.forEach((v, ci) => {
+      const c = cols[ci];
+      let style;
+      if (c.kind === "qual") {
+        style = v === "TRUE" ? styleQualTrue : v === "FALSE" ? styleQualFalse : styleData("center");
+      } else if (c.kind === "index" || c.kind === "code") {
+        style = styleData("center");
+      } else if (c.kind === "std" && (c.key === "phone" || c.key === "cs_staff" || c.key === "position")) {
+        style = styleData("center");
+      } else {
+        style = styleData("left");
+      }
+      setCell(r, ci, v, style);
+    });
+  });
+
+  // Freeze panes — header lock when scrolling
+  ws["!freeze"] = { xSplit: 0, ySplit: dataStartRow };
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "ผู้เข้าร่วม");
+  XLSX.writeFile(wb, _buildExportFilename(ev, "xlsx"));
+  showToast(`Export Excel สำเร็จ (${allAttendees.length} คน) 📥`, "success");
+};
+
+// ── filename: "{event_name} {DD-MM-YYYY} {HH-MM}.{ext}" ─────
+function _buildExportFilename(ev, ext) {
+  // sanitize: เอาอักษรที่ Windows ห้ามออก ( < > : " / \ | ? * ) แทนด้วย space
+  const safeName = String(ev?.event_name || `event${currentEventId || ""}`)
+    .replace(/[<>:"/\\|?*\x00-\x1f]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  let datePart = "";
+  if (ev?.event_date) {
+    const d = new Date(ev.event_date + "T00:00:00");
+    if (!isNaN(d)) {
+      datePart = `${String(d.getDate()).padStart(2,"0")}-${String(d.getMonth()+1).padStart(2,"0")}-${d.getFullYear()}`;
+    }
+  }
+  let timePart = "";
+  if (ev?.start_time) {
+    timePart = String(ev.start_time).slice(0, 5).replace(":", "-"); // HH:MM → HH-MM
+  }
+  return [safeName, datePart, timePart].filter(Boolean).join(" ") + "." + ext;
+}
+
+// ── EXPORT → printable HTML (PDF / Print) ─────────────────
+async function _openPrintableReport(autoPrint) {
+  if (!allAttendees.length) {
+    showToast("ไม่มีข้อมูลให้ Export", "error");
+    return;
+  }
+  const { ev, title1, dateLine, cols, data, firstQualIdx, lastQualIdx, hasQuals } = await _buildExportData();
+
+  // Build colgroup
+  const colWidth = (c) => {
+    switch (c.kind) {
+      case "index":  return "40px";
+      case "code":   return "70px";
+      case "name":   return "180px";
+      case "qual":   return "auto";
+      case "custom": return "120px";
+      case "std":
+        if (c.key === "note") return "160px";
+        if (c.key === "phone") return "100px";
+        if (c.key === "upline") return "100px";
+        if (c.key === "cs_staff") return "70px";
+        return "90px";
+      default: return "auto";
+    }
+  };
+  const colgroupHtml = cols.map(c => `<col style="width:${colWidth(c)}">`).join("");
+
+  // Header rows
+  let headerHtml = "";
+  if (hasQuals) {
+    const rowA = cols.map((c, i) => {
+      if (c.kind === "qual") {
+        if (i === firstQualIdx) {
+          const span = lastQualIdx - firstQualIdx + 1;
+          return `<th colspan="${span}">คุณสมบัติ</th>`;
+        }
+        return "";
+      }
+      return `<th rowspan="2">${escapeHtml(c.label)}</th>`;
+    }).join("");
+    const rowB = cols.filter(c => c.kind === "qual")
+      .map(c => `<th>${escapeHtml(c.label)}</th>`).join("");
+    headerHtml = `<tr>${rowA}</tr><tr>${rowB}</tr>`;
+  } else {
+    headerHtml = `<tr>${cols.map(c => `<th>${escapeHtml(c.label)}</th>`).join("")}</tr>`;
+  }
+
+  const bodyHtml = data.map(r => {
+    return `<tr>${r.map((v, i) => {
+      const c = cols[i];
+      let cls = "";
+      let txt = String(v ?? "");
+      if (c.kind === "qual") {
+        if (v === "TRUE")  { cls = "qv-true";  txt = "✓"; }
+        else if (v === "FALSE") { cls = "qv-false"; txt = "✕"; }
+        else txt = "";
+      }
+      if (c.kind === "index" || c.kind === "code" || c.kind === "qual" || c.kind === "custom") cls += " ta-c";
+      return `<td class="${cls.trim()}">${escapeHtml(txt)}</td>`;
+    }).join("")}</tr>`;
+  }).join("");
+
+  const sheetTitle = `${title1} — ${dateLine}`;
+  const html = `<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<title>${escapeHtml(sheetTitle)}</title>
+<style>
+  @page { size: A4 landscape; margin: 12mm 10mm; }
+  * { box-sizing: border-box; }
+  body { font-family: "Sarabun","Noto Sans Thai",sans-serif; color:#0f172a; margin:0; padding:14px 18px; }
+  h1 { font-size: 18px; text-align: center; margin: 0 0 4px; font-weight: 700; }
+  h2 { font-size: 13px; text-align: center; margin: 0 0 14px; font-weight: 500; color:#475569; }
+  table { width: 100%; border-collapse: collapse; font-size: 11.5px; table-layout: fixed; }
+  th, td { border: 1px solid #94a3b8; padding: 5px 6px; vertical-align: middle; word-break: break-word; }
+  thead th { background: #d1fae5; color:#064e3b; font-weight: 700; text-align: center; font-size: 11px; line-height: 1.25; }
+  tbody td { font-size: 11.5px; }
+  tbody tr:nth-child(even) td { background:#f8fafc; }
+  .ta-c { text-align: center; }
+  .qv-true  { color:#15803d; font-weight: 600; }
+  .qv-false { color:#b91c1c; font-weight: 600; }
+  .toolbar { position: sticky; top: 0; background:#fff; padding: 8px 0 14px; display:flex; gap:8px; justify-content:flex-end; border-bottom:1px solid #e2e8f0; margin-bottom:14px; }
+  .toolbar button { padding:7px 14px; border-radius:6px; border:1px solid #94a3b8; background:#fff; cursor:pointer; font-family:inherit; font-size:12px; font-weight:600; }
+  .toolbar button.primary { background:#0f766e; color:#fff; border-color:#0f766e; }
+  @media print {
+    .toolbar { display:none; }
+    body { padding: 0; }
+    h1 { font-size: 14px; }
+    h2 { font-size: 11px; margin-bottom: 8px; }
+    thead { display: table-header-group; }
+    tr { page-break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+  <div class="toolbar">
+    <button class="primary" onclick="window.print()">🖨️ พิมพ์ / Save as PDF</button>
+    <button onclick="window.close()">ปิด</button>
+  </div>
+  <h1>${escapeHtml(title1)}</h1>
+  <h2>${escapeHtml(dateLine)}</h2>
+  <table>
+    <colgroup>${colgroupHtml}</colgroup>
+    <thead>${headerHtml}</thead>
+    <tbody>${bodyHtml}</tbody>
+  </table>
+  <script>
+    ${autoPrint ? "window.addEventListener('load', () => setTimeout(() => window.print(), 300));" : ""}
+  </script>
+</body>
+</html>`;
+
+  const w = window.open("", "_blank", "width=1200,height=800");
+  if (!w) {
+    showToast("เบราว์เซอร์บล็อก popup — อนุญาต popup สำหรับหน้านี้ก่อน", "error");
+    return;
+  }
+  w.document.open();
+  w.document.write(html);
+  w.document.close();
+}
+
+window.exportAttendeesPDF = async function () {
+  await _openPrintableReport(true); // auto-trigger print dialog (user เลือก Save as PDF)
+  showToast("เปิดหน้าพิมพ์/บันทึก PDF · เลือก 'Save as PDF' ใน dialog", "info");
+};
+window.exportAttendeesPrint = async function () {
+  await _openPrintableReport(true);
+  showToast("เปิดหน้าพิมพ์ — เลือกเครื่องพิมพ์ใน dialog 🖨️", "info");
+};
+
+// Keep legacy CSV export for compat (called nowhere now but window-exposed)
 window.exportCSV = function () {
   if (!allAttendees.length) {
     showToast("ไม่มีข้อมูลให้ Export", "error");
@@ -1867,6 +2290,7 @@ let _memberSearchTimer = null;
 let _memberSearchAbort = null;   // cancel in-flight request when user types more
 
 let _lastMemberResults = [];
+let _pendingPartner = null;   // คู่ผู้สมัครร่วม → จะ trigger เปิด form ต่อหลัง primary save
 let _memberHighlight = 0;
 
 function _positionSuggestUnderActiveRow() {
@@ -2104,30 +2528,56 @@ window.selectMember = function (code, role, name, phone, positionLevel) {
 };
 
 // เพิ่มทั้ง primary + co_applicant ที่ใช้ member_code เดียวกัน — QR shared
-// (saveNewRow รับ rowId เดียว → ทำ sequential save 2 รอบ; allAttendees refresh หลังบันทึกครั้งแรก
-//  → _hasPairedSibling เริ่มเห็นคู่ทันทีตอน QR render = MC-{code})
-window.selectBothMembers = async function () {
+// Flow: เปิดฟอร์ม primary ก่อน · save → เปิดฟอร์ม co_applicant ต่อ · save → เสร็จทั้งคู่
+window.selectBothMembers = function () {
   const pair = _detectPairFromResults(_lastMemberResults);
   if (!pair || !activeSearchRowId) return;
   document.getElementById("memberSuggest").style.display = "none";
   _lastMemberResults = [];
 
   const { primary, coapp } = pair;
+  const rowId = activeSearchRowId;
+  const r = _findRow(rowId);
+  const paymentStatus = r?.paymentStatus || "UNPAID";
 
-  // 1) Save primary in current active row
-  const rowId1 = activeSearchRowId;
-  _applyMemberToRow(rowId1, primary.member_code, "primary", primary.person_name || "", primary.phone || "", primary.position_level || "");
-  await window.saveNewRow(rowId1);
-
-  // 2) Save co_applicant in trailing empty row (saveNewRow ensureTrailingEmptyRow แล้ว)
-  const trailing = newRows[newRows.length - 1];
-  if (!trailing) {
-    showToast("⚠️ เพิ่มผู้สมัครหลักแล้ว แต่ไม่พบช่องว่างสำหรับผู้สมัครร่วม — ค้นรหัสอีกครั้งเพื่อเพิ่ม", "warn");
+  // Duplicate check ทั้ง 2 คนล่วงหน้า — กันให้กรอก primary เสร็จแล้วเจอ coapp ซ้ำ
+  const dupPrim = allAttendees.find(a =>
+    a.member_code === primary.member_code && (a.person_role || "primary") === "primary"
+  );
+  if (dupPrim) {
+    showToast(`❌ สมาชิก ${primary.member_code} (${dupPrim.name}) ลงทะเบียนแล้ว — Ticket: ${dupPrim.ticket_no || "—"}`, "error");
     return;
   }
-  _applyMemberToRow(trailing.id, coapp.member_code, "co_applicant", coapp.person_name || "", coapp.phone || "", coapp.position_level || "");
-  await window.saveNewRow(trailing.id);
-  showToast("✅ เพิ่มทั้ง 2 คนแล้ว — QR ใช้ร่วมกัน", "success");
+  const dupCo = allAttendees.find(a =>
+    a.member_code === coapp.member_code && (a.person_role || "primary") === "co_applicant"
+  );
+  if (dupCo) {
+    showToast(`❌ ผู้สมัครร่วม ${coapp.member_code} (${dupCo.name}) ลงทะเบียนแล้ว — Ticket: ${dupCo.ticket_no || "—"}`, "error");
+    return;
+  }
+
+  // เก็บ co_applicant ไว้ใน pending → จะถูก trigger เปิด form หลัง primary save (saveAttendeeForm)
+  _pendingPartner = {
+    memberCode: coapp.member_code,
+    personRole: "co_applicant",
+    name: coapp.person_name || "",
+    phone: coapp.phone || "",
+    position_level: coapp.position_level || "",
+    paymentStatus,
+    // _sourceRowId ปล่อยว่าง — primary save ลบ row ต้นทางไปแล้ว
+  };
+
+  // 1) เปิดฟอร์มสำหรับ primary
+  showToast("👥 ขั้นที่ 1/2 — กรอกข้อมูลผู้สมัครหลัก", "info");
+  window.openAttendeeForm({
+    memberCode: primary.member_code,
+    personRole: "primary",
+    name: primary.person_name || "",
+    phone: primary.phone || "",
+    position_level: primary.position_level || "",
+    paymentStatus,
+    _sourceRowId: rowId,
+  });
 };
 
 // Close member suggest on click outside any new-row search input
@@ -2899,6 +3349,12 @@ const FIELD_COL_DEFS = {
   had_attended: { label: "↻ เคยเรียน",         width: 90,  align: "center" },
   note:         { label: "📝 หมายเหตุ",        width: 140, align: "center" },
 };
+// icon prefix per core field (ใช้กับ label override → คง icon เดิมไว้)
+const FIELD_ICONS = {
+  position: "⭐", phone: "📱", upline: "🌿", cs_staff: "👤",
+  line_name: "💬", fb_page_name: "📘", had_attended: "↻", note: "📝",
+};
+function _colIcon(key) { return FIELD_ICONS[key] ? FIELD_ICONS[key] + " " : ""; }
 
 // Get currently effective field config (cached per event)
 function _getActiveFieldConfig() {
@@ -2908,6 +3364,30 @@ function _getActiveFieldConfig() {
   return DEFAULT_FIELD_CONFIG;
 }
 
+// event มีการชำระเงินมั้ย — ถ้าไม่มี (free event) → ซ่อน column "ชำระ"
+function _eventHasPayment() {
+  const price = getCurrentPrice();
+  if (price > 0) return true;
+  if (Array.isArray(currentTiers) && currentTiers.some(t => parseFloat(t.price || 0) > 0)) return true;
+  return false;
+}
+
+// ซ่อน/แสดง UI เกี่ยวกับ payment ทั่วทั้งหน้า (filter pills, stat cards, tier banner)
+function _applyPaymentVisibility() {
+  const has = _eventHasPayment();
+  // filter pills "💰 ชำระ"
+  const payFilterGroup = document.getElementById("filterPillsPayment")?.closest(".att-tt-group");
+  if (payFilterGroup) payFilterGroup.style.display = has ? "" : "none";
+  // stat cards
+  const statPaid    = document.querySelector(".att-stat.sc-paid");
+  const statRevenue = document.querySelector(".att-stat.sc-revenue");
+  if (statPaid)    statPaid.style.display    = has ? "" : "none";
+  if (statRevenue) statRevenue.style.display = has ? "" : "none";
+  // tier banner — เผื่อ event ไม่มี tier + ไม่มีราคา
+  const tierBanner = document.getElementById("tierInfoBanner");
+  if (tierBanner && !has) tierBanner.style.display = "none";
+}
+
 function getActiveColumns() {
   const cols = [
     { key: "check", label: `<input type="checkbox" id="selectAllAttendees" onchange="window.toggleSelectAll(this.checked)" style="cursor:pointer;width:16px;height:16px">`, width: 36, align: "center" },
@@ -2915,15 +3395,25 @@ function getActiveColumns() {
     { key: "name", label: "🔍 ค้นหา / เพิ่ม / filter", width: 220 },
   ];
   const cfg = _getActiveFieldConfig();
-  Object.keys(FIELD_COL_DEFS).forEach(fkey => {
+  const order = Array.isArray(cfg.field_order) && cfg.field_order.length
+    ? cfg.field_order
+    : Object.keys(FIELD_COL_DEFS);
+  order.forEach(fkey => {
+    if (!FIELD_COL_DEFS[fkey]) return;
     if (cfg.fields?.[fkey]?.show !== false) {
-      cols.push({ key: "field:" + fkey, ...FIELD_COL_DEFS[fkey] });
+      cols.push({ key: "field:" + fkey, label: _colIcon(fkey) + _getFieldLabel(fkey, cfg), width: FIELD_COL_DEFS[fkey].width, align: "center" });
     }
+  });
+  // Custom text fields → คอลัมน์ตามที่ admin เพิ่ม
+  (cfg.custom_fields || []).forEach(cf => {
+    cols.push({ key: "custom:" + cf.key, label: `📝 ${cf.label}`, width: 130, align: "center" });
   });
   (cfg.qualifications || []).forEach(q => {
     cols.push({ key: "qual:" + q.key, label: `✓ ${q.label}`, width: 95, align: "center", small: true });
   });
-  cols.push({ key: "payment", label: "💰 ชำระ",     width: 130, align: "center" });
+  if (_eventHasPayment()) {
+    cols.push({ key: "payment", label: "💰 ชำระ",     width: 130, align: "center" });
+  }
   cols.push({ key: "checkin", label: "✅ Check-in", width: 90,  align: "center" });
   cols.push({ key: "actions", label: "จัดการ",     width: 130, align: "center" });
   return cols;
@@ -3787,6 +4277,8 @@ async function refreshAttendeesSilent() {
 // ============================================================
 let _uplinesCache = null;      // [{id, name, sort_order, is_active}]
 let _csStaffCache = null;      // distinct cs_staff values from current event
+let _csDeptUsersCache = null;  // [{full_name}] — users in CS department (cached)
+let _csStaffHighlight = -1;    // keyboard navigation index
 let _attFormState = {          // current modal session
   mode: "new",                 // "new" | "edit"
   attId: null,
@@ -3795,12 +4287,12 @@ let _attFormState = {          // current modal session
   paymentStatus: "UNPAID",     // carried forward when creating from search row
 };
 
-// Async: fetch ตำแหน่งสูงสุดจาก members + test_members → ใส่ใน form
-//   Priority: position_level (สูงสุด) → position (ปัจจุบัน) → package (DM/SI/PL/MB/EM)
-//   ทับค่าเก่าเฉพาะถ้า fetch เจอ + รหัสยังตรงกัน (กัน race ตอน user สลับสมาชิก)
-async function _autofillMemberPosition(memberCode) {
+// Async: fetch ข้อมูลสมาชิก (ตำแหน่ง + เบอร์โทร) จาก members + test_members → ใส่ใน form
+//   Position priority: position_level (สูงสุด) → position (ปัจจุบัน) → package
+//   ทับค่าเฉพาะถ้า fetch เจอ + รหัสยังตรงกัน (กัน race ตอน user สลับสมาชิก)
+async function _autofillMemberInfo(memberCode) {
   try {
-    const cols = "position_level,position,package";
+    const cols = "position_level,position,package,phone";
     const code = encodeURIComponent(memberCode);
     const [mlm, test] = await Promise.all([
       sbFetch("members",      `?member_code=eq.${code}&select=${cols}`).catch(() => []),
@@ -3808,21 +4300,31 @@ async function _autofillMemberPosition(memberCode) {
     ]);
     const m = (mlm && mlm[0]) || (test && test[0]);
     if (!m) { console.warn("autofill: no member row for", memberCode); return; }
+    // race guard — user อาจสลับสมาชิกระหว่างรอ fetch
+    const codeInp = document.getElementById("attFormMemberCode");
+    if (codeInp?.value !== memberCode) return;
+
+    // ── ตำแหน่ง ──
     const pos = (m.position_level && String(m.position_level).trim())
       || (m.position && String(m.position).trim())
       || (m.package && String(m.package).trim())
       || "";
-    if (!pos) {
+    if (pos) {
+      const posInp = document.getElementById("attFormPos");
+      if (posInp) posInp.value = pos;
+    } else {
       console.warn("autofill: member", memberCode, "has empty position_level/position/package");
-      return;
     }
-    const inp = document.getElementById("attFormPos");
-    const codeInp = document.getElementById("attFormMemberCode");
-    if (inp && codeInp?.value === memberCode) {
-      inp.value = pos;
+
+    // ── เบอร์โทร ── เติมเฉพาะถ้า field ยังว่าง (ไม่ทับค่าที่ search dropdown ส่งมา)
+    if (m.phone && String(m.phone).trim()) {
+      const phoneInp = document.getElementById("attFormPhone");
+      if (phoneInp && !phoneInp.value.trim()) {
+        phoneInp.value = String(m.phone).trim();
+      }
     }
   } catch (e) {
-    console.warn("autofill member position:", e.message);
+    console.warn("autofill member info:", e.message);
   }
 }
 
@@ -3933,17 +4435,174 @@ async function fetchUplines() {
 
 function _invalidateUplinesCache() { _uplinesCache = null; }
 
-// Build set of distinct CS-staff values from currently-loaded attendees
+// Build set of distinct CS-staff values from currently-loaded attendees (= legacy/free-text)
 function _refreshCsStaffDatalist() {
-  const list = document.getElementById("csStaffList");
-  if (!list) return;
   const set = new Set();
   (allAttendees || []).forEach(a => { if (a.cs_staff) set.add(a.cs_staff); });
-  list.innerHTML = [...set].sort().map(v => `<option value="${escapeHtml(v)}">`).join("");
+  _csStaffCache = [...set].sort();
 }
+
+// Fetch users in CS department — cached
+// 2-tier strategy:
+//   1) users.department = "CS" (newer pattern)
+//   2) fallback: role prefix "CS" via role_configs (เผื่อ users ยังไม่ได้ migrate dept code)
+async function _loadCsDeptUsers() {
+  if (Array.isArray(_csDeptUsersCache)) return _csDeptUsersCache;
+  const collected = new Map(); // full_name → true (dedup)
+  try {
+    // Tier 1 — by department column
+    const byDept = await sbFetch(
+      "users",
+      `?select=full_name,is_active,department&department=eq.CS&order=full_name.asc`
+    );
+    (byDept || []).forEach(r => {
+      if (r.is_active === false) return;
+      const n = (r.full_name || "").trim();
+      if (n) collected.set(n, true);
+    });
+    console.info("[CS-staff] tier1 (dept=CS):", byDept?.length || 0);
+  } catch (e) {
+    console.warn("[CS-staff] tier1 failed:", e.message);
+  }
+  try {
+    // Tier 2 — by role prefix (CS*) via role_configs
+    const cfgs = await sbFetch(
+      "role_configs",
+      `?select=role_key,label`
+    );
+    const csKeys = (cfgs || [])
+      .filter(c => /^CS/i.test(c.role_key || "") || /^CS/i.test(c.label || ""))
+      .map(c => c.role_key)
+      .filter(Boolean);
+    if (csKeys.length) {
+      const inList = csKeys.map(k => encodeURIComponent(k)).join(",");
+      const byRole = await sbFetch(
+        "users",
+        `?select=full_name,is_active,role&role=in.(${inList})&order=full_name.asc`
+      );
+      (byRole || []).forEach(r => {
+        if (r.is_active === false) return;
+        const n = (r.full_name || "").trim();
+        if (n) collected.set(n, true);
+      });
+      console.info("[CS-staff] tier2 (role in", csKeys, "):", byRole?.length || 0);
+    }
+  } catch (e) {
+    console.warn("[CS-staff] tier2 failed:", e.message);
+  }
+  _csDeptUsersCache = [...collected.keys()].sort((a, b) => a.localeCompare(b, "th"));
+  console.info("[CS-staff] final cache:", _csDeptUsersCache);
+  return _csDeptUsersCache;
+}
+function _invalidateCsDeptUsersCache() { _csDeptUsersCache = null; }
+
+// Combine dept users (primary) + legacy values (fallback) without duplicates
+function _csStaffCombined() {
+  const dept = (_csDeptUsersCache || []).slice();
+  const legacy = (_csStaffCache || []).filter(v => !dept.includes(v));
+  return { dept, legacy };
+}
+
+function _renderCsSuggest(q) {
+  const box = document.getElementById("csStaffSuggest");
+  if (!box) return;
+  const needle = (q || "").trim().toLowerCase();
+  const { dept, legacy } = _csStaffCombined();
+  const filterFn = v => !needle || v.toLowerCase().includes(needle);
+  const deptM = dept.filter(filterFn);
+  const legacyM = legacy.filter(filterFn);
+  let html = "";
+  if (deptM.length) {
+    html += `<div class="cs-group-label">👤 พนักงานแผนก CS</div>`;
+    html += deptM.map((v, i) => _csItemHtml(v, "dept", i)).join("");
+  }
+  if (legacyM.length) {
+    html += `<div class="cs-group-label">📜 ใช้ในอีเวนต์อื่น</div>`;
+    html += legacyM.map((v, i) => _csItemHtml(v, "legacy", deptM.length + i)).join("");
+  }
+  if (!deptM.length && !legacyM.length) {
+    html = `<div class="cs-empty">ไม่มีรายชื่อตรงกับ "${escapeHtml(q || "")}" — พิมพ์เพื่อบันทึกแบบกำหนดเอง</div>`;
+  }
+  box.innerHTML = html;
+  box.style.display = "block";
+  _csStaffHighlight = -1;
+}
+
+function _csItemHtml(name, kind, idx) {
+  const safe = escapeHtml(name).replace(/'/g, "&#39;");
+  const tag = kind === "dept"
+    ? `<span class="cs-tag">CS</span>`
+    : `<span class="cs-tag legacy">เก่า</span>`;
+  return `<div class="cs-item" data-idx="${idx}" data-val="${safe}"
+    onmousedown="event.preventDefault();window._csStaffSelect('${safe}')"
+    onmouseover="window._csStaffSetHL(${idx})">
+    <span class="cs-icon">${kind === "dept" ? "👤" : "🕘"}</span>
+    <span class="cs-name">${escapeHtml(name)}</span>
+    ${tag}
+  </div>`;
+}
+
+window._csStaffShow = function () {
+  // Lazy-load CS dept users on first focus (cached after that)
+  _loadCsDeptUsers().then(() => {
+    const inp = document.getElementById("attFormCs");
+    _renderCsSuggest(inp?.value || "");
+  });
+};
+window._csStaffFilter = function () {
+  const inp = document.getElementById("attFormCs");
+  _renderCsSuggest(inp?.value || "");
+};
+window._csStaffBlur = function () {
+  // Delay to allow click on suggestion to register first
+  setTimeout(() => {
+    const box = document.getElementById("csStaffSuggest");
+    if (box) box.style.display = "none";
+  }, 150);
+};
+window._csStaffSelect = function (name) {
+  const inp = document.getElementById("attFormCs");
+  if (inp) inp.value = name;
+  const box = document.getElementById("csStaffSuggest");
+  if (box) box.style.display = "none";
+};
+window._csStaffSetHL = function (idx) {
+  _csStaffHighlight = idx;
+  const box = document.getElementById("csStaffSuggest");
+  if (!box) return;
+  box.querySelectorAll(".cs-item").forEach(el => {
+    el.classList.toggle("active", Number(el.dataset.idx) === idx);
+  });
+};
+window._csStaffKey = function (ev) {
+  const box = document.getElementById("csStaffSuggest");
+  if (!box || box.style.display === "none") return;
+  const items = [...box.querySelectorAll(".cs-item")];
+  if (!items.length) return;
+  if (ev.key === "ArrowDown") {
+    ev.preventDefault();
+    const next = Math.min(items.length - 1, _csStaffHighlight + 1);
+    window._csStaffSetHL(next);
+    items[next]?.scrollIntoView({ block: "nearest" });
+  } else if (ev.key === "ArrowUp") {
+    ev.preventDefault();
+    const next = Math.max(0, _csStaffHighlight - 1);
+    window._csStaffSetHL(next);
+    items[next]?.scrollIntoView({ block: "nearest" });
+  } else if (ev.key === "Enter") {
+    if (_csStaffHighlight >= 0 && items[_csStaffHighlight]) {
+      ev.preventDefault();
+      window._csStaffSelect(items[_csStaffHighlight].dataset.val);
+    }
+  } else if (ev.key === "Escape") {
+    box.style.display = "none";
+  }
+};
 
 // ── Event field config ─────────────────────────────────────
 // Default = all fields shown, none required (except upline & name)
+// field_order = ลำดับ column ในตาราง spreadsheet · drag-reorder ใน config modal
+const DEFAULT_FIELD_ORDER = ["phone", "position", "upline", "cs_staff", "line_name", "fb_page_name", "had_attended", "note"];
 const DEFAULT_FIELD_CONFIG = {
   fields: {
     phone:        { show: true,  required: false },
@@ -3955,6 +4614,9 @@ const DEFAULT_FIELD_CONFIG = {
     had_attended: { show: true,  required: false },
     note:         { show: true,  required: false },
   },
+  field_order: DEFAULT_FIELD_ORDER.slice(),
+  hidden_keys: [],
+  custom_fields: [],
   qualifications: [],
 };
 
@@ -4023,14 +4685,42 @@ async function getEventConfigInfo(eventId) {
 
 function _mergeFieldConfig(custom) {
   if (!custom || typeof custom !== "object") return DEFAULT_FIELD_CONFIG;
-  const fields = { ...DEFAULT_FIELD_CONFIG.fields };
+  const fields = {};
+  // deep-clone defaults (กันแก้ object เดิม)
+  Object.keys(DEFAULT_FIELD_CONFIG.fields).forEach(k => {
+    fields[k] = { ...DEFAULT_FIELD_CONFIG.fields[k] };
+  });
   if (custom.fields && typeof custom.fields === "object") {
     Object.keys(custom.fields).forEach(k => {
       fields[k] = { ...(fields[k] || {}), ...custom.fields[k] };
     });
   }
+  // hidden_keys[] — มาตรฐานที่ผู้ใช้กดลบไว้ (กัน auto-restore)
+  const hidden_keys = Array.isArray(custom.hidden_keys)
+    ? custom.hidden_keys.filter(k => DEFAULT_FIELD_ORDER.includes(k))
+    : [];
+  // บังคับ show:false สำหรับ hidden_keys → form/table จะซ่อนทันที
+  hidden_keys.forEach(k => {
+    fields[k] = { ...(fields[k] || {}), show: false, required: false };
+  });
+  // field_order
+  const customOrder = Array.isArray(custom.field_order) ? custom.field_order.slice() : null;
+  let field_order = customOrder || DEFAULT_FIELD_ORDER.slice();
+  DEFAULT_FIELD_ORDER.forEach(k => {
+    if (!field_order.includes(k) && !hidden_keys.includes(k)) field_order.push(k);
+  });
+  field_order = field_order.filter(k => DEFAULT_FIELD_ORDER.includes(k) && !hidden_keys.includes(k));
+  // custom_fields[] — text fields เก็บค่าใน extra_fields JSONB
+  const custom_fields = Array.isArray(custom.custom_fields)
+    ? custom.custom_fields.filter(cf => cf && cf.key && cf.label)
+    : [];
   const qualifications = Array.isArray(custom.qualifications) ? custom.qualifications : [];
-  return { fields, qualifications };
+  return { fields, field_order, hidden_keys, custom_fields, qualifications };
+}
+
+// label ของ core field — รองรับ override จาก config
+function _getFieldLabel(key, cfg) {
+  return (cfg?.fields?.[key]?.label) || FIELD_LABELS[key] || key;
 }
 
 // ── ATTENDEE FORM MODAL ────────────────────────────────────
@@ -4053,14 +4743,14 @@ window.openAttendeeForm = async function (opts = {}) {
     title.textContent = opts.memberCode ? "➕ ลงทะเบียนสมาชิก — กรอกข้อมูลเพิ่ม" : "➕ ลงทะเบียนผู้เรียนใหม่ (ยังไม่ใช่สมาชิก)";
   }
 
-  // Member banner
+  // Member banner — CSS .aff-member-banner คุม style
   const banner = document.getElementById("attFormMemberBanner");
   if (opts.memberCode) {
-    const roleLabel = (_attFormState.personRole === "co_applicant")
-      ? '<span style="background:#f3e8ff;color:#9333ea;padding:1px 7px;border-radius:5px;font-size:11px;font-weight:700;margin-left:6px">👥 ผู้สมัครร่วม</span>'
+    const roleChip = (_attFormState.personRole === "co_applicant")
+      ? '<span style="background:#f3e8ff;color:#9333ea;padding:2px 9px;border-radius:6px;font-size:11px;font-weight:700;margin-left:6px">👥 ผู้สมัครร่วม</span>'
       : '';
-    banner.innerHTML = `🧑 สมาชิกรหัส <b style="font-family:'IBM Plex Mono',monospace">${escapeHtml(opts.memberCode)}</b>${roleLabel}`;
-    banner.style.display = "block";
+    banner.innerHTML = `<span style="font-size:18px">🧑</span><span>สมาชิกรหัส <b>${escapeHtml(opts.memberCode)}</b>${roleChip}</span>`;
+    banner.style.display = "flex";
   } else {
     banner.style.display = "none";
   }
@@ -4076,10 +4766,12 @@ window.openAttendeeForm = async function (opts = {}) {
   // Load event field config + show/hide rows
   const cfg = await fetchEventFieldConfig(currentEventId);
   _applyFieldConfigToForm(cfg);
-  _renderQualifications(cfg.qualifications, opts.extra_fields || {});
+  _renderQualifications(cfg.qualifications, opts.extra_fields || {}, cfg.custom_fields);
+  _renderCustomFieldInputs(cfg.custom_fields, opts.extra_fields || {});
 
-  // CS staff datalist
+  // CS staff: legacy distinct values + pre-warm CS-dept users (fire-and-forget)
   _refreshCsStaffDatalist();
+  _loadCsDeptUsers();
 
   // Fill form values
   document.getElementById("attFormAttId").value     = opts.attId || "";
@@ -4088,9 +4780,9 @@ window.openAttendeeForm = async function (opts = {}) {
   document.getElementById("attFormName").value      = opts.name || "";
   document.getElementById("attFormPhone").value     = opts.phone || "";
   document.getElementById("attFormPos").value       = opts.position_level || "";
-  // ถ้าเป็นสมาชิก → autofill ตำแหน่ง + สายงาน (parallel async)
+  // ถ้าเป็นสมาชิก → autofill ตำแหน่ง + เบอร์โทร + สายงาน (parallel async)
   if (opts.memberCode && mode === "new") {
-    _autofillMemberPosition(opts.memberCode);
+    _autofillMemberInfo(opts.memberCode);
     _autofillMemberUpline(opts.memberCode);
   }
   document.getElementById("attFormUpline").value    = opts.upline_id || "";
@@ -4115,36 +4807,49 @@ window.openAttendeeForm = async function (opts = {}) {
 };
 
 function _applyFieldConfigToForm(cfg) {
-  const showHide = (id, show) => {
-    const el = document.getElementById(id);
-    if (!el) return;
-    el.style.display = show ? "" : "none";
+  // map key → { wrapId, labelId, defaultLabel }
+  const map = {
+    phone:        { wrap: "attFormPhoneWrap",        label: "attFormPhoneLabel",        def: "เบอร์โทร" },
+    position:     { wrap: "attFormPosWrap",          label: "attFormPosLabel",          def: "ตำแหน่ง" },
+    upline:       { wrap: "attFormUplineWrap",       label: "attFormUplineLabel",       def: "สายงาน" },
+    cs_staff:     { wrap: "attFormCsWrap",           label: "attFormCsLabel",           def: "CS" },
+    line_name:    { wrap: "attFormLineWrap",         label: "attFormLineLabel",         def: "ชื่อไลน์ที่แจ้ง" },
+    fb_page_name: { wrap: "attFormFbWrap",           label: "attFormFbLabel",           def: "ชื่อเพจ Facebook" },
+    had_attended: { wrap: "attFormHadAttendedWrap",  label: "attFormHadAttendedLabel",  def: "เคยเรียนคอร์สนี้แล้วหรือไม่" },
+    note:         { wrap: "attFormNoteWrap",         label: "attFormNoteLabel",         def: "หมายเหตุ" },
   };
-  showHide("attFormPosWrap",          cfg.fields.position?.show !== false);
-  showHide("attFormCsWrap",           cfg.fields.cs_staff?.show !== false);
-  showHide("attFormLineWrap",         cfg.fields.line_name?.show !== false);
-  showHide("attFormFbWrap",           cfg.fields.fb_page_name?.show !== false);
-  showHide("attFormHadAttendedWrap",  cfg.fields.had_attended?.show !== false);
-  // Upline label — show * if required
-  const upLbl = document.getElementById("attFormUplineLabel");
-  if (upLbl) {
-    upLbl.innerHTML = cfg.fields.upline?.required
-      ? 'สายงาน <span class="req">*</span>'
-      : 'สายงาน';
-  }
-  // Phone field is always visible in current layout; honor `show` if false
-  const phoneWrap = document.getElementById("attFormPhone")?.closest(".form-group");
-  if (phoneWrap) phoneWrap.style.display = cfg.fields.phone?.show !== false ? "" : "none";
+  const order = Array.isArray(cfg.field_order) ? cfg.field_order : DEFAULT_FIELD_ORDER;
+  // hide every standard field by default, then show + ordered ตาม field_order
+  Object.entries(map).forEach(([key, m]) => {
+    const wrap = document.getElementById(m.wrap);
+    if (!wrap) return;
+    const show = cfg.fields?.[key]?.show !== false;
+    wrap.style.display = show ? "" : "none";
+    // ลำดับใน grid: key ที่อยู่ใน field_order ใช้ index นั้น · ที่ไม่อยู่ → ปลายแถว
+    const idx = order.indexOf(key);
+    wrap.style.order = String(idx >= 0 ? idx : 999);
+    // label override + required marker
+    const lblEl = document.getElementById(m.label);
+    if (lblEl) {
+      const lbl = cfg.fields?.[key]?.label || m.def;
+      const req = cfg.fields?.[key]?.required === true;
+      lblEl.innerHTML = req ? `${escapeHtml(lbl)} <span class="req">*</span>` : escapeHtml(lbl);
+    }
+  });
 }
 
-function _renderQualifications(quals, extraFields) {
+function _renderQualifications(quals, extraFields, customFields) {
   const wrap = document.getElementById("attFormQualWrap");
   const list = document.getElementById("attFormQualList");
   if (!wrap || !list) return;
   const configList = Array.isArray(quals) ? quals : [];
   const configKeys = new Set(configList.map(q => q.key));
-  // Union: keys from extra_fields that aren't in config → preserve as "legacy"
-  const extraOnlyKeys = Object.keys(extraFields || {}).filter(k => !configKeys.has(k));
+  // custom_fields keys อยู่ใน extra_fields เหมือนกัน → ต้องไม่นับเป็น "legacy qualification"
+  const customKeys = new Set((Array.isArray(customFields) ? customFields : []).map(c => c.key));
+  // Union: keys from extra_fields ที่ไม่อยู่ใน qualifications config + ไม่ใช่ custom field → legacy
+  const extraOnlyKeys = Object.keys(extraFields || {}).filter(k =>
+    !configKeys.has(k) && !customKeys.has(k) && typeof extraFields[k] === "boolean"
+  );
   const allEntries = [
     ...configList.map(q => ({ key: q.key, label: q.label || q.key, legacy: false })),
     ...extraOnlyKeys.map(k => ({ key: k, label: k + " (เดิม)", legacy: true })),
@@ -4157,17 +4862,64 @@ function _renderQualifications(quals, extraFields) {
   wrap.style.display = "";
   list.innerHTML = allEntries.map(e => {
     const checked = extraFields?.[e.key] === true ? "checked" : "";
-    const dim = e.legacy ? "color:#64748b;font-style:italic" : "color:#0f172a";
-    return `<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;${dim}">
-      <input type="checkbox" data-qual-key="${escapeHtml(e.key)}" ${checked} style="width:16px;height:16px;cursor:pointer">
+    const cls = e.legacy ? "aff-qual-item legacy" : "aff-qual-item";
+    return `<label class="${cls}">
+      <input type="checkbox" data-qual-key="${escapeHtml(e.key)}" ${checked} onchange="window._attFormQualSyncAll()">
       <span>${escapeHtml(e.label)}</span>
     </label>`;
   }).join("");
+  window._attFormQualSyncAll();
 }
 
-window.closeAttendeeForm = function (ev) {
-  if (ev && ev.target && !ev.target.classList?.contains("modal-overlay")) return;
+// ── คุณสมบัติ "ทั้งหมด" master checkbox ──────────────────
+window._attFormQualToggleAll = function (checked) {
+  const list = document.getElementById("attFormQualList");
+  if (!list) return;
+  list.querySelectorAll('input[type="checkbox"][data-qual-key]').forEach(cb => {
+    cb.checked = checked;
+  });
+  const all = document.getElementById("attFormQualAll");
+  if (all) { all.indeterminate = false; all.checked = checked; }
+};
+window._attFormQualSyncAll = function () {
+  const list = document.getElementById("attFormQualList");
+  const all = document.getElementById("attFormQualAll");
+  if (!list || !all) return;
+  const boxes = [...list.querySelectorAll('input[type="checkbox"][data-qual-key]')];
+  if (!boxes.length) { all.checked = false; all.indeterminate = false; return; }
+  const onCount = boxes.filter(b => b.checked).length;
+  all.checked = onCount === boxes.length;
+  all.indeterminate = onCount > 0 && onCount < boxes.length;
+};
+
+// Render custom text-field inputs ใน Attendee Form Modal
+function _renderCustomFieldInputs(customFields, extraFields) {
+  const wrap = document.getElementById("attFormCustomWrap");
+  const container = document.getElementById("attFormCustomFields");
+  if (!wrap || !container) return;
+  const list = Array.isArray(customFields) ? customFields : [];
+  if (!list.length) {
+    wrap.style.display = "none";
+    container.innerHTML = "";
+    return;
+  }
+  wrap.style.display = "";
+  container.innerHTML = list.map(cf => {
+    const val = extraFields?.[cf.key] != null ? String(extraFields[cf.key]) : "";
+    return `<div class="form-group">
+      <label class="form-label">${escapeHtml(cf.label)}</label>
+      <input class="form-control" data-custom-key="${escapeHtml(cf.key)}" value="${escapeHtml(val)}" autocomplete="off">
+    </div>`;
+  }).join("");
+}
+
+window.closeAttendeeForm = function () {
   document.getElementById("attendeeFormOverlay").classList.remove("open");
+  // หากผู้ใช้ยกเลิก/ปิดระหว่าง flow "เพิ่มทั้ง 2 คน" → ทิ้ง partner pending
+  if (_pendingPartner) {
+    _pendingPartner = null;
+    showToast("ยกเลิกการเพิ่มทั้ง 2 คน", "info");
+  }
 };
 
 window.saveAttendeeForm = async function () {
@@ -4183,10 +4935,14 @@ window.saveAttendeeForm = async function () {
 
   const uplineRow = uplineId ? (_uplinesCache || []).find(u => String(u.id) === String(uplineId)) : null;
 
-  // Collect qualifications
+  // Collect qualifications (boolean) + custom fields (text) → รวมใน extra_fields เดียวกัน
   const quals = {};
   document.querySelectorAll('#attFormQualList input[data-qual-key]').forEach(cb => {
     quals[cb.dataset.qualKey] = cb.checked;
+  });
+  document.querySelectorAll('#attFormCustomFields input[data-custom-key]').forEach(inp => {
+    const v = inp.value.trim();
+    if (v) quals[inp.dataset.customKey] = v;
   });
 
   const hadVal = document.querySelector('input[name="attFormHadAttended"]:checked')?.value;
@@ -4244,7 +5000,14 @@ window.saveAttendeeForm = async function () {
     populateTagFilter();
     updateStats();
     filterTable();
+    // อ่าน pending partner ก่อน close (close จะ clear ถ้ายังตั้งอยู่)
+    const partner = (_attFormState.mode === "new") ? _pendingPartner : null;
+    _pendingPartner = null; // กัน close trigger ยกเลิก-toast
     window.closeAttendeeForm();
+    if (partner) {
+      showToast("👥 ขั้นที่ 2/2 — กรอกข้อมูลผู้สมัครร่วม", "info");
+      setTimeout(() => window.openAttendeeForm(partner), 220);
+    }
   } catch (e) {
     showToast("บันทึกไม่สำเร็จ: " + (e.message || e), "error");
   }
@@ -4272,21 +5035,75 @@ async function _renderUplineMgrList() {
     list.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3);font-size:12.5px">ยังไม่มีสายงาน — เพิ่มด้านบน</div>';
     return;
   }
-  list.innerHTML = uplines.map(u => `
-    <div data-uid="${u.id}" style="display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid #f1f5f9">
-      <span style="flex:1;font-size:13.5px;color:${u.is_active ? '#0f172a' : '#94a3b8'};${u.is_active ? '' : 'text-decoration:line-through'}">${escapeHtml(u.name)}</span>
-      <input type="text" value="${escapeHtml(u.member_code || '')}" placeholder="รหัสสมาชิก"
-        onblur="window.updateUplineMemberCode(${u.id}, this.value)"
-        style="width:110px;padding:4px 8px;border:1px solid #e2e8f0;border-radius:6px;font-size:11.5px;font-family:'IBM Plex Mono',monospace">
-      <button title="${u.is_active ? 'ปิดใช้งาน' : 'เปิดใช้งาน'}" onclick="window.toggleUpline(${u.id}, ${!u.is_active})"
-        style="background:${u.is_active ? '#f1f5f9' : '#dcfce7'};color:${u.is_active ? '#64748b' : '#15803d'};border:none;border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer">
-        ${u.is_active ? '⊘ ปิด' : '✓ เปิด'}
+  list.innerHTML = uplines.map((u, idx) => `
+    <div class="upl-item" data-uid="${u.id}" draggable="true"
+      ondragstart="window._uplDragStart(event, ${idx})"
+      ondragover="window._uplDragOver(event)"
+      ondragleave="window._uplDragLeave(event)"
+      ondrop="window._uplDrop(event, ${idx})"
+      ondragend="window._uplDragEnd(event)">
+      <span class="drag-handle" title="ลากเพื่อจัดลำดับ">⋮⋮</span>
+      <span class="upl-name${u.is_active ? '' : ' inactive'}">${escapeHtml(u.name)}</span>
+      <input type="text" class="upl-code-input" value="${escapeHtml(u.member_code || '')}" placeholder="รหัสสมาชิก"
+        onblur="window.updateUplineMemberCode(${u.id}, this.value)">
+      <button class="upl-btn ${u.is_active ? 'upl-btn-toggle-on' : 'upl-btn-toggle-off'}"
+        title="${u.is_active ? 'ปิดใช้งาน' : 'เปิดใช้งาน'}"
+        onclick="window.toggleUpline(${u.id}, ${!u.is_active})">
+        ${u.is_active ? '● เปิด' : '○ ปิด'}
       </button>
-      <button title="ลบ" onclick="window.deleteUpline(${u.id}, '${escapeJS(u.name)}')"
-        style="background:#fef2f2;color:#b91c1c;border:none;border-radius:6px;padding:4px 8px;font-size:13px;cursor:pointer">🗑</button>
+      <button class="upl-btn upl-btn-delete" title="ลบ"
+        onclick="window.deleteUpline(${u.id}, '${escapeJS(u.name)}')">🗑</button>
     </div>
   `).join("");
 }
+
+// ── Drag-reorder upline_leaders → persist sort_order ───────
+let _uplDragIdx = null;
+window._uplDragStart = function (ev, idx) {
+  _uplDragIdx = idx;
+  ev.dataTransfer.effectAllowed = "move";
+  ev.currentTarget.classList.add("dragging");
+};
+window._uplDragOver = function (ev) {
+  ev.preventDefault();
+  ev.dataTransfer.dropEffect = "move";
+  ev.currentTarget.classList.add("drag-over");
+};
+window._uplDragLeave = function (ev) {
+  ev.currentTarget.classList.remove("drag-over");
+};
+window._uplDragEnd = function (ev) {
+  ev.currentTarget.classList.remove("dragging");
+  document.querySelectorAll(".upl-item.drag-over").forEach(el => el.classList.remove("drag-over"));
+  _uplDragIdx = null;
+};
+window._uplDrop = async function (ev, targetIdx) {
+  ev.preventDefault();
+  ev.currentTarget.classList.remove("drag-over");
+  if (_uplDragIdx == null || _uplDragIdx === targetIdx) return;
+  const arr = _uplinesCache;
+  if (!Array.isArray(arr)) return;
+  const [moved] = arr.splice(_uplDragIdx, 1);
+  arr.splice(targetIdx, 0, moved);
+  _uplDragIdx = null;
+  await _renderUplineMgrList();   // re-render ทันที (optimistic)
+  // persist sort_order ใหม่ทุกแถว (sequential 10, 20, 30, ...)
+  try {
+    await Promise.all(arr.map((u, idx) => {
+      const newOrder = (idx + 1) * 10;
+      if (u.sort_order === newOrder) return Promise.resolve();
+      u.sort_order = newOrder;
+      return sbFetch("upline_leaders", `?id=eq.${u.id}`, {
+        method: "PATCH", body: { sort_order: newOrder },
+      });
+    }));
+    showToast("จัดลำดับสายงานแล้ว", "success");
+  } catch (e) {
+    showToast("บันทึกลำดับไม่สำเร็จ: " + e.message, "error");
+    _invalidateUplinesCache();
+    await _renderUplineMgrList();
+  }
+};
 
 window.addUpline = async function () {
   const inp = document.getElementById("newUplineName");
@@ -4384,11 +5201,58 @@ window.openFieldConfigModal = async function () {
   if (!currentEventId) { showToast("เลือก event ก่อน", "error"); return; }
   _fcInfo = await getEventConfigInfo(currentEventId);
   _fcDraft = JSON.parse(JSON.stringify(_fcInfo.config));
-  _fcUseTemplate = (_fcInfo.source === "template");   // initial state: link mode iff currently following template
+  _fcUseTemplate = (_fcInfo.source === "template");
+  await _fcLoadTemplateOptions();
   _renderFcSourceBanner();
   _renderFcFields();
+  _renderFcCustomFields();
   _renderFcQuals();
   document.getElementById("fieldConfigOverlay").classList.add("open");
+};
+
+async function _fcLoadTemplateOptions() {
+  const sel = document.getElementById("fcTemplateSelect");
+  if (!sel) return;
+  try {
+    const rows = await sbFetch(
+      "attendee_form_templates",
+      "?select=id,name,description,is_active&is_active=eq.true&order=sort_order.asc"
+    );
+    sel.innerHTML = '<option value="">— ไม่ผูก template (ใช้ default) —</option>' +
+      (rows || []).map(t => `<option value="${t.id}">📋 ${escapeHtml(t.name)}</option>`).join("");
+    sel.value = _fcInfo?.templateId ? String(_fcInfo.templateId) : "";
+  } catch (e) {
+    console.warn("_fcLoadTemplateOptions:", e.message);
+  }
+}
+
+// Link/unlink template โดยตรงจาก Field Config Modal
+window._fcOnTemplateChange = async function (newTemplateId) {
+  if (!currentEventId) return;
+  const id = newTemplateId ? parseInt(newTemplateId) : null;
+  try {
+    await sbFetch("events", `?event_id=eq.${currentEventId}`, {
+      method: "PATCH",
+      body: { template_id: id },
+    });
+    _invalidateEventConfigCache();
+    // Re-fetch + re-render modal state
+    _fcInfo = await getEventConfigInfo(currentEventId);
+    // ถ้าไม่มี override → ใช้ draft ตาม template ใหม่
+    if (_fcInfo.source !== "override") {
+      _fcDraft = JSON.parse(JSON.stringify(_fcInfo.config));
+      _fcUseTemplate = (_fcInfo.source === "template");
+    }
+    _renderFcSourceBanner();
+    _renderFcFields();
+    _renderFcCustomFields();
+    _renderFcQuals();
+    showToast(id ? "ผูก template แล้ว 🔗" : "ยกเลิก link template แล้ว", "success");
+    // ปรับ column layout ของตาราง (เผื่อ qualifications เปลี่ยน)
+    filterTable();
+  } catch (e) {
+    showToast("ผูก template ไม่สำเร็จ: " + e.message, "error");
+  }
 };
 
 function _renderFcSourceBanner() {
@@ -4434,6 +5298,7 @@ window._fcOnUseTemplateToggle = function (val) {
     // Revert draft → template config
     _fcDraft = _mergeFieldConfig(_fcInfo.templateConfig);
     _renderFcFields();
+    _renderFcCustomFields();
     _renderFcQuals();
   }
   _renderFcSourceBanner();
@@ -4450,24 +5315,159 @@ window.closeFieldConfigModal = function (ev) {
 function _renderFcFields() {
   const grid = document.getElementById("fcFieldsGrid");
   if (!grid || !_fcDraft) return;
-  grid.innerHTML = Object.keys(FIELD_LABELS).map(key => {
-    const f = _fcDraft.fields[key] || {};
-    const show = f.show !== false;
-    const req = f.required === true;
-    return `<div style="display:flex;align-items:center;justify-content:space-between;background:#fff;border:1px solid #e2e8f0;border-radius:6px;padding:7px 10px;font-size:12.5px">
-      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;flex:1">
-        <input type="checkbox" data-fc-show="${key}" ${show ? "checked" : ""} onchange="window._fcToggleShow('${key}', this.checked)"
-          style="width:16px;height:16px;cursor:pointer">
-        <span style="${show ? 'color:#0f172a' : 'color:#94a3b8;text-decoration:line-through'}">${FIELD_LABELS[key]}</span>
-      </label>
-      <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:11px;color:#92400e">
-        <input type="checkbox" data-fc-req="${key}" ${req ? "checked" : ""} ${show ? "" : "disabled"} onchange="window._fcToggleReq('${key}', this.checked)"
-          style="width:14px;height:14px;cursor:pointer">
-        บังคับ*
-      </label>
-    </div>`;
-  }).join("");
+  if (!Array.isArray(_fcDraft.field_order)) _fcDraft.field_order = [];
+  if (!Array.isArray(_fcDraft.hidden_keys)) _fcDraft.hidden_keys = [];
+  // ถ้า field_order ว่าง + ยังไม่มี hidden_keys เลย → fallback กลับเป็น default (กันเปิด modal แล้วว่างเปล่าจาก config เก่า)
+  if (!_fcDraft.field_order.length && !_fcDraft.hidden_keys.length) {
+    _fcDraft.field_order = DEFAULT_FIELD_ORDER.slice();
+  }
+  const order = _fcDraft.field_order;
+  // Column-first layout: 1 ลง → 2 ลง → ... → ขวา (ครึ่งบน คอลัมน์ซ้าย, ครึ่งล่าง คอลัมน์ขวา)
+  const rowsCount = Math.max(1, Math.ceil(order.length / 2));
+  grid.style.gridTemplateRows = `repeat(${rowsCount}, auto)`;
+  grid.style.gridAutoFlow = "column";
+  if (!order.length) {
+    grid.innerHTML = '<div style="grid-column:1/-1;padding:14px;text-align:center;color:var(--text3);font-size:12px">ลบฟิลด์มาตรฐานออกหมดแล้ว — คืนค่าได้ที่ "ฟิลด์ที่ซ่อน" ด้านล่าง</div>';
+  } else {
+    grid.innerHTML = order.map((key, idx) => {
+      if (!FIELD_LABELS[key]) return "";
+      const f = _fcDraft.fields[key] || {};
+      const show = f.show !== false;
+      const req = f.required === true;
+      const lbl = _getFieldLabel(key, _fcDraft);
+      return `<div class="drag-row" draggable="true" data-list="field" data-idx="${idx}"
+        ondragstart="window._fcDragStart(event, 'field', ${idx})"
+        ondragover="window._fcDragOver(event)"
+        ondragleave="window._fcDragLeave(event)"
+        ondrop="window._fcDrop(event, 'field', ${idx})"
+        ondragend="window._fcDragEnd(event)">
+        <span class="drag-handle" title="ลากเพื่อจัดลำดับ">⋮⋮</span>
+        <span class="drag-num">${idx + 1}.</span>
+        <label class="drag-row-main">
+          <input type="checkbox" ${show ? "checked" : ""} onchange="window._fcToggleShow('${key}', this.checked)">
+          <span class="${show ? '' : 'inactive'}">${escapeHtml(lbl)}</span>
+        </label>
+        <button class="drag-row-edit" title="แก้ไขชื่อหัวข้อ" onclick="window._fcRenameField('${key}')">✏️</button>
+        <label class="drag-row-req">
+          <input type="checkbox" ${req ? "checked" : ""} ${show ? "" : "disabled"} onchange="window._fcToggleReq('${key}', this.checked)">
+          บังคับ*
+        </label>
+        <button class="drag-row-del" title="ลบฟิลด์นี้ (คืนค่าได้ภายหลัง)" onclick="window._fcRemoveStandardField('${key}')">🗑</button>
+      </div>`;
+    }).join("");
+  }
+  _renderFcHiddenFields();
 }
+
+function _renderFcHiddenFields() {
+  const box = document.getElementById("fcHiddenFieldsBox");
+  if (!box) return;
+  const hidden = Array.isArray(_fcDraft?.hidden_keys) ? _fcDraft.hidden_keys : [];
+  if (!hidden.length) { box.style.display = "none"; box.innerHTML = ""; return; }
+  box.style.display = "";
+  box.innerHTML = `
+    <div style="font-size:11px;color:#64748b;margin-bottom:6px">🗑 ฟิลด์ที่ซ่อน <span style="color:var(--text3)">— กดเพื่อคืนค่ากลับ</span></div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px">
+      ${hidden.map(k => `
+        <button type="button" class="fc-hidden-chip" onclick="window._fcRestoreStandardField('${k}')" title="คืนค่าฟิลด์นี้">
+          ↺ ${escapeHtml(FIELD_LABELS[k] || k)}
+        </button>
+      `).join("")}
+    </div>`;
+}
+
+window._fcRemoveStandardField = function (key) {
+  if (!_fcDraft) return;
+  _fcMarkDirty();
+  if (!Array.isArray(_fcDraft.hidden_keys)) _fcDraft.hidden_keys = [];
+  if (!_fcDraft.hidden_keys.includes(key)) _fcDraft.hidden_keys.push(key);
+  _fcDraft.field_order = (_fcDraft.field_order || []).filter(k => k !== key);
+  _renderFcFields();
+};
+
+window._fcRestoreStandardField = function (key) {
+  if (!_fcDraft) return;
+  _fcMarkDirty();
+  _fcDraft.hidden_keys = (_fcDraft.hidden_keys || []).filter(k => k !== key);
+  if (!Array.isArray(_fcDraft.field_order)) _fcDraft.field_order = [];
+  if (!_fcDraft.field_order.includes(key)) _fcDraft.field_order.push(key);
+  _renderFcFields();
+};
+
+window._fcRenameField = function (key) {
+  const current = _getFieldLabel(key, _fcDraft);
+  const next = prompt(`แก้ไขชื่อหัวข้อ "${current}":`, current);
+  if (next == null) return;
+  const trimmed = next.trim();
+  _fcMarkDirty();
+  if (!_fcDraft.fields[key]) _fcDraft.fields[key] = {};
+  // ถ้าตั้งเหมือน default → ลบ override ออก (เก็บ config สะอาด)
+  if (!trimmed || trimmed === FIELD_LABELS[key]) {
+    delete _fcDraft.fields[key].label;
+  } else {
+    _fcDraft.fields[key].label = trimmed;
+  }
+  _renderFcFields();
+};
+
+// ── Custom text fields (เก็บค่าใน extra_fields JSONB) ──────
+function _renderFcCustomFields() {
+  const list = document.getElementById("fcCustomList");
+  if (!list || !_fcDraft) return;
+  if (!Array.isArray(_fcDraft.custom_fields)) _fcDraft.custom_fields = [];
+  if (!_fcDraft.custom_fields.length) {
+    list.innerHTML = '<div style="padding:14px;text-align:center;color:var(--text3);font-size:12px">ยังไม่มีฟิลด์เพิ่มเติม — เพิ่มด้านบน</div>';
+    return;
+  }
+  list.innerHTML = _fcDraft.custom_fields.map((cf, i) => `
+    <div class="drag-row" draggable="true" data-list="custom" data-idx="${i}"
+      ondragstart="window._fcDragStart(event, 'custom', ${i})"
+      ondragover="window._fcDragOver(event)"
+      ondragleave="window._fcDragLeave(event)"
+      ondrop="window._fcDrop(event, 'custom', ${i})"
+      ondragend="window._fcDragEnd(event)">
+      <span class="drag-handle" title="ลากเพื่อจัดลำดับ">⋮⋮</span>
+      <span class="drag-num">${i + 1}.</span>
+      <span class="drag-row-label">${escapeHtml(cf.label)}</span>
+      <span class="drag-row-key" title="key">${escapeHtml(cf.key)}</span>
+      <button class="drag-row-edit" title="แก้ไขชื่อ" onclick="window._fcRenameCustom(${i})">✏️</button>
+      <button class="drag-row-del" title="ลบ" onclick="window._fcRemoveCustom(${i})">🗑</button>
+    </div>
+  `).join("");
+}
+
+window.addCustomField = function () {
+  const inp = document.getElementById("fcNewCustomLabel");
+  const label = inp.value.trim();
+  if (!label) { inp.focus(); return; }
+  _fcMarkDirty();
+  const baseKey = "cf_" + label.toLowerCase()
+    .replace(/[^\p{L}\p{N}\s_]/gu, "").replace(/\s+/g, "_").slice(0, 36);
+  let key = baseKey;
+  const used = new Set((_fcDraft.custom_fields || []).map(c => c.key));
+  let n = 2;
+  while (used.has(key)) key = `${baseKey}_${n++}`;
+  if (!Array.isArray(_fcDraft.custom_fields)) _fcDraft.custom_fields = [];
+  _fcDraft.custom_fields.push({ key, label });
+  inp.value = "";
+  _renderFcCustomFields();
+};
+
+window._fcRenameCustom = function (idx) {
+  const cf = _fcDraft.custom_fields[idx];
+  if (!cf) return;
+  const next = prompt(`แก้ไขชื่อฟิลด์ "${cf.label}":`, cf.label);
+  if (next == null || !next.trim()) return;
+  _fcMarkDirty();
+  cf.label = next.trim();
+  _renderFcCustomFields();
+};
+
+window._fcRemoveCustom = function (idx) {
+  _fcMarkDirty();
+  _fcDraft.custom_fields.splice(idx, 1);
+  _renderFcCustomFields();
+};
 
 function _fcMarkDirty() {
   if (_fcUseTemplate && _fcInfo?.templateId) {
@@ -4496,14 +5496,59 @@ function _renderFcQuals() {
     return;
   }
   list.innerHTML = _fcDraft.qualifications.map((q, i) => `
-    <div style="display:flex;align-items:center;gap:8px;background:#fff;border:1px solid #e2e8f0;border-radius:6px;padding:6px 10px">
-      <span style="font-size:11px;font-weight:700;color:#64748b;font-family:'IBM Plex Mono',monospace;min-width:24px">${i + 1}.</span>
-      <span style="flex:1;font-size:12.5px;color:#0f172a">${escapeHtml(q.label)}</span>
-      <span style="font-size:10px;color:#7c2d12;background:#fed7aa;padding:1px 6px;border-radius:4px;font-family:'IBM Plex Mono',monospace" title="key">${escapeHtml(q.key)}</span>
-      <button onclick="window.removeQualification(${i})" title="ลบ" style="background:#fef2f2;color:#b91c1c;border:none;border-radius:4px;padding:3px 7px;font-size:12px;cursor:pointer">🗑</button>
+    <div class="drag-row" draggable="true" data-list="qual" data-idx="${i}"
+      ondragstart="window._fcDragStart(event, 'qual', ${i})"
+      ondragover="window._fcDragOver(event)"
+      ondragleave="window._fcDragLeave(event)"
+      ondrop="window._fcDrop(event, 'qual', ${i})"
+      ondragend="window._fcDragEnd(event)">
+      <span class="drag-handle" title="ลากเพื่อจัดลำดับ">⋮⋮</span>
+      <span class="drag-num">${i + 1}.</span>
+      <span class="drag-row-label">${escapeHtml(q.label)}</span>
+      <span class="drag-row-key" title="key">${escapeHtml(q.key)}</span>
+      <button class="drag-row-del" onclick="window.removeQualification(${i})" title="ลบ">🗑</button>
     </div>
   `).join("");
 }
+
+// ── Drag-and-drop handlers (Field Config Modal) ────────────
+let _fcDragSrc = null;
+window._fcDragStart = function (ev, listType, idx) {
+  _fcDragSrc = { listType, idx };
+  ev.dataTransfer.effectAllowed = "move";
+  try { ev.dataTransfer.setData("text/plain", String(idx)); } catch {}
+  ev.currentTarget.classList.add("dragging");
+};
+window._fcDragOver = function (ev) {
+  ev.preventDefault();
+  ev.dataTransfer.dropEffect = "move";
+  ev.currentTarget.classList.add("drag-over");
+};
+window._fcDragLeave = function (ev) {
+  ev.currentTarget.classList.remove("drag-over");
+};
+window._fcDragEnd = function (ev) {
+  ev.currentTarget.classList.remove("dragging");
+  document.querySelectorAll(".drag-row.drag-over").forEach(el => el.classList.remove("drag-over"));
+  _fcDragSrc = null;
+};
+window._fcDrop = function (ev, listType, targetIdx) {
+  ev.preventDefault();
+  ev.currentTarget.classList.remove("drag-over");
+  if (!_fcDragSrc || _fcDragSrc.listType !== listType) return;
+  const srcIdx = _fcDragSrc.idx;
+  if (srcIdx === targetIdx) return;
+  _fcMarkDirty();
+  const arr = listType === "field" ? _fcDraft.field_order
+            : listType === "custom" ? _fcDraft.custom_fields
+            : _fcDraft.qualifications;
+  const [moved] = arr.splice(srcIdx, 1);
+  arr.splice(targetIdx, 0, moved);
+  _fcDragSrc = null;
+  if (listType === "field") _renderFcFields();
+  else if (listType === "custom") _renderFcCustomFields();
+  else _renderFcQuals();
+};
 
 window.addQualification = function () {
   const inp = document.getElementById("fcNewQualLabel");
