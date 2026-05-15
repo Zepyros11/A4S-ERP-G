@@ -3240,15 +3240,19 @@ function renderBusGuidesList() {
 window.toggleGuideForBus = async function (guideId) {
   const busId = state.guideTargetBusId;
   if (!busId) return;
-  const currentIds = state.busGuides[busId] || [];
-  const isAssigned = currentIds.includes(guideId);
+  const entries = state.busGuides[busId] || [];
+  const existing = entries.find(e => e.guide_id === guideId);
 
-  // Optimistic
-  if (isAssigned) {
-    state.busGuides[busId] = currentIds.filter(g => g !== guideId);
+  if (existing) {
+    // unassign — ลบทั้ง guide + seat (ถ้ามี)
+    state.busGuides[busId] = entries.filter(e => e.guide_id !== guideId);
     if (state.guideToBuses[guideId]) state.guideToBuses[guideId].delete(busId);
+    if (existing.seat_no && state.busGuideSeats[busId]) {
+      delete state.busGuideSeats[busId][existing.seat_no];
+    }
   } else {
-    state.busGuides[busId] = [...currentIds, guideId];
+    // assign — เพิ่ม guide เปล่า (ยังไม่มี seat)
+    state.busGuides[busId] = [...entries, { guide_id: guideId, seat_no: null }];
     if (!state.guideToBuses[guideId]) state.guideToBuses[guideId] = new Set();
     state.guideToBuses[guideId].add(busId);
   }
@@ -3256,29 +3260,88 @@ window.toggleGuideForBus = async function (guideId) {
   renderBuses();
 
   try {
-    if (isAssigned) {
+    if (existing) {
       await sbFetch("trip_bus_guides",
         `?bus_id=eq.${busId}&guide_id=eq.${guideId}`,
         { method: "DELETE" });
     } else {
       await sbFetch("trip_bus_guides", "", {
         method: "POST",
-        body: { bus_id: busId, guide_id: guideId },
+        body: { bus_id: busId, guide_id: guideId, seat_no: null },
       });
     }
   } catch (e) {
     // revert
-    if (isAssigned) {
-      state.busGuides[busId] = [...(state.busGuides[busId] || []), guideId];
+    if (existing) {
+      state.busGuides[busId] = [...(state.busGuides[busId] || []), existing];
       if (!state.guideToBuses[guideId]) state.guideToBuses[guideId] = new Set();
       state.guideToBuses[guideId].add(busId);
+      if (existing.seat_no) {
+        if (!state.busGuideSeats[busId]) state.busGuideSeats[busId] = {};
+        state.busGuideSeats[busId][existing.seat_no] = guideId;
+      }
     } else {
-      state.busGuides[busId] = (state.busGuides[busId] || []).filter(g => g !== guideId);
+      state.busGuides[busId] = (state.busGuides[busId] || []).filter(e => e.guide_id !== guideId);
       if (state.guideToBuses[guideId]) state.guideToBuses[guideId].delete(busId);
     }
     renderBusGuidesList();
     renderBuses();
     showToast("ไม่สำเร็จ: " + e.message, "error");
+  }
+};
+
+// เลือก seat ให้ไกด์ (หรือเปลี่ยน seat / เคลียร์)
+window.setGuideSeat = async function (guideId, newSeat) {
+  const busId = state.guideTargetBusId;
+  if (!busId) return;
+  const entries = state.busGuides[busId] || [];
+  const entry = entries.find(e => e.guide_id === guideId);
+  if (!entry) return;
+  const oldSeat = entry.seat_no;
+  const seatVal = newSeat || null;
+  if (oldSeat === seatVal) return;
+
+  // เช็คว่า seat ใหม่ถูกครองหรือยัง (passenger หรือ guide คนอื่น)
+  if (seatVal) {
+    if ((state.busOccupants[busId] || {})[seatVal]) {
+      showToast(`ที่นั่ง ${seatVal} มีลูกค้านั่งอยู่`, "error");
+      renderBusGuidesList();
+      return;
+    }
+    const otherGuide = (state.busGuideSeats[busId] || {})[seatVal];
+    if (otherGuide && otherGuide !== guideId) {
+      showToast(`ที่นั่ง ${seatVal} เป็นที่นั่งของไกด์ท่านอื่น`, "error");
+      renderBusGuidesList();
+      return;
+    }
+  }
+
+  // Optimistic update
+  entry.seat_no = seatVal;
+  if (oldSeat && state.busGuideSeats[busId]) delete state.busGuideSeats[busId][oldSeat];
+  if (seatVal) {
+    if (!state.busGuideSeats[busId]) state.busGuideSeats[busId] = {};
+    state.busGuideSeats[busId][seatVal] = guideId;
+  }
+  renderBusGuidesList();
+  renderBuses();
+
+  try {
+    await sbFetch("trip_bus_guides",
+      `?bus_id=eq.${busId}&guide_id=eq.${guideId}`,
+      { method: "PATCH", body: { seat_no: seatVal } });
+    showToast(seatVal ? `จัดที่นั่ง ${seatVal} ให้ไกด์แล้ว` : "เคลียร์ที่นั่งไกด์แล้ว", "success");
+  } catch (e) {
+    // revert
+    entry.seat_no = oldSeat;
+    if (seatVal && state.busGuideSeats[busId]) delete state.busGuideSeats[busId][seatVal];
+    if (oldSeat) {
+      if (!state.busGuideSeats[busId]) state.busGuideSeats[busId] = {};
+      state.busGuideSeats[busId][oldSeat] = guideId;
+    }
+    renderBusGuidesList();
+    renderBuses();
+    showToast("เปลี่ยน seat ไม่สำเร็จ: " + e.message, "error");
   }
 };
 
