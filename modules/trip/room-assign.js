@@ -33,6 +33,7 @@ const state = {
   codeToBusSeat: {},          // { [code]: { bus_id, seat_no } }   1 code ต่อทริป (UNIQUE per bus)
   collapsedBuses: new Set(),
   editingBusId: null,
+  activeTab: "rooms",         // "rooms" | "buses"
 };
 
 // ── SEAT LAYOUT PRESETS ────────────────────────────────────
@@ -232,6 +233,8 @@ async function loadAll() {
     renderPassengers();
     renderRooms();
     renderBuses();
+    updateTabCounts();
+    window.switchTab(state.activeTab);
   } catch (e) {
     showToast("โหลดข้อมูลไม่สำเร็จ: " + e.message, "error");
   }
@@ -243,11 +246,50 @@ function bindEvents() {
   document.getElementById("paxFilterStatus")?.addEventListener("change", renderPassengers);
   document.getElementById("paxFilterGender")?.addEventListener("change", renderPassengers);
   document.getElementById("paxFilterBatch")?.addEventListener("change", (ev) => {
-    ev.target.classList.toggle("has-value", !!ev.target.value);
+    const val = ev.target.value || "";
+    ev.target.classList.toggle("has-value", !!val);
+    // ถ้าเลือก bus → switch tab ไป buses อัตโนมัติ
+    if (val.startsWith("bus:")) {
+      window.switchTab("buses");
+    } else if (val) {
+      // เลือกโรงแรม → กลับมาที่ rooms tab
+      window.switchTab("rooms");
+    }
     syncCollapsedWithBatch();
     renderPassengers();
     renderRooms();
   });
+}
+
+// ── TAB SWITCHER ───────────────────────────────────────────
+window.switchTab = function (tab) {
+  if (tab !== "rooms" && tab !== "buses") return;
+  state.activeTab = tab;
+  document.getElementById("tabRooms")?.classList.toggle("active", tab === "rooms");
+  document.getElementById("tabBuses")?.classList.toggle("active", tab === "buses");
+  const roomsC = document.getElementById("roomsContainer");
+  const busesC = document.getElementById("busesContainer");
+  if (roomsC) roomsC.style.display = tab === "rooms" ? "" : "none";
+  if (busesC) busesC.style.display = tab === "buses" ? "" : "none";
+  const btnAddRoom = document.getElementById("btnAddRoom");
+  const btnAddBus  = document.getElementById("btnAddBus");
+  const btnSyncBus = document.getElementById("btnSyncBus");
+  if (btnAddRoom) btnAddRoom.style.display = tab === "rooms" ? "" : "none";
+  if (btnAddBus)  btnAddBus.style.display  = tab === "buses" ? "" : "none";
+  if (btnSyncBus) btnSyncBus.style.display = tab === "buses" ? "" : "none";
+  // re-apply perms (กรณีปุ่มที่ถูก hide ตาม perm ต้องคงสภาพ)
+  if (window.AuthZ?.applyDomPerms) AuthZ.applyDomPerms(document.querySelector(".ra-rooms-toolbar"));
+  // refresh hint label ตาม tab ใหม่
+  if (typeof updateSelectionHint === "function") updateSelectionHint();
+};
+
+function updateTabCounts() {
+  const roomGroupKeys = new Set();
+  state.rooms.forEach(r => roomGroupKeys.add(groupKeyOf(r)));
+  const rEl = document.getElementById("tabRoomsCount");
+  if (rEl) rEl.textContent = roomGroupKeys.size;
+  const bEl = document.getElementById("tabBusesCount");
+  if (bEl) bEl.textContent = state.buses.length;
 }
 
 // sync collapse state ตาม batch filter
@@ -259,6 +301,11 @@ function syncCollapsedWithBatch() {
   const allKeys = new Set();
   state.rooms.forEach(r => allKeys.add(groupKeyOf(r)));
   if (allKeys.size <= 1) {
+    state.collapsedGroups = new Set();
+    return;
+  }
+  // bus mode → ไม่บังคับ collapse rooms
+  if (activeKey.startsWith("bus:")) {
     state.collapsedGroups = new Set();
     return;
   }
@@ -290,21 +337,37 @@ function populateBatchFilter() {
     });
   });
   const batches = [...seen.values()].sort((a, b) => a.sort - b.sort);
-  const opts = ['<option value="">🏨 เลือกโรงแรม</option>'];
-  batches.forEach(b => {
-    const dates = (b.ci || b.co) ? `${b.ci ? fmtDate(b.ci) : "?"}→${b.co ? fmtDate(b.co) : "?"}` : "";
-    const label = `🏨 ${b.hotelName}${dates ? " · " + dates : ""}`;
-    opts.push(`<option value="${escapeAttr(b.key)}">${escapeHtml(label)}</option>`);
-  });
+  const opts = ['<option value="">🏨 เลือกโรงแรม / 🚌 รถบัส</option>'];
+  // hotel optgroup
+  if (batches.length) {
+    opts.push('<optgroup label="🏨 โรงแรม (ช่วงพัก)">');
+    batches.forEach(b => {
+      const dates = (b.ci || b.co) ? `${b.ci ? fmtDate(b.ci) : "?"}→${b.co ? fmtDate(b.co) : "?"}` : "";
+      const label = `${b.hotelName}${dates ? " · " + dates : ""}`;
+      opts.push(`<option value="${escapeAttr(b.key)}">${escapeHtml(label)}</option>`);
+    });
+    opts.push('</optgroup>');
+  }
+  // bus optgroup
+  if (state.buses.length) {
+    opts.push('<optgroup label="🚌 รถบัส">');
+    state.buses.forEach(bus => {
+      const lbl = bus.bus_label
+        ? `คันที่ ${bus.bus_no || "?"} · ${bus.bus_label}`
+        : `คันที่ ${bus.bus_no || "?"}`;
+      opts.push(`<option value="bus:${bus.bus_id}">${escapeHtml(lbl)}</option>`);
+    });
+    opts.push('</optgroup>');
+  }
   sel.innerHTML = opts.join("");
-  // คงค่าเดิมถ้า batch ยังอยู่
-  if (prev && [...seen.keys()].includes(prev)) {
+  // คงค่าเดิมถ้ายังอยู่
+  const validValues = new Set([...seen.keys(), ...state.buses.map(b => `bus:${b.bus_id}`)]);
+  if (prev && validValues.has(prev)) {
     sel.value = prev;
-  } else if (batches.length === 1) {
-    // ทริปมีโรงแรมเดียว → auto-select เพื่อใช้ห้องเดียวเลย
+  } else if (batches.length === 1 && !state.buses.length) {
+    // ทริปมีโรงแรมเดียว ไม่มีรถ → auto-select เพื่อใช้ห้องเดียวเลย
     sel.value = batches[0].key;
   }
-  // toggle สี (ส้ม=ยังไม่เลือก, เขียว=เลือกแล้ว)
   sel.classList.toggle("has-value", !!sel.value);
 }
 
@@ -992,29 +1055,34 @@ function assignedBatchCount(code) {
 
 function renderPassengers() {
   const search = (document.getElementById("paxSearch")?.value || "").toLowerCase();
-  const status = document.getElementById("paxFilterStatus")?.value || "unassigned";
+  const status = document.getElementById("paxFilterStatus")?.value || "missing_any";
   const gender = document.getElementById("paxFilterGender")?.value || "";
 
   const batchKey = document.getElementById("paxFilterBatch")?.value || "";
+  const isBusMode = batchKey.startsWith("bus:");
+  const busId = isBusMode ? parseInt(batchKey.slice(4), 10) : null;
   const totalB = totalBatchCount();
 
-  // กันสับสน: ถ้ามีหลายโรงแรมแต่ user ยังไม่เลือก → ไม่แสดงรายชื่อ
-  if (totalB > 1 && !batchKey) {
+  // กันสับสน: ถ้ามีหลายโรงแรมแต่ user ยังไม่เลือก batch → ไม่แสดงรายชื่อ
+  // (เฉพาะ filter ที่อิง batch — "no_seat" + "all" ไม่ต้องเลือก batch ก่อน)
+  // bus mode ไม่ต้องเลือก hotel batch — ใช้ logic bus เลย
+  const needsHotelBatch = !isBusMode && (status === "unassigned" || status === "assigned" || status === "missing_any");
+  if (totalB > 1 && !batchKey && needsHotelBatch) {
     document.getElementById("paxFilteredCount").textContent = 0;
     const list = document.getElementById("paxList");
     if (list) {
       list.innerHTML = `<div class="ra-pax-empty" style="padding:30px 20px">
-        🏨 เลือกโรงแรมก่อน<br>
+        🏨 เลือกโรงแรมหรือ🚌รถบัสก่อน<br>
         <span style="font-size:11px;color:var(--text3);margin-top:6px;display:inline-block">
-          ทริปนี้มี ${totalB} ช่วงพัก — เลือกช่วงที่ต้องการจัดห้องด้านบน
+          ทริปนี้มี ${totalB} ช่วงพัก — เลือกในกล่อง dropdown ด้านบน<br>
+          หรือเปลี่ยน filter เป็น "ยังไม่ได้ที่นั่ง" / "ทั้งหมด"
         </span>
       </div>`;
     }
     return;
   }
 
-  // ถ้า batchKey ระบุ → "ยังไม่จัด/จัดแล้ว" หมายถึงเฉพาะใน batch นั้น
-  // ถ้าไม่ระบุ (เพราะมี batch เดียว) → ใช้ semantics รวม
+  // hotel batch helper
   const isInBatch = (code) => {
     const rids = state.codeToRooms[code];
     if (!rids || !rids.size) return false;
@@ -1023,8 +1091,31 @@ function renderPassengers() {
       return room && groupKeyOf(room) === batchKey;
     });
   };
+  // bus helper: code นี้นั่งใน bus นี้?
+  const isOnBus = (code) => {
+    const seat = state.codeToBusSeat[code];
+    return seat && seat.bus_id === busId;
+  };
+
   const filtered = state.passengers.filter(p => {
-    if (batchKey) {
+    const hasSeat = !!state.codeToBusSeat[p.code];
+    if (isBusMode) {
+      // bus mode: status semantics จำกัดในรถคันที่เลือก
+      const onThisBus = isOnBus(p.code);
+      if (status === "unassigned" || status === "no_seat" || status === "missing_any") {
+        // คนที่ยังไม่นั่งคันนี้
+        if (onThisBus) return false;
+      } else if (status === "assigned") {
+        if (!onThisBus) return false;
+      }
+      // status === "all" → ไม่กรอง
+    } else if (status === "no_seat") {
+      if (hasSeat) return false;
+    } else if (status === "missing_any") {
+      // ขาดอะไรอย่างน้อย 1: ห้องในช่วงนี้ หรือ ที่นั่ง
+      const hasRoom = batchKey ? isInBatch(p.code) : (assignedBatchCount(p.code) >= totalB && totalB > 0);
+      if (hasRoom && hasSeat) return false;
+    } else if (batchKey) {
       const inB = isInBatch(p.code);
       if (status === "unassigned" && inB) return false;
       if (status === "assigned" && !inB) return false;
@@ -1117,7 +1208,8 @@ function updateSelectionHint() {
   const btn  = document.getElementById("btnClearSelection");
   if (state.selectedPaxCode) {
     const p = state.passengers.find(x => x.code === state.selectedPaxCode);
-    hint.innerHTML = `เลือก: <b style="color:var(--accent)">${escapeHtml(p?.name || state.selectedPaxCode)}</b> — คลิกห้องพักหรือที่นั่งรถบัส`;
+    const target = state.activeTab === "buses" ? "ที่นั่งรถบัส" : "ห้องพัก";
+    hint.innerHTML = `เลือก: <b style="color:var(--accent)">${escapeHtml(p?.name || state.selectedPaxCode)}</b> — คลิก${target}ที่ต้องการ`;
     btn.style.display = "inline-flex";
   } else {
     hint.textContent = "ยังไม่ได้เลือกลูกค้า — คลิกชื่อด้านซ้ายเพื่อเริ่ม";
@@ -2256,6 +2348,7 @@ function showLoading(show) {
 // ════════════════════════════════════════════════════════════
 //  BUS LOGIC (merged from bus-assign)
 // ════════════════════════════════════════════════════════════
+// switchTab / updateTabCounts ประกาศไว้ข้างบนแล้ว — ที่นี่จะใช้ BUS_PRESETS
 
 function populateBusPresetDropdown() {
   const sel = document.getElementById("fBusPreset");

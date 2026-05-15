@@ -345,16 +345,33 @@
       .ra-report-row{display:flex;align-items:center;gap:8px;padding:4px 8px;border-radius:6px;background:#f8fafc}
       .ra-report-empty{padding:20px;text-align:center;color:var(--text3);font-size:12.5px}
 
-      /* ════════════ BUSES (merged from bus-assign) ════════════ */
-      .ba-buses-section{margin-top:18px;padding-top:14px;border-top:2px dashed var(--border)}
-      .ba-buses-section-hdr{
-        display:flex;align-items:center;justify-content:space-between;
-        gap:8px;flex-wrap:wrap;margin-bottom:10px;
+      /* ════════════ TAB SWITCHER (rooms / buses) ════════════ */
+      .ra-tabs{
+        display:inline-flex;gap:4px;
+        background:#fff;border:1px solid var(--border);border-radius:999px;
+        padding:3px;
       }
-      .ba-buses-section-title{
-        font-weight:700;font-size:15px;color:var(--text);
+      .ra-tab{
         display:inline-flex;align-items:center;gap:6px;
+        padding:6px 16px;border-radius:999px;
+        background:transparent;border:none;font-family:inherit;
+        font-size:13px;font-weight:600;color:var(--text2);cursor:pointer;
+        transition:.12s;
       }
+      .ra-tab:hover{background:#f1f5f9;color:var(--text)}
+      .ra-tab.active{
+        background:var(--accent,#0f4c75);color:#fff;cursor:default;
+      }
+      .ra-tab.active:hover{background:var(--accent,#0f4c75);color:#fff}
+      .ra-tab-count{
+        display:inline-flex;align-items:center;justify-content:center;
+        min-width:18px;height:18px;padding:0 5px;
+        border-radius:99px;font-size:10.5px;font-weight:700;
+        background:rgba(255,255,255,.25);color:inherit;
+      }
+      .ra-tab:not(.active) .ra-tab-count{background:#e2e8f0;color:var(--text2)}
+
+      /* ════════════ BUSES ════════════ */
       .ba-buses{display:flex;flex-direction:column;gap:14px}
 
       .ba-bus-card{background:#fff;border:1px solid var(--border);border-radius:12px;padding:12px}
@@ -570,10 +587,12 @@
                 <select id="paxFilterBatch" title="กรองตามโรงแรม (ช่วงพัก)" style="flex:1 1 100%">
                   <option value="">🏨 เลือกโรงแรม</option>
                 </select>
-                <select id="paxFilterStatus" title="ยังไม่จัด = ในช่วงที่เลือก · ครบ = มีห้องในช่วงที่เลือก">
-                  <option value="unassigned">ยังไม่จัด</option>
+                <select id="paxFilterStatus" title="ตัวกรองรายชื่อ — แยกห้อง / ที่นั่ง / ครบ">
+                  <option value="missing_any" selected>⏳ ยังไม่ครบ (ห้อง/ที่นั่ง)</option>
+                  <option value="unassigned">🛏️ ยังไม่ได้ห้อง</option>
+                  <option value="no_seat">🚌 ยังไม่ได้ที่นั่ง</option>
                   <option value="all">ทั้งหมด</option>
-                  <option value="assigned">จัดแล้ว</option>
+                  <option value="assigned">✅ ห้องครบในช่วงนี้</option>
                 </select>
                 <select id="paxFilterGender">
                   <option value="">⚥ ทุกเพศ</option>
@@ -591,37 +610,35 @@
 
             <!-- RIGHT: rooms -->
             <div class="ra-rooms">
-              <div class="ra-rooms-toolbar">
-                <div class="ra-hint">
-                  <span id="selectedHint" style="color:var(--text2);font-size:12px">ยังไม่ได้เลือกลูกค้า</span>
-                </div>
-                <div style="display:flex;gap:8px;flex-wrap:wrap">
-                  <button class="btn btn-outline" id="btnClearSelection" style="display:none" onclick="window.clearPaxSelection()">ยกเลิกเลือก</button>
-                  <button class="btn btn-primary" data-perm="trip_rooms_create" onclick="window.openRoomBatchModal()">＋ เพิ่มโรงแรม</button>
-                  <button class="btn btn-primary" data-perm="trip_bus_create" onclick="window.openBusModal()">＋ เพิ่มรถบัส</button>
-                </div>
-              </div>
-
-              <div id="roomsContainer">
-                <div class="ra-empty-rooms">
-                  ⏳ กำลังโหลด...
-                </div>
-              </div>
-
-              <!-- ════════════ BUSES SECTION ════════════ -->
-              <div class="ba-buses-section">
-                <div class="ba-buses-section-hdr">
-                  <div class="ba-buses-section-title">
-                    🚌 รถบัส
-                    <span id="busesSummary" style="font-weight:500;font-size:12px;color:var(--text2)"></span>
-                  </div>
-                  <button class="btn btn-outline" data-perm="trip_bus_assign" onclick="window.syncBusFromRooms()" title="จัดที่นั่งติดกันตามคู่ห้องพัก" style="font-size:12px;padding:5px 10px">
-                    🔗 ตามคู่ห้องพัก
+              <!-- TABS -->
+              <div class="ra-rooms-toolbar" style="margin-bottom:10px">
+                <div class="ra-tabs" role="tablist">
+                  <button class="ra-tab active" id="tabRooms" onclick="window.switchTab('rooms')">
+                    🛏 ห้องพัก <span class="ra-tab-count" id="tabRoomsCount">0</span>
+                  </button>
+                  <button class="ra-tab" id="tabBuses" onclick="window.switchTab('buses')">
+                    🚌 รถบัส <span class="ra-tab-count" id="tabBusesCount">0</span>
                   </button>
                 </div>
-                <div class="ba-buses" id="busesContainer">
-                  <div class="ba-empty-buses">⏳ กำลังโหลด...</div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+                  <span id="selectedHint" style="color:var(--text2);font-size:12px">ยังไม่ได้เลือกลูกค้า</span>
+                  <button class="btn btn-outline" id="btnClearSelection" style="display:none" onclick="window.clearPaxSelection()">ยกเลิกเลือก</button>
+                  <button class="btn btn-outline" id="btnSyncBus" data-perm="trip_bus_assign" onclick="window.syncBusFromRooms()" title="จัดที่นั่งติดกันตามคู่ห้องพัก" style="font-size:12px;padding:5px 10px;display:none">
+                    🔗 ตามคู่ห้องพัก
+                  </button>
+                  <button class="btn btn-primary" id="btnAddRoom" data-perm="trip_rooms_create" onclick="window.openRoomBatchModal()">＋ เพิ่มโรงแรม</button>
+                  <button class="btn btn-primary" id="btnAddBus" data-perm="trip_bus_create" onclick="window.openBusModal()" style="display:none">＋ เพิ่มรถบัส</button>
                 </div>
+              </div>
+
+              <!-- ROOMS TAB CONTENT -->
+              <div id="roomsContainer">
+                <div class="ra-empty-rooms">⏳ กำลังโหลด...</div>
+              </div>
+
+              <!-- BUSES TAB CONTENT -->
+              <div class="ba-buses" id="busesContainer" style="display:none">
+                <div class="ba-empty-buses">⏳ กำลังโหลด...</div>
               </div>
             </div>
 

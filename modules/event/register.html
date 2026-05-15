@@ -44,6 +44,16 @@ body{font-family:'Sarabun',sans-serif;background:#f1f5f9;min-height:100vh;displa
 /* ── Auth form ── */
 .reg-auth{padding:20px;}
 .reg-auth-title{font-size:14px;font-weight:700;color:#334155;margin-bottom:12px;display:flex;align-items:center;gap:6px;}
+
+/* Tab switcher: สมาชิก / บุคคลทั่วไป */
+.reg-tabs{display:flex;gap:4px;padding:4px;background:#f1f5f9;border-radius:10px;margin-bottom:14px;}
+.reg-tab{flex:1;padding:9px 10px;border:none;background:transparent;border-radius:7px;font-family:inherit;font-size:13px;font-weight:600;color:#64748b;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:5px;}
+.reg-tab:hover:not(.active){color:#334155;}
+.reg-tab.active{background:#fff;color:#1e40af;box-shadow:0 1px 3px rgba(0,0,0,.08);}
+.reg-tab-pane{display:none;}
+.reg-tab-pane.active{display:block;}
+.reg-guest-note{font-size:11.5px;color:#64748b;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:8px 11px;margin-bottom:10px;line-height:1.5;}
+
 .reg-field{margin-bottom:10px;}
 .reg-field label{display:block;font-size:12px;font-weight:600;color:#64748b;margin-bottom:4px;}
 .reg-field input{width:100%;padding:11px 14px;border:1.5px solid #e2e8f0;border-radius:8px;font-family:inherit;font-size:14px;transition:border-color .15s;}
@@ -743,26 +753,74 @@ function renderPage() {
   } else if (isFull) {
     formEl.innerHTML = '<div class="reg-closed"><div class="reg-closed-icon">🚫</div>ลงทะเบียนเต็มแล้ว</div>';
   } else {
-    formEl.innerHTML = `
-      <div class="reg-auth">
-        <div class="reg-auth-title">🔐 ยืนยันตัวตน</div>
-        <div class="reg-field">
-          <label>รหัสสมาชิก</label>
-          <input id="rCode" placeholder="เช่น 10001" autocomplete="off" inputmode="numeric">
-        </div>
-        <div class="reg-field">
-          <label>รหัสผ่าน</label>
-          <input id="rPass" type="password" placeholder="รหัสผ่านของคุณ">
-        </div>
-        <div id="regMsg" style="display:none"></div>
-        <button class="reg-submit" id="btnRegister" onclick="doRegister()">🎫 ลงทะเบียน</button>
-      </div>`;
+    const allowGuest = !_event.members_only;
+    const memberFormHtml = `
+      <div class="reg-field">
+        <label>รหัสสมาชิก</label>
+        <input id="rCode" placeholder="เช่น 10001" autocomplete="off" inputmode="numeric">
+      </div>
+      <div class="reg-field">
+        <label>รหัสผ่าน</label>
+        <input id="rPass" type="password" placeholder="รหัสผ่านของคุณ">
+      </div>
+      <div id="regMsg" style="display:none"></div>
+      <button class="reg-submit" id="btnRegister" onclick="doRegister()">🎫 ลงทะเบียน</button>`;
+    const guestFormHtml = `
+      <div class="reg-guest-note">📝 สำหรับผู้ที่ไม่ใช่สมาชิก A4S — กรอกชื่อและเบอร์โทรเพื่อลงทะเบียนเข้างาน</div>
+      <div class="reg-field">
+        <label>ชื่อ-นามสกุล</label>
+        <input id="gName" placeholder="กรอกชื่อ-นามสกุล" autocomplete="name">
+      </div>
+      <div class="reg-field">
+        <label>เบอร์โทรศัพท์</label>
+        <input id="gPhone" placeholder="08x-xxx-xxxx" inputmode="tel" autocomplete="tel">
+      </div>
+      <div id="regMsgGuest" style="display:none"></div>
+      <button class="reg-submit" id="btnRegisterGuest" onclick="doRegisterGuest()">🎫 ลงทะเบียน</button>`;
+
+    if (!allowGuest) {
+      // members-only event → no tabs
+      formEl.innerHTML = `
+        <div class="reg-auth">
+          <div class="reg-auth-title">🔐 ยืนยันตัวตน</div>
+          ${memberFormHtml}
+        </div>`;
+    } else {
+      formEl.innerHTML = `
+        <div class="reg-auth">
+          <div class="reg-tabs" role="tablist">
+            <button class="reg-tab active" data-tab="member" role="tab" onclick="switchRegTab('member')">🔐 สมาชิก A4S</button>
+            <button class="reg-tab" data-tab="guest" role="tab" onclick="switchRegTab('guest')">👤 บุคคลทั่วไป</button>
+          </div>
+          <div class="reg-tab-pane active" id="tabMember" role="tabpanel">
+            ${memberFormHtml}
+          </div>
+          <div class="reg-tab-pane" id="tabGuest" role="tabpanel">
+            ${guestFormHtml}
+          </div>
+        </div>`;
+    }
     // Enter key
     setTimeout(() => {
       document.getElementById('rPass')?.addEventListener('keydown', e => { if (e.key === 'Enter') doRegister(); });
+      document.getElementById('gPhone')?.addEventListener('keydown', e => { if (e.key === 'Enter') doRegisterGuest(); });
     }, 50);
   }
 }
+
+/* ── Tab switcher: member / guest ── */
+window.switchRegTab = function (tab) {
+  document.querySelectorAll('.reg-tab').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+  const memberPane = document.getElementById('tabMember');
+  const guestPane = document.getElementById('tabGuest');
+  if (memberPane) memberPane.classList.toggle('active', tab === 'member');
+  if (guestPane) guestPane.classList.toggle('active', tab === 'guest');
+  // Auto-focus first field of active tab
+  setTimeout(() => {
+    if (tab === 'member') document.getElementById('rCode')?.focus();
+    else document.getElementById('gName')?.focus();
+  }, 50);
+};
 
 /* ── Link LINE account to member (persistent, cross-event) ───
    1) Upsert history row in member_line_accounts (ตัวเก็บทุก LINE ID)
@@ -984,6 +1042,108 @@ async function doRegister() {
     showMsg('❌ เกิดข้อผิดพลาด: ' + (e.message || '').slice(0, 100), 'error');
     btn.disabled = false; btn.textContent = '🎫 ลงทะเบียน';
   }
+}
+
+/* ── Guest registration (ไม่ใช่สมาชิก A4S) ─────────────── */
+async function doRegisterGuest() {
+  const name = document.getElementById('gName').value.trim();
+  const phone = document.getElementById('gPhone').value.trim();
+  const btn = document.getElementById('btnRegisterGuest');
+
+  if (!name) { showGuestMsg('กรุณากรอกชื่อ-นามสกุล', 'error'); return; }
+  if (!phone) { showGuestMsg('กรุณากรอกเบอร์โทรศัพท์', 'error'); return; }
+  if (_event.members_only) { showGuestMsg('❌ Event นี้สำหรับสมาชิก A4S เท่านั้น', 'error'); return; }
+
+  btn.disabled = true;
+  btn.textContent = '⏳ กำลังลงทะเบียน...';
+  document.getElementById('regMsgGuest').style.display = 'none';
+
+  const resetBtn = () => { btn.disabled = false; btn.textContent = '🎫 ลงทะเบียน'; };
+
+  try {
+    // Refresh capacity (กันคนอื่นเพิ่งลง)
+    if (_event.max_attendees && _event.max_attendees > 0) {
+      const attRes = await fetch(`${SB_URL}/rest/v1/event_attendees?event_id=eq.${_event.event_id}&select=attendee_id`, {
+        headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}`, Prefer: 'count=exact', Range: '0-0' },
+      });
+      const range = attRes.headers.get('content-range') || '*/0';
+      _attendeeCount = parseInt(range.split('/')[1], 10) || 0;
+      if (_attendeeCount >= _event.max_attendees) {
+        showGuestMsg('❌ เต็มแล้ว', 'error'); resetBtn(); return;
+      }
+    }
+
+    // Generate ticket
+    const prefix = `TK-${_event.event_id}-`;
+    let baseNum = 1;
+    try {
+      const tix = await sbGet(`event_attendees?ticket_no=like.${prefix}*&select=ticket_no&order=ticket_no.desc&limit=1`);
+      if (tix.length) {
+        const lastBase = parseInt(String(tix[0].ticket_no).slice(prefix.length).split('-')[0], 10) || 0;
+        baseNum = lastBase + 1;
+      }
+    } catch {}
+    const ticketNo = `${prefix}${String(baseNum).padStart(4, '0')}`;
+
+    const nowIso = new Date().toISOString();
+    const row = {
+      event_id: _event.event_id,
+      name,
+      phone,
+      member_code: null,
+      person_role: 'guest',
+      attend_type: 'ONSITE',
+      ticket_no: ticketNo,
+      payment_status: 'FREE',
+      checked_in: true,
+      check_in_at: nowIso,
+      ...(_lineProfile ? {
+        line_user_id: _lineProfile.userId,
+        line_display_name: _lineProfile.displayName || null,
+        line_picture_url: _lineProfile.pictureUrl || null,
+        line_linked_at: nowIso,
+      } : {}),
+    };
+    await sbPost('event_attendees', [row]);
+
+    // Success!
+    document.getElementById('regForm').innerHTML = `
+      <div class="reg-msg success">
+        <div style="font-size:32px;margin-bottom:8px">✅</div>
+        <div style="font-weight:700;font-size:16px">เข้างานเรียบร้อย!</div>
+        <div style="margin-top:4px;font-size:12.5px;color:#64748b">บุคคลทั่วไป</div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 12px;background:#fff;border:1px solid #e2e8f0;border-radius:12px;margin-top:10px;box-shadow:0 1px 2px rgba(0,0,0,.04)">
+          <div style="font-size:13px;color:#0f172a;font-weight:600">👤 ${esc(name)}</div>
+          <div id="gRegQr" data-qr="${esc(ticketNo)}" style="background:#fff;padding:8px;border-radius:8px"></div>
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:700;color:#1e40af;letter-spacing:.5px">${esc(ticketNo)}</div>
+        </div>
+        <div style="margin-top:14px;font-size:12px;color:#64748b">📱 แสดง QR นี้ที่หน้างานเพื่อ check-in</div>
+      </div>`;
+    const qrWrap = document.getElementById('gRegQr');
+    if (qrWrap) {
+      try {
+        new QRCode(qrWrap, { text: ticketNo, width: 160, height: 160, correctLevel: QRCode.CorrectLevel.M });
+      } catch {
+        qrWrap.textContent = ticketNo;
+      }
+    }
+    // ซ่อน LINE OA connect button — guest ไม่มี member_code ให้ผูก
+    if (!_lineProfile) {
+      const linePanel = document.getElementById('regLinePanel');
+      if (linePanel) linePanel.style.display = 'none';
+    }
+  } catch (e) {
+    showGuestMsg('❌ เกิดข้อผิดพลาด: ' + (e.message || '').slice(0, 100), 'error');
+    resetBtn();
+  }
+}
+
+function showGuestMsg(msg, type) {
+  const el = document.getElementById('regMsgGuest');
+  if (!el) return;
+  el.className = `reg-msg ${type}`;
+  el.innerHTML = msg;
+  el.style.display = 'block';
 }
 
 /* ── Person picker — เลือก primary / co_applicant / ทั้งคู่ ──
