@@ -35,6 +35,13 @@ const state = {
   editingBusId: null,
   activeTab: "rooms",         // "rooms" | "buses"
   initialCollapseSet: false,  // set true หลัง init เพื่อกัน reset state ขยายของ user
+
+  // ── GUIDES ──
+  guides: [],                 // trip_guides
+  busGuides: {},              // { [bus_id]: [guide_id, ...] }
+  guideToBuses: {},           // { [guide_id]: Set<bus_id> }   reverse lookup
+  editingGuideId: null,
+  guideTargetBusId: null,     // bus_id ที่กำลังจะ assign ไกด์ให้ (ตอนเปิด modal)
 };
 
 // ── SEAT LAYOUT PRESETS ────────────────────────────────────
@@ -162,7 +169,7 @@ async function init() {
 async function loadAll() {
   showLoading(true);
   try {
-    const [trip, paxs, rooms, hotels, buses] = await Promise.all([
+    const [trip, paxs, rooms, hotels, buses, guides] = await Promise.all([
       sbFetch("trips", `?trip_id=eq.${state.tripId}&select=*`).then(r => r?.[0] || null),
       sbFetch("tour_seat_check",
         `?trip_id=eq.${state.tripId}&select=code,name,gender,nationality,passport_image_url,visa_image_url,passport_id,passport_exp_date,group_name,seat,is_sub_row,parent_code&order=group_name.asc.nullslast,name.asc`),
@@ -172,9 +179,12 @@ async function loadAll() {
         "?place_type=eq.HOTEL&select=*&order=place_name.asc").catch((e) => { console.warn("[room-assign] load hotels:", e.message); return []; }),
       sbFetch("trip_buses",
         `?trip_id=eq.${state.tripId}&select=*&order=sort_order.asc,bus_id.asc`).catch(() => []),
+      sbFetch("trip_guides",
+        `?trip_id=eq.${state.tripId}&select=*&order=sort_order.asc,guide_id.asc`).catch(() => []),
     ]);
     state.hotels = hotels || [];
     state.buses = buses || [];
+    state.guides = guides || [];
     populateHotelDropdown();
     state.trip = trip;
     // แสดงทุกแถว (รวม sub-row) — แต่ละแถว = 1 ที่นั่ง = 1 ช่อง assign ให้ห้องได้
@@ -224,6 +234,21 @@ async function loadAll() {
         if (!state.busOccupants[o.bus_id]) state.busOccupants[o.bus_id] = {};
         state.busOccupants[o.bus_id][o.seat_no] = o.code;
         state.codeToBusSeat[o.code] = { bus_id: o.bus_id, seat_no: o.seat_no };
+      });
+    }
+
+    // Load bus_guides relation
+    state.busGuides = {};
+    state.guideToBuses = {};
+    const busIds2 = state.buses.map(b => b.bus_id);
+    if (busIds2.length) {
+      const bgRows = await sbFetch("trip_bus_guides",
+        `?bus_id=in.(${busIds2.join(",")})&select=bus_id,guide_id`).catch(() => []);
+      (bgRows || []).forEach(r => {
+        if (!state.busGuides[r.bus_id]) state.busGuides[r.bus_id] = [];
+        state.busGuides[r.bus_id].push(r.guide_id);
+        if (!state.guideToBuses[r.guide_id]) state.guideToBuses[r.guide_id] = new Set();
+        state.guideToBuses[r.guide_id].add(r.bus_id);
       });
     }
 
@@ -2484,7 +2509,29 @@ function busCardHtml(b) {
         ${noteInfo}
       </div>
     ` : ""}
+    ${guidesRowHtml(b.bus_id)}
     ${isCollapsed ? "" : renderSeatMapHtml(preset.rows, occMap, { interactive: true, busId: b.bus_id })}
+  </div>`;
+}
+
+// Render แถวไกด์ของรถคันนี้
+function guidesRowHtml(busId) {
+  const guideIds = state.busGuides[busId] || [];
+  const guides = guideIds.map(gid => state.guides.find(g => g.guide_id === gid)).filter(Boolean);
+  const pills = guides.map(g => {
+    const lang = g.languages ? ` <span style="opacity:.7;font-weight:500">(${escapeHtml(g.languages)})</span>` : "";
+    return `<button class="ba-guide-pill" data-perm="trip_guides_edit"
+      onclick="event.stopPropagation();window.openGuideEditModal(${g.guide_id})"
+      title="คลิกเพื่อแก้ไข/ดูรายละเอียด">
+      🧑‍🏫 ${escapeHtml(g.full_name)}${lang}
+    </button>`;
+  }).join("");
+  return `<div class="ba-bus-guides">
+    <span class="ba-bus-guides-label">🧑‍🏫 ไกด์:</span>
+    ${pills || '<span style="color:var(--text3);font-size:11.5px">— ยังไม่มี —</span>'}
+    <button class="ba-bus-guides-add" data-perm="trip_guides_assign"
+      onclick="event.stopPropagation();window.openBusGuidesModal(${busId})"
+      title="จัดการไกด์ของคันนี้">＋ เพิ่มไกด์</button>
   </div>`;
 }
 
@@ -3073,6 +3120,191 @@ window.syncBusFromRooms = async function () {
     showToast(`จัดที่นั่งตามคู่ห้องพักแล้ว ${placed} คน`, "success");
     await loadAll();
   } catch (e) { showToast("Sync ไม่สำเร็จ: " + e.message, "error"); }
+  showLoading(false);
+};
+
+// ════════════════════════════════════════════════════════════
+//  GUIDE LOGIC
+// ════════════════════════════════════════════════════════════
+
+// เปิด modal "จัดการไกด์ของรถคันนี้" — list ไกด์ใน trip + checkbox toggle
+window.openBusGuidesModal = function (busId) {
+  state.guideTargetBusId = busId;
+  const bus = state.buses.find(b => b.bus_id === busId);
+  document.getElementById("bgmTitle").textContent =
+    `🧑‍🏫 ไกด์ของ ${bus ? (bus.bus_label || `คันที่ ${bus.bus_no}`) : "รถบัส"}`;
+  renderBusGuidesList();
+  document.getElementById("busGuidesOverlay").classList.add("open");
+};
+
+window.closeBusGuidesModal = function (e) {
+  if (e && e.target.id !== "busGuidesOverlay") return;
+  document.getElementById("busGuidesOverlay").classList.remove("open");
+  state.guideTargetBusId = null;
+};
+
+function renderBusGuidesList() {
+  const busId = state.guideTargetBusId;
+  const list = document.getElementById("bgmList");
+  if (!list) return;
+  if (!state.guides.length) {
+    list.innerHTML = `<div style="padding:14px;color:var(--text3);text-align:center;font-size:13px">
+      ยังไม่มีไกด์ใน trip นี้ — กด "+ สร้างไกด์ใหม่" เพื่อเพิ่ม
+    </div>`;
+    return;
+  }
+  const assignedSet = new Set(state.busGuides[busId] || []);
+  list.innerHTML = state.guides.map(g => {
+    const checked = assignedSet.has(g.guide_id);
+    const lang = g.languages ? `<span class="bgm-row-lang">(${escapeHtml(g.languages)})</span>` : "";
+    return `<div class="bgm-row${checked ? " checked" : ""}"
+      onclick="window.toggleGuideForBus(${g.guide_id})">
+      <span class="bgm-row-check">${checked ? "✓" : ""}</span>
+      <span class="bgm-row-name">${escapeHtml(g.full_name)}</span>
+      ${lang}
+      <button class="bgm-row-edit" title="แก้ไขข้อมูลไกด์"
+        onclick="event.stopPropagation();window.openGuideEditModal(${g.guide_id})">✏️</button>
+    </div>`;
+  }).join("");
+}
+
+window.toggleGuideForBus = async function (guideId) {
+  const busId = state.guideTargetBusId;
+  if (!busId) return;
+  const currentIds = state.busGuides[busId] || [];
+  const isAssigned = currentIds.includes(guideId);
+
+  // Optimistic
+  if (isAssigned) {
+    state.busGuides[busId] = currentIds.filter(g => g !== guideId);
+    if (state.guideToBuses[guideId]) state.guideToBuses[guideId].delete(busId);
+  } else {
+    state.busGuides[busId] = [...currentIds, guideId];
+    if (!state.guideToBuses[guideId]) state.guideToBuses[guideId] = new Set();
+    state.guideToBuses[guideId].add(busId);
+  }
+  renderBusGuidesList();
+  renderBuses();
+
+  try {
+    if (isAssigned) {
+      await sbFetch("trip_bus_guides",
+        `?bus_id=eq.${busId}&guide_id=eq.${guideId}`,
+        { method: "DELETE" });
+    } else {
+      await sbFetch("trip_bus_guides", "", {
+        method: "POST",
+        body: { bus_id: busId, guide_id: guideId },
+      });
+    }
+  } catch (e) {
+    // revert
+    if (isAssigned) {
+      state.busGuides[busId] = [...(state.busGuides[busId] || []), guideId];
+      if (!state.guideToBuses[guideId]) state.guideToBuses[guideId] = new Set();
+      state.guideToBuses[guideId].add(busId);
+    } else {
+      state.busGuides[busId] = (state.busGuides[busId] || []).filter(g => g !== guideId);
+      if (state.guideToBuses[guideId]) state.guideToBuses[guideId].delete(busId);
+    }
+    renderBusGuidesList();
+    renderBuses();
+    showToast("ไม่สำเร็จ: " + e.message, "error");
+  }
+};
+
+// เปิด modal สร้าง/แก้ไขไกด์
+window.openGuideEditModal = function (guideId) {
+  state.editingGuideId = guideId;
+  const g = guideId ? state.guides.find(x => x.guide_id === guideId) : null;
+  document.getElementById("geTitle").textContent = g ? `🧑‍🏫 แก้ไขไกด์` : `🧑‍🏫 เพิ่มไกด์`;
+  document.getElementById("fGuideName").value      = g?.full_name || "";
+  document.getElementById("fGuideLanguages").value = g?.languages || "";
+  document.getElementById("fGuidePhone").value     = g?.phone || "";
+  document.getElementById("fGuideLine").value      = g?.line_id || "";
+  document.getElementById("fGuideWhatsapp").value  = g?.whatsapp || "";
+  document.getElementById("fGuideNote").value      = g?.note || "";
+  document.getElementById("geDeleteBtn").style.display = g ? "" : "none";
+  document.getElementById("guideEditOverlay").classList.add("open");
+  setTimeout(() => document.getElementById("fGuideName")?.focus(), 50);
+};
+
+window.closeGuideEditModal = function (e) {
+  if (e && e.target.id !== "guideEditOverlay") return;
+  document.getElementById("guideEditOverlay").classList.remove("open");
+  state.editingGuideId = null;
+};
+
+window.saveGuide = async function () {
+  const name = document.getElementById("fGuideName").value.trim();
+  if (!name) { showToast("กรอกชื่อไกด์", "error"); return; }
+  const payload = {
+    trip_id: state.tripId,
+    full_name: name,
+    languages: document.getElementById("fGuideLanguages").value.trim() || null,
+    phone: document.getElementById("fGuidePhone").value.trim() || null,
+    line_id: document.getElementById("fGuideLine").value.trim() || null,
+    whatsapp: document.getElementById("fGuideWhatsapp").value.trim() || null,
+    note: document.getElementById("fGuideNote").value.trim() || null,
+    updated_at: new Date().toISOString(),
+  };
+
+  showLoading(true);
+  try {
+    let newId = null;
+    if (state.editingGuideId) {
+      await sbFetch("trip_guides", `?guide_id=eq.${state.editingGuideId}`, {
+        method: "PATCH",
+        body: payload,
+      });
+      showToast("แก้ไขไกด์แล้ว", "success");
+    } else {
+      payload.sort_order = state.guides.length;
+      const res = await sbFetch("trip_guides", "", { method: "POST", body: payload });
+      newId = Array.isArray(res) ? res[0]?.guide_id : res?.guide_id;
+      showToast("เพิ่มไกด์แล้ว", "success");
+    }
+    document.getElementById("guideEditOverlay").classList.remove("open");
+    state.editingGuideId = null;
+    await loadAll();
+    // ถ้าสร้างใหม่ + เปิด modal busGuides อยู่ → auto-assign ลงคันที่กำลังจัดการ
+    if (newId && state.guideTargetBusId) {
+      await window.toggleGuideForBus(newId);
+    }
+  } catch (e) {
+    showToast("บันทึกไม่สำเร็จ: " + e.message, "error");
+  }
+  showLoading(false);
+};
+
+window.deleteGuide = async function () {
+  if (!state.editingGuideId) return;
+  const g = state.guides.find(x => x.guide_id === state.editingGuideId);
+  if (!g) return;
+  const assignedCount = state.guideToBuses[g.guide_id]?.size || 0;
+  const msg = assignedCount > 0
+    ? `ลบไกด์ "${g.full_name}" — ปัจจุบันประจำรถ ${assignedCount} คัน — ดำเนินการต่อ?`
+    : `ลบไกด์ "${g.full_name}"?`;
+  const ok = window.ConfirmModal?.open
+    ? await window.ConfirmModal.open({
+        title: "ลบไกด์",
+        message: msg,
+        icon: "🗑",
+        tone: "danger",
+        okText: "ลบ",
+      })
+    : confirm(msg);
+  if (!ok) return;
+  showLoading(true);
+  try {
+    await sbFetch("trip_guides", `?guide_id=eq.${state.editingGuideId}`, { method: "DELETE" });
+    showToast("ลบไกด์แล้ว", "success");
+    document.getElementById("guideEditOverlay").classList.remove("open");
+    state.editingGuideId = null;
+    await loadAll();
+  } catch (e) {
+    showToast("ลบไม่สำเร็จ: " + e.message, "error");
+  }
   showLoading(false);
 };
 

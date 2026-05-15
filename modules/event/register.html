@@ -846,8 +846,20 @@ async function lookupReferrer(code) {
     }
     const r = rows[0];
     const name = r.full_name || r.member_name || r.member_code;
-    _referrerCache = { code: r.member_code, name };
-    if (st) st.innerHTML = `<span style="color:#065f46">✅ ${esc(name)}</span>`;
+    // Auto-derive สายงาน — ถ้า referrer link กับ upline_leader โดยตรง
+    let uplineId = null, uplineName = null;
+    try {
+      const ulRows = await sbGet(`upline_leaders?member_code=eq.${encodeURIComponent(r.member_code)}&is_active=eq.true&select=id,name&limit=1`);
+      if (ulRows?.length) {
+        uplineId = ulRows[0].id;
+        uplineName = ulRows[0].name;
+      }
+    } catch {}
+    _referrerCache = { code: r.member_code, name, uplineId, uplineName };
+    if (st) {
+      const uplineNote = uplineName ? ` <span style="color:#3730a3">· สายงาน ${esc(uplineName)}</span>` : '';
+      st.innerHTML = `<span style="color:#065f46">✅ ${esc(name)}</span>${uplineNote}`;
+    }
     return _referrerCache;
   } catch (e) {
     _referrerCache = null;
@@ -1157,6 +1169,10 @@ async function doRegisterGuest() {
         referrer_code: ref.code,
         referrer_name: ref.name,
       },
+      ...(ref.uplineId ? {
+        upline_id: ref.uplineId,
+        upline_name_text: ref.uplineName,
+      } : {}),
       ...(_lineProfile ? {
         line_user_id: _lineProfile.userId,
         line_display_name: _lineProfile.displayName || null,
@@ -1185,6 +1201,11 @@ async function doRegisterGuest() {
             <span style="color:#64748b;min-width:80px">🤝 ผู้แนะนำ</span>
             <span style="font-weight:600;flex:1">${esc(ref.code)} · ${esc(ref.name)}</span>
           </div>
+          ${ref.uplineName ? `
+          <div style="display:flex;gap:10px;padding:6px 0;font-size:13px;color:#0f172a;border-top:1px dashed #e2e8f0">
+            <span style="color:#64748b;min-width:80px">🌿 สายงาน</span>
+            <span style="font-weight:600;flex:1">${esc(ref.uplineName)}</span>
+          </div>` : ''}
         </div>
 
         <div style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 12px;background:#fff;border:1px solid #e2e8f0;border-radius:12px;margin-top:10px;box-shadow:0 1px 2px rgba(0,0,0,.04)">

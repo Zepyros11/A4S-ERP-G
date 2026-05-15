@@ -395,6 +395,64 @@
       .ba-bus-meta-pill.full{background:#dbeafe;color:#1d4ed8;border:1px solid #93c5fd}
       .ba-bus-info{display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin-top:4px;font-size:11.5px;color:var(--text2)}
       .ba-bus-info .sep{color:var(--text3)}
+
+      /* Guides row in bus card */
+      .ba-bus-guides{
+        display:flex;align-items:center;flex-wrap:wrap;gap:6px;
+        margin-top:8px;padding:6px 10px;
+        background:#fef3c7;border:1px solid #fde68a;border-radius:8px;
+      }
+      .ba-bus-guides-label{
+        font-size:12px;font-weight:700;color:#92400e;flex-shrink:0;
+      }
+      .ba-guide-pill{
+        display:inline-flex;align-items:center;gap:4px;
+        padding:3px 10px;border-radius:99px;
+        background:#fff;border:1px solid #fde68a;
+        color:#7c2d12;font-size:11.5px;font-weight:600;
+        cursor:pointer;font-family:inherit;transition:.12s;
+      }
+      .ba-guide-pill:hover{
+        background:#fef3c7;border-color:#f59e0b;
+        box-shadow:0 0 0 2px rgba(245,158,11,.15);
+      }
+      .ba-bus-guides-add{
+        display:inline-flex;align-items:center;gap:3px;
+        padding:3px 10px;border-radius:99px;
+        background:#fff;border:1px dashed #f59e0b;
+        color:#92400e;font-size:11.5px;font-weight:600;
+        cursor:pointer;font-family:inherit;transition:.12s;
+      }
+      .ba-bus-guides-add:hover{
+        background:#fef3c7;border-style:solid;
+      }
+
+      /* Bus-guides modal list */
+      .bgm-row{
+        display:flex;align-items:center;gap:10px;
+        padding:9px 12px;border:1px solid var(--border);border-radius:8px;
+        background:#fff;cursor:pointer;transition:.12s;
+      }
+      .bgm-row:hover{border-color:#94a3b8;background:#f8fafc}
+      .bgm-row.checked{
+        background:#fef3c7;border-color:#f59e0b;
+      }
+      .bgm-row-name{flex:1;font-weight:600;color:var(--text);font-size:13px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+      .bgm-row-lang{color:var(--text2);font-size:11.5px;flex-shrink:0}
+      .bgm-row-check{
+        width:18px;height:18px;flex-shrink:0;
+        border:2px solid var(--border);border-radius:5px;
+        display:inline-flex;align-items:center;justify-content:center;
+        background:#fff;color:transparent;font-size:12px;font-weight:700;
+      }
+      .bgm-row.checked .bgm-row-check{
+        background:#f59e0b;border-color:#f59e0b;color:#fff;
+      }
+      .bgm-row-edit{
+        background:transparent;border:none;cursor:pointer;
+        color:var(--text2);padding:4px 6px;border-radius:4px;font-size:13px;
+      }
+      .bgm-row-edit:hover{background:#fef3c7;color:#92400e}
       .ba-bus-actions{display:flex;align-items:center;gap:8px}
       .ba-bus-toggle{
         background:transparent;border:1px solid var(--border);
@@ -867,6 +925,73 @@
         <div class="modal-footer">
           <button class="btn btn-ghost" onclick="window.closeBusModal()">ยกเลิก</button>
           <button class="btn btn-primary" id="busSaveBtn" onclick="window.saveBus()">💾 บันทึก</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════ BUS GUIDES MODAL (manage guides on a bus) ═══════════ -->
+    <div class="modal-overlay" id="busGuidesOverlay" onclick="window.closeBusGuidesModal(event)">
+      <div class="modal v-sage-header" onclick="event.stopPropagation()">
+        <div class="modal-hdr">
+          <div class="modal-title" id="bgmTitle">🧑‍🏫 จัดการไกด์ของรถ</div>
+          <button class="btn-modal-close" onclick="window.closeBusGuidesModal()">✕</button>
+        </div>
+        <div class="modal-body">
+          <div style="font-size:12px;color:var(--text2);margin-bottom:10px">เลือกไกด์ที่ประจำคันนี้ — หรือกด "+ สร้างไกด์ใหม่" เพื่อเพิ่มในรายชื่อ trip</div>
+          <div id="bgmList" style="display:flex;flex-direction:column;gap:6px;max-height:50vh;overflow-y:auto">
+            <div style="padding:14px;color:var(--text3);text-align:center;font-size:13px">— ยังไม่มีไกด์ใน trip นี้ —</div>
+          </div>
+          <button class="btn btn-outline" data-perm="trip_guides_create"
+            onclick="window.openGuideEditModal(null)"
+            style="margin-top:12px;width:100%">＋ สร้างไกด์ใหม่</button>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-ghost" onclick="window.closeBusGuidesModal()">ปิด</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════ GUIDE EDIT MODAL (create/edit guide) ═══════════ -->
+    <div class="modal-overlay" id="guideEditOverlay" onclick="window.closeGuideEditModal(event)">
+      <div class="modal v-sage-header" onclick="event.stopPropagation()">
+        <div class="modal-hdr">
+          <div class="modal-title" id="geTitle">🧑‍🏫 เพิ่มไกด์</div>
+          <button class="btn-modal-close" onclick="window.closeGuideEditModal()">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label">ชื่อ <span class="req">*</span></label>
+            <input class="form-control" id="fGuideName" placeholder="ชื่อ-นามสกุล" />
+          </div>
+          <div class="ba-form-row-2" style="margin-top:14px">
+            <div class="form-group">
+              <label class="form-label">ภาษาที่พูดได้</label>
+              <input class="form-control" id="fGuideLanguages" placeholder="เช่น EN, FR, AR" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">เบอร์โทร</label>
+              <input class="form-control" id="fGuidePhone" placeholder="08x-xxx-xxxx" />
+            </div>
+          </div>
+          <div class="ba-form-row-2" style="margin-top:14px">
+            <div class="form-group">
+              <label class="form-label">Line ID</label>
+              <input class="form-control" id="fGuideLine" placeholder="line id" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">WhatsApp</label>
+              <input class="form-control" id="fGuideWhatsapp" placeholder="+66 ..." />
+            </div>
+          </div>
+          <div class="form-group" style="margin-top:14px">
+            <label class="form-label">หมายเหตุ</label>
+            <textarea class="form-control" id="fGuideNote" rows="2" placeholder="หมายเหตุเพิ่มเติม"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-danger" id="geDeleteBtn" data-perm="trip_guides_delete" onclick="window.deleteGuide()" style="margin-right:auto;display:none">🗑 ลบไกด์</button>
+          <button class="btn btn-ghost" onclick="window.closeGuideEditModal()">ยกเลิก</button>
+          <button class="btn btn-primary" id="geSaveBtn" onclick="window.saveGuide()">💾 บันทึก</button>
         </div>
       </div>
     </div>

@@ -4883,6 +4883,8 @@ window._attFormReferrerLookup = async function (forceOnBlur) {
     const name = r.full_name || r.member_name || r.member_code;
     _attFormReferrerCache = { code: r.member_code, name };
     if (st) { st.textContent = `✅ ${name}`; st.style.color = "#065f46"; }
+    // Auto-fill สายงาน ถ้า referrer link กับ upline_leader โดยตรง
+    _attFormFillUplineFromReferrer(r.member_code).catch(e => console.warn("upline auto-fill:", e?.message || e));
     return _attFormReferrerCache;
   } catch (e) {
     _attFormReferrerCache = null;
@@ -4890,6 +4892,27 @@ window._attFormReferrerLookup = async function (forceOnBlur) {
     return null;
   }
 };
+
+// Auto-fill สายงาน dropdown จาก referrer code (direct match กับ upline_leaders.member_code)
+async function _attFormFillUplineFromReferrer(referrerCode) {
+  if (!referrerCode) return;
+  const sel = document.getElementById("attFormUpline");
+  if (!sel) return;
+  let rows;
+  try {
+    rows = await sbFetch("upline_leaders", `?member_code=eq.${encodeURIComponent(referrerCode)}&is_active=eq.true&select=id,name&limit=1`);
+  } catch (e) {
+    console.warn("upline_leaders lookup:", e.message);
+    return;
+  }
+  if (!rows?.length) return;   // referrer ไม่ใช่ upline_leader → ปล่อยว่าง
+  const ul = rows[0];
+  // ถ้า dropdown ยังไม่มี option นี้ (cache เก่า) → refresh
+  if (!sel.querySelector(`option[value="${ul.id}"]`)) {
+    await _refreshUplineDropdownInForm();
+  }
+  sel.value = String(ul.id);
+}
 
 function _applyFieldConfigToForm(cfg) {
   // map key → { wrapId, labelId, defaultLabel }
