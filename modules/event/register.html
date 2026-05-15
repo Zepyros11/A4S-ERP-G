@@ -446,6 +446,16 @@ async function sbPost(path, body) {
   return res.json();
 }
 
+/* ── Today (Bangkok TZ, YYYY-MM-DD) — เทียบกับ _event.event_date ── */
+function todayBangkok() {
+  return new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Bangkok' });
+}
+// true = ลงทะเบียนก่อนวันงาน → pre-reg (ยัง check-in ไม่ได้)
+function isPreRegistration() {
+  if (!_event?.event_date) return false;
+  return todayBangkok() < _event.event_date;
+}
+
 /* ── Extract eventId from URL (support LIFF redirect via liff.state) ── */
 function getEventIdFromUrl() {
   const params = new URLSearchParams(location.search);
@@ -1080,8 +1090,10 @@ async function doRegister() {
     // 9. Build payload — LINE ผูกเฉพาะ "เจ้าของเครื่องที่กดลงทะเบียน"
     //    - เลือกคนเดียว → คนนั้นเป็น LINE owner
     //    - เลือกทั้งคู่ → primary เป็น LINE owner (co_applicant ไม่ผูก LINE)
+    //    - ก่อนวันงาน → pre-reg (checked_in=false) · วันงาน/หลังวันงาน → auto check-in
     const lineOwnerRole = selectedRoles.length === 2 ? 'primary' : selectedRoles[0];
     const nowIso = new Date().toISOString();
+    const preReg = isPreRegistration();
     const payload = selectedRoles.map((role, i) => {
       const p = role === 'primary' ? primary : coApplicant;
       const isLineOwner = _lineProfile && role === lineOwnerRole;
@@ -1094,8 +1106,8 @@ async function doRegister() {
         attend_type: 'ONSITE',
         ticket_no: tickets[i],
         payment_status: 'FREE',
-        checked_in: true,
-        check_in_at: nowIso,
+        checked_in: !preReg,
+        check_in_at: preReg ? null : nowIso,
         ...(isLineOwner ? {
           line_user_id: _lineProfile.userId,
           line_display_name: _lineProfile.displayName || null,
@@ -1124,9 +1136,10 @@ async function doRegister() {
       <div class="reg-msg success">
         <div style="font-size:32px;margin-bottom:8px">✅</div>
         <div style="font-weight:700;font-size:16px;line-height:1.4">ลงทะเบียนเข้างาน ${esc(_event.event_name)} เรียบร้อย</div>
+        ${preReg ? `<div style="margin-top:6px;display:inline-block;padding:3px 10px;background:#fef3c7;color:#92400e;border:1px solid #fde68a;border-radius:10px;font-size:11.5px;font-weight:700">📅 ลงทะเบียนล่วงหน้า</div>` : ''}
         ${payload.length === 2 ? `<div style="margin-top:4px;font-size:12.5px;color:#64748b">2 รายชื่อ</div>` : ''}
         ${ticketLines}
-        <div style="margin-top:14px;font-size:12px;color:#64748b">📱 แสดง QR นี้ที่หน้างานเพื่อ check-in</div>
+        <div style="margin-top:14px;font-size:12px;color:#64748b">${preReg ? '📱 ใช้ QR นี้ check-in ที่หน้างานในวันงาน' : '📱 แสดง QR นี้ที่หน้างานเพื่อ check-in'}</div>
       </div>`;
     // Render QR per ticket
     payload.forEach((p, i) => {
@@ -1195,6 +1208,7 @@ async function doRegisterGuest() {
     const ticketNo = `${prefix}${String(baseNum).padStart(4, '0')}`;
 
     const nowIso = new Date().toISOString();
+    const preReg = isPreRegistration();
     const row = {
       event_id: _event.event_id,
       name,
@@ -1204,8 +1218,8 @@ async function doRegisterGuest() {
       attend_type: 'ONSITE',
       ticket_no: ticketNo,
       payment_status: 'FREE',
-      checked_in: true,
-      check_in_at: nowIso,
+      checked_in: !preReg,
+      check_in_at: preReg ? null : nowIso,
       extra_fields: {
         referrer_code: ref.code,
         referrer_name: ref.name,
@@ -1228,6 +1242,7 @@ async function doRegisterGuest() {
       <div class="reg-msg success">
         <div style="font-size:32px;margin-bottom:8px">✅</div>
         <div style="font-weight:700;font-size:16px;line-height:1.4">ลงทะเบียนเข้างาน ${esc(_event.event_name)} เรียบร้อย</div>
+        ${preReg ? `<div style="margin-top:6px;display:inline-block;padding:3px 10px;background:#fef3c7;color:#92400e;border:1px solid #fde68a;border-radius:10px;font-size:11.5px;font-weight:700">📅 ลงทะเบียนล่วงหน้า</div>` : ''}
 
         <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:12px 14px;margin-top:12px;text-align:left;box-shadow:0 1px 2px rgba(0,0,0,.04)">
           <div style="display:flex;gap:10px;padding:6px 0;font-size:13px;color:#0f172a">
@@ -1248,7 +1263,7 @@ async function doRegisterGuest() {
           <div id="gRegQr" data-qr="${esc(ticketNo)}" style="background:#fff;padding:8px;border-radius:8px"></div>
           <div style="font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:700;color:#1e40af;letter-spacing:.5px">${esc(ticketNo)}</div>
         </div>
-        <div style="margin-top:14px;font-size:12px;color:#64748b">📱 แสดง QR นี้ที่หน้างานเพื่อ check-in</div>
+        <div style="margin-top:14px;font-size:12px;color:#64748b">${preReg ? '📱 ใช้ QR นี้ check-in ที่หน้างานในวันงาน' : '📱 แสดง QR นี้ที่หน้างานเพื่อ check-in'}</div>
       </div>`;
     const qrWrap = document.getElementById('gRegQr');
     if (qrWrap) {

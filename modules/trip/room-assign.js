@@ -172,7 +172,7 @@ async function loadAll() {
     const [trip, paxs, rooms, hotels, buses, guides] = await Promise.all([
       sbFetch("trips", `?trip_id=eq.${state.tripId}&select=*`).then(r => r?.[0] || null),
       sbFetch("tour_seat_check",
-        `?trip_id=eq.${state.tripId}&select=code,name,gender,nationality,passport_image_url,visa_image_url,passport_id,passport_exp_date,group_name,seat,is_sub_row,parent_code&order=group_name.asc.nullslast,name.asc`),
+        `?trip_id=eq.${state.tripId}&select=code,name,gender,nationality,passport_image_url,visa_image_url,passport_id,passport_exp_date,pin,tshirt_size,religion,food_allergy,return_flight,return_date,group_name,seat,is_sub_row,parent_code&order=group_name.asc.nullslast,name.asc`),
       sbFetch("trip_rooms",
         `?trip_id=eq.${state.tripId}&select=*&order=sort_order.asc,room_id.asc`),
       sbFetch("places",
@@ -788,11 +788,120 @@ window.exportRaExcel = function (lang = "th") {
     XLSX.utils.book_append_sheet(wb, ws, sheetName);
   });
 
+  // ─── 1 sheet ต่อ 1 รถบัส (Bus 1, Bus 2, ...) ───
+  // Columns: Code | Name | PIN | Room | NATIONALITY | RELIGION | FOOD ALLERGY | T-SHIRT SIZE | RETURN FLIGHT | RETURN DATE
+  state.buses.forEach((bus, busIdx) => {
+    const sheetTitle = bus.bus_label
+      ? `BUS ${bus.bus_no || busIdx + 1} ${bus.bus_label}`
+      : `BUS ${bus.bus_no || busIdx + 1}`;
+    const sheetName = safeSheetName(sheetTitle, sections.length + busIdx);
+    const rows = _buildBusExportRows(bus);
+    const headers = ["Code", "Name", "PIN", "Room", "NATIONALITY", "RELIGION", "FOOD ALLERGY", "T-SHIRT SIZE", "RETURN FLIGHT", "RETURN DATE"];
+    // aoa: title row (merged) + header row + data rows
+    const titleRow = [sheetTitle];
+    while (titleRow.length < headers.length) titleRow.push("");
+    const aoa = [titleRow, headers];
+    if (!rows.length) {
+      const empty = new Array(headers.length).fill("");
+      empty[1] = lang === "en" ? "(No passengers assigned to this bus)" : "(ยังไม่มีผู้โดยสารในรถคันนี้)";
+      aoa.push(empty);
+    } else {
+      rows.forEach(r => aoa.push(headers.map(h => r[h] ?? "")));
+    }
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    ws["!cols"] = [
+      { wch: 10 }, { wch: 28 }, { wch: 14 }, { wch: 22 }, { wch: 14 },
+      { wch: 14 }, { wch: 20 }, { wch: 12 }, { wch: 16 }, { wch: 14 },
+    ];
+    ws["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: headers.length - 1 } }];
+    // Title style (row 0) — สีพื้นเหลือง
+    const titleRef = "A1";
+    if (!ws[titleRef]) ws[titleRef] = { v: sheetTitle, t: "s" };
+    ws[titleRef].s = {
+      font: { bold: true, sz: 13, color: { rgb: "111827" } },
+      fill: { patternType: "solid", fgColor: { rgb: "FEF3C7" } },
+      alignment: { vertical: "center", horizontal: "center" },
+      border: {
+        top:    { style: "thin", color: { rgb: "94A3B8" } },
+        bottom: { style: "thin", color: { rgb: "94A3B8" } },
+        left:   { style: "thin", color: { rgb: "94A3B8" } },
+        right:  { style: "thin", color: { rgb: "94A3B8" } },
+      },
+    };
+    // borders + header style — header row = row 1 (index 1)
+    _applyBorders(ws, headers.length, aoa.length - 1, 1);
+    XLSX.utils.book_append_sheet(wb, ws, sheetName);
+  });
+
   const tripSlug = (state.trip?.trip_name || `trip${state.tripId}`).replace(/[^\w฀-๿-]+/g, "_");
   const today = new Date().toISOString().slice(0, 10);
   XLSX.writeFile(wb, `room_assign_${tripSlug}_${lang}_${today}.xlsx`);
   showToast(t.excelOk(sections.length), "success");
 };
+
+// Helper: สร้าง rows สำหรับ Bus sheet (เรียงตาม seat_no asc)
+function _buildBusExportRows(bus) {
+  const occMap = state.busOccupants[bus.bus_id] || {};
+  const guideSeats = state.busGuideSeats[bus.bus_id] || {};
+  const items = [];
+  // Passenger rows
+  Object.keys(occMap).forEach(seatNo => {
+    const code = occMap[seatNo];
+    const p = state.passengers.find(x => x.code === code);
+    if (!p) return;
+    items.push({ seatNo, kind: "pax", p, code });
+  });
+  // Guide rows (มี seat — รวมใน list ด้วยเพื่อให้รู้ว่าใครนั่ง seat ไหน)
+  Object.keys(guideSeats).forEach(seatNo => {
+    const guideId = guideSeats[seatNo];
+    const g = state.guides.find(x => x.guide_id === guideId);
+    if (!g) return;
+    items.push({ seatNo, kind: "guide", g });
+  });
+  // sort by seat_no numeric ascending
+  items.sort((a, b) => Number(a.seatNo) - Number(b.seatNo));
+
+  return items.map(item => {
+    if (item.kind === "guide") {
+      const g = item.g;
+      return {
+        Code: "[GUIDE]",
+        Name: g.full_name || "",
+        PIN: "",
+        Room: "",
+        NATIONALITY: g.languages || "",
+        RELIGION: "",
+        "FOOD ALLERGY": "",
+        "T-SHIRT SIZE": "",
+        "RETURN FLIGHT": "",
+        "RETURN DATE": "",
+        _seat: item.seatNo,
+      };
+    }
+    const p = item.p;
+    const name = p.name || p._inheritedName || "";
+    const pin = p.pin || p.passport_id || "";
+    const rids = state.codeToRooms[p.code];
+    const myRooms = (rids ? [...rids] : [])
+      .map(rid => state.rooms.find(r => r.room_id === rid))
+      .filter(Boolean)
+      .sort((a, b) => (a.check_in_date || "").localeCompare(b.check_in_date || ""));
+    const roomStr = myRooms.map(r => r.room_name || "").filter(Boolean).join(", ");
+    return {
+      Code: p.code || "",
+      Name: name,
+      PIN: pin,
+      Room: roomStr,
+      NATIONALITY: p.nationality || p._inheritedNat || "",
+      RELIGION: p.religion || "",
+      "FOOD ALLERGY": p.food_allergy || "",
+      "T-SHIRT SIZE": p.tshirt_size || "",
+      "RETURN FLIGHT": p.return_flight || "",
+      "RETURN DATE": p.return_date || "",
+      _seat: item.seatNo,
+    };
+  });
+}
 
 // helper: นับวัน inclusive (start..end)
 function _daysInclusive(isoStart, isoEnd) {
