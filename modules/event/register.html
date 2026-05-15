@@ -423,7 +423,12 @@ async function sbGet(path) {
   const res = await fetch(`${SB_URL}/rest/v1/${path}`, {
     headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` },
   });
-  if (!res.ok) throw new Error(res.status);
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    const table = path.split('?')[0];
+    console.error(`[sbGet ${res.status}] ${path}`, body);
+    throw new Error(`${res.status} @ ${table}${body ? ' — ' + body.slice(0, 120) : ''}`);
+  }
   return res.json();
 }
 
@@ -433,7 +438,11 @@ async function sbPost(path, body) {
     headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=representation' },
     body: JSON.stringify(body),
   });
-  if (!res.ok) throw new Error(await res.text());
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    console.error(`[sbPost ${res.status}] ${path}`, text, body);
+    throw new Error(`${res.status} @ ${path.split('?')[0]}${text ? ' — ' + text.slice(0, 150) : ''}`);
+  }
   return res.json();
 }
 

@@ -2559,8 +2559,8 @@ function renderSeatMapHtml(rows, occMap, opts = {}) {
         const gname = g?.full_name || `Guide #${guideId}`;
         const lang = g?.languages ? ` (${g.languages})` : "";
         return `<div class="ba-seat ba-seat-guide" data-seat="${seatNo}"
-          title="🧑‍🏫 ${escapeAttr(gname + lang)} · คลิกเพื่อแก้ไข"
-          ${interactive ? `onclick="event.stopPropagation();window.openGuideEditModal(${guideId})"` : ""}>
+          title="🧑‍🏫 ${escapeAttr(gname + lang)} · คลิกเพื่อดูรายละเอียด"
+          ${interactive ? `onclick="event.stopPropagation();window.viewGuideSeat(${busId}, '${escapeJs(seatNo)}')"` : ""}>
           <span class="ba-seat-num">${seatNo}</span>
           <span class="ba-seat-name">🧑‍🏫 ${escapeHtml(shortName(gname))}</span>
         </div>`;
@@ -2623,7 +2623,13 @@ window.confirmUnassignSeat = function (busId, seatNo) {
   const passId = p.passport_id || "";
 
   // เก็บ target context ไว้ใช้ตอนกด "ย้ายออก"
-  state.sdContext = { busId, seatNo, code };
+  state.sdContext = { kind: "passenger", busId, seatNo, code };
+
+  // Modal title + side label + buttons
+  document.getElementById("sdModalTitle").textContent = "💺 รายละเอียดที่นั่ง";
+  document.getElementById("sdSideLabel").textContent = "📷 Passport / Visa";
+  document.getElementById("sdEditBtn").style.display = "none";
+  document.getElementById("sdRemoveBtn").textContent = "🗑 ย้ายออกจากที่นั่ง";
 
   // Info column
   document.getElementById("sdName").textContent = dname;
@@ -2676,10 +2682,109 @@ window.closeSeatDetail = function (e) {
 window.doUnassignSeat = function () {
   const ctx = state.sdContext;
   if (!ctx) { window.closeSeatDetail(); return; }
-  const { busId, seatNo } = ctx;
   window.closeSeatDetail();
-  window.unassignSeat(busId, seatNo);
+  if (ctx.kind === "guide") {
+    // clear seat ของไกด์ (ไกด์ยังประจำคันรถอยู่ แค่ไม่มี seat)
+    clearGuideSeatById(ctx.busId, ctx.guideId);
+  } else {
+    window.unassignSeat(ctx.busId, ctx.seatNo);
+  }
 };
+
+// ปุ่ม "✏️ แก้ไขข้อมูล" — เปิด guide edit modal
+window.doEditFromSeat = function () {
+  const ctx = state.sdContext;
+  if (!ctx || ctx.kind !== "guide") { window.closeSeatDetail(); return; }
+  window.closeSeatDetail();
+  window.openGuideEditModal(ctx.guideId);
+};
+
+// คลิก guide seat → เปิด seat-detail modal (info + contact)
+window.viewGuideSeat = function (busId, seatNo) {
+  const guideId = (state.busGuideSeats[busId] || {})[seatNo];
+  if (!guideId) return;
+  const g = state.guides.find(x => x.guide_id === guideId);
+  if (!g) return;
+  const bus = state.buses.find(b => b.bus_id === busId);
+  const busLbl = bus ? (bus.bus_label || `คันที่ ${bus.bus_no || "?"}`) : `Bus ${busId}`;
+
+  state.sdContext = { kind: "guide", busId, seatNo, guideId };
+
+  // Modal title + side label + buttons
+  document.getElementById("sdModalTitle").textContent = "🧑‍🏫 รายละเอียดไกด์";
+  document.getElementById("sdSideLabel").textContent = "📞 ติดต่อ";
+  document.getElementById("sdEditBtn").style.display = "";
+  document.getElementById("sdRemoveBtn").textContent = "💺 ย้ายออกจากที่นั่ง";
+
+  // Info column (ซ้าย)
+  document.getElementById("sdName").textContent = g.full_name;
+  const grid = document.getElementById("sdGrid");
+  grid.innerHTML = [
+    g.languages ? ["ภาษา", g.languages] : null,
+    ["รถ",      busLbl],
+    ["ที่นั่ง",  seatNo],
+    g.note ? ["หมายเหตุ", g.note] : null,
+  ].filter(Boolean).map(([k, v]) =>
+    `<div class="sd-info-row">
+       <span class="sd-info-k">${escapeHtml(k)}</span>
+       <span class="sd-info-v">${escapeHtml(String(v))}</span>
+     </div>`
+  ).join("");
+
+  // Contact column (ขวา) — แทน passport
+  const contacts = [
+    g.phone    ? { icon: "📞", label: "เบอร์โทร",   value: g.phone,    href: `tel:${g.phone}` } : null,
+    g.line_id  ? { icon: "💬", label: "Line ID",    value: g.line_id,  href: null } : null,
+    g.whatsapp ? { icon: "📱", label: "WhatsApp",   value: g.whatsapp, href: `https://wa.me/${String(g.whatsapp).replace(/[^\d]/g, "")}` } : null,
+  ].filter(Boolean);
+  const imgsEl = document.getElementById("sdImgs");
+  if (!contacts.length) {
+    imgsEl.innerHTML = `<div class="sd-no-img">ไม่มีข้อมูลติดต่อ</div>`;
+  } else {
+    imgsEl.innerHTML = contacts.map(c => {
+      const valHtml = c.href
+        ? `<a href="${escapeAttr(c.href)}" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:none;font-weight:600">${escapeHtml(c.value)}</a>`
+        : `<span style="font-weight:600;color:var(--text)">${escapeHtml(c.value)}</span>`;
+      return `<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:#f8fafc;border:1px solid var(--border);border-radius:8px">
+        <span style="font-size:18px;flex-shrink:0">${c.icon}</span>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:10.5px;color:var(--text2);text-transform:uppercase;letter-spacing:.3px">${c.label}</div>
+          <div style="font-size:13.5px;margin-top:2px;word-break:break-all">${valHtml}</div>
+        </div>
+      </div>`;
+    }).join("");
+  }
+
+  document.getElementById("seatDetailOverlay").classList.add("open");
+};
+
+// ── helper: ล้าง seat_no ของไกด์ (ไกด์ยัง assign คันอยู่)
+async function clearGuideSeatById(busId, guideId) {
+  const entries = state.busGuides[busId] || [];
+  const entry = entries.find(e => e.guide_id === guideId);
+  if (!entry) return;
+  const oldSeat = entry.seat_no;
+  if (!oldSeat) return;
+
+  // Optimistic
+  entry.seat_no = null;
+  if (state.busGuideSeats[busId]) delete state.busGuideSeats[busId][oldSeat];
+  renderBuses();
+
+  try {
+    await sbFetch("trip_bus_guides",
+      `?bus_id=eq.${busId}&guide_id=eq.${guideId}`,
+      { method: "PATCH", body: { seat_no: null } });
+    showToast("ย้ายไกด์ออกจากที่นั่งแล้ว", "success");
+  } catch (e) {
+    // revert
+    entry.seat_no = oldSeat;
+    if (!state.busGuideSeats[busId]) state.busGuideSeats[busId] = {};
+    state.busGuideSeats[busId][oldSeat] = guideId;
+    renderBuses();
+    showToast("ย้ายออกไม่สำเร็จ: " + e.message, "error");
+  }
+}
 
 function updateSeatAssignableState() {
   document.querySelectorAll(".ba-seat").forEach(el => {
