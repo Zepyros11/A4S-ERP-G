@@ -1005,10 +1005,41 @@ window.exportRaPdf = function (lang = "th") {
     </table>
   </div>`;
 
+  // Bus sections
+  const busHeaders = ["Code", "Name", "PIN", "Room", "NATIONALITY", "RELIGION", "FOOD ALLERGY", "T-SHIRT SIZE", "RETURN FLIGHT", "RETURN DATE"];
+  const busSectionsHtml = state.buses.map((bus, busIdx) => {
+    const title = bus.bus_label
+      ? `BUS ${bus.bus_no || busIdx + 1} ${bus.bus_label}`
+      : `BUS ${bus.bus_no || busIdx + 1}`;
+    const rows = _buildBusExportRows(bus);
+    const trs = rows.length
+      ? rows.map(r => `<tr>
+          <td>${escapeHtml(r.Code)}</td>
+          <td>${escapeHtml(r.Name)}</td>
+          <td>${escapeHtml(r.PIN)}</td>
+          <td>${escapeHtml(r.Room)}</td>
+          <td>${escapeHtml(r.NATIONALITY)}</td>
+          <td>${escapeHtml(r.RELIGION)}</td>
+          <td>${escapeHtml(r["FOOD ALLERGY"])}</td>
+          <td>${escapeHtml(r["T-SHIRT SIZE"])}</td>
+          <td>${escapeHtml(r["RETURN FLIGHT"])}</td>
+          <td>${escapeHtml(r["RETURN DATE"])}</td>
+        </tr>`).join("")
+      : `<tr><td colspan="${busHeaders.length}" style="text-align:center;color:#94a3b8;padding:10px">— ยังไม่มีผู้โดยสาร —</td></tr>`;
+    return `<div class="ra-print-section">
+      <h3 style="background:#fef3c7;text-align:center;padding:6px;border:1px solid #fde68a;margin:6px 0 0">🚌 ${escapeHtml(title)}</h3>
+      <table>
+        <thead><tr>${busHeaders.map(h => `<th>${h}</th>`).join("")}</tr></thead>
+        <tbody>${trs}</tbody>
+      </table>
+    </div>`;
+  }).join("");
+
   const html = `<div class="ra-print-title">${t.title} — ${escapeHtml(tripName)}${tripDates ? ` · ${tripDates}` : ""}</div>
     <div style="font-size:11px;color:#64748b;margin:-6px 0 10px">${t.summary}</div>
     ${summaryHtml}
     ${sectionsHtml || `<div class="ra-print-section"><div style="text-align:center;color:#94a3b8;padding:20px">${t.noHotel}</div></div>`}
+    ${busSectionsHtml ? `<div style="margin-top:18px;font-weight:700;font-size:13px;color:#0f4c75">🚌 รถบัส</div>${busSectionsHtml}` : ""}
     <div style="margin-top:20px;font-size:10px;color:#64748b">
       ${t.generated} ${new Date().toLocaleString(lang === "en" ? "en-US" : "th-TH", { timeZone: "Asia/Bangkok" })} · A4S-ERP
     </div>`;
