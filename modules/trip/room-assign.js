@@ -34,6 +34,7 @@ const state = {
   collapsedBuses: new Set(),
   editingBusId: null,
   activeTab: "rooms",         // "rooms" | "buses"
+  initialCollapseSet: false,  // set true หลัง init เพื่อกัน reset state ขยายของ user
 };
 
 // ── SEAT LAYOUT PRESETS ────────────────────────────────────
@@ -226,9 +227,17 @@ async function loadAll() {
       });
     }
 
+    // Initial load: ย่อทุก group/bus เป็น default
+    // (เฉพาะครั้งแรกเท่านั้น — reload หลัง assign จะคง state ที่ user กดเอง)
+    if (!state.initialCollapseSet) {
+      state.collapsedGroups = new Set(state.rooms.map(groupKeyOf));
+      state.collapsedBuses = new Set(state.buses.map(b => b.bus_id));
+      state.initialCollapseSet = true;
+    }
+
     renderTripBanner();
     populateBatchFilter();
-    syncCollapsedWithBatch();
+    // syncCollapsedWithBatch จะ override state เมื่อ dropdown มีค่า — ไม่เรียกใน initial load
     renderStats();
     renderPassengers();
     renderRooms();
@@ -248,16 +257,19 @@ function bindEvents() {
   document.getElementById("paxFilterBatch")?.addEventListener("change", (ev) => {
     const val = ev.target.value || "";
     ev.target.classList.toggle("has-value", !!val);
-    // ถ้าเลือก bus → switch tab ไป buses อัตโนมัติ
     if (val.startsWith("bus:")) {
+      // เลือก bus → switch tab + auto-expand bus คันที่เลือก
+      const bid = parseInt(val.slice(4), 10);
+      if (Number.isFinite(bid)) state.collapsedBuses.delete(bid);
       window.switchTab("buses");
     } else if (val) {
-      // เลือกโรงแรม → กลับมาที่ rooms tab
+      // เลือก hotel → switch tab rooms (syncCollapsedWithBatch จะขยายกลุ่มที่เลือก)
       window.switchTab("rooms");
     }
     syncCollapsedWithBatch();
     renderPassengers();
     renderRooms();
+    renderBuses();
   });
 }
 
@@ -298,22 +310,12 @@ function updateTabCounts() {
 function syncCollapsedWithBatch() {
   const sel = document.getElementById("paxFilterBatch");
   const activeKey = sel?.value || "";
+  // ถ้าไม่เลือก หรือเลือก bus → คง state เดิม (default = ย่อทั้งหมด ตาม initial load)
+  if (!activeKey || activeKey.startsWith("bus:")) return;
+  // เลือก hotel batch → ขยายเฉพาะนั้น, ย่อกลุ่มอื่น
   const allKeys = new Set();
   state.rooms.forEach(r => allKeys.add(groupKeyOf(r)));
-  if (allKeys.size <= 1) {
-    state.collapsedGroups = new Set();
-    return;
-  }
-  // bus mode → ไม่บังคับ collapse rooms
-  if (activeKey.startsWith("bus:")) {
-    state.collapsedGroups = new Set();
-    return;
-  }
-  if (activeKey) {
-    state.collapsedGroups = new Set([...allKeys].filter(k => k !== activeKey));
-  } else {
-    state.collapsedGroups = new Set(allKeys);
-  }
+  state.collapsedGroups = new Set([...allKeys].filter(k => k !== activeKey));
 }
 
 // dropdown "ช่วงพัก" — แสดงรายการ batch (group key) ทั้งหมดของทริปนี้
