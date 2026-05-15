@@ -863,10 +863,7 @@ async function lookupReferrer(code) {
       }
     } catch {}
     _referrerCache = { code: r.member_code, name, uplineId, uplineName };
-    if (st) {
-      const uplineNote = uplineName ? ` <span style="color:#3730a3">· สายงาน ${esc(uplineName)}</span>` : '';
-      st.innerHTML = `<span style="color:#065f46">✅ ${esc(name)}</span>${uplineNote}`;
-    }
+    if (st) st.innerHTML = `<span style="color:#065f46">✅ ${esc(name)}</span>`;
     return _referrerCache;
   } catch (e) {
     _referrerCache = null;
@@ -973,7 +970,8 @@ async function doRegister() {
     }
 
     // 4. Load attendable persons (1-2 rows: primary + co_applicant)
-    const persons = await sbGet(`member_persons?member_code=eq.${encodeURIComponent(code)}&select=member_code,person_role,person_name,phone,is_company&order=person_role`);
+    //    limit=2 จำเป็น — view scan ทั้ง table แล้วค่อย filter ถ้าไม่มี limit จะ timeout (PG 57014)
+    const persons = await sbGet(`member_persons?member_code=eq.${encodeURIComponent(code)}&select=member_code,person_role,person_name,phone,is_company&order=person_role&limit=2`);
     if (!persons.length) {
       // Fallback — สมาชิกที่ไม่อยู่ใน view (data ไม่ครบ): สร้าง row primary จาก members
       persons.push({
@@ -1090,20 +1088,31 @@ async function doRegister() {
     }
 
     // Success!
-    const ticketLines = payload.map(p =>
-      `<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 12px;background:#f8fafc;border-radius:8px;margin-top:6px">
-         <span style="font-size:13px;color:#0f172a;font-weight:600">${p.person_role === 'co_applicant' ? '👥' : '👤'} ${esc(p.name)}</span>
-         <span style="font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:700;color:#1e40af">${p.ticket_no}</span>
+    const ticketLines = payload.map((p, i) =>
+      `<div style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 12px;background:#fff;border:1px solid #e2e8f0;border-radius:12px;margin-top:10px;box-shadow:0 1px 2px rgba(0,0,0,.04)">
+         <div style="font-size:13px;color:#0f172a;font-weight:600">${p.person_role === 'co_applicant' ? '👥' : '👤'} ${esc(p.name)}</div>
+         <div id="mRegQr_${i}" data-qr="${esc(p.ticket_no)}" style="background:#fff;padding:8px;border-radius:8px"></div>
+         <div style="font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:700;color:#1e40af;letter-spacing:.5px">${esc(p.ticket_no)}</div>
        </div>`).join('');
     _registeredCode = code;     // remember after form is destroyed (for connectViaOA)
     document.getElementById('regForm').innerHTML = `
       <div class="reg-msg success">
         <div style="font-size:32px;margin-bottom:8px">✅</div>
-        <div style="font-weight:700;font-size:16px">เข้างานเรียบร้อย!</div>
+        <div style="font-weight:700;font-size:16px">ลงทะเบียนเรียบร้อย</div>
         <div style="margin-top:4px;font-size:12.5px;color:#64748b">รหัส ${code}${payload.length === 2 ? ' · 2 รายชื่อ' : ''}</div>
-        <div style="margin-top:10px">${ticketLines}</div>
-        <div style="margin-top:12px;font-size:12px;color:#64748b">ระบบบันทึกการเข้างานอัตโนมัติแล้ว</div>
+        ${ticketLines}
+        <div style="margin-top:14px;font-size:12px;color:#64748b">📱 แสดง QR นี้ที่หน้างานเพื่อ check-in</div>
       </div>`;
+    // Render QR per ticket
+    payload.forEach((p, i) => {
+      const wrap = document.getElementById(`mRegQr_${i}`);
+      if (!wrap) return;
+      try {
+        new QRCode(wrap, { text: p.ticket_no, width: 160, height: 160, correctLevel: QRCode.CorrectLevel.M });
+      } catch {
+        wrap.textContent = p.ticket_no;
+      }
+    });
 
   } catch (e) {
     showMsg('❌ เกิดข้อผิดพลาด: ' + (e.message || '').slice(0, 100), 'error');
@@ -1208,11 +1217,6 @@ async function doRegisterGuest() {
             <span style="color:#64748b;min-width:80px">🤝 ผู้แนะนำ</span>
             <span style="font-weight:600;flex:1">${esc(ref.code)} · ${esc(ref.name)}</span>
           </div>
-          ${ref.uplineName ? `
-          <div style="display:flex;gap:10px;padding:6px 0;font-size:13px;color:#0f172a;border-top:1px dashed #e2e8f0">
-            <span style="color:#64748b;min-width:80px">🌿 สายงาน</span>
-            <span style="font-weight:600;flex:1">${esc(ref.uplineName)}</span>
-          </div>` : ''}
         </div>
 
         <div style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 12px;background:#fff;border:1px solid #e2e8f0;border-radius:12px;margin-top:10px;box-shadow:0 1px 2px rgba(0,0,0,.04)">

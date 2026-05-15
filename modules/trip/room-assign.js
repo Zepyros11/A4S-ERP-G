@@ -2633,10 +2633,30 @@ window.confirmUnassignSeat = function (busId, seatNo) {
   document.getElementById("sdEditBtn").style.display = "none";
   document.getElementById("sdRemoveBtn").textContent = "🗑 ย้ายออกจากที่นั่ง";
 
+  // หาห้องพักของคนนี้ทั้งหมด — เรียงตาม check-in
+  const rids = state.codeToRooms[code];
+  const myRooms = (rids ? [...rids] : [])
+    .map(rid => state.rooms.find(r => r.room_id === rid))
+    .filter(Boolean)
+    .sort((a, b) => (a.check_in_date || "").localeCompare(b.check_in_date || ""));
+  let roomsValueHtml = "";
+  if (myRooms.length) {
+    roomsValueHtml = myRooms.map(r => {
+      const hotel = state.hotels.find(h => h.place_id === r.place_id);
+      const hname = hotel?.place_name || (r.place_id ? `Place #${r.place_id}` : "ไม่ระบุ");
+      const ci = r.check_in_date ? fmtDate(r.check_in_date) : "?";
+      const co = r.check_out_date ? fmtDate(r.check_out_date) : "?";
+      return `<div style="margin-bottom:3px">🏨 ${escapeHtml(hname)} · <b>${escapeHtml(r.room_name || "—")}</b><br><span style="font-size:11px;color:var(--text2);font-weight:400">${ci} → ${co}</span></div>`;
+    }).join("");
+  } else {
+    roomsValueHtml = `<span style="color:var(--text3);font-weight:400">— ยังไม่มีห้อง —</span>`;
+  }
+
   // Info column
   document.getElementById("sdName").textContent = dname;
   const grid = document.getElementById("sdGrid");
-  grid.innerHTML = [
+  // text rows + ห้องพัก (HTML — render manually)
+  const textRows = [
     ["รหัส",   code],
     ["กลุ่ม",  groupName],
     ["เพศ",    gLbl],
@@ -2650,6 +2670,11 @@ window.confirmUnassignSeat = function (busId, seatNo) {
        <span class="sd-info-v">${escapeHtml(String(v))}</span>
      </div>`
   ).join("");
+  const roomsRow = `<div class="sd-info-row" style="align-items:flex-start">
+    <span class="sd-info-k">🛏 ห้องพัก</span>
+    <span class="sd-info-v" style="text-align:right">${roomsValueHtml}</span>
+  </div>`;
+  grid.innerHTML = textRows + roomsRow;
 
   // Passport column — passport_image_url + visa_image_url
   const pass = p.passport_image_url || p._inheritedPassImg || null;
