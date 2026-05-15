@@ -420,6 +420,7 @@ async function loadEventData() {
     // Registration toggles
     document.getElementById("fRegEnabled").checked = !!e.registration_enabled;
     document.getElementById("fMembersOnly").checked = !!e.members_only;
+    document.getElementById("fMinPosition").value = e.min_position_level || "";
 
     // LINE channel (populated async — wait briefly if options not loaded yet)
     const lineSel = document.getElementById("fLineChannelId");
@@ -687,6 +688,7 @@ window._saveEventImpl = async function () {
       level_id: document.getElementById("fLevel").value || null,
       registration_enabled: document.getElementById("fRegEnabled").checked,
       members_only: document.getElementById("fMembersOnly").checked,
+      min_position_level: document.getElementById("fMinPosition").value || null,
       template_id: (() => {
         const v = document.getElementById("fTemplateId")?.value || "";
         return v ? parseInt(v) : null;

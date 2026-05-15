@@ -110,6 +110,19 @@
                 </div>
 
                 <div class="ef-field">
+                  <label class="ef-label">⭐ ตำแหน่งขั้นต่ำที่สมัครได้</label>
+                  <select class="ef-input" id="fMinPosition">
+                    <option value="">— ไม่จำกัดตำแหน่ง —</option>
+                    <option value="DR">DR ขึ้นไป (Director)</option>
+                    <option value="SD">SD ขึ้นไป (Senior Director)</option>
+                    <option value="AVP">AVP ขึ้นไป</option>
+                    <option value="VP">VP ขึ้นไป</option>
+                    <option value="SVP">SVP เท่านั้น</option>
+                  </select>
+                  <div style="margin-top:4px;font-size:11px;color:var(--text3)">ตรวจจากตำแหน่งสูงสุดของสมาชิก (members.position_level)</div>
+                </div>
+
+                <div class="ef-field">
                   <label class="ef-label">📋 เทมเพลตฟอร์มลงทะเบียน</label>
                   <div style="display:flex;gap:6px;align-items:center">
                     <select class="ef-input" id="fTemplateId" style="flex:1" onchange="onTemplateChange()">

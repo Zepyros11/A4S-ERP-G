@@ -446,6 +446,21 @@ async function sbPost(path, body) {
   return res.json();
 }
 
+/* ── Position rank hierarchy (สูง → ต่ำ): SVP > VP > AVP > SD > DR ── */
+const POSITION_RANK = { DR: 1, SD: 2, AVP: 3, VP: 4, SVP: 5 };
+const POSITION_LABEL = {
+  DR: 'DR (Director)', SD: 'SD (Senior Director)',
+  AVP: 'AVP', VP: 'VP', SVP: 'SVP',
+};
+// true = ตำแหน่ง memberPos ผ่านเกณฑ์ minPos (เท่าหรือสูงกว่า) · null/blank → ผ่านเสมอ
+function meetsMinPosition(memberPos, minPos) {
+  if (!minPos) return true;                          // ไม่จำกัด
+  const minRank = POSITION_RANK[String(minPos).toUpperCase()];
+  if (!minRank) return true;                         // value แปลก → ไม่บล็อก
+  const memRank = POSITION_RANK[String(memberPos || '').toUpperCase()] || 0;
+  return memRank >= minRank;
+}
+
 /* ── Today (Bangkok TZ, YYYY-MM-DD) — เทียบกับ _event.event_date ── */
 function todayBangkok() {
   return new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Bangkok' });
@@ -770,7 +785,8 @@ function renderPage() {
   } else if (isFull) {
     formEl.innerHTML = '<div class="reg-closed"><div class="reg-closed-icon">🚫</div>ลงทะเบียนเต็มแล้ว</div>';
   } else {
-    const allowGuest = !_event.members_only;
+    // Guest ลงทะเบียนไม่ได้ถ้า: members_only · หรือ event กำหนดตำแหน่งขั้นต่ำ (guest ไม่มี position)
+    const allowGuest = !_event.members_only && !_event.min_position_level;
     const memberFormHtml = `
       <div class="reg-field">
         <label>รหัสสมาชิก <span style="color:#dc2626">*</span></label>
@@ -957,11 +973,12 @@ async function doRegister() {
   try {
     // 1. Find member — ลอง members (MLM) ก่อน · fallback ไป test_members (mock สำหรับทดสอบ)
     //    เพิ่ม co_applicant_name + is_company สำหรับสร้าง persons ใน JS (เลี่ยง view member_persons ที่ timeout)
-    const members = await sbGet(`members?member_code=eq.${encodeURIComponent(code)}&select=member_code,member_name,full_name,phone,password_hash,co_applicant_name,is_company&limit=1`);
+    //    เพิ่ม position_level สำหรับเช็คเงื่อนไข min_position_level ของ event
+    const members = await sbGet(`members?member_code=eq.${encodeURIComponent(code)}&select=member_code,member_name,full_name,phone,password_hash,co_applicant_name,is_company,position_level&limit=1`);
     let member = members[0];
     let memberTable = 'members';
     if (!member) {
-      const testRows = await sbGet(`test_members?member_code=eq.${encodeURIComponent(code)}&select=member_code,member_name,full_name,phone,password_hash,co_applicant_name&limit=1`);
+      const testRows = await sbGet(`test_members?member_code=eq.${encodeURIComponent(code)}&select=member_code,member_name,full_name,phone,password_hash,co_applicant_name,position_level&limit=1`);
       member = testRows[0];
       if (member) { memberTable = 'test_members'; member.is_company = false; }
     }
@@ -978,6 +995,14 @@ async function doRegister() {
     // 3. Check members_only
     if (_event.members_only && !member.member_code) {
       showMsg('❌ Event นี้สำหรับสมาชิก A4S เท่านั้น', 'error'); btn.disabled = false; btn.textContent = '🎫 ลงทะเบียน'; return;
+    }
+
+    // 3b. Check min_position_level — ถ้า event กำหนดตำแหน่งขั้นต่ำ ต้องเช็ค position ของสมาชิก
+    if (_event.min_position_level && !meetsMinPosition(member.position_level, _event.min_position_level)) {
+      const need = POSITION_LABEL[_event.min_position_level] || _event.min_position_level;
+      const have = member.position_level ? `${member.position_level}` : 'ยังไม่มีตำแหน่ง';
+      showMsg(`❌ ตำแหน่งของคุณ (<b>${esc(have)}</b>) ยังไม่ถึงเกณฑ์ — Event นี้รับเฉพาะ <b>${esc(need)}</b> ขึ้นไป`, 'error');
+      btn.disabled = false; btn.textContent = '🎫 ลงทะเบียน'; return;
     }
 
     // 4. Build attendable persons (1-2 rows: primary + co_applicant) — สร้างใน JS
@@ -1169,6 +1194,10 @@ async function doRegisterGuest() {
   if (!phone) { showGuestMsg('กรุณากรอกเบอร์โทรศัพท์', 'error'); return; }
   if (!refCode) { showGuestMsg('กรุณากรอกรหัสผู้แนะนำ', 'error'); return; }
   if (_event.members_only) { showGuestMsg('❌ Event นี้สำหรับสมาชิก A4S เท่านั้น', 'error'); return; }
+  if (_event.min_position_level) {
+    const need = POSITION_LABEL[_event.min_position_level] || _event.min_position_level;
+    showGuestMsg(`❌ Event นี้รับเฉพาะสมาชิกตำแหน่ง <b>${esc(need)}</b> ขึ้นไป`, 'error'); return;
+  }
 
   btn.disabled = true;
   btn.textContent = '⏳ กำลังลงทะเบียน...';
