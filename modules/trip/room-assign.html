@@ -440,26 +440,27 @@
 
       /* Seat map */
       .ba-seat-map{
-        margin-top:10px;padding:14px 10px;
+        margin-top:10px;padding:14px 16px;
         background:#f8fafc;border:1px solid var(--border);border-radius:10px;
-        display:flex;flex-direction:column;align-items:center;gap:6px;
+        display:flex;flex-direction:column;align-items:stretch;gap:6px;
         overflow-x:auto;
       }
       .ba-seat-driver{
         display:flex;align-items:center;justify-content:space-between;gap:14px;
-        width:100%;max-width:600px;padding:6px 14px;
+        width:100%;padding:6px 14px;
         font-size:12.5px;color:var(--text2);font-weight:600;
         border-bottom:2px dashed #cbd5e1;margin-bottom:8px;padding-bottom:10px;
       }
-      .ba-seat-row{display:flex;align-items:center;justify-content:center;gap:14px}
-      .ba-seat-row .ba-aisle{width:60px;flex-shrink:0}
+      .ba-seat-row{display:flex;align-items:center;justify-content:stretch;gap:14px;width:100%}
+      .ba-seat-row .ba-aisle{width:48px;flex-shrink:0;flex-grow:0}
       .ba-seat{
-        width:140px;height:52px;border:1.5px solid #cbd5e1;border-radius:10px;
-        background:#fff;display:flex;align-items:center;justify-content:center;
+        flex:1 1 0;min-width:90px;height:52px;
+        border:1.5px solid #cbd5e1;border-radius:10px;
+        background:#fff;display:flex;align-items:center;justify-content:flex-start;
         gap:8px;
         font-size:13px;font-weight:700;color:var(--text2);cursor:pointer;
-        transition:.12s;flex-shrink:0;position:relative;
-        font-family:'IBM Plex Mono',monospace;padding:0 10px;
+        transition:.12s;position:relative;
+        font-family:'IBM Plex Mono',monospace;padding:0 12px;
       }
       .ba-seat:hover{border-color:#3b82f6;color:#1d4ed8;background:#eff6ff;z-index:5}
       .ba-seat.taken{cursor:pointer}
@@ -487,7 +488,7 @@
         z-index:10;border-color:#3b82f6;
         box-shadow:0 0 0 3px rgba(59,130,246,.18);
       }
-      .ba-seat-empty{width:140px;height:52px;flex-shrink:0;visibility:hidden}
+      .ba-seat-empty{flex:1 1 0;min-width:90px;height:52px;visibility:hidden}
       .ba-seat-rows{display:flex;flex-direction:column;gap:14px;padding:8px 0}
 
       .ba-empty-buses{padding:30px;text-align:center;color:var(--text3);background:#fff;border:1px dashed var(--border);border-radius:12px}
@@ -552,14 +553,15 @@
         max-height:280px;overflow-y:auto;
       }
       .ba-preset-preview .ba-seat{
-        width:50px;height:26px;font-size:10px;padding:0 4px;gap:3px;
+        flex:0 0 auto;width:50px;height:26px;
+        min-width:0;font-size:10px;padding:0 4px;gap:3px;
         border-radius:5px;
       }
       .ba-preset-preview .ba-seat-num{font-size:10px;padding:1px 3px;border-radius:3px}
       .ba-preset-preview .ba-seat-name{display:none}
-      .ba-preset-preview .ba-seat-empty{width:50px;height:26px}
+      .ba-preset-preview .ba-seat-empty{flex:0 0 auto;width:50px;height:26px;min-width:0}
       .ba-preset-preview .ba-aisle{width:18px}
-      .ba-preset-preview .ba-seat-row{gap:6px}
+      .ba-preset-preview .ba-seat-row{gap:6px;width:auto;justify-content:center}
       .ba-preset-preview .ba-seat-rows{gap:6px}
       .ba-preset-preview .ba-seat-driver{max-width:300px;font-size:10px}
       .ba-form-row-2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
@@ -670,6 +672,9 @@
                   <option value="">⚥ ทุกเพศ</option>
                   <option value="M">♂ ชาย</option>
                   <option value="F">♀ หญิง</option>
+                </select>
+                <select id="paxFilterNat" title="กรองตามสัญชาติ" style="flex:1 1 100%">
+                  <option value="">🌐 ทุกสัญชาติ</option>
                 </select>
               </div>
               <div class="ra-pax-list" id="paxList">

@@ -237,6 +237,7 @@ async function loadAll() {
 
     renderTripBanner();
     populateBatchFilter();
+    populateNatFilter();
     // syncCollapsedWithBatch จะ override state เมื่อ dropdown มีค่า — ไม่เรียกใน initial load
     renderStats();
     renderPassengers();
@@ -254,6 +255,7 @@ function bindEvents() {
   document.getElementById("paxSearch")?.addEventListener("input", renderPassengers);
   document.getElementById("paxFilterStatus")?.addEventListener("change", renderPassengers);
   document.getElementById("paxFilterGender")?.addEventListener("change", renderPassengers);
+  document.getElementById("paxFilterNat")?.addEventListener("change", renderPassengers);
   document.getElementById("paxFilterBatch")?.addEventListener("change", (ev) => {
     const val = ev.target.value || "";
     ev.target.classList.toggle("has-value", !!val);
@@ -371,6 +373,27 @@ function populateBatchFilter() {
     sel.value = batches[0].key;
   }
   sel.classList.toggle("has-value", !!sel.value);
+}
+
+// dropdown "สัญชาติ" — distinct nationalities ของ passengers
+function populateNatFilter() {
+  const sel = document.getElementById("paxFilterNat");
+  if (!sel) return;
+  const prev = sel.value;
+  // นับจำนวนต่อสัญชาติ
+  const counts = new Map();
+  state.passengers.forEach(p => {
+    const nat = (p.nationality || p._inheritedNat || "").trim();
+    if (!nat) return;
+    counts.set(nat, (counts.get(nat) || 0) + 1);
+  });
+  const sorted = [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+  const opts = ['<option value="">🌐 ทุกสัญชาติ</option>'];
+  sorted.forEach(([nat, n]) => {
+    opts.push(`<option value="${escapeAttr(nat)}">${escapeHtml(nat)} (${n})</option>`);
+  });
+  sel.innerHTML = opts.join("");
+  if (prev && counts.has(prev)) sel.value = prev;
 }
 
 // ── TRIP BANNER ────────────────────────────────────────────
@@ -1059,6 +1082,7 @@ function renderPassengers() {
   const search = (document.getElementById("paxSearch")?.value || "").toLowerCase();
   const status = document.getElementById("paxFilterStatus")?.value || "missing_any";
   const gender = document.getElementById("paxFilterGender")?.value || "";
+  const nat    = (document.getElementById("paxFilterNat")?.value || "").trim();
 
   const batchKey = document.getElementById("paxFilterBatch")?.value || "";
   const isBusMode = batchKey.startsWith("bus:");
@@ -1127,6 +1151,10 @@ function renderPassengers() {
       if (status === "assigned" && (totalB === 0 || aB < totalB)) return false;
     }
     if (gender && normGender(p.gender) !== gender) return false;
+    if (nat) {
+      const pnat = (p.nationality || p._inheritedNat || "").trim();
+      if (pnat !== nat) return false;
+    }
     if (search) {
       const hay = `${p.code || ""} ${p.name || ""} ${p.group_name || ""}`.toLowerCase();
       if (!hay.includes(search)) return false;

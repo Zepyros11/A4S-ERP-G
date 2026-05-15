@@ -1727,7 +1727,7 @@ async function _buildExportData() {
   const ev = currentEvent || allEvents.find(e => e.event_id === currentEventId) || {};
   const cfg = await fetchEventFieldConfig(currentEventId).catch(() => DEFAULT_FIELD_CONFIG);
   const order = (Array.isArray(cfg.field_order) ? cfg.field_order : DEFAULT_FIELD_ORDER)
-    .filter(k => cfg.fields?.[k]?.show !== false);
+    .filter(k => _fieldShowsAsColumn(cfg.fields?.[k]));
   const tailKeys = order.filter(k => k === "cs_staff" || k === "note");
   const midKeys  = order.filter(k => k !== "cs_staff" && k !== "note");
   const quals = (Array.isArray(cfg.qualifications) ? cfg.qualifications : []);
@@ -3407,6 +3407,13 @@ function _applyPaymentVisibility() {
   if (tierBanner && !has) tierBanner.style.display = "none";
 }
 
+// แสดงเป็น column ในตาราง? — fallback: ถ้าไม่กำหนด → ใช้ show (backward compat)
+function _fieldShowsAsColumn(fcfg) {
+  if (!fcfg) return true;
+  if (fcfg.column !== undefined) return fcfg.column !== false;
+  return fcfg.show !== false;
+}
+
 function getActiveColumns() {
   const cols = [
     { key: "check", label: `<input type="checkbox" id="selectAllAttendees" onchange="window.toggleSelectAll(this.checked)" style="cursor:pointer;width:16px;height:16px">`, width: 36, align: "center" },
@@ -3419,7 +3426,7 @@ function getActiveColumns() {
     : Object.keys(FIELD_COL_DEFS);
   order.forEach(fkey => {
     if (!FIELD_COL_DEFS[fkey]) return;
-    if (cfg.fields?.[fkey]?.show !== false) {
+    if (_fieldShowsAsColumn(cfg.fields?.[fkey])) {
       cols.push({ key: "field:" + fkey, label: _colIcon(fkey) + _getFieldLabel(fkey, cfg), width: FIELD_COL_DEFS[fkey].width, align: "center" });
     }
   });
@@ -4622,17 +4629,20 @@ window._csStaffKey = function (ev) {
 // Default = all fields shown, none required (except upline & name)
 // field_order = ลำดับ column ในตาราง spreadsheet · drag-reorder ใน config modal
 const DEFAULT_FIELD_ORDER = ["phone", "position", "upline", "referrer", "cs_staff", "line_name", "fb_page_name", "had_attended", "note"];
+// show   = แสดงในฟอร์ม add/edit หลังบ้าน (back-office)
+// column = แสดงเป็น column ในตาราง attendees (ปรับแยกได้)
+// column undefined → fallback ใช้ค่า show (backward compat กับ config เดิม)
 const DEFAULT_FIELD_CONFIG = {
   fields: {
-    phone:        { show: true,  required: false },
-    position:     { show: true,  required: false },
-    upline:       { show: true,  required: true  },
-    referrer:     { show: true,  required: false },
-    cs_staff:     { show: true,  required: false },
-    line_name:    { show: true,  required: false },
-    fb_page_name: { show: true,  required: false },
-    had_attended: { show: true,  required: false },
-    note:         { show: true,  required: false },
+    phone:        { show: true,  required: false, column: true  },
+    position:     { show: true,  required: false, column: true  },
+    upline:       { show: true,  required: true,  column: true  },
+    referrer:     { show: true,  required: false, column: true  },
+    cs_staff:     { show: true,  required: false, column: true  },
+    line_name:    { show: true,  required: false, column: true  },
+    fb_page_name: { show: true,  required: false, column: true  },
+    had_attended: { show: true,  required: false, column: true  },
+    note:         { show: true,  required: false, column: true  },
   },
   field_order: DEFAULT_FIELD_ORDER.slice(),
   hidden_keys: [],
@@ -5436,6 +5446,7 @@ function _renderFcFields() {
       if (!FIELD_LABELS[key]) return "";
       const f = _fcDraft.fields[key] || {};
       const show = f.show !== false;
+      const col = _fieldShowsAsColumn(f);
       const req = f.required === true;
       const lbl = _getFieldLabel(key, _fcDraft);
       return `<div class="drag-row" draggable="true" data-list="field" data-idx="${idx}"
@@ -5446,11 +5457,15 @@ function _renderFcFields() {
         ondragend="window._fcDragEnd(event)">
         <span class="drag-handle" title="ลากเพื่อจัดลำดับ">⋮⋮</span>
         <span class="drag-num">${idx + 1}.</span>
-        <label class="drag-row-main">
+        <label class="drag-row-main" title="แสดงในฟอร์มลงทะเบียน">
           <input type="checkbox" ${show ? "checked" : ""} onchange="window._fcToggleShow('${key}', this.checked)">
           <span class="${show ? '' : 'inactive'}">${escapeHtml(lbl)}</span>
         </label>
         <button class="drag-row-edit" title="แก้ไขชื่อหัวข้อ" onclick="window._fcRenameField('${key}')">✏️</button>
+        <label class="drag-row-col" title="แสดงเป็น column ในตาราง attendees">
+          <input type="checkbox" ${col ? "checked" : ""} onchange="window._fcToggleColumn('${key}', this.checked)">
+          📊 ตาราง
+        </label>
         <label class="drag-row-req">
           <input type="checkbox" ${req ? "checked" : ""} ${show ? "" : "disabled"} onchange="window._fcToggleReq('${key}', this.checked)">
           บังคับ*
@@ -5589,6 +5604,12 @@ window._fcToggleReq = function (key, val) {
   _fcMarkDirty();
   if (!_fcDraft.fields[key]) _fcDraft.fields[key] = {};
   _fcDraft.fields[key].required = val;
+};
+window._fcToggleColumn = function (key, val) {
+  _fcMarkDirty();
+  if (!_fcDraft.fields[key]) _fcDraft.fields[key] = {};
+  _fcDraft.fields[key].column = val;
+  _renderFcFields();
 };
 
 function _renderFcQuals() {

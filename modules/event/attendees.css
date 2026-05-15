@@ -2563,6 +2563,23 @@
   text-decoration: line-through;
 }
 
+.drag-row .drag-row-col {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  font-size: 11px;
+  color: #1e40af;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.drag-row .drag-row-col input[type="checkbox"] {
+  width: 14px;
+  height: 14px;
+  cursor: pointer;
+  accent-color: #1e40af;
+  flex-shrink: 0;
+}
 .drag-row .drag-row-req {
   display: flex;
   align-items: center;
