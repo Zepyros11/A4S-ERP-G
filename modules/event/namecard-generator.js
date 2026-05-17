@@ -200,13 +200,27 @@
       el.style.setProperty("--nmc-zoom", zoom);
     });
 
-    // Auto-fit name & position text to box
+    // Auto-fit name & position text to box · positions use uniform
+    // sizing (smallest fit) so all cards look visually consistent.
     requestAnimationFrame(() => {
       [scroller, printArea].forEach(root => {
         root.querySelectorAll(".nmc-card-name").forEach(autoFit);
-        root.querySelectorAll(".nmc-card-position").forEach(autoFit);
+        const posEls = Array.from(root.querySelectorAll(".nmc-card-position"));
+        uniformFit(posEls);
       });
     });
+  }
+
+  // Run autoFit on each, then collapse to the smallest size so all
+  // text on the page renders at the same scale.
+  function uniformFit(elements) {
+    if (!elements.length) return;
+    const sizes = elements.map(el => {
+      autoFit(el);
+      return parseFloat(el.style.fontSize) || 12;
+    });
+    const min = Math.min(...sizes);
+    elements.forEach(el => { el.style.fontSize = min + "px"; });
   }
 
   // Shrink font-size until text fits its container (width & height).

@@ -219,6 +219,8 @@
   font-weight: 800;
   color: #000;
   line-height: 1.15;
+  white-space: nowrap;     /* force single line · autoFit shrinks to fit */
+  overflow: hidden;
   /* font-size set inline via JS for auto-fit */
 }
 
