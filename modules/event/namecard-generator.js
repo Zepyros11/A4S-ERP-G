@@ -6,11 +6,17 @@
   "use strict";
 
   const PER_PAGE = 8;
+  const VIP_PER_PAGE = 10;          // 2 × 5
   const LOGO_PATH = "../../assets/logo/logo-a4s.png";
 
   // [{ name, position }]
   let rows = [];
   let zoom = 0.5;
+
+  // ── VIP tab state ─────────────────────────────────────────
+  let vipQty = 10;
+  let vipZoom = 0.5;
+  let activeTab = "namecard";       // "namecard" | "vip"
 
   // ── Helpers ────────────────────────────────────────────────
   function $(id) { return document.getElementById(id); }
@@ -384,6 +390,147 @@
     }
   }
 
+  // ════════════════════════════════════════════════════════════
+  // VIP TAB
+  // ════════════════════════════════════════════════════════════
+  function switchTab(tab) {
+    activeTab = tab;
+    const isNamecard = tab === "namecard";
+    $("paneNamecard").style.display = isNamecard ? "" : "none";
+    $("paneVip").style.display      = isNamecard ? "none" : "";
+    document.querySelectorAll(".nmc-tab").forEach(t => {
+      t.classList.toggle("active", t.dataset.tab === tab);
+    });
+    // Hide namecard-only header button (Template download) on VIP tab
+    const btnT = $("btnTemplate");
+    if (btnT) btnT.style.display = isNamecard ? "" : "none";
+    if (!isNamecard) renderVipSheets();
+  }
+
+  function vipCardHtml() {
+    return `
+      <div class="vip-card">
+        <div class="vip-card-logo"><img src="${LOGO_PATH}" alt="A4S" onerror="this.style.display='none'"></div>
+        <div class="vip-card-band">
+          <div class="vip-card-text">VIP</div>
+        </div>
+      </div>
+    `;
+  }
+  function vipBlankHtml() { return `<div class="vip-card" style="visibility:hidden"></div>`; }
+
+  function renderVipSheets() {
+    const qty = Math.max(0, vipQty | 0);
+    const scroller  = $("vipSheetScroller");
+    const printArea = $("vipPrintArea");
+    if (!scroller || !printArea) return;
+
+    const pageCount = Math.max(1, Math.ceil(qty / VIP_PER_PAGE));
+    $("vipPageCount") && ($("vipPageCount").textContent = qty ? pageCount : 0);
+
+    if (!qty) {
+      scroller.innerHTML  = "";
+      printArea.innerHTML = "";
+      return;
+    }
+
+    const buildHtml = () => {
+      let remaining = qty;
+      const pages = [];
+      for (let p = 0; p < pageCount; p++) {
+        const cells = [];
+        for (let i = 0; i < VIP_PER_PAGE; i++) {
+          if (remaining > 0) { cells.push(vipCardHtml()); remaining--; }
+          else cells.push(vipBlankHtml());
+        }
+        pages.push(`<div class="vip-a4">${cells.join("")}</div>`);
+      }
+      return pages.join("");
+    };
+
+    const html = buildHtml();
+    scroller.innerHTML  = html;
+    printArea.innerHTML = html;
+    scroller.querySelectorAll(".vip-a4").forEach(el => el.style.setProperty("--nmc-zoom", vipZoom));
+  }
+
+  function setVipQty(v) {
+    let n = parseInt(v, 10);
+    if (isNaN(n) || n < 0) n = 0;
+    if (n > 500) n = 500;
+    vipQty = n;
+    const inp = $("vipQtyInput");
+    if (inp && inp.value !== String(n)) inp.value = n;
+    renderVipSheets();
+  }
+  function bumpVipQty(dir) { setVipQty(vipQty + dir); }
+
+  function setVipZoom(dir) {
+    const steps = [0.25, 0.35, 0.5, 0.65, 0.8, 1.0];
+    let i = steps.indexOf(vipZoom);
+    if (i < 0) i = 2;
+    i = Math.max(0, Math.min(steps.length - 1, i + dir));
+    vipZoom = steps[i];
+    $("vipZoomLabel") && ($("vipZoomLabel").textContent = Math.round(vipZoom * 100) + "%");
+    document.querySelectorAll("#vipSheetScroller .vip-a4").forEach(el => {
+      el.style.setProperty("--nmc-zoom", vipZoom);
+    });
+  }
+
+  async function exportVipPDF() {
+    if (!vipQty) { showToast("กรุณาระบุจำนวนป้าย VIP", "error"); return; }
+    if (!window.html2canvas || !window.jspdf) {
+      showToast("ไลบรารี PDF ยังโหลดไม่เสร็จ ลองใหม่อีกครั้ง", "error"); return;
+    }
+    const btn = $("btnExportVipPDF");
+    const orig = btn ? btn.textContent : "";
+    if (btn) { btn.disabled = true; btn.textContent = "⏳ กำลังสร้าง PDF..."; }
+
+    try {
+      renderVipSheets();
+      await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+      await new Promise(r => setTimeout(r, 80));
+
+      const printArea = $("vipPrintArea");
+      const orig2 = {
+        position: printArea.style.position, left: printArea.style.left,
+        top: printArea.style.top, visibility: printArea.style.visibility,
+      };
+      printArea.style.position = "fixed";
+      printArea.style.left = "0"; printArea.style.top = "0";
+      printArea.style.visibility = "visible";
+      printArea.style.zIndex = "-1";
+
+      const { jsPDF } = window.jspdf;
+      const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+      const sheets = printArea.querySelectorAll(".vip-a4");
+
+      for (let i = 0; i < sheets.length; i++) {
+        if (i > 0) pdf.addPage();
+        const canvas = await html2canvas(sheets[i], {
+          scale: 3, useCORS: true, backgroundColor: "#ffffff", logging: false,
+        });
+        const img = canvas.toDataURL("image/jpeg", 0.95);
+        pdf.addImage(img, "JPEG", 0, 0, 210, 297, undefined, "FAST");
+      }
+
+      printArea.style.position   = orig2.position;
+      printArea.style.left       = orig2.left;
+      printArea.style.top        = orig2.top;
+      printArea.style.visibility = orig2.visibility;
+      printArea.style.zIndex     = "";
+
+      const stamp = new Date().toISOString().slice(0, 10);
+      pdf.save(`vip-cards-${stamp}.pdf`);
+      showToast(`ส่งออก PDF เรียบร้อย (${sheets.length} หน้า · ${vipQty} ใบ)`);
+    } catch (err) {
+      console.error(err);
+      showToast("สร้าง PDF ไม่สำเร็จ — " + err.message, "error");
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = orig; }
+    }
+  }
+
   function downloadTemplate() {
     const data = [
       ["ชื่อ", "ตำแหน่ง"],
@@ -400,11 +547,19 @@
   document.addEventListener("DOMContentLoaded", () => {
     setStep(1);
     $("zoomLabel") && ($("zoomLabel").textContent = Math.round(zoom * 100) + "%");
+    $("vipZoomLabel") && ($("vipZoomLabel").textContent = Math.round(vipZoom * 100) + "%");
+    // Pre-render VIP at default qty so user sees a preview immediately if they switch
+    renderVipSheets();
   });
 
   window.nmc = {
+    // Namecard tab
     onDrag, onDrop, onFilePick,
     addRow, clearAll, resetAll,
     setZoom, printNow, exportPDF, downloadTemplate,
+    // VIP tab
+    setVipQty, bumpVipQty, setVipZoom, exportVipPDF,
+    // Common
+    switchTab,
   };
 })();

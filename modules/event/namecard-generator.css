@@ -28,6 +28,133 @@
   border-color: rgba(255,255,255,.55);
 }
 
+/* ── Tabs ──────────────────────────────────────────────────── */
+.nmc-tabs {
+  display: flex;
+  gap: 4px;
+  margin: 8px 0 16px;
+  border-bottom: 2px solid var(--border, #e2e8f0);
+}
+.nmc-tab {
+  background: transparent;
+  border: none;
+  padding: 12px 22px 10px;
+  font-family: inherit; font-size: 14px; font-weight: 600;
+  color: var(--text3, #94a3b8);
+  cursor: pointer;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -2px;
+  transition: all .15s;
+  display: flex; align-items: baseline; gap: 8px;
+}
+.nmc-tab:hover { color: var(--text2, #475569); }
+.nmc-tab.active {
+  color: var(--accent, #3b82f6);
+  border-bottom-color: var(--accent, #3b82f6);
+}
+.nmc-tab-sub {
+  font-size: 11px; font-weight: 500; opacity: .7;
+}
+
+/* ── VIP quantity input ────────────────────────────────────── */
+.vip-qty-row {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 18px;
+  flex-wrap: wrap;
+}
+.vip-qty-input-wrap {
+  display: flex; align-items: center; gap: 6px;
+}
+.vip-qty-btn {
+  width: 36px; height: 36px;
+  border: 1px solid var(--border, #e2e8f0);
+  background: var(--surface, #fff);
+  border-radius: 8px;
+  font-size: 18px; font-weight: 700; color: var(--text, #0f172a);
+  cursor: pointer;
+  transition: all .15s;
+}
+.vip-qty-btn:hover { background: var(--accent-pale, #eff6ff); border-color: var(--accent, #3b82f6); }
+.vip-qty-input {
+  width: 100px; height: 36px;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 8px;
+  text-align: center;
+  font-family: inherit; font-size: 18px; font-weight: 700;
+  color: var(--text, #0f172a);
+  background: var(--surface, #fff);
+}
+.vip-qty-input:focus {
+  outline: none;
+  border-color: var(--accent, #3b82f6);
+  box-shadow: 0 0 0 3px rgba(59,130,246,.12);
+}
+.vip-qty-unit {
+  font-size: 14px; color: var(--text2, #475569); font-weight: 600;
+}
+.vip-qty-meta {
+  display: flex; flex-direction: column; gap: 2px;
+  font-size: 13px; color: var(--text2, #475569);
+}
+.vip-qty-pages b { color: var(--accent, #3b82f6); font-size: 16px; }
+.vip-qty-perpage { font-size: 11px; color: var(--text3, #94a3b8); }
+.vip-qty-presets { display: flex; gap: 6px; margin-left: auto; }
+
+/* ── VIP Card · 95mm × 50mm ────────────────────────────────── */
+.vip-card {
+  position: relative;
+  width: 95mm; height: 50mm;
+  background: #fff;
+  border: 1px dashed #cbd5e1;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+.vip-card-logo {
+  position: absolute; left: 0; right: 0;
+  top: 4mm; height: 15mm;
+  display: flex; align-items: center; justify-content: center;
+}
+.vip-card-logo img {
+  max-height: 15mm; max-width: 60mm; object-fit: contain;
+}
+.vip-card-band {
+  position: absolute; left: 0; right: 0;
+  top: 25mm; bottom: 0;
+  background: #6BBE45;
+  display: flex; align-items: center; justify-content: center;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+  color-adjust: exact;
+}
+.vip-card-text {
+  font-family: 'Sarabun', sans-serif;
+  font-weight: 900;
+  font-size: 64px;
+  color: #0f172a;
+  letter-spacing: 0.1em;
+  line-height: 1;
+}
+
+/* VIP A4: 2 cols × 5 rows = 10 cards/page */
+.vip-a4 {
+  width: 210mm; height: 297mm;
+  background: #fff;
+  box-shadow: 0 4px 18px rgba(15,23,42,.18);
+  padding: 0;
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: repeat(2, 95mm);
+  grid-template-rows: repeat(5, 50mm);
+  gap: 0;
+  justify-content: center;
+  align-content: start;
+  transform-origin: top center;
+  transform: scale(var(--nmc-zoom, .5));
+  margin-bottom: calc(297mm * var(--nmc-zoom, .5) - 297mm);
+}
+
 /* ── Steps ─────────────────────────────────────────────────── */
 .nmc-steps {
   display: flex; gap: 12px; margin: 8px 0 16px;
@@ -207,7 +334,8 @@
   top: 35mm; bottom: 0;
   background: #6BBE45; /* A4S green */
   display: flex; align-items: center; justify-content: center;
-  padding: 0 4mm;
+  padding: 3mm 4mm;        /* vertical pad keeps Thai tone marks visible */
+  box-sizing: border-box;
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
   color-adjust: exact;
@@ -218,9 +346,8 @@
   font-family: 'Sarabun', sans-serif;
   font-weight: 800;
   color: #000;
-  line-height: 1.15;
+  line-height: 1.4;        /* room for Thai tone marks above/below */
   white-space: nowrap;     /* force single line · autoFit shrinks to fit */
-  overflow: hidden;
   /* font-size set inline via JS for auto-fit */
 }
 
@@ -251,7 +378,8 @@
   pointer-events: none;
   visibility: hidden;
 }
-.nmc-print-area .nmc-a4 {
+.nmc-print-area .nmc-a4,
+.nmc-print-area .vip-a4 {
   /* On-paper layout while sitting off-screen */
   transform: none !important;
   margin: 0 !important;

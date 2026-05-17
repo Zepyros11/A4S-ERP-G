@@ -26,14 +26,27 @@
           <div class="page-hero page-hero--simple page-hero--compact nmc-no-print nmc-hero">
             <div class="nmc-hero-left">
               <h1 class="page-hero-title">🪪 สร้างป้ายชื่อ</h1>
-              <div class="page-hero-sub">เครื่องมือ Utility · Event · สร้างป้ายชื่อ 8.5 × 6 cm จัด layout บนกระดาษ A4</div>
+              <div class="page-hero-sub">เครื่องมือ Utility · Event · จัด layout บนกระดาษ A4 + export PDF</div>
             </div>
-            <div class="nmc-hero-right">
-              <button class="btn btn-primary" onclick="nmc.downloadTemplate()" title="ดาวน์โหลดไฟล์ Excel ตัวอย่าง">
+            <div class="nmc-hero-right" id="heroActions">
+              <button class="btn btn-primary" onclick="nmc.downloadTemplate()" title="ดาวน์โหลดไฟล์ Excel ตัวอย่าง" id="btnTemplate">
                 ⬇️ ดาวน์โหลด Template
               </button>
             </div>
           </div>
+
+          <!-- TABS -->
+          <div class="nmc-tabs nmc-no-print">
+            <button class="nmc-tab active" data-tab="namecard" onclick="nmc.switchTab('namecard')">
+              🪪 ป้ายชื่อ <span class="nmc-tab-sub">8.5 × 6 cm · 8/หน้า</span>
+            </button>
+            <button class="nmc-tab" data-tab="vip" onclick="nmc.switchTab('vip')">
+              ⭐ ป้าย VIP <span class="nmc-tab-sub">9.5 × 5 cm · 10/หน้า</span>
+            </button>
+          </div>
+
+          <!-- ╔══ TAB CONTENT: NAMECARD ══╗ -->
+          <div class="nmc-tab-pane active" id="paneNamecard">
 
           <!-- STEP CARDS -->
           <div class="nmc-no-print">
@@ -98,8 +111,67 @@
             </div>
           </div>
 
-          <!-- PRINT AREA (renders A4 sheets for printing) -->
+          </div>
+          <!-- ╚══ /TAB CONTENT: NAMECARD ══╝ -->
+
+          <!-- ╔══ TAB CONTENT: VIP ══╗ -->
+          <div class="nmc-tab-pane" id="paneVip" style="display:none">
+
+            <div class="nmc-no-print">
+              <!-- VIP quantity input -->
+              <div class="nmc-card-block">
+                <div class="nmc-block-hdr">
+                  <div class="nmc-block-title">⭐ จำนวนป้าย VIP ที่ต้องการพิมพ์</div>
+                </div>
+                <div class="vip-qty-row">
+                  <div class="vip-qty-input-wrap">
+                    <button class="vip-qty-btn" onclick="nmc.bumpVipQty(-1)">−</button>
+                    <input type="number" id="vipQtyInput" class="vip-qty-input" min="0" max="500" value="10"
+                           oninput="nmc.setVipQty(this.value)">
+                    <button class="vip-qty-btn" onclick="nmc.bumpVipQty(1)">＋</button>
+                    <span class="vip-qty-unit">ใบ</span>
+                  </div>
+                  <div class="vip-qty-meta">
+                    <span class="vip-qty-pages"><b id="vipPageCount">1</b> หน้า A4</span>
+                    <span class="vip-qty-perpage">(10 ใบ/หน้า · 2×5)</span>
+                  </div>
+                  <div class="vip-qty-presets">
+                    <button class="btn btn-outline btn-sm" onclick="nmc.setVipQty(10)">10</button>
+                    <button class="btn btn-outline btn-sm" onclick="nmc.setVipQty(20)">20</button>
+                    <button class="btn btn-outline btn-sm" onclick="nmc.setVipQty(30)">30</button>
+                    <button class="btn btn-outline btn-sm" onclick="nmc.setVipQty(50)">50</button>
+                    <button class="btn btn-outline btn-sm" onclick="nmc.setVipQty(100)">100</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- VIP actions -->
+              <div class="nmc-actions">
+                <button class="btn btn-secondary" onclick="nmc.setVipQty(0)">↺ ล้าง</button>
+                <button class="btn btn-primary" onclick="nmc.exportVipPDF()" id="btnExportVipPDF">📄 Export PDF</button>
+              </div>
+
+              <!-- VIP preview -->
+              <div class="nmc-card-block">
+                <div class="nmc-block-hdr">
+                  <div class="nmc-block-title">👁️ ตัวอย่าง Layout · กระดาษ A4 (10 ใบ/หน้า · 2×5)</div>
+                  <div class="nmc-block-tools nmc-zoom-tools">
+                    <span style="font-size:12px;color:var(--text3)">Zoom</span>
+                    <button class="btn btn-outline btn-sm" onclick="nmc.setVipZoom(-1)">−</button>
+                    <span id="vipZoomLabel" style="min-width:48px;text-align:center;font-weight:600">50%</span>
+                    <button class="btn btn-outline btn-sm" onclick="nmc.setVipZoom(1)">＋</button>
+                  </div>
+                </div>
+                <div class="nmc-sheet-scroller" id="vipSheetScroller"></div>
+              </div>
+            </div>
+
+          </div>
+          <!-- ╚══ /TAB CONTENT: VIP ══╝ -->
+
+          <!-- PRINT AREAS (off-screen render targets for PDF export) -->
           <div class="nmc-print-area" id="printArea"></div>
+          <div class="nmc-print-area" id="vipPrintArea"></div>
 
         </div>
       </div>

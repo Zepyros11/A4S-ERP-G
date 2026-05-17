@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ℹ️ ข้อมูลผู้เดินทาง — A4S-ERP</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../../css/main.css" />
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    <style>
+      /* ── Trip context banner ── */
+      .pd-trip-banner{
+        display:inline-flex;align-items:center;gap:10px;
+        background:var(--accent-pale);
+        border:1px solid color-mix(in srgb, var(--accent) 20%, transparent);
+        padding:6px 14px;border-radius:999px;font-size:13px;
+        color:var(--accent);margin-left:12px;white-space:nowrap;
+      }
+      .pd-trip-banner a{color:var(--accent);text-decoration:none;font-weight:600;opacity:.85}
+      .pd-trip-banner a:hover{opacity:1}
+
+      /* ── Wide table with horizontal scroll ── */
+      #pd-table-wrap{
+        overflow-x:auto;background:#fff;border:1px solid var(--border);
+        border-radius:10px;margin-top:8px;
+      }
+      table#pd-table{
+        border-collapse:separate;border-spacing:0;width:max-content;min-width:100%;
+        font-size:12.5px;
+      }
+      table#pd-table th, table#pd-table td{
+        padding:8px 10px;border-bottom:1px solid var(--border);
+        text-align:left;vertical-align:middle;
+      }
+      table#pd-table thead th{
+        background:#f1f5f9;color:var(--text2);font-weight:700;font-size:11.5px;
+        position:sticky;top:0;z-index:2;white-space:nowrap;
+      }
+      table#pd-table tbody tr:hover{background:#f8fafc}
+      table#pd-table tbody tr.sub-row{background:#fafbfc}
+
+      /* Column widths */
+      .pd-col-no       { width:44px; min-width:44px; text-align:center; color:var(--text3); }
+      .pd-col-code     { width:100px; min-width:90px; font-family:'IBM Plex Mono',monospace; font-size:11.5px; color:var(--text2); }
+      .pd-col-name     { width:180px; min-width:160px; }
+      .pd-col-gender   { width:90px; min-width:80px; }
+      .pd-col-religion { width:120px; min-width:100px; }
+      .pd-col-nat      { width:120px; min-width:100px; }
+      .pd-col-shirt    { width:80px; min-width:80px; }
+      .pd-col-allergy  { width:170px; min-width:140px; }
+      .pd-col-medical  { width:170px; min-width:140px; }
+      .pd-col-medic    { width:170px; min-width:140px; }
+      .pd-col-tel      { width:140px; min-width:120px; }
+      .pd-col-line     { width:130px; min-width:110px; }
+      .pd-col-addr     { width:200px; min-width:160px; }
+      .pd-col-em-name  { width:140px; min-width:120px; }
+      .pd-col-em-rel   { width:110px; min-width:90px; }
+      .pd-col-em-phone { width:140px; min-width:120px; }
+      .pd-col-ins-co   { width:140px; min-width:120px; }
+      .pd-col-ins-no   { width:140px; min-width:120px; }
+      .pd-col-special  { width:220px; min-width:180px; }
+
+      /* Field input/view */
+      .field-view{
+        min-height:22px;display:block;color:var(--text);
+        white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+      }
+      .field-view.empty{color:var(--text3);font-style:italic}
+      .field-input{
+        width:100%;padding:5px 8px;border:1px solid var(--border2);
+        border-radius:5px;font-family:inherit;font-size:12.5px;background:#fff;
+      }
+      .field-input:focus{
+        outline:none;border-color:var(--accent-light);
+        box-shadow:0 0 0 2px var(--accent-pale);
+      }
+      select.field-input{cursor:pointer;padding-right:24px}
+      textarea.field-input{resize:vertical;min-height:32px}
+
+      .pd-code-cell{font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:var(--text2)}
+      .pd-name-cell{font-weight:600;font-size:13px}
+      .pd-name-sub{color:var(--text3);font-size:11px;margin-left:4px}
+      .pd-sub-prefix{color:var(--text3);margin-right:4px}
+
+      /* ── Floating Global Edit button ── */
+      #global-edit-btn{
+        position:fixed;bottom:32px;right:32px;z-index:1500;
+        width:56px;height:56px;border-radius:50%;border:none;cursor:pointer;
+        font-size:22px;display:flex;align-items:center;justify-content:center;
+        box-shadow:0 4px 16px rgba(0,0,0,.25);
+        transition:background .2s, transform .15s, box-shadow .2s;
+        background:var(--accent);color:#fff;line-height:1;
+      }
+      #global-edit-btn:hover{transform:scale(1.1);box-shadow:0 8px 24px rgba(0,0,0,.3)}
+      #global-edit-btn.saving{background:var(--success)}
+      #global-edit-btn::after{
+        content:attr(data-tip);position:absolute;right:calc(100% + 10px);
+        background:rgba(0,0,0,.75);color:#fff;font-size:11px;font-weight:600;
+        white-space:nowrap;padding:4px 10px;border-radius:6px;
+        pointer-events:none;opacity:0;transform:translateX(6px);
+        transition:opacity .15s, transform .15s;
+      }
+      #global-edit-btn:hover::after{opacity:1;transform:translateX(0)}
+
+      /* Save indicator */
+      #pd-save-indicator{
+        position:fixed;bottom:32px;right:100px;z-index:1499;
+        background:rgba(15,23,42,.85);color:#fff;font-size:11.5px;font-weight:600;
+        padding:6px 12px;border-radius:999px;
+        opacity:0;transform:translateY(8px);
+        transition:opacity .2s, transform .2s;pointer-events:none;
+      }
+      #pd-save-indicator.show{opacity:1;transform:translateY(0)}
+    </style>
+  </head>
+  <body>
+    <div class="loading-overlay" id="loadingOverlay">
+      <div class="spinner"></div>
+    </div>
+    <div class="toast" id="toast"></div>
+
+    <div class="topbar"></div>
+    <div class="layout">
+      <div class="content-area">
+        <div class="page">
+
+          <!-- HERO -->
+          <div class="page-hero page-hero--simple page-hero--compact">
+            <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+              <h1 class="page-hero-title" style="margin:0">ℹ️ ข้อมูลผู้เดินทาง</h1>
+              <span id="pdTripBanner" class="pd-trip-banner" style="display:none;margin-left:0">
+                <a href="./trip-list.html">← รายการทริป</a>
+                <span style="opacity:.4">|</span>
+                <span id="pdTripName" style="font-weight:700">—</span>
+                <span id="pdTripDates" style="color:var(--text2);font-size:11.5px;font-weight:500"></span>
+              </span>
+            </div>
+          </div>
+
+          <!-- STATS -->
+          <div class="stats-row">
+            <div class="stat-card" title="จำนวนผู้เดินทางในทริปนี้">
+              <div class="stat-icon">👥</div>
+              <div>
+                <div class="stat-value" id="statTotal">0</div>
+                <div class="stat-label">ผู้เดินทางทั้งหมด</div>
+              </div>
+            </div>
+            <div class="stat-card" title="คนที่ระบุ T-Shirt Size">
+              <div class="stat-icon">👕</div>
+              <div>
+                <div class="stat-value" id="statShirt">0</div>
+                <div class="stat-label">ระบุ T-Shirt</div>
+              </div>
+            </div>
+            <div class="stat-card" title="คนที่ระบุข้อมูลแพ้อาหาร">
+              <div class="stat-icon">🍽️</div>
+              <div>
+                <div class="stat-value" id="statAllergy">0</div>
+                <div class="stat-label">มีแพ้อาหาร</div>
+              </div>
+            </div>
+            <div class="stat-card" title="คนที่ระบุโรค/ยาประจำตัว">
+              <div class="stat-icon">💊</div>
+              <div>
+                <div class="stat-value" id="statMedical">0</div>
+                <div class="stat-label">มีโรคประจำตัว/ยา</div>
+              </div>
+            </div>
+            <div class="stat-card" title="คนที่ระบุผู้ติดต่อฉุกเฉินครบ (ชื่อ+เบอร์)">
+              <div class="stat-icon">🆘</div>
+              <div>
+                <div class="stat-value" id="statEmergency">0</div>
+                <div class="stat-label">ติดต่อฉุกเฉินครบ</div>
+              </div>
+            </div>
+            <div class="stat-card" title="คนที่ระบุประกันการเดินทาง">
+              <div class="stat-icon">🛡️</div>
+              <div>
+                <div class="stat-value" id="statInsurance">0</div>
+                <div class="stat-label">มีประกันเดินทาง</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- TABLE CARD -->
+          <div class="table-card">
+            <div class="toolbar">
+              <div class="search-wrap">
+                <span class="search-icon">🔍</span>
+                <input
+                  class="search-input"
+                  id="searchInput"
+                  placeholder="ค้นหาชื่อ / รหัส / เบอร์..."
+                />
+              </div>
+              <select class="filter-select" id="filterCompleteness" title="กรองความครบของข้อมูล">
+                <option value="">📋 ข้อมูลทั้งหมด</option>
+                <option value="missing_allergy">🍽️ ยังไม่ระบุแพ้อาหาร</option>
+                <option value="missing_shirt">👕 ยังไม่ระบุ T-Shirt</option>
+                <option value="missing_emergency">🆘 ไม่มีผู้ติดต่อฉุกเฉิน</option>
+                <option value="missing_insurance">🛡️ ไม่มีประกัน</option>
+                <option value="has_medical">💊 มีโรค/ยาประจำตัว</option>
+              </select>
+              <div class="toolbar-right">
+                <button class="btn btn-outline" onclick="window.exportPaxExcel()" title="ส่งออก Excel">
+                  📥 Export Excel
+                </button>
+              </div>
+            </div>
+
+            <div class="table-hdr">
+              <div class="table-title">👥 รายชื่อผู้เดินทาง</div>
+              <div class="table-count" id="tableCount">0 รายการ</div>
+            </div>
+
+            <div id="pd-table-wrap">
+              <table id="pd-table">
+                <thead>
+                  <tr>
+                    <th class="pd-col-no">#</th>
+                    <th class="pd-col-code">รหัส</th>
+                    <th class="pd-col-name">ชื่อ</th>
+                    <th class="pd-col-gender">เพศ</th>
+                    <th class="pd-col-religion">ศาสนา</th>
+                    <th class="pd-col-nat">สัญชาติ</th>
+                    <th class="pd-col-shirt">T-Shirt</th>
+                    <th class="pd-col-allergy">🍽️ แพ้อาหาร</th>
+                    <th class="pd-col-medical">💊 โรคประจำตัว</th>
+                    <th class="pd-col-medic">💊 ยาประจำตัว</th>
+                    <th class="pd-col-tel">📞 Tel/WhatsApp</th>
+                    <th class="pd-col-line">LINE ID</th>
+                    <th class="pd-col-addr">🏠 ที่อยู่</th>
+                    <th class="pd-col-em-name">🆘 ชื่อ</th>
+                    <th class="pd-col-em-rel">🆘 ความสัมพันธ์</th>
+                    <th class="pd-col-em-phone">🆘 เบอร์</th>
+                    <th class="pd-col-ins-co">🛡️ บริษัทประกัน</th>
+                    <th class="pd-col-ins-no">🛡️ เลขกรมธรรม์</th>
+                    <th class="pd-col-special">📝 คำขอพิเศษ</th>
+                  </tr>
+                </thead>
+                <tbody id="pd-tbody">
+                  <tr>
+                    <td colspan="19">
+                      <div class="empty-state">
+                        <div class="empty-icon">ℹ️</div>
+                        <div class="empty-text">กำลังโหลด...</div>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Save indicator + Floating edit button -->
+    <div id="pd-save-indicator">💾 กำลังบันทึก…</div>
+    <button id="global-edit-btn" data-perm="trip_pax_detail_edit"
+            onclick="window.toggleGlobalEdit()" data-tip="Edit All">✏️</button>
+
+    <!-- SCRIPTS -->
+    <script src="../../js/core/auth.js"></script>
+    <script src="../../js/core/authz.js"></script>
+    <script src="../../js/core/date-format.js"></script>
+    <script>AuthZ.requirePerm("trip_pax_detail_view");</script>
+    <script src="./pax-detail.js"></script>
+    <script src="../../js/components/modal/confirmModal.js"></script>
+    <script src="../../js/components/modal/modalManager.js"></script>
+    <script src="../../js/components/navigation/sidebar.js"></script>
+    <script type="module">
+      import { loadTopbar } from "../../js/components/navigation/topbar.js";
+      loadTopbar("ℹ️ ข้อมูลผู้เดินทาง");
+    </script>
+  </body>
+</html>

@@ -1162,13 +1162,6 @@
     </div>
   </div>
   <div class="cs-stats-row">
-    <div class="cs-stat-card s-shirt" data-report="shirt" title="คลิกเพื่อดู breakdown ตาม Size">
-      <div class="cs-stat-icon">👕</div>
-      <div>
-        <div class="cs-stat-value" id="st-shirt">0</div>
-        <div class="cs-stat-label">T-Shirt</div>
-      </div>
-    </div>
     <div class="cs-stat-card s-nat" data-report="nationality" title="คลิกเพื่อดู breakdown ตามสัญชาติ">
       <div class="cs-stat-icon">🌍</div>
       <div>
@@ -1253,15 +1246,13 @@
         <th class="col-comeback-dt"><span class="th-content"><input type="radio" name="freeze-col" class="col-freeze-cb" data-col="comeback-dt" title="ตรึงคอลัม (กดซ้ำเพื่อปลด)"><span>Date&amp;Time<br>(Comeback)</span></span></th>
         <th class="col-slip"><span class="th-content"><input type="radio" name="freeze-col" class="col-freeze-cb" data-col="slip" title="ตรึงคอลัม (กดซ้ำเพื่อปลด)"><span>Slip</span></span></th>
         <th class="col-paid"><span class="th-content"><input type="radio" name="freeze-col" class="col-freeze-cb" data-col="paid" title="ตรึงคอลัม (กดซ้ำเพื่อปลด)"><span>Paid</span></span></th>
-        <th class="col-tel"><span class="th-content"><input type="radio" name="freeze-col" class="col-freeze-cb" data-col="tel" title="ตรึงคอลัม (กดซ้ำเพื่อปลด)"><span>WhatsApp</span></span></th>
-        <th class="col-shirt"><span class="th-content"><input type="radio" name="freeze-col" class="col-freeze-cb" data-col="shirt" title="ตรึงคอลัม (กดซ้ำเพื่อปลด)"><span>T-Shirt</span></span></th>
         <th class="col-waive">Waive</th>
         <th class="col-del">Del</th>
       </tr>
     </thead>
     <tbody id="table-body">
       <tr id="empty-row">
-        <td colspan="25">No data — click Import Excel or add a row manually</td>
+        <td colspan="23">No data — click Import Excel or add a row manually</td>
       </tr>
     </tbody>
   </table>
@@ -1385,24 +1376,6 @@ app.listen(3001, () => console.log('Proxy running on port 3001'));
         <input id="ap-passexp" type="date">
       </div>
       <div class="ap-field">
-        <label>WhatsApp</label>
-        <input id="ap-tel" type="text" placeholder="เบอร์โทร">
-      </div>
-      <div class="ap-field">
-        <label>T-Shirt</label>
-        <select id="ap-shirt">
-          <option value="">— Select —</option>
-          <option value="5XL">5XL</option>
-          <option value="4XL">4XL</option>
-          <option value="3XL">3XL</option>
-          <option value="2XL">2XL</option>
-          <option value="XL">XL</option>
-          <option value="L">L</option>
-          <option value="M">M</option>
-          <option value="S">S</option>
-        </select>
-      </div>
-      <div class="ap-field">
         <label>Port</label>
         <select id="ap-port">
           <option value="">— Select —</option>
@@ -1441,7 +1414,6 @@ app.listen(3001, () => console.log('Proxy running on port 3001'));
     </div>
     <div id="report-body">
       <div id="report-tier-summary" style="display:none"></div>
-      <div id="report-shirt-summary" style="display:none"></div>
       <div id="report-nat-summary" style="display:none"></div>
       <table id="report-table">
         <thead>
@@ -1456,7 +1428,6 @@ app.listen(3001, () => console.log('Proxy running on port 3001'));
             <th>Group</th>
             <th>Flight</th>
             <th>Pass. ID</th>
-            <th>WhatsApp</th>
             <th class="report-col-paid" style="display:none">Paid</th>
           </tr>
         </thead>
@@ -1778,7 +1749,7 @@ function closeAddPerson() {
   modal.classList.remove('open');
   // clear form
   ['ap-code','ap-name','ap-gender','ap-pin','ap-nationality','ap-passid','ap-passexp',
-   'ap-tel','ap-shirt','ap-port','ap-group','ap-flight','ap-seat'].forEach(id => {
+   'ap-port','ap-group','ap-flight','ap-seat'].forEach(id => {
     document.getElementById(id).value = '';
   });
 }
@@ -1799,8 +1770,6 @@ function submitAddPerson() {
     nationality:document.getElementById('ap-nationality').value,
     passId:     document.getElementById('ap-passid').value.trim(),
     passExp:    document.getElementById('ap-passexp').value,
-    tel:        document.getElementById('ap-tel').value.trim(),
-    shirt:      document.getElementById('ap-shirt').value,
     port:       document.getElementById('ap-port').value,
     group:      document.getElementById('ap-group').value.trim(),
     flight:     document.getElementById('ap-flight').value.trim(),
@@ -2634,7 +2603,7 @@ async function refreshFromSupabaseSilent() {
 }
 
 function isRowComplete(row) {
-  return !!(row.passId && row.passExp && row.passImg && row.tel && row.shirt);
+  return !!(row.passId && row.passExp && row.passImg);
 }
 
 function updateStats() {
@@ -2675,11 +2644,6 @@ function updateStats() {
   document.getElementById('st-no-booking').textContent = noBookCnt;
   document.getElementById('st-male').textContent     = maleCnt;
   document.getElementById('st-female').textContent   = femaleCnt;
-
-  // T-Shirt total (size breakdown shown in popup report)
-  let shirtFilled = 0;
-  all.forEach(r => { if ((r.shirt || '').trim()) shirtFilled++; });
-  document.getElementById('st-shirt').textContent = shirtFilled;
 
   // Nationality total (breakdown shown in popup report)
   let natFilled = 0;
@@ -3126,17 +3090,6 @@ function buildRow(row) {
     <!-- Paid -->
     <td class="col-paid" data-label="Paid">
       ${e ? paidDropdown(row) : `<span class="field-view">${row.paid ? esc(row.paid) : '—'}</span>`}
-    </td>
-
-    <!-- Tel -->
-    <td class="col-tel" data-label="WhatsApp">
-      ${e ? `<input class="field-input" style="width:125px" type="tel" value="${esc(row.tel)}" placeholder="+66 8x xxx xxxx" onchange="setField('${row.id}','tel',this.value)" />` :
-            `<span class="field-view">${esc(row.tel)}</span>`}
-    </td>
-
-    <!-- T-Shirt Size -->
-    <td class="col-shirt" data-label="T-Shirt">
-      ${e ? shirtDropdown(row) : `<span class="field-view">${esc(row.shirt)}</span>`}
     </td>
 
     <!-- Waive -->
@@ -3790,8 +3743,6 @@ const REPORT_CONFIG = {
                  filter: r => r.gender === 'male' },
   female:      { title: '👩 Female',
                  filter: r => r.gender === 'female' },
-  shirt:       { title: '👕 T-Shirt — กรอก Size แล้ว',
-                 filter: r => !!(r.shirt && r.shirt.trim()) },
   nationality: { title: '🌍 Nationality — กรอกสัญชาติแล้ว',
                  filter: r => !!(r.nationality && r.nationality.trim()) },
 };
@@ -3804,7 +3755,6 @@ function openReport(key) {
   _currentReportKey = key;
   const matched = rows.filter(cfg.filter);
   const isPaid  = key === 'paid';
-  const isShirt = key === 'shirt';
   const isNat   = key === 'nationality';
 
   document.getElementById('report-title').textContent = cfg.title;
@@ -3837,41 +3787,6 @@ function openReport(key) {
   } else {
     tierBox.style.display = 'none';
     tierBox.innerHTML = '';
-  }
-
-  // T-Shirt size breakdown panel
-  const shirtBox = document.getElementById('report-shirt-summary');
-  if (isShirt) {
-    const sizes = SHIRT_OPTIONS.filter(s => s !== '');
-    const counts = {};
-    sizes.forEach(s => { counts[s] = 0; });
-    let unfilled = 0;
-    rows.forEach(r => {
-      const s = (r.shirt || '').trim();
-      if (s && counts[s] != null) counts[s]++;
-      else unfilled++;
-    });
-    const total = matched.length;
-    const chips = sizes.map(s => {
-      const c = counts[s];
-      const pct = total > 0 ? Math.round((c / total) * 100) : 0;
-      const none = c === 0;
-      return `<div class="size-chip${none ? ' s-none' : ''}">
-        <div class="s-label">${s}</div>
-        <div class="s-count">${c}</div>
-        <div class="s-pct">${pct}%</div>
-      </div>`;
-    }).join('');
-    const noneChip = `<div class="size-chip${unfilled === 0 ? ' s-none' : ''}" title="ยังไม่กรอก Size">
-      <div class="s-label">— ว่าง —</div>
-      <div class="s-count">${unfilled}</div>
-      <div class="s-pct">${rows.length > 0 ? Math.round((unfilled / rows.length) * 100) : 0}%</div>
-    </div>`;
-    shirtBox.innerHTML = `<h4>สรุปจำนวนเสื้อตาม Size</h4><div class="size-grid">${chips}${noneChip}</div>`;
-    shirtBox.style.display = '';
-  } else {
-    shirtBox.style.display = 'none';
-    shirtBox.innerHTML = '';
   }
 
   // Nationality breakdown panel
@@ -3933,7 +3848,6 @@ function openReport(key) {
         <td>${esc(r.group) || '—'}</td>
         <td>${esc(r.flight) || '—'}</td>
         <td>${esc(r.passId) || '—'}</td>
-        <td>${esc(r.tel) || '—'}</td>
         ${isPaid ? `<td style="text-align:center;font-weight:700;color:#15803d">${esc(r.paid) || '—'}</td>` : ''}
       `;
       tbody.appendChild(tr);

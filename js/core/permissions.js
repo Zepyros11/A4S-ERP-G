@@ -273,6 +273,10 @@ window.AppPermissions = (() => {
           { key: "trip_rooms_delete", label: "ลบห้อง" },
           { key: "trip_rooms_assign", label: "จัดผู้โดยสารเข้าห้อง" },
         ]},
+        { key: "trip_pax_detail", label: "ข้อมูลผู้เดินทาง", icon: "ℹ️", perms: [
+          { key: "trip_pax_detail_view", label: "ดูรายการ" },
+          { key: "trip_pax_detail_edit", label: "แก้ไข/บันทึก" },
+        ]},
       ],
     },
 
