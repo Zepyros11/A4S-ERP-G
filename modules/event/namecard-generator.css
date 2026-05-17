@@ -244,13 +244,18 @@
 }
 
 @media print {
-  /* Force background-color printing (green band) + reset chrome */
+  /* Force background-color printing (green band) + reset chrome.
+     IMPORTANT: do NOT set overflow:hidden on html/body — it breaks
+     page-break-after and squishes multiple A4 pages onto one sheet. */
   html, body {
     background: #fff !important;
     margin: 0 !important;
     padding: 0 !important;
+    width: auto !important;
     height: auto !important;
-    overflow: hidden !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
     color-adjust: exact !important;
