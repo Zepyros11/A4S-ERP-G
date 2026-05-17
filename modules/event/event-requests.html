@@ -1417,7 +1417,7 @@
           start_time:   start,
           end_time:     end,
           note:         note || null,
-          status: "PENDING",
+          status: "APPROVED",
         };
         // Retry up to 3 times, stripping any column the DB reports as missing.
         // Handles schemas that don't have room_id/room_name/created_by/etc.
@@ -1442,8 +1442,10 @@
         if (lastErr) throw lastErr;
         console.log('[booking.created] before fire', typeof fireBookingCreatedNotification, payload);
         try { fireBookingCreatedNotification(payload); } catch(e) { console.error('[booking.created] fire threw', e); }
+        // Auto-approve: booking confirmed on submit, also fire approved event
+        try { fireBookingApprovedNotification(payload); } catch(e) { console.error('[booking.approved] fire threw', e); }
         closeBkqCreate();
-        bkqToast("ส่งคำขอจองห้องแล้ว 🚪", "success");
+        bkqToast("จองห้องสำเร็จ 🚪", "success");
         _bkqListLastSig = "";
         await loadRoomBookingRequests();
       } catch (e) {

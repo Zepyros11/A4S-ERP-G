@@ -766,7 +766,7 @@ function fireBookingCreatedNotification(payload) {
     const raw = localStorage.getItem("erp_session") || sessionStorage.getItem("erp_session");
     if (raw) requester = JSON.parse(raw).full_name || JSON.parse(raw).username || "";
   } catch (_) {}
-  window.Notify.evaluateRules("booking.created", {
+  const ctx = {
     request_code:   payload.request_code || "",
     room_name:      payload.room_name || "",
     place_name:     payload.place_name || "",
@@ -777,7 +777,11 @@ function fireBookingCreatedNotification(payload) {
     cs_name:        payload.cs_name || "",
     note:           payload.note || "",
     requester,
-  });
+    approver:       requester,
+  };
+  window.Notify.evaluateRules("booking.created", ctx);
+  // Auto-approve: booking is confirmed on submit, so also fire approved event
+  window.Notify.evaluateRules("booking.approved", ctx);
 }
 
 async function confirmBooking() {
@@ -914,7 +918,7 @@ async function confirmBooking() {
         start_time: start,
         end_time: end,
         note: note || null,
-        status: "PENDING",
+        status: "APPROVED",
         created_by: window.ERP_USER?.user_id || null,
       };
       async function tryInsert() {
