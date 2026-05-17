@@ -14,6 +14,7 @@ let _calLevelMap = {};
 let currentYear = new Date().getFullYear();
 let currentMonth = new Date().getMonth();
 let activeCalCatId = "";
+let _didFocusToday = false;
 
 /* ── Chat Panel ── */
 let _chatEventId = null;
@@ -349,7 +350,8 @@ function renderCalendar() {
 
     // ── Day cells (grid-row = numLanes+1) ────────────────────
     const cellRow = numLanes + 1;
-    const MAX_PILLS = numLanes >= 2 ? 1 : numLanes === 1 ? 2 : 3;
+    // pills fit per cell — derived from cell min-height (150px) minus date offset (32px) minus lane bars (24px each), at ~22px per pill
+    const MAX_PILLS = numLanes >= 4 ? 1 : numLanes === 3 ? 2 : numLanes === 2 ? 3 : numLanes === 1 ? 4 : 5;
     const cellsHtml = week
       .map(({ dateStr, day, inMonth }, colIdx) => {
         const isToday = dateStr === todayStr;
@@ -409,6 +411,19 @@ function renderCalendar() {
 
   document.getElementById("calGrid").innerHTML =
     html || `<div class="cal-empty">ไม่มีกิจกรรม</div>`;
+
+  // ── First-load: scroll today into view + pulse animation ──
+  if (!_didFocusToday) {
+    const todayCell = document.querySelector(".cal-cell.today");
+    if (todayCell) {
+      _didFocusToday = true;
+      requestAnimationFrame(() => {
+        todayCell.scrollIntoView({ behavior: "smooth", block: "center" });
+        todayCell.classList.add("focus-anim");
+        setTimeout(() => todayCell.classList.remove("focus-anim"), 1800);
+      });
+    }
+  }
 }
 
 // ── Helpers ────────────────────────────────────────────────
@@ -469,6 +484,7 @@ function changeMonth(delta) {
 function goToday() {
   currentYear = new Date().getFullYear();
   currentMonth = new Date().getMonth();
+  _didFocusToday = false;
   renderCalendar();
 }
 
