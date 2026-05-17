@@ -238,15 +238,13 @@
   box-shadow: none;
 }
 
-@page {
-  size: A4 portrait;
-  margin: 0;
-}
-
 @media print {
+  /* @page inside @media print for widest browser support */
+  @page { size: A4 portrait; margin: 0; }
+
   /* Force background-color printing (green band) + reset chrome.
-     IMPORTANT: do NOT set overflow:hidden on html/body — it breaks
-     page-break-after and squishes multiple A4 pages onto one sheet. */
+     Do NOT use overflow:hidden — it breaks page-break and squishes
+     multiple A4 pages onto one physical sheet. */
   html, body {
     background: #fff !important;
     margin: 0 !important;
@@ -287,27 +285,51 @@
     visibility: visible !important;
     pointer-events: auto !important;
     overflow: visible !important;
+    display: block !important;
   }
 
+  /* Use FLEXBOX (not grid) — Edge/Chromium splits grid rows across
+     pages inconsistently. Flex-wrap is far more predictable for
+     pagination. Cards are 85mm × 60mm, 2 fit per 170mm row. */
   .nmc-print-area .nmc-a4 {
-    /* No padding · cards stack from top-left · empty space goes to bottom */
-    width: 210mm; height: 297mm;
+    display: flex !important;
+    flex-wrap: wrap !important;
+    flex-direction: row !important;
+    width: 170mm !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    box-sizing: border-box !important;
     padding: 0 !important;
-    margin: 0 !important;
-    justify-content: center;
-    align-content: start;
-    page-break-after: always;
-    page-break-inside: avoid;
-    break-after: page;
-    break-inside: avoid;
-    overflow: hidden;
+    margin: 0 auto !important;
+    box-shadow: none !important;
+    transform: none !important;
+    transform-origin: 0 0 !important;
+    --nmc-zoom: 1 !important;
+    grid-template-columns: none !important;
+    grid-template-rows: none !important;
+    gap: 0 !important;
+    justify-content: flex-start !important;
+    align-content: flex-start !important;
+    page-break-after: always !important;
+    break-after: page !important;
+  }
+  /* Force break BEFORE every subsequent sheet (extra insurance) */
+  .nmc-print-area .nmc-a4 + .nmc-a4 {
+    page-break-before: always !important;
+    break-before: page !important;
   }
   .nmc-print-area .nmc-a4:last-child {
-    page-break-after: auto;
-    break-after: auto;
+    page-break-after: auto !important;
+    break-after: auto !important;
   }
   .nmc-print-area .nmc-card {
     border: 1px dashed #cbd5e1;
+    width: 85mm !important;
+    height: 60mm !important;
+    flex: 0 0 85mm !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
   }
   .nmc-print-area .nmc-card-band {
     background: #6BBE45 !important;
