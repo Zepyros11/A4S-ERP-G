@@ -1,0 +1,294 @@
+/* ============================================================
+   namecard-generator.css
+   ป้ายชื่อ Event · 8.5cm × 6cm · จัด layout บน A4 (2 × 4 = 8/หน้า)
+   ============================================================ */
+
+.nmc-page { padding-bottom: 60px; }
+.page-hero-sub { font-size: 13px; color: var(--text3); margin-top: 4px; }
+
+/* Hero with action button on the right */
+.nmc-hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.nmc-hero-left { flex: 1; min-width: 0; }
+.nmc-hero-right { flex-shrink: 0; }
+.nmc-hero-right .btn {
+  background: rgba(255,255,255,.18);
+  border: 1px solid rgba(255,255,255,.35);
+  color: #fff;
+  backdrop-filter: blur(4px);
+  font-weight: 600;
+}
+.nmc-hero-right .btn:hover {
+  background: rgba(255,255,255,.28);
+  border-color: rgba(255,255,255,.55);
+}
+
+/* ── Steps ─────────────────────────────────────────────────── */
+.nmc-steps {
+  display: flex; gap: 12px; margin: 8px 0 16px;
+}
+.nmc-step {
+  flex: 1; background: var(--surface, #fff);
+  border: 2px solid var(--border, #e2e8f0);
+  border-radius: 10px; padding: 12px 16px;
+  display: flex; align-items: center; gap: 10px;
+  font-size: 13px; color: var(--text2, #475569); font-weight: 500;
+  transition: all .18s;
+}
+.nmc-step.active {
+  border-color: var(--accent, #3b82f6);
+  background: var(--accent-pale, #eff6ff);
+  color: var(--text, #0f172a); font-weight: 600;
+}
+.nmc-step.done {
+  border-color: #10b981; background: #ecfdf5; color: #064e3b;
+}
+.nmc-step-num {
+  display: inline-flex; width: 24px; height: 24px; border-radius: 50%;
+  background: var(--border, #e2e8f0); color: var(--text3, #94a3b8);
+  align-items: center; justify-content: center; font-weight: 700; font-size: 12px;
+}
+.nmc-step.active .nmc-step-num { background: var(--accent, #3b82f6); color: #fff; }
+.nmc-step.done .nmc-step-num { background: #10b981; color: #fff; }
+
+/* ── Drop zone ─────────────────────────────────────────────── */
+.nmc-drop {
+  border: 2px dashed var(--border2, #cbd5e1);
+  border-radius: 12px; padding: 38px; text-align: center;
+  background: var(--surface, #fff); cursor: pointer;
+  transition: all .18s;
+}
+.nmc-drop:hover, .nmc-drop.dragover {
+  border-color: var(--accent, #3b82f6);
+  background: var(--accent-pale, #eff6ff);
+}
+.nmc-drop-icon { font-size: 46px; margin-bottom: 8px; }
+.nmc-drop-title { font-weight: 600; font-size: 15px; color: var(--text, #0f172a); }
+.nmc-drop-hint  { font-size: 12.5px; color: var(--text3, #94a3b8); margin-top: 6px; }
+.nmc-drop-hint a { color: var(--accent, #3b82f6); text-decoration: underline; }
+
+/* ── Block card ────────────────────────────────────────────── */
+.nmc-card-block {
+  background: var(--surface, #fff);
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 12px;
+  margin-top: 16px;
+  overflow: hidden;
+}
+.nmc-block-hdr {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 16px; border-bottom: 1px solid var(--border, #e2e8f0);
+  background: var(--surface2, #f8fafc);
+  flex-wrap: wrap; gap: 10px;
+}
+.nmc-block-title { font-weight: 700; font-size: 14px; color: var(--text, #0f172a); }
+.nmc-block-tools { display: flex; gap: 8px; align-items: center; }
+.nmc-zoom-tools .btn-sm { padding: 4px 10px; font-size: 14px; line-height: 1; }
+
+/* ── Preview table (data editor) ───────────────────────────── */
+.nmc-preview-wrap { max-height: 360px; overflow: auto; }
+.nmc-preview-table {
+  width: 100%; border-collapse: collapse; font-size: 13px;
+}
+.nmc-preview-table th {
+  position: sticky; top: 0;
+  background: var(--surface2, #f8fafc);
+  padding: 10px 12px; text-align: left;
+  border-bottom: 2px solid var(--border, #e2e8f0);
+  font-weight: 700; font-size: 12px;
+  color: var(--text2, #475569);
+}
+.nmc-preview-table td {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border, #e2e8f0);
+  vertical-align: middle;
+}
+.nmc-preview-table .col-idx { width: 48px; text-align: center; color: var(--text3, #94a3b8); }
+.nmc-preview-table .col-act { width: 56px; text-align: center; }
+.nmc-cell-input {
+  width: 100%; border: 1px solid transparent;
+  background: transparent; padding: 6px 8px;
+  font-family: inherit; font-size: 13px; color: var(--text, #0f172a);
+  border-radius: 6px;
+  transition: all .15s;
+}
+.nmc-cell-input:hover { border-color: var(--border, #e2e8f0); background: #fff; }
+.nmc-cell-input:focus {
+  border-color: var(--accent, #3b82f6); background: #fff;
+  outline: none; box-shadow: 0 0 0 3px rgba(59,130,246,.12);
+}
+.nmc-row-del {
+  background: transparent; border: none;
+  color: #ef4444; font-size: 16px; cursor: pointer;
+  padding: 4px 8px; border-radius: 6px;
+  transition: background .15s;
+}
+.nmc-row-del:hover { background: #fef2f2; }
+
+/* ── Action bar ────────────────────────────────────────────── */
+.nmc-actions {
+  display: flex; justify-content: flex-end; gap: 10px;
+  margin-top: 16px;
+}
+
+/* ── A4 Sheet preview (on-screen) ──────────────────────────── */
+.nmc-sheet-scroller {
+  padding: 20px;
+  background:
+    repeating-linear-gradient(45deg, #f1f5f9 0 10px, #f8fafc 10px 20px);
+  max-height: 80vh; overflow: auto;
+  display: flex; flex-direction: column; align-items: center; gap: 20px;
+}
+
+/* A4 page wrapper. Real A4 = 210mm × 297mm */
+.nmc-a4 {
+  width: 210mm; height: 297mm;
+  background: #fff;
+  box-shadow: 0 4px 18px rgba(15,23,42,.18);
+  /* 4 rows × 60mm = 240mm · centered vertically: (297-240)/2 ≈ 28.5mm top/bot */
+  padding: 28mm 20mm;
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: repeat(2, 85mm);
+  grid-template-rows: repeat(4, 60mm);
+  gap: 0;
+  justify-content: center;
+  align-content: start;
+  transform-origin: top center;
+  /* scaling done via CSS var --nmc-zoom (set inline) */
+  transform: scale(var(--nmc-zoom, .5));
+  /* compensate margin so scaled element flows naturally */
+  margin-bottom: calc(297mm * var(--nmc-zoom, .5) - 297mm);
+}
+
+/* ── The Name Card itself · 85mm × 60mm ─────────────────────
+   Layout per spec:
+     · Logo: top 5mm, height 10mm (0.5cm – 1.5cm from top)
+     · Name baseline area: top 22mm (2.2cm)
+     · Green bar: top 35mm (3.5cm) to bottom (60mm) → 25mm tall
+*/
+.nmc-card {
+  position: relative;
+  width: 85mm; height: 60mm;
+  background: #fff;
+  border: 1px dashed #cbd5e1; /* cutting guide */
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.nmc-card-logo {
+  position: absolute; left: 0; right: 0;
+  top: 5mm; height: 10mm;
+  display: flex; align-items: center; justify-content: center;
+}
+.nmc-card-logo img {
+  max-height: 10mm; max-width: 50mm; object-fit: contain;
+}
+
+.nmc-card-name {
+  position: absolute; left: 4mm; right: 4mm;
+  top: 22mm; height: 11mm;
+  display: flex; align-items: center; justify-content: center;
+  text-align: center;
+  font-family: 'Sarabun', sans-serif;
+  font-weight: 800;
+  color: #0f172a;
+  line-height: 1.1;
+  /* font-size set inline via JS for auto-fit */
+}
+
+.nmc-card-band {
+  position: absolute; left: 0; right: 0;
+  top: 35mm; bottom: 0;
+  background: #6BBE45; /* A4S green */
+  display: flex; align-items: center; justify-content: center;
+  padding: 0 4mm;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+  color-adjust: exact;
+}
+.nmc-card-position {
+  width: 100%;
+  text-align: center;
+  font-family: 'Sarabun', sans-serif;
+  font-weight: 800;
+  color: #000;
+  line-height: 1.15;
+  /* font-size set inline via JS for auto-fit */
+}
+
+/* ── Print ──────────────────────────────────────────────────
+   Off-screen (not display:none) so auto-fit can measure dimensions.
+*/
+.nmc-print-area {
+  position: absolute;
+  left: -99999px; top: 0;
+  pointer-events: none;
+  visibility: hidden;
+}
+.nmc-print-area .nmc-a4 {
+  /* On-paper layout while sitting off-screen */
+  transform: none !important;
+  margin: 0 !important;
+  box-shadow: none;
+}
+
+@page {
+  size: A4 portrait;
+  margin: 0;
+}
+
+@media print {
+  html, body { background: #fff !important; }
+  /* Force browsers to print background colors (green band) */
+  html, body,
+  .nmc-print-area, .nmc-print-area * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+
+  /* Hide everything except the print area */
+  .topbar, .layout #sidebar-container, .nmc-no-print,
+  .loading-overlay, .toast { display: none !important; }
+  .layout, .content-area, .page { padding: 0 !important; margin: 0 !important; background: #fff !important; }
+  .content-area { display: block !important; }
+
+  /* Promote print area to visible, normal flow */
+  .nmc-print-area {
+    position: static !important;
+    left: auto !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+  }
+
+  .nmc-print-area .nmc-a4 {
+    width: 210mm; height: 297mm;
+    padding: 12mm 20mm;
+    page-break-after: always;
+    page-break-inside: avoid;
+    break-after: page;
+    break-inside: avoid;
+  }
+  .nmc-print-area .nmc-a4:last-child {
+    page-break-after: auto;
+    break-after: auto;
+  }
+  .nmc-print-area .nmc-card {
+    border: 1px dashed #cbd5e1; /* keep cutting guide */
+  }
+  .nmc-print-area .nmc-card-band {
+    background: #6BBE45 !important;
+  }
+  .nmc-print-area .nmc-card-position {
+    color: #000 !important;
+  }
+}
+
+/* btn-sm helper (in case not present in main.css) */
+.btn-sm { padding: 6px 12px; font-size: 12.5px; }

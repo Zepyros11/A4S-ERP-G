@@ -114,6 +114,13 @@
           path: BASE_PATH + "/modules/event/attendee-templates.html",
           section: "setup",
         },
+        {
+          id: "namecard-generator",
+          icon: "🪪",
+          label: "สร้างป้ายชื่อ",
+          path: BASE_PATH + "/modules/event/namecard-generator.html",
+          section: "setup",
+        },
       ],
     },
     //  **************** STOCK *****************
@@ -564,6 +571,7 @@
     "events-category",
     "course-series",
     "attendee-templates",
+    "namecard-generator",
     "events-place-list",
     "event-budget",
     "event-media",

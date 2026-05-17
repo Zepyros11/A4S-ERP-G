@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>เครื่องมือสร้างป้ายชื่อ — A4S-ERP</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../../css/main.css" />
+    <link rel="stylesheet" href="./namecard-generator.css" />
+  </head>
+  <body>
+    <div class="loading-overlay" id="loadingOverlay">
+      <div class="spinner"></div>
+    </div>
+    <div class="toast" id="toast"></div>
+
+    <div class="topbar"></div>
+    <div class="layout">
+      <div class="content-area">
+        <div class="page nmc-page">
+
+          <!-- PAGE HEADER -->
+          <div class="page-hero page-hero--simple page-hero--compact nmc-no-print nmc-hero">
+            <div class="nmc-hero-left">
+              <h1 class="page-hero-title">🪪 สร้างป้ายชื่อ</h1>
+              <div class="page-hero-sub">เครื่องมือ Utility · Event · สร้างป้ายชื่อ 8.5 × 6 cm จัด layout บนกระดาษ A4</div>
+            </div>
+            <div class="nmc-hero-right">
+              <button class="btn btn-primary" onclick="nmc.downloadTemplate()" title="ดาวน์โหลดไฟล์ Excel ตัวอย่าง">
+                ⬇️ ดาวน์โหลด Template
+              </button>
+            </div>
+          </div>
+
+          <!-- STEP CARDS -->
+          <div class="nmc-no-print">
+            <div class="nmc-steps">
+              <div class="nmc-step" id="step1"><span class="nmc-step-num">1</span><span>เลือก/วางไฟล์ Excel</span></div>
+              <div class="nmc-step" id="step2"><span class="nmc-step-num">2</span><span>ตรวจสอบรายชื่อ</span></div>
+              <div class="nmc-step" id="step3"><span class="nmc-step-num">3</span><span>พิมพ์ A4</span></div>
+            </div>
+
+            <!-- DROP ZONE -->
+            <div id="dropZone" class="nmc-drop" onclick="document.getElementById('fileInput').click()"
+                 ondragover="nmc.onDrag(event,true)" ondragleave="nmc.onDrag(event,false)" ondrop="nmc.onDrop(event)">
+              <div class="nmc-drop-icon">📊</div>
+              <div class="nmc-drop-title">ลากไฟล์ Excel มาวาง หรือคลิกเพื่อเลือก</div>
+              <div class="nmc-drop-hint">ไฟล์ <b>.xlsx / .xls / .csv</b> · คอลัมน์ที่ 1 = ชื่อ · คอลัมน์ที่ 2 = ตำแหน่ง</div>
+              <div class="nmc-drop-hint" style="margin-top:6px">หรือกรอกเองด้านล่าง / ดาวน์โหลด <a href="javascript:nmc.downloadTemplate()">เทมเพลตตัวอย่าง</a></div>
+              <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" style="display:none" onchange="nmc.onFilePick(event)">
+            </div>
+
+            <!-- DATA EDITOR (preview + edit) -->
+            <div class="nmc-card-block" id="dataBlock" style="display:none">
+              <div class="nmc-block-hdr">
+                <div class="nmc-block-title">📋 รายชื่อที่จะพิมพ์ (<span id="rowCount">0</span> คน · <span id="pageCount">0</span> หน้า A4)</div>
+                <div class="nmc-block-tools">
+                  <button class="btn btn-outline btn-sm" onclick="nmc.addRow()">＋ เพิ่มแถว</button>
+                  <button class="btn btn-outline btn-sm" onclick="nmc.clearAll()">🗑 ล้างทั้งหมด</button>
+                </div>
+              </div>
+              <div class="nmc-preview-wrap">
+                <table class="nmc-preview-table">
+                  <thead>
+                    <tr>
+                      <th class="col-idx">#</th>
+                      <th>ชื่อ</th>
+                      <th>ตำแหน่ง</th>
+                      <th class="col-act"></th>
+                    </tr>
+                  </thead>
+                  <tbody id="previewBody"></tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- ACTIONS -->
+            <div class="nmc-actions" id="actionsBlock" style="display:none">
+              <button class="btn btn-secondary" onclick="nmc.resetAll()">↺ เริ่มใหม่</button>
+              <button class="btn btn-primary" onclick="nmc.printNow()">🖨️ พิมพ์ป้ายชื่อ A4</button>
+            </div>
+
+            <!-- LAYOUT PREVIEW (A4 sheets) -->
+            <div class="nmc-card-block" id="layoutBlock" style="display:none">
+              <div class="nmc-block-hdr">
+                <div class="nmc-block-title">👁️ ตัวอย่าง Layout · กระดาษ A4 (8 ใบ/หน้า · 2×4)</div>
+                <div class="nmc-block-tools nmc-zoom-tools">
+                  <span style="font-size:12px;color:var(--text3)">Zoom</span>
+                  <button class="btn btn-outline btn-sm" onclick="nmc.setZoom(-1)">−</button>
+                  <span id="zoomLabel" style="min-width:48px;text-align:center;font-weight:600">50%</span>
+                  <button class="btn btn-outline btn-sm" onclick="nmc.setZoom(1)">＋</button>
+                </div>
+              </div>
+              <div class="nmc-sheet-scroller" id="sheetScroller"></div>
+            </div>
+          </div>
+
+          <!-- PRINT AREA (renders A4 sheets for printing) -->
+          <div class="nmc-print-area" id="printArea"></div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- SCRIPTS -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="../../js/core/auth.js"></script>
+    <script src="../../js/core/authz.js"></script>
+    <script>AuthZ.requirePerm("events_view");</script>
+    <script type="module">
+      import { loadTopbar } from "../../js/components/navigation/topbar.js";
+      loadTopbar("🪪 สร้างป้ายชื่อ");
+    </script>
+    <script src="../../js/components/navigation/sidebar.js"></script>
+    <script src="../../js/components/modal/modalManager.js"></script>
+    <script src="./namecard-generator.js"></script>
+  </body>
+</html>
