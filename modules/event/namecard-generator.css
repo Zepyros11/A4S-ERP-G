@@ -150,8 +150,8 @@
   width: 210mm; height: 297mm;
   background: #fff;
   box-shadow: 0 4px 18px rgba(15,23,42,.18);
-  /* 4 rows × 60mm = 240mm · centered vertically: (297-240)/2 ≈ 28.5mm top/bot */
-  padding: 28mm 20mm;
+  /* No padding · cards stack top-center · the 57mm A4 leftover goes to bottom */
+  padding: 0;
   box-sizing: border-box;
   display: grid;
   grid-template-columns: repeat(2, 85mm);
@@ -244,9 +244,17 @@
 }
 
 @media print {
-  html, body { background: #fff !important; }
-  /* Force browsers to print background colors (green band) */
-  html, body,
+  /* Force background-color printing (green band) + reset chrome */
+  html, body {
+    background: #fff !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    height: auto !important;
+    overflow: hidden !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
   .nmc-print-area, .nmc-print-area * {
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
@@ -256,31 +264,45 @@
   /* Hide everything except the print area */
   .topbar, .layout #sidebar-container, .nmc-no-print,
   .loading-overlay, .toast { display: none !important; }
-  .layout, .content-area, .page { padding: 0 !important; margin: 0 !important; background: #fff !important; }
-  .content-area { display: block !important; }
+  .layout, .content-area, .page {
+    padding: 0 !important;
+    margin: 0 !important;
+    background: #fff !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    display: block !important;
+  }
 
   /* Promote print area to visible, normal flow */
   .nmc-print-area {
     position: static !important;
     left: auto !important;
+    top: auto !important;
     visibility: visible !important;
     pointer-events: auto !important;
+    overflow: visible !important;
   }
 
   .nmc-print-area .nmc-a4 {
+    /* No padding · cards stack from top-left · empty space goes to bottom */
     width: 210mm; height: 297mm;
-    padding: 12mm 20mm;
+    padding: 0 !important;
+    margin: 0 !important;
+    justify-content: center;
+    align-content: start;
     page-break-after: always;
     page-break-inside: avoid;
     break-after: page;
     break-inside: avoid;
+    overflow: hidden;
   }
   .nmc-print-area .nmc-a4:last-child {
     page-break-after: auto;
     break-after: auto;
   }
   .nmc-print-area .nmc-card {
-    border: 1px dashed #cbd5e1; /* keep cutting guide */
+    border: 1px dashed #cbd5e1;
   }
   .nmc-print-area .nmc-card-band {
     background: #6BBE45 !important;
