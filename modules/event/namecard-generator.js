@@ -183,16 +183,17 @@
     }
 
     const pages = chunked(rows, PER_PAGE);
-    const html = pages.map(page => {
+    const buildHtml = (withBreaks) => pages.map((page, idx) => {
       const cells = [];
       for (let i = 0; i < PER_PAGE; i++) {
         cells.push(page[i] ? cardHtml(page[i]) : blankCardHtml());
       }
-      return `<div class="nmc-a4">${cells.join("")}</div>`;
+      const brk = (withBreaks && idx > 0) ? '<div class="nmc-page-break"></div>' : '';
+      return `${brk}<div class="nmc-a4">${cells.join("")}</div>`;
     }).join("");
 
-    scroller.innerHTML = html;
-    printArea.innerHTML = html;
+    scroller.innerHTML  = buildHtml(false); // no break divs in on-screen preview
+    printArea.innerHTML = buildHtml(true);  // hard break divs in print area
 
     // Apply zoom to on-screen sheets only
     scroller.querySelectorAll(".nmc-a4").forEach(el => {

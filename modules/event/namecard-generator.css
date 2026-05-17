@@ -222,6 +222,24 @@
   /* font-size set inline via JS for auto-fit */
 }
 
+/* ── @page rule (top-level + inside @media print for max compat) ── */
+@page { size: A4 portrait; margin: 0; }
+@page :first { size: A4 portrait; margin: 0; }
+
+/* Hard page break — Edge/Chromium always respects an element with
+   page-break-before:always set on a non-empty block. */
+.nmc-page-break {
+  display: block !important;
+  break-before: page !important;
+  page-break-before: always !important;
+  height: 0 !important;
+  width: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  visibility: hidden;
+}
+
 /* ── Print ──────────────────────────────────────────────────
    Off-screen (not display:none) so auto-fit can measure dimensions.
 */
@@ -288,23 +306,19 @@
     display: block !important;
   }
 
-  /* Use FLEXBOX (not grid) — Edge/Chromium splits grid rows across
-     pages inconsistently. Flex-wrap is far more predictable for
-     pagination. Cards are 85mm × 60mm, 2 fit per 170mm row.
-     LOCK height to 297mm so each .nmc-a4 = exactly 1 page;
-     this guarantees the next .nmc-a4 starts on a fresh page
-     even if the browser ignores page-break-after. */
+  /* Flexbox shrink-wrap. Page breaks are enforced via explicit
+     .nmc-page-break divs (injected by JS), not via height tricks. */
   .nmc-print-area .nmc-a4 {
     display: flex !important;
     flex-wrap: wrap !important;
     flex-direction: row !important;
-    width: 210mm !important;
-    height: 297mm !important;
-    min-height: 297mm !important;
-    max-height: 297mm !important;
+    width: 170mm !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
     box-sizing: border-box !important;
     padding: 0 !important;
-    margin: 0 !important;
+    margin: 0 auto !important;
     box-shadow: none !important;
     transform: none !important;
     transform-origin: 0 0 !important;
@@ -312,11 +326,8 @@
     grid-template-columns: none !important;
     grid-template-rows: none !important;
     gap: 0 !important;
-    justify-content: center !important;
+    justify-content: flex-start !important;
     align-content: flex-start !important;
-    page-break-after: always !important;
-    break-after: page !important;
-    overflow: hidden !important;
   }
   /* Force break BEFORE every subsequent sheet (extra insurance) */
   .nmc-print-area .nmc-a4 + .nmc-a4 {
