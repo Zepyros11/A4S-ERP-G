@@ -80,7 +80,7 @@
             <!-- ACTIONS -->
             <div class="nmc-actions" id="actionsBlock" style="display:none">
               <button class="btn btn-secondary" onclick="nmc.resetAll()">↺ เริ่มใหม่</button>
-              <button class="btn btn-primary" onclick="nmc.printNow()">🖨️ พิมพ์ป้ายชื่อ A4</button>
+              <button class="btn btn-primary" onclick="nmc.exportPDF()" id="btnExportPDF">📄 Export PDF</button>
             </div>
 
             <!-- LAYOUT PREVIEW (A4 sheets) -->
@@ -107,6 +107,8 @@
 
     <!-- SCRIPTS -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
     <script src="../../js/core/auth.js"></script>
     <script src="../../js/core/authz.js"></script>
     <script>AuthZ.requirePerm("events_view");</script>

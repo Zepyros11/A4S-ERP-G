@@ -209,17 +209,26 @@
     });
   }
 
-  // Shrink font-size until text fits its container (width & height)
+  // Shrink font-size until text fits its container (width & height).
+  // For position text we also check the parent band's height so long
+  // 2-line strings like "Country Manager Nigeria" don't bleed out.
   function autoFit(el) {
     const isName = el.classList.contains("nmc-card-name");
-    let max = isName ? 28 : 34;   // px · position bigger than name's max
+    let max = isName ? 28 : 34;
     const min = isName ? 8 : 12;
     el.style.fontSize = max + "px";
+
+    const parent = el.parentElement;
+    const parentH = parent ? parent.clientHeight : Infinity;
+    const parentW = parent ? parent.clientWidth  : Infinity;
+
     let safety = 40;
-    while (
-      (el.scrollWidth > el.clientWidth + 1 || el.scrollHeight > el.clientHeight + 1)
-      && max > min && safety-- > 0
-    ) {
+    while (max > min && safety-- > 0) {
+      const tooWide = el.scrollWidth > el.clientWidth + 1
+                   || el.scrollWidth > parentW + 1;
+      const tooTall = el.scrollHeight > el.clientHeight + 1
+                   || el.scrollHeight > parentH + 1;
+      if (!tooWide && !tooTall) break;
       max -= 1;
       el.style.fontSize = max + "px";
     }
@@ -283,10 +292,82 @@
       return;
     }
     setStep(3);
-    // Allow autoFit to run, then print
     requestAnimationFrame(() => {
       setTimeout(() => window.print(), 80);
     });
+  }
+
+  // ── Export PDF (via html2canvas + jsPDF) ──────────────────
+  // Bypasses Edge's flaky print pipeline. Each A4 sheet rendered
+  // off-screen → captured as canvas → embedded in PDF page.
+  async function exportPDF() {
+    if (!rows.length) {
+      showToast("ยังไม่มีรายชื่อ", "error");
+      return;
+    }
+    if (!window.html2canvas || !window.jspdf) {
+      showToast("ไลบรารี PDF ยังโหลดไม่เสร็จ ลองใหม่อีกครั้ง", "error");
+      return;
+    }
+    setStep(3);
+    const btn = $("btnExportPDF");
+    const origText = btn ? btn.textContent : "";
+    if (btn) { btn.disabled = true; btn.textContent = "⏳ กำลังสร้าง PDF..."; }
+
+    try {
+      renderSheets();
+      // Wait for autoFit + paint
+      await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+      await new Promise(r => setTimeout(r, 100));
+
+      const printArea = $("printArea");
+      // Temporarily promote to visible so html2canvas can capture
+      const origStyle = {
+        position: printArea.style.position,
+        left: printArea.style.left,
+        top: printArea.style.top,
+        visibility: printArea.style.visibility,
+      };
+      printArea.style.position = "fixed";
+      printArea.style.left = "0";
+      printArea.style.top = "0";
+      printArea.style.visibility = "visible";
+      printArea.style.zIndex = "-1";
+
+      const { jsPDF } = window.jspdf;
+      const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+      const sheets = printArea.querySelectorAll(".nmc-a4");
+
+      for (let i = 0; i < sheets.length; i++) {
+        if (i > 0) pdf.addPage();
+        const canvas = await html2canvas(sheets[i], {
+          scale: 3,                  // ~3× DPI for sharp print
+          useCORS: true,
+          backgroundColor: "#ffffff",
+          logging: false,
+        });
+        const imgData = canvas.toDataURL("image/jpeg", 0.95);
+        // Captured element is 210×297mm (full A4) with cards already
+        // positioned top-center · place at full page coords.
+        pdf.addImage(imgData, "JPEG", 0, 0, 210, 297, undefined, "FAST");
+      }
+
+      // Restore
+      printArea.style.position   = origStyle.position;
+      printArea.style.left       = origStyle.left;
+      printArea.style.top        = origStyle.top;
+      printArea.style.visibility = origStyle.visibility;
+      printArea.style.zIndex     = "";
+
+      const stamp = new Date().toISOString().slice(0, 10);
+      pdf.save(`namecards-${stamp}.pdf`);
+      showToast(`ส่งออก PDF เรียบร้อย (${sheets.length} หน้า · ${rows.length} ใบ)`);
+    } catch (err) {
+      console.error(err);
+      showToast("สร้าง PDF ไม่สำเร็จ — " + err.message, "error");
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = origText; }
+    }
   }
 
   function downloadTemplate() {
@@ -310,6 +391,6 @@
   window.nmc = {
     onDrag, onDrop, onFilePick,
     addRow, clearAll, resetAll,
-    setZoom, printNow, downloadTemplate,
+    setZoom, printNow, exportPDF, downloadTemplate,
   };
 })();
