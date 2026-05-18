@@ -20,24 +20,119 @@
 
   // ── Certificate tab state (independent from namecard rows) ─
   let certRows = [];                // [{ name1, name2, position }]
-  let certZoom = 0.4;
+  let certZoom = 0.5;
 
-  // 5 position keys (matches default A4S corporate ladder)
+  // 5 position keys ordered by corporate ladder (top → bottom)
   const CERT_POSITIONS = [
-    { key: "avp",             label: "Assistant Vice President", short: "AVP" },
-    { key: "vp",              label: "Vice President",           short: "VP"  },
     { key: "svp",             label: "Senior Vice President",    short: "SVP" },
-    { key: "director",        label: "Director",                 short: "DIR" },
+    { key: "vp",              label: "Vice President",           short: "VP"  },
+    { key: "avp",             label: "Assistant Vice President", short: "AVP" },
     { key: "senior-director", label: "Senior Director",          short: "SD"  },
+    { key: "director",        label: "Director",                 short: "DR"  },
   ];
-  // Templates stored as data URLs in localStorage
-  const CERT_TPL_LS_KEY = "a4s_cert_templates_v1";
-  let certTemplates = {};           // { avp: "data:image/jpeg;base64,..." }
+  // Templates uploaded to Supabase Storage (bucket: cert-templates, public).
+  // Files stored as {key}.jpg — accessible by anyone with the URL.
+  // Position config (nameY, nameLh) stays in localStorage per user.
+  const CERT_TPL_BUCKET = "cert-templates";
+  const SB_URL = window.supabaseConfig?.url || "";
+  const SB_KEY = window.supabaseConfig?.anon || "";
+
+  function getTplSrc(key) {
+    if (!key || !SB_URL) return null;
+    // Cache-bust on each render so re-uploads show up immediately
+    const v = certTplVersion[key] || "";
+    return `${SB_URL}/storage/v1/object/public/${CERT_TPL_BUCKET}/${key}.jpg${v ? "?v=" + v : ""}`;
+  }
+
+  const CERT_TPL_LS_KEY = "a4s_cert_config_v2";
+  let certConfig = {};              // { key: { nameY, nameLh } }
+  const certTplExists = {};         // { key: true|false }
+  const certTplVersion = {};        // { key: timestamp } cache-buster
+  function getTplNameY(key) {
+    const c = certConfig[key];
+    return (c && typeof c.nameY === "number") ? c.nameY : CERT_NAME_Y_MM;
+  }
+  function getTplNameLh(key) {
+    const c = certConfig[key];
+    return (c && typeof c.nameLh === "number") ? c.nameLh : CERT_NAME_LH_MM;
+  }
+  function setTplConfig(key, nameY, nameLh) {
+    certConfig[key] = {
+      nameY:  nameY  ?? getTplNameY(key),
+      nameLh: nameLh ?? getTplNameLh(key),
+    };
+  }
+
+  // Probe whether a template file exists in Supabase Storage.
+  function probeCertTpl(key) {
+    return new Promise(resolve => {
+      const img = new Image();
+      img.onload  = () => { certTplExists[key] = true;  resolve(true); };
+      img.onerror = () => { certTplExists[key] = false; resolve(false); };
+      img.src = `${SB_URL}/storage/v1/object/public/${CERT_TPL_BUCKET}/${key}.jpg?_=${Date.now()}`;
+    });
+  }
+  function probeAllCertTpls() {
+    return Promise.all(CERT_POSITIONS.map(p => probeCertTpl(p.key)));
+  }
+
+  // Upload to Supabase Storage. No compression — full quality.
+  async function uploadCertTpl(key, file) {
+    if (!file) throw new Error("ไม่มีไฟล์");
+    if (!/^image\//.test(file.type)) throw new Error("รับเฉพาะไฟล์ภาพ");
+    const path = `${key}.jpg`;
+    const url = `${SB_URL}/storage/v1/object/${CERT_TPL_BUCKET}/${path}`;
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        apikey: SB_KEY,
+        Authorization: `Bearer ${SB_KEY}`,
+        "Content-Type": file.type || "image/jpeg",
+        "x-upsert": "true",         // overwrite if exists
+        "cache-control": "max-age=0",
+      },
+      body: file,
+    });
+    if (!res.ok) {
+      const txt = await res.text().catch(() => "");
+      console.error("[cert-tpl upload]", res.status, txt);   // full body in console
+      if (res.status === 404 || res.status === 405) {
+        throw new Error(`ยังไม่ได้สร้าง bucket "cert-templates" — รัน sql/111_cert_templates_bucket.sql ใน Supabase SQL Editor`);
+      }
+      if (res.status === 400 && /mime/i.test(txt)) {
+        throw new Error(`ไฟล์เป็น ${file.type} — bucket ตั้งให้รับเฉพาะ image/jpeg + image/png`);
+      }
+      if (res.status === 403) {
+        throw new Error(`Permission denied — RLS policy ไม่อนุญาต anon write\nรัน sql/111 ใหม่อีกครั้ง หรือเช็ค Storage > Policies`);
+      }
+      if (res.status === 413) {
+        throw new Error(`ไฟล์ใหญ่เกิน 50 MB`);
+      }
+      throw new Error(`HTTP ${res.status} · ${txt.slice(0, 150)}`);
+    }
+    certTplExists[key] = true;
+    certTplVersion[key] = Date.now();    // bust cached <img>
+  }
+
+  async function deleteCertTpl(key) {
+    const url = `${SB_URL}/storage/v1/object/${CERT_TPL_BUCKET}/${key}.jpg`;
+    const res = await fetch(url, {
+      method: "DELETE",
+      headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` },
+    });
+    if (!res.ok && res.status !== 404) {
+      const txt = await res.text().catch(() => "");
+      throw new Error(`${res.status} ${txt.slice(0, 100)}`);
+    }
+    certTplExists[key] = false;
+    delete certTplVersion[key];
+  }
 
   // Cert layout config (mm) — averaged from 5 measured templates
-  const CERT_NAME_Y_MM   = 133;     // top of first line
-  const CERT_NAME_LH     = 1.27;    // line-height for ~13.5mm gap at 30pt
-  const CERT_NAME_SIZE   = "30pt";
+  const CERT_NAME_Y_MM     = 133;   // top of first line
+  const CERT_NAME_SIZE     = "30pt";
+  const CERT_NAME_LH_MM    = 16;    // each line takes 16mm (was 13.5 — too tight for Thai tone marks)
+  const CERT_NAME_BLOCK_MM = 32;    // 2 × line-height
 
   // ── Helpers ────────────────────────────────────────────────
   function $(id) { return document.getElementById(id); }
@@ -303,9 +398,16 @@
       inputs[inputs.length - 1]?.focus();
     }, 30);
   }
-  function clearAll() {
+  async function clearAll() {
     if (!rows.length) return;
-    if (!confirm("ล้างรายชื่อทั้งหมด?")) return;
+    const ok = await ConfirmModal.open({
+      title: "ล้างรายชื่อทั้งหมด?",
+      message: `จะลบรายชื่อ ${rows.length} รายการออกจากตาราง`,
+      icon: "🗑",
+      tone: "danger",
+      okText: "ล้างทั้งหมด",
+    });
+    if (!ok) return;
     rows = [];
     refreshAll();
   }
@@ -598,6 +700,7 @@
   }
 
   // ── Position → template key matching (case + space tolerant) ─
+  // Order matters: check more specific patterns first (SVP/SD before VP/DIR)
   function matchPositionKey(pos) {
     const p = (pos || "").toUpperCase().replace(/[._-]+/g, " ").replace(/\s+/g, " ").trim();
     if (!p) return null;
@@ -605,124 +708,316 @@
     if (/^SD$|SR\s*DIR|SENIOR\s*DIR/.test(p)) return "senior-director";
     if (/^AVP$|ASS(IS|T)\w*\s*VICE\s*PRES|ASSISTANT\s*V\.?P/.test(p)) return "avp";
     if (/^VP$|VICE\s*PRES/.test(p)) return "vp";
-    if (/^DIR$|DIRECTOR/.test(p)) return "director";
+    if (/^DR$|^DIR$|DIRECTOR/.test(p)) return "director";
     return null;
   }
 
-  // ── Template storage (localStorage, with image compression) ─
+  // ── Template config storage (localStorage — config only, NOT images) ─
   function loadCertTemplates() {
     try {
       const raw = localStorage.getItem(CERT_TPL_LS_KEY);
-      certTemplates = raw ? JSON.parse(raw) : {};
-    } catch (e) { certTemplates = {}; }
+      certConfig = raw ? JSON.parse(raw) : {};
+    } catch (e) { certConfig = {}; }
+    // Migrate from old v1 format if exists
+    try {
+      const oldRaw = localStorage.getItem("a4s_cert_templates_v1");
+      if (oldRaw && !Object.keys(certConfig).length) {
+        const old = JSON.parse(oldRaw);
+        for (const [k, v] of Object.entries(old)) {
+          if (v && typeof v === "object" && (v.nameY != null || v.nameLh != null)) {
+            certConfig[k] = { nameY: v.nameY, nameLh: v.nameLh };
+          }
+        }
+        saveCertTemplates();
+        localStorage.removeItem("a4s_cert_templates_v1");  // drop bulky images
+      }
+    } catch (e) {}
   }
   function saveCertTemplates() {
     try {
-      localStorage.setItem(CERT_TPL_LS_KEY, JSON.stringify(certTemplates));
+      localStorage.setItem(CERT_TPL_LS_KEY, JSON.stringify(certConfig));
     } catch (e) {
-      showToast("บันทึก template ไม่สำเร็จ (storage เต็ม)", "error");
+      showToast("บันทึก config ไม่สำเร็จ", "error");
     }
-  }
-  // Resize+compress to keep localStorage usage manageable (~500KB/file)
-  function compressImageToDataUrl(file, maxWidth = 1500, quality = 0.85) {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        const img = new Image();
-        img.onload = () => {
-          const ratio = Math.min(maxWidth / img.width, 1);
-          const w = Math.round(img.width * ratio);
-          const h = Math.round(img.height * ratio);
-          const cv = document.createElement("canvas");
-          cv.width = w; cv.height = h;
-          const ctx = cv.getContext("2d");
-          ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, w, h);
-          ctx.drawImage(img, 0, 0, w, h);
-          resolve(cv.toDataURL("image/jpeg", quality));
-        };
-        img.onerror = reject;
-        img.src = reader.result;
-      };
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
   }
 
   function updateCertTplCount() {
-    const n = Object.keys(certTemplates).length;
+    const n = Object.values(certTplExists).filter(Boolean).length;
     $("certTplCount") && ($("certTplCount").textContent = n);
   }
 
   // ── Template management modal ────────────────────────────
-  function openCertTplModal() {
-    renderCertTplGrid();
+  async function openCertTplModal() {
+    renderCertTplGrid();          // initial render (with "⏳ กำลังตรวจ" placeholder)
     $("certTplOverlay")?.classList.add("open");
+    await probeAllCertTpls();     // check file presence
+    updateCertTplCount();
+    renderCertTplGrid();          // re-render with real status
   }
   function closeCertTplModal() {
     $("certTplOverlay")?.classList.remove("open");
     // Re-render preview in case templates changed
     if (activeTab === "cert") renderCertSheets();
   }
+  async function _setCertTplFromFile(key, file) {
+    if (!file || !/^image\//.test(file.type)) {
+      showToast("รับเฉพาะไฟล์ภาพ", "error");
+      return;
+    }
+    const sizeMB = (file.size / 1024 / 1024).toFixed(1);
+    try {
+      showToast(`⏳ กำลังอัปโหลด ${key}.jpg (${sizeMB} MB)...`);
+      await uploadCertTpl(key, file);
+      renderCertTplGrid();
+      updateCertTplCount();
+      if (activeTab === "cert") renderCertSheets();
+      showToast(`✓ อัปโหลด ${key} สำเร็จ (${sizeMB} MB)`);
+    } catch (err) {
+      showToast("อัปโหลดล้มเหลว — " + err.message, "error");
+    }
+  }
+
   function renderCertTplGrid() {
     const grid = $("certTplGrid");
     if (!grid) return;
     grid.innerHTML = CERT_POSITIONS.map(p => {
-      const has = !!certTemplates[p.key];
-      const previewStyle = has
-        ? `background-image:url('${certTemplates[p.key]}')`
-        : "";
+      const src = getTplSrc(p.key);
+      const nameY  = getTplNameY(p.key);
+      const nameLh = getTplNameLh(p.key);
+      const exists = certTplExists[p.key];
+      const previewStyle = exists ? `background-image:url('${src}')` : "";
       return `
-        <div class="cert-tpl-slot ${has ? 'has-img' : ''}" data-key="${p.key}">
+        <div class="cert-tpl-slot ${exists ? 'has-img' : (exists === false ? 'is-missing' : '')}" data-key="${p.key}">
           <div class="cert-tpl-label">
             ${esc(p.label)}
-            <span class="cert-tpl-key">key: ${p.key} · short: ${p.short}</span>
+            <span class="cert-tpl-key">${p.key}.jpg</span>
+            <span class="cert-tpl-key">📍 Y: ${nameY.toFixed(1)} mm · 📏 LH: ${nameLh.toFixed(1)} mm</span>
           </div>
-          <div class="cert-tpl-preview" style="${previewStyle}">
-            ${has ? "" : "ยังไม่ได้อัปโหลด"}
+          <div class="cert-tpl-preview cert-tpl-drop" data-key="${p.key}" style="${previewStyle}" title="ลากไฟล์มาวาง หรือคลิกเพื่อเลือก">
+            ${exists ? "" : exists === false ? `<div class="cert-tpl-drop-hint">📥 ลากไฟล์มาวาง<br><span style="font-size:10px">หรือคลิก</span></div>` : `<div class="cert-tpl-drop-hint">⏳ กำลังตรวจ...</div>`}
+            <input type="file" accept="image/*" style="display:none" data-key="${p.key}" class="cert-tpl-file">
           </div>
           <div class="cert-tpl-actions">
-            <label class="btn btn-outline btn-sm" style="cursor:pointer">
-              ${has ? "🔄 เปลี่ยน" : "⬆ อัปโหลด"}
-              <input type="file" accept="image/*" style="display:none" data-key="${p.key}" class="cert-tpl-file">
+            <label class="btn btn-outline btn-sm cert-tpl-pick" data-key="${p.key}" style="cursor:pointer">
+              ${exists ? "🔄 เปลี่ยน" : "⬆ อัปโหลด"}
             </label>
-            ${has ? `<button class="btn btn-outline btn-sm cert-tpl-del" data-key="${p.key}" style="color:#dc2626">🗑 ลบ</button>` : ""}
+            ${exists ? `<button class="btn btn-primary btn-sm cert-tpl-pos" data-key="${p.key}">📍 ตำแหน่งชื่อ</button>` : ""}
+            ${exists ? `<button class="btn btn-outline btn-sm cert-tpl-del" data-key="${p.key}" style="color:#dc2626">🗑 ลบ</button>` : ""}
           </div>
         </div>
       `;
     }).join("");
 
+    // File input
     grid.querySelectorAll(".cert-tpl-file").forEach(inp => {
-      inp.addEventListener("change", async (e) => {
+      inp.addEventListener("change", (e) => {
         const f = e.target.files?.[0];
-        if (!f) return;
-        const key = inp.dataset.key;
+        if (f) _setCertTplFromFile(inp.dataset.key, f);
+        inp.value = "";    // allow re-pick same file
+      });
+    });
+    // Button → trigger file input
+    grid.querySelectorAll(".cert-tpl-pick").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const key = btn.dataset.key;
+        grid.querySelector(`.cert-tpl-file[data-key="${key}"]`)?.click();
+      });
+    });
+    // Drop zone (preview area)
+    grid.querySelectorAll(".cert-tpl-drop").forEach(zone => {
+      zone.addEventListener("click", (e) => {
+        if (e.target.tagName === "INPUT") return;
+        zone.querySelector("input.cert-tpl-file")?.click();
+      });
+      zone.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        zone.classList.add("dragover");
+      });
+      zone.addEventListener("dragleave", () => zone.classList.remove("dragover"));
+      zone.addEventListener("drop", (e) => {
+        e.preventDefault();
+        zone.classList.remove("dragover");
+        const f = e.dataTransfer?.files?.[0];
+        if (f) _setCertTplFromFile(zone.dataset.key, f);
+      });
+    });
+    // Position picker
+    grid.querySelectorAll(".cert-tpl-pos").forEach(btn => {
+      btn.addEventListener("click", () => openCertPosModal(btn.dataset.key));
+    });
+    // Delete
+    grid.querySelectorAll(".cert-tpl-del").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const key = btn.dataset.key;
+        const label = CERT_POSITIONS.find(p => p.key === key)?.label || key;
+        const ok = await ConfirmModal.open({
+          title: "ลบ Template?",
+          message: `จะลบ ${label} ออกจาก Supabase Storage`,
+          details: { "File": `${key}.jpg` },
+          icon: "🗑",
+          tone: "danger",
+          okText: "ลบ",
+        });
+        if (!ok) return;
         try {
-          const dataUrl = await compressImageToDataUrl(f);
-          certTemplates[key] = dataUrl;
-          saveCertTemplates();
-          updateCertTplCount();
+          await deleteCertTpl(key);
           renderCertTplGrid();
-          showToast(`อัปโหลด ${key} สำเร็จ`);
+          updateCertTplCount();
+          if (activeTab === "cert") renderCertSheets();
+          showToast(`✓ ลบ ${key} สำเร็จ`);
         } catch (err) {
-          showToast("อัปโหลดล้มเหลว — " + err.message, "error");
+          showToast("ลบไม่สำเร็จ — " + err.message, "error");
         }
       });
     });
-    grid.querySelectorAll(".cert-tpl-del").forEach(btn => {
-      btn.addEventListener("click", () => {
-        const key = btn.dataset.key;
-        if (!confirm(`ลบ template สำหรับ ${key}?`)) return;
-        delete certTemplates[key];
-        saveCertTemplates();
-        updateCertTplCount();
-        renderCertTplGrid();
-      });
+  }
+  // ── Position picker modal ─────────────────────────────────
+  let _certPosState = {
+    key: null,
+    y:  CERT_NAME_Y_MM,
+    lh: CERT_NAME_LH_MM,
+    dragging: false,
+  };
+
+  function openCertPosModal(key) {
+    const src = getTplSrc(key);
+    if (!src) { showToast("ยังไม่ได้อัปโหลด template", "error"); return; }
+    const label = CERT_POSITIONS.find(p => p.key === key)?.label || key;
+    _certPosState.key = key;
+    _certPosState.y   = getTplNameY(key);
+    _certPosState.lh  = getTplNameLh(key);
+    $("certPosLabel").textContent = label;
+    $("certPosCanvas").style.backgroundImage = `url('${src}')`;
+    $("certPosShow2").checked = true;
+    $("certPosName2").style.display = "";
+    updateCertPosUI();
+    $("certPosOverlay")?.classList.add("open");
+    _bindCertPosDragOnce();
+  }
+  function closeCertPosModal() {
+    $("certPosOverlay")?.classList.remove("open");
+  }
+  function updateCertPosUI() {
+    const yMm  = _certPosState.y;
+    const lhMm = _certPosState.lh;
+    const canvas = $("certPosCanvas");
+    const names  = $("certPosNames");
+    const guide  = $("certPosGuide");
+    const guide2 = $("certPosGuide2");
+    if (!canvas || !names) return;
+    const ratio = canvas.clientHeight / 210; // mm → px
+
+    // Apply line-height to preview names (2 × lhMm = block height)
+    const blockMm = 2 * lhMm;
+    // 27mm out of 297mm canvas width = 9.09cqw, etc. Set explicit px instead
+    names.style.height = (blockMm * ratio) + "px";
+    names.style.top    = (yMm * ratio) + "px";
+    names.querySelectorAll(".cert-pos-name").forEach(el => {
+      el.style.lineHeight = (lhMm * ratio) + "px";
+    });
+
+    if (guide)  guide.style.top  = (yMm * ratio) + "px";
+    const show2 = $("certPosShow2")?.checked;
+    if (guide2) {
+      guide2.style.display = show2 ? "" : "none";
+      guide2.style.top = ((yMm + blockMm) * ratio) + "px";
+    }
+    const yInp = $("certPosYInput");
+    if (yInp && document.activeElement !== yInp) yInp.value = yMm.toFixed(1);
+    const lhInp = $("certPosLhInput");
+    if (lhInp && document.activeElement !== lhInp) lhInp.value = lhMm.toFixed(1);
+  }
+  function setCertPosY(v) {
+    let n = parseFloat(v);
+    if (!isFinite(n)) return;
+    n = Math.max(0, Math.min(200, n));
+    _certPosState.y = n;
+    updateCertPosUI();
+  }
+  function bumpCertPosY(d) { setCertPosY(_certPosState.y + d); }
+  function resetCertPosY() { setCertPosY(CERT_NAME_Y_MM); }
+
+  function setCertPosLh(v) {
+    let n = parseFloat(v);
+    if (!isFinite(n)) return;
+    n = Math.max(8, Math.min(40, n));
+    _certPosState.lh = n;
+    updateCertPosUI();
+  }
+  function bumpCertPosLh(d) { setCertPosLh(_certPosState.lh + d); }
+  function resetCertPosLh() { setCertPosLh(CERT_NAME_LH_MM); }
+
+  function toggleCertPos2(show) {
+    const el = $("certPosName2");
+    if (el) el.style.display = show ? "" : "none";
+    updateCertPosUI();      // re-sync second guide visibility
+  }
+  function saveCertPos() {
+    const key = _certPosState.key;
+    if (!key) return;
+    const src = getTplSrc(key);
+    setTplConfig(key, _certPosState.y, _certPosState.lh);
+    saveCertTemplates();
+    renderCertTplGrid();
+    if (activeTab === "cert") renderCertSheets();
+    closeCertPosModal();
+    showToast(`บันทึก ${key}: Y=${_certPosState.y.toFixed(1)}mm · LH=${_certPosState.lh.toFixed(1)}mm`);
+  }
+
+  let _certPosDragBound = false;
+  function _bindCertPosDragOnce() {
+    if (_certPosDragBound) return;
+    _certPosDragBound = true;
+    const names = $("certPosNames");
+    const canvas = $("certPosCanvas");
+    if (!names || !canvas) return;
+    let startClientY = 0, startMmY = 0, dragging = false;
+
+    const begin = (clientY) => {
+      dragging = true;
+      _certPosState.dragging = true;
+      names.classList.add("dragging");
+      startClientY = clientY;
+      startMmY = _certPosState.y;
+    };
+    const move = (clientY) => {
+      if (!dragging) return;
+      const dy = clientY - startClientY;
+      const dyMm = (dy / canvas.clientHeight) * 210;
+      setCertPosY(startMmY + dyMm);
+    };
+    const end = () => {
+      if (!dragging) return;
+      dragging = false;
+      _certPosState.dragging = false;
+      names.classList.remove("dragging");
+    };
+
+    names.addEventListener("mousedown", e => { e.preventDefault(); begin(e.clientY); });
+    document.addEventListener("mousemove", e => move(e.clientY));
+    document.addEventListener("mouseup", end);
+    names.addEventListener("touchstart", e => { begin(e.touches[0].clientY); }, { passive: true });
+    document.addEventListener("touchmove", e => move(e.touches[0].clientY), { passive: true });
+    document.addEventListener("touchend", end);
+
+    // Re-sync UI on window resize (canvas height changes)
+    window.addEventListener("resize", () => {
+      if ($("certPosOverlay")?.classList.contains("open")) updateCertPosUI();
     });
   }
-  function resetAllCertTpl() {
-    if (!Object.keys(certTemplates).length) return;
-    if (!confirm("ลบ template ทั้ง 5 ตำแหน่ง?")) return;
-    certTemplates = {};
+
+  async function resetAllCertTpl() {
+    const n = Object.keys(certConfig).length;
+    if (!n) return;
+    const ok = await ConfirmModal.open({
+      title: "รีเซ็ตค่าตำแหน่งทั้งหมด?",
+      message: `จะรีเซ็ตค่า Y/Line-height ของทุก template กลับเป็นค่า default`,
+      icon: "↺",
+      tone: "warning",
+      okText: "รีเซ็ตทั้งหมด",
+    });
+    if (!ok) return;
+    certConfig = {};
     saveCertTemplates();
     updateCertTplCount();
     renderCertTplGrid();
@@ -800,7 +1095,7 @@
     }
     body.innerHTML = certRows.map((r, i) => {
       const matched = matchPositionKey(r.position);
-      const tplOK   = matched && certTemplates[matched];
+      const tplOK   = matched && certTplExists[matched];
       const badge   = !r.position
         ? `<span style="color:#94a3b8;font-size:11px">—</span>`
         : tplOK
@@ -868,9 +1163,16 @@
       inputs[inputs.length - 1]?.focus();
     }, 30);
   }
-  function certClearAll() {
+  async function certClearAll() {
     if (!certRows.length) return;
-    if (!confirm("ล้างรายชื่อทั้งหมด?")) return;
+    const ok = await ConfirmModal.open({
+      title: "ล้างรายชื่อทั้งหมด?",
+      message: `จะลบรายชื่อ ${certRows.length} ใบออกจากตาราง`,
+      icon: "🗑",
+      tone: "danger",
+      okText: "ล้างทั้งหมด",
+    });
+    if (!ok) return;
     certRows = [];
     certRefreshAll();
   }
@@ -880,25 +1182,33 @@
     certRefreshAll();
   }
 
-  // ── Cert card HTML — uses uploaded template + 2-line names ─
+  // ── Cert card HTML — uses hard-coded template file + 2-line names ─
+  // Wrapped in .cert-a4-wrap so flex layout sees the SCALED (visual) size,
+  // not the 297×210mm raw size. Otherwise certs overlap each other.
   function certHtml(r) {
     const key = matchPositionKey(r.position);
-    const tpl = key ? certTemplates[key] : null;
-    if (!tpl) {
+    const src = key ? getTplSrc(key) : null;
+    const fileOK = key && certTplExists[key];
+    if (!src || !fileOK) {
       const msg = !r.position
         ? "⚠ ไม่ได้ระบุตำแหน่ง"
-        : key
-          ? `⚠ ยังไม่ได้อัปโหลด template สำหรับ "${esc(r.position)}" (${key})`
-          : `⚠ ตำแหน่ง "${esc(r.position)}" ไม่ match กับ template ใดเลย`;
-      return `<div class="cert-a4 cert-missing"><div class="cert-missing-msg">${msg}</div></div>`;
+        : !key
+          ? `⚠ ตำแหน่ง "${esc(r.position)}" ไม่ match กับ template ใดเลย`
+          : `⚠ ไม่พบ template สำหรับ ${key} — กรุณาอัปโหลด`;
+      return `<div class="cert-a4-wrap"><div class="cert-a4 cert-missing"><div class="cert-missing-msg">${msg}</div></div></div>`;
     }
+    const nameY  = getTplNameY(key);
+    const nameLh = getTplNameLh(key);
+    const blockH = 2 * nameLh;
     const n1 = esc(formatName(r.name1));
     const n2 = esc(formatName(r.name2 || ""));
     return `
-      <div class="cert-a4" style="background-image:url('${tpl}')">
-        <div class="cert-names">
-          <div class="cert-name-line">${n1}</div>
-          ${n2 ? `<div class="cert-name-line">${n2}</div>` : ""}
+      <div class="cert-a4-wrap">
+        <div class="cert-a4" style="background-image:url('${src}');--cert-name-y:${nameY}mm;--cert-name-lh:${nameLh}mm;--cert-name-block-h:${blockH}mm">
+          <div class="cert-names">
+            <div class="cert-name-line">${n1}</div>
+            ${n2 ? `<div class="cert-name-line">${n2}</div>` : ""}
+          </div>
         </div>
       </div>
     `;
@@ -919,15 +1229,18 @@
     scroller.innerHTML  = html;
     printArea.innerHTML = html;
 
+    // Preview: --nmc-zoom set on the wrapper (drives both wrapper size + inner scale)
+    scroller.querySelectorAll(".cert-a4-wrap").forEach(el => {
+      el.style.setProperty("--nmc-zoom", certZoom);
+    });
     scroller.querySelectorAll(".cert-a4").forEach(el => {
       el.style.setProperty("--nmc-zoom", certZoom);
-      el.style.setProperty("--cert-name-y",    CERT_NAME_Y_MM + "mm");
-      el.style.setProperty("--cert-name-lh",   CERT_NAME_LH);
+      el.style.setProperty("--cert-name-lh",   CERT_NAME_LH_MM + "mm");
       el.style.setProperty("--cert-name-size", CERT_NAME_SIZE);
     });
+    // PrintArea: no scaling (CSS override handles full size)
     printArea.querySelectorAll(".cert-a4").forEach(el => {
-      el.style.setProperty("--cert-name-y",    CERT_NAME_Y_MM + "mm");
-      el.style.setProperty("--cert-name-lh",   CERT_NAME_LH);
+      el.style.setProperty("--cert-name-lh",   CERT_NAME_LH_MM + "mm");
       el.style.setProperty("--cert-name-size", CERT_NAME_SIZE);
     });
   }
@@ -939,7 +1252,7 @@
     i = Math.max(0, Math.min(steps.length - 1, i + dir));
     certZoom = steps[i];
     $("certZoomLabel") && ($("certZoomLabel").textContent = Math.round(certZoom * 100) + "%");
-    document.querySelectorAll("#certSheetScroller .cert-a4").forEach(el => {
+    document.querySelectorAll("#certSheetScroller .cert-a4-wrap, #certSheetScroller .cert-a4").forEach(el => {
       el.style.setProperty("--nmc-zoom", certZoom);
     });
   }
@@ -957,6 +1270,128 @@
     XLSX.writeFile(wb, "certificate-template.xlsx");
   }
 
+  // ── Export each cert as a PNG · single = direct download · multiple = ZIP
+  // Format: cert-{POSITION}-{NAME}.png  (e.g. cert-SVP-คุณสมชาย.png)
+  function makeCertFilename(r, idx) {
+    const key = matchPositionKey(r.position);
+    const short = CERT_POSITIONS.find(p => p.key === key)?.short
+                 || (r.position || "").trim();
+    const n1 = (r.name1 || "").trim();
+    const n2 = (r.name2 || "").trim();
+    let name = n2 ? `${n1}+${n2}` : n1;
+    // Strip filename-unsafe chars · keep Thai/English/digits/space
+    const clean = s => s.replace(/[<>:"\/\\|?*\x00-\x1f]/g, "").replace(/\s+/g, " ").trim();
+    name = clean(name);
+    const pos = clean(short);
+    if (!name) name = `row-${idx + 1}`;
+    return pos ? `cert-${pos}-${name}` : `cert-${name}`;
+  }
+
+  async function exportCertImages() {
+    if (!certRows.length) {
+      showToast("ยังไม่มีรายชื่อ — อัปโหลด Excel ก่อน", "error");
+      return;
+    }
+    if (!window.html2canvas) {
+      showToast("ไลบรารี html2canvas ยังโหลดไม่เสร็จ", "error"); return;
+    }
+    // Validate all rows have a matching template
+    const missing = [];
+    for (const r of certRows) {
+      const key = matchPositionKey(r.position);
+      if (!key || !certTplExists[key]) missing.push(r.position || "(ว่าง)");
+    }
+    if (missing.length) {
+      const uniq = [...new Set(missing)].slice(0, 3).join(", ");
+      showToast(`มี ${missing.length} ใบที่ขาด template — ${uniq}${missing.length>3?" …":""}`, "error");
+      return;
+    }
+    // For multi-cert export we need JSZip
+    if (certRows.length > 1 && !window.JSZip) {
+      showToast("ไลบรารี JSZip ยังโหลดไม่เสร็จ", "error"); return;
+    }
+    const btn = $("btnExportCertImg");
+    const orig = btn ? btn.textContent : "";
+    if (btn) { btn.disabled = true; btn.textContent = "⏳ กำลังสร้างภาพ..."; }
+
+    try {
+      renderCertSheets();
+      await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+      await new Promise(r => setTimeout(r, 120));
+
+      const printArea = $("certPrintArea");
+      const orig2 = {
+        position: printArea.style.position, left: printArea.style.left,
+        top: printArea.style.top, visibility: printArea.style.visibility,
+      };
+      printArea.style.position = "fixed";
+      printArea.style.left = "0"; printArea.style.top = "0";
+      printArea.style.visibility = "visible";
+      printArea.style.zIndex = "-1";
+
+      const sheets = printArea.querySelectorAll(".cert-a4");
+      const images = [];
+
+      for (let i = 0; i < sheets.length; i++) {
+        if (btn) btn.textContent = `⏳ กำลังสร้างภาพ... (${i + 1}/${sheets.length})`;
+        const canvas = await html2canvas(sheets[i], {
+          scale: 3, useCORS: true, backgroundColor: "#ffffff", logging: false,
+        });
+        const dataUrl = canvas.toDataURL("image/png");
+        images.push({ name: makeCertFilename(certRows[i], i), dataUrl });
+      }
+
+      printArea.style.position   = orig2.position;
+      printArea.style.left       = orig2.left;
+      printArea.style.top        = orig2.top;
+      printArea.style.visibility = orig2.visibility;
+      printArea.style.zIndex     = "";
+
+      const stamp = new Date().toISOString().slice(0, 10);
+
+      if (images.length === 1) {
+        const a = document.createElement("a");
+        a.href = images[0].dataUrl;
+        a.download = `${images[0].name}.png`;
+        document.body.appendChild(a); a.click(); a.remove();
+        showToast(`ดาวน์โหลดภาพเรียบร้อย`);
+      } else {
+        if (btn) btn.textContent = "⏳ กำลังบีบอัด ZIP...";
+        const zip = new JSZip();
+        // Avoid filename collisions (e.g. 2 rows with same name)
+        const used = {};
+        for (const img of images) {
+          let fname = `${img.name}.png`;
+          if (used[fname]) {
+            used[img.name] = (used[img.name] || 1) + 1;
+            fname = `${img.name}-${used[img.name]}.png`;
+          } else {
+            used[fname] = 1;
+            used[img.name] = 1;
+          }
+          const base64 = img.dataUrl.split(",")[1];
+          zip.file(fname, base64, { base64: true });
+        }
+        const blob = await zip.generateAsync({
+          type: "blob",
+          compression: "STORE",  // PNG already compressed — STORE = fast
+        });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `certificates-${stamp}.zip`;
+        document.body.appendChild(a); a.click(); a.remove();
+        URL.revokeObjectURL(url);
+        showToast(`ส่งออก ZIP เรียบร้อย (${images.length} ใบ)`);
+      }
+    } catch (err) {
+      console.error(err);
+      showToast("สร้างภาพไม่สำเร็จ — " + err.message, "error");
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = orig; }
+    }
+  }
+
   async function exportCertPDF() {
     if (!certRows.length) {
       showToast("ยังไม่มีรายชื่อ — อัปโหลด Excel ก่อน", "error");
@@ -969,7 +1404,7 @@
     const missing = [];
     for (const r of certRows) {
       const key = matchPositionKey(r.position);
-      if (!key || !certTemplates[key]) missing.push(r.position || "(ว่าง)");
+      if (!key || !certTplExists[key]) missing.push(r.position || "(ว่าง)");
     }
     if (missing.length) {
       const uniq = [...new Set(missing)].slice(0, 3).join(", ");
@@ -1002,10 +1437,11 @@
       for (let i = 0; i < sheets.length; i++) {
         if (i > 0) pdf.addPage();
         const canvas = await html2canvas(sheets[i], {
-          scale: 2.5, useCORS: true, backgroundColor: "#ffffff", logging: false,
+          scale: 3, useCORS: true, backgroundColor: "#ffffff", logging: false,
         });
-        const img = canvas.toDataURL("image/jpeg", 0.92);
-        pdf.addImage(img, "JPEG", 0, 0, 297, 210, undefined, "FAST");
+        // PNG = lossless · avoids JPEG compounding (template→canvas→pdf)
+        const img = canvas.toDataURL("image/png");
+        pdf.addImage(img, "PNG", 0, 0, 297, 210, undefined, "SLOW");
       }
 
       printArea.style.position   = orig2.position;
@@ -1044,7 +1480,7 @@
     $("vipZoomLabel") && ($("vipZoomLabel").textContent = Math.round(vipZoom * 100) + "%");
     $("certZoomLabel") && ($("certZoomLabel").textContent = Math.round(certZoom * 100) + "%");
     loadCertTemplates();
-    updateCertTplCount();
+    probeAllCertTpls().then(() => updateCertTplCount());
     renderVipSheets();
   });
 
@@ -1058,8 +1494,12 @@
     // Certificate tab
     onCertDrag, onCertDrop, onCertFilePick,
     certAddRow, certClearAll, certResetAll,
-    setCertZoom, exportCertPDF,
+    setCertZoom, exportCertPDF, exportCertImages,
     openCertTplModal, closeCertTplModal, resetAllCertTpl,
+    openCertPosModal, closeCertPosModal,
+    setCertPosY, bumpCertPosY, resetCertPosY,
+    setCertPosLh, bumpCertPosLh, resetCertPosLh,
+    toggleCertPos2, saveCertPos,
     downloadCertTemplate,
     // Common
     switchTab,

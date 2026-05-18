@@ -1031,6 +1031,9 @@
   <button class="btn btn-outline" onclick="exportExcel()">
     📤 Export Excel
   </button>
+  <button class="btn btn-outline" onclick="exportFullExcel()" title="รวมข้อมูล Check Seat + ℹ️ ข้อมูลผู้เดินทาง">
+    📤 Export รวม
+  </button>
 
   <div style="flex:1"></div>
   <span class="badge badge-info" id="row-count">0 items</span>
@@ -3641,6 +3644,98 @@ function exportExcel() {
   const ts = new Date().toISOString().slice(0,16).replace('T','_').replace(':','');
   XLSX.writeFile(wb, `check-seat-export_${ts}.xlsx`);
   toast('Export Excel สำเร็จ', 'success');
+}
+
+/* Export รวม: Check Seat + ℹ️ ข้อมูลผู้เดินทาง (pax-detail) ใน sheet เดียว
+   ดึง select=* ใหม่จาก tour_seat_check เพราะ rows[] ไม่ได้ map fields ฝั่ง pax-detail
+   (food_allergy, line_id, insurance_*, emergency_*, religion, home_address, ฯลฯ) */
+async function exportFullExcel() {
+  if (!sbClient) { toast('Supabase ยังไม่พร้อม', 'error'); return; }
+  if (typeof XLSX === 'undefined') { toast('SheetJS ยังโหลดไม่เสร็จ', 'error'); return; }
+
+  try {
+    let q = sbClient.from('tour_seat_check').select('*');
+    if (currentTripId != null) q = q.eq('trip_id', currentTripId);
+    const { data, error } = await q;
+    if (error) throw error;
+    if (!data || !data.length) { toast('ไม่มีข้อมูลให้ Export', 'error'); return; }
+
+    // จัดเรียง: parents ก่อน (natural sort by code), sub-rows แทรกใต้ parent
+    const parents = data.filter(r => !r.is_sub_row);
+    const subsByParent = {};
+    data.forEach(r => {
+      if (r.is_sub_row && r.parent_code) (subsByParent[r.parent_code] ||= []).push(r);
+    });
+    parents.sort((a, b) =>
+      String(a.code || '').localeCompare(String(b.code || ''), 'en', { numeric: true, sensitivity: 'base' })
+    );
+    const ordered = [];
+    parents.forEach(p => {
+      ordered.push(p);
+      (subsByParent[p.code] || [])
+        .sort((a, b) => String(a.code || '').localeCompare(String(b.code || '')))
+        .forEach(s => ordered.push(s));
+    });
+    // orphan sub-rows (parent_code ชี้ไป code ที่ไม่อยู่ใน list) → ต่อท้าย
+    const seen = new Set(ordered.map(r => r.code));
+    data.forEach(r => { if (!seen.has(r.code)) ordered.push(r); });
+
+    const httpUrl = v => (v && typeof v === 'string' && !v.startsWith('data:')) ? v : '';
+    const out = ordered.map((r, i) => ({
+      '#':                     i + 1,
+      'Code':                  r.code || '',
+      'Name':                  r.name || '',
+      'Instead':               r.instead || '',
+      'Gender':                r.gender || '',
+      'PIN':                   r.pin || '',
+      'Seat':                  r.seat ?? '',
+      'Nationality':           r.nationality || '',
+      'Pass. Image':           httpUrl(r.passport_image_url),
+      'Pass. ID':              r.passport_id || '',
+      'Pass. Exp.':            r.passport_exp_date || '',
+      'Port':                  r.port || '',
+      'Group':                 r.group_name || '',
+      'Flight':                r.flight || '',
+      'Date&Time (Departure)': r.departure_datetime || '',
+      'Date&Time (Arrival)':   r.arrival_datetime || '',
+      'Comeback Flight':       r.comeback || '',
+      'Date&Time (Comeback)':  r.comeback_datetime || '',
+      'Slip':                  httpUrl(r.visa_image_url),
+      'Paid':                  r.paid != null ? Number(r.paid).toFixed(2) : '',
+      'WhatsApp':              r.tel || '',
+      'T-Shirt':               r.tshirt_size || '',
+      'Waive':                 r.waive ? 'ใช่' : '',
+      // ── pax-detail fields ───────────────────────
+      'Religion':              r.religion || '',
+      'Food Allergy':          r.food_allergy || '',
+      'Medical Conditions':    r.medical_conditions || '',
+      'Daily Medication':      r.daily_medication || '',
+      'LINE ID':               r.line_id || '',
+      'Home Address':          r.home_address || '',
+      'Emergency Contact':     r.emergency_contact_name || '',
+      'Emergency Relation':    r.emergency_contact_relation || '',
+      'Emergency Phone':       r.emergency_contact_phone || '',
+      'Insurance Company':     r.insurance_company || '',
+      'Insurance Policy No.':  r.insurance_policy_no || '',
+      'Special Requests':      r.special_requests || '',
+      'Sub Row':               r.is_sub_row ? 'ใช่' : '',
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(out);
+    const wb = XLSX.utils.book_new();
+    const sheetName = (currentTrip?.trip_name || 'Pax Full').slice(0, 28);
+    XLSX.utils.book_append_sheet(wb, ws, sheetName);
+    const ts = new Date().toISOString().slice(0, 16).replace('T', '_').replace(':', '');
+    const tripSlug = (currentTrip?.trip_name || `trip-${currentTripId || 'x'}`)
+      .replace(/[^a-zA-Z0-9ก-๙\- ]/g, '')
+      .replace(/\s+/g, '_')
+      .slice(0, 40);
+    XLSX.writeFile(wb, `pax-full_${tripSlug}_${ts}.xlsx`);
+    toast(`Export ${out.length} รายการสำเร็จ`, 'success');
+  } catch (e) {
+    toast('Export ล้มเหลว: ' + e.message, 'error');
+    console.error(e);
+  }
 }
 
 /* ═══════════════════════════════════════════════════════════

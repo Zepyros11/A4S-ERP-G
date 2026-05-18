@@ -180,14 +180,14 @@
               <!-- Template management bar -->
               <div class="nmc-card-block" style="margin-bottom:14px">
                 <div class="nmc-block-hdr">
-                  <div class="nmc-block-title">🎨 Template ใบประกาศ (<span id="certTplCount">0</span>/5 ตำแหน่ง)</div>
+                  <div class="nmc-block-title">🎨 Template ใบประกาศ (<span id="certTplCount">0</span>/5 ไฟล์)</div>
                   <div class="nmc-block-tools">
                     <button class="btn btn-primary btn-sm" onclick="nmc.openCertTplModal()">🎨 จัดการ Template</button>
                     <button class="btn btn-outline btn-sm" onclick="nmc.downloadCertTemplate()">⬇️ ดาวน์โหลด Excel Template</button>
                   </div>
                 </div>
                 <div style="padding:10px 18px;font-size:12px;color:var(--text3)">
-                  💡 อัปโหลด template 5 ใบ (1 ใบ/ตำแหน่ง) — บันทึกไว้ใน browser นี้ ปีหน้าอัปโหลดทับได้
+                  💡 Template เก็บที่ Supabase Storage bucket <code>cert-templates</code> · ทุกเครื่องใช้ร่วมกันได้ · ปีหน้าเปลี่ยนแบบ → กดอัปโหลดทับ
                 </div>
               </div>
 
@@ -228,7 +228,8 @@
               <!-- Cert actions -->
               <div class="nmc-actions" id="certActionsBlock" style="display:none">
                 <button class="btn btn-secondary" onclick="nmc.certResetAll()">↺ เริ่มใหม่</button>
-                <button class="btn btn-primary" onclick="nmc.exportCertPDF()" id="btnExportCertPDF">📄 Export PDF</button>
+                <button class="btn btn-outline" onclick="nmc.exportCertImages()" id="btnExportCertImg" title="1 ใบ = 1 ไฟล์ PNG · ส่งให้สมาชิกแต่ละคน">📷 Export ภาพ (ZIP)</button>
+                <button class="btn btn-primary" onclick="nmc.exportCertPDF()" id="btnExportCertPDF" title="รวมเป็น PDF ไฟล์เดียว · เหมาะกับการพิมพ์">📄 Export PDF</button>
               </div>
 
               <!-- Cert preview -->
@@ -238,7 +239,7 @@
                   <div class="nmc-block-tools nmc-zoom-tools">
                     <span style="font-size:12px;color:var(--text3)">Zoom</span>
                     <button class="btn btn-outline btn-sm" onclick="nmc.setCertZoom(-1)">−</button>
-                    <span id="certZoomLabel" style="min-width:48px;text-align:center;font-weight:600">40%</span>
+                    <span id="certZoomLabel" style="min-width:48px;text-align:center;font-weight:600">50%</span>
                     <button class="btn btn-outline btn-sm" onclick="nmc.setCertZoom(1)">＋</button>
                   </div>
                 </div>
@@ -258,6 +259,55 @@
       </div>
     </div>
 
+    <!-- CERT POSITION PICKER MODAL -->
+    <div class="modal-overlay" id="certPosOverlay" onclick="if(event.target===this)nmc.closeCertPosModal()">
+      <div class="modal" style="width:880px;max-width:96vw">
+        <div class="modal-hdr v-sage-header">
+          <div class="modal-title">📍 ปรับตำแหน่งชื่อ — <span id="certPosLabel">—</span></div>
+          <button class="btn-modal-close" onclick="nmc.closeCertPosModal()">✕</button>
+        </div>
+        <div class="modal-body" style="padding:0">
+          <div style="padding:12px 18px;font-size:13px;color:var(--text2);background:var(--surface2,#f8fafc);border-bottom:1px solid var(--border)">
+            💡 ลากกล่องชื่อ <b>ขึ้น-ลง</b> เพื่อปรับตำแหน่ง · แนวนอนกึ่งกลาง fix ไว้ · เห็นการเปลี่ยนแปลงทันที
+          </div>
+          <div style="padding:18px">
+            <div class="cert-pos-canvas" id="certPosCanvas">
+              <div class="cert-pos-names" id="certPosNames">
+                <div class="cert-pos-name">คุณตัวอย่าง ชื่อ-นามสกุล</div>
+                <div class="cert-pos-name" id="certPosName2">คุณตัวอย่าง ชื่อ-นามสกุล 2</div>
+              </div>
+              <div class="cert-pos-guide" id="certPosGuide"><span class="cert-pos-guide-lbl">ชื่อ 1</span></div>
+              <div class="cert-pos-guide cert-pos-guide-2" id="certPosGuide2"><span class="cert-pos-guide-lbl">ชื่อ 2</span></div>
+            </div>
+            <div class="cert-pos-toolbar">
+              <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">
+                <input type="checkbox" id="certPosShow2" checked onchange="nmc.toggleCertPos2(this.checked)">
+                แสดง 2 บรรทัด (รหัสคู่)
+              </label>
+              <div class="cert-pos-y">
+                Y = <input type="number" id="certPosYInput" class="cert-pos-y-input" min="0" max="200" step="0.5" oninput="nmc.setCertPosY(this.value)"> mm
+              </div>
+              <button class="btn btn-outline btn-sm" onclick="nmc.bumpCertPosY(-1)">↑ −1mm</button>
+              <button class="btn btn-outline btn-sm" onclick="nmc.bumpCertPosY(1)">↓ +1mm</button>
+              <button class="btn btn-outline btn-sm" onclick="nmc.resetCertPosY()">↺ Default Y</button>
+            </div>
+            <div class="cert-pos-toolbar" style="margin-top:8px">
+              <div class="cert-pos-y" style="color:#dc2626">
+                📏 ระยะห่าง 2 บรรทัด = <input type="number" id="certPosLhInput" class="cert-pos-y-input" min="8" max="40" step="0.5" oninput="nmc.setCertPosLh(this.value)" style="color:#dc2626"> mm
+              </div>
+              <button class="btn btn-outline btn-sm" onclick="nmc.bumpCertPosLh(-0.5)">− 0.5mm</button>
+              <button class="btn btn-outline btn-sm" onclick="nmc.bumpCertPosLh(0.5)">+ 0.5mm</button>
+              <button class="btn btn-outline btn-sm" onclick="nmc.resetCertPosLh()">↺ Default (16mm)</button>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" onclick="nmc.closeCertPosModal()">ยกเลิก</button>
+          <button class="btn btn-primary" onclick="nmc.saveCertPos()">✓ บันทึก</button>
+        </div>
+      </div>
+    </div>
+
     <!-- CERT TEMPLATE MANAGEMENT MODAL -->
     <div class="modal-overlay" id="certTplOverlay" onclick="if(event.target===this)nmc.closeCertTplModal()">
       <div class="modal" style="width:720px;max-width:95vw">
@@ -267,12 +317,13 @@
         </div>
         <div class="modal-body" style="padding:0">
           <div style="padding:14px 18px;font-size:13px;color:var(--text2);background:var(--surface2,#f8fafc);border-bottom:1px solid var(--border)">
-            อัปโหลดภาพ <b>JPEG/PNG</b> A4 แนวนอน · ขนาด ~3000×2100 px · ระบบจะ resize เป็น 1500 px กว้างก่อนเก็บ (~500 KB/ใบ)
+            อัปโหลดไฟล์ <b>JPEG/PNG</b> A4 แนวนอน · <b>ไม่ลดขนาด/บีบอัด</b> (full quality) · เก็บที่ Supabase Storage → share ทุกเครื่อง<br>
+            <span style="font-size:11px;color:var(--text3)">ภาพยิ่งใหญ่ยิ่งคม แต่ใช้ bandwidth + พื้นที่มากขึ้น แนะนำ 3000×2100 px ขึ้นไป</span>
           </div>
           <div class="cert-tpl-grid" id="certTplGrid"></div>
         </div>
         <div class="modal-footer">
-          <button class="btn btn-secondary" onclick="nmc.resetAllCertTpl()">🗑 ล้างทั้งหมด</button>
+          <button class="btn btn-secondary" onclick="nmc.resetAllCertTpl()">↺ รีเซ็ตค่าตำแหน่ง</button>
           <button class="btn btn-primary" onclick="nmc.closeCertTplModal()">✓ เสร็จสิ้น</button>
         </div>
       </div>
@@ -282,6 +333,8 @@
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+    <script src="../../js/core/supabase.js"></script>
     <script src="../../js/core/auth.js"></script>
     <script src="../../js/core/authz.js"></script>
     <script>AuthZ.requirePerm("events_view");</script>
@@ -291,6 +344,7 @@
     </script>
     <script src="../../js/components/navigation/sidebar.js"></script>
     <script src="../../js/components/modal/modalManager.js"></script>
+    <script src="../../js/components/modal/confirmModal.js"></script>
     <script src="./namecard-generator.js"></script>
   </body>
 </html>

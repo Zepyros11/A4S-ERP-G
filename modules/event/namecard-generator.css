@@ -154,28 +154,53 @@
 }
 
 /* ── Certificate · A4 LANDSCAPE 297mm × 210mm ─────────────── */
-.cert-a4 {
+/* Cert tab uses a 2-column grid layout for the preview (more efficient
+   use of horizontal space — 1 cert/A4 page is too tall to stack 1-up). */
+#certSheetScroller {
+  display: grid !important;
+  grid-template-columns: repeat(2, max-content);
+  justify-content: center;
+  align-content: start;
+  gap: 20px;
+}
+
+/* Wrapper holds the *visual* (scaled) size so flex/grid lays them out
+   correctly. The previous negative-margin trick was unreliable in flex —
+   gap + negative margin interact in browser-specific ways. */
+.cert-a4-wrap {
   position: relative;
+  width: calc(297mm * var(--nmc-zoom, .4));
+  height: calc(210mm * var(--nmc-zoom, .4));
+  box-shadow: 0 4px 18px rgba(15,23,42,.18);
+  background: #fff;
+  overflow: hidden;
+  flex: 0 0 auto;
+}
+.cert-a4 {
+  position: absolute;
+  top: 0; left: 0;
   width: 297mm; height: 210mm;
   background: #fff center/100% 100% no-repeat;
   /* background-image set inline via JS using uploaded template */
-  box-shadow: 0 4px 18px rgba(15,23,42,.18);
   box-sizing: border-box;
   overflow: hidden;
-  transform-origin: top center;
+  transform-origin: top left;
   transform: scale(var(--nmc-zoom, .4));
-  margin-bottom: calc(210mm * var(--nmc-zoom, .4) - 210mm);
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
 }
 /* Name overlay — supports 1 or 2 lines (for couple codes).
-   Position from measured data: Y₁ ≈ 133mm, line-height ≈ 13.5mm. */
+   Block height = 2 × line-height (=32mm @ 16mm/line) — leaves room for
+   Thai tone marks above/below glyphs.
+   • 2 names → fill the block top-to-bottom
+   • 1 name  → centered vertically inside the same block */
 .cert-names {
   position: absolute;
   left: 30mm; right: 30mm;
   top: var(--cert-name-y, 133mm);
+  height: var(--cert-name-block-h, 32mm);
   display: flex; flex-direction: column;
-  align-items: center; justify-content: flex-start;
+  align-items: center; justify-content: center;
   text-align: center;
   gap: 0;
 }
@@ -183,7 +208,7 @@
   font-family: 'PolySans', 'Sarabun', sans-serif;
   font-weight: 400;
   font-size: var(--cert-name-size, 30pt);
-  line-height: var(--cert-name-lh, 1.27);
+  line-height: var(--cert-name-lh, 16mm);
   color: #1f2937;
   letter-spacing: 0.01em;
   white-space: nowrap;
@@ -233,15 +258,110 @@
   width: 100%;
   aspect-ratio: 297/210;
   background: #fff center/contain no-repeat;
-  border: 1px dashed var(--border2, #cbd5e1);
+  border: 2px dashed var(--border2, #cbd5e1);
   border-radius: 6px;
   display: flex; align-items: center; justify-content: center;
   font-size: 11px; color: var(--text3, #94a3b8);
+  cursor: pointer;
+  transition: all .15s;
+  position: relative;
+}
+.cert-tpl-preview:hover {
+  border-color: var(--accent, #3b82f6);
+  background-color: var(--accent-pale, #eff6ff);
+}
+.cert-tpl-preview.dragover {
+  border-color: var(--accent, #3b82f6);
+  background-color: var(--accent-pale, #eff6ff);
+  transform: scale(1.02);
+}
+.cert-tpl-drop-hint {
+  text-align: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text2, #475569);
+  line-height: 1.4;
+  pointer-events: none;
 }
 .cert-tpl-actions {
   display: flex; gap: 6px; flex-direction: column;
 }
 .cert-tpl-actions .btn-sm { white-space: nowrap; }
+
+/* ── Position Picker Modal ──────────────────────────────── */
+/* Lift above template-management modal (both have z-index 300 in common.css) */
+#certPosOverlay { z-index: 400; }
+
+.cert-pos-canvas {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 297 / 210;          /* A4 landscape */
+  background: #f5f5f5 center/100% 100% no-repeat;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 6px;
+  overflow: hidden;
+  user-select: none;
+  container-type: inline-size;      /* source for cqw inside */
+}
+.cert-pos-names {
+  position: absolute;
+  left: 0; right: 0;
+  top: 0;
+  /* 32mm out of 297mm canvas width = 10.77cqw (preserves A4 aspect ratio) */
+  height: 10.77cqw;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  cursor: ns-resize;
+  transition: filter .12s;
+}
+.cert-pos-names:hover { filter: drop-shadow(0 0 6px rgba(59,130,246,.5)); }
+.cert-pos-names.dragging { filter: drop-shadow(0 0 8px rgba(59,130,246,.8)); }
+.cert-pos-name {
+  font-family: 'PolySans', 'Sarabun', sans-serif;
+  font-weight: 400;
+  /* 1cqw = 1% of canvas width (container-type is on .cert-pos-canvas) */
+  font-size: clamp(14px, 3.2cqw, 28px);
+  color: #1f2937;
+  line-height: 1.27;
+  white-space: nowrap;
+  text-align: center;
+  pointer-events: none;
+}
+.cert-pos-guide {
+  position: absolute; left: 0; right: 0;
+  height: 1px; background: rgba(59,130,246,.5);
+  pointer-events: none;
+}
+.cert-pos-guide-2 { background: rgba(220,38,38,.5); }
+.cert-pos-guide-lbl {
+  position: absolute; right: 6px; top: -16px;
+  font-size: 10px; font-weight: 700;
+  color: rgba(59,130,246,.95);
+  background: rgba(255,255,255,.85);
+  padding: 1px 6px; border-radius: 3px;
+}
+.cert-pos-guide-2 .cert-pos-guide-lbl {
+  color: rgba(220,38,38,.95);
+}
+.cert-pos-toolbar {
+  display: flex; align-items: center; gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+  padding: 10px 12px;
+  background: var(--surface2, #f8fafc);
+  border-radius: 8px;
+  border: 1px solid var(--border, #e2e8f0);
+  font-size: 13px;
+}
+.cert-pos-y { font-weight: 600; color: var(--text, #0f172a); }
+.cert-pos-y-input {
+  width: 70px; padding: 4px 8px;
+  border: 1px solid var(--border, #e2e8f0); border-radius: 6px;
+  font-family: inherit; font-size: 13px; font-weight: 700;
+  text-align: center; background: #fff;
+  color: var(--accent, #3b82f6);
+}
+.cert-pos-y-input:focus { outline: none; border-color: var(--accent, #3b82f6); box-shadow: 0 0 0 3px rgba(59,130,246,.12); }
 
 /* VIP A4: 2 cols × 5 rows = 10 cards/page */
 .vip-a4 {
@@ -491,6 +611,12 @@
   transform: none !important;
   margin: 0 !important;
   box-shadow: none;
+}
+/* PrintArea: wrapper takes full A4 size + cert renders unscaled inside */
+.nmc-print-area .cert-a4-wrap {
+  width: 297mm !important;
+  height: 210mm !important;
+  box-shadow: none !important;
 }
 
 @media print {
