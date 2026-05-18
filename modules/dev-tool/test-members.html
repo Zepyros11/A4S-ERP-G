@@ -36,11 +36,6 @@
 .tm-plain{font-family:'IBM Plex Mono',monospace;color:#065f46;background:#f0fdf4;padding:2px 8px;border-radius:4px;font-size:12px;}
 
 .tm-pkg{display:inline-flex;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;}
-.tm-pkg-DM{background:#ddd6fe;color:#5b21b6;}
-.tm-pkg-SI{background:#fef3c7;color:#92400e;}
-.tm-pkg-PL{background:#cffafe;color:#0e7490;}
-.tm-pkg-MB{background:#fce7f3;color:#9f1239;}
-.tm-pkg-EM{background:#d1fae5;color:#065f46;}
 .tm-pkg-DR{background:#dbeafe;color:#1e40af;}
 .tm-pkg-SD{background:#e0e7ff;color:#3730a3;}
 .tm-pkg-AVP{background:#fed7aa;color:#9a3412;}
@@ -137,8 +132,8 @@
       <div><div class="tm-stat-label">มี Upline</div><div class="tm-stat-val" id="statWithUpline">—</div></div>
     </div>
     <div class="tm-stat">
-      <div class="tm-stat-icon" style="background:#d1fae5;color:#065f46">📦</div>
-      <div><div class="tm-stat-label">Packages</div><div class="tm-stat-val" id="statPackages">—</div></div>
+      <div class="tm-stat-icon" style="background:#d1fae5;color:#065f46">⭐</div>
+      <div><div class="tm-stat-label">ตำแหน่ง</div><div class="tm-stat-val" id="statPackages">—</div></div>
     </div>
   </div>
 
@@ -146,12 +141,7 @@
   <div class="tm-toolbar">
     <input class="tm-search" id="searchInput" placeholder="🔎 ค้นหา: รหัส / ชื่อ / เบอร์ / sponsor / upline" oninput="renderTable()">
     <select class="tm-filter" id="filterPackage" onchange="renderTable()">
-      <option value="">ทุก Package</option>
-      <option value="DM">DM</option>
-      <option value="SI">SI</option>
-      <option value="PL">PL</option>
-      <option value="MB">MB</option>
-      <option value="EM">EM</option>
+      <option value="">ทุกตำแหน่ง</option>
       <option value="DR">DR</option>
       <option value="SD">SD</option>
       <option value="AVP">AVP</option>
@@ -171,7 +161,7 @@
             <th>ชื่อ</th>
             <th>เบอร์</th>
             <th>รหัสผ่าน</th>
-            <th>Package</th>
+            <th>ตำแหน่งสูงสุด</th>
             <th>Sponsor</th>
             <th>Upline</th>
             <th>ด้าน</th>
@@ -205,20 +195,16 @@
           <div class="hint">ตัวเลข 4 หลัก</div>
         </div>
         <div class="tm-field">
-          <label>Package</label>
+          <label>ตำแหน่งสูงสุด</label>
           <select id="fPackage">
             <option value="">—</option>
-            <option value="DM">💎 DM</option>
-            <option value="SI">⭐ SI</option>
-            <option value="PL">💠 PL</option>
-            <option value="MB">🎁 MB</option>
-            <option value="EM">🌟 EM</option>
-            <option value="DR">🎖️ DR</option>
-            <option value="SD">🏅 SD</option>
+            <option value="DR">🎖️ DR (Director)</option>
+            <option value="SD">🏅 SD (Senior Director)</option>
             <option value="AVP">👔 AVP</option>
             <option value="VP">🏆 VP</option>
             <option value="SVP">👑 SVP</option>
           </select>
+          <div class="hint">ใช้ตรวจเงื่อนไข <code>min_position_level</code> ตอนสมัคร event</div>
         </div>
         <div class="tm-field">
           <label>ประเทศ</label>

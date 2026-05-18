@@ -53,7 +53,7 @@ function renderStats() {
   const total = allRows.length;
   const withHash = allRows.filter(r => r.password_hash).length;
   const withUpline = allRows.filter(r => r.upline_code).length;
-  const pkgSet = new Set(allRows.map(r => r.package).filter(Boolean));
+  const pkgSet = new Set(allRows.map(r => r.position_level).filter(Boolean));
   document.getElementById('statTotal').textContent = total.toLocaleString();
   document.getElementById('statWithHash').textContent = withHash.toLocaleString();
   document.getElementById('statWithUpline').textContent = withUpline.toLocaleString();
@@ -65,7 +65,7 @@ function renderTable() {
   const pkg = document.getElementById('filterPackage').value;
 
   let rows = allRows;
-  if (pkg) rows = rows.filter(r => r.package === pkg);
+  if (pkg) rows = rows.filter(r => r.position_level === pkg);
   if (q) {
     rows = rows.filter(r => {
       const hay = [
@@ -92,8 +92,8 @@ function renderTable() {
     const sponsor = escapeHtml(r.sponsor_code || '—');
     const upline  = escapeHtml(r.upline_code || '—');
     const side    = escapeHtml(r.side || '—');
-    const pkgHtml = r.package
-      ? `<span class="tm-pkg tm-pkg-${r.package}">${escapeHtml(r.package)}</span>`
+    const pkgHtml = r.position_level
+      ? `<span class="tm-pkg tm-pkg-${r.position_level}">⭐ ${escapeHtml(r.position_level)}</span>`
       : '—';
 
     let pwHtml = '<span class="tm-mask">—</span>';
@@ -205,7 +205,7 @@ async function openEditModal(codeEnc) {
   document.getElementById('fMemberName').value = r.member_name || '';
   document.getElementById('fPhone').value      = r.phone || '';
   document.getElementById('fEmail').value      = r.email || '';
-  document.getElementById('fPackage').value    = r.package || '';
+  document.getElementById('fPackage').value    = r.position_level || '';
   document.getElementById('fCountry').value    = r.country_code || 'TH';
   document.getElementById('fSponsor').value    = r.sponsor_code || '';
   document.getElementById('fUpline').value     = r.upline_code || '';
@@ -273,7 +273,7 @@ async function saveForm() {
       member_name:    document.getElementById('fMemberName').value.trim() || null,
       phone:          document.getElementById('fPhone').value.trim() || null,
       email:          document.getElementById('fEmail').value.trim() || null,
-      package:        document.getElementById('fPackage').value || null,
+      position_level: document.getElementById('fPackage').value || null,
       country_code:   document.getElementById('fCountry').value || null,
       sponsor_code:   document.getElementById('fSponsor').value.trim() || null,
       upline_code:    document.getElementById('fUpline').value.trim() || null,
@@ -385,7 +385,7 @@ const _lastNamesTH = [
   'ปังปัง','น่าทึ่ง','เริ่ดเลย','ดี๊ดี','น่าสุด','เริงร่า',
   'สดใส','เลิศหรู','ปังมาก','น่าเอ็นดู','ขั้นเทพ','น่าหลงรัก',
 ];
-const _packages = ['DM','SI','PL','MB','EM','DR','SD','AVP','VP','SVP'];
+const _packages = ['DR','SD','AVP','VP','SVP'];
 const _sides    = ['ซ้าย','ขวา'];
 
 function _pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
