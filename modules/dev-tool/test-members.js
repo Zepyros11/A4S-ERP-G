@@ -118,6 +118,7 @@ function renderTable() {
         <td>
           <div class="tm-row-actions">
             <button class="tm-row-btn" title="แก้ไข" onclick="openEditModal('${encodeURIComponent(r.member_code)}')">✏️</button>
+            ${r.line_user_id ? `<button class="tm-row-btn" title="ปลดผูก LINE (เก็บ row ไว้)" onclick="unlinkLine('${encodeURIComponent(r.member_code)}')">🔌</button>` : ''}
             <button class="tm-row-btn danger" title="ลบ" onclick="deleteMember('${encodeURIComponent(r.member_code)}')">🗑️</button>
           </div>
         </td>
@@ -367,6 +368,55 @@ async function deleteMember(codeEnc) {
     showLoading(false);
   }
 }
+
+/* ============================================================
+   UNLINK LINE — clear test_members.line_* (เก็บ row ไว้ test ซ้ำได้)
+   ============================================================ */
+async function unlinkLine(codeEnc) {
+  const code = decodeURIComponent(codeEnc);
+  const r = allRows.find(x => x.member_code === code);
+  if (!r) return;
+
+  const ok = await ConfirmModal.open({
+    title: 'ปลดผูก LINE?',
+    message: 'จะ clear ข้อมูล LINE ของ test member นี้ (เก็บ row ไว้ — test ผูกใหม่ได้ทันที)',
+    icon: '🔌',
+    okText: 'ปลดผูก',
+    cancelText: 'ยกเลิก',
+    tone: 'warning',
+    details: {
+      'รหัส': r.member_code,
+      'ชื่อ': r.full_name || r.member_name || '—',
+      'LINE Name': r.line_display_name || '—',
+    },
+  });
+  if (!ok) return;
+
+  showLoading(true);
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/test_members?member_code=eq.${encodeURIComponent(code)}`,
+      {
+        method: 'PATCH',
+        headers: _sbHeaders({ 'Content-Type': 'application/json', Prefer: 'return=minimal' }),
+        body: JSON.stringify({
+          line_user_id: null,
+          line_display_name: null,
+          line_picture_url: null,
+          line_linked_at: null,
+        }),
+      }
+    );
+    if (!res.ok) throw new Error('ปลดผูกไม่สำเร็จ (' + res.status + ')');
+    showToast('🔌 ปลดผูก LINE แล้ว — test ใหม่ได้เลย', 'success');
+    await loadData();
+  } catch (e) {
+    showToast('❌ ' + e.message, 'error');
+  } finally {
+    showLoading(false);
+  }
+}
+window.unlinkLine = unlinkLine;
 window.deleteMember = deleteMember;
 
 /* ============================================================
