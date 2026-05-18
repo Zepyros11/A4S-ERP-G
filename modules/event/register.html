@@ -418,6 +418,7 @@ let _attendeeCount = 0;
 let _lineChannel = null;      // { liff_id, friend_url, ... } or null
 let _lineProfile = null;      // { userId, displayName, pictureUrl } when logged in
 let _registeredCode = null;   // member_code after successful register (form is destroyed)
+let _autoLinkToken  = null;   // LINE link token จาก /line/preauth (เก็บไว้ใช้หลัง form หาย — 10 นาที)
 
 async function sbGet(path) {
   const res = await fetch(`${SB_URL}/rest/v1/${path}`, {
@@ -697,13 +698,35 @@ function renderLinePanel() {
   }
 }
 
+/* Prefetch one-time link token จาก /line/preauth — เรียกใน doRegister หลัง verify password
+   เก็บใน _autoLinkToken (อายุ 10 นาที) → connectViaOA() ใช้แม้ form ถูก destroy แล้ว
+   Best-effort — fail แล้วเงียบ ๆ (จะ fallback ไป flow legacy) */
+async function _prefetchLineLinkToken(code, password) {
+  const proxyUrl = (window.REGISTER_CONFIG?.proxy_url || '').replace(/\/+$/, '');
+  if (!proxyUrl || !code || !password) return;
+  try {
+    const res = await fetch(`${proxyUrl}/line/preauth`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code, password }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok && data?.token) {
+      _autoLinkToken = data.token;
+      console.log('[preauth] token ready (10min)');
+    } else {
+      console.warn('[preauth] failed:', res.status, data?.error);
+    }
+  } catch (e) {
+    console.warn('[preauth] network error:', e.message);
+  }
+}
+
 /* Open LINE OA chat — auto-link via pre-authorized token when possible.
-   Flow:
-     1) ถ้ามี code + password + proxy_url → POST /line/preauth → ได้ token
-        → deep link "🔗 ผูกบัญชี <token>" → user แค่กด send → webhook ผูกอัตโนมัติ
-     2) Fallback: ส่ง code อย่างเดียว (flow เดิม) — user ต้องพิมพ์ password ใน chat
-   Source for code:  rCode input (pre-register) → _registeredCode (post-register)
-   Source for pwd:   rPass input (form ยังอยู่)  → ไม่มี (post-register, form หาย) */
+   Priority:
+     1) _autoLinkToken (cached จาก doRegister) → deep link "🔗 ผูกบัญชี <token>"
+     2) rPass + rCode (pre-register) → live POST /line/preauth → token → deep link
+     3) Legacy fallback → ส่งแค่ code → user พิมพ์ password ใน chat */
 window.connectViaOA = async function () {
   const codeEl = document.getElementById('rCode');
   const passEl = document.getElementById('rPass');
@@ -723,10 +746,20 @@ window.connectViaOA = async function () {
   }
 
   const oaId = '@949bctau'; // A4S-Bot-Assistant basic ID
+  const openDeepLink = (msg) => {
+    const url = `https://line.me/R/oaMessage/${encodeURIComponent(oaId)}/?${encodeURIComponent(msg)}`;
+    window.open(url, '_blank');
+  };
+
+  // Priority 1: cached token จาก doRegister
+  if (_autoLinkToken) {
+    openDeepLink(`🔗 ผูกบัญชี ${_autoLinkToken}`);
+    return;
+  }
+
+  // Priority 2: live preauth (form ยังอยู่ + password กรอกแล้ว)
   const proxyUrl = (window.REGISTER_CONFIG?.proxy_url || '').replace(/\/+$/, '');
   const password = (passEl?.value || '').trim();
-
-  // Auto-link path: code + password + proxy → ออก token, ส่ง deep link พร้อม token
   if (proxyUrl && password) {
     try {
       const res = await fetch(`${proxyUrl}/line/preauth`, {
@@ -736,31 +769,20 @@ window.connectViaOA = async function () {
       });
       const data = await res.json().catch(() => ({}));
       if (res.ok && data?.token) {
-        const msg = `🔗 ผูกบัญชี ${data.token}`;
-        const url = `https://line.me/R/oaMessage/${encodeURIComponent(oaId)}/?${encodeURIComponent(msg)}`;
-        window.open(url, '_blank');
+        _autoLinkToken = data.token;
+        openDeepLink(`🔗 ผูกบัญชี ${data.token}`);
         return;
       }
-      if (res.status === 401) {
-        showToast('❌ รหัสผ่านไม่ถูกต้อง', 'error');
-        passEl?.focus();
-        return;
-      }
-      if (res.status === 404) {
-        showToast('❌ ไม่พบรหัสสมาชิกนี้', 'error');
-        codeEl?.focus();
-        return;
-      }
-      // Other errors → fall through to legacy flow
-      console.warn('[preauth] failed, fallback to legacy:', res.status, data?.error);
+      if (res.status === 401) { showToast('❌ รหัสผ่านไม่ถูกต้อง', 'error'); passEl?.focus(); return; }
+      if (res.status === 404) { showToast('❌ ไม่พบรหัสสมาชิกนี้', 'error'); codeEl?.focus(); return; }
+      console.warn('[preauth live] failed, fallback to legacy:', res.status, data?.error);
     } catch (e) {
-      console.warn('[preauth] network error, fallback to legacy:', e.message);
+      console.warn('[preauth live] network error, fallback to legacy:', e.message);
     }
   }
 
-  // Legacy fallback: ส่งแค่ code → user พิมพ์ password ใน chat เอง
-  const url = `https://line.me/R/oaMessage/${encodeURIComponent(oaId)}/?${encodeURIComponent(code)}`;
-  window.open(url, '_blank');
+  // Priority 3: Legacy fallback — ส่งแค่ code (user ต้องพิมพ์ password ใน chat)
+  openDeepLink(code);
 };
 
 function renderPage() {
@@ -1033,6 +1055,10 @@ async function doRegister() {
     if (!member.password_hash) { showMsg('❌ สมาชิกยังไม่ได้ตั้งรหัสผ่าน — ติดต่อแอดมิน', 'error'); btn.disabled = false; btn.textContent = '🎫 ลงทะเบียน'; return; }
     const inputHash = await ERPCrypto.hash(pass);
     if (inputHash !== member.password_hash) { showMsg('❌ รหัสผ่านไม่ถูกต้อง', 'error'); btn.disabled = false; btn.textContent = '🎫 ลงทะเบียน'; return; }
+
+    // 2b. Prefetch LINE link token (best-effort — ไม่ block ลงทะเบียน)
+    //     เก็บไว้ใน _autoLinkToken เพื่อ connectViaOA() ใช้ได้แม้ form ถูก destroy แล้ว (10 นาที)
+    _prefetchLineLinkToken(code, pass).catch(() => {});
 
     // 3. Check members_only
     if (_event.members_only && !member.member_code) {
