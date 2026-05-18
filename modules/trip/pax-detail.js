@@ -12,7 +12,7 @@ const PAX_SELECT_COLS = [
   "emergency_contact_name", "emergency_contact_phone", "emergency_contact_relation",
   "home_address", "line_id",
   "insurance_company", "insurance_policy_no", "special_requests",
-  "is_sub_row", "parent_code",
+  "is_sub_row", "parent_code", "highlighted",
 ].join(",");
 
 const SHIRT_OPTIONS = ["", "S", "M", "L", "XL", "2XL", "3XL", "4XL", "5XL"];
@@ -97,7 +97,7 @@ async function loadAll() {
     ]);
 
     state.trip = (trips || [])[0] || null;
-    state.pax = pax || [];
+    state.pax = groupParentsWithSubs(pax || []);
 
     updateTripBanner();
     updateStats();
@@ -121,6 +121,42 @@ function updateTripBanner() {
   const ed = fmt(state.trip.end_date);
   document.getElementById("pdTripDates").textContent =
     (sd || ed) ? ` · ${sd || "—"} → ${ed || "—"}` : "";
+}
+
+/* จัดเรียงให้ sub-rows (is_sub_row=true) ติดอยู่ใต้ parent ของมัน
+   — แบบเดียวกับ check-seat
+   — parents sort ตามชื่อ (case-insensitive), sub-rows คงลำดับมาจาก API */
+function groupParentsWithSubs(rows) {
+  const parents = rows.filter((r) => !r.is_sub_row);
+  const subsByParent = {};
+  rows.forEach((r) => {
+    if (r.is_sub_row && r.parent_code) {
+      (subsByParent[r.parent_code] ||= []).push(r);
+    }
+  });
+
+  // sort parents ตาม code ASC แบบ natural (numeric-aware)
+  // "80952" < "81916" < "101713" < "AGRI" < "STAFF"
+  parents.sort((a, b) =>
+    String(a.code || "").localeCompare(String(b.code || ""), "en", { numeric: true, sensitivity: "base" })
+  );
+
+  const out = [];
+  parents.forEach((p) => {
+    out.push(p);
+    const subs = subsByParent[p.code];
+    if (subs && subs.length) {
+      // sub-rows ภายในกลุ่มเรียงตาม code (เผื่อมีหลายตัว: -1, -2)
+      subs.sort((a, b) => String(a.code || "").localeCompare(String(b.code || "")));
+      subs.forEach((s) => out.push(s));
+    }
+  });
+
+  // orphan sub-rows (parent_code ชี้ไป code ที่ไม่อยู่ใน list) → ต่อท้าย
+  const seen = new Set(out.map((r) => r.code));
+  rows.forEach((r) => { if (!seen.has(r.code)) out.push(r); });
+
+  return out;
 }
 
 function showTripBannerError() {
@@ -179,7 +215,7 @@ function renderTable(rows) {
 
   if (!rows.length) {
     tbody.innerHTML = `
-      <tr><td colspan="19">
+      <tr><td colspan="20">
         <div class="empty-state">
           <div class="empty-icon">ℹ️</div>
           <div class="empty-text">${state.tripId == null ? "ต้องเปิดผ่านรายการทริป (?trip_id=X)" : "ไม่พบผู้เดินทาง"}</div>
@@ -189,17 +225,31 @@ function renderTable(rows) {
   }
 
   const e = state.globalEditing;
-  tbody.innerHTML = rows.map((p, i) => renderRow(p, i, e)).join("");
+  // Number parents sequentially; sub-rows show blank # (match check-seat)
+  let parentIdx = 0;
+  tbody.innerHTML = rows.map((p) => {
+    const num = p.is_sub_row ? "" : ++parentIdx;
+    return renderRow(p, num, e);
+  }).join("");
 
   if (window.AuthZ && typeof AuthZ.applyDomPerms === "function") {
     AuthZ.applyDomPerms(tbody);
   }
 }
 
-function renderRow(p, i, e) {
-  const sub = p.is_sub_row ? "sub-row" : "";
+function renderRow(p, num, e) {
+  const trClasses = [
+    p.is_sub_row ? "sub-row" : "",
+    p.highlighted ? "row-highlighted" : "",
+  ].filter(Boolean).join(" ");
   const nameDisp = `${escapeHtml(p.name || "—")}${p.instead ? `<span class="pd-name-sub">↔ ${escapeHtml(p.instead)}</span>` : ""}`;
-  const subPrefix = p.is_sub_row ? `<span class="pd-sub-prefix" title="ผู้ร่วมเดินทาง">↳</span>` : "";
+  const codeClass = p.is_sub_row ? "pd-code-cell sub-indent" : "pd-code-cell";
+
+  // Checkbox cell — input ใน edit mode, dot เมื่อ highlight (ตอนไม่ edit)
+  const cbCell = e
+    ? `<input type="checkbox" class="pd-row-cb" ${p.highlighted ? "checked" : ""}
+         onchange="window.toggleHighlight('${escapeAttr(p.code)}',this)" />`
+    : (p.highlighted ? `<span class="pd-cb-dot"></span>` : "");
 
   // Field renderer helpers
   const inp = (field, val, ph = "") =>
@@ -234,10 +284,11 @@ function renderRow(p, i, e) {
     return `<span class="field-view empty">—</span>`;
   };
 
-  return `<tr class="${sub}">
-    <td class="pd-col-no">${i + 1}</td>
-    <td class="pd-col-code"><span class="pd-code-cell">${escapeHtml(p.code || "")}</span></td>
-    <td class="pd-col-name">${subPrefix}<span class="pd-name-cell">${nameDisp}</span></td>
+  return `<tr class="${trClasses}">
+    <td class="pd-col-cb"><div class="pd-cb-wrap">${cbCell}</div></td>
+    <td class="pd-col-no">${num}</td>
+    <td class="pd-col-code"><span class="${codeClass}">${escapeHtml(p.code || "")}</span></td>
+    <td class="pd-col-name"><span class="pd-name-cell">${nameDisp}</span></td>
     <td class="pd-col-gender">${e ? genderSel(p.gender) : genderView(p.gender)}</td>
     <td class="pd-col-religion">${e ? inp("religion", p.religion, "พุทธ/คริสต์/อิสลาม") : view(p.religion)}</td>
     <td class="pd-col-nat">${e ? inp("nationality", p.nationality) : view(p.nationality)}</td>
@@ -273,6 +324,17 @@ window.toggleGlobalEdit = function () {
     flushAllPendingSaves();
   }
   filterTable();
+};
+
+// ── TOGGLE HIGHLIGHT (yellow row) ──────────────────────────
+window.toggleHighlight = function (code, cbEl) {
+  const p = state.pax.find((x) => x.code === code);
+  if (!p) return;
+  p.highlighted = !!cbEl.checked;
+  // อัพเดท UI ทันที (toggle class ที่ <tr> โดยตรงผ่าน checkbox element)
+  const tr = cbEl.closest("tr");
+  if (tr) tr.classList.toggle("row-highlighted", p.highlighted);
+  scheduleRowSave(code);
 };
 
 // ── FIELD UPDATE + DEBOUNCED SAVE ──────────────────────────
@@ -323,6 +385,7 @@ async function saveRow(code) {
     insurance_company: nullIfEmpty(p.insurance_company),
     insurance_policy_no: nullIfEmpty(p.insurance_policy_no),
     special_requests: nullIfEmpty(p.special_requests),
+    highlighted: !!p.highlighted,
     updated_at: new Date().toISOString(),
   };
 

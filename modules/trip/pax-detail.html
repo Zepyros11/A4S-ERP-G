@@ -39,11 +39,41 @@
         background:#f1f5f9;color:var(--text2);font-weight:700;font-size:11.5px;
         position:sticky;top:0;z-index:2;white-space:nowrap;
       }
-      table#pd-table tbody tr:hover{background:#f8fafc}
-      table#pd-table tbody tr.sub-row{background:#fafbfc}
+      table#pd-table tbody tr:hover:not(.sub-row){background:#f8fafc}
+      /* sub-row — match check-seat: purple bg + left accent bar */
+      table#pd-table tbody tr.sub-row{
+        background:#ede9fe;
+        box-shadow:inset 4px 0 0 #8b5cf6;
+      }
+      table#pd-table tbody tr.sub-row:hover{background:#ddd6fe}
+      /* sub-row indent in code cell */
+      .pd-code-cell.sub-indent{
+        padding-left:18px;position:relative;display:inline-block;
+      }
+      .pd-code-cell.sub-indent::before{
+        content:'└';position:absolute;left:0;color:var(--text3);
+      }
 
       /* Column widths */
+      .pd-col-cb       { width:36px; min-width:36px; text-align:center; }
       .pd-col-no       { width:44px; min-width:44px; text-align:center; color:var(--text3); }
+
+      /* Checkbox */
+      .pd-cb-wrap{display:flex;align-items:center;justify-content:center}
+      .pd-row-cb{width:16px;height:16px;cursor:pointer;accent-color:#f59e0b}
+      .pd-cb-dot{
+        width:10px;height:10px;border-radius:50%;
+        background:#f59e0b;display:inline-block;
+      }
+
+      /* Highlighted row — match check-seat yellow */
+      table#pd-table tbody tr.row-highlighted{background:#fef08a !important}
+      table#pd-table tbody tr.row-highlighted:hover{background:#fde047 !important}
+      /* highlight beats sub-row when both apply */
+      table#pd-table tbody tr.row-highlighted.sub-row{
+        background:#fef08a !important;
+        box-shadow:inset 4px 0 0 #8b5cf6;
+      }
       .pd-col-code     { width:100px; min-width:90px; font-family:'IBM Plex Mono',monospace; font-size:11.5px; color:var(--text2); }
       .pd-col-name     { width:180px; min-width:160px; }
       .pd-col-gender   { width:90px; min-width:80px; }
@@ -221,6 +251,7 @@
               <table id="pd-table">
                 <thead>
                   <tr>
+                    <th class="pd-col-cb"></th>
                     <th class="pd-col-no">#</th>
                     <th class="pd-col-code">รหัส</th>
                     <th class="pd-col-name">ชื่อ</th>
@@ -244,7 +275,7 @@
                 </thead>
                 <tbody id="pd-tbody">
                   <tr>
-                    <td colspan="19">
+                    <td colspan="20">
                       <div class="empty-state">
                         <div class="empty-icon">ℹ️</div>
                         <div class="empty-text">กำลังโหลด...</div>
