@@ -385,7 +385,7 @@ const _lastNamesTH = [
   'ปังปัง','น่าทึ่ง','เริ่ดเลย','ดี๊ดี','น่าสุด','เริงร่า',
   'สดใส','เลิศหรู','ปังมาก','น่าเอ็นดู','ขั้นเทพ','น่าหลงรัก',
 ];
-const _packages = ['DM','SI','PL','MB','EM'];
+const _packages = ['DM','SI','PL','MB','EM','DR','SD','AVP','VP','SVP'];
 const _sides    = ['ซ้าย','ขวา'];
 
 function _pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
