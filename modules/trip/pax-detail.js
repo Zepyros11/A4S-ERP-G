@@ -215,16 +215,24 @@ function renderRow(p, i, e) {
     `<select class="field-input" onchange="window.setField('${escapeAttr(p.code)}','tshirt_size',this.value)">
       ${SHIRT_OPTIONS.map((s) => `<option value="${s}" ${val === s ? "selected" : ""}>${s || "—"}</option>`).join("")}
     </select>`;
+  // Canonical DB value = 'male'/'female' (lowercase, matching check-seat)
+  // UI displays as ♂ ชาย / ♀ หญิง for nicer layout
   const genderSel = (val) => {
-    const opts = [["", "—"], ["M", "♂ ชาย"], ["F", "♀ หญิง"]];
+    // tolerate historical 'M'/'F' — normalize to compare
+    const c = String(val || "").trim().charAt(0).toLowerCase();
+    const norm = c === "m" ? "male" : c === "f" ? "female" : "";
+    const opts = [["", "—"], ["male", "♂ ชาย"], ["female", "♀ หญิง"]];
     return `<select class="field-input" onchange="window.setField('${escapeAttr(p.code)}','gender',this.value)">
-      ${opts.map(([v, l]) => `<option value="${v}" ${val === v ? "selected" : ""}>${l}</option>`).join("")}
+      ${opts.map(([v, l]) => `<option value="${v}" ${norm === v ? "selected" : ""}>${l}</option>`).join("")}
     </select>`;
   };
-  const genderView = (val) =>
-    val === "M" ? `<span class="field-view">♂ ชาย</span>` :
-    val === "F" ? `<span class="field-view">♀ หญิง</span>` :
-    `<span class="field-view empty">—</span>`;
+  const genderView = (val) => {
+    // tolerate any historical format (male/Male/M)
+    const c = String(val || "").trim().charAt(0).toUpperCase();
+    if (c === "M") return `<span class="field-view">♂ ชาย</span>`;
+    if (c === "F") return `<span class="field-view">♀ หญิง</span>`;
+    return `<span class="field-view empty">—</span>`;
+  };
 
   return `<tr class="${sub}">
     <td class="pd-col-no">${i + 1}</td>
