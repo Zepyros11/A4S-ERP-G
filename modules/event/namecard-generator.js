@@ -45,7 +45,8 @@
   }
 
   const CERT_TPL_LS_KEY = "a4s_cert_config_v2";
-  let certConfig = {};              // { key: { nameY, nameLh } }
+  const CERT_SINGLE_POS_DEFAULT = "middle";   // 'top' | 'middle' | 'bottom'
+  let certConfig = {};              // { key: { nameY, nameLh, singlePos } }
   const certTplExists = {};         // { key: true|false }
   const certTplVersion = {};        // { key: timestamp } cache-buster
   function getTplNameY(key) {
@@ -56,10 +57,16 @@
     const c = certConfig[key];
     return (c && typeof c.nameLh === "number") ? c.nameLh : CERT_NAME_LH_MM;
   }
-  function setTplConfig(key, nameY, nameLh) {
+  function getTplSinglePos(key) {
+    const c = certConfig[key];
+    const v = c && c.singlePos;
+    return (v === "top" || v === "middle" || v === "bottom") ? v : CERT_SINGLE_POS_DEFAULT;
+  }
+  function setTplConfig(key, nameY, nameLh, singlePos) {
     certConfig[key] = {
-      nameY:  nameY  ?? getTplNameY(key),
-      nameLh: nameLh ?? getTplNameLh(key),
+      nameY:    nameY    ?? getTplNameY(key),
+      nameLh:   nameLh   ?? getTplNameLh(key),
+      singlePos: singlePos ?? getTplSinglePos(key),
     };
   }
 
@@ -876,6 +883,7 @@
     key: null,
     y:  CERT_NAME_Y_MM,
     lh: CERT_NAME_LH_MM,
+    singlePos: CERT_SINGLE_POS_DEFAULT,
     dragging: false,
   };
 
@@ -886,10 +894,14 @@
     _certPosState.key = key;
     _certPosState.y   = getTplNameY(key);
     _certPosState.lh  = getTplNameLh(key);
+    _certPosState.singlePos = getTplSinglePos(key);
     $("certPosLabel").textContent = label;
     $("certPosCanvas").style.backgroundImage = `url('${src}')`;
     $("certPosShow2").checked = true;
     $("certPosName2").style.display = "";
+    document.querySelectorAll('input[name="certPosSingle"]').forEach(r => {
+      r.checked = (r.value === _certPosState.singlePos);
+    });
     updateCertPosUI();
     $("certPosOverlay")?.classList.add("open");
     _bindCertPosDragOnce();
@@ -922,6 +934,12 @@
       guide2.style.display = show2 ? "" : "none";
       guide2.style.top = ((yMm + blockMm) * ratio) + "px";
     }
+    // Single-name alignment — only affects preview when 2-line is off
+    const sp = _certPosState.singlePos || CERT_SINGLE_POS_DEFAULT;
+    const justify = (!show2 && sp === "top")    ? "flex-start"
+                  : (!show2 && sp === "bottom") ? "flex-end"
+                                                : "center";
+    names.style.justifyContent = justify;
     const yInp = $("certPosYInput");
     if (yInp && document.activeElement !== yInp) yInp.value = yMm.toFixed(1);
     const lhInp = $("certPosLhInput");
@@ -950,13 +968,25 @@
   function toggleCertPos2(show) {
     const el = $("certPosName2");
     if (el) el.style.display = show ? "" : "none";
-    updateCertPosUI();      // re-sync second guide visibility
+    updateCertPosUI();      // re-sync second guide + single-pos justify
+  }
+  function setCertPosSingle(pos) {
+    if (pos !== "top" && pos !== "middle" && pos !== "bottom") return;
+    _certPosState.singlePos = pos;
+    // Auto-uncheck "2 บรรทัด" so user sees the alignment change live
+    const cb = $("certPosShow2");
+    if (cb && cb.checked) {
+      cb.checked = false;
+      const el = $("certPosName2");
+      if (el) el.style.display = "none";
+    }
+    updateCertPosUI();
   }
   function saveCertPos() {
     const key = _certPosState.key;
     if (!key) return;
     const src = getTplSrc(key);
-    setTplConfig(key, _certPosState.y, _certPosState.lh);
+    setTplConfig(key, _certPosState.y, _certPosState.lh, _certPosState.singlePos);
     saveCertTemplates();
     renderCertTplGrid();
     if (activeTab === "cert") renderCertSheets();
@@ -1202,9 +1232,14 @@
     const blockH = 2 * nameLh;
     const n1 = esc(formatName(r.name1));
     const n2 = esc(formatName(r.name2 || ""));
+    // Single-name alignment inside the 2-line block (top/middle/bottom)
+    const sp = getTplSinglePos(key);
+    const justify = (!n2 && sp === "top")    ? "flex-start"
+                  : (!n2 && sp === "bottom") ? "flex-end"
+                                             : "center";
     return `
       <div class="cert-a4-wrap">
-        <div class="cert-a4" style="background-image:url('${src}');--cert-name-y:${nameY}mm;--cert-name-lh:${nameLh}mm;--cert-name-block-h:${blockH}mm">
+        <div class="cert-a4" style="background-image:url('${src}');--cert-name-y:${nameY}mm;--cert-name-lh:${nameLh}mm;--cert-name-block-h:${blockH}mm;--cert-name-justify:${justify}">
           <div class="cert-names">
             <div class="cert-name-line">${n1}</div>
             ${n2 ? `<div class="cert-name-line">${n2}</div>` : ""}
@@ -1499,7 +1534,7 @@
     openCertPosModal, closeCertPosModal,
     setCertPosY, bumpCertPosY, resetCertPosY,
     setCertPosLh, bumpCertPosLh, resetCertPosLh,
-    toggleCertPos2, saveCertPos,
+    toggleCertPos2, setCertPosSingle, saveCertPos,
     downloadCertTemplate,
     // Common
     switchTab,

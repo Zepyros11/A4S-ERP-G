@@ -200,7 +200,10 @@
   top: var(--cert-name-y, 133mm);
   height: var(--cert-name-block-h, 32mm);
   display: flex; flex-direction: column;
-  align-items: center; justify-content: center;
+  align-items: center;
+  /* Single-name alignment (top/center/bottom) — set inline per-row.
+     For 2-name rows, both lines fill the block exactly so justify has no effect. */
+  justify-content: var(--cert-name-justify, center);
   text-align: center;
   gap: 0;
 }
@@ -362,6 +365,17 @@
   color: var(--accent, #3b82f6);
 }
 .cert-pos-y-input:focus { outline: none; border-color: var(--accent, #3b82f6); box-shadow: 0 0 0 3px rgba(59,130,246,.12); }
+.cert-pos-radio {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 13px; cursor: pointer;
+  padding: 4px 10px; border-radius: 6px;
+  border: 1px solid var(--border, #e2e8f0);
+  background: #fff;
+  transition: all .12s;
+}
+.cert-pos-radio:hover { border-color: #0f766e; background: #f0fdfa; }
+.cert-pos-radio input[type="radio"] { cursor: pointer; accent-color: #0f766e; }
+.cert-pos-radio:has(input:checked) { border-color: #0f766e; background: #ccfbf1; font-weight: 600; }
 
 /* VIP A4: 2 cols × 5 rows = 10 cards/page */
 .vip-a4 {

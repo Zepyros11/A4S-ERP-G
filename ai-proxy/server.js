@@ -689,6 +689,71 @@ app.post('/line/webhook', async (req, res) => {
           continue;
         }
 
+        // ── Step 0.4: Auto-link token (จาก register.html /line/preauth) ──
+        // Format: "🔗 ผูกบัญชี <64-hex-token>" — pre-authorized, ไม่ต้องถามรหัสซ้ำ
+        // วางก่อน trigger/sessionAlive เพื่อให้ user ผูกได้ทันทีแม้มี session ค้าง
+        const tokenMatch = text.match(/^🔗\s*ผูกบัญชี\s+([a-f0-9]{32,128})\s*$/);
+        if (tokenMatch) {
+          const token = tokenMatch[1];
+          const rows = await _sbGet(
+            'line_link_tokens',
+            `token=eq.${encodeURIComponent(token)}&select=token,member_code,source_table,expires_at,used_at&limit=1`,
+          );
+          const tok = rows?.[0];
+          if (!tok) {
+            await _lineReply(ev.replyToken, await _tpl('invalid_code'));
+            continue;
+          }
+          if (tok.used_at) {
+            await _lineReply(ev.replyToken, '⚠️ ลิงก์นี้ถูกใช้ไปแล้ว กรุณากดปุ่ม "เชื่อม LINE" ที่หน้าลงทะเบียนใหม่อีกครั้ง');
+            continue;
+          }
+          if (new Date(tok.expires_at) <= now) {
+            await _lineReply(ev.replyToken, '⏱ ลิงก์นี้หมดอายุแล้ว (เกิน 10 นาที) กรุณากดปุ่ม "เชื่อม LINE" ที่หน้าลงทะเบียนใหม่อีกครั้ง');
+            continue;
+          }
+          // Lookup member info จาก source table
+          const sourceTable = tok.source_table === 'test_members' ? 'test_members' : 'members';
+          const memberRows = await _sbGet(
+            sourceTable,
+            `member_code=eq.${encodeURIComponent(tok.member_code)}&select=member_code,full_name,member_name&limit=1`,
+          );
+          const member = memberRows?.[0];
+          if (!member) {
+            await _lineReply(ev.replyToken, await _tpl('invalid_code'));
+            continue;
+          }
+          const profile = await _getLineProfile(uid);
+          if (sourceTable === 'test_members') {
+            await _sbUpsertTestMemberLine({
+              memberCode: tok.member_code,
+              userId: uid,
+              displayName: profile?.displayName || null,
+              pictureUrl: profile?.pictureUrl || null,
+            });
+          } else {
+            await _sbUpsertMemberLine({
+              memberCode: tok.member_code,
+              userId: uid,
+              displayName: profile?.displayName || null,
+              pictureUrl: profile?.pictureUrl || null,
+            });
+          }
+          // Mark token used (idempotency — ป้องกัน replay)
+          await _sbPatch(
+            'line_link_tokens',
+            `token=eq.${encodeURIComponent(token)}`,
+            { used_at: nowIso, used_by_line_user_id: uid },
+          );
+          await _clearSession(uid);
+          const name = member.full_name || member.member_name || member.member_code;
+          await _lineReply(
+            ev.replyToken,
+            await _tpl('linked_member', { name, code: member.member_code }),
+          );
+          continue;
+        }
+
         // ── Step 0.5: trigger keyword ("ลงทะเบียน"/"ผูก"/...) → เปิด await_id session ──
         // วางก่อน sessionAlive check เพื่อให้ user "เริ่มใหม่" ได้แม้มี session ค้าง
         if (_isLinkTrigger(text)) {
@@ -949,6 +1014,74 @@ app.post('/line/webhook', async (req, res) => {
   }
 
   return res.status(200).json({ ok: true, events: events.length });
+});
+
+/* ──────────────────────────────────────────────────────────
+   POST /line/preauth — Pre-authorize LINE link จาก register.html
+   Body: { code, password }
+   ตอบ: { ok: true, token, expires_at }  ← ฝัง token ใน oaMessage deep link
+   ─────────────────────────────────────────────────────────── */
+const LINK_TOKEN_TTL_MIN = 10;
+app.post('/line/preauth', async (req, res) => {
+  if (!SB_URL_WEBHOOK || !SB_SERVICE_KEY) {
+    return res.status(503).json({ ok: false, error: 'SB env not set' });
+  }
+  const { code, password } = req.body || {};
+  if (!code || !password) {
+    return res.status(400).json({ ok: false, error: 'missing code or password' });
+  }
+  const memberCode = String(code).trim();
+  if (!/^\d{3,8}$/.test(memberCode)) {
+    return res.status(400).json({ ok: false, error: 'invalid code format' });
+  }
+  try {
+    // Parallel lookup — prefer real members, fallback test_members (pattern from webhook)
+    const cols = 'member_code,password_hash';
+    const [members, testMembers] = await Promise.all([
+      _sbGet('members', `member_code=eq.${encodeURIComponent(memberCode)}&select=${cols}&limit=1`),
+      _sbGet('test_members', `member_code=eq.${encodeURIComponent(memberCode)}&select=${cols}&limit=1`).catch(() => []),
+    ]);
+    const real = members?.[0];
+    const test = testMembers?.[0];
+    const member = real || test;
+    const sourceTable = real ? 'members' : (test ? 'test_members' : null);
+    if (!member || !sourceTable) {
+      return res.status(404).json({ ok: false, error: 'member not found' });
+    }
+    if (!member.password_hash) {
+      return res.status(400).json({ ok: false, error: 'no_password_set' });
+    }
+    if (_sha256Hex(password) !== member.password_hash) {
+      return res.status(401).json({ ok: false, error: 'invalid password' });
+    }
+
+    const token = crypto.randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + LINK_TOKEN_TTL_MIN * 60_000).toISOString();
+    const ins = await fetch(`${SB_URL_WEBHOOK}/rest/v1/line_link_tokens`, {
+      method: 'POST',
+      headers: {
+        apikey: SB_SERVICE_KEY,
+        Authorization: `Bearer ${SB_SERVICE_KEY}`,
+        'Content-Type': 'application/json',
+        Prefer: 'return=minimal',
+      },
+      body: JSON.stringify({
+        token,
+        member_code: memberCode,
+        source_table: sourceTable,
+        expires_at: expiresAt,
+      }),
+    });
+    if (!ins.ok) {
+      const errText = await ins.text().catch(() => '');
+      console.warn('[preauth] insert token failed:', ins.status, errText.slice(0, 200));
+      return res.status(500).json({ ok: false, error: 'failed to issue token' });
+    }
+    return res.json({ ok: true, token, expires_at: expiresAt, ttl_min: LINK_TOKEN_TTL_MIN });
+  } catch (e) {
+    console.error('[preauth] error:', e.message);
+    return res.status(500).json({ ok: false, error: e.message });
+  }
 });
 
 /* ── Force-reload templates (call after UI saves a template) ── */

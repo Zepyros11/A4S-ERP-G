@@ -697,11 +697,16 @@ function renderLinePanel() {
   }
 }
 
-/* Open LINE OA chat with member_code pre-filled — webhook auto-links on Send.
-   Works for all users (no LIFF channel publish required).
-   Source for code: rCode input (pre-register) → _registeredCode (post-register). */
+/* Open LINE OA chat — auto-link via pre-authorized token when possible.
+   Flow:
+     1) ถ้ามี code + password + proxy_url → POST /line/preauth → ได้ token
+        → deep link "🔗 ผูกบัญชี <token>" → user แค่กด send → webhook ผูกอัตโนมัติ
+     2) Fallback: ส่ง code อย่างเดียว (flow เดิม) — user ต้องพิมพ์ password ใน chat
+   Source for code:  rCode input (pre-register) → _registeredCode (post-register)
+   Source for pwd:   rPass input (form ยังอยู่)  → ไม่มี (post-register, form หาย) */
 window.connectViaOA = async function () {
   const codeEl = document.getElementById('rCode');
+  const passEl = document.getElementById('rPass');
   const code = (codeEl?.value.trim()) || _registeredCode || '';
   if (!code) {
     await ConfirmModal.open({
@@ -716,7 +721,44 @@ window.connectViaOA = async function () {
     setTimeout(() => codeEl?.focus(), 300);
     return;
   }
+
   const oaId = '@949bctau'; // A4S-Bot-Assistant basic ID
+  const proxyUrl = (window.REGISTER_CONFIG?.proxy_url || '').replace(/\/+$/, '');
+  const password = (passEl?.value || '').trim();
+
+  // Auto-link path: code + password + proxy → ออก token, ส่ง deep link พร้อม token
+  if (proxyUrl && password) {
+    try {
+      const res = await fetch(`${proxyUrl}/line/preauth`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code, password }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data?.token) {
+        const msg = `🔗 ผูกบัญชี ${data.token}`;
+        const url = `https://line.me/R/oaMessage/${encodeURIComponent(oaId)}/?${encodeURIComponent(msg)}`;
+        window.open(url, '_blank');
+        return;
+      }
+      if (res.status === 401) {
+        showToast('❌ รหัสผ่านไม่ถูกต้อง', 'error');
+        passEl?.focus();
+        return;
+      }
+      if (res.status === 404) {
+        showToast('❌ ไม่พบรหัสสมาชิกนี้', 'error');
+        codeEl?.focus();
+        return;
+      }
+      // Other errors → fall through to legacy flow
+      console.warn('[preauth] failed, fallback to legacy:', res.status, data?.error);
+    } catch (e) {
+      console.warn('[preauth] network error, fallback to legacy:', e.message);
+    }
+  }
+
+  // Legacy fallback: ส่งแค่ code → user พิมพ์ password ใน chat เอง
   const url = `https://line.me/R/oaMessage/${encodeURIComponent(oaId)}/?${encodeURIComponent(code)}`;
   window.open(url, '_blank');
 };

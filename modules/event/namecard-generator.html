@@ -299,6 +299,21 @@
               <button class="btn btn-outline btn-sm" onclick="nmc.bumpCertPosLh(0.5)">+ 0.5mm</button>
               <button class="btn btn-outline btn-sm" onclick="nmc.resetCertPosLh()">↺ Default (16mm)</button>
             </div>
+            <div class="cert-pos-toolbar" style="margin-top:8px">
+              <div class="cert-pos-y" style="color:#0f766e">👤 ตำแหน่งรายชื่อเดี่ยว (1 บรรทัด):</div>
+              <label class="cert-pos-radio">
+                <input type="radio" name="certPosSingle" value="top" onchange="nmc.setCertPosSingle(this.value)">
+                ตำแหน่งชื่อ 1 (บน)
+              </label>
+              <label class="cert-pos-radio">
+                <input type="radio" name="certPosSingle" value="middle" checked onchange="nmc.setCertPosSingle(this.value)">
+                ตรงกลาง (default)
+              </label>
+              <label class="cert-pos-radio">
+                <input type="radio" name="certPosSingle" value="bottom" onchange="nmc.setCertPosSingle(this.value)">
+                ตำแหน่งชื่อ 2 (ล่าง)
+              </label>
+            </div>
           </div>
         </div>
         <div class="modal-footer">

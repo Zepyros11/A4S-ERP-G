@@ -18,4 +18,9 @@ window.REGISTER_CONFIG = {
   // REPLACE with your ANON (public) key — NOT service_role:
   sb_key:
     "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR0aXlueWRna2NxYXVzcWt0cmVnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIyNjEwNTcsImV4cCI6MjA4NzgzNzA1N30.DmXwvBBvx3zK7rw21179ro65mTm0B4lQ20ktVMpAUQE",
+
+  // ai-proxy URL — used by "เชื่อม LINE" button to call /line/preauth
+  // (auto-link flow: server verifies password → ออก token → ฝังใน deep link)
+  // Leave empty to fall back to old "send code only, then type password in chat" flow
+  proxy_url: "https://a4s-erp-proxy.onrender.com",
 };
