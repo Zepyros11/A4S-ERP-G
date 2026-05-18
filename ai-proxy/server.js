@@ -401,6 +401,21 @@ async function _sbUpsertLineGroup(groupId, fields) {
   }
 }
 
+async function _sbUpsertTestMemberLine({ memberCode, userId, displayName, pictureUrl }) {
+  if (!SB_URL_WEBHOOK || !SB_SERVICE_KEY) return false;
+  const nowIso = new Date().toISOString();
+  return _sbPatch(
+    'test_members',
+    `member_code=eq.${encodeURIComponent(memberCode)}`,
+    {
+      line_user_id: userId,
+      line_display_name: displayName || null,
+      line_picture_url: pictureUrl || null,
+      line_linked_at: nowIso,
+    },
+  );
+}
+
 async function _sbUpsertMemberLine({ memberCode, userId, displayName, pictureUrl }) {
   if (!SB_URL_WEBHOOK || !SB_SERVICE_KEY) return false;
   const nowIso = new Date().toISOString();
@@ -711,15 +726,17 @@ app.post('/line/webhook', async (req, res) => {
 
             const expiresAt = new Date(now.getTime() + SESSION_TTL_MIN * 60000).toISOString();
 
-            // Branch A: digits 3-8 → member
+            // Branch A: digits 3-8 → member (prefer real members, fallback to test_members for QA)
             const codeMatch = text.match(/^(\d{3,8})$/);
             if (codeMatch) {
               const memberCode = codeMatch[1];
-              const members = await _sbGet(
-                'members',
-                `member_code=eq.${encodeURIComponent(memberCode)}&select=member_code,full_name,member_name,password_hash&limit=1`,
-              );
-              const member = members?.[0];
+              const cols = 'member_code,full_name,member_name,password_hash';
+              const [members, testMembers] = await Promise.all([
+                _sbGet('members', `member_code=eq.${encodeURIComponent(memberCode)}&select=${cols}&limit=1`),
+                _sbGet('test_members', `member_code=eq.${encodeURIComponent(memberCode)}&select=${cols}&limit=1`).catch(() => []),
+              ]);
+              const member = members?.[0] || testMembers?.[0];
+              const isTest = !members?.[0] && !!testMembers?.[0];
               if (!member) {
                 await _lineReply(ev.replyToken, await _tpl('invalid_code'));
                 continue;
@@ -729,7 +746,7 @@ app.post('/line/webhook', async (req, res) => {
                 continue;
               }
               await _setSession(uid, {
-                pending_type: 'member',
+                pending_type: isTest ? 'test_member' : 'member',
                 pending_id: memberCode,
                 attempts: 0,
                 expires_at: expiresAt,
@@ -790,16 +807,17 @@ app.post('/line/webhook', async (req, res) => {
 
           // ── password mode: noise filter ก่อนนับ failed attempt ──
           if (
-            (sess.pending_type === 'member' || sess.pending_type === 'staff') &&
+            (sess.pending_type === 'member' || sess.pending_type === 'test_member' || sess.pending_type === 'staff') &&
             _looksLikeNoise(text)
           ) {
             await _lineReply(ev.replyToken, await _tpl('password_hint'));
             continue;
           }
 
-          if (sess.pending_type === 'member') {
+          if (sess.pending_type === 'member' || sess.pending_type === 'test_member') {
+            const sourceTable = sess.pending_type === 'test_member' ? 'test_members' : 'members';
             const members = await _sbGet(
-              'members',
+              sourceTable,
               `member_code=eq.${encodeURIComponent(sess.pending_id)}&select=member_code,full_name,member_name,password_hash,line_user_id&limit=1`,
             );
             const member = members?.[0];
@@ -811,12 +829,21 @@ app.post('/line/webhook', async (req, res) => {
             const match = !!member.password_hash && _sha256Hex(text) === member.password_hash;
             if (match) {
               const profile = await _getLineProfile(uid);
-              await _sbUpsertMemberLine({
-                memberCode: member.member_code,
-                userId: uid,
-                displayName: profile?.displayName || null,
-                pictureUrl: profile?.pictureUrl || null,
-              });
+              if (sess.pending_type === 'test_member') {
+                await _sbUpsertTestMemberLine({
+                  memberCode: member.member_code,
+                  userId: uid,
+                  displayName: profile?.displayName || null,
+                  pictureUrl: profile?.pictureUrl || null,
+                });
+              } else {
+                await _sbUpsertMemberLine({
+                  memberCode: member.member_code,
+                  userId: uid,
+                  displayName: profile?.displayName || null,
+                  pictureUrl: profile?.pictureUrl || null,
+                });
+              }
               await _clearSession(uid);
               const name = member.full_name || member.member_name || member.member_code;
               await _lineReply(
