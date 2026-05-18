@@ -1531,5 +1531,39 @@ function showToast(msg, type) {
 <script src="../../js/core/crypto.js"></script>
 <script src="../../js/components/modal/modalManager.js"></script>
 <script src="../../js/components/modal/confirmModal.js"></script>
+<script src="../../js/components/modal/onboardingModal.js"></script>
+<script>
+  // Auto-show tutorial popup สำหรับ user ใหม่ (ครั้งแรกที่เปิดหน้าลงทะเบียน)
+  // เปลี่ยน key 'register_v1' → 'register_v2' เมื่ออัพเดทภาพ เพื่อ force แสดงให้ user เห็นใหม่
+  window.addEventListener('DOMContentLoaded', () => {
+    const base = '../../assets/onboarding/register/';
+    OnboardingModal.show({
+      key: 'register_v1',
+      images: [
+        base + '01-fill-code.png',
+        base + '02-click-register.png',
+        base + '03-success-qr.png',
+        base + '04-click-line.png',
+        base + '05-open-line.png',
+        base + '06-send.png',
+        base + '07-done.png',
+      ],
+    });
+  });
+  // Expose helper เผื่อ user อยากดูซ้ำ — เรียก openTutorial() จาก console หรือปุ่ม
+  window.openTutorial = () => OnboardingModal.show({
+    key: 'register_v1',
+    force: true,
+    images: [
+      '../../assets/onboarding/register/01-fill-code.png',
+      '../../assets/onboarding/register/02-click-register.png',
+      '../../assets/onboarding/register/03-success-qr.png',
+      '../../assets/onboarding/register/04-click-line.png',
+      '../../assets/onboarding/register/05-open-line.png',
+      '../../assets/onboarding/register/06-send.png',
+      '../../assets/onboarding/register/07-done.png',
+    ],
+  });
+</script>
 </body>
 </html>
