@@ -118,7 +118,7 @@ function renderTable() {
         <td>
           <div class="tm-row-actions">
             <button class="tm-row-btn" title="แก้ไข" onclick="openEditModal('${encodeURIComponent(r.member_code)}')">✏️</button>
-            ${r.line_user_id ? `<button class="tm-row-btn" title="ปลดผูก LINE (เก็บ row ไว้)" onclick="unlinkLine('${encodeURIComponent(r.member_code)}')">🔌</button>` : ''}
+            ${r.line_user_id ? `<button class="tm-row-btn" title="ลบการเชื่อม LINE (เก็บ row ไว้ — test ผูกใหม่ได้)" onclick="unlinkLine('${encodeURIComponent(r.member_code)}')">🔌</button>` : ''}
             <button class="tm-row-btn danger" title="ลบ" onclick="deleteMember('${encodeURIComponent(r.member_code)}')">🗑️</button>
           </div>
         </td>
@@ -378,10 +378,10 @@ async function unlinkLine(codeEnc) {
   if (!r) return;
 
   const ok = await ConfirmModal.open({
-    title: 'ปลดผูก LINE?',
-    message: 'จะ clear ข้อมูล LINE ของ test member นี้ (เก็บ row ไว้ — test ผูกใหม่ได้ทันที)',
+    title: 'ลบการเชื่อม LINE?',
+    message: 'จะลบการเชื่อม LINE ของ test member นี้ (เก็บ row ไว้ — test ผูกใหม่ได้ทันที)',
     icon: '🔌',
-    okText: 'ปลดผูก',
+    okText: 'ลบการเชื่อม',
     cancelText: 'ยกเลิก',
     tone: 'warning',
     details: {
@@ -407,8 +407,8 @@ async function unlinkLine(codeEnc) {
         }),
       }
     );
-    if (!res.ok) throw new Error('ปลดผูกไม่สำเร็จ (' + res.status + ')');
-    showToast('🔌 ปลดผูก LINE แล้ว — test ใหม่ได้เลย', 'success');
+    if (!res.ok) throw new Error('ลบการเชื่อมไม่สำเร็จ (' + res.status + ')');
+    showToast('🔌 ลบการเชื่อม LINE แล้ว — test ใหม่ได้เลย', 'success');
     await loadData();
   } catch (e) {
     showToast('❌ ' + e.message, 'error');
