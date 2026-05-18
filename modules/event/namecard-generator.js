@@ -16,7 +16,12 @@
   // ── VIP tab state ─────────────────────────────────────────
   let vipQty = 10;
   let vipZoom = 0.5;
-  let activeTab = "namecard";       // "namecard" | "vip"
+  let activeTab = "namecard";       // "namecard" | "vip" | "cert"
+
+  // ── Certificate tab state (independent from namecard rows) ─
+  let certRows = [];                // [{ name, position }]
+  let certZoom = 0.4;
+  const CERT_TEMPLATE = "../../assets/cert-template.jpg";
 
   // ── Helpers ────────────────────────────────────────────────
   function $(id) { return document.getElementById(id); }
@@ -395,16 +400,18 @@
   // ════════════════════════════════════════════════════════════
   function switchTab(tab) {
     activeTab = tab;
-    const isNamecard = tab === "namecard";
-    $("paneNamecard").style.display = isNamecard ? "" : "none";
-    $("paneVip").style.display      = isNamecard ? "none" : "";
+    $("paneNamecard").style.display = tab === "namecard" ? "" : "none";
+    $("paneVip").style.display      = tab === "vip"      ? "" : "none";
+    $("paneCert").style.display     = tab === "cert"     ? "" : "none";
     document.querySelectorAll(".nmc-tab").forEach(t => {
       t.classList.toggle("active", t.dataset.tab === tab);
     });
-    // Hide namecard-only header button (Template download) on VIP tab
+    // Template-download button is namecard-specific
     const btnT = $("btnTemplate");
-    if (btnT) btnT.style.display = isNamecard ? "" : "none";
-    if (!isNamecard) renderVipSheets();
+    if (btnT) btnT.style.display = tab === "namecard" ? "" : "none";
+
+    if (tab === "vip")  renderVipSheets();
+    if (tab === "cert") renderCertSheets();
   }
 
   function vipCardHtml() {
@@ -531,6 +538,288 @@
     }
   }
 
+  // ════════════════════════════════════════════════════════════
+  // CERTIFICATE TAB
+  // ════════════════════════════════════════════════════════════
+  // ── Generic Excel reader (used by both namecard & cert) ───
+  function parseSheetGeneric(raw) {
+    if (!raw || !raw.length) return null;
+    const headerHints = ["ชื่อ", "name", "fullname", "full name", "full_name"];
+    let start = 0;
+    const r0 = (raw[0]?.[0] || "").toString().trim().toLowerCase();
+    if (headerHints.some(h => r0 === h.toLowerCase())) start = 1;
+    const out = [];
+    for (let i = start; i < raw.length; i++) {
+      const r = raw[i] || [];
+      const name = (r[0] != null ? String(r[0]) : "").trim();
+      const position = (r[1] != null ? String(r[1]) : "").trim();
+      if (!name && !position) continue;
+      out.push({ name, position });
+    }
+    return out;
+  }
+  function readExcelFile(file, onParsed) {
+    const name = file.name.toLowerCase();
+    if (!/\.(xlsx|xls|csv)$/.test(name)) {
+      showToast("รองรับเฉพาะไฟล์ .xlsx / .xls / .csv", "error");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const data = new Uint8Array(ev.target.result);
+        const wb = XLSX.read(data, { type: "array" });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const raw = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" });
+        const parsed = parseSheetGeneric(raw);
+        onParsed(parsed);
+      } catch (err) {
+        console.error(err);
+        showToast("อ่านไฟล์ไม่สำเร็จ — " + err.message, "error");
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  }
+
+  // ── Cert file handlers ───────────────────────────────────
+  function onCertDrag(e, over) {
+    e.preventDefault();
+    $("certDropZone")?.classList.toggle("dragover", !!over);
+  }
+  function onCertDrop(e) {
+    e.preventDefault();
+    $("certDropZone")?.classList.remove("dragover");
+    const f = e.dataTransfer?.files?.[0];
+    if (f) handleCertFile(f);
+  }
+  function onCertFilePick(e) {
+    const f = e.target.files?.[0];
+    if (f) handleCertFile(f);
+  }
+  function handleCertFile(file) {
+    readExcelFile(file, parsed => {
+      if (!parsed || !parsed.length) {
+        showToast("ไม่พบรายชื่อในไฟล์", "error");
+        return;
+      }
+      certRows = parsed;
+      showToast(`โหลดสำเร็จ · ${parsed.length} รายชื่อ`);
+      certRefreshAll();
+    });
+  }
+
+  // ── Cert edit table ──────────────────────────────────────
+  function renderCertEditTable() {
+    const body = $("certPreviewBody");
+    if (!body) return;
+    if (!certRows.length) {
+      body.innerHTML = `<tr><td colspan="4" style="padding:24px;text-align:center;color:#94a3b8">ยังไม่มีข้อมูล — กรุณาอัปโหลดไฟล์</td></tr>`;
+      return;
+    }
+    body.innerHTML = certRows.map((r, i) => `
+      <tr data-idx="${i}">
+        <td class="col-idx">${i + 1}</td>
+        <td><input class="nmc-cell-input cert-cell" data-field="name" data-idx="${i}" value="${esc(r.name)}" placeholder="ชื่อ-นามสกุล"></td>
+        <td><input class="nmc-cell-input cert-cell" data-field="position" data-idx="${i}" value="${esc(r.position)}" placeholder="ตำแหน่ง"></td>
+        <td class="col-act"><button class="nmc-row-del cert-row-del" data-idx="${i}" title="ลบแถวนี้">🗑</button></td>
+      </tr>
+    `).join("");
+
+    body.querySelectorAll(".cert-cell").forEach(inp => {
+      inp.addEventListener("input", () => {
+        const idx = +inp.dataset.idx;
+        const field = inp.dataset.field;
+        if (certRows[idx]) {
+          certRows[idx][field] = inp.value;
+          renderCertSheets();
+        }
+      });
+    });
+    body.querySelectorAll(".cert-row-del").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const idx = +btn.dataset.idx;
+        certRows.splice(idx, 1);
+        certRefreshAll();
+      });
+    });
+  }
+
+  function certRefreshAll() {
+    const has = certRows.length > 0;
+    $("certDataBlock").style.display    = has ? "" : "none";
+    $("certActionsBlock").style.display = has ? "" : "none";
+    $("certLayoutBlock").style.display  = has ? "" : "none";
+    $("certCount") && ($("certCount").textContent = certRows.length);
+    renderCertEditTable();
+    renderCertSheets();
+  }
+
+  function certAddRow() {
+    certRows.push({ name: "", position: "" });
+    certRefreshAll();
+    setTimeout(() => {
+      const inputs = $("certPreviewBody").querySelectorAll('.cert-cell[data-field="name"]');
+      inputs[inputs.length - 1]?.focus();
+    }, 30);
+  }
+  function certClearAll() {
+    if (!certRows.length) return;
+    if (!confirm("ล้างรายชื่อทั้งหมด?")) return;
+    certRows = [];
+    certRefreshAll();
+  }
+  function certResetAll() {
+    certRows = [];
+    const f = $("certFileInput"); if (f) f.value = "";
+    certRefreshAll();
+  }
+
+  let _certTemplateOk = null; // true | false (probe once per session)
+  function probeCertTemplate() {
+    if (_certTemplateOk !== null) return Promise.resolve(_certTemplateOk);
+    return new Promise(resolve => {
+      const img = new Image();
+      img.onload  = () => { _certTemplateOk = true;  resolve(true); };
+      img.onerror = () => { _certTemplateOk = false; resolve(false); };
+      img.src = CERT_TEMPLATE + "?_=" + Date.now();
+    });
+  }
+
+  function certHtml(r) {
+    const name = esc(formatName(r.name));
+    const pos  = esc((r.position || "").toUpperCase()); // certs read in caps
+    return `
+      <div class="cert-a4">
+        <div class="cert-title">${pos}</div>
+        <div class="cert-name">${name}</div>
+      </div>
+    `;
+  }
+
+  function renderCertSheets() {
+    const scroller  = $("certSheetScroller");
+    const printArea = $("certPrintArea");
+    if (!scroller || !printArea) return;
+
+    if (!certRows.length) {
+      scroller.innerHTML  = "";
+      printArea.innerHTML = "";
+      return;
+    }
+
+    const html = certRows.map(certHtml).join("");
+    scroller.innerHTML  = html;
+    printArea.innerHTML = html;
+
+    scroller.querySelectorAll(".cert-a4").forEach(el => el.style.setProperty("--nmc-zoom", certZoom));
+
+    // Probe template availability (visual error hint if missing)
+    probeCertTemplate().then(ok => {
+      const cls = "has-template";
+      [scroller, printArea].forEach(root => {
+        root.querySelectorAll(".cert-a4").forEach(el => el.classList.toggle(cls, ok));
+      });
+    });
+
+    // Auto-fit position title + name to their boxes
+    requestAnimationFrame(() => {
+      [scroller, printArea].forEach(root => {
+        root.querySelectorAll(".cert-title").forEach(el => autoFitCert(el, 64, 24));
+        root.querySelectorAll(".cert-name").forEach(el  => autoFitCert(el, 30, 14));
+      });
+    });
+  }
+
+  function autoFitCert(el, maxPx, minPx) {
+    let size = maxPx;
+    el.style.fontSize = size + "px";
+    const parent = el.parentElement;
+    const parentH = el.clientHeight;
+    const parentW = el.clientWidth;
+    let safety = 60;
+    while (size > minPx && safety-- > 0) {
+      const tooWide = el.scrollWidth > parentW + 1;
+      const tooTall = el.scrollHeight > parentH + 1;
+      if (!tooWide && !tooTall) break;
+      size -= 1;
+      el.style.fontSize = size + "px";
+    }
+  }
+
+  function setCertZoom(dir) {
+    const steps = [0.2, 0.3, 0.4, 0.5, 0.65, 0.8, 1.0];
+    let i = steps.indexOf(certZoom);
+    if (i < 0) i = 2;
+    i = Math.max(0, Math.min(steps.length - 1, i + dir));
+    certZoom = steps[i];
+    $("certZoomLabel") && ($("certZoomLabel").textContent = Math.round(certZoom * 100) + "%");
+    document.querySelectorAll("#certSheetScroller .cert-a4").forEach(el => {
+      el.style.setProperty("--nmc-zoom", certZoom);
+    });
+  }
+
+  async function exportCertPDF() {
+    if (!certRows.length) {
+      showToast("ยังไม่มีรายชื่อ — อัปโหลด Excel ก่อน", "error");
+      return;
+    }
+    if (!window.html2canvas || !window.jspdf) {
+      showToast("ไลบรารี PDF ยังโหลดไม่เสร็จ", "error"); return;
+    }
+    const ok = await probeCertTemplate();
+    if (!ok) {
+      showToast("ไม่พบไฟล์ template ที่ assets/cert-template.jpg", "error");
+      return;
+    }
+    const btn = $("btnExportCertPDF");
+    const orig = btn ? btn.textContent : "";
+    if (btn) { btn.disabled = true; btn.textContent = "⏳ กำลังสร้าง PDF..."; }
+
+    try {
+      renderCertSheets();
+      await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+      await new Promise(r => setTimeout(r, 120));
+
+      const printArea = $("certPrintArea");
+      const orig2 = {
+        position: printArea.style.position, left: printArea.style.left,
+        top: printArea.style.top, visibility: printArea.style.visibility,
+      };
+      printArea.style.position = "fixed";
+      printArea.style.left = "0"; printArea.style.top = "0";
+      printArea.style.visibility = "visible";
+      printArea.style.zIndex = "-1";
+
+      const { jsPDF } = window.jspdf;
+      const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+      const sheets = printArea.querySelectorAll(".cert-a4");
+
+      for (let i = 0; i < sheets.length; i++) {
+        if (i > 0) pdf.addPage();
+        const canvas = await html2canvas(sheets[i], {
+          scale: 2.5, useCORS: true, backgroundColor: "#ffffff", logging: false,
+        });
+        const img = canvas.toDataURL("image/jpeg", 0.92);
+        pdf.addImage(img, "JPEG", 0, 0, 297, 210, undefined, "FAST");
+      }
+
+      printArea.style.position   = orig2.position;
+      printArea.style.left       = orig2.left;
+      printArea.style.top        = orig2.top;
+      printArea.style.visibility = orig2.visibility;
+      printArea.style.zIndex     = "";
+
+      const stamp = new Date().toISOString().slice(0, 10);
+      pdf.save(`certificates-${stamp}.pdf`);
+      showToast(`ส่งออก PDF เรียบร้อย (${sheets.length} ใบ)`);
+    } catch (err) {
+      console.error(err);
+      showToast("สร้าง PDF ไม่สำเร็จ — " + err.message, "error");
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = orig; }
+    }
+  }
+
   function downloadTemplate() {
     const data = [
       ["ชื่อ", "ตำแหน่ง"],
@@ -548,7 +837,8 @@
     setStep(1);
     $("zoomLabel") && ($("zoomLabel").textContent = Math.round(zoom * 100) + "%");
     $("vipZoomLabel") && ($("vipZoomLabel").textContent = Math.round(vipZoom * 100) + "%");
-    // Pre-render VIP at default qty so user sees a preview immediately if they switch
+    $("certZoomLabel") && ($("certZoomLabel").textContent = Math.round(certZoom * 100) + "%");
+    // Pre-render so previews appear immediately when user switches tabs
     renderVipSheets();
   });
 
@@ -559,6 +849,10 @@
     setZoom, printNow, exportPDF, downloadTemplate,
     // VIP tab
     setVipQty, bumpVipQty, setVipZoom, exportVipPDF,
+    // Certificate tab
+    onCertDrag, onCertDrop, onCertFilePick,
+    certAddRow, certClearAll, certResetAll,
+    setCertZoom, exportCertPDF,
     // Common
     switchTab,
   };

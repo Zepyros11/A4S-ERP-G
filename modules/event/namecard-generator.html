@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>เครื่องมือสร้างป้ายชื่อ — A4S-ERP</title>
     <link
-      href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700;800&family=Cinzel:wght@500;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
       rel="stylesheet"
     />
     <link rel="stylesheet" href="../../css/main.css" />
@@ -42,6 +42,9 @@
             </button>
             <button class="nmc-tab" data-tab="vip" onclick="nmc.switchTab('vip')">
               ⭐ ป้าย VIP <span class="nmc-tab-sub">9.5 × 5 cm · 10/หน้า</span>
+            </button>
+            <button class="nmc-tab" data-tab="cert" onclick="nmc.switchTab('cert')">
+              🏆 ใบประกาศนียบัตร <span class="nmc-tab-sub">A4 แนวนอน · 1/หน้า</span>
             </button>
           </div>
 
@@ -169,9 +172,72 @@
           </div>
           <!-- ╚══ /TAB CONTENT: VIP ══╝ -->
 
+          <!-- ╔══ TAB CONTENT: CERTIFICATE ══╗ -->
+          <div class="nmc-tab-pane" id="paneCert" style="display:none">
+
+            <div class="nmc-no-print">
+
+              <!-- DROP ZONE (cert) -->
+              <div id="certDropZone" class="nmc-drop" onclick="document.getElementById('certFileInput').click()"
+                   ondragover="nmc.onCertDrag(event,true)" ondragleave="nmc.onCertDrag(event,false)" ondrop="nmc.onCertDrop(event)">
+                <div class="nmc-drop-icon">🏆</div>
+                <div class="nmc-drop-title">ลากไฟล์ Excel มาวาง หรือคลิกเพื่อเลือก</div>
+                <div class="nmc-drop-hint">ไฟล์ <b>.xlsx / .xls / .csv</b> · คอลัมน์ที่ 1 = ชื่อ · คอลัมน์ที่ 2 = ตำแหน่ง</div>
+                <input type="file" id="certFileInput" accept=".xlsx,.xls,.csv" style="display:none" onchange="nmc.onCertFilePick(event)">
+              </div>
+
+              <!-- DATA EDITOR (cert) -->
+              <div class="nmc-card-block" id="certDataBlock" style="display:none">
+                <div class="nmc-block-hdr">
+                  <div class="nmc-block-title">🏆 รายชื่อผู้รับประกาศนียบัตร (<span id="certCount">0</span> ใบ)</div>
+                  <div class="nmc-block-tools">
+                    <button class="btn btn-outline btn-sm" onclick="nmc.certAddRow()">＋ เพิ่มแถว</button>
+                    <button class="btn btn-outline btn-sm" onclick="nmc.certClearAll()">🗑 ล้างทั้งหมด</button>
+                  </div>
+                </div>
+                <div class="nmc-preview-wrap">
+                  <table class="nmc-preview-table">
+                    <thead>
+                      <tr>
+                        <th class="col-idx">#</th>
+                        <th>ชื่อ</th>
+                        <th>ตำแหน่ง</th>
+                        <th class="col-act"></th>
+                      </tr>
+                    </thead>
+                    <tbody id="certPreviewBody"></tbody>
+                  </table>
+                </div>
+              </div>
+
+              <!-- Cert actions -->
+              <div class="nmc-actions" id="certActionsBlock" style="display:none">
+                <button class="btn btn-secondary" onclick="nmc.certResetAll()">↺ เริ่มใหม่</button>
+                <button class="btn btn-primary" onclick="nmc.exportCertPDF()" id="btnExportCertPDF">📄 Export PDF</button>
+              </div>
+
+              <!-- Cert preview -->
+              <div class="nmc-card-block" id="certLayoutBlock" style="display:none">
+                <div class="nmc-block-hdr">
+                  <div class="nmc-block-title">👁️ ตัวอย่าง · A4 แนวนอน · 1 ใบ/หน้า</div>
+                  <div class="nmc-block-tools nmc-zoom-tools">
+                    <span style="font-size:12px;color:var(--text3)">Zoom</span>
+                    <button class="btn btn-outline btn-sm" onclick="nmc.setCertZoom(-1)">−</button>
+                    <span id="certZoomLabel" style="min-width:48px;text-align:center;font-weight:600">40%</span>
+                    <button class="btn btn-outline btn-sm" onclick="nmc.setCertZoom(1)">＋</button>
+                  </div>
+                </div>
+                <div class="nmc-sheet-scroller" id="certSheetScroller"></div>
+              </div>
+            </div>
+
+          </div>
+          <!-- ╚══ /TAB CONTENT: CERTIFICATE ══╝ -->
+
           <!-- PRINT AREAS (off-screen render targets for PDF export) -->
           <div class="nmc-print-area" id="printArea"></div>
           <div class="nmc-print-area" id="vipPrintArea"></div>
+          <div class="nmc-print-area" id="certPrintArea"></div>
 
         </div>
       </div>

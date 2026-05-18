@@ -56,7 +56,7 @@ async function _enrichWithMemberLineId(attendees) {
   if (!codes.length) return;
   try {
     const inList = codes.map(c => encodeURIComponent(c)).join(",");
-    const cols = "member_code,line_user_id,line_display_name,line_picture_url,line_linked_at";
+    const cols = "member_code,line_user_id,line_display_name,line_picture_url,line_linked_at,position_level,position,package";
     // Query both tables in parallel — test_members อาจยังไม่มี (degrade ถ้า error)
     const [mlmRows, testRows] = await Promise.all([
       sbFetch("members", `?member_code=in.(${inList})&select=${cols}`),
@@ -74,6 +74,14 @@ async function _enrichWithMemberLineId(attendees) {
         a.line_user_id = m.line_user_id;
         a.line_display_name = m.line_display_name || a.line_display_name;
         a.line_picture_url = m.line_picture_url || a.line_picture_url;
+      }
+      // Backfill position_level snapshot for legacy rows (fallback chain matches _autofillMemberInfo)
+      if (!a.position_level || !String(a.position_level).trim()) {
+        const pos = (m.position_level && String(m.position_level).trim())
+          || (m.position && String(m.position).trim())
+          || (m.package && String(m.package).trim())
+          || "";
+        if (pos) a.position_level = pos;
       }
     });
   } catch (e) {
