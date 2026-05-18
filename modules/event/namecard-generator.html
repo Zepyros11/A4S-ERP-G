@@ -177,12 +177,26 @@
 
             <div class="nmc-no-print">
 
+              <!-- Template management bar -->
+              <div class="nmc-card-block" style="margin-bottom:14px">
+                <div class="nmc-block-hdr">
+                  <div class="nmc-block-title">🎨 Template ใบประกาศ (<span id="certTplCount">0</span>/5 ตำแหน่ง)</div>
+                  <div class="nmc-block-tools">
+                    <button class="btn btn-primary btn-sm" onclick="nmc.openCertTplModal()">🎨 จัดการ Template</button>
+                    <button class="btn btn-outline btn-sm" onclick="nmc.downloadCertTemplate()">⬇️ ดาวน์โหลด Excel Template</button>
+                  </div>
+                </div>
+                <div style="padding:10px 18px;font-size:12px;color:var(--text3)">
+                  💡 อัปโหลด template 5 ใบ (1 ใบ/ตำแหน่ง) — บันทึกไว้ใน browser นี้ ปีหน้าอัปโหลดทับได้
+                </div>
+              </div>
+
               <!-- DROP ZONE (cert) -->
               <div id="certDropZone" class="nmc-drop" onclick="document.getElementById('certFileInput').click()"
                    ondragover="nmc.onCertDrag(event,true)" ondragleave="nmc.onCertDrag(event,false)" ondrop="nmc.onCertDrop(event)">
                 <div class="nmc-drop-icon">🏆</div>
                 <div class="nmc-drop-title">ลากไฟล์ Excel มาวาง หรือคลิกเพื่อเลือก</div>
-                <div class="nmc-drop-hint">ไฟล์ <b>.xlsx / .xls / .csv</b> · คอลัมน์ที่ 1 = ชื่อ · คอลัมน์ที่ 2 = ตำแหน่ง</div>
+                <div class="nmc-drop-hint">ไฟล์ <b>.xlsx / .xls / .csv</b> · 3 คอลัมน์: <b>ชื่อ 1 · ชื่อ 2 (ถ้าเป็นรหัสคู่) · ตำแหน่ง</b></div>
                 <input type="file" id="certFileInput" accept=".xlsx,.xls,.csv" style="display:none" onchange="nmc.onCertFilePick(event)">
               </div>
 
@@ -200,7 +214,8 @@
                     <thead>
                       <tr>
                         <th class="col-idx">#</th>
-                        <th>ชื่อ</th>
+                        <th>ชื่อ 1</th>
+                        <th>ชื่อ 2 (ถ้ามี)</th>
                         <th>ตำแหน่ง</th>
                         <th class="col-act"></th>
                       </tr>
@@ -239,6 +254,26 @@
           <div class="nmc-print-area" id="vipPrintArea"></div>
           <div class="nmc-print-area" id="certPrintArea"></div>
 
+        </div>
+      </div>
+    </div>
+
+    <!-- CERT TEMPLATE MANAGEMENT MODAL -->
+    <div class="modal-overlay" id="certTplOverlay" onclick="if(event.target===this)nmc.closeCertTplModal()">
+      <div class="modal" style="width:720px;max-width:95vw">
+        <div class="modal-hdr v-sage-header">
+          <div class="modal-title">🎨 จัดการ Template ใบประกาศ</div>
+          <button class="btn-modal-close" onclick="nmc.closeCertTplModal()">✕</button>
+        </div>
+        <div class="modal-body" style="padding:0">
+          <div style="padding:14px 18px;font-size:13px;color:var(--text2);background:var(--surface2,#f8fafc);border-bottom:1px solid var(--border)">
+            อัปโหลดภาพ <b>JPEG/PNG</b> A4 แนวนอน · ขนาด ~3000×2100 px · ระบบจะ resize เป็น 1500 px กว้างก่อนเก็บ (~500 KB/ใบ)
+          </div>
+          <div class="cert-tpl-grid" id="certTplGrid"></div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" onclick="nmc.resetAllCertTpl()">🗑 ล้างทั้งหมด</button>
+          <button class="btn btn-primary" onclick="nmc.closeCertTplModal()">✓ เสร็จสิ้น</button>
         </div>
       </div>
     </div>
