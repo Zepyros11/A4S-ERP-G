@@ -373,26 +373,23 @@ window.deleteMember = deleteMember;
    RANDOM DATA GENERATOR  🎲
    ============================================================ */
 const _firstNamesTH = [
-  'สมชาย','สมหญิง','อนันต์','ปิยะ','วิชัย','สุดารัตน์','ณัฐพงษ์','พิมพ์ชนก','ธีระศักดิ์','กัญญา',
-  'ภูวดล','ชลธิชา','ณัฐวุฒิ','ศศิธร','กฤษณะ','มาลี','ปรีชา','นิภา','พงศกร','อรทัย',
-  'สุพจน์','วิภา','รัชนก','ธนพล','ประไพ','ศักดิ์ชัย','จิราภรณ์','อุดม','เพ็ญศรี','เกรียงไกร',
+  'นายรัก','นางสาวหวาน','น้องน่ารัก','พี่ใจดี','นางสวย','นายเก่ง',
+  'น้องแก้มแดง','พี่ใหญ่','น้องนุ่น','นายดี','นางสาวสดใส','พี่หล่อ',
+  'น้องจิ๋ว','นายฮีโร่','นางสาวเลิศ','พี่หวาน','น้องอ้วน','นายเท่',
+  'น้องเฟี้ยว','พี่กล้า','นายซุปเปอร์','นางสาวคิ้วโก่ง','น้องตัวน้อย','พี่หมี',
+  'น้องขนมปัง','นายช็อกโกแลต','น้องมาร์ชเมลโล่','พี่คุกกี้','น้องโดนัท','นายไอติม',
 ];
 const _lastNamesTH = [
-  'ใจดี','รักเรียน','สุขสบาย','วงศ์ศรี','แก้วสว่าง','ทรัพย์มั่น','พงษ์เจริญ','ศรีสุข','กล้าหาญ','มีนา',
-  'สายทอง','โชคดี','มีชัย','พรหมทอง','บุญมี','เรืองศรี','พุฒิพงศ์','อินทร์จันทร์','สุขเสรี','วารีนิล',
-  'ทดสอบ','เทสเตอร์','จำลอง','สมมติ','ดัมมี่',
+  'จังเลย','แสนดี','มากมาย','สุดๆ','น่าหยิก','สุดยอด',
+  'ฟรุ้งฟริ้ง','น่ารักน่าชัง','เลิศเลอ','สุดที่รัก','โอ้โห','น่ากอด',
+  'ปังปัง','น่าทึ่ง','เริ่ดเลย','ดี๊ดี','น่าสุด','เริงร่า',
+  'สดใส','เลิศหรู','ปังมาก','น่าเอ็นดู','ขั้นเทพ','น่าหลงรัก',
 ];
 const _packages = ['DM','SI','PL','MB','EM'];
 const _sides    = ['ซ้าย','ขวา'];
-const _countries = ['TH','KH','LA','MM'];
 
 function _pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 function _randInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
-function _randPhone() {
-  const head = _pick(['08','09','06']);
-  const rest = Array.from({length:8}, () => _randInt(0,9)).join('');
-  return head + rest;
-}
 function _randNationalId() {
   return Array.from({length:13}, () => _randInt(0,9)).join('');
 }
@@ -433,12 +430,12 @@ function fillRandom() {
   }
   document.getElementById('fFullName').value    = full;
   document.getElementById('fMemberName').value  = first;
-  document.getElementById('fPhone').value       = _randPhone();
+  document.getElementById('fPhone').value       = '0000000000';
   document.getElementById('fEmail').value       = `test${_randInt(1000,9999)}@example.com`;
   document.getElementById('fPassword').value    = _randPassword();
   document.getElementById('fNationalId').value  = _randNationalId();
   document.getElementById('fPackage').value     = _pick(_packages);
-  document.getElementById('fCountry').value     = _pick(_countries);
+  document.getElementById('fCountry').value     = 'TH';
   document.getElementById('fSponsor').value     = sponsor;
   document.getElementById('fUpline').value      = upline;
   document.getElementById('fSide').value        = _pick(_sides);
