@@ -724,7 +724,7 @@ async function _prefetchLineLinkToken(code, password) {
 
 /* Open LINE OA chat — auto-link via pre-authorized token when possible.
    Priority:
-     1) _autoLinkToken (cached จาก doRegister) → deep link "🔗 ผูกบัญชี <token>"
+     1) _autoLinkToken (cached จาก doRegister) → deep link "🔗 เชื่อม LINE กับ A4S · รหัสยืนยัน: <token>"
      2) rPass + rCode (pre-register) → live POST /line/preauth → token → deep link
      3) Legacy fallback → ส่งแค่ code → user พิมพ์ password ใน chat */
 window.connectViaOA = async function () {
@@ -749,11 +749,13 @@ window.connectViaOA = async function () {
   const openDeepLink = (msg) => {
     const url = `https://line.me/R/oaMessage/${encodeURIComponent(oaId)}/?${encodeURIComponent(msg)}`;
     window.open(url, '_blank');
+    // เตือน user ให้กด Send ใน LINE (LINE ไม่ให้ auto-send กัน spam)
+    showToast('👉 LINE เปิดแล้ว — แตะปุ่ม Send (▶) ใน LINE เพื่อยืนยันการเชื่อม', 'info');
   };
 
   // Priority 1: cached token จาก doRegister
   if (_autoLinkToken) {
-    openDeepLink(`🔗 ผูกบัญชี ${_autoLinkToken}`);
+    openDeepLink(`🔗 เชื่อม LINE กับ A4S · รหัสยืนยัน: ${_autoLinkToken}`);
     return;
   }
 
@@ -770,7 +772,7 @@ window.connectViaOA = async function () {
       const data = await res.json().catch(() => ({}));
       if (res.ok && data?.token) {
         _autoLinkToken = data.token;
-        openDeepLink(`🔗 ผูกบัญชี ${data.token}`);
+        openDeepLink(`🔗 เชื่อม LINE กับ A4S · รหัสยืนยัน: ${data.token}`);
         return;
       }
       if (res.status === 401) { showToast('❌ รหัสผ่านไม่ถูกต้อง', 'error'); passEl?.focus(); return; }

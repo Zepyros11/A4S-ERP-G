@@ -690,9 +690,11 @@ app.post('/line/webhook', async (req, res) => {
         }
 
         // ── Step 0.4: Auto-link token (จาก register.html /line/preauth) ──
-        // Format: "🔗 ผูกบัญชี <64-hex-token>" — pre-authorized, ไม่ต้องถามรหัสซ้ำ
+        // Format: "🔗 เชื่อม LINE กับ A4S · รหัสยืนยัน: <16-hex-token>"
+        // หรือ legacy: "🔗 ผูกบัญชี <hex>" — pre-authorized, ไม่ต้องถามรหัสซ้ำ
         // วางก่อน trigger/sessionAlive เพื่อให้ user ผูกได้ทันทีแม้มี session ค้าง
-        const tokenMatch = text.match(/^🔗\s*ผูกบัญชี\s+([a-f0-9]{32,128})\s*$/);
+        const tokenMatch = text.match(/รหัสยืนยัน[:\s]+([a-f0-9]{8,128})/)
+          || text.match(/^🔗\s*ผูกบัญชี\s+([a-f0-9]{8,128})\s*$/);
         if (tokenMatch) {
           const token = tokenMatch[1];
           const rows = await _sbGet(
@@ -1055,7 +1057,9 @@ app.post('/line/preauth', async (req, res) => {
       return res.status(401).json({ ok: false, error: 'invalid password' });
     }
 
-    const token = crypto.randomBytes(32).toString('hex');
+    // 8 bytes = 16 hex chars = 64-bit entropy — ปลอดภัยพอสำหรับ one-time token อายุ 10 นาที
+    // (สั้นลงจาก 32-byte เพื่อให้ message ใน LINE chat อ่านง่าย ไม่ดูเป็น hash น่ากลัว)
+    const token = crypto.randomBytes(8).toString('hex');
     const expiresAt = new Date(Date.now() + LINK_TOKEN_TTL_MIN * 60_000).toISOString();
     const ins = await fetch(`${SB_URL_WEBHOOK}/rest/v1/line_link_tokens`, {
       method: 'POST',
