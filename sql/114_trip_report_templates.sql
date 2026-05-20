@@ -25,17 +25,8 @@ ALTER TABLE trip_report_templates ADD COLUMN IF NOT EXISTS columns    JSONB DEFA
 ALTER TABLE trip_report_templates ADD COLUMN IF NOT EXISTS created_by INTEGER;
 ALTER TABLE trip_report_templates ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT now();
 
--- Permission: trip_custom_report → grant ให้ ADMIN
-UPDATE role_configs
-SET permissions = (
-  SELECT to_jsonb(array(
-    SELECT DISTINCT unnest(
-      array(SELECT jsonb_array_elements_text(permissions))
-      || ARRAY['trip_custom_report']
-    )
-  ))
-)
-WHERE role_key = 'ADMIN';
+-- หมายเหตุ: หน้า Custom Report ใช้ permission เดิม trip_pax_detail_view
+-- (ไม่สร้าง perm ใหม่ — ผู้ที่ดูข้อมูลผู้เดินทางได้ ก็ทำ report ได้)
 
 -- Reload PostgREST schema cache
 NOTIFY pgrst, 'reload schema';
