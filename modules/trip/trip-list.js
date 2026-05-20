@@ -170,6 +170,9 @@ function renderTable(rows) {
             <button class="btn-icon" title="ข้อมูลผู้เดินทาง (เปิดแท็บใหม่)"
               data-perm="trip_pax_detail_view"
               onclick="window.open('./pax-detail.html?trip_id=${t.trip_id}', '_blank')">ℹ️</button>
+            <button class="btn-icon" title="Custom Report (เปิดแท็บใหม่)"
+              data-perm="trip_custom_report"
+              onclick="window.open('./custom-report.html?trip_id=${t.trip_id}', '_blank')">📊</button>
             <button class="btn-icon" title="แก้ไข"
               data-perm="trip_list_edit"
               onclick="window.openTripModal(${t.trip_id})">✏️</button>

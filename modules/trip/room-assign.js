@@ -507,8 +507,6 @@ const RA_I18N = {
     colRoomType:  "ประเภทห้อง",
     colCheckIn:   "Check-in",
     colCheckOut:  "Check-out",
-    colCheckedBy: "Checked By",
-    colChecked:   "Checked",
     colNights:    "คืน",
     colRooms:     "ห้อง",
     colPax:       "ผู้พัก",
@@ -516,6 +514,8 @@ const RA_I18N = {
     colTotalRows: "รวมแถว",
     code:         "รหัส",
     name:         "ชื่อ",
+    position:     "ตำแหน่ง",
+    nationality:  "สัญชาติ",
     roomName:     "ชื่อห้อง",
     noOccupant:   "(ยังไม่มีผู้พัก)",
     noOccupantH:  "ยังไม่มีผู้พักในโรงแรมนี้",
@@ -539,8 +539,6 @@ const RA_I18N = {
     colRoomType:  "Room Type",
     colCheckIn:   "Check-in",
     colCheckOut:  "Check-out",
-    colCheckedBy: "Checked By",
-    colChecked:   "Checked",
     colNights:    "Nights",
     colRooms:     "Rooms",
     colPax:       "People",
@@ -548,6 +546,8 @@ const RA_I18N = {
     colTotalRows: "Total Rows",
     code:         "Code",
     name:         "Name",
+    position:     "Position",
+    nationality:  "Nationality",
     roomName:     "Room",
     noOccupant:   "(No occupants yet)",
     noOccupantH:  "No occupants at this hotel",
@@ -603,11 +603,11 @@ function _buildExportSections(lang = "th") {
         rows.push({
           [t.code]:        code || "",
           [t.name]:        name,
+          [t.position]:    (p?.pin || "").trim(),
+          [t.nationality]: (p?.nationality || p?._inheritedNat || "").trim(),
           [t.roomName]:    r.room_name || "",
           [t.colCheckIn]:  r.check_in_date  ? fmtDate(r.check_in_date)  : "",
           [t.colCheckOut]: r.check_out_date ? fmtDate(r.check_out_date) : "",
-          [t.colCheckedBy]: "",
-          [t.colChecked]:   "",
           _room: r.room_name || "",
           _code: code || "",
         });
@@ -749,8 +749,8 @@ window.exportRaExcel = function (lang = "th") {
   XLSX.utils.book_append_sheet(wb, summaryWs, t.summaryTab);
 
   // ─── 1 sheet ต่อ 1 โรงแรม ───
-  // คอลัมน์: 0=code 1=name 2=room 3=check-in 4=check-out
-  // merge cell ของ col 2,3,4 สำหรับแถวที่ "ชื่อห้อง" (key=t.roomName) ติดกันและเหมือนกัน
+  // คอลัมน์: 0=code 1=name 2=position 3=nationality 4=room 5=check-in 6=check-out
+  // merge cell ของ col 4,5,6 สำหรับแถวที่ "ชื่อห้อง" (key=t.roomName) ติดกันและเหมือนกัน
   const computeMerges = (rows, headerRowIdx = 0) => {
     const merges = [];
     let i = 0;
@@ -761,7 +761,7 @@ window.exportRaExcel = function (lang = "th") {
       if (j - i > 1) {
         const r1 = headerRowIdx + 1 + i;
         const r2 = headerRowIdx + j;
-        [2, 3, 4].forEach(c => merges.push({ s: { r: r1, c }, e: { r: r2, c } }));
+        [4, 5, 6].forEach(c => merges.push({ s: { r: r1, c }, e: { r: r2, c } }));
       }
       i = j;
     }
@@ -771,16 +771,13 @@ window.exportRaExcel = function (lang = "th") {
     const sheetName = safeSheetName(sec.hotelName, i);
     const headerRows = sec.rows.length
       ? sec.rows
-      : [{ [t.code]: "", [t.name]: t.noOccupant, [t.roomName]: "", [t.colCheckIn]: "", [t.colCheckOut]: "", [t.colCheckedBy]: "", [t.colChecked]: "" }];
+      : [{ [t.code]: "", [t.name]: t.noOccupant, [t.position]: "", [t.nationality]: "", [t.roomName]: "", [t.colCheckIn]: "", [t.colCheckOut]: "" }];
     const ws = XLSX.utils.json_to_sheet(headerRows);
     const maxLen = {};
     headerRows.forEach(r => Object.entries(r).forEach(([k, v]) => {
       const l = String(v ?? "").length;
       maxLen[k] = Math.max(maxLen[k] || k.length, Math.min(l, 60));
     }));
-    // ให้ Checked By กว้างพอเขียนชื่อได้ + Checked เป็นช่อง tick
-    maxLen[t.colCheckedBy] = Math.max(maxLen[t.colCheckedBy] || 0, 14);
-    maxLen[t.colChecked]   = Math.max(maxLen[t.colChecked]   || 0, 9);
     ws["!cols"] = Object.keys(headerRows[0]).map(k => ({ wch: (maxLen[k] || 10) + 2 }));
     if (sec.rows.length) ws["!merges"] = computeMerges(headerRows, 0);
     // borders + header style ทุกเซลล์ (header 1 row + data N rows)
@@ -960,11 +957,11 @@ window.exportRaPdf = function (lang = "th") {
     const trs = sec.rows.map((r, idx) => `<tr>
       <td>${escapeHtml(r[t.code])}</td>
       <td>${escapeHtml(r[t.name])}</td>
+      <td>${escapeHtml(r[t.position])}</td>
+      <td>${escapeHtml(r[t.nationality])}</td>
       ${isHead[idx] ? `<td rowspan="${rowspans[idx]}" style="vertical-align:middle">${escapeHtml(r[t.roomName])}</td>
       <td rowspan="${rowspans[idx]}" style="vertical-align:middle">${escapeHtml(r[t.colCheckIn])}</td>
       <td rowspan="${rowspans[idx]}" style="vertical-align:middle">${escapeHtml(r[t.colCheckOut])}</td>` : ""}
-      <td></td>
-      <td style="text-align:center"></td>
     </tr>`).join("");
     return `<div class="ra-print-section">
       <h3>🏨 ${escapeHtml(sec.title)}
@@ -972,13 +969,13 @@ window.exportRaPdf = function (lang = "th") {
       </h3>
       <table>
         <thead><tr>
-          <th style="width:11%">${t.code}</th>
-          <th style="width:25%">${t.name}</th>
-          <th style="width:18%">${t.roomName}</th>
-          <th style="width:12%">${t.colCheckIn}</th>
-          <th style="width:12%">${t.colCheckOut}</th>
-          <th style="width:14%">${t.colCheckedBy}</th>
-          <th style="width:8%">${t.colChecked}</th>
+          <th style="width:10%">${t.code}</th>
+          <th style="width:26%">${t.name}</th>
+          <th style="width:12%">${t.position}</th>
+          <th style="width:14%">${t.nationality}</th>
+          <th style="width:16%">${t.roomName}</th>
+          <th style="width:11%">${t.colCheckIn}</th>
+          <th style="width:11%">${t.colCheckOut}</th>
         </tr></thead>
         <tbody>${trs || `<tr><td colspan="7" style="text-align:center;color:#94a3b8">${t.noOccupantH}</td></tr>`}</tbody>
       </table>

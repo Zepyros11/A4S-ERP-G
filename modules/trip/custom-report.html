@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>📊 Custom Report — A4S-ERP</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../../css/main.css" />
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    <style>
+      /* ── Trip context banner ── */
+      .cr-trip-banner{
+        display:inline-flex;align-items:center;gap:10px;
+        background:var(--accent-pale);
+        border:1px solid color-mix(in srgb, var(--accent) 20%, transparent);
+        padding:6px 14px;border-radius:999px;font-size:13px;
+        color:var(--accent);white-space:nowrap;
+      }
+      .cr-trip-banner a{color:var(--accent);text-decoration:none;font-weight:600;opacity:.85}
+      .cr-trip-banner a:hover{opacity:1}
+
+      /* ── Layout: picker | preview ── */
+      .cr-main{display:grid;grid-template-columns:280px 1fr;gap:14px;margin-top:8px}
+      @media (max-width:880px){ .cr-main{grid-template-columns:1fr} }
+
+      .cr-card{background:#fff;border:1px solid var(--border);border-radius:10px;padding:14px}
+      .cr-card h3{margin:0 0 10px;font-size:13px;color:var(--text)}
+
+      /* picker groups */
+      .cr-group{margin-bottom:6px;border:1px solid var(--border);border-radius:8px;overflow:hidden}
+      .cr-group-hdr{
+        display:flex;align-items:center;justify-content:space-between;
+        padding:8px 10px;background:#f8fafc;cursor:pointer;
+        font-size:12.5px;font-weight:700;color:var(--text);
+      }
+      .cr-group-body{padding:4px 6px}
+      .cr-group.collapsed .cr-group-body{display:none}
+      .cr-group-caret{font-size:11px;color:var(--text3)}
+      .cr-opt{
+        display:flex;align-items:center;gap:8px;
+        padding:5px 8px;border-radius:6px;font-size:12.5px;
+        color:var(--text);cursor:pointer;
+      }
+      .cr-opt:hover{background:#f1f5f9}
+      .cr-opt input{cursor:pointer;margin:0;width:15px;height:15px}
+
+      /* selected chips */
+      .cr-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;min-height:8px}
+      .cr-chip{
+        display:inline-flex;align-items:center;gap:6px;
+        background:var(--accent-pale);color:var(--accent);
+        border:1px solid color-mix(in srgb, var(--accent) 25%, transparent);
+        padding:3px 6px 3px 9px;border-radius:999px;font-size:11.5px;font-weight:600;
+      }
+      .cr-chip button{
+        border:none;background:transparent;cursor:pointer;
+        color:var(--accent);font-size:13px;line-height:1;padding:0 2px;
+      }
+      .cr-chip .cr-chip-move{font-size:11px;opacity:.7}
+      .cr-chip .cr-chip-move:hover{opacity:1}
+
+      /* preview table */
+      #cr-table-wrap{overflow:auto;max-height:62vh;border:1px solid var(--border);border-radius:8px}
+      table.cr-table{border-collapse:separate;border-spacing:0;width:max-content;min-width:100%;font-size:12px}
+      table.cr-table th,table.cr-table td{
+        padding:6px 9px;border-bottom:1px solid var(--border);border-right:1px solid var(--border);
+        text-align:left;white-space:nowrap;
+      }
+      table.cr-table thead th{
+        background:#f1f5f9;color:var(--text2);font-weight:700;font-size:11px;
+        position:sticky;top:0;z-index:2;
+      }
+      table.cr-table tbody tr:nth-child(even){background:#fafafa}
+      table.cr-table tbody tr:hover{background:#f1f5f9}
+      .cr-empty{padding:40px 20px;text-align:center;color:var(--text3);font-size:13px}
+
+      .cr-preset-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+      .cr-preset-bar select{min-width:200px}
+
+      /* ── Print ── */
+      #cr-print-area{display:none}
+      .cr-print-title{font-size:15px;font-weight:700;margin-bottom:2px}
+      .cr-print-sub{font-size:11px;color:#64748b;margin-bottom:10px}
+      #cr-print-area table{border-collapse:collapse;width:100%;font-size:11px}
+      #cr-print-area th,#cr-print-area td{border:1px solid #94a3b8;padding:4px 6px;text-align:left}
+      #cr-print-area thead th{background:#f1f5f9;font-weight:700}
+      @media print{
+        body > *:not(#cr-print-area){display:none !important}
+        #cr-print-area{display:block !important}
+        @page{size:landscape;margin:10mm}
+      }
+    </style>
+  </head>
+  <body>
+    <div class="loading-overlay" id="loadingOverlay">
+      <div class="spinner"></div>
+    </div>
+    <div class="toast" id="toast"></div>
+
+    <div class="topbar"></div>
+    <div class="layout">
+      <div class="content-area">
+        <div class="page">
+
+          <!-- HERO -->
+          <div class="page-hero page-hero--simple page-hero--compact">
+            <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+              <h1 class="page-hero-title" style="margin:0">📊 Custom Report</h1>
+              <span id="crTripBanner" class="cr-trip-banner" style="display:none">
+                <a href="./trip-list.html">← รายการทริป</a>
+                <span style="opacity:.4">|</span>
+                <span id="crTripName" style="font-weight:700">—</span>
+                <span id="crTripDates" style="color:var(--text2);font-size:11.5px;font-weight:500"></span>
+              </span>
+            </div>
+          </div>
+
+          <!-- PRESET BAR -->
+          <div class="cr-card" style="margin-bottom:12px">
+            <div class="cr-preset-bar">
+              <span style="font-size:12.5px;font-weight:700;color:var(--text2)">⭐ ชุดคอลัมน์:</span>
+              <select class="filter-select" id="presetSelect" onchange="window.applyPreset(this.value)">
+                <option value="">— เลือก preset —</option>
+              </select>
+              <button class="btn btn-outline" onclick="window.savePreset()" title="บันทึกคอลัมน์ที่เลือกเป็น preset ใหม่">💾 บันทึกเป็น preset</button>
+              <button class="btn btn-outline" onclick="window.deletePreset()" title="ลบ preset ที่เลือก">🗑 ลบ preset</button>
+              <div style="flex:1"></div>
+              <button class="btn btn-outline" onclick="window.exportReportExcel()">📥 Excel</button>
+              <button class="btn btn-primary" onclick="window.exportReportPrint()">🖨 Print / PDF</button>
+            </div>
+          </div>
+
+          <!-- MAIN: picker | preview -->
+          <div class="cr-main">
+            <!-- COLUMN PICKER -->
+            <div class="cr-card">
+              <h3>เลือกคอลัมน์</h3>
+              <div id="crPicker"></div>
+            </div>
+
+            <!-- PREVIEW -->
+            <div class="cr-card">
+              <h3>ตัวอย่างรายงาน <span id="crRowCount" style="color:var(--text3);font-weight:400"></span></h3>
+              <div class="cr-chips" id="crChips"></div>
+              <div id="cr-table-wrap">
+                <div class="cr-empty" id="crEmpty">เลือกคอลัมน์จากด้านซ้ายเพื่อสร้างรายงาน</div>
+                <table class="cr-table" id="crTable" style="display:none">
+                  <thead><tr id="crThead"></tr></thead>
+                  <tbody id="crTbody"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- PRINT AREA (populated on print) -->
+    <div id="cr-print-area"></div>
+
+    <!-- SCRIPTS -->
+    <script src="../../js/core/auth.js"></script>
+    <script src="../../js/core/authz.js"></script>
+    <script src="../../js/core/date-format.js"></script>
+    <script>AuthZ.requirePerm("trip_custom_report");</script>
+    <script src="./custom-report.js"></script>
+    <script src="../../js/components/modal/confirmModal.js"></script>
+    <script src="../../js/components/modal/promptModal.js"></script>
+    <script src="../../js/components/modal/modalManager.js"></script>
+    <script src="../../js/components/navigation/sidebar.js"></script>
+    <script type="module">
+      import { loadTopbar } from "../../js/components/navigation/topbar.js";
+      loadTopbar("📊 Custom Report");
+    </script>
+  </body>
+</html>
