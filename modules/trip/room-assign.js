@@ -1308,9 +1308,16 @@ function renderPassengers() {
     } else if (status === "no_seat") {
       if (hasSeat) return false;
     } else if (status === "missing_any") {
-      // ขาดอะไรอย่างน้อย 1: ห้องในช่วงนี้ หรือ ที่นั่ง
-      const hasRoom = batchKey ? isInBatch(p.code) : (assignedBatchCount(p.code) >= totalB && totalB > 0);
-      if (hasRoom && hasSeat) return false;
+      if (batchKey) {
+        // เจาะดูโรงแรมแล้ว → "ยังไม่ครบ" = ยังไม่มีห้องในช่วงพักนี้
+        // (มิติ "ที่นั่งรถ" ไม่เกี่ยวเมื่อทำงานรายโรงแรม — ไม่งั้นคนที่มีห้องครบ
+        //  แต่ยังไม่ได้จัดรถ จะค้างอยู่ในรายชื่อทั้งหมด)
+        if (isInBatch(p.code)) return false;
+      } else {
+        // ยังไม่เลือกโรงแรม → ขาดอะไรอย่างน้อย 1: ห้องครบทุกช่วง หรือ ที่นั่งรถ
+        const hasRoom = assignedBatchCount(p.code) >= totalB && totalB > 0;
+        if (hasRoom && hasSeat) return false;
+      }
     } else if (batchKey) {
       const inB = isInBatch(p.code);
       if (status === "unassigned" && inB) return false;
@@ -2623,6 +2630,7 @@ function busCardHtml(b) {
         <span class="ba-bus-meta-pill ${pillCls}">💺 ${usedCount}/${cap}</span>
         ${availCount === 0 && cap > 0 ? '<span class="ba-bus-meta-pill full">เต็ม</span>' : ""}
       </div>
+      ${busDesignationHtml(b)}
       <div class="ba-bus-actions">
         <div class="ba-bus-kebab-wrap" data-bus="${b.bus_id}">
           <button class="ba-bus-kebab" title="ตัวเลือกเพิ่มเติม"
@@ -2658,6 +2666,116 @@ function busCardHtml(b) {
     ${isCollapsed ? "" : renderSeatMapHtml(preset.rows, occMap, { interactive: true, busId: b.bus_id })}
   </div>`;
 }
+
+// ── BUS DESIGNATION (กลุ่มเป้าหมายของคัน — สัญชาติ/ตำแหน่ง) ──
+// distinct values จากผู้โดยสารจริง (สะท้อนข้อมูลในทริปนี้)
+function distinctNationalities() {
+  const s = new Set();
+  state.passengers.forEach(p => {
+    const v = (p.nationality || p._inheritedNat || "").trim();
+    if (v) s.add(v);
+  });
+  return [...s].sort((a, b) => a.localeCompare(b));
+}
+function distinctPins() {
+  const s = new Set();
+  state.passengers.forEach(p => {
+    const v = (p.pin || "").trim();
+    if (v) s.add(v);
+  });
+  return [...s].sort((a, b) => a.localeCompare(b));
+}
+
+// designation ของคัน → array เสมอ (เลือกได้หลายค่า)
+function busTargetArr(b, field) {
+  return Array.isArray(b?.[field]) ? b[field].filter(Boolean) : [];
+}
+// metadata ของแต่ละ field multi-select
+const MPICK_FIELDS = {
+  target_nationality: { icon: "🌐", unit: "สัญชาติ", emptyLabel: "ทุกสัญชาติ", options: distinctNationalities },
+  target_pin:         { icon: "🏷️", unit: "ตำแหน่ง", emptyLabel: "ทุกตำแหน่ง", options: distinctPins },
+};
+function mpickLabel(field, vals) {
+  const meta = MPICK_FIELDS[field];
+  if (!vals.length) return meta.emptyLabel;
+  if (vals.length === 1) return vals[0];
+  return `${vals.length} ${meta.unit}`;
+}
+
+// 1 ช่อง multi-select (popover + checkbox) สำหรับ field หนึ่ง
+function busMPickHtml(b, field) {
+  const meta = MPICK_FIELDS[field];
+  const sel = busTargetArr(b, field);
+  const opts = meta.options();
+  const menu = opts.length
+    ? opts.map(o => `<label>
+        <input type="checkbox" value="${escapeAttr(o)}"${sel.includes(o) ? " checked" : ""}
+          onchange="window.applyBusMulti(${b.bus_id}, '${field}')">
+        <span>${escapeHtml(o)}</span>
+      </label>`).join("")
+    : `<div class="ba-mpick-empty">— ยังไม่มีข้อมูล —</div>`;
+  return `<div class="ba-bus-mpick" data-bus="${b.bus_id}" data-field="${field}">
+    <button type="button" class="ba-mpick-btn${sel.length ? " set" : ""}" data-perm="trip_bus_edit"
+      title="${sel.length ? escapeAttr(sel.join(", ")) : "เลือกได้หลายค่า"}"
+      onclick="window.toggleMPicker(${b.bus_id}, '${field}', event)">
+      ${meta.icon} ${escapeHtml(mpickLabel(field, sel))} ▾
+    </button>
+    <div class="ba-mpick-menu" onclick="event.stopPropagation()">${menu}</div>
+  </div>`;
+}
+
+// designation บน header การ์ดรถ — สัญชาติ + ตำแหน่ง (เลือกได้หลายค่าทั้งคู่)
+function busDesignationHtml(b) {
+  return `<div class="ba-bus-design" title="กลุ่มเป้าหมายของคันนี้ — ใช้ตอนกด 'ตามคู่ห้องพัก'">
+    <span class="ba-bus-design-lbl">🎯 กลุ่มเป้า:</span>
+    ${busMPickHtml(b, "target_nationality")}
+    ${busMPickHtml(b, "target_pin")}
+  </div>`;
+}
+
+// เปิด/ปิด popover
+function closeMPickers() {
+  document.querySelectorAll(".ba-bus-mpick.open").forEach(el => el.classList.remove("open"));
+}
+window.toggleMPicker = function (busId, field, ev) {
+  ev.stopPropagation();
+  const wrap = document.querySelector(`.ba-bus-mpick[data-bus="${busId}"][data-field="${field}"]`);
+  if (!wrap) return;
+  const isOpen = wrap.classList.contains("open");
+  closeMPickers();
+  if (!isOpen) wrap.classList.add("open");
+};
+document.addEventListener("click", (ev) => {
+  if (!ev.target.closest(".ba-bus-mpick")) closeMPickers();
+});
+
+// บันทึกค่า designation (array) — debounce กันยิงถี่ตอนติ๊กหลายช่อง
+const _mpickSaveTimers = {};
+window.applyBusMulti = function (busId, field) {
+  const wrap = document.querySelector(`.ba-bus-mpick[data-bus="${busId}"][data-field="${field}"]`);
+  const bus = state.buses.find(b => b.bus_id === busId);
+  if (!wrap || !bus) return;
+  const checked = [...wrap.querySelectorAll("input[type=checkbox]:checked")].map(c => c.value);
+  bus[field] = checked.length ? checked : null; // optimistic — ให้ syncBusFromRooms เห็นทันที
+  // อัปเดตปุ่มในที่ — ไม่ re-render การ์ด popover จะได้ไม่ปิดระหว่างติ๊ก
+  const btn = wrap.querySelector(".ba-mpick-btn");
+  if (btn) {
+    btn.innerHTML = `${MPICK_FIELDS[field].icon} ${escapeHtml(mpickLabel(field, checked))} ▾`;
+    btn.classList.toggle("set", checked.length > 0);
+    btn.title = checked.length ? checked.join(", ") : "เลือกได้หลายค่า";
+  }
+  const key = `${busId}:${field}`;
+  clearTimeout(_mpickSaveTimers[key]);
+  _mpickSaveTimers[key] = setTimeout(async () => {
+    try {
+      await sbFetch("trip_buses", `?bus_id=eq.${busId}`,
+        { method: "PATCH", body: { [field]: bus[field], updated_at: new Date().toISOString() } });
+    } catch (e) {
+      showToast("บันทึกกลุ่มเป้าไม่สำเร็จ: " + e.message, "error");
+      await loadAll();
+    }
+  }, 450);
+};
 
 // Render แถวไกด์ของรถคันนี้
 function guidesRowHtml(busId) {
@@ -3306,110 +3424,162 @@ window.autoFillBus = async function (busId) {
   showLoading(false);
 };
 
-// ── SYNC FROM ROOMS: นั่งติดกันตามคู่ห้องพัก ─────────────────
-// ใช้ state.occupants (rooms ↔ codes) ที่มีอยู่แล้วใน room-assign — ไม่ต้องโหลดเพิ่ม
+// ── SYNC FROM ROOMS: จัดที่นั่งรถบัสตามคู่ห้องพัก ─────────────
+// ลำดับความสำคัญ:
+//   1) อยู่ห้องเดียวกัน — คนห้องเดียวกันนั่งติดกัน (ไม่ถูกแยกข้ามคัน)
+//   2) สัญชาติ — แต่ละสัญชาติแยกลงคนละคัน (เคารพ designation ของคัน)
+//   3) ตำแหน่ง (PIN) — ภายในคัน เรียงให้ตำแหน่งเดียวกันอยู่ใกล้กัน
 window.syncBusFromRooms = async function () {
   if (!state.buses.length) { showToast("เพิ่มรถบัสก่อน", "error"); return; }
   if (!Object.keys(state.occupants).length) {
     showToast("ทริปนี้ยังไม่มีคู่ห้องพัก — จัดห้องด้านบนก่อน", "error");
     return;
   }
-  // เก็บคนตามห้อง (เฉพาะคนที่ยังไม่มีที่นั่ง)
-  const pairs = [];
+
+  const norm = s => (s || "").trim();
+  const paxByCode = {};
+  state.passengers.forEach(p => { paxByCode[p.code] = p; });
+  const natOf = c => norm(paxByCode[c]?.nationality || paxByCode[c]?._inheritedNat);
+  const pinOf = c => norm(paxByCode[c]?.pin);
+  // ค่าเด่น (เสียงข้างมาก) ของกลุ่ม — ใช้ตัดสินสัญชาติ/ตำแหน่งของห้อง
+  const dominant = (codes, fn) => {
+    const cnt = {};
+    codes.forEach(c => { const v = fn(c); if (v) cnt[v] = (cnt[v] || 0) + 1; });
+    let best = "", n = 0;
+    Object.entries(cnt).forEach(([k, v]) => { if (v > n) { n = v; best = k; } });
+    return best;
+  };
+
+  // 1) กลุ่มห้อง — เฉพาะคนที่ยังไม่มีที่นั่งรถ
+  const roomGroups = [];
   Object.keys(state.occupants).forEach(rid => {
     const codes = (state.occupants[rid] || []).filter(c => !state.codeToBusSeat[c]);
-    if (codes.length >= 1) pairs.push(codes);
+    if (!codes.length) return;
+    roomGroups.push({ codes, nat: dominant(codes, natOf), pin: dominant(codes, pinOf) });
   });
-  if (!pairs.length) { showToast("ทุกคู่ห้องถูกจัดที่นั่งครบแล้ว", "info"); return; }
+  if (!roomGroups.length) { showToast("ทุกคู่ห้องถูกจัดที่นั่งครบแล้ว", "info"); return; }
 
-  // ที่นั่งคู่ติดกันในรถแต่ละคัน
-  const adjacentPairs = [];
+  // 2) ที่นั่งว่างของแต่ละคัน — แยกเป็น "คู่ติดกัน" และ "เดี่ยว"
+  const busSlots = {}; // bus_id -> { pairs:[[s1,s2],...], singles:[s,...], free }
   state.buses.forEach(bus => {
     const preset = BUS_PRESETS[bus.layout_preset] || BUS_PRESETS.BUS_45_2_2;
     const occMap = state.busOccupants[bus.bus_id] || {};
+    const guideSeats = state.busGuideSeats?.[bus.bus_id] || {};
+    const taken = s => !!occMap[s] || !!guideSeats[s]; // คน หรือ ไกด์ นั่งอยู่
+    const pairs = [], singles = [];
     preset.rows.forEach(row => {
       const segments = []; let seg = [];
       row.forEach(c => {
-        if (c === "AISLE") { if (seg.length) segments.push(seg); seg = []; }
-        else if (typeof c === "number") seg.push(String(c));
+        if (typeof c === "number") seg.push(String(c));
         else { if (seg.length) segments.push(seg); seg = []; }
       });
       if (seg.length) segments.push(seg);
       segments.forEach(s => {
-        for (let i = 0; i < s.length - 1; i++) {
-          if (!occMap[s[i]] && !occMap[s[i + 1]]) {
-            adjacentPairs.push({ bus_id: bus.bus_id, seats: [s[i], s[i + 1]] });
-            i++;
-          }
+        let k = 0;
+        while (k < s.length) {
+          if (taken(s[k])) { k++; continue; }
+          if (k + 1 < s.length && !taken(s[k + 1])) { pairs.push([s[k], s[k + 1]]); k += 2; }
+          else { singles.push(s[k]); k++; }
         }
       });
     });
-  });
-  const singleSeats = [];
-  state.buses.forEach(bus => {
-    const preset = BUS_PRESETS[bus.layout_preset] || BUS_PRESETS.BUS_45_2_2;
-    const occMap = state.busOccupants[bus.bus_id] || {};
-    preset.rows.forEach(row => row.forEach(c => {
-      if (typeof c === "number" && !occMap[String(c)]) {
-        singleSeats.push({ bus_id: bus.bus_id, seat: String(c) });
-      }
-    }));
+    busSlots[bus.bus_id] = { pairs, singles, free: pairs.length * 2 + singles.length };
   });
 
+  // 3) จับกลุ่มห้องลงคัน — แยกตามสัญชาติ + เคารพ designation (สัญชาติ/ตำแหน่ง)
+  const buses = state.buses.map(b => ({
+    bus_id: b.bus_id,
+    targetNats: busTargetArr(b, "target_nationality"), // designate ได้หลายสัญชาติ
+    targetPins: busTargetArr(b, "target_pin"),         // designate ได้หลายตำแหน่ง
+    free: busSlots[b.bus_id].free,
+    groups: [],
+    nats: new Set(),
+  }));
+  const fitOrAny = (arr, size) => {
+    const fit = arr.filter(b => b.free >= size);
+    return fit.length ? fit : arr.filter(b => b.free > 0);
+  };
+  const mostFree = arr => arr.slice().sort((a, b) => b.free - a.free)[0];
+  const pickBus = (g) => {
+    const size = g.codes.length, nat = g.nat, pin = g.pin;
+    // เงื่อนไขตรงกับ designation ของคัน (ว่าง = รับทุกค่า)
+    const natOK = b => !b.targetNats.length || b.targetNats.includes(nat);
+    let c;
+    // T1 ตรงทั้งสัญชาติ + ตำแหน่งที่คันนี้ต้องการ (เช่นคน AVP → คันที่ระบุ AVP)
+    c = fitOrAny(buses.filter(b => natOK(b) && b.targetPins.includes(pin)), size);
+    if (c.length) return mostFree(c);
+    // T2 สัญชาติตรง + เป็นที่เติม: คนไม่มีตำแหน่ง หรือ คันไม่ระบุตำแหน่ง
+    c = fitOrAny(buses.filter(b => b.targetNats.length && natOK(b) &&
+      (!b.targetPins.length || !pin)), size);
+    if (c.length) return mostFree(c);
+    // T3 คันระบุตำแหน่งตรง + ไม่ระบุสัญชาติ
+    c = fitOrAny(buses.filter(b => !b.targetNats.length && b.targetPins.includes(pin)), size);
+    if (c.length) return mostFree(c);
+    // T4 คันที่มีสัญชาตินี้อยู่แล้ว — ให้สัญชาติเดียวกันอยู่คันเดียวกัน
+    c = fitOrAny(buses.filter(b => b.nats.has(nat)), size);
+    if (c.length) return mostFree(c);
+    // T5 คันที่ยังไม่ถูก designate และว่างเปล่า — เริ่มคันใหม่ให้สัญชาตินี้
+    c = fitOrAny(buses.filter(b => !b.targetNats.length && !b.targetPins.length && b.nats.size === 0), size);
+    if (c.length) return mostFree(c);
+    // T6 คันที่ยังไม่ถูก designate — เลือกคันที่ปนสัญชาติน้อยสุด
+    c = fitOrAny(buses.filter(b => !b.targetNats.length && !b.targetPins.length), size);
+    if (c.length) return c.slice().sort((a, b) => a.nats.size - b.nats.size || b.free - a.free)[0];
+    // T7 คันที่ designate สัญชาติตรง (ผ่อนเงื่อนไขตำแหน่ง — last resort)
+    c = fitOrAny(buses.filter(b => b.targetNats.includes(nat)), size);
+    if (c.length) return mostFree(c);
+    // T8 คันไหนก็ได้ที่ยังว่าง
+    c = fitOrAny(buses, size);
+    return c.length ? mostFree(c) : null;
+  };
+
+  // เรียงกลุ่มห้องตาม (สัญชาติ, ตำแหน่ง) → สัญชาติเดียวกันถูกจับลงคันต่อเนื่องกัน
+  const byKey = (a, b) =>
+    (a.nat || "~").localeCompare(b.nat || "~") || (a.pin || "~").localeCompare(b.pin || "~");
+  [...roomGroups].sort(byKey).forEach(g => {
+    const bus = pickBus(g);
+    if (!bus) return; // ที่นั่งไม่พอ — จะถูกนับเป็นคนที่จัดไม่ได้
+    bus.groups.push(g);
+    bus.free -= g.codes.length;
+    if (g.nat) bus.nats.add(g.nat);
+  });
+
+  // 4) วางที่นั่งจริงในแต่ละคัน — เรียงกลุ่มตาม (สัญชาติ, ตำแหน่ง), คู่ห้องนั่งติดกัน
   const plan = [];
-  const usedPairs = new Set();
-  const usedSingles = new Set();
-  const seatTaken = (b, s) => plan.some(x => x.bus_id === b && x.seat_no === s);
-  pairs.forEach(group => {
-    if (group.length >= 2) {
-      for (let i = 0; i < group.length - 1; i += 2) {
-        const pairIdx = adjacentPairs.findIndex((p, idx) =>
-          !usedPairs.has(idx) && !seatTaken(p.bus_id, p.seats[0]) && !seatTaken(p.bus_id, p.seats[1]));
-        if (pairIdx >= 0) {
-          usedPairs.add(pairIdx);
-          const pair = adjacentPairs[pairIdx];
-          plan.push({ bus_id: pair.bus_id, seat_no: pair.seats[0], code: group[i] });
-          plan.push({ bus_id: pair.bus_id, seat_no: pair.seats[1], code: group[i + 1] });
-        } else {
-          [group[i], group[i + 1]].forEach(code => {
-            const sIdx = singleSeats.findIndex((s, si) => !usedSingles.has(si) && !seatTaken(s.bus_id, s.seat));
-            if (sIdx >= 0) {
-              usedSingles.add(sIdx);
-              const slot = singleSeats[sIdx];
-              plan.push({ bus_id: slot.bus_id, seat_no: slot.seat, code });
-            }
-          });
-        }
+  buses.forEach(b => {
+    const slot = busSlots[b.bus_id];
+    const pairs = slot.pairs.slice();
+    const singles = slot.singles.slice();
+    b.groups.slice().sort(byKey).forEach(g => {
+      const codes = g.codes.slice();
+      // คู่ห้อง → ที่นั่งคู่ติดกันก่อน
+      while (codes.length >= 2 && pairs.length) {
+        const [s1, s2] = pairs.shift();
+        plan.push({ bus_id: b.bus_id, seat_no: s1, code: codes.shift() });
+        plan.push({ bus_id: b.bus_id, seat_no: s2, code: codes.shift() });
       }
-      if (group.length % 2 === 1) {
-        const code = group[group.length - 1];
-        const sIdx = singleSeats.findIndex((s, si) => !usedSingles.has(si) && !seatTaken(s.bus_id, s.seat));
-        if (sIdx >= 0) {
-          usedSingles.add(sIdx);
-          const slot = singleSeats[sIdx];
-          plan.push({ bus_id: slot.bus_id, seat_no: slot.seat, code });
-        }
+      // ที่เหลือ → ที่นั่งเดี่ยว
+      while (codes.length && singles.length) {
+        plan.push({ bus_id: b.bus_id, seat_no: singles.shift(), code: codes.shift() });
       }
-    } else if (group.length === 1) {
-      const code = group[0];
-      const sIdx = singleSeats.findIndex((s, si) => !usedSingles.has(si) && !seatTaken(s.bus_id, s.seat));
-      if (sIdx >= 0) {
-        usedSingles.add(sIdx);
-        const slot = singleSeats[sIdx];
-        plan.push({ bus_id: slot.bus_id, seat_no: slot.seat, code });
+      // ยังเหลือ → แยกที่นั่งคู่มาใช้ (เก็บครึ่งที่เหลือไว้เป็นเดี่ยว)
+      while (codes.length && pairs.length) {
+        const [s1, s2] = pairs.shift();
+        plan.push({ bus_id: b.bus_id, seat_no: s1, code: codes.shift() });
+        if (codes.length) plan.push({ bus_id: b.bus_id, seat_no: s2, code: codes.shift() });
+        else singles.push(s2);
       }
-    }
+    });
   });
 
   if (!plan.length) { showToast("ที่นั่งว่างไม่พอ", "error"); return; }
   const placed = plan.length;
-  const totalNeeded = pairs.reduce((a, g) => a + g.length, 0);
+  const totalNeeded = roomGroups.reduce((a, g) => a + g.codes.length, 0);
   const remaining = totalNeeded - placed;
 
   const ok = window.ConfirmModal?.open
     ? await window.ConfirmModal.open({
         title: "จัดที่นั่งตามคู่ห้องพัก",
-        message: `จะจัด ${placed}/${totalNeeded} คนตามคู่ห้องพัก — ดำเนินการต่อ?`,
+        message: `จะจัด ${placed}/${totalNeeded} คน — แยกตามสัญชาติลงคนละคัน · คู่ห้องนั่งติดกัน · เรียงตามตำแหน่ง`,
         icon: "🔗",
         tone: "primary",
         okText: "จัดที่นั่ง",

@@ -1222,26 +1222,6 @@
   </button>
 </div>
 
-<!-- ══ Orphan Banner (โชว์เมื่อ trip ว่าง + มี orphan rows trip_id=NULL) ══ -->
-<div id="orphan-banner" style="display:none;margin:10px 20px;padding:12px 16px;background:#fffbea;border:1px solid #fcd34d;border-left:4px solid #f59e0b;border-radius:8px;align-items:center;gap:14px;flex-wrap:wrap;">
-  <span style="font-size:20px;">⚠️</span>
-  <div style="flex:1;min-width:200px;">
-    <div style="font-size:13px;font-weight:700;color:#92400e;">พบข้อมูลที่ยังไม่ได้ผูกทริป</div>
-    <div style="font-size:12px;color:#78350f;margin-top:2px;">
-      มี <span id="orphan-count" style="font-weight:700;">0</span> แถวใน Supabase ที่ <code style="background:#fef3c7;padding:1px 5px;border-radius:3px;">trip_id = NULL</code>
-      (สร้างก่อนระบบทริปจะแยก) — ต้องการผูกทั้งหมดกับทริปนี้ไหม?
-    </div>
-  </div>
-  <button type="button" id="btn-attach-orphans" onclick="attachOrphansToTrip()"
-    style="padding:7px 14px;background:#f59e0b;color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">
-    🔗 ผูกกับทริปนี้
-  </button>
-  <button type="button" onclick="document.getElementById('orphan-banner').style.display='none'"
-    style="padding:7px 10px;background:transparent;color:#78350f;border:1px solid #fcd34d;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;">
-    ปิด
-  </button>
-</div>
-
 <!-- ══ Flight Autocomplete Dropdown ═════════════════════ -->
 <div id="flight-ac-dropdown"></div>
 <!-- ══ Comeback Autocomplete Dropdown ═══════════════════ -->
@@ -2402,7 +2382,7 @@ async function loadFromSupabase() {
       if (currentTripId != null) {
         rows = [];
         renderTable();
-        checkAndShowOrphanBanner(); // เช็คว่ามี orphan rows (trip_id=NULL) ที่อาจเป็นของทริปนี้ไหม
+        autoClaimOrphans(); // มี orphan rows (trip_id=NULL) ค้างอยู่ → ผูกเข้าทริปนี้อัตโนมัติ
       } else {
         loadLocal();
         renderTable();
@@ -2472,59 +2452,36 @@ async function loadFromSupabase() {
 }
 
 /* ═══════════════════════════════════════════════════════════
-   ORPHAN ROWS — แถวเก่าที่มี trip_id=NULL (สร้างก่อน trip context)
-   เปิดทริปแล้วเจอตารางว่าง → เช็คว่ามี orphan ค้างอยู่ + เสนอผูกกับทริปปัจจุบัน
+   ORPHAN ROWS — แถว trip_id=NULL ที่ค้างจากก่อนมี trip context
+   เปิดทริปแล้วตารางว่าง + มี orphan → ผูกเข้าทริปนี้อัตโนมัติ
+   legacy mode (เปิดหน้านี้โดยไม่มี ?trip_id) ถูกปิดแล้ว จึงไม่มี orphan
+   ใหม่เกิดขึ้นอีก — auto-claim จึงปลอดภัย (ไม่มีโอกาสดูดของทริปอื่น)
 ═══════════════════════════════════════════════════════════ */
-async function checkAndShowOrphanBanner() {
+async function autoClaimOrphans() {
   if (!sbClient || currentTripId == null) return;
   try {
     const { data, error } = await sbClient
       .from('tour_seat_check')
-      .select('code', { count: 'exact', head: false })
+      .select('code')
       .is('trip_id', null)
       .limit(5000);
     if (error) throw error;
     const n = (data || []).length;
-    if (n > 0) {
-      document.getElementById('orphan-count').textContent = n;
-      document.getElementById('orphan-banner').style.display = 'flex';
-    }
-  } catch (e) {
-    console.warn('check orphan rows failed:', e.message);
-  }
-}
+    if (n === 0) return;
 
-window.attachOrphansToTrip = async function () {
-  if (!sbClient || currentTripId == null) return;
-  const countEl = document.getElementById('orphan-count');
-  const n = parseInt(countEl?.textContent || '0', 10);
-  const tripName = currentTrip?.trip_name || `Trip #${currentTripId}`;
-  const ok = await ConfirmModal.open({
-    title: `ผูก ${n} แถวกับทริปนี้?`,
-    message: `จะตั้ง trip_id = ${currentTripId} (${tripName}) ให้ทุกแถวที่ trip_id เป็น NULL\n\nหลังจากนี้แถวเหล่านี้จะแสดงเฉพาะในทริปนี้`,
-    tone: 'warning',
-    icon: '🔗',
-    okText: 'ผูกเลย',
-    cancelText: 'ยกเลิก',
-  });
-  if (!ok) return;
-
-  const btn = document.getElementById('btn-attach-orphans');
-  if (btn) { btn.disabled = true; btn.textContent = '⏳ กำลังผูก...'; }
-  try {
-    const { error } = await sbClient
+    const { error: upErr } = await sbClient
       .from('tour_seat_check')
       .update({ trip_id: currentTripId })
       .is('trip_id', null);
-    if (error) throw error;
-    document.getElementById('orphan-banner').style.display = 'none';
-    toast(`✓ ผูก ${n} แถวกับทริปนี้แล้ว — กำลังโหลดใหม่...`, 'success');
+    if (upErr) throw upErr;
+
+    // ไม่เงียบ — แจ้ง toast ให้รู้ว่ามีแถวเก่าถูกผูกเข้ามา (กันข้อมูลโผล่แบบงงๆ)
+    toast(`✓ ผูก ${n} แถวเก่า (trip_id ว่าง) เข้าทริปนี้อัตโนมัติ`, 'success');
     await loadFromSupabase();
   } catch (e) {
-    toast('ผูกล้มเหลว: ' + e.message, 'error');
-    if (btn) { btn.disabled = false; btn.textContent = '🔗 ผูกกับทริปนี้'; }
+    console.warn('auto-claim orphans failed:', e.message);
   }
-};
+}
 
 /* ═══════════════════════════════════════════════════════════
    AUTO-REFRESH — poll Supabase ทุก 30 วิ + เมื่อ tab โฟกัสกลับมา
@@ -4169,14 +4126,22 @@ function renderTripBreadcrumb() {
 /* ═══════════════════════════════════════════════════════════
    INIT
 ═══════════════════════════════════════════════════════════ */
-migrateLegacyProxyKey();
-loadFlightMemory();
-loadComebackMemory();
-injectColResizers();
-applyColWidths();
-initSupabase();
-loadTripMeta();                                    // load trip context (async, non-blocking)
-loadFromSupabase().then(() => startAutoRefresh()); // โหลด → แล้วเริ่ม auto-refresh
+if (currentTripId == null) {
+  // อุดรู orphan: หน้านี้ต้องเปิดผ่าน trip context เสมอ
+  // legacy mode (โหลดทุกแถว) ถูกปิด เพราะการกรอกข้อมูลตอนไม่มี trip_id
+  // จะสร้างแถว trip_id=NULL ค้างไว้ — เด้งกลับไปเลือกทริปก่อน
+  toast('กรุณาเปิดหน้าตรวจที่นั่งผ่านรายการทริป', 'error');
+  setTimeout(() => { location.href = './trip-list.html'; }, 1500);
+} else {
+  migrateLegacyProxyKey();
+  loadFlightMemory();
+  loadComebackMemory();
+  injectColResizers();
+  applyColWidths();
+  initSupabase();
+  loadTripMeta();                                    // load trip context (async, non-blocking)
+  loadFromSupabase().then(() => startAutoRefresh()); // โหลด → แล้วเริ่ม auto-refresh
+}
 </script>
 </div> <!-- /page -->
 <script src="./printPassports.js"></script>

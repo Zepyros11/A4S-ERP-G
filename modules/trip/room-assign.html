@@ -396,6 +396,44 @@
       .ba-bus-info{display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin-top:4px;font-size:11.5px;color:var(--text2)}
       .ba-bus-info .sep{color:var(--text3)}
 
+      /* Bus designation (กลุ่มเป้าหมายของคัน — สัญชาติ/ตำแหน่ง) */
+      .ba-bus-design{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+      .ba-bus-design-lbl{font-size:11.5px;font-weight:600;color:var(--text2);white-space:nowrap}
+      .ba-bus-design-sel{
+        font-size:11.5px;padding:3px 6px;border-radius:6px;
+        border:1px solid var(--border);background:#fff;color:var(--text);
+        max-width:130px;cursor:pointer;
+      }
+      .ba-bus-design-sel:focus{outline:2px solid var(--accent,#5b8a72);outline-offset:-1px}
+      .ba-bus-design-sel.set{background:#eef6f1;border-color:#86c9a4;font-weight:600}
+
+      /* Multi-select designation (สัญชาติ / ตำแหน่ง — เลือกได้หลายค่า) */
+      .ba-bus-mpick{position:relative;display:inline-block}
+      .ba-mpick-btn{
+        display:inline-flex;align-items:center;gap:4px;
+        font-size:11.5px;padding:3px 8px;border-radius:6px;
+        border:1px solid var(--border);background:#fff;color:var(--text);
+        cursor:pointer;font-family:inherit;max-width:160px;
+        white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+      }
+      .ba-mpick-btn.set{background:#eef6f1;border-color:#86c9a4;font-weight:600}
+      .ba-mpick-menu{
+        position:absolute;top:calc(100% + 4px);left:0;
+        min-width:180px;max-height:280px;overflow:auto;
+        background:#fff;border:1px solid var(--border);border-radius:10px;
+        box-shadow:0 8px 24px rgba(15,23,42,.15);
+        padding:4px;z-index:50;display:none;
+      }
+      .ba-bus-mpick.open .ba-mpick-menu{display:block}
+      .ba-mpick-menu label{
+        display:flex;align-items:center;gap:8px;
+        padding:6px 10px;border-radius:6px;
+        font-size:12px;color:var(--text);cursor:pointer;
+      }
+      .ba-mpick-menu label:hover{background:#f1f5f9}
+      .ba-mpick-menu input{cursor:pointer;margin:0}
+      .ba-mpick-empty{padding:8px 10px;font-size:11.5px;color:var(--text3)}
+
       /* Guides row in bus card */
       .ba-bus-guides{
         display:flex;align-items:center;flex-wrap:wrap;gap:6px;
