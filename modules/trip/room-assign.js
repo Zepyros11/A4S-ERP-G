@@ -2832,7 +2832,10 @@ function renderSeatMapHtml(rows, occMap, opts = {}) {
           title="${escapeAttr(dname + ' (' + code + ')')} · คลิกเพื่อดูรายละเอียด · กด × เพื่อย้ายออก"
           ${interactive ? `onclick="event.stopPropagation();window.confirmUnassignSeat(${busId}, '${escapeJs(seatNo)}')"` : ""}>
           <span class="ba-seat-num">${seatNo}</span>
-          <span class="ba-seat-name">${escapeHtml(shortName(dname))}</span>
+          <span class="ba-seat-info">
+            <span class="ba-seat-code">${escapeHtml(code)}</span>
+            <span class="ba-seat-name">${escapeHtml(shortName(dname))}</span>
+          </span>
           ${interactive ? `<button class="ba-seat-remove" title="ย้ายออก"
             onclick="event.stopPropagation();window.unassignSeat(${busId}, '${escapeJs(seatNo)}')">×</button>` : ""}
         </div>`;
