@@ -217,6 +217,7 @@
     #main-table tbody tr.row-has-passid > td.col-frozen   { background-color: #bfdbfe; }
     #main-table tbody tr.row-has-passid.sub-row > td.col-frozen { background-color: #ddd6fe; }
     #main-table tbody tr.row-highlighted > td.col-frozen  { background-color: #fef08a; }
+    #main-table tbody tr.row-name-mismatch > td.col-frozen { background-color: #fed7aa; }
     #main-table tbody tr.row-waive > td.col-frozen        { background-color: #fecaca; }
 
     tbody tr { transition: background .1s; }
@@ -233,6 +234,15 @@
     tbody tr.row-has-passid  { background: #bfdbfe; }
     tbody tr.row-has-passid:hover { background: #93c5fd; }
     tbody tr.row-has-passid.sub-row { background: #ddd6fe; }
+    /* Name mismatch — orange, beats every status below waive */
+    tbody tr.row-name-mismatch,
+    tbody tr.row-name-mismatch.editing,
+    tbody tr.row-name-mismatch.sub-row,
+    tbody tr.row-name-mismatch.row-highlighted,
+    tbody tr.row-name-mismatch.row-confirmed,
+    tbody tr.row-name-mismatch.row-has-passid { background: #fed7aa !important; }
+    tbody tr.row-name-mismatch:hover { background: #fdba74 !important; }
+    .name-check { margin-left: 5px; font-size: 12px; cursor: help; vertical-align: middle; }
 
     /* ── Status Cards ─────────────────────────────────── */
     #stats-panel {
@@ -859,6 +869,7 @@
     tbody tr.row-waive.row-highlighted,
     tbody tr.row-waive.row-confirmed,
     tbody tr.row-waive.row-has-passid,
+    tbody tr.row-waive.row-name-mismatch,
     tbody tr.row-waive.sub-row { background: #fecaca !important; }
     tbody tr.row-waive:hover { background: #fca5a5 !important; }
     .waive-cb { width: 16px; height: 16px; cursor: pointer; accent-color: #dc2626; }
@@ -1190,6 +1201,10 @@
     <span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:#fffbea;border:1px solid #fde68a;flex-shrink:0;"></span>
     Editing
   </span>
+  <span style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text2);">
+    <span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:#fed7aa;border:1px solid #fb923c;flex-shrink:0;"></span>
+    ชื่อไม่ตรง Passport
+  </span>
   <span style="flex:1"></span>
   <button id="toggle-freeze-ui" type="button" onclick="toggleFreezeUI()"
           style="padding:4px 10px;border:1px solid var(--border2);border-radius:6px;background:var(--surface);color:var(--text2);font-size:11px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:5px;"
@@ -1289,7 +1304,7 @@ app.post('/extract', async (req, res) => {
       role: 'user',
       content: [
         { type: 'image', source: { type: 'base64', media_type: mediaType, data: imageBase64 } },
-        { type: 'text', text: 'Extract from this passport: 1) passport number/ID, 2) expiry date (YYYY-MM-DD). Respond JSON only: {"id":"...","exp":"YYYY-MM-DD"}' }
+        { type: 'text', text: 'Extract from this passport: 1) passport number/ID, 2) expiry date (YYYY-MM-DD), 3) full name as printed in Latin letters (given names + surname, no titles). Respond JSON only: {"id":"...","exp":"YYYY-MM-DD","name":"..."}' }
       ]
     }]
   });
@@ -2609,6 +2624,40 @@ function isRowComplete(row) {
   return !!(row.passId && row.passExp && row.passImg);
 }
 
+/* ── Name vs Passport check ───────────────────────────────
+   Tokenize, strip accents/punctuation, compare as a set so
+   word order (surname-first vs given-first) doesn't matter. */
+function nameTokens(s) {
+  const noAccents = (s || '').normalize('NFD')
+    .split('').filter(c => { const x = c.charCodeAt(0); return x < 0x300 || x > 0x36F; }).join('');
+  return noAccents
+    .toUpperCase().replace(/[^A-Z\s]/g, ' ')   // keep letters only
+    .split(/\s+/).filter(Boolean);
+}
+function compareNames(typed, passport) {
+  const a = new Set(nameTokens(typed));
+  const b = new Set(nameTokens(passport));
+  if (!a.size || !b.size) return null;
+  let common = 0;
+  a.forEach(t => { if (b.has(t)) common++; });
+  const ratio = common / Math.max(a.size, b.size);
+  if (ratio === 1)   return 'match';
+  if (ratio >= 0.5)  return 'partial';
+  return 'mismatch';
+}
+function nameCheckIcon(row) {
+  if (!row.nameMatch || !row.name) return '';
+  const MAP = {
+    match:    ['✅', 'ชื่อตรงกับ Passport'],
+    partial:  ['⚠️', 'ชื่ออาจไม่ตรง — โปรดตรวจสอบ'],
+    mismatch: ['❌', 'ชื่อไม่ตรงกับ Passport'],
+  };
+  const m = MAP[row.nameMatch];
+  if (!m) return '';
+  const tip = m[1] + (row.passName ? ` (Passport: ${row.passName})` : '');
+  return `<span class="name-check" title="${esc(tip)}">${m[0]}</span>`;
+}
+
 function updateStats() {
   const all     = rows; // ทุก row รวม sub
   const parents = rows.filter(r => !r.isSubRow);
@@ -2948,6 +2997,9 @@ function buildRow(row) {
     if (isRowComplete(row))  tr.classList.add('row-confirmed');
     else if (row.passId)     tr.classList.add('row-has-passid');
   }
+  // Name vs passport check — orange overlay (CSS handles priority vs waive)
+  if (row.nameMatch === 'mismatch' || row.nameMatch === 'partial')
+    tr.classList.add('row-name-mismatch');
 
   const e = row.isEditing;
 
@@ -2977,7 +3029,7 @@ function buildRow(row) {
     <!-- Name -->
     <td class="col-name" data-label="Name">
       ${e ? `<input class="field-input" style="width:145px" value="${esc(row.name)}" onchange="setField('${row.id}','name',this.value)" />` :
-            `<span class="field-view">${esc(row.name)}</span>`}
+            `<span class="field-view">${esc(row.name)}</span>`}${nameCheckIcon(row)}
     </td>
 
     <!-- Instead -->
@@ -3223,6 +3275,11 @@ function setField(id, field, value) {
   const row = getRow(id);
   if (!row) return;
   row[field] = value;
+  // Re-evaluate name-vs-passport check when the typed name changes
+  if (field === 'name' && row.passName) {
+    row.nameMatch = compareNames(row.name, row.passName);
+    refreshRow(row);
+  }
   scheduleRowSave(row);
 }
 
@@ -3507,9 +3564,18 @@ async function aiExtract(id) {
 
     if (data.id)  { row.passId  = data.id;  }
     if (data.exp) { row.passExp = data.exp;  }
+    if (data.name) {
+      row.passName  = data.name;
+      row.nameMatch = compareNames(row.name, data.name);
+    }
 
     refreshRow(row);
-    toast('AI Passport extraction successful', 'success');
+    if (row.nameMatch === 'mismatch')
+      toast('⚠️ ดึงข้อมูลสำเร็จ — ชื่อไม่ตรงกับ Passport', 'error');
+    else if (row.nameMatch === 'partial')
+      toast('⚠️ ดึงข้อมูลสำเร็จ — ชื่ออาจไม่ตรง โปรดตรวจสอบ', 'info');
+    else
+      toast('AI Passport extraction successful', 'success');
   } catch (err) {
     toast('AI Extraction failed: ' + err.message, 'error');
   } finally {
