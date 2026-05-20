@@ -3676,6 +3676,84 @@ async function saveAllToSupabase() {
 }
 
 /* ═══════════════════════════════════════════════════════════
+   PRINT PASSPORTS — printable sheet of passport images
+═══════════════════════════════════════════════════════════ */
+function printPassports() {
+  const list = rows.filter(r => r.passImg || r.passImgFile);
+  if (list.length === 0) {
+    toast('ไม่มีรูป Passport ให้พิมพ์', 'error');
+    return;
+  }
+
+  const fmt       = (window.DateFmt && window.DateFmt.formatDMY) || (s => s || '');
+  const tripName  = (currentTrip && currentTrip.trip_name)
+                    || (currentTripId != null ? `Trip #${currentTripId}` : 'Check Seat');
+  const range     = currentTrip
+    ? `${currentTrip.start_date ? fmt(currentTrip.start_date) : '—'} → ${currentTrip.end_date ? fmt(currentTrip.end_date) : '—'}`
+    : '';
+  const printedAt = new Date().toLocaleString('th-TH', { timeZone: 'Asia/Bangkok' });
+
+  const cards = list.map(r => {
+    let src = r.passImg;
+    if (!src && r.passImgFile) { try { src = URL.createObjectURL(r.passImgFile); } catch (e) {} }
+    return `
+      <div class="pp-card">
+        <div class="pp-img"><img src="${esc(src)}" alt="passport" /></div>
+        <div class="pp-meta">
+          <span class="pp-code">${esc(r.code) || '—'}</span>
+          <span class="pp-name">${esc(r.name) || '—'}</span>
+        </div>
+        <div class="pp-sub">Pass. ID: <b>${esc(r.passId) || '—'}</b> &nbsp;·&nbsp; Exp: <b>${esc(r.passExp) || '—'}</b></div>
+      </div>`;
+  }).join('');
+
+  const html = `<!doctype html><html lang="th"><head><meta charset="utf-8">
+<title>Passport — ${esc(tripName)}</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', Tahoma, sans-serif; color: #1f2937; padding: 12mm 9mm; }
+  .pp-head { text-align: center; margin-bottom: 14px; border-bottom: 2px solid #0f4c75; padding-bottom: 8px; }
+  .pp-head h1 { font-size: 18px; color: #0f4c75; }
+  .pp-head .sub { font-size: 12px; color: #6b7280; margin-top: 3px; }
+  .pp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .pp-card { border: 1px solid #d1d5db; border-radius: 6px; padding: 8px; page-break-inside: avoid; }
+  .pp-img { background: #f3f4f6; border-radius: 4px; overflow: hidden; text-align: center; }
+  .pp-img img { max-width: 100%; max-height: 88mm; object-fit: contain; display: inline-block; }
+  .pp-meta { display: flex; gap: 8px; align-items: baseline; margin-top: 6px; flex-wrap: wrap; }
+  .pp-code { font-weight: 700; color: #0f4c75; font-size: 13px; }
+  .pp-name { font-weight: 600; font-size: 13px; }
+  .pp-sub { font-size: 11px; color: #6b7280; margin-top: 2px; }
+  @media print { body { padding: 0 4mm; } .pp-head { margin-bottom: 10px; } }
+</style></head><body>
+  <div class="pp-head">
+    <h1>✈ ${esc(tripName)}</h1>
+    <div class="sub">${range ? esc(range) + ' · ' : ''}Passport ${list.length} รายการ · พิมพ์เมื่อ ${esc(printedAt)}</div>
+  </div>
+  <div class="pp-grid">${cards}</div>
+</body></html>`;
+
+  const w = window.open('', '_blank');
+  if (!w) { toast('เบราว์เซอร์บล็อก popup — อนุญาต popup แล้วลองใหม่', 'error'); return; }
+  w.document.write(html);
+  w.document.close();
+
+  // สั่งพิมพ์เมื่อรูปโหลดครบ — ควบคุมจากหน้าหลัก (ไม่ฝัง script ในเอกสารที่สร้าง)
+  const fire = () => { try { w.focus(); w.print(); } catch (e) {} };
+  const imgs = Array.prototype.slice.call(w.document.images);
+  let left = imgs.length;
+  if (left === 0) {
+    setTimeout(fire, 120);
+  } else {
+    const done = () => { if (--left <= 0) setTimeout(fire, 250); };
+    imgs.forEach(img => {
+      if (img.complete) done();
+      else { img.addEventListener('load', done); img.addEventListener('error', done); }
+    });
+  }
+  toast(`เตรียมพิมพ์ Passport ${list.length} รายการ`, 'success');
+}
+
+/* ═══════════════════════════════════════════════════════════
    EXPORT EXCEL
 ═══════════════════════════════════════════════════════════ */
 function exportExcel() {
@@ -4173,7 +4251,6 @@ loadTripMeta();                                    // load trip context (async, 
 loadFromSupabase().then(() => startAutoRefresh()); // โหลด → แล้วเริ่ม auto-refresh
 </script>
 </div> <!-- /page -->
-<script src="./printPassports.js"></script>
 <script src="../../js/components/modal/confirmModal.js"></script>
 <script src="../../js/components/modal/promptModal.js"></script>
 <script src="../../js/components/modal/modalManager.js"></script>
