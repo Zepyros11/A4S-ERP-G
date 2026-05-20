@@ -162,7 +162,10 @@ async function loadAll() {
     ]);
     state.trip = trip;
     // รวมทุกแถว (parent + sub-row) — 1 แถว = 1 ที่นั่ง เหมือน check-seat/room-assign
-    // sub-row มักเว้นข้อมูลว่าง → สืบทอด field ที่ว่างจาก parent ให้แถวไม่โล่ง
+    // sub-row สืบทอดจาก parent "เฉพาะ field ระบุตัวตน" (ชื่อ/เพศ/สัญชาติ) เผื่อแถวว่างเปล่า
+    // — ไม่สืบทอด ตำแหน่ง/passport/ที่นั่ง ฯลฯ เพราะเป็นข้อมูลเฉพาะบุคคล
+    //   ถ้า sub-row เว้นว่าง = ว่างจริง ต้องแสดงว่าง (ห้ามก๊อปของ parent)
+    const INHERIT_FIELDS = ["name", "gender", "nationality"];
     const allRows = pax || [];
     const byCode = {};
     allRows.forEach(r => { byCode[r.code] = r; });
@@ -170,7 +173,7 @@ async function loadAll() {
       if (!r.is_sub_row || !r.parent_code) return;
       const parent = byCode[r.parent_code];
       if (!parent) return;
-      Object.keys(parent).forEach(k => {
+      INHERIT_FIELDS.forEach(k => {
         if (r[k] === null || r[k] === undefined || r[k] === "") r[k] = parent[k];
       });
     });
