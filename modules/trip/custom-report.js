@@ -61,14 +61,24 @@ const COLUMN_GROUPS = [
 const COL_BY_KEY = {};
 COLUMN_GROUPS.forEach(g => g.cols.forEach(c => { COL_BY_KEY[c.key] = c; }));
 
+// ลำดับ sort ของคอลัมน์ "ตำแหน่ง" (pin) — ไม่ใช่ ASC/DESC ตามตัวอักษร
+// แต่เรียงตามชั้นยศ: SVP → VP → AVP → SD → DR (ค่าอื่น/ว่าง = ท้ายสุด)
+const PIN_RANK = { SVP: 0, VP: 1, AVP: 2, SD: 3, DR: 4 };
+function pinRank(v) {
+  const r = PIN_RANK[String(v || "").trim().toUpperCase()];
+  return r === undefined ? 99 : r;
+}
+
 const state = {
   tripId: null,
   trip: null,
-  pax: [],          // tour_seat_check rows (ไม่รวม sub-row)
+  pax: [],          // tour_seat_check rows (รวม sub-row — sub สืบทอด field ว่างจาก parent)
   calc: {},         // code -> { _hotel, _room, _checkin, _checkout, _bus, _busseat }
   templates: [],    // trip_report_templates
   selected: [],     // column keys เรียงตามลำดับแสดง
   collapsed: {},     // group id -> true ถ้ายุบ
+  sortKey: null,    // column key ที่กำลัง sort (null = ลำดับโหลด)
+  sortDir: 1,       // 1 = น้อย→มาก, -1 = มาก→น้อย
 };
 
 // ── SUPABASE ───────────────────────────────────────────────
@@ -151,7 +161,20 @@ async function loadAll() {
       sbFetch("trip_report_templates", "?select=*&order=name.asc").catch(() => []),
     ]);
     state.trip = trip;
-    state.pax = (pax || []).filter(r => !r.is_sub_row);
+    // รวมทุกแถว (parent + sub-row) — 1 แถว = 1 ที่นั่ง เหมือน check-seat/room-assign
+    // sub-row มักเว้นข้อมูลว่าง → สืบทอด field ที่ว่างจาก parent ให้แถวไม่โล่ง
+    const allRows = pax || [];
+    const byCode = {};
+    allRows.forEach(r => { byCode[r.code] = r; });
+    allRows.forEach(r => {
+      if (!r.is_sub_row || !r.parent_code) return;
+      const parent = byCode[r.parent_code];
+      if (!parent) return;
+      Object.keys(parent).forEach(k => {
+        if (r[k] === null || r[k] === undefined || r[k] === "") r[k] = parent[k];
+      });
+    });
+    state.pax = allRows;
     state.templates = templates || [];
 
     await buildCalc(rooms || [], buses || []);
@@ -276,6 +299,34 @@ function cellValue(row, col) {
   return String(v);
 }
 
+// ค่าใช้เปรียบเทียบตอน sort — pin ใช้ rank, date ใช้ค่า ISO ดิบ, อื่นๆ ใช้ string
+function sortValue(row, col) {
+  if (col.key === "pin") return pinRank(row.pin);
+  if (col.src === "pax" && col.fmt === "date") return row[col.key] || ""; // ISO → string sort ถูก
+  return cellValue(row, col).toLowerCase();
+}
+
+// คืน rows ตามลำดับ sort ปัจจุบัน (ไม่แก้ state.pax เดิม)
+function getRows() {
+  if (!state.sortKey) return state.pax;
+  const col = COL_BY_KEY[state.sortKey];
+  if (!col) return state.pax;
+  return [...state.pax].sort((a, b) => {
+    const va = sortValue(a, col), vb = sortValue(b, col);
+    let cmp;
+    if (typeof va === "number" && typeof vb === "number") cmp = va - vb;
+    else cmp = String(va).localeCompare(String(vb), undefined, { numeric: true });
+    return cmp * state.sortDir;
+  });
+}
+
+window.sortBy = function (key) {
+  if (!COL_BY_KEY[key]) return;
+  if (state.sortKey === key) state.sortDir = -state.sortDir;
+  else { state.sortKey = key; state.sortDir = 1; }
+  renderPreview();
+};
+
 function renderPreview() {
   const table = document.getElementById("crTable");
   const empty = document.getElementById("crEmpty");
@@ -291,8 +342,15 @@ function renderPreview() {
   table.style.display = "";
   count.textContent = `· ${state.pax.length} คน · ${cols.length} คอลัมน์`;
   document.getElementById("crThead").innerHTML =
-    `<th style="width:40px">#</th>` + cols.map(c => `<th>${escapeHtml(c.label)}</th>`).join("");
-  document.getElementById("crTbody").innerHTML = state.pax.map((row, i) =>
+    `<th style="width:40px">#</th>` + cols.map(c => {
+      const active = state.sortKey === c.key;
+      const ind = active ? (state.sortDir === 1 ? " ▲" : " ▼")
+                         : ` <span style="opacity:.3">↕</span>`;
+      const tip = c.key === "pin" ? " title=\"เรียงตามชั้นยศ SVP→VP→AVP→SD→DR\"" : "";
+      return `<th style="cursor:pointer;user-select:none"${tip}
+        onclick="window.sortBy('${c.key}')">${escapeHtml(c.label)}${ind}</th>`;
+    }).join("");
+  document.getElementById("crTbody").innerHTML = getRows().map((row, i) =>
     `<tr><td style="color:var(--text3)">${i + 1}</td>` +
     cols.map(c => `<td>${escapeHtml(cellValue(row, c))}</td>`).join("") +
     `</tr>`).join("");
@@ -423,7 +481,7 @@ window.exportReportExcel = function () {
   const cols = selectedCols();
   if (!cols.length) { showToast("เลือกคอลัมน์ก่อน export", "info"); return; }
   if (typeof XLSX === "undefined") { showToast("XLSX ยังโหลดไม่เสร็จ — ลองใหม่", "error"); return; }
-  const data = state.pax.map(row => {
+  const data = getRows().map(row => {
     const o = {};
     cols.forEach(c => { o[c.label] = cellValue(row, c); });
     return o;
@@ -444,7 +502,7 @@ window.exportReportPrint = function () {
   const co = state.trip?.end_date ? fmtDate(state.trip.end_date) : "";
   const dates = (ci || co) ? ` · ${ci || "—"} → ${co || "—"}` : "";
   const thead = `<th>#</th>` + cols.map(c => `<th>${escapeHtml(c.label)}</th>`).join("");
-  const tbody = state.pax.map((row, i) =>
+  const tbody = getRows().map((row, i) =>
     `<tr><td>${i + 1}</td>` +
     cols.map(c => `<td>${escapeHtml(cellValue(row, c))}</td>`).join("") +
     `</tr>`).join("");
