@@ -77,8 +77,7 @@ const state = {
   templates: [],    // trip_report_templates
   selected: [],     // column keys เรียงตามลำดับแสดง
   collapsed: {},     // group id -> true ถ้ายุบ
-  sortKey: null,    // column key ที่กำลัง sort (null = ลำดับโหลด)
-  sortDir: 1,       // 1 = น้อย→มาก, -1 = มาก→น้อย
+  sort: [],         // multi-sort chain: [{key, dir:1|-1}, ...] — ลำดับใน array = ลำดับ priority
 };
 
 // ── SUPABASE ───────────────────────────────────────────────
@@ -350,24 +349,30 @@ function sortValue(row, col) {
 
 // คืน rows ตามลำดับ sort ปัจจุบัน (ไม่แก้ state.pax เดิม)
 // ถ้าเลือกคอลัมน์โรงแรม/ห้อง → expand เป็น 1 แถว/โรงแรม ก่อน sort
+// multi-sort: เรียงตาม chain ใน state.sort (priority ตามลำดับใน array)
 function getRows() {
   const base = expandedPax();
-  if (!state.sortKey) return base;
-  const col = COL_BY_KEY[state.sortKey];
-  if (!col) return base;
+  const chain = state.sort.map(s => ({ col: COL_BY_KEY[s.key], dir: s.dir })).filter(x => x.col);
+  if (!chain.length) return base;
   return [...base].sort((a, b) => {
-    const va = sortValue(a, col), vb = sortValue(b, col);
-    let cmp;
-    if (typeof va === "number" && typeof vb === "number") cmp = va - vb;
-    else cmp = String(va).localeCompare(String(vb), undefined, { numeric: true });
-    return cmp * state.sortDir;
+    for (const { col, dir } of chain) {
+      const va = sortValue(a, col), vb = sortValue(b, col);
+      let cmp;
+      if (typeof va === "number" && typeof vb === "number") cmp = va - vb;
+      else cmp = String(va).localeCompare(String(vb), undefined, { numeric: true });
+      if (cmp !== 0) return cmp * dir;
+    }
+    return 0;
   });
 }
 
+// คลิกคอลัมน์ → cycle: (ไม่อยู่ใน chain) เพิ่มเข้าท้าย asc → desc → ลบออก
 window.sortBy = function (key) {
   if (!COL_BY_KEY[key]) return;
-  if (state.sortKey === key) state.sortDir = -state.sortDir;
-  else { state.sortKey = key; state.sortDir = 1; }
+  const i = state.sort.findIndex(s => s.key === key);
+  if (i < 0) state.sort.push({ key, dir: 1 });
+  else if (state.sort[i].dir === 1) state.sort[i].dir = -1;
+  else state.sort.splice(i, 1);
   renderPreview();
 };
 
@@ -387,12 +392,18 @@ function renderPreview() {
   const rows = getRows();
   const extra = rows.length !== state.pax.length ? ` · ${rows.length} แถว (แยกตามโรงแรม)` : "";
   count.textContent = `· ${state.pax.length} คน${extra} · ${cols.length} คอลัมน์`;
+  const multi = state.sort.length > 1;
   document.getElementById("crThead").innerHTML =
     `<th style="width:40px">#</th>` + cols.map(c => {
-      const active = state.sortKey === c.key;
-      const ind = active ? (state.sortDir === 1 ? " ▲" : " ▼")
-                         : ` <span style="opacity:.3">↕</span>`;
-      const tip = c.key === "pin" ? " title=\"เรียงตามชั้นยศ SVP→VP→AVP→SD→DR\"" : "";
+      const idx = state.sort.findIndex(s => s.key === c.key);
+      const active = idx >= 0;
+      const arrow = active ? (state.sort[idx].dir === 1 ? "▲" : "▼") : "";
+      const badge = active && multi
+        ? ` <span style="display:inline-block;min-width:14px;padding:0 4px;background:var(--accent);color:#fff;border-radius:7px;font-size:9.5px;font-weight:700;line-height:13px;vertical-align:1px">${idx + 1}</span>`
+        : "";
+      const ind = active ? ` ${arrow}${badge}` : ` <span style="opacity:.3">↕</span>`;
+      const baseTip = c.key === "pin" ? "เรียงตามชั้นยศ SVP→VP→AVP→SD→DR — " : "";
+      const tip = ` title="${baseTip}คลิก: asc → desc → ลบออก · กดหลายคอลัมน์ = multi-sort (ลำดับ priority ตามลำดับการกด)"`;
       return `<th style="cursor:pointer;user-select:none"${tip}
         onclick="window.sortBy('${c.key}')">${escapeHtml(c.label)}${ind}</th>`;
     }).join("");
