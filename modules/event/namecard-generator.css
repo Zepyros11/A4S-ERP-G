@@ -340,6 +340,36 @@
   line-height: 1.4;
 }
 
+/* ── Processing popup (export PDF/ZIP) · enhances .loading-overlay ── */
+.nmc-processing {
+  background: #fff;
+  border-radius: 16px;
+  padding: 26px 34px;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.18), 0 0 0 1px var(--border, #e5e7eb);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  min-width: 260px;
+  max-width: 380px;
+  text-align: center;
+}
+.nmc-processing .spinner {
+  width: 48px;
+  height: 48px;
+  border-width: 4px;
+}
+.nmc-processing-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text, #111827);
+}
+.nmc-processing-sub {
+  font-size: 13px;
+  color: var(--text-muted, #6b7280);
+  min-height: 18px;
+}
+
 /* ── Template upload modal · uses shared .modal-overlay ──── */
 .cert-tpl-grid {
   display: grid;

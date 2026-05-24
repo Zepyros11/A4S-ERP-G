@@ -159,6 +159,23 @@
     setTimeout(() => t.classList.remove("show"), 2800);
   }
 
+  // ── Processing popup (export PDF/ZIP) ─────────────────────
+  function showProcessing(title, sub = "") {
+    const ov = $("loadingOverlay");
+    if (!ov) return;
+    const t = $("processingTitle"); if (t) t.textContent = title || "กำลังประมวลผล...";
+    const s = $("processingSub");   if (s) s.textContent = sub || "";
+    ov.classList.add("show");
+  }
+  function updateProcessing(sub) {
+    const s = $("processingSub");
+    if (s) s.textContent = sub || "";
+  }
+  function hideProcessing() {
+    const ov = $("loadingOverlay");
+    if (ov) ov.classList.remove("show");
+  }
+
   function setStep(idx) {
     [1, 2, 3].forEach(i => {
       const el = $("step" + i);
@@ -468,6 +485,7 @@
     const btn = $("btnExportPDF");
     const origText = btn ? btn.textContent : "";
     if (btn) { btn.disabled = true; btn.textContent = "⏳ กำลังสร้าง PDF..."; }
+    showProcessing("กำลังสร้าง PDF ป้ายชื่อ...", "เตรียมข้อมูล");
 
     try {
       renderSheets();
@@ -494,6 +512,7 @@
       const sheets = printArea.querySelectorAll(".nmc-a4");
 
       for (let i = 0; i < sheets.length; i++) {
+        updateProcessing(`เรนเดอร์หน้า ${i + 1} / ${sheets.length}`);
         if (i > 0) pdf.addPage();
         const canvas = await html2canvas(sheets[i], {
           scale: 3,                  // ~3× DPI for sharp print
@@ -514,6 +533,7 @@
       printArea.style.visibility = origStyle.visibility;
       printArea.style.zIndex     = "";
 
+      updateProcessing("กำลังบันทึกไฟล์...");
       const stamp = new Date().toISOString().slice(0, 10);
       pdf.save(`namecards-${stamp}.pdf`);
       showToast(`ส่งออก PDF เรียบร้อย (${sheets.length} หน้า · ${rows.length} ใบ)`);
@@ -522,6 +542,7 @@
       showToast("สร้าง PDF ไม่สำเร็จ — " + err.message, "error");
     } finally {
       if (btn) { btn.disabled = false; btn.textContent = origText; }
+      hideProcessing();
     }
   }
 
@@ -703,6 +724,7 @@
     const btn = $("btnExportVipPDF");
     const orig = btn ? btn.textContent : "";
     if (btn) { btn.disabled = true; btn.textContent = "⏳ กำลังสร้าง PDF..."; }
+    showProcessing("กำลังสร้าง PDF ป้าย VIP...", "เตรียมข้อมูล");
 
     try {
       renderVipSheets();
@@ -724,6 +746,7 @@
       const sheets = printArea.querySelectorAll(".vip-a4");
 
       for (let i = 0; i < sheets.length; i++) {
+        updateProcessing(`เรนเดอร์หน้า ${i + 1} / ${sheets.length}`);
         if (i > 0) pdf.addPage();
         const canvas = await html2canvas(sheets[i], {
           scale: 3, useCORS: true, backgroundColor: "#ffffff", logging: false,
@@ -738,6 +761,7 @@
       printArea.style.visibility = orig2.visibility;
       printArea.style.zIndex     = "";
 
+      updateProcessing("กำลังบันทึกไฟล์...");
       const stamp = new Date().toISOString().slice(0, 10);
       pdf.save(`vip-cards-${stamp}.pdf`);
       showToast(`ส่งออก PDF เรียบร้อย (${sheets.length} หน้า · ${vipQty} ใบ)`);
@@ -746,6 +770,7 @@
       showToast("สร้าง PDF ไม่สำเร็จ — " + err.message, "error");
     } finally {
       if (btn) { btn.disabled = false; btn.textContent = orig; }
+      hideProcessing();
     }
   }
 
@@ -1434,6 +1459,7 @@
     const btn = $("btnExportCertImg");
     const orig = btn ? btn.textContent : "";
     if (btn) { btn.disabled = true; btn.textContent = "⏳ กำลังสร้างภาพ..."; }
+    showProcessing("กำลังสร้างภาพใบประกาศ...", `เตรียม ${certRows.length} ใบ`);
 
     try {
       renderCertSheets();
@@ -1455,6 +1481,7 @@
 
       for (let i = 0; i < sheets.length; i++) {
         if (btn) btn.textContent = `⏳ กำลังสร้างภาพ... (${i + 1}/${sheets.length})`;
+        updateProcessing(`เรนเดอร์ใบที่ ${i + 1} / ${sheets.length}`);
         const canvas = await html2canvas(sheets[i], {
           scale: 3, useCORS: true, backgroundColor: "#ffffff", logging: false,
         });
@@ -1478,6 +1505,7 @@
         showToast(`ดาวน์โหลดภาพเรียบร้อย`);
       } else {
         if (btn) btn.textContent = "⏳ กำลังบีบอัด ZIP...";
+        updateProcessing("กำลังบีบอัด ZIP...");
         const zip = new JSZip();
         // Avoid filename collisions (e.g. 2 rows with same name)
         const used = {};
@@ -1510,6 +1538,7 @@
       showToast("สร้างภาพไม่สำเร็จ — " + err.message, "error");
     } finally {
       if (btn) { btn.disabled = false; btn.textContent = orig; }
+      hideProcessing();
     }
   }
 
@@ -1535,6 +1564,7 @@
     const btn = $("btnExportCertPDF");
     const orig = btn ? btn.textContent : "";
     if (btn) { btn.disabled = true; btn.textContent = "⏳ กำลังสร้าง PDF..."; }
+    showProcessing("กำลังสร้าง PDF ใบประกาศ...", `เตรียม ${certRows.length} ใบ`);
 
     try {
       renderCertSheets();
@@ -1556,6 +1586,7 @@
       const sheets = printArea.querySelectorAll(".cert-a4");
 
       for (let i = 0; i < sheets.length; i++) {
+        updateProcessing(`เรนเดอร์ใบที่ ${i + 1} / ${sheets.length}`);
         if (i > 0) pdf.addPage();
         const canvas = await html2canvas(sheets[i], {
           scale: 3, useCORS: true, backgroundColor: "#ffffff", logging: false,
@@ -1571,6 +1602,7 @@
       printArea.style.visibility = orig2.visibility;
       printArea.style.zIndex     = "";
 
+      updateProcessing("กำลังบันทึกไฟล์...");
       const stamp = new Date().toISOString().slice(0, 10);
       pdf.save(`certificates-${stamp}.pdf`);
       showToast(`ส่งออก PDF เรียบร้อย (${sheets.length} ใบ)`);
@@ -1579,6 +1611,7 @@
       showToast("สร้าง PDF ไม่สำเร็จ — " + err.message, "error");
     } finally {
       if (btn) { btn.disabled = false; btn.textContent = orig; }
+      hideProcessing();
     }
   }
 

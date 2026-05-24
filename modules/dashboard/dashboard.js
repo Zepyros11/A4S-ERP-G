@@ -42,11 +42,28 @@ async function sbFetch(table, query = '') {
   return res.json();
 }
 
+async function sbCount(table, query = '') {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}${query}${query.includes('?') ? '&' : '?'}select=*&limit=1`, {
+    headers: {
+      'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`,
+      'Prefer': 'count=exact', 'Range': '0-0',
+    },
+  });
+  return parseInt((res.headers.get('content-range') || '*/0').split('/')[1], 10) || 0;
+}
+
 async function loadAll() {
   if (!SUPABASE_URL || !SUPABASE_KEY) return;
   setWelcome();
-  checkPatExpiry();    // fire-and-forget — show alert if PAT expiring
-  loadMemberStats();   // fire-and-forget — render MLM charts
+  checkPatExpiry();         // fire-and-forget — show alert if PAT expiring
+  loadMemberStats();        // KPI #1 + MLM charts
+  loadEventsModule();       // KPI #2 + upcoming events
+  loadStockOrdersModule();  // KPI #3 + stock & docs
+  loadIbdModule();          // KPI #4 + IBD mini cards
+}
+
+/* ── Module: Stock & Orders (also feeds Sales KPI) ── */
+async function loadStockOrdersModule() {
   try {
     const [products, stockBalance, pos, sos, movements] = await Promise.all([
       sbFetch('products', '?select=product_id,product_code,product_name,reorder_point,is_active,disable_stock_alert&is_active=eq.true'),
@@ -55,45 +72,39 @@ async function loadAll() {
       sbFetch('sales_orders', '?select=so_id,so_number,order_date,total_amount,status&order=order_date.desc&limit=100'),
       sbFetch('stock_movements', '?select=*&order=moved_at.desc&limit=100'),
     ]);
-    renderKPIs(products, stockBalance, pos, sos);
+    renderSalesKPI(sos);
+    renderStockBadge(products, stockBalance);
     renderStockAlerts(products, stockBalance);
     renderTopProducts(products, stockBalance);
     renderRecentDocs(pos, sos);
     renderMovementChart(movements);
     renderRecentMovements(movements, products);
   } catch(e) {
-    showToast('โหลดไม่ได้: ' + e.message, 'error');
+    showToast('โหลด stock/orders ไม่ได้: ' + e.message, 'error');
   }
 }
 
-function renderKPIs(products, stockBalance, pos, sos) {
-  const totalStock = stockBalance.reduce((s, b) => s + (b.qty_on_hand || 0), 0);
-  document.getElementById('kpiProducts').textContent = products.length;
-  document.getElementById('kpiProductsSub').textContent = `Stock รวม ${totalStock.toLocaleString()} ชิ้น`;
-  document.getElementById('trendProducts').textContent = `${products.length} รายการ`;
-  document.getElementById('trendProducts').className = 'kpi-trend trend-neu';
-
+function renderSalesKPI(sos) {
   const now = new Date();
   const monthStart = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-01`;
-  const monthPO = pos.filter(p => p.order_date >= monthStart);
-  const totalPOAmt = monthPO.reduce((s, p) => s + parseFloat(p.total_amount || 0), 0);
-  document.getElementById('kpiPO').textContent = monthPO.length;
-  document.getElementById('kpiPOSub').textContent = `฿${totalPOAmt.toLocaleString('th-TH', { minimumFractionDigits:0 })}`;
-  document.getElementById('trendPO').textContent = `${monthPO.length} ใบ`;
-
-  const monthSO = sos.filter(s => s.order_date >= monthStart);
+  const monthSO = sos.filter(s => s.order_date >= monthStart && s.status !== 'CANCELLED');
   const totalSOAmt = monthSO.reduce((s, p) => s + parseFloat(p.total_amount || 0), 0);
-  document.getElementById('kpiSO').textContent = monthSO.length;
-  document.getElementById('kpiSOSub').textContent = `฿${totalSOAmt.toLocaleString('th-TH', { minimumFractionDigits:0 })}`;
+  document.getElementById('kpiSO').textContent = `฿${totalSOAmt.toLocaleString('th-TH', { maximumFractionDigits:0 })}`;
+  document.getElementById('kpiSOSub').textContent = `${monthSO.length} ใบ · เดือนนี้`;
   document.getElementById('trendSO').textContent = `${monthSO.length} ใบ`;
+}
 
+function renderStockBadge(products, stockBalance) {
   const stockMap = {};
   stockBalance.forEach(b => { stockMap[b.product_id] = (stockMap[b.product_id] || 0) + (b.qty_on_hand || 0); });
   const alertCount = products.filter(p => !p.disable_stock_alert && (stockMap[p.product_id] || 0) <= (p.reorder_point || 0)).length;
-  document.getElementById('kpiAlert').textContent = alertCount;
-  document.getElementById('kpiAlertSub').textContent = alertCount > 0 ? 'ต้องสั่งซื้อเพิ่ม' : 'Stock ปกติ ✓';
-  document.getElementById('trendAlert').textContent = alertCount > 0 ? `⚠️ ${alertCount}` : '✓ ปกติ';
-  document.getElementById('trendAlert').className = `kpi-trend ${alertCount > 0 ? 'trend-down' : 'trend-up'}`;
+  const totalStock = stockBalance.reduce((s, b) => s + (b.qty_on_hand || 0), 0);
+  const badge = document.getElementById('stockTotalBadge');
+  if (badge) {
+    badge.innerHTML = alertCount > 0
+      ? `${products.length} SKU · <span style="color:var(--danger);font-weight:700">${alertCount} ต้องเติม</span>`
+      : `${products.length} SKU · Stock ${totalStock.toLocaleString()} ชิ้น`;
+  }
 }
 
 function renderStockAlerts(products, stockBalance) {
@@ -217,12 +228,13 @@ async function _mlmFetch(view) {
 
 async function loadMemberStats() {
   const section = document.getElementById('memberStatsSection');
-  if (!section) return;
-  // Hide if user has no member_view perm (AuthZ.applyDomPerms อาจยังไม่ทำ)
+  // Hide KPI + section if user has no member_view perm
   if (window.AuthZ && !AuthZ.hasPerm('member_view')) {
-    section.style.display = 'none';
+    if (section) section.style.display = 'none';
+    document.querySelectorAll('[data-perm="member_view"]').forEach(el => el.style.display = 'none');
     return;
   }
+  if (!section) return;
   if (typeof Chart === 'undefined') {
     console.warn('Chart.js not loaded');
     return;
@@ -237,6 +249,27 @@ async function loadMemberStats() {
       _mlmTotalCount(),
     ]);
 
+    // KPI #1: Members total + new this month
+    const now = new Date();
+    const curMonth = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+    const newThisMonth = (monthly.find(r => r.month === curMonth)?.count) || 0;
+    const lastMonth = new Date(now.getFullYear(), now.getMonth()-1, 1);
+    const lastMonthKey = `${lastMonth.getFullYear()}-${String(lastMonth.getMonth()+1).padStart(2,'0')}`;
+    const newLastMonth = (monthly.find(r => r.month === lastMonthKey)?.count) || 0;
+    document.getElementById('kpiMembers').textContent = total.toLocaleString();
+    document.getElementById('kpiMembersSub').textContent = `+${newThisMonth.toLocaleString()} คน · เดือนนี้`;
+    const tEl = document.getElementById('trendMembers');
+    if (newThisMonth > newLastMonth) {
+      tEl.textContent = `↑ +${newThisMonth - newLastMonth}`;
+      tEl.className = 'kpi-trend trend-up';
+    } else if (newThisMonth < newLastMonth) {
+      tEl.textContent = `↓ ${newThisMonth - newLastMonth}`;
+      tEl.className = 'kpi-trend trend-down';
+    } else {
+      tEl.textContent = `= ${newThisMonth}`;
+      tEl.className = 'kpi-trend trend-neu';
+    }
+
     document.getElementById('mlmTotalBadge').textContent = `${total.toLocaleString()} คน`;
     _renderTrendChart(monthly);
     _renderCountryChart(country);
@@ -248,6 +281,137 @@ async function loadMemberStats() {
     if (e.message.includes('404') || e.message.includes('PGRST')) {
       section.style.display = 'none';
     }
+  }
+}
+
+/* ============================================================
+   EVENTS MODULE — KPI #2 + Upcoming events list
+   ============================================================ */
+async function loadEventsModule() {
+  const section = document.getElementById('eventsSection');
+  if (window.AuthZ && !AuthZ.hasPerm('events_view')) {
+    if (section) section.style.display = 'none';
+    document.querySelectorAll('[data-perm="events_view"]').forEach(el => el.style.display = 'none');
+    return;
+  }
+  try {
+    const today = new Date().toISOString().substring(0, 10);
+    const upcoming = await sbFetch(
+      'events',
+      `?select=event_id,event_code,event_name,event_date,end_date,location,max_attendees&event_date=gte.${today}&order=event_date.asc&limit=5`
+    );
+    const totalUpcoming = await sbCount('events', `?event_date=gte.${today}`);
+
+    // attendees per event
+    let attendeesByEvent = {};
+    if (upcoming.length) {
+      const ids = upcoming.map(e => e.event_id).join(',');
+      const atts = await sbFetch('event_attendees', `?select=event_id&event_id=in.(${ids})`);
+      atts.forEach(a => { attendeesByEvent[a.event_id] = (attendeesByEvent[a.event_id] || 0) + 1; });
+    }
+
+    // KPI #2
+    const totalAtt = Object.values(attendeesByEvent).reduce((s, n) => s + n, 0);
+    document.getElementById('kpiEvents').textContent = totalUpcoming;
+    document.getElementById('kpiEventsSub').textContent = `${totalAtt.toLocaleString()} คนลงทะเบียน (5 รายการล่าสุด)`;
+    document.getElementById('trendEvents').textContent = upcoming[0]
+      ? `เร็วสุด ${new Date(upcoming[0].event_date).toLocaleDateString('th-TH', { day:'numeric', month:'short' })}`
+      : '—';
+
+    // Badge
+    document.getElementById('eventsTotalBadge').textContent = `${totalUpcoming.toLocaleString()} กำลังจะมา`;
+
+    // Render upcoming list
+    renderUpcomingEvents(upcoming, attendeesByEvent);
+  } catch (e) {
+    console.error('loadEventsModule:', e);
+    document.getElementById('kpiEvents').textContent = '—';
+    document.getElementById('kpiEventsSub').textContent = 'โหลดไม่ได้';
+  }
+}
+
+function renderUpcomingEvents(events, attendeesByEvent) {
+  const el = document.getElementById('upcomingEvents');
+  if (!events.length) {
+    el.innerHTML = `<div class="empty-sm"><div class="empty-sm-icon">📅</div>ยังไม่มี Event ที่กำลังจะมา</div>`;
+    return;
+  }
+  el.innerHTML = `<div class="upcoming-events-grid">${events.map(ev => {
+    const reg = attendeesByEvent[ev.event_id] || 0;
+    const max = ev.max_attendees || 0;
+    const pct = max > 0 ? Math.min(100, Math.round(reg / max * 100)) : 0;
+    const fillCls = pct >= 100 ? 'full' : pct >= 80 ? 'warn' : '';
+    const dateLabel = formatEventDate(ev.event_date, ev.end_date);
+    return `<div class="up-event-card" onclick="location.href='../event/attendees.html?event_id=${ev.event_id}'">
+      <div class="up-event-date">${dateLabel}</div>
+      <div class="up-event-name">${escapeHtml(ev.event_name || '—')}</div>
+      <div class="up-event-loc">📍 ${escapeHtml(ev.location || '—')}</div>
+      <div class="up-event-prog">
+        <div class="up-event-prog-label">
+          <span>ลงทะเบียน</span>
+          <span><strong>${reg}</strong>${max ? ` / ${max}` : ''} ${max ? `(${pct}%)` : ''}</span>
+        </div>
+        ${max ? `<div class="up-event-prog-bar"><div class="up-event-prog-fill ${fillCls}" style="width:${pct}%"></div></div>` : ''}
+      </div>
+    </div>`;
+  }).join('')}</div>`;
+}
+
+function formatEventDate(start, end) {
+  if (!start) return '—';
+  const s = new Date(start + 'T00:00:00');
+  const sLabel = s.toLocaleDateString('th-TH', { day:'numeric', month:'short', year:'numeric' });
+  if (!end || end === start) return sLabel;
+  const e = new Date(end + 'T00:00:00');
+  const eLabel = e.toLocaleDateString('th-TH', { day:'numeric', month:'short' });
+  return `${s.toLocaleDateString('th-TH', { day:'numeric', month:'short' })} - ${eLabel} ${s.toLocaleDateString('th-TH', { year:'numeric' })}`;
+}
+
+/* ============================================================
+   IBD MODULE — KPI #4 + 3 mini cards
+   ============================================================ */
+async function loadIbdModule() {
+  const section = document.getElementById('ibdSection');
+  if (window.AuthZ && !AuthZ.hasPerm('ibd_dashboard_view')) {
+    if (section) section.style.display = 'none';
+    document.querySelectorAll('[data-perm="ibd_dashboard_view"]').forEach(el => el.style.display = 'none');
+    return;
+  }
+  try {
+    const [complaintPending, ewalletPending, relocatePending,
+           complaintTotal, ewalletTotal, relocateTotal] = await Promise.all([
+      sbCount('ibd_complaints', '?or=(status.eq.new,status.eq.in_progress)'),
+      sbCount('ibd_ewallet_requests', '?status=eq.pending'),
+      sbCount('ibd_relocation_requests', '?status=eq.pending'),
+      sbCount('ibd_complaints', ''),
+      sbCount('ibd_ewallet_requests', ''),
+      sbCount('ibd_relocation_requests', ''),
+    ]);
+
+    const totalPending = complaintPending + ewalletPending + relocatePending;
+    const totalAll     = complaintTotal + ewalletTotal + relocateTotal;
+
+    // KPI #4
+    document.getElementById('kpiIbd').textContent = totalPending;
+    document.getElementById('kpiIbdSub').textContent = `จาก ${totalAll.toLocaleString()} คำขอทั้งหมด`;
+    const tEl = document.getElementById('trendIbd');
+    tEl.textContent = totalPending > 0 ? `⚠️ ${totalPending}` : '✓ ว่าง';
+    tEl.className = `kpi-trend ${totalPending > 0 ? 'trend-down' : 'trend-up'}`;
+
+    // Badge
+    document.getElementById('ibdTotalBadge').textContent = `${totalPending} รอดำเนินการ`;
+
+    // Mini cards
+    document.getElementById('ibdComplaintPending').textContent = complaintPending;
+    document.getElementById('ibdComplaintSub').textContent = `จาก ${complaintTotal.toLocaleString()} เรื่อง · รอจัดการ`;
+    document.getElementById('ibdEwalletPending').textContent = ewalletPending;
+    document.getElementById('ibdEwalletSub').textContent = `จาก ${ewalletTotal.toLocaleString()} คำขอ · รอดำเนินการ`;
+    document.getElementById('ibdRelocatePending').textContent = relocatePending;
+    document.getElementById('ibdRelocateSub').textContent = `จาก ${relocateTotal.toLocaleString()} คำขอ · รอดำเนินการ`;
+  } catch (e) {
+    console.error('loadIbdModule:', e);
+    document.getElementById('kpiIbd').textContent = '—';
+    document.getElementById('kpiIbdSub').textContent = 'โหลดไม่ได้';
   }
 }
 
