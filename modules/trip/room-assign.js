@@ -298,11 +298,50 @@ function bindEvents() {
       // เลือก hotel → switch tab rooms (syncCollapsedWithBatch จะขยายกลุ่มที่เลือก)
       window.switchTab("rooms");
     }
+    syncStatusFilterOptions();
     syncCollapsedWithBatch();
     renderPassengers();
     renderRooms();
     renderBuses();
   });
+  syncStatusFilterOptions();
+}
+
+// ── STATUS FILTER LABELS ───────────────────────────────────
+// ปรับ label/ตัวเลือกของ dropdown สถานะตามโหมดที่เลือก (bus mode ซ่อนตัวเลือก
+// ที่ไม่ relevant และเปลี่ยนคำว่า "ห้อง" → "ที่นั่ง" ให้ตรงบริบท)
+function syncStatusFilterOptions() {
+  const sel = document.getElementById("paxFilterStatus");
+  if (!sel) return;
+  const batchKey = document.getElementById("paxFilterBatch")?.value || "";
+  const isBusMode = batchKey.startsWith("bus:");
+  const opts = {
+    missing_any: sel.querySelector('option[value="missing_any"]'),
+    unassigned:  sel.querySelector('option[value="unassigned"]'),
+    no_seat:     sel.querySelector('option[value="no_seat"]'),
+    all:         sel.querySelector('option[value="all"]'),
+    assigned:    sel.querySelector('option[value="assigned"]'),
+  };
+  if (isBusMode) {
+    // bus mode: missing_any/unassigned/no_seat ทำงานเหมือนกัน → โชว์แค่ no_seat
+    if (opts.missing_any) opts.missing_any.hidden = true;
+    if (opts.unassigned)  opts.unassigned.hidden  = true;
+    if (opts.no_seat) {
+      opts.no_seat.hidden = false;
+      opts.no_seat.textContent = "🚌 ยังไม่ได้ที่นั่ง (คันใดเลย)";
+    }
+    if (opts.all)      opts.all.textContent      = "ทั้งหมด (รวมคนนั่งคันอื่น)";
+    if (opts.assigned) opts.assigned.textContent = "✅ นั่งคันนี้แล้ว";
+    // ถ้าค่าปัจจุบันถูกซ่อน → ย้ายไป no_seat
+    if (["missing_any", "unassigned"].includes(sel.value)) sel.value = "no_seat";
+  } else {
+    // hotel/no-batch mode: คืน label เดิมและเปิดทุกตัวเลือก
+    if (opts.missing_any) { opts.missing_any.hidden = false; opts.missing_any.textContent = "⏳ ยังไม่ครบ (ห้อง/ที่นั่ง)"; }
+    if (opts.unassigned)  { opts.unassigned.hidden  = false; opts.unassigned.textContent  = "🛏️ ยังไม่ได้ห้อง"; }
+    if (opts.no_seat)     { opts.no_seat.hidden     = false; opts.no_seat.textContent     = "🚌 ยังไม่ได้ที่นั่ง"; }
+    if (opts.all)      opts.all.textContent      = "ทั้งหมด";
+    if (opts.assigned) opts.assigned.textContent = batchKey ? "✅ ห้องครบในช่วงนี้" : "✅ จัดครบทุกช่วงพัก";
+  }
 }
 
 // ── TAB SWITCHER ───────────────────────────────────────────
@@ -1296,8 +1335,8 @@ function renderPassengers() {
       // bus mode: status semantics จำกัดในรถคันที่เลือก
       const onThisBus = isOnBus(p.code);
       if (status === "unassigned" || status === "no_seat" || status === "missing_any") {
-        // คนที่ยังไม่นั่งคันนี้
-        if (onThisBus) return false;
+        // ซ่อนคนที่มีที่นั่งบนคันใดคันหนึ่งแล้ว (ทุกคัน) — ถ้าจะย้ายคน ให้สลับ filter "ทั้งหมด"
+        if (hasSeat) return false;
       } else if (status === "assigned") {
         if (!onThisBus) return false;
       }
