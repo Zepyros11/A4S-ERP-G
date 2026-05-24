@@ -229,6 +229,25 @@ async function buildCalc(rooms, buses) {
       .sort((a, b) => (a.room_name || "").localeCompare(b.room_name || "", undefined, { numeric: true }));
     const uniq = arr => [...new Set(arr.filter(Boolean))];
     const bus = codeBus[p.code];
+
+    // จัดกลุ่มห้องตามโรงแรม — 1 stay = 1 โรงแรม (ห้อง/เช็คอินในโรงแรมเดียวกันรวม comma)
+    // ใช้ตอน expand รายงานเป็น 1 แถวต่อ (คน × โรงแรม) เมื่อเลือกคอลัมน์โรงแรม/ห้อง
+    const stayMap = new Map();
+    rs.forEach(r => {
+      const hotel = placeById[r.place_id] || "";
+      if (!stayMap.has(hotel)) stayMap.set(hotel, { _hotel: hotel, rooms: [], cins: [], couts: [] });
+      const s = stayMap.get(hotel);
+      s.rooms.push(r.room_name);
+      s.cins.push(fmtDate(r.check_in_date));
+      s.couts.push(fmtDate(r.check_out_date));
+    });
+    const stays = [...stayMap.values()].map(s => ({
+      _hotel:    s._hotel,
+      _room:     uniq(s.rooms).join(", "),
+      _checkin:  uniq(s.cins).join(", "),
+      _checkout: uniq(s.couts).join(", "),
+    }));
+
     state.calc[p.code] = {
       _hotel:    uniq(rs.map(r => placeById[r.place_id])).join(", "),
       _room:     uniq(rs.map(r => r.room_name)).join(", "),
@@ -236,8 +255,25 @@ async function buildCalc(rooms, buses) {
       _checkout: uniq(rs.map(r => fmtDate(r.check_out_date))).join(", "),
       _bus:      bus ? (bus.bus.bus_label || `คันที่ ${bus.bus.bus_no || "?"}`) : "",
       _busseat:  bus ? String(bus.seat ?? "") : "",
+      _stays:    stays,
     };
   });
+}
+
+// คอลัมน์ที่ trigger split-by-hotel — เลือกอย่างน้อย 1 → 1 คน × N โรงแรม = N แถว
+const ROOM_SPLIT_COLS = ["_hotel", "_room", "_checkin", "_checkout"];
+
+// คืน pax หลัง expand: ถ้าคนนอนหลายโรงแรม → แตกเป็นหลายแถว (override _hotel/_room/_checkin/_checkout)
+function expandedPax() {
+  const needsSplit = state.selected.some(k => ROOM_SPLIT_COLS.includes(k));
+  if (!needsSplit) return state.pax;
+  const out = [];
+  state.pax.forEach(p => {
+    const stays = state.calc[p.code]?._stays || [];
+    if (stays.length <= 1) { out.push(p); return; }
+    stays.forEach(s => out.push({ ...p, __stay: s }));
+  });
+  return out;
 }
 
 // ── RENDER ─────────────────────────────────────────────────
@@ -291,7 +327,10 @@ function renderChips() {
 }
 
 function cellValue(row, col) {
-  if (col.src === "calc") return state.calc[row.code]?.[col.key] || "";
+  if (col.src === "calc") {
+    if (row.__stay && col.key in row.__stay) return row.__stay[col.key];
+    return state.calc[row.code]?.[col.key] || "";
+  }
   let v = row[col.key];
   if (v == null || v === "") return "";
   if (col.fmt === "date") return fmtDate(v);
@@ -310,11 +349,13 @@ function sortValue(row, col) {
 }
 
 // คืน rows ตามลำดับ sort ปัจจุบัน (ไม่แก้ state.pax เดิม)
+// ถ้าเลือกคอลัมน์โรงแรม/ห้อง → expand เป็น 1 แถว/โรงแรม ก่อน sort
 function getRows() {
-  if (!state.sortKey) return state.pax;
+  const base = expandedPax();
+  if (!state.sortKey) return base;
   const col = COL_BY_KEY[state.sortKey];
-  if (!col) return state.pax;
-  return [...state.pax].sort((a, b) => {
+  if (!col) return base;
+  return [...base].sort((a, b) => {
     const va = sortValue(a, col), vb = sortValue(b, col);
     let cmp;
     if (typeof va === "number" && typeof vb === "number") cmp = va - vb;
@@ -343,7 +384,9 @@ function renderPreview() {
   }
   empty.style.display = "none";
   table.style.display = "";
-  count.textContent = `· ${state.pax.length} คน · ${cols.length} คอลัมน์`;
+  const rows = getRows();
+  const extra = rows.length !== state.pax.length ? ` · ${rows.length} แถว (แยกตามโรงแรม)` : "";
+  count.textContent = `· ${state.pax.length} คน${extra} · ${cols.length} คอลัมน์`;
   document.getElementById("crThead").innerHTML =
     `<th style="width:40px">#</th>` + cols.map(c => {
       const active = state.sortKey === c.key;
@@ -353,7 +396,7 @@ function renderPreview() {
       return `<th style="cursor:pointer;user-select:none"${tip}
         onclick="window.sortBy('${c.key}')">${escapeHtml(c.label)}${ind}</th>`;
     }).join("");
-  document.getElementById("crTbody").innerHTML = getRows().map((row, i) =>
+  document.getElementById("crTbody").innerHTML = rows.map((row, i) =>
     `<tr><td style="color:var(--text3)">${i + 1}</td>` +
     cols.map(c => `<td>${escapeHtml(cellValue(row, c))}</td>`).join("") +
     `</tr>`).join("");
@@ -505,14 +548,16 @@ window.exportReportPrint = function () {
   const co = state.trip?.end_date ? fmtDate(state.trip.end_date) : "";
   const dates = (ci || co) ? ` · ${ci || "—"} → ${co || "—"}` : "";
   const thead = `<th>#</th>` + cols.map(c => `<th>${escapeHtml(c.label)}</th>`).join("");
-  const tbody = getRows().map((row, i) =>
+  const rows = getRows();
+  const tbody = rows.map((row, i) =>
     `<tr><td>${i + 1}</td>` +
     cols.map(c => `<td>${escapeHtml(cellValue(row, c))}</td>`).join("") +
     `</tr>`).join("");
   const gen = new Date().toLocaleString("th-TH", { timeZone: "Asia/Bangkok" });
+  const extra = rows.length !== state.pax.length ? ` · ${rows.length} แถว (แยกตามโรงแรม)` : "";
   document.getElementById("cr-print-area").innerHTML = `
     <div class="cr-print-title">📊 Custom Report — ${escapeHtml(tripTitle())}${dates}</div>
-    <div class="cr-print-sub">${state.pax.length} คน · ${cols.length} คอลัมน์ · พิมพ์เมื่อ ${gen}</div>
+    <div class="cr-print-sub">${state.pax.length} คน${extra} · ${cols.length} คอลัมน์ · พิมพ์เมื่อ ${gen}</div>
     <table><thead><tr>${thead}</tr></thead><tbody>${tbody ||
       `<tr><td colspan="${cols.length + 1}" style="text-align:center;color:#94a3b8">ไม่มีข้อมูล</td></tr>`
     }</tbody></table>`;
