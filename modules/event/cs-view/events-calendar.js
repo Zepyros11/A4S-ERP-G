@@ -602,7 +602,7 @@ function openDayPopup(dateStr) {
         : total > 0
           ? `<span class="day-pop-badge read">${total}</span>`
           : "";
-      return `<div class="day-pop-item" style="border-left-color:${color}"
+      return `<div class="day-pop-item" style="border-left-color:${color}" data-poster-event="${e.event_id}"
         onclick="closeDayPopup();openEventPanel(${e.event_id})">
         <div class="day-pop-item-head">
           <span class="day-pop-item-icon" style="background:${color}22;color:${color}">${icon}</span>
@@ -655,7 +655,54 @@ function closeDayPopup() {
   if (!overlay) return;
   overlay.classList.remove("open");
   document.body.style.overflow = "";
+  hidePosterPreview();
 }
+
+/* ── Poster hover preview (delegated from dayPopupBody) ── */
+function showPosterPreview(eventId, anchorEl) {
+  const tip = document.getElementById("posterPreview");
+  const img = document.getElementById("posterPreviewImg");
+  if (!tip || !img) return;
+  const ev = allEvents.find((x) => String(x.event_id) === String(eventId));
+  if (!ev) return;
+  img.src = ev.poster_url || "../../../assets/images/NoPoster.png";
+  positionPosterPreview(anchorEl);
+  tip.classList.add("show");
+}
+function hidePosterPreview() {
+  const tip = document.getElementById("posterPreview");
+  if (tip) tip.classList.remove("show");
+}
+function positionPosterPreview(anchorEl) {
+  const tip = document.getElementById("posterPreview");
+  if (!tip || !anchorEl) return;
+  const r = anchorEl.getBoundingClientRect();
+  const tipW = 280;
+  const tipH = 380;
+  const gap = 12;
+  let left = r.left - tipW - gap;       // ด้านซ้ายของ item
+  if (left < 8) left = r.right + gap;   // ถ้าชนขอบซ้าย → ย้ายไปขวา
+  let top = r.top + r.height / 2 - tipH / 2;
+  if (top < 8) top = 8;
+  if (top + tipH > window.innerHeight - 8) top = window.innerHeight - tipH - 8;
+  tip.style.left = left + "px";
+  tip.style.top = top + "px";
+}
+document.addEventListener("DOMContentLoaded", () => {
+  const body = document.getElementById("dayPopupBody");
+  if (!body) return;
+  body.addEventListener("mouseover", (ev) => {
+    const item = ev.target.closest(".day-pop-item[data-poster-event]");
+    if (!item) return;
+    showPosterPreview(item.dataset.posterEvent, item);
+  });
+  body.addEventListener("mouseout", (ev) => {
+    const item = ev.target.closest(".day-pop-item[data-poster-event]");
+    if (!item) return;
+    if (item.contains(ev.relatedTarget)) return;
+    hidePosterPreview();
+  });
+});
 
 function openBookingPanel(requestId) {
   const b = allBookings.find((x) => String(x.request_id) === String(requestId));
