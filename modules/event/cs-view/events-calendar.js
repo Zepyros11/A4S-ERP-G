@@ -662,10 +662,29 @@ function closeDayPopup() {
 function showPosterPreview(eventId, anchorEl) {
   const tip = document.getElementById("posterPreview");
   const img = document.getElementById("posterPreviewImg");
+  const ph = document.getElementById("posterPreviewPlaceholder");
   if (!tip || !img) return;
   const ev = allEvents.find((x) => String(x.event_id) === String(eventId));
   if (!ev) return;
-  img.src = ev.poster_url || "../../../assets/images/NoPoster.png";
+  if (ev.poster_url) {
+    // show placeholder until image loaded
+    img.style.display = "none";
+    if (ph) ph.style.display = "flex";
+    img.onload = () => {
+      img.style.display = "block";
+      if (ph) ph.style.display = "none";
+    };
+    img.onerror = () => {
+      img.style.display = "none";
+      if (ph) ph.style.display = "flex";
+    };
+    if (img.src !== ev.poster_url) img.src = ev.poster_url;
+    else if (img.complete) { img.style.display = "block"; if (ph) ph.style.display = "none"; }
+  } else {
+    img.removeAttribute("src");
+    img.style.display = "none";
+    if (ph) ph.style.display = "flex";
+  }
   positionPosterPreview(anchorEl);
   tip.classList.add("show");
 }
