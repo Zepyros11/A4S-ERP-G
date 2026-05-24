@@ -1376,17 +1376,17 @@
     printArea.innerHTML = html;
 
     // Preview: --nmc-zoom set on the wrapper (drives both wrapper size + inner scale)
+    // NOTE: --cert-name-lh/-y/-block-h are set inline per-row in certHtml() using
+    // per-template config — do NOT overwrite them here with global defaults.
     scroller.querySelectorAll(".cert-a4-wrap").forEach(el => {
       el.style.setProperty("--nmc-zoom", certZoom);
     });
     scroller.querySelectorAll(".cert-a4").forEach(el => {
       el.style.setProperty("--nmc-zoom", certZoom);
-      el.style.setProperty("--cert-name-lh",   CERT_NAME_LH_MM + "mm");
       el.style.setProperty("--cert-name-size", CERT_NAME_SIZE);
     });
     // PrintArea: no scaling (CSS override handles full size)
     printArea.querySelectorAll(".cert-a4").forEach(el => {
-      el.style.setProperty("--cert-name-lh",   CERT_NAME_LH_MM + "mm");
       el.style.setProperty("--cert-name-size", CERT_NAME_SIZE);
     });
   }
