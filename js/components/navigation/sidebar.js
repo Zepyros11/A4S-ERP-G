@@ -117,9 +117,9 @@
         {
           id: "namecard-generator",
           icon: "🪪",
-          label: "สร้างป้ายชื่อ",
+          label: "พิมพ์ป้าย & ใบประกาศ",
           path: BASE_PATH + "/modules/event/namecard-generator.html",
-          section: "setup",
+          section: "manage",
         },
       ],
     },
@@ -830,35 +830,26 @@
   const activeGroupId = getActiveGroupId(activeId);
   const collapsed = localStorage.getItem("sb_collapsed") === "true";
 
-  let openGroups = JSON.parse(localStorage.getItem("sb_open_groups") || "[]");
-  if (activeGroupId && !openGroups.includes(activeGroupId))
-    openGroups.push(activeGroupId);
-  // default open single-item groups
-  MENU.forEach((g) => {
-    if (g.items.length === 1 && !openGroups.includes(g.id))
-      openGroups.push(g.id);
-  });
+  // Accordion: เปิดได้กลุ่มเดียว — ลำดับ priority: active group → ค่าที่เคย save
+  let openGroups = [];
+  if (activeGroupId) {
+    openGroups = [activeGroupId];
+  } else {
+    const saved = JSON.parse(localStorage.getItem("sb_open_groups") || "[]");
+    if (saved.length) openGroups = [saved[0]];
+  }
 
   /* Load open sub-groups from localStorage + auto-expand
      - ถ้ามี activeId อยู่ใน section ใด → เปิด sub-group นั้น
      - ถ้า group มี subgroups[] config และเป็นครั้งแรก (ไม่เคย save) → เปิด non-setup ทั้งหมดโดย default */
-  const SUBGROUPS_LS_KEY = "sb_open_subgroups";
-  const hadSubgroupsLS = localStorage.getItem(SUBGROUPS_LS_KEY) !== null;
-  let openSubgroups = JSON.parse(localStorage.getItem(SUBGROUPS_LS_KEY) || "[]");
+  /* เปิดกลุ่มไหน → กาง sub-group ทั้งหมดของกลุ่มนั้น (รวม legacy "setup") */
+  let openSubgroups = [];
   for (const g of MENU) {
-    /* auto-expand subgroup ที่มี active item */
-    const activeItem = g.items.find((i) => i.id === activeId);
-    if (activeItem && activeItem.section) {
-      const subKey = g.id + "-" + activeItem.section;
-      if (!openSubgroups.includes(subKey)) openSubgroups.push(subKey);
-    }
-    /* first-time default: เปิด non-setup subgroups ทั้งหมด */
-    if (!hadSubgroupsLS && Array.isArray(g.subgroups)) {
-      for (const sg of g.subgroups) {
-        if (sg.key === "setup") continue;
-        const subKey = g.id + "-" + sg.key;
-        if (!openSubgroups.includes(subKey)) openSubgroups.push(subKey);
-      }
+    if (!openGroups.includes(g.id)) continue;
+    if (Array.isArray(g.subgroups) && g.subgroups.length) {
+      for (const sg of g.subgroups) openSubgroups.push(g.id + "-" + sg.key);
+    } else if (g.items.some((i) => i.section === "setup")) {
+      openSubgroups.push(g.id + "-setup");
     }
   }
 
@@ -1077,12 +1068,32 @@
     const items = grp?.querySelector(".sb-items");
     if (!hdr || !items) return;
     const isOpen = items.classList.contains("open");
+
+    // Accordion: เปิดกลุ่มนี้ → ย่อกลุ่มอื่นทั้งหมด
+    if (!isOpen && sb) {
+      sb.querySelectorAll(".sb-group").forEach((g) => {
+        if (g.id === groupId) return;
+        g.querySelector(".sb-grp-hdr")?.classList.remove("open");
+        g.querySelector(".sb-items")?.classList.remove("open");
+      });
+    }
+
     hdr.classList.toggle("open", !isOpen);
     items.classList.toggle("open", !isOpen);
-    let og = JSON.parse(localStorage.getItem("sb_open_groups") || "[]");
-    if (isOpen) og = og.filter((id) => id !== groupId);
-    else if (!og.includes(groupId)) og.push(groupId);
-    localStorage.setItem("sb_open_groups", JSON.stringify(og));
+
+    // เปิดกลุ่มหลัก → กาง sub-menu ทั้งหมดในกลุ่มนั้นด้วย
+    const subIds = [];
+    grp.querySelectorAll(".sb-subgroup").forEach((sg) => {
+      sg.classList.toggle("open", !isOpen);
+      if (!isOpen && sg.id) subIds.push(sg.id);
+    });
+
+    // accordion → เก็บเฉพาะกลุ่มที่เปิดอยู่กลุ่มเดียว
+    localStorage.setItem(
+      "sb_open_groups",
+      JSON.stringify(isOpen ? [] : [groupId]),
+    );
+    localStorage.setItem("sb_open_subgroups", JSON.stringify(subIds));
   };
 
   window.collapseAllGroups = function () {

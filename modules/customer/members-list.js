@@ -136,16 +136,27 @@ function _buildFilterQuery() {
   if (q) {
     const esc = q.replace(/[,()*]/g, '');
     const like = `*${esc}*`;
+    // multi-value: ผู้ใช้วาง/พิมพ์หลายค่าคั่นด้วยช่องว่าง, comma หรือขึ้นบรรทัดใหม่
+    const tokens = q.split(/[\s,]+/)
+      .map(t => t.replace(/[()*]/g, '').trim())
+      .filter(Boolean);
+    const isMulti = tokens.length > 1;
+
     if (mode === 'all') {
       parts.push(`or=(member_code.ilike.${like},full_name.ilike.${like},member_name.ilike.${like},phone.ilike.${like},email.ilike.${like},sponsor_code.ilike.${like},upline_code.ilike.${like})`);
     } else if (mode === 'full_name') {
       // ชื่อ — ค้นทั้ง full_name + member_name
       parts.push(`or=(full_name.ilike.${like},member_name.ilike.${like})`);
     } else if (mode === 'member_code') {
-      // รหัสสมาชิก — exact match
-      parts.push(`member_code=eq.${encodeURIComponent(esc)}`);
+      // รหัสสมาชิก — exact match · รองรับหลายรหัสพร้อมกัน (วาง/คั่นช่องว่าง)
+      if (isMulti) parts.push(`member_code=in.(${tokens.map(encodeURIComponent).join(',')})`);
+      else         parts.push(`member_code=eq.${encodeURIComponent(esc)}`);
+    } else if (mode === 'sponsor_code' || mode === 'upline_code') {
+      // Sponsor / Upline — ilike เดี่ยว · exact in.() เมื่อใส่หลายค่า
+      if (isMulti) parts.push(`${mode}=in.(${tokens.map(encodeURIComponent).join(',')})`);
+      else         parts.push(`${mode}=ilike.${like}`);
     } else {
-      // Specific field — sponsor_code / upline_code / phone / email
+      // Specific field — phone / email
       parts.push(`${mode}=ilike.${like}`);
     }
   }
@@ -169,6 +180,14 @@ function selectSearchMode(btn) {
   wrap.querySelectorAll('.search-mode-option').forEach(o => {
     o.classList.toggle('active', o.dataset.value === value);
   });
+  // โหมดที่รองรับวางหลายค่าพร้อมกัน → hint ใน placeholder
+  const multiModes = ['member_code', 'sponsor_code', 'upline_code'];
+  const input = document.getElementById('searchInput');
+  if (input) {
+    input.placeholder = multiModes.includes(value)
+      ? 'ค้นหา... (วางหลายรหัสได้ คั่นด้วยช่องว่าง/comma)'
+      : 'ค้นหา...';
+  }
   applyFilter();
 }
 // Close dropdown on outside click

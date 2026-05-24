@@ -6,16 +6,19 @@
   "use strict";
 
   const PER_PAGE = 8;
-  const VIP_PER_PAGE = 10;          // 2 × 5
+  const A4_W_MM = 210, A4_H_MM = 297;
   const LOGO_PATH = "../../assets/logo/logo-a4s.png";
 
   // [{ name, position }]
   let rows = [];
-  let zoom = 0.5;
+  let zoom = 0.75;
 
   // ── VIP tab state ─────────────────────────────────────────
-  let vipQty = 10;
-  let vipZoom = 0.5;
+  let vipQty  = 10;
+  let vipZoom = 0.65;
+  let vipW    = 95;                 // card width  (mm)
+  let vipH    = 50;                 // card height (mm)
+  let vipText = "VIP";              // label text on the card
   let activeTab = "namecard";       // "namecard" | "vip" | "cert"
 
   // ── Certificate tab state (independent from namecard rows) ─
@@ -312,20 +315,22 @@
     }
 
     const pages = chunked(rows, PER_PAGE);
-    const buildHtml = (withBreaks) => pages.map((page, idx) => {
+    // withBreaks → hard page-break divs (print area) · wrap → .nmc-a4-wrap (on-screen)
+    const buildHtml = (withBreaks, wrap) => pages.map((page, idx) => {
       const cells = [];
       for (let i = 0; i < PER_PAGE; i++) {
         cells.push(page[i] ? cardHtml(page[i]) : blankCardHtml());
       }
       const brk = (withBreaks && idx > 0) ? '<div class="nmc-page-break"></div>' : '';
-      return `${brk}<div class="nmc-a4">${cells.join("")}</div>`;
+      const sheet = `<div class="nmc-a4">${cells.join("")}</div>`;
+      return brk + (wrap ? `<div class="nmc-a4-wrap">${sheet}</div>` : sheet);
     }).join("");
 
-    scroller.innerHTML  = buildHtml(false); // no break divs in on-screen preview
-    printArea.innerHTML = buildHtml(true);  // hard break divs in print area
+    scroller.innerHTML  = buildHtml(false, true);  // wrapped, no break divs
+    printArea.innerHTML = buildHtml(true, false);  // bare sheets + break divs
 
-    // Apply zoom to on-screen sheets only
-    scroller.querySelectorAll(".nmc-a4").forEach(el => {
+    // Apply zoom to on-screen wrappers (drives wrapper size + inner scale)
+    scroller.querySelectorAll(".nmc-a4-wrap").forEach(el => {
       el.style.setProperty("--nmc-zoom", zoom);
     });
 
@@ -425,13 +430,13 @@
     setStep(1);
   }
   function setZoom(dir) {
-    const steps = [0.25, 0.35, 0.5, 0.65, 0.8, 1.0];
+    const steps = [0.25, 0.35, 0.5, 0.65, 0.75, 0.9, 1.0];
     let i = steps.indexOf(zoom);
-    if (i < 0) i = 2;
+    if (i < 0) i = 4;
     i = Math.max(0, Math.min(steps.length - 1, i + dir));
     zoom = steps[i];
     $("zoomLabel") && ($("zoomLabel").textContent = Math.round(zoom * 100) + "%");
-    document.querySelectorAll("#sheetScroller .nmc-a4").forEach(el => {
+    document.querySelectorAll("#sheetScroller .nmc-a4-wrap").forEach(el => {
       el.style.setProperty("--nmc-zoom", zoom);
     });
   }
@@ -544,12 +549,36 @@
       <div class="vip-card">
         <div class="vip-card-logo"><img src="${LOGO_PATH}" alt="A4S" onerror="this.style.display='none'"></div>
         <div class="vip-card-band">
-          <div class="vip-card-text">VIP</div>
+          <div class="vip-card-text">${esc(vipText || "")}</div>
         </div>
       </div>
     `;
   }
   function vipBlankHtml() { return `<div class="vip-card" style="visibility:hidden"></div>`; }
+
+  // How many cards fit on one A4 sheet for the current card size.
+  function vipGrid() {
+    const cols = Math.max(1, Math.floor(A4_W_MM / vipW));
+    const rows = Math.max(1, Math.floor(A4_H_MM / vipH));
+    return { cols, rows, perPage: cols * rows };
+  }
+
+  // Shrink VIP text font-size until it fits inside its green band.
+  function fitVipText(el) {
+    const band = el.parentElement;
+    if (!band) return;
+    const maxW = band.clientWidth  - 14;
+    const maxH = band.clientHeight - 8;
+    if (maxW <= 0 || maxH <= 0) return;
+    let size = Math.min(maxH, 400);
+    el.style.fontSize = size + "px";
+    let guard = 160;
+    while (size > 8 && guard-- > 0 &&
+           (el.scrollWidth > maxW || el.scrollHeight > maxH)) {
+      size -= 2;
+      el.style.fontSize = size + "px";
+    }
+  }
 
   function renderVipSheets() {
     const qty = Math.max(0, vipQty | 0);
@@ -557,8 +586,16 @@
     const printArea = $("vipPrintArea");
     if (!scroller || !printArea) return;
 
-    const pageCount = Math.max(1, Math.ceil(qty / VIP_PER_PAGE));
-    $("vipPageCount") && ($("vipPageCount").textContent = qty ? pageCount : 0);
+    const { cols, rows: gRows, perPage } = vipGrid();
+    const pageCount = Math.max(1, Math.ceil(qty / perPage));
+
+    // Layout info / counters
+    $("vipPerPage")    && ($("vipPerPage").textContent    = perPage);
+    $("vipGridDesc")   && ($("vipGridDesc").textContent   = cols + " × " + gRows);
+    $("vipPageCount")  && ($("vipPageCount").textContent  = qty ? pageCount : 0);
+    $("vipPerPageMeta")&& ($("vipPerPageMeta").textContent= `(${perPage} ใบ/หน้า · ${cols}×${gRows})`);
+    $("vipLayoutTitle")&& ($("vipLayoutTitle").textContent=
+      `👁️ ตัวอย่าง Layout · กระดาษ A4 (${perPage} ใบ/หน้า · ${cols}×${gRows})`);
 
     if (!qty) {
       scroller.innerHTML  = "";
@@ -566,24 +603,43 @@
       return;
     }
 
-    const buildHtml = () => {
-      let remaining = qty;
-      const pages = [];
-      for (let p = 0; p < pageCount; p++) {
-        const cells = [];
-        for (let i = 0; i < VIP_PER_PAGE; i++) {
-          if (remaining > 0) { cells.push(vipCardHtml()); remaining--; }
-          else cells.push(vipBlankHtml());
-        }
-        pages.push(`<div class="vip-a4">${cells.join("")}</div>`);
+    let remaining = qty;
+    const pageCells = [];
+    for (let p = 0; p < pageCount; p++) {
+      const cells = [];
+      for (let i = 0; i < perPage; i++) {
+        if (remaining > 0) { cells.push(vipCardHtml()); remaining--; }
+        else cells.push(vipBlankHtml());
       }
-      return pages.join("");
-    };
+      pageCells.push(cells.join(""));
+    }
+    const wrapHtml = (cells) => `<div class="vip-a4-wrap"><div class="vip-a4">${cells}</div></div>`;
+    // On-screen preview: each page labelled · print area: bare sheets
+    scroller.innerHTML = pageCells.map((cells, i) =>
+      `<div class="vip-page-item">` +
+        `<div class="vip-page-label">📄 หน้า ${i + 1} / ${pageCount}</div>` +
+        wrapHtml(cells) +
+      `</div>`
+    ).join("");
+    printArea.innerHTML = pageCells.map(wrapHtml).join("");
 
-    const html = buildHtml();
-    scroller.innerHTML  = html;
-    printArea.innerHTML = html;
-    scroller.querySelectorAll(".vip-a4").forEach(el => el.style.setProperty("--nmc-zoom", vipZoom));
+    // Card size + grid + zoom → CSS vars on each A4 wrapper (inherit inward)
+    const applyVars = (el) => {
+      el.style.setProperty("--vip-w", vipW + "mm");
+      el.style.setProperty("--vip-h", vipH + "mm");
+      el.style.setProperty("--vip-cols", cols);
+      el.style.setProperty("--vip-rows", gRows);
+      el.style.setProperty("--nmc-zoom", vipZoom);
+    };
+    scroller.querySelectorAll(".vip-a4-wrap").forEach(applyVars);
+    printArea.querySelectorAll(".vip-a4-wrap").forEach(applyVars);
+
+    // Auto-fit label text once layout has painted
+    requestAnimationFrame(() => {
+      [scroller, printArea].forEach(root => {
+        root.querySelectorAll(".vip-card-text").forEach(fitVipText);
+      });
+    });
   }
 
   function setVipQty(v) {
@@ -597,14 +653,44 @@
   }
   function bumpVipQty(dir) { setVipQty(vipQty + dir); }
 
+  // ── VIP text + custom size ────────────────────────────────
+  function setVipText(v) {
+    vipText = String(v == null ? "" : v);
+    renderVipSheets();
+  }
+  function setVipW(v) {
+    const n = parseFloat(v);
+    if (!isFinite(n)) return;
+    vipW = Math.max(3, Math.min(21, n)) * 10;     // cm → mm
+    renderVipSheets();
+  }
+  function setVipH(v) {
+    const n = parseFloat(v);
+    if (!isFinite(n)) return;
+    vipH = Math.max(2, Math.min(29.7, n)) * 10;   // cm → mm
+    renderVipSheets();
+  }
+  function setVipSize(wCm, hCm) {
+    vipW = Math.max(3, Math.min(21,   wCm)) * 10;
+    vipH = Math.max(2, Math.min(29.7, hCm)) * 10;
+    syncVipInputs();
+    renderVipSheets();
+  }
+  // Write the clamped mm values back into the cm inputs.
+  function syncVipInputs() {
+    const wi = $("vipWInput"), hi = $("vipHInput");
+    if (wi) wi.value = +(vipW / 10).toFixed(2);
+    if (hi) hi.value = +(vipH / 10).toFixed(2);
+  }
+
   function setVipZoom(dir) {
-    const steps = [0.25, 0.35, 0.5, 0.65, 0.8, 1.0];
+    const steps = [0.25, 0.35, 0.5, 0.65, 0.75, 0.9, 1.0];
     let i = steps.indexOf(vipZoom);
-    if (i < 0) i = 2;
+    if (i < 0) i = 4;
     i = Math.max(0, Math.min(steps.length - 1, i + dir));
     vipZoom = steps[i];
     $("vipZoomLabel") && ($("vipZoomLabel").textContent = Math.round(vipZoom * 100) + "%");
-    document.querySelectorAll("#vipSheetScroller .vip-a4").forEach(el => {
+    document.querySelectorAll("#vipSheetScroller .vip-a4-wrap").forEach(el => {
       el.style.setProperty("--nmc-zoom", vipZoom);
     });
   }
@@ -1526,6 +1612,7 @@
     setZoom, printNow, exportPDF, downloadTemplate,
     // VIP tab
     setVipQty, bumpVipQty, setVipZoom, exportVipPDF,
+    setVipText, setVipW, setVipH, setVipSize, syncVipInputs,
     // Certificate tab
     onCertDrag, onCertDrop, onCertFilePick,
     certAddRow, certClearAll, certResetAll,

@@ -28,41 +28,59 @@
   border-color: rgba(255,255,255,.55);
 }
 
-/* ── Tabs ──────────────────────────────────────────────────── */
+/* ── Tabs (segmented pill) ─────────────────────────────────── */
 .nmc-tabs {
   display: flex;
-  gap: 4px;
+  gap: 6px;
   margin: 8px 0 16px;
-  border-bottom: 2px solid var(--border, #e2e8f0);
+  padding: 5px;
+  background: var(--bg2, #f1f5f9);
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 12px;
 }
 .nmc-tab {
+  flex: 1;
   background: transparent;
-  border: none;
-  padding: 12px 22px 10px;
+  border: 1.5px solid transparent;
+  border-radius: 9px;
+  padding: 9px 18px;
   font-family: inherit; font-size: 14px; font-weight: 600;
-  color: var(--text3, #94a3b8);
+  color: var(--text2, #475569);
   cursor: pointer;
-  border-bottom: 3px solid transparent;
-  margin-bottom: -2px;
   transition: all .15s;
-  display: flex; align-items: baseline; gap: 8px;
+  display: flex; align-items: baseline; justify-content: center; gap: 8px;
 }
-.nmc-tab:hover { color: var(--text2, #475569); }
+.nmc-tab:hover {
+  background: #fff;
+  color: var(--text1, #1e293b);
+}
 .nmc-tab.active {
-  color: var(--accent, #3b82f6);
-  border-bottom-color: var(--accent, #3b82f6);
+  background: #2f7d4f;
+  border-color: #2f7d4f;
+  color: #fff;
+  box-shadow: 0 2px 6px rgba(47, 125, 79, .28);
 }
 .nmc-tab-sub {
   font-size: 11px; font-weight: 500; opacity: .7;
 }
+.nmc-tab.active .nmc-tab-sub { opacity: .9; }
 
 /* ── VIP quantity input ────────────────────────────────────── */
 .vip-qty-row {
   display: flex;
   align-items: center;
-  gap: 24px;
+  gap: 18px;
   padding: 18px;
   flex-wrap: wrap;
+}
+/* quantity row sitting inside the design card — divider above, tighter */
+.vip-qty-row--inset {
+  padding: 12px 18px;
+  border-top: 1px dashed var(--border, #e2e8f0);
+}
+.vip-qty-label {
+  font-size: 11px; font-weight: 600; color: var(--text3, #94a3b8);
+  text-transform: uppercase; letter-spacing: .4px;
 }
 .vip-qty-input-wrap {
   display: flex; align-items: center; gap: 6px;
@@ -100,12 +118,82 @@
 }
 .vip-qty-pages b { color: var(--accent, #3b82f6); font-size: 16px; }
 .vip-qty-perpage { font-size: 11px; color: var(--text3, #94a3b8); }
-.vip-qty-presets { display: flex; gap: 6px; margin-left: auto; }
+.vip-qty-presets { display: flex; gap: 6px; }
 
-/* ── VIP Card · 95mm × 50mm ────────────────────────────────── */
+/* ── VIP split layout: [ settings | preview ] ──────────────── */
+.vip-split {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+.vip-split-left  { flex: 40 1 0; min-width: 0; }
+.vip-split-right { flex: 60 1 0; min-width: 0; }
+.vip-split-right .nmc-sheet-scroller { max-height: calc(100vh - 230px); }
+@media (max-width: 1180px) {
+  .vip-split { flex-direction: column; }
+  .vip-split-left  { flex: none; width: 100%; }
+  .vip-split-right { width: 100%; }
+}
+
+/* ── Namecard split layout: [ list | preview ] ─────────────── */
+.nmc-split {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+.nmc-split-left  { flex: 1 1 0; min-width: 0; }
+.nmc-split-right { flex: 1 1 0; min-width: 0; }
+/* list table + preview share the same fixed height so the cards line up */
+.nmc-split-right .nmc-sheet-scroller,
+.nmc-split-left  .nmc-preview-wrap {
+  height: calc(100vh - 250px);
+  max-height: none;
+}
+@media (max-width: 1180px) {
+  .nmc-split { flex-direction: column; }
+  .nmc-split-left  { width: 100%; flex: none; }
+  .nmc-split-right { width: 100%; flex: none; }
+}
+
+/* ── VIP design panel (text + size inputs) ─────────────────── */
+.vip-design-grid {
+  display: flex; flex-wrap: wrap; align-items: flex-end;
+  gap: 14px; padding: 12px 18px;
+}
+.vip-field { display: flex; flex-direction: column; gap: 5px; }
+.vip-field label {
+  font-size: 11px; font-weight: 600; color: var(--text3, #94a3b8);
+  text-transform: uppercase; letter-spacing: .4px;
+}
+.vip-field:first-child { flex: 1 1 100%; }
+.vip-text-input, .vip-num-input {
+  font-family: inherit; font-size: 14px;
+  border: 1.5px solid var(--border, #e2e8f0); border-radius: 8px;
+  padding: 8px 12px; color: var(--text1, #1e293b);
+  background: var(--surface, #fff); outline: none;
+  transition: border-color .15s;
+}
+.vip-text-input { width: 100%; box-sizing: border-box; }
+.vip-num-input { width: 92px; }
+.vip-text-input:focus, .vip-num-input:focus { border-color: #2f7d4f; }
+.vip-field-num { flex: 0 0 auto; }
+.vip-field-x {
+  font-size: 18px; color: var(--text3, #94a3b8);
+  font-weight: 700; padding-bottom: 8px;
+}
+.vip-size-presets { display: flex; gap: 6px; flex-wrap: wrap; padding-bottom: 1px; }
+.vip-layout-info {
+  padding: 9px 18px; font-size: 13px; color: var(--text2, #475569);
+  background: var(--surface2, #f8fafc);
+  border-top: 1px solid var(--border, #e2e8f0);
+}
+.vip-layout-info b { color: #2f7d4f; font-size: 15px; }
+
+/* ── VIP Card · custom size via CSS vars ───────────────────── */
 .vip-card {
   position: relative;
-  width: 95mm; height: 50mm;
+  width: var(--vip-w, 95mm);
+  height: var(--vip-h, 50mm);
   background: #fff;
   border: 1px dashed #cbd5e1;
   overflow: hidden;
@@ -113,17 +201,18 @@
 }
 .vip-card-logo {
   position: absolute; left: 0; right: 0;
-  top: 4mm; height: 15mm;
+  top: 8%; height: 30%;
   display: flex; align-items: center; justify-content: center;
 }
 .vip-card-logo img {
-  max-height: 15mm; max-width: 60mm; object-fit: contain;
+  max-height: 100%; max-width: 62%; object-fit: contain;
 }
 .vip-card-band {
   position: absolute; left: 0; right: 0;
-  top: 25mm; bottom: 0;
+  top: 50%; bottom: 0;
   background: #6BBE45;
   display: flex; align-items: center; justify-content: center;
+  padding: 0 6px; box-sizing: border-box;
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
   color-adjust: exact;
@@ -133,8 +222,9 @@
   font-weight: 900;
   font-size: 64px;
   color: #0f172a;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.08em;
   line-height: 1;
+  white-space: nowrap;
 }
 
 /* ── PolySans (cert name font) ─────────────────────────────── */
@@ -158,10 +248,30 @@
    use of horizontal space — 1 cert/A4 page is too tall to stack 1-up). */
 #certSheetScroller {
   display: grid !important;
-  grid-template-columns: repeat(2, max-content);
+  grid-template-columns: max-content;   /* 1 certificate per row */
   justify-content: center;
   align-content: start;
   gap: 20px;
+}
+
+/* Certificate split layout: [ list 60 | preview 40 ] */
+.cert-split {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+.cert-split-left  { flex: 60 1 0; min-width: 0; }
+.cert-split-right { flex: 40 1 0; min-width: 0; }
+/* list table + preview share the same fixed height so the cards line up */
+.cert-split-right .nmc-sheet-scroller,
+.cert-split-left  .nmc-preview-wrap {
+  height: calc(100vh - 250px);
+  max-height: none;
+}
+@media (max-width: 1180px) {
+  .cert-split { flex-direction: column; }
+  .cert-split-left  { width: 100%; flex: none; }
+  .cert-split-right { width: 100%; flex: none; }
 }
 
 /* Wrapper holds the *visual* (scaled) size so flex/grid lays them out
@@ -377,22 +487,46 @@
 .cert-pos-radio input[type="radio"] { cursor: pointer; accent-color: #0f766e; }
 .cert-pos-radio:has(input:checked) { border-color: #0f766e; background: #ccfbf1; font-weight: 600; }
 
-/* VIP A4: 2 cols × 5 rows = 10 cards/page */
-.vip-a4 {
-  width: 210mm; height: 297mm;
+/* VIP A4: wrapper holds the SCALED size so flex layout spaces pages
+   correctly · inner .vip-a4 is the real 210×297mm sheet, scaled inside. */
+.vip-a4-wrap {
+  position: relative;
+  width:  calc(210mm * var(--nmc-zoom, .5));
+  height: calc(297mm * var(--nmc-zoom, .5));
   background: #fff;
   box-shadow: 0 4px 18px rgba(15,23,42,.18);
+  overflow: hidden;
+  flex: 0 0 auto;
+}
+.vip-a4 {
+  position: absolute; top: 0; left: 0;
+  width: 210mm; height: 297mm;
+  background: #fff;
   padding: 0;
   box-sizing: border-box;
   display: grid;
-  grid-template-columns: repeat(2, 95mm);
-  grid-template-rows: repeat(5, 50mm);
+  grid-template-columns: repeat(var(--vip-cols, 2), var(--vip-w, 95mm));
+  grid-template-rows: repeat(var(--vip-rows, 5), var(--vip-h, 50mm));
   gap: 0;
   justify-content: center;
   align-content: start;
-  transform-origin: top center;
+  transform-origin: top left;
   transform: scale(var(--nmc-zoom, .5));
-  margin-bottom: calc(297mm * var(--nmc-zoom, .5) - 297mm);
+}
+
+/* Preview page label */
+.vip-page-item {
+  display: flex; flex-direction: column;
+  align-items: center; gap: 8px;
+}
+.vip-page-label {
+  align-self: flex-start;
+  font-size: 12px; font-weight: 700;
+  color: var(--text2, #475569);
+  background: #fff;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 6px;
+  padding: 3px 10px;
 }
 
 /* ── Steps ─────────────────────────────────────────────────── */
@@ -446,6 +580,8 @@
   border-radius: 12px;
   margin-top: 16px;
   overflow: hidden;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, .07),
+              0 8px 24px rgba(15, 23, 42, .06);
 }
 .nmc-block-hdr {
   display: flex; align-items: center; justify-content: space-between;
@@ -529,8 +665,26 @@
   transform-origin: top center;
   /* scaling done via CSS var --nmc-zoom (set inline) */
   transform: scale(var(--nmc-zoom, .5));
-  /* compensate margin so scaled element flows naturally */
+  /* compensate margin so scaled element flows naturally (print area only) */
   margin-bottom: calc(297mm * var(--nmc-zoom, .5) - 297mm);
+}
+
+/* On-screen preview: wrapper holds the SCALED size so the flex scroller
+   spaces pages correctly (no negative-margin overlap). */
+.nmc-a4-wrap {
+  position: relative;
+  width:  calc(210mm * var(--nmc-zoom, .5));
+  height: calc(297mm * var(--nmc-zoom, .5));
+  background: #fff;
+  box-shadow: 0 4px 18px rgba(15,23,42,.18);
+  overflow: hidden;
+  flex: 0 0 auto;
+}
+.nmc-a4-wrap > .nmc-a4 {
+  position: absolute; top: 0; left: 0;
+  transform-origin: top left;
+  margin-bottom: 0;
+  box-shadow: none;
 }
 
 /* ── The Name Card itself · 85mm × 60mm ─────────────────────
@@ -626,10 +780,15 @@
   margin: 0 !important;
   box-shadow: none;
 }
-/* PrintArea: wrapper takes full A4 size + cert renders unscaled inside */
+/* PrintArea: wrappers take full A4 size + sheet renders unscaled inside */
 .nmc-print-area .cert-a4-wrap {
   width: 297mm !important;
   height: 210mm !important;
+  box-shadow: none !important;
+}
+.nmc-print-area .vip-a4-wrap {
+  width: 210mm !important;
+  height: 297mm !important;
   box-shadow: none !important;
 }
 
