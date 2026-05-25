@@ -2828,7 +2828,6 @@ function busCardHtml(b) {
         ${noteInfo}
       </div>
     ` : ""}
-    ${guidesRowHtml(b.bus_id)}
     ${orphanSeats.length ? `
       <div class="ba-bus-orphan-banner">
         ⚠ พบที่นั่ง ${orphanSeats.length} ที่ ที่ผูกกับรหัสที่ไม่มีในรายชื่อแล้ว
@@ -3179,36 +3178,6 @@ window.switchPaxTab = function (tab) {
   if (cv) cv.style.display = tab === "customers" ? "flex" : "none";
   if (tv) tv.style.display = tab === "team" ? "flex" : "none";
 };
-
-// Render แถวทีมงานของรถคันนี้ (Staff / Guide / Outsource)
-function guidesRowHtml(busId) {
-  const entries = state.busGuides[busId] || [];
-  const pills = entries.map(entry => {
-    const g = state.guides.find(x => x.guide_id === entry.guide_id);
-    if (!g) return "";
-    const lang = g.languages ? ` <span style="opacity:.7;font-weight:500">(${escapeHtml(g.languages)})</span>` : "";
-    const seatTag = entry.seat_no
-      ? ` <span style="background:#fef3c7;color:#92400e;padding:1px 6px;border-radius:4px;font-size:10.5px;font-weight:700">💺 ${escapeHtml(entry.seat_no)}</span>`
-      : ` <span style="color:#dc2626;font-size:10.5px;font-weight:600">⚠ ไม่มีที่นั่ง</span>`;
-    return `<button class="ba-guide-pill" data-perm="trip_guides_edit"
-      onclick="event.stopPropagation();window.openGuideEditModal(${g.guide_id})"
-      title="คลิกเพื่อแก้ไข">
-      ${memberEmoji(g.member_type)} ${escapeHtml(g.full_name)}${lang}${seatTag}
-    </button>`;
-  }).join("");
-  return `<div class="ba-bus-guides">
-    <span class="ba-bus-guides-label">🧑‍🤝‍🧑 ทีมงาน:</span>
-    ${pills || '<span style="color:var(--text3);font-size:11.5px">— ยังไม่มี —</span>'}
-    <button class="ba-bus-guides-add" data-perm="trip_guides_assign"
-      onclick="event.stopPropagation();window.openBusGuidesModal(${busId})"
-      title="จัดการทีมงานของคันนี้">＋ จัดการทีมงาน</button>
-    <a href="./trip-team.html?trip_id=${state.tripId}" target="_blank" rel="noopener"
-      class="ba-bus-guides-add" data-perm="trip_team_view"
-      style="text-decoration:none"
-      onclick="event.stopPropagation()"
-      title="ตั้งค่าทีมงาน (เปิดแท็บใหม่)">⚙️ ตั้งค่า</a>
-  </div>`;
-}
 
 function renderSeatMapHtml(rows, occMap, opts = {}) {
   const { interactive = true, busId = 0 } = opts;
