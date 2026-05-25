@@ -46,7 +46,20 @@ const state = {
   // ── LEFT PANEL TABS (ลูกค้า / ทีมงาน) ──
   activePaxTab: "customers",  // "customers" | "team"
   teamFilterType: "",         // member_type filter (ว่าง = ทุกประเภท)
+  selectedGuideId: null,      // currently selected guide (mutually exclusive กับ selectedPaxCode)
 };
+
+// ── GUIDE-AS-OCCUPANT ENCODING ────────────────────────────
+// trip_room_occupants.code เก็บได้แค่ string → ทีมงานเก็บเป็น "g:<guide_id>"
+// แยกจาก passenger code ปกติ (member code/guest code ไม่มี ":")
+const GUIDE_CODE_PREFIX = "g:";
+const guideCodeFor   = (id) => `${GUIDE_CODE_PREFIX}${id}`;
+const parseGuideCode = (code) => {
+  if (typeof code !== "string" || !code.startsWith(GUIDE_CODE_PREFIX)) return null;
+  const id = parseInt(code.slice(GUIDE_CODE_PREFIX.length), 10);
+  return Number.isFinite(id) ? id : null;
+};
+const isGuideCode = (code) => parseGuideCode(code) !== null;
 
 // ── SEAT LAYOUT PRESETS ────────────────────────────────────
 // cell: number=ที่นั่ง | "AISLE"=ทางเดิน | "EMPTY"=ช่องว่าง
@@ -1447,7 +1460,19 @@ function renderPassengers() {
 window.selectPax = function (code) {
   // toggle off if clicking same row
   state.selectedPaxCode = state.selectedPaxCode === code ? null : code;
+  state.selectedGuideId = null;   // mutual exclusion
   renderPassengers();
+  renderTeamPanel();
+  updateSelectionHint();
+  updateRoomCardsAssignableState();
+  if (typeof updateSeatAssignableState === "function") updateSeatAssignableState();
+};
+
+window.selectGuide = function (guideId) {
+  state.selectedGuideId = state.selectedGuideId === guideId ? null : guideId;
+  state.selectedPaxCode = null;   // mutual exclusion
+  renderPassengers();
+  renderTeamPanel();
   updateSelectionHint();
   updateRoomCardsAssignableState();
   if (typeof updateSeatAssignableState === "function") updateSeatAssignableState();
@@ -1455,7 +1480,9 @@ window.selectPax = function (code) {
 
 window.clearPaxSelection = function () {
   state.selectedPaxCode = null;
+  state.selectedGuideId = null;
   renderPassengers();
+  renderTeamPanel();
   updateSelectionHint();
   updateRoomCardsAssignableState();
   if (typeof updateSeatAssignableState === "function") updateSeatAssignableState();
@@ -1464,18 +1491,24 @@ window.clearPaxSelection = function () {
 function updateSelectionHint() {
   const hint = document.getElementById("selectedHint");
   const btn  = document.getElementById("btnClearSelection");
+  const target = state.activeTab === "buses" ? "ที่นั่งรถบัส" : "ห้องพัก";
   if (state.selectedPaxCode) {
     const p = state.passengers.find(x => x.code === state.selectedPaxCode);
-    const target = state.activeTab === "buses" ? "ที่นั่งรถบัส" : "ห้องพัก";
     hint.innerHTML = `เลือก: <b style="color:var(--accent)">${escapeHtml(p?.name || state.selectedPaxCode)}</b> — คลิก${target}ที่ต้องการ`;
     btn.style.display = "inline-flex";
+  } else if (state.selectedGuideId) {
+    const g = state.guides.find(x => x.guide_id === state.selectedGuideId);
+    const emo = memberEmoji(g?.member_type);
+    hint.innerHTML = `เลือก: <b style="color:#92400e">${emo} ${escapeHtml(g?.full_name || ("Member #" + state.selectedGuideId))}</b> — คลิก${target}ที่ต้องการ`;
+    btn.style.display = "inline-flex";
   } else {
-    hint.textContent = "ยังไม่ได้เลือกลูกค้า — คลิกชื่อด้านซ้ายเพื่อเริ่ม";
+    hint.textContent = "ยังไม่ได้เลือก — คลิกชื่อด้านซ้ายเพื่อเริ่ม";
     btn.style.display = "none";
   }
 }
 
 function updateRoomCardsAssignableState() {
+  const hasSel = !!(state.selectedPaxCode || state.selectedGuideId);
   document.querySelectorAll(".ra-room-card").forEach(card => {
     const rid = parseInt(card.dataset.roomId, 10);
     const r = state.rooms.find(x => x.room_id === rid);
@@ -1483,7 +1516,7 @@ function updateRoomCardsAssignableState() {
     const occCount = (state.occupants[rid] || []).length;
     const isFull = occCount >= r.capacity;
     card.classList.toggle("full", isFull);
-    card.classList.toggle("assignable", !!state.selectedPaxCode && !isFull);
+    card.classList.toggle("assignable", hasSel && !isFull);
   });
 }
 
@@ -1516,18 +1549,27 @@ function renderRooms() {
   });
 
   // ใช้ state.occupants ที่ load จาก trip_room_occupants — รองรับ 1 คน × N ห้อง
-  // resolve code → passenger row
+  // resolve code → passenger row OR guide row (ทีมงานเก็บเป็น "g:<guide_id>")
   const paxByCode = {};
   state.passengers.forEach(p => { paxByCode[p.code] = p; });
-  const occByRoom = {};      // { room_id: [passenger row, ...] }   (เฉพาะ valid)
-  const orphanByRoom = {};   // { room_id: [orphan code, ...] }       (passenger ถูกลบ)
+  const guideById = {};
+  state.guides.forEach(g => { guideById[g.guide_id] = g; });
+  const occByRoom = {};      // { room_id: [{__type:'pax'|'guide', ...}, ...] }
+  const orphanByRoom = {};   // { room_id: [orphan code, ...] }       (ลบไปแล้ว)
   Object.keys(state.occupants).forEach(rid => {
     const occ = [];
     const orphans = [];
     (state.occupants[rid] || []).forEach(code => {
+      const gid = parseGuideCode(code);
+      if (gid != null) {
+        const g = guideById[gid];
+        if (g) occ.push({ __type: "guide", code, ...g });
+        else   orphans.push(code);
+        return;
+      }
       const p = paxByCode[code];
-      if (p) occ.push(p);
-      else orphans.push(code);
+      if (p) occ.push({ __type: "pax", ...p });
+      else   orphans.push(code);
     });
     occByRoom[rid] = occ;
     if (orphans.length) orphanByRoom[rid] = orphans;
@@ -1678,6 +1720,25 @@ function roomCardHtml(r, occupants, orphanCodes = []) {
       </div>
     </div>`).join("");
   const occHtml = orphanHtml + occupants.map(o => {
+    // Guide row — yellow theme (เหมือนทีมงานในรถบัส)
+    if (o.__type === "guide") {
+      const emo = memberEmoji(o.member_type);
+      const lbl = memberLabel(o.member_type);
+      const lang = o.languages ? ` · ${escapeHtml(o.languages)}` : "";
+      return `<div class="ra-occ" style="background:#fef3c7;border-color:#fde68a">
+        <button class="ra-occ-remove" title="ย้ายออกจากห้องนี้"
+          onclick="event.stopPropagation();window.unassignPax('${escapeJs(o.code)}', ${r.room_id})">×</button>
+        <div class="ra-pax-row-top">
+          <span class="ra-pax-code" style="color:#92400e">${escapeHtml(lbl)}</span>
+          <span class="ra-pax-nat" style="color:#92400e">${lang ? lang.slice(3) : "—"}</span>
+        </div>
+        <div class="ra-pax-row-bot">
+          <span class="ra-pax-name" style="color:#7c2d12">${emo} ${escapeHtml(o.full_name || "—")}</span>
+          <span class="ra-gender-tag" style="background:#fde68a;color:#92400e">ทีมงาน</span>
+        </div>
+      </div>`;
+    }
+    // Passenger row (default)
     const gn = normGender(o.gender || o._inheritedGender);
     const gT = gn === "M" ? '<span class="ra-gender-tag ra-gender-M">♂ M</span>'
             : gn === "F" ? '<span class="ra-gender-tag ra-gender-F">♀ F</span>'
@@ -1748,16 +1809,21 @@ function _removeOccupant(roomId, code) {
 }
 
 window.assignSelectedPax = async function (roomId) {
-  if (!state.selectedPaxCode) {
-    showToast("เลือกลูกค้าทางซ้ายก่อน", "info");
+  if (!state.selectedPaxCode && !state.selectedGuideId) {
+    showToast("เลือกลูกค้า/ทีมงานทางซ้ายก่อน", "info");
     return;
   }
   const r = state.rooms.find(x => x.room_id === roomId);
   if (!r) return;
 
-  const code = state.selectedPaxCode;
-  const p = state.passengers.find(x => x.code === code);
-  if (!p) return;
+  // Resolve subject: passenger หรือ guide (เก็บใน trip_room_occupants ในรูป "g:<id>")
+  const isGuide = !!state.selectedGuideId;
+  const code = isGuide ? guideCodeFor(state.selectedGuideId) : state.selectedPaxCode;
+  const subject = isGuide
+    ? state.guides.find(g => g.guide_id === state.selectedGuideId)
+    : state.passengers.find(x => x.code === code);
+  if (!subject) return;
+  const displayName = isGuide ? (subject.full_name || `Member #${subject.guide_id}`) : (subject.name || code);
 
   // 1 คนห้ามอยู่ 2 ห้องในกลุ่มเดียวกัน — เช็คห้องเดิมในกลุ่มนี้
   const targetGroupKey = groupKeyOf(r);
@@ -1769,7 +1835,7 @@ window.assignSelectedPax = async function (roomId) {
 
   // Already in this exact room
   if (sameGroupExisting.includes(roomId)) {
-    showToast(`${p.name || code} อยู่ใน "${r.room_name}" อยู่แล้ว`, "info");
+    showToast(`${displayName} อยู่ใน "${r.room_name}" อยู่แล้ว`, "info");
     return;
   }
 
@@ -1785,9 +1851,11 @@ window.assignSelectedPax = async function (roomId) {
   if (oldRoomId) _removeOccupant(oldRoomId, code);
   _addOccupant(roomId, code);
   state.selectedPaxCode = null;
+  state.selectedGuideId = null;
   renderStats();
   renderPassengers();
   renderRooms();
+  renderTeamPanel();
   updateSelectionHint();
 
   try {
@@ -1802,7 +1870,7 @@ window.assignSelectedPax = async function (roomId) {
     });
     const oldRoom = oldRoomId ? state.rooms.find(x => x.room_id === oldRoomId) : null;
     const verb = oldRoom ? `ย้ายจาก "${oldRoom.room_name}" → "${r.room_name}"` : `→ ${r.room_name}`;
-    showToast(`✅ ${p.name || code} ${verb}`, "success");
+    showToast(`✅ ${displayName} ${verb}`, "success");
   } catch (e) {
     // revert
     _removeOccupant(roomId, code);
@@ -1810,6 +1878,7 @@ window.assignSelectedPax = async function (roomId) {
     renderStats();
     renderPassengers();
     renderRooms();
+    renderTeamPanel();
     showToast("Assign ไม่สำเร็จ: " + e.message, "error");
   }
 };
@@ -1824,22 +1893,28 @@ window.unassignPax = async function (code, roomId) {
   const p = state.passengers.find(x => x.code === code);
   const r = state.rooms.find(x => x.room_id === roomId);
 
+  // Guide label fallback (กรณี code เป็น "g:<id>")
+  const gid = parseGuideCode(code);
+  const g = gid != null ? state.guides.find(x => x.guide_id === gid) : null;
+
   _removeOccupant(roomId, code);
   renderStats();
   renderPassengers();
   renderRooms();
+  if (gid != null) renderTeamPanel();
 
   try {
     await sbFetch("trip_room_occupants",
       `?room_id=eq.${roomId}&code=eq.${encodeURIComponent(code)}`,
       { method: "DELETE" });
-    const label = p?.name || code;
+    const label = g?.full_name || p?.name || code;
     showToast(`ย้ายออกจาก "${r?.room_name || "ห้อง"}" แล้ว: ${label}`, "success");
   } catch (e) {
     _addOccupant(roomId, code); // revert
     renderStats();
     renderPassengers();
     renderRooms();
+    if (gid != null) renderTeamPanel();
     showToast("ย้ายออกไม่สำเร็จ: " + e.message, "error");
   }
 };
@@ -3021,18 +3096,32 @@ function renderTeamPanel() {
 
   const renderMember = (g) => {
     const busCount = state.guideToBuses[g.guide_id]?.size || 0;
+    const roomCount = state.codeToRooms[guideCodeFor(g.guide_id)]?.size || 0;
     const busTag = busCount > 0
       ? `<span style="font-size:10px;color:#0369a1;background:#e0f2fe;padding:1px 5px;border-radius:4px;font-weight:600">🚌 ${busCount}</span>`
-      : `<span style="font-size:10px;color:var(--text3);background:#f1f5f9;padding:1px 5px;border-radius:4px">—</span>`;
+      : "";
+    const roomTag = roomCount > 0
+      ? `<span style="font-size:10px;color:#15803d;background:#dcfce7;padding:1px 5px;border-radius:4px;font-weight:600">🛏 ${roomCount}</span>`
+      : "";
+    const noAssign = (!busTag && !roomTag)
+      ? `<span style="font-size:10px;color:var(--text3);background:#f1f5f9;padding:1px 5px;border-radius:4px">—</span>`
+      : "";
     const langTag = g.languages
       ? `<span style="font-size:10px;color:var(--text3);font-family:monospace">${escapeHtml(g.languages)}</span>`
       : "";
-    return `<div style="display:flex;align-items:center;gap:5px;padding:6px 8px;background:#f8fafc;border:1px solid var(--border);border-radius:6px;font-size:12px"
-      title="${escapeAttr((g.role_title ? g.role_title + " · " : "") + (g.company || ""))}">
+    const isSel = state.selectedGuideId === g.guide_id;
+    const selStyle = isSel
+      ? "background:#fef3c7;border-color:#f59e0b;box-shadow:0 0 0 2px rgba(245,158,11,.2)"
+      : "background:#f8fafc;border-color:var(--border)";
+    return `<div onclick="window.selectGuide(${g.guide_id})"
+      style="display:flex;align-items:center;gap:5px;padding:6px 8px;border:1px solid;border-radius:6px;font-size:12px;cursor:pointer;transition:.12s;${selStyle}"
+      title="${escapeAttr((g.role_title ? g.role_title + " · " : "") + (g.company || "") + (isSel ? " · (กำลังเลือก)" : ""))}">
       <span style="font-size:14px;flex-shrink:0">${memberEmoji(g.member_type)}</span>
       <span style="flex:1;font-weight:600;color:var(--text);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(g.full_name)}</span>
       ${langTag}
+      ${roomTag}
       ${busTag}
+      ${noAssign}
     </div>`;
   };
 
@@ -3422,16 +3511,21 @@ async function clearGuideSeatById(busId, guideId) {
 }
 
 function updateSeatAssignableState() {
+  const hasSel = !!(state.selectedPaxCode || state.selectedGuideId);
   document.querySelectorAll(".ba-seat").forEach(el => {
     if (el.classList.contains("taken")) { el.classList.remove("assignable"); return; }
-    el.classList.toggle("assignable", !!state.selectedPaxCode);
+    el.classList.toggle("assignable", hasSel);
   });
 }
 
 // ── ASSIGN / UNASSIGN SEAT ─────────────────────────────────
 window.assignSeat = async function (busId, seatNo) {
+  // Guide path → ใช้ trip_bus_guides (seat แยกจาก passenger occupants)
+  if (state.selectedGuideId) {
+    return assignGuideSeat(busId, seatNo);
+  }
   if (!state.selectedPaxCode) {
-    showToast("เลือกลูกค้าทางซ้ายก่อน", "info");
+    showToast("เลือกลูกค้า/ทีมงานทางซ้ายก่อน", "info");
     return;
   }
   const bus = state.buses.find(b => b.bus_id === busId);
@@ -3512,6 +3606,96 @@ window.unassignSeat = async function (busId, seatNo) {
     showToast("ย้ายออกไม่สำเร็จ: " + e.message, "error");
   }
 };
+
+// ── ASSIGN GUIDE → BUS SEAT ────────────────────────────────
+// ใช้ตอน user เลือก guide ทางซ้ายแล้วคลิกที่นั่งว่างในรถ
+// รองรับ: guide ยังไม่อยู่คันไหน, อยู่คันเดียวกัน (แค่ย้าย seat), อยู่คันอื่น (ย้ายข้ามคัน)
+async function assignGuideSeat(busId, seatNo) {
+  const guideId = state.selectedGuideId;
+  if (!guideId) return;
+  const bus = state.buses.find(b => b.bus_id === busId);
+  if (!bus) return;
+  const g = state.guides.find(x => x.guide_id === guideId);
+  if (!g) return;
+
+  // เช็คว่า seat ว่างจริง
+  if ((state.busOccupants[busId] || {})[seatNo]) {
+    showToast(`ที่นั่ง ${seatNo} มีลูกค้านั่ง — เลือกที่นั่งอื่น`, "error");
+    return;
+  }
+  const otherGuideOnSeat = (state.busGuideSeats[busId] || {})[seatNo];
+  if (otherGuideOnSeat && otherGuideOnSeat !== guideId) {
+    showToast(`ที่นั่ง ${seatNo} เป็นที่นั่งทีมงานคนอื่น — เลือกที่นั่งอื่น`, "error");
+    return;
+  }
+
+  // หา assignment เดิมของไกด์ (อาจอยู่คันอื่น)
+  const oldBusIds = [...(state.guideToBuses[guideId] || [])];
+  const oldBusId  = oldBusIds[0] || null;   // ถ้าอยู่หลายคัน ใช้คันแรก (โดยปกติ 1 คน 1 คัน)
+  const oldEntry  = oldBusId != null ? (state.busGuides[oldBusId] || []).find(e => e.guide_id === guideId) : null;
+  const oldSeat   = oldEntry?.seat_no || null;
+  const sameBus   = oldBusId === busId;
+
+  // ถ้าอยู่คันนี้ + seat เดียวกันอยู่แล้ว
+  if (sameBus && oldSeat === seatNo) {
+    showToast(`${g.full_name || "ทีมงาน"} อยู่ที่นั่ง ${seatNo} อยู่แล้ว`, "info");
+    return;
+  }
+
+  // ── Optimistic update ──
+  if (sameBus) {
+    // ย้าย seat ภายในคันเดียวกัน
+    if (oldSeat && state.busGuideSeats[busId]) delete state.busGuideSeats[busId][oldSeat];
+    oldEntry.seat_no = seatNo;
+    if (!state.busGuideSeats[busId]) state.busGuideSeats[busId] = {};
+    state.busGuideSeats[busId][seatNo] = guideId;
+  } else {
+    // ย้ายข้ามคัน (หรือยังไม่เคย assign คันไหน)
+    if (oldBusId != null) {
+      // เอาออกจากคันเดิม
+      state.busGuides[oldBusId] = (state.busGuides[oldBusId] || []).filter(e => e.guide_id !== guideId);
+      if (oldSeat && state.busGuideSeats[oldBusId]) delete state.busGuideSeats[oldBusId][oldSeat];
+      if (state.guideToBuses[guideId]) state.guideToBuses[guideId].delete(oldBusId);
+    }
+    // เพิ่มเข้าคันใหม่
+    if (!state.busGuides[busId]) state.busGuides[busId] = [];
+    state.busGuides[busId].push({ guide_id: guideId, seat_no: seatNo });
+    if (!state.busGuideSeats[busId]) state.busGuideSeats[busId] = {};
+    state.busGuideSeats[busId][seatNo] = guideId;
+    if (!state.guideToBuses[guideId]) state.guideToBuses[guideId] = new Set();
+    state.guideToBuses[guideId].add(busId);
+  }
+  state.selectedGuideId = null;
+  renderStats(); renderBuses(); renderTeamPanel(); updateSelectionHint();
+
+  try {
+    if (sameBus) {
+      await sbFetch("trip_bus_guides",
+        `?bus_id=eq.${busId}&guide_id=eq.${guideId}`,
+        { method: "PATCH", body: { seat_no: seatNo } });
+    } else {
+      if (oldBusId != null) {
+        await sbFetch("trip_bus_guides",
+          `?bus_id=eq.${oldBusId}&guide_id=eq.${guideId}`,
+          { method: "DELETE" });
+      }
+      await sbFetch("trip_bus_guides", "", {
+        method: "POST",
+        body: { bus_id: busId, guide_id: guideId, seat_no: seatNo },
+      });
+    }
+    const verb = (oldBusId != null && !sameBus)
+      ? `ย้ายข้ามคัน → ${bus.bus_label || `คันที่ ${bus.bus_no}`} ที่ ${seatNo}`
+      : sameBus && oldSeat
+        ? `ย้ายที่นั่ง ${oldSeat} → ${seatNo}`
+        : `→ ${bus.bus_label || `คันที่ ${bus.bus_no}`} ที่นั่ง ${seatNo}`;
+    showToast(`✅ ${g.full_name || ("Member #" + guideId)} ${verb}`, "success");
+  } catch (e) {
+    // revert (full reload — guide bus state มี relations หลายอันที่ rollback ยุ่ง)
+    showToast("Assign ไม่สำเร็จ: " + e.message + " — กำลัง reload", "error");
+    loadData();
+  }
+}
 
 // ── BUS CRUD ───────────────────────────────────────────────
 window.openBusModal = function () {
