@@ -857,6 +857,19 @@
               <div class="ra-pax-list" id="paxList">
                 <div class="ra-pax-empty">กำลังโหลด...</div>
               </div>
+
+              <!-- Team panel (read-only — manage at trip-team.html) -->
+              <div id="raTeamPanel" style="margin-top:10px;padding-top:10px;border-top:1px dashed var(--border);display:none">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+                  <div style="font-weight:700;font-size:12.5px;color:var(--text)">🧑‍🤝‍🧑 ทีมงาน</div>
+                  <a id="raTeamLink" href="#" target="_blank" rel="noopener" data-perm="trip_team_view"
+                    style="font-size:11px;color:var(--accent);text-decoration:none;font-weight:600">
+                    ⚙️ ตั้งค่า
+                  </a>
+                </div>
+                <div id="raTeamList" style="display:flex;flex-direction:column;gap:4px;max-height:180px;overflow-y:auto"></div>
+              </div>
+
               <div style="font-size:11px;color:var(--text3);margin-top:8px;padding-top:8px;border-top:1px dashed var(--border);text-align:center">
                 💡 คลิกเลือกลูกค้า แล้วคลิกห้อง → assign
               </div>
@@ -1070,17 +1083,35 @@
       </div>
     </div>
 
-    <!-- ═══════════ GUIDE EDIT MODAL (create/edit guide) ═══════════ -->
+    <!-- ═══════════ TEAM MEMBER EDIT MODAL (Staff/Guide/Outsource) ═══════════ -->
     <div class="modal-overlay" id="guideEditOverlay" onclick="window.closeGuideEditModal(event)">
       <div class="modal v-sage-header" onclick="event.stopPropagation()">
         <div class="modal-hdr">
-          <div class="modal-title" id="geTitle">🧑‍🏫 เพิ่มไกด์</div>
+          <div class="modal-title" id="geTitle">🧑‍🤝‍🧑 เพิ่มสมาชิกทีม</div>
           <button class="btn-modal-close" onclick="window.closeGuideEditModal()">✕</button>
         </div>
         <div class="modal-body">
           <div class="form-group">
+            <label class="form-label">ประเภท <span class="req">*</span></label>
+            <select class="form-control" id="fGuideType">
+              <option value="staff">👔 Staff (พนักงาน A4S)</option>
+              <option value="guide" selected>🧑‍🏫 ไกด์</option>
+              <option value="outsource">🤝 Outsource / Agency</option>
+            </select>
+          </div>
+          <div class="form-group" style="margin-top:14px">
             <label class="form-label">ชื่อ <span class="req">*</span></label>
             <input class="form-control" id="fGuideName" placeholder="ชื่อ-นามสกุล" />
+          </div>
+          <div class="ba-form-row-2" style="margin-top:14px">
+            <div class="form-group">
+              <label class="form-label">ตำแหน่ง / Role</label>
+              <input class="form-control" id="fGuideRoleTitle" placeholder="เช่น Tour Leader, Driver" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">บริษัท / Agency</label>
+              <input class="form-control" id="fGuideCompany" placeholder="ชื่อบริษัทต้นสังกัด" />
+            </div>
           </div>
           <div class="ba-form-row-2" style="margin-top:14px">
             <div class="form-group">
@@ -1108,7 +1139,7 @@
           </div>
         </div>
         <div class="modal-footer">
-          <button class="btn btn-danger" id="geDeleteBtn" data-perm="trip_guides_delete" onclick="window.deleteGuide()" style="margin-right:auto;display:none">🗑 ลบไกด์</button>
+          <button class="btn btn-danger" id="geDeleteBtn" data-perm="trip_guides_delete" onclick="window.deleteGuide()" style="margin-right:auto;display:none">🗑 ลบ</button>
           <button class="btn btn-ghost" onclick="window.closeGuideEditModal()">ยกเลิก</button>
           <button class="btn btn-primary" id="geSaveBtn" onclick="window.saveGuide()">💾 บันทึก</button>
         </div>

@@ -1,0 +1,301 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ทีมงาน Trip — A4S-ERP</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../../css/main.css" />
+    <style>
+      /* Trip banner (same as room-assign) */
+      .tt-trip-banner{
+        display:inline-flex;align-items:center;gap:10px;
+        background:var(--accent-pale,#e8f0fb);
+        border:1px solid var(--accent,#0f4c75)33;
+        padding:6px 14px;border-radius:999px;font-size:13px;
+        color:var(--accent,#0f4c75);margin-left:12px;white-space:nowrap;
+      }
+      .tt-trip-banner a{color:var(--accent,#0f4c75);text-decoration:none;font-weight:600;opacity:.85}
+      .tt-trip-banner a:hover{opacity:1}
+
+      /* Type pill (table + badge in other pages) */
+      .tt-type-pill{
+        display:inline-block;padding:3px 10px;border-radius:999px;
+        font-size:11px;font-weight:700;letter-spacing:.2px;
+        white-space:nowrap;
+      }
+      .tt-type-staff     { background:#dbeafe; color:#1d4ed8; border:1px solid #93c5fd; }
+      .tt-type-guide     { background:#fef3c7; color:#92400e; border:1px solid #fde68a; }
+      .tt-type-outsource { background:#f3e8ff; color:#6b21a8; border:1px solid #d8b4fe; }
+
+      .tt-name-cell{font-weight:600;color:var(--text);font-size:13.5px;}
+      .tt-name-sub{color:var(--text3);font-size:11.5px;margin-top:2px;}
+      .tt-langs{
+        display:inline-block;padding:2px 8px;border-radius:6px;
+        background:#f1f5f9;color:#475569;font-size:11px;font-weight:600;
+        font-family:'IBM Plex Mono',monospace;
+      }
+      .tt-contact{font-size:12px;color:var(--text2);line-height:1.4}
+      .tt-contact a{color:var(--text2);text-decoration:none}
+      .tt-contact a:hover{color:var(--accent,#0f4c75)}
+
+      /* Action group */
+      .action-group{
+        display:flex;flex-direction:row;align-items:center;
+        justify-content:center;gap:4px;flex-wrap:nowrap;
+      }
+      .action-group .btn-icon{
+        width:30px;height:30px;font-size:14px;flex-shrink:0;
+      }
+
+      /* Bulk delete bar */
+      .bulk-bar{
+        display:none;align-items:center;gap:10px;
+        background:#fef3c7;border:1px solid #fde68a;border-radius:8px;
+        padding:8px 14px;margin-bottom:10px;
+      }
+      .bulk-bar.show{display:flex}
+      .bulk-bar-count{font-weight:700;color:#92400e}
+      .bulk-bar-spacer{flex:1}
+
+      /* Empty state */
+      .empty-icon{font-size:38px;margin-bottom:6px}
+
+      /* Stat color variants */
+      .stat-card.tt-stat-staff     { background:#eff6ff; border-color:#bfdbfe; }
+      .stat-card.tt-stat-staff .stat-value     { color:#1d4ed8; }
+      .stat-card.tt-stat-guide     { background:#fffbeb; border-color:#fde68a; }
+      .stat-card.tt-stat-guide .stat-value     { color:#a16207; }
+      .stat-card.tt-stat-outsource { background:#faf5ff; border-color:#e9d5ff; }
+      .stat-card.tt-stat-outsource .stat-value { color:#7e22ce; }
+    </style>
+  </head>
+  <body>
+    <div class="loading-overlay" id="loadingOverlay">
+      <div class="spinner"></div>
+    </div>
+    <div class="toast" id="toast"></div>
+
+    <div class="topbar"></div>
+    <div class="layout">
+      <div class="content-area">
+        <div class="page">
+
+          <!-- HERO -->
+          <div class="page-hero page-hero--simple page-hero--compact">
+            <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+              <h1 class="page-hero-title" style="margin:0">🧑‍🤝‍🧑 ทีมงาน Trip</h1>
+              <span id="ttTripBanner" class="tt-trip-banner" style="display:none;margin-left:0">
+                <a href="./trip-list.html">← รายการทริป</a>
+                <span style="opacity:.4">|</span>
+                <span id="ttTripName" style="font-weight:700">—</span>
+                <span id="ttTripDates" style="color:var(--text2);font-size:11.5px;font-weight:500"></span>
+              </span>
+            </div>
+          </div>
+
+          <!-- STATS -->
+          <div class="stats-row">
+            <div class="stat-card">
+              <div class="stat-icon">🧑‍🤝‍🧑</div>
+              <div>
+                <div class="stat-value" id="cardTotal">0</div>
+                <div class="stat-label">ทีมงานทั้งหมด</div>
+              </div>
+            </div>
+            <div class="stat-card tt-stat-staff">
+              <div class="stat-icon">👔</div>
+              <div>
+                <div class="stat-value" id="cardStaff">0</div>
+                <div class="stat-label">Staff (A4S)</div>
+              </div>
+            </div>
+            <div class="stat-card tt-stat-guide">
+              <div class="stat-icon">🧑‍🏫</div>
+              <div>
+                <div class="stat-value" id="cardGuide">0</div>
+                <div class="stat-label">ไกด์</div>
+              </div>
+            </div>
+            <div class="stat-card tt-stat-outsource">
+              <div class="stat-icon">🤝</div>
+              <div>
+                <div class="stat-value" id="cardOutsource">0</div>
+                <div class="stat-label">Outsource</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- TABLE CARD -->
+          <div class="table-card">
+            <div class="toolbar">
+              <div class="search-wrap">
+                <span class="search-icon">🔍</span>
+                <input
+                  class="search-input"
+                  id="searchInput"
+                  placeholder="ค้นหาชื่อ / เบอร์ / บริษัท..."
+                />
+              </div>
+              <select class="filter-select" id="filterType">
+                <option value="">🧿 ทุกประเภท</option>
+                <option value="staff">👔 Staff</option>
+                <option value="guide">🧑‍🏫 ไกด์</option>
+                <option value="outsource">🤝 Outsource</option>
+              </select>
+              <div class="toolbar-right">
+                <button
+                  class="btn btn-primary"
+                  data-perm="trip_team_create"
+                  onclick="window.openTeamModal()"
+                >
+                  ＋ เพิ่มสมาชิก
+                </button>
+              </div>
+            </div>
+
+            <!-- Bulk delete bar -->
+            <div class="bulk-bar" id="bulkBar">
+              <span class="bulk-bar-count" id="bulkCount">0 รายการ</span>
+              <span style="color:#92400e;font-size:12px">ถูกเลือก</span>
+              <div class="bulk-bar-spacer"></div>
+              <button class="btn btn-ghost" onclick="window.clearSelection()">ยกเลิก</button>
+              <button class="btn btn-danger" data-perm="trip_team_delete" onclick="window.bulkDelete()">
+                🗑 ลบที่เลือก
+              </button>
+            </div>
+
+            <div class="table-hdr">
+              <div class="table-title">🧑‍🤝‍🧑 รายชื่อทีมงาน</div>
+              <div class="table-count" id="tableCount">0 รายการ</div>
+            </div>
+
+            <div class="table-wrap">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th style="width:36px;text-align:center">
+                      <input type="checkbox" id="chkAll" onclick="window.toggleSelectAll(this.checked)" />
+                    </th>
+                    <th style="width:48px;text-align:center">#</th>
+                    <th onclick="window.sortTable('full_name')" style="cursor:pointer">
+                      ชื่อ <span class="sort-icon">⇅</span>
+                    </th>
+                    <th class="col-center" style="width:130px">ประเภท</th>
+                    <th style="width:120px">ภาษา / ตำแหน่ง</th>
+                    <th style="width:200px">ติดต่อ</th>
+                    <th style="width:160px">บริษัท / หมายเหตุ</th>
+                    <th class="col-center" style="width:100px">จัดการ</th>
+                  </tr>
+                </thead>
+                <tbody id="tableBody">
+                  <tr>
+                    <td colspan="8">
+                      <div class="empty-state">
+                        <div class="empty-icon">🧑‍🤝‍🧑</div>
+                        <div class="empty-text">กำลังโหลด...</div>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═════════════ TEAM FORM MODAL ═════════════ -->
+    <div class="modal-overlay" id="teamOverlay" onclick="window.closeTeamModal(event)">
+      <div class="modal v-sage-header" onclick="event.stopPropagation()">
+        <div class="modal-hdr">
+          <div class="modal-title" id="teamModalTitle">เพิ่มสมาชิกทีม</div>
+          <button class="btn-modal-close" onclick="window.closeTeamModal()">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label">ประเภท <span class="req">*</span></label>
+            <select class="form-control" id="fType">
+              <option value="staff">👔 Staff (พนักงาน A4S)</option>
+              <option value="guide" selected>🧑‍🏫 ไกด์</option>
+              <option value="outsource">🤝 Outsource / Agency</option>
+            </select>
+          </div>
+
+          <div class="form-group" style="margin-top:14px">
+            <label class="form-label">ชื่อ-นามสกุล <span class="req">*</span></label>
+            <input class="form-control" id="fFullName" placeholder="ชื่อ-นามสกุล" autocomplete="off" />
+          </div>
+
+          <div class="form-row" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px">
+            <div class="form-group">
+              <label class="form-label">ตำแหน่ง / Role</label>
+              <input class="form-control" id="fRoleTitle" placeholder="เช่น Tour Leader, Driver" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">บริษัท / Agency</label>
+              <input class="form-control" id="fCompany" placeholder="ชื่อบริษัทต้นสังกัด" />
+            </div>
+          </div>
+
+          <div class="form-group" style="margin-top:14px">
+            <label class="form-label">ภาษาที่พูดได้</label>
+            <input class="form-control" id="fLanguages" placeholder="เช่น EN, FR, AR" />
+          </div>
+
+          <div class="form-row" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:14px">
+            <div class="form-group">
+              <label class="form-label">เบอร์โทร</label>
+              <input class="form-control" id="fPhone" placeholder="08x-xxx-xxxx" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Line ID</label>
+              <input class="form-control" id="fLine" placeholder="line id" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">WhatsApp</label>
+              <input class="form-control" id="fWhatsapp" placeholder="+66 ..." />
+            </div>
+          </div>
+
+          <div class="form-group" style="margin-top:14px">
+            <label class="form-label">หมายเหตุ</label>
+            <textarea
+              class="form-control"
+              id="fNote"
+              rows="2"
+              placeholder="หมายเหตุเพิ่มเติม (ถ้ามี)"
+            ></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-danger" id="ttDeleteBtn" data-perm="trip_team_delete"
+            onclick="window.deleteTeamMember()" style="margin-right:auto;display:none">
+            🗑 ลบ
+          </button>
+          <button class="btn btn-ghost" onclick="window.closeTeamModal()">ยกเลิก</button>
+          <button class="btn btn-primary" onclick="window.saveTeamMember()">💾 บันทึก</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- SCRIPTS -->
+    <script src="../../js/core/auth.js"></script>
+    <script src="../../js/core/authz.js"></script>
+    <script src="../../js/core/date-format.js"></script>
+    <script>AuthZ.requirePerm("trip_team_view");</script>
+    <script src="./trip-team.js"></script>
+    <script src="../../js/components/modal/deleteModal.js"></script>
+    <script src="../../js/components/modal/confirmModal.js"></script>
+    <script src="../../js/components/modal/modalManager.js"></script>
+    <script src="../../js/components/modal/enterSave.js"></script>
+    <script src="../../js/components/navigation/sidebar.js"></script>
+    <script type="module">
+      import { loadTopbar } from "../../js/components/navigation/topbar.js";
+      loadTopbar("🧑‍🤝‍🧑 ทีมงาน Trip");
+    </script>
+  </body>
+</html>

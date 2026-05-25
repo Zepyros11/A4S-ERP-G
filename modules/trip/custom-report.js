@@ -78,7 +78,12 @@ const state = {
   selected: [],     // column keys เรียงตามลำดับแสดง
   collapsed: {},     // group id -> true ถ้ายุบ
   sort: [],         // multi-sort chain: [{key, dir:1|-1}, ...] — ลำดับใน array = ลำดับ priority
+  filters: {},      // col key -> Set([selected values])  (empty/missing = ไม่กรองคอลัมน์นั้น)
 };
+
+// คอลัมน์ที่จะมี header-filter ได้ — distinct ค่าต้อง 2..FILTER_MAX_DISTINCT
+// (>50 ค่า = ไม่ใช่ enum, dropdown ยาวเกินใช้ไม่สนุก)
+const FILTER_MAX_DISTINCT = 50;
 
 // ── SUPABASE ───────────────────────────────────────────────
 function getSB() {
@@ -347,14 +352,44 @@ function sortValue(row, col) {
   return cellValue(row, col).toLowerCase();
 }
 
+// คืน distinct values ของคอลัมน์ — ใช้ทั้งเช็คว่ามี filter ได้ไหม + populate dropdown
+// คำนวณจาก expandedPax (ก่อน apply filter) เพื่อให้เห็นทุก option เสมอ
+function distinctValuesFor(key) {
+  const col = COL_BY_KEY[key];
+  if (!col) return [];
+  const set = new Set();
+  expandedPax().forEach(row => {
+    const v = cellValue(row, col);
+    if (v !== "" && v != null) set.add(v);
+  });
+  return [...set].sort((a, b) =>
+    String(a).localeCompare(String(b), undefined, { numeric: true, sensitivity: "base" }));
+}
+function isFilterable(key) {
+  const n = distinctValuesFor(key).length;
+  return n >= 2 && n <= FILTER_MAX_DISTINCT;
+}
+
+function filterRows(rows) {
+  const active = Object.entries(state.filters).filter(([_, s]) => s && s.size);
+  if (!active.length) return rows;
+  return rows.filter(row =>
+    active.every(([key, set]) => {
+      const col = COL_BY_KEY[key];
+      if (!col) return true;
+      return set.has(cellValue(row, col));
+    }));
+}
+
 // คืน rows ตามลำดับ sort ปัจจุบัน (ไม่แก้ state.pax เดิม)
 // ถ้าเลือกคอลัมน์โรงแรม/ห้อง → expand เป็น 1 แถว/โรงแรม ก่อน sort
+// pipeline: expand → filter → sort
 // multi-sort: เรียงตาม chain ใน state.sort (priority ตามลำดับใน array)
 function getRows() {
-  const base = expandedPax();
+  const filtered = filterRows(expandedPax());
   const chain = state.sort.map(s => ({ col: COL_BY_KEY[s.key], dir: s.dir })).filter(x => x.col);
-  if (!chain.length) return base;
-  return [...base].sort((a, b) => {
+  if (!chain.length) return filtered;
+  return [...filtered].sort((a, b) => {
     for (const { col, dir } of chain) {
       const va = sortValue(a, col), vb = sortValue(b, col);
       let cmp;
@@ -365,6 +400,116 @@ function getRows() {
     return 0;
   });
 }
+
+// ── HEADER FILTER POPOVER ──────────────────────────────────
+// 1 popover ทั่วโลก — เปิด-ปิดที่ document.body เพื่อให้ลอยเหนือ table overflow
+let _popState = null; // { key, el, search, draft:Set, closer }
+function closeFilterPopover() {
+  if (!_popState) return;
+  _popState.el?.remove();
+  document.removeEventListener("mousedown", _popState.closer, true);
+  document.removeEventListener("keydown", _popState.escCloser, true);
+  window.removeEventListener("resize", _popState.repos, true);
+  window.removeEventListener("scroll", _popState.repos, true);
+  _popState = null;
+}
+function repositionPopover() {
+  if (!_popState) return;
+  const { el, anchor } = _popState;
+  const r = anchor.getBoundingClientRect();
+  const popW = el.offsetWidth || 240;
+  const left = Math.max(8, Math.min(window.innerWidth - popW - 8, r.right - popW));
+  const top = Math.min(window.innerHeight - el.offsetHeight - 8, r.bottom + 4);
+  el.style.left = left + "px";
+  el.style.top = top + "px";
+}
+function renderFilterPopoverBody() {
+  if (!_popState) return;
+  const { key, draft, search } = _popState;
+  const values = distinctValuesFor(key);
+  const q = search.trim().toLowerCase();
+  const shown = q ? values.filter(v => String(v).toLowerCase().includes(q)) : values;
+  const listEl = _popState.el.querySelector(".cr-fpop-list");
+  if (!shown.length) {
+    listEl.innerHTML = `<div class="cr-fpop-empty">ไม่พบค่าที่ตรงกัน</div>`;
+    return;
+  }
+  listEl.innerHTML = shown.map(v => {
+    const id = "_crf_" + Math.random().toString(36).slice(2, 9);
+    const checked = draft.has(v) ? "checked" : "";
+    return `<label><input type="checkbox" id="${id}" ${checked} data-val="${escapeHtml(v)}"
+        onchange="window._crFilterToggle(this)"><span>${escapeHtml(v)}</span></label>`;
+  }).join("");
+}
+window._crFilterToggle = function (cb) {
+  if (!_popState) return;
+  const v = cb.getAttribute("data-val");
+  if (cb.checked) _popState.draft.add(v); else _popState.draft.delete(v);
+};
+window.openFilter = function (key, anchorEl) {
+  // คลิก icon ซ้ำ → ปิด
+  if (_popState && _popState.key === key) { closeFilterPopover(); return; }
+  closeFilterPopover();
+  const current = state.filters[key] instanceof Set ? state.filters[key] : new Set();
+  const draft = new Set(current);
+  const el = document.createElement("div");
+  el.className = "cr-fpop";
+  el.innerHTML = `
+    <input class="cr-fpop-search" type="search" placeholder="ค้นหาค่า…" oninput="window._crFilterSearch(this.value)">
+    <div class="cr-fpop-acts">
+      <button onclick="window._crFilterAll(true)">เลือกทั้งหมด</button>
+      <button onclick="window._crFilterAll(false)">ล้าง</button>
+    </div>
+    <div class="cr-fpop-list"></div>
+    <div class="cr-fpop-foot">
+      <button onclick="window._crFilterClear()">เอา filter ออก</button>
+      <button class="primary" onclick="window._crFilterApply()">ใช้</button>
+    </div>`;
+  document.body.appendChild(el);
+  _popState = {
+    key, el, anchor: anchorEl, draft, search: "",
+    closer: (ev) => { if (!el.contains(ev.target) && ev.target !== anchorEl) closeFilterPopover(); },
+    escCloser: (ev) => { if (ev.key === "Escape") closeFilterPopover(); },
+    repos: repositionPopover,
+  };
+  document.addEventListener("mousedown", _popState.closer, true);
+  document.addEventListener("keydown", _popState.escCloser, true);
+  window.addEventListener("resize", _popState.repos, true);
+  window.addEventListener("scroll", _popState.repos, true);
+  renderFilterPopoverBody();
+  repositionPopover();
+  el.querySelector(".cr-fpop-search")?.focus();
+};
+window._crFilterSearch = function (v) {
+  if (!_popState) return;
+  _popState.search = v || "";
+  renderFilterPopoverBody();
+};
+window._crFilterAll = function (sel) {
+  if (!_popState) return;
+  const values = distinctValuesFor(_popState.key);
+  const q = _popState.search.trim().toLowerCase();
+  const target = q ? values.filter(v => String(v).toLowerCase().includes(q)) : values;
+  if (sel) target.forEach(v => _popState.draft.add(v));
+  else target.forEach(v => _popState.draft.delete(v));
+  renderFilterPopoverBody();
+};
+window._crFilterApply = function () {
+  if (!_popState) return;
+  const { key, draft } = _popState;
+  const values = distinctValuesFor(key);
+  // ถ้าเลือกครบทุกค่า หรือไม่เลือกอะไรเลย = ไม่กรอง (เก็บเป็น state ว่าง)
+  if (draft.size === 0 || draft.size === values.length) delete state.filters[key];
+  else state.filters[key] = new Set(draft);
+  closeFilterPopover();
+  renderPreview();
+};
+window._crFilterClear = function () {
+  if (!_popState) return;
+  delete state.filters[_popState.key];
+  closeFilterPopover();
+  renderPreview();
+};
 
 // คลิกคอลัมน์ → cycle: (ไม่อยู่ใน chain) เพิ่มเข้าท้าย asc → desc → ลบออก
 window.sortBy = function (key) {
@@ -390,8 +535,11 @@ function renderPreview() {
   empty.style.display = "none";
   table.style.display = "";
   const rows = getRows();
-  const extra = rows.length !== state.pax.length ? ` · ${rows.length} แถว (แยกตามโรงแรม)` : "";
-  count.textContent = `· ${state.pax.length} คน${extra} · ${cols.length} คอลัมน์`;
+  const expanded = expandedPax();
+  const hasFilter = Object.values(state.filters).some(s => s && s.size);
+  const splitNote = expanded.length !== state.pax.length ? ` (แยกตามโรงแรม ${expanded.length} แถว)` : "";
+  const filterNote = hasFilter ? ` · 🔽 หลัง filter ${rows.length} แถว` : "";
+  count.textContent = `· ${state.pax.length} คน${splitNote}${filterNote} · ${cols.length} คอลัมน์`;
   const multi = state.sort.length > 1;
   document.getElementById("crThead").innerHTML =
     `<th style="width:40px">#</th>` + cols.map(c => {
@@ -403,9 +551,21 @@ function renderPreview() {
         : "";
       const ind = active ? ` ${arrow}${badge}` : ` <span style="opacity:.3">↕</span>`;
       const baseTip = c.key === "pin" ? "เรียงตามชั้นยศ SVP→VP→AVP→SD→DR — " : "";
-      const tip = ` title="${baseTip}คลิก: asc → desc → ลบออก · กดหลายคอลัมน์ = multi-sort (ลำดับ priority ตามลำดับการกด)"`;
-      return `<th style="cursor:pointer;user-select:none"${tip}
-        onclick="window.sortBy('${c.key}')">${escapeHtml(c.label)}${ind}</th>`;
+      const sortTip = `${baseTip}คลิก: asc → desc → ลบออก · กดหลายคอลัมน์ = multi-sort (ลำดับ priority ตามลำดับการกด)`;
+      const canFilter = isFilterable(c.key);
+      const fActive = state.filters[c.key] && state.filters[c.key].size > 0;
+      const fBtn = canFilter
+        ? `<button class="cr-th-fbtn${fActive ? " active" : ""}"
+            title="${fActive ? "filter: " + state.filters[c.key].size + " ค่า — คลิกเพื่อแก้/ล้าง" : "กรองค่า"}"
+            onclick="event.stopPropagation();window.openFilter('${c.key}',this)">🔽</button>`
+        : "";
+      return `<th style="user-select:none">
+        <div class="cr-th-flex">
+          <span class="cr-th-lbl" title="${escapeHtml(sortTip)}"
+            onclick="window.sortBy('${c.key}')">${escapeHtml(c.label)}${ind}</span>
+          ${fBtn}
+        </div>
+      </th>`;
     }).join("");
   document.getElementById("crTbody").innerHTML = rows.map((row, i) =>
     `<tr><td style="color:var(--text3)">${i + 1}</td>` +
@@ -436,7 +596,11 @@ window.toggleColumn = function (key, checked) {
   if (!COL_BY_KEY[key]) return;
   const idx = state.selected.indexOf(key);
   if (checked && idx < 0) state.selected.push(key);
-  else if (!checked && idx >= 0) state.selected.splice(idx, 1);
+  else if (!checked && idx >= 0) {
+    state.selected.splice(idx, 1);
+    delete state.filters[key]; // ทิ้ง filter ของคอลัมน์ที่ถูกเอาออก
+  }
+  if (typeof closeFilterPopover === "function") closeFilterPopover();
   renderPicker();
   renderAll();
 };
@@ -455,6 +619,11 @@ window.applyPreset = function (id) {
   if (!tpl) return;
   const cols = Array.isArray(tpl.columns) ? tpl.columns : [];
   state.selected = cols.filter(k => COL_BY_KEY[k]); // กรอง key ที่ไม่มีแล้วทิ้ง
+  // ทิ้ง filter ของคอลัมน์ที่ไม่อยู่ใน preset
+  Object.keys(state.filters).forEach(k => {
+    if (!state.selected.includes(k)) delete state.filters[k];
+  });
+  if (typeof closeFilterPopover === "function") closeFilterPopover();
   renderPicker();
   renderAll();
   showToast(`ใช้ preset "${tpl.name}" แล้ว`, "success");

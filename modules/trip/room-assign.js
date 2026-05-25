@@ -273,6 +273,7 @@ async function loadAll() {
     renderPassengers();
     renderRooms();
     renderBuses();
+    renderTeamPanel();
     updateTabCounts();
     window.switchTab(state.activeTab);
   } catch (e) {
@@ -2941,7 +2942,65 @@ window.applyBusMulti = function (busId, field) {
   }, 450);
 };
 
-// Render แถวไกด์ของรถคันนี้
+// Type → emoji map
+const MEMBER_TYPE_EMOJI = { staff: "👔", guide: "🧑‍🏫", outsource: "🤝" };
+const memberEmoji = (t) => MEMBER_TYPE_EMOJI[t || "guide"] || "🧑‍🏫";
+const MEMBER_TYPE_LABEL = { staff: "Staff", guide: "ไกด์", outsource: "Outsource" };
+
+// Render side panel "ทีมงาน" ในแถบลูกค้าซ้าย
+function renderTeamPanel() {
+  const panel = document.getElementById("raTeamPanel");
+  if (!panel) return;
+  const link = document.getElementById("raTeamLink");
+  if (link) link.href = `./trip-team.html?trip_id=${state.tripId}`;
+
+  if (!state.guides.length) {
+    panel.style.display = "";
+    document.getElementById("raTeamList").innerHTML =
+      `<div style="font-size:11.5px;color:var(--text3);padding:6px 8px;text-align:center">
+        ยังไม่มีทีมงาน — กด <strong>⚙️ ตั้งค่า</strong> เพื่อเพิ่ม
+      </div>`;
+    if (window.AuthZ?.applyDomPerms) AuthZ.applyDomPerms(panel);
+    return;
+  }
+
+  panel.style.display = "";
+  // Group by type
+  const grouped = { staff: [], guide: [], outsource: [] };
+  state.guides.forEach(g => {
+    const t = g.member_type || "guide";
+    (grouped[t] || grouped.guide).push(g);
+  });
+
+  const sectionHtml = ["staff", "guide", "outsource"].map(t => {
+    const arr = grouped[t];
+    if (!arr.length) return "";
+    const items = arr.map(g => {
+      const busCount = state.guideToBuses[g.guide_id]?.size || 0;
+      const busTag = busCount > 0
+        ? `<span style="font-size:10px;color:#0369a1;background:#e0f2fe;padding:1px 5px;border-radius:4px;font-weight:600">🚌 ${busCount}</span>`
+        : `<span style="font-size:10px;color:var(--text3);background:#f1f5f9;padding:1px 5px;border-radius:4px">—</span>`;
+      const langTag = g.languages
+        ? `<span style="font-size:10px;color:var(--text3);font-family:monospace">${escapeHtml(g.languages)}</span>`
+        : "";
+      return `<div style="display:flex;align-items:center;gap:5px;padding:4px 7px;background:#f8fafc;border:1px solid var(--border);border-radius:6px;font-size:11.5px"
+        title="${escapeAttr((g.role_title ? g.role_title + " · " : "") + (g.company || ""))}">
+        <span style="font-size:13px;flex-shrink:0">${memberEmoji(t)}</span>
+        <span style="flex:1;font-weight:600;color:var(--text);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(g.full_name)}</span>
+        ${langTag}
+        ${busTag}
+      </div>`;
+    }).join("");
+    return `<div style="font-size:10.5px;color:var(--text2);font-weight:700;letter-spacing:.3px;margin:6px 0 3px">
+        ${memberEmoji(t)} ${MEMBER_TYPE_LABEL[t]} <span style="color:var(--text3);font-weight:500">(${arr.length})</span>
+      </div>${items}`;
+  }).join("");
+
+  document.getElementById("raTeamList").innerHTML = sectionHtml;
+  if (window.AuthZ?.applyDomPerms) AuthZ.applyDomPerms(panel);
+}
+
+// Render แถวทีมงานของรถคันนี้ (Staff / Guide / Outsource)
 function guidesRowHtml(busId) {
   const entries = state.busGuides[busId] || [];
   const pills = entries.map(entry => {
@@ -2954,15 +3013,20 @@ function guidesRowHtml(busId) {
     return `<button class="ba-guide-pill" data-perm="trip_guides_edit"
       onclick="event.stopPropagation();window.openGuideEditModal(${g.guide_id})"
       title="คลิกเพื่อแก้ไข">
-      🧑‍🏫 ${escapeHtml(g.full_name)}${lang}${seatTag}
+      ${memberEmoji(g.member_type)} ${escapeHtml(g.full_name)}${lang}${seatTag}
     </button>`;
   }).join("");
   return `<div class="ba-bus-guides">
-    <span class="ba-bus-guides-label">🧑‍🏫 ไกด์:</span>
+    <span class="ba-bus-guides-label">🧑‍🤝‍🧑 ทีมงาน:</span>
     ${pills || '<span style="color:var(--text3);font-size:11.5px">— ยังไม่มี —</span>'}
     <button class="ba-bus-guides-add" data-perm="trip_guides_assign"
       onclick="event.stopPropagation();window.openBusGuidesModal(${busId})"
-      title="จัดการไกด์ของคันนี้">＋ จัดการไกด์</button>
+      title="จัดการทีมงานของคันนี้">＋ จัดการทีมงาน</button>
+    <a href="./trip-team.html?trip_id=${state.tripId}" target="_blank" rel="noopener"
+      class="ba-bus-guides-add" data-perm="trip_team_view"
+      style="text-decoration:none"
+      onclick="event.stopPropagation()"
+      title="ตั้งค่าทีมงาน (เปิดแท็บใหม่)">⚙️ ตั้งค่า</a>
   </div>`;
 }
 
@@ -2974,18 +3038,19 @@ function renderSeatMapHtml(rows, occMap, opts = {}) {
       if (cell === "AISLE") return `<div class="ba-aisle"></div>`;
       if (cell === "EMPTY") return `<div class="ba-seat-empty"></div>`;
       const seatNo = String(cell);
-      // Guide seat (ก่อน passenger เพราะ guide ครองที่ของไกด์)
+      // Team-member seat (ก่อน passenger เพราะ member ครองที่ของไกด์)
       const guideId = guideSeats[seatNo];
       if (guideId) {
         const g = state.guides.find(x => x.guide_id === guideId);
-        const gname = g?.full_name || `Guide #${guideId}`;
+        const gname = g?.full_name || `Member #${guideId}`;
         const lang = g?.languages ? ` (${g.languages})` : "";
+        const emo = memberEmoji(g?.member_type);
         return `<div class="ba-seat ba-seat-guide taken" data-seat="${seatNo}"
-          title="🧑‍🏫 ${escapeAttr(gname + lang)} · คลิกเพื่อดูรายละเอียด · กด × เพื่อย้ายออกจาก seat"
+          title="${emo} ${escapeAttr(gname + lang)} · คลิกเพื่อดูรายละเอียด · กด × เพื่อย้ายออกจาก seat"
           ${interactive ? `onclick="event.stopPropagation();window.viewGuideSeat(${busId}, '${escapeJs(seatNo)}')"` : ""}>
           <span class="ba-seat-num">${seatNo}</span>
-          <span class="ba-seat-name">🧑‍🏫 ${escapeHtml(shortName(gname))}</span>
-          ${interactive ? `<button class="ba-seat-remove" title="ย้ายไกด์ออกจาก seat นี้"
+          <span class="ba-seat-name">${emo} ${escapeHtml(shortName(gname))}</span>
+          ${interactive ? `<button class="ba-seat-remove" title="ย้ายทีมงานออกจาก seat นี้"
             onclick="event.stopPropagation();window.clearGuideSeatFromMap(${busId}, ${guideId})">×</button>` : ""}
         </div>`;
       }
@@ -3180,7 +3245,9 @@ window.viewGuideSeat = function (busId, seatNo) {
   state.sdContext = { kind: "guide", busId, seatNo, guideId };
 
   // Modal title + side label + buttons
-  document.getElementById("sdModalTitle").textContent = "🧑‍🏫 รายละเอียดไกด์";
+  const emo = memberEmoji(g.member_type);
+  const typeLbl = { staff: "Staff", guide: "ไกด์", outsource: "Outsource" }[g.member_type || "guide"];
+  document.getElementById("sdModalTitle").textContent = `${emo} รายละเอียด${typeLbl}`;
   document.getElementById("sdSideLabel").textContent = "📞 ติดต่อ";
   document.getElementById("sdEditBtn").style.display = "";
   document.getElementById("sdRemoveBtn").textContent = "💺 ย้ายออกจากที่นั่ง";
@@ -3189,7 +3256,10 @@ window.viewGuideSeat = function (busId, seatNo) {
   document.getElementById("sdName").textContent = g.full_name;
   const grid = document.getElementById("sdGrid");
   grid.innerHTML = [
-    g.languages ? ["ภาษา", g.languages] : null,
+    ["ประเภท",   `${emo} ${typeLbl}`],
+    g.role_title ? ["ตำแหน่ง", g.role_title] : null,
+    g.company    ? ["บริษัท",   g.company]    : null,
+    g.languages  ? ["ภาษา",     g.languages]  : null,
     ["รถ",      busLbl],
     ["ที่นั่ง",  seatNo],
     g.note ? ["หมายเหตุ", g.note] : null,
@@ -3793,7 +3863,7 @@ window.openBusGuidesModal = function (busId) {
   state.guideTargetBusId = busId;
   const bus = state.buses.find(b => b.bus_id === busId);
   document.getElementById("bgmTitle").textContent =
-    `🧑‍🏫 ไกด์ของ ${bus ? (bus.bus_label || `คันที่ ${bus.bus_no}`) : "รถบัส"}`;
+    `🧑‍🤝‍🧑 ทีมงานของ ${bus ? (bus.bus_label || `คันที่ ${bus.bus_no}`) : "รถบัส"}`;
   renderBusGuidesList();
   document.getElementById("busGuidesOverlay").classList.add("open");
 };
@@ -3810,7 +3880,10 @@ function renderBusGuidesList() {
   if (!list) return;
   if (!state.guides.length) {
     list.innerHTML = `<div style="padding:14px;color:var(--text3);text-align:center;font-size:13px">
-      ยังไม่มีไกด์ใน trip นี้ — กด "+ สร้างไกด์ใหม่" เพื่อเพิ่ม
+      ยังไม่มีทีมงานใน trip นี้ — เปิดหน้า
+      <a href="./trip-team.html?trip_id=${state.tripId}" target="_blank" rel="noopener"
+        style="color:var(--accent);font-weight:600">⚙️ ตั้งค่าทีม</a>
+      เพื่อเพิ่ม
     </div>`;
     return;
   }
@@ -3861,10 +3934,11 @@ function renderBusGuidesList() {
     return `<div class="bgm-row${checked ? " checked" : ""}"
       onclick="window.toggleGuideForBus(${g.guide_id})">
       <span class="bgm-row-check">${checked ? "✓" : ""}</span>
+      <span style="font-size:14px;flex-shrink:0">${memberEmoji(g.member_type)}</span>
       <span class="bgm-row-name">${escapeHtml(g.full_name)}</span>
       ${lang}
       ${seatPicker}
-      <button class="bgm-row-edit" title="แก้ไขข้อมูลไกด์"
+      <button class="bgm-row-edit" title="แก้ไขข้อมูลทีมงาน"
         onclick="event.stopPropagation();window.openGuideEditModal(${g.guide_id})">✏️</button>
     </div>`;
   }).join("");
@@ -3978,12 +4052,17 @@ window.setGuideSeat = async function (guideId, newSeat) {
   }
 };
 
-// เปิด modal สร้าง/แก้ไขไกด์
+// เปิด modal สร้าง/แก้ไขสมาชิกทีม (staff/guide/outsource)
 window.openGuideEditModal = function (guideId) {
   state.editingGuideId = guideId;
   const g = guideId ? state.guides.find(x => x.guide_id === guideId) : null;
-  document.getElementById("geTitle").textContent = g ? `🧑‍🏫 แก้ไขไกด์` : `🧑‍🏫 เพิ่มไกด์`;
+  document.getElementById("geTitle").textContent = g
+    ? `🧑‍🤝‍🧑 แก้ไขสมาชิกทีม`
+    : `🧑‍🤝‍🧑 เพิ่มสมาชิกทีม`;
+  document.getElementById("fGuideType").value      = g?.member_type || "guide";
   document.getElementById("fGuideName").value      = g?.full_name || "";
+  document.getElementById("fGuideRoleTitle").value = g?.role_title || "";
+  document.getElementById("fGuideCompany").value   = g?.company || "";
   document.getElementById("fGuideLanguages").value = g?.languages || "";
   document.getElementById("fGuidePhone").value     = g?.phone || "";
   document.getElementById("fGuideLine").value      = g?.line_id || "";
@@ -4002,10 +4081,13 @@ window.closeGuideEditModal = function (e) {
 
 window.saveGuide = async function () {
   const name = document.getElementById("fGuideName").value.trim();
-  if (!name) { showToast("กรอกชื่อไกด์", "error"); return; }
+  if (!name) { showToast("กรอกชื่อ", "error"); return; }
   const payload = {
     trip_id: state.tripId,
+    member_type: document.getElementById("fGuideType").value || "guide",
     full_name: name,
+    role_title: document.getElementById("fGuideRoleTitle").value.trim() || null,
+    company: document.getElementById("fGuideCompany").value.trim() || null,
     languages: document.getElementById("fGuideLanguages").value.trim() || null,
     phone: document.getElementById("fGuidePhone").value.trim() || null,
     line_id: document.getElementById("fGuideLine").value.trim() || null,
@@ -4022,12 +4104,12 @@ window.saveGuide = async function () {
         method: "PATCH",
         body: payload,
       });
-      showToast("แก้ไขไกด์แล้ว", "success");
+      showToast("แก้ไขแล้ว", "success");
     } else {
       payload.sort_order = state.guides.length;
       const res = await sbFetch("trip_guides", "", { method: "POST", body: payload });
       newId = Array.isArray(res) ? res[0]?.guide_id : res?.guide_id;
-      showToast("เพิ่มไกด์แล้ว", "success");
+      showToast("เพิ่มสมาชิกทีมแล้ว", "success");
     }
     document.getElementById("guideEditOverlay").classList.remove("open");
     state.editingGuideId = null;
@@ -4048,11 +4130,11 @@ window.deleteGuide = async function () {
   if (!g) return;
   const assignedCount = state.guideToBuses[g.guide_id]?.size || 0;
   const msg = assignedCount > 0
-    ? `ลบไกด์ "${g.full_name}" — ปัจจุบันประจำรถ ${assignedCount} คัน — ดำเนินการต่อ?`
-    : `ลบไกด์ "${g.full_name}"?`;
+    ? `ลบ "${g.full_name}" — ปัจจุบันประจำรถ ${assignedCount} คัน — ดำเนินการต่อ?`
+    : `ลบ "${g.full_name}"?`;
   const ok = window.ConfirmModal?.open
     ? await window.ConfirmModal.open({
-        title: "ลบไกด์",
+        title: "ลบสมาชิกทีม",
         message: msg,
         icon: "🗑",
         tone: "danger",
@@ -4063,7 +4145,7 @@ window.deleteGuide = async function () {
   showLoading(true);
   try {
     await sbFetch("trip_guides", `?guide_id=eq.${state.editingGuideId}`, { method: "DELETE" });
-    showToast("ลบไกด์แล้ว", "success");
+    showToast("ลบแล้ว", "success");
     document.getElementById("guideEditOverlay").classList.remove("open");
     state.editingGuideId = null;
     await loadAll();

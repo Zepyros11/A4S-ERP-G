@@ -77,6 +77,60 @@
       table.cr-table tbody tr:hover{background:#f1f5f9}
       .cr-empty{padding:40px 20px;text-align:center;color:var(--text3);font-size:13px}
 
+      /* ── Header filter ── */
+      .cr-th-flex{display:inline-flex;align-items:center;gap:4px;width:100%}
+      .cr-th-lbl{flex:1;cursor:pointer;user-select:none}
+      .cr-th-fbtn{
+        border:none;background:transparent;cursor:pointer;
+        padding:1px 3px;border-radius:4px;font-size:10px;line-height:1;
+        color:var(--text3);opacity:.55;
+      }
+      .cr-th-fbtn:hover{background:#e2e8f0;opacity:1}
+      .cr-th-fbtn.active{
+        color:#fff;background:var(--accent);opacity:1;
+        box-shadow:0 1px 2px rgba(0,0,0,.15);
+      }
+      .cr-fpop{
+        position:fixed;z-index:1000;min-width:220px;max-width:300px;
+        background:#fff;border:1px solid var(--border);border-radius:8px;
+        box-shadow:0 6px 20px rgba(0,0,0,.15);
+        padding:8px;font-size:12.5px;
+      }
+      .cr-fpop-search{
+        width:100%;padding:5px 8px;border:1px solid var(--border);
+        border-radius:6px;font-size:12px;margin-bottom:6px;box-sizing:border-box;
+      }
+      .cr-fpop-acts{
+        display:flex;gap:8px;margin-bottom:6px;font-size:11px;
+      }
+      .cr-fpop-acts button{
+        border:none;background:transparent;color:var(--accent);
+        cursor:pointer;padding:0;font-weight:600;font-size:11px;
+      }
+      .cr-fpop-acts button:hover{text-decoration:underline}
+      .cr-fpop-list{
+        max-height:240px;overflow-y:auto;
+        border:1px solid var(--border);border-radius:6px;padding:3px;
+      }
+      .cr-fpop-list label{
+        display:flex;align-items:center;gap:7px;
+        padding:4px 6px;border-radius:4px;cursor:pointer;font-size:12px;
+        color:var(--text);
+      }
+      .cr-fpop-list label:hover{background:#f1f5f9}
+      .cr-fpop-list input{cursor:pointer;margin:0;width:14px;height:14px}
+      .cr-fpop-empty{padding:12px;text-align:center;color:var(--text3);font-size:12px}
+      .cr-fpop-foot{
+        display:flex;justify-content:flex-end;gap:6px;margin-top:8px;
+      }
+      .cr-fpop-foot button{
+        padding:4px 10px;border-radius:6px;font-size:12px;cursor:pointer;
+        border:1px solid var(--border);background:#fff;color:var(--text);
+      }
+      .cr-fpop-foot button.primary{
+        background:var(--accent);color:#fff;border-color:var(--accent);
+      }
+
       .cr-preset-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
       .cr-preset-bar select{min-width:200px}
 
