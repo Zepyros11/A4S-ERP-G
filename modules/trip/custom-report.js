@@ -79,6 +79,7 @@ const state = {
   collapsed: {},     // group id -> true ถ้ายุบ
   sort: [],         // multi-sort chain: [{key, dir:1|-1}, ...] — ลำดับใน array = ลำดับ priority
   filters: {},      // col key -> Set([selected values])  (empty/missing = ไม่กรองคอลัมน์นั้น)
+  merged: {},      // col key -> true ถ้าเปิด "ผสานเซลซ้ำ" (rowspan แถวที่ติดกันค่าเท่ากัน)
 };
 
 // คอลัมน์ที่จะมี header-filter ได้ — distinct ค่าต้อง 2..FILTER_MAX_DISTINCT
@@ -378,6 +379,52 @@ function isFilterable(key) {
   const n = distinctValuesFor(key).length;
   return n >= 2 && n <= FILTER_MAX_DISTINCT;
 }
+// ปุ่ม 🔽 header แสดงเมื่อ: filter ใช้ได้ (2..50 distinct) "หรือ" คอลัมน์มีค่าซ้ำ (n < rows)
+// — ให้ผู้ใช้กดเปิด popover เพื่อใช้ "ผสานเซล" ได้แม้ distinct จะเยอะเกิน 50
+function hasFilterButton(key) {
+  const n = distinctValuesFor(key).length;
+  if (n < 2) return false;
+  if (n <= FILTER_MAX_DISTINCT) return true;
+  return n < expandedPax().length;
+}
+// คอลัมน์ "ผสานเซลได้" = อย่างน้อยมี 1 ค่าซ้ำใน rows (n < rows count)
+function isMergeable(key) {
+  const n = distinctValuesFor(key).length;
+  if (n < 2) return false;
+  return n < expandedPax().length;
+}
+
+// คำนวณ rowspan ของแต่ละเซลเมื่อเปิด merge
+// hierarchical: คอลัมน์ขวาผสานต่อได้ก็ต่อเมื่อคอลัมน์ "ที่ merge อยู่" ทางซ้ายค่ายังเท่ากันด้วย
+// คืน: rowspans[colIdx][rowIdx] = N (>=1 = render cell with rowspan, 0 = skip cell)
+function computeRowspans(rows, cols) {
+  const rs = cols.map(() => new Array(rows.length).fill(1));
+  cols.forEach((c, ci) => {
+    if (!state.merged[c.key]) return;
+    let r = 0;
+    while (r < rows.length) {
+      let end = r + 1;
+      while (end < rows.length) {
+        if (cellValue(rows[end], c) !== cellValue(rows[r], c)) break;
+        // เคารพ boundary ของคอลัมน์ merge ทางซ้าย (ถ้าทางซ้ายเปลี่ยนกลุ่ม → ตัด)
+        let groupBreak = false;
+        for (let pj = 0; pj < ci; pj++) {
+          const pc = cols[pj];
+          if (state.merged[pc.key] && cellValue(rows[end], pc) !== cellValue(rows[r], pc)) {
+            groupBreak = true; break;
+          }
+        }
+        if (groupBreak) break;
+        end++;
+      }
+      const span = end - r;
+      rs[ci][r] = span;
+      for (let k = r + 1; k < end; k++) rs[ci][k] = 0;
+      r = end;
+    }
+  });
+  return rs;
+}
 
 function filterRows(rows) {
   const active = Object.entries(state.filters).filter(([_, s]) => s && s.size);
@@ -469,9 +516,17 @@ window.openFilter = function (key, anchorEl) {
   closeFilterPopover();
   const current = state.filters[key] instanceof Set ? state.filters[key] : new Set();
   const draft = new Set(current);
+  const canFilter = isFilterable(key);
+  const canMerge  = isMergeable(key);
+  const mergeChecked = !!state.merged[key] ? "checked" : "";
   const el = document.createElement("div");
   el.className = "cr-fpop";
-  el.innerHTML = `
+  const mergeBlock = canMerge ? `
+    <label class="cr-fpop-merge" title="รวมเซลที่มีค่าเหมือนกันติดกัน (เหมือน merge cells ใน Excel)">
+      <input type="checkbox" ${mergeChecked} onchange="window._crMergeToggle(this.checked)">
+      <span>≣ ผสานเซล</span>
+    </label>` : "";
+  const filterBlock = canFilter ? `
     <input class="cr-fpop-search" type="search" placeholder="ค้นหาค่า…" oninput="window._crFilterSearch(this.value)">
     <div class="cr-fpop-acts">
       <button onclick="window._crFilterAll(true)">เลือกทั้งหมด</button>
@@ -481,10 +536,14 @@ window.openFilter = function (key, anchorEl) {
     <div class="cr-fpop-foot">
       <button onclick="window._crFilterClear()">เอา filter ออก</button>
       <button class="primary" onclick="window._crFilterApply()">ใช้</button>
+    </div>` : `
+    <div class="cr-fpop-msg">ค่าหลากหลายเกิน ${FILTER_MAX_DISTINCT} ค่า — กรองไม่ได้
+      ${canMerge ? "" : "<br>(และไม่มีค่าซ้ำให้ผสาน)"}
     </div>`;
+  el.innerHTML = mergeBlock + (mergeBlock && canFilter ? `<div class="cr-fpop-divider"></div>` : "") + filterBlock;
   document.body.appendChild(el);
   _popState = {
-    key, el, anchor: anchorEl, draft, search: "",
+    key, el, anchor: anchorEl, draft, search: "", canFilter,
     closer: (ev) => { if (!el.contains(ev.target) && ev.target !== anchorEl) closeFilterPopover(); },
     escCloser: (ev) => { if (ev.key === "Escape") closeFilterPopover(); },
     repos: repositionPopover,
@@ -493,10 +552,33 @@ window.openFilter = function (key, anchorEl) {
   document.addEventListener("keydown", _popState.escCloser, true);
   window.addEventListener("resize", _popState.repos, true);
   window.addEventListener("scroll", _popState.repos, true);
-  renderFilterPopoverBody();
+  if (canFilter) renderFilterPopoverBody();
   repositionPopover();
   el.querySelector(".cr-fpop-search")?.focus();
 };
+// merge toggle apply ทันที — ไม่ต้องกด "ใช้"
+// เปิด merge → auto-sort คอลัมน์นั้นขึ้นหน้า sort chain เพื่อให้ค่าซ้ำมาติดกันแล้วผสานได้ครบ
+// ปิด merge → คงตำแหน่ง sort เดิมไว้ (user ไปลบ sort เองได้)
+window._crMergeToggle = function (on) {
+  if (!_popState) return;
+  if (on) state.merged[_popState.key] = true;
+  else delete state.merged[_popState.key];
+  rebuildSortForMerge();
+  renderPreview();
+};
+
+// ดัน "คอลัมน์ merge" ทั้งหมดไปอยู่หน้า sort chain ตามลำดับใน state.selected (display order)
+// — หลัก: rowspan เกิดได้เฉพาะแถวติดกัน → ต้อง sort by merged-col ก่อน
+// — hierarchical: merged-col ที่อยู่ซ้ายใน display ต้องมา prio สูงกว่าใน sort เพื่อให้ boundary ใช้ได้
+function rebuildSortForMerge() {
+  const mergedKeys = state.selected.filter(k => state.merged[k]);
+  const others = state.sort.filter(s => !state.merged[s.key]);
+  const prefix = mergedKeys.map(k => {
+    const existing = state.sort.find(s => s.key === k);
+    return existing ? existing : { key: k, dir: 1 };
+  });
+  state.sort = [...prefix, ...others];
+}
 window._crFilterSearch = function (v) {
   if (!_popState) return;
   _popState.search = v || "";
@@ -569,12 +651,17 @@ function renderPreview() {
       const ind = active ? ` ${arrow}${badge}` : ` <span style="opacity:.3">↕</span>`;
       const baseTip = c.key === "pin" ? "เรียงตามชั้นยศ SVP→VP→AVP→SD→DR — " : "";
       const sortTip = `${baseTip}คลิก: asc → desc → ลบออก · กดหลายคอลัมน์ = multi-sort (ลำดับ priority ตามลำดับการกด)`;
-      const canFilter = isFilterable(c.key);
+      const showBtn = hasFilterButton(c.key);
       const fActive = state.filters[c.key] && state.filters[c.key].size > 0;
-      const fBtn = canFilter
-        ? `<button class="cr-th-fbtn${fActive ? " active" : ""}"
-            title="${fActive ? "filter: " + state.filters[c.key].size + " ค่า — คลิกเพื่อแก้/ล้าง" : "กรองค่า"}"
-            onclick="event.stopPropagation();window.openFilter('${c.key}',this)">🔽</button>`
+      const mActive = !!state.merged[c.key];
+      const anyActive = fActive || mActive;
+      const tipParts = [];
+      if (fActive) tipParts.push("filter: " + state.filters[c.key].size + " ค่า");
+      if (mActive) tipParts.push("ผสานเซลเปิดอยู่");
+      const fBtn = showBtn
+        ? `<button class="cr-th-fbtn${anyActive ? " active" : ""}"
+            title="${tipParts.length ? tipParts.join(" · ") + " — คลิกเพื่อแก้" : "กรองค่า / ผสานเซล"}"
+            onclick="event.stopPropagation();window.openFilter('${c.key}',this)">🔽${mActive ? '<span class="cr-th-mbadge">≣</span>' : ''}</button>`
         : "";
       return `<th style="user-select:none">
         <div class="cr-th-flex">
@@ -584,9 +671,15 @@ function renderPreview() {
         </div>
       </th>`;
     }).join("");
+  const rspan = computeRowspans(rows, cols);
   document.getElementById("crTbody").innerHTML = rows.map((row, i) =>
     `<tr><td style="color:var(--text3)">${i + 1}</td>` +
-    cols.map(c => `<td>${escapeHtml(cellValue(row, c))}</td>`).join("") +
+    cols.map((c, ci) => {
+      const span = rspan[ci][i];
+      if (span === 0) return ""; // ถูกผสานเข้า cell ด้านบน
+      const attrs = span > 1 ? ` rowspan="${span}" class="cr-merged"` : "";
+      return `<td${attrs}>${escapeHtml(cellValue(row, c))}</td>`;
+    }).join("") +
     `</tr>`).join("");
 }
 
@@ -616,6 +709,7 @@ window.toggleColumn = function (key, checked) {
   else if (!checked && idx >= 0) {
     state.selected.splice(idx, 1);
     delete state.filters[key]; // ทิ้ง filter ของคอลัมน์ที่ถูกเอาออก
+    delete state.merged[key];  // ทิ้ง merge ของคอลัมน์ที่ถูกเอาออก
   }
   if (typeof closeFilterPopover === "function") closeFilterPopover();
   renderPicker();
@@ -636,9 +730,12 @@ window.applyPreset = function (id) {
   if (!tpl) return;
   const cols = Array.isArray(tpl.columns) ? tpl.columns : [];
   state.selected = cols.filter(k => COL_BY_KEY[k]); // กรอง key ที่ไม่มีแล้วทิ้ง
-  // ทิ้ง filter ของคอลัมน์ที่ไม่อยู่ใน preset
+  // ทิ้ง filter/merge ของคอลัมน์ที่ไม่อยู่ใน preset
   Object.keys(state.filters).forEach(k => {
     if (!state.selected.includes(k)) delete state.filters[k];
+  });
+  Object.keys(state.merged).forEach(k => {
+    if (!state.selected.includes(k)) delete state.merged[k];
   });
   if (typeof closeFilterPopover === "function") closeFilterPopover();
   renderPicker();
@@ -724,13 +821,27 @@ window.exportReportExcel = function () {
   const cols = selectedCols();
   if (!cols.length) { showToast("เลือกคอลัมน์ก่อน export", "info"); return; }
   if (typeof XLSX === "undefined") { showToast("XLSX ยังโหลดไม่เสร็จ — ลองใหม่", "error"); return; }
-  const data = getRows().map(row => {
-    const o = {};
-    cols.forEach(c => { o[c.label] = cellValue(row, c); });
-    return o;
+  const rows = getRows();
+  const rspan = computeRowspans(rows, cols);
+  // สร้าง AOA (header + data) — เซลที่ถูก merge ตั้งเป็น "" (เซลล่างใน merge range)
+  const aoa = [cols.map(c => c.label)];
+  rows.forEach((row, i) => {
+    aoa.push(cols.map((c, ci) => rspan[ci][i] === 0 ? "" : cellValue(row, c)));
   });
-  const ws = XLSX.utils.json_to_sheet(data.length ? data : [Object.fromEntries(cols.map(c => [c.label, ""]))]);
+  if (!rows.length) aoa.push(cols.map(() => ""));
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
   ws["!cols"] = cols.map(c => ({ wch: Math.max(c.label.length + 2, 14) }));
+  // merge ranges — header อยู่แถว 0, data เริ่มแถว 1
+  const merges = [];
+  cols.forEach((_, ci) => {
+    rows.forEach((_, i) => {
+      const span = rspan[ci][i];
+      if (span > 1) {
+        merges.push({ s: { r: i + 1, c: ci }, e: { r: i + span, c: ci } });
+      }
+    });
+  });
+  if (merges.length) ws["!merges"] = merges;
   const wb = XLSX.utils.book_new();
   const sheet = tripTitle().replace(/[\\\/\?\*\[\]:]/g, "_").slice(0, 31) || "Report";
   XLSX.utils.book_append_sheet(wb, ws, sheet);
@@ -746,9 +857,15 @@ window.exportReportPrint = function () {
   const dates = (ci || co) ? ` · ${ci || "—"} → ${co || "—"}` : "";
   const thead = `<th>#</th>` + cols.map(c => `<th>${escapeHtml(c.label)}</th>`).join("");
   const rows = getRows();
+  const rspan = computeRowspans(rows, cols);
   const tbody = rows.map((row, i) =>
     `<tr><td>${i + 1}</td>` +
-    cols.map(c => `<td>${escapeHtml(cellValue(row, c))}</td>`).join("") +
+    cols.map((c, ci) => {
+      const span = rspan[ci][i];
+      if (span === 0) return "";
+      const attrs = span > 1 ? ` rowspan="${span}"` : "";
+      return `<td${attrs}>${escapeHtml(cellValue(row, c))}</td>`;
+    }).join("") +
     `</tr>`).join("");
   const gen = new Date().toLocaleString("th-TH", { timeZone: "Asia/Bangkok" });
   const extra = rows.length !== state.pax.length ? ` · ${rows.length} แถว (แยกตามโรงแรม)` : "";

@@ -130,6 +130,31 @@
       .cr-fpop-foot button.primary{
         background:var(--accent);color:#fff;border-color:var(--accent);
       }
+      .cr-fpop-merge{
+        display:flex;align-items:center;gap:7px;
+        padding:7px 9px;border-radius:6px;
+        background:#f0f9ff;border:1px solid #bae6fd;
+        cursor:pointer;font-size:12px;color:#075985;font-weight:600;
+      }
+      .cr-fpop-merge:hover{background:#e0f2fe}
+      .cr-fpop-merge input{cursor:pointer;margin:0;width:14px;height:14px}
+      .cr-fpop-divider{border-top:1px dashed var(--border);margin:8px 0}
+      .cr-fpop-msg{
+        padding:10px;text-align:center;color:var(--text3);font-size:12px;
+        background:#f8fafc;border:1px dashed var(--border);border-radius:6px;
+      }
+
+      /* merge badge บนปุ่ม filter header */
+      .cr-th-mbadge{
+        display:inline-block;margin-left:2px;font-size:9px;
+        font-weight:700;line-height:1;vertical-align:1px;
+      }
+
+      /* เซลที่ถูกผสาน (rowspan) — top-align + พื้นสว่างนิดให้เห็นกลุ่ม */
+      table.cr-table td.cr-merged{
+        vertical-align:top;background:#fafdff;font-weight:600;
+      }
+      table.cr-table tbody tr:nth-child(even) td.cr-merged{background:#f4f9ff}
 
       .cr-preset-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
       .cr-preset-bar select{min-width:200px}
