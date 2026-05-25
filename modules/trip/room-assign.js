@@ -3965,6 +3965,7 @@ window.toggleGuideForBus = async function (guideId) {
   }
   renderBusGuidesList();
   renderBuses();
+  renderTeamPanel();
 
   try {
     if (existing) {
@@ -4032,6 +4033,7 @@ window.setGuideSeat = async function (guideId, newSeat) {
   }
   renderBusGuidesList();
   renderBuses();
+  renderTeamPanel();
 
   try {
     await sbFetch("trip_bus_guides",
