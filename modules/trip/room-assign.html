@@ -62,6 +62,14 @@
         font-size:11px;color:var(--text2);
       }
       .ra-pax-code{font-family:'IBM Plex Mono',monospace;font-weight:600;color:var(--text2)}
+      .ra-pax-pin{
+        display:inline-block;font-size:10px;font-weight:700;
+        background:#e0f2fe;color:#0369a1;
+        padding:1px 6px;border-radius:99px;
+        margin-right:auto;
+        white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+        max-width:90px;line-height:1.4;
+      }
       .ra-pax-nat{color:var(--text3);font-size:11px;text-align:right;max-width:55%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
       .ra-pax-row-bot{
         display:flex;justify-content:space-between;align-items:center;gap:6px;
@@ -655,6 +663,13 @@
         font-family:'IBM Plex Mono',monospace;
         white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
       }
+      .ba-seat-pin{
+        display:inline-block;margin-left:4px;
+        font-size:8.5px;font-weight:700;opacity:.85;
+        background:rgba(15,23,42,.10);color:var(--text);
+        padding:0 4px;border-radius:3px;
+        font-family:inherit;vertical-align:1px;
+      }
       .ba-seat-info .ba-seat-name{flex:0 0 auto}
       /* สัญชาติด้านหลังชื่อในที่นั่งรถ */
       .ba-seat-nat{
@@ -663,6 +678,7 @@
         max-width:84px;overflow:hidden;text-overflow:ellipsis;
       }
       .ba-preset-preview .ba-seat-code,
+      .ba-preset-preview .ba-seat-pin,
       .ba-preset-preview .ba-seat-nat{display:none}
       .ba-seat.taken:hover{
         z-index:10;border-color:#3b82f6;

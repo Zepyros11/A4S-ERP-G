@@ -1799,11 +1799,13 @@ function roomCardHtml(r, occupants, orphanCodes = []) {
             : "";
     const dName = o.name || o._inheritedName || "—";
     const dNat  = o.nationality || o._inheritedNat || "—";
+    const dPin  = (o.pin || "").trim();
     const hasImg = !!(o.passport_image_url || o._inheritedPassImg || o.visa_image_url || o._inheritedVisaImg);
     return `<div class="ra-occ">
       <button class="ra-occ-remove" title="ย้ายออกจากห้องนี้" onclick="event.stopPropagation();window.unassignPax('${escapeJs(o.code)}', ${r.room_id})">×</button>
       <div class="ra-pax-row-top">
         <span class="ra-pax-code">${escapeHtml(o.code || "—")}</span>
+        ${dPin ? `<span class="ra-pax-pin" title="ตำแหน่ง: ${escapeAttr(dPin)}">${escapeHtml(dPin)}</span>` : ""}
         <span class="ra-pax-nat">${escapeHtml(dNat)}</span>
       </div>
       <div class="ra-pax-row-bot">
@@ -3303,12 +3305,13 @@ function renderSeatMapHtml(rows, occMap, opts = {}) {
         const gCls = gNorm === "M" ? "taken-M" : (gNorm === "F" ? "taken-F" : "taken-U");
         const dname = passenger.name || passenger._inheritedName || code;
         const dnat  = passenger.nationality || passenger._inheritedNat || "";
+        const dpin  = (passenger.pin || "").trim();
         return `<div class="ba-seat taken ${gCls}" data-seat="${seatNo}"
-          title="${escapeAttr(dname + ' (' + code + ')' + (dnat ? ' · ' + dnat : ''))} · คลิกเพื่อดูรายละเอียด · กด × เพื่อย้ายออก"
+          title="${escapeAttr(dname + ' (' + code + ')' + (dpin ? ' · ' + dpin : '') + (dnat ? ' · ' + dnat : ''))} · คลิกเพื่อดูรายละเอียด · กด × เพื่อย้ายออก"
           ${interactive ? `onclick="event.stopPropagation();window.confirmUnassignSeat(${busId}, '${escapeJs(seatNo)}')"` : ""}>
           <span class="ba-seat-num">${seatNo}</span>
           <span class="ba-seat-info">
-            <span class="ba-seat-code">${escapeHtml(code)}</span>
+            <span class="ba-seat-code">${escapeHtml(code)}${dpin ? `<span class="ba-seat-pin" title="ตำแหน่ง: ${escapeAttr(dpin)}">${escapeHtml(dpin)}</span>` : ""}</span>
             <span class="ba-seat-name">${escapeHtml(shortName(dname))}</span>
           </span>
           ${dnat ? `<span class="ba-seat-nat" title="${escapeAttr(dnat)}">${escapeHtml(dnat)}</span>` : ""}
