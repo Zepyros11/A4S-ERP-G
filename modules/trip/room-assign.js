@@ -1739,6 +1739,13 @@ function renderRooms() {
         ${hiddenCount > 0 ? `<div style="font-size:11px;color:var(--text3);margin-bottom:6px">ซ่อน ${hiddenCount} ห้องที่จัดเต็มแล้ว</div>` : ""}
         <div class="ra-rooms-cards">
           ${visibleRooms.length ? visibleRooms.map(r => roomCardHtml(r, occByRoom[r.room_id] || [], orphanByRoom[r.room_id] || [])).join("") : `<div class="ra-empty-rooms" style="grid-column:1/-1">ห้องในกลุ่มนี้ถูกจัดเต็มแล้ว</div>`}
+          ${isLocked ? "" : `
+            <button class="ra-room-add-card" data-perm="trip_rooms_create"
+              title="เพิ่ม 1 ห้องในกลุ่มนี้"
+              onclick="window.addOneRoomToGroup('${escapeJs(groupKey)}')">
+              <span class="ra-add-icon">＋</span> เพิ่มห้อง
+            </button>
+          `}
         </div>
       `}
     </div>`;

@@ -161,6 +161,7 @@ function renderTable(rows) {
         </td>
         <td class="col-center" onclick="event.stopPropagation()">
           <div class="action-group">
+            <!-- กลุ่ม 1: ข้อมูลปฏิบัติการของทริป -->
             <button class="btn-icon" title="Check Seat (เปิดแท็บใหม่)"
               data-perm="trip_check_seat_view"
               onclick="window.open('./check-seat.html?trip_id=${t.trip_id}', '_blank')">💺</button>
@@ -173,9 +174,13 @@ function renderTable(rows) {
             <button class="btn-icon" title="ข้อมูลผู้เดินทาง (เปิดแท็บใหม่)"
               data-perm="trip_pax_detail_view"
               onclick="window.open('./pax-detail.html?trip_id=${t.trip_id}', '_blank')">ℹ️</button>
+            <span class="action-divider" aria-hidden="true">|</span>
+            <!-- กลุ่ม 2: รายงาน -->
             <button class="btn-icon" title="Custom Report (เปิดแท็บใหม่)"
               data-perm="trip_pax_detail_view"
               onclick="window.open('./custom-report.html?trip_id=${t.trip_id}', '_blank')">📊</button>
+            <span class="action-divider" aria-hidden="true">|</span>
+            <!-- กลุ่ม 3: จัดการทริป (CRUD) -->
             <button class="btn-icon" title="แก้ไข"
               data-perm="trip_list_edit"
               onclick="window.openTripModal(${t.trip_id})">✏️</button>
