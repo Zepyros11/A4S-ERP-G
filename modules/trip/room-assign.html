@@ -827,51 +827,67 @@
 
             <!-- LEFT: passengers -->
             <div class="ra-passengers">
-              <div class="ra-pax-hdr">
-                <div class="ra-pax-title">👥 ลูกค้า</div>
-                <div style="font-size:12px;color:var(--text2)">
-                  <span id="paxFilteredCount" style="color:#dc2626;font-weight:700;font-size:14px">0</span> คน
+              <!-- TAB SWITCHER: ลูกค้า / ทีมงาน -->
+              <div class="ra-pax-hdr" style="justify-content:flex-start;gap:8px">
+                <div class="ra-tabs" role="tablist" style="display:flex;flex:1">
+                  <button class="ra-tab active" id="tabPaxCustomers" onclick="window.switchPaxTab('customers')" style="flex:1;justify-content:center">
+                    👥 ลูกค้า <span class="ra-tab-count" id="tabPaxCustomersCount">0</span>
+                  </button>
+                  <button class="ra-tab" id="tabPaxTeam" onclick="window.switchPaxTab('team')" style="flex:1;justify-content:center">
+                    🧑‍🤝‍🧑 ทีมงาน <span class="ra-tab-count" id="tabPaxTeamCount">0</span>
+                  </button>
                 </div>
               </div>
-              <div class="ra-pax-toolbar">
-                <input type="text" id="paxSearch" placeholder="🔍 ค้นหา..." style="flex:1 1 100%" />
-                <select id="paxFilterBatch" title="กรองตามโรงแรม (ช่วงพัก)" style="flex:1 1 100%">
-                  <option value="">🏨 เลือกโรงแรม</option>
-                </select>
-                <select id="paxFilterStatus" title="ตัวกรองรายชื่อ">
-                  <option value="missing_any" selected>⏳ ยังไม่ครบ (ห้อง/ที่นั่ง)</option>
-                  <option value="unassigned">🛏️ ยังไม่ได้ห้อง</option>
-                  <option value="no_seat">🚌 ยังไม่ได้ที่นั่ง</option>
-                  <option value="all">ทั้งหมด</option>
-                  <option value="assigned">✅ ห้องครบในช่วงนี้</option>
-                </select>
-                <select id="paxFilterGender">
-                  <option value="">⚥ ทุกเพศ</option>
-                  <option value="M">♂ ชาย</option>
-                  <option value="F">♀ หญิง</option>
-                </select>
-                <select id="paxFilterNat" title="กรองตามสัญชาติ" style="flex:1 1 100%">
-                  <option value="">🌐 ทุกสัญชาติ</option>
-                </select>
-              </div>
-              <div class="ra-pax-list" id="paxList">
-                <div class="ra-pax-empty">กำลังโหลด...</div>
+
+              <!-- CUSTOMERS VIEW -->
+              <div id="paxCustomersView" style="display:flex;flex-direction:column;flex:1;min-height:0">
+                <div style="text-align:right;font-size:12px;color:var(--text2);margin-bottom:6px">
+                  <span id="paxFilteredCount" style="color:#dc2626;font-weight:700;font-size:14px">0</span> คน
+                </div>
+                <div class="ra-pax-toolbar">
+                  <input type="text" id="paxSearch" placeholder="🔍 ค้นหา..." style="flex:1 1 100%" />
+                  <select id="paxFilterBatch" title="กรองตามโรงแรม (ช่วงพัก)" style="flex:1 1 100%">
+                    <option value="">🏨 เลือกโรงแรม</option>
+                  </select>
+                  <select id="paxFilterStatus" title="ตัวกรองรายชื่อ">
+                    <option value="missing_any" selected>⏳ ยังไม่ครบ (ห้อง/ที่นั่ง)</option>
+                    <option value="unassigned">🛏️ ยังไม่ได้ห้อง</option>
+                    <option value="no_seat">🚌 ยังไม่ได้ที่นั่ง</option>
+                    <option value="all">ทั้งหมด</option>
+                    <option value="assigned">✅ ห้องครบในช่วงนี้</option>
+                  </select>
+                  <select id="paxFilterGender">
+                    <option value="">⚥ ทุกเพศ</option>
+                    <option value="M">♂ ชาย</option>
+                    <option value="F">♀ หญิง</option>
+                  </select>
+                  <select id="paxFilterNat" title="กรองตามสัญชาติ" style="flex:1 1 100%">
+                    <option value="">🌐 ทุกสัญชาติ</option>
+                  </select>
+                </div>
+                <div class="ra-pax-list" id="paxList">
+                  <div class="ra-pax-empty">กำลังโหลด...</div>
+                </div>
+                <div style="font-size:11px;color:var(--text3);margin-top:8px;padding-top:8px;border-top:1px dashed var(--border);text-align:center">
+                  💡 คลิกเลือกลูกค้า แล้วคลิกห้อง → assign
+                </div>
               </div>
 
-              <!-- Team panel (read-only — manage at trip-team.html) -->
-              <div id="raTeamPanel" style="margin-top:10px;padding-top:10px;border-top:1px dashed var(--border);display:none">
-                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
-                  <div style="font-weight:700;font-size:12.5px;color:var(--text)">🧑‍🤝‍🧑 ทีมงาน</div>
+              <!-- TEAM VIEW (read-only — manage at trip-team.html) -->
+              <div id="paxTeamView" style="display:none;flex-direction:column;flex:1;min-height:0">
+                <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
+                  <select id="teamFilterType" title="กรองประเภททีมงาน" style="flex:1;padding:6px 9px;border:1px solid var(--border);border-radius:8px;font-size:12px;font-family:inherit;background:#fff">
+                    <option value="">— ทุกประเภท —</option>
+                  </select>
                   <a id="raTeamLink" href="#" target="_blank" rel="noopener" data-perm="trip_team_view"
-                    style="font-size:11px;color:var(--accent);text-decoration:none;font-weight:600">
+                    style="font-size:11px;color:var(--accent);text-decoration:none;font-weight:600;white-space:nowrap;padding:6px 8px;border:1px solid var(--border);border-radius:8px">
                     ⚙️ ตั้งค่า
                   </a>
                 </div>
-                <div id="raTeamList" style="display:flex;flex-direction:column;gap:4px;max-height:180px;overflow-y:auto"></div>
-              </div>
-
-              <div style="font-size:11px;color:var(--text3);margin-top:8px;padding-top:8px;border-top:1px dashed var(--border);text-align:center">
-                💡 คลิกเลือกลูกค้า แล้วคลิกห้อง → assign
+                <div id="raTeamList" style="flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:4px"></div>
+                <div style="font-size:11px;color:var(--text3);margin-top:8px;padding-top:8px;border-top:1px dashed var(--border);text-align:center">
+                  💡 จัดการทีมงาน → กด <strong>⚙️ ตั้งค่า</strong>
+                </div>
               </div>
             </div>
 

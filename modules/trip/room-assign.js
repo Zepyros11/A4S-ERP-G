@@ -42,6 +42,10 @@ const state = {
   guideToBuses: {},           // { [guide_id]: Set<bus_id> }   reverse lookup
   editingGuideId: null,
   guideTargetBusId: null,     // bus_id ที่กำลังจะ assign ไกด์ให้ (ตอนเปิด modal)
+
+  // ── LEFT PANEL TABS (ลูกค้า / ทีมงาน) ──
+  activePaxTab: "customers",  // "customers" | "team"
+  teamFilterType: "",         // member_type filter (ว่าง = ทุกประเภท)
 };
 
 // ── SEAT LAYOUT PRESETS ────────────────────────────────────
@@ -307,6 +311,10 @@ function bindEvents() {
     renderPassengers();
     renderRooms();
     renderBuses();
+  });
+  document.getElementById("teamFilterType")?.addEventListener("change", (ev) => {
+    state.teamFilterType = ev.target.value || "";
+    renderTeamPanel();
   });
   syncStatusFilterOptions();
 }
@@ -2975,31 +2983,38 @@ const memberLabel = (t) => getMt(t)?.label || "ไกด์";
 // Backward-compat alias (legacy code may reference)
 const MEMBER_TYPE_LABEL = new Proxy({}, { get: (_, k) => memberLabel(k) });
 
-// Render side panel "ทีมงาน" ในแถบลูกค้าซ้าย
+// Render side panel "ทีมงาน" ในแถบลูกค้าซ้าย (tab "ทีมงาน")
 function renderTeamPanel() {
-  const panel = document.getElementById("raTeamPanel");
-  if (!panel) return;
+  const teamView = document.getElementById("paxTeamView");
+  const listEl = document.getElementById("raTeamList");
+  if (!teamView || !listEl) return;
+
   const link = document.getElementById("raTeamLink");
   if (link) link.href = `./trip-team.html?trip_id=${state.tripId}`;
 
+  // Populate type filter dropdown
+  populateTeamFilterType();
+
+  // Update tab counts
+  updatePaxTabCounts();
+
   if (!state.guides.length) {
-    panel.style.display = "";
-    document.getElementById("raTeamList").innerHTML =
-      `<div style="font-size:11.5px;color:var(--text3);padding:6px 8px;text-align:center">
+    listEl.innerHTML =
+      `<div style="font-size:11.5px;color:var(--text3);padding:14px 8px;text-align:center">
         ยังไม่มีทีมงาน — กด <strong>⚙️ ตั้งค่า</strong> เพื่อเพิ่ม
       </div>`;
-    if (window.AuthZ?.applyDomPerms) AuthZ.applyDomPerms(panel);
+    if (window.AuthZ?.applyDomPerms) AuthZ.applyDomPerms(teamView);
     return;
   }
 
-  panel.style.display = "";
-
   // Group by member_type (dynamic — รองรับ custom types)
   const types = state.memberTypes && state.memberTypes.length ? state.memberTypes : DEFAULT_MEMBER_TYPES;
+  const typeFilter = state.teamFilterType || "";
   const grouped = new Map();
   types.forEach(t => grouped.set(t.type_key, []));
   state.guides.forEach(g => {
     const k = g.member_type || "guide";
+    if (typeFilter && k !== typeFilter) return;
     if (!grouped.has(k)) grouped.set(k, []);
     grouped.get(k).push(g);
   });
@@ -3012,9 +3027,9 @@ function renderTeamPanel() {
     const langTag = g.languages
       ? `<span style="font-size:10px;color:var(--text3);font-family:monospace">${escapeHtml(g.languages)}</span>`
       : "";
-    return `<div style="display:flex;align-items:center;gap:5px;padding:4px 7px;background:#f8fafc;border:1px solid var(--border);border-radius:6px;font-size:11.5px"
+    return `<div style="display:flex;align-items:center;gap:5px;padding:6px 8px;background:#f8fafc;border:1px solid var(--border);border-radius:6px;font-size:12px"
       title="${escapeAttr((g.role_title ? g.role_title + " · " : "") + (g.company || ""))}">
-      <span style="font-size:13px;flex-shrink:0">${memberEmoji(g.member_type)}</span>
+      <span style="font-size:14px;flex-shrink:0">${memberEmoji(g.member_type)}</span>
       <span style="flex:1;font-weight:600;color:var(--text);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(g.full_name)}</span>
       ${langTag}
       ${busTag}
@@ -3024,14 +3039,57 @@ function renderTeamPanel() {
   const sections = [];
   [...grouped.entries()].forEach(([key, arr]) => {
     if (!arr.length) return;
-    sections.push(`<div style="font-size:10.5px;color:var(--text2);font-weight:700;letter-spacing:.3px;margin:6px 0 3px">
+    sections.push(`<div style="font-size:11px;color:var(--text2);font-weight:700;letter-spacing:.3px;margin:8px 0 4px">
       ${memberEmoji(key)} ${escapeHtml(memberLabel(key))} <span style="color:var(--text3);font-weight:500">(${arr.length})</span>
     </div>${arr.map(renderMember).join("")}`);
   });
 
-  document.getElementById("raTeamList").innerHTML = sections.join("");
-  if (window.AuthZ?.applyDomPerms) AuthZ.applyDomPerms(panel);
+  listEl.innerHTML = sections.length
+    ? sections.join("")
+    : `<div style="font-size:11.5px;color:var(--text3);padding:14px 8px;text-align:center">ไม่พบทีมงานตามตัวกรอง</div>`;
+  if (window.AuthZ?.applyDomPerms) AuthZ.applyDomPerms(teamView);
 }
+
+// Populate dropdown "ประเภททีมงาน" (member_type) — เก็บค่าเดิมไว้
+function populateTeamFilterType() {
+  const sel = document.getElementById("teamFilterType");
+  if (!sel) return;
+  const types = state.memberTypes && state.memberTypes.length ? state.memberTypes : DEFAULT_MEMBER_TYPES;
+  // นับ guide ในแต่ละประเภท
+  const counts = new Map();
+  state.guides.forEach(g => {
+    const k = g.member_type || "guide";
+    counts.set(k, (counts.get(k) || 0) + 1);
+  });
+  const prev = state.teamFilterType || "";
+  const opts = [`<option value="">— ทุกประเภท (${state.guides.length}) —</option>`];
+  types.forEach(t => {
+    const n = counts.get(t.type_key) || 0;
+    opts.push(`<option value="${escapeAttr(t.type_key)}">${escapeHtml(t.emoji || "")} ${escapeHtml(t.label)} (${n})</option>`);
+  });
+  sel.innerHTML = opts.join("");
+  if (prev && types.some(t => t.type_key === prev)) sel.value = prev;
+}
+
+// Update tab counts สำหรับแถบซ้าย (ลูกค้า / ทีมงาน)
+function updatePaxTabCounts() {
+  const cEl = document.getElementById("tabPaxCustomersCount");
+  if (cEl) cEl.textContent = state.passengers.length;
+  const tEl = document.getElementById("tabPaxTeamCount");
+  if (tEl) tEl.textContent = state.guides.length;
+}
+
+// Switch tab ซ้าย: customers / team
+window.switchPaxTab = function (tab) {
+  if (tab !== "customers" && tab !== "team") return;
+  state.activePaxTab = tab;
+  document.getElementById("tabPaxCustomers")?.classList.toggle("active", tab === "customers");
+  document.getElementById("tabPaxTeam")?.classList.toggle("active", tab === "team");
+  const cv = document.getElementById("paxCustomersView");
+  const tv = document.getElementById("paxTeamView");
+  if (cv) cv.style.display = tab === "customers" ? "flex" : "none";
+  if (tv) tv.style.display = tab === "team" ? "flex" : "none";
+};
 
 // Render แถวทีมงานของรถคันนี้ (Staff / Guide / Outsource)
 function guidesRowHtml(busId) {
