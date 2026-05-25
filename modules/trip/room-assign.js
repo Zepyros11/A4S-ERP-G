@@ -497,10 +497,13 @@ function renderStats() {
     if (!groupedRooms[k]) groupedRooms[k] = [];
     groupedRooms[k].push(r);
   });
+  const paxCodes = new Set(state.passengers.map(p => p.code));
   let batchPending = 0;
   Object.values(groupedRooms).forEach(rooms => {
     const codesInBatch = new Set();
-    rooms.forEach(r => (state.occupants[r.room_id] || []).forEach(c => codesInBatch.add(c)));
+    rooms.forEach(r => (state.occupants[r.room_id] || []).forEach(c => {
+      if (paxCodes.has(c)) codesInBatch.add(c);   // ไม่นับ orphan
+    }));
     if (codesInBatch.size < total) batchPending++;
   });
   document.getElementById("statBatchPending").textContent = batchPending;
@@ -1504,11 +1507,18 @@ function renderRooms() {
   // resolve code → passenger row
   const paxByCode = {};
   state.passengers.forEach(p => { paxByCode[p.code] = p; });
-  const occByRoom = {}; // { room_id: [passenger row, ...] }
+  const occByRoom = {};      // { room_id: [passenger row, ...] }   (เฉพาะ valid)
+  const orphanByRoom = {};   // { room_id: [orphan code, ...] }       (passenger ถูกลบ)
   Object.keys(state.occupants).forEach(rid => {
-    occByRoom[rid] = (state.occupants[rid] || [])
-      .map(code => paxByCode[code])
-      .filter(Boolean);
+    const occ = [];
+    const orphans = [];
+    (state.occupants[rid] || []).forEach(code => {
+      const p = paxByCode[code];
+      if (p) occ.push(p);
+      else orphans.push(code);
+    });
+    occByRoom[rid] = occ;
+    if (orphans.length) orphanByRoom[rid] = orphans;
   });
 
   c.innerHTML = Object.keys(groups).map(groupKey => {
@@ -1519,10 +1529,16 @@ function renderRooms() {
     const hotelName = hotel?.place_name || (placeId ? `Place #${placeId}` : "ไม่ระบุโรงแรม");
     const totalCap = rooms.reduce((a, r) => a + (r.capacity || 0), 0);
     const totalOcc = rooms.reduce((a, r) => a + (occByRoom[r.room_id]?.length || 0), 0);
-    // คนที่ "จัดแล้ว" ในกลุ่มนี้ = unique codes ที่มีห้องในกลุ่มนี้
+    // คนที่ "จัดแล้ว" ในกลุ่มนี้ = unique codes ที่มีห้องในกลุ่มนี้ (ไม่นับ orphan)
     const assignedCodesInGroup = new Set();
-    rooms.forEach(r => (state.occupants[r.room_id] || []).forEach(c => assignedCodesInGroup.add(c)));
+    rooms.forEach(r => (state.occupants[r.room_id] || []).forEach(c => {
+      if (paxByCode[c]) assignedCodesInGroup.add(c);
+    }));
     const unassignedInGroup = state.passengers.length - assignedCodesInGroup.size;
+    // orphan rows ในกลุ่มนี้ — รวมจากทุกห้อง (passenger ถูกลบแต่ trip_room_occupants ยังค้าง)
+    const groupOrphans = [];
+    rooms.forEach(r => (orphanByRoom[r.room_id] || []).forEach(code =>
+      groupOrphans.push({ roomId: r.room_id, roomName: r.room_name, code })));
 
     const ridsCsv = rooms.map(r => r.room_id).join(",");
     // apply filter — show rooms ที่ยังไม่เต็ม (0 occupants OR partially filled)
@@ -1611,9 +1627,17 @@ function renderRooms() {
         </div>
       </div>
       ${isCollapsed ? "" : `
+        ${groupOrphans.length ? `
+          <div class="ra-rooms-orphan-banner">
+            ⚠ พบ ${groupOrphans.length} แถวที่ผูกกับรหัสที่ไม่มีในรายชื่อแล้ว
+            (${escapeHtml(groupOrphans.map(o => `${o.roomName}·${o.code}`).join(", "))})
+            <button class="ra-rooms-orphan-clear"
+              onclick="event.stopPropagation();window.clearOrphanRoomOccupants([${groupOrphans.map(o => o.roomId).join(",")}])">ล้างทั้งหมด</button>
+          </div>
+        ` : ""}
         ${hiddenCount > 0 ? `<div style="font-size:11px;color:var(--text3);margin-bottom:6px">ซ่อน ${hiddenCount} ห้องที่จัดเต็มแล้ว</div>` : ""}
         <div class="ra-rooms-cards">
-          ${visibleRooms.length ? visibleRooms.map(r => roomCardHtml(r, occByRoom[r.room_id] || [])).join("") : `<div class="ra-empty-rooms" style="grid-column:1/-1">ห้องในกลุ่มนี้ถูกจัดเต็มแล้ว</div>`}
+          ${visibleRooms.length ? visibleRooms.map(r => roomCardHtml(r, occByRoom[r.room_id] || [], orphanByRoom[r.room_id] || [])).join("") : `<div class="ra-empty-rooms" style="grid-column:1/-1">ห้องในกลุ่มนี้ถูกจัดเต็มแล้ว</div>`}
         </div>
       `}
     </div>`;
@@ -1622,12 +1646,26 @@ function renderRooms() {
   updateRoomCardsAssignableState();
 }
 
-function roomCardHtml(r, occupants) {
+function roomCardHtml(r, occupants, orphanCodes = []) {
+  // นับเฉพาะ valid occupants ใน progress bar — orphan ขึ้น banner/แถวเตือนแยก
   const occCount = occupants.length;
   const cap = r.capacity || 0;
   const pct = cap > 0 ? Math.min(100, (occCount / cap) * 100) : 0;
   const fullCls = occCount >= cap ? " full" : (pct >= 70 ? " warn" : "");
-  const occHtml = occupants.map(o => {
+  const orphanHtml = orphanCodes.map(code => `
+    <div class="ra-occ ra-occ-orphan" title="รหัส ${escapeAttr(code)} ไม่พบในรายชื่อแล้ว — กด × เพื่อล้าง">
+      <button class="ra-occ-remove" title="ล้างแถวนี้"
+        onclick="event.stopPropagation();window.unassignPax('${escapeJs(code)}', ${r.room_id})">×</button>
+      <div class="ra-pax-row-top">
+        <span class="ra-pax-code">${escapeHtml(code)}</span>
+        <span class="ra-pax-nat" style="color:#b91c1c">⚠ orphan</span>
+      </div>
+      <div class="ra-pax-row-bot">
+        <span class="ra-pax-name" style="color:#b91c1c;font-weight:600">ไม่พบรายชื่อ</span>
+        <span></span>
+      </div>
+    </div>`).join("");
+  const occHtml = orphanHtml + occupants.map(o => {
     const gn = normGender(o.gender || o._inheritedGender);
     const gT = gn === "M" ? '<span class="ra-gender-tag ra-gender-M">♂ M</span>'
             : gn === "F" ? '<span class="ra-gender-tag ra-gender-F">♀ F</span>'
@@ -1766,12 +1804,12 @@ window.assignSelectedPax = async function (roomId) {
 
 // unassign 1 คนออกจาก "ห้องเฉพาะห้องเดียว" — ต้องระบุ roomId เพราะคน 1 คนอยู่ได้หลายห้อง
 window.unassignPax = async function (code, roomId) {
-  const p = state.passengers.find(x => x.code === code);
-  if (!p) return;
   if (roomId == null) {
     showToast("ต้องระบุห้องที่จะย้ายออก", "error");
     return;
   }
+  // p อาจเป็น undefined ถ้าเป็น orphan (passenger ถูกลบแต่ trip_room_occupants ยังค้าง) — ก็ปล่อยให้ลบได้
+  const p = state.passengers.find(x => x.code === code);
   const r = state.rooms.find(x => x.room_id === roomId);
 
   _removeOccupant(roomId, code);
@@ -1783,7 +1821,8 @@ window.unassignPax = async function (code, roomId) {
     await sbFetch("trip_room_occupants",
       `?room_id=eq.${roomId}&code=eq.${encodeURIComponent(code)}`,
       { method: "DELETE" });
-    showToast(`ย้ายออกจาก "${r?.room_name || "ห้อง"}" แล้ว: ${p.name || code}`, "success");
+    const label = p?.name || code;
+    showToast(`ย้ายออกจาก "${r?.room_name || "ห้อง"}" แล้ว: ${label}`, "success");
   } catch (e) {
     _addOccupant(roomId, code); // revert
     renderStats();
@@ -2642,6 +2681,10 @@ function busCardHtml(b) {
   const preset = BUS_PRESETS[b.layout_preset] || BUS_PRESETS.BUS_45_2_2;
   const occMap = state.busOccupants[b.bus_id] || {};
   const usedCount = Object.keys(occMap).length;
+  // orphan = seat record ที่ code ไม่ match passenger ใดๆ (passenger ถูกลบ/เปลี่ยน code)
+  const orphanSeats = Object.entries(occMap)
+    .filter(([_, code]) => !state.passengers.some(p => p.code === code))
+    .map(([seatNo, code]) => ({ seatNo, code }));
   const cap = b.capacity || preset.capacity || 0;
   const availCount = Math.max(0, cap - usedCount);
   const isCollapsed = state.collapsedBuses.has(b.bus_id);
@@ -2699,9 +2742,94 @@ function busCardHtml(b) {
       </div>
     ` : ""}
     ${guidesRowHtml(b.bus_id)}
+    ${orphanSeats.length ? `
+      <div class="ba-bus-orphan-banner">
+        ⚠ พบที่นั่ง ${orphanSeats.length} ที่ ที่ผูกกับรหัสที่ไม่มีในรายชื่อแล้ว
+        (${escapeHtml(orphanSeats.map(o => `#${o.seatNo}·${o.code}`).join(", "))})
+        <button class="ba-bus-orphan-clear"
+          onclick="event.stopPropagation();window.clearOrphanSeats(${b.bus_id})">ล้างทั้งหมด</button>
+      </div>
+    ` : ""}
     ${isCollapsed ? "" : renderSeatMapHtml(preset.rows, occMap, { interactive: true, busId: b.bus_id })}
   </div>`;
 }
+
+// ── ORPHAN ROOM OCCUPANTS CLEANUP ──────────────────────────
+window.clearOrphanRoomOccupants = async function (roomIds) {
+  if (!Array.isArray(roomIds) || !roomIds.length) return;
+  const paxCodes = new Set(state.passengers.map(p => p.code));
+  const orphans = [];
+  roomIds.forEach(rid => {
+    (state.occupants[rid] || []).forEach(code => {
+      if (!paxCodes.has(code)) orphans.push({ roomId: rid, code });
+    });
+  });
+  if (!orphans.length) return;
+  const ok = window.ConfirmModal?.open
+    ? await window.ConfirmModal.open({
+        title: "ล้างผู้พักค้าง",
+        message: `จะลบ ${orphans.length} แถวที่ผูกกับรหัสที่ไม่มีในรายชื่อแล้ว — ดำเนินการต่อ?`,
+        icon: "⚠️",
+        tone: "danger",
+        okText: "ล้าง",
+      })
+    : confirm(`ล้างผู้พัก orphan ${orphans.length} แถว?`);
+  if (!ok) return;
+  try {
+    // group ตาม room → batch delete ด้วย code in.(...)
+    const byRoom = {};
+    orphans.forEach(o => {
+      if (!byRoom[o.roomId]) byRoom[o.roomId] = [];
+      byRoom[o.roomId].push(o.code);
+    });
+    for (const rid of Object.keys(byRoom)) {
+      const codes = byRoom[rid];
+      await sbFetch("trip_room_occupants",
+        `?room_id=eq.${rid}&code=in.(${codes.map(encodeURIComponent).join(",")})`,
+        { method: "DELETE" });
+      codes.forEach(c => _removeOccupant(parseInt(rid, 10), c));
+    }
+    renderStats();
+    renderPassengers();
+    renderRooms();
+    showToast(`ล้างผู้พักค้าง ${orphans.length} แถวแล้ว`, "success");
+  } catch (e) {
+    showToast(`ล้างไม่สำเร็จ: ${e.message}`, "error");
+  }
+};
+
+// ── ORPHAN SEATS CLEANUP ───────────────────────────────────
+window.clearOrphanSeats = async function (busId) {
+  const occMap = state.busOccupants[busId] || {};
+  const orphans = Object.entries(occMap)
+    .filter(([_, code]) => !state.passengers.some(p => p.code === code));
+  if (!orphans.length) return;
+  const ok = window.ConfirmModal?.open
+    ? await window.ConfirmModal.open({
+        title: "ล้างที่นั่งค้าง",
+        message: `จะลบที่นั่ง ${orphans.length} ที่ ที่ผูกกับรหัสที่ไม่มีในรายชื่อแล้ว — ดำเนินการต่อ?`,
+        icon: "⚠️",
+        tone: "danger",
+        okText: "ล้าง",
+      })
+    : confirm(`ล้างที่นั่ง orphan ${orphans.length} ที่?`);
+  if (!ok) return;
+  try {
+    const seatNos = orphans.map(([s]) => s);
+    await sbFetch("trip_bus_occupants",
+      `?bus_id=eq.${busId}&seat_no=in.(${seatNos.map(encodeURIComponent).join(",")})`,
+      { method: "DELETE" });
+    orphans.forEach(([seatNo, code]) => {
+      delete state.busOccupants[busId][seatNo];
+      delete state.codeToBusSeat[code];
+    });
+    renderBuses();
+    renderPassengers();
+    showToast(`ล้างที่นั่งค้าง ${orphans.length} ที่แล้ว`, "success");
+  } catch (e) {
+    showToast(`ล้างไม่สำเร็จ: ${e.message}`, "error");
+  }
+};
 
 // ── BUS DESIGNATION (กลุ่มเป้าหมายของคัน — สัญชาติ/ตำแหน่ง) ──
 // distinct values จากผู้โดยสารจริง (สะท้อนข้อมูลในทริปนี้)
@@ -2878,6 +3006,21 @@ function renderSeatMapHtml(rows, occMap, opts = {}) {
           </span>
           ${dnat ? `<span class="ba-seat-nat" title="${escapeAttr(dnat)}">${escapeHtml(dnat)}</span>` : ""}
           ${interactive ? `<button class="ba-seat-remove" title="ย้ายออก"
+            onclick="event.stopPropagation();window.unassignSeat(${busId}, '${escapeJs(seatNo)}')">×</button>` : ""}
+        </div>`;
+      }
+      // orphan: trip_bus_occupants มี code นี้ แต่ไม่เจอใน tour_seat_check (passenger ถูกลบ/เปลี่ยน code)
+      // ห้ามวาดเป็น "ว่าง" เพราะตัวนับยังนับอยู่ → จะทำให้ 34/40 ไม่ตรงกับที่ตาเห็น
+      if (code) {
+        return `<div class="ba-seat ba-seat-orphan" data-seat="${seatNo}"
+          title="ที่นั่งนี้ผูกกับรหัส ${escapeAttr(code)} แต่ไม่พบรายชื่อในระบบแล้ว — กด × เพื่อล้าง"
+          ${interactive ? `onclick="event.stopPropagation();window.unassignSeat(${busId}, '${escapeJs(seatNo)}')"` : ""}>
+          <span class="ba-seat-num">${seatNo}</span>
+          <span class="ba-seat-info">
+            <span class="ba-seat-code">${escapeHtml(code)}</span>
+            <span class="ba-seat-name" style="color:#b91c1c;font-weight:600">⚠ ไม่พบรายชื่อ</span>
+          </span>
+          ${interactive ? `<button class="ba-seat-remove" title="ล้างที่นั่ง orphan"
             onclick="event.stopPropagation();window.unassignSeat(${busId}, '${escapeJs(seatNo)}')">×</button>` : ""}
         </div>`;
       }
