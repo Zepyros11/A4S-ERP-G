@@ -352,18 +352,27 @@ function sortValue(row, col) {
   return cellValue(row, col).toLowerCase();
 }
 
+// sentinel แทน "ค่าว่าง" ใน filter set — ใช้ string ที่ไม่น่าซ้ำกับข้อมูลจริง
+const BLANK_VAL = " __BLANK__ ";
+const BLANK_LABEL = "(ว่าง)";
+
 // คืน distinct values ของคอลัมน์ — ใช้ทั้งเช็คว่ามี filter ได้ไหม + populate dropdown
 // คำนวณจาก expandedPax (ก่อน apply filter) เพื่อให้เห็นทุก option เสมอ
+// ถ้าคอลัมน์มีแถวที่ค่าว่าง → ใส่ BLANK_VAL ไว้ท้าย list ให้ filter ได้ด้วย
 function distinctValuesFor(key) {
   const col = COL_BY_KEY[key];
   if (!col) return [];
   const set = new Set();
+  let hasBlank = false;
   expandedPax().forEach(row => {
     const v = cellValue(row, col);
-    if (v !== "" && v != null) set.add(v);
+    if (v === "" || v == null) hasBlank = true;
+    else set.add(v);
   });
-  return [...set].sort((a, b) =>
+  const arr = [...set].sort((a, b) =>
     String(a).localeCompare(String(b), undefined, { numeric: true, sensitivity: "base" }));
+  if (hasBlank) arr.push(BLANK_VAL);
+  return arr;
 }
 function isFilterable(key) {
   const n = distinctValuesFor(key).length;
@@ -377,7 +386,9 @@ function filterRows(rows) {
     active.every(([key, set]) => {
       const col = COL_BY_KEY[key];
       if (!col) return true;
-      return set.has(cellValue(row, col));
+      const v = cellValue(row, col);
+      if (v === "" || v == null) return set.has(BLANK_VAL);
+      return set.has(v);
     }));
 }
 
@@ -428,7 +439,9 @@ function renderFilterPopoverBody() {
   const { key, draft, search } = _popState;
   const values = distinctValuesFor(key);
   const q = search.trim().toLowerCase();
-  const shown = q ? values.filter(v => String(v).toLowerCase().includes(q)) : values;
+  const shown = q
+    ? values.filter(v => (v === BLANK_VAL ? BLANK_LABEL : String(v)).toLowerCase().includes(q))
+    : values;
   const listEl = _popState.el.querySelector(".cr-fpop-list");
   if (!shown.length) {
     listEl.innerHTML = `<div class="cr-fpop-empty">ไม่พบค่าที่ตรงกัน</div>`;
@@ -437,8 +450,12 @@ function renderFilterPopoverBody() {
   listEl.innerHTML = shown.map(v => {
     const id = "_crf_" + Math.random().toString(36).slice(2, 9);
     const checked = draft.has(v) ? "checked" : "";
+    const isBlank = v === BLANK_VAL;
+    const display = isBlank
+      ? `<span style="font-style:italic;color:var(--text3)">${BLANK_LABEL}</span>`
+      : `<span>${escapeHtml(v)}</span>`;
     return `<label><input type="checkbox" id="${id}" ${checked} data-val="${escapeHtml(v)}"
-        onchange="window._crFilterToggle(this)"><span>${escapeHtml(v)}</span></label>`;
+        onchange="window._crFilterToggle(this)">${display}</label>`;
   }).join("");
 }
 window._crFilterToggle = function (cb) {
