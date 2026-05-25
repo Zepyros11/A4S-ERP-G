@@ -1091,13 +1091,29 @@
           <button class="btn-modal-close" onclick="window.closeGuideEditModal()">✕</button>
         </div>
         <div class="modal-body">
-          <div class="form-group">
-            <label class="form-label">ประเภท <span class="req">*</span></label>
-            <select class="form-control" id="fGuideType">
-              <option value="staff">👔 Staff (พนักงาน A4S)</option>
-              <option value="guide" selected>🧑‍🏫 ไกด์</option>
-              <option value="outsource">🤝 Outsource / Agency</option>
-            </select>
+          <div class="ba-form-row-2">
+            <div class="form-group">
+              <label class="form-label">ประเภท <span class="req">*</span></label>
+              <div style="display:flex;gap:6px">
+                <select class="form-control" id="fGuideType" style="flex:1;min-width:0">
+                  <option value="">— เลือกประเภท —</option>
+                </select>
+                <button type="button" class="btn btn-outline"
+                  data-perm="member_types_view"
+                  onclick="window.openMtManager()"
+                  title="จัดการรายการประเภท"
+                  style="padding:0 10px;font-size:13px;flex-shrink:0">⚙️</button>
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">ทีม
+                <span style="color:var(--text3);font-weight:400;font-size:11px">(พิมพ์ใหม่หรือเลือกที่มี)</span>
+              </label>
+              <input class="form-control" id="fGuideTeamName"
+                list="guideTeamSuggestions"
+                placeholder="เช่น ทีมไกด์หลัก, ทีมตากล้อง" />
+              <datalist id="guideTeamSuggestions"></datalist>
+            </div>
           </div>
           <div class="form-group" style="margin-top:14px">
             <label class="form-label">ชื่อ <span class="req">*</span></label>
@@ -1142,6 +1158,79 @@
           <button class="btn btn-danger" id="geDeleteBtn" data-perm="trip_guides_delete" onclick="window.deleteGuide()" style="margin-right:auto;display:none">🗑 ลบ</button>
           <button class="btn btn-ghost" onclick="window.closeGuideEditModal()">ยกเลิก</button>
           <button class="btn btn-primary" id="geSaveBtn" onclick="window.saveGuide()">💾 บันทึก</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════ MEMBER-TYPE MANAGER MODAL ═══════════ -->
+    <div class="modal-overlay" id="mtMgrOverlay" onclick="window.closeMtManager(event)">
+      <div class="modal v-sage-header" onclick="event.stopPropagation()" style="max-width:560px">
+        <div class="modal-hdr">
+          <div class="modal-title">⚙️ จัดการรายการประเภท</div>
+          <button class="btn-modal-close" onclick="window.closeMtManager()">✕</button>
+        </div>
+        <div class="modal-body">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+            <div style="color:var(--text2);font-size:12.5px">เพิ่ม / แก้ไข / ลบ ประเภทสมาชิกทีม</div>
+            <button class="btn btn-primary" data-perm="member_types_create"
+              onclick="window.openMtForm()" style="font-size:13px;padding:6px 14px">
+              ＋ เพิ่ม
+            </button>
+          </div>
+          <div id="mtMgrList" style="display:flex;flex-direction:column;gap:6px">
+            <div style="padding:14px;text-align:center;color:var(--text3);font-size:13px">กำลังโหลด...</div>
+          </div>
+          <div style="margin-top:10px;font-size:11px;color:var(--text3)">
+            💡 ประเภท <strong>System</strong> (Staff/ไกด์/Outsource) ลบไม่ได้ แก้ป้าย/อิโมจิ/สีได้
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-ghost" onclick="window.closeMtManager()">ปิด</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════ MEMBER-TYPE FORM MODAL (nested) ═══════════ -->
+    <div class="modal-overlay" id="mtFormOverlay" onclick="window.closeMtForm(event)">
+      <div class="modal v-sage-header" onclick="event.stopPropagation()" style="max-width:520px">
+        <div class="modal-hdr">
+          <div class="modal-title" id="mtFormTitle">เพิ่มประเภท</div>
+          <button class="btn-modal-close" onclick="window.closeMtForm()">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-row" style="display:grid;grid-template-columns:80px 1fr;gap:12px">
+            <div class="form-group">
+              <label class="form-label">อิโมจิ</label>
+              <input class="form-control" id="fMtEmoji" maxlength="4"
+                placeholder="🧑" style="font-size:20px;text-align:center" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">ชื่อประเภท <span class="req">*</span></label>
+              <input class="form-control" id="fMtLabel" placeholder="เช่น Driver, Photographer" autocomplete="off" />
+            </div>
+          </div>
+          <div class="form-row" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px">
+            <div class="form-group">
+              <label class="form-label">สีพื้น (badge)</label>
+              <input class="form-control" id="fMtBg" type="color" value="#fef3c7" style="height:38px;padding:3px;cursor:pointer" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">สีตัวอักษร</label>
+              <input class="form-control" id="fMtFg" type="color" value="#92400e" style="height:38px;padding:3px;cursor:pointer" />
+            </div>
+          </div>
+          <div class="form-group" style="margin-top:12px">
+            <label class="form-label">ตัวอย่าง</label>
+            <div style="padding:10px;border:1px dashed var(--border);border-radius:8px;background:#f8fafc">
+              <span id="mtPreviewPill" style="display:inline-block;padding:3px 10px;border-radius:999px;font-size:13px;font-weight:700">— ตัวอย่าง —</span>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-danger" id="mtFormDeleteBtn" data-perm="member_types_delete"
+            onclick="window.deleteMt()" style="margin-right:auto;display:none">🗑 ลบ</button>
+          <button class="btn btn-ghost" onclick="window.closeMtForm()">ยกเลิก</button>
+          <button class="btn btn-primary" onclick="window.saveMt()">💾 บันทึก</button>
         </div>
       </div>
     </div>

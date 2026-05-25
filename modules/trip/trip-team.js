@@ -6,11 +6,20 @@ const state = {
   tripId: null,
   trip: null,
   team: [],             // trip_guides rows for this trip
+  memberTypes: [],      // member_types master (global)
   selected: new Set(),  // selected guide_id for bulk delete
   editId: null,
+  editingTypeKey: null, // type_key ที่กำลังแก้ไขใน manager
   sortKey: "sort_order",
   sortAsc: true,
 };
+
+// Fallback ถ้า DB load ไม่ได้
+const DEFAULT_MEMBER_TYPES = [
+  { type_key: "staff",     label: "Staff",     emoji: "👔",     color_bg: "#dbeafe", color_fg: "#1d4ed8", sort_order: 1, is_system: true },
+  { type_key: "guide",     label: "ไกด์",      emoji: "🧑‍🏫",   color_bg: "#fef3c7", color_fg: "#92400e", sort_order: 2, is_system: true },
+  { type_key: "outsource", label: "Outsource", emoji: "🤝",     color_bg: "#f3e8ff", color_fg: "#6b21a8", sort_order: 3, is_system: true },
+];
 
 function getSB() {
   return {
@@ -72,22 +81,62 @@ async function init() {
 async function loadAll() {
   showLoading(true);
   try {
-    const [trips, team] = await Promise.all([
+    const [trips, team, types] = await Promise.all([
       sbFetch("trips", `?select=*&trip_id=eq.${state.tripId}`),
       sbFetch(
         "trip_guides",
         `?trip_id=eq.${state.tripId}&select=*&order=sort_order.asc.nullslast,guide_id.asc`
       ),
+      sbFetch("member_types", "?select=*&order=sort_order.asc,type_key.asc").catch(() => null),
     ]);
     state.trip = (trips || [])[0] || null;
     state.team = team || [];
+    state.memberTypes = (Array.isArray(types) && types.length) ? types : DEFAULT_MEMBER_TYPES;
     renderTripBanner();
+    populateTypeDropdown();
+    populateTeamFilter();
+    populateTypeFilter();
+    populateTeamDatalist();
     updateStatCards();
     filterTable();
   } catch (e) {
     showToast("โหลดข้อมูลไม่ได้: " + e.message, "error");
   }
   showLoading(false);
+}
+
+// ── MEMBER TYPES HELPERS ───────────────────────────────────
+function getMt(key) {
+  return state.memberTypes.find((t) => t.type_key === key)
+      || state.memberTypes.find((t) => t.type_key === "guide")
+      || state.memberTypes[0];
+}
+
+function populateTypeDropdown() {
+  const sel = document.getElementById("fType");
+  if (!sel) return;
+  const current = sel.value;
+  sel.innerHTML = state.memberTypes
+    .map((t) => `<option value="${escapeAttr(t.type_key)}">${escapeHtml(t.emoji || "")} ${escapeHtml(t.label)}</option>`)
+    .join("");
+  // restore selection ถ้ายังมีอยู่
+  if (current && state.memberTypes.some((t) => t.type_key === current)) {
+    sel.value = current;
+  } else if (state.memberTypes.some((t) => t.type_key === "guide")) {
+    sel.value = "guide";
+  }
+}
+
+function populateTypeFilter() {
+  const sel = document.getElementById("filterType");
+  if (!sel) return;
+  const current = sel.value;
+  sel.innerHTML =
+    `<option value="">🧿 ทุกประเภท</option>` +
+    state.memberTypes
+      .map((t) => `<option value="${escapeAttr(t.type_key)}">${escapeHtml(t.emoji || "")} ${escapeHtml(t.label)}</option>`)
+      .join("");
+  if (current && state.memberTypes.some((t) => t.type_key === current)) sel.value = current;
 }
 
 function renderTripBanner() {
@@ -104,29 +153,69 @@ function renderTripBanner() {
 function bindEvents() {
   document.getElementById("searchInput")?.addEventListener("input", filterTable);
   document.getElementById("filterType")?.addEventListener("change", filterTable);
+  document.getElementById("filterTeam")?.addEventListener("change", filterTable);
+}
+
+// ── TEAM HELPERS ───────────────────────────────────────────
+function getTeamNames() {
+  const set = new Set();
+  state.team.forEach((m) => {
+    const t = (m.team_name || "").trim();
+    if (t) set.add(t);
+  });
+  return [...set].sort((a, b) => a.localeCompare(b, "th"));
+}
+
+function populateTeamFilter() {
+  const sel = document.getElementById("filterTeam");
+  if (!sel) return;
+  const current = sel.value;
+  const teams = getTeamNames();
+  sel.innerHTML =
+    `<option value="">🛡️ ทุกทีม</option>` +
+    `<option value="__NONE__">— ยังไม่ระบุทีม —</option>` +
+    teams.map((t) => `<option value="${escapeAttr(t)}">${escapeHtml(t)}</option>`).join("");
+  if (current && (current === "__NONE__" || teams.includes(current))) sel.value = current;
+}
+
+function populateTeamDatalist() {
+  const dl = document.getElementById("teamNameSuggestions");
+  if (!dl) return;
+  dl.innerHTML = getTeamNames()
+    .map((t) => `<option value="${escapeAttr(t)}"></option>`)
+    .join("");
 }
 
 // ── STATS ──────────────────────────────────────────────────
 function updateStatCards() {
   const t = state.team;
   document.getElementById("cardTotal").textContent = t.length;
+  document.getElementById("cardTeams").textContent = getTeamNames().length;
   document.getElementById("cardStaff").textContent = t.filter((x) => x.member_type === "staff").length;
   document.getElementById("cardGuide").textContent = t.filter((x) => x.member_type === "guide" || !x.member_type).length;
   document.getElementById("cardOutsource").textContent = t.filter((x) => x.member_type === "outsource").length;
+  // Custom types — รวมยอด non-system ใน outsource card (หรือไม่นับ) — เก็บไว้ใน "อื่นๆ" ถ้ามี
+  // TODO: ถ้ามี custom type จำนวนมากค่อยเพิ่ม stat แยก
 }
 
 // ── FILTER + SORT + RENDER ─────────────────────────────────
 function filterTable() {
   const search = (document.getElementById("searchInput")?.value || "").toLowerCase();
   const type = document.getElementById("filterType")?.value || "";
+  const team = document.getElementById("filterTeam")?.value || "";
 
   const filtered = state.team.filter((m) => {
     const matchType = !type || (m.member_type || "guide") === type;
     if (!matchType) return false;
+    const mteam = (m.team_name || "").trim();
+    const matchTeam =
+      !team ||
+      (team === "__NONE__" ? !mteam : mteam === team);
+    if (!matchTeam) return false;
     if (!search) return true;
     const hay = [
       m.full_name, m.phone, m.line_id, m.whatsapp,
-      m.company, m.role_title, m.languages, m.note,
+      m.company, m.role_title, m.languages, m.note, m.team_name,
     ].map((s) => (s || "").toString().toLowerCase()).join(" ");
     return hay.includes(search);
   });
@@ -144,11 +233,11 @@ window.sortTable = function (key) {
 };
 
 function typeLabel(t) {
-  return ({
-    staff:     `<span class="tt-type-pill tt-type-staff">👔 Staff</span>`,
-    guide:     `<span class="tt-type-pill tt-type-guide">🧑‍🏫 ไกด์</span>`,
-    outsource: `<span class="tt-type-pill tt-type-outsource">🤝 Outsource</span>`,
-  }[t || "guide"]);
+  const mt = getMt(t);
+  if (!mt) return `<span class="tt-type-pill">${escapeHtml(t || "?")}</span>`;
+  return `<span class="tt-type-pill" style="background:${escapeAttr(mt.color_bg)};color:${escapeAttr(mt.color_fg)};border:1px solid ${escapeAttr(mt.color_fg)}33">
+    ${escapeHtml(mt.emoji || "")} ${escapeHtml(mt.label)}
+  </span>`;
 }
 
 function contactCell(m) {
@@ -162,19 +251,10 @@ function contactCell(m) {
 }
 
 function renderTable(rows) {
-  const sorted = [...rows].sort((a, b) => {
-    let av = a[state.sortKey] ?? "";
-    let bv = b[state.sortKey] ?? "";
-    if (typeof av === "string") av = av.toLowerCase();
-    if (typeof bv === "string") bv = bv.toLowerCase();
-    if (av === bv) return 0;
-    return state.sortAsc ? (av > bv ? 1 : -1) : av < bv ? 1 : -1;
-  });
-
   const tbody = document.getElementById("tableBody");
-  document.getElementById("tableCount").textContent = `${sorted.length} รายการ`;
+  document.getElementById("tableCount").textContent = `${rows.length} รายการ`;
 
-  if (!sorted.length) {
+  if (!rows.length) {
     tbody.innerHTML = `
       <tr><td colspan="8">
         <div class="empty-state">
@@ -185,50 +265,94 @@ function renderTable(rows) {
     return;
   }
 
-  tbody.innerHTML = sorted
-    .map((m, i) => {
-      const selected = state.selected.has(m.guide_id);
-      const meta = [];
-      if (m.role_title) meta.push(escapeHtml(m.role_title));
-      if (m.languages)  meta.push(`<span class="tt-langs">${escapeHtml(m.languages)}</span>`);
-      const compNote = [];
-      if (m.company) compNote.push(`<div style="font-weight:600">${escapeHtml(m.company)}</div>`);
-      if (m.note)    compNote.push(`<div style="color:var(--text3);font-size:11.5px">${escapeHtml(m.note)}</div>`);
+  // ── group by team_name (none last)
+  const groups = new Map();          // team_name → []
+  const noneGroup = [];
+  rows.forEach((m) => {
+    const t = (m.team_name || "").trim();
+    if (!t) noneGroup.push(m);
+    else {
+      if (!groups.has(t)) groups.set(t, []);
+      groups.get(t).push(m);
+    }
+  });
+  // Sort team keys by name
+  const teamKeys = [...groups.keys()].sort((a, b) => a.localeCompare(b, "th"));
 
-      return `<tr>
-        <td style="text-align:center">
-          <input type="checkbox" class="row-chk" data-id="${m.guide_id}"
-            ${selected ? "checked" : ""}
-            onclick="window.toggleRowSelect(${m.guide_id}, this.checked)" />
-        </td>
-        <td style="text-align:center;color:var(--text3);font-size:12px">${i + 1}</td>
-        <td>
-          <div class="tt-name-cell">${escapeHtml(m.full_name || "—")}</div>
-          ${m.role_title ? `<div class="tt-name-sub">${escapeHtml(m.role_title)}</div>` : ""}
-        </td>
-        <td class="col-center">${typeLabel(m.member_type)}</td>
-        <td>${meta.length ? meta.join("<br>") : `<span style="color:var(--text3)">—</span>`}</td>
-        <td>${contactCell(m)}</td>
-        <td>${compNote.length ? compNote.join("") : `<span style="color:var(--text3)">—</span>`}</td>
-        <td class="col-center" onclick="event.stopPropagation()">
-          <div class="action-group">
-            <button class="btn-icon" title="แก้ไข"
-              data-perm="trip_team_edit"
-              onclick="window.openTeamModal(${m.guide_id})">✏️</button>
-            <button class="btn-icon danger" title="ลบ"
-              data-perm="trip_team_delete"
-              onclick="window.deleteOne(${m.guide_id})">🗑</button>
+  // sort members within group
+  const sortMembers = (arr) =>
+    [...arr].sort((a, b) => {
+      let av = a[state.sortKey] ?? "";
+      let bv = b[state.sortKey] ?? "";
+      if (typeof av === "string") av = av.toLowerCase();
+      if (typeof bv === "string") bv = bv.toLowerCase();
+      if (av === bv) return 0;
+      return state.sortAsc ? (av > bv ? 1 : -1) : av < bv ? 1 : -1;
+    });
+
+  let idx = 0;
+  const rowsHtml = [];
+  const renderGroup = (teamLabel, members, isNone = false) => {
+    if (!members.length) return;
+    rowsHtml.push(`
+      <tr class="tt-team-row${isNone ? " tt-team-none" : ""}">
+        <td colspan="8">
+          <div class="tt-team-hdr">
+            <span>${isNone ? "📋" : "🛡️"}</span>
+            <span class="tt-team-name">${escapeHtml(teamLabel)}</span>
+            <span class="tt-team-count">${members.length} คน</span>
           </div>
         </td>
-      </tr>`;
-    })
-    .join("");
+      </tr>`);
+    sortMembers(members).forEach((m) => {
+      idx++;
+      rowsHtml.push(memberRowHtml(m, idx));
+    });
+  };
 
-  // Re-apply permission filtering on freshly-rendered buttons
+  teamKeys.forEach((t) => renderGroup(t, groups.get(t)));
+  renderGroup("ยังไม่ระบุทีม", noneGroup, true);
+
+  tbody.innerHTML = rowsHtml.join("");
+
   if (window.AuthZ && typeof AuthZ.applyDomPerms === "function") {
     AuthZ.applyDomPerms(tbody);
   }
   refreshBulkBar();
+}
+
+function memberRowHtml(m, idx) {
+  const selected = state.selected.has(m.guide_id);
+  const compNote = [];
+  if (m.company) compNote.push(`<div style="font-weight:600">${escapeHtml(m.company)}</div>`);
+  if (m.note)    compNote.push(`<div style="color:var(--text3);font-size:11.5px">${escapeHtml(m.note)}</div>`);
+
+  return `<tr>
+    <td style="text-align:center">
+      <input type="checkbox" class="row-chk" data-id="${m.guide_id}"
+        ${selected ? "checked" : ""}
+        onclick="window.toggleRowSelect(${m.guide_id}, this.checked)" />
+    </td>
+    <td style="text-align:center;color:var(--text3);font-size:12px">${idx}</td>
+    <td>
+      <div class="tt-name-cell">${escapeHtml(m.full_name || "—")}</div>
+      ${m.role_title ? `<div class="tt-name-sub">${escapeHtml(m.role_title)}</div>` : ""}
+    </td>
+    <td class="col-center">${typeLabel(m.member_type)}</td>
+    <td>${m.languages ? `<span class="tt-langs">${escapeHtml(m.languages)}</span>` : `<span style="color:var(--text3)">—</span>`}</td>
+    <td>${contactCell(m)}</td>
+    <td>${compNote.length ? compNote.join("") : `<span style="color:var(--text3)">—</span>`}</td>
+    <td class="col-center" onclick="event.stopPropagation()">
+      <div class="action-group">
+        <button class="btn-icon" title="แก้ไข"
+          data-perm="trip_team_edit"
+          onclick="window.openTeamModal(${m.guide_id})">✏️</button>
+        <button class="btn-icon danger" title="ลบ"
+          data-perm="trip_team_delete"
+          onclick="window.deleteOne(${m.guide_id})">🗑</button>
+      </div>
+    </td>
+  </tr>`;
 }
 
 // ── SELECTION (multi-select + bulk delete) ─────────────────
@@ -306,7 +430,14 @@ window.openTeamModal = function (id) {
   const m = id ? state.team.find((x) => x.guide_id === id) : null;
 
   document.getElementById("teamModalTitle").textContent = m ? "แก้ไขสมาชิกทีม" : "เพิ่มสมาชิกทีม";
-  document.getElementById("fType").value       = m?.member_type || "guide";
+  // ensure type dropdown options reflect latest types
+  populateTypeDropdown();
+  const initialType = m?.member_type || "guide";
+  const typeSel = document.getElementById("fType");
+  if (state.memberTypes.some((t) => t.type_key === initialType)) {
+    typeSel.value = initialType;
+  }
+  document.getElementById("fTeamName").value   = m?.team_name || "";
   document.getElementById("fFullName").value   = m?.full_name || "";
   document.getElementById("fRoleTitle").value  = m?.role_title || "";
   document.getElementById("fCompany").value    = m?.company || "";
@@ -316,6 +447,7 @@ window.openTeamModal = function (id) {
   document.getElementById("fWhatsapp").value   = m?.whatsapp || "";
   document.getElementById("fNote").value       = m?.note || "";
   document.getElementById("ttDeleteBtn").style.display = m ? "" : "none";
+  populateTeamDatalist();
 
   document.getElementById("teamOverlay").classList.add("open");
   setTimeout(() => document.getElementById("fFullName").focus(), 50);
@@ -336,6 +468,7 @@ window.saveTeamMember = async function () {
   const payload = {
     trip_id: state.tripId,
     member_type: document.getElementById("fType").value || "guide",
+    team_name: document.getElementById("fTeamName").value.trim() || null,
     full_name: name,
     role_title: document.getElementById("fRoleTitle").value.trim() || null,
     company:   document.getElementById("fCompany").value.trim() || null,
@@ -421,6 +554,201 @@ window.deleteOne = async function (id) {
   showLoading(false);
 };
 
+// ── MEMBER TYPES MANAGER (nested modal) ────────────────────
+window.openMtManager = function () {
+  renderMtManagerList();
+  document.getElementById("mtMgrOverlay").classList.add("open");
+};
+
+window.closeMtManager = function (e) {
+  if (e && e.target.id !== "mtMgrOverlay") return;
+  document.getElementById("mtMgrOverlay").classList.remove("open");
+};
+
+function renderMtManagerList() {
+  const list = document.getElementById("mtMgrList");
+  if (!list) return;
+  if (!state.memberTypes.length) {
+    list.innerHTML = `<div style="padding:14px;text-align:center;color:var(--text3);font-size:13px">
+      ยังไม่มีประเภท — กด "＋ เพิ่ม" เพื่อเริ่ม
+    </div>`;
+    return;
+  }
+  list.innerHTML = state.memberTypes
+    .map((t) => {
+      const usage = state.team.filter((m) => m.member_type === t.type_key).length;
+      const sysBadge = t.is_system
+        ? `<span style="font-size:10px;background:#f1f5f9;color:var(--text2);padding:1px 6px;border-radius:99px;border:1px solid var(--border)">SYSTEM</span>`
+        : "";
+      const deleteBtn = t.is_system
+        ? `<button class="btn-icon" title="ประเภท System ลบไม่ได้" disabled
+            style="font-size:14px;opacity:.35;cursor:not-allowed">🗑</button>`
+        : `<button class="btn-icon danger" data-perm="member_types_delete" title="ลบประเภท"
+            onclick="window.deleteMtDirect('${escapeJs(t.type_key)}')"
+            style="font-size:14px">🗑</button>`;
+      return `<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;border:1px solid var(--border);border-radius:8px;background:#fff">
+        <span style="font-size:22px;width:30px;text-align:center;flex-shrink:0">${escapeHtml(t.emoji || "🧑")}</span>
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:700;color:var(--text);font-size:14px">${escapeHtml(t.label)} ${sysBadge}</div>
+          <div style="font-size:11px;color:var(--text3);font-family:monospace">${escapeHtml(t.type_key)}</div>
+        </div>
+        <span class="tt-type-pill" style="background:${escapeAttr(t.color_bg)};color:${escapeAttr(t.color_fg)};border:1px solid ${escapeAttr(t.color_fg)}33;font-size:11px">
+          ${escapeHtml(t.emoji || "")} ${escapeHtml(t.label)}
+        </span>
+        <span style="font-size:11px;color:var(--text2);min-width:48px;text-align:right">${usage} คน</span>
+        <div style="display:flex;gap:2px;flex-shrink:0">
+          <button class="btn-icon" data-perm="member_types_edit" title="แก้ไข"
+            onclick="window.openMtForm('${escapeJs(t.type_key)}')"
+            style="font-size:14px">✏️</button>
+          ${deleteBtn}
+        </div>
+      </div>`;
+    })
+    .join("");
+  if (window.AuthZ?.applyDomPerms) AuthZ.applyDomPerms(list);
+}
+
+// ลบประเภทตรงจาก list (ไม่ต้องเปิดฟอร์ม edit ก่อน)
+window.deleteMtDirect = async function (typeKey) {
+  state.editingTypeKey = typeKey;
+  await window.deleteMt();
+};
+
+window.openMtForm = function (typeKey) {
+  state.editingTypeKey = typeKey || null;
+  const t = typeKey ? state.memberTypes.find((x) => x.type_key === typeKey) : null;
+  document.getElementById("mtFormTitle").textContent = t ? `แก้ไขประเภท: ${t.label}` : "เพิ่มประเภทใหม่";
+  document.getElementById("fMtEmoji").value = t?.emoji || "🧑";
+  document.getElementById("fMtLabel").value = t?.label || "";
+  document.getElementById("fMtBg").value    = (t?.color_bg && /^#[0-9a-f]{6}$/i.test(t.color_bg)) ? t.color_bg : "#fef3c7";
+  document.getElementById("fMtFg").value    = (t?.color_fg && /^#[0-9a-f]{6}$/i.test(t.color_fg)) ? t.color_fg : "#92400e";
+
+  // ปุ่มลบ: ซ่อนถ้าเป็น system หรือเป็นการสร้างใหม่
+  const delBtn = document.getElementById("mtFormDeleteBtn");
+  delBtn.style.display = (t && !t.is_system) ? "" : "none";
+
+  document.getElementById("mtFormOverlay").classList.add("open");
+  bindMtPreview();
+  updateMtPreview();
+  setTimeout(() => document.getElementById("fMtLabel")?.focus(), 50);
+};
+
+window.closeMtForm = function (e) {
+  if (e && e.target.id !== "mtFormOverlay") return;
+  document.getElementById("mtFormOverlay").classList.remove("open");
+  state.editingTypeKey = null;
+};
+
+function bindMtPreview() {
+  ["fMtEmoji", "fMtLabel", "fMtBg", "fMtFg"].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el && !el._mtPreviewBound) {
+      el.addEventListener("input", updateMtPreview);
+      el._mtPreviewBound = true;
+    }
+  });
+}
+
+function updateMtPreview() {
+  const emo = document.getElementById("fMtEmoji").value || "🧑";
+  const lbl = document.getElementById("fMtLabel").value.trim() || "ตัวอย่าง";
+  const bg  = document.getElementById("fMtBg").value || "#fef3c7";
+  const fg  = document.getElementById("fMtFg").value || "#92400e";
+  const pill = document.getElementById("mtPreviewPill");
+  pill.style.background = bg;
+  pill.style.color = fg;
+  pill.style.border = `1px solid ${fg}33`;
+  pill.textContent = `${emo} ${lbl}`;
+}
+
+function slugify(s) {
+  return String(s || "")
+    .normalize("NFKD")
+    .toLowerCase()
+    .replace(/[^a-z0-9฀-๿]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 40);
+}
+
+window.saveMt = async function () {
+  const emoji = document.getElementById("fMtEmoji").value.trim() || "🧑";
+  const label = document.getElementById("fMtLabel").value.trim();
+  const bg    = document.getElementById("fMtBg").value || "#fef3c7";
+  const fg    = document.getElementById("fMtFg").value || "#92400e";
+  if (!label) { showToast("กรุณากรอกชื่อประเภท", "error"); return; }
+
+  const payload = {
+    label, emoji, color_bg: bg, color_fg: fg,
+    updated_at: new Date().toISOString(),
+  };
+
+  showLoading(true);
+  try {
+    if (state.editingTypeKey) {
+      await sbFetch("member_types", `?type_key=eq.${encodeURIComponent(state.editingTypeKey)}`, {
+        method: "PATCH", body: payload,
+      });
+      showToast("แก้ไขประเภทแล้ว", "success");
+    } else {
+      // auto-gen key from label (slug)
+      let key = slugify(label);
+      if (!key) key = "type_" + Date.now();
+      // ensure unique
+      let suffix = 1;
+      const exists = (k) => state.memberTypes.some((x) => x.type_key === k);
+      let finalKey = key;
+      while (exists(finalKey)) { finalKey = `${key}_${++suffix}`; }
+      payload.type_key   = finalKey;
+      payload.sort_order = state.memberTypes.length + 1;
+      payload.is_system  = false;
+      await sbFetch("member_types", "", { method: "POST", body: payload });
+      showToast("เพิ่มประเภทแล้ว", "success");
+    }
+    document.getElementById("mtFormOverlay").classList.remove("open");
+    state.editingTypeKey = null;
+    await loadAll();
+    renderMtManagerList();
+  } catch (e) {
+    showToast("บันทึกไม่ได้: " + e.message, "error");
+  }
+  showLoading(false);
+};
+
+window.deleteMt = async function () {
+  const key = state.editingTypeKey;
+  if (!key) return;
+  const t = state.memberTypes.find((x) => x.type_key === key);
+  if (!t) return;
+  if (t.is_system) { showToast("ประเภท System ลบไม่ได้", "error"); return; }
+  const usage = state.team.filter((m) => m.member_type === key).length;
+  const msg = usage > 0
+    ? `ลบประเภท "${t.label}" — มีสมาชิก ${usage} คนใช้อยู่ ระบบจะย้ายไป "ไกด์" — ดำเนินการต่อ?`
+    : `ลบประเภท "${t.label}"?`;
+  const ok = window.ConfirmModal?.open
+    ? await window.ConfirmModal.open({
+        title: "ลบประเภท", message: msg, icon: "🗑", tone: "danger", okText: "ลบ",
+      })
+    : confirm(msg);
+  if (!ok) return;
+  showLoading(true);
+  try {
+    if (usage > 0) {
+      await sbFetch("trip_guides", `?member_type=eq.${encodeURIComponent(key)}`, {
+        method: "PATCH", body: { member_type: "guide" },
+      });
+    }
+    await sbFetch("member_types", `?type_key=eq.${encodeURIComponent(key)}`, { method: "DELETE" });
+    showToast("ลบประเภทแล้ว", "success");
+    document.getElementById("mtFormOverlay").classList.remove("open");
+    state.editingTypeKey = null;
+    await loadAll();
+    renderMtManagerList();
+  } catch (e) {
+    showToast("ลบไม่สำเร็จ: " + e.message, "error");
+  }
+  showLoading(false);
+};
+
 // ── UTILS ──────────────────────────────────────────────────
 function escapeHtml(s) {
   return String(s ?? "").replace(/[<>&"']/g, (c) => ({
@@ -431,6 +759,9 @@ function escapeAttr(s) {
   return String(s ?? "").replace(/["'<>&]/g, (c) => ({
     "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;", "'": "&#39;",
   })[c]);
+}
+function escapeJs(s) {
+  return String(s ?? "").replace(/[\\'"]/g, (c) => "\\" + c);
 }
 
 function showToast(msg, type = "success") {

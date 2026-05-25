@@ -71,6 +71,32 @@
       .stat-card.tt-stat-guide .stat-value     { color:#a16207; }
       .stat-card.tt-stat-outsource { background:#faf5ff; border-color:#e9d5ff; }
       .stat-card.tt-stat-outsource .stat-value { color:#7e22ce; }
+
+      /* Team group header row */
+      .tt-team-row td{
+        background:linear-gradient(to right,#ecfdf5,#f0fdf4 60%,#fff);
+        padding:8px 14px !important;border-top:2px solid #86efac;
+      }
+      .tt-team-row:first-child td{border-top:none}
+      .tt-team-hdr{
+        display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+        font-size:14px;font-weight:700;color:#166534;
+      }
+      .tt-team-hdr .tt-team-name{font-size:14px}
+      .tt-team-hdr .tt-team-count{
+        display:inline-flex;align-items:center;justify-content:center;
+        background:#dcfce7;color:#15803d;border:1px solid #86efac;
+        padding:2px 9px;border-radius:99px;
+        font-size:11.5px;font-weight:700;
+      }
+      .tt-team-row.tt-team-none td{
+        background:linear-gradient(to right,#f8fafc,#f1f5f9 60%,#fff);
+        border-top:2px dashed #cbd5e1;
+      }
+      .tt-team-row.tt-team-none .tt-team-hdr{color:var(--text2)}
+      .tt-team-row.tt-team-none .tt-team-count{
+        background:#f1f5f9;color:var(--text2);border-color:#cbd5e1;
+      }
     </style>
   </head>
   <body>
@@ -103,7 +129,14 @@
               <div class="stat-icon">🧑‍🤝‍🧑</div>
               <div>
                 <div class="stat-value" id="cardTotal">0</div>
-                <div class="stat-label">ทีมงานทั้งหมด</div>
+                <div class="stat-label">สมาชิกทั้งหมด</div>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon">🛡️</div>
+              <div>
+                <div class="stat-value" id="cardTeams">0</div>
+                <div class="stat-label">จำนวนทีม</div>
               </div>
             </div>
             <div class="stat-card tt-stat-staff">
@@ -137,9 +170,12 @@
                 <input
                   class="search-input"
                   id="searchInput"
-                  placeholder="ค้นหาชื่อ / เบอร์ / บริษัท..."
+                  placeholder="ค้นหาชื่อ / เบอร์ / บริษัท / ทีม..."
                 />
               </div>
+              <select class="filter-select" id="filterTeam" title="กรองตามทีม">
+                <option value="">🛡️ ทุกทีม</option>
+              </select>
               <select class="filter-select" id="filterType">
                 <option value="">🧿 ทุกประเภท</option>
                 <option value="staff">👔 Staff</option>
@@ -181,11 +217,9 @@
                       <input type="checkbox" id="chkAll" onclick="window.toggleSelectAll(this.checked)" />
                     </th>
                     <th style="width:48px;text-align:center">#</th>
-                    <th onclick="window.sortTable('full_name')" style="cursor:pointer">
-                      ชื่อ <span class="sort-icon">⇅</span>
-                    </th>
+                    <th>ชื่อ / ตำแหน่ง</th>
                     <th class="col-center" style="width:130px">ประเภท</th>
-                    <th style="width:120px">ภาษา / ตำแหน่ง</th>
+                    <th style="width:120px">ภาษา</th>
                     <th style="width:200px">ติดต่อ</th>
                     <th style="width:160px">บริษัท / หมายเหตุ</th>
                     <th class="col-center" style="width:100px">จัดการ</th>
@@ -216,13 +250,29 @@
           <button class="btn-modal-close" onclick="window.closeTeamModal()">✕</button>
         </div>
         <div class="modal-body">
-          <div class="form-group">
-            <label class="form-label">ประเภท <span class="req">*</span></label>
-            <select class="form-control" id="fType">
-              <option value="staff">👔 Staff (พนักงาน A4S)</option>
-              <option value="guide" selected>🧑‍🏫 ไกด์</option>
-              <option value="outsource">🤝 Outsource / Agency</option>
-            </select>
+          <div class="form-row" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div class="form-group">
+              <label class="form-label">ประเภท <span class="req">*</span></label>
+              <div style="display:flex;gap:6px">
+                <select class="form-control" id="fType" style="flex:1;min-width:0">
+                  <option value="">— เลือกประเภท —</option>
+                </select>
+                <button type="button" class="btn btn-outline"
+                  data-perm="member_types_view"
+                  onclick="window.openMtManager()"
+                  title="จัดการรายการประเภท"
+                  style="padding:0 12px;font-size:14px;flex-shrink:0">⚙️ จัดการ</button>
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">ทีม
+                <span style="color:var(--text3);font-weight:400;font-size:11px">(พิมพ์ใหม่หรือเลือกที่มี)</span>
+              </label>
+              <input class="form-control" id="fTeamName"
+                list="teamNameSuggestions"
+                placeholder="เช่น ทีมไกด์หลัก, ทีมตากล้อง" autocomplete="off" />
+              <datalist id="teamNameSuggestions"></datalist>
+            </div>
           </div>
 
           <div class="form-group" style="margin-top:14px">
@@ -278,6 +328,79 @@
           </button>
           <button class="btn btn-ghost" onclick="window.closeTeamModal()">ยกเลิก</button>
           <button class="btn btn-primary" onclick="window.saveTeamMember()">💾 บันทึก</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═════════════ MEMBER-TYPE MANAGER MODAL ═════════════ -->
+    <div class="modal-overlay" id="mtMgrOverlay" onclick="window.closeMtManager(event)">
+      <div class="modal v-sage-header" onclick="event.stopPropagation()" style="max-width:560px">
+        <div class="modal-hdr">
+          <div class="modal-title">⚙️ จัดการรายการประเภท</div>
+          <button class="btn-modal-close" onclick="window.closeMtManager()">✕</button>
+        </div>
+        <div class="modal-body">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+            <div style="color:var(--text2);font-size:12.5px">เพิ่ม / แก้ไข / ลบ ประเภทสมาชิกทีม</div>
+            <button class="btn btn-primary" data-perm="member_types_create"
+              onclick="window.openMtForm()" style="font-size:13px;padding:6px 14px">
+              ＋ เพิ่ม
+            </button>
+          </div>
+          <div id="mtMgrList" style="display:flex;flex-direction:column;gap:6px">
+            <div style="padding:14px;text-align:center;color:var(--text3);font-size:13px">กำลังโหลด...</div>
+          </div>
+          <div style="margin-top:10px;font-size:11px;color:var(--text3)">
+            💡 ประเภท <strong>System</strong> (Staff/ไกด์/Outsource) ลบไม่ได้ แก้ป้าย/อิโมจิ/สีได้
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-ghost" onclick="window.closeMtManager()">ปิด</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═════════════ MEMBER-TYPE FORM MODAL (nested) ═════════════ -->
+    <div class="modal-overlay" id="mtFormOverlay" onclick="window.closeMtForm(event)">
+      <div class="modal v-sage-header" onclick="event.stopPropagation()" style="max-width:520px">
+        <div class="modal-hdr">
+          <div class="modal-title" id="mtFormTitle">เพิ่มประเภท</div>
+          <button class="btn-modal-close" onclick="window.closeMtForm()">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-row" style="display:grid;grid-template-columns:80px 1fr;gap:12px">
+            <div class="form-group">
+              <label class="form-label">อิโมจิ</label>
+              <input class="form-control" id="fMtEmoji" maxlength="4"
+                placeholder="🧑" style="font-size:20px;text-align:center" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">ชื่อประเภท <span class="req">*</span></label>
+              <input class="form-control" id="fMtLabel" placeholder="เช่น Driver, Photographer" autocomplete="off" />
+            </div>
+          </div>
+          <div class="form-row" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px">
+            <div class="form-group">
+              <label class="form-label">สีพื้น (badge)</label>
+              <input class="form-control" id="fMtBg" type="color" value="#fef3c7" style="height:38px;padding:3px;cursor:pointer" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">สีตัวอักษร</label>
+              <input class="form-control" id="fMtFg" type="color" value="#92400e" style="height:38px;padding:3px;cursor:pointer" />
+            </div>
+          </div>
+          <div class="form-group" style="margin-top:12px">
+            <label class="form-label">ตัวอย่าง</label>
+            <div id="mtPreview" style="padding:10px;border:1px dashed var(--border);border-radius:8px;background:#f8fafc">
+              <span id="mtPreviewPill" class="tt-type-pill" style="font-size:13px">— ตัวอย่าง —</span>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-danger" id="mtFormDeleteBtn" data-perm="member_types_delete"
+            onclick="window.deleteMt()" style="margin-right:auto;display:none">🗑 ลบ</button>
+          <button class="btn btn-ghost" onclick="window.closeMtForm()">ยกเลิก</button>
+          <button class="btn btn-primary" onclick="window.saveMt()">💾 บันทึก</button>
         </div>
       </div>
     </div>

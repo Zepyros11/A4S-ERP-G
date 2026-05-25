@@ -185,6 +185,9 @@ async function loadAll() {
     state.hotels = hotels || [];
     state.buses = buses || [];
     state.guides = guides || [];
+    // Load member_types master (global)
+    const types = await sbFetch("member_types", "?select=*&order=sort_order.asc,type_key.asc").catch(() => null);
+    state.memberTypes = (Array.isArray(types) && types.length) ? types : DEFAULT_MEMBER_TYPES;
     populateHotelDropdown();
     state.trip = trip;
     // แสดงทุกแถว (รวม sub-row) — แต่ละแถว = 1 ที่นั่ง = 1 ช่อง assign ให้ห้องได้
@@ -2942,10 +2945,35 @@ window.applyBusMulti = function (busId, field) {
   }, 450);
 };
 
-// Type → emoji map
-const MEMBER_TYPE_EMOJI = { staff: "👔", guide: "🧑‍🏫", outsource: "🤝" };
-const memberEmoji = (t) => MEMBER_TYPE_EMOJI[t || "guide"] || "🧑‍🏫";
-const MEMBER_TYPE_LABEL = { staff: "Staff", guide: "ไกด์", outsource: "Outsource" };
+// Member types — loaded from DB into state.memberTypes (fallback defaults below)
+const DEFAULT_MEMBER_TYPES = [
+  { type_key: "staff",     label: "Staff",     emoji: "👔",     color_bg: "#dbeafe", color_fg: "#1d4ed8", sort_order: 1, is_system: true },
+  { type_key: "guide",     label: "ไกด์",      emoji: "🧑‍🏫",   color_bg: "#fef3c7", color_fg: "#92400e", sort_order: 2, is_system: true },
+  { type_key: "outsource", label: "Outsource", emoji: "🤝",     color_bg: "#f3e8ff", color_fg: "#6b21a8", sort_order: 3, is_system: true },
+];
+
+function getMt(key) {
+  const arr = state.memberTypes && state.memberTypes.length ? state.memberTypes : DEFAULT_MEMBER_TYPES;
+  return arr.find((t) => t.type_key === key)
+      || arr.find((t) => t.type_key === "guide")
+      || arr[0];
+}
+
+function populateGuideTypeDropdown() {
+  const sel = document.getElementById("fGuideType");
+  if (!sel) return;
+  const current = sel.value;
+  const arr = state.memberTypes && state.memberTypes.length ? state.memberTypes : DEFAULT_MEMBER_TYPES;
+  sel.innerHTML = arr
+    .map((t) => `<option value="${escapeAttr(t.type_key)}">${escapeHtml(t.emoji || "")} ${escapeHtml(t.label)}</option>`)
+    .join("");
+  if (current && arr.some((t) => t.type_key === current)) sel.value = current;
+}
+const memberEmoji = (t) => getMt(t)?.emoji || "🧑‍🏫";
+const memberLabel = (t) => getMt(t)?.label || "ไกด์";
+
+// Backward-compat alias (legacy code may reference)
+const MEMBER_TYPE_LABEL = new Proxy({}, { get: (_, k) => memberLabel(k) });
 
 // Render side panel "ทีมงาน" ในแถบลูกค้าซ้าย
 function renderTeamPanel() {
@@ -2965,38 +2993,74 @@ function renderTeamPanel() {
   }
 
   panel.style.display = "";
-  // Group by type
-  const grouped = { staff: [], guide: [], outsource: [] };
+
+  // Group: ถ้า user ตั้ง team_name → group by team_name, ไม่ตั้ง → group by type
+  const byTeam = new Map();    // team_name → []
+  const noTeam = [];
   state.guides.forEach(g => {
-    const t = g.member_type || "guide";
-    (grouped[t] || grouped.guide).push(g);
+    const t = (g.team_name || "").trim();
+    if (t) {
+      if (!byTeam.has(t)) byTeam.set(t, []);
+      byTeam.get(t).push(g);
+    } else {
+      noTeam.push(g);
+    }
   });
 
-  const sectionHtml = ["staff", "guide", "outsource"].map(t => {
-    const arr = grouped[t];
-    if (!arr.length) return "";
-    const items = arr.map(g => {
-      const busCount = state.guideToBuses[g.guide_id]?.size || 0;
-      const busTag = busCount > 0
-        ? `<span style="font-size:10px;color:#0369a1;background:#e0f2fe;padding:1px 5px;border-radius:4px;font-weight:600">🚌 ${busCount}</span>`
-        : `<span style="font-size:10px;color:var(--text3);background:#f1f5f9;padding:1px 5px;border-radius:4px">—</span>`;
-      const langTag = g.languages
-        ? `<span style="font-size:10px;color:var(--text3);font-family:monospace">${escapeHtml(g.languages)}</span>`
-        : "";
-      return `<div style="display:flex;align-items:center;gap:5px;padding:4px 7px;background:#f8fafc;border:1px solid var(--border);border-radius:6px;font-size:11.5px"
-        title="${escapeAttr((g.role_title ? g.role_title + " · " : "") + (g.company || ""))}">
-        <span style="font-size:13px;flex-shrink:0">${memberEmoji(t)}</span>
-        <span style="flex:1;font-weight:600;color:var(--text);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(g.full_name)}</span>
-        ${langTag}
-        ${busTag}
-      </div>`;
-    }).join("");
-    return `<div style="font-size:10.5px;color:var(--text2);font-weight:700;letter-spacing:.3px;margin:6px 0 3px">
-        ${memberEmoji(t)} ${MEMBER_TYPE_LABEL[t]} <span style="color:var(--text3);font-weight:500">(${arr.length})</span>
-      </div>${items}`;
-  }).join("");
+  const renderMember = (g) => {
+    const busCount = state.guideToBuses[g.guide_id]?.size || 0;
+    const busTag = busCount > 0
+      ? `<span style="font-size:10px;color:#0369a1;background:#e0f2fe;padding:1px 5px;border-radius:4px;font-weight:600">🚌 ${busCount}</span>`
+      : `<span style="font-size:10px;color:var(--text3);background:#f1f5f9;padding:1px 5px;border-radius:4px">—</span>`;
+    const langTag = g.languages
+      ? `<span style="font-size:10px;color:var(--text3);font-family:monospace">${escapeHtml(g.languages)}</span>`
+      : "";
+    return `<div style="display:flex;align-items:center;gap:5px;padding:4px 7px;background:#f8fafc;border:1px solid var(--border);border-radius:6px;font-size:11.5px"
+      title="${escapeAttr((g.role_title ? g.role_title + " · " : "") + (g.company || ""))}">
+      <span style="font-size:13px;flex-shrink:0">${memberEmoji(g.member_type)}</span>
+      <span style="flex:1;font-weight:600;color:var(--text);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(g.full_name)}</span>
+      ${langTag}
+      ${busTag}
+    </div>`;
+  };
 
-  document.getElementById("raTeamList").innerHTML = sectionHtml;
+  const sections = [];
+
+  // Named teams (sorted)
+  [...byTeam.keys()].sort((a, b) => a.localeCompare(b, "th")).forEach(teamName => {
+    const arr = byTeam.get(teamName);
+    sections.push(`
+      <div style="font-size:10.5px;color:#15803d;font-weight:700;letter-spacing:.3px;margin:6px 0 3px;display:flex;align-items:center;gap:4px">
+        <span>🛡️</span>
+        <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(teamName)}</span>
+        <span style="color:var(--text3);font-weight:500">(${arr.length})</span>
+      </div>
+      ${arr.map(renderMember).join("")}
+    `);
+  });
+
+  // Unteamed → group by type (fallback)
+  if (noTeam.length) {
+    const grouped = { staff: [], guide: [], outsource: [] };
+    noTeam.forEach(g => {
+      const t = g.member_type || "guide";
+      (grouped[t] || grouped.guide).push(g);
+    });
+    if (byTeam.size) {
+      sections.push(`<div style="font-size:10px;color:var(--text3);font-weight:600;margin:8px 0 2px;padding-top:6px;border-top:1px dashed var(--border)">
+        — ยังไม่ระบุทีม —
+      </div>`);
+    }
+    ["staff", "guide", "outsource"].forEach(t => {
+      const arr = grouped[t];
+      if (!arr.length) return;
+      sections.push(`<div style="font-size:10.5px;color:var(--text2);font-weight:700;letter-spacing:.3px;margin:6px 0 3px">
+        ${memberEmoji(t)} ${MEMBER_TYPE_LABEL[t]} <span style="color:var(--text3);font-weight:500">(${arr.length})</span>
+      </div>${arr.map(renderMember).join("")}`);
+    });
+  }
+
+  document.getElementById("raTeamList").innerHTML = sections.join("");
   if (window.AuthZ?.applyDomPerms) AuthZ.applyDomPerms(panel);
 }
 
@@ -3246,7 +3310,7 @@ window.viewGuideSeat = function (busId, seatNo) {
 
   // Modal title + side label + buttons
   const emo = memberEmoji(g.member_type);
-  const typeLbl = { staff: "Staff", guide: "ไกด์", outsource: "Outsource" }[g.member_type || "guide"];
+  const typeLbl = memberLabel(g.member_type);
   document.getElementById("sdModalTitle").textContent = `${emo} รายละเอียด${typeLbl}`;
   document.getElementById("sdSideLabel").textContent = "📞 ติดต่อ";
   document.getElementById("sdEditBtn").style.display = "";
@@ -3257,6 +3321,7 @@ window.viewGuideSeat = function (busId, seatNo) {
   const grid = document.getElementById("sdGrid");
   grid.innerHTML = [
     ["ประเภท",   `${emo} ${typeLbl}`],
+    g.team_name  ? ["ทีม",       g.team_name]  : null,
     g.role_title ? ["ตำแหน่ง", g.role_title] : null,
     g.company    ? ["บริษัท",   g.company]    : null,
     g.languages  ? ["ภาษา",     g.languages]  : null,
@@ -4061,7 +4126,25 @@ window.openGuideEditModal = function (guideId) {
   document.getElementById("geTitle").textContent = g
     ? `🧑‍🤝‍🧑 แก้ไขสมาชิกทีม`
     : `🧑‍🤝‍🧑 เพิ่มสมาชิกทีม`;
-  document.getElementById("fGuideType").value      = g?.member_type || "guide";
+  // populate type dropdown dynamically from state.memberTypes
+  populateGuideTypeDropdown();
+  const initialType = g?.member_type || "guide";
+  const typeSel = document.getElementById("fGuideType");
+  const types = state.memberTypes || DEFAULT_MEMBER_TYPES;
+  if (types.some((t) => t.type_key === initialType)) {
+    typeSel.value = initialType;
+  } else if (types.some((t) => t.type_key === "guide")) {
+    typeSel.value = "guide";
+  }
+  document.getElementById("fGuideTeamName").value  = g?.team_name || "";
+  // populate datalist with existing team names in this trip
+  const dl = document.getElementById("guideTeamSuggestions");
+  if (dl) {
+    const names = new Set();
+    state.guides.forEach((x) => { if (x.team_name) names.add(x.team_name); });
+    dl.innerHTML = [...names].sort((a, b) => a.localeCompare(b, "th"))
+      .map((t) => `<option value="${escapeAttr(t)}"></option>`).join("");
+  }
   document.getElementById("fGuideName").value      = g?.full_name || "";
   document.getElementById("fGuideRoleTitle").value = g?.role_title || "";
   document.getElementById("fGuideCompany").value   = g?.company || "";
@@ -4087,6 +4170,7 @@ window.saveGuide = async function () {
   const payload = {
     trip_id: state.tripId,
     member_type: document.getElementById("fGuideType").value || "guide",
+    team_name: document.getElementById("fGuideTeamName").value.trim() || null,
     full_name: name,
     role_title: document.getElementById("fGuideRoleTitle").value.trim() || null,
     company: document.getElementById("fGuideCompany").value.trim() || null,
@@ -4150,6 +4234,204 @@ window.deleteGuide = async function () {
     showToast("ลบแล้ว", "success");
     document.getElementById("guideEditOverlay").classList.remove("open");
     state.editingGuideId = null;
+    await loadAll();
+  } catch (e) {
+    showToast("ลบไม่สำเร็จ: " + e.message, "error");
+  }
+  showLoading(false);
+};
+
+// ── MEMBER TYPES MANAGER (nested modal) ────────────────────
+window.openMtManager = function () {
+  renderMtManagerList();
+  document.getElementById("mtMgrOverlay").classList.add("open");
+};
+
+window.closeMtManager = function (e) {
+  if (e && e.target.id !== "mtMgrOverlay") return;
+  document.getElementById("mtMgrOverlay").classList.remove("open");
+};
+
+function renderMtManagerList() {
+  const list = document.getElementById("mtMgrList");
+  if (!list) return;
+  const types = state.memberTypes && state.memberTypes.length ? state.memberTypes : DEFAULT_MEMBER_TYPES;
+  if (!types.length) {
+    list.innerHTML = `<div style="padding:14px;text-align:center;color:var(--text3);font-size:13px">ยังไม่มีประเภท</div>`;
+    return;
+  }
+  list.innerHTML = types
+    .map((t) => {
+      const usage = state.guides.filter((g) => g.member_type === t.type_key).length;
+      const sysBadge = t.is_system
+        ? `<span style="font-size:10px;background:#f1f5f9;color:var(--text2);padding:1px 6px;border-radius:99px;border:1px solid var(--border)">SYSTEM</span>`
+        : "";
+      const deleteBtn = t.is_system
+        ? `<button class="btn-icon" title="ประเภท System ลบไม่ได้" disabled
+            style="font-size:14px;opacity:.35;cursor:not-allowed">🗑</button>`
+        : `<button class="btn-icon danger" data-perm="member_types_delete" title="ลบประเภท"
+            onclick="window.deleteMtDirect('${escapeJs(t.type_key)}')"
+            style="font-size:14px">🗑</button>`;
+      return `<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;border:1px solid var(--border);border-radius:8px;background:#fff">
+        <span style="font-size:22px;width:30px;text-align:center;flex-shrink:0">${escapeHtml(t.emoji || "🧑")}</span>
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:700;color:var(--text);font-size:14px">${escapeHtml(t.label)} ${sysBadge}</div>
+          <div style="font-size:11px;color:var(--text3);font-family:monospace">${escapeHtml(t.type_key)}</div>
+        </div>
+        <span style="display:inline-block;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700;background:${escapeAttr(t.color_bg)};color:${escapeAttr(t.color_fg)};border:1px solid ${escapeAttr(t.color_fg)}33">
+          ${escapeHtml(t.emoji || "")} ${escapeHtml(t.label)}
+        </span>
+        <span style="font-size:11px;color:var(--text2);min-width:48px;text-align:right">${usage} คน</span>
+        <div style="display:flex;gap:2px;flex-shrink:0">
+          <button class="btn-icon" data-perm="member_types_edit" title="แก้ไข"
+            onclick="window.openMtForm('${escapeJs(t.type_key)}')"
+            style="font-size:14px">✏️</button>
+          ${deleteBtn}
+        </div>
+      </div>`;
+    })
+    .join("");
+  if (window.AuthZ?.applyDomPerms) AuthZ.applyDomPerms(list);
+}
+
+// ลบประเภทตรงจาก list
+window.deleteMtDirect = async function (typeKey) {
+  state.editingTypeKey = typeKey;
+  await window.deleteMt();
+};
+
+window.openMtForm = function (typeKey) {
+  state.editingTypeKey = typeKey || null;
+  const types = state.memberTypes && state.memberTypes.length ? state.memberTypes : DEFAULT_MEMBER_TYPES;
+  const t = typeKey ? types.find((x) => x.type_key === typeKey) : null;
+  document.getElementById("mtFormTitle").textContent = t ? `แก้ไขประเภท: ${t.label}` : "เพิ่มประเภทใหม่";
+  document.getElementById("fMtEmoji").value = t?.emoji || "🧑";
+  document.getElementById("fMtLabel").value = t?.label || "";
+  document.getElementById("fMtBg").value    = (t?.color_bg && /^#[0-9a-f]{6}$/i.test(t.color_bg)) ? t.color_bg : "#fef3c7";
+  document.getElementById("fMtFg").value    = (t?.color_fg && /^#[0-9a-f]{6}$/i.test(t.color_fg)) ? t.color_fg : "#92400e";
+
+  const delBtn = document.getElementById("mtFormDeleteBtn");
+  delBtn.style.display = (t && !t.is_system) ? "" : "none";
+
+  document.getElementById("mtFormOverlay").classList.add("open");
+  bindMtPreview();
+  updateMtPreview();
+  setTimeout(() => document.getElementById("fMtLabel")?.focus(), 50);
+};
+
+window.closeMtForm = function (e) {
+  if (e && e.target.id !== "mtFormOverlay") return;
+  document.getElementById("mtFormOverlay").classList.remove("open");
+  state.editingTypeKey = null;
+};
+
+function bindMtPreview() {
+  ["fMtEmoji", "fMtLabel", "fMtBg", "fMtFg"].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el && !el._mtPreviewBound) {
+      el.addEventListener("input", updateMtPreview);
+      el._mtPreviewBound = true;
+    }
+  });
+}
+
+function updateMtPreview() {
+  const emo = document.getElementById("fMtEmoji").value || "🧑";
+  const lbl = document.getElementById("fMtLabel").value.trim() || "ตัวอย่าง";
+  const bg  = document.getElementById("fMtBg").value || "#fef3c7";
+  const fg  = document.getElementById("fMtFg").value || "#92400e";
+  const pill = document.getElementById("mtPreviewPill");
+  if (!pill) return;
+  pill.style.background = bg;
+  pill.style.color = fg;
+  pill.style.border = `1px solid ${fg}33`;
+  pill.textContent = `${emo} ${lbl}`;
+}
+
+function slugifyMt(s) {
+  return String(s || "")
+    .normalize("NFKD")
+    .toLowerCase()
+    .replace(/[^a-z0-9฀-๿]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 40);
+}
+
+window.saveMt = async function () {
+  const emoji = document.getElementById("fMtEmoji").value.trim() || "🧑";
+  const label = document.getElementById("fMtLabel").value.trim();
+  const bg    = document.getElementById("fMtBg").value || "#fef3c7";
+  const fg    = document.getElementById("fMtFg").value || "#92400e";
+  if (!label) { showToast("กรุณากรอกชื่อประเภท", "error"); return; }
+
+  const payload = {
+    label, emoji, color_bg: bg, color_fg: fg,
+    updated_at: new Date().toISOString(),
+  };
+
+  showLoading(true);
+  try {
+    if (state.editingTypeKey) {
+      await sbFetch("member_types", `?type_key=eq.${encodeURIComponent(state.editingTypeKey)}`, {
+        method: "PATCH", body: payload,
+      });
+      showToast("แก้ไขประเภทแล้ว", "success");
+    } else {
+      let key = slugifyMt(label);
+      if (!key) key = "type_" + Date.now();
+      const arr = state.memberTypes || [];
+      let suffix = 1;
+      let finalKey = key;
+      while (arr.some((x) => x.type_key === finalKey)) { finalKey = `${key}_${++suffix}`; }
+      payload.type_key   = finalKey;
+      payload.sort_order = arr.length + 1;
+      payload.is_system  = false;
+      await sbFetch("member_types", "", { method: "POST", body: payload });
+      showToast("เพิ่มประเภทแล้ว", "success");
+    }
+    document.getElementById("mtFormOverlay").classList.remove("open");
+    state.editingTypeKey = null;
+    // reload member_types
+    const types = await sbFetch("member_types", "?select=*&order=sort_order.asc,type_key.asc").catch(() => null);
+    if (Array.isArray(types) && types.length) state.memberTypes = types;
+    renderMtManagerList();
+    populateGuideTypeDropdown();
+    renderBuses();
+    renderTeamPanel();
+  } catch (e) {
+    showToast("บันทึกไม่ได้: " + e.message, "error");
+  }
+  showLoading(false);
+};
+
+window.deleteMt = async function () {
+  const key = state.editingTypeKey;
+  if (!key) return;
+  const types = state.memberTypes && state.memberTypes.length ? state.memberTypes : DEFAULT_MEMBER_TYPES;
+  const t = types.find((x) => x.type_key === key);
+  if (!t) return;
+  if (t.is_system) { showToast("ประเภท System ลบไม่ได้", "error"); return; }
+  const usage = state.guides.filter((g) => g.member_type === key).length;
+  const msg = usage > 0
+    ? `ลบประเภท "${t.label}" — มีสมาชิก ${usage} คนใช้อยู่ ระบบจะย้ายไป "ไกด์" — ดำเนินการต่อ?`
+    : `ลบประเภท "${t.label}"?`;
+  const ok = window.ConfirmModal?.open
+    ? await window.ConfirmModal.open({
+        title: "ลบประเภท", message: msg, icon: "🗑", tone: "danger", okText: "ลบ",
+      })
+    : confirm(msg);
+  if (!ok) return;
+  showLoading(true);
+  try {
+    if (usage > 0) {
+      await sbFetch("trip_guides", `?member_type=eq.${encodeURIComponent(key)}`, {
+        method: "PATCH", body: { member_type: "guide" },
+      });
+    }
+    await sbFetch("member_types", `?type_key=eq.${encodeURIComponent(key)}`, { method: "DELETE" });
+    showToast("ลบประเภทแล้ว", "success");
+    document.getElementById("mtFormOverlay").classList.remove("open");
+    state.editingTypeKey = null;
     await loadAll();
   } catch (e) {
     showToast("ลบไม่สำเร็จ: " + e.message, "error");
