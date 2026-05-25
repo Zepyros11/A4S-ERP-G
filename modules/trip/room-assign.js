@@ -2994,17 +2994,14 @@ function renderTeamPanel() {
 
   panel.style.display = "";
 
-  // Group: ถ้า user ตั้ง team_name → group by team_name, ไม่ตั้ง → group by type
-  const byTeam = new Map();    // team_name → []
-  const noTeam = [];
+  // Group by member_type (dynamic — รองรับ custom types)
+  const types = state.memberTypes && state.memberTypes.length ? state.memberTypes : DEFAULT_MEMBER_TYPES;
+  const grouped = new Map();
+  types.forEach(t => grouped.set(t.type_key, []));
   state.guides.forEach(g => {
-    const t = (g.team_name || "").trim();
-    if (t) {
-      if (!byTeam.has(t)) byTeam.set(t, []);
-      byTeam.get(t).push(g);
-    } else {
-      noTeam.push(g);
-    }
+    const k = g.member_type || "guide";
+    if (!grouped.has(k)) grouped.set(k, []);
+    grouped.get(k).push(g);
   });
 
   const renderMember = (g) => {
@@ -3025,40 +3022,12 @@ function renderTeamPanel() {
   };
 
   const sections = [];
-
-  // Named teams (sorted)
-  [...byTeam.keys()].sort((a, b) => a.localeCompare(b, "th")).forEach(teamName => {
-    const arr = byTeam.get(teamName);
-    sections.push(`
-      <div style="font-size:10.5px;color:#15803d;font-weight:700;letter-spacing:.3px;margin:6px 0 3px;display:flex;align-items:center;gap:4px">
-        <span>🛡️</span>
-        <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(teamName)}</span>
-        <span style="color:var(--text3);font-weight:500">(${arr.length})</span>
-      </div>
-      ${arr.map(renderMember).join("")}
-    `);
+  [...grouped.entries()].forEach(([key, arr]) => {
+    if (!arr.length) return;
+    sections.push(`<div style="font-size:10.5px;color:var(--text2);font-weight:700;letter-spacing:.3px;margin:6px 0 3px">
+      ${memberEmoji(key)} ${escapeHtml(memberLabel(key))} <span style="color:var(--text3);font-weight:500">(${arr.length})</span>
+    </div>${arr.map(renderMember).join("")}`);
   });
-
-  // Unteamed → group by type (fallback)
-  if (noTeam.length) {
-    const grouped = { staff: [], guide: [], outsource: [] };
-    noTeam.forEach(g => {
-      const t = g.member_type || "guide";
-      (grouped[t] || grouped.guide).push(g);
-    });
-    if (byTeam.size) {
-      sections.push(`<div style="font-size:10px;color:var(--text3);font-weight:600;margin:8px 0 2px;padding-top:6px;border-top:1px dashed var(--border)">
-        — ยังไม่ระบุทีม —
-      </div>`);
-    }
-    ["staff", "guide", "outsource"].forEach(t => {
-      const arr = grouped[t];
-      if (!arr.length) return;
-      sections.push(`<div style="font-size:10.5px;color:var(--text2);font-weight:700;letter-spacing:.3px;margin:6px 0 3px">
-        ${memberEmoji(t)} ${MEMBER_TYPE_LABEL[t]} <span style="color:var(--text3);font-weight:500">(${arr.length})</span>
-      </div>${arr.map(renderMember).join("")}`);
-    });
-  }
 
   document.getElementById("raTeamList").innerHTML = sections.join("");
   if (window.AuthZ?.applyDomPerms) AuthZ.applyDomPerms(panel);
@@ -3321,7 +3290,6 @@ window.viewGuideSeat = function (busId, seatNo) {
   const grid = document.getElementById("sdGrid");
   grid.innerHTML = [
     ["ประเภท",   `${emo} ${typeLbl}`],
-    g.team_name  ? ["ทีม",       g.team_name]  : null,
     g.role_title ? ["ตำแหน่ง", g.role_title] : null,
     g.company    ? ["บริษัท",   g.company]    : null,
     g.languages  ? ["ภาษา",     g.languages]  : null,
@@ -4136,15 +4104,6 @@ window.openGuideEditModal = function (guideId) {
   } else if (types.some((t) => t.type_key === "guide")) {
     typeSel.value = "guide";
   }
-  document.getElementById("fGuideTeamName").value  = g?.team_name || "";
-  // populate datalist with existing team names in this trip
-  const dl = document.getElementById("guideTeamSuggestions");
-  if (dl) {
-    const names = new Set();
-    state.guides.forEach((x) => { if (x.team_name) names.add(x.team_name); });
-    dl.innerHTML = [...names].sort((a, b) => a.localeCompare(b, "th"))
-      .map((t) => `<option value="${escapeAttr(t)}"></option>`).join("");
-  }
   document.getElementById("fGuideName").value      = g?.full_name || "";
   document.getElementById("fGuideRoleTitle").value = g?.role_title || "";
   document.getElementById("fGuideCompany").value   = g?.company || "";
@@ -4170,7 +4129,6 @@ window.saveGuide = async function () {
   const payload = {
     trip_id: state.tripId,
     member_type: document.getElementById("fGuideType").value || "guide",
-    team_name: document.getElementById("fGuideTeamName").value.trim() || null,
     full_name: name,
     role_title: document.getElementById("fGuideRoleTitle").value.trim() || null,
     company: document.getElementById("fGuideCompany").value.trim() || null,

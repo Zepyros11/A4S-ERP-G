@@ -72,31 +72,6 @@
       .stat-card.tt-stat-outsource { background:#faf5ff; border-color:#e9d5ff; }
       .stat-card.tt-stat-outsource .stat-value { color:#7e22ce; }
 
-      /* Team group header row */
-      .tt-team-row td{
-        background:linear-gradient(to right,#ecfdf5,#f0fdf4 60%,#fff);
-        padding:8px 14px !important;border-top:2px solid #86efac;
-      }
-      .tt-team-row:first-child td{border-top:none}
-      .tt-team-hdr{
-        display:flex;align-items:center;gap:10px;flex-wrap:wrap;
-        font-size:14px;font-weight:700;color:#166534;
-      }
-      .tt-team-hdr .tt-team-name{font-size:14px}
-      .tt-team-hdr .tt-team-count{
-        display:inline-flex;align-items:center;justify-content:center;
-        background:#dcfce7;color:#15803d;border:1px solid #86efac;
-        padding:2px 9px;border-radius:99px;
-        font-size:11.5px;font-weight:700;
-      }
-      .tt-team-row.tt-team-none td{
-        background:linear-gradient(to right,#f8fafc,#f1f5f9 60%,#fff);
-        border-top:2px dashed #cbd5e1;
-      }
-      .tt-team-row.tt-team-none .tt-team-hdr{color:var(--text2)}
-      .tt-team-row.tt-team-none .tt-team-count{
-        background:#f1f5f9;color:var(--text2);border-color:#cbd5e1;
-      }
     </style>
   </head>
   <body>
@@ -132,13 +107,6 @@
                 <div class="stat-label">สมาชิกทั้งหมด</div>
               </div>
             </div>
-            <div class="stat-card">
-              <div class="stat-icon">🛡️</div>
-              <div>
-                <div class="stat-value" id="cardTeams">0</div>
-                <div class="stat-label">จำนวนทีม</div>
-              </div>
-            </div>
             <div class="stat-card tt-stat-staff">
               <div class="stat-icon">👔</div>
               <div>
@@ -170,12 +138,9 @@
                 <input
                   class="search-input"
                   id="searchInput"
-                  placeholder="ค้นหาชื่อ / เบอร์ / บริษัท / ทีม..."
+                  placeholder="ค้นหาชื่อ / เบอร์ / บริษัท..."
                 />
               </div>
-              <select class="filter-select" id="filterTeam" title="กรองตามทีม">
-                <option value="">🛡️ ทุกทีม</option>
-              </select>
               <select class="filter-select" id="filterType">
                 <option value="">🧿 ทุกประเภท</option>
                 <option value="staff">👔 Staff</option>
@@ -250,28 +215,17 @@
           <button class="btn-modal-close" onclick="window.closeTeamModal()">✕</button>
         </div>
         <div class="modal-body">
-          <div class="form-row" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-            <div class="form-group">
-              <label class="form-label">ประเภท <span class="req">*</span></label>
-              <div style="display:flex;gap:6px">
-                <select class="form-control" id="fType" style="flex:1;min-width:0">
-                  <option value="">— เลือกประเภท —</option>
-                </select>
-                <button type="button" class="btn btn-outline"
-                  data-perm="member_types_view"
-                  onclick="window.openMtManager()"
-                  title="จัดการรายการประเภท"
-                  style="padding:0 12px;font-size:14px;flex-shrink:0">⚙️ จัดการ</button>
-              </div>
-            </div>
-            <div class="form-group">
-              <label class="form-label">ทีม
-                <span style="color:var(--text3);font-weight:400;font-size:11px">(พิมพ์ใหม่หรือเลือกที่มี)</span>
-              </label>
-              <input class="form-control" id="fTeamName"
-                list="teamNameSuggestions"
-                placeholder="เช่น ทีมไกด์หลัก, ทีมตากล้อง" autocomplete="off" />
-              <datalist id="teamNameSuggestions"></datalist>
+          <div class="form-group">
+            <label class="form-label">ประเภท <span class="req">*</span></label>
+            <div style="display:flex;gap:6px">
+              <select class="form-control" id="fType" style="flex:1;min-width:0">
+                <option value="">— เลือกประเภท —</option>
+              </select>
+              <button type="button" class="btn btn-outline"
+                data-perm="member_types_view"
+                onclick="window.openMtManager()"
+                title="จัดการรายการประเภท"
+                style="padding:0 12px;font-size:14px;flex-shrink:0">⚙️ จัดการ</button>
             </div>
           </div>
 

@@ -1091,28 +1091,17 @@
           <button class="btn-modal-close" onclick="window.closeGuideEditModal()">✕</button>
         </div>
         <div class="modal-body">
-          <div class="ba-form-row-2">
-            <div class="form-group">
-              <label class="form-label">ประเภท <span class="req">*</span></label>
-              <div style="display:flex;gap:6px">
-                <select class="form-control" id="fGuideType" style="flex:1;min-width:0">
-                  <option value="">— เลือกประเภท —</option>
-                </select>
-                <button type="button" class="btn btn-outline"
-                  data-perm="member_types_view"
-                  onclick="window.openMtManager()"
-                  title="จัดการรายการประเภท"
-                  style="padding:0 10px;font-size:13px;flex-shrink:0">⚙️</button>
-              </div>
-            </div>
-            <div class="form-group">
-              <label class="form-label">ทีม
-                <span style="color:var(--text3);font-weight:400;font-size:11px">(พิมพ์ใหม่หรือเลือกที่มี)</span>
-              </label>
-              <input class="form-control" id="fGuideTeamName"
-                list="guideTeamSuggestions"
-                placeholder="เช่น ทีมไกด์หลัก, ทีมตากล้อง" />
-              <datalist id="guideTeamSuggestions"></datalist>
+          <div class="form-group">
+            <label class="form-label">ประเภท <span class="req">*</span></label>
+            <div style="display:flex;gap:6px">
+              <select class="form-control" id="fGuideType" style="flex:1;min-width:0">
+                <option value="">— เลือกประเภท —</option>
+              </select>
+              <button type="button" class="btn btn-outline"
+                data-perm="member_types_view"
+                onclick="window.openMtManager()"
+                title="จัดการรายการประเภท"
+                style="padding:0 10px;font-size:13px;flex-shrink:0">⚙️</button>
             </div>
           </div>
           <div class="form-group" style="margin-top:14px">

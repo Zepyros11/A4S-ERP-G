@@ -94,9 +94,7 @@ async function loadAll() {
     state.memberTypes = (Array.isArray(types) && types.length) ? types : DEFAULT_MEMBER_TYPES;
     renderTripBanner();
     populateTypeDropdown();
-    populateTeamFilter();
     populateTypeFilter();
-    populateTeamDatalist();
     updateStatCards();
     filterTable();
   } catch (e) {
@@ -153,69 +151,29 @@ function renderTripBanner() {
 function bindEvents() {
   document.getElementById("searchInput")?.addEventListener("input", filterTable);
   document.getElementById("filterType")?.addEventListener("change", filterTable);
-  document.getElementById("filterTeam")?.addEventListener("change", filterTable);
-}
-
-// ── TEAM HELPERS ───────────────────────────────────────────
-function getTeamNames() {
-  const set = new Set();
-  state.team.forEach((m) => {
-    const t = (m.team_name || "").trim();
-    if (t) set.add(t);
-  });
-  return [...set].sort((a, b) => a.localeCompare(b, "th"));
-}
-
-function populateTeamFilter() {
-  const sel = document.getElementById("filterTeam");
-  if (!sel) return;
-  const current = sel.value;
-  const teams = getTeamNames();
-  sel.innerHTML =
-    `<option value="">🛡️ ทุกทีม</option>` +
-    `<option value="__NONE__">— ยังไม่ระบุทีม —</option>` +
-    teams.map((t) => `<option value="${escapeAttr(t)}">${escapeHtml(t)}</option>`).join("");
-  if (current && (current === "__NONE__" || teams.includes(current))) sel.value = current;
-}
-
-function populateTeamDatalist() {
-  const dl = document.getElementById("teamNameSuggestions");
-  if (!dl) return;
-  dl.innerHTML = getTeamNames()
-    .map((t) => `<option value="${escapeAttr(t)}"></option>`)
-    .join("");
 }
 
 // ── STATS ──────────────────────────────────────────────────
 function updateStatCards() {
   const t = state.team;
   document.getElementById("cardTotal").textContent = t.length;
-  document.getElementById("cardTeams").textContent = getTeamNames().length;
   document.getElementById("cardStaff").textContent = t.filter((x) => x.member_type === "staff").length;
   document.getElementById("cardGuide").textContent = t.filter((x) => x.member_type === "guide" || !x.member_type).length;
   document.getElementById("cardOutsource").textContent = t.filter((x) => x.member_type === "outsource").length;
-  // Custom types — รวมยอด non-system ใน outsource card (หรือไม่นับ) — เก็บไว้ใน "อื่นๆ" ถ้ามี
-  // TODO: ถ้ามี custom type จำนวนมากค่อยเพิ่ม stat แยก
 }
 
 // ── FILTER + SORT + RENDER ─────────────────────────────────
 function filterTable() {
   const search = (document.getElementById("searchInput")?.value || "").toLowerCase();
   const type = document.getElementById("filterType")?.value || "";
-  const team = document.getElementById("filterTeam")?.value || "";
 
   const filtered = state.team.filter((m) => {
     const matchType = !type || (m.member_type || "guide") === type;
     if (!matchType) return false;
-    const mteam = (m.team_name || "").trim();
-    const matchTeam =
-      !team ||
-      (team === "__NONE__" ? !mteam : mteam === team);
-    if (!matchTeam) return false;
     if (!search) return true;
     const hay = [
       m.full_name, m.phone, m.line_id, m.whatsapp,
-      m.company, m.role_title, m.languages, m.note, m.team_name,
+      m.company, m.role_title, m.languages, m.note,
     ].map((s) => (s || "").toString().toLowerCase()).join(" ");
     return hay.includes(search);
   });
@@ -265,55 +223,16 @@ function renderTable(rows) {
     return;
   }
 
-  // ── group by team_name (none last)
-  const groups = new Map();          // team_name → []
-  const noneGroup = [];
-  rows.forEach((m) => {
-    const t = (m.team_name || "").trim();
-    if (!t) noneGroup.push(m);
-    else {
-      if (!groups.has(t)) groups.set(t, []);
-      groups.get(t).push(m);
-    }
+  const sorted = [...rows].sort((a, b) => {
+    let av = a[state.sortKey] ?? "";
+    let bv = b[state.sortKey] ?? "";
+    if (typeof av === "string") av = av.toLowerCase();
+    if (typeof bv === "string") bv = bv.toLowerCase();
+    if (av === bv) return 0;
+    return state.sortAsc ? (av > bv ? 1 : -1) : av < bv ? 1 : -1;
   });
-  // Sort team keys by name
-  const teamKeys = [...groups.keys()].sort((a, b) => a.localeCompare(b, "th"));
 
-  // sort members within group
-  const sortMembers = (arr) =>
-    [...arr].sort((a, b) => {
-      let av = a[state.sortKey] ?? "";
-      let bv = b[state.sortKey] ?? "";
-      if (typeof av === "string") av = av.toLowerCase();
-      if (typeof bv === "string") bv = bv.toLowerCase();
-      if (av === bv) return 0;
-      return state.sortAsc ? (av > bv ? 1 : -1) : av < bv ? 1 : -1;
-    });
-
-  let idx = 0;
-  const rowsHtml = [];
-  const renderGroup = (teamLabel, members, isNone = false) => {
-    if (!members.length) return;
-    rowsHtml.push(`
-      <tr class="tt-team-row${isNone ? " tt-team-none" : ""}">
-        <td colspan="8">
-          <div class="tt-team-hdr">
-            <span>${isNone ? "📋" : "🛡️"}</span>
-            <span class="tt-team-name">${escapeHtml(teamLabel)}</span>
-            <span class="tt-team-count">${members.length} คน</span>
-          </div>
-        </td>
-      </tr>`);
-    sortMembers(members).forEach((m) => {
-      idx++;
-      rowsHtml.push(memberRowHtml(m, idx));
-    });
-  };
-
-  teamKeys.forEach((t) => renderGroup(t, groups.get(t)));
-  renderGroup("ยังไม่ระบุทีม", noneGroup, true);
-
-  tbody.innerHTML = rowsHtml.join("");
+  tbody.innerHTML = sorted.map((m, i) => memberRowHtml(m, i + 1)).join("");
 
   if (window.AuthZ && typeof AuthZ.applyDomPerms === "function") {
     AuthZ.applyDomPerms(tbody);
@@ -437,7 +356,6 @@ window.openTeamModal = function (id) {
   if (state.memberTypes.some((t) => t.type_key === initialType)) {
     typeSel.value = initialType;
   }
-  document.getElementById("fTeamName").value   = m?.team_name || "";
   document.getElementById("fFullName").value   = m?.full_name || "";
   document.getElementById("fRoleTitle").value  = m?.role_title || "";
   document.getElementById("fCompany").value    = m?.company || "";
@@ -447,7 +365,6 @@ window.openTeamModal = function (id) {
   document.getElementById("fWhatsapp").value   = m?.whatsapp || "";
   document.getElementById("fNote").value       = m?.note || "";
   document.getElementById("ttDeleteBtn").style.display = m ? "" : "none";
-  populateTeamDatalist();
 
   document.getElementById("teamOverlay").classList.add("open");
   setTimeout(() => document.getElementById("fFullName").focus(), 50);
@@ -468,7 +385,6 @@ window.saveTeamMember = async function () {
   const payload = {
     trip_id: state.tripId,
     member_type: document.getElementById("fType").value || "guide",
-    team_name: document.getElementById("fTeamName").value.trim() || null,
     full_name: name,
     role_title: document.getElementById("fRoleTitle").value.trim() || null,
     company:   document.getElementById("fCompany").value.trim() || null,
