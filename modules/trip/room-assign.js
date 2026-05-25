@@ -46,6 +46,7 @@ const state = {
   // ── LEFT PANEL TABS (ลูกค้า / ทีมงาน) ──
   activePaxTab: "customers",  // "customers" | "team"
   teamFilterType: "",         // member_type filter (ว่าง = ทุกประเภท)
+  teamFilterBatch: "",        // hotel groupKey หรือ "bus:N" (ว่าง = ทั้งหมด)
   selectedGuideId: null,      // currently selected guide (mutually exclusive กับ selectedPaxCode)
 };
 
@@ -329,6 +330,22 @@ function bindEvents() {
     state.teamFilterType = ev.target.value || "";
     renderTeamPanel();
   });
+  document.getElementById("teamFilterBatch")?.addEventListener("change", (ev) => {
+    const val = ev.target.value || "";
+    state.teamFilterBatch = val;
+    ev.target.classList.toggle("has-value", !!val);
+    if (val.startsWith("bus:")) {
+      const bid = parseInt(val.slice(4), 10);
+      if (Number.isFinite(bid)) state.collapsedBuses.delete(bid);
+      window.switchTab("buses");
+    } else if (val) {
+      window.switchTab("rooms");
+    }
+    syncCollapsedWithBatch(val);
+    renderTeamPanel();
+    renderRooms();
+    renderBuses();
+  });
   syncStatusFilterOptions();
 }
 
@@ -401,26 +418,32 @@ function updateTabCounts() {
 }
 
 // sync collapse state ตาม batch filter
-// — มี >1 โรงแรม + ยังไม่เลือก → ย่อทุกกลุ่ม
-// — เลือกแล้ว → ขยายเฉพาะโรงแรมนั้น, อื่น ๆ ย่อ + lock
-function syncCollapsedWithBatch() {
-  const sel = document.getElementById("paxFilterBatch");
-  const activeKey = sel?.value || "";
-  // ถ้าไม่เลือก หรือเลือก bus → คง state เดิม (default = ย่อทั้งหมด ตาม initial load)
+// — ไม่ระบุ activeKey → อ่านจาก paxFilterBatch
+// — เลือก hotel → ขยายเฉพาะกลุ่มนั้น, ย่อกลุ่มอื่น
+// — เลือก bus → คง state เดิม (default = ย่อทั้งหมด ตาม initial load)
+function syncCollapsedWithBatch(activeKey) {
+  if (activeKey == null) {
+    const sel = document.getElementById("paxFilterBatch");
+    activeKey = sel?.value || "";
+  }
   if (!activeKey || activeKey.startsWith("bus:")) return;
-  // เลือก hotel batch → ขยายเฉพาะนั้น, ย่อกลุ่มอื่น
   const allKeys = new Set();
   state.rooms.forEach(r => allKeys.add(groupKeyOf(r)));
   state.collapsedGroups = new Set([...allKeys].filter(k => k !== activeKey));
 }
 
+// "active batch" สำหรับ lock/expand logic — รวมทั้งฝั่งลูกค้าและทีมงาน
+// (ลูกค้าได้สิทธิ์ก่อน ถ้าทั้งคู่ตั้งค่า — ปกติ user เลือกฝั่งเดียว)
+function effectiveBatchKey() {
+  const pax = document.getElementById("paxFilterBatch")?.value || "";
+  return pax || (state.teamFilterBatch || "");
+}
+
 // dropdown "ช่วงพัก" — แสดงรายการ batch (group key) ทั้งหมดของทริปนี้
-function populateBatchFilter() {
-  const sel = document.getElementById("paxFilterBatch");
-  if (!sel) return;
-  const prev = sel.value;
-  // distinct batches โดยเรียงตาม sort_order ของห้องตัวแรกที่เจอ
-  const seen = new Map(); // key → { hotel, type, ci, co, sort }
+// สร้าง { options[], validValues:Set, batches[] } สำหรับ dropdown โรงแรม+รถบัส
+// ใช้ร่วมระหว่าง paxFilterBatch (ลูกค้า) และ teamFilterBatch (ทีมงาน)
+function buildBatchOptions() {
+  const seen = new Map();
   state.rooms.forEach(r => {
     const k = groupKeyOf(r);
     if (seen.has(k)) return;
@@ -435,8 +458,7 @@ function populateBatchFilter() {
     });
   });
   const batches = [...seen.values()].sort((a, b) => a.sort - b.sort);
-  const opts = ['<option value="">🏨 เลือกโรงแรม / 🚌 รถบัส</option>'];
-  // hotel optgroup
+  const opts = [];
   if (batches.length) {
     opts.push('<optgroup label="🏨 โรงแรม (ช่วงพัก)">');
     batches.forEach(b => {
@@ -446,7 +468,6 @@ function populateBatchFilter() {
     });
     opts.push('</optgroup>');
   }
-  // bus optgroup
   if (state.buses.length) {
     opts.push('<optgroup label="🚌 รถบัส">');
     state.buses.forEach(bus => {
@@ -457,15 +478,33 @@ function populateBatchFilter() {
     });
     opts.push('</optgroup>');
   }
-  sel.innerHTML = opts.join("");
-  // คงค่าเดิมถ้ายังอยู่
   const validValues = new Set([...seen.keys(), ...state.buses.map(b => `bus:${b.bus_id}`)]);
+  return { opts, validValues, batches };
+}
+
+function populateBatchFilter() {
+  const sel = document.getElementById("paxFilterBatch");
+  if (!sel) return;
+  const prev = sel.value;
+  const { opts, validValues, batches } = buildBatchOptions();
+  sel.innerHTML = ['<option value="">🏨 เลือกโรงแรม / 🚌 รถบัส</option>', ...opts].join("");
   if (prev && validValues.has(prev)) {
     sel.value = prev;
   } else if (batches.length === 1 && !state.buses.length) {
-    // ทริปมีโรงแรมเดียว ไม่มีรถ → auto-select เพื่อใช้ห้องเดียวเลย
     sel.value = batches[0].key;
   }
+  sel.classList.toggle("has-value", !!sel.value);
+}
+
+// dropdown เดียวกันใน tab ทีมงาน — ค่าแยกจาก paxFilterBatch (state.teamFilterBatch)
+function populateTeamBatchFilter() {
+  const sel = document.getElementById("teamFilterBatch");
+  if (!sel) return;
+  const prev = state.teamFilterBatch || "";
+  const { opts, validValues } = buildBatchOptions();
+  sel.innerHTML = ['<option value="">🏨 เลือกโรงแรม / 🚌 รถบัส</option>', ...opts].join("");
+  if (prev && validValues.has(prev)) sel.value = prev;
+  else { sel.value = ""; state.teamFilterBatch = ""; }
   sel.classList.toggle("has-value", !!sel.value);
 }
 
@@ -1585,8 +1624,14 @@ function renderRooms() {
     const totalOcc = rooms.reduce((a, r) => a + (occByRoom[r.room_id]?.length || 0), 0);
     // คนที่ "จัดแล้ว" ในกลุ่มนี้ = unique codes ที่มีห้องในกลุ่มนี้ (ไม่นับ orphan)
     const assignedCodesInGroup = new Set();
+    const teamIdsInGroup = new Set();
     rooms.forEach(r => (state.occupants[r.room_id] || []).forEach(c => {
-      if (paxByCode[c]) assignedCodesInGroup.add(c);
+      const gid = parseGuideCode(c);
+      if (gid != null) {
+        if (guideById[gid]) teamIdsInGroup.add(gid);
+      } else if (paxByCode[c]) {
+        assignedCodesInGroup.add(c);
+      }
     }));
     const unassignedInGroup = state.passengers.length - assignedCodesInGroup.size;
     // orphan rows ในกลุ่มนี้ — รวมจากทุกห้อง (passenger ถูกลบแต่ trip_room_occupants ยังค้าง)
@@ -1618,7 +1663,7 @@ function renderRooms() {
     }
 
     const isCollapsed = state.collapsedGroups.has(groupKey);
-    const activeBatchKey = document.getElementById("paxFilterBatch")?.value || "";
+    const activeBatchKey = effectiveBatchKey();
     const totalBatches = (() => {
       const s = new Set();
       state.rooms.forEach(r => s.add(groupKeyOf(r)));
@@ -1641,6 +1686,8 @@ function renderRooms() {
           <span class="ra-grp-count">${rooms.length} ห้อง</span>
           <span class="ra-grp-sep"> : </span>
           <span class="ra-grp-count">${totalOcc}/${totalCap} คน</span>
+          <span class="ra-grp-sep"> : </span>
+          <span class="ra-grp-count" title="จำนวนทีมงานในกลุ่มนี้">🧑‍🤝‍🧑 ${teamIdsInGroup.size} ทีมงาน</span>
           <div class="ra-grp-line2">
             ${dateLabel ? `<span class="ra-grp-dates">${dateLabel}</span>` : ""}
             <span class="ra-grp-pill ra-grp-pill-ok"
@@ -2420,7 +2467,7 @@ window.toggleEmptyOnlyFilter = function (val) {
 
 window.toggleGroupCollapse = function (typeName) {
   // Lock: ถ้ามี >1 โรงแรม + เลือก batch ไว้ → ย่อ-ขยายได้เฉพาะ batch นั้น
-  const activeKey = document.getElementById("paxFilterBatch")?.value || "";
+  const activeKey = effectiveBatchKey();
   const totalB = totalBatchCount();
   if (totalB > 1 && activeKey && typeName !== activeKey) {
     showToast("เปลี่ยนโรงแรมที่ dropdown ด้านซ้ายเพื่อขยายกลุ่มนี้", "info");
@@ -3066,8 +3113,9 @@ function renderTeamPanel() {
   const link = document.getElementById("raTeamLink");
   if (link) link.href = `./trip-team.html?trip_id=${state.tripId}`;
 
-  // Populate type filter dropdown
+  // Populate filter dropdowns
   populateTeamFilterType();
+  populateTeamBatchFilter();
 
   // Update tab counts
   updatePaxTabCounts();
@@ -3081,6 +3129,25 @@ function renderTeamPanel() {
     return;
   }
 
+  // Batch scope (informational): hotel groupKey หรือ "bus:N"
+  // ไม่ "ซ่อน" ทีมงานนอกขอบเขต — แค่จัดเรียง + ติด ✓ ให้คนใน scope (user ยังต้อง pick จาก list เพื่อ assign)
+  const batchKey = state.teamFilterBatch || "";
+  const isBusScope = batchKey.startsWith("bus:");
+  const scopeBusId = isBusScope ? parseInt(batchKey.slice(4), 10) : null;
+  const inScope = new Set();
+  if (batchKey) {
+    if (isBusScope) {
+      Object.values(state.busGuideSeats?.[scopeBusId] || {}).forEach(gid => inScope.add(gid));
+    } else {
+      state.rooms
+        .filter(r => groupKeyOf(r) === batchKey)
+        .forEach(r => (state.occupants[r.room_id] || []).forEach(code => {
+          const gid = parseGuideCode(code);
+          if (gid != null) inScope.add(gid);
+        }));
+    }
+  }
+
   // Group by member_type (dynamic — รองรับ custom types)
   const types = state.memberTypes && state.memberTypes.length ? state.memberTypes : DEFAULT_MEMBER_TYPES;
   const typeFilter = state.teamFilterType || "";
@@ -3092,12 +3159,24 @@ function renderTeamPanel() {
     if (!grouped.has(k)) grouped.set(k, []);
     grouped.get(k).push(g);
   });
+  // เรียง: in-scope ก่อน (ถ้ามี batch เลือกอยู่)
+  if (batchKey) {
+    grouped.forEach(arr => arr.sort((a, b) => {
+      const aIn = inScope.has(a.guide_id) ? 0 : 1;
+      const bIn = inScope.has(b.guide_id) ? 0 : 1;
+      return aIn - bIn;
+    }));
+  }
 
   const renderMember = (g) => {
-    const busCount = state.guideToBuses[g.guide_id]?.size || 0;
+    // นับเฉพาะ "ที่นั่ง" ที่ guide ครองจริง — ไม่นับการอยู่ใน trip_bus_guides แบบไม่มี seat
+    let seatCount = 0;
+    Object.values(state.busGuideSeats || {}).forEach(seatMap => {
+      Object.values(seatMap || {}).forEach(gid => { if (gid === g.guide_id) seatCount++; });
+    });
     const roomCount = state.codeToRooms[guideCodeFor(g.guide_id)]?.size || 0;
-    const busTag = busCount > 0
-      ? `<span style="font-size:10px;color:#0369a1;background:#e0f2fe;padding:1px 5px;border-radius:4px;font-weight:600">🚌 ${busCount}</span>`
+    const busTag = seatCount > 0
+      ? `<span style="font-size:10px;color:#0369a1;background:#e0f2fe;padding:1px 5px;border-radius:4px;font-weight:600">🚌 ${seatCount}</span>`
       : "";
     const roomTag = roomCount > 0
       ? `<span style="font-size:10px;color:#15803d;background:#dcfce7;padding:1px 5px;border-radius:4px;font-weight:600">🛏 ${roomCount}</span>`
@@ -3105,19 +3184,26 @@ function renderTeamPanel() {
     const noAssign = (!busTag && !roomTag)
       ? `<span style="font-size:10px;color:var(--text3);background:#f1f5f9;padding:1px 5px;border-radius:4px">—</span>`
       : "";
+    // ✓ in-scope pill (เฉพาะตอนเลือก batch)
+    const scopeTag = (batchKey && inScope.has(g.guide_id))
+      ? `<span style="font-size:10px;color:#fff;background:#16a34a;padding:1px 5px;border-radius:4px;font-weight:700" title="อยู่ใน${isBusScope ? 'คันนี้' : 'โรงแรมนี้'}แล้ว">✓</span>`
+      : "";
     const langTag = g.languages
       ? `<span style="font-size:10px;color:var(--text3);font-family:monospace">${escapeHtml(g.languages)}</span>`
       : "";
     const isSel = state.selectedGuideId === g.guide_id;
+    // dim row ถ้า batch เลือก + guide ไม่อยู่ใน scope (ยังคลิกได้ — แค่ visual hint)
+    const dim = (batchKey && !inScope.has(g.guide_id)) ? "opacity:.55;" : "";
     const selStyle = isSel
       ? "background:#fef3c7;border-color:#f59e0b;box-shadow:0 0 0 2px rgba(245,158,11,.2)"
       : "background:#f8fafc;border-color:var(--border)";
     return `<div onclick="window.selectGuide(${g.guide_id})"
-      style="display:flex;align-items:center;gap:5px;padding:6px 8px;border:1px solid;border-radius:6px;font-size:12px;cursor:pointer;transition:.12s;${selStyle}"
+      style="display:flex;align-items:center;gap:5px;padding:6px 8px;border:1px solid;border-radius:6px;font-size:12px;cursor:pointer;transition:.12s;${dim}${selStyle}"
       title="${escapeAttr((g.role_title ? g.role_title + " · " : "") + (g.company || "") + (isSel ? " · (กำลังเลือก)" : ""))}">
       <span style="font-size:14px;flex-shrink:0">${memberEmoji(g.member_type)}</span>
       <span style="flex:1;font-weight:600;color:var(--text);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(g.full_name)}</span>
       ${langTag}
+      ${scopeTag}
       ${roomTag}
       ${busTag}
       ${noAssign}
@@ -3134,7 +3220,7 @@ function renderTeamPanel() {
 
   listEl.innerHTML = sections.length
     ? sections.join("")
-    : `<div style="font-size:11.5px;color:var(--text3);padding:14px 8px;text-align:center">ไม่พบทีมงานตามตัวกรอง</div>`;
+    : `<div style="font-size:11.5px;color:var(--text3);padding:14px 8px;text-align:center">ไม่พบทีมงานตามตัวกรองประเภท</div>`;
   if (window.AuthZ?.applyDomPerms) AuthZ.applyDomPerms(teamView);
 }
 

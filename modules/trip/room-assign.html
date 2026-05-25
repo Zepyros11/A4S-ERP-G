@@ -276,14 +276,16 @@
 
       /* hotel select: orange = ยังไม่เลือก, green = เลือกแล้ว */
       #rbHotel,
-      #paxFilterBatch{
+      #paxFilterBatch,
+      #teamFilterBatch{
         border-color:#fb923c !important;
         background:#fff7ed !important;
         color:#9a3412 !important;
         font-weight:600;
       }
       #rbHotel.has-value,
-      #paxFilterBatch.has-value{
+      #paxFilterBatch.has-value,
+      #teamFilterBatch.has-value{
         border-color:#16a34a !important;
         background:#dcfce7 !important;
         color:#15803d !important;
@@ -875,14 +877,19 @@
 
               <!-- TEAM VIEW (read-only — manage at trip-team.html) -->
               <div id="paxTeamView" style="display:none;flex-direction:column;flex:1;min-height:0">
-                <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
-                  <select id="teamFilterType" title="กรองประเภททีมงาน" style="flex:1;padding:6px 9px;border:1px solid var(--border);border-radius:8px;font-size:12px;font-family:inherit;background:#fff">
-                    <option value="">— ทุกประเภท —</option>
+                <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px">
+                  <select id="teamFilterBatch" title="กรองตามโรงแรม / รถบัส" style="padding:6px 9px;border:1px solid var(--border);border-radius:8px;font-size:12px;font-family:inherit;background:#fff">
+                    <option value="">🏨 เลือกโรงแรม / 🚌 รถบัส</option>
                   </select>
-                  <a id="raTeamLink" href="#" target="_blank" rel="noopener" data-perm="trip_team_view"
-                    style="font-size:11px;color:var(--accent);text-decoration:none;font-weight:600;white-space:nowrap;padding:6px 8px;border:1px solid var(--border);border-radius:8px">
-                    ⚙️ ตั้งค่า
-                  </a>
+                  <div style="display:flex;align-items:center;gap:6px">
+                    <select id="teamFilterType" title="กรองประเภททีมงาน" style="flex:1;padding:6px 9px;border:1px solid var(--border);border-radius:8px;font-size:12px;font-family:inherit;background:#fff">
+                      <option value="">— ทุกประเภท —</option>
+                    </select>
+                    <a id="raTeamLink" href="#" target="_blank" rel="noopener" data-perm="trip_team_view"
+                      style="font-size:11px;color:var(--accent);text-decoration:none;font-weight:600;white-space:nowrap;padding:6px 8px;border:1px solid var(--border);border-radius:8px">
+                      ⚙️ ตั้งค่า
+                    </a>
+                  </div>
                 </div>
                 <div id="raTeamList" style="flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:4px"></div>
                 <div style="font-size:11px;color:var(--text3);margin-top:8px;padding-top:8px;border-top:1px dashed var(--border);text-align:center">
