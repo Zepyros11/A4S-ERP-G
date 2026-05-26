@@ -23,6 +23,8 @@ const COLUMN_GROUPS = [
       { key: "seat",              label: "ที่นั่งเครื่องบิน", src: "pax" },
       { key: "passport_id",       label: "เลขพาสปอร์ต",      src: "pax" },
       { key: "passport_exp_date", label: "พาสปอร์ตหมดอายุ",  src: "pax", fmt: "date" },
+      { key: "passport_image_url", label: "ภาพ passport",    src: "pax", fmt: "image" },
+      { key: "visa_image_url",     label: "ภาพสลิป/วีซ่า",    src: "pax", fmt: "image" },
       { key: "tshirt_size",       label: "ไซส์เสื้อ",         src: "pax" },
       { key: "religion",          label: "ศาสนา",            src: "pax" },
       { key: "food_allergy",      label: "อาหารที่แพ้",       src: "pax" },
@@ -39,6 +41,15 @@ const COLUMN_GROUPS = [
       { key: "_checkout", label: "เช็คเอาท์",     src: "calc" },
       { key: "_bus",      label: "รถบัส",         src: "calc" },
       { key: "_busseat",  label: "ที่นั่งรถบัส",   src: "calc" },
+    ],
+  },
+  {
+    id: "team", label: "👔 ทีมงาน",
+    cols: [
+      { key: "_teamtype",   label: "ประเภท",          src: "calc" },  // Staff/ไกด์/Outsource (ทีมงานเท่านั้น)
+      { key: "_role_title", label: "ตำแหน่งทีม",      src: "calc" },
+      { key: "_languages",  label: "ภาษา (ทีม)",      src: "calc" },
+      { key: "_team_phone", label: "เบอร์ทีม",        src: "calc" },
     ],
   },
   {
@@ -80,6 +91,10 @@ const state = {
   sort: [],         // multi-sort chain: [{key, dir:1|-1}, ...] — ลำดับใน array = ลำดับ priority
   filters: {},      // col key -> Set([selected values])  (empty/missing = ไม่กรองคอลัมน์นั้น)
   merged: {},      // col key -> true ถ้าเปิด "ผสานเซลซ้ำ" (rowspan แถวที่ติดกันค่าเท่ากัน)
+  rowsPerPage: 8,  // print: แถวต่อ A4 (table mode)
+  cardsPerPage: 2, // print: การ์ดต่อ A4 (card mode)
+  orientation: "landscape", // print: landscape | portrait
+  layout: "table", // "table" | "card" — รูปแบบรายงาน
 };
 
 // คอลัมน์ที่จะมี header-filter ได้ — distinct ค่าต้อง 2..FILTER_MAX_DISTINCT
@@ -158,18 +173,23 @@ async function init() {
 async function loadAll() {
   showLoading(true);
   try {
-    const [trip, pax, rooms, buses, templates] = await Promise.all([
+    const [trip, pax, rooms, buses, templates, team, memberTypes] = await Promise.all([
       sbFetch("trips", `?trip_id=eq.${state.tripId}&select=trip_id,trip_name,start_date,end_date`).then(r => r?.[0] || null),
       sbFetch("tour_seat_check", `?trip_id=eq.${state.tripId}&select=*&order=group_name.asc.nullslast,name.asc`),
       sbFetch("trip_rooms", `?trip_id=eq.${state.tripId}&select=room_id,room_name,place_id,check_in_date,check_out_date`),
       sbFetch("trip_buses", `?trip_id=eq.${state.tripId}&select=bus_id,bus_no,bus_label`).catch(() => []),
       sbFetch("trip_report_templates", "?select=*&order=name.asc").catch(() => []),
+      sbFetch("trip_guides", `?trip_id=eq.${state.tripId}&select=*&order=sort_order.asc,guide_id.asc`).catch(() => []),
+      sbFetch("member_types", "?select=type_key,label,emoji&order=sort_order.asc").catch(() => []),
     ]);
     state.trip = trip;
+    // member_type → label map สำหรับแสดงประเภททีมงานใน report
+    state.memberTypeLabel = {};
+    (memberTypes || []).forEach(mt => {
+      state.memberTypeLabel[mt.type_key] = (mt.emoji ? mt.emoji + " " : "") + (mt.label || mt.type_key);
+    });
     // รวมทุกแถว (parent + sub-row) — 1 แถว = 1 ที่นั่ง เหมือน check-seat/room-assign
     // sub-row สืบทอดจาก parent "เฉพาะ field ระบุตัวตน" (ชื่อ/เพศ/สัญชาติ) เผื่อแถวว่างเปล่า
-    // — ไม่สืบทอด ตำแหน่ง/passport/ที่นั่ง ฯลฯ เพราะเป็นข้อมูลเฉพาะบุคคล
-    //   ถ้า sub-row เว้นว่าง = ว่างจริง ต้องแสดงว่าง (ห้ามก๊อปของ parent)
     const INHERIT_FIELDS = ["name", "gender", "nationality"];
     const allRows = pax || [];
     const byCode = {};
@@ -182,7 +202,23 @@ async function loadAll() {
         if (r[k] === null || r[k] === undefined || r[k] === "") r[k] = parent[k];
       });
     });
-    state.pax = allRows;
+    // เพิ่มแถวทีมงาน (Staff/ไกด์/Outsource) ต่อท้าย — code = "g:<guide_id>"
+    // ฟิลด์ลูกค้าที่ไม่เกี่ยว (passport, gender, ฯลฯ) เว้นว่าง — โชว์เฉพาะ ชื่อ + ประเภท
+    const teamRows = (team || []).map(g => ({
+      code: `g:${g.guide_id}`,
+      name: g.full_name || "",
+      __isTeam: true,
+      __memberType: g.member_type || "",
+      // เก็บฟิลด์ทีม raw ไว้เผื่อใช้ใน future columns (role/lang/phone)
+      role_title: g.role_title || "",
+      languages: g.languages || "",
+      phone: g.phone || "",
+      whatsapp: g.whatsapp || "",
+      line_id: g.line_id || "",
+    }));
+    state.pax = [...allRows, ...teamRows];
+    state.teamCount = teamRows.length;
+    state.paxCount  = allRows.length;
     state.templates = templates || [];
 
     await buildCalc(rooms || [], buses || []);
@@ -304,14 +340,21 @@ function renderPicker() {
           onchange="window.toggleColumn('${c.key}', this.checked)">
         <span>${escapeHtml(c.label)}</span>
       </label>`).join("");
-    return `<div class="cr-group${state.collapsed[g.id] ? " collapsed" : ""}">
-      <div class="cr-group-hdr" onclick="window.toggleGroup('${g.id}')">
+    return `<div class="cr-group${state.collapsed[g.id] ? " collapsed" : ""}" data-gid="${escapeHtml(g.id)}">
+      <div class="cr-group-hdr" data-toggle-gid="${escapeHtml(g.id)}">
         <span>${escapeHtml(g.label)}</span>
         <span class="cr-group-caret">${state.collapsed[g.id] ? "▸" : "▾"}</span>
       </div>
       <div class="cr-group-body">${opts}</div>
     </div>`;
   }).join("");
+  // bind click ด้วย addEventListener — ทนกว่า inline onclick (กัน CSP/scope ปัญหา)
+  wrap.querySelectorAll(".cr-group-hdr").forEach(hdr => {
+    hdr.addEventListener("click", () => {
+      const gid = hdr.getAttribute("data-toggle-gid");
+      window.toggleGroup(gid);
+    });
+  });
 }
 
 function renderChips() {
@@ -333,8 +376,25 @@ function renderChips() {
 
 function cellValue(row, col) {
   if (col.src === "calc") {
+    // virtual columns ของทีมงาน — โชว์ค่าเฉพาะ row ที่เป็นทีมงาน
+    if (col.key === "_teamtype") {
+      if (!row.__isTeam) return "";
+      return state.memberTypeLabel?.[row.__memberType] || row.__memberType || "ทีมงาน";
+    }
+    if (col.key === "_role_title") return row.__isTeam ? (row.role_title || "") : "";
+    if (col.key === "_languages")  return row.__isTeam ? (row.languages || "") : "";
+    if (col.key === "_team_phone") {
+      if (!row.__isTeam) return "";
+      return [row.phone, row.whatsapp, row.line_id].filter(Boolean).join(" · ");
+    }
     if (row.__stay && col.key in row.__stay) return row.__stay[col.key];
     return state.calc[row.code]?.[col.key] || "";
+  }
+  // ทีมงาน — column ของลูกค้า (passport/gender/pin/etc) คืน "" ทั้งหมด เพราะไม่เกี่ยว
+  // ยกเว้น name (set ไว้แล้วใน loadAll) และ code (มี "g:<id>" — แสดงก็ได้)
+  if (row.__isTeam) {
+    const passOnly = ["name", "code"];
+    if (!passOnly.includes(col.key)) return "";
   }
   let v = row[col.key];
   if (v == null || v === "") return "";
@@ -343,7 +403,25 @@ function cellValue(row, col) {
     const g = String(v).toLowerCase();
     return g === "male" ? "ชาย" : g === "female" ? "หญิง" : String(v);
   }
+  // image → คืน URL ดิบ (ใช้ทั้ง Excel/Print/preview แต่ preview จะ render เป็น <img>)
+  if (col.fmt === "image") {
+    const s = String(v).trim();
+    return s.startsWith("http") ? s : "";  // ทิ้ง data: URL — แสดงไม่ได้ใน Excel
+  }
   return String(v);
+}
+
+// render เซลเป็น HTML — image คอลัมน์แสดง thumbnail (click เปิดเต็ม); อื่นๆ escape ปกติ
+function cellHtml(row, col) {
+  const v = cellValue(row, col);
+  if (!v) return "";
+  if (col.fmt === "image") {
+    const u = escapeHtml(v);
+    return `<a href="${u}" target="_blank" rel="noopener" class="cr-img-link" title="คลิกเปิดภาพเต็ม">
+      <img src="${u}" alt="" class="cr-img-thumb" loading="lazy">
+    </a>`;
+  }
+  return escapeHtml(v);
 }
 
 // ค่าใช้เปรียบเทียบตอน sort — pin ใช้ rank, date ใช้ค่า ISO ดิบ, อื่นๆ ใช้ string
@@ -625,6 +703,9 @@ function renderPreview() {
   const empty = document.getElementById("crEmpty");
   const count = document.getElementById("crRowCount");
   const cols = state.selected.map(k => COL_BY_KEY[k]).filter(Boolean);
+  // print settings (รูปแบบ/แถว-การ์ด/A4 + orientation) แสดงเมื่อมีคอลัมน์เลือก
+  const ps = document.getElementById("crPrintSettings");
+  if (ps) ps.style.display = cols.length ? "inline-flex" : "none";
   if (!cols.length) {
     table.style.display = "none";
     empty.style.display = "block";
@@ -638,7 +719,8 @@ function renderPreview() {
   const hasFilter = Object.values(state.filters).some(s => s && s.size);
   const splitNote = expanded.length !== state.pax.length ? ` (แยกตามโรงแรม ${expanded.length} แถว)` : "";
   const filterNote = hasFilter ? ` · 🔽 หลัง filter ${rows.length} แถว` : "";
-  count.textContent = `· ${state.pax.length} คน${splitNote}${filterNote} · ${cols.length} คอลัมน์`;
+  const teamNote = state.teamCount ? ` + ${state.teamCount} ทีมงาน` : "";
+  count.textContent = `· ${state.paxCount || state.pax.length} คน${teamNote}${splitNote}${filterNote} · ${cols.length} คอลัมน์`;
   const multi = state.sort.length > 1;
   document.getElementById("crThead").innerHTML =
     `<th style="width:40px">#</th>` + cols.map(c => {
@@ -677,8 +759,9 @@ function renderPreview() {
     cols.map((c, ci) => {
       const span = rspan[ci][i];
       if (span === 0) return ""; // ถูกผสานเข้า cell ด้านบน
-      const attrs = span > 1 ? ` rowspan="${span}" class="cr-merged"` : "";
-      return `<td${attrs}>${escapeHtml(cellValue(row, c))}</td>`;
+      const cls = (span > 1 ? "cr-merged " : "") + (c.fmt === "image" ? "cr-cell-img" : "");
+      const attrs = (span > 1 ? ` rowspan="${span}"` : "") + (cls.trim() ? ` class="${cls.trim()}"` : "");
+      return `<td${attrs}>${cellHtml(row, c)}</td>`;
     }).join("") +
     `</tr>`).join("");
 }
@@ -821,6 +904,9 @@ window.exportReportExcel = function () {
   const cols = selectedCols();
   if (!cols.length) { showToast("เลือกคอลัมน์ก่อน export", "info"); return; }
   if (typeof XLSX === "undefined") { showToast("XLSX ยังโหลดไม่เสร็จ — ลองใหม่", "error"); return; }
+  if (state.layout === "card") {
+    showToast("Excel ใช้รูปแบบตารางเสมอ — Card mode รองรับเฉพาะ Print/PDF", "info");
+  }
   const rows = getRows();
   const rspan = computeRowspans(rows, cols);
   // สร้าง AOA (header + data) — เซลที่ถูก merge ตั้งเป็น "" (เซลล่างใน merge range)
@@ -849,9 +935,108 @@ window.exportReportExcel = function () {
   showToast("ดาวน์โหลด Excel แล้ว", "success");
 };
 
-window.exportReportPrint = function () {
+window.setRowsPerPage = function (v) {
+  const n = parseInt(v, 10);
+  state.rowsPerPage = (Number.isFinite(n) && n >= 1) ? n : 8;
+};
+window.setCardsPerPage = function (v) {
+  const n = parseInt(v, 10);
+  state.cardsPerPage = (Number.isFinite(n) && n >= 1) ? n : 2;
+};
+window.setOrientation = function (v) {
+  state.orientation = (v === "portrait") ? "portrait" : "landscape";
+};
+window.setLayout = function (v) {
+  state.layout = (v === "card") ? "card" : "table";
+  // toggle ตัวเลือก แถว/A4 vs การ์ด/A4
+  const rw = document.getElementById("crRowsPerPageWrap");
+  const cw = document.getElementById("crCardsPerPageWrap");
+  if (rw) rw.style.display = state.layout === "card" ? "none" : "";
+  if (cw) cw.style.display = state.layout === "card" ? "" : "none";
+};
+
+// คำนวณ max-height/width ของภาพใน print ตาม rowsPerPage + orientation
+// A4 landscape = 297×210mm, portrait = 210×297mm · margin 10mm รอบ · header ~22mm
+function computePrintImgSize() {
+  const isLandscape = state.orientation === "landscape";
+  const pageH = isLandscape ? 210 : 297; // mm
+  const pageW = isLandscape ? 297 : 210; // mm
+  const usableH = pageH - 20 - 22;       // หัก margin + title/sub
+  const usableW = pageW - 20;
+  const rows = Math.max(1, state.rowsPerPage || 8);
+  const rowH = usableH / rows;
+  const imgH = Math.max(8, rowH - 3);
+  const imgW = Math.min(usableW * 0.5, imgH * 1.5);
+  return { imgH, imgW };
+}
+
+// คำนวณ grid layout ของ card mode: cols/rows ในหน้า + ขนาดภาพในแต่ละการ์ด
+// cardsPerPage แตกเป็น (cols × rows) ตาม orientation:
+//   1 → 1×1, 2 → 2×1 (landscape) หรือ 1×2 (portrait), 4 → 2×2, 6 → 3×2 (landscape) หรือ 2×3 (portrait)
+function computeCardLayout() {
+  const isLandscape = state.orientation === "landscape";
+  const pageH = isLandscape ? 210 : 297;
+  const pageW = isLandscape ? 297 : 210;
+  const usableH = pageH - 16 - 14; // padding 8mm รอบ + title ~14mm
+  const usableW = pageW - 16;
+  const n = Math.max(1, state.cardsPerPage || 2);
+  let cols, rows;
+  if (n === 1) { cols = 1; rows = 1; }
+  else if (n === 2) { cols = isLandscape ? 2 : 1; rows = isLandscape ? 1 : 2; }
+  else if (n === 4) { cols = 2; rows = 2; }
+  else { cols = isLandscape ? 3 : 2; rows = isLandscape ? 2 : 3; } // 6
+  const cardW = (usableW - (cols - 1) * 4) / cols; // 4mm gap
+  const cardH = (usableH - (rows - 1) * 4) / rows;
+  // ภาพอยู่ขวาของการ์ด: ใช้พื้นที่ ~45% ของ cardW, สูงเกือบเต็ม cardH
+  const imgW = Math.max(20, cardW * 0.45 - 6);
+  const imgH = Math.max(20, cardH - 8);
+  return { cols, rows, cardW, cardH, imgW, imgH };
+}
+
+// สร้าง HTML 1 การ์ด — ฝั่งซ้าย label:value ของคอลัมน์ที่ไม่ใช่ภาพ, ฝั่งขวา ภาพ stacked
+// row ทีมงาน: ไม่มีภาพ → placeholder "— ไม่มีภาพ —" + badge ระบุประเภท
+function buildCardHtml(row, cols, idx) {
+  const fieldCols = cols.filter(c => c.fmt !== "image");
+  const imageCols = cols.filter(c => c.fmt === "image");
+  const fieldsHtml = fieldCols.map(c => {
+    const v = cellValue(row, c);
+    if (!v) return ""; // ซ่อนค่าว่าง
+    return `<div class="cr-pcard-field">
+      <span class="cr-pcard-label">${escapeHtml(c.label)}</span>
+      <span class="cr-pcard-value">${escapeHtml(v)}</span>
+    </div>`;
+  }).join("");
+  let imagesHtml = imageCols.map(c => {
+    const url = cellValue(row, c);
+    if (!url) return "";
+    return `<img src="${escapeHtml(url)}" alt="${escapeHtml(c.label)}" loading="lazy">`;
+  }).join("");
+  // ทีมงาน + เลือก image column แต่ไม่มีรูปจริง → placeholder
+  if (!imagesHtml && imageCols.length && row.__isTeam) {
+    imagesHtml = `<div class="cr-pcard-img-placeholder">— ไม่มีภาพ —<br><span style="font-size:9px;opacity:.7">ทีมงาน</span></div>`;
+  }
+  const teamBadge = row.__isTeam
+    ? `<span class="cr-pcard-team-badge">👔 ${escapeHtml(state.memberTypeLabel?.[row.__memberType] || "ทีมงาน")}</span>`
+    : "";
+  const numBadge = `<span class="cr-pcard-label" style="min-width:auto;color:#94a3b8">#${idx}${teamBadge}</span>`;
+  return `<div class="cr-pcard${row.__isTeam ? " cr-pcard-team" : ""}">
+    <div class="cr-pcard-fields">${numBadge}${fieldsHtml}</div>
+    ${imagesHtml ? `<div class="cr-pcard-images">${imagesHtml}</div>` : ""}
+  </div>`;
+}
+
+// ตั้ง CSS vars ของ card mode บน element ที่ส่งมา
+function applyCardStyles(targetEl) {
+  const lay = computeCardLayout();
+  targetEl.style.setProperty("--cr-card-cols", lay.cols);
+  targetEl.style.setProperty("--cr-card-img-h", `${lay.imgH.toFixed(1)}mm`);
+  targetEl.style.setProperty("--cr-card-img-w", `${lay.imgW.toFixed(1)}mm`);
+}
+
+// คืนค่า: { html, cols, rows, hasImageCol } — ใช้ทั้ง preview และ print/export
+function buildPrintPayload() {
   const cols = selectedCols();
-  if (!cols.length) { showToast("เลือกคอลัมน์ก่อน print", "info"); return; }
+  if (!cols.length) return null;
   const ci = state.trip?.start_date ? fmtDate(state.trip.start_date) : "";
   const co = state.trip?.end_date ? fmtDate(state.trip.end_date) : "";
   const dates = (ci || co) ? ` · ${ci || "—"} → ${co || "—"}` : "";
@@ -863,21 +1048,169 @@ window.exportReportPrint = function () {
     cols.map((c, ci) => {
       const span = rspan[ci][i];
       if (span === 0) return "";
-      const attrs = span > 1 ? ` rowspan="${span}"` : "";
-      return `<td${attrs}>${escapeHtml(cellValue(row, c))}</td>`;
+      const cls = c.fmt === "image" ? ' class="cr-cell-img"' : "";
+      const attrs = (span > 1 ? ` rowspan="${span}"` : "") + cls;
+      return `<td${attrs}>${cellHtml(row, c)}</td>`;
     }).join("") +
     `</tr>`).join("");
   const gen = new Date().toLocaleString("th-TH", { timeZone: "Asia/Bangkok" });
   const extra = rows.length !== state.pax.length ? ` · ${rows.length} แถว (แยกตามโรงแรม)` : "";
-  document.getElementById("cr-print-area").innerHTML = `
+  const teamNote = state.teamCount ? ` + ${state.teamCount} ทีมงาน` : "";
+  const html = `
     <div class="cr-print-title">📊 Custom Report — ${escapeHtml(tripTitle())}${dates}</div>
-    <div class="cr-print-sub">${state.pax.length} คน${extra} · ${cols.length} คอลัมน์ · พิมพ์เมื่อ ${gen}</div>
+    <div class="cr-print-sub">${state.paxCount || state.pax.length} คน${teamNote}${extra} · ${cols.length} คอลัมน์ · พิมพ์เมื่อ ${gen}</div>
     <table><thead><tr>${thead}</tr></thead><tbody>${tbody ||
       `<tr><td colspan="${cols.length + 1}" style="text-align:center;color:#94a3b8">ไม่มีข้อมูล</td></tr>`
     }</tbody></table>`;
+  return { html, cols, rows, hasImageCol: cols.some(c => c.fmt === "image") };
+}
+
+// ตั้ง CSS vars สำหรับขนาดภาพ + override @page orientation บน element ที่ส่งมา
+function applyPrintStyles(targetEl, hasImageCol) {
+  if (hasImageCol) {
+    const { imgH, imgW } = computePrintImgSize();
+    targetEl.style.setProperty("--cr-img-h", `${imgH.toFixed(1)}mm`);
+    targetEl.style.setProperty("--cr-img-w", `${imgW.toFixed(1)}mm`);
+  } else {
+    targetEl.style.removeProperty("--cr-img-h");
+    targetEl.style.removeProperty("--cr-img-w");
+  }
+}
+
+window.exportReportPrint = function () {
+  const cols = selectedCols();
+  if (!cols.length) { showToast("เลือกคอลัมน์ก่อน print", "info"); return; }
+  const printArea = document.getElementById("cr-print-area");
+  const pageStyle = document.getElementById("crPageStyle");
+  if (pageStyle) pageStyle.textContent = `@page{size:${state.orientation};margin:10mm}`;
+
+  if (state.layout === "card") {
+    // Card mode — render การ์ดเป็น grid, ไม่มี table
+    const rows = getRows();
+    applyCardStyles(printArea);
+    printArea.style.removeProperty("--cr-img-h");
+    printArea.style.removeProperty("--cr-img-w");
+    const ciD = state.trip?.start_date ? fmtDate(state.trip.start_date) : "";
+    const coD = state.trip?.end_date ? fmtDate(state.trip.end_date) : "";
+    const dates = (ciD || coD) ? ` · ${ciD || "—"} → ${coD || "—"}` : "";
+    const cardsHtml = rows.map((row, i) => buildCardHtml(row, cols, i + 1)).join("");
+    printArea.innerHTML = `
+      <div class="cr-print-title">📊 Custom Report — ${escapeHtml(tripTitle())}${dates}</div>
+      <div class="cr-print-sub">${rows.length} การ์ด · ${cols.length} ฟิลด์</div>
+      <div class="cr-pcards-grid">${cardsHtml}</div>`;
+  } else {
+    // Table mode (เดิม)
+    const payload = buildPrintPayload();
+    if (!payload) return;
+    applyPrintStyles(printArea, payload.hasImageCol);
+    printArea.innerHTML = payload.html;
+  }
   showToast("เปิดหน้าต่าง print — เลือก 'Save as PDF' ได้", "info");
   setTimeout(() => window.print(), 80);
 };
+
+// จำนวนหน้า A4 สูงสุดที่จะ render ใน preview — กันช้ากรณีรายงานใหญ่
+const PREVIEW_MAX_PAGES = 5;
+
+// สร้าง HTML ของหนึ่งหน้า A4 — header (เฉพาะหน้าแรก) + table ของ rows ในช่วงนั้น
+function buildOnePagePreview(cols, rows, startIdx, pageNum, totalPages, isFirstPage) {
+  const rspan = computeRowspans(rows, cols);
+  const ci = state.trip?.start_date ? fmtDate(state.trip.start_date) : "";
+  const co = state.trip?.end_date ? fmtDate(state.trip.end_date) : "";
+  const dates = (ci || co) ? ` · ${ci || "—"} → ${co || "—"}` : "";
+  const teamNote = state.teamCount ? ` + ${state.teamCount} ทีมงาน` : "";
+  const headerHtml = isFirstPage
+    ? `<div class="cr-print-title">📊 Custom Report — ${escapeHtml(tripTitle())}${dates}</div>
+       <div class="cr-print-sub">${state.paxCount || state.pax.length} คน${teamNote} · ${cols.length} คอลัมน์</div>`
+    : "";
+  const thead = `<th style="width:32px">#</th>` + cols.map(c => `<th>${escapeHtml(c.label)}</th>`).join("");
+  const tbody = rows.map((row, i) =>
+    `<tr><td>${startIdx + i + 1}</td>` +
+    cols.map((c, ci2) => {
+      const span = rspan[ci2][i];
+      if (span === 0) return "";
+      const cls = c.fmt === "image" ? ' class="cr-cell-img"' : "";
+      const attrs = (span > 1 ? ` rowspan="${span}"` : "") + cls;
+      return `<td${attrs}>${cellHtml(row, c)}</td>`;
+    }).join("") +
+    `</tr>`).join("");
+  return `${headerHtml}
+    <table><thead><tr>${thead}</tr></thead><tbody>${tbody}</tbody></table>
+    <div class="cr-preview-page-num">หน้า ${pageNum} / ${totalPages}</div>`;
+}
+
+// สร้าง HTML 1 หน้า A4 ในโหมด card — title (หน้าแรก) + grid ของ card
+function buildOnePageCardPreview(cols, rows, startIdx, pageNum, totalPages, isFirstPage) {
+  const ci = state.trip?.start_date ? fmtDate(state.trip.start_date) : "";
+  const co = state.trip?.end_date ? fmtDate(state.trip.end_date) : "";
+  const dates = (ci || co) ? ` · ${ci || "—"} → ${co || "—"}` : "";
+  const teamNote = state.teamCount ? ` + ${state.teamCount} ทีมงาน` : "";
+  const headerHtml = isFirstPage
+    ? `<div class="cr-print-title">📊 Custom Report — ${escapeHtml(tripTitle())}${dates}</div>
+       <div class="cr-print-sub">${state.paxCount || state.pax.length} คน${teamNote} · ${cols.length} ฟิลด์</div>`
+    : "";
+  const cardsHtml = rows.map((row, i) => buildCardHtml(row, cols, startIdx + i + 1)).join("");
+  return `${headerHtml}
+    <div class="cr-pcards-grid">${cardsHtml}</div>
+    <div class="cr-preview-page-num">หน้า ${pageNum} / ${totalPages}</div>`;
+}
+
+// 👁 Preview — แสดง layout A4 หลายหน้าซ้อนใน modal ก่อน export
+// table mode → ตัด rows ตาม rowsPerPage · card mode → ตัด rows ตาม cardsPerPage
+window.previewReportPrint = function () {
+  const cols = selectedCols();
+  if (!cols.length) { showToast("เลือกคอลัมน์ก่อน", "info"); return; }
+  const allRows = getRows();
+  const total = allRows.length;
+  const isCard = state.layout === "card";
+  const hasImageCol = cols.some(c => c.fmt === "image");
+  const perPage = Math.max(1, isCard ? (state.cardsPerPage || 2) : (state.rowsPerPage || 8));
+  const totalPages = Math.max(1, Math.ceil(total / perPage));
+  const showPages = Math.min(PREVIEW_MAX_PAGES, totalPages);
+  const ori = state.orientation === "portrait" ? "portrait" : "landscape";
+
+  const scroll = document.getElementById("crPreviewScroll");
+  scroll.innerHTML = "";
+  for (let p = 0; p < showPages; p++) {
+    const start = p * perPage;
+    const pageRows = allRows.slice(start, start + perPage);
+    const paper = document.createElement("div");
+    paper.className = `cr-preview-paper ${ori}${isCard ? " cr-mode-card" : ""}`;
+    if (isCard) applyCardStyles(paper);
+    else applyPrintStyles(paper, hasImageCol);
+    paper.innerHTML = isCard
+      ? buildOnePageCardPreview(cols, pageRows, start, p + 1, totalPages, p === 0)
+      : buildOnePagePreview(cols, pageRows, start, p + 1, totalPages, p === 0);
+    scroll.appendChild(paper);
+  }
+  if (totalPages > showPages) {
+    const more = document.createElement("div");
+    more.className = "cr-preview-more";
+    const unit = isCard ? "การ์ด" : "แถว";
+    more.textContent = `⋯ แสดง ${showPages} หน้าแรก · ทั้งหมด ${totalPages} หน้า (${total} ${unit}) — กด Print / PDF เพื่อพิมพ์ครบ`;
+    scroll.appendChild(more);
+  }
+
+  const meta = document.getElementById("crPreviewMeta");
+  if (meta) {
+    const oriLbl = state.orientation === "portrait" ? "แนวตั้ง" : "แนวนอน";
+    const modeLbl = isCard ? "🪪 การ์ด" : "📊 ตาราง";
+    const perLbl = isCard ? `${perPage} การ์ด/หน้า` : `${perPage} แถว/หน้า`;
+    meta.textContent = `· ${modeLbl} · A4 ${oriLbl} · ${perLbl} · ${total} ${isCard ? "การ์ด" : "แถว"} / ${totalPages} หน้า`;
+  }
+  document.getElementById("crPreviewModal").style.display = "flex";
+  scroll.scrollTop = 0;
+};
+window.closePreview = function () {
+  const modal = document.getElementById("crPreviewModal");
+  if (modal) modal.style.display = "none";
+};
+// ESC ปิด preview
+document.addEventListener("keydown", (ev) => {
+  if (ev.key !== "Escape") return;
+  const modal = document.getElementById("crPreviewModal");
+  if (modal && modal.style.display !== "none") window.closePreview();
+});
 
 // ── BOOT ───────────────────────────────────────────────────
 init();
