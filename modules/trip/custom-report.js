@@ -91,7 +91,7 @@ const state = {
   sort: [],         // multi-sort chain: [{key, dir:1|-1}, ...] — ลำดับใน array = ลำดับ priority
   filters: {},      // col key -> Set([selected values])  (empty/missing = ไม่กรองคอลัมน์นั้น)
   merged: {},      // col key -> true ถ้าเปิด "ผสานเซลซ้ำ" (rowspan แถวที่ติดกันค่าเท่ากัน)
-  rowsPerPage: 8,  // print: แถวต่อ A4 (table mode)
+  rowsPerPage: "auto",  // print: แถวต่อ A4 (table mode) — "auto" | number
   cardsPerPage: 2, // print: การ์ดต่อ A4 (card mode)
   orientation: "landscape", // print: landscape | portrait
   layout: "table", // "table" | "card" — รูปแบบรายงาน
@@ -933,9 +933,24 @@ window.exportReportExcel = function () {
 };
 
 window.setRowsPerPage = function (v) {
+  if (v === "auto") { state.rowsPerPage = "auto"; return; }
   const n = parseInt(v, 10);
-  state.rowsPerPage = (Number.isFinite(n) && n >= 1) ? n : 8;
+  state.rowsPerPage = (Number.isFinite(n) && n >= 1) ? n : "auto";
 };
+
+// แปลง state.rowsPerPage ("auto" | number) → จำนวน rows จริงต่อหน้า A4
+// auto: เลือกตาม hasImage + orientation เพื่อให้หน้าเต็มโดยประมาณ
+//   มีรูป  landscape  8 | portrait 12  (ต้องเผื่อพื้นที่ภาพ)
+//   text ล้วน landscape 24 | portrait 38 (row สูง ~6mm แค่ตัวอักษร)
+function resolveRowsPerPage(hasImage) {
+  if (state.rowsPerPage !== "auto") {
+    const n = parseInt(state.rowsPerPage, 10);
+    return Number.isFinite(n) && n >= 1 ? n : 8;
+  }
+  const isLandscape = state.orientation === "landscape";
+  if (hasImage) return isLandscape ? 8 : 12;
+  return isLandscape ? 24 : 38;
+}
 window.setCardsPerPage = function (v) {
   const n = parseInt(v, 10);
   state.cardsPerPage = (Number.isFinite(n) && n >= 1) ? n : 2;
@@ -960,7 +975,7 @@ function computePrintImgSize() {
   const pageW = isLandscape ? 297 : 210; // mm
   const usableH = pageH - 20 - 22;       // หัก margin + title/sub
   const usableW = pageW - 20;
-  const rows = Math.max(1, state.rowsPerPage || 8);
+  const rows = resolveRowsPerPage(true); // ถูกเรียกเฉพาะกรณีมี image col
   const rowH = usableH / rows;
   const imgH = Math.max(8, rowH - 3);
   const imgW = Math.min(usableW * 0.5, imgH * 1.5);
@@ -1161,7 +1176,7 @@ window.previewReportPrint = function () {
   const total = allRows.length;
   const isCard = state.layout === "card";
   const hasImageCol = cols.some(c => c.fmt === "image");
-  const perPage = Math.max(1, isCard ? (state.cardsPerPage || 2) : (state.rowsPerPage || 8));
+  const perPage = Math.max(1, isCard ? (state.cardsPerPage || 2) : resolveRowsPerPage(hasImageCol));
   const totalPages = Math.max(1, Math.ceil(total / perPage));
   const showPages = Math.min(PREVIEW_MAX_PAGES, totalPages);
   const ori = state.orientation === "portrait" ? "portrait" : "landscape";
@@ -1192,7 +1207,8 @@ window.previewReportPrint = function () {
   if (meta) {
     const oriLbl = state.orientation === "portrait" ? "แนวตั้ง" : "แนวนอน";
     const modeLbl = isCard ? "🪪 การ์ด" : "📊 ตาราง";
-    const perLbl = isCard ? `${perPage} การ์ด/หน้า` : `${perPage} แถว/หน้า`;
+    const autoTag = (!isCard && state.rowsPerPage === "auto") ? "อัตโนมัติ · " : "";
+    const perLbl = isCard ? `${perPage} การ์ด/หน้า` : `${autoTag}${perPage} แถว/หน้า`;
     meta.textContent = `· ${modeLbl} · A4 ${oriLbl} · ${perLbl} · ${total} ${isCard ? "การ์ด" : "แถว"} / ${totalPages} หน้า`;
   }
   document.getElementById("crPreviewModal").style.display = "flex";
