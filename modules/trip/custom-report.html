@@ -38,12 +38,13 @@
         user-select:none;
       }
       .cr-group-hdr:hover{background:#e2e8f0}
-      .cr-group-hdr > *{pointer-events:none}  /* คลิกที่ลูก = คลิก header (กัน event ตก) */
+      .cr-group-hdr:hover .cr-group-caret{color:var(--accent)}
       .cr-group-body{padding:4px 6px}
       .cr-group.collapsed .cr-group-body{display:none}
       .cr-group-caret{
-        font-size:14px;color:var(--text2);font-weight:700;
-        min-width:20px;text-align:center;
+        font-size:16px;color:var(--text2);font-weight:700;
+        min-width:24px;text-align:center;cursor:pointer;
+        padding:2px 6px;border-radius:4px;background:rgba(0,0,0,.04);
       }
       .cr-opt{
         display:flex;align-items:center;gap:8px;

@@ -44,15 +44,6 @@ const COLUMN_GROUPS = [
     ],
   },
   {
-    id: "team", label: "👔 ทีมงาน",
-    cols: [
-      { key: "_teamtype",   label: "ประเภท",          src: "calc" },  // Staff/ไกด์/Outsource (ทีมงานเท่านั้น)
-      { key: "_role_title", label: "ตำแหน่งทีม",      src: "calc" },
-      { key: "_languages",  label: "ภาษา (ทีม)",      src: "calc" },
-      { key: "_team_phone", label: "เบอร์ทีม",        src: "calc" },
-    ],
-  },
-  {
     id: "detail", label: "📋 Detail",
     cols: [
       { key: "tel",                        label: "เบอร์โทร",         src: "pax" },
@@ -66,6 +57,15 @@ const COLUMN_GROUPS = [
       { key: "insurance_company",          label: "บริษัทประกัน",      src: "pax" },
       { key: "insurance_policy_no",        label: "เลขกรมธรรม์",       src: "pax" },
       { key: "special_requests",           label: "คำขอพิเศษ",         src: "pax" },
+    ],
+  },
+  {
+    id: "team", label: "👔 ทีมงาน",
+    cols: [
+      { key: "_teamtype",   label: "ประเภท",          src: "calc" },  // Staff/ไกด์/Outsource (ทีมงานเท่านั้น)
+      { key: "_role_title", label: "ตำแหน่งทีม",      src: "calc" },
+      { key: "_languages",  label: "ภาษา (ทีม)",      src: "calc" },
+      { key: "_team_phone", label: "เบอร์ทีม",        src: "calc" },
     ],
   },
 ];
@@ -333,6 +333,7 @@ function renderTripBanner() {
 
 function renderPicker() {
   const wrap = document.getElementById("crPicker");
+  if (!wrap) { console.warn("[picker] #crPicker not found"); return; }
   wrap.innerHTML = COLUMN_GROUPS.map(g => {
     const opts = g.cols.map(c => `
       <label class="cr-opt">
@@ -341,21 +342,16 @@ function renderPicker() {
         <span>${escapeHtml(c.label)}</span>
       </label>`).join("");
     return `<div class="cr-group${state.collapsed[g.id] ? " collapsed" : ""}" data-gid="${escapeHtml(g.id)}">
-      <div class="cr-group-hdr" data-toggle-gid="${escapeHtml(g.id)}">
+      <div class="cr-group-hdr" data-toggle-gid="${escapeHtml(g.id)}" onclick="window.crToggleGroup('${escapeHtml(g.id)}')">
         <span>${escapeHtml(g.label)}</span>
         <span class="cr-group-caret">${state.collapsed[g.id] ? "▸" : "▾"}</span>
       </div>
       <div class="cr-group-body">${opts}</div>
     </div>`;
   }).join("");
-  // bind click ด้วย addEventListener — ทนกว่า inline onclick (กัน CSP/scope ปัญหา)
-  wrap.querySelectorAll(".cr-group-hdr").forEach(hdr => {
-    hdr.addEventListener("click", () => {
-      const gid = hdr.getAttribute("data-toggle-gid");
-      window.toggleGroup(gid);
-    });
-  });
 }
+// Note: inline onclick="window.crToggleGroup(...)" ใน renderPicker จัดการคลิกเอง
+// (เคยใส่ document capture listener ที่นี่ → double-toggle กลับเป็นเดิมทันที — ลบทิ้งแล้ว)
 
 function renderChips() {
   const wrap = document.getElementById("crChips");
@@ -781,7 +777,8 @@ function renderAll() {
 }
 
 // ── COLUMN PICK ────────────────────────────────────────────
-window.toggleGroup = function (gid) {
+// ใช้ชื่อ crToggleGroup กันชนกับ sidebar.js ที่จอง window.toggleGroup ไว้ (load หลังไฟล์นี้)
+window.crToggleGroup = function (gid) {
   state.collapsed[gid] = !state.collapsed[gid];
   renderPicker();
 };
