@@ -1712,6 +1712,9 @@ function renderRooms() {
             <button class="ra-grp-kebab" title="ตัวเลือกเพิ่มเติม"
               onclick="window.toggleGroupKebab('${escapeJs(groupKey)}', event)">⋮</button>
             <div class="ra-grp-kebab-menu" onclick="event.stopPropagation()">
+              <button onclick="window.renumberRoomsByBus('${escapeJs(groupKey)}')">
+                <span class="ra-kebab-icon">🔢</span> เรียงเลขตามรถบัส
+              </button>
               <button onclick="window.duplicateRoomGroup('${escapeJs(groupKey)}');window.closeGroupKebabs()">
                 <span class="ra-kebab-icon">📋</span> คัดลอก
               </button>
@@ -2506,6 +2509,101 @@ document.addEventListener("click", (ev) => {
 function cssEscape(s) {
   return String(s).replace(/[\\"]/g, "\\$&");
 }
+
+// เรียงเลขห้องในกลุ่มตามรถบัส: บัส 1 ได้ 1..N, บัส 2 ต่อท้าย, ห้องว่างท้ายสุด
+window.renumberRoomsByBus = async function (groupKey) {
+  window.closeGroupKebabs();
+  const rooms = state.rooms.filter(r => groupKeyOf(r) === groupKey);
+  if (!rooms.length) return;
+
+  const roomType = rooms[0].room_type || "Room";
+  const prefix = `${roomType}-`;
+
+  // หา bus_id + seat_no ต่ำสุดของคนในห้อง (ลูกค้า + ทีมงาน)
+  const info = rooms.map(r => {
+    const codes = state.occupants[r.room_id] || [];
+    let busId = null;
+    let minSeat = Infinity;
+    for (const code of codes) {
+      const gid = parseGuideCode(code);
+      if (gid != null) {
+        const setOfBuses = state.guideToBuses[gid];
+        if (setOfBuses && setOfBuses.size) {
+          const bid = [...setOfBuses][0];
+          if (busId == null) busId = bid;
+        }
+        continue;
+      }
+      const seat = state.codeToBusSeat[code];
+      if (seat?.bus_id != null) {
+        if (busId == null) busId = seat.bus_id;
+        if (seat.bus_id === busId && Number.isFinite(seat.seat_no) && seat.seat_no < minSeat) {
+          minSeat = seat.seat_no;
+        }
+      }
+    }
+    return { room: r, busId, minSeat };
+  });
+
+  // เรียง: ตาม sort_order ของรถบัส → seat_no น้อยสุด → sort_order ห้อง → room_id
+  const busOrder = new Map();
+  state.buses.forEach((b, i) => busOrder.set(b.bus_id, i));
+  info.sort((a, b) => {
+    const ao = a.busId == null ? 999999 : (busOrder.get(a.busId) ?? 999998);
+    const bo = b.busId == null ? 999999 : (busOrder.get(b.busId) ?? 999998);
+    if (ao !== bo) return ao - bo;
+    if (a.minSeat !== b.minSeat) return a.minSeat - b.minSeat;
+    return (a.room.sort_order || 0) - (b.room.sort_order || 0) || (a.room.room_id - b.room.room_id);
+  });
+
+  // คำนวณชื่อใหม่ + filter เฉพาะที่เปลี่ยน
+  const updates = [];
+  info.forEach((it, idx) => {
+    const newName = `${prefix}${idx + 1}`;
+    if (it.room.room_name !== newName) {
+      updates.push({ room_id: it.room.room_id, new_name: newName });
+    }
+  });
+
+  if (!updates.length) {
+    showToast("ชื่อห้องเรียงตามรถบัสอยู่แล้ว", "info");
+    return;
+  }
+
+  const proceed = window.ConfirmModal?.open
+    ? await window.ConfirmModal.open({
+        title: "เรียงเลขห้องตามรถบัส",
+        message: `จะเรียงเลข ${rooms.length} ห้องในกลุ่มนี้ตามรถบัส (${updates.length} ห้องจะเปลี่ยนชื่อ) — ดำเนินการต่อ?`,
+        icon: "🔢",
+        okText: "เรียงเลข",
+      })
+    : confirm(`เรียงเลขห้อง ${updates.length} ห้องตามรถบัส?`);
+  if (!proceed) return;
+
+  showLoading(true);
+  try {
+    // 2-phase rename กัน unique constraint ชน (Twin-1 ↔ Twin-2 swap)
+    const tmpPrefix = `__ra_tmp_${Date.now()}_`;
+    await Promise.all(updates.map(u =>
+      sbFetch("trip_rooms", `?room_id=eq.${u.room_id}`, {
+        method: "PATCH",
+        body: { room_name: `${tmpPrefix}${u.room_id}` },
+      })
+    ));
+    const stamp = new Date().toISOString();
+    await Promise.all(updates.map(u =>
+      sbFetch("trip_rooms", `?room_id=eq.${u.room_id}`, {
+        method: "PATCH",
+        body: { room_name: u.new_name, updated_at: stamp },
+      })
+    ));
+    showToast(`เรียงเลขห้องตามรถบัสแล้ว (${updates.length} ห้อง)`, "success");
+    await loadAll();
+  } catch (e) {
+    showToast("เรียงเลขไม่สำเร็จ: " + e.message, "error");
+  }
+  showLoading(false);
+};
 
 // หา index ถัดไปสำหรับชื่อห้อง "<roomType>-N" โดยอ้างอิงเลข suffix สูงสุดที่ใช้แล้ว
 // (ไม่ใช่ length เพราะถ้าลบห้องตรงกลางจะชนชื่อ)

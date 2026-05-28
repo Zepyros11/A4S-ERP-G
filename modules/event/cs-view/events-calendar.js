@@ -245,7 +245,9 @@ function getCatStyle(event) {
 function renderCalendar() {
   updateMonthLabel();
   const filtered = allEvents.filter(
-    (e) => !activeCalCatId || String(e.event_category_id) === activeCalCatId,
+    (e) =>
+      e.status !== "CANCELLED" &&
+      (!activeCalCatId || String(e.event_category_id) === activeCalCatId),
   );
 
   const _now = new Date();
@@ -567,7 +569,9 @@ function openEventPanel(eventId) {
 /* ── Day-events popup (shows full list when "+N" clicked) ── */
 function openDayPopup(dateStr) {
   const filtered = allEvents.filter(
-    (e) => !activeCalCatId || String(e.event_category_id) === activeCalCatId,
+    (e) =>
+      e.status !== "CANCELLED" &&
+      (!activeCalCatId || String(e.event_category_id) === activeCalCatId),
   );
   // events that overlap this date (single-day OR multi-day spans)
   const dayEvents = filtered.filter((e) => {

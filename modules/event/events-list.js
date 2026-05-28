@@ -748,6 +748,13 @@ function getDateRange() {
     const lastDay = new Date(y, now.getMonth() + 1, 0).getDate();
     return { start: `${y}-${m}-01`, end: `${y}-${m}-${String(lastDay).padStart(2, "0")}` };
   }
+  if (activeDateRange === "nextmonth") {
+    const nm = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    const y = nm.getFullYear();
+    const m = String(nm.getMonth() + 1).padStart(2, "0");
+    const lastDay = new Date(y, nm.getMonth() + 1, 0).getDate();
+    return { start: `${y}-${m}-01`, end: `${y}-${m}-${String(lastDay).padStart(2, "0")}` };
+  }
   if (activeDateRange === "custom") {
     const s = _toISO(_customDateFrom);
     const e = _toISO(_customDateTo);
