@@ -2519,36 +2519,44 @@ window.renumberRoomsByBus = async function (groupKey) {
   const roomType = rooms[0].room_type || "Room";
   const prefix = `${roomType}-`;
 
-  // หา bus_id + seat_no ต่ำสุดของคนในห้อง (ลูกค้า + ทีมงาน)
+  // หา bucket + bus_id + seat_no ต่ำสุดของคนในห้อง
+  // bucket: 0 = ห้องลูกค้า, 1 = ห้องทีมงาน (guide-only), 2 = ห้องว่าง
   const info = rooms.map(r => {
     const codes = state.occupants[r.room_id] || [];
-    let busId = null;
-    let minSeat = Infinity;
+    let paxBusId = null;
+    let paxMinSeat = Infinity;
+    let guideBusId = null;
+    let hasPax = false;
+    let hasGuide = false;
     for (const code of codes) {
       const gid = parseGuideCode(code);
       if (gid != null) {
+        hasGuide = true;
         const setOfBuses = state.guideToBuses[gid];
-        if (setOfBuses && setOfBuses.size) {
-          const bid = [...setOfBuses][0];
-          if (busId == null) busId = bid;
+        if (setOfBuses && setOfBuses.size && guideBusId == null) {
+          guideBusId = [...setOfBuses][0];
         }
         continue;
       }
+      hasPax = true;
       const seat = state.codeToBusSeat[code];
       if (seat?.bus_id != null) {
-        if (busId == null) busId = seat.bus_id;
-        if (seat.bus_id === busId && Number.isFinite(seat.seat_no) && seat.seat_no < minSeat) {
-          minSeat = seat.seat_no;
+        if (paxBusId == null) paxBusId = seat.bus_id;
+        if (seat.bus_id === paxBusId && Number.isFinite(seat.seat_no) && seat.seat_no < paxMinSeat) {
+          paxMinSeat = seat.seat_no;
         }
       }
     }
-    return { room: r, busId, minSeat };
+    const bucket = hasPax ? 0 : (hasGuide ? 1 : 2);
+    const busId = hasPax ? paxBusId : guideBusId;
+    return { room: r, bucket, busId, minSeat: paxMinSeat };
   });
 
-  // เรียง: ตาม sort_order ของรถบัส → seat_no น้อยสุด → sort_order ห้อง → room_id
+  // เรียง: bucket (ลูกค้า → ทีมงาน → ว่าง) → bus order → seat_no → sort_order → room_id
   const busOrder = new Map();
   state.buses.forEach((b, i) => busOrder.set(b.bus_id, i));
   info.sort((a, b) => {
+    if (a.bucket !== b.bucket) return a.bucket - b.bucket;
     const ao = a.busId == null ? 999999 : (busOrder.get(a.busId) ?? 999998);
     const bo = b.busId == null ? 999999 : (busOrder.get(b.busId) ?? 999998);
     if (ao !== bo) return ao - bo;
