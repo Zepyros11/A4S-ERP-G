@@ -157,6 +157,34 @@
         font-weight:700;line-height:1;vertical-align:1px;
       }
 
+      /* 👁 ปุ่มซ่อน/แสดงคอลัมน์ (header) */
+      .cr-th-eye{
+        border:none;background:transparent;cursor:pointer;
+        padding:1px 3px;border-radius:4px;font-size:11px;line-height:1;
+        opacity:.45;filter:grayscale(1);
+      }
+      .cr-th-eye:hover{background:#e2e8f0;opacity:1;filter:none}
+      .cr-th-eye.off{opacity:1;filter:none;background:#fee2e2}
+      .cr-th-hidetag{
+        display:inline-block;font-size:9px;font-weight:700;
+        color:#b91c1c;background:#fee2e2;border-radius:4px;
+        padding:0 4px;margin-left:2px;vertical-align:1px;
+      }
+      /* คอลัมน์ที่ซ่อน — จางใน preview บนจอ (ยังคลิกเรียง/กรองได้) */
+      table.cr-table th.cr-col-hidden,
+      table.cr-table td.cr-col-hidden{opacity:.4}
+      table.cr-table th.cr-col-hidden{background:#fff5f5}
+
+      /* 👁 ปุ่มซ่อน/แสดง (chip) */
+      .cr-chip-eye{
+        border:none;background:transparent;cursor:pointer;
+        font-size:11px;line-height:1;padding:0 2px;
+        opacity:.55;filter:grayscale(1);
+      }
+      .cr-chip-eye:hover{opacity:1;filter:none}
+      .cr-chip.cr-chip-hidden{opacity:.55;text-decoration:line-through;text-decoration-color:#cbd5e1}
+      .cr-chip.cr-chip-hidden .cr-chip-eye{opacity:1;filter:none;text-decoration:none}
+
       /* เซลที่ถูกผสาน (rowspan) — top-align + พื้นสว่างนิดให้เห็นกลุ่ม */
       table.cr-table td.cr-merged{
         vertical-align:top;background:#fafdff;font-weight:600;
@@ -338,6 +366,29 @@
         background:#fef3c7;color:#92400e;border:1px solid #fcd34d;
         padding:0 6px;border-radius:99px;font-size:9.5px;font-weight:700;
       }
+      /* ── Image-only card → ภาพเต็มการ์ด/เต็มหน้า ไม่มีช่องว่าง (preview + print) ── */
+      .cr-pcard.cr-pcard-full,
+      #cr-print-area .cr-pcard.cr-pcard-full{
+        display:flex;align-items:center;justify-content:center;
+        padding:0;overflow:hidden;position:relative;
+      }
+      .cr-pcard-full .cr-pcard-full-imgs,
+      #cr-print-area .cr-pcard-full .cr-pcard-full-imgs{
+        display:flex;flex-direction:column;gap:1mm;
+        align-items:center;justify-content:center;width:100%;
+      }
+      .cr-pcard-full .cr-pcard-full-imgs img,
+      #cr-print-area .cr-pcard-full .cr-pcard-full-imgs img{
+        width:var(--cr-card-full-w, 80mm);
+        height:var(--cr-card-full-h, 60mm);
+        object-fit:contain;border:none;background:#fff;display:block;
+      }
+      .cr-pcard-full-num{
+        position:absolute;top:1mm;left:2mm;z-index:2;line-height:1.4;
+        font-size:9px;color:#64748b;background:rgba(255,255,255,.75);
+        padding:0 4px;border-radius:3px;
+      }
+
       @media print{
         body > *:not(#cr-print-area){display:none !important}
         #cr-print-area{display:block !important}

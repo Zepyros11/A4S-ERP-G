@@ -91,6 +91,7 @@ const state = {
   sort: [],         // multi-sort chain: [{key, dir:1|-1}, ...] — ลำดับใน array = ลำดับ priority
   filters: {},      // col key -> Set([selected values])  (empty/missing = ไม่กรองคอลัมน์นั้น)
   merged: {},      // col key -> true ถ้าเปิด "ผสานเซลซ้ำ" (rowspan แถวที่ติดกันค่าเท่ากัน)
+  hidden: {},      // col key -> true ถ้า "ซ่อนจากรายงาน" (ยังใช้เรียง/กรอง แต่ไม่ออกใน Print/Excel/PDF)
   rowsPerPage: "auto",  // print: แถวต่อ A4 (table mode) — "auto" | number
   cardsPerPage: 2, // print: การ์ดต่อ A4 (card mode)
   orientation: "landscape", // print: landscape | portrait
@@ -359,12 +360,15 @@ function renderChips() {
   wrap.innerHTML = state.selected.map((k, i) => {
     const c = COL_BY_KEY[k];
     if (!c) return "";
-    return `<span class="cr-chip">
+    const hidden = !!state.hidden[k];
+    return `<span class="cr-chip${hidden ? " cr-chip-hidden" : ""}">
       <button class="cr-chip-move" title="เลื่อนซ้าย" onclick="window.moveColumn('${k}',-1)"
         ${i === 0 ? "disabled style='opacity:.25'" : ""}>◀</button>
       ${escapeHtml(c.label)}
       <button class="cr-chip-move" title="เลื่อนขวา" onclick="window.moveColumn('${k}',1)"
         ${i === state.selected.length - 1 ? "disabled style='opacity:.25'" : ""}>▶</button>
+      <button class="cr-chip-eye" onclick="window.toggleHideColumn('${k}')"
+        title="${hidden ? "ซ่อนจากรายงาน — คลิกเพื่อแสดง" : "แสดงในรายงาน — คลิกเพื่อซ่อน (ยังใช้เรียง/กรอง)"}">${hidden ? "🙈" : "👁"}</button>
       <button title="เอาออก" onclick="window.toggleColumn('${k}', false)">✕</button>
     </span>`;
   }).join("");
@@ -716,7 +720,9 @@ function renderPreview() {
   const splitNote = expanded.length !== state.pax.length ? ` (แยกตามโรงแรม ${expanded.length} แถว)` : "";
   const filterNote = hasFilter ? ` · 🔽 หลัง filter ${rows.length} แถว` : "";
   const teamNote = state.teamCount ? ` + ${state.teamCount} ทีมงาน` : "";
-  count.textContent = `· ${state.paxCount || state.pax.length} คน${teamNote}${splitNote}${filterNote} · ${cols.length} คอลัมน์`;
+  const hiddenCount = cols.filter(c => state.hidden[c.key]).length;
+  const hiddenNote = hiddenCount ? ` · 🙈 ซ่อน ${hiddenCount}` : "";
+  count.textContent = `· ${state.paxCount || state.pax.length} คน${teamNote}${splitNote}${filterNote} · ${cols.length} คอลัมน์${hiddenNote}`;
   const multi = state.sort.length > 1;
   document.getElementById("crThead").innerHTML =
     `<th style="width:40px">#</th>` + cols.map(c => {
@@ -741,11 +747,15 @@ function renderPreview() {
             title="${tipParts.length ? tipParts.join(" · ") + " — คลิกเพื่อแก้" : "กรองค่า / ผสานเซล"}"
             onclick="event.stopPropagation();window.openFilter('${c.key}',this)">🔽${mActive ? '<span class="cr-th-mbadge">≣</span>' : ''}</button>`
         : "";
-      return `<th style="user-select:none">
+      const hidden = !!state.hidden[c.key];
+      const eyeBtn = `<button class="cr-th-eye${hidden ? " off" : ""}"
+        title="${hidden ? "ซ่อนจากรายงาน (Print/Excel/PDF) — คลิกเพื่อแสดง" : "แสดงในรายงาน — คลิกเพื่อซ่อน (ยังใช้เรียง/กรอง)"}"
+        onclick="event.stopPropagation();window.toggleHideColumn('${c.key}')">${hidden ? "🙈" : "👁"}</button>`;
+      return `<th class="${hidden ? "cr-col-hidden" : ""}" style="user-select:none">
         <div class="cr-th-flex">
           <span class="cr-th-lbl" title="${escapeHtml(sortTip)}"
-            onclick="window.sortBy('${c.key}')">${escapeHtml(c.label)}${ind}</span>
-          ${fBtn}
+            onclick="window.sortBy('${c.key}')">${escapeHtml(c.label)}${hidden ? ' <span class="cr-th-hidetag">ซ่อน</span>' : ''}${ind}</span>
+          ${eyeBtn}${fBtn}
         </div>
       </th>`;
     }).join("");
@@ -755,7 +765,7 @@ function renderPreview() {
     cols.map((c, ci) => {
       const span = rspan[ci][i];
       if (span === 0) return ""; // ถูกผสานเข้า cell ด้านบน
-      const cls = (span > 1 ? "cr-merged " : "") + (c.fmt === "image" ? "cr-cell-img" : "");
+      const cls = (span > 1 ? "cr-merged " : "") + (c.fmt === "image" ? "cr-cell-img " : "") + (state.hidden[c.key] ? "cr-col-hidden" : "");
       const attrs = (span > 1 ? ` rowspan="${span}"` : "") + (cls.trim() ? ` class="${cls.trim()}"` : "");
       return `<td${attrs}>${cellHtml(row, c)}</td>`;
     }).join("") +
@@ -790,9 +800,18 @@ window.toggleColumn = function (key, checked) {
     state.selected.splice(idx, 1);
     delete state.filters[key]; // ทิ้ง filter ของคอลัมน์ที่ถูกเอาออก
     delete state.merged[key];  // ทิ้ง merge ของคอลัมน์ที่ถูกเอาออก
+    delete state.hidden[key];  // ทิ้งสถานะซ่อนของคอลัมน์ที่ถูกเอาออก
   }
   if (typeof closeFilterPopover === "function") closeFilterPopover();
   renderPicker();
+  renderAll();
+};
+// 👁 ซ่อน/แสดงคอลัมน์ในรายงาน (Print/Excel/PDF) — ยังคงใช้เรียง/กรอง/ผสานได้
+// ใช้กรณีต้องการ "เรียงตาม X แต่ไม่โชว์คอลัมน์ X" เช่น เรียงภาพตามรถบัส แต่ไม่เอาคอลัมน์รถบัส
+window.toggleHideColumn = function (key) {
+  if (!COL_BY_KEY[key]) return;
+  if (state.hidden[key]) delete state.hidden[key];
+  else state.hidden[key] = true;
   renderAll();
 };
 window.moveColumn = function (key, dir) {
@@ -816,6 +835,9 @@ window.applyPreset = function (id) {
   });
   Object.keys(state.merged).forEach(k => {
     if (!state.selected.includes(k)) delete state.merged[k];
+  });
+  Object.keys(state.hidden).forEach(k => {
+    if (!state.selected.includes(k)) delete state.hidden[k];
   });
   if (typeof closeFilterPopover === "function") closeFilterPopover();
   renderPicker();
@@ -893,13 +915,18 @@ window.deletePreset = async function () {
 function selectedCols() {
   return state.selected.map(k => COL_BY_KEY[k]).filter(Boolean);
 }
+// คอลัมน์ที่ "ออกในรายงานจริง" (Print/Excel/PDF/Card) — ตัดคอลัมน์ที่กดซ่อน 🙈 ออก
+function outputCols() {
+  return state.selected.map(k => COL_BY_KEY[k]).filter(c => c && !state.hidden[c.key]);
+}
 function tripTitle() {
   return state.trip?.trip_name || `Trip #${state.tripId}`;
 }
 
 window.exportReportExcel = function () {
-  const cols = selectedCols();
-  if (!cols.length) { showToast("เลือกคอลัมน์ก่อน export", "info"); return; }
+  if (!state.selected.length) { showToast("เลือกคอลัมน์ก่อน export", "info"); return; }
+  const cols = outputCols();
+  if (!cols.length) { showToast("ทุกคอลัมน์ถูกซ่อน (🙈) — เปิดอย่างน้อย 1 คอลัมน์", "info"); return; }
   if (typeof XLSX === "undefined") { showToast("XLSX ยังโหลดไม่เสร็จ — ลองใหม่", "error"); return; }
   if (state.layout === "card") {
     showToast("Excel ใช้รูปแบบตารางเสมอ — Card mode รองรับเฉพาะ Print/PDF", "info");
@@ -1007,9 +1034,33 @@ function computeCardLayout() {
 
 // สร้าง HTML 1 การ์ด — ฝั่งซ้าย label:value ของคอลัมน์ที่ไม่ใช่ภาพ, ฝั่งขวา ภาพ stacked
 // row ทีมงาน: ไม่มีภาพ → placeholder "— ไม่มีภาพ —" + badge ระบุประเภท
+// กรณีพิเศษ: เลือกเฉพาะคอลัมน์ภาพ (ไม่มีฟิลด์ข้อความ) → ภาพเต็มการ์ด/เต็มหน้า ไม่มีช่องว่าง
 function buildCardHtml(row, cols, idx) {
   const fieldCols = cols.filter(c => c.fmt !== "image");
   const imageCols = cols.filter(c => c.fmt === "image");
+  const teamBadge = row.__isTeam
+    ? `<span class="cr-pcard-team-badge">👔 ${escapeHtml(state.memberTypeLabel?.[row.__memberType] || "ทีมงาน")}</span>`
+    : "";
+
+  // ── โหมดภาพเต็ม: ไม่มีฟิลด์ข้อความเลย → ภาพ fill การ์ดทั้งใบ (contain — โชว์ภาพครบไม่ครอป) ──
+  if (!fieldCols.length && imageCols.length) {
+    const n = imageCols.length;
+    let imgs = imageCols.map(c => {
+      const url = cellValue(row, c);
+      if (!url) return "";
+      return `<img src="${escapeHtml(url)}" alt="${escapeHtml(c.label)}" loading="lazy"
+        style="height:calc(var(--cr-card-full-h,60mm)/${n})">`;
+    }).join("");
+    if (!imgs) {
+      imgs = `<div class="cr-pcard-img-placeholder">— ไม่มีภาพ —${
+        row.__isTeam ? '<br><span style="font-size:9px;opacity:.7">ทีมงาน</span>' : ""}</div>`;
+    }
+    return `<div class="cr-pcard cr-pcard-full${row.__isTeam ? " cr-pcard-team" : ""}">
+      <span class="cr-pcard-full-num">#${idx}${teamBadge}</span>
+      <div class="cr-pcard-full-imgs">${imgs}</div>
+    </div>`;
+  }
+
   const fieldsHtml = fieldCols.map(c => {
     const v = cellValue(row, c);
     if (!v) return ""; // ซ่อนค่าว่าง
@@ -1027,9 +1078,6 @@ function buildCardHtml(row, cols, idx) {
   if (!imagesHtml && imageCols.length && row.__isTeam) {
     imagesHtml = `<div class="cr-pcard-img-placeholder">— ไม่มีภาพ —<br><span style="font-size:9px;opacity:.7">ทีมงาน</span></div>`;
   }
-  const teamBadge = row.__isTeam
-    ? `<span class="cr-pcard-team-badge">👔 ${escapeHtml(state.memberTypeLabel?.[row.__memberType] || "ทีมงาน")}</span>`
-    : "";
   const numBadge = `<span class="cr-pcard-label" style="min-width:auto;color:#94a3b8">#${idx}${teamBadge}</span>`;
   return `<div class="cr-pcard${row.__isTeam ? " cr-pcard-team" : ""}">
     <div class="cr-pcard-fields">${numBadge}${fieldsHtml}</div>
@@ -1043,11 +1091,14 @@ function applyCardStyles(targetEl) {
   targetEl.style.setProperty("--cr-card-cols", lay.cols);
   targetEl.style.setProperty("--cr-card-img-h", `${lay.imgH.toFixed(1)}mm`);
   targetEl.style.setProperty("--cr-card-img-w", `${lay.imgW.toFixed(1)}mm`);
+  // โหมดภาพเต็ม (image-only) — กล่องภาพใช้พื้นที่การ์ดเกือบเต็ม
+  targetEl.style.setProperty("--cr-card-full-h", `${Math.max(20, lay.cardH - 2).toFixed(1)}mm`);
+  targetEl.style.setProperty("--cr-card-full-w", `${Math.max(20, lay.cardW - 2).toFixed(1)}mm`);
 }
 
 // คืนค่า: { html, cols, rows, hasImageCol } — ใช้ทั้ง preview และ print/export
 function buildPrintPayload() {
-  const cols = selectedCols();
+  const cols = outputCols();
   if (!cols.length) return null;
   const ci = state.trip?.start_date ? fmtDate(state.trip.start_date) : "";
   const co = state.trip?.end_date ? fmtDate(state.trip.end_date) : "";
@@ -1090,8 +1141,9 @@ function applyPrintStyles(targetEl, hasImageCol) {
 }
 
 window.exportReportPrint = function () {
-  const cols = selectedCols();
-  if (!cols.length) { showToast("เลือกคอลัมน์ก่อน print", "info"); return; }
+  if (!state.selected.length) { showToast("เลือกคอลัมน์ก่อน print", "info"); return; }
+  const cols = outputCols();
+  if (!cols.length) { showToast("ทุกคอลัมน์ถูกซ่อน (🙈) — เปิดอย่างน้อย 1 คอลัมน์", "info"); return; }
   const printArea = document.getElementById("cr-print-area");
   const pageStyle = document.getElementById("crPageStyle");
   if (pageStyle) pageStyle.textContent = `@page{size:${state.orientation};margin:10mm}`;
@@ -1170,8 +1222,9 @@ function buildOnePageCardPreview(cols, rows, startIdx, pageNum, totalPages, isFi
 // 👁 Preview — แสดง layout A4 หลายหน้าซ้อนใน modal ก่อน export
 // table mode → ตัด rows ตาม rowsPerPage · card mode → ตัด rows ตาม cardsPerPage
 window.previewReportPrint = function () {
-  const cols = selectedCols();
-  if (!cols.length) { showToast("เลือกคอลัมน์ก่อน", "info"); return; }
+  if (!state.selected.length) { showToast("เลือกคอลัมน์ก่อน", "info"); return; }
+  const cols = outputCols();
+  if (!cols.length) { showToast("ทุกคอลัมน์ถูกซ่อน (🙈) — เปิดอย่างน้อย 1 คอลัมน์", "info"); return; }
   const allRows = getRows();
   const total = allRows.length;
   const isCard = state.layout === "card";
