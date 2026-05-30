@@ -1155,21 +1155,38 @@ window.exportReportPrint = function () {
   if (pageStyle) pageStyle.textContent = `@page{size:${state.orientation};margin:10mm}`;
 
   if (state.layout === "card") {
-    // Card mode — render การ์ดเป็น grid, ไม่มี table
+    // Card mode — แบ่งเป็นหน้า A4 ชัดเจน (1 หน้า = perPage การ์ด) แล้วบังคับ page-break
+    // เพื่อกันหน้าว่างจาก grid ต่อเนื่องที่ browser ตัดหน้าเอง (cardH ~เต็มหน้า → ล้นไปหน้าถัดไป)
     const rows = getRows();
     applyCardStyles(printArea);
     printArea.style.removeProperty("--cr-img-h");
     printArea.style.removeProperty("--cr-img-w");
+    printArea.classList.add("cr-print-card");
+    // card mode คุม margin ผ่าน padding ภายใน .cr-print-page เอง → @page margin:0
+    if (pageStyle) pageStyle.textContent = `@page{size:${state.orientation};margin:0}`;
+    const isLandscape = state.orientation !== "portrait";
+    const pageH = isLandscape ? 210 : 297;
     const ciD = state.trip?.start_date ? fmtDate(state.trip.start_date) : "";
     const coD = state.trip?.end_date ? fmtDate(state.trip.end_date) : "";
     const dates = (ciD || coD) ? ` · ${ciD || "—"} → ${coD || "—"}` : "";
-    const cardsHtml = rows.map((row, i) => buildCardHtml(row, cols, i + 1)).join("");
-    printArea.innerHTML = `
-      <div class="cr-print-title">📊 Custom Report — ${escapeHtml(tripTitle())}${dates}</div>
-      <div class="cr-print-sub">${rows.length} การ์ด · ${cols.length} ฟิลด์</div>
-      <div class="cr-pcards-grid">${cardsHtml}</div>`;
+    const teamNote = state.teamCount ? ` + ${state.teamCount} ทีมงาน` : "";
+    const perPage = Math.max(1, state.cardsPerPage || 2);
+    const totalPages = Math.max(1, Math.ceil(rows.length / perPage));
+    let pagesHtml = "";
+    for (let p = 0; p < totalPages; p++) {
+      const start = p * perPage;
+      const pageRows = rows.slice(start, start + perPage);
+      const header = p === 0
+        ? `<div class="cr-print-title">📊 Custom Report — ${escapeHtml(tripTitle())}${dates}</div>
+           <div class="cr-print-sub">${state.paxCount || state.pax.length} คน${teamNote} · ${cols.length} ฟิลด์</div>`
+        : "";
+      const cardsHtml = pageRows.map((row, i) => buildCardHtml(row, cols, start + i + 1)).join("");
+      pagesHtml += `<div class="cr-print-page" style="height:${pageH}mm">${header}<div class="cr-pcards-grid">${cardsHtml}</div></div>`;
+    }
+    printArea.innerHTML = pagesHtml;
   } else {
     // Table mode (เดิม)
+    printArea.classList.remove("cr-print-card");
     const payload = buildPrintPayload();
     if (!payload) return;
     applyPrintStyles(printArea, payload.hasImageCol);

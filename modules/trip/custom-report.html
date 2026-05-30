@@ -349,6 +349,14 @@
         object-fit:contain;display:block;margin:0 auto;
       }
       /* card mode in print — mirror preview styles */
+      /* 1 หน้า A4 ต่อ 1 .cr-print-page → บังคับ page-break กันหน้าว่าง (mirror .cr-preview-paper.cr-mode-card) */
+      #cr-print-area .cr-print-page{
+        box-sizing:border-box;padding:8mm;overflow:hidden;position:relative;
+        page-break-after:always;break-after:page;
+      }
+      #cr-print-area .cr-print-page:last-child{page-break-after:auto;break-after:auto}
+      #cr-print-area .cr-print-page .cr-print-title{margin-bottom:4mm}
+      #cr-print-area .cr-print-page .cr-pcards-grid{height:calc(100% - 14mm)}
       #cr-print-area .cr-pcards-grid{
         display:grid;grid-template-columns:repeat(var(--cr-card-cols, 1), 1fr);
         gap:4mm;page-break-inside:auto;
