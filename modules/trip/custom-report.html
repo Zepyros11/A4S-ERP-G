@@ -191,8 +191,24 @@
       }
       table.cr-table tbody tr:nth-child(even) td.cr-merged{background:#f4f9ff}
 
-      /* image cell — thumbnail click → เปิดเต็มใน tab ใหม่ */
+      /* image cell — thumbnail click → popup ภาพขยาย */
       table.cr-table td.cr-cell-img{padding:4px;text-align:center}
+      /* image lightbox */
+      #cr-img-modal{
+        display:none;position:fixed;inset:0;z-index:4000;
+        background:rgba(0,0,0,.75);align-items:center;justify-content:center;
+      }
+      #cr-img-modal.open{display:flex}
+      #cr-img-modal img{
+        max-width:92vw;max-height:92vh;border-radius:8px;
+        box-shadow:0 20px 60px rgba(0,0,0,.5);background:#fff;
+      }
+      #cr-img-modal-close{
+        position:fixed;top:20px;right:24px;background:#fff;border:none;
+        border-radius:50%;width:36px;height:36px;font-size:18px;cursor:pointer;
+        display:flex;align-items:center;justify-content:center;
+        box-shadow:0 2px 8px rgba(0,0,0,.3);
+      }
       .cr-img-thumb{
         max-height:64px;max-width:120px;
         border:1px solid var(--border);border-radius:4px;
@@ -510,6 +526,12 @@
         <button class="btn btn-primary" onclick="window.closePreview();setTimeout(window.exportReportPrint,50)">🖨 Print / PDF</button>
       </div>
       <div class="cr-preview-scroll" id="crPreviewScroll"></div>
+    </div>
+
+    <!-- IMAGE LIGHTBOX -->
+    <div id="cr-img-modal" onclick="window.crCloseImg()">
+      <button id="cr-img-modal-close" onclick="window.crCloseImg()" title="ปิด">✕</button>
+      <img id="cr-img-modal-img" src="" alt="ภาพขยาย" onclick="event.stopPropagation()" />
     </div>
 
     <!-- SCRIPTS -->

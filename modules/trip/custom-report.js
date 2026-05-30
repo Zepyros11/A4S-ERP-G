@@ -417,9 +417,8 @@ function cellHtml(row, col) {
   if (!v) return "";
   if (col.fmt === "image") {
     const u = escapeHtml(v);
-    return `<a href="${u}" target="_blank" rel="noopener" class="cr-img-link" title="คลิกเปิดภาพเต็ม">
-      <img src="${u}" alt="" class="cr-img-thumb" loading="lazy">
-    </a>`;
+    return `<img src="${u}" alt="" class="cr-img-thumb" loading="lazy"
+      title="คลิกเพื่อดูภาพขยาย" onclick="window.crOpenImg(this)">`;
   }
   return escapeHtml(v);
 }
@@ -432,7 +431,7 @@ function sortValue(row, col) {
 }
 
 // sentinel แทน "ค่าว่าง" ใน filter set — ใช้ string ที่ไม่น่าซ้ำกับข้อมูลจริง
-const BLANK_VAL = " __BLANK__ ";
+const BLANK_VAL = "__BLANK__";
 const BLANK_LABEL = "(ว่าง)";
 
 // คืน distinct values ของคอลัมน์ — ใช้ทั้งเช็คว่ามี filter ได้ไหม + populate dropdown
@@ -1271,9 +1270,27 @@ window.closePreview = function () {
   const modal = document.getElementById("crPreviewModal");
   if (modal) modal.style.display = "none";
 };
-// ESC ปิด preview
+// ── IMAGE LIGHTBOX (click thumbnail → ภาพขยาย) ──────────────
+window.crOpenImg = function (el) {
+  const m = document.getElementById("cr-img-modal");
+  if (!m) return;
+  const src = typeof el === "string" ? el : (el && el.src) || "";
+  if (!src) return;
+  document.getElementById("cr-img-modal-img").src = src;
+  m.classList.add("open");
+};
+window.crCloseImg = function () {
+  const m = document.getElementById("cr-img-modal");
+  if (!m) return;
+  m.classList.remove("open");
+  document.getElementById("cr-img-modal-img").src = "";
+};
+
+// ESC ปิด preview / lightbox
 document.addEventListener("keydown", (ev) => {
   if (ev.key !== "Escape") return;
+  const lb = document.getElementById("cr-img-modal");
+  if (lb && lb.classList.contains("open")) { window.crCloseImg(); return; }
   const modal = document.getElementById("crPreviewModal");
   if (modal && modal.style.display !== "none") window.closePreview();
 });
