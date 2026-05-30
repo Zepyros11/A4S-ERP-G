@@ -47,6 +47,7 @@
       min-height: 100vh;
     }
 
+
     /* ── Config Panel ─────────────────────────────────── */
     #config-panel {
       background: var(--accent);
@@ -114,8 +115,17 @@
 
     /* ── Table wrapper ────────────────────────────────── */
     #table-wrap {
-      padding: 16px 20px;
-      overflow-x: auto;
+      /* ไม่ใส่ padding-top — ให้ thead sticky ปักชิดขอบบนของ scrollport พอดี (กันช่องว่าง/แถวลอดเหนือหัว) */
+      padding: 0 20px 16px;
+      /* scroll region ของตาราง (ทั้ง 2 แกน) → frozen columns (sticky left) + sticky header (top) ทำงานในนี้ */
+      overflow: auto;
+      /* ปล่อยให้ stats/legend เลื่อนหายไปได้ปกติ แต่พอ scroll ถึงตาราง
+         ให้ทั้งกล่องตารางหยุด (sticky) ใต้ topbar แล้ว scroll ต่อภายในตัวเอง
+         → หัวตาราง (thead sticky top:0) จึงปักนิ่งใต้ topbar ไม่ลอดหาย */
+      position: sticky;
+      top: var(--topbar-h);
+      max-height: calc(100vh - var(--topbar-h));
+      z-index: 1;   /* ใต้ topbar (z:200); สร้าง stacking context คุม z-index ภายใน */
     }
 
     table {
@@ -165,9 +175,20 @@
     #main-table td .field-input,
     #main-table td input,
     #main-table td select { max-width: 100% !important; box-sizing: border-box; }
+    /* edit mode: ให้ input/select ขยายเต็มความกว้างคอลัม (override inline width:Xpx)
+       — input จะกว้างตามคอลัม + ขยาย/ย่อตามการ resize คอลัม */
+    #main-table td .field-input { width: 100% !important; }
 
-    /* ── Column Resize Handle ───────────────────────── */
-    #main-table thead th { position: relative; }
+    /* ── Sticky header (ตรึงหัวตารางบนสุดเมื่อ scroll) ──
+       position:sticky ยังทำหน้าที่เป็น containing block ให้ .col-resizer (absolute) ได้เหมือน relative */
+    #main-table thead th {
+      position: sticky;
+      top: 0;
+      z-index: 5;               /* เหนือ body cells (frozen td = z:4, ปกติ = 0) */
+      /* bg ต้องอยู่บนตัว th เอง (ไม่ใช่แค่ thead tr) ไม่งั้น sticky จะโปร่งเห็นแถวทะลุ */
+      background: var(--accent);
+      box-shadow: 0 1px 0 rgba(0,0,0,.18);  /* เส้นคั่นใต้หัวตารางตอนตรึง */
+    }
     .col-resizer {
       position: absolute;
       right: 0; top: 0; bottom: 0;
@@ -940,7 +961,7 @@
     @media (max-width: 1024px) {
       #config-panel input { width: 170px; }
       #toolbar { padding: 10px 14px; gap: 6px; }
-      #table-wrap { padding: 12px 14px; }
+      #table-wrap { padding: 0 14px 12px; }
     }
 
     /* Mobile — card layout */
