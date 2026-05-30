@@ -96,6 +96,7 @@ const state = {
   cardsPerPage: 2, // print: การ์ดต่อ A4 (card mode)
   orientation: "landscape", // print: landscape | portrait
   layout: "table", // "table" | "card" — รูปแบบรายงาน
+  cardFieldPos: "top", // card mode: ตำแหน่งกล่องข้อมูลในการ์ด — "top" | "center" | "bottom"
 };
 
 // คอลัมน์ที่จะมี header-filter ได้ — distinct ค่าต้อง 2..FILTER_MAX_DISTINCT
@@ -981,6 +982,9 @@ window.setCardsPerPage = function (v) {
   const n = parseInt(v, 10);
   state.cardsPerPage = (Number.isFinite(n) && n >= 1) ? n : 2;
 };
+window.setCardFieldPos = function (v) {
+  state.cardFieldPos = ["top", "center", "bottom"].includes(v) ? v : "top";
+};
 window.setOrientation = function (v) {
   state.orientation = (v === "portrait") ? "portrait" : "landscape";
 };
@@ -1088,6 +1092,9 @@ function buildCardHtml(row, cols, idx) {
 function applyCardStyles(targetEl) {
   const lay = computeCardLayout();
   targetEl.style.setProperty("--cr-card-cols", lay.cols);
+  // ตำแหน่งกล่องข้อมูลในการ์ด (top/center/bottom) → justify-content ของ flex column
+  const vpos = { top: "flex-start", center: "center", bottom: "flex-end" }[state.cardFieldPos] || "flex-start";
+  targetEl.style.setProperty("--cr-card-vpos", vpos);
   targetEl.style.setProperty("--cr-card-img-h", `${lay.imgH.toFixed(1)}mm`);
   targetEl.style.setProperty("--cr-card-img-w", `${lay.imgW.toFixed(1)}mm`);
   // โหมดภาพเต็ม (image-only) — กล่องภาพใช้พื้นที่การ์ดเกือบเต็ม

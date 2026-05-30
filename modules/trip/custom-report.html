@@ -287,6 +287,7 @@
       .cr-pcard-fields{
         display:flex;flex-direction:column;gap:1.2mm;
         min-width:0;font-size:11px;
+        justify-content:var(--cr-card-vpos, flex-start);
       }
       .cr-pcard-field{
         display:flex;gap:6px;align-items:baseline;
@@ -357,7 +358,7 @@
         border:1px solid #94a3b8;border-radius:2mm;padding:3mm;
         page-break-inside:avoid;background:#fff;
       }
-      #cr-print-area .cr-pcard-fields{display:flex;flex-direction:column;gap:1.2mm;font-size:11px}
+      #cr-print-area .cr-pcard-fields{display:flex;flex-direction:column;gap:1.2mm;font-size:11px;justify-content:var(--cr-card-vpos, flex-start)}
       #cr-print-area .cr-pcard-field{
         display:flex;gap:6px;border-bottom:1px dotted #e2e8f0;padding-bottom:1.2mm;
       }
@@ -473,6 +474,13 @@
                     <option value="2" selected>2</option>
                     <option value="4">4</option>
                     <option value="6">6 (เล็กสุด)</option>
+                  </select>
+                  <span style="font-size:11.5px;color:var(--text2)">↕ ตำแหน่งข้อมูล:</span>
+                  <select id="crCardFieldPos" class="filter-select" onchange="window.setCardFieldPos(this.value)"
+                    title="ตำแหน่งกล่องข้อมูล (ชื่อ/ฟิลด์) ในการ์ดเทียบกับภาพ">
+                    <option value="top" selected>⬆ บน</option>
+                    <option value="center">⬌ กลาง</option>
+                    <option value="bottom">⬇ ล่าง</option>
                   </select>
                 </span>
                 <select id="crOrientation" class="filter-select" onchange="window.setOrientation(this.value)">
