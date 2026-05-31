@@ -61,7 +61,7 @@ async function loadDropdowns() {
     supabaseFetch('warehouses',    { query: '?select=warehouse_id,warehouse_name&is_active=eq.true' }),
     supabaseFetch('users',         { query: '?select=user_id,first_name,last_name&is_active=eq.true' }),
     supabaseFetch('purchase_orders', { query: '?select=po_id,po_number,status&order=po_number.desc&limit=50' }),
-    supabaseFetch('products',      { query: '?select=product_id,product_code,product_name,sale_price&is_active=eq.true&order=product_name' }),
+    supabaseFetch('products',      { query: '?select=product_id,product_code,product_name,sale_price,parent_product_id&is_active=eq.true&order=product_name' }),
     supabaseFetch('product_units', { query: '?select=unit_id,product_id,unit_name,conversion_qty' }),
   ]);
 
@@ -146,6 +146,16 @@ function populateProductSelect(sel) {
   sel.value = cur;
 }
 
+// หน่วยนับเก็บที่ parent — variant (S/M/L) ใช้ร่วมกับ parent → fallback ไป parent
+function unitsForProduct(productId) {
+  const own = productUnits[productId];
+  if (own?.length) return own;
+  const p = products.find(x => x.product_id == productId);
+  const parentId = p?.parent_product_id;
+  if (parentId && productUnits[parentId]?.length) return productUnits[parentId];
+  return own || [];
+}
+
 function onProductChange(sel, rowId) {
   const opt       = sel.options[sel.selectedIndex];
   const productId = parseInt(sel.value);
@@ -154,7 +164,7 @@ function onProductChange(sel, rowId) {
   if (price > 0) priceInput.value = price.toFixed(2);
   const unitSel = document.getElementById(`unit-${rowId}`);
   unitSel.innerHTML = '<option value="">—</option>';
-  const pUnits = productUnits[productId] || [];
+  const pUnits = unitsForProduct(productId);
   pUnits.forEach(u => unitSel.insertAdjacentHTML('beforeend',
     `<option value="${u.unit_id}">${u.unit_name}</option>`));
   if (pUnits.length > 0) unitSel.value = pUnits[0].unit_id;

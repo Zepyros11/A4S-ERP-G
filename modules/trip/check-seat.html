@@ -595,7 +595,7 @@
     .col-instead { width: 150px; min-width: 130px; }
     .col-gender  { width: 90px; min-width: 80px; }
     .col-pin     { width: 90px; min-width: 80px; }
-    .col-port    { width: 100px; min-width: 90px; }
+    .col-port    { width: 124px; min-width: 112px; }
     .col-group   { width: 110px; min-width: 90px; }
     .col-flight  { width: 120px; min-width: 100px; }
     .col-depart  { width: 150px; min-width: 130px; }
@@ -806,6 +806,71 @@
       .ap-form-grid { grid-template-columns: 1fr; }
       #add-person-box { padding: 20px 16px 16px; }
     }
+
+    /* ── Port Manager Modal ──────────────────────────── */
+    #port-mgr-modal {
+      display: none; position: fixed; inset: 0; z-index: 4100;
+      background: rgba(15, 23, 42, 0.55);
+      backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+      align-items: center; justify-content: center;
+      animation: confirmFadeIn .18s ease;
+    }
+    #port-mgr-modal.open { display: flex; }
+    #port-mgr-box {
+      background: #fff; width: min(440px, 94vw); max-height: 90vh; overflow-y: auto;
+      border-radius: 16px; padding: 26px 26px 20px;
+      box-shadow: 0 20px 60px rgba(0,0,0,.25), 0 0 0 1px rgba(0,0,0,.04);
+      animation: confirmPopIn .22s cubic-bezier(.2,.9,.3,1.2);
+    }
+    #port-mgr-box h2 {
+      font-size: 18px; font-weight: 700; color: var(--accent);
+      margin-bottom: 6px; display: flex; align-items: center; gap: 8px;
+    }
+    .pm-hint { font-size: 12px; color: var(--text3); margin-bottom: 16px; line-height: 1.5; }
+    #pm-list { display: flex; flex-direction: column; gap: 8px; }
+    .pm-item { display: flex; align-items: center; gap: 8px; }
+    .pm-item input {
+      flex: 1; padding: 8px 10px; border: 1px solid var(--border2);
+      border-radius: 6px; font-size: 13px; color: var(--text); background: #fff;
+      transition: border-color .15s, box-shadow .15s;
+    }
+    .pm-item input:focus {
+      outline: none; border-color: var(--accent-light);
+      box-shadow: 0 0 0 3px var(--accent-pale);
+    }
+    .pm-del {
+      flex: 0 0 auto; width: 34px; height: 34px; border: 0; border-radius: 8px;
+      background: #fee2e2; color: #b91c1c; font-size: 15px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: background .15s;
+    }
+    .pm-del:hover { background: #fecaca; }
+    .pm-empty { font-size: 13px; color: var(--text3); font-style: italic; padding: 6px 2px; }
+    .pm-add-row { display: flex; gap: 8px; margin-top: 14px; }
+    .pm-add-row input {
+      flex: 1; padding: 8px 10px; border: 1px solid var(--border2);
+      border-radius: 6px; font-size: 13px; color: var(--text); background: #fff;
+    }
+    .pm-add-row input:focus {
+      outline: none; border-color: var(--accent-light);
+      box-shadow: 0 0 0 3px var(--accent-pale);
+    }
+    .pm-btn-add {
+      flex: 0 0 auto; padding: 8px 16px; border: 0; border-radius: 8px;
+      background: #ecfdf5; color: #057a55; font-size: 13px; font-weight: 700;
+      cursor: pointer; transition: background .15s;
+    }
+    .pm-btn-add:hover { background: #d1fae5; }
+    .pm-actions {
+      display: flex; gap: 10px; justify-content: flex-end;
+      margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border);
+    }
+    .pm-actions button {
+      min-width: 100px; padding: 10px 20px; border-radius: 10px; border: 0;
+      font-size: 14px; font-weight: 600; cursor: pointer;
+      transition: transform .1s, box-shadow .15s, background .15s;
+    }
+    .pm-actions button:active { transform: translateY(1px); }
 
     /* ── Report Modal (Card Drill-down) ──────────────── */
     #report-modal {
@@ -1236,6 +1301,11 @@
     ชื่อไม่ตรง Passport
   </span>
   <span style="flex:1"></span>
+  <button id="clear-checks-btn" type="button" onclick="clearAllChecks()"
+          style="padding:4px 10px;border:1px solid var(--border2);border-radius:6px;background:var(--surface);color:var(--text2);font-size:11px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:5px;"
+          title="ยกเลิกเครื่องหมายเช็ค (ไฮไลต์) ทุกแถว">
+    ☑️ ล้างเช็ค
+  </button>
   <button id="toggle-freeze-ui" type="button" onclick="toggleFreezeUI()"
           style="padding:4px 10px;border:1px solid var(--border2);border-radius:6px;background:var(--surface);color:var(--text2);font-size:11px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:5px;"
           title="แสดง/ซ่อนปุ่มตรึงคอลัมที่หัวตาราง">
@@ -1427,6 +1497,23 @@ app.listen(3001, () => console.log('Proxy running on port 3001'));
   </div>
 </div>
 
+<!-- ══ Port Manager Modal (เพิ่ม/แก้ไข/ลบ Port) ═════════ -->
+<div id="port-mgr-modal" onclick="if(event.target===this)closePortManager()">
+  <div id="port-mgr-box" role="dialog" aria-modal="true">
+    <h2>⚙️ จัดการ Port</h2>
+    <p class="pm-hint">เพิ่ม แก้ไข หรือลบรายการ Port ที่ใช้ในตาราง · การแก้ชื่อจะอัปเดตทุกแถวที่ใช้ค่าเดิมให้อัตโนมัติ</p>
+    <div id="pm-list"></div>
+    <div class="pm-add-row">
+      <input id="pm-new" type="text" placeholder="เพิ่ม Port ใหม่ เช่น Accra" onkeydown="if(event.key==='Enter')addPort()">
+      <button class="pm-btn-add" onclick="addPort()">+ เพิ่ม</button>
+    </div>
+    <div class="pm-actions">
+      <button class="ap-btn-cancel" onclick="closePortManager()">ยกเลิก</button>
+      <button class="ap-btn-submit" onclick="savePortManager()">บันทึก</button>
+    </div>
+  </div>
+</div>
+
 <!-- ══ Report Modal (Card Drill-down) ═══════════════════ -->
 <div id="report-modal" onclick="if(event.target===this)closeReport()">
   <div id="report-box" role="dialog" aria-modal="true">
@@ -1605,7 +1692,21 @@ let flightMemory   = {}; // { "FX1": { departureDateTime, arrivalDateTime, comeb
 let comebackMemory = []; // [ "2026-05-03T10:00", ... ] — ค่า comeback ที่เคยใช้ (legacy)
 let comebackFlightMemory = {}; // { "YY": { comebackDateTime: "..." } } — memory comeback flight
 
-const PORT_OPTIONS        = ['', 'Lagos', 'Abidjan'];
+// Port options — แก้ไขได้ผ่าน ⚙️ จัดการ (เก็บใน localStorage ต่อเครื่อง)
+const PORT_OPTIONS_DEFAULT = ['Lagos', 'Abidjan'];
+let PORT_OPTIONS = loadPortOptions(); // includes leading '' (— Select —)
+function loadPortOptions() {
+  let list = PORT_OPTIONS_DEFAULT.slice();
+  try {
+    const saved = JSON.parse(localStorage.getItem('cs_port_options') || 'null');
+    if (Array.isArray(saved)) list = saved.filter(p => p && String(p).trim()).map(p => String(p).trim());
+  } catch (e) {}
+  return [''].concat(list);
+}
+function savePortOptions() {
+  const list = PORT_OPTIONS.filter(p => p && p.trim());
+  try { localStorage.setItem('cs_port_options', JSON.stringify(list)); } catch (e) {}
+}
 const PIN_OPTIONS         = ['', 'SVP', 'VP', 'AVP', 'SD', 'DR'];
 const GENDER_OPTIONS      = ['', 'male', 'female'];
 const GROUP_OPTIONS       = ['', 'G1', 'G2', 'G3', 'G4', 'G5'];
@@ -1829,6 +1930,7 @@ function addEmptyRow() {
 ═══════════════════════════════════════════════════════════ */
 function openAddPerson() {
   rebuildApNationalitySelect();           // refresh dropdown ทุกครั้งที่เปิด
+  refreshApPortSelect();                  // sync Port options ที่แก้ไขได้
   document.getElementById('add-person-modal').classList.add('open');
   document.getElementById('ap-code').focus();
 }
@@ -3233,9 +3335,119 @@ function genderDropdown(row) {
   </select>`;
 }
 function portDropdown(row) {
-  return `<select class="field-input" style="width:84px" onchange="setField('${row.id}','port',this.value)">
-    ${PORT_OPTIONS.map(p => `<option value="${p}" ${row.port===p?'selected':''}>${p||'— Select —'}</option>`).join('')}
+  // ถ้าค่าเดิมของแถวไม่อยู่ใน options (เช่นโดนลบไปแล้ว) ให้คงไว้เป็นตัวเลือกชั่วคราว ไม่ให้หาย
+  const extra = (row.port && !PORT_OPTIONS.includes(row.port))
+    ? `<option value="${esc(row.port)}" selected>${esc(row.port)}</option>` : '';
+  return `<select class="field-input" style="width:106px" onchange="onPortChange('${row.id}',this)">
+    ${PORT_OPTIONS.map(p => `<option value="${esc(p)}" ${row.port===p?'selected':''}>${p||'— Select —'}</option>`).join('')}
+    ${extra}
+    <option value="__manage__" style="color:#057a55;font-weight:700">⚙️ จัดการ Port…</option>
   </select>`;
+}
+function onPortChange(id, sel) {
+  if (sel.value === '__manage__') {
+    const row = getRow(id);
+    sel.value = (row && row.port) || '';   // คืนค่าเดิม ไม่ให้กลายเป็น "__manage__"
+    openPortManager();
+    return;
+  }
+  setField(id, 'port', sel.value);
+}
+
+/* ── Port Manager (เพิ่ม/แก้ไข/ลบ Port) ─────────────────── */
+let portMgrDraft = []; // [{ orig: 'Lagos'|null, name: 'Lagos' }]
+function openPortManager() {
+  portMgrDraft = PORT_OPTIONS.filter(p => p && p.trim()).map(p => ({ orig: p, name: p }));
+  renderPortManagerList();
+  document.getElementById('port-mgr-modal').classList.add('open');
+  setTimeout(() => document.getElementById('pm-new').focus(), 50);
+}
+function closePortManager() {
+  const m = document.getElementById('port-mgr-modal');
+  if (m) m.classList.remove('open');
+  const inp = document.getElementById('pm-new');
+  if (inp) inp.value = '';
+}
+function renderPortManagerList() {
+  const box = document.getElementById('pm-list');
+  if (!portMgrDraft.length) {
+    box.innerHTML = `<div class="pm-empty">ยังไม่มี Port — เพิ่มด้านล่าง</div>`;
+    return;
+  }
+  box.innerHTML = portMgrDraft.map((it, i) => `
+    <div class="pm-item">
+      <input type="text" value="${esc(it.name)}" oninput="portMgrDraft[${i}].name=this.value"
+             onkeydown="if(event.key==='Enter')savePortManager()" />
+      <button class="pm-del" title="ลบ" onclick="deletePort(${i})">🗑</button>
+    </div>`).join('');
+}
+function addPort() {
+  const inp = document.getElementById('pm-new');
+  const val = inp.value.trim();
+  if (!val) { inp.focus(); return; }
+  if (portMgrDraft.some(it => it.name.trim().toLowerCase() === val.toLowerCase())) {
+    toast('มี Port นี้อยู่แล้ว', 'error'); return;
+  }
+  portMgrDraft.push({ orig: null, name: val });
+  inp.value = '';
+  renderPortManagerList();
+  inp.focus();
+}
+async function deletePort(i) {
+  const it = portMgrDraft[i];
+  if (!it) return;
+  const inUse = it.orig ? rows.filter(r => r.port === it.orig).length : 0;
+  if (inUse > 0) {
+    const ok = await ConfirmModal.open({
+      title: 'ลบ Port',
+      message: `มี ${inUse} แถวที่ใช้ Port "${it.orig}" อยู่ — ถ้าลบ ค่าเดิมในแถวเหล่านั้นจะถูกล้าง ดำเนินการต่อ?`,
+      tone: 'danger', icon: '🗑️', okText: 'ลบ', cancelText: 'ยกเลิก',
+    });
+    if (!ok) return;
+  }
+  portMgrDraft.splice(i, 1);
+  renderPortManagerList();
+}
+function savePortManager() {
+  const pending = document.getElementById('pm-new').value.trim();
+  if (pending && !portMgrDraft.some(it => it.name.trim().toLowerCase() === pending.toLowerCase())) {
+    portMgrDraft.push({ orig: null, name: pending });
+  }
+  const cleaned = [];
+  const seen = new Set();
+  for (const it of portMgrDraft) {
+    const name = it.name.trim();
+    if (!name) continue;
+    const key = name.toLowerCase();
+    if (seen.has(key)) { toast(`Port ซ้ำ: "${name}"`, 'error'); return; }
+    seen.add(key);
+    cleaned.push({ orig: it.orig, name });
+  }
+  const renameMap = {}, kept = new Set();
+  cleaned.forEach(it => { if (it.orig) { renameMap[it.orig] = it.name; kept.add(it.orig); } });
+  const touched = [];
+  rows.forEach(r => {
+    if (!r.port) return;
+    if (renameMap[r.port] && renameMap[r.port] !== r.port) { r.port = renameMap[r.port]; touched.push(r); }
+    else if (PORT_OPTIONS.includes(r.port) && !kept.has(r.port)) { r.port = ''; touched.push(r); }
+  });
+  PORT_OPTIONS = [''].concat(cleaned.map(it => it.name));
+  savePortOptions();
+  touched.forEach(r => scheduleRowSave(r));
+  refreshApPortSelect();
+  closePortManager();
+  renderTable();
+  updateStats();
+  toast('บันทึก Port แล้ว', 'success');
+}
+// ซิงค์ตัวเลือก Port ในฟอร์ม "เพิ่มรายชื่อใหม่" ให้ตรงกับ PORT_OPTIONS
+function refreshApPortSelect() {
+  const sel = document.getElementById('ap-port');
+  if (!sel) return;
+  const cur = sel.value;
+  sel.innerHTML = PORT_OPTIONS.map(p =>
+    `<option value="${esc(p)}">${p || '— Select —'}</option>`).join('');
+  if (PORT_OPTIONS.includes(cur)) sel.value = cur;
 }
 function groupDropdown(row) {
   return `<select class="field-input" style="width:76px" onchange="setField('${row.id}','group',this.value)">
@@ -3546,6 +3758,23 @@ function toggleHighlight(id, checked) {
   const tr = document.getElementById('tr_' + id);
   if (tr) tr.classList.toggle('row-highlighted', checked);
   scheduleRowSave(row, 200);
+}
+
+// ล้างเครื่องหมายเช็ค (ไฮไลต์) ทุกแถว
+async function clearAllChecks() {
+  const checked = rows.filter(r => r.highlighted);
+  if (!checked.length) { toast('ไม่มีรายการที่เช็คไว้', 'info'); return; }
+  const ok = await ConfirmModal.open({
+    title: 'ล้างเช็คทั้งหมด',
+    message: `ยกเลิกเครื่องหมายเช็ค (ไฮไลต์) ทั้งหมด ${checked.length} แถว?`,
+    icon: '☑️', okText: 'ล้างทั้งหมด', cancelText: 'ยกเลิก',
+  });
+  if (!ok) return;
+  checked.forEach(r => { r.highlighted = false; });
+  saveLocal();
+  renderTable();
+  if (sbClient) saveAllToSupabase().catch(e => toast('บันทึกล้มเหลว: ' + (e.message || e), 'error'));
+  toast(`ล้างเช็คแล้ว ${checked.length} แถว`, 'success');
 }
 
 function toggleWaive(id, checked) {
@@ -4320,7 +4549,7 @@ document.addEventListener('click', (e) => {
    KEYBOARD — Escape to close modal
 ═══════════════════════════════════════════════════════════ */
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') { closeImgModal(); closeReport(); }
+  if (e.key === 'Escape') { closeImgModal(); closeReport(); closePortManager(); }
 });
 
 async function syncFromSupabase() {

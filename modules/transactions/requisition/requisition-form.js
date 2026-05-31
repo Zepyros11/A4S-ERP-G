@@ -553,11 +553,21 @@ function comboRender(rowId) {
   });
 }
 
+// หน่วยนับเก็บที่ parent — variant (S/M/L) ใช้ร่วมกับ parent → fallback ไป parent
+function unitsForProduct(productId) {
+  const own = productUnits[productId];
+  if (own?.length) return own;
+  const p = products.find(x => x.product_id == productId);
+  const parentId = p?.parent_product_id;
+  if (parentId && productUnits[parentId]?.length) return productUnits[parentId];
+  return own || [];
+}
+
 function comboPick(rowId, productId) {
   const product = products.find(p => p.product_id == productId);
   if (!product) return;
   // เช็คว่า product มีหน่วยนับใน DB ไหม — กันไม่ให้ user เลือก แล้วเจอ error ตอน save
-  if (!productUnits[productId]?.length) {
+  if (!unitsForProduct(productId).length) {
     showToast(`สินค้า "${product.product_name}" ไม่มีหน่วยนับ — กรุณาตั้งหน่วยใน Master Product ก่อน`, 'error');
     return;
   }
@@ -823,7 +833,7 @@ function collectFormData(validate = true) {
     const qty       = document.getElementById(`qty-req-${rowId}`)?.value;
     const itemNote  = document.getElementById(`note-${rowId}`)?.value;
     const comboText = document.getElementById(`combo-input-${rowId}`)?.value?.trim();
-    const unitId    = (productUnits[productId]?.[0]?.unit_id) || null;   // default = หน่วยแรก
+    const unitId    = (unitsForProduct(productId)[0]?.unit_id) || null;   // default = หน่วยแรก (variant→parent)
     const qtyNum    = parseFloat(qty);
 
     // Empty row (no product chosen, no qty) — silently skip
