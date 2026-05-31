@@ -24,8 +24,9 @@ const state = {
 
 const filter = { search: "", categoryId: "", warehouseId: "", status: "" };
 
-// การจัดเรียงตามหัวคอลัมน์ (default: status rank → ปัญหาขึ้นก่อน)
-const sort = { key: "status", dir: "asc" };
+// การจัดเรียง — default = "default" (ลำดับสร้าง product_id ASC) ให้ตรงกับหน้า products-list
+// (ทำให้ variant เรียง S/M/L/XL/2XL ตามที่กรอก · ไม่ผูกกับหัวคอลัมน์ใด)
+const sort = { key: "default", dir: "asc" };
 
 // ทิศทางเริ่มต้นเมื่อคลิกคอลัมน์ใหม่ (text=asc, ตัวเลข=มาก→น้อย, status=ปัญหาก่อน)
 const SORT_DEFAULT_DIR = {
@@ -56,6 +57,21 @@ function updateSortIndicators() {
     if (ind) ind.textContent = active ? (sort.dir === "asc" ? " ▲" : " ▼") : "";
   });
 }
+
+// parents ที่ user ขยายอยู่ (default = ย่อทั้งหมด · persist ระหว่าง re-render)
+const expandedParents = new Set();
+
+window.sbToggleVariantGroup = function (parentId) {
+  const willExpand = !expandedParents.has(parentId);
+  if (willExpand) expandedParents.add(parentId);
+  else expandedParents.delete(parentId);
+  document
+    .querySelector(`.sb-collapse-btn[data-parent="${parentId}"]`)
+    ?.classList.toggle("collapsed", !willExpand);
+  document
+    .querySelectorAll(`#sbBody tr[data-parent-id="${parentId}"]`)
+    .forEach((r) => r.classList.toggle("sb-row-collapsed", !willExpand));
+};
 
 // product_id ที่ถูกเลือกในตาราง (persist ระหว่าง re-render)
 const selectedIds = new Set();
@@ -507,7 +523,15 @@ function renderTable(idx) {
     const reserved = getReservedScoped(p.product_id, idx);
     const available = onHand - reserved;
     const expQty = getExpiringSoonQty(p.product_id, idx);
-    return { p, onHand, reserved, available, expQty };
+    return {
+      p,
+      onHand,
+      reserved,
+      available,
+      expQty,
+      reorder: p.reorder_point || 0,
+      disableAlert: !!p.disable_stock_alert,
+    };
   });
 
   // filter
@@ -539,9 +563,48 @@ function renderTable(idx) {
     return true;
   });
 
+  // ── จัดกลุ่มเป็น "สินค้าชุด" (parent + variants) เหมือนหน้า products-list ──
+  // variant = leaf row ที่ p.parent_product_id ชี้ไป parent ที่มีอยู่จริง
+  const childrenByParent = {};
+  rows.forEach((r) => {
+    const par = r.p.parent_product_id;
+    if (par != null && idx.productsById[par])
+      (childrenByParent[par] ||= []).push(r);
+  });
+  const usedAsChild = new Set();
+  Object.values(childrenByParent).forEach((kids) =>
+    kids.forEach((k) => usedAsChild.add(k.p.product_id)),
+  );
+
+  // groupRows = parent-aggregate (สินค้าชุด) + singleton (สินค้าเดี่ยว)
+  const groupRows = [];
+  Object.keys(childrenByParent).forEach((parId) => {
+    const parent = idx.productsById[parId];
+    if (!parent) return;
+    const kids = childrenByParent[parId];
+    const onHand = kids.reduce((s, k) => s + k.onHand, 0);
+    const reserved = kids.reduce((s, k) => s + k.reserved, 0);
+    const expQty = kids.reduce((s, k) => s + k.expQty, 0);
+    const reorder = kids.reduce((s, k) => s + k.reorder, 0);
+    groupRows.push({
+      p: parent,
+      onHand,
+      reserved,
+      available: onHand - reserved,
+      expQty,
+      reorder,
+      disableAlert: kids.every((k) => k.disableAlert),
+      isParent: true,
+      kids,
+    });
+  });
+  rows.forEach((r) => {
+    if (!usedAsChild.has(r.p.product_id)) groupRows.push(r);
+  });
+
   // sort: ตามหัวคอลัมน์ที่ผู้ใช้เลือก (default = status rank → ปัญหาเด่น)
   const dir = sort.dir === "asc" ? 1 : -1;
-  rows.sort((a, b) => {
+  const cmpRows = (a, b) => {
     let cmp;
     switch (sort.key) {
       case "name":
@@ -563,19 +626,26 @@ function renderTable(idx) {
         cmp = a.available - b.available;
         break;
       case "reorder":
-        cmp = (a.p.reorder_point || 0) - (b.p.reorder_point || 0);
+        cmp = a.reorder - b.reorder;
         break;
       case "status":
-      default:
         cmp = statusRank(a) - statusRank(b);
         break;
+      case "default":
+      default:
+        // ลำดับสร้าง (product_id ASC) — เหมือน default หน้า products-list
+        cmp = (a.p.product_id || 0) - (b.p.product_id || 0);
+        break;
     }
-    if (cmp === 0)
-      cmp = (a.p.product_name || "").localeCompare(b.p.product_name || "", "th");
-    return cmp * dir;
-  });
+    if (cmp !== 0) return cmp * dir;
+    // tiebreaker = ลำดับสร้าง (product_id ASC) เสมอ → variant คงลำดับ S/M/L/XL
+    return (a.p.product_id || 0) - (b.p.product_id || 0);
+  };
+  groupRows.sort(cmpRows);
+  Object.values(childrenByParent).forEach((kids) => kids.sort(cmpRows));
   updateSortIndicators();
 
+  // นับเป็นจำนวน SKU จริง (variants + singletons) — ตรงกับ KPI
   $("sbCount").textContent = `${fmtNum(rows.length, 0)} รายการ`;
 
   const tbody = $("sbBody");
@@ -585,51 +655,109 @@ function renderTable(idx) {
     return;
   }
 
-  tbody.innerHTML = rows
+  tbody.innerHTML = groupRows
     .map((r) => {
-      const cat = idx.categoriesById[r.p.category_id];
-      const reorder = r.p.reorder_point || 0;
-      const status = statusBadge(r);
-      const onHandCls = r.onHand < 0 ? "sd-qty-out" : "";
-      const availCls =
-        r.available < 0
-          ? "sd-qty-out"
-          : r.available === 0
-            ? "sd-qty-out"
-            : r.available <= reorder && !r.p.disable_stock_alert
-              ? "sd-qty-low"
-              : "sd-qty-ok";
-      const expChip = r.expQty > 0
-        ? `<span class="sb-exp-chip" title="ใกล้หมดอายุ ≤${EXPIRING_SOON_DAYS} วัน">⏳ ${fmtNum(r.expQty, 0)}</span>`
-        : "";
-      const imgUrl = idx.resolveImage(r.p.product_id);
-      const thumb = imgUrl
-        ? `<div class="sb-thumb sb-thumb-img sb-thumb-clickable" onclick="window.openProductImage(${r.p.product_id})" title="คลิกเพื่อดูรูป"><img src="${escapeHtml(imgUrl)}" alt="" onerror="this.parentElement.innerHTML='📦';this.parentElement.classList.remove('sb-thumb-img','sb-thumb-clickable');this.parentElement.removeAttribute('onclick')"></div>`
-        : `<div class="sb-thumb">📦</div>`;
-      const isChk = selectedIds.has(r.p.product_id) ? "checked" : "";
-      return `<tr>
-        <td class="sb-td-check"><input type="checkbox" class="sb-row-check" value="${r.p.product_id}" onchange="window.sbToggleRow(this)" ${isChk}></td>
-        <td>${thumb}</td>
-        <td>
-          <div class="sb-prod-name">${escapeHtml(r.p.product_name)}</div>
-          <div class="sb-prod-code">${escapeHtml(r.p.product_code || "")}</div>
-        </td>
-        <td>
-          <span class="sd-cat-badge">${cat?.icon || "📦"} ${escapeHtml(cat?.category_name || "—")}</span>
-        </td>
-        <td class="sd-td-right sd-td-mono"><span class="${onHandCls}">${fmtNum(r.onHand, 0)}</span></td>
-        <td class="sd-td-right sd-td-mono">${r.reserved > 0 ? `<span class="sb-reserved">${fmtNum(r.reserved, 0)}</span>` : "0"}</td>
-        <td class="sd-td-right sd-td-mono"><span class="sd-qty ${availCls}">${fmtNum(r.available, 0)}</span></td>
-        <td class="sd-td-right sd-td-mono">${reorder > 0 ? fmtNum(reorder, 0) : `<span style="color:var(--text3)">—</span>`}</td>
-        <td class="sd-td-right">${status}${expChip}</td>
-        <td>
-          <button class="sb-act-btn" onclick="openDetail(${r.p.product_id})" title="ดูรายละเอียด">รายละเอียด</button>
-        </td>
-      </tr>`;
+      if (r.isParent) {
+        return (
+          renderGroupParent(r, idx) +
+          r.kids
+            .map((k) => renderLeafRow(k, idx, { isChild: true, parentId: r.p.product_id }))
+            .join("")
+        );
+      }
+      return renderLeafRow(r, idx, {});
     })
     .join("");
 
   syncSelectAllState(rows.map((r) => r.p.product_id));
+  syncGroupChecks();
+}
+
+// ── ROW RENDERERS ───────────────────────────────────────────
+function availClass(r) {
+  if (r.available < 0 || r.available === 0) return "sd-qty-out";
+  if (r.available <= rowReorder(r) && !rowDisableAlert(r)) return "sd-qty-low";
+  return "sd-qty-ok";
+}
+
+function expChipHtml(r) {
+  return r.expQty > 0
+    ? `<span class="sb-exp-chip" title="ใกล้หมดอายุ ≤${EXPIRING_SOON_DAYS} วัน">⏳ ${fmtNum(r.expQty, 0)}</span>`
+    : "";
+}
+
+function realThumbHtml(idx, pid) {
+  const imgUrl = idx.resolveImage(pid);
+  return imgUrl
+    ? `<div class="sb-thumb sb-thumb-img sb-thumb-clickable" onclick="window.openProductImage(${pid})" title="คลิกเพื่อดูรูป"><img src="${escapeHtml(imgUrl)}" alt="" onerror="this.parentElement.innerHTML='📦';this.parentElement.classList.remove('sb-thumb-img','sb-thumb-clickable');this.parentElement.removeAttribute('onclick')"></div>`
+    : `<div class="sb-thumb">📦</div>`;
+}
+
+// parent (สินค้าชุด) — ยอดรวมของทุก variant + ปุ่มย่อ/ขยาย + badge จำนวนตัวเลือก
+function renderGroupParent(r, idx) {
+  const p = r.p;
+  const cat = idx.categoriesById[p.category_id];
+  const reorder = r.reorder || 0;
+  const onHandCls = r.onHand < 0 ? "sd-qty-out" : "";
+  const collapsed = !expandedParents.has(p.product_id);
+  return `<tr class="sb-parent-row">
+    <td class="sb-td-check"><input type="checkbox" class="sb-grp-check" data-group="${p.product_id}" onchange="window.sbToggleGroup(this)" aria-label="เลือกทั้งชุด"></td>
+    <td>${realThumbHtml(idx, p.product_id)}</td>
+    <td>
+      <div class="sb-prod-name">
+        <button class="sb-collapse-btn${collapsed ? " collapsed" : ""}" data-parent="${p.product_id}" onclick="event.stopPropagation();window.sbToggleVariantGroup(${p.product_id})" title="ย่อ/ขยายตัวเลือก">▾</button>
+        ${escapeHtml(p.product_name)}
+        <span class="sb-variant-badge">${fmtNum(r.kids.length, 0)} ตัวเลือก</span>
+      </div>
+      <div class="sb-prod-code">${escapeHtml(p.product_code || "")}</div>
+    </td>
+    <td>
+      <span class="sd-cat-badge">${cat?.icon || "📦"} ${escapeHtml(cat?.category_name || "—")}</span>
+    </td>
+    <td class="sd-td-right sd-td-mono"><span class="${onHandCls}">${fmtNum(r.onHand, 0)}</span></td>
+    <td class="sd-td-right sd-td-mono">${r.reserved > 0 ? `<span class="sb-reserved">${fmtNum(r.reserved, 0)}</span>` : "0"}</td>
+    <td class="sd-td-right sd-td-mono"><span class="sd-qty ${availClass(r)}">${fmtNum(r.available, 0)}</span></td>
+    <td class="sd-td-right sd-td-mono">${reorder > 0 ? fmtNum(reorder, 0) : `<span style="color:var(--text3)">—</span>`}</td>
+    <td class="sd-td-right">${statusBadge(r)}${expChipHtml(r)}</td>
+    <td></td>
+  </tr>`;
+}
+
+// leaf — singleton หรือ variant child (isChild=true → เยื้อง + ย่อตาม parent)
+function renderLeafRow(r, idx, { isChild = false, parentId = null } = {}) {
+  const p = r.p;
+  const cat = idx.categoriesById[p.category_id];
+  const reorder = r.reorder || 0;
+  const onHandCls = r.onHand < 0 ? "sd-qty-out" : "";
+  const thumb = isChild
+    ? `<div class="sb-thumb sb-thumb-child">└</div>`
+    : realThumbHtml(idx, p.product_id);
+  const nameCell = isChild
+    ? `<div class="sb-prod-name sb-prod-name-child"><span class="sb-child-indent">└</span> ${escapeHtml(p.product_name)}</div>
+       <div class="sb-prod-code">${escapeHtml(p.product_code || "")}</div>`
+    : `<div class="sb-prod-name">${escapeHtml(p.product_name)}</div>
+       <div class="sb-prod-code">${escapeHtml(p.product_code || "")}</div>`;
+  const isChk = selectedIds.has(p.product_id) ? "checked" : "";
+  const collapsed = isChild && parentId != null && !expandedParents.has(parentId);
+  const rowCls = isChild ? `sb-child-row${collapsed ? " sb-row-collapsed" : ""}` : "";
+  const parentAttr = isChild && parentId != null ? ` data-parent-id="${parentId}"` : "";
+  const chkParentAttr = isChild && parentId != null ? ` data-parent-id="${parentId}"` : "";
+  return `<tr class="${rowCls}"${parentAttr}>
+    <td class="sb-td-check"><input type="checkbox" class="sb-row-check" value="${p.product_id}"${chkParentAttr} onchange="window.sbToggleRow(this)" ${isChk}></td>
+    <td>${thumb}</td>
+    <td>${nameCell}</td>
+    <td>
+      <span class="sd-cat-badge">${cat?.icon || "📦"} ${escapeHtml(cat?.category_name || "—")}</span>
+    </td>
+    <td class="sd-td-right sd-td-mono"><span class="${onHandCls}">${fmtNum(r.onHand, 0)}</span></td>
+    <td class="sd-td-right sd-td-mono">${r.reserved > 0 ? `<span class="sb-reserved">${fmtNum(r.reserved, 0)}</span>` : "0"}</td>
+    <td class="sd-td-right sd-td-mono"><span class="sd-qty ${availClass(r)}">${fmtNum(r.available, 0)}</span></td>
+    <td class="sd-td-right sd-td-mono">${reorder > 0 ? fmtNum(reorder, 0) : `<span style="color:var(--text3)">—</span>`}</td>
+    <td class="sd-td-right">${statusBadge(r)}${expChipHtml(r)}</td>
+    <td>
+      <button class="sb-act-btn" onclick="openDetail(${p.product_id})" title="ดูรายละเอียด">รายละเอียด</button>
+    </td>
+  </tr>`;
 }
 
 function syncSelectAllState(visibleIds) {
@@ -657,6 +785,26 @@ window.sbToggleRow = function (cb) {
     document.querySelectorAll("#sbBody .sb-row-check"),
   ).map((c) => +c.value);
   syncSelectAllState(visibleIds);
+  syncGroupChecks();
+  syncBulkBar();
+};
+
+// checkbox ของ "สินค้าชุด" → เลือก/ยกเลิก variant ทั้งหมดในชุด
+window.sbToggleGroup = function (cb) {
+  const par = +cb.dataset.group;
+  document
+    .querySelectorAll(`#sbBody .sb-row-check[data-parent-id="${par}"]`)
+    .forEach((b) => {
+      b.checked = cb.checked;
+      const pid = +b.value;
+      if (cb.checked) selectedIds.add(pid);
+      else selectedIds.delete(pid);
+    });
+  cb.indeterminate = false;
+  const visibleIds = Array.from(
+    document.querySelectorAll("#sbBody .sb-row-check"),
+  ).map((c) => +c.value);
+  syncSelectAllState(visibleIds);
   syncBulkBar();
 };
 
@@ -670,6 +818,7 @@ window.sbToggleSelectAll = function (cb) {
   });
   const chkAll = $("sbChkAll");
   if (chkAll) chkAll.indeterminate = false;
+  syncGroupChecks();
   syncBulkBar();
 };
 
@@ -683,8 +832,22 @@ window.sbClearSelection = function () {
     chkAll.checked = false;
     chkAll.indeterminate = false;
   }
+  syncGroupChecks();
   syncBulkBar();
 };
+
+// sync state ของ checkbox สินค้าชุด ตาม variant ที่เลือก (checked/indeterminate)
+function syncGroupChecks() {
+  document.querySelectorAll("#sbBody .sb-grp-check").forEach((g) => {
+    const par = +g.dataset.group;
+    const kids = Array.from(
+      document.querySelectorAll(`#sbBody .sb-row-check[data-parent-id="${par}"]`),
+    );
+    const sel = kids.filter((k) => selectedIds.has(+k.value)).length;
+    g.checked = kids.length > 0 && sel === kids.length;
+    g.indeterminate = sel > 0 && sel < kids.length;
+  });
+}
 
 function syncBulkBar() {
   const bar = $("sbBulkBar");
@@ -716,9 +879,8 @@ window.sbExportSelectedPDF = function () {
         imgUrl: idx.resolveImage(p.product_id),
       };
     })
-    .sort((a, b) =>
-      (a.p.product_name || "").localeCompare(b.p.product_name || ""),
-    );
+    // เรียงตามลำดับสร้าง (product_id ASC) ให้ตรงกับการแสดงผลหน้าจอ
+    .sort((a, b) => (a.p.product_id || 0) - (b.p.product_id || 0));
 
   if (!rows.length) {
     showToast("ไม่พบรายการที่เลือกใน state ปัจจุบัน", "warning");
@@ -927,11 +1089,19 @@ function escapeAttr(s) {
   return String(s ?? "").replace(/"/g, "&quot;");
 }
 
+// reorder/disableAlert: ใช้ค่าที่ติดมากับ row (parent = ผลรวม/รวมของ kids)
+// fallback ไป product field สำหรับ row ที่ไม่ได้เซ็ตไว้ (เช่น export PDF)
+function rowReorder(r) {
+  return r.reorder != null ? r.reorder : r.p.reorder_point || 0;
+}
+function rowDisableAlert(r) {
+  return r.disableAlert != null ? r.disableAlert : !!r.p.disable_stock_alert;
+}
+
 function statusRank(r) {
   if (r.available < 0) return 0;
   if (r.available <= 0) return 1;
-  if (r.available <= (r.p.reorder_point || 0) && !r.p.disable_stock_alert)
-    return 2;
+  if (r.available <= rowReorder(r) && !rowDisableAlert(r)) return 2;
   if (r.expQty > 0) return 3;
   return 4;
 }
@@ -941,7 +1111,7 @@ function statusBadge(r) {
     return `<span class="sb-badge sb-badge-neg">ติดลบ</span>`;
   if (r.available <= 0)
     return `<span class="sb-badge sb-badge-out">หมด</span>`;
-  if (r.available <= (r.p.reorder_point || 0) && !r.p.disable_stock_alert)
+  if (r.available <= rowReorder(r) && !rowDisableAlert(r))
     return `<span class="sb-badge sb-badge-low">ใกล้สั่ง</span>`;
   return `<span class="sb-badge sb-badge-ok">ปกติ</span>`;
 }
