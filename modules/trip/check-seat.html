@@ -497,6 +497,92 @@
 
     .img-locked { cursor: zoom-in !important; }
 
+    /* ── Ticket (multi-image) cell — รูปเดียว + badge ──── */
+    .ticket-badge-wrap { position: relative; display: inline-block; cursor: pointer; }
+    .ticket-thumb {
+      width: 54px; height: 54px; border-radius: 6px; overflow: hidden;
+      position: relative; border: 1px solid var(--border);
+      background: var(--surface2); flex: 0 0 auto;
+    }
+    .ticket-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .ticket-thumb.uploading { opacity: .55; }
+    .ticket-badge-wrap:hover .ticket-thumb { border-color: var(--accent); }
+    .ticket-spin {
+      position: absolute; inset: 0; margin: auto;
+      width: 18px; height: 18px; border: 2px solid rgba(255,255,255,.6);
+      border-top-color: var(--accent); border-radius: 50%;
+      animation: spin .8s linear infinite;
+    }
+    .ticket-count-badge {
+      position: absolute; top: -6px; right: -6px;
+      min-width: 18px; height: 18px; padding: 0 5px;
+      background: var(--accent); color: #fff;
+      border: 2px solid #fff; border-radius: 99px;
+      font-size: 11px; font-weight: 700; line-height: 15px;
+      text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,.25);
+    }
+    .ticket-add-sm {
+      display: inline-flex; align-items: center; justify-content: center;
+      min-width: 54px; height: 32px; padding: 0 8px;
+      border: 2px dashed var(--border2); border-radius: 6px;
+      font-size: 11px; color: var(--text3); cursor: pointer;
+      transition: .15s; background: var(--surface2); white-space: nowrap;
+    }
+    .ticket-add-sm:hover { border-color: var(--accent); background: var(--accent-pale); color: var(--accent); }
+    .ticket-empty { font-size: 16px; color: var(--text3); }
+
+    /* ── Ticket Gallery Modal ─────────────────────────── */
+    #ticket-modal {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,.55); z-index: 1100;
+      align-items: center; justify-content: center;
+    }
+    #ticket-modal.open { display: flex; }
+    #ticket-modal-box {
+      background: var(--surface); border-radius: 14px;
+      width: min(560px, 92vw); max-height: 86vh; overflow: auto;
+      box-shadow: 0 20px 60px rgba(0,0,0,.4);
+    }
+    #ticket-modal-head {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 18px;
+      background: linear-gradient(135deg, var(--accent), var(--accent-light, var(--accent)));
+      color: #fff; font-weight: 700; font-size: 15px;
+      position: sticky; top: 0;
+    }
+    #ticket-modal-head button {
+      background: rgba(255,255,255,.2); color: #fff; border: none;
+      width: 28px; height: 28px; border-radius: 50%; cursor: pointer; font-size: 14px;
+    }
+    #ticket-modal-head button:hover { background: rgba(255,255,255,.35); }
+    #ticket-modal-grid {
+      display: flex; flex-wrap: wrap; gap: 12px;
+      padding: 18px; align-content: flex-start;
+    }
+    .tm-thumb {
+      width: 150px; height: 150px; border-radius: 10px; overflow: hidden;
+      position: relative; border: 1px solid var(--border);
+      background: var(--surface2); flex: 0 0 auto;
+    }
+    .tm-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; cursor: zoom-in; }
+    .tm-thumb.uploading { opacity: .55; }
+    .tm-thumb .tm-remove {
+      position: absolute; top: 5px; right: 5px;
+      background: rgba(0,0,0,.6); color: #fff; border: none;
+      border-radius: 5px; width: 24px; height: 24px;
+      font-size: 12px; line-height: 1; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .tm-thumb .tm-remove:hover { background: #dc2626; }
+    .tm-add {
+      width: 150px; height: 150px; flex: 0 0 auto;
+      border: 2px dashed var(--border2); border-radius: 10px;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 4px; font-size: 12px; color: var(--text3); cursor: pointer;
+      transition: .15s; background: var(--surface2); text-align: center;
+    }
+    .tm-add:hover, .tm-add.drag-over { border-color: var(--accent); background: var(--accent-pale); color: var(--accent); }
+
     /* ── Seat cell ────────────────────────────────────── */
     .seat-badge {
       display: inline-block; padding: 2px 8px; border-radius: 99px;
@@ -524,7 +610,7 @@
     /* ── Image Modal ──────────────────────────────────── */
     #img-modal {
       display: none; position: fixed; inset: 0;
-      background: rgba(0,0,0,.75); z-index: 1000;
+      background: rgba(0,0,0,.75); z-index: 1200;
       align-items: center; justify-content: center;
     }
     #img-modal.open { display: flex; }
@@ -607,6 +693,7 @@
     .col-pimg    { width: 100px; min-width: 100px; }
     .col-pid     { width: 150px; min-width: 130px; }
     .col-pexp    { width: 120px; min-width: 110px; }
+    .col-ticket  { width: 90px; min-width: 84px; text-align: center; }
     .col-slip    { width: 100px; min-width: 100px; }
     .col-paid    { width: 90px; min-width: 80px; text-align: center; }
     .col-tel     { width: 140px; min-width: 120px; }
@@ -1342,6 +1429,7 @@
         <th class="col-arrive"><span class="th-content"><input type="radio" name="freeze-col" class="col-freeze-cb" data-col="arrive" title="ตรึงคอลัม (กดซ้ำเพื่อปลด)"><span>Date&amp;Time<br>(Arrival)</span></span></th>
         <th class="col-comeback"><span class="th-content"><input type="radio" name="freeze-col" class="col-freeze-cb" data-col="comeback" title="ตรึงคอลัม (กดซ้ำเพื่อปลด)"><span>Comeback Flight</span></span></th>
         <th class="col-comeback-dt"><span class="th-content"><input type="radio" name="freeze-col" class="col-freeze-cb" data-col="comeback-dt" title="ตรึงคอลัม (กดซ้ำเพื่อปลด)"><span>Date&amp;Time<br>(Comeback)</span></span></th>
+        <th class="col-ticket"><span class="th-content"><input type="radio" name="freeze-col" class="col-freeze-cb" data-col="ticket" title="ตรึงคอลัม (กดซ้ำเพื่อปลด)"><span>ตั๋ว<br>เครื่องบิน</span></span></th>
         <th class="col-slip"><span class="th-content"><input type="radio" name="freeze-col" class="col-freeze-cb" data-col="slip" title="ตรึงคอลัม (กดซ้ำเพื่อปลด)"><span>Slip</span></span></th>
         <th class="col-paid"><span class="th-content"><input type="radio" name="freeze-col" class="col-freeze-cb" data-col="paid" title="ตรึงคอลัม (กดซ้ำเพื่อปลด)"><span>Paid</span></span></th>
         <th class="col-waive">Waive</th>
@@ -1350,7 +1438,7 @@
     </thead>
     <tbody id="table-body">
       <tr id="empty-row">
-        <td colspan="23">No data — click Import Excel or add a row manually</td>
+        <td colspan="24">No data — click Import Excel or add a row manually</td>
       </tr>
     </tbody>
   </table>
@@ -1402,6 +1490,19 @@ app.listen(3001, () => console.log('Proxy running on port 3001'));
 <div id="img-modal" onclick="closeImgModal()">
   <button id="img-modal-close" onclick="closeImgModal()">✕</button>
   <img id="img-modal-img" src="" alt="preview" onclick="event.stopPropagation()" />
+</div>
+
+<!-- ══ Ticket Gallery Modal (ตั๋วเครื่องบิน) ═══════════════ -->
+<div id="ticket-modal" onclick="closeTicketModal()">
+  <div id="ticket-modal-box" onclick="event.stopPropagation()">
+    <div id="ticket-modal-head">
+      <span>✈️ ตั๋วเครื่องบิน <small id="ticket-modal-hint" style="color:var(--text3);font-weight:400"></small></span>
+      <button onclick="closeTicketModal()" title="ปิด">✕</button>
+    </div>
+    <div id="ticket-modal-grid"></div>
+    <input type="file" id="ticket-modal-file" accept="image/*" multiple style="display:none"
+           onchange="ticketModalFileChosen(event)" />
+  </div>
 </div>
 
 <!-- ══ Save Processing Overlay ═══════════════════════════ -->
@@ -1770,6 +1871,7 @@ function makeRow(overrides = {}) {
     passExp:           '',
     visaImg:           null,
     visaImgFile:       null,
+    ticketImgs:        [],     // array ของ URL (รูปตั๋วเครื่องบิน ไป+กลับ สูงสุด 5)
     paid:              '',
     tel:               '',
     shirt:             '',
@@ -2338,6 +2440,7 @@ function saveLocal() {
     passImg:  r.passImg  && !r.passImg.startsWith('data:')  ? r.passImg  : null,
     passId: r.passId, passExp: r.passExp,
     visaImg:  r.visaImg  && !r.visaImg.startsWith('data:')  ? r.visaImg  : null,
+    ticketImgs: (Array.isArray(r.ticketImgs) ? r.ticketImgs : []).filter(u => u && !u.startsWith('data:')),
     paid: r.paid || '',
     tel: r.tel, shirt: r.shirt, isSubRow: r.isSubRow, parentId: r.parentId,
   }));
@@ -2364,7 +2467,7 @@ function loadLocal() {
 
 /* คืนรูปจาก IndexedDB สำหรับ rows ที่ยังไม่มีรูป */
 async function restoreImagesFromIDB() {
-  const needImg = rows.filter(r => r.code && (!r.passImg || !r.visaImg));
+  const needImg = rows.filter(r => r.code);
   if (needImg.length === 0) return;
   await Promise.all(needImg.map(async row => {
     if (!row.passImg) {
@@ -2374,6 +2477,19 @@ async function restoreImagesFromIDB() {
     if (!row.visaImg) {
       const img = await IMG_DB.get(`${row.code}_visaImg`);
       if (img) { row.visaImg = img; }
+    }
+    // ตั๋วเครื่องบิน — คืน data url ที่ยังไม่ได้อัปโหลด (offline)
+    const tk = await IMG_DB.get(`${row.code}_ticketImgs`);
+    if (tk) {
+      try {
+        const arr = JSON.parse(tk);
+        if (Array.isArray(arr)) {
+          if (!Array.isArray(row.ticketImgs)) row.ticketImgs = [];
+          arr.forEach(u => {
+            if (u && row.ticketImgs.length < TICKET_MAX && !row.ticketImgs.includes(u)) row.ticketImgs.push(u);
+          });
+        }
+      } catch(e) {}
     }
   }));
   renderTable();
@@ -2406,6 +2522,8 @@ function rowToRecord(row) {
     passport_id:        row.passId || null,
     passport_exp_date:  row.passExp || null,
     visa_image_url:     (row.visaImg && !row.visaImg.startsWith('data:')) ? row.visaImg : null,
+    ticket_image_urls:  (Array.isArray(row.ticketImgs) ? row.ticketImgs : [])
+                          .filter(u => u && !u.startsWith('data:')),
     paid:               row.paid !== '' && row.paid != null ? parseFloat(row.paid) : null,
     tel:                row.tel   || null,
     tshirt_size:        row.shirt || null,
@@ -2429,6 +2547,7 @@ function recordToRow(r, idMap) {
     seat: r.seat ?? '', nationality: r.nationality || '', passImg: r.passport_image_url || null,
     passId: r.passport_id || '', passExp: r.passport_exp_date || '',
     visaImg: r.visa_image_url || null,
+    ticketImgs: Array.isArray(r.ticket_image_urls) ? r.ticket_image_urls : [],
     paid: r.paid != null ? (Number(r.paid).toFixed(2)) : '',
     tel: r.tel || '',
     shirt: r.tshirt_size || '', highlighted: r.highlighted || false,
@@ -2463,6 +2582,18 @@ async function saveRowToSupabase(row) {
   } else if (row.visaImgFile) {
     const url = await uploadImageToStorage(row.visaImgFile, `visa/${row.code || row.id}`);
     if (url) { row.visaImg = url; row.visaImgFile = null; }
+  }
+
+  // Upload รูปตั๋วเครื่องบินที่ยังเป็น data URL
+  if (Array.isArray(row.ticketImgs) && row.ticketImgs.some(u => u && u.startsWith('data:'))) {
+    for (let i = 0; i < row.ticketImgs.length; i++) {
+      const u = row.ticketImgs[i];
+      if (u && u.startsWith('data:')) {
+        const url = await uploadImageToStorage(u, `ticket/${row.code || row.id}_${Date.now()}_${i}`);
+        if (url) row.ticketImgs[i] = url;
+      }
+    }
+    cacheTicketImgs(row);
   }
 
   // Detect rename: row.code differs from what's currently in DB → ต้องลบของเก่าหลัง upsert
@@ -3289,6 +3420,9 @@ function buildRow(row) {
             `<span class="field-view">${row.comebackDateTime ? row.comebackDateTime.replace('T',' ') : '—'}</span>`}
     </td>
 
+    <!-- ตั๋วเครื่องบิน (Air Tickets — up to 5 images) -->
+    <td class="col-ticket ticket-cell" data-label="ตั๋วเครื่องบิน">${ticketCell(row)}</td>
+
     <!-- Slip -->
     <td class="col-slip img-cell" data-label="Slip">${imgCell(row, 'visaImg', 'visaImgFile', 'Slip')}</td>
 
@@ -3700,6 +3834,33 @@ function imgCell(row, field, fileField, label) {
   }
 }
 
+/* ตั๋วเครื่องบิน — หลายรูป (สูงสุด 5) ไป + กลับ
+   ในตารางแสดงรูปเดียว + badge จำนวน · คลิกเปิด modal เพื่อดู/จัดการทั้งหมด */
+const TICKET_MAX = 5;
+function ticketCell(row) {
+  const id   = row.id;
+  const ed   = row.isEditing;
+  const imgs = Array.isArray(row.ticketImgs) ? row.ticketImgs : [];
+  const n    = imgs.length;
+
+  if (n === 0) {
+    return ed
+      ? `<div class="ticket-add-sm" onclick="openTicketModal('${id}')" title="เพิ่มรูปตั๋วเครื่องบิน">+ เพิ่ม</div>`
+      : `<span class="ticket-empty">🖼</span>`;
+  }
+
+  const first     = imgs[0];
+  const uploading = first && first.startsWith('data:');
+  return `<div class="ticket-badge-wrap" onclick="openTicketModal('${id}')"
+               title="ดู/จัดการรูปตั๋วเครื่องบิน (${n} ภาพ)">
+            <div class="ticket-thumb ${uploading ? 'uploading' : ''}">
+              <img src="${first}" alt="ตั๋วเครื่องบิน" />
+              ${uploading ? `<span class="ticket-spin"></span>` : ''}
+            </div>
+            <span class="ticket-count-badge">${n}</span>
+          </div>`;
+}
+
 /* ═══════════════════════════════════════════════════════════
    EDIT / SAVE
 ═══════════════════════════════════════════════════════════ */
@@ -3845,6 +4006,7 @@ async function deleteRow(id) {
   codesToDelete.forEach(code => {
     IMG_DB.del(`${code}_passImg`);
     IMG_DB.del(`${code}_visaImg`);
+    IMG_DB.del(`${code}_ticketImgs`);
   });
 
   // delete from Supabase
@@ -3990,6 +4152,132 @@ function removeImg(id, field, fileField, event) {
   scheduleRowSave(row, 100);
 }
 
+/* ── ตั๋วเครื่องบิน (multi-image) ──────────────────────── */
+function ticketDragOver(event) { event.preventDefault(); event.currentTarget.classList.add('drag-over'); }
+function ticketDragLeave(event) { event.currentTarget.classList.remove('drag-over'); }
+
+/* ── Ticket gallery modal — ดู/จัดการรูปทั้งหมดของแถวเดียว ── */
+let _ticketModalRowId = null;
+function openTicketModal(id) {
+  _ticketModalRowId = id;
+  renderTicketModalGrid();
+  document.getElementById('ticket-modal').classList.add('open');
+}
+function closeTicketModal() {
+  document.getElementById('ticket-modal').classList.remove('open');
+  _ticketModalRowId = null;
+}
+function refreshTicketModal() {
+  if (_ticketModalRowId) renderTicketModalGrid();
+}
+function renderTicketModalGrid() {
+  const row  = getRow(_ticketModalRowId);
+  const grid = document.getElementById('ticket-modal-grid');
+  const hint = document.getElementById('ticket-modal-hint');
+  if (!row || !grid) return;
+  const ed   = row.isEditing;
+  const imgs = Array.isArray(row.ticketImgs) ? row.ticketImgs : [];
+
+  const thumbs = imgs.map((src, i) => {
+    const uploading = src && src.startsWith('data:');
+    return `<div class="tm-thumb ${uploading ? 'uploading' : ''}">
+              <img src="${src}" alt="ตั๋วเครื่องบิน ${i + 1}" onclick="openImgModal('${src}')" title="คลิกเพื่อขยาย" />
+              ${uploading ? `<span class="ticket-spin"></span>` : ''}
+              ${ed ? `<button class="tm-remove" onclick="removeTicketImg('${row.id}',${i},event)" title="ลบรูปนี้">✕</button>` : ''}
+           </div>`;
+  }).join('');
+
+  const addZone = (ed && imgs.length < TICKET_MAX)
+    ? `<div class="tm-add"
+            ondragover="ticketDragOver(event)" ondragleave="ticketDragLeave(event)" ondrop="ticketModalDrop(event)"
+            onclick="document.getElementById('ticket-modal-file').click()">
+         <span style="font-size:22px">＋</span><span>คลิก / ลากวางรูป</span>
+       </div>`
+    : '';
+
+  grid.innerHTML = (thumbs + addZone) || `<div style="color:var(--text3);padding:20px">ยังไม่มีรูป</div>`;
+  if (hint) hint.textContent = ed ? `${imgs.length}/${TICKET_MAX} ภาพ — อัปโหลดได้สูงสุด ${TICKET_MAX} ภาพ` : `${imgs.length} ภาพ`;
+}
+
+function ticketModalDrop(event) {
+  event.preventDefault();
+  event.currentTarget.classList.remove('drag-over');
+  const files = Array.from(event.dataTransfer.files || []).filter(f => f.type.startsWith('image/'));
+  if (_ticketModalRowId) addTicketFiles(_ticketModalRowId, files);
+}
+function ticketModalFileChosen(event) {
+  const files = Array.from(event.target.files || []);
+  if (_ticketModalRowId) addTicketFiles(_ticketModalRowId, files);
+  event.target.value = ''; // reset เพื่อให้เลือกไฟล์เดิมซ้ำได้
+}
+
+/* รับหลายไฟล์พร้อมกัน — จำกัดไม่ให้เกิน TICKET_MAX */
+function addTicketFiles(id, files) {
+  const row = getRow(id);
+  if (!row) return;
+  if (!Array.isArray(row.ticketImgs)) row.ticketImgs = [];
+  const remaining = TICKET_MAX - row.ticketImgs.length;
+  if (remaining <= 0) { toast(`อัปโหลดได้สูงสุด ${TICKET_MAX} ภาพ`, 'error'); return; }
+  if (files.length > remaining) toast(`เพิ่มได้อีก ${remaining} ภาพ (สูงสุด ${TICKET_MAX})`, 'info');
+  files.slice(0, remaining).forEach(file => loadTicketFile(file, id));
+}
+
+/* บันทึก data: array ของ ticket ที่ยังไม่อัปโหลดลง IndexedDB (offline-safe) */
+async function cacheTicketImgs(row) {
+  if (!row.code) return;
+  const pending = (row.ticketImgs || []).filter(u => u && u.startsWith('data:'));
+  try {
+    if (pending.length) await IMG_DB.set(`${row.code}_ticketImgs`, JSON.stringify(pending));
+    else await IMG_DB.del(`${row.code}_ticketImgs`);
+  } catch(e) {}
+}
+
+function loadTicketFile(file, id) {
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    const row = getRow(id);
+    if (!row) return;
+    if (!Array.isArray(row.ticketImgs)) row.ticketImgs = [];
+    if (row.ticketImgs.length >= TICKET_MAX) return;
+
+    const dataUrl = e.target.result;
+    row.ticketImgs.push(dataUrl);      // แสดง preview ทันที (data url)
+    refreshRow(row);
+    refreshTicketModal();
+    cacheTicketImgs(row);
+
+    // Auto-upload ไป Supabase Storage ถ้าพร้อม
+    if (sbClient && row.code) {
+      const path = `ticket/${row.code}_${Date.now()}_${row.ticketImgs.length}`;
+      const url = await uploadImageToStorage(file, path);
+      const pos = row.ticketImgs.indexOf(dataUrl);
+      if (url) {
+        if (pos >= 0) row.ticketImgs[pos] = url; // แทน data url ด้วย public URL
+        refreshRow(row);
+        refreshTicketModal();
+        cacheTicketImgs(row);
+        scheduleRowSave(row, 100);
+      } else {
+        toast('Upload รูปตั๋วล้มเหลว', 'error');
+      }
+    } else {
+      scheduleRowSave(row, 100);
+    }
+  };
+  reader.readAsDataURL(file);
+}
+
+function removeTicketImg(id, index, event) {
+  event.stopPropagation();
+  const row = getRow(id);
+  if (!row || !Array.isArray(row.ticketImgs)) return;
+  row.ticketImgs.splice(index, 1);
+  refreshRow(row);
+  refreshTicketModal();
+  cacheTicketImgs(row);
+  scheduleRowSave(row, 100);
+}
+
 /* ═══════════════════════════════════════════════════════════
    IMAGE MODAL
 ═══════════════════════════════════════════════════════════ */
@@ -4075,7 +4363,8 @@ async function saveAllToSupabase() {
       (r.passImg && r.passImg.startsWith('data:')) ||
       r.passImgFile ||
       (r.visaImg && r.visaImg.startsWith('data:')) ||
-      r.visaImgFile
+      r.visaImgFile ||
+      (Array.isArray(r.ticketImgs) && r.ticketImgs.some(u => u && u.startsWith('data:')))
     );
     if (rowsWithImg.length > 0) {
       showSaveOverlay(
@@ -4097,6 +4386,16 @@ async function saveAllToSupabase() {
         } else if (row.visaImgFile) {
           const url = await uploadImageToStorage(row.visaImgFile, `visa/${row.code || row.id}`);
           if (url) { row.visaImg = url; row.visaImgFile = null; }
+        }
+        if (Array.isArray(row.ticketImgs)) {
+          for (let i = 0; i < row.ticketImgs.length; i++) {
+            const u = row.ticketImgs[i];
+            if (u && u.startsWith('data:')) {
+              const url = await uploadImageToStorage(u, `ticket/${row.code || row.id}_${Date.now()}_${i}`);
+              if (url) row.ticketImgs[i] = url;
+            }
+          }
+          cacheTicketImgs(row);
         }
         done++;
         document.getElementById('save-overlay-msg').textContent =
@@ -4174,6 +4473,7 @@ function exportExcel() {
     'Date&Time (Arrival)':   row.arrivalDateTime,
     'Comeback Flight':   row.comeback,
     'Date&Time (Comeback)': row.comebackDateTime,
+    'ตั๋วเครื่องบิน':       (Array.isArray(row.ticketImgs) ? row.ticketImgs : []).filter(u => u && !u.startsWith('data:')).join(' | '),
     'Slip':              httpUrl(row.visaImg),
     'Paid':              row.paid || '',
     'WhatsApp':          row.tel,
