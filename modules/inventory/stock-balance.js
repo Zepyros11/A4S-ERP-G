@@ -24,6 +24,39 @@ const state = {
 
 const filter = { search: "", categoryId: "", warehouseId: "", status: "" };
 
+// การจัดเรียงตามหัวคอลัมน์ (default: status rank → ปัญหาขึ้นก่อน)
+const sort = { key: "status", dir: "asc" };
+
+// ทิศทางเริ่มต้นเมื่อคลิกคอลัมน์ใหม่ (text=asc, ตัวเลข=มาก→น้อย, status=ปัญหาก่อน)
+const SORT_DEFAULT_DIR = {
+  name: "asc",
+  category: "asc",
+  onHand: "desc",
+  reserved: "desc",
+  available: "desc",
+  reorder: "desc",
+  status: "asc",
+};
+
+window.sbSort = function (key) {
+  if (sort.key === key) {
+    sort.dir = sort.dir === "asc" ? "desc" : "asc";
+  } else {
+    sort.key = key;
+    sort.dir = SORT_DEFAULT_DIR[key] || "asc";
+  }
+  render();
+};
+
+function updateSortIndicators() {
+  document.querySelectorAll(".sb-table th[data-sort]").forEach((th) => {
+    const active = th.dataset.sort === sort.key;
+    th.classList.toggle("sb-sort-active", active);
+    const ind = th.querySelector(".sb-sort-ind");
+    if (ind) ind.textContent = active ? (sort.dir === "asc" ? " ▲" : " ▼") : "";
+  });
+}
+
 // product_id ที่ถูกเลือกในตาราง (persist ระหว่าง re-render)
 const selectedIds = new Set();
 
@@ -506,13 +539,42 @@ function renderTable(idx) {
     return true;
   });
 
-  // sort: ติดลบมาก่อน → out → low → ok (เพื่อให้ปัญหาเด่น)
+  // sort: ตามหัวคอลัมน์ที่ผู้ใช้เลือก (default = status rank → ปัญหาเด่น)
+  const dir = sort.dir === "asc" ? 1 : -1;
   rows.sort((a, b) => {
-    const sa = statusRank(a);
-    const sb = statusRank(b);
-    if (sa !== sb) return sa - sb;
-    return (a.p.product_name || "").localeCompare(b.p.product_name || "");
+    let cmp;
+    switch (sort.key) {
+      case "name":
+        cmp = (a.p.product_name || "").localeCompare(b.p.product_name || "", "th");
+        break;
+      case "category":
+        cmp = (idx.categoriesById[a.p.category_id]?.category_name || "").localeCompare(
+          idx.categoriesById[b.p.category_id]?.category_name || "",
+          "th",
+        );
+        break;
+      case "onHand":
+        cmp = a.onHand - b.onHand;
+        break;
+      case "reserved":
+        cmp = a.reserved - b.reserved;
+        break;
+      case "available":
+        cmp = a.available - b.available;
+        break;
+      case "reorder":
+        cmp = (a.p.reorder_point || 0) - (b.p.reorder_point || 0);
+        break;
+      case "status":
+      default:
+        cmp = statusRank(a) - statusRank(b);
+        break;
+    }
+    if (cmp === 0)
+      cmp = (a.p.product_name || "").localeCompare(b.p.product_name || "", "th");
+    return cmp * dir;
   });
+  updateSortIndicators();
 
   $("sbCount").textContent = `${fmtNum(rows.length, 0)} รายการ`;
 

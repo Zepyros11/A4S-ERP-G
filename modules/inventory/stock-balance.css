@@ -140,6 +140,24 @@
 .sb-table th {
   white-space: nowrap;
 }
+
+/* ── Sortable column headers ── */
+.sb-table th.sb-sortable {
+  cursor: pointer;
+  user-select: none;
+  transition: color 0.15s, background 0.15s;
+}
+.sb-table th.sb-sortable:hover {
+  color: var(--accent);
+  background: var(--accent-pale);
+}
+.sb-table th.sb-sort-active {
+  color: var(--accent);
+}
+.sb-sort-ind {
+  font-size: 10px;
+  font-weight: 700;
+}
 .sb-th-check,
 .sb-td-check {
   width: 36px;

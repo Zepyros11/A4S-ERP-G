@@ -119,13 +119,13 @@
                     onclick="window.sbToggleSelectAll(this)" aria-label="เลือกทั้งหมด" />
                 </th>
                 <th style="width:46px"></th>
-                <th>สินค้า</th>
-                <th>หมวดหมู่</th>
-                <th class="sd-th-right">On-hand</th>
-                <th class="sd-th-right">Reserved</th>
-                <th class="sd-th-right">Available</th>
-                <th class="sd-th-right">จุดสั่งซื้อ</th>
-                <th class="sd-th-right">สถานะ</th>
+                <th class="sb-sortable" data-sort="name" onclick="window.sbSort('name')">สินค้า<span class="sb-sort-ind"></span></th>
+                <th class="sb-sortable" data-sort="category" onclick="window.sbSort('category')">หมวดหมู่<span class="sb-sort-ind"></span></th>
+                <th class="sd-th-right sb-sortable" data-sort="onHand" onclick="window.sbSort('onHand')">On-hand<span class="sb-sort-ind"></span></th>
+                <th class="sd-th-right sb-sortable" data-sort="reserved" onclick="window.sbSort('reserved')">Reserved<span class="sb-sort-ind"></span></th>
+                <th class="sd-th-right sb-sortable" data-sort="available" onclick="window.sbSort('available')">Available<span class="sb-sort-ind"></span></th>
+                <th class="sd-th-right sb-sortable" data-sort="reorder" onclick="window.sbSort('reorder')">จุดสั่งซื้อ<span class="sb-sort-ind"></span></th>
+                <th class="sd-th-right sb-sortable" data-sort="status" onclick="window.sbSort('status')">สถานะ<span class="sb-sort-ind"></span></th>
                 <th style="width:90px"></th>
               </tr>
             </thead>
