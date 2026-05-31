@@ -76,6 +76,21 @@ html.headless > body { /* override sidebar shell flex layout */ }
 .purpose-card.active .purpose-label { color:var(--accent); font-weight:600; }
 .purpose-type { display:none; }
 
+/* PURPOSE MANAGE — ⚙️ จัดการ link + modal rows */
+.pp-label-row { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.pp-manage-link {
+  background:var(--accent-pale); color:var(--accent); border:1px solid var(--border);
+  border-radius:8px; padding:3px 9px; font-size:11.5px; font-weight:600; cursor:pointer;
+  transition:all .15s; line-height:1.4;
+}
+.pp-manage-link:hover { border-color:var(--accent); background:var(--surface); }
+.pp-add-row { display:flex; gap:8px; }
+.pp-add-row .form-control { flex:1; }
+.pp-list { display:flex; flex-direction:column; gap:8px; }
+.pp-row { display:flex; align-items:center; gap:8px; }
+.pp-row .form-control { flex:1; }
+.pp-row-actions { display:flex; gap:4px; flex-shrink:0; }
+
 /* WAREHOUSE — pill/chip style (auto-fit, wider than purpose) */
 .warehouse-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(140px, 1fr)); gap:8px; }
 .warehouse-card {
@@ -551,7 +566,10 @@ textarea.form-control { resize:vertical; min-height:80px; line-height:1.6; }
     <div class="form-block">
       <div class="info-grid-form">
         <div class="info-cell-form">
-          <div class="info-cell-label">วัตถุประสงค์ <span class="required">*</span></div>
+          <div class="info-cell-label pp-label-row">
+            <span>วัตถุประสงค์ <span class="required">*</span></span>
+            <button type="button" class="pp-manage-link" onclick="openPurposeManager()" title="เพิ่ม / แก้ไข / ลบ วัตถุประสงค์">⚙️ จัดการ</button>
+          </div>
           <div class="purpose-grid" id="purposeGrid"><!-- populated by JS --></div>
         </div>
         <div class="info-cell-form">
@@ -698,6 +716,33 @@ textarea.form-control { resize:vertical; min-height:80px; line-height:1.6; }
     </div>
 
     <div class="req-doc-footer-note">เอกสารนี้สร้างโดยระบบ A4S-ERP · พิมพ์เมื่อ <span id="docPrintedAt">—</span></div>
+  </div>
+</div>
+
+<!-- ─── PURPOSE MANAGER MODAL ─── -->
+<div class="modal-overlay" id="purposeMgrOverlay" onclick="closePurposeManagerBg(event)">
+  <div class="modal v-sage-header" style="width:480px;max-height:85vh;display:flex;flex-direction:column">
+    <div class="modal-hdr">
+      <div class="modal-title">🎯 จัดการวัตถุประสงค์</div>
+      <button class="btn-modal-close" onclick="closePurposeManager()">✕</button>
+    </div>
+    <div class="modal-body" style="flex:1;overflow-y:auto;min-height:0">
+      <!-- ADD ROW -->
+      <div class="pp-add-row">
+        <input class="form-control" id="ppNewName" placeholder="ชื่อวัตถุประสงค์ (เช่น ออกบูธ, แจกของรางวัล)"
+               onkeydown="if(event.key==='Enter'){event.preventDefault();addPurpose()}" />
+        <button class="btn btn-primary" onclick="addPurpose()">＋ เพิ่ม</button>
+      </div>
+      <div class="form-hint" style="margin:6px 0 12px;color:var(--text3);font-size:11.5px">รหัสภายในจะถูกสร้างให้อัตโนมัติ</div>
+
+      <!-- LIST -->
+      <div class="pp-list" id="ppList">
+        <div class="empty-state"><div class="empty-icon">🎯</div><div>กำลังโหลด...</div></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closePurposeManager()">ปิด</button>
+    </div>
   </div>
 </div>
 

@@ -12,6 +12,7 @@ let userWarehouseIds  = [];     // คลังของ country ที่ user 
 let warehouses        = [];     // full list (สำหรับ renderWarehouseCards)
 let rowCount          = 0;
 let selectedPurposeId = null;
+let purposesCache     = [];      // [{purpose_id, purpose_code, purpose_name, purpose_type, icon}] — สำหรับ manager modal
 let selectedWarehouseId = null;
 let editingReqId      = null;    // ถ้ามีค่า = edit mode (PATCH); null = create mode (POST)
 let editingReqRow     = null;    // เก็บ row เดิม (เผื่อเปรียบเทียบ status approved)
@@ -272,6 +273,7 @@ async function loadDropdowns() {
     }
   }
   const purposeData = purposeRows.map(p => ({ ...p, icon: PURPOSE_ICONS[p.purpose_type] || '📌' }));
+  purposesCache = purposeData;
   renderPurposeCards(purposeData);
 
   // (combo อ่านจาก global products array ตรงๆ — ไม่ต้อง re-populate per row)
@@ -415,6 +417,125 @@ function selectPurpose(id, card) {
   document.querySelectorAll('.purpose-card').forEach(c => c.classList.remove('active'));
   card.classList.add('active');
   formDirty = true;
+}
+
+// ============================================================
+// PURPOSE MANAGER (in-context CRUD — ⚙️ จัดการ)
+// auto-gen purpose_code · soft-delete (is_active=false กัน FK กับ requisitions เดิม)
+// ============================================================
+function openPurposeManager() {
+  renderPurposeMgrList();
+  document.getElementById('purposeMgrOverlay').classList.add('open');
+  document.getElementById('ppNewName').focus();
+}
+function closePurposeManager() {
+  document.getElementById('purposeMgrOverlay').classList.remove('open');
+}
+function closePurposeManagerBg(e) {
+  if (e.target === document.getElementById('purposeMgrOverlay')) closePurposeManager();
+}
+
+// auto-gen purpose_code: P001, P002, ... — ไม่ชนของเดิม (รวม seed MKT/PROMO/…)
+function generatePurposeCode() {
+  let max = 0;
+  for (const p of purposesCache) {
+    const m = /^P(\d+)$/.exec(p.purpose_code || '');
+    if (m) max = Math.max(max, parseInt(m[1], 10) || 0);
+  }
+  return 'P' + String(max + 1).padStart(3, '0');
+}
+
+function renderPurposeMgrList() {
+  const list = document.getElementById('ppList');
+  if (!list) return;
+  if (!purposesCache.length) {
+    list.innerHTML = `<div class="empty-state"><div class="empty-icon">🎯</div><div>ยังไม่มีวัตถุประสงค์</div></div>`;
+    return;
+  }
+  list.innerHTML = purposesCache.map(p => `
+    <div class="pp-row" data-id="${p.purpose_id}">
+      <input class="form-control" data-edit="${p.purpose_id}" value="${escapeHtml(p.purpose_name || '')}" />
+      <div class="pp-row-actions">
+        <button class="btn-icon" title="บันทึกชื่อ" onclick="savePurposeName(${p.purpose_id})">💾</button>
+        <button class="btn-icon danger" title="ลบ" onclick="deletePurpose(${p.purpose_id})">🗑</button>
+      </div>
+    </div>`).join('');
+}
+
+async function addPurpose() {
+  const nameEl = document.getElementById('ppNewName');
+  const purpose_name = nameEl.value.trim();
+  if (!purpose_name) { showToast('กรุณากรอกชื่อวัตถุประสงค์', 'error'); return; }
+  if (purposesCache.some(p => (p.purpose_name || '').toLowerCase() === purpose_name.toLowerCase())) {
+    showToast(`วัตถุประสงค์ "${purpose_name}" มีอยู่แล้ว`, 'error'); return;
+  }
+  const purpose_code = generatePurposeCode();
+  try {
+    const created = await supabaseFetch('requisition_purposes', {
+      method: 'POST',
+      body: { purpose_code, purpose_name, purpose_type: 'OTHER', is_active: true },
+    });
+    const row = (Array.isArray(created) && created[0])
+      ? created[0]
+      : { purpose_id: null, purpose_code, purpose_name, purpose_type: 'OTHER' };
+    purposesCache.push({ ...row, icon: PURPOSE_ICONS[row.purpose_type] || '📌' });
+    nameEl.value = '';
+    nameEl.focus();
+    renderPurposeMgrList();
+    renderPurposeCards(purposesCache);
+    showToast('✅ เพิ่มวัตถุประสงค์แล้ว', 'success');
+  } catch (e) {
+    showToast('เพิ่มไม่ได้: ' + e.message, 'error');
+  }
+}
+
+async function savePurposeName(id) {
+  const input = document.querySelector(`#ppList input[data-edit="${id}"]`);
+  if (!input) return;
+  const purpose_name = input.value.trim();
+  if (!purpose_name) { showToast('ชื่อวัตถุประสงค์ห้ามว่าง', 'error'); return; }
+  try {
+    await supabaseFetch('requisition_purposes', {
+      method: 'PATCH',
+      query: `?purpose_id=eq.${id}`,
+      body: { purpose_name },
+    });
+    const p = purposesCache.find(x => x.purpose_id === id);
+    if (p) p.purpose_name = purpose_name;
+    renderPurposeCards(purposesCache);
+    showToast('✅ บันทึกชื่อแล้ว', 'success');
+  } catch (e) {
+    showToast('บันทึกไม่ได้: ' + e.message, 'error');
+  }
+}
+
+async function deletePurpose(id) {
+  const p = purposesCache.find(x => x.purpose_id === id);
+  if (!p) return;
+  const ok = await ConfirmModal.open({
+    title: 'ลบวัตถุประสงค์',
+    message: `ลบ "${p.purpose_name}" ออกจากรายการหรือไม่?`,
+    icon: '🗑',
+    okText: 'ลบ',
+    tone: 'danger',
+    note: 'ใบเบิกเดิมที่อ้างอิงวัตถุประสงค์นี้จะยังคงอยู่ (เก็บประวัติไว้)',
+  });
+  if (!ok) return;
+  try {
+    // soft-delete — กัน FK violation กับ requisitions ที่อ้าง purpose_id นี้อยู่
+    await supabaseFetch('requisition_purposes', {
+      method: 'PATCH',
+      query: `?purpose_id=eq.${id}`,
+      body: { is_active: false },
+    });
+    purposesCache = purposesCache.filter(x => x.purpose_id !== id);
+    if (selectedPurposeId === id) selectedPurposeId = null;
+    renderPurposeMgrList();
+    renderPurposeCards(purposesCache);
+    showToast('ลบวัตถุประสงค์แล้ว', 'success');
+  } catch (e) {
+    showToast('ลบไม่ได้: ' + e.message, 'error');
+  }
 }
 
 // ============================================================
