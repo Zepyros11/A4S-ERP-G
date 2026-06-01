@@ -288,6 +288,11 @@ async function loadAll() {
     // Load flights (ตั๋วเครื่องบิน) + occupants
     state.flights = await sbFetch("trip_flights",
       `?trip_id=eq.${state.tripId}&select=*&order=sort_order.asc,flight_id.asc`).catch(() => []) || [];
+    // Load master ตัวเลือก Port/เที่ยวบิน (global · CRUD ใน dropdown ⚙️)
+    state.airports = await sbFetch("trip_airports",
+      "?select=*&order=sort_order.asc,code.asc").catch(() => []) || [];
+    state.flightNumbers = await sbFetch("trip_flight_numbers",
+      "?select=*&order=sort_order.asc,code.asc").catch(() => []) || [];
     state.flightOccupants = {};
     state.codeToFlight = {};
     const flightIds = state.flights.map(f => f.flight_id);
@@ -5235,7 +5240,19 @@ function buildCsFlightOptions() {
   return { dep, cb, port };
 }
 
-// เติม <datalist> เที่ยวบิน/port จาก check-seat + เตรียม map สำหรับ auto-fill วันเวลา
+// รวม options: master (เพิ่มเอง) ก่อน + ค่าจาก check-seat (auto) · dedupe ด้วย value (code)
+function buildOpts(master, cs) {
+  const out = [], seen = new Set();
+  [...master, ...cs].forEach(o => {
+    const v = (o.value || "").trim();
+    if (!v || seen.has(v)) return;
+    seen.add(v);
+    out.push({ value: v, label: o.label || v });
+  });
+  return out.sort((a, b) => a.value.localeCompare(b.value));
+}
+
+// เตรียมรายการเที่ยวบิน/port (master + check-seat) สำหรับ custom dropdown + map auto-fill วันเวลา
 function fillFlightDatalists() {
   const { dep, cb, port } = buildCsFlightOptions();
   // map: flight -> { dep, arr, port } (รวมขาไป+ขากลับ ใช้ auto-fill ทุก segment)
@@ -5243,11 +5260,219 @@ function fillFlightDatalists() {
   dep.forEach((v, k) => info.set(k, { dep: v.dep || "", arr: v.arr || "", port: v.port || "" }));
   cb.forEach((v, k) => { if (!info.has(k)) info.set(k, { dep: v || "", arr: "", port: "" }); });
   state._csFlightInfo = info;
-  const flDl = document.getElementById("flCsFlightList");
-  if (flDl) flDl.innerHTML = [...info.keys()].sort().map(k => `<option value="${escapeAttr(k)}">`).join("");
-  const ptDl = document.getElementById("flCsPortList");
-  if (ptDl) ptDl.innerHTML = [...port.keys()].sort().map(k => `<option value="${escapeAttr(k)}">`).join("");
+  // เที่ยวบิน: master (code · name) + check-seat
+  state._flOpts = buildOpts(
+    (state.flightNumbers || []).map(m => {
+      const c = (m.code || "").trim();
+      return { value: c, label: m.name ? `${c} · ${m.name}` : c };
+    }),
+    [...info.keys()].map(k => ({ value: k, label: k }))
+  );
+  // Port: master (code — name) + check-seat
+  state._portOpts = buildOpts(
+    (state.airports || []).map(m => {
+      const c = (m.code || "").trim();
+      return { value: c, label: m.name ? `${c} — ${m.name}` : c };
+    }),
+    [...port.keys()].map(k => ({ value: k, label: k }))
+  );
 }
+
+// ── CUSTOM DROPDOWN (เที่ยวบิน/port) — แทน native datalist ที่สไตล์ไม่ได้ ──
+// เมนูเดียว ลอย (position:fixed) ใต้ช่องที่ active · append ไว้ที่ body กัน transform ของ modal กวน
+function flMenuEl() {
+  let m = document.getElementById("flSegMenu");
+  if (!m) {
+    m = document.createElement("div");
+    m.id = "flSegMenu";
+    m.className = "fl-seg-menu";
+    m.addEventListener("mousedown", e => e.preventDefault()); // กันช่อง input blur ก่อนคลิกเลือก
+    document.body.appendChild(m);
+  }
+  return m;
+}
+
+function flMenuPosition(inp) {
+  const m = flMenuEl();
+  const r = inp.getBoundingClientRect();
+  m.style.left = r.left + "px";
+  m.style.top = (r.bottom + 4) + "px";
+  m.style.width = r.width + "px";
+}
+
+function flMenuRender() {
+  const inp = state._flMenuInp;
+  const kind = state._flMenuKind;
+  if (!inp) return;
+  const m = flMenuEl();
+  const typed = (inp.value || "").trim().toLowerCase();
+  const opts = (kind === "flight" ? state._flOpts : state._portOpts) || [];
+  const filtered = opts.filter(o => !typed
+    || o.value.toLowerCase().includes(typed)
+    || (o.label || "").toLowerCase().includes(typed));
+  const icon = kind === "flight" ? "✈️" : "📍";
+  const rows = filtered.map(o => {
+    const inf = kind === "flight" && state._csFlightInfo ? state._csFlightInfo.get(o.value) : null;
+    const dt = inf && inf.dep ? fmtDT(inf.dep) : "";
+    return `<div class="fl-combo-item" onmousedown="window.flMenuPick('${escapeJs(o.value)}')">
+      <span>${icon} ${escapeHtml(o.label)}</span>${dt && dt !== "—" ? `<span class="fl-combo-dt">${escapeHtml(dt)}</span>` : ""}
+    </div>`;
+  }).join("");
+  const manage = `<div class="fl-menu-manage" onmousedown="window.openFlMaster('${kind}')">⚙️ จัดการ${kind === "flight" ? "เที่ยวบิน" : " Port"}</div>`;
+  m.innerHTML = (rows || `<div class="fl-combo-empty">— ไม่มีตัวเลือก (พิมพ์เองได้) —</div>`) + manage;
+}
+
+window.flMenuOpen = function (inp, kind) {
+  state._flMenuInp = inp;
+  state._flMenuKind = kind;
+  flMenuPosition(inp);
+  flMenuRender();
+  flMenuEl().classList.add("open");
+};
+window.flMenuFilter = function (inp) {
+  if (state._flMenuInp !== inp) { state._flMenuInp = inp; state._flMenuKind = inp.dataset.kind || state._flMenuKind; }
+  flMenuPosition(inp);
+  flMenuRender();
+  flMenuEl().classList.add("open");
+};
+window.flMenuClose = function () {
+  setTimeout(() => flMenuEl().classList.remove("open"), 150);
+};
+window.flMenuPick = function (val) {
+  const inp = state._flMenuInp;
+  if (!inp) return;
+  inp.value = val;
+  flMenuEl().classList.remove("open");
+  if (state._flMenuKind === "flight") {
+    const leg = inp.dataset.leg;
+    const i = parseInt(inp.dataset.i, 10);
+    window.flSegSet(leg, i, "flight", val);
+    window.flSegFlightPick(leg, i, val); // auto-fill เวลา/port + re-render row
+  }
+  // kind === "port": ค่าอยู่ใน input อ่านตอน save เอง ไม่ต้องทำอะไรเพิ่ม
+};
+
+// ── MANAGE MASTER (Port / เที่ยวบิน) — nested modal · เพิ่ม/ลบ/แก้ ──
+function flMasterCfg() {
+  return state._flMasterKind === "flight"
+    ? { table: "trip_flight_numbers", idKey: "fnum_id", list: () => state.flightNumbers || [] }
+    : { table: "trip_airports", idKey: "airport_id", list: () => state.airports || [] };
+}
+
+window.openFlMaster = function (kind) {
+  state._flMasterKind = kind;
+  state._flMasterEditId = null;
+  document.getElementById("flSegMenu")?.classList.remove("open");
+  const isFl = kind === "flight";
+  document.getElementById("flMasterTitle").textContent = isFl ? "⚙️ จัดการเที่ยวบิน" : "⚙️ จัดการ Port";
+  document.getElementById("flMgrCode").placeholder = isFl ? "เลขเที่ยวบิน (เช่น ET934)" : "รหัส (เช่น ABJ)";
+  document.getElementById("flMgrName").placeholder = isFl ? "ชื่อ/สายการบิน (ไม่บังคับ)" : "ชื่อเมือง/สนามบิน (เช่น Abidjan)";
+  document.getElementById("flMgrCode").value = "";
+  document.getElementById("flMgrName").value = "";
+  document.getElementById("flMgrAddBtn").textContent = "＋ เพิ่ม";
+  renderFlMasterList();
+  document.getElementById("flMasterOverlay").classList.add("open");
+  setTimeout(() => document.getElementById("flMgrCode")?.focus(), 50);
+};
+
+window.closeFlMaster = function (e) {
+  if (e && e.target.id !== "flMasterOverlay") return;
+  document.getElementById("flMasterOverlay").classList.remove("open");
+  state._flMasterEditId = null;
+};
+
+function renderFlMasterList() {
+  const cfg = flMasterCfg();
+  const items = cfg.list();
+  const el = document.getElementById("flMgrList");
+  if (!el) return;
+  if (!items.length) {
+    el.innerHTML = `<div class="fl-mgr-empty">ยังไม่มีรายการ — เพิ่มด้านบน</div>`;
+    return;
+  }
+  el.innerHTML = items.map(it => {
+    const id = it[cfg.idKey];
+    const editing = state._flMasterEditId === id ? " editing" : "";
+    return `<div class="fl-mgr-row${editing}">
+      <span class="fl-mgr-code">${escapeHtml(it.code || "")}</span>
+      <span class="fl-mgr-name">${escapeHtml(it.name || "")}</span>
+      <button class="fl-mgr-btn" title="แก้ไข" onclick="window.flMasterEdit(${id})">✏️</button>
+      <button class="fl-mgr-btn danger" title="ลบ" onclick="window.flMasterDelete(${id})">🗑</button>
+    </div>`;
+  }).join("");
+}
+
+async function reloadFlMasters() {
+  state.airports = await sbFetch("trip_airports",
+    "?select=*&order=sort_order.asc,code.asc").catch(() => []) || [];
+  state.flightNumbers = await sbFetch("trip_flight_numbers",
+    "?select=*&order=sort_order.asc,code.asc").catch(() => []) || [];
+  fillFlightDatalists(); // rebuild dropdown options ให้ทันที
+}
+
+window.flMasterAdd = async function () {
+  const cfg = flMasterCfg();
+  const code = document.getElementById("flMgrCode").value.trim();
+  const name = document.getElementById("flMgrName").value.trim() || null;
+  if (!code) { showToast("กรอกรหัสก่อน", "info"); return; }
+  showLoading(true);
+  try {
+    if (state._flMasterEditId) {
+      await sbFetch(cfg.table, `?${cfg.idKey}=eq.${state._flMasterEditId}`, { method: "PATCH", body: { code, name } });
+    } else {
+      await sbFetch(cfg.table, "", { method: "POST", body: { code, name, sort_order: cfg.list().length } });
+    }
+    await reloadFlMasters();
+    state._flMasterEditId = null;
+    document.getElementById("flMgrCode").value = "";
+    document.getElementById("flMgrName").value = "";
+    document.getElementById("flMgrAddBtn").textContent = "＋ เพิ่ม";
+    renderFlMasterList();
+    document.getElementById("flMgrCode").focus();
+    showToast("บันทึกแล้ว", "success");
+  } catch (e) { showToast("บันทึกไม่สำเร็จ: " + e.message, "error"); }
+  showLoading(false);
+};
+
+window.flMasterEdit = function (id) {
+  const cfg = flMasterCfg();
+  const it = cfg.list().find(x => x[cfg.idKey] === id);
+  if (!it) return;
+  state._flMasterEditId = id;
+  document.getElementById("flMgrCode").value = it.code || "";
+  document.getElementById("flMgrName").value = it.name || "";
+  document.getElementById("flMgrAddBtn").textContent = "💾 บันทึก";
+  renderFlMasterList();
+  document.getElementById("flMgrCode").focus();
+};
+
+window.flMasterDelete = async function (id) {
+  const cfg = flMasterCfg();
+  const it = cfg.list().find(x => x[cfg.idKey] === id);
+  if (!it) return;
+  const msg = `ลบ "${it.code}${it.name ? ` — ${it.name}` : ""}" ออกจากรายการ?`;
+  const doDel = async () => {
+    showLoading(true);
+    try {
+      await sbFetch(cfg.table, `?${cfg.idKey}=eq.${id}`, { method: "DELETE" });
+      await reloadFlMasters();
+      if (state._flMasterEditId === id) {
+        state._flMasterEditId = null;
+        document.getElementById("flMgrCode").value = "";
+        document.getElementById("flMgrName").value = "";
+        document.getElementById("flMgrAddBtn").textContent = "＋ เพิ่ม";
+      }
+      renderFlMasterList();
+      showToast("ลบแล้ว", "success");
+    } catch (e) { showToast("ลบไม่สำเร็จ: " + e.message, "error"); }
+    showLoading(false);
+  };
+  if (window.DeleteModal?.open) { window.DeleteModal.open(msg, doDel); return; }
+  const ok = window.ConfirmModal?.open
+    ? await window.ConfirmModal.open({ title: "ลบรายการ", message: msg, icon: "🗑", tone: "danger", okText: "ลบ" })
+    : confirm(msg);
+  if (ok) doDel();
+};
 
 // ── SEGMENT EDITOR (เที่ยวบินต่อเครื่อง ในฟอร์ม) ──
 // state.flDepSegs / state.flRetSegs = [{ flight, dep, arr }]
@@ -5263,9 +5488,12 @@ function flSegRowHtml(leg, seg, i, total) {
     <span class="fl-seg-no">ช่วง ${i + 1}</span>
     <div class="fl-seg-grid">
       <label class="fl-seg-f"><span>เที่ยวบิน</span>
-        <input class="form-control" list="flCsFlightList" autocomplete="off" placeholder="เช่น ET0934"
+        <input class="form-control" autocomplete="off" placeholder="เช่น ET0934"
                value="${escapeAttr(seg.flight || "")}"
-               oninput="window.flSegSet('${leg}',${i},'flight',this.value)"
+               data-leg="${leg}" data-i="${i}" data-kind="flight"
+               onfocus="window.flMenuOpen(this,'flight')"
+               oninput="window.flSegSet('${leg}',${i},'flight',this.value);window.flMenuFilter(this)"
+               onblur="window.flMenuClose()"
                onchange="window.flSegFlightPick('${leg}',${i},this.value)" /></label>
       <label class="fl-seg-f"><span>เวลาออก</span>
         <input class="form-control" type="datetime-local" value="${escapeAttr(seg.dep || "")}"
@@ -5350,6 +5578,7 @@ window.openFlightModal = function () {
 window.closeFlightModal = function (e) {
   if (e && e.target.id !== "flightOverlay") return;
   document.getElementById("flightOverlay").classList.remove("open");
+  document.getElementById("flSegMenu")?.classList.remove("open");
   state.editingFlightId = null;
   state.flightDraftImgs = [];
 };
