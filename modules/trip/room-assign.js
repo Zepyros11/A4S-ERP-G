@@ -5563,7 +5563,7 @@ window.openFlightModal = function () {
   state.flightDraftImgs = [];
   document.getElementById("flightModalTitle").textContent = "✈️ เพิ่มตั๋วเครื่องบิน";
   document.getElementById("flightSaveBtn").innerHTML = "💾 บันทึก";
-  ["fFlLabel", "fFlDepPort", "fFlRetPort", "fFlNote"]
+  ["fFlLabel", "fFlDepPort", "fFlNote"]
     .forEach(id => { const el = document.getElementById(id); if (el) el.value = ""; });
   fillFlightDatalists();                                   // datalist เที่ยวบิน/port จาก check-seat
   state.flDepSegs = [{ flight: "", dep: "", arr: "" }];    // เริ่มทิศทางละ 1 ช่วง
@@ -5593,7 +5593,6 @@ window.editFlight = function (flightId) {
   document.getElementById("fFlLabel").value = f.flight_label || "";
   fillFlightDatalists();
   document.getElementById("fFlDepPort").value = f.port || lookupFlightPort(f.flight) || ""; // ต้นทางขาไป (fallback check-seat)
-  document.getElementById("fFlRetPort").value = f.ret_port || "";                            // ต้นทางขากลับ
   state.flDepSegs = flSegsFromRecord(f, "dep");
   state.flRetSegs = flSegsFromRecord(f, "ret");
   if (!state.flDepSegs.length) state.flDepSegs = [{ flight: "", dep: "", arr: "" }];
@@ -5616,12 +5615,11 @@ window.saveFlight = async function () {
   const depSegs = flCleanSegs(state.flDepSegs);
   const retSegs = flCleanSegs(state.flRetSegs);
   const depPort = document.getElementById("fFlDepPort").value.trim() || null;
-  const retPort = document.getElementById("fFlRetPort").value.trim() || null;
   const payload = {
     trip_id: state.tripId,
     flight_label: document.getElementById("fFlLabel").value.trim() || null,
     port: depPort,             // ต้นทางขาไป
-    ret_port: retPort,         // ต้นทางขากลับ
+    ret_port: null,            // ไม่เก็บ Port ขากลับ
     dep_segments: depSegs,     // ขาไป (หลายช่วง)
     ret_segments: retSegs,     // ขากลับ (หลายช่วง)
     // legacy mirror (ช่วงแรก/ปลายทางสุดท้าย) — backward-compat custom-report + dropdown check-seat
@@ -5690,7 +5688,7 @@ window.duplicateFlight = async function (flightId) {
     trip_id: state.tripId,
     flight_label: ((f.flight_label || f.flight || "ตั๋ว") + " (สำเนา)"),
     port: f.port || null,
-    ret_port: f.ret_port || null,
+    ret_port: null,            // ไม่เก็บ Port ขากลับ
     dep_segments: depSegs,
     ret_segments: retSegs,
     flight: depSegs[0]?.flight || null,

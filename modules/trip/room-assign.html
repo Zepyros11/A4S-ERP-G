@@ -1265,15 +1265,9 @@
           <div id="fFlDepSegs" class="fl-seg-list"></div>
           <button type="button" class="fl-seg-add" onclick="window.flSegAdd('dep')">＋ เพิ่มช่วงต่อเครื่อง (ขาไป)</button>
 
-          <!-- 🛬 เที่ยวบินขากลับ (ต่อเครื่องได้หลายช่วง) -->
+          <!-- 🛬 เที่ยวบินขากลับ (ต่อเครื่องได้หลายช่วง · ไม่เก็บ Port ขากลับ) -->
           <div class="fl-leg-head" style="margin-top:20px">🛬 เที่ยวบินขากลับ</div>
-          <div class="form-group" style="margin-top:8px">
-            <label class="form-label">Port ต้นทาง (สนามบินขาออกช่วงแรก)</label>
-            <input class="form-control" id="fFlRetPort" autocomplete="off"
-                   onfocus="window.flMenuOpen(this,'port')" oninput="window.flMenuFilter(this)" onblur="window.flMenuClose()"
-                   placeholder="เช่น BKK — เลือกจาก check-seat หรือพิมพ์ใหม่" />
-          </div>
-          <div id="fFlRetSegs" class="fl-seg-list"></div>
+          <div id="fFlRetSegs" class="fl-seg-list" style="margin-top:8px"></div>
           <button type="button" class="fl-seg-add" onclick="window.flSegAdd('ret')">＋ เพิ่มช่วงต่อเครื่อง (ขากลับ)</button>
 
           <!-- หมายเหตุ -->
