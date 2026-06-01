@@ -165,9 +165,9 @@ function renderTable(rows) {
             <button class="btn-icon" title="Check Seat (เปิดแท็บใหม่)"
               data-perm="trip_check_seat_view"
               onclick="window.open('./check-seat.html?trip_id=${t.trip_id}', '_blank')">💺</button>
-            <button class="btn-icon" title="จัดห้องพัก + รถบัส (เปิดแท็บใหม่)"
+            <button class="btn-icon" title="จัดห้องพัก + รถบัส + เครื่องบิน (เปิดแท็บใหม่)"
               data-perm="trip_rooms_view"
-              onclick="window.open('./room-assign.html?trip_id=${t.trip_id}', '_blank')">📋</button>
+              onclick="window.open('./room-assign.html?trip_id=${t.trip_id}', '_blank')">🧳</button>
             <button class="btn-icon" title="ทีมงาน (Staff/ไกด์/Outsource) — เปิดแท็บใหม่"
               data-perm="trip_team_view"
               onclick="window.open('./trip-team.html?trip_id=${t.trip_id}', '_blank')">🧑‍🤝‍🧑</button>

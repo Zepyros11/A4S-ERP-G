@@ -4973,6 +4973,40 @@ function lookupFlightPort(flightNo) {
   return "";
 }
 
+// อ่าน segment ของทิศทางหนึ่งจาก record ตั๋ว — fallback คอลัมน์เดิม (ตั๋วเก่าก่อน migration)
+function flGetSegs(f, leg) {
+  const raw = leg === "dep" ? f.dep_segments : f.ret_segments;
+  const arr = Array.isArray(raw)
+    ? raw.filter(s => s && (s.flight || s.dep || s.arr))
+    : [];
+  if (arr.length) return arr;
+  if (leg === "dep" && (f.flight || f.departure_datetime || f.arrival_datetime))
+    return [{ flight: f.flight || "", dep: f.departure_datetime || "", arr: f.arrival_datetime || "" }];
+  if (leg === "ret" && (f.comeback || f.comeback_datetime))
+    return [{ flight: f.comeback || "", dep: f.comeback_datetime || "", arr: "" }];
+  return [];
+}
+
+// บล็อกแสดงเที่ยวบินทิศทางหนึ่งบนการ์ด (หลายช่วงต่อเครื่อง)
+function flLegHtml(segs, leg, port) {
+  const tag = leg === "dep"
+    ? `<span class="fl-leg-tag dep">🛫 ขาไป</span>`
+    : `<span class="fl-leg-tag ret">🛬 ขากลับ</span>`;
+  const portPill = port ? `<span class="fl-port">📍 ${escapeHtml(port)}</span>` : "";
+  const badge = segs.length > 1 ? `<span class="fl-seg-badge">ต่อเครื่อง ${segs.length} ช่วง</span>` : "";
+  if (!segs.length) {
+    return `<div class="fl-leg">${tag}${portPill}<span class="fl-flno">—</span></div>`;
+  }
+  const lines = segs.map(s => `<div class="fl-seg-line">
+      <span class="fl-flno">${escapeHtml(s.flight || "—")}</span>
+      <span class="fl-times">${escapeHtml(fmtDT(s.dep))}<span class="fl-arrow">→</span>${escapeHtml(fmtDT(s.arr))}</span>
+    </div>`).join("");
+  return `<div class="fl-leg-group">
+      <div class="fl-leg-tagline">${tag}${portPill}${badge}</div>
+      ${lines}
+    </div>`;
+}
+
 function flightCardHtml(f) {
   const occ = state.flightOccupants[f.flight_id] || [];
   const imgs = Array.isArray(f.image_urls) ? f.image_urls : [];
@@ -4988,20 +5022,15 @@ function flightCardHtml(f) {
          <span class="fl-thumb-count">${imgs.length}</span>
        </div>`
     : `<div class="fl-thumb-empty" title="ยังไม่มีเอกสารตั๋ว">🖼</div>`;
-  const cardPort = f.port || lookupFlightPort(f.flight); // ค่าที่เลือกเอง · ถ้าว่างดึงจาก check-seat
-  const legDep = `<div class="fl-leg">
-      <span class="fl-leg-tag dep">🛫 ขาไป</span>
-      <span class="fl-flno">${escapeHtml(f.flight || "—")}</span>
-      <span class="fl-times">${escapeHtml(fmtDT(f.departure_datetime))}<span class="fl-arrow">→</span>${escapeHtml(fmtDT(f.arrival_datetime))}</span>
-    </div>`;
-  const legRet = `<div class="fl-leg">
-      <span class="fl-leg-tag ret">🛬 ขากลับ</span>
-      <span class="fl-flno">${escapeHtml(f.comeback || "—")}</span>
-      <span class="fl-times">${escapeHtml(fmtDT(f.comeback_datetime))}</span>
-    </div>`;
+  const depSegs = flGetSegs(f, "dep");
+  const retSegs = flGetSegs(f, "ret");
+  const depPort = f.port || lookupFlightPort(depSegs[0]?.flight || f.flight); // ต้นทางขาไป (fallback check-seat)
+  const retPort = f.ret_port || "";                                          // ต้นทางขากลับ
+  const legDep = flLegHtml(depSegs, "dep", depPort);
+  const legRet = flLegHtml(retSegs, "ret", retPort);
   return `<div class="fl-card${sel}" data-flight-id="${f.flight_id}" onclick="window.assignSelectedPaxToFlight(${f.flight_id})">
     <div class="fl-hdr">
-      <div class="fl-title">✈️ <b>${escapeHtml(title)}</b> <span class="fl-count-pill">👤 ${occ.length} คน</span>${cardPort ? `<span class="fl-port">📍 ${escapeHtml(cardPort)}</span>` : ""}</div>
+      <div class="fl-title">✈️ <b>${escapeHtml(title)}</b> <span class="fl-count-pill">👤 ${occ.length} คน</span></div>
       <div class="fl-actions" onclick="event.stopPropagation()">
         <button title="แก้ไขตั๋ว" data-perm="trip_bus_create" onclick="window.editFlight(${f.flight_id})">✏️</button>
         <button title="ทำสำเนาตั๋ว" data-perm="trip_bus_create" onclick="window.duplicateFlight(${f.flight_id})">⧉</button>
@@ -5206,87 +5235,99 @@ function buildCsFlightOptions() {
   return { dep, cb, port };
 }
 
-// เตรียมข้อมูล options + ตั้งค่า input — selDep/selCb/selPort = ค่าที่เลือก/บันทึกไว้
-// (combobox: เลือกจากรายการ หรือพิมพ์ใหม่เองก็ได้)
-function populateFlightSelects(selDep = "", selCb = "", selPort = "") {
+// เติม <datalist> เที่ยวบิน/port จาก check-seat + เตรียม map สำหรับ auto-fill วันเวลา
+function fillFlightDatalists() {
   const { dep, cb, port } = buildCsFlightOptions();
-  state._csDep = dep;
-  state._csCb = cb;
-  state._csPort = port;
-  const depInp  = document.getElementById("fFlFlight");
-  const cbInp   = document.getElementById("fFlComeback");
-  const portInp = document.getElementById("fFlPort");
-  if (depInp)  depInp.value  = selDep || "";
-  if (cbInp)   cbInp.value   = selCb || "";
-  if (portInp) portInp.value = selPort || "";
+  // map: flight -> { dep, arr, port } (รวมขาไป+ขากลับ ใช้ auto-fill ทุก segment)
+  const info = new Map();
+  dep.forEach((v, k) => info.set(k, { dep: v.dep || "", arr: v.arr || "", port: v.port || "" }));
+  cb.forEach((v, k) => { if (!info.has(k)) info.set(k, { dep: v || "", arr: "", port: "" }); });
+  state._csFlightInfo = info;
+  const flDl = document.getElementById("flCsFlightList");
+  if (flDl) flDl.innerHTML = [...info.keys()].sort().map(k => `<option value="${escapeAttr(k)}">`).join("");
+  const ptDl = document.getElementById("flCsPortList");
+  if (ptDl) ptDl.innerHTML = [...port.keys()].sort().map(k => `<option value="${escapeAttr(k)}">`).join("");
 }
 
-// ── COMBOBOX dropdown (custom, คุม CSS เอง + พิมพ์เพิ่มได้) ──
-const FL_COMBO = {
-  dep:  { inp: "fFlFlight",   menu: "fFlFlightMenu",   getMap: () => state._csDep,  onPick: () => window.onFlightSelectChange(),  icon: "✈️", empty: "— ไม่มีเที่ยวบินใน check-seat —", addLbl: "เพิ่มเที่ยวบินใหม่" },
-  cb:   { inp: "fFlComeback", menu: "fFlComebackMenu", getMap: () => state._csCb,   onPick: () => window.onComebackSelectChange(), icon: "✈️", empty: "— ไม่มีเที่ยวบินใน check-seat —", addLbl: "เพิ่มเที่ยวบินใหม่" },
-  port: { inp: "fFlPort",     menu: "fFlPortMenu",     getMap: () => state._csPort, onPick: () => {},                              icon: "📍", empty: "— ไม่มี Port ใน check-seat —",     addLbl: "เพิ่ม Port ใหม่" },
-};
-
-function flComboRender(which) {
-  const c = FL_COMBO[which];
-  const menu = document.getElementById(c.menu);
-  if (!menu) return;
-  const map = c.getMap() || new Map();
-  const inp = document.getElementById(c.inp);
-  const typed = (inp?.value || "").trim();
-  const q = typed.toLowerCase();
-  const keys = [...map.keys()].filter(k => !q || k.toLowerCase().includes(q)).sort();
-  const items = keys.map(k => {
-    const v = map.get(k);
-    const dt = which === "dep" ? (v && v.dep ? fmtDT(v.dep) : "") : (which === "cb" && v ? fmtDT(v) : "");
-    return `<div class="fl-combo-item" onmousedown="window.flComboPick('${which}','${escapeJs(k)}')">
-      <span>${c.icon} ${escapeHtml(k)}</span>${dt && dt !== "—" ? `<span class="fl-combo-dt">${escapeHtml(dt)}</span>` : ""}
-    </div>`;
-  }).join("");
-  const showNew = typed && !map.has(typed);
-  const newRow = showNew
-    ? `<div class="fl-combo-new" onmousedown="window.flComboPick('${which}','${escapeJs(typed)}')">➕ ใช้ "${escapeHtml(typed)}" (${c.addLbl})</div>`
-    : "";
-  menu.innerHTML = (items || `<div class="fl-combo-empty">${c.empty}</div>`) + newRow;
+// ── SEGMENT EDITOR (เที่ยวบินต่อเครื่อง ในฟอร์ม) ──
+// state.flDepSegs / state.flRetSegs = [{ flight, dep, arr }]
+function flSegsRef(leg) {
+  if (leg === "dep") { if (!state.flDepSegs) state.flDepSegs = []; return state.flDepSegs; }
+  if (!state.flRetSegs) state.flRetSegs = [];
+  return state.flRetSegs;
 }
 
-window.flComboOpen = function (which) {
-  flComboRender(which);
-  document.getElementById(FL_COMBO[which].menu)?.classList.add("open");
-};
-window.flComboFilter = function (which) {
-  flComboRender(which);
-  document.getElementById(FL_COMBO[which].menu)?.classList.add("open");
-};
-window.flComboClose = function (which) {
-  // หน่วงให้ onmousedown ของ item ทำงานก่อนปิดเมนู
-  setTimeout(() => document.getElementById(FL_COMBO[which].menu)?.classList.remove("open"), 150);
-};
-window.flComboPick = function (which, val) {
-  const c = FL_COMBO[which];
-  const inp = document.getElementById(c.inp);
-  if (inp) inp.value = val;
-  document.getElementById(c.menu)?.classList.remove("open");
-  c.onPick(); // auto-fill วันเวลา
+function flSegRowHtml(leg, seg, i, total) {
+  const dis = total <= 1 ? "disabled" : "";
+  return `<div class="fl-seg-row">
+    <span class="fl-seg-no">ช่วง ${i + 1}</span>
+    <div class="fl-seg-grid">
+      <label class="fl-seg-f"><span>เที่ยวบิน</span>
+        <input class="form-control" list="flCsFlightList" autocomplete="off" placeholder="เช่น ET0934"
+               value="${escapeAttr(seg.flight || "")}"
+               oninput="window.flSegSet('${leg}',${i},'flight',this.value)"
+               onchange="window.flSegFlightPick('${leg}',${i},this.value)" /></label>
+      <label class="fl-seg-f"><span>เวลาออก</span>
+        <input class="form-control" type="datetime-local" value="${escapeAttr(seg.dep || "")}"
+               oninput="window.flSegSet('${leg}',${i},'dep',this.value)" /></label>
+      <label class="fl-seg-f"><span>เวลาถึง</span>
+        <input class="form-control" type="datetime-local" value="${escapeAttr(seg.arr || "")}"
+               oninput="window.flSegSet('${leg}',${i},'arr',this.value)" /></label>
+    </div>
+    <button type="button" class="fl-seg-rm" title="ลบช่วงนี้" ${dis}
+            onclick="window.flSegRemove('${leg}',${i})">✕</button>
+  </div>`;
+}
+
+function renderFlSegs(leg) {
+  const wrap = document.getElementById(leg === "dep" ? "fFlDepSegs" : "fFlRetSegs");
+  if (!wrap) return;
+  const segs = flSegsRef(leg);
+  if (!segs.length) segs.push({ flight: "", dep: "", arr: "" });
+  wrap.innerHTML = segs.map((s, i) => flSegRowHtml(leg, s, i, segs.length)).join("");
+}
+
+window.flSegSet = function (leg, i, field, val) {
+  const segs = flSegsRef(leg);
+  if (segs[i]) segs[i][field] = val; // ไม่ re-render ระหว่างพิมพ์ (กัน focus หลุด)
 };
 
-// เลือกเที่ยวบินขาไป → auto-fill Departure/Arrival จาก check-seat
-window.onFlightSelectChange = function () {
-  const fl = document.getElementById("fFlFlight").value;
-  const info = state._csDep && state._csDep.get(fl);
-  if (info) {
-    if (info.dep) document.getElementById("fFlDeparture").value = String(info.dep).slice(0, 16);
-    if (info.arr) document.getElementById("fFlArrival").value   = String(info.arr).slice(0, 16);
-    // Port ไม่ auto-fill — ให้ผู้ใช้เลือกเอง
+// เลือกเที่ยวบินที่รู้จัก (check-seat) → auto-fill เวลาออก/ถึง + Port ช่วงแรกขาไป (เฉพาะช่องว่าง)
+window.flSegFlightPick = function (leg, i, val) {
+  const segs = flSegsRef(leg);
+  const seg = segs[i];
+  if (!seg) return;
+  const inf = state._csFlightInfo && state._csFlightInfo.get((val || "").trim());
+  if (!inf) return;
+  if (inf.dep && !seg.dep) seg.dep = String(inf.dep).slice(0, 16);
+  if (inf.arr && !seg.arr) seg.arr = String(inf.arr).slice(0, 16);
+  if (leg === "dep" && i === 0 && inf.port) {
+    const p = document.getElementById("fFlDepPort");
+    if (p && !p.value.trim()) p.value = inf.port;
   }
+  renderFlSegs(leg);
 };
-// เลือกเที่ยวบินขากลับ → auto-fill Comeback Date&Time
-window.onComebackSelectChange = function () {
-  const cbf = document.getElementById("fFlComeback").value;
-  const dt = state._csCb && state._csCb.get(cbf);
-  if (dt) document.getElementById("fFlComebackDt").value = String(dt).slice(0, 16);
+
+window.flSegAdd = function (leg) {
+  flSegsRef(leg).push({ flight: "", dep: "", arr: "" });
+  renderFlSegs(leg);
 };
+
+window.flSegRemove = function (leg, i) {
+  const segs = flSegsRef(leg);
+  if (segs.length <= 1) return; // เหลืออย่างน้อย 1 ช่วง
+  segs.splice(i, 1);
+  renderFlSegs(leg);
+};
+
+// แปลง record ตั๋ว → segment array สำหรับฟอร์ม (fallback คอลัมน์เดิม + slice datetime ให้ datetime-local)
+function flSegsFromRecord(f, leg) {
+  return flGetSegs(f, leg).map(s => ({
+    flight: s.flight || "",
+    dep: s.dep ? String(s.dep).slice(0, 16) : "",
+    arr: s.arr ? String(s.arr).slice(0, 16) : "",
+  }));
+}
 
 // ── FLIGHT CRUD MODAL ──
 window.openFlightModal = function () {
@@ -5294,9 +5335,13 @@ window.openFlightModal = function () {
   state.flightDraftImgs = [];
   document.getElementById("flightModalTitle").textContent = "✈️ เพิ่มตั๋วเครื่องบิน";
   document.getElementById("flightSaveBtn").innerHTML = "💾 บันทึก";
-  ["fFlLabel", "fFlDeparture", "fFlArrival", "fFlComebackDt", "fFlNote"]
+  ["fFlLabel", "fFlDepPort", "fFlRetPort", "fFlNote"]
     .forEach(id => { const el = document.getElementById(id); if (el) el.value = ""; });
-  populateFlightSelects("", "", ""); // dropdown เที่ยวบิน/port จาก check-seat
+  fillFlightDatalists();                                   // datalist เที่ยวบิน/port จาก check-seat
+  state.flDepSegs = [{ flight: "", dep: "", arr: "" }];    // เริ่มทิศทางละ 1 ช่วง
+  state.flRetSegs = [{ flight: "", dep: "", arr: "" }];
+  renderFlSegs("dep");
+  renderFlSegs("ret");
   renderFlightModalImgs();
   document.getElementById("flightOverlay").classList.add("open");
   setTimeout(() => document.getElementById("fFlLabel")?.focus(), 50);
@@ -5317,25 +5362,45 @@ window.editFlight = function (flightId) {
   document.getElementById("flightModalTitle").textContent = "✈️ แก้ไขตั๋วเครื่องบิน";
   document.getElementById("flightSaveBtn").innerHTML = "💾 บันทึกการแก้ไข";
   document.getElementById("fFlLabel").value = f.flight_label || "";
-  populateFlightSelects(f.flight || "", f.comeback || "", f.port || lookupFlightPort(f.flight)); // port ที่เลือกไว้ (fallback check-seat)
-  document.getElementById("fFlDeparture").value = f.departure_datetime || "";
-  document.getElementById("fFlArrival").value = f.arrival_datetime || "";
-  document.getElementById("fFlComebackDt").value = f.comeback_datetime || "";
+  fillFlightDatalists();
+  document.getElementById("fFlDepPort").value = f.port || lookupFlightPort(f.flight) || ""; // ต้นทางขาไป (fallback check-seat)
+  document.getElementById("fFlRetPort").value = f.ret_port || "";                            // ต้นทางขากลับ
+  state.flDepSegs = flSegsFromRecord(f, "dep");
+  state.flRetSegs = flSegsFromRecord(f, "ret");
+  if (!state.flDepSegs.length) state.flDepSegs = [{ flight: "", dep: "", arr: "" }];
+  if (!state.flRetSegs.length) state.flRetSegs = [{ flight: "", dep: "", arr: "" }];
+  renderFlSegs("dep");
+  renderFlSegs("ret");
   document.getElementById("fFlNote").value = f.note || "";
   renderFlightModalImgs();
   document.getElementById("flightOverlay").classList.add("open");
 };
 
+// ทำความสะอาด segment array → ตัดช่วงว่างทิ้ง
+function flCleanSegs(segs) {
+  return (segs || [])
+    .map(s => ({ flight: (s.flight || "").trim(), dep: s.dep || "", arr: s.arr || "" }))
+    .filter(s => s.flight || s.dep || s.arr);
+}
+
 window.saveFlight = async function () {
+  const depSegs = flCleanSegs(state.flDepSegs);
+  const retSegs = flCleanSegs(state.flRetSegs);
+  const depPort = document.getElementById("fFlDepPort").value.trim() || null;
+  const retPort = document.getElementById("fFlRetPort").value.trim() || null;
   const payload = {
     trip_id: state.tripId,
     flight_label: document.getElementById("fFlLabel").value.trim() || null,
-    flight: document.getElementById("fFlFlight").value.trim() || null,
-    port: document.getElementById("fFlPort").value.trim() || null,
-    departure_datetime: document.getElementById("fFlDeparture").value || null,
-    arrival_datetime: document.getElementById("fFlArrival").value || null,
-    comeback: document.getElementById("fFlComeback").value.trim() || null,
-    comeback_datetime: document.getElementById("fFlComebackDt").value || null,
+    port: depPort,             // ต้นทางขาไป
+    ret_port: retPort,         // ต้นทางขากลับ
+    dep_segments: depSegs,     // ขาไป (หลายช่วง)
+    ret_segments: retSegs,     // ขากลับ (หลายช่วง)
+    // legacy mirror (ช่วงแรก/ปลายทางสุดท้าย) — backward-compat custom-report + dropdown check-seat
+    flight: depSegs[0]?.flight || null,
+    departure_datetime: depSegs[0]?.dep || null,
+    arrival_datetime: depSegs[depSegs.length - 1]?.arr || null,
+    comeback: retSegs[0]?.flight || null,
+    comeback_datetime: retSegs[0]?.dep || null,
     note: document.getElementById("fFlNote").value.trim() || null,
     image_urls: (state.flightDraftImgs || []).slice(0, 5),
     updated_at: new Date().toISOString(),
@@ -5390,15 +5455,20 @@ window.deleteFlight = async function (flightId) {
 window.duplicateFlight = async function (flightId) {
   const f = state.flights.find(x => x.flight_id === flightId);
   if (!f) return;
+  const depSegs = flGetSegs(f, "dep").map(s => ({ flight: s.flight || "", dep: s.dep || "", arr: s.arr || "" }));
+  const retSegs = flGetSegs(f, "ret").map(s => ({ flight: s.flight || "", dep: s.dep || "", arr: s.arr || "" }));
   const payload = {
     trip_id: state.tripId,
     flight_label: ((f.flight_label || f.flight || "ตั๋ว") + " (สำเนา)"),
-    flight: f.flight || null,
     port: f.port || null,
-    departure_datetime: f.departure_datetime || null,
-    arrival_datetime: f.arrival_datetime || null,
-    comeback: f.comeback || null,
-    comeback_datetime: f.comeback_datetime || null,
+    ret_port: f.ret_port || null,
+    dep_segments: depSegs,
+    ret_segments: retSegs,
+    flight: depSegs[0]?.flight || null,
+    departure_datetime: depSegs[0]?.dep || null,
+    arrival_datetime: depSegs[depSegs.length - 1]?.arr || null,
+    comeback: retSegs[0]?.flight || null,
+    comeback_datetime: retSegs[0]?.dep || null,
     note: f.note || null,
     image_urls: Array.isArray(f.image_urls) ? f.image_urls : [],
     sort_order: state.flights.length,

@@ -475,6 +475,23 @@
       .fl-combo-new{padding:8px 10px;border-radius:7px;font-size:12.5px;color:var(--accent,#5b8a72);font-weight:600;cursor:pointer;border-top:1px dashed var(--border);margin-top:3px}
       .fl-combo-new:hover{background:#eef6f1}
       .fl-leg-head{font-size:12.5px;font-weight:700;color:var(--accent,#5b8a72);border-bottom:1px dashed var(--border);padding-bottom:5px}
+      /* segment rows (เที่ยวบินต่อเครื่อง) ในฟอร์ม */
+      .fl-seg-list{display:flex;flex-direction:column;gap:8px;margin-top:8px}
+      .fl-seg-row{display:flex;align-items:flex-end;gap:8px}
+      .fl-seg-no{flex:0 0 auto;min-width:46px;font-size:11px;font-weight:700;color:var(--text3);padding-bottom:10px}
+      .fl-seg-grid{flex:1;display:grid;grid-template-columns:1.15fr 1fr 1fr;gap:8px}
+      .fl-seg-f{display:flex;flex-direction:column;gap:3px}
+      .fl-seg-f>span{font-size:10.5px;color:var(--text3);font-weight:600}
+      .fl-seg-rm{flex:0 0 auto;border:1px solid #fecaca;background:#fef2f2;color:#dc2626;border-radius:7px;width:32px;height:38px;cursor:pointer;font-size:13px}
+      .fl-seg-rm:hover{background:#fee2e2}
+      .fl-seg-rm:disabled{opacity:.4;cursor:not-allowed}
+      .fl-seg-add{margin-top:8px;border:1px dashed var(--accent,#5b8a72);background:#eef6f1;color:var(--accent,#5b8a72);border-radius:8px;padding:8px 12px;font-size:12.5px;font-weight:600;cursor:pointer;width:100%}
+      .fl-seg-add:hover{background:#e2efe8}
+      /* multi-segment legs บนการ์ดตั๋ว */
+      .fl-leg-group{display:flex;flex-direction:column;gap:3px}
+      .fl-leg-tagline{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+      .fl-seg-line{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12.5px;padding-left:2px}
+      .fl-seg-badge{font-size:10px;color:#a16207;background:#fef3c7;border:1px solid #fde68a;border-radius:99px;padding:1px 7px;font-weight:600}
 
       /* ════════════ BUSES ════════════ */
       .ba-buses{display:flex;flex-direction:column;gap:14px}
@@ -1217,62 +1234,29 @@
             <input class="form-control" id="fFlLabel" placeholder="เช่น กรุ๊ป A · ไฟลท์เช้า" />
           </div>
 
-          <!-- 🛫 เที่ยวบินขาไป -->
-          <div class="fl-leg-head" style="margin-top:16px">🛫 เที่ยวบินขาไป</div>
-          <div class="ba-form-row-2" style="margin-top:8px">
-            <div class="form-group">
-              <label class="form-label">Flight (ขาไป)</label>
-              <div class="fl-combo">
-                <input class="form-control" id="fFlFlight" autocomplete="off"
-                       placeholder="เลือกจาก check-seat หรือพิมพ์เที่ยวบินใหม่"
-                       oninput="window.flComboFilter('dep')" onfocus="window.flComboOpen('dep')"
-                       onblur="window.flComboClose('dep')" onchange="window.onFlightSelectChange()" />
-                <span class="fl-combo-caret">▾</span>
-                <div class="fl-combo-menu" id="fFlFlightMenu"></div>
-              </div>
-            </div>
-            <div class="form-group">
-              <label class="form-label">Port (สนามบินขาออก)</label>
-              <div class="fl-combo">
-                <input class="form-control" id="fFlPort" autocomplete="off"
-                       placeholder="เลือกจาก check-seat หรือพิมพ์ใหม่"
-                       oninput="window.flComboFilter('port')" onfocus="window.flComboOpen('port')"
-                       onblur="window.flComboClose('port')" />
-                <span class="fl-combo-caret">▾</span>
-                <div class="fl-combo-menu" id="fFlPortMenu"></div>
-              </div>
-            </div>
-          </div>
-          <div class="ba-form-row-2" style="margin-top:12px">
-            <div class="form-group">
-              <label class="form-label">Date&amp;Time (Departure)</label>
-              <input class="form-control" type="datetime-local" id="fFlDeparture" />
-            </div>
-            <div class="form-group">
-              <label class="form-label">Date&amp;Time (Arrival)</label>
-              <input class="form-control" type="datetime-local" id="fFlArrival" />
-            </div>
-          </div>
+          <!-- datalists ใช้ร่วมทุก segment (เที่ยวบิน + port จาก check-seat) -->
+          <datalist id="flCsFlightList"></datalist>
+          <datalist id="flCsPortList"></datalist>
 
-          <!-- 🛬 เที่ยวบินขากลับ -->
-          <div class="fl-leg-head" style="margin-top:18px">🛬 เที่ยวบินขากลับ</div>
-          <div class="ba-form-row-2" style="margin-top:8px">
-            <div class="form-group">
-              <label class="form-label">Comeback Flight (ขากลับ)</label>
-              <div class="fl-combo">
-                <input class="form-control" id="fFlComeback" autocomplete="off"
-                       placeholder="เลือกจาก check-seat หรือพิมพ์เที่ยวบินใหม่"
-                       oninput="window.flComboFilter('cb')" onfocus="window.flComboOpen('cb')"
-                       onblur="window.flComboClose('cb')" onchange="window.onComebackSelectChange()" />
-                <span class="fl-combo-caret">▾</span>
-                <div class="fl-combo-menu" id="fFlComebackMenu"></div>
-              </div>
-            </div>
-            <div class="form-group">
-              <label class="form-label">Date&amp;Time (Comeback)</label>
-              <input class="form-control" type="datetime-local" id="fFlComebackDt" />
-            </div>
+          <!-- 🛫 เที่ยวบินขาไป (ต่อเครื่องได้หลายช่วง) -->
+          <div class="fl-leg-head" style="margin-top:16px">🛫 เที่ยวบินขาไป</div>
+          <div class="form-group" style="margin-top:8px">
+            <label class="form-label">Port ต้นทาง (สนามบินขาออกช่วงแรก)</label>
+            <input class="form-control" id="fFlDepPort" list="flCsPortList" autocomplete="off"
+                   placeholder="เช่น ABJ — เลือกจาก check-seat หรือพิมพ์ใหม่" />
           </div>
+          <div id="fFlDepSegs" class="fl-seg-list"></div>
+          <button type="button" class="fl-seg-add" onclick="window.flSegAdd('dep')">＋ เพิ่มช่วงต่อเครื่อง (ขาไป)</button>
+
+          <!-- 🛬 เที่ยวบินขากลับ (ต่อเครื่องได้หลายช่วง) -->
+          <div class="fl-leg-head" style="margin-top:20px">🛬 เที่ยวบินขากลับ</div>
+          <div class="form-group" style="margin-top:8px">
+            <label class="form-label">Port ต้นทาง (สนามบินขาออกช่วงแรก)</label>
+            <input class="form-control" id="fFlRetPort" list="flCsPortList" autocomplete="off"
+                   placeholder="เช่น BKK — เลือกจาก check-seat หรือพิมพ์ใหม่" />
+          </div>
+          <div id="fFlRetSegs" class="fl-seg-list"></div>
+          <button type="button" class="fl-seg-add" onclick="window.flSegAdd('ret')">＋ เพิ่มช่วงต่อเครื่อง (ขากลับ)</button>
 
           <!-- หมายเหตุ -->
           <div class="form-group" style="margin-top:18px">
