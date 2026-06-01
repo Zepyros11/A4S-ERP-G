@@ -475,13 +475,16 @@
       .fl-combo-new{padding:8px 10px;border-radius:7px;font-size:12.5px;color:var(--accent,#5b8a72);font-weight:600;cursor:pointer;border-top:1px dashed var(--border);margin-top:3px}
       .fl-combo-new:hover{background:#eef6f1}
       .fl-leg-head{font-size:12.5px;font-weight:700;color:var(--accent,#5b8a72);border-bottom:1px dashed var(--border);padding-bottom:5px}
+      /* บังคับ native popup (datalist/date picker) ในฟอร์มตั๋วให้เป็น light — กัน dropdown ดำตาม OS dark mode */
+      #flightOverlay .form-control{color-scheme:light}
       /* segment rows (เที่ยวบินต่อเครื่อง) ในฟอร์ม */
       .fl-seg-list{display:flex;flex-direction:column;gap:8px;margin-top:8px}
       .fl-seg-row{display:flex;align-items:flex-end;gap:8px}
       .fl-seg-no{flex:0 0 auto;min-width:46px;font-size:11px;font-weight:700;color:var(--text3);padding-bottom:10px}
-      .fl-seg-grid{flex:1;display:grid;grid-template-columns:1.15fr 1fr 1fr;gap:8px}
-      .fl-seg-f{display:flex;flex-direction:column;gap:3px}
+      .fl-seg-grid{flex:1;min-width:0;display:grid;grid-template-columns:1.15fr 1fr 1fr;gap:8px}
+      .fl-seg-f{display:flex;flex-direction:column;gap:3px;min-width:0}
       .fl-seg-f>span{font-size:10.5px;color:var(--text3);font-weight:600}
+      .fl-seg-f>.form-control{min-width:0;width:100%}
       .fl-seg-rm{flex:0 0 auto;border:1px solid #fecaca;background:#fef2f2;color:#dc2626;border-radius:7px;width:32px;height:38px;cursor:pointer;font-size:13px}
       .fl-seg-rm:hover{background:#fee2e2}
       .fl-seg-rm:disabled{opacity:.4;cursor:not-allowed}
@@ -1223,7 +1226,7 @@
 
     <!-- ═══════════ ADD/EDIT FLIGHT (ตั๋วเครื่องบิน) MODAL ═══════════ -->
     <div class="modal-overlay" id="flightOverlay" onclick="window.closeFlightModal(event)">
-      <div class="modal v-sage-header" onclick="event.stopPropagation()">
+      <div class="modal v-sage-header" onclick="event.stopPropagation()" style="max-width:720px;width:94vw">
         <div class="modal-hdr">
           <div class="modal-title" id="flightModalTitle">✈️ เพิ่มตั๋วเครื่องบิน</div>
           <button class="btn-modal-close" onclick="window.closeFlightModal()">✕</button>
