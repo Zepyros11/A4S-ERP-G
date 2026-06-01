@@ -33,14 +33,31 @@ const COLUMN_GROUPS = [
     ],
   },
   {
-    id: "booking", label: "🛏️ ห้องพัก + รถ",
+    id: "room", label: "🛏️ ห้องพัก",
     cols: [
       { key: "_hotel",    label: "โรงแรม",       src: "calc" },
       { key: "_room",     label: "ชื่อห้อง",      src: "calc" },
       { key: "_checkin",  label: "เช็คอิน",       src: "calc" },
       { key: "_checkout", label: "เช็คเอาท์",     src: "calc" },
+    ],
+  },
+  {
+    id: "bus", label: "🚌 รถบัส",
+    cols: [
       { key: "_bus",      label: "รถบัส",         src: "calc" },
       { key: "_busseat",  label: "ที่นั่งรถบัส",   src: "calc" },
+    ],
+  },
+  {
+    id: "flight", label: "✈️ เครื่องบิน",
+    cols: [
+      { key: "_flticket",     label: "ตั๋วเครื่องบิน",   src: "calc" },
+      { key: "_flflight",     label: "Flight (ขาไป)",    src: "calc" },
+      { key: "_flport",       label: "Port",             src: "calc" },
+      { key: "_fldep",        label: "ออก (Departure)",  src: "calc" },
+      { key: "_flarr",        label: "ถึง (Arrival)",    src: "calc" },
+      { key: "_flcomeback",   label: "Flight (ขากลับ)",  src: "calc" },
+      { key: "_flcomebackdt", label: "วันเวลากลับ",      src: "calc" },
     ],
   },
   {
@@ -175,11 +192,12 @@ async function init() {
 async function loadAll() {
   showLoading(true);
   try {
-    const [trip, pax, rooms, buses, templates, team, memberTypes] = await Promise.all([
+    const [trip, pax, rooms, buses, flights, templates, team, memberTypes] = await Promise.all([
       sbFetch("trips", `?trip_id=eq.${state.tripId}&select=trip_id,trip_name,start_date,end_date`).then(r => r?.[0] || null),
       sbFetch("tour_seat_check", `?trip_id=eq.${state.tripId}&select=*&order=group_name.asc.nullslast,name.asc`),
       sbFetch("trip_rooms", `?trip_id=eq.${state.tripId}&select=room_id,room_name,place_id,check_in_date,check_out_date`),
       sbFetch("trip_buses", `?trip_id=eq.${state.tripId}&select=bus_id,bus_no,bus_label`).catch(() => []),
+      sbFetch("trip_flights", `?trip_id=eq.${state.tripId}&select=*`).catch(() => []),
       sbFetch("trip_report_templates", "?select=*&order=name.asc").catch(() => []),
       sbFetch("trip_guides", `?trip_id=eq.${state.tripId}&select=*&order=sort_order.asc,guide_id.asc`).catch(() => []),
       sbFetch("member_types", "?select=type_key,label,emoji&order=sort_order.asc").catch(() => []),
@@ -223,7 +241,7 @@ async function loadAll() {
     state.paxCount  = allRows.length;
     state.templates = templates || [];
 
-    await buildCalc(rooms || [], buses || []);
+    await buildCalc(rooms || [], buses || [], flights || []);
 
     renderTripBanner();
     renderTemplates();
@@ -236,15 +254,19 @@ async function loadAll() {
 }
 
 // สร้าง state.calc[code] — join ห้องพัก/รถ ให้แต่ละคน
-async function buildCalc(rooms, buses) {
+async function buildCalc(rooms, buses, flights = []) {
   const roomIds = rooms.map(r => r.room_id);
   const busIds = buses.map(b => b.bus_id);
-  const [roomOccs, busOccs, places] = await Promise.all([
+  const flightIds = flights.map(f => f.flight_id);
+  const [roomOccs, busOccs, flightOccs, places] = await Promise.all([
     roomIds.length
       ? sbFetch("trip_room_occupants", `?room_id=in.(${roomIds.join(",")})&select=room_id,code`)
       : Promise.resolve([]),
     busIds.length
       ? sbFetch("trip_bus_occupants", `?bus_id=in.(${busIds.join(",")})&select=bus_id,seat_no,code`)
+      : Promise.resolve([]),
+    flightIds.length
+      ? sbFetch("trip_flight_occupants", `?flight_id=in.(${flightIds.join(",")})&select=flight_id,code`).catch(() => [])
       : Promise.resolve([]),
     sbFetch("places", "?place_type=eq.HOTEL&select=place_id,place_name").catch(() => []),
   ]);
@@ -255,6 +277,8 @@ async function buildCalc(rooms, buses) {
   (places || []).forEach(p => { placeById[p.place_id] = p.place_name; });
   const busById = {};
   buses.forEach(b => { busById[b.bus_id] = b; });
+  const flightById = {};
+  flights.forEach(f => { flightById[f.flight_id] = f; });
 
   const codeRooms = {}; // code -> [room]
   (roomOccs || []).forEach(o => {
@@ -265,6 +289,11 @@ async function buildCalc(rooms, buses) {
   (busOccs || []).forEach(o => {
     if (busById[o.bus_id]) codeBus[o.code] = { bus: busById[o.bus_id], seat: o.seat_no };
   });
+  const codeFlight = {}; // code -> flight record
+  (flightOccs || []).forEach(o => {
+    if (flightById[o.flight_id]) codeFlight[o.code] = flightById[o.flight_id];
+  });
+  const fmtDTcell = (s) => s ? String(s).replace("T", " ") : "";
 
   state.calc = {};
   state.pax.forEach(p => {
@@ -272,6 +301,7 @@ async function buildCalc(rooms, buses) {
       .sort((a, b) => (a.room_name || "").localeCompare(b.room_name || "", undefined, { numeric: true }));
     const uniq = arr => [...new Set(arr.filter(Boolean))];
     const bus = codeBus[p.code];
+    const fl = codeFlight[p.code];
 
     // จัดกลุ่มห้องตามโรงแรม — 1 stay = 1 โรงแรม (ห้อง/เช็คอินในโรงแรมเดียวกันรวม comma)
     // ใช้ตอน expand รายงานเป็น 1 แถวต่อ (คน × โรงแรม) เมื่อเลือกคอลัมน์โรงแรม/ห้อง
@@ -298,6 +328,13 @@ async function buildCalc(rooms, buses) {
       _checkout: uniq(rs.map(r => fmtDate(r.check_out_date))).join(", "),
       _bus:      bus ? (bus.bus.bus_label || `คันที่ ${bus.bus.bus_no || "?"}`) : "",
       _busseat:  bus ? String(bus.seat ?? "") : "",
+      _flticket:     fl ? (fl.flight_label || fl.flight || `ตั๋ว #${fl.flight_id}`) : "",
+      _flflight:     fl ? (fl.flight || "") : "",
+      _flport:       fl ? (fl.port || p.port || "") : "",
+      _fldep:        fl ? fmtDTcell(fl.departure_datetime) : "",
+      _flarr:        fl ? fmtDTcell(fl.arrival_datetime) : "",
+      _flcomeback:   fl ? (fl.comeback || "") : "",
+      _flcomebackdt: fl ? fmtDTcell(fl.comeback_datetime) : "",
       _stays:    stays,
     };
   });

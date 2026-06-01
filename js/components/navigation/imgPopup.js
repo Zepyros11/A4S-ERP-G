@@ -3,6 +3,8 @@ const ImgPopup = (() => {
   let titles = [];
   let skus = [];
   let index = 0;
+  const ZOOM_STEPS = [100, 150, 200, 250, 300];
+  let zoom = 100;
 
   function ensureOverlay() {
     if (document.getElementById("imgPopupOverlay")) return;
@@ -39,6 +41,8 @@ align-items:center;
 justify-content:space-between;
 padding:14px 20px;
 background:linear-gradient(to bottom,rgba(0,0,0,0.5),transparent);
+position:relative;
+z-index:30;
 }
 
 .imp-title{
@@ -103,15 +107,17 @@ color:#fff;
 .imp-main{
 flex:1;
 display:flex;
-align-items:center;
-justify-content:center;
-gap:16px;
+overflow:auto;
 padding:0 16px;
 }
 
 .imp-nav-btn{
-background:rgba(255,255,255,0.05);
-border:1px solid rgba(255,255,255,0.1);
+position:fixed;
+top:50%;
+transform:translateY(-50%);
+z-index:20;
+background:rgba(255,255,255,0.08);
+border:1px solid rgba(255,255,255,0.15);
 color:#fff;
 width:56px;
 height:56px;
@@ -123,26 +129,33 @@ align-items:center;
 justify-content:center;
 }
 
+.imp-nav-btn.left{left:16px;}
+.imp-nav-btn.right{right:16px;}
+
 .imp-nav-btn:hover{
 background:rgba(255,255,255,0.12);
 }
 
 .imp-img-wrap{
 position:relative;
+margin:auto;
 display:flex;
 align-items:center;
 justify-content:center;
-max-width:calc(100% - 160px);
 }
 
-.imp-img-wrap.zoomed{
-transform:scale(1.3);
+#impZoomBtn{
+width:auto;
+min-width:40px;
+padding:0 12px;
+border-radius:20px;
+font-size:13px;
+font-weight:700;
+gap:3px;
 }
 
 .imp-img-wrap img{
-max-width:100%;
-max-height:calc(100vh - 210px);
-object-fit:contain;
+display:block;
 border-radius:16px;
 opacity:0;
 transition:opacity .3s;
@@ -268,6 +281,7 @@ object-fit:cover;
     index = startIndex;
 
     render();
+    _resetZoom();
 
     document.getElementById("imgPopupOverlay").classList.add("active");
 
@@ -277,7 +291,7 @@ object-fit:cover;
   function close() {
     document.getElementById("imgPopupOverlay")?.classList.remove("active");
 
-    document.getElementById("impImgWrap")?.classList.remove("zoomed");
+    _resetZoom();
 
     document.removeEventListener("keydown", keyHandler);
   }
@@ -286,15 +300,38 @@ object-fit:cover;
     if (e.target === document.getElementById("imgPopupOverlay")) close();
   }
 
+  // วนระดับซูม 100 → 150 → 200 → 250 → 300 → 100
   function _toggleZoom() {
-    const wrap = document.getElementById("impImgWrap");
+    const i = ZOOM_STEPS.indexOf(zoom);
+    zoom = ZOOM_STEPS[(i + 1) % ZOOM_STEPS.length];
+    _applyZoom();
+  }
+
+  function _applyZoom() {
+    const img = document.getElementById("impImage");
     const btn = document.getElementById("impZoomBtn");
+    if (img) {
+      const baseH = Math.max(240, window.innerHeight - 180); // ขนาดพอดีจอที่ 100%
+      if (zoom === 100) {
+        // พอดีจอ (contain)
+        img.style.maxWidth = "calc(100vw - 180px)";
+        img.style.maxHeight = baseH + "px";
+        img.style.width = "auto";
+        img.style.height = "auto";
+      } else {
+        // ขยายขนาดจริง → เลื่อน (scroll) ดูได้ใน .imp-main
+        img.style.maxWidth = "none";
+        img.style.maxHeight = "none";
+        img.style.height = Math.round(baseH * zoom / 100) + "px";
+        img.style.width = "auto";
+      }
+    }
+    if (btn) btn.textContent = zoom === 100 ? "🔍 100%" : `🔎 ${zoom}%`;
+  }
 
-    if (!wrap) return;
-
-    wrap.classList.toggle("zoomed");
-
-    btn.textContent = wrap.classList.contains("zoomed") ? "🔎" : "🔍";
+  function _resetZoom() {
+    zoom = 100;
+    _applyZoom();
   }
 
   function keyHandler(e) {
@@ -305,21 +342,19 @@ object-fit:cover;
 
   function next() {
     index = (index + 1) % images.length;
-
+    _resetZoom();
     render();
   }
 
   function prev() {
     index = (index - 1 + images.length) % images.length;
-
+    _resetZoom();
     render();
   }
 
   function go(i) {
     index = i;
-
-    document.getElementById("impImgWrap")?.classList.remove("zoomed");
-
+    _resetZoom();
     render();
   }
 

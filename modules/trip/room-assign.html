@@ -86,7 +86,7 @@
 
       /* Right panel: rooms */
       .ra-rooms{background:transparent;display:flex;flex-direction:column;gap:14px}
-      .ra-rooms-toolbar{display:flex;justify-content:space-between;align-items:center;background:#fff;border:1px solid var(--border);border-radius:12px;padding:10px 14px}
+      .ra-rooms-toolbar{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;background:#fff;border:1px solid var(--border);border-radius:12px;padding:10px 14px}
       .ra-rooms-toolbar .ra-hint{color:var(--text2);font-size:12px}
 
       .ra-rooms-grp{background:#fff;border:1px solid var(--border);border-radius:12px;padding:12px}
@@ -376,7 +376,7 @@
       }
       .ra-tab{
         display:inline-flex;align-items:center;gap:6px;
-        padding:6px 16px;border-radius:999px;
+        padding:6px 16px;border-radius:999px;white-space:nowrap;
         background:transparent;border:none;font-family:inherit;
         font-size:13px;font-weight:600;color:var(--text2);cursor:pointer;
         transition:.12s;
@@ -393,6 +393,88 @@
         background:rgba(255,255,255,.25);color:inherit;
       }
       .ra-tab:not(.active) .ra-tab-count{background:#e2e8f0;color:var(--text2)}
+
+      /* ════════════ FLIGHTS (ตั๋วเครื่องบิน) ════════════ */
+      .fl-flights{display:flex;flex-direction:column;gap:14px}
+      .fl-card{background:#fff;border:1px solid var(--border);border-radius:12px;padding:12px;transition:.15s}
+      .fl-card.assignable{cursor:pointer;border-color:#93c5fd;box-shadow:0 0 0 2px #dbeafe}
+      .fl-card.assignable:hover{border-color:var(--accent,#5b8a72);box-shadow:0 0 0 2px #dcfce7}
+      .fl-hdr{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;flex-wrap:wrap}
+      .fl-title{font-weight:700;color:var(--text);font-size:14px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+      .fl-count-pill{background:#dbeafe;color:#1d4ed8;border:1px solid #93c5fd;border-radius:99px;padding:1px 9px;font-size:11.5px;font-weight:700}
+      .fl-actions{display:flex;gap:4px}
+      .fl-actions button{border:1px solid var(--border);background:#fff;border-radius:6px;width:30px;height:28px;cursor:pointer;font-size:13px;color:var(--text2)}
+      .fl-actions button:hover{background:#f1f5f9;color:var(--text)}
+      .fl-actions button.danger{color:#dc2626;border-color:#fecaca;background:#fef2f2}
+      /* card body: รูปตั๋ว (ซ้าย, 1 ภาพ + badge) + route (ขวา) */
+      .fl-body{display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap;margin:10px 0;padding-bottom:10px;border-bottom:1px dashed var(--border)}
+      .fl-thumb-badge{position:relative;flex:0 0 auto;cursor:zoom-in}
+      .fl-thumb-badge .fl-tb-img{width:60px;height:74px;border-radius:8px;overflow:hidden;border:1px solid var(--border);background:#f1f5f9}
+      .fl-thumb-badge img{width:100%;height:100%;object-fit:cover;object-position:top;display:block}
+      .fl-thumb-badge:hover .fl-tb-img{border-color:var(--accent,#5b8a72);box-shadow:0 0 0 2px #dcfce7}
+      .fl-thumb-badge::after{content:"🔍";position:absolute;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);color:#fff;font-size:9px;text-align:center;padding:1px 0;border-radius:0 0 8px 8px}
+      .fl-thumb-count{position:absolute;top:-5px;right:-5px;min-width:18px;height:18px;padding:0 5px;background:var(--accent,#5b8a72);color:#fff;border:2px solid #fff;border-radius:99px;font-size:10.5px;font-weight:700;line-height:15px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,.25)}
+      .fl-thumb-empty{width:60px;height:74px;border-radius:8px;border:2px dashed var(--border2,#cbd5e1);display:flex;align-items:center;justify-content:center;font-size:22px;color:var(--text3);background:#f8fafc;flex:0 0 auto}
+      .fl-route{flex:1 1 240px;min-width:220px;display:flex;flex-direction:column;gap:7px}
+      .fl-leg{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12.5px}
+      .fl-leg-tag{font-size:10.5px;font-weight:700;padding:2px 9px;border-radius:999px;white-space:nowrap}
+      .fl-leg-tag.dep{background:#dbeafe;color:#1d4ed8}
+      .fl-leg-tag.ret{background:#fef3c7;color:#a16207}
+      .fl-flno{font-weight:800;color:var(--text);font-size:14px;letter-spacing:.3px}
+      .fl-times{color:var(--text2)}
+      .fl-port{font-size:11.5px;color:#1d4ed8;background:#eff6ff;border:1px solid #bfdbfe;border-radius:99px;padding:1px 8px;font-weight:600}
+      .fl-port.empty{color:var(--text3);background:#f8fafc;border-color:var(--border);font-weight:500}
+      .fl-arrow{color:var(--text3);margin:0 3px}
+      .fl-note{font-size:12px;color:var(--text3);margin-top:2px}
+      .fl-occ-wrap{margin-top:2px}
+      .fl-occ-empty{font-size:12px;color:var(--text3);text-align:center;padding:10px 0}
+      /* คนในตั๋ว — แถวเดียว */
+      .fl-occ-list{display:flex;flex-direction:column;gap:6px}
+      .fl-occ-row{display:flex;align-items:center;gap:10px;padding:7px 11px;border:1px solid var(--border);border-radius:8px;background:#fff;font-size:13px}
+      .fl-occ-row.fl-occ-guide{background:#fffbeb;border-color:#fde68a}
+      .fl-occ-row.fl-occ-orphan{background:#fef2f2;border-color:#fecaca}
+      .fl-occ-code{font-weight:700;color:var(--text2);font-size:12px;min-width:52px}
+      .fl-occ-name{font-weight:600;color:var(--text)}
+      .fl-occ-nat{color:var(--text3);font-size:12px}
+      .fl-occ-spacer{flex:1}
+      .fl-occ-x{border:none;background:transparent;color:#dc2626;cursor:pointer;font-size:13px;width:22px;height:22px;border-radius:5px;flex:0 0 auto}
+      .fl-occ-x:hover{background:#fee2e2}
+      /* image grid in modal */
+      .fl-img-grid{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+      .fl-img-cell{width:84px;height:84px;border-radius:8px;overflow:hidden;position:relative;border:1px solid var(--border);background:#f1f5f9}
+      .fl-img-cell img{width:100%;height:100%;object-fit:cover;display:block;cursor:zoom-in}
+      .fl-img-cell .fl-img-rm{position:absolute;top:3px;right:3px;background:rgba(0,0,0,.6);color:#fff;border:none;border-radius:5px;width:20px;height:20px;font-size:11px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+      .fl-img-cell .fl-img-rm:hover{background:#dc2626}
+      .fl-img-add{width:84px;height:84px;border:2px dashed var(--border2,#cbd5e1);border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:11px;color:var(--text3);cursor:pointer;background:#f8fafc;text-align:center}
+      .fl-img-add:hover{border-color:var(--accent,#5b8a72);background:#eef6f1;color:var(--accent,#5b8a72)}
+      /* PDF cell (in modal grid) */
+      .fl-img-cell.fl-pdf-cell{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;cursor:pointer;background:#fef2f2;border-color:#fecaca}
+      .fl-img-cell.fl-pdf-cell .fl-pdf-ic{font-size:26px}
+      .fl-img-cell.fl-pdf-cell .fl-pdf-lbl{font-size:9px;font-weight:700;color:#dc2626;letter-spacing:.5px}
+      /* PDF viewer modal */
+      #flPdfModal{display:none;position:fixed;inset:0;background:rgba(15,23,42,.9);z-index:1300;align-items:center;justify-content:center;padding:12px}
+      #flPdfModal.open{display:flex}
+      .fl-pdf-box{width:min(1400px,98vw);height:97vh;background:#1e293b;border-radius:12px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+      .fl-pdf-head{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;color:#fff;font-weight:700;font-size:14px;background:rgba(0,0,0,.25)}
+      .fl-pdf-btn{background:rgba(255,255,255,.15);color:#fff;border:none;width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:14px;display:inline-flex;align-items:center;justify-content:center;text-decoration:none}
+      .fl-pdf-btn:hover{background:rgba(255,255,255,.3)}
+      #flPdfFrame{flex:1;width:100%;border:none;background:#fff}
+      .fl-pdf-pager{display:flex;gap:6px;justify-content:center;padding:8px;background:rgba(0,0,0,.25);flex-wrap:wrap}
+      .fl-pdf-pager button{background:rgba(255,255,255,.12);color:#fff;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer}
+      .fl-pdf-pager button.active{background:var(--accent,#5b8a72)}
+      /* combobox เที่ยวบิน (custom dropdown — พิมพ์เพิ่มได้) */
+      .fl-combo{position:relative}
+      .fl-combo .form-control{width:100%;padding-right:30px}
+      .fl-combo-caret{position:absolute;right:10px;top:50%;transform:translateY(-50%);color:var(--text3);font-size:12px;pointer-events:none}
+      .fl-combo-menu{display:none;position:absolute;left:0;right:0;top:calc(100% + 4px);background:#fff;border:1px solid var(--border);border-radius:10px;box-shadow:0 12px 30px rgba(0,0,0,.16);z-index:60;max-height:248px;overflow-y:auto;padding:5px}
+      .fl-combo-menu.open{display:block}
+      .fl-combo-item{padding:8px 10px;border-radius:7px;font-size:13px;color:var(--text);cursor:pointer;display:flex;align-items:center;gap:8px}
+      .fl-combo-item:hover{background:#eef6f1;color:var(--accent,#5b8a72)}
+      .fl-combo-item .fl-combo-dt{margin-left:auto;font-size:11px;color:var(--text3);font-weight:500}
+      .fl-combo-empty{padding:9px 10px;font-size:12px;color:var(--text3)}
+      .fl-combo-new{padding:8px 10px;border-radius:7px;font-size:12.5px;color:var(--accent,#5b8a72);font-weight:600;cursor:pointer;border-top:1px dashed var(--border);margin-top:3px}
+      .fl-combo-new:hover{background:#eef6f1}
+      .fl-leg-head{font-size:12.5px;font-weight:700;color:var(--accent,#5b8a72);border-bottom:1px dashed var(--border);padding-bottom:5px}
 
       /* ════════════ BUSES ════════════ */
       .ba-buses{display:flex;flex-direction:column;gap:14px}
@@ -938,6 +1020,9 @@
                   <button class="ra-tab" id="tabBuses" onclick="window.switchTab('buses')">
                     🚌 รถบัส <span class="ra-tab-count" id="tabBusesCount">0</span>
                   </button>
+                  <button class="ra-tab" id="tabFlights" onclick="window.switchTab('flights')">
+                    ✈️ เครื่องบิน <span class="ra-tab-count" id="tabFlightsCount">0</span>
+                  </button>
                 </div>
                 <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
                   <span id="selectedHint" style="color:var(--text2);font-size:12px">ยังไม่ได้เลือกลูกค้า</span>
@@ -947,6 +1032,7 @@
                   </button>
                   <button class="btn btn-primary" id="btnAddRoom" data-perm="trip_rooms_create" onclick="window.openRoomBatchModal()">＋ เพิ่มโรงแรม</button>
                   <button class="btn btn-primary" id="btnAddBus" data-perm="trip_bus_create" onclick="window.openBusModal()" style="display:none">＋ เพิ่มรถบัส</button>
+                  <button class="btn btn-primary" id="btnAddFlight" data-perm="trip_bus_create" onclick="window.openFlightModal()" style="display:none">＋ เพิ่มตั๋วเครื่องบิน</button>
                 </div>
               </div>
 
@@ -957,6 +1043,11 @@
 
               <!-- BUSES TAB CONTENT -->
               <div class="ba-buses" id="busesContainer" style="display:none">
+                <div class="ba-empty-buses">⏳ กำลังโหลด...</div>
+              </div>
+
+              <!-- FLIGHTS TAB CONTENT -->
+              <div class="fl-flights" id="flightsContainer" style="display:none">
                 <div class="ba-empty-buses">⏳ กำลังโหลด...</div>
               </div>
             </div>
@@ -1110,6 +1201,111 @@
           <button class="btn btn-ghost" onclick="window.closeBusModal()">ยกเลิก</button>
           <button class="btn btn-primary" id="busSaveBtn" onclick="window.saveBus()">💾 บันทึก</button>
         </div>
+      </div>
+    </div>
+
+    <!-- ═══════════ ADD/EDIT FLIGHT (ตั๋วเครื่องบิน) MODAL ═══════════ -->
+    <div class="modal-overlay" id="flightOverlay" onclick="window.closeFlightModal(event)">
+      <div class="modal v-sage-header" onclick="event.stopPropagation()">
+        <div class="modal-hdr">
+          <div class="modal-title" id="flightModalTitle">✈️ เพิ่มตั๋วเครื่องบิน</div>
+          <button class="btn-modal-close" onclick="window.closeFlightModal()">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label">ชื่อ/ฉายาตั๋ว</label>
+            <input class="form-control" id="fFlLabel" placeholder="เช่น กรุ๊ป A · ไฟลท์เช้า" />
+          </div>
+
+          <!-- 🛫 เที่ยวบินขาไป -->
+          <div class="fl-leg-head" style="margin-top:16px">🛫 เที่ยวบินขาไป</div>
+          <div class="ba-form-row-2" style="margin-top:8px">
+            <div class="form-group">
+              <label class="form-label">Flight (ขาไป)</label>
+              <div class="fl-combo">
+                <input class="form-control" id="fFlFlight" autocomplete="off"
+                       placeholder="เลือกจาก check-seat หรือพิมพ์เที่ยวบินใหม่"
+                       oninput="window.flComboFilter('dep')" onfocus="window.flComboOpen('dep')"
+                       onblur="window.flComboClose('dep')" onchange="window.onFlightSelectChange()" />
+                <span class="fl-combo-caret">▾</span>
+                <div class="fl-combo-menu" id="fFlFlightMenu"></div>
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Port (สนามบินขาออก)</label>
+              <div class="fl-combo">
+                <input class="form-control" id="fFlPort" autocomplete="off"
+                       placeholder="เลือกจาก check-seat หรือพิมพ์ใหม่"
+                       oninput="window.flComboFilter('port')" onfocus="window.flComboOpen('port')"
+                       onblur="window.flComboClose('port')" />
+                <span class="fl-combo-caret">▾</span>
+                <div class="fl-combo-menu" id="fFlPortMenu"></div>
+              </div>
+            </div>
+          </div>
+          <div class="ba-form-row-2" style="margin-top:12px">
+            <div class="form-group">
+              <label class="form-label">Date&amp;Time (Departure)</label>
+              <input class="form-control" type="datetime-local" id="fFlDeparture" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Date&amp;Time (Arrival)</label>
+              <input class="form-control" type="datetime-local" id="fFlArrival" />
+            </div>
+          </div>
+
+          <!-- 🛬 เที่ยวบินขากลับ -->
+          <div class="fl-leg-head" style="margin-top:18px">🛬 เที่ยวบินขากลับ</div>
+          <div class="ba-form-row-2" style="margin-top:8px">
+            <div class="form-group">
+              <label class="form-label">Comeback Flight (ขากลับ)</label>
+              <div class="fl-combo">
+                <input class="form-control" id="fFlComeback" autocomplete="off"
+                       placeholder="เลือกจาก check-seat หรือพิมพ์เที่ยวบินใหม่"
+                       oninput="window.flComboFilter('cb')" onfocus="window.flComboOpen('cb')"
+                       onblur="window.flComboClose('cb')" onchange="window.onComebackSelectChange()" />
+                <span class="fl-combo-caret">▾</span>
+                <div class="fl-combo-menu" id="fFlComebackMenu"></div>
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Date&amp;Time (Comeback)</label>
+              <input class="form-control" type="datetime-local" id="fFlComebackDt" />
+            </div>
+          </div>
+
+          <!-- หมายเหตุ -->
+          <div class="form-group" style="margin-top:18px">
+            <label class="form-label">หมายเหตุ</label>
+            <input class="form-control" id="fFlNote" placeholder="หมายเหตุเพิ่มเติม" />
+          </div>
+
+          <div class="form-group" style="margin-top:14px">
+            <label class="form-label">รูป/PDF ตั๋วเครื่องบิน (สูงสุด 5 ไฟล์ — รูปหรือ PDF)</label>
+            <div id="flImgGrid" class="fl-img-grid"></div>
+            <input type="file" id="flImgFile" accept="image/*,application/pdf" multiple style="display:none"
+                   onchange="window.flightImgChosen(event)" />
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-ghost" onclick="window.closeFlightModal()">ยกเลิก</button>
+          <button class="btn btn-primary" id="flightSaveBtn" onclick="window.saveFlight()">💾 บันทึก</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════ PDF VIEWER (เอกสารตั๋ว PDF) ═══════════ -->
+    <div id="flPdfModal" class="fl-pdf-modal" onclick="window.closeFlPdf(event)">
+      <div class="fl-pdf-box" onclick="event.stopPropagation()">
+        <div class="fl-pdf-head">
+          <span>📄 เอกสารตั๋ว <span id="flPdfNav" style="color:rgba(255,255,255,.7);font-weight:400"></span></span>
+          <span style="display:flex;gap:6px;align-items:center">
+            <a id="flPdfOpen" href="#" target="_blank" rel="noopener" class="fl-pdf-btn" title="เปิดในแท็บใหม่">↗</a>
+            <button class="fl-pdf-btn" onclick="window.closeFlPdf()" title="ปิด">✕</button>
+          </span>
+        </div>
+        <iframe id="flPdfFrame" src="" title="PDF ตั๋วเครื่องบิน"></iframe>
+        <div id="flPdfPager" class="fl-pdf-pager"></div>
       </div>
     </div>
 
@@ -1309,6 +1505,7 @@
     <script src="../../js/core/auth.js"></script>
     <script src="../../js/core/authz.js"></script>
     <script src="../../js/core/date-format.js"></script>
+    <script src="../../js/core/imageCompressor.js"></script>
     <script>AuthZ.requirePerm("trip_rooms_view");</script>
     <script src="./room-assign.js"></script>
     <script src="../../js/components/modal/deleteModal.js"></script>
