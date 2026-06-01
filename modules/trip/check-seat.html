@@ -602,6 +602,8 @@
     .col-arrive  { width: 150px; min-width: 130px; }
     .col-comeback{ width: 120px; min-width: 100px; }
     .col-comeback-dt{ width: 150px; min-width: 130px; }
+    /* ซ่อนคอลัมน์เที่ยวบินในตาราง — ข้อมูลย้ายไปจัดการที่ trip flight module แล้ว (เก็บ Group ไว้ · DB คงเดิม) */
+    .col-port, .col-flight, .col-depart, .col-arrive, .col-comeback, .col-comeback-dt { display: none !important; }
     .col-seat    { width: 70px; min-width: 60px; text-align: center; }
     .col-nat     { width: 110px; min-width: 90px; }
     .col-pimg    { width: 100px; min-width: 100px; }

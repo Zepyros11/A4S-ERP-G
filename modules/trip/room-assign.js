@@ -5569,16 +5569,28 @@ window.closeFlMaster = function (e) {
   state._flMasterEditId = null;
 };
 
+// ค่าจาก check-seat (auto) สำหรับ kind — เพื่อโชว์ในลิสต์จัดการด้วย
+function csValuesForMaster(kind) {
+  const { dep, cb, port } = buildCsFlightOptions();
+  if (kind === "flight") {
+    const s = new Set();
+    dep.forEach((_v, k) => s.add(k));
+    cb.forEach((_v, k) => s.add(k));
+    return [...s];
+  }
+  return [...port.keys()];
+}
+
 function renderFlMasterList() {
   const cfg = flMasterCfg();
+  const kind = state._flMasterKind;
   const items = cfg.list();
   const el = document.getElementById("flMgrList");
   if (!el) return;
-  if (!items.length) {
-    el.innerHTML = `<div class="fl-mgr-empty">ยังไม่มีรายการ — เพิ่มด้านบน</div>`;
-    return;
-  }
-  el.innerHTML = items.map(it => {
+  const masterCodes = new Set(items.map(m => (m.code || "").trim()));
+  const csOnly = csValuesForMaster(kind).filter(v => v && !masterCodes.has(v.trim())).sort();
+  // แถว master (แก้/ลบได้)
+  const masterRows = items.map(it => {
     const id = it[cfg.idKey];
     const editing = state._flMasterEditId === id ? " editing" : "";
     return `<div class="fl-mgr-row${editing}">
@@ -5588,7 +5600,56 @@ function renderFlMasterList() {
       <button class="fl-mgr-btn danger" title="ลบ" onclick="window.flMasterDelete(${id})">🗑</button>
     </div>`;
   }).join("");
+  // แถวจาก check-seat (auto) — กด ➕ เพื่อเพิ่มเข้ารายการ (จึงแก้/ลบได้)
+  const csRows = csOnly.map(v => `<div class="fl-mgr-row fl-mgr-cs">
+      <span class="fl-mgr-code">${escapeHtml(v)}</span>
+      <span class="fl-mgr-name fl-mgr-cs-tag">จาก check-seat</span>
+      <button class="fl-mgr-btn" title="เพิ่มเข้ารายการ (แก้/ลบได้)" onclick="window.flMasterPromote('${escapeJs(v)}')">➕</button>
+    </div>`).join("");
+  if (!masterRows && !csRows) {
+    el.innerHTML = `<div class="fl-mgr-empty">ยังไม่มีรายการ — เพิ่มด้านบน</div>`;
+    return;
+  }
+  // ปุ่มนำเข้าทั้งหมดจาก check-seat (ทำให้แก้/ลบได้ในคราวเดียว)
+  const importBtn = csOnly.length
+    ? `<button class="fl-mgr-importall" onclick="window.flMasterImportAll()">⬇️ นำเข้าทั้งหมดจาก check-seat (${csOnly.length})</button>`
+    : "";
+  el.innerHTML = importBtn + masterRows + csRows;
 }
+
+// นำเข้าค่าจาก check-seat ทั้งหมด → master (batch · ทำให้แก้/ลบได้)
+window.flMasterImportAll = async function () {
+  const cfg = flMasterCfg();
+  const masterCodes = new Set(cfg.list().map(m => (m.code || "").trim()));
+  const csOnly = csValuesForMaster(state._flMasterKind).filter(v => v && !masterCodes.has(v.trim()));
+  if (!csOnly.length) { showToast("ไม่มีรายการใหม่จาก check-seat", "info"); return; }
+  const base = cfg.list().length;
+  // batch insert — ทุก row keys ตรงกัน (code,name,sort_order) กัน PGRST102
+  const rows = csOnly.map((v, i) => ({ code: v.trim(), name: null, sort_order: base + i }));
+  showLoading(true);
+  try {
+    await sbFetch(cfg.table, "", { method: "POST", body: rows });
+    await reloadFlMasters();
+    renderFlMasterList();
+    showToast(`นำเข้า ${csOnly.length} รายการแล้ว`, "success");
+  } catch (e) { showToast("นำเข้าไม่สำเร็จ: " + e.message, "error"); }
+  showLoading(false);
+};
+
+// เพิ่มค่า check-seat เข้า master (ให้แก้/ลบได้)
+window.flMasterPromote = async function (code) {
+  const cfg = flMasterCfg();
+  const c = (code || "").trim();
+  if (!c || (cfg.list() || []).some(m => (m.code || "").trim() === c)) return;
+  showLoading(true);
+  try {
+    await sbFetch(cfg.table, "", { method: "POST", body: { code: c, name: null, sort_order: cfg.list().length } });
+    await reloadFlMasters();
+    renderFlMasterList();
+    showToast("เพิ่มเข้ารายการแล้ว", "success");
+  } catch (e) { showToast("เพิ่มไม่สำเร็จ: " + e.message, "error"); }
+  showLoading(false);
+};
 
 async function reloadFlMasters() {
   state.airports = await sbFetch("trip_airports",
