@@ -415,7 +415,9 @@
       .fl-thumb-badge::after{content:"🔍";position:absolute;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);color:#fff;font-size:9px;text-align:center;padding:1px 0;border-radius:0 0 8px 8px}
       .fl-thumb-count{position:absolute;top:-5px;right:-5px;min-width:18px;height:18px;padding:0 5px;background:var(--accent,#5b8a72);color:#fff;border:2px solid #fff;border-radius:99px;font-size:10.5px;font-weight:700;line-height:15px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,.25)}
       .fl-thumb-empty{width:60px;height:74px;border-radius:8px;border:2px dashed var(--border2,#cbd5e1);display:flex;align-items:center;justify-content:center;font-size:22px;color:var(--text3);background:#f8fafc;flex:0 0 auto}
-      .fl-route{flex:1 1 240px;min-width:220px;display:flex;flex-direction:column;gap:7px}
+      .fl-route{flex:1 1 320px;min-width:260px;display:flex;flex-direction:column;gap:7px}
+      .fl-legs-2col{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:8px 18px}
+      .fl-legs-2col>.fl-leg-group+.fl-leg-group{padding-left:16px;border-left:1px dashed var(--border)}
       .fl-leg{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12.5px}
       .fl-leg-tag{font-size:10.5px;font-weight:700;padding:2px 9px;border-radius:999px;white-space:nowrap}
       .fl-leg-tag.dep{background:#dbeafe;color:#1d4ed8}
@@ -427,7 +429,25 @@
       .fl-arrow{color:var(--text3);margin:0 3px}
       .fl-note{font-size:12px;color:var(--text3);margin-top:2px}
       .fl-occ-wrap{margin-top:2px}
+      .fl-ticket-head{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12px;font-weight:800;color:var(--accent,#5b8a72);letter-spacing:.3px;margin:2px 0 7px}
+      .fl-ticket-head-l{display:flex;align-items:center;gap:4px}
+      .fl-ticket-add{border:1px solid var(--accent,#5b8a72);background:#eef6f1;color:var(--accent,#5b8a72);border-radius:7px;padding:4px 11px;font-size:11.5px;font-weight:700;cursor:pointer;white-space:nowrap}
+      .fl-ticket-add:hover{background:#e2efe8}
+      .fl-ticket-count{color:var(--text2);font-weight:700}
+      .fl-ticket-no{font-size:10.5px;font-weight:800;color:#1d4ed8;background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;padding:2px 7px;white-space:nowrap;flex:0 0 auto}
       .fl-occ-empty{font-size:12px;color:var(--text3);text-align:center;padding:10px 0}
+      /* บล็อก Ticket (1 ใบ มีหลายคน) */
+      .fl-tkt-list{display:flex;flex-direction:column;gap:10px}
+      .fl-tkt-block{border:1px solid var(--border);border-radius:10px;padding:8px 10px;background:#fcfdfc;cursor:pointer}
+      .fl-tkt-block:hover{border-color:#cbd5e1}
+      .fl-tkt-block.empty{border-style:dashed;background:#f8fafc}
+      .fl-card.assignable .fl-tkt-block{border-color:var(--accent,#5b8a72);box-shadow:0 0 0 1px #dcfce7 inset}
+      .fl-tkt-hdr{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+      .fl-tkt-block.collapsed .fl-tkt-hdr{margin-bottom:0}
+      .fl-tkt-toggle{border:none;background:transparent;color:var(--text2);cursor:pointer;font-size:13px;width:22px;height:22px;border-radius:5px;flex:0 0 auto;line-height:1}
+      .fl-tkt-toggle:hover{background:#eef2f7;color:var(--text)}
+      .fl-tkt-count{font-size:11px;font-weight:700;color:var(--text2);background:#eef2f7;border-radius:99px;padding:1px 8px}
+      .fl-tkt-emptyline{padding:4px 2px 2px}
       /* คนในตั๋ว — แถวเดียว */
       .fl-occ-list{display:flex;flex-direction:column;gap:6px}
       .fl-occ-row{display:flex;align-items:center;gap:10px;padding:7px 11px;border:1px solid var(--border);border-radius:8px;background:#fff;font-size:13px}
@@ -439,6 +459,22 @@
       .fl-occ-spacer{flex:1}
       .fl-occ-x{border:none;background:transparent;color:#dc2626;cursor:pointer;font-size:13px;width:22px;height:22px;border-radius:5px;flex:0 0 auto}
       .fl-occ-x:hover{background:#fee2e2}
+      /* Ticket ช่องว่าง — คลิกเพื่อ assign */
+      .fl-occ-row.fl-occ-empty-slot{border-style:dashed;background:#f8fafc;cursor:pointer}
+      .fl-occ-row.fl-occ-empty-slot:hover{border-color:var(--accent,#5b8a72);background:#eef6f1}
+      .fl-occ-empty-txt{color:var(--text3);font-size:12.5px;font-style:italic}
+      /* คอลัมน์ไฟล์ตั๋วต่อ Ticket */
+      .fl-tkt-doc{display:inline-flex;align-items:center;gap:2px;flex:0 0 auto}
+      .fl-tkt-doc-view{border:1px solid var(--border);background:#fff;border-radius:6px;padding:0;width:30px;height:30px;cursor:pointer;display:flex;align-items:center;justify-content:center;overflow:hidden}
+      .fl-tkt-doc-view:hover{border-color:var(--accent,#5b8a72)}
+      .fl-tkt-doc-badge{display:flex;align-items:center;justify-content:center;width:100%;height:100%;font-size:15px}
+      .fl-tkt-doc-badge.pdf{color:#dc2626}
+      .fl-tkt-doc-badge img{width:100%;height:100%;object-fit:cover}
+      .fl-tkt-doc-rm{border:none;background:transparent;color:#dc2626;cursor:pointer;font-size:11px;width:18px;height:18px;border-radius:5px;flex:0 0 auto}
+      .fl-tkt-doc-rm:hover{background:#fee2e2}
+      .fl-tkt-doc-add{border:1px dashed var(--border2,#cbd5e1);background:#f8fafc;color:var(--text3);border-radius:6px;padding:5px 9px;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;flex:0 0 auto}
+      .fl-tkt-doc-add:hover{border-color:var(--accent,#5b8a72);background:#eef6f1;color:var(--accent,#5b8a72)}
+      .fl-card.assignable .fl-occ-empty-slot{border-color:var(--accent,#5b8a72);background:#eef6f1;box-shadow:0 0 0 1px #dcfce7 inset}
       /* image grid in modal */
       .fl-img-grid{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
       .fl-img-cell{width:84px;height:84px;border-radius:8px;overflow:hidden;position:relative;border:1px solid var(--border);background:#f1f5f9}
@@ -1274,13 +1310,6 @@
           <div class="form-group" style="margin-top:18px">
             <label class="form-label">หมายเหตุ</label>
             <input class="form-control" id="fFlNote" placeholder="หมายเหตุเพิ่มเติม" />
-          </div>
-
-          <div class="form-group" style="margin-top:14px">
-            <label class="form-label">รูป/PDF ตั๋วเครื่องบิน (สูงสุด 5 ไฟล์ — รูปหรือ PDF)</label>
-            <div id="flImgGrid" class="fl-img-grid"></div>
-            <input type="file" id="flImgFile" accept="image/*,application/pdf" multiple style="display:none"
-                   onchange="window.flightImgChosen(event)" />
           </div>
         </div>
         <div class="modal-footer">

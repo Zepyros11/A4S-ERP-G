@@ -258,7 +258,7 @@ async function buildCalc(rooms, buses, flights = []) {
   const roomIds = rooms.map(r => r.room_id);
   const busIds = buses.map(b => b.bus_id);
   const flightIds = flights.map(f => f.flight_id);
-  const [roomOccs, busOccs, flightOccs, places] = await Promise.all([
+  const [roomOccs, busOccs, flightTks, places] = await Promise.all([
     roomIds.length
       ? sbFetch("trip_room_occupants", `?room_id=in.(${roomIds.join(",")})&select=room_id,code`)
       : Promise.resolve([]),
@@ -266,10 +266,19 @@ async function buildCalc(rooms, buses, flights = []) {
       ? sbFetch("trip_bus_occupants", `?bus_id=in.(${busIds.join(",")})&select=bus_id,seat_no,code`)
       : Promise.resolve([]),
     flightIds.length
-      ? sbFetch("trip_flight_occupants", `?flight_id=in.(${flightIds.join(",")})&select=flight_id,code`).catch(() => [])
+      ? sbFetch("trip_flight_tickets", `?flight_id=in.(${flightIds.join(",")})&select=ticket_id,flight_id`).catch(() => [])
       : Promise.resolve([]),
     sbFetch("places", "?place_type=eq.HOTEL&select=place_id,place_name").catch(() => []),
   ]);
+  // คน 1 Ticket มีได้หลายคน → ดึง occupant ต่อ ticket แล้ว map code → flight
+  const ticketToFlight = {};
+  (flightTks || []).forEach(t => { ticketToFlight[t.ticket_id] = t.flight_id; });
+  const ticketIds = (flightTks || []).map(t => t.ticket_id);
+  const flightOccs = ticketIds.length
+    ? (await sbFetch("trip_flight_ticket_occupants",
+        `?ticket_id=in.(${ticketIds.join(",")})&select=ticket_id,code`).catch(() => []) || [])
+        .map(o => ({ flight_id: ticketToFlight[o.ticket_id], code: o.code }))
+    : [];
 
   const roomById = {};
   rooms.forEach(r => { roomById[r.room_id] = r; });
