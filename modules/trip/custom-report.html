@@ -435,70 +435,74 @@
 
           <!-- HERO -->
           <div class="page-hero page-hero--simple page-hero--compact">
-            <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+            <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;flex:1">
               <h1 class="page-hero-title" style="margin:0">📊 Custom Report</h1>
               <span id="crTripBanner" class="cr-trip-banner" style="display:none">
-                <a href="./trip-list.html">← รายการทริป</a>
+                <a href="./trip-list.html" data-i18n="cr.banner.back">← รายการทริป</a>
                 <span style="opacity:.4">|</span>
                 <span id="crTripName" style="font-weight:700">—</span>
                 <span id="crTripDates" style="color:var(--text2);font-size:11.5px;font-weight:500"></span>
               </span>
             </div>
+            <!-- 🌐 ปุ่มสลับภาษา (mount โดย i18n.js) -->
+            <div id="crLangToggle" style="margin-left:auto;align-self:center"></div>
           </div>
 
           <!-- PRESET BAR -->
           <div class="cr-card" style="margin-bottom:12px">
             <div class="cr-preset-bar">
-              <span style="font-size:12.5px;font-weight:700;color:var(--text2)">⭐ ชุดคอลัมน์:</span>
+              <span style="font-size:12.5px;font-weight:700;color:var(--text2)" data-i18n="cr.preset.label">⭐ ชุดคอลัมน์:</span>
               <select class="filter-select" id="presetSelect" onchange="window.applyPreset(this.value)">
-                <option value="">— เลือก preset —</option>
+                <option value="" data-i18n="cr.preset.placeholder">— เลือก preset —</option>
               </select>
-              <button class="btn btn-outline" onclick="window.savePreset()" title="บันทึกคอลัมน์ที่เลือกเป็น preset ใหม่">💾 บันทึกเป็น preset</button>
-              <button class="btn btn-outline" onclick="window.deletePreset()" title="ลบ preset ที่เลือก">🗑 ลบ preset</button>
+              <button class="btn btn-outline" onclick="window.savePreset()" data-i18n="cr.preset.save" data-i18n-attr="title:cr.preset.saveTitle" title="บันทึกคอลัมน์ที่เลือกเป็น preset ใหม่">💾 บันทึกเป็น preset</button>
+              <button class="btn btn-outline" onclick="window.deletePreset()" data-i18n="cr.preset.delete" data-i18n-attr="title:cr.preset.deleteTitle" title="ลบ preset ที่เลือก">🗑 ลบ preset</button>
               <div style="flex:1"></div>
               <span id="crPrintSettings" class="cr-print-settings" style="display:none"
+                data-i18n-attr="title:cr.print.settingsTitle"
                 title="ตั้งจำนวนแถวต่อหน้า A4 เพื่อให้ภาพใหญ่ขึ้นเวลาพิมพ์">
-                <span style="font-size:11.5px;color:var(--text2)">🎨 รูปแบบ:</span>
+                <span style="font-size:11.5px;color:var(--text2)" data-i18n="cr.print.format">🎨 รูปแบบ:</span>
                 <select id="crLayout" class="filter-select" onchange="window.setLayout(this.value)">
-                  <option value="table" selected>📊 ตาราง</option>
-                  <option value="card">🪪 การ์ด</option>
+                  <option value="table" selected data-i18n="cr.layout.table">📊 ตาราง</option>
+                  <option value="card" data-i18n="cr.layout.card">🪪 การ์ด</option>
                 </select>
                 <span id="crRowsPerPageWrap">
-                  <span style="font-size:11.5px;color:var(--text2)">🖨 แถว/A4:</span>
+                  <span style="font-size:11.5px;color:var(--text2)" data-i18n="cr.print.rowsPerA4">🖨 แถว/A4:</span>
                   <select id="crRowsPerPage" class="filter-select" onchange="window.setRowsPerPage(this.value)">
-                    <option value="auto" selected>อัตโนมัติ</option>
-                    <option value="2">2 (ใหญ่สุด)</option>
+                    <option value="auto" selected data-i18n="cr.rows.auto">อัตโนมัติ</option>
+                    <option value="2" data-i18n="cr.rows.2">2 (ใหญ่สุด)</option>
                     <option value="4">4</option>
                     <option value="6">6</option>
-                    <option value="8">8 (ปกติ)</option>
+                    <option value="8" data-i18n="cr.rows.8">8 (ปกติ)</option>
                     <option value="12">12</option>
-                    <option value="16">16 (เล็กสุด)</option>
+                    <option value="16" data-i18n="cr.rows.16">16 (เล็กสุด)</option>
                   </select>
                 </span>
                 <span id="crCardsPerPageWrap" style="display:none">
-                  <span style="font-size:11.5px;color:var(--text2)">🪪 การ์ด/A4:</span>
+                  <span style="font-size:11.5px;color:var(--text2)" data-i18n="cr.print.cardsPerA4">🪪 การ์ด/A4:</span>
                   <select id="crCardsPerPage" class="filter-select" onchange="window.setCardsPerPage(this.value)">
-                    <option value="1">1 (ใหญ่สุด)</option>
+                    <option value="1" data-i18n="cr.cards.1">1 (ใหญ่สุด)</option>
                     <option value="2" selected>2</option>
                     <option value="4">4</option>
-                    <option value="6">6 (เล็กสุด)</option>
+                    <option value="6" data-i18n="cr.cards.6">6 (เล็กสุด)</option>
                   </select>
-                  <span style="font-size:11.5px;color:var(--text2)">↕ ตำแหน่งข้อมูล:</span>
+                  <span style="font-size:11.5px;color:var(--text2)" data-i18n="cr.print.fieldPos">↕ ตำแหน่งข้อมูล:</span>
                   <select id="crCardFieldPos" class="filter-select" onchange="window.setCardFieldPos(this.value)"
+                    data-i18n-attr="title:cr.fieldPos.title"
                     title="ตำแหน่งกล่องข้อมูล (ชื่อ/ฟิลด์) ในการ์ดเทียบกับภาพ">
-                    <option value="top" selected>⬆ บน</option>
-                    <option value="center">⬌ กลาง</option>
-                    <option value="bottom">⬇ ล่าง</option>
+                    <option value="top" selected data-i18n="cr.fieldPos.top">⬆ บน</option>
+                    <option value="center" data-i18n="cr.fieldPos.center">⬌ กลาง</option>
+                    <option value="bottom" data-i18n="cr.fieldPos.bottom">⬇ ล่าง</option>
                   </select>
                 </span>
                 <select id="crOrientation" class="filter-select" onchange="window.setOrientation(this.value)">
-                  <option value="landscape" selected>แนวนอน</option>
-                  <option value="portrait">แนวตั้ง</option>
+                  <option value="landscape" selected data-i18n="cr.ori.landscape">แนวนอน</option>
+                  <option value="portrait" data-i18n="cr.ori.portrait">แนวตั้ง</option>
                 </select>
               </span>
-              <button class="btn btn-outline" onclick="window.exportReportExcel()">📥 Excel</button>
-              <button class="btn btn-outline" onclick="window.previewReportPrint()" title="ดูตัวอย่างหน้ากระดาษ A4 ก่อนพิมพ์">👁 Preview</button>
-              <button class="btn btn-primary" onclick="window.exportReportPrint()">🖨 Print / PDF</button>
+              <button class="btn btn-outline" onclick="window.exportReportExcel()" data-i18n="cr.btn.excel">📥 Excel</button>
+              <button class="btn btn-outline" onclick="window.previewReportPrint()" data-i18n="cr.btn.preview" data-i18n-attr="title:cr.btn.previewTitle" title="ดูตัวอย่างหน้ากระดาษ A4 ก่อนพิมพ์">👁 Preview</button>
+              <button class="btn btn-primary" onclick="window.exportReportPrint()" data-i18n="cr.btn.print">🖨 Print / PDF</button>
             </div>
           </div>
 
@@ -506,16 +510,16 @@
           <div class="cr-main">
             <!-- COLUMN PICKER -->
             <div class="cr-card">
-              <h3>เลือกคอลัมน์</h3>
+              <h3 data-i18n="cr.pickCols">เลือกคอลัมน์</h3>
               <div id="crPicker"></div>
             </div>
 
             <!-- PREVIEW -->
             <div class="cr-card">
-              <h3>ตัวอย่างรายงาน <span id="crRowCount" style="color:var(--text3);font-weight:400"></span></h3>
+              <h3><span data-i18n="cr.previewTitle">ตัวอย่างรายงาน</span> <span id="crRowCount" style="color:var(--text3);font-weight:400"></span></h3>
               <div class="cr-chips" id="crChips"></div>
               <div id="cr-table-wrap">
-                <div class="cr-empty" id="crEmpty">เลือกคอลัมน์จากด้านซ้ายเพื่อสร้างรายงาน</div>
+                <div class="cr-empty" id="crEmpty" data-i18n="cr.empty">เลือกคอลัมน์จากด้านซ้ายเพื่อสร้างรายงาน</div>
                 <table class="cr-table" id="crTable" style="display:none">
                   <thead><tr id="crThead"></tr></thead>
                   <tbody id="crTbody"></tbody>
@@ -534,20 +538,20 @@
     <!-- PREVIEW MODAL — ดู layout ก่อนกด Excel/Print -->
     <div id="crPreviewModal" class="cr-preview-modal" style="display:none">
       <div class="cr-preview-toolbar">
-        <span style="font-size:14px;font-weight:700">👁 ตัวอย่างก่อน export</span>
+        <span style="font-size:14px;font-weight:700" data-i18n="cr.previewModal.title">👁 ตัวอย่างก่อน export</span>
         <span id="crPreviewMeta" style="font-size:11.5px;color:var(--text2)"></span>
         <span style="flex:1"></span>
-        <button class="btn btn-outline" onclick="window.closePreview()">✕ ปิด</button>
-        <button class="btn btn-outline" onclick="window.closePreview();window.exportReportExcel()">📥 Excel</button>
-        <button class="btn btn-primary" onclick="window.closePreview();setTimeout(window.exportReportPrint,50)">🖨 Print / PDF</button>
+        <button class="btn btn-outline" onclick="window.closePreview()" data-i18n="cr.btn.close">✕ ปิด</button>
+        <button class="btn btn-outline" onclick="window.closePreview();window.exportReportExcel()" data-i18n="cr.btn.excel">📥 Excel</button>
+        <button class="btn btn-primary" onclick="window.closePreview();setTimeout(window.exportReportPrint,50)" data-i18n="cr.btn.print">🖨 Print / PDF</button>
       </div>
       <div class="cr-preview-scroll" id="crPreviewScroll"></div>
     </div>
 
     <!-- IMAGE LIGHTBOX -->
     <div id="cr-img-modal" onclick="window.crCloseImg()">
-      <button id="cr-img-modal-close" onclick="window.crCloseImg()" title="ปิด">✕</button>
-      <img id="cr-img-modal-img" src="" alt="ภาพขยาย" onclick="event.stopPropagation()" />
+      <button id="cr-img-modal-close" onclick="window.crCloseImg()" data-i18n-attr="title:cr.img.closeTitle" title="ปิด">✕</button>
+      <img id="cr-img-modal-img" src="" data-i18n-attr="alt:cr.img.alt" alt="ภาพขยาย" onclick="event.stopPropagation()" />
     </div>
 
     <!-- SCRIPTS -->
@@ -555,6 +559,8 @@
     <script src="../../js/core/authz.js"></script>
     <script src="../../js/core/date-format.js"></script>
     <script>AuthZ.requirePerm("trip_pax_detail_view");</script>
+    <script src="../../js/core/i18n.js"></script>
+    <script src="./custom-report.lang.js"></script>
     <script src="./custom-report.js"></script>
     <script src="../../js/components/modal/confirmModal.js"></script>
     <script src="../../js/components/modal/promptModal.js"></script>
@@ -563,6 +569,13 @@
     <script type="module">
       import { loadTopbar } from "../../js/components/navigation/topbar.js";
       loadTopbar("📊 Custom Report");
+    </script>
+    <script>
+      // mount ปุ่มสลับภาษา + ให้หน้า re-render เมื่อสลับภาษา
+      I18n.mountToggle(document.getElementById("crLangToggle"));
+      I18n.onChange(function () {
+        if (typeof window.crRerenderForLang === "function") window.crRerenderForLang();
+      });
     </script>
   </body>
 </html>

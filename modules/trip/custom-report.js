@@ -147,6 +147,14 @@ async function sbFetch(table, query = "", opts = {}) {
   return method === "DELETE" ? null : res.json().catch(() => null);
 }
 
+// ── i18n helper ────────────────────────────────────────────
+// T(key) / T(key,"ไทย fallback") / T(key,{n:..}) — ดู js/core/i18n.js
+const T = (k, opt) => (window.I18n ? window.I18n.t(k, opt) : (typeof opt === "string" ? opt : k));
+// label คอลัมน์/กลุ่ม — ใช้คำแปลถ้ามี ไม่งั้น fallback เป็น label เดิม (ไทย) ใน COLUMN_GROUPS
+function colLabel(c) { return T("cr.col." + c.key, c.label); }
+function grpLabel(g) { return T("cr.grp." + g.id, g.label); }
+function curLang() { return window.I18n ? window.I18n.getLang() : "th"; }
+
 // ── UTIL ───────────────────────────────────────────────────
 function escapeHtml(s) {
   return String(s ?? "").replace(/[&<>"']/g, c =>
@@ -175,7 +183,7 @@ async function init() {
   const qs = new URLSearchParams(location.search);
   const tid = parseInt(qs.get("trip_id"), 10);
   if (!Number.isFinite(tid) || tid <= 0) {
-    showToast("ไม่พบ trip_id ใน URL", "error");
+    showToast(T("cr.toast.noTripId"), "error");
     setTimeout(() => (location.href = "./trip-list.html"), 1500);
     return;
   }
@@ -183,7 +191,7 @@ async function init() {
   const { url, key } = getSB();
   if (!url || !key) {
     showLoading(false);
-    showToast("ยังไม่ได้เชื่อมต่อ Supabase", "error");
+    showToast(T("cr.toast.noSupabase"), "error");
     return;
   }
   await loadAll();
@@ -248,7 +256,7 @@ async function loadAll() {
     renderPicker();
     renderAll();
   } catch (e) {
-    showToast("โหลดข้อมูลไม่สำเร็จ: " + e.message, "error");
+    showToast(T("cr.toast.loadFail", { msg: e.message }), "error");
   }
   showLoading(false);
 }
@@ -335,9 +343,9 @@ async function buildCalc(rooms, buses, flights = []) {
       _room:     uniq(rs.map(r => r.room_name)).join(", "),
       _checkin:  uniq(rs.map(r => fmtDate(r.check_in_date))).join(", "),
       _checkout: uniq(rs.map(r => fmtDate(r.check_out_date))).join(", "),
-      _bus:      bus ? (bus.bus.bus_label || `คันที่ ${bus.bus.bus_no || "?"}`) : "",
+      _bus:      bus ? (bus.bus.bus_label || T("cr.bus.no", { n: bus.bus.bus_no || "?" })) : "",
       _busseat:  bus ? String(bus.seat ?? "") : "",
-      _flticket:     fl ? (fl.flight_label || fl.flight || `ตั๋ว #${fl.flight_id}`) : "",
+      _flticket:     fl ? (fl.flight_label || fl.flight || T("cr.flight.ticketNo", { id: fl.flight_id })) : "",
       _flflight:     fl ? (fl.flight || "") : "",
       _flport:       fl ? (fl.port || p.port || "") : "",
       _fldep:        fl ? fmtDTcell(fl.departure_datetime) : "",
@@ -387,11 +395,11 @@ function renderPicker() {
       <label class="cr-opt">
         <input type="checkbox" value="${c.key}" ${state.selected.includes(c.key) ? "checked" : ""}
           onchange="window.toggleColumn('${c.key}', this.checked)">
-        <span>${escapeHtml(c.label)}</span>
+        <span>${escapeHtml(colLabel(c))}</span>
       </label>`).join("");
     return `<div class="cr-group${state.collapsed[g.id] ? " collapsed" : ""}" data-gid="${escapeHtml(g.id)}">
       <div class="cr-group-hdr" data-toggle-gid="${escapeHtml(g.id)}" onclick="window.crToggleGroup('${escapeHtml(g.id)}')">
-        <span>${escapeHtml(g.label)}</span>
+        <span>${escapeHtml(grpLabel(g))}</span>
         <span class="cr-group-caret">${state.collapsed[g.id] ? "▸" : "▾"}</span>
       </div>
       <div class="cr-group-body">${opts}</div>
@@ -409,14 +417,14 @@ function renderChips() {
     if (!c) return "";
     const hidden = !!state.hidden[k];
     return `<span class="cr-chip${hidden ? " cr-chip-hidden" : ""}">
-      <button class="cr-chip-move" title="เลื่อนซ้าย" onclick="window.moveColumn('${k}',-1)"
+      <button class="cr-chip-move" title="${escapeHtml(T("cr.chip.moveLeft"))}" onclick="window.moveColumn('${k}',-1)"
         ${i === 0 ? "disabled style='opacity:.25'" : ""}>◀</button>
-      ${escapeHtml(c.label)}
-      <button class="cr-chip-move" title="เลื่อนขวา" onclick="window.moveColumn('${k}',1)"
+      ${escapeHtml(colLabel(c))}
+      <button class="cr-chip-move" title="${escapeHtml(T("cr.chip.moveRight"))}" onclick="window.moveColumn('${k}',1)"
         ${i === state.selected.length - 1 ? "disabled style='opacity:.25'" : ""}>▶</button>
       <button class="cr-chip-eye" onclick="window.toggleHideColumn('${k}')"
-        title="${hidden ? "ซ่อนจากรายงาน — คลิกเพื่อแสดง" : "แสดงในรายงาน — คลิกเพื่อซ่อน (ยังใช้เรียง/กรอง)"}">${hidden ? "🙈" : "👁"}</button>
-      <button title="เอาออก" onclick="window.toggleColumn('${k}', false)">✕</button>
+        title="${escapeHtml(hidden ? T("cr.chip.hideTip") : T("cr.chip.showTip"))}">${hidden ? "🙈" : "👁"}</button>
+      <button title="${escapeHtml(T("cr.chip.remove"))}" onclick="window.toggleColumn('${k}', false)">✕</button>
     </span>`;
   }).join("");
 }
@@ -426,7 +434,7 @@ function cellValue(row, col) {
     // virtual columns ของทีมงาน — โชว์ค่าเฉพาะ row ที่เป็นทีมงาน
     if (col.key === "_teamtype") {
       if (!row.__isTeam) return "";
-      return state.memberTypeLabel?.[row.__memberType] || row.__memberType || "ทีมงาน";
+      return state.memberTypeLabel?.[row.__memberType] || row.__memberType || T("cr.team.default");
     }
     if (col.key === "_role_title") return row.__isTeam ? (row.role_title || "") : "";
     if (col.key === "_languages")  return row.__isTeam ? (row.languages || "") : "";
@@ -448,7 +456,7 @@ function cellValue(row, col) {
   if (col.fmt === "date") return fmtDate(v);
   if (col.fmt === "gender") {
     const g = String(v).toLowerCase();
-    return g === "male" ? "ชาย" : g === "female" ? "หญิง" : String(v);
+    return g === "male" ? T("cr.gender.male") : g === "female" ? T("cr.gender.female") : String(v);
   }
   // image → คืน URL ดิบ (ใช้ทั้ง Excel/Print/preview แต่ preview จะ render เป็น <img>)
   if (col.fmt === "image") {
@@ -465,7 +473,7 @@ function cellHtml(row, col) {
   if (col.fmt === "image") {
     const u = escapeHtml(v);
     return `<img src="${u}" alt="" class="cr-img-thumb" loading="lazy"
-      title="คลิกเพื่อดูภาพขยาย" onclick="window.crOpenImg(this)">`;
+      title="${escapeHtml(T("cr.img.zoomTip"))}" onclick="window.crOpenImg(this)">`;
   }
   return escapeHtml(v);
 }
@@ -479,7 +487,8 @@ function sortValue(row, col) {
 
 // sentinel แทน "ค่าว่าง" ใน filter set — ใช้ string ที่ไม่น่าซ้ำกับข้อมูลจริง
 const BLANK_VAL = "__BLANK__";
-const BLANK_LABEL = "(ว่าง)";
+// ป้าย "(ว่าง)" — เป็น function เพราะต้องเปลี่ยนตามภาษาปัจจุบัน
+function blankLabel() { return T("cr.blank"); }
 
 // คืน distinct values ของคอลัมน์ — ใช้ทั้งเช็คว่ามี filter ได้ไหม + populate dropdown
 // คำนวณจาก expandedPax (ก่อน apply filter) เพื่อให้เห็นทุก option เสมอ
@@ -611,11 +620,11 @@ function renderFilterPopoverBody() {
   const values = distinctValuesFor(key);
   const q = search.trim().toLowerCase();
   const shown = q
-    ? values.filter(v => (v === BLANK_VAL ? BLANK_LABEL : String(v)).toLowerCase().includes(q))
+    ? values.filter(v => (v === BLANK_VAL ? blankLabel() : String(v)).toLowerCase().includes(q))
     : values;
   const listEl = _popState.el.querySelector(".cr-fpop-list");
   if (!shown.length) {
-    listEl.innerHTML = `<div class="cr-fpop-empty">ไม่พบค่าที่ตรงกัน</div>`;
+    listEl.innerHTML = `<div class="cr-fpop-empty">${escapeHtml(T("cr.fpop.notFound"))}</div>`;
     return;
   }
   listEl.innerHTML = shown.map(v => {
@@ -623,7 +632,7 @@ function renderFilterPopoverBody() {
     const checked = draft.has(v) ? "checked" : "";
     const isBlank = v === BLANK_VAL;
     const display = isBlank
-      ? `<span style="font-style:italic;color:var(--text3)">${BLANK_LABEL}</span>`
+      ? `<span style="font-style:italic;color:var(--text3)">${escapeHtml(blankLabel())}</span>`
       : `<span>${escapeHtml(v)}</span>`;
     return `<label><input type="checkbox" id="${id}" ${checked} data-val="${escapeHtml(v)}"
         onchange="window._crFilterToggle(this)">${display}</label>`;
@@ -646,23 +655,23 @@ window.openFilter = function (key, anchorEl) {
   const el = document.createElement("div");
   el.className = "cr-fpop";
   const mergeBlock = canMerge ? `
-    <label class="cr-fpop-merge" title="รวมเซลที่มีค่าเหมือนกันติดกัน (เหมือน merge cells ใน Excel)">
+    <label class="cr-fpop-merge" title="${escapeHtml(T("cr.fpop.mergeTitle"))}">
       <input type="checkbox" ${mergeChecked} onchange="window._crMergeToggle(this.checked)">
-      <span>≣ ผสานเซล</span>
+      <span>${escapeHtml(T("cr.fpop.merge"))}</span>
     </label>` : "";
   const filterBlock = canFilter ? `
-    <input class="cr-fpop-search" type="search" placeholder="ค้นหาค่า…" oninput="window._crFilterSearch(this.value)">
+    <input class="cr-fpop-search" type="search" placeholder="${escapeHtml(T("cr.fpop.searchPh"))}" oninput="window._crFilterSearch(this.value)">
     <div class="cr-fpop-acts">
-      <button onclick="window._crFilterAll(true)">เลือกทั้งหมด</button>
-      <button onclick="window._crFilterAll(false)">ล้าง</button>
+      <button onclick="window._crFilterAll(true)">${escapeHtml(T("cr.fpop.selectAll"))}</button>
+      <button onclick="window._crFilterAll(false)">${escapeHtml(T("cr.fpop.clear"))}</button>
     </div>
     <div class="cr-fpop-list"></div>
     <div class="cr-fpop-foot">
-      <button onclick="window._crFilterClear()">เอา filter ออก</button>
-      <button class="primary" onclick="window._crFilterApply()">ใช้</button>
+      <button onclick="window._crFilterClear()">${escapeHtml(T("cr.fpop.removeFilter"))}</button>
+      <button class="primary" onclick="window._crFilterApply()">${escapeHtml(T("cr.fpop.apply"))}</button>
     </div>` : `
-    <div class="cr-fpop-msg">ค่าหลากหลายเกิน ${FILTER_MAX_DISTINCT} ค่า — กรองไม่ได้
-      ${canMerge ? "" : "<br>(และไม่มีค่าซ้ำให้ผสาน)"}
+    <div class="cr-fpop-msg">${escapeHtml(T("cr.fpop.tooMany", { n: FILTER_MAX_DISTINCT }))}
+      ${canMerge ? "" : T("cr.fpop.noMerge")}
     </div>`;
   el.innerHTML = mergeBlock + (mergeBlock && canFilter ? `<div class="cr-fpop-divider"></div>` : "") + filterBlock;
   document.body.appendChild(el);
@@ -763,12 +772,12 @@ function renderPreview() {
   const rows = getRows();
   const expanded = expandedPax();
   const hasFilter = Object.values(state.filters).some(s => s && s.size);
-  const splitNote = expanded.length !== state.pax.length ? ` (แยกตามโรงแรม ${expanded.length} แถว)` : "";
-  const filterNote = hasFilter ? ` · 🔽 หลัง filter ${rows.length} แถว` : "";
-  const teamNote = state.teamCount ? ` + ${state.teamCount} ทีมงาน` : "";
+  const splitNote = expanded.length !== state.pax.length ? ` ${T("cr.count.split", { n: expanded.length })}` : "";
+  const filterNote = hasFilter ? ` · ${T("cr.count.filter", { n: rows.length })}` : "";
+  const teamNote = state.teamCount ? ` ${T("cr.count.team", { n: state.teamCount })}` : "";
   const hiddenCount = cols.filter(c => state.hidden[c.key]).length;
-  const hiddenNote = hiddenCount ? ` · 🙈 ซ่อน ${hiddenCount}` : "";
-  count.textContent = `· ${state.paxCount || state.pax.length} คน${teamNote}${splitNote}${filterNote} · ${cols.length} คอลัมน์${hiddenNote}`;
+  const hiddenNote = hiddenCount ? ` · ${T("cr.count.hidden", { n: hiddenCount })}` : "";
+  count.textContent = `· ${T("cr.count.people", { n: state.paxCount || state.pax.length })}${teamNote}${splitNote}${filterNote} · ${T("cr.count.columns", { n: cols.length })}${hiddenNote}`;
   const multi = state.sort.length > 1;
   document.getElementById("crThead").innerHTML =
     `<th style="width:40px">#</th>` + cols.map(c => {
@@ -779,28 +788,28 @@ function renderPreview() {
         ? ` <span style="display:inline-block;min-width:14px;padding:0 4px;background:var(--accent);color:#fff;border-radius:7px;font-size:9.5px;font-weight:700;line-height:13px;vertical-align:1px">${idx + 1}</span>`
         : "";
       const ind = active ? ` ${arrow}${badge}` : ` <span style="opacity:.3">↕</span>`;
-      const baseTip = c.key === "pin" ? "เรียงตามชั้นยศ SVP→VP→AVP→SD→DR — " : "";
-      const sortTip = `${baseTip}คลิก: asc → desc → ลบออก · กดหลายคอลัมน์ = multi-sort (ลำดับ priority ตามลำดับการกด)`;
+      const baseTip = c.key === "pin" ? T("cr.th.pinTip") : "";
+      const sortTip = `${baseTip}${T("cr.th.sortTip")}`;
       const showBtn = hasFilterButton(c.key);
       const fActive = state.filters[c.key] && state.filters[c.key].size > 0;
       const mActive = !!state.merged[c.key];
       const anyActive = fActive || mActive;
       const tipParts = [];
-      if (fActive) tipParts.push("filter: " + state.filters[c.key].size + " ค่า");
-      if (mActive) tipParts.push("ผสานเซลเปิดอยู่");
+      if (fActive) tipParts.push(T("cr.th.filterCount", { n: state.filters[c.key].size }));
+      if (mActive) tipParts.push(T("cr.th.mergeOn"));
       const fBtn = showBtn
         ? `<button class="cr-th-fbtn${anyActive ? " active" : ""}"
-            title="${tipParts.length ? tipParts.join(" · ") + " — คลิกเพื่อแก้" : "กรองค่า / ผสานเซล"}"
+            title="${escapeHtml(tipParts.length ? tipParts.join(" · ") + T("cr.th.clickEdit") : T("cr.th.filterMergeTip"))}"
             onclick="event.stopPropagation();window.openFilter('${c.key}',this)">🔽${mActive ? '<span class="cr-th-mbadge">≣</span>' : ''}</button>`
         : "";
       const hidden = !!state.hidden[c.key];
       const eyeBtn = `<button class="cr-th-eye${hidden ? " off" : ""}"
-        title="${hidden ? "ซ่อนจากรายงาน (Print/Excel/PDF) — คลิกเพื่อแสดง" : "แสดงในรายงาน — คลิกเพื่อซ่อน (ยังใช้เรียง/กรอง)"}"
+        title="${escapeHtml(hidden ? T("cr.th.eyeHiddenTip") : T("cr.th.eyeShownTip"))}"
         onclick="event.stopPropagation();window.toggleHideColumn('${c.key}')">${hidden ? "🙈" : "👁"}</button>`;
       return `<th class="${hidden ? "cr-col-hidden" : ""}" style="user-select:none">
         <div class="cr-th-flex">
           <span class="cr-th-lbl" title="${escapeHtml(sortTip)}"
-            onclick="window.sortBy('${c.key}')">${escapeHtml(c.label)}${hidden ? ' <span class="cr-th-hidetag">ซ่อน</span>' : ''}${ind}</span>
+            onclick="window.sortBy('${c.key}')">${escapeHtml(colLabel(c))}${hidden ? ` <span class="cr-th-hidetag">${escapeHtml(T("cr.th.hideTag"))}</span>` : ''}${ind}</span>
           ${eyeBtn}${fBtn}
         </div>
       </th>`;
@@ -821,7 +830,7 @@ function renderPreview() {
 function renderTemplates() {
   const sel = document.getElementById("presetSelect");
   const cur = sel.value;
-  sel.innerHTML = `<option value="">— เลือก preset —</option>` +
+  sel.innerHTML = `<option value="">${escapeHtml(T("cr.preset.placeholder"))}</option>` +
     state.templates.map(t =>
       `<option value="${t.template_id}">${escapeHtml(t.name)}</option>`).join("");
   if (cur && state.templates.some(t => String(t.template_id) === cur)) sel.value = cur;
@@ -888,18 +897,18 @@ window.applyPreset = function (id) {
   if (typeof closeFilterPopover === "function") closeFilterPopover();
   renderPicker();
   renderAll();
-  showToast(`ใช้ preset "${tpl.name}" แล้ว`, "success");
+  showToast(T("cr.toast.presetApplied", { name: tpl.name }), "success");
 };
 
 window.savePreset = async function () {
-  if (!state.selected.length) { showToast("เลือกคอลัมน์ก่อนบันทึก preset", "info"); return; }
+  if (!state.selected.length) { showToast(T("cr.toast.selectColsSave"), "info"); return; }
   const name = await PromptModal.open({
-    title: "บันทึกชุดคอลัมน์เป็น preset",
-    message: "ตั้งชื่อ preset — ใช้ซ้ำได้กับทุกทริป",
+    title: T("cr.prompt.saveTitle"),
+    message: T("cr.prompt.saveMsg"),
     icon: "💾",
-    okText: "บันทึก",
-    cancelText: "ยกเลิก",
-    placeholder: "เช่น รายงานห้องพัก, รายงาน passport",
+    okText: T("cr.btn.save"),
+    cancelText: T("cr.btn.cancel"),
+    placeholder: T("cr.prompt.savePlaceholder"),
     required: true,
   });
   if (name === null) return;
@@ -917,42 +926,42 @@ window.savePreset = async function () {
     if (existing) {
       await sbFetch("trip_report_templates", `?template_id=eq.${existing.template_id}`,
         { method: "PATCH", body: { columns: state.selected, updated_at: body.updated_at } });
-      showToast(`อัปเดต preset "${trimmed}" แล้ว`, "success");
+      showToast(T("cr.toast.presetUpdated", { name: trimmed }), "success");
     } else {
       await sbFetch("trip_report_templates", "", { method: "POST", body });
-      showToast(`บันทึก preset "${trimmed}" แล้ว`, "success");
+      showToast(T("cr.toast.presetSaved", { name: trimmed }), "success");
     }
     state.templates = await sbFetch("trip_report_templates", "?select=*&order=name.asc");
     renderTemplates();
     const match = state.templates.find(t => t.name.toLowerCase() === trimmed.toLowerCase());
     if (match) document.getElementById("presetSelect").value = match.template_id;
   } catch (e) {
-    showToast("บันทึก preset ไม่สำเร็จ: " + e.message, "error");
+    showToast(T("cr.toast.saveFail", { msg: e.message }), "error");
   }
   showLoading(false);
 };
 
 window.deletePreset = async function () {
   const id = document.getElementById("presetSelect").value;
-  if (!id) { showToast("เลือก preset ที่จะลบก่อน", "info"); return; }
+  if (!id) { showToast(T("cr.toast.selectPresetDelete"), "info"); return; }
   const tpl = state.templates.find(t => String(t.template_id) === String(id));
   if (!tpl) return;
   const ok = window.ConfirmModal?.open
     ? await window.ConfirmModal.open({
-        title: "ลบ preset",
-        message: `ลบ preset "${tpl.name}"?`,
-        icon: "🗑", tone: "danger", okText: "ลบ",
+        title: T("cr.confirm.deleteTitle"),
+        message: T("cr.confirm.deleteMsg", { name: tpl.name }),
+        icon: "🗑", tone: "danger", okText: T("cr.btn.delete"),
       })
-    : confirm(`ลบ preset "${tpl.name}"?`);
+    : confirm(T("cr.confirm.deleteMsg", { name: tpl.name }));
   if (!ok) return;
   showLoading(true);
   try {
     await sbFetch("trip_report_templates", `?template_id=eq.${id}`, { method: "DELETE" });
     state.templates = state.templates.filter(t => String(t.template_id) !== String(id));
     renderTemplates();
-    showToast(`ลบ preset "${tpl.name}" แล้ว`, "success");
+    showToast(T("cr.toast.presetDeleted", { name: tpl.name }), "success");
   } catch (e) {
-    showToast("ลบ preset ไม่สำเร็จ: " + e.message, "error");
+    showToast(T("cr.toast.deleteFail", { msg: e.message }), "error");
   }
   showLoading(false);
 };
@@ -970,23 +979,23 @@ function tripTitle() {
 }
 
 window.exportReportExcel = function () {
-  if (!state.selected.length) { showToast("เลือกคอลัมน์ก่อน export", "info"); return; }
+  if (!state.selected.length) { showToast(T("cr.toast.selectColsExport"), "info"); return; }
   const cols = outputCols();
-  if (!cols.length) { showToast("ทุกคอลัมน์ถูกซ่อน (🙈) — เปิดอย่างน้อย 1 คอลัมน์", "info"); return; }
-  if (typeof XLSX === "undefined") { showToast("XLSX ยังโหลดไม่เสร็จ — ลองใหม่", "error"); return; }
+  if (!cols.length) { showToast(T("cr.toast.allHidden"), "info"); return; }
+  if (typeof XLSX === "undefined") { showToast(T("cr.toast.xlsxLoading"), "error"); return; }
   if (state.layout === "card") {
-    showToast("Excel ใช้รูปแบบตารางเสมอ — Card mode รองรับเฉพาะ Print/PDF", "info");
+    showToast(T("cr.toast.cardExcel"), "info");
   }
   const rows = getRows();
   const rspan = computeRowspans(rows, cols);
   // สร้าง AOA (header + data) — เซลที่ถูก merge ตั้งเป็น "" (เซลล่างใน merge range)
-  const aoa = [cols.map(c => c.label)];
+  const aoa = [cols.map(c => colLabel(c))];
   rows.forEach((row, i) => {
     aoa.push(cols.map((c, ci) => rspan[ci][i] === 0 ? "" : cellValue(row, c)));
   });
   if (!rows.length) aoa.push(cols.map(() => ""));
   const ws = XLSX.utils.aoa_to_sheet(aoa);
-  ws["!cols"] = cols.map(c => ({ wch: Math.max(c.label.length + 2, 14) }));
+  ws["!cols"] = cols.map(c => ({ wch: Math.max(colLabel(c).length + 2, 14) }));
   // merge ranges — header อยู่แถว 0, data เริ่มแถว 1
   const merges = [];
   cols.forEach((_, ci) => {
@@ -1002,7 +1011,7 @@ window.exportReportExcel = function () {
   const sheet = tripTitle().replace(/[\\\/\?\*\[\]:]/g, "_").slice(0, 31) || "Report";
   XLSX.utils.book_append_sheet(wb, ws, sheet);
   XLSX.writeFile(wb, `Custom-Report_${tripTitle().replace(/\s+/g, "-")}.xlsx`);
-  showToast("ดาวน์โหลด Excel แล้ว", "success");
+  showToast(T("cr.toast.excelDone"), "success");
 };
 
 window.setRowsPerPage = function (v) {
@@ -1088,7 +1097,7 @@ function buildCardHtml(row, cols, idx) {
   const fieldCols = cols.filter(c => c.fmt !== "image");
   const imageCols = cols.filter(c => c.fmt === "image");
   const teamBadge = row.__isTeam
-    ? `<span class="cr-pcard-team-badge">👔 ${escapeHtml(state.memberTypeLabel?.[row.__memberType] || "ทีมงาน")}</span>`
+    ? `<span class="cr-pcard-team-badge">👔 ${escapeHtml(state.memberTypeLabel?.[row.__memberType] || T("cr.team.default"))}</span>`
     : "";
 
   // ── โหมดภาพเต็ม: ไม่มีฟิลด์ข้อความเลย → ภาพ fill การ์ดทั้งใบ (contain — โชว์ภาพครบไม่ครอป) ──
@@ -1097,12 +1106,12 @@ function buildCardHtml(row, cols, idx) {
     let imgs = imageCols.map(c => {
       const url = cellValue(row, c);
       if (!url) return "";
-      return `<img src="${escapeHtml(url)}" alt="${escapeHtml(c.label)}" loading="lazy"
+      return `<img src="${escapeHtml(url)}" alt="${escapeHtml(colLabel(c))}" loading="lazy"
         style="height:calc(var(--cr-card-full-h,60mm)/${n})">`;
     }).join("");
     if (!imgs) {
-      imgs = `<div class="cr-pcard-img-placeholder">— ไม่มีภาพ —${
-        row.__isTeam ? '<br><span style="font-size:9px;opacity:.7">ทีมงาน</span>' : ""}</div>`;
+      imgs = `<div class="cr-pcard-img-placeholder">${escapeHtml(T("cr.card.noImage"))}${
+        row.__isTeam ? `<br><span style="font-size:9px;opacity:.7">${escapeHtml(T("cr.team.default"))}</span>` : ""}</div>`;
     }
     return `<div class="cr-pcard cr-pcard-full${row.__isTeam ? " cr-pcard-team" : ""}">
       <span class="cr-pcard-full-num">#${idx}${teamBadge}</span>
@@ -1114,18 +1123,18 @@ function buildCardHtml(row, cols, idx) {
     const v = cellValue(row, c);
     if (!v) return ""; // ซ่อนค่าว่าง
     return `<div class="cr-pcard-field">
-      <span class="cr-pcard-label">${escapeHtml(c.label)}</span>
+      <span class="cr-pcard-label">${escapeHtml(colLabel(c))}</span>
       <span class="cr-pcard-value">${escapeHtml(v)}</span>
     </div>`;
   }).join("");
   let imagesHtml = imageCols.map(c => {
     const url = cellValue(row, c);
     if (!url) return "";
-    return `<img src="${escapeHtml(url)}" alt="${escapeHtml(c.label)}" loading="lazy">`;
+    return `<img src="${escapeHtml(url)}" alt="${escapeHtml(colLabel(c))}" loading="lazy">`;
   }).join("");
   // ทีมงาน + เลือก image column แต่ไม่มีรูปจริง → placeholder
   if (!imagesHtml && imageCols.length && row.__isTeam) {
-    imagesHtml = `<div class="cr-pcard-img-placeholder">— ไม่มีภาพ —<br><span style="font-size:9px;opacity:.7">ทีมงาน</span></div>`;
+    imagesHtml = `<div class="cr-pcard-img-placeholder">${escapeHtml(T("cr.card.noImage"))}<br><span style="font-size:9px;opacity:.7">${escapeHtml(T("cr.team.default"))}</span></div>`;
   }
   const numBadge = `<span class="cr-pcard-label" style="min-width:auto;color:#94a3b8">#${idx}${teamBadge}</span>`;
   return `<div class="cr-pcard${row.__isTeam ? " cr-pcard-team" : ""}">
@@ -1155,7 +1164,7 @@ function buildPrintPayload() {
   const ci = state.trip?.start_date ? fmtDate(state.trip.start_date) : "";
   const co = state.trip?.end_date ? fmtDate(state.trip.end_date) : "";
   const dates = (ci || co) ? ` · ${ci || "—"} → ${co || "—"}` : "";
-  const thead = `<th>#</th>` + cols.map(c => `<th>${escapeHtml(c.label)}</th>`).join("");
+  const thead = `<th>#</th>` + cols.map(c => `<th>${escapeHtml(colLabel(c))}</th>`).join("");
   const rows = getRows();
   const rspan = computeRowspans(rows, cols);
   const tbody = rows.map((row, i) =>
@@ -1168,14 +1177,14 @@ function buildPrintPayload() {
       return `<td${attrs}>${cellHtml(row, c)}</td>`;
     }).join("") +
     `</tr>`).join("");
-  const gen = new Date().toLocaleString("th-TH", { timeZone: "Asia/Bangkok" });
-  const extra = rows.length !== state.pax.length ? ` · ${rows.length} แถว (แยกตามโรงแรม)` : "";
-  const teamNote = state.teamCount ? ` + ${state.teamCount} ทีมงาน` : "";
+  const gen = new Date().toLocaleString(curLang() === "en" ? "en-GB" : "th-TH", { timeZone: "Asia/Bangkok" });
+  const extra = rows.length !== state.pax.length ? ` ${T("cr.print.extraSplit", { n: rows.length })}` : "";
+  const teamNote = state.teamCount ? ` ${T("cr.count.team", { n: state.teamCount })}` : "";
   const html = `
     <div class="cr-print-title">📊 Custom Report — ${escapeHtml(tripTitle())}${dates}</div>
-    <div class="cr-print-sub">${state.paxCount || state.pax.length} คน${teamNote}${extra} · ${cols.length} คอลัมน์ · พิมพ์เมื่อ ${gen}</div>
+    <div class="cr-print-sub">${T("cr.count.people", { n: state.paxCount || state.pax.length })}${teamNote}${extra} · ${T("cr.count.columns", { n: cols.length })} · ${T("cr.print.printedAt", { when: gen })}</div>
     <table><thead><tr>${thead}</tr></thead><tbody>${tbody ||
-      `<tr><td colspan="${cols.length + 1}" style="text-align:center;color:#94a3b8">ไม่มีข้อมูล</td></tr>`
+      `<tr><td colspan="${cols.length + 1}" style="text-align:center;color:#94a3b8">${escapeHtml(T("cr.print.noData"))}</td></tr>`
     }</tbody></table>`;
   return { html, cols, rows, hasImageCol: cols.some(c => c.fmt === "image") };
 }
@@ -1193,9 +1202,9 @@ function applyPrintStyles(targetEl, hasImageCol) {
 }
 
 window.exportReportPrint = function () {
-  if (!state.selected.length) { showToast("เลือกคอลัมน์ก่อน print", "info"); return; }
+  if (!state.selected.length) { showToast(T("cr.toast.selectColsPrint"), "info"); return; }
   const cols = outputCols();
-  if (!cols.length) { showToast("ทุกคอลัมน์ถูกซ่อน (🙈) — เปิดอย่างน้อย 1 คอลัมน์", "info"); return; }
+  if (!cols.length) { showToast(T("cr.toast.allHidden"), "info"); return; }
   const printArea = document.getElementById("cr-print-area");
   const pageStyle = document.getElementById("crPageStyle");
   if (pageStyle) pageStyle.textContent = `@page{size:${state.orientation};margin:10mm}`;
@@ -1215,7 +1224,7 @@ window.exportReportPrint = function () {
     const ciD = state.trip?.start_date ? fmtDate(state.trip.start_date) : "";
     const coD = state.trip?.end_date ? fmtDate(state.trip.end_date) : "";
     const dates = (ciD || coD) ? ` · ${ciD || "—"} → ${coD || "—"}` : "";
-    const teamNote = state.teamCount ? ` + ${state.teamCount} ทีมงาน` : "";
+    const teamNote = state.teamCount ? ` ${T("cr.count.team", { n: state.teamCount })}` : "";
     const perPage = Math.max(1, state.cardsPerPage || 2);
     const totalPages = Math.max(1, Math.ceil(rows.length / perPage));
     let pagesHtml = "";
@@ -1224,7 +1233,7 @@ window.exportReportPrint = function () {
       const pageRows = rows.slice(start, start + perPage);
       const header = p === 0
         ? `<div class="cr-print-title">📊 Custom Report — ${escapeHtml(tripTitle())}${dates}</div>
-           <div class="cr-print-sub">${state.paxCount || state.pax.length} คน${teamNote} · ${cols.length} ฟิลด์</div>`
+           <div class="cr-print-sub">${T("cr.count.people", { n: state.paxCount || state.pax.length })}${teamNote} · ${T("cr.count.fields", { n: cols.length })}</div>`
         : "";
       const cardsHtml = pageRows.map((row, i) => buildCardHtml(row, cols, start + i + 1)).join("");
       pagesHtml += `<div class="cr-print-page" style="height:${pageH}mm">${header}<div class="cr-pcards-grid">${cardsHtml}</div></div>`;
@@ -1238,7 +1247,7 @@ window.exportReportPrint = function () {
     applyPrintStyles(printArea, payload.hasImageCol);
     printArea.innerHTML = payload.html;
   }
-  showToast("เปิดหน้าต่าง print — เลือก 'Save as PDF' ได้", "info");
+  showToast(T("cr.toast.printOpen"), "info");
   setTimeout(() => window.print(), 80);
 };
 
@@ -1251,12 +1260,12 @@ function buildOnePagePreview(cols, rows, startIdx, pageNum, totalPages, isFirstP
   const ci = state.trip?.start_date ? fmtDate(state.trip.start_date) : "";
   const co = state.trip?.end_date ? fmtDate(state.trip.end_date) : "";
   const dates = (ci || co) ? ` · ${ci || "—"} → ${co || "—"}` : "";
-  const teamNote = state.teamCount ? ` + ${state.teamCount} ทีมงาน` : "";
+  const teamNote = state.teamCount ? ` ${T("cr.count.team", { n: state.teamCount })}` : "";
   const headerHtml = isFirstPage
     ? `<div class="cr-print-title">📊 Custom Report — ${escapeHtml(tripTitle())}${dates}</div>
-       <div class="cr-print-sub">${state.paxCount || state.pax.length} คน${teamNote} · ${cols.length} คอลัมน์</div>`
+       <div class="cr-print-sub">${T("cr.count.people", { n: state.paxCount || state.pax.length })}${teamNote} · ${T("cr.count.columns", { n: cols.length })}</div>`
     : "";
-  const thead = `<th style="width:32px">#</th>` + cols.map(c => `<th>${escapeHtml(c.label)}</th>`).join("");
+  const thead = `<th style="width:32px">#</th>` + cols.map(c => `<th>${escapeHtml(colLabel(c))}</th>`).join("");
   const tbody = rows.map((row, i) =>
     `<tr><td>${startIdx + i + 1}</td>` +
     cols.map((c, ci2) => {
@@ -1269,7 +1278,7 @@ function buildOnePagePreview(cols, rows, startIdx, pageNum, totalPages, isFirstP
     `</tr>`).join("");
   return `${headerHtml}
     <table><thead><tr>${thead}</tr></thead><tbody>${tbody}</tbody></table>
-    <div class="cr-preview-page-num">หน้า ${pageNum} / ${totalPages}</div>`;
+    <div class="cr-preview-page-num">${escapeHtml(T("cr.preview.pageNum", { p: pageNum, total: totalPages }))}</div>`;
 }
 
 // สร้าง HTML 1 หน้า A4 ในโหมด card — title (หน้าแรก) + grid ของ card
@@ -1277,23 +1286,23 @@ function buildOnePageCardPreview(cols, rows, startIdx, pageNum, totalPages, isFi
   const ci = state.trip?.start_date ? fmtDate(state.trip.start_date) : "";
   const co = state.trip?.end_date ? fmtDate(state.trip.end_date) : "";
   const dates = (ci || co) ? ` · ${ci || "—"} → ${co || "—"}` : "";
-  const teamNote = state.teamCount ? ` + ${state.teamCount} ทีมงาน` : "";
+  const teamNote = state.teamCount ? ` ${T("cr.count.team", { n: state.teamCount })}` : "";
   const headerHtml = isFirstPage
     ? `<div class="cr-print-title">📊 Custom Report — ${escapeHtml(tripTitle())}${dates}</div>
-       <div class="cr-print-sub">${state.paxCount || state.pax.length} คน${teamNote} · ${cols.length} ฟิลด์</div>`
+       <div class="cr-print-sub">${T("cr.count.people", { n: state.paxCount || state.pax.length })}${teamNote} · ${T("cr.count.fields", { n: cols.length })}</div>`
     : "";
   const cardsHtml = rows.map((row, i) => buildCardHtml(row, cols, startIdx + i + 1)).join("");
   return `${headerHtml}
     <div class="cr-pcards-grid">${cardsHtml}</div>
-    <div class="cr-preview-page-num">หน้า ${pageNum} / ${totalPages}</div>`;
+    <div class="cr-preview-page-num">${escapeHtml(T("cr.preview.pageNum", { p: pageNum, total: totalPages }))}</div>`;
 }
 
 // 👁 Preview — แสดง layout A4 หลายหน้าซ้อนใน modal ก่อน export
 // table mode → ตัด rows ตาม rowsPerPage · card mode → ตัด rows ตาม cardsPerPage
 window.previewReportPrint = function () {
-  if (!state.selected.length) { showToast("เลือกคอลัมน์ก่อน", "info"); return; }
+  if (!state.selected.length) { showToast(T("cr.toast.selectColsPreview"), "info"); return; }
   const cols = outputCols();
-  if (!cols.length) { showToast("ทุกคอลัมน์ถูกซ่อน (🙈) — เปิดอย่างน้อย 1 คอลัมน์", "info"); return; }
+  if (!cols.length) { showToast(T("cr.toast.allHidden"), "info"); return; }
   const allRows = getRows();
   const total = allRows.length;
   const isCard = state.layout === "card";
@@ -1320,18 +1329,19 @@ window.previewReportPrint = function () {
   if (totalPages > showPages) {
     const more = document.createElement("div");
     more.className = "cr-preview-more";
-    const unit = isCard ? "การ์ด" : "แถว";
-    more.textContent = `⋯ แสดง ${showPages} หน้าแรก · ทั้งหมด ${totalPages} หน้า (${total} ${unit}) — กด Print / PDF เพื่อพิมพ์ครบ`;
+    const unit = isCard ? T("cr.unit.cards") : T("cr.unit.rows");
+    more.textContent = T("cr.preview.more", { shown: showPages, total: totalPages, n: total, unit });
     scroll.appendChild(more);
   }
 
   const meta = document.getElementById("crPreviewMeta");
   if (meta) {
-    const oriLbl = state.orientation === "portrait" ? "แนวตั้ง" : "แนวนอน";
-    const modeLbl = isCard ? "🪪 การ์ด" : "📊 ตาราง";
-    const autoTag = (!isCard && state.rowsPerPage === "auto") ? "อัตโนมัติ · " : "";
-    const perLbl = isCard ? `${perPage} การ์ด/หน้า` : `${autoTag}${perPage} แถว/หน้า`;
-    meta.textContent = `· ${modeLbl} · A4 ${oriLbl} · ${perLbl} · ${total} ${isCard ? "การ์ด" : "แถว"} / ${totalPages} หน้า`;
+    const oriLbl = state.orientation === "portrait" ? T("cr.ori.portrait") : T("cr.ori.landscape");
+    const modeLbl = isCard ? T("cr.layout.card") : T("cr.layout.table");
+    const autoTag = (!isCard && state.rowsPerPage === "auto") ? T("cr.preview.autoTag") : "";
+    const perLbl = isCard ? T("cr.preview.cardsPer", { n: perPage }) : `${autoTag}${T("cr.preview.rowsPer", { n: perPage })}`;
+    const unitLbl = isCard ? T("cr.unit.cards") : T("cr.unit.rows");
+    meta.textContent = `· ${modeLbl} · A4 ${oriLbl} · ${perLbl} · ${total} ${unitLbl} / ${T("cr.preview.pages", { n: totalPages })}`;
   }
   document.getElementById("crPreviewModal").style.display = "flex";
   scroll.scrollTop = 0;
@@ -1364,6 +1374,22 @@ document.addEventListener("keydown", (ev) => {
   const modal = document.getElementById("crPreviewModal");
   if (modal && modal.style.display !== "none") window.closePreview();
 });
+
+// ── i18n: re-render เมื่อสลับภาษา ──────────────────────────
+// เรียกจาก I18n.onChange (ผูกไว้ใน HTML) — สร้าง UI ที่ generate ด้วย JS ใหม่
+// (ข้อความ static ใน HTML ถูก I18n.apply() จัดการให้แล้ว)
+window.crRerenderForLang = function () {
+  if (typeof closeFilterPopover === "function") closeFilterPopover();
+  renderTripBanner();
+  renderTemplates();
+  renderPicker();
+  renderAll();
+  // ถ้า preview modal เปิดอยู่ → สร้างใหม่ให้เป็นภาษาปัจจุบัน
+  const pv = document.getElementById("crPreviewModal");
+  if (pv && pv.style.display !== "none" && typeof window.previewReportPrint === "function") {
+    window.previewReportPrint();
+  }
+};
 
 // ── BOOT ───────────────────────────────────────────────────
 init();
