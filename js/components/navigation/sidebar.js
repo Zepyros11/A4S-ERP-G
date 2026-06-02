@@ -482,7 +482,7 @@
     "event-media": "media_fb_view",
     "line-promote": "line_promote_view",
     categories: "inv_cat_view",
-    units: "inv_cat_view",
+    units: "units_view",
     warehouses: "warehouse_view",
     products: "product_view",
     "stock-dashboard": "product_view",

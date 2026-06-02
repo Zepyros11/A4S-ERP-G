@@ -103,6 +103,7 @@ export function renderWarehousesTable(warehouses, stock, countries, types) {
   }
 
   tbody.innerHTML = html;
+  if (window.AuthZ) window.AuthZ.applyDomPerms(tbody);
 }
 
 function renderRow(w, isChild, stock) {
@@ -156,9 +157,9 @@ function renderRow(w, isChild, stock) {
   </td>
 
   <td class="col-center">
-    <button class="btn-icon"
+    <button class="btn-icon" data-perm="warehouse_edit"
       onclick="event.stopPropagation();editWarehouse(${w.warehouse_id})">✏️</button>
-    <button class="btn-icon danger"
+    <button class="btn-icon danger" data-perm="warehouse_delete"
       onclick="event.stopPropagation();deleteWarehouse(${w.warehouse_id},'${w.warehouse_name}')">🗑️</button>
   </td>
 

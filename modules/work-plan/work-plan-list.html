@@ -147,6 +147,14 @@
         </div>
     <script src="../../js/core/auth.js"></script>
     <script src="../../js/core/authz.js"></script>
+    <script>
+      /* แผนงานใช้ perm ตาม scope: ?scope=cs → cs_wp_view, อื่นๆ → evt_wp_view */
+      AuthZ.requirePerm(
+        new URLSearchParams(location.search).get("scope") === "cs"
+          ? "cs_wp_view"
+          : "evt_wp_view"
+      );
+    </script>
 <script src="../../js/core/date-format.js"></script>
     <script type="module" src="./work-plan-list.js"></script>
     <script src="../../js/components/modal/deleteModal.js"></script>

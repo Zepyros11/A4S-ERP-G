@@ -188,6 +188,7 @@
         if (toolbarRight) {
           const btnDel = document.createElement("button");
           btnDel.id = "btnDeleteSelected";
+          btnDel.setAttribute("data-perm", "evt_place_delete");
           btnDel.className = "btn btn-danger-outline";
           btnDel.style.display = "none";
           btnDel.innerHTML = "🗑 ลบที่เลือก";

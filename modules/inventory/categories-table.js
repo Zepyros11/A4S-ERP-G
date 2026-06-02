@@ -39,8 +39,8 @@ export function renderCategoriesTable(categories, products) {
         </td>
 
         <td class="col-center">
-          <button class="btn-icon" onclick="editCategory(${c.category_id})">✏️</button>
-          <button class="btn-icon danger" onclick="deleteCategory(${c.category_id},'${c.category_name}')">🗑️</button>
+          <button class="btn-icon" data-perm="inv_cat_edit" onclick="editCategory(${c.category_id})">✏️</button>
+          <button class="btn-icon danger" data-perm="inv_cat_delete" onclick="deleteCategory(${c.category_id},'${c.category_name}')">🗑️</button>
         </td>
 
       </tr>
@@ -58,6 +58,7 @@ export function renderCategoriesTable(categories, products) {
   }
 
   tbody.innerHTML = html;
+  if (window.AuthZ) window.AuthZ.applyDomPerms(tbody);
   document.getElementById("catCount").textContent =
     categories.length + " รายการ";
 }

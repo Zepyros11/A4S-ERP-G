@@ -912,11 +912,11 @@ function renderTable(events) {
                 <span class="act-kebab-icon">📌</span>
                 <span>${pinned ? "ยกเลิกปักหมุด" : "ปักหมุด"}</span>
               </button>
-              <button class="act-kebab-item" onclick="window.location.href='./event-form.html?id=${e.event_id}'">
+              <button class="act-kebab-item" data-perm="events_edit" onclick="window.location.href='./event-form.html?id=${e.event_id}'">
                 <span class="act-kebab-icon">✏️</span>
                 <span>แก้ไข</span>
               </button>
-              <button class="act-kebab-item danger" onclick="window.closeKebabs();window.deleteEvent(${e.event_id})">
+              <button class="act-kebab-item danger" data-perm="events_delete" onclick="window.closeKebabs();window.deleteEvent(${e.event_id})">
                 <span class="act-kebab-icon">🗑</span>
                 <span>ลบ</span>
               </button>
@@ -927,6 +927,8 @@ function renderTable(events) {
     </tr>`;
     })
     .join("");
+
+  if (window.AuthZ) window.AuthZ.applyDomPerms(tbody);
 }
 
 function updatePanelTypeOptions() {

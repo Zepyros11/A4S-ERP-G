@@ -209,6 +209,8 @@ function renderGallery() {
   body.innerHTML = html;
   body.className = "promo-gallery";
 
+  if (window.AuthZ) window.AuthZ.applyDomPerms(body);
+
   // scroll reveal
   requestAnimationFrame(() => initScrollReveal());
 }

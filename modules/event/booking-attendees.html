@@ -62,7 +62,7 @@
                 <input type="checkbox" id="autoCheckinInput" onchange="window.onAutoCheckinToggle(this.checked)" style="accent-color:#10b981;width:15px;height:15px;cursor:pointer">
                 <span id="autoCheckinLabel">⚡ โหมดหน้างาน</span>
               </label>
-              <button style="padding:8px 14px;border:none;border-radius:16px;background:rgba(255,255,255,.18);color:#fff;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;border:1.5px solid rgba(255,255,255,.25);display:flex;align-items:center;gap:5px" onclick="window.openCheckinPage()">📱 หน้า Check-in</button>
+              <button style="padding:8px 14px;border:none;border-radius:16px;background:rgba(255,255,255,.18);color:#fff;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;border:1.5px solid rgba(255,255,255,.25);display:flex;align-items:center;gap:5px" data-perm="attendee_checkin" onclick="window.openCheckinPage()">📱 หน้า Check-in</button>
               <button style="padding:8px 14px;border:none;border-radius:16px;background:rgba(255,255,255,.18);color:#fff;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;border:1.5px solid rgba(255,255,255,.25);display:flex;align-items:center;gap:5px" onclick="window.openShareRegisterModal()">🔗 แชร์ลิงก์ลงทะเบียน</button>
               <button style="padding:8px 14px;border:none;border-radius:16px;background:rgba(255,255,255,.18);color:#fff;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;border:1.5px solid rgba(255,255,255,.25);display:flex;align-items:center;gap:5px" onclick="window.openBulkMsgModal()">📢 ส่งข้อความกลุ่ม</button>
               <button style="padding:8px 14px;border:none;border-radius:16px;background:rgba(255,255,255,.18);color:#fff;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;border:1.5px solid rgba(255,255,255,.25);display:flex;align-items:center;gap:5px" onclick="window.exportCSV()">📥 Export CSV</button>
@@ -141,7 +141,7 @@
           </style>
           <div id="attToolbar" style="display: none">
             <div class="toolbar" style="justify-content:space-between;gap:10px;flex-wrap:wrap;">
-              <button onclick="window.openGuestAddModal()"
+              <button onclick="window.openGuestAddModal()" data-perm="attendee_register"
                 style="padding:8px 14px;border:none;border-radius:10px;background:linear-gradient(135deg,#10b981,#059669);color:#fff;font-family:inherit;font-size:12.5px;font-weight:700;cursor:pointer;box-shadow:0 2px 6px rgba(16,185,129,.3);display:inline-flex;align-items:center;gap:5px;white-space:nowrap">
                 ➕ เพิ่มคน (ไม่มีรหัส)
               </button>

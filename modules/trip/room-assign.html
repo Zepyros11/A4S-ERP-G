@@ -511,6 +511,13 @@
       .fl-combo-new{padding:8px 10px;border-radius:7px;font-size:12.5px;color:var(--accent,#5b8a72);font-weight:600;cursor:pointer;border-top:1px dashed var(--border);margin-top:3px}
       .fl-combo-new:hover{background:#eef6f1}
       .fl-leg-head{font-size:12.5px;font-weight:700;color:var(--accent,#5b8a72);border-bottom:1px dashed var(--border);padding-bottom:5px}
+      /* filter bar เที่ยวบิน (2 แถว: ขาไป/ขากลับ) */
+      .fl-filter-bar{display:flex;flex-direction:column;gap:8px;padding:10px 12px;margin-bottom:10px;background:#fff;border:1px solid var(--border);border-radius:10px}
+      .fl-filter-row{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+      .fl-filter-label{font-size:12px;font-weight:700;color:var(--text2);margin-right:2px;min-width:62px}
+      .fl-filter-chip{border:1px solid var(--border);background:#f8fafc;color:var(--text2);border-radius:999px;padding:4px 12px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap}
+      .fl-filter-chip:hover{border-color:var(--accent,#5b8a72);color:var(--accent,#5b8a72)}
+      .fl-filter-chip.active{background:var(--accent,#5b8a72);border-color:var(--accent,#5b8a72);color:#fff}
       /* บังคับ date picker ในฟอร์มตั๋วให้เป็น light — กัน popup ดำตาม OS dark mode */
       #flightOverlay .form-control{color-scheme:light}
       /* custom dropdown เที่ยวบิน/port (แทน native datalist ที่สไตล์ไม่ได้) — ลอยใต้ช่องที่ active */
@@ -519,12 +526,14 @@
       .fl-menu-manage{position:sticky;bottom:-5px;background:#fff;border-top:1px dashed var(--border);margin:4px -5px -5px;padding:9px 12px;font-size:12.5px;font-weight:700;color:var(--accent,#5b8a72);cursor:pointer;border-radius:0 0 9px 9px}
       .fl-menu-manage:hover{background:#eef6f1}
       /* nested manage modal — รายการ Port/เที่ยวบิน */
-      .fl-mgr-addrow{display:grid;grid-template-columns:.8fr 1.2fr auto;gap:8px;margin-bottom:14px}
+      .fl-mgr-addrow{display:grid;grid-template-columns:1fr auto;gap:8px;margin-bottom:14px;align-items:center}
+      .fl-mgr-addrow .btn{white-space:nowrap;height:38px;padding:0 16px}
       .fl-mgr-list{display:flex;flex-direction:column;gap:6px;max-height:50vh;overflow-y:auto}
       .fl-mgr-row{display:flex;align-items:center;gap:10px;padding:7px 11px;border:1px solid var(--border);border-radius:8px;background:#fff;font-size:13px}
       .fl-mgr-row.editing{border-color:var(--accent,#5b8a72);background:#eef6f1}
       .fl-mgr-code{font-weight:800;color:var(--text);min-width:60px}
       .fl-mgr-name{color:var(--text2);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+      .fl-mgr-spacer{flex:1}
       .fl-mgr-btn{border:1px solid var(--border);background:#fff;border-radius:6px;width:30px;height:28px;cursor:pointer;font-size:13px;color:var(--text2)}
       .fl-mgr-btn:hover{background:#f1f5f9;color:var(--text)}
       .fl-mgr-btn.danger{color:#dc2626;border-color:#fecaca;background:#fef2f2}
@@ -538,10 +547,14 @@
       .fl-seg-list{display:flex;flex-direction:column;gap:8px;margin-top:8px}
       .fl-seg-row{display:flex;align-items:flex-end;gap:8px}
       .fl-seg-no{flex:0 0 auto;min-width:46px;font-size:11px;font-weight:700;color:var(--text3);padding-bottom:10px}
-      .fl-seg-grid{flex:1;min-width:0;display:grid;grid-template-columns:1.15fr 1fr 1fr;gap:8px}
+      .fl-seg-grid{flex:1;min-width:0;display:grid;grid-template-columns:0.8fr 1.2fr 1.2fr;gap:8px}
       .fl-seg-f{display:flex;flex-direction:column;gap:3px;min-width:0}
       .fl-seg-f>span{font-size:10.5px;color:var(--text3);font-weight:600}
       .fl-seg-f>.form-control{min-width:0;width:100%}
+      /* ช่องวันเวลา 24 ชม. (date + HH:MM) */
+      .fl-dt{display:flex;gap:5px;min-width:0}
+      .fl-dt-date{flex:1 1 auto;min-width:112px}
+      .fl-dt-time{flex:0 0 60px;min-width:60px;text-align:center;letter-spacing:.5px;padding-left:6px;padding-right:6px}
       .fl-seg-rm{flex:0 0 auto;border:1px solid #fecaca;background:#fef2f2;color:#dc2626;border-radius:7px;width:32px;height:38px;cursor:pointer;font-size:13px}
       .fl-seg-rm:hover{background:#fee2e2}
       .fl-seg-rm:disabled{opacity:.4;cursor:not-allowed}
@@ -1123,6 +1136,9 @@
                 <div class="ba-empty-buses">⏳ กำลังโหลด...</div>
               </div>
 
+              <!-- FLIGHTS FILTER BAR (กรองการ์ดตามเลขเที่ยวบินที่มี) -->
+              <div class="fl-filter-bar" id="flightFilterBar" style="display:none"></div>
+
               <!-- FLIGHTS TAB CONTENT -->
               <div class="fl-flights" id="flightsContainer" style="display:none">
                 <div class="ba-empty-buses">⏳ กำลังโหลด...</div>
@@ -1283,7 +1299,7 @@
 
     <!-- ═══════════ ADD/EDIT FLIGHT (ตั๋วเครื่องบิน) MODAL ═══════════ -->
     <div class="modal-overlay" id="flightOverlay" onclick="window.closeFlightModal(event)">
-      <div class="modal v-sage-header" onclick="event.stopPropagation()" style="max-width:720px;width:94vw">
+      <div class="modal v-sage-header" onclick="event.stopPropagation()" style="max-width:880px;width:96vw">
         <div class="modal-hdr">
           <div class="modal-title" id="flightModalTitle">✈️ เพิ่มตั๋วเครื่องบิน</div>
           <button class="btn-modal-close" onclick="window.closeFlightModal()">✕</button>
@@ -1332,8 +1348,7 @@
         </div>
         <div class="modal-body">
           <div class="fl-mgr-addrow">
-            <input class="form-control" id="flMgrCode" placeholder="รหัส (เช่น ABJ)" autocomplete="off" />
-            <input class="form-control" id="flMgrName" placeholder="ชื่อ (เช่น Abidjan)" autocomplete="off"
+            <input class="form-control" id="flMgrCode" placeholder="รหัส (เช่น ABJ)" autocomplete="off"
                    onkeydown="if(event.key==='Enter')window.flMasterAdd()" />
             <button class="btn btn-primary" id="flMgrAddBtn" onclick="window.flMasterAdd()">＋ เพิ่ม</button>
           </div>
@@ -1372,7 +1387,7 @@
           <div id="bgmList" style="display:flex;flex-direction:column;gap:6px;max-height:50vh;overflow-y:auto">
             <div style="padding:14px;color:var(--text3);text-align:center;font-size:13px">— ยังไม่มีไกด์ใน trip นี้ —</div>
           </div>
-          <button class="btn btn-outline" data-perm="trip_guides_create"
+          <button class="btn btn-outline" data-perm="trip_team_create"
             onclick="window.openGuideEditModal(null)"
             style="margin-top:12px;width:100%">＋ สร้างไกด์ใหม่</button>
         </div>
@@ -1443,7 +1458,7 @@
           </div>
         </div>
         <div class="modal-footer">
-          <button class="btn btn-danger" id="geDeleteBtn" data-perm="trip_guides_delete" onclick="window.deleteGuide()" style="margin-right:auto;display:none">🗑 ลบ</button>
+          <button class="btn btn-danger" id="geDeleteBtn" data-perm="trip_team_delete" onclick="window.deleteGuide()" style="margin-right:auto;display:none">🗑 ลบ</button>
           <button class="btn btn-ghost" onclick="window.closeGuideEditModal()">ยกเลิก</button>
           <button class="btn btn-primary" id="geSaveBtn" onclick="window.saveGuide()">💾 บันทึก</button>
         </div>

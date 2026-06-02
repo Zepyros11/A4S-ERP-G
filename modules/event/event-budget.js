@@ -251,15 +251,17 @@ function renderSupplierTable() {
       </td>
       <td style="text-align:center">
         <div class="action-group">
-          <button class="btn-icon"
+          <button class="btn-icon" data-perm="evt_budget_edit"
             onclick="window.openSupplierModal(${s.ev_supplier_id})">✏️</button>
-          <button class="btn-icon danger"
+          <button class="btn-icon danger" data-perm="evt_budget_delete"
             onclick="window.deleteSupplier(${s.ev_supplier_id})">🗑</button>
         </div>
       </td>
     </tr>`,
     )
     .join("");
+
+  if (window.AuthZ) window.AuthZ.applyDomPerms(tbody);
 }
 
 // ── BUDGET MODAL ──────────────────────────────────────────

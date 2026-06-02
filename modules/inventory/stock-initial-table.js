@@ -127,13 +127,14 @@ export function renderProductList({
   </td>
   <td class="col-center">${fillPill}</td>
   <td class="col-center">
-    <button class="si-set-btn" onclick="event.stopPropagation();window.openStockModal(${p.product_id})">
+    <button class="si-set-btn" data-perm="stock_init_create" onclick="event.stopPropagation();window.openStockModal(${p.product_id})">
       ✏️ ตั้ง Stock
     </button>
   </td>
 </tr>`;
     })
     .join("");
+  if (window.AuthZ) window.AuthZ.applyDomPerms(tbody);
 }
 
 function renderFillPill(status, set, total, skuCount) {

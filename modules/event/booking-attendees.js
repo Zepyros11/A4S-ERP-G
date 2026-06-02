@@ -672,6 +672,7 @@ function renderTable(list) {
 
   const newRowsHtml = newRows.map(renderNewRow).join("");
   tbody.innerHTML = newRowsHtml + _buildSavedRowsHtml(list);
+  if (window.AuthZ) window.AuthZ.applyDomPerms(tbody);
   updateBulkUI();
 }
 
@@ -766,7 +767,7 @@ function renderNewRow(r) {
     </td>
     <td class="col-center"><span style="color:var(--text3);font-size:11px">—</span></td>
     <td class="col-center">
-      <button class="inline-save-btn" ${!r.name || r.saving ? "disabled" : ""} onclick="window.saveNewRow('${r.id}')">
+      <button class="inline-save-btn" data-perm="attendee_register" ${!r.name || r.saving ? "disabled" : ""} onclick="window.saveNewRow('${r.id}')">
         ${r.saving ? "⏳" : "💾"}
       </button>
     </td>
@@ -940,6 +941,7 @@ function _appendLastNewRow() {
   } else {
     tbody.insertAdjacentHTML("beforeend", html);
   }
+  if (window.AuthZ) window.AuthZ.applyDomPerms(tbody);
 }
 
 window.onNewRowPayment = function (id, val) {

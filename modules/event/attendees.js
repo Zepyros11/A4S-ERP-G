@@ -1037,6 +1037,7 @@ function renderTable(list) {
 
   const newRowsHtml = newRows.map(renderNewRowSpreadsheet).join("");
   tbody.innerHTML = newRowsHtml + _buildSavedRowsHtml(list);
+  if (window.AuthZ) window.AuthZ.applyDomPerms(tbody);
   updateBulkUI();
 }
 
@@ -1148,7 +1149,7 @@ function _renderSavedCellSpread(col, a, seq, payStatus, tierName, isSelected) {
       ${a.check_in_at ? `<div style="font-size:10px;color:var(--text3);margin-top:2px">${formatDateTime(a.check_in_at)}</div>` : ""}</td>`;
     case "actions":
       return `${tdOpen}<div style="display:inline-flex;gap:4px;align-items:center">
-        <button onclick="window.openAttendeeEdit(${a.attendee_id})" title="แก้ไขข้อมูล"
+        <button data-perm="attendee_edit" onclick="window.openAttendeeEdit(${a.attendee_id})" title="แก้ไขข้อมูล"
           style="background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:13px">✏️</button>
         <button class="btn-qr" onclick="window.openQrModal(${a.attendee_id})" title="ดู QR">🎫</button>
         <button class="btn-icon danger" onclick="window.deleteAttendee(${a.attendee_id})" title="ลบ">🗑</button>
@@ -1275,7 +1276,7 @@ function renderNewRowSpreadsheet(r) {
     </td>` : ""}
     <td class="col-center"><span class="att-empty">·</span></td>
     <td class="col-center">
-      <button class="inline-save-btn" ${!r.name || r.saving ? "disabled" : ""} onclick="window.saveNewRow('${r.id}')">
+      <button class="inline-save-btn" data-perm="attendee_register" ${!r.name || r.saving ? "disabled" : ""} onclick="window.saveNewRow('${r.id}')">
         ${r.saving ? "⏳" : "💾"}
       </button>
     </td>
@@ -1390,6 +1391,7 @@ function _appendLastNewRow() {
   } else {
     tbody.insertAdjacentHTML("beforeend", html);
   }
+  if (window.AuthZ) window.AuthZ.applyDomPerms(tbody);
 }
 
 window.onNewRowPayment = function (id, val) {

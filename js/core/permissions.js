@@ -109,6 +109,12 @@ window.AppPermissions = (() => {
           { key: "inv_cat_edit",   label: "แก้ไข" },
           { key: "inv_cat_delete", label: "ลบ" },
         ]},
+        { key: "units", label: "หน่วยนับ", icon: "📐", perms: [
+          { key: "units_view",   label: "ดูรายการ" },
+          { key: "units_create", label: "สร้าง" },
+          { key: "units_edit",   label: "แก้ไข" },
+          { key: "units_delete", label: "ลบ" },
+        ]},
         { key: "warehouse", label: "คลังสินค้า", icon: "🏭", perms: [
           { key: "warehouse_view",   label: "ดูรายการ" },
           { key: "warehouse_create", label: "สร้าง" },
@@ -277,6 +283,25 @@ window.AppPermissions = (() => {
           { key: "trip_pax_detail_view", label: "ดูรายการ" },
           { key: "trip_pax_detail_edit", label: "แก้ไข/บันทึก" },
         ]},
+        { key: "trip_team", label: "ทีมงานทริป", icon: "🧑‍🤝‍🧑", perms: [
+          { key: "trip_team_view",   label: "ดูรายการ" },
+          { key: "trip_team_create", label: "เพิ่มทีมงาน/ไกด์" },
+          { key: "trip_team_edit",   label: "แก้ไข" },
+          { key: "trip_team_delete", label: "ลบ" },
+        ]},
+        { key: "trip_bus", label: "รถบัส & ตั๋วเครื่องบิน", icon: "🚌", perms: [
+          { key: "trip_bus_view",   label: "ดูรายการ" },
+          { key: "trip_bus_create", label: "เพิ่มคัน/ตั๋ว" },
+          { key: "trip_bus_edit",   label: "แก้ไข" },
+          { key: "trip_bus_delete", label: "ลบ" },
+          { key: "trip_bus_assign", label: "จัดผู้โดยสารขึ้นรถ/เครื่อง" },
+        ]},
+        { key: "member_types", label: "ประเภทสมาชิกทีม", icon: "🏷️", perms: [
+          { key: "member_types_view",   label: "ดูรายการ" },
+          { key: "member_types_create", label: "สร้าง" },
+          { key: "member_types_edit",   label: "แก้ไข" },
+          { key: "member_types_delete", label: "ลบ" },
+        ]},
       ],
     },
 
@@ -378,7 +403,6 @@ window.AppPermissions = (() => {
         "req_view","req_create","req_edit","req_approve",
         "report_stock_view","report_stock_export",
         "supplier_view","supplier_create","supplier_edit",
-        "customer_view","customer_create","customer_edit",
       ],
     },
     WAREHOUSE: {
@@ -406,7 +430,6 @@ window.AppPermissions = (() => {
         "so_view","so_create","so_edit",
         "req_view","req_create",
         "report_stock_view",
-        "customer_view","customer_create","customer_edit",
       ],
     },
     VIEWER: {

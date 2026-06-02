@@ -83,13 +83,15 @@ function renderTable(list) {
         </td>
         <td class="col-center" onclick="event.stopPropagation()">
           <div class="action-group">
-            <button class="btn-icon" onclick="window.openModal(${c.event_category_id})">✏️</button>
-            <button class="btn-icon danger" onclick="window.deleteCategory(${c.event_category_id})">🗑</button>
+            <button class="btn-icon" data-perm="evt_cat_edit" onclick="window.openModal(${c.event_category_id})">✏️</button>
+            <button class="btn-icon danger" data-perm="evt_cat_delete" onclick="window.deleteCategory(${c.event_category_id})">🗑</button>
           </div>
         </td>
       </tr>`;
     })
     .join("");
+
+  if (window.AuthZ) window.AuthZ.applyDomPerms(tbody);
 }
 
 // ── MODAL: OPEN ────────────────────────────────────────────

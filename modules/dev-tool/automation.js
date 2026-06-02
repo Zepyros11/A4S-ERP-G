@@ -87,10 +87,12 @@ function renderTasks() {
           ? `<button class="task-btn" onclick="togglePause('${t.id}')" title="หยุด auto-sync (Run manual ยังใช้ได้)" style="background:#fef3c7;color:#92400e;border-color:#fde68a">⏸️ หยุด</button>`
           : `<button class="task-btn" onclick="togglePause('${t.id}')" title="เริ่ม auto-sync ตาม schedule" style="background:#d1fae5;color:#065f46;border-color:#a7f3d0">▶️ เริ่ม auto</button>`}
         ${_spPolling && _spTaskId === t.id ? `<button class="task-btn" onclick="reopenProgress()" style="background:var(--accent-pale);color:var(--accent);border-color:var(--accent)">📡 ดูความคืบหน้า</button>` : ''}
-        <button class="task-btn run" onclick="runTask('${t.id}')">▶️ Run</button>
+        <button class="task-btn run" data-perm="devtool_run" onclick="runTask('${t.id}')">▶️ Run</button>
       </div>
     </div>`;
   }).join('');
+
+  if (window.AuthZ) window.AuthZ.applyDomPerms(grid);
 }
 
 /* ── Modal ── */

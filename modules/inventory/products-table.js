@@ -79,6 +79,7 @@ export function renderProductsTable(
   }
 
   tbody.innerHTML = html;
+  if (window.AuthZ) window.AuthZ.applyDomPerms(tbody);
 }
 
 function sortRows(rows, sortKey, sortAsc) {
@@ -169,12 +170,12 @@ function renderRow(
 
   const editBtn = isChild
     ? ""
-    : `<button class="btn-icon" title="${editLabel}"
+    : `<button class="btn-icon" data-perm="product_edit" title="${editLabel}"
       onclick="event.stopPropagation();window.openEditPanel(${p.product_id})">✏️</button>`;
 
   const actionsCell = `<div class="action-group">
     ${editBtn}
-    <button class="btn-icon danger" title="${deleteLabel}"
+    <button class="btn-icon danger" data-perm="product_delete" title="${deleteLabel}"
       onclick="window.deleteProduct(${p.product_id})">🗑️</button>
   </div>`;
 

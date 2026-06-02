@@ -389,7 +389,7 @@
         <button class="btn-topbar btn-ghost" onclick="loadAll()">
           🔄 รีเฟรช
         </button>
-        <button class="btn-topbar btn-white" onclick="exportCurrentTab()">
+        <button class="btn-topbar btn-white" data-perm="report_stock_export" onclick="exportCurrentTab()">
           ⬇ Export CSV
         </button>
       </div>
@@ -453,7 +453,7 @@
               </select>
             </div>
             <div class="filter-actions">
-              <button class="btn btn-success" onclick="exportStock()">
+              <button class="btn btn-success" data-perm="report_stock_export" onclick="exportStock()">
                 ⬇ Export CSV
               </button>
             </div>
@@ -560,7 +560,7 @@
               <button class="btn btn-primary" onclick="renderMovementReport()">
                 🔍 ดูรายงาน
               </button>
-              <button class="btn btn-success" onclick="exportMovement()">
+              <button class="btn btn-success" data-perm="report_stock_export" onclick="exportMovement()">
                 ⬇ Export CSV
               </button>
             </div>
@@ -715,7 +715,7 @@
               <button class="btn btn-primary" onclick="renderTopSaleReport()">
                 🔍 ดูรายงาน
               </button>
-              <button class="btn btn-success" onclick="exportTopSale()">
+              <button class="btn btn-success" data-perm="report_stock_export" onclick="exportTopSale()">
                 ⬇ Export CSV
               </button>
             </div>
@@ -769,7 +769,7 @@
               ></select>
             </div>
             <div class="filter-actions">
-              <button class="btn btn-success" onclick="exportPOSO()">
+              <button class="btn btn-success" data-perm="report_stock_export" onclick="exportPOSO()">
                 ⬇ Export CSV
               </button>
             </div>

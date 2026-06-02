@@ -117,9 +117,9 @@ function renderTable(rows) {
         </td>
         <td class="col-center">
           <div class="action-group">
-            <button class="btn-icon" title="แก้ไข"
+            <button class="btn-icon" title="แก้ไข" data-perm="units_edit"
               onclick="window.openUnitModal(${u.unit_id})">✏️</button>
-            <button class="btn-icon danger" title="ลบ"
+            <button class="btn-icon danger" title="ลบ" data-perm="units_delete"
               onclick="window.deleteUnit(${u.unit_id})">🗑️</button>
           </div>
         </td>
@@ -128,6 +128,7 @@ function renderTable(rows) {
     .join("");
   syncSelectAllState();
   window.updateDeleteButton();
+  if (window.AuthZ) window.AuthZ.applyDomPerms(tbody);
 }
 
 // ── BULK SELECT / DELETE ──────────────────────────────────

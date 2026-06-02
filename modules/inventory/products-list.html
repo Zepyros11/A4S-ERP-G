@@ -79,7 +79,7 @@
       </select>
       <div class="toolbar-right">
         <button class="btn btn-outline" id="btnToggleStockAlert" style="display:none" onclick="window.bulkToggleStockAlert()">🔕 ปิดแจ้งเตือนสินค้าหมด</button>
-        <button class="btn btn-danger-outline" id="btnDeleteSelected" style="display:none" onclick="window.deleteSelectedProducts()">🗑 ลบที่เลือก</button>
+        <button class="btn btn-danger-outline" id="btnDeleteSelected" data-perm="product_delete" style="display:none" onclick="window.deleteSelectedProducts()">🗑 ลบที่เลือก</button>
         <button class="btn btn-primary" data-perm="product_create" onclick="window.location.href = './product-form.html'">＋ เพิ่มสินค้า</button>
       </div>
     </div>

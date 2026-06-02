@@ -56,6 +56,8 @@ const state = {
   codeToTicket: {},           // { [code]: ticket_id }
   collapsedTickets: new Set(),// ticket_id ที่ย่อรายชื่ออยู่
   collapsedFlightTickets: new Set(), // flight_id ที่ย่อทั้งโซน Ticket
+  flightFilterDep: null,      // กรองเลขเที่ยวบินขาไป (null = ทั้งหมด)
+  flightFilterRet: null,      // กรองเลขเที่ยวบินขากลับ (null = ทั้งหมด)
   editingFlightId: null,
   flightDraftImgs: [],        // รูปใน modal ระหว่างสร้าง/แก้ไข (array of public URL)
 };
@@ -200,7 +202,7 @@ async function loadAll() {
     const [trip, paxs, rooms, hotels, buses, guides] = await Promise.all([
       sbFetch("trips", `?trip_id=eq.${state.tripId}&select=*`).then(r => r?.[0] || null),
       sbFetch("tour_seat_check",
-        `?trip_id=eq.${state.tripId}&select=code,name,gender,nationality,passport_image_url,visa_image_url,passport_id,passport_exp_date,pin,tshirt_size,religion,food_allergy,return_flight,return_date,group_name,seat,is_sub_row,parent_code,flight,port,departure_datetime,arrival_datetime,comeback,comeback_datetime&order=group_name.asc.nullslast,name.asc`),
+        `?trip_id=eq.${state.tripId}&select=code,name,gender,nationality,passport_image_url,visa_image_url,passport_id,passport_exp_date,pin,tshirt_size,religion,food_allergy,return_flight,return_date,group_name,seat,is_sub_row,parent_code&order=group_name.asc.nullslast,name.asc`),
       sbFetch("trip_rooms",
         `?trip_id=eq.${state.tripId}&select=*&order=sort_order.asc,room_id.asc`),
       sbFetch("places",
@@ -303,6 +305,11 @@ async function loadAll() {
     if (!state.initialCollapseSet) {
       state.collapsedGroups = new Set(state.rooms.map(groupKeyOf));
       state.collapsedBuses = new Set(state.buses.map(b => b.bus_id));
+      // ย่อทั้งโซน Ticket ของทุกเที่ยวบิน + ย่อ Ticket ทุกใบ เป็น default
+      state.collapsedFlightTickets = new Set(state.flights.map(f => f.flight_id));
+      state.collapsedTickets = new Set(
+        Object.values(state.flightTickets || {}).flat().map(t => t.ticket_id)
+      );
       state.initialCollapseSet = true;
     }
 
@@ -439,6 +446,7 @@ window.switchTab = function (tab, keepFilter) {
   if (roomsC) roomsC.style.display = tab === "rooms" ? "" : "none";
   if (busesC) busesC.style.display = tab === "buses" ? "" : "none";
   if (flightsC) flightsC.style.display = tab === "flights" ? "" : "none";
+  if (typeof renderFlightFilterBar === "function") renderFlightFilterBar();
   const btnAddRoom = document.getElementById("btnAddRoom");
   const btnAddBus  = document.getElementById("btnAddBus");
   const btnAddFlight = document.getElementById("btnAddFlight");
@@ -1978,6 +1986,10 @@ function _removeOccupant(roomId, code) {
 }
 
 window.assignSelectedPax = async function (roomId) {
+  if (window.AuthZ && !AuthZ.hasPerm("trip_rooms_assign")) {
+    showToast("คุณไม่มีสิทธิ์จัดผู้โดยสารเข้าห้อง", "error");
+    return;
+  }
   if (!state.selectedPaxCode && !state.selectedGuideId) {
     showToast("เลือกลูกค้า/ทีมงานทางซ้ายก่อน", "info");
     return;
@@ -4993,17 +5005,6 @@ function flightTicketRowHtml(t, flightId, labelNo) {
   </div>`;
 }
 
-// port ของเที่ยวบิน — ดึงจาก check-seat (tour_seat_check.port) ตามเลขเที่ยวบิน
-// ไม่เก็บใน trip_flights (ใช้ฐานข้อมูลเดียวกับ check-seat)
-function lookupFlightPort(flightNo) {
-  const fl = (flightNo || "").trim();
-  if (!fl) return "";
-  for (const p of state.passengers || []) {
-    if ((p.flight || "").trim() === fl && (p.port || "").trim()) return p.port.trim();
-  }
-  return "";
-}
-
 // อ่าน segment ของทิศทางหนึ่งจาก record ตั๋ว — fallback คอลัมน์เดิม (ตั๋วเก่าก่อน migration)
 function flGetSegs(f, leg) {
   const raw = leg === "dep" ? f.dep_segments : f.ret_segments;
@@ -5045,7 +5046,7 @@ function flightCardHtml(f) {
   const sel = (state.selectedPaxCode || state.selectedGuideId) ? " assignable" : "";
   const depSegs = flGetSegs(f, "dep");
   const retSegs = flGetSegs(f, "ret");
-  const depPort = f.port || lookupFlightPort(depSegs[0]?.flight || f.flight); // ต้นทางขาไป (fallback check-seat)
+  const depPort = f.port || ""; // ต้นทางขาไป (จาก master ที่เลือกไว้)
   const retPort = f.ret_port || "";                                          // ต้นทางขากลับ
   const legDep = flLegHtml(depSegs, "dep", depPort);
   const legRet = flLegHtml(retSegs, "ret", retPort);
@@ -5087,14 +5088,58 @@ function flightCardHtml(f) {
   </div>`;
 }
 
+// เลขเที่ยวบิน distinct ของทิศทางหนึ่ง (dep/ret) สำหรับ filter bar
+function flightDistinctNumbers(leg) {
+  const s = new Set();
+  (state.flights || []).forEach(f => {
+    flGetSegs(f, leg).forEach(seg => { const v = (seg.flight || "").trim(); if (v) s.add(v); });
+  });
+  return [...s].sort();
+}
+
+function flightMatchesFilter(f) {
+  const okLeg = (leg, val) => !val || flGetSegs(f, leg).some(s => (s.flight || "").trim() === val);
+  return okLeg("dep", state.flightFilterDep) && okLeg("ret", state.flightFilterRet);
+}
+
+function renderFlightFilterBar() {
+  const bar = document.getElementById("flightFilterBar");
+  if (!bar) return;
+  const dep = flightDistinctNumbers("dep");
+  const ret = flightDistinctNumbers("ret");
+  if (state.activeTab !== "flights" || (dep.length < 2 && ret.length < 2)) {
+    bar.style.display = "none";
+    bar.innerHTML = "";
+    return;
+  }
+  bar.style.display = "";
+  const chip = (leg, val, label, active) =>
+    `<button class="fl-filter-chip${active ? " active" : ""}" onclick="window.setFlightFilter('${leg}', ${val === null ? "null" : `'${escapeJs(val)}'`})">${escapeHtml(label)}</button>`;
+  const rowHtml = (leg, label, nums, sel) => nums.length
+    ? `<div class="fl-filter-row"><span class="fl-filter-label">${label}</span>${chip(leg, null, "ทั้งหมด", !sel)}${nums.map(n => chip(leg, n, n, sel === n)).join("")}</div>`
+    : "";
+  bar.innerHTML = rowHtml("dep", "🛫 ขาไป:", dep, state.flightFilterDep)
+    + rowHtml("ret", "🛬 ขากลับ:", ret, state.flightFilterRet);
+}
+
+window.setFlightFilter = function (leg, val) {
+  if (leg === "dep") state.flightFilterDep = val || null;
+  else state.flightFilterRet = val || null;
+  renderFlights();
+};
+
 function renderFlights() {
+  renderFlightFilterBar();
   const c = document.getElementById("flightsContainer");
   if (!c) return;
   if (!state.flights.length) {
     c.innerHTML = `<div class="ba-empty-buses">ยังไม่มีตั๋วเครื่องบิน — กด <b>＋ เพิ่มตั๋วเครื่องบิน</b> เพื่อเริ่ม</div>`;
     return;
   }
-  c.innerHTML = state.flights.map(flightCardHtml).join("");
+  const shown = state.flights.filter(flightMatchesFilter);
+  c.innerHTML = shown.length
+    ? shown.map(flightCardHtml).join("")
+    : `<div class="ba-empty-buses">ไม่มีตั๋วที่ตรงกับตัวกรอง</div>`;
   if (window.AuthZ?.applyDomPerms) AuthZ.applyDomPerms(c);
 }
 
@@ -5335,9 +5380,7 @@ function flTicketDocCell(t, flightId) {
 }
 
 window.viewTicketDoc = function (url) {
-  if (isFlPdf(url)) { window.openFlPdf([url], 0); return; }
-  if (typeof ImgPopup !== "undefined" && ImgPopup.open) ImgPopup.open([url], 0);
-  else window.open(url, "_blank");
+  if (url) window.open(url, "_blank", "noopener");
 };
 
 // hidden file input (สร้างครั้งเดียว · append body)
@@ -5391,47 +5434,12 @@ window.removeTicketDoc = async function (ticketId, flightId) {
   showLoading(false);
 };
 
-// ── FLIGHT DROPDOWNS (ดึงเที่ยวบินจาก check-seat) ──
-// รวมเที่ยวบิน distinct จาก state.passengers (tour_seat_check) + วันเวลาที่ผูกอยู่
-function buildCsFlightOptions() {
-  const dep = new Map(); // flight    -> { dep, arr }
-  const cb  = new Map(); // comeback  -> comeback_datetime
-  const port = new Map(); // port     -> "" (สนามบินขาออก)
-  (state.passengers || []).forEach(p => {
-    const fl = (p.flight || "").trim();
-    if (fl) {
-      if (!dep.has(fl)) dep.set(fl, { dep: p.departure_datetime || "", arr: p.arrival_datetime || "", port: p.port || "" });
-      else {
-        const cur = dep.get(fl); // เติมวันเวลา/port ถ้าแถวก่อนหน้าว่าง
-        if (!cur.dep && p.departure_datetime) cur.dep = p.departure_datetime;
-        if (!cur.arr && p.arrival_datetime)   cur.arr = p.arrival_datetime;
-        if (!cur.port && p.port)              cur.port = p.port;
-      }
-    }
-    const cbf = (p.comeback || "").trim();
-    if (cbf) {
-      if (!cb.has(cbf)) cb.set(cbf, p.comeback_datetime || "");
-      else if (!cb.get(cbf) && p.comeback_datetime) cb.set(cbf, p.comeback_datetime);
-    }
-    const pt = (p.port || "").trim();
-    if (pt && !port.has(pt)) port.set(pt, "");
-  });
-  // รวมเที่ยวบิน/port ที่เคยใส่ในตั๋วแล้ว (trip_flights) ด้วย → ที่พิมพ์เพิ่มเองจะคงอยู่ใน dropdown
-  (state.flights || []).forEach(f => {
-    const fl = (f.flight || "").trim();
-    if (fl && !dep.has(fl)) dep.set(fl, { dep: f.departure_datetime || "", arr: f.arrival_datetime || "", port: f.port || "" });
-    const cbf = (f.comeback || "").trim();
-    if (cbf && !cb.has(cbf)) cb.set(cbf, f.comeback_datetime || "");
-    const pt = (f.port || "").trim();
-    if (pt && !port.has(pt)) port.set(pt, "");
-  });
-  return { dep, cb, port };
-}
-
-// รวม options: master (เพิ่มเอง) ก่อน + ค่าจาก check-seat (auto) · dedupe ด้วย value (code)
-function buildOpts(master, cs) {
+// ── FLIGHT DROPDOWNS (แยกจาก check-seat แล้ว) ──
+// แหล่งข้อมูล: master (trip_airports/trip_flight_numbers) + ค่าที่เคยเก็บใน trip_flights (ตั๋วที่เคยกรอก)
+// dedupe ด้วย value (code)
+function buildOpts(master, prev) {
   const out = [], seen = new Set();
-  [...master, ...cs].forEach(o => {
+  [...master, ...prev].forEach(o => {
     const v = (o.value || "").trim();
     if (!v || seen.has(v)) return;
     seen.add(v);
@@ -5440,15 +5448,27 @@ function buildOpts(master, cs) {
   return out.sort((a, b) => a.value.localeCompare(b.value));
 }
 
-// เตรียมรายการเที่ยวบิน/port (master + check-seat) สำหรับ custom dropdown + map auto-fill วันเวลา
+// เตรียมรายการเที่ยวบิน/port + map auto-fill วันเวลา (จาก master + ตั๋วเดิมใน trip_flights)
 function fillFlightDatalists() {
-  const { dep, cb, port } = buildCsFlightOptions();
-  // map: flight -> { dep, arr, port } (รวมขาไป+ขากลับ ใช้ auto-fill ทุก segment)
+  // info: flight code -> { dep, arr } จาก segment ของตั๋วที่เคยกรอกไว้ (reuse/auto-fill)
   const info = new Map();
-  dep.forEach((v, k) => info.set(k, { dep: v.dep || "", arr: v.arr || "", port: v.port || "" }));
-  cb.forEach((v, k) => { if (!info.has(k)) info.set(k, { dep: v || "", arr: "", port: "" }); });
+  const portSet = new Set();
+  const addSeg = (s) => {
+    const code = (s && s.flight || "").trim();
+    if (!code) return;
+    if (!info.has(code)) info.set(code, { dep: s.dep || "", arr: s.arr || "", port: "" });
+    else { const cur = info.get(code); if (!cur.dep && s.dep) cur.dep = s.dep; if (!cur.arr && s.arr) cur.arr = s.arr; }
+  };
+  (state.flights || []).forEach(f => {
+    if (f.port && f.port.trim()) portSet.add(f.port.trim());
+    (Array.isArray(f.dep_segments) ? f.dep_segments : []).forEach(addSeg);
+    (Array.isArray(f.ret_segments) ? f.ret_segments : []).forEach(addSeg);
+    // legacy mirror columns (ตั๋วเก่าก่อนมี segments)
+    if ((f.flight || "").trim()) addSeg({ flight: f.flight, dep: f.departure_datetime || "", arr: f.arrival_datetime || "" });
+    if ((f.comeback || "").trim()) addSeg({ flight: f.comeback, dep: f.comeback_datetime || "", arr: "" });
+  });
   state._csFlightInfo = info;
-  // เที่ยวบิน: master (code · name) + check-seat
+  // เที่ยวบิน: master (code · name) + ตั๋วเดิม
   state._flOpts = buildOpts(
     (state.flightNumbers || []).map(m => {
       const c = (m.code || "").trim();
@@ -5456,13 +5476,13 @@ function fillFlightDatalists() {
     }),
     [...info.keys()].map(k => ({ value: k, label: k }))
   );
-  // Port: master (code — name) + check-seat
+  // Port: master (code — name) + ตั๋วเดิม
   state._portOpts = buildOpts(
     (state.airports || []).map(m => {
       const c = (m.code || "").trim();
       return { value: c, label: m.name ? `${c} — ${m.name}` : c };
     }),
-    [...port.keys()].map(k => ({ value: k, label: k }))
+    [...portSet].map(p => ({ value: p, label: p }))
   );
 }
 
@@ -5554,9 +5574,7 @@ window.openFlMaster = function (kind) {
   const isFl = kind === "flight";
   document.getElementById("flMasterTitle").textContent = isFl ? "⚙️ จัดการเที่ยวบิน" : "⚙️ จัดการ Port";
   document.getElementById("flMgrCode").placeholder = isFl ? "เลขเที่ยวบิน (เช่น ET934)" : "รหัส (เช่น ABJ)";
-  document.getElementById("flMgrName").placeholder = isFl ? "ชื่อ/สายการบิน (ไม่บังคับ)" : "ชื่อเมือง/สนามบิน (เช่น Abidjan)";
   document.getElementById("flMgrCode").value = "";
-  document.getElementById("flMgrName").value = "";
   document.getElementById("flMgrAddBtn").textContent = "＋ เพิ่ม";
   renderFlMasterList();
   document.getElementById("flMasterOverlay").classList.add("open");
@@ -5569,87 +5587,26 @@ window.closeFlMaster = function (e) {
   state._flMasterEditId = null;
 };
 
-// ค่าจาก check-seat (auto) สำหรับ kind — เพื่อโชว์ในลิสต์จัดการด้วย
-function csValuesForMaster(kind) {
-  const { dep, cb, port } = buildCsFlightOptions();
-  if (kind === "flight") {
-    const s = new Set();
-    dep.forEach((_v, k) => s.add(k));
-    cb.forEach((_v, k) => s.add(k));
-    return [...s];
-  }
-  return [...port.keys()];
-}
-
 function renderFlMasterList() {
   const cfg = flMasterCfg();
-  const kind = state._flMasterKind;
   const items = cfg.list();
   const el = document.getElementById("flMgrList");
   if (!el) return;
-  const masterCodes = new Set(items.map(m => (m.code || "").trim()));
-  const csOnly = csValuesForMaster(kind).filter(v => v && !masterCodes.has(v.trim())).sort();
-  // แถว master (แก้/ลบได้)
-  const masterRows = items.map(it => {
+  if (!items.length) {
+    el.innerHTML = `<div class="fl-mgr-empty">ยังไม่มีรายการ — เพิ่มด้านบน</div>`;
+    return;
+  }
+  el.innerHTML = items.map(it => {
     const id = it[cfg.idKey];
     const editing = state._flMasterEditId === id ? " editing" : "";
     return `<div class="fl-mgr-row${editing}">
       <span class="fl-mgr-code">${escapeHtml(it.code || "")}</span>
-      <span class="fl-mgr-name">${escapeHtml(it.name || "")}</span>
+      <span class="fl-mgr-spacer"></span>
       <button class="fl-mgr-btn" title="แก้ไข" onclick="window.flMasterEdit(${id})">✏️</button>
       <button class="fl-mgr-btn danger" title="ลบ" onclick="window.flMasterDelete(${id})">🗑</button>
     </div>`;
   }).join("");
-  // แถวจาก check-seat (auto) — กด ➕ เพื่อเพิ่มเข้ารายการ (จึงแก้/ลบได้)
-  const csRows = csOnly.map(v => `<div class="fl-mgr-row fl-mgr-cs">
-      <span class="fl-mgr-code">${escapeHtml(v)}</span>
-      <span class="fl-mgr-name fl-mgr-cs-tag">จาก check-seat</span>
-      <button class="fl-mgr-btn" title="เพิ่มเข้ารายการ (แก้/ลบได้)" onclick="window.flMasterPromote('${escapeJs(v)}')">➕</button>
-    </div>`).join("");
-  if (!masterRows && !csRows) {
-    el.innerHTML = `<div class="fl-mgr-empty">ยังไม่มีรายการ — เพิ่มด้านบน</div>`;
-    return;
-  }
-  // ปุ่มนำเข้าทั้งหมดจาก check-seat (ทำให้แก้/ลบได้ในคราวเดียว)
-  const importBtn = csOnly.length
-    ? `<button class="fl-mgr-importall" onclick="window.flMasterImportAll()">⬇️ นำเข้าทั้งหมดจาก check-seat (${csOnly.length})</button>`
-    : "";
-  el.innerHTML = importBtn + masterRows + csRows;
 }
-
-// นำเข้าค่าจาก check-seat ทั้งหมด → master (batch · ทำให้แก้/ลบได้)
-window.flMasterImportAll = async function () {
-  const cfg = flMasterCfg();
-  const masterCodes = new Set(cfg.list().map(m => (m.code || "").trim()));
-  const csOnly = csValuesForMaster(state._flMasterKind).filter(v => v && !masterCodes.has(v.trim()));
-  if (!csOnly.length) { showToast("ไม่มีรายการใหม่จาก check-seat", "info"); return; }
-  const base = cfg.list().length;
-  // batch insert — ทุก row keys ตรงกัน (code,name,sort_order) กัน PGRST102
-  const rows = csOnly.map((v, i) => ({ code: v.trim(), name: null, sort_order: base + i }));
-  showLoading(true);
-  try {
-    await sbFetch(cfg.table, "", { method: "POST", body: rows });
-    await reloadFlMasters();
-    renderFlMasterList();
-    showToast(`นำเข้า ${csOnly.length} รายการแล้ว`, "success");
-  } catch (e) { showToast("นำเข้าไม่สำเร็จ: " + e.message, "error"); }
-  showLoading(false);
-};
-
-// เพิ่มค่า check-seat เข้า master (ให้แก้/ลบได้)
-window.flMasterPromote = async function (code) {
-  const cfg = flMasterCfg();
-  const c = (code || "").trim();
-  if (!c || (cfg.list() || []).some(m => (m.code || "").trim() === c)) return;
-  showLoading(true);
-  try {
-    await sbFetch(cfg.table, "", { method: "POST", body: { code: c, name: null, sort_order: cfg.list().length } });
-    await reloadFlMasters();
-    renderFlMasterList();
-    showToast("เพิ่มเข้ารายการแล้ว", "success");
-  } catch (e) { showToast("เพิ่มไม่สำเร็จ: " + e.message, "error"); }
-  showLoading(false);
-};
 
 async function reloadFlMasters() {
   state.airports = await sbFetch("trip_airports",
@@ -5662,19 +5619,17 @@ async function reloadFlMasters() {
 window.flMasterAdd = async function () {
   const cfg = flMasterCfg();
   const code = document.getElementById("flMgrCode").value.trim();
-  const name = document.getElementById("flMgrName").value.trim() || null;
   if (!code) { showToast("กรอกรหัสก่อน", "info"); return; }
   showLoading(true);
   try {
     if (state._flMasterEditId) {
-      await sbFetch(cfg.table, `?${cfg.idKey}=eq.${state._flMasterEditId}`, { method: "PATCH", body: { code, name } });
+      await sbFetch(cfg.table, `?${cfg.idKey}=eq.${state._flMasterEditId}`, { method: "PATCH", body: { code } });
     } else {
-      await sbFetch(cfg.table, "", { method: "POST", body: { code, name, sort_order: cfg.list().length } });
+      await sbFetch(cfg.table, "", { method: "POST", body: { code, sort_order: cfg.list().length } });
     }
     await reloadFlMasters();
     state._flMasterEditId = null;
     document.getElementById("flMgrCode").value = "";
-    document.getElementById("flMgrName").value = "";
     document.getElementById("flMgrAddBtn").textContent = "＋ เพิ่ม";
     renderFlMasterList();
     document.getElementById("flMgrCode").focus();
@@ -5689,7 +5644,6 @@ window.flMasterEdit = function (id) {
   if (!it) return;
   state._flMasterEditId = id;
   document.getElementById("flMgrCode").value = it.code || "";
-  document.getElementById("flMgrName").value = it.name || "";
   document.getElementById("flMgrAddBtn").textContent = "💾 บันทึก";
   renderFlMasterList();
   document.getElementById("flMgrCode").focus();
@@ -5708,7 +5662,6 @@ window.flMasterDelete = async function (id) {
       if (state._flMasterEditId === id) {
         state._flMasterEditId = null;
         document.getElementById("flMgrCode").value = "";
-        document.getElementById("flMgrName").value = "";
         document.getElementById("flMgrAddBtn").textContent = "＋ เพิ่ม";
       }
       renderFlMasterList();
@@ -5731,6 +5684,44 @@ function flSegsRef(leg) {
   return state.flRetSegs;
 }
 
+// ช่องวันเวลาแบบ 24 ชม. — date picker (เลือกวัน) + เวลา HH:MM พิมพ์เอง (กัน AM/PM ของ native)
+// เก็บค่าเป็น "YYYY-MM-DDTHH:MM" เหมือนเดิม
+function flDtFieldHtml(leg, i, field, val) {
+  const v = val || "";
+  const datePart = v.slice(0, 10);
+  const timePart = v.slice(11, 16);
+  return `<div class="fl-dt">
+    <input type="date" class="form-control fl-dt-date" lang="en-GB" value="${escapeAttr(datePart)}"
+           oninput="window.flSegDateTime('${leg}',${i},'${field}',this)" />
+    <input type="text" class="form-control fl-dt-time" placeholder="HH:MM" maxlength="5" inputmode="numeric"
+           value="${escapeAttr(timePart)}"
+           oninput="window.flSegDateTime('${leg}',${i},'${field}',this)"
+           onblur="window.flSegTimeBlur('${leg}',${i},'${field}',this)" />
+  </div>`;
+}
+
+// รวม date + time → ค่าเก็บ
+window.flSegDateTime = function (leg, i, field, inputEl) {
+  const box = inputEl.closest(".fl-dt");
+  if (!box) return;
+  const d = (box.querySelector(".fl-dt-date").value || "").trim();
+  const t = (box.querySelector(".fl-dt-time").value || "").trim();
+  const segs = flSegsRef(leg);
+  if (segs[i]) segs[i][field] = d ? (t ? `${d}T${t}` : d) : "";
+};
+
+// จัดรูปเวลาเมื่อออกจากช่อง: "1625"→"16:25", "9:5"→"09:05"
+window.flSegTimeBlur = function (leg, i, field, inputEl) {
+  let raw = (inputEl.value || "").replace(/[^\d]/g, "");
+  if (!raw) return;
+  if (raw.length <= 2) raw = raw.padStart(2, "0") + "00";
+  raw = (raw + "0000").slice(0, 4);
+  let hh = Math.min(23, parseInt(raw.slice(0, 2), 10) || 0);
+  let mm = Math.min(59, parseInt(raw.slice(2, 4), 10) || 0);
+  inputEl.value = String(hh).padStart(2, "0") + ":" + String(mm).padStart(2, "0");
+  window.flSegDateTime(leg, i, field, inputEl);
+};
+
 function flSegRowHtml(leg, seg, i, total) {
   const dis = total <= 1 ? "disabled" : "";
   return `<div class="fl-seg-row">
@@ -5744,12 +5735,8 @@ function flSegRowHtml(leg, seg, i, total) {
                oninput="window.flSegSet('${leg}',${i},'flight',this.value);window.flMenuFilter(this)"
                onblur="window.flMenuClose()"
                onchange="window.flSegFlightPick('${leg}',${i},this.value)" /></label>
-      <label class="fl-seg-f"><span>เวลาออก</span>
-        <input class="form-control" type="datetime-local" value="${escapeAttr(seg.dep || "")}"
-               oninput="window.flSegSet('${leg}',${i},'dep',this.value)" /></label>
-      <label class="fl-seg-f"><span>เวลาถึง</span>
-        <input class="form-control" type="datetime-local" value="${escapeAttr(seg.arr || "")}"
-               oninput="window.flSegSet('${leg}',${i},'arr',this.value)" /></label>
+      <label class="fl-seg-f"><span>เวลาออก</span>${flDtFieldHtml(leg, i, "dep", seg.dep)}</label>
+      <label class="fl-seg-f"><span>เวลาถึง</span>${flDtFieldHtml(leg, i, "arr", seg.arr)}</label>
     </div>
     <button type="button" class="fl-seg-rm" title="ลบช่วงนี้" ${dis}
             onclick="window.flSegRemove('${leg}',${i})">✕</button>
@@ -5837,7 +5824,7 @@ window.editFlight = function (flightId) {
   document.getElementById("flightSaveBtn").innerHTML = "💾 บันทึกการแก้ไข";
   document.getElementById("fFlLabel").value = f.flight_label || "";
   fillFlightDatalists();
-  document.getElementById("fFlDepPort").value = f.port || lookupFlightPort(f.flight) || ""; // ต้นทางขาไป (fallback check-seat)
+  document.getElementById("fFlDepPort").value = f.port || ""; // ต้นทางขาไป (จาก master)
   state.flDepSegs = flSegsFromRecord(f, "dep");
   state.flRetSegs = flSegsFromRecord(f, "ret");
   if (!state.flDepSegs.length) state.flDepSegs = [{ flight: "", dep: "", arr: "" }];

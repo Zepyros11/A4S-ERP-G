@@ -1130,10 +1130,10 @@
   <h1>✈ Check Seat</h1>
   <div class="divider"></div>
 
-  <button class="btn btn-outline" onclick="exportExcel()">
+  <button class="btn btn-outline" data-perm="trip_check_seat_export" onclick="exportExcel()">
     📤 Export Excel
   </button>
-  <button class="btn btn-outline" onclick="exportFullExcel()" title="รวมข้อมูล Check Seat + ℹ️ ข้อมูลผู้เดินทาง">
+  <button class="btn btn-outline" data-perm="trip_check_seat_export" onclick="exportFullExcel()" title="รวมข้อมูล Check Seat + ℹ️ ข้อมูลผู้เดินทาง">
     📤 Export รวม
   </button>
   <button class="btn btn-outline" onclick="printPassports()" title="พิมพ์รูป Passport ทั้งหมด">
@@ -1522,7 +1522,7 @@ app.listen(3001, () => console.log('Proxy running on port 3001'));
     <div id="report-head">
       <h2 id="report-title">📋 Report</h2>
       <span class="r-count" id="report-count">0</span>
-      <button id="report-export" onclick="exportReportExcel()" title="Export Excel">📤 Export Excel</button>
+      <button id="report-export" data-perm="trip_check_seat_export" onclick="exportReportExcel()" title="Export Excel">📤 Export Excel</button>
       <button id="report-close" onclick="closeReport()" title="ปิด">✕</button>
     </div>
     <div id="report-body">
@@ -1552,7 +1552,7 @@ app.listen(3001, () => console.log('Proxy running on port 3001'));
 </div>
 
 <!-- ══ Floating Edit/Save Button ════════════════════════ -->
-<button id="global-edit-btn" onclick="toggleGlobalEdit()" data-tip="Edit All">✏️</button>
+<button id="global-edit-btn" data-perm="trip_check_seat_edit" onclick="toggleGlobalEdit()" data-tip="Edit All">✏️</button>
 
 <!-- ══ Nationality Manager Modal ═════════════════════════ -->
 <style>
@@ -3129,6 +3129,8 @@ function renderTable() {
     tbody.appendChild(tr);
   });
 
+  if (window.AuthZ) window.AuthZ.applyDomPerms(tbody);
+
   const mainCount = rows.filter(r => !r.isSubRow).length;
   document.getElementById('row-count').textContent =
     `${mainCount} items (${rows.length} rows)`;
@@ -3307,7 +3309,7 @@ function buildRow(row) {
 
     <!-- Del -->
     <td class="col-del" data-label="Del">
-      <button class="btn-del-row" onclick="deleteRow('${row.id}')" title="ลบแถวนี้">🗑</button>
+      <button class="btn-del-row" data-perm="trip_check_seat_delete" onclick="deleteRow('${row.id}')" title="ลบแถวนี้">🗑</button>
     </td>
 
   `;

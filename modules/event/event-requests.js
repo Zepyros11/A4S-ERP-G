@@ -243,11 +243,13 @@ function renderTable(rows) {
         <td class="col-center">${r.requested_date || "—"}</td>
         <td class="col-center"><span class="req-status-badge ${s.cls}">${s.label}</span></td>
         <td class="col-center" onclick="event.stopPropagation()">
-          <button class="btn-icon" title="อนุมัติ" onclick="window.quickApprove(${r.request_id}, this)">✅</button>
+          <button class="btn-icon" data-perm="evt_req_approve" title="อนุมัติ" onclick="window.quickApprove(${r.request_id}, this)">✅</button>
           <button class="btn-icon" title="ปฏิเสธ"  onclick="window.openRejectModal(${r.request_id})">❌</button>
         </td>
       </tr>`;
   }).join("");
+
+  if (window.AuthZ) window.AuthZ.applyDomPerms(tbody);
 
   tbody.querySelectorAll("tr[data-req-id]").forEach(tr => {
     tr.addEventListener("click", () => {
@@ -287,8 +289,10 @@ function openReqPanel(req) {
   footer.innerHTML = req.status === "PENDING"
     ? `<button class="btn btn-secondary" onclick="window.closeReqPanel()">ปิด</button>
        <button class="btn btn-danger"    onclick="window.openRejectModal(${req.request_id})">❌ ปฏิเสธ</button>
-       <button class="btn btn-primary"   onclick="window.quickApprove(${req.request_id})">✅ อนุมัติ</button>`
+       <button class="btn btn-primary" data-perm="evt_req_approve"  onclick="window.quickApprove(${req.request_id})">✅ อนุมัติ</button>`
     : `<button class="btn btn-secondary" onclick="window.closeReqPanel()">ปิด</button>`;
+
+  if (window.AuthZ) window.AuthZ.applyDomPerms(footer);
 
   document.getElementById("reqPanel").classList.add("open");
   document.getElementById("panelBackdrop").style.display = "block";

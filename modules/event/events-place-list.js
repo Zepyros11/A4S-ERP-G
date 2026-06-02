@@ -165,13 +165,15 @@ function renderTable(places) {
       </td>
       <td class="col-center" onclick="event.stopPropagation()">
         <div class="action-group">
-          <button class="btn-icon" onclick="window.location.href='./events-place-form.html?id=${p.place_id}'">✏️</button>
-          <button class="btn-icon danger" onclick="window.deletePlace(${p.place_id})">🗑</button>
+          <button class="btn-icon" data-perm="evt_place_edit" onclick="window.location.href='./events-place-form.html?id=${p.place_id}'">✏️</button>
+          <button class="btn-icon danger" data-perm="evt_place_delete" onclick="window.deletePlace(${p.place_id})">🗑</button>
         </div>
       </td>
     </tr>`;
     })
     .join("");
+
+  if (window.AuthZ) window.AuthZ.applyDomPerms(tbody);
 }
 
 // ── SIDE PANEL ─────────────────────────────────────────────

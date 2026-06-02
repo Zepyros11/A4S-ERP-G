@@ -330,7 +330,7 @@
           <div class="ev-popup-footer">
             <button class="btn btn-primary" id="popupBtnMsg">💬 Message</button>
             <button class="btn btn-primary" id="popupBtnReg" style="background:#059669;display:none" title="คัดลอก link ลงทะเบียน">📋 Link ลงทะเบียน</button>
-            <button class="btn btn-primary" id="popupBtnEdit" style="background:#475569">✏️ แก้ไข</button>
+            <button class="btn btn-primary" id="popupBtnEdit" data-perm="events_edit" style="background:#475569">✏️ แก้ไข</button>
           </div>
         </div>
         <!-- COL 3: Chat Panel (slides in) -->
@@ -394,6 +394,7 @@
         if (toolbarRight) {
           const btnDel = document.createElement("button");
           btnDel.id = "btnDeleteSelected";
+          btnDel.setAttribute("data-perm", "events_delete");
           btnDel.className = "btn btn-danger-outline";
           btnDel.style.display = "none";
           btnDel.innerHTML = "🗑 ลบที่เลือก";
