@@ -412,6 +412,12 @@
           path: BASE_PATH + "/modules/settings/notification-rules.html",
         },
         {
+          id: "bell-rules",
+          icon: "🔔",
+          label: "กฎแจ้งเตือนกระดิ่ง",
+          path: BASE_PATH + "/modules/settings/bell-rules.html",
+        },
+        {
           id: "staff-groups",
           icon: "👥",
           label: "กลุ่มพนักงาน",
@@ -505,6 +511,7 @@
     "staff-messaging": "users_view",
     "line-templates": "sys_settings_view",
     "notification-rules": "sys_settings_view",
+    "bell-rules": "sys_settings_view",
     "staff-groups": "sys_settings_view",
     roles: "roles_view",
     suppliers: "supplier_view",
@@ -524,7 +531,8 @@
     "ibd-ewallet": "ibd_ewallet_view",
     "ibd-relocation": "ibd_relocation_view",
     "trip-list": "trip_list_view",
-    "trip-docs": "trip_docs_view",
+    // ⚠️ TEMP PREVIEW — comment ไว้ให้เมนู "เอกสาร" โผล่ก่อน run SQL 125 · เปิดบรรทัดนี้คืนหลัง grant แล้ว ⚠️
+    // "trip-docs": "trip_docs_view",
     "trip-check-seat": "trip_check_seat_view",
     manual: "manual_view",
     automation: "devtool_view",

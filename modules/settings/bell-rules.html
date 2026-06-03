@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>🔔 กฎแจ้งเตือนกระดิ่ง — A4S-ERP</title>
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="../../css/main.css" />
+<style>
+/* ── Target type radio ── */
+.br-radio-group{display:flex;gap:8px;flex-wrap:wrap;}
+.br-radio{flex:1;min-width:90px;padding:9px 10px;border:1.5px solid var(--border);border-radius:8px;cursor:pointer;text-align:center;font-size:13px;font-weight:600;color:var(--text2);user-select:none;transition:.15s;}
+.br-radio:hover{border-color:var(--accent);}
+.br-radio input{display:none;}
+.br-radio.checked{border-color:var(--accent);background:var(--accent-pale);color:var(--accent);}
+
+/* ── Target picker ── */
+.br-picker{max-height:220px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:8px;background:var(--surface2);}
+.br-pick-item{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;cursor:pointer;font-size:13px;}
+.br-pick-item:hover{background:var(--surface);}
+.br-pick-meta{font-size:11px;color:var(--text3);margin-left:auto;}
+
+/* ── Group tags ── */
+.br-tags{display:flex;flex-wrap:wrap;gap:6px;padding:8px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);min-height:42px;align-items:center;}
+.br-tag{display:inline-flex;align-items:center;gap:6px;background:var(--accent-pale);color:var(--accent);padding:3px 10px;border-radius:999px;font-size:12px;font-weight:600;}
+.br-tag-x{cursor:pointer;font-size:14px;line-height:1;opacity:.6;}
+.br-tag-x:hover{opacity:1;}
+.br-tags-input{flex:1;min-width:120px;border:none;outline:none;background:transparent;font-family:inherit;font-size:13px;padding:4px;color:var(--text);}
+
+/* ── Placeholder chips ── */
+.br-ph-bar{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;}
+.br-ph{display:inline-block;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:600;background:#fef3c7;color:#92400e;cursor:pointer;font-family:'IBM Plex Mono',monospace;border:1px dashed #fcd34d;}
+.br-ph:hover{background:#fcd34d;color:#713f12;}
+
+/* ── Preview ── */
+.br-preview{margin-top:10px;padding:12px 14px;background:var(--accent-pale);border:1px dashed var(--accent);border-radius:8px;font-size:12.5px;color:var(--text);line-height:1.7;white-space:pre-wrap;display:none;}
+.br-preview.show{display:block;}
+.br-preview .br-pv-title{font-weight:700;margin-bottom:4px;}
+
+.br-hint{font-size:11.5px;color:var(--text3);margin-top:4px;line-height:1.5;}
+.br-target-type-chip{display:inline-block;padding:2px 7px;border-radius:6px;font-size:10px;font-weight:700;background:#fef3c7;color:#92400e;text-transform:uppercase;margin-right:6px;}
+.br-trigger-chip{display:inline-block;padding:3px 9px;border-radius:8px;font-size:11px;font-weight:700;font-family:'IBM Plex Mono',monospace;background:#dbeafe;color:#1e40af;}
+/* toggle */
+.br-toggle{position:relative;display:inline-block;width:38px;height:22px;}
+.br-toggle input{opacity:0;width:0;height:0;}
+.br-toggle-s{position:absolute;cursor:pointer;inset:0;background:#cbd5e1;border-radius:22px;transition:.2s;}
+.br-toggle-s:before{content:'';position:absolute;height:16px;width:16px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:.2s;}
+.br-toggle input:checked + .br-toggle-s{background:var(--accent);}
+.br-toggle input:checked + .br-toggle-s:before{transform:translateX(16px);}
+#btnTestMe{background:#fffbeb;border-color:#fde68a;color:#92400e;}
+#btnTestMe:hover{background:#fef3c7;}
+.modal-wide{max-width:680px;width:100%;}
+</style>
+</head>
+<body>
+<div class="loading-overlay" id="loadingOverlay"><div class="spinner"></div></div>
+<div class="toast" id="toast"></div>
+
+<div class="topbar"></div>
+
+<div class="page">
+  <div class="page-hero page-hero--simple page-hero--compact">
+    <div>
+      <h1 class="page-hero-title">🔔 กฎแจ้งเตือนกระดิ่ง</h1>
+      <p class="page-hero-sub">ตั้งค่ากระดิ่งในแอป (in-app) — แยกตาม Role/แผนก · เป็นอิสระจากการแจ้งเตือน LINE</p>
+    </div>
+    <div class="page-hero-actions">
+      <button class="btn-on-hero btn-primary" onclick="window.openRuleModal(null)">＋ เพิ่มกฎ</button>
+    </div>
+  </div>
+
+  <div class="content-row">
+    <div class="table-card">
+      <div class="table-toolbar">
+        <div class="search-wrap">
+          <span class="search-icon">🔍</span>
+          <input class="search-input" id="searchInput" placeholder="ค้นหาชื่อกฎ..." oninput="window.filterTable()" />
+        </div>
+        <button class="btn btn-danger" id="btnDeleteSelected" style="display:none;margin-left:auto" onclick="window.bulkDelete()">🗑️ ลบที่เลือก</button>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th class="col-center" style="width:44px"><input type="checkbox" id="checkAll" onchange="window.toggleAll(this)" /></th>
+              <th>ชื่อกฎ</th>
+              <th>Trigger</th>
+              <th>ส่งหา</th>
+              <th class="col-center" style="width:80px">เปิด</th>
+              <th class="col-center" style="width:110px">จัดการ</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody">
+            <tr><td colspan="6" class="empty-state"><div class="empty-icon">⏳</div><div class="empty-text">กำลังโหลด...</div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- RULE FORM MODAL -->
+<div class="modal-overlay" id="ruleOverlay" onclick="window.closeRuleModal(event)">
+  <div class="modal v-sage-header modal-wide" onclick="event.stopPropagation()">
+    <div class="modal-hdr">
+      <div class="modal-title" id="ruleModalTitle">เพิ่มกฎแจ้งเตือนกระดิ่ง</div>
+      <button class="btn-modal-close" onclick="window.closeRuleModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">ชื่อกฎ <span class="req">*</span></label>
+        <input class="form-control" id="fName" placeholder="เช่น แจ้ง CS เมื่อมีการจองห้อง" autocomplete="off" />
+      </div>
+
+      <div class="form-group" style="margin-top:14px">
+        <label class="form-label">Trigger (เหตุการณ์) <span class="req">*</span></label>
+        <select class="form-control" id="fTrigger" onchange="window.onTriggerChange()"></select>
+        <div class="br-hint" id="fTriggerDesc"></div>
+      </div>
+
+      <div class="form-group" style="margin-top:14px">
+        <label class="form-label">ส่งหา (Target) <span class="req">*</span></label>
+        <div class="br-radio-group" id="fTargetType">
+          <label class="br-radio" data-type="role"><input type="radio" name="ttype" />🎭 Role</label>
+          <label class="br-radio" data-type="group"><input type="radio" name="ttype" />👥 Group</label>
+          <label class="br-radio" data-type="user"><input type="radio" name="ttype" />👤 User</label>
+        </div>
+        <div class="br-hint" id="fTargetHint"></div>
+      </div>
+
+      <div class="form-group" style="margin-top:10px">
+        <label class="form-label">เลือกผู้รับ <span class="req">*</span></label>
+        <div id="fTargetPicker"></div>
+      </div>
+
+      <div class="form-group" style="margin-top:14px">
+        <label class="form-label">หัวข้อ (Title)</label>
+        <input class="form-control" id="fTitle" placeholder="เว้นว่าง = ใช้หัวข้ออัตโนมัติของ trigger" autocomplete="off" onfocus="window._brField='title'" />
+        <div class="br-hint">หัวข้อสั้น 1 บรรทัด ที่โชว์ในกระดิ่ง · รองรับ <code>{{ตัวแปร}}</code></div>
+      </div>
+
+      <div class="form-group" style="margin-top:14px">
+        <label class="form-label">เนื้อหา <span class="req">*</span></label>
+        <textarea class="form-control" id="fBody" rows="4" placeholder="เช่น&#10;ผู้จอง: {{booked_by_name}}&#10;วันที่: {{booking_date}}" onfocus="window._brField='body'"></textarea>
+        <div class="br-ph-bar" id="fPlaceholders"></div>
+        <button type="button" class="btn btn-ghost" style="margin-top:8px" onclick="window.togglePreview()">👁️ ดูตัวอย่าง</button>
+        <div class="br-preview" id="fPreview"></div>
+      </div>
+
+      <div class="form-group" style="margin-top:14px">
+        <label class="form-label">ลิงก์เมื่อคลิก (Link URL)</label>
+        <input class="form-control" id="fLink" placeholder="เว้นว่าง = ใช้ลิงก์อัตโนมัติของ trigger" autocomplete="off" />
+        <div class="br-hint">path ภายในระบบ เช่น <code>/modules/event/booking-room.html</code></div>
+      </div>
+
+      <div class="form-group" style="margin-top:14px">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+          <input type="checkbox" id="fActive" checked />
+          <span>เปิดใช้งานทันที</span>
+        </label>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="btnTestMe" onclick="window.testToMe()" title="เขียนกระดิ่งทดสอบเข้าบัญชีของคุณเอง">🧪 ทดสอบ (หาฉัน)</button>
+      <div style="flex:1"></div>
+      <button class="btn btn-ghost" onclick="window.closeRuleModal()">ยกเลิก</button>
+      <button class="btn btn-primary" id="btnSave" onclick="window.saveRule()">💾 บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<script src="../../js/core/auth.js"></script>
+<script src="../../js/core/authz.js"></script>
+<script>AuthZ.requirePerm("sys_settings_view");</script>
+<script src="../../js/core/date-format.js"></script>
+<script src="./bell-rules.js"></script>
+<script src="../../js/components/navigation/sidebar.js"></script>
+<script src="../../js/components/modal/modalManager.js"></script>
+<script src="../../js/components/modal/confirmModal.js"></script>
+<script type="module">
+  import { loadTopbar } from "../../js/components/navigation/topbar.js";
+  loadTopbar("🔔 กฎแจ้งเตือนกระดิ่ง");
+</script>
+</body>
+</html>

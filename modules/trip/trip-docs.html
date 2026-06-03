@@ -1,0 +1,593 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>เอกสาร — A4S-ERP</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../../css/main.css" />
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    <style>
+      /* ── status pill ───────────────────────────────────── */
+      .doc-status-pill{
+        display:inline-block;padding:3px 10px;border-radius:999px;
+        font-size:11px;font-weight:600;letter-spacing:.2px;white-space:nowrap;
+      }
+      .doc-status-DRAFT{ background:#fef3c7; color:#92400e; }
+      .doc-status-FINAL{ background:#def7ec; color:#057a55; }
+
+      .doc-name-cell{ font-weight:600;color:var(--text);font-size:13.5px; }
+      .doc-tpl-badge{
+        display:inline-block;padding:2px 9px;border-radius:999px;
+        background:#f1f5f9;color:#475569;font-size:11.5px;font-weight:600;
+      }
+      .doc-tpl-badge.none{ background:#f8fafc;color:#94a3b8;font-weight:500; }
+
+      /* ── field chips (detected placeholders) ─────────────── */
+      .field-chips{ display:flex;flex-wrap:wrap;gap:6px;margin-top:8px; }
+      .field-chip{
+        display:inline-flex;align-items:center;gap:4px;
+        padding:3px 10px;border-radius:999px;
+        background:var(--accent-pale,#d8e7d2);color:var(--accent,#3d6b4f);
+        font-size:12px;font-weight:600;font-family:"IBM Plex Mono",monospace;
+      }
+      .field-chips-empty{ color:var(--text3);font-size:12.5px;margin-top:8px; }
+
+      /* ── action group ────────────────────────────────────── */
+      .action-group{
+        display:flex;flex-direction:row;align-items:center;
+        justify-content:center;gap:4px;flex-wrap:nowrap;
+      }
+      .action-group .btn-icon{ width:30px;height:30px;font-size:14px;flex-shrink:0; }
+      .action-group .action-divider{
+        color:#cbd5e1;font-weight:400;font-size:14px;
+        padding:0 2px;user-select:none;flex-shrink:0;
+      }
+
+      /* ── bulk delete bar ─────────────────────────────────── */
+      .bulk-bar{
+        display:none;align-items:center;gap:12px;
+        padding:10px 16px;margin-bottom:12px;border-radius:12px;
+        background:#fde8e8;border:1px solid #f8c9c9;
+      }
+      .bulk-bar.show{ display:flex; }
+      .bulk-bar .bulk-count{ font-weight:600;color:#9b1c1c;font-size:13px; }
+      .bulk-bar .spacer{ flex:1; }
+
+      /* ── code body monospace ─────────────────────────────── */
+      .doc-body-area{
+        font-family:"IBM Plex Mono",monospace;font-size:13px;line-height:1.7;
+        min-height:280px;white-space:pre-wrap;
+      }
+      .tpl-hint{
+        font-size:12px;color:var(--text3);margin-top:6px;line-height:1.6;
+      }
+      .tpl-hint code{
+        background:var(--accent-pale,#d8e7d2);color:var(--accent,#3d6b4f);
+        padding:1px 6px;border-radius:5px;font-family:"IBM Plex Mono",monospace;
+      }
+
+      /* ── document paper (letterhead + body + signature) ──── */
+      .doc-paper{
+        background:#fff;width:794px;max-width:100%;margin:0 auto;
+        padding:56px 64px;color:#1f2937;
+        font-family:"Sarabun","Segoe UI",sans-serif;
+        box-shadow:0 4px 24px rgba(0,0,0,.12);
+        min-height:1000px;
+      }
+      .doc-letterhead{
+        display:flex;align-items:center;gap:18px;
+        padding-bottom:14px;border-bottom:2px solid #111;margin-bottom:36px;
+      }
+      .doc-letterhead img{ width:74px;height:auto;flex-shrink:0; }
+      .doc-letterhead .lh-info{ flex:1;text-align:center; }
+      .doc-letterhead .lh-name{ font-size:17px;font-weight:700;color:#111;margin-bottom:3px; }
+      .doc-letterhead .lh-addr{ font-size:12px;line-height:1.55;color:#333; }
+      .doc-body{
+        white-space:pre-wrap;font-size:15px;line-height:1.9;color:#1f2937;
+        min-height:340px;
+      }
+      .doc-signature{
+        margin-top:48px;text-align:center;width:300px;margin-left:auto;
+      }
+      .doc-signature img{ max-width:200px;max-height:90px;object-fit:contain;margin:0 auto 2px; }
+      .doc-signature .sig-line{
+        border-top:1px solid #111;width:240px;margin:0 auto 8px;height:1px;
+      }
+      .doc-signature .sig-name{ font-size:15px;font-weight:600;color:#111; }
+      .doc-signature .sig-title{ font-size:14px;color:#333;margin-top:2px; }
+
+      /* ── signatory manager ───────────────────────────────── */
+      .sig-row{
+        display:flex;align-items:center;gap:12px;padding:10px 12px;
+        border:1px solid var(--border,#e5e7eb);border-radius:10px;margin-bottom:8px;
+      }
+      .sig-row img{ width:90px;height:42px;object-fit:contain;flex-shrink:0;
+        background:#f8fafc;border-radius:6px; }
+      .sig-row .sig-meta{ flex:1;min-width:0; }
+      .sig-row .sig-meta b{ font-size:13.5px;color:var(--text); }
+      .sig-row .sig-meta div{ font-size:12px;color:var(--text3); }
+      .sig-preview-box{
+        border:1px dashed var(--border,#cbd5e1);border-radius:10px;
+        padding:10px;text-align:center;background:#f8fafc;min-height:70px;
+        display:flex;align-items:center;justify-content:center;
+      }
+      .sig-preview-box img{ max-width:200px;max-height:80px;object-fit:contain; }
+      .sig-preview-box .ph{ color:var(--text3);font-size:12.5px; }
+
+      @media print{
+        body * { visibility:hidden !important; }
+        #printArea, #printArea * { visibility:visible !important; }
+        #printArea{ position:absolute;inset:0;padding:0;background:#fff; }
+        #printArea .doc-paper{ box-shadow:none;width:100%;padding:0;margin:0;min-height:0; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="loading-overlay" id="loadingOverlay"><div class="spinner"></div></div>
+    <div class="toast" id="toast"></div>
+
+    <div class="topbar"></div>
+    <div class="layout">
+      <div class="content-area">
+        <div class="page">
+
+          <!-- HERO -->
+          <div class="page-hero page-hero--simple page-hero--compact">
+            <h1 class="page-hero-title">📄 เอกสาร</h1>
+            <p class="page-hero-sub">รวบรวมและจัดทำเอกสารต่างๆ จากแม่แบบ — กรอกข้อมูล แก้ไข พิมพ์ได้</p>
+          </div>
+
+          <!-- STATS -->
+          <div class="stats-row">
+            <div class="stat-card">
+              <div class="stat-icon">📄</div>
+              <div>
+                <div class="stat-value" id="cardTotalDocs">0</div>
+                <div class="stat-label">เอกสารทั้งหมด</div>
+              </div>
+            </div>
+            <div class="stat-card amber">
+              <div class="stat-icon">📝</div>
+              <div>
+                <div class="stat-value" id="cardDraft">0</div>
+                <div class="stat-label">ฉบับร่าง</div>
+              </div>
+            </div>
+            <div class="stat-card green">
+              <div class="stat-icon">✅</div>
+              <div>
+                <div class="stat-value" id="cardFinal">0</div>
+                <div class="stat-label">เสร็จสมบูรณ์</div>
+              </div>
+            </div>
+            <div class="stat-card purple">
+              <div class="stat-icon">🧩</div>
+              <div>
+                <div class="stat-value" id="cardTemplates">0</div>
+                <div class="stat-label">แม่แบบ</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- TABS -->
+          <div class="page-tabs v-segment" style="margin:18px 0 14px">
+            <button class="page-tab active" data-tab="docs" onclick="window.switchTab('docs')">📄 เอกสาร</button>
+            <button class="page-tab" data-tab="templates" onclick="window.switchTab('templates')">🧩 แม่แบบ</button>
+          </div>
+
+          <!-- ═══════════ TAB: เอกสาร ═══════════ -->
+          <div id="tabDocs">
+            <div class="bulk-bar" id="docsBulkBar">
+              <span class="bulk-count" id="docsBulkCount">เลือก 0 รายการ</span>
+              <span class="spacer"></span>
+              <button class="btn btn-ghost" style="padding:7px 14px;font-size:12.5px" onclick="window.clearDocSelection()">ยกเลิก</button>
+              <button class="btn btn-danger" style="padding:7px 14px;font-size:12.5px" data-perm="trip_docs_delete" onclick="window.bulkDeleteDocs()">🗑 ลบที่เลือก</button>
+            </div>
+
+            <div class="table-card">
+              <div class="toolbar">
+                <div class="search-wrap">
+                  <span class="search-icon">🔍</span>
+                  <input class="search-input" id="docSearch" placeholder="ค้นหาชื่อเอกสาร..." />
+                </div>
+                <select class="filter-select" id="docFilterTpl">
+                  <option value="">🧩 ทุกแม่แบบ</option>
+                </select>
+                <select class="filter-select" id="docFilterStatus">
+                  <option value="">🧿 ทุกสถานะ</option>
+                  <option value="DRAFT">📝 ฉบับร่าง</option>
+                  <option value="FINAL">✅ เสร็จสมบูรณ์</option>
+                </select>
+                <div class="toolbar-right">
+                  <button class="btn btn-outline" data-perm="trip_docs_create" onclick="window.openImportModal()">
+                    📥 นำเข้า Excel
+                  </button>
+                  <button class="btn btn-primary" data-perm="trip_docs_create" onclick="window.openCreateDoc()">
+                    ＋ สร้างเอกสาร
+                  </button>
+                </div>
+              </div>
+
+              <div class="table-hdr">
+                <div class="table-title">📄 รายการเอกสาร</div>
+                <div class="table-count" id="docCount">0 รายการ</div>
+              </div>
+
+              <div class="table-wrap">
+                <table class="data-table v-striped">
+                  <thead>
+                    <tr>
+                      <th style="width:42px;text-align:center">
+                        <input type="checkbox" id="docCheckAll" onchange="window.toggleAllDocs(this)" />
+                      </th>
+                      <th style="width:44px;text-align:center">#</th>
+                      <th>ชื่อเอกสาร</th>
+                      <th class="col-center" style="width:160px">แม่แบบ</th>
+                      <th class="col-center" style="width:130px">สถานะ</th>
+                      <th class="col-center" style="width:130px">อัปเดตล่าสุด</th>
+                      <th class="col-center" style="width:170px">จัดการ</th>
+                    </tr>
+                  </thead>
+                  <tbody id="docTableBody">
+                    <tr><td colspan="7">
+                      <div class="empty-state"><div class="empty-icon">📄</div>
+                        <div class="empty-text">กำลังโหลด...</div></div>
+                    </td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- ═══════════ TAB: แม่แบบ ═══════════ -->
+          <div id="tabTemplates" style="display:none">
+            <div class="bulk-bar" id="tplBulkBar">
+              <span class="bulk-count" id="tplBulkCount">เลือก 0 รายการ</span>
+              <span class="spacer"></span>
+              <button class="btn btn-ghost" style="padding:7px 14px;font-size:12.5px" onclick="window.clearTplSelection()">ยกเลิก</button>
+              <button class="btn btn-danger" style="padding:7px 14px;font-size:12.5px" data-perm="trip_docs_delete" onclick="window.bulkDeleteTpls()">🗑 ลบที่เลือก</button>
+            </div>
+
+            <div class="table-card">
+              <div class="toolbar">
+                <div class="search-wrap">
+                  <span class="search-icon">🔍</span>
+                  <input class="search-input" id="tplSearch" placeholder="ค้นหาชื่อแม่แบบ..." />
+                </div>
+                <div class="toolbar-right">
+                  <button class="btn btn-primary" data-perm="trip_docs_create" onclick="window.openTemplateModal()">
+                    ＋ สร้างแม่แบบ
+                  </button>
+                </div>
+              </div>
+
+              <div class="table-hdr">
+                <div class="table-title">🧩 รายการแม่แบบ</div>
+                <div class="table-count" id="tplCount">0 รายการ</div>
+              </div>
+
+              <div class="table-wrap">
+                <table class="data-table v-striped">
+                  <thead>
+                    <tr>
+                      <th style="width:42px;text-align:center">
+                        <input type="checkbox" id="tplCheckAll" onchange="window.toggleAllTpls(this)" />
+                      </th>
+                      <th style="width:44px;text-align:center">#</th>
+                      <th>ชื่อแม่แบบ</th>
+                      <th class="col-center" style="width:150px">หมวดหมู่</th>
+                      <th class="col-center" style="width:120px">ฟิลด์</th>
+                      <th class="col-center" style="width:130px">อัปเดตล่าสุด</th>
+                      <th class="col-center" style="width:120px">จัดการ</th>
+                    </tr>
+                  </thead>
+                  <tbody id="tplTableBody">
+                    <tr><td colspan="7">
+                      <div class="empty-state"><div class="empty-icon">🧩</div>
+                        <div class="empty-text">กำลังโหลด...</div></div>
+                    </td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- ═════════════ CREATE DOC MODAL (เลือกแม่แบบ + กรอกฟิลด์) ═════════════ -->
+    <div class="modal-overlay" id="createDocOverlay" onclick="window.closeCreateDoc(event)">
+      <div class="modal v-sage-header" style="width:760px" onclick="event.stopPropagation()">
+        <div class="modal-hdr">
+          <div class="modal-title">สร้างเอกสารใหม่</div>
+          <button class="btn-modal-close" onclick="window.closeCreateDoc()">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-row" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div class="form-group">
+              <label class="form-label">แม่แบบ</label>
+              <select class="form-control" id="cdTemplate" onchange="window.onPickTemplate()">
+                <option value="">— เริ่มจากเอกสารเปล่า —</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">ชื่อเอกสาร <span class="req">*</span></label>
+              <input class="form-control" id="cdTitle" placeholder="เช่น หนังสือเชิญเดินทาง รุ่น 1" autocomplete="off" />
+            </div>
+          </div>
+
+          <div id="cdFieldsWrap" style="margin-top:6px"></div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-ghost" onclick="window.closeCreateDoc()">ยกเลิก</button>
+          <button class="btn btn-primary" onclick="window.createDoc()">➡️ สร้างและแก้ไข</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═════════════ IMPORT EXCEL MODAL (สร้างหลายฉบับ) ═════════════ -->
+    <div class="modal-overlay" id="importOverlay" onclick="window.closeImport(event)">
+      <div class="modal v-sage-header" style="width:880px;max-width:96vw" onclick="event.stopPropagation()">
+        <div class="modal-hdr">
+          <div class="modal-title">📥 นำเข้า Excel — สร้างหลายฉบับ</div>
+          <button class="btn-modal-close" onclick="window.closeImport()">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-row" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div class="form-group">
+              <label class="form-label">แม่แบบ <span class="req">*</span></label>
+              <select class="form-control" id="impTemplate" onchange="window.onImportPickTemplate()">
+                <option value="">— เลือกแม่แบบ —</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">ผู้ลงนาม (ใช้กับทุกฉบับ)</label>
+              <div style="display:flex;gap:8px">
+                <select class="form-control" id="impSignatory" style="flex:1">
+                  <option value="">— ไม่มีลายเซ็น —</option>
+                </select>
+                <button class="btn btn-outline" type="button" title="จัดการผู้ลงนาม"
+                  onclick="window.openSignatoryManager()">⚙️</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="banner info" id="impColsHint" style="margin-top:6px;display:none">
+            <div class="banner-icon">📋</div>
+            <div class="banner-body">
+              <div class="banner-title">คอลัมน์ที่ต้องมีในไฟล์ Excel</div>
+              <div id="impColsList" style="font-size:12.5px;margin-top:4px"></div>
+            </div>
+          </div>
+
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:14px 0">
+            <button class="btn btn-outline" id="impDlBtn" onclick="window.downloadImportTemplate()" disabled>
+              ⬇️ ดาวน์โหลดเทมเพลต Excel
+            </button>
+            <input type="file" id="impFile" accept=".xlsx,.xls" style="display:none" onchange="window.onImportFile(event)" />
+            <button class="btn btn-primary" id="impPickBtn" onclick="document.getElementById('impFile').click()" disabled>
+              📤 เลือกไฟล์ Excel
+            </button>
+            <span id="impFileName" style="color:var(--text3);font-size:13px"></span>
+          </div>
+
+          <div class="form-group" style="max-width:240px">
+            <label class="form-label">สถานะเริ่มต้นของทุกฉบับ</label>
+            <select class="form-control" id="impStatus">
+              <option value="DRAFT">📝 ฉบับร่าง</option>
+              <option value="FINAL">✅ เสร็จสมบูรณ์</option>
+            </select>
+          </div>
+
+          <div id="impPreviewWrap" style="margin-top:14px"></div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-ghost" onclick="window.closeImport()">ยกเลิก</button>
+          <button class="btn btn-primary" id="impCreateBtn" onclick="window.runImport()" disabled>
+            ➡️ สร้างเอกสาร
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═════════════ DOC EDITOR MODAL ═════════════ -->
+    <div class="modal-overlay" id="docEditOverlay" onclick="window.closeDocEdit(event)">
+      <div class="modal v-sage-header" style="width:760px" onclick="event.stopPropagation()">
+        <div class="modal-hdr">
+          <div class="modal-title" id="docEditTitle">แก้ไขเอกสาร</div>
+          <button class="btn-modal-close" onclick="window.closeDocEdit()">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-row" style="display:grid;grid-template-columns:2fr 1fr;gap:12px">
+            <div class="form-group">
+              <label class="form-label">ชื่อเอกสาร <span class="req">*</span></label>
+              <input class="form-control" id="deTitle" autocomplete="off" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">สถานะ</label>
+              <select class="form-control" id="deStatus">
+                <option value="DRAFT">📝 ฉบับร่าง</option>
+                <option value="FINAL">✅ เสร็จสมบูรณ์</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group" style="margin-top:14px">
+            <label class="form-label">ผู้ลงนาม</label>
+            <div style="display:flex;gap:8px;align-items:center">
+              <select class="form-control" id="deSignatory" style="flex:1">
+                <option value="">— ไม่มีลายเซ็น —</option>
+              </select>
+              <button class="btn btn-outline" type="button" title="จัดการผู้ลงนาม"
+                data-perm="trip_docs_edit" onclick="window.openSignatoryManager()"
+                style="white-space:nowrap">⚙️ จัดการ</button>
+            </div>
+          </div>
+          <div class="form-group" style="margin-top:14px">
+            <label class="form-label">เนื้อหาเอกสาร</label>
+            <textarea class="form-control doc-body-area" id="deBody" rows="14"></textarea>
+            <div class="tpl-hint">หัวกระดาษ A4S และลายเซ็นจะถูกเติมให้อัตโนมัติตอนพิมพ์ — กด "👁 ดูตัวอย่าง" เพื่อดูเอกสารเต็ม</div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-ghost" onclick="window.closeDocEdit()">ยกเลิก</button>
+          <button class="btn btn-outline" onclick="window.previewDocFromEditor()">👁 ดูตัวอย่าง</button>
+          <button class="btn btn-primary" onclick="window.saveDoc()">💾 บันทึก</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═════════════ TEMPLATE EDITOR MODAL ═════════════ -->
+    <div class="modal-overlay" id="tplOverlay" onclick="window.closeTemplateModal(event)">
+      <div class="modal v-sage-header" style="width:760px" onclick="event.stopPropagation()">
+        <div class="modal-hdr">
+          <div class="modal-title" id="tplModalTitle">สร้างแม่แบบ</div>
+          <button class="btn-modal-close" onclick="window.closeTemplateModal()">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-row" style="display:grid;grid-template-columns:2fr 1fr;gap:12px">
+            <div class="form-group">
+              <label class="form-label">ชื่อแม่แบบ <span class="req">*</span></label>
+              <input class="form-control" id="tplName" placeholder="เช่น หนังสือเชิญเดินทาง" autocomplete="off" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">หมวดหมู่</label>
+              <select class="form-control" id="tplCategory">
+                <option value="">— ไม่ระบุ —</option>
+                <option value="หนังสือราชการ">หนังสือราชการ</option>
+                <option value="เอกสารภายใน">เอกสารภายใน</option>
+                <option value="ใบแจ้ง/ประกาศ">ใบแจ้ง/ประกาศ</option>
+                <option value="แบบฟอร์ม">แบบฟอร์ม</option>
+                <option value="อื่นๆ">อื่นๆ</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group" style="margin-top:14px">
+            <label class="form-label">คำอธิบาย</label>
+            <input class="form-control" id="tplDesc" placeholder="อธิบายสั้นๆ ว่าแม่แบบนี้ใช้ทำอะไร" autocomplete="off" />
+          </div>
+          <div class="form-group" style="margin-top:14px">
+            <label class="form-label">เนื้อหาแม่แบบ <span class="req">*</span></label>
+            <textarea class="form-control doc-body-area" id="tplBody" rows="12"
+              placeholder="พิมพ์เนื้อหา แล้วใส่ช่องกรอกข้อมูลด้วย {{ชื่อฟิลด์}}&#10;&#10;ตัวอย่าง:&#10;เรียน คุณ{{ชื่อผู้รับ}}&#10;ขอเชิญร่วมเดินทางทริป {{ชื่อทริป}} วันที่ {{วันเดินทาง}}"
+              oninput="window.refreshTplFields()"></textarea>
+            <div class="tpl-hint">
+              ใส่ <code>{{ชื่อฟิลด์}}</code> ในเนื้อหา เพื่อให้เป็นช่องกรอกข้อมูลตอนสร้างเอกสาร
+            </div>
+            <div id="tplFieldsPreview" class="field-chips-empty">ยังไม่พบฟิลด์</div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-ghost" onclick="window.closeTemplateModal()">ยกเลิก</button>
+          <button class="btn btn-primary" onclick="window.saveTemplate()">💾 บันทึก</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═════════════ PREVIEW MODAL (เอกสารเต็ม) ═════════════ -->
+    <div class="modal-overlay" id="previewOverlay" onclick="window.closePreview(event)">
+      <div class="modal v-sage-header" style="width:900px;max-width:96vw" onclick="event.stopPropagation()">
+        <div class="modal-hdr">
+          <div class="modal-title">👁 ตัวอย่างเอกสาร</div>
+          <button class="btn-modal-close" onclick="window.closePreview()">✕</button>
+        </div>
+        <div class="modal-body" style="background:#e9ecf1">
+          <div class="doc-paper" id="previewPaper"></div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-ghost" onclick="window.closePreview()">ปิด</button>
+          <button class="btn btn-primary" onclick="window.printPreview()">🖨 พิมพ์</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═════════════ SIGNATORY MANAGER (nested) ═════════════ -->
+    <div class="modal-overlay" id="sigMgrOverlay" onclick="window.closeSignatoryManager(event)">
+      <div class="modal v-sage-header" style="width:620px" onclick="event.stopPropagation()">
+        <div class="modal-hdr">
+          <div class="modal-title">⚙️ จัดการผู้ลงนาม</div>
+          <button class="btn-modal-close" onclick="window.closeSignatoryManager()">✕</button>
+        </div>
+        <div class="modal-body">
+          <!-- form add/edit -->
+          <div class="section-card" style="padding:14px;margin-bottom:16px">
+            <div class="form-row" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+              <div class="form-group">
+                <label class="form-label">ชื่อ-สกุล <span class="req">*</span></label>
+                <input class="form-control" id="sigName" placeholder="เช่น MUKDA PATTHARABANCHA" autocomplete="off" />
+              </div>
+              <div class="form-group">
+                <label class="form-label">ตำแหน่ง</label>
+                <input class="form-control" id="sigTitle" placeholder="เช่น Chief Financial Officer" autocomplete="off" />
+              </div>
+            </div>
+            <div class="form-group" style="margin-top:12px">
+              <label class="form-label">ภาพลายเซ็น (PNG พื้นโปร่งใส แนะนำ)</label>
+              <div style="display:flex;gap:12px;align-items:stretch">
+                <div class="sig-preview-box" id="sigPreviewBox" style="flex:1">
+                  <span class="ph">ยังไม่มีภาพ</span>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:6px;justify-content:center">
+                  <input type="file" id="sigFile" accept="image/*" style="display:none" onchange="window.onSignaturePicked(event)" />
+                  <button class="btn btn-outline" type="button" onclick="document.getElementById('sigFile').click()">📤 อัปโหลด</button>
+                  <button class="btn btn-ghost" type="button" onclick="window.clearSignatureImg()">ลบภาพ</button>
+                </div>
+              </div>
+            </div>
+            <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px">
+              <button class="btn btn-ghost" id="sigCancelEdit" style="display:none" onclick="window.resetSignatoryForm()">ยกเลิกแก้ไข</button>
+              <button class="btn btn-primary" id="sigSaveBtn" onclick="window.saveSignatory()">＋ เพิ่มผู้ลงนาม</button>
+            </div>
+          </div>
+
+          <!-- list -->
+          <div class="table-title" style="margin-bottom:8px">รายชื่อผู้ลงนาม</div>
+          <div id="sigList"></div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-primary" onclick="window.closeSignatoryManager()">เสร็จสิ้น</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═════════════ PRINT AREA (hidden) ═════════════ -->
+    <div id="printArea" style="display:none">
+      <div class="doc-paper" id="printPaper"></div>
+    </div>
+
+    <!-- SCRIPTS -->
+    <script src="../../js/core/auth.js"></script>
+    <script src="../../js/core/authz.js"></script>
+    <script src="../../js/core/date-format.js"></script>
+
+    <!-- ⚠️⚠️ TEMP PREVIEW BYPASS — ดู UI ก่อน run SQL 125 · ลบทั้ง block นี้ทิ้งหลัง run grant แล้ว ⚠️⚠️ -->
+    <script>
+      (function () {
+        var u = window.ERP_USER;
+        if (!u) return;
+        u.effective_perms = u.effective_perms || [];
+        ["trip_docs_view", "trip_docs_create", "trip_docs_edit", "trip_docs_delete"]
+          .forEach(function (k) {
+            if (!u.effective_perms.includes(k)) u.effective_perms.push(k);
+          });
+        console.warn("[trip-docs] ⚠️ TEMP PREVIEW perms active — ลบ block นี้หลัง run SQL 125");
+      })();
+    </script>
+    <!-- ⚠️⚠️ END TEMP PREVIEW BYPASS ⚠️⚠️ -->
+
+    <script>AuthZ.requirePerm("trip_docs_view");</script>
+    <script src="./trip-docs.js"></script>
+    <script src="../../js/components/modal/deleteModal.js"></script>
+    <script src="../../js/components/modal/modalManager.js"></script>
+    <script src="../../js/components/modal/enterSave.js"></script>
+    <script src="../../js/components/navigation/sidebar.js"></script>
+    <script type="module">
+      import { loadTopbar } from "../../js/components/navigation/topbar.js";
+      loadTopbar("📄 เอกสาร");
+    </script>
+  </body>
+</html>

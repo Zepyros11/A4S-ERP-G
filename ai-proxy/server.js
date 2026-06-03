@@ -1398,6 +1398,72 @@ async function _writeInbox(rule, triggerKey, payload, body, recipients, refKey, 
   }
 }
 
+/* ── Bell (in-app) rules — แยกอิสระจากกฎ LINE ──
+   อ่าน bell_notification_rules (sql/126) → resolve role/group/user → เขียน user_notifications
+   เรียกจาก /bell/notify (ทุกโมดูล) และ /ibd/notify (หลังส่ง LINE)
+
+   หมายเหตุ: user_notifications.rule_id เป็น FK → notification_rules เท่านั้น
+   bell_notification_rules.id คนละ table → ต้องเขียน rule_id = null (กัน FK violation)
+*/
+async function _processBellRules(triggerKey, payload, refKey, refId) {
+  if (!SB_URL_WEBHOOK || !SB_SERVICE_KEY) return { rules: 0, written: 0 };
+  let rules;
+  try {
+    rules = await _sbGet('bell_notification_rules',
+      `select=*&is_active=eq.true&trigger_key=eq.${encodeURIComponent(triggerKey)}`);
+  } catch (e) {
+    console.warn('[bell] load rules', e.message);
+    return { rules: 0, written: 0 };
+  }
+  if (!rules?.length) return { rules: 0, written: 0 };
+
+  const ref = (refId != null && refKey) ? { [refKey]: refId } : null;
+  let written = 0;
+  for (const rule of rules) {
+    let targets;
+    try {
+      targets = await _resolveRuleTargets(rule);    // reuse: อ่าน target_type/value (role/group/user)
+    } catch (e) {
+      console.warn(`[bell rule ${rule.id}] resolve`, e.message);
+      continue;
+    }
+    const userIds = [...new Set((targets || []).map(t => t.user_id).filter(v => v != null))];
+    if (!userIds.length) continue;
+
+    const title = (rule.title_template && rule.title_template.trim())
+      ? _renderTpl(rule.title_template, payload || {})
+      : _titleForTrigger(triggerKey, payload || {});
+    const body = _renderTpl(rule.body_template || '', payload || {});
+    const link = (rule.link_url && rule.link_url.trim()) ? rule.link_url : _linkForTrigger(triggerKey);
+
+    const entries = userIds.map(uid => ({
+      user_id:     uid,
+      rule_id:     null,
+      trigger_key: triggerKey,
+      title,
+      body,
+      link_url:    link,
+      payload_ref: ref,
+    }));
+    try {
+      await fetch(`${SB_URL_WEBHOOK}/rest/v1/user_notifications`, {
+        method: 'POST',
+        headers: {
+          apikey: SB_SERVICE_KEY,
+          Authorization: `Bearer ${SB_SERVICE_KEY}`,
+          'Content-Type': 'application/json',
+          Prefer: 'return=minimal',
+        },
+        body: JSON.stringify(entries),
+      });
+      written += entries.length;
+    } catch (e) {
+      console.warn(`[bell rule ${rule.id}] write`, e.message);
+    }
+  }
+  return { rules: rules.length, written };
+}
+
 async function _checkDedupe(ruleId, refKey, refId) {
   if (refId == null) return false;
   const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
@@ -1948,13 +2014,21 @@ app.post('/ibd/notify', async (req, res) => {
       return res.status(503).json({ error: 'LINE_CHANNEL_TOKEN not configured' });
     }
 
-    const rules = await _sbGet('notification_rules',
-      `select=*&is_active=eq.true&trigger_key=eq.${encodeURIComponent(trigger_key)}`);
-    if (!rules?.length) return res.json({ ok: true, sent: 0, message: 'no active rules' });
-
-    const summary = { ok: true, trigger_key, processed: 0, sent: 0, failed: 0, skipped: 0 };
+    const summary = { ok: true, trigger_key, processed: 0, sent: 0, failed: 0, skipped: 0, bell: 0 };
     const refKey = 'submission_id';
     const refId  = payload?.submission_id ?? payload?.id ?? null;
+
+    // ── กระดิ่ง (in-app) — แยกอิสระจากกฎ LINE (อ่าน bell_notification_rules) ──
+    //    ทำก่อน + ไม่ขึ้นกับว่ามีกฎ LINE หรือไม่ (admin อาจปิด LINE แต่เปิดกระดิ่ง)
+    try {
+      const bell = await _processBellRules(trigger_key, payload || {}, refKey, refId);
+      summary.bell = bell.written;
+    } catch (e) { console.warn('[ibd/notify bell]', e.message); }
+
+    // ── LINE (notification_rules) ──
+    const rules = await _sbGet('notification_rules',
+      `select=*&is_active=eq.true&trigger_key=eq.${encodeURIComponent(trigger_key)}`);
+    if (!rules?.length) return res.json({ ...summary, message: 'no active LINE rules' });
 
     for (const rule of rules) {
       summary.processed++;
@@ -1970,7 +2044,6 @@ app.post('/ibd/notify', async (req, res) => {
         const text = _renderTpl(rule.message_template, payload || {});
         if (lineIds.length) await _multicastViaCronToken(lineIds, text);
         await _logBatch(rule, refKey, refId, lineRecipients, 'sent');
-        await _writeInbox(rule, trigger_key, payload || {}, text, recipients, refKey, refId);
         summary.sent += recipients.length;
       } catch (e) {
         console.warn(`[ibd/notify rule ${rule.id}]`, e.message);
@@ -1981,6 +2054,35 @@ app.post('/ibd/notify', async (req, res) => {
     return res.json(summary);
   } catch (e) {
     console.warn('[ibd/notify]', e.message);
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+/* ══════════════════════════════════════════════════════════
+   Bell (in-app) notification — generic endpoint สำหรับทุกโมดูล
+   ──────────────────────────────────────────────────────────
+   POST /bell/notify
+     body: { trigger_key, payload }
+   อ่าน bell_notification_rules (sql/126) → เขียน user_notifications
+   แยกอิสระจาก LINE (notification_rules) โดยสิ้นเชิง
+   ══════════════════════════════════════════════════════════ */
+app.post('/bell/notify', async (req, res) => {
+  try {
+    const { trigger_key, payload } = req.body || {};
+    if (!trigger_key) return res.status(400).json({ error: 'missing trigger_key' });
+    if (!SB_URL_WEBHOOK || !SB_SERVICE_KEY) {
+      return res.status(503).json({ error: 'SB_URL/SB_SERVICE_KEY not configured' });
+    }
+    const p = payload || {};
+    // derive ref (กัน dedupe + cascade-delete): หา key แรกที่มีค่า
+    let refKey = null, refId = null;
+    for (const k of ['submission_id', 'req_id', 'event_id', 'booking_id', 'request_id', 'id']) {
+      if (p[k] != null) { refKey = k; refId = p[k]; break; }
+    }
+    const result = await _processBellRules(trigger_key, p, refKey, refId);
+    return res.json({ ok: true, trigger_key, ...result });
+  } catch (e) {
+    console.warn('[bell/notify]', e.message);
     return res.status(500).json({ error: e.message });
   }
 });

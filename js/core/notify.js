@@ -191,10 +191,30 @@
     return resolveTargets(rule);
   }
 
+  /* ── In-app bell notification (แยกอิสระจาก LINE) ──
+     POST /bell/notify → ai-proxy อ่าน bell_notification_rules → เขียน user_notifications
+     Fire-and-forget — ไม่ throw, ไม่ block caller (เหมือน evaluateRules)
+     เรียกคู่กับ evaluateRules ได้: LINE มาจากตัวนึง, กระดิ่งมาจากตัวนี้ */
+  async function notifyBell(triggerKey, payload) {
+    try {
+      if (!triggerKey) return;
+      const proxy = (localStorage.getItem("erp_proxy_url") || "").replace(/\/+$/, "");
+      if (!proxy) return; // ไม่ตั้ง proxy → กระดิ่งปิด (เงียบ)
+      await fetch(`${proxy}/bell/notify`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ trigger_key: triggerKey, payload: payload || {} }),
+      });
+    } catch (e) {
+      console.warn("[Notify] notifyBell error", e.message);
+    }
+  }
+
   window.Notify = {
     evaluateRules,
     renderTemplate,
     resolveTargets,
     previewTargets,
+    notifyBell,
   };
 })();
