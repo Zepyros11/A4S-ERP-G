@@ -242,6 +242,7 @@
               <span class="bulk-count" id="docsBulkCount">เลือก 0 รายการ</span>
               <span class="spacer"></span>
               <button class="btn btn-outline" style="padding:7px 14px;font-size:12.5px" onclick="window.bulkExportDocs()">📄 Export PDF</button>
+              <button class="btn btn-outline" style="padding:7px 14px;font-size:12.5px" onclick="window.bulkExportPng()">🖼️ Export PNG</button>
               <button class="btn btn-ghost" style="padding:7px 14px;font-size:12.5px" onclick="window.clearDocSelection()">ยกเลิก</button>
               <button class="btn btn-danger" style="padding:7px 14px;font-size:12.5px" data-perm="trip_docs_delete" onclick="window.bulkDeleteDocs()">🗑 ลบที่เลือก</button>
             </div>
@@ -749,22 +750,6 @@
     <script src="../../js/core/auth.js"></script>
     <script src="../../js/core/authz.js"></script>
     <script src="../../js/core/date-format.js"></script>
-
-    <!-- ⚠️⚠️ TEMP PREVIEW BYPASS — ดู UI ก่อน run SQL 125 · ลบทั้ง block นี้ทิ้งหลัง run grant แล้ว ⚠️⚠️ -->
-    <script>
-      (function () {
-        var u = window.ERP_USER;
-        if (!u) return;
-        u.effective_perms = u.effective_perms || [];
-        ["trip_docs_view", "trip_docs_create", "trip_docs_edit", "trip_docs_delete"]
-          .forEach(function (k) {
-            if (!u.effective_perms.includes(k)) u.effective_perms.push(k);
-          });
-        console.warn("[trip-docs] ⚠️ TEMP PREVIEW perms active — ลบ block นี้หลัง run SQL 125");
-      })();
-    </script>
-    <!-- ⚠️⚠️ END TEMP PREVIEW BYPASS ⚠️⚠️ -->
-
     <script>AuthZ.requirePerm("trip_docs_view");</script>
     <script src="./trip-docs.js"></script>
     <script src="../../js/components/modal/deleteModal.js"></script>

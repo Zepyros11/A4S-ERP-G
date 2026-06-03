@@ -531,8 +531,7 @@
     "ibd-ewallet": "ibd_ewallet_view",
     "ibd-relocation": "ibd_relocation_view",
     "trip-list": "trip_list_view",
-    // ⚠️ TEMP PREVIEW — comment ไว้ให้เมนู "เอกสาร" โผล่ก่อน run SQL 125 · เปิดบรรทัดนี้คืนหลัง grant แล้ว ⚠️
-    // "trip-docs": "trip_docs_view",
+    "trip-docs": "trip_docs_view",
     "trip-check-seat": "trip_check_seat_view",
     manual: "manual_view",
     automation: "devtool_view",

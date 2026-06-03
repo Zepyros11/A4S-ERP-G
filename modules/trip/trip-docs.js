@@ -617,6 +617,16 @@ window.printPreview = function () {
   setTimeout(() => (document.title = prev), 300);
 };
 
+// render เอกสาร 1 ฉบับ → canvas (ใช้ร่วม PDF/PNG)
+async function renderDocCanvas(d) {
+  const holder = document.getElementById("pdfHolder");
+  holder.innerHTML = `<div class="doc-paper">${composeDocHtml(d.body, d.signatory_id, d.letterhead_id)}</div>`;
+  const paper = holder.firstElementChild;
+  paper.style.boxShadow = "none";
+  await waitImages(paper);
+  return html2canvas(paper, { scale: 2, useCORS: true, backgroundColor: "#ffffff" });
+}
+
 // ── EXPORT PDF หลายฉบับ (แยกคนละไฟล์ใน zip) ────────────────
 window.bulkExportDocs = async function () {
   const docs = state.docs.filter((d) => state.selDocs.has(d.doc_id));
@@ -625,7 +635,6 @@ window.bulkExportDocs = async function () {
     showToast("โหลด library ไม่สำเร็จ ลองรีเฟรช", "error");
     return;
   }
-  const holder = document.getElementById("pdfHolder");
   showLoading(true);
   try {
     const zip = new JSZip();
@@ -633,16 +642,7 @@ window.bulkExportDocs = async function () {
     for (let i = 0; i < docs.length; i++) {
       const d = docs[i];
       showToast(`กำลังสร้าง PDF ${i + 1}/${docs.length}…`, "success");
-      holder.innerHTML = `<div class="doc-paper">${composeDocHtml(d.body, d.signatory_id, d.letterhead_id)}</div>`;
-      const paper = holder.firstElementChild;
-      paper.style.boxShadow = "none";
-      await waitImages(paper);
-
-      const canvas = await html2canvas(paper, {
-        scale: 2,
-        useCORS: true,
-        backgroundColor: "#ffffff",
-      });
+      const canvas = await renderDocCanvas(d);
       const img = canvas.toDataURL("image/jpeg", 0.92);
       const pdf = new window.jspdf.jsPDF("p", "mm", "a4");
       const pw = 210, ph = 297;
@@ -658,7 +658,6 @@ window.bulkExportDocs = async function () {
           if (remaining > 0) { pdf.addPage(); position -= ph; }
         }
       }
-      // ตั้งชื่อไฟล์ใน zip (กันชื่อซ้ำ)
       let name = sanitizeFile(d.title || `เอกสาร ${i + 1}`);
       if (used[name]) name = `${name} (${++used[name]})`;
       else used[name] = 1;
@@ -671,9 +670,48 @@ window.bulkExportDocs = async function () {
   } catch (e) {
     showToast("Export ไม่สำเร็จ: " + e.message, "error");
   }
-  holder.innerHTML = "";
+  document.getElementById("pdfHolder").innerHTML = "";
   showLoading(false);
 };
+
+// ── EXPORT PNG หลายฉบับ (แยกคนละไฟล์ใน zip) ────────────────
+window.bulkExportPng = async function () {
+  const docs = state.docs.filter((d) => state.selDocs.has(d.doc_id));
+  if (!docs.length) return;
+  if (typeof html2canvas === "undefined" || typeof JSZip === "undefined") {
+    showToast("โหลด library ไม่สำเร็จ ลองรีเฟรช", "error");
+    return;
+  }
+  showLoading(true);
+  try {
+    const zip = new JSZip();
+    const used = {};
+    for (let i = 0; i < docs.length; i++) {
+      const d = docs[i];
+      showToast(`กำลังสร้าง PNG ${i + 1}/${docs.length}…`, "success");
+      const canvas = await renderDocCanvas(d);
+      const blob = await canvasToBlob(canvas, "image/png");
+      let name = sanitizeFile(d.title || `เอกสาร ${i + 1}`);
+      if (used[name]) name = `${name} (${++used[name]})`;
+      else used[name] = 1;
+      zip.file(name + ".png", blob);
+    }
+    showToast("กำลังบีบอัดเป็น zip…", "success");
+    const content = await zip.generateAsync({ type: "blob" });
+    downloadBlob(content, `เอกสาร-${docs.length}-ฉบับ-PNG.zip`);
+    showToast(`Export ${docs.length} PNG (zip) แล้ว`, "success");
+  } catch (e) {
+    showToast("Export ไม่สำเร็จ: " + e.message, "error");
+  }
+  document.getElementById("pdfHolder").innerHTML = "";
+  showLoading(false);
+};
+
+function canvasToBlob(canvas, type) {
+  return new Promise((res, rej) =>
+    canvas.toBlob((b) => (b ? res(b) : rej(new Error("toBlob failed"))), type)
+  );
+}
 
 function downloadBlob(blob, filename) {
   const url = URL.createObjectURL(blob);
