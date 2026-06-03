@@ -617,6 +617,92 @@ window.printPreview = function () {
   setTimeout(() => (document.title = prev), 300);
 };
 
+// ── EXPORT PDF หลายฉบับ (แยกคนละไฟล์ใน zip) ────────────────
+window.bulkExportDocs = async function () {
+  const docs = state.docs.filter((d) => state.selDocs.has(d.doc_id));
+  if (!docs.length) return;
+  if (typeof html2canvas === "undefined" || !window.jspdf || typeof JSZip === "undefined") {
+    showToast("โหลด library ไม่สำเร็จ ลองรีเฟรช", "error");
+    return;
+  }
+  const holder = document.getElementById("pdfHolder");
+  showLoading(true);
+  try {
+    const zip = new JSZip();
+    const used = {};
+    for (let i = 0; i < docs.length; i++) {
+      const d = docs[i];
+      showToast(`กำลังสร้าง PDF ${i + 1}/${docs.length}…`, "success");
+      holder.innerHTML = `<div class="doc-paper">${composeDocHtml(d.body, d.signatory_id, d.letterhead_id)}</div>`;
+      const paper = holder.firstElementChild;
+      paper.style.boxShadow = "none";
+      await waitImages(paper);
+
+      const canvas = await html2canvas(paper, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: "#ffffff",
+      });
+      const img = canvas.toDataURL("image/jpeg", 0.92);
+      const pdf = new window.jspdf.jsPDF("p", "mm", "a4");
+      const pw = 210, ph = 297;
+      const imgH = (canvas.height * pw) / canvas.width;
+      if (imgH <= ph) {
+        pdf.addImage(img, "JPEG", 0, 0, pw, imgH);
+      } else {
+        // เนื้อหายาวเกิน 1 หน้า → ตัดเป็นหลายหน้า
+        let remaining = imgH, position = 0;
+        while (remaining > 0) {
+          pdf.addImage(img, "JPEG", 0, position, pw, imgH);
+          remaining -= ph;
+          if (remaining > 0) { pdf.addPage(); position -= ph; }
+        }
+      }
+      // ตั้งชื่อไฟล์ใน zip (กันชื่อซ้ำ)
+      let name = sanitizeFile(d.title || `เอกสาร ${i + 1}`);
+      if (used[name]) name = `${name} (${++used[name]})`;
+      else used[name] = 1;
+      zip.file(name + ".pdf", pdf.output("blob"));
+    }
+    showToast("กำลังบีบอัดเป็น zip…", "success");
+    const content = await zip.generateAsync({ type: "blob" });
+    downloadBlob(content, `เอกสาร-${docs.length}-ฉบับ.zip`);
+    showToast(`Export ${docs.length} ไฟล์ (zip) แล้ว`, "success");
+  } catch (e) {
+    showToast("Export ไม่สำเร็จ: " + e.message, "error");
+  }
+  holder.innerHTML = "";
+  showLoading(false);
+};
+
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.rel = "noopener";
+  a.style.display = "none";
+  document.body.appendChild(a);
+  a.click();
+  // อย่าลบ <a>/revoke ทันที — Chromium จะ cancel blob download
+  setTimeout(() => {
+    a.remove();
+    URL.revokeObjectURL(url);
+  }, 5000);
+}
+
+function waitImages(el) {
+  const imgs = [...el.querySelectorAll("img")];
+  return Promise.all(
+    imgs.map((im) =>
+      im.complete ? Promise.resolve() : new Promise((res) => { im.onload = im.onerror = res; })
+    )
+  );
+}
+function sanitizeFile(s) {
+  return String(s).replace(/[\\/:*?"<>|]+/g, "_").trim().slice(0, 80) || "เอกสาร";
+}
+
 // ════════════════════════════════════════════════════════════
 //   แม่แบบ (TEMPLATES)
 // ════════════════════════════════════════════════════════════
@@ -658,6 +744,7 @@ function renderTemplates() {
         <td class="col-center" style="white-space:nowrap;color:var(--text2);font-size:12px">${fmt(t.updated_at)}</td>
         <td class="col-center" onclick="event.stopPropagation()">
           <div class="action-group">
+            <button class="btn-icon" title="ทำสำเนา" data-perm="trip_docs_create" onclick="window.duplicateTemplate(${t.template_id})">⧉</button>
             <button class="btn-icon" title="แก้ไข" data-perm="trip_docs_edit" onclick="window.openTemplateModal(${t.template_id})">✏️</button>
             <button class="btn-icon danger" title="ลบ" data-perm="trip_docs_delete" onclick="window.deleteTemplate(${t.template_id})">🗑</button>
           </div>
@@ -730,6 +817,29 @@ window.deleteTemplate = function (id) {
     showLoading(false);
   };
   opener ? opener(`ต้องการลบแม่แบบ "${t.name}" หรือไม่? (เอกสารที่สร้างไว้แล้วยังคงอยู่)`, run) : run();
+};
+
+// ── DUPLICATE TEMPLATE ─────────────────────────────────────
+window.duplicateTemplate = async function (id) {
+  const t = state.templates.find((x) => x.template_id === id);
+  if (!t) return;
+  const payload = {
+    name: (t.name || "แม่แบบ") + " (สำเนา)",
+    category: t.category || null,
+    description: t.description || null,
+    body: t.body || "",
+    updated_at: new Date().toISOString(),
+  };
+  showLoading(true);
+  try {
+    await sbFetch("trip_doc_templates", "", { method: "POST", body: payload });
+    showToast("ทำสำเนาแม่แบบแล้ว", "success");
+    await loadAll();
+    window.switchTab("templates");
+  } catch (e) {
+    showToast("ทำสำเนาไม่ได้: " + e.message, "error");
+  }
+  showLoading(false);
 };
 
 // ── TEMPLATE EDITOR ────────────────────────────────────────
@@ -805,8 +915,6 @@ window.saveTemplate = async function () {
 // ════════════════════════════════════════════════════════════
 //   นำเข้า EXCEL — สร้างหลายฉบับจากแม่แบบเดียว
 // ════════════════════════════════════════════════════════════
-const IMPORT_TITLE_COL = "ชื่อเอกสาร";
-
 window.openImportModal = function () {
   // template dropdown
   const tSel = document.getElementById("impTemplate");
@@ -861,10 +969,9 @@ window.onImportPickTemplate = function () {
     hint.style.display = "none";
   } else {
     hint.style.display = "";
-    const cols = [IMPORT_TITLE_COL + " (ไม่บังคับ)", ...fields];
     document.getElementById("impColsList").innerHTML = fields.length
-      ? cols.map((c) => `<span class="field-chip" style="margin:2px 4px 2px 0">${escapeHtml(c)}</span>`).join("")
-      : `แม่แบบนี้ไม่มี placeholder — แต่ละแถวจะสร้างเอกสารเนื้อหาเหมือนกัน (ตั้งชื่อด้วยคอลัมน์ "${IMPORT_TITLE_COL}")`;
+      ? fields.map((c) => `<span class="field-chip" style="margin:2px 4px 2px 0">${escapeHtml(c)}</span>`).join("")
+      : `แม่แบบนี้ไม่มี placeholder — แต่ละแถวจะสร้างเอกสารเนื้อหาเหมือนกัน (ชื่อเอกสารตั้งอัตโนมัติ)`;
   }
   setImportButtons();
 };
@@ -873,7 +980,7 @@ window.onImportPickTemplate = function () {
 window.downloadImportTemplate = function () {
   const t = importTemplate();
   if (!t) return;
-  const cols = [IMPORT_TITLE_COL, ...extractFields(t.body || "")];
+  const cols = extractFields(t.body || "");
   const ws = XLSX.utils.aoa_to_sheet([cols]);
   ws["!cols"] = cols.map(() => ({ wch: 22 }));
   const wb = XLSX.utils.book_new();
@@ -913,7 +1020,7 @@ window.onImportFile = function (event) {
 function renderImportPreview() {
   const wrap = document.getElementById("impPreviewWrap");
   const fields = importFields();
-  const cols = [IMPORT_TITLE_COL, ...fields];
+  const cols = [...fields];
   const rows = state.importRows;
   const MAX = 20;
 
@@ -959,12 +1066,11 @@ window.runImport = async function () {
   const payloads = state.importRows.map((row, i) => {
     const values = {};
     fields.forEach((f) => (values[f] = String(row[f] ?? "").trim()));
-    let title = String(row[IMPORT_TITLE_COL] ?? "").trim();
-    if (!title) {
-      title = fields.length && values[fields[0]]
-        ? `${t.name} — ${values[fields[0]]}`
-        : `${t.name} #${i + 1}`;
-    }
+    // ตั้งชื่อเอกสารอัตโนมัติ — เลือกฟิลด์ที่มีคำว่า "ชื่อ"/name ก่อน ไม่งั้นใช้ฟิลด์แรก/ลำดับ
+    const nameField = fields.find((f) => /ชื่อ|name/i.test(f)) || fields[0];
+    const title = nameField && values[nameField]
+      ? `${t.name} — ${values[nameField]}`
+      : `${t.name} #${i + 1}`;
     return {
       template_id: t.template_id,
       signatory_id: sigId,
@@ -1186,18 +1292,16 @@ function renderLetterheadList() {
   }
   wrap.innerHTML = state.letterheads
     .map(
-      (l) => `<div class="sig-row">
-        ${
-          l.logo_data
-            ? `<img src="${l.logo_data}" alt="logo" />`
-            : `<img src="${LETTERHEAD.logoUrl}" alt="logo" onerror="this.style.display='none'" />`
-        }
-        <div class="sig-meta">
-          <b>${escapeHtml(l.name)}</b>
-          <div>${escapeHtml(l.company_name || "—")}</div>
+      (l) => `<div class="lh-item${state.editLhId === l.letterhead_id ? " active" : ""}"
+        title="คลิกเพื่อแก้ไข" onclick="window.editLetterhead(${l.letterhead_id})">
+        <img src="${l.logo_data || LETTERHEAD.logoUrl}" alt="logo" onerror="this.style.display='none'" />
+        <div class="lh-item-meta">
+          <b title="${escapeHtml(l.name)}">${escapeHtml(l.name)}</b>
+          <small title="${escapeHtml(l.company_name || "")}">${escapeHtml(l.company_name || "—")}</small>
         </div>
-        <button class="btn-icon" title="แก้ไข" onclick="window.editLetterhead(${l.letterhead_id})">✏️</button>
-        <button class="btn-icon danger" title="ลบ" onclick="window.deleteLetterhead(${l.letterhead_id})">🗑</button>
+        <div class="lh-item-acts">
+          <button class="btn-icon danger" title="ลบ" onclick="event.stopPropagation(); window.deleteLetterhead(${l.letterhead_id})">🗑</button>
+        </div>
       </div>`
     )
     .join("");
@@ -1213,6 +1317,7 @@ window.resetLetterheadForm = function () {
   document.getElementById("lhLogoBox").innerHTML = `<span class="ph">โลโก้ A4S เริ่มต้น</span>`;
   document.getElementById("lhSaveBtn").textContent = "＋ เพิ่มหัวกระดาษ";
   document.getElementById("lhCancelEdit").style.display = "none";
+  renderLetterheadList(); // ล้างไฮไลต์ active
 };
 
 window.editLetterhead = function (id) {
@@ -1228,6 +1333,7 @@ window.editLetterhead = function (id) {
     : `<span class="ph">โลโก้ A4S เริ่มต้น</span>`;
   document.getElementById("lhSaveBtn").textContent = "💾 บันทึกการแก้ไข";
   document.getElementById("lhCancelEdit").style.display = "";
+  renderLetterheadList(); // อัปเดตไฮไลต์แถวที่กำลังแก้
 };
 
 window.onLogoPicked = async function (e) {

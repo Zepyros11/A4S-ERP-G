@@ -10,6 +10,9 @@
     />
     <link rel="stylesheet" href="../../css/main.css" />
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
       /* ── status pill ───────────────────────────────────── */
       .doc-status-pill{
@@ -73,25 +76,25 @@
       /* ── document paper (letterhead + body + signature) ──── */
       .doc-paper{
         background:#fff;width:794px;max-width:100%;margin:0 auto;
-        padding:56px 64px;color:#1f2937;
+        padding:46px 64px;color:#1f2937;
         font-family:"Sarabun","Segoe UI",sans-serif;
         box-shadow:0 4px 24px rgba(0,0,0,.12);
         min-height:1000px;
       }
-      /* 2 คอลัมน์: logo ซ้าย | info กึ่งกลาง | spacer ขวา (สมดุล) — logo ไม่ทับข้อความ */
+      /* 2 คอลัมน์: logo ซ้ายบน | info กึ่งกลาง | spacer ขวา (สมดุล) — logo ไม่ทับข้อความ */
       .doc-letterhead{
-        display:flex;align-items:center;gap:14px;
+        display:flex;align-items:flex-start;gap:14px;
         padding-bottom:12px;border-bottom:2px solid #111;margin-bottom:34px;
       }
-      .doc-letterhead .lh-logo{ width:96px;flex-shrink:0;text-align:center; }
+      .doc-letterhead .lh-logo{ width:96px;flex-shrink:0;text-align:left; }
       .doc-letterhead .lh-logo img{ max-width:96px;max-height:82px;height:auto; }
       .doc-letterhead .lh-info{ flex:1;text-align:center;min-width:0; }
       .doc-letterhead .lh-name{ font-size:16px;font-weight:700;color:#111;margin-bottom:4px; }
       .doc-letterhead .lh-addr{ font-size:12.5px;line-height:1.6;color:#222; }
       .doc-body{
-        font-size:15px;line-height:1.9;color:#1f2937;min-height:340px;
+        font-size:15px;line-height:1.7;color:#1f2937;min-height:300px;
       }
-      .doc-body p{ margin:0 0 12px; }
+      .doc-body p{ margin:0 0 10px; }
       .doc-body div{ margin:0; }
       .doc-body ul,.doc-body ol{ margin:0 0 12px;padding-left:26px; }
 
@@ -122,7 +125,8 @@
       .rte-area:empty:before{ content:attr(data-ph);color:#9ca3af; }
       .rte-area p{ margin:0 0 12px; }
       .doc-signature{
-        margin-top:48px;text-align:center;width:300px;margin-left:auto;
+        margin-top:30px;text-align:center;width:300px;margin-left:auto;
+        break-inside:avoid;page-break-inside:avoid;  /* กันถูกตัดข้ามหน้าตอนพิมพ์ */
       }
       .doc-signature img{ max-width:200px;max-height:90px;object-fit:contain;margin:0 auto 2px; }
       .doc-signature .sig-line{
@@ -148,6 +152,24 @@
       }
       .sig-preview-box img{ max-width:200px;max-height:80px;object-fit:contain; }
       .sig-preview-box .ph{ color:var(--text3);font-size:12.5px; }
+
+      /* ── letterhead list (compact) ───────────────────────── */
+      .lh-item{
+        display:flex;align-items:center;gap:10px;padding:7px 9px;cursor:pointer;
+        border:1px solid var(--border,#e5e7eb);border-radius:8px;margin-bottom:6px;
+        transition:background .12s,border-color .12s;
+      }
+      .lh-item:hover{ background:#f7faf7;border-color:var(--accent-light,#7da480); }
+      .lh-item.active{ background:var(--accent-pale,#d8e7d2);border-color:var(--accent,#3d6b4f); }
+      .lh-item img{ width:46px;height:30px;object-fit:contain;flex-shrink:0;
+        background:#f8fafc;border-radius:4px; }
+      .lh-item-meta{ flex:1;min-width:0; }
+      .lh-item-meta b{ display:block;font-size:12.5px;color:var(--text);
+        white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+      .lh-item-meta small{ display:block;font-size:11px;color:var(--text3);
+        white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+      .lh-item-acts{ display:flex;gap:2px;flex-shrink:0; }
+      .lh-item-acts .btn-icon{ width:28px;height:28px;font-size:13px; }
 
       /* paper ใช้ขนาด A4 เป๊ะ → preview กับ print ตัดบรรทัดเหมือนกัน (WYSIWYG) */
       @page { size: A4; margin: 0; }
@@ -219,6 +241,7 @@
             <div class="bulk-bar" id="docsBulkBar">
               <span class="bulk-count" id="docsBulkCount">เลือก 0 รายการ</span>
               <span class="spacer"></span>
+              <button class="btn btn-outline" style="padding:7px 14px;font-size:12.5px" onclick="window.bulkExportDocs()">📄 Export PDF</button>
               <button class="btn btn-ghost" style="padding:7px 14px;font-size:12.5px" onclick="window.clearDocSelection()">ยกเลิก</button>
               <button class="btn btn-danger" style="padding:7px 14px;font-size:12.5px" data-perm="trip_docs_delete" onclick="window.bulkDeleteDocs()">🗑 ลบที่เลือก</button>
             </div>
@@ -238,6 +261,12 @@
                   <option value="FINAL">✅ เสร็จสมบูรณ์</option>
                 </select>
                 <div class="toolbar-right">
+                  <button class="btn btn-outline" data-perm="trip_docs_edit" onclick="window.openLetterheadManager()">
+                    🏛️ หัวกระดาษ
+                  </button>
+                  <button class="btn btn-outline" data-perm="trip_docs_edit" onclick="window.openSignatoryManager()">
+                    ✍️ ผู้ลงนาม
+                  </button>
                   <button class="btn btn-outline" data-perm="trip_docs_create" onclick="window.openImportModal()">
                     📥 นำเข้า Excel
                   </button>
@@ -519,36 +548,43 @@
 
     <!-- ═════════════ TEMPLATE EDITOR MODAL ═════════════ -->
     <div class="modal-overlay" id="tplOverlay">
-      <div class="modal v-sage-header" style="width:760px" onclick="event.stopPropagation()">
+      <div class="modal v-sage-header" style="width:1000px;max-width:96vw" onclick="event.stopPropagation()">
         <div class="modal-hdr">
           <div class="modal-title" id="tplModalTitle">สร้างแม่แบบ</div>
           <button class="btn-modal-close" onclick="window.closeTemplateModal()">✕</button>
         </div>
         <div class="modal-body">
-          <div class="form-row" style="display:grid;grid-template-columns:2fr 1fr;gap:12px">
-            <div class="form-group">
-              <label class="form-label">ชื่อแม่แบบ <span class="req">*</span></label>
-              <input class="form-control" id="tplName" placeholder="เช่น หนังสือเชิญเดินทาง" autocomplete="off" />
+          <div style="display:grid;grid-template-columns:300px 1fr;gap:18px;align-items:start">
+            <!-- ซ้าย: ข้อมูลแม่แบบ -->
+            <div>
+              <div class="form-group">
+                <label class="form-label">ชื่อแม่แบบ <span class="req">*</span></label>
+                <input class="form-control" id="tplName" placeholder="เช่น หนังสือเชิญเดินทาง" autocomplete="off" />
+              </div>
+              <div class="form-group" style="margin-top:14px">
+                <label class="form-label">หมวดหมู่</label>
+                <select class="form-control" id="tplCategory">
+                  <option value="">— ไม่ระบุ —</option>
+                  <option value="หนังสือราชการ">หนังสือราชการ</option>
+                  <option value="เอกสารภายใน">เอกสารภายใน</option>
+                  <option value="ใบแจ้ง/ประกาศ">ใบแจ้ง/ประกาศ</option>
+                  <option value="แบบฟอร์ม">แบบฟอร์ม</option>
+                  <option value="อื่นๆ">อื่นๆ</option>
+                </select>
+              </div>
+              <div class="form-group" style="margin-top:14px">
+                <label class="form-label">คำอธิบาย</label>
+                <textarea class="form-control" id="tplDesc" rows="3" placeholder="อธิบายสั้นๆ ว่าแม่แบบนี้ใช้ทำอะไร"></textarea>
+              </div>
+              <div style="margin-top:16px">
+                <label class="form-label">ฟิลด์ที่พบ</label>
+                <div id="tplFieldsPreview" class="field-chips-empty">ยังไม่พบฟิลด์</div>
+              </div>
             </div>
-            <div class="form-group">
-              <label class="form-label">หมวดหมู่</label>
-              <select class="form-control" id="tplCategory">
-                <option value="">— ไม่ระบุ —</option>
-                <option value="หนังสือราชการ">หนังสือราชการ</option>
-                <option value="เอกสารภายใน">เอกสารภายใน</option>
-                <option value="ใบแจ้ง/ประกาศ">ใบแจ้ง/ประกาศ</option>
-                <option value="แบบฟอร์ม">แบบฟอร์ม</option>
-                <option value="อื่นๆ">อื่นๆ</option>
-              </select>
-            </div>
-          </div>
-          <div class="form-group" style="margin-top:14px">
-            <label class="form-label">คำอธิบาย</label>
-            <input class="form-control" id="tplDesc" placeholder="อธิบายสั้นๆ ว่าแม่แบบนี้ใช้ทำอะไร" autocomplete="off" />
-          </div>
-          <div class="form-group" style="margin-top:14px">
-            <label class="form-label">เนื้อหาแม่แบบ <span class="req">*</span></label>
-            <div class="rte">
+            <!-- ขวา: เนื้อหาแม่แบบ -->
+            <div class="form-group" style="margin:0">
+              <label class="form-label">เนื้อหาแม่แบบ <span class="req">*</span></label>
+              <div class="rte">
               <div class="rte-toolbar">
                 <button type="button" data-cmd="bold" title="ตัวหนา"><b>B</b></button>
                 <button type="button" data-cmd="italic" title="ตัวเอียง"><i>I</i></button>
@@ -569,10 +605,10 @@
                 data-ph="พิมพ์เนื้อหา แล้วใส่ช่องกรอกข้อมูลด้วย {{ชื่อฟิลด์}}"
                 oninput="window.refreshTplFields()"></div>
             </div>
-            <div class="tpl-hint">
-              ใส่ <code>{{ชื่อฟิลด์}}</code> ในเนื้อหา เพื่อให้เป็นช่องกรอกข้อมูลตอนสร้างเอกสาร · จัดตัวหนา/กึ่งกลางได้ด้วยปุ่มด้านบน
+              <div class="tpl-hint">
+                ใส่ <code>{{ชื่อฟิลด์}}</code> ในเนื้อหา เพื่อให้เป็นช่องกรอกข้อมูลตอนสร้างเอกสาร · จัดตัวหนา/กึ่งกลางได้ด้วยปุ่มด้านบน
+              </div>
             </div>
-            <div id="tplFieldsPreview" class="field-chips-empty">ยังไม่พบฟิลด์</div>
           </div>
         </div>
         <div class="modal-footer">
@@ -650,52 +686,53 @@
 
     <!-- ═════════════ LETTERHEAD MANAGER (nested) ═════════════ -->
     <div class="modal-overlay" id="lhMgrOverlay" onclick="window.closeLetterheadManager(event)">
-      <div class="modal v-sage-header" style="width:680px" onclick="event.stopPropagation()">
+      <div class="modal v-sage-header" style="width:900px;max-width:96vw" onclick="event.stopPropagation()">
         <div class="modal-hdr">
           <div class="modal-title">⚙️ จัดการหัวกระดาษ</div>
           <button class="btn-modal-close" onclick="window.closeLetterheadManager()">✕</button>
         </div>
         <div class="modal-body">
-          <div class="section-card" style="padding:14px;margin-bottom:16px">
-            <div class="form-row" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div style="display:grid;grid-template-columns:30% 70%;gap:18px;align-items:start">
+            <!-- ซ้าย: รายการหัวกระดาษ -->
+            <div>
+              <div class="table-title" style="margin-bottom:8px">รายการหัวกระดาษ</div>
+              <div id="lhList"></div>
+            </div>
+
+            <!-- ขวา: ฟอร์มเพิ่ม/แก้ไข -->
+            <div class="section-card" style="padding:14px">
               <div class="form-group">
                 <label class="form-label">ชื่อหัวกระดาษ <span class="req">*</span></label>
                 <input class="form-control" id="lhName" placeholder="เช่น A4S สำนักงานใหญ่" autocomplete="off" />
               </div>
-              <div class="form-group">
+              <div class="form-group" style="margin-top:12px">
                 <label class="form-label">ชื่อบริษัท (แสดงในหัว)</label>
                 <input class="form-control" id="lhCompany" placeholder="A4S Can Corporation Co., Ltd." autocomplete="off" />
               </div>
-            </div>
-            <div class="form-group" style="margin-top:12px">
-              <label class="form-label">ที่อยู่ / ข้อมูลติดต่อ (ขึ้นบรรทัดใหม่ได้)</label>
-              <textarea class="form-control" id="lhAddress" rows="3"
-                placeholder="Imperial World Ladprao... Bangkok 10310.&#10;Tel: ...  Email: ..."></textarea>
-            </div>
-            <div class="form-group" style="margin-top:12px">
-              <label class="form-label">โลโก้ (เว้นว่าง = ใช้โลโก้ A4S เริ่มต้น)</label>
-              <div style="display:flex;gap:12px;align-items:stretch">
-                <div class="sig-preview-box" id="lhLogoBox" style="flex:1">
-                  <span class="ph">โลโก้ A4S เริ่มต้น</span>
-                </div>
-                <div style="display:flex;flex-direction:column;gap:6px;justify-content:center">
-                  <input type="file" id="lhFile" accept="image/*" style="display:none" onchange="window.onLogoPicked(event)" />
-                  <button class="btn btn-outline" type="button" onclick="document.getElementById('lhFile').click()">📤 อัปโหลด</button>
-                  <button class="btn btn-ghost" type="button" onclick="window.clearLogoImg()">ใช้ค่าเริ่มต้น</button>
+              <div class="form-group" style="margin-top:12px">
+                <label class="form-label">ที่อยู่ / ข้อมูลติดต่อ (ขึ้นบรรทัดใหม่ได้)</label>
+                <textarea class="form-control" id="lhAddress" rows="3"
+                  placeholder="Imperial World Ladprao... Bangkok 10310.&#10;Tel: ...  Email: ..."></textarea>
+              </div>
+              <div class="form-group" style="margin-top:12px">
+                <label class="form-label">โลโก้ (เว้นว่าง = ใช้โลโก้ A4S เริ่มต้น)</label>
+                <div style="display:flex;gap:12px;align-items:stretch">
+                  <div class="sig-preview-box" id="lhLogoBox" style="flex:1">
+                    <span class="ph">โลโก้ A4S เริ่มต้น</span>
+                  </div>
+                  <div style="display:flex;flex-direction:column;gap:6px;justify-content:center">
+                    <input type="file" id="lhFile" accept="image/*" style="display:none" onchange="window.onLogoPicked(event)" />
+                    <button class="btn btn-outline" type="button" onclick="document.getElementById('lhFile').click()">📤 อัปโหลด</button>
+                    <button class="btn btn-ghost" type="button" onclick="window.clearLogoImg()">ใช้ค่าเริ่มต้น</button>
+                  </div>
                 </div>
               </div>
-            </div>
-            <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px">
-              <button class="btn btn-ghost" id="lhCancelEdit" style="display:none" onclick="window.resetLetterheadForm()">ยกเลิกแก้ไข</button>
-              <button class="btn btn-primary" id="lhSaveBtn" onclick="window.saveLetterhead()">＋ เพิ่มหัวกระดาษ</button>
+              <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px">
+                <button class="btn btn-ghost" id="lhCancelEdit" style="display:none" onclick="window.resetLetterheadForm()">ยกเลิกแก้ไข</button>
+                <button class="btn btn-primary" id="lhSaveBtn" onclick="window.saveLetterhead()">＋ เพิ่มหัวกระดาษ</button>
+              </div>
             </div>
           </div>
-
-          <div class="table-title" style="margin-bottom:8px">รายการหัวกระดาษ</div>
-          <div id="lhList"></div>
-        </div>
-        <div class="modal-footer">
-          <button class="btn btn-primary" onclick="window.closeLetterheadManager()">เสร็จสิ้น</button>
         </div>
       </div>
     </div>
@@ -704,6 +741,9 @@
     <div id="printArea" style="display:none">
       <div class="doc-paper" id="printPaper"></div>
     </div>
+
+    <!-- holder สำหรับ render เอกสารตอน export PDF (นอกจอ) -->
+    <div id="pdfHolder" style="position:fixed;left:-10000px;top:0;width:794px;background:#fff"></div>
 
     <!-- SCRIPTS -->
     <script src="../../js/core/auth.js"></script>
