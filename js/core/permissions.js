@@ -302,6 +302,12 @@ window.AppPermissions = (() => {
           { key: "member_types_edit",   label: "แก้ไข" },
           { key: "member_types_delete", label: "ลบ" },
         ]},
+        { key: "trip_docs", label: "เอกสาร", icon: "📄", perms: [
+          { key: "trip_docs_view",   label: "ดูเอกสาร/แม่แบบ" },
+          { key: "trip_docs_create", label: "สร้างเอกสาร/แม่แบบ" },
+          { key: "trip_docs_edit",   label: "แก้ไข" },
+          { key: "trip_docs_delete", label: "ลบ" },
+        ]},
       ],
     },
 

@@ -333,6 +333,12 @@
           label: "รายการทริป",
           path: BASE_PATH + "/modules/trip/trip-list.html",
         },
+        {
+          id: "trip-docs",
+          icon: "📄",
+          label: "เอกสาร",
+          path: BASE_PATH + "/modules/trip/trip-docs.html",
+        },
       ],
     },
     //  **************** MANUAL *****************
@@ -518,6 +524,7 @@
     "ibd-ewallet": "ibd_ewallet_view",
     "ibd-relocation": "ibd_relocation_view",
     "trip-list": "trip_list_view",
+    "trip-docs": "trip_docs_view",
     "trip-check-seat": "trip_check_seat_view",
     manual: "manual_view",
     automation: "devtool_view",
@@ -614,6 +621,7 @@
     "ibd-relocation",
     //**** TRIP ****
     "trip-list",
+    "trip-docs",
     "trip-check-seat",
     //**** MANUAL ****
     "manual",
