@@ -1,5 +1,5 @@
 -- ============================================================
--- Migration 126: bell_notification_rules — กฎกระดิ่ง (in-app) แยกอิสระจาก LINE
+-- Migration 127: bell_notification_rules — กฎกระดิ่ง (in-app) แยกอิสระจาก LINE
 --
 -- Why:
 --   เดิมกระดิ่ง topbar (user_notifications) ไม่มีหน้าตั้งค่าของตัวเอง —

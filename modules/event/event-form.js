@@ -780,7 +780,7 @@ function _fireEventConfirmed(eventRow) {
     const raw = localStorage.getItem("erp_session") || sessionStorage.getItem("erp_session");
     if (raw) approver = JSON.parse(raw).full_name || JSON.parse(raw).username || "";
   } catch (_) {}
-  window.Notify.evaluateRules("event.confirmed", {
+  const _notifyPayload = {
     event_code:      eventRow.event_code || "",
     event_name:      eventRow.event_name || "",
     event_type:      eventRow.event_type || "",
@@ -791,7 +791,9 @@ function _fireEventConfirmed(eventRow) {
     attendees_count: eventRow.max_attendees || "",
     request_code:    "",
     approver,
-  });
+  };
+  window.Notify.evaluateRules("event.confirmed", _notifyPayload);   // LINE
+  window.Notify.notifyBell("event.confirmed", _notifyPayload);      // กระดิ่ง (in-app)
 }
 
 // ── UTILS ──────────────────────────────────────────────────

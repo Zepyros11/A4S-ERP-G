@@ -1399,7 +1399,7 @@ async function _writeInbox(rule, triggerKey, payload, body, recipients, refKey, 
 }
 
 /* ── Bell (in-app) rules — แยกอิสระจากกฎ LINE ──
-   อ่าน bell_notification_rules (sql/126) → resolve role/group/user → เขียน user_notifications
+   อ่าน bell_notification_rules (sql/127) → resolve role/group/user → เขียน user_notifications
    เรียกจาก /bell/notify (ทุกโมดูล) และ /ibd/notify (หลังส่ง LINE)
 
    หมายเหตุ: user_notifications.rule_id เป็น FK → notification_rules เท่านั้น
@@ -2063,7 +2063,7 @@ app.post('/ibd/notify', async (req, res) => {
    ──────────────────────────────────────────────────────────
    POST /bell/notify
      body: { trigger_key, payload }
-   อ่าน bell_notification_rules (sql/126) → เขียน user_notifications
+   อ่าน bell_notification_rules (sql/127) → เขียน user_notifications
    แยกอิสระจาก LINE (notification_rules) โดยสิ้นเชิง
    ══════════════════════════════════════════════════════════ */
 app.post('/bell/notify', async (req, res) => {

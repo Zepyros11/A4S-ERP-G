@@ -121,7 +121,8 @@
       @media print{
         body * { visibility:hidden !important; }
         #printArea, #printArea * { visibility:visible !important; }
-        #printArea{ position:absolute;inset:0;padding:0;background:#fff; }
+        /* inline display:none ต้อง override ตอนพิมพ์ ไม่งั้น visibility:visible ไม่มีผล → หน้าว่าง */
+        #printArea{ display:block !important;position:absolute;inset:0;padding:0;background:#fff; }
         #printArea .doc-paper{ box-shadow:none;width:100%;padding:0;margin:0;min-height:0; }
       }
     </style>

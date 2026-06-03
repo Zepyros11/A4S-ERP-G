@@ -2,7 +2,7 @@
    Settings — Bell (in-app) Notification Rules CRUD
    ------------------------------------------------------------
    กฎกระดิ่งในแอป (user_notifications) แยกอิสระจาก LINE
-   อ่าน/เขียน bell_notification_rules (sql/126)
+   อ่าน/เขียน bell_notification_rules (sql/127)
    trigger metadata ใช้ notification_triggers ร่วมกับ LINE (sql/067)
    ============================================================ */
 

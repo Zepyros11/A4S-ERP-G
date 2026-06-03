@@ -607,6 +607,7 @@
     "staff-messaging",
     "line-templates",
     "notification-rules",
+    "bell-rules",
     "staff-groups",
     "roles",
 

@@ -1113,6 +1113,28 @@ async function submitREQ(autoApprove = false) {
       }
     }
 
+    // ── กระดิ่ง (in-app): แจ้งทีม Stock เมื่อมีใบเบิกใหม่ (เฉพาะตอนสร้าง ไม่ใช่แก้ไข) ──
+    if (!editingReqId) {
+      try {
+        let requester = '';
+        try {
+          const s = JSON.parse(localStorage.getItem('erp_session') || sessionStorage.getItem('erp_session') || 'null');
+          requester = s?.full_name || s?.username || '';
+        } catch (_) {}
+        const purposeCard = document.querySelector('.purpose-card.active');
+        const purpose = purposeCard ? (purposeCard.querySelector('.purpose-label')?.textContent.trim() || '') : '';
+        window.Notify?.notifyBell?.('stock.req.created', {
+          req_number: data.reqNumber,
+          requester,
+          dept:       selectText(document.getElementById('deptId')),
+          purpose,
+          item_count: data.items.length,
+          req_date:   (window.DateFmt?.formatDMY?.(data.reqDate)) || data.reqDate || '',
+          req_id:     reqId,
+        });
+      } catch (_) {}
+    }
+
     const verb = editingReqId ? 'อัปเดต' : 'บันทึก';
     const msg = autoApprove
       ? `✅ ${verb} + อนุมัติ ${data.reqNumber} สำเร็จ (หัก stock แล้ว)`

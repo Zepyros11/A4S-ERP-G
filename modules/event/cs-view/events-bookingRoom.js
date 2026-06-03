@@ -781,7 +781,8 @@ function fireBookingCreatedNotification(payload) {
   };
   window.Notify.evaluateRules("booking.created", ctx);
   // Auto-approve: booking is confirmed on submit, so also fire approved event
-  window.Notify.evaluateRules("booking.approved", ctx);
+  window.Notify.evaluateRules("booking.approved", ctx);   // LINE
+  window.Notify.notifyBell("booking.approved", ctx);       // กระดิ่ง (in-app)
 }
 
 async function confirmBooking() {
