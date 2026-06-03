@@ -56,6 +56,27 @@
 
   /* ── Resolve rule target → list of users ({user_id, line_user_id, full_name}) ── */
   async function resolveTargets(rule) {
+    // ── mixed targets (sql/129): { roles, groups, users } ──
+    const t = rule.targets && typeof rule.targets === "object" && !Array.isArray(rule.targets)
+      ? rule.targets : null;
+    if (t) {
+      const roles  = Array.isArray(t.roles)  ? t.roles  : [];
+      const groups = Array.isArray(t.groups) ? t.groups : [];
+      const users  = Array.isArray(t.users)  ? t.users  : [];
+      const byId = new Map();
+      const collect = async (filter) => {
+        const rows = await _sbGet(
+          `users?select=user_id,full_name,line_user_id,is_active&is_active=eq.true&line_user_id=not.is.null&${filter}`,
+        );
+        (rows || []).forEach((r) => { if (r.user_id != null) byId.set(r.user_id, r); });
+      };
+      if (roles.length)  await collect(`role=in.(${roles.map((v) => encodeURIComponent(v)).join(",")})`);
+      if (groups.length) await collect(`notification_groups=ov.{${groups.map((v) => `"${String(v).replace(/"/g, '\\"')}"`).join(",")}}`);
+      if (users.length)  { const ids = users.filter((v) => v != null).join(","); if (ids) await collect(`user_id=in.(${ids})`); }
+      return [...byId.values()];
+    }
+
+    // ── legacy: target_type + target_value ──
     const type = rule.target_type;
     const values = Array.isArray(rule.target_value) ? rule.target_value : [];
     if (!values.length) return [];

@@ -464,15 +464,19 @@
       return;
     }
     setStep(3);
-    requestAnimationFrame(() => {
-      setTimeout(() => window.print(), 80);
-    });
+    // Re-render so the off-screen print area matches the current rows, then
+    // wait for the autoFit RAF + a paint frame before opening the dialog so
+    // every sheet is fully laid out (otherwise Edge can mis-count pages).
+    renderSheets();
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      setTimeout(() => window.print(), 120);
+    }));
   }
 
   // ── Export PDF (via html2canvas + jsPDF) ──────────────────
   // Bypasses Edge's flaky print pipeline. Each A4 sheet rendered
   // off-screen → captured as canvas → embedded in PDF page.
-  async function exportPDF() {
+  async function exportPDF(mode = "save") {
     if (!rows.length) {
       showToast("ยังไม่มีรายชื่อ", "error");
       return;
@@ -482,9 +486,12 @@
       return;
     }
     setStep(3);
-    const btn = $("btnExportPDF");
-    const origText = btn ? btn.textContent : "";
-    if (btn) { btn.disabled = true; btn.textContent = "⏳ กำลังสร้าง PDF..."; }
+    // Disable both action buttons while rendering · restore in finally
+    const btnReview = $("btnReview"), btnPrint = $("btnPrint");
+    const busyBtn = mode === "open" ? btnReview : btnPrint;
+    const origText = busyBtn ? busyBtn.textContent : "";
+    [btnReview, btnPrint].forEach(b => b && (b.disabled = true));
+    if (busyBtn) busyBtn.textContent = "⏳ กำลังสร้าง PDF...";
     showProcessing("กำลังสร้าง PDF ป้ายชื่อ...", "เตรียมข้อมูล");
 
     try {
@@ -533,15 +540,31 @@
       printArea.style.visibility = origStyle.visibility;
       printArea.style.zIndex     = "";
 
-      updateProcessing("กำลังบันทึกไฟล์...");
       const stamp = new Date().toISOString().slice(0, 10);
-      pdf.save(`namecards-${stamp}.pdf`);
-      showToast(`ส่งออก PDF เรียบร้อย (${sheets.length} หน้า · ${rows.length} ใบ)`);
+      if (mode === "open") {
+        // Review: open the PDF in a new tab for preview / print-from-viewer
+        updateProcessing("กำลังเปิดตัวอย่าง...");
+        const url = pdf.output("bloburl");
+        const win = window.open(url, "_blank");
+        if (!win) {
+          // Popup blocked → fall back to download so the user still gets it
+          pdf.save(`namecards-${stamp}.pdf`);
+          showToast("เบราว์เซอร์บล็อกหน้าต่างใหม่ — บันทึกไฟล์แทน", "error");
+        } else {
+          showToast(`เปิดตัวอย่าง PDF (${sheets.length} หน้า · ${rows.length} ใบ)`);
+        }
+      } else {
+        // Print: save the PDF file (เหมือนเดิม)
+        updateProcessing("กำลังบันทึกไฟล์...");
+        pdf.save(`namecards-${stamp}.pdf`);
+        showToast(`ส่งออก PDF เรียบร้อย (${sheets.length} หน้า · ${rows.length} ใบ)`);
+      }
     } catch (err) {
       console.error(err);
       showToast("สร้าง PDF ไม่สำเร็จ — " + err.message, "error");
     } finally {
-      if (btn) { btn.disabled = false; btn.textContent = origText; }
+      [btnReview, btnPrint].forEach(b => b && (b.disabled = false));
+      if (busyBtn) busyBtn.textContent = origText;
       hideProcessing();
     }
   }

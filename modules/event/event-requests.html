@@ -1461,10 +1461,8 @@
     window.onBkqPlaceChange = onBkqPlaceChange;
     window.submitBkqCreate  = submitBkqCreate;
 
-    // Close create modal on backdrop click
-    document.getElementById("bkqCreateOverlay").addEventListener("click", function(e) {
-      if (e.target === this) closeBkqCreate();
-    });
+    // Backdrop-click-to-close DISABLED for the create form (prevents
+    // accidental dismissal + full data re-entry). Use ✕ / ยกเลิก / ESC.
 
 
     // ESC to close modals (innermost first)

@@ -8,6 +8,7 @@ const state = {
   templates: [],          // trip_doc_templates
   docs: [],               // trip_documents
   signatories: [],        // trip_doc_signatories
+  letterheads: [],        // trip_doc_letterheads
   tab: "docs",
   // create-doc flow
   pickedFields: [],       // placeholder names ของแม่แบบที่เลือก
@@ -17,6 +18,9 @@ const state = {
   // signatory manager
   editSigId: null,
   sigImgData: null,       // base64 data URL ที่กำลังแก้
+  // letterhead manager
+  editLhId: null,
+  lhLogoData: null,       // base64 logo ที่กำลังแก้
   // excel import
   importRows: [],         // raw rows จาก Excel
   // selections
@@ -25,12 +29,13 @@ const state = {
 };
 
 // ── หัวกระดาษ A4S (คงที่ทุกเอกสาร) ──────────────────────────
+// default (fallback ถ้ายังไม่มี row ใน trip_doc_letterheads)
 const LETTERHEAD = {
   logoUrl: "../../assets/logo/logo-a4s.png",
   nameEn: "A4S Can Corporation Co., Ltd.",
   addr:
-    "Imperial World Ladprao 3rd Floor, Room AT 02-03, No. 2539 Khlong Chaokhun Sing,<br>" +
-    "Khet Wang Thonglang, Bangkok 10310. &nbsp;Tel: 092-326-4946 &nbsp;Email: A4Sservice@gmail.com",
+    "Imperial World Ladprao 3rd Floor, Room AT 02-03, No. 2539 Khlong Chaokhun Sing,\n" +
+    "Khet Wang Thonglang, Bangkok 10310.  Tel: 092-326-4946  Email: A4Sservice@gmail.com",
 };
 
 function getSB() {
@@ -69,20 +74,116 @@ async function init() {
     return;
   }
   bindEvents();
+  initRTE();
   await loadAll();
+}
+
+// ── RICH-TEXT EDITOR (contenteditable + toolbar) ───────────
+function initRTE() {
+  try { document.execCommand("styleWithCSS", false, true); } catch (e) {}
+  document.querySelectorAll(".rte-toolbar button[data-cmd]").forEach((btn) => {
+    btn.addEventListener("mousedown", (e) => e.preventDefault()); // คง selection ไว้
+    btn.addEventListener("click", () => {
+      document.execCommand(btn.dataset.cmd, false, null);
+    });
+  });
+  // ปุ่มเพิ่ม/ลดขนาดฟอนต์
+  document.querySelectorAll(".rte-toolbar button[data-font]").forEach((btn) => {
+    btn.addEventListener("mousedown", (e) => e.preventDefault());
+    btn.addEventListener("click", () => rteFont(btn.dataset.font === "up" ? 2 : -2));
+  });
+  // ช่องพิมพ์ขนาด px
+  document.querySelectorAll(".rte-size").forEach((inp) => {
+    inp.addEventListener("change", () => {
+      const px = parseInt(inp.value, 10);
+      if (!px || !_lastArea) return;
+      _lastArea.focus();
+      restoreRteRange();
+      applyFontPx(px);
+    });
+    inp.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") { e.preventDefault(); inp.blur(); }
+    });
+  });
+  // ติดตาม selection → อัปเดตช่องขนาด + จำ range ไว้ (กันหลุดตอนคลิกช่อง px)
+  document.addEventListener("selectionchange", onRteSelChange);
+}
+
+let _lastRteRange = null;
+let _lastArea = null;
+
+function anchorEl(sel) {
+  const a = sel.anchorNode;
+  return a && (a.nodeType === 3 ? a.parentElement : a);
+}
+function onRteSelChange() {
+  const sel = window.getSelection();
+  if (!sel || !sel.rangeCount) return;
+  const el = anchorEl(sel);
+  const area = el && el.closest && el.closest(".rte-area");
+  if (!area) return; // selection อยู่นอก editor → คง range เดิมไว้
+  _lastRteRange = sel.getRangeAt(0).cloneRange();
+  _lastArea = area;
+  const cur = Math.round(parseFloat(getComputedStyle(el).fontSize) || 15);
+  const box = area.parentElement.querySelector(".rte-size");
+  if (box && document.activeElement !== box) box.value = cur;
+}
+function restoreRteRange() {
+  if (!_lastRteRange) return;
+  const sel = window.getSelection();
+  sel.removeAllRanges();
+  sel.addRange(_lastRteRange);
+}
+// wrap selection เป็น span ขนาด px (รองรับเลือกข้ามบรรทัด)
+function applyFontPx(px) {
+  px = Math.min(96, Math.max(9, px | 0));
+  // ปิด styleWithCSS ชั่วคราว → fontSize สร้าง <font size="7"> ให้เราแปลงเป็น px เอง
+  // (ถ้าเปิดไว้ มันจะใส่ font-size:xx-large แทน ทำให้ขนาดโดด)
+  document.execCommand("styleWithCSS", false, false);
+  document.execCommand("fontSize", false, "7");
+  document.querySelectorAll('.rte-area font[size="7"]').forEach((f) => {
+    f.removeAttribute("size");
+    f.style.fontSize = px + "px";
+  });
+  document.execCommand("styleWithCSS", false, true); // คืนค่าให้ align ใช้ CSS
+  onRteSelChange();
+}
+// เพิ่ม/ลดขนาดฟอนต์ของข้อความที่เลือก (delta px)
+function rteFont(delta) {
+  const sel = window.getSelection();
+  if (!sel || !sel.rangeCount || sel.isCollapsed) {
+    showToast("เลือกข้อความที่ต้องการปรับขนาดก่อน", "error");
+    return;
+  }
+  const el = anchorEl(sel);
+  const cur = el ? parseFloat(getComputedStyle(el).fontSize) || 15 : 15;
+  applyFontPx(Math.round(cur) + delta);
+}
+function getEditorHTML(id) {
+  return document.getElementById(id)?.innerHTML || "";
+}
+function setEditorHTML(id, html) {
+  const el = document.getElementById(id);
+  if (el) el.innerHTML = html || "";
+}
+function editorIsEmpty(id) {
+  const el = document.getElementById(id);
+  return !el || !el.textContent.trim();
 }
 
 async function loadAll() {
   showLoading(true);
   try {
-    const [tpls, docs, sigs] = await Promise.all([
+    const [tpls, docs, sigs, lhs] = await Promise.all([
       sbFetch("trip_doc_templates", "?select=*&order=updated_at.desc").catch(() => []),
       sbFetch("trip_documents", "?select=*&order=updated_at.desc").catch(() => []),
       sbFetch("trip_doc_signatories", "?select=*&order=name").catch(() => []),
+      sbFetch("trip_doc_letterheads", "?select=*&order=letterhead_id").catch(() => []),
     ]);
     state.templates = tpls || [];
     state.docs = docs || [];
     state.signatories = sigs || [];
+    state.letterheads = lhs || [];
     populateTemplateFilter();
     updateStatCards();
     renderDocs();
@@ -362,8 +463,9 @@ window.openDocEdit = function (id) {
   state.editDocId = id;
   document.getElementById("deTitle").value = d.title || "";
   document.getElementById("deStatus").value = d.status || "DRAFT";
-  document.getElementById("deBody").value = d.body || "";
+  setEditorHTML("deBody", d.body);
   fillSignatorySelect("deSignatory", d.signatory_id);
+  fillLetterheadSelect("deLetterhead", d.letterhead_id);
   document.getElementById("docEditTitle").textContent = "แก้ไขเอกสาร";
   document.getElementById("docEditOverlay").classList.add("open");
 };
@@ -384,6 +486,18 @@ function fillSignatorySelect(selId, selectedId) {
       .join("");
   sel.value = selectedId != null ? String(selectedId) : "";
 }
+
+// เติม <option> หัวกระดาษใน select ที่ระบุ
+function fillLetterheadSelect(selId, selectedId) {
+  const sel = document.getElementById(selId);
+  if (!sel) return;
+  sel.innerHTML =
+    `<option value="">— หัวเริ่มต้น —</option>` +
+    state.letterheads
+      .map((l) => `<option value="${l.letterhead_id}">${escapeHtml(l.name)}</option>`)
+      .join("");
+  sel.value = selectedId != null ? String(selectedId) : "";
+}
 window.closeDocEdit = function (e) {
   if (e && e.target.id !== "docEditOverlay") return;
   document.getElementById("docEditOverlay").classList.remove("open");
@@ -400,7 +514,8 @@ window.saveDoc = async function () {
     title,
     status: document.getElementById("deStatus").value || "DRAFT",
     signatory_id: +document.getElementById("deSignatory").value || null,
-    body: document.getElementById("deBody").value,
+    letterhead_id: +document.getElementById("deLetterhead").value || null,
+    body: getEditorHTML("deBody"),
     updated_at: new Date().toISOString(),
   };
   showLoading(true);
@@ -420,18 +535,33 @@ window.saveDoc = async function () {
 };
 
 // ── COMPOSE / PREVIEW / PRINT ──────────────────────────────
-// ประกอบ HTML ของเอกสารเต็ม: หัวกระดาษ A4S + เนื้อหา + บล็อกลายเซ็น
-function composeDocHtml(body, signatoryId) {
+// หาหัวกระดาษที่จะใช้ (id → row · null → ตัวแรก · ไม่มีเลย → default const)
+function resolveLetterhead(id) {
+  if (id) {
+    const f = state.letterheads.find((l) => l.letterhead_id === +id);
+    if (f) return f;
+  }
+  if (state.letterheads.length) return state.letterheads[0];
+  return { logo_data: null, company_name: LETTERHEAD.nameEn, address: LETTERHEAD.addr };
+}
+
+// ประกอบ HTML ของเอกสารเต็ม: หัวกระดาษ + เนื้อหา + บล็อกลายเซ็น
+function composeDocHtml(body, signatoryId, letterheadId) {
+  const lh = resolveLetterhead(letterheadId);
+  const logoSrc = lh.logo_data || LETTERHEAD.logoUrl;
+  const addrHtml = escapeHtml(lh.address || "").replace(/\n/g, "<br>");
   const head = `
     <div class="doc-letterhead">
-      <img src="${LETTERHEAD.logoUrl}" alt="A4S" onerror="this.style.display='none'" />
+      <div class="lh-logo">${logoSrc ? `<img src="${logoSrc}" alt="logo" onerror="this.style.display='none'" />` : ""}</div>
       <div class="lh-info">
-        <div class="lh-name">${LETTERHEAD.nameEn}</div>
-        <div class="lh-addr">${LETTERHEAD.addr}</div>
+        <div class="lh-name">${escapeHtml(lh.company_name || "")}</div>
+        <div class="lh-addr">${addrHtml}</div>
       </div>
+      <div class="lh-logo" aria-hidden="true"></div>
     </div>`;
 
-  const bodyHtml = `<div class="doc-body">${escapeHtml(body || "")}</div>`;
+  // body เป็น HTML (rich-text) แล้ว → inject ตรงๆ
+  const bodyHtml = `<div class="doc-body">${body || ""}</div>`;
 
   let sigHtml = "";
   const sig = signatoryId
@@ -455,23 +585,24 @@ function composeDocHtml(body, signatoryId) {
 // state ของ preview ปัจจุบัน (สำหรับปุ่มพิมพ์)
 let _previewTitle = "เอกสาร";
 
-function showPreview(title, body, signatoryId) {
+function showPreview(title, body, signatoryId, letterheadId) {
   _previewTitle = title || "เอกสาร";
-  document.getElementById("previewPaper").innerHTML = composeDocHtml(body, signatoryId);
+  document.getElementById("previewPaper").innerHTML = composeDocHtml(body, signatoryId, letterheadId);
   document.getElementById("previewOverlay").classList.add("open");
 }
 
 window.previewDocFromEditor = function () {
   showPreview(
     document.getElementById("deTitle").value,
-    document.getElementById("deBody").value,
-    +document.getElementById("deSignatory").value || null
+    getEditorHTML("deBody"),
+    +document.getElementById("deSignatory").value || null,
+    +document.getElementById("deLetterhead").value || null
   );
 };
 window.printDoc = function (id) {
   const d = state.docs.find((x) => x.doc_id === id);
   if (!d) return;
-  showPreview(d.title, d.body, d.signatory_id);
+  showPreview(d.title, d.body, d.signatory_id, d.letterhead_id);
 };
 window.closePreview = function (e) {
   if (e && e.target.id !== "previewOverlay") return;
@@ -609,7 +740,7 @@ window.openTemplateModal = function (id) {
   document.getElementById("tplName").value = t?.name || "";
   document.getElementById("tplCategory").value = t?.category || "";
   document.getElementById("tplDesc").value = t?.description || "";
-  document.getElementById("tplBody").value = t?.body || "";
+  setEditorHTML("tplBody", t?.body);
   refreshTplFields();
   document.getElementById("tplOverlay").classList.add("open");
   setTimeout(() => document.getElementById("tplName").focus(), 50);
@@ -620,7 +751,8 @@ window.closeTemplateModal = function (e) {
   state.editTplId = null;
 };
 window.refreshTplFields = function () {
-  const body = document.getElementById("tplBody").value || "";
+  // ดึง {{ฟิลด์}} จาก text (placeholders เป็น plain text ใน HTML)
+  const body = document.getElementById("tplBody")?.textContent || "";
   const fields = extractFields(body);
   const el = document.getElementById("tplFieldsPreview");
   if (!fields.length) {
@@ -633,12 +765,12 @@ window.refreshTplFields = function () {
 };
 window.saveTemplate = async function () {
   const name = document.getElementById("tplName").value.trim();
-  const body = document.getElementById("tplBody").value;
+  const body = getEditorHTML("tplBody");
   if (!name) {
     showToast("กรุณากรอกชื่อแม่แบบ", "error");
     return;
   }
-  if (!body.trim()) {
+  if (editorIsEmpty("tplBody")) {
     showToast("กรุณากรอกเนื้อหาแม่แบบ", "error");
     return;
   }
@@ -685,6 +817,7 @@ window.openImportModal = function () {
       .join("");
   tSel.value = "";
   fillSignatorySelect("impSignatory", null);
+  fillLetterheadSelect("impLetterhead", null);
   document.getElementById("impStatus").value = "DRAFT";
   document.getElementById("impFile").value = "";
   document.getElementById("impFileName").textContent = "";
@@ -759,9 +892,10 @@ window.onImportFile = function (event) {
   const reader = new FileReader();
   reader.onload = (e) => {
     try {
-      const wb = XLSX.read(e.target.result, { type: "binary", cellDates: true });
+      const wb = XLSX.read(e.target.result, { type: "binary" });
       const ws = wb.Sheets[wb.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json(ws, { defval: "" });
+      // raw:false → อ่านค่าตามที่แสดงใน Excel (วันที่/ตัวเลขคงรูปแบบเดิม ไม่กลายเป็น Date object)
+      const rows = XLSX.utils.sheet_to_json(ws, { defval: "", raw: false });
       if (!rows.length) {
         showToast("ไม่พบข้อมูลในไฟล์", "error");
         return;
@@ -817,6 +951,7 @@ window.runImport = async function () {
   }
   const fields = extractFields(t.body || "");
   const sigId = +document.getElementById("impSignatory").value || null;
+  const lhId = +document.getElementById("impLetterhead").value || null;
   const status = document.getElementById("impStatus").value || "DRAFT";
   const now = new Date().toISOString();
 
@@ -833,6 +968,7 @@ window.runImport = async function () {
     return {
       template_id: t.template_id,
       signatory_id: sigId,
+      letterhead_id: lhId,
       title,
       status,
       field_values: values,
@@ -1024,6 +1160,148 @@ function resizeImageToPngDataUrl(file, maxW) {
   });
 }
 
+// ════════════════════════════════════════════════════════════
+//   หัวกระดาษ (LETTERHEADS) — nested manager
+// ════════════════════════════════════════════════════════════
+window.openLetterheadManager = function () {
+  resetLetterheadForm();
+  renderLetterheadList();
+  document.getElementById("lhMgrOverlay").classList.add("open");
+};
+window.closeLetterheadManager = function (e) {
+  if (e && e.target.id !== "lhMgrOverlay") return;
+  document.getElementById("lhMgrOverlay").classList.remove("open");
+  // refresh dropdown หัวกระดาษ (คงค่าที่เลือกไว้)
+  const curDe = document.getElementById("deLetterhead")?.value || "";
+  fillLetterheadSelect("deLetterhead", curDe || null);
+  const curImp = document.getElementById("impLetterhead")?.value || "";
+  fillLetterheadSelect("impLetterhead", curImp || null);
+};
+
+function renderLetterheadList() {
+  const wrap = document.getElementById("lhList");
+  if (!state.letterheads.length) {
+    wrap.innerHTML = `<div class="field-chips-empty" style="padding:8px 0">ยังไม่มีหัวกระดาษ — เพิ่มด้านบน</div>`;
+    return;
+  }
+  wrap.innerHTML = state.letterheads
+    .map(
+      (l) => `<div class="sig-row">
+        ${
+          l.logo_data
+            ? `<img src="${l.logo_data}" alt="logo" />`
+            : `<img src="${LETTERHEAD.logoUrl}" alt="logo" onerror="this.style.display='none'" />`
+        }
+        <div class="sig-meta">
+          <b>${escapeHtml(l.name)}</b>
+          <div>${escapeHtml(l.company_name || "—")}</div>
+        </div>
+        <button class="btn-icon" title="แก้ไข" onclick="window.editLetterhead(${l.letterhead_id})">✏️</button>
+        <button class="btn-icon danger" title="ลบ" onclick="window.deleteLetterhead(${l.letterhead_id})">🗑</button>
+      </div>`
+    )
+    .join("");
+}
+
+window.resetLetterheadForm = function () {
+  state.editLhId = null;
+  state.lhLogoData = null;
+  document.getElementById("lhName").value = "";
+  document.getElementById("lhCompany").value = "";
+  document.getElementById("lhAddress").value = "";
+  document.getElementById("lhFile").value = "";
+  document.getElementById("lhLogoBox").innerHTML = `<span class="ph">โลโก้ A4S เริ่มต้น</span>`;
+  document.getElementById("lhSaveBtn").textContent = "＋ เพิ่มหัวกระดาษ";
+  document.getElementById("lhCancelEdit").style.display = "none";
+};
+
+window.editLetterhead = function (id) {
+  const l = state.letterheads.find((x) => x.letterhead_id === id);
+  if (!l) return;
+  state.editLhId = id;
+  state.lhLogoData = l.logo_data || null;
+  document.getElementById("lhName").value = l.name || "";
+  document.getElementById("lhCompany").value = l.company_name || "";
+  document.getElementById("lhAddress").value = l.address || "";
+  document.getElementById("lhLogoBox").innerHTML = l.logo_data
+    ? `<img src="${l.logo_data}" alt="logo" />`
+    : `<span class="ph">โลโก้ A4S เริ่มต้น</span>`;
+  document.getElementById("lhSaveBtn").textContent = "💾 บันทึกการแก้ไข";
+  document.getElementById("lhCancelEdit").style.display = "";
+};
+
+window.onLogoPicked = async function (e) {
+  const file = e.target.files?.[0];
+  if (!file) return;
+  try {
+    state.lhLogoData = await resizeImageToPngDataUrl(file, 320);
+    document.getElementById("lhLogoBox").innerHTML = `<img src="${state.lhLogoData}" alt="logo" />`;
+  } catch (err) {
+    showToast("อ่านรูปไม่ได้: " + err.message, "error");
+  }
+};
+window.clearLogoImg = function () {
+  state.lhLogoData = null;
+  document.getElementById("lhFile").value = "";
+  document.getElementById("lhLogoBox").innerHTML = `<span class="ph">โลโก้ A4S เริ่มต้น</span>`;
+};
+
+window.saveLetterhead = async function () {
+  const name = document.getElementById("lhName").value.trim();
+  if (!name) {
+    showToast("กรุณากรอกชื่อหัวกระดาษ", "error");
+    return;
+  }
+  const payload = {
+    name,
+    company_name: document.getElementById("lhCompany").value.trim() || null,
+    address: document.getElementById("lhAddress").value.trim() || null,
+    logo_data: state.lhLogoData || null,
+    updated_at: new Date().toISOString(),
+  };
+  showLoading(true);
+  try {
+    if (state.editLhId) {
+      await sbFetch("trip_doc_letterheads", `?letterhead_id=eq.${state.editLhId}`, {
+        method: "PATCH",
+        body: payload,
+      });
+      showToast("แก้ไขหัวกระดาษแล้ว", "success");
+    } else {
+      await sbFetch("trip_doc_letterheads", "", { method: "POST", body: payload });
+      showToast("เพิ่มหัวกระดาษแล้ว", "success");
+    }
+    state.letterheads =
+      (await sbFetch("trip_doc_letterheads", "?select=*&order=letterhead_id").catch(() => [])) || [];
+    resetLetterheadForm();
+    renderLetterheadList();
+  } catch (e) {
+    showToast("บันทึกไม่ได้: " + e.message, "error");
+  }
+  showLoading(false);
+};
+
+window.deleteLetterhead = function (id) {
+  const l = state.letterheads.find((x) => x.letterhead_id === id);
+  if (!l) return;
+  const opener = window.DeleteModal?.open || window.ConfirmModal?.open;
+  const run = async () => {
+    showLoading(true);
+    try {
+      await sbFetch("trip_doc_letterheads", `?letterhead_id=eq.${id}`, { method: "DELETE" });
+      showToast("ลบหัวกระดาษแล้ว", "success");
+      state.letterheads =
+        (await sbFetch("trip_doc_letterheads", "?select=*&order=letterhead_id").catch(() => [])) || [];
+      if (state.editLhId === id) resetLetterheadForm();
+      renderLetterheadList();
+    } catch (e) {
+      showToast("ลบไม่ได้: " + e.message, "error");
+    }
+    showLoading(false);
+  };
+  opener ? opener(`ต้องการลบหัวกระดาษ "${l.name}" หรือไม่? (เอกสารที่ใช้หัวนี้จะกลับไปใช้หัวเริ่มต้น)`, run) : run();
+};
+
 // ── PLACEHOLDER HELPERS ────────────────────────────────────
 // ดึงชื่อฟิลด์จาก {{...}} (unique, เรียงตามที่พบ)
 function extractFields(body) {
@@ -1037,10 +1315,11 @@ function extractFields(body) {
   return seen;
 }
 // แทน {{ฟิลด์}} ด้วยค่า (ค่าว่าง → เก็บ {{ฟิลด์}} ไว้ให้เห็นว่ายังไม่กรอก)
+// body เป็น HTML → escape ค่าที่แทน กันค่าผู้ใช้ทำลาย markup
 function renderTemplate(body, values) {
   return body.replace(/\{\{\s*([^}]+?)\s*\}\}/g, (full, key) => {
     const v = values[key.trim()];
-    return v != null && v !== "" ? v : full;
+    return v != null && v !== "" ? escapeHtml(v) : full;
   });
 }
 

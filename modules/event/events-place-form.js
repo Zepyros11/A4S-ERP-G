@@ -1012,7 +1012,7 @@ window.openRoomForManager = function () {
     </div>
   `;
 
-  modal.addEventListener("click", (e) => { if (e.target === modal) modal.classList.remove("show"); });
+  // Backdrop-click-to-close disabled (prevents accidental loss of edits). Use ✕ / ESC.
 
   modal.querySelector("#rfAddBtn").addEventListener("click", () => {
     const list = modal.querySelector("#rfList");
@@ -1678,7 +1678,7 @@ function renderPTModal() {
 
   // bind events
   modal.querySelector(".pt-modal-overlay, .pt-modal")?.addEventListener("click", (e) => e.stopPropagation());
-  modal.addEventListener("click", (e) => { if (e.target === modal) modal.classList.remove("show"); });
+  // Backdrop-click-to-close disabled (prevents accidental loss of edits). Use ✕ / ESC.
   // Esc close handled by modalManager.js
 
   modal.querySelector("#ptAddBtn").addEventListener("click", () => {

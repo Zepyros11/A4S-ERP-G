@@ -487,15 +487,29 @@ function sortValue(row, col) {
 
 // sentinel แทน "ค่าว่าง" ใน filter set — ใช้ string ที่ไม่น่าซ้ำกับข้อมูลจริง
 const BLANK_VAL = "__BLANK__";
+// sentinel สำหรับคอลัมน์รูป (image) — filter แบบ binary: มีภาพ / ไม่มีภาพ
+// (URL รูปแต่ละใบไม่ซ้ำกัน → กรองตาม URL ไม่มีประโยชน์ จึงยุบเป็น 2 ตัวเลือก)
+const HAS_IMG_VAL = "__HAS_IMG__";
 // ป้าย "(ว่าง)" — เป็น function เพราะต้องเปลี่ยนตามภาษาปัจจุบัน
 function blankLabel() { return T("cr.blank"); }
 
 // คืน distinct values ของคอลัมน์ — ใช้ทั้งเช็คว่ามี filter ได้ไหม + populate dropdown
 // คำนวณจาก expandedPax (ก่อน apply filter) เพื่อให้เห็นทุก option เสมอ
 // ถ้าคอลัมน์มีแถวที่ค่าว่าง → ใส่ BLANK_VAL ไว้ท้าย list ให้ filter ได้ด้วย
+// คอลัมน์รูป → ยุบเป็น 2 ตัวเลือก: HAS_IMG_VAL (มีภาพ) + BLANK_VAL (ไม่มีภาพ)
 function distinctValuesFor(key) {
   const col = COL_BY_KEY[key];
   if (!col) return [];
+  if (col.fmt === "image") {
+    let hasImg = false, hasBlank = false;
+    expandedPax().forEach(row => {
+      if (cellValue(row, col)) hasImg = true; else hasBlank = true;
+    });
+    const arr = [];
+    if (hasImg) arr.push(HAS_IMG_VAL);
+    if (hasBlank) arr.push(BLANK_VAL);
+    return arr;
+  }
   const set = new Set();
   let hasBlank = false;
   expandedPax().forEach(row => {
@@ -567,6 +581,8 @@ function filterRows(rows) {
       const col = COL_BY_KEY[key];
       if (!col) return true;
       const v = cellValue(row, col);
+      // คอลัมน์รูป: เทียบ binary มีภาพ/ไม่มีภาพ (ไม่เทียบ URL)
+      if (col.fmt === "image") return set.has(v ? HAS_IMG_VAL : BLANK_VAL);
       if (v === "" || v == null) return set.has(BLANK_VAL);
       return set.has(v);
     }));
@@ -627,13 +643,15 @@ function renderFilterPopoverBody() {
     listEl.innerHTML = `<div class="cr-fpop-empty">${escapeHtml(T("cr.fpop.notFound"))}</div>`;
     return;
   }
+  const isImgCol = COL_BY_KEY[key]?.fmt === "image";
   listEl.innerHTML = shown.map(v => {
     const id = "_crf_" + Math.random().toString(36).slice(2, 9);
     const checked = draft.has(v) ? "checked" : "";
     const isBlank = v === BLANK_VAL;
-    const display = isBlank
-      ? `<span style="font-style:italic;color:var(--text3)">${escapeHtml(blankLabel())}</span>`
-      : `<span>${escapeHtml(v)}</span>`;
+    let display;
+    if (v === HAS_IMG_VAL) display = `<span>${escapeHtml(T("cr.img.has"))}</span>`;
+    else if (isBlank) display = `<span style="font-style:italic;color:var(--text3)">${escapeHtml(isImgCol ? T("cr.img.none") : blankLabel())}</span>`;
+    else display = `<span>${escapeHtml(v)}</span>`;
     return `<label><input type="checkbox" id="${id}" ${checked} data-val="${escapeHtml(v)}"
         onchange="window._crFilterToggle(this)">${display}</label>`;
   }).join("");
@@ -1201,6 +1219,26 @@ function applyPrintStyles(targetEl, hasImageCol) {
   }
 }
 
+// รอให้ <img> ทุกใบใน container โหลดเสร็จ (หรือ error) ก่อนพิมพ์
+// เหตุ: print area ถูกซ่อนบนจอ (แสดงเฉพาะ @media print) + img เป็น loading="lazy"
+//   → เบราว์เซอร์ไม่โหลดจนกว่าจะเข้า viewport ทำให้ตอนพิมพ์ภาพว่าง
+//   ปลด lazy เป็น eager เพื่อบังคับโหลดทันที แล้วรอ load/error ค่อย print
+function waitForImages(container, timeoutMs = 10000) {
+  const imgs = Array.from(container.querySelectorAll("img"));
+  imgs.forEach(img => { img.loading = "eager"; });
+  const pending = imgs.filter(img => !img.complete);
+  if (!pending.length) return Promise.resolve();
+  return new Promise(resolve => {
+    let left = pending.length;
+    const done = () => { if (--left <= 0) resolve(); };
+    pending.forEach(img => {
+      img.addEventListener("load", done, { once: true });
+      img.addEventListener("error", done, { once: true });
+    });
+    setTimeout(resolve, timeoutMs); // fallback กันค้างถ้ารูปบางใบโหลดไม่จบ
+  });
+}
+
 window.exportReportPrint = function () {
   if (!state.selected.length) { showToast(T("cr.toast.selectColsPrint"), "info"); return; }
   const cols = outputCols();
@@ -1248,7 +1286,8 @@ window.exportReportPrint = function () {
     printArea.innerHTML = payload.html;
   }
   showToast(T("cr.toast.printOpen"), "info");
-  setTimeout(() => window.print(), 80);
+  // รอภาพโหลดเสร็จก่อนพิมพ์ (lazy + print area ซ่อน → ภาพว่างถ้าพิมพ์เร็วไป)
+  waitForImages(printArea).then(() => window.print());
 };
 
 // จำนวนหน้า A4 สูงสุดที่จะ render ใน preview — กันช้ากรณีรายงานใหญ่

@@ -56,6 +56,8 @@ I18n.register({
   "cr.img.alt":            { th: "ภาพขยาย", en: "Enlarged image" },
   "cr.img.closeTitle":     { th: "ปิด", en: "Close" },
   "cr.img.zoomTip":        { th: "คลิกเพื่อดูภาพขยาย", en: "Click to enlarge" },
+  "cr.img.has":            { th: "📷 มีภาพ", en: "📷 Has image" },
+  "cr.img.none":           { th: "ไม่มีภาพ", en: "No image" },
 
   // ── Column group labels ────────────────────────────────
   "cr.grp.checkseat":      { th: "🪑 Check Seat", en: "🪑 Check Seat" },

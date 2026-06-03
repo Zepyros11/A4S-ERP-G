@@ -58,6 +58,7 @@ const state = {
   collapsedFlightTickets: new Set(), // flight_id ที่ย่อทั้งโซน Ticket
   flightFilterDep: null,      // กรองเลขเที่ยวบินขาไป (null = ทั้งหมด)
   flightFilterRet: null,      // กรองเลขเที่ยวบินขากลับ (null = ทั้งหมด)
+  flightFilterPort: null,     // กรองสนามบินต้นทาง (port) (null = ทั้งหมด)
   editingFlightId: null,
   flightDraftImgs: [],        // รูปใน modal ระหว่างสร้าง/แก้ไข (array of public URL)
 };
@@ -5097,9 +5098,17 @@ function flightDistinctNumbers(leg) {
   return [...s].sort();
 }
 
+// สนามบินต้นทาง (port) distinct สำหรับ filter bar
+function flightDistinctPorts() {
+  const s = new Set();
+  (state.flights || []).forEach(f => { const v = (f.port || "").trim(); if (v) s.add(v); });
+  return [...s].sort();
+}
+
 function flightMatchesFilter(f) {
   const okLeg = (leg, val) => !val || flGetSegs(f, leg).some(s => (s.flight || "").trim() === val);
-  return okLeg("dep", state.flightFilterDep) && okLeg("ret", state.flightFilterRet);
+  const okPort = !state.flightFilterPort || (f.port || "").trim() === state.flightFilterPort;
+  return okLeg("dep", state.flightFilterDep) && okLeg("ret", state.flightFilterRet) && okPort;
 }
 
 function renderFlightFilterBar() {
@@ -5107,7 +5116,8 @@ function renderFlightFilterBar() {
   if (!bar) return;
   const dep = flightDistinctNumbers("dep");
   const ret = flightDistinctNumbers("ret");
-  if (state.activeTab !== "flights" || (dep.length < 2 && ret.length < 2)) {
+  const ports = flightDistinctPorts();
+  if (state.activeTab !== "flights" || (dep.length < 2 && ret.length < 2 && ports.length < 2)) {
     bar.style.display = "none";
     bar.innerHTML = "";
     return;
@@ -5118,13 +5128,15 @@ function renderFlightFilterBar() {
   const rowHtml = (leg, label, nums, sel) => nums.length
     ? `<div class="fl-filter-row"><span class="fl-filter-label">${label}</span>${chip(leg, null, "ทั้งหมด", !sel)}${nums.map(n => chip(leg, n, n, sel === n)).join("")}</div>`
     : "";
-  bar.innerHTML = rowHtml("dep", "🛫 ขาไป:", dep, state.flightFilterDep)
+  bar.innerHTML = rowHtml("port", "📍 สนามบิน:", ports, state.flightFilterPort)
+    + rowHtml("dep", "🛫 ขาไป:", dep, state.flightFilterDep)
     + rowHtml("ret", "🛬 ขากลับ:", ret, state.flightFilterRet);
 }
 
 window.setFlightFilter = function (leg, val) {
   if (leg === "dep") state.flightFilterDep = val || null;
-  else state.flightFilterRet = val || null;
+  else if (leg === "ret") state.flightFilterRet = val || null;
+  else if (leg === "port") state.flightFilterPort = val || null;
   renderFlights();
 };
 

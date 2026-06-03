@@ -872,16 +872,19 @@
     display: block !important;
   }
 
-  /* Flexbox shrink-wrap. Page breaks are enforced via explicit
-     .nmc-page-break divs (injected by JS), not via height tricks. */
+  /* Each sheet = one FULL A4 page (297mm tall · 170mm card area centered).
+     Page breaks enforced with a single break-after per sheet — NOT via the
+     injected .nmc-page-break divs (hidden below). Using full page height +
+     one break direction avoids the double-break / "all on 1 sheet" collapse
+     that Edge's print pipeline produced with the old flex + break-before. */
   .nmc-print-area .nmc-a4 {
-    display: flex !important;
-    flex-wrap: wrap !important;
-    flex-direction: row !important;
+    display: grid !important;
+    grid-template-columns: repeat(2, 85mm) !important;
+    grid-template-rows: repeat(4, 60mm) !important;
     width: 170mm !important;
-    height: auto !important;
-    min-height: 0 !important;
-    max-height: none !important;
+    height: 297mm !important;
+    min-height: 297mm !important;
+    max-height: 297mm !important;
     box-sizing: border-box !important;
     padding: 0 !important;
     margin: 0 auto !important;
@@ -889,21 +892,27 @@
     transform: none !important;
     transform-origin: 0 0 !important;
     --nmc-zoom: 1 !important;
-    grid-template-columns: none !important;
-    grid-template-rows: none !important;
     gap: 0 !important;
-    justify-content: flex-start !important;
-    align-content: flex-start !important;
+    justify-content: center !important;
+    align-content: start !important;
+    overflow: hidden !important;
+    page-break-after: always !important;
+    break-after: page !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
   }
-  /* Force break BEFORE every subsequent sheet (extra insurance) */
-  .nmc-print-area .nmc-a4 + .nmc-a4 {
-    page-break-before: always !important;
-    break-before: page !important;
-  }
+  /* Last sheet: no trailing blank page */
   .nmc-print-area .nmc-a4:last-child {
     page-break-after: auto !important;
     break-after: auto !important;
   }
+  /* Injected break divs are redundant with break-after above — kill them
+     so they can't introduce extra blank pages. */
+  .nmc-print-area .nmc-page-break { display: none !important; }
+  /* window.print() is triggered only from the namecard tab; VIP/Cert use
+     the html2canvas export path (screen media), so keep their off-screen
+     render targets out of the printout. */
+  #vipPrintArea, #certPrintArea { display: none !important; }
   .nmc-print-area .nmc-card {
     border: 1px dashed #cbd5e1;
     width: 85mm !important;

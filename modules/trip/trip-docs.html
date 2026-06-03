@@ -78,18 +78,49 @@
         box-shadow:0 4px 24px rgba(0,0,0,.12);
         min-height:1000px;
       }
+      /* 2 คอลัมน์: logo ซ้าย | info กึ่งกลาง | spacer ขวา (สมดุล) — logo ไม่ทับข้อความ */
       .doc-letterhead{
-        display:flex;align-items:center;gap:18px;
-        padding-bottom:14px;border-bottom:2px solid #111;margin-bottom:36px;
+        display:flex;align-items:center;gap:14px;
+        padding-bottom:12px;border-bottom:2px solid #111;margin-bottom:34px;
       }
-      .doc-letterhead img{ width:74px;height:auto;flex-shrink:0; }
-      .doc-letterhead .lh-info{ flex:1;text-align:center; }
-      .doc-letterhead .lh-name{ font-size:17px;font-weight:700;color:#111;margin-bottom:3px; }
-      .doc-letterhead .lh-addr{ font-size:12px;line-height:1.55;color:#333; }
+      .doc-letterhead .lh-logo{ width:96px;flex-shrink:0;text-align:center; }
+      .doc-letterhead .lh-logo img{ max-width:96px;max-height:82px;height:auto; }
+      .doc-letterhead .lh-info{ flex:1;text-align:center;min-width:0; }
+      .doc-letterhead .lh-name{ font-size:16px;font-weight:700;color:#111;margin-bottom:4px; }
+      .doc-letterhead .lh-addr{ font-size:12.5px;line-height:1.6;color:#222; }
       .doc-body{
-        white-space:pre-wrap;font-size:15px;line-height:1.9;color:#1f2937;
-        min-height:340px;
+        font-size:15px;line-height:1.9;color:#1f2937;min-height:340px;
       }
+      .doc-body p{ margin:0 0 12px; }
+      .doc-body div{ margin:0; }
+      .doc-body ul,.doc-body ol{ margin:0 0 12px;padding-left:26px; }
+
+      /* ── rich-text editor (RTE) ──────────────────────────── */
+      .rte{ border:1px solid var(--border,#d8dee4);border-radius:10px;overflow:hidden;background:#fff; }
+      .rte-toolbar{
+        display:flex;flex-wrap:wrap;gap:2px;padding:6px 8px;
+        background:#f6f8fa;border-bottom:1px solid var(--border,#e5e7eb);
+      }
+      .rte-toolbar button{
+        min-width:30px;height:28px;border:1px solid transparent;background:transparent;
+        border-radius:6px;cursor:pointer;font-size:13px;color:#374151;padding:0 9px;
+        display:inline-flex;align-items:center;justify-content:center;line-height:1;
+      }
+      .rte-toolbar button:hover{ background:#e5e9ee; }
+      .rte-toolbar .rte-sep{ width:1px;background:#d1d5db;margin:3px 5px; }
+      .rte-size{
+        width:50px;height:28px;text-align:center;border:1px solid #d1d5db;
+        border-radius:6px;font-size:12.5px;color:#374151;background:#fff;
+        margin:0 1px;padding:0 4px;
+      }
+      .rte-size::-webkit-inner-spin-button{ opacity:1; }
+      .rte-area{
+        min-height:320px;max-height:48vh;overflow:auto;padding:16px 18px;background:#fff;
+        font-family:"Sarabun","Segoe UI",sans-serif;font-size:15px;line-height:1.85;
+        color:#1f2937;outline:none;
+      }
+      .rte-area:empty:before{ content:attr(data-ph);color:#9ca3af; }
+      .rte-area p{ margin:0 0 12px; }
       .doc-signature{
         margin-top:48px;text-align:center;width:300px;margin-left:auto;
       }
@@ -118,12 +149,15 @@
       .sig-preview-box img{ max-width:200px;max-height:80px;object-fit:contain; }
       .sig-preview-box .ph{ color:var(--text3);font-size:12.5px; }
 
+      /* paper ใช้ขนาด A4 เป๊ะ → preview กับ print ตัดบรรทัดเหมือนกัน (WYSIWYG) */
+      @page { size: A4; margin: 0; }
       @media print{
         body * { visibility:hidden !important; }
         #printArea, #printArea * { visibility:visible !important; }
         /* inline display:none ต้อง override ตอนพิมพ์ ไม่งั้น visibility:visible ไม่มีผล → หน้าว่าง */
         #printArea{ display:block !important;position:absolute;inset:0;padding:0;background:#fff; }
-        #printArea .doc-paper{ box-shadow:none;width:100%;padding:0;margin:0;min-height:0; }
+        /* คง width + padding เดิมของ .doc-paper (เหมือน preview) — ห้าม override เป็น 100%/0 */
+        #printArea .doc-paper{ box-shadow:none;margin:0 auto;min-height:auto; }
       }
     </style>
   </head>
@@ -302,7 +336,7 @@
     </div>
 
     <!-- ═════════════ CREATE DOC MODAL (เลือกแม่แบบ + กรอกฟิลด์) ═════════════ -->
-    <div class="modal-overlay" id="createDocOverlay" onclick="window.closeCreateDoc(event)">
+    <div class="modal-overlay" id="createDocOverlay">
       <div class="modal v-sage-header" style="width:760px" onclick="event.stopPropagation()">
         <div class="modal-hdr">
           <div class="modal-title">สร้างเอกสารใหม่</div>
@@ -332,7 +366,7 @@
     </div>
 
     <!-- ═════════════ IMPORT EXCEL MODAL (สร้างหลายฉบับ) ═════════════ -->
-    <div class="modal-overlay" id="importOverlay" onclick="window.closeImport(event)">
+    <div class="modal-overlay" id="importOverlay">
       <div class="modal v-sage-header" style="width:880px;max-width:96vw" onclick="event.stopPropagation()">
         <div class="modal-hdr">
           <div class="modal-title">📥 นำเข้า Excel — สร้างหลายฉบับ</div>
@@ -354,6 +388,16 @@
                 </select>
                 <button class="btn btn-outline" type="button" title="จัดการผู้ลงนาม"
                   onclick="window.openSignatoryManager()">⚙️</button>
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">หัวกระดาษ (ใช้กับทุกฉบับ)</label>
+              <div style="display:flex;gap:8px">
+                <select class="form-control" id="impLetterhead" style="flex:1">
+                  <option value="">— หัวเริ่มต้น —</option>
+                </select>
+                <button class="btn btn-outline" type="button" title="จัดการหัวกระดาษ"
+                  onclick="window.openLetterheadManager()">⚙️</button>
               </div>
             </div>
           </div>
@@ -397,7 +441,7 @@
     </div>
 
     <!-- ═════════════ DOC EDITOR MODAL ═════════════ -->
-    <div class="modal-overlay" id="docEditOverlay" onclick="window.closeDocEdit(event)">
+    <div class="modal-overlay" id="docEditOverlay">
       <div class="modal v-sage-header" style="width:760px" onclick="event.stopPropagation()">
         <div class="modal-hdr">
           <div class="modal-title" id="docEditTitle">แก้ไขเอกสาร</div>
@@ -417,21 +461,52 @@
               </select>
             </div>
           </div>
-          <div class="form-group" style="margin-top:14px">
-            <label class="form-label">ผู้ลงนาม</label>
-            <div style="display:flex;gap:8px;align-items:center">
-              <select class="form-control" id="deSignatory" style="flex:1">
-                <option value="">— ไม่มีลายเซ็น —</option>
-              </select>
-              <button class="btn btn-outline" type="button" title="จัดการผู้ลงนาม"
-                data-perm="trip_docs_edit" onclick="window.openSignatoryManager()"
-                style="white-space:nowrap">⚙️ จัดการ</button>
+          <div class="form-row" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px">
+            <div class="form-group">
+              <label class="form-label">หัวกระดาษ</label>
+              <div style="display:flex;gap:8px;align-items:center">
+                <select class="form-control" id="deLetterhead" style="flex:1">
+                  <option value="">— หัวเริ่มต้น —</option>
+                </select>
+                <button class="btn btn-outline" type="button" title="จัดการหัวกระดาษ"
+                  data-perm="trip_docs_edit" onclick="window.openLetterheadManager()"
+                  style="white-space:nowrap">⚙️</button>
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">ผู้ลงนาม</label>
+              <div style="display:flex;gap:8px;align-items:center">
+                <select class="form-control" id="deSignatory" style="flex:1">
+                  <option value="">— ไม่มีลายเซ็น —</option>
+                </select>
+                <button class="btn btn-outline" type="button" title="จัดการผู้ลงนาม"
+                  data-perm="trip_docs_edit" onclick="window.openSignatoryManager()"
+                  style="white-space:nowrap">⚙️</button>
+              </div>
             </div>
           </div>
           <div class="form-group" style="margin-top:14px">
             <label class="form-label">เนื้อหาเอกสาร</label>
-            <textarea class="form-control doc-body-area" id="deBody" rows="14"></textarea>
-            <div class="tpl-hint">หัวกระดาษ A4S และลายเซ็นจะถูกเติมให้อัตโนมัติตอนพิมพ์ — กด "👁 ดูตัวอย่าง" เพื่อดูเอกสารเต็ม</div>
+            <div class="rte">
+              <div class="rte-toolbar">
+                <button type="button" data-cmd="bold" title="ตัวหนา"><b>B</b></button>
+                <button type="button" data-cmd="italic" title="ตัวเอียง"><i>I</i></button>
+                <button type="button" data-cmd="underline" title="ขีดเส้นใต้"><u>U</u></button>
+                <span class="rte-sep"></span>
+                <button type="button" data-cmd="justifyLeft" title="ชิดซ้าย">ซ้าย</button>
+                <button type="button" data-cmd="justifyCenter" title="กึ่งกลาง">กลาง</button>
+                <button type="button" data-cmd="justifyRight" title="ชิดขวา">ขวา</button>
+                <span class="rte-sep"></span>
+                <button type="button" data-font="down" title="ลดขนาดฟอนต์">A−</button>
+                <input type="number" class="rte-size" min="9" max="96" title="ขนาดฟอนต์ (px) — เลือกข้อความแล้วพิมพ์ตัวเลข" />
+                <button type="button" data-font="up" title="เพิ่มขนาดฟอนต์">A+</button>
+                <span class="rte-sep"></span>
+                <button type="button" data-cmd="insertUnorderedList" title="หัวข้อย่อย">• รายการ</button>
+                <button type="button" data-cmd="removeFormat" title="ล้างรูปแบบ">✖ ล้าง</button>
+              </div>
+              <div class="rte-area" id="deBody" contenteditable="true" data-ph="พิมพ์เนื้อหาเอกสาร..."></div>
+            </div>
+            <div class="tpl-hint">หัวกระดาษ A4S และลายเซ็นจะถูกเติมให้อัตโนมัติตอนพิมพ์ — ใช้ปุ่ม กลาง / B จัดรูปแบบได้ · กด "👁 ดูตัวอย่าง" เพื่อดูเอกสารเต็ม</div>
           </div>
         </div>
         <div class="modal-footer">
@@ -443,7 +518,7 @@
     </div>
 
     <!-- ═════════════ TEMPLATE EDITOR MODAL ═════════════ -->
-    <div class="modal-overlay" id="tplOverlay" onclick="window.closeTemplateModal(event)">
+    <div class="modal-overlay" id="tplOverlay">
       <div class="modal v-sage-header" style="width:760px" onclick="event.stopPropagation()">
         <div class="modal-hdr">
           <div class="modal-title" id="tplModalTitle">สร้างแม่แบบ</div>
@@ -473,11 +548,29 @@
           </div>
           <div class="form-group" style="margin-top:14px">
             <label class="form-label">เนื้อหาแม่แบบ <span class="req">*</span></label>
-            <textarea class="form-control doc-body-area" id="tplBody" rows="12"
-              placeholder="พิมพ์เนื้อหา แล้วใส่ช่องกรอกข้อมูลด้วย {{ชื่อฟิลด์}}&#10;&#10;ตัวอย่าง:&#10;เรียน คุณ{{ชื่อผู้รับ}}&#10;ขอเชิญร่วมเดินทางทริป {{ชื่อทริป}} วันที่ {{วันเดินทาง}}"
-              oninput="window.refreshTplFields()"></textarea>
+            <div class="rte">
+              <div class="rte-toolbar">
+                <button type="button" data-cmd="bold" title="ตัวหนา"><b>B</b></button>
+                <button type="button" data-cmd="italic" title="ตัวเอียง"><i>I</i></button>
+                <button type="button" data-cmd="underline" title="ขีดเส้นใต้"><u>U</u></button>
+                <span class="rte-sep"></span>
+                <button type="button" data-cmd="justifyLeft" title="ชิดซ้าย">ซ้าย</button>
+                <button type="button" data-cmd="justifyCenter" title="กึ่งกลาง">กลาง</button>
+                <button type="button" data-cmd="justifyRight" title="ชิดขวา">ขวา</button>
+                <span class="rte-sep"></span>
+                <button type="button" data-font="down" title="ลดขนาดฟอนต์">A−</button>
+                <input type="number" class="rte-size" min="9" max="96" title="ขนาดฟอนต์ (px) — เลือกข้อความแล้วพิมพ์ตัวเลข" />
+                <button type="button" data-font="up" title="เพิ่มขนาดฟอนต์">A+</button>
+                <span class="rte-sep"></span>
+                <button type="button" data-cmd="insertUnorderedList" title="หัวข้อย่อย">• รายการ</button>
+                <button type="button" data-cmd="removeFormat" title="ล้างรูปแบบ">✖ ล้าง</button>
+              </div>
+              <div class="rte-area" id="tplBody" contenteditable="true"
+                data-ph="พิมพ์เนื้อหา แล้วใส่ช่องกรอกข้อมูลด้วย {{ชื่อฟิลด์}}"
+                oninput="window.refreshTplFields()"></div>
+            </div>
             <div class="tpl-hint">
-              ใส่ <code>{{ชื่อฟิลด์}}</code> ในเนื้อหา เพื่อให้เป็นช่องกรอกข้อมูลตอนสร้างเอกสาร
+              ใส่ <code>{{ชื่อฟิลด์}}</code> ในเนื้อหา เพื่อให้เป็นช่องกรอกข้อมูลตอนสร้างเอกสาร · จัดตัวหนา/กึ่งกลางได้ด้วยปุ่มด้านบน
             </div>
             <div id="tplFieldsPreview" class="field-chips-empty">ยังไม่พบฟิลด์</div>
           </div>
@@ -507,7 +600,7 @@
     </div>
 
     <!-- ═════════════ SIGNATORY MANAGER (nested) ═════════════ -->
-    <div class="modal-overlay" id="sigMgrOverlay" onclick="window.closeSignatoryManager(event)">
+    <div class="modal-overlay" id="sigMgrOverlay">
       <div class="modal v-sage-header" style="width:620px" onclick="event.stopPropagation()">
         <div class="modal-hdr">
           <div class="modal-title">⚙️ จัดการผู้ลงนาม</div>
@@ -551,6 +644,58 @@
         </div>
         <div class="modal-footer">
           <button class="btn btn-primary" onclick="window.closeSignatoryManager()">เสร็จสิ้น</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═════════════ LETTERHEAD MANAGER (nested) ═════════════ -->
+    <div class="modal-overlay" id="lhMgrOverlay" onclick="window.closeLetterheadManager(event)">
+      <div class="modal v-sage-header" style="width:680px" onclick="event.stopPropagation()">
+        <div class="modal-hdr">
+          <div class="modal-title">⚙️ จัดการหัวกระดาษ</div>
+          <button class="btn-modal-close" onclick="window.closeLetterheadManager()">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="section-card" style="padding:14px;margin-bottom:16px">
+            <div class="form-row" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+              <div class="form-group">
+                <label class="form-label">ชื่อหัวกระดาษ <span class="req">*</span></label>
+                <input class="form-control" id="lhName" placeholder="เช่น A4S สำนักงานใหญ่" autocomplete="off" />
+              </div>
+              <div class="form-group">
+                <label class="form-label">ชื่อบริษัท (แสดงในหัว)</label>
+                <input class="form-control" id="lhCompany" placeholder="A4S Can Corporation Co., Ltd." autocomplete="off" />
+              </div>
+            </div>
+            <div class="form-group" style="margin-top:12px">
+              <label class="form-label">ที่อยู่ / ข้อมูลติดต่อ (ขึ้นบรรทัดใหม่ได้)</label>
+              <textarea class="form-control" id="lhAddress" rows="3"
+                placeholder="Imperial World Ladprao... Bangkok 10310.&#10;Tel: ...  Email: ..."></textarea>
+            </div>
+            <div class="form-group" style="margin-top:12px">
+              <label class="form-label">โลโก้ (เว้นว่าง = ใช้โลโก้ A4S เริ่มต้น)</label>
+              <div style="display:flex;gap:12px;align-items:stretch">
+                <div class="sig-preview-box" id="lhLogoBox" style="flex:1">
+                  <span class="ph">โลโก้ A4S เริ่มต้น</span>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:6px;justify-content:center">
+                  <input type="file" id="lhFile" accept="image/*" style="display:none" onchange="window.onLogoPicked(event)" />
+                  <button class="btn btn-outline" type="button" onclick="document.getElementById('lhFile').click()">📤 อัปโหลด</button>
+                  <button class="btn btn-ghost" type="button" onclick="window.clearLogoImg()">ใช้ค่าเริ่มต้น</button>
+                </div>
+              </div>
+            </div>
+            <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px">
+              <button class="btn btn-ghost" id="lhCancelEdit" style="display:none" onclick="window.resetLetterheadForm()">ยกเลิกแก้ไข</button>
+              <button class="btn btn-primary" id="lhSaveBtn" onclick="window.saveLetterhead()">＋ เพิ่มหัวกระดาษ</button>
+            </div>
+          </div>
+
+          <div class="table-title" style="margin-bottom:8px">รายการหัวกระดาษ</div>
+          <div id="lhList"></div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-primary" onclick="window.closeLetterheadManager()">เสร็จสิ้น</button>
         </div>
       </div>
     </div>

@@ -1429,7 +1429,7 @@ app.listen(3001, () => console.log('Proxy running on port 3001'));
 </div>
 
 <!-- ══ Add Person Modal ══════════════════════════════════ -->
-<div id="add-person-modal" onclick="if(event.target===this)closeAddPerson()">
+<div id="add-person-modal">
   <div id="add-person-box" role="dialog" aria-modal="true">
     <h2>➕ เพิ่มรายชื่อใหม่</h2>
     <div class="ap-form-grid">
@@ -1500,7 +1500,7 @@ app.listen(3001, () => console.log('Proxy running on port 3001'));
 </div>
 
 <!-- ══ Port Manager Modal (เพิ่ม/แก้ไข/ลบ Port) ═════════ -->
-<div id="port-mgr-modal" onclick="if(event.target===this)closePortManager()">
+<div id="port-mgr-modal">
   <div id="port-mgr-box" role="dialog" aria-modal="true">
     <h2>⚙️ จัดการ Port</h2>
     <p class="pm-hint">เพิ่ม แก้ไข หรือลบรายการ Port ที่ใช้ในตาราง · การแก้ชื่อจะอัปเดตทุกแถวที่ใช้ค่าเดิมให้อัตโนมัติ</p>

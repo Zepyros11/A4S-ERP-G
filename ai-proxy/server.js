@@ -1296,6 +1296,25 @@ function _timeInWindow(wantTimeStr, now, windowMin) {
 }
 
 async function _resolveRuleTargets(rule) {
+  // ── mixed targets (sql/129): { roles, groups, users } — เลือกผสมได้ ──
+  const t = rule.targets && typeof rule.targets === 'object' && !Array.isArray(rule.targets)
+    ? rule.targets : null;
+  if (t) {
+    const roles  = Array.isArray(t.roles)  ? t.roles  : [];
+    const groups = Array.isArray(t.groups) ? t.groups : [];
+    const users  = Array.isArray(t.users)  ? t.users  : [];
+    const byId = new Map();   // user_id → {user_id, line_user_id} (dedupe)
+    const collect = async (filter) => {
+      const rows = await _sbGet('users', `select=user_id,line_user_id&is_active=eq.true&${filter}`);
+      (rows || []).forEach(r => { if (r.user_id != null) byId.set(r.user_id, r); });
+    };
+    if (roles.length)  await collect(`role=in.(${roles.map(v => encodeURIComponent(v)).join(',')})`);
+    if (groups.length) await collect(`notification_groups=ov.{${groups.map(v => `"${String(v).replace(/"/g, '\\"')}"`).join(',')}}`);
+    if (users.length)  { const ids = users.filter(v => v != null).join(','); if (ids) await collect(`user_id=in.(${ids})`); }
+    return [...byId.values()];
+  }
+
+  // ── legacy: target_type + target_value (แถวก่อน migration 129) ──
   const type = rule.target_type;
   const values = Array.isArray(rule.target_value) ? rule.target_value : [];
   if (!values.length) return [];
@@ -1316,7 +1335,6 @@ async function _resolveRuleTargets(rule) {
   }
 
   // คืน user ทุกคนที่ตรง rule (รวมคนที่ยังไม่ผูก LINE) — ฝั่ง LINE callsite filter line_user_id เอง
-  // เพื่อให้ inbox (user_notifications) ได้ row ของทุกคน ไม่ใช่เฉพาะคนผูก LINE
   const rows = await _sbGet('users',
     `select=user_id,line_user_id&is_active=eq.true&${filter}`);
   return rows || [];
@@ -1405,6 +1423,39 @@ async function _writeInbox(rule, triggerKey, payload, body, recipients, refKey, 
    หมายเหตุ: user_notifications.rule_id เป็น FK → notification_rules เท่านั้น
    bell_notification_rules.id คนละ table → ต้องเขียน rule_id = null (กัน FK violation)
 */
+/* ── Resolve mixed targets ของ bell rule → user_id ทุกชนิดรวมกัน ──
+   targets JSONB = { roles:[], groups:[], users:[] } (sql/128)
+   fallback ไป target_type/target_value ถ้า targets เป็น null (แถวเก่า) */
+async function _resolveBellTargets(rule) {
+  const t = rule.targets && typeof rule.targets === 'object' && !Array.isArray(rule.targets)
+    ? rule.targets : null;
+  if (!t) return _resolveRuleTargets(rule);   // legacy
+
+  const ids = new Set();
+  const roles  = Array.isArray(t.roles)  ? t.roles  : [];
+  const groups = Array.isArray(t.groups) ? t.groups : [];
+  const users  = Array.isArray(t.users)  ? t.users  : [];
+
+  if (roles.length) {
+    const list = roles.map(v => encodeURIComponent(v)).join(',');
+    const rows = await _sbGet('users', `select=user_id&is_active=eq.true&role=in.(${list})`);
+    (rows || []).forEach(r => r.user_id != null && ids.add(r.user_id));
+  }
+  if (groups.length) {
+    const list = groups.map(v => `"${String(v).replace(/"/g, '\\"')}"`).join(',');
+    const rows = await _sbGet('users', `select=user_id&is_active=eq.true&notification_groups=ov.{${list}}`);
+    (rows || []).forEach(r => r.user_id != null && ids.add(r.user_id));
+  }
+  if (users.length) {
+    const list = users.filter(v => v != null).join(',');
+    if (list) {
+      const rows = await _sbGet('users', `select=user_id&is_active=eq.true&user_id=in.(${list})`);
+      (rows || []).forEach(r => r.user_id != null && ids.add(r.user_id));
+    }
+  }
+  return [...ids].map(user_id => ({ user_id }));
+}
+
 async function _processBellRules(triggerKey, payload, refKey, refId) {
   if (!SB_URL_WEBHOOK || !SB_SERVICE_KEY) return { rules: 0, written: 0 };
   let rules;
@@ -1422,7 +1473,7 @@ async function _processBellRules(triggerKey, payload, refKey, refId) {
   for (const rule of rules) {
     let targets;
     try {
-      targets = await _resolveRuleTargets(rule);    // reuse: อ่าน target_type/value (role/group/user)
+      targets = await _resolveBellTargets(rule);    // mixed: roles + groups + users
     } catch (e) {
       console.warn(`[bell rule ${rule.id}] resolve`, e.message);
       continue;

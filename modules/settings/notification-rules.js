@@ -119,10 +119,38 @@ let allUsers = [];      // for user-target picker
 let allRoles = [];      // distinct roles
 let allGroups = [];     // distinct group names
 let editingId = null;
-let editingTargetType = "role";
-let editingTargetValues = [];
+let activeTargetTab = "role";                              // view ปัจจุบัน (role|group) — ไม่ใช่ชนิด target
+let editingTargets = { roles: [], groups: [], users: [] }; // mixed target — เลือกได้หลายชนิดพร้อมกัน
+let expandedRoles = new Set();                             // role ที่กางดูรายชื่ออยู่
 let editingSchedule = { offset_days: 0, offset_minutes: 0, time: "" };
 let selectedRuleIds = new Set();
+
+// แปลง rule → {roles,groups,users} (รองรับ targets ใหม่ + legacy target_type/value)
+function targetsOf(rule) {
+  if (rule && rule.targets && typeof rule.targets === "object" && !Array.isArray(rule.targets)) {
+    return {
+      roles:  Array.isArray(rule.targets.roles)  ? [...rule.targets.roles]  : [],
+      groups: Array.isArray(rule.targets.groups) ? [...rule.targets.groups] : [],
+      users:  Array.isArray(rule.targets.users)  ? [...rule.targets.users]  : [],
+    };
+  }
+  const vals = Array.isArray(rule?.target_value) ? rule.target_value : [];
+  return {
+    roles:  rule?.target_type === "role"  ? [...vals] : [],
+    groups: rule?.target_type === "group" ? [...vals] : [],
+    users:  rule?.target_type === "user"  ? [...vals] : [],
+  };
+}
+function userNameById(id) {
+  const u = allUsers.find((x) => x.user_id === id);
+  return u ? (u.full_name || u.username) : `#${id}`;
+}
+function targetSummaryText(rule, max = 3) {
+  const t = targetsOf(rule);
+  const items = [...t.roles, ...t.groups.map((g) => "👥" + g), ...t.users.map(userNameById)];
+  if (!items.length) return "—";
+  return items.slice(0, max).join(", ") + (items.length > max ? ` +${items.length - max}` : "");
+}
 
 // ── Init ──────────────────────────────────────────────────
 async function init() {
@@ -194,14 +222,13 @@ function renderTable() {
   tb.innerHTML = allRules.map((r) => {
     const meta = TRIGGERS[r.trigger_key];
     const trig = meta?.label || r.trigger_key;
-    const targetVals = Array.isArray(r.target_value) ? r.target_value : [];
-    const targetText = targetVals.slice(0, 3).map((v) => {
-      if (r.target_type === "user") {
-        const u = allUsers.find((x) => x.user_id === v);
-        return u ? (u.full_name || u.username) : `#${v}`;
-      }
-      return v;
-    }).join(", ") + (targetVals.length > 3 ? ` +${targetVals.length - 3}` : "");
+    const _t = targetsOf(r);
+    const targetChips = [
+      _t.roles.length  ? `<span class="nr-target-type">role ${_t.roles.length}</span>`   : "",
+      _t.groups.length ? `<span class="nr-target-type">group ${_t.groups.length}</span>` : "",
+      _t.users.length  ? `<span class="nr-target-type">user ${_t.users.length}</span>`   : "",
+    ].join("") || `<span class="nr-target-type">—</span>`;
+    const targetText = targetSummaryText(r);
     const ch = allChannels.find((c) => c.id === r.channel_id);
     const chText = ch ? ch.name : `<span style="color:var(--text3)">default</span>`;
     let schedBadge = "";
@@ -225,8 +252,8 @@ function renderTable() {
         <td><div class="nr-name">${escapeHtml(r.rule_name)}</div></td>
         <td><span class="nr-trigger-chip">${escapeHtml(trig)}</span>${schedBadge}</td>
         <td>
-          <span class="nr-target-type">${r.target_type}</span>
-          <span style="font-size:12.5px;color:var(--text2);">${escapeHtml(targetText) || "—"}</span>
+          ${targetChips}
+          <span style="font-size:12.5px;color:var(--text2);">${escapeHtml(targetText)}</span>
         </td>
         <td style="font-size:12.5px;">${chText}</td>
         <td style="text-align:center;">
@@ -376,23 +403,23 @@ function openRuleModal(id) {
   document.getElementById("fActive").checked = rule ? !!rule.is_active : true;
   document.getElementById("fPreview").classList.remove("show");
 
-  editingTargetType = rule?.target_type || "role";
-  editingTargetValues = Array.isArray(rule?.target_value) ? [...rule.target_value] : [];
+  editingTargets = targetsOf(rule);
+  activeTargetTab = "role";
+  expandedRoles = new Set();
   editingSchedule = {
     offset_days:    rule?.schedule_offset_days ?? 0,
     offset_minutes: rule?.schedule_offset_minutes ?? 0,
     time:           rule?.schedule_time ? String(rule.schedule_time).slice(0, 5) : "",
   };
 
-  // set radio
+  // set tab (role/group) — view เท่านั้น ไม่ล้าง selection
   document.querySelectorAll("#fTargetTypeGroup .nr-radio").forEach((el) => {
     const t = el.dataset.type;
-    el.classList.toggle("checked", t === editingTargetType);
+    el.classList.toggle("checked", t === activeTargetTab);
     const inp = el.querySelector("input");
-    inp.checked = t === editingTargetType;
+    inp.checked = t === activeTargetTab;
     inp.onchange = () => {
-      editingTargetType = t;
-      editingTargetValues = [];
+      activeTargetTab = t;
       document.querySelectorAll("#fTargetTypeGroup .nr-radio").forEach((x) => x.classList.toggle("checked", x.dataset.type === t));
       renderTargetPicker();
     };
@@ -616,65 +643,83 @@ function togglePreview() {
   el.classList.toggle("show");
 }
 
-// ── Target Picker ─────────────────────────────────────────
+// ── Target Picker (mixed: role + รายคน + group พร้อมกัน) ───
+function buildSummaryInner() {
+  const chips = [];
+  editingTargets.roles.forEach((r) =>
+    chips.push(`<span class="nr-chip nr-chip-role">🎭 ${escapeHtml(r)}<span class="nr-chip-x" onclick="removeTarget('role','${escapeAttr(r)}')">×</span></span>`));
+  editingTargets.groups.forEach((g) =>
+    chips.push(`<span class="nr-chip nr-chip-group">👥 ${escapeHtml(g)}<span class="nr-chip-x" onclick="removeTarget('group','${escapeAttr(g)}')">×</span></span>`));
+  editingTargets.users.forEach((id) =>
+    chips.push(`<span class="nr-chip nr-chip-user">👤 ${escapeHtml(userNameById(id))}<span class="nr-chip-x" onclick="removeTarget('user',${id})">×</span></span>`));
+  return chips.length ? chips.join("") : `<span class="nr-summary-empty">ยังไม่ได้เลือกผู้รับ — ผสม Role / Group / รายคน ได้</span>`;
+}
+function updateTargetSummary() {
+  const el = document.getElementById("fTargetSummary");
+  if (el) el.innerHTML = buildSummaryInner();
+}
 function renderTargetPicker() {
   const wrap = document.getElementById("fTargetPickerWrap");
   const hint = document.getElementById("fTargetHint");
+  const summary = `<div class="nr-summary" id="fTargetSummary">${buildSummaryInner()}</div>`;
 
-  if (editingTargetType === "role") {
-    hint.innerHTML = `เลือก Role ที่จะได้รับการแจ้งเตือน — ระบบจะส่งให้พนักงานทุกคนใน Role นั้นที่ผูก LINE แล้ว`;
-    if (!allRoles.length) {
-      wrap.innerHTML = `<div class="nr-hint">ยังไม่มี role ในระบบ</div>`;
-      return;
-    }
-    wrap.innerHTML = `<div class="nr-target-picker">` +
-      allRoles.map((r) => {
-        const cnt = allUsers.filter((u) => u.role === r && u.line_user_id).length;
-        const checked = editingTargetValues.includes(r) ? "checked" : "";
-        return `<label class="nr-pick-item">
-          <input type="checkbox" value="${escapeAttr(r)}" ${checked} onchange="toggleTargetVal(this.value, this.checked)">
-          <span>${escapeHtml(r)}</span>
-          <span class="nr-pick-meta">${cnt} คน ✉️</span>
-        </label>`;
-      }).join("") + `</div>`;
-  } else if (editingTargetType === "group") {
+  if (activeTargetTab === "role") {
+    hint.innerHTML = `ติ๊ก Role = ทั้ง role (คนที่ผูก LINE) · กด ▸ กางเพื่อติ๊กรายคน — ผสมกันได้`;
+    const body = !allRoles.length
+      ? `<div class="nr-hint">ยังไม่มี role ในระบบ</div>`
+      : `<div class="nr-target-picker">` + allRoles.map((r) => {
+          const members = allUsers.filter((u) => u.role === r);
+          const linked = members.filter((u) => u.line_user_id).length;
+          const roleSel = editingTargets.roles.includes(r);
+          const open = expandedRoles.has(r);
+          const sub = members.length
+            ? members.map((u) => {
+                const uck = (roleSel || editingTargets.users.includes(u.user_id)) ? "checked" : "";
+                const dis = roleSel ? "disabled" : "";
+                const noLine = u.line_user_id ? "" : ` <span style="color:var(--text3);font-size:11px">(ยังไม่ผูก LINE)</span>`;
+                return `<label class="nr-pick-item nr-sub-pick"><input type="checkbox" value="${u.user_id}" ${uck} ${dis} onchange="toggleUserVal(parseInt(this.value), this.checked)"><span>${escapeHtml(u.full_name || u.username)}${noLine}</span></label>`;
+              }).join("") + (roleSel ? `<div class="nr-sub-item" style="color:var(--text3)">— รวมทั้ง role แล้ว —</div>` : "")
+            : `<div class="nr-sub-item" style="color:var(--text3)">— ไม่มีสมาชิก —</div>`;
+          return `<div class="nr-role-block">
+            <div class="nr-role-row">
+              <label class="nr-pick-item" style="flex:1"><input type="checkbox" value="${escapeAttr(r)}" ${roleSel ? "checked" : ""} onchange="toggleRoleVal(this.value, this.checked)"><span>${escapeHtml(r)}</span><span class="nr-pick-meta">${linked} คน ✉️</span></label>
+              <button type="button" class="nr-caret" onclick="toggleRoleExpand('${escapeAttr(r)}')">${open ? "▾" : "▸"}</button>
+            </div>
+            <div class="nr-sub" style="display:${open ? "block" : "none"}">${sub}</div>
+          </div>`;
+        }).join("") + `</div>`;
+    wrap.innerHTML = summary + body;
+  } else {
     hint.innerHTML = `เลือก Group หรือพิมพ์เพิ่ม — จัดการกลุ่มที่หน้า <a href="./staff-groups.html">👥 จัดการกลุ่มพนักงาน</a>`;
-    wrap.innerHTML = `<div class="nr-tags-wrap-outer">
+    wrap.innerHTML = summary + `<div class="nr-tags-wrap-outer">
       <div class="nr-tags-wrap" id="fTagsWrap"></div>
       <div class="nr-suggest" id="fTagSuggest"></div>
     </div>`;
     renderTags();
-  } else if (editingTargetType === "user") {
-    hint.innerHTML = `เลือกพนักงานเฉพาะคน — แสดงเฉพาะคนที่ผูก LINE แล้ว 🟢`;
-    const linkedFirst = [...allUsers].sort((a, b) =>
-      (b.line_user_id ? 1 : 0) - (a.line_user_id ? 1 : 0)
-    );
-    wrap.innerHTML = `
-      <input type="text" placeholder="🔍 ค้นหาชื่อ..." style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:8px;margin-bottom:6px;font-family:inherit;font-size:13px;" oninput="filterUserPicker(this.value)">
-      <div class="nr-target-picker" id="fUserPickList">` +
-      linkedFirst.map((u) => {
-        const checked = editingTargetValues.includes(u.user_id) ? "checked" : "";
-        const lineDot = u.line_user_id ? `<span class="nr-pick-line" title="ผูก LINE แล้ว"></span>` : "";
-        return `<label class="nr-pick-item" data-name="${escapeAttr((u.full_name || u.username || "").toLowerCase())}">
-          <input type="checkbox" value="${u.user_id}" ${checked} onchange="toggleTargetVal(parseInt(this.value), this.checked)">
-          <span>${escapeHtml(u.full_name || u.username)}${lineDot}</span>
-          <span class="nr-pick-meta">${escapeHtml(u.role || "")}</span>
-        </label>`;
-      }).join("") + `</div>`;
   }
 }
 
-function filterUserPicker(q) {
-  const ql = (q || "").trim().toLowerCase();
-  document.querySelectorAll("#fUserPickList .nr-pick-item").forEach((el) => {
-    el.style.display = !ql || el.dataset.name.includes(ql) ? "" : "none";
-  });
+function toggleRoleExpand(role) {
+  if (expandedRoles.has(role)) expandedRoles.delete(role); else expandedRoles.add(role);
+  renderTargetPicker();
 }
-
-function toggleTargetVal(val, on) {
-  const idx = editingTargetValues.indexOf(val);
-  if (on && idx === -1) editingTargetValues.push(val);
-  else if (!on && idx !== -1) editingTargetValues.splice(idx, 1);
+function toggleRoleVal(role, on) {
+  const i = editingTargets.roles.indexOf(role);
+  if (on && i === -1) editingTargets.roles.push(role);
+  else if (!on && i !== -1) editingTargets.roles.splice(i, 1);
+  renderTargetPicker();
+}
+function toggleUserVal(id, on) {
+  const i = editingTargets.users.indexOf(id);
+  if (on && i === -1) editingTargets.users.push(id);
+  else if (!on && i !== -1) editingTargets.users.splice(i, 1);
+  renderTargetPicker();
+}
+function removeTarget(kind, val) {
+  const arr = kind === "role" ? editingTargets.roles : kind === "group" ? editingTargets.groups : editingTargets.users;
+  const i = arr.indexOf(val);
+  if (i !== -1) arr.splice(i, 1);
+  renderTargetPicker();
 }
 
 let _tagSuggestActive = -1;   // index ของ item ที่ highlight อยู่ (keyboard nav)
@@ -682,7 +727,7 @@ let _tagSuggestActive = -1;   // index ของ item ที่ highlight อย
 function renderTags() {
   const wrap = document.getElementById("fTagsWrap");
   if (!wrap) return;
-  wrap.innerHTML = editingTargetValues.map((g, i) =>
+  wrap.innerHTML = editingTargets.groups.map((g, i) =>
     `<span class="nr-tag">${escapeHtml(g)}<span class="nr-tag-remove" onclick="removeTag(${i})">×</span></span>`
   ).join("") +
   `<input type="text" class="nr-tags-input" placeholder="พิมพ์ชื่อกลุ่มแล้วกด Enter"
@@ -695,8 +740,9 @@ function renderTags() {
 }
 
 function removeTag(i) {
-  editingTargetValues.splice(i, 1);
+  editingTargets.groups.splice(i, 1);
   renderTags();
+  updateTargetSummary();
 }
 
 function onTagInputChange(q) {
@@ -705,7 +751,7 @@ function onTagInputChange(q) {
   const ql = (q || "").trim().toLowerCase();
   // กรอง: ตรงกับ query + ยังไม่ถูกเลือก
   const matches = allGroups.filter((g) =>
-    !editingTargetValues.includes(g) && (ql === "" || g.toLowerCase().includes(ql))
+    !editingTargets.groups.includes(g) && (ql === "" || g.toLowerCase().includes(ql))
   );
   _tagSuggestActive = -1;
   if (!matches.length && ql === "") {
@@ -741,8 +787,9 @@ function onTagInputBlur() {
 }
 
 function pickTagSuggestion(val) {
-  if (!editingTargetValues.includes(val)) editingTargetValues.push(val);
+  if (!editingTargets.groups.includes(val)) editingTargets.groups.push(val);
   renderTags();
+  updateTargetSummary();
   setTimeout(() => {
     const inp = document.getElementById("fTagInput");
     if (inp) inp.focus();
@@ -775,8 +822,9 @@ function onTagInputKey(ev) {
   // ไม่ได้เลือก suggestion → ใช้ค่าที่พิมพ์
   const v = ev.target.value.trim();
   if (!v) return;
-  if (!editingTargetValues.includes(v)) editingTargetValues.push(v);
+  if (!editingTargets.groups.includes(v)) editingTargets.groups.push(v);
   renderTags();
+  updateTargetSummary();
   setTimeout(() => document.getElementById("fTagInput")?.focus(), 0);
 }
 
@@ -791,7 +839,8 @@ async function saveRule() {
 
   if (!name) return showToast("กรุณาใส่ชื่อกฎ", "error");
   if (!trigger) return showToast("กรุณาเลือก trigger", "error");
-  if (!editingTargetValues.length) return showToast("กรุณาเลือก target อย่างน้อย 1", "error");
+  const totalTargets = editingTargets.roles.length + editingTargets.groups.length + editingTargets.users.length;
+  if (!totalTargets) return showToast("กรุณาเลือก target อย่างน้อย 1", "error");
   if (!tpl) return showToast("กรุณาใส่ข้อความ template", "error");
 
   const meta = TRIGGERS[trigger];
@@ -804,11 +853,18 @@ async function saveRule() {
     }
   }
 
+  // legacy primary (เผื่อ reader เก่า) — ชนิดแรกที่มีค่า · ข้อมูลจริงอยู่ใน targets
+  let pType = null, pVals = [];
+  if (editingTargets.roles.length)       { pType = "role";  pVals = editingTargets.roles; }
+  else if (editingTargets.groups.length) { pType = "group"; pVals = editingTargets.groups; }
+  else if (editingTargets.users.length)  { pType = "user";  pVals = editingTargets.users; }
+
   const payload = {
     rule_name: name,
     trigger_key: trigger,
-    target_type: editingTargetType,
-    target_value: editingTargetValues,
+    targets: { roles: editingTargets.roles, groups: editingTargets.groups, users: editingTargets.users },
+    target_type: pType,
+    target_value: pVals,
     channel_id: channelId,
     message_template: tpl,
     is_active: isActive,
@@ -1165,13 +1221,15 @@ window.pickVarFromPicker = pickVarFromPicker;
 window.onTriggerChange = onTriggerChange;
 window.insertPlaceholder = insertPlaceholder;
 window.togglePreview = togglePreview;
-window.toggleTargetVal = toggleTargetVal;
+window.toggleRoleVal = toggleRoleVal;
+window.toggleUserVal = toggleUserVal;
+window.removeTarget = removeTarget;
+window.toggleRoleExpand = toggleRoleExpand;
 window.removeTag = removeTag;
 window.onTagInputKey = onTagInputKey;
 window.onTagInputChange = onTagInputChange;
 window.onTagInputBlur = onTagInputBlur;
 window.pickTagSuggestion = pickTagSuggestion;
-window.filterUserPicker = filterUserPicker;
 window.testSendRule = testSendRule;
 window.updateScheduleState = updateScheduleState;
 

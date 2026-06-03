@@ -86,6 +86,25 @@
 .nr-pick-item input{cursor:pointer;}
 .nr-pick-meta{font-size:11px;color:var(--text3);margin-left:auto;}
 .nr-pick-line{display:inline-block;width:7px;height:7px;border-radius:50%;background:#06c755;margin-left:6px;}
+/* expandable role → member list */
+.nr-role-block{border-bottom:1px solid var(--border);}
+.nr-role-block:last-child{border-bottom:none;}
+.nr-role-row{display:flex;align-items:center;gap:4px;}
+.nr-caret{background:none;border:none;cursor:pointer;color:var(--text3);font-size:12px;padding:6px 8px;border-radius:6px;flex-shrink:0;}
+.nr-caret:hover{background:var(--surface);color:var(--accent);}
+.nr-sub{padding:2px 8px 8px 30px;}
+.nr-sub-item{font-size:12px;color:var(--text2);padding:2px 0;line-height:1.5;}
+.nr-sub-pick{padding:3px 6px !important;font-size:12.5px;}
+.nr-sub-pick input:disabled{opacity:.5;}
+/* selected-target summary chips */
+.nr-summary{display:flex;flex-wrap:wrap;gap:6px;padding:8px;margin-bottom:8px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);min-height:38px;align-items:center;}
+.nr-summary-empty{color:var(--text3);font-size:12px;font-style:italic;}
+.nr-chip{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;font-size:12px;font-weight:600;}
+.nr-chip-role{background:#fef3c7;color:#92400e;}
+.nr-chip-group{background:#dbeafe;color:#1e40af;}
+.nr-chip-user{background:#dcfce7;color:#15803d;}
+.nr-chip-x{cursor:pointer;font-size:14px;line-height:1;opacity:.6;}
+.nr-chip-x:hover{opacity:1;}
 
 .nr-tags-wrap-outer{position:relative;}
 .nr-tags-wrap{display:flex;flex-wrap:wrap;gap:6px;padding:8px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);min-height:42px;align-items:center;}
@@ -226,9 +245,8 @@
       <div class="nr-field">
         <label>ส่งหา (Target Type) *</label>
         <div class="nr-radio-group" id="fTargetTypeGroup">
-          <label class="nr-radio" data-type="role"><input type="radio" name="ttype" value="role">🎭 Role</label>
+          <label class="nr-radio" data-type="role"><input type="radio" name="ttype" value="role">🎭 Role / รายคน</label>
           <label class="nr-radio" data-type="group"><input type="radio" name="ttype" value="group">👥 Group</label>
-          <label class="nr-radio" data-type="user"><input type="radio" name="ttype" value="user">👤 User</label>
         </div>
         <div class="nr-hint" id="fTargetHint"></div>
       </div>

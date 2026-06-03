@@ -95,15 +95,10 @@
     });
   }
 
-  /* ── Click overlay background to close (legacy behavior kept for compatibility) ── */
-  document.addEventListener("click", function (e) {
-    if (e.target.classList.contains("modal-overlay") && e.target.classList.contains("open")) {
-      e.target.classList.remove("open");
-    }
-    if (e.target.classList.contains("pt-modal-overlay") && e.target.classList.contains("show")) {
-      e.target.classList.remove("show");
-    }
-  });
+  /* ── Click-outside-to-close DISABLED ──
+     Removed on purpose: clicking the overlay background to close caused
+     accidental dismissal of data-entry forms (full re-entry). Use the
+     X button or ESC (ESC handled above) to close modals instead. */
 
   /* expose global */
   window.closeAllModals = closeAllModals;
