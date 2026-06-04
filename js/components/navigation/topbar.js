@@ -425,6 +425,27 @@ export function loadTopbar(title = "", options = {}) {
     } catch (_) {}
   })();
 
+  // Refresh company logo cache from app_settings (shared by every page that
+  // reads localStorage 'company_logo_url') · update the topbar brand image.
+  (async () => {
+    try {
+      const sbUrl = localStorage.getItem("sb_url") || "";
+      const sbKey = localStorage.getItem("sb_key") || "";
+      if (!sbUrl || !sbKey) return;
+      const res = await fetch(
+        `${sbUrl}/rest/v1/app_settings?select=value&key=eq.company_logo_url`,
+        { headers: { apikey: sbKey, Authorization: `Bearer ${sbKey}` } }
+      );
+      if (!res.ok) return;
+      const rows = await res.json();
+      const url = rows?.[0]?.value;
+      if (typeof url !== "string") return;
+      try { localStorage.setItem("company_logo_url", url); } catch (_) {}
+      const img = document.getElementById("topbarBrandLogo");
+      if (img && url.trim() && img.getAttribute("src") !== url) img.src = url;
+    } catch (_) {}
+  })();
+
   const fullName = session
     ? `${session.first_name || ""} ${session.last_name || ""}`.trim() || session.username || "User"
     : "User";
@@ -484,9 +505,14 @@ export function loadTopbar(title = "", options = {}) {
 
   if (!container) return;
 
+  // Company logo from "ตั้งค่าบริษัท" (cached) · falls back to A4S logo
+  const _brandFallback = `${BASE_PATH}/assets/logo/logo-a4s.png`;
+  let brandLogo = _brandFallback;
+  try { brandLogo = (localStorage.getItem("company_logo_url") || "").trim() || _brandFallback; } catch (_) {}
+
   const html = `
 <div class="topbar">
-  <div class="topbar-logo"><img src="${BASE_PATH}/assets/logo/logo-a4s.png" alt="A4S" style="height:28px;vertical-align:middle;"> <span>A4S</span> -ERP</div>
+  <div class="topbar-logo"><img id="topbarBrandLogo" src="${brandLogo}" alt="logo" style="height:28px;vertical-align:middle;" onerror="this.src='${_brandFallback}'"> <span>A4S</span> -ERP</div>
   <div class="topbar-sep"></div>
   <div class="topbar-title">${title}</div>
   <div class="topbar-spacer"></div>

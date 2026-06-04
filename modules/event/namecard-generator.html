@@ -65,6 +65,12 @@
               <div class="tool-card-sub">Row × Column · กำหนดเอง</div>
               <div class="tool-card-desc">สร้างป้ายเลขที่นั่งจากช่วง Row/Column · เลือกแนวกระดาษ + จำนวน/หน้า</div>
             </button>
+            <button class="tool-card" data-tab="badge" onclick="nmc.switchTab('badge')">
+              <div class="tool-card-icon">🆕</div>
+              <div class="tool-card-title">ป้ายโลโก้+ชื่อ</div>
+              <div class="tool-card-sub">กำหนดเอง · upload logo</div>
+              <div class="tool-card-desc">อัปโหลดโลโก้ + เขียนชื่อ → จัด layout บนกระดาษ A4 + Export PDF</div>
+            </button>
           </div>
 
           <!-- BACK BAR (shown while a tool is open) -->
@@ -423,11 +429,120 @@
           </div>
           <!-- ╚══ /TAB CONTENT: SEAT NUMBERS ══╝ -->
 
+          <!-- ╔══ TAB CONTENT: BADGE (logo + name) ══╗ -->
+          <div class="nmc-tab-pane" id="paneBadge" style="display:none">
+
+            <div class="nmc-no-print">
+             <div class="vip-split">
+              <!-- LEFT: settings -->
+              <div class="vip-split-left">
+
+              <!-- Logo library -->
+              <div class="nmc-card-block" style="margin-bottom:12px">
+                <div class="nmc-block-hdr">
+                  <div class="nmc-block-title">🖼️ โลโก้ (<span id="badgeLogoCount">0</span> รูป)</div>
+                  <div class="nmc-block-tools">
+                    <label class="btn btn-primary btn-sm" style="cursor:pointer">
+                      ⬆ อัปโหลดโลโก้
+                      <input type="file" id="badgeLogoInput" accept="image/*" multiple style="display:none" onchange="nmc.onBadgeLogoPick(event)">
+                    </label>
+                  </div>
+                </div>
+                <div style="padding:8px 18px 0;font-size:12px;color:var(--text3)">
+                  💡 โลโก้เก็บที่ Supabase Storage <code>badge-logos</code> · ทุกเครื่องใช้ร่วมกัน · คลิกเลือกรูปที่จะใช้
+                </div>
+                <div class="badge-logo-grid" id="badgeLogoGrid"></div>
+              </div>
+
+              <!-- Design: name + size + quantity -->
+              <div class="nmc-card-block" style="margin-bottom:12px">
+                <div class="nmc-block-hdr">
+                  <div class="nmc-block-title">✍️ ออกแบบป้าย</div>
+                </div>
+                <div class="vip-design-grid">
+                  <div class="vip-field">
+                    <label for="badgeNameInput">ชื่อบนป้าย</label>
+                    <input type="text" id="badgeNameInput" class="vip-text-input" value="" maxlength="60"
+                           placeholder="เช่น ชื่องาน · ชื่อทีม · ชื่อคน" oninput="nmc.setBadgeName(this.value)">
+                  </div>
+                  <div class="vip-field vip-field-num">
+                    <label for="badgeWInput">กว้าง (ซม.)</label>
+                    <input type="number" id="badgeWInput" class="vip-num-input" min="3" max="21" step="0.1"
+                           value="9.5" oninput="nmc.setBadgeW(this.value)" onchange="nmc.syncBadgeInputs()">
+                  </div>
+                  <div class="vip-field-x">×</div>
+                  <div class="vip-field vip-field-num">
+                    <label for="badgeHInput">สูง (ซม.)</label>
+                    <input type="number" id="badgeHInput" class="vip-num-input" min="2" max="29" step="0.1"
+                           value="6" oninput="nmc.setBadgeH(this.value)" onchange="nmc.syncBadgeInputs()">
+                  </div>
+                  <div class="vip-size-presets">
+                    <button class="btn btn-outline btn-sm" onclick="nmc.setBadgeSize(9.5,6)">9.5×6</button>
+                    <button class="btn btn-outline btn-sm" onclick="nmc.setBadgeSize(8.5,5.4)">8.5×5.4</button>
+                    <button class="btn btn-outline btn-sm" onclick="nmc.setBadgeSize(10.5,7.4)">10.5×7.4</button>
+                  </div>
+                </div>
+
+                <!-- Quantity row -->
+                <div class="vip-qty-row vip-qty-row--inset">
+                  <span class="vip-qty-label">จำนวนที่พิมพ์</span>
+                  <div class="vip-qty-input-wrap">
+                    <button class="vip-qty-btn" onclick="nmc.bumpBadgeQty(-1)">−</button>
+                    <input type="number" id="badgeQtyInput" class="vip-qty-input" min="0" max="500" value="10"
+                           oninput="nmc.setBadgeQty(this.value)">
+                    <button class="vip-qty-btn" onclick="nmc.bumpBadgeQty(1)">＋</button>
+                    <span class="vip-qty-unit">ใบ</span>
+                  </div>
+                  <div class="vip-qty-meta">
+                    <span class="vip-qty-pages"><b id="badgePageCount">1</b> หน้า A4</span>
+                    <span class="vip-qty-perpage" id="badgePerPageMeta">(10 ใบ/หน้า · 2×5)</span>
+                  </div>
+                  <div class="vip-qty-presets">
+                    <button class="btn btn-outline btn-sm" onclick="nmc.setBadgeQty(10)">10</button>
+                    <button class="btn btn-outline btn-sm" onclick="nmc.setBadgeQty(20)">20</button>
+                    <button class="btn btn-outline btn-sm" onclick="nmc.setBadgeQty(30)">30</button>
+                    <button class="btn btn-outline btn-sm" onclick="nmc.setBadgeQty(50)">50</button>
+                    <button class="btn btn-outline btn-sm" onclick="nmc.setBadgeQty(100)">100</button>
+                  </div>
+                </div>
+
+                <div class="vip-layout-info">📐 จัดได้ <b id="badgePerPage">10</b> ใบ/หน้า A4 · ตาราง <span id="badgeGridDesc">2 × 5</span></div>
+              </div>
+
+              <!-- Badge actions -->
+              <div class="nmc-actions">
+                <button class="btn btn-secondary" onclick="nmc.setBadgeQty(0)">↺ ล้าง</button>
+                <button class="btn btn-primary" onclick="nmc.exportBadgePDF()" id="btnExportBadgePDF">📄 Export PDF</button>
+              </div>
+              </div><!-- /vip-split-left -->
+
+              <!-- RIGHT: preview -->
+              <div class="vip-split-right">
+              <div class="nmc-card-block">
+                <div class="nmc-block-hdr">
+                  <div class="nmc-block-title" id="badgeLayoutTitle">👁️ ตัวอย่าง Layout · กระดาษ A4 (10 ใบ/หน้า · 2×5)</div>
+                  <div class="nmc-block-tools nmc-zoom-tools">
+                    <span style="font-size:12px;color:var(--text3)">Zoom</span>
+                    <button class="btn btn-outline btn-sm" onclick="nmc.setBadgeZoom(-1)">−</button>
+                    <span id="badgeZoomLabel" style="min-width:48px;text-align:center;font-weight:600">65%</span>
+                    <button class="btn btn-outline btn-sm" onclick="nmc.setBadgeZoom(1)">＋</button>
+                  </div>
+                </div>
+                <div class="nmc-sheet-scroller" id="badgeSheetScroller"></div>
+              </div>
+              </div><!-- /vip-split-right -->
+             </div><!-- /vip-split -->
+            </div>
+
+          </div>
+          <!-- ╚══ /TAB CONTENT: BADGE ══╝ -->
+
           <!-- PRINT AREAS (off-screen render targets for PDF export) -->
           <div class="nmc-print-area" id="printArea"></div>
           <div class="nmc-print-area" id="vipPrintArea"></div>
           <div class="nmc-print-area" id="certPrintArea"></div>
           <div class="nmc-print-area" id="seatPrintArea"></div>
+          <div class="nmc-print-area" id="badgePrintArea"></div>
 
         </div>
       </div>
@@ -534,6 +649,7 @@
     <script src="../../js/components/navigation/sidebar.js"></script>
     <script src="../../js/components/modal/modalManager.js"></script>
     <script src="../../js/components/modal/confirmModal.js"></script>
+    <script src="../../js/core/companyLogo.js"></script>
     <script src="./namecard-generator.js"></script>
   </body>
 </html>

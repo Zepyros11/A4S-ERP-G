@@ -12,8 +12,19 @@
 <div class="pp-main">
   <div class="pp-card" style="max-width:440px;margin:24px auto;">
     <div class="pp-card-head" style="text-align:center;background:#5fa825;color:#fff;border-bottom:3px solid #e53935;">
-      <img src="../../assets/logo/logo-a4s.png" alt="A4S"
+      <img class="js-company-logo" alt="logo" id="ibdLoginLogo"
+           src="../../assets/logo/logo-a4s.png" data-fallback="../../assets/logo/logo-a4s.png"
+           onerror="this.onerror=null;this.src=this.getAttribute('data-fallback')"
            style="height:64px;width:auto;background:#fff;border-radius:12px;padding:10px 14px;box-shadow:0 4px 14px rgba(0,0,0,.15);margin-bottom:14px;" />
+      <script>
+        // Company logo from "ตั้งค่าบริษัท" (cached) · portal-shared refreshes it from DB
+        (function () {
+          try {
+            var u = (localStorage.getItem("company_logo_url") || "").trim();
+            if (u) document.getElementById("ibdLoginLogo").src = u;
+          } catch (e) {}
+        })();
+      </script>
       <div class="pp-card-title" id="lblTitle" style="color:#fff">Member Login</div>
       <div class="pp-card-sub" id="lblSub" style="color:rgba(255,255,255,.92)">Please enter your A4S Member ID and password to continue</div>
     </div>

@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ตั้งค่าบริษัท — A4S-ERP</title>
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../css/main.css">
+<style>
+.settings-page { max-width: 920px; margin: 0 auto; }
+
+/* circular icon used inside .section-title */
+.section-icon {
+  width: 32px; height: 32px;
+  border-radius: 9px;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 16px; flex-shrink: 0;
+}
+
+/* status pill (right side of section-head) */
+.status-dot {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 4px 10px; border-radius: 20px;
+  font-size: 11px; font-weight: 600; flex-shrink: 0;
+}
+.dot-connected    { background: var(--success-pale); color: var(--success); }
+.dot-disconnected { background: var(--danger-pale);  color: var(--danger); }
+.dot-pulse        { width: 7px; height: 7px; border-radius: 50%; background: currentColor; animation: pulse 1.5s infinite; }
+@keyframes pulse { 0%,100%{opacity:1;transform:scale(1);} 50%{opacity:.5;transform:scale(.8);} }
+
+.form-control.mono { font-family: 'IBM Plex Mono', monospace; font-size: 13px; }
+.form-hint { font-size: 11px; font-weight: 500; color: var(--text3); }
+.btn-row { display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
+
+/* company logo uploader */
+.logo-uploader {
+  display: flex; align-items: center; gap: 18px;
+  margin-bottom: 16px; flex-wrap: wrap;
+}
+.logo-preview {
+  width: 120px; height: 120px; flex-shrink: 0;
+  border: 1.5px dashed var(--border);
+  border-radius: 12px;
+  background: var(--surface)
+    repeating-conic-gradient(#f1f3f5 0% 25%, transparent 0% 50%) 0 / 18px 18px;
+  display: flex; align-items: center; justify-content: center;
+  overflow: hidden; position: relative;
+}
+.logo-preview img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.logo-preview .logo-placeholder {
+  font-size: 11px; color: var(--text3); text-align: center; padding: 8px; line-height: 1.5;
+}
+.logo-uploader-actions { display: flex; flex-direction: column; gap: 8px; }
+.logo-uploader-hint { font-size: 11px; color: var(--text3); max-width: 260px; }
+
+/* no-connection banner */
+.no-conn {
+  background: var(--warning-pale, #fef3c7); border: 1px solid #fcd34d;
+  color: #92400e; border-radius: 10px; padding: 12px 16px;
+  font-size: 13px; margin-bottom: 16px; display: none;
+}
+.no-conn a { color: #92400e; font-weight: 600; }
+</style>
+</head>
+<body>
+
+<div class="loading-overlay" id="loadingOverlay"><div class="spinner"></div></div>
+<div class="toast" id="toast"></div>
+
+<div class="topbar"></div>
+
+<div class="layout">
+  <div class="content-area">
+    <div class="page">
+      <div class="settings-page">
+
+        <!-- HERO -->
+        <div class="page-hero page-hero--simple page-hero--compact">
+          <h1 class="page-hero-title">🏢 ตั้งค่าบริษัท</h1>
+        </div>
+
+        <div class="no-conn" id="noConn">
+          ⚠️ ยังไม่ได้เชื่อมต่อ Supabase — ไปที่
+          <a href="settings.html">ตั้งค่าระบบ</a> เพื่อเชื่อมต่อก่อน จึงจะบันทึก/อัปโหลดได้
+        </div>
+
+        <div class="section-card">
+          <div class="section-head">
+            <div class="section-title">
+              <span class="section-icon" style="background:#ede9fe;color:#6d28d9">🏢</span>
+              <div>
+                <div>ข้อมูลบริษัท</div>
+                <div class="section-sub">โลโก้ + ข้อมูลที่แสดงในใบสั่งซื้อ / ใบขาย / เอกสาร · ใช้ร่วมทุกเครื่อง</div>
+              </div>
+            </div>
+            <span class="status-dot dot-disconnected" id="companyStatus" style="display:none">
+              <span class="dot-pulse"></span> ยังไม่เชื่อมต่อ
+            </span>
+          </div>
+
+          <!-- Logo uploader -->
+          <div class="logo-uploader">
+            <div class="logo-preview" id="logoPreview">
+              <span class="logo-placeholder">ยังไม่มีโลโก้</span>
+            </div>
+            <div class="logo-uploader-actions">
+              <input type="file" id="logoFile" accept="image/png,image/jpeg,image/webp,image/svg+xml" style="display:none" onchange="onLogoSelected(event)">
+              <button class="btn btn-outline" data-perm="sys_settings_edit" onclick="document.getElementById('logoFile').click()">📤 อัปโหลดโลโก้</button>
+              <button class="btn btn-sm-danger" id="logoRemoveBtn" data-perm="sys_settings_edit" onclick="removeLogo()" style="display:none">🗑 ลบโลโก้</button>
+              <div class="logo-uploader-hint">PNG (พื้นใส) · JPG · WebP · SVG · ย่ออัตโนมัติ ≤600px · สูงสุด 10 MB</div>
+            </div>
+          </div>
+
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">ชื่อบริษัท (ไทย)</label>
+              <input class="form-control" id="companyName" placeholder="เช่น บริษัท ตัวอย่าง จำกัด">
+            </div>
+            <div class="form-group">
+              <label class="form-label">ชื่อบริษัท (อังกฤษ)</label>
+              <input class="form-control" id="companyNameEn" placeholder="e.g. Example Co., Ltd.">
+            </div>
+            <div class="form-group">
+              <label class="form-label">เลขที่ผู้เสียภาษี</label>
+              <input class="form-control mono" id="taxId" placeholder="0-0000-00000-00-0">
+            </div>
+            <div class="form-group">
+              <label class="form-label">เว็บไซต์</label>
+              <input class="form-control" id="companyWebsite" placeholder="https://www.example.com">
+            </div>
+            <div class="form-group full">
+              <label class="form-label">ที่อยู่ (ไทย)</label>
+              <textarea class="form-control" id="companyAddress" rows="2" placeholder="เลขที่ ถนน แขวง/ตำบล เขต/อำเภอ จังหวัด รหัสไปรษณีย์"></textarea>
+            </div>
+            <div class="form-group full">
+              <label class="form-label">ที่อยู่ (อังกฤษ)</label>
+              <textarea class="form-control" id="companyAddressEn" rows="2" placeholder="Address (English) — for international documents"></textarea>
+            </div>
+            <div class="form-group">
+              <label class="form-label">เบอร์โทร</label>
+              <input class="form-control" id="companyPhone" placeholder="02-xxx-xxxx">
+            </div>
+            <div class="form-group">
+              <label class="form-label">อีเมล</label>
+              <input class="form-control" id="companyEmail" placeholder="info@example.com">
+            </div>
+          </div>
+
+          <div class="btn-row">
+            <button class="btn btn-primary" data-perm="sys_settings_edit" onclick="saveCompanyInfo()">💾 บันทึกข้อมูลบริษัท</button>
+          </div>
+        </div>
+
+      </div><!-- /.settings-page -->
+    </div><!-- /.page -->
+  </div><!-- /.content-area -->
+</div><!-- /.layout -->
+
+<script src="../../js/core/auth.js"></script>
+<script src="../../js/core/authz.js"></script>
+<script src="../../js/core/date-format.js"></script>
+<script>AuthZ.requirePerm("sys_settings_view");</script>
+<script src="../../js/components/modal/confirmModal.js"></script>
+<script src="company-settings.js"></script>
+<script type="module">
+  import { loadTopbar } from "../../js/components/navigation/topbar.js";
+  loadTopbar("🏢 ตั้งค่าบริษัท");
+</script>
+<script src="../../js/components/navigation/sidebar.js"></script>
+<script src="../../js/components/modal/modalManager.js"></script>
+
+</body>
+</html>

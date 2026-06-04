@@ -374,12 +374,19 @@
       group: "ตั้งค่า",
       icon: "⚙️",
       id: "g-settings",
+      subgroups: [{ key: "line", label: "LINE", icon: "💬" }],
       items: [
         {
           id: "settings",
           icon: "⚙️",
           label: "ตั้งค่าระบบ",
           path: BASE_PATH + "/modules/settings/settings.html",
+        },
+        {
+          id: "company-settings",
+          icon: "🏢",
+          label: "ตั้งค่าบริษัท",
+          path: BASE_PATH + "/modules/settings/company-settings.html",
         },
         {
           id: "db_viewer",
@@ -398,18 +405,21 @@
           icon: "💬",
           label: "ส่งข้อความพนักงาน",
           path: BASE_PATH + "/modules/settings/staff-messaging.html",
+          section: "line",
         },
         {
           id: "line-templates",
           icon: "📝",
           label: "ตอบกลับอัตโนมัติ",
           path: BASE_PATH + "/modules/settings/line-templates.html",
+          section: "line",
         },
         {
           id: "notification-rules",
           icon: "🔔",
           label: "กฎแจ้งเตือน LINE",
           path: BASE_PATH + "/modules/settings/notification-rules.html",
+          section: "line",
         },
         {
           id: "bell-rules",
@@ -422,6 +432,7 @@
           icon: "👥",
           label: "กลุ่มพนักงาน",
           path: BASE_PATH + "/modules/settings/staff-groups.html",
+          section: "line",
         },
         {
           id: "roles",
@@ -506,6 +517,7 @@
     req: "req_view",
     reports: "report_stock_view",
     settings: "sys_settings_view",
+    "company-settings": "sys_settings_view",
     db_viewer: "db_viewer_view",
     users: "users_view",
     "staff-messaging": "users_view",
@@ -601,6 +613,7 @@
     "stock-move",
     //**** SETTING ****
     "settings",
+    "company-settings",
     "suppliers",
     "users",
     "staff-messaging",

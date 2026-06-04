@@ -727,7 +727,8 @@ function previewPO() {
   setText('docCompanyEn', COMPANY_PROFILE.nameEn);
   const logoEl = document.getElementById('docLogo');
   if (logoEl) {
-    logoEl.src = COMPANY_PROFILE.logoUrl;
+    // Company logo from "ตั้งค่าบริษัท" (cached) · falls back to A4S logo
+    logoEl.src = (localStorage.getItem('company_logo_url') || '').trim() || COMPANY_PROFILE.logoUrl;
     logoEl.onerror = () => {
       logoEl.style.display = 'none';
       const parent = logoEl.parentElement;

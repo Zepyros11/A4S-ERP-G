@@ -9,6 +9,7 @@ const state = {
   docs: [],               // trip_documents
   signatories: [],        // trip_doc_signatories
   letterheads: [],        // trip_doc_letterheads
+  company: {},            // app_settings company_* (logo/ชื่อ/ที่อยู่)
   tab: "docs",
   // create-doc flow
   pickedFields: [],       // placeholder names ของแม่แบบที่เลือก
@@ -20,7 +21,6 @@ const state = {
   sigImgData: null,       // base64 data URL ที่กำลังแก้
   // letterhead manager
   editLhId: null,
-  lhLogoData: null,       // base64 logo ที่กำลังแก้
   // excel import
   importRows: [],         // raw rows จาก Excel
   // selections
@@ -88,6 +88,7 @@ function initRTE() {
     btn.addEventListener("mousedown", (e) => e.preventDefault()); // คง selection ไว้
     btn.addEventListener("click", () => {
       document.execCommand(btn.dataset.cmd, false, null);
+      updateLhSimulator();
     });
   });
   // ปุ่มเพิ่ม/ลดขนาดฟอนต์
@@ -115,6 +116,7 @@ function initRTE() {
       _lastArea.focus();
       restoreRteRange();
       document.execCommand("foreColor", false, inp.value);
+      updateLhSimulator();
     });
   });
   // ติดตาม selection → อัปเดตช่องขนาด + จำ range ไว้ (กันหลุดตอนคลิกช่อง px)
@@ -159,6 +161,7 @@ function applyFontPx(px) {
   });
   document.execCommand("styleWithCSS", false, true); // คืนค่าให้ align ใช้ CSS
   onRteSelChange();
+  updateLhSimulator();
 }
 // เพิ่ม/ลดขนาดฟอนต์ของข้อความที่เลือก (delta px)
 function rteFont(delta) {
@@ -186,16 +189,18 @@ function editorIsEmpty(id) {
 async function loadAll() {
   showLoading(true);
   try {
-    const [tpls, docs, sigs, lhs] = await Promise.all([
+    const [tpls, docs, sigs, lhs, comp] = await Promise.all([
       sbFetch("trip_doc_templates", "?select=*&order=updated_at.desc").catch(() => []),
       sbFetch("trip_documents", "?select=*&order=updated_at.desc").catch(() => []),
       sbFetch("trip_doc_signatories", "?select=*&order=name").catch(() => []),
       sbFetch("trip_doc_letterheads", "?select=*&order=letterhead_id").catch(() => []),
+      sbFetch("app_settings", "?select=key,value&key=like.company_*").catch(() => []),
     ]);
     state.templates = tpls || [];
     state.docs = docs || [];
     state.signatories = sigs || [];
     state.letterheads = lhs || [];
+    state.company = Object.fromEntries((comp || []).map((r) => [r.key, r.value]));
     populateTemplateFilter();
     updateStatCards();
     renderDocs();
@@ -284,27 +289,32 @@ function renderDocs() {
   rows.forEach((d) => {
     const key = d.template_id != null ? String(d.template_id) : "none";
     if (!groups.has(key)) {
-      groups.set(key, { key, name: templateName(d.template_id) || "— ไม่มีแม่แบบ —", docs: [] });
+      groups.set(key, { key, name: templateName(d.template_id) || "— ไม่มีแม่แบบ —", docs: [], latest: "" });
     }
-    groups.get(key).docs.push(d);
+    const g = groups.get(key);
+    g.docs.push(d);
+    if ((d.updated_at || "") > g.latest) g.latest = d.updated_at || ""; // อัปเดตล่าสุดในกลุ่ม
   });
   // ครั้งแรก: พับทุกกลุ่มเป็น default
   if (!state.groupsInitialized) {
     groups.forEach((_, key) => state.collapsedGroups.add(key));
     state.groupsInitialized = true;
   }
-  const ordered = [...groups.values()].sort((a, b) => a.name.localeCompare(b.name, "th"));
+  // เรียงกลุ่มตามอัปเดตล่าสุด (ใหม่สุดขึ้นบน)
+  const ordered = [...groups.values()].sort((a, b) => (b.latest || "").localeCompare(a.latest || ""));
 
   let idx = 0;
   const parts = [];
   ordered.forEach((g) => {
     const collapsed = state.collapsedGroups.has(g.key);
     parts.push(`<tr class="doc-group" onclick="window.toggleDocGroup('${g.key}')">
-      <td colspan="6">
+      <td colspan="4">
         <span class="doc-group-toggle">${collapsed ? "▸" : "▾"}</span>
         🧩 ${escapeHtml(g.name)}
         <span class="doc-group-count">${g.docs.length}</span>
       </td>
+      <td class="col-center" style="white-space:nowrap;font-size:12px;font-weight:600">${fmt(g.latest)}</td>
+      <td></td>
     </tr>`);
     if (!collapsed) g.docs.forEach((d) => parts.push(docRowHtml(d, ++idx, fmt)));
   });
@@ -584,6 +594,9 @@ function resolveLetterhead(id) {
     const f = state.letterheads.find((l) => l.letterhead_id === +id);
     if (f) return f;
   }
+  // ไม่ระบุ → ใช้หัว default · ไม่งั้น row แรก
+  const def = state.letterheads.find((l) => l.is_default);
+  if (def) return def;
   if (state.letterheads.length) return state.letterheads[0];
   return { logo_data: null, company_name: LETTERHEAD.nameEn, address: LETTERHEAD.addr };
 }
@@ -596,17 +609,56 @@ function legacyLetterheadHtml(l) {
   );
 }
 
+// โลโก้บริษัท (จากตั้งค่าบริษัท) → fallback asset A4S
+function companyLogoUrl() {
+  return (state.company && state.company.company_logo_url) || LETTERHEAD.logoUrl;
+}
+// สร้างเนื้อหาหัวกระดาษจากข้อมูลบริษัท (app_settings)
+function companyLetterheadHtml() {
+  const c = state.company || {};
+  const name = c.company_name_en || c.company_name || "";
+  const addr = c.company_address_en || c.company_address || "";
+  const contact = [
+    c.company_phone ? `Tel: ${c.company_phone}` : "",
+    c.company_email ? `Email: ${c.company_email}` : "",
+    c.company_website ? `Website: ${c.company_website}` : "",
+  ].filter(Boolean).join(" | ");
+  return (
+    `<div style="font-weight:700;font-size:18px;color:#2e9e2e">${escapeHtml(name)}</div>` +
+    (addr ? `<div style="font-size:13px;line-height:1.55;color:#222">${escapeHtml(addr)}</div>` : "") +
+    (contact ? `<div style="font-size:13px;color:#222">${escapeHtml(contact)}</div>` : "")
+  );
+}
+
+// สร้าง HTML หัวกระดาษ (ใช้ร่วมทั้งเอกสารจริง + simulator → WYSIWYG)
+function buildLetterheadHead(lh) {
+  const logoSrc = lh.logo_data || companyLogoUrl();
+  const contentHtml =
+    lh.content_html && lh.content_html.trim() ? lh.content_html : legacyLetterheadHtml(lh);
+  const pos = lh.logo_position || "left";
+  const lw = +lh.logo_width || 120;
+  const logoImg = logoSrc
+    ? `<img src="${logoSrc}" alt="logo" crossorigin="anonymous" style="max-width:${lw}px;max-height:${Math.round(lw * 0.8)}px;height:auto" onerror="this.style.display='none'" />`
+    : "";
+  const valign = lh.logo_valign || "top";
+  const ai = valign === "center" ? "center" : valign === "bottom" ? "flex-end" : "flex-start";
+  if (pos === "top") {
+    return `<div class="doc-letterhead" style="flex-direction:column;align-items:center;gap:8px">
+        <div class="lh-logo" style="width:auto;text-align:center">${logoImg}</div>
+        <div class="lh-info" style="text-align:center">${contentHtml}</div>
+      </div>`;
+  }
+  const dir = pos === "right" ? "row-reverse" : "row";
+  return `<div class="doc-letterhead" style="flex-direction:${dir};align-items:${ai}">
+      <div class="lh-logo" style="width:${lw}px">${logoImg}</div>
+      <div class="lh-info">${contentHtml}</div>
+    </div>`;
+}
+
 // ประกอบ HTML ของเอกสารเต็ม: หัวกระดาษ + เนื้อหา + บล็อกลายเซ็น
 function composeDocHtml(body, signatoryId, letterheadId) {
   const lh = resolveLetterhead(letterheadId);
-  const logoSrc = lh.logo_data || LETTERHEAD.logoUrl;
-  const contentHtml =
-    lh.content_html && lh.content_html.trim() ? lh.content_html : legacyLetterheadHtml(lh);
-  const head = `
-    <div class="doc-letterhead">
-      <div class="lh-logo">${logoSrc ? `<img src="${logoSrc}" alt="logo" onerror="this.style.display='none'" />` : ""}</div>
-      <div class="lh-info">${contentHtml}</div>
-    </div>`;
+  const head = buildLetterheadHead(lh);
 
   // body เป็น HTML (rich-text) แล้ว → inject ตรงๆ
   const bodyHtml = `<div class="doc-body">${body || ""}</div>`;
@@ -1380,9 +1432,9 @@ function renderLetterheadList() {
     .map(
       (l) => `<div class="lh-item${state.editLhId === l.letterhead_id ? " active" : ""}"
         title="คลิกเพื่อแก้ไข" onclick="window.editLetterhead(${l.letterhead_id})">
-        <img src="${l.logo_data || LETTERHEAD.logoUrl}" alt="logo" onerror="this.style.display='none'" />
+        <img src="${l.logo_data || companyLogoUrl()}" alt="logo" onerror="this.style.display='none'" />
         <div class="lh-item-meta">
-          <b title="${escapeHtml(l.name)}">${escapeHtml(l.name)}</b>
+          <b title="${escapeHtml(l.name)}">${l.is_default ? "⭐ " : ""}${escapeHtml(l.name)}</b>
           <small>${escapeHtml(stripHtml(l.content_html) || l.company_name || "—")}</small>
         </div>
         <div class="lh-item-acts">
@@ -1393,48 +1445,74 @@ function renderLetterheadList() {
     .join("");
 }
 
+// simulator = หัวกระดาษจริง (ฟังก์ชันเดียวกับเอกสาร) ย่อสัดส่วน → ตรงเป๊ะ
+window.updateLhSimulator = function () {
+  const box = document.getElementById("lhSimulator");
+  if (!box) return;
+  // ทำเฉพาะตอน modal หัวกระดาษเปิด (toolbar ใช้ร่วมกับ editor อื่น)
+  if (!document.getElementById("lhMgrOverlay")?.classList.contains("open")) return;
+  const html = getEditorHTML("lhContent");
+  const tempLh = {
+    content_html: html && stripHtml(html) ? html : "",
+    logo_position: document.getElementById("lhLogoPos").value || "left",
+    logo_valign: document.getElementById("lhLogoVAlign").value || "top",
+    logo_width: +document.getElementById("lhLogoWidth").value || 120,
+    logo_data: null,
+  };
+  const head = buildLetterheadHead(tempLh); // = หัวกระดาษในเอกสารจริงเป๊ะ
+
+  // ครอบด้วย .doc-paper จริง (base font/family เท่าเอกสาร) → render ตรงเป๊ะ
+  const paper = `<div class="doc-paper" style="width:666px;padding:0;margin:0;min-height:0;box-shadow:none;background:transparent">${head}</div>`;
+  box.innerHTML = `<div class="lh-sim-scale" style="width:666px">${paper}</div>`;
+  const wrap = box.querySelector(".lh-sim-scale");
+  const band = wrap.firstElementChild; // .doc-paper
+  const avail = box.clientWidth - 28; // ลบ padding ซ้าย/ขวา
+  const s = avail > 0 ? Math.min(1, avail / 666) : 0.72;
+  wrap.style.transform = `scale(${s})`;
+  box.style.height = Math.max(56, band.offsetHeight * s + 24) + "px";
+};
+
+// ดึงข้อมูลบริษัท (ตั้งค่าบริษัท) มาใส่เนื้อหาหัวกระดาษ → ปรับแต่งต่อได้
+window.pullCompanyInfo = function () {
+  if (!state.company || !state.company.company_name && !state.company.company_name_en) {
+    showToast("ยังไม่มีข้อมูลบริษัท — ตั้งค่าที่หน้า ตั้งค่าบริษัท ก่อน", "error");
+    return;
+  }
+  setEditorHTML("lhContent", companyLetterheadHtml());
+  updateLhSimulator();
+  showToast("ดึงข้อมูลบริษัทแล้ว — ปรับแต่งต่อได้เลย", "success");
+};
+
 window.resetLetterheadForm = function () {
   state.editLhId = null;
-  state.lhLogoData = null;
   document.getElementById("lhName").value = "";
   setEditorHTML("lhContent", "");
-  document.getElementById("lhFile").value = "";
-  document.getElementById("lhLogoBox").innerHTML = `<span class="ph">โลโก้ A4S เริ่มต้น</span>`;
+  document.getElementById("lhDefault").checked = false;
+  document.getElementById("lhLogoPos").value = "left";
+  document.getElementById("lhLogoVAlign").value = "top";
+  document.getElementById("lhLogoWidth").value = 120;
   document.getElementById("lhSaveBtn").textContent = "＋ เพิ่มหัวกระดาษ";
   document.getElementById("lhCancelEdit").style.display = "none";
   renderLetterheadList(); // ล้างไฮไลต์ active
+  updateLhSimulator();
 };
 
 window.editLetterhead = function (id) {
   const l = state.letterheads.find((x) => x.letterhead_id === id);
   if (!l) return;
   state.editLhId = id;
-  state.lhLogoData = l.logo_data || null;
   document.getElementById("lhName").value = l.name || "";
   setEditorHTML("lhContent", l.content_html || legacyLetterheadHtml(l));
-  document.getElementById("lhLogoBox").innerHTML = l.logo_data
-    ? `<img src="${l.logo_data}" alt="logo" />`
-    : `<span class="ph">โลโก้ A4S เริ่มต้น</span>`;
+  document.getElementById("lhDefault").checked = !!l.is_default;
+  document.getElementById("lhLogoPos").value = l.logo_position || "left";
+  document.getElementById("lhLogoVAlign").value = l.logo_valign || "top";
+  document.getElementById("lhLogoWidth").value = l.logo_width || 120;
   document.getElementById("lhSaveBtn").textContent = "💾 บันทึกการแก้ไข";
   document.getElementById("lhCancelEdit").style.display = "";
   renderLetterheadList(); // อัปเดตไฮไลต์แถวที่กำลังแก้
+  updateLhSimulator();
 };
 
-window.onLogoPicked = async function (e) {
-  const file = e.target.files?.[0];
-  if (!file) return;
-  try {
-    state.lhLogoData = await resizeImageToPngDataUrl(file, 320);
-    document.getElementById("lhLogoBox").innerHTML = `<img src="${state.lhLogoData}" alt="logo" />`;
-  } catch (err) {
-    showToast("อ่านรูปไม่ได้: " + err.message, "error");
-  }
-};
-window.clearLogoImg = function () {
-  state.lhLogoData = null;
-  document.getElementById("lhFile").value = "";
-  document.getElementById("lhLogoBox").innerHTML = `<span class="ph">โลโก้ A4S เริ่มต้น</span>`;
-};
 
 window.saveLetterhead = async function () {
   const name = document.getElementById("lhName").value.trim();
@@ -1442,14 +1520,19 @@ window.saveLetterhead = async function () {
     showToast("กรุณากรอกชื่อหัวกระดาษ", "error");
     return;
   }
+  const isDefault = document.getElementById("lhDefault").checked;
   const payload = {
     name,
     content_html: getEditorHTML("lhContent"),
-    logo_data: state.lhLogoData || null,
+    logo_position: document.getElementById("lhLogoPos").value || "left",
+    logo_valign: document.getElementById("lhLogoVAlign").value || "top",
+    logo_width: parseInt(document.getElementById("lhLogoWidth").value, 10) || 120,
+    is_default: isDefault,
     updated_at: new Date().toISOString(),
   };
   showLoading(true);
   try {
+    let savedId = state.editLhId;
     if (state.editLhId) {
       await sbFetch("trip_doc_letterheads", `?letterhead_id=eq.${state.editLhId}`, {
         method: "PATCH",
@@ -1457,8 +1540,16 @@ window.saveLetterhead = async function () {
       });
       showToast("แก้ไขหัวกระดาษแล้ว", "success");
     } else {
-      await sbFetch("trip_doc_letterheads", "", { method: "POST", body: payload });
+      const rows = await sbFetch("trip_doc_letterheads", "", { method: "POST", body: payload });
+      savedId = (Array.isArray(rows) ? rows[0] : rows)?.letterhead_id;
       showToast("เพิ่มหัวกระดาษแล้ว", "success");
+    }
+    // มี default ได้ทีละ 1 → เคลียร์ของอื่น
+    if (isDefault && savedId) {
+      await sbFetch("trip_doc_letterheads", `?letterhead_id=neq.${savedId}`, {
+        method: "PATCH",
+        body: { is_default: false },
+      }).catch(() => {});
     }
     state.letterheads =
       (await sbFetch("trip_doc_letterheads", "?select=*&order=letterhead_id").catch(() => [])) || [];

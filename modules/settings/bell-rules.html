@@ -69,6 +69,42 @@
 #btnTestMe{background:#fffbeb;border-color:#fde68a;color:#92400e;}
 #btnTestMe:hover{background:#fef3c7;}
 .modal-wide{max-width:680px;width:100%;}
+
+/* ── Trigger field + ⚙️ ── */
+.br-trigger-row{display:flex;gap:8px;align-items:stretch;}
+.br-trigger-row select{flex:1;}
+.btn-cog{flex-shrink:0;padding:0 14px;font-size:16px;line-height:1;}
+
+/* ── Trigger manager (nested modal) ── */
+#trigOverlay{z-index:2000;}
+.trig-list{display:flex;flex-direction:column;gap:8px;max-height:340px;overflow-y:auto;padding-right:2px;}
+.trig-card{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:var(--surface2);}
+.trig-card.off{opacity:.6;}
+.trig-main{flex:1;min-width:0;}
+.trig-label{font-weight:700;font-size:14px;margin-bottom:3px;}
+.trig-meta{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:3px;}
+.trig-badge{display:inline-block;padding:2px 7px;border-radius:6px;font-size:10px;font-weight:700;}
+.trig-badge.lock{background:#fef3c7;color:#92400e;}
+.trig-badge.off{background:#fee2e2;color:#991b1b;}
+.trig-desc{font-size:11.5px;color:var(--text3);line-height:1.4;}
+.trig-acts{display:flex;gap:4px;flex-shrink:0;}
+.trig-empty{text-align:center;color:var(--text3);font-size:13px;padding:24px 0;}
+
+/* ── Trigger placeholder tag input (reuse group-tag look) ── */
+.trig-ph-wrap{display:flex;flex-wrap:wrap;gap:6px;padding:8px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);min-height:42px;align-items:center;}
+.trig-ph-tag{display:inline-flex;align-items:center;gap:6px;background:#fef3c7;color:#92400e;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:600;font-family:'IBM Plex Mono',monospace;}
+.trig-ph-x{cursor:pointer;font-size:14px;line-height:1;opacity:.6;}
+.trig-ph-x:hover{opacity:1;}
+.trig-ph-input{flex:1;min-width:120px;border:none;outline:none;background:transparent;font-family:inherit;font-size:13px;padding:4px;color:var(--text);}
+
+/* ── Generated code box ── */
+.trig-code{margin-top:12px;border:1px solid var(--border);border-radius:10px;overflow:hidden;}
+.trig-code-hd{display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--surface2);font-size:12.5px;font-weight:700;border-bottom:1px solid var(--border);}
+.trig-code-hd .btn{margin-left:auto;}
+.trig-code pre{margin:0;padding:12px 14px;font-family:'IBM Plex Mono',monospace;font-size:11.5px;line-height:1.6;white-space:pre-wrap;word-break:break-word;color:var(--text);background:var(--surface);max-height:200px;overflow:auto;}
+.trig-code details{border-top:1px solid var(--border);}
+.trig-code details summary{cursor:pointer;padding:8px 12px;font-size:12px;font-weight:600;color:var(--text2);background:var(--surface2);user-select:none;}
+.trig-code details summary:hover{color:var(--accent);}
 </style>
 </head>
 <body>
@@ -84,6 +120,7 @@
       <p class="page-hero-sub">ตั้งค่ากระดิ่งในแอป (in-app) — แยกตาม Role/แผนก · เป็นอิสระจากการแจ้งเตือน LINE</p>
     </div>
     <div class="page-hero-actions">
+      <button class="btn-on-hero" onclick="window.openTriggerMgr()">⚙️ จัดการเหตุการณ์</button>
       <button class="btn-on-hero btn-primary" onclick="window.openRuleModal(null)">＋ เพิ่มกฎ</button>
     </div>
   </div>
@@ -133,7 +170,10 @@
 
       <div class="form-group" style="margin-top:14px">
         <label class="form-label">Trigger (เหตุการณ์) <span class="req">*</span></label>
-        <select class="form-control" id="fTrigger" onchange="window.onTriggerChange()"></select>
+        <div class="br-trigger-row">
+          <select class="form-control" id="fTrigger" onchange="window.onTriggerChange()"></select>
+          <button type="button" class="btn btn-ghost btn-cog" onclick="window.openTriggerMgr()" title="จัดการเหตุการณ์ (เพิ่ม/แก้/ลบ)">⚙️</button>
+        </div>
         <div class="br-hint" id="fTriggerDesc"></div>
       </div>
 
@@ -183,6 +223,84 @@
       <div style="flex:1"></div>
       <button class="btn btn-ghost" onclick="window.closeRuleModal()">ยกเลิก</button>
       <button class="btn btn-primary" id="btnSave" onclick="window.saveRule()">💾 บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<!-- TRIGGER MANAGER MODAL (nested) -->
+<div class="modal-overlay" id="trigOverlay">
+  <div class="modal v-sage-header modal-wide" onclick="event.stopPropagation()">
+    <div class="modal-hdr">
+      <div class="modal-title" id="trigModalTitle">⚙️ จัดการเหตุการณ์ (Trigger)</div>
+      <button class="btn-modal-close" onclick="window.closeTriggerMgr()">✕</button>
+    </div>
+
+    <!-- LIST VIEW -->
+    <div class="modal-body" id="trigListView">
+      <p class="br-hint" style="margin-bottom:10px">
+        เหตุการณ์ที่สร้างเองจะโผล่ใน dropdown ให้ตั้งกฎได้ทันที —
+        แต่ต้องให้โปรแกรมเมอร์แปะ <code>โค้ดยิง</code> (กดปุ่ม <strong>&lt;/&gt; โค้ด</strong>) ตรงจุดที่เหตุการณ์เกิดจริง กระดิ่งถึงจะเด้ง
+      </p>
+      <div class="trig-list" id="trigList"></div>
+      <button type="button" class="btn btn-primary" style="margin-top:12px" onclick="window.openTrigForm(null)">＋ เพิ่มเหตุการณ์</button>
+      <div id="trigCode"></div>
+    </div>
+
+    <!-- FORM VIEW -->
+    <div class="modal-body" id="trigFormView" style="display:none">
+      <div class="form-group">
+        <label class="form-label">ชื่อเหตุการณ์ (Label) <span class="req">*</span></label>
+        <input class="form-control" id="tLabel" placeholder="เช่น 🚌 ทริปใหม่ถูกสร้าง" autocomplete="off" oninput="window.onTrigLabelInput()" />
+        <div class="br-hint">ใส่ emoji นำหน้าได้ — ข้อความนี้คือสิ่งที่โชว์ใน dropdown</div>
+      </div>
+
+      <div class="form-group" style="margin-top:14px">
+        <label class="form-label">รหัสเหตุการณ์ (Key) <span class="req">*</span></label>
+        <input class="form-control" id="tKey" placeholder="เช่น custom.trip_created" autocomplete="off" spellcheck="false" />
+        <div class="br-hint">ตัวพิมพ์เล็ก/ตัวเลข/จุด/ขีดล่าง เท่านั้น · ใช้ในโค้ดยิง · <strong>ตั้งแล้วเปลี่ยนไม่ได้</strong></div>
+      </div>
+
+      <div class="form-group" style="margin-top:14px">
+        <label class="form-label">ตัวแปรที่ใช้ได้ (Placeholders)</label>
+        <div class="trig-ph-wrap" id="tPHWrap"></div>
+        <div class="br-hint">ชื่อตัวแปรสำหรับใส่ใน <code>{{ }}</code> ของข้อความกฎ เช่น <code>trip_name</code> — พิมพ์ + Enter</div>
+        <details class="trig-code" id="tPHRefWrap" style="margin-top:8px">
+          <summary>💡 ดูตัวแปรจากเหตุการณ์อื่น (คลิกเพื่อเพิ่ม)</summary>
+          <div id="tPHRef" style="padding:10px 12px"></div>
+        </details>
+      </div>
+
+      <div class="form-group" style="margin-top:14px">
+        <label class="form-label">ตัวอย่างข้อมูล (Sample) — ใช้ตอนกด "ดูตัวอย่าง"</label>
+        <textarea class="form-control" id="tSample" rows="4" spellcheck="false" style="font-family:'IBM Plex Mono',monospace;font-size:12px"></textarea>
+        <button type="button" class="btn btn-ghost" style="margin-top:6px" onclick="window.regenTrigSample()">↻ เติมจากตัวแปร</button>
+      </div>
+
+      <div class="form-group" style="margin-top:14px">
+        <label class="form-label">คำอธิบาย (Description)</label>
+        <input class="form-control" id="tDesc" placeholder="เช่น ยิงเมื่อสร้างทริปใหม่ใน trip-list.js" autocomplete="off" />
+      </div>
+
+      <div class="form-group" style="margin-top:14px;display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap">
+        <div style="width:120px">
+          <label class="form-label">ลำดับ</label>
+          <input class="form-control" id="tSort" type="number" value="100" />
+        </div>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding-bottom:8px">
+          <input type="checkbox" id="tActive" checked />
+          <span>เปิดใช้งาน (โชว์ใน dropdown)</span>
+        </label>
+      </div>
+    </div>
+
+    <div class="modal-footer" id="trigListFooter">
+      <div style="flex:1"></div>
+      <button class="btn btn-ghost" onclick="window.closeTriggerMgr()">ปิด</button>
+    </div>
+    <div class="modal-footer" id="trigFormFooter" style="display:none">
+      <button class="btn btn-ghost" onclick="window.cancelTrigForm()">← กลับ</button>
+      <div style="flex:1"></div>
+      <button class="btn btn-primary" id="btnSaveTrig" onclick="window.saveTrigger()">💾 บันทึก</button>
     </div>
   </div>
 </div>

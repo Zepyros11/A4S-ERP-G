@@ -57,7 +57,10 @@ const CalTopbar = (function () {
     const selfDir = getSelfDir();
     const resolvedCss = cssPath || selfDir + "topbar-calendar.css";
     loadCSS(resolvedCss);
-    const resolvedLogo = logoPath || selfDir + "../../../../assets/images/logo.png";
+    // Company logo from "ตั้งค่าบริษัท" (cached) · falls back to passed logoPath / default asset
+    let _logoFallback = logoPath || selfDir + "../../../../assets/images/logo.png";
+    let resolvedLogo = _logoFallback;
+    try { resolvedLogo = (localStorage.getItem("company_logo_url") || "").trim() || _logoFallback; } catch (_) {}
 
     // fetch fresh user data from DB
     const session = window.ERP_USER || {};
@@ -90,7 +93,7 @@ const CalTopbar = (function () {
     wrap.innerHTML = `
       <div class="cal-topbar">
         <div class="cal-topbar-left">
-          <img src="${resolvedLogo}" alt="A4S ERP" class="cal-topbar-logo">
+          <img src="${resolvedLogo}" alt="A4S ERP" class="cal-topbar-logo" onerror="this.onerror=null;this.src='${_logoFallback}'">
           <span style="width:1px;height:20px;background:#e2e8f0;display:inline-block;flex-shrink:0"></span>
           <span class="cal-topbar-page">${pageName}</span>
         </div>

@@ -403,7 +403,17 @@
     <div class="card-wrap">
       <div class="card">
         <div class="card-header">
-          <img src="assets/logo/logo-a4s.png" class="logo-icon" alt="A4S Logo" />
+          <img src="assets/logo/logo-a4s.png" class="logo-icon" alt="A4S Logo" id="loginBrandLogo"
+               onerror="this.onerror=null;this.src='assets/logo/logo-a4s.png'" />
+          <script>
+            // Company logo from "ตั้งค่าบริษัท" (cached) · falls back to A4S logo
+            (function () {
+              try {
+                var u = (localStorage.getItem("company_logo_url") || "").trim();
+                if (u) document.getElementById("loginBrandLogo").src = u;
+              } catch (e) {}
+            })();
+          </script>
           <div class="logo-subtitle">ระบบบริหารจัดการองค์กร</div>
         </div>
         <div class="card-body">

@@ -183,45 +183,6 @@
         <div class="section-card">
           <div class="section-head">
             <div class="section-title">
-              <span class="section-icon" style="background:#ede9fe;color:#6d28d9">🏢</span>
-              <div>
-                <div>ข้อมูลบริษัท</div>
-                <div class="section-sub">ชื่อที่แสดงในใบสั่งซื้อ / ใบขาย</div>
-              </div>
-            </div>
-          </div>
-
-          <div class="form-grid">
-            <div class="form-group">
-              <label class="form-label">ชื่อบริษัท</label>
-              <input class="form-control" id="companyName" placeholder="บริษัท A4S จำกัด">
-            </div>
-            <div class="form-group">
-              <label class="form-label">เลขที่ผู้เสียภาษี</label>
-              <input class="form-control mono" id="taxId" placeholder="0-0000-00000-00-0">
-            </div>
-            <div class="form-group full">
-              <label class="form-label">ที่อยู่</label>
-              <input class="form-control" id="companyAddress" placeholder="ที่อยู่บริษัท">
-            </div>
-            <div class="form-group">
-              <label class="form-label">เบอร์โทร</label>
-              <input class="form-control" id="companyPhone" placeholder="02-xxx-xxxx">
-            </div>
-            <div class="form-group">
-              <label class="form-label">อีเมล</label>
-              <input class="form-control" id="companyEmail" placeholder="contact@company.com">
-            </div>
-          </div>
-
-          <div class="btn-row">
-            <button class="btn btn-primary" data-perm="sys_settings_edit" onclick="saveCompanyInfo()">💾 บันทึกข้อมูลบริษัท</button>
-          </div>
-        </div>
-
-        <div class="section-card">
-          <div class="section-head">
-            <div class="section-title">
               <span class="section-icon" style="background:#fef3c7;color:#92400e">🔢</span>
               <div>
                 <div>รูปแบบเลขที่เอกสาร</div>
@@ -392,7 +353,7 @@
               <span class="section-icon" style="background:#fee2e2;color:#b91c1c">🗑️</span>
               <div>
                 <div>ล้างข้อมูลทั้งหมดใน Browser</div>
-                <div class="section-sub">ลบ Supabase Key, ข้อมูลบริษัท และ Prefix ทั้งหมดออกจาก localStorage · ไม่กระทบข้อมูลใน Database</div>
+                <div class="section-sub">ลบ Supabase Key, แคชข้อมูลบริษัท และ Prefix ออกจาก localStorage · ไม่กระทบข้อมูลใน Database (ข้อมูลบริษัทจะโหลดกลับจาก DB เมื่อเชื่อมต่อใหม่)</div>
               </div>
             </div>
           </div>

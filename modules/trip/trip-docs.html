@@ -188,6 +188,26 @@
       .lh-item-acts{ display:flex;gap:2px;flex-shrink:0; }
       .lh-item-acts .btn-icon{ width:28px;height:28px;font-size:13px; }
 
+      /* ── letterhead form polish ──────────────────────────── */
+      .lh-section{
+        background:linear-gradient(180deg,#f9fbf9,#f4f8f4);
+        border:1px solid #e1ebe1;border-radius:12px;padding:14px 16px;margin-top:14px;
+      }
+      .lh-section-title{
+        font-size:13px;font-weight:700;color:var(--accent,#3d6b4f);
+        margin-bottom:12px;display:flex;align-items:center;gap:7px;
+      }
+      .lh-section-title .muted{ font-weight:400;color:var(--text3);font-size:12px; }
+      .lh-field-label{ font-size:11.5px;color:var(--text2);margin-bottom:5px;display:block;font-weight:500; }
+
+      /* ── letterhead layout simulator ─────────────────────── */
+      .lh-sim-cap{ font-size:11.5px;color:var(--text3);margin:14px 0 6px;display:flex;align-items:center;gap:5px; }
+      .lh-sim{ border:1px solid #dbe4db;border-radius:10px;background:#fff;
+        box-shadow:0 1px 4px rgba(0,0,0,.05);position:relative;overflow:hidden;min-height:60px; }
+      .lh-sim-scale{ position:absolute;top:12px;left:14px;transform-origin:top left; }
+      /* sim ใช้ .doc-letterhead จริง — แค่ตัด margin ล่างทิ้ง + คงฟอนต์ */
+      .lh-sim .doc-letterhead{ margin-bottom:0;font-family:"Sarabun","Segoe UI",sans-serif; }
+
       /* paper ใช้ขนาด A4 เป๊ะ → preview กับ print ตัดบรรทัดเหมือนกัน (WYSIWYG) */
       @page { size: A4; margin: 0; }
       @media print{
@@ -721,13 +741,23 @@
             </div>
 
             <!-- ขวา: ฟอร์มเพิ่ม/แก้ไข -->
-            <div class="section-card" style="padding:14px">
+            <div class="section-card" style="padding:18px;background:#fcfdfc">
               <div class="form-group">
-                <label class="form-label">ชื่อหัวกระดาษ <span class="req">*</span></label>
-                <input class="form-control" id="lhName" placeholder="เช่น A4S สำนักงานใหญ่" autocomplete="off" />
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+                  <label class="form-label" style="margin:0">ชื่อหัวกระดาษ <span class="req">*</span></label>
+                  <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;color:var(--text);white-space:nowrap">
+                    <input type="checkbox" id="lhDefault" />
+                    ⭐ ตั้งเป็นค่าเริ่มต้น
+                  </label>
+                </div>
+                <input class="form-control" id="lhName" placeholder="เช่น A4S สำนักงานใหญ่" autocomplete="off" style="margin-top:6px" />
               </div>
               <div class="form-group" style="margin-top:12px">
-                <label class="form-label">เนื้อหาหัวกระดาษ (จัดสี/ตัวหนา/ขนาดเองได้)</label>
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:5px">
+                  <label class="form-label" style="margin:0">เนื้อหาหัวกระดาษ (จัดสี/ตัวหนา/ขนาดเองได้)</label>
+                  <button class="btn btn-outline" type="button" style="padding:5px 12px;font-size:12.5px;white-space:nowrap"
+                    onclick="window.pullCompanyInfo()" title="ดึงชื่อ/ที่อยู่/ติดต่อ จากหน้าตั้งค่าบริษัท">📥 ดึงข้อมูลบริษัท</button>
+                </div>
                 <div class="rte">
                   <div class="rte-toolbar">
                     <button type="button" data-cmd="bold" title="ตัวหนา"><b>B</b></button>
@@ -747,24 +777,39 @@
                     <button type="button" data-cmd="removeFormat" title="ล้างรูปแบบ">✖</button>
                   </div>
                   <div class="rte-area" id="lhContent" contenteditable="true"
-                    style="min-height:150px;max-height:30vh"
+                    style="min-height:150px;max-height:30vh;font-size:16px;font-family:'Sarabun','Segoe UI',sans-serif"
+                    oninput="window.updateLhSimulator()"
                     data-ph="ชื่อบริษัท (จัดสี/ตัวหนา) + ที่อยู่ + เบอร์/อีเมล"></div>
                 </div>
               </div>
-              <div class="form-group" style="margin-top:12px">
-                <label class="form-label">โลโก้ (เว้นว่าง = ใช้โลโก้ A4S เริ่มต้น)</label>
-                <div style="display:flex;gap:12px;align-items:stretch">
-                  <div class="sig-preview-box" id="lhLogoBox" style="flex:1">
-                    <span class="ph">โลโก้ A4S เริ่มต้น</span>
+              <div class="lh-section">
+                <div class="lh-section-title">🖼️ การจัดวางโลโก้ <span class="muted">(ใช้โลโก้ A4S)</span></div>
+                <div style="display:grid;grid-template-columns:1.5fr 1fr 0.9fr;gap:10px">
+                  <div>
+                    <label class="lh-field-label">ตำแหน่งโลโก้และข้อความ</label>
+                    <select class="form-control" id="lhLogoPos" onchange="window.updateLhSimulator()">
+                      <option value="left">⬅️ โลโก้ซ้าย · ข้อความขวา</option>
+                      <option value="right">➡️ ข้อความซ้าย · โลโก้ขวา</option>
+                      <option value="top">⬆️ โลโก้บน (กึ่งกลาง)</option>
+                    </select>
                   </div>
-                  <div style="display:flex;flex-direction:column;gap:6px;justify-content:center">
-                    <input type="file" id="lhFile" accept="image/*" style="display:none" onchange="window.onLogoPicked(event)" />
-                    <button class="btn btn-outline" type="button" onclick="document.getElementById('lhFile').click()">📤 อัปโหลด</button>
-                    <button class="btn btn-ghost" type="button" onclick="window.clearLogoImg()">ใช้ค่าเริ่มต้น</button>
+                  <div>
+                    <label class="lh-field-label">แนวตั้งโลโก้</label>
+                    <select class="form-control" id="lhLogoVAlign" onchange="window.updateLhSimulator()">
+                      <option value="top">⬆️ บน</option>
+                      <option value="center">↕️ กลาง</option>
+                      <option value="bottom">⬇️ ล่าง</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="lh-field-label">ขนาด (px)</label>
+                    <input type="number" class="form-control" id="lhLogoWidth" min="40" max="320" step="10" value="120" oninput="window.updateLhSimulator()" />
                   </div>
                 </div>
+                <div class="lh-sim-cap">👁 ตัวอย่างสัดส่วน (โลโก้ : ข้อความ)</div>
+                <div class="lh-sim" id="lhSimulator"></div>
               </div>
-              <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px">
+              <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px;padding-top:14px;border-top:1px solid #eef0ee">
                 <button class="btn btn-ghost" id="lhCancelEdit" style="display:none" onclick="window.resetLetterheadForm()">ยกเลิกแก้ไข</button>
                 <button class="btn btn-primary" id="lhSaveBtn" onclick="window.saveLetterhead()">＋ เพิ่มหัวกระดาษ</button>
               </div>

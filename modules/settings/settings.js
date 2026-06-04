@@ -14,14 +14,11 @@ if (_hasSupabase && !_hasSession) {
 }
 if (_hasSession) window.ERP_USER = JSON.parse(_hasSession);
 
+// ข้อมูลบริษัท ย้ายไปหน้า "ตั้งค่าบริษัท" (company-settings.html / company-settings.js)
+
 window.addEventListener('DOMContentLoaded', () => {
   if (SUPABASE_URL) document.getElementById('inputUrl').value = SUPABASE_URL;
   if (SUPABASE_KEY) document.getElementById('inputKey').value = SUPABASE_KEY;
-  document.getElementById('companyName').value    = localStorage.getItem('company_name') || '';
-  document.getElementById('taxId').value          = localStorage.getItem('tax_id') || '';
-  document.getElementById('companyAddress').value = localStorage.getItem('company_address') || '';
-  document.getElementById('companyPhone').value   = localStorage.getItem('company_phone') || '';
-  document.getElementById('companyEmail').value   = localStorage.getItem('company_email') || '';
   document.getElementById('prefixPo').value  = localStorage.getItem('prefix_po')  || 'PO-2025-';
   document.getElementById('prefixSo').value  = localStorage.getItem('prefix_so')  || 'SO-2025-';
   document.getElementById('prefixReq').value = localStorage.getItem('prefix_req') || 'REQ-2025-';
@@ -90,15 +87,6 @@ function toggleKeyVisibility() {
   const btn   = document.getElementById('keyToggleBtn');
   input.type  = input.type === 'password' ? 'text' : 'password';
   btn.textContent = input.type === 'password' ? '👁' : '🙈';
-}
-
-function saveCompanyInfo() {
-  localStorage.setItem('company_name',    document.getElementById('companyName').value);
-  localStorage.setItem('tax_id',          document.getElementById('taxId').value);
-  localStorage.setItem('company_address', document.getElementById('companyAddress').value);
-  localStorage.setItem('company_phone',   document.getElementById('companyPhone').value);
-  localStorage.setItem('company_email',   document.getElementById('companyEmail').value);
-  showToast('✅ บันทึกข้อมูลบริษัทแล้ว', 'success');
 }
 
 function savePrefixes() {

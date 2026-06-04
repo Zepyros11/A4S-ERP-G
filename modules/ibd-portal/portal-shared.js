@@ -427,7 +427,7 @@
     const html = `
       <div class="pp-topbar">
         <div class="pp-brand">
-          <img class="pp-brand-logo" src="../../assets/logo/logo-a4s.png" alt="A4S" />
+          <img class="pp-brand-logo js-company-logo" id="ppBrandLogo" src="${(function(){try{return (localStorage.getItem('company_logo_url')||'').trim()||'../../assets/logo/logo-a4s.png';}catch(e){return '../../assets/logo/logo-a4s.png';}})()}" alt="logo" onerror="this.onerror=null;this.src='../../assets/logo/logo-a4s.png'" />
           <div class="pp-brand-text">
             <div>${t('brand')}</div>
             <div class="pp-brand-sub">${t('brand_sub')}</div>
@@ -441,6 +441,22 @@
         ${userHtml}
       </div>`;
     document.body.insertAdjacentHTML('afterbegin', html);
+    // Pull company logo from app_settings (members never visit settings → no cache)
+    if (SB_URL && SB_KEY) {
+      fetch(`${SB_URL}/rest/v1/app_settings?select=value&key=eq.company_logo_url`, {
+        headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` },
+      })
+        .then(r => r.ok ? r.json() : [])
+        .then(rows => {
+          const url = rows && rows[0] ? rows[0].value : '';
+          if (url && typeof url === 'string' && url.trim()) {
+            try { localStorage.setItem('company_logo_url', url); } catch (e) {}
+            // Update every company-logo image on the page (topbar + card)
+            document.querySelectorAll('.js-company-logo').forEach(img => { img.src = url; });
+          }
+        })
+        .catch(() => {});
+    }
   }
 
   /* ── Misc ── */

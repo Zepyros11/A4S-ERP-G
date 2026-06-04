@@ -265,6 +265,120 @@
   white-space: nowrap;
 }
 
+/* ── Badge tab (logo + name) ───────────────────────────────── */
+/* Logo library gallery */
+.badge-logo-grid {
+  display: flex; flex-wrap: wrap; gap: 10px;
+  padding: 12px 18px;
+}
+.badge-logo-empty {
+  font-size: 13px; color: var(--text3, #9d958b);
+  padding: 6px 0;
+}
+.badge-logo-item {
+  position: relative;
+  width: 84px; height: 84px;
+  border: 2px solid var(--border, #e4ddd2);
+  border-radius: 10px;
+  background:
+    linear-gradient(45deg, #f0ece4 25%, transparent 25%, transparent 75%, #f0ece4 75%) 0 0/16px 16px,
+    linear-gradient(45deg, #f0ece4 25%, #fff 25%, #fff 75%, #f0ece4 75%) 8px 8px/16px 16px;
+  cursor: pointer;
+  overflow: hidden;
+  transition: border-color .15s, box-shadow .15s;
+}
+.badge-logo-item:hover { border-color: var(--accent); }
+.badge-logo-item.selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-pale, #e8f2e2);
+}
+.badge-logo-item img {
+  width: 100%; height: 100%; object-fit: contain;
+  display: block;
+}
+.badge-logo-item .badge-logo-check {
+  position: absolute; top: 3px; left: 3px;
+  width: 20px; height: 20px; border-radius: 50%;
+  background: var(--accent); color: #fff;
+  font-size: 12px; font-weight: 700;
+  display: none; align-items: center; justify-content: center;
+}
+.badge-logo-item.selected .badge-logo-check { display: flex; }
+.badge-logo-del {
+  position: absolute; top: 3px; right: 3px;
+  width: 20px; height: 20px; border-radius: 50%;
+  background: rgba(15,23,42,.55); color: #fff;
+  border: none; cursor: pointer;
+  font-size: 12px; line-height: 1;
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; transition: opacity .15s;
+}
+.badge-logo-item:hover .badge-logo-del { opacity: 1; }
+.badge-logo-del:hover { background: #dc2626; }
+
+/* Badge card · custom size via CSS vars (logo top + name below) */
+.badge-card {
+  position: relative;
+  width: var(--badge-w, 95mm);
+  height: var(--badge-h, 60mm);
+  background: #fff;
+  border: 1px dashed #cbd5e1;
+  overflow: hidden;
+  box-sizing: border-box;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  padding: 4mm 3mm;
+}
+.badge-card-logo {
+  flex: 0 0 auto;
+  max-height: 52%; width: 100%;
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: 2mm;
+}
+.badge-card-logo img {
+  max-height: 100%; max-width: 80%; object-fit: contain;
+}
+.badge-card-logo.is-empty {
+  min-height: 18%;
+}
+.badge-card-name {
+  flex: 0 1 auto;
+  width: 100%;
+  font-family: 'Sarabun', sans-serif;
+  font-weight: 800;
+  font-size: 40px;
+  color: #0f172a;
+  line-height: 1.05;
+  text-align: center;
+  overflow: hidden;
+  word-break: break-word;
+}
+
+/* Badge A4 · wrapper holds the scaled size (same model as VIP) */
+.badge-a4-wrap {
+  position: relative;
+  width:  calc(210mm * var(--nmc-zoom, .5));
+  height: calc(297mm * var(--nmc-zoom, .5));
+  background: #fff;
+  box-shadow: 0 4px 18px rgba(15,23,42,.18);
+  overflow: hidden;
+  flex: 0 0 auto;
+}
+.badge-a4 {
+  position: absolute; top: 0; left: 0;
+  width: 210mm; height: 297mm;
+  background: #fff;
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: repeat(var(--badge-cols, 2), var(--badge-w, 95mm));
+  grid-template-rows: repeat(var(--badge-rows, 5), var(--badge-h, 60mm));
+  gap: 0;
+  justify-content: center;
+  align-content: start;
+  transform-origin: top left;
+  transform: scale(var(--nmc-zoom, .5));
+}
+
 /* ── Seat-number tab ───────────────────────────────────────── */
 .seat-orient-toggle { display: flex; gap: 6px; }
 .seat-orient-btn {
@@ -320,6 +434,16 @@
   overflow: hidden;
 }
 .seat-card.seat-blank { visibility: hidden; }
+.seat-more-note {
+  width: 100%;
+  text-align: center;
+  font-size: 12.5px; font-weight: 600;
+  color: var(--text2, #6a635b);
+  background: var(--accent-pale);
+  border: 1px dashed var(--accent-light);
+  border-radius: var(--radius, 10px);
+  padding: 10px 14px;
+}
 .seat-card-num {
   font-family: 'Sarabun', sans-serif;
   font-weight: 900;
@@ -907,7 +1031,8 @@
 .nmc-print-area .nmc-a4,
 .nmc-print-area .vip-a4,
 .nmc-print-area .cert-a4,
-.nmc-print-area .seat-a4 {
+.nmc-print-area .seat-a4,
+.nmc-print-area .badge-a4 {
   /* On-paper layout while sitting off-screen */
   transform: none !important;
   margin: 0 !important;
@@ -919,7 +1044,8 @@
   height: 210mm !important;
   box-shadow: none !important;
 }
-.nmc-print-area .vip-a4-wrap {
+.nmc-print-area .vip-a4-wrap,
+.nmc-print-area .badge-a4-wrap {
   width: 210mm !important;
   height: 297mm !important;
   box-shadow: none !important;
