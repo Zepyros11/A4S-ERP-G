@@ -10,27 +10,13 @@
 // src: "pax"  = field ตรงใน tour_seat_check
 //      "calc" = ค่าที่คำนวณ/join เอง (เก็บใน state.calc[code])
 // fmt: "date" | "gender" (optional)
+// คอลัมน์กลุ่ม "checkseat" + "detail" (src:"pax") ดึงจาก catalog กลาง
+// (js/shared/pax-fields.js) → เพิ่มคอลัมน์ใหม่ที่ catalog ที่เดียวก็โผล่ที่นี่เอง
+// กลุ่ม calc (ห้อง/รถ/บิน/ทีม) ยัง hardcode เพราะเป็นค่าที่ join/คำนวณเอง
 const COLUMN_GROUPS = [
   {
     id: "checkseat", label: "🪑 Check Seat",
-    cols: [
-      { key: "code",              label: "รหัส",             src: "pax" },
-      { key: "name",              label: "ชื่อ",              src: "pax" },
-      { key: "gender",            label: "เพศ",              src: "pax", fmt: "gender" },
-      { key: "nationality",       label: "สัญชาติ",          src: "pax" },
-      { key: "pin",               label: "ตำแหน่ง",          src: "pax" },
-      { key: "group_name",        label: "กลุ่ม",            src: "pax" },
-      { key: "seat",              label: "ที่นั่งเครื่องบิน", src: "pax" },
-      { key: "passport_id",       label: "เลขพาสปอร์ต",      src: "pax" },
-      { key: "passport_exp_date", label: "พาสปอร์ตหมดอายุ",  src: "pax", fmt: "date" },
-      { key: "passport_image_url", label: "ภาพ passport",    src: "pax", fmt: "image" },
-      { key: "visa_image_url",     label: "ภาพสลิป/วีซ่า",    src: "pax", fmt: "image" },
-      { key: "tshirt_size",       label: "ไซส์เสื้อ",         src: "pax" },
-      { key: "religion",          label: "ศาสนา",            src: "pax" },
-      { key: "food_allergy",      label: "อาหารที่แพ้",       src: "pax" },
-      { key: "return_flight",     label: "ไฟลท์ขากลับ",       src: "pax" },
-      { key: "return_date",       label: "วันขากลับ",         src: "pax", fmt: "date" },
-    ],
+    cols: window.PaxFields.crCols("checkseat"),
   },
   {
     id: "room", label: "🛏️ ห้องพัก",
@@ -62,19 +48,7 @@ const COLUMN_GROUPS = [
   },
   {
     id: "detail", label: "📋 Detail",
-    cols: [
-      { key: "tel",                        label: "เบอร์โทร",         src: "pax" },
-      { key: "line_id",                    label: "LINE ID",          src: "pax" },
-      { key: "home_address",               label: "ที่อยู่",           src: "pax" },
-      { key: "medical_conditions",         label: "โรคประจำตัว",       src: "pax" },
-      { key: "daily_medication",           label: "ยาที่ใช้ประจำ",     src: "pax" },
-      { key: "emergency_contact_name",     label: "ผู้ติดต่อฉุกเฉิน",   src: "pax" },
-      { key: "emergency_contact_phone",    label: "เบอร์ฉุกเฉิน",      src: "pax" },
-      { key: "emergency_contact_relation", label: "ความสัมพันธ์",      src: "pax" },
-      { key: "insurance_company",          label: "บริษัทประกัน",      src: "pax" },
-      { key: "insurance_policy_no",        label: "เลขกรมธรรม์",       src: "pax" },
-      { key: "special_requests",           label: "คำขอพิเศษ",         src: "pax" },
-    ],
+    cols: window.PaxFields.crCols("detail"),
   },
   {
     id: "team", label: "👔 ทีมงาน",
@@ -154,7 +128,11 @@ async function sbFetch(table, query = "", opts = {}) {
 // T(key) / T(key,"ไทย fallback") / T(key,{n:..}) — ดู js/core/i18n.js
 const T = (k, opt) => (window.I18n ? window.I18n.t(k, opt) : (typeof opt === "string" ? opt : k));
 // label คอลัมน์/กลุ่ม — ใช้คำแปลถ้ามี ไม่งั้น fallback เป็น label เดิม (ไทย) ใน COLUMN_GROUPS
-function colLabel(c) { return T("cr.col." + c.key, c.label); }
+// label: lang pack (cr.col.*) ชนะก่อน → ไม่งั้น fallback เป็น en/th จาก catalog
+function colLabel(c) {
+  const fallback = (curLang() === "en" && c.en) ? c.en : c.label;
+  return T("cr.col." + c.key, fallback);
+}
 function grpLabel(g) { return T("cr.grp." + g.id, g.label); }
 function curLang() { return window.I18n ? window.I18n.getLang() : "th"; }
 

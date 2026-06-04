@@ -77,6 +77,7 @@ I18n.register({
 
   // ── Column labels ──────────────────────────────────────
   "cr.col.code":               { th: "รหัส", en: "Code" },
+  "cr.col.title_prefix":       { th: "คำนำหน้า", en: "Title" },
   "cr.col.name":               { th: "ชื่อ", en: "Name" },
   "cr.col.gender":             { th: "เพศ", en: "Gender" },
   "cr.col.nationality":        { th: "สัญชาติ", en: "Nationality" },

@@ -5,21 +5,11 @@
    • แต่ละ field มี debounced auto-save → Supabase
    ============================================================ */
 
-const PAX_SELECT_COLS = [
-  "id", "code", "title_prefix", "name", "instead", "gender", "nationality", "tel",
-  "tshirt_size", "religion", "food_allergy",
-  "medical_conditions", "daily_medication",
-  "emergency_contact_name", "emergency_contact_phone", "emergency_contact_relation",
-  "home_address", "line_id",
-  "insurance_company", "insurance_policy_no", "special_requests",
-  "is_sub_row", "parent_code", "highlighted",
-].join(",");
-
-const SHIRT_OPTIONS = ["", "S", "M", "L", "XL", "2XL", "3XL", "4XL", "5XL"];
-const PREFIX_OPTIONS = [
-  "", "Mr.", "Mrs.", "Ms.", "Miss", "Dr.", "Prof.",
-  "นาย", "นาง", "นางสาว", "ดร.",
-];
+// คอลัมน์ที่แสดง/แก้ไข ดึงจาก catalog กลาง (js/shared/pax-fields.js)
+// เพิ่มคอลัมน์ใหม่ = แก้ที่ catalog ที่เดียว (FIELDS + PAX_DETAIL_ORDER)
+const PAX_COLUMNS = window.PaxFields.paxColumns();
+// 2 = checkbox + ลำดับ (#) ที่อยู่หน้าสุด
+const PAX_COLSPAN = PAX_COLUMNS.length + 2;
 
 const state = {
   tripId: null,
@@ -96,7 +86,7 @@ async function loadAll() {
       sbFetch("trips", `?trip_id=eq.${state.tripId}&select=*`),
       sbFetch(
         "tour_seat_check",
-        `?trip_id=eq.${state.tripId}&select=${PAX_SELECT_COLS}&order=name.asc.nullslast`
+        `?trip_id=eq.${state.tripId}&select=*&order=name.asc.nullslast`
       ),
     ]);
 
@@ -213,13 +203,25 @@ function filterTable() {
   renderTable(filtered);
 }
 
+// สร้างหัวตารางจาก catalog (ครั้งเดียว) — cb + # นำหน้า แล้วตามด้วยคอลัมน์ data
+function renderHeader() {
+  const row = document.getElementById("pd-thead-row");
+  if (!row) return;
+  const dataTh = PAX_COLUMNS.map(
+    (f) => `<th class="pd-col-${f.pax.cls}">${escapeHtml(f.pax.header)}</th>`
+  ).join("");
+  row.innerHTML =
+    `<th class="pd-col-cb"></th><th class="pd-col-no">#</th>` + dataTh;
+}
+
 function renderTable(rows) {
   const tbody = document.getElementById("pd-tbody");
   document.getElementById("tableCount").textContent = `${rows.length} รายการ`;
+  renderHeader();
 
   if (!rows.length) {
     tbody.innerHTML = `
-      <tr><td colspan="20">
+      <tr><td colspan="${PAX_COLSPAN}">
         <div class="empty-state">
           <div class="empty-icon">ℹ️</div>
           <div class="empty-text">${state.tripId == null ? "ต้องเปิดผ่านรายการทริป (?trip_id=X)" : "ไม่พบผู้เดินทาง"}</div>
@@ -241,13 +243,73 @@ function renderTable(rows) {
   }
 }
 
+// ── Field renderer helpers (standalone — รับ code เป็น param) ──
+function fInput(code, field, val, ph = "") {
+  return `<input class="field-input" type="text" value="${escapeAttr(val || "")}" placeholder="${escapeAttr(ph)}"
+       onchange="window.setField('${escapeAttr(code)}','${field}',this.value)" />`;
+}
+function fTextarea(code, field, val, ph = "") {
+  return `<textarea class="field-input" rows="1" placeholder="${escapeAttr(ph)}"
+       onchange="window.setField('${escapeAttr(code)}','${field}',this.value)">${escapeHtml(val || "")}</textarea>`;
+}
+function fView(val, alt = "—") {
+  return val
+    ? `<span class="field-view" title="${escapeAttr(val)}">${escapeHtml(val)}</span>`
+    : `<span class="field-view empty">${alt}</span>`;
+}
+function fSelect(code, field, val, options) {
+  return `<select class="field-input" onchange="window.setField('${escapeAttr(code)}','${field}',this.value)">
+      ${options.map((s) => `<option value="${escapeAttr(s)}" ${val === s ? "selected" : ""}>${escapeHtml(s) || "—"}</option>`).join("")}
+    </select>`;
+}
+// Canonical DB value = 'male'/'female' (lowercase, matching check-seat)
+// UI displays as ♂ ชาย / ♀ หญิง for nicer layout
+function fGenderSel(code, val) {
+  // tolerate historical 'M'/'F' — normalize to compare
+  const c = String(val || "").trim().charAt(0).toLowerCase();
+  const norm = c === "m" ? "male" : c === "f" ? "female" : "";
+  const opts = [["", "—"], ["male", "♂ ชาย"], ["female", "♀ หญิง"]];
+  return `<select class="field-input" onchange="window.setField('${escapeAttr(code)}','gender',this.value)">
+      ${opts.map(([v, l]) => `<option value="${v}" ${norm === v ? "selected" : ""}>${l}</option>`).join("")}
+    </select>`;
+}
+function fGenderView(val) {
+  // tolerate any historical format (male/Male/M)
+  const c = String(val || "").trim().charAt(0).toUpperCase();
+  if (c === "M") return `<span class="field-view">♂ ชาย</span>`;
+  if (c === "F") return `<span class="field-view">♀ หญิง</span>`;
+  return `<span class="field-view empty">—</span>`;
+}
+
+// สร้าง 1 cell ตาม config ของ field ใน catalog
+function renderCell(p, f, e) {
+  const cls = `pd-col-${f.pax.cls}`;
+  const v = p[f.key];
+  const t = f.pax.input;
+
+  if (t === "code") {
+    const codeClass = p.is_sub_row ? "pd-code-cell sub-indent" : "pd-code-cell";
+    return `<td class="${cls}"><span class="${codeClass}">${escapeHtml(p.code || "")}</span></td>`;
+  }
+  if (t === "name") {
+    const nameDisp = `${escapeHtml(p.name || "—")}${p.instead ? `<span class="pd-name-sub">↔ ${escapeHtml(p.instead)}</span>` : ""}`;
+    return `<td class="${cls}"><span class="pd-name-cell">${nameDisp}</span></td>`;
+  }
+  if (t === "gender") {
+    return `<td class="${cls}">${e ? fGenderSel(p.code, v) : fGenderView(v)}</td>`;
+  }
+  // non-editable fields → view เสมอ
+  if (!e || f.pax.edit === false) return `<td class="${cls}">${fView(v)}</td>`;
+  if (t === "select") return `<td class="${cls}">${fSelect(p.code, f.key, v, f.pax.options)}</td>`;
+  if (t === "textarea") return `<td class="${cls}">${fTextarea(p.code, f.key, v, f.pax.ph)}</td>`;
+  return `<td class="${cls}">${fInput(p.code, f.key, v, f.pax.ph)}</td>`;
+}
+
 function renderRow(p, num, e) {
   const trClasses = [
     p.is_sub_row ? "sub-row" : "",
     p.highlighted ? "row-highlighted" : "",
   ].filter(Boolean).join(" ");
-  const nameDisp = `${escapeHtml(p.name || "—")}${p.instead ? `<span class="pd-name-sub">↔ ${escapeHtml(p.instead)}</span>` : ""}`;
-  const codeClass = p.is_sub_row ? "pd-code-cell sub-indent" : "pd-code-cell";
 
   // Checkbox cell — input ใน edit mode, dot เมื่อ highlight (ตอนไม่ edit)
   const cbCell = e
@@ -255,65 +317,12 @@ function renderRow(p, num, e) {
          onchange="window.toggleHighlight('${escapeAttr(p.code)}',this)" />`
     : (p.highlighted ? `<span class="pd-cb-dot"></span>` : "");
 
-  // Field renderer helpers
-  const inp = (field, val, ph = "") =>
-    `<input class="field-input" type="text" value="${escapeAttr(val || "")}" placeholder="${escapeAttr(ph)}"
-       onchange="window.setField('${escapeAttr(p.code)}','${field}',this.value)" />`;
-  const txt = (field, val, ph = "") =>
-    `<textarea class="field-input" rows="1" placeholder="${escapeAttr(ph)}"
-       onchange="window.setField('${escapeAttr(p.code)}','${field}',this.value)">${escapeHtml(val || "")}</textarea>`;
-  const view = (val, alt = "—") =>
-    val ? `<span class="field-view" title="${escapeAttr(val)}">${escapeHtml(val)}</span>`
-        : `<span class="field-view empty">${alt}</span>`;
-  const shirtSel = (val) =>
-    `<select class="field-input" onchange="window.setField('${escapeAttr(p.code)}','tshirt_size',this.value)">
-      ${SHIRT_OPTIONS.map((s) => `<option value="${s}" ${val === s ? "selected" : ""}>${s || "—"}</option>`).join("")}
-    </select>`;
-  const prefixSel = (val) =>
-    `<select class="field-input" onchange="window.setField('${escapeAttr(p.code)}','title_prefix',this.value)">
-      ${PREFIX_OPTIONS.map((s) => `<option value="${escapeAttr(s)}" ${val === s ? "selected" : ""}>${s || "—"}</option>`).join("")}
-    </select>`;
-  // Canonical DB value = 'male'/'female' (lowercase, matching check-seat)
-  // UI displays as ♂ ชาย / ♀ หญิง for nicer layout
-  const genderSel = (val) => {
-    // tolerate historical 'M'/'F' — normalize to compare
-    const c = String(val || "").trim().charAt(0).toLowerCase();
-    const norm = c === "m" ? "male" : c === "f" ? "female" : "";
-    const opts = [["", "—"], ["male", "♂ ชาย"], ["female", "♀ หญิง"]];
-    return `<select class="field-input" onchange="window.setField('${escapeAttr(p.code)}','gender',this.value)">
-      ${opts.map(([v, l]) => `<option value="${v}" ${norm === v ? "selected" : ""}>${l}</option>`).join("")}
-    </select>`;
-  };
-  const genderView = (val) => {
-    // tolerate any historical format (male/Male/M)
-    const c = String(val || "").trim().charAt(0).toUpperCase();
-    if (c === "M") return `<span class="field-view">♂ ชาย</span>`;
-    if (c === "F") return `<span class="field-view">♀ หญิง</span>`;
-    return `<span class="field-view empty">—</span>`;
-  };
+  const dataCells = PAX_COLUMNS.map((f) => renderCell(p, f, e)).join("");
 
   return `<tr class="${trClasses}">
     <td class="pd-col-cb"><div class="pd-cb-wrap">${cbCell}</div></td>
     <td class="pd-col-no">${num}</td>
-    <td class="pd-col-code"><span class="${codeClass}">${escapeHtml(p.code || "")}</span></td>
-    <td class="pd-col-prefix">${e ? prefixSel(p.title_prefix) : view(p.title_prefix)}</td>
-    <td class="pd-col-name"><span class="pd-name-cell">${nameDisp}</span></td>
-    <td class="pd-col-gender">${e ? genderSel(p.gender) : genderView(p.gender)}</td>
-    <td class="pd-col-religion">${e ? inp("religion", p.religion, "พุทธ/คริสต์/อิสลาม") : view(p.religion)}</td>
-    <td class="pd-col-nat">${e ? inp("nationality", p.nationality) : view(p.nationality)}</td>
-    <td class="pd-col-shirt">${e ? shirtSel(p.tshirt_size) : view(p.tshirt_size)}</td>
-    <td class="pd-col-allergy">${e ? inp("food_allergy", p.food_allergy, "แพ้ทะเล, มังสวิรัติ, ฮาลาล") : view(p.food_allergy)}</td>
-    <td class="pd-col-medical">${e ? txt("medical_conditions", p.medical_conditions, "เบาหวาน/ความดัน...") : view(p.medical_conditions)}</td>
-    <td class="pd-col-medic">${e ? txt("daily_medication", p.daily_medication, "ชื่อยา + ขนาด") : view(p.daily_medication)}</td>
-    <td class="pd-col-tel">${e ? inp("tel", p.tel, "+66 8x-xxx-xxxx") : view(p.tel)}</td>
-    <td class="pd-col-line">${e ? inp("line_id", p.line_id, "@username") : view(p.line_id)}</td>
-    <td class="pd-col-addr">${e ? txt("home_address", p.home_address, "ที่อยู่ปัจจุบัน") : view(p.home_address)}</td>
-    <td class="pd-col-em-name">${e ? inp("emergency_contact_name", p.emergency_contact_name, "ชื่อ-นามสกุล") : view(p.emergency_contact_name)}</td>
-    <td class="pd-col-em-rel">${e ? inp("emergency_contact_relation", p.emergency_contact_relation, "สามี/ภรรยา") : view(p.emergency_contact_relation)}</td>
-    <td class="pd-col-em-phone">${e ? inp("emergency_contact_phone", p.emergency_contact_phone, "+66 8x-xxx-xxxx") : view(p.emergency_contact_phone)}</td>
-    <td class="pd-col-ins-co">${e ? inp("insurance_company", p.insurance_company, "ชื่อบริษัท") : view(p.insurance_company)}</td>
-    <td class="pd-col-ins-no">${e ? inp("insurance_policy_no", p.insurance_policy_no, "เลขกรมธรรม์") : view(p.insurance_policy_no)}</td>
-    <td class="pd-col-special">${e ? txt("special_requests", p.special_requests, "wheelchair, อื่นๆ") : view(p.special_requests)}</td>
+    ${dataCells}
   </tr>`;
 }
 
@@ -377,27 +386,9 @@ async function saveRow(code) {
   const p = state.pax.find((x) => x.code === code);
   if (!p || state.tripId == null) return;
 
-  const payload = {
-    title_prefix: nullIfEmpty(p.title_prefix),
-    gender: nullIfEmpty(p.gender),
-    religion: nullIfEmpty(p.religion),
-    nationality: nullIfEmpty(p.nationality),
-    tshirt_size: nullIfEmpty(p.tshirt_size),
-    food_allergy: nullIfEmpty(p.food_allergy),
-    medical_conditions: nullIfEmpty(p.medical_conditions),
-    daily_medication: nullIfEmpty(p.daily_medication),
-    tel: nullIfEmpty(p.tel),
-    line_id: nullIfEmpty(p.line_id),
-    home_address: nullIfEmpty(p.home_address),
-    emergency_contact_name: nullIfEmpty(p.emergency_contact_name),
-    emergency_contact_relation: nullIfEmpty(p.emergency_contact_relation),
-    emergency_contact_phone: nullIfEmpty(p.emergency_contact_phone),
-    insurance_company: nullIfEmpty(p.insurance_company),
-    insurance_policy_no: nullIfEmpty(p.insurance_policy_no),
-    special_requests: nullIfEmpty(p.special_requests),
-    highlighted: !!p.highlighted,
-    updated_at: new Date().toISOString(),
-  };
+  // payload สร้างจาก field ที่แก้ไขได้ใน catalog (auto ครอบคลุมคอลัมน์ใหม่)
+  const payload = { highlighted: !!p.highlighted, updated_at: new Date().toISOString() };
+  window.PaxFields.paxEditableKeys().forEach((k) => { payload[k] = nullIfEmpty(p[k]); });
 
   showSaveIndicator(true);
   try {
@@ -440,30 +431,16 @@ window.exportPaxExcel = function () {
     return;
   }
 
-  const data = state.pax.map((p, i) => ({
-    "#": i + 1,
-    "Code": p.code || "",
-    "Title": p.title_prefix || "",
-    "Name": p.name || "",
-    "Instead": p.instead || "",
-    "Gender": p.gender || "",
-    "Nationality": p.nationality || "",
-    "Religion": p.religion || "",
-    "T-Shirt Size": p.tshirt_size || "",
-    "Food Allergy": p.food_allergy || "",
-    "Medical Conditions": p.medical_conditions || "",
-    "Daily Medication": p.daily_medication || "",
-    "Tel / WhatsApp": p.tel || "",
-    "LINE ID": p.line_id || "",
-    "Home Address": p.home_address || "",
-    "Emergency Contact": p.emergency_contact_name || "",
-    "Emergency Relation": p.emergency_contact_relation || "",
-    "Emergency Phone": p.emergency_contact_phone || "",
-    "Insurance Company": p.insurance_company || "",
-    "Insurance Policy No.": p.insurance_policy_no || "",
-    "Special Requests": p.special_requests || "",
-    "Sub Row": p.is_sub_row ? "ใช่" : "",
-  }));
+  // คอลัมน์ Excel สร้างจาก catalog (header = xlsx → en → th) + Instead/Sub Row
+  const data = state.pax.map((p, i) => {
+    const row = { "#": i + 1 };
+    PAX_COLUMNS.forEach((f) => {
+      row[f.xlsx || f.en || f.th] = p[f.key] || "";
+    });
+    row["Instead"] = p.instead || "";
+    row["Sub Row"] = p.is_sub_row ? "ใช่" : "";
+    return row;
+  });
 
   const ws = XLSX.utils.json_to_sheet(data);
   const wb = XLSX.utils.book_new();

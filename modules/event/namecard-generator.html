@@ -239,8 +239,29 @@
                   </div>
                 </div>
 
-                <!-- ── SHARED: card size + orientation ── -->
-                <div class="vip-design-grid c-size-grid" style="border-top:1px solid var(--border,#e4ddd2)">
+                <!-- ── SHARED: per-page + card size + orientation ── -->
+                <div class="c-section-label" style="border-top:1px solid var(--border,#e4ddd2);padding-top:12px">📐 กำหนดขนาดต่อใบ</div>
+
+                <div class="vip-qty-row vip-qty-row--inset">
+                  <span class="vip-qty-label">จำนวนต่อ 1 A4<span class="c-help" data-tip="กำหนดจำนวนใบต่อ 1 แผ่น A4 → ปรับขนาดการ์ดให้พอดีอัตโนมัติ (อิงแนวกระดาษ)">?</span></span>
+                  <div class="vip-qty-input-wrap">
+                    <button class="vip-qty-btn" onclick="nmc.bumpCPerPage(-1)">−</button>
+                    <input type="number" id="cPerPageInput" class="vip-qty-input" min="1" max="60"
+                           oninput="nmc.setCPerPage(this.value)">
+                    <button class="vip-qty-btn" onclick="nmc.bumpCPerPage(1)">＋</button>
+                    <span class="vip-qty-unit">ใบ/หน้า</span>
+                  </div>
+                  <div class="vip-qty-presets">
+                    <button class="btn btn-outline btn-sm" onclick="nmc.setCPerPage(2)">2</button>
+                    <button class="btn btn-outline btn-sm" onclick="nmc.setCPerPage(4)">4</button>
+                    <button class="btn btn-outline btn-sm" onclick="nmc.setCPerPage(6)">6</button>
+                    <button class="btn btn-outline btn-sm" onclick="nmc.setCPerPage(8)">8</button>
+                    <button class="btn btn-outline btn-sm" onclick="nmc.setCPerPage(9)">9</button>
+                    <button class="btn btn-outline btn-sm" onclick="nmc.setCPerPage(12)">12</button>
+                  </div>
+                </div>
+
+                <div class="vip-design-grid c-size-grid">
                   <div class="vip-field vip-field-num">
                     <label for="cWInput">กว้าง (ซม.)</label>
                     <input type="number" id="cWInput" class="vip-num-input" min="3" max="29" step="0.1"

@@ -164,13 +164,25 @@
   gap: 14px;
   align-items: flex-start;
 }
-.vip-split-left  { flex: 40 1 0; min-width: 0; }
-.vip-split-right { flex: 60 1 0; min-width: 0; }
-.vip-split-right .nmc-sheet-scroller { max-height: calc(100vh - 230px); }
+.vip-split-left  {
+  flex: 40 1 0; min-width: 0;
+  /* settings column scrolls inside itself (own scrollbar) instead of the page */
+  position: sticky; top: 64px; align-self: flex-start;
+  max-height: calc(100vh - 80px);
+  overflow-y: auto;
+  padding-right: 6px;
+}
+.vip-split-right {
+  flex: 60 1 0; min-width: 0;
+  /* keep the A4 preview pinned while scrolling the settings column */
+  position: sticky; top: 64px; align-self: flex-start;
+}
+.vip-split-right .nmc-sheet-scroller { max-height: calc(100vh - 150px); }
 @media (max-width: 1180px) {
   .vip-split { flex-direction: column; }
-  .vip-split-left  { flex: none; width: 100%; }
-  .vip-split-right { width: 100%; }
+  .vip-split-left  { flex: none; width: 100%; position: static; max-height: none; overflow: visible; padding-right: 0; }
+  .vip-split-right { width: 100%; position: static; }
+  .vip-split-right .nmc-sheet-scroller { max-height: calc(100vh - 230px); }
 }
 
 /* ── Namecard split layout: [ list | preview ] ─────────────── */
