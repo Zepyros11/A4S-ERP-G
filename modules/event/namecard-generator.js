@@ -26,9 +26,10 @@
   let cOrient  = "portrait";        // "portrait" | "landscape"
   let cZoom    = 0.5;
   // repeat-mode
-  let cText    = "VIP";             // text/name on every card
-  let cStyle   = "plain";           // "plain" (logo+name) | "vip" (green band)
-  let cQty     = 10;
+  let cText     = "VIP";            // text/name on every card
+  let cStyle    = "plain";          // "plain" (logo+name) | "vip" (green band)
+  let cLogoSize = 0;                // logo size override (px) · 0 = auto
+  let cQty      = 10;
   let cLogos   = [];                // [{ path, url }] — library from Supabase
   let cLogoKey = "__company__";     // selected logo · "__company__" | path | null
   const C_LOGO_BUCKET = "badge-logos";
@@ -844,9 +845,12 @@
       return `<div class="c-card c-seq"><div class="c-seq-num">${esc(label)}</div></div>`;
     }
     const url = cCurrentLogoUrl();
+    const fixed = cLogoSize > 0;
+    const logoCls = fixed ? "c-logo c-logo--fixed" : "c-logo";
+    const imgSz = fixed ? ` style="max-height:${cLogoSize}px;max-width:${cLogoSize}px"` : "";
     const logo = url
-      ? `<div class="c-logo"><img src="${esc(url)}" alt="" crossorigin="anonymous" onerror="this.style.display='none'"></div>`
-      : (cStyle === "plain" ? `<div class="c-logo is-empty"></div>` : "");
+      ? `<div class="${logoCls}"><img src="${esc(url)}" alt=""${imgSz} crossorigin="anonymous" onerror="this.style.display='none'"></div>`
+      : (cStyle === "plain" ? `<div class="${logoCls} is-empty"></div>` : "");
     const text = esc(formatName(cText));
     if (cStyle === "vip") {
       return `<div class="c-card c-vip">${logo}<div class="c-band"><div class="c-band-text">${text}</div></div></div>`;
@@ -970,6 +974,13 @@
     renderCustomSheets();
   }
   function setCText(v)  { cText = String(v == null ? "" : v); renderCustomSheets(); }
+  function setCLogoSize(v) {
+    let n = parseInt(v, 10);
+    if (isNaN(n) || n < 0) n = 0;
+    if (n > 400) n = 400;
+    cLogoSize = n;
+    renderCustomSheets();
+  }
   function setCStyle(s) {
     cStyle = (s === "vip") ? "vip" : "plain";
     $("cStylePlain") && $("cStylePlain").classList.toggle("active", cStyle === "plain");
@@ -1989,7 +2000,7 @@
     addRow, clearAll, resetAll,
     setZoom, printNow, exportPDF, downloadTemplate,
     // Custom tab (merged VIP + Badge + Seat)
-    setCMode, setCText, setCStyle,
+    setCMode, setCText, setCStyle, setCLogoSize,
     setCQty, bumpCQty,
     setCRow, setCCol, setCSep,
     setCW, setCH, setCSize, syncCInputs,

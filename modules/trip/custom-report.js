@@ -1490,54 +1490,37 @@ window.closePreview = function () {
   if (modal) modal.style.display = "none";
 };
 // ── CREATE LETTER DOC (handoff → trip-docs) ────────────────
-// คอลัมน์ที่ใช้ในจดหมาย — ตัด image ออก (จดหมายขออนุมัติเป็นตารางข้อความ)
-function letterCols() {
-  return outputCols().filter(c => c.fmt !== "image");
-}
-
-// สร้าง HTML ตาราง (แบ่งกลุ่ม + Total) แบบ inline-style → ฝังใน body ของ trip-docs
-// (ใช้ border สีดำ + repeat thead ต่อกลุ่ม เหมือนจดหมายขออนุมัติตั๋ว)
-function buildLetterTableHtml() {
-  const cols = letterCols();
-  if (!cols.length) return "";
-  const rows = getRows();
-  const groups = getGroups(rows);
-  const en = curLang() === "en";
-  const TH = 'style="border:1px solid #000;padding:3px 7px;text-align:left;font-weight:700;font-size:12px"';
-  const TD = 'style="border:1px solid #000;padding:3px 7px;font-size:12px"';
-  const span0 = cols.length + 1;
-  const thead = `<tr><th style="border:1px solid #000;padding:3px 7px;text-align:center;font-weight:700;font-size:12px;width:34px">${en ? "NO." : "ลำดับ"}</th>` +
-    cols.map(c => `<th ${TH}>${escapeHtml(colLabel(c))}</th>`).join("") + `</tr>`;
-  let html = "";
-  groups.forEach(g => {
-    if (g.key !== null) html += `<p style="font-weight:600;margin:12px 0 3px;font-size:12.5px">${g.headerHtml}</p>`;
-    const grsp = computeRowspans(g.rows, cols);
-    const body = g.rows.map((row, i) =>
-      `<tr><td style="border:1px solid #000;padding:3px 7px;text-align:center;font-size:12px">${i + 1}</td>` +
-      cols.map((c, ci) => {
-        const sp = grsp[ci][i];
-        if (sp === 0) return "";
-        const attr = sp > 1 ? ` rowspan="${sp}"` : "";
-        return `<td ${TD}${attr}>${escapeHtml(cellValue(row, c))}</td>`;
-      }).join("") + `</tr>`).join("");
-    const totalRow = state.showTotal
-      ? `<tr><td colspan="${span0}" style="border:1px solid #000;padding:3px 7px;text-align:right;font-weight:700;font-size:12px;background:#f1f5f9">${escapeHtml(totalLabel(g.rows.length))}</td></tr>`
-      : "";
-    html += `<table style="border-collapse:collapse;width:100%;margin:2px 0 6px">${thead}${body}${totalRow}</table>`;
-  });
-  if (state.showTotal && state.groupBy && groups.length > 1) {
-    html += `<p style="text-align:right;font-weight:700;margin:6px 0;font-size:12.5px">${escapeHtml((en ? "Grand total " : "รวมทั้งหมด ") + rows.length + (en ? " seats" : " ที่นั่ง"))}</p>`;
-  }
-  return html;
+// สร้าง binding object จาก state ปัจจุบัน (filters Set → array) — ใช้ทั้ง preview/create/refresh
+function currentBinding() {
+  const filters = {};
+  Object.entries(state.filters).forEach(([k, set]) => { if (set && set.size) filters[k] = [...set]; });
+  return {
+    source: "custom_report", trip_id: state.tripId, columns: state.selected,
+    hidden: state.hidden, merged: state.merged, sort: state.sort, filters,
+    groupBy: state.groupBy, showTotal: state.showTotal,
+  };
 }
 
 // ปุ่ม "📄 สร้างเป็นจดหมาย" — สร้าง trip_documents (body=ตาราง + scaffold เปิด/ปิด) → เปิดใน trip-docs
+// ตาราง build ผ่าน engine กลาง TripReportData → ตรงกับตอน 🔄 รีเฟรชใน trip-docs เป๊ะ
 window.createLetterDoc = async function () {
   if (!state.selected.length) { showToast(T("cr.toast.selectColsExport"), "info"); return; }
-  const cols = letterCols();
   const en = curLang() === "en";
-  if (!cols.length) { showToast(en ? "Pick at least 1 text column (not image)" : "เลือกคอลัมน์ข้อความอย่างน้อย 1 (รูปจะไม่ออกในจดหมาย)", "info"); return; }
-  const tableHtml = buildLetterTableHtml();
+  if (!window.TripReportData) { showToast("โหลด engine ไม่สำเร็จ (report-data-source.js)", "error"); return; }
+  const hasText = state.selected.some(k => { const c = COL_BY_KEY[k]; return c && !state.hidden[k] && c.fmt !== "image"; });
+  if (!hasText) { showToast(en ? "Pick at least 1 text column (not image)" : "เลือกคอลัมน์ข้อความอย่างน้อย 1 (รูปจะไม่ออกในจดหมาย)", "info"); return; }
+  const binding = currentBinding();
+  showLoading(true);
+  let tableHtml;
+  try {
+    tableHtml = (await window.TripReportData.buildLetterTable(binding)).html;
+  } catch (e) {
+    showLoading(false);
+    showToast((en ? "Build table failed: " : "สร้างตารางไม่สำเร็จ: ") + e.message, "error");
+    return;
+  }
+  // ห่อตารางด้วย marker → trip-docs รีเฟรชแทนที่เฉพาะส่วนนี้ (ไม่แตะข้อความเปิด/ปิด)
+  tableHtml = `<div data-doc-datablock="1">${tableHtml}</div>`;
   // scaffold เปิด/ปิด (placeholder — แก้ต่อใน trip-docs ได้) · ใช้ {{...}} ที่ระบบ placeholder เดิมรองรับ
   const intro = en
     ? `<p>Subject : Request for approval — ${escapeHtml(tripTitle())}</p><p>Dear {{ผู้รับ}},</p><p>We respectfully request your kind approval for the following participants.</p>`
@@ -1546,15 +1529,6 @@ window.createLetterDoc = async function () {
     ? `<p style="margin-top:10px">We kindly seek your approval to proceed. Thank you for your consideration.</p><p style="margin-top:14px">Sincerely,</p>`
     : `<p style="margin-top:10px">จึงเรียนมาเพื่อโปรดพิจารณาอนุมัติ จักขอบคุณยิ่ง</p><p style="margin-top:14px">ขอแสดงความนับถือ</p>`;
   const body = intro + tableHtml + closing;
-  // serialize filters (Set → array) เพื่อเก็บ binding (phase 2: refresh in-place)
-  const filters = {};
-  Object.entries(state.filters).forEach(([k, set]) => { if (set && set.size) filters[k] = [...set]; });
-  const binding = {
-    source: "custom_report", trip_id: state.tripId, columns: state.selected,
-    hidden: state.hidden, merged: state.merged, sort: state.sort, filters,
-    groupBy: state.groupBy, showTotal: state.showTotal,
-  };
-  showLoading(true);
   try {
     const res = await sbFetch("trip_documents", "", {
       method: "POST",

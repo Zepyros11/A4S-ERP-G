@@ -296,9 +296,16 @@
   padding: 12px 18px 0;
 }
 .c-logo-actions {
-  display: flex; align-items: center; gap: 10px;
-  padding: 8px 18px 2px; flex-wrap: wrap;
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 18px 2px; flex-wrap: wrap;
 }
+.c-logo-size { display: flex; align-items: center; gap: 8px; }
+.c-logo-size label {
+  display: flex; align-items: center;
+  font-size: 11px; font-weight: 600; color: var(--text3, #9d958b);
+  text-transform: uppercase; letter-spacing: .4px; white-space: nowrap;
+}
+.c-logo-size .vip-num-input { width: 84px; }
 /* Size grid: keep กว้าง / × / สูง on one row (override .vip-field:first-child) */
 .c-size-grid .vip-field:first-child { flex: 0 0 auto; }
 
@@ -319,8 +326,9 @@
   position: absolute; bottom: 145%; left: 50%; transform: translateX(-50%);
   background: #2d2a26; color: #fff;
   font-size: 11px; font-weight: 500; line-height: 1.4;
-  letter-spacing: normal; text-transform: none;
-  white-space: nowrap; padding: 5px 9px; border-radius: 6px;
+  letter-spacing: normal; text-transform: none; text-align: center;
+  white-space: normal; width: max-content; max-width: 220px;
+  padding: 5px 9px; border-radius: 6px;
   box-shadow: 0 4px 12px rgba(15,23,42,.22);
   opacity: 0; pointer-events: none; transition: opacity .12s; z-index: 50;
 }
@@ -354,6 +362,9 @@
 }
 .c-plain .c-logo.is-empty { min-height: 18%; }
 .c-logo img { max-height: 100%; max-width: 80%; object-fit: contain; }
+/* explicit px logo size · relax the % caps so the inline px can drive the size */
+.c-plain .c-logo.c-logo--fixed { max-height: 90%; }
+.c-vip .c-logo.c-logo--fixed { height: auto; max-height: 56%; }
 .c-name {
   width: 100%;
   font-family: 'Sarabun', sans-serif; font-weight: 800; font-size: 40px;

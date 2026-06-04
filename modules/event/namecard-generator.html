@@ -169,19 +169,23 @@
 
                 <!-- ── REPEAT controls (logo + text + style + qty) ── -->
                 <div id="cRepeatBox">
-                  <div class="c-section-label">🖼️ โลโก้ (ไม่บังคับ · เว้นว่าง = ไม่มีโลโก้)</div>
+                  <div class="c-section-label">🖼️ โลโก้<span class="c-help" data-tip="ไม่บังคับ · เว้นว่าง = ไม่มีโลโก้ · เก็บที่ Supabase ใช้ร่วมทุกเครื่อง">?</span></div>
                   <div class="badge-logo-grid" id="cLogoGrid"></div>
                   <div class="c-logo-actions">
                     <label class="btn btn-outline btn-sm" style="cursor:pointer">
                       ⬆ อัปโหลดโลโก้
                       <input type="file" id="cLogoInput" accept="image/*" multiple style="display:none" onchange="nmc.onCLogoPick(event)">
                     </label>
-                    <span style="font-size:11px;color:var(--text3)">เก็บที่ Supabase · ใช้ร่วมทุกเครื่อง</span>
+                    <div class="c-logo-size">
+                      <label for="cLogoSizeInput">ขนาดโลโก้ (px)<span class="c-help" data-tip="กำหนดขนาดโลโก้บนการ์ดเป็น px · เว้นว่าง = อัตโนมัติ (พอดีการ์ด)">?</span></label>
+                      <input type="number" id="cLogoSizeInput" class="vip-num-input" min="0" max="400" step="5"
+                             placeholder="auto" oninput="nmc.setCLogoSize(this.value)">
+                    </div>
                   </div>
 
                   <div class="vip-design-grid">
                     <div class="vip-field">
-                      <label for="cTextInput">ข้อความ / ชื่อ</label>
+                      <label for="cTextInput">ข้อความ / ชื่อ<span class="c-help" data-tip="เช่น VIP · STAFF · ชื่องาน · ชื่อคน">?</span></label>
                       <input type="text" id="cTextInput" class="vip-text-input" value="VIP" maxlength="60"
                              placeholder="เช่น VIP · STAFF · ชื่องาน · ชื่อคน" oninput="nmc.setCText(this.value)">
                     </div>

@@ -527,7 +527,44 @@ window.openDocEdit = function (id) {
   fillSignatorySelect("deSignatory", d.signatory_id);
   fillLetterheadSelect("deLetterhead", d.letterhead_id);
   document.getElementById("docEditTitle").textContent = "แก้ไขเอกสาร";
+  // ปุ่ม 🔄 รีเฟรช — แสดงเฉพาะเอกสารที่สร้างจาก custom-report (มี data_bindings + บล็อกตาราง)
+  const b = d.data_bindings;
+  const hasBinding =
+    b && b.source === "custom_report" && b.trip_id &&
+    /data-doc-datablock/.test(d.body || "");
+  const rbtn = document.getElementById("deRefreshBtn");
+  if (rbtn) rbtn.style.display = hasBinding ? "" : "none";
   document.getElementById("docEditOverlay").classList.add("open");
+};
+
+// 🔄 รีเฟรชข้อมูลในตาราง — ดึงสดผ่าน engine กลาง แล้วแทนที่เฉพาะ [data-doc-datablock]
+// (ข้อความเปิด/ปิด + หัวกระดาษ + ลายเซ็น ไม่เปลี่ยน) · ต้องกด 💾 บันทึกเพื่อจัดเก็บ
+window.refreshDocData = async function () {
+  const d = state.docs.find((x) => x.doc_id === state.editDocId);
+  if (!d) return;
+  const binding = d.data_bindings;
+  if (!binding || !binding.trip_id) {
+    showToast("เอกสารนี้ไม่ได้เชื่อมข้อมูลจาก custom-report", "error");
+    return;
+  }
+  if (!window.TripReportData) {
+    showToast("โหลด engine ไม่สำเร็จ (report-data-source.js)", "error");
+    return;
+  }
+  const block = document.querySelector("#deBody [data-doc-datablock]");
+  if (!block) {
+    showToast("ไม่พบบล็อกตารางในเอกสาร (อาจถูกลบ) — สร้างใหม่จาก custom-report", "error");
+    return;
+  }
+  showLoading(true);
+  try {
+    const { html, rowCount } = await window.TripReportData.buildLetterTable(binding);
+    block.innerHTML = html;
+    showToast(`รีเฟรชข้อมูลแล้ว (${rowCount} รายการ) — กด 💾 บันทึก เพื่อจัดเก็บ`, "success");
+  } catch (e) {
+    showToast("รีเฟรชไม่สำเร็จ: " + e.message, "error");
+  }
+  showLoading(false);
 };
 
 // เติม <option> ผู้ลงนามใน select ที่ระบุ

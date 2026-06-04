@@ -579,6 +579,9 @@
         </div>
         <div class="modal-footer">
           <button class="btn btn-ghost" onclick="window.closeDocEdit()">ยกเลิก</button>
+          <button class="btn btn-outline" id="deRefreshBtn" style="display:none;background:#7c3aed;color:#fff;border-color:#7c3aed"
+            onclick="window.refreshDocData()"
+            title="ดึงข้อมูลล่าสุดจาก Check Seat / room-assign แทนที่ตารางในเอกสาร (ข้อความเปิด/ปิดไม่เปลี่ยน)">🔄 รีเฟรชข้อมูล</button>
           <button class="btn btn-outline" onclick="window.previewDocFromEditor()">👁 ดูตัวอย่าง</button>
           <button class="btn btn-primary" onclick="window.saveDoc()">💾 บันทึก</button>
         </div>
@@ -832,6 +835,7 @@
     <script src="../../js/core/authz.js"></script>
     <script src="../../js/core/date-format.js"></script>
     <script>AuthZ.requirePerm("trip_docs_view");</script>
+    <script src="./report-data-source.js"></script>
     <script src="./trip-docs.js"></script>
     <script src="../../js/components/modal/deleteModal.js"></script>
     <script src="../../js/components/modal/modalManager.js"></script>
