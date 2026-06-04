@@ -829,6 +829,22 @@
     const rows = Math.max(1, Math.floor(ph / cH));
     return { cols, rows, perPage: cols * rows, pw, ph };
   }
+  // Best-fit grid for exactly N cards/sheet → derive card size (cw×ch closest to square).
+  function bestFitGrid(n) {
+    const N = Math.max(1, n | 0);
+    const land = cOrient === "landscape";
+    const pw = land ? A4_H_MM : A4_W_MM;
+    const ph = land ? A4_W_MM : A4_H_MM;
+    let best = null;
+    for (let cols = 1; cols <= N; cols++) {
+      if (N % cols) continue;
+      const rows = N / cols;
+      const cw = pw / cols, ch = ph / rows;
+      const score = Math.abs(Math.log(cw / ch));   // 0 = perfectly square
+      if (!best || score < best.score) best = { cols, rows, cw, ch, score };
+    }
+    return best;
+  }
   function applyCVars(el, g) {
     el.style.setProperty("--c-w", cW + "mm");
     el.style.setProperty("--c-h", cH + "mm");
@@ -939,6 +955,8 @@
     $("cTotal")     && ($("cTotal").textContent     = total);
     $("cPageCount") && ($("cPageCount").textContent = total ? pageCount : 0);
     $("cGridDesc")  && ($("cGridDesc").textContent  = `${g.cols} × ${g.rows} (${g.perPage} ใบ/หน้า)`);
+    const ppInp = $("cPerPageInput");
+    if (ppInp && document.activeElement !== ppInp) ppInp.value = g.perPage;
     $("cCardSize")  && ($("cCardSize").textContent  = `${(cW / 10).toFixed(1)} × ${(cH / 10).toFixed(1)} ซม.`);
     $("cLayoutTitle") && ($("cLayoutTitle").textContent =
       `👁️ ตัวอย่าง Layout · A4 ${cOrient === "landscape" ? "แนวนอน" : "แนวตั้ง"} (${g.perPage} ใบ/หน้า · ${g.cols}×${g.rows})`);
@@ -1006,6 +1024,17 @@
     cH = Math.max(2, Math.min(29.7, hCm)) * 10;
     syncCInputs(); renderCustomSheets();
   }
+  // Set how many cards fit on one A4 → derives card size (best-fit) + syncs size inputs.
+  function setCPerPage(v) {
+    let n = parseInt(v, 10);
+    if (isNaN(n) || n < 1) n = 1;
+    if (n > 60) n = 60;
+    const g = bestFitGrid(n);
+    cW = g.cw; cH = g.ch;
+    syncCInputs();
+    renderCustomSheets();
+  }
+  function bumpCPerPage(d) { setCPerPage(cGrid().perPage + d); }
   function syncCInputs() {
     const wi = $("cWInput"), hi = $("cHInput");
     if (wi) wi.value = +(cW / 10).toFixed(2);
@@ -2004,6 +2033,7 @@
     setCQty, bumpCQty,
     setCRow, setCCol, setCSep,
     setCW, setCH, setCSize, syncCInputs,
+    setCPerPage, bumpCPerPage,
     setCOrient, setCZoom, clearCustom,
     onCLogoPick, exportCustomPDF,
     // Certificate tab

@@ -6,7 +6,7 @@
    ============================================================ */
 
 const PAX_SELECT_COLS = [
-  "id", "code", "name", "instead", "gender", "nationality", "tel",
+  "id", "code", "title_prefix", "name", "instead", "gender", "nationality", "tel",
   "tshirt_size", "religion", "food_allergy",
   "medical_conditions", "daily_medication",
   "emergency_contact_name", "emergency_contact_phone", "emergency_contact_relation",
@@ -16,6 +16,10 @@ const PAX_SELECT_COLS = [
 ].join(",");
 
 const SHIRT_OPTIONS = ["", "S", "M", "L", "XL", "2XL", "3XL", "4XL", "5XL"];
+const PREFIX_OPTIONS = [
+  "", "Mr.", "Mrs.", "Ms.", "Miss", "Dr.", "Prof.",
+  "นาย", "นาง", "นางสาว", "ดร.",
+];
 
 const state = {
   tripId: null,
@@ -265,6 +269,10 @@ function renderRow(p, num, e) {
     `<select class="field-input" onchange="window.setField('${escapeAttr(p.code)}','tshirt_size',this.value)">
       ${SHIRT_OPTIONS.map((s) => `<option value="${s}" ${val === s ? "selected" : ""}>${s || "—"}</option>`).join("")}
     </select>`;
+  const prefixSel = (val) =>
+    `<select class="field-input" onchange="window.setField('${escapeAttr(p.code)}','title_prefix',this.value)">
+      ${PREFIX_OPTIONS.map((s) => `<option value="${escapeAttr(s)}" ${val === s ? "selected" : ""}>${s || "—"}</option>`).join("")}
+    </select>`;
   // Canonical DB value = 'male'/'female' (lowercase, matching check-seat)
   // UI displays as ♂ ชาย / ♀ หญิง for nicer layout
   const genderSel = (val) => {
@@ -288,6 +296,7 @@ function renderRow(p, num, e) {
     <td class="pd-col-cb"><div class="pd-cb-wrap">${cbCell}</div></td>
     <td class="pd-col-no">${num}</td>
     <td class="pd-col-code"><span class="${codeClass}">${escapeHtml(p.code || "")}</span></td>
+    <td class="pd-col-prefix">${e ? prefixSel(p.title_prefix) : view(p.title_prefix)}</td>
     <td class="pd-col-name"><span class="pd-name-cell">${nameDisp}</span></td>
     <td class="pd-col-gender">${e ? genderSel(p.gender) : genderView(p.gender)}</td>
     <td class="pd-col-religion">${e ? inp("religion", p.religion, "พุทธ/คริสต์/อิสลาม") : view(p.religion)}</td>
@@ -369,6 +378,7 @@ async function saveRow(code) {
   if (!p || state.tripId == null) return;
 
   const payload = {
+    title_prefix: nullIfEmpty(p.title_prefix),
     gender: nullIfEmpty(p.gender),
     religion: nullIfEmpty(p.religion),
     nationality: nullIfEmpty(p.nationality),
@@ -433,6 +443,7 @@ window.exportPaxExcel = function () {
   const data = state.pax.map((p, i) => ({
     "#": i + 1,
     "Code": p.code || "",
+    "Title": p.title_prefix || "",
     "Name": p.name || "",
     "Instead": p.instead || "",
     "Gender": p.gender || "",
