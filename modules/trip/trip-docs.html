@@ -23,6 +23,19 @@
       .doc-status-FINAL{ background:#def7ec; color:#057a55; }
 
       .doc-name-cell{ font-weight:600;color:var(--text);font-size:13.5px; }
+
+      /* ── group header row ────────────────────────────────── */
+      .doc-group td{
+        background:#eef3ee !important;cursor:pointer;user-select:none;
+        font-weight:700;color:var(--accent,#3d6b4f);font-size:13px;
+        padding:8px 14px !important;
+      }
+      .doc-group:hover td{ background:#e4ede4 !important; }
+      .doc-group-toggle{ display:inline-block;width:16px;color:var(--accent,#3d6b4f); }
+      .doc-group-count{
+        display:inline-block;margin-left:8px;background:#fff;border-radius:999px;
+        padding:1px 10px;font-size:11.5px;font-weight:600;color:#475569;
+      }
       .doc-tpl-badge{
         display:inline-block;padding:2px 9px;border-radius:999px;
         background:#f1f5f9;color:#475569;font-size:11.5px;font-weight:600;
@@ -81,14 +94,16 @@
         box-shadow:0 4px 24px rgba(0,0,0,.12);
         min-height:1000px;
       }
-      /* 2 คอลัมน์: logo ซ้ายบน | info กึ่งกลาง | spacer ขวา (สมดุล) — logo ไม่ทับข้อความ */
+      /* logo ซ้ายบน + เนื้อหา custom (จัดเองผ่าน RTE) — ไม่บังคับ center */
       .doc-letterhead{
-        display:flex;align-items:flex-start;gap:14px;
-        padding-bottom:12px;border-bottom:2px solid #111;margin-bottom:34px;
+        display:flex;align-items:flex-start;gap:18px;
+        padding-bottom:12px;border-bottom:2px solid #5b9b35;margin-bottom:30px;
       }
-      .doc-letterhead .lh-logo{ width:96px;flex-shrink:0;text-align:left; }
-      .doc-letterhead .lh-logo img{ max-width:96px;max-height:82px;height:auto; }
-      .doc-letterhead .lh-info{ flex:1;text-align:center;min-width:0; }
+      .doc-letterhead .lh-logo{ width:120px;flex-shrink:0;text-align:left; }
+      .doc-letterhead .lh-logo img{ max-width:120px;max-height:88px;height:auto; }
+      .doc-letterhead .lh-info{ flex:1;min-width:0; }
+      .doc-letterhead .lh-info > *{ margin:0; }
+      /* legacy */
       .doc-letterhead .lh-name{ font-size:16px;font-weight:700;color:#111;margin-bottom:4px; }
       .doc-letterhead .lh-addr{ font-size:12.5px;line-height:1.6;color:#222; }
       .doc-body{
@@ -117,6 +132,8 @@
         margin:0 1px;padding:0 4px;
       }
       .rte-size::-webkit-inner-spin-button{ opacity:1; }
+      .rte-color{ width:30px;height:26px;border:1px solid #d1d5db;border-radius:6px;
+        padding:1px;cursor:pointer;background:#fff; }
       .rte-area{
         min-height:320px;max-height:48vh;overflow:auto;padding:16px 18px;background:#fff;
         font-family:"Sarabun","Segoe UI",sans-serif;font-size:15px;line-height:1.85;
@@ -291,14 +308,13 @@
                       </th>
                       <th style="width:44px;text-align:center">#</th>
                       <th>ชื่อเอกสาร</th>
-                      <th class="col-center" style="width:160px">แม่แบบ</th>
                       <th class="col-center" style="width:130px">สถานะ</th>
                       <th class="col-center" style="width:130px">อัปเดตล่าสุด</th>
                       <th class="col-center" style="width:170px">จัดการ</th>
                     </tr>
                   </thead>
                   <tbody id="docTableBody">
-                    <tr><td colspan="7">
+                    <tr><td colspan="6">
                       <div class="empty-state"><div class="empty-icon">📄</div>
                         <div class="empty-text">กำลังโหลด...</div></div>
                     </td></tr>
@@ -531,6 +547,8 @@
                 <input type="number" class="rte-size" min="9" max="96" title="ขนาดฟอนต์ (px) — เลือกข้อความแล้วพิมพ์ตัวเลข" />
                 <button type="button" data-font="up" title="เพิ่มขนาดฟอนต์">A+</button>
                 <span class="rte-sep"></span>
+                <input type="color" class="rte-color" value="#1f2937" title="สีตัวอักษร" />
+                <span class="rte-sep"></span>
                 <button type="button" data-cmd="insertUnorderedList" title="หัวข้อย่อย">• รายการ</button>
                 <button type="button" data-cmd="removeFormat" title="ล้างรูปแบบ">✖ ล้าง</button>
               </div>
@@ -598,6 +616,8 @@
                 <button type="button" data-font="down" title="ลดขนาดฟอนต์">A−</button>
                 <input type="number" class="rte-size" min="9" max="96" title="ขนาดฟอนต์ (px) — เลือกข้อความแล้วพิมพ์ตัวเลข" />
                 <button type="button" data-font="up" title="เพิ่มขนาดฟอนต์">A+</button>
+                <span class="rte-sep"></span>
+                <input type="color" class="rte-color" value="#1f2937" title="สีตัวอักษร" />
                 <span class="rte-sep"></span>
                 <button type="button" data-cmd="insertUnorderedList" title="หัวข้อย่อย">• รายการ</button>
                 <button type="button" data-cmd="removeFormat" title="ล้างรูปแบบ">✖ ล้าง</button>
@@ -686,7 +706,7 @@
     </div>
 
     <!-- ═════════════ LETTERHEAD MANAGER (nested) ═════════════ -->
-    <div class="modal-overlay" id="lhMgrOverlay" onclick="window.closeLetterheadManager(event)">
+    <div class="modal-overlay" id="lhMgrOverlay">
       <div class="modal v-sage-header" style="width:900px;max-width:96vw" onclick="event.stopPropagation()">
         <div class="modal-hdr">
           <div class="modal-title">⚙️ จัดการหัวกระดาษ</div>
@@ -707,13 +727,29 @@
                 <input class="form-control" id="lhName" placeholder="เช่น A4S สำนักงานใหญ่" autocomplete="off" />
               </div>
               <div class="form-group" style="margin-top:12px">
-                <label class="form-label">ชื่อบริษัท (แสดงในหัว)</label>
-                <input class="form-control" id="lhCompany" placeholder="A4S Can Corporation Co., Ltd." autocomplete="off" />
-              </div>
-              <div class="form-group" style="margin-top:12px">
-                <label class="form-label">ที่อยู่ / ข้อมูลติดต่อ (ขึ้นบรรทัดใหม่ได้)</label>
-                <textarea class="form-control" id="lhAddress" rows="3"
-                  placeholder="Imperial World Ladprao... Bangkok 10310.&#10;Tel: ...  Email: ..."></textarea>
+                <label class="form-label">เนื้อหาหัวกระดาษ (จัดสี/ตัวหนา/ขนาดเองได้)</label>
+                <div class="rte">
+                  <div class="rte-toolbar">
+                    <button type="button" data-cmd="bold" title="ตัวหนา"><b>B</b></button>
+                    <button type="button" data-cmd="italic" title="ตัวเอียง"><i>I</i></button>
+                    <button type="button" data-cmd="underline" title="ขีดเส้นใต้"><u>U</u></button>
+                    <span class="rte-sep"></span>
+                    <button type="button" data-cmd="justifyLeft" title="ชิดซ้าย">ซ้าย</button>
+                    <button type="button" data-cmd="justifyCenter" title="กึ่งกลาง">กลาง</button>
+                    <button type="button" data-cmd="justifyRight" title="ชิดขวา">ขวา</button>
+                    <span class="rte-sep"></span>
+                    <button type="button" data-font="down" title="ลดขนาดฟอนต์">A−</button>
+                    <input type="number" class="rte-size" min="9" max="96" title="ขนาดฟอนต์ (px)" />
+                    <button type="button" data-font="up" title="เพิ่มขนาดฟอนต์">A+</button>
+                    <span class="rte-sep"></span>
+                    <input type="color" class="rte-color" value="#1f2937" title="สีตัวอักษร" />
+                    <span class="rte-sep"></span>
+                    <button type="button" data-cmd="removeFormat" title="ล้างรูปแบบ">✖</button>
+                  </div>
+                  <div class="rte-area" id="lhContent" contenteditable="true"
+                    style="min-height:150px;max-height:30vh"
+                    data-ph="ชื่อบริษัท (จัดสี/ตัวหนา) + ที่อยู่ + เบอร์/อีเมล"></div>
+                </div>
               </div>
               <div class="form-group" style="margin-top:12px">
                 <label class="form-label">โลโก้ (เว้นว่าง = ใช้โลโก้ A4S เริ่มต้น)</label>

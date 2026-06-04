@@ -39,21 +39,42 @@
             </div>
           </div>
 
-          <!-- TABS -->
-          <div class="nmc-tabs nmc-no-print">
-            <button class="nmc-tab active" data-tab="namecard" onclick="nmc.switchTab('namecard')">
-              🪪 ป้ายชื่อ <span class="nmc-tab-sub">8.5 × 6 cm · 8/หน้า</span>
+          <!-- TOOL PICKER (landing) -->
+          <div class="tool-grid nmc-no-print" id="toolPicker">
+            <button class="tool-card" data-tab="namecard" onclick="nmc.switchTab('namecard')">
+              <div class="tool-card-icon">🪪</div>
+              <div class="tool-card-title">ป้ายชื่อ</div>
+              <div class="tool-card-sub">8.5 × 6 cm · 8 ใบ/หน้า</div>
+              <div class="tool-card-desc">นำเข้ารายชื่อจาก Excel → จัด layout บนกระดาษ A4 + พิมพ์/PDF</div>
             </button>
-            <button class="nmc-tab" data-tab="vip" onclick="nmc.switchTab('vip')">
-              ⭐ ป้าย VIP <span class="nmc-tab-sub">9.5 × 5 cm · 10/หน้า</span>
+            <button class="tool-card" data-tab="vip" onclick="nmc.switchTab('vip')">
+              <div class="tool-card-icon">⭐</div>
+              <div class="tool-card-title">ป้าย VIP</div>
+              <div class="tool-card-sub">9.5 × 5 cm · กำหนดเอง</div>
+              <div class="tool-card-desc">พิมพ์ป้ายข้อความเดียว (VIP / STAFF) กำหนดขนาด + จำนวนได้</div>
             </button>
-            <button class="nmc-tab" data-tab="cert" onclick="nmc.switchTab('cert')">
-              🏆 ใบประกาศนียบัตร <span class="nmc-tab-sub">A4 แนวนอน · 1/หน้า</span>
+            <button class="tool-card" data-tab="cert" onclick="nmc.switchTab('cert')">
+              <div class="tool-card-icon">🏆</div>
+              <div class="tool-card-title">ใบประกาศนียบัตร</div>
+              <div class="tool-card-sub">A4 แนวนอน · 1 ใบ/หน้า</div>
+              <div class="tool-card-desc">วางชื่อบน template ตามตำแหน่ง → Export PDF หรือภาพ (ZIP)</div>
+            </button>
+            <button class="tool-card" data-tab="seat" onclick="nmc.switchTab('seat')">
+              <div class="tool-card-icon">🎫</div>
+              <div class="tool-card-title">หมายเลขที่นั่ง</div>
+              <div class="tool-card-sub">Row × Column · กำหนดเอง</div>
+              <div class="tool-card-desc">สร้างป้ายเลขที่นั่งจากช่วง Row/Column · เลือกแนวกระดาษ + จำนวน/หน้า</div>
             </button>
           </div>
 
+          <!-- BACK BAR (shown while a tool is open) -->
+          <div class="tool-back nmc-no-print" id="toolBack" style="display:none">
+            <button class="btn btn-outline btn-sm" onclick="nmc.showPicker()">← เครื่องมือทั้งหมด</button>
+            <span class="tool-back-title" id="toolBackTitle"></span>
+          </div>
+
           <!-- ╔══ TAB CONTENT: NAMECARD ══╗ -->
-          <div class="nmc-tab-pane active" id="paneNamecard">
+          <div class="nmc-tab-pane active" id="paneNamecard" style="display:none">
 
           <!-- STEP CARDS -->
           <div class="nmc-no-print">
@@ -309,10 +330,104 @@
           </div>
           <!-- ╚══ /TAB CONTENT: CERTIFICATE ══╝ -->
 
+          <!-- ╔══ TAB CONTENT: SEAT NUMBERS ══╗ -->
+          <div class="nmc-tab-pane" id="paneSeat" style="display:none">
+
+            <div class="nmc-no-print">
+             <div class="vip-split">
+              <!-- LEFT: settings -->
+              <div class="vip-split-left">
+              <div class="nmc-card-block" style="margin-bottom:12px">
+                <div class="nmc-block-hdr">
+                  <div class="nmc-block-title">🎫 พิมพ์หมายเลขที่นั่ง</div>
+                </div>
+                <div class="vip-design-grid">
+                  <div class="vip-field" style="flex:1 1 100%">
+                    <label for="seatRowInput">แถว (Row) — เช่น A-M หรือ A,B,C (เว้นว่างได้)</label>
+                    <input type="text" id="seatRowInput" class="vip-text-input" value="A-J"
+                           placeholder="A-M หรือ A,B,C" oninput="nmc.setSeatRow(this.value)">
+                  </div>
+                  <div class="vip-field" style="flex:1 1 100%">
+                    <label for="seatColInput">คอลัมน์ (Column) — เช่น 1-24 หรือ 1,2,3 (เว้นว่างได้)</label>
+                    <input type="text" id="seatColInput" class="vip-text-input" value="1-12"
+                           placeholder="1-24 หรือ 1,2,3" oninput="nmc.setSeatCol(this.value)">
+                  </div>
+                  <div class="vip-field vip-field-num">
+                    <label for="seatSepInput">ตัวคั่น Row/Col</label>
+                    <input type="text" id="seatSepInput" class="vip-num-input" value="" maxlength="3"
+                           placeholder="(เว้นว่าง)" oninput="nmc.setSeatSep(this.value)">
+                  </div>
+                </div>
+
+                <!-- Paper orientation -->
+                <div class="vip-qty-row vip-qty-row--inset">
+                  <span class="vip-qty-label">แนวกระดาษ</span>
+                  <div class="seat-orient-toggle">
+                    <button class="seat-orient-btn active" id="seatOrientPortrait" onclick="nmc.setSeatOrient('portrait')">📄 แนวตั้ง</button>
+                    <button class="seat-orient-btn" id="seatOrientLandscape" onclick="nmc.setSeatOrient('landscape')">📃 แนวนอน</button>
+                  </div>
+                </div>
+
+                <!-- Per A4 -->
+                <div class="vip-qty-row vip-qty-row--inset">
+                  <span class="vip-qty-label">จำนวนต่อ 1 A4</span>
+                  <div class="vip-qty-input-wrap">
+                    <button class="vip-qty-btn" onclick="nmc.bumpSeatPerPage(-1)">−</button>
+                    <input type="number" id="seatPerPageInput" class="vip-qty-input" min="1" max="60" value="6"
+                           oninput="nmc.setSeatPerPage(this.value)">
+                    <button class="vip-qty-btn" onclick="nmc.bumpSeatPerPage(1)">＋</button>
+                    <span class="vip-qty-unit">ใบ/หน้า</span>
+                  </div>
+                  <div class="vip-qty-presets">
+                    <button class="btn btn-outline btn-sm" onclick="nmc.setSeatPerPage(1)">1</button>
+                    <button class="btn btn-outline btn-sm" onclick="nmc.setSeatPerPage(2)">2</button>
+                    <button class="btn btn-outline btn-sm" onclick="nmc.setSeatPerPage(4)">4</button>
+                    <button class="btn btn-outline btn-sm" onclick="nmc.setSeatPerPage(6)">6</button>
+                    <button class="btn btn-outline btn-sm" onclick="nmc.setSeatPerPage(9)">9</button>
+                    <button class="btn btn-outline btn-sm" onclick="nmc.setSeatPerPage(12)">12</button>
+                  </div>
+                </div>
+
+                <div class="vip-layout-info">
+                  📐 รวม <b id="seatTotal">0</b> ที่นั่ง · <b id="seatPageCount">0</b> หน้า A4 ·
+                  จัด <span id="seatGridDesc">—</span> · ขนาดป้าย <span id="seatCardSize">—</span>
+                </div>
+              </div>
+
+              <!-- Seat actions -->
+              <div class="nmc-actions">
+                <button class="btn btn-secondary" onclick="nmc.clearSeat()">↺ ล้าง</button>
+                <button class="btn btn-outline" onclick="nmc.exportSeatPDF('open')" id="btnSeatPreview">👁️ Preview</button>
+                <button class="btn btn-primary" onclick="nmc.exportSeatPDF('save')" id="btnExportSeatPDF">🖨️ Print</button>
+              </div>
+              </div><!-- /vip-split-left -->
+
+              <!-- RIGHT: preview -->
+              <div class="vip-split-right">
+              <div class="nmc-card-block">
+                <div class="nmc-block-hdr">
+                  <div class="nmc-block-title" id="seatLayoutTitle">👁️ ตัวอย่าง Layout · กระดาษ A4</div>
+                  <div class="nmc-block-tools nmc-zoom-tools">
+                    <span style="font-size:12px;color:var(--text3)">Zoom</span>
+                    <button class="btn btn-outline btn-sm" onclick="nmc.setSeatZoom(-1)">−</button>
+                    <span id="seatZoomLabel" style="min-width:48px;text-align:center;font-weight:600">50%</span>
+                    <button class="btn btn-outline btn-sm" onclick="nmc.setSeatZoom(1)">＋</button>
+                  </div>
+                </div>
+                <div class="nmc-sheet-scroller" id="seatSheetScroller"></div>
+              </div>
+              </div><!-- /vip-split-right -->
+             </div><!-- /vip-split -->
+            </div>
+
+          </div>
+          <!-- ╚══ /TAB CONTENT: SEAT NUMBERS ══╝ -->
+
           <!-- PRINT AREAS (off-screen render targets for PDF export) -->
           <div class="nmc-print-area" id="printArea"></div>
           <div class="nmc-print-area" id="vipPrintArea"></div>
           <div class="nmc-print-area" id="certPrintArea"></div>
+          <div class="nmc-print-area" id="seatPrintArea"></div>
 
         </div>
       </div>
@@ -326,7 +441,7 @@
           <button class="btn-modal-close" onclick="nmc.closeCertPosModal()">✕</button>
         </div>
         <div class="modal-body" style="padding:0">
-          <div style="padding:12px 18px;font-size:13px;color:var(--text2);background:var(--surface2,#f8fafc);border-bottom:1px solid var(--border)">
+          <div style="padding:12px 18px;font-size:13px;color:var(--text2);background:var(--surface2,#f5f1ea);border-bottom:1px solid var(--border)">
             💡 ลากกล่องชื่อ <b>ขึ้น-ลง</b> เพื่อปรับตำแหน่ง · แนวนอนกึ่งกลาง fix ไว้ · เห็นการเปลี่ยนแปลงทันที
           </div>
           <div style="padding:18px">
@@ -351,15 +466,15 @@
               <button class="btn btn-outline btn-sm" onclick="nmc.resetCertPosY()">↺ Default Y</button>
             </div>
             <div class="cert-pos-toolbar" style="margin-top:8px">
-              <div class="cert-pos-y" style="color:#dc2626">
-                📏 ระยะห่าง 2 บรรทัด = <input type="number" id="certPosLhInput" class="cert-pos-y-input" min="8" max="40" step="0.5" oninput="nmc.setCertPosLh(this.value)" style="color:#dc2626"> mm
+              <div class="cert-pos-y" style="color:var(--danger)">
+                📏 ระยะห่าง 2 บรรทัด = <input type="number" id="certPosLhInput" class="cert-pos-y-input" min="8" max="40" step="0.5" oninput="nmc.setCertPosLh(this.value)" style="color:var(--danger)"> mm
               </div>
               <button class="btn btn-outline btn-sm" onclick="nmc.bumpCertPosLh(-0.5)">− 0.5mm</button>
               <button class="btn btn-outline btn-sm" onclick="nmc.bumpCertPosLh(0.5)">+ 0.5mm</button>
               <button class="btn btn-outline btn-sm" onclick="nmc.resetCertPosLh()">↺ Default (16mm)</button>
             </div>
             <div class="cert-pos-toolbar" style="margin-top:8px">
-              <div class="cert-pos-y" style="color:#0f766e">👤 ตำแหน่งรายชื่อเดี่ยว (1 บรรทัด):</div>
+              <div class="cert-pos-y" style="color:var(--accent)">👤 ตำแหน่งรายชื่อเดี่ยว (1 บรรทัด):</div>
               <label class="cert-pos-radio">
                 <input type="radio" name="certPosSingle" value="top" onchange="nmc.setCertPosSingle(this.value)">
                 ตำแหน่งชื่อ 1 (บน)
@@ -390,7 +505,7 @@
           <button class="btn-modal-close" onclick="nmc.closeCertTplModal()">✕</button>
         </div>
         <div class="modal-body" style="padding:0">
-          <div style="padding:14px 18px;font-size:13px;color:var(--text2);background:var(--surface2,#f8fafc);border-bottom:1px solid var(--border)">
+          <div style="padding:14px 18px;font-size:13px;color:var(--text2);background:var(--surface2,#f5f1ea);border-bottom:1px solid var(--border)">
             อัปโหลดไฟล์ <b>JPEG/PNG</b> A4 แนวนอน · <b>ไม่ลดขนาด/บีบอัด</b> (full quality) · เก็บที่ Supabase Storage → share ทุกเครื่อง<br>
             <span style="font-size:11px;color:var(--text3)">ภาพยิ่งใหญ่ยิ่งคม แต่ใช้ bandwidth + พื้นที่มากขึ้น แนะนำ 3000×2100 px ขึ้นไป</span>
           </div>

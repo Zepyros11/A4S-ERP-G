@@ -26,6 +26,9 @@ const state = {
   // selections
   selDocs: new Set(),
   selTpls: new Set(),
+  // กลุ่มเอกสารที่ถูกพับ (key = template_id หรือ "none")
+  collapsedGroups: new Set(),
+  groupsInitialized: false, // ครั้งแรกให้พับทุกกลุ่ม
 };
 
 // ── หัวกระดาษ A4S (คงที่ทุกเอกสาร) ──────────────────────────
@@ -103,6 +106,15 @@ function initRTE() {
     });
     inp.addEventListener("keydown", (e) => {
       if (e.key === "Enter") { e.preventDefault(); inp.blur(); }
+    });
+  });
+  // ช่องเลือกสีตัวอักษร
+  document.querySelectorAll(".rte-color").forEach((inp) => {
+    inp.addEventListener("input", () => {
+      if (!_lastArea) return;
+      _lastArea.focus();
+      restoreRteRange();
+      document.execCommand("foreColor", false, inp.value);
     });
   });
   // ติดตาม selection → อัปเดตช่องขนาด + จำ range ไว้ (กันหลุดตอนคลิกช่อง px)
@@ -259,7 +271,7 @@ function renderDocs() {
 
   if (!rows.length) {
     tbody.innerHTML = `
-      <tr><td colspan="7">
+      <tr><td colspan="6">
         <div class="empty-state"><div class="empty-icon">📄</div>
           <div class="empty-text">ยังไม่มีเอกสาร — กด "＋ สร้างเอกสาร" เพื่อเริ่ม</div></div>
       </td></tr>`;
@@ -267,37 +279,68 @@ function renderDocs() {
     return;
   }
 
-  tbody.innerHTML = rows
-    .map((d, i) => {
-      const tn = templateName(d.template_id);
-      const tplBadge = tn
-        ? `<span class="doc-tpl-badge">${escapeHtml(tn)}</span>`
-        : `<span class="doc-tpl-badge none">— เปล่า —</span>`;
-      const checked = state.selDocs.has(d.doc_id) ? "checked" : "";
-      return `<tr>
-        <td style="text-align:center">
-          <input type="checkbox" data-doc="${d.doc_id}" ${checked} onchange="window.toggleDoc(${d.doc_id}, this)" />
-        </td>
-        <td style="text-align:center;color:var(--text3);font-size:12px">${i + 1}</td>
-        <td><div class="doc-name-cell">${escapeHtml(d.title || "—")}</div></td>
-        <td class="col-center">${tplBadge}</td>
-        <td class="col-center">
-          <span class="doc-status-pill doc-status-${d.status || "DRAFT"}">${statusLabel(d.status)}</span>
-        </td>
-        <td class="col-center" style="white-space:nowrap;color:var(--text2);font-size:12px">${fmt(d.updated_at)}</td>
-        <td class="col-center" onclick="event.stopPropagation()">
-          <div class="action-group">
-            <button class="btn-icon" title="พิมพ์/ดู" onclick="window.printDoc(${d.doc_id})">🖨</button>
-            <button class="btn-icon" title="แก้ไข" data-perm="trip_docs_edit" onclick="window.openDocEdit(${d.doc_id})">✏️</button>
-            <button class="btn-icon danger" title="ลบ" data-perm="trip_docs_delete" onclick="window.deleteDoc(${d.doc_id})">🗑</button>
-          </div>
-        </td>
-      </tr>`;
-    })
-    .join("");
+  // ── จัดกลุ่มตามแม่แบบ ──
+  const groups = new Map();
+  rows.forEach((d) => {
+    const key = d.template_id != null ? String(d.template_id) : "none";
+    if (!groups.has(key)) {
+      groups.set(key, { key, name: templateName(d.template_id) || "— ไม่มีแม่แบบ —", docs: [] });
+    }
+    groups.get(key).docs.push(d);
+  });
+  // ครั้งแรก: พับทุกกลุ่มเป็น default
+  if (!state.groupsInitialized) {
+    groups.forEach((_, key) => state.collapsedGroups.add(key));
+    state.groupsInitialized = true;
+  }
+  const ordered = [...groups.values()].sort((a, b) => a.name.localeCompare(b.name, "th"));
+
+  let idx = 0;
+  const parts = [];
+  ordered.forEach((g) => {
+    const collapsed = state.collapsedGroups.has(g.key);
+    parts.push(`<tr class="doc-group" onclick="window.toggleDocGroup('${g.key}')">
+      <td colspan="6">
+        <span class="doc-group-toggle">${collapsed ? "▸" : "▾"}</span>
+        🧩 ${escapeHtml(g.name)}
+        <span class="doc-group-count">${g.docs.length}</span>
+      </td>
+    </tr>`);
+    if (!collapsed) g.docs.forEach((d) => parts.push(docRowHtml(d, ++idx, fmt)));
+  });
+  tbody.innerHTML = parts.join("");
 
   if (window.AuthZ?.applyDomPerms) AuthZ.applyDomPerms(tbody);
   syncDocBulkBar();
+}
+
+// แถวเอกสาร 1 แถว (ไม่มีคอลัมน์แม่แบบ — ใช้หัวกลุ่มแทน)
+function docRowHtml(d, idx, fmt) {
+  const checked = state.selDocs.has(d.doc_id) ? "checked" : "";
+  return `<tr>
+    <td style="text-align:center">
+      <input type="checkbox" data-doc="${d.doc_id}" ${checked} onchange="window.toggleDoc(${d.doc_id}, this)" />
+    </td>
+    <td style="text-align:center;color:var(--text3);font-size:12px">${idx}</td>
+    <td><div class="doc-name-cell">${escapeHtml(d.title || "—")}</div></td>
+    <td class="col-center">
+      <span class="doc-status-pill doc-status-${d.status || "DRAFT"}">${statusLabel(d.status)}</span>
+    </td>
+    <td class="col-center" style="white-space:nowrap;color:var(--text2);font-size:12px">${fmt(d.updated_at)}</td>
+    <td class="col-center" onclick="event.stopPropagation()">
+      <div class="action-group">
+        <button class="btn-icon" title="พิมพ์/ดู" onclick="window.printDoc(${d.doc_id})">🖨</button>
+        <button class="btn-icon" title="แก้ไข" data-perm="trip_docs_edit" onclick="window.openDocEdit(${d.doc_id})">✏️</button>
+        <button class="btn-icon danger" title="ลบ" data-perm="trip_docs_delete" onclick="window.deleteDoc(${d.doc_id})">🗑</button>
+      </div>
+    </td>
+  </tr>`;
+}
+
+window.toggleDocGroup = function (key) {
+  if (state.collapsedGroups.has(key)) state.collapsedGroups.delete(key);
+  else state.collapsedGroups.add(key);
+  renderDocs();
 }
 
 function statusLabel(s) {
@@ -545,19 +588,24 @@ function resolveLetterhead(id) {
   return { logo_data: null, company_name: LETTERHEAD.nameEn, address: LETTERHEAD.addr };
 }
 
+// แปลงข้อมูลหัวเก่า (company_name/address) → HTML (fallback ถ้าไม่มี content_html)
+function legacyLetterheadHtml(l) {
+  return (
+    `<div style="font-weight:700;font-size:16px;color:#111">${escapeHtml(l.company_name || LETTERHEAD.nameEn)}</div>` +
+    `<div style="font-size:12.5px;line-height:1.6;color:#222;white-space:pre-line">${escapeHtml(l.address || LETTERHEAD.addr)}</div>`
+  );
+}
+
 // ประกอบ HTML ของเอกสารเต็ม: หัวกระดาษ + เนื้อหา + บล็อกลายเซ็น
 function composeDocHtml(body, signatoryId, letterheadId) {
   const lh = resolveLetterhead(letterheadId);
   const logoSrc = lh.logo_data || LETTERHEAD.logoUrl;
-  const addrHtml = escapeHtml(lh.address || "").replace(/\n/g, "<br>");
+  const contentHtml =
+    lh.content_html && lh.content_html.trim() ? lh.content_html : legacyLetterheadHtml(lh);
   const head = `
     <div class="doc-letterhead">
       <div class="lh-logo">${logoSrc ? `<img src="${logoSrc}" alt="logo" onerror="this.style.display='none'" />` : ""}</div>
-      <div class="lh-info">
-        <div class="lh-name">${escapeHtml(lh.company_name || "")}</div>
-        <div class="lh-addr">${addrHtml}</div>
-      </div>
-      <div class="lh-logo" aria-hidden="true"></div>
+      <div class="lh-info">${contentHtml}</div>
     </div>`;
 
   // body เป็น HTML (rich-text) แล้ว → inject ตรงๆ
@@ -1335,7 +1383,7 @@ function renderLetterheadList() {
         <img src="${l.logo_data || LETTERHEAD.logoUrl}" alt="logo" onerror="this.style.display='none'" />
         <div class="lh-item-meta">
           <b title="${escapeHtml(l.name)}">${escapeHtml(l.name)}</b>
-          <small title="${escapeHtml(l.company_name || "")}">${escapeHtml(l.company_name || "—")}</small>
+          <small>${escapeHtml(stripHtml(l.content_html) || l.company_name || "—")}</small>
         </div>
         <div class="lh-item-acts">
           <button class="btn-icon danger" title="ลบ" onclick="event.stopPropagation(); window.deleteLetterhead(${l.letterhead_id})">🗑</button>
@@ -1349,8 +1397,7 @@ window.resetLetterheadForm = function () {
   state.editLhId = null;
   state.lhLogoData = null;
   document.getElementById("lhName").value = "";
-  document.getElementById("lhCompany").value = "";
-  document.getElementById("lhAddress").value = "";
+  setEditorHTML("lhContent", "");
   document.getElementById("lhFile").value = "";
   document.getElementById("lhLogoBox").innerHTML = `<span class="ph">โลโก้ A4S เริ่มต้น</span>`;
   document.getElementById("lhSaveBtn").textContent = "＋ เพิ่มหัวกระดาษ";
@@ -1364,8 +1411,7 @@ window.editLetterhead = function (id) {
   state.editLhId = id;
   state.lhLogoData = l.logo_data || null;
   document.getElementById("lhName").value = l.name || "";
-  document.getElementById("lhCompany").value = l.company_name || "";
-  document.getElementById("lhAddress").value = l.address || "";
+  setEditorHTML("lhContent", l.content_html || legacyLetterheadHtml(l));
   document.getElementById("lhLogoBox").innerHTML = l.logo_data
     ? `<img src="${l.logo_data}" alt="logo" />`
     : `<span class="ph">โลโก้ A4S เริ่มต้น</span>`;
@@ -1398,8 +1444,7 @@ window.saveLetterhead = async function () {
   }
   const payload = {
     name,
-    company_name: document.getElementById("lhCompany").value.trim() || null,
-    address: document.getElementById("lhAddress").value.trim() || null,
+    content_html: getEditorHTML("lhContent"),
     logo_data: state.lhLogoData || null,
     updated_at: new Date().toISOString(),
   };
@@ -1472,6 +1517,13 @@ function escapeHtml(s) {
   return String(s ?? "").replace(/[<>&"']/g, (c) => ({
     "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;", "'": "&#39;",
   })[c]);
+}
+// ลอก tag ออก → ข้อความล้วน (สำหรับ snippet)
+function stripHtml(html) {
+  if (!html) return "";
+  const tmp = document.createElement("div");
+  tmp.innerHTML = html;
+  return (tmp.textContent || "").replace(/\s+/g, " ").trim();
 }
 function showToast(msg, type = "success") {
   const t = document.getElementById("toast");

@@ -19,7 +19,15 @@
   let vipW    = 95;                 // card width  (mm)
   let vipH    = 50;                 // card height (mm)
   let vipText = "VIP";              // label text on the card
-  let activeTab = "namecard";       // "namecard" | "vip" | "cert"
+  let activeTab = "namecard";       // "namecard" | "vip" | "cert" | "seat"
+
+  // ── Seat-number tab state ─────────────────────────────────
+  let seatRowInput = "A-J";         // row tokens (e.g. "A-M" or "A,B,C")
+  let seatColInput = "1-12";        // column tokens (e.g. "1-24" or "1,2,3")
+  let seatSep      = "";            // separator between row & col ("" → "A1")
+  let seatOrient   = "portrait";    // "portrait" | "landscape"
+  let seatPerPage  = 6;             // cards per A4 sheet
+  let seatZoom     = 0.5;
 
   // ── Certificate tab state (independent from namecard rows) ─
   let certRows = [];                // [{ name1, name2, position }]
@@ -572,20 +580,41 @@
   // ════════════════════════════════════════════════════════════
   // VIP TAB
   // ════════════════════════════════════════════════════════════
+  const TOOL_TITLES = {
+    namecard: "🪪 ป้ายชื่อ",
+    vip:      "⭐ ป้าย VIP",
+    cert:     "🏆 ใบประกาศนียบัตร",
+    seat:     "🎫 หมายเลขที่นั่ง",
+  };
+
+  // Landing view: show the tool-picker cards, hide every tool pane.
+  function showPicker() {
+    activeTab = null;
+    $("toolPicker") && ($("toolPicker").style.display = "");
+    $("toolBack")   && ($("toolBack").style.display   = "none");
+    ["paneNamecard", "paneVip", "paneCert", "paneSeat"].forEach(id => {
+      const el = $(id); if (el) el.style.display = "none";
+    });
+    const btnT = $("btnTemplate");
+    if (btnT) btnT.style.display = "none";
+  }
+
   function switchTab(tab) {
     activeTab = tab;
+    $("toolPicker") && ($("toolPicker").style.display = "none");
+    $("toolBack")   && ($("toolBack").style.display   = "");
+    $("toolBackTitle") && ($("toolBackTitle").textContent = TOOL_TITLES[tab] || "");
     $("paneNamecard").style.display = tab === "namecard" ? "" : "none";
     $("paneVip").style.display      = tab === "vip"      ? "" : "none";
     $("paneCert").style.display     = tab === "cert"     ? "" : "none";
-    document.querySelectorAll(".nmc-tab").forEach(t => {
-      t.classList.toggle("active", t.dataset.tab === tab);
-    });
+    $("paneSeat").style.display     = tab === "seat"     ? "" : "none";
     // Template-download button is namecard-specific
     const btnT = $("btnTemplate");
     if (btnT) btnT.style.display = tab === "namecard" ? "" : "none";
 
     if (tab === "vip")  renderVipSheets();
     if (tab === "cert") renderCertSheets();
+    if (tab === "seat") renderSeatSheets();
   }
 
   function vipCardHtml() {
@@ -793,6 +822,294 @@
       showToast("สร้าง PDF ไม่สำเร็จ — " + err.message, "error");
     } finally {
       if (btn) { btn.disabled = false; btn.textContent = orig; }
+      hideProcessing();
+    }
+  }
+
+  // ════════════════════════════════════════════════════════════
+  // SEAT-NUMBER TAB
+  // ════════════════════════════════════════════════════════════
+  // Expand "A-M" / "1-24" ranges and comma lists into a token array.
+  // Ranges work for single letters (A-M) and integers (1-24), ascending
+  // or descending. Anything else is kept as a literal token.
+  function expandTokens(input) {
+    const out = [];
+    String(input == null ? "" : input).split(/[,\s]+/).forEach(tokRaw => {
+      const tok = tokRaw.trim();
+      if (!tok) return;
+      const m = tok.match(/^(.+?)-(.+)$/);
+      if (m) {
+        const a = m[1].trim(), b = m[2].trim();
+        if (/^\d+$/.test(a) && /^\d+$/.test(b)) {            // numeric range
+          let s = +a, e = +b, step = s <= e ? 1 : -1;
+          for (let i = s; step > 0 ? i <= e : i >= e; i += step) out.push(String(i));
+          return;
+        }
+        if (/^[A-Za-z]$/.test(a) && /^[A-Za-z]$/.test(b)) {   // single-letter range
+          let s = a.toUpperCase().charCodeAt(0), e = b.toUpperCase().charCodeAt(0);
+          let step = s <= e ? 1 : -1;
+          for (let i = s; step > 0 ? i <= e : i >= e; i += step) out.push(String.fromCharCode(i));
+          return;
+        }
+      }
+      out.push(tok);
+    });
+    return out;
+  }
+
+  // Build the seat list = every Row × Column combination → { label }.
+  function buildSeats() {
+    const rs = expandTokens(seatRowInput);
+    const cs = expandTokens(seatColInput);
+    if (!rs.length && !cs.length) return [];
+    const rows = rs.length ? rs : [""];
+    const cols = cs.length ? cs : [""];
+    const out = [];
+    for (const r of rows) {
+      for (const c of cols) {
+        const sep = (r && c) ? seatSep : "";
+        out.push({ label: r + sep + c });
+      }
+    }
+    return out;
+  }
+
+  // Choose the cols×rows grid (product = perPage) whose cell is closest to
+  // square for the current paper orientation → biggest, most readable cards.
+  function seatGrid() {
+    const N = Math.max(1, seatPerPage | 0);
+    const land = seatOrient === "landscape";
+    const pw = land ? A4_H_MM : A4_W_MM;   // page width  (mm)
+    const ph = land ? A4_W_MM : A4_H_MM;   // page height (mm)
+    let best = null;
+    for (let cols = 1; cols <= N; cols++) {
+      if (N % cols) continue;
+      const gRows = N / cols;
+      const cw = pw / cols, ch = ph / gRows;
+      const score = Math.abs(Math.log(cw / ch));   // 0 = perfectly square
+      if (!best || score < best.score) best = { cols, gRows, cw, ch, score };
+    }
+    return { cols: best.cols, rows: best.gRows, cardW: best.cw, cardH: best.ch, perPage: N, pw, ph };
+  }
+
+  function seatCardHtml(s) {
+    return `<div class="seat-card"><div class="seat-card-num">${esc(s.label)}</div></div>`;
+  }
+  function seatBlankHtml() { return `<div class="seat-card seat-blank"></div>`; }
+
+  // Fit every seat number, then collapse them all to the smallest size so
+  // the whole set prints at one uniform scale (e.g. "C7" matches "C10").
+  function uniformFitSeat(els) {
+    if (!els.length) return;
+    let min = Infinity;
+    els.forEach(el => {
+      fitSeatText(el);
+      const s = parseFloat(el.style.fontSize) || 12;
+      if (s < min) min = s;
+    });
+    els.forEach(el => { el.style.fontSize = min + "px"; });
+  }
+
+  // Shrink seat number until it fits its card (width & height).
+  function fitSeatText(el) {
+    const box = el.parentElement;
+    if (!box) return;
+    const maxW = box.clientWidth - 8;
+    const maxH = box.clientHeight - 8;
+    if (maxW <= 0 || maxH <= 0) return;
+    let size = Math.min(maxH, 800);
+    el.style.fontSize = size + "px";
+    let guard = 220;
+    while (size > 8 && guard-- > 0 &&
+           (el.scrollWidth > maxW || el.scrollHeight > maxH)) {
+      size -= 2;
+      el.style.fontSize = size + "px";
+    }
+  }
+
+  function renderSeatSheets() {
+    const scroller  = $("seatSheetScroller");
+    const printArea = $("seatPrintArea");
+    if (!scroller || !printArea) return;
+
+    const seats = buildSeats();
+    const g = seatGrid();
+    const total = seats.length;
+    const pageCount = Math.max(1, Math.ceil(total / g.perPage));
+
+    // Layout info / counters
+    $("seatTotal")     && ($("seatTotal").textContent     = total);
+    $("seatPageCount") && ($("seatPageCount").textContent = total ? pageCount : 0);
+    $("seatGridDesc")  && ($("seatGridDesc").textContent  = `${g.cols} × ${g.rows} (${g.perPage} ใบ/หน้า)`);
+    $("seatCardSize")  && ($("seatCardSize").textContent  =
+      `${(g.cardW / 10).toFixed(1)} × ${(g.cardH / 10).toFixed(1)} ซม.`);
+    $("seatLayoutTitle") && ($("seatLayoutTitle").textContent =
+      `👁️ ตัวอย่าง Layout · A4 ${seatOrient === "landscape" ? "แนวนอน" : "แนวตั้ง"} (${g.perPage} ใบ/หน้า · ${g.cols}×${g.rows})`);
+
+    if (!total) {
+      scroller.innerHTML  = "";
+      printArea.innerHTML = "";
+      return;
+    }
+
+    const pages = chunked(seats, g.perPage);
+    const pageCells = pages.map(pg => {
+      const cells = [];
+      for (let i = 0; i < g.perPage; i++) {
+        cells.push(pg[i] ? seatCardHtml(pg[i]) : seatBlankHtml());
+      }
+      return cells.join("");
+    });
+    const wrapHtml = (cells) => `<div class="seat-a4-wrap"><div class="seat-a4">${cells}</div></div>`;
+    scroller.innerHTML = pageCells.map((cells, i) =>
+      `<div class="vip-page-item">` +
+        `<div class="vip-page-label">📄 หน้า ${i + 1} / ${pageCount}</div>` +
+        wrapHtml(cells) +
+      `</div>`
+    ).join("");
+    printArea.innerHTML = pageCells.map(wrapHtml).join("");
+
+    const applyVars = (el) => {
+      el.style.setProperty("--seat-pw", g.pw + "mm");
+      el.style.setProperty("--seat-ph", g.ph + "mm");
+      el.style.setProperty("--seat-cols", g.cols);
+      el.style.setProperty("--seat-rows", g.rows);
+      el.style.setProperty("--seat-w", g.cardW + "mm");
+      el.style.setProperty("--seat-h", g.cardH + "mm");
+      el.style.setProperty("--nmc-zoom", seatZoom);
+    };
+    scroller.querySelectorAll(".seat-a4-wrap").forEach(applyVars);
+    printArea.querySelectorAll(".seat-a4-wrap").forEach(applyVars);
+
+    requestAnimationFrame(() => {
+      [scroller, printArea].forEach(root => {
+        uniformFitSeat(Array.from(root.querySelectorAll(".seat-card-num")));
+      });
+    });
+  }
+
+  // ── Seat setters ──────────────────────────────────────────
+  function setSeatRow(v) { seatRowInput = String(v == null ? "" : v); renderSeatSheets(); }
+  function setSeatCol(v) { seatColInput = String(v == null ? "" : v); renderSeatSheets(); }
+  function setSeatSep(v) { seatSep      = String(v == null ? "" : v); renderSeatSheets(); }
+  function setSeatPerPage(v) {
+    let n = parseInt(v, 10);
+    if (isNaN(n) || n < 1) n = 1;
+    if (n > 60) n = 60;
+    seatPerPage = n;
+    const inp = $("seatPerPageInput");
+    if (inp && inp.value !== String(n)) inp.value = n;
+    renderSeatSheets();
+  }
+  function bumpSeatPerPage(dir) { setSeatPerPage(seatPerPage + dir); }
+  function setSeatOrient(o) {
+    seatOrient = (o === "landscape") ? "landscape" : "portrait";
+    $("seatOrientPortrait")  && $("seatOrientPortrait").classList.toggle("active", seatOrient === "portrait");
+    $("seatOrientLandscape") && $("seatOrientLandscape").classList.toggle("active", seatOrient === "landscape");
+    renderSeatSheets();
+  }
+  function setSeatZoom(dir) {
+    const steps = [0.2, 0.3, 0.4, 0.5, 0.65, 0.8, 1.0];
+    let i = steps.indexOf(seatZoom);
+    if (i < 0) i = 3;
+    i = Math.max(0, Math.min(steps.length - 1, i + dir));
+    seatZoom = steps[i];
+    $("seatZoomLabel") && ($("seatZoomLabel").textContent = Math.round(seatZoom * 100) + "%");
+    document.querySelectorAll("#seatSheetScroller .seat-a4-wrap").forEach(el => {
+      el.style.setProperty("--nmc-zoom", seatZoom);
+    });
+  }
+  async function clearSeat() {
+    if (!buildSeats().length) return;
+    const ok = await ConfirmModal.open({
+      title: "ล้างหมายเลขที่นั่ง?",
+      message: "จะล้างค่า Row / Column ที่กรอกไว้",
+      icon: "↺",
+      tone: "warning",
+      okText: "ล้าง",
+    });
+    if (!ok) return;
+    seatRowInput = ""; seatColInput = ""; seatSep = "";
+    const ri = $("seatRowInput"); if (ri) ri.value = "";
+    const ci = $("seatColInput"); if (ci) ci.value = "";
+    const si = $("seatSepInput"); if (si) si.value = "";
+    renderSeatSheets();
+  }
+
+  async function exportSeatPDF(mode = "save") {
+    if (!buildSeats().length) { showToast("กรุณาระบุ Row และ/หรือ Column", "error"); return; }
+    if (!window.html2canvas || !window.jspdf) {
+      showToast("ไลบรารี PDF ยังโหลดไม่เสร็จ ลองใหม่อีกครั้ง", "error"); return;
+    }
+    // Disable both action buttons while rendering · restore in finally
+    const btnPreview = $("btnSeatPreview"), btnPrint = $("btnExportSeatPDF");
+    const busyBtn = mode === "open" ? btnPreview : btnPrint;
+    const orig = busyBtn ? busyBtn.textContent : "";
+    [btnPreview, btnPrint].forEach(b => b && (b.disabled = true));
+    if (busyBtn) busyBtn.textContent = "⏳ กำลังสร้าง PDF...";
+    showProcessing("กำลังสร้าง PDF หมายเลขที่นั่ง...", "เตรียมข้อมูล");
+
+    try {
+      renderSeatSheets();
+      await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+      await new Promise(r => setTimeout(r, 80));
+
+      const printArea = $("seatPrintArea");
+      const orig2 = {
+        position: printArea.style.position, left: printArea.style.left,
+        top: printArea.style.top, visibility: printArea.style.visibility,
+      };
+      printArea.style.position = "fixed";
+      printArea.style.left = "0"; printArea.style.top = "0";
+      printArea.style.visibility = "visible";
+      printArea.style.zIndex = "-1";
+
+      const { jsPDF } = window.jspdf;
+      const land = seatOrient === "landscape";
+      const pdf = new jsPDF({ orientation: land ? "landscape" : "portrait", unit: "mm", format: "a4" });
+      const pw = land ? A4_H_MM : A4_W_MM;
+      const ph = land ? A4_W_MM : A4_H_MM;
+      const sheets = printArea.querySelectorAll(".seat-a4");
+
+      for (let i = 0; i < sheets.length; i++) {
+        updateProcessing(`เรนเดอร์หน้า ${i + 1} / ${sheets.length}`);
+        if (i > 0) pdf.addPage();
+        const canvas = await html2canvas(sheets[i], {
+          scale: 3, useCORS: true, backgroundColor: "#ffffff", logging: false,
+        });
+        const img = canvas.toDataURL("image/jpeg", 0.95);
+        pdf.addImage(img, "JPEG", 0, 0, pw, ph, undefined, "FAST");
+      }
+
+      printArea.style.position   = orig2.position;
+      printArea.style.left       = orig2.left;
+      printArea.style.top        = orig2.top;
+      printArea.style.visibility = orig2.visibility;
+      printArea.style.zIndex     = "";
+
+      const stamp = new Date().toISOString().slice(0, 10);
+      if (mode === "open") {
+        // Preview: open the PDF in a new tab
+        updateProcessing("กำลังเปิดตัวอย่าง...");
+        const url = pdf.output("bloburl");
+        const win = window.open(url, "_blank");
+        if (!win) {
+          pdf.save(`seat-numbers-${stamp}.pdf`);
+          showToast("เบราว์เซอร์บล็อกหน้าต่างใหม่ — บันทึกไฟล์แทน", "error");
+        } else {
+          showToast(`เปิดตัวอย่าง PDF (${sheets.length} หน้า · ${buildSeats().length} ใบ)`);
+        }
+      } else {
+        updateProcessing("กำลังบันทึกไฟล์...");
+        pdf.save(`seat-numbers-${stamp}.pdf`);
+        showToast(`ส่งออก PDF เรียบร้อย (${sheets.length} หน้า · ${buildSeats().length} ใบ)`);
+      }
+    } catch (err) {
+      console.error(err);
+      showToast("สร้าง PDF ไม่สำเร็จ — " + err.message, "error");
+    } finally {
+      [btnPreview, btnPrint].forEach(b => b && (b.disabled = false));
+      if (busyBtn) busyBtn.textContent = orig;
       hideProcessing();
     }
   }
@@ -1656,9 +1973,12 @@
     $("zoomLabel") && ($("zoomLabel").textContent = Math.round(zoom * 100) + "%");
     $("vipZoomLabel") && ($("vipZoomLabel").textContent = Math.round(vipZoom * 100) + "%");
     $("certZoomLabel") && ($("certZoomLabel").textContent = Math.round(certZoom * 100) + "%");
+    $("seatZoomLabel") && ($("seatZoomLabel").textContent = Math.round(seatZoom * 100) + "%");
     loadCertTemplates();
     probeAllCertTpls().then(() => updateCertTplCount());
     renderVipSheets();
+    renderSeatSheets();
+    showPicker();
   });
 
   window.nmc = {
@@ -1679,7 +1999,11 @@
     setCertPosLh, bumpCertPosLh, resetCertPosLh,
     toggleCertPos2, setCertPosSingle, saveCertPos,
     downloadCertTemplate,
+    // Seat-number tab
+    setSeatRow, setSeatCol, setSeatSep,
+    setSeatPerPage, bumpSeatPerPage, setSeatOrient,
+    setSeatZoom, clearSeat, exportSeatPDF,
     // Common
-    switchTab,
+    switchTab, showPicker,
   };
 })();
