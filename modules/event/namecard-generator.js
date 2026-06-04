@@ -17,31 +17,26 @@
   let rows = [];
   let zoom = 0.75;
 
-  // ── VIP tab state ─────────────────────────────────────────
-  let vipQty  = 10;
-  let vipZoom = 0.65;
-  let vipW    = 95;                 // card width  (mm)
-  let vipH    = 50;                 // card height (mm)
-  let vipText = "VIP";              // label text on the card
-  let activeTab = "namecard";       // "namecard" | "vip" | "cert" | "seat"
+  let activeTab = "namecard";       // "namecard" | "custom" | "cert"
 
-  // ── Seat-number tab state ─────────────────────────────────
-  let seatRowInput = "A-J";         // row tokens (e.g. "A-M" or "A,B,C")
-  let seatColInput = "1-12";        // column tokens (e.g. "1-24" or "1,2,3")
-  let seatSep      = "";            // separator between row & col ("" → "A1")
-  let seatOrient   = "portrait";    // "portrait" | "landscape"
-  let seatPerPage  = 6;             // cards per A4 sheet
-  let seatZoom     = 0.5;
-
-  // ── Badge tab state (logo + name · independent) ───────────
-  let badgeQty     = 10;
-  let badgeZoom    = 0.65;
-  let badgeW       = 95;            // card width  (mm)
-  let badgeH       = 60;            // card height (mm)
-  let badgeName    = "";            // text written on every card
-  let badgeLogos   = [];            // [{ path, url }] — library from Supabase
-  let badgeLogoKey = null;          // selected logo path (null = no logo)
-  const BADGE_LOGO_BUCKET = "badge-logos";
+  // ── Custom tab state (merged: VIP + Badge + Seat) ─────────
+  let cMode    = "repeat";          // "repeat" (logo+text ×N) | "sequence" (A1,A2…)
+  let cW       = 95;                // card width  (mm)
+  let cH       = 60;                // card height (mm)
+  let cOrient  = "portrait";        // "portrait" | "landscape"
+  let cZoom    = 0.5;
+  // repeat-mode
+  let cText    = "VIP";             // text/name on every card
+  let cStyle   = "plain";           // "plain" (logo+name) | "vip" (green band)
+  let cQty     = 10;
+  let cLogos   = [];                // [{ path, url }] — library from Supabase
+  let cLogoKey = "__company__";     // selected logo · "__company__" | path | null
+  const C_LOGO_BUCKET = "badge-logos";
+  const C_COMPANY_KEY  = "__company__";
+  // sequence-mode
+  let cRowInput = "A-J";            // row tokens (e.g. "A-M" or "A,B,C")
+  let cColInput = "1-12";           // column tokens (e.g. "1-24" or "1,2,3")
+  let cSep      = "";               // separator between row & col ("" → "A1")
 
   // ── Certificate tab state (independent from namecard rows) ─
   let certRows = [];                // [{ name1, name2, position }]
@@ -592,14 +587,12 @@
   }
 
   // ════════════════════════════════════════════════════════════
-  // VIP TAB
+  // TAB SWITCHING
   // ════════════════════════════════════════════════════════════
   const TOOL_TITLES = {
     namecard: "🪪 ป้ายชื่อ",
-    vip:      "⭐ ป้าย VIP",
+    custom:   "🎫 ป้ายกำหนดเอง",
     cert:     "🏆 ใบประกาศนียบัตร",
-    seat:     "🎫 หมายเลขที่นั่ง",
-    badge:    "🆕 ป้ายโลโก้+ชื่อ",
   };
 
   // Landing view: show the tool-picker cards, hide every tool pane.
@@ -607,7 +600,7 @@
     activeTab = null;
     $("toolPicker") && ($("toolPicker").style.display = "");
     $("toolBack")   && ($("toolBack").style.display   = "none");
-    ["paneNamecard", "paneVip", "paneCert", "paneSeat", "paneBadge"].forEach(id => {
+    ["paneNamecard", "paneCustom", "paneCert"].forEach(id => {
       const el = $(id); if (el) el.style.display = "none";
     });
     const btnT = $("btnTemplate");
@@ -620,270 +613,48 @@
     $("toolBack")   && ($("toolBack").style.display   = "");
     $("toolBackTitle") && ($("toolBackTitle").textContent = TOOL_TITLES[tab] || "");
     $("paneNamecard").style.display = tab === "namecard" ? "" : "none";
-    $("paneVip").style.display      = tab === "vip"      ? "" : "none";
+    $("paneCustom").style.display   = tab === "custom"   ? "" : "none";
     $("paneCert").style.display     = tab === "cert"     ? "" : "none";
-    $("paneSeat").style.display     = tab === "seat"     ? "" : "none";
-    $("paneBadge").style.display    = tab === "badge"    ? "" : "none";
     // Template-download button is namecard-specific
     const btnT = $("btnTemplate");
     if (btnT) btnT.style.display = tab === "namecard" ? "" : "none";
 
-    if (tab === "vip")  renderVipSheets();
-    if (tab === "cert") renderCertSheets();
-    if (tab === "seat") renderSeatSheets();
-    if (tab === "badge") { renderBadgeSheets(); refreshBadgeLogos(); }
-  }
-
-  function vipCardHtml() {
-    return `
-      <div class="vip-card">
-        <div class="vip-card-logo"><img src="${logoPath()}" alt="logo" crossorigin="anonymous" onerror="this.style.display='none'"></div>
-        <div class="vip-card-band">
-          <div class="vip-card-text">${esc(vipText || "")}</div>
-        </div>
-      </div>
-    `;
-  }
-  function vipBlankHtml() { return `<div class="vip-card" style="visibility:hidden"></div>`; }
-
-  // How many cards fit on one A4 sheet for the current card size.
-  function vipGrid() {
-    const cols = Math.max(1, Math.floor(A4_W_MM / vipW));
-    const rows = Math.max(1, Math.floor(A4_H_MM / vipH));
-    return { cols, rows, perPage: cols * rows };
-  }
-
-  // Shrink VIP text font-size until it fits inside its green band.
-  function fitVipText(el) {
-    const band = el.parentElement;
-    if (!band) return;
-    const maxW = band.clientWidth  - 14;
-    const maxH = band.clientHeight - 8;
-    if (maxW <= 0 || maxH <= 0) return;
-    let size = Math.min(maxH, 400);
-    el.style.fontSize = size + "px";
-    let guard = 160;
-    while (size > 8 && guard-- > 0 &&
-           (el.scrollWidth > maxW || el.scrollHeight > maxH)) {
-      size -= 2;
-      el.style.fontSize = size + "px";
-    }
-  }
-
-  function renderVipSheets() {
-    const qty = Math.max(0, vipQty | 0);
-    const scroller  = $("vipSheetScroller");
-    const printArea = $("vipPrintArea");
-    if (!scroller || !printArea) return;
-
-    const { cols, rows: gRows, perPage } = vipGrid();
-    const pageCount = Math.max(1, Math.ceil(qty / perPage));
-
-    // Layout info / counters
-    $("vipPerPage")    && ($("vipPerPage").textContent    = perPage);
-    $("vipGridDesc")   && ($("vipGridDesc").textContent   = cols + " × " + gRows);
-    $("vipPageCount")  && ($("vipPageCount").textContent  = qty ? pageCount : 0);
-    $("vipPerPageMeta")&& ($("vipPerPageMeta").textContent= `(${perPage} ใบ/หน้า · ${cols}×${gRows})`);
-    $("vipLayoutTitle")&& ($("vipLayoutTitle").textContent=
-      `👁️ ตัวอย่าง Layout · กระดาษ A4 (${perPage} ใบ/หน้า · ${cols}×${gRows})`);
-
-    if (!qty) {
-      scroller.innerHTML  = "";
-      printArea.innerHTML = "";
-      return;
-    }
-
-    let remaining = qty;
-    const pageCells = [];
-    for (let p = 0; p < pageCount; p++) {
-      const cells = [];
-      for (let i = 0; i < perPage; i++) {
-        if (remaining > 0) { cells.push(vipCardHtml()); remaining--; }
-        else cells.push(vipBlankHtml());
-      }
-      pageCells.push(cells.join(""));
-    }
-    const wrapHtml = (cells) => `<div class="vip-a4-wrap"><div class="vip-a4">${cells}</div></div>`;
-    // On-screen preview: each page labelled · print area: bare sheets
-    scroller.innerHTML = pageCells.map((cells, i) =>
-      `<div class="vip-page-item">` +
-        `<div class="vip-page-label">📄 หน้า ${i + 1} / ${pageCount}</div>` +
-        wrapHtml(cells) +
-      `</div>`
-    ).join("");
-    printArea.innerHTML = pageCells.map(wrapHtml).join("");
-
-    // Card size + grid + zoom → CSS vars on each A4 wrapper (inherit inward)
-    const applyVars = (el) => {
-      el.style.setProperty("--vip-w", vipW + "mm");
-      el.style.setProperty("--vip-h", vipH + "mm");
-      el.style.setProperty("--vip-cols", cols);
-      el.style.setProperty("--vip-rows", gRows);
-      el.style.setProperty("--nmc-zoom", vipZoom);
-    };
-    scroller.querySelectorAll(".vip-a4-wrap").forEach(applyVars);
-    printArea.querySelectorAll(".vip-a4-wrap").forEach(applyVars);
-
-    // Auto-fit label text once layout has painted
-    requestAnimationFrame(() => {
-      [scroller, printArea].forEach(root => {
-        root.querySelectorAll(".vip-card-text").forEach(fitVipText);
-      });
-    });
-  }
-
-  function setVipQty(v) {
-    let n = parseInt(v, 10);
-    if (isNaN(n) || n < 0) n = 0;
-    if (n > 500) n = 500;
-    vipQty = n;
-    const inp = $("vipQtyInput");
-    if (inp && inp.value !== String(n)) inp.value = n;
-    renderVipSheets();
-  }
-  function bumpVipQty(dir) { setVipQty(vipQty + dir); }
-
-  // ── VIP text + custom size ────────────────────────────────
-  function setVipText(v) {
-    vipText = String(v == null ? "" : v);
-    renderVipSheets();
-  }
-  function setVipW(v) {
-    const n = parseFloat(v);
-    if (!isFinite(n)) return;
-    vipW = Math.max(3, Math.min(21, n)) * 10;     // cm → mm
-    renderVipSheets();
-  }
-  function setVipH(v) {
-    const n = parseFloat(v);
-    if (!isFinite(n)) return;
-    vipH = Math.max(2, Math.min(29.7, n)) * 10;   // cm → mm
-    renderVipSheets();
-  }
-  function setVipSize(wCm, hCm) {
-    vipW = Math.max(3, Math.min(21,   wCm)) * 10;
-    vipH = Math.max(2, Math.min(29.7, hCm)) * 10;
-    syncVipInputs();
-    renderVipSheets();
-  }
-  // Write the clamped mm values back into the cm inputs.
-  function syncVipInputs() {
-    const wi = $("vipWInput"), hi = $("vipHInput");
-    if (wi) wi.value = +(vipW / 10).toFixed(2);
-    if (hi) hi.value = +(vipH / 10).toFixed(2);
-  }
-
-  function setVipZoom(dir) {
-    const steps = [0.25, 0.35, 0.5, 0.65, 0.75, 0.9, 1.0];
-    let i = steps.indexOf(vipZoom);
-    if (i < 0) i = 4;
-    i = Math.max(0, Math.min(steps.length - 1, i + dir));
-    vipZoom = steps[i];
-    $("vipZoomLabel") && ($("vipZoomLabel").textContent = Math.round(vipZoom * 100) + "%");
-    document.querySelectorAll("#vipSheetScroller .vip-a4-wrap").forEach(el => {
-      el.style.setProperty("--nmc-zoom", vipZoom);
-    });
-  }
-
-  async function exportVipPDF() {
-    if (!vipQty) { showToast("กรุณาระบุจำนวนป้าย VIP", "error"); return; }
-    if (!window.html2canvas || !window.jspdf) {
-      showToast("ไลบรารี PDF ยังโหลดไม่เสร็จ ลองใหม่อีกครั้ง", "error"); return;
-    }
-    const btn = $("btnExportVipPDF");
-    const orig = btn ? btn.textContent : "";
-    if (btn) { btn.disabled = true; btn.textContent = "⏳ กำลังสร้าง PDF..."; }
-    showProcessing("กำลังสร้าง PDF ป้าย VIP...", "เตรียมข้อมูล");
-
-    try {
-      renderVipSheets();
-      await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
-      await new Promise(r => setTimeout(r, 80));
-
-      const printArea = $("vipPrintArea");
-      const orig2 = {
-        position: printArea.style.position, left: printArea.style.left,
-        top: printArea.style.top, visibility: printArea.style.visibility,
-      };
-      printArea.style.position = "fixed";
-      printArea.style.left = "0"; printArea.style.top = "0";
-      printArea.style.visibility = "visible";
-      printArea.style.zIndex = "-1";
-
-      const { jsPDF } = window.jspdf;
-      const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-      const sheets = printArea.querySelectorAll(".vip-a4");
-
-      for (let i = 0; i < sheets.length; i++) {
-        updateProcessing(`เรนเดอร์หน้า ${i + 1} / ${sheets.length}`);
-        if (i > 0) pdf.addPage();
-        const canvas = await html2canvas(sheets[i], {
-          scale: 3, useCORS: true, backgroundColor: "#ffffff", logging: false,
-        });
-        const img = canvas.toDataURL("image/jpeg", 0.95);
-        pdf.addImage(img, "JPEG", 0, 0, 210, 297, undefined, "FAST");
-      }
-
-      printArea.style.position   = orig2.position;
-      printArea.style.left       = orig2.left;
-      printArea.style.top        = orig2.top;
-      printArea.style.visibility = orig2.visibility;
-      printArea.style.zIndex     = "";
-
-      updateProcessing("กำลังบันทึกไฟล์...");
-      const stamp = new Date().toISOString().slice(0, 10);
-      pdf.save(`vip-cards-${stamp}.pdf`);
-      showToast(`ส่งออก PDF เรียบร้อย (${sheets.length} หน้า · ${vipQty} ใบ)`);
-    } catch (err) {
-      console.error(err);
-      showToast("สร้าง PDF ไม่สำเร็จ — " + err.message, "error");
-    } finally {
-      if (btn) { btn.disabled = false; btn.textContent = orig; }
-      hideProcessing();
-    }
+    if (tab === "cert")   renderCertSheets();
+    if (tab === "custom") { renderCustomSheets(); refreshCLogos(); }
   }
 
   // ════════════════════════════════════════════════════════════
-  // BADGE TAB (upload logo + write name → tile on A4)
+  // CUSTOM TAB (merged: VIP + Badge/logo + Seat-sequence)
   // ════════════════════════════════════════════════════════════
-  function badgeLogoUrl(path) {
+  // Mode "repeat"   → logo (optional) + text, repeated × quantity
+  // Mode "sequence" → auto labels (A1, A2…) from Row × Column
+  // Shared: card size (mm), orientation, zoom, export PDF.
+
+  // ── Logo library (shared bucket · same as before) ─────────
+  function cLogoPublicUrl(path) {
     if (!path || !SB_URL) return null;
-    return `${SB_URL}/storage/v1/object/public/${BADGE_LOGO_BUCKET}/${encodeURIComponent(path)}`;
+    return `${SB_URL}/storage/v1/object/public/${C_LOGO_BUCKET}/${encodeURIComponent(path)}`;
   }
-
-  // List every logo in the shared bucket (newest first).
-  async function listBadgeLogos() {
+  async function listCLogos() {
     if (!SB_URL) return [];
-    const res = await fetch(`${SB_URL}/storage/v1/object/list/${BADGE_LOGO_BUCKET}`, {
+    const res = await fetch(`${SB_URL}/storage/v1/object/list/${C_LOGO_BUCKET}`, {
       method: "POST",
-      headers: {
-        apikey: SB_KEY,
-        Authorization: `Bearer ${SB_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        prefix: "",
-        limit: 200,
-        sortBy: { column: "created_at", order: "desc" },
-      }),
+      headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ prefix: "", limit: 200, sortBy: { column: "created_at", order: "desc" } }),
     });
     if (!res.ok) {
-      const txt = await res.text().catch(() => "");
-      console.error("[badge-logos list]", res.status, txt);
-      throw new Error(`HTTP ${res.status}`);
+      const t = await res.text().catch(() => "");
+      console.error("[c-logos list]", res.status, t);
+      throw new Error("HTTP " + res.status);
     }
     const data = await res.json().catch(() => []);
-    // Storage returns a placeholder row (id=null) for empty folders — skip it
     return (Array.isArray(data) ? data : [])
       .filter(o => o && o.name && o.id)
-      .map(o => ({ path: o.name, url: badgeLogoUrl(o.name) }));
+      .map(o => ({ path: o.name, url: cLogoPublicUrl(o.name) }));
   }
-
-  // Resize a logo to keep egress small while preserving transparency.
-  // PNG/SVG/WebP → PNG (keeps alpha) · others → JPEG q0.85.
+  // Resize logo: keep egress small, preserve transparency (PNG/WebP → PNG).
   function resizeLogo(file) {
     return new Promise((resolve, reject) => {
-      // SVG is vector — upload as-is (no raster resize)
       if (file.type === "image/svg+xml") { resolve({ blob: file, ext: "svg" }); return; }
       const img = new Image();
       const url = URL.createObjectURL(file);
@@ -891,382 +662,129 @@
         URL.revokeObjectURL(url);
         const MAX = 600;
         let { width: w, height: h } = img;
-        if (w > MAX || h > MAX) {
-          const s = Math.min(MAX / w, MAX / h);
-          w = Math.round(w * s); h = Math.round(h * s);
-        }
+        if (w > MAX || h > MAX) { const s = Math.min(MAX / w, MAX / h); w = Math.round(w * s); h = Math.round(h * s); }
         const canvas = document.createElement("canvas");
         canvas.width = w; canvas.height = h;
-        const ctx = canvas.getContext("2d");
-        ctx.drawImage(img, 0, 0, w, h);
+        canvas.getContext("2d").drawImage(img, 0, 0, w, h);
         const keepAlpha = /png|webp/.test(file.type);
         const mime = keepAlpha ? "image/png" : "image/jpeg";
         const ext  = keepAlpha ? "png" : "jpg";
-        canvas.toBlob(
-          b => b ? resolve({ blob: b, ext }) : reject(new Error("แปลงรูปไม่สำเร็จ")),
-          mime, keepAlpha ? undefined : 0.85
-        );
+        canvas.toBlob(b => b ? resolve({ blob: b, ext }) : reject(new Error("แปลงรูปไม่สำเร็จ")), mime, keepAlpha ? undefined : 0.85);
       };
       img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("อ่านไฟล์ภาพไม่สำเร็จ")); };
       img.src = url;
     });
   }
-
-  // Slugify the original filename → safe storage key (keep Thai/EN/digits).
-  function badgeSafeName(filename) {
+  function cSafeName(filename) {
     const base = String(filename || "logo").replace(/\.[^.]+$/, "");
     const clean = base.replace(/[<>:"\/\\|?*\x00-\x1f]/g, "").replace(/\s+/g, "-").slice(0, 40);
     return clean || "logo";
   }
-
-  async function uploadBadgeLogo(file) {
+  async function uploadCLogo(file) {
     if (!file || !/^image\//.test(file.type)) throw new Error("รับเฉพาะไฟล์ภาพ");
     const { blob, ext } = await resizeLogo(file);
-    const path = `${Date.now()}-${badgeSafeName(file.name)}.${ext}`;
-    const res = await fetch(`${SB_URL}/storage/v1/object/${BADGE_LOGO_BUCKET}/${encodeURIComponent(path)}`, {
+    const path = `${Date.now()}-${cSafeName(file.name)}.${ext}`;
+    const res = await fetch(`${SB_URL}/storage/v1/object/${C_LOGO_BUCKET}/${encodeURIComponent(path)}`, {
       method: "POST",
       headers: {
-        apikey: SB_KEY,
-        Authorization: `Bearer ${SB_KEY}`,
-        "Content-Type": blob.type || "image/png",
-        "x-upsert": "true",
-        "cache-control": "max-age=31536000",
+        apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}`,
+        "Content-Type": blob.type || "image/png", "x-upsert": "true", "cache-control": "max-age=31536000",
       },
       body: blob,
     });
     if (!res.ok) {
       const txt = await res.text().catch(() => "");
-      console.error("[badge-logo upload]", res.status, txt);
-      if (res.status === 404 || res.status === 405) {
-        throw new Error(`ยังไม่ได้สร้าง bucket "badge-logos" — รัน sql/134_badge_logos_bucket.sql ใน Supabase`);
-      }
+      console.error("[c-logo upload]", res.status, txt);
+      if (res.status === 404 || res.status === 405) throw new Error(`ยังไม่ได้สร้าง bucket "badge-logos" — รัน sql/134_badge_logos_bucket.sql ใน Supabase`);
       if (res.status === 403) throw new Error("Permission denied — เช็ค RLS policy (รัน sql/134 ใหม่)");
       if (res.status === 413) throw new Error("ไฟล์ใหญ่เกิน 10 MB");
       throw new Error(`HTTP ${res.status} · ${txt.slice(0, 120)}`);
     }
     return path;
   }
-
-  async function deleteBadgeLogo(path) {
-    const res = await fetch(`${SB_URL}/storage/v1/object/${BADGE_LOGO_BUCKET}/${encodeURIComponent(path)}`, {
-      method: "DELETE",
-      headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` },
+  async function deleteCLogo(path) {
+    const res = await fetch(`${SB_URL}/storage/v1/object/${C_LOGO_BUCKET}/${encodeURIComponent(path)}`, {
+      method: "DELETE", headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` },
     });
-    if (!res.ok && res.status !== 404) {
-      const txt = await res.text().catch(() => "");
-      throw new Error(`${res.status} ${txt.slice(0, 100)}`);
-    }
+    if (!res.ok && res.status !== 404) { const t = await res.text().catch(() => ""); throw new Error(`${res.status} ${t.slice(0, 100)}`); }
+  }
+
+  // Currently-selected logo URL · "__company__" → company logo · null → none
+  function cCurrentLogoUrl() {
+    if (cLogoKey === C_COMPANY_KEY) return logoPath();
+    if (cLogoKey) return cLogoPublicUrl(cLogoKey);
+    return null;
   }
 
   // ── Logo library UI ───────────────────────────────────────
-  async function refreshBadgeLogos() {
-    const grid = $("badgeLogoGrid");
-    if (grid && !badgeLogos.length) {
-      grid.innerHTML = `<div class="badge-logo-empty">⏳ กำลังโหลดโลโก้...</div>`;
-    }
-    try {
-      badgeLogos = await listBadgeLogos();
-    } catch (err) {
-      badgeLogos = [];
-      if (grid) grid.innerHTML = `<div class="badge-logo-empty">⚠ โหลดโลโก้ไม่สำเร็จ — ${esc(err.message)}</div>`;
-      return;
-    }
-    // Drop selection if the selected logo no longer exists
-    if (badgeLogoKey && !badgeLogos.some(l => l.path === badgeLogoKey)) badgeLogoKey = null;
-    renderBadgeLogoGrid();
+  async function refreshCLogos() {
+    const grid = $("cLogoGrid");
+    if (grid && !cLogos.length) grid.innerHTML = `<div class="badge-logo-empty">⏳ กำลังโหลดโลโก้...</div>`;
+    try { cLogos = await listCLogos(); }
+    catch (err) { cLogos = []; renderCLogoGrid(); return; }
+    if (cLogoKey && cLogoKey !== C_COMPANY_KEY && !cLogos.some(l => l.path === cLogoKey)) cLogoKey = C_COMPANY_KEY;
+    renderCLogoGrid();
   }
-
-  function renderBadgeLogoGrid() {
-    const grid = $("badgeLogoGrid");
+  function renderCLogoGrid() {
+    const grid = $("cLogoGrid");
     if (!grid) return;
-    $("badgeLogoCount") && ($("badgeLogoCount").textContent = badgeLogos.length);
-    if (!badgeLogos.length) {
-      grid.innerHTML = `<div class="badge-logo-empty">ยังไม่มีโลโก้ — กด “⬆ อัปโหลดโลโก้”</div>`;
-      return;
-    }
-    grid.innerHTML = badgeLogos.map(l => `
-      <div class="badge-logo-item ${l.path === badgeLogoKey ? "selected" : ""}" data-path="${esc(l.path)}" title="${esc(l.path)}">
-        <span class="badge-logo-check">✓</span>
-        <img src="${esc(l.url)}" alt="" loading="lazy">
-        <button class="badge-logo-del" data-path="${esc(l.path)}" title="ลบโลโก้นี้">✕</button>
-      </div>
-    `).join("");
-
+    const companyUrl = logoPath();
+    let html = "";
+    // built-in: company logo
+    html += `<div class="badge-logo-item ${cLogoKey === C_COMPANY_KEY ? "selected" : ""}" data-key="${C_COMPANY_KEY}" title="โลโก้บริษัท (จากตั้งค่าบริษัท)">
+      <span class="badge-logo-check">✓</span><img src="${esc(companyUrl)}" alt="" crossorigin="anonymous"><span class="c-logo-tag">บริษัท</span></div>`;
+    // built-in: no logo
+    html += `<div class="badge-logo-item c-logo-none ${cLogoKey === null ? "selected" : ""}" data-key="__none__" title="ไม่มีโลโก้">
+      <span class="badge-logo-check">✓</span><span class="c-logo-none-x">∅</span><span class="c-logo-tag">ไม่มี</span></div>`;
+    // uploaded logos
+    html += cLogos.map(l => `<div class="badge-logo-item ${l.path === cLogoKey ? "selected" : ""}" data-key="${esc(l.path)}" title="${esc(l.path)}">
+      <span class="badge-logo-check">✓</span><img src="${esc(l.url)}" alt="" loading="lazy" crossorigin="anonymous">
+      <button class="badge-logo-del" data-path="${esc(l.path)}" title="ลบโลโก้นี้">✕</button></div>`).join("");
+    grid.innerHTML = html;
     grid.querySelectorAll(".badge-logo-item").forEach(el => {
-      el.addEventListener("click", (e) => {
-        if (e.target.closest(".badge-logo-del")) return;
-        selectBadgeLogo(el.dataset.path);
-      });
+      el.addEventListener("click", (e) => { if (e.target.closest(".badge-logo-del")) return; selectCLogo(el.dataset.key); });
     });
     grid.querySelectorAll(".badge-logo-del").forEach(btn => {
-      btn.addEventListener("click", (e) => {
-        e.stopPropagation();
-        removeBadgeLogo(btn.dataset.path);
-      });
+      btn.addEventListener("click", (e) => { e.stopPropagation(); removeCLogo(btn.dataset.path); });
     });
   }
-
-  function selectBadgeLogo(path) {
-    badgeLogoKey = (badgeLogoKey === path) ? null : path;   // toggle off if re-click
-    renderBadgeLogoGrid();
-    renderBadgeSheets();
+  function selectCLogo(key) {
+    if (key === "__none__") cLogoKey = null;
+    else cLogoKey = key;                       // "__company__" or a path
+    renderCLogoGrid();
+    renderCustomSheets();
   }
-
-  async function onBadgeLogoPick(e) {
+  async function onCLogoPick(e) {
     const files = Array.from(e.target.files || []);
-    e.target.value = "";   // allow re-pick same file
+    e.target.value = "";
     if (!files.length) return;
     let lastPath = null, ok = 0;
     for (const f of files) {
       const sizeMB = (f.size / 1024 / 1024).toFixed(1);
-      try {
-        showToast(`⏳ กำลังอัปโหลด ${f.name} (${sizeMB} MB)...`);
-        lastPath = await uploadBadgeLogo(f);
-        ok++;
-      } catch (err) {
-        showToast("อัปโหลดล้มเหลว — " + err.message, "error");
-      }
+      try { showToast(`⏳ กำลังอัปโหลด ${f.name} (${sizeMB} MB)...`); lastPath = await uploadCLogo(f); ok++; }
+      catch (err) { showToast("อัปโหลดล้มเหลว — " + err.message, "error"); }
     }
     if (ok) {
-      await refreshBadgeLogos();
-      if (lastPath && badgeLogos.some(l => l.path === lastPath)) badgeLogoKey = lastPath;  // auto-select last upload
-      renderBadgeLogoGrid();
-      renderBadgeSheets();
+      await refreshCLogos();
+      if (lastPath && cLogos.some(l => l.path === lastPath)) cLogoKey = lastPath;
+      renderCLogoGrid();
+      renderCustomSheets();
       showToast(`✓ อัปโหลดโลโก้สำเร็จ (${ok} รูป)`);
     }
   }
-
-  async function removeBadgeLogo(path) {
-    const ok = await ConfirmModal.open({
-      title: "ลบโลโก้?",
-      message: "จะลบโลโก้นี้ออกจาก Supabase Storage (ทุกเครื่อง)",
-      icon: "🗑",
-      tone: "danger",
-      okText: "ลบ",
-    });
+  async function removeCLogo(path) {
+    const ok = await ConfirmModal.open({ title: "ลบโลโก้?", message: "จะลบโลโก้นี้ออกจาก Supabase Storage (ทุกเครื่อง)", icon: "🗑", tone: "danger", okText: "ลบ" });
     if (!ok) return;
     try {
-      await deleteBadgeLogo(path);
-      if (badgeLogoKey === path) badgeLogoKey = null;
-      await refreshBadgeLogos();
-      renderBadgeSheets();
+      await deleteCLogo(path);
+      if (cLogoKey === path) cLogoKey = C_COMPANY_KEY;
+      await refreshCLogos();
+      renderCustomSheets();
       showToast("✓ ลบโลโก้สำเร็จ");
-    } catch (err) {
-      showToast("ลบไม่สำเร็จ — " + err.message, "error");
-    }
+    } catch (err) { showToast("ลบไม่สำเร็จ — " + err.message, "error"); }
   }
 
-  // ── Badge card render ─────────────────────────────────────
-  function badgeCardHtml() {
-    const url = badgeLogoKey ? badgeLogoUrl(badgeLogoKey) : null;
-    const logo = url
-      ? `<div class="badge-card-logo"><img src="${esc(url)}" alt="" crossorigin="anonymous"></div>`
-      : `<div class="badge-card-logo is-empty"></div>`;
-    const name = esc(formatName(badgeName));
-    return `
-      <div class="badge-card">
-        ${logo}
-        ${name ? `<div class="badge-card-name">${name}</div>` : ""}
-      </div>
-    `;
-  }
-  function badgeBlankHtml() { return `<div class="badge-card" style="visibility:hidden"></div>`; }
-
-  function badgeGrid() {
-    const cols = Math.max(1, Math.floor(A4_W_MM / badgeW));
-    const rows = Math.max(1, Math.floor(A4_H_MM / badgeH));
-    return { cols, rows, perPage: cols * rows };
-  }
-
-  // Shrink name font-size until it fits the width + the height left after
-  // the logo block (so a long name never bleeds out of the card).
-  function fitBadgeText(el) {
-    const card = el.closest(".badge-card");
-    if (!card) return;
-    const logo = card.querySelector(".badge-card-logo");
-    const padV = card.clientHeight * 0.13;                 // 4mm top+bottom padding ≈ 13% of 60mm
-    const logoH = logo ? logo.getBoundingClientRect().height : 0;
-    const maxW = card.clientWidth - 18;
-    const maxH = Math.max(20, card.clientHeight - logoH - padV);
-    if (maxW <= 0) return;
-    let size = 80;
-    el.style.fontSize = size + "px";
-    let guard = 120;
-    while (size > 8 && guard-- > 0 &&
-           (el.scrollWidth > maxW || el.scrollHeight > maxH + 1)) {
-      size -= 2;
-      el.style.fontSize = size + "px";
-    }
-  }
-
-  function renderBadgeSheets() {
-    const qty = Math.max(0, badgeQty | 0);
-    const scroller  = $("badgeSheetScroller");
-    const printArea = $("badgePrintArea");
-    if (!scroller || !printArea) return;
-
-    const { cols, rows: gRows, perPage } = badgeGrid();
-    const pageCount = Math.max(1, Math.ceil(qty / perPage));
-
-    $("badgePerPage")    && ($("badgePerPage").textContent    = perPage);
-    $("badgeGridDesc")   && ($("badgeGridDesc").textContent   = cols + " × " + gRows);
-    $("badgePageCount")  && ($("badgePageCount").textContent  = qty ? pageCount : 0);
-    $("badgePerPageMeta")&& ($("badgePerPageMeta").textContent= `(${perPage} ใบ/หน้า · ${cols}×${gRows})`);
-    $("badgeLayoutTitle")&& ($("badgeLayoutTitle").textContent=
-      `👁️ ตัวอย่าง Layout · กระดาษ A4 (${perPage} ใบ/หน้า · ${cols}×${gRows})`);
-
-    if (!qty) { scroller.innerHTML = ""; printArea.innerHTML = ""; return; }
-
-    let remaining = qty;
-    const pageCells = [];
-    for (let p = 0; p < pageCount; p++) {
-      const cells = [];
-      for (let i = 0; i < perPage; i++) {
-        if (remaining > 0) { cells.push(badgeCardHtml()); remaining--; }
-        else cells.push(badgeBlankHtml());
-      }
-      pageCells.push(cells.join(""));
-    }
-    const wrapHtml = (cells) => `<div class="badge-a4-wrap"><div class="badge-a4">${cells}</div></div>`;
-    scroller.innerHTML = pageCells.map((cells, i) =>
-      `<div class="vip-page-item">` +
-        `<div class="vip-page-label">📄 หน้า ${i + 1} / ${pageCount}</div>` +
-        wrapHtml(cells) +
-      `</div>`
-    ).join("");
-    printArea.innerHTML = pageCells.map(wrapHtml).join("");
-
-    const applyVars = (el) => {
-      el.style.setProperty("--badge-w", badgeW + "mm");
-      el.style.setProperty("--badge-h", badgeH + "mm");
-      el.style.setProperty("--badge-cols", cols);
-      el.style.setProperty("--badge-rows", gRows);
-      el.style.setProperty("--nmc-zoom", badgeZoom);
-    };
-    scroller.querySelectorAll(".badge-a4-wrap").forEach(applyVars);
-    printArea.querySelectorAll(".badge-a4-wrap").forEach(applyVars);
-
-    requestAnimationFrame(() => {
-      [scroller, printArea].forEach(root => {
-        root.querySelectorAll(".badge-card-name").forEach(fitBadgeText);
-      });
-    });
-  }
-
-  // ── Badge setters ─────────────────────────────────────────
-  function setBadgeName(v) { badgeName = String(v == null ? "" : v); renderBadgeSheets(); }
-  function setBadgeW(v) {
-    const n = parseFloat(v);
-    if (!isFinite(n)) return;
-    badgeW = Math.max(3, Math.min(21, n)) * 10;
-    renderBadgeSheets();
-  }
-  function setBadgeH(v) {
-    const n = parseFloat(v);
-    if (!isFinite(n)) return;
-    badgeH = Math.max(2, Math.min(29.7, n)) * 10;
-    renderBadgeSheets();
-  }
-  function setBadgeSize(wCm, hCm) {
-    badgeW = Math.max(3, Math.min(21,   wCm)) * 10;
-    badgeH = Math.max(2, Math.min(29.7, hCm)) * 10;
-    syncBadgeInputs();
-    renderBadgeSheets();
-  }
-  function syncBadgeInputs() {
-    const wi = $("badgeWInput"), hi = $("badgeHInput");
-    if (wi) wi.value = +(badgeW / 10).toFixed(2);
-    if (hi) hi.value = +(badgeH / 10).toFixed(2);
-  }
-  function setBadgeQty(v) {
-    let n = parseInt(v, 10);
-    if (isNaN(n) || n < 0) n = 0;
-    if (n > 500) n = 500;
-    badgeQty = n;
-    const inp = $("badgeQtyInput");
-    if (inp && inp.value !== String(n)) inp.value = n;
-    renderBadgeSheets();
-  }
-  function bumpBadgeQty(dir) { setBadgeQty(badgeQty + dir); }
-  function setBadgeZoom(dir) {
-    const steps = [0.25, 0.35, 0.5, 0.65, 0.75, 0.9, 1.0];
-    let i = steps.indexOf(badgeZoom);
-    if (i < 0) i = 3;
-    i = Math.max(0, Math.min(steps.length - 1, i + dir));
-    badgeZoom = steps[i];
-    $("badgeZoomLabel") && ($("badgeZoomLabel").textContent = Math.round(badgeZoom * 100) + "%");
-    document.querySelectorAll("#badgeSheetScroller .badge-a4-wrap").forEach(el => {
-      el.style.setProperty("--nmc-zoom", badgeZoom);
-    });
-  }
-
-  async function exportBadgePDF() {
-    if (!badgeQty) { showToast("กรุณาระบุจำนวนป้าย", "error"); return; }
-    if (!badgeLogoKey && !badgeName.trim()) {
-      showToast("เลือกโลโก้ หรือ ใส่ชื่อก่อน", "error"); return;
-    }
-    if (!window.html2canvas || !window.jspdf) {
-      showToast("ไลบรารี PDF ยังโหลดไม่เสร็จ ลองใหม่อีกครั้ง", "error"); return;
-    }
-    const btn = $("btnExportBadgePDF");
-    const orig = btn ? btn.textContent : "";
-    if (btn) { btn.disabled = true; btn.textContent = "⏳ กำลังสร้าง PDF..."; }
-    showProcessing("กำลังสร้าง PDF ป้าย...", "เตรียมข้อมูล");
-
-    try {
-      renderBadgeSheets();
-      await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
-      await new Promise(r => setTimeout(r, 120));
-
-      const printArea = $("badgePrintArea");
-      const orig2 = {
-        position: printArea.style.position, left: printArea.style.left,
-        top: printArea.style.top, visibility: printArea.style.visibility,
-      };
-      printArea.style.position = "fixed";
-      printArea.style.left = "0"; printArea.style.top = "0";
-      printArea.style.visibility = "visible";
-      printArea.style.zIndex = "-1";
-
-      const { jsPDF } = window.jspdf;
-      const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-      const sheets = printArea.querySelectorAll(".badge-a4");
-
-      for (let i = 0; i < sheets.length; i++) {
-        updateProcessing(`เรนเดอร์หน้า ${i + 1} / ${sheets.length}`);
-        if (i > 0) pdf.addPage();
-        const canvas = await html2canvas(sheets[i], {
-          scale: 3, useCORS: true, backgroundColor: "#ffffff", logging: false,
-        });
-        const img = canvas.toDataURL("image/jpeg", 0.95);
-        pdf.addImage(img, "JPEG", 0, 0, 210, 297, undefined, "FAST");
-      }
-
-      printArea.style.position   = orig2.position;
-      printArea.style.left       = orig2.left;
-      printArea.style.top        = orig2.top;
-      printArea.style.visibility = orig2.visibility;
-      printArea.style.zIndex     = "";
-
-      updateProcessing("กำลังบันทึกไฟล์...");
-      const stamp = new Date().toISOString().slice(0, 10);
-      pdf.save(`badges-${stamp}.pdf`);
-      showToast(`ส่งออก PDF เรียบร้อย (${sheets.length} หน้า · ${badgeQty} ใบ)`);
-    } catch (err) {
-      console.error(err);
-      showToast("สร้าง PDF ไม่สำเร็จ — " + err.message, "error");
-    } finally {
-      if (btn) { btn.disabled = false; btn.textContent = orig; }
-      hideProcessing();
-    }
-  }
-
-  // ════════════════════════════════════════════════════════════
-  // SEAT-NUMBER TAB
-  // ════════════════════════════════════════════════════════════
-  // Expand "A-M" / "1-24" ranges and comma lists into a token array.
-  // Ranges work for single letters (A-M) and integers (1-24), ascending
-  // or descending. Anything else is kept as a literal token.
+  // ── Sequence labels (Row × Column) ────────────────────────
   function expandTokens(input) {
     const out = [];
     String(input == null ? "" : input).split(/[,\s]+/).forEach(tokRaw => {
@@ -1275,14 +793,13 @@
       const m = tok.match(/^(.+?)-(.+)$/);
       if (m) {
         const a = m[1].trim(), b = m[2].trim();
-        if (/^\d+$/.test(a) && /^\d+$/.test(b)) {            // numeric range
+        if (/^\d+$/.test(a) && /^\d+$/.test(b)) {
           let s = +a, e = +b, step = s <= e ? 1 : -1;
           for (let i = s; step > 0 ? i <= e : i >= e; i += step) out.push(String(i));
           return;
         }
-        if (/^[A-Za-z]$/.test(a) && /^[A-Za-z]$/.test(b)) {   // single-letter range
-          let s = a.toUpperCase().charCodeAt(0), e = b.toUpperCase().charCodeAt(0);
-          let step = s <= e ? 1 : -1;
+        if (/^[A-Za-z]$/.test(a) && /^[A-Za-z]$/.test(b)) {
+          let s = a.toUpperCase().charCodeAt(0), e = b.toUpperCase().charCodeAt(0), step = s <= e ? 1 : -1;
           for (let i = s; step > 0 ? i <= e : i >= e; i += step) out.push(String.fromCharCode(i));
           return;
         }
@@ -1291,297 +808,305 @@
     });
     return out;
   }
-
-  // Build the seat list = every Row × Column combination → { label }.
-  function buildSeats() {
-    const rs = expandTokens(seatRowInput);
-    const cs = expandTokens(seatColInput);
+  function buildSeqLabels() {
+    const rs = expandTokens(cRowInput);
+    const cs = expandTokens(cColInput);
     if (!rs.length && !cs.length) return [];
     const rows = rs.length ? rs : [""];
     const cols = cs.length ? cs : [""];
     const out = [];
-    for (const r of rows) {
-      for (const c of cols) {
-        const sep = (r && c) ? seatSep : "";
-        out.push({ label: r + sep + c });
-      }
-    }
+    for (const r of rows) for (const c of cols) { const sep = (r && c) ? cSep : ""; out.push(r + sep + c); }
     return out;
   }
 
-  // Choose the cols×rows grid (product = perPage) whose cell is closest to
-  // square for the current paper orientation → biggest, most readable cards.
-  function seatGrid() {
-    const N = Math.max(1, seatPerPage | 0);
-    const land = seatOrient === "landscape";
-    const pw = land ? A4_H_MM : A4_W_MM;   // page width  (mm)
-    const ph = land ? A4_W_MM : A4_H_MM;   // page height (mm)
-    let best = null;
-    for (let cols = 1; cols <= N; cols++) {
-      if (N % cols) continue;
-      const gRows = N / cols;
-      const cw = pw / cols, ch = ph / gRows;
-      const score = Math.abs(Math.log(cw / ch));   // 0 = perfectly square
-      if (!best || score < best.score) best = { cols, gRows, cw, ch, score };
-    }
-    return { cols: best.cols, rows: best.gRows, cardW: best.cw, cardH: best.ch, perPage: N, pw, ph };
+  // ── Grid (size-based · orientation-aware) ─────────────────
+  function cGrid() {
+    const land = cOrient === "landscape";
+    const pw = land ? A4_H_MM : A4_W_MM;
+    const ph = land ? A4_W_MM : A4_H_MM;
+    const cols = Math.max(1, Math.floor(pw / cW));
+    const rows = Math.max(1, Math.floor(ph / cH));
+    return { cols, rows, perPage: cols * rows, pw, ph };
+  }
+  function applyCVars(el, g) {
+    el.style.setProperty("--c-w", cW + "mm");
+    el.style.setProperty("--c-h", cH + "mm");
+    el.style.setProperty("--c-cols", g.cols);
+    el.style.setProperty("--c-rows", g.rows);
+    el.style.setProperty("--c-pw", g.pw + "mm");
+    el.style.setProperty("--c-ph", g.ph + "mm");
+    el.style.setProperty("--nmc-zoom", cZoom);
   }
 
-  function seatCardHtml(s) {
-    return `<div class="seat-card"><div class="seat-card-num">${esc(s.label)}</div></div>`;
-  }
-  function seatBlankHtml() { return `<div class="seat-card seat-blank"></div>`; }
-
-  // Pick the visually-widest label — it drives the uniform font size for the
-  // whole set (e.g. "C7" matches "C10"). Measured with a canvas so there is
-  // NO layout reflow even for thousands of seats.
-  function widestSeatLabel(seats) {
-    if (!seats.length) return "";
-    const c = widestSeatLabel._c || (widestSeatLabel._c = document.createElement("canvas"));
-    const ctx = c.getContext("2d");
-    ctx.font = '900 100px "Sarabun", sans-serif';
-    let best = seats[0].label, bestW = -1;
-    for (const s of seats) {
-      const w = ctx.measureText(s.label).width;
-      if (w > bestW) { bestW = w; best = s.label; }
+  // ── Card HTML ─────────────────────────────────────────────
+  function cCardHtml(label) {
+    if (cMode === "sequence") {
+      return `<div class="c-card c-seq"><div class="c-seq-num">${esc(label)}</div></div>`;
     }
+    const url = cCurrentLogoUrl();
+    const logo = url
+      ? `<div class="c-logo"><img src="${esc(url)}" alt="" crossorigin="anonymous" onerror="this.style.display='none'"></div>`
+      : (cStyle === "plain" ? `<div class="c-logo is-empty"></div>` : "");
+    const text = esc(formatName(cText));
+    if (cStyle === "vip") {
+      return `<div class="c-card c-vip">${logo}<div class="c-band"><div class="c-band-text">${text}</div></div></div>`;
+    }
+    return `<div class="c-card c-plain">${logo}${text ? `<div class="c-name">${text}</div>` : ""}</div>`;
+  }
+  function cBlank() { return `<div class="c-card" style="visibility:hidden"></div>`; }
+  function cPageHtml(cells) { return `<div class="c-a4-wrap"><div class="c-a4">${cells}</div></div>`; }
+
+  // ── Font fitting ──────────────────────────────────────────
+  function fitSeqText(el) {
+    const box = el.parentElement; if (!box) return;
+    const maxW = box.clientWidth - 8, maxH = box.clientHeight - 8;
+    if (maxW <= 0 || maxH <= 0) return;
+    let size = Math.min(maxH, 800); el.style.fontSize = size + "px";
+    let guard = 220;
+    while (size > 8 && guard-- > 0 && (el.scrollWidth > maxW || el.scrollHeight > maxH)) { size -= 2; el.style.fontSize = size + "px"; }
+  }
+  function fitBandText(el) {
+    const band = el.parentElement; if (!band) return;
+    const maxW = band.clientWidth - 14, maxH = band.clientHeight - 8;
+    if (maxW <= 0 || maxH <= 0) return;
+    let size = Math.min(maxH, 400); el.style.fontSize = size + "px";
+    let guard = 160;
+    while (size > 8 && guard-- > 0 && (el.scrollWidth > maxW || el.scrollHeight > maxH)) { size -= 2; el.style.fontSize = size + "px"; }
+  }
+  function fitNameText(el) {
+    const card = el.closest(".c-card"); if (!card) return;
+    const logo = card.querySelector(".c-logo");
+    const padV = card.clientHeight * 0.13;
+    const logoH = logo ? logo.getBoundingClientRect().height : 0;
+    const maxW = card.clientWidth - 18;
+    const maxH = Math.max(20, card.clientHeight - logoH - padV);
+    if (maxW <= 0) return;
+    let size = 80; el.style.fontSize = size + "px";
+    let guard = 120;
+    while (size > 8 && guard-- > 0 && (el.scrollWidth > maxW || el.scrollHeight > maxH + 1)) { size -= 2; el.style.fontSize = size + "px"; }
+  }
+  function widestLabel(items) {
+    if (!items || !items.length) return "";
+    const c = widestLabel._c || (widestLabel._c = document.createElement("canvas"));
+    const ctx = c.getContext("2d"); ctx.font = '900 100px "Sarabun", sans-serif';
+    let best = items[0], bw = -1;
+    for (const s of items) { const w = ctx.measureText(s).width; if (w > bw) { bw = w; best = s; } }
     return best;
   }
-
-  // Apply grid + zoom CSS vars to one .seat-a4-wrap.
-  function applySeatVars(el, g) {
-    el.style.setProperty("--seat-pw", g.pw + "mm");
-    el.style.setProperty("--seat-ph", g.ph + "mm");
-    el.style.setProperty("--seat-cols", g.cols);
-    el.style.setProperty("--seat-rows", g.rows);
-    el.style.setProperty("--seat-w", g.cardW + "mm");
-    el.style.setProperty("--seat-h", g.cardH + "mm");
-    el.style.setProperty("--nmc-zoom", seatZoom);
-  }
-
-  // One A4 page of seat cards (fills the grid · pads blanks).
-  function seatPageHtml(pg, perPage) {
-    const cells = [];
-    for (let i = 0; i < perPage; i++) {
-      cells.push(pg[i] ? seatCardHtml(pg[i]) : seatBlankHtml());
-    }
-    return `<div class="seat-a4-wrap"><div class="seat-a4">${cells.join("")}</div></div>`;
-  }
-
-  // Fit ONE hidden probe card with the widest label → returns the px size to
-  // apply uniformly. O(1) layout work instead of fitting every card.
-  function computeSeatFontSize(container, g, widest) {
+  function computeSeqFontSize(container, g, widest) {
     if (!widest) return null;
     const probe = document.createElement("div");
-    probe.className = "seat-a4-wrap";
+    probe.className = "c-a4-wrap";
     probe.style.cssText = "position:absolute;left:-99999px;top:0;visibility:hidden";
-    probe.innerHTML =
-      `<div class="seat-a4"><div class="seat-card"><div class="seat-card-num">${esc(widest)}</div></div></div>`;
-    applySeatVars(probe, g);
+    probe.innerHTML = `<div class="c-a4"><div class="c-card c-seq"><div class="c-seq-num">${esc(widest)}</div></div></div>`;
+    applyCVars(probe, g);
     container.appendChild(probe);
-    const size = (() => { const el = probe.querySelector(".seat-card-num"); fitSeatText(el); return el.style.fontSize; })();
+    const el = probe.querySelector(".c-seq-num"); fitSeqText(el); const size = el.style.fontSize;
     probe.remove();
     return size;
   }
-
-  // Shrink seat number until it fits its card (width & height).
-  function fitSeatText(el) {
-    const box = el.parentElement;
-    if (!box) return;
-    const maxW = box.clientWidth - 8;
-    const maxH = box.clientHeight - 8;
-    if (maxW <= 0 || maxH <= 0) return;
-    let size = Math.min(maxH, 800);
-    el.style.fontSize = size + "px";
-    let guard = 220;
-    while (size > 8 && guard-- > 0 &&
-           (el.scrollWidth > maxW || el.scrollHeight > maxH)) {
-      size -= 2;
-      el.style.fontSize = size + "px";
+  // Apply the right fit pass to every card under root.
+  function fitCustom(root, g, items) {
+    if (cMode === "sequence") {
+      const size = computeSeqFontSize(root, g, widestLabel(items));
+      if (size) root.querySelectorAll(".c-seq-num").forEach(el => { el.style.fontSize = size; });
+    } else if (cStyle === "vip") {
+      root.querySelectorAll(".c-band-text").forEach(fitBandText);
+    } else {
+      root.querySelectorAll(".c-name").forEach(fitNameText);
     }
   }
 
-  // How many A4 pages to draw in the live preview. Print/Export always cover
-  // every page — the preview is capped so typing a huge range never freezes.
-  const SEAT_PREVIEW_MAX = 12;
-
-  function renderSeatSheets() {
-    const scroller  = $("seatSheetScroller");
-    const printArea = $("seatPrintArea");
+  // ── Render preview (capped for huge sequence sets) ────────
+  const C_PREVIEW_MAX = 12;
+  function customItems() {
+    if (cMode === "sequence") { const it = buildSeqLabels(); return { items: it, total: it.length }; }
+    return { items: null, total: Math.max(0, cQty | 0) };
+  }
+  function renderCustomSheets() {
+    const scroller = $("cSheetScroller");
+    const printArea = $("customPrintArea");
     if (!scroller) return;
 
-    const seats = buildSeats();
-    const g = seatGrid();
-    const total = seats.length;
+    const g = cGrid();
+    const { items, total } = customItems();
     const pageCount = Math.max(1, Math.ceil(total / g.perPage));
 
-    // Layout info / counters
-    $("seatTotal")     && ($("seatTotal").textContent     = total);
-    $("seatPageCount") && ($("seatPageCount").textContent = total ? pageCount : 0);
-    $("seatGridDesc")  && ($("seatGridDesc").textContent  = `${g.cols} × ${g.rows} (${g.perPage} ใบ/หน้า)`);
-    $("seatCardSize")  && ($("seatCardSize").textContent  =
-      `${(g.cardW / 10).toFixed(1)} × ${(g.cardH / 10).toFixed(1)} ซม.`);
-    $("seatLayoutTitle") && ($("seatLayoutTitle").textContent =
-      `👁️ ตัวอย่าง Layout · A4 ${seatOrient === "landscape" ? "แนวนอน" : "แนวตั้ง"} (${g.perPage} ใบ/หน้า · ${g.cols}×${g.rows})`);
+    $("cTotal")     && ($("cTotal").textContent     = total);
+    $("cPageCount") && ($("cPageCount").textContent = total ? pageCount : 0);
+    $("cGridDesc")  && ($("cGridDesc").textContent  = `${g.cols} × ${g.rows} (${g.perPage} ใบ/หน้า)`);
+    $("cCardSize")  && ($("cCardSize").textContent  = `${(cW / 10).toFixed(1)} × ${(cH / 10).toFixed(1)} ซม.`);
+    $("cLayoutTitle") && ($("cLayoutTitle").textContent =
+      `👁️ ตัวอย่าง Layout · A4 ${cOrient === "landscape" ? "แนวนอน" : "แนวตั้ง"} (${g.perPage} ใบ/หน้า · ${g.cols}×${g.rows})`);
 
-    // Print area is built lazily at export time (can be hundreds of pages).
-    if (printArea) printArea.innerHTML = "";
-
+    if (printArea) printArea.innerHTML = "";   // built lazily at export
     if (!total) { scroller.innerHTML = ""; return; }
 
-    const pages = chunked(seats, g.perPage);
-    const shown = pages.slice(0, SEAT_PREVIEW_MAX);
-    let html = shown.map((pg, i) =>
-      `<div class="vip-page-item">` +
-        `<div class="vip-page-label">📄 หน้า ${i + 1} / ${pageCount}</div>` +
-        seatPageHtml(pg, g.perPage) +
-      `</div>`
-    ).join("");
-    if (pages.length > SEAT_PREVIEW_MAX) {
-      html += `<div class="seat-more-note">… แสดงตัวอย่าง ${SEAT_PREVIEW_MAX} หน้าแรก · กด Preview / Print เพื่อดูครบทั้ง ${pageCount} หน้า</div>`;
+    const shown = Math.min(pageCount, C_PREVIEW_MAX);
+    let html = "";
+    for (let p = 0; p < shown; p++) {
+      const cells = [];
+      for (let i = 0; i < g.perPage; i++) {
+        const idx = p * g.perPage + i;
+        cells.push(idx < total ? cCardHtml(items ? items[idx] : "") : cBlank());
+      }
+      html += `<div class="vip-page-item"><div class="vip-page-label">📄 หน้า ${p + 1} / ${pageCount}</div>${cPageHtml(cells.join(""))}</div>`;
+    }
+    if (pageCount > C_PREVIEW_MAX) {
+      html += `<div class="seat-more-note">… แสดงตัวอย่าง ${C_PREVIEW_MAX} หน้าแรก · กด Preview / Print เพื่อดูครบทั้ง ${pageCount} หน้า</div>`;
     }
     scroller.innerHTML = html;
-    scroller.querySelectorAll(".seat-a4-wrap").forEach(el => applySeatVars(el, g));
-
-    requestAnimationFrame(() => {
-      const size = computeSeatFontSize(scroller, g, widestSeatLabel(seats));
-      if (size) scroller.querySelectorAll(".seat-card-num").forEach(el => { el.style.fontSize = size; });
-    });
+    scroller.querySelectorAll(".c-a4-wrap").forEach(el => applyCVars(el, g));
+    requestAnimationFrame(() => fitCustom(scroller, g, items));
   }
 
-  // ── Seat setters ──────────────────────────────────────────
-  function setSeatRow(v) { seatRowInput = String(v == null ? "" : v); renderSeatSheets(); }
-  function setSeatCol(v) { seatColInput = String(v == null ? "" : v); renderSeatSheets(); }
-  function setSeatSep(v) { seatSep      = String(v == null ? "" : v); renderSeatSheets(); }
-  function setSeatPerPage(v) {
+  // ── Setters ───────────────────────────────────────────────
+  function setCMode(m) {
+    cMode = (m === "sequence") ? "sequence" : "repeat";
+    $("cModeRepeat") && $("cModeRepeat").classList.toggle("active", cMode === "repeat");
+    $("cModeSeq")    && $("cModeSeq").classList.toggle("active", cMode === "sequence");
+    $("cRepeatBox")  && ($("cRepeatBox").style.display = cMode === "repeat" ? "" : "none");
+    $("cSeqBox")     && ($("cSeqBox").style.display    = cMode === "sequence" ? "" : "none");
+    renderCustomSheets();
+  }
+  function setCText(v)  { cText = String(v == null ? "" : v); renderCustomSheets(); }
+  function setCStyle(s) {
+    cStyle = (s === "vip") ? "vip" : "plain";
+    $("cStylePlain") && $("cStylePlain").classList.toggle("active", cStyle === "plain");
+    $("cStyleVip")   && $("cStyleVip").classList.toggle("active", cStyle === "vip");
+    renderCustomSheets();
+  }
+  function setCQty(v) {
     let n = parseInt(v, 10);
-    if (isNaN(n) || n < 1) n = 1;
-    if (n > 60) n = 60;
-    seatPerPage = n;
-    const inp = $("seatPerPageInput");
-    if (inp && inp.value !== String(n)) inp.value = n;
-    renderSeatSheets();
+    if (isNaN(n) || n < 0) n = 0;
+    if (n > 500) n = 500;
+    cQty = n;
+    const inp = $("cQtyInput"); if (inp && inp.value !== String(n)) inp.value = n;
+    renderCustomSheets();
   }
-  function bumpSeatPerPage(dir) { setSeatPerPage(seatPerPage + dir); }
-  function setSeatOrient(o) {
-    seatOrient = (o === "landscape") ? "landscape" : "portrait";
-    $("seatOrientPortrait")  && $("seatOrientPortrait").classList.toggle("active", seatOrient === "portrait");
-    $("seatOrientLandscape") && $("seatOrientLandscape").classList.toggle("active", seatOrient === "landscape");
-    renderSeatSheets();
+  function bumpCQty(d) { setCQty(cQty + d); }
+  function setCRow(v) { cRowInput = String(v == null ? "" : v); renderCustomSheets(); }
+  function setCCol(v) { cColInput = String(v == null ? "" : v); renderCustomSheets(); }
+  function setCSep(v) { cSep      = String(v == null ? "" : v); renderCustomSheets(); }
+  function setCW(v) { const n = parseFloat(v); if (!isFinite(n)) return; cW = Math.max(3, Math.min(29.7, n)) * 10; renderCustomSheets(); }
+  function setCH(v) { const n = parseFloat(v); if (!isFinite(n)) return; cH = Math.max(2, Math.min(29.7, n)) * 10; renderCustomSheets(); }
+  function setCSize(wCm, hCm) {
+    cW = Math.max(3, Math.min(29.7, wCm)) * 10;
+    cH = Math.max(2, Math.min(29.7, hCm)) * 10;
+    syncCInputs(); renderCustomSheets();
   }
-  function setSeatZoom(dir) {
+  function syncCInputs() {
+    const wi = $("cWInput"), hi = $("cHInput");
+    if (wi) wi.value = +(cW / 10).toFixed(2);
+    if (hi) hi.value = +(cH / 10).toFixed(2);
+  }
+  function setCOrient(o) {
+    cOrient = (o === "landscape") ? "landscape" : "portrait";
+    $("cOrientPortrait")  && $("cOrientPortrait").classList.toggle("active", cOrient === "portrait");
+    $("cOrientLandscape") && $("cOrientLandscape").classList.toggle("active", cOrient === "landscape");
+    renderCustomSheets();
+  }
+  function setCZoom(dir) {
     const steps = [0.2, 0.3, 0.4, 0.5, 0.65, 0.8, 1.0];
-    let i = steps.indexOf(seatZoom);
+    let i = steps.indexOf(cZoom);
     if (i < 0) i = 3;
     i = Math.max(0, Math.min(steps.length - 1, i + dir));
-    seatZoom = steps[i];
-    $("seatZoomLabel") && ($("seatZoomLabel").textContent = Math.round(seatZoom * 100) + "%");
-    document.querySelectorAll("#seatSheetScroller .seat-a4-wrap").forEach(el => {
-      el.style.setProperty("--nmc-zoom", seatZoom);
-    });
+    cZoom = steps[i];
+    $("cZoomLabel") && ($("cZoomLabel").textContent = Math.round(cZoom * 100) + "%");
+    document.querySelectorAll("#cSheetScroller .c-a4-wrap").forEach(el => el.style.setProperty("--nmc-zoom", cZoom));
   }
-  async function clearSeat() {
-    if (!buildSeats().length) return;
-    const ok = await ConfirmModal.open({
-      title: "ล้างหมายเลขที่นั่ง?",
-      message: "จะล้างค่า Row / Column ที่กรอกไว้",
-      icon: "↺",
-      tone: "warning",
-      okText: "ล้าง",
-    });
+  async function clearCustom() {
+    const ok = await ConfirmModal.open({ title: "ล้างค่า?", message: "จะล้างค่าที่กรอกในเครื่องมือนี้", icon: "↺", tone: "warning", okText: "ล้าง" });
     if (!ok) return;
-    seatRowInput = ""; seatColInput = ""; seatSep = "";
-    const ri = $("seatRowInput"); if (ri) ri.value = "";
-    const ci = $("seatColInput"); if (ci) ci.value = "";
-    const si = $("seatSepInput"); if (si) si.value = "";
-    renderSeatSheets();
+    if (cMode === "sequence") {
+      cRowInput = ""; cColInput = ""; cSep = "";
+      const r = $("cRowInput"); if (r) r.value = "";
+      const c = $("cColInput"); if (c) c.value = "";
+      const s = $("cSepInput"); if (s) s.value = "";
+    } else {
+      cText = ""; cQty = 0;
+      const t = $("cTextInput"); if (t) t.value = "";
+      const q = $("cQtyInput");  if (q) q.value = 0;
+    }
+    renderCustomSheets();
   }
 
-  async function exportSeatPDF(mode = "save") {
-    if (!buildSeats().length) { showToast("กรุณาระบุ Row และ/หรือ Column", "error"); return; }
-    if (!window.html2canvas || !window.jspdf) {
-      showToast("ไลบรารี PDF ยังโหลดไม่เสร็จ ลองใหม่อีกครั้ง", "error"); return;
+  // ── Export PDF (open = preview tab · save = download) ──────
+  async function exportCustomPDF(mode = "save") {
+    const g = cGrid();
+    const { items, total } = customItems();
+    if (!total) { showToast("ยังไม่มีการ์ด — กรอกข้อมูลก่อน", "error"); return; }
+    if (cMode === "repeat" && !cCurrentLogoUrl() && !cText.trim()) {
+      showToast("เลือกโลโก้ หรือ ใส่ข้อความก่อน", "error"); return;
     }
-    // Disable both action buttons while rendering · restore in finally
-    const btnPreview = $("btnSeatPreview"), btnPrint = $("btnExportSeatPDF");
-    const busyBtn = mode === "open" ? btnPreview : btnPrint;
-    const orig = busyBtn ? busyBtn.textContent : "";
-    [btnPreview, btnPrint].forEach(b => b && (b.disabled = true));
-    if (busyBtn) busyBtn.textContent = "⏳ กำลังสร้าง PDF...";
-    showProcessing("กำลังสร้าง PDF หมายเลขที่นั่ง...", "เตรียมข้อมูล");
+    if (!window.html2canvas || !window.jspdf) { showToast("ไลบรารี PDF ยังโหลดไม่เสร็จ ลองใหม่อีกครั้ง", "error"); return; }
+
+    const btnP = $("btnCustomPreview"), btnX = $("btnExportCustomPDF");
+    const busy = mode === "open" ? btnP : btnX;
+    const orig = busy ? busy.textContent : "";
+    [btnP, btnX].forEach(b => b && (b.disabled = true));
+    if (busy) busy.textContent = "⏳ กำลังสร้าง PDF...";
+    showProcessing("กำลังสร้าง PDF ป้าย...", "เตรียมข้อมูล");
 
     try {
-      // Build ALL pages into the off-screen print area (full set).
       updateProcessing("กำลังจัดหน้า...");
-      const seats = buildSeats();
-      const g = seatGrid();
-      const pages = chunked(seats, g.perPage);
-      const printArea = $("seatPrintArea");
-      printArea.innerHTML = pages.map(pg => seatPageHtml(pg, g.perPage)).join("");
-      printArea.querySelectorAll(".seat-a4-wrap").forEach(el => applySeatVars(el, g));
+      const printArea = $("customPrintArea");
+      const pageCount = Math.max(1, Math.ceil(total / g.perPage));
+      let html = "";
+      for (let p = 0; p < pageCount; p++) {
+        const cells = [];
+        for (let i = 0; i < g.perPage; i++) {
+          const idx = p * g.perPage + i;
+          cells.push(idx < total ? cCardHtml(items ? items[idx] : "") : cBlank());
+        }
+        html += cPageHtml(cells.join(""));
+      }
+      printArea.innerHTML = html;
+      printArea.querySelectorAll(".c-a4-wrap").forEach(el => applyCVars(el, g));
 
-      // Uniform font size (computed once for the whole set).
       await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
-      const size = computeSeatFontSize(printArea, g, widestSeatLabel(seats));
-      if (size) printArea.querySelectorAll(".seat-card-num").forEach(el => { el.style.fontSize = size; });
-      await new Promise(r => setTimeout(r, 50));
+      fitCustom(printArea, g, items);
+      await new Promise(r => setTimeout(r, 80));
 
-      const orig2 = {
-        position: printArea.style.position, left: printArea.style.left,
-        top: printArea.style.top, visibility: printArea.style.visibility,
-      };
-      printArea.style.position = "fixed";
-      printArea.style.left = "0"; printArea.style.top = "0";
-      printArea.style.visibility = "visible";
-      printArea.style.zIndex = "-1";
+      const o = { position: printArea.style.position, left: printArea.style.left, top: printArea.style.top, visibility: printArea.style.visibility };
+      printArea.style.position = "fixed"; printArea.style.left = "0"; printArea.style.top = "0";
+      printArea.style.visibility = "visible"; printArea.style.zIndex = "-1";
 
       const { jsPDF } = window.jspdf;
-      const land = seatOrient === "landscape";
+      const land = cOrient === "landscape";
       const pdf = new jsPDF({ orientation: land ? "landscape" : "portrait", unit: "mm", format: "a4" });
-      const pw = land ? A4_H_MM : A4_W_MM;
-      const ph = land ? A4_W_MM : A4_H_MM;
-      const sheets = printArea.querySelectorAll(".seat-a4");
+      const pw = land ? A4_H_MM : A4_W_MM, ph = land ? A4_W_MM : A4_H_MM;
+      const sheets = printArea.querySelectorAll(".c-a4");
 
       for (let i = 0; i < sheets.length; i++) {
         updateProcessing(`เรนเดอร์หน้า ${i + 1} / ${sheets.length}`);
         if (i > 0) pdf.addPage();
-        const canvas = await html2canvas(sheets[i], {
-          scale: 3, useCORS: true, backgroundColor: "#ffffff", logging: false,
-        });
+        const canvas = await html2canvas(sheets[i], { scale: 3, useCORS: true, backgroundColor: "#ffffff", logging: false });
         const img = canvas.toDataURL("image/jpeg", 0.95);
         pdf.addImage(img, "JPEG", 0, 0, pw, ph, undefined, "FAST");
       }
 
-      printArea.style.position   = orig2.position;
-      printArea.style.left       = orig2.left;
-      printArea.style.top        = orig2.top;
-      printArea.style.visibility = orig2.visibility;
-      printArea.style.zIndex     = "";
+      printArea.style.position = o.position; printArea.style.left = o.left; printArea.style.top = o.top; printArea.style.visibility = o.visibility; printArea.style.zIndex = "";
 
       const stamp = new Date().toISOString().slice(0, 10);
       if (mode === "open") {
-        // Preview: open the PDF in a new tab
         updateProcessing("กำลังเปิดตัวอย่าง...");
         const url = pdf.output("bloburl");
         const win = window.open(url, "_blank");
-        if (!win) {
-          pdf.save(`seat-numbers-${stamp}.pdf`);
-          showToast("เบราว์เซอร์บล็อกหน้าต่างใหม่ — บันทึกไฟล์แทน", "error");
-        } else {
-          showToast(`เปิดตัวอย่าง PDF (${sheets.length} หน้า · ${buildSeats().length} ใบ)`);
-        }
+        if (!win) { pdf.save(`labels-${stamp}.pdf`); showToast("เบราว์เซอร์บล็อกหน้าต่างใหม่ — บันทึกไฟล์แทน", "error"); }
+        else showToast(`เปิดตัวอย่าง PDF (${sheets.length} หน้า · ${total} ใบ)`);
       } else {
         updateProcessing("กำลังบันทึกไฟล์...");
-        pdf.save(`seat-numbers-${stamp}.pdf`);
-        showToast(`ส่งออก PDF เรียบร้อย (${sheets.length} หน้า · ${buildSeats().length} ใบ)`);
+        pdf.save(`labels-${stamp}.pdf`);
+        showToast(`ส่งออก PDF เรียบร้อย (${sheets.length} หน้า · ${total} ใบ)`);
       }
     } catch (err) {
       console.error(err);
       showToast("สร้าง PDF ไม่สำเร็จ — " + err.message, "error");
     } finally {
-      const pa = $("seatPrintArea"); if (pa) pa.innerHTML = "";   // free the (potentially huge) DOM
-      [btnPreview, btnPrint].forEach(b => b && (b.disabled = false));
-      if (busyBtn) busyBtn.textContent = orig;
+      const pa = $("customPrintArea"); if (pa) pa.innerHTML = "";   // free DOM (can be huge)
+      [btnP, btnX].forEach(b => b && (b.disabled = false));
+      if (busy) busy.textContent = orig;
       hideProcessing();
     }
   }
@@ -2443,21 +1968,17 @@
   document.addEventListener("DOMContentLoaded", () => {
     setStep(1);
     $("zoomLabel") && ($("zoomLabel").textContent = Math.round(zoom * 100) + "%");
-    $("vipZoomLabel") && ($("vipZoomLabel").textContent = Math.round(vipZoom * 100) + "%");
+    $("cZoomLabel") && ($("cZoomLabel").textContent = Math.round(cZoom * 100) + "%");
     $("certZoomLabel") && ($("certZoomLabel").textContent = Math.round(certZoom * 100) + "%");
-    $("seatZoomLabel") && ($("seatZoomLabel").textContent = Math.round(seatZoom * 100) + "%");
-    $("badgeZoomLabel") && ($("badgeZoomLabel").textContent = Math.round(badgeZoom * 100) + "%");
     loadCertTemplates();
     probeAllCertTpls().then(() => updateCertTplCount());
-    renderVipSheets();
-    renderSeatSheets();
-    renderBadgeSheets();
+    renderCustomSheets();
     showPicker();
     // Pull company logo from settings → re-render cards once it resolves
     if (window.CompanyLogo) {
       window.CompanyLogo.refresh().then(() => {
         if (rows.length) renderSheets();
-        renderVipSheets();
+        if (activeTab === "custom") { renderCLogoGrid(); renderCustomSheets(); }
       });
     }
   });
@@ -2467,9 +1988,13 @@
     onDrag, onDrop, onFilePick,
     addRow, clearAll, resetAll,
     setZoom, printNow, exportPDF, downloadTemplate,
-    // VIP tab
-    setVipQty, bumpVipQty, setVipZoom, exportVipPDF,
-    setVipText, setVipW, setVipH, setVipSize, syncVipInputs,
+    // Custom tab (merged VIP + Badge + Seat)
+    setCMode, setCText, setCStyle,
+    setCQty, bumpCQty,
+    setCRow, setCCol, setCSep,
+    setCW, setCH, setCSize, syncCInputs,
+    setCOrient, setCZoom, clearCustom,
+    onCLogoPick, exportCustomPDF,
     // Certificate tab
     onCertDrag, onCertDrop, onCertFilePick,
     certAddRow, certClearAll, certResetAll,
@@ -2480,14 +2005,6 @@
     setCertPosLh, bumpCertPosLh, resetCertPosLh,
     toggleCertPos2, setCertPosSingle, saveCertPos,
     downloadCertTemplate,
-    // Seat-number tab
-    setSeatRow, setSeatCol, setSeatSep,
-    setSeatPerPage, bumpSeatPerPage, setSeatOrient,
-    setSeatZoom, clearSeat, exportSeatPDF,
-    // Badge tab
-    onBadgeLogoPick, setBadgeName,
-    setBadgeW, setBadgeH, setBadgeSize, syncBadgeInputs,
-    setBadgeQty, bumpBadgeQty, setBadgeZoom, exportBadgePDF,
     // Common
     switchTab, showPicker,
   };

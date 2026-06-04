@@ -47,29 +47,17 @@
               <div class="tool-card-sub">8.5 × 6 cm · 8 ใบ/หน้า</div>
               <div class="tool-card-desc">นำเข้ารายชื่อจาก Excel → จัด layout บนกระดาษ A4 + พิมพ์/PDF</div>
             </button>
-            <button class="tool-card" data-tab="vip" onclick="nmc.switchTab('vip')">
-              <div class="tool-card-icon">⭐</div>
-              <div class="tool-card-title">ป้าย VIP</div>
-              <div class="tool-card-sub">9.5 × 5 cm · กำหนดเอง</div>
-              <div class="tool-card-desc">พิมพ์ป้ายข้อความเดียว (VIP / STAFF) กำหนดขนาด + จำนวนได้</div>
+            <button class="tool-card" data-tab="custom" onclick="nmc.switchTab('custom')">
+              <div class="tool-card-icon">🎫</div>
+              <div class="tool-card-title">ป้ายกำหนดเอง</div>
+              <div class="tool-card-sub">โลโก้ · ข้อความ · ลำดับ · VIP</div>
+              <div class="tool-card-desc">โลโก้+ข้อความซ้ำ หรือ ลำดับอัตโนมัติ (A1, A2…) → กำหนดขนาด/แนว/จำนวน → A4 + PDF</div>
             </button>
             <button class="tool-card" data-tab="cert" onclick="nmc.switchTab('cert')">
               <div class="tool-card-icon">🏆</div>
               <div class="tool-card-title">ใบประกาศนียบัตร</div>
               <div class="tool-card-sub">A4 แนวนอน · 1 ใบ/หน้า</div>
               <div class="tool-card-desc">วางชื่อบน template ตามตำแหน่ง → Export PDF หรือภาพ (ZIP)</div>
-            </button>
-            <button class="tool-card" data-tab="seat" onclick="nmc.switchTab('seat')">
-              <div class="tool-card-icon">🎫</div>
-              <div class="tool-card-title">หมายเลขที่นั่ง</div>
-              <div class="tool-card-sub">Row × Column · กำหนดเอง</div>
-              <div class="tool-card-desc">สร้างป้ายเลขที่นั่งจากช่วง Row/Column · เลือกแนวกระดาษ + จำนวน/หน้า</div>
-            </button>
-            <button class="tool-card" data-tab="badge" onclick="nmc.switchTab('badge')">
-              <div class="tool-card-icon">🆕</div>
-              <div class="tool-card-title">ป้ายโลโก้+ชื่อ</div>
-              <div class="tool-card-sub">กำหนดเอง · upload logo</div>
-              <div class="tool-card-desc">อัปโหลดโลโก้ + เขียนชื่อ → จัด layout บนกระดาษ A4 + Export PDF</div>
             </button>
           </div>
 
@@ -158,73 +146,136 @@
           </div>
           <!-- ╚══ /TAB CONTENT: NAMECARD ══╝ -->
 
-          <!-- ╔══ TAB CONTENT: VIP ══╗ -->
-          <div class="nmc-tab-pane" id="paneVip" style="display:none">
+          <!-- ╔══ TAB CONTENT: CUSTOM (merged: VIP + Badge + Seat) ══╗ -->
+          <div class="nmc-tab-pane" id="paneCustom" style="display:none">
 
             <div class="nmc-no-print">
              <div class="vip-split">
               <!-- LEFT: settings -->
               <div class="vip-split-left">
-              <!-- VIP design: text + size + quantity (single compact card) -->
               <div class="nmc-card-block" style="margin-bottom:12px">
                 <div class="nmc-block-hdr">
-                  <div class="nmc-block-title">⭐ ออกแบบป้าย VIP</div>
+                  <div class="nmc-block-title">🎫 ป้ายกำหนดเอง</div>
                 </div>
-                <div class="vip-design-grid">
-                  <div class="vip-field">
-                    <label for="vipTextInput">ข้อความบนป้าย</label>
-                    <input type="text" id="vipTextInput" class="vip-text-input" value="VIP" maxlength="40"
-                           placeholder="เช่น VIP · STAFF · ทีมงาน" oninput="nmc.setVipText(this.value)">
+
+                <!-- Content mode toggle -->
+                <div class="vip-qty-row vip-qty-row--inset">
+                  <span class="vip-qty-label">โหมดเนื้อหา</span>
+                  <div class="seat-orient-toggle">
+                    <button class="seat-orient-btn active" id="cModeRepeat" onclick="nmc.setCMode('repeat')">🔁 ซ้ำใบเดียว</button>
+                    <button class="seat-orient-btn" id="cModeSeq" onclick="nmc.setCMode('sequence')">🔢 ลำดับอัตโนมัติ</button>
                   </div>
+                </div>
+
+                <!-- ── REPEAT controls (logo + text + style + qty) ── -->
+                <div id="cRepeatBox">
+                  <div class="c-section-label">🖼️ โลโก้ (ไม่บังคับ · เว้นว่าง = ไม่มีโลโก้)</div>
+                  <div class="badge-logo-grid" id="cLogoGrid"></div>
+                  <div class="c-logo-actions">
+                    <label class="btn btn-outline btn-sm" style="cursor:pointer">
+                      ⬆ อัปโหลดโลโก้
+                      <input type="file" id="cLogoInput" accept="image/*" multiple style="display:none" onchange="nmc.onCLogoPick(event)">
+                    </label>
+                    <span style="font-size:11px;color:var(--text3)">เก็บที่ Supabase · ใช้ร่วมทุกเครื่อง</span>
+                  </div>
+
+                  <div class="vip-design-grid">
+                    <div class="vip-field">
+                      <label for="cTextInput">ข้อความ / ชื่อ</label>
+                      <input type="text" id="cTextInput" class="vip-text-input" value="VIP" maxlength="60"
+                             placeholder="เช่น VIP · STAFF · ชื่องาน · ชื่อคน" oninput="nmc.setCText(this.value)">
+                    </div>
+                  </div>
+
+                  <div class="vip-qty-row vip-qty-row--inset">
+                    <span class="vip-qty-label">สไตล์การ์ด</span>
+                    <div class="seat-orient-toggle">
+                      <button class="seat-orient-btn active" id="cStylePlain" onclick="nmc.setCStyle('plain')">โลโก้+ชื่อ</button>
+                      <button class="seat-orient-btn" id="cStyleVip" onclick="nmc.setCStyle('vip')">แถบเขียวด้านล่าง</button>
+                    </div>
+                  </div>
+
+                  <div class="vip-qty-row vip-qty-row--inset">
+                    <span class="vip-qty-label">จำนวนที่พิมพ์</span>
+                    <div class="vip-qty-input-wrap">
+                      <button class="vip-qty-btn" onclick="nmc.bumpCQty(-1)">−</button>
+                      <input type="number" id="cQtyInput" class="vip-qty-input" min="0" max="500" value="10"
+                             oninput="nmc.setCQty(this.value)">
+                      <button class="vip-qty-btn" onclick="nmc.bumpCQty(1)">＋</button>
+                      <span class="vip-qty-unit">ใบ</span>
+                    </div>
+                    <div class="vip-qty-presets">
+                      <button class="btn btn-outline btn-sm" onclick="nmc.setCQty(10)">10</button>
+                      <button class="btn btn-outline btn-sm" onclick="nmc.setCQty(20)">20</button>
+                      <button class="btn btn-outline btn-sm" onclick="nmc.setCQty(30)">30</button>
+                      <button class="btn btn-outline btn-sm" onclick="nmc.setCQty(50)">50</button>
+                      <button class="btn btn-outline btn-sm" onclick="nmc.setCQty(100)">100</button>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- ── SEQUENCE controls (Row × Column → A1, A2…) ── -->
+                <div id="cSeqBox" style="display:none">
+                  <div class="vip-design-grid c-seq-grid">
+                    <div class="vip-field c-seq-field">
+                      <label for="cRowInput">แถว (ROW)<span class="c-help" data-tip="เช่น A-M หรือ A,B,C · เว้นว่างได้">?</span></label>
+                      <input type="text" id="cRowInput" class="vip-text-input" value="A-J"
+                             placeholder="A-M หรือ A,B,C" oninput="nmc.setCRow(this.value)">
+                    </div>
+                    <div class="vip-field c-seq-field">
+                      <label for="cColInput">คอลัมน์ (COLUMN)<span class="c-help" data-tip="เช่น 1-24 หรือ 1,2,3 · เว้นว่างได้">?</span></label>
+                      <input type="text" id="cColInput" class="vip-text-input" value="1-12"
+                             placeholder="1-24 หรือ 1,2,3" oninput="nmc.setCCol(this.value)">
+                    </div>
+                    <div class="vip-field vip-field-num">
+                      <label for="cSepInput">ตัวคั่น<span class="c-help" data-tip="ตัวคั่นระหว่าง Row/Col · เว้นว่าง = A1">?</span></label>
+                      <input type="text" id="cSepInput" class="vip-num-input" value="" maxlength="3"
+                             placeholder="(เว้นว่าง)" oninput="nmc.setCSep(this.value)">
+                    </div>
+                  </div>
+                </div>
+
+                <!-- ── SHARED: card size + orientation ── -->
+                <div class="vip-design-grid c-size-grid" style="border-top:1px solid var(--border,#e4ddd2)">
                   <div class="vip-field vip-field-num">
-                    <label for="vipWInput">กว้าง (ซม.)</label>
-                    <input type="number" id="vipWInput" class="vip-num-input" min="3" max="21" step="0.1"
-                           value="9.5" oninput="nmc.setVipW(this.value)" onchange="nmc.syncVipInputs()">
+                    <label for="cWInput">กว้าง (ซม.)</label>
+                    <input type="number" id="cWInput" class="vip-num-input" min="3" max="29" step="0.1"
+                           value="9.5" oninput="nmc.setCW(this.value)" onchange="nmc.syncCInputs()">
                   </div>
                   <div class="vip-field-x">×</div>
                   <div class="vip-field vip-field-num">
-                    <label for="vipHInput">สูง (ซม.)</label>
-                    <input type="number" id="vipHInput" class="vip-num-input" min="2" max="29" step="0.1"
-                           value="5" oninput="nmc.setVipH(this.value)" onchange="nmc.syncVipInputs()">
+                    <label for="cHInput">สูง (ซม.)</label>
+                    <input type="number" id="cHInput" class="vip-num-input" min="2" max="29" step="0.1"
+                           value="6" oninput="nmc.setCH(this.value)" onchange="nmc.syncCInputs()">
                   </div>
                   <div class="vip-size-presets">
-                    <button class="btn btn-outline btn-sm" onclick="nmc.setVipSize(9.5,5)">9.5×5</button>
-                    <button class="btn btn-outline btn-sm" onclick="nmc.setVipSize(9,5.5)">9×5.5</button>
-                    <button class="btn btn-outline btn-sm" onclick="nmc.setVipSize(8.5,5.4)">8.5×5.4</button>
-                    <button class="btn btn-outline btn-sm" onclick="nmc.setVipSize(10.5,7.4)">10.5×7.4</button>
+                    <button class="btn btn-outline btn-sm" onclick="nmc.setCSize(9.5,6)">9.5×6</button>
+                    <button class="btn btn-outline btn-sm" onclick="nmc.setCSize(9.5,5)">9.5×5</button>
+                    <button class="btn btn-outline btn-sm" onclick="nmc.setCSize(8.5,5.4)">8.5×5.4</button>
+                    <button class="btn btn-outline btn-sm" onclick="nmc.setCSize(10.5,7.4)">10.5×7.4</button>
+                    <button class="btn btn-outline btn-sm" onclick="nmc.setCSize(5,5)">5×5</button>
                   </div>
                 </div>
 
-                <!-- Quantity row (same card, divider above) -->
                 <div class="vip-qty-row vip-qty-row--inset">
-                  <span class="vip-qty-label">จำนวนที่พิมพ์</span>
-                  <div class="vip-qty-input-wrap">
-                    <button class="vip-qty-btn" onclick="nmc.bumpVipQty(-1)">−</button>
-                    <input type="number" id="vipQtyInput" class="vip-qty-input" min="0" max="500" value="10"
-                           oninput="nmc.setVipQty(this.value)">
-                    <button class="vip-qty-btn" onclick="nmc.bumpVipQty(1)">＋</button>
-                    <span class="vip-qty-unit">ใบ</span>
-                  </div>
-                  <div class="vip-qty-meta">
-                    <span class="vip-qty-pages"><b id="vipPageCount">1</b> หน้า A4</span>
-                    <span class="vip-qty-perpage" id="vipPerPageMeta">(10 ใบ/หน้า · 2×5)</span>
-                  </div>
-                  <div class="vip-qty-presets">
-                    <button class="btn btn-outline btn-sm" onclick="nmc.setVipQty(10)">10</button>
-                    <button class="btn btn-outline btn-sm" onclick="nmc.setVipQty(20)">20</button>
-                    <button class="btn btn-outline btn-sm" onclick="nmc.setVipQty(30)">30</button>
-                    <button class="btn btn-outline btn-sm" onclick="nmc.setVipQty(50)">50</button>
-                    <button class="btn btn-outline btn-sm" onclick="nmc.setVipQty(100)">100</button>
+                  <span class="vip-qty-label">แนวกระดาษ</span>
+                  <div class="seat-orient-toggle">
+                    <button class="seat-orient-btn active" id="cOrientPortrait" onclick="nmc.setCOrient('portrait')">📄 แนวตั้ง</button>
+                    <button class="seat-orient-btn" id="cOrientLandscape" onclick="nmc.setCOrient('landscape')">📃 แนวนอน</button>
                   </div>
                 </div>
 
-                <div class="vip-layout-info">📐 จัดได้ <b id="vipPerPage">10</b> ใบ/หน้า A4 · ตาราง <span id="vipGridDesc">2 × 5</span></div>
+                <div class="vip-layout-info">
+                  📐 รวม <b id="cTotal">0</b> ใบ · <b id="cPageCount">0</b> หน้า A4 ·
+                  จัด <span id="cGridDesc">—</span> · ขนาดป้าย <span id="cCardSize">—</span>
+                </div>
               </div>
 
-              <!-- VIP actions -->
+              <!-- Custom actions -->
               <div class="nmc-actions">
-                <button class="btn btn-secondary" onclick="nmc.setVipQty(0)">↺ ล้าง</button>
-                <button class="btn btn-primary" onclick="nmc.exportVipPDF()" id="btnExportVipPDF">📄 Export PDF</button>
+                <button class="btn btn-secondary" onclick="nmc.clearCustom()">↺ ล้าง</button>
+                <button class="btn btn-outline" onclick="nmc.exportCustomPDF('open')" id="btnCustomPreview">👁️ Preview</button>
+                <button class="btn btn-primary" onclick="nmc.exportCustomPDF('save')" id="btnExportCustomPDF">🖨️ Print</button>
               </div>
               </div><!-- /vip-split-left -->
 
@@ -232,22 +283,22 @@
               <div class="vip-split-right">
               <div class="nmc-card-block">
                 <div class="nmc-block-hdr">
-                  <div class="nmc-block-title" id="vipLayoutTitle">👁️ ตัวอย่าง Layout · กระดาษ A4 (10 ใบ/หน้า · 2×5)</div>
+                  <div class="nmc-block-title" id="cLayoutTitle">👁️ ตัวอย่าง Layout · กระดาษ A4</div>
                   <div class="nmc-block-tools nmc-zoom-tools">
                     <span style="font-size:12px;color:var(--text3)">Zoom</span>
-                    <button class="btn btn-outline btn-sm" onclick="nmc.setVipZoom(-1)">−</button>
-                    <span id="vipZoomLabel" style="min-width:48px;text-align:center;font-weight:600">65%</span>
-                    <button class="btn btn-outline btn-sm" onclick="nmc.setVipZoom(1)">＋</button>
+                    <button class="btn btn-outline btn-sm" onclick="nmc.setCZoom(-1)">−</button>
+                    <span id="cZoomLabel" style="min-width:48px;text-align:center;font-weight:600">50%</span>
+                    <button class="btn btn-outline btn-sm" onclick="nmc.setCZoom(1)">＋</button>
                   </div>
                 </div>
-                <div class="nmc-sheet-scroller" id="vipSheetScroller"></div>
+                <div class="nmc-sheet-scroller" id="cSheetScroller"></div>
               </div>
               </div><!-- /vip-split-right -->
              </div><!-- /vip-split -->
             </div>
 
           </div>
-          <!-- ╚══ /TAB CONTENT: VIP ══╝ -->
+          <!-- ╚══ /TAB CONTENT: CUSTOM ══╝ -->
 
           <!-- ╔══ TAB CONTENT: CERTIFICATE ══╗ -->
           <div class="nmc-tab-pane" id="paneCert" style="display:none">
@@ -336,213 +387,10 @@
           </div>
           <!-- ╚══ /TAB CONTENT: CERTIFICATE ══╝ -->
 
-          <!-- ╔══ TAB CONTENT: SEAT NUMBERS ══╗ -->
-          <div class="nmc-tab-pane" id="paneSeat" style="display:none">
-
-            <div class="nmc-no-print">
-             <div class="vip-split">
-              <!-- LEFT: settings -->
-              <div class="vip-split-left">
-              <div class="nmc-card-block" style="margin-bottom:12px">
-                <div class="nmc-block-hdr">
-                  <div class="nmc-block-title">🎫 พิมพ์หมายเลขที่นั่ง</div>
-                </div>
-                <div class="vip-design-grid">
-                  <div class="vip-field" style="flex:1 1 100%">
-                    <label for="seatRowInput">แถว (Row) — เช่น A-M หรือ A,B,C (เว้นว่างได้)</label>
-                    <input type="text" id="seatRowInput" class="vip-text-input" value="A-J"
-                           placeholder="A-M หรือ A,B,C" oninput="nmc.setSeatRow(this.value)">
-                  </div>
-                  <div class="vip-field" style="flex:1 1 100%">
-                    <label for="seatColInput">คอลัมน์ (Column) — เช่น 1-24 หรือ 1,2,3 (เว้นว่างได้)</label>
-                    <input type="text" id="seatColInput" class="vip-text-input" value="1-12"
-                           placeholder="1-24 หรือ 1,2,3" oninput="nmc.setSeatCol(this.value)">
-                  </div>
-                  <div class="vip-field vip-field-num">
-                    <label for="seatSepInput">ตัวคั่น Row/Col</label>
-                    <input type="text" id="seatSepInput" class="vip-num-input" value="" maxlength="3"
-                           placeholder="(เว้นว่าง)" oninput="nmc.setSeatSep(this.value)">
-                  </div>
-                </div>
-
-                <!-- Paper orientation -->
-                <div class="vip-qty-row vip-qty-row--inset">
-                  <span class="vip-qty-label">แนวกระดาษ</span>
-                  <div class="seat-orient-toggle">
-                    <button class="seat-orient-btn active" id="seatOrientPortrait" onclick="nmc.setSeatOrient('portrait')">📄 แนวตั้ง</button>
-                    <button class="seat-orient-btn" id="seatOrientLandscape" onclick="nmc.setSeatOrient('landscape')">📃 แนวนอน</button>
-                  </div>
-                </div>
-
-                <!-- Per A4 -->
-                <div class="vip-qty-row vip-qty-row--inset">
-                  <span class="vip-qty-label">จำนวนต่อ 1 A4</span>
-                  <div class="vip-qty-input-wrap">
-                    <button class="vip-qty-btn" onclick="nmc.bumpSeatPerPage(-1)">−</button>
-                    <input type="number" id="seatPerPageInput" class="vip-qty-input" min="1" max="60" value="6"
-                           oninput="nmc.setSeatPerPage(this.value)">
-                    <button class="vip-qty-btn" onclick="nmc.bumpSeatPerPage(1)">＋</button>
-                    <span class="vip-qty-unit">ใบ/หน้า</span>
-                  </div>
-                  <div class="vip-qty-presets">
-                    <button class="btn btn-outline btn-sm" onclick="nmc.setSeatPerPage(1)">1</button>
-                    <button class="btn btn-outline btn-sm" onclick="nmc.setSeatPerPage(2)">2</button>
-                    <button class="btn btn-outline btn-sm" onclick="nmc.setSeatPerPage(4)">4</button>
-                    <button class="btn btn-outline btn-sm" onclick="nmc.setSeatPerPage(6)">6</button>
-                    <button class="btn btn-outline btn-sm" onclick="nmc.setSeatPerPage(9)">9</button>
-                    <button class="btn btn-outline btn-sm" onclick="nmc.setSeatPerPage(12)">12</button>
-                  </div>
-                </div>
-
-                <div class="vip-layout-info">
-                  📐 รวม <b id="seatTotal">0</b> ที่นั่ง · <b id="seatPageCount">0</b> หน้า A4 ·
-                  จัด <span id="seatGridDesc">—</span> · ขนาดป้าย <span id="seatCardSize">—</span>
-                </div>
-              </div>
-
-              <!-- Seat actions -->
-              <div class="nmc-actions">
-                <button class="btn btn-secondary" onclick="nmc.clearSeat()">↺ ล้าง</button>
-                <button class="btn btn-outline" onclick="nmc.exportSeatPDF('open')" id="btnSeatPreview">👁️ Preview</button>
-                <button class="btn btn-primary" onclick="nmc.exportSeatPDF('save')" id="btnExportSeatPDF">🖨️ Print</button>
-              </div>
-              </div><!-- /vip-split-left -->
-
-              <!-- RIGHT: preview -->
-              <div class="vip-split-right">
-              <div class="nmc-card-block">
-                <div class="nmc-block-hdr">
-                  <div class="nmc-block-title" id="seatLayoutTitle">👁️ ตัวอย่าง Layout · กระดาษ A4</div>
-                  <div class="nmc-block-tools nmc-zoom-tools">
-                    <span style="font-size:12px;color:var(--text3)">Zoom</span>
-                    <button class="btn btn-outline btn-sm" onclick="nmc.setSeatZoom(-1)">−</button>
-                    <span id="seatZoomLabel" style="min-width:48px;text-align:center;font-weight:600">50%</span>
-                    <button class="btn btn-outline btn-sm" onclick="nmc.setSeatZoom(1)">＋</button>
-                  </div>
-                </div>
-                <div class="nmc-sheet-scroller" id="seatSheetScroller"></div>
-              </div>
-              </div><!-- /vip-split-right -->
-             </div><!-- /vip-split -->
-            </div>
-
-          </div>
-          <!-- ╚══ /TAB CONTENT: SEAT NUMBERS ══╝ -->
-
-          <!-- ╔══ TAB CONTENT: BADGE (logo + name) ══╗ -->
-          <div class="nmc-tab-pane" id="paneBadge" style="display:none">
-
-            <div class="nmc-no-print">
-             <div class="vip-split">
-              <!-- LEFT: settings -->
-              <div class="vip-split-left">
-
-              <!-- Logo library -->
-              <div class="nmc-card-block" style="margin-bottom:12px">
-                <div class="nmc-block-hdr">
-                  <div class="nmc-block-title">🖼️ โลโก้ (<span id="badgeLogoCount">0</span> รูป)</div>
-                  <div class="nmc-block-tools">
-                    <label class="btn btn-primary btn-sm" style="cursor:pointer">
-                      ⬆ อัปโหลดโลโก้
-                      <input type="file" id="badgeLogoInput" accept="image/*" multiple style="display:none" onchange="nmc.onBadgeLogoPick(event)">
-                    </label>
-                  </div>
-                </div>
-                <div style="padding:8px 18px 0;font-size:12px;color:var(--text3)">
-                  💡 โลโก้เก็บที่ Supabase Storage <code>badge-logos</code> · ทุกเครื่องใช้ร่วมกัน · คลิกเลือกรูปที่จะใช้
-                </div>
-                <div class="badge-logo-grid" id="badgeLogoGrid"></div>
-              </div>
-
-              <!-- Design: name + size + quantity -->
-              <div class="nmc-card-block" style="margin-bottom:12px">
-                <div class="nmc-block-hdr">
-                  <div class="nmc-block-title">✍️ ออกแบบป้าย</div>
-                </div>
-                <div class="vip-design-grid">
-                  <div class="vip-field">
-                    <label for="badgeNameInput">ชื่อบนป้าย</label>
-                    <input type="text" id="badgeNameInput" class="vip-text-input" value="" maxlength="60"
-                           placeholder="เช่น ชื่องาน · ชื่อทีม · ชื่อคน" oninput="nmc.setBadgeName(this.value)">
-                  </div>
-                  <div class="vip-field vip-field-num">
-                    <label for="badgeWInput">กว้าง (ซม.)</label>
-                    <input type="number" id="badgeWInput" class="vip-num-input" min="3" max="21" step="0.1"
-                           value="9.5" oninput="nmc.setBadgeW(this.value)" onchange="nmc.syncBadgeInputs()">
-                  </div>
-                  <div class="vip-field-x">×</div>
-                  <div class="vip-field vip-field-num">
-                    <label for="badgeHInput">สูง (ซม.)</label>
-                    <input type="number" id="badgeHInput" class="vip-num-input" min="2" max="29" step="0.1"
-                           value="6" oninput="nmc.setBadgeH(this.value)" onchange="nmc.syncBadgeInputs()">
-                  </div>
-                  <div class="vip-size-presets">
-                    <button class="btn btn-outline btn-sm" onclick="nmc.setBadgeSize(9.5,6)">9.5×6</button>
-                    <button class="btn btn-outline btn-sm" onclick="nmc.setBadgeSize(8.5,5.4)">8.5×5.4</button>
-                    <button class="btn btn-outline btn-sm" onclick="nmc.setBadgeSize(10.5,7.4)">10.5×7.4</button>
-                  </div>
-                </div>
-
-                <!-- Quantity row -->
-                <div class="vip-qty-row vip-qty-row--inset">
-                  <span class="vip-qty-label">จำนวนที่พิมพ์</span>
-                  <div class="vip-qty-input-wrap">
-                    <button class="vip-qty-btn" onclick="nmc.bumpBadgeQty(-1)">−</button>
-                    <input type="number" id="badgeQtyInput" class="vip-qty-input" min="0" max="500" value="10"
-                           oninput="nmc.setBadgeQty(this.value)">
-                    <button class="vip-qty-btn" onclick="nmc.bumpBadgeQty(1)">＋</button>
-                    <span class="vip-qty-unit">ใบ</span>
-                  </div>
-                  <div class="vip-qty-meta">
-                    <span class="vip-qty-pages"><b id="badgePageCount">1</b> หน้า A4</span>
-                    <span class="vip-qty-perpage" id="badgePerPageMeta">(10 ใบ/หน้า · 2×5)</span>
-                  </div>
-                  <div class="vip-qty-presets">
-                    <button class="btn btn-outline btn-sm" onclick="nmc.setBadgeQty(10)">10</button>
-                    <button class="btn btn-outline btn-sm" onclick="nmc.setBadgeQty(20)">20</button>
-                    <button class="btn btn-outline btn-sm" onclick="nmc.setBadgeQty(30)">30</button>
-                    <button class="btn btn-outline btn-sm" onclick="nmc.setBadgeQty(50)">50</button>
-                    <button class="btn btn-outline btn-sm" onclick="nmc.setBadgeQty(100)">100</button>
-                  </div>
-                </div>
-
-                <div class="vip-layout-info">📐 จัดได้ <b id="badgePerPage">10</b> ใบ/หน้า A4 · ตาราง <span id="badgeGridDesc">2 × 5</span></div>
-              </div>
-
-              <!-- Badge actions -->
-              <div class="nmc-actions">
-                <button class="btn btn-secondary" onclick="nmc.setBadgeQty(0)">↺ ล้าง</button>
-                <button class="btn btn-primary" onclick="nmc.exportBadgePDF()" id="btnExportBadgePDF">📄 Export PDF</button>
-              </div>
-              </div><!-- /vip-split-left -->
-
-              <!-- RIGHT: preview -->
-              <div class="vip-split-right">
-              <div class="nmc-card-block">
-                <div class="nmc-block-hdr">
-                  <div class="nmc-block-title" id="badgeLayoutTitle">👁️ ตัวอย่าง Layout · กระดาษ A4 (10 ใบ/หน้า · 2×5)</div>
-                  <div class="nmc-block-tools nmc-zoom-tools">
-                    <span style="font-size:12px;color:var(--text3)">Zoom</span>
-                    <button class="btn btn-outline btn-sm" onclick="nmc.setBadgeZoom(-1)">−</button>
-                    <span id="badgeZoomLabel" style="min-width:48px;text-align:center;font-weight:600">65%</span>
-                    <button class="btn btn-outline btn-sm" onclick="nmc.setBadgeZoom(1)">＋</button>
-                  </div>
-                </div>
-                <div class="nmc-sheet-scroller" id="badgeSheetScroller"></div>
-              </div>
-              </div><!-- /vip-split-right -->
-             </div><!-- /vip-split -->
-            </div>
-
-          </div>
-          <!-- ╚══ /TAB CONTENT: BADGE ══╝ -->
-
           <!-- PRINT AREAS (off-screen render targets for PDF export) -->
           <div class="nmc-print-area" id="printArea"></div>
-          <div class="nmc-print-area" id="vipPrintArea"></div>
           <div class="nmc-print-area" id="certPrintArea"></div>
-          <div class="nmc-print-area" id="seatPrintArea"></div>
-          <div class="nmc-print-area" id="badgePrintArea"></div>
+          <div class="nmc-print-area" id="customPrintArea"></div>
 
         </div>
       </div>

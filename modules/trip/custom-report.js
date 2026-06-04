@@ -114,6 +114,9 @@ const state = {
   orientation: "landscape", // print: landscape | portrait
   layout: "table", // "table" | "card" — รูปแบบรายงาน
   cardFieldPos: "top", // card mode: ตำแหน่งกล่องข้อมูลในการ์ด — "top" | "center" | "bottom"
+  groupBy: "",     // "" = ไม่แบ่ง · "_flightseg" = ช่วงเที่ยวบิน · หรือ column key ที่เลือก
+  showTotal: false, // แสดงแถว Total ท้ายแต่ละกลุ่ม + grand total
+  flightById: {},  // flight_id -> trip_flights record (ใช้สร้างหัวกลุ่มช่วงเที่ยวบิน)
 };
 
 // คอลัมน์ที่จะมี header-filter ได้ — distinct ค่าต้อง 2..FILTER_MAX_DISTINCT
@@ -296,6 +299,7 @@ async function buildCalc(rooms, buses, flights = []) {
   buses.forEach(b => { busById[b.bus_id] = b; });
   const flightById = {};
   flights.forEach(f => { flightById[f.flight_id] = f; });
+  state.flightById = flightById; // เก็บไว้สร้างหัวกลุ่ม "ช่วงเที่ยวบิน"
 
   const codeRooms = {}; // code -> [room]
   (roomOccs || []).forEach(o => {
@@ -352,6 +356,7 @@ async function buildCalc(rooms, buses, flights = []) {
       _flarr:        fl ? fmtDTcell(fl.arrival_datetime) : "",
       _flcomeback:   fl ? (fl.comeback || "") : "",
       _flcomebackdt: fl ? fmtDTcell(fl.comeback_datetime) : "",
+      _flid:     fl ? fl.flight_id : null, // group key ของ "ช่วงเที่ยวบิน"
       _stays:    stays,
     };
   });
@@ -608,6 +613,87 @@ function getRows() {
   });
 }
 
+// ── GROUPING (แบ่ง section + Total) ────────────────────────
+// groupBy: "" = ไม่แบ่ง · "_flightseg" = ตามช่วงเที่ยวบิน · หรือ column key
+// คืน group key ของแถว — null ถ้าไม่แบ่ง
+function groupKeyOf(row) {
+  if (!state.groupBy) return null;
+  if (state.groupBy === "_flightseg") {
+    const k = state.calc[row.code]?._flid;
+    return k != null ? "f:" + k : "f:none";
+  }
+  const col = COL_BY_KEY[state.groupBy];
+  if (!col) return null;
+  const v = cellValue(row, col);
+  return "v:" + (v || BLANK_VAL);
+}
+// หัวกลุ่มช่วงเที่ยวบิน (ใช้ trip_flights record) — รูปแบบเหมือนจดหมายขออนุมัติตั๋ว
+function flightSegHeader(flid) {
+  const en = curLang() === "en";
+  if (flid === "none") return en ? "✈️ No flight assigned" : "✈️ ยังไม่กำหนดเที่ยวบิน";
+  const fl = state.flightById[flid];
+  if (!fl) return en ? "✈️ Flight" : "✈️ เที่ยวบิน";
+  const dep = fl.departure_datetime ? fmtDate(fl.departure_datetime) : "";
+  const ret = fl.comeback_datetime ? fmtDate(fl.comeback_datetime) : "";
+  const port = fl.port || "";
+  const out = fl.flight || "";
+  const back = fl.comeback || "";
+  const l1 = `${en ? "Departure flight from" : "เที่ยวบินขาไป"} ${escapeHtml(port)}${out ? " " + escapeHtml(out) : ""}${dep ? ` : ${en ? "Date" : "วันที่"} ${escapeHtml(dep)}` : ""}`;
+  const l2 = `${en ? "Return flight" : "เที่ยวบินขากลับ"}${back ? " " + escapeHtml(back) : ""}${ret ? ` : ${en ? "Date" : "วันที่"} ${escapeHtml(ret)}` : ""}`;
+  return `${l1}<br>${l2}`;
+}
+// หัวกลุ่ม (label) ของ key
+function groupHeaderHtml(key) {
+  if (state.groupBy === "_flightseg") return flightSegHeader(key.slice(2));
+  const col = COL_BY_KEY[state.groupBy];
+  const raw = key.slice(2);
+  const val = raw === BLANK_VAL ? blankLabel() : raw;
+  return `${escapeHtml(col ? colLabel(col) : "")}: ${escapeHtml(val)}`;
+}
+// แบ่ง rows เป็นกลุ่ม — รักษาลำดับ row เดิม (sorted) ภายในกลุ่ม
+// คืน [{ key, headerHtml, rows }]  · ถ้าไม่แบ่ง → [{ key:null, headerHtml:"", rows }]
+function getGroups(rows) {
+  if (!state.groupBy) return [{ key: null, headerHtml: "", rows }];
+  const order = [];
+  const byKey = new Map();
+  rows.forEach(r => {
+    const k = groupKeyOf(r);
+    if (!byKey.has(k)) { byKey.set(k, []); order.push(k); }
+    byKey.get(k).push(r);
+  });
+  return order.map(k => ({ key: k, headerHtml: groupHeaderHtml(k), rows: byKey.get(k) }));
+}
+// ป้าย "Total N seats" / "รวม N ที่นั่ง"
+function totalLabel(n) {
+  return curLang() === "en" ? `Total ${n} seats` : `รวม ${n} ที่นั่ง`;
+}
+
+window.setGroupBy = function (v) {
+  state.groupBy = v || "";
+  renderPreview();
+};
+window.setShowTotal = function (on) {
+  state.showTotal = !!on;
+  renderPreview();
+};
+// เติม <option> ของ dropdown group-by ตามคอลัมน์ที่เลือกอยู่ (+ ช่วงเที่ยวบิน)
+function renderGroupBy() {
+  const sel = document.getElementById("crGroupBy");
+  if (!sel) return;
+  const en = curLang() === "en";
+  const cur = state.groupBy;
+  const opts = [`<option value="">${en ? "— No grouping —" : "— ไม่แบ่งกลุ่ม —"}</option>`,
+    `<option value="_flightseg">${en ? "✈️ By flight segment" : "✈️ ตามช่วงเที่ยวบิน"}</option>`];
+  state.selected.forEach(k => {
+    const c = COL_BY_KEY[k];
+    if (c) opts.push(`<option value="${escapeHtml(k)}">${escapeHtml(colLabel(c))}</option>`);
+  });
+  sel.innerHTML = opts.join("");
+  // ถ้า groupBy เดิมเป็นคอลัมน์ที่ถูกเอาออก → reset
+  if (cur && cur !== "_flightseg" && !state.selected.includes(cur)) state.groupBy = "";
+  sel.value = state.groupBy;
+}
+
 // ── HEADER FILTER POPOVER ──────────────────────────────────
 // 1 popover ทั่วโลก — เปิด-ปิดที่ document.body เพื่อให้ลอยเหนือ table overflow
 let _popState = null; // { key, el, search, draft:Set, closer }
@@ -832,17 +918,30 @@ function renderPreview() {
         </div>
       </th>`;
     }).join("");
-  const rspan = computeRowspans(rows, cols);
-  document.getElementById("crTbody").innerHTML = rows.map((row, i) =>
-    `<tr><td style="color:var(--text3)">${i + 1}</td>` +
-    cols.map((c, ci) => {
-      const span = rspan[ci][i];
-      if (span === 0) return ""; // ถูกผสานเข้า cell ด้านบน
-      const cls = (span > 1 ? "cr-merged " : "") + (c.fmt === "image" ? "cr-cell-img " : "") + (state.hidden[c.key] ? "cr-col-hidden" : "");
-      const attrs = (span > 1 ? ` rowspan="${span}"` : "") + (cls.trim() ? ` class="${cls.trim()}"` : "");
-      return `<td${attrs}>${cellHtml(row, c)}</td>`;
-    }).join("") +
-    `</tr>`).join("");
+  // group-aware tbody: หัวกลุ่ม + แถว (merge ภายในกลุ่ม) + Total ต่อกลุ่ม + grand total
+  const groups = getGroups(rows);
+  const span0 = cols.length + 1; // colspan เต็มแถว (# + ทุกคอลัมน์)
+  const en = curLang() === "en";
+  let html = "";
+  groups.forEach(g => {
+    if (g.key !== null) html += `<tr class="cr-grouphdr"><td colspan="${span0}">${g.headerHtml}</td></tr>`;
+    const grsp = computeRowspans(g.rows, cols);
+    g.rows.forEach((row, i) => {
+      html += `<tr><td style="color:var(--text3)">${i + 1}</td>` +
+        cols.map((c, ci) => {
+          const span = grsp[ci][i];
+          if (span === 0) return ""; // ถูกผสานเข้า cell ด้านบน
+          const cls = (span > 1 ? "cr-merged " : "") + (c.fmt === "image" ? "cr-cell-img " : "") + (state.hidden[c.key] ? "cr-col-hidden" : "");
+          const attrs = (span > 1 ? ` rowspan="${span}"` : "") + (cls.trim() ? ` class="${cls.trim()}"` : "");
+          return `<td${attrs}>${cellHtml(row, c)}</td>`;
+        }).join("") + `</tr>`;
+    });
+    if (state.showTotal) html += `<tr class="cr-totalrow"><td colspan="${span0}">${escapeHtml(totalLabel(g.rows.length))}</td></tr>`;
+  });
+  if (state.showTotal && state.groupBy && groups.length > 1) {
+    html += `<tr class="cr-grandtotal"><td colspan="${span0}">${escapeHtml((en ? "Grand total " : "รวมทั้งหมด ") + rows.length + (en ? " seats" : " ที่นั่ง"))}</td></tr>`;
+  }
+  document.getElementById("crTbody").innerHTML = html;
 }
 
 function renderTemplates() {
@@ -856,6 +955,7 @@ function renderTemplates() {
 
 function renderAll() {
   renderChips();
+  renderGroupBy();
   renderPreview();
 }
 
@@ -1389,6 +1489,96 @@ window.closePreview = function () {
   const modal = document.getElementById("crPreviewModal");
   if (modal) modal.style.display = "none";
 };
+// ── CREATE LETTER DOC (handoff → trip-docs) ────────────────
+// คอลัมน์ที่ใช้ในจดหมาย — ตัด image ออก (จดหมายขออนุมัติเป็นตารางข้อความ)
+function letterCols() {
+  return outputCols().filter(c => c.fmt !== "image");
+}
+
+// สร้าง HTML ตาราง (แบ่งกลุ่ม + Total) แบบ inline-style → ฝังใน body ของ trip-docs
+// (ใช้ border สีดำ + repeat thead ต่อกลุ่ม เหมือนจดหมายขออนุมัติตั๋ว)
+function buildLetterTableHtml() {
+  const cols = letterCols();
+  if (!cols.length) return "";
+  const rows = getRows();
+  const groups = getGroups(rows);
+  const en = curLang() === "en";
+  const TH = 'style="border:1px solid #000;padding:3px 7px;text-align:left;font-weight:700;font-size:12px"';
+  const TD = 'style="border:1px solid #000;padding:3px 7px;font-size:12px"';
+  const span0 = cols.length + 1;
+  const thead = `<tr><th style="border:1px solid #000;padding:3px 7px;text-align:center;font-weight:700;font-size:12px;width:34px">${en ? "NO." : "ลำดับ"}</th>` +
+    cols.map(c => `<th ${TH}>${escapeHtml(colLabel(c))}</th>`).join("") + `</tr>`;
+  let html = "";
+  groups.forEach(g => {
+    if (g.key !== null) html += `<p style="font-weight:600;margin:12px 0 3px;font-size:12.5px">${g.headerHtml}</p>`;
+    const grsp = computeRowspans(g.rows, cols);
+    const body = g.rows.map((row, i) =>
+      `<tr><td style="border:1px solid #000;padding:3px 7px;text-align:center;font-size:12px">${i + 1}</td>` +
+      cols.map((c, ci) => {
+        const sp = grsp[ci][i];
+        if (sp === 0) return "";
+        const attr = sp > 1 ? ` rowspan="${sp}"` : "";
+        return `<td ${TD}${attr}>${escapeHtml(cellValue(row, c))}</td>`;
+      }).join("") + `</tr>`).join("");
+    const totalRow = state.showTotal
+      ? `<tr><td colspan="${span0}" style="border:1px solid #000;padding:3px 7px;text-align:right;font-weight:700;font-size:12px;background:#f1f5f9">${escapeHtml(totalLabel(g.rows.length))}</td></tr>`
+      : "";
+    html += `<table style="border-collapse:collapse;width:100%;margin:2px 0 6px">${thead}${body}${totalRow}</table>`;
+  });
+  if (state.showTotal && state.groupBy && groups.length > 1) {
+    html += `<p style="text-align:right;font-weight:700;margin:6px 0;font-size:12.5px">${escapeHtml((en ? "Grand total " : "รวมทั้งหมด ") + rows.length + (en ? " seats" : " ที่นั่ง"))}</p>`;
+  }
+  return html;
+}
+
+// ปุ่ม "📄 สร้างเป็นจดหมาย" — สร้าง trip_documents (body=ตาราง + scaffold เปิด/ปิด) → เปิดใน trip-docs
+window.createLetterDoc = async function () {
+  if (!state.selected.length) { showToast(T("cr.toast.selectColsExport"), "info"); return; }
+  const cols = letterCols();
+  const en = curLang() === "en";
+  if (!cols.length) { showToast(en ? "Pick at least 1 text column (not image)" : "เลือกคอลัมน์ข้อความอย่างน้อย 1 (รูปจะไม่ออกในจดหมาย)", "info"); return; }
+  const tableHtml = buildLetterTableHtml();
+  // scaffold เปิด/ปิด (placeholder — แก้ต่อใน trip-docs ได้) · ใช้ {{...}} ที่ระบบ placeholder เดิมรองรับ
+  const intro = en
+    ? `<p>Subject : Request for approval — ${escapeHtml(tripTitle())}</p><p>Dear {{ผู้รับ}},</p><p>We respectfully request your kind approval for the following participants.</p>`
+    : `<p>เรื่อง : ขออนุมัติ — ${escapeHtml(tripTitle())}</p><p>เรียน {{ผู้รับ}}</p><p>ด้วยทางบริษัทขออนุมัติรายชื่อดังต่อไปนี้</p>`;
+  const closing = en
+    ? `<p style="margin-top:10px">We kindly seek your approval to proceed. Thank you for your consideration.</p><p style="margin-top:14px">Sincerely,</p>`
+    : `<p style="margin-top:10px">จึงเรียนมาเพื่อโปรดพิจารณาอนุมัติ จักขอบคุณยิ่ง</p><p style="margin-top:14px">ขอแสดงความนับถือ</p>`;
+  const body = intro + tableHtml + closing;
+  // serialize filters (Set → array) เพื่อเก็บ binding (phase 2: refresh in-place)
+  const filters = {};
+  Object.entries(state.filters).forEach(([k, set]) => { if (set && set.size) filters[k] = [...set]; });
+  const binding = {
+    source: "custom_report", trip_id: state.tripId, columns: state.selected,
+    hidden: state.hidden, merged: state.merged, sort: state.sort, filters,
+    groupBy: state.groupBy, showTotal: state.showTotal,
+  };
+  showLoading(true);
+  try {
+    const res = await sbFetch("trip_documents", "", {
+      method: "POST",
+      body: {
+        template_id: null,
+        title: `${tripTitle()} — ${en ? "Approval letter" : "จดหมายขออนุมัติ"}`,
+        status: "DRAFT",
+        field_values: {},
+        body,
+        data_bindings: binding,
+        updated_at: new Date().toISOString(),
+      },
+    });
+    const created = Array.isArray(res) ? res[0] : res;
+    if (!created?.doc_id) throw new Error("no doc_id returned");
+    showToast(en ? "Document created — opening…" : "สร้างเอกสารแล้ว — กำลังเปิด...", "success");
+    location.href = `./trip-docs.html?doc_id=${created.doc_id}`;
+  } catch (e) {
+    showLoading(false);
+    const hint = /data_bindings/.test(e.message || "") ? (en ? " (run sql/136)" : " (ยังไม่ได้รัน sql/136)") : "";
+    showToast((en ? "Create failed: " : "สร้างไม่สำเร็จ: ") + e.message + hint, "error");
+  }
+};
+
 // ── IMAGE LIGHTBOX (click thumbnail → ภาพขยาย) ──────────────
 window.crOpenImg = function (el) {
   const m = document.getElementById("cr-img-modal");

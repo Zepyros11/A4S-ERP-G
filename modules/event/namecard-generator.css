@@ -227,45 +227,7 @@
 }
 .vip-layout-info b { color: var(--accent); font-size: 15px; }
 
-/* ── VIP Card · custom size via CSS vars ───────────────────── */
-.vip-card {
-  position: relative;
-  width: var(--vip-w, 95mm);
-  height: var(--vip-h, 50mm);
-  background: #fff;
-  border: 1px dashed #cbd5e1;
-  overflow: hidden;
-  box-sizing: border-box;
-}
-.vip-card-logo {
-  position: absolute; left: 0; right: 0;
-  top: 8%; height: 30%;
-  display: flex; align-items: center; justify-content: center;
-}
-.vip-card-logo img {
-  max-height: 100%; max-width: 62%; object-fit: contain;
-}
-.vip-card-band {
-  position: absolute; left: 0; right: 0;
-  top: 50%; bottom: 0;
-  background: #6BBE45;
-  display: flex; align-items: center; justify-content: center;
-  padding: 0 6px; box-sizing: border-box;
-  -webkit-print-color-adjust: exact;
-  print-color-adjust: exact;
-  color-adjust: exact;
-}
-.vip-card-text {
-  font-family: 'Sarabun', sans-serif;
-  font-weight: 900;
-  font-size: 64px;
-  color: #0f172a;
-  letter-spacing: 0.08em;
-  line-height: 1;
-  white-space: nowrap;
-}
-
-/* ── Badge tab (logo + name) ───────────────────────────────── */
+/* ── Custom tab (merged: VIP + logo + sequence) ────────────── */
 /* Logo library gallery */
 .badge-logo-grid {
   display: flex; flex-wrap: wrap; gap: 10px;
@@ -316,62 +278,132 @@
 .badge-logo-item:hover .badge-logo-del { opacity: 1; }
 .badge-logo-del:hover { background: #dc2626; }
 
-/* Badge card · custom size via CSS vars (logo top + name below) */
-.badge-card {
+/* Logo strip · built-in tiles (company / none) */
+.c-logo-tag {
+  position: absolute; bottom: 0; left: 0; right: 0;
+  text-align: center; font-size: 9px; font-weight: 700;
+  color: var(--text2, #6a635b); background: rgba(255,255,255,.85);
+  padding: 1px 0; pointer-events: none;
+}
+.badge-logo-item.c-logo-none {
+  display: flex; align-items: center; justify-content: center;
+  background: #faf8f4;
+}
+.c-logo-none-x { font-size: 30px; color: #b9b2a6; line-height: 1; }
+.c-section-label {
+  font-size: 11px; font-weight: 600; color: var(--text3, #9d958b);
+  text-transform: uppercase; letter-spacing: .4px;
+  padding: 12px 18px 0;
+}
+.c-logo-actions {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 18px 2px; flex-wrap: wrap;
+}
+/* Size grid: keep กว้าง / × / สูง on one row (override .vip-field:first-child) */
+.c-size-grid .vip-field:first-child { flex: 0 0 auto; }
+
+/* Sequence grid: ROW | COLUMN share one row · separator stays narrow */
+.c-seq-grid .vip-field:first-child { flex: 1 1 0; }
+.c-seq-grid .c-seq-field { flex: 1 1 0; min-width: 0; }
+
+/* Help icon · "?" badge with hover tooltip */
+.c-help {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 15px; height: 15px; margin-left: 5px;
+  border-radius: 50%; background: var(--accent-pale, #e8f2e2);
+  color: var(--accent, #4a7c4e); font-size: 10px; font-weight: 700;
+  cursor: help; position: relative; vertical-align: middle;
+}
+.c-help::after {
+  content: attr(data-tip);
+  position: absolute; bottom: 145%; left: 50%; transform: translateX(-50%);
+  background: #2d2a26; color: #fff;
+  font-size: 11px; font-weight: 500; line-height: 1.4;
+  letter-spacing: normal; text-transform: none;
+  white-space: nowrap; padding: 5px 9px; border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(15,23,42,.22);
+  opacity: 0; pointer-events: none; transition: opacity .12s; z-index: 50;
+}
+.c-help::before {
+  content: ""; position: absolute; bottom: 145%; left: 50%;
+  transform: translate(-50%, 90%); border: 5px solid transparent;
+  border-top-color: #2d2a26; opacity: 0; transition: opacity .12s; z-index: 50;
+}
+.c-help:hover::after, .c-help:hover::before { opacity: 1; }
+
+/* ── Custom card · size via CSS vars · 3 variants ──────────── */
+.c-card {
   position: relative;
-  width: var(--badge-w, 95mm);
-  height: var(--badge-h, 60mm);
+  width: var(--c-w, 95mm);
+  height: var(--c-h, 60mm);
   background: #fff;
   border: 1px dashed #cbd5e1;
   overflow: hidden;
   box-sizing: border-box;
+}
+/* variant: plain (logo top + name below) */
+.c-card.c-plain {
   display: flex; flex-direction: column;
   align-items: center; justify-content: center;
   padding: 4mm 3mm;
 }
-.badge-card-logo {
-  flex: 0 0 auto;
-  max-height: 52%; width: 100%;
+.c-plain .c-logo {
+  flex: 0 0 auto; max-height: 52%; width: 100%;
   display: flex; align-items: center; justify-content: center;
   margin-bottom: 2mm;
 }
-.badge-card-logo img {
-  max-height: 100%; max-width: 80%; object-fit: contain;
-}
-.badge-card-logo.is-empty {
-  min-height: 18%;
-}
-.badge-card-name {
-  flex: 0 1 auto;
+.c-plain .c-logo.is-empty { min-height: 18%; }
+.c-logo img { max-height: 100%; max-width: 80%; object-fit: contain; }
+.c-name {
   width: 100%;
-  font-family: 'Sarabun', sans-serif;
-  font-weight: 800;
-  font-size: 40px;
-  color: #0f172a;
-  line-height: 1.05;
-  text-align: center;
-  overflow: hidden;
-  word-break: break-word;
+  font-family: 'Sarabun', sans-serif; font-weight: 800; font-size: 40px;
+  color: #0f172a; line-height: 1.05; text-align: center;
+  overflow: hidden; word-break: break-word;
+}
+/* variant: vip (logo fills top · green band strip at the bottom) */
+.c-vip .c-logo {
+  position: absolute; left: 0; right: 0; top: 6%; height: 52%;
+  display: flex; align-items: center; justify-content: center;
+}
+.c-vip .c-band {
+  position: absolute; left: 0; right: 0; top: 62%; bottom: 0;
+  background: #6BBE45;
+  display: flex; align-items: center; justify-content: center;
+  padding: 0 6px; box-sizing: border-box;
+  -webkit-print-color-adjust: exact; print-color-adjust: exact; color-adjust: exact;
+}
+.c-band-text {
+  font-family: 'Sarabun', sans-serif; font-weight: 900; font-size: 64px;
+  color: #0f172a; letter-spacing: .08em; line-height: 1; white-space: nowrap;
+}
+/* variant: sequence (big number) */
+.c-card.c-seq {
+  display: flex; align-items: center; justify-content: center;
+  padding: 2mm;
+}
+.c-seq-num {
+  font-family: 'Sarabun', sans-serif; font-weight: 900;
+  color: #0f172a; line-height: 1; white-space: nowrap;
 }
 
-/* Badge A4 · wrapper holds the scaled size (same model as VIP) */
-.badge-a4-wrap {
+/* Custom A4 · wrapper holds the scaled size · orientation via --c-pw/--c-ph */
+.c-a4-wrap {
   position: relative;
-  width:  calc(210mm * var(--nmc-zoom, .5));
-  height: calc(297mm * var(--nmc-zoom, .5));
+  width:  calc(var(--c-pw, 210mm) * var(--nmc-zoom, .5));
+  height: calc(var(--c-ph, 297mm) * var(--nmc-zoom, .5));
   background: #fff;
   box-shadow: 0 4px 18px rgba(15,23,42,.18);
   overflow: hidden;
   flex: 0 0 auto;
 }
-.badge-a4 {
+.c-a4 {
   position: absolute; top: 0; left: 0;
-  width: 210mm; height: 297mm;
+  width: var(--c-pw, 210mm); height: var(--c-ph, 297mm);
   background: #fff;
   box-sizing: border-box;
   display: grid;
-  grid-template-columns: repeat(var(--badge-cols, 2), var(--badge-w, 95mm));
-  grid-template-rows: repeat(var(--badge-rows, 5), var(--badge-h, 60mm));
+  grid-template-columns: repeat(var(--c-cols, 2), var(--c-w, 95mm));
+  grid-template-rows: repeat(var(--c-rows, 5), var(--c-h, 60mm));
   gap: 0;
   justify-content: center;
   align-content: start;
@@ -397,43 +429,6 @@
   box-shadow: 0 2px 6px rgba(var(--accent-rgb),.28);
 }
 
-/* Seat A4: wrapper holds the SCALED size · page size set via inline vars
-   (--seat-pw / --seat-ph) so the same rule serves portrait & landscape. */
-.seat-a4-wrap {
-  position: relative;
-  width:  calc(var(--seat-pw, 210mm) * var(--nmc-zoom, .5));
-  height: calc(var(--seat-ph, 297mm) * var(--nmc-zoom, .5));
-  background: #fff;
-  box-shadow: 0 4px 18px rgba(15,23,42,.18);
-  overflow: hidden;
-  flex: 0 0 auto;
-}
-.seat-a4 {
-  position: absolute; top: 0; left: 0;
-  width:  var(--seat-pw, 210mm);
-  height: var(--seat-ph, 297mm);
-  background: #fff;
-  box-sizing: border-box;
-  display: grid;
-  grid-template-columns: repeat(var(--seat-cols, 2), var(--seat-w, 105mm));
-  grid-template-rows: repeat(var(--seat-rows, 3), var(--seat-h, 99mm));
-  gap: 0;
-  justify-content: center;
-  align-content: start;
-  transform-origin: top left;
-  transform: scale(var(--nmc-zoom, .5));
-}
-.seat-card {
-  position: relative;
-  width:  var(--seat-w, 105mm);
-  height: var(--seat-h, 99mm);
-  background: #fff;
-  border: 1px dashed #cbd5e1;   /* cutting guide */
-  box-sizing: border-box;
-  display: flex; align-items: center; justify-content: center;
-  overflow: hidden;
-}
-.seat-card.seat-blank { visibility: hidden; }
 .seat-more-note {
   width: 100%;
   text-align: center;
@@ -443,15 +438,6 @@
   border: 1px dashed var(--accent-light);
   border-radius: var(--radius, 10px);
   padding: 10px 14px;
-}
-.seat-card-num {
-  font-family: 'Sarabun', sans-serif;
-  font-weight: 900;
-  color: #0f172a;
-  line-height: 1;
-  white-space: nowrap;
-  text-align: center;
-  /* font-size set inline via JS for auto-fit */
 }
 
 /* ── PolySans (cert name font) ─────────────────────────────── */
@@ -744,34 +730,7 @@
 .cert-pos-radio input[type="radio"] { cursor: pointer; accent-color: var(--accent); }
 .cert-pos-radio:has(input:checked) { border-color: var(--accent); background: var(--accent-pale); font-weight: 600; }
 
-/* VIP A4: wrapper holds the SCALED size so flex layout spaces pages
-   correctly · inner .vip-a4 is the real 210×297mm sheet, scaled inside. */
-.vip-a4-wrap {
-  position: relative;
-  width:  calc(210mm * var(--nmc-zoom, .5));
-  height: calc(297mm * var(--nmc-zoom, .5));
-  background: #fff;
-  box-shadow: 0 4px 18px rgba(15,23,42,.18);
-  overflow: hidden;
-  flex: 0 0 auto;
-}
-.vip-a4 {
-  position: absolute; top: 0; left: 0;
-  width: 210mm; height: 297mm;
-  background: #fff;
-  padding: 0;
-  box-sizing: border-box;
-  display: grid;
-  grid-template-columns: repeat(var(--vip-cols, 2), var(--vip-w, 95mm));
-  grid-template-rows: repeat(var(--vip-rows, 5), var(--vip-h, 50mm));
-  gap: 0;
-  justify-content: center;
-  align-content: start;
-  transform-origin: top left;
-  transform: scale(var(--nmc-zoom, .5));
-}
-
-/* Preview page label */
+/* Preview page label (shared by custom-tab sheets) */
 .vip-page-item {
   display: flex; flex-direction: column;
   align-items: center; gap: 8px;
@@ -1029,10 +988,8 @@
   visibility: hidden;
 }
 .nmc-print-area .nmc-a4,
-.nmc-print-area .vip-a4,
 .nmc-print-area .cert-a4,
-.nmc-print-area .seat-a4,
-.nmc-print-area .badge-a4 {
+.nmc-print-area .c-a4 {
   /* On-paper layout while sitting off-screen */
   transform: none !important;
   margin: 0 !important;
@@ -1044,16 +1001,10 @@
   height: 210mm !important;
   box-shadow: none !important;
 }
-.nmc-print-area .vip-a4-wrap,
-.nmc-print-area .badge-a4-wrap {
-  width: 210mm !important;
-  height: 297mm !important;
-  box-shadow: none !important;
-}
-/* Seat sheet: orientation varies → size driven by inline --seat-pw/-ph vars */
-.nmc-print-area .seat-a4-wrap {
-  width: var(--seat-pw, 210mm) !important;
-  height: var(--seat-ph, 297mm) !important;
+/* Custom sheet: orientation varies → size driven by inline --c-pw/-ph vars */
+.nmc-print-area .c-a4-wrap {
+  width: var(--c-pw, 210mm) !important;
+  height: var(--c-ph, 297mm) !important;
   box-shadow: none !important;
 }
 

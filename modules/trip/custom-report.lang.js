@@ -38,8 +38,16 @@ I18n.register({
   "cr.ori.landscape":      { th: "แนวนอน", en: "Landscape" },
   "cr.ori.portrait":       { th: "แนวตั้ง", en: "Portrait" },
 
+  // ── Grouping / Total ───────────────────────────────────
+  "cr.group.label":        { th: "🗂 แบ่งกลุ่ม:", en: "🗂 Group by:" },
+  "cr.group.title":        { th: "แบ่งตารางเป็น section ตามช่วงเที่ยวบินหรือคอลัมน์ที่เลือก", en: "Split the table into sections by flight segment or a selected column" },
+  "cr.group.total":        { th: "Σ รวมยอด", en: "Σ Totals" },
+  "cr.group.totalTitle":   { th: "แสดงแถวรวมจำนวนท้ายแต่ละกลุ่ม + รวมทั้งหมด", en: "Show a count row at the end of each group + grand total" },
+
   // ── Buttons ────────────────────────────────────────────
   "cr.btn.excel":          { th: "📥 Excel", en: "📥 Excel" },
+  "cr.btn.makeLetter":     { th: "📄 สร้างเป็นจดหมาย", en: "📄 Make letter" },
+  "cr.btn.makeLetterTitle":{ th: "สร้างเอกสารจดหมายจากตารางนี้ — ใส่หัวกระดาษ/ลายเซ็น/ข้อความเปิด-ปิด ในหน้าเอกสาร", en: "Create a letter document from this table — add letterhead/signature/opening-closing text in the Documents page" },
   "cr.btn.preview":        { th: "👁 Preview", en: "👁 Preview" },
   "cr.btn.previewTitle":   { th: "ดูตัวอย่างหน้ากระดาษ A4 ก่อนพิมพ์", en: "Preview the A4 page before printing" },
   "cr.btn.print":          { th: "🖨 Print / PDF", en: "🖨 Print / PDF" },

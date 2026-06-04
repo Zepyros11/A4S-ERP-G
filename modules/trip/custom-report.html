@@ -84,6 +84,21 @@
       table.cr-table tbody tr:hover{background:#f1f5f9}
       .cr-empty{padding:40px 20px;text-align:center;color:var(--text3);font-size:13px}
 
+      /* group header / total rows (เมื่อเปิด "แบ่งกลุ่ม" / "รวมยอด") */
+      table.cr-table tr.cr-grouphdr td{
+        background:#e0f2fe;color:#075985;font-weight:700;font-size:12px;
+        border-top:2px solid #0ea5e9;line-height:1.5;
+      }
+      table.cr-table tr.cr-grouphdr:hover td{background:#e0f2fe}
+      table.cr-table tr.cr-totalrow td{
+        background:#f1f5f9;color:#334155;font-weight:700;text-align:right;
+      }
+      table.cr-table tr.cr-totalrow:hover td{background:#f1f5f9}
+      table.cr-table tr.cr-grandtotal td{
+        background:#dcfce7;color:#166534;font-weight:800;text-align:right;font-size:12.5px;
+      }
+      table.cr-table tr.cr-grandtotal:hover td{background:#dcfce7}
+
       /* ── Header filter ── */
       .cr-th-flex{display:inline-flex;align-items:center;gap:4px;width:100%}
       .cr-th-lbl{flex:1;cursor:pointer;user-select:none}
@@ -495,6 +510,16 @@
                     <option value="bottom" data-i18n="cr.fieldPos.bottom">⬇ ล่าง</option>
                   </select>
                 </span>
+                <span style="font-size:11.5px;color:var(--text2)" data-i18n="cr.group.label">🗂 แบ่งกลุ่ม:</span>
+                <select id="crGroupBy" class="filter-select" onchange="window.setGroupBy(this.value)"
+                  data-i18n-attr="title:cr.group.title" title="แบ่งตารางเป็น section ตามช่วงเที่ยวบินหรือคอลัมน์ที่เลือก">
+                  <option value="">— ไม่แบ่งกลุ่ม —</option>
+                </select>
+                <label style="display:inline-flex;align-items:center;gap:4px;font-size:11.5px;color:var(--text2);cursor:pointer;white-space:nowrap"
+                  data-i18n-attr="title:cr.group.totalTitle" title="แสดงแถวรวมจำนวนท้ายแต่ละกลุ่ม + รวมทั้งหมด">
+                  <input type="checkbox" id="crShowTotal" onchange="window.setShowTotal(this.checked)" style="margin:0;width:14px;height:14px">
+                  <span data-i18n="cr.group.total">Σ รวมยอด</span>
+                </label>
                 <select id="crOrientation" class="filter-select" onchange="window.setOrientation(this.value)">
                   <option value="landscape" selected data-i18n="cr.ori.landscape">แนวนอน</option>
                   <option value="portrait" data-i18n="cr.ori.portrait">แนวตั้ง</option>
@@ -503,6 +528,10 @@
               <button class="btn btn-outline" onclick="window.exportReportExcel()" data-i18n="cr.btn.excel">📥 Excel</button>
               <button class="btn btn-outline" onclick="window.previewReportPrint()" data-i18n="cr.btn.preview" data-i18n-attr="title:cr.btn.previewTitle" title="ดูตัวอย่างหน้ากระดาษ A4 ก่อนพิมพ์">👁 Preview</button>
               <button class="btn btn-primary" onclick="window.exportReportPrint()" data-i18n="cr.btn.print">🖨 Print / PDF</button>
+              <button class="btn btn-primary" onclick="window.createLetterDoc()"
+                style="background:#7c3aed;border-color:#7c3aed"
+                data-i18n="cr.btn.makeLetter" data-i18n-attr="title:cr.btn.makeLetterTitle"
+                title="สร้างเอกสารจดหมายจากตารางนี้ — ใส่หัวกระดาษ/ลายเซ็น/ข้อความเปิด-ปิด ในหน้าเอกสาร">📄 สร้างเป็นจดหมาย</button>
             </div>
           </div>
 

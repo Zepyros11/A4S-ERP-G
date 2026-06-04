@@ -428,6 +428,12 @@
           path: BASE_PATH + "/modules/settings/bell-rules.html",
         },
         {
+          id: "bell-triggers",
+          icon: "💬",
+          label: "เหตุการณ์แจ้งเตือน",
+          path: BASE_PATH + "/modules/settings/bell-triggers.html",
+        },
+        {
           id: "staff-groups",
           icon: "👥",
           label: "กลุ่มพนักงาน",
@@ -524,6 +530,7 @@
     "line-templates": "sys_settings_view",
     "notification-rules": "sys_settings_view",
     "bell-rules": "sys_settings_view",
+    "bell-triggers": "sys_settings_view",
     "staff-groups": "sys_settings_view",
     roles: "roles_view",
     suppliers: "supplier_view",
@@ -620,6 +627,7 @@
     "line-templates",
     "notification-rules",
     "bell-rules",
+    "bell-triggers",
     "staff-groups",
     "roles",
 

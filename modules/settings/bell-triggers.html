@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>💬 เหตุการณ์แจ้งเตือน (Triggers) — A4S-ERP</title>
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="../../css/main.css" />
+<style>
+/* ── master-detail layout ── */
+.trig-layout{display:grid;grid-template-columns:340px 1fr;gap:16px;align-items:start;}
+@media (max-width:900px){.trig-layout{grid-template-columns:1fr;}}
+
+/* ── left: list ── */
+.trig-left{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:12px;position:sticky;top:12px;}
+.trig-left-hd{display:flex;align-items:center;gap:8px;margin-bottom:10px;}
+.trig-left-hd .ttl{font-weight:700;font-size:14px;}
+.trig-list{display:flex;flex-direction:column;gap:7px;max-height:calc(100vh - 180px);overflow-y:auto;padding-right:2px;}
+.trig-card{display:flex;gap:8px;align-items:flex-start;padding:9px 11px;border:1px solid var(--border);border-radius:10px;background:var(--surface2);cursor:pointer;transition:.12s;}
+.trig-card:hover{border-color:var(--accent);}
+.trig-card.active{border-color:var(--accent);background:var(--accent-pale);}
+.trig-card.off{opacity:.6;}
+.trig-card-main{flex:1;min-width:0;}
+.trig-card-label{font-weight:700;font-size:13.5px;margin-bottom:3px;line-height:1.3;}
+.trig-card-meta{display:flex;flex-wrap:wrap;gap:5px;align-items:center;}
+.trig-badge{display:inline-block;padding:2px 6px;border-radius:5px;font-size:9.5px;font-weight:700;}
+.trig-badge.lock{background:#fef3c7;color:#92400e;}
+.trig-badge.off{background:#fee2e2;color:#991b1b;}
+.br-trigger-chip{display:inline-block;padding:2px 7px;border-radius:7px;font-size:10px;font-weight:700;font-family:'IBM Plex Mono',monospace;background:#dbeafe;color:#1e40af;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.trig-card-del{flex-shrink:0;background:none;border:none;cursor:pointer;font-size:14px;opacity:.5;padding:2px;border-radius:5px;}
+.trig-card-del:hover{opacity:1;background:#fee2e2;}
+.trig-card-del:disabled{opacity:.2;cursor:not-allowed;}
+.trig-list-empty{text-align:center;color:var(--text3);font-size:13px;padding:24px 0;}
+
+/* ── right: editor ── */
+.trig-right{background:var(--surface);border:1px solid var(--border);border-radius:14px;min-height:300px;}
+.trig-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:80px 24px;color:var(--text3);text-align:center;}
+.trig-empty .ic{font-size:42px;}
+.trig-edit-hd{display:flex;align-items:center;gap:10px;padding:16px 20px;border-bottom:1px solid var(--border);}
+.trig-edit-hd .ttl{font-weight:700;font-size:16px;}
+.trig-edit-body{padding:18px 20px;}
+.trig-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px 18px;}
+@media (max-width:680px){.trig-grid{grid-template-columns:1fr;}}
+.trig-col-full{grid-column:1 / -1;}
+
+.br-hint{font-size:11.5px;color:var(--text3);margin-top:4px;line-height:1.5;}
+
+/* ── placeholder tag input ── */
+.trig-ph-wrap{display:flex;flex-wrap:wrap;gap:6px;padding:8px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);min-height:42px;align-items:center;}
+.trig-ph-tag{display:inline-flex;align-items:center;gap:6px;background:#fef3c7;color:#92400e;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:600;font-family:'IBM Plex Mono',monospace;}
+.trig-ph-x{cursor:pointer;font-size:14px;line-height:1;opacity:.6;}
+.trig-ph-x:hover{opacity:1;}
+.trig-ph-input{flex:1;min-width:120px;border:none;outline:none;background:transparent;font-family:inherit;font-size:13px;padding:4px;color:var(--text);}
+
+/* ── reference table ── */
+.trig-ref{border:1px solid var(--border);border-radius:10px;overflow:hidden;}
+.trig-ref-scroll{max-height:340px;overflow:auto;}
+.trig-ref-table{width:100%;border-collapse:collapse;font-size:12.5px;}
+.trig-ref-table th{text-align:left;padding:8px 12px;color:var(--text3);font-weight:700;font-size:11px;border-bottom:1.5px solid var(--border);background:var(--surface2);position:sticky;top:0;z-index:1;}
+.trig-ref-table th.act,.trig-ref-row td.act{text-align:center;width:48px;}
+.trig-ref-group td{padding:9px 12px 5px;font-weight:700;font-size:12.5px;background:var(--surface2);border-bottom:1px solid var(--border);}
+.trig-ref-row{cursor:pointer;border-bottom:1px solid var(--border);}
+.trig-ref-row:hover{background:var(--accent-pale);}
+.trig-ref-row td{padding:7px 12px;vertical-align:middle;}
+.trig-ref-row code{font-family:'IBM Plex Mono',monospace;font-size:12px;background:#fef3c7;color:#92400e;padding:1px 7px;border-radius:5px;white-space:nowrap;}
+.trig-ref-row .smp{color:var(--text2);word-break:break-word;}
+.trig-ref-row .act{color:var(--accent);font-weight:700;font-size:15px;}
+.trig-ref-row.added{cursor:default;opacity:.5;}
+.trig-ref-row.added:hover{background:transparent;}
+.trig-ref-row.added .act{color:#16a34a;}
+
+/* ── generated code box ── */
+.trig-code{margin-top:14px;border:1px solid var(--border);border-radius:10px;overflow:hidden;}
+.trig-code-hd{display:flex;align-items:center;gap:8px;padding:9px 12px;background:var(--surface2);font-size:12.5px;font-weight:700;border-bottom:1px solid var(--border);}
+.trig-code-hd .btn{margin-left:auto;}
+.trig-code pre{margin:0;padding:12px 14px;font-family:'IBM Plex Mono',monospace;font-size:11.5px;line-height:1.6;white-space:pre-wrap;word-break:break-word;color:var(--text);background:var(--surface);max-height:240px;overflow:auto;}
+.trig-code details{border-top:1px solid var(--border);}
+.trig-code details summary{cursor:pointer;padding:9px 12px;font-size:12px;font-weight:600;color:var(--text2);background:var(--surface2);user-select:none;}
+.trig-code details summary:hover{color:var(--accent);}
+
+.br-ph{display:inline-block;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:600;background:#fef3c7;color:#92400e;cursor:pointer;font-family:'IBM Plex Mono',monospace;border:1px dashed #fcd34d;}
+</style>
+</head>
+<body>
+<div class="loading-overlay" id="loadingOverlay"><div class="spinner"></div></div>
+<div class="toast" id="toast"></div>
+
+<div class="topbar"></div>
+
+<div class="page">
+  <div class="page-hero page-hero--simple page-hero--compact">
+    <div>
+      <h1 class="page-hero-title">💬 เหตุการณ์แจ้งเตือน (Triggers)</h1>
+      <p class="page-hero-sub">คลังเหตุการณ์ที่ใช้ตั้ง <a href="./bell-rules.html">🔔 กฎแจ้งเตือนกระดิ่ง</a> · เพิ่ม/แก้/ลบ + auto SQL + โค้ดยิงสำหรับโปรแกรมเมอร์</p>
+    </div>
+    <div class="page-hero-actions">
+      <button class="btn-on-hero btn-primary" onclick="window.newTrig()">＋ เพิ่มเหตุการณ์</button>
+    </div>
+  </div>
+
+  <div class="trig-layout">
+    <!-- LEFT: list -->
+    <div class="trig-left">
+      <div class="trig-left-hd"><span class="ttl">รายการเหตุการณ์</span></div>
+      <div class="trig-list" id="trigList">
+        <div class="trig-list-empty">⏳ กำลังโหลด...</div>
+      </div>
+    </div>
+
+    <!-- RIGHT: editor -->
+    <div class="trig-right" id="trigRight">
+      <div class="trig-empty" id="trigEmpty">
+        <div class="ic">💬</div>
+        <div>เลือกเหตุการณ์ทางซ้ายเพื่อแก้ไข<br>หรือกด <strong>＋ เพิ่มเหตุการณ์</strong> ด้านบน</div>
+      </div>
+
+      <div id="trigEditor" style="display:none">
+        <div class="trig-edit-hd">
+          <span class="ttl" id="trigEditTitle">เพิ่มเหตุการณ์</span>
+          <div style="flex:1"></div>
+          <button class="btn btn-ghost" onclick="window.showTrigCode()">&lt;/&gt; โค้ด (SQL + ยิง)</button>
+          <button class="btn btn-primary" id="btnSaveTrig" onclick="window.saveTrigger()">💾 บันทึก</button>
+        </div>
+        <div class="trig-edit-body">
+          <div class="trig-grid">
+            <div class="form-group">
+              <label class="form-label">ชื่อเหตุการณ์ (Label) <span class="req">*</span></label>
+              <input class="form-control" id="tLabel" placeholder="เช่น 💬 มีข้อความใหม่ใน Event" autocomplete="off" oninput="window.onTrigLabelInput()" />
+              <div class="br-hint">ใส่ emoji นำหน้าได้ — ข้อความนี้คือสิ่งที่โชว์ใน dropdown</div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">รหัสเหตุการณ์ (Key) <span class="req">*</span></label>
+              <input class="form-control" id="tKey" placeholder="เช่น custom.event_message" autocomplete="off" spellcheck="false" />
+              <div class="br-hint">ตัวพิมพ์เล็ก/ตัวเลข/จุด/ขีดล่าง · ใช้ในโค้ดยิง · <strong>ตั้งแล้วเปลี่ยนไม่ได้</strong></div>
+            </div>
+
+            <div class="form-group trig-col-full">
+              <label class="form-label">ตัวแปรที่ใช้ได้ (Placeholders)</label>
+              <div class="trig-ph-wrap" id="tPHWrap"></div>
+              <div class="br-hint">ชื่อตัวแปรสำหรับใส่ใน <code>{{ }}</code> ของข้อความกฎ — พิมพ์ + Enter · หรือคลิกจากตารางอ้างอิงด้านล่าง</div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">ตัวอย่างข้อมูล (Sample)</label>
+              <textarea class="form-control" id="tSample" rows="6" spellcheck="false" style="font-family:'IBM Plex Mono',monospace;font-size:12px"></textarea>
+              <button type="button" class="btn btn-ghost" style="margin-top:6px" onclick="window.regenTrigSample()">↻ เติมจากตัวแปร</button>
+              <div class="br-hint">ค่าตัวอย่างของแต่ละตัวแปร (JSON) — โชว์ในคอลัมน์ "ตัวอย่างค่า" และตอนกด "ดูตัวอย่าง"</div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">คำอธิบาย (Description)</label>
+              <input class="form-control" id="tDesc" placeholder="เช่น ยิงเมื่อมีข้อความใหม่ในแชทของ event" autocomplete="off" />
+              <div style="margin-top:14px;display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap">
+                <div style="width:110px">
+                  <label class="form-label">ลำดับ</label>
+                  <input class="form-control" id="tSort" type="number" value="100" />
+                </div>
+                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding-bottom:8px">
+                  <input type="checkbox" id="tActive" checked />
+                  <span>เปิดใช้งาน</span>
+                </label>
+              </div>
+            </div>
+
+            <div class="form-group trig-col-full">
+              <label class="form-label">💡 ตัวแปรจากเหตุการณ์อื่น (คลิกแถวเพื่อเพิ่ม)</label>
+              <div class="trig-ref">
+                <div class="trig-ref-scroll" id="tPHRef"></div>
+              </div>
+            </div>
+
+            <div class="trig-col-full" id="trigCode"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="../../js/core/auth.js"></script>
+<script src="../../js/core/authz.js"></script>
+<script>AuthZ.requirePerm("sys_settings_view");</script>
+<script src="../../js/core/date-format.js"></script>
+<script src="./bell-triggers.js"></script>
+<script src="../../js/components/navigation/sidebar.js"></script>
+<script src="../../js/components/modal/modalManager.js"></script>
+<script src="../../js/components/modal/confirmModal.js"></script>
+<script type="module">
+  import { loadTopbar } from "../../js/components/navigation/topbar.js";
+  loadTopbar("💬 เหตุการณ์แจ้งเตือน");
+</script>
+</body>
+</html>

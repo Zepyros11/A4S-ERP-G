@@ -79,6 +79,13 @@ async function init() {
   bindEvents();
   initRTE();
   await loadAll();
+
+  // เปิดจาก custom-report (?doc_id=) → เปิด editor ฉบับนั้นทันที
+  const openId = parseInt(new URLSearchParams(location.search).get("doc_id"), 10);
+  if (Number.isFinite(openId) && state.docs.some((d) => d.doc_id === openId)) {
+    window.openDocEdit(openId);
+    history.replaceState(null, "", location.pathname); // กัน reopen ตอน refresh
+  }
 }
 
 // ── RICH-TEXT EDITOR (contenteditable + toolbar) ───────────
