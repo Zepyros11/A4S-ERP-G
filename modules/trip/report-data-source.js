@@ -12,29 +12,16 @@
 (function (global) {
   "use strict";
 
-  // ── COLUMN CATALOG (ตรงกับ custom-report.js) ───────────────
+  // ── COLUMN CATALOG ─────────────────────────────────────────
+  // checkseat + detail → ดึงจาก catalog กลาง js/shared/pax-fields.js (single source)
+  // กลุ่ม calc (ห้อง/รถ/บิน/ทีม) hardcode เหมือน custom-report.js
+  // ⚠️ ต้องโหลด pax-fields.js ก่อนไฟล์นี้
+  if (!global.PaxFields) {
+    console.error("[report-data-source] ต้องโหลด js/shared/pax-fields.js ก่อน report-data-source.js");
+  }
+  const _crCols = (g) => (global.PaxFields ? global.PaxFields.crCols(g) : []);
   const COLUMN_GROUPS = [
-    {
-      id: "checkseat", label: "🪑 Check Seat",
-      cols: [
-        { key: "code",              label: "รหัส",             src: "pax" },
-        { key: "name",              label: "ชื่อ",              src: "pax" },
-        { key: "gender",            label: "เพศ",              src: "pax", fmt: "gender" },
-        { key: "nationality",       label: "สัญชาติ",          src: "pax" },
-        { key: "pin",               label: "ตำแหน่ง",          src: "pax" },
-        { key: "group_name",        label: "กลุ่ม",            src: "pax" },
-        { key: "seat",              label: "ที่นั่งเครื่องบิน", src: "pax" },
-        { key: "passport_id",       label: "เลขพาสปอร์ต",      src: "pax" },
-        { key: "passport_exp_date", label: "พาสปอร์ตหมดอายุ",  src: "pax", fmt: "date" },
-        { key: "passport_image_url", label: "ภาพ passport",    src: "pax", fmt: "image" },
-        { key: "visa_image_url",     label: "ภาพสลิป/วีซ่า",    src: "pax", fmt: "image" },
-        { key: "tshirt_size",       label: "ไซส์เสื้อ",         src: "pax" },
-        { key: "religion",          label: "ศาสนา",            src: "pax" },
-        { key: "food_allergy",      label: "อาหารที่แพ้",       src: "pax" },
-        { key: "return_flight",     label: "ไฟลท์ขากลับ",       src: "pax" },
-        { key: "return_date",       label: "วันขากลับ",         src: "pax", fmt: "date" },
-      ],
-    },
+    { id: "checkseat", label: "🪑 Check Seat", cols: _crCols("checkseat") },
     {
       id: "room", label: "🛏️ ห้องพัก",
       cols: [
@@ -63,22 +50,7 @@
         { key: "_flcomebackdt", label: "วันเวลากลับ",      src: "calc" },
       ],
     },
-    {
-      id: "detail", label: "📋 Detail",
-      cols: [
-        { key: "tel",                        label: "เบอร์โทร",         src: "pax" },
-        { key: "line_id",                    label: "LINE ID",          src: "pax" },
-        { key: "home_address",               label: "ที่อยู่",           src: "pax" },
-        { key: "medical_conditions",         label: "โรคประจำตัว",       src: "pax" },
-        { key: "daily_medication",           label: "ยาที่ใช้ประจำ",     src: "pax" },
-        { key: "emergency_contact_name",     label: "ผู้ติดต่อฉุกเฉิน",   src: "pax" },
-        { key: "emergency_contact_phone",    label: "เบอร์ฉุกเฉิน",      src: "pax" },
-        { key: "emergency_contact_relation", label: "ความสัมพันธ์",      src: "pax" },
-        { key: "insurance_company",          label: "บริษัทประกัน",      src: "pax" },
-        { key: "insurance_policy_no",        label: "เลขกรมธรรม์",       src: "pax" },
-        { key: "special_requests",           label: "คำขอพิเศษ",         src: "pax" },
-      ],
-    },
+    { id: "detail", label: "📋 Detail", cols: _crCols("detail") },
     {
       id: "team", label: "👔 ทีมงาน",
       cols: [
@@ -360,6 +332,21 @@
     return curLang() === "en" ? `Total ${n} seats` : `รวม ${n} ที่นั่ง`;
   }
 
+  // distinct ค่าของคอลัมน์ (สำหรับ UI filter) — คำนวณจากทุกแถว (ก่อน filter) · ใส่ BLANK_VAL ถ้ามีค่าว่าง
+  function distinctValues(ctx, key) {
+    const col = COL_BY_KEY[key];
+    if (!col || col.fmt === "image") return [];
+    const set = new Set();
+    let blank = false;
+    expandedPax(ctx, [key]).forEach((row) => {
+      const v = cellValue(ctx, row, col);
+      if (v === "" || v == null) blank = true; else set.add(v);
+    });
+    const arr = [...set].sort((a, b) => String(a).localeCompare(String(b), undefined, { numeric: true, sensitivity: "base" }));
+    if (blank) arr.push(BLANK_VAL);
+    return arr;
+  }
+
   // rowspan (port ของ computeRowspans) — merged map จาก binding.merged
   function computeRowspans(ctx, rows, cols, merged) {
     const rs = cols.map(() => new Array(rows.length).fill(1));
@@ -437,5 +424,11 @@
     return renderTableHtml(ctx, binding);
   }
 
-  global.TripReportData = { COLUMN_GROUPS, COL_BY_KEY, buildLetterTable };
+  global.TripReportData = {
+    COLUMN_GROUPS, COL_BY_KEY, BLANK_VAL,
+    buildLetterTable,                 // โหลด+build ในครั้งเดียว (insert/refresh ตรงๆ)
+    loadCtx,                          // โหลด ctx ของทริป (cache ไว้ใช้ render/filter ซ้ำ)
+    renderTable: renderTableHtml,     // render ตารางจาก ctx + binding (sync, ไม่ refetch)
+    distinctValues,                   // ค่า distinct ของคอลัมน์ (สำหรับ UI filter)
+  };
 })(window);

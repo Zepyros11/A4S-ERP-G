@@ -1,0 +1,415 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>แก้ไขเอกสาร — A4S-ERP</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../../css/main.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+      /* ── full-screen editor shell ───────────────────────────── */
+      body{ margin:0; background:#eef1f4; }
+      .de-wrap{ display:flex; flex-direction:column; height:100vh; overflow:hidden; }
+
+      /* header bar (back · title · meta · actions) */
+      .de-header{
+        display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+        padding:10px 16px;background:#fff;border-bottom:1px solid var(--border,#e5e7eb);
+        flex-shrink:0;
+      }
+      .de-back{
+        display:inline-flex;align-items:center;gap:6px;color:var(--text2);
+        text-decoration:none;font-size:13px;font-weight:600;white-space:nowrap;
+        padding:6px 10px;border-radius:8px;
+      }
+      .de-back:hover{ background:#f1f5f9;color:var(--accent,#3d6b4f); }
+      .de-title-input{
+        flex:1;min-width:200px;font-size:16px;font-weight:700;color:var(--text);
+        border:1px solid transparent;border-radius:8px;padding:7px 10px;background:#f8fafc;
+      }
+      .de-title-input:focus{ border-color:var(--accent,#3d6b4f);background:#fff;outline:none; }
+      .de-meta{ display:flex;align-items:center;gap:8px;flex-wrap:wrap; }
+      .de-meta .form-control,.de-meta select{ height:34px;font-size:13px;padding:4px 8px; }
+      .de-meta .de-sel{ min-width:150px; }
+      .de-icon-btn{
+        width:34px;height:34px;border:1px solid var(--border,#d8dee4);background:#fff;
+        border-radius:8px;cursor:pointer;font-size:14px;display:inline-flex;
+        align-items:center;justify-content:center;flex-shrink:0;
+      }
+      .de-icon-btn:hover{ background:#f1f5f9; }
+
+      /* ── rich toolbar (sticky) ──────────────────────────────── */
+      .de-toolbar{
+        display:flex;align-items:center;gap:2px;flex-wrap:wrap;
+        padding:6px 14px;background:#f6f8fa;border-bottom:1px solid var(--border,#e5e7eb);
+        flex-shrink:0;
+      }
+      .de-toolbar button{
+        min-width:30px;height:30px;border:1px solid transparent;background:transparent;
+        border-radius:6px;cursor:pointer;font-size:13.5px;color:#374151;padding:0 8px;
+        display:inline-flex;align-items:center;justify-content:center;line-height:1;
+      }
+      .de-toolbar button:hover{ background:#e5e9ee; }
+      .de-toolbar button:disabled{ opacity:.35;cursor:default;background:transparent; }
+      .de-toolbar .de-sep{ width:1px;height:22px;background:#d1d5db;margin:0 5px; }
+      .de-toolbar select.de-block{
+        height:30px;border:1px solid #d1d5db;border-radius:6px;font-size:12.5px;
+        color:#374151;background:#fff;padding:0 6px;cursor:pointer;
+      }
+      .de-toolbar .de-size{
+        width:50px;height:30px;text-align:center;border:1px solid #d1d5db;
+        border-radius:6px;font-size:12.5px;color:#374151;background:#fff;padding:0 4px;
+      }
+      .de-toolbar .de-color{
+        width:32px;height:28px;border:1px solid #d1d5db;border-radius:6px;
+        padding:1px;cursor:pointer;background:#fff;
+      }
+      /* table-tool group — disabled-look when cursor not in a table */
+      .de-tablegrp{ display:inline-flex;align-items:center;gap:2px;
+        padding:0 4px;border-radius:6px;background:#eef3ee; }
+      .de-tablegrp.off{ opacity:.4;pointer-events:none; }
+
+      /* ── canvas (gray) + A4 paper ───────────────────────────── */
+      .de-main{ flex:1;display:flex;overflow:hidden; }
+      .de-canvas{
+        flex:1;overflow:auto;padding:28px 16px 80px;
+        display:flex;justify-content:center;align-items:flex-start;
+      }
+      .de-paper-scale{ transform-origin:top center; transition:transform .1s; }
+
+      /* ── left tools panel (insert data block) ───────────────── */
+      .de-panel{
+        width:340px;flex-shrink:0;background:#fff;border-right:1px solid var(--border,#e5e7eb);
+        overflow:auto;padding:14px;resize:horizontal;min-width:240px;max-width:520px;
+      }
+      .de-panel.collapsed{ width:42px;padding:10px 6px;overflow:hidden; }
+      .de-panel.collapsed .de-panel-body,.de-panel.collapsed .de-panel-title span{ display:none; }
+      .de-panel-hd{
+        display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:12px;
+      }
+      .de-panel-title{ font-size:13px;font-weight:700;color:var(--accent,#3d6b4f);
+        display:flex;align-items:center;gap:6px; }
+      .de-panel-collapse{ border:none;background:#f1f5f9;border-radius:6px;cursor:pointer;
+        width:26px;height:26px;font-size:13px;color:var(--text2);flex-shrink:0; }
+      .de-panel-collapse:hover{ background:#e2e8f0; }
+      .de-fld-label{ font-size:11.5px;font-weight:600;color:var(--text2);margin:10px 0 4px;display:block; }
+      .de-panel select.form-control{ width:100%;height:40px;font-size:13.5px;padding:6px 10px; }
+
+      .de-pick-empty{ font-size:12px;color:var(--text3);padding:14px 4px;text-align:center; }
+      .de-pick-group{ border:1px solid var(--border,#e5e7eb);border-radius:8px;margin-bottom:6px;overflow:hidden; }
+      .de-pick-ghd{ display:flex;align-items:center;justify-content:space-between;
+        padding:7px 9px;background:#f8fafc;cursor:pointer;font-size:12px;font-weight:700;color:var(--text); }
+      .de-pick-ghd:hover{ background:#eef2f6; }
+      .de-pick-body{ padding:3px 6px; }
+      .de-pick-group.collapsed .de-pick-body{ display:none; }
+      .de-opt{ display:flex;align-items:center;gap:7px;padding:4px 7px;border-radius:6px;
+        font-size:12.5px;color:var(--text);cursor:pointer; }
+      .de-opt:hover{ background:#f1f5f9; }
+      .de-opt input{ width:14px;height:14px;cursor:pointer;margin:0; }
+      .de-opt-count{ font-size:11px;color:var(--text3);background:#f1f5f9;border-radius:99px;padding:0 7px; }
+
+      .de-panel-opts{ display:flex;flex-direction:column;gap:8px;margin:12px 0; }
+      .de-panel-opts label.de-check{ display:flex;align-items:center;gap:7px;font-size:12.5px;
+        color:var(--text2);cursor:pointer; }
+      .de-insert-btn{ width:100%;margin-top:6px; }
+      .de-panel-note{ font-size:11px;color:var(--text3);margin-top:10px;line-height:1.5; }
+
+      .doc-paper{
+        background:#fff;width:794px;max-width:none;margin:0 auto;
+        padding:46px 64px;color:#1f2937;
+        font-family:"Sarabun","Segoe UI",sans-serif;
+        box-shadow:0 4px 24px rgba(0,0,0,.18);min-height:1123px;box-sizing:border-box;
+      }
+      .doc-letterhead{
+        display:flex;align-items:flex-start;gap:18px;
+        padding-bottom:12px;border-bottom:2px solid #5b9b35;margin-bottom:30px;
+      }
+      .doc-letterhead .lh-logo{ width:120px;flex-shrink:0;text-align:left; }
+      .doc-letterhead .lh-logo img{ max-width:120px;max-height:88px;height:auto; }
+      .doc-letterhead .lh-info{ flex:1;min-width:0; }
+      .doc-letterhead .lh-info > *{ margin:0; }
+      .doc-letterhead .lh-name{ font-size:16px;font-weight:700;color:#111;margin-bottom:4px; }
+      .doc-letterhead .lh-addr{ font-size:12.5px;line-height:1.6;color:#222; }
+
+      .doc-body{
+        font-size:15px;line-height:1.7;color:#1f2937;min-height:360px;outline:none;
+      }
+      .doc-body p{ margin:0 0 10px; }
+      .doc-body div{ margin:0; }
+      .doc-body ul,.doc-body ol{ margin:0 0 12px;padding-left:26px; }
+      .doc-body table{ border-collapse:collapse; }
+      .doc-body td,.doc-body th{ position:relative; }
+      /* highlight cell ที่ cursor อยู่ (เฉพาะตอนแก้ไข) */
+      .doc-body td.de-cell-active,.doc-body th.de-cell-active{ outline:2px solid #7c3aed; outline-offset:-2px; }
+      .doc-body .de-pagebreak{
+        border:none;border-top:2px dashed #c084fc;margin:18px 0;height:0;
+        position:relative;
+      }
+      .doc-body .de-pagebreak::after{
+        content:"✂ ตัวแบ่งหน้า";position:absolute;right:0;top:-9px;
+        font-size:10px;color:#a855f7;background:#fff;padding:0 6px;
+      }
+
+      .doc-signature{
+        margin-top:30px;text-align:center;width:300px;margin-left:auto;
+        break-inside:avoid;page-break-inside:avoid;
+      }
+      .doc-signature img{ max-width:200px;max-height:90px;object-fit:contain;margin:0 auto 2px; }
+      .doc-signature .sig-line{ border-top:1px solid #111;width:240px;margin:0 auto 8px;height:1px; }
+      .doc-signature .sig-name{ font-size:15px;font-weight:600;color:#111; }
+      .doc-signature .sig-title{ font-size:14px;color:#333;margin-top:2px; }
+
+      /* ── zoom bar (floating bottom-right) ───────────────────── */
+      .de-zoombar{
+        position:fixed;right:18px;bottom:18px;z-index:50;
+        display:flex;align-items:center;gap:6px;background:#fff;
+        border:1px solid var(--border,#e5e7eb);border-radius:999px;
+        box-shadow:0 4px 16px rgba(0,0,0,.15);padding:5px 8px;
+      }
+      .de-zoombar button{
+        width:30px;height:30px;border:none;background:transparent;border-radius:50%;
+        cursor:pointer;font-size:16px;color:#374151;
+      }
+      .de-zoombar button:hover{ background:#f1f5f9; }
+      .de-zoombar span{ font-size:12.5px;color:var(--text2);min-width:42px;text-align:center; }
+
+      /* ── preview modal ──────────────────────────────────────── */
+      .de-modal{ position:fixed;inset:0;z-index:1000;background:rgba(15,23,42,.78);
+        display:none;flex-direction:column; }
+      .de-modal.open{ display:flex; }
+      .de-modal-bar{ display:flex;align-items:center;gap:10px;padding:10px 16px;
+        background:#fff;border-bottom:1px solid var(--border); }
+      .de-modal-scroll{ flex:1;overflow:auto;padding:24px;display:flex;
+        justify-content:center;align-items:flex-start; }
+
+      /* ── data preview + filter modal ────────────────────────── */
+      .dp-modal{ position:fixed;inset:0;z-index:1100;background:rgba(15,23,42,.6);
+        display:none;align-items:center;justify-content:center; }
+      .dp-modal.open{ display:flex; }
+      .dp-box{ background:#fff;border-radius:14px;width:min(1120px,95vw);height:88vh;
+        display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.35); }
+      .dp-hd{ display:flex;align-items:center;gap:10px;padding:11px 16px;border-bottom:1px solid var(--border,#e5e7eb); }
+      .dp-hd .dp-title{ font-size:15px;font-weight:700;color:var(--accent,#3d6b4f); }
+      .dp-body{ flex:1;display:flex;overflow:hidden; }
+      .dp-filters{ width:268px;flex-shrink:0;border-right:1px solid var(--border,#e5e7eb);
+        overflow:auto;padding:12px;background:#f8fafc; }
+      .dp-filters-empty{ font-size:12px;color:var(--text3);text-align:center;padding:20px 4px; }
+      .dp-prev{ flex:1;overflow:auto;padding:18px;background:#eef1f4; }
+      .dp-prev-paper{ background:#fff;padding:24px 30px;box-shadow:0 2px 12px rgba(0,0,0,.12);
+        font-family:"Sarabun","Segoe UI",sans-serif;color:#1f2937;min-height:100%; }
+      .dp-fcol{ margin-bottom:8px;border:1px solid var(--border,#e5e7eb);border-radius:8px;overflow:hidden;background:#fff; }
+      .dp-fcol-hd{ display:flex;align-items:center;justify-content:space-between;gap:6px;
+        padding:7px 9px;cursor:pointer;font-size:12px;font-weight:700;color:var(--text); }
+      .dp-fcol-hd:hover{ background:#f1f5f9; }
+      .dp-fcol-acts{ display:flex;gap:6px;padding:2px 9px 4px;font-size:11px; }
+      .dp-fcol-acts button{ border:none;background:transparent;color:var(--accent,#3d6b4f);
+        cursor:pointer;padding:0;font-weight:600;font-size:11px; }
+      .dp-fcol-acts button:hover{ text-decoration:underline; }
+      .dp-fcol-list{ max-height:170px;overflow:auto;padding:2px 6px 6px; }
+      .dp-fcol.collapsed .dp-fcol-list,.dp-fcol.collapsed .dp-fcol-acts{ display:none; }
+      .dp-fopt{ display:flex;align-items:center;gap:7px;padding:3px 6px;border-radius:5px;
+        font-size:12px;color:var(--text);cursor:pointer; }
+      .dp-fopt:hover{ background:#f1f5f9; }
+      .dp-fopt input{ width:14px;height:14px;margin:0;cursor:pointer; }
+      .dp-fbadge{ font-size:10px;font-weight:700;color:#7c3aed;background:#f3e8ff;
+        border-radius:99px;padding:0 7px; }
+
+      /* ── print ──────────────────────────────────────────────── */
+      @page{ size:A4;margin:0; }
+      @media print{
+        body * { visibility:hidden !important; }
+        #printArea, #printArea * { visibility:visible !important; }
+        #printArea{ display:block !important;position:absolute;inset:0;padding:0;background:#fff; }
+        #printArea .doc-paper{ box-shadow:none;margin:0 auto;min-height:auto; }
+        /* ตัวแบ่งหน้า → ขึ้นหน้าใหม่จริงตอนพิมพ์ (ซ่อนเส้น/ป้าย) */
+        #printArea .de-pagebreak{ page-break-after:always;break-after:page;border:none;height:0;margin:0; }
+        #printArea .de-pagebreak::after{ display:none !important; }
+        #previewPaper .de-pagebreak{ border-top:1px dashed #c084fc; }
+      }
+      #printArea{ display:none; }
+      /* offscreen holder สำหรับ render PDF */
+      #pdfHolder{ position:fixed;left:-99999px;top:0; }
+    </style>
+  </head>
+  <body>
+    <div class="loading-overlay" id="loadingOverlay"><div class="spinner"></div></div>
+    <div class="toast" id="toast"></div>
+
+    <div class="de-wrap">
+      <!-- HEADER -->
+      <div class="de-header">
+        <a class="de-back" href="./trip-docs.html">← เอกสาร</a>
+        <input class="de-title-input" id="deTitle" placeholder="ชื่อเอกสาร" autocomplete="off" />
+        <div class="de-meta">
+          <select class="form-control de-sel" id="deStatus" title="สถานะ">
+            <option value="DRAFT">📝 ฉบับร่าง</option>
+            <option value="FINAL">✅ เสร็จสมบูรณ์</option>
+          </select>
+          <select class="form-control de-sel" id="deLetterhead" title="หัวกระดาษ">
+            <option value="">— หัวเริ่มต้น —</option>
+          </select>
+          <select class="form-control de-sel" id="deSignatory" title="ผู้ลงนาม">
+            <option value="">— ไม่มีลายเซ็น —</option>
+          </select>
+          <button class="de-icon-btn" id="deRefreshBtn" style="display:none;background:#7c3aed;color:#fff;border-color:#7c3aed"
+            title="รีเฟรชข้อมูลตารางจาก Check Seat / room-assign (ข้อความอื่นไม่เปลี่ยน)" onclick="window.refreshDocData()">🔄</button>
+          <button class="de-icon-btn" title="ดูตัวอย่างเต็ม" onclick="window.previewDoc()">👁</button>
+          <button class="de-icon-btn" title="พิมพ์" onclick="window.printDoc()">🖨</button>
+          <button class="de-icon-btn" title="บันทึก PDF" onclick="window.exportPdf()">📄</button>
+          <button class="btn btn-primary" onclick="window.saveDoc()" style="height:34px">💾 บันทึก</button>
+        </div>
+      </div>
+
+      <!-- RICH TOOLBAR -->
+      <div class="de-toolbar" id="deToolbar">
+        <button type="button" data-cmd="undo" title="ย้อนกลับ (Ctrl+Z)">↶</button>
+        <button type="button" data-cmd="redo" title="ทำซ้ำ (Ctrl+Y)">↷</button>
+        <span class="de-sep"></span>
+        <select class="de-block" id="deBlock" title="รูปแบบย่อหน้า">
+          <option value="P">ย่อหน้า</option>
+          <option value="H1">หัวข้อใหญ่ (H1)</option>
+          <option value="H2">หัวข้อ (H2)</option>
+          <option value="H3">หัวข้อย่อย (H3)</option>
+        </select>
+        <span class="de-sep"></span>
+        <button type="button" data-cmd="bold" title="ตัวหนา"><b>B</b></button>
+        <button type="button" data-cmd="italic" title="ตัวเอียง"><i>I</i></button>
+        <button type="button" data-cmd="underline" title="ขีดเส้นใต้"><u>U</u></button>
+        <button type="button" data-cmd="strikeThrough" title="ขีดฆ่า"><s>S</s></button>
+        <span class="de-sep"></span>
+        <button type="button" data-font="down" title="ลดขนาดฟอนต์">A−</button>
+        <input type="number" class="de-size" id="deSize" min="9" max="96" title="ขนาดฟอนต์ (px) — เลือกข้อความแล้วพิมพ์" />
+        <button type="button" data-font="up" title="เพิ่มขนาดฟอนต์">A+</button>
+        <input type="color" class="de-color" id="deColor" value="#1f2937" title="สีตัวอักษร" />
+        <span class="de-sep"></span>
+        <button type="button" data-cmd="justifyLeft" title="ชิดซ้าย">⯇</button>
+        <button type="button" data-cmd="justifyCenter" title="กึ่งกลาง">≡</button>
+        <button type="button" data-cmd="justifyRight" title="ชิดขวา">⯈</button>
+        <button type="button" data-cmd="justifyFull" title="เต็มแนว">☰</button>
+        <span class="de-sep"></span>
+        <button type="button" data-cmd="insertUnorderedList" title="หัวข้อย่อย">•</button>
+        <button type="button" data-cmd="insertOrderedList" title="ลำดับเลข">1.</button>
+        <button type="button" data-cmd="outdent" title="ลดย่อหน้า">⇤</button>
+        <button type="button" data-cmd="indent" title="เพิ่มย่อหน้า">⇥</button>
+        <span class="de-sep"></span>
+        <button type="button" title="แทรกรูปภาพ" onclick="window.pickImage()">🖼</button>
+        <button type="button" title="แทรกตาราง" onclick="window.insertTable()">▦</button>
+        <button type="button" title="แทรกตัวแบ่งหน้า" onclick="window.insertPageBreak()">✂</button>
+        <span class="de-sep"></span>
+        <span class="de-tablegrp off" id="deTableGrp">
+          <button type="button" title="เพิ่มแถวบน" onclick="window.tblRow(-1)">⤒</button>
+          <button type="button" title="เพิ่มแถวล่าง" onclick="window.tblRow(1)">⤓</button>
+          <button type="button" title="ลบแถว" onclick="window.tblDelRow()">⊟</button>
+          <button type="button" title="เพิ่มคอลัมน์ซ้าย" onclick="window.tblCol(-1)">⇤+</button>
+          <button type="button" title="เพิ่มคอลัมน์ขวา" onclick="window.tblCol(1)">+⇥</button>
+          <button type="button" title="ลบคอลัมน์" onclick="window.tblDelCol()">⊠</button>
+          <button type="button" title="ลบทั้งตาราง" onclick="window.tblDelTable()" style="color:#dc2626">🗑</button>
+        </span>
+        <span class="de-sep"></span>
+        <button type="button" data-cmd="removeFormat" title="ล้างรูปแบบ">✖</button>
+      </div>
+
+      <!-- MAIN: panel | canvas -->
+      <div class="de-main">
+        <!-- LEFT TOOLS PANEL: insert data block from a trip -->
+        <div class="de-panel" id="dePanel">
+          <div class="de-panel-hd">
+            <span class="de-panel-title">🗂 <span>แทรกชุดข้อมูล</span></span>
+            <button class="de-panel-collapse" onclick="window.togglePanel()" title="ย่อ/ขยาย">‹</button>
+          </div>
+          <div class="de-panel-body">
+            <label class="de-fld-label">เลือกทริป (Trip)</label>
+            <select class="form-control" id="dePanelTrip" onchange="window.onPanelTrip(this.value)">
+              <option value="">— เลือกทริป —</option>
+            </select>
+
+            <label class="de-fld-label">เลือกคอลัมน์</label>
+            <div id="dePanelPicker"><div class="de-pick-empty">เลือกทริปก่อน เพื่อดึงคอลัมน์ที่มี</div></div>
+
+            <div class="de-panel-opts" id="dePanelOpts" style="display:none">
+              <div>
+                <label class="de-fld-label" style="margin-top:0">แบ่งกลุ่ม (section)</label>
+                <select class="form-control" id="dePanelGroup" onchange="window.setPanelGroup(this.value)">
+                  <option value="">— ไม่แบ่งกลุ่ม —</option>
+                </select>
+              </div>
+              <label class="de-check"><input type="checkbox" id="dePanelTotal" onchange="window.setPanelTotal(this.checked)"> Σ รวมยอด (Total ท้ายกลุ่ม)</label>
+            </div>
+
+            <button class="btn btn-primary de-insert-btn" id="dePanelInsert" style="display:none;background:#7c3aed;border-color:#7c3aed"
+              onclick="window.openDataPreview()">👁 พรีวิว + กรอง → แทรก</button>
+            <div class="de-panel-note">กดเพื่อเปิดพรีวิว · กรองข้อมูลได้เหมือน Custom Report · แล้วกดแทรกลงเอกสาร (ถ้ามีตารางอยู่แล้วจะถูกแทนที่)</div>
+          </div>
+        </div>
+
+        <!-- CANVAS -->
+        <div class="de-canvas" id="deCanvas">
+          <div class="de-paper-scale" id="dePaperScale">
+            <div class="doc-paper" id="dePaper">
+              <div id="dePaperHead" contenteditable="false"></div>
+              <div class="doc-body" id="deBody" contenteditable="true" data-ph="พิมพ์เนื้อหาเอกสาร..."></div>
+              <div id="dePaperSig" contenteditable="false"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ZOOM -->
+    <div class="de-zoombar">
+      <button onclick="window.deZoom(-1)" title="ย่อ">−</button>
+      <span id="deZoomLabel">100%</span>
+      <button onclick="window.deZoom(1)" title="ขยาย">+</button>
+      <button onclick="window.deZoom(0)" title="พอดีหน้าจอ" style="font-size:13px">⊡</button>
+    </div>
+
+    <!-- PREVIEW MODAL -->
+    <div class="de-modal" id="dePreviewModal">
+      <div class="de-modal-bar">
+        <span style="font-size:14px;font-weight:700">👁 ตัวอย่างเอกสาร</span>
+        <span style="flex:1"></span>
+        <button class="btn btn-outline" onclick="window.closePreview()">✕ ปิด</button>
+        <button class="btn btn-primary" onclick="window.printDoc()">🖨 พิมพ์</button>
+      </div>
+      <div class="de-modal-scroll"><div class="doc-paper" id="previewPaper"></div></div>
+    </div>
+
+    <!-- DATA PREVIEW + FILTER MODAL -->
+    <div class="dp-modal" id="dpModal">
+      <div class="dp-box">
+        <div class="dp-hd">
+          <span class="dp-title">👁 พรีวิว + กรองข้อมูล</span>
+          <span id="dpMeta" style="font-size:12px;color:var(--text2)"></span>
+          <span style="flex:1"></span>
+          <button class="btn btn-outline" onclick="window.closeDataPreview()">✕ ปิด</button>
+          <button class="btn btn-primary" style="background:#7c3aed;border-color:#7c3aed" onclick="window.confirmInsertBlock()">▦ แทรกลงเอกสาร</button>
+        </div>
+        <div class="dp-body">
+          <div class="dp-filters" id="dpFilters"></div>
+          <div class="dp-prev"><div class="dp-prev-paper" id="dpPaper"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PRINT / PDF HOLDERS -->
+    <div id="printArea"></div>
+    <div id="pdfHolder"></div>
+    <input type="file" id="deImageInput" accept="image/*" style="display:none" />
+
+    <!-- SCRIPTS -->
+    <script src="../../js/core/auth.js"></script>
+    <script src="../../js/core/authz.js"></script>
+    <script src="../../js/core/date-format.js"></script>
+    <script>AuthZ.requirePerm("trip_docs_view");</script>
+    <script src="../../js/shared/pax-fields.js"></script>
+    <script src="./report-data-source.js"></script>
+    <script src="./doc-editor.js"></script>
+    <script src="../../js/components/modal/confirmModal.js"></script>
+    <script src="../../js/components/modal/modalManager.js"></script>
+  </body>
+</html>

@@ -2736,3 +2736,52 @@
   border-color: #f59e0b;
   color: #7c2d12;
 }
+
+/* ── NO-TEMPLATE GATE BANNER ──────────────────────────────── */
+.att-no-template-banner {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: linear-gradient(135deg, #fffbeb, #fef3c7);
+  border: 1.5px solid #fcd34d;
+  border-radius: 12px;
+  padding: 14px 18px;
+  margin-bottom: 14px;
+  box-shadow: 0 2px 8px rgba(245, 158, 11, .12);
+}
+.att-no-template-banner .antb-ico {
+  font-size: 28px;
+  flex-shrink: 0;
+}
+.att-no-template-banner .antb-text {
+  flex: 1;
+  min-width: 0;
+}
+.att-no-template-banner .antb-title {
+  font-weight: 700;
+  font-size: 14px;
+  color: #92400e;
+}
+.att-no-template-banner .antb-sub {
+  font-size: 12px;
+  color: #b45309;
+  margin-top: 2px;
+  line-height: 1.5;
+}
+.att-no-template-banner .antb-btn {
+  flex-shrink: 0;
+  background: linear-gradient(135deg, #d97706, #f59e0b);
+  color: #fff;
+  border: none;
+  border-radius: 9px;
+  padding: 10px 18px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: filter .15s;
+}
+.att-no-template-banner .antb-btn:hover {
+  filter: brightness(1.06);
+}

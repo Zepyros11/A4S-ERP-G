@@ -5124,21 +5124,27 @@ function flightMatchesFilter(f) {
 function renderFlightFilterBar() {
   const bar = document.getElementById("flightFilterBar");
   if (!bar) return;
-  const dep = flightDistinctNumbers("dep");
-  const ret = flightDistinctNumbers("ret");
-  const ports = flightDistinctPorts();
-  if (state.activeTab !== "flights" || (dep.length < 2 && ret.length < 2 && ports.length < 2)) {
+  if (state.activeTab !== "flights" || !state.flights.length) {
     bar.style.display = "none";
     bar.innerHTML = "";
     return;
   }
+  const dep = flightDistinctNumbers("dep");
+  const ret = flightDistinctNumbers("ret");
+  const ports = flightDistinctPorts();
   bar.style.display = "";
   const chip = (leg, val, label, active) =>
     `<button class="fl-filter-chip${active ? " active" : ""}" onclick="window.setFlightFilter('${leg}', ${val === null ? "null" : `'${escapeJs(val)}'`})">${escapeHtml(label)}</button>`;
   const rowHtml = (leg, label, nums, sel) => nums.length
     ? `<div class="fl-filter-row"><span class="fl-filter-label">${label}</span>${chip(leg, null, "ทั้งหมด", !sel)}${nums.map(n => chip(leg, n, n, sel === n)).join("")}</div>`
     : "";
-  bar.innerHTML = rowHtml("port", "📍 สนามบิน:", ports, state.flightFilterPort)
+  const nameVal = escapeHtml(state.flightFilterName || "");
+  const searchRow = `<div class="fl-filter-row"><span class="fl-filter-label">🔍 ค้นชื่อ:</span>`
+    + `<input type="text" id="flightNameSearch" class="fl-filter-search" placeholder="พิมพ์ชื่อ/รหัสคนในตั๋ว…" value="${nameVal}" oninput="window.setFlightNameFilter(this.value)">`
+    + (nameVal ? `<button class="fl-filter-chip" onclick="window.setFlightNameFilter('')">✕ ล้าง</button>` : "")
+    + `</div>`;
+  bar.innerHTML = searchRow
+    + rowHtml("port", "📍 สนามบิน:", ports, state.flightFilterPort)
     + rowHtml("dep", "🛫 ขาไป:", dep, state.flightFilterDep)
     + rowHtml("ret", "🛬 ขากลับ:", ret, state.flightFilterRet);
 }
@@ -5148,6 +5154,16 @@ window.setFlightFilter = function (leg, val) {
   else if (leg === "ret") state.flightFilterRet = val || null;
   else if (leg === "port") state.flightFilterPort = val || null;
   renderFlights();
+};
+
+// ค้นชื่อคนในตั๋ว — rebuild bar+cards แล้ว refocus ช่องค้นหา (รักษาตำแหน่ง cursor)
+window.setFlightNameFilter = function (val) {
+  state.flightFilterName = val;
+  const prev = document.getElementById("flightNameSearch");
+  const pos = prev ? prev.selectionStart : null;
+  renderFlights();
+  const inp = document.getElementById("flightNameSearch");
+  if (inp) { inp.focus(); const n = pos == null ? inp.value.length : pos; inp.setSelectionRange(n, n); }
 };
 
 function renderFlights() {

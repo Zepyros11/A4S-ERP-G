@@ -308,7 +308,7 @@
                   <button class="btn btn-outline" data-perm="trip_docs_create" onclick="window.openImportModal()">
                     📥 นำเข้า Excel
                   </button>
-                  <button class="btn btn-primary" data-perm="trip_docs_create" onclick="window.openCreateDoc()">
+                  <button class="btn btn-primary" data-perm="trip_docs_create" onclick="location.href='./doc-editor.html?new=1'">
                     ＋ สร้างเอกสาร
                   </button>
                 </div>
@@ -835,6 +835,7 @@
     <script src="../../js/core/authz.js"></script>
     <script src="../../js/core/date-format.js"></script>
     <script>AuthZ.requirePerm("trip_docs_view");</script>
+    <script src="../../js/shared/pax-fields.js"></script>
     <script src="./report-data-source.js"></script>
     <script src="./trip-docs.js"></script>
     <script src="../../js/components/modal/deleteModal.js"></script>

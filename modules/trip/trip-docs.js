@@ -517,7 +517,12 @@ window.createDoc = async function () {
 };
 
 // ── DOC EDITOR ─────────────────────────────────────────────
+// แก้เอกสาร → ไปหน้าแก้ไขเต็มจอ (doc-editor.html) แทน modal เดิม
 window.openDocEdit = function (id) {
+  location.href = `./doc-editor.html?doc_id=${id}`;
+};
+// (เดิม: modal ในหน้านี้ — เก็บไว้เป็น fallback แต่ไม่ถูกเรียกแล้ว)
+window._openDocEditModal = function (id) {
   const d = state.docs.find((x) => x.doc_id === id);
   if (!d) return;
   state.editDocId = id;

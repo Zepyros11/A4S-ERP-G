@@ -1034,6 +1034,7 @@ function renderTable(list) {
 
   ensureTrailingEmptyRow();
   rebuildTableHeader();   // ensure header matches current event config
+  _applyTemplateGate();   // banner บังคับเลือก template ถ้ายังไม่เลือก
 
   const newRowsHtml = newRows.map(renderNewRowSpreadsheet).join("");
   tbody.innerHTML = newRowsHtml + _buildSavedRowsHtml(list);
@@ -1484,6 +1485,8 @@ window.saveNewRow = async function (id) {
   let name = (r.name || "").trim();
   if (!name) { showToast("กรุณาระบุชื่อ", "error"); return; }
   if (r.saving) return;
+  // บังคับเลือก template ก่อนเพิ่ม (template-first)
+  if (await _requireTemplateOrPrompt()) return;
   r.saving = true; _updateSaveBtn(id);
 
   // Auto-link member if user typed a code but didn't pick from dropdown
@@ -3390,7 +3393,8 @@ function _getActiveFieldConfig() {
   if (_eventConfigCache && _eventConfigCache.eventId === currentEventId) {
     return _eventConfigCache.config;
   }
-  return DEFAULT_FIELD_CONFIG;
+  // cache ยังไม่พร้อม → คืน config ว่าง (อย่า flash 9 คอลัมน์ default)
+  return EMPTY_FIELD_CONFIG;
 }
 
 // event มีการชำระเงินมั้ย — ถ้าไม่มี (free event) → ซ่อน column "ชำระ"
@@ -3464,6 +3468,43 @@ function rebuildTableHeader() {
     const extra = c.small ? ";font-size:10.5px;line-height:1.25" : "";
     return `<th class="${alignClass}" style="min-width:${c.width}px${extra}" title="${c.small ? (typeof c.label === 'string' ? c.label.replace(/^✓ /, '') : '') : ''}">${c.label}</th>`;
   }).join("");
+}
+
+// event ยังไม่เลือก template (source="none") → โชว์ banner บังคับเลือก
+function _isNoTemplate() {
+  return !!(_eventConfigCache
+    && _eventConfigCache.eventId === currentEventId
+    && _eventConfigCache.source === "none");
+}
+
+function _applyTemplateGate() {
+  const banner = document.getElementById("noTemplateBanner");
+  if (!banner) return;
+  if (_isNoTemplate()) {
+    banner.style.display = "";
+    banner.innerHTML = `
+      <div class="antb-ico">📋</div>
+      <div class="antb-text">
+        <div class="antb-title">ยังไม่ได้เลือกเทมเพลตฟอร์มลงทะเบียน</div>
+        <div class="antb-sub">เลือกเทมเพลตคอร์สก่อน เพื่อกำหนดฟิลด์/คอลัมน์ที่จะใช้ — ตารางจะว่างจนกว่าจะเลือก</div>
+      </div>
+      <button class="antb-btn" onclick="window.openFieldConfigModal()">⚙️ เลือกเทมเพลต</button>`;
+  } else {
+    banner.style.display = "none";
+    banner.innerHTML = "";
+  }
+}
+
+// บังคับเลือก template ก่อนเพิ่มผู้เข้าร่วม — คืน true = ถูกบล็อก
+async function _requireTemplateOrPrompt() {
+  if (!currentEventId) return false;
+  const info = await getEventConfigInfo(currentEventId);
+  if (info.source === "none") {
+    showToast("⚠️ เลือกเทมเพลตฟอร์มลงทะเบียนก่อนเพิ่มผู้เข้าร่วม", "error");
+    window.openFieldConfigModal();
+    return true;
+  }
+  return false;
 }
 
 // ── AUTO CHECK-IN TOGGLE ──────────────────────────────────
@@ -4660,6 +4701,17 @@ const DEFAULT_FIELD_CONFIG = {
   qualifications: [],
 };
 
+// Template-first model: event ที่ยังไม่เลือก template + ไม่มี override → ใช้ config ว่าง
+// → ตารางเหลือแค่คอลัมน์หลัก (ชื่อ/ชำระ/check-in/จัดการ) + banner บังคับให้เลือก template
+// (กัน default ที่ dump 9 คอลัมน์ออกมาเป็นช่องว่างเกะกะ)
+const EMPTY_FIELD_CONFIG = {
+  fields: {},
+  field_order: [],
+  hidden_keys: [],
+  custom_fields: [],
+  qualifications: [],
+};
+
 let _eventConfigCache = null;   // { eventId, config, source, templateId, templateName }
 
 // Resolve effective config (hybrid: override > template > default)
@@ -4708,8 +4760,9 @@ async function _resolveFieldConfigInfo(eventId) {
     config = _mergeFieldConfig(templateConfig);
     source = "template";
   } else {
-    config = DEFAULT_FIELD_CONFIG;
-    source = "default";
+    // ไม่มี template + ไม่มี override → บังคับเลือก template (ตารางว่าง + banner)
+    config = EMPTY_FIELD_CONFIG;
+    source = "none";
   }
   return { config, source, templateId, templateName, override, templateConfig };
 }
@@ -4766,6 +4819,8 @@ function _getFieldLabel(key, cfg) {
 // ── ATTENDEE FORM MODAL ────────────────────────────────────
 window.openAttendeeForm = async function (opts = {}) {
   const mode = opts.attId ? "edit" : "new";
+  // บังคับเลือก template ก่อน "เพิ่มใหม่" (แก้ของเดิมยังทำได้ปกติ)
+  if (mode === "new" && await _requireTemplateOrPrompt()) return;
   _attFormState = {
     mode,
     attId: opts.attId || null,
@@ -5364,7 +5419,7 @@ async function _fcLoadTemplateOptions() {
       "attendee_form_templates",
       "?select=id,name,description,is_active&is_active=eq.true&order=sort_order.asc"
     );
-    sel.innerHTML = '<option value="">— ไม่ผูก template (ใช้ default) —</option>' +
+    sel.innerHTML = '<option value="">— ไม่เลือก (ตารางว่าง) —</option>' +
       (rows || []).map(t => `<option value="${t.id}">📋 ${escapeHtml(t.name)}</option>`).join("");
     sel.value = _fcInfo?.templateId ? String(_fcInfo.templateId) : "";
   } catch (e) {
@@ -5421,10 +5476,10 @@ function _renderFcSourceBanner() {
     banner.style.color = "#14532d";
     banner.innerHTML = `🔗 <b>Linked</b> — sync จาก template "<b>${escapeHtml(templateName)}</b>" · แก้ template → propagate มาที่ event นี้`;
   } else {
-    banner.style.background = "#f1f5f9";
-    banner.style.border = "1px solid #cbd5e1";
-    banner.style.color = "#475569";
-    banner.innerHTML = `💡 ไม่ผูก template + ไม่มี override → ใช้ default config ของระบบ`;
+    banner.style.background = "#fef2f2";
+    banner.style.border = "1px solid #fecaca";
+    banner.style.color = "#991b1b";
+    banner.innerHTML = `⚠️ <b>ยังไม่เลือก template</b> — ตารางจะว่าง (เพิ่มผู้เข้าร่วมไม่ได้จนกว่าจะเลือก) · เลือก template ด้านบน 👆`;
   }
 
   if (_fcInfo.templateId) {

@@ -1487,6 +1487,8 @@ window.createLetterDoc = async function () {
   if (!window.TripReportData) { showToast("โหลด engine ไม่สำเร็จ (report-data-source.js)", "error"); return; }
   const hasText = state.selected.some(k => { const c = COL_BY_KEY[k]; return c && !state.hidden[k] && c.fmt !== "image"; });
   if (!hasText) { showToast(en ? "Pick at least 1 text column (not image)" : "เลือกคอลัมน์ข้อความอย่างน้อย 1 (รูปจะไม่ออกในจดหมาย)", "info"); return; }
+  // เปิดแท็บใหม่ทันที (ใน user-gesture) กัน popup blocker → ใส่ URL หลังสร้างเสร็จ
+  const win = window.open("", "_blank");
   const binding = currentBinding();
   showLoading(true);
   let tableHtml;
@@ -1494,6 +1496,7 @@ window.createLetterDoc = async function () {
     tableHtml = (await window.TripReportData.buildLetterTable(binding)).html;
   } catch (e) {
     showLoading(false);
+    if (win) win.close();
     showToast((en ? "Build table failed: " : "สร้างตารางไม่สำเร็จ: ") + e.message, "error");
     return;
   }
@@ -1522,10 +1525,14 @@ window.createLetterDoc = async function () {
     });
     const created = Array.isArray(res) ? res[0] : res;
     if (!created?.doc_id) throw new Error("no doc_id returned");
-    showToast(en ? "Document created — opening…" : "สร้างเอกสารแล้ว — กำลังเปิด...", "success");
-    location.href = `./trip-docs.html?doc_id=${created.doc_id}`;
+    const url = new URL(`./doc-editor.html?doc_id=${created.doc_id}`, location.href).href;
+    if (win) { win.location.href = url; }       // เปิดในแท็บใหม่
+    else { window.open(url, "_blank") || (location.href = url); } // popup ถูกบล็อก → fallback
+    showLoading(false);
+    showToast(en ? "Document created — opened in new tab" : "สร้างเอกสารแล้ว — เปิดในแท็บใหม่", "success");
   } catch (e) {
     showLoading(false);
+    if (win) win.close();
     const hint = /data_bindings/.test(e.message || "") ? (en ? " (run sql/136)" : " (ยังไม่ได้รัน sql/136)") : "";
     showToast((en ? "Create failed: " : "สร้างไม่สำเร็จ: ") + e.message + hint, "error");
   }
