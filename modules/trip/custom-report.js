@@ -80,6 +80,7 @@ const state = {
   selected: [],     // column keys เรียงตามลำดับแสดง
   collapsed: {},     // group id -> true ถ้ายุบ
   sort: [],         // multi-sort chain: [{key, dir:1|-1}, ...] — ลำดับใน array = ลำดับ priority
+  search: "",       // ค้นหาข้อความทั่วทั้งตาราง — match ทุก token (space-separated, AND) ข้ามทุกคอลัมน์ที่เลือก
   filters: {},      // col key -> Set([selected values])  (empty/missing = ไม่กรองคอลัมน์นั้น)
   merged: {},      // col key -> true ถ้าเปิด "ผสานเซลซ้ำ" (rowspan แถวที่ติดกันค่าเท่ากัน)
   hidden: {},      // col key -> true ถ้า "ซ่อนจากรายงาน" (ยังใช้เรียง/กรอง แต่ไม่ออกใน Print/Excel/PDF)
@@ -571,12 +572,26 @@ function filterRows(rows) {
     }));
 }
 
+// ค้นหาข้อความทั่วทั้งตาราง — แยกคำด้วยช่องว่าง แล้ว match แบบ AND ทุก token
+// กับค่ารวม (cellValue) ของทุกคอลัมน์ที่เลือก (รวมคอลัมน์ที่ซ่อน 🙈 ด้วย — ให้ค้นเจอ)
+function searchRows(rows) {
+  const q = (state.search || "").trim().toLowerCase();
+  if (!q) return rows;
+  const tokens = q.split(/\s+/);
+  const cols = state.selected.map(k => COL_BY_KEY[k]).filter(Boolean);
+  if (!cols.length) return rows;
+  return rows.filter(row => {
+    const hay = cols.map(c => cellValue(row, c)).join(" ").toLowerCase();
+    return tokens.every(t => hay.includes(t));
+  });
+}
+
 // คืน rows ตามลำดับ sort ปัจจุบัน (ไม่แก้ state.pax เดิม)
 // ถ้าเลือกคอลัมน์โรงแรม/ห้อง → expand เป็น 1 แถว/โรงแรม ก่อน sort
-// pipeline: expand → filter → sort
+// pipeline: expand → filter → search → sort
 // multi-sort: เรียงตาม chain ใน state.sort (priority ตามลำดับใน array)
 function getRows() {
-  const filtered = filterRows(expandedPax());
+  const filtered = searchRows(filterRows(expandedPax()));
   const chain = state.sort.map(s => ({ col: COL_BY_KEY[s.key], dir: s.dir })).filter(x => x.col);
   if (!chain.length) return filtered;
   return [...filtered].sort((a, b) => {
@@ -854,12 +869,14 @@ function renderPreview() {
   const rows = getRows();
   const expanded = expandedPax();
   const hasFilter = Object.values(state.filters).some(s => s && s.size);
+  const hasSearch = !!(state.search || "").trim();
   const splitNote = expanded.length !== state.pax.length ? ` ${T("cr.count.split", { n: expanded.length })}` : "";
   const filterNote = hasFilter ? ` · ${T("cr.count.filter", { n: rows.length })}` : "";
+  const searchNote = hasSearch ? ` · ${T("cr.count.search", { n: rows.length })}` : "";
   const teamNote = state.teamCount ? ` ${T("cr.count.team", { n: state.teamCount })}` : "";
   const hiddenCount = cols.filter(c => state.hidden[c.key]).length;
   const hiddenNote = hiddenCount ? ` · ${T("cr.count.hidden", { n: hiddenCount })}` : "";
-  count.textContent = `· ${T("cr.count.people", { n: state.paxCount || state.pax.length })}${teamNote}${splitNote}${filterNote} · ${T("cr.count.columns", { n: cols.length })}${hiddenNote}`;
+  count.textContent = `· ${T("cr.count.people", { n: state.paxCount || state.pax.length })}${teamNote}${splitNote}${filterNote}${searchNote} · ${T("cr.count.columns", { n: cols.length })}${hiddenNote}`;
   const multi = state.sort.length > 1;
   document.getElementById("crThead").innerHTML =
     `<th style="width:40px">#</th>` + cols.map(c => {
@@ -936,6 +953,23 @@ function renderAll() {
   renderGroupBy();
   renderPreview();
 }
+
+// ── GLOBAL SEARCH (filter bar) ─────────────────────────────
+// ค้นหาสด ข้ามทุกคอลัมน์ที่เลือก — ใช้ pipeline เดียวกับ filter/sort → มีผลกับ Excel/Print/Preview ด้วย
+window.crSearch = function (v) {
+  state.search = v || "";
+  const clr = document.getElementById("crSearchClear");
+  if (clr) clr.style.display = state.search ? "" : "none";
+  renderPreview();
+};
+window.crSearchClear = function () {
+  state.search = "";
+  const inp = document.getElementById("crSearch");
+  if (inp) inp.value = "";
+  const clr = document.getElementById("crSearchClear");
+  if (clr) clr.style.display = "none";
+  renderPreview();
+};
 
 // ── COLUMN PICK ────────────────────────────────────────────
 // ใช้ชื่อ crToggleGroup กันชนกับ sidebar.js ที่จอง window.toggleGroup ไว้ (load หลังไฟล์นี้)

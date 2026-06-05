@@ -138,6 +138,11 @@ I18n.register({
   "cr.count.hidden":       { th: "🙈 ซ่อน {n}", en: "🙈 {n} hidden" },
   "cr.count.columns":      { th: "{n} คอลัมน์", en: "{n} columns" },
   "cr.count.fields":       { th: "{n} ฟิลด์", en: "{n} fields" },
+  "cr.count.search":       { th: "🔎 พบ {n} แถว", en: "🔎 {n} matches" },
+
+  // ── Filter bar (global search) ─────────────────────────
+  "cr.search.ph":          { th: "ค้นหาในตาราง…", en: "Search table…" },
+  "cr.search.clear":       { th: "ล้างคำค้นหา", en: "Clear search" },
 
   // ── Filter popover ─────────────────────────────────────
   "cr.fpop.merge":         { th: "≣ ผสานเซล", en: "≣ Merge cells" },

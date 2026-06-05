@@ -241,6 +241,28 @@
       .cr-preset-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
       .cr-preset-bar select{min-width:200px}
 
+      /* ── Filter bar (ค้นหาทั่วทั้งตาราง) ── */
+      .cr-search{
+        display:inline-flex;align-items:center;gap:6px;
+        background:#fff;border:1px solid var(--border);border-radius:8px;
+        padding:3px 8px;min-width:200px;max-width:320px;
+      }
+      .cr-search:focus-within{
+        border-color:var(--accent);
+        box-shadow:0 0 0 2px var(--accent-pale);
+      }
+      .cr-search-ico{font-size:12px;opacity:.6;line-height:1}
+      .cr-search-input{
+        flex:1;border:none;outline:none;background:transparent;
+        font-size:12.5px;color:var(--text);min-width:0;padding:2px 0;font-weight:400;
+      }
+      .cr-search-input::-webkit-search-cancel-button{display:none}
+      .cr-search-clear{
+        border:none;background:transparent;cursor:pointer;
+        color:var(--text3);font-size:12px;line-height:1;padding:0 2px;
+      }
+      .cr-search-clear:hover{color:var(--accent)}
+
       /* ── Preview Modal (A4 simulated, paginated) ── */
       .cr-preview-modal{
         position:fixed;inset:0;z-index:1000;
@@ -545,7 +567,20 @@
 
             <!-- PREVIEW -->
             <div class="cr-card">
-              <h3><span data-i18n="cr.previewTitle">ตัวอย่างรายงาน</span> <span id="crRowCount" style="color:var(--text3);font-weight:400"></span></h3>
+              <h3 style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                <span data-i18n="cr.previewTitle">ตัวอย่างรายงาน</span>
+                <span id="crRowCount" style="color:var(--text3);font-weight:400"></span>
+                <span style="flex:1;min-width:8px"></span>
+                <span class="cr-search">
+                  <span class="cr-search-ico">🔎</span>
+                  <input id="crSearch" type="search" class="cr-search-input" autocomplete="off"
+                    data-i18n-attr="placeholder:cr.search.ph" placeholder="ค้นหาในตาราง…"
+                    oninput="window.crSearch(this.value)">
+                  <button type="button" class="cr-search-clear" id="crSearchClear" style="display:none"
+                    data-i18n-attr="title:cr.search.clear" title="ล้างคำค้นหา"
+                    onclick="window.crSearchClear()">✕</button>
+                </span>
+              </h3>
               <div class="cr-chips" id="crChips"></div>
               <div id="cr-table-wrap">
                 <div class="cr-empty" id="crEmpty" data-i18n="cr.empty">เลือกคอลัมน์จากด้านซ้ายเพื่อสร้างรายงาน</div>
