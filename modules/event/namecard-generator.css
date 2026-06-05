@@ -325,6 +325,9 @@
 .c-seq-grid .vip-field:first-child { flex: 1 1 0; }
 .c-seq-grid .c-seq-field { flex: 1 1 0; min-width: 0; }
 
+/* Text grid: ข้อความ input grows · ขนาด(px) sits beside it (override first-child:100%) */
+.c-text-grid .vip-field:first-child { flex: 1 1 180px; min-width: 150px; }
+
 /* Help icon · "?" badge with hover tooltip */
 .c-help {
   display: inline-flex; align-items: center; justify-content: center;
@@ -368,8 +371,9 @@
   padding: 4mm 3mm;
 }
 .c-plain .c-logo {
-  flex: 0 0 auto; max-height: 52%; width: 100%;
+  flex: 0 0 auto; max-height: 52%; min-height: 0; width: 100%;
   display: flex; align-items: center; justify-content: center;
+  overflow: hidden;
   margin-bottom: 2mm;
 }
 .c-plain .c-logo.is-empty { min-height: 18%; }
@@ -399,10 +403,35 @@
   font-family: 'Sarabun', sans-serif; font-weight: 900; font-size: 64px;
   color: #0f172a; letter-spacing: .08em; line-height: 1; white-space: nowrap;
 }
-/* variant: sequence (big number) */
+/* variant: sequence (optional logo+name header · big number below) */
 .c-card.c-seq {
-  display: flex; align-items: center; justify-content: center;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
   padding: 2mm;
+}
+.c-card.c-seq--head { justify-content: flex-start; }
+.c-seq-head {
+  flex: 0 0 auto; width: 100%; min-height: 0;
+  display: flex; flex-direction: column; align-items: center;
+  gap: 0.5mm; padding: 0.5mm 0 1mm;
+}
+.c-seq-logo {
+  flex: 0 0 auto;
+  height: 10mm; min-height: 0; width: 100%;   /* min-height:0 → height honored, logo won't blow up */
+  display: flex; align-items: center; justify-content: center;
+  overflow: hidden;
+}
+.c-seq-logo img { max-height: 100%; max-width: 70%; object-fit: contain; }
+.c-seq-name {
+  font-family: 'Sarabun', sans-serif; font-weight: 700; font-size: 4.5mm;
+  color: #0f172a; line-height: 1.5; text-align: center;   /* room for descenders (g, ฤ, tone marks) */
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  max-width: 100%; padding: 0 1mm 1mm; box-sizing: border-box;
+}
+.c-seq-numwrap {
+  flex: 1 1 auto; width: 100%; min-height: 0;
+  display: flex; align-items: center; justify-content: center;
+  overflow: hidden;
 }
 .c-seq-num {
   font-family: 'Sarabun', sans-serif; font-weight: 900;

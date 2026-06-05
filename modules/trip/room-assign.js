@@ -59,6 +59,7 @@ const state = {
   flightFilterDep: null,      // กรองเลขเที่ยวบินขาไป (null = ทั้งหมด)
   flightFilterRet: null,      // กรองเลขเที่ยวบินขากลับ (null = ทั้งหมด)
   flightFilterPort: null,     // กรองสนามบินต้นทาง (port) (null = ทั้งหมด)
+  flightFilterName: "",       // กรองชื่อคนที่อยู่ในตั๋ว (ค้นหา substring)
   editingFlightId: null,
   flightDraftImgs: [],        // รูปใน modal ระหว่างสร้าง/แก้ไข (array of public URL)
 };
@@ -5105,10 +5106,19 @@ function flightDistinctPorts() {
   return [...s].sort();
 }
 
+// flight ตรงกับคำค้นชื่อหรือไม่ — match ถ้ามีคนใน Ticket ใบใดใบหนึ่งที่ชื่อ/code มีคำค้น
+function flightMatchesName(f) {
+  const q = (state.flightFilterName || "").trim().toLowerCase();
+  if (!q) return true;
+  const tks = state.flightTickets[f.flight_id] || [];
+  return tks.some(t => (t.codes || []).some(code =>
+    flightSubjectName(code).toLowerCase().includes(q) || String(code).toLowerCase().includes(q)));
+}
+
 function flightMatchesFilter(f) {
   const okLeg = (leg, val) => !val || flGetSegs(f, leg).some(s => (s.flight || "").trim() === val);
   const okPort = !state.flightFilterPort || (f.port || "").trim() === state.flightFilterPort;
-  return okLeg("dep", state.flightFilterDep) && okLeg("ret", state.flightFilterRet) && okPort;
+  return okLeg("dep", state.flightFilterDep) && okLeg("ret", state.flightFilterRet) && okPort && flightMatchesName(f);
 }
 
 function renderFlightFilterBar() {

@@ -29,6 +29,7 @@
   let cText     = "VIP";            // text/name on every card
   let cStyle    = "plain";          // "plain" (logo+name) | "vip" (green band)
   let cLogoSize = 0;                // logo size override (px) · 0 = auto
+  let cTextSize = 0;                // text/name size override (px) · 0 = auto-fit
   let cQty      = 10;
   let cLogos   = [];                // [{ path, url }] — library from Supabase
   let cLogoKey = "__company__";     // selected logo · "__company__" | path | null
@@ -857,21 +858,32 @@
 
   // ── Card HTML ─────────────────────────────────────────────
   function cCardHtml(label) {
-    if (cMode === "sequence") {
-      return `<div class="c-card c-seq"><div class="c-seq-num">${esc(label)}</div></div>`;
-    }
     const url = cCurrentLogoUrl();
     const fixed = cLogoSize > 0;
-    const logoCls = fixed ? "c-logo c-logo--fixed" : "c-logo";
     const imgSz = fixed ? ` style="max-height:${cLogoSize}px;max-width:${cLogoSize}px"` : "";
+    const txtSz = cTextSize > 0 ? ` style="font-size:${cTextSize}px"` : "";   // px overrides auto-fit
+    const text = esc(formatName(cText));
+
+    // Sequence: optional logo + name header above the auto number
+    if (cMode === "sequence") {
+      const headH = fixed ? ` style="height:${cLogoSize}px"` : "";   // px controls header logo height
+      const logoEl = url
+        ? `<div class="c-seq-logo"${headH}><img src="${esc(url)}" alt="" crossorigin="anonymous" onerror="this.style.display='none'"></div>`
+        : "";
+      const nameEl = text ? `<div class="c-seq-name"${txtSz}>${text}</div>` : "";
+      const hasHead = !!(url || text);
+      const head = hasHead ? `<div class="c-seq-head">${logoEl}${nameEl}</div>` : "";
+      return `<div class="c-card c-seq${hasHead ? " c-seq--head" : ""}">${head}<div class="c-seq-numwrap"><div class="c-seq-num">${esc(label)}</div></div></div>`;
+    }
+
+    const logoCls = fixed ? "c-logo c-logo--fixed" : "c-logo";
     const logo = url
       ? `<div class="${logoCls}"><img src="${esc(url)}" alt=""${imgSz} crossorigin="anonymous" onerror="this.style.display='none'"></div>`
       : (cStyle === "plain" ? `<div class="${logoCls} is-empty"></div>` : "");
-    const text = esc(formatName(cText));
     if (cStyle === "vip") {
-      return `<div class="c-card c-vip">${logo}<div class="c-band"><div class="c-band-text">${text}</div></div></div>`;
+      return `<div class="c-card c-vip">${logo}<div class="c-band"><div class="c-band-text"${txtSz}>${text}</div></div></div>`;
     }
-    return `<div class="c-card c-plain">${logo}${text ? `<div class="c-name">${text}</div>` : ""}</div>`;
+    return `<div class="c-card c-plain">${logo}${text ? `<div class="c-name"${txtSz}>${text}</div>` : ""}</div>`;
   }
   function cBlank() { return `<div class="c-card" style="visibility:hidden"></div>`; }
   function cPageHtml(cells) { return `<div class="c-a4-wrap"><div class="c-a4">${cells}</div></div>`; }
@@ -918,7 +930,8 @@
     const probe = document.createElement("div");
     probe.className = "c-a4-wrap";
     probe.style.cssText = "position:absolute;left:-99999px;top:0;visibility:hidden";
-    probe.innerHTML = `<div class="c-a4"><div class="c-card c-seq"><div class="c-seq-num">${esc(widest)}</div></div></div>`;
+    // Use the real card markup so the header (logo + name) reserves space too
+    probe.innerHTML = `<div class="c-a4">${cCardHtml(widest)}</div>`;
     applyCVars(probe, g);
     container.appendChild(probe);
     const el = probe.querySelector(".c-seq-num"); fitSeqText(el); const size = el.style.fontSize;
@@ -928,8 +941,11 @@
   // Apply the right fit pass to every card under root.
   function fitCustom(root, g, items) {
     if (cMode === "sequence") {
+      // the auto number always fits · the header name uses its px / default size
       const size = computeSeqFontSize(root, g, widestLabel(items));
       if (size) root.querySelectorAll(".c-seq-num").forEach(el => { el.style.fontSize = size; });
+    } else if (cTextSize > 0) {
+      // explicit px → keep inline font-size, skip auto-fit
     } else if (cStyle === "vip") {
       root.querySelectorAll(".c-band-text").forEach(fitBandText);
     } else {
@@ -997,6 +1013,13 @@
     if (isNaN(n) || n < 0) n = 0;
     if (n > 400) n = 400;
     cLogoSize = n;
+    renderCustomSheets();
+  }
+  function setCTextSize(v) {
+    let n = parseInt(v, 10);
+    if (isNaN(n) || n < 0) n = 0;
+    if (n > 400) n = 400;
+    cTextSize = n;
     renderCustomSheets();
   }
   function setCStyle(s) {
@@ -2029,7 +2052,7 @@
     addRow, clearAll, resetAll,
     setZoom, printNow, exportPDF, downloadTemplate,
     // Custom tab (merged VIP + Badge + Seat)
-    setCMode, setCText, setCStyle, setCLogoSize,
+    setCMode, setCText, setCStyle, setCLogoSize, setCTextSize,
     setCQty, bumpCQty,
     setCRow, setCCol, setCSep,
     setCW, setCH, setCSize, syncCInputs,
