@@ -437,6 +437,11 @@
   font-family: 'Sarabun', sans-serif; font-weight: 900;
   color: #0f172a; line-height: 1; white-space: nowrap;
 }
+/* vertical alignment of card content (flex-column variants: plain & sequence) ·
+   placed after the variant rules so it wins on equal specificity */
+.c-card.c-va-top    { justify-content: flex-start; }
+.c-card.c-va-center { justify-content: center; }
+.c-card.c-va-bottom { justify-content: flex-end; }
 
 /* Custom A4 · wrapper holds the scaled size · orientation via --c-pw/--c-ph */
 .c-a4-wrap {

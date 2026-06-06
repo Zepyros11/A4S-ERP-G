@@ -481,6 +481,30 @@ body {
   word-break: break-word;
 }
 
+.bk-panel-actions {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid #f1f5f9;
+  display: flex;
+  justify-content: flex-end;
+}
+.bk-panel-cancel-btn {
+  background: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+  border-radius: 10px;
+  padding: 9px 16px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.bk-panel-cancel-btn:hover {
+  background: #fee2e2;
+  border-color: #f87171;
+}
+
 .cal-more {
   font-size: 11px;
   color: #5b8a6e;

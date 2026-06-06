@@ -24,6 +24,7 @@
   let cW       = 95;                // card width  (mm)
   let cH       = 60;                // card height (mm)
   let cOrient  = "portrait";        // "portrait" | "landscape"
+  let cVAlign  = "center";          // vertical align of card content · "top" | "center" | "bottom"
   let cZoom    = 0.5;
   // repeat-mode
   let cText     = "VIP";            // text/name on every card
@@ -39,6 +40,7 @@
   let cRowInput = "A-J";            // row tokens (e.g. "A-M" or "A,B,C")
   let cColInput = "1-12";           // column tokens (e.g. "1-24" or "1,2,3")
   let cSep      = "";               // separator between row & col ("" → "A1")
+  let cNumSize  = 0;                // big sequence-number size override (px) · 0 = auto-fit
 
   // ── Certificate tab state (independent from namecard rows) ─
   let certRows = [];                // [{ name1, name2, position }]
@@ -846,6 +848,17 @@
     }
     return best;
   }
+  // Page dimensions (mm) for the current orientation
+  function cPageDims() {
+    const land = cOrient === "landscape";
+    return { pw: land ? A4_H_MM : A4_W_MM, ph: land ? A4_W_MM : A4_H_MM };
+  }
+  // Card must never exceed the page → clamp w/h to page dims (keeps min 3×2 cm)
+  function clampCardToPage() {
+    const { pw, ph } = cPageDims();
+    cW = Math.min(pw, Math.max(30, cW));
+    cH = Math.min(ph, Math.max(20, cH));
+  }
   function applyCVars(el, g) {
     el.style.setProperty("--c-w", cW + "mm");
     el.style.setProperty("--c-h", cH + "mm");
@@ -863,6 +876,7 @@
     const imgSz = fixed ? ` style="max-height:${cLogoSize}px;max-width:${cLogoSize}px"` : "";
     const txtSz = cTextSize > 0 ? ` style="font-size:${cTextSize}px"` : "";   // px overrides auto-fit
     const text = esc(formatName(cText));
+    const vaCls = " c-va-" + cVAlign;   // vertical align of content (top/center/bottom · flex column variants)
 
     // Sequence: optional logo + name header above the auto number
     if (cMode === "sequence") {
@@ -873,7 +887,10 @@
       const nameEl = text ? `<div class="c-seq-name"${txtSz}>${text}</div>` : "";
       const hasHead = !!(url || text);
       const head = hasHead ? `<div class="c-seq-head">${logoEl}${nameEl}</div>` : "";
-      return `<div class="c-card c-seq${hasHead ? " c-seq--head" : ""}">${head}<div class="c-seq-numwrap"><div class="c-seq-num">${esc(label)}</div></div></div>`;
+      const numSz = cNumSize > 0 ? ` style="font-size:${cNumSize}px"` : "";   // px overrides auto-fit
+      const hasNum = String(label) !== "";   // header-only card (no Row/Col) → skip number, center the header
+      const numEl = hasNum ? `<div class="c-seq-numwrap"><div class="c-seq-num"${numSz}>${esc(label)}</div></div>` : "";
+      return `<div class="c-card c-seq${hasHead && hasNum ? " c-seq--head" : ""}${vaCls}">${head}${numEl}</div>`;
     }
 
     const logoCls = fixed ? "c-logo c-logo--fixed" : "c-logo";
@@ -883,7 +900,7 @@
     if (cStyle === "vip") {
       return `<div class="c-card c-vip">${logo}<div class="c-band"><div class="c-band-text"${txtSz}>${text}</div></div></div>`;
     }
-    return `<div class="c-card c-plain">${logo}${text ? `<div class="c-name"${txtSz}>${text}</div>` : ""}</div>`;
+    return `<div class="c-card c-plain${vaCls}">${logo}${text ? `<div class="c-name"${txtSz}>${text}</div>` : ""}</div>`;
   }
   function cBlank() { return `<div class="c-card" style="visibility:hidden"></div>`; }
   function cPageHtml(cells) { return `<div class="c-a4-wrap"><div class="c-a4">${cells}</div></div>`; }
@@ -941,7 +958,8 @@
   // Apply the right fit pass to every card under root.
   function fitCustom(root, g, items) {
     if (cMode === "sequence") {
-      // the auto number always fits · the header name uses its px / default size
+      // px override → keep inline font-size, skip auto-fit · else fit number to card
+      if (cNumSize > 0) return;
       const size = computeSeqFontSize(root, g, widestLabel(items));
       if (size) root.querySelectorAll(".c-seq-num").forEach(el => { el.style.fontSize = size; });
     } else if (cTextSize > 0) {
@@ -956,7 +974,12 @@
   // ── Render preview (capped for huge sequence sets) ────────
   const C_PREVIEW_MAX = 12;
   function customItems() {
-    if (cMode === "sequence") { const it = buildSeqLabels(); return { items: it, total: it.length }; }
+    if (cMode === "sequence") {
+      const it = buildSeqLabels();
+      // header-only (no Row/Col) → still show one card with just the header/logo
+      if (!it.length && (formatName(cText).trim() || cCurrentLogoUrl())) return { items: [""], total: 1 };
+      return { items: it, total: it.length };
+    }
     return { items: null, total: Math.max(0, cQty | 0) };
   }
   function renderCustomSheets() {
@@ -964,6 +987,9 @@
     const printArea = $("customPrintArea");
     if (!scroller) return;
 
+    clampCardToPage();   // defensive: never let a card exceed the page (e.g. portrait size kept after flipping to landscape)
+    const ae = document.activeElement;   // reflect clamp in the size inputs, but don't fight active typing
+    if (ae !== $("cWInput") && ae !== $("cHInput")) syncCInputs();
     const g = cGrid();
     const { items, total } = customItems();
     const pageCount = Math.max(1, Math.ceil(total / g.perPage));
@@ -1040,11 +1066,19 @@
   function setCRow(v) { cRowInput = String(v == null ? "" : v); renderCustomSheets(); }
   function setCCol(v) { cColInput = String(v == null ? "" : v); renderCustomSheets(); }
   function setCSep(v) { cSep      = String(v == null ? "" : v); renderCustomSheets(); }
-  function setCW(v) { const n = parseFloat(v); if (!isFinite(n)) return; cW = Math.max(3, Math.min(29.7, n)) * 10; renderCustomSheets(); }
-  function setCH(v) { const n = parseFloat(v); if (!isFinite(n)) return; cH = Math.max(2, Math.min(29.7, n)) * 10; renderCustomSheets(); }
+  function setCNumSize(v) {
+    let n = parseInt(v, 10);
+    if (isNaN(n) || n < 0) n = 0;
+    if (n > 800) n = 800;
+    cNumSize = n;
+    renderCustomSheets();
+  }
+  function setCW(v) { const n = parseFloat(v); if (!isFinite(n)) return; cW = n * 10; clampCardToPage(); renderCustomSheets(); }
+  function setCH(v) { const n = parseFloat(v); if (!isFinite(n)) return; cH = n * 10; clampCardToPage(); renderCustomSheets(); }
   function setCSize(wCm, hCm) {
-    cW = Math.max(3, Math.min(29.7, wCm)) * 10;
-    cH = Math.max(2, Math.min(29.7, hCm)) * 10;
+    cW = wCm * 10;
+    cH = hCm * 10;
+    clampCardToPage();
     syncCInputs(); renderCustomSheets();
   }
   // Set how many cards fit on one A4 → derives card size (best-fit) + syncs size inputs.
@@ -1067,6 +1101,14 @@
     cOrient = (o === "landscape") ? "landscape" : "portrait";
     $("cOrientPortrait")  && $("cOrientPortrait").classList.toggle("active", cOrient === "portrait");
     $("cOrientLandscape") && $("cOrientLandscape").classList.toggle("active", cOrient === "landscape");
+    clampCardToPage(); syncCInputs();   // card must fit the new page → shrink if it now exceeds it
+    renderCustomSheets();
+  }
+  function setCVAlign(v) {
+    cVAlign = (v === "top" || v === "bottom") ? v : "center";
+    $("cVAlignTop")    && $("cVAlignTop").classList.toggle("active",    cVAlign === "top");
+    $("cVAlignCenter") && $("cVAlignCenter").classList.toggle("active", cVAlign === "center");
+    $("cVAlignBottom") && $("cVAlignBottom").classList.toggle("active", cVAlign === "bottom");
     renderCustomSheets();
   }
   function setCZoom(dir) {
@@ -1082,10 +1124,11 @@
     const ok = await ConfirmModal.open({ title: "ล้างค่า?", message: "จะล้างค่าที่กรอกในเครื่องมือนี้", icon: "↺", tone: "warning", okText: "ล้าง" });
     if (!ok) return;
     if (cMode === "sequence") {
-      cRowInput = ""; cColInput = ""; cSep = "";
+      cRowInput = ""; cColInput = ""; cSep = ""; cNumSize = 0;
       const r = $("cRowInput"); if (r) r.value = "";
       const c = $("cColInput"); if (c) c.value = "";
       const s = $("cSepInput"); if (s) s.value = "";
+      const ns = $("cNumSizeInput"); if (ns) ns.value = "";
     } else {
       cText = ""; cQty = 0;
       const t = $("cTextInput"); if (t) t.value = "";
@@ -2054,10 +2097,10 @@
     // Custom tab (merged VIP + Badge + Seat)
     setCMode, setCText, setCStyle, setCLogoSize, setCTextSize,
     setCQty, bumpCQty,
-    setCRow, setCCol, setCSep,
+    setCRow, setCCol, setCSep, setCNumSize,
     setCW, setCH, setCSize, syncCInputs,
     setCPerPage, bumpCPerPage,
-    setCOrient, setCZoom, clearCustom,
+    setCOrient, setCVAlign, setCZoom, clearCustom,
     onCLogoPick, exportCustomPDF,
     // Certificate tab
     onCertDrag, onCertDrop, onCertFilePick,

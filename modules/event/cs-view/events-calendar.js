@@ -750,10 +750,65 @@ function openBookingPanel(requestId) {
       <div class="bk-panel-row"><div class="bk-panel-label">ผู้จอง</div><div class="bk-panel-value">${b.booked_by_name || "—"}</div></div>
       <div class="bk-panel-row"><div class="bk-panel-label">CS</div><div class="bk-panel-value">${b.cs_name || "—"}</div></div>
       ${noteHtml}
+    </div>
+    <div class="bk-panel-actions">
+      <button class="bk-panel-cancel-btn" onclick="cancelBooking(${b.request_id})">🚫 ยกเลิกการจองห้อง</button>
     </div>`;
   overlay.classList.add("open");
   document.body.style.overflow = "hidden";
 }
+
+async function cancelBooking(requestId) {
+  const b = allBookings.find((x) => String(x.request_id) === String(requestId));
+  if (!b) return;
+
+  const place = b.place_name && b.room_name && b.place_name !== b.room_name
+    ? `${b.place_name} — ${b.room_name}`
+    : (b.place_name || b.room_name || "—");
+
+  const ok = window.ConfirmModal
+    ? await window.ConfirmModal.open({
+        icon: "🚫",
+        title: "ยกเลิกการจองห้อง",
+        message: "ยกเลิกการจองห้องนี้? สถานะจะถูกเปลี่ยนเป็น “ยกเลิก”",
+        details: {
+          "ห้อง": place,
+          "วันที่": b.booking_date ? formatDate(b.booking_date) : "—",
+          "ผู้จอง": b.booked_by_name || "—",
+        },
+        okText: "ยกเลิกการจอง",
+        cancelText: "ไม่ใช่",
+        tone: "danger",
+      })
+    : confirm("ยกเลิกการจองห้องนี้?");
+  if (!ok) return;
+
+  try {
+    const { url, key } = getSB();
+    const res = await fetch(
+      `${url}/rest/v1/room_booking_requests?request_id=eq.${requestId}`,
+      {
+        method: "PATCH",
+        headers: {
+          apikey: key,
+          Authorization: `Bearer ${key}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ status: "CANCELLED" }),
+      },
+    );
+    if (!res.ok) throw new Error(await res.text().catch(() => res.statusText));
+
+    // Booking is no longer APPROVED → drop from calendar
+    allBookings = allBookings.filter((x) => String(x.request_id) !== String(requestId));
+    closeBookingPanel();
+    renderCalendar();
+    showToast("ยกเลิกการจองห้องแล้ว", "success");
+  } catch (e) {
+    showToast("ยกเลิกไม่สำเร็จ: " + (e.message || ""), "error");
+  }
+}
+window.cancelBooking = cancelBooking;
 
 function closeBookingPanel() {
   document.getElementById("bookingPanelOverlay").classList.remove("open");

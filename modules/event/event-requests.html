@@ -67,7 +67,6 @@
                   <option value="">🧿 ทุกสถานะ</option>
                   <option value="PENDING">⏳ รอดำเนินการ</option>
                   <option value="APPROVED">✅ อนุมัติแล้ว</option>
-                  <option value="REJECTED">❌ ปฏิเสธ</option>
                   <option value="CANCELLED">🚫 ยกเลิก</option>
                 </select>
                 <div class="toolbar-right">
@@ -101,7 +100,8 @@
                       <th class="col-center">ผู้จอง</th>
                       <th class="col-center">หมายเหตุ</th>
                       <th class="col-center">CS</th>
-                      <th class="col-center">วันที่</th>
+                      <th class="col-center">วันที่ใช้ห้อง</th>
+                      <th class="col-center">วันที่จอง</th>
                       <th class="col-center">เวลา</th>
                       <th class="col-center">สถานะ</th>
                       <th class="col-center">อนุมัติ</th>
@@ -109,7 +109,7 @@
                     </tr>
                   </thead>
                   <tbody id="rbkqTableBody">
-                    <tr><td colspan="10"><div class="empty-state"><div class="empty-icon">🚪</div><div class="empty-text">กำลังโหลด...</div></div></td></tr>
+                    <tr><td colspan="11"><div class="empty-state"><div class="empty-icon">🚪</div><div class="empty-text">กำลังโหลด...</div></div></td></tr>
                   </tbody>
                 </table>
               </div>
@@ -531,7 +531,6 @@
                 <select id="bkqEditStatus">
                   <option value="PENDING">⏳ รอดำเนินการ</option>
                   <option value="APPROVED">✅ อนุมัติแล้ว</option>
-                  <option value="REJECTED">❌ ปฏิเสธ</option>
                   <option value="CANCELLED">🚫 ยกเลิก</option>
                 </select>
               </div>
@@ -703,7 +702,7 @@
     const BKQ_STATUS_MAP = {
       PENDING:  { label:"รอดำเนินการ", cls:"PENDING"  },
       APPROVED: { label:"อนุมัติแล้ว", cls:"APPROVED" },
-      REJECTED: { label:"ปฏิเสธ",      cls:"REJECTED" },
+      REJECTED: { label:"ยกเลิก",      cls:"CANCELLED" },
       CANCELLED:{ label:"ยกเลิก",      cls:"CANCELLED"},
     };
 
@@ -758,7 +757,7 @@
       }
 
       if (rows.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="10"><div class="empty-state"><div class="empty-icon">🚪</div><div class="empty-text">ยังไม่มีรายการจองห้อง</div></div></td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="11"><div class="empty-state"><div class="empty-icon">🚪</div><div class="empty-text">ยังไม่มีรายการจองห้อง</div></div></td></tr>`;
         return;
       }
 
@@ -785,11 +784,12 @@
             <td class="col-center">${noteHtml}</td>
             <td class="col-center">${cs}</td>
             <td class="col-center">${window.DateFmt?.formatDMY(r.booking_date) || r.booking_date || ""}</td>
+            <td class="col-center">${window.DateFmt?.formatDMY(r.created_at) || (r.created_at||"").slice(0,10) || ""}</td>
             <td class="col-center">${timeStr}</td>
             <td class="col-center"><span class="room-bkq-badge ${s.cls}">${s.label}</span></td>
             <td class="col-center" onclick="event.stopPropagation()">
               <button class="btn-icon" title="อนุมัติ" onclick="updateRoomBooking(${r.request_id},'APPROVED',this)">✅</button>
-              <button class="btn-icon" title="ปฏิเสธ"  onclick="updateRoomBooking(${r.request_id},'REJECTED',this)">❌</button>
+              <button class="btn-icon" title="ยกเลิก"  onclick="updateRoomBooking(${r.request_id},'CANCELLED',this)">❌</button>
             </td>
             <td class="col-center" onclick="event.stopPropagation()">
               <button class="btn-icon" title="ผู้เข้าร่วม" onclick="window.open('./booking-attendees.html?request=${r.request_id}','_blank')" style="color:#6366f1">👥</button>
@@ -815,7 +815,7 @@
                r.place_name?.toLowerCase().includes(q)   ||
                r._booker?.toLowerCase().includes(q)      ||
                r._cs?.toLowerCase().includes(q)) &&
-        (!s || r.status === s)
+        (!s || (s === "CANCELLED" ? (r.status === "CANCELLED" || r.status === "REJECTED") : r.status === s))
       );
       renderRoomBookings(filtered);
     }
@@ -1028,7 +1028,7 @@
       document.getElementById("bkqEditCS").value     = row.cs_name || "";
       document.getElementById("bkqEditRoom").value   = row.place_name || "";
       document.getElementById("bkqEditDate").value   = row.booking_date || "";
-      document.getElementById("bkqEditStatus").value = row.status || "PENDING";
+      document.getElementById("bkqEditStatus").value = (row.status === "REJECTED" ? "CANCELLED" : row.status) || "PENDING";
 
       const isAllday = row.end_time === "ALLDAY";
       document.getElementById("bkqAlldayCheck").checked = isAllday;
