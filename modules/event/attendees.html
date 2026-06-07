@@ -94,15 +94,20 @@
 
           <!-- STATUS CARDS — สรุป (clickable → popup report) -->
           <div id="attStatusCards" class="att-status-cards" style="display:none">
-            <div class="att-scard sc-upline" role="button" tabindex="0" title="ดูรายงานแยกตามสายงาน" onclick="window.openStatReport('upline')">
-              <div class="att-scard-hd">🌿 จำนวนตามสายงาน</div>
-              <div class="att-scard-main"><span id="scUplineGroups">0</span> <small>สาย</small></div>
+            <div class="att-scard sc-upline" role="button" tabindex="0" title="ดูรายงานผู้ลงทะเบียนแยกตามสายงาน" onclick="window.openStatReport('upline')">
+              <div class="att-scard-hd">🌿 จำนวนผู้ลงทะเบียนตามสายงาน</div>
+              <div class="att-scard-main"><span id="scUplineReg">0</span> <small>คน</small></div>
               <div class="att-scard-sub" id="scUplineSub">—</div>
             </div>
-            <div class="att-scard sc-attend" role="button" tabindex="0" title="ดูรายงานลงทะเบียน / มาจริง" onclick="window.openStatReport('attendance')">
-              <div class="att-scard-hd">👥 ลงทะเบียน / มาจริง</div>
-              <div class="att-scard-main"><span id="scReg">0</span> <small>/</small> <span id="scActual" class="sc-actual">0</span></div>
-              <div class="att-scard-sub" id="scAttendSub">มาจริง 0%</div>
+            <div class="att-scard sc-attend" role="button" tabindex="0" title="ดูรายงานผู้เข้างานแยกตามสายงาน" onclick="window.openStatReport('upline_checkin')">
+              <div class="att-scard-hd">🌿 จำนวนผู้เข้างานตามสายงาน</div>
+              <div class="att-scard-main"><span id="scAttendLine" class="sc-actual">0</span> <small>คน</small></div>
+              <div class="att-scard-sub" id="scAttendSub">—</div>
+            </div>
+            <div class="att-scard sc-compare" role="button" tabindex="0" title="ดูรายงานเทียบลงทะเบียน / เข้างาน ตามสายงาน" onclick="window.openStatReport('upline_compare')">
+              <div class="att-scard-hd">🌿 อัตราเข้างานตามสายงาน</div>
+              <div class="att-scard-main"><span id="scLineRate" class="sc-ok">0%</span></div>
+              <div class="att-scard-sub" id="scLineRateSub">—</div>
             </div>
             <div class="att-scard sc-pay" role="button" tabindex="0" title="ดูรายงานการชำระเงิน" onclick="window.openStatReport('payment')">
               <div class="att-scard-hd">💰 การชำระเงิน</div>

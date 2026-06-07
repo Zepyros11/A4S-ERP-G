@@ -1048,9 +1048,12 @@
   font-weight: 700;
   font-family: "IBM Plex Mono", monospace;
   color: #0f172a;
-  min-width: 56px;
+  width: 108px;
   text-align: right;
+  white-space: nowrap;
 }
+.sr-bd-count .sr-num { display: inline-block; min-width: 44px; text-align: right; }
+.sr-bd-count .sr-pct { display: inline-block; width: 52px; text-align: right; color: var(--text3, #94a3b8); font-weight: 500; }
 .sr-bd-bar {
   width: 110px;
   height: 6px;
@@ -2957,7 +2960,7 @@
 /* ── Status cards (สรุป · กดเปิด report) ───────────────────── */
 .att-status-cards {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 12px;
   margin: 0 0 14px;
 }
@@ -2971,9 +2974,10 @@
   border-left: 4px solid #cbd5e1;
 }
 .att-scard:hover { box-shadow: 0 4px 14px rgba(15,23,42,.1); transform: translateY(-1px); }
-.att-scard.sc-upline { border-left-color: #16a34a; }
-.att-scard.sc-attend { border-left-color: #2563eb; }
-.att-scard.sc-pay    { border-left-color: #d97706; }
+.att-scard.sc-upline  { border-left-color: #16a34a; }
+.att-scard.sc-attend  { border-left-color: #2563eb; }
+.att-scard.sc-compare { border-left-color: #0d9488; }
+.att-scard.sc-pay     { border-left-color: #d97706; }
 .att-scard-hd { font-size: 12px; font-weight: 700; color: var(--text2, #475569); margin-bottom: 6px; }
 .att-scard-main { font-size: 24px; font-weight: 800; color: #0f172a; line-height: 1.1; }
 .att-scard-main small { font-size: 13px; font-weight: 600; color: var(--text3, #94a3b8); }

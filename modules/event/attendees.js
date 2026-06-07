@@ -682,20 +682,32 @@ function updateStats() {
   document.getElementById("statRevenue").textContent = formatNum(revenue);
 
   // ── Status cards ──
-  // สายงาน
-  const uplineGroups = {};
-  let matchedUpline = 0;
+  // สายงาน — แยกผู้ลงทะเบียน (ทั้งหมด) กับ ผู้เข้างาน (check-in)
+  const uplineGroups = {};   // สาย → จำนวนผู้ลงทะเบียน
+  const uplineCheckin = {};  // สาย → จำนวนผู้เข้างาน (check-in)
+  let matchedUpline = 0;     // ผู้ลงทะเบียนที่จับสายได้
+  let matchedCheckin = 0;    // ผู้เข้างานที่จับสายได้
   allAttendees.forEach((a) => {
     const m = _uplineMatchFor(a);
-    if (m) { matchedUpline++; const k = m.nickname || m.name; uplineGroups[k] = (uplineGroups[k] || 0) + 1; }
+    if (m) {
+      matchedUpline++;
+      const k = m.nickname || m.name;
+      uplineGroups[k] = (uplineGroups[k] || 0) + 1;
+      if (a.checked_in) { matchedCheckin++; uplineCheckin[k] = (uplineCheckin[k] || 0) + 1; }
+    }
   });
   const setTxt = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
-  setTxt("scUplineGroups", Object.keys(uplineGroups).length);
-  setTxt("scUplineSub", `จับสายแล้ว ${matchedUpline}/${total} คน`);
-  // ลงทะเบียน / มาจริง
-  setTxt("scReg", total);
-  setTxt("scActual", checkedIn);
-  setTxt("scAttendSub", `มาจริง ${total ? Math.round((checkedIn / total) * 100) : 0}%`);
+  // card 1 — จำนวนผู้ลงทะเบียนตามสายงาน
+  setTxt("scUplineReg", matchedUpline);
+  setTxt("scUplineSub", `${Object.keys(uplineGroups).length} สาย`);
+  // card 2 — จำนวนผู้เข้างานตามสายงาน
+  setTxt("scAttendLine", matchedCheckin);
+  setTxt("scAttendSub", `${Object.keys(uplineCheckin).length} สาย · มาจริง ${total ? Math.round((checkedIn / total) * 100) : 0}%`);
+  // card 3 — เทียบ ลงทะเบียน vs เข้างาน ตามสายงาน
+  const lineKeys = Object.keys(uplineGroups);
+  const fullLines = lineKeys.filter((k) => (uplineCheckin[k] || 0) >= uplineGroups[k]).length;
+  setTxt("scLineRate", `${matchedUpline ? Math.round((matchedCheckin / matchedUpline) * 100) : 0}%`);
+  setTxt("scLineRateSub", `ลงทะเบียน ${matchedUpline} → เข้างาน ${matchedCheckin} คน · ${fullLines}/${lineKeys.length} สาย`);
   // การชำระเงิน
   const unpaid = allAttendees.filter((a) => a.payment_status !== "PAID" && a.payment_status !== "COMPLIMENTARY").length;
   setTxt("scPaid", paid);
@@ -740,7 +752,7 @@ function _renderBreakdownRows(map, total) {
       return `<div class="sr-bd-row">
         <div class="sr-bd-label">${escapeHtml(label)}</div>
         <div class="sr-bd-bar"><span style="width:${pct}%"></span></div>
-        <div class="sr-bd-count">${count} <span style="color:var(--text3);font-weight:500">(${pct}%)</span></div>
+        <div class="sr-bd-count"><span class="sr-num">${count}</span> <span class="sr-pct">(${pct}%)</span></div>
       </div>`;
     })
     .join("");
@@ -956,6 +968,75 @@ function _buildStatReport(type) {
       summary,
       sections: [
         { title: "🌿 แยกตามหัวหน้าทีม", count: Object.keys(byUpline).length, html: `<div class="sr-breakdown">${_renderBreakdownRows(byUpline, total)}</div>` },
+      ],
+      list: [],
+      listMode: "default",
+      hideList: true,
+    };
+  }
+
+  if (type === "upline_checkin") {
+    const byUpline = {};
+    let matched = 0;
+    checkedIn.forEach((a) => {
+      const m = _uplineMatchFor(a);
+      if (m) {
+        matched++;
+        const k = m.nickname || m.name;
+        byUpline[k] = (byUpline[k] || 0) + 1;
+      } else {
+        byUpline["— ไม่มีสายงาน —"] = (byUpline["— ไม่มีสายงาน —"] || 0) + 1;
+      }
+    });
+    const summary = [
+      { label: "ผู้เข้างาน (มีสายงาน)", value: matched, accent: true, sub: checkedIn.length ? `${Math.round((matched / checkedIn.length) * 100)}%` : "0%" },
+      { label: "จำนวนสาย", value: Object.keys(byUpline).filter((k) => k !== "— ไม่มีสายงาน —").length },
+      { label: "เข้างานทั้งหมด", value: checkedIn.length },
+    ];
+    return {
+      title: `🌿 ผู้เข้างานตามสายงาน — ${evName}`,
+      summary,
+      sections: [
+        { title: "🌿 แยกตามหัวหน้าทีม (เฉพาะมาจริง)", count: Object.keys(byUpline).length, html: `<div class="sr-breakdown">${_renderBreakdownRows(byUpline, checkedIn.length)}</div>` },
+      ],
+      list: checkedIn,
+      listMode: "checkin",
+    };
+  }
+
+  if (type === "upline_compare") {
+    const reg = {};   // สาย → ลงทะเบียน
+    const att = {};   // สาย → เข้างาน
+    allAttendees.forEach((a) => {
+      const m = _uplineMatchFor(a);
+      const k = m ? (m.nickname || m.name) : "— ไม่มีสายงาน —";
+      reg[k] = (reg[k] || 0) + 1;
+      if (a.checked_in) att[k] = (att[k] || 0) + 1;
+    });
+    const keys = Object.keys(reg).sort((a, b) => reg[b] - reg[a]);
+    const lineKeys = keys.filter((k) => k !== "— ไม่มีสายงาน —");
+    const matchedReg = allAttendees.filter((a) => _uplineMatchFor(a)).length;
+    const matchedAtt = checkedIn.filter((a) => _uplineMatchFor(a)).length;
+    const fullLines = lineKeys.filter((k) => (att[k] || 0) >= reg[k]).length;
+    const rowsHtml = keys.map((k) => {
+      const r = reg[k] || 0, c = att[k] || 0;
+      const pct = r ? Math.round((c / r) * 100) : 0;
+      return `<div class="sr-bd-row">
+        <div class="sr-bd-label">${escapeHtml(k)}</div>
+        <div class="sr-bd-bar"><span style="width:${pct}%"></span></div>
+        <div class="sr-bd-count"><span class="sr-num">${c}/${r}</span> <span class="sr-pct">(${pct}%)</span></div>
+      </div>`;
+    }).join("") || `<div class="sr-empty" style="padding:14px">— ไม่มีข้อมูล —</div>`;
+    const summary = [
+      { label: "อัตราเข้างาน", value: `${matchedReg ? Math.round((matchedAtt / matchedReg) * 100) : 0}%`, accent: true, sub: `${matchedAtt}/${matchedReg} คน` },
+      { label: "ครบทั้งสาย", value: `${fullLines}/${lineKeys.length}`, sub: "สาย" },
+      { label: "จำนวนสาย", value: lineKeys.length },
+    ];
+    return {
+      title: `🌿 เทียบลงทะเบียน / เข้างาน ตามสายงาน — ${evName}`,
+      summary,
+      sections: [
+        { title: "🌿 เข้างาน / ลงทะเบียน แต่ละสาย", count: keys.length, html: `<div class="sr-breakdown">${rowsHtml}</div>` },
       ],
       list: [],
       listMode: "default",
