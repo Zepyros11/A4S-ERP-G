@@ -347,14 +347,15 @@ async function loadAttendeeTemplates() {
   try {
     const { url, key } = getSB();
     const res = await fetch(
-      `${url}/rest/v1/attendee_form_templates?select=id,name,description,config,is_active&is_active=eq.true&order=sort_order.asc`,
+      `${url}/rest/v1/attendee_form_templates?select=id,name,description,config,is_active,is_default&is_active=eq.true&order=sort_order.asc`,
       { headers: { apikey: key, Authorization: `Bearer ${key}` } }
     );
     _allTemplates = res.ok ? (await res.json()) : [];
     const sel = document.getElementById('fTemplateId');
     if (!sel) return;
+    // ตัด template ที่เป็น Default ออก — ใช้ผ่าน "ไม่ผูก template (ใช้ default)" อยู่แล้ว ไม่ต้องโชว์ซ้ำ
     sel.innerHTML = '<option value="">— ไม่ผูก template (ใช้ default) —</option>' +
-      _allTemplates.map(t => `<option value="${t.id}">📋 ${t.name}</option>`).join('');
+      _allTemplates.filter(t => !t.is_default).map(t => `<option value="${t.id}">📋 ${t.name}</option>`).join('');
   } catch (e) {
     console.warn('loadAttendeeTemplates:', e.message);
   }

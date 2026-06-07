@@ -14,10 +14,8 @@ const state = {
   company: {},
   zoom: 1,
   trips: [],
-  // left data panel
-  panel: { trip: null, selected: [], groupBy: "", total: false, collapsed: {} },
-  // preview+filter modal (ctx cache ไว้ render/filter ไม่ refetch)
-  preview: { ctx: null, base: null, filters: {}, collapsed: {} },
+  // left data panel — เลือกทริปเพื่อไปจัดข้อมูลใน Custom Report
+  panel: { trip: null },
 };
 
 const LETTERHEAD = {
@@ -127,15 +125,10 @@ function renderEditor() {
   const hasBinding = b && b.source === "custom_report" && b.trip_id && /data-doc-datablock/.test(d.body || "");
   $("deRefreshBtn").style.display = hasBinding ? "" : "none";
   document.title = `${d.title || "เอกสาร"} — แก้ไข — A4S-ERP`;
-  // panel: prefill จาก binding เดิม (ถ้ามี)
-  if (b && b.trip_id) {
-    state.panel.trip = b.trip_id;
-    state.panel.selected = Array.isArray(b.columns) ? b.columns.slice() : [];
-    state.panel.groupBy = b.groupBy || "";
-    state.panel.total = !!b.showTotal;
-  }
+  // panel: prefill ทริปจาก binding เดิม (ถ้ามี)
+  if (b && b.trip_id) state.panel.trip = b.trip_id;
   renderTripOptions();
-  renderPanel();
+  resetHistory();   // เริ่มประวัติ undo/redo จากสถานะที่โหลดมา
   fitZoom();
 }
 
@@ -157,182 +150,21 @@ window.togglePanel = function () {
   p.classList.toggle("collapsed");
   p.querySelector(".de-panel-collapse").textContent = p.classList.contains("collapsed") ? "›" : "‹";
 };
-window.onPanelTrip = function (v) {
-  state.panel.trip = v ? +v : null;
-  renderPanel();
-};
-// คอลัมน์ที่เลือกได้ในเอกสาร — ตัด image ออก (จดหมายเป็นตารางข้อความ)
-function panelGroups() {
-  const groups = (window.TripReportData && window.TripReportData.COLUMN_GROUPS) || [];
-  return groups.map((g) => ({ id: g.id, label: g.label, cols: g.cols.filter((c) => c.fmt !== "image") }))
-    .filter((g) => g.cols.length);
-}
-function renderPanel() {
-  const pick = $("dePanelPicker");
-  if (!state.panel.trip) {
-    pick.innerHTML = `<div class="de-pick-empty">เลือกทริปก่อน เพื่อดึงคอลัมน์ที่มี</div>`;
-    $("dePanelOpts").style.display = "none";
-    $("dePanelInsert").style.display = "none";
-    return;
+// ไป Custom Report เพื่อเลือก/กรองข้อมูล แล้วส่งกลับมาที่เอกสารนี้
+// - แทรก placeholder บล็อกที่ตำแหน่งเคอร์เซอร์ (ถ้ายังไม่มี) → custom-report จะเติมตารางตรงนี้
+// - บันทึกเอกสารก่อน (ต้องมี doc_id) → custom-report.html?trip_id=X&insert_doc=N
+window.goCustomReport = async function () {
+  const trip = +$("dePanelTrip").value || (state.doc.data_bindings && state.doc.data_bindings.trip_id) || null;
+  if (!trip) { showToast("เลือกทริปก่อน", "error"); $("dePanelTrip").focus(); return; }
+  if (!$("deTitle").value.trim()) { showToast("กรอกชื่อเอกสารก่อน", "error"); $("deTitle").focus(); return; }
+  // วาง placeholder ตารางที่เคอร์เซอร์ ถ้ายังไม่มีบล็อกข้อมูล
+  if (!document.querySelector("#deBody [data-doc-datablock]")) {
+    focusBody();
+    document.execCommand("insertHTML", false, `<div data-doc-datablock="1"></div>`);
   }
-  pick.innerHTML = panelGroups().map((g) => {
-    const collapsed = state.panel.collapsed[g.id];
-    const nSel = g.cols.filter((c) => state.panel.selected.includes(c.key)).length;
-    const opts = g.cols.map((c) => `
-      <label class="de-opt">
-        <input type="checkbox" value="${escapeHtml(c.key)}" ${state.panel.selected.includes(c.key) ? "checked" : ""}
-          onchange="window.togglePanelCol('${escapeHtml(c.key)}', this.checked)">
-        <span>${escapeHtml(c.label)}</span>
-      </label>`).join("");
-    return `<div class="de-pick-group${collapsed ? " collapsed" : ""}">
-      <div class="de-pick-ghd" onclick="window.panelToggleGroup('${escapeHtml(g.id)}')">
-        <span>${escapeHtml(g.label)}</span>
-        <span>${nSel ? `<span class="de-opt-count">${nSel}</span> ` : ""}${collapsed ? "▸" : "▾"}</span>
-      </div>
-      <div class="de-pick-body">${opts}</div>
-    </div>`;
-  }).join("");
-  renderPanelGroupBy();
-  $("dePanelOpts").style.display = "";
-  $("dePanelInsert").style.display = state.panel.selected.length ? "" : "none";
-}
-window.panelToggleGroup = function (gid) {
-  state.panel.collapsed[gid] = !state.panel.collapsed[gid];
-  renderPanel();
-};
-window.togglePanelCol = function (key, checked) {
-  const i = state.panel.selected.indexOf(key);
-  if (checked && i < 0) state.panel.selected.push(key);
-  else if (!checked && i >= 0) state.panel.selected.splice(i, 1);
-  // groupBy ที่อ้างคอลัมน์ที่เอาออก → reset
-  if (!checked && state.panel.groupBy === key) state.panel.groupBy = "";
-  renderPanelGroupBy();
-  $("dePanelInsert").style.display = state.panel.selected.length ? "" : "none";
-  // อัปเดต badge นับในหัวกลุ่ม (re-render เบาๆ)
-  renderPanel();
-};
-function renderPanelGroupBy() {
-  const sel = $("dePanelGroup");
-  if (!sel) return;
-  const byKey = (window.TripReportData && window.TripReportData.COL_BY_KEY) || {};
-  const opts = [`<option value="">— ไม่แบ่งกลุ่ม —</option>`,
-    `<option value="_flightseg">✈️ ตามช่วงเที่ยวบิน</option>`];
-  state.panel.selected.forEach((k) => {
-    const c = byKey[k];
-    if (c) opts.push(`<option value="${escapeHtml(k)}">${escapeHtml(c.label)}</option>`);
-  });
-  sel.innerHTML = opts.join("");
-  if (state.panel.groupBy && state.panel.groupBy !== "_flightseg" && !state.panel.selected.includes(state.panel.groupBy)) state.panel.groupBy = "";
-  sel.value = state.panel.groupBy;
-}
-window.setPanelGroup = function (v) { state.panel.groupBy = v || ""; };
-window.setPanelTotal = function (on) { state.panel.total = !!on; };
-
-// เปิด popup พรีวิว + กรอง (โหลด ctx ครั้งเดียว → กรอง/render ไม่ refetch)
-window.openDataPreview = async function () {
-  if (!state.panel.trip) { showToast("เลือกทริปก่อน", "error"); return; }
-  if (!state.panel.selected.length) { showToast("เลือกคอลัมน์อย่างน้อย 1", "error"); return; }
-  if (!window.TripReportData) { showToast("โหลด engine ไม่สำเร็จ (report-data-source.js)", "error"); return; }
-  showLoading(true);
-  try {
-    state.preview.ctx = await window.TripReportData.loadCtx(state.panel.trip);
-    state.preview.base = {
-      source: "custom_report", trip_id: state.panel.trip, columns: state.panel.selected.slice(),
-      hidden: {}, merged: {}, sort: [], groupBy: state.panel.groupBy, showTotal: state.panel.total,
-    };
-    state.preview.filters = {};   // เริ่ม = ไม่กรอง (ทุกค่าถูกเลือก)
-    state.preview.collapsed = {};
-    renderPreviewFilters();
-    renderPreviewTable();
-    $("dpModal").classList.add("open");
-  } catch (e) {
-    showToast("โหลดข้อมูลไม่สำเร็จ: " + e.message, "error");
-  }
-  showLoading(false);
-};
-window.closeDataPreview = function () { $("dpModal").classList.remove("open"); };
-
-function previewDistinct(key) { return window.TripReportData.distinctValues(state.preview.ctx, key); }
-function filterSet(key) {
-  if (!state.preview.filters[key]) state.preview.filters[key] = new Set(previewDistinct(key)); // lazy = ทุกค่า
-  return state.preview.filters[key];
-}
-function dispVal(v) { return v === window.TripReportData.BLANK_VAL ? "(ว่าง)" : v; }
-
-function renderPreviewFilters() {
-  const wrap = $("dpFilters");
-  const COL = window.TripReportData.COL_BY_KEY;
-  const parts = [];
-  state.preview.base.columns.forEach((k) => {
-    const c = COL[k];
-    if (!c || c.fmt === "image") return;
-    const vals = previewDistinct(k);
-    if (vals.length < 2) return; // ค่าเดียว → ไม่ต้องกรอง
-    const set = filterSet(k);
-    const collapsed = state.preview.collapsed[k];
-    const active = set.size < vals.length;
-    const opts = vals.map((v) => `
-      <label class="dp-fopt"><input type="checkbox" ${set.has(v) ? "checked" : ""}
-        data-v="${escapeHtml(String(v))}" onchange="window.dpToggle('${k}', this.getAttribute('data-v'), this.checked)">
-        <span>${escapeHtml(dispVal(v))}</span></label>`).join("");
-    parts.push(`<div class="dp-fcol${collapsed ? " collapsed" : ""}">
-      <div class="dp-fcol-hd" onclick="window.dpToggleCol('${k}')">
-        <span>${escapeHtml(c.label)}</span>
-        <span>${active ? `<span class="dp-fbadge">${set.size}</span> ` : ""}${collapsed ? "▸" : "▾"}</span>
-      </div>
-      <div class="dp-fcol-acts">
-        <button onclick="event.stopPropagation();window.dpAll('${k}',true)">ทั้งหมด</button>
-        <button onclick="event.stopPropagation();window.dpAll('${k}',false)">ล้าง</button>
-      </div>
-      <div class="dp-fcol-list">${opts}</div>
-    </div>`);
-  });
-  wrap.innerHTML = parts.length ? parts.join("") : `<div class="dp-filters-empty">คอลัมน์ที่เลือกไม่มีค่าให้กรอง</div>`;
-}
-window.dpToggleCol = function (key) { state.preview.collapsed[key] = !state.preview.collapsed[key]; renderPreviewFilters(); };
-window.dpToggle = function (key, val, checked) {
-  const set = filterSet(key);
-  if (checked) set.add(val); else set.delete(val);
-  renderPreviewFilters();
-  renderPreviewTable();
-};
-window.dpAll = function (key, sel) {
-  const set = filterSet(key);
-  set.clear();
-  if (sel) previewDistinct(key).forEach((v) => set.add(v));
-  renderPreviewFilters();
-  renderPreviewTable();
-};
-// binding ปัจจุบันรวม filters (เฉพาะคอลัมน์ที่เลือกบางส่วน → ถือว่ากรอง)
-function currentPreviewBinding() {
-  const filters = {};
-  Object.keys(state.preview.filters).forEach((key) => {
-    const set = state.preview.filters[key];
-    const total = previewDistinct(key).length;
-    if (set && set.size > 0 && set.size < total) filters[key] = [...set];
-  });
-  return { ...state.preview.base, filters };
-}
-function renderPreviewTable() {
-  const { html, rowCount } = window.TripReportData.renderTable(state.preview.ctx, currentPreviewBinding());
-  $("dpPaper").innerHTML = html || `<div style="text-align:center;color:#94a3b8;padding:40px">ไม่มีข้อมูลตามที่กรอง</div>`;
-  $("dpMeta").textContent = `· ${rowCount} รายการ`;
-}
-// แทรก/แทนที่บล็อกข้อมูลในเอกสาร
-function placeBlock(html, binding) {
-  const block = document.querySelector("#deBody [data-doc-datablock]");
-  if (block) block.innerHTML = html;
-  else { focusBody(); document.execCommand("insertHTML", false, `<div data-doc-datablock="1">${html}</div><p>&nbsp;</p>`); }
-  state.doc.data_bindings = binding; // เก็บไว้ save + 🔄 รีเฟรช
-  $("deRefreshBtn").style.display = "";
-}
-window.confirmInsertBlock = function () {
-  const b = currentPreviewBinding();
-  const { html, rowCount } = window.TripReportData.renderTable(state.preview.ctx, b);
-  if (!html) { showToast("ไม่มีข้อมูลตามที่กรอง", "error"); return; }
-  placeBlock(html, b);
-  window.closeDataPreview();
-  showToast(`แทรกตารางแล้ว (${rowCount} รายการ) — กด 💾 บันทึก`, "success");
+  await window.saveDoc();          // insert (โหมดใหม่) หรือ update → ผูก state.docId
+  if (!state.docId) return;        // save ไม่ผ่าน (เช่น error) → ไม่ไปต่อ
+  location.href = `./custom-report.html?trip_id=${trip}&insert_doc=${state.docId}`;
 };
 
 // ── SELECTS ────────────────────────────────────────────────
@@ -403,18 +235,24 @@ function composeDocHtml() {
 // ── BODY / SELECTION TRACKING ──────────────────────────────
 let _range = null;
 function bindBodyEvents() {
+  initHistory();
   $("deLetterhead").addEventListener("change", renderHead);
   $("deSignatory").addEventListener("change", renderSig);
   $("deImageInput").addEventListener("change", onImagePicked);
   document.addEventListener("selectionchange", onSelChange);
+  // popup ตารางตามแถว: เลื่อน/ย่อขยายจอ → reposition
+  $("deCanvas").addEventListener("scroll", () => { if (_activeCell) positionTableTools(_activeCell); });
+  window.addEventListener("resize", () => { if (_activeCell) positionTableTools(_activeCell); });
   document.addEventListener("keydown", (e) => {
+    const mod = e.ctrlKey || e.metaKey;
+    // ใช้ e.code (ปุ่มจริง) ไม่ใช่ e.key → ทำงานได้ทุกภาษาคีย์บอร์ด (ไทย/อังกฤษ)
+    // Undo / Redo
+    if (mod && e.code === "KeyZ") { e.preventDefault(); e.shiftKey ? doRedo() : doUndo(); return; }
+    if (mod && e.code === "KeyY") { e.preventDefault(); doRedo(); return; }
     // Ctrl+S = save
-    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") { e.preventDefault(); window.saveDoc(); return; }
-    // ESC = ปิด modal (พรีวิวข้อมูล ก่อน → พรีวิวเอกสาร)
-    if (e.key === "Escape") {
-      if ($("dpModal").classList.contains("open")) { window.closeDataPreview(); return; }
-      if ($("dePreviewModal").classList.contains("open")) window.closePreview();
-    }
+    if (mod && e.code === "KeyS") { e.preventDefault(); window.saveDoc(); return; }
+    // ESC = ปิดพรีวิวเอกสาร
+    if (e.key === "Escape" && $("dePreviewModal").classList.contains("open")) window.closePreview();
   });
 }
 function inBody(node) {
@@ -452,15 +290,62 @@ function restoreRange() {
 }
 function focusBody() { $("deBody").focus(); restoreRange(); }
 
+// ── UNDO / REDO (snapshot history ครอบคลุมทุกการแก้ รวม DOM ตาราง) ──
+let _hist = [], _hi = -1, _histTimer = null, _restoring = false, _mo = null;
+function initHistory() {
+  // MutationObserver จับทุกการเปลี่ยนใน body (พิมพ์/จัดรูปแบบ/แก้ตาราง) → snapshot (debounce)
+  _mo = new MutationObserver(() => { if (!_restoring) scheduleSnapshot(); });
+  _mo.observe($("deBody"), { childList: true, subtree: true, characterData: true, attributes: true });
+}
+function resetHistory() {            // เรียกตอนโหลดเอกสารเสร็จ — เริ่ม history ใหม่
+  _hist = [cleanBody()];
+  _hi = 0;
+  clearTimeout(_histTimer);
+}
+function snapshot() {
+  const html = cleanBody();          // ตัด highlight cell (de-cell-active) ออก → ไม่เก็บใน history
+  if (_hi >= 0 && _hist[_hi] === html) return;   // เหมือนเดิม → ไม่บันทึก (กัน restore ทำ tail หาย)
+  _hist = _hist.slice(0, _hi + 1);               // ตัด redo tail เมื่อมีการแก้ใหม่
+  _hist.push(html);
+  if (_hist.length > 120) _hist.shift();
+  _hi = _hist.length - 1;
+}
+function scheduleSnapshot() { clearTimeout(_histTimer); _histTimer = setTimeout(snapshot, 350); }
+function restoreHist() {
+  _restoring = true;
+  $("deBody").innerHTML = _hist[_hi];
+  _restoring = false;
+  highlightCell(null);              // ตารางถูกแทนที่ → ปิด popup เครื่องมือ
+  try { $("deBody").focus(); const s = window.getSelection(); s.selectAllChildren($("deBody")); s.collapseToEnd(); } catch (e) {}
+}
+function doUndo() {
+  clearTimeout(_histTimer);
+  if (_hi < 0) return;
+  if (cleanBody() !== _hist[_hi]) snapshot();  // เก็บการพิมพ์ที่ยังค้าง debounce ก่อน
+  if (_hi <= 0) return;
+  _hi--; restoreHist();
+}
+function doRedo() {
+  clearTimeout(_histTimer);
+  if (_hi >= _hist.length - 1) return;
+  _hi++; restoreHist();
+}
+
 // ── TOOLBAR ────────────────────────────────────────────────
 function bindToolbar() {
   try { document.execCommand("styleWithCSS", false, true); } catch (e) {}
-  // ทุกปุ่มใน toolbar: คง selection/caret ไว้ (กัน selection หลุดตอนคลิก → table tools รู้ว่าอยู่ cell ไหน)
-  document.querySelectorAll("#deToolbar button").forEach((btn) => {
+  // ทุกปุ่มใน toolbar + popup ตาราง: คง selection/caret ไว้ (กัน selection หลุด → รู้ว่าอยู่ cell ไหน)
+  document.querySelectorAll("#deToolbar button, #deTableTools button").forEach((btn) => {
     btn.addEventListener("mousedown", (e) => e.preventDefault());
   });
   document.querySelectorAll("#deToolbar button[data-cmd]").forEach((btn) => {
-    btn.addEventListener("click", () => { focusBody(); document.execCommand(btn.dataset.cmd, false, null); });
+    btn.addEventListener("click", () => {
+      const cmd = btn.dataset.cmd;
+      if (cmd === "undo") return doUndo();
+      if (cmd === "redo") return doRedo();
+      focusBody();
+      document.execCommand(cmd, false, null);
+    });
   });
   document.querySelectorAll("#deToolbar button[data-font]").forEach((btn) => {
     btn.addEventListener("mousedown", (e) => e.preventDefault());
@@ -537,7 +422,22 @@ function highlightCell(cell) {
   if (_activeCell && _activeCell !== cell) _activeCell.classList.remove("de-cell-active");
   _activeCell = cell || null;
   if (_activeCell) _activeCell.classList.add("de-cell-active");
-  $("deTableGrp").classList.toggle("off", !_activeCell);
+  positionTableTools(_activeCell);
+}
+// วาง popup เครื่องมือตาราง "เหนือแถว" ที่เลือก (ถ้าไม่มีที่ → ใต้แถว) — ไม่บังเซลล์ที่กำลังพิมพ์
+function positionTableTools(cell) {
+  const tools = $("deTableTools");
+  if (!cell || !$("deBody").contains(cell)) { tools.classList.remove("open"); return; }
+  tools.classList.add("open");
+  const rowR = cell.parentElement.getBoundingClientRect();
+  const cellR = cell.getBoundingClientRect();
+  const tw = tools.offsetWidth || 300, th = tools.offsetHeight || 50;
+  let top = rowR.top - th - 6;                 // เหนือแถว
+  if (top < 8) top = rowR.bottom + 6;          // ไม่พอด้านบน → ใต้แถว
+  top = Math.min(window.innerHeight - th - 8, Math.max(8, top));
+  const left = Math.max(8, Math.min(window.innerWidth - tw - 8, cellR.left)); // จัดซ้ายตรงเซลล์
+  tools.style.left = left + "px";
+  tools.style.top = top + "px";
 }
 function curCell() {
   if (_activeCell && $("deBody").contains(_activeCell)) return _activeCell;
@@ -559,6 +459,7 @@ window.tblRow = function (dir) {
   }
   if (dir < 0) tr.parentElement.insertBefore(nr, tr);
   else tr.parentElement.insertBefore(nr, tr.nextSibling);
+  highlightCell(cell); // reposition popup
 };
 window.tblDelRow = function () {
   const cell = curCell(); if (!cell) return;
@@ -580,6 +481,7 @@ window.tblCol = function (dir) {
     if (dir < 0) tr.insertBefore(td, ref || null);
     else tr.insertBefore(td, ref ? ref.nextSibling : null);
   });
+  highlightCell(cell); // reposition popup (แถวกว้างขึ้น)
 };
 window.tblDelCol = function () {
   const cell = curCell(); if (!cell) return;

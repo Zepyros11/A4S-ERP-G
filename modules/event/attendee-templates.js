@@ -6,6 +6,7 @@ const FIELD_LABELS = {
   phone:        "เบอร์โทร",
   position:     "ตำแหน่ง",
   upline:       "สายงาน",
+  referrer:     "ผู้แนะนำ",
   cs_staff:     "CS",
   line_name:    "ชื่อไลน์ที่แจ้ง",
   fb_page_name: "ชื่อเพจ Facebook",
@@ -13,12 +14,13 @@ const FIELD_LABELS = {
   note:         "หมายเหตุ",
 };
 
-const DEFAULT_FIELD_ORDER = ["phone", "position", "upline", "cs_staff", "line_name", "fb_page_name", "had_attended", "note"];
+const DEFAULT_FIELD_ORDER = ["phone", "position", "upline", "referrer", "cs_staff", "line_name", "fb_page_name", "had_attended", "note"];
 const DEFAULT_CONFIG = {
   fields: {
     phone:        { show: true,  required: false },
     position:     { show: true,  required: false },
     upline:       { show: true,  required: true  },
+    referrer:     { show: true,  required: false },
     cs_staff:     { show: true,  required: false },
     line_name:    { show: true,  required: false },
     fb_page_name: { show: true,  required: false },
@@ -36,7 +38,8 @@ function _tplFieldLabel(key) {
 
 let _allTemplates = [];
 let _usageCounts = {};          // { template_id: number_of_events }
-let _draft = null;              // working copy of config in modal
+let _draft = null;              // (legacy) working copy of config in modal
+let _blocks = [];               // working copy of blocks ในโมดอล (block builder)
 let _selectedIds = new Set();   // bulk-select template ids
 
 // ── API helpers ────────────────────────────────────────────
@@ -84,10 +87,15 @@ async function loadTemplates() {
   try {
     const [tpls, events] = await Promise.all([
       sbFetch("attendee_form_templates",
-        "?select=id,name,description,config,sort_order,is_active,created_at&order=sort_order.asc,id.asc"),
+        "?select=id,name,description,config,sort_order,is_active,is_default,created_at&order=is_default.desc,sort_order.asc,id.asc"),
       sbFetch("events", "?select=template_id&template_id=not.is.null"),
     ]);
-    _allTemplates = tpls || [];
+    // ⭐ default ขึ้นบนสุดเสมอ (เผื่อ order ฝั่ง DB ไม่ครอบคลุม)
+    _allTemplates = (tpls || []).slice().sort((a, b) =>
+      (b.is_default ? 1 : 0) - (a.is_default ? 1 : 0)
+      || (a.sort_order || 0) - (b.sort_order || 0)
+      || a.id - b.id
+    );
     _usageCounts = {};
     (events || []).forEach(e => {
       if (e.template_id) _usageCounts[e.template_id] = (_usageCounts[e.template_id] || 0) + 1;
@@ -120,20 +128,27 @@ function renderTemplateTable() {
     const qualsCount = Array.isArray(cfg.qualifications) ? cfg.qualifications.length : 0;
     const usage = _usageCounts[t.id] || 0;
     const checked = _selectedIds.has(t.id) ? "checked" : "";
-    return `<tr${checked ? ' style="background:#f0fdf4"' : ''}>
+    const isDef = !!t.is_default;
+    const rowStyle = isDef
+      ? ' style="background:#fffbeb;box-shadow:inset 3px 0 0 #f59e0b"'
+      : (checked ? ' style="background:#f0fdf4"' : '');
+    return `<tr${rowStyle}>
       <td class="col-center">
         <input type="checkbox" class="tpl-row-check" data-id="${t.id}" ${checked}
           onclick="window.tplToggleRow(${t.id}, this.checked)"
           style="width:16px;height:16px;cursor:pointer;accent-color:#16a34a">
       </td>
-      <td class="col-center" style="font-family:'IBM Plex Mono',monospace;color:var(--text3)">${i + 1}</td>
+      <td class="col-center" style="font-family:'IBM Plex Mono',monospace;color:var(--text3)">${isDef ? '📌' : (i + 1)}</td>
       <td>
-        <div style="font-weight:700;color:#0f172a">${escapeHtml(t.name)}</div>
+        <div style="font-weight:700;color:#0f172a">
+          ${escapeHtml(t.name)}
+          ${isDef ? '<span style="background:#fef3c7;color:#92400e;border:1px solid #fcd34d;padding:1px 8px;border-radius:999px;font-size:10.5px;font-weight:700;margin-left:6px;vertical-align:middle">⭐ Default (ทุกงาน)</span>' : ''}
+        </div>
         <div style="font-size:11px;color:var(--text3);margin-top:2px;font-family:'IBM Plex Mono',monospace">id #${t.id}</div>
       </td>
       <td style="color:var(--text2);font-size:12.5px">${escapeHtml(t.description || "—")}</td>
       <td class="col-center">
-        <span style="background:#e0e7ff;color:#3730a3;padding:2px 9px;border-radius:5px;font-weight:700;font-size:12px">${fieldsCount}/8</span>
+        <span style="background:#e0e7ff;color:#3730a3;padding:2px 9px;border-radius:5px;font-weight:700;font-size:12px">${fieldsCount}/9</span>
       </td>
       <td class="col-center">
         ${qualsCount
@@ -152,13 +167,12 @@ function renderTemplateTable() {
         </button>
       </td>
       <td class="col-center">
-        <div style="display:inline-flex;gap:4px">
-          <button onclick="window.openTemplateModal(${t.id})" title="แก้ไข"
-            style="background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe;border-radius:6px;padding:5px 10px;cursor:pointer;font-size:12.5px">✏️ แก้</button>
-          <button onclick="window.duplicateTemplate(${t.id})" title="ทำสำเนา"
-            style="background:#f5f3ff;color:#6d28d9;border:1px solid #ddd6fe;border-radius:6px;padding:5px 9px;cursor:pointer;font-size:13px">📑</button>
-          <button onclick="window.deleteTemplate(${t.id})" title="ลบ"
-            style="background:#fef2f2;color:#b91c1c;border:1px solid #fecaca;border-radius:6px;padding:5px 9px;cursor:pointer;font-size:13px">🗑</button>
+        <div class="action-group">
+          <button class="btn-icon tpl-star${isDef ? ' active' : ''}" onclick="window.setDefaultTemplate(${t.id}, ${!isDef})"
+            title="${isDef ? 'ยกเลิกการเป็น Default' : 'ตั้งเป็น Default — ใช้กับทุกงานที่ไม่ได้เลือกเทมเพลตเอง'}">⭐</button>
+          <button class="btn-icon" onclick="window.openTemplateModal(${t.id})" title="แก้ไข">✏️</button>
+          <button class="btn-icon" onclick="window.duplicateTemplate(${t.id})" title="ทำสำเนา">📑</button>
+          <button class="btn-icon danger" onclick="window.deleteTemplate(${t.id})" title="ลบ">🗑</button>
         </div>
       </td>
     </tr>`;
@@ -231,10 +245,8 @@ window.bulkDeleteTemplates = async function () {
 // ── Modal ──────────────────────────────────────────────────
 window.openTemplateModal = function (id) {
   const t = id ? _allTemplates.find(x => x.id === id) : null;
-  _draft = t ? JSON.parse(JSON.stringify(t.config || DEFAULT_CONFIG)) : JSON.parse(JSON.stringify(DEFAULT_CONFIG));
-  if (!_draft.fields) _draft.fields = JSON.parse(JSON.stringify(DEFAULT_CONFIG.fields));
-  if (!Array.isArray(_draft.qualifications)) _draft.qualifications = [];
-  if (!Array.isArray(_draft.custom_fields)) _draft.custom_fields = [];
+  _blocks = window.AttendeeFields.ensureBlocks(t ? (t.config || {}) : {});
+  _ensureCoreItems();
 
   document.getElementById("tplFormId").value = t?.id || "";
   document.getElementById("tplName").value = t?.name || "";
@@ -242,9 +254,7 @@ window.openTemplateModal = function (id) {
   document.getElementById("tplIsActive").checked = t ? !!t.is_active : true;
   document.getElementById("tplModalTitle").textContent = t ? `✏️ แก้ไข — ${t.name}` : "➕ เพิ่มเทมเพลต";
 
-  renderFields();
-  renderCustomFields();
-  renderQuals();
+  renderBlocks();
   document.getElementById("tplOverlay").classList.add("open");
   requestAnimationFrame(() => document.getElementById("tplName").focus());
 };
@@ -253,275 +263,291 @@ window.closeTemplateModal = function (ev) {
   if (ev && ev.target && !ev.target.classList?.contains("modal-overlay")) return;
   document.getElementById("tplOverlay").classList.remove("open");
   _draft = null;
+  _blocks = [];
 };
 
-function renderFields() {
-  const grid = document.getElementById("tplFieldsGrid");
-  if (!grid || !_draft) return;
-  if (!Array.isArray(_draft.field_order)) _draft.field_order = [];
-  if (!Array.isArray(_draft.hidden_keys)) _draft.hidden_keys = [];
-  // fallback: ถ้าทั้ง order ว่าง + ไม่มี hidden_keys → ตั้ง default
-  if (!_draft.field_order.length && !_draft.hidden_keys.length) {
-    _draft.field_order = DEFAULT_FIELD_ORDER.slice();
+// ══════════════════════════════════════════════════════════
+//  BLOCK BUILDER — แต่ละ template = blocks[] · block มี items[]
+// ══════════════════════════════════════════════════════════
+function _findBlock(id) { return _blocks.find(b => b.id === id); }
+
+// ให้แน่ใจว่ามี core (member_code + name) อยู่ใน block แรกเสมอ
+function _ensureCoreItems() {
+  const AF = window.AttendeeFields;
+  if (!Array.isArray(_blocks) || !_blocks.length) {
+    _blocks = [{ id: AF.newId("blk"), title: "ฟิลด์มาตรฐาน", items: [] }];
   }
-  const validKeys = Object.keys(FIELD_LABELS);
-  // เติม default ที่ขาดเฉพาะตัวที่ user ยังไม่ได้ลบ
-  validKeys.forEach(k => {
-    if (!_draft.field_order.includes(k) && !_draft.hidden_keys.includes(k)) {
-      _draft.field_order.push(k);
-    }
+  const first = _blocks[0];
+  if (!Array.isArray(first.items)) first.items = [];
+  ["member_code", "name"].forEach((k, i) => {
+    const exists = _blocks.some(b => (b.items || []).some(it => it.type === "core" && it.key === k));
+    if (!exists) first.items.splice(i, 0, { type: "core", key: k });
   });
-  _draft.field_order = _draft.field_order.filter(k => validKeys.includes(k) && !_draft.hidden_keys.includes(k));
-  _draft.hidden_keys = _draft.hidden_keys.filter(k => validKeys.includes(k));
-  const order = _draft.field_order;
-  // Column-first layout (1 ลงล่าง · ใช้ครึ่งบน → ครึ่งล่าง)
-  const rowsCount = Math.max(1, Math.ceil(order.length / 2));
-  grid.style.gridTemplateRows = `repeat(${rowsCount}, auto)`;
-  grid.style.gridAutoFlow = "column";
-  if (!order.length) {
-    grid.innerHTML = '<div style="grid-column:1/-1;padding:14px;text-align:center;color:var(--text3);font-size:12px">ลบฟิลด์มาตรฐานออกหมดแล้ว — คืนค่าได้ที่ "ฟิลด์ที่ซ่อน" ด้านล่าง</div>';
-  } else {
-    grid.innerHTML = order.map((key, idx) => {
-      if (!FIELD_LABELS[key]) return "";
-      const f = _draft.fields[key] || {};
-      const show = f.show !== false;
-      const req = f.required === true;
-      const lbl = _tplFieldLabel(key);
-      return `<div class="drag-row" draggable="true" data-list="field" data-idx="${idx}"
-        ondragstart="window._tplDragStart(event, 'field', ${idx})"
-        ondragover="window._tplDragOver(event)"
-        ondragleave="window._tplDragLeave(event)"
-        ondrop="window._tplDrop(event, 'field', ${idx})"
-        ondragend="window._tplDragEnd(event)">
-        <span class="drag-handle" title="ลากเพื่อจัดลำดับ">⋮⋮</span>
-        <span class="drag-num">${idx + 1}.</span>
-        <label class="drag-row-main">
-          <input type="checkbox" ${show ? "checked" : ""} onchange="window.tplToggleShow('${key}', this.checked)">
-          <span class="${show ? '' : 'inactive'}">${escapeHtml(lbl)}</span>
-        </label>
-        <button class="drag-row-edit" title="แก้ไขชื่อหัวข้อ" onclick="window.tplRenameField('${key}')">✏️</button>
-        <label class="drag-row-req">
-          <input type="checkbox" ${req ? "checked" : ""} ${show ? "" : "disabled"} onchange="window.tplToggleReq('${key}', this.checked)">
-          บังคับ*
-        </label>
-        <button class="drag-row-del" title="ลบฟิลด์นี้ (คืนค่าได้ภายหลัง)" onclick="window.tplRemoveStandardField('${key}')">🗑</button>
-      </div>`;
-    }).join("");
+}
+
+function renderBlocks() {
+  const wrap = document.getElementById("tplBlocks");
+  if (!wrap) return;
+  if (!Array.isArray(_blocks) || !_blocks.length) {
+    wrap.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text3);font-size:12.5px">ยังไม่มีฟิลด์ — กด "➕ เพิ่มฟิลด์"</div>';
+    return;
   }
-  renderHiddenFields();
-}
-
-function renderHiddenFields() {
-  const box = document.getElementById("tplHiddenFieldsBox");
-  if (!box) return;
-  const hidden = Array.isArray(_draft?.hidden_keys) ? _draft.hidden_keys : [];
-  if (!hidden.length) { box.style.display = "none"; box.innerHTML = ""; return; }
-  box.style.display = "";
-  box.innerHTML = `
-    <div style="font-size:11px;color:#64748b;margin-bottom:6px">🗑 ฟิลด์ที่ซ่อน <span style="color:var(--text3)">— กดเพื่อคืนค่ากลับ</span></div>
-    <div style="display:flex;flex-wrap:wrap;gap:6px">
-      ${hidden.map(k => `
-        <button type="button" class="fc-hidden-chip" onclick="window.tplRestoreStandardField('${k}')" title="คืนค่าฟิลด์นี้">
-          ↺ ${escapeHtml(FIELD_LABELS[k] || k)}
-        </button>
-      `).join("")}
+  wrap.innerHTML = _blocks.map(b => {
+    const items = Array.isArray(b.items) ? b.items : [];
+    const hasCore = items.some(it => it.type === "core");
+    const itemsHtml = items.map(it => _renderBlockItem(b.id, it)).join("")
+      || '<div class="tpl-block-empty">ยังไม่มีข้อมูล — กด ➕ เพิ่มข้อมูล</div>';
+    return `<div class="tpl-block" data-bid="${escapeHtml(b.id)}" draggable="true"
+        ondragstart="window._blkDragStart(event,'${escapeHtml(b.id)}')"
+        ondragover="window._blkDragOver(event)"
+        ondragleave="window._blkDragLeave(event)"
+        ondrop="window._blkDrop(event,'${escapeHtml(b.id)}')"
+        ondragend="window._blkDragEnd(event)">
+      <div class="tpl-block-hdr">
+        <span class="drag-handle" title="ลากเพื่อจัดลำดับฟิลด์">⋮⋮</span>
+        <span class="tpl-block-title">${escapeHtml(b.title || "ฟิลด์")}</span>
+        <span class="tpl-block-count">${items.length} ข้อมูล</span>
+        <span style="flex:1"></span>
+        <button class="tpl-block-btn" title="แก้ชื่อฟิลด์" onclick="window.tplRenameBlock('${escapeHtml(b.id)}')">✏️</button>
+        <button class="tpl-block-btn danger" title="${hasCore ? 'มีข้อมูลระบบ ลบไม่ได้' : 'ลบฟิลด์'}" onclick="window.tplDeleteBlock('${escapeHtml(b.id)}')" ${hasCore ? 'disabled' : ''}>🗑</button>
+      </div>
+      <div class="tpl-block-items">${itemsHtml}</div>
+      <button class="tpl-additem-btn" onclick="window.openTplItemModal('${escapeHtml(b.id)}')">➕ เพิ่มข้อมูล</button>
     </div>`;
+  }).join("");
 }
 
-window.tplRemoveStandardField = function (key) {
-  if (!_draft) return;
-  if (!Array.isArray(_draft.hidden_keys)) _draft.hidden_keys = [];
-  if (!_draft.hidden_keys.includes(key)) _draft.hidden_keys.push(key);
-  _draft.field_order = (_draft.field_order || []).filter(k => k !== key);
-  renderFields();
+function _renderBlockItem(blockId, it) {
+  const AF = window.AttendeeFields;
+  const meta = AF.ITEM_TYPES[it.type] || { icon: "•", label: it.type };
+  const isCore = it.type === "core";
+  const label = isCore
+    ? (AF.CORE_FIELDS[it.key]?.label || it.key)
+    : (it.type === "std" ? (it.label || AF.STD_FIELDS[it.key]?.label || it.key) : (it.label || it.key));
+  const canReq = it.type === "std" || it.type === "text" || it.type === "date" || it.type === "number";
+  return `<div class="tpl-item${isCore ? ' core' : ''}" data-key="${escapeHtml(it.key)}" draggable="${isCore ? 'false' : 'true'}"
+      ondragstart="window._itemDragStart(event,'${escapeHtml(blockId)}','${escapeHtml(it.key)}')"
+      ondragover="window._itemDragOver(event)"
+      ondragleave="window._itemDragLeave(event)"
+      ondrop="window._itemDrop(event,'${escapeHtml(blockId)}','${escapeHtml(it.key)}')"
+      ondragend="window._itemDragEnd(event)">
+    <span class="drag-handle">${isCore ? '🔒' : '⋮⋮'}</span>
+    <span class="tpl-item-type" title="${meta.label}">${meta.icon}</span>
+    <span class="tpl-item-label">${escapeHtml(label)}</span>
+    ${isCore ? '<span class="tpl-item-lock">ระบบ</span>' : `
+      ${canReq ? `<label class="tpl-item-req"><input type="checkbox" ${it.required ? 'checked' : ''} onchange="window.tplToggleItemReq('${escapeHtml(blockId)}','${escapeHtml(it.key)}',this.checked)">บังคับ*</label>` : ''}
+      <button class="tpl-item-btn" title="แก้ชื่อหัวข้อ" onclick="window.tplRenameItem('${escapeHtml(blockId)}','${escapeHtml(it.key)}')">✏️</button>
+      <button class="tpl-item-btn danger" title="ลบข้อมูล" onclick="window.tplDeleteItem('${escapeHtml(blockId)}','${escapeHtml(it.key)}')">🗑</button>`}
+  </div>`;
+}
+
+// ── Block CRUD ─────────────────────────────────────────────
+window.tplAddBlock = function () {
+  _blocks.push({ id: window.AttendeeFields.newId("blk"), title: "ฟิลด์ใหม่", items: [] });
+  renderBlocks();
 };
 
-window.tplRestoreStandardField = function (key) {
-  if (!_draft) return;
-  _draft.hidden_keys = (_draft.hidden_keys || []).filter(k => k !== key);
-  if (!Array.isArray(_draft.field_order)) _draft.field_order = [];
-  if (!_draft.field_order.includes(key)) _draft.field_order.push(key);
-  renderFields();
-};
-
-window.tplRenameField = async function (key) {
-  const current = _tplFieldLabel(key);
+window.tplRenameBlock = async function (id) {
+  const b = _findBlock(id); if (!b) return;
   const next = await PromptModal.open({
-    title: "แก้ไขชื่อหัวข้อ",
-    message: `หัวข้อปัจจุบัน: "${current}"`,
-    icon: "✏️",
-    okText: "บันทึก",
-    tone: "primary",
-    defaultValue: current,
-    placeholder: "เว้นว่างเพื่อใช้ชื่อเริ่มต้น",
+    title: "แก้ชื่อฟิลด์", message: "ชื่อฟิลด์ (หัวข้อกลุ่มในฟอร์ม)", icon: "✏️",
+    okText: "บันทึก", tone: "primary", defaultValue: b.title || "", required: true,
+  });
+  if (next == null || !next.trim()) return;
+  b.title = next.trim();
+  renderBlocks();
+};
+
+window.tplDeleteBlock = async function (id) {
+  const b = _findBlock(id); if (!b) return;
+  if ((b.items || []).some(it => it.type === "core")) {
+    showToast("ฟิลด์นี้มีข้อมูลระบบ (รหัส/ชื่อ) — ลบไม่ได้", "error"); return;
+  }
+  const ok = await ConfirmModal.open({
+    title: "ลบฟิลด์", message: `ลบฟิลด์ "${b.title}"?\nข้อมูลทั้งหมดในฟิลด์จะถูกลบด้วย`, icon: "🗑",
+    okText: "ลบฟิลด์", cancelText: "ยกเลิก", tone: "danger",
+  });
+  if (!ok) return;
+  _blocks = _blocks.filter(x => x.id !== id);
+  renderBlocks();
+};
+
+// ── Item CRUD ──────────────────────────────────────────────
+window.tplToggleItemReq = function (blockId, key, val) {
+  const b = _findBlock(blockId); if (!b) return;
+  const it = (b.items || []).find(x => x.key === key); if (!it) return;
+  it.required = !!val;
+};
+
+window.tplRenameItem = async function (blockId, key) {
+  const AF = window.AttendeeFields;
+  const b = _findBlock(blockId); if (!b) return;
+  const it = (b.items || []).find(x => x.key === key); if (!it) return;
+  const cur = it.label || (it.type === "std" ? (AF.STD_FIELDS[it.key]?.label || "") : "");
+  const next = await PromptModal.open({
+    title: "แก้ชื่อหัวข้อ", message: `หัวข้อปัจจุบัน: "${cur}"`, icon: "✏️",
+    okText: "บันทึก", tone: "primary", defaultValue: cur,
+    placeholder: it.type === "std" ? "เว้นว่าง = ใช้ชื่อมาตรฐาน" : "",
   });
   if (next == null) return;
   const trimmed = next.trim();
-  if (!_draft.fields[key]) _draft.fields[key] = {};
-  if (!trimmed || trimmed === FIELD_LABELS[key]) {
-    delete _draft.fields[key].label;
+  if (it.type === "std") {
+    if (!trimmed || trimmed === AF.STD_FIELDS[it.key]?.label) delete it.label;
+    else it.label = trimmed;
   } else {
-    _draft.fields[key].label = trimmed;
+    if (!trimmed) return;
+    it.label = trimmed;
   }
-  renderFields();
+  renderBlocks();
 };
 
-// ── Custom text fields ─────────────────────────────────────
-function renderCustomFields() {
-  const list = document.getElementById("tplCustomList");
-  if (!list || !_draft) return;
-  if (!Array.isArray(_draft.custom_fields)) _draft.custom_fields = [];
-  if (!_draft.custom_fields.length) {
-    list.innerHTML = '<div style="padding:14px;text-align:center;color:var(--text3);font-size:12px">ยังไม่มีฟิลด์เพิ่มเติม — เพิ่มด้านบน</div>';
-    return;
+window.tplDeleteItem = function (blockId, key) {
+  const b = _findBlock(blockId); if (!b) return;
+  b.items = (b.items || []).filter(x => x.key !== key);
+  renderBlocks();
+};
+
+// ── Add-item nested modal ──────────────────────────────────
+let _itemTargetBlock = null;
+let _itemType = null;
+window.openTplItemModal = function (blockId) {
+  _itemTargetBlock = blockId;
+  _itemType = null;
+  const types = [["std", "📋 มาตรฐาน"], ["text", "📝 ข้อความ"], ["date", "📅 วันที่"], ["number", "🔢 ตัวเลข"], ["check", "✓ ติ๊กถูก"]];
+  document.getElementById("tplItemTypeRow").innerHTML = types.map(([t, l]) =>
+    `<button type="button" class="tpl-itype" data-t="${t}" onclick="window._tplPickItemType('${t}')">${l}</button>`).join("");
+  document.getElementById("tplItemStdWrap").style.display = "none";
+  document.getElementById("tplItemLabelWrap").style.display = "none";
+  document.getElementById("tplItemLabel").value = "";
+  document.getElementById("tplItemOverlay").classList.add("open");
+};
+
+window._tplPickItemType = function (t) {
+  _itemType = t;
+  document.querySelectorAll("#tplItemTypeRow .tpl-itype").forEach(b => b.classList.toggle("active", b.dataset.t === t));
+  const AF = window.AttendeeFields;
+  const stdWrap = document.getElementById("tplItemStdWrap");
+  const lblWrap = document.getElementById("tplItemLabelWrap");
+  if (t === "std") {
+    const used = AF.usedStdKeys(_blocks);
+    const avail = AF.STD_ORDER.filter(k => !used.has(k));
+    const sel = document.getElementById("tplItemStdSel");
+    sel.innerHTML = avail.length
+      ? avail.map(k => `<option value="${k}">${escapeHtml(AF.STD_FIELDS[k].label)}</option>`).join("")
+      : '<option value="">— ใช้ครบทุกข้อมูลมาตรฐานแล้ว —</option>';
+    stdWrap.style.display = "";
+    lblWrap.style.display = "none";
+  } else {
+    stdWrap.style.display = "none";
+    lblWrap.style.display = "";
+    requestAnimationFrame(() => document.getElementById("tplItemLabel").focus());
   }
-  list.innerHTML = _draft.custom_fields.map((cf, i) => `
-    <div class="drag-row" draggable="true" data-list="custom" data-idx="${i}"
-      ondragstart="window._tplDragStart(event, 'custom', ${i})"
-      ondragover="window._tplDragOver(event)"
-      ondragleave="window._tplDragLeave(event)"
-      ondrop="window._tplDrop(event, 'custom', ${i})"
-      ondragend="window._tplDragEnd(event)">
-      <span class="drag-handle" title="ลากเพื่อจัดลำดับ">⋮⋮</span>
-      <span class="drag-num">${i + 1}.</span>
-      <span class="drag-row-label">${escapeHtml(cf.label)}</span>
-      <span class="drag-row-key" title="key">${escapeHtml(cf.key)}</span>
-      <button class="drag-row-edit" title="แก้ไขชื่อ" onclick="window.tplRenameCustom(${i})">✏️</button>
-      <button class="drag-row-del" title="ลบ" onclick="window.tplRemoveCustom(${i})">🗑</button>
-    </div>
-  `).join("");
-}
-
-window.tplAddCustom = function () {
-  const inp = document.getElementById("tplNewCustomLabel");
-  const label = inp.value.trim();
-  if (!label) { inp.focus(); return; }
-  const baseKey = "cf_" + label.toLowerCase()
-    .replace(/[^\p{L}\p{N}\s_]/gu, "").replace(/\s+/g, "_").slice(0, 36);
-  let key = baseKey;
-  const used = new Set((_draft.custom_fields || []).map(c => c.key));
-  let n = 2;
-  while (used.has(key)) key = `${baseKey}_${n++}`;
-  if (!Array.isArray(_draft.custom_fields)) _draft.custom_fields = [];
-  _draft.custom_fields.push({ key, label });
-  inp.value = "";
-  renderCustomFields();
 };
 
-window.tplRenameCustom = async function (idx) {
-  const cf = _draft.custom_fields[idx];
-  if (!cf) return;
-  const next = await PromptModal.open({
-    title: "แก้ไขชื่อฟิลด์",
-    message: `ฟิลด์ปัจจุบัน: "${cf.label}"`,
-    icon: "✏️",
-    okText: "บันทึก",
-    tone: "primary",
-    defaultValue: cf.label,
-    required: true,
-  });
-  if (next == null || !next.trim()) return;
-  cf.label = next.trim();
-  renderCustomFields();
+window.closeTplItemModal = function (ev) {
+  if (ev && ev.target && !ev.target.classList?.contains("modal-overlay")) return;
+  document.getElementById("tplItemOverlay").classList.remove("open");
+  _itemTargetBlock = null;
+  _itemType = null;
 };
 
-window.tplRemoveCustom = function (idx) {
-  _draft.custom_fields.splice(idx, 1);
-  renderCustomFields();
-};
-
-window.tplToggleShow = function (key, val) {
-  if (!_draft.fields[key]) _draft.fields[key] = {};
-  _draft.fields[key].show = val;
-  if (!val) _draft.fields[key].required = false;
-  renderFields();
-};
-window.tplToggleReq = function (key, val) {
-  if (!_draft.fields[key]) _draft.fields[key] = {};
-  _draft.fields[key].required = val;
-};
-
-function renderQuals() {
-  const list = document.getElementById("tplQualList");
-  if (!list || !_draft) return;
-  if (!_draft.qualifications.length) {
-    list.innerHTML = '<div style="padding:18px;text-align:center;color:var(--text3);font-size:12px">ยังไม่มี checklist — เพิ่มด้านบน</div>';
-    return;
+window.tplConfirmAddItem = function () {
+  const AF = window.AttendeeFields;
+  const b = _findBlock(_itemTargetBlock);
+  if (!b) { window.closeTplItemModal(); return; }
+  if (!_itemType) { showToast("เลือกชนิดข้อมูลก่อน", "error"); return; }
+  if (!Array.isArray(b.items)) b.items = [];
+  if (_itemType === "std") {
+    const key = document.getElementById("tplItemStdSel").value;
+    if (!key) { showToast("ไม่มีข้อมูลมาตรฐานเหลือให้เพิ่ม", "error"); return; }
+    b.items.push({ type: "std", key, required: false });
+  } else {
+    const label = document.getElementById("tplItemLabel").value.trim();
+    if (!label) { showToast("กรอกชื่อหัวข้อ", "error"); document.getElementById("tplItemLabel").focus(); return; }
+    const prefix = _itemType === "check" ? "q_" : "cf_";
+    let key = AF.slugKey(label, prefix);
+    const used = new Set();
+    _blocks.forEach(bb => (bb.items || []).forEach(it => used.add(it.key)));
+    const base = key; let n = 2;
+    while (used.has(key)) key = `${base}_${n++}`;
+    const item = { type: _itemType, key, label };
+    if (_itemType !== "check") item.required = false;
+    b.items.push(item);
   }
-  list.innerHTML = _draft.qualifications.map((q, i) => `
-    <div class="drag-row" draggable="true" data-list="qual" data-idx="${i}"
-      ondragstart="window._tplDragStart(event, 'qual', ${i})"
-      ondragover="window._tplDragOver(event)"
-      ondragleave="window._tplDragLeave(event)"
-      ondrop="window._tplDrop(event, 'qual', ${i})"
-      ondragend="window._tplDragEnd(event)">
-      <span class="drag-handle" title="ลากเพื่อจัดลำดับ">⋮⋮</span>
-      <span class="drag-num">${i + 1}.</span>
-      <span class="drag-row-label">${escapeHtml(q.label)}</span>
-      <span class="drag-row-key" title="key">${escapeHtml(q.key)}</span>
-      <button class="drag-row-del" onclick="window.tplRemoveQual(${i})" title="ลบ">🗑</button>
-    </div>
-  `).join("");
-}
+  window.closeTplItemModal();
+  renderBlocks();
+};
 
-// ── Drag-and-drop (works for both 'field' and 'qual' lists) ─
-let _tplDragSrc = null;
-window._tplDragStart = function (ev, listType, idx) {
-  _tplDragSrc = { listType, idx };
+// ── Drag: blocks ───────────────────────────────────────────
+let _blkDragId = null;
+window._blkDragStart = function (ev, id) {
+  _blkDragId = id;
   ev.dataTransfer.effectAllowed = "move";
-  try { ev.dataTransfer.setData("text/plain", String(idx)); } catch {}
+  try { ev.dataTransfer.setData("text/plain", id); } catch {}
   ev.currentTarget.classList.add("dragging");
 };
-window._tplDragOver = function (ev) {
+window._blkDragOver = function (ev) {
+  if (!_blkDragId) return;
   ev.preventDefault();
-  ev.dataTransfer.dropEffect = "move";
   ev.currentTarget.classList.add("drag-over");
 };
-window._tplDragLeave = function (ev) {
-  ev.currentTarget.classList.remove("drag-over");
-};
-window._tplDragEnd = function (ev) {
+window._blkDragLeave = function (ev) { ev.currentTarget.classList.remove("drag-over"); };
+window._blkDragEnd = function (ev) {
   ev.currentTarget.classList.remove("dragging");
-  document.querySelectorAll(".drag-row.drag-over").forEach(el => el.classList.remove("drag-over"));
-  _tplDragSrc = null;
+  document.querySelectorAll(".tpl-block.drag-over").forEach(e => e.classList.remove("drag-over"));
+  _blkDragId = null;
 };
-window._tplDrop = function (ev, listType, targetIdx) {
+window._blkDrop = function (ev, targetId) {
   ev.preventDefault();
   ev.currentTarget.classList.remove("drag-over");
-  if (!_tplDragSrc || _tplDragSrc.listType !== listType) return;
-  const srcIdx = _tplDragSrc.idx;
-  if (srcIdx === targetIdx) return;
-  const arr = listType === "field" ? _draft.field_order
-            : listType === "custom" ? _draft.custom_fields
-            : _draft.qualifications;
-  const [moved] = arr.splice(srcIdx, 1);
-  arr.splice(targetIdx, 0, moved);
-  _tplDragSrc = null;
-  if (listType === "field") renderFields();
-  else if (listType === "custom") renderCustomFields();
-  else renderQuals();
+  if (!_blkDragId || _blkDragId === targetId) return;
+  const from = _blocks.findIndex(b => b.id === _blkDragId);
+  const to = _blocks.findIndex(b => b.id === targetId);
+  if (from < 0 || to < 0) return;
+  const [m] = _blocks.splice(from, 1);
+  _blocks.splice(to, 0, m);
+  _blkDragId = null;
+  renderBlocks();
 };
 
-window.tplAddQual = function () {
-  const inp = document.getElementById("tplNewQualLabel");
-  const label = inp.value.trim();
-  if (!label) { inp.focus(); return; }
-  const baseKey = label.toLowerCase()
-    .replace(/[^\p{L}\p{N}\s_]/gu, "")
-    .replace(/\s+/g, "_")
-    .slice(0, 40);
-  let key = baseKey || `q${Date.now()}`;
-  const used = new Set(_draft.qualifications.map(q => q.key));
-  let n = 2;
-  while (used.has(key)) { key = `${baseKey}_${n++}`; }
-  _draft.qualifications.push({ key, label });
-  inp.value = "";
-  renderQuals();
+// ── Drag: items (รองรับย้ายข้าม block) ─────────────────────
+let _itemDrag = null;  // { blockId, key }
+window._itemDragStart = function (ev, blockId, key) {
+  _itemDrag = { blockId, key };
+  ev.dataTransfer.effectAllowed = "move";
+  try { ev.dataTransfer.setData("text/plain", key); } catch {}
+  ev.currentTarget.classList.add("dragging");
+  ev.stopPropagation();
 };
-
-window.tplRemoveQual = function (idx) {
-  _draft.qualifications.splice(idx, 1);
-  renderQuals();
+window._itemDragOver = function (ev) {
+  if (!_itemDrag) return;
+  ev.preventDefault();
+  ev.stopPropagation();
+  ev.currentTarget.classList.add("drag-over");
+};
+window._itemDragLeave = function (ev) { ev.currentTarget.classList.remove("drag-over"); };
+window._itemDragEnd = function (ev) {
+  ev.currentTarget.classList.remove("dragging");
+  document.querySelectorAll(".tpl-item.drag-over").forEach(e => e.classList.remove("drag-over"));
+  _itemDrag = null;
+};
+window._itemDrop = function (ev, blockId, key) {
+  ev.preventDefault();
+  ev.stopPropagation();
+  ev.currentTarget.classList.remove("drag-over");
+  if (!_itemDrag) return;
+  const src = _findBlock(_itemDrag.blockId);
+  const dst = _findBlock(blockId);
+  if (!src || !dst) return;
+  const si = (src.items || []).findIndex(x => x.key === _itemDrag.key);
+  if (si < 0) { _itemDrag = null; return; }
+  const moved = src.items[si];
+  src.items.splice(si, 1);
+  let ti = (dst.items || []).findIndex(x => x.key === key);
+  if (ti < 0) ti = dst.items.length;
+  dst.items.splice(ti, 0, moved);
+  _itemDrag = null;
+  renderBlocks();
 };
 
 // ── Save / Delete / Toggle ─────────────────────────────────
@@ -529,10 +555,14 @@ window.saveTemplate = async function () {
   const id = document.getElementById("tplFormId").value;
   const name = document.getElementById("tplName").value.trim();
   if (!name) { showToast("กรุณาระบุชื่อ template", "error"); return; }
+  _ensureCoreItems();
+  // เก็บทั้ง blocks (layout) + flat (เพื่อ backward-compat กับตาราง/ฟอร์ม attendees)
+  const flat = window.AttendeeFields.blocksToFlat(_blocks);
+  const config = { ...flat, blocks: _blocks };
   const payload = {
     name,
     description: document.getElementById("tplDesc").value.trim() || null,
-    config: _draft || DEFAULT_CONFIG,
+    config,
     is_active: document.getElementById("tplIsActive").checked,
   };
   try {
@@ -587,6 +617,27 @@ window.toggleTemplateActive = async function (id, active) {
     await loadTemplates();
   } catch (e) {
     showToast("เปลี่ยนสถานะไม่สำเร็จ: " + e.message, "error");
+  }
+};
+
+// ⭐ ตั้ง/ยกเลิก Default — ได้แค่ตัวเดียว (เคลียร์ตัวเดิมก่อนเสมอ)
+window.setDefaultTemplate = async function (id, makeDefault) {
+  try {
+    if (makeDefault) {
+      // เคลียร์ default เดิม (กัน unique index ชน) แล้วตั้งตัวใหม่ + บังคับเปิดใช้งาน
+      await sbFetch("attendee_form_templates", "?is_default=eq.true",
+        { method: "PATCH", body: { is_default: false } });
+      await sbFetch("attendee_form_templates", `?id=eq.${id}`,
+        { method: "PATCH", body: { is_default: true, is_active: true } });
+      showToast("ตั้งเป็น Default แล้ว ⭐ (ใช้กับทุกงาน)", "success");
+    } else {
+      await sbFetch("attendee_form_templates", `?id=eq.${id}`,
+        { method: "PATCH", body: { is_default: false } });
+      showToast("ยกเลิก Default แล้ว", "success");
+    }
+    await loadTemplates();
+  } catch (e) {
+    showToast("ตั้ง Default ไม่สำเร็จ: " + e.message, "error");
   }
 };
 

@@ -69,10 +69,22 @@
         width:32px;height:28px;border:1px solid #d1d5db;border-radius:6px;
         padding:1px;cursor:pointer;background:#fff;
       }
-      /* table-tool group — disabled-look when cursor not in a table */
-      .de-tablegrp{ display:inline-flex;align-items:center;gap:2px;
-        padding:0 4px;border-radius:6px;background:#eef3ee; }
-      .de-tablegrp.off{ opacity:.4;pointer-events:none; }
+      /* floating table tools — popup ลอยข้างแถว/เซลล์ที่เลือก */
+      .de-tabletools{
+        position:fixed;z-index:60;display:none;gap:2px;align-items:center;
+        background:#fff;border:1px solid var(--border,#cbd5e1);border-radius:8px;
+        box-shadow:0 6px 18px rgba(0,0,0,.18);padding:3px 4px;
+      }
+      .de-tabletools.open{ display:flex; }
+      .de-tabletools button{
+        width:30px;height:26px;border:1px solid #e5e7eb;background:#f8fafc;border-radius:6px;
+        cursor:pointer;font-size:12px;font-weight:600;color:#374151;display:inline-flex;
+        align-items:center;justify-content:center;line-height:1;padding:0;
+      }
+      .de-tabletools button:hover{ background:#eef3ee;border-color:#cbd5e1; }
+      .de-tabletools button.del{ color:#dc2626;border-color:#fecaca;background:#fef2f2; }
+      .de-tabletools button.del:hover{ background:#fee2e2; }
+      .de-tt-sep{ width:1px;height:18px;background:#e5e7eb;margin:0 2px; }
 
       /* ── canvas (gray) + A4 paper ───────────────────────────── */
       .de-main{ flex:1;display:flex;overflow:hidden; }
@@ -301,16 +313,6 @@
         <button type="button" title="แทรกตาราง" onclick="window.insertTable()">▦</button>
         <button type="button" title="แทรกตัวแบ่งหน้า" onclick="window.insertPageBreak()">✂</button>
         <span class="de-sep"></span>
-        <span class="de-tablegrp off" id="deTableGrp">
-          <button type="button" title="เพิ่มแถวบน" onclick="window.tblRow(-1)">⤒</button>
-          <button type="button" title="เพิ่มแถวล่าง" onclick="window.tblRow(1)">⤓</button>
-          <button type="button" title="ลบแถว" onclick="window.tblDelRow()">⊟</button>
-          <button type="button" title="เพิ่มคอลัมน์ซ้าย" onclick="window.tblCol(-1)">⇤+</button>
-          <button type="button" title="เพิ่มคอลัมน์ขวา" onclick="window.tblCol(1)">+⇥</button>
-          <button type="button" title="ลบคอลัมน์" onclick="window.tblDelCol()">⊠</button>
-          <button type="button" title="ลบทั้งตาราง" onclick="window.tblDelTable()" style="color:#dc2626">🗑</button>
-        </span>
-        <span class="de-sep"></span>
         <button type="button" data-cmd="removeFormat" title="ล้างรูปแบบ">✖</button>
       </div>
 
@@ -324,26 +326,13 @@
           </div>
           <div class="de-panel-body">
             <label class="de-fld-label">เลือกทริป (Trip)</label>
-            <select class="form-control" id="dePanelTrip" onchange="window.onPanelTrip(this.value)">
+            <select class="form-control" id="dePanelTrip">
               <option value="">— เลือกทริป —</option>
             </select>
 
-            <label class="de-fld-label">เลือกคอลัมน์</label>
-            <div id="dePanelPicker"><div class="de-pick-empty">เลือกทริปก่อน เพื่อดึงคอลัมน์ที่มี</div></div>
-
-            <div class="de-panel-opts" id="dePanelOpts" style="display:none">
-              <div>
-                <label class="de-fld-label" style="margin-top:0">แบ่งกลุ่ม (section)</label>
-                <select class="form-control" id="dePanelGroup" onchange="window.setPanelGroup(this.value)">
-                  <option value="">— ไม่แบ่งกลุ่ม —</option>
-                </select>
-              </div>
-              <label class="de-check"><input type="checkbox" id="dePanelTotal" onchange="window.setPanelTotal(this.checked)"> Σ รวมยอด (Total ท้ายกลุ่ม)</label>
-            </div>
-
-            <button class="btn btn-primary de-insert-btn" id="dePanelInsert" style="display:none;background:#7c3aed;border-color:#7c3aed"
-              onclick="window.openDataPreview()">👁 พรีวิว + กรอง → แทรก</button>
-            <div class="de-panel-note">กดเพื่อเปิดพรีวิว · กรองข้อมูลได้เหมือน Custom Report · แล้วกดแทรกลงเอกสาร (ถ้ามีตารางอยู่แล้วจะถูกแทนที่)</div>
+            <button class="btn btn-primary de-insert-btn" style="margin-top:14px;background:#7c3aed;border-color:#7c3aed"
+              onclick="window.goCustomReport()">📊 เลือก/กรองข้อมูลใน Custom Report</button>
+            <div class="de-panel-note">เลือกทริปแล้วกดเพื่อไปหน้า Custom Report — เลือกคอลัมน์ · กรอง · เรียง · ผสานเซล · จัดกลุ่ม · รวมยอด ได้เต็มที่ แล้วกด <b>"แทรกกลับเอกสาร"</b> ระบบจะดึงตารางกลับมาที่เอกสารนี้ (ตำแหน่งที่เคอร์เซอร์อยู่) · เอกสารจะถูกบันทึกก่อนไป</div>
           </div>
         </div>
 
@@ -379,21 +368,17 @@
       <div class="de-modal-scroll"><div class="doc-paper" id="previewPaper"></div></div>
     </div>
 
-    <!-- DATA PREVIEW + FILTER MODAL -->
-    <div class="dp-modal" id="dpModal">
-      <div class="dp-box">
-        <div class="dp-hd">
-          <span class="dp-title">👁 พรีวิว + กรองข้อมูล</span>
-          <span id="dpMeta" style="font-size:12px;color:var(--text2)"></span>
-          <span style="flex:1"></span>
-          <button class="btn btn-outline" onclick="window.closeDataPreview()">✕ ปิด</button>
-          <button class="btn btn-primary" style="background:#7c3aed;border-color:#7c3aed" onclick="window.confirmInsertBlock()">▦ แทรกลงเอกสาร</button>
-        </div>
-        <div class="dp-body">
-          <div class="dp-filters" id="dpFilters"></div>
-          <div class="dp-prev"><div class="dp-prev-paper" id="dpPaper"></div></div>
-        </div>
-      </div>
+    <!-- FLOATING TABLE TOOLS (ลอยข้างแถวที่เลือกในตาราง) -->
+    <div id="deTableTools" class="de-tabletools">
+      <button type="button" title="เพิ่มแถวด้านบน" onclick="window.tblRow(-1)">＋↑</button>
+      <button type="button" title="เพิ่มแถวด้านล่าง" onclick="window.tblRow(1)">＋↓</button>
+      <span class="de-tt-sep"></span>
+      <button type="button" title="เพิ่มคอลัมน์ทางซ้าย" onclick="window.tblCol(-1)">＋←</button>
+      <button type="button" title="เพิ่มคอลัมน์ทางขวา" onclick="window.tblCol(1)">＋→</button>
+      <span class="de-tt-sep"></span>
+      <button type="button" class="del" title="ลบแถวนี้" onclick="window.tblDelRow()">🗑▬</button>
+      <button type="button" class="del" title="ลบคอลัมน์นี้" onclick="window.tblDelCol()">🗑▮</button>
+      <button type="button" class="del" title="ลบทั้งตาราง" onclick="window.tblDelTable()">🗑▦</button>
     </div>
 
     <!-- PRINT / PDF HOLDERS -->

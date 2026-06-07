@@ -4979,7 +4979,9 @@ function flightOccPersonHtml(code) {
 function flightTicketRowHtml(t, flightId, labelNo) {
   const docCell = flTicketDocCell(t, flightId);
   const isEmpty = !t.codes.length;
-  const collapsed = state.collapsedTickets && state.collapsedTickets.has(t.ticket_id);
+  // มีคำค้นชื่อและใบนี้ตรง → บังคับเปิดให้เห็นคนที่หาเจอ (ไม่แตะ state ย่อถาวร)
+  const collapsed = (state.collapsedTickets && state.collapsedTickets.has(t.ticket_id))
+    && !flightTicketMatchesName(t);
   const toggle = `<button class="fl-tkt-toggle" title="${collapsed ? "ขยาย" : "ย่อ"}รายชื่อ"
       onclick="event.stopPropagation();window.toggleTicketCollapse(${t.ticket_id})">${collapsed ? "▸" : "▾"}</button>`;
   const delBtn = isEmpty
@@ -5000,7 +5002,9 @@ function flightTicketRowHtml(t, flightId, labelNo) {
     : (isEmpty
         ? `<div class="fl-occ-empty-txt fl-tkt-emptyline">— ว่าง — เลือกคนทางซ้ายแล้วคลิกที่นี่เพื่อเพิ่ม</div>`
         : `<div class="fl-occ-list">${t.codes.map(flightOccPersonHtml).join("")}</div>`);
+  const matched = flightTicketMatchesName(t);
   return `<div class="fl-tkt-block${isEmpty ? " empty" : ""}${collapsed ? " collapsed" : ""}"
+      ${matched ? `data-tkt-match="${t.ticket_id}"` : ""}
       onclick="event.stopPropagation();window.assignSelectedPaxToTicket(${t.ticket_id}, ${flightId})">
     ${header}
     ${body}
@@ -5072,7 +5076,9 @@ function flightCardHtml(f) {
     </div>
     <div class="fl-occ-wrap">
       ${(() => {
-        const zoneCollapsed = state.collapsedFlightTickets && state.collapsedFlightTickets.has(f.flight_id);
+        const nameActive = !!(state.flightFilterName || "").trim();
+        const zoneCollapsed = !nameActive
+          && state.collapsedFlightTickets && state.collapsedFlightTickets.has(f.flight_id);
         const zToggle = `<button class="fl-tkt-toggle" title="${zoneCollapsed ? "ขยาย" : "ย่อ"}ทุก Ticket"
             onclick="event.stopPropagation();window.toggleFlightTicketsCollapse(${f.flight_id})">${zoneCollapsed ? "▸" : "▾"}</button>`;
         const head = `<div class="fl-ticket-head">
@@ -5111,8 +5117,15 @@ function flightMatchesName(f) {
   const q = (state.flightFilterName || "").trim().toLowerCase();
   if (!q) return true;
   const tks = state.flightTickets[f.flight_id] || [];
-  return tks.some(t => (t.codes || []).some(code =>
-    flightSubjectName(code).toLowerCase().includes(q) || String(code).toLowerCase().includes(q)));
+  return tks.some(flightTicketMatchesName);
+}
+
+// Ticket ใบนี้มีคนตรงคำค้นชื่อไหม — ใช้ auto-expand เฉพาะใบที่หาเจอตอนค้นหา
+function flightTicketMatchesName(t) {
+  const q = (state.flightFilterName || "").trim().toLowerCase();
+  if (!q) return false;
+  return (t.codes || []).some(code =>
+    flightSubjectName(code).toLowerCase().includes(q) || String(code).toLowerCase().includes(q));
 }
 
 function flightMatchesFilter(f) {
@@ -5163,7 +5176,7 @@ window.setFlightNameFilter = function (val) {
   const pos = prev ? prev.selectionStart : null;
   renderFlights();
   const inp = document.getElementById("flightNameSearch");
-  if (inp) { inp.focus(); const n = pos == null ? inp.value.length : pos; inp.setSelectionRange(n, n); }
+  if (inp) { inp.focus({ preventScroll: true }); const n = pos == null ? inp.value.length : pos; inp.setSelectionRange(n, n); }
 };
 
 function renderFlights() {
@@ -5179,6 +5192,29 @@ function renderFlights() {
     ? shown.map(flightCardHtml).join("")
     : `<div class="ba-empty-buses">ไม่มีตั๋วที่ตรงกับตัวกรอง</div>`;
   if (window.AuthZ?.applyDomPerms) AuthZ.applyDomPerms(c);
+  scrollToFlightMatch();
+}
+
+// ค้นเจอแล้วเลื่อน (smooth) ไปที่ Ticket ใบแรกที่ match + กระพริบไฮไลต์
+// กระพริบครั้งเดียวต่อ 1 ใบ (ไม่กระพริบรัวตอนพิมพ์ทีละตัว) แต่ scroll ตามทุกครั้ง
+function scrollToFlightMatch() {
+  const c = document.getElementById("flightsContainer");
+  if (!c) return;
+  if (!(state.flightFilterName || "").trim()) { state._lastFlashedMatch = null; return; }
+  const el = c.querySelector('.fl-tkt-block[data-tkt-match]');
+  if (!el) { state._lastFlashedMatch = null; return; }
+  // เลื่อนใน rAF — ให้ focus()/setSelectionRange ของช่องค้นหา (ใน turn เดียวกัน)
+  // จบก่อน ไม่งั้น smooth scroll ที่เพิ่งเริ่มจะถูกยกเลิก (ค้างบนสุด)
+  requestAnimationFrame(() => {
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    const id = el.getAttribute("data-tkt-match");
+    if (id !== state._lastFlashedMatch) {
+      state._lastFlashedMatch = id;
+      el.classList.remove("fl-tkt-flash");
+      void el.offsetWidth;          // reflow → รีสตาร์ท animation
+      el.classList.add("fl-tkt-flash");
+    }
+  });
 }
 
 function updateFlightCardsAssignableState() {
@@ -5328,6 +5364,13 @@ window.deleteFlightTicket = async function (ticketId, flightId) {
   const t = flightTicketsOf(flightId).find(x => x.ticket_id === ticketId);
   if (!t) return;
   if (t.codes.length) { showToast("เอาคนออกก่อนจึงลบ Ticket ได้", "info"); return; }
+  const msg = "ลบ Ticket นี้?";
+  const ok = window.ConfirmModal?.open
+    ? await window.ConfirmModal.open({
+        title: "ลบ Ticket", message: msg, icon: "🗑", tone: "danger", okText: "ลบ",
+      })
+    : confirm(msg);
+  if (!ok) return;
   showLoading(true);
   try {
     await sbFetch("trip_flight_tickets", `?ticket_id=eq.${ticketId}`, { method: "DELETE" });
@@ -5390,6 +5433,13 @@ async function _assignCodeToTicket(flightId, ticketId, code) {
 window.unassignFlight = async function (code) {
   const ticketId = state.codeToTicket[code];
   if (!ticketId) return;
+  const msg = `เอา ${flightSubjectName(code)} ออกจาก Ticket นี้?`;
+  const ok = window.ConfirmModal?.open
+    ? await window.ConfirmModal.open({
+        title: "เอาคนออกจาก Ticket", message: msg, icon: "🗑", tone: "danger", okText: "เอาออก",
+      })
+    : confirm(msg);
+  if (!ok) return;
   showLoading(true);
   try {
     await sbFetch("trip_flight_ticket_occupants",
@@ -5463,6 +5513,13 @@ window.flTicketDocChosen = async function (ev) {
 };
 
 window.removeTicketDoc = async function (ticketId, flightId) {
+  const msg = "ลบไฟล์ตั๋วของ Ticket นี้?";
+  const ok = window.ConfirmModal?.open
+    ? await window.ConfirmModal.open({
+        title: "ลบไฟล์ตั๋ว", message: msg, icon: "🗑", tone: "danger", okText: "ลบ",
+      })
+    : confirm(msg);
+  if (!ok) return;
   showLoading(true);
   try {
     await sbFetch("trip_flight_tickets", `?ticket_id=eq.${ticketId}`, { method: "PATCH", body: { ticket_url: null } });

@@ -82,7 +82,7 @@
          TEMPLATE FORM MODAL
          ═════════════════════════ -->
     <div class="modal-overlay" id="tplOverlay" onclick="window.closeTemplateModal(event)">
-      <div class="modal v-sage-header" style="width:760px;max-width:96vw" onclick="event.stopPropagation()">
+      <div class="modal v-sage-header" style="width:1040px;max-width:96vw" onclick="event.stopPropagation()">
         <div class="modal-hdr">
           <div class="modal-title" id="tplModalTitle">➕ เพิ่มเทมเพลต</div>
           <button class="btn-modal-close" onclick="window.closeTemplateModal()">✕</button>
@@ -100,25 +100,14 @@
             <input class="form-control" id="tplDesc" placeholder="ไว้แสดงเป็น hint ตอนเลือก template" autocomplete="off">
           </div>
 
-          <div style="font-size:13px;font-weight:700;color:#0f172a;margin:18px 0 8px">📋 ฟิลด์มาตรฐาน <span style="font-weight:400;font-size:11px;color:var(--text3)">— ✏️ แก้ชื่อหัวข้อได้ · ลาก ⋮⋮ จัดลำดับ · 🗑 ลบ</span></div>
-          <div id="tplFieldsGrid" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px 12px"></div>
-          <div id="tplHiddenFieldsBox" style="display:none;background:#fefce8;border:1px dashed #fcd34d;border-radius:8px;padding:8px 12px;margin-top:8px"></div>
-
-          <div style="font-size:13px;font-weight:700;color:#0f172a;margin:18px 0 8px">➕ ฟิลด์เพิ่มเติม <span style="font-weight:400;font-size:11px;color:var(--text3)">— กรอกข้อความได้อิสระ</span></div>
-          <div style="display:flex;gap:8px;margin-bottom:8px">
-            <input class="form-control" id="tplNewCustomLabel" placeholder="เช่น เลขบิล, ชื่อผู้แนะนำ, รุ่นที่" style="flex:1" autocomplete="off"
-              onkeydown="if(event.key==='Enter'){event.preventDefault();window.tplAddCustom()}">
-            <button class="btn btn-primary" onclick="window.tplAddCustom()">➕ เพิ่ม</button>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin:18px 0 8px">
+            <div style="font-size:13px;font-weight:700;color:#0f172a">🧱 ฟิลด์ <span style="font-weight:400;font-size:11px;color:var(--text3)">— กลุ่มข้อมูลในฟอร์มลงทะเบียน · ลาก ⋮⋮ จัดลำดับ/ย้าย</span></div>
+            <button class="btn btn-secondary" onclick="window.tplAddBlock()" style="padding:6px 14px">➕ เพิ่มฟิลด์</button>
           </div>
-          <div id="tplCustomList" style="display:flex;flex-direction:column;gap:6px;max-height:200px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:8px;padding:8px 10px"></div>
-
-          <div style="font-size:13px;font-weight:700;color:#0f172a;margin:18px 0 8px">✓ คุณสมบัติผู้เรียน (checklist)</div>
-          <div style="display:flex;gap:8px;margin-bottom:8px">
-            <input class="form-control" id="tplNewQualLabel" placeholder="เช่น มี Notebook" style="flex:1" autocomplete="off"
-              onkeydown="if(event.key==='Enter'){event.preventDefault();window.tplAddQual()}">
-            <button class="btn btn-primary" onclick="window.tplAddQual()">➕ เพิ่ม</button>
+          <div id="tplBlocks" class="tpl-blocks-grid"></div>
+          <div style="font-size:11px;color:var(--text3);margin-top:12px;line-height:1.6">
+            💡 รหัส + ชื่อ เป็นข้อมูลระบบ (🔒) ลบไม่ได้ · ข้อมูล <b>ข้อความ/วันที่/ตัวเลข/ติ๊กถูก</b> เก็บใน extra_fields
           </div>
-          <div id="tplQualList" style="display:flex;flex-direction:column;gap:6px;max-height:240px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:8px;padding:8px 10px"></div>
         </div>
         <div class="modal-footer" style="justify-content:space-between">
           <div>
@@ -134,6 +123,37 @@
       </div>
     </div>
 
+    <!-- ═════════════════════════
+         ADD-ITEM PICKER (nested over template modal)
+         ═════════════════════════ -->
+    <div class="modal-overlay" id="tplItemOverlay" style="z-index:500" onclick="window.closeTplItemModal(event)">
+      <div class="modal v-sage-header" style="width:420px;max-width:94vw" onclick="event.stopPropagation()">
+        <div class="modal-hdr">
+          <div class="modal-title">➕ เพิ่มข้อมูลในฟิลด์</div>
+          <button class="btn-modal-close" onclick="window.closeTplItemModal()">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label">ชนิดข้อมูล</label>
+            <div id="tplItemTypeRow" class="tpl-itype-row"></div>
+          </div>
+          <div class="form-group" id="tplItemStdWrap" style="display:none">
+            <label class="form-label">เลือกข้อมูลมาตรฐาน</label>
+            <select class="form-control" id="tplItemStdSel"></select>
+          </div>
+          <div class="form-group" id="tplItemLabelWrap" style="display:none">
+            <label class="form-label">ชื่อหัวข้อ</label>
+            <input class="form-control" id="tplItemLabel" placeholder="เช่น เลขที่บิล, วันที่ชำระ, มี Notebook" autocomplete="off"
+              onkeydown="if(event.key==='Enter'){event.preventDefault();window.tplConfirmAddItem()}">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-ghost" onclick="window.closeTplItemModal()">ยกเลิก</button>
+          <button class="btn btn-primary" onclick="window.tplConfirmAddItem()">เพิ่มข้อมูล</button>
+        </div>
+      </div>
+    </div>
+
     <script src="../../js/core/auth.js"></script>
     <script src="../../js/core/authz.js"></script>
     <script src="../../js/core/date-format.js"></script>
@@ -142,6 +162,7 @@
     <script src="../../js/components/modal/confirmModal.js"></script>
     <script src="../../js/components/modal/promptModal.js"></script>
     <script src="../../js/components/modal/modalManager.js"></script>
+    <script src="../../js/shared/attendee-fields.js"></script>
     <script src="./attendee-templates.js"></script>
     <script type="module">
       import { loadTopbar } from "../../js/components/navigation/topbar.js";

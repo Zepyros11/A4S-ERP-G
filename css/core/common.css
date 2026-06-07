@@ -472,6 +472,13 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  /* ค้างบนสุดขณะ scroll เนื้อหา modal */
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: var(--surface);
+  border-top-left-radius: 12px;
+  border-top-right-radius: 12px;
 }
 .modal-title {
   font-size: 16px;

@@ -18,12 +18,21 @@ CREATE TABLE IF NOT EXISTS attendee_form_templates (
   config       JSONB NOT NULL DEFAULT '{}'::jsonb,
   sort_order   INT DEFAULT 100,
   is_active    BOOLEAN DEFAULT true,
+  is_default   BOOLEAN DEFAULT false,   -- ⭐ ฟอร์มกลางที่ใช้กับทุก event ที่ไม่ได้เลือกเอง (ได้แค่ 1 ตัว)
   created_at   TIMESTAMPTZ DEFAULT now(),
   updated_at   TIMESTAMPTZ DEFAULT now()
 );
 
+-- idempotent: เผื่อตารางมีอยู่แล้วจาก migration เวอร์ชันก่อนที่ยังไม่มี is_default
+ALTER TABLE attendee_form_templates
+  ADD COLUMN IF NOT EXISTS is_default BOOLEAN DEFAULT false;
+
 CREATE INDEX IF NOT EXISTS idx_attendee_form_templates_active
   ON attendee_form_templates (is_active, sort_order);
+
+-- บังคับให้มี default ได้แค่ตัวเดียว (partial unique index)
+CREATE UNIQUE INDEX IF NOT EXISTS uq_attendee_template_single_default
+  ON attendee_form_templates (is_default) WHERE is_default = true;
 
 -- ── 2. events.template_id ──────────────────────────────────
 ALTER TABLE events

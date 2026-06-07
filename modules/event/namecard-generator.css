@@ -98,10 +98,29 @@
 
 /* ── Back bar (while a tool is open) ───────────────────────── */
 .tool-back {
-  display: flex; align-items: center; gap: 12px;
+  display: flex; align-items: center; gap: 14px;
   margin: 10px 0 16px;
+  padding: 10px 14px;
+  background: var(--surface, #fff);
+  border: 1px solid var(--border, #e4ddd2);
+  border-left: 4px solid var(--accent);
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(58,53,48,.05);
 }
-.tool-back-title { font-size: 16px; font-weight: 800; color: var(--text, #3a3530); }
+.tool-back .btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-weight: 700;
+}
+.tool-back .btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.tool-back-title {
+  font-size: 16px; font-weight: 800; color: var(--text, #3a3530);
+  display: flex; align-items: center; gap: 8px;
+  padding-left: 14px;
+  border-left: 1px solid var(--border, #e4ddd2);
+}
 
 /* ── VIP quantity input ────────────────────────────────────── */
 .vip-qty-row {
@@ -415,6 +434,12 @@
   display: flex; flex-direction: column; align-items: center;
   gap: 0.5mm; padding: 0.5mm 0 1mm;
 }
+/* When a number is present, balance the card: header zone ~52% (logo fills most
+   of it, name small) and the auto-fit number takes the remaining ~48% — so the
+   logo and the number end up roughly the same visual size. */
+.c-seq--head .c-seq-head { flex: 0 0 52%; justify-content: center; padding: 1mm 0; }
+.c-seq--head .c-seq-logo { flex: 1 1 auto; height: auto; max-height: 100%; }
+.c-seq--head .c-seq-logo img { max-width: 92%; }
 .c-seq-logo {
   flex: 0 0 auto;
   height: 10mm; min-height: 0; width: 100%;   /* min-height:0 → height honored, logo won't blow up */
@@ -424,9 +449,9 @@
 .c-seq-logo img { max-height: 100%; max-width: 70%; object-fit: contain; }
 .c-seq-name {
   font-family: 'Sarabun', sans-serif; font-weight: 700; font-size: 4.5mm;
-  color: #0f172a; line-height: 1.5; text-align: center;   /* room for descenders (g, ฤ, tone marks) */
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  max-width: 100%; padding: 0 1mm 1mm; box-sizing: border-box;
+  color: #0f172a; line-height: 1.7; text-align: center;   /* tall line-height = room for stacked Thai marks (เ◌ื◌้) at large px */
+  white-space: nowrap; overflow: visible;                  /* don't clip the top marks vertically · card edge still bounds it */
+  max-width: 100%; padding: 0.12em 1mm 0.08em; box-sizing: border-box;   /* em padding scales the headroom with font-size */
 }
 .c-seq-numwrap {
   flex: 1 1 auto; width: 100%; min-height: 0;
@@ -845,6 +870,28 @@
 .nmc-drop-title { font-weight: 600; font-size: 15px; color: var(--text, #3a3530); }
 .nmc-drop-hint  { font-size: 12.5px; color: var(--text3, #9d958b); margin-top: 6px; }
 .nmc-drop-hint a { color: var(--accent); text-decoration: underline; }
+
+/* ── Compact drop zone + manual entry row ──────────────────── */
+.nmc-input-row {
+  display: flex; align-items: stretch; gap: 12px;
+}
+.nmc-drop--compact {
+  flex: 1; display: flex; align-items: center; gap: 14px;
+  padding: 14px 18px; text-align: left;
+}
+.nmc-drop--compact .nmc-drop-icon { font-size: 28px; margin: 0; line-height: 1; }
+.nmc-drop--compact .nmc-drop-text { min-width: 0; }
+.nmc-drop--compact .nmc-drop-title { font-size: 14px; }
+.nmc-drop--compact .nmc-drop-hint { margin-top: 3px; }
+.nmc-input-or {
+  display: flex; align-items: center; font-size: 12.5px;
+  font-weight: 600; color: var(--text3, #9d958b);
+}
+.nmc-manual-btn { white-space: nowrap; align-self: center; }
+@media (max-width: 640px) {
+  .nmc-input-row { flex-direction: column; align-items: stretch; }
+  .nmc-input-or { justify-content: center; }
+}
 
 /* ── Block card ────────────────────────────────────────────── */
 .nmc-card-block {

@@ -37,13 +37,13 @@ const COLUMN_GROUPS = [
   {
     id: "flight", label: "✈️ เครื่องบิน",
     cols: [
-      { key: "_flticket",     label: "ตั๋วเครื่องบิน",   src: "calc" },
-      { key: "_flflight",     label: "Flight (ขาไป)",    src: "calc" },
-      { key: "_flport",       label: "Port",             src: "calc" },
-      { key: "_fldep",        label: "ออก (Departure)",  src: "calc" },
-      { key: "_flarr",        label: "ถึง (Arrival)",    src: "calc" },
-      { key: "_flcomeback",   label: "Flight (ขากลับ)",  src: "calc" },
-      { key: "_flcomebackdt", label: "วันเวลากลับ",      src: "calc" },
+      { key: "_flticket",     label: "ตั๋วเครื่องบิน",     src: "calc" },
+      { key: "_flport",       label: "Port",               src: "calc" },
+      { key: "_flflight",     label: "Flight (ขาไป)",      src: "calc" },
+      { key: "_fldep",        label: "ขาไป - เวลาออก",     src: "calc" },
+      { key: "_flarr",        label: "ขาไป - เวลาถึง",     src: "calc" },
+      { key: "_flcomeback",   label: "Flight (ขากลับ)",    src: "calc" },
+      { key: "_flcomebackdt", label: "ขากลับ - ออก",       src: "calc" },
     ],
   },
   {
@@ -170,6 +170,7 @@ async function init() {
     return;
   }
   state.tripId = tid;
+  state.insertDocId = parseInt(qs.get("insert_doc"), 10) || null; // โหมดแทรกกลับเอกสาร
   const { url, key } = getSB();
   if (!url || !key) {
     showLoading(false);
@@ -237,6 +238,7 @@ async function loadAll() {
     renderTemplates();
     renderPicker();
     renderAll();
+    if (state.insertDocId) await enterInsertMode();
   } catch (e) {
     showToast(T("cr.toast.loadFail", { msg: e.message }), "error");
   }
@@ -659,6 +661,35 @@ function getGroups(rows) {
 // ป้าย "Total N seats" / "รวม N ที่นั่ง"
 function totalLabel(n) {
   return curLang() === "en" ? `Total ${n} seats` : `รวม ${n} ที่นั่ง`;
+}
+
+// สร้าง array ของ <tr> (group-aware) — หัวกลุ่ม + แถวข้อมูล (merge ต่อกลุ่ม) + Total/grand total
+// ใช้ร่วมกัน: print (join ทั้งหมดเป็น 1 ตาราง) + preview (slice ทีละหน้า A4)
+// numbering รีเซ็ตทุกกลุ่ม (i+1) — ตรงกับตารางบนจอ · ไม่แบ่งกลุ่ม = 1 group → เลขต่อเนื่อง
+function buildGroupedTrs(cols, rows) {
+  const groups = getGroups(rows);
+  const span0 = cols.length + 1; // # + ทุกคอลัมน์
+  const en = curLang() === "en";
+  const trs = [];
+  groups.forEach(g => {
+    if (g.key !== null) trs.push(`<tr class="cr-grouphdr"><td colspan="${span0}">${g.headerHtml}</td></tr>`);
+    const grsp = computeRowspans(g.rows, cols);
+    g.rows.forEach((row, i) => {
+      trs.push(`<tr><td>${i + 1}</td>` +
+        cols.map((c, ci) => {
+          const span = grsp[ci][i];
+          if (span === 0) return "";
+          const cls = c.fmt === "image" ? ' class="cr-cell-img"' : "";
+          const attrs = (span > 1 ? ` rowspan="${span}"` : "") + cls;
+          return `<td${attrs}>${cellHtml(row, c)}</td>`;
+        }).join("") + `</tr>`);
+    });
+    if (state.showTotal) trs.push(`<tr class="cr-totalrow"><td colspan="${span0}">${escapeHtml(totalLabel(g.rows.length))}</td></tr>`);
+  });
+  if (state.showTotal && state.groupBy && groups.length > 1) {
+    trs.push(`<tr class="cr-grandtotal"><td colspan="${span0}">${escapeHtml((en ? "Grand total " : "รวมทั้งหมด ") + rows.length + (en ? " seats" : " ที่นั่ง"))}</td></tr>`);
+  }
+  return trs;
 }
 
 window.setGroupBy = function (v) {
@@ -1151,9 +1182,10 @@ window.setRowsPerPage = function (v) {
 };
 
 // แปลง state.rowsPerPage ("auto" | number) → จำนวน rows จริงต่อหน้า A4
-// auto: เลือกตาม hasImage + orientation เพื่อให้หน้าเต็มโดยประมาณ
+// auto: คำนวณจากพื้นที่ใช้งานจริงของ A4 (กันแถวล้นพ้นขอบกระดาษใน preview)
 //   มีรูป  landscape  8 | portrait 12  (ต้องเผื่อพื้นที่ภาพ)
-//   text ล้วน landscape 24 | portrait 38 (row สูง ~6mm แค่ตัวอักษร)
+//   text ล้วน: usableH / rowH โดยเผื่อ header (title/sub) หน้าแรก + แถวหัวตาราง
+//     row จริง ~7.8mm (font 11px + padding + Sarabun line-height) — ค่าเดิม 24/38 สูงไป ทำให้ล้น
 function resolveRowsPerPage(hasImage) {
   if (state.rowsPerPage !== "auto") {
     const n = parseInt(state.rowsPerPage, 10);
@@ -1161,7 +1193,12 @@ function resolveRowsPerPage(hasImage) {
   }
   const isLandscape = state.orientation === "landscape";
   if (hasImage) return isLandscape ? 8 : 12;
-  return isLandscape ? 24 : 38;
+  // text-only — geometry-based เพื่อให้ตรงกับกระดาษจริง
+  const pageH = isLandscape ? 210 : 297;     // mm
+  const ROW_H = 7.8;                          // mm ต่อแถว text (เผื่อ line-height + padding)
+  const usableH = pageH - 20 - 14;            // หัก padding 10mm รอบ + header block (title+sub) ~14mm
+  const rows = Math.floor(usableH / ROW_H) - 1; // -1 = เผื่อแถวหัวตาราง
+  return Math.max(1, rows);
 }
 window.setCardsPerPage = function (v) {
   const n = parseInt(v, 10);
@@ -1296,17 +1333,7 @@ function buildPrintPayload() {
   const dates = (ci || co) ? ` · ${ci || "—"} → ${co || "—"}` : "";
   const thead = `<th>#</th>` + cols.map(c => `<th>${escapeHtml(colLabel(c))}</th>`).join("");
   const rows = getRows();
-  const rspan = computeRowspans(rows, cols);
-  const tbody = rows.map((row, i) =>
-    `<tr><td>${i + 1}</td>` +
-    cols.map((c, ci) => {
-      const span = rspan[ci][i];
-      if (span === 0) return "";
-      const cls = c.fmt === "image" ? ' class="cr-cell-img"' : "";
-      const attrs = (span > 1 ? ` rowspan="${span}"` : "") + cls;
-      return `<td${attrs}>${cellHtml(row, c)}</td>`;
-    }).join("") +
-    `</tr>`).join("");
+  const tbody = buildGroupedTrs(cols, rows).join(""); // group-aware: หัวกลุ่ม + Total ตามที่ตั้งไว้
   const gen = new Date().toLocaleString(curLang() === "en" ? "en-GB" : "th-TH", { timeZone: "Asia/Bangkok" });
   const extra = rows.length !== state.pax.length ? ` ${T("cr.print.extraSplit", { n: rows.length })}` : "";
   const teamNote = state.teamCount ? ` ${T("cr.count.team", { n: state.teamCount })}` : "";
@@ -1405,9 +1432,9 @@ window.exportReportPrint = function () {
 // จำนวนหน้า A4 สูงสุดที่จะ render ใน preview — กันช้ากรณีรายงานใหญ่
 const PREVIEW_MAX_PAGES = 5;
 
-// สร้าง HTML ของหนึ่งหน้า A4 — header (เฉพาะหน้าแรก) + table ของ rows ในช่วงนั้น
-function buildOnePagePreview(cols, rows, startIdx, pageNum, totalPages, isFirstPage) {
-  const rspan = computeRowspans(rows, cols);
+// สร้าง HTML ของหนึ่งหน้า A4 — header (เฉพาะหน้าแรก) + table ของ <tr> ในช่วงนั้น
+// รับ trsHtml = array ของ <tr> string ที่ build แบบ group-aware มาแล้ว (slice ต่อหน้า)
+function buildOnePagePreview(cols, trsHtml, pageNum, totalPages, isFirstPage) {
   const ci = state.trip?.start_date ? fmtDate(state.trip.start_date) : "";
   const co = state.trip?.end_date ? fmtDate(state.trip.end_date) : "";
   const dates = (ci || co) ? ` · ${ci || "—"} → ${co || "—"}` : "";
@@ -1417,18 +1444,8 @@ function buildOnePagePreview(cols, rows, startIdx, pageNum, totalPages, isFirstP
        <div class="cr-print-sub">${T("cr.count.people", { n: state.paxCount || state.pax.length })}${teamNote} · ${T("cr.count.columns", { n: cols.length })}</div>`
     : "";
   const thead = `<th style="width:32px">#</th>` + cols.map(c => `<th>${escapeHtml(colLabel(c))}</th>`).join("");
-  const tbody = rows.map((row, i) =>
-    `<tr><td>${startIdx + i + 1}</td>` +
-    cols.map((c, ci2) => {
-      const span = rspan[ci2][i];
-      if (span === 0) return "";
-      const cls = c.fmt === "image" ? ' class="cr-cell-img"' : "";
-      const attrs = (span > 1 ? ` rowspan="${span}"` : "") + cls;
-      return `<td${attrs}>${cellHtml(row, c)}</td>`;
-    }).join("") +
-    `</tr>`).join("");
   return `${headerHtml}
-    <table><thead><tr>${thead}</tr></thead><tbody>${tbody}</tbody></table>
+    <table><thead><tr>${thead}</tr></thead><tbody>${trsHtml.join("")}</tbody></table>
     <div class="cr-preview-page-num">${escapeHtml(T("cr.preview.pageNum", { p: pageNum, total: totalPages }))}</div>`;
 }
 
@@ -1458,8 +1475,11 @@ window.previewReportPrint = function () {
   const total = allRows.length;
   const isCard = state.layout === "card";
   const hasImageCol = cols.some(c => c.fmt === "image");
+  // หน่วยที่นำมาแบ่งหน้า: table = <tr> แบบ group-aware (หัวกลุ่ม/Total นับเป็นแถวด้วย) · card = แถวข้อมูล
+  const trs = isCard ? null : buildGroupedTrs(cols, allRows);
+  const unitCount = isCard ? total : trs.length;
   const perPage = Math.max(1, isCard ? (state.cardsPerPage || 2) : resolveRowsPerPage(hasImageCol));
-  const totalPages = Math.max(1, Math.ceil(total / perPage));
+  const totalPages = Math.max(1, Math.ceil(unitCount / perPage));
   const showPages = Math.min(PREVIEW_MAX_PAGES, totalPages);
   const ori = state.orientation === "portrait" ? "portrait" : "landscape";
 
@@ -1467,14 +1487,13 @@ window.previewReportPrint = function () {
   scroll.innerHTML = "";
   for (let p = 0; p < showPages; p++) {
     const start = p * perPage;
-    const pageRows = allRows.slice(start, start + perPage);
     const paper = document.createElement("div");
     paper.className = `cr-preview-paper ${ori}${isCard ? " cr-mode-card" : ""}`;
     if (isCard) applyCardStyles(paper);
     else applyPrintStyles(paper, hasImageCol);
     paper.innerHTML = isCard
-      ? buildOnePageCardPreview(cols, pageRows, start, p + 1, totalPages, p === 0)
-      : buildOnePagePreview(cols, pageRows, start, p + 1, totalPages, p === 0);
+      ? buildOnePageCardPreview(cols, allRows.slice(start, start + perPage), start, p + 1, totalPages, p === 0)
+      : buildOnePagePreview(cols, trs.slice(start, start + perPage), p + 1, totalPages, p === 0);
     scroll.appendChild(paper);
   }
   if (totalPages > showPages) {
@@ -1516,6 +1535,7 @@ function currentBinding() {
 // ปุ่ม "📄 สร้างเป็นจดหมาย" — สร้าง trip_documents (body=ตาราง + scaffold เปิด/ปิด) → เปิดใน trip-docs
 // ตาราง build ผ่าน engine กลาง TripReportData → ตรงกับตอน 🔄 รีเฟรชใน trip-docs เป๊ะ
 window.createLetterDoc = async function () {
+  if (state.insertDocId) return insertIntoDoc();   // โหมดแทรกกลับเอกสารเดิม
   if (!state.selected.length) { showToast(T("cr.toast.selectColsExport"), "info"); return; }
   const en = curLang() === "en";
   if (!window.TripReportData) { showToast("โหลด engine ไม่สำเร็จ (report-data-source.js)", "error"); return; }
@@ -1571,6 +1591,79 @@ window.createLetterDoc = async function () {
     showToast((en ? "Create failed: " : "สร้างไม่สำเร็จ: ") + e.message + hint, "error");
   }
 };
+
+// ── INSERT MODE (มาจาก doc-editor ?insert_doc=N) ───────────
+// เปลี่ยนปุ่ม "สร้างเป็นจดหมาย" → "แทรกกลับเอกสาร" + prefill จาก binding เดิมของเอกสาร
+async function enterInsertMode() {
+  const en = curLang() === "en";
+  const btn = document.getElementById("crMakeBtn");
+  if (btn) {
+    btn.textContent = en ? "↩️ Insert back to document" : "↩️ แทรกกลับเอกสาร";
+    btn.removeAttribute("data-i18n");
+    btn.removeAttribute("data-i18n-attr");
+    btn.title = en ? "Pull this data set back into the document" : "ดึงชุดข้อมูลนี้กลับไปแทรกในเอกสาร";
+  }
+  const banner = document.getElementById("crInsertBanner");
+  if (banner) {
+    banner.style.display = "";
+    const idEl = banner.querySelector("[data-doc-id]");
+    if (idEl) idEl.textContent = "#" + state.insertDocId;
+  }
+  // prefill คอลัมน์/กรอง/กลุ่ม จาก binding เดิมของเอกสาร (ถ้ามี) เพื่อแก้ต่อได้
+  try {
+    const docs = await sbFetch("trip_documents", `?doc_id=eq.${state.insertDocId}&select=data_bindings`);
+    const b = (docs || [])[0]?.data_bindings;
+    if (b && Array.isArray(b.columns) && b.columns.length) applyBinding(b);
+  } catch (e) { /* ไม่มี binding เดิมก็ไม่เป็นไร */ }
+}
+function applyBinding(b) {
+  state.selected = (b.columns || []).filter((k) => COL_BY_KEY[k]);
+  state.groupBy = b.groupBy || "";
+  state.showTotal = !!b.showTotal;
+  state.merged = b.merged || {};
+  state.hidden = b.hidden || {};
+  state.sort = Array.isArray(b.sort) ? b.sort : [];
+  state.filters = {};
+  Object.entries(b.filters || {}).forEach(([k, arr]) => { if (Array.isArray(arr) && arr.length) state.filters[k] = new Set(arr); });
+  renderPicker();
+  renderAll();
+  const tot = document.getElementById("crShowTotal");
+  if (tot) tot.checked = state.showTotal;
+}
+// ดึงตารางปัจจุบัน → แทนที่ [data-doc-datablock] ใน body ของเอกสารเดิม → กลับ doc-editor
+async function insertIntoDoc() {
+  const en = curLang() === "en";
+  if (!state.selected.length) { showToast(T("cr.toast.selectColsExport"), "info"); return; }
+  if (!window.TripReportData) { showToast("engine ไม่พร้อม (report-data-source.js)", "error"); return; }
+  const binding = currentBinding();
+  binding.trip_id = state.tripId;
+  showLoading(true);
+  try {
+    const { html } = await window.TripReportData.buildLetterTable(binding);
+    const docs = await sbFetch("trip_documents", `?doc_id=eq.${state.insertDocId}&select=body`);
+    const doc = (docs || [])[0];
+    if (!doc) throw new Error("ไม่พบเอกสาร #" + state.insertDocId);
+    const tmp = document.createElement("div");
+    tmp.innerHTML = doc.body || "";
+    let block = tmp.querySelector("[data-doc-datablock]");
+    if (block) block.innerHTML = html;                       // แทนที่ตารางเดิม (คงตำแหน่ง)
+    else {                                                   // ไม่มี placeholder → ต่อท้าย
+      block = document.createElement("div");
+      block.setAttribute("data-doc-datablock", "1");
+      block.innerHTML = html;
+      tmp.appendChild(block);
+    }
+    await sbFetch("trip_documents", `?doc_id=eq.${state.insertDocId}`, {
+      method: "PATCH",
+      body: { body: tmp.innerHTML, data_bindings: binding, updated_at: new Date().toISOString() },
+    });
+    showToast(en ? "Inserted — opening document…" : "แทรกข้อมูลแล้ว — กำลังเปิดเอกสาร...", "success");
+    location.href = `./doc-editor.html?doc_id=${state.insertDocId}`;
+  } catch (e) {
+    showLoading(false);
+    showToast((en ? "Insert failed: " : "แทรกไม่สำเร็จ: ") + e.message, "error");
+  }
+}
 
 // ── IMAGE LIGHTBOX (click thumbnail → ภาพขยาย) ──────────────
 window.crOpenImg = function (el) {

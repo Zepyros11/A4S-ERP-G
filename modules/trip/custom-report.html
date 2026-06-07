@@ -70,7 +70,18 @@
       .cr-chip .cr-chip-move:hover{opacity:1}
 
       /* preview table */
-      #cr-table-wrap{overflow:auto;max-height:62vh;border:1px solid var(--border);border-radius:8px}
+      /* มือถือ/จอแคบ: หน้าเลื่อนปกติ — cap ความสูงตารางพอประมาณ */
+      #cr-table-wrap{overflow:auto;max-height:70vh;border:1px solid var(--border);border-radius:8px}
+
+      /* ── App-shell (จอกว้าง): ล็อกหน้าสูงเท่าจอใต้ topbar → ไม่มี page-scroll
+         ให้ "ตัวเลือกคอลัมน์" + "กล่องตาราง" เลื่อนในตัวเอง (กัน double-scroll/กล่องว่าง) ── */
+      @media (min-width:881px){
+        .page{height:calc(100vh - var(--topbar-h));display:flex;flex-direction:column;overflow:hidden}
+        .cr-main{flex:1;min-height:0}
+        .cr-main > .cr-card{min-height:0;display:flex;flex-direction:column}
+        #crPicker{flex:1;min-height:0;overflow:auto}
+        #cr-table-wrap{flex:1;min-height:0;max-height:none}
+      }
       table.cr-table{border-collapse:separate;border-spacing:0;width:max-content;min-width:100%;font-size:12px}
       table.cr-table th,table.cr-table td{
         padding:6px 9px;border-bottom:1px solid var(--border);border-right:1px solid var(--border);
@@ -379,6 +390,16 @@
       #cr-print-area table{border-collapse:collapse;width:100%;font-size:11px}
       #cr-print-area th,#cr-print-area td{border:1px solid #94a3b8;padding:4px 6px;text-align:left;vertical-align:middle}
       #cr-print-area thead th{background:#f1f5f9;font-weight:700}
+      /* group header / total / grand total rows — preview A4 + print (mirror table.cr-table) */
+      .cr-preview-paper tr.cr-grouphdr td,#cr-print-area tr.cr-grouphdr td{
+        background:#e0f2fe;color:#075985;font-weight:700;border-top:2px solid #0ea5e9;
+      }
+      .cr-preview-paper tr.cr-totalrow td,#cr-print-area tr.cr-totalrow td{
+        background:#f1f5f9;color:#334155;font-weight:700;text-align:right;
+      }
+      .cr-preview-paper tr.cr-grandtotal td,#cr-print-area tr.cr-grandtotal td{
+        background:#dcfce7;color:#166534;font-weight:800;text-align:right;
+      }
       /* image cell in print — size driven by --cr-img-h (set ก่อน print) */
       #cr-print-area td img.cr-img-thumb{
         max-height:var(--cr-img-h, 16mm);max-width:var(--cr-img-w, 60mm);
@@ -485,6 +506,13 @@
             <div id="crLangToggle" style="margin-left:auto;align-self:center"></div>
           </div>
 
+          <!-- INSERT-MODE BANNER (มาจาก doc-editor) -->
+          <div id="crInsertBanner" style="display:none;margin-bottom:12px;padding:10px 16px;border-radius:10px;
+            background:#f3e8ff;border:1px solid #d8b4fe;color:#6b21a8;font-size:13px;font-weight:600">
+            ↩️ โหมดแทรกข้อมูลกลับเอกสาร <b data-doc-id>#?</b> — เลือก/กรอง/เรียงคอลัมน์ตามต้องการ แล้วกดปุ่ม
+            <span style="color:#7c3aed">"แทรกกลับเอกสาร"</span> (มุมขวาบน) เพื่อดึงตารางกลับไปที่เอกสาร
+          </div>
+
           <!-- PRESET BAR -->
           <div class="cr-card" style="margin-bottom:12px">
             <div class="cr-preset-bar">
@@ -550,7 +578,7 @@
               <button class="btn btn-outline" onclick="window.exportReportExcel()" data-i18n="cr.btn.excel">📥 Excel</button>
               <button class="btn btn-outline" onclick="window.previewReportPrint()" data-i18n="cr.btn.preview" data-i18n-attr="title:cr.btn.previewTitle" title="ดูตัวอย่างหน้ากระดาษ A4 ก่อนพิมพ์">👁 Preview</button>
               <button class="btn btn-primary" onclick="window.exportReportPrint()" data-i18n="cr.btn.print">🖨 Print / PDF</button>
-              <button class="btn btn-primary" onclick="window.createLetterDoc()"
+              <button id="crMakeBtn" class="btn btn-primary" onclick="window.createLetterDoc()"
                 style="background:#7c3aed;border-color:#7c3aed"
                 data-i18n="cr.btn.makeLetter" data-i18n-attr="title:cr.btn.makeLetterTitle"
                 title="สร้างเอกสารจดหมายจากตารางนี้ — ใส่หัวกระดาษ/ลายเซ็น/ข้อความเปิด-ปิด ในหน้าเอกสาร">📄 สร้างเป็นจดหมาย</button>

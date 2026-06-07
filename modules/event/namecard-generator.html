@@ -26,19 +26,6 @@
       <div class="content-area">
         <div class="page nmc-page">
 
-          <!-- PAGE HEADER -->
-          <div class="page-hero page-hero--simple page-hero--compact nmc-no-print nmc-hero">
-            <div class="nmc-hero-left">
-              <h1 class="page-hero-title">🪪 พิมพ์ป้าย & ใบประกาศ</h1>
-              <div class="page-hero-sub">เครื่องมือ Utility · Event · จัด layout บนกระดาษ A4 + export PDF</div>
-            </div>
-            <div class="nmc-hero-right" id="heroActions">
-              <button class="btn btn-primary" onclick="nmc.downloadTemplate()" title="ดาวน์โหลดไฟล์ Excel ตัวอย่าง" id="btnTemplate">
-                ⬇️ ดาวน์โหลด Template
-              </button>
-            </div>
-          </div>
-
           <!-- TOOL PICKER (landing) -->
           <div class="tool-grid nmc-no-print" id="toolPicker">
             <button class="tool-card" data-tab="namecard" onclick="nmc.switchTab('namecard')">
@@ -78,14 +65,19 @@
               <div class="nmc-step" id="step3"><span class="nmc-step-num">3</span><span>พิมพ์ A4</span></div>
             </div>
 
-            <!-- DROP ZONE -->
-            <div id="dropZone" class="nmc-drop" onclick="document.getElementById('fileInput').click()"
-                 ondragover="nmc.onDrag(event,true)" ondragleave="nmc.onDrag(event,false)" ondrop="nmc.onDrop(event)">
-              <div class="nmc-drop-icon">📊</div>
-              <div class="nmc-drop-title">ลากไฟล์ Excel มาวาง หรือคลิกเพื่อเลือก</div>
-              <div class="nmc-drop-hint">ไฟล์ <b>.xlsx / .xls / .csv</b> · คอลัมน์ที่ 1 = ชื่อ · คอลัมน์ที่ 2 = ตำแหน่ง</div>
-              <div class="nmc-drop-hint" style="margin-top:6px">หรือกรอกเองด้านล่าง / ดาวน์โหลด <a href="javascript:nmc.downloadTemplate()">เทมเพลตตัวอย่าง</a></div>
-              <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" style="display:none" onchange="nmc.onFilePick(event)">
+            <!-- DROP ZONE (compact) -->
+            <div class="nmc-input-row">
+              <div id="dropZone" class="nmc-drop nmc-drop--compact" onclick="document.getElementById('fileInput').click()"
+                   ondragover="nmc.onDrag(event,true)" ondragleave="nmc.onDrag(event,false)" ondrop="nmc.onDrop(event)">
+                <div class="nmc-drop-icon">📊</div>
+                <div class="nmc-drop-text">
+                  <div class="nmc-drop-title">ลากไฟล์ Excel มาวาง หรือคลิกเพื่อเลือก</div>
+                  <div class="nmc-drop-hint"><b>.xlsx / .xls / .csv</b> · คอลัมน์ 1 = ชื่อ · คอลัมน์ 2 = ตำแหน่ง · <a href="javascript:nmc.downloadTemplate()" onclick="event.stopPropagation()">เทมเพลตตัวอย่าง</a></div>
+                </div>
+                <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" style="display:none" onchange="nmc.onFilePick(event)">
+              </div>
+              <div class="nmc-input-or">หรือ</div>
+              <button type="button" class="btn btn-primary nmc-manual-btn" onclick="nmc.addRow()">✏️ กรอกเอง</button>
             </div>
 
             <!-- SPLIT: [ รายชื่อ | Preview ] -->
@@ -162,7 +154,7 @@
                 <div class="vip-qty-row vip-qty-row--inset">
                   <span class="vip-qty-label">โหมดเนื้อหา</span>
                   <div class="seat-orient-toggle">
-                    <button class="seat-orient-btn active" id="cModeRepeat" onclick="nmc.setCMode('repeat')">🔁 ซ้ำใบเดียว</button>
+                    <button class="seat-orient-btn active" id="cModeRepeat" onclick="nmc.setCMode('repeat')">🔁 ทำซ้ำแบบเดียว</button>
                     <button class="seat-orient-btn" id="cModeSeq" onclick="nmc.setCMode('sequence')">🔢 ลำดับอัตโนมัติ</button>
                   </div>
                 </div>
@@ -182,6 +174,23 @@
                   </div>
                 </div>
 
+                <div class="vip-qty-row vip-qty-row--inset">
+                  <span class="vip-qty-label">แนวกระดาษ</span>
+                  <div class="seat-orient-toggle">
+                    <button class="seat-orient-btn active" id="cOrientPortrait" onclick="nmc.setCOrient('portrait')">📄 แนวตั้ง</button>
+                    <button class="seat-orient-btn" id="cOrientLandscape" onclick="nmc.setCOrient('landscape')">📃 แนวนอน</button>
+                  </div>
+                </div>
+
+                <div class="vip-qty-row vip-qty-row--inset">
+                  <span class="vip-qty-label">จัดตำแหน่งแนวตั้ง<span class="c-help" data-tip="ตำแหน่งเนื้อหา (โลโก้/ข้อความ/เลข) ในการ์ด · บน / กลาง / ล่าง">?</span></span>
+                  <div class="seat-orient-toggle">
+                    <button class="seat-orient-btn" id="cVAlignTop" onclick="nmc.setCVAlign('top')">⬆ บน</button>
+                    <button class="seat-orient-btn active" id="cVAlignCenter" onclick="nmc.setCVAlign('center')">⬍ กลาง</button>
+                    <button class="seat-orient-btn" id="cVAlignBottom" onclick="nmc.setCVAlign('bottom')">⬇ ล่าง</button>
+                  </div>
+                </div>
+
                 <div class="vip-design-grid c-text-grid">
                   <div class="vip-field">
                     <label for="cTextInput">ข้อความ / ชื่อ<span class="c-help" data-tip="โหมดซ้ำ = ข้อความบนป้าย · โหมดลำดับ = ชื่อ/หัวด้านบนเลข · เว้นว่าง = ไม่แสดง">?</span></label>
@@ -198,11 +207,11 @@
                 <!-- ── REPEAT-only controls (style + quantity) ── -->
                 <div id="cRepeatBox">
                   <div class="vip-qty-row vip-qty-row--inset">
-                    <span class="vip-qty-label">สไตล์การ์ด</span>
-                    <div class="seat-orient-toggle">
-                      <button class="seat-orient-btn active" id="cStylePlain" onclick="nmc.setCStyle('plain')">โลโก้+ชื่อ</button>
-                      <button class="seat-orient-btn" id="cStyleVip" onclick="nmc.setCStyle('vip')">แถบเขียวด้านล่าง</button>
-                    </div>
+                    <span class="vip-qty-label">แถบเขียวด้านล่าง</span>
+                    <label class="switch">
+                      <input type="checkbox" id="cStyleVip" onchange="nmc.setCStyle(this.checked ? 'vip' : 'plain')">
+                      <span class="slider"></span>
+                    </label>
                   </div>
 
                   <div class="vip-qty-row vip-qty-row--inset">
@@ -228,24 +237,42 @@
                 <div id="cSeqBox" style="display:none">
                   <div class="vip-design-grid c-seq-grid">
                     <div class="vip-field c-seq-field">
-                      <label for="cRowInput">แถว (ROW)<span class="c-help" data-tip="เช่น A-M หรือ A,B,C · เว้นว่างได้">?</span></label>
+                      <label for="cRowInput">อักษรด้านหน้า<span class="c-help" data-tip="เช่น A-M หรือ A,B,C · เว้นว่างได้">?</span></label>
                       <input type="text" id="cRowInput" class="vip-text-input" value="A-J"
                              placeholder="A-M หรือ A,B,C" oninput="nmc.setCRow(this.value)">
                     </div>
-                    <div class="vip-field c-seq-field">
-                      <label for="cColInput">คอลัมน์ (COLUMN)<span class="c-help" data-tip="เช่น 1-24 หรือ 1,2,3 · เว้นว่างได้">?</span></label>
-                      <input type="text" id="cColInput" class="vip-text-input" value="1-12"
-                             placeholder="1-24 หรือ 1,2,3" oninput="nmc.setCCol(this.value)">
-                    </div>
                     <div class="vip-field vip-field-num">
-                      <label for="cSepInput">ตัวคั่น<span class="c-help" data-tip="ตัวคั่นระหว่าง Row/Col · เว้นว่าง = A1">?</span></label>
+                      <label for="cSepInput">ตัวคั่น<span class="c-help" data-tip="ตัวคั่นระหว่างอักษรด้านหน้า/เลขลำดับ · เว้นว่าง = A1">?</span></label>
                       <input type="text" id="cSepInput" class="vip-num-input" value="" maxlength="3"
                              placeholder="(เว้นว่าง)" oninput="nmc.setCSep(this.value)">
+                    </div>
+                    <div class="vip-field c-seq-field">
+                      <label for="cColInput">เลขลำดับ<span class="c-help" data-tip="เช่น 1-24 หรือ 1,2,3 · เว้นว่างได้">?</span></label>
+                      <input type="text" id="cColInput" class="vip-text-input" value="1-12"
+                             placeholder="1-24 หรือ 1,2,3" oninput="nmc.setCCol(this.value)">
                     </div>
                     <div class="vip-field vip-field-num">
                       <label for="cNumSizeInput">ขนาดเลข (px)<span class="c-help" data-tip="กำหนดขนาดตัวเลขใหญ่เป็น px · เว้นว่าง = อัตโนมัติ (พอดีการ์ด)">?</span></label>
                       <input type="number" id="cNumSizeInput" class="vip-num-input" min="0" max="800" step="4"
                              placeholder="auto" oninput="nmc.setCNumSize(this.value)">
+                    </div>
+                  </div>
+
+                  <div class="vip-qty-row vip-qty-row--inset">
+                    <span class="vip-qty-label">จำนวนชุด<span class="c-help" data-tip="พิมพ์ลำดับทั้งชุดซ้ำกี่ครั้ง · เช่น A1–A5 จำนวน 3 ชุด = พิมพ์ A1…A5 ทั้งหมด 3 รอบ">?</span></span>
+                    <div class="vip-qty-input-wrap">
+                      <button class="vip-qty-btn" onclick="nmc.bumpCSeqSets(-1)">−</button>
+                      <input type="number" id="cSeqSetsInput" class="vip-qty-input" min="1" max="200" value="1"
+                             oninput="nmc.setCSeqSets(this.value)">
+                      <button class="vip-qty-btn" onclick="nmc.bumpCSeqSets(1)">＋</button>
+                      <span class="vip-qty-unit">ชุด</span>
+                    </div>
+                    <div class="vip-qty-presets">
+                      <button class="btn btn-outline btn-sm" onclick="nmc.setCSeqSets(1)">1</button>
+                      <button class="btn btn-outline btn-sm" onclick="nmc.setCSeqSets(2)">2</button>
+                      <button class="btn btn-outline btn-sm" onclick="nmc.setCSeqSets(3)">3</button>
+                      <button class="btn btn-outline btn-sm" onclick="nmc.setCSeqSets(5)">5</button>
+                      <button class="btn btn-outline btn-sm" onclick="nmc.setCSeqSets(10)">10</button>
                     </div>
                   </div>
                 </div>
@@ -290,23 +317,6 @@
                     <button class="btn btn-outline btn-sm" onclick="nmc.setCSize(8.5,5.4)">8.5×5.4</button>
                     <button class="btn btn-outline btn-sm" onclick="nmc.setCSize(10.5,7.4)">10.5×7.4</button>
                     <button class="btn btn-outline btn-sm" onclick="nmc.setCSize(5,5)">5×5</button>
-                  </div>
-                </div>
-
-                <div class="vip-qty-row vip-qty-row--inset">
-                  <span class="vip-qty-label">แนวกระดาษ</span>
-                  <div class="seat-orient-toggle">
-                    <button class="seat-orient-btn active" id="cOrientPortrait" onclick="nmc.setCOrient('portrait')">📄 แนวตั้ง</button>
-                    <button class="seat-orient-btn" id="cOrientLandscape" onclick="nmc.setCOrient('landscape')">📃 แนวนอน</button>
-                  </div>
-                </div>
-
-                <div class="vip-qty-row vip-qty-row--inset">
-                  <span class="vip-qty-label">จัดตำแหน่งแนวตั้ง<span class="c-help" data-tip="ตำแหน่งเนื้อหา (โลโก้/ข้อความ/เลข) ในการ์ด · บน / กลาง / ล่าง">?</span></span>
-                  <div class="seat-orient-toggle">
-                    <button class="seat-orient-btn" id="cVAlignTop" onclick="nmc.setCVAlign('top')">⬆ บน</button>
-                    <button class="seat-orient-btn active" id="cVAlignCenter" onclick="nmc.setCVAlign('center')">⬍ กลาง</button>
-                    <button class="seat-orient-btn" id="cVAlignBottom" onclick="nmc.setCVAlign('bottom')">⬇ ล่าง</button>
                   </div>
                 </div>
 

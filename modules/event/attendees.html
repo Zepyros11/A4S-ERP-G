@@ -39,6 +39,8 @@
               <span class="att-hero-divider"></span>
               <button class="att-hero-btn" onclick="window.openTagCategoriesModal()" title="จัดการหมวด Tag"><span class="ico">🏷️</span><span class="lbl">หมวด Tag</span></button>
               <button class="att-hero-btn" onclick="window.openFieldConfigModal()" title="ตั้งค่าฟิลด์ลงทะเบียน + คุณสมบัติ"><span class="ico">⚙️</span><span class="lbl">ฟิลด์</span></button>
+              <button class="att-hero-btn" onclick="window.refreshColumnsFromTemplate()" title="รีเฟรชคอลัมน์ให้ตรงกับเทมเพลตล่าสุด (คอลัมน์ยึดตามเทมเพลต)"><span class="ico">🔄</span><span class="lbl">รีเฟรชคอลัมน์</span></button>
+              <button class="att-hero-btn" onclick="window.openUplineLevelsModal()" title="ตั้งค่าระดับสายงาน (รหัสหัวหน้าทีม + สี)"><span class="ico">🌿</span><span class="lbl">สายงาน</span></button>
               <div class="att-export-wrap">
                 <button class="att-hero-btn" onclick="window._toggleExportMenu(event)" title="Export ข้อมูลผู้เข้าร่วม">
                   <span class="ico">📥</span><span class="lbl">Export</span><span class="att-export-caret">▾</span>
@@ -90,6 +92,25 @@
             </div>
           </div>
 
+          <!-- STATUS CARDS — สรุป (clickable → popup report) -->
+          <div id="attStatusCards" class="att-status-cards" style="display:none">
+            <div class="att-scard sc-upline" role="button" tabindex="0" title="ดูรายงานแยกตามสายงาน" onclick="window.openStatReport('upline')">
+              <div class="att-scard-hd">🌿 จำนวนตามสายงาน</div>
+              <div class="att-scard-main"><span id="scUplineGroups">0</span> <small>สาย</small></div>
+              <div class="att-scard-sub" id="scUplineSub">—</div>
+            </div>
+            <div class="att-scard sc-attend" role="button" tabindex="0" title="ดูรายงานลงทะเบียน / มาจริง" onclick="window.openStatReport('attendance')">
+              <div class="att-scard-hd">👥 ลงทะเบียน / มาจริง</div>
+              <div class="att-scard-main"><span id="scReg">0</span> <small>/</small> <span id="scActual" class="sc-actual">0</span></div>
+              <div class="att-scard-sub" id="scAttendSub">มาจริง 0%</div>
+            </div>
+            <div class="att-scard sc-pay" role="button" tabindex="0" title="ดูรายงานการชำระเงิน" onclick="window.openStatReport('payment')">
+              <div class="att-scard-hd">💰 การชำระเงิน</div>
+              <div class="att-scard-main"><span id="scPaid" class="sc-ok">0</span> <small>ชำระ</small> <span class="sc-div">|</span> <span id="scUnpaid" class="sc-warn">0</span> <small>ค้าง</small></div>
+              <div class="att-scard-sub" id="scPaySub">—</div>
+            </div>
+          </div>
+
           <!-- TIER INFO BANNER -->
           <div id="tierInfoBanner" style="display:none"></div>
 
@@ -131,6 +152,7 @@
               <div class="table-wrap">
                 <table class="data-table att-inline-table density-spreadsheet">
                   <thead>
+                    <tr id="attTableGroupHead" class="att-grp-row" style="display:none"></tr>
                     <tr id="attTableHead"></tr>
                   </thead>
                   <tbody id="attTableBody"></tbody>
@@ -464,6 +486,29 @@
     </div>
 
     <!-- ═══════════════════════════════════════
+         UPLINE LEVELS — ตั้งค่าสายงาน (config กลาง)
+         ═══════════════════════════════════════ -->
+    <div class="att-modal-overlay" id="uplineLevelsModal">
+      <div class="att-modal" style="width:760px;max-width:96vw">
+        <div class="att-modal-header">
+          <div>🌿 ตั้งค่าสายงาน</div>
+          <button class="btn-icon" onclick="window.closeUplineLevelsModal()">✕</button>
+        </div>
+        <div class="att-modal-body">
+          <div style="font-size:12px;color:var(--text3);background:#f1f5f9;padding:8px 12px;border-radius:8px;margin-bottom:12px;line-height:1.6">
+            💡 ตั้งค่า<b>กลาง</b> ใช้ร่วมทุก event · แต่ละระดับใส่<b>รหัสหัวหน้าทีม</b> — ระบบจะไล่สาย MLM จาก <code>members.sponsor_code</code> ขึ้นไป ถ้าผู้เข้าร่วมอยู่ในสายของรหัสนั้น = อยู่ระดับนั้น · <b>ระดับล่างสุด (เลขมากสุด)</b> = แสดงบนสุดของตาราง · ในระดับเรียงตามลำดับรหัสที่ใส่ · <b>สี</b>ของแต่ละคน (ขวาช่องชื่อเล่น) = พื้นหลังช่อง "สายงาน"
+          </div>
+          <div id="uplineLevelsList" class="ul-levels-list"></div>
+          <button class="ul-add-level" onclick="window.addUplineLevel()">+ เพิ่มระดับ</button>
+        </div>
+        <div class="att-modal-footer">
+          <button class="btn btn-secondary" onclick="window.closeUplineLevelsModal()">ยกเลิก</button>
+          <button class="btn btn-primary" onclick="window.saveUplineLevelsModal()">💾 บันทึก</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════
          TAG CATEGORY — DELETE WITH REPLACE MODAL
          ═══════════════════════════════════════ -->
     <div class="att-modal-overlay" id="tagCatDeleteModal">
@@ -538,13 +583,12 @@
           <!-- Member info banner (shown only when editing/registering a member row) -->
           <div id="attFormMemberBanner" class="aff-member-banner" style="display:none"></div>
 
-          <div class="form-group">
-            <label class="form-label">ชื่อ-นามสกุล <span class="req">*</span></label>
-            <input class="form-control" id="attFormName" placeholder="ระบุชื่อ-นามสกุล" autocomplete="off">
-          </div>
-
-          <!-- ── STANDARD FIELDS GRID (CSS order ตาม field_order) ───── -->
-          <div class="aff-std-grid">
+          <!-- ── FIELD POOL (hidden) — JS ย้าย wrap เข้า block ตาม template ─ -->
+          <div id="attFormFieldPool" style="display:none">
+            <div class="form-group" id="attFormNameWrap">
+              <label class="form-label">ชื่อ-นามสกุล <span class="req">*</span></label>
+              <input class="form-control" id="attFormName" placeholder="ระบุชื่อ-นามสกุล" autocomplete="off">
+            </div>
             <div class="form-group" id="attFormPhoneWrap">
               <label class="form-label" id="attFormPhoneLabel">เบอร์โทร</label>
               <input class="form-control" id="attFormPhone" placeholder="0XX-XXX-XXXX" autocomplete="off">
@@ -561,6 +605,7 @@
                 </select>
                 <button type="button" class="aff-upline-mgr-btn" title="จัดการสายงาน" onclick="window.openUplineManage()">⚙️</button>
               </div>
+              <div id="attFormUplineAuto" class="aff-upline-auto" style="display:none"></div>
             </div>
             <div class="form-group" id="attFormReferrerWrap">
               <label class="form-label" id="attFormReferrerLabel">ผู้แนะนำ</label>
@@ -603,21 +648,8 @@
             </div>
           </div>
 
-          <div class="form-group" style="margin-top:14px;display:none" id="attFormCustomWrap">
-            <label class="form-label">ข้อมูลเพิ่มเติม</label>
-            <div id="attFormCustomFields" class="aff-row-3" style="margin-top:0"></div>
-          </div>
-
-          <div class="form-group" style="margin-top:14px;display:none" id="attFormQualWrap">
-            <div class="aff-qual-header">
-              <label class="form-label" style="margin:0">คุณสมบัติผู้เข้าเรียน</label>
-              <label class="aff-qual-all" title="กดเพื่อเลือก/ยกเลิกทั้งหมด">
-                <input type="checkbox" id="attFormQualAll" onchange="window._attFormQualToggleAll(this.checked)">
-                <span>ทั้งหมด</span>
-              </label>
-            </div>
-            <div id="attFormQualList" class="aff-qual-list"></div>
-          </div>
+          <!-- ── RENDERED BLOCKS (ตาม template) ───────────────────── -->
+          <div id="attFormBlocks"></div>
         </div>
         <div class="modal-footer">
           <button class="btn btn-ghost" onclick="window.closeAttendeeForm()">ยกเลิก</button>
@@ -731,6 +763,7 @@
 <script src="../../js/core/date-format.js"></script>
     <script>AuthZ.requirePerm("attendee_view");</script>
     <script src="../../js/core/imageCompressor.js"></script>
+    <script src="../../js/shared/attendee-fields.js"></script>
     <script type="module" src="./attendees.js"></script>
     <script src="../../js/components/modal/deleteModal.js"></script>
     <script src="../../js/components/modal/modalManager.js"></script>

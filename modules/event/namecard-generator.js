@@ -41,6 +41,7 @@
   let cColInput = "1-12";           // column tokens (e.g. "1-24" or "1,2,3")
   let cSep      = "";               // separator between row & col ("" → "A1")
   let cNumSize  = 0;                // big sequence-number size override (px) · 0 = auto-fit
+  let cSeqSets  = 1;                // print the whole sequence N times (e.g. 3 ชุด → A1..An ×3)
 
   // ── Certificate tab state (independent from namecard rows) ─
   let certRows = [];                // [{ name1, name2, position }]
@@ -818,8 +819,12 @@
     if (!rs.length && !cs.length) return [];
     const rows = rs.length ? rs : [""];
     const cols = cs.length ? cs : [""];
+    const base = [];
+    for (const r of rows) for (const c of cols) { const sep = (r && c) ? cSep : ""; base.push(r + sep + c); }
+    const sets = Math.max(1, cSeqSets | 0);
+    if (sets <= 1) return base;
     const out = [];
-    for (const r of rows) for (const c of cols) { const sep = (r && c) ? cSep : ""; out.push(r + sep + c); }
+    for (let s = 0; s < sets; s++) out.push(...base);   // repeat the whole sequence ×N (จำนวนชุด)
     return out;
   }
 
@@ -878,8 +883,10 @@
     const text = esc(formatName(cText));
     const vaCls = " c-va-" + cVAlign;   // vertical align of content (top/center/bottom · flex column variants)
 
-    // Sequence: optional logo + name header above the auto number
-    if (cMode === "sequence") {
+    // Sequence WITH a number: logo + name header above the big auto number.
+    // No number (header-only, e.g. no Row/Col) → fall through to the plain card
+    // so the logo/name autofit exactly like repeat mode.
+    if (cMode === "sequence" && String(label) !== "") {
       const headH = fixed ? ` style="height:${cLogoSize}px"` : "";   // px controls header logo height
       const logoEl = url
         ? `<div class="c-seq-logo"${headH}><img src="${esc(url)}" alt="" crossorigin="anonymous" onerror="this.style.display='none'"></div>`
@@ -888,15 +895,16 @@
       const hasHead = !!(url || text);
       const head = hasHead ? `<div class="c-seq-head">${logoEl}${nameEl}</div>` : "";
       const numSz = cNumSize > 0 ? ` style="font-size:${cNumSize}px"` : "";   // px overrides auto-fit
-      const hasNum = String(label) !== "";   // header-only card (no Row/Col) → skip number, center the header
-      const numEl = hasNum ? `<div class="c-seq-numwrap"><div class="c-seq-num"${numSz}>${esc(label)}</div></div>` : "";
-      return `<div class="c-card c-seq${hasHead && hasNum ? " c-seq--head" : ""}${vaCls}">${head}${numEl}</div>`;
+      const numEl = `<div class="c-seq-numwrap"><div class="c-seq-num"${numSz}>${esc(label)}</div></div>`;
+      return `<div class="c-card c-seq${hasHead ? " c-seq--head" : ""}${vaCls}">${head}${numEl}</div>`;
     }
 
     const logoCls = fixed ? "c-logo c-logo--fixed" : "c-logo";
+    // No logo → emit nothing (the old is-empty placeholder reserved 18% at the
+    // top and broke vertical-align by pushing the name down).
     const logo = url
       ? `<div class="${logoCls}"><img src="${esc(url)}" alt=""${imgSz} crossorigin="anonymous" onerror="this.style.display='none'"></div>`
-      : (cStyle === "plain" ? `<div class="${logoCls} is-empty"></div>` : "");
+      : "";
     if (cStyle === "vip") {
       return `<div class="c-card c-vip">${logo}<div class="c-band"><div class="c-band-text"${txtSz}>${text}</div></div></div>`;
     }
@@ -914,6 +922,21 @@
     let guard = 220;
     while (size > 8 && guard-- > 0 && (el.scrollWidth > maxW || el.scrollHeight > maxH)) { size -= 2; el.style.fontSize = size + "px"; }
   }
+  // Sequence header name (e.g. "VIP") — scale up to fit the header width so it
+  // stays balanced with the big auto number, capped so the logo keeps its share.
+  function fitSeqName(el) {
+    const head = el.parentElement; if (!head) return;
+    const card = el.closest(".c-card"); if (!card) return;
+    const hasLogo = !!head.querySelector(".c-seq-logo");
+    const maxW = head.clientWidth - 6;
+    // With a logo → keep the name small so the logo owns the header zone.
+    // No logo → the name fills the whole header zone, balancing the number.
+    const maxH = hasLogo ? card.clientHeight * 0.10 : Math.max(20, head.clientHeight - 4);
+    if (maxW <= 0 || maxH <= 0) return;
+    let size = Math.min(maxH, 400); el.style.fontSize = size + "px";
+    let guard = 400;
+    while (size > 6 && guard-- > 0 && (el.scrollWidth > maxW || el.scrollHeight > maxH)) { size -= 1; el.style.fontSize = size + "px"; }
+  }
   function fitBandText(el) {
     const band = el.parentElement; if (!band) return;
     const maxW = band.clientWidth - 14, maxH = band.clientHeight - 8;
@@ -925,13 +948,23 @@
   function fitNameText(el) {
     const card = el.closest(".c-card"); if (!card) return;
     const logo = card.querySelector(".c-logo");
-    const padV = card.clientHeight * 0.13;
-    const logoH = logo ? logo.getBoundingClientRect().height : 0;
+    const cardH = card.clientHeight;
+    let logoH = logo ? logo.getBoundingClientRect().height : 0;
+    // Logo <img> may not be decoded yet (box ~0) → reserve the CSS cap (52% +
+    // margin) so the name doesn't overgrow into the logo's space and overflow.
+    if (logo && !logo.classList.contains("is-empty") && logoH < cardH * 0.30) logoH = cardH * 0.54;
+    // Width: .c-name is width:100%, so scrollWidth == box width and word-break
+    // wraps long text — the width check only guards true overflow (don't shrink
+    // it with a fill factor or the text collapses to the minimum size).
     const maxW = card.clientWidth - 18;
-    const maxH = Math.max(20, card.clientHeight - logoH - padV);
+    // Height: fill ~90% (not 100%) so vertical-align has room to move short text
+    // visibly between top / center / bottom.
+    const maxH = Math.max(20, (cardH - logoH) * 0.90);
     if (maxW <= 0) return;
-    let size = 80; el.style.fontSize = size + "px";
-    let guard = 120;
+    // Start large and shrink to fit — fills the card like the sequence number,
+    // instead of capping short text at a fixed size.
+    let size = Math.min(maxH, 800); el.style.fontSize = size + "px";
+    let guard = 400;
     while (size > 8 && guard-- > 0 && (el.scrollWidth > maxW || el.scrollHeight > maxH + 1)) { size -= 2; el.style.fontSize = size + "px"; }
   }
   function widestLabel(items) {
@@ -958,6 +991,13 @@
   // Apply the right fit pass to every card under root.
   function fitCustom(root, g, items) {
     if (cMode === "sequence") {
+      if (cTextSize <= 0) {
+        // Header-only sequence (no Row/Col) renders as plain cards → autofit the
+        // name like repeat mode.
+        root.querySelectorAll(".c-name").forEach(fitNameText);
+        // Numbered sequence → scale the header name so it balances the number.
+        root.querySelectorAll(".c-seq-name").forEach(fitSeqName);
+      }
       // px override → keep inline font-size, skip auto-fit · else fit number to card
       if (cNumSize > 0) return;
       const size = computeSeqFontSize(root, g, widestLabel(items));
@@ -976,8 +1016,11 @@
   function customItems() {
     if (cMode === "sequence") {
       const it = buildSeqLabels();
-      // header-only (no Row/Col) → still show one card with just the header/logo
-      if (!it.length && (formatName(cText).trim() || cCurrentLogoUrl())) return { items: [""], total: 1 };
+      // header-only (no Row/Col) → still show one card per set with just the header/logo
+      if (!it.length && (formatName(cText).trim() || cCurrentLogoUrl())) {
+        const sets = Math.max(1, cSeqSets | 0);
+        return { items: Array(sets).fill(""), total: sets };
+      }
       return { items: it, total: it.length };
     }
     return { items: null, total: Math.max(0, cQty | 0) };
@@ -1022,6 +1065,17 @@
     scroller.innerHTML = html;
     scroller.querySelectorAll(".c-a4-wrap").forEach(el => applyCVars(el, g));
     requestAnimationFrame(() => fitCustom(scroller, g, items));
+    // Logos load async → re-fit once any image decodes so name sizing uses the
+    // real logo height (deduped to a single pass via rAF).
+    let refitQueued = false;
+    scroller.querySelectorAll(".c-card img").forEach(img => {
+      if (img.complete) return;
+      img.addEventListener("load", () => {
+        if (refitQueued) return;
+        refitQueued = true;
+        requestAnimationFrame(() => { refitQueued = false; fitCustom(scroller, g, items); });
+      }, { once: true });
+    });
   }
 
   // ── Setters ───────────────────────────────────────────────
@@ -1050,8 +1104,8 @@
   }
   function setCStyle(s) {
     cStyle = (s === "vip") ? "vip" : "plain";
-    $("cStylePlain") && $("cStylePlain").classList.toggle("active", cStyle === "plain");
-    $("cStyleVip")   && $("cStyleVip").classList.toggle("active", cStyle === "vip");
+    const cb = $("cStyleVip");          // toggle: checked = green band on (vip)
+    if (cb && cb.checked !== (cStyle === "vip")) cb.checked = (cStyle === "vip");
     renderCustomSheets();
   }
   function setCQty(v) {
@@ -1073,6 +1127,15 @@
     cNumSize = n;
     renderCustomSheets();
   }
+  function setCSeqSets(v) {
+    let n = parseInt(v, 10);
+    if (isNaN(n) || n < 1) n = 1;
+    if (n > 200) n = 200;
+    cSeqSets = n;
+    const inp = $("cSeqSetsInput"); if (inp && inp.value !== String(n)) inp.value = n;
+    renderCustomSheets();
+  }
+  function bumpCSeqSets(d) { setCSeqSets(cSeqSets + d); }
   function setCW(v) { const n = parseFloat(v); if (!isFinite(n)) return; cW = n * 10; clampCardToPage(); renderCustomSheets(); }
   function setCH(v) { const n = parseFloat(v); if (!isFinite(n)) return; cH = n * 10; clampCardToPage(); renderCustomSheets(); }
   function setCSize(wCm, hCm) {
@@ -1124,11 +1187,12 @@
     const ok = await ConfirmModal.open({ title: "ล้างค่า?", message: "จะล้างค่าที่กรอกในเครื่องมือนี้", icon: "↺", tone: "warning", okText: "ล้าง" });
     if (!ok) return;
     if (cMode === "sequence") {
-      cRowInput = ""; cColInput = ""; cSep = ""; cNumSize = 0;
+      cRowInput = ""; cColInput = ""; cSep = ""; cNumSize = 0; cSeqSets = 1;
       const r = $("cRowInput"); if (r) r.value = "";
       const c = $("cColInput"); if (c) c.value = "";
       const s = $("cSepInput"); if (s) s.value = "";
       const ns = $("cNumSizeInput"); if (ns) ns.value = "";
+      const ss = $("cSeqSetsInput"); if (ss) ss.value = "1";
     } else {
       cText = ""; cQty = 0;
       const t = $("cTextInput"); if (t) t.value = "";
@@ -2097,7 +2161,7 @@
     // Custom tab (merged VIP + Badge + Seat)
     setCMode, setCText, setCStyle, setCLogoSize, setCTextSize,
     setCQty, bumpCQty,
-    setCRow, setCCol, setCSep, setCNumSize,
+    setCRow, setCCol, setCSep, setCNumSize, setCSeqSets, bumpCSeqSets,
     setCW, setCH, setCSize, syncCInputs,
     setCPerPage, bumpCPerPage,
     setCOrient, setCVAlign, setCZoom, clearCustom,

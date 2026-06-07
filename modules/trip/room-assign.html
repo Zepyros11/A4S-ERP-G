@@ -440,6 +440,12 @@
       .fl-tkt-list{display:flex;flex-direction:column;gap:10px}
       .fl-tkt-block{border:1px solid var(--border);border-radius:10px;padding:8px 10px;background:#fcfdfc;cursor:pointer}
       .fl-tkt-block:hover{border-color:#cbd5e1}
+      .fl-tkt-block.fl-tkt-flash{animation:flTktFlash 1.6s ease-out}
+      @keyframes flTktFlash{
+        0%{box-shadow:0 0 0 3px #5b8a72,0 0 0 6px #dcfce7;border-color:#5b8a72;background:#ecfdf3}
+        60%{box-shadow:0 0 0 3px #5b8a72,0 0 0 6px #dcfce7;border-color:#5b8a72;background:#ecfdf3}
+        100%{box-shadow:none;background:#fcfdfc}
+      }
       .fl-tkt-block.empty{border-style:dashed;background:#f8fafc}
       .fl-card.assignable .fl-tkt-block{border-color:var(--accent,#5b8a72);box-shadow:0 0 0 1px #dcfce7 inset}
       .fl-tkt-hdr{display:flex;align-items:center;gap:8px;margin-bottom:8px}
