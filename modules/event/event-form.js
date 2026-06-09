@@ -370,8 +370,7 @@ window.onTemplateChange = function () {
   if (!t) { preview.style.display = 'none'; return; }
   const cfg = t.config || {};
   const fieldLabels = {
-    phone: "เบอร์โทร", position: "ตำแหน่ง", upline: "สายงาน", cs_staff: "CS",
-    line_name: "ไลน์ที่แจ้ง", fb_page_name: "เพจ FB", had_attended: "เคยเรียน", note: "หมายเหตุ",
+    phone: "เบอร์โทร", position: "ตำแหน่ง", upline: "สายงาน",
   };
   const shownFields = cfg.fields
     ? Object.entries(cfg.fields)

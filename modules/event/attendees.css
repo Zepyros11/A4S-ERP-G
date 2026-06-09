@@ -360,14 +360,14 @@
 }
 
 /* ── INLINE EDIT TABLE ── */
-.att-inline-table tbody tr.new-row {
+.att-inline-table tr.new-row {
   background: #fffbeb;
   transition: background .15s;
 }
-.att-inline-table tbody tr.new-row:hover {
+.att-inline-table tr.new-row:hover {
   background: #fef3c7;
 }
-.att-inline-table tbody tr.new-row td {
+.att-inline-table tr.new-row td {
   padding: 6px 8px;
   vertical-align: middle;
   border-bottom: 2px solid #fcd34d;
@@ -385,10 +385,27 @@
   background: var(--accent-pale) !important;
 }
 
-/* Header — flat (non-sticky) with subtle gradient */
+/* Header — subtle gradient (sticky behavior อยู่ด้านล่าง) */
 .att-inline-table thead th {
   background: linear-gradient(180deg, #ffffff 0%, #f1f5f9 100%);
   border-bottom: 2px solid var(--border, #e2e8f0);
+}
+
+/* ── Sticky header — เลื่อนทั้งหน้า (ตารางยาวเต็มจอ) หัวตารางค้างใต้ topbar ──
+   ตัว scroll คือ #erp-main · ปลด overflow ของ table-card/table-wrap เพื่อไม่ให้กลายเป็น
+   scroll container ของตัวเอง → thead sticky เกาะขอบบนของ #erp-main ได้ */
+#attTableSection .table-card { overflow: visible; }
+#attTableSection .table-wrap { overflow: visible; }
+/* หัวตาราง 2 แถว (กลุ่มฟิลด์ + คอลัมน์) ค้างใต้ topbar */
+.att-inline-table thead tr.att-grp-row th {
+  position: sticky;
+  top: 0;
+  z-index: 6;
+}
+.att-inline-table thead tr#attTableHead th {
+  position: sticky;
+  top: var(--att-grp-h, 0px);
+  z-index: 5;
 }
 
 /* Density: Compact (override defaults) */
@@ -396,7 +413,7 @@
   padding: 5px 8px;
   font-size: 12px;
 }
-.att-inline-table.density-compact tbody tr.new-row td {
+.att-inline-table.density-compact tr.new-row td {
   padding: 4px 6px;
 }
 .att-inline-table.density-compact thead th {
@@ -420,12 +437,10 @@
   white-space: nowrap;
 }
 .att-inline-table thead tr.att-grp-row th.att-grp-th {
-  border-left: 1px solid #cbd5e1;
-  border-right: 1px solid #cbd5e1;
   letter-spacing: .2px;
 }
 .att-inline-table thead tr.att-grp-row th.att-grp-empty {
-  background: transparent;
+  background: #fff;   /* ต้องทึบ (ไม่ใช่ transparent) เพราะ sticky ไม่งั้นแถวล่างทะลุขึ้นมา */
   border-bottom: 1px solid transparent;
 }
 
@@ -446,7 +461,7 @@
   white-space: nowrap;
   vertical-align: middle;
 }
-.att-inline-table.density-spreadsheet tbody tr.new-row td {
+.att-inline-table.density-spreadsheet tr.new-row td {
   padding: 5px 6px;
 }
 
@@ -2229,6 +2244,31 @@
   color: #dc2626;
   margin-left: 2px;
 }
+.aff-stamp-hint {
+  font-size: 10px;
+  font-weight: 600;
+  color: #64748b;
+  background: #f1f5f9;
+  padding: 1px 6px;
+  border-radius: 6px;
+  margin-left: 4px;
+}
+/* ฟิลด์ดึงจากข้อมูลสมาชิกอัตโนมัติ — chip + สถานะ readonly (เฉพาะสมาชิก) */
+.aff-auto-hint {
+  font-size: 10px;
+  font-weight: 600;
+  color: #2f6f4f;
+  background: #e6f4ec;
+  padding: 1px 6px;
+  border-radius: 6px;
+  margin-left: 4px;
+}
+#attendeeFormOverlay .form-control.aff-auto-locked {
+  background: #f8fafc;
+  color: #475569;
+  border-style: dashed;
+  cursor: default;
+}
 #attendeeFormOverlay .form-control {
   width: 100%;
   padding: 9px 12px;
@@ -2735,80 +2775,6 @@
   border-color: #93c5fd;
 }
 
-/* ════════════════════════════════════════════════
-   CS-staff custom dropdown (replaces native <datalist>)
-   ════════════════════════════════════════════════ */
-.cs-staff-wrap {
-  position: relative;
-}
-.cs-staff-suggest {
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: calc(100% + 4px);
-  z-index: 50;
-  background: #fff;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
-  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.15);
-  max-height: 240px;
-  overflow-y: auto;
-  font-size: 12.5px;
-  padding: 4px;
-}
-.cs-staff-suggest .cs-group-label {
-  font-size: 10.5px;
-  font-weight: 700;
-  color: #64748b;
-  padding: 6px 10px 4px;
-  letter-spacing: 0.4px;
-  text-transform: uppercase;
-}
-.cs-staff-suggest .cs-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 7px 10px;
-  border-radius: 6px;
-  cursor: pointer;
-  color: #0f172a;
-  transition: background .1s;
-}
-.cs-staff-suggest .cs-item:hover,
-.cs-staff-suggest .cs-item.active {
-  background: var(--accent-pale, #e0f2f1);
-  color: #0f172a;
-}
-.cs-staff-suggest .cs-item .cs-icon {
-  font-size: 13px;
-  flex-shrink: 0;
-}
-.cs-staff-suggest .cs-item .cs-name {
-  flex: 1;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.cs-staff-suggest .cs-item .cs-tag {
-  font-size: 10px;
-  color: #7c2d12;
-  background: #fed7aa;
-  padding: 1px 6px;
-  border-radius: 4px;
-  font-weight: 700;
-  flex-shrink: 0;
-}
-.cs-staff-suggest .cs-item .cs-tag.legacy {
-  color: #475569;
-  background: #f1f5f9;
-}
-.cs-staff-suggest .cs-empty {
-  padding: 10px 12px;
-  color: var(--text3, #94a3b8);
-  font-size: 12px;
-  text-align: center;
-}
-
 /* Hidden-fields restore chip (Field Config + Template Edit) */
 .fc-hidden-chip {
   background: #fff;
@@ -2943,6 +2909,7 @@
 .tpl-item-type { font-size: 13px; width: 18px; text-align: center; }
 .tpl-item-label { flex: 1; font-size: 12.5px; color: #0f172a; font-weight: 500; }
 .tpl-item-lock { font-size: 10.5px; color: #1e40af; background: #dbeafe; border-radius: 5px; padding: 1px 8px; font-weight: 700; }
+.tpl-item-auto { font-size: 10.5px; color: #475569; background: #e2e8f0; border-radius: 5px; padding: 1px 8px; font-weight: 700; white-space: nowrap; }
 .tpl-item-req { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; color: #64748b; cursor: pointer; }
 .tpl-item-req input { width: 14px; height: 14px; cursor: pointer; }
 .tpl-item-btn { background: #fff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 3px 8px; cursor: pointer; font-size: 12px; }
@@ -2956,6 +2923,12 @@
 }
 .tpl-itype:hover { background: #f1f5f9; }
 .tpl-itype.active { background: #16a34a; border-color: #16a34a; color: #fff; }
+#tplItemTypeRow { display: flex; flex-direction: column; gap: 12px; }
+.tpl-itype-none { font-size: 11.5px; color: #94a3b8; align-self: center; padding: 4px 0; }
+.tpl-itype-group-title {
+  font-size: 11px; font-weight: 700; color: #64748b;
+  margin-bottom: 6px; letter-spacing: .02em;
+}
 
 /* ── Status cards (สรุป · กดเปิด report) ───────────────────── */
 .att-status-cards {

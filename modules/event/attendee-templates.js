@@ -6,26 +6,14 @@ const FIELD_LABELS = {
   phone:        "เบอร์โทร",
   position:     "ตำแหน่ง",
   upline:       "สายงาน",
-  referrer:     "ผู้แนะนำ",
-  cs_staff:     "CS",
-  line_name:    "ชื่อไลน์ที่แจ้ง",
-  fb_page_name: "ชื่อเพจ Facebook",
-  had_attended: "เคยเรียน/ไม่เคยเรียน",
-  note:         "หมายเหตุ",
 };
 
-const DEFAULT_FIELD_ORDER = ["phone", "position", "upline", "referrer", "cs_staff", "line_name", "fb_page_name", "had_attended", "note"];
+const DEFAULT_FIELD_ORDER = ["phone", "position", "upline"];
 const DEFAULT_CONFIG = {
   fields: {
     phone:        { show: true,  required: false },
     position:     { show: true,  required: false },
     upline:       { show: true,  required: true  },
-    referrer:     { show: true,  required: false },
-    cs_staff:     { show: true,  required: false },
-    line_name:    { show: true,  required: false },
-    fb_page_name: { show: true,  required: false },
-    had_attended: { show: true,  required: false },
-    note:         { show: true,  required: false },
   },
   field_order: DEFAULT_FIELD_ORDER.slice(),
   hidden_keys: [],
@@ -247,6 +235,7 @@ window.openTemplateModal = function (id) {
   const t = id ? _allTemplates.find(x => x.id === id) : null;
   _blocks = window.AttendeeFields.ensureBlocks(t ? (t.config || {}) : {});
   _ensureCoreItems();
+  if (!id) _ensureDefaultAutoItems();   // template ใหม่ → แถมฟิลด์อัตโนมัติ "ผู้บันทึก" มาให้เลย (ลบได้)
 
   document.getElementById("tplFormId").value = t?.id || "";
   document.getElementById("tplName").value = t?.name || "";
@@ -283,6 +272,20 @@ function _ensureCoreItems() {
     const exists = _blocks.some(b => (b.items || []).some(it => it.type === "core" && it.key === k));
     if (!exists) first.items.splice(i, 0, { type: "core", key: k });
   });
+}
+
+// สำหรับ template ใหม่ — แถมฟิลด์อัตโนมัติ "ผู้บันทึก" (stamp) มาให้เลย · ผู้ใช้ลบออกได้
+function _ensureDefaultAutoItems() {
+  const AF = window.AttendeeFields;
+  if (_blocks.some(b => (b.items || []).some(it => it.type === "stamp"))) return;
+  const used = new Set();
+  _blocks.forEach(b => (b.items || []).forEach(it => used.add(it.key)));
+  let key = AF.slugKey("ผู้บันทึก", "cf_");
+  const base = key; let n = 2;
+  while (used.has(key)) key = `${base}_${n++}`;
+  const target = _blocks[0];
+  if (!Array.isArray(target.items)) target.items = [];
+  target.items.push({ type: "stamp", key, label: "ผู้บันทึก", required: false });
 }
 
 function renderBlocks() {
@@ -325,6 +328,9 @@ function _renderBlockItem(blockId, it) {
     ? (AF.CORE_FIELDS[it.key]?.label || it.key)
     : (it.type === "std" ? (it.label || AF.STD_FIELDS[it.key]?.label || it.key) : (it.label || it.key));
   const canReq = it.type === "std" || it.type === "text" || it.type === "date" || it.type === "number";
+  const isAuto = it.type === "stamp";   // ระบบกรอกอัตโนมัติ — มี badge แต่ลบ/ย้ายได้ (ไม่ lock)
+  // std เบอร์โทร/ตำแหน่ง/สายงาน → ดึงจากข้อมูลสมาชิกอัตโนมัติ (member readonly · guest กรอกมือ)
+  const isAutoMember = it.type === "std" && ["phone", "position", "upline"].includes(it.key);
   return `<div class="tpl-item${isCore ? ' core' : ''}" data-key="${escapeHtml(it.key)}" draggable="${isCore ? 'false' : 'true'}"
       ondragstart="window._itemDragStart(event,'${escapeHtml(blockId)}','${escapeHtml(it.key)}')"
       ondragover="window._itemDragOver(event)"
@@ -335,6 +341,8 @@ function _renderBlockItem(blockId, it) {
     <span class="tpl-item-type" title="${meta.label}">${meta.icon}</span>
     <span class="tpl-item-label">${escapeHtml(label)}</span>
     ${isCore ? '<span class="tpl-item-lock">ระบบ</span>' : `
+      ${isAuto ? '<span class="tpl-item-auto">⚙️ อัตโนมัติ</span>' : ''}
+      ${isAutoMember ? '<span class="tpl-item-auto" title="ดึงจากข้อมูลสมาชิกอัตโนมัติ · สมาชิกล็อกแก้ไม่ได้ · guest กรอกมือ">⚙️ จากสมาชิก</span>' : ''}
       ${canReq ? `<label class="tpl-item-req"><input type="checkbox" ${it.required ? 'checked' : ''} onchange="window.tplToggleItemReq('${escapeHtml(blockId)}','${escapeHtml(it.key)}',this.checked)">บังคับ*</label>` : ''}
       <button class="tpl-item-btn" title="แก้ชื่อหัวข้อ" onclick="window.tplRenameItem('${escapeHtml(blockId)}','${escapeHtml(it.key)}')">✏️</button>
       <button class="tpl-item-btn danger" title="ลบข้อมูล" onclick="window.tplDeleteItem('${escapeHtml(blockId)}','${escapeHtml(it.key)}')">🗑</button>`}
@@ -410,38 +418,52 @@ window.tplDeleteItem = function (blockId, key) {
 // ── Add-item nested modal ──────────────────────────────────
 let _itemTargetBlock = null;
 let _itemType = null;
+let _itemStdKey = null;   // std field key ที่เลือก (ฟิลด์มาตรฐานกางเป็นปุ่มย่อย ไม่ใช่ dropdown)
 window.openTplItemModal = function (blockId) {
   _itemTargetBlock = blockId;
   _itemType = null;
-  const types = [["std", "📋 มาตรฐาน"], ["text", "📝 ข้อความ"], ["date", "📅 วันที่"], ["number", "🔢 ตัวเลข"], ["check", "✓ ติ๊กถูก"]];
-  document.getElementById("tplItemTypeRow").innerHTML = types.map(([t, l]) =>
-    `<button type="button" class="tpl-itype" data-t="${t}" onclick="window._tplPickItemType('${t}')">${l}</button>`).join("");
-  document.getElementById("tplItemStdWrap").style.display = "none";
+  _itemStdKey = null;
+  const AF = window.AttendeeFields;
+  // ฟิลด์มาตรฐาน → กางเป็นปุ่มย่อยแต่ละตัว (เฉพาะที่ยังไม่ถูกใช้)
+  const usedStd = AF.usedStdKeys(_blocks);
+  const stdBtns = AF.STD_ORDER.filter(k => !usedStd.has(k)).map(k =>
+    `<button type="button" class="tpl-itype" data-t="std" data-stdkey="${k}" onclick="window._tplPickStdField('${k}')">📋 ${escapeHtml(AF.STD_FIELDS[k].label)}</button>`).join("");
+  const inputTypes = [["text", "📝 ข้อความ"], ["date", "📅 วันที่"], ["number", "🔢 ตัวเลข"], ["check", "✓ ติ๊กถูก"]];
+  const typeBtn = (t, l) => `<button type="button" class="tpl-itype" data-t="${t}" onclick="window._tplPickItemType('${t}')">${l}</button>`;
+  document.getElementById("tplItemTypeRow").innerHTML = `
+    <div class="tpl-itype-group">
+      <div class="tpl-itype-group-title">✍️ ช่องกรอกข้อมูล</div>
+      <div class="tpl-itype-row">${inputTypes.map(([t, l]) => typeBtn(t, l)).join("")}</div>
+    </div>
+    <div class="tpl-itype-group">
+      <div class="tpl-itype-group-title">⚙️ ระบบกรอกอัตโนมัติ</div>
+      <div class="tpl-itype-row">${stdBtns || '<span class="tpl-itype-none">— ใช้ครบทุกข้อมูลมาตรฐานแล้ว —</span>'}${typeBtn("stamp", "👤 ผู้บันทึก")}</div>
+    </div>`;
   document.getElementById("tplItemLabelWrap").style.display = "none";
   document.getElementById("tplItemLabel").value = "";
   document.getElementById("tplItemOverlay").classList.add("open");
 };
 
+// เลือกฟิลด์มาตรฐานตัวใดตัวหนึ่ง (ปุ่มย่อย) — ไม่ต้องกรอกชื่อหัวข้อ
+window._tplPickStdField = function (key) {
+  _itemType = "std";
+  _itemStdKey = key;
+  document.querySelectorAll("#tplItemTypeRow .tpl-itype").forEach(b =>
+    b.classList.toggle("active", b.dataset.t === "std" && b.dataset.stdkey === key));
+  document.getElementById("tplItemLabelWrap").style.display = "none";
+};
+
 window._tplPickItemType = function (t) {
   _itemType = t;
-  document.querySelectorAll("#tplItemTypeRow .tpl-itype").forEach(b => b.classList.toggle("active", b.dataset.t === t));
-  const AF = window.AttendeeFields;
-  const stdWrap = document.getElementById("tplItemStdWrap");
+  _itemStdKey = null;
+  document.querySelectorAll("#tplItemTypeRow .tpl-itype").forEach(b =>
+    b.classList.toggle("active", b.dataset.t === t && !b.dataset.stdkey));
   const lblWrap = document.getElementById("tplItemLabelWrap");
-  if (t === "std") {
-    const used = AF.usedStdKeys(_blocks);
-    const avail = AF.STD_ORDER.filter(k => !used.has(k));
-    const sel = document.getElementById("tplItemStdSel");
-    sel.innerHTML = avail.length
-      ? avail.map(k => `<option value="${k}">${escapeHtml(AF.STD_FIELDS[k].label)}</option>`).join("")
-      : '<option value="">— ใช้ครบทุกข้อมูลมาตรฐานแล้ว —</option>';
-    stdWrap.style.display = "";
-    lblWrap.style.display = "none";
-  } else {
-    stdWrap.style.display = "none";
-    lblWrap.style.display = "";
-    requestAnimationFrame(() => document.getElementById("tplItemLabel").focus());
-  }
+  lblWrap.style.display = "";
+  // stamp = ผู้บันทึก → เติมชื่อหัวข้อเริ่มต้นให้ (แก้ได้)
+  const lblInp = document.getElementById("tplItemLabel");
+  if (t === "stamp" && !lblInp.value.trim()) lblInp.value = "ผู้บันทึก";
+  requestAnimationFrame(() => { lblInp.focus(); lblInp.select(); });
 };
 
 window.closeTplItemModal = function (ev) {
@@ -449,6 +471,7 @@ window.closeTplItemModal = function (ev) {
   document.getElementById("tplItemOverlay").classList.remove("open");
   _itemTargetBlock = null;
   _itemType = null;
+  _itemStdKey = null;
 };
 
 window.tplConfirmAddItem = function () {
@@ -458,8 +481,8 @@ window.tplConfirmAddItem = function () {
   if (!_itemType) { showToast("เลือกชนิดข้อมูลก่อน", "error"); return; }
   if (!Array.isArray(b.items)) b.items = [];
   if (_itemType === "std") {
-    const key = document.getElementById("tplItemStdSel").value;
-    if (!key) { showToast("ไม่มีข้อมูลมาตรฐานเหลือให้เพิ่ม", "error"); return; }
+    const key = _itemStdKey;
+    if (!key) { showToast("เลือกข้อมูลมาตรฐานก่อน", "error"); return; }
     b.items.push({ type: "std", key, required: false });
   } else {
     const label = document.getElementById("tplItemLabel").value.trim();

@@ -18,6 +18,7 @@
      { type:"core",  key:"member_code"|"name" }          // ล็อก ลบไม่ได้
      { type:"std",   key:<STD key>, label?, required? }  // ฟิลด์มาตรฐาน → DB column
      { type:"text"|"date"|"number", key, label, required? } // → extra_fields (JSONB)
+     { type:"stamp", key, label }                         // ผู้บันทึก — ปั๊มชื่อ user ที่เพิ่ม → extra_fields (readonly)
      { type:"check", key, label }                         // ติ๊กถูก → extra_fields (boolean)
 ============================================================ */
 (function () {
@@ -26,14 +27,8 @@
     phone:        { label: "เบอร์โทร" },
     position:     { label: "ตำแหน่ง" },
     upline:       { label: "สายงาน" },
-    referrer:     { label: "ผู้แนะนำ" },
-    cs_staff:     { label: "CS" },
-    line_name:    { label: "ชื่อไลน์ที่แจ้ง" },
-    fb_page_name: { label: "ชื่อเพจ Facebook" },
-    had_attended: { label: "เคยเรียน/ไม่เคยเรียน" },
-    note:         { label: "หมายเหตุ" },
   };
-  const STD_ORDER = ["phone", "position", "upline", "referrer", "cs_staff", "line_name", "fb_page_name", "had_attended", "note"];
+  const STD_ORDER = ["phone", "position", "upline"];
 
   // ── Core fields (ล็อก — อยู่ในฟอร์มเสมอ) ───────────────────
   const CORE_FIELDS = {
@@ -48,6 +43,7 @@
     date:   { label: "วันที่",    icon: "📅" },
     number: { label: "ตัวเลข",    icon: "🔢" },
     check:  { label: "ติ๊กถูก",   icon: "✓" },
+    stamp:  { label: "ผู้บันทึก", icon: "👤" },  // ปั๊มชื่อ user ที่เพิ่มรายชื่อ (auto, readonly)
   };
 
   let _seq = 0;
@@ -77,7 +73,7 @@
           if (it.label && it.label !== STD_FIELDS[it.key].label) f.label = it.label;
           fields[it.key] = f;
           if (!field_order.includes(it.key)) field_order.push(it.key);
-        } else if (it.type === "text" || it.type === "date" || it.type === "number") {
+        } else if (it.type === "text" || it.type === "date" || it.type === "number" || it.type === "stamp") {
           if (it.key && it.label) custom_fields.push({ key: it.key, label: it.label, ftype: it.type, required: !!it.required });
         } else if (it.type === "check") {
           if (it.key && it.label) qualifications.push({ key: it.key, label: it.label });

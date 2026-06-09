@@ -4988,13 +4988,19 @@ function flightTicketRowHtml(t, flightId, labelNo) {
     ? `<button class="fl-occ-x" title="ลบ Ticket นี้"
         onclick="event.stopPropagation();window.deleteFlightTicket(${t.ticket_id}, ${flightId})">🗑</button>`
     : "";
+  const hasNote = !!(t.note && t.note.trim());
+  const noteBtn = `<button class="fl-tkt-note-btn${hasNote ? " has-note" : ""}"
+      title="${hasNote ? "หมายเหตุ: " + escapeAttr(t.note) : "เพิ่มหมายเหตุ"}"
+      onclick="event.stopPropagation();window.editTicketNote(${t.ticket_id}, ${flightId})">📝</button>`;
   const header = `<div class="fl-tkt-hdr" title="คลิกเพื่อเพิ่มคนที่เลือกเข้า Ticket นี้"
       onclick="event.stopPropagation();window.assignSelectedPaxToTicket(${t.ticket_id}, ${flightId})">
     ${toggle}
     <span class="fl-ticket-no">🎫 Ticket ${labelNo}</span>
     ${docCell}
     <span class="fl-tkt-count">👤 ${t.codes.length}</span>
+    ${hasNote ? `<span class="fl-tkt-note" title="${escapeAttr(t.note)}">📝 ${escapeHtml(t.note)}</span>` : ""}
     <span class="fl-occ-spacer"></span>
+    ${noteBtn}
     ${delBtn}
   </div>`;
   const body = collapsed
@@ -5281,10 +5287,10 @@ async function loadFlightTicketsState() {
   const flightIds = state.flights.map(f => f.flight_id);
   if (!flightIds.length) return;
   const tks = await sbFetch("trip_flight_tickets",
-    `?flight_id=in.(${flightIds.join(",")})&select=ticket_id,flight_id,ticket_no,ticket_url&order=ticket_no.asc,ticket_id.asc`).catch(() => []) || [];
+    `?flight_id=in.(${flightIds.join(",")})&select=ticket_id,flight_id,ticket_no,ticket_url,note&order=ticket_no.asc,ticket_id.asc`).catch(() => []) || [];
   const byId = {};
   tks.forEach(t => {
-    const obj = { ticket_id: t.ticket_id, flight_id: t.flight_id, ticket_no: t.ticket_no, ticket_url: t.ticket_url || null, codes: [] };
+    const obj = { ticket_id: t.ticket_id, flight_id: t.flight_id, ticket_no: t.ticket_no, ticket_url: t.ticket_url || null, note: t.note || null, codes: [] };
     byId[t.ticket_id] = obj;
     if (!state.flightTickets[t.flight_id]) state.flightTickets[t.flight_id] = [];
     state.flightTickets[t.flight_id].push(obj);
@@ -5526,6 +5532,38 @@ window.removeTicketDoc = async function (ticketId, flightId) {
     await refreshFlightTickets();
     showToast("ลบไฟล์ตั๋วแล้ว", "success");
   } catch (e) { showToast("ลบไม่สำเร็จ: " + e.message, "error"); }
+  showLoading(false);
+};
+
+// ── TICKET NOTE (หมายเหตุต่อ Ticket) ──
+window.editTicketNote = async function (ticketId, flightId) {
+  const t = flightTicketsOf(flightId).find(x => x.ticket_id === ticketId);
+  if (!t) return;
+  let val;
+  if (window.PromptModal?.open) {
+    val = await window.PromptModal.open({
+      title: `หมายเหตุ Ticket ${t.ticket_no}`,
+      message: "เช่น: รอยืนยันที่นั่ง, ขอ window, เปลี่ยนเที่ยวบิน — เว้นว่าง = ลบหมายเหตุ",
+      icon: "📝",
+      tone: "primary",
+      inputType: "text",
+      defaultValue: t.note || "",
+      placeholder: "พิมพ์หมายเหตุ...",
+      okText: "บันทึก",
+    });
+  } else {
+    val = prompt(`หมายเหตุ Ticket ${t.ticket_no}:`, t.note || "");
+  }
+  if (val == null) return; // cancelled
+  const newNote = val.trim() || null;
+  if (newNote === (t.note || null)) return;
+  showLoading(true);
+  try {
+    await sbFetch("trip_flight_tickets", `?ticket_id=eq.${ticketId}`, { method: "PATCH", body: { note: newNote } });
+    t.note = newNote;
+    renderFlights();
+    showToast(newNote ? "บันทึกหมายเหตุแล้ว" : "ลบหมายเหตุแล้ว", "success");
+  } catch (e) { showToast("บันทึกไม่สำเร็จ: " + e.message, "error"); }
   showLoading(false);
 };
 

@@ -12,6 +12,11 @@
     <link rel="stylesheet" href="./events.css" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" />
     <style>
+      /* ── เต็มจอ: ให้ .page เป็น flex column สูงเต็ม #erp-main แล้ว .table-card ยืดเต็มที่เหลือ
+         (เดิม .page เป็น display:block → flex:1 ของ .table-card ไม่ทำงาน การ์ดเลยเตี้ยตอนข้อมูลน้อย) */
+      #erp-main > .page{display:flex;flex-direction:column;min-height:100%;}
+      #erp-main > .page > .table-card{flex:1 1 auto;}
+
       .date-custom-wrap{display:none;align-items:center;gap:6px;margin-left:6px;}
       .date-custom-wrap.active{display:inline-flex;}
       .date-custom-input{padding:6px 10px;border:1px solid var(--border,#e2e8f0);border-radius:14px;font-family:inherit;font-size:12px;width:110px;outline:none;background:var(--surface,#fff);color:var(--text,#0f172a);transition:border-color .15s;}

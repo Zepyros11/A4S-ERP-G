@@ -419,6 +419,36 @@ let _lineChannel = null;      // { liff_id, friend_url, ... } or null
 let _lineProfile = null;      // { userId, displayName, pictureUrl } when logged in
 let _registeredCode = null;   // member_code after successful register (form is destroyed)
 let _autoLinkToken  = null;   // LINE link token จาก /line/preauth (เก็บไว้ใช้หลัง form หาย — 10 นาที)
+let _stampKey;                // undefined=ยังไม่ resolve · null=ไม่มีฟิลด์ผู้บันทึก · string=key
+const STAMP_LINK_LABEL = 'ลงทะเบียนผ่าน Link';
+
+// หา key ของฟิลด์ "ผู้บันทึก" (type stamp) จาก config ของ event/template → ใช้ tag ว่าลงทะเบียนผ่าน Link
+async function getStampFieldKey() {
+  if (_stampKey !== undefined) return _stampKey;
+  _stampKey = null;
+  try {
+    let cfg = (_event?.attendee_field_config && Object.keys(_event.attendee_field_config).length)
+      ? _event.attendee_field_config : null;
+    if (!cfg && _event?.template_id) {
+      const t = await sbGet(`attendee_form_templates?id=eq.${_event.template_id}&select=config&limit=1`);
+      cfg = t?.[0]?.config || null;
+    }
+    if (!cfg) {
+      const d = await sbGet('attendee_form_templates?is_default=eq.true&select=config&limit=1');
+      cfg = d?.[0]?.config || null;
+    }
+    let customFields = cfg?.custom_fields;
+    if ((!customFields || !customFields.length) && Array.isArray(cfg?.blocks)) {
+      customFields = [];
+      cfg.blocks.forEach(b => (b.items || []).forEach(it => {
+        if (it && it.type === 'stamp' && it.key) customFields.push({ key: it.key, ftype: 'stamp' });
+      }));
+    }
+    const stamp = (customFields || []).find(c => c.ftype === 'stamp');
+    if (stamp) _stampKey = stamp.key;
+  } catch (e) { console.warn('getStampFieldKey:', e?.message || e); }
+  return _stampKey;
+}
 
 async function sbGet(path) {
   const res = await fetch(`${SB_URL}/rest/v1/${path}`, {
@@ -1189,6 +1219,7 @@ async function doRegister() {
     const lineOwnerRole = selectedRoles.length === 2 ? 'primary' : selectedRoles[0];
     const nowIso = new Date().toISOString();
     const preReg = isPreRegistration();
+    const stampKey = await getStampFieldKey();   // ผู้บันทึก = "ลงทะเบียนผ่าน Link"
     const payload = selectedRoles.map((role, i) => {
       const p = role === 'primary' ? primary : coApplicant;
       const isLineOwner = _lineProfile && role === lineOwnerRole;
@@ -1203,6 +1234,7 @@ async function doRegister() {
         payment_status: 'FREE',
         checked_in: !preReg,
         check_in_at: preReg ? null : nowIso,
+        ...(stampKey ? { extra_fields: { [stampKey]: STAMP_LINK_LABEL } } : {}),
         ...(isLineOwner ? {
           line_user_id: _lineProfile.userId,
           line_display_name: _lineProfile.displayName || null,
@@ -1308,6 +1340,7 @@ async function doRegisterGuest() {
 
     const nowIso = new Date().toISOString();
     const preReg = isPreRegistration();
+    const stampKey = await getStampFieldKey();   // ผู้บันทึก = "ลงทะเบียนผ่าน Link"
     const row = {
       event_id: _event.event_id,
       name,
@@ -1322,6 +1355,7 @@ async function doRegisterGuest() {
       extra_fields: {
         referrer_code: ref.code,
         referrer_name: ref.name,
+        ...(stampKey ? { [stampKey]: STAMP_LINK_LABEL } : {}),
       },
       ...(ref.uplineId ? {
         upline_id: ref.uplineId,
