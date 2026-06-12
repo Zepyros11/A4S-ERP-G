@@ -72,7 +72,7 @@
                 <div class="nmc-drop-icon">📊</div>
                 <div class="nmc-drop-text">
                   <div class="nmc-drop-title">ลากไฟล์ Excel มาวาง หรือคลิกเพื่อเลือก</div>
-                  <div class="nmc-drop-hint"><b>.xlsx / .xls / .csv</b> · คอลัมน์ 1 = ชื่อ · คอลัมน์ 2 = ตำแหน่ง · <a href="javascript:nmc.downloadTemplate()" onclick="event.stopPropagation()">เทมเพลตตัวอย่าง</a></div>
+                  <div class="nmc-drop-hint"><b>.xlsx / .xls / .csv</b> · คอลัมน์ 1 = ชื่อ · คอลัมน์ 2 = ตำแหน่ง · คอลัมน์ 3 = จำนวนใบ (ไม่บังคับ) · <a href="javascript:nmc.downloadTemplate()" onclick="event.stopPropagation()">เทมเพลตตัวอย่าง</a></div>
                 </div>
                 <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" style="display:none" onchange="nmc.onFilePick(event)">
               </div>
@@ -87,8 +87,9 @@
                 <!-- DATA EDITOR (preview + edit) -->
                 <div class="nmc-card-block" id="dataBlock" style="display:none">
                   <div class="nmc-block-hdr">
-                    <div class="nmc-block-title">📋 รายชื่อที่จะพิมพ์ (<span id="rowCount">0</span> คน · <span id="pageCount">0</span> หน้า A4)</div>
+                    <div class="nmc-block-title">📋 รายชื่อที่จะพิมพ์ (<span id="rowCount">0</span> คน · <span id="cardCount">0</span> ใบ · <span id="pageCount">0</span> หน้า A4)</div>
                     <div class="nmc-block-tools">
+                      <button class="btn btn-outline btn-sm" id="btnQtyMode" onclick="nmc.toggleQtyMode()" title="กำหนดจำนวนใบที่จะพิมพ์ของแต่ละคน">🔢 กำหนดชุด</button>
                       <button class="btn btn-outline btn-sm" onclick="nmc.addRow()">＋ เพิ่มแถว</button>
                       <button class="btn btn-outline btn-sm" onclick="nmc.clearAll()">🗑 ล้างทั้งหมด</button>
                     </div>
@@ -100,6 +101,7 @@
                           <th class="col-idx">#</th>
                           <th>ชื่อ</th>
                           <th>ตำแหน่ง</th>
+                          <th class="col-qty" id="thQty" style="display:none">จำนวน (ใบ)</th>
                           <th class="col-act"></th>
                         </tr>
                       </thead>
@@ -121,12 +123,32 @@
                 <!-- LAYOUT PREVIEW (A4 sheets) -->
                 <div class="nmc-card-block" id="layoutBlock" style="display:none">
                   <div class="nmc-block-hdr">
-                    <div class="nmc-block-title">👁️ ตัวอย่าง Layout · กระดาษ A4 (8 ใบ/หน้า · 2×4)</div>
+                    <div class="nmc-block-title" id="nmcLayoutTitle">👁️ ตัวอย่าง Layout · กระดาษ A4 (8 ใบ/หน้า · 2×4)</div>
                     <div class="nmc-block-tools nmc-zoom-tools">
                       <span style="font-size:12px;color:var(--text3)">Zoom</span>
                       <button class="btn btn-outline btn-sm" onclick="nmc.setZoom(-1)">−</button>
                       <span id="zoomLabel" style="min-width:48px;text-align:center;font-weight:600">75%</span>
                       <button class="btn btn-outline btn-sm" onclick="nmc.setZoom(1)">＋</button>
+                    </div>
+                  </div>
+                  <div class="nmc-size-bar">
+                    <span class="nmc-size-label">📐 ขนาดบัตร</span>
+                    <div class="nmc-size-inputs">
+                      กว้าง
+                      <input type="number" id="nmcWInput" min="3" max="21" step="0.1" value="8.5"
+                             oninput="nmc.setNmcW(this.value)" onchange="nmc.syncNmcSizeInputs()">
+                      ×
+                      สูง
+                      <input type="number" id="nmcHInput" min="2" max="29" step="0.1" value="6"
+                             oninput="nmc.setNmcH(this.value)" onchange="nmc.syncNmcSizeInputs()">
+                      ซม.
+                    </div>
+                    <div class="nmc-size-presets">
+                      <button class="btn btn-outline btn-sm" onclick="nmc.setNmcSize(8.5,6)">8.5×6</button>
+                      <button class="btn btn-outline btn-sm" onclick="nmc.setNmcSize(9,5.5)">9×5.5</button>
+                      <button class="btn btn-outline btn-sm" onclick="nmc.setNmcSize(9.5,6)">9.5×6</button>
+                      <button class="btn btn-outline btn-sm" onclick="nmc.setNmcSize(10,7)">10×7</button>
+                      <button class="btn btn-outline btn-sm" onclick="nmc.setNmcSize(5.5,8.5)">5.5×8.5</button>
                     </div>
                   </div>
                   <div class="nmc-sheet-scroller" id="sheetScroller"></div>

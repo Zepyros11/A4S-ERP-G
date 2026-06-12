@@ -5,17 +5,36 @@
 (function () {
   "use strict";
 
-  const PER_PAGE = 8;
   const A4_W_MM = 210, A4_H_MM = 297;
   const LOGO_FALLBACK = "../../assets/logo/logo-a4s.png";
+
+  // Card size (mm) · default 85×60 (8/หน้า 2×4) · adjustable via the size bar.
+  let cardW = 85, cardH = 60;
+  // How many cards fit on a portrait A4 at the current size.
+  function nmcGrid() {
+    const cols = Math.max(1, Math.floor(A4_W_MM / cardW));
+    const rows = Math.max(1, Math.floor(A4_H_MM / cardH));
+    return { cols, rows, perPage: cols * rows };
+  }
   // Company logo from "ตั้งค่าบริษัท" (app_settings) · falls back to A4S logo
   function logoPath() {
     return (window.CompanyLogo ? window.CompanyLogo.logoUrl(LOGO_FALLBACK) : LOGO_FALLBACK);
   }
 
-  // [{ name, position }]
+  // [{ name, position, qty }]
   let rows = [];
   let zoom = 0.75;
+  let qtyMode = false;              // "กำหนดชุด" — print N copies per person
+
+  // Expand rows → one entry per card (respects per-person qty when qtyMode on).
+  function rowCards() {
+    const out = [];
+    for (const r of rows) {
+      const q = qtyMode ? Math.max(1, parseInt(r.qty, 10) || 1) : 1;
+      for (let i = 0; i < q; i++) out.push(r);
+    }
+    return out;
+  }
 
   let activeTab = "namecard";       // "namecard" | "custom" | "cert"
 
@@ -262,14 +281,19 @@
       const r = raw[i] || [];
       const name = (r[0] != null ? String(r[0]) : "").trim();
       const position = (r[1] != null ? String(r[1]) : "").trim();
+      let qty = parseInt(r[2], 10);
+      if (!isFinite(qty) || qty < 1) qty = 1;
+      if (qty > 200) qty = 200;
       if (!name && !position) continue;
-      out.push({ name, position });
+      out.push({ name, position, qty });
     }
     if (!out.length) {
       showToast("ไม่พบรายชื่อ — ใส่ข้อมูลในคอลัมน์ A (ชื่อ) และ B (ตำแหน่ง)", "error");
       return;
     }
     rows = out;
+    // Excel carried a quantity column → switch on "กำหนดชุด" automatically.
+    if (out.some(r => (r.qty || 1) > 1)) qtyMode = true;
     showToast(`โหลดสำเร็จ · ${out.length} รายชื่อ`);
     refreshAll();
   }
@@ -279,26 +303,39 @@
     const body = $("previewBody");
     if (!body) return;
     if (!rows.length) {
-      body.innerHTML = `<tr><td colspan="4" style="padding:24px;text-align:center;color:#94a3b8">ยังไม่มีข้อมูล — กรุณาอัปโหลดไฟล์</td></tr>`;
+      body.innerHTML = `<tr><td colspan="${qtyMode ? 5 : 4}" style="padding:24px;text-align:center;color:#94a3b8">ยังไม่มีข้อมูล — กรุณาอัปโหลดไฟล์</td></tr>`;
       return;
     }
-    body.innerHTML = rows.map((r, i) => `
+    body.innerHTML = rows.map((r, i) => {
+      const qtyCell = qtyMode
+        ? `<td class="col-qty"><input type="number" class="nmc-cell-input nmc-qty-input" data-field="qty" data-idx="${i}" min="1" max="200" value="${Math.max(1, parseInt(r.qty, 10) || 1)}"></td>`
+        : "";
+      return `
       <tr data-idx="${i}">
         <td class="col-idx">${i + 1}</td>
         <td><input class="nmc-cell-input" data-field="name" data-idx="${i}" value="${esc(r.name)}" placeholder="ชื่อ-นามสกุล"></td>
         <td><input class="nmc-cell-input" data-field="position" data-idx="${i}" value="${esc(r.position)}" placeholder="ตำแหน่ง"></td>
+        ${qtyCell}
         <td class="col-act"><button class="nmc-row-del" data-idx="${i}" title="ลบแถวนี้">🗑</button></td>
       </tr>
-    `).join("");
+    `;}).join("");
 
     body.querySelectorAll(".nmc-cell-input").forEach(inp => {
       inp.addEventListener("input", () => {
         const idx = +inp.dataset.idx;
         const field = inp.dataset.field;
-        if (rows[idx]) {
-          rows[idx][field] = inp.value;
-          renderSheets(); // live update of card preview
+        if (!rows[idx]) return;
+        if (field === "qty") {
+          let q = parseInt(inp.value, 10);
+          if (!isFinite(q) || q < 1) q = 1;
+          if (q > 200) q = 200;
+          rows[idx].qty = q;
+          updateCounts();        // qty changes card/page totals
+          renderSheets();
+          return;
         }
+        rows[idx][field] = inp.value;
+        renderSheets(); // live update of card preview
       });
     });
     body.querySelectorAll(".nmc-row-del").forEach(btn => {
@@ -353,11 +390,12 @@
       return;
     }
 
-    const pages = chunked(rows, PER_PAGE);
+    const g = nmcGrid();
+    const pages = chunked(rowCards(), g.perPage);
     // withBreaks → hard page-break divs (print area) · wrap → .nmc-a4-wrap (on-screen)
     const buildHtml = (withBreaks, wrap) => pages.map((page, idx) => {
       const cells = [];
-      for (let i = 0; i < PER_PAGE; i++) {
+      for (let i = 0; i < g.perPage; i++) {
         cells.push(page[i] ? cardHtml(page[i]) : blankCardHtml());
       }
       const brk = (withBreaks && idx > 0) ? '<div class="nmc-page-break"></div>' : '';
@@ -371,6 +409,15 @@
     // Apply zoom to on-screen wrappers (drives wrapper size + inner scale)
     scroller.querySelectorAll(".nmc-a4-wrap").forEach(el => {
       el.style.setProperty("--nmc-zoom", zoom);
+    });
+    // Card-size + grid vars on every sheet (inherited by .nmc-card)
+    [scroller, printArea].forEach(root => {
+      root.querySelectorAll(".nmc-a4").forEach(el => {
+        el.style.setProperty("--nmc-cols", g.cols);
+        el.style.setProperty("--nmc-rows", g.rows);
+        el.style.setProperty("--nmc-cw", cardW + "mm");
+        el.style.setProperty("--nmc-ch", cardH + "mm");
+      });
     });
 
     // Auto-fit name & position text to box · positions use uniform
@@ -401,7 +448,7 @@
   // 2-line strings like "Country Manager Nigeria" don't bleed out.
   function autoFit(el) {
     const isName = el.classList.contains("nmc-card-name");
-    let max = isName ? 28 : 34;
+    let max = isName ? 32 : 34;
     const min = isName ? 8 : 12;
     el.style.fontSize = max + "px";
 
@@ -423,10 +470,38 @@
 
   // ── Stat updates ───────────────────────────────────────────
   function updateCounts() {
-    $("rowCount") && ($("rowCount").textContent = rows.length);
-    const pages = Math.max(1, Math.ceil(rows.length / PER_PAGE));
-    $("pageCount") && ($("pageCount").textContent = rows.length ? pages : 0);
+    const cards = rowCards().length;
+    const g = nmcGrid();
+    $("rowCount")  && ($("rowCount").textContent  = rows.length);
+    $("cardCount") && ($("cardCount").textContent = cards);
+    const pages = Math.max(1, Math.ceil(cards / g.perPage));
+    $("pageCount") && ($("pageCount").textContent = cards ? pages : 0);
   }
+
+  // ── Card size (กว้าง × สูง) ────────────────────────────────
+  function clampCard() {
+    cardW = Math.min(A4_W_MM, Math.max(30, cardW));
+    cardH = Math.min(A4_H_MM, Math.max(20, cardH));
+  }
+  function syncNmcSizeInputs() {
+    const wi = $("nmcWInput"), hi = $("nmcHInput");
+    if (wi && document.activeElement !== wi) wi.value = +(cardW / 10).toFixed(2);
+    if (hi && document.activeElement !== hi) hi.value = +(cardH / 10).toFixed(2);
+  }
+  function updateLayoutTitle() {
+    const g = nmcGrid();
+    const t = $("nmcLayoutTitle");
+    if (t) t.textContent = `👁️ ตัวอย่าง Layout · กระดาษ A4 (${g.perPage} ใบ/หน้า · ${g.cols}×${g.rows})`;
+  }
+  function afterSizeChange() {
+    clampCard();
+    updateCounts();
+    updateLayoutTitle();
+    renderSheets();
+  }
+  function setNmcW(v) { const n = parseFloat(v); if (!isFinite(n)) return; cardW = n * 10; afterSizeChange(); }
+  function setNmcH(v) { const n = parseFloat(v); if (!isFinite(n)) return; cardH = n * 10; afterSizeChange(); }
+  function setNmcSize(wCm, hCm) { cardW = wCm * 10; cardH = hCm * 10; afterSizeChange(); syncNmcSizeInputs(); }
 
   function refreshAll() {
     const has = rows.length > 0;
@@ -434,14 +509,38 @@
     $("actionsBlock").style.display = has ? "" : "none";
     $("layoutBlock").style.display = has ? "" : "none";
     setStep(has ? 2 : 1);
+    syncQtyModeUI();
+    syncNmcSizeInputs();
+    updateLayoutTitle();
     updateCounts();
     renderPreviewTable();
     renderSheets();
   }
 
+  // Reflect qtyMode in the toolbar button + column header
+  function syncQtyModeUI() {
+    const btn = $("btnQtyMode");
+    if (btn) btn.classList.toggle("active", qtyMode);
+    const th = $("thQty");
+    if (th) th.style.display = qtyMode ? "" : "none";
+  }
+
+  // "กำหนดชุด" toggle — reveal per-person quantity column.
+  function toggleQtyMode() {
+    qtyMode = !qtyMode;
+    if (qtyMode) rows.forEach(r => { if (r.qty == null) r.qty = 1; });
+    syncQtyModeUI();
+    renderPreviewTable();
+    updateCounts();
+    renderSheets();
+    showToast(qtyMode
+      ? 'เปิดกำหนดชุด — ใส่จำนวนใบของแต่ละคนในคอลัมน์ "จำนวน"'
+      : "ปิดกำหนดชุด — พิมพ์คนละ 1 ใบ");
+  }
+
   // ── Actions ────────────────────────────────────────────────
   function addRow() {
-    rows.push({ name: "", position: "" });
+    rows.push({ name: "", position: "", qty: 1 });
     refreshAll();
     // focus the newly-added name cell
     setTimeout(() => {
@@ -464,6 +563,7 @@
   }
   function resetAll() {
     rows = [];
+    qtyMode = false;
     const f = $("fileInput"); if (f) f.value = "";
     refreshAll();
     setStep(1);
@@ -573,13 +673,13 @@
           pdf.save(`namecards-${stamp}.pdf`);
           showToast("เบราว์เซอร์บล็อกหน้าต่างใหม่ — บันทึกไฟล์แทน", "error");
         } else {
-          showToast(`เปิดตัวอย่าง PDF (${sheets.length} หน้า · ${rows.length} ใบ)`);
+          showToast(`เปิดตัวอย่าง PDF (${sheets.length} หน้า · ${rowCards().length} ใบ)`);
         }
       } else {
         // Print: save the PDF file (เหมือนเดิม)
         updateProcessing("กำลังบันทึกไฟล์...");
         pdf.save(`namecards-${stamp}.pdf`);
-        showToast(`ส่งออก PDF เรียบร้อย (${sheets.length} หน้า · ${rows.length} ใบ)`);
+        showToast(`ส่งออก PDF เรียบร้อย (${sheets.length} หน้า · ${rowCards().length} ใบ)`);
       }
     } catch (err) {
       console.error(err);
@@ -2124,9 +2224,9 @@
 
   function downloadTemplate() {
     const data = [
-      ["ชื่อ", "ตำแหน่ง"],
-      ["คุณสิงหราช กัลยาณมิตร", "ที่ปรึกษา"],
-      ["คุณสมชาย ใจดี", "ผู้จัดการ"],
+      ["ชื่อ", "ตำแหน่ง", "จำนวนใบ (ไม่บังคับ)"],
+      ["คุณสิงหราช กัลยาณมิตร", "ที่ปรึกษา", 2],
+      ["คุณสมชาย ใจดี", "ผู้จัดการ", 1],
     ];
     const ws = XLSX.utils.aoa_to_sheet(data);
     const wb = XLSX.utils.book_new();
@@ -2140,6 +2240,8 @@
     $("zoomLabel") && ($("zoomLabel").textContent = Math.round(zoom * 100) + "%");
     $("cZoomLabel") && ($("cZoomLabel").textContent = Math.round(cZoom * 100) + "%");
     $("certZoomLabel") && ($("certZoomLabel").textContent = Math.round(certZoom * 100) + "%");
+    syncNmcSizeInputs();
+    updateLayoutTitle();
     loadCertTemplates();
     probeAllCertTpls().then(() => updateCertTplCount());
     renderCustomSheets();
@@ -2156,7 +2258,8 @@
   window.nmc = {
     // Namecard tab
     onDrag, onDrop, onFilePick,
-    addRow, clearAll, resetAll,
+    addRow, clearAll, resetAll, toggleQtyMode,
+    setNmcW, setNmcH, setNmcSize, syncNmcSizeInputs,
     setZoom, printNow, exportPDF, downloadTemplate,
     // Custom tab (merged VIP + Badge + Seat)
     setCMode, setCText, setCStyle, setCLogoSize, setCTextSize,

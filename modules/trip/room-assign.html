@@ -957,6 +957,13 @@
       .ba-preset-preview .ba-seat-rows{gap:6px}
       .ba-preset-preview .ba-seat-driver{max-width:300px;font-size:10px}
       .ba-form-row-2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+      /* ปุ่มเลื่อนขึ้นบนสุด */
+      .go-top-btn{position:fixed;right:22px;bottom:24px;z-index:900;width:44px;height:44px;border-radius:50%;
+        border:none;background:var(--accent,#5b8a72);color:#fff;font-size:20px;cursor:pointer;
+        box-shadow:0 4px 14px rgba(0,0,0,.22);display:flex;align-items:center;justify-content:center;
+        opacity:0;visibility:hidden;transform:translateY(8px);transition:opacity .2s,transform .2s,visibility .2s}
+      .go-top-btn.show{opacity:1;visibility:visible;transform:translateY(0)}
+      .go-top-btn:hover{filter:brightness(1.08)}
     </style>
   </head>
   <body>
@@ -1578,6 +1585,34 @@
         </div>
       </div>
     </div>
+
+    <!-- ปุ่มเลื่อนขึ้นบนสุด -->
+    <button id="goTopBtn" class="go-top-btn" title="ขึ้นบนสุด" aria-label="ขึ้นบนสุด">▲</button>
+    <script>
+      (function () {
+        var btn = document.getElementById("goTopBtn");
+        if (!btn) return;
+        // จำ element ที่ scroll จริง (window หรือ container ซ้อนใน) เพื่อกดแล้วเลื่อนตัวที่ถูก
+        var scroller = null;
+        var topOf = function (el) {
+          if (!el || el === document || el === document.documentElement || el === document.body)
+            return window.scrollY || document.documentElement.scrollTop || 0;
+          return el.scrollTop || 0;
+        };
+        var onScroll = function (e) {
+          var t = e ? e.target : null;
+          if (t && t.nodeType === 1 && t !== document) scroller = t; else scroller = null;
+          btn.classList.toggle("show", topOf(scroller) > 300);
+        };
+        // capture = true → จับ scroll จาก element ซ้อนในด้วย
+        window.addEventListener("scroll", onScroll, true);
+        btn.addEventListener("click", function () {
+          if (scroller && scroller.scrollTo) scroller.scrollTo({ top: 0, behavior: "smooth" });
+          else window.scrollTo({ top: 0, behavior: "smooth" });
+        });
+        onScroll();
+      })();
+    </script>
 
     <!-- SCRIPTS -->
     <script src="../../js/core/auth.js"></script>

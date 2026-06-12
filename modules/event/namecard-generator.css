@@ -932,6 +932,12 @@
 }
 .nmc-preview-table .col-idx { width: 48px; text-align: center; color: var(--text3, #9d958b); }
 .nmc-preview-table .col-act { width: 56px; text-align: center; }
+.nmc-preview-table .col-qty { width: 96px; text-align: center; }
+.nmc-qty-input { width: 72px; text-align: center; }
+/* "กำหนดชุด" active state */
+#btnQtyMode.active {
+  background: var(--accent); color: #fff; border-color: var(--accent);
+}
 .nmc-cell-input {
   width: 100%; border: 1px solid transparent;
   background: transparent; padding: 6px 8px;
@@ -976,8 +982,8 @@
   padding: 0;
   box-sizing: border-box;
   display: grid;
-  grid-template-columns: repeat(2, 85mm);
-  grid-template-rows: repeat(4, 60mm);
+  grid-template-columns: repeat(var(--nmc-cols, 2), var(--nmc-cw, 85mm));
+  grid-template-rows: repeat(var(--nmc-rows, 4), var(--nmc-ch, 60mm));
   gap: 0;
   justify-content: center;
   align-content: start;
@@ -1014,25 +1020,27 @@
 */
 .nmc-card {
   position: relative;
-  width: 85mm; height: 60mm;
+  width: var(--nmc-cw, 85mm); height: var(--nmc-ch, 60mm);
   background: #fff;
   border: 1px dashed #cbd5e1; /* cutting guide */
   overflow: hidden;
   box-sizing: border-box;
 }
 
+/* Inner layout uses % of card height so it scales with any card size.
+   (baseline 85×60mm: logo 4→14mm · name 15→34mm · band 35→60mm) */
 .nmc-card-logo {
   position: absolute; left: 0; right: 0;
-  top: 5mm; height: 10mm;
+  top: 6.6%; height: 16.7%;
   display: flex; align-items: center; justify-content: center;
 }
 .nmc-card-logo img {
-  max-height: 10mm; max-width: 50mm; object-fit: contain;
+  max-height: 100%; max-width: 60%; object-fit: contain;
 }
 
 .nmc-card-name {
-  position: absolute; left: 4mm; right: 4mm;
-  top: 22mm; height: 11mm;
+  position: absolute; left: 4%; right: 4%;
+  top: 25%; height: 31.7%;   /* fill the gap between logo & band */
   display: flex; align-items: center; justify-content: center;
   text-align: center;
   font-family: 'Sarabun', sans-serif;
@@ -1044,7 +1052,7 @@
 
 .nmc-card-band {
   position: absolute; left: 0; right: 0;
-  top: 35mm; bottom: 0;
+  top: 58.3%; bottom: 0;
   background: #6BBE45; /* A4S green */
   display: flex; align-items: center; justify-content: center;
   padding: 3mm 4mm;        /* vertical pad keeps Thai tone marks visible */
@@ -1169,9 +1177,9 @@
      that Edge's print pipeline produced with the old flex + break-before. */
   .nmc-print-area .nmc-a4 {
     display: grid !important;
-    grid-template-columns: repeat(2, 85mm) !important;
-    grid-template-rows: repeat(4, 60mm) !important;
-    width: 170mm !important;
+    grid-template-columns: repeat(var(--nmc-cols, 2), var(--nmc-cw, 85mm)) !important;
+    grid-template-rows: repeat(var(--nmc-rows, 4), var(--nmc-ch, 60mm)) !important;
+    width: 210mm !important;        /* full page · cards centered via justify-content */
     height: 297mm !important;
     min-height: 297mm !important;
     max-height: 297mm !important;
@@ -1205,9 +1213,8 @@
   #vipPrintArea, #certPrintArea, #seatPrintArea { display: none !important; }
   .nmc-print-area .nmc-card {
     border: 1px dashed #cbd5e1;
-    width: 85mm !important;
-    height: 60mm !important;
-    flex: 0 0 85mm !important;
+    width: var(--nmc-cw, 85mm) !important;
+    height: var(--nmc-ch, 60mm) !important;
     page-break-inside: avoid !important;
     break-inside: avoid !important;
   }
@@ -1218,6 +1225,26 @@
     color: #000 !important;
   }
 }
+
+/* ── Namecard size bar (กว้าง × สูง ของบัตร) ───────────────── */
+.nmc-size-bar {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 10px;
+  padding: 10px 18px;
+  border-bottom: 1px solid var(--border, #e4ddd2);
+  background: var(--surface2, #f7f4ee);
+}
+.nmc-size-label { font-size: 13px; font-weight: 600; color: var(--text2, #6a635b); }
+.nmc-size-inputs { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text2, #6a635b); }
+.nmc-size-inputs input {
+  width: 64px; text-align: center;
+  border: 1px solid var(--border, #e4ddd2); border-radius: 6px;
+  padding: 5px 6px; font-family: inherit; font-size: 13px;
+}
+.nmc-size-inputs input:focus {
+  border-color: var(--accent); outline: none;
+  box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.12);
+}
+.nmc-size-presets { display: flex; gap: 6px; flex-wrap: wrap; }
 
 /* btn-sm helper (in case not present in main.css) */
 .btn-sm { padding: 6px 12px; font-size: 12.5px; }

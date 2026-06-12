@@ -142,6 +142,12 @@
           path: BASE_PATH + "/modules/inventory/stock-balance.html",
         },
         {
+          id: "stock-report",
+          icon: "📑",
+          label: "Stock Report",
+          path: BASE_PATH + "/modules/inventory/stock-report.html",
+        },
+        {
           id: "products",
           icon: "✏️",
           label: "รายการสินค้า",
@@ -516,6 +522,7 @@
     products: "product_view",
     "stock-dashboard": "product_view",
     "stock-balance": "product_view",
+    "stock-report": "product_view",
     "stock-initial": "stock_init_view",
     "stock-move": "stock_move_view",
     po: "po_view",
@@ -612,6 +619,7 @@
     //  **** Inventory ****
     "stock-dashboard",
     "stock-balance",
+    "stock-report",
     "categories",
     "units",
     "warehouses",

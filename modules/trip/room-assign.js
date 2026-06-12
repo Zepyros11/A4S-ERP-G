@@ -4984,10 +4984,8 @@ function flightTicketRowHtml(t, flightId, labelNo) {
     && !flightTicketMatchesName(t);
   const toggle = `<button class="fl-tkt-toggle" title="${collapsed ? "ขยาย" : "ย่อ"}รายชื่อ"
       onclick="event.stopPropagation();window.toggleTicketCollapse(${t.ticket_id})">${collapsed ? "▸" : "▾"}</button>`;
-  const delBtn = isEmpty
-    ? `<button class="fl-occ-x" title="ลบ Ticket นี้"
-        onclick="event.stopPropagation();window.deleteFlightTicket(${t.ticket_id}, ${flightId})">🗑</button>`
-    : "";
+  const delBtn = `<button class="fl-occ-x" title="${isEmpty ? "ลบ Ticket นี้" : "ลบ Ticket นี้ (คนในตั๋วจะหลุดออกจากการมีตั๋ว)"}"
+        onclick="event.stopPropagation();window.deleteFlightTicket(${t.ticket_id}, ${flightId})">🗑</button>`;
   const hasNote = !!(t.note && t.note.trim());
   const noteBtn = `<button class="fl-tkt-note-btn${hasNote ? " has-note" : ""}"
       title="${hasNote ? "หมายเหตุ: " + escapeAttr(t.note) : "เพิ่มหมายเหตุ"}"
@@ -5365,20 +5363,43 @@ window.toggleFlightTicketsCollapse = function (flightId) {
   renderFlights();
 };
 
-// ลบ Ticket — ใช้กับ Ticket ที่ไม่มีคนเท่านั้น
+// ลบไฟล์ใน Storage จาก public URL (best-effort — ไม่ throw ถ้าลบไม่ได้)
+async function deleteStorageByPublicUrl(publicUrl) {
+  if (!publicUrl) return;
+  const { url, key } = getSB();
+  const marker = "/storage/v1/object/public/";
+  const i = publicUrl.indexOf(marker);
+  if (i < 0) return;
+  const bucketAndPath = publicUrl.slice(i + marker.length); // เช่น tour-seat-images/ticket/...
+  try {
+    await fetch(`${url}/storage/v1/object/${bucketAndPath}`, {
+      method: "DELETE",
+      headers: { apikey: key, Authorization: `Bearer ${key}` },
+    });
+  } catch (_) { /* best-effort */ }
+}
+
+// ลบ Ticket · ว่างอยู่แล้วลบได้เลยไม่ต้องยืนยัน
+// มีคนอยู่ → ยืนยันก่อน แล้วปล่อยคนทุกคนออกจากตั๋ว (หลุดเป็น "ยังไม่ได้ตั๋ว") ก่อนลบ
+// มีไฟล์ตั๋ว (PDF/รูป) แนบอยู่ก็ลบไฟล์ใน storage ทิ้งด้วย
 window.deleteFlightTicket = async function (ticketId, flightId) {
   const t = flightTicketsOf(flightId).find(x => x.ticket_id === ticketId);
   if (!t) return;
-  if (t.codes.length) { showToast("เอาคนออกก่อนจึงลบ Ticket ได้", "info"); return; }
-  const msg = "ลบ Ticket นี้?";
-  const ok = window.ConfirmModal?.open
-    ? await window.ConfirmModal.open({
-        title: "ลบ Ticket", message: msg, icon: "🗑", tone: "danger", okText: "ลบ",
-      })
-    : confirm(msg);
-  if (!ok) return;
+  const hasPeople = t.codes.length > 0;
+  if (hasPeople) {
+    const msg = `ลบ Ticket นี้? คน ${t.codes.length} คนในตั๋วจะหลุดออกจากการมีตั๋ว (ย้ายไป "ยังไม่ได้ตั๋ว")`;
+    const ok = window.ConfirmModal?.open
+      ? await window.ConfirmModal.open({ title: "ลบ Ticket", message: msg, icon: "🗑", tone: "danger", okText: "ลบ" })
+      : confirm(msg);
+    if (!ok) return;
+  }
   showLoading(true);
   try {
+    if (hasPeople) {
+      // ปล่อยคนทุกคนออกจากตั๋ว (occupants ของ ticket นี้)
+      await sbFetch("trip_flight_ticket_occupants", `?ticket_id=eq.${ticketId}`, { method: "DELETE" });
+    }
+    if (t.ticket_url) await deleteStorageByPublicUrl(t.ticket_url);
     await sbFetch("trip_flight_tickets", `?ticket_id=eq.${ticketId}`, { method: "DELETE" });
     await refreshFlightTickets();
     showToast("ลบ Ticket แล้ว", "success");

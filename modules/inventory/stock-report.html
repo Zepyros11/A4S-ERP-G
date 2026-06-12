@@ -1,0 +1,311 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>📦 Stock Report — A4S-ERP</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../../css/main.css" />
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    <style>
+      /* ── Layout: picker | preview ── */
+      .cr-main{display:grid;grid-template-columns:280px 1fr;gap:14px;margin-top:8px}
+      @media (max-width:880px){ .cr-main{grid-template-columns:1fr} }
+
+      .cr-card{background:#fff;border:1px solid var(--border);border-radius:10px;padding:14px}
+      .cr-card h3{margin:0 0 10px;font-size:13px;color:var(--text)}
+
+      /* picker groups */
+      .cr-group{margin-bottom:6px;border:1px solid var(--border);border-radius:8px;overflow:hidden}
+      .cr-group-hdr{
+        display:flex;align-items:center;justify-content:space-between;
+        padding:8px 10px;background:#f8fafc;cursor:pointer;
+        font-size:12.5px;font-weight:700;color:var(--text);user-select:none;
+      }
+      .cr-group-hdr:hover{background:#e2e8f0}
+      .cr-group-hdr:hover .cr-group-caret{color:var(--accent)}
+      .cr-group-body{padding:4px 6px}
+      .cr-group.collapsed .cr-group-body{display:none}
+      .cr-group-caret{
+        font-size:16px;color:var(--text2);font-weight:700;
+        min-width:24px;text-align:center;cursor:pointer;
+        padding:2px 6px;border-radius:4px;background:rgba(0,0,0,.04);
+      }
+      .cr-opt{
+        display:flex;align-items:center;gap:8px;
+        padding:5px 8px;border-radius:6px;font-size:12.5px;color:var(--text);cursor:pointer;
+      }
+      .cr-opt:hover{background:#f1f5f9}
+      .cr-opt input{cursor:pointer;margin:0;width:15px;height:15px}
+
+      /* selected chips */
+      .cr-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;min-height:8px}
+      .cr-chip{
+        display:inline-flex;align-items:center;gap:6px;
+        background:var(--accent-pale);color:var(--accent);
+        border:1px solid color-mix(in srgb, var(--accent) 25%, transparent);
+        padding:3px 6px 3px 9px;border-radius:999px;font-size:11.5px;font-weight:600;
+      }
+      .cr-chip button{border:none;background:transparent;cursor:pointer;color:var(--accent);font-size:13px;line-height:1;padding:0 2px}
+      .cr-chip .cr-chip-move{font-size:11px;opacity:.7}
+      .cr-chip .cr-chip-move:hover{opacity:1}
+      .cr-chip-eye{border:none;background:transparent;cursor:pointer;font-size:11px;line-height:1;padding:0 2px;opacity:.55;filter:grayscale(1)}
+      .cr-chip-eye:hover{opacity:1;filter:none}
+      .cr-chip.cr-chip-hidden{opacity:.55;text-decoration:line-through;text-decoration-color:#cbd5e1}
+      .cr-chip.cr-chip-hidden .cr-chip-eye{opacity:1;filter:none;text-decoration:none}
+
+      /* preview table */
+      #cr-table-wrap{overflow:auto;max-height:70vh;border:1px solid var(--border);border-radius:8px}
+      @media (min-width:881px){
+        .page{height:calc(100vh - var(--topbar-h));display:flex;flex-direction:column;overflow:hidden}
+        .cr-main{flex:1;min-height:0}
+        .cr-main > .cr-card{min-height:0;display:flex;flex-direction:column}
+        #crPicker{flex:1;min-height:0;overflow:auto}
+        #cr-table-wrap{flex:1;min-height:0;max-height:none}
+      }
+      table.cr-table{border-collapse:separate;border-spacing:0;width:max-content;min-width:100%;font-size:12px}
+      table.cr-table th,table.cr-table td{
+        padding:6px 9px;border-bottom:1px solid var(--border);border-right:1px solid var(--border);
+        text-align:left;white-space:nowrap;
+      }
+      table.cr-table td.cr-num{text-align:right;font-variant-numeric:tabular-nums}
+      table.cr-table thead th{background:#f1f5f9;color:var(--text2);font-weight:700;font-size:11px;position:sticky;top:0;z-index:2}
+      table.cr-table tbody tr:nth-child(even){background:#fafafa}
+      table.cr-table tbody tr:hover{background:#f1f5f9}
+      .cr-empty{padding:40px 20px;text-align:center;color:var(--text3);font-size:13px}
+
+      table.cr-table tr.cr-grouphdr td{background:#e0f2fe;color:#075985;font-weight:700;font-size:12px;border-top:2px solid #0ea5e9;line-height:1.5}
+      table.cr-table tr.cr-grouphdr:hover td{background:#e0f2fe}
+      table.cr-table tr.cr-totalrow td{background:#f1f5f9;color:#334155;font-weight:700;text-align:right}
+      table.cr-table tr.cr-totalrow:hover td{background:#f1f5f9}
+      table.cr-table tr.cr-grandtotal td{background:#dcfce7;color:#166534;font-weight:800;text-align:right;font-size:12.5px}
+      table.cr-table tr.cr-grandtotal:hover td{background:#dcfce7}
+
+      /* header filter/sort/hide */
+      .cr-th-flex{display:inline-flex;align-items:center;gap:4px;width:100%}
+      .cr-th-lbl{flex:1;cursor:pointer;user-select:none}
+      .cr-th-fbtn{border:none;background:transparent;cursor:pointer;padding:1px 3px;border-radius:4px;font-size:10px;line-height:1;color:var(--text3);opacity:.55}
+      .cr-th-fbtn:hover{background:#e2e8f0;opacity:1}
+      .cr-th-fbtn.active{color:#fff;background:var(--accent);opacity:1;box-shadow:0 1px 2px rgba(0,0,0,.15)}
+      .cr-th-mbadge{display:inline-block;margin-left:2px;font-size:9px;font-weight:700;line-height:1;vertical-align:1px}
+      .cr-th-eye{border:none;background:transparent;cursor:pointer;padding:1px 3px;border-radius:4px;font-size:11px;line-height:1;opacity:.45;filter:grayscale(1)}
+      .cr-th-eye:hover{background:#e2e8f0;opacity:1;filter:none}
+      .cr-th-eye.off{opacity:1;filter:none;background:#fee2e2}
+      .cr-th-hidetag{display:inline-block;font-size:9px;font-weight:700;color:#b91c1c;background:#fee2e2;border-radius:4px;padding:0 4px;margin-left:2px;vertical-align:1px}
+      table.cr-table th.cr-col-hidden,table.cr-table td.cr-col-hidden{opacity:.4}
+      table.cr-table th.cr-col-hidden{background:#fff5f5}
+      table.cr-table td.cr-merged{vertical-align:top;background:#fafdff;font-weight:600}
+      table.cr-table tbody tr:nth-child(even) td.cr-merged{background:#f4f9ff}
+
+      /* filter popover */
+      .cr-fpop{position:fixed;z-index:1000;min-width:220px;max-width:300px;background:#fff;border:1px solid var(--border);border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,.15);padding:8px;font-size:12.5px}
+      .cr-fpop-search{width:100%;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;margin-bottom:6px;box-sizing:border-box}
+      .cr-fpop-acts{display:flex;gap:8px;margin-bottom:6px;font-size:11px}
+      .cr-fpop-acts button{border:none;background:transparent;color:var(--accent);cursor:pointer;padding:0;font-weight:600;font-size:11px}
+      .cr-fpop-acts button:hover{text-decoration:underline}
+      .cr-fpop-list{max-height:240px;overflow-y:auto;border:1px solid var(--border);border-radius:6px;padding:3px}
+      .cr-fpop-list label{display:flex;align-items:center;gap:7px;padding:4px 6px;border-radius:4px;cursor:pointer;font-size:12px;color:var(--text)}
+      .cr-fpop-list label:hover{background:#f1f5f9}
+      .cr-fpop-list input{cursor:pointer;margin:0;width:14px;height:14px}
+      .cr-fpop-empty{padding:12px;text-align:center;color:var(--text3);font-size:12px}
+      .cr-fpop-foot{display:flex;justify-content:flex-end;gap:6px;margin-top:8px}
+      .cr-fpop-foot button{padding:4px 10px;border-radius:6px;font-size:12px;cursor:pointer;border:1px solid var(--border);background:#fff;color:var(--text)}
+      .cr-fpop-foot button.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+      .cr-fpop-merge{display:flex;align-items:center;gap:7px;padding:7px 9px;border-radius:6px;background:#f0f9ff;border:1px solid #bae6fd;cursor:pointer;font-size:12px;color:#075985;font-weight:600}
+      .cr-fpop-merge:hover{background:#e0f2fe}
+      .cr-fpop-merge input{cursor:pointer;margin:0;width:14px;height:14px}
+      .cr-fpop-divider{border-top:1px dashed var(--border);margin:8px 0}
+      .cr-fpop-msg{padding:10px;text-align:center;color:var(--text3);font-size:12px;background:#f8fafc;border:1px dashed var(--border);border-radius:6px}
+
+      /* image cell + lightbox */
+      table.cr-table td.cr-cell-img{padding:4px;text-align:center}
+      .cr-img-thumb{max-height:64px;max-width:120px;border:1px solid var(--border);border-radius:4px;background:#f8fafc;display:block;margin:0 auto;object-fit:contain;cursor:zoom-in;transition:.12s}
+      .cr-img-thumb:hover{border-color:var(--accent);box-shadow:0 2px 8px rgba(15,23,42,.18)}
+      #cr-img-modal{display:none;position:fixed;inset:0;z-index:4000;background:rgba(0,0,0,.75);align-items:center;justify-content:center}
+      #cr-img-modal.open{display:flex}
+      #cr-img-modal img{max-width:92vw;max-height:92vh;border-radius:8px;box-shadow:0 20px 60px rgba(0,0,0,.5);background:#fff}
+      #cr-img-modal-close{position:fixed;top:20px;right:24px;background:#fff;border:none;border-radius:50%;width:36px;height:36px;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.3)}
+
+      /* toolbar */
+      .cr-preset-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+      .cr-preset-bar select{min-width:180px}
+      .cr-print-settings{display:inline-flex;align-items:center;gap:6px;background:#f1f5f9;border:1px solid var(--border);border-radius:8px;padding:3px 8px}
+      .cr-print-settings select{min-width:auto;padding:3px 6px;font-size:11.5px}
+      .cr-search{display:inline-flex;align-items:center;gap:6px;background:#fff;border:1px solid var(--border);border-radius:8px;padding:3px 8px;min-width:200px;max-width:320px}
+      .cr-search:focus-within{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-pale)}
+      .cr-search-ico{font-size:12px;opacity:.6;line-height:1}
+      .cr-search-input{flex:1;border:none;outline:none;background:transparent;font-size:12.5px;color:var(--text);min-width:0;padding:2px 0;font-weight:400}
+      .cr-search-input::-webkit-search-cancel-button{display:none}
+      .cr-search-clear{border:none;background:transparent;cursor:pointer;color:var(--text3);font-size:12px;line-height:1;padding:0 2px}
+      .cr-search-clear:hover{color:var(--accent)}
+
+      /* preview modal (A4) */
+      .cr-preview-modal{position:fixed;inset:0;z-index:1000;background:#1e293b;display:flex;flex-direction:column}
+      .cr-preview-toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 16px;background:#fff;border-bottom:1px solid var(--border);flex-shrink:0}
+      .cr-preview-scroll{flex:1;overflow:auto;padding:24px;display:flex;flex-direction:column;align-items:center;gap:18px}
+      .cr-preview-paper{width:297mm;height:210mm;flex-shrink:0;background:#fff;box-shadow:0 6px 24px rgba(0,0,0,.4);padding:10mm;box-sizing:border-box;font-size:11px;color:#0f172a;overflow:hidden;position:relative}
+      .cr-preview-paper.portrait{width:210mm;height:297mm}
+      .cr-preview-paper .cr-print-title{font-size:15px;font-weight:700;margin-bottom:2px}
+      .cr-preview-paper .cr-print-sub{font-size:11px;color:#64748b;margin-bottom:10px}
+      .cr-preview-paper table{border-collapse:collapse;width:100%;font-size:11px}
+      .cr-preview-paper th,.cr-preview-paper td{border:1px solid #94a3b8;padding:4px 6px;text-align:left;vertical-align:middle}
+      .cr-preview-paper thead th{background:#f1f5f9;font-weight:700}
+      .cr-preview-paper td.cr-num,#cr-print-area td.cr-num{text-align:right;font-variant-numeric:tabular-nums}
+      .cr-preview-paper td img.cr-img-thumb{max-height:var(--cr-img-h, 16mm);max-width:var(--cr-img-w, 60mm);border:1px solid #cbd5e1;background:#fff;object-fit:contain;display:block;margin:0 auto}
+      .cr-preview-page-num{position:absolute;bottom:4mm;right:8mm;font-size:10px;color:#94a3b8}
+      .cr-preview-more{background:#fff;border:1px dashed #cbd5e1;border-radius:8px;padding:14px 20px;color:#64748b;font-size:13px;text-align:center;max-width:80%}
+
+      /* print */
+      #cr-print-area{display:none}
+      .cr-print-title{font-size:15px;font-weight:700;margin-bottom:2px}
+      .cr-print-sub{font-size:11px;color:#64748b;margin-bottom:10px}
+      #cr-print-area table{border-collapse:collapse;width:100%;font-size:11px}
+      #cr-print-area th,#cr-print-area td{border:1px solid #94a3b8;padding:4px 6px;text-align:left;vertical-align:middle}
+      #cr-print-area thead th{background:#f1f5f9;font-weight:700}
+      .cr-preview-paper tr.cr-grouphdr td,#cr-print-area tr.cr-grouphdr td{background:#e0f2fe;color:#075985;font-weight:700;border-top:2px solid #0ea5e9}
+      .cr-preview-paper tr.cr-totalrow td,#cr-print-area tr.cr-totalrow td{background:#f1f5f9;color:#334155;font-weight:700;text-align:right}
+      .cr-preview-paper tr.cr-grandtotal td,#cr-print-area tr.cr-grandtotal td{background:#dcfce7;color:#166534;font-weight:800;text-align:right}
+      #cr-print-area td img.cr-img-thumb{max-height:var(--cr-img-h, 16mm);max-width:var(--cr-img-w, 60mm);border:1px solid #cbd5e1;background:#fff;object-fit:contain;display:block;margin:0 auto}
+      @media print{
+        body > *:not(#cr-print-area){display:none !important}
+        #cr-print-area{display:block !important}
+        #cr-print-area tr{page-break-inside:avoid}
+      }
+    </style>
+    <style id="crPageStyle">@page{size:landscape;margin:10mm}</style>
+  </head>
+  <body>
+    <div class="loading-overlay" id="loadingOverlay">
+      <div class="spinner"></div>
+    </div>
+    <div class="toast" id="toast"></div>
+
+    <div class="topbar"></div>
+
+    <div class="page">
+
+      <!-- PRESET / SETTINGS BAR -->
+      <div class="cr-card" style="margin-bottom:12px">
+        <div class="cr-preset-bar">
+          <span style="font-size:12.5px;font-weight:700;color:var(--text2)">⭐ ชุดคอลัมน์:</span>
+          <select class="filter-select" id="presetSelect" onchange="window.applyPreset(this.value)">
+            <option value="">— เลือกชุดที่บันทึกไว้ —</option>
+          </select>
+          <button class="btn btn-outline" onclick="window.savePreset()" title="บันทึกคอลัมน์ที่เลือกเป็นชุดใหม่">💾 บันทึกชุด</button>
+          <button class="btn btn-outline" onclick="window.deletePreset()" title="ลบชุดที่เลือก">🗑 ลบชุด</button>
+
+          <span style="width:1px;height:22px;background:var(--border);margin:0 4px"></span>
+
+          <span style="font-size:11.5px;color:var(--text2)">🏭 คลัง:</span>
+          <select id="crWarehouse" class="filter-select" onchange="window.setWarehouse(this.value)" title="ขอบเขตยอดคงเหลือ — เลือกคลังเดียวหรือรวมทุกคลัง">
+            <option value="">ทุกคลัง</option>
+          </select>
+
+          <div style="flex:1"></div>
+
+          <span id="crPrintSettings" class="cr-print-settings" style="display:none" title="ตั้งค่าการพิมพ์ A4">
+            <span style="font-size:11.5px;color:var(--text2)">🖨 แถว/A4:</span>
+            <select id="crRowsPerPage" class="filter-select" onchange="window.setRowsPerPage(this.value)">
+              <option value="auto" selected>อัตโนมัติ</option>
+              <option value="10">10</option>
+              <option value="15">15</option>
+              <option value="20">20</option>
+              <option value="30">30</option>
+            </select>
+            <span style="font-size:11.5px;color:var(--text2)">🗂 แบ่งกลุ่ม:</span>
+            <select id="crGroupBy" class="filter-select" onchange="window.setGroupBy(this.value)" title="แบ่งตารางเป็น section ตามคอลัมน์ที่เลือก">
+              <option value="">— ไม่แบ่งกลุ่ม —</option>
+            </select>
+            <label style="display:inline-flex;align-items:center;gap:4px;font-size:11.5px;color:var(--text2);cursor:pointer;white-space:nowrap" title="แสดงแถวรวมยอดท้ายแต่ละกลุ่ม + รวมทั้งหมด">
+              <input type="checkbox" id="crShowTotal" onchange="window.setShowTotal(this.checked)" style="margin:0;width:14px;height:14px">
+              <span>Σ รวมยอด</span>
+            </label>
+            <select id="crOrientation" class="filter-select" onchange="window.setOrientation(this.value)">
+              <option value="landscape" selected>แนวนอน</option>
+              <option value="portrait">แนวตั้ง</option>
+            </select>
+          </span>
+          <button class="btn btn-outline" onclick="window.refreshReport()" title="โหลดข้อมูลสต็อกใหม่">🔄 รีเฟรช</button>
+          <button class="btn btn-outline" onclick="window.exportReportExcel()">📥 Excel</button>
+          <button class="btn btn-outline" onclick="window.previewReportPrint()" title="ดูตัวอย่างหน้ากระดาษ A4 ก่อนพิมพ์">👁 Preview</button>
+          <button class="btn btn-primary" onclick="window.exportReportPrint()">🖨 Print / PDF</button>
+        </div>
+      </div>
+
+      <!-- MAIN: picker | preview -->
+      <div class="cr-main">
+        <!-- COLUMN PICKER -->
+        <div class="cr-card">
+          <h3>เลือกคอลัมน์</h3>
+          <div id="crPicker"></div>
+        </div>
+
+        <!-- PREVIEW -->
+        <div class="cr-card">
+          <h3 style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <span>ตัวอย่างรายงาน</span>
+            <span id="crRowCount" style="color:var(--text3);font-weight:400"></span>
+            <span style="flex:1;min-width:8px"></span>
+            <span class="cr-search">
+              <span class="cr-search-ico">🔎</span>
+              <input id="crSearch" type="search" class="cr-search-input" autocomplete="off"
+                placeholder="ค้นหาในตาราง…" oninput="window.crSearch(this.value)">
+              <button type="button" class="cr-search-clear" id="crSearchClear" style="display:none"
+                title="ล้างคำค้นหา" onclick="window.crSearchClear()">✕</button>
+            </span>
+          </h3>
+          <div class="cr-chips" id="crChips"></div>
+          <div id="cr-table-wrap">
+            <div class="cr-empty" id="crEmpty">เลือกคอลัมน์จากด้านซ้ายเพื่อสร้างรายงาน</div>
+            <table class="cr-table" id="crTable" style="display:none">
+              <thead><tr id="crThead"></tr></thead>
+              <tbody id="crTbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- PRINT AREA -->
+    <div id="cr-print-area"></div>
+
+    <!-- PREVIEW MODAL -->
+    <div id="crPreviewModal" class="cr-preview-modal" style="display:none">
+      <div class="cr-preview-toolbar">
+        <span style="font-size:14px;font-weight:700">👁 ตัวอย่างก่อน export</span>
+        <span id="crPreviewMeta" style="font-size:11.5px;color:var(--text2)"></span>
+        <span style="flex:1"></span>
+        <button class="btn btn-outline" onclick="window.closePreview()">✕ ปิด</button>
+        <button class="btn btn-outline" onclick="window.closePreview();window.exportReportExcel()">📥 Excel</button>
+        <button class="btn btn-primary" onclick="window.closePreview();setTimeout(window.exportReportPrint,50)">🖨 Print / PDF</button>
+      </div>
+      <div class="cr-preview-scroll" id="crPreviewScroll"></div>
+    </div>
+
+    <!-- IMAGE LIGHTBOX -->
+    <div id="cr-img-modal" onclick="window.crCloseImg()">
+      <button id="cr-img-modal-close" onclick="window.crCloseImg()" title="ปิด">✕</button>
+      <img id="cr-img-modal-img" src="" alt="ภาพขยาย" onclick="event.stopPropagation()" />
+    </div>
+
+    <!-- SCRIPTS -->
+    <script src="../../js/core/auth.js"></script>
+    <script src="../../js/core/authz.js"></script>
+    <script src="../../js/core/date-format.js"></script>
+    <script>AuthZ.requirePerm("product_view");</script>
+    <script src="../../js/shared/stock-fields.js"></script>
+    <script src="./stock-report.js"></script>
+    <script src="../../js/components/modal/confirmModal.js"></script>
+    <script src="../../js/components/modal/promptModal.js"></script>
+    <script src="../../js/components/modal/modalManager.js"></script>
+    <script src="../../js/components/navigation/sidebar.js"></script>
+    <script type="module">
+      import { loadTopbar } from "../../js/components/navigation/topbar.js";
+      loadTopbar("📦 Stock Report");
+    </script>
+  </body>
+</html>
