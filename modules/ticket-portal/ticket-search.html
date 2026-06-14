@@ -120,6 +120,72 @@
   }
   .tp-placeholder .tp-empty-icon { font-size:46px; margin-bottom:12px; opacity:.7; }
   .tp-placeholder-txt { font-size:14px; font-weight:600; line-height:1.6; }
+
+  /* help button in topbar */
+  .tp-help-btn {
+    background:rgba(255,255,255,.16); color:#fff; border:1px solid rgba(255,255,255,.28);
+    border-radius:18px; padding:5px 13px; font-family:inherit; font-size:12.5px; font-weight:600;
+    cursor:pointer; margin-right:10px; transition:background .15s;
+  }
+  .tp-help-btn:hover { background:rgba(255,255,255,.3); }
+
+  /* ── guide popup ── */
+  .tg-overlay {
+    position:fixed; inset:0; background:rgba(15,23,42,.7); backdrop-filter:blur(4px);
+    display:none; align-items:center; justify-content:center; z-index:10001; padding:16px;
+    opacity:0; transition:opacity .2s;
+  }
+  .tg-overlay.open { display:flex; opacity:1; }
+  .tg-modal {
+    background:#fff; width:560px; max-width:100%; max-height:92vh;
+    border-radius:18px; overflow:hidden; display:flex; flex-direction:column;
+    box-shadow:0 20px 60px rgba(0,0,0,.35);
+    transform:scale(.94) translateY(8px); transition:transform .25s ease;
+  }
+  .tg-overlay.open .tg-modal { transform:scale(1) translateY(0); }
+  .tg-head {
+    background:#5fa825; color:#fff; border-bottom:3px solid #e53935;
+    padding:12px 14px 12px 18px; display:flex; align-items:center; gap:10px;
+  }
+  .tg-title { font-size:15px; font-weight:700; flex:1; min-width:0; }
+  .tg-head .pp-lang { background:rgba(255,255,255,.14); }
+  .tg-close {
+    width:30px; height:30px; border:none; border-radius:50%;
+    background:rgba(255,255,255,.18); color:#fff; font-size:15px; cursor:pointer;
+    display:flex; align-items:center; justify-content:center; flex-shrink:0; transition:background .15s;
+  }
+  .tg-close:hover { background:rgba(255,255,255,.34); }
+  .tg-stage {
+    position:relative; background:#f1f5f9; display:flex; align-items:center; justify-content:center;
+    min-height:200px; flex:1; overflow:hidden;
+  }
+  .tg-img { max-width:100%; max-height:60vh; display:block; object-fit:contain; user-select:none; -webkit-user-drag:none; }
+  .tg-nav {
+    position:absolute; top:50%; transform:translateY(-50%);
+    width:40px; height:40px; border:none; border-radius:50%;
+    background:rgba(255,255,255,.92); color:#1e293b; font-size:26px; line-height:1; cursor:pointer;
+    box-shadow:0 4px 12px rgba(0,0,0,.18); display:flex; align-items:center; justify-content:center; z-index:2;
+    transition:background .15s, transform .1s;
+  }
+  .tg-nav:hover { background:#fff; }
+  .tg-nav:active { transform:translateY(-50%) scale(.94); }
+  .tg-nav:disabled { opacity:.3; cursor:not-allowed; }
+  .tg-prev { left:10px; } .tg-next { right:10px; }
+  .tg-cap {
+    padding:16px 20px; font-size:14.5px; line-height:1.6; color:#334155; text-align:center;
+    background:#fff; border-top:1px solid #f1f5f9; min-height:64px;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .tg-foot {
+    background:#fff; padding:10px 16px 14px; border-top:1px solid #e2e8f0;
+    display:flex; flex-direction:column; align-items:center; gap:8px;
+  }
+  .tg-dots { display:flex; gap:6px; }
+  .tg-dot { width:8px; height:8px; border-radius:50%; background:#cbd5e1; cursor:pointer; transition:.15s; }
+  .tg-dot:hover { transform:scale(1.3); }
+  .tg-dot.active { background:#5fa825; width:22px; border-radius:4px; }
+  .tg-counter { font-size:12px; color:#64748b; font-family:'IBM Plex Mono',monospace; }
+  @media(max-width:480px){ .tg-nav{ width:34px; height:34px; font-size:21px; } }
 </style>
 </head>
 <body>
@@ -136,6 +202,7 @@
     </div>
   </div>
   <div class="pp-spacer"></div>
+  <button class="tp-help-btn" id="tpHelpBtn">❓ How to use</button>
   <div class="pp-lang" id="tpLang">
     <button class="pp-lang-btn" data-lang="th">ไทย</button>
     <button class="pp-lang-btn" data-lang="en">EN</button>
@@ -178,6 +245,31 @@
  </div>
 </div>
 
+<!-- Guide popup -->
+<div class="tg-overlay" id="tgOverlay" role="dialog" aria-modal="true">
+  <div class="tg-modal">
+    <div class="tg-head">
+      <div class="tg-title" id="tgTitle">How to find your ticket</div>
+      <div class="pp-lang" id="tgLang">
+        <button class="pp-lang-btn" data-lang="th">ไทย</button>
+        <button class="pp-lang-btn" data-lang="en">EN</button>
+        <button class="pp-lang-btn" data-lang="fr">FR</button>
+      </div>
+      <button class="tg-close" id="tgClose" title="Close">✕</button>
+    </div>
+    <div class="tg-stage">
+      <button class="tg-nav tg-prev" id="tgPrev" title="Prev">‹</button>
+      <img class="tg-img" id="tgImg" alt="Guide">
+      <button class="tg-nav tg-next" id="tgNext" title="Next">›</button>
+    </div>
+    <div class="tg-cap" id="tgCap"></div>
+    <div class="tg-foot">
+      <div class="tg-dots" id="tgDots"></div>
+      <div class="tg-counter" id="tgCounter">1 / 5</div>
+    </div>
+  </div>
+</div>
+
 <!-- Loading / toast injected -->
 <div id="tpLoading" class="pp-loading"><div class="pp-spinner"></div></div>
 <div id="tpToast" class="pp-toast"></div>
@@ -210,6 +302,12 @@
       ticket_word:'ตั๋ว', open_pdf:'📄 เปิด / ดาวน์โหลด PDF', not_uploaded:'⏳ ตั๋วยังไม่ถูกอัปโหลด',
       dir_out:'ขาไป ✈', dir_ret:'ขากลับ ✈',
       results_hint:'ผลการค้นหาจะแสดงที่นี่',
+      help_btn:'❓ วิธีใช้งาน', guide_title:'วิธีค้นหาตั๋วของคุณ',
+      g_cap_1:'1. เลือกทริปของคุณ แล้วดูที่ช่องค้นหา',
+      g_cap_2:'2. กรอกรหัสสมาชิก (หรือชื่อ-นามสกุล) แล้วกดปุ่ม “ค้นหา”',
+      g_cap_3:'3. ถ้าค้นด้วยชื่อ จะเจอรายชื่อ — กด “ดูเอกสาร” ที่ชื่อของคุณ',
+      g_cap_4:'4. ระบบจะแสดงรูปพาสปอร์ตและตั๋วเครื่องบินของคุณ',
+      g_cap_5:'5. กด “เปิด / ดาวน์โหลด PDF” เพื่อดูหรือบันทึกตั๋วของคุณ',
       cfg_err_title:'ตั้งค่าผิดพลาด', cfg_err_sub:'PORTAL_CONFIG ไม่พร้อม — ตรวจ portal-config.js',
     },
     en: {
@@ -230,6 +328,12 @@
       ticket_word:'Ticket', open_pdf:'📄 Open / Download PDF', not_uploaded:'⏳ Ticket file not uploaded yet',
       dir_out:'Outbound ✈', dir_ret:'Return ✈',
       results_hint:'Your search results will appear here',
+      help_btn:'❓ How to use', guide_title:'How to find your ticket',
+      g_cap_1:'1. Select your trip, then look at the search box',
+      g_cap_2:'2. Enter your member code (or full name), then click “Search”',
+      g_cap_3:'3. If you searched by name, pick your name and click “View documents”',
+      g_cap_4:'4. Your passport photo and flight ticket will be shown',
+      g_cap_5:'5. Click “Open / Download PDF” to view or save your ticket',
       cfg_err_title:'Config error', cfg_err_sub:'PORTAL_CONFIG not ready — check portal-config.js',
     },
     fr: {
@@ -250,6 +354,12 @@
       ticket_word:'Billet', open_pdf:'📄 Ouvrir / Télécharger le PDF', not_uploaded:'⏳ Billet pas encore téléchargé',
       dir_out:'Aller ✈', dir_ret:'Retour ✈',
       results_hint:'Vos résultats de recherche s\'afficheront ici',
+      help_btn:'❓ Mode d\'emploi', guide_title:'Comment trouver votre billet',
+      g_cap_1:'1. Sélectionnez votre voyage, puis repérez la barre de recherche',
+      g_cap_2:'2. Saisissez votre code membre (ou nom complet), puis cliquez sur « Rechercher »',
+      g_cap_3:'3. Si vous avez cherché par nom, choisissez votre nom et cliquez sur « Voir les documents »',
+      g_cap_4:'4. Votre passeport et votre billet d\'avion s\'affichent',
+      g_cap_5:'5. Cliquez sur « Ouvrir / Télécharger le PDF » pour voir ou enregistrer votre billet',
       cfg_err_title:'Erreur de configuration', cfg_err_sub:'PORTAL_CONFIG indisponible — vérifiez portal-config.js',
     },
   };
@@ -292,6 +402,7 @@
     trips:[], tripId:'',
     flightCache:{}, // tripId -> {flights, flightsById, ticketsById, codeToTicketIds}
     replay:null,    // re-render current result in new language
+    guide:null,     // { idx } when guide popup is open
   };
 
   /* ── apply translations to static elements ── */
@@ -307,17 +418,55 @@
     $('q').placeholder           = t('search_ph');
     $('btnSearch').textContent   = t('btn_search');
     $('tpHint').innerHTML        = t('hint');
-    // active lang button
-    document.querySelectorAll('#tpLang .pp-lang-btn').forEach(b=>{
+    $('tpHelpBtn').textContent   = t('help_btn');
+    // active lang button (topbar + guide popup)
+    document.querySelectorAll('#tpLang .pp-lang-btn, #tgLang .pp-lang-btn').forEach(b=>{
       b.classList.toggle('active', b.dataset.lang === state.lang);
     });
   }
 
   function setLang(lang){
-    if(!I18N[lang] || lang === state.lang) { /* still refresh active state */ }
     if(I18N[lang]) { state.lang = lang; localStorage.setItem(LANG_KEY, lang); }
     applyStatic();
-    if(state.replay) state.replay();   // re-render current results in new language
+    if(state.replay) state.replay();          // re-render current results in new language
+    if(state.guide) renderGuide();            // re-render open guide popup in new language
+  }
+
+  /* ── guide popup (image-by-image + caption + lang toggle) ── */
+  const GUIDE = [
+    { img:'../../assets/onboarding/ticket-portal/01-search-box.png',      cap:'g_cap_1' },
+    { img:'../../assets/onboarding/ticket-portal/02-enter-code.png',      cap:'g_cap_2' },
+    { img:'../../assets/onboarding/ticket-portal/03-pick-name.png',       cap:'g_cap_3' },
+    { img:'../../assets/onboarding/ticket-portal/04-passport-ticket.png', cap:'g_cap_4' },
+    { img:'../../assets/onboarding/ticket-portal/05-open-pdf.png',        cap:'g_cap_5' },
+  ];
+  function renderGuide(){
+    if(!state.guide) return;
+    const i = state.guide.idx, item = GUIDE[i];
+    $('tgTitle').textContent   = t('guide_title');
+    $('tgImg').src             = item.img;
+    $('tgCap').textContent     = t(item.cap);
+    $('tgCounter').textContent = `${i+1} / ${GUIDE.length}`;
+    $('tgPrev').disabled = i === 0;
+    $('tgNext').disabled = i === GUIDE.length - 1;
+    $('tgDots').innerHTML = GUIDE.map((_,k)=>`<span class="tg-dot ${k===i?'active':''}" data-i="${k}"></span>`).join('');
+    $('tgDots').querySelectorAll('.tg-dot').forEach(d=>{
+      d.addEventListener('click', ()=>{ state.guide.idx = +d.dataset.i; renderGuide(); });
+    });
+    document.querySelectorAll('#tgLang .pp-lang-btn').forEach(b=>b.classList.toggle('active', b.dataset.lang===state.lang));
+  }
+  function openGuide(){
+    state.guide = { idx:0 };
+    GUIDE.forEach(g=>{ const im=new Image(); im.src=g.img; });  // preload
+    renderGuide();
+    requestAnimationFrame(()=> $('tgOverlay').classList.add('open'));
+  }
+  function closeGuide(){ $('tgOverlay').classList.remove('open'); state.guide = null; }
+  function guideNav(d){
+    if(!state.guide) return;
+    const n = state.guide.idx + d;
+    if(n < 0 || n >= GUIDE.length) return;
+    state.guide.idx = n; renderGuide();
   }
 
   /* ── company logo from app_settings ── */
@@ -555,7 +704,7 @@
   }
 
   /* ── wire up ── */
-  document.querySelectorAll('#tpLang .pp-lang-btn').forEach(b=>{
+  document.querySelectorAll('#tpLang .pp-lang-btn, #tgLang .pp-lang-btn').forEach(b=>{
     b.addEventListener('click', ()=> setLang(b.dataset.lang));
   });
   $('tripSelect').addEventListener('change', e=>{
@@ -564,6 +713,19 @@
   });
   $('btnSearch').addEventListener('click', doSearch);
   $('q').addEventListener('keydown', e=>{ if(e.key==='Enter') doSearch(); });
+
+  // guide popup
+  $('tpHelpBtn').addEventListener('click', openGuide);
+  $('tgClose').addEventListener('click', closeGuide);
+  $('tgPrev').addEventListener('click', ()=> guideNav(-1));
+  $('tgNext').addEventListener('click', ()=> guideNav(1));
+  $('tgOverlay').addEventListener('click', e=>{ if(e.target.id==='tgOverlay') closeGuide(); });
+  document.addEventListener('keydown', e=>{
+    if(!state.guide) return;
+    if(e.key==='Escape') closeGuide();
+    else if(e.key==='ArrowLeft'){ e.preventDefault(); guideNav(-1); }
+    else if(e.key==='ArrowRight'){ e.preventDefault(); guideNav(1); }
+  });
 
   /* ── init ── */
   applyStatic();
