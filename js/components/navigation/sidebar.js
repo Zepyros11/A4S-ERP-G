@@ -1106,13 +1106,20 @@
 
   window.toggleGroup = function (groupId) {
     const sb = document.getElementById("erp-sidebar");
-    if (sb && sb.classList.contains("collapsed") && window.innerWidth > 768)
-      return;
+    // ── ย่ออยู่ (desktop): กดไอคอนกลุ่ม = ขยาย sidebar แล้วเปิดกลุ่มนั้นเสมอ ──
+    let forceOpen = false;
+    if (sb && sb.classList.contains("collapsed") && window.innerWidth > 768) {
+      sb.classList.remove("collapsed");
+      const ico = document.getElementById("sb-icon");
+      if (ico) ico.textContent = "‹";
+      localStorage.setItem("sb_collapsed", false);
+      forceOpen = true; // ให้เปิดกลุ่มที่กด ไม่สลับปิด
+    }
     const grp = document.getElementById(groupId);
     const hdr = grp?.querySelector(".sb-grp-hdr");
     const items = grp?.querySelector(".sb-items");
     if (!hdr || !items) return;
-    const isOpen = items.classList.contains("open");
+    const isOpen = forceOpen ? false : items.classList.contains("open");
 
     // Accordion: เปิดกลุ่มนี้ → ย่อกลุ่มอื่นทั้งหมด
     if (!isOpen && sb) {
