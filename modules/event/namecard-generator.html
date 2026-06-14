@@ -9,7 +9,34 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="../../css/main.css" />
-    <link rel="stylesheet" href="./namecard-generator.css" />
+    <link rel="stylesheet" href="./namecard-generator.css?v=2" />
+    <script>
+      /* nmc-ready guard — the buttons use inline onclick="nmc.x()", but
+         namecard-generator.js loads at the end of <body>. A click during that
+         load (e.g. on a cache-busted reload) would throw "nmc is not defined".
+         Install a placeholder that QUEUES early calls and flushes them once the
+         real nmc is assigned, so a button never throws and the action still runs. */
+      (function () {
+        var queue = [];
+        var real = null;
+        function stub() {
+          return new Proxy({}, { get: function (_t, prop) {
+            return function () { queue.push([prop, [].slice.call(arguments)]); };
+          }});
+        }
+        Object.defineProperty(window, "nmc", {
+          configurable: true,
+          get: function () { return real || stub(); },
+          set: function (v) {
+            real = v;
+            queue.forEach(function (c) {
+              try { if (v && typeof v[c[0]] === "function") v[c[0]].apply(v, c[1]); } catch (e) {}
+            });
+            queue = [];
+          }
+        });
+      })();
+    </script>
   </head>
   <body>
     <div class="loading-overlay" id="loadingOverlay">
@@ -575,6 +602,6 @@
     <script src="../../js/components/modal/modalManager.js"></script>
     <script src="../../js/components/modal/confirmModal.js"></script>
     <script src="../../js/core/companyLogo.js"></script>
-    <script src="./namecard-generator.js"></script>
+    <script src="./namecard-generator.js?v=3"></script>
   </body>
 </html>

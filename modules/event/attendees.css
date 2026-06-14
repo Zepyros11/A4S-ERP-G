@@ -113,6 +113,59 @@
   background: #a7f3d0;
 }
 
+/* ── DAY TABS (multi-day check-in) ── */
+.att-day-tabs {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid #e5e7eb;
+}
+.att-day-tabs-lbl {
+  font-size: 12px;
+  font-weight: 700;
+  color: #065f46;
+  margin-right: 2px;
+}
+.att-day-tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  min-width: 104px;
+  padding: 6px 16px;
+  border: 1.5px solid #d1d5db;
+  border-radius: 10px;
+  background: #fff;
+  color: #334155;
+  cursor: pointer;
+  transition: 0.15s;
+}
+.att-day-tab:hover {
+  border-color: #059669;
+  background: #f0fdf4;
+}
+.att-day-tab.active {
+  border-color: transparent;
+  background: linear-gradient(135deg, #059669, #047857);
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(5, 150, 105, 0.3);
+}
+.att-day-tab .adt-day {
+  font-size: 13px;
+  font-weight: 700;
+}
+.att-day-tab .adt-date {
+  font-size: 11px;
+  opacity: 0.85;
+}
+.att-day-tab .adt-count {
+  font-size: 10px;
+  opacity: 0.8;
+  font-weight: 600;
+}
+
 /* ── ATTENDEE MODAL ── */
 .att-modal-overlay {
   position: fixed;
@@ -3118,8 +3171,9 @@
   border-left: 4px solid #cbd5e1;
 }
 .att-scard:hover { box-shadow: 0 4px 14px rgba(15,23,42,.1); transform: translateY(-1px); }
-.att-scard.sc-upline  { border-left-color: #16a34a; }
-.att-scard.sc-pay     { border-left-color: #d97706; }
+.att-scard.sc-upline   { border-left-color: #16a34a; }
+.att-scard.sc-pay      { border-left-color: #d97706; }
+.att-scard.sc-crossday { border-left-color: #7c3aed; }
 .att-scard-hd { font-size: 12px; font-weight: 700; color: var(--text2, #475569); margin-bottom: 6px; }
 .att-scard-main { font-size: 24px; font-weight: 800; color: #0f172a; line-height: 1.1; }
 .att-scard-main small { font-size: 13px; font-weight: 600; color: var(--text3, #94a3b8); }

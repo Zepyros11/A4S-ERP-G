@@ -39,6 +39,56 @@ let lastScanText = "";
 let tagCategoriesByName = {}; // { tag_name: { detail, color, ... } } for current event
 let qrScanner = null; // Html5Qrcode instance, null when stopped
 
+// ── MULTI-DAY CHECK-IN (per-day) ──────────────────────────
+// event หลายวัน (end_date > event_date) → เช็คอินลง "วันของวันนี้" ใน checkin_by_day (ไม่ทับวันอื่น)
+// event 1 วัน → ใช้ checked_in/check_in_at เดิม
+function ciIsMultiDay() {
+  return !!(eventInfo && eventInfo.end_date && eventInfo.end_date > eventInfo.event_date);
+}
+function ciTodayISO() {
+  const n = new Date();
+  return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, "0")}-${String(n.getDate()).padStart(2, "0")}`;
+}
+function ciEventDays() {
+  if (!eventInfo || !eventInfo.event_date) return [];
+  const end = ciIsMultiDay() ? eventInfo.end_date : eventInfo.event_date;
+  const [sy, sm, sd] = eventInfo.event_date.split("-").map(Number);
+  const [ey, em, ed] = end.split("-").map(Number);
+  const cur = new Date(sy, sm - 1, sd);
+  const endDate = new Date(ey, em - 1, ed);
+  const days = [];
+  for (let guard = 0; cur <= endDate && guard < 60; guard++) {
+    const mm = String(cur.getMonth() + 1).padStart(2, "0");
+    const dd = String(cur.getDate()).padStart(2, "0");
+    days.push(`${cur.getFullYear()}-${mm}-${dd}`);
+    cur.setDate(cur.getDate() + 1);
+  }
+  return days;
+}
+// วันที่จะเช็คอิน = วันนี้ (ถ้าอยู่ในช่วงงาน) · ก่อนเริ่ม→วันแรก · หลังจบ→วันสุดท้าย
+function ciTargetDay() {
+  const days = ciEventDays();
+  if (!days.length) return null;
+  const today = ciTodayISO();
+  if (days.includes(today)) return today;
+  if (today < days[0]) return days[0];
+  return days[days.length - 1];
+}
+function ciDayDone(a, day) {
+  return !!(a && a.checkin_by_day && a.checkin_by_day[day]);
+}
+function ciRollup(map) {
+  const keys = Object.keys(map || {});
+  if (!keys.length) return { checked_in: false, check_in_at: null };
+  const times = keys.map((k) => map[k]).filter(Boolean).sort((a, b) => new Date(a) - new Date(b));
+  return { checked_in: true, check_in_at: times[0] || null };
+}
+function ciFmtDMY(iso) {
+  if (!iso) return "";
+  const [y, m, d] = iso.split("-");
+  return `${d}/${m}/${y}`;
+}
+
 // ── TAG-FLEX RESEND BLOCK (toggle) ────────────────────────
 // ON  = check tag_notified_at flag → ส่งครั้งเดียว (default)
 // OFF = ส่ง flex ทุกครั้งที่ check-in สำเร็จ
@@ -70,12 +120,19 @@ async function init() {
   try {
     const rows = await sbFetch(
       "events",
-      `?event_id=eq.${eventId}&select=event_id,event_name,event_code,event_date,location,poster_url,line_channel_id&limit=1`,
+      `?event_id=eq.${eventId}&select=event_id,event_name,event_code,event_date,end_date,location,poster_url,line_channel_id&limit=1`,
     );
     eventInfo = rows?.[0];
     if (eventInfo) {
       document.getElementById("ciEventName").textContent = eventInfo.event_name;
-      document.getElementById("ciEventSub").textContent = eventInfo.location || "";
+      let _sub = eventInfo.location || "";
+      if (ciIsMultiDay()) {
+        const _days = ciEventDays();
+        const _td = ciTargetDay();
+        const _n = _days.indexOf(_td) + 1;
+        _sub = (_sub ? _sub + " · " : "") + `📅 กำลังเช็คอินวันที่ ${_n} (${ciFmtDMY(_td)})`;
+      }
+      document.getElementById("ciEventSub").textContent = _sub;
       const posterEl = document.getElementById("ciHeroPoster");
       if (posterEl) {
         if (eventInfo.poster_url) {
@@ -329,19 +386,31 @@ async function handleScan(scannedText) {
     }
 
     // Process all check-ins → split into newly-CI vs already-CI
+    // หลายวัน: นับ "แล้ว/ยัง" และเขียน เฉพาะ "วันของวันนี้" · วันเดียว: ใช้ checked_in เดิม
+    const targetDay = ciIsMultiDay() ? ciTargetDay() : null;
     const newlyCI = [];
     const alreadyCI = [];
     for (const a of selected) {
-      if (a.checked_in) {
+      const already = targetDay ? ciDayDone(a, targetDay) : a.checked_in;
+      if (already) {
         alreadyCI.push(a);
         continue;
+      }
+      let body;
+      if (targetDay) {
+        const map = { ...(a.checkin_by_day || {}) };
+        map[targetDay] = new Date().toISOString();
+        const roll = ciRollup(map);
+        body = { checkin_by_day: map, checked_in: roll.checked_in, check_in_at: roll.check_in_at };
+      } else {
+        body = { checked_in: true, check_in_at: new Date().toISOString() };
       }
       const res = await sbFetch(
         "event_attendees",
         `?attendee_id=eq.${a.attendee_id}`,
         {
           method: "PATCH",
-          body: { checked_in: true, check_in_at: new Date().toISOString() },
+          body,
         },
       );
       const updated = res?.[0] || a;
@@ -401,8 +470,9 @@ function showCheckinPersonPicker(rows) {
     const coapp = rows.find((r) => r.person_role === "co_applicant");
     const pName = primary?.name || "—";
     const cName = coapp?.name || "—";
-    const pDone = !!primary?.checked_in;
-    const cDone = !!coapp?.checked_in;
+    const _td = ciIsMultiDay() ? ciTargetDay() : null;
+    const pDone = _td ? ciDayDone(primary, _td) : !!primary?.checked_in;
+    const cDone = _td ? ciDayDone(coapp, _td) : !!coapp?.checked_in;
     const bothDisabled = pDone && cDone;
 
     ov.innerHTML = `

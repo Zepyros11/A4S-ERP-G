@@ -82,6 +82,12 @@
               <div class="att-scard-main"><span id="scPaid" class="sc-ok">0</span> <small>ชำระ</small> <span class="sc-div">|</span> <span id="scUnpaid" class="sc-warn">0</span> <small>ค้าง</small></div>
               <div class="att-scard-sub" id="scPaySub">—</div>
             </div>
+            <!-- สรุปข้ามวัน — แสดงเฉพาะ event หลายวัน (JS toggle) -->
+            <div id="scCrossDay" class="att-scard sc-crossday" role="button" tabindex="0" title="สรุปการเข้าร่วมข้ามวัน + รายชื่อคนที่ควรติดตาม" onclick="window.openStatReport('cross_day')" style="display:none">
+              <div class="att-scard-hd">📊 สรุปข้ามวัน</div>
+              <div class="att-scard-main"><span id="scCdFull" class="sc-ok">0</span> <small>มาครบ</small> <span class="sc-div">·</span> <span id="scCdPartial" class="sc-warn">0</span> <small>มาบางวัน</small></div>
+              <div class="att-scard-sub" id="scCdSub">—</div>
+            </div>
           </div>
 
           <!-- TIER INFO BANNER -->
@@ -107,6 +113,8 @@
           <!-- TABLE — toolbar (filters) integrated above table -->
           <div id="attTableSection" style="display:none">
             <div class="table-card">
+              <!-- DAY TABS — event หลายวันเท่านั้น (JS เติม · ซ่อนถ้า event 1 วัน) -->
+              <div id="dayTabs" class="att-day-tabs" style="display:none"></div>
               <div id="attToolbar" class="att-table-toolbar">
                 <div class="att-tt-group">
                   <span class="att-tt-lbl">✅ Check-in</span>

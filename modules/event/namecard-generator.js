@@ -48,8 +48,8 @@
   // repeat-mode
   let cText     = "VIP";            // text/name on every card
   let cStyle    = "plain";          // "plain" (logo+name) | "vip" (green band)
-  let cLogoSize = 0;                // logo size override (px) · 0 = auto
-  let cTextSize = 0;                // text/name size override (px) · 0 = auto-fit
+  let cLogoSize = 100;             // logo size override (px) · 0 = auto · default 100
+  let cTextSize = 60;              // text/name size override (px) · 0 = auto-fit · default 60 (capped to card width)
   let cQty      = 10;
   let cLogos   = [];                // [{ path, url }] — library from Supabase
   let cLogoKey = "__company__";     // selected logo · "__company__" | path | null
@@ -1014,17 +1014,35 @@
   function cPageHtml(cells) { return `<div class="c-a4-wrap"><div class="c-a4">${cells}</div></div>`; }
 
   // ── Font fitting ──────────────────────────────────────────
-  function fitSeqText(el) {
+  // True rendered width of an element's contents, in the element's OWN (unscaled)
+  // coordinate space. scrollWidth is UNRELIABLE for centered text (centered
+  // overflow spills both sides equally and never grows scrollWidth past
+  // clientWidth → the fit never shrinks → ตกขอบ). A Range measures the real glyph
+  // box even when it overflows; we then divide out any transform:scale() ancestor
+  // (the preview zoom) so it compares against unscaled clientWidth/clientHeight.
+  function textW(el) {
+    const r = document.createRange();
+    r.selectNodeContents(el);
+    const w  = r.getBoundingClientRect().width;     // scaled (visual) width
+    const cw = el.clientWidth;                        // unscaled layout width
+    const bw = el.getBoundingClientRect().width;      // scaled box width
+    const scale = (bw > 0 && cw > 0) ? bw / cw : 1;   // = preview zoom factor
+    return scale > 0 ? w / scale : w;                 // → unscaled
+  }
+  // `cap` (px) = the user's explicit size: honored when it fits, but the shrink
+  // loop still runs so text never spills past the card edge (ตกขอบ). cap = 0/undefined
+  // → auto-fill (start large and shrink to fit).
+  function fitSeqText(el, cap) {
     const box = el.parentElement; if (!box) return;
     const maxW = box.clientWidth - 8, maxH = box.clientHeight - 8;
     if (maxW <= 0 || maxH <= 0) return;
-    let size = Math.min(maxH, 800); el.style.fontSize = size + "px";
+    let size = cap > 0 ? cap : Math.min(maxH, 800); el.style.fontSize = size + "px";
     let guard = 220;
-    while (size > 8 && guard-- > 0 && (el.scrollWidth > maxW || el.scrollHeight > maxH)) { size -= 2; el.style.fontSize = size + "px"; }
+    while (size > 8 && guard-- > 0 && (textW(el) > maxW || el.scrollHeight > maxH)) { size -= 2; el.style.fontSize = size + "px"; }
   }
   // Sequence header name (e.g. "VIP") — scale up to fit the header width so it
   // stays balanced with the big auto number, capped so the logo keeps its share.
-  function fitSeqName(el) {
+  function fitSeqName(el, cap) {
     const head = el.parentElement; if (!head) return;
     const card = el.closest(".c-card"); if (!card) return;
     const hasLogo = !!head.querySelector(".c-seq-logo");
@@ -1033,39 +1051,48 @@
     // No logo → the name fills the whole header zone, balancing the number.
     const maxH = hasLogo ? card.clientHeight * 0.10 : Math.max(20, head.clientHeight - 4);
     if (maxW <= 0 || maxH <= 0) return;
-    let size = Math.min(maxH, 400); el.style.fontSize = size + "px";
+    let size = cap > 0 ? cap : Math.min(maxH, 400); el.style.fontSize = size + "px";
     let guard = 400;
-    while (size > 6 && guard-- > 0 && (el.scrollWidth > maxW || el.scrollHeight > maxH)) { size -= 1; el.style.fontSize = size + "px"; }
+    while (size > 6 && guard-- > 0 && (textW(el) > maxW || el.scrollHeight > maxH)) { size -= 1; el.style.fontSize = size + "px"; }
   }
-  function fitBandText(el) {
+  function fitBandText(el, cap) {
     const band = el.parentElement; if (!band) return;
     const maxW = band.clientWidth - 14, maxH = band.clientHeight - 8;
     if (maxW <= 0 || maxH <= 0) return;
-    let size = Math.min(maxH, 400); el.style.fontSize = size + "px";
+    let size = cap > 0 ? cap : Math.min(maxH, 400); el.style.fontSize = size + "px";
     let guard = 160;
-    while (size > 8 && guard-- > 0 && (el.scrollWidth > maxW || el.scrollHeight > maxH)) { size -= 2; el.style.fontSize = size + "px"; }
+    while (size > 8 && guard-- > 0 && (textW(el) > maxW || el.scrollHeight > maxH)) { size -= 2; el.style.fontSize = size + "px"; }
   }
-  function fitNameText(el) {
+  function fitNameText(el, cap) {
     const card = el.closest(".c-card"); if (!card) return;
     const logo = card.querySelector(".c-logo");
-    const cardH = card.clientHeight;
-    let logoH = logo ? logo.getBoundingClientRect().height : 0;
-    // Logo <img> may not be decoded yet (box ~0) → reserve the CSS cap (52% +
-    // margin) so the name doesn't overgrow into the logo's space and overflow.
-    if (logo && !logo.classList.contains("is-empty") && logoH < cardH * 0.30) logoH = cardH * 0.54;
-    // Width: .c-name is width:100%, so scrollWidth == box width and word-break
-    // wraps long text — the width check only guards true overflow (don't shrink
-    // it with a fill factor or the text collapses to the minimum size).
-    const maxW = card.clientWidth - 18;
-    // Height: fill ~90% (not 100%) so vertical-align has room to move short text
-    // visibly between top / center / bottom.
-    const maxH = Math.max(20, (cardH - logoH) * 0.90);
+    // Vertical room = card content box (clientHeight already excludes the border,
+    // subtract the .c-plain padding) minus the logo's real footprint. Use UNSCALED
+    // layout metrics (offsetHeight/clientHeight, not gBCR) so the preview's
+    // transform:scale() doesn't skew the reserve.
+    const cs = getComputedStyle(card);
+    const padY = (parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0);
+    const contentH = Math.max(0, card.clientHeight - padY);
+    let logoFoot = 0;
+    if (logo && !logo.classList.contains("is-empty")) {
+      let logoH = logo.offsetHeight;                              // unscaled layout height
+      if (logoH < 4) logoH = card.clientHeight * 0.40;           // img not decoded yet → reserve
+      logoFoot = logoH + (parseFloat(getComputedStyle(logo).marginBottom) || 0);
+    }
+    // Width: shrink when the real (Range-measured) glyph width exceeds the name
+    // box minus a breathing margin. Safe because textW() shrinks with font-size,
+    // unlike scrollWidth which floors at the width:100% box width.
+    const boxW = el.clientWidth;
+    const maxW = boxW - 12;
+    // Height: fill ~90% so vertical-align has room to nudge short text between
+    // top / center / bottom without the descenders kissing the card edge.
+    const maxH = Math.max(16, (contentH - logoFoot) * 0.90);
     if (maxW <= 0) return;
-    // Start large and shrink to fit — fills the card like the sequence number,
-    // instead of capping short text at a fixed size.
-    let size = Math.min(maxH, 800); el.style.fontSize = size + "px";
+    // Start at the user's px (when given) or large to fill the card, then shrink
+    // to fit so long text (e.g. "Interpreter") never spills past the card edge.
+    let size = cap > 0 ? cap : Math.min(maxH, 800); el.style.fontSize = size + "px";
     let guard = 400;
-    while (size > 8 && guard-- > 0 && (el.scrollWidth > maxW || el.scrollHeight > maxH + 1)) { size -= 2; el.style.fontSize = size + "px"; }
+    while (size > 8 && guard-- > 0 && (textW(el) > maxW || el.scrollHeight > maxH + 1)) { size -= 2; el.style.fontSize = size + "px"; }
   }
   function widestLabel(items) {
     if (!items || !items.length) return "";
@@ -1075,7 +1102,7 @@
     for (const s of items) { const w = ctx.measureText(s).width; if (w > bw) { bw = w; best = s; } }
     return best;
   }
-  function computeSeqFontSize(container, g, widest) {
+  function computeSeqFontSize(container, g, widest, cap) {
     if (!widest) return null;
     const probe = document.createElement("div");
     probe.className = "c-a4-wrap";
@@ -1084,30 +1111,26 @@
     probe.innerHTML = `<div class="c-a4">${cCardHtml(widest)}</div>`;
     applyCVars(probe, g);
     container.appendChild(probe);
-    const el = probe.querySelector(".c-seq-num"); fitSeqText(el); const size = el.style.fontSize;
+    const el = probe.querySelector(".c-seq-num"); fitSeqText(el, cap); const size = el.style.fontSize;
     probe.remove();
     return size;
   }
-  // Apply the right fit pass to every card under root.
+  // Apply the right fit pass to every card under root. Explicit px sizes are passed
+  // as a `cap` (honored when they fit, shrunk only to stop text spilling the card).
   function fitCustom(root, g, items) {
+    const nameCap = cTextSize > 0 ? cTextSize : 0;
     if (cMode === "sequence") {
-      if (cTextSize <= 0) {
-        // Header-only sequence (no Row/Col) renders as plain cards → autofit the
-        // name like repeat mode.
-        root.querySelectorAll(".c-name").forEach(fitNameText);
-        // Numbered sequence → scale the header name so it balances the number.
-        root.querySelectorAll(".c-seq-name").forEach(fitSeqName);
-      }
-      // px override → keep inline font-size, skip auto-fit · else fit number to card
-      if (cNumSize > 0) return;
-      const size = computeSeqFontSize(root, g, widestLabel(items));
+      // Header-only sequence (no Row/Col) renders as plain cards → fit the name
+      // like repeat mode. Numbered sequence → scale the header name to balance
+      // the number. Either way an explicit px is capped, not blindly trusted.
+      root.querySelectorAll(".c-name").forEach(el => fitNameText(el, nameCap));
+      root.querySelectorAll(".c-seq-name").forEach(el => fitSeqName(el, nameCap));
+      const size = computeSeqFontSize(root, g, widestLabel(items), cNumSize > 0 ? cNumSize : 0);
       if (size) root.querySelectorAll(".c-seq-num").forEach(el => { el.style.fontSize = size; });
-    } else if (cTextSize > 0) {
-      // explicit px → keep inline font-size, skip auto-fit
     } else if (cStyle === "vip") {
-      root.querySelectorAll(".c-band-text").forEach(fitBandText);
+      root.querySelectorAll(".c-band-text").forEach(el => fitBandText(el, nameCap));
     } else {
-      root.querySelectorAll(".c-name").forEach(fitNameText);
+      root.querySelectorAll(".c-name").forEach(el => fitNameText(el, nameCap));
     }
   }
 
@@ -2241,6 +2264,9 @@
     $("cZoomLabel") && ($("cZoomLabel").textContent = Math.round(cZoom * 100) + "%");
     $("certZoomLabel") && ($("certZoomLabel").textContent = Math.round(certZoom * 100) + "%");
     syncNmcSizeInputs();
+    // Reflect the custom-badge size defaults (logo 100px · text 60px) in the inputs
+    const lsi = $("cLogoSizeInput"); if (lsi) lsi.value = cLogoSize > 0 ? cLogoSize : "";
+    const tsi = $("cTextSizeInput"); if (tsi) tsi.value = cTextSize > 0 ? cTextSize : "";
     updateLayoutTitle();
     loadCertTemplates();
     probeAllCertTpls().then(() => updateCertTplCount());

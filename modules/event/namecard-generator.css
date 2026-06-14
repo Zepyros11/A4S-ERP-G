@@ -387,7 +387,7 @@
 .c-card.c-plain {
   display: flex; flex-direction: column;
   align-items: center; justify-content: center;
-  padding: 4mm 3mm;
+  padding: 5mm 6mm 6mm;   /* breathing room so logo/text never kiss the card edge (extra at the bottom) */
 }
 .c-plain .c-logo {
   flex: 0 0 auto; max-height: 52%; min-height: 0; width: 100%;

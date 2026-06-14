@@ -638,7 +638,15 @@ function _initBell(userId) {
       _soundFileEl = new Audio(SOUND_FILE);
       _soundFileEl.preload = "auto";
       _soundFileEl.addEventListener("canplaythrough", () => { _soundFileReady = true; }, { once: true });
-      _soundFileEl.addEventListener("error", () => { _soundFileEl = null; }, { once: true });
+      _soundFileEl.addEventListener("error", () => {
+        _soundFileEl = null;
+        // A stale custom override (erp_notif_sound_path) pointing to a missing
+        // file 404s every load — drop it so future loads use the bundled sound /
+        // synth fallback and the console stays clean.
+        if (localStorage.getItem("erp_notif_sound_path")) {
+          localStorage.removeItem("erp_notif_sound_path");
+        }
+      }, { once: true });
     } catch (_) {}
   }
   // ขยาย gesture detection ให้ครอบคลุม pointer/touch ด้วย

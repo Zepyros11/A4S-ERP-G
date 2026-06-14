@@ -33,7 +33,7 @@ async function sbFetch(table, query = "", opts = {}) {
 async function fetchEvents() {
   // Exclude "วันหยุดบริษัท" category events
   const [events, cats] = await Promise.all([
-    sbFetch("events", "?select=event_id,event_name,event_code,max_attendees,event_category_id,price,event_date,start_time,end_time,poster_url,image_urls&order=event_date.desc"),
+    sbFetch("events", "?select=event_id,event_name,event_code,max_attendees,event_category_id,price,event_date,end_date,start_time,end_time,poster_url,image_urls&order=event_date.desc"),
     sbFetch("event_categories", "?select=event_category_id,category_name"),
   ]);
   const holidayIds = (cats || []).filter(c => c.category_name === "วันหยุดบริษัท").map(c => c.event_category_id);
@@ -336,6 +336,7 @@ async function deleteTagCategoryDB(id) {
 let allEvents = [];
 let currentEventId = null;
 let currentEvent = null;
+let selectedDay = null;   // วันที่กำลังดูในมุมมอง check-in หลายวัน (ISO) · null = event 1 วัน
 let allAttendees = [];
 let currentTiers = [];       // Tiers สำหรับ event ปัจจุบัน
 let currentTiersById = {};   // lookup tier_id → tier
@@ -406,10 +407,64 @@ function formatDMY(isoDate) {
 function _cleanPhone(p) {
   return String(p ?? "").replace(/[-\s]/g, "");
 }
-// Check-in timestamp = event date + current time (so retroactive check-ins record as event day)
-function buildCheckinTimestamp() {
+// ── MULTI-DAY CHECK-IN (per-day) ──────────────────────────
+// event ที่ end_date > event_date → เช็คอินแยกราย "วัน" (เก็บใน checkin_by_day JSONB)
+// event 1 วัน → ใช้ checked_in/check_in_at เดิมทุกอย่าง (ไม่แตะ)
+function isMultiDay(ev) {
+  return !!(ev && ev.end_date && ev.end_date > ev.event_date);
+}
+// คืน array ของวันที่ (YYYY-MM-DD) ตั้งแต่ event_date ถึง end_date (รวมปลาย)
+function eventDays(ev) {
+  if (!ev || !ev.event_date) return [];
+  const end = isMultiDay(ev) ? ev.end_date : ev.event_date;
+  const [sy, sm, sd] = ev.event_date.split("-").map(Number);
+  const [ey, em, ed] = end.split("-").map(Number);
+  const cur = new Date(sy, sm - 1, sd);
+  const endDate = new Date(ey, em - 1, ed);
+  const days = [];
+  for (let guard = 0; cur <= endDate && guard < 60; guard++) {
+    const mm = String(cur.getMonth() + 1).padStart(2, "0");
+    const dd = String(cur.getDate()).padStart(2, "0");
+    days.push(`${cur.getFullYear()}-${mm}-${dd}`);
+    cur.setDate(cur.getDate() + 1);
+  }
+  return days;
+}
+function todayLocalISO() {
+  const n = new Date();
+  return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, "0")}-${String(n.getDate()).padStart(2, "0")}`;
+}
+function dayCheckedIn(a, day) {
+  return !!(a && a.checkin_by_day && a.checkin_by_day[day]);
+}
+function dayCheckinAt(a, day) {
+  return (a && a.checkin_by_day) ? a.checkin_by_day[day] : null;
+}
+// "เช็คอินแล้วไหม" ตามมุมมองปัจจุบัน — หลายวันใช้วันที่เลือก · วันเดียวใช้ checked_in เดิม
+function viewCheckedIn(a) {
+  return (isMultiDay(currentEvent) && selectedDay) ? dayCheckedIn(a, selectedDay) : !!a.checked_in;
+}
+// rollup checkin_by_day → checked_in/check_in_at (ให้ QR/Export/LINE ที่อ่าน checked_in เดิมทำงานต่อได้)
+function rollupCheckin(map) {
+  const keys = Object.keys(map || {});
+  if (!keys.length) return { checked_in: false, check_in_at: null };
+  const times = keys.map((k) => map[k]).filter(Boolean).sort((a, b) => new Date(a) - new Date(b));
+  return { checked_in: true, check_in_at: times[0] || null };
+}
+// ฟิลด์ check-in ตอนสร้างผู้เข้าร่วมใหม่ (auto check-in) — หลายวันลงวันที่เลือกใน checkin_by_day ด้วย
+function newRowCheckinFields() {
+  if (!_autoCheckin) return { checked_in: false, check_in_at: null };
+  if (isMultiDay(currentEvent) && selectedDay) {
+    const ts = buildCheckinTimestamp(selectedDay);
+    return { checked_in: true, check_in_at: ts, checkin_by_day: { [selectedDay]: ts } };
+  }
+  return { checked_in: true, check_in_at: buildCheckinTimestamp() };
+}
+
+// Check-in timestamp = วัน (วันที่เลือก/event date) + เวลาปัจจุบัน (so retroactive check-ins record as event day)
+function buildCheckinTimestamp(dayISO) {
   const now = new Date();
-  const eventDate = currentEvent?.event_date;
+  const eventDate = dayISO || currentEvent?.event_date;
   if (!eventDate) return now.toISOString();
   const [y, m, d] = eventDate.split("-").map(Number);
   const dt = new Date(y, m - 1, d, now.getHours(), now.getMinutes(), now.getSeconds());
@@ -418,7 +473,10 @@ function buildCheckinTimestamp() {
 function buildEventHeroSubtitle(ev) {
   if (!ev) return "ลงทะเบียน · Check-in · ติดตามผู้เข้าร่วม";
   const parts = [];
-  if (ev.event_date) parts.push(`📅 ${formatDMY(ev.event_date)}`);
+  if (ev.event_date) {
+    const dateStr = isMultiDay(ev) ? `${formatDMY(ev.event_date)} — ${formatDMY(ev.end_date)}` : formatDMY(ev.event_date);
+    parts.push(`📅 ${dateStr}`);
+  }
   if (ev.start_time && ev.end_time) {
     parts.push(`🕐 ${String(ev.start_time).slice(0, 5)} — ${String(ev.end_time).slice(0, 5)} น.`);
   }
@@ -572,6 +630,14 @@ function _posterLightboxEsc(e) { if (e.key === "Escape") _closePosterLightbox();
 async function loadAttendees(eventId) {
   currentEventId = eventId;
   currentEvent = allEvents.find((e) => e.event_id === eventId);
+  // มุมมองหลายวัน: เริ่มที่ "วันนี้" ถ้าอยู่ในช่วงงาน · ไม่งั้นวันแรก
+  if (isMultiDay(currentEvent)) {
+    const days = eventDays(currentEvent);
+    const today = todayLocalISO();
+    selectedDay = days.includes(today) ? today : days[0];
+  } else {
+    selectedDay = null;
+  }
   const sub = document.getElementById("heroSubtitle");
   if (sub) sub.textContent = buildEventHeroSubtitle(currentEvent);
   _renderHeroPoster(currentEvent);
@@ -595,7 +661,7 @@ async function loadAttendees(eventId) {
     populateTagFilter();
     _loadAutoCheckinState();
     _applyPaymentVisibility();   // hide payment UI ถ้า event ไม่มีราคา
-    updateStats();
+    updateStats();   // updateStats() เรียก renderDayTabs() ให้แล้ว
     filterTable();
     // จับสายงาน (ไล่ MLM) แบบ async — เสร็จแล้ว re-render ให้สี/เรียงระดับ
     computeUplineMatches().then(() => {
@@ -756,7 +822,7 @@ function _paymentQualKey() {
 function updateStats() {
   const setTxt = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
   const total = allAttendees.length;
-  const checkedIn = allAttendees.filter((a) => a.checked_in).length;
+  const checkedIn = allAttendees.filter((a) => viewCheckedIn(a)).length;
   const paid = allAttendees.filter((a) => a.payment_status === "PAID").length;
   const revenue = allAttendees
     .filter((a) => a.payment_status === "PAID")
@@ -780,7 +846,7 @@ function updateStats() {
     if (k) {
       matchedUpline++;
       uplineGroups[k] = (uplineGroups[k] || 0) + 1;
-      if (a.checked_in) { matchedCheckin++; uplineCheckin[k] = (uplineCheckin[k] || 0) + 1; }
+      if (viewCheckedIn(a)) { matchedCheckin++; uplineCheckin[k] = (uplineCheckin[k] || 0) + 1; }
     }
   });
   // การ์ดสายงาน (รวม 3 → 1) — ลงทะเบียน → เข้างาน · % · จำนวนสาย (ids ที่มีจริงใน DOM เท่านั้น)
@@ -804,7 +870,56 @@ function updateStats() {
     setTxt("scUnpaid", unpaid);
     setTxt("scPaySub", revenue ? `รายรับ ฿${formatNum(revenue)}` : "—");
   }
+  // การ์ดสรุปข้ามวัน — multi-day เท่านั้น (กดเปิดรายงาน cross_day)
+  const cdCard = document.getElementById("scCrossDay");
+  if (cdCard) {
+    if (isMultiDay(currentEvent)) {
+      const days = eventDays(currentEvent);
+      const N = days.length;
+      const came = (a) => days.filter((d) => dayCheckedIn(a, d)).length;
+      const fullN = allAttendees.filter((a) => came(a) === N).length;
+      const partialN = allAttendees.filter((a) => { const c = came(a); return c > 0 && c < N; }).length;
+      const firstCnt = allAttendees.filter((a) => dayCheckedIn(a, days[0])).length;
+      const lastCnt = allAttendees.filter((a) => dayCheckedIn(a, days[N - 1])).length;
+      const ret = firstCnt ? Math.round((lastCnt / firstCnt) * 100) : 0;
+      setTxt("scCdFull", fullN);
+      setTxt("scCdPartial", partialN);
+      setTxt("scCdSub", `retention ${ret}% · มาบางวัน ${partialN} คนควรตาม`);
+      cdCard.style.display = "";
+    } else {
+      cdCard.style.display = "none";
+    }
+  }
+  renderDayTabs();   // มุมมองหลายวัน — refresh แท็บ + ตัวเลขทุกครั้งที่สถิติเปลี่ยน
 }
+
+// ── DAY TABS (มุมมอง check-in หลายวัน) ─────────────────────
+// event หลายวันเท่านั้นจึงแสดงแท็บ · กดเลือกวัน → คอลัมน์ check-in/ฟิลเตอร์/สถิติ อิงวันที่เลือก
+function renderDayTabs() {
+  const el = document.getElementById("dayTabs");
+  if (!el) return;
+  if (!isMultiDay(currentEvent)) { el.style.display = "none"; el.innerHTML = ""; return; }
+  const days = eventDays(currentEvent);
+  if (!selectedDay || !days.includes(selectedDay)) selectedDay = days[0];
+  el.style.display = "flex";
+  el.innerHTML =
+    `<span class="att-day-tabs-lbl">📅 เลือกวันเช็คอิน</span>` +
+    days.map((day, i) => {
+      const cnt = allAttendees.filter((a) => dayCheckedIn(a, day)).length;
+      const active = day === selectedDay;
+      return `<button type="button" class="att-day-tab${active ? " active" : ""}" onclick="window.selectDay('${day}')">
+        <span class="adt-day">วันที่ ${i + 1}</span>
+        <span class="adt-date">${formatDMY(day)}</span>
+        <span class="adt-count">✅ ${cnt}/${allAttendees.length}</span>
+      </button>`;
+    }).join("");
+}
+window.selectDay = function (day) {
+  if (selectedDay === day) return;
+  selectedDay = day;
+  updateStats();   // → renderDayTabs() (active tab + ตัวเลข) + การ์ดสถิติรายวัน
+  filterTable();
+};
 
 // ── STAT REPORT POPUP ─────────────────────────────────────
 // เปิดเมื่อกด stat card 5 อัน — แสดง summary + breakdown + รายชื่อตามมุมมอง
@@ -856,7 +971,7 @@ function _renderBreakdownRows(map, total) {
 }
 
 function _attendeeListRows(list, opts = {}) {
-  const { showCheckinTime = false, showPaidInfo = false, showAttend = false } = opts;
+  const { showCheckinTime = false, showPaidInfo = false, showAttend = false, showCrossDay = false } = opts;
   if (!list.length) {
     return `<div class="sr-empty">— ไม่มีรายการ —</div>`;
   }
@@ -865,12 +980,17 @@ function _attendeeListRows(list, opts = {}) {
     <div>ชื่อ / รหัส</div>
     <div class="sr-meta-hide-sm">🌿 สายงาน</div>
     <div>📱 เบอร์โทร</div>
-    <div>${showCheckinTime ? "⏱ เช็คอิน" : showPaidInfo ? "💰 ชำระ" : showAttend ? "✅ เข้างาน" : "สถานะ"}</div>
+    <div>${showCrossDay ? "📅 รายวัน" : showCheckinTime ? "⏱ เช็คอิน" : showPaidInfo ? "💰 ชำระ" : showAttend ? "✅ เข้างาน" : "สถานะ"}</div>
   </div>`;
   const body = list
     .map((a, i) => {
       const tier = _attTierName(a);
-      const right = showAttend
+      const right = showCrossDay
+        ? eventDays(currentEvent).map((d, di) => {
+            const ok = dayCheckedIn(a, d);
+            return `<span style="display:inline-block;padding:1px 6px;border-radius:5px;font-size:11px;font-weight:700;margin:1px;background:${ok ? "#d1fae5" : "#fef3c7"};color:${ok ? "#059669" : "#b45309"}">ว${di + 1} ${ok ? "✅" : "—"}</span>`;
+          }).join(" ")
+        : showAttend
         ? (a.checked_in
           ? `<span style="color:#15803d;font-weight:700">✅ มาแล้ว</span>`
           : `<span style="color:#b45309;font-weight:700">⏳ ยังไม่มา</span>`)
@@ -1189,6 +1309,73 @@ function _buildStatReport(type) {
     };
   }
 
+  if (type === "cross_day") {
+    const days = eventDays(currentEvent);
+    const N = days.length;
+    const cameCount = (a) => days.filter((d) => dayCheckedIn(a, d)).length;
+    const full = allAttendees.filter((a) => N > 0 && cameCount(a) === N);
+    const none = allAttendees.filter((a) => cameCount(a) === 0);
+    const partial = allAttendees.filter((a) => { const c = cameCount(a); return c > 0 && c < N; });
+
+    // เช็คอินแต่ละวัน
+    const perDayMap = {};
+    days.forEach((d, i) => { perDayMap[`วันที่ ${i + 1} (${formatDMY(d)})`] = allAttendees.filter((a) => dayCheckedIn(a, d)).length; });
+    const firstCnt = allAttendees.filter((a) => dayCheckedIn(a, days[0])).length;
+    const lastCnt = allAttendees.filter((a) => dayCheckedIn(a, days[N - 1])).length;
+    const retention = firstCnt ? Math.round((lastCnt / firstCnt) * 100) : 0;
+
+    // รูปแบบการมา (มาครบ / เฉพาะวันที่… / ไม่มาเลย)
+    const patternMap = {};
+    allAttendees.forEach((a) => {
+      const came = days.map((d, i) => (dayCheckedIn(a, d) ? i + 1 : null)).filter((x) => x !== null);
+      const label = came.length === 0 ? "ไม่มาเลย" : came.length === N ? "มาครบทุกวัน" : `มาเฉพาะวันที่ ${came.join(",")}`;
+      patternMap[label] = (patternMap[label] || 0) + 1;
+    });
+
+    // เทียบสายงานรายวัน — แต่ละสาย: ลงทะเบียน + จำนวนมาแต่ละวัน
+    const uplineReg = {}, uplineDay = {};
+    allAttendees.forEach((a) => {
+      const k = _attendeeUplineLabel(a) || "— ไม่มีสายงาน —";
+      uplineReg[k] = (uplineReg[k] || 0) + 1;
+      if (!uplineDay[k]) uplineDay[k] = days.map(() => 0);
+      days.forEach((d, i) => { if (dayCheckedIn(a, d)) uplineDay[k][i]++; });
+    });
+    const uplineKeys = Object.keys(uplineReg).sort((a, b) => uplineReg[b] - uplineReg[a]);
+    const uplineRowsHtml = uplineKeys.map((k) => {
+      const reg = uplineReg[k];
+      const last = uplineDay[k][N - 1];
+      const pct = reg ? Math.round((last / reg) * 100) : 0;
+      const dayCells = uplineDay[k].map((c, i) => `<span class="sr-pct" style="margin-left:6px">ว${i + 1}:<b style="color:#0f172a">${c}</b></span>`).join("");
+      return `<div class="sr-bd-row">
+        <div class="sr-bd-label">${escapeHtml(k)}</div>
+        <div class="sr-bd-bar"><span style="width:${pct}%"></span></div>
+        <div class="sr-bd-count"><span class="sr-num">ลง ${reg}</span>${dayCells}</div>
+      </div>`;
+    }).join("") || `<div class="sr-empty" style="padding:14px">— ไม่มีข้อมูล —</div>`;
+
+    const summary = [
+      { label: "มาครบทุกวัน", value: full.length, accent: true, sub: total ? `${Math.round((full.length / total) * 100)}%` : "0%" },
+      { label: "มาบางวัน (ควรตาม)", value: partial.length },
+      { label: "ไม่มาเลย", value: none.length },
+      { label: "อัตราคงอยู่ (retention)", value: `${retention}%`, sub: `วันล่าสุด ${lastCnt} ÷ วันแรก ${firstCnt}` },
+    ];
+    const followList = [...partial].sort((a, b) =>
+      (_attendeeUplineLabel(a) || "zzz").localeCompare(_attendeeUplineLabel(b) || "zzz", "th")
+      || (a.name || "").localeCompare(b.name || "", "th"));
+    return {
+      title: `📊 สรุปข้ามวัน (${N} วัน) — ${evName}`,
+      summary,
+      sections: [
+        { title: "📅 เช็คอินแต่ละวัน", count: N, html: `<div class="sr-breakdown">${_renderBreakdownRows(perDayMap, total)}</div>` },
+        { title: "🔀 รูปแบบการมา", count: Object.keys(patternMap).length, html: `<div class="sr-breakdown">${_renderBreakdownRows(patternMap, total)}</div>` },
+        { title: "🌿 เทียบสายงานรายวัน (แถบ = วันล่าสุด÷ลงทะเบียน)", count: uplineKeys.length, html: `<div class="sr-breakdown">${uplineRowsHtml}</div>` },
+      ],
+      list: followList,
+      listMode: "crossday",
+      listTitle: "📋 มาบางวัน — ควรติดตาม",
+    };
+  }
+
   return { title: "—", summary: [], sections: [], list: [], listMode: "default" };
 }
 
@@ -1222,9 +1409,10 @@ window.openStatReport = function (type) {
   const listOpts =
     report.listMode === "checkin" ? { showCheckinTime: true } :
     report.listMode === "paid" ? { showPaidInfo: true } :
-    report.listMode === "attendance" ? { showAttend: true } : {};
+    report.listMode === "attendance" ? { showAttend: true } :
+    report.listMode === "crossday" ? { showCrossDay: true } : {};
   const listHtml = report.hideList ? "" : `<div>
-    <div class="sr-section-title">📋 รายชื่อ <span class="sr-section-count">(${report.list.length} คน)</span></div>
+    <div class="sr-section-title">${report.listTitle || "📋 รายชื่อ"} <span class="sr-section-count">(${report.list.length} คน)</span></div>
     <div class="sr-list">${_attendeeListRows(report.list, listOpts)}</div>
   </div>`;
 
@@ -1293,7 +1481,7 @@ function _isSortable(key) {
 function _sortVal(a, key) {
   if (key === "num") return a.created_at || "";
   if (key === "name") return a.name || "";
-  if (key === "checkin") return a.checked_in ? 1 : 0;
+  if (key === "checkin") return viewCheckedIn(a) ? 1 : 0;
   if (key.startsWith("field:")) {
     const f = key.slice(6);
     if (f === "position") return a.position_level || "";
@@ -1353,7 +1541,7 @@ function filterTable() {
       (a.extra_fields?.referrer_code || "").toLowerCase().includes(search) ||
       (a.extra_fields?.referrer_name || "").toLowerCase().includes(search) ||
       (a.tags || []).some((t) => (t || "").toLowerCase().includes(search));
-    const matchCheckin = !checkin || String(a.checked_in) === checkin;
+    const matchCheckin = !checkin || String(viewCheckedIn(a)) === checkin;
     const matchPayment =
       !payment ||
       (payment === "EXPIRED"
@@ -1483,7 +1671,7 @@ function _editCellHtml(col, a, colCls) {
     const qkey = k.slice(5);
     return td(`<input type="checkbox" class="edit-chk" data-aid="${aid}" data-edit="qual:${escapeHtml(qkey)}" data-orig="${a.extra_fields?.[qkey] === true ? "true" : "false"}" onchange="window._markEditDirty(this)"${a.extra_fields?.[qkey] === true ? " checked" : ""}>`);
   }
-  if (k === "checkin") return td(`<input type="checkbox" class="edit-chk" data-aid="${aid}" data-edit="checkin" data-orig="${a.checked_in ? "true" : "false"}" onchange="window._markEditDirty(this)"${a.checked_in ? " checked" : ""}>`);
+  if (k === "checkin") return td(`<input type="checkbox" class="edit-chk" data-aid="${aid}" data-edit="checkin" data-orig="${viewCheckedIn(a) ? "true" : "false"}" onchange="window._markEditDirty(this)"${viewCheckedIn(a) ? " checked" : ""}>`);
   return null;   // check / num / actions → render ปกติ
 }
 
@@ -1591,7 +1779,17 @@ async function _saveEditMode() {
       if ("phone" in p && (p.phone || null) !== (a.phone || null)) patch.phone = p.phone || null;
       if ("position_level" in p && (p.position_level || null) !== (a.position_level || null)) patch.position_level = p.position_level || null;
       if ("_upline" in p && (p._upline || "") !== (a.upline_name_text || "")) { patch.upline_id = null; patch.upline_name_text = p._upline || null; }
-      if ("_checkin" in p && p._checkin !== !!a.checked_in) { patch.checked_in = p._checkin; patch.check_in_at = p._checkin ? buildCheckinTimestamp() : null; }
+      if ("_checkin" in p && p._checkin !== !!viewCheckedIn(a)) {
+        if (isMultiDay(currentEvent) && selectedDay) {
+          const map = { ...(a.checkin_by_day || {}) };
+          if (p._checkin) map[selectedDay] = buildCheckinTimestamp(selectedDay);
+          else delete map[selectedDay];
+          const roll = rollupCheckin(map);
+          patch.checkin_by_day = map; patch.checked_in = roll.checked_in; patch.check_in_at = roll.check_in_at;
+        } else {
+          patch.checked_in = p._checkin; patch.check_in_at = p._checkin ? buildCheckinTimestamp() : null;
+        }
+      }
       // extra_fields (custom text/date/number/stamp + quals)
       const merged = { ...(a.extra_fields || {}) };
       let extraChanged = false;
@@ -1675,12 +1873,16 @@ function _renderSavedCellSpread(col, a, seq, payStatus, tierName, isSelected) {
       ${tierName ? `<div class="tier-chip" title="ราคาที่ lock ตอนลงทะเบียน">🎟️ ${escapeHtml(tierName)}</div>` : ""}
       ${a.payment_method ? `<div class="tier-chip" style="background:#dbeafe;color:#1e40af" title="วิธีชำระ">${paymentMethodIcon(a.payment_method)}</div>` : ""}
       ${renderDeadlineChip(a)}</td>`;
-    case "checkin":
-      return `${tdOpen}<button class="btn-checkin ${a.checked_in ? "undo-checkin" : "do-checkin"}"
-        onclick="window.toggleCheckin(${a.attendee_id}, ${a.checked_in})">
-        ${a.checked_in ? "✅" : "⬜"}
+    case "checkin": {
+      // หลายวัน → อ่าน/เขียนวันที่เลือก · วันเดียว → checked_in เดิม
+      const ci = (isMultiDay(currentEvent) && selectedDay) ? dayCheckedIn(a, selectedDay) : a.checked_in;
+      const ciAt = (isMultiDay(currentEvent) && selectedDay) ? dayCheckinAt(a, selectedDay) : a.check_in_at;
+      return `${tdOpen}<button class="btn-checkin ${ci ? "undo-checkin" : "do-checkin"}"
+        onclick="window.toggleCheckin(${a.attendee_id}, ${!!ci})">
+        ${ci ? "✅" : "⬜"}
       </button>
-      ${a.check_in_at ? `<div style="font-size:10px;color:var(--text3);margin-top:2px">${formatDateTime(a.check_in_at)}</div>` : ""}</td>`;
+      ${ciAt ? `<div style="font-size:10px;color:var(--text3);margin-top:2px">${formatDateTime(ciAt)}</div>` : ""}</td>`;
+    }
     case "actions":
       return `${tdOpen}<div style="display:inline-flex;gap:4px;align-items:center">
         <button class="btn-qr" onclick="window.openQrModal(${a.attendee_id})" title="ดู QR">🎫</button>
@@ -1871,17 +2073,29 @@ function escapeJS(s) {
 window.toggleCheckin = async function (id, isCheckedIn) {
   showLoading(true);
   try {
-    const ts = !isCheckedIn ? buildCheckinTimestamp() : null;
-    await updateAttendee(id, {
-      checked_in: !isCheckedIn,
-      check_in_at: ts,
-    });
     const a = allAttendees.find((x) => x.attendee_id === id);
-    if (a) {
-      a.checked_in = !isCheckedIn;
-      a.check_in_at = ts;
+    if (isMultiDay(currentEvent) && selectedDay) {
+      // หลายวัน: เขียน/ลบเฉพาะวันที่เลือก ใน checkin_by_day + sync rollup checked_in/check_in_at
+      const map = { ...(a?.checkin_by_day || {}) };
+      if (!isCheckedIn) map[selectedDay] = buildCheckinTimestamp(selectedDay);
+      else delete map[selectedDay];
+      const roll = rollupCheckin(map);
+      await updateAttendee(id, {
+        checkin_by_day: map,
+        checked_in: roll.checked_in,
+        check_in_at: roll.check_in_at,
+      });
+      if (a) {
+        a.checkin_by_day = map;
+        a.checked_in = roll.checked_in;
+        a.check_in_at = roll.check_in_at;
+      }
+    } else {
+      const ts = !isCheckedIn ? buildCheckinTimestamp() : null;
+      await updateAttendee(id, { checked_in: !isCheckedIn, check_in_at: ts });
+      if (a) { a.checked_in = !isCheckedIn; a.check_in_at = ts; }
     }
-    updateStats();
+    updateStats();   // → renderDayTabs() refresh ตัวเลขในแท็บ
     filterTable();
     showToast(
       !isCheckedIn ? "Check-in สำเร็จ ✅" : "ยกเลิก Check-in แล้ว",
@@ -2075,8 +2289,7 @@ window.saveNewRow = async function (id) {
       person_role: r.memberCode ? (r.personRole || "primary") : "guest",
       tier_id: activeTier?.tier_id || null,
       payment_deadline: needsPayment ? computeDeadlineISO(grace) : null,
-      checked_in: _autoCheckin ? true : false,
-      check_in_at: _autoCheckin ? buildCheckinTimestamp() : null,
+      ...newRowCheckinFields(),
     };
     const stampFields = _buildStampExtraFields(payload.member_code, payload.person_role);
     if (Object.keys(stampFields).length) payload.extra_fields = stampFields;
@@ -2401,6 +2614,12 @@ async function _buildExportData() {
   order.forEach(k => cols.push({ kind: "std", key: k, label: stdLabel(k) }));
   quals.forEach(q => cols.push({ kind: "qual", key: q.key, label: q.label || q.key }));
   customFields.forEach(c => cols.push({ kind: "custom", key: c.key, label: c.label || c.key }));
+  // event หลายวัน → คอลัมน์เช็คอินรายวัน + คอลัมน์สรุปข้ามวัน (เพิ่มต่อท้าย · event 1 วันไม่มี)
+  const xDays = isMultiDay(ev) ? eventDays(ev) : [];
+  if (xDays.length) {
+    xDays.forEach((day, i) => cols.push({ kind: "checkinday", day, label: `เช็คอิน วันที่ ${i + 1} (${formatDMY(day)})` }));
+    cols.push({ kind: "checkinsummary", label: "สรุปเข้าร่วม" });
+  }
 
   const weekdays = ["อาทิตย์","จันทร์","อังคาร","พุธ","พฤหัสบดี","ศุกร์","เสาร์"];
   const months   = ["มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน","กรกฎาคม","สิงหาคม","กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม"];
@@ -2441,6 +2660,16 @@ async function _buildExportData() {
         const cv = a.extra_fields?.[c.key];
         if (cf?.ftype === "date" && cv) return formatDMY(String(cv).slice(0, 10));   // DD/MM/YYYY
         return cv || "";
+      }
+      case "checkinday": {
+        const at = a.checkin_by_day && a.checkin_by_day[c.day];
+        return at ? formatDateTime(at) : "";
+      }
+      case "checkinsummary": {
+        const came = xDays.filter((d) => a.checkin_by_day && a.checkin_by_day[d]);
+        if (!came.length) return "ไม่มา";
+        if (came.length === xDays.length) return "ครบทุกวัน";
+        return "เฉพาะวันที่ " + came.map((d) => xDays.indexOf(d) + 1).join(",");
       }
       default: return "";
     }
@@ -2497,6 +2726,8 @@ window.exportAttendeesXLSX = async function () {
       case "name":   return { wch: 28 };
       case "qual":   return { wch: 24 };
       case "custom": return { wch: 18 };
+      case "checkinday":     return { wch: 20 };
+      case "checkinsummary": return { wch: 16 };
       case "std":
         if (c.key === "phone") return { wch: 14 };
         if (c.key === "upline") return { wch: 14 };
@@ -3218,8 +3449,7 @@ async function _quickAddMembers(members, paymentStatus, sourceRowId) {
         person_role: mb.memberCode ? (mb.personRole || "primary") : "guest",
         tier_id: activeTier?.tier_id || null,
         payment_deadline: needsPayment ? computeDeadlineISO(grace) : null,
-        checked_in: _autoCheckin ? true : false,
-        check_in_at: _autoCheckin ? buildCheckinTimestamp() : null,
+        ...newRowCheckinFields(),
       };
       const stampFields = _buildStampExtraFields(payload.member_code, payload.person_role);
       if (Object.keys(stampFields).length) payload.extra_fields = stampFields;
@@ -6422,8 +6652,7 @@ window.saveAttendeeForm = async function () {
         person_role:     _attFormState.memberCode ? (_attFormState.personRole || "primary") : "guest",
         tier_id:         activeTier?.tier_id || null,
         payment_deadline: needsPayment ? computeDeadlineISO(grace) : null,
-        checked_in:      _autoCheckin ? true : false,
-        check_in_at:     _autoCheckin ? buildCheckinTimestamp() : null,
+        ...newRowCheckinFields(),
       };
       const blocked = await _enforceRegistration(fullPayload);
       if (blocked) return;
