@@ -198,6 +198,43 @@
   .tg-btn-ghost { background:#fff; color:#64748b; border:1.5px solid #cbd5e1; }
   .tg-btn-ghost:hover { background:#f1f5f9; color:#334155; }
   @media(max-width:480px){ .tg-nav{ width:34px; height:34px; font-size:21px; } }
+
+  /* ── mobile responsive (phones) ── */
+  @media(max-width:600px){
+    .pp-main { padding:14px 12px 48px; }
+    /* topbar: compact, help button = icon only */
+    .pp-topbar { padding:10px 12px; gap:8px; }
+    .pp-brand-sub { display:none; }
+    #tpBrandMain { font-size:14px; }
+    #tpHelpLabel { display:none; }
+    .tp-help-btn { padding:5px 10px; margin-right:4px; }
+    .pp-lang-btn { padding:4px 9px; font-size:11.5px; }
+
+    .tp-layout { gap:12px; }
+
+    /* person detail */
+    .tp-person-head { padding:13px 15px; }
+    .tp-person-name { font-size:16px; }
+    .tp-person-body { padding:14px 15px; }
+    .tp-meta { gap:6px 14px; font-size:12.5px; }
+    .tp-leg { font-size:12px; }
+    .tp-pdf { height:62vh; }                 /* shorter PDF preview */
+    .tp-doc-btn { width:100%; justify-content:center; }
+
+    /* candidate rows: name on its own line, code + button below */
+    .tp-cand { flex-wrap:wrap; gap:8px 10px; }
+    .tp-cand-name { flex:1 1 100%; }
+
+    /* guide popup */
+    .tg-head { padding:11px 12px 11px 14px; gap:8px; }
+    .tg-title { font-size:14px; }
+    .tg-head .pp-lang-btn { padding:3px 8px; font-size:11px; }
+    .tg-img { max-height:50vh; }
+    .tg-cap { flex-direction:column; gap:5px; padding:13px 16px; font-size:13.5px; min-height:0; }
+    .tg-cap-item + .tg-cap-item::before { display:none; }   /* no dot when stacked */
+    .tg-foot { padding:10px 14px 14px; }
+    .tg-btn { padding:10px 18px; }
+  }
 </style>
 </head>
 <body>
@@ -214,7 +251,7 @@
     </div>
   </div>
   <div class="pp-spacer"></div>
-  <button class="tp-help-btn" id="tpHelpBtn">❓ How to use</button>
+  <button class="tp-help-btn" id="tpHelpBtn">❓ <span id="tpHelpLabel">How to use</span></button>
   <div class="pp-lang" id="tpLang">
     <button class="pp-lang-btn" data-lang="th">ไทย</button>
     <button class="pp-lang-btn" data-lang="en">EN</button>
@@ -319,7 +356,7 @@
       ticket_word:'ตั๋ว', open_pdf:'📄 เปิด / ดาวน์โหลด PDF', not_uploaded:'⏳ ตั๋วยังไม่ถูกอัปโหลด',
       dir_out:'ขาไป ✈', dir_ret:'ขากลับ ✈',
       results_hint:'ผลการค้นหาจะแสดงที่นี่',
-      help_btn:'❓ วิธีใช้งาน', guide_title:'วิธีค้นหาตั๋วของคุณ',
+      help_btn:'วิธีใช้งาน', guide_title:'วิธีค้นหาตั๋วของคุณ',
       g_cap_1:'1. เลือกทริปของคุณ แล้วดูที่ช่องค้นหา',
       g_cap_2:'2. กรอกรหัสสมาชิก (หรือชื่อ-นามสกุล)\n3. กดปุ่ม “ค้นหา”',
       g_cap_3:'2. พิมพ์ชื่อ\n3. กดปุ่ม “ค้นหา”\n4. กดปุ่ม “ดูเอกสาร” ที่ชื่อของคุณ',
@@ -346,7 +383,7 @@
       ticket_word:'Ticket', open_pdf:'📄 Open / Download PDF', not_uploaded:'⏳ Ticket file not uploaded yet',
       dir_out:'Outbound ✈', dir_ret:'Return ✈',
       results_hint:'Your search results will appear here',
-      help_btn:'❓ How to use', guide_title:'How to find your ticket',
+      help_btn:'How to use', guide_title:'How to find your ticket',
       g_cap_1:'1. Select your trip, then look at the search box',
       g_cap_2:'2. Enter your member code (or full name)\n3. Click “Search”',
       g_cap_3:'2. Type your name\n3. Click “Search”\n4. Click “View documents” on your name',
@@ -373,7 +410,7 @@
       ticket_word:'Billet', open_pdf:'📄 Ouvrir / Télécharger le PDF', not_uploaded:'⏳ Billet pas encore téléchargé',
       dir_out:'Aller ✈', dir_ret:'Retour ✈',
       results_hint:'Vos résultats de recherche s\'afficheront ici',
-      help_btn:'❓ Mode d\'emploi', guide_title:'Comment trouver votre billet',
+      help_btn:'Mode d\'emploi', guide_title:'Comment trouver votre billet',
       g_cap_1:'1. Sélectionnez votre voyage, puis repérez la barre de recherche',
       g_cap_2:'2. Saisissez votre code membre (ou nom complet)\n3. Cliquez sur « Rechercher »',
       g_cap_3:'2. Saisissez votre nom\n3. Cliquez sur « Rechercher »\n4. Cliquez sur « Voir les documents » sur votre nom',
@@ -438,7 +475,7 @@
     $('q').placeholder           = t('search_ph');
     $('btnSearch').textContent   = t('btn_search');
     $('tpHint').innerHTML        = t('hint');
-    $('tpHelpBtn').textContent   = t('help_btn');
+    $('tpHelpLabel').textContent = t('help_btn');
     // active lang button (topbar + guide popup)
     document.querySelectorAll('#tpLang .pp-lang-btn, #tgLang .pp-lang-btn').forEach(b=>{
       b.classList.toggle('active', b.dataset.lang === state.lang);
