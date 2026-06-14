@@ -519,10 +519,13 @@
 
     if(people.length){ showLoading(false); await renderDetail(people); return; }
 
-    // 2) name search → list candidates (no sensitive data)
+    // 2) name search → ทุกคำต้องอยู่ในชื่อ (ไม่สนลำดับ) → list candidates (no sensitive data)
+    //    กันกรณีกรอกชื่อ-สกุลสลับลำดับ เช่น "KOUMAN PATRICE KOBENAN" หาเจอ "KOBENAN KOUMAN PATRICE"
+    const tokens = q.split(/\s+/).filter(Boolean);
+    const andFilter = tokens.map(tok => `name.ilike.*${encodeURIComponent(tok)}*`).join(',');
     let cands = [];
     try {
-      cands = await sbGet(`tour_seat_check?trip_id=eq.${state.tripId}&name=ilike.*${encodeURIComponent(q)}*&select=code,name&order=name.asc&limit=40`);
+      cands = await sbGet(`tour_seat_check?trip_id=eq.${state.tripId}&and=(${andFilter})&select=code,name&order=name.asc&limit=40`);
     } catch(e){ showLoading(false); toast(t('search_failed')+e.message,'error'); return; }
     showLoading(false);
 
