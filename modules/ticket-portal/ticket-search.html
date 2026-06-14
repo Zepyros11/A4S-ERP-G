@@ -172,9 +172,14 @@
   .tg-nav:disabled { opacity:.3; cursor:not-allowed; }
   .tg-prev { left:10px; } .tg-next { right:10px; }
   .tg-cap {
-    padding:16px 20px; font-size:14.5px; line-height:1.6; color:#334155; text-align:center;
-    background:#fff; border-top:1px solid #f1f5f9; min-height:64px; white-space:pre-line;
-    display:flex; align-items:center; justify-content:center;
+    padding:16px 20px; font-size:14.5px; line-height:1.6; color:#334155;
+    background:#fff; border-top:1px solid #f1f5f9; min-height:64px;
+    display:flex; flex-wrap:wrap; align-items:center; justify-content:center; gap:6px 26px;
+  }
+  .tg-cap-item { white-space:normal; }
+  .tg-cap-item + .tg-cap-item { position:relative; }
+  .tg-cap-item + .tg-cap-item::before {
+    content:'•'; color:#cbd5e1; position:absolute; left:-15px; top:0;
   }
   .tg-foot {
     background:#fff; padding:10px 16px 14px; border-top:1px solid #e2e8f0;
@@ -460,7 +465,8 @@
     const i = state.guide.idx, item = GUIDE[i];
     $('tgTitle').textContent   = t('guide_title');
     $('tgImg').src             = item.img;
-    $('tgCap').textContent     = t(item.cap);
+    // หลาย step (คั่นด้วย \n) → แสดงแนวนอนเรียงข้างกัน (จอแคบ wrap เอง)
+    $('tgCap').innerHTML       = t(item.cap).split('\n').map(s=>`<span class="tg-cap-item">${esc(s)}</span>`).join('');
     $('tgCounter').textContent = `${i+1} / ${GUIDE.length}`;
     $('tgPrev').disabled = i === 0;
     $('tgNext').disabled = i === GUIDE.length - 1;
