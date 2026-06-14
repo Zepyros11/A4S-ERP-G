@@ -349,10 +349,16 @@
       opt.textContent = (t2.trip_name||('Trip #'+t2.trip_id)) + range;
       sel.appendChild(opt);
     });
+    // default: ?trip_id= ถ้ามี · ไม่งั้นเลือกทริป ACTIVE ล่าสุด (fallback = ทริปแรกในลิสต์)
     const pre = new URLSearchParams(location.search).get('trip_id');
+    let chosen = null;
     if(pre && state.trips.some(t2=>String(t2.trip_id)===String(pre))){
-      sel.value = pre; state.tripId = pre;
+      chosen = String(pre);
+    } else if(state.trips.length){
+      const active = state.trips.find(t2=>String(t2.status||'').toUpperCase()==='ACTIVE');
+      chosen = String((active || state.trips[0]).trip_id);
     }
+    if(chosen){ sel.value = chosen; state.tripId = chosen; }
   }
 
   /* ── load flights + tickets + occupants for a trip (cached) ── */
