@@ -185,6 +185,13 @@
   .tg-dot:hover { transform:scale(1.3); }
   .tg-dot.active { background:#5fa825; width:22px; border-radius:4px; }
   .tg-counter { font-size:12px; color:#64748b; font-family:'IBM Plex Mono',monospace; }
+  .tg-actions { display:flex; gap:10px; margin-top:4px; }
+  .tg-btn { border:none; border-radius:10px; padding:10px 22px; font-family:inherit;
+            font-size:13.5px; font-weight:700; cursor:pointer; transition:.15s; }
+  .tg-btn-primary { background:#5fa825; color:#fff; }
+  .tg-btn-primary:hover { background:#4d8a1e; transform:translateY(-1px); box-shadow:0 5px 14px rgba(85,139,47,.3); }
+  .tg-btn-ghost { background:#fff; color:#64748b; border:1.5px solid #cbd5e1; }
+  .tg-btn-ghost:hover { background:#f1f5f9; color:#334155; }
   @media(max-width:480px){ .tg-nav{ width:34px; height:34px; font-size:21px; } }
 </style>
 </head>
@@ -266,6 +273,10 @@
     <div class="tg-foot">
       <div class="tg-dots" id="tgDots"></div>
       <div class="tg-counter" id="tgCounter">1 / 5</div>
+      <div class="tg-actions" id="tgActions" style="display:none">
+        <button class="tg-btn tg-btn-ghost" id="tgBtnDismiss">Don't show again</button>
+        <button class="tg-btn tg-btn-primary" id="tgBtnClose">Close</button>
+      </div>
     </div>
   </div>
 </div>
@@ -281,6 +292,7 @@
   const SB_URL = CFG.sb_url || '';
   const SB_KEY = CFG.sb_key || '';
   const LANG_KEY = 'tp_lang';
+  const GUIDE_KEY = 'tp_guide_dismissed';
 
   /* ── i18n dictionary (TH / EN / FR) ── */
   const I18N = {
@@ -308,6 +320,7 @@
       g_cap_3:'3. ถ้าค้นด้วยชื่อ จะเจอรายชื่อ — กด “ดูเอกสาร” ที่ชื่อของคุณ',
       g_cap_4:'4. ระบบจะแสดงรูปพาสปอร์ตและตั๋วเครื่องบินของคุณ',
       g_cap_5:'5. กด “เปิด / ดาวน์โหลด PDF” เพื่อดูหรือบันทึกตั๋วของคุณ',
+      g_close:'ปิด', g_dismiss:'ไม่แสดงอีก',
       cfg_err_title:'ตั้งค่าผิดพลาด', cfg_err_sub:'PORTAL_CONFIG ไม่พร้อม — ตรวจ portal-config.js',
     },
     en: {
@@ -334,6 +347,7 @@
       g_cap_3:'3. If you searched by name, pick your name and click “View documents”',
       g_cap_4:'4. Your passport photo and flight ticket will be shown',
       g_cap_5:'5. Click “Open / Download PDF” to view or save your ticket',
+      g_close:'Close', g_dismiss:'Don\'t show again',
       cfg_err_title:'Config error', cfg_err_sub:'PORTAL_CONFIG not ready — check portal-config.js',
     },
     fr: {
@@ -360,6 +374,7 @@
       g_cap_3:'3. Si vous avez cherché par nom, choisissez votre nom et cliquez sur « Voir les documents »',
       g_cap_4:'4. Votre passeport et votre billet d\'avion s\'affichent',
       g_cap_5:'5. Cliquez sur « Ouvrir / Télécharger le PDF » pour voir ou enregistrer votre billet',
+      g_close:'Fermer', g_dismiss:'Ne plus afficher',
       cfg_err_title:'Erreur de configuration', cfg_err_sub:'PORTAL_CONFIG indisponible — vérifiez portal-config.js',
     },
   };
@@ -449,6 +464,11 @@
     $('tgCounter').textContent = `${i+1} / ${GUIDE.length}`;
     $('tgPrev').disabled = i === 0;
     $('tgNext').disabled = i === GUIDE.length - 1;
+    // last slide → show "ไม่แสดงอีก" + "ปิด"
+    const isLast = i === GUIDE.length - 1;
+    $('tgActions').style.display  = isLast ? 'flex' : 'none';
+    $('tgBtnClose').textContent   = t('g_close');
+    $('tgBtnDismiss').textContent = t('g_dismiss');
     $('tgDots').innerHTML = GUIDE.map((_,k)=>`<span class="tg-dot ${k===i?'active':''}" data-i="${k}"></span>`).join('');
     $('tgDots').querySelectorAll('.tg-dot').forEach(d=>{
       d.addEventListener('click', ()=>{ state.guide.idx = +d.dataset.i; renderGuide(); });
@@ -462,6 +482,8 @@
     requestAnimationFrame(()=> $('tgOverlay').classList.add('open'));
   }
   function closeGuide(){ $('tgOverlay').classList.remove('open'); state.guide = null; }
+  function guideDismissed(){ try{ return localStorage.getItem(GUIDE_KEY)==='1'; }catch{ return false; } }
+  function setGuideDismissed(){ try{ localStorage.setItem(GUIDE_KEY,'1'); }catch{} }
   function guideNav(d){
     if(!state.guide) return;
     const n = state.guide.idx + d;
@@ -720,6 +742,8 @@
   $('tgPrev').addEventListener('click', ()=> guideNav(-1));
   $('tgNext').addEventListener('click', ()=> guideNav(1));
   $('tgOverlay').addEventListener('click', e=>{ if(e.target.id==='tgOverlay') closeGuide(); });
+  $('tgBtnClose').addEventListener('click', closeGuide);
+  $('tgBtnDismiss').addEventListener('click', ()=>{ setGuideDismissed(); closeGuide(); });
   document.addEventListener('keydown', e=>{
     if(!state.guide) return;
     if(e.key==='Escape') closeGuide();
@@ -735,6 +759,7 @@
     loadLogo();
     loadTrips();
     showResultsPlaceholder();
+    if(!guideDismissed()) openGuide();   // เปิดคู่มืออัตโนมัติครั้งแรก (จนกว่าจะกด "ไม่แสดงอีก")
   }
 })();
 </script>
