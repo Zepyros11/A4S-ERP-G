@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Find Your Flight Ticket — A4S</title>
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../ibd-portal/portal-shared.css">
+<style>
+  /* ── Ticket portal specific ── */
+  .tp-search-row { display:flex; gap:8px; flex-wrap:wrap; }
+  .tp-search-row .pp-input { flex:1; min-width:180px; }
+  .tp-search-row .pp-btn  { width:auto; padding:11px 22px; flex-shrink:0; }
+  @media(max-width:480px){ .tp-search-row .pp-btn{ width:100%; } }
+
+  .tp-hint { font-size:12px; color:#64748b; margin-top:8px; line-height:1.6; }
+  .tp-hint b { color:#475569; }
+
+  /* candidate list (name search) */
+  .tp-cand-head { font-size:13px; font-weight:700; color:#334155; margin:4px 0 10px; }
+  .tp-cand-list { display:flex; flex-direction:column; gap:8px; }
+  .tp-cand {
+    display:flex; align-items:center; gap:12px;
+    background:#fff; border:1.5px solid #e2e8f0; border-radius:10px;
+    padding:11px 14px;
+  }
+  .tp-cand-name { flex:1; min-width:0; font-weight:600; color:#0f172a; font-size:14px;
+                  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .tp-cand-code { font-family:'IBM Plex Mono',monospace; font-size:12.5px; color:#64748b;
+                  background:#f1f5f9; padding:3px 9px; border-radius:8px; }
+  .tp-cand-btn {
+    border:none; background:#5fa825; color:#fff; border-radius:9px;
+    padding:8px 14px; font-family:inherit; font-size:12.5px; font-weight:700; cursor:pointer;
+    flex-shrink:0; transition:.15s;
+  }
+  .tp-cand-btn:hover { background:#558b2f; }
+
+  /* person detail */
+  .tp-person { background:#fff; border:1.5px solid #e2e8f0; border-radius:16px; overflow:hidden;
+               box-shadow:0 6px 24px rgba(0,0,0,.06); margin-bottom:16px; }
+  .tp-person-head {
+    background:linear-gradient(135deg,#5fa825,#4d8a1e); color:#fff;
+    padding:16px 20px; display:flex; align-items:center; gap:14px; flex-wrap:wrap;
+    border-bottom:3px solid #e53935;
+  }
+  .tp-person-name { font-size:18px; font-weight:700; flex:1; min-width:140px; line-height:1.25; }
+  .tp-person-code {
+    font-family:'IBM Plex Mono',monospace; font-size:14px; font-weight:600;
+    background:rgba(255,255,255,.18); padding:5px 12px; border-radius:20px;
+  }
+  .tp-person-body { padding:18px 20px; }
+
+  .tp-meta { display:flex; flex-wrap:wrap; gap:8px 18px; margin-bottom:16px; }
+  .tp-meta-item { font-size:13px; color:#475569; }
+  .tp-meta-item b { color:#0f172a; font-weight:600; }
+
+  .tp-sec-title { font-size:13px; font-weight:700; color:#33691e; text-transform:uppercase;
+                  letter-spacing:.4px; margin:18px 0 10px; display:flex; align-items:center; gap:7px; }
+  .tp-sec-title:first-child { margin-top:0; }
+
+  /* passport */
+  .tp-imgs { display:flex; gap:12px; flex-wrap:wrap; }
+  .tp-img-box { width:200px; max-width:100%; }
+  .tp-img-box img {
+    width:100%; border:1px solid #e2e8f0; border-radius:12px; background:#f8fafc;
+    cursor:zoom-in; transition:transform .15s, border-color .15s; display:block;
+  }
+  .tp-img-box img:hover { transform:scale(1.02); border-color:#aed581; }
+  .tp-img-cap { text-align:center; font-size:11.5px; color:#94a3b8; font-weight:600;
+                margin-top:5px; text-transform:uppercase; letter-spacing:.3px; }
+  .tp-none { font-size:13px; color:#94a3b8; font-style:italic; padding:6px 0; }
+
+  /* ticket */
+  .tp-ticket { border:1.5px solid #e2e8f0; border-radius:12px; padding:14px 16px; margin-bottom:12px;
+               background:#fafdf7; }
+  .tp-ticket-top { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:10px; }
+  .tp-ticket-no { font-weight:700; color:#0f172a; font-size:14px; }
+  .tp-ticket-label { font-size:12px; color:#64748b; background:#eef2f6; padding:3px 9px; border-radius:8px; }
+  .tp-legs { display:flex; flex-direction:column; gap:6px; margin-bottom:12px; }
+  .tp-leg { font-size:12.5px; color:#334155; line-height:1.5; }
+  .tp-leg .dir { display:inline-block; min-width:78px; font-weight:700; color:#558b2f; }
+  .tp-leg .seg { font-family:'IBM Plex Mono',monospace; }
+  .tp-leg .arrow { color:#94a3b8; margin:0 5px; }
+
+  .tp-doc-btn {
+    display:inline-flex; align-items:center; gap:8px; text-decoration:none;
+    background:#e53935; color:#fff; border-radius:10px; padding:11px 18px;
+    font-size:14px; font-weight:700; transition:.15s; margin-bottom:10px;
+  }
+  .tp-doc-btn:hover { background:#c62828; transform:translateY(-1px); box-shadow:0 5px 16px rgba(229,57,53,.3); }
+  .tp-pdf { width:100%; height:480px; border:1px solid #e2e8f0; border-radius:10px; background:#f8fafc; }
+  .tp-doc-img { max-width:320px; width:100%; border:1px solid #e2e8f0; border-radius:10px;
+                cursor:zoom-in; display:block; }
+  .tp-doc-none { font-size:13px; color:#b91c1c; background:#fef2f2; border:1px solid #fecaca;
+                 border-radius:10px; padding:10px 14px; }
+
+  /* empty / error states */
+  .tp-empty { text-align:center; padding:34px 20px; color:#64748b; }
+  .tp-empty-icon { font-size:42px; margin-bottom:10px; }
+  .tp-empty-title { font-size:15px; font-weight:700; color:#334155; margin-bottom:4px; }
+  .tp-empty-sub { font-size:13px; line-height:1.6; }
+
+  /* 3-language toggle (reuses .pp-lang / .pp-lang-btn from portal-shared.css) */
+  .pp-lang-btn { padding:4px 11px; }
+
+  /* 2-column layout — left search (30%) / right results (70%) */
+  .pp-main { max-width:none; width:100%; padding:24px 24px 60px; }
+  .tp-layout { display:grid; grid-template-columns:3fr 7fr; gap:16px; align-items:start; }
+  .tp-side { position:sticky; top:72px; }
+  .tp-results { min-width:0; }
+  @media(max-width:860px){
+    .tp-layout { grid-template-columns:1fr; }
+    .tp-side { position:static; }
+  }
+
+  /* idle placeholder in the results column */
+  .tp-placeholder {
+    border:2px dashed #d7e3c9; border-radius:16px; background:#fafdf7;
+    text-align:center; padding:56px 24px; color:#8aa17a;
+  }
+  .tp-placeholder .tp-empty-icon { font-size:46px; margin-bottom:12px; opacity:.7; }
+  .tp-placeholder-txt { font-size:14px; font-weight:600; line-height:1.6; }
+</style>
+</head>
+<body>
+
+<!-- Topbar -->
+<div class="pp-topbar">
+  <div class="pp-brand">
+    <img class="pp-brand-logo js-company-logo" id="tpLogo" alt="A4S"
+         src="../../assets/logo/logo-a4s.png"
+         onerror="this.onerror=null;this.src='../../assets/logo/logo-a4s.png'">
+    <div class="pp-brand-text">
+      <div id="tpBrandMain">A4S — Flight Tickets</div>
+      <div class="pp-brand-sub" id="tpBrandSub">Find your flight ticket</div>
+    </div>
+  </div>
+  <div class="pp-spacer"></div>
+  <div class="pp-lang" id="tpLang">
+    <button class="pp-lang-btn" data-lang="th">ไทย</button>
+    <button class="pp-lang-btn" data-lang="en">EN</button>
+    <button class="pp-lang-btn" data-lang="fr">FR</button>
+  </div>
+</div>
+
+<div class="pp-main">
+ <div class="tp-layout">
+
+  <!-- Left: Search card (sticky) -->
+  <div class="tp-side">
+   <div class="pp-card">
+    <div class="pp-card-head" style="background:#5fa825;color:#fff;border-bottom:3px solid #e53935;">
+      <div class="pp-card-title" style="color:#fff;" id="tpCardTitle">✈️ Find Your Flight Ticket</div>
+      <div class="pp-card-sub" style="color:rgba(255,255,255,.92);" id="tpCardSub">Select a trip, then enter your code or name</div>
+    </div>
+    <div class="pp-card-body">
+      <div class="pp-field">
+        <label class="pp-label" id="tpLblTrip">Trip <span class="req">*</span></label>
+        <select id="tripSelect" class="pp-select">
+          <option value="" id="tpTripPlaceholder">— Select a trip —</option>
+        </select>
+      </div>
+      <div class="pp-field" style="margin-bottom:6px;">
+        <label class="pp-label" id="tpLblSearch">Search by code or name <span class="req">*</span></label>
+        <div class="tp-search-row">
+          <input type="text" id="q" class="pp-input" placeholder="e.g. 84404  or  ADELAIDE" autocomplete="off">
+          <button class="pp-btn" id="btnSearch">🔍 Search</button>
+        </div>
+      </div>
+      <div class="tp-hint" id="tpHint"></div>
+    </div>
+   </div>
+  </div>
+
+  <!-- Right: Results -->
+  <div id="results" class="tp-results"></div>
+
+ </div>
+</div>
+
+<!-- Loading / toast injected -->
+<div id="tpLoading" class="pp-loading"><div class="pp-spinner"></div></div>
+<div id="tpToast" class="pp-toast"></div>
+
+<script src="../ibd-portal/portal-config.js"></script>
+<script>
+(function () {
+  const CFG    = window.PORTAL_CONFIG || {};
+  const SB_URL = CFG.sb_url || '';
+  const SB_KEY = CFG.sb_key || '';
+  const LANG_KEY = 'tp_lang';
+
+  /* ── i18n dictionary (TH / EN / FR) ── */
+  const I18N = {
+    th: {
+      brand:'A4S — ตั๋วเครื่องบิน', brand_sub:'ค้นหาตั๋วเครื่องบินของคุณ',
+      card_title:'✈️ ค้นหาตั๋วเครื่องบินของคุณ', card_sub:'เลือกทริปแล้วกรอกรหัสหรือชื่อ',
+      lbl_trip:'ทริป', trip_placeholder:'— เลือกทริป —',
+      lbl_search:'ค้นหาด้วยรหัสหรือชื่อ', search_ph:'รหัสสมาชิก หรือ ชื่อ-นามสกุล', btn_search:'🔍 ค้นหา',
+      hint:'🔒 กรอก<b>รหัสให้ตรง</b>เพื่อดูรูปพาสปอร์ตและตั๋ว PDF · ค้นด้วยชื่อจะแสดงแค่รายชื่อ',
+      need_trip:'กรุณาเลือกทริปก่อน', need_q:'กรุณากรอกรหัสหรือชื่อ',
+      search_failed:'ค้นหาไม่สำเร็จ: ', load_trips_failed:'โหลดทริปไม่สำเร็จ: ', load_tickets_failed:'โหลดตั๋วไม่สำเร็จ: ',
+      not_found_title:'ไม่พบข้อมูล', not_found_sub:'ไม่พบรหัสหรือชื่อนี้ในทริปที่เลือก',
+      code_not_found_sub:'ไม่พบรหัสนี้ในทริปที่เลือก',
+      cand_head:'พบ {n} รายชื่อ — เลือกรายชื่อของคุณเพื่อดูเอกสาร', cand_btn:'ดูเอกสาร ›',
+      sec_passport:'🛂 พาสปอร์ต', sec_tickets:'🎫 ตั๋วเครื่องบิน',
+      no_passport:'— ไม่มีรูปพาสปอร์ต —', no_ticket:'— ยังไม่มีตั๋วในทริปนี้ —',
+      cap_passport:'พาสปอร์ต', cap_visa:'วีซ่า',
+      m_nationality:'สัญชาติ', m_gender:'เพศ', m_passport_no:'เลขพาสปอร์ต', m_passport_exp:'พาสปอร์ตหมดอายุ', m_group:'กลุ่ม',
+      ticket_word:'ตั๋ว', open_pdf:'📄 เปิด / ดาวน์โหลด PDF', not_uploaded:'⏳ ตั๋วยังไม่ถูกอัปโหลด',
+      dir_out:'ขาไป ✈', dir_ret:'ขากลับ ✈',
+      results_hint:'ผลการค้นหาจะแสดงที่นี่',
+      cfg_err_title:'ตั้งค่าผิดพลาด', cfg_err_sub:'PORTAL_CONFIG ไม่พร้อม — ตรวจ portal-config.js',
+    },
+    en: {
+      brand:'A4S — Flight Tickets', brand_sub:'Find your flight ticket',
+      card_title:'✈️ Find Your Flight Ticket', card_sub:'Select a trip, then enter your code or name',
+      lbl_trip:'Trip', trip_placeholder:'— Select a trip —',
+      lbl_search:'Search by code or name', search_ph:'Member code or full name', btn_search:'🔍 Search',
+      hint:'🔒 Enter your <b>exact member code</b> to view your passport &amp; PDF ticket. Searching by name only lists matching people.',
+      need_trip:'Please select a trip', need_q:'Enter a code or name',
+      search_failed:'Search failed: ', load_trips_failed:'Load trips failed: ', load_tickets_failed:'Load tickets failed: ',
+      not_found_title:'Not found', not_found_sub:'No matching code or name in this trip',
+      code_not_found_sub:'Code not found in this trip',
+      cand_head:'Found {n} — pick your name to view your documents', cand_btn:'View documents ›',
+      sec_passport:'🛂 Passport', sec_tickets:'🎫 Flight Tickets',
+      no_passport:'— No passport image —', no_ticket:'— No ticket in this trip yet —',
+      cap_passport:'Passport', cap_visa:'Visa',
+      m_nationality:'Nationality', m_gender:'Gender', m_passport_no:'Passport No', m_passport_exp:'Passport Exp', m_group:'Group',
+      ticket_word:'Ticket', open_pdf:'📄 Open / Download PDF', not_uploaded:'⏳ Ticket file not uploaded yet',
+      dir_out:'Outbound ✈', dir_ret:'Return ✈',
+      results_hint:'Your search results will appear here',
+      cfg_err_title:'Config error', cfg_err_sub:'PORTAL_CONFIG not ready — check portal-config.js',
+    },
+    fr: {
+      brand:'A4S — Billets d\'avion', brand_sub:'Trouvez votre billet d\'avion',
+      card_title:'✈️ Trouvez votre billet d\'avion', card_sub:'Sélectionnez un voyage, puis saisissez votre code ou nom',
+      lbl_trip:'Voyage', trip_placeholder:'— Sélectionnez un voyage —',
+      lbl_search:'Rechercher par code ou nom', search_ph:'Code membre ou nom complet', btn_search:'🔍 Rechercher',
+      hint:'🔒 Saisissez votre <b>code exact</b> pour voir votre passeport et votre billet PDF. La recherche par nom affiche uniquement la liste des noms.',
+      need_trip:'Veuillez sélectionner un voyage', need_q:'Saisissez un code ou un nom',
+      search_failed:'Échec de la recherche : ', load_trips_failed:'Échec du chargement des voyages : ', load_tickets_failed:'Échec du chargement des billets : ',
+      not_found_title:'Introuvable', not_found_sub:'Aucun code ou nom correspondant dans ce voyage',
+      code_not_found_sub:'Code introuvable dans ce voyage',
+      cand_head:'{n} résultat(s) — choisissez votre nom pour voir vos documents', cand_btn:'Voir les documents ›',
+      sec_passport:'🛂 Passeport', sec_tickets:'🎫 Billets d\'avion',
+      no_passport:'— Aucune image de passeport —', no_ticket:'— Aucun billet pour ce voyage —',
+      cap_passport:'Passeport', cap_visa:'Visa',
+      m_nationality:'Nationalité', m_gender:'Sexe', m_passport_no:'N° de passeport', m_passport_exp:'Exp. passeport', m_group:'Groupe',
+      ticket_word:'Billet', open_pdf:'📄 Ouvrir / Télécharger le PDF', not_uploaded:'⏳ Billet pas encore téléchargé',
+      dir_out:'Aller ✈', dir_ret:'Retour ✈',
+      results_hint:'Vos résultats de recherche s\'afficheront ici',
+      cfg_err_title:'Erreur de configuration', cfg_err_sub:'PORTAL_CONFIG indisponible — vérifiez portal-config.js',
+    },
+  };
+  function getLang(){ const l = localStorage.getItem(LANG_KEY); return I18N[l] ? l : 'en'; }
+  function t(key, vars){
+    let s = (I18N[state.lang] && I18N[state.lang][key]) || I18N.en[key] || key;
+    if(vars) Object.keys(vars).forEach(k=> s = s.replace('{'+k+'}', vars[k]));
+    return s;
+  }
+
+  /* ── helpers ── */
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+  function escAttr(s){ return esc(s).replace(/"/g,'&quot;'); }
+  function isPdf(u){ return /\.pdf(\?|#|$)/i.test(u||''); }
+  function fmtDT(raw){
+    if(!raw) return '';
+    const m = String(raw).match(/(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2}))?/);
+    if(!m) return esc(raw);
+    return `${m[3]}/${m[2]}/${m[1]}` + (m[4] ? ` ${m[4]}:${m[5]}` : '');
+  }
+  async function sbGet(path){
+    const r = await fetch(`${SB_URL}/rest/v1/${path}`, {
+      headers:{ apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}` }
+    });
+    if(!r.ok) throw new Error(`${r.status}: ${(await r.text()).slice(0,160)}`);
+    return r.json();
+  }
+  const $ = id => document.getElementById(id);
+  function showLoading(on){ $('tpLoading').classList.toggle('show', !!on); }
+  let _toastT;
+  function toast(msg, type=''){
+    const el = $('tpToast'); el.textContent = msg;
+    el.className = 'pp-toast show ' + (type||'');
+    clearTimeout(_toastT); _toastT = setTimeout(()=>el.classList.remove('show'), 3500);
+  }
+
+  /* ── state ── */
+  const state = {
+    lang: getLang(),
+    trips:[], tripId:'',
+    flightCache:{}, // tripId -> {flights, flightsById, ticketsById, codeToTicketIds}
+    replay:null,    // re-render current result in new language
+  };
+
+  /* ── apply translations to static elements ── */
+  function applyStatic(){
+    document.documentElement.lang = state.lang;
+    $('tpBrandMain').textContent = t('brand');
+    $('tpBrandSub').textContent  = t('brand_sub');
+    $('tpCardTitle').textContent = t('card_title');
+    $('tpCardSub').textContent   = t('card_sub');
+    $('tpLblTrip').innerHTML     = t('lbl_trip') + ' <span class="req">*</span>';
+    $('tpTripPlaceholder').textContent = t('trip_placeholder');
+    $('tpLblSearch').innerHTML   = t('lbl_search') + ' <span class="req">*</span>';
+    $('q').placeholder           = t('search_ph');
+    $('btnSearch').textContent   = t('btn_search');
+    $('tpHint').innerHTML        = t('hint');
+    // active lang button
+    document.querySelectorAll('#tpLang .pp-lang-btn').forEach(b=>{
+      b.classList.toggle('active', b.dataset.lang === state.lang);
+    });
+  }
+
+  function setLang(lang){
+    if(!I18N[lang] || lang === state.lang) { /* still refresh active state */ }
+    if(I18N[lang]) { state.lang = lang; localStorage.setItem(LANG_KEY, lang); }
+    applyStatic();
+    if(state.replay) state.replay();   // re-render current results in new language
+  }
+
+  /* ── company logo from app_settings ── */
+  function loadLogo(){
+    try { const u=(localStorage.getItem('company_logo_url')||'').trim(); if(u) $('tpLogo').src=u; } catch(e){}
+    if(!SB_URL||!SB_KEY) return;
+    fetch(`${SB_URL}/rest/v1/app_settings?select=value&key=eq.company_logo_url`, {
+      headers:{ apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}` }
+    }).then(r=>r.ok?r.json():[]).then(rows=>{
+      const u = rows && rows[0] ? rows[0].value : '';
+      if(u && typeof u==='string' && u.trim()){
+        try{ localStorage.setItem('company_logo_url', u); }catch(e){}
+        document.querySelectorAll('.js-company-logo').forEach(img=>img.src=u);
+      }
+    }).catch(()=>{});
+  }
+
+  /* ── load trips into dropdown ── */
+  async function loadTrips(){
+    try {
+      state.trips = await sbGet('trips?select=trip_id,trip_name,start_date,end_date,status&order=start_date.desc.nullslast,trip_id.desc');
+    } catch(e){ toast(t('load_trips_failed')+e.message, 'error'); return; }
+    const sel = $('tripSelect');
+    state.trips.forEach(t2=>{
+      const range = (t2.start_date||t2.end_date)
+        ? ` (${fmtDT(t2.start_date)}${t2.end_date?' → '+fmtDT(t2.end_date):''})` : '';
+      const opt = document.createElement('option');
+      opt.value = t2.trip_id;
+      opt.textContent = (t2.trip_name||('Trip #'+t2.trip_id)) + range;
+      sel.appendChild(opt);
+    });
+    const pre = new URLSearchParams(location.search).get('trip_id');
+    if(pre && state.trips.some(t2=>String(t2.trip_id)===String(pre))){
+      sel.value = pre; state.tripId = pre;
+    }
+  }
+
+  /* ── load flights + tickets + occupants for a trip (cached) ── */
+  async function loadTripTickets(tripId){
+    if(state.flightCache[tripId]) return state.flightCache[tripId];
+    const flights = await sbGet(`trip_flights?trip_id=eq.${tripId}&select=flight_id,flight_label,port,ret_port,flight,departure_datetime,arrival_datetime,comeback,comeback_datetime,dep_segments,ret_segments&order=sort_order.asc,flight_id.asc`);
+    const flightIds = flights.map(f=>f.flight_id);
+    let ticketsById = {}, codeToTicketIds = {};
+    if(flightIds.length){
+      const tickets = await sbGet(`trip_flight_tickets?flight_id=in.(${flightIds.join(',')})&select=ticket_id,flight_id,ticket_no,ticket_url,note`);
+      tickets.forEach(tk=>{ ticketsById[tk.ticket_id]=tk; });
+      const ticketIds = tickets.map(tk=>tk.ticket_id);
+      if(ticketIds.length){
+        const occs = await sbGet(`trip_flight_ticket_occupants?ticket_id=in.(${ticketIds.join(',')})&select=ticket_id,code`);
+        occs.forEach(o=>{ (codeToTicketIds[o.code] = codeToTicketIds[o.code] || []).push(o.ticket_id); });
+      }
+    }
+    const data = { flights, flightsById:Object.fromEntries(flights.map(f=>[f.flight_id,f])), ticketsById, codeToTicketIds };
+    state.flightCache[tripId] = data;
+    return data;
+  }
+
+  /* ── render flight legs for a ticket ── */
+  function legsHtml(flight){
+    if(!flight) return '';
+    const seg = (arr) => (Array.isArray(arr)?arr:[]).filter(s=>s && (s.flight||s.dep||s.arr));
+    const dep = seg(flight.dep_segments);
+    const ret = seg(flight.ret_segments);
+    const renderDir = (label, port, segs) => {
+      if(!segs.length) return '';
+      const parts = segs.map(s=>{
+        const fno = s.flight ? `<span class="seg">${esc(s.flight)}</span>` : '';
+        const dt  = [fmtDT(s.dep), fmtDT(s.arr)].filter(Boolean).join('<span class="arrow">→</span>');
+        return [fno, dt].filter(Boolean).join(' · ');
+      }).join('<span class="arrow">›</span>');
+      const origin = port ? `<b>${esc(port)}</b> ` : '';
+      return `<div class="tp-leg"><span class="dir">${esc(label)}</span>${origin}${parts}</div>`;
+    };
+    return [
+      renderDir(t('dir_out'), flight.port, dep.length?dep:seg([{flight:flight.flight,dep:flight.departure_datetime,arr:flight.arrival_datetime}])),
+      renderDir(t('dir_ret'), flight.ret_port, ret.length?ret:seg([{flight:flight.comeback,dep:flight.comeback_datetime,arr:''}])),
+    ].filter(Boolean).join('');
+  }
+
+  /* ── render one ticket block ── */
+  function ticketHtml(ticket, data){
+    const flight = data.flightsById[ticket.flight_id];
+    const flLabel = flight && flight.flight_label ? `<span class="tp-ticket-label">${esc(flight.flight_label)}</span>` : '';
+    let doc;
+    if(!ticket.ticket_url){
+      doc = `<div class="tp-doc-none">${t('not_uploaded')}</div>`;
+    } else if(isPdf(ticket.ticket_url)){
+      doc = `<a class="tp-doc-btn" href="${escAttr(ticket.ticket_url)}" target="_blank" rel="noopener">${t('open_pdf')}</a>
+             <iframe class="tp-pdf" src="${escAttr(ticket.ticket_url)}" title="Ticket PDF"></iframe>`;
+    } else {
+      doc = `<a href="${escAttr(ticket.ticket_url)}" target="_blank" rel="noopener">
+               <img class="tp-doc-img" src="${escAttr(ticket.ticket_url)}" alt="Ticket"></a>`;
+    }
+    return `<div class="tp-ticket">
+      <div class="tp-ticket-top">
+        <span class="tp-ticket-no">🎫 ${t('ticket_word')} ${esc(ticket.ticket_no)}</span>${flLabel}
+      </div>
+      <div class="tp-legs">${legsHtml(flight)}</div>
+      ${doc}
+    </div>`;
+  }
+
+  /* ── render full detail for matched people ── */
+  async function renderDetail(people){
+    state.replay = () => renderDetail(people);
+    showLoading(true);
+    let data;
+    try { data = await loadTripTickets(state.tripId); }
+    catch(e){ showLoading(false); toast(t('load_tickets_failed')+e.message,'error'); return; }
+
+    const html = people.map(p=>{
+      const imgs = [];
+      if(p.passport_image_url) imgs.push({u:p.passport_image_url, cap:t('cap_passport')});
+      if(p.visa_image_url)     imgs.push({u:p.visa_image_url, cap:t('cap_visa')});
+      const imgsHtml = imgs.length
+        ? `<div class="tp-imgs">${imgs.map(x=>`
+            <div class="tp-img-box">
+              <a href="${escAttr(x.u)}" target="_blank" rel="noopener"><img src="${escAttr(x.u)}" alt="${escAttr(x.cap)}"></a>
+              <div class="tp-img-cap">${esc(x.cap)}</div>
+            </div>`).join('')}</div>`
+        : `<div class="tp-none">${t('no_passport')}</div>`;
+
+      const tids = data.codeToTicketIds[p.code] || [];
+      const myTickets = tids.map(id=>data.ticketsById[id]).filter(Boolean)
+        .sort((a,b)=>(a.flight_id-b.flight_id)||(a.ticket_no-b.ticket_no));
+      const ticketsHtml = myTickets.length
+        ? myTickets.map(tk=>ticketHtml(tk, data)).join('')
+        : `<div class="tp-none">${t('no_ticket')}</div>`;
+
+      const meta = [];
+      if(p.nationality)       meta.push(`<span class="tp-meta-item"><b>${t('m_nationality')}:</b> ${esc(p.nationality)}</span>`);
+      if(p.gender)            meta.push(`<span class="tp-meta-item"><b>${t('m_gender')}:</b> ${esc(p.gender)}</span>`);
+      if(p.passport_id)       meta.push(`<span class="tp-meta-item"><b>${t('m_passport_no')}:</b> ${esc(p.passport_id)}</span>`);
+      if(p.passport_exp_date) meta.push(`<span class="tp-meta-item"><b>${t('m_passport_exp')}:</b> ${fmtDT(p.passport_exp_date)}</span>`);
+      if(p.group_name)        meta.push(`<span class="tp-meta-item"><b>${t('m_group')}:</b> ${esc(p.group_name)}</span>`);
+
+      return `<div class="tp-person">
+        <div class="tp-person-head">
+          <div class="tp-person-name">${esc(p.name||'—')}</div>
+          <div class="tp-person-code">${esc(p.code)}</div>
+        </div>
+        <div class="tp-person-body">
+          ${meta.length?`<div class="tp-meta">${meta.join('')}</div>`:''}
+          <div class="tp-sec-title">${t('sec_passport')}</div>
+          ${imgsHtml}
+          <div class="tp-sec-title">${t('sec_tickets')}</div>
+          ${ticketsHtml}
+        </div>
+      </div>`;
+    }).join('');
+
+    $('results').innerHTML = html;
+    showLoading(false);
+    $('results').scrollIntoView({behavior:'smooth', block:'start'});
+  }
+
+  /* ── reveal one code (from candidate click) ── */
+  window.tpReveal = async function(code){
+    $('q').value = code;
+    showLoading(true);
+    let people;
+    try {
+      people = await sbGet(`tour_seat_check?trip_id=eq.${state.tripId}&code=eq.${encodeURIComponent(code)}&select=code,name,gender,nationality,passport_image_url,visa_image_url,passport_id,passport_exp_date,group_name`);
+    } catch(e){ showLoading(false); toast(t('search_failed')+e.message,'error'); return; }
+    showLoading(false);
+    if(!people.length){ showEmpty('🔍', t('not_found_title'), t('code_not_found_sub')); return; }
+    await renderDetail(people);
+  };
+
+  function showEmpty(icon, title, sub){
+    state.replay = null;
+    $('results').innerHTML = `<div class="pp-card"><div class="tp-empty">
+      <div class="tp-empty-icon">${icon}</div>
+      <div class="tp-empty-title">${esc(title)}</div>
+      <div class="tp-empty-sub">${esc(sub)}</div>
+    </div></div>`;
+  }
+
+  function showResultsPlaceholder(){
+    state.replay = showResultsPlaceholder;
+    $('results').innerHTML = `<div class="tp-placeholder">
+      <div class="tp-empty-icon">✈️</div>
+      <div class="tp-placeholder-txt">${esc(t('results_hint'))}</div>
+    </div>`;
+  }
+
+  /* ── main search ── */
+  async function doSearch(){
+    const q = $('q').value.trim();
+    if(!state.tripId){ toast(t('need_trip'),'error'); $('tripSelect').focus(); return; }
+    if(!q){ toast(t('need_q'),'error'); $('q').focus(); return; }
+
+    showLoading(true);
+    // 1) exact code match → reveal documents
+    let people = [];
+    try {
+      people = await sbGet(`tour_seat_check?trip_id=eq.${state.tripId}&code=eq.${encodeURIComponent(q)}&select=code,name,gender,nationality,passport_image_url,visa_image_url,passport_id,passport_exp_date,group_name`);
+    } catch(e){ showLoading(false); toast(t('search_failed')+e.message,'error'); return; }
+
+    if(people.length){ showLoading(false); await renderDetail(people); return; }
+
+    // 2) name search → list candidates (no sensitive data)
+    let cands = [];
+    try {
+      cands = await sbGet(`tour_seat_check?trip_id=eq.${state.tripId}&name=ilike.*${encodeURIComponent(q)}*&select=code,name&order=name.asc&limit=40`);
+    } catch(e){ showLoading(false); toast(t('search_failed')+e.message,'error'); return; }
+    showLoading(false);
+
+    if(!cands.length){ showEmpty('🔍', t('not_found_title'), t('not_found_sub')); return; }
+    renderCandidates(cands);
+  }
+
+  function renderCandidates(cands){
+    state.replay = () => renderCandidates(cands);
+    const rows = cands.map(c=>`
+      <div class="tp-cand">
+        <span class="tp-cand-name">${esc(c.name||'—')}</span>
+        <span class="tp-cand-code">${esc(c.code)}</span>
+        <button class="tp-cand-btn" onclick="tpReveal('${escAttr(c.code)}')">${t('cand_btn')}</button>
+      </div>`).join('');
+    $('results').innerHTML = `<div class="pp-card"><div class="pp-card-body">
+      <div class="tp-cand-head">${t('cand_head', {n: cands.length})}</div>
+      <div class="tp-cand-list">${rows}</div>
+    </div></div>`;
+    $('results').scrollIntoView({behavior:'smooth', block:'start'});
+  }
+
+  /* ── wire up ── */
+  document.querySelectorAll('#tpLang .pp-lang-btn').forEach(b=>{
+    b.addEventListener('click', ()=> setLang(b.dataset.lang));
+  });
+  $('tripSelect').addEventListener('change', e=>{
+    state.tripId = e.target.value;
+    showResultsPlaceholder();
+  });
+  $('btnSearch').addEventListener('click', doSearch);
+  $('q').addEventListener('keydown', e=>{ if(e.key==='Enter') doSearch(); });
+
+  /* ── init ── */
+  applyStatic();
+  if(!SB_URL || !SB_KEY){
+    showEmpty('⚠️', t('cfg_err_title'), t('cfg_err_sub'));
+  } else {
+    loadLogo();
+    loadTrips();
+    showResultsPlaceholder();
+  }
+})();
+</script>
+</body>
+</html>

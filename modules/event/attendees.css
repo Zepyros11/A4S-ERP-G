@@ -425,7 +425,10 @@
 .att-inline-table .att-frz { position: sticky; z-index: 3; }
 /* ต้องใช้ id ให้ specificity ชนะ rule sticky-top เดิม (tr#attTableHead th{z-index:5}) ไม่งั้นเซลล์ scroll ทับ */
 .att-inline-table thead tr#attTableHead th.att-frz { z-index: 9; }
-.att-inline-table .att-frz-edge { box-shadow: 3px 0 5px -3px rgba(15, 23, 42, .18); }
+/* คอลัมน์สุดท้ายที่ฟรีส → เส้นหนาด้านขวา (บอกขอบเขตการตรึง) + เงาช่วยให้ดูลอย
+   ใช้ inset box-shadow วาดเส้น (ไม่ใช่ border-right) เพราะตาราง border-collapse:collapse
+   จะทำให้ border ของ sticky cell ไม่เลื่อนตาม → หายตอน scroll · ส่วน box-shadow เลื่อนตาม cell เสมอ */
+.att-inline-table .att-frz-edge { box-shadow: inset -3px 0 0 0 var(--accent, #16a34a), 4px 0 6px -3px rgba(15, 23, 42, .22); }
 /* ปุ่มตรึงคอลัมน์ที่หัวตาราง */
 .att-pin {
   margin-left: 4px;
