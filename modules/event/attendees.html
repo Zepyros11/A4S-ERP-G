@@ -63,51 +63,19 @@
             </div>
           </div>
 
-          <!-- STATS — compact strip (clickable → popup report) -->
-          <div id="attStatsSection" class="att-stats-strip" style="display:none">
-            <div class="att-stat sc-total" role="button" tabindex="0" title="ดูรายงาน — ลงทะเบียนทั้งหมด" onclick="window.openStatReport('total')">
-              <span class="att-stat-icon">👥</span>
-              <span class="att-stat-label">ลงทะเบียน</span>
-              <span class="att-stat-value" id="statTotal">0</span>
-            </div>
-            <div class="att-stat sc-checkin" role="button" tabindex="0" title="ดูรายงาน — ผู้ที่ Check-in แล้ว" onclick="window.openStatReport('checkin')">
-              <span class="att-stat-icon">✅</span>
-              <span class="att-stat-label">Check-in แล้ว</span>
-              <span class="att-stat-value" id="statCheckedIn">0</span>
-            </div>
-            <div class="att-stat sc-pending" role="button" tabindex="0" title="ดูรายงาน — ผู้ที่ยังไม่ Check-in" onclick="window.openStatReport('pending')">
-              <span class="att-stat-icon">⏳</span>
-              <span class="att-stat-label">ยังไม่ Check-in</span>
-              <span class="att-stat-value" id="statNotCheckedIn">0</span>
-            </div>
-            <div class="att-stat sc-paid" role="button" tabindex="0" title="ดูรายงาน — ผู้ที่ชำระแล้ว" onclick="window.openStatReport('paid')">
-              <span class="att-stat-icon">💳</span>
-              <span class="att-stat-label">ชำระแล้ว</span>
-              <span class="att-stat-value" id="statPaid">0</span>
-            </div>
-            <div class="att-stat sc-revenue" role="button" tabindex="0" title="ดูรายงาน — รายรับ" onclick="window.openStatReport('revenue')">
-              <span class="att-stat-icon">💰</span>
-              <span class="att-stat-label">รายรับ (฿)</span>
-              <span class="att-stat-value" id="statRevenue">0</span>
-            </div>
-          </div>
-
           <!-- STATUS CARDS — สรุป (clickable → popup report) -->
           <div id="attStatusCards" class="att-status-cards" style="display:none">
-            <div class="att-scard sc-upline" role="button" tabindex="0" title="ดูรายงานผู้ลงทะเบียนแยกตามสายงาน" onclick="window.openStatReport('upline')">
-              <div class="att-scard-hd">🌿 จำนวนผู้ลงทะเบียนตามสายงาน</div>
-              <div class="att-scard-main"><span id="scUplineReg">0</span> <small>คน</small></div>
+            <!-- สายงาน — รวม ลงทะเบียน / เข้างาน / อัตรา เป็นใบเดียว -->
+            <div class="att-scard sc-upline" role="button" tabindex="0" title="ดูรายงานเทียบลงทะเบียน / เข้างาน ตามสายงาน" onclick="window.openStatReport('upline_compare')">
+              <div class="att-scard-hd">🌿 สายงาน — ลงทะเบียน / เข้างาน</div>
+              <div class="att-scard-main">
+                <span id="scUplineReg" class="sc-ok">0</span> <small>ลงทะเบียน</small>
+                <span class="sc-div">→</span>
+                <span id="scAttendLine" class="sc-actual">0</span> <small>เข้างาน</small>
+                <span class="sc-div">·</span>
+                <span id="scLineRate" class="sc-ok">0%</span>
+              </div>
               <div class="att-scard-sub" id="scUplineSub">—</div>
-            </div>
-            <div class="att-scard sc-attend" role="button" tabindex="0" title="ดูรายงานผู้เข้างานแยกตามสายงาน" onclick="window.openStatReport('upline_checkin')">
-              <div class="att-scard-hd">🌿 จำนวนผู้เข้างานตามสายงาน</div>
-              <div class="att-scard-main"><span id="scAttendLine" class="sc-actual">0</span> <small>คน</small></div>
-              <div class="att-scard-sub" id="scAttendSub">—</div>
-            </div>
-            <div class="att-scard sc-compare" role="button" tabindex="0" title="ดูรายงานเทียบลงทะเบียน / เข้างาน ตามสายงาน" onclick="window.openStatReport('upline_compare')">
-              <div class="att-scard-hd">🌿 อัตราเข้างานตามสายงาน</div>
-              <div class="att-scard-main"><span id="scLineRate" class="sc-ok">0%</span></div>
-              <div class="att-scard-sub" id="scLineRateSub">—</div>
             </div>
             <div class="att-scard sc-pay" role="button" tabindex="0" title="ดูรายงานการชำระเงิน" onclick="window.openStatReport('payment')">
               <div class="att-scard-hd">💰 การชำระเงิน</div>
@@ -209,6 +177,15 @@
             </div>
           </div>
         </div>
+
+    <!-- ปุ่มลอย: สลับโหมดแก้ไข ↔ บันทึก (แก้ทุกคอลัมน์พร้อมกัน) -->
+    <button id="editModeFab" class="edit-fab" style="display:none" onclick="window.toggleEditMode()" title="แก้ไขทุกคอลัมน์">
+      <span class="fab-ico">✏️</span><span class="fab-lbl">โหมดแก้ไข</span>
+    </button>
+    <!-- ปุ่มลอย: ยกเลิกการแก้ไข (ทิ้งการแก้ที่ยังไม่บันทึก) — แสดงเฉพาะตอนอยู่ในโหมดแก้ไข -->
+    <button id="editCancelFab" class="edit-fab edit-fab-cancel" style="display:none" onclick="window.cancelEditMode()" title="ยกเลิกการแก้ไข (ไม่บันทึก)">
+      <span class="fab-ico">✕</span><span class="fab-lbl">ยกเลิก</span>
+    </button>
 
     <!-- Shared member search suggest dropdown (positioned dynamically per row) -->
     <div id="memberSuggest" style="display:none;position:absolute;background:var(--surface,#fff);border:1px solid var(--border,#e2e8f0);border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,.15);z-index:500;max-height:240px;overflow-y:auto;min-width:280px"></div>

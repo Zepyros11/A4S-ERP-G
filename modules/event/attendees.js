@@ -33,7 +33,7 @@ async function sbFetch(table, query = "", opts = {}) {
 async function fetchEvents() {
   // Exclude "วันหยุดบริษัท" category events
   const [events, cats] = await Promise.all([
-    sbFetch("events", "?select=event_id,event_name,event_code,max_attendees,event_category_id,price,event_date,start_time,end_time&order=event_date.desc"),
+    sbFetch("events", "?select=event_id,event_name,event_code,max_attendees,event_category_id,price,event_date,start_time,end_time,poster_url,image_urls&order=event_date.desc"),
     sbFetch("event_categories", "?select=event_category_id,category_name"),
   ]);
   const holidayIds = (cats || []).filter(c => c.category_name === "วันหยุดบริษัท").map(c => c.event_category_id);
@@ -362,21 +362,34 @@ function getEventGraceDays() {
   if (g == null || g === "" || isNaN(g)) return defaultGraceDays;
   return parseInt(g);
 }
+// วันที่ปัจจุบันตามเวลาไทย (Asia/Bangkok) → YYYY-MM-DD
+// ใช้แทน new Date().toISOString() (UTC) ที่ทำให้วันที่เพี้ยน 1 วันในเขตเวลาไทย
+function bkkTodayISO() {
+  return new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Bangkok" });
+}
+function _isoFromLocalDate(d) {
+  const y = d.getFullYear(), m = String(d.getMonth() + 1).padStart(2, "0"), day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+// กำหนดชำระไม่ให้เกินวันงาน (จ่ายหลังจบงานไม่ได้)
+function _capDeadlineToEvent(iso) {
+  const ev = currentEvent?.event_date;
+  return ev && iso > ev ? ev : iso;
+}
 function computeDeadlineISO(graceDays) {
-  const d = new Date();
+  const d = new Date(bkkTodayISO() + "T00:00:00");   // เที่ยงคืนวันนี้ (เวลาไทย) — บวกวันแบบ local ไม่เพี้ยน
   d.setDate(d.getDate() + (graceDays || 0));
-  return d.toISOString().slice(0, 10); // YYYY-MM-DD
+  return _capDeadlineToEvent(_isoFromLocalDate(d));   // YYYY-MM-DD
 }
 function isAttendeeExpired(a) {
   if (a.payment_status !== "UNPAID") return false;
   if (!a.payment_deadline) return false;
-  const today = new Date().toISOString().slice(0, 10);
-  return a.payment_deadline < today;
+  return _capDeadlineToEvent(String(a.payment_deadline).slice(0, 10)) < bkkTodayISO();
 }
 function daysUntil(dateStr) {
   if (!dateStr) return null;
-  const today = new Date().toISOString().slice(0, 10);
-  const diff = Math.ceil((new Date(dateStr) - new Date(today)) / 86400000);
+  const target = String(dateStr).slice(0, 10);
+  const diff = Math.round((Date.parse(target + "T00:00:00Z") - Date.parse(bkkTodayISO() + "T00:00:00Z")) / 86400000);
   return diff;
 }
 function formatDMYShort(isoDate) {
@@ -388,6 +401,10 @@ function formatDMY(isoDate) {
   if (!isoDate) return "";
   const [y, m, d] = isoDate.split("-");
   return `${d}/${m}/${y}`;
+}
+// เบอร์โทร — เอา - และช่องว่างออก (เก็บ/แสดงเป็นตัวเลขล้วน)
+function _cleanPhone(p) {
+  return String(p ?? "").replace(/[-\s]/g, "");
 }
 // Check-in timestamp = event date + current time (so retroactive check-ins record as event day)
 function buildCheckinTimestamp() {
@@ -480,6 +497,7 @@ async function initPage() {
       }
       const sub = document.getElementById("heroSubtitle");
       if (sub) sub.textContent = buildEventHeroSubtitle(ev);
+      _renderHeroPoster(ev);
     } else {
       showToast("ไม่พบ event ที่ระบุ", "error");
       showSections(false);
@@ -505,6 +523,49 @@ async function initPage() {
     ?.addEventListener("change", _onSlipFileChange);
 }
 
+// แทรกรูป poster ของ event ที่ด้านซ้ายของ hero (คลิกเปิดรูปเต็ม) · ไม่มีรูป → ลบ element
+function _renderHeroPoster(ev) {
+  const hero = document.querySelector(".att-hero");
+  if (!hero) return;
+  const url = ev?.poster_url || (Array.isArray(ev?.image_urls) ? ev.image_urls[0] : null);
+  let img = document.getElementById("heroPoster");
+  if (!url) { if (img) img.remove(); return; }
+  if (!img) {
+    img = document.createElement("img");
+    img.id = "heroPoster";
+    img.className = "att-hero-poster";
+    img.alt = "Event poster";
+    img.title = "คลิกเพื่อดูรูปเต็ม";
+    img.onclick = () => _openPosterLightbox(img.src);
+    hero.insertBefore(img, hero.firstChild);   // child แรก = ซ้ายสุดของ hero
+  }
+  img.src = url;
+}
+
+// Lightbox แสดง poster เต็มจอ (คลิกพื้นหลัง/✕/ESC เพื่อปิด)
+function _openPosterLightbox(url) {
+  if (!url) return;
+  let ov = document.getElementById("posterLightbox");
+  if (!ov) {
+    ov = document.createElement("div");
+    ov.id = "posterLightbox";
+    ov.className = "poster-lightbox";
+    ov.innerHTML = `<button class="poster-lightbox-close" title="ปิด (ESC)">✕</button><img class="poster-lightbox-img" alt="Event poster">`;
+    ov.addEventListener("click", (e) => {
+      if (e.target === ov || e.target.classList.contains("poster-lightbox-close")) _closePosterLightbox();
+    });
+    document.body.appendChild(ov);
+  }
+  ov.querySelector(".poster-lightbox-img").src = url;
+  ov.classList.add("open");
+  document.addEventListener("keydown", _posterLightboxEsc);
+}
+function _closePosterLightbox() {
+  document.getElementById("posterLightbox")?.classList.remove("open");
+  document.removeEventListener("keydown", _posterLightboxEsc);
+}
+function _posterLightboxEsc(e) { if (e.key === "Escape") _closePosterLightbox(); }
+
 // populateEventSelect / onEventChange ถูกเอาออก —
 // หน้านี้รับ event_id จาก URL parameter อย่างเดียว (เปิดผ่านปุ่ม 👥 ของ events-list)
 
@@ -513,6 +574,7 @@ async function loadAttendees(eventId) {
   currentEvent = allEvents.find((e) => e.event_id === eventId);
   const sub = document.getElementById("heroSubtitle");
   if (sub) sub.textContent = buildEventHeroSubtitle(currentEvent);
+  _renderHeroPoster(currentEvent);
   showLoading(true);
   try {
     const [atts, tiers, tagCats] = await Promise.all([
@@ -546,7 +608,8 @@ async function loadAttendees(eventId) {
 }
 
 function showSections(show) {
-  ["attStatsSection", "attStatusCards", "attToolbar", "attTableSection"].forEach((id) => {
+  // attStatsSection (strip บน) เอาออก — ซ้ำซ้อนกับการ์ด 4 ใบ · ใช้การ์ดเป็นหลัก
+  ["attStatusCards", "attToolbar", "attTableSection"].forEach((id) => {
     document.getElementById(id).style.display = show ? "" : "none";
   });
   document.getElementById("noEventState").style.display = show
@@ -555,6 +618,13 @@ function showSections(show) {
   document.getElementById("eventActionBtns").style.display = show
     ? "flex"
     : "none";
+  const fab = document.getElementById("editModeFab");
+  if (fab) fab.style.display = show ? "inline-flex" : "none";
+  // ปุ่มยกเลิกแสดงเฉพาะตอนอยู่ในโหมดแก้ไข — ซ่อนเสมอเมื่อไม่มี event (กันค้างจากโหมดแก้ไขก่อนสลับงาน)
+  if (!show) {
+    const cancel = document.getElementById("editCancelFab");
+    if (cancel) cancel.style.display = "none";
+  }
 }
 
 // ── TIER INFO BANNER ──────────────────────────────────────
@@ -667,7 +737,24 @@ function renderTierBanner() {
 }
 
 // ── STATS ─────────────────────────────────────────────────
+// ป้ายสายงานของผู้เข้าร่วม (สำหรับสถิติ): สมาชิก → จับสาย MLM · guest → upline_name_text ที่ตั้งเอง
+function _attendeeUplineLabel(a) {
+  const m = _uplineMatchFor(a);
+  if (m) return m.nickname || m.name;
+  const t = (a?.upline_name_text || "").trim();
+  return t || null;
+}
+
+// หา qualification ที่เป็น "ชำระเงิน" (ถ้า template ใช้ checklist แทนระบบชำระเงิน)
+function _paymentQualKey() {
+  const cfg = _getActiveFieldConfig();
+  // จับจาก "ชื่อ" checklist ที่สื่อถึงการชำระเงิน (ไม่ match รหัส key — กัน false-match เช่น repaid/deposit)
+  const q = (cfg.qualifications || []).find(q => /ชำระ|payment|\bpaid\b/i.test(q?.label || ""));
+  return q ? q.key : null;
+}
+
 function updateStats() {
+  const setTxt = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
   const total = allAttendees.length;
   const checkedIn = allAttendees.filter((a) => a.checked_in).length;
   const paid = allAttendees.filter((a) => a.payment_status === "PAID").length;
@@ -675,11 +762,12 @@ function updateStats() {
     .filter((a) => a.payment_status === "PAID")
     .reduce((sum, a) => sum + parseFloat(a.paid_amount || 0), 0);
 
-  document.getElementById("statTotal").textContent = total;
-  document.getElementById("statCheckedIn").textContent = checkedIn;
-  document.getElementById("statNotCheckedIn").textContent = total - checkedIn;
-  document.getElementById("statPaid").textContent = paid;
-  document.getElementById("statRevenue").textContent = formatNum(revenue);
+  // strip บน (#attStatsSection) เอา HTML ออกแล้ว — เขียนแบบ null-safe (ยังคำนวณไว้ใช้ในการ์ด/รายงาน)
+  setTxt("statTotal", total);
+  setTxt("statCheckedIn", checkedIn);
+  setTxt("statNotCheckedIn", total - checkedIn);
+  setTxt("statPaid", paid);
+  setTxt("statRevenue", formatNum(revenue));
 
   // ── Status cards ──
   // สายงาน — แยกผู้ลงทะเบียน (ทั้งหมด) กับ ผู้เข้างาน (check-in)
@@ -688,31 +776,34 @@ function updateStats() {
   let matchedUpline = 0;     // ผู้ลงทะเบียนที่จับสายได้
   let matchedCheckin = 0;    // ผู้เข้างานที่จับสายได้
   allAttendees.forEach((a) => {
-    const m = _uplineMatchFor(a);
-    if (m) {
+    const k = _attendeeUplineLabel(a);   // สมาชิก (MLM) + guest (upline_name_text)
+    if (k) {
       matchedUpline++;
-      const k = m.nickname || m.name;
       uplineGroups[k] = (uplineGroups[k] || 0) + 1;
       if (a.checked_in) { matchedCheckin++; uplineCheckin[k] = (uplineCheckin[k] || 0) + 1; }
     }
   });
-  const setTxt = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
-  // card 1 — จำนวนผู้ลงทะเบียนตามสายงาน
-  setTxt("scUplineReg", matchedUpline);
-  setTxt("scUplineSub", `${Object.keys(uplineGroups).length} สาย`);
-  // card 2 — จำนวนผู้เข้างานตามสายงาน
-  setTxt("scAttendLine", matchedCheckin);
-  setTxt("scAttendSub", `${Object.keys(uplineCheckin).length} สาย · มาจริง ${total ? Math.round((checkedIn / total) * 100) : 0}%`);
-  // card 3 — เทียบ ลงทะเบียน vs เข้างาน ตามสายงาน
+  // การ์ดสายงาน (รวม 3 → 1) — ลงทะเบียน → เข้างาน · % · จำนวนสาย (ids ที่มีจริงใน DOM เท่านั้น)
   const lineKeys = Object.keys(uplineGroups);
   const fullLines = lineKeys.filter((k) => (uplineCheckin[k] || 0) >= uplineGroups[k]).length;
+  setTxt("scUplineReg", matchedUpline);
+  setTxt("scAttendLine", matchedCheckin);
   setTxt("scLineRate", `${matchedUpline ? Math.round((matchedCheckin / matchedUpline) * 100) : 0}%`);
-  setTxt("scLineRateSub", `ลงทะเบียน ${matchedUpline} → เข้างาน ${matchedCheckin} คน · ${fullLines}/${lineKeys.length} สาย`);
-  // การชำระเงิน
-  const unpaid = allAttendees.filter((a) => a.payment_status !== "PAID" && a.payment_status !== "COMPLIMENTARY").length;
-  setTxt("scPaid", paid);
-  setTxt("scUnpaid", unpaid);
-  setTxt("scPaySub", revenue ? `รายรับ ฿${formatNum(revenue)}` : "—");
+  setTxt("scUplineSub", `${lineKeys.length} สาย · เข้าครบ ${fullLines}/${lineKeys.length}`);
+  // การชำระเงิน — มี checklist "ชำระเงิน" → นับจาก ✓ · ไม่งั้นใช้ payment_status เดิม
+  const payQk = _paymentQualKey();
+  if (payQk) {
+    const paidN = allAttendees.filter((a) => a.extra_fields?.[payQk] === true).length;
+    const unpaidN = allAttendees.filter((a) => a.extra_fields?.[payQk] !== true && a.payment_status !== "COMPLIMENTARY").length;
+    setTxt("scPaid", paidN);
+    setTxt("scUnpaid", unpaidN);
+    setTxt("scPaySub", `${total ? Math.round((paidN / total) * 100) : 0}% ชำระแล้ว`);
+  } else {
+    const unpaid = allAttendees.filter((a) => a.payment_status !== "PAID" && a.payment_status !== "COMPLIMENTARY").length;
+    setTxt("scPaid", paid);
+    setTxt("scUnpaid", unpaid);
+    setTxt("scPaySub", revenue ? `รายรับ ฿${formatNum(revenue)}` : "—");
+  }
 }
 
 // ── STAT REPORT POPUP ─────────────────────────────────────
@@ -735,6 +826,12 @@ function _attTierName(a) {
 }
 
 function _payStatusBadge(a) {
+  // ใช้ checklist "ชำระเงิน" ถ้ามี (ไม่งั้นใช้ payment_status เดิม)
+  const qk = _paymentQualKey();
+  if (qk) {
+    if (a.payment_status === "COMPLIMENTARY") return "🎫 ฟรี / ยกเว้น";
+    return a.extra_fields?.[qk] === true ? "💳 ชำระแล้ว" : "⏳ ยังไม่ชำระ";
+  }
   if (a.payment_status === "PAID") return "💳 ชำระแล้ว";
   if (a.payment_status === "COMPLIMENTARY") return "🎫 ฟรี / ยกเว้น";
   if (isAttendeeExpired(a)) return "⌛ เกิน grace";
@@ -759,33 +856,41 @@ function _renderBreakdownRows(map, total) {
 }
 
 function _attendeeListRows(list, opts = {}) {
-  const { showCheckinTime = false, showPaidInfo = false } = opts;
+  const { showCheckinTime = false, showPaidInfo = false, showAttend = false } = opts;
   if (!list.length) {
     return `<div class="sr-empty">— ไม่มีรายการ —</div>`;
   }
   const head = `<div class="sr-list-row is-head">
     <div class="sr-no">#</div>
     <div>ชื่อ / รหัส</div>
-    <div>🎫 Ticket</div>
+    <div class="sr-meta-hide-sm">🌿 สายงาน</div>
     <div>📱 เบอร์โทร</div>
-    <div>${showCheckinTime ? "⏱ เช็คอิน" : showPaidInfo ? "💰 ชำระ" : "สถานะ"}</div>
+    <div>${showCheckinTime ? "⏱ เช็คอิน" : showPaidInfo ? "💰 ชำระ" : showAttend ? "✅ เข้างาน" : "สถานะ"}</div>
   </div>`;
   const body = list
     .map((a, i) => {
       const tier = _attTierName(a);
-      const right = showCheckinTime
+      const right = showAttend
+        ? (a.checked_in
+          ? `<span style="color:#15803d;font-weight:700">✅ มาแล้ว</span>`
+          : `<span style="color:#b45309;font-weight:700">⏳ ยังไม่มา</span>`)
+        : showCheckinTime
         ? (a.checked_in_at ? formatDateTime(a.checked_in_at) : "—")
         : showPaidInfo
         ? `${_payMethodLabel(a.payment_method)} · ฿${formatNum(a.paid_amount || 0)}${a.paid_at ? `<br><span style="font-size:11px;color:var(--text3)">${formatDateTime(a.paid_at)}</span>` : ""}`
         : _payStatusBadge(a);
+      const upl = _attendeeUplineLabel(a);
+      const uplHtml = upl
+        ? `<span style="background:${escapeHtml(_uplineColorByLabel(upl) || "#e0e7ff")};padding:1px 7px;border-radius:5px;font-size:11.5px;white-space:nowrap">🌿 ${escapeHtml(upl)}</span>`
+        : `<span class="att-empty">—</span>`;
       return `<div class="sr-list-row">
         <div class="sr-no">${i + 1}</div>
         <div class="sr-name" title="${escapeHtml(a.name || "")}">
           ${escapeHtml(a.name || "—")}
           <small>${escapeHtml(a.member_code || "")}${tier ? ` · ${escapeHtml(tier)}` : ""}</small>
         </div>
-        <div class="sr-meta sr-meta-hide-sm">${escapeHtml(a.ticket_no || "—")}</div>
-        <div class="sr-meta sr-meta-hide-sm">${escapeHtml(a.phone || "—")}</div>
+        <div class="sr-meta sr-meta-hide-sm">${uplHtml}</div>
+        <div class="sr-meta sr-meta-hide-sm">${escapeHtml(_cleanPhone(a.phone) || "—")}</div>
         <div class="sr-meta">${right}</div>
       </div>`;
     })
@@ -949,14 +1054,9 @@ function _buildStatReport(type) {
     const byUpline = {};
     let matched = 0;
     allAttendees.forEach((a) => {
-      const m = _uplineMatchFor(a);
-      if (m) {
-        matched++;
-        const k = m.nickname || m.name;
-        byUpline[k] = (byUpline[k] || 0) + 1;
-      } else {
-        byUpline["— ไม่มีสายงาน —"] = (byUpline["— ไม่มีสายงาน —"] || 0) + 1;
-      }
+      const k = _attendeeUplineLabel(a);
+      if (k) { matched++; byUpline[k] = (byUpline[k] || 0) + 1; }
+      else byUpline["— ไม่มีสายงาน —"] = (byUpline["— ไม่มีสายงาน —"] || 0) + 1;
     });
     const summary = [
       { label: "มีสายงาน", value: matched, accent: true, sub: total ? `${Math.round((matched / total) * 100)}%` : "0%" },
@@ -979,14 +1079,9 @@ function _buildStatReport(type) {
     const byUpline = {};
     let matched = 0;
     checkedIn.forEach((a) => {
-      const m = _uplineMatchFor(a);
-      if (m) {
-        matched++;
-        const k = m.nickname || m.name;
-        byUpline[k] = (byUpline[k] || 0) + 1;
-      } else {
-        byUpline["— ไม่มีสายงาน —"] = (byUpline["— ไม่มีสายงาน —"] || 0) + 1;
-      }
+      const k = _attendeeUplineLabel(a);
+      if (k) { matched++; byUpline[k] = (byUpline[k] || 0) + 1; }
+      else byUpline["— ไม่มีสายงาน —"] = (byUpline["— ไม่มีสายงาน —"] || 0) + 1;
     });
     const summary = [
       { label: "ผู้เข้างาน (มีสายงาน)", value: matched, accent: true, sub: checkedIn.length ? `${Math.round((matched / checkedIn.length) * 100)}%` : "0%" },
@@ -1008,15 +1103,14 @@ function _buildStatReport(type) {
     const reg = {};   // สาย → ลงทะเบียน
     const att = {};   // สาย → เข้างาน
     allAttendees.forEach((a) => {
-      const m = _uplineMatchFor(a);
-      const k = m ? (m.nickname || m.name) : "— ไม่มีสายงาน —";
+      const k = _attendeeUplineLabel(a) || "— ไม่มีสายงาน —";
       reg[k] = (reg[k] || 0) + 1;
       if (a.checked_in) att[k] = (att[k] || 0) + 1;
     });
     const keys = Object.keys(reg).sort((a, b) => reg[b] - reg[a]);
     const lineKeys = keys.filter((k) => k !== "— ไม่มีสายงาน —");
-    const matchedReg = allAttendees.filter((a) => _uplineMatchFor(a)).length;
-    const matchedAtt = checkedIn.filter((a) => _uplineMatchFor(a)).length;
+    const matchedReg = allAttendees.filter((a) => _attendeeUplineLabel(a)).length;
+    const matchedAtt = checkedIn.filter((a) => _attendeeUplineLabel(a)).length;
     const fullLines = lineKeys.filter((k) => (att[k] || 0) >= reg[k]).length;
     const rowsHtml = keys.map((k) => {
       const r = reg[k] || 0, c = att[k] || 0;
@@ -1032,15 +1126,19 @@ function _buildStatReport(type) {
       { label: "ครบทั้งสาย", value: `${fullLines}/${lineKeys.length}`, sub: "สาย" },
       { label: "จำนวนสาย", value: lineKeys.length },
     ];
+    // รายชื่อ — ไม่มา (บนสุด) ก่อน มาแล้ว · ในกลุ่มเรียงตามสายงาน แล้วชื่อ
+    const sortedList = [...allAttendees].sort((a, b) =>
+      (a.checked_in ? 1 : 0) - (b.checked_in ? 1 : 0)
+      || (_attendeeUplineLabel(a) || "zzz").localeCompare(_attendeeUplineLabel(b) || "zzz", "th")
+      || (a.name || "").localeCompare(b.name || "", "th"));
     return {
       title: `🌿 เทียบลงทะเบียน / เข้างาน ตามสายงาน — ${evName}`,
       summary,
       sections: [
         { title: "🌿 เข้างาน / ลงทะเบียน แต่ละสาย", count: keys.length, html: `<div class="sr-breakdown">${rowsHtml}</div>` },
       ],
-      list: [],
-      listMode: "default",
-      hideList: true,
+      list: sortedList,
+      listMode: "attendance",   // แสดง ✅ มาแล้ว / ⏳ ยังไม่มา
     };
   }
 
@@ -1063,14 +1161,22 @@ function _buildStatReport(type) {
   }
 
   if (type === "payment") {
-    const unpaidList = allAttendees.filter((a) => a.payment_status !== "PAID" && a.payment_status !== "COMPLIMENTARY");
+    const payQk = _paymentQualKey();
+    const isPaid = (a) => payQk ? a.extra_fields?.[payQk] === true : a.payment_status === "PAID";
+    const paidList2 = allAttendees.filter(isPaid);
+    const unpaidList = allAttendees.filter((a) => !isPaid(a) && a.payment_status !== "COMPLIMENTARY");
     const byStatus = {};
-    allAttendees.forEach((a) => { const k = _payStatusBadge(a); byStatus[k] = (byStatus[k] || 0) + 1; });
+    allAttendees.forEach((a) => {
+      const k = payQk
+        ? (a.payment_status === "COMPLIMENTARY" ? "🎫 ฟรี / ยกเว้น" : isPaid(a) ? "✅ ชำระแล้ว" : "⏳ ยังไม่ชำระ")
+        : _payStatusBadge(a);
+      byStatus[k] = (byStatus[k] || 0) + 1;
+    });
     const totalRev = paid.reduce((s, a) => s + parseFloat(a.paid_amount || 0), 0);
     const summary = [
-      { label: "ชำระแล้ว", value: paid.length, accent: true, sub: total ? `${Math.round((paid.length / total) * 100)}%` : "0%" },
+      { label: "ชำระแล้ว", value: paidList2.length, accent: true, sub: total ? `${Math.round((paidList2.length / total) * 100)}%` : "0%" },
       { label: "ยังไม่ชำระ", value: unpaidList.length },
-      { label: "รายรับรวม", value: `฿${formatNum(totalRev)}` },
+      ...(payQk ? [] : [{ label: "รายรับรวม", value: `฿${formatNum(totalRev)}` }]),
     ];
     return {
       title: `💰 รายงานการชำระเงิน — ${evName}`,
@@ -1078,8 +1184,8 @@ function _buildStatReport(type) {
       sections: [
         { title: "💰 แยกตามสถานะ", count: Object.keys(byStatus).length, html: `<div class="sr-breakdown">${_renderBreakdownRows(byStatus, total)}</div>` },
       ],
-      list: [...unpaidList, ...paid],
-      listMode: "paid",
+      list: [...unpaidList, ...paidList2],
+      listMode: payQk ? "default" : "paid",
     };
   }
 
@@ -1115,7 +1221,8 @@ window.openStatReport = function (type) {
 
   const listOpts =
     report.listMode === "checkin" ? { showCheckinTime: true } :
-    report.listMode === "paid" ? { showPaidInfo: true } : {};
+    report.listMode === "paid" ? { showPaidInfo: true } :
+    report.listMode === "attendance" ? { showAttend: true } : {};
   const listHtml = report.hideList ? "" : `<div>
     <div class="sr-section-title">📋 รายชื่อ <span class="sr-section-count">(${report.list.length} คน)</span></div>
     <div class="sr-list">${_attendeeListRows(report.list, listOpts)}</div>
@@ -1173,6 +1280,63 @@ window.exportStatReportCSV = function () {
 };
 
 // ── FILTER + RENDER ───────────────────────────────────────
+// ── Column sort (คลิกหัวคอลัมน์) ───────────────────────────
+let _sortKey = null;   // col.key ที่กำลัง sort · null = ตามลำดับลงทะเบียน (created_at)
+let _sortDir = 1;      // 1 = น้อย→มาก · -1 = มาก→น้อย
+
+function _isSortable(key) {
+  return key === "num" || key === "name" || key === "checkin"
+    || key.startsWith("field:") || key.startsWith("custom:") || key.startsWith("qual:");
+}
+
+// ค่าที่ใช้เทียบของแต่ละคอลัมน์
+function _sortVal(a, key) {
+  if (key === "num") return a.created_at || "";
+  if (key === "name") return a.name || "";
+  if (key === "checkin") return a.checked_in ? 1 : 0;
+  if (key.startsWith("field:")) {
+    const f = key.slice(6);
+    if (f === "position") return a.position_level || "";
+    if (f === "phone") return a.phone || "";
+    if (f === "upline") { const m = _uplineMatchFor(a); return (m ? (m.nickname || m.name) : a.upline_name_text) || ""; }
+    return "";
+  }
+  if (key.startsWith("custom:")) {
+    const ck = key.slice(7);
+    const cf = (_getActiveFieldConfig().custom_fields || []).find(c => c.key === ck);
+    if (cf?.ftype === "persontype") return personTypeLabel(a.member_code, a.person_role);
+    const v = a.extra_fields?.[ck];
+    return v == null ? "" : v;
+  }
+  if (key.startsWith("qual:")) {
+    const v = a.extra_fields?.[key.slice(5)];
+    return v === true ? 2 : v === false ? 1 : 0;   // ✓ > ✗ > —
+  }
+  return "";
+}
+
+function _applySort(list) {
+  if (!_sortKey) return list;   // default = ตามลำดับลงทะเบียน
+  const key = _sortKey, dir = _sortDir;
+  return list.map((a, i) => ({ a, i })).sort((x, y) => {
+    const va = _sortVal(x.a, key), vb = _sortVal(y.a, key);
+    let c;
+    if (typeof va === "number" && typeof vb === "number") c = va - vb;
+    else c = String(va).localeCompare(String(vb), "th", { numeric: true });
+    return c !== 0 ? c * dir : x.i - y.i;   // เท่ากัน → คงลำดับเดิม (stable)
+  }).map(o => o.a);
+}
+
+// คลิกหัวคอลัมน์: asc → desc → default
+window.toggleSort = function (key) {
+  if (_sortKey === key) {
+    if (_sortDir === 1) _sortDir = -1;
+    else { _sortKey = null; _sortDir = 1; }
+  } else { _sortKey = key; _sortDir = 1; }
+  rebuildTableHeader();
+  filterTable();
+};
+
 function filterTable() {
   const search = (_searchKeyword || "").toLowerCase();
   const checkin = document.getElementById("filterCheckin")?.value || "";
@@ -1199,7 +1363,7 @@ function filterTable() {
     return matchSearch && matchCheckin && matchPayment && matchTag;
   });
 
-  renderTable(_sortByUplineLevel(filtered));
+  renderTable(_applySort(filtered));   // default = ลำดับลงทะเบียน · มี sort ถ้าคลิกหัวคอลัมน์
 }
 
 function renderTable(list) {
@@ -1213,6 +1377,7 @@ function renderTable(list) {
 
   _renderNewRowsInHead();                       // แถวเพิ่ม/ค้นหา → เหนือหัวตาราง (ใน thead)
   tbody.innerHTML = _buildSavedRowsHtml(list);  // tbody = เฉพาะรายชื่อ
+  _restoreEditValues();
   if (window.AuthZ) window.AuthZ.applyDomPerms(tbody);
   updateBulkUI();
 }
@@ -1229,10 +1394,13 @@ function _renderNewRowsInHead() {
 }
 
 function _buildSavedRowsHtml(list) {
-  const colCount = getActiveColumns().length;
+  // คำนวณคอลัมน์ครั้งเดียวต่อ render แล้วส่งต่อให้ทุกแถว (เดิมเรียก getActiveColumns ต่อแถว — ช้ากับ list ใหญ่)
+  const cols = getActiveColumns();
+  const divKeys = _groupDividerKeys(cols);
+  cols.forEach(c => { c._grpDiv = divKeys.has(c.key); });
   return list.length
-    ? list.map((a, i) => renderSavedRowSpreadsheet(a, i + 1)).join("")
-    : `<tr class="empty-state-row"><td colspan="${colCount}"><div class="empty-state" style="padding:20px">
+    ? list.map((a, i) => renderSavedRowSpreadsheet(a, i + 1, cols)).join("")
+    : `<tr class="empty-state-row"><td colspan="${cols.length}"><div class="empty-state" style="padding:20px">
         <div class="empty-icon" style="font-size:28px">👥</div>
         <div class="empty-text" style="font-size:12px">ยังไม่มีผู้เข้าร่วมที่ตรง — พิมพ์ที่แถวบนเพื่อเพิ่ม</div>
       </div></td></tr>`;
@@ -1247,53 +1415,224 @@ function renderSavedRowsOnly(list) {
     .querySelectorAll("tr.saved-row, tr.empty-state-row")
     .forEach((tr) => tr.remove());
   tbody.insertAdjacentHTML("beforeend", _buildSavedRowsHtml(list));
+  _restoreEditValues();
   const countEl = document.getElementById("attCount");
   if (countEl) countEl.textContent = `${list.length} คน`;
   updateBulkUI();
-}
-
-// filter + update เฉพาะ saved rows (ใช้ตอนพิมพ์ใน new-row)
-function filterTableSavedOnly() {
-  const search = (_searchKeyword || "").toLowerCase();
-  const checkin = document.getElementById("filterCheckin")?.value || "";
-  const payment = document.getElementById("filterPayment")?.value || "";
-  const tagFilter = document.getElementById("filterTag")?.value || "";
-
-  const filtered = allAttendees.filter((a) => {
-    const matchSearch =
-      !search ||
-      (a.name || "").toLowerCase().includes(search) ||
-      (a.phone || "").toLowerCase().includes(search) ||
-      (a.member_code || "").toLowerCase().includes(search) ||
-      (a.ticket_no || "").toLowerCase().includes(search) ||
-      (a.extra_fields?.referrer_code || "").toLowerCase().includes(search) ||
-      (a.extra_fields?.referrer_name || "").toLowerCase().includes(search) ||
-      (a.tags || []).some((t) => (t || "").toLowerCase().includes(search));
-    const matchCheckin = !checkin || String(a.checked_in) === checkin;
-    const matchPayment =
-      !payment ||
-      (payment === "EXPIRED"
-        ? isAttendeeExpired(a)
-        : a.payment_status === payment);
-    const matchTag = !tagFilter || (a.tags || []).includes(tagFilter);
-    return matchSearch && matchCheckin && matchPayment && matchTag;
-  });
-  renderSavedRowsOnly(_sortByUplineLevel(filtered));
+  _applyColumnFreeze();   // re-apply freeze หลัง re-render body
 }
 
 // ── SPREADSHEET ROW RENDERERS ──────────────────────────────
 // adaptive cells ตาม getActiveColumns() · เป็น render path เดียวของหน้านี้
 
-function renderSavedRowSpreadsheet(a, seq) {
+// ══════════════════════════════════════════════════════════
+//  EDIT MODE — ปุ่มลอยสลับ "แก้ไข ↔ บันทึก" · แก้ทุกคอลัมน์พร้อมกัน
+// ══════════════════════════════════════════════════════════
+let _editMode = false;
+// เก็บค่าที่แก้ค้างไว้ (ยังไม่บันทึก) ข้าม re-render/sort/filter/freeze — รวมแถวที่ถูก filter ซ่อนด้วย
+// { "<aid>|<edit>": value } · เป็น source of truth ตอนบันทึก (ไม่อ่านจาก DOM ที่อาจถูกซ่อน)
+const _editDirty = {};
+function _clearEditDirty() { for (const k in _editDirty) delete _editDirty[k]; }
+
+// รายชื่อสายงานจาก config (sync — ใช้ cache · pre-fetch ก่อนเข้าโหมดแก้ไข)
+function _uplineLevelLeadersSync() {
+  const levels = Array.isArray(_uplineLevelsCache) ? _uplineLevelsCache : [];
+  const out = []; const seen = new Set();
+  levels.forEach(lv => (lv?.leaders || []).forEach(ld => {
+    const label = String(ld?.nickname || "").trim() || String(ld?.name || "").trim() || String(ld?.code || "").trim();
+    if (!label || seen.has(label)) return;
+    seen.add(label); out.push({ label, color: lv?.color || _colorFromCode(String(ld?.code || "")) });   // สีตามระดับ
+  }));
+  return out;
+}
+
+// คืน <td> ที่เป็น input สำหรับโหมดแก้ไข · คืน null = คอลัมน์นี้แก้ไม่ได้ (ให้ render ปกติ)
+function _editCellHtml(col, a, colCls) {
+  const aid = a.attendee_id;
+  const td = (inner) => `<td class="${colCls} att-edit-on">${inner}</td>`;
+  const k = col.key;
+  const txtInp = (edit, val) => `<input class="edit-inp" data-aid="${aid}" data-edit="${edit}" data-orig="${escapeHtml(val)}" value="${escapeHtml(val)}" oninput="window._markEditDirty(this)">`;
+  if (k === "name") return td(txtInp("name", a.name || ""));
+  if (k === "field:phone") return td(txtInp("field:phone", _cleanPhone(a.phone)));
+  if (k === "field:position") return td(txtInp("field:position", a.position_level || ""));
+  if (k === "field:upline") {
+    if (a.member_code) return null;   // สมาชิก → auto สายงาน (readonly) → render ปกติ
+    const cur = String(a.upline_name_text || "");
+    const opts = _uplineLevelLeadersSync();
+    if (cur && !opts.some(l => l.label === cur)) opts.unshift({ label: cur, color: _uplineColorByLabel(cur) });
+    const curColor = _uplineColorByLabel(cur);   // ทาสีที่ td (select โปร่งใส → สีทะลุขึ้นมา · render ชัวร์กว่า bg ของ native select)
+    const tdStyle = curColor ? ` style="background:${escapeHtml(curColor)}"` : "";
+    return `<td class="${colCls} att-edit-on"${tdStyle}><select class="edit-inp" style="background:transparent" data-aid="${aid}" data-edit="field:upline" data-orig="${escapeHtml(cur)}" onchange="window._markEditDirty(this)"><option value="">— สายงาน —</option>${
+      opts.map(l => `<option value="${escapeHtml(l.label)}"${l.label === cur ? " selected" : ""} style="background:${escapeHtml(l.color || "#fff")}">${escapeHtml(l.label)}</option>`).join("")
+    }</select></td>`;
+  }
+  if (k.startsWith("custom:")) {
+    const ckey = k.slice(7);
+    const cf = (_getActiveFieldConfig().custom_fields || []).find(c => c.key === ckey);
+    const ft = cf?.ftype || "text";
+    if (ft === "persontype") return null;   // auto → readonly
+    const v = a.extra_fields?.[ckey];
+    if (ft === "stamp") {
+      return td(`<select class="edit-inp" data-aid="${aid}" data-edit="custom:${escapeHtml(ckey)}" data-orig="${escapeHtml(String(v ?? ""))}" onchange="window._markEditDirty(this)">${_buildStampOptions(_csUsersCache || [], String(v ?? ""))}</select>`);
+    }
+    const type = ft === "date" ? "date" : ft === "number" ? "number" : "text";
+    const cval = v == null ? "" : String(v);
+    return td(`<input class="edit-inp" type="${type}" data-aid="${aid}" data-edit="custom:${escapeHtml(ckey)}" data-orig="${escapeHtml(cval)}" value="${escapeHtml(cval)}" oninput="window._markEditDirty(this)">`);
+  }
+  if (k.startsWith("qual:")) {
+    const qkey = k.slice(5);
+    return td(`<input type="checkbox" class="edit-chk" data-aid="${aid}" data-edit="qual:${escapeHtml(qkey)}" data-orig="${a.extra_fields?.[qkey] === true ? "true" : "false"}" onchange="window._markEditDirty(this)"${a.extra_fields?.[qkey] === true ? " checked" : ""}>`);
+  }
+  if (k === "checkin") return td(`<input type="checkbox" class="edit-chk" data-aid="${aid}" data-edit="checkin" data-orig="${a.checked_in ? "true" : "false"}" onchange="window._markEditDirty(this)"${a.checked_in ? " checked" : ""}>`);
+  return null;   // check / num / actions → render ปกติ
+}
+
+window.toggleEditMode = async function () {
+  if (!_editMode) {
+    // pre-fetch ข้อมูล dropdown (สายงาน config + CS users) ให้ render แบบ sync ได้
+    await Promise.all([_fetchCsUsers().catch(() => {}), fetchUplineLevels().catch(() => {})]);
+    _clearEditDirty();
+    _editMode = true;
+    _updateEditFab();
+    filterTable();
+  } else {
+    await _saveEditMode();
+    _clearEditDirty();
+    _editMode = false;
+    _updateEditFab();
+    filterTable();
+  }
+};
+
+// ยกเลิกโหมดแก้ไข — ทิ้งการแก้ที่ยังไม่บันทึก (ถามยืนยันถ้ามี)
+window.cancelEditMode = async function () {
+  const n = Object.keys(_editDirty).length;
+  if (n) {
+    const ok = await window.ConfirmModal.open({
+      icon: "✕",
+      title: "ยกเลิกการแก้ไข?",
+      message: `มี ${n} ช่องที่แก้แล้วยังไม่บันทึก — ยกเลิกจะทิ้งการแก้ทั้งหมด`,
+      okText: "ทิ้งการแก้",
+      cancelText: "แก้ต่อ",
+      tone: "danger",
+    });
+    if (!ok) return;
+  }
+  _clearEditDirty();
+  _editMode = false;
+  _updateEditFab();
+  filterTable();
+};
+
+// highlight cell ที่ถูกแก้แล้วยังไม่บันทึก (สีส้ม) + เก็บค่าลง _editDirty (กันหายข้าม re-render/filter)
+window._markEditDirty = function (el) {
+  const cur = el.type === "checkbox" ? el.checked : el.value;
+  const isDirty = String(cur) !== (el.dataset.orig ?? "");
+  const key = el.dataset.aid + "|" + el.dataset.edit;
+  if (isDirty) _editDirty[key] = cur; else delete _editDirty[key];
+  const td = el.closest("td");
+  if (td) td.classList.toggle("edit-dirty", isDirty);
+  _updateEditFab();   // อัปเดตจำนวน cell ที่ยังไม่บันทึกบนปุ่ม
+};
+
+// คืนค่าที่แก้ค้างไว้ (จาก _editDirty) ลงใน input หลัง re-render — กัน sort/freeze/filter ทำค่าที่ยังไม่บันทึกหาย
+// _editDirty เก็บไว้ตลอด (รวมแถวที่ถูก filter ซ่อน) → กลับมาแสดงเมื่อแถวนั้น render อีกครั้ง
+function _restoreEditValues() {
+  if (!_editMode) return;
+  document.querySelectorAll("#attTableBody [data-edit]").forEach(el => {
+    const k = el.dataset.aid + "|" + el.dataset.edit;
+    if (!(k in _editDirty)) return;
+    const v = _editDirty[k];
+    if (el.type === "checkbox") el.checked = !!v;
+    else el.value = v;
+    const td = el.closest("td");
+    if (td) td.classList.add("edit-dirty");
+  });
+}
+
+function _updateEditFab() {
+  const fab = document.getElementById("editModeFab");
+  const cancel = document.getElementById("editCancelFab");
+  if (cancel) cancel.style.display = _editMode ? "inline-flex" : "none";
+  if (!fab) return;
+  fab.classList.toggle("is-saving", _editMode);
+  const n = Object.keys(_editDirty).length;
+  fab.innerHTML = _editMode
+    ? `<span class="fab-ico">💾</span><span class="fab-lbl">บันทึก${n ? ` (${n})` : ""}</span>`
+    : `<span class="fab-ico">✏️</span><span class="fab-lbl">โหมดแก้ไข</span>`;
+}
+
+async function _saveEditMode() {
+  // อ่านจาก _editDirty (source of truth) ไม่ใช่ DOM — กันแถวที่ถูก filter ซ่อนไว้แล้วแก้ค้างหาย
+  const byAid = {};   // aid → { name?, phone?, position_level?, _upline?, _checkin?, _extra:{}, _quals:{} }
+  for (const [k, val] of Object.entries(_editDirty)) {
+    const sep = k.indexOf("|");
+    const aid = parseInt(k.slice(0, sep), 10);
+    const edit = k.slice(sep + 1);
+    const p = byAid[aid] || (byAid[aid] = { _extra: {}, _quals: {} });
+    if (edit === "name") p.name = String(val).trim();
+    else if (edit === "field:phone") p.phone = _cleanPhone(val);
+    else if (edit === "field:position") p.position_level = String(val).trim();
+    else if (edit === "field:upline") p._upline = String(val).trim();
+    else if (edit === "checkin") p._checkin = !!val;
+    else if (edit.startsWith("custom:")) p._extra[edit.slice(7)] = (typeof val === "string" ? val.trim() : val);
+    else if (edit.startsWith("qual:")) p._quals[edit.slice(5)] = !!val;
+  }
+
+  let changed = 0;
+  showLoading(true);
+  try {
+    for (const [aidStr, p] of Object.entries(byAid)) {
+      const aid = parseInt(aidStr, 10);
+      const a = allAttendees.find(x => x.attendee_id === aid);
+      if (!a) continue;
+      const patch = {};
+      if ("name" in p && p.name && p.name !== (a.name || "")) patch.name = p.name;
+      if ("phone" in p && (p.phone || null) !== (a.phone || null)) patch.phone = p.phone || null;
+      if ("position_level" in p && (p.position_level || null) !== (a.position_level || null)) patch.position_level = p.position_level || null;
+      if ("_upline" in p && (p._upline || "") !== (a.upline_name_text || "")) { patch.upline_id = null; patch.upline_name_text = p._upline || null; }
+      if ("_checkin" in p && p._checkin !== !!a.checked_in) { patch.checked_in = p._checkin; patch.check_in_at = p._checkin ? buildCheckinTimestamp() : null; }
+      // extra_fields (custom text/date/number/stamp + quals)
+      const merged = { ...(a.extra_fields || {}) };
+      let extraChanged = false;
+      Object.entries(p._extra).forEach(([key, v]) => {
+        const nv = (v === null || v === "") ? undefined : v;
+        if (nv === undefined) { if (key in merged) { delete merged[key]; extraChanged = true; } }
+        else if (merged[key] !== nv) { merged[key] = nv; extraChanged = true; }
+      });
+      Object.entries(p._quals).forEach(([key, want]) => {
+        const cur = merged[key] === true;
+        if (want !== cur) { merged[key] = want; extraChanged = true; }   // want=false → ✗ · ไม่แตะค่าที่เป็น — อยู่แล้ว
+      });
+      if (extraChanged) patch.extra_fields = merged;
+
+      if (Object.keys(patch).length) {
+        await updateAttendee(aid, patch);
+        Object.assign(a, patch);
+        changed++;
+      }
+    }
+    if (changed) { await computeUplineMatches().catch(() => {}); updateStats(); showToast(`บันทึก ${changed} รายการแล้ว 💾`, "success"); }
+    else showToast("ไม่มีการเปลี่ยนแปลง", "info");
+  } catch (e) {
+    showToast("บันทึกไม่สำเร็จ: " + (e.message || e), "error");
+  } finally {
+    showLoading(false);
+  }
+}
+
+function renderSavedRowSpreadsheet(a, seq, cols) {
   const expired = isAttendeeExpired(a);
   const displayPayStatus = expired ? "EXPIRED" : (a.payment_status || "COMPLIMENTARY");
   const tierName = a.tier_id && currentTiersById[a.tier_id]
     ? currentTiersById[a.tier_id].tier_name
     : null;
   const isSelected = selectedAttendeeIds.has(a.attendee_id);
-  const cols = getActiveColumns();
-  const divKeys = _groupDividerKeys(cols);
-  cols.forEach(c => { c._grpDiv = divKeys.has(c.key); });
+  if (!cols) {   // เผื่อเรียกเดี่ยว (ไม่ผ่าน _buildSavedRowsHtml) — คำนวณเอง
+    cols = getActiveColumns();
+    const divKeys = _groupDividerKeys(cols);
+    cols.forEach(c => { c._grpDiv = divKeys.has(c.key); });
+  }
   const cells = cols.map(c => _renderSavedCellSpread(c, a, seq, displayPayStatus, tierName, isSelected)).join("");
   return `<tr class="saved-row${isSelected ? " row-selected" : ""}" data-aid="${a.attendee_id}">${cells}</tr>`;
 }
@@ -1301,6 +1640,11 @@ function renderSavedRowSpreadsheet(a, seq) {
 function _renderSavedCellSpread(col, a, seq, payStatus, tierName, isSelected) {
   const colCls = (col.align === "center" ? "col-center" : "") + (col._grpDiv ? " col-grp-divider" : "");
   const tdOpen = `<td class="${colCls}">`;
+  // โหมดแก้ไข — render input แทน (คอลัมน์ที่แก้ได้) · คืน null = แก้ไม่ได้ → render ปกติ
+  if (_editMode) {
+    const eh = _editCellHtml(col, a, colCls);
+    if (eh) return eh;
+  }
   // base columns
   switch (col.key) {
     case "check":
@@ -1315,10 +1659,10 @@ function _renderSavedCellSpread(col, a, seq, payStatus, tierName, isSelected) {
           <div style="font-weight:600;cursor:text" title="คลิกเพื่อแก้ไขชื่อ">
             ${a.member_code
               ? `<span style="font-family:'IBM Plex Mono',monospace;font-size:10px;background:#1e40af;color:#fff;padding:2px 7px;border-radius:10px;font-weight:700;margin-right:6px">${escapeHtml(a.member_code)}</span>`
-              : `<span style="font-size:10px;background:#fef3c7;color:#92400e;padding:2px 7px;border-radius:10px;font-weight:700;margin-right:6px;border:1px solid #fcd34d" title="ยังไม่ใช่สมาชิก">👤 Guest</span>`
+              : ""
             }${escapeHtml(a.name)}
           </div>
-          ${renderTagsInline(a, a.person_role === "co_applicant" ? `<span style="font-size:10px;color:#9333ea;background:#f3e8ff;padding:1px 7px;border-radius:10px;font-weight:700;white-space:nowrap" title="ผู้สมัครร่วมจากรหัสเดียวกัน">👥 ผู้สมัครร่วม</span>` : "")}
+          ${renderTagsInline(a)}
         </div>
       </td>`;
     case "payment":
@@ -1346,6 +1690,13 @@ function _renderSavedCellSpread(col, a, seq, payStatus, tierName, isSelected) {
   // field:<key> — คลิกแก้ inline ได้ (ฟิลด์ที่แก้ได้)
   if (col.key.startsWith("field:")) {
     const fkey = col.key.slice(6);
+    // สายงาน: guest (ไม่มีรหัส) → dropdown เลือกเอง · สมาชิก/ผู้สมัครร่วม → auto (ไม่แก้ inline)
+    if (fkey === "upline") {
+      const td = a.member_code
+        ? tdOpen
+        : `<td class="${colCls} att-edit-cell" title="คลิกเลือกสายงาน" onclick="window.editUplineCell(${a.attendee_id},this)">`;
+      return _renderFieldCellSpread(fkey, a, td);
+    }
     const td = _FIELD_EDIT[fkey]
       ? `<td class="${colCls} att-edit-cell" title="คลิกเพื่อแก้ไข" onclick="window.editFieldCell(${a.attendee_id},'${fkey}',this)">`
       : tdOpen;
@@ -1364,7 +1715,19 @@ function _renderSavedCellSpread(col, a, seq, payStatus, tierName, isSelected) {
       return `<td class="${colCls} att-edit-cell" title="คลิกเลือกผู้บันทึก (CS)"
         onclick="window.editStampCell(${a.attendee_id},'${escapeHtml(ckey)}',this)">${inner}</td>`;
     }
-    const inner = v ? `<span style="font-size:11.5px;color:#0f172a">${escapeHtml(String(v))}</span>` : `<span class="att-empty">·</span>`;
+    // persontype = สถานะชนิดผู้เข้าร่วม (auto) → derive จาก row · readonly ไม่ให้แก้
+    if (ftype === "persontype") {
+      const label = personTypeLabel(a.member_code, a.person_role);
+      const style = !a.member_code
+        ? "background:#fef3c7;color:#92400e;border:1px solid #fcd34d"
+        : (a.person_role === "co_applicant"
+          ? "background:#f3e8ff;color:#9333ea"
+          : "background:#e0e7ff;color:#3730a3");
+      return `<td class="${colCls}"><span style="font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:10px;white-space:nowrap;${style}">${escapeHtml(label)}</span></td>`;
+    }
+    // date → แสดง DD/MM/YYYY (เก็บใน DB เป็น ISO เหมือนเดิม · native date input ตอนแก้ใช้ ISO)
+    const disp = (ftype === "date" && v) ? formatDMY(String(v).slice(0, 10)) : String(v ?? "");
+    const inner = v ? `<span style="font-size:11.5px;color:#0f172a">${escapeHtml(disp)}</span>` : `<span class="att-empty">·</span>`;
     return `<td class="${colCls} att-edit-cell" title="คลิกเพื่อแก้ไข"
       onclick="window.editCustomCell(${a.attendee_id},'${escapeHtml(ckey)}','${ftype}',this)">${inner}</td>`;
   }
@@ -1386,7 +1749,7 @@ function _renderFieldCellSpread(fkey, a, tdOpen) {
         : empty;
     case "phone":
       return a.phone
-        ? `${tdOpen}<span class="cell-phone">${escapeHtml(a.phone)}</span></td>`
+        ? `${tdOpen}<span class="cell-phone">${escapeHtml(_cleanPhone(a.phone))}</span></td>`
         : empty;
     case "upline": {
       const m = _uplineMatchFor(a);
@@ -1394,8 +1757,9 @@ function _renderFieldCellSpread(fkey, a, tdOpen) {
         const txt = m.nickname || m.name || a.upline_name_text || "";
         return `${tdOpen}<span class="att-upline-lv" style="background:${escapeHtml(m.color || "#e0e7ff")}" title="${escapeHtml(txt)}">🌿 ${escapeHtml(txt)}</span></td>`;
       }
+      const gColor = _uplineColorByLabel(a.upline_name_text);
       return a.upline_name_text
-        ? `${tdOpen}<span style="font-size:11.5px;color:#3730a3;background:#e0e7ff;padding:2px 8px;border-radius:5px;font-weight:600">🌿 ${escapeHtml(a.upline_name_text)}</span></td>`
+        ? `${tdOpen}<span class="att-upline-lv" style="background:${escapeHtml(gColor || "#e0e7ff")}" title="${escapeHtml(a.upline_name_text)}">🌿 ${escapeHtml(a.upline_name_text)}</span></td>`
         : empty;
     }
     default:
@@ -1414,48 +1778,43 @@ function _renderQualCellSpread(qkey, a, tdOpen) {
 
 function renderNewRowSpreadsheet(r) {
   const cols = getActiveColumns();
-  // ใช้ colspan ครอบทุกคอลัมน์ตรงกลาง (หลัง check + #) เว้น 4 ตัวท้าย: ticket, payment, checkin, actions
-  // → search input ครอบกว้างให้พิมพ์ง่าย
+  // generic: ช่อง search อยู่ที่ตำแหน่งคอลัมน์ "name" (colspan กว้าง) · คอลัมน์ก่อนหน้า + ท้าย = placeholder
   const colCount = cols.length;
-  const trailingCols = ["payment", "checkin", "actions"];
-  const trailingCount = cols.filter(c => trailingCols.includes(c.key)).length;
-  const headCount = cols[1]?.key === "num" ? 2 : 1;   // check + (#)
-  const searchSpan = colCount - headCount - trailingCount;
+  const nameIdx = Math.max(0, cols.findIndex(c => c.key === "name"));
+  let trailingCount = 0;   // คอลัมน์ท้ายที่เป็น action/ระบบ (placeholder)
+  for (let i = colCount - 1; i >= 0; i--) {
+    if (["payment", "actions", "checkin"].includes(cols[i].key)) trailingCount++;
+    else break;
+  }
+  const searchSpan = Math.max(1, colCount - nameIdx - trailingCount);
+  const ph = `<td class="col-center"><span class="att-empty">·</span></td>`;
+  const leading = cols.slice(0, nameIdx).map(() => ph).join("");
+  const trailing = cols.slice(colCount - trailingCount).map(() => ph).join("");
   const codeChip = r.memberCode
     ? `<span style="font-family:'IBM Plex Mono',monospace;font-size:10px;background:#1e40af;color:#fff;padding:2px 7px;border-radius:10px;font-weight:700;white-space:nowrap">${escapeHtml(r.memberCode)}</span>`
     : "";
   const posBadge = r.positionLevel
     ? `<span style="font-size:10px;color:#92400e;background:#fef3c7;padding:1px 6px;border-radius:4px;font-weight:700;white-space:nowrap">⭐ ${escapeHtml(r.positionLevel)}</span>`
     : "";
-  const phoneBadge = r.phone ? `<span class="cell-phone" style="font-size:11px">${escapeHtml(r.phone)}</span>` : "";
+  const phoneBadge = r.phone ? `<span class="cell-phone" style="font-size:11px">${escapeHtml(_cleanPhone(r.phone))}</span>` : "";
 
-  const hasPayment = cols.some(c => c.key === "payment");
   return `<tr class="new-row" data-nrid="${r.id}">
-    <td class="col-center"><span class="att-empty">·</span></td>
-    ${cols[1]?.key === "num" ? `<td class="col-center"><span class="att-empty">·</span></td>` : ""}
+    ${leading}
     <td colspan="${searchSpan}">
       <div style="display:flex;align-items:center;gap:6px;flex-wrap:nowrap">
         ${codeChip}
-        <input class="inline-input" placeholder="🔍 พิมพ์รหัส/ชื่อ — เพื่อเพิ่ม หรือ filter รายการด้านล่าง" autocomplete="off"
+        <input class="inline-input" placeholder="🔍 พิมพ์รหัส/ชื่อ — เพื่อเพิ่มผู้เข้าร่วม" autocomplete="off"
           value="${escapeHtml(r.name)}"
           oninput="window.onNewRowNameInput('${r.id}', this.value)"
           onkeydown="window.onNewRowKey(event, '${r.id}')"
           onfocus="window.onNewRowFocus('${r.id}')"
           data-role="search"
-          style="flex:1;min-width:200px">
+          style="flex:1;min-width:200px;max-width:50%">
         ${posBadge}
         ${phoneBadge}
       </div>
     </td>
-    ${hasPayment ? `<td class="col-center">
-      <select class="inline-select" onchange="window.onNewRowPayment('${r.id}', this.value)">
-        <option value="UNPAID" ${r.paymentStatus === "UNPAID" ? "selected" : ""}>⏳ ยังไม่ชำระ</option>
-        <option value="PAID" ${r.paymentStatus === "PAID" ? "selected" : ""}>💳 ชำระแล้ว</option>
-        <option value="COMPLIMENTARY" ${r.paymentStatus === "COMPLIMENTARY" ? "selected" : ""}>🎫 ฟรี</option>
-      </select>
-    </td>` : ""}
-    <td class="col-center"><span class="att-empty">·</span></td>
-    <td class="col-center"><span class="att-empty">·</span></td>
+    ${trailing}
   </tr>`;
 }
 
@@ -1470,7 +1829,8 @@ function paymentMethodIcon(m) {
 
 function renderDeadlineChip(a) {
   if (a.payment_status !== "UNPAID" || !a.payment_deadline) return "";
-  const d = daysUntil(a.payment_deadline);
+  const deadline = _capDeadlineToEvent(String(a.payment_deadline).slice(0, 10));  // ไม่เกินวันงาน
+  const d = daysUntil(deadline);
   if (d == null) return "";
   const cls = d < 0 ? "expired" : d <= 1 ? "near" : "ok";
   const icon = d < 0 ? "⌛" : "⏳";
@@ -1479,7 +1839,7 @@ function renderDeadlineChip(a) {
     : d === 0
     ? "วันนี้"
     : `อีก ${d} วัน`;
-  return `<div class="deadline-chip ${cls}" title="ครบกำหนด ${formatDMYShort(a.payment_deadline)}">${icon} ${label}</div>`;
+  return `<div class="deadline-chip ${cls}" title="ครบกำหนด ${formatDMYShort(deadline)}">${icon} ${label}</div>`;
 }
 
 function _tagColorClass(name) {
@@ -1540,14 +1900,11 @@ window.onNewRowNameInput = function (id, val) {
   const r = _findRow(id); if (!r) return;
   r.name = val;
   activeSearchRowId = id;
-  // ใช้ input นี้เป็น filter ของรายชื่อด้านล่างด้วย
-  _searchKeyword = val || "";
+  // ช่องนี้ใช้สำหรับ "เพิ่ม/ค้นหาสมาชิก" อย่างเดียว — ไม่ filter รายชื่อด้านล่าง
   // If member is already linked, skip member search — user is just tweaking the display name
   if (!r.memberCode) {
     window.searchMember(val, id);
   }
-  // Update saved-rows filter ทันที (ไม่แตะ new-row → ไม่เสีย focus)
-  filterTableSavedOnly();
   // ❌ เลิก auto-add trailing empty row ตอนพิมพ์ (กันแถวซ้อนดูสับสน)
   //   → trailing row ใหม่จะถูกเพิ่มเฉพาะตอน save สำเร็จ (saveNewRow / saveAttendeeForm)
   _updateSaveBtn(id);
@@ -1710,7 +2067,7 @@ window.saveNewRow = async function (id) {
     const payload = {
       event_id: currentEventId,
       name,
-      phone: r.phone || null,
+      phone: _cleanPhone(r.phone) || null,
       position_level: r.positionLevel || null,
       paid_amount: price,
       payment_status: r.paymentStatus,
@@ -1721,13 +2078,18 @@ window.saveNewRow = async function (id) {
       checked_in: _autoCheckin ? true : false,
       check_in_at: _autoCheckin ? buildCheckinTimestamp() : null,
     };
-    const stampFields = _buildStampExtraFields();
+    const stampFields = _buildStampExtraFields(payload.member_code, payload.person_role);
     if (Object.keys(stampFields).length) payload.extra_fields = stampFields;
     const blocked = await _enforceRegistration(payload);
     if (blocked) { r.saving = false; _updateSaveBtn(id); return; }
     payload.ticket_no = await generateTicketNo(currentEventId);
     await createAttendee(payload);
     showToast("เพิ่มผู้เข้าร่วมแล้ว 👤", "success");
+    // ปิด dropdown suggest + เคลียร์ผลค้นหา (ไม่งั้นค้างอยู่หลังเพิ่ม)
+    const sug = document.getElementById("memberSuggest");
+    if (sug) sug.style.display = "none";
+    _lastMemberResults = [];
+    activeSearchRowId = null;
     // Remove this row from newRows, then ensure trailing empty
     newRows = newRows.filter(x => x.id !== id);
     ensureTrailingEmptyRow();
@@ -1801,14 +2163,39 @@ window.editFieldCell = function (attId, fkey, tdEl) {
 
   const inp = document.createElement("input");
   inp.className = "inline-input"; inp.type = "text";
-  inp.value = a[def.col] || ""; inp.placeholder = def.ph || "";
+  inp.value = def.col === "phone" ? _cleanPhone(a[def.col]) : (a[def.col] || ""); inp.placeholder = def.ph || "";
   inp.onblur = async () => {
-    const v = inp.value.trim();
+    let v = inp.value.trim();
+    if (def.col === "phone") v = _cleanPhone(v);   // เอา - ออก
     if (v === (a[def.col] || "").trim()) { filterTable(); return; }
     await _patchAttendee(attId, { [def.col]: v || null });
   };
   inp.onkeydown = (e) => { if (e.key === "Enter") { e.preventDefault(); inp.blur(); } else if (e.key === "Escape") filterTable(); };
   tdEl.innerHTML = ""; tdEl.appendChild(inp); inp.focus(); inp.select();
+};
+
+// แก้สายงาน (upline) inline — เฉพาะ guest (ไม่มีรหัส) → dropdown · สมาชิก/ผู้สมัครร่วม = auto จึงไม่เปิด
+window.editUplineCell = async function (attId, tdEl) {
+  const a = allAttendees.find(x => x.attendee_id === attId);
+  if (!a || a.member_code) return;                 // เฉพาะ guest
+  if (tdEl.querySelector("select")) return;
+  const leaders = await _uplineLevelLeaders();      // จาก config ตั้งค่าสายงาน (nickname)
+  const cur = String(a.upline_name_text || "");
+  const opts = leaders.slice();
+  if (cur && !opts.some(l => l.label === cur)) opts.unshift({ label: cur, color: _uplineColorByLabel(cur) });  // คงค่าเดิมถ้าไม่อยู่ใน config แล้ว
+  const sel = document.createElement("select");
+  sel.className = "inline-select";
+  sel.style.width = "100%";
+  sel.innerHTML = '<option value="">— เลือกสายงาน —</option>' +
+    opts.map(l => `<option value="${escapeHtml(l.label)}"${l.label === cur ? " selected" : ""} style="background:${escapeHtml(l.color || "#fff")}">${escapeHtml(l.label)}</option>`).join("");
+  const _tintSel = () => { sel.style.background = _uplineColorByLabel(sel.value) || ""; };
+  _tintSel();   // ทาสีพื้นหลัง select ตามค่าที่เลือก
+  // กัน click บน select bubble กลับไปที่ td onclick (ไม่งั้นสร้าง select ใหม่ → dropdown ปิด)
+  sel.onclick = (e) => e.stopPropagation();
+  sel.onmousedown = (e) => e.stopPropagation();
+  sel.onchange = () => { _tintSel(); _patchAttendee(attId, { upline_id: null, upline_name_text: sel.value || null }); };
+  sel.onblur = () => { if (String(sel.value) === cur) filterTable(); };
+  tdEl.innerHTML = ""; tdEl.appendChild(sel); sel.focus();
 };
 
 // แก้ custom field (extra_fields) inline (autosave)
@@ -1821,7 +2208,7 @@ window.editCustomCell = function (attId, key, ftype, tdEl) {
   inp.value = a.extra_fields?.[key] ?? "";
   inp.onblur = async () => {
     const v = inp.value.trim();
-    if (v === String(a.extra_fields?.[key] ?? "")) { filterTable(); return; }
+    if (v === String(a.extra_fields?.[key] ?? "").trim()) { filterTable(); return; }
     await _patchAttendeeExtra(attId, { [key]: v || null });
   };
   inp.onkeydown = (e) => { if (e.key === "Enter") { e.preventDefault(); inp.blur(); } else if (e.key === "Escape") filterTable(); };
@@ -2038,7 +2425,7 @@ async function _buildExportData() {
       case "name":  return a.name || "";
       case "std": {
         switch (c.key) {
-          case "phone":        return a.phone || "";
+          case "phone":        return _cleanPhone(a.phone);
           case "position":     return a.position_level || "";
           case "upline":       return a.upline_name_text || "";
           default:             return "";
@@ -2048,8 +2435,13 @@ async function _buildExportData() {
         const v = a.extra_fields?.[c.key];
         return v === true ? "TRUE" : v === false ? "FALSE" : "";
       }
-      case "custom":
-        return a.extra_fields?.[c.key] || "";
+      case "custom": {
+        const cf = customFields.find(x => x.key === c.key);
+        if (cf?.ftype === "persontype") return personTypeLabel(a.member_code, a.person_role);
+        const cv = a.extra_fields?.[c.key];
+        if (cf?.ftype === "date" && cv) return formatDMY(String(cv).slice(0, 10));   // DD/MM/YYYY
+        return cv || "";
+      }
       default: return "";
     }
   }));
@@ -2709,9 +3101,9 @@ function _renderMemberSuggest() {
   sug.style.display = "block";
 }
 
-// Footer row: "➕ เพิ่มผู้เรียนใหม่ (ยังไม่ใช่สมาชิก)" → opens guest form modal
+// Footer row: "➕ เพิ่มผู้เรียนใหม่ (ยังไม่ใช่สมาชิก)" → เพิ่มลง list ตรงๆ (ไม่เปิด form)
 function _guestAddRowHtml() {
-  return `<div onclick="window.openGuestFormFromSearch(window._activeSearchRowIdForGuest())"
+  return `<div onclick="window.quickAddGuestFromSearch(window._activeSearchRowIdForGuest())"
     style="padding:11px 12px;cursor:pointer;font-size:12.5px;display:flex;align-items:center;gap:8px;background:linear-gradient(90deg,#fef3c7,#fde68a);border-top:2px solid #fcd34d;font-weight:700;color:#78350f"
     onmouseover="this.style.background='linear-gradient(90deg,#fde68a,#fcd34d)'"
     onmouseout="this.style.background='linear-gradient(90deg,#fef3c7,#fde68a)'">
@@ -2723,6 +3115,13 @@ function _guestAddRowHtml() {
 
 // Expose activeSearchRowId for onclick handler (avoid quoting issues in template)
 window._activeSearchRowIdForGuest = function () { return activeSearchRowId; };
+
+// เพิ่ม guest ลง list ตรงๆ (ไม่เปิด form popup) — บังคับเป็น guest แล้ว quick-add
+window.quickAddGuestFromSearch = function (rowId) {
+  const r = _findRow(rowId); if (!r) return;
+  r.memberCode = ""; r.personRole = ""; r.positionLevel = "";   // ไม่ผูกสมาชิก
+  window.saveNewRow(rowId);   // เพิ่มด้วยชื่อที่พิมพ์ + ค่า default (วันที่/ผู้บันทึก/สถานะ auto)
+};
 
 window._setMemberHL = function (i) {
   _memberHighlight = i;
@@ -2811,7 +3210,7 @@ async function _quickAddMembers(members, paymentStatus, sourceRowId) {
       const payload = {
         event_id: currentEventId,
         name: mb.name,
-        phone: mb.phone || null,
+        phone: _cleanPhone(mb.phone) || null,
         position_level: mb.positionLevel || null,
         paid_amount: price,
         payment_status: paymentStatus || "UNPAID",
@@ -2822,7 +3221,7 @@ async function _quickAddMembers(members, paymentStatus, sourceRowId) {
         checked_in: _autoCheckin ? true : false,
         check_in_at: _autoCheckin ? buildCheckinTimestamp() : null,
       };
-      const stampFields = _buildStampExtraFields();
+      const stampFields = _buildStampExtraFields(payload.member_code, payload.person_role);
       if (Object.keys(stampFields).length) payload.extra_fields = stampFields;
       const blocked = await _enforceRegistration(payload);
       if (blocked) break;
@@ -3734,31 +4133,59 @@ function getActiveColumns() {
   const cols = [
     { key: "check", label: `<input type="checkbox" id="selectAllAttendees" onchange="window.toggleSelectAll(this.checked)" style="cursor:pointer;width:16px;height:16px">`, width: 36, align: "center" },
     { key: "num",  label: "#", width: 40, align: "center" },
+    { key: "checkin", label: "✅ Check-in", width: 90, align: "center" },   // ย้ายมาก่อนรหัส/ชื่อ
     { key: "name", label: "🔍 รหัส / ชื่อ", width: 220 },
   ];
   const cfg = _getActiveFieldConfig();
-  const order = Array.isArray(cfg.field_order) && cfg.field_order.length
-    ? cfg.field_order
-    : Object.keys(FIELD_COL_DEFS);
-  order.forEach(fkey => {
+
+  // ── helpers: เพิ่มคอลัมน์ตามชนิด ─────────────────────────
+  const pushStd = (fkey) => {
     if (!FIELD_COL_DEFS[fkey]) return;
     // คอลัมน์ยึดตาม config/template เป็นหลัก (ตัด/แสดงตามที่ template กำหนด)
     if (_fieldShowsAsColumn(cfg.fields?.[fkey])) {
       cols.push({ key: "field:" + fkey, label: _colIcon(fkey) + _getFieldLabel(fkey, cfg), width: FIELD_COL_DEFS[fkey].width, align: "center" });
     }
-  });
-  // Custom text fields → คอลัมน์ตามที่ admin เพิ่ม
-  (cfg.custom_fields || []).forEach(cf => {
-    const icon = cf.ftype === "stamp" ? "👤" : "📝";
+  };
+  const pushCustom = (cf) => {
+    const icon = cf.ftype === "stamp" ? "👤" : cf.ftype === "persontype" ? "🪪" : "📝";
     cols.push({ key: "custom:" + cf.key, label: `${icon} ${cf.label}`, width: 130, align: "center" });
-  });
-  (cfg.qualifications || []).forEach(q => {
+  };
+  const pushQual = (q) => {
     cols.push({ key: "qual:" + q.key, label: `✓ ${q.label}`, width: 95, align: "center", small: true });
-  });
-  if (_eventHasPayment()) {
-    cols.push({ key: "payment", label: "💰 ชำระ",     width: 130, align: "center" });
+  };
+
+  // ── เรียงคอลัมน์ตามลำดับ items ใน template (ฟอร์ม) ──────────
+  const blocks = (_eventConfigCache && _eventConfigCache.eventId === currentEventId && Array.isArray(_eventConfigCache.blocks))
+    ? _eventConfigCache.blocks : [];
+  if (blocks.length) {
+    const customByKey = {}; (cfg.custom_fields || []).forEach(c => { customByKey[c.key] = c; });
+    const qualByKey   = {}; (cfg.qualifications || []).forEach(q => { qualByKey[q.key] = q; });
+    const seen = new Set();
+    blocks.forEach(b => (b.items || []).forEach(it => {
+      if (!it || !it.type || it.type === "core" || seen.has(it.key)) return;  // core = รหัส/ชื่อ อยู่ในคอลัมน์ name แล้ว
+      seen.add(it.key);
+      if (it.type === "std") pushStd(it.key);
+      else if (it.type === "check") { if (qualByKey[it.key]) pushQual(qualByKey[it.key]); }
+      else if (customByKey[it.key]) pushCustom(customByKey[it.key]);   // text/date/number/stamp/persontype
+    }));
+    // เผื่อ flat มีฟิลด์ที่ไม่อยู่ใน blocks (legacy) → ต่อท้าย
+    (Array.isArray(cfg.field_order) ? cfg.field_order : []).forEach(fkey => { if (!seen.has(fkey)) { seen.add(fkey); pushStd(fkey); } });
+    (cfg.custom_fields || []).forEach(cf => { if (!seen.has(cf.key)) { seen.add(cf.key); pushCustom(cf); } });
+    (cfg.qualifications || []).forEach(q => { if (!seen.has(q.key)) { seen.add(q.key); pushQual(q); } });
+  } else {
+    // fallback (ไม่มี blocks) — ไล่ตามชนิด: std → custom → qualification
+    const order = Array.isArray(cfg.field_order) && cfg.field_order.length ? cfg.field_order : Object.keys(FIELD_COL_DEFS);
+    order.forEach(pushStd);
+    (cfg.custom_fields || []).forEach(pushCustom);
+    (cfg.qualifications || []).forEach(pushQual);
   }
-  cols.push({ key: "checkin", label: "✅ Check-in", width: 90,  align: "center" });
+
+  // 💰 ชำระ — แสดงคอลัมน์เฉพาะงานที่ "ไม่มี" checklist ชำระเงิน · งานที่มี checklist ชำระเงิน → ใช้ checklist แทน
+  //   (per-event อัตโนมัติ — ตัดสินจาก template ของแต่ละงาน ไม่ใช่ปิดทั้งระบบ)
+  // Check-in ย้ายไปไว้ก่อนรหัส/ชื่อแล้ว (ดู base cols ด้านบน)
+  if (!_paymentQualKey()) {
+    cols.push({ key: "payment", label: "💰 ชำระ", width: 150, align: "center" });
+  }
   cols.push({ key: "actions", label: "จัดการ",     width: 130, align: "center" });
   return cols;
 }
@@ -3768,13 +4195,62 @@ function rebuildTableHeader() {
   if (!tr) return;
   const cols = getActiveColumns();
   const divKeys = _groupDividerKeys(cols);
-  tr.innerHTML = cols.map(c => {
-    const alignClass = (c.align === "center" ? "col-center" : "") + (divKeys.has(c.key) ? " col-grp-divider" : "");
+  tr.innerHTML = cols.map((c, i) => {
+    const sortable = _isSortable(c.key);
+    const active = _sortKey === c.key;
+    const alignClass = (c.align === "center" ? "col-center" : "") + (divKeys.has(c.key) ? " col-grp-divider" : "") + (sortable ? " att-th-sortable" : "");
     const extra = c.small ? ";font-size:10.5px;line-height:1.25" : "";
-    return `<th class="${alignClass}" style="min-width:${c.width}px${extra}" title="${c.small ? (typeof c.label === 'string' ? c.label.replace(/^✓ /, '') : '') : ''}">${c.label}</th>`;
+    const arrow = sortable
+      ? `<span class="att-sort-ico${active ? " active" : ""}">${active ? (_sortDir === 1 ? "▲" : "▼") : "⇅"}</span>`
+      : "";
+    const onclick = sortable ? ` onclick="window.toggleSort('${c.key}')"` : "";
+    // ปุ่มตรึงคอลัมน์ (📌) — เฉพาะคอลัมน์ข้อมูล (ตั้งแต่ชื่อเป็นต้นไป · ไม่รวม trailing)
+    const pinnable = i >= 2 && !["checkin", "actions", "payment"].includes(c.key);
+    const pin = pinnable
+      ? `<span class="att-pin${i < _freezeCount ? " active" : ""}" onclick="event.stopPropagation();window.toggleFreezeColumn(${i})" title="${i < _freezeCount ? "ยกเลิกตรึง" : "📌 ตรึงคอลัมน์ถึงตรงนี้"}">📌</span>`
+      : "";
+    return `<th class="${alignClass}"${onclick} style="min-width:${c.width}px${extra}" title="${sortable ? 'คลิกเพื่อเรียงลำดับ' : (c.small ? (typeof c.label === 'string' ? c.label.replace(/^✓ /, '') : '') : '')}">${c.label}${arrow}${pin}</th>`;
   }).join("");
   _rebuildTableGroupHeader(cols);
   _syncGroupHeaderOffset();
+  _applyColumnFreeze();
+}
+
+// ── Freeze คอลัมน์ (เลือกเองผ่าน 📌) ────────────────────────
+// default freeze = 4 (☑ · # · Check-in · รหัส/ชื่อ) → คงคอลัมน์ระบุตัวตนไว้ซ้าย · ปรับเองได้ผ่าน 📌 (จำใน localStorage)
+let _freezeCount = (() => { const n = parseInt(localStorage.getItem("att_freeze_count") || "4", 10); return isNaN(n) ? 0 : n; })();
+
+window.toggleFreezeColumn = function (i) {
+  const n = i + 1;
+  _freezeCount = (_freezeCount === n) ? 0 : n;   // กดซ้ำที่ขอบเดิม = ยกเลิกตรึง
+  try { localStorage.setItem("att_freeze_count", String(_freezeCount)); } catch {}
+  filterTable();   // re-render header (pin) + body + apply freeze
+};
+
+// ใส่ sticky-left ให้ N คอลัมน์ซ้าย (วัด offset จริงจากหัวตาราง)
+function _applyColumnFreeze() {
+  const table = document.querySelector(".att-inline-table");
+  if (!table) return;
+  requestAnimationFrame(() => {
+    table.querySelectorAll(".att-frz, .att-frz-edge").forEach(el => {
+      el.classList.remove("att-frz", "att-frz-edge");
+      el.style.left = "";
+    });
+    const n = _freezeCount;
+    if (n <= 0) return;
+    const ths = [...table.querySelectorAll("#attTableHead th")];
+    const lefts = []; let acc = 0;
+    for (let i = 0; i < n && i < ths.length; i++) { lefts.push(acc); acc += ths[i].offsetWidth; }
+    const apply = (cells) => {
+      for (let i = 0; i < lefts.length && i < cells.length; i++) {
+        cells[i].classList.add("att-frz");
+        cells[i].style.left = lefts[i] + "px";
+        if (i === lefts.length - 1) cells[i].classList.add("att-frz-edge");
+      }
+    };
+    apply(ths);
+    table.querySelectorAll("#attTableBody tr.saved-row").forEach(tr => apply([...tr.children]));
+  });
 }
 
 // วัดความสูงแถว group header → set CSS var ให้แถวหัวคอลัมน์ sticky เกาะใต้กันพอดี (ไม่ทับ/ไม่เหลื่อม)
@@ -3785,6 +4261,9 @@ function _syncGroupHeaderOffset() {
   requestAnimationFrame(() => {
     const h = (gtr && gtr.style.display !== "none" && gtr.offsetHeight) ? gtr.offsetHeight : 0;
     table.style.setProperty("--att-grp-h", h + "px");
+    // ความสูงแถวเพิ่ม/ค้นหา (new-row) → ให้ group/column header sticky เกาะใต้พอดี
+    const nr = table.querySelector("thead tr.new-row");
+    table.style.setProperty("--att-newrow-h", (nr ? nr.offsetHeight : 0) + "px");
   });
 }
 
@@ -4937,15 +5416,27 @@ function _isCurrentUserCs() {
   return roles.some(r => String(r).toUpperCase() === "CS");
 }
 
-// คืน extra_fields เริ่มต้นสำหรับ record ใหม่ — ปั๊มชื่อ user ที่เพิ่มรายชื่อ (คนที่ login) ลงฟิลด์ type "stamp"
-// ใช้ในเส้นทางเพิ่มเร็ว (inline / quick-add) · แก้ทีหลังได้ผ่าน dropdown CS ในตาราง/ฟอร์ม
-function _buildStampExtraFields() {
+// สถานะผู้เข้าร่วม (ชนิด) = ป้ายที่แสดงหน้าชื่อในตาราง — auto, readonly
+//   ไม่มีรหัสสมาชิก → Guest · person_role = co_applicant → ผู้สมัครร่วม · อื่นๆ → สมาชิก
+function personTypeLabel(memberCode, personRole) {
+  if (!memberCode) return "Guest";
+  if (personRole === "co_applicant") return "ผู้สมัครร่วม";
+  return "สมาชิก";
+}
+
+// คืน extra_fields เริ่มต้นสำหรับ record ใหม่ — auto fields:
+//   • type "stamp"      → ปั๊มชื่อ user ที่เพิ่มรายชื่อ (คนที่ login)
+//   • type "persontype" → ปั๊มสถานะชนิดผู้เข้าร่วม (สมาชิก/ผู้สมัครร่วม/Guest)
+// ใช้ในเส้นทางเพิ่มเร็ว (inline / quick-add) · stamp แก้ทีหลังได้ผ่าน dropdown CS ในตาราง/ฟอร์ม
+function _buildStampExtraFields(memberCode, personRole) {
   const cfg = _getActiveFieldConfig();
   const out = {};
   const stampUser = _getCurrentUserFullName();
-  if (stampUser) {
-    (cfg.custom_fields || []).forEach(cf => { if (cf.ftype === "stamp") out[cf.key] = stampUser; });
-  }
+  (cfg.custom_fields || []).forEach(cf => {
+    if (cf.ftype === "stamp" && stampUser) out[cf.key] = stampUser;
+    else if (cf.ftype === "persontype") out[cf.key] = personTypeLabel(memberCode, personRole);
+    else if (cf.ftype === "date") out[cf.key] = bkkTodayISO();   // default = วันที่เพิ่มชื่อเข้ามา (วันนี้)
+  });
   return out;
 }
 
@@ -4990,6 +5481,36 @@ async function fetchUplineLevels(force) {
   return _uplineLevelsCache;
 }
 
+// รายชื่อสายงานสำหรับ dropdown ที่ guest เลือกเอง — ดึงจาก config upline_levels (🌿 ตั้งค่าสายงาน)
+//   ใช้ nickname เป็น label → ชื่อตรงกับที่สมาชิก auto-detect แสดงในตาราง
+async function _uplineLevelLeaders() {
+  const levels = await fetchUplineLevels();
+  const out = []; const seen = new Set();
+  (levels || []).forEach((lv, idx) => {
+    (lv?.leaders || []).forEach(ld => {
+      const label = String(ld?.nickname || "").trim() || String(ld?.name || "").trim() || String(ld?.code || "").trim();
+      if (!label || seen.has(label)) return;
+      seen.add(label);
+      out.push({ label, color: lv?.color || _colorFromCode(String(ld?.code || "")), level: idx + 1 });   // สีตามระดับ
+    });
+  });
+  return out;
+}
+
+// หาสีของสายงานจากชื่อ (nickname/name) — sync จาก cache config · ใช้ทาพื้นหลัง chip/option ของ guest
+function _uplineColorByLabel(label) {
+  const lv = _uplineLevelsCache;
+  const target = String(label || "").trim();
+  if (!Array.isArray(lv) || !target) return null;
+  for (const level of lv) {
+    for (const ld of (level?.leaders || [])) {
+      const l = String(ld?.nickname || "").trim() || String(ld?.name || "").trim() || String(ld?.code || "").trim();
+      if (l === target) return level?.color || _colorFromCode(String(ld?.code || ""));   // สีตามระดับ
+    }
+  }
+  return null;
+}
+
 async function saveUplineLevels(levels) {
   const { url, key } = getSB();
   const res = await fetch(`${url}/rest/v1/app_settings?on_conflict=key`, {
@@ -5018,7 +5539,7 @@ function _buildLeaderLevelMap(levels) {
     (lv?.leaders || []).forEach((ld, lidx) => {
       const code = String(ld?.code || "").trim();
       if (code && !map[code]) {
-        map[code] = { level: idx + 1, order: lidx, color: ld.color || _colorFromCode(code), name: ld.name || code, nickname: ld.nickname || "" };
+        map[code] = { level: idx + 1, order: lidx, color: lv?.color || _colorFromCode(code), name: ld.name || code, nickname: ld.nickname || "" };   // สีตามระดับ
       }
     });
   });
@@ -5103,18 +5624,6 @@ async function computeUplineMatches() {
 function _uplineMatchFor(a) {
   const code = String(a?.member_code || "").trim();
   return code ? _uplineMatchByCode[code] : null;
-}
-
-// เรียงสายงาน: ระดับล่างสุด (เลขมากสุด) บนสุด → ในระดับเรียงตามลำดับรหัสหัวหน้าทีม → ไม่จับสายไว้ท้าย
-function _sortByUplineLevel(list) {
-  if (!Object.keys(_uplineMatchByCode).length) return list;
-  return list
-    .map((a, i) => {
-      const m = _uplineMatchFor(a);
-      return { a, i, lv: m ? m.level : -1, ord: m ? m.order : 0 };
-    })
-    .sort((x, y) => (y.lv - x.lv) || (x.ord - y.ord) || (x.i - y.i))
-    .map(o => o.a);
 }
 
 /* ── 🌿 ตั้งค่าสายงาน — Modal ──────────────────────────────── */
@@ -5524,12 +6033,17 @@ window.openAttendeeForm = async function (opts = {}) {
   }
 
   // Load uplines + render dropdown
-  const uplines = await fetchUplines();
+  //   member → upline_leaders (auto-select ด้วย id) · guest → config upline_levels (nickname) ให้ชื่อตรงกับสมาชิก
   const uplineSel = document.getElementById("attFormUpline");
-  uplineSel.innerHTML = '<option value="">— เลือกสายงาน —</option>' +
-    uplines.filter(u => u.is_active).map(u =>
-      `<option value="${u.id}">${escapeHtml(u.name)}</option>`
-    ).join("");
+  if (opts.memberCode) {
+    const uplines = await fetchUplines();
+    uplineSel.innerHTML = '<option value="">— เลือกสายงาน —</option>' +
+      uplines.filter(u => u.is_active).map(u => `<option value="${u.id}">${escapeHtml(u.name)}</option>`).join("");
+  } else {
+    const leaders = await _uplineLevelLeaders();
+    uplineSel.innerHTML = '<option value="">— เลือกสายงาน —</option>' +
+      leaders.map(l => `<option value="${escapeHtml(l.label)}" style="background:${escapeHtml(l.color || "#fff")}">${escapeHtml(l.label)}</option>`).join("");
+  }
 
   // Load event field config (blocks) → render ฟอร์มเป็น block
   const _cfgInfo = await getEventConfigInfo(currentEventId);
@@ -5540,14 +6054,14 @@ window.openAttendeeForm = async function (opts = {}) {
   document.getElementById("attFormMemberCode").value = opts.memberCode || "";
   document.getElementById("attFormPersonRole").value = _attFormState.personRole;
   document.getElementById("attFormName").value      = opts.name || "";
-  document.getElementById("attFormPhone").value     = opts.phone || "";
+  document.getElementById("attFormPhone").value     = _cleanPhone(opts.phone);
   document.getElementById("attFormPos").value       = opts.position_level || "";
   // ถ้าเป็นสมาชิก → autofill ตำแหน่ง + เบอร์โทร + สายงาน (parallel async)
   if (opts.memberCode && mode === "new") {
     _autofillMemberInfo(opts.memberCode);
     _autofillMemberUpline(opts.memberCode);
   }
-  document.getElementById("attFormUpline").value    = opts.upline_id || "";
+  document.getElementById("attFormUpline").value    = (opts.memberCode ? opts.upline_id : opts.upline_name_text) || "";
   // สายงานอัตโนมัติ (ตาม config upline_levels) — แสดงทั้ง new + edit ถ้าเป็นสมาชิก
   _autofillUplineLevelDisplay(opts.memberCode || "");
   // ล็อกฟิลด์ที่ดึงจากสมาชิก: สมาชิก → readonly · guest → กรอกมือได้
@@ -5650,9 +6164,11 @@ function _renderFormBlocks(blocks, extraFields, opts) {
           lblEl.innerHTML = it.required ? `${escapeHtml(lbl)} <span class="req">*</span>` : escapeHtml(lbl);
         }
       } else if (it.type === "text" || it.type === "date" || it.type === "number") {
-        body.appendChild(_buildCustomFieldNode(it, extraFields));
+        body.appendChild(_buildCustomFieldNode(it, extraFields, opts));
       } else if (it.type === "stamp") {
         body.appendChild(_buildStampFieldNode(it, extraFields, opts));
+      } else if (it.type === "persontype") {
+        body.appendChild(_buildPersonTypeFieldNode(it, opts));
       } else if (it.type === "check") {
         body.appendChild(_buildCheckFieldNode(it, extraFields));
       }
@@ -5661,13 +6177,30 @@ function _renderFormBlocks(blocks, extraFields, opts) {
   });
 }
 
-function _buildCustomFieldNode(it, extraFields) {
+function _buildCustomFieldNode(it, extraFields, opts) {
   const d = document.createElement("div");
   d.className = "form-group";
   const inputType = it.type === "date" ? "date" : (it.type === "number" ? "number" : "text");
-  const raw = extraFields && extraFields[it.key] != null ? String(extraFields[it.key]) : "";
+  let raw = extraFields && extraFields[it.key] != null ? String(extraFields[it.key]) : "";
+  // record ใหม่ + ฟิลด์วันที่ยังว่าง → default = วันนี้ (วันที่เพิ่ม) · ผู้ใช้แก้ได้
+  if (it.type === "date" && !raw && !(opts && opts.attId)) raw = bkkTodayISO();
   d.innerHTML = `<label class="form-label">${escapeHtml(it.label || it.key)}${it.required ? ' <span class="req">*</span>' : ''}</label>
     <input class="form-control" type="${inputType}" data-custom-key="${escapeHtml(it.key)}" value="${escapeHtml(raw)}" autocomplete="off">`;
+  return d;
+}
+
+// สถานะ (persontype) — auto จากชนิดผู้เข้าร่วม · readonly แสดงอย่างเดียว (ตรงกับป้ายหน้าชื่อในตาราง)
+function _buildPersonTypeFieldNode(it, opts) {
+  const d = document.createElement("div");
+  d.className = "form-group";
+  const memberCode = opts?.memberCode || _attFormState.memberCode || "";
+  const personRole = opts?.personRole || _attFormState.personRole || (memberCode ? "primary" : "guest");
+  const label = personTypeLabel(memberCode, personRole);
+  const style = !memberCode
+    ? "background:#fef3c7;color:#92400e;border:1px solid #fcd34d"
+    : (personRole === "co_applicant" ? "background:#f3e8ff;color:#9333ea" : "background:#e0e7ff;color:#3730a3");
+  d.innerHTML = `<label class="form-label">${escapeHtml(it.label || it.key)} <span class="aff-stamp-hint">🪪 อัตโนมัติ</span></label>
+    <div><span style="display:inline-block;font-size:12.5px;font-weight:700;padding:6px 14px;border-radius:8px;${style}">${escapeHtml(label)}</span></div>`;
   return d;
 }
 
@@ -5825,14 +6358,21 @@ window.saveAttendeeForm = async function () {
   if (!name) { showToast("กรุณาระบุชื่อ-นามสกุล", "error"); return; }
 
   const cfg = await fetchEventFieldConfig(currentEventId);
-  const uplineId = document.getElementById("attFormUpline").value || null;
+  const uplineSelVal = document.getElementById("attFormUpline").value || null;
   const uplineAutoName = _attFormState.uplineAutoName || null;   // สายงานอัตโนมัติ (จาก config upline_levels)
-  if (cfg.fields.upline?.required && !uplineId && !uplineAutoName) {
+  // member → value = upline_leaders id · guest → value = ชื่อสายงาน (nickname จาก config ตั้งค่าสายงาน)
+  let upline_id = null, upline_name_text = null;
+  if (_attFormState.memberCode) {
+    upline_id = uplineSelVal;
+    const uplineRow = upline_id ? (_uplinesCache || []).find(u => String(u.id) === String(upline_id)) : null;
+    upline_name_text = uplineRow?.name || uplineAutoName || null;
+  } else {
+    upline_name_text = uplineSelVal;   // guest เลือกชื่อสายงานจาก config
+  }
+  if (cfg.fields.upline?.required && !upline_id && !upline_name_text && !uplineAutoName) {
     showToast("กรุณาเลือกสายงาน", "error");
     return;
   }
-
-  const uplineRow = uplineId ? (_uplinesCache || []).find(u => String(u.id) === String(uplineId)) : null;
 
   // Collect qualifications (boolean) + custom fields (text) → รวมใน extra_fields เดียวกัน
   // (อยู่ในบล็อก #attFormBlocks ตาม template)
@@ -5849,13 +6389,17 @@ window.saveAttendeeForm = async function () {
     const v = (sel.value || "").trim();
     if (v) quals[sel.dataset.customKey] = v;
   });
+  // persontype (สถานะ) = auto จากชนิดผู้เข้าร่วม → ปั๊มค่า (node เป็น readonly ไม่มี input ให้เก็บ)
+  (cfg.custom_fields || []).forEach(cf => {
+    if (cf.ftype === "persontype") quals[cf.key] = personTypeLabel(_attFormState.memberCode, _attFormState.personRole);
+  });
 
   const payload = {
     name,
-    phone:               document.getElementById("attFormPhone").value.trim() || null,
+    phone:               _cleanPhone(document.getElementById("attFormPhone").value) || null,
     position_level:      document.getElementById("attFormPos").value.trim() || null,
-    upline_id:           uplineId,
-    upline_name_text:    uplineRow?.name || uplineAutoName || null,
+    upline_id:           upline_id,
+    upline_name_text:    upline_name_text,
     extra_fields:        quals,
   };
 
@@ -6506,24 +7050,6 @@ window.saveFieldConfig = async function () {
   } catch (e) {
     showToast("บันทึกไม่สำเร็จ: " + e.message, "error");
   }
-};
-
-// ── PUBLIC ENTRY: open form from search row "+ ผู้เรียนใหม่" ──
-window.openGuestFormFromSearch = function (rowId) {
-  // Hide member-suggest dropdown first
-  const sug = document.getElementById("memberSuggest");
-  if (sug) sug.style.display = "none";
-  _lastMemberResults = [];
-
-  const r = _findRow(rowId);
-  const prefillName = (r?.name || "").trim();
-  // If looks like a digit-only string → don't prefill (user was searching for member code)
-  const looksLikeCode = /^\d{3,10}$/.test(prefillName);
-  window.openAttendeeForm({
-    name: looksLikeCode ? "" : prefillName,
-    paymentStatus: r?.paymentStatus || "UNPAID",
-    _sourceRowId: rowId,
-  });
 };
 
 // ── PUBLIC ENTRY: open form to edit a saved attendee ──

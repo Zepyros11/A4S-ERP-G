@@ -437,7 +437,7 @@ window.openTplItemModal = function (blockId) {
     </div>
     <div class="tpl-itype-group">
       <div class="tpl-itype-group-title">⚙️ ระบบกรอกอัตโนมัติ</div>
-      <div class="tpl-itype-row">${stdBtns || '<span class="tpl-itype-none">— ใช้ครบทุกข้อมูลมาตรฐานแล้ว —</span>'}${typeBtn("stamp", "👤 ผู้บันทึก")}</div>
+      <div class="tpl-itype-row">${stdBtns}${typeBtn("persontype", "🪪 สถานะ")}${typeBtn("stamp", "👤 ผู้บันทึก")}</div>
     </div>`;
   document.getElementById("tplItemLabelWrap").style.display = "none";
   document.getElementById("tplItemLabel").value = "";
@@ -460,9 +460,10 @@ window._tplPickItemType = function (t) {
     b.classList.toggle("active", b.dataset.t === t && !b.dataset.stdkey));
   const lblWrap = document.getElementById("tplItemLabelWrap");
   lblWrap.style.display = "";
-  // stamp = ผู้บันทึก → เติมชื่อหัวข้อเริ่มต้นให้ (แก้ได้)
+  // stamp = ผู้บันทึก · persontype = สถานะ → เติมชื่อหัวข้อเริ่มต้นให้ (แก้ได้)
   const lblInp = document.getElementById("tplItemLabel");
   if (t === "stamp" && !lblInp.value.trim()) lblInp.value = "ผู้บันทึก";
+  if (t === "persontype" && !lblInp.value.trim()) lblInp.value = "สถานะ";
   requestAnimationFrame(() => { lblInp.focus(); lblInp.select(); });
 };
 

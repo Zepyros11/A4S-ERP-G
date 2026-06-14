@@ -376,6 +376,8 @@
   padding: 10px 12px;
   vertical-align: middle;
   transition: background .12s;
+  /* พื้นทึบสีขาว — กัน page bg (--bg ครีม) ทะลุขึ้นมาในคอลัมน์ที่ scroll เลยกรอบการ์ด (table overflow:visible) */
+  background: var(--surface, #fff);
 }
 /* Zebra stripe — alternating saved rows */
 .att-inline-table tbody tr.saved-row:nth-child(even) td {
@@ -396,17 +398,47 @@
    scroll container ของตัวเอง → thead sticky เกาะขอบบนของ #erp-main ได้ */
 #attTableSection .table-card { overflow: visible; }
 #attTableSection .table-wrap { overflow: visible; }
-/* หัวตาราง 2 แถว (กลุ่มฟิลด์ + คอลัมน์) ค้างใต้ topbar */
-.att-inline-table thead tr.att-grp-row th {
+/* หัวตาราง 3 แถว (แถวเพิ่ม/ค้นหา + กลุ่มฟิลด์ + คอลัมน์) ค้างใต้ topbar เรียงซ้อนกัน
+   ทุกแถวพื้นทึบ + ซ้อนกัน -1px กัน subpixel gap (ไม่ให้แถวด้านหลังทะลุ) */
+.att-inline-table thead tr.new-row td {
   position: sticky;
   top: 0;
-  z-index: 6;
+  z-index: 7;
+  background: #fffbeb !important;
 }
+.att-inline-table thead tr.att-grp-row th {
+  position: sticky;
+  top: calc(var(--att-newrow-h, 0px) - 1px);
+  z-index: 6;
+  background: #eef6f0 !important;
+}
+.att-inline-table thead tr.att-grp-row th.att-grp-empty { background: #fff !important; }
 .att-inline-table thead tr#attTableHead th {
   position: sticky;
-  top: var(--att-grp-h, 0px);
+  top: calc(var(--att-newrow-h, 0px) + var(--att-grp-h, 0px) - 1px);
   z-index: 5;
+  background: #eef2f7 !important;   /* เทาทึบ — กันเห็นด้านหลัง */
 }
+
+/* ── Freeze คอลัมน์ (เลือกเองผ่านปุ่ม 📌) — JS ใส่ class .att-frz + left ──
+   ใช้พื้นทึบจาก row bg เดิม (white/zebra/hover) → ไม่เห็นทะลุ */
+.att-inline-table .att-frz { position: sticky; z-index: 3; }
+/* ต้องใช้ id ให้ specificity ชนะ rule sticky-top เดิม (tr#attTableHead th{z-index:5}) ไม่งั้นเซลล์ scroll ทับ */
+.att-inline-table thead tr#attTableHead th.att-frz { z-index: 9; }
+.att-inline-table .att-frz-edge { box-shadow: 3px 0 5px -3px rgba(15, 23, 42, .18); }
+/* ปุ่มตรึงคอลัมน์ที่หัวตาราง */
+.att-pin {
+  margin-left: 4px;
+  font-size: 10px;
+  cursor: pointer;
+  opacity: .3;
+  filter: grayscale(1);
+  transition: opacity .12s, filter .12s;
+  vertical-align: middle;
+}
+.att-th-sortable:hover .att-pin { opacity: .65; }
+.att-pin:hover { opacity: 1 !important; filter: none; }
+.att-pin.active { opacity: 1; filter: none; }
 
 /* Density: Compact (override defaults) */
 .att-inline-table.density-compact tbody tr.saved-row td {
@@ -424,6 +456,11 @@
 /* ── ช่องตาราง — min-height ให้เต็มหน้าเหมือนหน้าหลัก (ไม่เตี้ยตอนว่าง) ── */
 .table-wrap:has(.att-inline-table) {
   min-height: 100vh;
+  /* กว้างเท่าตาราง (อย่างน้อยเต็มจอ) + พื้นขาวเต็มพื้นที่ →
+     กัน page bg (--bg ครีม) โผล่ใต้ตาราง/คอลัมน์ที่ overflow เลยกรอบ card */
+  width: max-content;
+  min-width: 100%;
+  background: var(--surface, #fff);
 }
 
 /* ── Group header row — ชื่อฟิลด์ (block) ครอบช่วงคอลัมน์ ──── */
@@ -464,6 +501,82 @@
 .att-inline-table.density-spreadsheet tr.new-row td {
   padding: 5px 6px;
 }
+/* เส้นตารางแนวตั้ง (column dividers) — ทุกคอลัมน์ */
+.att-inline-table.density-spreadsheet th,
+.att-inline-table.density-spreadsheet td {
+  border-right: 1px solid #e8edf2;
+}
+.att-inline-table.density-spreadsheet th:last-child,
+.att-inline-table.density-spreadsheet td:last-child {
+  border-right: none;
+}
+
+/* ── ปุ่มลอยโหมดแก้ไข (FAB) ───────────────────────────────── */
+.edit-fab {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 80;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  border: none;
+  border-radius: 999px;
+  background: linear-gradient(135deg, var(--accent, #16a34a), var(--accent-light, #22c55e));
+  color: #fff;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 8px 24px rgba(var(--accent-rgb, 22, 163, 74), .4);
+  transition: transform .12s, box-shadow .15s, background .15s;
+}
+.edit-fab:hover { transform: translateY(-2px); box-shadow: 0 12px 30px rgba(var(--accent-rgb, 22, 163, 74), .5); }
+.edit-fab:active { transform: translateY(0); }
+.edit-fab .fab-ico { font-size: 17px; line-height: 1; }
+.edit-fab.is-saving { background: linear-gradient(135deg, #d97706, #f59e0b); box-shadow: 0 8px 24px rgba(217, 119, 6, .45); }
+/* ปุ่มยกเลิก — ลอยเหนือปุ่มบันทึก (สีเทา) */
+.edit-fab.edit-fab-cancel {
+  bottom: 78px;
+  padding: 10px 18px;
+  font-size: 13px;
+  background: linear-gradient(135deg, #64748b, #94a3b8);
+  box-shadow: 0 6px 18px rgba(100, 116, 139, .4);
+}
+.edit-fab.edit-fab-cancel:hover { box-shadow: 0 10px 24px rgba(100, 116, 139, .5); }
+
+/* ช่อง input ในโหมดแก้ไข (ทั้งตาราง) */
+.att-inline-table td.att-edit-on { padding: 4px 6px; background: #fffdf5; }
+.att-edit-on .edit-inp {
+  width: 100%;
+  min-width: 70px;
+  padding: 5px 8px;
+  border: 1.5px solid #fcd34d;
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 12px;
+  background: #fff;
+  outline: none;
+}
+.att-edit-on .edit-inp:focus { border-color: var(--accent, #16a34a); box-shadow: 0 0 0 2px rgba(var(--accent-rgb, 22, 163, 74), .12); }
+.att-edit-on .edit-chk { width: 17px; height: 17px; cursor: pointer; accent-color: var(--accent, #16a34a); }
+/* cell ที่แก้แล้วยังไม่บันทึก → ขอบส้ม (dirty) */
+.att-inline-table td.att-edit-on.edit-dirty { box-shadow: inset 0 0 0 2px #f59e0b; background: #fff7ed; }
+.att-edit-on.edit-dirty .edit-inp { border-color: #f59e0b; background: #fff7ed; }
+
+/* หัวคอลัมน์ที่ sort ได้ (คลิก) */
+.att-th-sortable { cursor: pointer; user-select: none; }
+.att-th-sortable:hover { background: #eef2f7; }
+.att-sort-ico {
+  display: inline-block;
+  margin-left: 3px;
+  font-size: 9px;
+  color: #94a3b8;
+  opacity: .55;
+  vertical-align: middle;
+}
+.att-sort-ico.active { color: var(--accent, #15803d); opacity: 1; font-size: 10px; }
 
 /* Subtle empty-cell marker */
 .att-empty {
@@ -683,6 +796,58 @@
   flex-wrap: wrap;
 }
 .att-hero-left { min-width: 0; }
+/* รูป poster ของ event (ซ้ายสุดของ hero) */
+.att-hero-poster {
+  height: 60px;
+  width: auto;
+  max-width: 120px;
+  object-fit: cover;
+  border-radius: 10px;
+  border: 2px solid rgba(255, 255, 255, .65);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, .18);
+  background: rgba(255, 255, 255, .15);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: transform .15s;
+}
+.att-hero-poster:hover { transform: scale(1.04); }
+/* Lightbox poster เต็มจอ */
+.poster-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  background: rgba(15, 23, 42, .85);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  cursor: zoom-out;
+}
+.poster-lightbox.open { display: flex; }
+.poster-lightbox-img {
+  max-width: 92vw;
+  max-height: 92vh;
+  object-fit: contain;
+  border-radius: 12px;
+  box-shadow: 0 16px 50px rgba(0, 0, 0, .55);
+  background: #fff;
+}
+.poster-lightbox-close {
+  position: fixed;
+  top: 18px;
+  right: 22px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, .18);
+  color: #fff;
+  border: none;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background .15s;
+}
+.poster-lightbox-close:hover { background: rgba(255, 255, 255, .35); }
 .att-hero-eyebrow {
   font-size: 11px;
   font-weight: 700;
@@ -965,7 +1130,7 @@
 /* ─────────────────────────────────────────────────────────
    STAT REPORT MODAL (popup จาก stat card 5 อัน)
    ───────────────────────────────────────────────────────── */
-.stat-report-modal { width: 820px; max-width: 96vw; }
+.stat-report-modal { width: 1040px; max-width: 96vw; }
 .stat-report-modal .att-modal-body { gap: 14px; }
 .sr-header-actions {
   display: flex;
@@ -988,30 +1153,32 @@
 
 .sr-summary {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px;
   background: linear-gradient(135deg, #f8fafc 0%, #ffffff 100%);
   border: 1px solid var(--border, #e2e8f0);
   border-radius: 12px;
-  padding: 12px;
+  padding: 8px;
 }
 .sr-summary-cell {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 8px 10px;
+  flex-direction: row;       /* แนวนอน บรรทัดเดียว → แถบเตี้ย */
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 2px 8px;
+  padding: 6px 12px;
   border-radius: 8px;
   background: #fff;
   border: 1px solid var(--border, #eef2f6);
 }
 .sr-summary-cell .sr-lbl {
-  font-size: 11px;
+  font-size: 11.5px;
   color: var(--text3, #64748b);
   font-weight: 600;
   letter-spacing: .2px;
 }
 .sr-summary-cell .sr-val {
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 800;
   font-family: "IBM Plex Mono", monospace;
   color: #0f172a;
@@ -1020,6 +1187,7 @@
 .sr-summary-cell .sr-sub {
   font-size: 11px;
   color: var(--text3, #64748b);
+  margin-left: auto;         /* ดันไปชิดขวาในบรรทัดเดียวกัน */
 }
 .sr-summary-cell.is-accent .sr-val { color: var(--accent, #16a34a); }
 
@@ -1050,14 +1218,14 @@
 }
 .sr-bd-row {
   display: grid;
-  grid-template-columns: 1fr auto auto;
+  grid-template-columns: minmax(0, max-content) 110px auto;   /* label พอดีเนื้อหา → bar+ตัวเลขตามมาติดๆ */
   align-items: center;
   gap: 10px;
   padding: 6px 4px;
   border-bottom: 1px dashed var(--border, #f1f5f9);
 }
 .sr-bd-row:last-child { border-bottom: 0; }
-.sr-bd-label { font-size: 13px; color: #0f172a; font-weight: 500; }
+.sr-bd-label { font-size: 13px; color: #0f172a; font-weight: 500; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sr-bd-count {
   font-size: 12px;
   font-weight: 700;
@@ -1096,7 +1264,7 @@
 }
 .sr-list-row {
   display: grid;
-  grid-template-columns: 28px minmax(160px, 2fr) 100px 130px 1fr;
+  grid-template-columns: 28px minmax(150px, 2fr) 130px 120px 1fr;   /* # · ชื่อ · สายงาน · เบอร์โทร · สถานะ */
   align-items: center;
   gap: 10px;
   padding: 8px 12px;
@@ -2948,8 +3116,6 @@
 }
 .att-scard:hover { box-shadow: 0 4px 14px rgba(15,23,42,.1); transform: translateY(-1px); }
 .att-scard.sc-upline  { border-left-color: #16a34a; }
-.att-scard.sc-attend  { border-left-color: #2563eb; }
-.att-scard.sc-compare { border-left-color: #0d9488; }
 .att-scard.sc-pay     { border-left-color: #d97706; }
 .att-scard-hd { font-size: 12px; font-weight: 700; color: var(--text2, #475569); margin-bottom: 6px; }
 .att-scard-main { font-size: 24px; font-weight: 800; color: #0f172a; line-height: 1.1; }
