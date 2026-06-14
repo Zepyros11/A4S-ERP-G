@@ -137,7 +137,7 @@
   }
   .tg-overlay.open { display:flex; opacity:1; }
   .tg-modal {
-    background:#fff; width:560px; max-width:100%; max-height:92vh;
+    background:#fff; width:min(1240px,96vw); max-width:96vw; max-height:96vh;
     border-radius:18px; overflow:hidden; display:flex; flex-direction:column;
     box-shadow:0 20px 60px rgba(0,0,0,.35);
     transform:scale(.94) translateY(8px); transition:transform .25s ease;
@@ -157,9 +157,9 @@
   .tg-close:hover { background:rgba(255,255,255,.34); }
   .tg-stage {
     position:relative; background:#f1f5f9; display:flex; align-items:center; justify-content:center;
-    min-height:200px; flex:1; overflow:hidden;
+    min-height:0; flex:1; overflow:hidden;
   }
-  .tg-img { max-width:100%; max-height:60vh; display:block; object-fit:contain; user-select:none; -webkit-user-drag:none; }
+  .tg-img { max-width:100%; max-height:74vh; display:block; object-fit:contain; user-select:none; -webkit-user-drag:none; }
   .tg-nav {
     position:absolute; top:50%; transform:translateY(-50%);
     width:40px; height:40px; border:none; border-radius:50%;
