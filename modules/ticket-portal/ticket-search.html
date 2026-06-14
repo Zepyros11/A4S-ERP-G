@@ -173,7 +173,7 @@
   .tg-prev { left:10px; } .tg-next { right:10px; }
   .tg-cap {
     padding:16px 20px; font-size:14.5px; line-height:1.6; color:#334155; text-align:center;
-    background:#fff; border-top:1px solid #f1f5f9; min-height:64px;
+    background:#fff; border-top:1px solid #f1f5f9; min-height:64px; white-space:pre-line;
     display:flex; align-items:center; justify-content:center;
   }
   .tg-foot {
@@ -316,10 +316,10 @@
       results_hint:'ผลการค้นหาจะแสดงที่นี่',
       help_btn:'❓ วิธีใช้งาน', guide_title:'วิธีค้นหาตั๋วของคุณ',
       g_cap_1:'1. เลือกทริปของคุณ แล้วดูที่ช่องค้นหา',
-      g_cap_2:'2. กรอกรหัสสมาชิก (หรือชื่อ-นามสกุล) แล้วกดปุ่ม “ค้นหา”',
-      g_cap_3:'3. ถ้าค้นด้วยชื่อ จะเจอรายชื่อ — กด “ดูเอกสาร” ที่ชื่อของคุณ',
-      g_cap_4:'4. ระบบจะแสดงรูปพาสปอร์ตและตั๋วเครื่องบินของคุณ',
-      g_cap_5:'5. กด “เปิด / ดาวน์โหลด PDF” เพื่อดูหรือบันทึกตั๋วของคุณ',
+      g_cap_2:'2. กรอกรหัสสมาชิก (หรือชื่อ-นามสกุล)\n3. กดปุ่ม “ค้นหา”',
+      g_cap_3:'2. พิมพ์ชื่อ\n3. กดปุ่ม “ค้นหา”\n4. กดปุ่ม “ดูเอกสาร” ที่ชื่อของคุณ',
+      g_cap_4:'5. แสดงข้อมูล passport และ flight ticket ของคุณ',
+      g_cap_5:'6. ตรวจสอบชื่อ\n7. ตรวจสอบเที่ยวบิน (Flight)\n8. กดปุ่ม “เปิด / ดาวน์โหลด PDF” เพื่อยื่นกับพนักงาน',
       g_close:'ปิด', g_dismiss:'ไม่แสดงอีก',
       cfg_err_title:'ตั้งค่าผิดพลาด', cfg_err_sub:'PORTAL_CONFIG ไม่พร้อม — ตรวจ portal-config.js',
     },
@@ -343,10 +343,10 @@
       results_hint:'Your search results will appear here',
       help_btn:'❓ How to use', guide_title:'How to find your ticket',
       g_cap_1:'1. Select your trip, then look at the search box',
-      g_cap_2:'2. Enter your member code (or full name), then click “Search”',
-      g_cap_3:'3. If you searched by name, pick your name and click “View documents”',
-      g_cap_4:'4. Your passport photo and flight ticket will be shown',
-      g_cap_5:'5. Click “Open / Download PDF” to view or save your ticket',
+      g_cap_2:'2. Enter your member code (or full name)\n3. Click “Search”',
+      g_cap_3:'2. Type your name\n3. Click “Search”\n4. Click “View documents” on your name',
+      g_cap_4:'5. Your passport and flight ticket are shown',
+      g_cap_5:'6. Check your name\n7. Check your flights\n8. Click “Open / Download PDF” to present to staff',
       g_close:'Close', g_dismiss:'Don\'t show again',
       cfg_err_title:'Config error', cfg_err_sub:'PORTAL_CONFIG not ready — check portal-config.js',
     },
@@ -370,10 +370,10 @@
       results_hint:'Vos résultats de recherche s\'afficheront ici',
       help_btn:'❓ Mode d\'emploi', guide_title:'Comment trouver votre billet',
       g_cap_1:'1. Sélectionnez votre voyage, puis repérez la barre de recherche',
-      g_cap_2:'2. Saisissez votre code membre (ou nom complet), puis cliquez sur « Rechercher »',
-      g_cap_3:'3. Si vous avez cherché par nom, choisissez votre nom et cliquez sur « Voir les documents »',
-      g_cap_4:'4. Votre passeport et votre billet d\'avion s\'affichent',
-      g_cap_5:'5. Cliquez sur « Ouvrir / Télécharger le PDF » pour voir ou enregistrer votre billet',
+      g_cap_2:'2. Saisissez votre code membre (ou nom complet)\n3. Cliquez sur « Rechercher »',
+      g_cap_3:'2. Saisissez votre nom\n3. Cliquez sur « Rechercher »\n4. Cliquez sur « Voir les documents » sur votre nom',
+      g_cap_4:'5. Votre passeport et votre billet d\'avion s\'affichent',
+      g_cap_5:'6. Vérifiez votre nom\n7. Vérifiez vos vols\n8. Cliquez sur « Ouvrir / Télécharger le PDF » pour le présenter au personnel',
       g_close:'Fermer', g_dismiss:'Ne plus afficher',
       cfg_err_title:'Erreur de configuration', cfg_err_sub:'PORTAL_CONFIG indisponible — vérifiez portal-config.js',
     },
