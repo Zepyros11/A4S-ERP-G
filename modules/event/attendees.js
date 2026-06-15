@@ -4746,7 +4746,7 @@ function _eventHasPayment() {
 
 // ซ่อน/แสดง UI เกี่ยวกับ payment ทั่วทั้งหน้า (filter pills, stat cards, tier banner)
 function _applyPaymentVisibility() {
-  const has = _eventHasPayment();
+  const has = _paymentColShown();   // ให้ UI ชำระ (pills/stats/card) ตรงกับการแสดง "คอลัมน์ชำระ" เป๊ะ
   // filter pills "💰 ชำระ"
   const payFilterGroup = document.getElementById("filterPillsPayment")?.closest(".att-tt-group");
   if (payFilterGroup) payFilterGroup.style.display = has ? "" : "none";
@@ -4755,12 +4755,12 @@ function _applyPaymentVisibility() {
   const statRevenue = document.querySelector(".att-stat.sc-revenue");
   if (statPaid)    statPaid.style.display    = has ? "" : "none";
   if (statRevenue) statRevenue.style.display = has ? "" : "none";
-  // status card "การชำระเงิน" — ซ่อนถ้า event ฟรี
+  // status card "การชำระเงิน"
   const payCard = document.querySelector(".att-scard.sc-pay");
   if (payCard) payCard.style.display = has ? "" : "none";
-  // tier banner — เผื่อ event ไม่มี tier + ไม่มีราคา
+  // tier banner — ยึด "ราคา" (โชว์ราคาได้แม้งานไม่ติดตามชำระ)
   const tierBanner = document.getElementById("tierInfoBanner");
-  if (tierBanner && !has) tierBanner.style.display = "none";
+  if (tierBanner && !_eventHasPayment()) tierBanner.style.display = "none";
 }
 
 // แสดงเป็น column ในตาราง? — fallback: ถ้าไม่กำหนด → ใช้ show (backward compat)
@@ -4808,6 +4808,15 @@ function _eventHasPaymentData() {
     (a.payment_status && a.payment_status !== "COMPLIMENTARY") ||
     Number(a.paid_amount) > 0 || a.payment_deadline || a.slip_url || a.payment_ref
   );
+}
+
+// แสดง "ระบบชำระเงิน" (คอลัมน์ + filter pills + stat) ไหม — แหล่งความจริงเดียวให้ตาราง/UI ตรงกัน
+//   opt-in ผ่าน template (show_payment) · หรือมีข้อมูลชำระอยู่แล้ว (backward-compat) · ยกเว้นงานที่ใช้ checklist ชำระแทน
+function _paymentColShown() {
+  if (_paymentQualKey()) return false;
+  const cfg = _getActiveFieldConfig();
+  if (cfg && cfg.show_payment) return true;
+  return _eventHasPaymentData();
 }
 
 function getActiveColumns() {
