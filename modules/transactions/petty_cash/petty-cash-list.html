@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>🧾 Petty Cash — A4S-ERP</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../../../css/main.css" />
+    <link rel="stylesheet" href="./petty-cash-list.css" />
+  </head>
+  <body>
+    <div class="loading-overlay" id="loadingOverlay"><div class="spinner"></div></div>
+    <div class="toast" id="toast"></div>
+
+    <div class="topbar"></div>
+
+    <div class="page">
+      <div class="page-hero page-hero--simple page-hero--compact">
+        <div>
+          <h1 class="page-hero-title">🧾 รายการ Petty Cash</h1>
+          <p class="page-hero-sub">บันทึกเงินสดย่อย ออกใบรับรองแทนใบเสร็จ และใบสำคัญเงินสดย่อยได้จากหน้าเดียว</p>
+        </div>
+        <div class="page-hero-actions">
+          <button class="btn-on-hero btn-primary" data-perm="petty_cash_create" onclick="window.goToForm()">＋ สร้าง Petty Cash</button>
+        </div>
+      </div>
+
+      <div class="stats-row">
+        <div class="stat-card amber">
+          <div class="stat-icon">🧾</div>
+          <div class="stat-info">
+            <div class="stat-label">ทั้งหมด</div>
+            <div class="stat-value" id="cardTotal">0</div>
+          </div>
+        </div>
+        <div class="stat-card purple">
+          <div class="stat-icon">📝</div>
+          <div class="stat-info">
+            <div class="stat-label">ฉบับร่าง</div>
+            <div class="stat-value" id="cardDraft">0</div>
+          </div>
+        </div>
+        <div class="stat-card green">
+          <div class="stat-icon">✅</div>
+          <div class="stat-info">
+            <div class="stat-label">เสร็จสมบูรณ์</div>
+            <div class="stat-value" id="cardFinal">0</div>
+          </div>
+        </div>
+        <div class="stat-card blue">
+          <div class="stat-icon">💰</div>
+          <div class="stat-info">
+            <div class="stat-label">ค่าใช้จ่ายรวม (บาท)</div>
+            <div class="stat-value" id="cardAmount">0.00</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="table-card">
+        <div class="table-toolbar">
+          <div class="search-wrap" style="max-width:none;flex:1;">
+            <span class="search-icon">🔍</span>
+            <input
+              class="search-input"
+              id="searchInput"
+              placeholder="ค้นหาเลขที่ PC, ชื่อรอบ, ผู้จัดทำ..."
+            />
+          </div>
+          <select class="filter-select" id="filterStatus">
+            <option value="">🧿 ทุกสถานะ</option>
+            <option value="DRAFT">📝 ฉบับร่าง</option>
+            <option value="FINAL">✅ เสร็จสมบูรณ์</option>
+          </select>
+        </div>
+
+        <!-- BULK DELETE BAR -->
+        <div class="bulk-bar" id="bulkBar">
+          <div class="bulk-bar-info" id="bulkInfo">เลือก 0 รายการ</div>
+          <div class="bulk-bar-actions">
+            <button class="btn btn-outline" onclick="clearSelection()">ยกเลิกการเลือก</button>
+            <button class="btn btn-danger" data-perm="petty_cash_delete" onclick="bulkDelete()">🗑 ลบที่เลือก</button>
+          </div>
+        </div>
+
+        <div class="table-hdr">
+          <div class="table-title">🧾 สมุดเงินสดย่อย</div>
+          <div class="table-count" id="rowCount">0 รายการ</div>
+        </div>
+
+        <div class="table-wrap">
+          <table class="data-table v-striped">
+            <thead>
+              <tr>
+                <th class="col-check"><input type="checkbox" class="pc-check" id="checkAll" onclick="toggleSelectAll(this)" /></th>
+                <th>เลขที่ PC</th>
+                <th>ชื่อรอบ / รายละเอียด</th>
+                <th class="col-center">ช่วงวันที่</th>
+                <th>ผู้จัดทำ</th>
+                <th class="col-center">บรรทัด</th>
+                <th class="col-right">ค่าใช้จ่ายรวม</th>
+                <th class="col-center">สถานะ</th>
+                <th class="col-center" style="width:120px">จัดการ</th>
+              </tr>
+            </thead>
+            <tbody id="tableBody">
+              <tr>
+                <td colspan="9">
+                  <div class="empty-state">
+                    <div class="empty-state-icon">🧾</div>
+                    <div class="empty-state-title">กำลังโหลดข้อมูล...</div>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <script src="../../../js/core/auth.js"></script>
+    <script src="../../../js/core/authz.js"></script>
+    <script src="../../../js/core/date-format.js"></script>
+    <script>AuthZ.requirePerm("petty_cash_view");</script>
+    <script src="./petty-cash-list.js"></script>
+    <script type="module">
+      import { loadTopbar } from "../../../js/components/navigation/topbar.js";
+      loadTopbar("🧾 Petty Cash");
+    </script>
+    <script src="../../../js/components/navigation/sidebar.js"></script>
+    <script src="../../../js/components/modal/confirmModal.js"></script>
+    <script src="../../../js/components/modal/modalManager.js"></script>
+  </body>
+</html>

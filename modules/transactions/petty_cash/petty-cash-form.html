@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Petty Cash — เงินสดย่อย</title>
+<!-- Headless mode: ตั้ง class ก่อน sidebar.js โหลด เพื่อกัน chrome แสดง -->
+<script>
+  if (new URLSearchParams(location.search).get('headless') === '1') {
+    document.documentElement.classList.add('headless');
+  }
+</script>
+<link rel="stylesheet" href="../../../css/main.css">
+<style>
+.page { max-width:1040px; margin:0 auto; padding:28px 24px 110px; }
+
+/* input-prefix (page-local — ไม่มีใน common.css) */
+.input-prefix { display:flex; align-items:center; border:1.5px solid var(--border); border-radius:7px; overflow:hidden; transition:all .18s; }
+.input-prefix:focus-within { border-color:var(--accent); box-shadow:0 0 0 3px rgba(var(--accent-rgb),.08); }
+.input-prefix-text { padding:10px 12px; background:var(--surface2); font-size:13px; color:var(--text2); border-right:1.5px solid var(--border); white-space:nowrap; }
+.input-prefix .form-control { border:none; border-radius:0; box-shadow:none; flex:1; }
+
+/* HERO เลขที่ PC */
+.hero-pc-no { display:flex; flex-direction:column; align-items:stretch; gap:8px; flex:1; }
+.hero-status-row { display:flex; justify-content:flex-end; }
+.hero-pc-no-row { display:flex; align-items:center; gap:10px; flex-wrap:wrap; justify-content:flex-end; }
+.hero-pc-no-label { font-size:12px; font-weight:700; letter-spacing:.3px; margin:0; color:rgba(255,255,255,.92); white-space:nowrap; }
+.hero-pc-no-label .required { color:#fecaca; }
+.hero-pc-no .input-prefix { background:var(--surface); width:auto; border-color:rgba(255,255,255,.45); box-shadow:0 2px 6px rgba(0,0,0,.08); }
+.hero-pc-no .input-prefix-text { padding:7px 10px; font-size:12px; }
+.hero-pc-no .form-control { padding:7px 10px; font-size:13px; width:80px; }
+
+.pc-status-badge { padding:5px 12px; border-radius:20px; font-size:12px; font-weight:700; letter-spacing:.5px; }
+.page-hero.v-bold .pc-status-badge.badge-draft { background:rgba(255,255,255,.92); color:var(--text); border:1px solid rgba(255,255,255,.6); }
+.hero-status-row .pc-status-badge { padding:3px 9px; font-size:10.5px; letter-spacing:.4px; }
+.badge-draft { background:var(--bg); color:var(--text2); border:1px solid var(--border2); }
+.badge-final { background:#dcfce7; color:#166534; border:1px solid #86efac; }
+
+/* FORM grid */
+.form-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+.form-grid--3 { grid-template-columns:1fr 1fr 1fr; }
+@media (max-width:680px){ .form-grid, .form-grid--3 { grid-template-columns:1fr; } }
+
+/* SUB-BLOCK */
+.form-block { padding:18px 0; border-bottom:1px solid var(--border); }
+.form-block:first-child { padding-top:0; }
+.form-block:last-child { padding-bottom:0; border-bottom:none; }
+.form-block-head { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; margin-bottom:12px; }
+.form-block-title { font-size:13px; font-weight:700; color:var(--accent); display:flex; align-items:center; gap:7px; padding-left:10px; border-left:3px solid var(--accent); }
+.form-block-sub { font-size:11.5px; color:var(--text3); font-weight:500; }
+.doc-gen-actions { display:flex; gap:8px; flex-wrap:wrap; }
+
+/* ITEMS TABLE */
+.items-table-wrap { overflow-x:auto; }
+.items-table { width:100%; border-collapse:collapse; font-size:13.5px; min-width:760px; }
+.items-table th { padding:9px 8px; background:var(--surface2); color:var(--text2); font-size:11px; font-weight:600; letter-spacing:.6px; text-align:left; border-bottom:2px solid var(--border); white-space:nowrap; }
+.items-table td { padding:6px 5px; border-bottom:1px solid var(--border); vertical-align:middle; }
+.items-table tr:last-child td { border-bottom:none; }
+.items-table th.text-right, .items-table td.text-right { text-align:right; }
+.items-table th.text-center, .items-table td.text-center { text-align:center; }
+.item-num { width:28px; height:28px; background:var(--bg); border-radius:6px; display:flex; align-items:center; justify-content:center; font-size:12px; color:var(--text3); font-family:'IBM Plex Mono',monospace; margin:0 auto; }
+.td-input { padding:7px 9px; border:1.5px solid transparent; border-radius:6px; font-size:13.5px; font-family:'Sarabun',sans-serif; width:100%; background:transparent; outline:none; transition:all .15s; color:var(--text); box-sizing:border-box; }
+.td-input:focus { border-color:var(--accent); background:#fff; box-shadow:0 0 0 3px rgba(var(--accent-rgb),.08); }
+.td-input.text-right { text-align:right; font-family:'IBM Plex Mono',monospace; }
+.pc-row-check { width:17px; height:17px; cursor:pointer; accent-color:var(--accent); }
+.btn-remove { width:28px; height:28px; border-radius:6px; border:none; background:transparent; color:var(--text3); cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:16px; transition:all .15s; }
+.btn-remove:hover { background:var(--danger-pale); color:var(--danger); }
+.btn-add-row { margin-top:12px; padding:9px 16px; border:1.5px dashed var(--border2); border-radius:7px; background:transparent; color:var(--text2); font-size:13px; font-family:'Sarabun',sans-serif; cursor:pointer; width:100%; transition:all .18s; display:flex; align-items:center; justify-content:center; gap:6px; }
+.btn-add-row:hover { border-color:var(--accent); color:var(--accent); background:var(--accent-pale); }
+
+/* SUMMARY */
+.summary-block { display:flex; justify-content:flex-end; margin-top:16px; }
+.summary-table { width:300px; max-width:100%; }
+.summary-row { display:flex; justify-content:space-between; align-items:center; padding:7px 0; font-size:13.5px; border-bottom:1px solid var(--border); }
+.summary-row:last-child { border-bottom:none; }
+.summary-label { color:var(--text2); }
+.summary-value { font-family:'IBM Plex Mono',monospace; font-weight:600; color:var(--text); }
+.summary-row.in .summary-value { color:#166534; }
+.summary-row.out .summary-value { color:#92400e; }
+.summary-total .summary-label { font-size:14px; font-weight:600; color:var(--text); }
+.summary-total .summary-value { font-size:18px; color:var(--accent); }
+
+/* FOOTER */
+.form-footer { position:fixed; bottom:0; left:0; right:0; background:var(--surface); border-top:1px solid var(--border); padding:14px 32px; display:flex; align-items:center; justify-content:space-between; gap:12px; z-index:50; box-shadow:0 -4px 16px rgba(0,0,0,.06); }
+.footer-left { display:flex; gap:10px; }
+.footer-right { display:flex; gap:10px; flex-wrap:wrap; justify-content:flex-end; }
+textarea.form-control { resize:vertical; min-height:60px; line-height:1.6; }
+
+/* HEADLESS MODE */
+html.headless .topbar, html.headless #erp-sidebar, html.headless #sb-overlay,
+html.headless .sb-hamburger, html.headless .page, html.headless .form-footer { display:none !important; }
+html.headless body { background:#fff; margin:0; padding:0; }
+
+/* ================================================================
+   PREVIEW / PRINT
+   ================================================================ */
+.preview-overlay { position:fixed; inset:0; z-index:9999; background:rgba(15,23,30,.55); display:none; flex-direction:column; align-items:center; overflow-y:auto; padding:24px 16px 60px; }
+.preview-overlay.open { display:flex; }
+.preview-toolbar { position:fixed; top:80px; z-index:10000; right:calc(50% + 105mm + 12px); width:160px; background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:12px 14px; display:flex; flex-direction:column; gap:10px; box-shadow:0 8px 28px rgba(0,0,0,.22); }
+.preview-toolbar .toolbar-title { font-size:12.5px; font-weight:700; color:var(--text2); text-align:center; padding-bottom:8px; border-bottom:1px solid var(--border); }
+.preview-toolbar .btn { width:100%; justify-content:center; }
+@media (max-width:1180px){ .preview-toolbar { right:20px; } }
+@media (max-width:760px){ .preview-toolbar { position:fixed; top:auto; bottom:16px; left:16px; right:16px; width:auto; flex-direction:row; } .preview-toolbar .toolbar-title { display:none; } }
+
+/* A4 doc shared */
+.pc-doc { display:none; background:#fff; width:210mm; min-height:297mm; padding:16mm 15mm; box-shadow:0 12px 40px rgba(0,0,0,.25); font-family:'Sarabun',sans-serif; color:#1f2933; box-sizing:border-box; }
+.pc-doc.active { display:block; }
+.pc-doc * { box-sizing:border-box; }
+
+/* --- company header (logo + name + address) --- */
+.pcd-head { display:grid; grid-template-columns:90px 1fr; gap:14px; align-items:center; margin-bottom:6px; }
+.pcd-logo { width:90px; height:80px; display:flex; align-items:center; justify-content:flex-start; }
+.pcd-logo img { max-width:88px; max-height:78px; object-fit:contain; }
+.pcd-company { text-align:center; padding-right:90px; }
+.pcd-company-name { font-size:17px; font-weight:800; color:#1f2933; }
+.pcd-company-addr { font-size:10.5px; color:#52606d; margin-top:4px; line-height:1.4; }
+.pcd-company-tel { font-size:10.5px; color:#52606d; margin-top:1px; }
+
+/* === LEDGER (Petty Cash) === */
+.pcl-title { text-align:center; font-size:16px; font-weight:800; margin:10px 0 2px; }
+.pcl-subtitle { text-align:center; font-size:12px; color:#52606d; margin-bottom:14px; }
+.pcl-table { width:100%; border-collapse:collapse; font-size:12px; margin-top:8px; }
+.pcl-table th { background:#f1f3f5; border:1px solid #1f2933; padding:7px 9px; font-weight:700; text-align:left; }
+.pcl-table td { border:1px solid #cbd2d9; padding:6px 9px; vertical-align:top; }
+.pcl-table .r { text-align:right; font-family:'IBM Plex Mono',monospace; white-space:nowrap; }
+.pcl-table tfoot td { font-weight:700; background:#fafbfc; }
+.pcl-foot-label { text-align:right; }
+.pcl-signs { display:grid; grid-template-columns:1fr 1fr; gap:50px; margin-top:48px; font-size:13px; }
+.pcl-sign-row { display:flex; align-items:flex-end; gap:10px; margin-bottom:26px; }
+.pcl-sign-row .lbl { white-space:nowrap; font-weight:600; }
+.pcl-line { flex:1; border-bottom:1px dotted #52606d; height:1px; }
+.pcl-line.sm { flex:0 0 90px; }
+
+/* === CERTIFICATE (ใบรับรองแทนใบเสร็จรับเงิน) === */
+.pcc-title { text-align:center; font-size:18px; font-weight:800; margin:4px 0 14px; }
+.pcc-meta { text-align:right; font-size:13px; line-height:2; margin-bottom:8px; }
+.pcc-meta .dot { display:inline-block; min-width:130px; border-bottom:1px dotted #52606d; text-align:center; }
+.pcc-table { width:100%; border-collapse:collapse; font-size:12.5px; margin-bottom:10px; }
+.pcc-table th { border:1px solid #1f2933; background:#f1f3f5; padding:7px 9px; font-weight:700; text-align:center; }
+.pcc-table td { border:1px solid #1f2933; padding:7px 9px; vertical-align:top; min-height:30px; }
+.pcc-table td.r { text-align:right; font-family:'IBM Plex Mono',monospace; white-space:nowrap; }
+.pcc-table td.c { text-align:center; }
+.pcc-table tfoot td { font-weight:700; }
+.pcc-para { font-size:13px; line-height:2.1; margin-top:14px; text-indent:0; }
+.pcc-para .dot { display:inline-block; border-bottom:1px dotted #52606d; min-width:80px; text-align:center; padding:0 4px; }
+.pcc-signs { margin-top:30px; font-size:13px; line-height:2.2; text-align:right; padding-right:30px; }
+.pcc-signs .dot { display:inline-block; border-bottom:1px dotted #52606d; min-width:140px; text-align:center; }
+.pcc-account { margin-top:34px; font-size:12.5px; line-height:2.2; }
+.pcc-account .dot { display:inline-block; border-bottom:1px dotted #52606d; min-width:200px; }
+.pcc-foot { margin-top:20px; padding-top:8px; border-top:1px dashed #cbd2d9; font-size:10px; color:#9aa5b1; line-height:1.6; }
+
+/* === VOUCHER (ใบสำคัญเงินสดย่อย) === */
+.pcv-title { text-align:center; font-size:16px; font-weight:800; margin:14px 0 12px; }
+.pcv-info { display:grid; grid-template-columns:1fr 1fr; gap:4px 24px; font-size:13px; margin-bottom:12px; }
+.pcv-info .row { display:flex; gap:8px; align-items:baseline; }
+.pcv-info .lbl { font-weight:700; white-space:nowrap; }
+.pcv-info .val { flex:1; border-bottom:1px dotted #52606d; min-height:20px; padding:0 4px; }
+.pcv-table { width:100%; border-collapse:collapse; font-size:12.5px; }
+.pcv-table th { border:1px solid #1f2933; background:#dbeafe; padding:7px 9px; font-weight:700; text-align:center; }
+.pcv-table td { border:1px solid #1f2933; padding:7px 9px; height:30px; vertical-align:top; }
+.pcv-table td.no { text-align:center; width:42px; }
+.pcv-table td.amt { text-align:right; font-family:'IBM Plex Mono',monospace; width:150px; white-space:nowrap; }
+.pcv-table td.baht { font-weight:700; }
+.pcv-table .total-row td { font-weight:700; background:#fafbfc; }
+.pcv-note { margin-top:10px; font-size:12.5px; }
+.pcv-note .lbl { font-weight:700; }
+.pcv-note .val { display:inline-block; border-bottom:1px dotted #52606d; min-width:70%; padding:0 4px; }
+.pcv-signs { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-top:48px; text-align:center; font-size:12px; }
+.pcv-sign-line { border-top:1px solid #1f2933; margin:30px 6px 6px; }
+.pcv-sign-th { font-weight:700; }
+.pcv-sign-en { color:#52606d; font-size:11px; }
+
+@media print {
+  @page { size:A4; margin:10mm; }
+  html, body { margin:0 !important; padding:0 !important; background:#fff !important; height:auto !important; }
+  body > *:not(.preview-overlay) { display:none !important; }
+  .topbar, #erp-sidebar, #sb-overlay, .page, .form-footer, .preview-toolbar, .loading-overlay, .toast { display:none !important; }
+  .preview-overlay { display:contents !important; background:transparent !important; }
+  .pc-doc { display:none !important; }
+  .pc-doc.active { display:block !important; width:auto !important; min-height:auto !important; box-shadow:none !important; padding:0 !important; margin:0 !important; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  .pcl-table, .pcc-table, .pcv-table { page-break-inside:auto; }
+  .pcl-table tr, .pcc-table tr, .pcv-table tr { page-break-inside:avoid; }
+  .pcl-signs, .pcv-signs, .pcc-signs { page-break-inside:avoid; }
+}
+</style>
+</head>
+<body>
+<div class="loading-overlay" id="loadingOverlay"><div class="spinner"></div></div>
+<div class="toast" id="toast"></div>
+
+<div class="topbar"></div>
+<div class="page">
+
+  <!-- PAGE HERO -->
+  <div class="page-hero v-bold">
+    <div>
+      <h1 class="page-hero-title">🧾 Petty Cash</h1>
+      <p class="page-hero-sub">บันทึกเงินสดย่อย · เลือกบรรทัดเพื่อออกใบรับรองแทนใบเสร็จ / ใบสำคัญเงินสดย่อย</p>
+    </div>
+    <div class="page-hero-actions hero-pc-no">
+      <div class="hero-status-row">
+        <span class="pc-status-badge badge-draft" id="statusBadge">● DRAFT</span>
+      </div>
+      <div class="hero-pc-no-row">
+        <label class="form-label hero-pc-no-label">เลขที่ <span class="required">*</span></label>
+        <div class="input-prefix">
+          <span class="input-prefix-text" id="pcPrefix">PC-2026-01-</span>
+          <input type="text" class="form-control" id="pcNumber" placeholder="001" value="001">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-card">
+
+    <!-- HEADER FIELDS -->
+    <div class="form-block">
+      <div class="form-block-head">
+        <div class="form-block-title">📌 ข้อมูลรอบเบิก</div>
+      </div>
+      <div class="form-grid">
+        <div class="form-group" style="grid-column:1 / -1">
+          <label class="form-label">ชื่อรอบ / รายละเอียด</label>
+          <input type="text" class="form-control" id="title" placeholder="เช่น ค่าใช้จ่ายทริป African Leaders">
+        </div>
+        <div class="form-group">
+          <label class="form-label">วันที่เริ่ม</label>
+          <input type="date" class="form-control" id="dateFrom">
+        </div>
+        <div class="form-group">
+          <label class="form-label">วันที่สิ้นสุด</label>
+          <input type="date" class="form-control" id="dateTo">
+        </div>
+        <div class="form-group">
+          <label class="form-label">ผู้จัดทำ (Prepare by)</label>
+          <input type="text" class="form-control" id="preparedBy" placeholder="ชื่อผู้จัดทำ">
+        </div>
+        <div class="form-group">
+          <label class="form-label">ผู้อนุมัติ (Approve by)</label>
+          <input type="text" class="form-control" id="approvedBy" placeholder="ชื่อผู้อนุมัติ">
+        </div>
+        <div class="form-group" style="grid-column:1 / -1">
+          <label class="form-label">หมายเหตุ</label>
+          <input type="text" class="form-control" id="note" placeholder="หมายเหตุเพิ่มเติม (ถ้ามี)">
+        </div>
+      </div>
+    </div>
+
+    <!-- ITEMS -->
+    <div class="form-block">
+      <div class="form-block-head">
+        <div class="form-block-title">📋 รายการเงินสดย่อย</div>
+        <div class="doc-gen-actions">
+          <button class="btn btn-outline" onclick="genDoc('cert')">📄 ออกใบรับรองแทนใบเสร็จ</button>
+          <button class="btn btn-outline" onclick="genDoc('voucher')">📄 ออกใบสำคัญเงินสดย่อย</button>
+        </div>
+      </div>
+      <div class="form-block-sub" style="margin-bottom:10px">
+        ติ๊กเลือกบรรทัดค่าใช้จ่ายที่ต้องการ แล้วกดปุ่มออกเอกสารด้านบน · <span id="itemCount">0 บรรทัด</span>
+      </div>
+      <div class="items-table-wrap">
+        <table class="items-table">
+          <thead><tr>
+            <th class="text-center" style="width:36px"><input type="checkbox" class="pc-row-check" id="checkAllRows" onclick="toggleAllRows(this)"></th>
+            <th class="text-center" style="width:36px">#</th>
+            <th style="width:140px">วันที่</th>
+            <th style="min-width:200px">รายละเอียด</th>
+            <th style="width:150px">จ่ายให้ / ผู้รับเงิน</th>
+            <th class="text-right" style="width:120px">เงินนำเข้า</th>
+            <th class="text-right" style="width:120px">ค่าใช้จ่าย</th>
+            <th style="width:36px"></th>
+          </tr></thead>
+          <tbody id="itemsBody"></tbody>
+        </table>
+      </div>
+      <button class="btn-add-row" onclick="addItemRow()">＋ เพิ่มบรรทัด</button>
+
+      <div class="summary-block">
+        <div class="summary-table">
+          <div class="summary-row in">
+            <span class="summary-label">เงินนำเข้ารวม (Petty Cash)</span>
+            <span class="summary-value" id="sumIn">0.00</span>
+          </div>
+          <div class="summary-row out">
+            <span class="summary-label">ค่าใช้จ่ายรวม (Reimbursement)</span>
+            <span class="summary-value" id="sumOut">0.00</span>
+          </div>
+          <div class="summary-row summary-total">
+            <span class="summary-label">คงเหลือ (Balance)</span>
+            <span class="summary-value" id="sumBalance">0.00</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- FOOTER -->
+<div class="form-footer">
+  <div class="footer-left">
+    <button class="btn btn-danger-outline" onclick="resetForm()">🗑 ล้างข้อมูล</button>
+  </div>
+  <div class="footer-right">
+    <button class="btn btn-outline" onclick="cancelEdit()">✕ ยกเลิก</button>
+    <button class="btn btn-outline" onclick="genDoc('ledger')">🖨 พิมพ์สรุป Petty Cash</button>
+    <button class="btn btn-success" onclick="saveBook()">💾 บันทึก</button>
+  </div>
+</div>
+
+<!-- ─── DOC META MODAL ─── -->
+<div class="modal-overlay" id="docMetaOverlay">
+  <div class="modal v-sage-header" style="width:440px">
+    <div class="modal-hdr">
+      <div class="modal-title" id="docMetaTitle">📄 ออกเอกสาร</div>
+      <button class="btn-modal-close" onclick="closeDocMeta()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">เลขที่เอกสาร</label>
+        <input type="text" class="form-control" id="metaDocNo" placeholder="เช่น 001 (เว้นว่างได้)">
+      </div>
+      <div class="form-group">
+        <label class="form-label">วันที่เอกสาร</label>
+        <input type="date" class="form-control" id="metaDocDate">
+      </div>
+      <div class="form-group">
+        <label class="form-label">จ่ายให้ / ผู้ขอเบิกจ่าย</label>
+        <input type="text" class="form-control" id="metaPayee" placeholder="ชื่อผู้รับเงิน">
+      </div>
+      <div class="form-group" id="metaPositionWrap">
+        <label class="form-label">ตำแหน่ง (สำหรับใบรับรอง)</label>
+        <input type="text" class="form-control" id="metaPosition" placeholder="เช่น เลขานุการ (เว้นว่างได้)">
+      </div>
+      <div class="form-hint" style="color:var(--text3);font-size:11.5px;margin-top:4px" id="metaHint"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeDocMeta()">ยกเลิก</button>
+      <button class="btn btn-success" onclick="confirmDocMeta()">📄 สร้าง & พรีวิว</button>
+    </div>
+  </div>
+</div>
+
+<!-- ─── PREVIEW / PRINT ─── -->
+<div class="preview-overlay" id="previewOverlay" onclick="if(event.target===this)closePreview()">
+  <div class="preview-toolbar">
+    <span class="toolbar-title" id="previewTitle">📄 ตัวอย่างเอกสาร</span>
+    <button class="btn btn-outline" onclick="closePreview()">✕ ปิด</button>
+    <button class="btn btn-success" onclick="printDoc()">🖨 พิมพ์ / บันทึก PDF</button>
+  </div>
+
+  <!-- LEDGER (Petty Cash) -->
+  <div class="pc-doc pc-doc-ledger" id="docLedger">
+    <div class="pcd-head">
+      <div class="pcd-logo"><img class="pcdLogo" alt="logo"></div>
+      <div class="pcd-company">
+        <div class="pcd-company-name pcdCompanyName">—</div>
+      </div>
+    </div>
+    <div class="pcl-title">Petty Cash</div>
+    <div class="pcl-subtitle" id="ldgSubtitle"></div>
+    <table class="pcl-table">
+      <thead><tr>
+        <th style="width:90px">Date</th>
+        <th>Detail</th>
+        <th class="r" style="width:130px">Petty Cash</th>
+        <th class="r" style="width:130px">Amount</th>
+      </tr></thead>
+      <tbody id="ldgBody"></tbody>
+      <tfoot id="ldgFoot"></tfoot>
+    </table>
+    <div class="pcl-signs">
+      <div>
+        <div class="pcl-sign-row"><span class="lbl">Prepare by :</span><span class="pcl-line" id="ldgPrep"></span></div>
+        <div class="pcl-sign-row"><span class="lbl">Date</span><span class="pcl-line sm"></span></div>
+      </div>
+      <div>
+        <div class="pcl-sign-row"><span class="lbl">Approve by :</span><span class="pcl-line" id="ldgApprove"></span></div>
+        <div class="pcl-sign-row"><span class="lbl">Date</span><span class="pcl-line sm"></span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CERTIFICATE (ใบรับรองแทนใบเสร็จรับเงิน) -->
+  <div class="pc-doc pc-doc-cert" id="docCert">
+    <div class="pcc-title">ใบรับรองแทนใบเสร็จรับเงิน</div>
+    <div class="pcc-meta">
+      เลขที่ <span class="dot" id="certNo">&nbsp;</span><br>
+      วันที่ <span class="dot" id="certDate">&nbsp;</span>
+    </div>
+    <table class="pcc-table">
+      <thead><tr>
+        <th style="width:110px">วัน เดือน ปี</th>
+        <th>รายละเอียดรายจ่าย</th>
+        <th style="width:120px">จำนวนเงิน (บาท)</th>
+        <th style="width:90px">หมายเหตุ</th>
+      </tr></thead>
+      <tbody id="certBody"></tbody>
+      <tfoot>
+        <tr>
+          <td class="c" style="font-weight:700">รวมทั้งสิ้น</td>
+          <td class="c" style="font-weight:700" id="certBahtText"></td>
+          <td class="r" id="certTotal"></td>
+          <td></td>
+        </tr>
+      </tfoot>
+    </table>
+    <div class="pcc-para">
+      ข้าพเจ้า <span class="dot" id="certPayee1">&nbsp;</span> (ผู้ขอเบิกจ่าย) ตำแหน่ง <span class="dot" id="certPosition">&nbsp;</span>
+      ขอรับรองว่ารายจ่ายข้างต้นนี้ ไม่อาจเรียกใบเสร็จรับเงินจากผู้รับได้ และข้าพเจ้าได้จ่ายไปในงานของทางบริษัท
+      <span id="certCompany">—</span> โดยแท้ ตั้งแต่วันที่ <span class="dot" id="certFrom">&nbsp;</span> ถึงวันที่ <span class="dot" id="certTo">&nbsp;</span>
+    </div>
+    <div class="pcc-signs">
+      ลงชื่อ <span class="dot" id="certPayee2">&nbsp;</span> (ผู้ขอเบิกจ่าย)<br>
+      ( <span class="dot" style="min-width:170px" id="certPayee3">&nbsp;</span> )<br><br>
+      ลงชื่อ <span class="dot">&nbsp;</span> (ผู้อนุมัติ)<br>
+      ( <span class="dot" style="min-width:170px">&nbsp;</span> )
+    </div>
+    <div class="pcc-account">
+      <b>สำหรับบัญชี</b><br>
+      เลขบัญชี <span class="dot">&nbsp;</span><br>
+      ชื่อบัญชี <span class="dot">&nbsp;</span><br>
+      จ่าย (เงินสดย่อย / โอนเงิน) เมื่อวันที่ <span class="dot">&nbsp;</span>
+    </div>
+    <div class="pcc-foot">
+      ◆ เอกสารนี้ใช้แทนเอกสารที่ไม่สามารถได้รับใบเสร็จรับเงินได้ สำหรับผู้ขายหรือผู้ให้บริการที่ไม่อยู่ในระบบภาษีมูลค่าเพิ่ม
+      เพื่อใช้เป็นเอกสารประกอบใบเบิกเงินที่สำรองจ่ายไปก่อน
+    </div>
+  </div>
+
+  <!-- VOUCHER (ใบสำคัญเงินสดย่อย) -->
+  <div class="pc-doc pc-doc-voucher" id="docVoucher">
+    <div class="pcd-head">
+      <div class="pcd-logo"><img class="pcdLogo" alt="logo"></div>
+      <div class="pcd-company">
+        <div class="pcd-company-name pcdCompanyName">—</div>
+        <div class="pcd-company-addr pcdCompanyAddr"></div>
+        <div class="pcd-company-tel pcdCompanyTel"></div>
+      </div>
+    </div>
+    <div class="pcv-title">ใบสำคัญเงินสดย่อย (PETTY CASH VOUCHER)</div>
+    <div class="pcv-info">
+      <div class="row"><span class="lbl">วันที่ (Date)</span><span class="val" id="vchDate">&nbsp;</span></div>
+      <div class="row"><span class="lbl">เลขที่ (Number)</span><span class="val" id="vchNo">&nbsp;</span></div>
+      <div class="row" style="grid-column:1 / -1"><span class="lbl">จ่ายให้ (Paid To)</span><span class="val" id="vchPayee">&nbsp;</span></div>
+    </div>
+    <table class="pcv-table">
+      <thead><tr>
+        <th class="no">No.</th>
+        <th>รายการ (Description)</th>
+        <th style="width:150px">จำนวนเงิน (บาท)<br>Amount (Baht)</th>
+      </tr></thead>
+      <tbody id="vchBody"></tbody>
+      <tfoot>
+        <tr class="total-row">
+          <td></td>
+          <td class="baht" id="vchBahtText"></td>
+          <td class="amt" id="vchTotal"></td>
+        </tr>
+      </tfoot>
+    </table>
+    <div class="pcv-note"><span class="lbl">หมายเหตุ</span> <span class="val" id="vchNote">&nbsp;</span></div>
+    <div class="pcv-signs">
+      <div><div class="pcv-sign-line"></div><div class="pcv-sign-th">ผู้ขอเบิก</div><div class="pcv-sign-en">Requested By</div></div>
+      <div><div class="pcv-sign-line"></div><div class="pcv-sign-th">ตรวจสอบเอกสารโดย</div><div class="pcv-sign-en">Checked By</div></div>
+      <div><div class="pcv-sign-line"></div><div class="pcv-sign-th">อนุมัติโดย</div><div class="pcv-sign-en">Approved By</div></div>
+      <div><div class="pcv-sign-line"></div><div class="pcv-sign-th">ผู้รับเงิน</div><div class="pcv-sign-en">Receiver By</div></div>
+    </div>
+  </div>
+</div>
+
+<script src="../../../js/core/auth.js"></script>
+<script src="../../../js/core/authz.js"></script>
+<script src="../../../js/core/date-format.js"></script>
+<script>AuthZ.requirePerm("petty_cash_view");</script>
+<script src="../../../js/core/companyLogo.js"></script>
+<script src="../../../js/utils/bahtText.js"></script>
+<script src="../../../js/components/navigation/sidebar.js"></script>
+<script type="module">
+  import { loadTopbar } from "../../../js/components/navigation/topbar.js";
+  loadTopbar("🧾 Petty Cash");
+</script>
+<script src="./petty-cash-form.js"></script>
+<script src="../../../js/components/modal/confirmModal.js"></script>
+<script src="../../../js/components/modal/modalManager.js"></script>
+</body>
+</html>

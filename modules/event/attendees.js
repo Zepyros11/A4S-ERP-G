@@ -4802,21 +4802,12 @@ window.refreshColumnsFromTemplate = async function () {
   }
 };
 
-// มีข้อมูลชำระเงินจริงในงานนี้ไหม — กันคอลัมน์ชำระ (+ข้อมูล) หายจากงานเก่าที่ template ไม่มีฟิลด์ payment
-function _eventHasPaymentData() {
-  return Array.isArray(allAttendees) && allAttendees.some(a =>
-    (a.payment_status && a.payment_status !== "COMPLIMENTARY") ||
-    Number(a.paid_amount) > 0 || a.payment_deadline || a.slip_url || a.payment_ref
-  );
-}
-
 // แสดง "ระบบชำระเงิน" (คอลัมน์ + filter pills + stat) ไหม — แหล่งความจริงเดียวให้ตาราง/UI ตรงกัน
-//   opt-in ผ่าน template (show_payment) · หรือมีข้อมูลชำระอยู่แล้ว (backward-compat) · ยกเว้นงานที่ใช้ checklist ชำระแทน
+//   opt-in ผ่าน template ล้วนๆ (show_payment) · ยกเว้นงานที่ใช้ checklist ชำระแทน → คอลัมน์หายถ้า template ไม่มีฟิลด์
 function _paymentColShown() {
   if (_paymentQualKey()) return false;
   const cfg = _getActiveFieldConfig();
-  if (cfg && cfg.show_payment) return true;
-  return _eventHasPaymentData();
+  return !!(cfg && cfg.show_payment);
 }
 
 function getActiveColumns() {
@@ -4878,11 +4869,10 @@ function getActiveColumns() {
     (cfg.qualifications || []).forEach(pushQual);
   }
 
-  // 💰 ชำระ — เป็น opt-in ผ่าน template (ฟิลด์ "การชำระเงิน") แล้ว ไม่ใช่ default
-  //   · fallback: template เก่าแบบ flat ที่มี show_payment → แสดง
-  //   · backward-compat: งานที่มี "ข้อมูลชำระ" อยู่แล้ว → แสดงเสมอ (กันคอลัมน์/ข้อมูลหายเงียบ)
+  // 💰 ชำระ — opt-in ผ่าน template (ฟิลด์ "การชำระเงิน") ล้วนๆ ไม่ใช่ default
+  //   · fallback: template แบบ flat ที่มี show_payment (ไม่มี blocks) → แสดง
+  //   · ไม่มีฟิลด์ในเทมเพลต = ไม่มีคอลัมน์ (ข้อมูลคงอยู่ใน DB แต่ไม่โชว์)
   if (!_paymentAdded && cfg.show_payment) pushPayment(cfg.payment_label);
-  if (!_paymentAdded && _eventHasPaymentData()) pushPayment();
   cols.push({ key: "actions", label: "จัดการ",     width: 130, align: "center" });
   return cols;
 }

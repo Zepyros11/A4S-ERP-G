@@ -1,0 +1,64 @@
+/* ============================================================
+   petty-cash-list.css — รายการสมุดเงินสดย่อย (Petty Cash)
+   ใช้ shared classes จาก main.css (stat-card / table-card / data-table)
+   เพิ่มเฉพาะ: status badge · checkbox column · bulk-delete bar
+   ============================================================ */
+
+/* right-align column (ไม่มีใน common.css) */
+.data-table th.col-right, .data-table td.col-right { text-align: right; }
+
+/* Amount cell */
+.pc-amount {
+  font-family: 'IBM Plex Mono', monospace;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+/* Status badge */
+.pc-badge {
+  display: inline-block;
+  padding: 4px 11px;
+  border-radius: 20px;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: .4px;
+  white-space: nowrap;
+}
+.pc-badge.draft { background: var(--bg); color: var(--text2); border: 1px solid var(--border2); }
+.pc-badge.final { background: #dcfce7; color: #166534; border: 1px solid #86efac; }
+
+/* Row actions */
+.pc-row-actions { display: flex; gap: 6px; justify-content: center; }
+.pc-icon-btn {
+  width: 32px; height: 32px; border-radius: 7px;
+  border: 1.5px solid var(--border2); background: var(--surface);
+  cursor: pointer; font-size: 14px; line-height: 1;
+  display: inline-flex; align-items: center; justify-content: center;
+  transition: all .15s;
+}
+.pc-icon-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-pale); }
+.pc-icon-btn.danger:hover { border-color: var(--danger); color: var(--danger); background: var(--danger-pale); }
+
+/* Checkbox column */
+.pc-check { width: 18px; height: 18px; cursor: pointer; accent-color: var(--accent); vertical-align: middle; }
+.data-table th.col-check, .data-table td.col-check { width: 42px; text-align: center; }
+
+/* Bulk-delete bar */
+.bulk-bar {
+  display: none;
+  align-items: center; justify-content: space-between; gap: 12px;
+  padding: 10px 16px; margin-bottom: 12px;
+  background: var(--accent-pale); border: 1.5px solid var(--accent);
+  border-radius: 10px;
+}
+.bulk-bar.show { display: flex; }
+.bulk-bar-info { font-size: 13px; font-weight: 600; color: var(--accent); }
+.bulk-bar-actions { display: flex; gap: 8px; }
+
+/* clickable title row */
+.data-table tbody tr.is-clickable { cursor: pointer; }
+.data-table tbody tr.is-clickable:hover td { background: var(--accent-pale); }
+.pc-title-main { font-weight: 600; color: var(--text); }
+.pc-title-sub { font-size: 11.5px; color: var(--text3); margin-top: 2px; }
+.pc-no { font-family: 'IBM Plex Mono', monospace; font-weight: 700; color: var(--accent); }

@@ -155,6 +155,12 @@ window.AppPermissions = (() => {
           { key: "req_approve", label: "อนุมัติ" },
           { key: "req_delete",  label: "ลบ" },
         ]},
+        { key: "petty_cash", label: "Petty Cash", icon: "🧾", perms: [
+          { key: "petty_cash_view",   label: "ดูรายการ" },
+          { key: "petty_cash_create", label: "สร้าง" },
+          { key: "petty_cash_edit",   label: "แก้ไข" },
+          { key: "petty_cash_delete", label: "ลบ" },
+        ]},
       ],
     },
 
@@ -407,6 +413,7 @@ window.AppPermissions = (() => {
         "po_view","po_create","po_edit","po_approve","po_receive",
         "so_view","so_create","so_edit","so_approve",
         "req_view","req_create","req_edit","req_approve",
+        "petty_cash_view","petty_cash_create","petty_cash_edit","petty_cash_delete",
         "report_stock_view","report_stock_export",
         "supplier_view","supplier_create","supplier_edit",
       ],

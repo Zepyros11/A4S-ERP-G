@@ -215,6 +215,13 @@
           path:
             BASE_PATH + "/modules/transactions/requisition/requisition-list.html",
         },
+        {
+          id: "petty-cash",
+          icon: "🧾",
+          label: "Petty Cash",
+          path:
+            BASE_PATH + "/modules/transactions/petty_cash/petty-cash-list.html",
+        },
       ],
     },
     //  **************** CRM *****************
@@ -528,6 +535,7 @@
     po: "po_view",
     so: "so_view",
     req: "req_view",
+    "petty-cash": "petty_cash_view",
     reports: "report_stock_view",
     settings: "sys_settings_view",
     "company-settings": "sys_settings_view",
@@ -604,6 +612,7 @@
     "po",
     "so",
     "req",
+    "petty-cash",
     //**** EVENT ****
     "event-poster-gallery",
     "events-dashboard",
