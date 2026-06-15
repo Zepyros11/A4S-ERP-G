@@ -163,6 +163,24 @@ function _buildFilterQuery() {
   return parts.join('&');
 }
 
+/* ── ลำดับการแสดงผลตามที่พิมพ์ในช่องค้นหา ──────────────────────
+   โหมด exact หลายค่า (member_code / sponsor_code / upline_code)
+   in.() ของ PostgREST ไม่คงลำดับ → reorder ฝั่ง client ตาม token
+   Return {field, tokens} ถ้าควร reorder, ไม่งั้น null ── */
+function _getSearchOrder() {
+  const q = (document.getElementById('searchInput')?.value || '').trim();
+  if (!q) return null;
+  const mode = document.getElementById('searchMode')?.dataset.value || 'all';
+  const ORDER_FIELDS = { member_code:'member_code', sponsor_code:'sponsor_code', upline_code:'upline_code' };
+  const field = ORDER_FIELDS[mode];
+  if (!field) return null;
+  const tokens = q.split(/[\s,]+/)
+    .map(t => t.replace(/[()*]/g, '').trim())
+    .filter(Boolean);
+  if (tokens.length <= 1) return null;   // ค่าเดียว — ใช้ sort ปกติ
+  return { field, tokens };
+}
+
 /* ── Custom search mode dropdown ── */
 function toggleSearchMode(e) {
   if (e) e.stopPropagation();
@@ -545,7 +563,18 @@ function render() {
     return;
   }
 
-  const rows = currentPage;
+  // ถ้าค้นแบบหลายค่า → เรียงตามลำดับที่พิมพ์ในช่องค้นหา (override sort)
+  let rows = currentPage;
+  const ord = _getSearchOrder();
+  if (ord) {
+    const idx = new Map(ord.tokens.map((t, i) => [t, i]));
+    rows = [...currentPage].sort((a, b) => {
+      const ia = idx.has(a[ord.field]) ? idx.get(a[ord.field]) : Infinity;
+      const ib = idx.has(b[ord.field]) ? idx.get(b[ord.field]) : Infinity;
+      return ia - ib;
+    });
+  }
+
   const canDecrypt = _canDecrypt();
   const ctx = { canDecrypt };
 
