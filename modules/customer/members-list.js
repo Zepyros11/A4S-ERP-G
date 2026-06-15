@@ -261,7 +261,7 @@ async function loadPage() {
     const filter = _buildFilterQuery();
     const from = (page - 1) * PAGE_SIZE;
     const to = from + PAGE_SIZE - 1;
-    const cols = 'member_code,member_name,full_name,co_applicant_name,email,phone,password_encrypted,national_id_encrypted,package,position,position_level,sponsor_code,upline_code,side,registered_at,country_code';
+    const cols = 'member_code,member_name,full_name,co_applicant_name,co_applicant_id,email,phone,password_encrypted,national_id_encrypted,birth_date,nationality,person_type,member_type,doc_status,package,position,position_level,sponsor_code,upline_code,side,registered_at,line_user_id,line_display_name,imported_at,country_code';
     const url = `${SUPABASE_URL}/rest/v1/members?select=${cols}${filter ? '&' + filter : ''}&order=${sortKey}.${sortAsc ? 'asc' : 'desc'}`;
 
     const res = await fetch(url + `&limit=${PAGE_SIZE}&offset=${from}`, {
@@ -386,6 +386,19 @@ const COLUMNS = [
     render:m => m.email ? `<span class="mem-contact" style="margin:0">${escapeHtml(m.email)}</span>` : '<span class="mask">—</span>' },
   { key:'co_applicant_name', label:'ผู้สมัครร่วม', sortKey:'co_applicant_name', defaultOn:true,
     render:m => m.co_applicant_name ? `<span class="mem-name">${escapeHtml(m.co_applicant_name)}</span>` : '<span class="mask">—</span>' },
+  // ⚠️ co_applicant_id เก็บแบบ plaintext (ไม่เข้ารหัสเหมือน national_id ของ main) — default ปิด
+  { key:'co_applicant_id', label:'เลขบัตรผู้สมัครร่วม', defaultOn:false,
+    render:m => m.co_applicant_id ? `<span class="mem-code">${escapeHtml(m.co_applicant_id)}</span>` : '<span class="mask">—</span>' },
+  { key:'birth_date', label:'วันเกิด', sortKey:'birth_date', defaultOn:false,
+    render:m => m.birth_date ? (DateFmt.formatDMY(m.birth_date) || '—') : '<span class="mask">—</span>' },
+  { key:'nationality', label:'สัญชาติ', sortKey:'nationality', defaultOn:false,
+    render:m => m.nationality ? escapeHtml(m.nationality) : '<span class="mask">—</span>' },
+  { key:'person_type', label:'ประเภทบุคคล', sortKey:'person_type', defaultOn:false,
+    render:m => m.person_type ? escapeHtml(m.person_type) : '<span class="mask">—</span>' },
+  { key:'member_type', label:'ประเภทสมาชิก', sortKey:'member_type', defaultOn:false,
+    render:m => m.member_type ? escapeHtml(m.member_type) : '<span class="mask">—</span>' },
+  { key:'doc_status', label:'สถานะเอกสาร', sortKey:'doc_status', defaultOn:false,
+    render:m => m.doc_status ? escapeHtml(m.doc_status) : '<span class="mask">—</span>' },
   { key:'phone', label:'โทรศัพท์', sortKey:'phone', defaultOn:true,
     render:m => `<span class="mem-code">${escapeHtml(m.phone || '—')}</span>` },
   { key:'national_id', label:'บัตร ปปช.', defaultOn:true,
@@ -416,6 +429,14 @@ const COLUMNS = [
     render:m => DateFmt.formatDMY(m.registered_at) || '—' },
   { key:'country_code', label:'ประเทศ', defaultOn:true,
     render:m => `${_countryFlag(m.country_code)} ${escapeHtml(m.country_code || '')}` },
+  { key:'line_status', label:'สถานะเชื่อม LINE', defaultOn:false,
+    render:m => m.line_user_id
+      ? `<span class="pkg-badge pkg-EM">🟢 ${escapeHtml(m.line_display_name || 'เชื่อมแล้ว')}</span>`
+      : '<span class="mask">ยังไม่เชื่อม</span>' },
+  { key:'line_user_id', label:'LINE User ID', defaultOn:false,
+    render:m => m.line_user_id ? `<span class="mem-code" style="font-size:10.5px">${escapeHtml(m.line_user_id)}</span>` : '<span class="mask">—</span>' },
+  { key:'imported_at', label:'นำเข้าเมื่อ', sortKey:'imported_at', defaultOn:false,
+    render:m => m.imported_at ? (DateFmt.formatDMYTime(m.imported_at) || DateFmt.formatDMY(m.imported_at) || '—') : '<span class="mask">—</span>' },
 ];
 
 const COL_STORAGE_KEY = 'members_list_visible_cols';

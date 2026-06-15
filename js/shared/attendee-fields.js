@@ -46,6 +46,7 @@
     stamp:  { label: "ผู้บันทึก", icon: "👤" },  // ปั๊มชื่อ user ที่เพิ่มรายชื่อ (auto, readonly)
     persontype: { label: "สถานะ", icon: "🪪" }, // ชนิดผู้เข้าร่วม (สมาชิก/ผู้สมัครร่วม/Guest) — auto, readonly
     nationalid: { label: "บัตรประชาชน", icon: "🆔" }, // สมาชิก → ดึง+ถอดรหัสจากข้อมูลสมาชิก (auto) · guest → กรอกมือ
+    payment: { label: "การชำระเงิน", icon: "💳" }, // คอลัมน์ชำระเงิน (สถานะ/กำหนด/สลิป) — opt-in ต่อ template · ไม่ลง extra_fields
   };
 
   let _seq = 0;
@@ -67,6 +68,8 @@
     const field_order = [];
     const custom_fields = [];
     const qualifications = [];
+    let show_payment = false;
+    let payment_label = "";
     (Array.isArray(blocks) ? blocks : []).forEach(b => {
       (Array.isArray(b.items) ? b.items : []).forEach(it => {
         if (!it || !it.type) return;
@@ -75,6 +78,9 @@
           if (it.label && it.label !== STD_FIELDS[it.key].label) f.label = it.label;
           fields[it.key] = f;
           if (!field_order.includes(it.key)) field_order.push(it.key);
+        } else if (it.type === "payment") {
+          show_payment = true;   // คอลัมน์ชำระเงิน (พิเศษ) — ไม่ลง custom_fields/extra_fields
+          if (it.label) payment_label = it.label;
         } else if (it.type === "text" || it.type === "date" || it.type === "number" || it.type === "stamp" || it.type === "persontype" || it.type === "nationalid") {
           if (it.key && it.label) custom_fields.push({ key: it.key, label: it.label, ftype: it.type, required: !!it.required });
         } else if (it.type === "check") {
@@ -87,7 +93,7 @@
     STD_ORDER.forEach(k => {
       if (!fields[k]) fields[k] = { show: false, column: false, required: false };
     });
-    return { fields, field_order, custom_fields, qualifications };
+    return { fields, field_order, custom_fields, qualifications, show_payment, payment_label };
   }
 
   // ── flat (config เก่า) → blocks (สำหรับโหลด template เดิม) ──
@@ -115,6 +121,10 @@
       .filter(q => q && q.key && q.label)
       .map(q => ({ type: "check", key: q.key, label: q.label }));
     if (qualItems.length) blocks.push({ id: newId("blk"), title: "เงื่อนไขเพิ่มเติม", items: qualItems });
+    // ฟิลด์ชำระเงิน (opt-in) — เติมกลับเป็น item ถ้า config มี show_payment (legacy ที่ไม่มี blocks จะไม่มี → ใช้ guard ในตารางแทน)
+    if (f.show_payment) {
+      (blocks[1] || blocks[0]).items.push({ type: "payment", key: "payment", label: f.payment_label || "การชำระเงิน" });
+    }
     return blocks;
   }
 

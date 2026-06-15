@@ -437,7 +437,7 @@ window.openTplItemModal = function (blockId) {
     </div>
     <div class="tpl-itype-group">
       <div class="tpl-itype-group-title">⚙️ ระบบกรอกอัตโนมัติ</div>
-      <div class="tpl-itype-row">${stdBtns}${typeBtn("nationalid", "🆔 บัตรประชาชน")}${typeBtn("persontype", "🪪 สถานะ")}${typeBtn("stamp", "👤 ผู้บันทึก")}</div>
+      <div class="tpl-itype-row">${stdBtns}${typeBtn("nationalid", "🆔 บัตรประชาชน")}${typeBtn("persontype", "🪪 สถานะ")}${typeBtn("payment", "💳 การชำระเงิน")}${typeBtn("stamp", "👤 ผู้บันทึก")}</div>
     </div>`;
   document.getElementById("tplItemLabelWrap").style.display = "none";
   document.getElementById("tplItemLabel").value = "";
@@ -465,6 +465,7 @@ window._tplPickItemType = function (t) {
   if (t === "stamp" && !lblInp.value.trim()) lblInp.value = "ผู้บันทึก";
   if (t === "persontype" && !lblInp.value.trim()) lblInp.value = "สถานะ";
   if (t === "nationalid" && !lblInp.value.trim()) lblInp.value = "เลขบัตรประชาชน";
+  if (t === "payment" && !lblInp.value.trim()) lblInp.value = "การชำระเงิน";
   requestAnimationFrame(() => { lblInp.focus(); lblInp.select(); });
 };
 
@@ -482,6 +483,17 @@ window.tplConfirmAddItem = function () {
   if (!b) { window.closeTplItemModal(); return; }
   if (!_itemType) { showToast("เลือกชนิดข้อมูลก่อน", "error"); return; }
   if (!Array.isArray(b.items)) b.items = [];
+  if (_itemType === "payment") {
+    // ชำระเงิน — คอลัมน์พิเศษ มีได้ตัวเดียว · key คงที่ "payment" · ไม่ลง custom_fields
+    if (_blocks.some(bb => (bb.items || []).some(it => it.type === "payment"))) {
+      showToast("มีฟิลด์การชำระเงินอยู่แล้ว", "error"); window.closeTplItemModal(); return;
+    }
+    const label = document.getElementById("tplItemLabel").value.trim() || "การชำระเงิน";
+    b.items.push({ type: "payment", key: "payment", label });
+    window.closeTplItemModal();
+    renderBlocks();
+    return;
+  }
   if (_itemType === "std") {
     const key = _itemStdKey;
     if (!key) { showToast("เลือกข้อมูลมาตรฐานก่อน", "error"); return; }

@@ -4802,6 +4802,14 @@ window.refreshColumnsFromTemplate = async function () {
   }
 };
 
+// มีข้อมูลชำระเงินจริงในงานนี้ไหม — กันคอลัมน์ชำระ (+ข้อมูล) หายจากงานเก่าที่ template ไม่มีฟิลด์ payment
+function _eventHasPaymentData() {
+  return Array.isArray(allAttendees) && allAttendees.some(a =>
+    (a.payment_status && a.payment_status !== "COMPLIMENTARY") ||
+    Number(a.paid_amount) > 0 || a.payment_deadline || a.slip_url || a.payment_ref
+  );
+}
+
 function getActiveColumns() {
   const cols = [
     { key: "check", label: `<input type="checkbox" id="selectAllAttendees" onchange="window.toggleSelectAll(this.checked)" style="cursor:pointer;width:16px;height:16px">`, width: 36, align: "center" },
@@ -4826,6 +4834,13 @@ function getActiveColumns() {
   const pushQual = (q) => {
     cols.push({ key: "qual:" + q.key, label: `✓ ${q.label}`, width: 95, align: "center", small: true });
   };
+  let _paymentAdded = false;
+  const pushPayment = (label) => {
+    if (_paymentAdded || _paymentQualKey()) return;   // มีแล้ว / ใช้ checklist ชำระแทน → ไม่ซ้ำ
+    const lbl = (!label || label === "การชำระเงิน") ? "ชำระ" : label;
+    cols.push({ key: "payment", label: "💰 " + lbl, width: 150, align: "center" });
+    _paymentAdded = true;
+  };
 
   // ── เรียงคอลัมน์ตามลำดับ items ใน template (ฟอร์ม) ──────────
   const blocks = (_eventConfigCache && _eventConfigCache.eventId === currentEventId && Array.isArray(_eventConfigCache.blocks))
@@ -4838,6 +4853,7 @@ function getActiveColumns() {
       if (!it || !it.type || it.type === "core" || seen.has(it.key)) return;  // core = รหัส/ชื่อ อยู่ในคอลัมน์ name แล้ว
       seen.add(it.key);
       if (it.type === "std") pushStd(it.key);
+      else if (it.type === "payment") pushPayment(it.label);   // คอลัมน์ชำระเงิน (opt-in · ตามตำแหน่งใน template)
       else if (it.type === "check") { if (qualByKey[it.key]) pushQual(qualByKey[it.key]); }
       else if (customByKey[it.key]) pushCustom(customByKey[it.key]);   // text/date/number/stamp/persontype
     }));
@@ -4853,12 +4869,11 @@ function getActiveColumns() {
     (cfg.qualifications || []).forEach(pushQual);
   }
 
-  // 💰 ชำระ — แสดงคอลัมน์เฉพาะงานที่ "ไม่มี" checklist ชำระเงิน · งานที่มี checklist ชำระเงิน → ใช้ checklist แทน
-  //   (per-event อัตโนมัติ — ตัดสินจาก template ของแต่ละงาน ไม่ใช่ปิดทั้งระบบ)
-  // Check-in ย้ายไปไว้ก่อนรหัส/ชื่อแล้ว (ดู base cols ด้านบน)
-  if (!_paymentQualKey()) {
-    cols.push({ key: "payment", label: "💰 ชำระ", width: 150, align: "center" });
-  }
+  // 💰 ชำระ — เป็น opt-in ผ่าน template (ฟิลด์ "การชำระเงิน") แล้ว ไม่ใช่ default
+  //   · fallback: template เก่าแบบ flat ที่มี show_payment → แสดง
+  //   · backward-compat: งานที่มี "ข้อมูลชำระ" อยู่แล้ว → แสดงเสมอ (กันคอลัมน์/ข้อมูลหายเงียบ)
+  if (!_paymentAdded && cfg.show_payment) pushPayment(cfg.payment_label);
+  if (!_paymentAdded && _eventHasPaymentData()) pushPayment();
   cols.push({ key: "actions", label: "จัดการ",     width: 130, align: "center" });
   return cols;
 }
