@@ -45,6 +45,7 @@
     check:  { label: "ติ๊กถูก",   icon: "✓" },
     stamp:  { label: "ผู้บันทึก", icon: "👤" },  // ปั๊มชื่อ user ที่เพิ่มรายชื่อ (auto, readonly)
     persontype: { label: "สถานะ", icon: "🪪" }, // ชนิดผู้เข้าร่วม (สมาชิก/ผู้สมัครร่วม/Guest) — auto, readonly
+    nationalid: { label: "บัตรประชาชน", icon: "🆔" }, // สมาชิก → ดึง+ถอดรหัสจากข้อมูลสมาชิก (auto) · guest → กรอกมือ
   };
 
   let _seq = 0;
@@ -74,7 +75,7 @@
           if (it.label && it.label !== STD_FIELDS[it.key].label) f.label = it.label;
           fields[it.key] = f;
           if (!field_order.includes(it.key)) field_order.push(it.key);
-        } else if (it.type === "text" || it.type === "date" || it.type === "number" || it.type === "stamp" || it.type === "persontype") {
+        } else if (it.type === "text" || it.type === "date" || it.type === "number" || it.type === "stamp" || it.type === "persontype" || it.type === "nationalid") {
           if (it.key && it.label) custom_fields.push({ key: it.key, label: it.label, ftype: it.type, required: !!it.required });
         } else if (it.type === "check") {
           if (it.key && it.label) qualifications.push({ key: it.key, label: it.label });

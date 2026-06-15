@@ -403,8 +403,9 @@
 .c-name {
   width: 100%;
   font-family: 'Sarabun', sans-serif; font-weight: 800; font-size: 40px;
-  color: #0f172a; line-height: 1.05; text-align: center;
-  overflow: hidden; word-break: break-word;
+  color: #0f172a; line-height: 1.18; text-align: center;
+  overflow: visible; word-break: break-word;   /* visible → descenders (p, g, y) aren't clipped · card padding + card overflow:hidden still bound it */
+  padding-bottom: 0.1em;                         /* em headroom for descenders scales with font-size */
 }
 /* variant: vip (logo fills top · green band strip at the bottom) */
 .c-vip .c-logo {

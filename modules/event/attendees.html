@@ -26,21 +26,19 @@
               <h1 id="heroTitle" class="att-hero-title">👥 เลือก Event</h1>
               <div id="heroSubtitle" class="att-hero-sub">ลงทะเบียน · Check-in · ติดตามผู้เข้าร่วม</div>
             </div>
+            <!-- ราคาปัจจุบัน — เน้นตัวใหญ่สีแดง มุมขวาบนของ hero (JS: renderHeroPrice) -->
+            <div id="heroPrice" class="att-hero-price" style="display:none"></div>
             <div id="eventActionBtns" class="att-hero-actions" style="display:none">
               <label id="autoCheckinToggle" class="att-onsite-toggle" title="เปิด = save แล้ว check-in ทันที (ใช้ตอนหน้างาน)">
                 <input type="checkbox" id="autoCheckinInput" onchange="window.onAutoCheckinToggle(this.checked)">
                 <span class="att-onsite-knob"></span>
-                <span id="autoCheckinLabel" class="att-onsite-label">⚡ โหมดหน้างาน</span>
+                <span id="autoCheckinLabel" class="att-onsite-label">⚡ ลงทะเบียนหน้างาน</span>
               </label>
               <span class="att-hero-divider"></span>
               <button class="att-hero-btn" data-perm="attendee_checkin" onclick="window.openCheckinPage()" title="เปิดหน้า Check-in"><span class="ico">📱</span><span class="lbl">Check-in</span></button>
               <button class="att-hero-btn" onclick="window.openShareRegisterModal()" title="แชร์ลิงก์ลงทะเบียน"><span class="ico">🔗</span><span class="lbl">แชร์ลิงก์</span></button>
               <button class="att-hero-btn" onclick="window.openBulkMsgModal()" title="ส่งข้อความกลุ่ม"><span class="ico">📢</span><span class="lbl">ส่งข้อความ</span></button>
               <span class="att-hero-divider"></span>
-              <button class="att-hero-btn" onclick="window.openTagCategoriesModal()" title="จัดการหมวด Tag"><span class="ico">🏷️</span><span class="lbl">หมวด Tag</span></button>
-              <button class="att-hero-btn" onclick="window.openFieldConfigModal()" title="ตั้งค่าฟิลด์ลงทะเบียน + คุณสมบัติ"><span class="ico">⚙️</span><span class="lbl">ฟิลด์</span></button>
-              <button class="att-hero-btn" onclick="window.refreshColumnsFromTemplate()" title="รีเฟรชคอลัมน์ให้ตรงกับเทมเพลตล่าสุด (คอลัมน์ยึดตามเทมเพลต)"><span class="ico">🔄</span><span class="lbl">รีเฟรชคอลัมน์</span></button>
-              <button class="att-hero-btn" onclick="window.openUplineLevelsModal()" title="ตั้งค่าระดับสายงาน (รหัสหัวหน้าทีม + สี)"><span class="ico">🌿</span><span class="lbl">สายงาน</span></button>
               <div class="att-export-wrap">
                 <button class="att-hero-btn" onclick="window._toggleExportMenu(event)" title="Export ข้อมูลผู้เข้าร่วม">
                   <span class="ico">📥</span><span class="lbl">Export</span><span class="att-export-caret">▾</span>
@@ -58,6 +56,18 @@
                     <span class="att-export-ico">🖨️</span>
                     <span class="att-export-lbl"><b>Print</b><small>พิมพ์รายชื่อ</small></span>
                   </button>
+                </div>
+              </div>
+              <!-- เครื่องมือตั้งค่า (ใช้ไม่บ่อย) — ยุบเป็นเมนู ⋯ ลด clutter ใน hero -->
+              <div class="att-more-wrap">
+                <button class="att-hero-btn" onclick="window._toggleMoreMenu(event)" title="เครื่องมือตั้งค่า">
+                  <span class="ico">⋯</span><span class="lbl">ตั้งค่า</span><span class="att-export-caret">▾</span>
+                </button>
+                <div class="att-export-menu att-more-menu" id="attMoreMenu">
+                  <button class="att-export-item" onclick="window.openTagCategoriesModal()"><span class="att-export-ico">🏷️</span><span class="att-export-lbl"><b>จัดกลุ่มลูกค้า</b><small>จัดการกลุ่มลูกค้าของงาน</small></span></button>
+                  <button class="att-export-item" onclick="window.openTemplateForEvent()"><span class="att-export-ico">⚙️</span><span class="att-export-lbl"><b>แก้ไขฟอร์ม</b><small>เปิดเทมเพลตที่งานนี้ใช้อยู่</small></span></button>
+                  <button class="att-export-item" onclick="window.refreshColumnsFromTemplate()"><span class="att-export-ico">🔄</span><span class="att-export-lbl"><b>รีเฟรชคอลัมน์</b><small>ให้ตรงเทมเพลตล่าสุด</small></span></button>
+                  <button class="att-export-item" onclick="window.openUplineLevelsModal()"><span class="att-export-ico">🌿</span><span class="att-export-lbl"><b>ตั้งค่าสายงาน</b><small>ระดับ + รหัสหัวหน้าทีม</small></span></button>
                 </div>
               </div>
             </div>
@@ -90,7 +100,7 @@
             </div>
           </div>
 
-          <!-- TIER INFO BANNER -->
+          <!-- TIER/GRACE/SEAT DETAIL — ระดับราคา / grace / ที่นั่ง (ราคาปัจจุบันย้ายขึ้น hero แล้ว) -->
           <div id="tierInfoBanner" style="display:none"></div>
 
           <!-- NO-TEMPLATE GATE BANNER — บังคับเลือกเทมเพลตก่อนใช้งาน -->
@@ -112,24 +122,29 @@
 
           <!-- TABLE — toolbar (filters) integrated above table -->
           <div id="attTableSection" style="display:none">
-            <div class="table-card">
-              <!-- DAY TABS — event หลายวันเท่านั้น (JS เติม · ซ่อนถ้า event 1 วัน) -->
-              <div id="dayTabs" class="att-day-tabs" style="display:none"></div>
-              <div id="attToolbar" class="att-table-toolbar">
-                <div class="att-tt-group">
-                  <span class="att-tt-lbl">✅ Check-in</span>
-                  <div class="filter-chips" id="filterPillsCheckin" data-for="filterCheckin"></div>
-                </div>
-                <div class="att-tt-group">
-                  <span class="att-tt-lbl">💰 ชำระ</span>
-                  <div class="filter-chips" id="filterPillsPayment" data-for="filterPayment"></div>
-                </div>
-                <div class="att-tt-spacer"></div>
-                <button id="btnBulkDelete" onclick="window.bulkDeleteSelected()" class="att-tt-bulk-del" style="display:none">
-                  🗑 ลบที่เลือก (<span id="bulkDeleteCount">0</span>)
-                </button>
-                <div class="att-tt-count" id="attCount">0 คน</div>
+            <!-- DAY TABS + TOOLBAR — อยู่ "นอก" การ์ดตาราง (sticky) → เลื่อนหายไปตอน scroll ลง
+                 เพื่อให้ตาราง (sticky) ได้พื้นที่เต็มจอ · เหลือแค่หัวตารางที่ lock ค้าง -->
+            <!-- DAY TABS — event หลายวันเท่านั้น (JS เติม · ซ่อนถ้า event 1 วัน) -->
+            <div id="dayTabs" class="att-day-tabs" style="display:none"></div>
+            <div id="attToolbar" class="att-table-toolbar">
+              <div class="att-tt-group">
+                <span class="att-tt-lbl">✅ Check-in</span>
+                <div class="filter-chips" id="filterPillsCheckin" data-for="filterCheckin"></div>
               </div>
+              <div class="att-tt-group">
+                <span class="att-tt-lbl">💰 ชำระ</span>
+                <div class="filter-chips" id="filterPillsPayment" data-for="filterPayment"></div>
+              </div>
+              <div class="att-tt-spacer"></div>
+              <button id="btnBulkAdd" onclick="window.openBulkAddModal()" class="att-tt-addmany" title="เพิ่มหลายคนพร้อมกัน — วางรหัสหรือชื่อ บรรทัดละ 1 คน">
+                ➕ เพิ่มหลายคน
+              </button>
+              <button id="btnBulkDelete" onclick="window.bulkDeleteSelected()" class="att-tt-bulk-del" style="display:none">
+                🗑 ลบที่เลือก (<span id="bulkDeleteCount">0</span>)
+              </button>
+              <div class="att-tt-count" id="attCount">0 คน</div>
+            </div>
+            <div class="table-card">
               <div class="table-wrap">
                 <table class="data-table att-inline-table density-spreadsheet">
                   <thead>
@@ -378,6 +393,32 @@
           <button class="btn" style="background:#06c755;color:#fff" id="btnBulkLinePush" onclick="window.sendBulkLinePush()" title="ส่งข้อความ text ให้แต่ละคน (personalize)">📱 ส่ง Text</button>
           <button class="btn" style="background:#7c3aed;color:#fff" id="btnBulkTagDetail" onclick="window.sendBulkLineTagDetail()" title="ส่ง detail ของ tag ที่แต่ละคนมี (ตามหมวด Tag)">🏷️ ส่งข้อความ Tag</button>
           <button class="btn" style="background:#1e40af;color:#fff" id="btnBulkTicketFlex" onclick="window.sendBulkTicketFlex()" title="ส่งบัตร Flex + QR ให้แต่ละคน">🎫 ส่ง Ticket</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════
+         BULK ADD MODAL — วางรหัส/ชื่อหลายคน → ค้นหา → เพิ่มลงตาราง
+         ═══════════════════════════════════════ -->
+    <div class="modal-overlay" id="bulkAddModal">
+      <div class="modal v-sage-header" style="width:560px;max-width:95vw">
+        <div class="modal-hdr">
+          <div class="modal-title">➕ เพิ่มหลายคนพร้อมกัน</div>
+          <button class="btn-modal-close" onclick="window.closeBulkAddModal()">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label">วางรหัสสมาชิก หรือชื่อ — บรรทัดละ 1 คน</label>
+            <textarea id="bulkAddInput" class="form-control" rows="7" autocomplete="off"
+              placeholder="119046&#10;ศริยา รักษาราษฎร์&#10;115390&#10;..."></textarea>
+            <div class="bulkadd-hint">เลขล้วน = ค้นด้วยรหัสสมาชิก · มีตัวอักษร = ค้นด้วยชื่อ — วางจาก Excel/Google Sheet ได้เลย</div>
+          </div>
+          <div id="bulkAddResults" class="bulkadd-results" style="display:none"></div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-ghost" onclick="window.closeBulkAddModal()">ยกเลิก</button>
+          <button class="btn btn-primary" id="bulkAddSearchBtn" onclick="window.runBulkAddSearch()">🔍 ค้นหา</button>
+          <button class="btn btn-primary" id="bulkAddConfirmBtn" onclick="window.confirmBulkAdd()" style="display:none">➕ เพิ่ม <span id="bulkAddConfirmCount">0</span> คน</button>
         </div>
       </div>
     </div>

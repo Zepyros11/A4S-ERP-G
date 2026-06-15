@@ -327,10 +327,10 @@ function _renderBlockItem(blockId, it) {
   const label = isCore
     ? (AF.CORE_FIELDS[it.key]?.label || it.key)
     : (it.type === "std" ? (it.label || AF.STD_FIELDS[it.key]?.label || it.key) : (it.label || it.key));
-  const canReq = it.type === "std" || it.type === "text" || it.type === "date" || it.type === "number";
+  const canReq = it.type === "std" || it.type === "text" || it.type === "date" || it.type === "number" || it.type === "nationalid";
   const isAuto = it.type === "stamp";   // ระบบกรอกอัตโนมัติ — มี badge แต่ลบ/ย้ายได้ (ไม่ lock)
-  // std เบอร์โทร/ตำแหน่ง/สายงาน → ดึงจากข้อมูลสมาชิกอัตโนมัติ (member readonly · guest กรอกมือ)
-  const isAutoMember = it.type === "std" && ["phone", "position", "upline"].includes(it.key);
+  // std เบอร์โทร/ตำแหน่ง/สายงาน + บัตรประชาชน → ดึงจากข้อมูลสมาชิกอัตโนมัติ (member readonly · guest กรอกมือ)
+  const isAutoMember = (it.type === "std" && ["phone", "position", "upline"].includes(it.key)) || it.type === "nationalid";
   return `<div class="tpl-item${isCore ? ' core' : ''}" data-key="${escapeHtml(it.key)}" draggable="${isCore ? 'false' : 'true'}"
       ondragstart="window._itemDragStart(event,'${escapeHtml(blockId)}','${escapeHtml(it.key)}')"
       ondragover="window._itemDragOver(event)"
@@ -437,7 +437,7 @@ window.openTplItemModal = function (blockId) {
     </div>
     <div class="tpl-itype-group">
       <div class="tpl-itype-group-title">⚙️ ระบบกรอกอัตโนมัติ</div>
-      <div class="tpl-itype-row">${stdBtns}${typeBtn("persontype", "🪪 สถานะ")}${typeBtn("stamp", "👤 ผู้บันทึก")}</div>
+      <div class="tpl-itype-row">${stdBtns}${typeBtn("nationalid", "🆔 บัตรประชาชน")}${typeBtn("persontype", "🪪 สถานะ")}${typeBtn("stamp", "👤 ผู้บันทึก")}</div>
     </div>`;
   document.getElementById("tplItemLabelWrap").style.display = "none";
   document.getElementById("tplItemLabel").value = "";
@@ -464,6 +464,7 @@ window._tplPickItemType = function (t) {
   const lblInp = document.getElementById("tplItemLabel");
   if (t === "stamp" && !lblInp.value.trim()) lblInp.value = "ผู้บันทึก";
   if (t === "persontype" && !lblInp.value.trim()) lblInp.value = "สถานะ";
+  if (t === "nationalid" && !lblInp.value.trim()) lblInp.value = "เลขบัตรประชาชน";
   requestAnimationFrame(() => { lblInp.focus(); lblInp.select(); });
 };
 
@@ -701,8 +702,16 @@ window.duplicateTemplate = async function (id) {
 };
 
 // ── Init ───────────────────────────────────────────────────
+// รองรับ ?edit=<id> — เปิดมาจากปุ่ม "แก้ไขฟอร์ม" ในหน้า attendees → เด้ง editor ของ template ที่งานนั้นใช้อยู่เลย
+async function _bootTemplates() {
+  await loadTemplates();
+  const id = parseInt(new URLSearchParams(location.search).get("edit") || "", 10);
+  if (!isNaN(id) && _allTemplates.some(t => t.id === id)) {
+    window.openTemplateModal(id);
+  }
+}
 if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", loadTemplates);
+  document.addEventListener("DOMContentLoaded", _bootTemplates);
 } else {
-  loadTemplates();
+  _bootTemplates();
 }

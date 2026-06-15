@@ -261,7 +261,7 @@ async function loadPage() {
     const filter = _buildFilterQuery();
     const from = (page - 1) * PAGE_SIZE;
     const to = from + PAGE_SIZE - 1;
-    const cols = 'member_code,member_name,full_name,co_applicant_name,email,phone,password_encrypted,national_id_encrypted,package,position_level,sponsor_code,upline_code,side,registered_at,country_code';
+    const cols = 'member_code,member_name,full_name,co_applicant_name,email,phone,password_encrypted,national_id_encrypted,package,position,position_level,sponsor_code,upline_code,side,registered_at,country_code';
     const url = `${SUPABASE_URL}/rest/v1/members?select=${cols}${filter ? '&' + filter : ''}&order=${sortKey}.${sortAsc ? 'asc' : 'desc'}`;
 
     const res = await fetch(url + `&limit=${PAGE_SIZE}&offset=${from}`, {
@@ -371,50 +371,166 @@ function gotoPage(n) {
   loadPage();
 }
 
+/* ============================================================
+   COLUMN CATALOG + CHOOSER
+   catalog กลางของหัวข้อข้อมูลทั้งหมด — render() สร้าง thead/tbody
+   จากคอลัมน์ที่เลือกไว้ (เก็บใน localStorage)
+   ============================================================ */
+const COLUMNS = [
+  { key:'member_code', label:'รหัส', sortKey:'member_code', defaultOn:true,
+    render:m => `<span class="mem-code">${m.member_code || '—'}</span>` },
+  { key:'full_name', label:'ชื่อ-นามสกุล', sortKey:'full_name', defaultOn:true,
+    render:m => `<div class="mem-name">${escapeHtml(window.MemberFmt ? MemberFmt.displayName(m) : (m.full_name || m.member_name || '—'))}</div>`
+      + (m.email ? `<div class="mem-contact">${escapeHtml(m.email)}</div>` : '') },
+  { key:'email', label:'E-mail', defaultOn:false,
+    render:m => m.email ? `<span class="mem-contact" style="margin:0">${escapeHtml(m.email)}</span>` : '<span class="mask">—</span>' },
+  { key:'co_applicant_name', label:'ผู้สมัครร่วม', sortKey:'co_applicant_name', defaultOn:true,
+    render:m => m.co_applicant_name ? `<span class="mem-name">${escapeHtml(m.co_applicant_name)}</span>` : '<span class="mask">—</span>' },
+  { key:'phone', label:'โทรศัพท์', sortKey:'phone', defaultOn:true,
+    render:m => `<span class="mem-code">${escapeHtml(m.phone || '—')}</span>` },
+  { key:'national_id', label:'บัตร ปปช.', defaultOn:true,
+    render:(m, ctx) => m.national_id_encrypted
+      ? (ctx.canDecrypt
+          ? `<span class="mask" data-code="${m.member_code}" data-field="national_id">⏳</span>`
+          : '<span class="mask">x-xxxx-xxxxx-xx-x</span>')
+      : '<span class="mask">—</span>' },
+  { key:'password', label:'รหัสผ่าน', defaultOn:true,
+    render:(m, ctx) => m.password_encrypted
+      ? (ctx.canDecrypt
+          ? `<span class="mask" data-code="${m.member_code}" data-field="password">⏳</span>`
+          : '<span class="mask">••••••</span>')
+      : '<span class="mask">—</span>' },
+  { key:'package', label:'Package', sortKey:'package', defaultOn:false,
+    render:m => m.package ? `<span class="pkg-badge pkg-${escapeHtml(m.package)}">${escapeHtml(PKG_BADGE[m.package] || m.package)}</span>` : '<span class="mask">—</span>' },
+  { key:'position_level', label:'ตำแหน่งสูงสุด', sortKey:'position_level', defaultOn:true,
+    render:m => m.position_level ? `<span class="pkg-badge pos-badge">⭐ ${escapeHtml(m.position_level)}</span>` : '<span class="mask">—</span>' },
+  { key:'position', label:'ตำแหน่งปัจจุบัน', sortKey:'position', defaultOn:false,
+    render:m => m.position ? `<span class="pkg-badge pos-badge">${escapeHtml(m.position)}</span>` : '<span class="mask">—</span>' },
+  { key:'sponsor_code', label:'Sponsor', sortKey:'sponsor_code', defaultOn:true,
+    render:m => `<span class="mem-code">${escapeHtml(m.sponsor_code || '—')}</span>` },
+  { key:'upline_code', label:'Upline', sortKey:'upline_code', defaultOn:true,
+    render:m => `<span class="mem-code">${escapeHtml(m.upline_code || '—')}</span>` },
+  { key:'side', label:'ด้าน', sortKey:'side', defaultOn:true,
+    render:m => escapeHtml(m.side || '—') },
+  { key:'registered_at', label:'วันที่สมัคร', sortKey:'registered_at', defaultOn:true,
+    render:m => DateFmt.formatDMY(m.registered_at) || '—' },
+  { key:'country_code', label:'ประเทศ', defaultOn:true,
+    render:m => `${_countryFlag(m.country_code)} ${escapeHtml(m.country_code || '')}` },
+];
+
+const COL_STORAGE_KEY = 'members_list_visible_cols';
+
+function _defaultVisibleCols() {
+  return new Set(COLUMNS.filter(c => c.defaultOn).map(c => c.key));
+}
+function _loadVisibleCols() {
+  try {
+    const raw = localStorage.getItem(COL_STORAGE_KEY);
+    if (!raw) return _defaultVisibleCols();
+    const arr = JSON.parse(raw);
+    if (!Array.isArray(arr)) return _defaultVisibleCols();
+    const known = new Set(COLUMNS.map(c => c.key));
+    const filtered = arr.filter(k => known.has(k));
+    return filtered.length ? new Set(filtered) : _defaultVisibleCols();
+  } catch { return _defaultVisibleCols(); }
+}
+function _saveVisibleCols() {
+  try { localStorage.setItem(COL_STORAGE_KEY, JSON.stringify(Array.from(visibleCols))); } catch {}
+}
+function _activeColumns() {
+  // คงลำดับตาม catalog เสมอ
+  return COLUMNS.filter(c => visibleCols.has(c.key));
+}
+let visibleCols = _loadVisibleCols();
+
+/* ── Render the table header from active columns ── */
+function renderHead() {
+  const tr = document.getElementById('theadRow');
+  if (!tr) return;
+  tr.innerHTML = _activeColumns().map(c => {
+    if (c.sortKey) {
+      const arrow = sortKey === c.sortKey
+        ? `<span class="sort-arrow">${sortAsc ? '▲' : '▼'}</span>` : '';
+      return `<th onclick="sortBy('${c.sortKey}')">${escapeHtml(c.label)}${arrow}</th>`;
+    }
+    return `<th style="cursor:default">${escapeHtml(c.label)}</th>`;
+  }).join('');
+}
+
+/* ── Column chooser dropdown ── */
+function renderColMenu() {
+  const box = document.getElementById('colMenuList');
+  if (!box) return;
+  box.innerHTML = COLUMNS.map(c => `
+    <label class="col-opt">
+      <input type="checkbox" ${visibleCols.has(c.key) ? 'checked' : ''}
+             onchange="toggleColumn('${c.key}', this.checked)">
+      <span>${escapeHtml(c.label)}</span>
+    </label>`).join('');
+}
+function toggleColMenu(e) {
+  if (e) e.stopPropagation();
+  const dd = document.getElementById('colMenu');
+  if (!dd) return;
+  const willOpen = !dd.classList.contains('open');
+  dd.classList.toggle('open', willOpen);
+  if (willOpen) renderColMenu();
+}
+function toggleColumn(key, on) {
+  if (on) {
+    visibleCols.add(key);
+  } else {
+    if (visibleCols.size <= 1) {
+      showToast('ต้องเหลืออย่างน้อย 1 คอลัมน์', 'error');
+      renderColMenu();   // revert checkbox
+      return;
+    }
+    visibleCols.delete(key);
+  }
+  _saveVisibleCols();
+  render();
+}
+function selectAllColumns() {
+  visibleCols = new Set(COLUMNS.map(c => c.key));
+  _saveVisibleCols();
+  renderColMenu();
+  render();
+}
+function resetColumns() {
+  visibleCols = _defaultVisibleCols();
+  _saveVisibleCols();
+  renderColMenu();
+  render();
+}
+window.toggleColMenu = toggleColMenu;
+window.toggleColumn = toggleColumn;
+window.selectAllColumns = selectAllColumns;
+window.resetColumns = resetColumns;
+
+// ปิด dropdown เมื่อคลิกนอกกรอบ
+document.addEventListener('click', (e) => {
+  const dd = document.getElementById('colMenu');
+  if (dd && !dd.contains(e.target)) dd.classList.remove('open');
+});
+
 /* ── Render table ── */
 function render() {
+  renderHead();
+  const cols = _activeColumns();
   const tbody = document.getElementById('tbody');
   if (!currentPage.length) {
-    tbody.innerHTML = `<tr><td colspan="12" style="text-align:center;padding:40px;color:var(--text3)">ไม่พบข้อมูล</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="${cols.length}" style="text-align:center;padding:40px;color:var(--text3)">ไม่พบข้อมูล</td></tr>`;
     document.getElementById('paginate').innerHTML = '';
     return;
   }
 
   const rows = currentPage;
   const canDecrypt = _canDecrypt();
+  const ctx = { canDecrypt };
 
-  tbody.innerHTML = rows.map(m => {
-    const pos = m.position_level ? `<span class="pkg-badge pos-badge">⭐ ${escapeHtml(m.position_level)}</span>` : '';
-    const flag = _countryFlag(m.country_code);
-    const pwCell = m.password_encrypted
-      ? (canDecrypt
-          ? `<span class="mask" data-code="${m.member_code}" data-field="password">⏳</span>`
-          : '<span class="mask">••••••</span>')
-      : '<span class="mask">—</span>';
-    const idCell = m.national_id_encrypted
-      ? (canDecrypt
-          ? `<span class="mask" data-code="${m.member_code}" data-field="national_id">⏳</span>`
-          : '<span class="mask">x-xxxx-xxxxx-xx-x</span>')
-      : '<span class="mask">—</span>';
-
-    return `<tr>
-      <td><span class="mem-code">${m.member_code || '—'}</span></td>
-      <td>
-        <div class="mem-name">${escapeHtml(window.MemberFmt ? MemberFmt.displayName(m) : (m.full_name || m.member_name || '—'))}</div>
-        ${m.email ? `<div class="mem-contact">${escapeHtml(m.email)}</div>` : ''}
-      </td>
-      <td>${m.co_applicant_name ? `<span class="mem-name">${escapeHtml(m.co_applicant_name)}</span>` : '<span class="mask">—</span>'}</td>
-      <td><span class="mem-code">${escapeHtml(m.phone || '—')}</span></td>
-      <td>${idCell}</td>
-      <td>${pwCell}</td>
-      <td>${pos}</td>
-      <td><span class="mem-code">${escapeHtml(m.sponsor_code || '—')}</span></td>
-      <td><span class="mem-code">${escapeHtml(m.upline_code || '—')}</span></td>
-      <td>${escapeHtml(m.side || '—')}</td>
-      <td>${DateFmt.formatDMY(m.registered_at) || '—'}</td>
-      <td>${flag} ${m.country_code || ''}</td>
-    </tr>`;
-  }).join('');
+  tbody.innerHTML = rows.map(m =>
+    `<tr>${cols.map(c => `<td>${c.render(m, ctx)}</td>`).join('')}</tr>`
+  ).join('');
 
   renderPaginate();
 
@@ -908,4 +1024,7 @@ async function exportExcel() {
 window.exportExcel = exportExcel;
 
 /* ── Init ── */
-window.addEventListener('DOMContentLoaded', loadData);
+window.addEventListener('DOMContentLoaded', () => {
+  renderHead();   // วาดหัวตารางทันที (ก่อน data มา)
+  loadData();
+});

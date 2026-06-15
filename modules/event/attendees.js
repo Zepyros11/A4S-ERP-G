@@ -629,6 +629,7 @@ function _posterLightboxEsc(e) { if (e.key === "Escape") _closePosterLightbox();
 
 async function loadAttendees(eventId) {
   currentEventId = eventId;
+  _manualOrderIds = null;   // รีเซ็ตการจัดลำดับเองเมื่อเปลี่ยน event
   currentEvent = allEvents.find((e) => e.event_id === eventId);
   // มุมมองหลายวัน: เริ่มที่ "วันนี้" ถ้าอยู่ในช่วงงาน · ไม่งั้นวันแรก
   if (isMultiDay(currentEvent)) {
@@ -658,6 +659,7 @@ async function loadAttendees(eventId) {
     newRows = [makeEmptyNewRow()];
     showSections(true);
     renderTierBanner();
+    renderHeroPrice();   // 💰 ราคาปัจจุบันเด่นๆ บน hero (ตัวใหญ่สีแดง)
     populateTagFilter();
     _loadAutoCheckinState();
     _applyPaymentVisibility();   // hide payment UI ถ้า event ไม่มีราคา
@@ -724,25 +726,11 @@ function renderTierBanner() {
     ended: '<span class="tier-pill tier-pill-ended">✕ ENDED</span>',
   };
 
-  const priceHdr = active
-    ? `<b>${escapeHtml(active.tier_name)}</b> — <b style="color:#059669">฿${formatNum(active.price)}</b>`
-    : currentTiers.length
-    ? `<span style="color:#92400e">ไม่อยู่ในช่วง Tier — ใช้ราคามาตรฐาน <b>฿${formatNum(currentEvent.price || 0)}</b></span>`
-    : `<b style="color:#059669">฿${formatNum(currentEvent.price || 0)}</b> <span style="color:var(--text3);font-size:11.5px">(ไม่มี Tier)</span>`;
-
-  // Build cells ตามที่มีข้อมูลจริงเท่านั้น
-  const hasPrice = (currentEvent.price || 0) > 0 || active;
+  // Build cells ตามที่มีข้อมูลจริงเท่านั้น (💰 ราคาปัจจุบันย้ายไปเด่นบน hero #heroPrice แล้ว)
   const hasCustomGrace = currentEvent.grace_days != null;
   const hasSeatLimit = maxCap > 0;
 
   const cells = [];
-  if (hasPrice) {
-    cells.push(`<div class="info-cell">
-      <div class="info-label">💰 ราคาปัจจุบัน</div>
-      <div class="info-value">${priceHdr}</div>
-      ${active && active.valid_to ? `<div class="info-sub">สิ้นสุด ${fmt(active.valid_to)} · เหลืออีก ${daysTo(active.valid_to)} วัน</div>` : ""}
-    </div>`);
-  }
   if (hasCustomGrace) {
     cells.push(`<div class="info-cell">
       <div class="info-label">⏳ Grace Period</div>
@@ -800,6 +788,29 @@ function renderTierBanner() {
   html += `</div>`;
   el.innerHTML = html;
   el.style.display = "block";
+}
+
+// 💰 ราคาปัจจุบัน — แสดงเด่นบน hero (ตัวใหญ่สีแดง) แทนการ์ดราคา
+function renderHeroPrice() {
+  const el = document.getElementById("heroPrice");
+  if (!el) return;
+  const active = currentEvent ? getActiveTier() : null;
+  const hasTiers = (currentTiers?.length || 0) > 0;
+  const basePrice = currentEvent?.price || 0;
+  if (!currentEvent || (basePrice <= 0 && !active && !hasTiers)) {
+    el.style.display = "none";
+    el.innerHTML = "";
+    return;
+  }
+  const price = active ? active.price : basePrice;
+  const sub = active ? escapeHtml(active.tier_name)
+    : hasTiers ? "นอกช่วง Tier · ราคามาตรฐาน"
+    : "ไม่มี Tier";
+  el.innerHTML =
+    `<div class="ahp-label">💰 ราคาบัตร</div>` +
+    `<div class="ahp-value">฿${formatNum(price)}</div>` +
+    `<div class="ahp-sub">${escapeHtml(sub)}</div>`;
+  el.style.display = "flex";
 }
 
 // ── STATS ─────────────────────────────────────────────────
@@ -1471,6 +1482,7 @@ window.exportStatReportCSV = function () {
 // ── Column sort (คลิกหัวคอลัมน์) ───────────────────────────
 let _sortKey = null;   // col.key ที่กำลัง sort · null = ตามลำดับลงทะเบียน (created_at)
 let _sortDir = 1;      // 1 = น้อย→มาก · -1 = มาก→น้อย
+let _manualOrderIds = null;   // จัดลำดับเองชั่วคราว (view-only, รีเซ็ตตอนโหลด) — [attendee_id,...] · null = ไม่จัด
 
 function _isSortable(key) {
   return key === "num" || key === "name" || key === "checkin"
@@ -1504,7 +1516,18 @@ function _sortVal(a, key) {
 }
 
 function _applySort(list) {
-  if (!_sortKey) return list;   // default = ตามลำดับลงทะเบียน
+  if (!_sortKey) {
+    // จัดลำดับเอง (ลาก/พิมพ์เลข #) — view-only · แถวที่ไม่อยู่ใน manual ไปท้าย (คงลำดับลงทะเบียน)
+    if (_manualOrderIds && _manualOrderIds.length) {
+      const idx = new Map(_manualOrderIds.map((aid, i) => [aid, i]));
+      return list.map((a, i) => ({ a, i })).sort((x, y) => {
+        const ix = idx.has(x.a.attendee_id) ? idx.get(x.a.attendee_id) : Infinity;
+        const iy = idx.has(y.a.attendee_id) ? idx.get(y.a.attendee_id) : Infinity;
+        return ix !== iy ? ix - iy : x.i - y.i;
+      }).map(o => o.a);
+    }
+    return list;   // default = ตามลำดับลงทะเบียน
+  }
   const key = _sortKey, dir = _sortDir;
   return list.map((a, i) => ({ a, i })).sort((x, y) => {
     const va = _sortVal(x.a, key), vb = _sortVal(y.a, key);
@@ -1683,6 +1706,7 @@ window.toggleEditMode = async function () {
     _editMode = true;
     _updateEditFab();
     filterTable();
+    showToast("💡 วาง Excel/Sheet ด้วย Ctrl+V · จัดลำดับ: พิมพ์เลข # หรือลากหมุด ⠿", "info");
   } else {
     await _saveEditMode();
     _clearEditDirty();
@@ -1722,6 +1746,180 @@ window._markEditDirty = function (el) {
   if (td) td.classList.toggle("edit-dirty", isDirty);
   _updateEditFab();   // อัปเดตจำนวน cell ที่ยังไม่บันทึกบนปุ่ม
 };
+
+// ── วางข้อมูลจาก Excel/Google Sheet เป็นหลายช่องในโหมดแก้ไข (paste-fill) ──
+// คลิกช่อง → Ctrl+V → เติมลงคอลัมน์นั้นจากบนลงล่างตามแถวที่เห็น · แท็บ = เติมไปทางขวาด้วย
+// (เซตค่า + _markEditDirty ให้ช่องเป็น "ค้างแก้" สีส้ม แล้วกดบันทึกตามปกติ)
+function _pasteNormDate(s) {
+  s = String(s).trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;                       // ISO อยู่แล้ว
+  const m = s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})$/);    // X/Y/YYYY (ปี 4 หลัก)
+  if (m) {
+    let a = +m[1], b = +m[2]; const y = +m[3]; let mo, d;
+    if (a > 12) { d = a; mo = b; } else { mo = a; d = b; }           // app แสดง MM/DD/YYYY → เดา MM ก่อน
+    const dt = new Date(y, mo - 1, d);                                // ตรวจว่าเป็นวันจริง (กัน 31 ก.พ. ฯลฯ)
+    if (dt.getFullYear() === y && dt.getMonth() === mo - 1 && dt.getDate() === d)
+      return `${y}-${String(mo).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+  }
+  return null;   // format ไม่รู้จัก (เช่น พ.ศ. 2 หลัก) → ข้าม
+}
+
+document.addEventListener("paste", function (e) {
+  if (!_editMode) return;
+  const startEl = e.target;
+  // วางคอลัมน์ลำดับ (#) → เติมเลขลงช่อง # จากตรงนั้นลงไป แล้วจัดลำดับใหม่
+  if (startEl && startEl.classList && startEl.classList.contains("att-seq-inp")) {
+    const t = (e.clipboardData || window.clipboardData) ? (e.clipboardData || window.clipboardData).getData("text/plain") : "";
+    if (!t) return;
+    const ls = String(t).replace(/\r\n?/g, "\n").split("\n");
+    if (ls.length > 1 && ls[ls.length - 1] === "") ls.pop();
+    if (ls.length <= 1) return;   // ค่าเดียว → วางปกติ (onchange จัดลำดับให้เอง)
+    e.preventDefault();
+    const seqInps = Array.from(document.querySelectorAll("#attTableBody .att-seq-inp"));
+    const startIdx = seqInps.indexOf(startEl);
+    ls.forEach((ln, i) => { const inp = seqInps[startIdx + i]; if (inp) inp.value = (ln.split("\t")[0] || "").trim(); });
+    window._onSeqInput();
+    return;
+  }
+  if (!startEl || !startEl.classList || !startEl.classList.contains("edit-inp")) return;   // เฉพาะช่องแก้ไข (ไม่รวม checkbox/ช่องค้นหา)
+  const text = (e.clipboardData || window.clipboardData) ? (e.clipboardData || window.clipboardData).getData("text/plain") : "";
+  if (!text) return;
+
+  // แตกเป็นตาราง 2 มิติ: บรรทัด = แถว · แท็บ = คอลัมน์
+  const lines = String(text).replace(/\r\n?/g, "\n").split("\n");
+  if (lines.length > 1 && lines[lines.length - 1] === "") lines.pop();   // ตัดบรรทัดว่างท้าย (Excel/Sheet เติมมา)
+  const grid = lines.map(l => l.split("\t"));
+  if (grid.length === 1 && grid[0].length === 1) return;   // ค่าเดียว → วางปกติ (ไม่ดักจับ)
+  e.preventDefault();
+
+  const startTr = startEl.closest("tr.saved-row");
+  const startKey = startEl.dataset.edit;
+  if (!startTr || !startKey) return;
+  const allTr = Array.from(document.querySelectorAll("#attTableBody tr.saved-row"));   // แถวที่เห็น เรียงตามจอ
+  const startRowIdx = allTr.indexOf(startTr);
+  const colKeys = Array.from(startTr.querySelectorAll(".edit-inp[data-edit]")).map(c => c.dataset.edit);  // คอลัมน์ที่เติมได้ (ไม่รวม checkbox)
+  const startColIdx = colKeys.indexOf(startKey);
+  if (startRowIdx < 0 || startColIdx < 0) return;
+
+  let filled = 0, skipped = 0, noRow = 0;
+  for (let i = 0; i < grid.length; i++) {
+    const tr = allTr[startRowIdx + i];
+    if (!tr) { noRow++; continue; }   // เกินจำนวนแถวที่มี
+    // map key → ช่อง (match ด้วย dataset.edit ตรงๆ — ไม่ต่อ selector จาก key กัน CSS injection)
+    const cellByKey = {};
+    tr.querySelectorAll(".edit-inp[data-edit]").forEach(c => { cellByKey[c.dataset.edit] = c; });
+    for (let j = 0; j < grid[i].length; j++) {
+      const key = colKeys[startColIdx + j];
+      if (!key) { skipped++; continue; }   // เกินคอลัมน์ที่เติมได้
+      const cell = cellByKey[key];
+      if (!cell) { skipped++; continue; }   // แถวนี้ไม่มีช่องนี้ (เช่น สมาชิกไม่มี select สายงาน)
+      const raw = grid[i][j];
+      if (raw === "") {
+        cell.value = "";   // ช่องว่างจาก clipboard → ล้างค่า (เหมือน paste ใน spreadsheet)
+      } else if (cell.tagName === "SELECT") {
+        const opt = Array.from(cell.options).find(o => o.value === raw || o.textContent.trim() === String(raw).trim());
+        if (!opt) { skipped++; continue; }   // ไม่มีตัวเลือกที่ตรง → ข้าม
+        cell.value = opt.value;
+      } else if (cell.type === "date") {
+        const iso = _pasteNormDate(raw);
+        if (!iso) { skipped++; continue; }   // วันที่อ่านไม่ออก (เช่น พ.ศ.) → ข้าม
+        cell.value = iso;
+      } else {
+        cell.value = raw;
+      }
+      window._markEditDirty(cell);
+      filled++;
+    }
+  }
+  let msg = `วางแล้ว ${filled} ช่อง`;
+  if (skipped) msg += ` · ข้าม ${skipped}`;
+  if (noRow) msg += ` · เกินแถว ${noRow}`;
+  showToast(msg, filled ? "success" : "error");
+});
+
+// ── จัดลำดับเอง (view-only) — พิมพ์เลข # หรือลากแถว · เก็บใน _manualOrderIds ──────────
+// _manualOrderIds เก็บลำดับ "ทุกแถว" (รวมที่ถูก filter ซ่อน) → ไม่ทำลำดับแถวที่ซ่อนหายตอน filter
+function _setManualOrder(fullAids) {
+  _manualOrderIds = fullAids;
+  if (_sortKey) { _sortKey = null; _sortDir = 1; rebuildTableHeader(); }   // ออกจาก column-sort → ใช้ลำดับที่จัดเอง
+  filterTable();
+}
+
+// ลำดับปัจจุบันของทุกแถว (รวมที่ถูก filter ซ่อน) — manual ถ้ามี ไม่งั้น created_at (ลำดับ allAttendees)
+function _fullOrderNow() {
+  const ids = allAttendees.map(a => a.attendee_id);
+  if (!_manualOrderIds || !_manualOrderIds.length) return ids;
+  const idx = new Map(_manualOrderIds.map((aid, i) => [aid, i]));
+  return ids.map((aid, i) => ({ aid, i })).sort((x, y) => {
+    const ix = idx.has(x.aid) ? idx.get(x.aid) : Infinity;
+    const iy = idx.has(y.aid) ? idx.get(y.aid) : Infinity;
+    return ix !== iy ? ix - iy : x.i - y.i;
+  }).map(o => o.aid);
+}
+
+// พิมพ์/วางเลขในช่อง # → จัดลำดับแถวที่เห็นใหม่ตามเลข แล้ว interleave กลับเข้าลำดับเต็ม (คงแถวที่ซ่อนไว้ที่เดิม)
+window._onSeqInput = function () {
+  const inps = Array.from(document.querySelectorAll("#attTableBody .att-seq-inp"));
+  if (!inps.length) return;
+  const visOrder = inps.map((inp, i) => ({ aid: +inp.dataset.aid, n: parseFloat(inp.value), i }))
+    .sort((x, y) => {
+      const nx = isFinite(x.n) ? x.n : Infinity, ny = isFinite(y.n) ? y.n : Infinity;
+      return nx !== ny ? nx - ny : x.i - y.i;
+    })
+    .map(o => o.aid);
+  const visSet = new Set(visOrder);
+  let vi = 0;
+  const full = _fullOrderNow().map(aid => (visSet.has(aid) ? visOrder[vi++] : aid));   // แทนช่องของแถวที่เห็นด้วยลำดับใหม่
+  _setManualOrder(full);
+};
+
+// ── ลากแถวจัดลำดับ (native DnD ผ่านหมุด ⠿ ในคอลัมน์ #) ──
+let _dragAid = null;
+function _clearDragMarks() {
+  _dragAid = null;
+  document.querySelectorAll("#attTableBody tr.att-row-dragging,#attTableBody tr.att-drop-before,#attTableBody tr.att-drop-after")
+    .forEach(x => x.classList.remove("att-row-dragging", "att-drop-before", "att-drop-after"));
+}
+document.addEventListener("dragstart", (e) => {
+  const h = e.target.closest && e.target.closest(".att-drag-handle");
+  if (!h) return;
+  _dragAid = +h.dataset.aid;
+  e.dataTransfer.effectAllowed = "move";
+  try { e.dataTransfer.setData("text/plain", String(_dragAid)); } catch {}
+  h.closest("tr.saved-row")?.classList.add("att-row-dragging");
+});
+document.addEventListener("dragover", (e) => {
+  if (_dragAid == null) return;
+  const tr = e.target.closest && e.target.closest("#attTableBody tr.saved-row");
+  if (!tr) return;
+  e.preventDefault();
+  e.dataTransfer.dropEffect = "move";
+  const r = tr.getBoundingClientRect();
+  const after = (e.clientY - r.top) > r.height / 2;
+  document.querySelectorAll("#attTableBody tr.att-drop-before,#attTableBody tr.att-drop-after")
+    .forEach(x => x.classList.remove("att-drop-before", "att-drop-after"));
+  tr.classList.add(after ? "att-drop-after" : "att-drop-before");
+});
+document.addEventListener("drop", (e) => {
+  if (_dragAid == null) { _clearDragMarks(); return; }
+  const tr = e.target.closest && e.target.closest("#attTableBody tr.saved-row");
+  if (tr) {
+    e.preventDefault();
+    const targetAid = +tr.dataset.aid;
+    if (targetAid !== _dragAid) {
+      const r = tr.getBoundingClientRect();
+      const after = (e.clientY - r.top) > r.height / 2;
+      const dragAid = _dragAid;
+      const full = _fullOrderNow().filter(x => x !== dragAid);   // ลำดับเต็ม (รวมแถวซ่อน) → ไม่ทำลำดับซ่อนหาย
+      let ti = full.indexOf(targetAid);
+      if (ti < 0) ti = full.length - 1;
+      full.splice(ti + (after ? 1 : 0), 0, dragAid);
+      _setManualOrder(full);
+    }
+  }
+  _clearDragMarks();
+});
+document.addEventListener("dragend", _clearDragMarks);
 
 // คืนค่าที่แก้ค้างไว้ (จาก _editDirty) ลงใน input หลัง re-render — กัน sort/freeze/filter ทำค่าที่ยังไม่บันทึกหาย
 // _editDirty เก็บไว้ตลอด (รวมแถวที่ถูก filter ซ่อน) → กลับมาแสดงเมื่อแถวนั้น render อีกครั้ง
@@ -1850,6 +2048,14 @@ function _renderSavedCellSpread(col, a, seq, payStatus, tierName, isSelected) {
         onclick="event.stopPropagation();window.toggleSelectAttendee(${a.attendee_id}, this.checked)"
         style="cursor:pointer;width:16px;height:16px"></td>`;
     case "num":
+      if (_editMode) {
+        // โหมดแก้ไข: ลากหมุด ⠿ หรือพิมพ์เลขลำดับ (Enter) เพื่อจัดลำดับเอง (view-only)
+        return `${tdOpen}<div class="att-seq-cell">
+          <span class="att-drag-handle" draggable="true" data-aid="${a.attendee_id}" title="ลากเพื่อย้ายลำดับ">⠿</span>
+          <input type="number" class="att-seq-inp" data-aid="${a.attendee_id}" value="${seq}" min="1" inputmode="numeric"
+            title="พิมพ์เลขลำดับแล้วกด Enter" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}" onchange="window._onSeqInput()">
+        </div></td>`;
+      }
       return `${tdOpen}<span style="font-family:'IBM Plex Mono',monospace;color:var(--text3);font-size:11.5px">${seq}</span></td>`;
     case "name":
       return `<td class="${colCls}">
@@ -2292,6 +2498,7 @@ window.saveNewRow = async function (id) {
       ...newRowCheckinFields(),
     };
     const stampFields = _buildStampExtraFields(payload.member_code, payload.person_role);
+    await _augmentNationalIdFields(stampFields, payload.member_code);
     if (Object.keys(stampFields).length) payload.extra_fields = stampFields;
     const blocked = await _enforceRegistration(payload);
     if (blocked) { r.saving = false; _updateSaveBtn(id); return; }
@@ -2582,8 +2789,22 @@ window._toggleExportMenu = function (ev) {
   ev?.stopPropagation();
   const menu = document.getElementById("attExportMenu");
   if (!menu) return;
+  document.getElementById("attMoreMenu")?.classList.remove("open"); // ปิดเมนู ⋯ ถ้าเปิดอยู่
   menu.classList.toggle("open");
 };
+// ── MORE (เครื่องมือตั้งค่า) MENU ─────────────────────────
+window._toggleMoreMenu = function (ev) {
+  ev?.stopPropagation();
+  const menu = document.getElementById("attMoreMenu");
+  if (!menu) return;
+  document.getElementById("attExportMenu")?.classList.remove("open"); // ปิดเมนู Export ถ้าเปิดอยู่
+  menu.classList.toggle("open");
+};
+// คลิกนอกกรอบ → ปิดเมนู ⋯ (ใช้ wrapper ของตัวเอง ไม่ชนกับ .att-export-wrap)
+document.addEventListener("click", (e) => {
+  if (e.target.closest(".att-more-wrap")) return;
+  document.getElementById("attMoreMenu")?.classList.remove("open");
+});
 window._exportPick = function (kind) {
   document.getElementById("attExportMenu")?.classList.remove("open");
   if (kind === "xlsx")  window.exportAttendeesXLSX();
@@ -3452,6 +3673,7 @@ async function _quickAddMembers(members, paymentStatus, sourceRowId) {
         ...newRowCheckinFields(),
       };
       const stampFields = _buildStampExtraFields(payload.member_code, payload.person_role);
+      await _augmentNationalIdFields(stampFields, payload.member_code);
       if (Object.keys(stampFields).length) payload.extra_fields = stampFields;
       const blocked = await _enforceRegistration(payload);
       if (blocked) break;
@@ -3512,6 +3734,227 @@ window.selectBothMembers = function () {
     { memberCode: coapp.member_code, personRole: "co_applicant",
       name: coapp.person_name || "", phone: coapp.phone || "", positionLevel: coapp.position_level || "" },
   ], paymentStatus, rowId);
+};
+
+// ════════════════════════════════════════════════════════════════
+// เพิ่มหลายคนพร้อมกัน (Bulk add) — วางรหัส/ชื่อ บรรทัดละ 1 คน → ค้นหา (member_persons)
+// → review → เพิ่มลงตารางด้วย _quickAddMembers (reuse logic เดิม: tier/price/deadline/ticket)
+// ════════════════════════════════════════════════════════════════
+let _bulkResolved = [];
+
+window.openBulkAddModal = function () {
+  if (!currentEventId) { showToast("เลือก Event ก่อน", "error"); return; }
+  _bulkResolved = [];
+  const ta = document.getElementById("bulkAddInput");
+  if (ta) ta.value = "";
+  const res = document.getElementById("bulkAddResults");
+  if (res) { res.style.display = "none"; res.innerHTML = ""; }
+  const sBtn = document.getElementById("bulkAddSearchBtn");
+  if (sBtn) { sBtn.style.display = ""; sBtn.textContent = "🔍 ค้นหา"; sBtn.disabled = false; }
+  const cBtn = document.getElementById("bulkAddConfirmBtn");
+  if (cBtn) cBtn.style.display = "none";
+  document.getElementById("bulkAddModal").classList.add("open");
+  requestAnimationFrame(() => ta?.focus());
+};
+
+window.closeBulkAddModal = function () {
+  document.getElementById("bulkAddModal").classList.remove("open");
+};
+
+// resolve 1 บรรทัด → { input, kind, results, error } (ใช้ filter เดียวกับ searchMember)
+// ⚠️ ค้นด้วยชื่อ (ilike บน member_persons) หนักกว่า eq รหัส มาก → retry on 5xx/timeout
+//    (ไม่งั้นพอยิงพร้อมกันหลายคำ server timeout 500 = "ค้นหาไม่สำเร็จ")
+async function _bulkResolveLine(raw) {
+  const q = (raw || "").trim();
+  const esc = q.replace(/[,()*%_\\]/g, "");
+  const isDigits = /^\d+$/.test(esc);
+  const kind = isDigits ? "code" : "name";
+  const { url, key } = getSB();
+  const filter = isDigits
+    ? `member_code=eq.${encodeURIComponent(esc)}`
+    : `person_name=ilike.${encodeURIComponent("*" + esc + "*")}`;
+  const apiUrl = `${url}/rest/v1/member_persons?select=member_code,person_role,person_name,phone,country_code,position_level,is_company&${filter}&limit=12&order=member_code,person_role`;
+  const headers = { apikey: key, Authorization: `Bearer ${key}` };
+  let lastErr = "";
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      const r = await fetch(apiUrl, { headers });
+      if (r.ok) {
+        const rows = await r.json();
+        return { input: q, kind, results: rows || [] };
+      }
+      lastErr = String(r.status);
+      if (r.status >= 500 && attempt < 3) { await new Promise(res => setTimeout(res, 400 * attempt)); continue; }
+      break;   // 4xx → ไม่ retry
+    } catch (e) {
+      lastErr = String(e.message || e);
+      if (attempt < 3) { await new Promise(res => setTimeout(res, 400 * attempt)); continue; }
+    }
+  }
+  return { input: q, kind, results: [], error: lastErr };
+}
+
+// รัน async ทีละ limit ตัว (กันยิง API พร้อมกันเยอะเกิน)
+async function _bulkRunLimited(items, fn, limit = 6) {
+  const out = new Array(items.length);
+  let i = 0;
+  const worker = async () => {
+    while (i < items.length) { const idx = i++; out[idx] = await fn(items[idx], idx); }
+  };
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+  return out;
+}
+
+// รายการนี้เพิ่มได้ไหม (ติ๊ก include + ไม่ซ้ำ + มีปลายทาง)
+function _bulkIsAddable(r) {
+  if (!r || !r.include || r.dup) return false;
+  if (r.asGuest) return !!r.input;
+  return !!(r.results && r.results[r.chosenIdx]);
+}
+
+// mark รายการที่ลงทะเบียนแล้ว (member_code+role ซ้ำกับ allAttendees) → ปิด include
+function _bulkEvalDups() {
+  _bulkResolved.forEach(r => {
+    r.dup = null;
+    if (r.asGuest || r.status === "notfound" || r.status === "error") return;
+    const m = r.results[r.chosenIdx];
+    if (!m) return;
+    const role = m.person_role || "primary";
+    const dup = allAttendees.find(a => a.member_code === m.member_code && (a.person_role || "primary") === role);
+    if (dup) { r.dup = dup; r.include = false; }
+  });
+}
+
+window.runBulkAddSearch = async function () {
+  const ta = document.getElementById("bulkAddInput");
+  const lines = (ta?.value || "").split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+  const seen = new Set();
+  const uniq = lines.filter(l => { const k = l.toLowerCase(); if (seen.has(k)) return false; seen.add(k); return true; });
+  if (!uniq.length) { showToast("ใส่รหัสหรือชื่ออย่างน้อย 1 บรรทัด", "error"); return; }
+
+  const btn = document.getElementById("bulkAddSearchBtn");
+  btn.disabled = true; btn.textContent = "⏳ กำลังค้นหา...";
+  const raw = await _bulkRunLimited(uniq, _bulkResolveLine, 3);   // 3 = กันยิง ilike พร้อมกันเยอะจน server timeout
+  btn.disabled = false; btn.textContent = "🔍 ค้นหาอีกครั้ง";
+
+  _bulkResolved = raw.map(item => {
+    const r = { input: item.input, kind: item.kind, results: item.results, error: item.error || null,
+                chosenIdx: 0, asGuest: false, include: false, status: "", dup: null };
+    if (item.error) { r.status = "error"; return r; }
+    if (!item.results.length) {
+      r.status = "notfound";
+      r.asGuest = r.kind === "name";   // ชื่อที่ไม่พบ → เสนอเพิ่มเป็น Guest (default ติ๊ก)
+      r.include = r.asGuest;
+      return r;
+    }
+    const primIdx = item.results.findIndex(m => (m.person_role || "primary") !== "co_applicant");
+    r.chosenIdx = primIdx >= 0 ? primIdx : 0;
+    r.status = (item.results.length > 1 && r.kind === "name") ? "ambiguous" : "matched";
+    r.include = true;
+    return r;
+  });
+  _bulkEvalDups();
+  _renderBulkAddResults();
+};
+
+function _renderBulkAddResults() {
+  const box = document.getElementById("bulkAddResults");
+  if (!box) return;
+  box.style.display = "block";
+  const rowsHtml = _bulkResolved.map((r, i) => {
+    const inp = escapeHtml(r.input);
+    if (r.dup) {
+      return `<div class="bulkadd-row is-dup"><span class="bulkadd-x">✓</span>
+        <div class="bulkadd-main"><b>${escapeHtml(r.dup.name || r.input)}</b>
+          <span class="bulkadd-note">ลงทะเบียนแล้ว${r.dup.ticket_no ? " · Ticket " + escapeHtml(r.dup.ticket_no) : ""}</span></div></div>`;
+    }
+    if (r.status === "error") {
+      return `<div class="bulkadd-row is-skip"><span class="bulkadd-x">⚠️</span>
+        <div class="bulkadd-main"><b>${inp}</b><span class="bulkadd-note">ค้นหาไม่สำเร็จ — กด "ค้นหาอีกครั้ง"</span></div></div>`;
+    }
+    if (r.status === "notfound") {
+      if (r.kind === "code") {
+        return `<div class="bulkadd-row is-skip"><span class="bulkadd-x">❌</span>
+          <div class="bulkadd-main"><b>${inp}</b><span class="bulkadd-note">ไม่พบรหัสสมาชิกนี้</span></div></div>`;
+      }
+      return `<div class="bulkadd-row">
+        <input type="checkbox" class="bulkadd-cb" ${r.include ? "checked" : ""} onchange="window._bulkSetGuest(${i}, this.checked)">
+        <div class="bulkadd-main"><b>${inp}</b><span class="bulkadd-note">ไม่พบสมาชิก — เพิ่มเป็น <b>Guest</b></span></div></div>`;
+    }
+    // matched / ambiguous
+    const chosen = r.results[r.chosenIdx];
+    if (r.results.length === 1) {
+      return `<div class="bulkadd-row">
+        <input type="checkbox" class="bulkadd-cb" ${r.include ? "checked" : ""} onchange="window._bulkSetInclude(${i}, this.checked)">
+        <div class="bulkadd-main">
+          <span class="bulkadd-code">${escapeHtml(chosen.member_code)}</span>
+          <b>${escapeHtml(chosen.person_name || "—")}</b>
+          ${(chosen.person_role || "primary") === "co_applicant" ? `<span class="bulkadd-note">· ผู้สมัครร่วม</span>` : ""}
+          ${chosen.position_level ? `<span class="bulkadd-pos">⭐ ${escapeHtml(chosen.position_level)}</span>` : ""}
+        </div></div>`;
+    }
+    const optsHtml = r.results.map((m, k) => {
+      const nm = `${m.member_code} — ${m.person_name || "—"}${m.position_level ? " (" + m.position_level + ")" : ""}${(m.person_role || "primary") === "co_applicant" ? " · ผู้สมัครร่วม" : ""}`;
+      return `<option value="${k}" ${k === r.chosenIdx ? "selected" : ""}>${escapeHtml(nm)}</option>`;
+    }).join("");
+    return `<div class="bulkadd-row">
+      <input type="checkbox" class="bulkadd-cb" ${r.include ? "checked" : ""} onchange="window._bulkSetInclude(${i}, this.checked)">
+      <div class="bulkadd-main">
+        <span class="bulkadd-amb">⚠️ "${inp}" พบ ${r.results.length} คน</span>
+        <select class="bulkadd-sel" onchange="window._bulkSetChoice(${i}, this.value)">${optsHtml}</select>
+      </div></div>`;
+  }).join("");
+
+  const ok = _bulkResolved.filter(_bulkIsAddable).length;
+  const skip = _bulkResolved.length - ok;
+  box.innerHTML = `<div class="bulkadd-summary">เพิ่มได้ <b>${ok}</b> คน · ข้าม ${skip}</div>${rowsHtml}`;
+  _updateBulkAddCount();
+}
+
+function _updateBulkAddCount() {
+  const n = _bulkResolved.filter(_bulkIsAddable).length;
+  const span = document.getElementById("bulkAddConfirmCount");
+  if (span) span.textContent = n;
+  const cBtn = document.getElementById("bulkAddConfirmBtn");
+  if (cBtn) cBtn.style.display = n > 0 ? "" : "none";
+}
+
+window._bulkSetInclude = function (i, checked) {
+  if (_bulkResolved[i]) _bulkResolved[i].include = checked;
+  _updateBulkAddCount();
+};
+window._bulkSetGuest = function (i, checked) {
+  const r = _bulkResolved[i]; if (!r) return;
+  r.asGuest = checked; r.include = checked;
+  _updateBulkAddCount();
+};
+window._bulkSetChoice = function (i, idx) {
+  const r = _bulkResolved[i]; if (!r) return;
+  r.chosenIdx = parseInt(idx) || 0;
+  r.include = true;
+  _bulkEvalDups();          // เลือกคนใหม่อาจกลายเป็นซ้ำ
+  _renderBulkAddResults();
+};
+
+window.confirmBulkAdd = async function () {
+  const members = [];
+  const batchSeen = new Set();
+  _bulkResolved.forEach(r => {
+    if (!_bulkIsAddable(r)) return;
+    if (r.asGuest) {
+      members.push({ memberCode: null, personRole: "guest", name: r.input, phone: "", positionLevel: "" });
+      return;
+    }
+    const m = r.results[r.chosenIdx];
+    const role = m.person_role || "primary";
+    const key = m.member_code + "|" + role;
+    if (batchSeen.has(key)) return;   // กันซ้ำในชุดเดียวกัน
+    batchSeen.add(key);
+    members.push({ memberCode: m.member_code, personRole: role, name: m.person_name || "", phone: m.phone || "", positionLevel: m.position_level || "" });
+  });
+  if (!members.length) { showToast("ไม่มีรายการให้เพิ่ม", "error"); return; }
+  window.closeBulkAddModal();
+  await _quickAddMembers(members, "UNPAID", null);
 };
 
 // Close member suggest on click outside any new-row search input
@@ -4377,7 +4820,7 @@ function getActiveColumns() {
     }
   };
   const pushCustom = (cf) => {
-    const icon = cf.ftype === "stamp" ? "👤" : cf.ftype === "persontype" ? "🪪" : "📝";
+    const icon = cf.ftype === "stamp" ? "👤" : cf.ftype === "persontype" ? "🪪" : cf.ftype === "nationalid" ? "🆔" : "📝";
     cols.push({ key: "custom:" + cf.key, label: `${icon} ${cf.label}`, width: 130, align: "center" });
   };
   const pushQual = (q) => {
@@ -4495,7 +4938,24 @@ function _syncGroupHeaderOffset() {
     const nr = table.querySelector("thead tr.new-row");
     table.style.setProperty("--att-newrow-h", (nr ? nr.offsetHeight : 0) + "px");
   });
+  _syncTablePaneHeight();
 }
+
+// การ์ดตาราง sticky ใต้ topbar → ตอนเลื่อนหน้าลง hero เลื่อนหายไป ตารางได้พื้นที่ "เต็มจอใต้ topbar"
+// max-height ของ pane = สูงจอ − topbar − (dayTabs+toolbar) − เว้นล่าง
+//  · rows น้อย/กลางพอดีจอ = ไม่มี scrollbar (สูงตามข้อมูล)
+//  · rows เยอะ = scroll ในกรอบ + แถวค้นหา/หัวคอลัมน์ (sticky) lock ค้างใต้ toolbar (แบบ Google Sheet)
+function _syncTablePaneHeight() {
+  const wrap = document.querySelector("#attTableSection .table-wrap");
+  if (!wrap || wrap.offsetParent === null) return;   // ข้ามตอนตารางยังซ่อนอยู่
+  requestAnimationFrame(() => {
+    const topbarH = parseInt(getComputedStyle(document.documentElement).getPropertyValue("--topbar-h")) || 56;
+    const above = wrap.offsetTop;   // offset ของ wrap ในการ์ด sticky ≈ 0 (border) — dayTabs/toolbar ย้ายออกนอกการ์ดแล้ว
+    const gap = 12;                 // เว้นล่างนิด ไม่ให้ชิดขอบจอ
+    wrap.style.maxHeight = Math.max(220, window.innerHeight - topbarH - above - gap) + "px";
+  });
+}
+window.addEventListener("resize", _syncTablePaneHeight);
 
 
 // map: item key → ชื่อฟิลด์ (block title) สำหรับ group header แถวบน
@@ -4615,7 +5075,7 @@ function _loadAutoCheckinState() {
 
 function _syncAutoCheckinUi() {
   const label = document.getElementById("autoCheckinLabel");
-  if (label) label.textContent = _autoCheckin ? "⚡ โหมดหน้างาน: ON" : "⚡ โหมดหน้างาน";
+  if (label) label.textContent = _autoCheckin ? "⚡ ลงทะเบียนหน้างาน: ON" : "⚡ ลงทะเบียนหน้างาน";
 }
 
 window.onAutoCheckinToggle = function (checked) {
@@ -4623,7 +5083,7 @@ window.onAutoCheckinToggle = function (checked) {
   localStorage.setItem(AUTOCHECKIN_KEY, _autoCheckin ? "1" : "0");
   _syncAutoCheckinUi();
   showToast(
-    _autoCheckin ? "โหมดหน้างาน: ON — save แล้ว check-in ทันที (ทุก event)" : "โหมดหน้างาน: OFF (ทุก event)",
+    _autoCheckin ? "ลงทะเบียนหน้างาน: ON — save แล้ว check-in ทันที (ทุก event)" : "ลงทะเบียนหน้างาน: OFF (ทุก event)",
     _autoCheckin ? "success" : "info",
   );
 };
@@ -5374,10 +5834,39 @@ let _refreshInFlight = false;
 function startAutoRefresh() {
   if (_autoRefreshTimer) return;
   _autoRefreshTimer = setInterval(refreshAttendeesSilent, AUTO_REFRESH_MS);
+  const onReturn = () => { refreshAttendeesSilent(); refreshColumnsSilent(); };
   document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "visible") refreshAttendeesSilent();
+    if (document.visibilityState === "visible") onReturn();
   });
-  window.addEventListener("focus", refreshAttendeesSilent);
+  window.addEventListener("focus", onReturn);
+}
+
+// รับการแก้ template จากอีกแท็บ — กลับมาที่หน้านี้แล้วดึง config ใหม่เงียบๆ
+// (ไม่ prompt · ไม่ล้าง override · re-render เฉพาะตอน config เปลี่ยนจริง)
+let _colRefreshInFlight = false;
+async function refreshColumnsSilent() {
+  if (!currentEventId) return;
+  if (_colRefreshInFlight) return;
+  if (document.visibilityState === "hidden") return;
+  if (_editMode) return;          // อยู่ในโหมดแก้ไข → ข้าม (กันค่าที่ยังไม่บันทึกหาย)
+  if (_isUserBusy()) return;      // เปิด modal/กำลังพิมพ์ → อย่าแย่ง re-render
+  _colRefreshInFlight = true;
+  try {
+    const before = JSON.stringify(_eventConfigCache?.config ?? null);
+    await _fetchDefaultTemplate(true);            // bust default-template cache
+    _invalidateEventConfigCache();
+    await getEventConfigInfo(currentEventId);     // re-resolve + re-cache (ตามแหล่งเดิม: override/template/default)
+    const after = JSON.stringify(_eventConfigCache?.config ?? null);
+    if (before === after) return;                 // ไม่เปลี่ยน → ไม่ต้อง re-render
+    if (_isUserBusy() || _editMode) return;        // re-check (user อาจเริ่มแก้ระหว่าง fetch)
+    rebuildTableHeader();
+    filterTable();
+    showToast("🔄 อัปเดตฟอร์ม/คอลัมน์ตามเทมเพลตล่าสุด", "info");
+  } catch (e) {
+    console.warn("refreshColumnsSilent:", e.message || e);
+  } finally {
+    _colRefreshInFlight = false;
+  }
 }
 
 function _isUserBusy() {
@@ -5652,6 +6141,58 @@ function personTypeLabel(memberCode, personRole) {
   if (!memberCode) return "Guest";
   if (personRole === "co_applicant") return "ผู้สมัครร่วม";
   return "สมาชิก";
+}
+
+// ── บัตรประชาชน (auto จากข้อมูลสมาชิก) ────────────────────────
+// Auto-load master key จาก app_settings สำหรับ user ที่มีสิทธิ์ member_decrypt
+// แต่ยังไม่มี key ในเครื่องนี้ (pattern เดียวกับ members-list._ensureMasterKey)
+let _nidMasterKeyTried = false;
+async function _ensureMasterKeyForDecrypt() {
+  if (!window.ERPCrypto) return false;
+  if (ERPCrypto.hasMasterKey()) return true;
+  if (!(window.AuthZ && AuthZ.hasPerm("member_decrypt"))) return false;
+  if (_nidMasterKeyTried) return ERPCrypto.hasMasterKey();
+  _nidMasterKeyTried = true;
+  try {
+    const rows = await sbFetch("app_settings", "?key=eq.member_master_key&select=value");
+    const key = String((rows && rows[0] && rows[0].value) || "").trim();
+    if (!key || key.length < 8 || /^(REPLACE_ME|PASTE_KEY|YOUR_REAL|YOUR_KEY|TODO|XXX)/i.test(key)) return false;
+    ERPCrypto.setMasterKey(key);
+    return true;
+  } catch (e) {
+    console.warn("master key auto-load:", e.message);
+    return false;
+  }
+}
+
+// ดึง+ถอดรหัสเลขบัตรประชาชนของสมาชิก · null = ถอดรหัสไม่ได้/ไม่มีข้อมูล (→ ให้กรอกมือ)
+const _nationalIdCache = {};
+async function _fetchMemberNationalId(memberCode) {
+  if (!memberCode) return null;
+  if (memberCode in _nationalIdCache) return _nationalIdCache[memberCode];
+  let val = null;
+  if (await _ensureMasterKeyForDecrypt()) {
+    try {
+      const rows = await sbFetch("members",
+        `?member_code=eq.${encodeURIComponent(memberCode)}&select=national_id_encrypted&limit=1`);
+      const enc = rows && rows[0] && rows[0].national_id_encrypted;
+      if (enc) val = (await ERPCrypto.decrypt(enc)) || null;
+    } catch (e) {
+      console.warn("national_id decrypt:", e.message);
+    }
+  }
+  _nationalIdCache[memberCode] = val;
+  return val;
+}
+
+// เติมเลขบัตรประชาชน (จากข้อมูลสมาชิก) ลง extra_fields ของ record ใหม่ — เฉพาะ field ชนิด nationalid ที่ template เปิดไว้
+async function _augmentNationalIdFields(extra, memberCode) {
+  if (!memberCode || !extra) return extra;
+  const idFields = (_getActiveFieldConfig().custom_fields || []).filter(cf => cf.ftype === "nationalid");
+  if (!idFields.length) return extra;
+  const val = await _fetchMemberNationalId(memberCode);
+  if (val) idFields.forEach(cf => { if (!extra[cf.key]) extra[cf.key] = val; });
+  return extra;
 }
 
 // คืน extra_fields เริ่มต้นสำหรับ record ใหม่ — auto fields:
@@ -6395,6 +6936,8 @@ function _renderFormBlocks(blocks, extraFields, opts) {
         }
       } else if (it.type === "text" || it.type === "date" || it.type === "number") {
         body.appendChild(_buildCustomFieldNode(it, extraFields, opts));
+      } else if (it.type === "nationalid") {
+        body.appendChild(_buildNationalIdFieldNode(it, extraFields, opts));
       } else if (it.type === "stamp") {
         body.appendChild(_buildStampFieldNode(it, extraFields, opts));
       } else if (it.type === "persontype") {
@@ -6431,6 +6974,43 @@ function _buildPersonTypeFieldNode(it, opts) {
     : (personRole === "co_applicant" ? "background:#f3e8ff;color:#9333ea" : "background:#e0e7ff;color:#3730a3");
   d.innerHTML = `<label class="form-label">${escapeHtml(it.label || it.key)} <span class="aff-stamp-hint">🪪 อัตโนมัติ</span></label>
     <div><span style="display:inline-block;font-size:12.5px;font-weight:700;padding:6px 14px;border-radius:8px;${style}">${escapeHtml(label)}</span></div>`;
+  return d;
+}
+
+// บัตรประชาชน — สมาชิก: ดึง+ถอดรหัสจากข้อมูลสมาชิก (readonly, เก็บ snapshot) · ไม่ใช่สมาชิก: กรอกมือ
+function _buildNationalIdFieldNode(it, extraFields, opts) {
+  const d = document.createElement("div");
+  d.className = "form-group";
+  const memberCode = opts?.memberCode || _attFormState.memberCode || "";
+  const existing = extraFields && extraFields[it.key] != null ? String(extraFields[it.key]) : "";
+  const reqMark = it.required ? ' <span class="req">*</span>' : '';
+  const safeKey = escapeHtml(it.key);
+  if (!memberCode) {
+    // ไม่ใช่สมาชิก → กรอกมือ
+    d.innerHTML = `<label class="form-label">${escapeHtml(it.label || it.key)}${reqMark}</label>
+      <input class="form-control" type="text" inputmode="numeric" maxlength="20"
+        data-custom-key="${safeKey}" value="${escapeHtml(existing)}" autocomplete="off"
+        placeholder="เลขบัตรประชาชน">`;
+    return d;
+  }
+  // สมาชิก → ดึงจากข้อมูลสมาชิกอัตโนมัติ (readonly) + snapshot ลง extra_fields
+  d.innerHTML = `<label class="form-label">${escapeHtml(it.label || it.key)}${reqMark} <span class="aff-stamp-hint">🆔 จากสมาชิก</span></label>
+    <input class="form-control" type="text" data-custom-key="${safeKey}"
+      value="${escapeHtml(existing)}" readonly style="background:#f8fafc;color:#475569">`;
+  const inp = d.querySelector("input");
+  if (!existing) {
+    inp.placeholder = "⏳ กำลังดึงข้อมูล…";
+    _fetchMemberNationalId(memberCode).then(val => {
+      if (val) { inp.value = val; inp.placeholder = ""; return; }
+      // ถอดรหัสไม่ได้/ไม่มีข้อมูลในระบบ → เปิดให้กรอกมือ
+      inp.readOnly = false;
+      inp.style.background = "";
+      inp.style.color = "";
+      inp.placeholder = window.ERPCrypto?.hasMasterKey()
+        ? "— ไม่มีข้อมูลในระบบ — กรอกมือได้"
+        : "🔒 ไม่มีสิทธิ์ถอดรหัส — กรอกมือได้";
+    });
+  }
   return d;
 }
 
@@ -6623,6 +7203,8 @@ window.saveAttendeeForm = async function () {
   (cfg.custom_fields || []).forEach(cf => {
     if (cf.ftype === "persontype") quals[cf.key] = personTypeLabel(_attFormState.memberCode, _attFormState.personRole);
   });
+  // บัตรประชาชน (สมาชิก) = ดึงจากข้อมูลสมาชิก → snapshot (กันกรณี async ดึงยังไม่เสร็จตอนกดบันทึก)
+  await _augmentNationalIdFields(quals, _attFormState.memberCode);
 
   const payload = {
     name,
@@ -6861,6 +7443,24 @@ const FIELD_LABELS = {
   phone:        "เบอร์โทร",
   position:     "ตำแหน่ง",
   upline:       "สายงาน",
+};
+
+// เปิดหน้า template ที่งานนี้ใช้อยู่ (แทนการเปิด field-config modal) — แก้ที่ต้นทาง template เลย
+// templateId (linked) → เปิด editor ตัวนั้น · ใช้ Default → เปิด editor ของ default · ไม่มี template → เปิดหน้า list
+window.openTemplateForEvent = async function () {
+  if (!currentEventId) { showToast("เลือกกิจกรรมก่อน", "error"); return; }
+  let tid = null;
+  try {
+    const info = await getEventConfigInfo(currentEventId);
+    tid = info.templateId || null;
+    if (!tid && info.source === "default") {
+      const def = await _fetchDefaultTemplate();
+      tid = def?.id || null;
+    }
+  } catch (e) {
+    console.warn("openTemplateForEvent:", e.message);
+  }
+  window.open(tid ? `./attendee-templates.html?edit=${tid}` : "./attendee-templates.html", "_blank");
 };
 
 window.openFieldConfigModal = async function () {
