@@ -24,6 +24,13 @@ body {
   min-height: 100vh;
 }
 
+/* ===== DESKTOP DENSITY =====
+   บีบทั้งแอปให้กระชับที่ desktop (เหมือน zoom out ~80%) ในที่เดียว — ปรับค่าตรงนี้จุดเดียวได้
+   มือถือ (≤767) ไม่แตะ (คงขนาด touch-friendly) · ปรับ 0.80 → 0.75 ถ้าอยากแน่นกว่า, → 0.85 ถ้าใหญ่กว่า */
+@media (min-width: 768px) {
+  :root { zoom: 0.8; }
+}
+
 /* ================================================================
    PAGE LAYOUT
    ================================================================ */
@@ -202,7 +209,7 @@ body {
    ================================================================ */
 .stats-row {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   gap: 14px;
   margin-bottom: 20px;
 }
@@ -697,8 +704,7 @@ select.form-control {
   }
 
   .stats-row {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 10px;
+    gap: 10px;   /* คอลัมน์ปล่อยให้ auto-fit จัดเอง (4→3→2→1 ตามที่ว่าง) */
   }
 
   .search-wrap {

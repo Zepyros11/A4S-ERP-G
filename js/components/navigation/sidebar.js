@@ -713,7 +713,7 @@
     #erp-shell{display:flex;flex:1;min-height:0;overflow:hidden;}
 
     #erp-sidebar{
-      width:max-content;min-width:220px;max-width:340px;flex-shrink:0;
+      width:max-content;min-width:210px;max-width:290px;flex-shrink:0;
       background:#0d1117;
       display:flex;flex-direction:column;
       height:calc(100vh - 56px);
@@ -865,7 +865,7 @@
     #sb-overlay.show{display:block;}
     #sb-hamburger{display:none;padding:7px 10px;background:rgba(255,255,255,.12);color:#fff;border:none;border-radius:6px;font-size:16px;cursor:pointer;align-items:center;margin-right:4px;}
 
-    @media(max-width:1024px){
+    @media(max-width:767px){
       #sb-hamburger{display:flex!important;}
       #erp-sidebar{position:fixed;top:56px;left:0;width:max-content;min-width:220px;max-width:85vw;transform:translateX(-100%);transition:transform .25s ease;z-index:150;height:calc(100vh - 56px);}
       #erp-sidebar.open{transform:translateX(0);}
@@ -1102,7 +1102,7 @@
     const ov = document.getElementById("sb-overlay");
     const ico = document.getElementById("sb-icon");
     if (!sb) return;
-    if (window.innerWidth <= 768) {
+    if (window.innerWidth <= 767) {   // ตรงกับ CSS drawer breakpoint (≤767 = mobile = hamburger/drawer)
       sb.classList.toggle("open");
       ov.classList.toggle("show");
     } else {
@@ -1113,11 +1113,19 @@
     }
   };
 
+  // ปิด drawer/overlay อัตโนมัติเมื่อขยายกลับเป็น tablet/desktop (>767) — กัน overlay ค้างจอดำตอน resize/zoom ข้าม breakpoint
+  window.addEventListener("resize", function () {
+    if (window.innerWidth > 767) {
+      document.getElementById("erp-sidebar")?.classList.remove("open");
+      document.getElementById("sb-overlay")?.classList.remove("show");
+    }
+  });
+
   window.toggleGroup = function (groupId) {
     const sb = document.getElementById("erp-sidebar");
     // ── ย่ออยู่ (desktop): กดไอคอนกลุ่ม = ขยาย sidebar แล้วเปิดกลุ่มนั้นเสมอ ──
     let forceOpen = false;
-    if (sb && sb.classList.contains("collapsed") && window.innerWidth > 768) {
+    if (sb && sb.classList.contains("collapsed") && window.innerWidth > 767) {  // rail = tablet/desktop >767
       sb.classList.remove("collapsed");
       const ico = document.getElementById("sb-icon");
       if (ico) ico.textContent = "‹";
@@ -1175,7 +1183,7 @@
 
   window.toggleSubgroup = function (subgroupId) {
     const sb = document.getElementById("erp-sidebar");
-    if (sb && sb.classList.contains("collapsed") && window.innerWidth > 768)
+    if (sb && sb.classList.contains("collapsed") && window.innerWidth > 767)  // rail = tablet/desktop >767
       return;
     const el = document.getElementById(subgroupId);
     if (!el) return;

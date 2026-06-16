@@ -70,6 +70,12 @@
                 margin-top:5px; text-transform:uppercase; letter-spacing:.3px; }
   .tp-none { font-size:13px; color:#94a3b8; font-style:italic; padding:6px 0; }
 
+  /* passport + visa: 2-column row (passport left, visa document right) */
+  .tp-docrow { display:grid; grid-template-columns:minmax(200px,260px) 1fr; gap:18px; align-items:start; }
+  .tp-doc-col { min-width:0; }
+  .tp-doc-col .tp-sec-title { margin-top:0; }
+  @media(max-width:600px){ .tp-docrow { grid-template-columns:1fr; gap:14px; } }
+
   /* ticket */
   .tp-ticket { border:1.5px solid #e2e8f0; border-radius:12px; padding:14px 16px; margin-bottom:12px;
                background:#fafdf7; }
@@ -349,8 +355,9 @@
       not_found_title:'ไม่พบข้อมูล', not_found_sub:'ไม่พบรหัสหรือชื่อนี้ในทริปที่เลือก',
       code_not_found_sub:'ไม่พบรหัสนี้ในทริปที่เลือก',
       cand_head:'พบ {n} รายชื่อ — เลือกรายชื่อของคุณเพื่อดูเอกสาร', cand_btn:'ดูเอกสาร ›',
-      sec_passport:'🛂 พาสปอร์ต', sec_tickets:'🎫 ตั๋วเครื่องบิน',
-      no_passport:'— ไม่มีรูปพาสปอร์ต —', no_ticket:'— ยังไม่มีตั๋วในทริปนี้ —',
+      sec_passport:'🛂 พาสปอร์ต', sec_visa:'🛃 วีซ่า', sec_tickets:'🎫 ตั๋วเครื่องบิน',
+      no_passport:'— ไม่มีรูปพาสปอร์ต —', no_visa:'— ไม่มีเอกสารวีซ่า —', no_ticket:'— ยังไม่มีตั๋วในทริปนี้ —',
+      open_visa:'📄 เปิด / ดาวน์โหลดวีซ่า',
       cap_passport:'พาสปอร์ต', cap_visa:'วีซ่า',
       m_nationality:'สัญชาติ', m_gender:'เพศ', m_passport_no:'เลขพาสปอร์ต', m_passport_exp:'พาสปอร์ตหมดอายุ', m_group:'กลุ่ม',
       ticket_word:'ตั๋ว', open_pdf:'📄 เปิด / ดาวน์โหลด PDF', not_uploaded:'⏳ ตั๋วยังไม่ถูกอัปโหลด',
@@ -376,8 +383,9 @@
       not_found_title:'Not found', not_found_sub:'No matching code or name in this trip',
       code_not_found_sub:'Code not found in this trip',
       cand_head:'Found {n} — pick your name to view your documents', cand_btn:'View documents ›',
-      sec_passport:'🛂 Passport', sec_tickets:'🎫 Flight Tickets',
-      no_passport:'— No passport image —', no_ticket:'— No ticket in this trip yet —',
+      sec_passport:'🛂 Passport', sec_visa:'🛃 Visa', sec_tickets:'🎫 Flight Tickets',
+      no_passport:'— No passport image —', no_visa:'— No visa document —', no_ticket:'— No ticket in this trip yet —',
+      open_visa:'📄 Open / Download Visa',
       cap_passport:'Passport', cap_visa:'Visa',
       m_nationality:'Nationality', m_gender:'Gender', m_passport_no:'Passport No', m_passport_exp:'Passport Exp', m_group:'Group',
       ticket_word:'Ticket', open_pdf:'📄 Open / Download PDF', not_uploaded:'⏳ Ticket file not uploaded yet',
@@ -403,8 +411,9 @@
       not_found_title:'Introuvable', not_found_sub:'Aucun code ou nom correspondant dans ce voyage',
       code_not_found_sub:'Code introuvable dans ce voyage',
       cand_head:'{n} résultat(s) — choisissez votre nom pour voir vos documents', cand_btn:'Voir les documents ›',
-      sec_passport:'🛂 Passeport', sec_tickets:'🎫 Billets d\'avion',
-      no_passport:'— Aucune image de passeport —', no_ticket:'— Aucun billet pour ce voyage —',
+      sec_passport:'🛂 Passeport', sec_visa:'🛃 Visa', sec_tickets:'🎫 Billets d\'avion',
+      no_passport:'— Aucune image de passeport —', no_visa:'— Aucun document de visa —', no_ticket:'— Aucun billet pour ce voyage —',
+      open_visa:'📄 Ouvrir / Télécharger le visa',
       cap_passport:'Passeport', cap_visa:'Visa',
       m_nationality:'Nationalité', m_gender:'Sexe', m_passport_no:'N° de passeport', m_passport_exp:'Exp. passeport', m_group:'Groupe',
       ticket_word:'Billet', open_pdf:'📄 Ouvrir / Télécharger le PDF', not_uploaded:'⏳ Billet pas encore téléchargé',
@@ -648,17 +657,29 @@
     try { data = await loadTripTickets(state.tripId); }
     catch(e){ showLoading(false); toast(t('load_tickets_failed')+e.message,'error'); return; }
 
+    const imgBox = (u, cap, opts) => `<div class="tp-img-box"${opts||''}>
+              <a href="${escAttr(u)}" target="_blank" rel="noopener"><img src="${escAttr(u)}" alt="${escAttr(cap)}"></a>
+              <div class="tp-img-cap">${esc(cap)}</div>
+            </div>`;
+
     const html = people.map(p=>{
-      const imgs = [];
-      if(p.passport_image_url) imgs.push({u:p.passport_image_url, cap:t('cap_passport')});
-      if(p.visa_image_url)     imgs.push({u:p.visa_image_url, cap:t('cap_visa')});
-      const imgsHtml = imgs.length
-        ? `<div class="tp-imgs">${imgs.map(x=>`
-            <div class="tp-img-box">
-              <a href="${escAttr(x.u)}" target="_blank" rel="noopener"><img src="${escAttr(x.u)}" alt="${escAttr(x.cap)}"></a>
-              <div class="tp-img-cap">${esc(x.cap)}</div>
-            </div>`).join('')}</div>`
+      // left column: passport image
+      const passportHtml = p.passport_image_url
+        ? `<div class="tp-imgs">${imgBox(p.passport_image_url, t('cap_passport'))}</div>`
         : `<div class="tp-none">${t('no_passport')}</div>`;
+
+      // right column: visa document — PDF preview (or image), plus legacy visa image
+      const visaParts = [];
+      if(p.visa_pdf_url){
+        visaParts.push(isPdf(p.visa_pdf_url)
+          ? `<a class="tp-doc-btn" href="${escAttr(p.visa_pdf_url)}" target="_blank" rel="noopener">${t('open_visa')}</a>
+             <iframe class="tp-pdf" src="${escAttr(p.visa_pdf_url)}" title="Visa PDF"></iframe>`
+          : `<div class="tp-imgs">${imgBox(p.visa_pdf_url, t('cap_visa'), ' style="width:100%;max-width:340px;"')}</div>`);
+      }
+      if(p.visa_image_url){
+        visaParts.push(`<div class="tp-imgs">${imgBox(p.visa_image_url, t('cap_visa'), ' style="width:100%;max-width:340px;"')}</div>`);
+      }
+      const visaHtml = visaParts.length ? visaParts.join('') : `<div class="tp-none">${t('no_visa')}</div>`;
 
       const tids = data.codeToTicketIds[p.code] || [];
       const myTickets = tids.map(id=>data.ticketsById[id]).filter(Boolean)
@@ -681,8 +702,16 @@
         </div>
         <div class="tp-person-body">
           ${meta.length?`<div class="tp-meta">${meta.join('')}</div>`:''}
-          <div class="tp-sec-title">${t('sec_passport')}</div>
-          ${imgsHtml}
+          <div class="tp-docrow">
+            <div class="tp-doc-col">
+              <div class="tp-sec-title">${t('sec_passport')}</div>
+              ${passportHtml}
+            </div>
+            <div class="tp-doc-col">
+              <div class="tp-sec-title">${t('sec_visa')}</div>
+              ${visaHtml}
+            </div>
+          </div>
           <div class="tp-sec-title">${t('sec_tickets')}</div>
           ${ticketsHtml}
         </div>
@@ -700,7 +729,7 @@
     showLoading(true);
     let people;
     try {
-      people = await sbGet(`tour_seat_check?trip_id=eq.${state.tripId}&code=eq.${encodeURIComponent(code)}&select=code,name,gender,nationality,passport_image_url,visa_image_url,passport_id,passport_exp_date,group_name`);
+      people = await sbGet(`tour_seat_check?trip_id=eq.${state.tripId}&code=eq.${encodeURIComponent(code)}&select=code,name,gender,nationality,passport_image_url,visa_image_url,visa_pdf_url,passport_id,passport_exp_date,group_name`);
     } catch(e){ showLoading(false); toast(t('search_failed')+e.message,'error'); return; }
     showLoading(false);
     if(!people.length){ showEmpty('🔍', t('not_found_title'), t('code_not_found_sub')); return; }
@@ -734,7 +763,7 @@
     // 1) exact code match → reveal documents
     let people = [];
     try {
-      people = await sbGet(`tour_seat_check?trip_id=eq.${state.tripId}&code=eq.${encodeURIComponent(q)}&select=code,name,gender,nationality,passport_image_url,visa_image_url,passport_id,passport_exp_date,group_name`);
+      people = await sbGet(`tour_seat_check?trip_id=eq.${state.tripId}&code=eq.${encodeURIComponent(q)}&select=code,name,gender,nationality,passport_image_url,visa_image_url,visa_pdf_url,passport_id,passport_exp_date,group_name`);
     } catch(e){ showLoading(false); toast(t('search_failed')+e.message,'error'); return; }
 
     if(people.length){ showLoading(false); await renderDetail(people); return; }
