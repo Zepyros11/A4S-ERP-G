@@ -75,7 +75,7 @@
   .tp-doc-col { min-width:0; }
   .tp-doc-col .tp-sec-title { margin-top:0; }
   /* passport & visa rendered at the SAME width/height */
-  .tp-doc-frame { display:block; width:100%; max-width:480px; height:680px;
+  .tp-doc-frame { display:block; width:100%; max-width:240px; height:340px;
                   border:1px solid #e2e8f0; border-radius:10px; background:#f8fafc; }
   img.tp-doc-frame { object-fit:contain; cursor:zoom-in; transition:border-color .15s; }
   img.tp-doc-frame:hover { border-color:#aed581; }
@@ -676,7 +676,7 @@
       if(p.visa_pdf_url){
         visaParts.push(isPdf(p.visa_pdf_url)
           ? `<a class="tp-doc-btn" href="${escAttr(p.visa_pdf_url)}" target="_blank" rel="noopener">${t('open_visa')}</a>
-             <iframe class="tp-doc-frame" src="${escAttr(p.visa_pdf_url)}" title="Visa PDF"></iframe>`
+             <iframe class="tp-doc-frame" src="${escAttr(p.visa_pdf_url)}#toolbar=0&amp;navpanes=0&amp;view=FitH" title="Visa PDF"></iframe>`
           : imgDoc(p.visa_pdf_url, t('cap_visa')));
       }
       if(p.visa_image_url){
