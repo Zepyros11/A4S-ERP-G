@@ -40,6 +40,8 @@
 
       /* ═══════════ MOBILE (≤767) — panel toggle layout ═══════════ */
       .ra-mobile-switch{display:none}          /* desktop: hidden */
+      .ra-filter-toggle{display:none}          /* desktop: hidden (filters always open) */
+      .ra-pax-filters{display:flex;flex-wrap:wrap;gap:6px;width:100%}
       @media(max-width:767px){
         /* hero banner: allow wrap so it never overflows the viewport */
         .page-hero{flex-wrap:wrap;gap:8px}
@@ -77,6 +79,23 @@
 
         /* room cards single column */
         .ra-rooms-cards{grid-template-columns:1fr}
+
+        /* #1 HERO — บีบให้บาง */
+        .page-hero{padding:10px 12px}
+        .page-hero-title{font-size:16px}
+        .ra-trip-banner{font-size:11.5px;padding:4px 10px;gap:6px}
+        .ra-export-btn{padding:6px 10px;font-size:12px}
+
+        /* #2 FILTERS — ยุบเป็น accordion (default ปิด, โชว์แค่ค้นหา) */
+        .ra-filter-toggle{
+          display:inline-flex;align-items:center;justify-content:center;gap:5px;
+          flex:1 1 100%;padding:9px;border:1px solid var(--border);border-radius:8px;
+          background:#f8fafc;font-family:inherit;font-size:12.5px;font-weight:600;
+          color:var(--text2);cursor:pointer;
+        }
+        .ra-filter-toggle .arr{transition:transform .18s}
+        .ra-pax-toolbar.show-filters .ra-filter-toggle .arr{transform:rotate(180deg)}
+        .ra-pax-toolbar:not(.show-filters) .ra-pax-filters{display:none}
       }
 
       /* Left panel: passengers */
@@ -1115,24 +1134,30 @@
                 </div>
                 <div class="ra-pax-toolbar">
                   <input type="text" id="paxSearch" placeholder="🔍 ค้นหา..." style="flex:1 1 100%" />
-                  <select id="paxFilterBatch" title="กรองตามโรงแรม (ช่วงพัก)" style="flex:1 1 100%">
-                    <option value="">🏨 เลือกโรงแรม</option>
-                  </select>
-                  <select id="paxFilterStatus" title="ตัวกรองรายชื่อ">
-                    <option value="missing_any" selected>⏳ ยังไม่ครบ (ห้อง/ที่นั่ง)</option>
-                    <option value="unassigned">🛏️ ยังไม่ได้ห้อง</option>
-                    <option value="no_seat">🚌 ยังไม่ได้ที่นั่ง</option>
-                    <option value="all">ทั้งหมด</option>
-                    <option value="assigned">✅ ห้องครบในช่วงนี้</option>
-                  </select>
-                  <select id="paxFilterGender">
-                    <option value="">⚥ ทุกเพศ</option>
-                    <option value="M">♂ ชาย</option>
-                    <option value="F">♀ หญิง</option>
-                  </select>
-                  <select id="paxFilterNat" title="กรองตามสัญชาติ" style="flex:1 1 100%">
-                    <option value="">🌐 ทุกสัญชาติ</option>
-                  </select>
+                  <!-- mobile-only accordion toggle (hidden ≥768px via CSS) -->
+                  <button type="button" class="ra-filter-toggle" onclick="window.toggleRaFilters()">
+                    ⚙️ ตัวกรอง <span class="arr">▾</span>
+                  </button>
+                  <div class="ra-pax-filters" id="paxFilters">
+                    <select id="paxFilterBatch" title="กรองตามโรงแรม (ช่วงพัก)" style="flex:1 1 100%">
+                      <option value="">🏨 เลือกโรงแรม</option>
+                    </select>
+                    <select id="paxFilterStatus" title="ตัวกรองรายชื่อ">
+                      <option value="missing_any" selected>⏳ ยังไม่ครบ (ห้อง/ที่นั่ง)</option>
+                      <option value="unassigned">🛏️ ยังไม่ได้ห้อง</option>
+                      <option value="no_seat">🚌 ยังไม่ได้ที่นั่ง</option>
+                      <option value="all">ทั้งหมด</option>
+                      <option value="assigned">✅ ห้องครบในช่วงนี้</option>
+                    </select>
+                    <select id="paxFilterGender">
+                      <option value="">⚥ ทุกเพศ</option>
+                      <option value="M">♂ ชาย</option>
+                      <option value="F">♀ หญิง</option>
+                    </select>
+                    <select id="paxFilterNat" title="กรองตามสัญชาติ" style="flex:1 1 100%">
+                      <option value="">🌐 ทุกสัญชาติ</option>
+                    </select>
+                  </div>
                 </div>
                 <div class="ra-pax-list" id="paxList">
                   <div class="ra-pax-empty">กำลังโหลด...</div>
@@ -1688,6 +1713,31 @@
         var main = document.getElementById("erp-main"); // ตัวที่ scroll จริง
         (main || window).scrollTo({ top: 0, behavior: "smooth" });
       };
+
+      /* Mobile filter accordion: เปิด/ปิดชุดตัวกรอง (มีผลเฉพาะ ≤767px) */
+      window.toggleRaFilters = function () {
+        var tb = document.querySelector(".ra-pax-toolbar");
+        if (tb) tb.classList.toggle("show-filters");
+      };
+
+      /* #6 Auto-switch: เลือกคน/ทีมงาน → เด้งไปแพเนล "จัดการ" อัตโนมัติ (เฉพาะมือถือ)
+         wrap selectPax/selectGuide ของ room-assign.js (โหลดก่อนสคริปต์นี้)
+         ใช้ #btnClearSelection เป็นสัญญาณว่า "มีการเลือกอยู่" (inline-flex = เลือก, none = ยกเลิก) */
+      (function () {
+        function isMobile() { return window.matchMedia("(max-width:767px)").matches; }
+        ["selectPax", "selectGuide"].forEach(function (name) {
+          var orig = window[name];
+          if (typeof orig !== "function") return;
+          window[name] = function () {
+            var r = orig.apply(this, arguments);
+            var btn = document.getElementById("btnClearSelection");
+            if (isMobile() && btn && btn.style.display !== "none") {
+              window.switchRaPanel("manage"); // มีการเลือก → ไปจัดการ
+            }
+            return r;
+          };
+        });
+      })();
     </script>
     <script type="module">
       import { loadTopbar } from "../../js/components/navigation/topbar.js";
