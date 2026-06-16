@@ -71,13 +71,15 @@
   .tp-none { font-size:13px; color:#94a3b8; font-style:italic; padding:6px 0; }
 
   /* passport + visa: 2-column row (passport left, visa document right) */
-  .tp-docrow { display:grid; grid-template-columns:minmax(200px,260px) 1fr; gap:18px; align-items:start; }
+  .tp-docrow { display:grid; grid-template-columns:1fr 1fr; gap:18px; align-items:start; }
   .tp-doc-col { min-width:0; }
   .tp-doc-col .tp-sec-title { margin-top:0; }
-  /* visa PDF preview — portrait A4, constrained width so it doesn't stretch full column */
-  .tp-visa-pdf { display:block; width:100%; max-width:520px; height:720px;
-                 border:1px solid #e2e8f0; border-radius:10px; background:#f8fafc; }
-  @media(max-width:600px){ .tp-docrow { grid-template-columns:1fr; gap:14px; } .tp-visa-pdf{ height:78vh; } }
+  /* passport & visa rendered at the SAME width/height */
+  .tp-doc-frame { display:block; width:100%; max-width:480px; height:680px;
+                  border:1px solid #e2e8f0; border-radius:10px; background:#f8fafc; }
+  img.tp-doc-frame { object-fit:contain; cursor:zoom-in; transition:border-color .15s; }
+  img.tp-doc-frame:hover { border-color:#aed581; }
+  @media(max-width:600px){ .tp-docrow { grid-template-columns:1fr; gap:14px; } .tp-doc-frame{ height:72vh; } }
 
   /* ticket */
   .tp-ticket { border:1.5px solid #e2e8f0; border-radius:12px; padding:14px 16px; margin-bottom:12px;
@@ -660,27 +662,25 @@
     try { data = await loadTripTickets(state.tripId); }
     catch(e){ showLoading(false); toast(t('load_tickets_failed')+e.message,'error'); return; }
 
-    const imgBox = (u, cap, opts) => `<div class="tp-img-box"${opts||''}>
-              <a href="${escAttr(u)}" target="_blank" rel="noopener"><img src="${escAttr(u)}" alt="${escAttr(cap)}"></a>
-              <div class="tp-img-cap">${esc(cap)}</div>
-            </div>`;
+    const imgDoc = (u, cap) => `<a href="${escAttr(u)}" target="_blank" rel="noopener"><img class="tp-doc-frame" src="${escAttr(u)}" alt="${escAttr(cap)}"></a>
+            <div class="tp-img-cap">${esc(cap)}</div>`;
 
     const html = people.map(p=>{
       // left column: passport image
       const passportHtml = p.passport_image_url
-        ? `<div class="tp-imgs">${imgBox(p.passport_image_url, t('cap_passport'))}</div>`
+        ? imgDoc(p.passport_image_url, t('cap_passport'))
         : `<div class="tp-none">${t('no_passport')}</div>`;
 
-      // right column: visa document — PDF preview (or image), plus legacy visa image
+      // right column: visa document — same frame size as passport. PDF preview (or image), plus legacy visa image
       const visaParts = [];
       if(p.visa_pdf_url){
         visaParts.push(isPdf(p.visa_pdf_url)
           ? `<a class="tp-doc-btn" href="${escAttr(p.visa_pdf_url)}" target="_blank" rel="noopener">${t('open_visa')}</a>
-             <iframe class="tp-visa-pdf" src="${escAttr(p.visa_pdf_url)}" title="Visa PDF"></iframe>`
-          : `<div class="tp-imgs">${imgBox(p.visa_pdf_url, t('cap_visa'), ' style="width:100%;max-width:340px;"')}</div>`);
+             <iframe class="tp-doc-frame" src="${escAttr(p.visa_pdf_url)}" title="Visa PDF"></iframe>`
+          : imgDoc(p.visa_pdf_url, t('cap_visa')));
       }
       if(p.visa_image_url){
-        visaParts.push(`<div class="tp-imgs">${imgBox(p.visa_image_url, t('cap_visa'), ' style="width:100%;max-width:340px;"')}</div>`);
+        visaParts.push(imgDoc(p.visa_image_url, t('cap_visa')));
       }
       const visaHtml = visaParts.length ? visaParts.join('') : `<div class="tp-none">${t('no_visa')}</div>`;
 
