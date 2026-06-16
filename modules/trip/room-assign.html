@@ -36,7 +36,8 @@
       .ra-stat--err .ra-stat-val{color:#b91c1c}
 
       .ra-grid{display:grid;grid-template-columns:340px 1fr;gap:14px;align-items:flex-start}
-      @media(max-width:1024px){ .ra-grid{grid-template-columns:1fr} } /* std: tablet */
+      @media(max-width:1024px){ .ra-grid{grid-template-columns:280px 1fr} } /* std: tablet ยังเป็น 2-pane */
+      @media(max-width:767px){  .ra-grid{grid-template-columns:1fr} }       /* mobile: คอลัมน์เดียว + switch/FAB ทำงาน */
 
       /* ═══════════ MOBILE (≤767) — panel toggle layout ═══════════ */
       .ra-mobile-switch{display:none}          /* desktop: hidden */
@@ -83,7 +84,10 @@
         /* #1 HERO — บีบให้บาง (ขนาด title มาจาก class .r-h1 = clamp fluid) */
         .page-hero{padding:10px 12px}
         .ra-trip-banner{font-size:11.5px;padding:4px 10px;gap:6px}
-        .ra-export-btn{padding:6px 10px;font-size:12px}
+        /* #9 Export — ชิดขวา + touch 44px (แทน rule เดิม) */
+        .ra-export-wrap{margin-left:auto}
+        .ra-export-btn{padding:9px 14px;font-size:12.5px;min-height:44px}
+        .ra-export-menu{right:0;left:auto;min-width:170px}
 
         /* #4 touch targets ≥44px */
         .ra-pax-row{min-height:44px;padding:11px 12px}
@@ -103,7 +107,53 @@
         .ra-filter-toggle .arr{transition:transform .18s}
         .ra-pax-toolbar.show-filters .ra-filter-toggle .arr{transform:rotate(180deg)}
         .ra-pax-toolbar:not(.show-filters) .ra-pax-filters{display:none}
+
+        /* ───── polish จาก audit workflow (S22 Ultra ~412px) ───── */
+
+        /* #1 OVERFLOW(หลัก) — แท็บฝั่งขวา (ห้อง/รถ/บิน) เต็มกว้าง แบ่งเท่าๆ กัน ไม่ล้น */
+        .ra-rooms-toolbar .ra-tabs{display:flex;width:100%;gap:3px;padding:3px}
+        .ra-rooms-toolbar .ra-tab{flex:1 1 0;min-width:0;justify-content:center;gap:3px;padding:8px 4px;font-size:12px;min-height:44px}
+        .ra-rooms-toolbar .ra-tab .ra-tab-count{min-width:16px;height:16px;padding:0 4px;font-size:10px}
+
+        /* #2 OVERFLOW — ชื่อทริป/โรงแรมยาวต้องตัดคำได้ ไม่ดันจอ */
+        .ra-trip-banner{max-width:100%;overflow-wrap:anywhere;word-break:break-word}
+        #raTripName,#raTripDates{overflow-wrap:anywhere;min-width:0}
+
+        /* #3 OVERFLOW — flight cards: เลิก min-width แข็งบนมือถือ */
+        .fl-filter-search{flex:1 1 100%;min-width:0;max-width:none}
+        .fl-filter-label{min-width:0}
+        .fl-tkt-hdr{flex-wrap:wrap}
+        .fl-tkt-note{max-width:100%;flex:1 1 100%}
+        .fl-route{flex:1 1 100%;min-width:0}
+        .fl-legs-2col{grid-template-columns:1fr}
+
+        /* #5 ปุ่มขึ้นบนสุด ไม่ทับ FAB (วางซ้อนเหนือ FAB) */
+        .go-top-btn{right:16px;bottom:80px}
+
+        /* #6 กัน FAB บังการ์ด/ปุ่มท้ายรายการ */
+        .ra-grid.m-manage{padding-bottom:84px}
+
+        /* #7 ซ่อนปุ่มเพิ่มใน toolbar (ซ้ำกับ FAB) — raFabAdd dispatch ตามแท็บ active จึงใช้ display:none ได้ */
+        .ra-rooms-toolbar #btnAddRoom,
+        .ra-rooms-toolbar #btnAddBus,
+        .ra-rooms-toolbar #btnAddFlight{display:none}
+
+        /* #8 toolbar ขวา เรียงแนวตั้ง ไม่อัดกัน */
+        .ra-rooms-toolbar{flex-direction:column;align-items:stretch;justify-content:flex-start;gap:8px;padding:10px}
+        .ra-rooms-toolbar > div{width:100%}
+        .ra-rooms-toolbar > div:last-child{justify-content:flex-start;gap:6px}
+        #selectedHint{flex:1 1 100%;font-size:12.5px;line-height:1.4}
+
+        /* #10 ตัวกรองที่กางออก ≥44px + เต็มกว้าง อ่านง่าย */
+        .ra-pax-toolbar input,.ra-pax-toolbar select{min-height:44px;font-size:13px;padding:8px 11px}
+        #paxFilterStatus,#paxFilterGender{flex:1 1 100%}
+
+        /* #11 การ์ด stat สูงสม่ำเสมอ (จองที่ label 2 บรรทัด) */
+        .ra-stat-lbl{min-height:2.4em;line-height:1.3}
       }
+
+      /* #11 จอจิ๋ว: stats เหลือ 1 คอลัมน์ (sync กับ blueprint .r-stat-grid) */
+      @media(max-width:360px){ .ra-stats{grid-template-columns:1fr} }
 
       /* Left panel: passengers */
       .ra-passengers{background:#fff;border:1px solid var(--border);border-radius:12px;padding:12px;position:sticky;top:14px;max-height:calc(100vh - 90px);display:flex;flex-direction:column}
@@ -1730,14 +1780,25 @@
         if (tb) tb.classList.toggle("show-filters");
       };
 
-      /* #5 FAB: กด "＋ เพิ่ม" → คลิกปุ่ม add ที่กำลังโชว์ตามแท็บ (ห้อง/รถ/บิน) */
+      /* #5 FAB: กด "＋ เพิ่ม" → dispatch ตามแท็บที่ active (.click() ทำงานแม้ปุ่ม display:none;
+         ถ้า user ไม่มีสิทธิ์ authz ลบปุ่มทิ้ง → getElementById = null → no-op ปลอดภัย) */
       window.raFabAdd = function () {
-        var ids = ["btnAddRoom", "btnAddBus", "btnAddFlight"];
-        for (var i = 0; i < ids.length; i++) {
-          var b = document.getElementById(ids[i]);
-          if (b && b.offsetParent !== null) { b.click(); return; } // ตัวที่มองเห็น
-        }
+        var id = document.getElementById("tabBuses") && document.getElementById("tabBuses").classList.contains("active") ? "btnAddBus"
+               : document.getElementById("tabFlights") && document.getElementById("tabFlights").classList.contains("active") ? "btnAddFlight"
+               : "btnAddRoom";
+        var b = document.getElementById(id);
+        if (b) b.click();
       };
+
+      /* #12 view-only: ไม่มีสิทธิ์สร้างเลย (authz ลบปุ่ม add ทั้งหมด) → ซ่อน FAB กันปุ่มตาย */
+      window.addEventListener("load", function () {
+        var fab = document.getElementById("raFab");
+        if (fab && !document.getElementById("btnAddRoom")
+                && !document.getElementById("btnAddBus")
+                && !document.getElementById("btnAddFlight")) {
+          fab.style.display = "none";
+        }
+      });
 
       /* #6 Auto-switch: เลือกคน/ทีมงาน → เด้งไปแพเนล "จัดการ" อัตโนมัติ (เฉพาะมือถือ)
          wrap selectPax/selectGuide ของ room-assign.js (โหลดก่อนสคริปต์นี้)
