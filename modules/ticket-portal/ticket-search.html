@@ -74,7 +74,10 @@
   .tp-docrow { display:grid; grid-template-columns:minmax(200px,260px) 1fr; gap:18px; align-items:start; }
   .tp-doc-col { min-width:0; }
   .tp-doc-col .tp-sec-title { margin-top:0; }
-  @media(max-width:600px){ .tp-docrow { grid-template-columns:1fr; gap:14px; } }
+  /* visa PDF preview — portrait A4, constrained width so it doesn't stretch full column */
+  .tp-visa-pdf { display:block; width:100%; max-width:520px; height:720px;
+                 border:1px solid #e2e8f0; border-radius:10px; background:#f8fafc; }
+  @media(max-width:600px){ .tp-docrow { grid-template-columns:1fr; gap:14px; } .tp-visa-pdf{ height:78vh; } }
 
   /* ticket */
   .tp-ticket { border:1.5px solid #e2e8f0; border-radius:12px; padding:14px 16px; margin-bottom:12px;
@@ -673,7 +676,7 @@
       if(p.visa_pdf_url){
         visaParts.push(isPdf(p.visa_pdf_url)
           ? `<a class="tp-doc-btn" href="${escAttr(p.visa_pdf_url)}" target="_blank" rel="noopener">${t('open_visa')}</a>
-             <iframe class="tp-pdf" src="${escAttr(p.visa_pdf_url)}" title="Visa PDF"></iframe>`
+             <iframe class="tp-visa-pdf" src="${escAttr(p.visa_pdf_url)}" title="Visa PDF"></iframe>`
           : `<div class="tp-imgs">${imgBox(p.visa_pdf_url, t('cap_visa'), ' style="width:100%;max-width:340px;"')}</div>`);
       }
       if(p.visa_image_url){
