@@ -445,6 +445,16 @@
   function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
   function escAttr(s){ return esc(s).replace(/"/g,'&quot;'); }
   function isPdf(u){ return /\.pdf(\?|#|$)/i.test(u||''); }
+  /* build a forced-download link + filename: <code>-<name>-<suffix>.<ext>
+     uses Supabase Storage's ?download= param (sets Content-Disposition; works cross-origin) */
+  function dlInfo(url, code, name, suffix){
+    const clean = String(name||'').replace(/[\\/:*?"<>|\r\n]+/g,'').replace(/\s+/g,' ').trim();
+    const m = String(url||'').match(/\.([a-z0-9]{2,5})(?:[?#]|$)/i);
+    const ext = m ? ('.'+m[1].toLowerCase()) : '';
+    const fname = `${code||''}-${clean}-${suffix}`.replace(/\s+/g,'_') + ext;
+    const sep = String(url).includes('?') ? '&' : '?';
+    return { href: url + sep + 'download=' + encodeURIComponent(fname), name: fname };
+  }
   function fmtDT(raw){
     if(!raw) return '';
     const m = String(raw).match(/(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2}))?/);
@@ -632,14 +642,15 @@
   }
 
   /* ── render one ticket block ── */
-  function ticketHtml(ticket, data){
+  function ticketHtml(ticket, data, p){
     const flight = data.flightsById[ticket.flight_id];
     const flLabel = flight && flight.flight_label ? `<span class="tp-ticket-label">${esc(flight.flight_label)}</span>` : '';
     let doc;
     if(!ticket.ticket_url){
       doc = `<div class="tp-doc-none">${t('not_uploaded')}</div>`;
     } else if(isPdf(ticket.ticket_url)){
-      doc = `<a class="tp-doc-btn" href="${escAttr(ticket.ticket_url)}" target="_blank" rel="noopener">${t('open_pdf')}</a>
+      const d = dlInfo(ticket.ticket_url, p && p.code, p && p.name, 'Ticket');
+      doc = `<a class="tp-doc-btn" href="${escAttr(d.href)}" download="${escAttr(d.name)}">${t('open_pdf')}</a>
              <iframe class="tp-pdf" src="${escAttr(ticket.ticket_url)}" title="Ticket PDF"></iframe>`;
     } else {
       doc = `<a href="${escAttr(ticket.ticket_url)}" target="_blank" rel="noopener">
@@ -674,10 +685,13 @@
       // right column: visa document — same frame size as passport. PDF preview (or image), plus legacy visa image
       const visaParts = [];
       if(p.visa_pdf_url){
-        visaParts.push(isPdf(p.visa_pdf_url)
-          ? `<a class="tp-doc-btn" href="${escAttr(p.visa_pdf_url)}" target="_blank" rel="noopener">${t('open_visa')}</a>
-             <iframe class="tp-doc-frame" src="${escAttr(p.visa_pdf_url)}#toolbar=0&amp;navpanes=0&amp;view=FitH" title="Visa PDF"></iframe>`
-          : imgDoc(p.visa_pdf_url, t('cap_visa')));
+        if(isPdf(p.visa_pdf_url)){
+          const d = dlInfo(p.visa_pdf_url, p.code, p.name, 'visa');
+          visaParts.push(`<a class="tp-doc-btn" href="${escAttr(d.href)}" download="${escAttr(d.name)}">${t('open_visa')}</a>
+             <iframe class="tp-doc-frame" src="${escAttr(p.visa_pdf_url)}#toolbar=0&amp;navpanes=0&amp;view=FitH" title="Visa PDF"></iframe>`);
+        } else {
+          visaParts.push(imgDoc(p.visa_pdf_url, t('cap_visa')));
+        }
       }
       if(p.visa_image_url){
         visaParts.push(imgDoc(p.visa_image_url, t('cap_visa')));
@@ -688,7 +702,7 @@
       const myTickets = tids.map(id=>data.ticketsById[id]).filter(Boolean)
         .sort((a,b)=>(a.flight_id-b.flight_id)||(a.ticket_no-b.ticket_no));
       const ticketsHtml = myTickets.length
-        ? myTickets.map(tk=>ticketHtml(tk, data)).join('')
+        ? myTickets.map(tk=>ticketHtml(tk, data, p)).join('')
         : `<div class="tp-none">${t('no_ticket')}</div>`;
 
       const meta = [];
