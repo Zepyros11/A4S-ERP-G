@@ -80,11 +80,18 @@
         /* room cards single column */
         .ra-rooms-cards{grid-template-columns:1fr}
 
-        /* #1 HERO — บีบให้บาง */
+        /* #1 HERO — บีบให้บาง (ขนาด title มาจาก class .r-h1 = clamp fluid) */
         .page-hero{padding:10px 12px}
-        .page-hero-title{font-size:16px}
         .ra-trip-banner{font-size:11.5px;padding:4px 10px;gap:6px}
         .ra-export-btn{padding:6px 10px;font-size:12px}
+
+        /* #4 touch targets ≥44px */
+        .ra-pax-row{min-height:44px;padding:11px 12px}
+        .ra-mobile-switch button{min-height:44px}
+
+        /* #5 FAB — โผล่เฉพาะตอนอยู่แพเนล "จัดการ" (sibling ของ .ra-grid) */
+        .r-fab{display:none}
+        .ra-grid.m-manage ~ .r-fab{display:inline-flex}
 
         /* #2 FILTERS — ยุบเป็น accordion (default ปิด, โชว์แค่ค้นหา) */
         .ra-filter-toggle{
@@ -1040,7 +1047,7 @@
           <!-- HERO -->
           <div class="page-hero page-hero--simple page-hero--compact">
             <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-              <h1 class="page-hero-title" style="margin:0">🛏️ จัดห้องพัก + 🚌 รถบัส</h1>
+              <h1 class="page-hero-title r-h1" style="margin:0">🛏️ จัดห้องพัก + 🚌 รถบัส</h1>
               <span id="raTripBanner" class="ra-trip-banner" style="display:none;margin-left:0">
                 <a href="./trip-list.html">← รายการทริป</a>
                 <span style="opacity:.4">|</span>
@@ -1237,6 +1244,9 @@
             </div>
 
           </div>
+
+          <!-- #5 FAB: ปุ่มเพิ่ม (มือถือ + แพเนล "จัดการ" เท่านั้น — กดแล้วเรียก add ตามแท็บที่เปิด) -->
+          <button type="button" class="r-fab" id="raFab" onclick="window.raFabAdd()">＋ เพิ่ม</button>
         </div>
       </div>
     </div>
@@ -1718,6 +1728,15 @@
       window.toggleRaFilters = function () {
         var tb = document.querySelector(".ra-pax-toolbar");
         if (tb) tb.classList.toggle("show-filters");
+      };
+
+      /* #5 FAB: กด "＋ เพิ่ม" → คลิกปุ่ม add ที่กำลังโชว์ตามแท็บ (ห้อง/รถ/บิน) */
+      window.raFabAdd = function () {
+        var ids = ["btnAddRoom", "btnAddBus", "btnAddFlight"];
+        for (var i = 0; i < ids.length; i++) {
+          var b = document.getElementById(ids[i]);
+          if (b && b.offsetParent !== null) { b.click(); return; } // ตัวที่มองเห็น
+        }
       };
 
       /* #6 Auto-switch: เลือกคน/ทีมงาน → เด้งไปแพเนล "จัดการ" อัตโนมัติ (เฉพาะมือถือ)

@@ -10,6 +10,7 @@
 @import "./core/common.css";
 @import "./core/layout.css";
 @import "./core/responsive.css";
+@import "./core/responsive-patterns.css";
 
 /* =========================
    COMPONENTS

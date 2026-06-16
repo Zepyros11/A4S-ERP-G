@@ -1,0 +1,146 @@
+/* =========================================================
+   RESPONSIVE PATTERNS — utility library กลางของทั้งโปรเจกต์
+   ---------------------------------------------------------
+   หน้าใหม่: link main.css (มี @import ไฟล์นี้แล้ว) → แปะ class ด้านล่าง
+   ได้ responsive ทันที ไม่ต้องเขียน media query เอง
+
+   Breakpoint มาตรฐาน (desktop-first, ดู core/responsive.css):
+     1280 desktop ใหญ่ · 1024 tablet/laptop · 767 mobile · 480 mobile เล็ก
+
+   อ้างอิงการใช้งานเต็ม: docs/templates/RESPONSIVE-BLUEPRINT.md
+   ========================================================= */
+
+
+/* ═══════════ กฎ #1 — กัน HORIZONTAL OVERFLOW (บั๊กที่เจอบ่อยสุด) ═══════════ */
+
+/* media ทุกชนิดห้ามล้นกรอบ */
+img, svg, video, canvas, iframe, table { max-width: 100%; }
+img, video, canvas { height: auto; }
+
+/* ใส่ที่ข้อความ/ลิงก์ยาวๆ ที่อาจดันจอ (อีเมล, URL, รหัสยาว) */
+.r-wrap { overflow-wrap: anywhere; word-break: break-word; }
+
+/* ครอบตาราง/บล็อกกว้างที่ย่อไม่ได้ → ให้เลื่อนในกรอบแทนดันทั้งหน้า (กฎ #1) */
+.r-table-scroll { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.r-table-scroll > table { min-width: max-content; }
+
+
+/* ═══════════ กฎ #2 — TOUCH TARGET ≥ 44px บนมือถือ ═══════════ */
+
+@media (max-width: 767px) {
+  .r-touch { min-height: 44px; min-width: 44px; }
+  /* แถวรายการที่แตะเลือกได้ — นิ้วแตะสบาย */
+  .r-touch-row { min-height: 48px; padding-top: 10px; padding-bottom: 10px; }
+}
+
+
+/* ═══════════ กฎ #5 — FLUID TYPOGRAPHY (เฉพาะหัวข้อใหญ่) ═══════════ */
+/* หัวข้อ scale ลื่นตามจอ · body/label ใช้ px ปกติ (คาดเดาง่าย) */
+
+.r-h1 { font-size: clamp(18px, 4.5vw, 26px); line-height: 1.2; }
+.r-h2 { font-size: clamp(16px, 3.5vw, 20px); line-height: 1.25; }
+
+
+/* ═══════════ STAT GRID — การ์ดสถิติ responsive อัตโนมัติ ═══════════ */
+/* desktop: เรียงเท่าที่พอ · มือถือ: 2 คอลัมน์ · จอจิ๋ว: 1 คอลัมน์ */
+
+.r-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+@media (max-width: 767px) {
+  .r-stat-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+}
+@media (max-width: 360px) {
+  .r-stat-grid { grid-template-columns: 1fr; }
+}
+
+
+/* ═══════════ กฎ #3 — TWO-PANE → mobile PANEL TOGGLE ═══════════ */
+/* โครง:
+   <div class="r-pane-switch">            ← ปุ่มสลับ (โผล่เฉพาะมือถือ)
+     <button data-pane="a" class="active">…</button>
+     <button data-pane="b">…</button>
+   </div>
+   <div class="r-panes m-a">               ← container (page กำหนด grid-columns เอง)
+     <div class="r-pane-a">…</div>
+     <div class="r-pane-b">…</div>
+   </div>
+   JS: สลับ class m-a / m-b ที่ .r-panes + .active ที่ปุ่ม (ดู blueprint) */
+
+.r-pane-switch { display: none; }                 /* desktop: ซ่อน (โชว์ 2 แพเนลพร้อมกัน) */
+
+@media (max-width: 767px) {
+  .r-pane-switch {
+    display: flex; gap: 6px;
+    position: sticky; top: 0; z-index: 20;
+    background: var(--bg); padding: 6px 0 8px; margin-bottom: 2px;
+  }
+  .r-pane-switch button {
+    flex: 1; min-height: 44px;
+    border: 1px solid var(--border); border-radius: 9px; background: #fff;
+    font-family: inherit; font-size: 13px; font-weight: 600; color: var(--text2);
+    cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 5px;
+  }
+  .r-pane-switch button.active {
+    background: var(--accent, #5b8a72); color: #fff; border-color: var(--accent, #5b8a72);
+  }
+  /* แสดงทีละแพเนล (กฎ #3) */
+  .r-panes.m-a .r-pane-b { display: none; }
+  .r-panes.m-b .r-pane-a { display: none; }
+}
+
+
+/* ═══════════ ACCORDION — ยุบกลุ่ม control บนมือถือ (เช่นชุดตัวกรอง) ═══════════ */
+/* โครง:
+   <div class="r-collapse">                ← wrapper (มี/ไม่มี class .open)
+     <button class="r-collapse-toggle">ตัวกรอง <span class="r-collapse-arr">▾</span></button>
+     <div class="r-collapse-body">…controls…</div>
+   </div>
+   desktop: body กางเสมอ, toggle ซ่อน · mobile: body ยุบจนกด */
+
+.r-collapse-toggle { display: none; }             /* desktop: ซ่อน */
+.r-collapse-body { display: block; }              /* desktop: กางเสมอ */
+
+@media (max-width: 767px) {
+  .r-collapse-toggle {
+    display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+    width: 100%; min-height: 44px;
+    border: 1px solid var(--border); border-radius: 8px; background: #f8fafc;
+    font-family: inherit; font-size: 12.5px; font-weight: 600; color: var(--text2);
+    cursor: pointer;
+  }
+  .r-collapse-arr { transition: transform .18s; }
+  .r-collapse.open .r-collapse-arr { transform: rotate(180deg); }
+  .r-collapse:not(.open) .r-collapse-body { display: none; }
+}
+
+
+/* ═══════════ กฎ #4 — FAB (ปุ่ม action หลักลอยมุมล่างขวา) ═══════════ */
+/* ปุ่มเพิ่ม/สร้างที่ต้องเอื้อมถึงเสมอบนมือถือ */
+
+.r-fab { display: none; }                          /* desktop: ซ่อน (ใช้ปุ่มปกติใน toolbar) */
+
+@media (max-width: 767px) {
+  .r-fab {
+    display: inline-flex; align-items: center; justify-content: center;
+    position: fixed; right: 16px; bottom: 16px; z-index: 120;
+    min-width: 52px; height: 52px; padding: 0 18px; gap: 6px;
+    border: none; border-radius: 999px;
+    background: var(--accent, #5b8a72); color: #fff;
+    font-family: inherit; font-size: 14px; font-weight: 700; cursor: pointer;
+    box-shadow: 0 4px 14px rgba(15, 23, 42, .25);
+  }
+  .r-fab:active { transform: scale(.96); }
+}
+
+
+/* ═══════════ VISIBILITY UTILS — โชว์/ซ่อนตามจอ ═══════════ */
+
+@media (max-width: 767px) {
+  .r-hide-mobile { display: none !important; }
+}
+@media (min-width: 768px) {
+  .r-show-mobile { display: none !important; }    /* โผล่เฉพาะมือถือ */
+}

@@ -8,6 +8,11 @@
 | Standalone page (ไม่มี shell) | LIFF, kiosk, ลูกค้าทั่วไปที่ไม่ login | _ยังไม่ได้เขียน — ดู `modules/event/register.html` เป็น reference_ |
 | Customer portal (ลูกค้า login) | ลูกค้าใช้ผ่าน portal แยก | _ยังไม่ตัดสินใจ architecture — รอ Step 3_ |
 
+## Responsive
+
+ทุกหน้าต้องผ่าน **5 กฎ responsive** → ดู [`RESPONSIVE-BLUEPRINT.md`](./RESPONSIVE-BLUEPRINT.md)
+(reference: `modules/trip/room-assign.html` · library: `css/core/responsive-patterns.css` มากับ `main.css` แล้ว)
+
 ## Slots
 
 | Slot | ตัวอย่าง |
