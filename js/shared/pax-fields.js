@@ -43,7 +43,7 @@
 
   // ── FIELD CATALOG (ลำดับ = canonical / custom-report) ─────
   const FIELDS = [
-    // ── กลุ่ม Check Seat ──────────────────────────────────
+    // ── กลุ่ม Check Seat (ลำดับคอลัมน์ = ตามหน้า check-seat) ──
     { key: "code", th: "รหัส", en: "Code", xlsx: "Code",
       cr: { group: "checkseat" },
       pax: { cls: "code", header: "รหัส", input: "code", edit: false } },
@@ -56,21 +56,29 @@
       cr: { group: "checkseat" },
       pax: { cls: "name", header: "ชื่อ", input: "name", edit: false } },
 
+    { key: "instead", th: "ชื่อคนไปแทน", en: "Substitute", xlsx: "Instead",
+      cr: { group: "checkseat" } },
+
     { key: "gender", th: "เพศ", en: "Gender", xlsx: "Gender",
       cr: { group: "checkseat", fmt: "gender" },
       pax: { cls: "gender", header: "เพศ", input: "gender", edit: true } },
+
+    { key: "pin", th: "ตำแหน่ง", en: "Position", cr: { group: "checkseat" } },
+    { key: "seat", th: "ที่นั่งเครื่องบิน", en: "Flight seat", cr: { group: "checkseat" } },
 
     { key: "nationality", th: "สัญชาติ", en: "Nationality", xlsx: "Nationality",
       cr: { group: "checkseat" },
       pax: { cls: "nat", header: "สัญชาติ", input: "text", edit: true } },
 
-    { key: "pin", th: "ตำแหน่ง", en: "Position", cr: { group: "checkseat" } },
-    { key: "group_name", th: "กลุ่ม", en: "Group", cr: { group: "checkseat" } },
-    { key: "seat", th: "ที่นั่งเครื่องบิน", en: "Flight seat", cr: { group: "checkseat" } },
+    { key: "passport_image_url", th: "ภาพ passport", en: "Passport image", cr: { group: "checkseat", fmt: "image" } },
     { key: "passport_id", th: "เลขพาสปอร์ต", en: "Passport no.", cr: { group: "checkseat" } },
     { key: "passport_exp_date", th: "พาสปอร์ตหมดอายุ", en: "Passport expiry", cr: { group: "checkseat", fmt: "date" } },
-    { key: "passport_image_url", th: "ภาพ passport", en: "Passport image", cr: { group: "checkseat", fmt: "image" } },
-    { key: "visa_image_url", th: "ภาพสลิป/วีซ่า", en: "Slip / visa image", cr: { group: "checkseat", fmt: "image" } },
+    { key: "visa_pdf_url", th: "วีซ่า (PDF)", en: "Visa (PDF)", xlsx: "Visa", cr: { group: "checkseat", fmt: "link" } },
+    { key: "port", th: "Port", en: "Port", cr: { group: "checkseat" } },
+    { key: "group_name", th: "กลุ่ม", en: "Group", cr: { group: "checkseat" } },
+    { key: "visa_image_url", th: "สลิป", en: "Slip", xlsx: "Slip", cr: { group: "checkseat", fmt: "image" } },
+    { key: "paid", th: "ชำระ (Paid)", en: "Paid", xlsx: "Paid", cr: { group: "checkseat" } },
+    { key: "waive", th: "ยกเว้น (Waive)", en: "Waive", xlsx: "Waive", cr: { group: "checkseat", fmt: "bool" } },
 
     { key: "tshirt_size", th: "ไซส์เสื้อ", en: "T-shirt size", xlsx: "T-Shirt Size",
       cr: { group: "checkseat" },

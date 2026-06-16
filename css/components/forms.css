@@ -23,17 +23,17 @@
 }
 
 .search-input {
-  padding: 8px 12px 8px 30px;
+  padding: 6px 10px 6px 24px;
   border: 1px solid var(--border);
-  border-radius: 6px;
-  font-size: 13px;
+  border-radius: 5px;
+  font-size: 11.5px;
 }
 
 .filter-select {
-  padding: 8px 10px;
+  padding: 6px 8px;
   border: 1px solid var(--border);
-  border-radius: 6px;
-  font-size: 13px;
+  border-radius: 5px;
+  font-size: 11.5px;
 }
 
 .toolbar-right {
@@ -67,10 +67,10 @@
 }
 
 .form-control {
-  padding: 9px 12px;
+  padding: 7px 10px;
   border: 1.5px solid var(--border);
-  border-radius: 7px;
-  font-size: 13px;
+  border-radius: 5px;
+  font-size: 11.5px;
   background: var(--surface);
 }
 

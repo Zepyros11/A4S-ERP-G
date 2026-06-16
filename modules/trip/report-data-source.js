@@ -231,6 +231,7 @@
     }
     if (row.__isTeam && !["name", "code"].includes(col.key)) return "";
     let v = row[col.key];
+    if (col.fmt === "bool") { const t = (k, f) => global.I18n ? global.I18n.t(k, f) : f; return v ? t("cr.bool.yes", "ใช่") : ""; }
     if (v == null || v === "") return "";
     if (col.fmt === "date") return fmtDate(v);
     if (col.fmt === "gender") {
@@ -238,7 +239,7 @@
       const t = (k, f) => global.I18n ? global.I18n.t(k, f) : f;
       return g === "male" ? t("cr.gender.male", "ชาย") : g === "female" ? t("cr.gender.female", "หญิง") : String(v);
     }
-    if (col.fmt === "image") { const s = String(v).trim(); return s.startsWith("http") ? s : ""; }
+    if (col.fmt === "image" || col.fmt === "link") { const s = String(v).trim(); return s.startsWith("http") ? s : ""; }
     return String(v);
   }
 
@@ -262,7 +263,7 @@
       const col = COL_BY_KEY[key];
       if (!col) return true;
       const v = cellValue(ctx, row, col);
-      if (col.fmt === "image") return set.has(v ? HAS_IMG_VAL : BLANK_VAL);
+      if (col.fmt === "image" || col.fmt === "link") return set.has(v ? HAS_IMG_VAL : BLANK_VAL);
       if (v === "" || v == null) return set.has(BLANK_VAL);
       return set.has(v);
     }));
@@ -335,7 +336,7 @@
   // distinct ค่าของคอลัมน์ (สำหรับ UI filter) — คำนวณจากทุกแถว (ก่อน filter) · ใส่ BLANK_VAL ถ้ามีค่าว่าง
   function distinctValues(ctx, key) {
     const col = COL_BY_KEY[key];
-    if (!col || col.fmt === "image") return [];
+    if (!col || col.fmt === "image" || col.fmt === "link") return [];
     const set = new Set();
     let blank = false;
     expandedPax(ctx, [key]).forEach((row) => {
@@ -378,7 +379,7 @@
   function letterCols(binding) {
     return (binding.columns || [])
       .map(k => COL_BY_KEY[k])
-      .filter(c => c && !(binding.hidden && binding.hidden[c.key]) && c.fmt !== "image");
+      .filter(c => c && !(binding.hidden && binding.hidden[c.key]) && c.fmt !== "image" && c.fmt !== "link");
   }
   function renderTableHtml(ctx, binding) {
     const cols = letterCols(binding);

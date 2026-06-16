@@ -438,14 +438,16 @@ function cellValue(row, col) {
     if (!passOnly.includes(col.key)) return "";
   }
   let v = row[col.key];
+  // bool (เช่น waive) — true → "ใช่"/"Yes", false/ว่าง → "" (ตรงกับ export check-seat)
+  if (col.fmt === "bool") return v ? T("cr.bool.yes") : "";
   if (v == null || v === "") return "";
   if (col.fmt === "date") return fmtDate(v);
   if (col.fmt === "gender") {
     const g = String(v).toLowerCase();
     return g === "male" ? T("cr.gender.male") : g === "female" ? T("cr.gender.female") : String(v);
   }
-  // image → คืน URL ดิบ (ใช้ทั้ง Excel/Print/preview แต่ preview จะ render เป็น <img>)
-  if (col.fmt === "image") {
+  // image/link → คืน URL ดิบ (Excel/Print/preview; preview render เป็น <img> หรือ <a>)
+  if (col.fmt === "image" || col.fmt === "link") {
     const s = String(v).trim();
     return s.startsWith("http") ? s : "";  // ทิ้ง data: URL — แสดงไม่ได้ใน Excel
   }
@@ -460,6 +462,12 @@ function cellHtml(row, col) {
     const u = escapeHtml(v);
     return `<img src="${u}" alt="" class="cr-img-thumb" loading="lazy"
       title="${escapeHtml(T("cr.img.zoomTip"))}" onclick="window.crOpenImg(this)">`;
+  }
+  // link (เช่น Visa PDF) → ปุ่มลิงก์เปิดไฟล์ในแท็บใหม่ (Excel จะได้ URL ดิบจาก cellValue)
+  if (col.fmt === "link") {
+    const u = escapeHtml(v);
+    return `<a href="${u}" target="_blank" rel="noopener" class="cr-pdf-link"
+      onclick="event.stopPropagation()" title="${escapeHtml(T("cr.pdf.openTip"))}">${escapeHtml(T("cr.pdf.open"))}</a>`;
   }
   return escapeHtml(v);
 }
@@ -486,7 +494,8 @@ function blankLabel() { return T("cr.blank"); }
 function distinctValuesFor(key) {
   const col = COL_BY_KEY[key];
   if (!col) return [];
-  if (col.fmt === "image") {
+  // image/link → ยุบเป็น 2 ตัวเลือก: มีไฟล์ / ไม่มีไฟล์ (URL แต่ละใบไม่ซ้ำกัน กรองตาม URL ไม่มีประโยชน์)
+  if (col.fmt === "image" || col.fmt === "link") {
     let hasImg = false, hasBlank = false;
     expandedPax().forEach(row => {
       if (cellValue(row, col)) hasImg = true; else hasBlank = true;
@@ -567,8 +576,8 @@ function filterRows(rows) {
       const col = COL_BY_KEY[key];
       if (!col) return true;
       const v = cellValue(row, col);
-      // คอลัมน์รูป: เทียบ binary มีภาพ/ไม่มีภาพ (ไม่เทียบ URL)
-      if (col.fmt === "image") return set.has(v ? HAS_IMG_VAL : BLANK_VAL);
+      // คอลัมน์รูป/ลิงก์: เทียบ binary มีไฟล์/ไม่มีไฟล์ (ไม่เทียบ URL)
+      if (col.fmt === "image" || col.fmt === "link") return set.has(v ? HAS_IMG_VAL : BLANK_VAL);
       if (v === "" || v == null) return set.has(BLANK_VAL);
       return set.has(v);
     }));
@@ -753,14 +762,19 @@ function renderFilterPopoverBody() {
     listEl.innerHTML = `<div class="cr-fpop-empty">${escapeHtml(T("cr.fpop.notFound"))}</div>`;
     return;
   }
-  const isImgCol = COL_BY_KEY[key]?.fmt === "image";
+  const colFmt = COL_BY_KEY[key]?.fmt;
+  const isLinkCol = colFmt === "link";
+  const isUrlCol  = colFmt === "image" || colFmt === "link";
   listEl.innerHTML = shown.map(v => {
     const id = "_crf_" + Math.random().toString(36).slice(2, 9);
     const checked = draft.has(v) ? "checked" : "";
     const isBlank = v === BLANK_VAL;
     let display;
-    if (v === HAS_IMG_VAL) display = `<span>${escapeHtml(T("cr.img.has"))}</span>`;
-    else if (isBlank) display = `<span style="font-style:italic;color:var(--text3)">${escapeHtml(isImgCol ? T("cr.img.none") : blankLabel())}</span>`;
+    if (v === HAS_IMG_VAL) display = `<span>${escapeHtml(isLinkCol ? T("cr.file.has") : T("cr.img.has"))}</span>`;
+    else if (isBlank) {
+      const none = isLinkCol ? T("cr.file.none") : isUrlCol ? T("cr.img.none") : blankLabel();
+      display = `<span style="font-style:italic;color:var(--text3)">${escapeHtml(none)}</span>`;
+    }
     else display = `<span>${escapeHtml(v)}</span>`;
     return `<label><input type="checkbox" id="${id}" ${checked} data-val="${escapeHtml(v)}"
         onchange="window._crFilterToggle(this)">${display}</label>`;

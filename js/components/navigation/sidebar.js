@@ -713,7 +713,7 @@
     #erp-shell{display:flex;flex:1;min-height:0;overflow:hidden;}
 
     #erp-sidebar{
-      width:max-content;min-width:210px;max-width:290px;flex-shrink:0;
+      width:max-content;min-width:170px;max-width:230px;flex-shrink:0;
       background:#0d1117;
       display:flex;flex-direction:column;
       height:calc(100vh - 56px);
@@ -760,8 +760,8 @@
     /* ── GROUP HEADER ── */
     .sb-group{border-bottom:1px solid #161b22;}
     .sb-grp-hdr{
-      display:flex;align-items:center;gap:9px;
-      padding:9px 14px;
+      display:flex;align-items:center;gap:7px;
+      padding:7px 11px;
       cursor:pointer;user-select:none;
       transition:background .15s;
       position:relative;
@@ -787,9 +787,9 @@
     #erp-sidebar.collapsed .sb-items{max-height:0!important;}
 
     .sb-item{
-      display:flex;align-items:center;gap:9px;
-      padding:8px 14px 8px 30px;
-      font-size:13px;font-family:'Sarabun',sans-serif;
+      display:flex;align-items:center;gap:7px;
+      padding:6px 11px 6px 24px;
+      font-size:11.5px;font-family:'Sarabun',sans-serif;
       color:#8b949e;text-decoration:none;
       white-space:nowrap;position:relative;
       transition:all .15s;box-sizing:border-box;width:100%;

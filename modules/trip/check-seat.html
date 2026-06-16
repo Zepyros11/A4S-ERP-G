@@ -178,6 +178,14 @@
     /* edit mode: ให้ input/select ขยายเต็มความกว้างคอลัม (override inline width:Xpx)
        — input จะกว้างตามคอลัม + ขยาย/ย่อตามการ resize คอลัม */
     #main-table td .field-input { width: 100% !important; }
+    /* ── คอลัมน์ "ข้อความ" ต้องกว้างพออ่านเสมอ ────────────────
+       input (width:100%) ไม่มี intrinsic width → ถ้าไม่ล็อก min-width คอลัมน์จะยุบ
+       เหลือเท่าความกว้างหัวตารางในโหมด edit (ชื่อโดนตัดเหลือตัวเดียว) ทับ 30px ของบล็อกบน */
+    #main-table th.col-name,    #main-table td.col-name    { min-width: 150px !important; }
+    #main-table th.col-instead, #main-table td.col-instead { min-width: 130px !important; }
+    #main-table th.col-code,    #main-table td.col-code    { min-width: 60px  !important; }
+    #main-table th.col-nat,     #main-table td.col-nat     { min-width: 90px  !important; }
+    #main-table th.col-pid,     #main-table td.col-pid     { min-width: 120px !important; }
 
     /* ── Sticky header (ตรึงหัวตารางบนสุดเมื่อ scroll) ──
        position:sticky ยังทำหน้าที่เป็น containing block ให้ .col-resizer (absolute) ได้เหมือน relative */
@@ -1339,6 +1347,11 @@
           style="padding:4px 10px;border:1px solid var(--border2);border-radius:6px;background:var(--surface);color:var(--text2);font-size:11px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:5px;"
           title="ยกเลิกเครื่องหมายเช็ค (ไฮไลต์) ทุกแถว">
     ☑️ ล้างเช็ค
+  </button>
+  <button id="reset-cols-btn" type="button" onclick="resetColWidths()"
+          style="padding:4px 10px;border:1px solid var(--border2);border-radius:6px;background:var(--surface);color:var(--text2);font-size:11px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:5px;"
+          title="คืนความกว้างคอลัมน์ทั้งหมดกลับเป็นค่าเริ่มต้น">
+    ↔ รีเซ็ตคอลัมน์
   </button>
   <button id="toggle-freeze-ui" type="button" onclick="toggleFreezeUI()"
           style="padding:4px 10px;border:1px solid var(--border2);border-radius:6px;background:var(--surface);color:var(--text2);font-size:11px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:5px;"
@@ -2942,6 +2955,10 @@ function sortRowsByCodeAsc() {
    COLUMN RESIZE — ลากขอบขวาของ th เพื่อขยาย/หดคอลัม
 ═══════════════════════════════════════════════════════════ */
 const COL_WIDTHS_KEY = 'cs_col_widths';
+// ความกว้างต่ำสุดต่อคอลัมน์ — คอลัมน์ "ข้อความ" ที่ต้องอ่านออกเสมอ ห้ามแคบจน input ในโหมด edit ตัดชื่อเหลือตัวเดียว
+// (คอลัมน์อื่นที่ไม่ระบุ ลากแคบได้ถึง 40px ตามเดิม)
+const COL_MIN_WIDTH = { name: 150, instead: 130, code: 60, nat: 90, pid: 120 };
+function _colMinWidth(key) { return COL_MIN_WIDTH[key] || 40; }
 function _getColKey(th) {
   // หา class "col-xxx" → return "xxx"
   const m = th.className.match(/(?:^|\s)col-([\w-]+)/);
@@ -2961,8 +2978,16 @@ function applyColWidths() {
   try { widths = JSON.parse(localStorage.getItem(COL_WIDTHS_KEY) || '{}'); } catch {}
   Object.entries(widths).forEach(([key, w]) => {
     const th = document.querySelector(`#main-table thead th.col-${key}`);
-    if (th && Number.isFinite(w) && w > 0) th.style.width = w + 'px';
+    // clamp ค่าที่จำไว้ขึ้นเป็นอย่างน้อย min ของคอลัมน์ → ค่าแคบเก่าๆ หายเองแค่ refresh
+    if (th && Number.isFinite(w) && w > 0) th.style.width = Math.max(w, _colMinWidth(key)) + 'px';
   });
+}
+// คืนความกว้างทุกคอลัมน์กลับเป็นค่า default (ลบค่าที่ลากจำไว้ใน localStorage)
+function resetColWidths() {
+  localStorage.removeItem(COL_WIDTHS_KEY);
+  document.querySelectorAll('#main-table thead th').forEach(th => { th.style.width = ''; });
+  if (_freezeThrough) applyFrozenCols();   // คำนวณ sticky offset ใหม่ถ้ามีคอลัมตรึงอยู่
+  if (typeof toast === 'function') toast('รีเซ็ตความกว้างคอลัมน์เป็นค่าเริ่มต้นแล้ว', 'success');
 }
 
 let _resizeState = null;
@@ -2987,7 +3012,7 @@ document.addEventListener('mousedown', e => {
 document.addEventListener('mousemove', e => {
   if (!_resizeState) return;
   const delta = e.clientX - _resizeState.startX;
-  const newWidth = Math.max(40, _resizeState.startWidth + delta);
+  const newWidth = Math.max(_colMinWidth(_resizeState.key), _resizeState.startWidth + delta);
   _resizeState.th.style.width = newWidth + 'px';
   // ถ้ามี frozen → recalc sticky offsets ทันทีตอนลาก
   if (_freezeThrough) applyFrozenCols();
