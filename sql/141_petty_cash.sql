@@ -42,7 +42,7 @@ CREATE TABLE IF NOT EXISTS petty_cash_books (
 CREATE TABLE IF NOT EXISTS petty_cash_items (
   item_id     BIGSERIAL PRIMARY KEY,
   book_id     BIGINT NOT NULL REFERENCES petty_cash_books(book_id) ON DELETE CASCADE,
-  line_date   DATE,
+  line_date   TEXT,                                 -- วันที่ (free text — โชว์ตามที่พิมพ์ เช่น 21/01/69 พ.ศ.ย่อ)
   detail      TEXT,                                 -- รายละเอียดรายจ่าย
   cash_in     NUMERIC(14,2) NOT NULL DEFAULT 0,     -- คอลัมน์ Petty Cash (เงินนำเข้า)
   amount_out  NUMERIC(14,2) NOT NULL DEFAULT 0,     -- คอลัมน์ Amount (ค่าใช้จ่าย)

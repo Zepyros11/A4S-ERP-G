@@ -1572,6 +1572,23 @@
 }
 .att-tt-bulk-del:hover { background: #dc2626; transform: translateY(-1px); }
 
+/* ── เช็คอินที่เลือก (bulk check-in) ──────────────────── */
+.att-tt-bulk-checkin {
+  padding: 6px 12px;
+  border: none;
+  border-radius: 7px;
+  background: #16a34a;
+  color: #fff;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(22, 163, 74, .3);
+  white-space: nowrap;
+  transition: all .12s;
+}
+.att-tt-bulk-checkin:hover { background: #15803d; transform: translateY(-1px); }
+
 /* ── เพิ่มหลายคน (bulk add) ────────────────────────────── */
 .att-tt-addmany {
   padding: 6px 12px;
@@ -1616,13 +1633,34 @@
 #attTableBody tr.att-drop-after td { box-shadow: inset 0 -2px 0 0 var(--accent, #16a34a); }
 
 .bulkadd-hint { font-size: 11.5px; color: var(--text3, #94a3b8); margin-top: 6px; line-height: 1.4; }
+.bulkadd-cols { display: flex; gap: 16px; align-items: stretch; }
+.bulkadd-col-left { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; }
+.bulkadd-col-left .form-group { margin-bottom: 0; flex: 1; display: flex; flex-direction: column; }
+.bulkadd-col-right { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; }
+.bulkadd-input { flex: 1; min-height: 320px; resize: vertical; }
+.bulkadd-empty {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px dashed var(--border, #cbd5e1);
+  border-radius: 10px;
+  color: var(--text3, #94a3b8);
+  font-size: 12.5px;
+  background: #f8fafc;
+  min-height: 320px;
+}
 .bulkadd-results {
-  margin-top: 12px;
   border: 1px solid var(--border, #e2e8f0);
   border-radius: 10px;
-  max-height: 320px;
+  max-height: 380px;
   overflow-y: auto;
   background: #fff;
+}
+@media (max-width: 720px) {
+  .bulkadd-cols { flex-direction: column; }
+  .bulkadd-input { min-height: 140px; }
+  .bulkadd-empty { display: none; }
 }
 .bulkadd-summary {
   position: sticky;

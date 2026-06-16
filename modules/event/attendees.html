@@ -139,6 +139,9 @@
               <button id="btnBulkAdd" onclick="window.openBulkAddModal()" class="att-tt-addmany" title="เพิ่มหลายคนพร้อมกัน — วางรหัสหรือชื่อ บรรทัดละ 1 คน">
                 ➕ เพิ่มหลายคน
               </button>
+              <button id="btnBulkCheckin" onclick="window.bulkCheckinSelected()" class="att-tt-bulk-checkin" style="display:none" title="เช็คอินรายการที่เลือกทั้งหมด">
+                ✅ เช็คอินที่เลือก (<span id="bulkCheckinCount">0</span>)
+              </button>
               <button id="btnBulkDelete" onclick="window.bulkDeleteSelected()" class="att-tt-bulk-del" style="display:none">
                 🗑 ลบที่เลือก (<span id="bulkDeleteCount">0</span>)
               </button>
@@ -401,19 +404,26 @@
          BULK ADD MODAL — วางรหัส/ชื่อหลายคน → ค้นหา → เพิ่มลงตาราง
          ═══════════════════════════════════════ -->
     <div class="modal-overlay" id="bulkAddModal">
-      <div class="modal v-sage-header" style="width:560px;max-width:95vw">
+      <div class="modal v-sage-header" style="width:920px;max-width:95vw">
         <div class="modal-hdr">
           <div class="modal-title">➕ เพิ่มหลายคนพร้อมกัน</div>
           <button class="btn-modal-close" onclick="window.closeBulkAddModal()">✕</button>
         </div>
         <div class="modal-body">
-          <div class="form-group">
-            <label class="form-label">วางรหัสสมาชิก หรือชื่อ — บรรทัดละ 1 คน</label>
-            <textarea id="bulkAddInput" class="form-control" rows="7" autocomplete="off"
-              placeholder="119046&#10;ศริยา รักษาราษฎร์&#10;115390&#10;..."></textarea>
-            <div class="bulkadd-hint">เลขล้วน = ค้นด้วยรหัสสมาชิก · มีตัวอักษร = ค้นด้วยชื่อ — วางจาก Excel/Google Sheet ได้เลย</div>
+          <div class="bulkadd-cols">
+            <div class="bulkadd-col-left">
+              <div class="form-group">
+                <label class="form-label">วางรหัสสมาชิก หรือชื่อ — บรรทัดละ 1 คน</label>
+                <textarea id="bulkAddInput" class="form-control bulkadd-input" autocomplete="off"
+                  placeholder="119046&#10;ศริยา รักษาราษฎร์&#10;115390&#10;..."></textarea>
+                <div class="bulkadd-hint">เลขล้วน = ค้นด้วยรหัสสมาชิก · มีตัวอักษร = ค้นด้วยชื่อ — วางจาก Excel/Google Sheet ได้เลย</div>
+              </div>
+            </div>
+            <div class="bulkadd-col-right">
+              <div id="bulkAddResults" class="bulkadd-results" style="display:none"></div>
+              <div id="bulkAddEmpty" class="bulkadd-empty">ผลการค้นหาจะแสดงที่นี่</div>
+            </div>
           </div>
-          <div id="bulkAddResults" class="bulkadd-results" style="display:none"></div>
         </div>
         <div class="modal-footer">
           <button class="btn btn-ghost" onclick="window.closeBulkAddModal()">ยกเลิก</button>

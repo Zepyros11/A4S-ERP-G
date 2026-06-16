@@ -11,6 +11,10 @@
   }
 </script>
 <link rel="stylesheet" href="../../../css/main.css">
+<!-- Export libs: Excel (ExcelJS — ฝังโลโก้ได้) · PDF/PNG (html→canvas) -->
+<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
 .page { max-width:1040px; margin:0 auto; padding:28px 24px 110px; }
 
@@ -83,7 +87,9 @@
 /* FOOTER */
 .form-footer { position:fixed; bottom:0; left:0; right:0; background:var(--surface); border-top:1px solid var(--border); padding:14px 32px; display:flex; align-items:center; justify-content:space-between; gap:12px; z-index:50; box-shadow:0 -4px 16px rgba(0,0,0,.06); }
 .footer-left { display:flex; gap:10px; }
-.footer-right { display:flex; gap:10px; flex-wrap:wrap; justify-content:flex-end; }
+.footer-right { display:flex; gap:10px; flex-wrap:wrap; justify-content:flex-end; align-items:center; }
+.footer-export-group { display:inline-flex; align-items:center; gap:8px; padding:4px 10px 4px 12px; border:1px solid var(--border); border-radius:9px; background:var(--surface-soft); }
+.footer-export-label { font-size:12px; font-weight:700; color:var(--text3); }
 textarea.form-control { resize:vertical; min-height:60px; line-height:1.6; }
 
 /* HEADLESS MODE */
@@ -103,7 +109,9 @@ html.headless body { background:#fff; margin:0; padding:0; }
 @media (max-width:760px){ .preview-toolbar { position:fixed; top:auto; bottom:16px; left:16px; right:16px; width:auto; flex-direction:row; } .preview-toolbar .toolbar-title { display:none; } }
 
 /* A4 doc shared */
-.pc-doc { display:none; background:#fff; width:210mm; min-height:297mm; padding:16mm 15mm; box-shadow:0 12px 40px rgba(0,0,0,.25); font-family:'Sarabun',sans-serif; color:#1f2933; box-sizing:border-box; }
+.pc-doc { display:none; background:#fff; width:210mm; min-height:297mm; padding:16mm 15mm; box-shadow:0 12px 40px rgba(0,0,0,.25); font-family:'Tahoma','Sarabun',sans-serif; color:#1f2933; box-sizing:border-box; }
+/* ฟอนต์เอกสารทั้งหมด = Tahoma (override เซลล์ตัวเลขที่เดิมเป็น monospace) */
+.pc-doc, .pc-doc * { font-family:'Tahoma','Sarabun',sans-serif !important; }
 .pc-doc.active { display:block; }
 .pc-doc * { box-sizing:border-box; }
 
@@ -117,7 +125,11 @@ html.headless body { background:#fff; margin:0; padding:0; }
 .pcd-company-tel { font-size:10.5px; color:#52606d; margin-top:1px; }
 
 /* === LEDGER (Petty Cash) === */
-.pcl-title { text-align:center; font-size:16px; font-weight:800; margin:10px 0 2px; }
+/* หัวแบบเรียบตามต้นฉบับ: โลโก้ซ้าย + ชื่อบริษัทไทยกึ่งกลาง */
+.pcl-simplehead { position:relative; text-align:center; min-height:64px; margin-bottom:2px; }
+.pcl-simplehead .pcl-logo { position:absolute; left:0; top:0; max-width:120px; max-height:60px; height:auto; }
+.pcl-simplehead .pcl-company { font-weight:700; font-size:16px; color:#1f2933; padding:14px 130px 0; line-height:1.4; }
+.pcl-title { text-align:center; font-size:16px; font-weight:800; margin:6px 0 2px; }
 .pcl-subtitle { text-align:center; font-size:12px; color:#52606d; margin-bottom:14px; }
 .pcl-table { width:100%; border-collapse:collapse; font-size:12px; margin-top:8px; }
 .pcl-table th { background:#f1f3f5; border:1px solid #1f2933; padding:7px 9px; font-weight:700; text-align:left; }
@@ -143,7 +155,8 @@ html.headless body { background:#fff; margin:0; padding:0; }
 .pcc-table tfoot td { font-weight:700; }
 .pcc-para { font-size:13px; line-height:2.1; margin-top:14px; text-indent:0; }
 .pcc-para .dot { display:inline-block; border-bottom:1px dotted #52606d; min-width:80px; text-align:center; padding:0 4px; }
-.pcc-signs { margin-top:30px; font-size:13px; line-height:2.2; text-align:right; padding-right:30px; }
+.pcc-signs { margin-top:30px; font-size:13px; line-height:2.2; display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+.pcc-sign-col { text-align:center; }
 .pcc-signs .dot { display:inline-block; border-bottom:1px dotted #52606d; min-width:140px; text-align:center; }
 .pcc-account { margin-top:34px; font-size:12.5px; line-height:2.2; }
 .pcc-account .dot { display:inline-block; border-bottom:1px dotted #52606d; min-width:200px; }
@@ -169,6 +182,52 @@ html.headless body { background:#fff; margin:0; padding:0; }
 .pcv-sign-line { border-top:1px solid #1f2933; margin:30px 6px 6px; }
 .pcv-sign-th { font-weight:700; }
 .pcv-sign-en { color:#52606d; font-size:11px; }
+
+/* ===== Letterhead (port จาก trip-docs) — render บน ledger/voucher + ตัวจัดการ ===== */
+.pc-lh-bar { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.pc-lh-bar .form-label { margin:0; }
+.pc-lh-slot:empty { display:none; }
+.doc-paper { background:#fff; width:794px; max-width:100%; margin:0 auto; padding:46px 64px; color:#1f2937; font-family:"Sarabun","Segoe UI",sans-serif; box-shadow:0 4px 24px rgba(0,0,0,.12); min-height:1000px; }
+.doc-letterhead { display:flex; align-items:flex-start; gap:18px; padding-bottom:12px; border-bottom:2px solid #5b9b35; margin-bottom:18px; }
+.doc-letterhead .lh-logo { width:120px; flex-shrink:0; text-align:left; }
+.doc-letterhead .lh-logo img { max-width:120px; max-height:88px; height:auto; }
+.doc-letterhead .lh-info { flex:1; min-width:0; }
+.doc-letterhead .lh-info > * { margin:0; }
+.doc-letterhead .lh-name { font-size:16px; font-weight:700; color:#111; margin-bottom:4px; }
+.doc-letterhead .lh-addr { font-size:12.5px; line-height:1.6; color:#222; }
+
+/* RTE */
+.rte { border:1px solid var(--border,#d8dee4); border-radius:10px; overflow:hidden; background:#fff; }
+.rte-toolbar { display:flex; flex-wrap:wrap; gap:2px; padding:6px 8px; background:#f6f8fa; border-bottom:1px solid var(--border,#e5e7eb); }
+.rte-toolbar button { min-width:30px; height:28px; border:1px solid transparent; background:transparent; border-radius:6px; cursor:pointer; font-size:13px; color:#374151; padding:0 9px; display:inline-flex; align-items:center; justify-content:center; line-height:1; }
+.rte-toolbar button:hover { background:#e5e9ee; }
+.rte-toolbar .rte-sep { width:1px; background:#d1d5db; margin:3px 5px; }
+.rte-size { width:50px; height:28px; text-align:center; border:1px solid #d1d5db; border-radius:6px; font-size:12.5px; color:#374151; background:#fff; margin:0 1px; padding:0 4px; }
+.rte-size::-webkit-inner-spin-button { opacity:1; }
+.rte-color { width:30px; height:26px; border:1px solid #d1d5db; border-radius:6px; padding:1px; cursor:pointer; background:#fff; }
+.rte-area { min-height:150px; max-height:30vh; overflow:auto; padding:16px 18px; background:#fff; font-family:"Sarabun","Segoe UI",sans-serif; font-size:15px; line-height:1.85; color:#1f2937; outline:none; }
+.rte-area:empty:before { content:attr(data-ph); color:#9ca3af; }
+.rte-area p { margin:0 0 12px; }
+
+/* Letterhead manager list + form + simulator */
+.lh-item { display:flex; align-items:center; gap:10px; padding:7px 9px; cursor:pointer; border:1px solid var(--border,#e5e7eb); border-radius:8px; margin-bottom:6px; transition:background .12s,border-color .12s; }
+.lh-item:hover { background:#f7faf7; border-color:var(--accent-light,#7da480); }
+.lh-item.active { background:var(--accent-pale,#d8e7d2); border-color:var(--accent,#3d6b4f); }
+.lh-item img { width:46px; height:30px; object-fit:contain; flex-shrink:0; background:#f8fafc; border-radius:4px; }
+.lh-item-meta { flex:1; min-width:0; }
+.lh-item-meta b { display:block; font-size:12.5px; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.lh-item-meta small { display:block; font-size:11px; color:var(--text3); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.lh-item-acts { display:flex; gap:2px; flex-shrink:0; }
+.lh-item-acts .btn-icon { width:28px; height:28px; font-size:13px; border:1px solid var(--border,#e5e7eb); border-radius:6px; background:#fff; cursor:pointer; }
+.lh-item-acts .btn-icon.danger:hover { border-color:var(--danger,#dc2626); color:var(--danger,#dc2626); }
+.lh-section { background:linear-gradient(180deg,#f9fbf9,#f4f8f4); border:1px solid #e1ebe1; border-radius:12px; padding:14px 16px; margin-top:14px; }
+.lh-section-title { font-size:13px; font-weight:700; color:var(--accent,#3d6b4f); margin-bottom:12px; display:flex; align-items:center; gap:7px; }
+.lh-section-title .muted { font-weight:400; color:var(--text3); font-size:12px; }
+.lh-field-label { font-size:11.5px; color:var(--text2); margin-bottom:5px; display:block; font-weight:500; }
+.lh-sim-cap { font-size:11.5px; color:var(--text3); margin:14px 0 6px; display:flex; align-items:center; gap:5px; }
+.lh-sim { border:1px solid #dbe4db; border-radius:10px; background:#fff; box-shadow:0 1px 4px rgba(0,0,0,.05); position:relative; overflow:hidden; min-height:60px; }
+.lh-sim-scale { position:absolute; top:12px; left:14px; transform-origin:top left; }
+.lh-sim .doc-letterhead { margin-bottom:0; font-family:"Sarabun","Segoe UI",sans-serif; }
 
 @media print {
   @page { size:A4; margin:10mm; }
@@ -213,37 +272,14 @@ html.headless body { background:#fff; margin:0; padding:0; }
 
   <div class="section-card">
 
-    <!-- HEADER FIELDS -->
-    <div class="form-block">
-      <div class="form-block-head">
-        <div class="form-block-title">📌 ข้อมูลรอบเบิก</div>
-      </div>
-      <div class="form-grid">
-        <div class="form-group" style="grid-column:1 / -1">
-          <label class="form-label">ชื่อรอบ / รายละเอียด</label>
-          <input type="text" class="form-control" id="title" placeholder="เช่น ค่าใช้จ่ายทริป African Leaders">
-        </div>
-        <div class="form-group">
-          <label class="form-label">วันที่เริ่ม</label>
-          <input type="date" class="form-control" id="dateFrom">
-        </div>
-        <div class="form-group">
-          <label class="form-label">วันที่สิ้นสุด</label>
-          <input type="date" class="form-control" id="dateTo">
-        </div>
-        <div class="form-group">
-          <label class="form-label">ผู้จัดทำ (Prepare by)</label>
-          <input type="text" class="form-control" id="preparedBy" placeholder="ชื่อผู้จัดทำ">
-        </div>
-        <div class="form-group">
-          <label class="form-label">ผู้อนุมัติ (Approve by)</label>
-          <input type="text" class="form-control" id="approvedBy" placeholder="ชื่อผู้อนุมัติ">
-        </div>
-        <div class="form-group" style="grid-column:1 / -1">
-          <label class="form-label">หมายเหตุ</label>
-          <input type="text" class="form-control" id="note" placeholder="หมายเหตุเพิ่มเติม (ถ้ามี)">
-        </div>
-      </div>
+    <!-- LETTERHEAD PICKER -->
+    <div class="form-block pc-lh-bar">
+      <label class="form-label">🏛️ หัวกระดาษเอกสาร</label>
+      <select class="form-control" id="pcLetterhead" style="max-width:300px">
+        <option value="">— หัวเริ่มต้น —</option>
+      </select>
+      <button class="btn btn-outline" type="button" onclick="openLetterheadManager()">⚙️ จัดการ</button>
+      <span class="form-block-sub">ใช้กับใบสำคัญเงินสดย่อย · ข้อมูลร่วมกับหน้าเอกสาร (TRIP) · (ใบสรุปใช้หัวแบบเรียบตามต้นฉบับ)</span>
     </div>
 
     <!-- ITEMS -->
@@ -303,8 +339,106 @@ html.headless body { background:#fff; margin:0; padding:0; }
   </div>
   <div class="footer-right">
     <button class="btn btn-outline" onclick="cancelEdit()">✕ ยกเลิก</button>
-    <button class="btn btn-outline" onclick="genDoc('ledger')">🖨 พิมพ์สรุป Petty Cash</button>
+    <button class="btn btn-outline" onclick="genDoc('ledger')">🖨 พิมพ์สรุป</button>
+    <span class="footer-export-group">
+      <span class="footer-export-label">Export:</span>
+      <button class="btn btn-outline" onclick="exportLedger('excel')">📊 Excel</button>
+      <button class="btn btn-outline" onclick="exportLedger('pdf')">📄 PDF</button>
+      <button class="btn btn-outline" onclick="exportLedger('png')">🖼 PNG</button>
+    </span>
     <button class="btn btn-success" onclick="saveBook()">💾 บันทึก</button>
+  </div>
+</div>
+
+<!-- ─── LETTERHEAD MANAGER (จัดการหัวกระดาษ · data ร่วม trip_doc_letterheads) ─── -->
+<div class="modal-overlay" id="lhMgrOverlay" onclick="window.closeLetterheadManager(event)">
+  <div class="modal v-sage-header" style="width:900px;max-width:96vw" onclick="event.stopPropagation()">
+    <div class="modal-hdr">
+      <div class="modal-title">⚙️ จัดการหัวกระดาษ</div>
+      <button class="btn-modal-close" onclick="window.closeLetterheadManager()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:grid;grid-template-columns:30% 70%;gap:18px;align-items:start">
+        <!-- ซ้าย: รายการ -->
+        <div>
+          <div class="table-title" style="margin-bottom:8px">รายการหัวกระดาษ</div>
+          <div id="lhList"></div>
+        </div>
+        <!-- ขวา: ฟอร์ม -->
+        <div class="section-card" style="padding:18px;background:#fcfdfc">
+          <div class="form-group">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+              <label class="form-label" style="margin:0">ชื่อหัวกระดาษ <span class="required">*</span></label>
+              <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;color:var(--text);white-space:nowrap">
+                <input type="checkbox" id="lhDefault" /> ⭐ ตั้งเป็นค่าเริ่มต้น
+              </label>
+            </div>
+            <input class="form-control" id="lhName" placeholder="เช่น A4S สำนักงานใหญ่" autocomplete="off" style="margin-top:6px" />
+          </div>
+          <div class="form-group" style="margin-top:12px">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:5px">
+              <label class="form-label" style="margin:0">เนื้อหาหัวกระดาษ (จัดสี/ตัวหนา/ขนาดเองได้)</label>
+              <button class="btn btn-outline" type="button" style="padding:5px 12px;font-size:12.5px;white-space:nowrap"
+                onclick="window.pullCompanyInfo()" title="ดึงชื่อ/ที่อยู่/ติดต่อ จากหน้าตั้งค่าบริษัท">📥 ดึงข้อมูลบริษัท</button>
+            </div>
+            <div class="rte">
+              <div class="rte-toolbar">
+                <button type="button" data-cmd="bold" title="ตัวหนา"><b>B</b></button>
+                <button type="button" data-cmd="italic" title="ตัวเอียง"><i>I</i></button>
+                <button type="button" data-cmd="underline" title="ขีดเส้นใต้"><u>U</u></button>
+                <span class="rte-sep"></span>
+                <button type="button" data-cmd="justifyLeft" title="ชิดซ้าย">ซ้าย</button>
+                <button type="button" data-cmd="justifyCenter" title="กึ่งกลาง">กลาง</button>
+                <button type="button" data-cmd="justifyRight" title="ชิดขวา">ขวา</button>
+                <span class="rte-sep"></span>
+                <button type="button" data-font="down" title="ลดขนาดฟอนต์">A−</button>
+                <input type="number" class="rte-size" min="9" max="96" title="ขนาดฟอนต์ (px)" />
+                <button type="button" data-font="up" title="เพิ่มขนาดฟอนต์">A+</button>
+                <span class="rte-sep"></span>
+                <input type="color" class="rte-color" value="#1f2937" title="สีตัวอักษร" />
+                <span class="rte-sep"></span>
+                <button type="button" data-cmd="removeFormat" title="ล้างรูปแบบ">✖</button>
+              </div>
+              <div class="rte-area" id="lhContent" contenteditable="true"
+                style="min-height:150px;max-height:30vh;font-size:16px;font-family:'Sarabun','Segoe UI',sans-serif"
+                oninput="window.updateLhSimulator()"
+                data-ph="ชื่อบริษัท (จัดสี/ตัวหนา) + ที่อยู่ + เบอร์/อีเมล"></div>
+            </div>
+          </div>
+          <div class="lh-section">
+            <div class="lh-section-title">🖼️ การจัดวางโลโก้ <span class="muted">(ใช้โลโก้บริษัท)</span></div>
+            <div style="display:grid;grid-template-columns:1.5fr 1fr 0.9fr;gap:10px">
+              <div>
+                <label class="lh-field-label">ตำแหน่งโลโก้และข้อความ</label>
+                <select class="form-control" id="lhLogoPos" onchange="window.updateLhSimulator()">
+                  <option value="left">⬅️ โลโก้ซ้าย · ข้อความขวา</option>
+                  <option value="right">➡️ ข้อความซ้าย · โลโก้ขวา</option>
+                  <option value="top">⬆️ โลโก้บน (กึ่งกลาง)</option>
+                </select>
+              </div>
+              <div>
+                <label class="lh-field-label">แนวตั้งโลโก้</label>
+                <select class="form-control" id="lhLogoVAlign" onchange="window.updateLhSimulator()">
+                  <option value="top">⬆️ บน</option>
+                  <option value="center">↕️ กลาง</option>
+                  <option value="bottom">⬇️ ล่าง</option>
+                </select>
+              </div>
+              <div>
+                <label class="lh-field-label">ขนาด (px)</label>
+                <input type="number" class="form-control" id="lhLogoWidth" min="40" max="320" step="10" value="120" oninput="window.updateLhSimulator()" />
+              </div>
+            </div>
+            <div class="lh-sim-cap">👁 ตัวอย่างสัดส่วน (โลโก้ : ข้อความ)</div>
+            <div class="lh-sim" id="lhSimulator"></div>
+          </div>
+          <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px;padding-top:14px;border-top:1px solid #eef0ee">
+            <button class="btn btn-outline" id="lhCancelEdit" style="display:none" onclick="window.resetLetterheadForm()">ยกเลิกแก้ไข</button>
+            <button class="btn btn-primary" id="lhSaveBtn" onclick="window.saveLetterhead()">＋ เพิ่มหัวกระดาษ</button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -322,7 +456,7 @@ html.headless body { background:#fff; margin:0; padding:0; }
       </div>
       <div class="form-group">
         <label class="form-label">วันที่เอกสาร</label>
-        <input type="date" class="form-control" id="metaDocDate">
+        <input type="text" class="form-control" id="metaDocDate" placeholder="วว/ดด/ปปปป" maxlength="10" inputmode="numeric" oninput="onDateInput(this)">
       </div>
       <div class="form-group">
         <label class="form-label">จ่ายให้ / ผู้ขอเบิกจ่าย</label>
@@ -345,18 +479,16 @@ html.headless body { background:#fff; margin:0; padding:0; }
 <div class="preview-overlay" id="previewOverlay" onclick="if(event.target===this)closePreview()">
   <div class="preview-toolbar">
     <span class="toolbar-title" id="previewTitle">📄 ตัวอย่างเอกสาร</span>
+    <button class="btn btn-success" onclick="printDoc()">🖨 พิมพ์</button>
+    <button class="btn btn-outline" id="btnExportExcel" onclick="exportExcel()">📊 Excel</button>
+    <button class="btn btn-outline" onclick="exportPdf()">📄 PDF</button>
+    <button class="btn btn-outline" onclick="exportPng()">🖼 PNG</button>
     <button class="btn btn-outline" onclick="closePreview()">✕ ปิด</button>
-    <button class="btn btn-success" onclick="printDoc()">🖨 พิมพ์ / บันทึก PDF</button>
   </div>
 
   <!-- LEDGER (Petty Cash) -->
   <div class="pc-doc pc-doc-ledger" id="docLedger">
-    <div class="pcd-head">
-      <div class="pcd-logo"><img class="pcdLogo" alt="logo"></div>
-      <div class="pcd-company">
-        <div class="pcd-company-name pcdCompanyName">—</div>
-      </div>
-    </div>
+    <div class="pc-lh-slot" id="ldgLetterhead"></div>
     <div class="pcl-title">Petty Cash</div>
     <div class="pcl-subtitle" id="ldgSubtitle"></div>
     <table class="pcl-table">
@@ -411,10 +543,13 @@ html.headless body { background:#fff; margin:0; padding:0; }
       <span id="certCompany">—</span> โดยแท้ ตั้งแต่วันที่ <span class="dot" id="certFrom">&nbsp;</span> ถึงวันที่ <span class="dot" id="certTo">&nbsp;</span>
     </div>
     <div class="pcc-signs">
-      ลงชื่อ <span class="dot" id="certPayee2">&nbsp;</span> (ผู้ขอเบิกจ่าย)<br>
-      ( <span class="dot" style="min-width:170px" id="certPayee3">&nbsp;</span> )<br><br>
-      ลงชื่อ <span class="dot">&nbsp;</span> (ผู้อนุมัติ)<br>
-      ( <span class="dot" style="min-width:170px">&nbsp;</span> )
+      <div></div>
+      <div class="pcc-sign-col">
+        ลงชื่อ <span class="dot" id="certPayee2">&nbsp;</span> (ผู้ขอเบิกจ่าย)<br>
+        ( <span class="dot" style="min-width:170px" id="certPayee3">&nbsp;</span> )<br><br>
+        ลงชื่อ <span class="dot">&nbsp;</span> (ผู้อนุมัติ)<br>
+        ( <span class="dot" style="min-width:170px">&nbsp;</span> )
+      </div>
     </div>
     <div class="pcc-account">
       <b>สำหรับบัญชี</b><br>
@@ -430,14 +565,7 @@ html.headless body { background:#fff; margin:0; padding:0; }
 
   <!-- VOUCHER (ใบสำคัญเงินสดย่อย) -->
   <div class="pc-doc pc-doc-voucher" id="docVoucher">
-    <div class="pcd-head">
-      <div class="pcd-logo"><img class="pcdLogo" alt="logo"></div>
-      <div class="pcd-company">
-        <div class="pcd-company-name pcdCompanyName">—</div>
-        <div class="pcd-company-addr pcdCompanyAddr"></div>
-        <div class="pcd-company-tel pcdCompanyTel"></div>
-      </div>
-    </div>
+    <div class="pc-lh-slot" id="vchLetterhead"></div>
     <div class="pcv-title">ใบสำคัญเงินสดย่อย (PETTY CASH VOUCHER)</div>
     <div class="pcv-info">
       <div class="row"><span class="lbl">วันที่ (Date)</span><span class="val" id="vchDate">&nbsp;</span></div>

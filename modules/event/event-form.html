@@ -109,31 +109,33 @@
                   </div>
                 </div>
 
-                <div class="ef-field">
-                  <label class="ef-label">⭐ ตำแหน่งขั้นต่ำที่สมัครได้</label>
-                  <select class="ef-input" id="fMinPosition">
-                    <option value="">— ไม่จำกัดตำแหน่ง —</option>
-                    <option value="DR">DR ขึ้นไป (Director)</option>
-                    <option value="SD">SD ขึ้นไป (Senior Director)</option>
-                    <option value="AVP">AVP ขึ้นไป</option>
-                    <option value="VP">VP ขึ้นไป</option>
-                    <option value="SVP">SVP เท่านั้น</option>
-                  </select>
-                  <div style="margin-top:4px;font-size:11px;color:var(--text3)">ตรวจจากตำแหน่งสูงสุดของสมาชิก (members.position_level)</div>
-                </div>
-
-                <div class="ef-field">
-                  <label class="ef-label">📋 เทมเพลตฟอร์มลงทะเบียน</label>
-                  <div style="display:flex;gap:6px;align-items:center">
-                    <select class="ef-input" id="fTemplateId" style="flex:1" onchange="onTemplateChange()">
-                      <option value="">— ไม่ผูก template (ใช้ default) —</option>
+                <div class="ef-row-2">
+                  <div class="ef-field">
+                    <label class="ef-label">⭐ ตำแหน่งขั้นต่ำที่สมัครได้</label>
+                    <select class="ef-input" id="fMinPosition">
+                      <option value="">— ไม่จำกัดตำแหน่ง —</option>
+                      <option value="DR">DR ขึ้นไป (Director)</option>
+                      <option value="SD">SD ขึ้นไป (Senior Director)</option>
+                      <option value="AVP">AVP ขึ้นไป</option>
+                      <option value="VP">VP ขึ้นไป</option>
+                      <option value="SVP">SVP เท่านั้น</option>
                     </select>
-                    <a id="manageTemplatesLink" href="./attendee-templates.html" target="_blank"
-                      title="เปิดหน้าจัดการเทมเพลตในแท็บใหม่"
-                      style="background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe;border-radius:8px;padding:8px 12px;font-size:13px;text-decoration:none;white-space:nowrap">⚙️</a>
+                    <div style="margin-top:4px;font-size:11px;color:var(--text3)">ตรวจจากตำแหน่งสูงสุดของสมาชิก (members.position_level)</div>
                   </div>
-                  <div id="templatePreview" style="margin-top:8px;font-size:11.5px;color:var(--text3);background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:8px 10px;display:none">
-                    <div id="templatePreviewBody"></div>
+
+                  <div class="ef-field">
+                    <label class="ef-label">📋 เทมเพลตฟอร์มลงทะเบียน</label>
+                    <div style="display:flex;gap:6px;align-items:center">
+                      <select class="ef-input" id="fTemplateId" style="flex:1" onchange="onTemplateChange()">
+                        <option value="">— ไม่ผูก template (ใช้ default) —</option>
+                      </select>
+                      <a id="manageTemplatesLink" href="./attendee-templates.html" target="_blank"
+                        title="เปิดหน้าจัดการเทมเพลตในแท็บใหม่"
+                        style="background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe;border-radius:8px;padding:8px 12px;font-size:13px;text-decoration:none;white-space:nowrap">⚙️</a>
+                    </div>
+                    <div id="templatePreview" style="margin-top:8px;font-size:11.5px;color:var(--text3);background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:8px 10px;display:none">
+                      <div id="templatePreviewBody"></div>
+                    </div>
                   </div>
                 </div>
 

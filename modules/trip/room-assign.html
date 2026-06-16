@@ -36,7 +36,48 @@
       .ra-stat--err .ra-stat-val{color:#b91c1c}
 
       .ra-grid{display:grid;grid-template-columns:340px 1fr;gap:14px;align-items:flex-start}
-      @media(max-width:960px){ .ra-grid{grid-template-columns:1fr} }
+      @media(max-width:1024px){ .ra-grid{grid-template-columns:1fr} } /* std: tablet */
+
+      /* ═══════════ MOBILE (≤767) — panel toggle layout ═══════════ */
+      .ra-mobile-switch{display:none}          /* desktop: hidden */
+      @media(max-width:767px){
+        /* hero banner: allow wrap so it never overflows the viewport */
+        .page-hero{flex-wrap:wrap;gap:8px}
+        .ra-trip-banner{white-space:normal;flex-wrap:wrap;margin-left:0;font-size:12px}
+
+        /* stats: compact 2×2 */
+        .ra-stats{grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
+        .ra-stat{padding:9px 10px;gap:7px}
+        .ra-stat-icon{font-size:18px}
+        .ra-stat-val{font-size:18px}
+        .ra-stat-lbl{font-size:10.5px}
+
+        /* mobile panel switcher (sticky bar) */
+        .ra-mobile-switch{
+          display:flex;gap:6px;position:sticky;top:0;z-index:20;
+          background:var(--bg);padding:6px 0 8px;margin-bottom:2px;
+        }
+        .ra-mobile-switch button{
+          flex:1;padding:10px;border:1px solid var(--border);border-radius:9px;
+          background:#fff;font-family:inherit;font-size:13px;font-weight:600;
+          color:var(--text2);cursor:pointer;
+          display:flex;align-items:center;justify-content:center;gap:5px;
+        }
+        .ra-mobile-switch button.active{
+          background:var(--accent,#5b8a72);color:#fff;border-color:var(--accent,#5b8a72);
+        }
+
+        /* show one panel at a time */
+        .ra-grid.m-list   .ra-rooms{display:none}
+        .ra-grid.m-manage .ra-passengers{display:none}
+
+        /* passenger panel flows full-height (drop sticky + maxheight) */
+        .ra-passengers{position:static;max-height:none;padding:10px}
+        .ra-pax-list{max-height:none}
+
+        /* room cards single column */
+        .ra-rooms-cards{grid-template-columns:1fr}
+      }
 
       /* Left panel: passengers */
       .ra-passengers{background:#fff;border:1px solid var(--border);border-radius:12px;padding:12px;position:sticky;top:14px;max-height:calc(100vh - 90px);display:flex;flex-direction:column}
@@ -891,7 +932,7 @@
         display:grid;grid-template-columns:1fr 1fr;gap:18px;
         padding:18px 18px 6px;
       }
-      @media(max-width:680px){.sd-body{grid-template-columns:1fr}}
+      @media(max-width:767px){.sd-body{grid-template-columns:1fr}} /* std: mobile */
       .sd-info{display:flex;flex-direction:column;gap:10px;min-width:0}
       .sd-info-name{
         font-size:18px;font-weight:700;color:var(--text);
@@ -1044,8 +1085,14 @@
             </div>
           </div>
 
-          <!-- 2-panel grid -->
-          <div class="ra-grid">
+          <!-- 2-panel grid (m-list / m-manage toggles which panel shows on mobile) -->
+          <div class="ra-grid m-list">
+
+            <!-- MOBILE panel switch (hidden ≥768px via CSS) -->
+            <div class="ra-mobile-switch">
+              <button type="button" class="active" data-mpanel="list" onclick="window.switchRaPanel('list')">👤 รายชื่อ</button>
+              <button type="button" data-mpanel="manage" onclick="window.switchRaPanel('manage')">🏨 จัดการ</button>
+            </div>
 
             <!-- LEFT: passengers -->
             <div class="ra-passengers">
@@ -1628,6 +1675,20 @@
     <script src="../../js/components/modal/enterSave.js"></script>
     <script src="../../js/components/navigation/imgPopup.js"></script>
     <script src="../../js/components/navigation/sidebar.js"></script>
+    <script>
+      /* Mobile panel toggle: สลับ "รายชื่อ" / "จัดการ" (มีผลเฉพาะ ≤767px) */
+      window.switchRaPanel = function (which) {
+        var grid = document.querySelector(".ra-grid");
+        if (!grid) return;
+        grid.classList.toggle("m-list", which === "list");
+        grid.classList.toggle("m-manage", which === "manage");
+        document.querySelectorAll(".ra-mobile-switch button").forEach(function (b) {
+          b.classList.toggle("active", b.dataset.mpanel === which);
+        });
+        var main = document.getElementById("erp-main"); // ตัวที่ scroll จริง
+        (main || window).scrollTo({ top: 0, behavior: "smooth" });
+      };
+    </script>
     <script type="module">
       import { loadTopbar } from "../../js/components/navigation/topbar.js";
       loadTopbar("🛏️ จัดห้องพัก + 🚌 รถบัส");

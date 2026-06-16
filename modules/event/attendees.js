@@ -2731,6 +2731,15 @@ function updateBulkUI() {
   if (btn) btn.style.display = n > 0 ? "inline-flex" : "none";
   if (cnt) cnt.textContent = n;
 
+  // ปุ่มเช็คอินที่เลือก — โชว์เฉพาะเมื่อมีรายการที่เลือก "ที่ยังไม่เช็คอิน" (ตามมุมมองวันปัจจุบัน)
+  const ciBtn = document.getElementById("btnBulkCheckin");
+  const ciCnt = document.getElementById("bulkCheckinCount");
+  const nNotIn = [...selectedAttendeeIds]
+    .map((id) => allAttendees.find((a) => a.attendee_id === id))
+    .filter((a) => a && !viewCheckedIn(a)).length;
+  if (ciBtn) ciBtn.style.display = nNotIn > 0 ? "inline-flex" : "none";
+  if (ciCnt) ciCnt.textContent = nNotIn;
+
   // Sync select-all checkbox state vs currently visible rows
   const sa = document.getElementById("selectAllAttendees");
   if (sa) {
@@ -2781,6 +2790,50 @@ window.bulkDeleteSelected = function () {
     }
     showLoading(false);
   });
+};
+
+// เช็คอินรายการที่เลือกทั้งหมด (เฉพาะที่ยังไม่เช็คอินตามมุมมองวันปัจจุบัน)
+window.bulkCheckinSelected = async function () {
+  const targets = [...selectedAttendeeIds]
+    .map((id) => allAttendees.find((a) => a.attendee_id === id))
+    .filter((a) => a && !viewCheckedIn(a));
+  if (!targets.length) { showToast("รายการที่เลือกเช็คอินแล้วทั้งหมด", "info"); return; }
+
+  const dayLabel = (isMultiDay(currentEvent) && selectedDay) ? ` (วันที่ ${formatDMY(selectedDay)})` : "";
+  const names = targets.map((a) => a.name).filter(Boolean);
+  const preview = names.slice(0, 3).join(", ") + (names.length > 3 ? ` และอีก ${names.length - 3} คน` : "");
+  const ok = await window.ConfirmModal.open({
+    icon: "✅",
+    title: "เช็คอินที่เลือก",
+    message: `ต้องการเช็คอิน ${targets.length} คน${dayLabel} หรือไม่?\n${preview}`,
+    okText: "เช็คอิน",
+    cancelText: "ยกเลิก",
+  });
+  if (!ok) return;
+
+  showLoading(true);
+  try {
+    await Promise.all(targets.map((a) => {
+      let patch;
+      if (isMultiDay(currentEvent) && selectedDay) {
+        const map = { ...(a.checkin_by_day || {}) };
+        map[selectedDay] = buildCheckinTimestamp(selectedDay);
+        const roll = rollupCheckin(map);
+        patch = { checkin_by_day: map, checked_in: roll.checked_in, check_in_at: roll.check_in_at };
+      } else {
+        patch = { checked_in: true, check_in_at: buildCheckinTimestamp() };
+      }
+      return updateAttendee(a.attendee_id, patch).then(() => Object.assign(a, patch));
+    }));
+    selectedAttendeeIds.clear();   // เช็คอินเสร็จ → ล้างรายการที่เลือก
+    showToast(`เช็คอิน ${targets.length} คน แล้ว ✅`, "success");
+    await computeUplineMatches().catch(() => {});
+    updateStats();
+    filterTable();
+  } catch (e) {
+    showToast("เช็คอินไม่สำเร็จ: " + (e.message || e), "error");
+  }
+  showLoading(false);
 };
 
 // ── EXPORT CSV ────────────────────────────────────────────
@@ -3749,6 +3802,8 @@ window.openBulkAddModal = function () {
   if (ta) ta.value = "";
   const res = document.getElementById("bulkAddResults");
   if (res) { res.style.display = "none"; res.innerHTML = ""; }
+  const emptyEl = document.getElementById("bulkAddEmpty");
+  if (emptyEl) emptyEl.style.display = "";
   const sBtn = document.getElementById("bulkAddSearchBtn");
   if (sBtn) { sBtn.style.display = ""; sBtn.textContent = "🔍 ค้นหา"; sBtn.disabled = false; }
   const cBtn = document.getElementById("bulkAddConfirmBtn");
@@ -3861,6 +3916,8 @@ function _renderBulkAddResults() {
   const box = document.getElementById("bulkAddResults");
   if (!box) return;
   box.style.display = "block";
+  const emptyEl = document.getElementById("bulkAddEmpty");
+  if (emptyEl) emptyEl.style.display = "none";
   const rowsHtml = _bulkResolved.map((r, i) => {
     const inp = escapeHtml(r.input);
     if (r.dup) {
@@ -3895,13 +3952,14 @@ function _renderBulkAddResults() {
     }
     const optsHtml = r.results.map((m, k) => {
       const nm = `${m.member_code} — ${m.person_name || "—"}${m.position_level ? " (" + m.position_level + ")" : ""}${(m.person_role || "primary") === "co_applicant" ? " · ผู้สมัครร่วม" : ""}`;
-      return `<option value="${k}" ${k === r.chosenIdx ? "selected" : ""}>${escapeHtml(nm)}</option>`;
+      return `<option value="${k}" ${(k === r.chosenIdx && !r.asGuest) ? "selected" : ""}>${escapeHtml(nm)}</option>`;
     }).join("");
+    const guestOpt = `<option value="guest" ${r.asGuest ? "selected" : ""}>${escapeHtml(`➕ เพิ่มเป็น Guest — "${r.input}"`)}</option>`;
     return `<div class="bulkadd-row">
       <input type="checkbox" class="bulkadd-cb" ${r.include ? "checked" : ""} onchange="window._bulkSetInclude(${i}, this.checked)">
       <div class="bulkadd-main">
         <span class="bulkadd-amb">⚠️ "${inp}" พบ ${r.results.length} คน</span>
-        <select class="bulkadd-sel" onchange="window._bulkSetChoice(${i}, this.value)">${optsHtml}</select>
+        <select class="bulkadd-sel" onchange="window._bulkSetChoice(${i}, this.value)">${optsHtml}${guestOpt}</select>
       </div></div>`;
   }).join("");
 
@@ -3930,6 +3988,14 @@ window._bulkSetGuest = function (i, checked) {
 };
 window._bulkSetChoice = function (i, idx) {
   const r = _bulkResolved[i]; if (!r) return;
+  if (idx === "guest") {       // ชื่อชนกันหลายคน → เลือกเพิ่มเป็น Guest แทน
+    r.asGuest = true;
+    r.dup = null;              // Guest ไม่นับซ้ำกับสมาชิก
+    r.include = true;
+    _renderBulkAddResults();
+    return;
+  }
+  r.asGuest = false;
   r.chosenIdx = parseInt(idx) || 0;
   r.include = true;
   _bulkEvalDups();          // เลือกคนใหม่อาจกลายเป็นซ้ำ
