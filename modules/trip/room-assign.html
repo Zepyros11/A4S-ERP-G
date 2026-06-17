@@ -35,7 +35,7 @@
       .ra-stat--err{background:#fef2f2;border-color:#fca5a5}
       .ra-stat--err .ra-stat-val{color:#b91c1c}
 
-      .ra-grid{display:grid;grid-template-columns:340px 1fr;gap:14px;align-items:flex-start}
+      .ra-grid{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,7fr);gap:14px;align-items:flex-start}
 
       .ra-mobile-switch{display:none}          /* desktop: hidden */
       .ra-filter-toggle{display:none}          /* desktop: hidden (filters always open) */
@@ -45,7 +45,7 @@
          คง 2-pane ไว้ (ตามที่ user ชอบ = มุมมอง zoom 75%) แต่ปรับให้เนื้อหาแคบ
          (sidebar กินพื้นที่) ไม่ล้น: passenger panel แคบลง + safety fixes */
       @media(max-width:1024px){
-        .ra-grid{grid-template-columns:260px 1fr}   /* passenger panel แคบลง ให้ rooms มีที่ */
+        .ra-grid{grid-template-columns:minmax(0,3fr) minmax(0,7fr)}   /* 30:70 (sync กับ base) */
 
         /* hero banner: ตัดบรรทัด/ตัดคำ ไม่ดันจอ */
         .page-hero{flex-wrap:wrap;gap:8px}
@@ -55,16 +55,13 @@
         /* room cards คอลัมน์เดียว (rooms panel แคบ) */
         .ra-rooms-cards{grid-template-columns:1fr}
 
-        /* แท็บ ห้อง/รถ/บิน เต็มกว้าง แบ่งเท่าๆ ไม่ล้น */
-        .ra-rooms-toolbar .ra-tabs{display:flex;width:100%;gap:3px;padding:3px}
-        .ra-rooms-toolbar .ra-tab{flex:1 1 0;min-width:0;justify-content:center;gap:3px;padding:8px 4px;font-size:12px}
+        /* rooms toolbar → แถวเดียว [ แท็บ ห้อง/รถ/บิน | hint + ปุ่ม ] · .ra-grid ชนะ base ที่บังคับ flex-wrap:wrap */
+        .ra-grid .ra-rooms-toolbar{flex-direction:row;flex-wrap:nowrap;justify-content:space-between;align-items:center;gap:8px;padding:10px}
+        .ra-rooms-toolbar .ra-tabs{display:flex;flex:1 1 60%;min-width:0;gap:3px;padding:3px}
+        .ra-rooms-toolbar .ra-tab{flex:1 1 0;min-width:0;justify-content:center;gap:3px;padding:8px 6px;font-size:12px}
         .ra-rooms-toolbar .ra-tab .ra-tab-count{min-width:16px;height:16px;padding:0 4px;font-size:10px}
-
-        /* rooms toolbar เรียงแนวตั้ง ไม่อัดกัน */
-        .ra-rooms-toolbar{flex-direction:column;align-items:stretch;justify-content:flex-start;gap:8px;padding:10px}
-        .ra-rooms-toolbar > div{width:100%}
-        .ra-rooms-toolbar > div:last-child{justify-content:flex-start;gap:6px;flex-wrap:wrap}
-        #selectedHint{flex:1 1 100%;font-size:12.5px;line-height:1.4}
+        .ra-rooms-toolbar > div:last-child{display:flex;align-items:center;justify-content:flex-end;gap:6px;flex-wrap:nowrap;flex:1 1 40%;min-width:0}
+        #selectedHint{display:none}   /* ซ่อนข้อความ hint (ซ้ำกับคำแนะนำก้นกล่องซ้าย) */
 
         /* flight cards: เลิก min-width แข็ง */
         .fl-filter-search{flex:1 1 100%;min-width:0;max-width:none}
@@ -149,6 +146,10 @@
 
       /* Left panel: passengers */
       .ra-passengers{background:#fff;border:1px solid var(--border);border-radius:12px;padding:12px;position:sticky;top:14px;max-height:calc(100vh - 90px);display:flex;flex-direction:column}
+      /* panel ซ้ายสูงเต็มจอ (ชดเชย zoom 0.65 เหมือน sidebar) — ไม่มีพื้นที่ว่างด้านล่าง · รายชื่อ scroll ในตัว */
+      @media(min-width:768px){
+        .ra-passengers{height:calc((100vh - 28px) / 0.65);max-height:none}
+      }
       .ra-pax-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid var(--border)}
       .ra-pax-title{font-weight:700;font-size:14px}
       .ra-pax-toolbar{
@@ -502,6 +503,10 @@
         background:rgba(255,255,255,.25);color:inherit;
       }
       .ra-tab:not(.active) .ra-tab-count{background:#e2e8f0;color:var(--text2)}
+      /* pax tabs (ลูกค้า/ทีมงาน) — บีบให้พอดี panel ซ้าย ไม่ล้น */
+      .ra-pax-hdr .ra-tabs{min-width:0;max-width:100%}
+      .ra-pax-hdr .ra-tab{padding:6px 9px;gap:4px;min-width:0}
+      .ra-pax-hdr .ra-tab-count{min-width:16px;height:16px;padding:0 4px;font-size:10px}
 
       /* ════════════ FLIGHTS (ตั๋วเครื่องบิน) ════════════ */
       .fl-flights{display:flex;flex-direction:column;gap:14px}

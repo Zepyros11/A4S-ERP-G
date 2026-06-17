@@ -727,6 +727,11 @@
     #erp-sidebar::-webkit-scrollbar{width:4px;}
     #erp-sidebar::-webkit-scrollbar-thumb{background:#21262d;border-radius:2px;}
     #erp-main{flex:1;min-width:0;overflow-y:auto;height:calc(100vh - 56px);}
+    /* ชดเชย vh เมื่อ desktop zoom 0.8 (ดู common.css) — ไม่งั้น sidebar/main สูงไม่เต็มจอ */
+    @media(min-width:768px){
+      #erp-sidebar{height:calc(100vh / 0.65 - 56px);}
+      #erp-main{height:calc(100vh / 0.65 - 56px);}
+    }
 
     .sb-logo{position:sticky;top:0;z-index:10;background:#0d1117;padding:10px 12px;border-bottom:1px solid #21262d;display:flex;align-items:center;justify-content:space-between;gap:6px;}
     #erp-sidebar.collapsed .sb-collapse-all{display:none;}
