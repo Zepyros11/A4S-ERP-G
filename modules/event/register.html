@@ -1398,7 +1398,7 @@ async function doRegister() {
     const coApplicant = persons.find(p => p.person_role === 'co_applicant');
 
     // 5. Check existing registration (per role) — UNIQUE (event_id, member_code, person_role)
-    const existing = await sbGet(`event_attendees?event_id=eq.${_event.event_id}&member_code=eq.${encodeURIComponent(code)}&select=attendee_id,person_role,ticket_no,name,checked_in`);
+    const existing = await sbGet(`event_attendees?event_id=eq.${_event.event_id}&member_code=eq.${encodeURIComponent(code)}&select=attendee_id,person_role,ticket_no,name,checked_in,tags`);
     const hasPrimary = existing.some(r => r.person_role === 'primary');
     const hasCoApp = existing.some(r => r.person_role === 'co_applicant');
 
@@ -1509,6 +1509,7 @@ async function doRegister() {
     const ticketLines = payload.map((p, i) =>
       `<div style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 12px;background:#fff;border:1px solid #e2e8f0;border-radius:12px;margin-top:10px;box-shadow:0 1px 2px rgba(0,0,0,.04)">
          <div style="font-size:13px;color:#0f172a;font-weight:600">${p.person_role === 'co_applicant' ? '👥' : '👤'} ${esc(p.name)}</div>
+         ${_tagListHTML(p.tags)}
          ${_qrEnabled() ? `<div id="mRegQr_${i}" data-qr="${esc(p.ticket_no)}" style="background:#fff;padding:8px;border-radius:8px"></div>` : ''}
          <div style="font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:700;color:#1e40af;letter-spacing:.5px">${esc(p.ticket_no)}</div>
        </div>`).join('');
@@ -1803,6 +1804,7 @@ function showAlreadyRegistered(code, existing) {
     return `
       <div style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 12px;background:#fff;border:1px solid #e2e8f0;border-radius:12px;margin-top:10px;box-shadow:0 1px 2px rgba(0,0,0,.04)">
         <div style="font-size:13px;color:#0f172a;font-weight:600">${p.person_role === 'co_applicant' ? '👥' : '👤'} ${esc(p.name || code)}</div>
+        ${_tagListHTML(p.tags)}
         ${_qrEnabled() ? `<div id="${qrId}" data-qr="${esc(ticketNo)}" style="background:#fff;padding:8px;border-radius:8px"></div>` : ''}
         <div style="font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:700;color:#1e40af;letter-spacing:.5px">${esc(ticketNo)}</div>
       </div>`;
@@ -1831,6 +1833,15 @@ function showAlreadyRegistered(code, existing) {
 
 // แสดง QR ในหน้า portal หรือไม่ (per-event · default แสดง) — admin ตั้งใน modal "แชร์ลิงก์"
 function _qrEnabled() { return !_event || _event.portal_show_qr !== false; }
+
+// แสดง tag เป็น list ข้อความใต้ชื่อ (เช่น SVP / Q36)
+function _tagListHTML(tags) {
+  const arr = (tags || []).filter(Boolean);
+  if (!arr.length) return '';
+  return `<div style="display:flex;flex-direction:column;align-items:center;gap:2px;margin-top:2px">${
+    arr.map(t => `<div style="font-size:12.5px;font-weight:600;color:#475569">${esc(t)}</div>`).join('')
+  }</div>`;
+}
 
 function esc(s) { return String(s || '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
 

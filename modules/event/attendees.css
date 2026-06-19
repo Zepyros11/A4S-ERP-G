@@ -1638,6 +1638,22 @@
 .bulkadd-col-left .form-group { margin-bottom: 0; flex: 1; display: flex; flex-direction: column; }
 .bulkadd-col-right { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; }
 .bulkadd-input { flex: 1; min-height: 320px; resize: vertical; }
+.bulkadd-col-left #bulkAddTagGroup { flex: 0 0 auto; }
+.bulkadd-tag-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.bulkadd-tag-chip {
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 12px;
+  border: 1.5px solid transparent;
+  cursor: pointer;
+  font-family: inherit;
+  opacity: .6;
+  transition: opacity .12s, border-color .12s;
+}
+.bulkadd-tag-chip:hover { opacity: .85; }
+.bulkadd-tag-chip.sel { opacity: 1; border-color: var(--accent, #16a34a); }
+.bulkadd-tag-empty { font-size: 11.5px; color: var(--text3, #94a3b8); font-style: italic; }
 .bulkadd-empty {
   flex: 1;
   display: flex;

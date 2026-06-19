@@ -3702,8 +3702,9 @@ window.selectMember = function (code, role, name, phone, positionLevel) {
 };
 
 // เพิ่มผู้เข้าร่วมหลายคนลงตารางตรงๆ (inline · ไม่เปิด popup) — ใช้กับ selectMember/selectBothMembers
-async function _quickAddMembers(members, paymentStatus, sourceRowId) {
+async function _quickAddMembers(members, paymentStatus, sourceRowId, tags) {
   if (!members.length) return;
+  const bulkTags = Array.isArray(tags) && tags.length ? tags : null;
   if (await _requireTemplateOrPrompt()) return;
   const activeTier = getActiveTier();
   const price = getCurrentPrice();
@@ -3723,6 +3724,7 @@ async function _quickAddMembers(members, paymentStatus, sourceRowId) {
         person_role: mb.memberCode ? (mb.personRole || "primary") : "guest",
         tier_id: activeTier?.tier_id || null,
         payment_deadline: needsPayment ? computeDeadlineISO(grace) : null,
+        ...(bulkTags ? { tags: bulkTags } : {}),
         ...newRowCheckinFields(),
       };
       const stampFields = _buildStampExtraFields(payload.member_code, payload.person_role);
@@ -3795,9 +3797,33 @@ window.selectBothMembers = function () {
 // ════════════════════════════════════════════════════════════════
 let _bulkResolved = [];
 
+let _bulkAddTags = new Set();   // tag ที่จะติดให้ทุกคนที่เพิ่มในรอบนี้
+
+function _renderBulkAddTagChips() {
+  const wrap = document.getElementById("bulkAddTagChips");
+  if (!wrap) return;
+  if (!currentTagCategories.length) {
+    wrap.innerHTML = `<span class="bulkadd-tag-empty">ยังไม่มี tag ใน event นี้</span>`;
+    return;
+  }
+  wrap.innerHTML = currentTagCategories.map(c => {
+    const sel = _bulkAddTags.has(c.tag_name);
+    const colorCls = `tag-color-${TAG_COLOR_PRESETS.includes(c.color) ? c.color : "yellow"}`;
+    return `<button type="button" class="bulkadd-tag-chip ${colorCls}${sel ? " sel" : ""}"
+      onclick="window._bulkToggleTag('${escapeJS(c.tag_name)}')">${sel ? "✓ " : ""}${escapeHtml(c.tag_name)}</button>`;
+  }).join("");
+}
+window._bulkToggleTag = function (name) {
+  if (_bulkAddTags.has(name)) _bulkAddTags.delete(name);
+  else _bulkAddTags.add(name);
+  _renderBulkAddTagChips();
+};
+
 window.openBulkAddModal = function () {
   if (!currentEventId) { showToast("เลือก Event ก่อน", "error"); return; }
   _bulkResolved = [];
+  _bulkAddTags.clear();
+  _renderBulkAddTagChips();
   const ta = document.getElementById("bulkAddInput");
   if (ta) ta.value = "";
   const res = document.getElementById("bulkAddResults");
@@ -4061,8 +4087,9 @@ window.confirmBulkAdd = async function () {
     members.push({ memberCode: m.member_code, personRole: role, name: m.person_name || "", phone: m.phone || "", positionLevel: m.position_level || "" });
   });
   if (!members.length) { showToast("ไม่มีรายการให้เพิ่ม", "error"); return; }
+  const tags = [..._bulkAddTags];
   window.closeBulkAddModal();
-  await _quickAddMembers(members, "UNPAID", null);
+  await _quickAddMembers(members, "UNPAID", null, tags);
 };
 
 // Close member suggest on click outside any new-row search input
