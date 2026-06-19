@@ -112,12 +112,20 @@ body{font-family:'Sarabun',sans-serif;background:#f1f5f9;min-height:100vh;displa
   body.has-event .reg-hero-overlay{padding:20px 22px;}
   body.has-event .reg-hero-name{font-size:20px;}
 
-  /* Right column internal spacing tweaks */
-  body.has-event .reg-info{padding:22px 26px;}
-  body.has-event .reg-prereq{margin:0 26px;margin-top:14px;}
-  body.has-event .reg-capacity{margin:14px 26px 0;}
-  body.has-event .reg-line-panel{margin:14px 26px 0;}
-  body.has-event .reg-auth{padding:22px 26px 26px;}
+  /* Right column — compact so the whole form fits without scrolling */
+  body.has-event #regRight{display:flex;flex-direction:column;justify-content:center;}
+  body.has-event .reg-info{padding:14px 26px 12px;}
+  body.has-event .reg-info-row{padding:3px 0;font-size:13px;}
+  body.has-event .reg-prereq{margin:0 26px;margin-top:8px;}
+  body.has-event .reg-capacity{margin:8px 26px 0;}
+  body.has-event .reg-line-panel{margin:10px 26px 0;}
+  body.has-event .reg-auth{padding:14px 26px 18px;}
+  body.has-event .reg-auth-title{margin-bottom:10px;}
+  body.has-event .reg-tabs{margin-bottom:12px;}
+  body.has-event .reg-field{margin-bottom:8px;}
+  body.has-event .reg-field input{padding:9px 13px;}
+  body.has-event .reg-guest-note{margin-bottom:8px;padding:7px 11px;}
+  body.has-event .reg-submit{padding:11px;margin-top:6px;}
 }
 
 /* ── Event picker (premium "grand" mode) ── */
