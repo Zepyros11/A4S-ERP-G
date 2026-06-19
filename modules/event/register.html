@@ -653,6 +653,7 @@ let _event = null;
 let _series = null;
 let _level = null;
 let _prereqLevel = null;
+let _tagColors = {};   // { tag_name: color } — แสดง badge สีตาม tag
 let _attendeeCount = 0;
 let _lineChannel = null;      // { liff_id, friend_url, ... } or null
 let _lineProfile = null;      // { userId, displayName, pictureUrl } when logged in
@@ -869,6 +870,13 @@ async function showEventPicker() {
     const events = await sbGet(`events?event_id=eq.${eventId}&select=*&limit=1`);
     _event = events[0];
     if (!_event) throw new Error('Event not found');
+
+    // Load tag colors (event-scoped) — สำหรับแสดง badge สีตาม tag
+    try {
+      const cats = await sbGet(`event_tag_categories?event_id=eq.${eventId}&select=tag_name,color`);
+      _tagColors = {};
+      (cats || []).forEach(c => { _tagColors[c.tag_name] = c.color || 'yellow'; });
+    } catch { _tagColors = {}; }
 
     // Load series + level
     if (_event.series_id) {
@@ -1834,13 +1842,24 @@ function showAlreadyRegistered(code, existing) {
 // แสดง QR ในหน้า portal หรือไม่ (per-event · default แสดง) — admin ตั้งใน modal "แชร์ลิงก์"
 function _qrEnabled() { return !_event || _event.portal_show_qr !== false; }
 
-// แสดง tag เป็น list ข้อความใต้ชื่อ (เช่น SVP / Q36)
+// แสดง tag เป็น badge สีตาม category (เช่น SVP / Q36)
+const TAG_CHIP_COLORS = {
+  yellow: { bg: '#fef3c7', fg: '#92400e' },
+  blue:   { bg: '#dbeafe', fg: '#1e40af' },
+  green:  { bg: '#d1fae5', fg: '#047857' },
+  pink:   { bg: '#fce7f3', fg: '#be185d' },
+  purple: { bg: '#ede9fe', fg: '#6d28d9' },
+  red:    { bg: '#fee2e2', fg: '#b91c1c' },
+  gray:   { bg: '#e2e8f0', fg: '#475569' },
+};
 function _tagListHTML(tags) {
   const arr = (tags || []).filter(Boolean);
   if (!arr.length) return '';
-  return `<div style="display:flex;flex-direction:column;align-items:center;gap:2px;margin-top:2px">${
-    arr.map(t => `<div style="font-size:12.5px;font-weight:600;color:#475569">${esc(t)}</div>`).join('')
-  }</div>`;
+  const chips = arr.map(t => {
+    const c = TAG_CHIP_COLORS[_tagColors[t]] || TAG_CHIP_COLORS.yellow;
+    return `<span style="display:inline-block;padding:3px 12px;border-radius:999px;font-size:12px;font-weight:700;letter-spacing:.2px;background:${c.bg};color:${c.fg}">${esc(t)}</span>`;
+  }).join('');
+  return `<div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin:4px 0 2px">${chips}</div>`;
 }
 
 function esc(s) { return String(s || '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
