@@ -4842,6 +4842,10 @@ window.openShareRegisterModal = async function () {
   const qrToggle = document.getElementById("portalQrToggle");
   if (qrToggle) qrToggle.checked = currentEvent.portal_show_qr !== false;
 
+  // Toggle "ลงทะเบียน = เข้างานทันที" — default ปิด (false)
+  const ciToggle = document.getElementById("portalCheckinToggle");
+  if (ciToggle) ciToggle.checked = currentEvent.portal_register_checks_in === true;
+
   document.getElementById("shareRegisterModal").classList.add("open");
 };
 
@@ -4857,6 +4861,22 @@ window.togglePortalQr = async function (checked) {
     currentEvent.portal_show_qr = prev;    // rollback
     const qrToggle = document.getElementById("portalQrToggle");
     if (qrToggle) qrToggle.checked = prev !== false;
+    showToast("บันทึกไม่สำเร็จ: " + e.message, "error");
+  }
+};
+
+// เปิด/ปิด "ลงทะเบียนผ่าน portal = เข้างานทันที" (per-event)
+window.togglePortalCheckin = async function (checked) {
+  if (!currentEventId || !currentEvent) return;
+  const prev = currentEvent.portal_register_checks_in;
+  currentEvent.portal_register_checks_in = checked;   // optimistic
+  try {
+    await sbFetch("events", `?event_id=eq.${currentEventId}`, { method: "PATCH", body: { portal_register_checks_in: checked } });
+    showToast(checked ? "✅ ลงทะเบียนผ่าน portal = เข้างานทันที" : "↩️ กลับเป็น pre-registration ปกติ", "success");
+  } catch (e) {
+    currentEvent.portal_register_checks_in = prev;    // rollback
+    const ciToggle = document.getElementById("portalCheckinToggle");
+    if (ciToggle) ciToggle.checked = prev === true;
     showToast("บันทึกไม่สำเร็จ: " + e.message, "error");
   }
 };

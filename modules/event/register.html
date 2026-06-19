@@ -1398,7 +1398,7 @@ async function doRegister() {
     const coApplicant = persons.find(p => p.person_role === 'co_applicant');
 
     // 5. Check existing registration (per role) — UNIQUE (event_id, member_code, person_role)
-    const existing = await sbGet(`event_attendees?event_id=eq.${_event.event_id}&member_code=eq.${encodeURIComponent(code)}&select=attendee_id,person_role,ticket_no,name`);
+    const existing = await sbGet(`event_attendees?event_id=eq.${_event.event_id}&member_code=eq.${encodeURIComponent(code)}&select=attendee_id,person_role,ticket_no,name,checked_in`);
     const hasPrimary = existing.some(r => r.person_role === 'primary');
     const hasCoApp = existing.some(r => r.person_role === 'co_applicant');
 
@@ -1470,7 +1470,9 @@ async function doRegister() {
     //    - ก่อนวันงาน → pre-reg (checked_in=false) · วันงาน/หลังวันงาน → auto check-in
     const lineOwnerRole = selectedRoles.length === 2 ? 'primary' : selectedRoles[0];
     const nowIso = new Date().toISOString();
-    const preReg = isPreRegistration();
+    // ก่อนวันงาน = pre-reg · แต่ถ้า event เปิด "ลงทะเบียน = เข้างานทันที" → เช็คอินเลยไม่สนวันที่
+    const autoCheckin = _event?.portal_register_checks_in === true;
+    const preReg = isPreRegistration() && !autoCheckin;
     const stampKey = await getStampFieldKey();   // ผู้บันทึก = "ลงทะเบียนผ่าน Link"
     const payload = selectedRoles.map((role, i) => {
       const p = role === 'primary' ? primary : coApplicant;
@@ -1595,7 +1597,9 @@ async function doRegisterGuest() {
     const ticketNo = `${prefix}${String(baseNum).padStart(4, '0')}`;
 
     const nowIso = new Date().toISOString();
-    const preReg = isPreRegistration();
+    // ก่อนวันงาน = pre-reg · แต่ถ้า event เปิด "ลงทะเบียน = เข้างานทันที" → เช็คอินเลยไม่สนวันที่
+    const autoCheckin = _event?.portal_register_checks_in === true;
+    const preReg = isPreRegistration() && !autoCheckin;
     const stampKey = await getStampFieldKey();   // ผู้บันทึก = "ลงทะเบียนผ่าน Link"
     const row = {
       event_id: _event.event_id,
@@ -1778,6 +1782,19 @@ function showMsg(msg, type) {
 }
 
 function showAlreadyRegistered(code, existing) {
+  // ถ้า event เปิด "ลงทะเบียน = เข้างานทันที" → คนที่ลงล่วงหน้าไว้ พอเปิด link ซ้ำ = เช็คอินให้เลย
+  if (_event?.portal_register_checks_in === true) {
+    const pending = existing.filter(r => !r.checked_in).map(r => r.attendee_id);
+    if (pending.length) {
+      const nowIso = new Date().toISOString();
+      existing.forEach(r => { if (!r.checked_in) r.checked_in = true; });
+      fetch(`${SB_URL}/rest/v1/event_attendees?attendee_id=in.(${pending.join(',')})`, {
+        method: 'PATCH',
+        headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ checked_in: true, check_in_at: nowIso }),
+      }).catch(e => console.warn('auto check-in on revisit failed:', e?.message || e));
+    }
+  }
   const order = { primary: 0, co_applicant: 1 };
   const sorted = [...existing].sort((a, b) => (order[a.person_role] ?? 9) - (order[b.person_role] ?? 9));
   const tickets = sorted.map((p, i) => {
