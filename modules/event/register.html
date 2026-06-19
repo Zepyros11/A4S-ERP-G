@@ -82,6 +82,12 @@ body{font-family:'Sarabun',sans-serif;background:#f1f5f9;min-height:100vh;displa
 .toast-success{background:#065f46;}
 .toast-error{background:#991b1b;}
 
+/* ── Language switcher ── */
+.lang-switch{position:fixed;top:12px;right:14px;z-index:200;display:flex;gap:3px;background:rgba(255,255,255,.92);backdrop-filter:blur(8px);border:1px solid #e2e8f0;border-radius:20px;padding:3px;box-shadow:0 3px 12px rgba(0,0,0,.14);}
+.lang-switch button{border:none;background:transparent;font-family:inherit;font-size:12px;font-weight:700;color:#64748b;padding:5px 11px;border-radius:16px;cursor:pointer;transition:all .15s;line-height:1;}
+.lang-switch button.active{background:linear-gradient(135deg,#1e40af,#3b82f6);color:#fff;box-shadow:0 2px 6px rgba(30,64,175,.3);}
+.lang-switch button:hover:not(.active){background:#f1f5f9;color:#1e40af;}
+
 @media(max-width:480px){
   body{padding:0;align-items:flex-start;}
   .reg-card{border-radius:0;min-height:100vh;max-width:100%;}
@@ -373,6 +379,12 @@ body.is-picker .reg-card{
 </head>
 <body>
 
+<div class="lang-switch" id="langSwitch">
+  <button type="button" data-lang="th" onclick="setLang('th')">ไทย</button>
+  <button type="button" data-lang="en" onclick="setLang('en')">EN</button>
+  <button type="button" data-lang="fr" onclick="setLang('fr')">FR</button>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <div class="pp-overlay" id="ppOverlay" role="dialog" aria-modal="true" aria-labelledby="ppTitle"></div>
@@ -419,6 +431,210 @@ body.is-picker .reg-card{
    Override via localStorage (admin mode) takes precedence. */
 const SB_URL = localStorage.getItem('sb_url') || window.REGISTER_CONFIG?.sb_url || '';
 const SB_KEY = localStorage.getItem('sb_key') || window.REGISTER_CONFIG?.sb_key || '';
+
+/* ── i18n: ไทย / English / Français ─────────────────────────
+   หน้านี้สร้าง DOM ด้วย JS ทั้งหมด → ใช้ dictionary + t(key,vars) แทน data-i18n
+   เปลี่ยนภาษาแล้ว re-render (เก็บค่าที่กรอกไว้) ผ่าน setLang() */
+const I18N = {
+  th: {
+    auth_title: '🔐 ยืนยันตัวตน',
+    tab_member: '🔐 สมาชิก A4S', tab_guest: '👤 บุคคลทั่วไป',
+    lbl_member_code: 'รหัสสมาชิก', ph_member_code: 'รหัสสมาชิก',
+    lbl_password: 'รหัสผ่าน', ph_password: 'รหัสผ่านของคุณ',
+    btn_register: '🎫 ลงทะเบียน', checking: '⏳ กำลังตรวจสอบ...', registering: '⏳ กำลังลงทะเบียน...',
+    guest_note: '📝 สำหรับผู้ที่ไม่ใช่สมาชิก A4S — กรอกข้อมูลให้ครบทุกช่องเพื่อลงทะเบียนเข้างาน',
+    lbl_name: 'ชื่อ-นามสกุล', ph_name: 'กรอกชื่อ-นามสกุล',
+    lbl_phone: 'เบอร์โทรศัพท์', ph_phone: '08x-xxx-xxxx',
+    lbl_ref: 'รหัสผู้แนะนำ', ph_ref: 'รหัสสมาชิกผู้แนะนำ',
+    closed_not_open: 'Event นี้ยังไม่เปิดลงทะเบียน', closed_full: 'ลงทะเบียนเต็มแล้ว',
+    cap_registered: '👥 ลงทะเบียนแล้ว {n} / {max} คน', cap_full: '❌ เต็ม', cap_left: '{n}% เหลือ',
+    prereq_cond: '🔒 <b>เงื่อนไข:</b> ต้องผ่าน <b>{lvl}</b> ก่อน',
+    line_linked: '✅ เชื่อม LINE แล้ว',
+    line_unlinked: 'เชื่อม LINE เพื่อรับการแจ้งข่าวกิจกรรมจากทางบริษัท',
+    line_btn: 'เชื่อม LINE',
+    line_need_reg_title: 'ต้องลงทะเบียนก่อน',
+    line_need_reg_msg: 'กรุณาลงทะเบียนด้านบนให้เสร็จก่อน แล้วค่อยกดเชื่อม LINE',
+    ok: 'ตกลง',
+    line_opened: '👉 LINE เปิดแล้ว — แตะปุ่ม Send (▶) ใน LINE เพื่อยืนยันการเชื่อม',
+    err_need_code_pass: 'กรุณากรอกรหัสสมาชิกและรหัสผ่าน',
+    err_not_found_member: '❌ ไม่พบรหัสสมาชิกนี้',
+    err_not_ready: '❌ ระบบยังไม่พร้อม',
+    err_no_password_set: '❌ สมาชิกยังไม่ได้ตั้งรหัสผ่าน — ติดต่อแอดมิน',
+    err_wrong_password: '❌ รหัสผ่านไม่ถูกต้อง',
+    err_members_only: t('err_members_only'),
+    err_full: '❌ เต็มแล้ว',
+    err_seats_not_enough: '❌ ที่นั่งเหลือไม่พอสำหรับ 2 รายชื่อ',
+    err_prereq: '❌ ยังไม่ผ่านเงื่อนไข — ต้องเรียน {lvl} ก่อน',
+    err_generic: '❌ เกิดข้อผิดพลาด: ',
+    err_pos_low: '❌ ตำแหน่งของคุณ (<b>{have}</b>) ยังไม่ถึงเกณฑ์ — Event นี้รับเฉพาะ <b>{need}</b> ขึ้นไป',
+    no_position: 'ยังไม่มีตำแหน่ง',
+    err_guest_pos: '❌ Event นี้รับเฉพาะสมาชิกตำแหน่ง <b>{need}</b> ขึ้นไป',
+    err_need_name: 'กรุณากรอกชื่อ-นามสกุล',
+    err_need_phone: 'กรุณากรอกเบอร์โทรศัพท์',
+    err_need_ref: 'กรุณากรอกรหัสผู้แนะนำ',
+    err_ref_not_found_db: '❌ ไม่พบรหัสผู้แนะนำนี้ในระบบ',
+    ref_checking: '⏳ กำลังตรวจสอบ...', ref_not_found: '❌ ไม่พบรหัสผู้แนะนำนี้', ref_err: '⚠️ ตรวจสอบไม่ได้ ลองอีกครั้ง',
+    success_title: 'ลงทะเบียนเข้างาน {event} เรียบร้อย',
+    prereg_badge: '📅 ลงทะเบียนล่วงหน้า', two_names: '2 รายชื่อ',
+    qr_hint_prereg: '📱 ใช้ QR นี้ check-in ที่หน้างานในวันงาน',
+    qr_hint: '📱 แสดง QR นี้ที่หน้างานเพื่อ check-in',
+    sx_name: '👤 ชื่อ', sx_phone: '📱 เบอร์โทร', sx_ref: '🤝 ผู้แนะนำ',
+    pp_title: 'เลือกผู้เข้างาน', pp_sub: 'รหัสนี้มี 2 รายชื่อ — เลือกคนที่จะเข้างาน',
+    pp_primary_person: '👤 ผู้สมัคร', pp_primary_company: '🏢 บุคคลธรรมดา', pp_coapp: '👥 ผู้สมัครร่วม',
+    pp_both: 'เข้างานทั้ง 2 รายชื่อ', pp_2people: '2 คน',
+    pp_registered: '✅ ลงทะเบียนแล้ว', pp_has_registered: 'มีรายชื่อที่ลงไปแล้ว', pp_seats_left: 'ที่นั่งเหลือ {n}',
+    pp_cancel: 'ยกเลิก',
+    picker_title: 'เลือกกิจกรรม', picker_sub: 'เพื่อลงทะเบียนเข้าร่วม', picker_count: '{n} กิจกรรมเปิดรับสมัคร',
+    picker_empty_title: 'ยังไม่มีกิจกรรมเปิดรับสมัคร', picker_empty_sub: 'โปรดตรวจสอบอีกครั้งในภายหลัง',
+    loading: '⏳ กำลังโหลดข้อมูล...', load_fail: '❌ โหลดไม่ได้: ', time_suffix: ' น.',
+  },
+  en: {
+    auth_title: '🔐 Verify identity',
+    tab_member: '🔐 A4S Member', tab_guest: '👤 Guest',
+    lbl_member_code: 'Member code', ph_member_code: 'Member code',
+    lbl_password: 'Password', ph_password: 'Your password',
+    btn_register: '🎫 Register', checking: '⏳ Verifying...', registering: '⏳ Registering...',
+    guest_note: '📝 For non-A4S members — fill in all fields to register for the event',
+    lbl_name: 'Full name', ph_name: 'Enter your full name',
+    lbl_phone: 'Phone number', ph_phone: '08x-xxx-xxxx',
+    lbl_ref: 'Referrer code', ph_ref: "Referrer's member code",
+    closed_not_open: 'Registration for this event is not open yet', closed_full: 'Registration is full',
+    cap_registered: '👥 {n} / {max} registered', cap_full: '❌ Full', cap_left: '{n}% left',
+    prereq_cond: '🔒 <b>Requirement:</b> must complete <b>{lvl}</b> first',
+    line_linked: '✅ LINE connected',
+    line_unlinked: 'Connect LINE to receive event news from us',
+    line_btn: 'Connect LINE',
+    line_need_reg_title: 'Please register first',
+    line_need_reg_msg: 'Please complete your registration above before connecting LINE',
+    ok: 'OK',
+    line_opened: '👉 LINE opened — tap the Send (▶) button in LINE to confirm linking',
+    err_need_code_pass: 'Please enter your member code and password',
+    err_not_found_member: '❌ Member code not found',
+    err_not_ready: '❌ System not ready',
+    err_no_password_set: '❌ No password set — please contact admin',
+    err_wrong_password: '❌ Incorrect password',
+    err_members_only: '❌ This event is for A4S members only',
+    err_full: '❌ Full',
+    err_seats_not_enough: '❌ Not enough seats for 2 people',
+    err_prereq: '❌ Prerequisite not met — must complete {lvl} first',
+    err_generic: '❌ An error occurred: ',
+    err_pos_low: '❌ Your position (<b>{have}</b>) does not meet the requirement — this event is for <b>{need}</b> and above',
+    no_position: 'no position',
+    err_guest_pos: '❌ This event is for members at position <b>{need}</b> and above only',
+    err_need_name: 'Please enter your full name',
+    err_need_phone: 'Please enter your phone number',
+    err_need_ref: 'Please enter the referrer code',
+    err_ref_not_found_db: '❌ Referrer code not found',
+    ref_checking: '⏳ Checking...', ref_not_found: '❌ Referrer code not found', ref_err: '⚠️ Could not verify, please try again',
+    success_title: 'Successfully registered for {event}',
+    prereg_badge: '📅 Pre-registration', two_names: '2 people',
+    qr_hint_prereg: '📱 Use this QR to check in at the venue on the event day',
+    qr_hint: '📱 Show this QR at the venue to check in',
+    sx_name: '👤 Name', sx_phone: '📱 Phone', sx_ref: '🤝 Referrer',
+    pp_title: 'Select attendee', pp_sub: 'This code has 2 people — choose who will attend',
+    pp_primary_person: '👤 Applicant', pp_primary_company: '🏢 Individual', pp_coapp: '👥 Co-applicant',
+    pp_both: 'Both people attend', pp_2people: '2 people',
+    pp_registered: '✅ Registered', pp_has_registered: 'Already registered', pp_seats_left: '{n} seats left',
+    pp_cancel: 'Cancel',
+    picker_title: 'Select an event', picker_sub: 'to register', picker_count: '{n} events open for registration',
+    picker_empty_title: 'No events open for registration', picker_empty_sub: 'Please check again later',
+    loading: '⏳ Loading...', load_fail: '❌ Failed to load: ', time_suffix: '',
+  },
+  fr: {
+    auth_title: '🔐 Vérifier l’identité',
+    tab_member: '🔐 Membre A4S', tab_guest: '👤 Invité',
+    lbl_member_code: 'Code membre', ph_member_code: 'Code membre',
+    lbl_password: 'Mot de passe', ph_password: 'Votre mot de passe',
+    btn_register: '🎫 S’inscrire', checking: '⏳ Vérification...', registering: '⏳ Inscription...',
+    guest_note: '📝 Pour les non-membres A4S — remplissez tous les champs pour vous inscrire à l’événement',
+    lbl_name: 'Nom complet', ph_name: 'Saisissez votre nom complet',
+    lbl_phone: 'Numéro de téléphone', ph_phone: '08x-xxx-xxxx',
+    lbl_ref: 'Code du parrain', ph_ref: 'Code membre du parrain',
+    closed_not_open: 'Les inscriptions pour cet événement ne sont pas encore ouvertes', closed_full: 'Inscriptions complètes',
+    cap_registered: '👥 {n} / {max} inscrits', cap_full: '❌ Complet', cap_left: '{n}% restant',
+    prereq_cond: '🔒 <b>Condition :</b> doit avoir terminé <b>{lvl}</b> d’abord',
+    line_linked: '✅ LINE connecté',
+    line_unlinked: 'Connectez LINE pour recevoir les actualités des événements',
+    line_btn: 'Connecter LINE',
+    line_need_reg_title: 'Veuillez d’abord vous inscrire',
+    line_need_reg_msg: 'Veuillez terminer votre inscription ci-dessus avant de connecter LINE',
+    ok: 'OK',
+    line_opened: '👉 LINE ouvert — appuyez sur le bouton Envoyer (▶) dans LINE pour confirmer la liaison',
+    err_need_code_pass: 'Veuillez saisir votre code membre et votre mot de passe',
+    err_not_found_member: '❌ Code membre introuvable',
+    err_not_ready: '❌ Système indisponible',
+    err_no_password_set: '❌ Aucun mot de passe défini — contactez l’admin',
+    err_wrong_password: '❌ Mot de passe incorrect',
+    err_members_only: '❌ Cet événement est réservé aux membres A4S',
+    err_full: '❌ Complet',
+    err_seats_not_enough: '❌ Pas assez de places pour 2 personnes',
+    err_prereq: '❌ Condition non remplie — doit terminer {lvl} d’abord',
+    err_generic: '❌ Une erreur est survenue : ',
+    err_pos_low: '❌ Votre position (<b>{have}</b>) ne répond pas au critère — cet événement est pour <b>{need}</b> et plus',
+    no_position: 'aucune position',
+    err_guest_pos: '❌ Cet événement est réservé aux membres de position <b>{need}</b> et plus',
+    err_need_name: 'Veuillez saisir votre nom complet',
+    err_need_phone: 'Veuillez saisir votre numéro de téléphone',
+    err_need_ref: 'Veuillez saisir le code du parrain',
+    err_ref_not_found_db: '❌ Code du parrain introuvable',
+    ref_checking: '⏳ Vérification...', ref_not_found: '❌ Code du parrain introuvable', ref_err: '⚠️ Vérification impossible, réessayez',
+    success_title: 'Inscription à {event} réussie',
+    prereg_badge: '📅 Pré-inscription', two_names: '2 personnes',
+    qr_hint_prereg: '📱 Utilisez ce QR pour l’enregistrement sur place le jour J',
+    qr_hint: '📱 Présentez ce QR sur place pour vous enregistrer',
+    sx_name: '👤 Nom', sx_phone: '📱 Téléphone', sx_ref: '🤝 Parrain',
+    pp_title: 'Choisir le participant', pp_sub: 'Ce code a 2 personnes — choisissez qui participera',
+    pp_primary_person: '👤 Demandeur', pp_primary_company: '🏢 Particulier', pp_coapp: '👥 Co-demandeur',
+    pp_both: 'Les 2 personnes participent', pp_2people: '2 personnes',
+    pp_registered: '✅ Inscrit', pp_has_registered: 'Déjà inscrit', pp_seats_left: '{n} places restantes',
+    pp_cancel: 'Annuler',
+    picker_title: 'Choisir un événement', picker_sub: 'pour vous inscrire', picker_count: '{n} événements ouverts aux inscriptions',
+    picker_empty_title: 'Aucun événement ouvert aux inscriptions', picker_empty_sub: 'Veuillez vérifier plus tard',
+    loading: '⏳ Chargement...', load_fail: '❌ Échec du chargement : ', time_suffix: '',
+  },
+};
+let LANG = localStorage.getItem('reg_lang') || (navigator.language || '').slice(0, 2).toLowerCase();
+if (!['th', 'en', 'fr'].includes(LANG)) LANG = 'th';
+document.documentElement.lang = LANG;
+function t(key, vars) {
+  let s = (I18N[LANG] && I18N[LANG][key] != null) ? I18N[LANG][key] : (I18N.th[key] != null ? I18N.th[key] : key);
+  if (vars) for (const k in vars) s = s.split('{' + k + '}').join(vars[k]);
+  return s;
+}
+function updateLangSwitch() {
+  document.querySelectorAll('#langSwitch button').forEach(b => b.classList.toggle('active', b.dataset.lang === LANG));
+}
+window.setLang = function (l) {
+  if (!['th', 'en', 'fr'].includes(l)) return;
+  LANG = l;
+  localStorage.setItem('reg_lang', l);
+  document.documentElement.lang = l;
+  updateLangSwitch();
+  // Preserve user input + active tab across re-render
+  const keep = {
+    rCode: document.getElementById('rCode')?.value,
+    rPass: document.getElementById('rPass')?.value,
+    gName: document.getElementById('gName')?.value,
+    gPhone: document.getElementById('gPhone')?.value,
+    gRef: document.getElementById('gRef')?.value,
+    tab: document.querySelector('.reg-tab.active')?.dataset.tab,
+  };
+  const loadingEl = document.getElementById('regLoading');
+  if (loadingEl && loadingEl.style.display !== 'none') loadingEl.textContent = t('loading');
+  if (_event && !_registeredCode) {
+    renderPage();
+    renderLinePanel();
+    const set = (id, v) => { const el = document.getElementById(id); if (el && v != null) el.value = v; };
+    set('rCode', keep.rCode); set('rPass', keep.rPass);
+    set('gName', keep.gName); set('gPhone', keep.gPhone); set('gRef', keep.gRef);
+    if (keep.tab) switchRegTab(keep.tab);
+    if (keep.gRef) lookupReferrer(keep.gRef);
+  } else if (!_event) {
+    showEventPicker();
+  }
+};
+updateLangSwitch();
+{ const _l = document.getElementById('regLoading'); if (_l) _l.textContent = t('loading'); }
 
 let _event = null;
 let _series = null;
@@ -563,13 +779,13 @@ async function showEventPicker() {
         <div class="reg-picker">
           <div class="reg-picker-head">
             <div class="reg-picker-badge">🗓️</div>
-            <div class="reg-picker-title">เลือกกิจกรรม</div>
-            <div class="reg-picker-subtitle">เพื่อลงทะเบียนเข้าร่วม</div>
+            <div class="reg-picker-title">${t('picker_title')}</div>
+            <div class="reg-picker-subtitle">${t('picker_sub')}</div>
           </div>
           <div class="reg-picker-empty">
             <div class="reg-picker-empty-icon">📭</div>
-            <div class="reg-picker-empty-title">ยังไม่มีกิจกรรมเปิดรับสมัคร</div>
-            <div class="reg-picker-empty-sub">โปรดตรวจสอบอีกครั้งในภายหลัง</div>
+            <div class="reg-picker-empty-title">${t('picker_empty_title')}</div>
+            <div class="reg-picker-empty-sub">${t('picker_empty_sub')}</div>
           </div>
         </div>`;
       return;
@@ -580,9 +796,9 @@ async function showEventPicker() {
       <div class="reg-picker">
         <div class="reg-picker-head">
           <div class="reg-picker-badge">🗓️</div>
-          <div class="reg-picker-title">เลือกกิจกรรม</div>
-          <div class="reg-picker-subtitle">เพื่อลงทะเบียนเข้าร่วม</div>
-          <div class="reg-picker-count">${events.length} กิจกรรมเปิดรับสมัคร</div>
+          <div class="reg-picker-title">${t('picker_title')}</div>
+          <div class="reg-picker-subtitle">${t('picker_sub')}</div>
+          <div class="reg-picker-count">${t('picker_count', { n: events.length })}</div>
         </div>
         <div class="reg-picker-list">
           ${events.map(e => {
@@ -605,7 +821,7 @@ async function showEventPicker() {
     contentEl.style.display = 'block';
     contentEl.innerHTML = html;
   } catch (e) {
-    document.getElementById('regLoading').innerHTML = '❌ โหลดไม่ได้: ' + e.message;
+    document.getElementById('regLoading').innerHTML = t('load_fail') + e.message;
   }
 }
 
@@ -670,7 +886,7 @@ async function showEventPicker() {
     // Init LIFF after DOM is ready
     initLiff().catch(e => console.warn('LIFF init failed:', e?.message || e));
   } catch (e) {
-    document.getElementById('regLoading').innerHTML = `❌ โหลดไม่ได้: ${e.message}`;
+    document.getElementById('regLoading').innerHTML = t('load_fail') + e.message;
   }
 })();
 
@@ -722,7 +938,7 @@ function renderLinePanel() {
     el.innerHTML = `
       <div class="reg-line-avatar">${avatar}</div>
       <div class="reg-line-info">
-        <div class="reg-line-title">✅ เชื่อม LINE แล้ว</div>
+        <div class="reg-line-title">${t('line_linked')}</div>
         <div class="reg-line-name">${esc(_lineProfile.displayName || '')}</div>
       </div>`;
     el.style.display = 'flex';
@@ -731,9 +947,9 @@ function renderLinePanel() {
     el.innerHTML = `
       <div class="reg-line-avatar">💬</div>
       <div class="reg-line-info">
-        <div class="reg-line-title">เชื่อม LINE เพื่อรับการแจ้งข่าวกิจกรรมจากทางบริษัท</div>
+        <div class="reg-line-title">${t('line_unlinked')}</div>
       </div>
-      <button class="reg-line-btn" onclick="connectViaOA()">เชื่อม LINE</button>`;
+      <button class="reg-line-btn" onclick="connectViaOA()">${t('line_btn')}</button>`;
     el.style.display = 'flex';
   }
 }
@@ -774,11 +990,11 @@ window.connectViaOA = async function () {
   if (!code) {
     await ConfirmModal.open({
       icon: '📝',
-      title: 'ต้องลงทะเบียนก่อน',
+      title: t('line_need_reg_title'),
       tone: 'warning',
-      message: 'กรุณาลงทะเบียนด้านบนให้เสร็จก่อน แล้วค่อยกดเชื่อม LINE',
+      message: t('line_need_reg_msg'),
       hideCancel: true,
-      okText: 'ตกลง',
+      okText: t('ok'),
     });
     codeEl?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     setTimeout(() => codeEl?.focus(), 300);
@@ -790,7 +1006,7 @@ window.connectViaOA = async function () {
     const url = `https://line.me/R/oaMessage/${encodeURIComponent(oaId)}/?${encodeURIComponent(msg)}`;
     window.open(url, '_blank');
     // เตือน user ให้กด Send ใน LINE (LINE ไม่ให้ auto-send กัน spam)
-    showToast('👉 LINE เปิดแล้ว — แตะปุ่ม Send (▶) ใน LINE เพื่อยืนยันการเชื่อม', 'info');
+    showToast(t('line_opened'), 'info');
   };
 
   // Priority 1: cached token จาก doRegister
@@ -815,8 +1031,8 @@ window.connectViaOA = async function () {
         openDeepLink(`🔗 เชื่อม LINE กับ A4S · รหัสยืนยัน: ${data.token}`);
         return;
       }
-      if (res.status === 401) { showToast('❌ รหัสผ่านไม่ถูกต้อง', 'error'); passEl?.focus(); return; }
-      if (res.status === 404) { showToast('❌ ไม่พบรหัสสมาชิกนี้', 'error'); codeEl?.focus(); return; }
+      if (res.status === 401) { showToast(t('err_wrong_password'), 'error'); passEl?.focus(); return; }
+      if (res.status === 404) { showToast(t('err_not_found_member'), 'error'); codeEl?.focus(); return; }
       console.warn('[preauth live] failed, fallback to legacy:', res.status, data?.error);
     } catch (e) {
       console.warn('[preauth live] network error, fallback to legacy:', e.message);
@@ -849,7 +1065,7 @@ function renderPage() {
   const infoEl = document.getElementById('regInfo');
   infoEl.innerHTML = `
     <div class="reg-info-row"><span class="reg-info-icon">📅</span>${fmtDate(_event.event_date)}${_event.end_date && _event.end_date !== _event.event_date ? ' — ' + fmtDate(_event.end_date) : ''}</div>
-    <div class="reg-info-row"><span class="reg-info-icon">🕐</span>${_event.start_time && _event.end_time ? _event.start_time.slice(0,5) + ' — ' + _event.end_time.slice(0,5) + ' น.' : '—'}</div>
+    <div class="reg-info-row"><span class="reg-info-icon">🕐</span>${_event.start_time && _event.end_time ? _event.start_time.slice(0,5) + ' — ' + _event.end_time.slice(0,5) + t('time_suffix') : '—'}</div>
     <div class="reg-info-row"><span class="reg-info-icon">📍</span>${esc(_event.location || '—')}</div>
     ${_event.description ? `<div class="reg-info-row"><span class="reg-info-icon">📝</span>${esc(_event.description)}</div>` : ''}
 `;
@@ -858,7 +1074,7 @@ function renderPage() {
   if (_prereqLevel) {
     const prereqEl = document.getElementById('regPrereq');
     prereqEl.className = 'reg-prereq';
-    prereqEl.innerHTML = `🔒 <b>เงื่อนไข:</b> ต้องผ่าน <b>${esc(_prereqLevel.level_name)}</b> ก่อน${_level?.description ? '<br>📋 ' + esc(_level.description) : ''}`;
+    prereqEl.innerHTML = `${t('prereq_cond', { lvl: esc(_prereqLevel.level_name) })}${_level?.description ? '<br>📋 ' + esc(_level.description) : ''}`;
     prereqEl.style.display = 'block';
   } else if (_level?.description) {
     const prereqEl = document.getElementById('regPrereq');
@@ -874,8 +1090,8 @@ function renderPage() {
     const cls = pct >= 100 ? 'full' : pct >= 80 ? 'warn' : 'ok';
     capEl.innerHTML = `
       <div style="display:flex;justify-content:space-between">
-        <span>👥 ลงทะเบียนแล้ว ${_attendeeCount} / ${_event.max_attendees} คน</span>
-        <span style="font-weight:700">${pct >= 100 ? '❌ เต็ม' : Math.round(100 - pct) + '% เหลือ'}</span>
+        <span>${t('cap_registered', { n: _attendeeCount, max: _event.max_attendees })}</span>
+        <span style="font-weight:700">${pct >= 100 ? t('cap_full') : t('cap_left', { n: Math.round(100 - pct) })}</span>
       </div>
       <div class="reg-cap-bar"><div class="reg-cap-fill ${cls}" style="width:${pct}%"></div></div>`;
     capEl.style.display = 'block';
@@ -887,54 +1103,55 @@ function renderPage() {
   const isOpen = _event.registration_enabled;
 
   if (!isOpen) {
-    formEl.innerHTML = '<div class="reg-closed"><div class="reg-closed-icon">🚫</div>Event นี้ยังไม่เปิดลงทะเบียน</div>';
+    formEl.innerHTML = `<div class="reg-closed"><div class="reg-closed-icon">🚫</div>${t('closed_not_open')}</div>`;
   } else if (isFull) {
-    formEl.innerHTML = '<div class="reg-closed"><div class="reg-closed-icon">🚫</div>ลงทะเบียนเต็มแล้ว</div>';
+    formEl.innerHTML = `<div class="reg-closed"><div class="reg-closed-icon">🚫</div>${t('closed_full')}</div>`;
   } else {
     // Guest ลงทะเบียนไม่ได้ถ้า: members_only · หรือ event กำหนดตำแหน่งขั้นต่ำ (guest ไม่มี position)
     const allowGuest = !_event.members_only && !_event.min_position_level;
+    const req = '<span style="color:#dc2626">*</span>';
     const memberFormHtml = `
       <div class="reg-field">
-        <label>รหัสสมาชิก <span style="color:#dc2626">*</span></label>
-        <input id="rCode" placeholder="รหัสสมาชิก" autocomplete="off" inputmode="numeric" required>
+        <label>${t('lbl_member_code')} ${req}</label>
+        <input id="rCode" placeholder="${t('ph_member_code')}" autocomplete="off" inputmode="numeric" required>
       </div>
       <div class="reg-field">
-        <label>รหัสผ่าน <span style="color:#dc2626">*</span></label>
-        <input id="rPass" type="password" placeholder="รหัสผ่านของคุณ" required>
+        <label>${t('lbl_password')} ${req}</label>
+        <input id="rPass" type="password" placeholder="${t('ph_password')}" required>
       </div>
       <div id="regMsg" style="display:none"></div>
-      <button class="reg-submit" id="btnRegister" onclick="doRegister()">🎫 ลงทะเบียน</button>`;
+      <button class="reg-submit" id="btnRegister" onclick="doRegister()">${t('btn_register')}</button>`;
     const guestFormHtml = `
-      <div class="reg-guest-note">📝 สำหรับผู้ที่ไม่ใช่สมาชิก A4S — กรอกข้อมูลให้ครบทุกช่องเพื่อลงทะเบียนเข้างาน</div>
+      <div class="reg-guest-note">${t('guest_note')}</div>
       <div class="reg-field">
-        <label>ชื่อ-นามสกุล <span style="color:#dc2626">*</span></label>
-        <input id="gName" placeholder="กรอกชื่อ-นามสกุล" autocomplete="name" required>
+        <label>${t('lbl_name')} ${req}</label>
+        <input id="gName" placeholder="${t('ph_name')}" autocomplete="name" required>
       </div>
       <div class="reg-field">
-        <label>เบอร์โทรศัพท์ <span style="color:#dc2626">*</span></label>
-        <input id="gPhone" placeholder="08x-xxx-xxxx" inputmode="tel" autocomplete="tel" required>
+        <label>${t('lbl_phone')} ${req}</label>
+        <input id="gPhone" placeholder="${t('ph_phone')}" inputmode="tel" autocomplete="tel" required>
       </div>
       <div class="reg-field">
-        <label>รหัสผู้แนะนำ <span style="color:#dc2626">*</span></label>
-        <input id="gRef" placeholder="รหัสสมาชิกผู้แนะนำ" inputmode="numeric" autocomplete="off" required>
+        <label>${t('lbl_ref')} ${req}</label>
+        <input id="gRef" placeholder="${t('ph_ref')}" inputmode="numeric" autocomplete="off" required>
         <div id="gRefStatus" style="font-size:11.5px;margin-top:4px;min-height:14px"></div>
       </div>
       <div id="regMsgGuest" style="display:none"></div>
-      <button class="reg-submit" id="btnRegisterGuest" onclick="doRegisterGuest()">🎫 ลงทะเบียน</button>`;
+      <button class="reg-submit" id="btnRegisterGuest" onclick="doRegisterGuest()">${t('btn_register')}</button>`;
 
     if (!allowGuest) {
       // members-only event → no tabs
       formEl.innerHTML = `
         <div class="reg-auth">
-          <div class="reg-auth-title">🔐 ยืนยันตัวตน</div>
+          <div class="reg-auth-title">${t('auth_title')}</div>
           ${memberFormHtml}
         </div>`;
     } else {
       formEl.innerHTML = `
         <div class="reg-auth">
           <div class="reg-tabs" role="tablist">
-            <button class="reg-tab active" data-tab="member" role="tab" onclick="switchRegTab('member')">🔐 สมาชิก A4S</button>
-            <button class="reg-tab" data-tab="guest" role="tab" onclick="switchRegTab('guest')">👤 บุคคลทั่วไป</button>
+            <button class="reg-tab active" data-tab="member" role="tab" onclick="switchRegTab('member')">${t('tab_member')}</button>
+            <button class="reg-tab" data-tab="guest" role="tab" onclick="switchRegTab('guest')">${t('tab_guest')}</button>
           </div>
           <div class="reg-tab-pane active" id="tabMember" role="tabpanel">
             ${memberFormHtml}
@@ -957,7 +1174,7 @@ function renderPage() {
           const v = refEl.value.trim();
           const st = document.getElementById('gRefStatus');
           if (!v) { if (st) st.innerHTML = ''; return; }
-          if (st) st.innerHTML = '<span style="color:#94a3b8">⏳ กำลังตรวจสอบ...</span>';
+          if (st) st.innerHTML = `<span style="color:#94a3b8">${t('ref_checking')}</span>`;
           refTimer = setTimeout(() => lookupReferrer(v), 400);
         });
       }
@@ -980,7 +1197,7 @@ async function lookupReferrer(code) {
     }
     if (!rows.length) {
       _referrerCache = null;
-      if (st) st.innerHTML = '<span style="color:#dc2626">❌ ไม่พบรหัสผู้แนะนำนี้</span>';
+      if (st) st.innerHTML = `<span style="color:#dc2626">${t('ref_not_found')}</span>`;
       return null;
     }
     const r = rows[0];
@@ -999,7 +1216,7 @@ async function lookupReferrer(code) {
     return _referrerCache;
   } catch (e) {
     _referrerCache = null;
-    if (st) st.innerHTML = '<span style="color:#dc2626">⚠️ ตรวจสอบไม่ได้ ลองอีกครั้ง</span>';
+    if (st) st.innerHTML = `<span style="color:#dc2626">${t('ref_err')}</span>`;
     return null;
   }
 }
@@ -1070,10 +1287,10 @@ async function doRegister() {
   const msgEl = document.getElementById('regMsg');
   const btn = document.getElementById('btnRegister');
 
-  if (!code || !pass) { showMsg('กรุณากรอกรหัสสมาชิกและรหัสผ่าน', 'error'); return; }
+  if (!code || !pass) { showMsg(t('err_need_code_pass'), 'error'); return; }
 
   btn.disabled = true;
-  btn.textContent = '⏳ กำลังตรวจสอบ...';
+  btn.textContent = t('checking');
   msgEl.style.display = 'none';
 
   try {
@@ -1088,15 +1305,15 @@ async function doRegister() {
       member = testRows[0];
       if (member) { memberTable = 'test_members'; member.is_company = false; }
     }
-    if (!member) { showMsg('❌ ไม่พบรหัสสมาชิกนี้', 'error'); btn.disabled = false; btn.textContent = '🎫 ลงทะเบียน'; return; }
+    if (!member) { showMsg(t('err_not_found_member'), 'error'); btn.disabled = false; btn.textContent = t('btn_register'); return; }
 
     // 2. Verify password via hash (no master key needed — works anywhere)
     if (!window.ERPCrypto) {
-      showMsg('❌ ระบบยังไม่พร้อม', 'error'); btn.disabled = false; btn.textContent = '🎫 ลงทะเบียน'; return;
+      showMsg(t('err_not_ready'), 'error'); btn.disabled = false; btn.textContent = t('btn_register'); return;
     }
-    if (!member.password_hash) { showMsg('❌ สมาชิกยังไม่ได้ตั้งรหัสผ่าน — ติดต่อแอดมิน', 'error'); btn.disabled = false; btn.textContent = '🎫 ลงทะเบียน'; return; }
+    if (!member.password_hash) { showMsg(t('err_no_password_set'), 'error'); btn.disabled = false; btn.textContent = t('btn_register'); return; }
     const inputHash = await ERPCrypto.hash(pass);
-    if (inputHash !== member.password_hash) { showMsg('❌ รหัสผ่านไม่ถูกต้อง', 'error'); btn.disabled = false; btn.textContent = '🎫 ลงทะเบียน'; return; }
+    if (inputHash !== member.password_hash) { showMsg(t('err_wrong_password'), 'error'); btn.disabled = false; btn.textContent = t('btn_register'); return; }
 
     // 2b. Prefetch LINE link token (best-effort — ไม่ block ลงทะเบียน)
     //     เก็บไว้ใน _autoLinkToken เพื่อ connectViaOA() ใช้ได้แม้ form ถูก destroy แล้ว (10 นาที)
@@ -1104,15 +1321,15 @@ async function doRegister() {
 
     // 3. Check members_only
     if (_event.members_only && !member.member_code) {
-      showMsg('❌ Event นี้สำหรับสมาชิก A4S เท่านั้น', 'error'); btn.disabled = false; btn.textContent = '🎫 ลงทะเบียน'; return;
+      showMsg(t('err_members_only'), 'error'); btn.disabled = false; btn.textContent = t('btn_register'); return;
     }
 
     // 3b. Check min_position_level — ถ้า event กำหนดตำแหน่งขั้นต่ำ ต้องเช็ค position ของสมาชิก
     if (_event.min_position_level && !meetsMinPosition(member.position_level, _event.min_position_level)) {
       const need = POSITION_LABEL[_event.min_position_level] || _event.min_position_level;
-      const have = member.position_level ? `${member.position_level}` : 'ยังไม่มีตำแหน่ง';
-      showMsg(`❌ ตำแหน่งของคุณ (<b>${esc(have)}</b>) ยังไม่ถึงเกณฑ์ — Event นี้รับเฉพาะ <b>${esc(need)}</b> ขึ้นไป`, 'error');
-      btn.disabled = false; btn.textContent = '🎫 ลงทะเบียน'; return;
+      const have = member.position_level ? `${member.position_level}` : t('no_position');
+      showMsg(t('err_pos_low', { have: esc(have), need: esc(need) }), 'error');
+      btn.disabled = false; btn.textContent = t('btn_register'); return;
     }
 
     // 4. Build attendable persons (1-2 rows: primary + co_applicant) — สร้างใน JS
@@ -1180,15 +1397,15 @@ async function doRegister() {
         passed = matchEv.length > 0;
       }
       if (!passed) {
-        showMsg(`❌ ยังไม่ผ่าน prerequisite — ต้องเรียน ${_prereqLevel.level_name} ก่อน`, 'error');
-        btn.disabled = false; btn.textContent = '🎫 ลงทะเบียน'; return;
+        showMsg(t('err_prereq', { lvl: esc(_prereqLevel.level_name) }), 'error');
+        btn.disabled = false; btn.textContent = t('btn_register'); return;
       }
     }
 
     // 7. Determine selection — popup เฉพาะตอนมี 2 rows
     const seatsLeft = _event.max_attendees > 0 ? Math.max(0, _event.max_attendees - _attendeeCount) : Infinity;
     if (_event.max_attendees > 0 && seatsLeft <= 0) {
-      showMsg('❌ เต็มแล้ว', 'error'); btn.disabled = false; btn.textContent = '🎫 ลงทะเบียน'; return;
+      showMsg(t('err_full'), 'error'); btn.disabled = false; btn.textContent = t('btn_register'); return;
     }
 
     let selectedRoles;
@@ -1198,13 +1415,13 @@ async function doRegister() {
       const pick = await showPersonPicker({ primary, coApplicant, hasPrimary, hasCoApp, seatsLeft });
       if (!pick) {
         // user cancelled
-        btn.disabled = false; btn.textContent = '🎫 ลงทะเบียน'; return;
+        btn.disabled = false; btn.textContent = t('btn_register'); return;
       }
       selectedRoles = pick;
     }
 
     if (_event.max_attendees > 0 && selectedRoles.length > seatsLeft) {
-      showMsg('❌ ที่นั่งเหลือไม่พอสำหรับ 2 รายชื่อ', 'error'); btn.disabled = false; btn.textContent = '🎫 ลงทะเบียน'; return;
+      showMsg(t('err_seats_not_enough'), 'error'); btn.disabled = false; btn.textContent = t('btn_register'); return;
     }
 
     // 8. Generate ticket(s)
@@ -1272,11 +1489,11 @@ async function doRegister() {
     document.getElementById('regForm').innerHTML = `
       <div class="reg-msg success">
         <div style="font-size:32px;margin-bottom:8px">✅</div>
-        <div style="font-weight:700;font-size:16px;line-height:1.4">ลงทะเบียนเข้างาน ${esc(_event.event_name)} เรียบร้อย</div>
-        ${preReg ? `<div style="margin-top:6px;display:inline-block;padding:3px 10px;background:#fef3c7;color:#92400e;border:1px solid #fde68a;border-radius:10px;font-size:11.5px;font-weight:700">📅 ลงทะเบียนล่วงหน้า</div>` : ''}
-        ${payload.length === 2 ? `<div style="margin-top:4px;font-size:12.5px;color:#64748b">2 รายชื่อ</div>` : ''}
+        <div style="font-weight:700;font-size:16px;line-height:1.4">${t('success_title', { event: esc(_event.event_name) })}</div>
+        ${preReg ? `<div style="margin-top:6px;display:inline-block;padding:3px 10px;background:#fef3c7;color:#92400e;border:1px solid #fde68a;border-radius:10px;font-size:11.5px;font-weight:700">${t('prereg_badge')}</div>` : ''}
+        ${payload.length === 2 ? `<div style="margin-top:4px;font-size:12.5px;color:#64748b">${t('two_names')}</div>` : ''}
         ${ticketLines}
-        <div style="margin-top:14px;font-size:12px;color:#64748b">${preReg ? '📱 ใช้ QR นี้ check-in ที่หน้างานในวันงาน' : '📱 แสดง QR นี้ที่หน้างานเพื่อ check-in'}</div>
+        <div style="margin-top:14px;font-size:12px;color:#64748b">${preReg ? t('qr_hint_prereg') : t('qr_hint')}</div>
       </div>`;
     // Render QR per ticket
     payload.forEach((p, i) => {
@@ -1290,8 +1507,8 @@ async function doRegister() {
     });
 
   } catch (e) {
-    showMsg('❌ เกิดข้อผิดพลาด: ' + (e.message || '').slice(0, 100), 'error');
-    btn.disabled = false; btn.textContent = '🎫 ลงทะเบียน';
+    showMsg(t('err_generic') + (e.message || '').slice(0, 100), 'error');
+    btn.disabled = false; btn.textContent = t('btn_register');
   }
 }
 
@@ -1302,27 +1519,27 @@ async function doRegisterGuest() {
   const refCode = document.getElementById('gRef').value.trim();
   const btn = document.getElementById('btnRegisterGuest');
 
-  if (!name) { showGuestMsg('กรุณากรอกชื่อ-นามสกุล', 'error'); return; }
-  if (!phone) { showGuestMsg('กรุณากรอกเบอร์โทรศัพท์', 'error'); return; }
-  if (!refCode) { showGuestMsg('กรุณากรอกรหัสผู้แนะนำ', 'error'); return; }
-  if (_event.members_only) { showGuestMsg('❌ Event นี้สำหรับสมาชิก A4S เท่านั้น', 'error'); return; }
+  if (!name) { showGuestMsg(t('err_need_name'), 'error'); return; }
+  if (!phone) { showGuestMsg(t('err_need_phone'), 'error'); return; }
+  if (!refCode) { showGuestMsg(t('err_need_ref'), 'error'); return; }
+  if (_event.members_only) { showGuestMsg(t('err_members_only'), 'error'); return; }
   if (_event.min_position_level) {
     const need = POSITION_LABEL[_event.min_position_level] || _event.min_position_level;
-    showGuestMsg(`❌ Event นี้รับเฉพาะสมาชิกตำแหน่ง <b>${esc(need)}</b> ขึ้นไป`, 'error'); return;
+    showGuestMsg(t('err_guest_pos', { need: esc(need) }), 'error'); return;
   }
 
   btn.disabled = true;
-  btn.textContent = '⏳ กำลังลงทะเบียน...';
+  btn.textContent = t('registering');
   document.getElementById('regMsgGuest').style.display = 'none';
 
-  const resetBtn = () => { btn.disabled = false; btn.textContent = '🎫 ลงทะเบียน'; };
+  const resetBtn = () => { btn.disabled = false; btn.textContent = t('btn_register'); };
 
   try {
     // Validate referrer (use cache if same code, else re-fetch)
     const ref = (_referrerCache && _referrerCache.code === refCode)
       ? _referrerCache
       : await lookupReferrer(refCode);
-    if (!ref) { showGuestMsg('❌ ไม่พบรหัสผู้แนะนำนี้ในระบบ', 'error'); resetBtn(); return; }
+    if (!ref) { showGuestMsg(t('err_ref_not_found_db'), 'error'); resetBtn(); return; }
 
     // Refresh capacity (กันคนอื่นเพิ่งลง)
     if (_event.max_attendees && _event.max_attendees > 0) {
@@ -1332,7 +1549,7 @@ async function doRegisterGuest() {
       const range = attRes.headers.get('content-range') || '*/0';
       _attendeeCount = parseInt(range.split('/')[1], 10) || 0;
       if (_attendeeCount >= _event.max_attendees) {
-        showGuestMsg('❌ เต็มแล้ว', 'error'); resetBtn(); return;
+        showGuestMsg(t('err_full'), 'error'); resetBtn(); return;
       }
     }
 
@@ -1384,20 +1601,20 @@ async function doRegisterGuest() {
     document.getElementById('regForm').innerHTML = `
       <div class="reg-msg success">
         <div style="font-size:32px;margin-bottom:8px">✅</div>
-        <div style="font-weight:700;font-size:16px;line-height:1.4">ลงทะเบียนเข้างาน ${esc(_event.event_name)} เรียบร้อย</div>
-        ${preReg ? `<div style="margin-top:6px;display:inline-block;padding:3px 10px;background:#fef3c7;color:#92400e;border:1px solid #fde68a;border-radius:10px;font-size:11.5px;font-weight:700">📅 ลงทะเบียนล่วงหน้า</div>` : ''}
+        <div style="font-weight:700;font-size:16px;line-height:1.4">${t('success_title', { event: esc(_event.event_name) })}</div>
+        ${preReg ? `<div style="margin-top:6px;display:inline-block;padding:3px 10px;background:#fef3c7;color:#92400e;border:1px solid #fde68a;border-radius:10px;font-size:11.5px;font-weight:700">${t('prereg_badge')}</div>` : ''}
 
         <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:12px 14px;margin-top:12px;text-align:left;box-shadow:0 1px 2px rgba(0,0,0,.04)">
           <div style="display:flex;gap:10px;padding:6px 0;font-size:13px;color:#0f172a">
-            <span style="color:#64748b;min-width:80px">👤 ชื่อ</span>
+            <span style="color:#64748b;min-width:80px">${t('sx_name')}</span>
             <span style="font-weight:600;flex:1">${esc(name)}</span>
           </div>
           <div style="display:flex;gap:10px;padding:6px 0;font-size:13px;color:#0f172a;border-top:1px dashed #e2e8f0">
-            <span style="color:#64748b;min-width:80px">📱 เบอร์โทร</span>
+            <span style="color:#64748b;min-width:80px">${t('sx_phone')}</span>
             <span style="font-weight:600;flex:1">${esc(phone)}</span>
           </div>
           <div style="display:flex;gap:10px;padding:6px 0;font-size:13px;color:#0f172a;border-top:1px dashed #e2e8f0">
-            <span style="color:#64748b;min-width:80px">🤝 ผู้แนะนำ</span>
+            <span style="color:#64748b;min-width:80px">${t('sx_ref')}</span>
             <span style="font-weight:600;flex:1">${esc(ref.code)} · ${esc(ref.name)}</span>
           </div>
         </div>
@@ -1406,7 +1623,7 @@ async function doRegisterGuest() {
           <div id="gRegQr" data-qr="${esc(ticketNo)}" style="background:#fff;padding:8px;border-radius:8px"></div>
           <div style="font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:700;color:#1e40af;letter-spacing:.5px">${esc(ticketNo)}</div>
         </div>
-        <div style="margin-top:14px;font-size:12px;color:#64748b">${preReg ? '📱 ใช้ QR นี้ check-in ที่หน้างานในวันงาน' : '📱 แสดง QR นี้ที่หน้างานเพื่อ check-in'}</div>
+        <div style="margin-top:14px;font-size:12px;color:#64748b">${preReg ? t('qr_hint_prereg') : t('qr_hint')}</div>
       </div>`;
     const qrWrap = document.getElementById('gRegQr');
     if (qrWrap) {
@@ -1422,7 +1639,7 @@ async function doRegisterGuest() {
       if (linePanel) linePanel.style.display = 'none';
     }
   } catch (e) {
-    showGuestMsg('❌ เกิดข้อผิดพลาด: ' + (e.message || '').slice(0, 100), 'error');
+    showGuestMsg(t('err_generic') + (e.message || '').slice(0, 100), 'error');
     resetBtn();
   }
 }
@@ -1444,25 +1661,26 @@ function showPersonPicker({ primary, coApplicant, hasPrimary, hasCoApp, seatsLef
     const pName = primary?.person_name || '—';
     const cName = coApplicant?.person_name || '—';
     const primaryChip = primary?.is_company
-      ? '<span class="pp-chip role-primary">🏢 บุคคลธรรมดา</span>'
-      : '<span class="pp-chip role-primary">👤 ผู้สมัคร</span>';
+      ? `<span class="pp-chip role-primary">${t('pp_primary_company')}</span>`
+      : `<span class="pp-chip role-primary">${t('pp_primary_person')}</span>`;
     const bothDisabled = hasPrimary || hasCoApp || seatsLeft < 2;
     const bothNote = hasPrimary || hasCoApp
-      ? '<span class="pp-chip warn">มีรายชื่อที่ลงไปแล้ว</span>'
-      : (seatsLeft < 2 ? '<span class="pp-chip warn">ที่นั่งเหลือ ' + seatsLeft + '</span>' : '');
+      ? `<span class="pp-chip warn">${t('pp_has_registered')}</span>`
+      : (seatsLeft < 2 ? `<span class="pp-chip warn">${t('pp_seats_left', { n: seatsLeft })}</span>` : '');
+    const doneChip = `<span class="pp-chip done">${t('pp_registered')}</span>`;
 
     ov.innerHTML = `
       <div class="pp-card" role="document">
         <div class="pp-head">
-          <div class="pp-title" id="ppTitle">เลือกผู้เข้างาน</div>
-          <div class="pp-sub">รหัสนี้มี 2 รายชื่อ — เลือกคนที่จะเข้างาน</div>
+          <div class="pp-title" id="ppTitle">${t('pp_title')}</div>
+          <div class="pp-sub">${t('pp_sub')}</div>
         </div>
         <div class="pp-body">
           <button class="pp-opt" data-pick="primary" ${hasPrimary ? 'disabled' : ''}>
             <div class="pp-icon primary">👤</div>
             <div class="pp-info">
               <div class="pp-name">${esc(pName)}</div>
-              <div class="pp-meta">${primaryChip}${hasPrimary ? '<span class="pp-chip done">✅ ลงทะเบียนแล้ว</span>' : ''}</div>
+              <div class="pp-meta">${primaryChip}${hasPrimary ? doneChip : ''}</div>
             </div>
             <div class="pp-arrow">›</div>
           </button>
@@ -1470,21 +1688,21 @@ function showPersonPicker({ primary, coApplicant, hasPrimary, hasCoApp, seatsLef
             <div class="pp-icon coapp">👥</div>
             <div class="pp-info">
               <div class="pp-name">${esc(cName)}</div>
-              <div class="pp-meta"><span class="pp-chip role-coapp">👥 ผู้สมัครร่วม</span>${hasCoApp ? '<span class="pp-chip done">✅ ลงทะเบียนแล้ว</span>' : ''}</div>
+              <div class="pp-meta"><span class="pp-chip role-coapp">${t('pp_coapp')}</span>${hasCoApp ? doneChip : ''}</div>
             </div>
             <div class="pp-arrow">›</div>
           </button>
           <button class="pp-opt" data-pick="both" ${bothDisabled ? 'disabled' : ''}>
             <div class="pp-icon both">👫</div>
             <div class="pp-info">
-              <div class="pp-name">เข้างานทั้ง 2 รายชื่อ</div>
-              <div class="pp-meta"><span class="pp-chip role-primary">2 คน</span>${bothNote}</div>
+              <div class="pp-name">${t('pp_both')}</div>
+              <div class="pp-meta"><span class="pp-chip role-primary">${t('pp_2people')}</span>${bothNote}</div>
             </div>
             <div class="pp-arrow">›</div>
           </button>
         </div>
         <div class="pp-foot">
-          <button type="button" class="pp-cancel" data-pick="cancel">ยกเลิก</button>
+          <button type="button" class="pp-cancel" data-pick="cancel">${t('pp_cancel')}</button>
         </div>
       </div>`;
     ov.classList.add('open');
@@ -1542,10 +1760,10 @@ function showAlreadyRegistered(code, existing) {
   document.getElementById('regForm').innerHTML = `
     <div class="reg-msg success">
       <div style="font-size:32px;margin-bottom:4px">✅</div>
-      <div style="font-weight:700;font-size:16px;line-height:1.4">ลงทะเบียนเข้างาน ${esc(_event.event_name)} เรียบร้อย</div>
-      ${sorted.length === 2 ? `<div style="margin-top:4px;font-size:12.5px;color:#64748b">2 รายชื่อ</div>` : ''}
+      <div style="font-weight:700;font-size:16px;line-height:1.4">${t('success_title', { event: esc(_event.event_name) })}</div>
+      ${sorted.length === 2 ? `<div style="margin-top:4px;font-size:12.5px;color:#64748b">${t('two_names')}</div>` : ''}
       ${tickets}
-      <div style="margin-top:14px;font-size:12px;color:#64748b">📱 แสดง QR นี้ที่หน้างานเพื่อ check-in</div>
+      <div style="margin-top:14px;font-size:12px;color:#64748b">${t('qr_hint')}</div>
     </div>`;
   // Render QR after DOM is in place
   sorted.forEach((p, i) => {
