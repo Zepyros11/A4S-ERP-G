@@ -394,7 +394,7 @@
         </div>
         <div class="att-modal-footer" style="flex-wrap:wrap;gap:6px">
           <button class="btn" style="background:#06c755;color:#fff" id="btnBulkLinePush" onclick="window.sendBulkLinePush()" title="ส่งข้อความ text ให้แต่ละคน (personalize)">📱 ส่ง Text</button>
-          <button class="btn" style="background:#7c3aed;color:#fff" id="btnBulkTagDetail" onclick="window.sendBulkLineTagDetail()" title="ส่ง detail ของ tag ที่แต่ละคนมี (ตามหมวด Tag)">🏷️ ส่งข้อความ Tag</button>
+          <button class="btn" style="background:#7c3aed;color:#fff" id="btnBulkTagDetail" onclick="window.sendBulkLineTagDetail()" title="ส่งชื่อ tag ที่แต่ละคนมี (badge สีตาม tag)">🏷️ ส่งข้อความ Tag</button>
           <button class="btn" style="background:#1e40af;color:#fff" id="btnBulkTicketFlex" onclick="window.sendBulkTicketFlex()" title="ส่งบัตร Flex + QR ให้แต่ละคน">🎫 ส่ง Ticket</button>
         </div>
       </div>
@@ -523,14 +523,11 @@
               <div class="tag-cat-col-hdr">➕ เพิ่มหมวดใหม่</div>
               <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px">
                 <input id="tagCatNewName" type="text" class="form-input" maxlength="40"
-                  placeholder="ชื่อหมวด — เช่น เข็มทอง, VIP, รับหมวก"
+                  placeholder="ชื่อ tag — เช่น เข็มทอง, VIP, รับหมวก"
                   style="flex:1;min-width:160px;padding:8px 10px">
                 <div id="tagCatColorPicker" class="tag-color-picker"></div>
               </div>
-              <textarea id="tagCatNewDetail" class="form-input" rows="6" maxlength="800"
-                placeholder="รายละเอียด — ส่งใน LINE ตอน check-in (เช่น สถานที่รับเข็ม, รหัสรับของ ฯลฯ)"
-                style="width:100%;padding:8px 10px;font-size:12.5px;line-height:1.5;resize:vertical"></textarea>
-              <div style="display:flex;justify-content:flex-end;margin-top:10px">
+              <div style="display:flex;justify-content:flex-end;margin-top:4px">
                 <button class="btn btn-primary" onclick="window.createTagCategory()" style="padding:8px 18px">บันทึก</button>
               </div>
             </div>
@@ -617,13 +614,9 @@
           <div class="tag-picker-hdr">เลือก tag</div>
           <div id="tagPickerList" class="tag-picker-list"></div>
           <div class="tag-picker-empty" id="tagPickerEmpty" style="display:none">
-            ยังไม่มีหมวด Tag<br>
-            <button onclick="window.closeTagPickerAndOpenManage()" style="margin-top:8px;padding:6px 12px;border:none;border-radius:6px;background:#1e40af;color:#fff;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer">➕ จัดการหมวด Tag</button>
+            ยังไม่มี tag<br>
+            <button onclick="window.closeTagPickerAndOpenManage()" style="margin-top:8px;padding:6px 12px;border:none;border-radius:6px;background:#1e40af;color:#fff;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer">➕ จัดการ tag</button>
           </div>
-        </div>
-        <div class="tag-picker-side" id="tagPickerSide">
-          <div class="tag-picker-side-hdr" id="tagPickerSideHdr">รายละเอียด</div>
-          <div class="tag-picker-side-body" id="tagPickerSideBody">— hover ที่ tag เพื่อดูรายละเอียด —</div>
           <div class="tag-picker-note" id="tagPickerNoteWrap" style="display:none">
             <label for="tagPickerNote">📝 โน้ต (เพิ่มลงหมายเหตุ)</label>
             <textarea id="tagPickerNote" rows="2" placeholder="พิมพ์โน้ต แล้วเลือก tag — โน้ตจะถูกเพิ่มในหมายเหตุ"></textarea>

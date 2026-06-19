@@ -2231,13 +2231,13 @@
 .tag-picker-body {
   display: flex;
   align-items: stretch;
-  min-width: 440px;
-  max-width: 560px;
+  min-width: 280px;
+  max-width: 360px;
 }
 .tag-picker-main {
-  flex: 0 0 220px;
+  flex: 1;
+  min-width: 0;
   padding: 8px;
-  border-right: 1px solid #e2e8f0;
 }
 .tag-picker-side {
   flex: 1;

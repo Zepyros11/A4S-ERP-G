@@ -4136,20 +4136,13 @@ window.openTagPicker = function (attendeeId, anchorEl) {
       .map((c) => {
         const disabled = used.has(c.tag_name);
         const colorCls = `tag-color-${TAG_COLOR_PRESETS.includes(c.color) ? c.color : "yellow"}`;
-        const detail = (c.detail || "").trim();
         return `<div class="tag-picker-item ${disabled ? "disabled" : ""}"
-          data-name="${escapeHtml(c.tag_name)}"
-          data-detail="${escapeHtml(detail)}"
-          ${disabled ? "" : `onclick="window.pickTagFromCategory('${escapeJS(c.tag_name)}')"`}
-          onmouseenter="window._showTagPickerSide(this)">
+          ${disabled ? "" : `onclick="window.pickTagFromCategory('${escapeJS(c.tag_name)}')"`}>
           <span class="tag-cat-preview ${colorCls}">${escapeHtml(c.tag_name)}</span>
           ${disabled ? '<span style="font-size:10px;color:var(--text3);margin-left:auto">มีแล้ว</span>' : ""}
-          ${detail ? '<span class="tag-picker-info" title="มีรายละเอียด">ℹ️</span>' : ""}
         </div>`;
       })
       .join("");
-    // Reset side panel
-    _resetTagPickerSide();
   }
   // โน้ตอิสระ — รีเซ็ตช่อง + แสดงเฉพาะเมื่อ event มีคอลัมน์ หมายเหตุ
   const noteEl = document.getElementById("tagPickerNote");
@@ -4173,32 +4166,6 @@ function _tagPickerOutside(e) {
     document.removeEventListener("click", _tagPickerOutside, true);
   }
 }
-function _resetTagPickerSide() {
-  const hdr = document.getElementById("tagPickerSideHdr");
-  const body = document.getElementById("tagPickerSideBody");
-  if (hdr) hdr.textContent = "รายละเอียด";
-  if (body) {
-    body.textContent = "— hover ที่ tag เพื่อดูรายละเอียด —";
-    body.classList.add("empty");
-  }
-}
-window._showTagPickerSide = function (el) {
-  const name = el.getAttribute("data-name") || "";
-  const detail = el.getAttribute("data-detail") || "";
-  const hdr = document.getElementById("tagPickerSideHdr");
-  const body = document.getElementById("tagPickerSideBody");
-  if (hdr) hdr.textContent = name || "รายละเอียด";
-  if (body) {
-    if (detail) {
-      body.textContent = detail;
-      body.classList.remove("empty");
-    } else {
-      body.textContent = "ยังไม่มีรายละเอียดสำหรับ tag นี้";
-      body.classList.add("empty");
-    }
-  }
-};
-
 // หา key ของคอลัมน์ "หมายเหตุ" (custom text field) ใน config ของ event นี้
 function _noteFieldKey() {
   const cf = (_getActiveFieldConfig().custom_fields || []).find(c =>
@@ -4267,8 +4234,6 @@ window.openTagCategoriesModal = function () {
   document.getElementById("tagCatEventName").textContent =
     currentEvent ? `· ${currentEvent.event_name}` : "";
   document.getElementById("tagCatNewName").value = "";
-  const detailEl = document.getElementById("tagCatNewDetail");
-  if (detailEl) detailEl.value = "";
   _tagCatNewColor = "yellow";
   _renderTagCatColorPicker();
   _renderTagCatList();
@@ -4312,28 +4277,14 @@ function _renderTagCatList() {
         `<div class="tag-color-swatch sw-${p} ${p === c.color ? "selected" : ""}"
           title="${p}" onclick="window.changeTagCatColor(${c.tag_category_id},'${p}')"></div>`,
       ).join("");
-      const detailPreview = (c.detail || "").trim()
-        ? escapeHtml(c.detail.length > 60 ? c.detail.slice(0, 60) + "…" : c.detail)
-        : '<span style="color:var(--text3);font-style:italic">ยังไม่มีรายละเอียด</span>';
       return `<div class="tag-cat-item-wrap">
         <div class="tag-cat-item">
           <span class="tag-cat-preview ${colorCls}" data-cat-id="${c.tag_category_id}">${escapeHtml(c.tag_name)}</span>
           <span class="tag-cat-usage">${used} คน</span>
           <div class="tag-color-picker" style="gap:3px">${swatches}</div>
           <div class="tag-cat-actions">
-            <button class="tag-cat-btn" onclick="window.toggleTagCatDetail(${c.tag_category_id})" title="แก้รายละเอียด">📝</button>
             <button class="tag-cat-btn" onclick="window.renameTagCat(${c.tag_category_id})" title="เปลี่ยนชื่อ">✏️</button>
             <button class="tag-cat-btn danger" onclick="window.askDeleteTagCat(${c.tag_category_id})" title="ลบ">🗑</button>
-          </div>
-        </div>
-        <div class="tag-cat-detail-preview" id="tagCatDetailPrev_${c.tag_category_id}">${detailPreview}</div>
-        <div class="tag-cat-detail-edit" id="tagCatDetailEdit_${c.tag_category_id}" style="display:none">
-          <textarea class="form-input" id="tagCatDetailInput_${c.tag_category_id}" rows="3" maxlength="800"
-            placeholder="รายละเอียดที่ส่งทาง LINE ตอน check-in"
-            style="width:100%;padding:7px 10px;font-size:12.5px;line-height:1.5;resize:vertical">${escapeHtml(c.detail || "")}</textarea>
-          <div class="tag-cat-detail-btns">
-            <button class="tag-cat-detail-btn cancel" onclick="window.cancelTagCatDetailEdit(${c.tag_category_id})">ยกเลิก</button>
-            <button class="tag-cat-detail-btn save" onclick="window.saveTagCatDetail(${c.tag_category_id})">💾 บันทึก</button>
           </div>
         </div>
       </div>`;
@@ -4341,71 +4292,26 @@ function _renderTagCatList() {
     .join("");
 }
 
-window.toggleTagCatDetail = function (id) {
-  const prev = document.getElementById(`tagCatDetailPrev_${id}`);
-  const edit = document.getElementById(`tagCatDetailEdit_${id}`);
-  if (!prev || !edit) return;
-  const opening = edit.style.display === "none";
-  prev.style.display = opening ? "none" : "block";
-  edit.style.display = opening ? "block" : "none";
-  if (opening) {
-    const input = document.getElementById(`tagCatDetailInput_${id}`);
-    input?.focus();
-  }
-};
-
-window.cancelTagCatDetailEdit = function (id) {
-  const cat = currentTagCategories.find((c) => c.tag_category_id === id);
-  const input = document.getElementById(`tagCatDetailInput_${id}`);
-  if (input && cat) input.value = cat.detail || "";
-  window.toggleTagCatDetail(id);
-};
-
-window.saveTagCatDetail = async function (id) {
-  const cat = currentTagCategories.find((c) => c.tag_category_id === id);
-  if (!cat) return;
-  const input = document.getElementById(`tagCatDetailInput_${id}`);
-  if (!input) return;
-  const detail = input.value || "";
-  if ((detail || "") === (cat.detail || "")) {
-    window.toggleTagCatDetail(id);
-    return;
-  }
-  try {
-    await updateTagCategoryDB(id, { detail: detail.trim() ? detail : null });
-    cat.detail = detail.trim() ? detail : null;
-    _renderTagCatList();
-    showToast(`บันทึกรายละเอียด "${cat.tag_name}" แล้ว`, "success");
-  } catch (e) {
-    showToast("บันทึกไม่สำเร็จ: " + e.message, "error");
-  }
-};
-
 window.createTagCategory = async function () {
   const input = document.getElementById("tagCatNewName");
-  const detailEl = document.getElementById("tagCatNewDetail");
   const name = (input.value || "").trim();
-  if (!name) { showToast("ใส่ชื่อหมวดก่อน", "error"); return; }
+  if (!name) { showToast("ใส่ชื่อ tag ก่อน", "error"); return; }
   if (currentTagCategories.some((c) => c.tag_name === name)) {
-    showToast("มีหมวดนี้อยู่แล้ว", "error");
+    showToast("มี tag นี้อยู่แล้ว", "error");
     return;
   }
-  const detailRaw = detailEl ? detailEl.value : "";
-  const detail = detailRaw.trim() ? detailRaw : null;
   try {
     const row = await createTagCategoryDB({
       event_id: currentEventId,
       tag_name: name,
       color: _tagCatNewColor,
-      detail,
       sort_order: currentTagCategories.length,
     });
     if (row) currentTagCategories.push(row);
     input.value = "";
-    if (detailEl) detailEl.value = "";
     _renderTagCatList();
     populateTagFilter();
-    showToast(`+ หมวด "${name}" 🏷️`, "success");
+    showToast(`+ tag "${name}" 🏷️`, "success");
   } catch (e) {
     showToast("สร้างหมวดไม่สำเร็จ: " + e.message, "error");
   }
@@ -5153,7 +5059,10 @@ function _syncTablePaneHeight() {
     const topbarH = parseInt(getComputedStyle(document.documentElement).getPropertyValue("--topbar-h")) || 56;
     const above = wrap.offsetTop;   // offset ของ wrap ในการ์ด sticky ≈ 0 (border) — dayTabs/toolbar ย้ายออกนอกการ์ดแล้ว
     const gap = 12;                 // เว้นล่างนิด ไม่ให้ชิดขอบจอ
-    wrap.style.maxHeight = Math.max(220, window.innerHeight - topbarH - above - gap) + "px";
+    const h = Math.max(220, window.innerHeight - topbarH - above - gap);
+    // height (ไม่ใช่แค่ max-height) → กรอบสูงเต็มจอเสมอ แม้แถวน้อย (พื้นที่ว่างเป็นสีขาวในกรอบ)
+    wrap.style.height = h + "px";
+    wrap.style.maxHeight = h + "px";
   });
 }
 window.addEventListener("resize", _syncTablePaneHeight);
@@ -5788,10 +5697,9 @@ window.sendBulkLinePush = async function () {
   }
 };
 
-// ── Send tag detail per attendee (FLEX) ─────────────────────
-// สำหรับคนที่ถูก filter อยู่ใน bulk modal: ส่ง flex bubble ที่มี detail ของ tag ที่ตัวเองมี
-// คนติดหลาย tag = หลาย box ใน 1 bubble (สีตาม category)
-// คนไม่มี tag / tag ไม่มี detail / ไม่มี LINE = skip
+// ── Send tag (FLEX) per attendee ─────────────────────────────
+// สำหรับคนที่ถูก filter อยู่ใน bulk modal: ส่ง flex bubble ที่มี "ชื่อ tag" ที่ตัวเองมี (สีตาม category)
+// คนติดหลาย tag = หลาย badge ใน 1 bubble · คนไม่มี tag / ไม่มี LINE = skip
 const FLEX_TAG_COLORS = {
   yellow: { bg: "#fef3c7", title: "#92400e", body: "#78350f" },
   blue:   { bg: "#dbeafe", title: "#1e40af", body: "#1e3a8a" },
@@ -5824,14 +5732,6 @@ function _buildTagDetailFlex(event, attendee, taggedItems) {
           size: "sm",
           color: c.title,
           wrap: true,
-        },
-        {
-          type: "text",
-          text: it.detail,
-          size: "xs",
-          color: c.body,
-          wrap: true,
-          margin: "sm",
         },
       ],
     };
@@ -5899,7 +5799,7 @@ function _buildTagDetailFlex(event, attendee, taggedItems) {
         { type: "separator", margin: "md" },
         {
           type: "text",
-          text: "📋 รายการของคุณ",
+          text: "🏷️ Tag ของคุณ",
           weight: "bold",
           size: "sm",
           color: "#0f172a",
@@ -5936,37 +5836,24 @@ window.sendBulkLineTagDetail = async function () {
   if (!window.LineAPI) { showToast("LINE module ยังไม่โหลด — refresh หน้า", "error"); return; }
   if (!window.ERPCrypto?.hasMasterKey()) { showToast("ตั้ง Master Key ในหน้า settings ก่อน", "error"); return; }
   if (!currentTagCategories.length) {
-    showToast("ยังไม่มีหมวด Tag ใน event นี้", "error");
+    showToast("ยังไม่มี tag ใน event นี้", "error");
     return;
   }
 
-  // Build category lookup: tag_name → { detail, color }
-  const catByTag = {};
+  // Build lookup: tag_name → color (สำหรับสี badge)
+  const colorByTag = {};
   currentTagCategories.forEach((c) => {
-    const d = (c.detail || "").trim();
-    if (d) {
-      catByTag[c.tag_name] = {
-        detail: d,
-        color: TAG_COLOR_PRESETS.includes(c.color) ? c.color : "yellow",
-      };
-    }
+    colorByTag[c.tag_name] = TAG_COLOR_PRESETS.includes(c.color) ? c.color : "yellow";
   });
-  if (!Object.keys(catByTag).length) {
-    showToast("ยังไม่มีหมวด Tag ที่กรอกรายละเอียดไว้", "error");
-    return;
-  }
 
-  // For each filtered attendee with LINE: build flex from their tags' details
+  // For each filtered attendee with LINE: build flex from their tag names
   const pool = _bulkMsgTargets().filter((a) => a.line_user_id);
   const targets = [];
-  let skipNoTag = 0, skipNoDetail = 0;
+  let skipNoTag = 0;
   pool.forEach((a) => {
     const tags = (a.tags || []).filter(Boolean);
     if (!tags.length) { skipNoTag++; return; }
-    const items = tags
-      .map((t) => catByTag[t] ? { name: t, ...catByTag[t] } : null)
-      .filter(Boolean);
-    if (!items.length) { skipNoDetail++; return; }
+    const items = tags.map((t) => ({ name: t, color: colorByTag[t] || "yellow" }));
     targets.push({
       userId: a.line_user_id,
       message: _buildTagDetailFlex(currentEvent, a, items),
@@ -5974,7 +5861,7 @@ window.sendBulkLineTagDetail = async function () {
   });
 
   if (!targets.length) {
-    showToast("ไม่มีคนเข้าเงื่อนไข (ต้องมี LINE + tag ที่มี detail)", "error");
+    showToast("ไม่มีคนเข้าเงื่อนไข (ต้องมี LINE + มี tag)", "error");
     return;
   }
 
@@ -5982,17 +5869,16 @@ window.sendBulkLineTagDetail = async function () {
     ? window.ConfirmModal.open({
         icon: "🏷️",
         title: "ส่งข้อความ Tag (Flex)",
-        message: `แต่ละคนจะได้ flex บัตรเฉพาะของตัวเองตาม tag ที่มี`,
+        message: `แต่ละคนจะได้ flex แสดงชื่อ tag ของตัวเอง`,
         details: {
           "ส่งให้": `${targets.length} คน`,
           "ไม่มี tag": `${skipNoTag} คน (skip)`,
-          "tag ไม่มี detail": `${skipNoDetail} คน (skip)`,
         },
         okText: "ส่งเลย",
         cancelText: "ยกเลิก",
         tone: "primary",
       })
-    : Promise.resolve(confirm(`ส่ง flex tag detail ให้ ${targets.length} คน?`)));
+    : Promise.resolve(confirm(`ส่ง flex tag ให้ ${targets.length} คน?`)));
   if (!ok) return;
 
   const btn = document.getElementById("btnBulkTagDetail");

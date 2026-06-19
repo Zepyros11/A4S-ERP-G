@@ -147,11 +147,11 @@ async function init() {
     console.warn("load event:", e);
   }
 
-  // Load event-scoped tag categories (for LINE flex detail) — degrade silently if table missing
+  // Load event-scoped tags (ชื่อ + สี) — degrade silently if table missing
   try {
     const cats = await sbFetch(
       "event_tag_categories",
-      `?event_id=eq.${eventId}&select=tag_name,detail,color`,
+      `?event_id=eq.${eventId}&select=tag_name,color`,
     );
     tagCategoriesByName = {};
     (cats || []).forEach((c) => { tagCategoriesByName[c.tag_name] = c; });
@@ -591,30 +591,8 @@ function buildCheckinTagFlex(attendee, event, tags) {
   const name = attendee.name || attendee.member_code || "";
   const ticketNo = attendee.ticket_no || `ID-${attendee.attendee_id}`;
 
-  // Each tag → box with name + (optional) detail from event_tag_categories
+  // Each tag → box with ชื่อ tag (badge)
   const tagBoxes = tags.map((t) => {
-    const cat = tagCategoriesByName[t];
-    const detail = (cat?.detail || "").trim();
-    const inner = [
-      {
-        type: "text",
-        text: `🏷️  ${t}`,
-        size: "sm",
-        color: "#92400e",
-        weight: "bold",
-        wrap: true,
-      },
-    ];
-    if (detail) {
-      inner.push({
-        type: "text",
-        text: detail,
-        size: "xs",
-        color: "#78350f",
-        wrap: true,
-        margin: "sm",
-      });
-    }
     return {
       type: "box",
       layout: "vertical",
@@ -622,7 +600,16 @@ function buildCheckinTagFlex(attendee, event, tags) {
       cornerRadius: "md",
       backgroundColor: "#fef3c7",
       margin: "sm",
-      contents: inner,
+      contents: [
+        {
+          type: "text",
+          text: `🏷️  ${t}`,
+          size: "sm",
+          color: "#92400e",
+          weight: "bold",
+          wrap: true,
+        },
+      ],
     };
   });
 
@@ -792,25 +779,15 @@ async function lookupAttendee(code) {
   return all;
 }
 
-// Build award banner HTML — shows each tag chip + its detail lines
-// (detail comes from event_tag_categories, multiline → one row per line)
+// Build award banner HTML — shows each tag chip (ชื่อ tag)
 //   headerOnly = true → just the inner content (banner wrapper provided by caller, e.g. #ciSuccessAward)
 //   headerOnly = false → wrapped in .ci-award-banner
 function buildAwardBannerHTML(tags, opts = {}) {
   if (!tags || !tags.length) return "";
   const items = tags
     .map((t) => {
-      const cat = tagCategoriesByName[t] || {};
-      const detail = String(cat.detail || "").trim();
-      const lines = detail
-        ? detail.split(/\r?\n/).map((l) => l.trim()).filter(Boolean)
-        : [];
-      const detailHTML = lines.length
-        ? `<div class="ci-award-detail">${lines.map((l) => `<div>• ${escapeHtml(l)}</div>`).join("")}</div>`
-        : "";
       return `<div class="ci-award-item">
         <span class="ci-award-tag">${escapeHtml(t)}</span>
-        ${detailHTML}
       </div>`;
     })
     .join("");
