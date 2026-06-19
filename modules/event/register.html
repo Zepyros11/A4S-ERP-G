@@ -446,6 +446,9 @@ const I18N = {
     lbl_name: 'ชื่อ-นามสกุล', ph_name: 'กรอกชื่อ-นามสกุล',
     lbl_phone: 'เบอร์โทรศัพท์', ph_phone: '08x-xxx-xxxx',
     lbl_ref: 'รหัสผู้แนะนำ', ph_ref: 'รหัสสมาชิกผู้แนะนำ',
+    lbl_idcard: 'เลขบัตรประชาชน', ph_idcard: 'เลข 13 หลัก',
+    err_need_idcard: 'กรุณากรอกเลขบัตรประชาชน', err_idcard_invalid: '❌ เลขบัตรประชาชนต้องมี 13 หลัก',
+    sx_idcard: '🆔 บัตรประชาชน',
     closed_not_open: 'Event นี้ยังไม่เปิดลงทะเบียน', closed_full: 'ลงทะเบียนเต็มแล้ว',
     cap_registered: '👥 ลงทะเบียนแล้ว {n} / {max} คน', cap_full: '❌ เต็ม', cap_left: '{n}% เหลือ',
     prereq_cond: '🔒 <b>เงื่อนไข:</b> ต้องผ่าน <b>{lvl}</b> ก่อน',
@@ -498,6 +501,9 @@ const I18N = {
     lbl_name: 'Full name', ph_name: 'Enter your full name',
     lbl_phone: 'Phone number', ph_phone: '08x-xxx-xxxx',
     lbl_ref: 'Referrer code', ph_ref: "Referrer's member code",
+    lbl_idcard: 'National ID', ph_idcard: '13-digit number',
+    err_need_idcard: 'Please enter your national ID', err_idcard_invalid: '❌ National ID must be 13 digits',
+    sx_idcard: '🆔 National ID',
     closed_not_open: 'Registration for this event is not open yet', closed_full: 'Registration is full',
     cap_registered: '👥 {n} / {max} registered', cap_full: '❌ Full', cap_left: '{n}% left',
     prereq_cond: '🔒 <b>Requirement:</b> must complete <b>{lvl}</b> first',
@@ -550,6 +556,9 @@ const I18N = {
     lbl_name: 'Nom complet', ph_name: 'Saisissez votre nom complet',
     lbl_phone: 'Numéro de téléphone', ph_phone: '08x-xxx-xxxx',
     lbl_ref: 'Code du parrain', ph_ref: 'Code membre du parrain',
+    lbl_idcard: 'Carte d’identité', ph_idcard: 'Numéro à 13 chiffres',
+    err_need_idcard: 'Veuillez saisir votre numéro de carte d’identité', err_idcard_invalid: '❌ La carte d’identité doit comporter 13 chiffres',
+    sx_idcard: '🆔 Carte d’identité',
     closed_not_open: 'Les inscriptions pour cet événement ne sont pas encore ouvertes', closed_full: 'Inscriptions complètes',
     cap_registered: '👥 {n} / {max} inscrits', cap_full: '❌ Complet', cap_left: '{n}% restant',
     prereq_cond: '🔒 <b>Condition :</b> doit avoir terminé <b>{lvl}</b> d’abord',
@@ -616,6 +625,7 @@ window.setLang = function (l) {
     rPass: document.getElementById('rPass')?.value,
     gName: document.getElementById('gName')?.value,
     gPhone: document.getElementById('gPhone')?.value,
+    gIdCard: document.getElementById('gIdCard')?.value,
     gRef: document.getElementById('gRef')?.value,
     tab: document.querySelector('.reg-tab.active')?.dataset.tab,
   };
@@ -626,7 +636,7 @@ window.setLang = function (l) {
     renderLinePanel();
     const set = (id, v) => { const el = document.getElementById(id); if (el && v != null) el.value = v; };
     set('rCode', keep.rCode); set('rPass', keep.rPass);
-    set('gName', keep.gName); set('gPhone', keep.gPhone); set('gRef', keep.gRef);
+    set('gName', keep.gName); set('gPhone', keep.gPhone); set('gIdCard', keep.gIdCard); set('gRef', keep.gRef);
     if (keep.tab) switchRegTab(keep.tab);
     if (keep.gRef) lookupReferrer(keep.gRef);
   } else if (!_event) {
@@ -1132,6 +1142,10 @@ function renderPage() {
         <input id="gPhone" placeholder="${t('ph_phone')}" inputmode="tel" autocomplete="tel" required>
       </div>
       <div class="reg-field">
+        <label>${t('lbl_idcard')} ${req}</label>
+        <input id="gIdCard" placeholder="${t('ph_idcard')}" inputmode="numeric" maxlength="17" autocomplete="off" required>
+      </div>
+      <div class="reg-field">
         <label>${t('lbl_ref')} ${req}</label>
         <input id="gRef" placeholder="${t('ph_ref')}" inputmode="numeric" autocomplete="off" required>
         <div id="gRefStatus" style="font-size:11.5px;margin-top:4px;min-height:14px"></div>
@@ -1516,11 +1530,15 @@ async function doRegister() {
 async function doRegisterGuest() {
   const name = document.getElementById('gName').value.trim();
   const phone = document.getElementById('gPhone').value.trim();
+  const idCard = (document.getElementById('gIdCard')?.value || '').trim();
+  const idDigits = idCard.replace(/\D/g, '');
   const refCode = document.getElementById('gRef').value.trim();
   const btn = document.getElementById('btnRegisterGuest');
 
   if (!name) { showGuestMsg(t('err_need_name'), 'error'); return; }
   if (!phone) { showGuestMsg(t('err_need_phone'), 'error'); return; }
+  if (!idCard) { showGuestMsg(t('err_need_idcard'), 'error'); return; }
+  if (idDigits.length !== 13) { showGuestMsg(t('err_idcard_invalid'), 'error'); return; }
   if (!refCode) { showGuestMsg(t('err_need_ref'), 'error'); return; }
   if (_event.members_only) { showGuestMsg(t('err_members_only'), 'error'); return; }
   if (_event.min_position_level) {
@@ -1582,6 +1600,7 @@ async function doRegisterGuest() {
       extra_fields: {
         referrer_code: ref.code,
         referrer_name: ref.name,
+        national_id: idDigits,
         ...(stampKey ? { [stampKey]: STAMP_LINK_LABEL } : {}),
       },
       ...(ref.uplineId ? {
@@ -1612,6 +1631,10 @@ async function doRegisterGuest() {
           <div style="display:flex;gap:10px;padding:6px 0;font-size:13px;color:#0f172a;border-top:1px dashed #e2e8f0">
             <span style="color:#64748b;min-width:80px">${t('sx_phone')}</span>
             <span style="font-weight:600;flex:1">${esc(phone)}</span>
+          </div>
+          <div style="display:flex;gap:10px;padding:6px 0;font-size:13px;color:#0f172a;border-top:1px dashed #e2e8f0">
+            <span style="color:#64748b;min-width:80px">${t('sx_idcard')}</span>
+            <span style="font-weight:600;flex:1">${esc(idDigits)}</span>
           </div>
           <div style="display:flex;gap:10px;padding:6px 0;font-size:13px;color:#0f172a;border-top:1px dashed #e2e8f0">
             <span style="color:#64748b;min-width:80px">${t('sx_ref')}</span>
