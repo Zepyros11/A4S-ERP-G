@@ -1507,7 +1507,7 @@ async function doRegister() {
     const ticketLines = payload.map((p, i) =>
       `<div style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 12px;background:#fff;border:1px solid #e2e8f0;border-radius:12px;margin-top:10px;box-shadow:0 1px 2px rgba(0,0,0,.04)">
          <div style="font-size:13px;color:#0f172a;font-weight:600">${p.person_role === 'co_applicant' ? '👥' : '👤'} ${esc(p.name)}</div>
-         <div id="mRegQr_${i}" data-qr="${esc(p.ticket_no)}" style="background:#fff;padding:8px;border-radius:8px"></div>
+         ${_qrEnabled() ? `<div id="mRegQr_${i}" data-qr="${esc(p.ticket_no)}" style="background:#fff;padding:8px;border-radius:8px"></div>` : ''}
          <div style="font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:700;color:#1e40af;letter-spacing:.5px">${esc(p.ticket_no)}</div>
        </div>`).join('');
     _registeredCode = code;     // remember after form is destroyed (for connectViaOA)
@@ -1518,7 +1518,7 @@ async function doRegister() {
         ${preReg ? `<div style="margin-top:6px;display:inline-block;padding:3px 10px;background:#fef3c7;color:#92400e;border:1px solid #fde68a;border-radius:10px;font-size:11.5px;font-weight:700">${t('prereg_badge')}</div>` : ''}
         ${payload.length === 2 ? `<div style="margin-top:4px;font-size:12.5px;color:#64748b">${t('two_names')}</div>` : ''}
         ${ticketLines}
-        <div style="margin-top:14px;font-size:12px;color:#64748b">${preReg ? t('qr_hint_prereg') : t('qr_hint')}</div>
+        ${_qrEnabled() ? `<div style="margin-top:14px;font-size:12px;color:#64748b">${preReg ? t('qr_hint_prereg') : t('qr_hint')}</div>` : ''}
       </div>`;
     // Render QR per ticket
     payload.forEach((p, i) => {
@@ -1654,10 +1654,10 @@ async function doRegisterGuest() {
         </div>
 
         <div style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 12px;background:#fff;border:1px solid #e2e8f0;border-radius:12px;margin-top:10px;box-shadow:0 1px 2px rgba(0,0,0,.04)">
-          <div id="gRegQr" data-qr="${esc(ticketNo)}" style="background:#fff;padding:8px;border-radius:8px"></div>
+          ${_qrEnabled() ? `<div id="gRegQr" data-qr="${esc(ticketNo)}" style="background:#fff;padding:8px;border-radius:8px"></div>` : ''}
           <div style="font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:700;color:#1e40af;letter-spacing:.5px">${esc(ticketNo)}</div>
         </div>
-        <div style="margin-top:14px;font-size:12px;color:#64748b">${preReg ? t('qr_hint_prereg') : t('qr_hint')}</div>
+        ${_qrEnabled() ? `<div style="margin-top:14px;font-size:12px;color:#64748b">${preReg ? t('qr_hint_prereg') : t('qr_hint')}</div>` : ''}
       </div>`;
     const qrWrap = document.getElementById('gRegQr');
     if (qrWrap) {
@@ -1786,7 +1786,7 @@ function showAlreadyRegistered(code, existing) {
     return `
       <div style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 12px;background:#fff;border:1px solid #e2e8f0;border-radius:12px;margin-top:10px;box-shadow:0 1px 2px rgba(0,0,0,.04)">
         <div style="font-size:13px;color:#0f172a;font-weight:600">${p.person_role === 'co_applicant' ? '👥' : '👤'} ${esc(p.name || code)}</div>
-        <div id="${qrId}" data-qr="${esc(ticketNo)}" style="background:#fff;padding:8px;border-radius:8px"></div>
+        ${_qrEnabled() ? `<div id="${qrId}" data-qr="${esc(ticketNo)}" style="background:#fff;padding:8px;border-radius:8px"></div>` : ''}
         <div style="font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:700;color:#1e40af;letter-spacing:.5px">${esc(ticketNo)}</div>
       </div>`;
   }).join('');
@@ -1797,7 +1797,7 @@ function showAlreadyRegistered(code, existing) {
       <div style="font-weight:700;font-size:16px;line-height:1.4">${t('success_title', { event: esc(_event.event_name) })}</div>
       ${sorted.length === 2 ? `<div style="margin-top:4px;font-size:12.5px;color:#64748b">${t('two_names')}</div>` : ''}
       ${tickets}
-      <div style="margin-top:14px;font-size:12px;color:#64748b">${t('qr_hint')}</div>
+      ${_qrEnabled() ? `<div style="margin-top:14px;font-size:12px;color:#64748b">${t('qr_hint')}</div>` : ''}
     </div>`;
   // Render QR after DOM is in place
   sorted.forEach((p, i) => {
@@ -1811,6 +1811,9 @@ function showAlreadyRegistered(code, existing) {
     }
   });
 }
+
+// แสดง QR ในหน้า portal หรือไม่ (per-event · default แสดง) — admin ตั้งใน modal "แชร์ลิงก์"
+function _qrEnabled() { return !_event || _event.portal_show_qr !== false; }
 
 function esc(s) { return String(s || '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
 

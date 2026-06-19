@@ -3860,18 +3860,33 @@ async function _bulkRunLimited(items, fn, limit = 6) {
   return out;
 }
 
+// คนนี้ (member_code+role) ลงทะเบียนไปแล้วหรือยัง
+function _bulkPersonIsDup(m) {
+  if (!m) return false;
+  const role = m.person_role || "primary";
+  return allAttendees.some(a => a.member_code === m.member_code && (a.person_role || "primary") === role);
+}
+
 // รายการนี้เพิ่มได้ไหม (ติ๊ก include + ไม่ซ้ำ + มีปลายทาง)
 function _bulkIsAddable(r) {
   if (!r || !r.include || r.dup) return false;
   if (r.asGuest) return !!r.input;
+  if (r.addAll) return (r.results || []).some(m => !_bulkPersonIsDup(m));
   return !!(r.results && r.results[r.chosenIdx]);
+}
+
+// รายการนี้เพิ่มกี่คน (addAll = ทุกคนที่ยังไม่ซ้ำ, ปกติ = 1)
+function _bulkPersonCount(r) {
+  if (!_bulkIsAddable(r)) return 0;
+  if (r.addAll) return r.results.filter(m => !_bulkPersonIsDup(m)).length;
+  return 1;
 }
 
 // mark รายการที่ลงทะเบียนแล้ว (member_code+role ซ้ำกับ allAttendees) → ปิด include
 function _bulkEvalDups() {
   _bulkResolved.forEach(r => {
     r.dup = null;
-    if (r.asGuest || r.status === "notfound" || r.status === "error") return;
+    if (r.asGuest || r.addAll || r.status === "notfound" || r.status === "error") return;
     const m = r.results[r.chosenIdx];
     if (!m) return;
     const role = m.person_role || "primary";
@@ -3894,7 +3909,7 @@ window.runBulkAddSearch = async function () {
 
   _bulkResolved = raw.map(item => {
     const r = { input: item.input, kind: item.kind, results: item.results, error: item.error || null,
-                chosenIdx: 0, asGuest: false, include: false, status: "", dup: null };
+                chosenIdx: 0, asGuest: false, addAll: false, include: false, status: "", dup: null };
     if (item.error) { r.status = "error"; return r; }
     if (!item.results.length) {
       r.status = "notfound";
@@ -3952,25 +3967,30 @@ function _renderBulkAddResults() {
     }
     const optsHtml = r.results.map((m, k) => {
       const nm = `${m.member_code} — ${m.person_name || "—"}${m.position_level ? " (" + m.position_level + ")" : ""}${(m.person_role || "primary") === "co_applicant" ? " · ผู้สมัครร่วม" : ""}`;
-      return `<option value="${k}" ${(k === r.chosenIdx && !r.asGuest) ? "selected" : ""}>${escapeHtml(nm)}</option>`;
+      return `<option value="${k}" ${(k === r.chosenIdx && !r.asGuest && !r.addAll) ? "selected" : ""}>${escapeHtml(nm)}</option>`;
     }).join("");
+    // เลือกลงชื่อทุกคน — เฉพาะเมื่อเป็นรหัสเดียวกัน (บริษัท primary + ผู้สมัครร่วม)
+    const sameCode = r.results.every(m => m.member_code === r.results[0].member_code);
+    const allOpt = sameCode
+      ? `<option value="all" ${r.addAll ? "selected" : ""}>${escapeHtml(`✅ ลงชื่อทั้ง ${r.results.length} คน`)}</option>`
+      : "";
     const guestOpt = `<option value="guest" ${r.asGuest ? "selected" : ""}>${escapeHtml(`➕ เพิ่มเป็น Guest — "${r.input}"`)}</option>`;
     return `<div class="bulkadd-row">
       <input type="checkbox" class="bulkadd-cb" ${r.include ? "checked" : ""} onchange="window._bulkSetInclude(${i}, this.checked)">
       <div class="bulkadd-main">
         <span class="bulkadd-amb">⚠️ "${inp}" พบ ${r.results.length} คน</span>
-        <select class="bulkadd-sel" onchange="window._bulkSetChoice(${i}, this.value)">${optsHtml}${guestOpt}</select>
+        <select class="bulkadd-sel" onchange="window._bulkSetChoice(${i}, this.value)">${allOpt}${optsHtml}${guestOpt}</select>
       </div></div>`;
   }).join("");
 
-  const ok = _bulkResolved.filter(_bulkIsAddable).length;
-  const skip = _bulkResolved.length - ok;
+  const ok = _bulkResolved.reduce((s, r) => s + _bulkPersonCount(r), 0);
+  const skip = _bulkResolved.filter(r => !_bulkIsAddable(r)).length;
   box.innerHTML = `<div class="bulkadd-summary">เพิ่มได้ <b>${ok}</b> คน · ข้าม ${skip}</div>${rowsHtml}`;
   _updateBulkAddCount();
 }
 
 function _updateBulkAddCount() {
-  const n = _bulkResolved.filter(_bulkIsAddable).length;
+  const n = _bulkResolved.reduce((s, r) => s + _bulkPersonCount(r), 0);
   const span = document.getElementById("bulkAddConfirmCount");
   if (span) span.textContent = n;
   const cBtn = document.getElementById("bulkAddConfirmBtn");
@@ -3983,19 +4003,30 @@ window._bulkSetInclude = function (i, checked) {
 };
 window._bulkSetGuest = function (i, checked) {
   const r = _bulkResolved[i]; if (!r) return;
-  r.asGuest = checked; r.include = checked;
+  r.asGuest = checked; r.addAll = false; r.include = checked;
   _updateBulkAddCount();
 };
 window._bulkSetChoice = function (i, idx) {
   const r = _bulkResolved[i]; if (!r) return;
   if (idx === "guest") {       // ชื่อชนกันหลายคน → เลือกเพิ่มเป็น Guest แทน
     r.asGuest = true;
+    r.addAll = false;
     r.dup = null;              // Guest ไม่นับซ้ำกับสมาชิก
     r.include = true;
     _renderBulkAddResults();
     return;
   }
+  if (idx === "all") {         // ลงชื่อทั้งหมด (รหัสเดียวกัน — บริษัท + ผู้สมัครร่วม)
+    r.asGuest = false;
+    r.addAll = true;
+    r.dup = null;             // คิดซ้ำรายคนตอน confirm/นับ
+    r.include = true;
+    _bulkEvalDups();
+    _renderBulkAddResults();
+    return;
+  }
   r.asGuest = false;
+  r.addAll = false;
   r.chosenIdx = parseInt(idx) || 0;
   r.include = true;
   _bulkEvalDups();          // เลือกคนใหม่อาจกลายเป็นซ้ำ
@@ -4009,6 +4040,17 @@ window.confirmBulkAdd = async function () {
     if (!_bulkIsAddable(r)) return;
     if (r.asGuest) {
       members.push({ memberCode: null, personRole: "guest", name: r.input, phone: "", positionLevel: "" });
+      return;
+    }
+    if (r.addAll) {                   // ลงชื่อทุกคนในรหัสนี้ (ข้ามคนที่ลงไปแล้ว)
+      r.results.forEach(m => {
+        if (_bulkPersonIsDup(m)) return;
+        const role = m.person_role || "primary";
+        const key = m.member_code + "|" + role;
+        if (batchSeen.has(key)) return;
+        batchSeen.add(key);
+        members.push({ memberCode: m.member_code, personRole: role, name: m.person_name || "", phone: m.phone || "", positionLevel: m.position_level || "" });
+      });
       return;
     }
     const m = r.results[r.chosenIdx];
@@ -4109,6 +4151,11 @@ window.openTagPicker = function (attendeeId, anchorEl) {
     // Reset side panel
     _resetTagPickerSide();
   }
+  // โน้ตอิสระ — รีเซ็ตช่อง + แสดงเฉพาะเมื่อ event มีคอลัมน์ หมายเหตุ
+  const noteEl = document.getElementById("tagPickerNote");
+  if (noteEl) noteEl.value = "";
+  const noteWrap = document.getElementById("tagPickerNoteWrap");
+  if (noteWrap) noteWrap.style.display = _noteFieldKey() ? "" : "none";
   // Position popover under anchor
   const rect = anchorEl.getBoundingClientRect();
   pop.style.display = "block";
@@ -4152,23 +4199,57 @@ window._showTagPickerSide = function (el) {
   }
 };
 
+// หา key ของคอลัมน์ "หมายเหตุ" (custom text field) ใน config ของ event นี้
+function _noteFieldKey() {
+  const cf = (_getActiveFieldConfig().custom_fields || []).find(c =>
+    (c.ftype || "text") === "text" && /หมายเหตุ|note|remark|memo/i.test(`${c.key || ""} ${c.label || ""}`)
+  );
+  return cf ? cf.key : null;
+}
+
+// ต่อท้ายโน้ตลงคอลัมน์ หมายเหตุ ของผู้เข้าร่วม (ไม่ทับของเดิม)
+async function _appendAttendeeNote(id, text) {
+  const note = (text || "").trim();
+  if (!note) return false;
+  const key = _noteFieldKey();
+  if (!key) { showToast("event นี้ยังไม่มีคอลัมน์ หมายเหตุ", "error"); return false; }
+  const a = allAttendees.find((x) => x.attendee_id === id);
+  if (!a) return false;
+  const cur = String(a.extra_fields?.[key] ?? "").trim();
+  await _patchAttendeeExtra(id, { [key]: cur ? `${cur}\n${note}` : note });
+  return true;
+}
+
 window.pickTagFromCategory = async function (tagName) {
   const id = _tagPickerAttId;
+  const noteText = (document.getElementById("tagPickerNote")?.value || "").trim();
   document.getElementById("tagPickerPopover").style.display = "none";
   if (!id) return;
   const a = allAttendees.find((x) => x.attendee_id === id);
   if (!a) return;
   const current = a.tags || [];
-  if (current.includes(tagName)) return;
-  const next = [...current, tagName];
-  try {
-    await updateAttendee(id, { tags: next });
-    a.tags = next;
-    filterTable();
-    showToast(`+ tag "${tagName}" 🏷️`, "success");
-  } catch (e) {
-    showToast("เพิ่ม tag ไม่สำเร็จ: " + e.message, "error");
+  if (!current.includes(tagName)) {
+    const next = [...current, tagName];
+    try {
+      await updateAttendee(id, { tags: next });
+      a.tags = next;
+      filterTable();
+      showToast(`+ tag "${tagName}" 🏷️`, "success");
+    } catch (e) {
+      showToast("เพิ่ม tag ไม่สำเร็จ: " + e.message, "error");
+      return;
+    }
   }
+  if (noteText) await _appendAttendeeNote(id, noteText);
+};
+
+// บันทึกเฉพาะโน้ต (ไม่ติด tag)
+window.saveTagPickerNote = async function () {
+  const id = _tagPickerAttId;
+  const noteText = (document.getElementById("tagPickerNote")?.value || "").trim();
+  if (!noteText) { showToast("พิมพ์โน้ตก่อน", "error"); return; }
+  document.getElementById("tagPickerPopover").style.display = "none";
+  if (id) await _appendAttendeeNote(id, noteText);
 };
 window.closeTagPickerAndOpenManage = function () {
   document.getElementById("tagPickerPopover").style.display = "none";
@@ -4757,7 +4838,27 @@ window.openShareRegisterModal = async function () {
   const liffBtn = document.querySelector('#shareRegLiffInput + button');
   if (liffBtn) liffBtn.disabled = !liffUrl;
 
+  // Toggle "แสดง QR ในหน้าลงทะเบียน" — default แสดง (true) ถ้า null
+  const qrToggle = document.getElementById("portalQrToggle");
+  if (qrToggle) qrToggle.checked = currentEvent.portal_show_qr !== false;
+
   document.getElementById("shareRegisterModal").classList.add("open");
+};
+
+// เปิด/ปิดการแสดง QR ในหน้า register portal (per-event)
+window.togglePortalQr = async function (checked) {
+  if (!currentEventId || !currentEvent) return;
+  const prev = currentEvent.portal_show_qr;
+  currentEvent.portal_show_qr = checked;   // optimistic
+  try {
+    await sbFetch("events", `?event_id=eq.${currentEventId}`, { method: "PATCH", body: { portal_show_qr: checked } });
+    showToast(checked ? "✅ เปิดแสดง QR ในหน้าลงทะเบียน" : "🚫 ปิดแสดง QR ในหน้าลงทะเบียน", "success");
+  } catch (e) {
+    currentEvent.portal_show_qr = prev;    // rollback
+    const qrToggle = document.getElementById("portalQrToggle");
+    if (qrToggle) qrToggle.checked = prev !== false;
+    showToast("บันทึกไม่สำเร็จ: " + e.message, "error");
+  }
 };
 
 window.closeShareRegisterModal = function () {
