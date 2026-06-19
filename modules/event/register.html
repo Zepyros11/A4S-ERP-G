@@ -441,6 +441,7 @@ const I18N = {
     tab_member: '🔐 สมาชิก A4S', tab_guest: '👤 บุคคลทั่วไป',
     lbl_member_code: 'รหัสสมาชิก', ph_member_code: 'รหัสสมาชิก',
     lbl_password: 'รหัสผ่าน', ph_password: 'รหัสผ่านของคุณ',
+    pwd_hint: '💡 ลืมรหัสผ่าน? กรอกเลขบัตรประชาชนแทนได้',
     btn_register: '🎫 ลงทะเบียน', checking: '⏳ กำลังตรวจสอบ...', registering: '⏳ กำลังลงทะเบียน...',
     guest_note: '📝 สำหรับผู้ที่ไม่ใช่สมาชิก A4S — กรอกข้อมูลให้ครบทุกช่องเพื่อลงทะเบียนเข้างาน',
     lbl_name: 'ชื่อ-นามสกุล', ph_name: 'กรอกชื่อ-นามสกุล',
@@ -496,6 +497,7 @@ const I18N = {
     tab_member: '🔐 A4S Member', tab_guest: '👤 Guest',
     lbl_member_code: 'Member code', ph_member_code: 'Member code',
     lbl_password: 'Password', ph_password: 'Your password',
+    pwd_hint: '💡 Forgot your password? You can enter your national ID instead',
     btn_register: '🎫 Register', checking: '⏳ Verifying...', registering: '⏳ Registering...',
     guest_note: '📝 For non-A4S members — fill in all fields to register for the event',
     lbl_name: 'Full name', ph_name: 'Enter your full name',
@@ -551,6 +553,7 @@ const I18N = {
     tab_member: '🔐 Membre A4S', tab_guest: '👤 Invité',
     lbl_member_code: 'Code membre', ph_member_code: 'Code membre',
     lbl_password: 'Mot de passe', ph_password: 'Votre mot de passe',
+    pwd_hint: '💡 Mot de passe oublié ? Saisissez votre carte d’identité à la place',
     btn_register: '🎫 S’inscrire', checking: '⏳ Vérification...', registering: '⏳ Inscription...',
     guest_note: '📝 Pour les non-membres A4S — remplissez tous les champs pour vous inscrire à l’événement',
     lbl_name: 'Nom complet', ph_name: 'Saisissez votre nom complet',
@@ -1128,6 +1131,7 @@ function renderPage() {
       <div class="reg-field">
         <label>${t('lbl_password')} ${req}</label>
         <input id="rPass" type="password" placeholder="${t('ph_password')}" required>
+        <div style="font-size:11.5px;margin-top:4px;color:#94a3b8">${t('pwd_hint')}</div>
       </div>
       <div id="regMsg" style="display:none"></div>
       <button class="reg-submit" id="btnRegister" onclick="doRegister()">${t('btn_register')}</button>`;
@@ -1311,7 +1315,7 @@ async function doRegister() {
     // 1. Find member — ลอง members (MLM) ก่อน · fallback ไป test_members (mock สำหรับทดสอบ)
     //    เพิ่ม co_applicant_name + is_company สำหรับสร้าง persons ใน JS (เลี่ยง view member_persons ที่ timeout)
     //    เพิ่ม position_level สำหรับเช็คเงื่อนไข min_position_level ของ event
-    const members = await sbGet(`members?member_code=eq.${encodeURIComponent(code)}&select=member_code,member_name,full_name,phone,password_hash,co_applicant_name,is_company,position_level&limit=1`);
+    const members = await sbGet(`members?member_code=eq.${encodeURIComponent(code)}&select=member_code,member_name,full_name,phone,password_hash,national_id_hash,co_applicant_name,is_company,position_level&limit=1`);
     let member = members[0];
     let memberTable = 'members';
     if (!member) {
@@ -1325,9 +1329,16 @@ async function doRegister() {
     if (!window.ERPCrypto) {
       showMsg(t('err_not_ready'), 'error'); btn.disabled = false; btn.textContent = t('btn_register'); return;
     }
-    if (!member.password_hash) { showMsg(t('err_no_password_set'), 'error'); btn.disabled = false; btn.textContent = t('btn_register'); return; }
+    if (!member.password_hash && !member.national_id_hash) { showMsg(t('err_no_password_set'), 'error'); btn.disabled = false; btn.textContent = t('btn_register'); return; }
+    // ยืนยันตัวตน: รับได้ทั้งรหัสผ่าน หรือเลขบัตรประชาชน (เผื่อลืมรหัสผ่าน)
     const inputHash = await ERPCrypto.hash(pass);
-    if (inputHash !== member.password_hash) { showMsg(t('err_wrong_password'), 'error'); btn.disabled = false; btn.textContent = t('btn_register'); return; }
+    let authOk = !!member.password_hash && inputHash === member.password_hash;
+    if (!authOk && member.national_id_hash) {
+      const idNorm = pass.toUpperCase().replace(/[\s-]/g, '');   // normalize: ตัด -/ช่องว่าง + uppercase (ตรงกับ backfill/import)
+      const idHash = await ERPCrypto.hash(idNorm);
+      if (idHash === member.national_id_hash) authOk = true;
+    }
+    if (!authOk) { showMsg(t('err_wrong_password'), 'error'); btn.disabled = false; btn.textContent = t('btn_register'); return; }
 
     // 2b. Prefetch LINE link token (best-effort — ไม่ block ลงทะเบียน)
     //     เก็บไว้ใน _autoLinkToken เพื่อ connectViaOA() ใช้ได้แม้ form ถูก destroy แล้ว (10 นาที)

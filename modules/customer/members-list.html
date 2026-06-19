@@ -225,6 +225,7 @@
     <div class="toolbar-right">
       <button class="btn btn-outline" onclick="loadData()">🔄 รีเฟรช</button>
       <button class="btn btn-outline" data-perm="member_decrypt" onclick="backfillPasswordHash()" id="btnBackfillHash" title="สร้าง password_hash จาก password_encrypted (ใช้ครั้งเดียวหลัง migration)">🔁 Backfill hash</button>
+      <button class="btn btn-outline" data-perm="member_decrypt" onclick="backfillNationalIdHash()" id="btnBackfillIdHash" title="สร้าง national_id_hash จาก national_id_encrypted — ให้สมาชิกที่ลืมรหัสผ่านใช้เลขบัตรประชาชน login ได้ (ใช้ครั้งเดียวหลัง migration 153)">🆔 Backfill บัตร</button>
       <button class="btn btn-outline btn-danger-outline" data-perm="member_delete" onclick="openPurgeModal()">🗑️ ลบทั้งหมด</button>
       <button class="btn btn-outline" data-perm="member_export" onclick="exportExcel()" id="btnExport" title="Export ตาม filter ปัจจุบัน">📤 Export Excel</button>
       <button class="btn btn-primary" data-perm="member_import" onclick="location.href='./members-import.html'">📥 นำเข้า Excel</button>

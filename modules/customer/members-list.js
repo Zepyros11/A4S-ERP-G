@@ -618,7 +618,17 @@ function renderPaginate() {
    ใช้ครั้งเดียวหลัง migration 028 — ต้องมี master key เพื่อ decrypt
    password_encrypted ก่อน hash และ update กลับ
 ============================================================ */
-async function backfillPasswordHash() {
+/* _bfMode = 'password' | 'national_id' — กำหนดว่า backfill คอลัมน์ไหน
+   password    : decrypt password_encrypted    → hash(plain)        → password_hash
+   national_id : decrypt national_id_encrypted → hash(normalize(id)) → national_id_hash */
+let _bfMode = 'password';
+const _BF_CFG = {
+  password:    { enc: 'password_encrypted',    hashCol: 'password_hash',    label: 'รหัสผ่าน',      normalize: s => s },
+  national_id: { enc: 'national_id_encrypted', hashCol: 'national_id_hash', label: 'เลขบัตรประชาชน', normalize: s => String(s).toUpperCase().replace(/[\s-]/g, '') },
+};
+
+async function _bfOpen(mode) {
+  _bfMode = mode;
   if (!window.ERPCrypto || !ERPCrypto.hasMasterKey()) {
     showToast('ยังไม่ได้ตั้ง master key — ตั้งที่หน้า import ก่อน', 'error');
     return;
@@ -630,7 +640,10 @@ async function backfillPasswordHash() {
   }
   document.getElementById('backfillModalOverlay').classList.add('open');
 }
+function backfillPasswordHash() { return _bfOpen('password'); }
+function backfillNationalIdHash() { return _bfOpen('national_id'); }
 window.backfillPasswordHash = backfillPasswordHash;
+window.backfillNationalIdHash = backfillNationalIdHash;
 
 function closeBackfillModal() {
   document.getElementById('backfillModalOverlay').classList.remove('open');
@@ -664,8 +677,9 @@ function _bfUpdate({ done, total, ok, fail, startedAt }) {
 let _bfCancelled = false;
 
 async function _bfFetchTotalCount() {
+  const { enc, hashCol } = _BF_CFG[_bfMode];
   const res = await fetch(
-    `${SUPABASE_URL}/rest/v1/members?password_encrypted=not.is.null&password_hash=is.null&select=member_code`,
+    `${SUPABASE_URL}/rest/v1/members?${enc}=not.is.null&${hashCol}=is.null&select=member_code`,
     { headers: _sbHeaders({ Prefer: 'count=exact', Range: '0-0' }) }
   );
   const range = res.headers.get('content-range') || '*/0';
@@ -673,8 +687,9 @@ async function _bfFetchTotalCount() {
 }
 
 async function _bfFetchBatch(limit = 1000) {
-  const cols = 'member_code,password_encrypted';
-  const qs = `password_encrypted=not.is.null&password_hash=is.null&select=${cols}&limit=${limit}&order=member_code.asc`;
+  const { enc, hashCol } = _BF_CFG[_bfMode];
+  const cols = `member_code,${enc}`;
+  const qs = `${enc}=not.is.null&${hashCol}=is.null&select=${cols}&limit=${limit}&order=member_code.asc`;
   const res = await fetch(`${SUPABASE_URL}/rest/v1/members?${qs}`, {
     headers: _sbHeaders(),
   });
@@ -693,7 +708,7 @@ async function confirmBackfill() {
     showLoading(false);
 
     if (!total) {
-      showToast('ไม่มีแถวที่ต้อง backfill — ทุกคนมี password_hash แล้ว', 'success');
+      showToast(`ไม่มีแถวที่ต้อง backfill — ทุกคนมี ${_BF_CFG[_bfMode].hashCol} แล้ว`, 'success');
       return;
     }
 
@@ -713,19 +728,21 @@ async function confirmBackfill() {
       const rows = await _bfFetchBatch(1000);
       if (!rows.length) break;                    // nothing left — done
 
+      const { enc, hashCol, normalize } = _BF_CFG[_bfMode];
       for (let i = 0; i < rows.length && !_bfCancelled; i++) {
         const m = rows[i];
         try {
-          const plain = await ERPCrypto.decrypt(m.password_encrypted);
-          if (!plain) { overallFail++; }
+          const plain = await ERPCrypto.decrypt(m[enc]);
+          const norm = plain != null ? normalize(plain) : '';
+          if (!norm) { overallFail++; }
           else {
-            const h = await ERPCrypto.hash(plain);
+            const h = await ERPCrypto.hash(norm);
             const patchRes = await fetch(
               `${SUPABASE_URL}/rest/v1/members?member_code=eq.${encodeURIComponent(m.member_code)}`,
               {
                 method: 'PATCH',
                 headers: _sbHeaders({ 'Content-Type': 'application/json' }),
-                body: JSON.stringify({ password_hash: h }),
+                body: JSON.stringify({ [hashCol]: h }),
               }
             );
             if (patchRes.ok) overallOk++; else overallFail++;

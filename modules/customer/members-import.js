@@ -252,8 +252,13 @@ async function rowToRecord(row) {
       continue;
     }
     if (mapped === '__national_id_plain') {
+      const idPlain = toCleanString(val);
       if (ERPCrypto.hasMasterKey())
-        rec.national_id_encrypted = await ERPCrypto.encrypt(toCleanString(val));
+        rec.national_id_encrypted = await ERPCrypto.encrypt(idPlain);
+      // Always write hash (no master key needed) — ให้ login ด้วยเลขบัตรแทนรหัสผ่านได้
+      // normalize: uppercase + ตัด -/space (ต้องตรงกับ backfill + register)
+      const idNorm = idPlain.toUpperCase().replace(/[\s-]/g, '');
+      rec.national_id_hash = idNorm ? await ERPCrypto.hash(idNorm) : null;
       continue;
     }
 
