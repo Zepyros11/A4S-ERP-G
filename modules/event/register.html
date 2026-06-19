@@ -89,17 +89,18 @@ body{font-family:'Sarabun',sans-serif;background:#f1f5f9;min-height:100vh;displa
 
 /* ── Desktop 2-column layout: [poster | detail] ── */
 @media(min-width:840px){
-  body.has-event{align-items:center;padding:24px 20px;}
-  body.has-event .reg-card{max-width:920px;border-radius:20px;max-height:calc(100vh - 48px);}
+  /* Full-bleed: no outer container frame, fill the whole window */
+  body.has-event{align-items:stretch;justify-content:stretch;padding:0;background:#fff;}
+  body.has-event .reg-card{max-width:100%;width:100%;border-radius:0;box-shadow:none;height:100vh;max-height:100vh;}
   body.has-event #regContent{
     display:grid;
-    grid-template-columns: 380px 1fr;
+    grid-template-columns: 440px 1fr;
     align-items:stretch;
-    height:100%;
+    height:100vh;
   }
   body.has-event #regHero{min-height:100%;background:#0f172a;position:relative;}
-  /* Right column scrolls on its own so the card never exceeds the viewport */
-  body.has-event #regRight{overflow-y:auto;max-height:calc(100vh - 48px);}
+  /* Right column scrolls on its own only if it ever exceeds the viewport */
+  body.has-event #regRight{overflow-y:auto;max-height:100vh;}
 
   /* Poster fills left column (crop with cover) */
   body.has-event .reg-hero .reg-poster,
