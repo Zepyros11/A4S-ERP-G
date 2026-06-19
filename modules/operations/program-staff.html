@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ทีมงาน / Staff — A4S-ERP</title>
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="../../css/main.css" />
+    <style>
+      .ws-back{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:var(--text2);text-decoration:none;margin-bottom:10px;}
+      .ws-back:hover{color:var(--accent);}
+      .tk-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px;}
+      .tk-head h1{font-size:19px;font-weight:800;margin:0;color:var(--text);}
+      .tk-prog-type{display:inline-block;padding:2px 9px;border-radius:6px;font-size:11px;font-weight:700;background:var(--surface2);color:var(--text2);}
+      .st-type{display:inline-block;padding:2px 10px;border-radius:6px;font-size:11px;font-weight:600;}
+      .st-type-staff{background:#dbeafe;color:#1d4ed8;}
+      .st-type-guide{background:#dcfce7;color:#15803d;}
+      .st-type-outsource{background:#fef3c7;color:#92400e;}
+      .action-group{display:flex;gap:4px;justify-content:center;}
+      .action-group .btn-icon{width:30px;height:30px;font-size:14px;}
+    </style>
+  </head>
+  <body>
+    <div class="loading-overlay" id="loadingOverlay"><div class="spinner"></div></div>
+    <div class="toast" id="toast"></div>
+    <div class="topbar"></div>
+    <div class="layout"><div class="content-area"><div class="page">
+      <a class="ws-back" id="backLink" href="#">← กลับ workspace</a>
+      <div class="tk-head"><span class="tk-prog-type" id="progType">—</span><h1 id="progName">กำลังโหลด...</h1></div>
+
+      <div class="stats-row">
+        <div class="stat-card"><div class="stat-icon">🧑‍🤝‍🧑</div><div><div class="stat-value" id="cTotal">0</div><div class="stat-label">ทั้งหมด</div></div></div>
+        <div class="stat-card"><div class="stat-icon">👔</div><div><div class="stat-value" id="cStaff">0</div><div class="stat-label">Staff</div></div></div>
+        <div class="stat-card"><div class="stat-icon">🎌</div><div><div class="stat-value" id="cGuide">0</div><div class="stat-label">ไกด์</div></div></div>
+        <div class="stat-card"><div class="stat-icon">🤝</div><div><div class="stat-value" id="cOut">0</div><div class="stat-label">Outsource</div></div></div>
+      </div>
+
+      <div class="table-card">
+        <div class="toolbar">
+          <div class="search-wrap"><span class="search-icon">🔍</span><input class="search-input" id="searchInput" placeholder="ค้นหาชื่อ..." /></div>
+          <div class="toolbar-right"><button class="btn btn-primary" data-perm="program_staff_create" onclick="window.openStaffModal()">＋ เพิ่มทีมงาน</button></div>
+        </div>
+        <div class="table-hdr"><div class="table-title">🧑‍🤝‍🧑 ทีมงาน / Staff / ไกด์</div><div class="table-count" id="tableCount">0 คน</div></div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr><th style="width:44px;text-align:center">#</th><th>ชื่อ</th><th class="col-center" style="width:120px">ประเภท</th><th class="col-center" style="width:130px">โทร</th><th>ภาษา / หมายเหตุ</th><th class="col-center" style="width:100px">จัดการ</th></tr></thead>
+            <tbody id="staffBody"><tr><td colspan="6"><div class="empty-state"><div class="empty-icon">🧑‍🤝‍🧑</div><div class="empty-text">กำลังโหลด...</div></div></td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div></div></div>
+
+    <div class="modal-overlay" id="staffOverlay">
+      <div class="modal v-sage-header" onclick="event.stopPropagation()">
+        <div class="modal-hdr"><div class="modal-title" id="staffModalTitle">เพิ่มทีมงาน</div><button class="btn-modal-close" onclick="window.closeStaffModal()">✕</button></div>
+        <div class="modal-body">
+          <div class="form-group"><label class="form-label">ชื่อ <span class="req">*</span></label><input class="form-control" id="fName" placeholder="ชื่อ-นามสกุล" autocomplete="off" /></div>
+          <div class="form-row" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px">
+            <div class="form-group"><label class="form-label">ประเภท</label>
+              <select class="form-control" id="fType"><option value="staff">👔 Staff</option><option value="guide">🎌 ไกด์</option><option value="outsource">🤝 Outsource</option></select></div>
+            <div class="form-group"><label class="form-label">โทร</label><input class="form-control" id="fPhone" placeholder="08x-xxx-xxxx" autocomplete="off" /></div>
+          </div>
+          <div class="form-group" style="margin-top:14px"><label class="form-label">ภาษา</label><input class="form-control" id="fLang" placeholder="เช่น ไทย, อังกฤษ, ญี่ปุ่น" autocomplete="off" /></div>
+          <div class="form-group" style="margin-top:14px"><label class="form-label">หมายเหตุ</label><input class="form-control" id="fNote" placeholder="(ถ้ามี)" autocomplete="off" /></div>
+        </div>
+        <div class="modal-footer"><button class="btn btn-ghost" onclick="window.closeStaffModal()">ยกเลิก</button><button class="btn btn-primary" onclick="window.saveStaff()">💾 บันทึก</button></div>
+      </div>
+    </div>
+
+    <script src="../../js/core/auth.js"></script>
+    <script src="../../js/core/authz.js"></script>
+    <script>AuthZ.requirePerm("program_staff_view");</script>
+    <script src="./program-staff.js"></script>
+    <script src="../../js/components/modal/deleteModal.js"></script>
+    <script src="../../js/components/modal/modalManager.js"></script>
+    <script src="../../js/components/modal/enterSave.js"></script>
+    <script src="../../js/components/navigation/sidebar.js"></script>
+    <script type="module">import { loadTopbar } from "../../js/components/navigation/topbar.js"; loadTopbar("🧭 Operations");</script>
+  </body>
+</html>

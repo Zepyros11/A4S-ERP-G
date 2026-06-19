@@ -1,0 +1,192 @@
+/* =========================================================
+   campaign-planning.css — Campaign Review (list + create/edit)
+   ใช้ shared primitives จาก common.css (.modal-overlay/.modal/.form-*)
+   ส่วนนี้คือของเฉพาะหน้า campaign
+========================================================= */
+
+/* ── STATUS BADGE ── */
+.cmp-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.cmpstat-DRAFT     { background: #f3f4f6; color: #6b7280; }
+.cmpstat-ACTIVE    { background: #d1fae5; color: #059669; }
+.cmpstat-ENDED     { background: var(--accent-pale); color: #1d4ed8; }
+.cmpstat-CANCELLED { background: #fef3c7; color: #92400e; }
+
+/* ── COVER THUMB ในตาราง ── */
+.cmp-cover {
+  width: 52px;
+  height: 52px;
+  border-radius: 9px;
+  object-fit: cover;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.cmp-cover-ph {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  color: var(--text3);
+}
+.cmp-name-cell {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.cmp-name-cell .cmp-name { font-weight: 600; }
+.cmp-name-cell .cmp-sub  { font-size: 11px; color: var(--text3); }
+
+/* platform mini-chips ในตาราง */
+.cmp-plats { display: inline-flex; gap: 4px; }
+.cmp-plat-chip {
+  font-size: 11px;
+  padding: 1px 7px;
+  border-radius: 8px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text2);
+}
+
+/* ── MEDIA UPLOAD (modal) ── */
+.cmp-upload-area {
+  border: 2px dashed #cbd5e1;
+  border-radius: 12px;
+  padding: 20px 16px;
+  text-align: center;
+  cursor: pointer;
+  background: var(--surface);
+  transition: border-color 0.15s, background 0.15s;
+  font-size: 13px;
+  color: var(--text2);
+  font-weight: 500;
+}
+.cmp-upload-area:hover { border-color: var(--accent); background: var(--accent-pale); color: #1e40af; }
+.cmp-upload-area.is-full { opacity: 0.5; cursor: not-allowed; pointer-events: none; }
+
+.cmp-media-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+.cmp-media-grid:empty { display: none; }
+.cmp-media-item {
+  position: relative;
+  aspect-ratio: 1;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.cmp-media-item img,
+.cmp-media-item video { width: 100%; height: 100%; object-fit: cover; }
+.cmp-media-item .cmp-vid-tag,
+.cmp-media-item .cmp-cover-tag {
+  position: absolute;
+  bottom: 3px;
+  left: 3px;
+  background: rgba(0,0,0,0.65);
+  color: #fff;
+  font-size: 9px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 6px;
+}
+.cmp-media-item .cmp-cover-tag { background: var(--accent); left: auto; right: 3px; bottom: auto; top: 3px; }
+.cmp-media-remove {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: rgba(0,0,0,0.6);
+  color: #fff;
+  border: 0;
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1;
+  display: flex; align-items: center; justify-content: center;
+}
+.cmp-media-remove:hover { background: var(--danger); }
+.cmp-media-item.is-pending::after {
+  content: "⏳";
+  position: absolute;
+  inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(255,255,255,0.6);
+  font-size: 20px;
+}
+
+/* ── PLATFORM CHECKBOX CHIPS (modal) ── */
+.cmp-plat-pick { display: flex; gap: 8px; flex-wrap: wrap; }
+.cmp-plat-pick label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border: 1.5px solid var(--border);
+  border-radius: 9px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  user-select: none;
+}
+.cmp-plat-pick label:has(input:checked) {
+  border-color: var(--accent);
+  background: var(--accent-pale);
+  color: #1e40af;
+}
+
+/* media-hint ≤5 counter */
+.cmp-media-count { font-size: 11px; color: var(--text3); font-weight: 400; margin-left: 6px; }
+
+/* toggle row */
+.cmp-toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--text2);
+}
+
+/* ── BULK DELETE BAR (มาตรฐาน list page) ── */
+.bulk-bar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 16px;
+  margin: 0 0 -4px;
+  background: var(--danger-pale, #fee2e2);
+  border: 1px solid var(--danger, #dc2626);
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--danger, #dc2626);
+}
+.btn-sm { padding: 6px 14px; font-size: 12.5px; }
+
+/* action buttons in row */
+.cmp-row-actions { display: inline-flex; gap: 6px; }
+.cmp-row-actions .btn-icon {
+  width: 30px; height: 30px;
+  border-radius: 7px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  cursor: pointer;
+  font-size: 14px;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.cmp-row-actions .btn-icon:hover { background: var(--accent-pale); border-color: var(--accent); }

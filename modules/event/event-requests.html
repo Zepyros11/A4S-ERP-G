@@ -346,6 +346,13 @@
         width:50%; display:flex; flex-direction:column; overflow:hidden;
         border-left:1px solid #e2e8f0;
       }
+      /* มือถือ: 2 พาเนล (แก้ไข | log) วางซ้อนเป็นแนวตั้ง ไม่บีบกัน */
+      @media (max-width: 767px) {
+        .bkq-modal-body { flex-direction:column; overflow-y:auto; }
+        .bkq-edit-panel, .bkq-log-panel { width:100%; }
+        .bkq-edit-panel { border-right:none; border-bottom:1px solid #f1f5f9; }
+        .bkq-log-panel { border-left:none; }
+      }
       .bkq-chat-header {
         padding:14px 16px; background:#4f46e5; color:#fff; flex-shrink:0;
       }

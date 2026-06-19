@@ -430,3 +430,22 @@
   flex-shrink: 0;
   white-space: nowrap;
 }
+
+/* ── RESPONSIVE (mobile ≤767) ──
+   collapse ที่ 767 เท่านั้น เพื่อให้ desktop/laptop (zoom 0.65) คง 2-pane ไว้ */
+@media (max-width: 767px) {
+  .ef-layout {
+    grid-template-columns: 1fr;
+  }
+  .ef-row-2 {
+    grid-template-columns: 1fr;
+  }
+  /* ตารางบัตร 6 คอลัมน์: เลื่อนแนวนอนในการ์ด (fr จะบีบ input เล็กเกินไปบนมือถือ) */
+  .tier-table {
+    overflow-x: auto;
+  }
+  .tier-hdr,
+  .tier-row {
+    min-width: 520px;
+  }
+}

@@ -106,7 +106,7 @@
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 10px;
-  overflow: hidden;
+  overflow-x: auto; /* เลื่อนตารางแนวนอนบนมือถือ (เดิม hidden ตัดคอลัมน์) */
 }
 .wp-list {
   width: 100%;

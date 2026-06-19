@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>งาน (Task / Gantt) — A4S-ERP</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../../css/main.css" />
+    <style>
+      .ws-back{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:var(--text2);text-decoration:none;margin-bottom:10px;}
+      .ws-back:hover{color:var(--accent);}
+      .tk-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:16px;}
+      .tk-head h1{font-size:19px;font-weight:800;margin:0;color:var(--text);}
+      .tk-prog-type{display:inline-block;padding:2px 9px;border-radius:6px;font-size:11px;font-weight:700;background:var(--surface2);color:var(--text2);}
+
+      /* status pill */
+      .tk-st{display:inline-block;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:600;white-space:nowrap;}
+      .tk-st-TODO{background:#f1f5f9;color:#64748b;}
+      .tk-st-DOING{background:#dbeafe;color:#1d4ed8;}
+      .tk-st-DONE{background:#dcfce7;color:#15803d;}
+
+      /* progress bar */
+      .tk-prog{height:7px;border-radius:4px;background:var(--border);overflow:hidden;min-width:70px;}
+      .tk-prog-fill{height:100%;border-radius:4px;background:var(--accent);transition:width .2s;}
+      .tk-prog-num{font-size:11px;color:var(--text3);font-family:'IBM Plex Mono',monospace;margin-top:3px;}
+
+      /* view toggle */
+      .tk-toggle{display:inline-flex;border:1px solid var(--border);border-radius:9px;overflow:hidden;}
+      .tk-toggle button{border:none;background:var(--surface);padding:7px 14px;font-family:inherit;font-size:12.5px;font-weight:600;color:var(--text2);cursor:pointer;}
+      .tk-toggle button.active{background:var(--accent);color:#fff;}
+
+      /* ── GANTT ── */
+      .gantt{background:var(--surface);border:1px solid var(--border);border-radius:0 0 var(--radius) var(--radius);overflow-x:auto;padding:8px 0;}
+      .gantt-axis{display:flex;justify-content:space-between;padding:4px 16px 8px 220px;font-size:11px;color:var(--text3);font-family:'IBM Plex Mono',monospace;border-bottom:1px solid var(--border);}
+      .gantt-row{display:flex;align-items:center;min-height:38px;border-bottom:1px solid var(--border);}
+      .gantt-row:last-child{border-bottom:none;}
+      .gantt-label{width:210px;flex-shrink:0;padding:0 10px 0 16px;font-size:12.5px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+      .gantt-label .who{font-size:10.5px;color:var(--text3);font-weight:400;}
+      .gantt-track{position:relative;flex:1;height:24px;min-width:300px;margin-right:16px;}
+      .gantt-bar{position:absolute;top:3px;height:18px;border-radius:5px;display:flex;align-items:center;overflow:hidden;min-width:4px;}
+      .gantt-bar-TODO{background:#cbd5e1;}
+      .gantt-bar-DOING{background:#93c5fd;}
+      .gantt-bar-DONE{background:#86efac;}
+      .gantt-bar-fill{position:absolute;left:0;top:0;bottom:0;background:rgba(0,0,0,.18);}
+      .gantt-bar-label{position:relative;font-size:10px;font-weight:700;color:#1e293b;padding:0 6px;white-space:nowrap;}
+      .gantt-nodate{padding:10px 16px;font-size:12px;color:var(--text3);border-top:1px dashed var(--border);}
+
+      .tk-title-cell{font-weight:600;color:var(--text);}
+      .tk-note{font-size:11.5px;color:var(--text3);margin-top:2px;}
+      .action-group{display:flex;gap:4px;justify-content:center;}
+      .action-group .btn-icon{width:30px;height:30px;font-size:14px;}
+    </style>
+  </head>
+  <body>
+    <div class="loading-overlay" id="loadingOverlay"><div class="spinner"></div></div>
+    <div class="toast" id="toast"></div>
+
+    <div class="topbar"></div>
+    <div class="layout">
+      <div class="content-area">
+        <div class="page">
+          <a class="ws-back" id="backLink" href="#">← กลับ workspace</a>
+
+          <div class="tk-head">
+            <span class="tk-prog-type" id="progType">—</span>
+            <h1 id="progName">กำลังโหลด...</h1>
+          </div>
+
+          <!-- STATS -->
+          <div class="stats-row">
+            <div class="stat-card"><div class="stat-icon">📋</div><div><div class="stat-value" id="cTotal">0</div><div class="stat-label">งานทั้งหมด</div></div></div>
+            <div class="stat-card"><div class="stat-icon">⚪</div><div><div class="stat-value" id="cTodo">0</div><div class="stat-label">ยังไม่เริ่ม</div></div></div>
+            <div class="stat-card"><div class="stat-icon">🔵</div><div><div class="stat-value" id="cDoing">0</div><div class="stat-label">กำลังทำ</div></div></div>
+            <div class="stat-card"><div class="stat-icon">✅</div><div><div class="stat-value" id="cDone">0</div><div class="stat-label">เสร็จแล้ว</div></div></div>
+          </div>
+
+          <div class="table-card">
+            <div class="toolbar">
+              <div class="tk-toggle">
+                <button id="btnList" class="active" onclick="window.setView('list')">📋 รายการ</button>
+                <button id="btnGantt" onclick="window.setView('gantt')">📊 Gantt</button>
+              </div>
+              <div class="toolbar-right">
+                <button class="btn btn-primary" data-perm="program_task_create" onclick="window.openTaskModal()">＋ เพิ่มงาน</button>
+              </div>
+            </div>
+
+            <!-- LIST VIEW -->
+            <div id="listView" class="table-wrap">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th style="width:44px;text-align:center">#</th>
+                    <th>งาน</th>
+                    <th style="width:140px">ผู้รับผิดชอบ</th>
+                    <th class="col-center" style="width:170px;white-space:nowrap">ช่วงวันที่</th>
+                    <th class="col-center" style="width:120px">สถานะ</th>
+                    <th class="col-center" style="width:120px">คืบหน้า</th>
+                    <th class="col-center" style="width:100px">จัดการ</th>
+                  </tr>
+                </thead>
+                <tbody id="taskBody">
+                  <tr><td colspan="7"><div class="empty-state"><div class="empty-icon">📋</div><div class="empty-text">กำลังโหลด...</div></div></td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- GANTT VIEW -->
+            <div id="ganttView" class="gantt" style="display:none"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TASK MODAL -->
+    <div class="modal-overlay" id="taskOverlay">
+      <div class="modal v-sage-header" onclick="event.stopPropagation()">
+        <div class="modal-hdr">
+          <div class="modal-title" id="taskModalTitle">เพิ่มงาน</div>
+          <button class="btn-modal-close" onclick="window.closeTaskModal()">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label">ชื่องาน <span class="req">*</span></label>
+            <input class="form-control" id="fTitle" placeholder="เช่น จองห้องประชุม / เตรียมของชำร่วย" autocomplete="off" />
+          </div>
+          <div class="form-row" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px">
+            <div class="form-group">
+              <label class="form-label">ผู้รับผิดชอบ</label>
+              <input class="form-control" id="fAssignee" placeholder="ชื่อ staff" autocomplete="off" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">สถานะ</label>
+              <select class="form-control" id="fStatus">
+                <option value="TODO">⚪ ยังไม่เริ่ม</option>
+                <option value="DOING">🔵 กำลังทำ</option>
+                <option value="DONE">✅ เสร็จแล้ว</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px">
+            <div class="form-group">
+              <label class="form-label">วันที่เริ่ม</label>
+              <input class="form-control" type="date" id="fStart" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">กำหนดเสร็จ</label>
+              <input class="form-control" type="date" id="fDue" />
+            </div>
+          </div>
+          <div class="form-group" style="margin-top:14px">
+            <label class="form-label">คืบหน้า (%) — <span id="progLabel">0</span>%</label>
+            <input type="range" id="fProgress" min="0" max="100" step="5" value="0" style="width:100%"
+              oninput="document.getElementById('progLabel').textContent=this.value" />
+          </div>
+          <div class="form-group" style="margin-top:14px">
+            <label class="form-label">หมายเหตุ</label>
+            <textarea class="form-control" id="fNote" rows="2" placeholder="รายละเอียด (ถ้ามี)"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-ghost" onclick="window.closeTaskModal()">ยกเลิก</button>
+          <button class="btn btn-primary" onclick="window.saveTask()">💾 บันทึก</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- SCRIPTS -->
+    <script src="../../js/core/auth.js"></script>
+    <script src="../../js/core/authz.js"></script>
+    <script src="../../js/core/date-format.js"></script>
+    <script>AuthZ.requirePerm("program_task_view");</script>
+    <script src="./program-tasks.js"></script>
+    <script src="../../js/components/modal/deleteModal.js"></script>
+    <script src="../../js/components/modal/modalManager.js"></script>
+    <script src="../../js/components/modal/enterSave.js"></script>
+    <script src="../../js/components/navigation/sidebar.js"></script>
+    <script type="module">
+      import { loadTopbar } from "../../js/components/navigation/topbar.js";
+      loadTopbar("🧭 Operations");
+    </script>
+  </body>
+</html>

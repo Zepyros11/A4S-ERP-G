@@ -9,7 +9,7 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="../../css/main.css" />
-    <link rel="stylesheet" href="./namecard-generator.css?v=3" />
+    <link rel="stylesheet" href="./namecard-generator.css?v=14" />
     <script>
       /* nmc-ready guard — the buttons use inline onclick="nmc.x()", but
          namecard-generator.js loads at the end of <body>. A click during that
@@ -140,8 +140,7 @@
                 <!-- ACTIONS -->
                 <div class="nmc-actions" id="actionsBlock" style="display:none">
                   <button class="btn btn-secondary" onclick="nmc.resetAll()">↺ เริ่มใหม่</button>
-                  <button class="btn btn-outline" onclick="nmc.exportPDF('open')" id="btnReview">👁️ Review</button>
-                  <button class="btn btn-primary" onclick="nmc.exportPDF('save')" id="btnPrint">🖨️ Print</button>
+                  <button class="btn btn-primary" onclick="nmc.printNow()" id="btnPrint">🖨️ พิมพ์ / บันทึก PDF</button>
                 </div>
               </div>
 
@@ -378,8 +377,7 @@
               <!-- Custom actions -->
               <div class="nmc-actions">
                 <button class="btn btn-secondary" onclick="nmc.clearCustom()">↺ ล้าง</button>
-                <button class="btn btn-outline" onclick="nmc.exportCustomPDF('open')" id="btnCustomPreview">👁️ Preview</button>
-                <button class="btn btn-primary" onclick="nmc.exportCustomPDF('save')" id="btnExportCustomPDF">🖨️ Print</button>
+                <button class="btn btn-primary" onclick="nmc.printCustomViaIframe()" id="btnExportCustomPDF">🖨️ พิมพ์ / บันทึก PDF</button>
               </div>
               </div><!-- /vip-split-left -->
 
@@ -502,7 +500,7 @@
 
     <!-- CERT POSITION PICKER MODAL -->
     <div class="modal-overlay" id="certPosOverlay" onclick="if(event.target===this)nmc.closeCertPosModal()">
-      <div class="modal" style="width:880px;max-width:96vw">
+      <div class="modal">
         <div class="modal-hdr v-sage-header">
           <div class="modal-title">📍 ปรับตำแหน่งชื่อ — <span id="certPosLabel">—</span></div>
           <button class="btn-modal-close" onclick="nmc.closeCertPosModal()">✕</button>
@@ -566,7 +564,7 @@
 
     <!-- CERT TEMPLATE MANAGEMENT MODAL -->
     <div class="modal-overlay" id="certTplOverlay" onclick="if(event.target===this)nmc.closeCertTplModal()">
-      <div class="modal" style="width:720px;max-width:95vw">
+      <div class="modal">
         <div class="modal-hdr v-sage-header">
           <div class="modal-title">🎨 จัดการ Template ใบประกาศ</div>
           <button class="btn-modal-close" onclick="nmc.closeCertTplModal()">✕</button>
@@ -602,6 +600,6 @@
     <script src="../../js/components/modal/modalManager.js"></script>
     <script src="../../js/components/modal/confirmModal.js"></script>
     <script src="../../js/core/companyLogo.js"></script>
-    <script src="./namecard-generator.js?v=3"></script>
+    <script src="./namecard-generator.js?v=14"></script>
   </body>
 </html>

@@ -5,6 +5,10 @@
 (function () {
   "use strict";
 
+  // Loaded-version marker — if the console does NOT show this, the browser is
+  // serving a cached copy and none of the recent fixes are running.
+  console.log("%c[namecard-generator] v14 loaded", "color:#6BBE45;font-weight:bold");
+
   const A4_W_MM = 210, A4_H_MM = 297;
   const LOGO_FALLBACK = "../../assets/logo/logo-a4s.png";
 
@@ -361,7 +365,7 @@
     return `
       <div class="nmc-card">
         <div class="nmc-card-logo"><img src="${logoPath()}" alt="logo" crossorigin="anonymous" onerror="this.style.display='none'"></div>
-        <div class="nmc-card-name" data-text="${name}">${name}</div>
+        <div class="nmc-card-name"><span class="nmc-card-name-text" data-text="${name}">${name}</span></div>
         <div class="nmc-card-band">
           <div class="nmc-card-position" data-text="${pos}">${pos}</div>
         </div>
@@ -392,42 +396,108 @@
 
     const g = nmcGrid();
     const pages = chunked(rowCards(), g.perPage);
-    // withBreaks → hard page-break divs (print area) · wrap → .nmc-a4-wrap (on-screen)
-    const buildHtml = (withBreaks, wrap) => pages.map((page, idx) => {
+    // Build the on-screen (wrapped) sheets only. The off-screen print area is
+    // filled by cloning these AFTER auto-fit — measuring text inside a hidden /
+    // off-screen element is unreliable (it left print names at full size), so we
+    // size the visible preview and copy the finished result.
+    scroller.innerHTML = pages.map(page => {
       const cells = [];
       for (let i = 0; i < g.perPage; i++) {
         cells.push(page[i] ? cardHtml(page[i]) : blankCardHtml());
       }
-      const brk = (withBreaks && idx > 0) ? '<div class="nmc-page-break"></div>' : '';
-      const sheet = `<div class="nmc-a4">${cells.join("")}</div>`;
-      return brk + (wrap ? `<div class="nmc-a4-wrap">${sheet}</div>` : sheet);
+      return `<div class="nmc-a4-wrap"><div class="nmc-a4">${cells.join("")}</div></div>`;
     }).join("");
-
-    scroller.innerHTML  = buildHtml(false, true);  // wrapped, no break divs
-    printArea.innerHTML = buildHtml(true, false);  // bare sheets + break divs
+    printArea.innerHTML = "";   // populated by syncPrintArea() after auto-fit
 
     // Apply zoom to on-screen wrappers (drives wrapper size + inner scale)
     scroller.querySelectorAll(".nmc-a4-wrap").forEach(el => {
       el.style.setProperty("--nmc-zoom", zoom);
     });
     // Card-size + grid vars on every sheet (inherited by .nmc-card)
-    [scroller, printArea].forEach(root => {
-      root.querySelectorAll(".nmc-a4").forEach(el => {
-        el.style.setProperty("--nmc-cols", g.cols);
-        el.style.setProperty("--nmc-rows", g.rows);
-        el.style.setProperty("--nmc-cw", cardW + "mm");
-        el.style.setProperty("--nmc-ch", cardH + "mm");
-      });
+    scroller.querySelectorAll(".nmc-a4").forEach(el => {
+      el.style.setProperty("--nmc-cols", g.cols);
+      el.style.setProperty("--nmc-rows", g.rows);
+      el.style.setProperty("--nmc-cw", cardW + "mm");
+      el.style.setProperty("--nmc-ch", cardH + "mm");
     });
 
-    // Auto-fit name & position text to box · positions use uniform
-    // sizing (smallest fit) so all cards look visually consistent.
+    // Auto-fit + line-lock the VISIBLE preview, then clone into the print area
+    // so the PDF / printout matches it exactly.
     requestAnimationFrame(() => {
-      [scroller, printArea].forEach(root => {
-        root.querySelectorAll(".nmc-card-name").forEach(autoFit);
-        const posEls = Array.from(root.querySelectorAll(".nmc-card-position"));
-        uniformFit(posEls);
+      scroller.querySelectorAll(".nmc-card-name").forEach(autoFit);
+      uniformFit(Array.from(scroller.querySelectorAll(".nmc-card-position")));
+      scroller.querySelectorAll(".nmc-card-name .nmc-card-name-text").forEach(lockNameLines);
+      syncPrintArea();
+    });
+  }
+
+  // Clone the auto-fitted on-screen sheets into the off-screen print area used by
+  // html2canvas (Review/Print PDF) and window.print(). Cloning copies the inline
+  // font sizes + locked single-line names verbatim — no re-measuring in a hidden
+  // element — so the output is identical to the preview.
+  function syncPrintArea() {
+    const scroller = $("sheetScroller");
+    const printArea = $("printArea");
+    if (!scroller || !printArea) return;
+    printArea.innerHTML = "";
+    // Append sheets as ADJACENT siblings (no break divs between) so the
+    // `.nmc-a4 + .nmc-a4` print rule can put each sheet after the first on a
+    // fresh page. (Old break-after + 297mm-tall sheets dropped page 2 on Edge.)
+    scroller.querySelectorAll(".nmc-a4-wrap > .nmc-a4").forEach(sheet => {
+      printArea.appendChild(sheet.cloneNode(true));
+    });
+  }
+
+  // Freeze a name span's current visual line wrapping into explicit single-line
+  // blocks, each pinned to an ABSOLUTE top computed from the on-screen preview.
+  // html2canvas collapses flex/auto-wrapped centered text onto one line (overlap);
+  // absolutely-positioned single lines are painted exactly where we put them (same
+  // reliable path as the green-band "VIP" text). Run AFTER autoFit so the font
+  // size — and therefore the line breaks — match what the user sees.
+  function lockNameLines(span) {
+    const text = (span.textContent || "").trim();
+    if (!text) return;
+    const words = text.split(/\s+/);
+    // Recover the line groups exactly as the browser wrapped them (preview values).
+    let lineStrings;
+    if (words.length === 1) {
+      lineStrings = [text];
+    } else {
+      // Measured while still display:block (is-locked not applied) so words wrap
+      // as normal text and offsetTop reflects the real preview line breaks.
+      span.innerHTML = words.map(w => `<span class="nmc-fit-word">${esc(w)}</span>`).join(" ");
+      const wordEls = span.querySelectorAll(".nmc-fit-word");
+      const lines = [];
+      let curTop = null, cur = [];
+      wordEls.forEach(w => {
+        const top = w.offsetTop;
+        if (curTop === null) curTop = top;
+        if (Math.abs(top - curTop) > 1) { lines.push(cur); cur = []; curTop = top; }
+        cur.push(w.textContent);
       });
+      if (cur.length) lines.push(cur);
+      lineStrings = lines.map(l => l.join(" "));
+    }
+
+    // Pin each line at a fixed top so the printout matches the preview exactly.
+    const nameEl = span.closest(".nmc-card-name") || span.parentElement;
+    const cs = getComputedStyle(nameEl);
+    const fontPx = parseFloat(cs.fontSize) || 16;
+    let lineH = parseFloat(cs.lineHeight);
+    if (!isFinite(lineH) || lineH <= 0) lineH = fontPx * 1.1;
+    const boxH = nameEl.clientHeight;
+    const boxW = nameEl.clientWidth;
+    const startTop = (boxH - lineStrings.length * lineH) / 2;   // vertically centered
+    span.innerHTML = lineStrings.map((l, i) =>
+      `<span class="nmc-card-name-line" style="top:${(startTop + i * lineH).toFixed(2)}px">${esc(l)}</span>`
+    ).join("");
+    span.classList.add("is-locked");
+    // Center each line horizontally with a computed left offset — NOT
+    // text-align:center, which html2canvas mis-renders (it breaks the text at the
+    // "." separators and stacks each piece at the centre → horizontal smear).
+    span.querySelectorAll(".nmc-card-name-line").forEach(lineEl => {
+      const w = lineEl.offsetWidth;
+      lineEl.style.left = Math.max(0, (boxW - w) / 2).toFixed(2) + "px";
     });
   }
 
@@ -452,16 +522,20 @@
     const min = isName ? 8 : 12;
     el.style.fontSize = max + "px";
 
+    // The name text lives in an inner <span> (the line-lock target); measure
+    // that span. Position text measures itself.
+    const probe = isName ? (el.firstElementChild || el) : el;
+    const boxH = el.clientHeight;                    // fixed box the text must fit
     const parent = el.parentElement;
     const parentH = parent ? parent.clientHeight : Infinity;
-    const parentW = parent ? parent.clientWidth  : Infinity;
 
     let safety = 40;
     while (max > min && safety-- > 0) {
-      const tooWide = el.scrollWidth > el.clientWidth + 1
-                   || el.scrollWidth > parentW + 1;
-      const tooTall = el.scrollHeight > el.clientHeight + 1
-                   || el.scrollHeight > parentH + 1;
+      // Horizontal: text wider than the span's own content box (unbreakable run).
+      const tooWide = probe.scrollWidth > probe.clientWidth + 1;
+      // Vertical: wrapped text taller than the name box (or the whole card).
+      const tooTall = probe.scrollHeight > boxH + 1
+                   || probe.scrollHeight > parentH + 1;
       if (!tooWide && !tooTall) break;
       max -= 1;
       el.style.fontSize = max + "px";
@@ -587,17 +661,72 @@
     }
     setStep(3);
     // Re-render so the off-screen print area matches the current rows, then
-    // wait for the autoFit RAF + a paint frame before opening the dialog so
-    // every sheet is fully laid out (otherwise Edge can mis-count pages).
+    // wait for the autoFit RAF + a paint frame so every sheet is fully laid out.
     renderSheets();
     requestAnimationFrame(() => requestAnimationFrame(() => {
-      setTimeout(() => window.print(), 120);
+      setTimeout(() => printSheetsViaIframe(), 150);
     }));
   }
 
+  // Print each A4 sheet on its own page via a CLEAN, isolated iframe.
+  // Printing the sheets in-place failed on Edge — the main page's nesting/context
+  // swallowed the page-breaks and crammed every sheet onto 1 sheet of paper. A
+  // standalone document (just the sheets + minimal CSS) paginates reliably.
+  function printSheetsViaIframe() {
+    const printArea = $("printArea");
+    const sheets = printArea ? printArea.querySelectorAll(".nmc-a4") : [];
+    if (!sheets.length) { showToast("ยังไม่มีข้อมูลพิมพ์", "error"); return; }
+
+    const old = document.getElementById("nmcPrintFrame");
+    if (old) old.remove();
+
+    const iframe = document.createElement("iframe");
+    iframe.id = "nmcPrintFrame";
+    iframe.style.cssText = "position:fixed;width:0;height:0;border:0;right:0;bottom:0;";
+    document.body.appendChild(iframe);
+
+    const doc = iframe.contentDocument || iframe.contentWindow.document;
+    const cssAbs = new URL("./namecard-generator.css?v=14", location.href).href;
+    // Each sheet wrapped in a plain block → page-break on the wrapper (not the
+    // grid element) is the most reliable across browsers.
+    const body = Array.from(sheets)
+      .map(s => `<div class="print-page">${s.outerHTML}</div>`).join("");
+
+    doc.open();
+    doc.write(
+      '<!doctype html><html><head><meta charset="utf-8">' +
+      '<base href="' + location.href + '">' +
+      '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700;800&display=swap">' +
+      '<link rel="stylesheet" href="' + cssAbs + '">' +
+      '<style>' +
+        '@page{size:A4 portrait;margin:0}' +
+        'html,body{margin:0;padding:0;background:#fff}' +
+        '.print-page{break-after:page;page-break-after:always}' +
+        '.print-page:last-child{break-after:auto;page-break-after:auto}' +
+        // Neutralise the on-screen scale/negative-margin so each sheet is a real A4
+        '.nmc-a4{transform:none!important;margin:0 auto!important;width:210mm!important;' +
+          'height:auto!important;box-shadow:none!important;--nmc-zoom:1!important}' +
+        '*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}' +
+      '</style></head><body>' + body + '</body></html>'
+    );
+    doc.close();
+
+    const win = iframe.contentWindow;
+    const doPrint = () => {
+      try { win.focus(); win.print(); } catch (e) { console.error(e); }
+      setTimeout(() => iframe.remove(), 1500);
+    };
+    // Wait for the iframe's fonts + images before printing so nothing reflows.
+    const fontsReady = (doc.fonts && doc.fonts.ready) ? doc.fonts.ready : Promise.resolve();
+    fontsReady.then(() => setTimeout(doPrint, 450)).catch(() => setTimeout(doPrint, 650));
+  }
+
   // ── Export PDF (via html2canvas + jsPDF) ──────────────────
-  // Bypasses Edge's flaky print pipeline. Each A4 sheet rendered
-  // off-screen → captured as canvas → embedded in PDF page.
+  // ⚠️ LEGACY / UNUSED for the ป้ายชื่อ tab — no button calls this anymore.
+  // html2canvas's text engine smeared long dotted names (e.g. "ASSOC.PROF.DR.VIPUT"),
+  // so namecard printing moved to printSheetsViaIframe() (native print, clean iframe).
+  // Kept only as reference; the custom/cert tabs still use their OWN html2canvas
+  // exporters (short labels → no smear). Do NOT wire this back to the namecard button.
   async function exportPDF(mode = "save") {
     if (!rows.length) {
       showToast("ยังไม่มีรายชื่อ", "error");
@@ -617,6 +746,13 @@
     showProcessing("กำลังสร้าง PDF ป้ายชื่อ...", "เตรียมข้อมูล");
 
     try {
+      // Make sure the Sarabun web font is loaded BEFORE measuring/capturing.
+      // autoFit sizes names against the real font, and html2canvas clones the
+      // page into an iframe — if the font isn't ready it falls back to a wider
+      // font, the name re-wraps to extra lines, and the lines overlap.
+      if (document.fonts && document.fonts.ready) {
+        try { await document.fonts.ready; } catch (e) {}
+      }
       renderSheets();
       // Wait for autoFit + paint
       await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
@@ -1324,7 +1460,98 @@
     renderCustomSheets();
   }
 
+  // Print the custom-tab sheets via a clean isolated iframe (native engine) —
+  // same fix as the namecard tab. html2canvas mis-sized/clipped the big sequence
+  // numbers; the browser's own renderer matches the on-screen preview exactly.
+  // Handles BOTH orientations (custom tab can be portrait or landscape).
+  async function printCustomViaIframe() {
+    const g = cGrid();
+    const { items, total } = customItems();
+    if (!total) { showToast("ยังไม่มีการ์ด — กรอกข้อมูลก่อน", "error"); return; }
+    if (cMode === "repeat" && !cCurrentLogoUrl() && !cText.trim()) {
+      showToast("เลือกโลโก้ หรือ ใส่ข้อความก่อน", "error"); return;
+    }
+    showProcessing("กำลังเตรียมพิมพ์...", "จัดหน้า");
+    try {
+      // Build every page in the off-screen print area + fit the text (same as the
+      // old html2canvas path) so the sequence numbers are sized correctly.
+      const printArea = $("customPrintArea");
+      const pageCount = Math.max(1, Math.ceil(total / g.perPage));
+      let html = "";
+      for (let p = 0; p < pageCount; p++) {
+        const cells = [];
+        for (let i = 0; i < g.perPage; i++) {
+          const idx = p * g.perPage + i;
+          cells.push(idx < total ? cCardHtml(items ? items[idx] : "") : cBlank());
+        }
+        html += cPageHtml(cells.join(""));
+      }
+      printArea.innerHTML = html;
+      printArea.querySelectorAll(".c-a4-wrap").forEach(el => applyCVars(el, g));
+      await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+      fitCustom(printArea, g, items);
+      await new Promise(r => setTimeout(r, 80));
+
+      const sheets = printArea.querySelectorAll(".c-a4");
+      // The size vars live on the .c-a4-wrap; copy them onto each .c-a4 so they
+      // survive cloning (we clone the sheet, not the wrapper).
+      sheets.forEach(s => applyCVars(s, g));
+      if (!sheets.length) { showToast("ยังไม่มีข้อมูลพิมพ์", "error"); return; }
+
+      const landscape = cOrient === "landscape";
+      const pw = landscape ? "297mm" : "210mm";
+      const ph = landscape ? "210mm" : "297mm";
+
+      const old = document.getElementById("nmcPrintFrame");
+      if (old) old.remove();
+      const iframe = document.createElement("iframe");
+      iframe.id = "nmcPrintFrame";
+      iframe.style.cssText = "position:fixed;width:0;height:0;border:0;right:0;bottom:0;";
+      document.body.appendChild(iframe);
+      const doc = iframe.contentDocument || iframe.contentWindow.document;
+      const cssAbs = new URL("./namecard-generator.css?v=14", location.href).href;
+      const bodyHtml = Array.from(sheets)
+        .map(s => `<div class="print-page">${s.outerHTML}</div>`).join("");
+      doc.open();
+      doc.write(
+        '<!doctype html><html><head><meta charset="utf-8">' +
+        '<base href="' + location.href + '">' +
+        '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700;800&display=swap">' +
+        '<link rel="stylesheet" href="' + cssAbs + '">' +
+        '<style>' +
+          '@page{size:A4 ' + (landscape ? 'landscape' : 'portrait') + ';margin:0}' +
+          'html,body{margin:0;padding:0;background:#fff}' +
+          '.print-page{break-after:page;page-break-after:always}' +
+          '.print-page:last-child{break-after:auto;page-break-after:auto}' +
+          // Each sheet = a real A4 page (cards fill it exactly) · overflow:hidden
+          // clips sub-pixel overflow so it never spills onto an extra blank page.
+          '.c-a4{position:static!important;transform:none!important;margin:0!important;' +
+            'width:' + pw + '!important;height:' + ph + '!important;overflow:hidden!important;' +
+            'box-shadow:none!important;--nmc-zoom:1!important}' +
+          '*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}' +
+        '</style></head><body>' + bodyHtml + '</body></html>'
+      );
+      doc.close();
+      const win = iframe.contentWindow;
+      const doPrint = () => {
+        try { win.focus(); win.print(); } catch (e) { console.error(e); }
+        setTimeout(() => iframe.remove(), 1500);
+      };
+      const fontsReady = (doc.fonts && doc.fonts.ready) ? doc.fonts.ready : Promise.resolve();
+      fontsReady.then(() => setTimeout(doPrint, 450)).catch(() => setTimeout(doPrint, 650));
+    } catch (err) {
+      console.error(err);
+      showToast("เตรียมพิมพ์ไม่สำเร็จ — " + err.message, "error");
+    } finally {
+      hideProcessing();
+      // Free the (possibly huge) DOM after the clone is captured.
+      setTimeout(() => { const pa = $("customPrintArea"); if (pa) pa.innerHTML = ""; }, 2500);
+    }
+  }
+
   // ── Export PDF (open = preview tab · save = download) ──────
+  // ⚠️ LEGACY for the custom tab — button now calls printCustomViaIframe().
+  // Kept for reference (html2canvas path). Do NOT rewire to the custom Print button.
   async function exportCustomPDF(mode = "save") {
     const g = cGrid();
     const { items, total } = customItems();
@@ -2294,7 +2521,7 @@
     setCW, setCH, setCSize, syncCInputs,
     setCPerPage, bumpCPerPage,
     setCOrient, setCVAlign, setCZoom, clearCustom,
-    onCLogoPick, exportCustomPDF,
+    onCLogoPick, exportCustomPDF, printCustomViaIframe,
     // Certificate tab
     onCertDrag, onCertDrop, onCertFilePick,
     certAddRow, certClearAll, certResetAll,

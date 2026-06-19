@@ -208,6 +208,12 @@
       /* sim ใช้ .doc-letterhead จริง — แค่ตัด margin ล่างทิ้ง + คงฟอนต์ */
       .lh-sim .doc-letterhead{ margin-bottom:0;font-family:"Sarabun","Segoe UI",sans-serif; }
 
+      /* มือถือ: โมดัล 2 คอลัมน์ (ข้อมูล/รายการ | preview/ฟอร์ม) → ซ้อนแนวตั้ง
+         ใช้ !important เพราะ inline grid-template มี specificity สูงกว่า class */
+      @media (max-width: 767px) {
+        .doc-split { grid-template-columns: 1fr !important; }
+      }
+
       /* paper ใช้ขนาด A4 เป๊ะ → preview กับ print ตัดบรรทัดเหมือนกัน (WYSIWYG) */
       @page { size: A4; margin: 0; }
       @media print{
@@ -403,7 +409,7 @@
 
     <!-- ═════════════ CREATE DOC MODAL (เลือกแม่แบบ + กรอกฟิลด์) ═════════════ -->
     <div class="modal-overlay" id="createDocOverlay">
-      <div class="modal v-sage-header" style="width:760px" onclick="event.stopPropagation()">
+      <div class="modal v-sage-header" onclick="event.stopPropagation()">
         <div class="modal-hdr">
           <div class="modal-title">สร้างเอกสารใหม่</div>
           <button class="btn-modal-close" onclick="window.closeCreateDoc()">✕</button>
@@ -433,7 +439,7 @@
 
     <!-- ═════════════ IMPORT EXCEL MODAL (สร้างหลายฉบับ) ═════════════ -->
     <div class="modal-overlay" id="importOverlay">
-      <div class="modal v-sage-header" style="width:880px;max-width:96vw" onclick="event.stopPropagation()">
+      <div class="modal v-sage-header" onclick="event.stopPropagation()">
         <div class="modal-hdr">
           <div class="modal-title">📥 นำเข้า Excel — สร้างหลายฉบับ</div>
           <button class="btn-modal-close" onclick="window.closeImport()">✕</button>
@@ -508,7 +514,7 @@
 
     <!-- ═════════════ DOC EDITOR MODAL ═════════════ -->
     <div class="modal-overlay" id="docEditOverlay">
-      <div class="modal v-sage-header" style="width:760px" onclick="event.stopPropagation()">
+      <div class="modal v-sage-header" onclick="event.stopPropagation()">
         <div class="modal-hdr">
           <div class="modal-title" id="docEditTitle">แก้ไขเอกสาร</div>
           <button class="btn-modal-close" onclick="window.closeDocEdit()">✕</button>
@@ -590,13 +596,13 @@
 
     <!-- ═════════════ TEMPLATE EDITOR MODAL ═════════════ -->
     <div class="modal-overlay" id="tplOverlay">
-      <div class="modal v-sage-header" style="width:1000px;max-width:96vw" onclick="event.stopPropagation()">
+      <div class="modal v-sage-header" onclick="event.stopPropagation()">
         <div class="modal-hdr">
           <div class="modal-title" id="tplModalTitle">สร้างแม่แบบ</div>
           <button class="btn-modal-close" onclick="window.closeTemplateModal()">✕</button>
         </div>
         <div class="modal-body">
-          <div style="display:grid;grid-template-columns:300px 1fr;gap:18px;align-items:start">
+          <div class="doc-split" style="display:grid;grid-template-columns:300px 1fr;gap:18px;align-items:start">
             <!-- ซ้าย: ข้อมูลแม่แบบ -->
             <div>
               <div class="form-group">
@@ -664,7 +670,7 @@
 
     <!-- ═════════════ PREVIEW MODAL (เอกสารเต็ม) ═════════════ -->
     <div class="modal-overlay" id="previewOverlay" onclick="window.closePreview(event)">
-      <div class="modal v-sage-header" style="width:900px;max-width:96vw" onclick="event.stopPropagation()">
+      <div class="modal v-sage-header" onclick="event.stopPropagation()">
         <div class="modal-hdr">
           <div class="modal-title">👁 ตัวอย่างเอกสาร</div>
           <button class="btn-modal-close" onclick="window.closePreview()">✕</button>
@@ -681,7 +687,7 @@
 
     <!-- ═════════════ SIGNATORY MANAGER (nested) ═════════════ -->
     <div class="modal-overlay" id="sigMgrOverlay">
-      <div class="modal v-sage-header" style="width:620px" onclick="event.stopPropagation()">
+      <div class="modal v-sage-header" onclick="event.stopPropagation()">
         <div class="modal-hdr">
           <div class="modal-title">⚙️ จัดการผู้ลงนาม</div>
           <button class="btn-modal-close" onclick="window.closeSignatoryManager()">✕</button>
@@ -730,13 +736,13 @@
 
     <!-- ═════════════ LETTERHEAD MANAGER (nested) ═════════════ -->
     <div class="modal-overlay" id="lhMgrOverlay">
-      <div class="modal v-sage-header" style="width:900px;max-width:96vw" onclick="event.stopPropagation()">
+      <div class="modal v-sage-header" onclick="event.stopPropagation()">
         <div class="modal-hdr">
           <div class="modal-title">⚙️ จัดการหัวกระดาษ</div>
           <button class="btn-modal-close" onclick="window.closeLetterheadManager()">✕</button>
         </div>
         <div class="modal-body">
-          <div style="display:grid;grid-template-columns:30% 70%;gap:18px;align-items:start">
+          <div class="doc-split" style="display:grid;grid-template-columns:30% 70%;gap:18px;align-items:start">
             <!-- ซ้าย: รายการหัวกระดาษ -->
             <div>
               <div class="table-title" style="margin-bottom:8px">รายการหัวกระดาษ</div>

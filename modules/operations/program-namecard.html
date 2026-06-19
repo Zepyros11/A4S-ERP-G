@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ป้ายชื่อ — A4S-ERP</title>
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="../../css/main.css" />
+    <style>
+      .ws-back{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:var(--text2);text-decoration:none;margin-bottom:10px;}
+      .ws-back:hover{color:var(--accent);}
+      .tk-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px;}
+      .tk-head h1{font-size:19px;font-weight:800;margin:0;color:var(--text);}
+      .tk-prog-type{display:inline-block;padding:2px 9px;border-radius:6px;font-size:11px;font-weight:700;background:var(--surface2);color:var(--text2);}
+      .nc-toolbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:16px;}
+      .nc-toolbar label{font-size:12.5px;color:var(--text2);display:inline-flex;align-items:center;gap:6px;}
+
+      .nc-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;}
+      .nc-tag{border:1.5px solid var(--border);border-radius:12px;padding:18px 16px;text-align:center;background:#fff;min-height:150px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;break-inside:avoid;}
+      .nc-prog{font-size:12px;color:var(--accent);font-weight:700;letter-spacing:.3px;}
+      .nc-name{font-size:24px;font-weight:800;color:#111;line-height:1.2;}
+      .nc-sub{font-size:12.5px;color:#475569;}
+      .nc-role{display:inline-block;font-size:11px;font-weight:700;padding:2px 10px;border-radius:999px;background:#eef2ff;color:#4338ca;}
+
+      @media print {
+        .topbar, #erp-sidebar, #sb-hamburger, #sb-overlay, .ws-back, .tk-head, .nc-toolbar, #loadingOverlay { display:none !important; }
+        .layout, .content-area, .page { margin:0 !important; padding:0 !important; max-width:none !important; }
+        .nc-grid { gap:0; }
+        .nc-tag { border:1px dashed #999; border-radius:0; margin:-0.5px; }
+        @page { size:A4; margin:10mm; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="loading-overlay" id="loadingOverlay"><div class="spinner"></div></div>
+    <div class="toast" id="toast"></div>
+    <div class="topbar"></div>
+    <div class="layout"><div class="content-area"><div class="page">
+      <a class="ws-back" id="backLink" href="#">← กลับ workspace</a>
+      <div class="tk-head"><span class="tk-prog-type" id="progType">—</span><h1 id="progName">กำลังโหลด...</h1></div>
+
+      <div class="nc-toolbar">
+        <label><input type="checkbox" id="optRole" checked onchange="window.render()"> แสดงบทบาท</label>
+        <label><input type="checkbox" id="optCode" onchange="window.render()"> แสดงรหัสสมาชิก</label>
+        <label>คอลัมน์
+          <select class="filter-select" id="optCols" onchange="window.render()" style="min-width:90px">
+            <option value="2">2</option><option value="3">3</option><option value="1">1</option>
+          </select>
+        </label>
+        <button class="btn btn-primary" onclick="window.print()">🖨️ พิมพ์</button>
+        <span class="table-count" id="cnt">0 ป้าย</span>
+      </div>
+
+      <div class="nc-grid" id="ncGrid"></div>
+    </div></div></div>
+
+    <script src="../../js/core/auth.js"></script>
+    <script src="../../js/core/authz.js"></script>
+    <script>AuthZ.requirePerm("program_participant_view");</script>
+    <script src="./program-namecard.js"></script>
+    <script src="../../js/components/navigation/sidebar.js"></script>
+    <script type="module">import { loadTopbar } from "../../js/components/navigation/topbar.js"; loadTopbar("🧭 Operations");</script>
+  </body>
+</html>

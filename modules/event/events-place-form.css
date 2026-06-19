@@ -325,8 +325,8 @@
   margin-bottom: 0;
 }
 
-/* ── RESPONSIVE ── */
-@media (max-width: 900px) {
+/* ── RESPONSIVE ── (collapse ที่ 767 = มาตรฐาน + คง 2-pane บน desktop/laptop ที่ zoom 0.65) */
+@media (max-width: 767px) {
   .ef-layout {
     grid-template-columns: 1fr;
   }

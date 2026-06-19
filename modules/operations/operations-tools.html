@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>เครื่องมือ — A4S-ERP</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../../css/main.css" />
+    <style>
+      /* ─────────── Utility-tool launcher (list) ─────────── */
+      .tools-section { margin-bottom: 22px; }
+      .tools-section-hdr {
+        display: flex; align-items: center; gap: 10px;
+        font-size: 12.5px; font-weight: 700; letter-spacing: .4px;
+        color: var(--text2); text-transform: uppercase;
+        margin: 0 2px 11px;
+      }
+      .tools-section-hdr .ts-line { flex: 1; height: 1px; background: var(--border); }
+      .tools-section-hint {
+        font-size: 11px; font-weight: 400; letter-spacing: 0;
+        text-transform: none; color: var(--text3);
+      }
+
+      /* grid 3 คอลัมน์ (responsive → 2 → 1) */
+      .tools-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+      @media (max-width: 1100px) { .tools-list { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+      @media (max-width: 680px)  { .tools-list { grid-template-columns: 1fr; } }
+
+      .tool-card {
+        display: flex; align-items: center; gap: 14px;
+        padding: 12px 18px; border-radius: 12px;
+        border: 1px solid var(--border); background: var(--surface);
+        box-shadow: var(--shadow-soft-md);
+        text-decoration: none; color: inherit; cursor: pointer;
+        transition: transform .12s, box-shadow .15s, border-color .15s;
+      }
+      .tool-card:hover {
+        transform: translateY(-1px);
+        border-color: var(--accent);
+        box-shadow: var(--shadow-soft-lg);
+      }
+      .tool-card-ic {
+        flex-shrink: 0; width: 42px; height: 42px; border-radius: 11px;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 21px; background: var(--accent-pale);
+      }
+      .tool-card-body { flex: 1; min-width: 0; }
+      .tool-card-title {
+        display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+        font-size: 14px; font-weight: 700; color: var(--text);
+      }
+      .tool-card-desc { font-size: 12px; color: var(--text3); line-height: 1.45; margin-top: 2px; }
+      .tool-card-arrow {
+        flex-shrink: 0; color: var(--text3); font-size: 16px;
+        transition: transform .15s, color .15s;
+      }
+      .tool-card:hover .tool-card-arrow { transform: translateX(3px); color: var(--accent); }
+
+      .soon-tag {
+        font-size: 9.5px; font-weight: 700; letter-spacing: .3px;
+        padding: 1px 7px; border-radius: 999px;
+        background: #f1f5f9; color: #64748b;
+      }
+      .tool-card.is-soon { opacity: .6; cursor: default; }
+      .tool-card.is-soon:hover {
+        transform: none; border-color: var(--border); box-shadow: var(--shadow-soft-md);
+      }
+      .tool-card.is-soon .tool-card-arrow { display: none; }
+
+      /* ─── ฝั่งขวาของแถว (badges + ปุ่มดูตัวอย่าง ▶) ─── */
+      .tool-card-right { flex-shrink: 0; display: flex; align-items: center; gap: 10px; }
+      .tool-card-tags { display: flex; flex-wrap: wrap; gap: 5px; justify-content: flex-end; }
+      .type-badge {
+        font-size: 10px; font-weight: 700; letter-spacing: .2px;
+        padding: 1px 7px; border-radius: 999px;
+      }
+      .type-badge.t-trip  { background: #dbeafe; color: #1d4ed8; }
+      .type-badge.t-event { background: #ede9fe; color: #6d28d9; }
+      .ready-tag {
+        font-size: 9.5px; font-weight: 700; letter-spacing: .3px;
+        padding: 1px 7px; border-radius: 999px;
+        background: #dcfce7; color: #15803d;
+      }
+
+      @media (max-width: 600px) {
+        .tool-card-desc { display: none; }   /* จอแคบ: เหลือไอคอน+ชื่อ+ป้าย ให้ลิสต์กระชับ */
+      }
+
+      .tools-empty { text-align: center; color: var(--text3); padding: 56px 20px; font-size: 13.5px; }
+
+      /* ─────────── Simulator modal (iframe พรีวิวหน้าเครื่องมือจริง) ─────────── */
+      .sim-modal {
+        background: var(--surface); border-radius: 14px;
+        width: 92vw; height: 90vh; max-width: 1240px;
+        display: flex; flex-direction: column; overflow: hidden;
+        box-shadow: var(--shadow-lg);
+        transform: scale(.96); transition: transform .2s;
+      }
+      .modal-overlay.open .sim-modal { transform: scale(1); }
+      .sim-hdr {
+        flex-shrink: 0; display: flex; align-items: center; justify-content: space-between;
+        gap: 12px; padding: 11px 16px;
+        border-bottom: 1px solid var(--border); background: var(--surface-soft);
+      }
+      .sim-title {
+        display: flex; align-items: center; gap: 9px; min-width: 0;
+        font-size: 15px; font-weight: 700; color: var(--text);
+      }
+      .sim-title #simIcon { font-size: 19px; flex-shrink: 0; }
+      .sim-title #simName { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .sim-ctrls { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+      .sim-select {
+        font-family: inherit; font-size: 12.5px; padding: 6px 10px; max-width: 240px;
+        border: 1px solid var(--border); border-radius: 8px;
+        background: var(--surface); color: var(--text); cursor: pointer;
+      }
+      .sim-btn {
+        font-family: inherit; font-size: 12.5px; font-weight: 600;
+        padding: 7px 12px; border-radius: 8px; border: 1px solid var(--border);
+        background: var(--surface); color: var(--text); cursor: pointer; text-decoration: none;
+        display: inline-flex; align-items: center; gap: 5px; white-space: nowrap;
+      }
+      .sim-btn:hover { background: var(--accent-pale); border-color: var(--accent); color: var(--accent); }
+      .sim-close { font-size: 14px; padding: 7px 11px; }
+      .sim-body { flex: 1; position: relative; min-height: 0; background: #eef1f4; }
+      .sim-frame { width: 100%; height: 100%; border: 0; display: block; background: #fff; }
+      .sim-loading {
+        position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+        background: var(--surface); z-index: 2;
+      }
+      .sim-note {
+        flex-shrink: 0; display: none; padding: 8px 16px; font-size: 11.5px; color: var(--text3);
+        border-top: 1px solid var(--border); background: var(--surface-soft);
+      }
+      .sim-note.show { display: block; }
+      .sim-badge {
+        font-size: 11.5px; font-weight: 700; color: #92400e;
+        background: #fef3c7; border: 1px solid #fde68a; border-radius: 999px;
+        padding: 4px 11px; white-space: nowrap;
+      }
+      @media (max-width: 767px) {
+        .sim-modal { width: 100vw; height: 100vh; max-width: none; border-radius: 0; }
+        .sim-select { max-width: 130px; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="loading-overlay" id="loadingOverlay" style="display:none"><div class="spinner"></div></div>
+    <div class="toast" id="toast"></div>
+
+    <div class="topbar"></div>
+    <div class="page">
+
+      <!-- HERO -->
+      <div class="page-hero page-hero--simple page-hero--compact">
+        <div>
+          <h1 class="page-hero-title">🧰 เครื่องมือ</h1>
+          <p class="page-hero-sub">รวมเครื่องมือ Utility ทั้งหมดไว้ที่เดียว</p>
+        </div>
+        <div class="page-hero-actions">
+          <button class="btn-on-hero" onclick="location.href='./operations-hub.html'">
+            ← Operations Hub
+          </button>
+        </div>
+      </div>
+
+      <!-- TOOLS (rendered by operations-tools.js จาก registry) -->
+      <div id="toolsContainer"></div>
+
+    </div>
+
+    <!-- ═══════════ SIMULATOR MODAL (iframe พรีวิวหน้าเครื่องมือจริง) ═══════════ -->
+    <div class="modal-overlay" id="simOverlay" onclick="OperationsTools.closeSim()">
+      <div class="sim-modal" onclick="event.stopPropagation()">
+        <div class="sim-hdr">
+          <div class="sim-title"><span id="simIcon">🧰</span><span id="simName">—</span></div>
+          <div class="sim-ctrls">
+            <span id="simSandboxBadge" class="sim-badge" style="display:none">🧪 โหมดทดสอบ (Sandbox)</span>
+            <button id="simResetBtn" class="sim-btn" style="display:none" onclick="OperationsTools.resetSandbox()" title="ล้างข้อมูลทดสอบ แล้วเริ่มใหม่">♻️ รีเซ็ต</button>
+            <a id="simOpen" class="sim-btn" target="_blank" rel="noopener">เปิดเต็มจอ ↗</a>
+            <button class="sim-btn sim-close" onclick="OperationsTools.closeSim()" title="ปิด (ESC)">✕</button>
+          </div>
+        </div>
+        <div class="sim-body">
+          <div class="sim-loading" id="simLoading"><div class="spinner"></div></div>
+          <iframe id="simFrame" class="sim-frame" title="ตัวอย่างเครื่องมือ"></iframe>
+        </div>
+        <div class="sim-note" id="simNote"></div>
+      </div>
+    </div>
+
+    <!-- SCRIPTS -->
+    <script src="../../js/core/auth.js"></script>
+    <script src="../../js/core/authz.js"></script>
+    <script src="../../js/core/date-format.js"></script>
+    <script>AuthZ.requirePerm("program_view");</script>
+    <!-- ProgramTools = catalog เครื่องมือระดับโปรแกรม (launcher ดึงมาโชว์เป็น catalog) -->
+    <script src="../../js/shared/program-tools.js"></script>
+    <script src="./operations-tools.js"></script>
+    <script src="../../js/components/modal/modalManager.js"></script>
+    <script src="../../js/components/modal/confirmModal.js"></script>
+    <script src="../../js/components/navigation/sidebar.js"></script>
+    <script type="module">
+      import { loadTopbar } from "../../js/components/navigation/topbar.js";
+      loadTopbar("🧰 เครื่องมือ");
+    </script>
+  </body>
+</html>

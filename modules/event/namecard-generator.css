@@ -1040,9 +1040,16 @@
 }
 
 .nmc-card-name {
-  position: absolute; left: 4%; right: 4%;
+  position: absolute; left: 0; right: 0;
   top: 25%; height: 31.7%;   /* fill the gap between logo & band */
-  display: flex; align-items: center; justify-content: center;
+  padding: 0 4%;             /* inset via padding · full-width box renders cleaner in html2canvas */
+  box-sizing: border-box;
+  /* Plain block · NO flexbox. html2canvas collapses flex-centered multi-line
+     text onto one line (overlap). Instead, lockNameLines() pins each line to an
+     absolute top computed from the on-screen preview → html2canvas just paints
+     each single line where the preview put it (same reliable path as the band). */
+  display: block;
+  overflow: hidden;
   text-align: center;
   font-family: 'Sarabun', sans-serif;
   font-weight: 800;
@@ -1050,6 +1057,47 @@
   line-height: 1.1;
   /* font-size set inline via JS for auto-fit */
 }
+/* Inner text wrapper · holds the name. After auto-fit, JS freezes its visual
+   wrapping into explicit single-line blocks (.nmc-card-name-line) because
+   html2canvas mangles AUTO-wrapped centered text inside a %-sized absolute box
+   (every word/line collapses toward the centre and overlaps). Single-line
+   centered blocks render correctly — same path as the green-band text. */
+.nmc-card-name > .nmc-card-name-text {
+  display: block;            /* measurement state: raw text wraps as block flow */
+  width: 100%;
+  text-align: center;
+  line-height: inherit;
+}
+/* After lockNameLines() freezes the wrapping, the wrapper fills the name box and
+   each line is absolutely pinned (top set inline by JS) → no layout for
+   html2canvas to get wrong. */
+.nmc-card-name > .nmc-card-name-text.is-locked {
+  position: absolute;
+  left: 0; right: 0; top: 0; bottom: 0;
+  display: block;
+}
+.nmc-card-name-line {
+  display: block;
+  width: 100%;
+  text-align: center;
+  white-space: nowrap;          /* never re-wrap · JS already split the lines */
+  line-height: inherit;
+}
+/* Locked lines: absolutely positioned + shrink-wrapped (top & left set inline
+   per line by JS). width:auto + text-align:left means html2canvas never runs its
+   broken centered-text path — which splits "ASSOC.PROF.DR." at the periods and
+   stacks each segment at the centre (horizontal smear). Centering is done purely
+   by the computed `left` offset (reliable absolute positioning). */
+.nmc-card-name-text.is-locked .nmc-card-name-line {
+  position: absolute;
+  width: auto;
+  right: auto;
+  text-align: left;
+  white-space: nowrap;
+}
+/* Temporary per-word probe used by lockNameLines() to detect line breaks ·
+   normal weight/style so wrapping matches the real (bold) render closely. */
+.nmc-fit-word { font-style: normal; }
 
 .nmc-card-band {
   position: absolute; left: 0; right: 0;
@@ -1181,9 +1229,12 @@
     grid-template-columns: repeat(var(--nmc-cols, 2), var(--nmc-cw, 85mm)) !important;
     grid-template-rows: repeat(var(--nmc-rows, 4), var(--nmc-ch, 60mm)) !important;
     width: 210mm !important;        /* full page · cards centered via justify-content */
-    height: 297mm !important;
-    min-height: 297mm !important;
-    max-height: 297mm !important;
+    /* Natural height (= rows × card height, ~240mm) — NOT a forced 297mm. An
+       element exactly one page tall + break made Edge drop page 2 / add blanks.
+       Cards are top-aligned (align-content:start) so position is unchanged. */
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
     box-sizing: border-box !important;
     padding: 0 !important;
     margin: 0 auto !important;
@@ -1194,19 +1245,18 @@
     gap: 0 !important;
     justify-content: center !important;
     align-content: start !important;
-    overflow: hidden !important;
-    page-break-after: always !important;
-    break-after: page !important;
     page-break-inside: avoid !important;
     break-inside: avoid !important;
   }
-  /* Last sheet: no trailing blank page */
-  .nmc-print-area .nmc-a4:last-child {
-    page-break-after: auto !important;
-    break-after: auto !important;
+  /* Every sheet after the first starts on a new page (reliable cross-browser —
+     break-BEFORE on subsequent siblings, vs the old break-after that collapsed
+     to 1 sheet on Edge). Sheets are adjacent siblings (syncPrintArea drops the
+     break divs) so the `+` combinator matches. */
+  .nmc-print-area .nmc-a4 + .nmc-a4 {
+    page-break-before: always !important;
+    break-before: page !important;
   }
-  /* Injected break divs are redundant with break-after above — kill them
-     so they can't introduce extra blank pages. */
+  /* Legacy break divs (no longer injected) — keep hidden in case any remain. */
   .nmc-print-area .nmc-page-break { display: none !important; }
   /* window.print() is triggered only from the namecard tab; VIP/Cert use
      the html2canvas export path (screen media), so keep their off-screen

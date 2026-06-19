@@ -557,7 +557,7 @@
 .man-nav-btn b { color: #0f172a; font-size: 14px; }
 .man-nav-btn.next { text-align: right; }
 
-@media (max-width: 900px) {
+@media (max-width: 767px) { /* 767 = คง TOC sidebar บน laptop ที่ zoom 0.65 */
   .man-reader-layout { grid-template-columns: 1fr; }
   .man-toc { position: static; max-height: none; }
   .man-reader { padding: 22px 22px 36px; }
@@ -821,7 +821,7 @@
 
 .man-savebar-actions { display: flex; gap: 10px; }
 
-@media (max-width: 900px) {
+@media (max-width: 767px) { /* 767 = คง side panel บน laptop ที่ zoom 0.65 */
   .man-edit-layout { grid-template-columns: 1fr; }
   .man-edit-side { position: static; }
 }

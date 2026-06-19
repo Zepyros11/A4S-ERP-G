@@ -89,24 +89,17 @@ body{font-family:'Sarabun',sans-serif;background:#f1f5f9;min-height:100vh;displa
 
 /* ── Desktop 2-column layout: [poster | detail] ── */
 @media(min-width:840px){
-  body.has-event{align-items:center;padding:32px 20px;}
-  body.has-event .reg-card{max-width:920px;border-radius:20px;}
+  body.has-event{align-items:center;padding:24px 20px;}
+  body.has-event .reg-card{max-width:920px;border-radius:20px;max-height:calc(100vh - 48px);}
   body.has-event #regContent{
     display:grid;
-    grid-template-columns: 400px 1fr;
-    grid-template-areas:
-      "hero info"
-      "hero prereq"
-      "hero capacity"
-      "hero form"
-      "hero line";
+    grid-template-columns: 380px 1fr;
+    align-items:stretch;
+    height:100%;
   }
-  body.has-event #regHero{grid-area:hero;min-height:100%;background:#0f172a;position:relative;}
-  body.has-event #regInfo{grid-area:info;}
-  body.has-event #regPrereq{grid-area:prereq;}
-  body.has-event #regCapacity{grid-area:capacity;}
-  body.has-event #regLinePanel{grid-area:line;}
-  body.has-event #regForm{grid-area:form;}
+  body.has-event #regHero{min-height:100%;background:#0f172a;position:relative;}
+  /* Right column scrolls on its own so the card never exceeds the viewport */
+  body.has-event #regRight{overflow-y:auto;max-height:calc(100vh - 48px);}
 
   /* Poster fills left column (crop with cover) */
   body.has-event .reg-hero .reg-poster,
@@ -381,20 +374,23 @@ body.is-picker .reg-card{
     <!-- Hero -->
     <div class="reg-hero" id="regHero"></div>
 
-    <!-- Info rows -->
-    <div class="reg-info" id="regInfo"></div>
+    <!-- Right column (scrolls independently on desktop) -->
+    <div id="regRight">
+      <!-- Info rows -->
+      <div class="reg-info" id="regInfo"></div>
 
-    <!-- Prereq box -->
-    <div id="regPrereq" style="display:none"></div>
+      <!-- Prereq box -->
+      <div id="regPrereq" style="display:none"></div>
 
-    <!-- Capacity bar -->
-    <div id="regCapacity" style="display:none"></div>
+      <!-- Capacity bar -->
+      <div id="regCapacity" style="display:none"></div>
 
-    <!-- Auth + Register form -->
-    <div id="regForm"></div>
+      <!-- Auth + Register form -->
+      <div id="regForm"></div>
 
-    <!-- LINE connect panel (below form — optional, post-register CTA) -->
-    <div id="regLinePanel" style="display:none"></div>
+      <!-- LINE connect panel (below form — optional, post-register CTA) -->
+      <div id="regLinePanel" style="display:none"></div>
+    </div>
   </div>
 </div>
 

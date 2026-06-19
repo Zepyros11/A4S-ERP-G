@@ -968,6 +968,24 @@ tr.row-has-unread .event-name {
   transition: width 0.32s cubic-bezier(0.34, 1.1, 0.64, 1);
 }
 .ev-popup.chat-open { width: 1060px; }
+/* มือถือ: poster(320px fixed,flex-shrink:0) + detail วางข้างกันไม่พอ → ซ้อนแนวตั้ง
+   (เดิม poster ดัน detail ออกนอก overflow:hidden → อ่านรายละเอียดไม่ได้บนมือถือ) */
+@media (max-width: 640px) {
+  .ev-popup,
+  .ev-popup.chat-open {
+    flex-direction: column;
+    width: 96vw;
+    overflow-y: auto;
+  }
+  .ev-popup-left {
+    width: 100%;
+    height: 200px;
+    min-height: 0;
+    border-right: none;
+    border-bottom: 1px solid #e2e8f0;
+  }
+  .ev-popup-detail { max-height: none; }
+}
 @keyframes evPopupIn {
   from { opacity: 0; transform: scale(0.92) translateY(16px); }
   to   { opacity: 1; transform: scale(1) translateY(0); }

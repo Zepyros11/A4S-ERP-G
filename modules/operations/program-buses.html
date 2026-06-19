@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>จัดรถบัส — A4S-ERP</title>
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="../../css/main.css" />
+    <link rel="stylesheet" href="../../css/shared/assign-2pane.css" />
+  </head>
+  <body>
+    <div class="loading-overlay" id="loadingOverlay"><div class="spinner"></div></div>
+    <div class="toast" id="toast"></div>
+    <div class="topbar"></div>
+    <div class="page">
+      <div class="page-hero page-hero--simple page-hero--compact">
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+          <h1 class="page-hero-title" style="margin:0">🚌 จัดรถบัส</h1>
+          <span class="a2p-crumb">
+            <a id="backLink" href="#">← workspace</a>
+            <span style="opacity:.45">|</span>
+            <span id="progType" style="font-weight:600">—</span>
+            <span id="progName" style="font-weight:700">กำลังโหลด...</span>
+          </span>
+        </div>
+      </div>
+
+      <div class="stats-row">
+        <div class="stat-card"><div class="stat-icon">🚌</div><div><div class="stat-value" id="cBuses">0</div><div class="stat-label">คันรถ</div></div></div>
+        <div class="stat-card"><div class="stat-icon">💺</div><div><div class="stat-value" id="cCap">0</div><div class="stat-label">ที่นั่งรวม</div></div></div>
+        <div class="stat-card"><div class="stat-icon">✅</div><div><div class="stat-value" id="cAssigned">0</div><div class="stat-label">จัดแล้ว</div></div></div>
+        <div class="stat-card"><div class="stat-icon">⏳</div><div><div class="stat-value" id="cUnassigned">0</div><div class="stat-label">ยังไม่จัด</div></div></div>
+      </div>
+
+      <!-- 2-pane: รายชื่อคน (ซ้าย) → จัดขึ้นรถ (ขวา) -->
+      <div class="a2p-grid">
+        <!-- LEFT: people -->
+        <div class="a2p-left">
+          <div class="a2p-left-hdr">
+            <div class="a2p-tabs"><button type="button" class="a2p-tab active">👥 ผู้เข้าร่วม <span class="a2p-tab-count" id="paxCount">0</span></button></div>
+            <div style="display:flex;align-items:center;gap:6px">
+              <span class="a2p-sel-count" id="selCount" style="display:none">0 เลือก</span>
+              <button class="a2p-clear" id="clearSelBtn" style="display:none" onclick="window.clearSel()">ล้าง</button>
+            </div>
+          </div>
+          <div class="a2p-toolbar">
+            <input id="paxSearch" placeholder="🔍 ค้นหาชื่อ..." autocomplete="off" oninput="window.onPaxSearch()" />
+            <select id="paxFilter" onchange="window.renderPax()">
+              <option value="all">ทั้งหมด</option>
+              <option value="unassigned">ยังไม่จัด</option>
+              <option value="assigned">จัดแล้ว</option>
+            </select>
+          </div>
+          <div class="a2p-list" id="paxList"><div class="a2p-empty">กำลังโหลด...</div></div>
+        </div>
+
+        <!-- RIGHT: buses -->
+        <div class="a2p-right">
+          <div class="a2p-right-hdr">
+            <div class="a2p-tabs"><button type="button" class="a2p-tab active">🚌 รถบัส <span class="a2p-tab-count" id="busCount">0</span></button></div>
+            <div class="a2p-right-ctrls">
+              <span class="a2p-hint" id="busHint"></span>
+              <button class="btn btn-primary" data-perm="program_bus_create" onclick="window.openBusModal()">＋ เพิ่มรถ</button>
+            </div>
+          </div>
+          <div class="a2p-cards" id="busGrid"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-overlay" id="busOverlay">
+      <div class="modal v-sage-header" onclick="event.stopPropagation()">
+        <div class="modal-hdr"><div class="modal-title" id="busModalTitle">เพิ่มรถ</div><button class="btn-modal-close" onclick="window.closeBusModal()">✕</button></div>
+        <div class="modal-body">
+          <div class="form-group"><label class="form-label">ชื่อรถ <span class="req">*</span></label><input class="form-control" id="fBusName" placeholder="เช่น คันที่ 1 / ทะเบียน" autocomplete="off" /></div>
+          <div class="form-row" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px">
+            <div class="form-group"><label class="form-label">ประเภท</label><input class="form-control" id="fBusType" placeholder="45 ที่นั่ง / VAN" autocomplete="off" /></div>
+            <div class="form-group"><label class="form-label">ความจุ</label><input class="form-control" type="number" id="fCapacity" min="1" value="45" /></div>
+          </div>
+          <div class="form-group" style="margin-top:14px"><label class="form-label">หมายเหตุ</label><input class="form-control" id="fNote" placeholder="(ถ้ามี)" autocomplete="off" /></div>
+        </div>
+        <div class="modal-footer"><button class="btn btn-ghost" onclick="window.closeBusModal()">ยกเลิก</button><button class="btn btn-primary" onclick="window.saveBus()">💾 บันทึก</button></div>
+      </div>
+    </div>
+
+    <script src="../../js/core/auth.js"></script>
+    <script src="../../js/core/authz.js"></script>
+    <script>AuthZ.requirePerm("program_bus_view");</script>
+    <script src="./program-buses.js"></script>
+    <script src="../../js/components/modal/deleteModal.js"></script>
+    <script src="../../js/components/modal/modalManager.js"></script>
+    <script src="../../js/components/modal/enterSave.js"></script>
+    <script src="../../js/components/navigation/sidebar.js"></script>
+    <script type="module">import { loadTopbar } from "../../js/components/navigation/topbar.js"; loadTopbar("🧭 Operations");</script>
+  </body>
+</html>

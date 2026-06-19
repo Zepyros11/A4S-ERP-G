@@ -45,6 +45,14 @@
         display: flex;
         gap: 10px;
       }
+      /* mobile: ตารางหลายคอลัมน์ → เลื่อนแนวนอนในกรอบ ไม่ดันหน้า */
+      @media (max-width: 767px) {
+        .db-table {
+          display: block;
+          overflow-x: auto;
+          white-space: nowrap;
+        }
+      }
     </style>
   </head>
 

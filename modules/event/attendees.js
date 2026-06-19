@@ -4745,8 +4745,8 @@ window.openShareRegisterModal = async function () {
   try {
     new QRCode(qrWrap, {
       text: plainUrl,
-      width: 220,
-      height: 220,
+      width: 170,
+      height: 170,
       correctLevel: QRCode.CorrectLevel.M,
     });
   } catch (e) {

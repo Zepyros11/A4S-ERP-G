@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Program Workspace — A4S-ERP</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../../css/main.css" />
+    <style>
+      .ws-back{
+        display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;
+        color:var(--text2);text-decoration:none;margin-bottom:10px;
+      }
+      .ws-back:hover{color:var(--accent);}
+
+      .ws-head{
+        background:var(--surface);border:1px solid var(--border);border-radius:14px;
+        padding:18px 20px;margin-bottom:18px;display:flex;align-items:center;
+        gap:14px;flex-wrap:wrap;
+      }
+      .ws-title{font-size:20px;font-weight:800;color:var(--text);margin:0;}
+      .ws-meta{display:flex;align-items:center;gap:10px;flex-wrap:wrap;color:var(--text2);font-size:13px;}
+      .ws-type{display:inline-block;padding:3px 11px;border-radius:7px;font-size:12px;font-weight:700;}
+      .ws-type-TRIP{background:#dbeafe;color:#1d4ed8;}
+      .ws-type-EVENT{background:#ede9fe;color:#6d28d9;}
+      .ws-status{display:inline-block;padding:3px 11px;border-radius:999px;font-size:12px;font-weight:600;}
+      .ws-status-ACTIVE,.ws-status-ONGOING,.ws-status-CONFIRMED{background:#dbeafe;color:#1d4ed8;}
+      .ws-status-DONE{background:#dcfce7;color:#15803d;}
+      .ws-status-CANCELLED{background:#fee2e2;color:#b91c1c;}
+
+      .ws-tools{
+        display:grid;grid-template-columns:repeat(auto-fill,minmax(min(240px,100%),1fr));gap:14px;
+      }
+      .op-tool-card{
+        display:flex;align-items:flex-start;gap:14px;text-align:left;
+        background:var(--surface);border:1px solid var(--border);border-radius:14px;
+        padding:18px;cursor:pointer;font-family:inherit;transition:all .15s;
+      }
+      .op-tool-card:hover:not(:disabled){border-color:var(--accent);box-shadow:var(--shadow-md);transform:translateY(-2px);}
+      .op-tool-card:disabled{opacity:.62;cursor:not-allowed;}
+      .op-tool-ic{
+        font-size:24px;width:48px;height:48px;flex-shrink:0;border-radius:12px;
+        background:var(--accent-pale);display:flex;align-items:center;justify-content:center;
+      }
+      .op-tool-body{flex:1;min-width:0;}
+      .op-tool-label{font-size:14.5px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+      .op-tool-desc{font-size:12.5px;color:var(--text3);margin-top:4px;line-height:1.5;}
+      .op-soon{
+        display:inline-block;padding:1px 8px;border-radius:999px;font-size:10px;font-weight:700;
+        background:#fef3c7;color:#92400e;
+      }
+      .ws-empty{grid-column:1/-1;color:var(--text3);font-size:13px;padding:30px;text-align:center;}
+      .ws-legacy-link{
+        display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border-radius:8px;
+        background:var(--accent-pale);color:var(--accent);font-size:12.5px;font-weight:700;
+        text-decoration:none;
+      }
+      .ws-legacy-link:hover{background:var(--accent);color:#fff;}
+      .ws-legacy-note{
+        grid-column:1/-1;background:#fffbeb;border:1px solid #fde68a;color:#92400e;
+        border-radius:10px;padding:11px 14px;font-size:12.5px;line-height:1.55;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="loading-overlay" id="loadingOverlay">
+      <div class="spinner"></div>
+    </div>
+    <div class="toast" id="toast"></div>
+
+    <div class="topbar"></div>
+    <div class="layout">
+      <div class="content-area">
+        <div class="page">
+          <a class="ws-back" href="./operations-hub.html">← กลับ Operations</a>
+
+          <div class="ws-head" id="wsHead">
+            <h1 class="ws-title" id="wsTitle">กำลังโหลด...</h1>
+          </div>
+
+          <div class="ws-tools" id="wsTools"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SCRIPTS -->
+    <script src="../../js/core/auth.js"></script>
+    <script src="../../js/core/authz.js"></script>
+    <script src="../../js/core/date-format.js"></script>
+    <script>AuthZ.requirePerm("program_view");</script>
+    <script src="../../js/shared/program-tools.js"></script>
+    <script src="./program-workspace.js"></script>
+    <script src="../../js/components/navigation/sidebar.js"></script>
+    <script type="module">
+      import { loadTopbar } from "../../js/components/navigation/topbar.js";
+      loadTopbar("🧭 Operations");
+    </script>
+  </body>
+</html>

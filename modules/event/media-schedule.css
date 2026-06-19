@@ -42,6 +42,9 @@
 }
 @media (max-width: 768px) {
   .med-modal-fb { width: 100%; }
+  /* ฟอร์มในโมดัล → คอลัมน์เดียวบนมือถือ (มิฉะนั้น mspan2 span 2 จะสร้างคอลัมน์ผีขึ้นมา) */
+  .med-form-grid { grid-template-columns: 1fr; }
+  .med-form-grid .mspan2 { grid-column: auto; }
 }
 @keyframes medPop {
   from { transform: scale(0.92); opacity: 0; }

@@ -305,7 +305,7 @@ select.td-input { cursor:pointer; appearance:none; }
 
 /* SUMMARY */
 .summary-block { display:flex; justify-content:flex-end; margin-top:16px; }
-.summary-table { width:260px; }
+.summary-table { width:260px; max-width:100%; }
 .summary-row { display:flex; justify-content:space-between; align-items:center; padding:7px 0; font-size:13.5px; border-bottom:1px solid var(--border); }
 .summary-row:last-child { border-bottom:none; }
 .summary-label { color:var(--text2); }
@@ -721,7 +721,7 @@ textarea.form-control { resize:vertical; min-height:80px; line-height:1.6; }
 
 <!-- ─── PURPOSE MANAGER MODAL ─── -->
 <div class="modal-overlay" id="purposeMgrOverlay">
-  <div class="modal v-sage-header" style="width:480px;max-height:85vh;display:flex;flex-direction:column">
+  <div class="modal v-sage-header" style="max-height:85vh;display:flex;flex-direction:column">
     <div class="modal-hdr">
       <div class="modal-title">🎯 จัดการวัตถุประสงค์</div>
       <button class="btn-modal-close" onclick="closePurposeManager()">✕</button>

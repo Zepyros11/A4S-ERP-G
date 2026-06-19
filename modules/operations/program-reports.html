@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>รายงาน / Export — A4S-ERP</title>
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="../../css/main.css" />
+    <style>
+      .ws-back{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:var(--text2);text-decoration:none;margin-bottom:10px;}
+      .ws-back:hover{color:var(--accent);}
+      .tk-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px;}
+      .tk-head h1{font-size:19px;font-weight:800;margin:0;color:var(--text);}
+      .tk-prog-type{display:inline-block;padding:2px 9px;border-radius:6px;font-size:11px;font-weight:700;background:var(--surface2);color:var(--text2);}
+      .rp-cols{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:14px;}
+      .rp-cols-title{font-size:13px;font-weight:700;color:var(--text2);margin-bottom:10px;}
+      .rp-chk-grid{display:flex;flex-wrap:wrap;gap:10px 18px;}
+      .rp-chk{display:inline-flex;align-items:center;gap:7px;font-size:13px;color:var(--text);cursor:pointer;}
+      .rp-chk input{width:16px;height:16px;accent-color:var(--accent);}
+      .rp-actions{display:flex;gap:8px;margin-top:14px;}
+    </style>
+  </head>
+  <body>
+    <div class="loading-overlay" id="loadingOverlay"><div class="spinner"></div></div>
+    <div class="toast" id="toast"></div>
+    <div class="topbar"></div>
+    <div class="layout"><div class="content-area"><div class="page">
+      <a class="ws-back" id="backLink" href="#">← กลับ workspace</a>
+      <div class="tk-head"><span class="tk-prog-type" id="progType">—</span><h1 id="progName">กำลังโหลด...</h1></div>
+
+      <div class="rp-cols">
+        <div class="rp-cols-title">เลือกคอลัมน์</div>
+        <div class="rp-chk-grid" id="colChks"></div>
+        <div class="rp-actions">
+          <button class="btn btn-primary" onclick="window.exportCsv()">⬇️ Export CSV</button>
+          <button class="btn btn-ghost" onclick="window.print()">🖨️ พิมพ์</button>
+        </div>
+      </div>
+
+      <div class="table-card">
+        <div class="table-hdr"><div class="table-title">📊 ตัวอย่างรายงาน</div><div class="table-count" id="cnt">0 แถว</div></div>
+        <div class="table-wrap"><table class="data-table" id="rpTable"><thead></thead><tbody></tbody></table></div>
+      </div>
+    </div></div></div>
+
+    <script src="../../js/core/auth.js"></script>
+    <script src="../../js/core/authz.js"></script>
+    <script src="../../js/core/date-format.js"></script>
+    <script>AuthZ.requirePerm("program_view");</script>
+    <script src="./program-reports.js"></script>
+    <script src="../../js/components/navigation/sidebar.js"></script>
+    <script type="module">import { loadTopbar } from "../../js/components/navigation/topbar.js"; loadTopbar("🧭 Operations");</script>
+  </body>
+</html>

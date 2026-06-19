@@ -13,7 +13,7 @@
 .page-subtitle{font-size:12.5px;color:var(--text3);margin-top:2px;}
 
 .sm-grid{display:grid;grid-template-columns:1fr 380px;gap:18px;align-items:start;}
-@media(max-width:1024px){.sm-grid{grid-template-columns:1fr;}}
+@media(max-width:767px){.sm-grid{grid-template-columns:1fr;}}/* 767 = คง 2-pane บน laptop ที่ zoom 0.65 */
 
 /* Stats */
 .sm-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:14px;}
@@ -120,6 +120,7 @@
   .page{padding:14px;}
   .sm-stats{grid-template-columns:1fr 1fr;}
   .sm-table th:nth-child(5),.sm-table td:nth-child(5){display:none;}
+  .sm-compose{position:static;}/* เลิก sticky เมื่อ stack เป็นคอลัมน์เดียว */
 }
 </style>
 </head>

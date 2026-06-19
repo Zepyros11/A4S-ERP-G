@@ -21,6 +21,20 @@
         },
       ],
     },
+    // **************** OPERATIONS *****************
+    {
+      group: "Operations",
+      icon: "🧭",
+      id: "g-operations",
+      items: [
+        {
+          id: "operations-hub",
+          icon: "🧭",
+          label: "Operations Hub",
+          path: BASE_PATH + "/modules/operations/operations-hub.html",
+        },
+      ],
+    },
     // **************** EVENT *****************
     {
       group: "กิจกรรม (Event)",
@@ -83,6 +97,13 @@
           icon: "📢",
           label: "ตารางโพสต์ LINE",
           path: BASE_PATH + "/modules/event/line-promote.html",
+          section: "promote",
+        },
+        {
+          id: "campaign-planning",
+          icon: "🚀",
+          label: "วางแผนแคมเปญ",
+          path: BASE_PATH + "/modules/event/campaign-planning.html",
           section: "promote",
         },
         /* ── SETUP ── */
@@ -513,6 +534,7 @@
   /* ── Permission key ต่อ menu item id ── */
   const ID_TO_PERM = {
     dashboard: "dashboard_view",
+    "operations-hub": "program_view",
     "event-poster-gallery": "poster_view",
     "events-dashboard": "events_view",
     events: "events_view",
@@ -523,6 +545,7 @@
     "event-budget": "evt_budget_view",
     "event-media": "media_fb_view",
     "line-promote": "line_promote_view",
+    "campaign-planning": "campaign_view",
     categories: "inv_cat_view",
     units: "units_view",
     warehouses: "warehouse_view",
@@ -593,13 +616,36 @@
     return new Set(user.effective_perms);
   }
 
+  /* ── Role ที่เข้าถึงทุกเมนูอัตโนมัติ (โมดูลใหม่โผล่เองไม่ต้องไปติ๊ก) ──
+     ADMIN = full access เสมอ ไม่ขึ้นกับ perms ที่เก็บใน DB */
+  const ALL_ACCESS_ROLES = ["ADMIN"];
+  function _isAllAccessUser() {
+    let user = window.ERP_USER;
+    if (!user) {
+      const raw =
+        localStorage.getItem("erp_session") ||
+        sessionStorage.getItem("erp_session");
+      if (raw) { try { user = JSON.parse(raw); } catch (e) {} }
+    }
+    if (!user) return false;
+    const roles =
+      Array.isArray(user.roles) && user.roles.length
+        ? user.roles
+        : user.role
+          ? [user.role]
+          : [];
+    return roles.some((r) => ALL_ACCESS_ROLES.includes(r));
+  }
+
   /* ── เช็คสิทธิ์ของ item ──
      - ไม่มี session / session เก่า → แสดงทุกอย่าง (backward compat)
+     - ADMIN → เห็นทุกเมนู
      - มี effective_perms → filter ตามจริง
   */
   function canSeeItem(itemId) {
     const need = ID_TO_PERM[itemId];
     if (!need) return true;
+    if (_isAllAccessUser()) return true; /* ADMIN เห็นทุกเมนู */
     const perms = _getEffectivePerms();
     if (!perms) return true; /* session ไม่มี field → ถือว่า fullAccess */
     return perms.has(need);
@@ -608,6 +654,8 @@
   const READY = [
     //**** Dashboard ****/
     "dashboard",
+    //**** OPERATIONS ****
+    "operations-hub",
     //**** DOCUMENT ****
     "po",
     "so",
@@ -625,6 +673,7 @@
     "event-budget",
     "event-media",
     "line-promote",
+    "campaign-planning",
     //  **** Inventory ****
     "stock-dashboard",
     "stock-balance",

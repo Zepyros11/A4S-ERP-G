@@ -708,3 +708,13 @@
   border-color: var(--border2);
   color: transparent;
 }
+
+/* ── RESPONSIVE (mobile ≤767) ──
+   roles.css เดิมไม่มี @media เลย → 260px sidebar + content บีบบนมือถือ
+   collapse ที่ 767 เท่านั้น เพื่อคง 2-pane บน desktop/laptop ที่ zoom 0.65 */
+@media (max-width: 767px) {
+  .roles-layout {
+    grid-template-columns: 1fr;
+    height: auto;
+  }
+}

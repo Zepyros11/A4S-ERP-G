@@ -463,9 +463,9 @@ body {
 .modal {
   background: var(--surface);
   border-radius: 12px;
-  width: 580px;
+  width: 1128px;          /* default กลาง = roomy (เดิม 580px) — ปรับ 2026-06-18 */
   max-width: 95vw;
-  max-height: 88vh;
+  max-height: 92vh;       /* เดิม 88vh */
   overflow-y: auto;
   box-shadow: var(--shadow-lg);
   transform: scale(0.95);
@@ -474,6 +474,14 @@ body {
 .modal-overlay.open .modal {
   transform: scale(1);
 }
+/* ── Modal size ladder ── เรียกคู่กับ .modal เช่น class="modal modal-lg"
+   max-width 95vw / max-height 92vh baked-in ทุกตัว → จอเล็กหดตามไม่ล้น (safety กลาง)
+   .modal-lg = roomy work modal 1128×600 (ใช้เป็น default ของ modal สร้าง/แก้ไขแคมเปญ) */
+.modal-sm { width: 520px; }
+.modal-md { width: 720px; }
+.modal-xl { width: 1280px; }
+.modal-sm, .modal-md, .modal-xl { max-width: 95vw; max-height: 92vh; }
+.modal-lg { width: 1128px; height: 720px; max-width: 95vw; max-height: 96vh; }  /* tall roomy work modal */
 .modal-hdr {
   padding: 20px 24px 16px;
   border-bottom: 1px solid var(--border);
@@ -1419,6 +1427,7 @@ select.form-control {
   display: flex;
   align-items: center;
   gap: 4px;
+  flex-wrap: wrap; /* กันชิปล้นแนวนอนบนจอแคบ (≤320px มักมี 5-6 ชิป) */
   background: var(--surface2);
   border: 1px solid var(--border);
   border-radius: 8px;

@@ -27,6 +27,21 @@
     return new Set(user.effective_perms || []);
   }
 
+  /* ── Role ที่เข้าถึงทุกสิทธิ์อัตโนมัติ (โมดูลใหม่เห็นเองไม่ต้องไปติ๊ก) ──
+     ADMIN = full access เสมอ ไม่ขึ้นกับ perms ที่เก็บใน role_configs */
+  const ALL_ACCESS_ROLES = ["ADMIN"];
+  function isAllAccess() {
+    const user = window.ERP_USER;
+    if (!user) return false;
+    const roles =
+      Array.isArray(user.roles) && user.roles.length
+        ? user.roles
+        : user.role
+          ? [user.role]
+          : [];
+    return roles.some((r) => ALL_ACCESS_ROLES.includes(r));
+  }
+
   /* ── BASE_PATH (ใช้ร่วมกับ auth.js) ── */
   function getBasePath() {
     const host = window.location.hostname;
@@ -40,12 +55,14 @@
     /* เช็คสิทธิ์ 1 ตัว */
     hasPerm(key) {
       if (!key) return true;
+      if (isAllAccess()) return true;
       return getEffectivePerms().has(key);
     },
 
     /* เช็คว่ามีอย่างน้อย 1 สิทธิ์ใน list */
     hasAnyPerm(keys) {
       if (!keys || !keys.length) return true;
+      if (isAllAccess()) return true;
       const perms = getEffectivePerms();
       return keys.some((k) => perms.has(k));
     },
@@ -53,6 +70,7 @@
     /* เช็คว่ามีทุกสิทธิ์ใน list */
     hasAllPerms(keys) {
       if (!keys || !keys.length) return true;
+      if (isAllAccess()) return true;
       const perms = getEffectivePerms();
       return keys.every((k) => perms.has(k));
     },

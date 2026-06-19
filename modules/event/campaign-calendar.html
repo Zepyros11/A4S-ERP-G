@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ปฏิทินแคมเปญ — A4S-ERP</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../../css/main.css" />
+    <link rel="stylesheet" href="./campaign-calendar.css" />
+  </head>
+  <body>
+    <div class="loading-overlay" id="loadingOverlay">
+      <div class="spinner"></div>
+    </div>
+    <div class="toast" id="toast"></div>
+
+    <div class="topbar"></div>
+    <div class="page">
+      <a href="./campaign-planning.html" class="cal-back-link">← กลับวางแผนแคมเปญ</a>
+
+      <!-- HEADER -->
+      <div class="cal-header">
+        <div class="cal-nav">
+          <button class="btn-circle" onclick="changeMonth(-1)">‹</button>
+          <div class="cal-month-label" id="calMonthLabel">—</div>
+          <button class="btn-circle" onclick="changeMonth(1)">›</button>
+          <button class="btn-today" onclick="goToday()">วันนี้</button>
+        </div>
+        <a class="btn btn-primary btn-sm" href="./campaign-planning.html">📋 รายการแคมเปญ</a>
+      </div>
+
+      <!-- STATUS FILTER -->
+      <div class="cal-cat-chips" id="calStatusChips"></div>
+
+      <!-- CALENDAR -->
+      <div class="cal-grid-wrap">
+        <div class="cal-day-headers">
+          <div class="cal-day-hdr weekend">อา</div>
+          <div class="cal-day-hdr">จ</div>
+          <div class="cal-day-hdr">อ</div>
+          <div class="cal-day-hdr">พ</div>
+          <div class="cal-day-hdr">พฤ</div>
+          <div class="cal-day-hdr">ศ</div>
+          <div class="cal-day-hdr weekend">ส</div>
+        </div>
+        <div class="cal-grid" id="calGrid">
+          <div class="cal-empty">กำลังโหลด...</div>
+        </div>
+      </div>
+
+      <!-- LEGEND -->
+      <div class="cal-legend" id="calLegend"></div>
+    </div>
+
+    <!-- CAMPAIGN POPUP -->
+    <div class="cmpcal-overlay" id="campPopOverlay" onclick="if(event.target===this)closeCampPopup()">
+      <div class="cmpcal-pop">
+        <button class="cmpcal-close" onclick="closeCampPopup()">✕</button>
+        <div class="cmpcal-cover" id="popCover">🚀</div>
+        <div class="cmpcal-body">
+          <div class="cmpcal-name" id="popName">—</div>
+          <div class="cmpcal-badges" id="popBadges"></div>
+          <div class="cmpcal-row">
+            <span class="ic">🗓️</span>
+            <div>
+              <div class="lbl">ช่วงเวลา</div>
+              <div class="val" id="popDate">—</div>
+            </div>
+          </div>
+          <div class="cmpcal-row" id="popRewardRow" style="display:none">
+            <span class="ic">🎁</span>
+            <div>
+              <div class="lbl">ของรางวัล</div>
+              <div class="val" id="popReward"></div>
+            </div>
+          </div>
+          <div class="cmpcal-row" id="popDescRow" style="display:none">
+            <span class="ic">📝</span>
+            <div>
+              <div class="lbl">รายละเอียด</div>
+              <div class="val" id="popDesc"></div>
+            </div>
+          </div>
+          <div class="cmpcal-foot">
+            <button class="btn btn-primary" id="popOpenBtn">เปิดรายละเอียดแคมเปญ →</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="../../js/core/auth.js"></script>
+    <script src="../../js/core/authz.js"></script>
+    <script src="../../js/core/date-format.js"></script>
+    <script>
+      AuthZ.requirePerm("campaign_view");
+    </script>
+    <script src="./campaign-calendar.js"></script>
+    <script src="../../js/components/modal/modalManager.js"></script>
+    <script type="module">
+      import { loadTopbar } from "../../js/components/navigation/topbar.js";
+      loadTopbar("🗓️ ปฏิทินแคมเปญ");
+    </script>
+    <script src="../../js/components/navigation/sidebar.js"></script>
+  </body>
+</html>

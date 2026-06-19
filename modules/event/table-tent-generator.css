@@ -1,0 +1,302 @@
+/* ============================================================
+   table-tent-generator.css
+   ป้ายตั้งโต๊ะ (รายชื่อกลุ่ม/VIP) · A4 · 1 แผ่น = รายชื่อทั้งกลุ่ม
+   ============================================================ */
+
+.tt-page { max-width: 1500px; }
+.tt-processing { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.tt-processing-title { font-weight: 700; color: var(--text); }
+.tt-processing-sub { font-size: 12.5px; color: var(--text3); }
+
+/* ── Split layout: [ settings | preview ] ─────────────────── */
+.tt-split { display: flex; gap: 16px; align-items: flex-start; }
+.tt-split-left {
+  flex: 42 1 0; min-width: 0;
+  position: sticky; top: 64px; align-self: flex-start;
+  max-height: calc(100vh - 80px); overflow-y: auto; padding-right: 6px;
+}
+.tt-split-right {
+  flex: 58 1 0; min-width: 0;
+  position: sticky; top: 64px; align-self: flex-start;
+}
+.tt-split-right .tt-sheet-scroller { max-height: calc(100vh - 150px); }
+@media (max-width: 1180px) {
+  .tt-split { flex-direction: column; }
+  .tt-split-left { flex: none; width: 100%; position: static; max-height: none; overflow: visible; padding-right: 0; }
+  .tt-split-right { width: 100%; position: static; }
+  .tt-split-right .tt-sheet-scroller { max-height: calc(100vh - 230px); }
+}
+
+/* ── Card blocks ──────────────────────────────────────────── */
+.tt-card-block {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius, 10px);
+  box-shadow: var(--shadow-soft-md);
+  margin-bottom: 12px;
+  overflow: hidden;
+}
+.tt-block-hdr {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 12px 16px; border-bottom: 1px solid var(--border);
+  background: var(--surface-soft);
+}
+.tt-block-title { font-size: 14px; font-weight: 700; color: var(--text); }
+.tt-block-tools { display: flex; gap: 6px; flex-wrap: wrap; }
+.tt-hint { font-size: 11.5px; color: var(--text3); padding: 8px 16px 0; line-height: 1.5; }
+.tt-hint a { color: var(--accent); }
+
+/* ── Inline rows (label + control) ────────────────────────── */
+.tt-row-inline {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  padding: 12px 16px; border-top: 1px solid var(--border);
+}
+.tt-card-block .tt-block-hdr + .tt-row-inline,
+.tt-card-block > .tt-row-inline:first-child { border-top: none; }
+.tt-row-label {
+  font-size: 12.5px; font-weight: 600; color: var(--text2);
+  display: inline-flex; align-items: center; gap: 4px;
+}
+
+/* ── Field grid (text + num) ──────────────────────────────── */
+.tt-field-grid { display: flex; gap: 10px; padding: 14px 16px 0; flex-wrap: wrap; }
+.tt-field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.tt-field-grow { flex: 1 1 200px; }
+.tt-field-num { flex: 0 0 auto; width: 110px; }
+.tt-field label {
+  font-size: 11px; font-weight: 600; color: var(--text3);
+  text-transform: uppercase; letter-spacing: .3px;
+}
+.tt-field-inline { flex-direction: row; align-items: center; gap: 8px; }
+.tt-field-inline label { text-transform: none; letter-spacing: 0; font-size: 12.5px; color: var(--text2); }
+
+.tt-input {
+  font-family: inherit; font-size: 13.5px;
+  padding: 8px 11px; border: 1.5px solid var(--border); border-radius: 8px;
+  background: var(--surface); color: var(--text); width: 100%; box-sizing: border-box;
+}
+.tt-input:focus { outline: none; border-color: var(--accent); }
+.tt-field-num .tt-input, .tt-field-inline .tt-input { width: 80px; text-align: center; }
+
+/* ── Toggle (segmented) ───────────────────────────────────── */
+.tt-toggle { display: inline-flex; gap: 6px; flex-wrap: wrap; }
+.tt-toggle-btn {
+  padding: 8px 14px; border: 1.5px solid var(--border);
+  background: var(--surface); border-radius: 8px;
+  font-family: inherit; font-size: 12.5px; font-weight: 600;
+  color: var(--text2); cursor: pointer; transition: all .15s;
+}
+.tt-toggle-btn:hover { border-color: var(--accent); }
+.tt-toggle-btn.active {
+  background: var(--accent); border-color: var(--accent); color: #fff;
+  box-shadow: 0 2px 6px rgba(var(--accent-rgb), .28);
+}
+.tt-toggle-sm .tt-toggle-btn { padding: 6px 10px; font-size: 11.5px; }
+
+/* ── Stepper (number ± ) ──────────────────────────────────── */
+.tt-stepper { display: inline-flex; align-items: center; gap: 4px; }
+.tt-step-btn {
+  width: 30px; height: 32px; border: 1.5px solid var(--border);
+  background: var(--surface); border-radius: 8px; cursor: pointer;
+  font-size: 16px; font-weight: 700; color: var(--text2); line-height: 1;
+}
+.tt-step-btn:hover { border-color: var(--accent); color: var(--accent); }
+.tt-step-input {
+  width: 56px; height: 32px; text-align: center;
+  font-family: inherit; font-size: 14px; font-weight: 600;
+  border: 1.5px solid var(--border); border-radius: 8px;
+  background: var(--surface); color: var(--text);
+}
+.tt-step-unit { font-size: 12px; color: var(--text3); }
+.tt-presets { display: inline-flex; gap: 5px; flex-wrap: wrap; }
+
+/* ── Logo / BG bars ───────────────────────────────────────── */
+.tt-logo-bar { display: flex; gap: 14px; padding: 14px 16px; align-items: flex-start; }
+.tt-logo-thumb, .tt-bg-thumb {
+  flex: 0 0 auto; width: 72px; height: 72px; border-radius: 10px;
+  border: 1.5px dashed var(--border); background: #faf8f4;
+  display: flex; align-items: center; justify-content: center; overflow: hidden;
+}
+.tt-bg-thumb { width: 96px; }
+.tt-logo-thumb img, .tt-bg-thumb img { width: 100%; height: 100%; object-fit: contain; }
+.tt-bg-thumb img { object-fit: cover; }
+.tt-logo-empty { font-size: 26px; color: #c4bcae; }
+.tt-logo-ctrls { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+.tt-logo-btns { display: flex; gap: 6px; flex-wrap: wrap; }
+.tt-logo-row2 { display: flex; gap: 16px; flex-wrap: wrap; align-items: center; }
+.tt-bg-overlay-row { gap: 10px; flex-wrap: wrap; }
+.tt-bg-overlay-row input[type="range"] { flex: 1 1 120px; min-width: 100px; accent-color: var(--accent); }
+.tt-overlay-val { font-size: 12px; font-weight: 600; color: var(--text2); width: 38px; text-align: right; }
+
+/* ── Name table ───────────────────────────────────────────── */
+.tt-table-wrap { max-height: 320px; overflow: auto; margin: 10px 0 0; }
+.tt-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.tt-table thead th {
+  position: sticky; top: 0; z-index: 1;
+  background: var(--surface-soft); text-align: left;
+  font-size: 11px; font-weight: 700; color: var(--text3); text-transform: uppercase; letter-spacing: .3px;
+  padding: 8px 10px; border-bottom: 1.5px solid var(--border);
+}
+.tt-table td { padding: 5px 8px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+.tt-col-idx { width: 38px; text-align: center; color: var(--text3); font-weight: 700; }
+.tt-col-act { width: 36px; }
+.tt-table input {
+  width: 100%; box-sizing: border-box; font-family: inherit; font-size: 13px;
+  padding: 6px 8px; border: 1px solid transparent; border-radius: 6px;
+  background: transparent; color: var(--text);
+}
+.tt-table input:hover { border-color: var(--border); }
+.tt-table input:focus { outline: none; border-color: var(--accent); background: var(--surface); }
+.tt-del-row {
+  width: 28px; height: 28px; border: none; border-radius: 6px; cursor: pointer;
+  background: transparent; color: var(--text3); font-size: 15px;
+}
+.tt-del-row:hover { background: #fde8e8; color: var(--danger); }
+.tt-rows-empty { text-align: center; color: var(--text3); padding: 20px; font-size: 13px; }
+
+/* ── Actions ──────────────────────────────────────────────── */
+.tt-actions { display: flex; gap: 10px; justify-content: flex-end; margin: 4px 0 30px; }
+
+/* ── Help tooltip ─────────────────────────────────────────── */
+.tt-help {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 15px; height: 15px; border-radius: 50%;
+  background: var(--border); color: var(--text2);
+  font-size: 10px; font-weight: 700; cursor: help; position: relative;
+}
+.tt-help:hover::after {
+  content: attr(data-tip); position: absolute; bottom: 130%; left: 50%; transform: translateX(-50%);
+  background: var(--text); color: #fff; padding: 7px 10px; border-radius: 7px;
+  font-size: 11px; font-weight: 400; white-space: normal; width: max-content; max-width: 230px;
+  line-height: 1.4; z-index: 50; box-shadow: 0 6px 18px rgba(0,0,0,.2);
+}
+
+/* ── Zoom + preview scroller ──────────────────────────────── */
+.tt-zoom-tools { display: flex; align-items: center; gap: 6px; }
+.tt-sheet-scroller {
+  display: flex; flex-direction: column; align-items: center; gap: 22px;
+  padding: 18px; overflow: auto; background: #eef1f4; min-height: 240px;
+}
+.tt-page-item { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.tt-page-label { font-size: 12px; font-weight: 600; color: var(--text2); }
+.tt-more-note {
+  text-align: center; font-size: 12.5px; font-weight: 600; color: var(--text2);
+  background: var(--accent-pale); border: 1px dashed var(--accent-light, #a9c9a0);
+  border-radius: 10px; padding: 10px 14px;
+}
+
+/* ════════════ A4 SHEET (preview = scaled · print = full mm) ════════════ */
+.tt-a4-wrap {
+  position: relative;
+  width:  calc(var(--tt-pw, 210mm) * var(--tt-zoom, .5));
+  height: calc(var(--tt-ph, 297mm) * var(--tt-zoom, .5));
+  background: #fff; box-shadow: 0 4px 18px rgba(15,23,42,.18);
+  overflow: hidden; flex: 0 0 auto;
+}
+.tt-a4 {
+  position: absolute; top: 0; left: 0;
+  width: var(--tt-pw, 210mm); height: var(--tt-ph, 297mm);
+  box-sizing: border-box; overflow: hidden;
+  background-color: #0a0805; background-size: cover; background-position: center;
+  transform-origin: top left; transform: scale(var(--tt-zoom, .5));
+}
+.tt-bg-overlay { position: absolute; inset: 0; background: #000; opacity: var(--tt-overlay, 0); pointer-events: none; }
+.tt-inner {
+  position: absolute; inset: 0; box-sizing: border-box;
+  padding: var(--tt-pad, 12mm);
+  display: flex; flex-direction: column;
+}
+
+/* header (logo + title) */
+.tt-head { flex: 0 0 auto; display: flex; flex-direction: column; gap: 6mm; margin-bottom: 7mm; }
+.tt-logo-line { display: flex; justify-content: var(--tt-logo-justify, flex-start); align-items: center; }
+.tt-logo-line img { height: var(--tt-logo-size, 90px); width: auto; max-width: 70%; object-fit: contain; display: block; }
+.tt-title {
+  text-align: center; line-height: 1.02; font-weight: 700;
+  font-size: var(--tt-title-size, 80px);
+  font-family: 'Cinzel', 'Sarabun', serif;
+  word-break: break-word;
+}
+
+/* list */
+.tt-list {
+  flex: 1 1 auto; min-height: 0;
+  display: grid; grid-template-rows: repeat(var(--tt-per-page, 10), 1fr);
+  gap: var(--tt-rowgap, 3mm);
+}
+.tt-row {
+  display: grid; grid-template-columns: var(--tt-cols, 1fr auto);
+  align-items: center; gap: 4mm;
+  padding: 0 5mm; min-height: 0; overflow: hidden;
+}
+.tt-num {
+  font-weight: 800; text-align: center; line-height: 1;
+  font-size: var(--tt-num-size, 30px);
+  font-family: 'Cinzel', 'Sarabun', serif;
+}
+.tt-name {
+  font-weight: 700; font-family: 'Sarabun', sans-serif; line-height: 1.1;
+  font-size: var(--tt-name-size, 26px);
+  min-width: 0; overflow: hidden; word-break: break-word;
+}
+.tt-role {
+  font-weight: 500; font-family: 'Sarabun', sans-serif; line-height: 1.1;
+  font-size: var(--tt-role-size, 18px); text-align: right; white-space: nowrap;
+  padding-left: 3mm;
+}
+
+/* ── THEME: gold / dark (VIP — matches reference) ─────────── */
+/* theme class sits ON .tt-a4 (not an ancestor) so it survives node-cloning
+   into the print iframe, where only .tt-a4 sheets are copied. */
+.tt-a4.tt-theme-gold {
+  background-color: #0a0805;
+  background-image:
+    radial-gradient(120% 80% at 50% 0%, rgba(120,86,18,.35), rgba(0,0,0,0) 60%),
+    linear-gradient(180deg, #1b1408 0%, #0a0805 55%, #0a0805 100%);
+}
+.tt-a4.tt-theme-gold.tt-has-bg { background-image: none; }   /* user BG via inline style takes over */
+.tt-theme-gold .tt-title {
+  background: linear-gradient(180deg, #fff1c2 0%, #f3cf6b 45%, #d4a32e 70%, #f7e29a 100%);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,.55));
+  letter-spacing: .04em;
+}
+.tt-theme-gold .tt-row {
+  background: linear-gradient(90deg, rgba(60,44,12,.55), rgba(24,18,7,.30));
+  border: 1px solid rgba(245,205,107,.55);
+  border-radius: 4px;
+  box-shadow: inset 0 0 14px rgba(245,205,107,.10);
+}
+.tt-theme-gold .tt-num  { color: #f5cd6b; text-shadow: 0 1px 2px rgba(0,0,0,.5); }
+.tt-theme-gold .tt-name { color: #fdf6e3; }
+.tt-theme-gold .tt-role { color: #e6c272; }
+
+/* ── THEME: light / sage ──────────────────────────────────── */
+.tt-a4.tt-theme-light {
+  background-color: #fbfaf7;
+  background-image: linear-gradient(180deg, #ffffff 0%, #f4f1ea 100%);
+}
+.tt-a4.tt-theme-light.tt-has-bg { background-image: none; }
+.tt-theme-light .tt-title { color: var(--accent); }
+.tt-theme-light .tt-row {
+  background: rgba(255,255,255,.92);
+  border: 1px solid var(--border);
+  border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,.06);
+}
+.tt-theme-light .tt-num {
+  color: #fff; background: var(--accent); border-radius: 6px;
+  min-width: 1.7em; padding: 0 .25em;
+}
+.tt-theme-light .tt-name { color: #1f2937; }
+.tt-theme-light .tt-role { color: #6b7280; }
+
+/* ── off-screen print render target ───────────────────────── */
+/* visibility:hidden (not display:none / 0×0) so sheets keep their real A4
+   size off-screen → row heights measure correctly before cloning to print. */
+.tt-print-area { position: absolute; left: -99999px; top: 0; pointer-events: none; visibility: hidden; }
+.tt-print-area .tt-a4 { transform: none !important; }
+
+/* direct Ctrl+P fallback — hide chrome (the real path is the print iframe) */
+@media print {
+  .topbar, .tt-no-print, #erp-sidebar, #sb-hamburger, #sb-overlay { display: none !important; }
+}

@@ -467,6 +467,9 @@ export function loadTopbar(title = "", options = {}) {
   const canSeeCatalog = window.AuthZ
     ? window.AuthZ.hasPerm("product_view")
     : true;
+  const canSeeCampaignCal = window.AuthZ
+    ? window.AuthZ.hasPerm("campaign_view")
+    : true;
   const defaultActions = options.skipDefaults
     ? []
     : [
@@ -476,6 +479,13 @@ export function loadTopbar(title = "", options = {}) {
           href: `${BASE_PATH}/modules/inventory/catalog.html`,
           target: "_blank",
           title: "เปิด Product Catalog",
+        },
+        canSeeCampaignCal && {
+          label: "Campaign Calendar",
+          icon: "🚀",
+          href: `${BASE_PATH}/modules/event/campaign-calendar.html`,
+          target: "_blank",
+          title: "เปิดปฏิทินแคมเปญ",
         },
         canSeeCalendar && {
           label: "Event Calendar",

@@ -9,6 +9,11 @@
   gap: 20px;
   align-items: start;
 }
+/* มือถือ: info card + feed วางซ้อน (เดิมไม่มี @media → 300px+content บีบ)
+   collapse ที่ 767 เพื่อคง 2-pane บน desktop/laptop ที่ zoom 0.65 */
+@media (max-width: 767px) {
+  .log-layout { grid-template-columns: 1fr; }
+}
 
 /* ── LEFT: INFO CARD ── */
 .log-info-card {

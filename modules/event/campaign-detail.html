@@ -1,0 +1,336 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>แคมเปญ — A4S-ERP</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../../css/main.css" />
+    <link rel="stylesheet" href="./campaign-detail.css" />
+  </head>
+  <body>
+    <div class="loading-overlay" id="loadingOverlay">
+      <div class="spinner"></div>
+    </div>
+    <div class="toast" id="toast"></div>
+
+    <div class="topbar"></div>
+    <div class="page">
+      <a href="./campaign-planning.html" class="back-link" style="display:inline-block;margin-bottom:10px;font-size:13px;color:var(--accent);text-decoration:none">← กลับรายการแคมเปญ</a>
+
+      <!-- HEADER (page-hero ตาม template) -->
+      <div class="page-hero page-hero--simple page-hero--compact cmp-d-head">
+        <div class="cmp-d-left">
+          <div class="cmp-d-cover" id="dCover">🚀</div>
+          <div class="cmp-d-meta">
+            <h1 class="page-hero-title" id="dName">—</h1>
+            <div class="cmp-d-sub" id="dSub"></div>
+          </div>
+        </div>
+        <div class="page-hero-actions">
+          <button class="btn-on-hero" onclick="window.copyRegLink()">🔗 ลิงก์ลงทะเบียน</button>
+          <button class="btn-on-hero btn-primary" data-perm="campaign_edit" onclick="window.editCampaign()">✏️ แก้ไข</button>
+        </div>
+      </div>
+
+      <!-- TABS -->
+      <div class="cmp-tabs" id="cmpTabs">
+        <button class="cmp-tab active" data-tab="overview" onclick="window.switchTab('overview')">📋 ภาพรวม</button>
+        <button class="cmp-tab" data-tab="missions" onclick="window.switchTab('missions')">🎯 Missions <span class="badge-n" id="nMissions">0</span></button>
+        <button class="cmp-tab" data-tab="participants" onclick="window.switchTab('participants')">👥 ผู้เข้าร่วม <span class="badge-n" id="nParticipants">0</span></button>
+        <button class="cmp-tab" data-tab="submissions" onclick="window.switchTab('submissions')">📊 ผลงาน <span class="badge-n" id="nSubmissions">0</span></button>
+        <button class="cmp-tab" data-tab="ranking" onclick="window.switchTab('ranking')">🏆 อันดับ</button>
+      </div>
+
+      <!-- PANE: OVERVIEW -->
+      <div class="cmp-pane active" id="pane-overview">
+        <div class="cmp-info-box" id="dRewardBox" style="display:none">
+          <h3>🎁 ของรางวัล</h3>
+          <p id="dReward"></p>
+        </div>
+        <div class="cmp-info-box">
+          <h3>📝 รายละเอียด / กติกา</h3>
+          <p id="dDesc">—</p>
+        </div>
+        <div class="cmp-info-box">
+          <h3>🖼️ สื่อแคมเปญ</h3>
+          <div class="cmp-media-gallery" id="dGallery"></div>
+          <div id="dGalleryEmpty" class="empty-text" style="font-size:13px;color:var(--text3)">ยังไม่มีสื่อ</div>
+        </div>
+      </div>
+
+      <!-- PANE: MISSIONS -->
+      <div class="cmp-pane" id="pane-missions">
+        <div class="pane-toolbar">
+          <div class="table-title">🎯 ภารกิจ (Missions)</div>
+          <button class="btn btn-primary btn-sm" data-perm="campaign_edit" onclick="window.openMissionModal()">＋ เพิ่ม Mission</button>
+        </div>
+        <div id="missionList"></div>
+      </div>
+
+      <!-- PANE: PARTICIPANTS -->
+      <div class="cmp-pane" id="pane-participants">
+        <div class="pane-toolbar">
+          <div class="search-wrap" style="max-width:280px">
+            <span class="search-icon">🔍</span>
+            <input class="search-input" id="partSearch" placeholder="ค้นหา รหัส/ชื่อ..." oninput="window.renderParticipants()" />
+          </div>
+          <button class="btn btn-primary btn-sm" data-perm="campaign_edit" onclick="window.openPartModal()">＋ เพิ่มผู้เข้าร่วม</button>
+        </div>
+        <div id="partBulkBar" class="bulk-bar" style="display:none">
+          <span id="partBulkCount">0 รายการ</span>
+          <button class="btn btn-danger btn-sm" data-perm="campaign_delete" onclick="window.bulkDeleteParts()">🗑 ลบที่เลือก</button>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th style="width:40px;text-align:center"><input type="checkbox" id="partChkAll" onclick="window.togglePartAll(this)" /></th>
+                <th>สมาชิก</th>
+                <th class="col-center">โซเชียล</th>
+                <th class="col-center">ผลงาน</th>
+                <th class="col-center">ที่มา</th>
+                <th class="col-center">สถานะ</th>
+                <th class="col-center">จัดการ</th>
+              </tr>
+            </thead>
+            <tbody id="partBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- PANE: SUBMISSIONS -->
+      <div class="cmp-pane" id="pane-submissions">
+        <div class="pane-toolbar">
+          <select class="filter-select" id="subFilterStatus" onchange="window.renderSubmissions()">
+            <option value="">🧿 ทุกสถานะ</option>
+            <option value="pending">⏳ รออนุมัติ</option>
+            <option value="approved">✅ อนุมัติ</option>
+            <option value="rejected">❌ ปฏิเสธ</option>
+          </select>
+          <button class="btn btn-primary btn-sm" data-perm="campaign_metric_edit" onclick="window.openSubModal()">＋ เพิ่มผลงาน</button>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>ผู้เข้าร่วม</th>
+                <th class="col-center">แพลตฟอร์ม</th>
+                <th>โพสต์</th>
+                <th class="col-center">👁 วิว</th>
+                <th class="col-center">❤️ Like</th>
+                <th class="col-center">💬</th>
+                <th class="col-center">🔁</th>
+                <th class="col-center">สถานะ</th>
+                <th class="col-center">จัดการ</th>
+              </tr>
+            </thead>
+            <tbody id="subBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- PANE: RANKING -->
+      <div class="cmp-pane" id="pane-ranking">
+        <div class="cmp-rank-controls">
+          <span style="font-size:13px;font-weight:600;color:var(--text2)">จัดอันดับด้วย:</span>
+          <select class="filter-select" id="rankMetricSel" onchange="window.renderRanking()">
+            <option value="views">👁 ยอดวิว</option>
+            <option value="likes">❤️ ยอด Like</option>
+            <option value="engagement">🔥 Engagement</option>
+            <option value="weighted">⚖️ ถ่วงน้ำหนัก (points)</option>
+          </select>
+          <span style="font-size:11.5px;color:var(--text3)">* นับเฉพาะผลงานที่อนุมัติแล้ว</span>
+        </div>
+        <div id="rankList"></div>
+      </div>
+    </div>
+
+    <!-- ── MISSION MODAL ── -->
+    <div class="modal-overlay" id="missionModal">
+      <div class="modal v-sage-header">
+        <div class="modal-hdr">
+          <div class="modal-title" id="missionModalTitle">🎯 เพิ่ม Mission</div>
+          <button class="btn-modal-close" onclick="window.closeMissionModal()">✕</button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="mId" />
+          <div class="form-grid">
+            <div class="form-group full">
+              <label class="form-label">ชื่อภารกิจ <span class="req">*</span></label>
+              <input class="form-control" id="mTitle" placeholder="เช่น โพสต์รีวิวสินค้าลง TikTok" />
+            </div>
+            <div class="form-group full">
+              <label class="form-label">รายละเอียด</label>
+              <textarea class="form-control" id="mDesc" rows="2"></textarea>
+            </div>
+            <div class="form-group">
+              <label class="form-label">แพลตฟอร์ม</label>
+              <select class="form-control" id="mPlatform">
+                <option value="">ทุกแพลตฟอร์ม</option>
+                <option value="tiktok">🎵 TikTok</option>
+                <option value="instagram">📸 Instagram</option>
+                <option value="facebook">👍 Facebook</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">คะแนน (points)</label>
+              <input class="form-control" id="mPoints" type="number" step="0.1" value="1" />
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" onclick="window.closeMissionModal()">ยกเลิก</button>
+          <button class="btn btn-primary" id="btnSaveMission" onclick="window.saveMission()">💾 บันทึก</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── PARTICIPANT MODAL ── -->
+    <div class="modal-overlay" id="partModal">
+      <div class="modal v-sage-header">
+        <div class="modal-hdr">
+          <div class="modal-title" id="partModalTitle">👥 เพิ่มผู้เข้าร่วม</div>
+          <button class="btn-modal-close" onclick="window.closePartModal()">✕</button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="pId" />
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">รหัสสมาชิก <span class="req">*</span></label>
+              <input class="form-control" id="pCode" placeholder="member_code" oninput="window.onPartCodeInput()" />
+              <div id="pLookupHit"></div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">ชื่อ</label>
+              <input class="form-control" id="pName" placeholder="ชื่อสมาชิก" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">เบอร์โทร</label>
+              <input class="form-control" id="pPhone" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">สถานะ</label>
+              <select class="form-control" id="pStatus">
+                <option value="pending">⏳ รออนุมัติ</option>
+                <option value="approved">✅ อนุมัติ</option>
+                <option value="rejected">❌ ปฏิเสธ</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">🎵 TikTok ID</label>
+              <input class="form-control" id="pTiktokId" placeholder="@username" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">🎵 TikTok URL</label>
+              <input class="form-control" id="pTiktokUrl" placeholder="https://tiktok.com/@..." />
+            </div>
+            <div class="form-group">
+              <label class="form-label">📸 IG ID</label>
+              <input class="form-control" id="pIgId" placeholder="@username" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">📸 IG URL</label>
+              <input class="form-control" id="pIgUrl" placeholder="https://instagram.com/..." />
+            </div>
+            <div class="form-group">
+              <label class="form-label">👍 Facebook ID/ชื่อ</label>
+              <input class="form-control" id="pFbId" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">👍 Facebook URL</label>
+              <input class="form-control" id="pFbUrl" placeholder="https://facebook.com/..." />
+            </div>
+            <div class="form-group full">
+              <label class="form-label">หมายเหตุ</label>
+              <input class="form-control" id="pNote" />
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" onclick="window.closePartModal()">ยกเลิก</button>
+          <button class="btn btn-primary" id="btnSavePart" onclick="window.savePart()">💾 บันทึก</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── SUBMISSION MODAL ── -->
+    <div class="modal-overlay" id="subModal">
+      <div class="modal v-sage-header">
+        <div class="modal-hdr">
+          <div class="modal-title" id="subModalTitle">📊 เพิ่มผลงาน</div>
+          <button class="btn-modal-close" onclick="window.closeSubModal()">✕</button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="sId" />
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">ผู้เข้าร่วม <span class="req">*</span></label>
+              <select class="form-control" id="sParticipant"></select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Mission</label>
+              <select class="form-control" id="sMission"></select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">แพลตฟอร์ม <span class="req">*</span></label>
+              <select class="form-control" id="sPlatform">
+                <option value="tiktok">🎵 TikTok</option>
+                <option value="instagram">📸 Instagram</option>
+                <option value="facebook">👍 Facebook</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">สถานะ</label>
+              <select class="form-control" id="sStatus">
+                <option value="pending">⏳ รออนุมัติ</option>
+                <option value="approved">✅ อนุมัติ</option>
+                <option value="rejected">❌ ปฏิเสธ</option>
+              </select>
+            </div>
+            <div class="form-group full">
+              <label class="form-label">ลิงก์โพสต์ <span class="req">*</span></label>
+              <input class="form-control" id="sPostUrl" placeholder="https://..." />
+            </div>
+            <div class="form-group"><label class="form-label">👁 วิว</label><input class="form-control" id="sViews" type="number" min="0" value="0" /></div>
+            <div class="form-group"><label class="form-label">❤️ Like</label><input class="form-control" id="sLikes" type="number" min="0" value="0" /></div>
+            <div class="form-group"><label class="form-label">💬 Comment</label><input class="form-control" id="sComments" type="number" min="0" value="0" /></div>
+            <div class="form-group"><label class="form-label">🔁 Share</label><input class="form-control" id="sShares" type="number" min="0" value="0" /></div>
+            <div class="form-group full">
+              <label class="form-label">หลักฐาน (screenshot)</label>
+              <div class="cmp-upload-area" id="sProofArea" onclick="document.getElementById('sProofFile').click()">📎 คลิกเพื่อแนบ screenshot ยอด (optional)</div>
+              <input type="file" id="sProofFile" accept="image/*" style="display:none" onchange="window.onProofPick(this)" />
+              <div id="sProofPreview" style="margin-top:8px"></div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" onclick="window.closeSubModal()">ยกเลิก</button>
+          <button class="btn btn-primary" id="btnSaveSub" onclick="window.saveSub()">💾 บันทึก</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="../../js/core/auth.js"></script>
+    <script src="../../js/core/authz.js"></script>
+    <script src="../../js/core/date-format.js"></script>
+    <script>
+      AuthZ.requirePerm("campaign_view");
+    </script>
+    <script src="../../js/core/imageCompressor.js"></script>
+    <script src="./campaign-detail.js"></script>
+    <script src="../../js/components/modal/deleteModal.js"></script>
+    <script src="../../js/components/modal/confirmModal.js"></script>
+    <script src="../../js/components/modal/modalManager.js"></script>
+    <script src="../../js/components/modal/enterSave.js"></script>
+    <script type="module">
+      import { loadTopbar } from "../../js/components/navigation/topbar.js";
+      loadTopbar("🚀 วางแผนแคมเปญ");
+    </script>
+    <script src="../../js/components/navigation/imgPopup.js"></script>
+    <script src="../../js/components/navigation/sidebar.js"></script>
+  </body>
+</html>

@@ -137,6 +137,12 @@
 .col-opt:hover{background:var(--accent-pale);}
 .col-opt input{width:16px;height:16px;accent-color:var(--accent);cursor:pointer;flex-shrink:0;}
 .mem-table th .sort-arrow{margin-left:4px;font-size:10px;color:var(--accent);}
+/* mobile: search ห้ามล้น (min-width:380px เดิมกว้างกว่าจอ) */
+@media(max-width:767px){
+  .search-wrap-with-mode{min-width:0;max-width:100%;flex-wrap:wrap;}
+  .search-mode,.search-mode-btn{width:100%;}
+  .search-mode-btn{justify-content:center;}
+}
 </style>
 </head>
 <body>
@@ -272,7 +278,7 @@
 
 <!-- Purge All Modal -->
 <div class="modal-overlay" id="purgeModalOverlay">
-  <div class="modal" style="max-width:460px">
+  <div class="modal">
     <div class="modal-body" style="padding:28px 28px 20px">
       <div class="pg-icon">⚠️</div>
       <div class="pg-title">ลบข้อมูลสมาชิกทั้งหมด?</div>
@@ -306,7 +312,7 @@
 
 <!-- Backfill Progress Modal -->
 <div class="modal-overlay" id="backfillProgressOverlay">
-  <div class="modal" style="max-width:440px">
+  <div class="modal">
     <div class="modal-body" style="padding:28px 28px 22px">
       <div style="text-align:center;font-size:48px;margin-bottom:8px" id="bfProgIcon">🔁</div>
       <div style="text-align:center;font-size:18px;font-weight:800;color:var(--text);margin-bottom:4px" id="bfProgTitle">
@@ -350,7 +356,7 @@
 
 <!-- Backfill Hash Modal -->
 <div class="modal-overlay" id="backfillModalOverlay">
-  <div class="modal" style="max-width:480px">
+  <div class="modal">
     <div class="modal-body" style="padding:28px 28px 20px">
       <div style="text-align:center;font-size:48px;margin-bottom:8px">🔁</div>
       <div style="text-align:center;font-size:20px;font-weight:800;color:var(--text);margin-bottom:6px">

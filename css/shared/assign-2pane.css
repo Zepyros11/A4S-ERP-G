@@ -1,0 +1,150 @@
+/* ============================================================
+   assign-2pane.css — Shared "จัดคนเข้า X" 2-pane layout
+   ------------------------------------------------------------
+   ใช้ร่วมกันโดยเครื่องมือกลุ่มจัดคน: program-buses / program-rooming /
+   program-flights / program-seating  (โครงเดียวกับ trip/room-assign)
+
+   โครง:
+     .a2p-grid  ┌ .a2p-left   = รายชื่อคน (sticky · ค้นหา/filter · เลือกได้)
+                └ .a2p-right  = การ์ด container (รถ/ห้อง/เที่ยวบิน/โต๊ะ) + assign
+
+   วิธีใช้งาน (interaction):
+     1) คลิกคนฝั่งซ้าย → ติ๊กเลือก (.selected) เลือกได้หลายคน
+     2) การ์ดฝั่งขวาที่ยังไม่เต็มจะกลายเป็น .assignable (มีกรอบฟ้า)
+     3) คลิกการ์ด / ปุ่มในการ์ด → จัดคนที่เลือกเข้า container นั้น
+   namespace .a2p-* — อย่าตั้งชื่อชนกับหน้าอื่น
+   ============================================================ */
+
+/* ── header breadcrumb chip (วางใน .page-hero--compact sage bar) ── */
+.a2p-crumb {
+  display: inline-flex; align-items: center; gap: 9px;
+  background: rgba(255, 255, 255, .92); border: 1px solid rgba(255, 255, 255, .55);
+  padding: 5px 13px; border-radius: 999px;
+  font-size: 12.5px; font-weight: 500; color: var(--accent); white-space: nowrap;
+}
+.a2p-crumb a { color: var(--accent); text-decoration: none; font-weight: 700; }
+.a2p-crumb a:hover { text-decoration: underline; }
+
+/* ── pill tabs (หัว pane · เหมือน room-assign) ── */
+.a2p-tabs {
+  display: inline-flex; gap: 4px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 999px; padding: 3px;
+}
+.a2p-tab {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 14px; border-radius: 999px; white-space: nowrap;
+  background: transparent; border: none; font-family: inherit;
+  font-size: 13px; font-weight: 600; color: var(--text2); cursor: pointer; transition: .12s;
+}
+.a2p-tab:hover { background: var(--surface-soft); color: var(--text); }
+.a2p-tab.active { background: var(--accent); color: #fff; cursor: default; }
+.a2p-tab-count {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 18px; height: 18px; padding: 0 5px; border-radius: 99px;
+  font-size: 10.5px; font-weight: 700; background: rgba(255, 255, 255, .25); color: inherit;
+}
+.a2p-tab:not(.active) .a2p-tab-count { background: var(--surface2, #e2e8f0); color: var(--text2); }
+
+.a2p-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 7fr);   /* 30 / 70 */
+  gap: 14px;
+  align-items: flex-start;
+}
+
+/* ── LEFT: people ───────────────────────────────────────── */
+.a2p-left {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+  padding: 12px; position: sticky; top: 14px;
+  max-height: calc(100vh - 90px); display: flex; flex-direction: column;
+}
+.a2p-left-hdr {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid var(--border);
+}
+.a2p-left-title { font-size: 14px; font-weight: 700; color: var(--text); display: flex; align-items: center; gap: 7px; }
+.a2p-sel-count { font-size: 11.5px; font-weight: 700; color: var(--accent); background: var(--accent-pale); border-radius: 99px; padding: 2px 9px; }
+.a2p-clear { border: none; background: transparent; color: var(--text3); font-size: 11.5px; cursor: pointer; padding: 2px 4px; text-decoration: underline; }
+.a2p-clear:hover { color: var(--accent); }
+
+.a2p-toolbar { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.a2p-toolbar input, .a2p-toolbar select {
+  padding: 6px 9px; border: 1px solid var(--border); border-radius: 8px;
+  font-size: 12px; font-family: inherit; background: var(--surface); color: var(--text);
+  flex: 1; min-width: 90px;
+}
+
+.a2p-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; padding-right: 2px; }
+.a2p-pax {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px;
+  cursor: pointer; background: var(--surface); transition: .12s;
+}
+.a2p-pax:hover { background: var(--surface-soft); border-color: #94a3b8; }
+.a2p-pax.selected { border-color: #3b82f6; background: #dbeafe; }
+.a2p-pax.assigned { opacity: .62; background: var(--surface-soft); }
+.a2p-pax-check { flex-shrink: 0; width: 16px; height: 16px; accent-color: #3b82f6; pointer-events: none; }
+.a2p-pax-main { flex: 1; min-width: 0; }
+.a2p-pax-name { font-weight: 600; color: var(--text); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.a2p-pax-sub { font-size: 11px; color: var(--text3); display: flex; gap: 6px; align-items: center; margin-top: 2px; }
+.a2p-pax-tag { font-size: 10px; font-weight: 600; color: #0369a1; background: #e0f2fe; padding: 1px 7px; border-radius: 6px; white-space: nowrap; }
+.a2p-role { font-size: 9.5px; font-weight: 700; padding: 1px 6px; border-radius: 99px; background: #f1f5f9; color: #64748b; flex-shrink: 0; }
+.a2p-gender { font-size: 9.5px; font-weight: 700; padding: 1px 7px; border-radius: 99px; flex-shrink: 0; }
+.a2p-gender.m { background: #dbeafe; color: #1d4ed8; }
+.a2p-gender.f { background: #fce7f3; color: #9d174d; }
+.a2p-empty { padding: 24px; text-align: center; color: var(--text3); font-size: 12.5px; line-height: 1.6; }
+
+/* ── RIGHT: containers ──────────────────────────────────── */
+.a2p-right { display: flex; flex-direction: column; gap: 14px; }
+.a2p-right-hdr {
+  display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 10px 14px;
+}
+.a2p-right-title { font-size: 14px; font-weight: 700; color: var(--text); display: flex; align-items: center; gap: 7px; }
+.a2p-right-ctrls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.a2p-hint { color: var(--text2); font-size: 12px; }
+.a2p-hint b { color: var(--accent); }
+
+.a2p-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(240px, 100%), 1fr)); gap: 12px; }
+
+.a2p-card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+  padding: 13px 15px; display: flex; flex-direction: column; gap: 9px; transition: .15s;
+}
+.a2p-card.full { border-color: #fca5a5; }
+.a2p-card.assignable { cursor: pointer; border-color: #93c5fd; box-shadow: 0 0 0 2px #dbeafe; }
+.a2p-card.assignable:hover { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-pale); }
+.a2p-card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.a2p-card-name { font-weight: 700; color: var(--text); font-size: 14px; line-height: 1.35; }
+.a2p-card-name small { font-weight: 400; color: var(--text3); font-size: 11.5px; }
+.a2p-card-cap {
+  flex-shrink: 0; font-size: 11.5px; font-family: 'IBM Plex Mono', monospace; color: var(--text2);
+  background: var(--surface-soft); border: 1px solid var(--border); border-radius: 99px; padding: 2px 10px;
+}
+.a2p-card.full .a2p-card-cap { background: #fef2f2; color: #b91c1c; border-color: #fecaca; }
+.a2p-occ { display: flex; flex-wrap: wrap; gap: 5px; min-height: 22px; }
+.a2p-occ-empty { font-size: 12px; color: var(--text3); }
+.a2p-pill {
+  display: inline-flex; align-items: center; gap: 4px;
+  background: var(--accent-pale); color: var(--accent); border-radius: 7px;
+  padding: 2px 4px 2px 9px; font-size: 12px; font-weight: 500;
+}
+.a2p-pill button { border: none; background: transparent; color: var(--accent); cursor: pointer; font-size: 12px; line-height: 1; padding: 0 2px; opacity: .65; }
+.a2p-pill button:hover { opacity: 1; }
+.a2p-card-acts { display: flex; align-items: center; gap: 6px; border-top: 1px dashed var(--border); padding-top: 9px; }
+.a2p-assign-btn {
+  flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 7px 10px; border-radius: 8px; border: 1px solid var(--accent);
+  background: var(--accent-pale); color: var(--accent);
+  font-family: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer; transition: .12s;
+}
+.a2p-assign-btn:hover { background: var(--accent); color: #fff; }
+.a2p-assign-btn:disabled { opacity: .45; cursor: not-allowed; border-color: var(--border); background: var(--surface-soft); color: var(--text3); }
+.a2p-card-acts .btn-icon { width: 30px; height: 30px; font-size: 13px; flex-shrink: 0; }
+
+/* ── responsive: stack เป็นคอลัมน์เดียว ──────────────────── */
+@media (max-width: 900px) {
+  .a2p-grid { grid-template-columns: 1fr; }
+  .a2p-left { position: static; max-height: none; }
+  .a2p-list { max-height: 46vh; }
+}

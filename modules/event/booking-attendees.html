@@ -424,42 +424,46 @@
          SHARE REGISTER LINK MODAL (LIFF + normal URL)
          ═══════════════════════════════════════ -->
     <div class="att-modal-overlay" id="shareRegisterModal">
-      <div class="att-modal" style="width:460px;max-width:92vw">
+      <div class="att-modal" style="width:580px;max-width:94vw">
         <div class="att-modal-header">
           <div>🔗 แชร์ลิงก์ลงทะเบียน</div>
           <button class="btn-icon" onclick="window.closeShareRegisterModal()">✕</button>
         </div>
-        <div class="att-modal-body">
+        <div class="att-modal-body" style="gap:14px;padding:18px 22px">
           <div style="text-align:center">
             <div id="shareRegEventName" style="font-weight:700;font-size:15px;color:#0f172a"></div>
             <div id="shareRegEventSub" style="font-size:12px;color:var(--text3);margin-top:2px"></div>
           </div>
 
-          <div style="display:flex;justify-content:center">
-            <div id="shareRegQrWrap" style="padding:14px;background:#fff;border:2px solid #1e40af;border-radius:12px"></div>
-          </div>
-
-          <div>
-            <div style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:4px">🌐 Plain URL <span style="font-weight:500;color:var(--text3)">— ใช้งานได้กับทุกคน ⭐</span></div>
-            <div style="display:flex;gap:6px">
-              <input id="shareRegPlainInput" type="text" readonly
-                style="flex:1;min-width:0;padding:9px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:#0f172a;background:#f8fafc">
-              <button onclick="window.copyShareRegisterUrl('plain')" style="padding:9px 14px;border:none;border-radius:8px;background:linear-gradient(135deg,#1e40af,#3b82f6);color:#fff;font-weight:700;cursor:pointer;font-size:12px;white-space:nowrap">📋 Copy</button>
+          <div style="display:flex;gap:18px;align-items:center">
+            <div style="flex-shrink:0;display:flex;justify-content:center">
+              <div id="shareRegQrWrap" style="padding:10px;background:#fff;border:2px solid #1e40af;border-radius:12px"></div>
             </div>
-          </div>
 
-          <div>
-            <div style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:4px">📱 LIFF URL <span style="font-weight:500;color:#d97706">— ยังไม่พร้อม (รอ publish)</span></div>
-            <div style="display:flex;gap:6px">
-              <input id="shareRegLiffInput" type="text" readonly
-                style="flex:1;min-width:0;padding:9px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:#0f172a;background:#f8fafc">
-              <button onclick="window.copyShareRegisterUrl('liff')" style="padding:9px 14px;border:none;border-radius:8px;background:#06c755;color:#fff;font-weight:700;cursor:pointer;font-size:12px;white-space:nowrap">📋 Copy</button>
+            <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:12px">
+              <div>
+                <div style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:4px">🌐 Plain URL <span style="font-weight:500;color:var(--text3)">— ใช้งานได้กับทุกคน ⭐</span></div>
+                <div style="display:flex;gap:6px">
+                  <input id="shareRegPlainInput" type="text" readonly
+                    style="flex:1;min-width:0;padding:9px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:#0f172a;background:#f8fafc">
+                  <button onclick="window.copyShareRegisterUrl('plain')" style="padding:9px 14px;border:none;border-radius:8px;background:linear-gradient(135deg,#1e40af,#3b82f6);color:#fff;font-weight:700;cursor:pointer;font-size:12px;white-space:nowrap">📋 Copy</button>
+                </div>
+              </div>
+
+              <div>
+                <div style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:4px">📱 LIFF URL <span style="font-weight:500;color:#d97706">— ยังไม่พร้อม (รอ publish)</span></div>
+                <div style="display:flex;gap:6px">
+                  <input id="shareRegLiffInput" type="text" readonly
+                    style="flex:1;min-width:0;padding:9px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:#0f172a;background:#f8fafc">
+                  <button onclick="window.copyShareRegisterUrl('liff')" style="padding:9px 14px;border:none;border-radius:8px;background:#06c755;color:#fff;font-weight:700;cursor:pointer;font-size:12px;white-space:nowrap">📋 Copy</button>
+                </div>
+              </div>
+
+              <div style="font-size:11px;color:var(--text3);line-height:1.6">
+                📱 QR code = Plain URL (ใช้ได้ทุกคน)<br>
+                💡 สมาชิกผูก LINE โดย <b>add @949bctau</b> แล้วส่งรหัสสมาชิกในแชท
+              </div>
             </div>
-          </div>
-
-          <div style="font-size:11px;color:var(--text3);text-align:center;line-height:1.6">
-            📱 QR code = Plain URL (ใช้ได้ทุกคน)<br>
-            💡 สมาชิกผูก LINE โดย <b>add @949bctau</b> แล้วส่งรหัสสมาชิกในแชท
           </div>
         </div>
         <div class="att-modal-footer">

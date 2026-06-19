@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ป้ายตั้งโต๊ะ (รายชื่อ) — A4S-ERP</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700;800;900&family=Cinzel:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../../css/main.css" />
+    <link rel="stylesheet" href="./table-tent-generator.css?v=1" />
+    <script>
+      /* ttg-ready guard — buttons use inline onclick="ttg.x()", but the script
+         loads at the end of <body>. Queue early calls, flush once ttg is set,
+         so a click during load never throws "ttg is not defined". */
+      (function () {
+        var queue = [], real = null;
+        function stub() {
+          return new Proxy({}, { get: function (_t, prop) {
+            return function () { queue.push([prop, [].slice.call(arguments)]); };
+          }});
+        }
+        Object.defineProperty(window, "ttg", {
+          configurable: true,
+          get: function () { return real || stub(); },
+          set: function (v) {
+            real = v;
+            queue.forEach(function (c) {
+              try { if (v && typeof v[c[0]] === "function") v[c[0]].apply(v, c[1]); } catch (e) {}
+            });
+            queue = [];
+          }
+        });
+      })();
+    </script>
+  </head>
+  <body>
+    <div class="loading-overlay" id="loadingOverlay" style="display:none">
+      <div class="tt-processing">
+        <div class="spinner"></div>
+        <div class="tt-processing-title" id="processingTitle">กำลังประมวลผล...</div>
+        <div class="tt-processing-sub" id="processingSub"></div>
+      </div>
+    </div>
+    <div class="toast" id="toast"></div>
+
+    <div class="topbar"></div>
+    <div class="page tt-page">
+
+      <!-- HERO -->
+      <div class="page-hero page-hero--simple page-hero--compact tt-no-print">
+        <div>
+          <h1 class="page-hero-title">🪧 ป้ายตั้งโต๊ะ (รายชื่อ)</h1>
+          <p class="page-hero-sub">ป้ายรายชื่อกลุ่ม / VIP บนกระดาษ A4 · โลโก้ + ภาพพื้นหลัง + เลขลำดับ → พิมพ์ / PDF</p>
+        </div>
+        <div class="page-hero-actions">
+          <button class="btn-on-hero" onclick="location.href='../operations/operations-tools.html'">← เครื่องมือ</button>
+        </div>
+      </div>
+
+      <div class="tt-split tt-no-print">
+
+        <!-- ══════════ LEFT: settings ══════════ -->
+        <div class="tt-split-left">
+
+          <!-- หัวข้อ + แนว + จำนวน/หน้า -->
+          <div class="tt-card-block">
+            <div class="tt-block-hdr"><div class="tt-block-title">🪧 ป้าย & กระดาษ</div></div>
+
+            <div class="tt-field-grid">
+              <div class="tt-field tt-field-grow">
+                <label for="ttTitle">หัวข้อป้าย</label>
+                <input type="text" id="ttTitle" class="tt-input" value="VIP 1" maxlength="40"
+                       placeholder="เช่น VIP 1 · โต๊ะ A · คณะผู้บริหาร" oninput="ttg.setTitle(this.value)">
+              </div>
+              <div class="tt-field tt-field-num">
+                <label for="ttTitleSize">ขนาดหัวข้อ (px)</label>
+                <input type="number" id="ttTitleSize" class="tt-input" min="0" max="300" step="4"
+                       placeholder="auto" oninput="ttg.setTitleSize(this.value)">
+              </div>
+            </div>
+
+            <div class="tt-row-inline">
+              <span class="tt-row-label">แนวกระดาษ</span>
+              <div class="tt-toggle">
+                <button class="tt-toggle-btn active" id="ttOrientPortrait" onclick="ttg.setOrient('portrait')">📄 แนวตั้ง</button>
+                <button class="tt-toggle-btn" id="ttOrientLandscape" onclick="ttg.setOrient('landscape')">📃 แนวนอน</button>
+              </div>
+            </div>
+
+            <div class="tt-row-inline">
+              <span class="tt-row-label">ธีมป้าย</span>
+              <div class="tt-toggle">
+                <button class="tt-toggle-btn active" id="ttThemeGold" onclick="ttg.setTheme('gold')">👑 ทอง/ดำ (VIP)</button>
+                <button class="tt-toggle-btn" id="ttThemeLight" onclick="ttg.setTheme('light')">🌿 ขาว/เขียว</button>
+              </div>
+            </div>
+
+            <div class="tt-row-inline">
+              <span class="tt-row-label">จำนวนรายชื่อ / หน้า A4
+                <span class="tt-help" data-tip="กี่รายชื่อต่อ 1 แผ่น A4 · เกินจำนวนนี้ → ขึ้นหน้าใหม่ (เลขลำดับต่อเนื่อง)">?</span></span>
+              <div class="tt-stepper">
+                <button class="tt-step-btn" onclick="ttg.bumpPerPage(-1)">−</button>
+                <input type="number" id="ttPerPage" class="tt-step-input" min="1" max="40" value="10"
+                       oninput="ttg.setPerPage(this.value)">
+                <button class="tt-step-btn" onclick="ttg.bumpPerPage(1)">＋</button>
+                <span class="tt-step-unit">/ หน้า</span>
+              </div>
+              <div class="tt-presets">
+                <button class="btn btn-outline btn-sm" onclick="ttg.setPerPage(6)">6</button>
+                <button class="btn btn-outline btn-sm" onclick="ttg.setPerPage(8)">8</button>
+                <button class="btn btn-outline btn-sm" onclick="ttg.setPerPage(10)">10</button>
+                <button class="btn btn-outline btn-sm" onclick="ttg.setPerPage(12)">12</button>
+                <button class="btn btn-outline btn-sm" onclick="ttg.setPerPage(15)">15</button>
+              </div>
+            </div>
+
+            <div class="tt-row-inline">
+              <span class="tt-row-label">แสดงเลขลำดับ</span>
+              <label class="switch">
+                <input type="checkbox" id="ttShowNum" checked onchange="ttg.setShowNum(this.checked)">
+                <span class="slider"></span>
+              </label>
+              <div class="tt-field tt-field-inline">
+                <label for="ttStartNum">เริ่มที่</label>
+                <input type="number" id="ttStartNum" class="tt-input" min="0" max="999" value="1"
+                       oninput="ttg.setStartNum(this.value)">
+              </div>
+            </div>
+          </div>
+
+          <!-- โลโก้ -->
+          <div class="tt-card-block">
+            <div class="tt-block-hdr"><div class="tt-block-title">🖼️ โลโก้</div></div>
+            <div class="tt-logo-bar">
+              <div class="tt-logo-thumb" id="ttLogoThumb"><span class="tt-logo-empty">∅</span></div>
+              <div class="tt-logo-ctrls">
+                <div class="tt-logo-btns">
+                  <label class="btn btn-outline btn-sm" style="cursor:pointer">
+                    ⬆ อัปโหลด
+                    <input type="file" id="ttLogoInput" accept="image/*" style="display:none" onchange="ttg.onLogoPick(event)">
+                  </label>
+                  <button class="btn btn-outline btn-sm" onclick="ttg.useCompanyLogo()">🏢 โลโก้บริษัท</button>
+                  <button class="btn btn-outline btn-sm" id="ttLogoClear" onclick="ttg.clearLogo()" style="display:none">✕ เอาออก</button>
+                </div>
+                <div class="tt-logo-row2">
+                  <div class="tt-field-inline">
+                    <span class="tt-row-label">ตำแหน่ง</span>
+                    <div class="tt-toggle tt-toggle-sm">
+                      <button class="tt-toggle-btn active" id="ttLogoLeft" onclick="ttg.setLogoPos('left')">⬅ ซ้าย</button>
+                      <button class="tt-toggle-btn" id="ttLogoCenter" onclick="ttg.setLogoPos('center')">⬍ กลาง</button>
+                      <button class="tt-toggle-btn" id="ttLogoRight" onclick="ttg.setLogoPos('right')">➡ ขวา</button>
+                    </div>
+                  </div>
+                  <div class="tt-field tt-field-inline">
+                    <label for="ttLogoSize">ขนาด (px)</label>
+                    <input type="number" id="ttLogoSize" class="tt-input" min="20" max="400" step="5" value="90"
+                           oninput="ttg.setLogoSize(this.value)">
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ภาพพื้นหลัง -->
+          <div class="tt-card-block">
+            <div class="tt-block-hdr"><div class="tt-block-title">🎨 ภาพพื้นหลัง (BG)</div></div>
+            <div class="tt-logo-bar">
+              <div class="tt-bg-thumb" id="ttBgThumb"><span class="tt-logo-empty">∅</span></div>
+              <div class="tt-logo-ctrls">
+                <div class="tt-logo-btns">
+                  <label class="btn btn-outline btn-sm" style="cursor:pointer">
+                    ⬆ อัปโหลดภาพพื้นหลัง
+                    <input type="file" id="ttBgInput" accept="image/*" style="display:none" onchange="ttg.onBgPick(event)">
+                  </label>
+                  <button class="btn btn-outline btn-sm" id="ttBgClear" onclick="ttg.clearBg()" style="display:none">✕ เอาออก</button>
+                </div>
+                <div class="tt-field-inline tt-bg-overlay-row">
+                  <span class="tt-row-label">ความเข้มฉากมืด
+                    <span class="tt-help" data-tip="ใส่เลเยอร์มืดทับพื้นหลังให้ตัวอักษรอ่านง่ายขึ้น (0 = ไม่ทับ)">?</span></span>
+                  <input type="range" id="ttOverlay" min="0" max="80" step="5" value="0"
+                         oninput="ttg.setOverlay(this.value)">
+                  <span id="ttOverlayVal" class="tt-overlay-val">0%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- รายชื่อ -->
+          <div class="tt-card-block">
+            <div class="tt-block-hdr">
+              <div class="tt-block-title">📋 รายชื่อ (<span id="ttCount">0</span> คน · <span id="ttPages">0</span> หน้า A4)</div>
+              <div class="tt-block-tools">
+                <label class="btn btn-outline btn-sm" style="cursor:pointer">
+                  📊 นำเข้า Excel
+                  <input type="file" id="ttXlsInput" accept=".xlsx,.xls,.csv" style="display:none" onchange="ttg.onXlsPick(event)">
+                </label>
+                <button class="btn btn-outline btn-sm" onclick="ttg.addRow()">＋ เพิ่มแถว</button>
+                <button class="btn btn-outline btn-sm" onclick="ttg.clearRows()">🗑 ล้างทั้งหมด</button>
+              </div>
+            </div>
+            <div class="tt-hint">คอลัมน์ Excel: 1 = ชื่อ · 2 = ตำแหน่ง/หมายเหตุ (ไม่บังคับ) · <a href="javascript:ttg.downloadTemplate()">เทมเพลตตัวอย่าง</a></div>
+            <div class="tt-table-wrap">
+              <table class="tt-table">
+                <thead>
+                  <tr>
+                    <th class="tt-col-idx">#</th>
+                    <th>ชื่อ</th>
+                    <th>ตำแหน่ง</th>
+                    <th class="tt-col-act"></th>
+                  </tr>
+                </thead>
+                <tbody id="ttRowsBody"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- จำนวนสำเนา + actions -->
+          <div class="tt-card-block">
+            <div class="tt-row-inline">
+              <span class="tt-row-label">จำนวนสำเนา
+                <span class="tt-help" data-tip="พิมพ์ทั้งชุดซ้ำกี่ครั้ง (เช่น 2 สำเนา = พิมพ์รายชื่อทั้งหมด 2 รอบ)">?</span></span>
+              <div class="tt-stepper">
+                <button class="tt-step-btn" onclick="ttg.bumpCopies(-1)">−</button>
+                <input type="number" id="ttCopies" class="tt-step-input" min="1" max="99" value="1"
+                       oninput="ttg.setCopies(this.value)">
+                <button class="tt-step-btn" onclick="ttg.bumpCopies(1)">＋</button>
+                <span class="tt-step-unit">ชุด</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="tt-actions">
+            <button class="btn btn-secondary" onclick="ttg.resetAll()">↺ เริ่มใหม่</button>
+            <button class="btn btn-primary" onclick="ttg.printNow()" id="ttPrintBtn">🖨️ พิมพ์ / บันทึก PDF</button>
+          </div>
+        </div>
+
+        <!-- ══════════ RIGHT: A4 preview ══════════ -->
+        <div class="tt-split-right">
+          <div class="tt-card-block">
+            <div class="tt-block-hdr">
+              <div class="tt-block-title" id="ttPreviewTitle">👁️ ตัวอย่าง · A4 แนวตั้ง</div>
+              <div class="tt-block-tools tt-zoom-tools">
+                <span style="font-size:12px;color:var(--text3)">Zoom</span>
+                <button class="btn btn-outline btn-sm" onclick="ttg.setZoom(-1)">−</button>
+                <span id="ttZoomLabel" style="min-width:48px;text-align:center;font-weight:600">50%</span>
+                <button class="btn btn-outline btn-sm" onclick="ttg.setZoom(1)">＋</button>
+              </div>
+            </div>
+            <div class="tt-sheet-scroller" id="ttSheetScroller"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- off-screen render target for print -->
+      <div class="tt-print-area" id="ttPrintArea"></div>
+    </div>
+
+    <!-- SCRIPTS -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="../../js/core/supabase.js"></script>
+    <script src="../../js/core/auth.js"></script>
+    <script src="../../js/core/authz.js"></script>
+    <script>AuthZ.requirePerm("events_view");</script>
+    <script type="module">
+      import { loadTopbar } from "../../js/components/navigation/topbar.js";
+      loadTopbar("🪧 ป้ายตั้งโต๊ะ (รายชื่อ)");
+    </script>
+    <script src="../../js/components/navigation/sidebar.js"></script>
+    <script src="../../js/components/modal/modalManager.js"></script>
+    <script src="../../js/components/modal/confirmModal.js"></script>
+    <script src="../../js/core/companyLogo.js"></script>
+    <script src="./table-tent-generator.js?v=1"></script>
+  </body>
+</html>

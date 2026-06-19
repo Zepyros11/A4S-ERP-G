@@ -1,0 +1,310 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Operations Hub — A4S-ERP</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../../css/main.css" />
+    <style>
+      /* type + source badges */
+      .op-type {
+        display:inline-block;padding:2px 9px;border-radius:6px;
+        font-size:11px;font-weight:700;letter-spacing:.2px;white-space:nowrap;
+      }
+      .op-type-TRIP  { background:#dbeafe; color:#1d4ed8; }
+      .op-type-EVENT { background:#ede9fe; color:#6d28d9; }
+
+      .op-src {
+        display:inline-block;padding:1px 7px;border-radius:999px;
+        font-size:10px;font-weight:700;letter-spacing:.3px;white-space:nowrap;margin-left:6px;
+      }
+      .op-src-new    { background:#dcfce7; color:#15803d; }
+      .op-src-legacy { background:#f1f5f9; color:#64748b; }
+
+      .op-status {
+        display:inline-block;padding:3px 10px;border-radius:999px;
+        font-size:11px;font-weight:600;white-space:nowrap;
+      }
+      .op-status-ACTIVE,.op-status-ONGOING,.op-status-CONFIRMED { background:#dbeafe; color:#1d4ed8; }
+      .op-status-DONE { background:#dcfce7; color:#15803d; }
+      .op-status-CANCELLED { background:#fee2e2; color:#b91c1c; }
+      .op-status-DRAFT,.op-status- { background:#f1f5f9; color:#64748b; }
+
+      .op-name-cell{font-weight:600;color:var(--text);font-size:13.5px;}
+      .op-date-range{color:var(--text2);font-size:12.5px;white-space:nowrap;}
+      .op-date-range .sep{color:var(--text3);margin:0 6px;}
+
+      .action-group{display:flex;flex-direction:row;align-items:center;justify-content:center;gap:4px;flex-wrap:nowrap;}
+      .action-group .btn-icon{width:30px;height:30px;font-size:14px;flex-shrink:0;}
+      .op-open-btn{
+        display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border-radius:7px;
+        border:1px solid var(--border);background:var(--surface);color:var(--text);
+        font-family:inherit;font-size:12.5px;font-weight:600;cursor:pointer;white-space:nowrap;
+      }
+      .op-open-btn:hover{background:var(--accent-pale);border-color:var(--accent);color:var(--accent);}
+
+      /* type toggle + tool checklist in modal */
+      .op-type-toggle{display:flex;gap:8px;}
+      .op-type-toggle .op-tt{
+        flex:1;padding:10px;border:1.5px solid var(--border);border-radius:10px;
+        background:var(--surface);cursor:pointer;font-family:inherit;font-size:13.5px;font-weight:600;
+        color:var(--text2);text-align:center;transition:all .15s;
+      }
+      .op-type-toggle .op-tt.active{border-color:var(--accent);background:var(--accent-pale);color:var(--accent);}
+
+      .op-tools-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(160px,100%),1fr));gap:8px;}
+      .op-tool-chk{
+        display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--border);
+        border-radius:8px;background:var(--surface);cursor:pointer;font-size:12.5px;color:var(--text);
+      }
+      .op-tool-chk input{width:16px;height:16px;accent-color:var(--accent);cursor:pointer;flex-shrink:0;}
+      .op-tool-chk .ic{font-size:15px;flex-shrink:0;}
+
+      /* import-from-legacy list */
+      .op-import-list{display:flex;flex-direction:column;gap:6px;max-height:48vh;overflow-y:auto;}
+      .op-import-row{
+        display:flex;align-items:center;gap:10px;padding:9px 11px;border:1px solid var(--border);
+        border-radius:9px;background:var(--surface);cursor:pointer;
+      }
+      .op-import-row:hover{background:var(--accent-pale);border-color:var(--accent);}
+      .op-import-row input{width:16px;height:16px;accent-color:var(--accent);cursor:pointer;flex-shrink:0;}
+      .op-import-row .nm{flex:1;min-width:0;font-weight:600;color:var(--text);font-size:13px;}
+      .op-import-row .dt{font-size:11.5px;color:var(--text3);white-space:nowrap;font-family:'IBM Plex Mono',monospace;}
+      .op-import-empty{color:var(--text3);font-size:13px;text-align:center;padding:24px;}
+
+      /* program create/edit modal — กว้าง+สูงขึ้น (ของเยอะ: ฟอร์ม + checklist เครื่องมือ) */
+      .op-prog-modal{ width:720px; max-width:95vw; max-height:94vh; }
+    </style>
+  </head>
+  <body>
+    <div class="loading-overlay" id="loadingOverlay">
+      <div class="spinner"></div>
+    </div>
+    <div class="toast" id="toast"></div>
+
+    <div class="topbar"></div>
+    <div class="layout">
+      <div class="content-area">
+        <div class="page">
+
+          <!-- HERO -->
+          <div class="page-hero page-hero--simple page-hero--compact">
+            <h1 class="page-hero-title">🧭 Operations</h1>
+            <div class="page-hero-actions">
+              <button class="btn-on-hero" onclick="location.href='./operations-tools.html'">
+                🧰 เครื่องมือ
+              </button>
+            </div>
+          </div>
+
+          <!-- STATS -->
+          <div class="stats-row">
+            <div class="stat-card">
+              <div class="stat-icon">🗂️</div>
+              <div>
+                <div class="stat-value" id="cardTotal">0</div>
+                <div class="stat-label">ทั้งหมด</div>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon">✈️</div>
+              <div>
+                <div class="stat-value" id="cardTrips">0</div>
+                <div class="stat-label">Trips</div>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon">🎪</div>
+              <div>
+                <div class="stat-value" id="cardEvents">0</div>
+                <div class="stat-label">Events</div>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon">🟢</div>
+              <div>
+                <div class="stat-value" id="cardActive">0</div>
+                <div class="stat-label">ดำเนินการ</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- TABLE CARD -->
+          <div class="table-card">
+            <div class="toolbar">
+              <div class="search-wrap">
+                <span class="search-icon">🔍</span>
+                <input class="search-input" id="searchInput" placeholder="ค้นหาชื่อ..." />
+              </div>
+              <select class="filter-select" id="filterView">
+                <option value="">🧿 ทั้งหมด</option>
+                <option value="TRIP">✈️ Trips</option>
+                <option value="EVENT">🎪 Events</option>
+              </select>
+              <select class="filter-select" id="filterStatus">
+                <option value="">ทุกสถานะ</option>
+                <option value="ACTIVE">🟢 กำลังดำเนินการ</option>
+                <option value="DONE">✅ เสร็จสิ้น</option>
+                <option value="CANCELLED">❌ ยกเลิก</option>
+              </select>
+              <div class="toolbar-right">
+                <button
+                  class="btn btn-ghost"
+                  data-perm="program_create"
+                  onclick="window.openImportModal()"
+                >
+                  📥 นำเข้าระบบเดิม
+                </button>
+                <button
+                  class="btn btn-primary"
+                  data-perm="program_create"
+                  onclick="window.openProgramModal()"
+                >
+                  ＋ สร้างใหม่
+                </button>
+              </div>
+            </div>
+
+            <div class="table-hdr">
+              <div class="table-title">🧭 Trip &amp; Event ทั้งหมด</div>
+              <div class="table-count" id="tableCount">0 รายการ</div>
+            </div>
+
+            <div class="table-wrap">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th style="width:48px;text-align:center">#</th>
+                    <th onclick="window.sortTable('name')" style="cursor:pointer">
+                      ชื่อ <span class="sort-icon">⇅</span>
+                    </th>
+                    <th class="col-center" style="width:110px">ประเภท</th>
+                    <th onclick="window.sortTable('start')" class="col-center" style="cursor:pointer;white-space:nowrap">
+                      ช่วงวันที่ <span class="sort-icon">⇅</span>
+                    </th>
+                    <th class="col-center" style="width:130px">สถานะ</th>
+                    <th class="col-center" style="width:220px">จัดการ</th>
+                  </tr>
+                </thead>
+                <tbody id="tableBody">
+                  <tr>
+                    <td colspan="6">
+                      <div class="empty-state">
+                        <div class="empty-icon">🧭</div>
+                        <div class="empty-text">กำลังโหลด...</div>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═════════════ PROGRAM FORM MODAL (new programs only) ═════════════ -->
+    <div class="modal-overlay" id="progOverlay">
+      <div class="modal v-sage-header op-prog-modal" onclick="event.stopPropagation()">
+        <div class="modal-hdr">
+          <div class="modal-title" id="progModalTitle">สร้างใหม่</div>
+          <button class="btn-modal-close" onclick="window.closeProgramModal()">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label">ประเภท <span class="req">*</span></label>
+            <div class="op-type-toggle" id="typeToggle">
+              <button type="button" class="op-tt active" data-type="TRIP" onclick="window.pickType('TRIP')">✈️ Trip</button>
+              <button type="button" class="op-tt" data-type="EVENT" onclick="window.pickType('EVENT')">🎪 Event</button>
+            </div>
+          </div>
+
+          <div class="form-group" style="margin-top:14px">
+            <label class="form-label">ชื่อ <span class="req">*</span></label>
+            <input class="form-control" id="fName" placeholder="เช่น ทริปไนจีเรีย รุ่น 1 / สัมมนา UNLOCK CH1" autocomplete="off" />
+          </div>
+
+          <div class="form-row" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px">
+            <div class="form-group">
+              <label class="form-label">วันที่เริ่ม</label>
+              <input class="form-control" type="date" id="fStartDate" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">วันที่สิ้นสุด</label>
+              <input class="form-control" type="date" id="fEndDate" />
+            </div>
+          </div>
+
+          <div class="form-group" style="margin-top:14px">
+            <label class="form-label">สถานะ</label>
+            <select class="form-control" id="fStatus">
+              <option value="ACTIVE">🟢 กำลังดำเนินการ</option>
+              <option value="DONE">✅ เสร็จสิ้น</option>
+              <option value="CANCELLED">❌ ยกเลิก</option>
+            </select>
+          </div>
+
+          <div class="form-group" style="margin-top:14px">
+            <label class="form-label">เครื่องมือที่ใช้ <span style="font-weight:400;color:var(--text3)">(เปิด/ปิดได้ตามงาน)</span></label>
+            <div class="op-tools-grid" id="toolsGrid"></div>
+          </div>
+
+          <div class="form-group" style="margin-top:14px">
+            <label class="form-label">หมายเหตุ</label>
+            <textarea class="form-control" id="fDescription" rows="2" placeholder="รายละเอียดเพิ่มเติม (ถ้ามี)"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-ghost" onclick="window.closeProgramModal()">ยกเลิก</button>
+          <button class="btn btn-primary" onclick="window.saveProgram()">💾 บันทึก</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═════════════ IMPORT FROM LEGACY MODAL ═════════════ -->
+    <div class="modal-overlay" id="importOverlay">
+      <div class="modal v-sage-header" onclick="event.stopPropagation()">
+        <div class="modal-hdr">
+          <div class="modal-title">📥 นำเข้าจากระบบเดิม</div>
+          <button class="btn-modal-close" onclick="window.closeImportModal()">✕</button>
+        </div>
+        <div class="modal-body">
+          <div style="font-size:12.5px;color:var(--text3);margin-bottom:10px">
+            เลือก trip/event ระบบเดิมที่ต้องการให้แสดงใน Operations Hub (นำออกได้ภายหลัง — ไม่ลบข้อมูลเดิม)
+          </div>
+          <div class="search-wrap" style="max-width:none;margin-bottom:12px">
+            <span class="search-icon">🔍</span>
+            <input class="search-input" id="importSearch" placeholder="ค้นหา trip/event..." />
+          </div>
+          <div id="importList" class="op-import-list">
+            <div class="op-import-empty">กำลังโหลด...</div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-ghost" onclick="window.closeImportModal()">ปิด</button>
+          <button class="btn btn-primary" onclick="window.doImport()">นำเข้าที่เลือก</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- SCRIPTS -->
+    <script src="../../js/core/auth.js"></script>
+    <script src="../../js/core/authz.js"></script>
+    <script src="../../js/core/date-format.js"></script>
+    <script>AuthZ.requirePerm("program_view");</script>
+    <script src="../../js/shared/program-tools.js"></script>
+    <script src="./operations-hub.js"></script>
+    <script src="../../js/components/modal/deleteModal.js"></script>
+    <script src="../../js/components/modal/modalManager.js"></script>
+    <script src="../../js/components/modal/enterSave.js"></script>
+    <script src="../../js/components/navigation/sidebar.js"></script>
+    <script type="module">
+      import { loadTopbar } from "../../js/components/navigation/topbar.js";
+      loadTopbar("🧭 Operations");
+    </script>
+  </body>
+</html>

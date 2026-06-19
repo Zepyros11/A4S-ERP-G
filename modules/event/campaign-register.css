@@ -1,0 +1,170 @@
+/* =========================================================
+   campaign-register.css — Public campaign registration
+   standalone (ไม่พึ่ง main.css) เหมือน register.html
+========================================================= */
+:root {
+  --accent: #6b8e6b;
+  --accent-light: #8aac8a;
+  --accent-pale: #eef3ee;
+  --text: #1f2937;
+  --text2: #4b5563;
+  --text3: #9ca3af;
+  --border: #e5e7eb;
+  --surface: #ffffff;
+  --bg: #f1f5f1;
+  --danger: #dc2626;
+  --success: #059669;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: "Sarabun", sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.5;
+  padding: 16px;
+}
+.reg-wrap { max-width: 1180px; margin: 0 auto; }
+
+/* ── 3-column layout: [ข้อมูลแคมเปญ | ฟอร์มลงทะเบียน | ผูกโซเชียล] ── */
+.reg-cols {
+  display: grid;
+  grid-template-columns: 1.15fr 1fr 1fr;
+  gap: 16px;
+  align-items: start;
+}
+.reg-col { min-width: 0; }
+/* ในคอลัมน์ใช้ gap แทน margin-bottom ของการ์ด */
+.reg-cols .reg-hero,
+.reg-cols .reg-card { margin-bottom: 16px; }
+.reg-cols .reg-col > *:last-child { margin-bottom: 0; }
+/* จอแคบ → ซ้อนเป็นคอลัมน์เดียว */
+@media (max-width: 980px) {
+  .reg-cols { grid-template-columns: 1fr; }
+}
+
+/* hero */
+.reg-hero {
+  background: var(--surface);
+  border-radius: 18px;
+  overflow: hidden;
+  box-shadow: 0 8px 30px rgba(15, 23, 42, 0.08);
+  margin-bottom: 18px;
+}
+.reg-cover { width: 100%; aspect-ratio: 16/9; object-fit: cover; background: var(--accent-pale); display: block; }
+.reg-cover-ph { display: flex; align-items: center; justify-content: center; font-size: 54px; color: var(--accent); }
+/* สื่อแคมเปญ — gallery 3 คอลัมน์ */
+.reg-media-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 6px;
+  padding: 6px;
+}
+.reg-media-item {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  border-radius: 10px;
+  background: var(--accent-pale);
+  display: block;
+}
+.reg-hero-body { padding: 18px 22px; }
+.reg-title { font-size: 22px; font-weight: 700; margin: 0 0 6px; }
+.reg-meta { font-size: 13px; color: var(--text2); display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 10px; }
+.reg-desc { font-size: 14px; color: var(--text2); white-space: pre-wrap; }
+.reg-reward {
+  background: linear-gradient(135deg, #fef9c3, #fef3c7);
+  border: 1px solid #fde68a; color: #92400e;
+  border-radius: 10px; padding: 10px 14px; font-size: 13.5px; margin-top: 12px; font-weight: 600;
+}
+
+/* card */
+.reg-card {
+  background: var(--surface);
+  border-radius: 16px;
+  box-shadow: 0 8px 30px rgba(15, 23, 42, 0.08);
+  padding: 22px;
+  margin-bottom: 18px;
+}
+.reg-card h2 { font-size: 16px; margin: 0 0 4px; }
+.reg-card .sub { font-size: 12.5px; color: var(--text3); margin-bottom: 16px; }
+
+.reg-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.reg-grid .full { grid-column: span 2; }
+.fg { display: flex; flex-direction: column; gap: 5px; }
+.fg label { font-size: 12px; font-weight: 600; color: var(--text2); }
+.fg label .req { color: var(--danger); }
+.fg input, .fg select {
+  padding: 10px 12px; border: 1.5px solid var(--border); border-radius: 9px;
+  font-size: 14px; font-family: inherit; outline: none; transition: border-color .15s;
+  background: #fff; color: var(--text); width: 100%;
+}
+.fg input:focus, .fg select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-pale); }
+
+.platform-block {
+  border: 1px solid var(--border); border-radius: 12px; padding: 14px; margin-bottom: 10px;
+}
+.platform-block h4 { margin: 0 0 10px; font-size: 14px; }
+
+.btn {
+  border: none; border-radius: 10px; font-size: 15px; font-weight: 700;
+  padding: 13px 20px; cursor: pointer; font-family: inherit; width: 100%;
+  background: linear-gradient(135deg, var(--accent), var(--accent-light)); color: #fff;
+  transition: transform .1s, box-shadow .15s;
+}
+.btn:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(107, 142, 107, .35); }
+.btn:disabled { opacity: .6; cursor: not-allowed; transform: none; box-shadow: none; }
+.btn-sec { background: #f1f5f9; color: #475569; }
+.btn-sm { width: auto; padding: 9px 16px; font-size: 13px; }
+
+.lookup-hit { font-size: 12.5px; padding: 8px 12px; border-radius: 8px; margin-top: 4px; }
+.lookup-hit.ok { background: #d1fae5; color: #065f46; }
+.lookup-hit.no { background: #fee2e2; color: #991b1b; }
+.lookup-hit.loading { background: var(--accent-pale); color: var(--text3); }
+
+/* mission list */
+.mission-item {
+  display: flex; gap: 10px; align-items: flex-start;
+  padding: 10px 0; border-bottom: 1px dashed var(--border);
+}
+.mission-item:last-child { border-bottom: none; }
+.mission-item .num {
+  width: 26px; height: 26px; border-radius: 50%; background: var(--accent-pale); color: var(--accent);
+  font-weight: 700; font-size: 13px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+}
+.mission-item .mt { font-weight: 600; font-size: 14px; }
+.mission-item .md { font-size: 12.5px; color: var(--text2); white-space: pre-wrap; }
+.mission-item .mtag { font-size: 11px; color: var(--text3); }
+
+/* submitted work list */
+.work-item {
+  display: flex; align-items: center; gap: 10px; justify-content: space-between;
+  background: var(--accent-pale); border-radius: 9px; padding: 8px 12px; font-size: 13px; margin-bottom: 6px;
+}
+.work-item a { color: var(--accent); text-decoration: none; word-break: break-all; }
+
+/* states */
+.reg-state {
+  background: var(--surface); border-radius: 16px; padding: 40px 24px; text-align: center;
+  box-shadow: 0 8px 30px rgba(15, 23, 42, 0.08);
+}
+.reg-state .ic { font-size: 52px; margin-bottom: 12px; }
+.reg-state .msg { font-size: 16px; color: var(--text2); }
+
+.hidden { display: none !important; }
+
+/* toast */
+.toast {
+  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(20px);
+  background: #1f2937; color: #fff; padding: 12px 22px; border-radius: 10px; font-size: 14px;
+  opacity: 0; pointer-events: none; transition: all .25s; z-index: 999; max-width: 90vw;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+.toast.toast-error { background: var(--danger); }
+.toast.toast-success { background: var(--success); }
+.toast.toast-warning { background: #d97706; }
+
+@media (max-width: 560px) {
+  .reg-grid { grid-template-columns: 1fr; }
+  .reg-grid .full { grid-column: auto; }
+}

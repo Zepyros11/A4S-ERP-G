@@ -76,8 +76,11 @@
       /* ── App-shell (จอกว้าง): ล็อกหน้าสูงเท่าจอใต้ topbar → ไม่มี page-scroll
          ให้ "ตัวเลือกคอลัมน์" + "กล่องตาราง" เลื่อนในตัวเอง (กัน double-scroll/กล่องว่าง) ── */
       @media (min-width:881px){
-        .page{height:calc(100vh - var(--topbar-h));display:flex;flex-direction:column;overflow:hidden}
-        .cr-main{flex:1;min-height:0}
+        /* ชดเชย zoom 0.65 (เหมือน body min-height / room-assign) → สูงเต็มจอใต้ topbar ไม่มีพื้นที่ว่างล่าง */
+        .page{height:calc(100vh / 0.65 - var(--topbar-h));display:flex;flex-direction:column;overflow:hidden}
+        /* flex:1 ให้ .cr-main สูงเต็ม .page · grid-template-rows:1fr บังคับ "แถวเดียว"
+           ให้ยืดเต็มความสูง (ไม่งั้น auto-row = content height → เหลือพื้นที่ว่างล่าง) */
+        .cr-main{flex:1;min-height:0;grid-template-rows:minmax(0,1fr)}
         .cr-main > .cr-card{min-height:0;display:flex;flex-direction:column}
         #crPicker{flex:1;min-height:0;overflow:auto}
         #cr-table-wrap{flex:1;min-height:0;max-height:none}
