@@ -7,15 +7,17 @@
 const SB_URL = localStorage.getItem("sb_url") || window.REGISTER_CONFIG?.sb_url || "";
 const SB_KEY = localStorage.getItem("sb_key") || window.REGISTER_CONFIG?.sb_key || "";
 
-const PLAT_META = {
-  tiktok: { icon: "🎵", label: "TikTok", ph: "https://tiktok.com/@..." },
-  instagram: { icon: "📸", label: "Instagram", ph: "https://instagram.com/..." },
-  facebook: { icon: "👍", label: "Facebook", ph: "https://facebook.com/..." },
-};
-
 let campaign = null;
-let missions = [];
-let participant = null; // หลังลงทะเบียน
+
+// 3 ช่องทางโซเชียล — col_url/col_img = ชื่อคอลัมน์ใน campaign_participants,
+// rwkey = key ใน campaigns.rewards (JSONB)
+const SOCIALS = [
+  { key: "facebook",  icon: "👍", label: "Facebook",  col_url: "facebook_url", col_img: "facebook_img", rwkey: "facebook", ph: "https://facebook.com/..." },
+  { key: "tiktok",    icon: "🎵", label: "TikTok",    col_url: "tiktok_url",   col_img: "tiktok_img",   rwkey: "tiktok",   ph: "https://tiktok.com/@..." },
+  { key: "instagram", icon: "📸", label: "Instagram", col_url: "ig_url",       col_img: "ig_img",       rwkey: "ig",       ph: "https://instagram.com/..." },
+];
+const RW_RANK_LABEL = ["🥇 รางวัลที่ 1", "🥈 รางวัลที่ 2", "🥉 รางวัลที่ 3"];
+const socialImg = {}; // key -> File (รูปที่เลือก ยังไม่ upload)
 
 // ── REST helpers ──────────────────────────────────────────
 async function sbGet(path) {
@@ -87,7 +89,6 @@ async function init() {
     if (campaign.status === "CANCELLED") return closed("❌", "แคมเปญนี้ถูกยกเลิก");
     if (campaign.status === "ENDED") return closed("🏁", "แคมเปญนี้จบแล้ว");
 
-    missions = await sbGet(`campaign_missions?campaign_id=eq.${campaign.campaign_id}&select=*&order=sort_order.asc,mission_id.asc`);
     renderCampaign();
     show("stateLoading", false);
     show("content", true);
@@ -122,186 +123,174 @@ function renderCampaign() {
   }
   document.getElementById("cName").textContent = campaign.name;
   const dates = campaign.start_date || campaign.end_date ? `📅 ${fmtDMY(campaign.start_date) || "—"} – ${fmtDMY(campaign.end_date) || "—"}` : "";
-  const plats = (campaign.platforms || []).map((p) => `${PLAT_META[p]?.icon || ""} ${PLAT_META[p]?.label || p}`).join(" · ");
-  document.getElementById("cMeta").innerHTML = `${dates ? `<span>${dates}</span>` : ""}${plats ? `<span>${plats}</span>` : ""}`;
+  document.getElementById("cMeta").innerHTML = dates ? `<span>${dates}</span>` : "";
   document.getElementById("cDesc").textContent = campaign.description || "";
-  if (campaign.reward) {
-    const r = document.getElementById("cReward");
-    r.textContent = "🎁 ของรางวัล: " + campaign.reward;
+
+  // ของรางวัลแยกตามช่องทาง × อันดับ 1–3
+  const rewards = (campaign.rewards && typeof campaign.rewards === "object") ? campaign.rewards : {};
+  const rewardBlocks = SOCIALS
+    .map((s) => {
+      const arr = Array.isArray(rewards[s.rwkey]) ? rewards[s.rwkey] : [];
+      const rows = arr
+        .map((v, i) => (v || "").trim()
+          ? `<div class="reward-row"><span>${RW_RANK_LABEL[i] || `รางวัลที่ ${i + 1}`}</span><b>${esc(v)}</b></div>`
+          : "")
+        .join("");
+      return rows ? `<div class="reward-chan"><div class="reward-chan-title">${s.icon} ${s.label}</div>${rows}</div>` : "";
+    })
+    .join("");
+  const rEl = document.getElementById("cReward");
+  if (rewardBlocks) {
+    rEl.innerHTML = `<div class="reward-title">🎁 ของรางวัล</div><div class="reward-cols">${rewardBlocks}</div>`;
     show("cReward", true);
   }
 
-  // missions
-  if (missions.length) {
-    show("missionsCard", true);
-    document.getElementById("missionsList").innerHTML = missions
-      .map(
-        (m, i) => `<div class="mission-item">
-        <div class="num">${i + 1}</div>
-        <div>
-          <div class="mt">${esc(m.title)}</div>
-          ${m.description ? `<div class="md">${esc(m.description)}</div>` : ""}
-          <div class="mtag">${m.platform ? (PLAT_META[m.platform]?.icon || "") + " " + (PLAT_META[m.platform]?.label || m.platform) : "ทุกแพลตฟอร์ม"}</div>
-        </div>
-      </div>`,
-      )
-      .join("");
+  // เงื่อนไขการเข้าร่วม (1 บรรทัด = 1 ข้อ)
+  const terms = (campaign.terms || "")
+    .split("\n")
+    .map((t) => t.replace(/^[\s•\-*]+/, "").trim())
+    .filter(Boolean);
+  if (terms.length) {
+    document.getElementById("termsList").innerHTML = terms.map((t) => `<li>${esc(t)}</li>`).join("");
+    show("termsCard", true);
   }
 
-  // platform inputs in registration
-  const platforms = campaign.platforms || ["tiktok", "instagram", "facebook"];
-  document.getElementById("platforms").innerHTML = platforms
-    .map((p) => {
-      const meta = PLAT_META[p] || { icon: "", label: p, ph: "" };
-      return `<div class="platform-block">
-        <h4>${meta.icon} ${meta.label}</h4>
-        <div class="reg-grid">
-          <div class="fg"><label>ID / Username</label><input id="r_${p}_id" placeholder="@username" /></div>
-          <div class="fg"><label>ลิงก์โปรไฟล์</label><input id="r_${p}_url" placeholder="${meta.ph}" /></div>
+  renderSocials();
+}
+
+// ── SOCIAL CHANNELS (URL + รูป) ────────────────────────────
+function renderSocials() {
+  const wrap = document.getElementById("socials");
+  wrap.innerHTML = SOCIALS.map(
+    (s) => `<div class="social-block" data-key="${s.key}">
+      <div class="social-head">${s.icon} ${s.label}</div>
+      <div class="social-fields">
+        <div class="fg fg-link">
+          <label>ลิงก์โปรไฟล์ / โพสต์</label>
+          <input id="u_${s.key}" placeholder="${s.ph}" oninput="window.onSocialUrl('${s.key}')" />
         </div>
-      </div>`;
-    })
-    .join("");
+        <div class="fg fg-img">
+          <label>รูป <span class="req plat-req hidden" id="rq_${s.key}">*</span></label>
+          <div class="img-drop" id="drop_${s.key}" onclick="document.getElementById('f_${s.key}').click()">
+            <span class="img-drop-ph">📷</span>
+            <img class="img-prev hidden" id="prev_${s.key}" alt="" />
+            <button type="button" class="img-rm hidden" id="rm_${s.key}" onclick="event.stopPropagation();window.removeSocialImg('${s.key}')">✕</button>
+          </div>
+          <input type="file" accept="image/*" id="f_${s.key}" class="hidden" onchange="window.onSocialImg('${s.key}',this)" />
+        </div>
+      </div>
+    </div>`,
+  ).join("");
 
-  // work submission selects
-  document.getElementById("wMission").innerHTML =
-    `<option value="">— ไม่ระบุ —</option>` + missions.map((m) => `<option value="${m.mission_id}">${esc(m.title)}</option>`).join("");
-  document.getElementById("wPlatform").innerHTML = platforms
-    .map((p) => `<option value="${p}">${PLAT_META[p]?.icon || ""} ${PLAT_META[p]?.label || p}</option>`)
-    .join("");
+  // drag & drop รูปลงแต่ละช่อง
+  SOCIALS.forEach((s) => {
+    const drop = document.getElementById(`drop_${s.key}`);
+    ["dragenter", "dragover"].forEach((ev) =>
+      drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.add("dragover"); }),
+    );
+    ["dragleave", "drop"].forEach((ev) =>
+      drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.remove("dragover"); }),
+    );
+    drop.addEventListener("drop", (e) => {
+      const f = e.dataTransfer?.files?.[0];
+      if (f && f.type.startsWith("image/")) setSocialImg(s.key, f);
+    });
+  });
 }
+function markReq(key) {
+  const url = (document.getElementById(`u_${key}`)?.value || "").trim();
+  document.getElementById(`rq_${key}`).classList.toggle("hidden", !url);
+}
+function setSocialImg(key, file) {
+  socialImg[key] = file;
+  const prev = document.getElementById(`prev_${key}`);
+  prev.src = URL.createObjectURL(file);
+  prev.classList.remove("hidden");
+  document.getElementById(`rm_${key}`).classList.remove("hidden");
+  document.getElementById(`drop_${key}`).querySelector(".img-drop-ph").classList.add("hidden");
+}
+window.onSocialUrl = function (key) { markReq(key); };
+window.onSocialImg = function (key, input) {
+  const f = input.files?.[0];
+  if (f) setSocialImg(key, f);
+  input.value = "";
+};
+window.removeSocialImg = function (key) {
+  delete socialImg[key];
+  const prev = document.getElementById(`prev_${key}`);
+  prev.src = ""; prev.classList.add("hidden");
+  document.getElementById(`rm_${key}`).classList.add("hidden");
+  document.getElementById(`drop_${key}`).querySelector(".img-drop-ph").classList.remove("hidden");
+};
 
-// ── MEMBER LOOKUP ─────────────────────────────────────────
-// ⚠️ ยืนยันตัวตน "ตอน submit" ด้วยรหัสผ่านเท่านั้น — ไม่ echo ชื่อ/เบอร์
-//    ก่อนยืนยัน (กัน PII oracle: ไล่เดา member_code เก็บชื่อ/เบอร์)
-async function lookupMember(code) {
-  const sel = "member_code,member_name,full_name,phone,password_hash";
-  let rows = await sbGet(`members?member_code=eq.${encodeURIComponent(code)}&select=${sel}&limit=1`).catch(() => []);
-  if (!rows || !rows.length)
-    rows = await sbGet(`test_members?member_code=eq.${encodeURIComponent(code)}&select=${sel}&limit=1`).catch(() => []);
-  return (rows || [])[0] || null;
-}
 function regMsg(html) {
   const el = document.getElementById("rMsg");
   if (el) el.innerHTML = html ? `<div class="lookup-hit no">${html}</div>` : "";
 }
 
-// ── REGISTER ──────────────────────────────────────────────
+// ── SUBMIT (ไม่ต้อง login) ─────────────────────────────────
 async function doRegister() {
   const code = document.getElementById("rCode").value.trim();
-  const pass = document.getElementById("rPass").value;
+  const name = document.getElementById("rName").value.trim();
   regMsg("");
-  if (!code) { regMsg("กรุณากรอกรหัสสมาชิก"); return toast("กรุณากรอกรหัสสมาชิก", "error"); }
-  if (!pass) { regMsg("กรุณากรอกรหัสผ่าน"); return toast("กรุณากรอกรหัสผ่าน", "error"); }
+  if (!code) { regMsg("กรุณากรอกรหัส"); return toast("กรุณากรอกรหัส", "error"); }
+  if (!name) { regMsg("กรุณากรอกชื่อ"); return toast("กรุณากรอกชื่อ", "error"); }
+
+  // เก็บช่องทางที่ใส่ลิงก์ + ตรวจกฎ
+  const filled = SOCIALS
+    .map((s) => ({ ...s, url: (document.getElementById(`u_${s.key}`)?.value || "").trim() }))
+    .filter((s) => s.url);
+
+  if (!filled.length) {
+    regMsg("❌ กรุณากรอกช่องทางโซเชียลอย่างน้อย 1 ช่องทาง");
+    return toast("กรอกโซเชียลอย่างน้อย 1 ช่องทาง", "error");
+  }
+  for (const s of filled) {
+    if (safeHref(s.url) === "#") {
+      regMsg(`❌ ลิงก์ ${s.label} ไม่ถูกต้อง (ต้องขึ้นต้น http/https)`);
+      return toast(`ลิงก์ ${s.label} ไม่ถูกต้อง`, "error");
+    }
+    if (!socialImg[s.key]) {
+      regMsg(`❌ กรุณาแนบรูปของ ${s.label} (ช่องที่ใส่ลิงก์ต้องมีรูป)`);
+      return toast(`แนบรูปของ ${s.label}`, "error");
+    }
+  }
 
   const btn = document.getElementById("btnRegister");
   btn.disabled = true;
+  const oldLabel = btn.textContent;
+  btn.textContent = "⏳ กำลังอัปโหลด...";
   try {
-    // members-only → ต้องเจอใน members/test_members
-    const m = await lookupMember(code);
-    if (!m) {
-      regMsg("❌ ไม่พบรหัสสมาชิกนี้ — แคมเปญนี้สำหรับสมาชิกเท่านั้น");
-      btn.disabled = false;
-      return;
-    }
-    // ── ยืนยันรหัสผ่าน (mirror register.html — SHA-256 ทางเดียว) ──
-    if (!window.ERPCrypto) { regMsg("ระบบยังไม่พร้อม ลองรีเฟรชหน้า"); btn.disabled = false; return; }
-    if (!m.password_hash) { regMsg("❌ สมาชิกยังไม่ได้ตั้งรหัสผ่าน — ติดต่อแอดมิน"); btn.disabled = false; return; }
-    const inputHash = await ERPCrypto.hash(pass);
-    if (inputHash !== m.password_hash) {
-      regMsg("❌ รหัสผ่านไม่ถูกต้อง");
-      toast("รหัสผ่านไม่ถูกต้อง", "error");
-      btn.disabled = false;
-      return;
-    }
-    // identity ยืนยันแล้ว → ปลอดภัยที่จะใช้ชื่อ/เบอร์ของสมาชิก
-    const platforms = campaign.platforms || [];
-    const socials = {};
-    platforms.forEach((p) => {
-      socials[`${p === "instagram" ? "ig" : p === "facebook" ? "facebook" : "tiktok"}_id`] =
-        (document.getElementById(`r_${p}_id`)?.value || "").trim() || null;
-      socials[`${p === "instagram" ? "ig" : p === "facebook" ? "facebook" : "tiktok"}_url`] =
-        (document.getElementById(`r_${p}_url`)?.value || "").trim() || null;
-    });
-
+    const token = campaign.public_token || campaign.campaign_id;
     const payload = {
       campaign_id: campaign.campaign_id,
       member_code: code,
-      member_name: m.full_name || m.member_name || code,
-      phone: document.getElementById("rPhone").value.trim() || m.phone || null,
+      member_name: name,
       source: "public",
       status: "pending",
-      ...socials,
     };
 
-    const rows = await sbSend(
-      "campaign_participants?on_conflict=campaign_id,member_code",
-      payload,
-      { upsert: true },
-    );
-    participant = (rows || [])[0];
-    regMsg("");
-    toast("ลงทะเบียนสำเร็จ! 🎉 ส่งลิงก์ผลงานได้เลย", "success");
+    // upload รูป + set url/img ต่อช่องทาง
+    for (const s of filled) {
+      const path = `campaigns/${token}/reg/${Date.now()}_${s.key}`;
+      const imgUrl = await window.ImageCompressor.uploadViaRest(SB_URL, SB_KEY, "event-files", path, socialImg[s.key]);
+      if (!imgUrl) throw new Error(`อัปโหลดรูป ${s.label} ไม่สำเร็จ`);
+      payload[s.col_url] = s.url;
+      payload[s.col_img] = imgUrl;
+    }
 
-    // reveal work card, lock registration
-    document.getElementById("btnRegister").textContent = "✅ ลงทะเบียนแล้ว (อัปเดตข้อมูลได้)";
-    document.getElementById("btnRegister").disabled = false;
-    show("workCard", true);
-    await loadMyWork();
-    document.getElementById("workCard").scrollIntoView({ behavior: "smooth" });
+    await sbSend("campaign_participants", payload);
+
+    show("content", false);
+    document.getElementById("doneMsg").textContent = "ลงทะเบียนเรียบร้อยแล้ว ขอบคุณค่ะ 🎉";
+    show("stateDone", true);
   } catch (e) {
     regMsg("ลงทะเบียนไม่สำเร็จ: " + esc(e.message));
     toast("ลงทะเบียนไม่สำเร็จ: " + e.message, "error");
     btn.disabled = false;
-  }
-}
-
-// ── WORK SUBMISSION ───────────────────────────────────────
-async function loadMyWork() {
-  if (!participant) return;
-  try {
-    const rows = await sbGet(
-      `campaign_submissions?participant_id=eq.${participant.participant_id}&select=*&order=submitted_at.desc`,
-    );
-    const el = document.getElementById("workList");
-    if (!rows || !rows.length) {
-      el.innerHTML = `<div style="font-size:13px;color:var(--text3)">ยังไม่มีผลงานที่ส่ง</div>`;
-      return;
-    }
-    const stLbl = { pending: "⏳ รอตรวจ", approved: "✅ อนุมัติ", rejected: "❌ ไม่ผ่าน" };
-    el.innerHTML = rows
-      .map(
-        (s) => `<div class="work-item">
-        <span>${PLAT_META[s.platform]?.icon || ""} <a href="${esc(safeHref(s.post_url))}" target="_blank" rel="noopener">${esc(s.post_url)}</a></span>
-        <span style="white-space:nowrap">${stLbl[s.status] || s.status}</span>
-      </div>`,
-      )
-      .join("");
-  } catch (e) {
-    /* เงียบ */
-  }
-}
-async function doSubmitWork() {
-  if (!participant) return toast("ลงทะเบียนก่อน", "error");
-  const url = document.getElementById("wUrl").value.trim();
-  if (!url) return toast("ใส่ลิงก์โพสต์", "error");
-  try {
-    await sbSend("campaign_submissions", {
-      campaign_id: campaign.campaign_id,
-      participant_id: participant.participant_id,
-      mission_id: document.getElementById("wMission").value ? +document.getElementById("wMission").value : null,
-      platform: document.getElementById("wPlatform").value,
-      post_url: url,
-      status: "pending",
-    });
-    document.getElementById("wUrl").value = "";
-    toast("ส่งผลงานแล้ว ✅", "success");
-    await loadMyWork();
-  } catch (e) {
-    toast("ส่งไม่สำเร็จ: " + e.message, "error");
+    btn.textContent = oldLabel;
   }
 }
 
 window.doRegister = doRegister;
-window.doSubmitWork = doSubmitWork;
 document.addEventListener("DOMContentLoaded", init);

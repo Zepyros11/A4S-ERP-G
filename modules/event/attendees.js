@@ -665,6 +665,7 @@ async function loadAttendees(eventId) {
     _applyPaymentVisibility();   // hide payment UI ถ้า event ไม่มีราคา
     updateStats();   // updateStats() เรียก renderDayTabs() ให้แล้ว
     filterTable();
+    loadBusData().catch(() => {});   // 🚌 โหลดรถบัสของ trip ที่ผูกไว้ (async · ไม่บล็อก)
     // จับสายงาน (ไล่ MLM) แบบ async — เสร็จแล้ว re-render ให้สี/เรียงระดับ
     computeUplineMatches().then(() => {
       if (currentEventId === eventId) { updateStats(); filterTable(); }
@@ -901,8 +902,154 @@ function updateStats() {
       cdCard.style.display = "none";
     }
   }
+  renderBusCard();   // 🚌 การ์ดผู้เข้างานแยกตามรถบัส (ใช้ _busData cache · ไม่ fetch)
   renderDayTabs();   // มุมมองหลายวัน — refresh แท็บ + ตัวเลขทุกครั้งที่สถิติเปลี่ยน
 }
+
+// ═══════════════════════════════════════════════════════════
+// 🚌 ผู้เข้างานแยกตามรถบัส — ดึงรถบัสจาก trip ที่ผูกไว้ (events.bus_trip_id)
+//    จับคู่: event_attendees.member_code = trip_bus_occupants.code (normalize ตัด 0 นำหน้า)
+// ═══════════════════════════════════════════════════════════
+let _allTripsCache = null;       // [{trip_id, trip_name}]
+let _busData = null;             // { tripId, buses:[{bus_id,bus_no,bus_label,codes:Set}], codeToBus:{normCode:bus_id} }
+
+function _normCode(c) { return String(c || "").trim().replace(/^0+/, "") || "0"; }
+
+async function _ensureTripDropdown() {
+  const sel = document.getElementById("busTripSelect");
+  if (!sel) return;
+  if (!_allTripsCache) {
+    try {
+      _allTripsCache = await sbFetch("trips", "?select=trip_id,trip_name&order=trip_id.desc") || [];
+    } catch (e) { _allTripsCache = []; console.warn("load trips:", e.message); }
+  }
+  const cur = currentEvent?.bus_trip_id ? String(currentEvent.bus_trip_id) : "";
+  sel.innerHTML = `<option value="">— เลือกทริปรถบัส —</option>` +
+    _allTripsCache.map(t => `<option value="${t.trip_id}">${escapeHtml(t.trip_name || ("Trip " + t.trip_id))}</option>`).join("");
+  sel.value = cur;
+}
+
+// โหลดรถบัส + ผู้โดยสารของ trip ที่ผูกไว้ (เรียกตอนเปลี่ยน event / เปลี่ยน trip)
+async function loadBusData() {
+  await _ensureTripDropdown();
+  const tripId = currentEvent?.bus_trip_id || null;
+  if (!tripId) { _busData = null; renderBusCard(); return; }
+  try {
+    const buses = await sbFetch("trip_buses",
+      `?trip_id=eq.${tripId}&select=bus_id,bus_no,bus_label&order=sort_order.asc,bus_no.asc`) || [];
+    const byId = {};
+    buses.forEach(b => { b.codes = new Set(); byId[b.bus_id] = b; });
+    if (buses.length) {
+      const ids = buses.map(b => b.bus_id).join(",");
+      const occ = await sbFetch("trip_bus_occupants",
+        `?bus_id=in.(${ids})&select=bus_id,code`) || [];
+      const codeToBus = {};
+      occ.forEach(o => {
+        if (byId[o.bus_id]) byId[o.bus_id].codes.add(o.code);
+        codeToBus[_normCode(o.code)] = o.bus_id;
+      });
+      _busData = { tripId, buses, codeToBus };
+    } else {
+      _busData = { tripId, buses: [], codeToBus: {} };
+    }
+  } catch (e) {
+    console.warn("loadBusData:", e.message);
+    _busData = null;
+  }
+  renderBusCard();
+}
+
+// อัปเดตตัวเลขบนการ์ด (ใช้ cache · ไม่ fetch) — เรียกจาก updateStats ทุกครั้ง
+function renderBusCard() {
+  const sel = document.getElementById("busTripSelect");
+  if (sel && currentEvent) sel.value = currentEvent.bus_trip_id ? String(currentEvent.bus_trip_id) : "";
+  const setTxt = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+  const cardsRow = document.getElementById("busCardsRow");
+  if (!_busData || !_busData.buses.length) {
+    setTxt("scBusCheckin", 0);
+    setTxt("scBusAssigned", 0);
+    setTxt("scBusSub", currentEvent?.bus_trip_id ? "ทริปนี้ยังไม่มีรถบัส" : "เลือกทริปเพื่อดูรถบัส");
+    if (cardsRow) { cardsRow.style.display = "none"; cardsRow.innerHTML = ""; }
+    return;
+  }
+  const c2b = _busData.codeToBus;
+  let assigned = 0, checkin = 0;
+  allAttendees.forEach(a => {
+    if (a.member_code && c2b[_normCode(a.member_code)] != null) {
+      assigned++;
+      if (viewCheckedIn(a)) checkin++;
+    }
+  });
+  setTxt("scBusCheckin", checkin);
+  setTxt("scBusAssigned", assigned);
+  setTxt("scBusSub", `${_busData.buses.length} คัน · ${assigned ? Math.round(checkin / assigned * 100) : 0}% เข้างาน`);
+
+  // การ์ดแยกรายคัน
+  if (cardsRow) {
+    cardsRow.style.display = "";
+    cardsRow.innerHTML = _busData.buses.map(bus => {
+      const rows = _busAttendees(bus);
+      const ci = rows.filter(viewCheckedIn).length;
+      const pct = rows.length ? Math.round(ci / rows.length * 100) : 0;
+      const label = bus.bus_label ? escapeHtml(bus.bus_label) : `คันที่ ${bus.bus_no}`;
+      const done = rows.length > 0 && ci === rows.length;
+      return `<div class="att-bus-card${done ? " is-done" : ""}" role="button" tabindex="0" title="ดูรายชื่อในคันนี้" onclick="window.openBusReport(${bus.bus_id})">
+        <div class="abc-hd">🚌 ${label}</div>
+        <div class="abc-main"><span class="abc-ci">${ci}</span><span class="abc-sep">/</span><span class="abc-tot">${rows.length}</span> <small>เข้างาน</small></div>
+        <div class="abc-bar"><span style="width:${pct}%"></span></div>
+        <div class="abc-sub">${pct}% · ${rows.length} คน</div>
+      </div>`;
+    }).join("");
+  }
+}
+
+// เปลี่ยนทริปรถบัส (เก็บ events.bus_trip_id)
+window.setBusTrip = async function (val) {
+  if (!currentEventId || !currentEvent) return;
+  const tripId = val ? parseInt(val) : null;
+  const prev = currentEvent.bus_trip_id;
+  currentEvent.bus_trip_id = tripId;
+  try {
+    await sbFetch("events", `?event_id=eq.${currentEventId}`, { method: "PATCH", body: { bus_trip_id: tripId } });
+    await loadBusData();
+    showToast(tripId ? "🚌 ผูกทริปรถบัสแล้ว" : "ยกเลิกการผูกทริปรถบัส", "success");
+  } catch (e) {
+    currentEvent.bus_trip_id = prev;
+    renderBusCard();
+    showToast("บันทึกไม่สำเร็จ: " + e.message, "error");
+  }
+};
+
+// คนในคันรถนี้ (normalize member_code) → [attendee...]
+function _busAttendees(bus) {
+  const attByCode = {};
+  allAttendees.forEach(a => { if (a.member_code) { const k = _normCode(a.member_code); (attByCode[k] = attByCode[k] || []).push(a); } });
+  const rows = [];
+  bus.codes.forEach(c => (attByCode[_normCode(c)] || []).forEach(a => rows.push(a)));
+  return rows.sort((a, b) => (a.name || "").localeCompare(b.name || "", "th"));
+}
+
+// คลิกการ์ดรถบัส 1 คัน → รายงานรายชื่อเฉพาะคันนั้น
+window.openBusReport = function (busId) {
+  if (!_busData) return;
+  const bus = _busData.buses.find(b => b.bus_id === busId);
+  if (!bus) return;
+  const rows = _busAttendees(bus);
+  const ci = rows.filter(viewCheckedIn).length;
+  const label = bus.bus_label || `คันที่ ${bus.bus_no}`;
+  _renderReportModal({
+    title: `🚌 ${label} — ${currentEvent?.event_name || ""}`,
+    summary: [
+      { label: "เข้างาน", value: ci, accent: true, sub: rows.length ? `${Math.round(ci / rows.length * 100)}%` : "0%" },
+      { label: "ทั้งหมดในคัน", value: rows.length },
+      { label: "ยังไม่เข้า", value: rows.length - ci },
+    ],
+    sections: [],
+    list: rows,
+    listMode: "attendance",
+    listTitle: `📋 รายชื่อใน ${label}`,
+  }, "bus_one");
+};
 
 // ── DAY TABS (มุมมอง check-in หลายวัน) ─────────────────────
 // event หลายวันเท่านั้นจึงแสดงแท็บ · กดเลือกวัน → คอลัมน์ check-in/ฟิลเตอร์/สถิติ อิงวันที่เลือก
@@ -1387,6 +1534,53 @@ function _buildStatReport(type) {
     };
   }
 
+  if (type === "bus_checkin") {
+    if (!_busData || !_busData.buses.length) {
+      return {
+        title: `🚌 ผู้เข้างานแยกตามรถบัส — ${evName}`,
+        summary: [{ label: currentEvent?.bus_trip_id ? "ทริปนี้ยังไม่มีรถบัส" : "ยังไม่ได้เลือกทริป", value: "—" }],
+        sections: [], list: [], listMode: "default", hideList: true,
+      };
+    }
+    // attendee lookup by normalized member_code (1 code อาจมี 2 คน — primary + co_applicant)
+    const attByCode = {};
+    allAttendees.forEach(a => { if (a.member_code) (attByCode[_normCode(a.member_code)] = attByCode[_normCode(a.member_code)] || []).push(a); });
+    let totAssigned = 0, totCheckin = 0;
+    const assignedNorm = new Set();
+    const sections = _busData.buses.map(bus => {
+      const rows = [];
+      bus.codes.forEach(c => {
+        const nc = _normCode(c);
+        assignedNorm.add(nc);
+        (attByCode[nc] || []).forEach(a => rows.push(a));
+      });
+      rows.sort((a, b) => (a.name || "").localeCompare(b.name || "", "th"));
+      const ci = rows.filter(viewCheckedIn).length;
+      totAssigned += rows.length; totCheckin += ci;
+      const label = bus.bus_label ? escapeHtml(bus.bus_label) : `คันที่ ${bus.bus_no}`;
+      const pct = rows.length ? Math.round(ci / rows.length * 100) : 0;
+      const body = rows.length
+        ? `<div class="sr-bd-row"><div class="sr-bd-label">เข้างาน</div><div class="sr-bd-bar"><span style="width:${pct}%"></span></div><div class="sr-bd-count">${ci}/${rows.length} (${pct}%)</div></div>
+           <div class="sr-list">${_attendeeListRows(rows, { showAttend: true })}</div>`
+        : `<div class="sr-empty" style="padding:10px">— ไม่มีผู้เข้าร่วม event นี้ตรงกับคันนี้ —</div>`;
+      return { title: `🚌 ${label} — เข้างาน ${ci}/${rows.length}`, count: rows.length, html: body };
+    });
+    const noBus = allAttendees.filter(a => !a.member_code || !assignedNorm.has(_normCode(a.member_code)));
+    const summary = [
+      { label: "เข้างาน (มีรถบัส)", value: totCheckin, accent: true, sub: totAssigned ? `${Math.round(totCheckin / totAssigned * 100)}%` : "0%" },
+      { label: "มีรถบัส", value: totAssigned },
+      { label: "จำนวนคัน", value: _busData.buses.length },
+      { label: "ไม่มีรถบัส", value: noBus.length },
+    ];
+    return {
+      title: `🚌 ผู้เข้างานแยกตามรถบัส — ${evName}`,
+      summary, sections,
+      list: noBus.sort((a, b) => (a.name || "").localeCompare(b.name || "", "th")),
+      listMode: "attendance",
+      listTitle: "📋 ไม่ได้อยู่รถบัส",
+    };
+  }
+
   return { title: "—", summary: [], sections: [], list: [], listMode: "default" };
 }
 
@@ -1396,7 +1590,12 @@ window.openStatReport = function (type) {
     return;
   }
   const report = _buildStatReport(type);
-  _statReportContext = { type, ...report };
+  _renderReportModal(report, type);
+};
+
+// แสดง report object ในโมดัล (ใช้ร่วม openStatReport + openBusReport)
+function _renderReportModal(report, ctxType) {
+  _statReportContext = { type: ctxType, ...report };
 
   document.getElementById("statReportTitle").textContent = report.title;
 

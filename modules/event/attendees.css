@@ -3412,6 +3412,50 @@
 .att-scard.sc-upline   { border-left-color: #16a34a; }
 .att-scard.sc-pay      { border-left-color: #d97706; }
 .att-scard.sc-crossday { border-left-color: #7c3aed; }
+.att-scard.sc-bus      { border-left-color: #0891b2; }
+
+/* การ์ดแยกรายคัน (รถบัส) */
+.att-bus-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+.att-bus-card {
+  background: var(--surface, #fff);
+  border: 1px solid var(--border, #e2e8f0);
+  border-left: 4px solid #0891b2;
+  border-radius: 10px;
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: box-shadow .15s, transform .1s;
+}
+.att-bus-card:hover { box-shadow: 0 4px 14px rgba(15,23,42,.1); transform: translateY(-1px); }
+.att-bus-card.is-done { border-left-color: #15803d; background: #f0fdf4; }
+.abc-hd { font-size: 12px; font-weight: 700; color: var(--text2, #475569); margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.abc-main { font-size: 20px; font-weight: 800; color: #0f172a; line-height: 1.1; }
+.abc-main .abc-ci { color: #2563eb; }
+.abc-main .abc-sep { color: #cbd5e1; font-weight: 400; margin: 0 1px; }
+.abc-main .abc-tot { color: #15803d; }
+.abc-main small { font-size: 11px; font-weight: 600; color: var(--text3, #94a3b8); }
+.abc-bar { height: 5px; background: #e2e8f0; border-radius: 999px; overflow: hidden; margin: 6px 0 4px; }
+.abc-bar span { display: block; height: 100%; background: linear-gradient(90deg,#06b6d4,#0891b2); border-radius: 999px; }
+.att-bus-card.is-done .abc-bar span { background: linear-gradient(90deg,#22c55e,#15803d); }
+.abc-sub { font-size: 11px; color: var(--text3, #94a3b8); }
+.sc-bus-select {
+  width: 100%;
+  margin: 2px 0 8px;
+  padding: 5px 8px;
+  font-family: inherit;
+  font-size: 12px;
+  color: #0f172a;
+  border: 1px solid var(--border, #cbd5e1);
+  border-radius: 7px;
+  background: #f8fafc;
+  cursor: pointer;
+}
+.sc-bus-select:focus { outline: none; border-color: #0891b2; }
+.att-scard.sc-bus .att-scard-main { cursor: pointer; }
 .att-scard-hd { font-size: 12px; font-weight: 700; color: var(--text2, #475569); margin-bottom: 6px; }
 .att-scard-main { font-size: 24px; font-weight: 800; color: #0f172a; line-height: 1.1; }
 .att-scard-main small { font-size: 13px; font-weight: 600; color: var(--text3, #94a3b8); }

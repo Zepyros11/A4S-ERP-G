@@ -165,7 +165,7 @@ window.copyRegLink = async function () {
   }
 };
 window.editCampaign = function () {
-  location.href = `./campaign-planning.html?edit=${campaignId}`;
+  location.href = `./campaign-form.html?edit=${campaignId}`;
 };
 
 // ════════════════════════════════════════════════════════

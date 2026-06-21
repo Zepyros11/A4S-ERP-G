@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>สร้างแคมเปญ — A4S-ERP</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../../css/main.css" />
+    <link rel="stylesheet" href="./campaign-planning.css" />
+    <style>
+      /* ── layout เฉพาะหน้า form ── */
+      .cf-card { max-width: 920px; margin: 0 auto; }
+      .cf-card .table-hdr { padding: 14px 20px; }
+      .cf-body { padding: 20px; }
+      .cf-footer {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        padding: 16px 20px;
+        border-top: 1px solid var(--border);
+      }
+      .page-hero-actions .btn-back {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        color: var(--text2);
+      }
+
+      /* ── MEDIA: 5-slot grid + drag&drop ── */
+      .cf-media-section { margin-bottom: 22px; }
+      .cf-media-hint { font-size: 11.5px; color: var(--text3); margin-top: 8px; }
+
+      .cmp-media-grid5 {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 10px;
+        margin-top: 8px;
+        border-radius: 12px;
+        transition: outline-color .15s, background .15s;
+        outline: 2px dashed transparent;
+        outline-offset: 4px;
+      }
+      .cmp-media-grid5.is-dragover {
+        outline-color: var(--accent);
+        background: var(--accent-pale);
+      }
+      @media (max-width: 700px) { .cmp-media-grid5 { grid-template-columns: repeat(3, 1fr); } }
+      @media (max-width: 460px) { .cmp-media-grid5 { grid-template-columns: repeat(2, 1fr); } }
+
+      /* ช่องว่าง (+ เพิ่มไฟล์) */
+      .cmp-slot-empty {
+        aspect-ratio: 1;
+        border: 2px dashed var(--border);
+        border-radius: 10px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+        cursor: pointer;
+        color: var(--text3);
+        background: var(--surface);
+        transition: border-color .15s, background .15s, color .15s;
+      }
+      .cmp-slot-empty:hover { border-color: var(--accent); background: var(--accent-pale); color: var(--accent); }
+      .cmp-slot-empty .cmp-slot-plus { font-size: 26px; line-height: 1; font-weight: 300; }
+      .cmp-slot-empty .cmp-slot-label { font-size: 10.5px; }
+
+      /* ช่องที่มีสื่อ (override aspect ของ .cmp-media-item เดิมให้เป็นช่องสี่เหลี่ยม) */
+      .cmp-media-grid5 .cmp-media-item { aspect-ratio: 1; cursor: grab; }
+      .cmp-media-grid5 .cmp-media-item.is-dragging { opacity: .4; }
+      .cmp-media-grid5 .cmp-media-item.drop-target { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+      /* ── ฟอร์มลงทะเบียน (preview มาตรฐาน) ── */
+      .fb-help { font-size: 11.5px; color: var(--text3); margin: -2px 0 8px; }
+      .reg-preview {
+        margin: 0; padding: 12px 14px 12px 30px;
+        border: 1px solid var(--border); border-radius: 10px;
+        background: var(--surface2, #f8fafc);
+        font-size: 13px; color: var(--text); line-height: 1.9;
+      }
+      .reg-preview .req { color: var(--danger); }
+
+      /* ── ของรางวัลแยกช่องทาง · อันดับ 1–3 ── */
+      .reward-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+      .reward-chan {
+        border: 1px solid var(--border); border-radius: 10px;
+        padding: 12px; display: flex; flex-direction: column; gap: 8px;
+        background: var(--surface2, #f8fafc);
+      }
+      .reward-chan-head { font-size: 13px; font-weight: 700; margin-bottom: 2px; }
+      @media (max-width: 760px) { .reward-grid { grid-template-columns: 1fr; } }
+    </style>
+  </head>
+  <body>
+    <div class="loading-overlay" id="loadingOverlay">
+      <div class="spinner"></div>
+    </div>
+    <div class="toast" id="toast"></div>
+
+    <div class="topbar"></div>
+    <div class="page">
+      <!-- HERO -->
+      <div class="page-hero page-hero--simple page-hero--compact">
+        <h1 class="page-hero-title" id="cfTitle">🚀 สร้างแคมเปญ</h1>
+        <div class="page-hero-actions">
+          <button class="btn btn-back" onclick="window.goBack()">← กลับ</button>
+        </div>
+      </div>
+
+      <!-- FORM CARD -->
+      <div class="table-card cf-card">
+        <div class="table-hdr">
+          <div class="table-title" id="cfCardTitle">🚀 ข้อมูลแคมเปญ</div>
+        </div>
+
+        <div class="cf-body">
+          <input type="hidden" id="fId" />
+
+          <!-- MEDIA (top) -->
+          <div class="cf-media-section">
+            <label class="form-label">
+              สื่อ (รูป/วิดีโอ)
+              <span class="cmp-media-count" id="fMediaCount">0/5</span>
+            </label>
+            <div id="fMediaGrid" class="cmp-media-grid5"></div>
+            <input type="file" id="fMediaFiles" multiple
+              accept="image/*,video/*" style="display: none"
+              onchange="window.handleMediaFiles(this)" />
+            <div class="cf-media-hint">
+              📎 ลากรูป/วิดีโอมาวาง หรือคลิกช่องว่างเพื่อเลือกไฟล์ · ลากสลับช่องเพื่อจัดเรียง · ★ = รูปปก
+            </div>
+          </div>
+
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">ชื่อแคมเปญ <span class="req">*</span></label>
+              <input class="form-control" id="fName" placeholder="เช่น รีวิวสินค้า X ชิงรางวัล" />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">รายละเอียด / กติกา</label>
+              <textarea class="form-control" id="fDesc" rows="3"
+                placeholder="อธิบายแคมเปญ เงื่อนไข ของรางวัล ฯลฯ"></textarea>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">วันเริ่ม</label>
+              <input class="form-control" id="fStart" type="date" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">วันสิ้นสุด</label>
+              <input class="form-control" id="fEnd" type="date" />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">สถานะ</label>
+              <select class="form-control" id="fStatus">
+                <option value="DRAFT">📝 ร่าง</option>
+                <option value="ACTIVE">▶️ กำลังดำเนินการ</option>
+                <option value="ENDED">✅ จบแล้ว</option>
+                <option value="CANCELLED">❌ ยกเลิก</option>
+              </select>
+            </div>
+
+            <div class="form-group full">
+              <label class="form-label">📋 ฟอร์มข้อมูลลงทะเบียน (มาตรฐาน)</label>
+              <div class="fb-help">ผู้ลงทะเบียนในหน้า public จะกรอกตามฟอร์มนี้ (กำหนดตายตัว)</div>
+              <ul class="reg-preview">
+                <li><b>รหัส</b> <span class="req">*</span></li>
+                <li><b>ชื่อ</b> <span class="req">*</span></li>
+                <li><b>ช่องทางโซเชียล</b> — 👍 Facebook / 🎵 TikTok / 📸 Instagram (อย่างน้อย 1 ช่องทาง)</li>
+                <li>แต่ละช่องทางที่ใส่ลิงก์ ต้อง<b>แนบรูป</b>ประกอบด้วย</li>
+              </ul>
+            </div>
+
+            <div class="form-group full">
+              <label class="form-label">🎁 ของรางวัลแยกตามช่องทาง · อันดับ 1–3 (optional)</label>
+              <div class="reward-grid">
+                <div class="reward-chan">
+                  <div class="reward-chan-head">👍 Facebook</div>
+                  <input class="form-control" id="fRw_facebook_1" placeholder="🥇 รางวัลที่ 1" />
+                  <input class="form-control" id="fRw_facebook_2" placeholder="🥈 รางวัลที่ 2" />
+                  <input class="form-control" id="fRw_facebook_3" placeholder="🥉 รางวัลที่ 3" />
+                </div>
+                <div class="reward-chan">
+                  <div class="reward-chan-head">🎵 TikTok</div>
+                  <input class="form-control" id="fRw_tiktok_1" placeholder="🥇 รางวัลที่ 1" />
+                  <input class="form-control" id="fRw_tiktok_2" placeholder="🥈 รางวัลที่ 2" />
+                  <input class="form-control" id="fRw_tiktok_3" placeholder="🥉 รางวัลที่ 3" />
+                </div>
+                <div class="reward-chan">
+                  <div class="reward-chan-head">📸 Instagram</div>
+                  <input class="form-control" id="fRw_ig_1" placeholder="🥇 รางวัลที่ 1" />
+                  <input class="form-control" id="fRw_ig_2" placeholder="🥈 รางวัลที่ 2" />
+                  <input class="form-control" id="fRw_ig_3" placeholder="🥉 รางวัลที่ 3" />
+                </div>
+              </div>
+            </div>
+
+            <div class="form-group full">
+              <label class="form-label">📜 เงื่อนไขการเข้าร่วม</label>
+              <div class="fb-help">1 บรรทัด = 1 ข้อ — จะแสดงเป็นรายการในหน้าลงทะเบียน (public)</div>
+              <textarea class="form-control" id="fTerms" rows="5"
+                placeholder="พิมพ์เงื่อนไข บรรทัดละ 1 ข้อ"></textarea>
+            </div>
+
+            <div class="form-group full">
+              <label class="form-label cmp-toggle-row">
+                <input type="checkbox" id="fRegOpen" checked /> เปิดรับลงทะเบียน (ลิงก์ public ใช้งานได้)
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div class="cf-footer">
+          <button class="btn btn-secondary" onclick="window.goBack()">ยกเลิก</button>
+          <button class="btn btn-primary" id="btnSaveCamp" onclick="window.saveCampaign()">
+            💾 บันทึก
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script src="../../js/core/auth.js"></script>
+    <script src="../../js/core/authz.js"></script>
+    <script src="../../js/core/date-format.js"></script>
+    <script>
+      AuthZ.requirePerm("campaign_view");
+    </script>
+    <script src="../../js/core/imageCompressor.js"></script>
+    <script src="./campaign-form.js"></script>
+    <script src="../../js/components/modal/modalManager.js"></script>
+    <script src="../../js/components/modal/enterSave.js"></script>
+    <script type="module">
+      import { loadTopbar } from "../../js/components/navigation/topbar.js";
+      loadTopbar("🚀 วางแผนแคมเปญ");
+    </script>
+    <script src="../../js/components/navigation/imgPopup.js"></script>
+    <script src="../../js/components/navigation/sidebar.js"></script>
+  </body>
+</html>

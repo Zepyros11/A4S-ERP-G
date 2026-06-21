@@ -33,6 +33,8 @@ body {
   gap: 16px;
   align-items: start;
 }
+/* 2-column layout (เอา login/โซเชียลออก เหลือ ข้อมูลแคมเปญ | ฟอร์ม) */
+.reg-cols-2 { grid-template-columns: 1.1fr 1fr; }
 .reg-col { min-width: 0; }
 /* ในคอลัมน์ใช้ gap แทน margin-bottom ของการ์ด */
 .reg-cols .reg-hero,
@@ -53,20 +55,26 @@ body {
 }
 .reg-cover { width: 100%; aspect-ratio: 16/9; object-fit: cover; background: var(--accent-pale); display: block; }
 .reg-cover-ph { display: flex; align-items: center; justify-content: center; font-size: 54px; color: var(--accent); }
-/* สื่อแคมเปญ — gallery 3 คอลัมน์ */
+/* สื่อแคมเปญ — โชว์โปสเตอร์ใหญ่ อ่านได้ชัด (ไม่ครอป) */
 .reg-media-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
-  gap: 6px;
-  padding: 6px;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  padding: 8px;
+}
+/* มีหลายสื่อ → 2 คอลัมน์ (แต่ละชิ้นยังใหญ่พออ่านได้) */
+.reg-media-grid:has(> :nth-child(2)) {
+  grid-template-columns: repeat(2, 1fr);
 }
 .reg-media-item {
   width: 100%;
-  aspect-ratio: 1;
-  object-fit: cover;
+  height: auto;
+  max-height: 78vh;
+  object-fit: contain;
   border-radius: 10px;
-  background: var(--accent-pale);
+  background: #f1f5f9;
   display: block;
+  cursor: zoom-in;
 }
 .reg-hero-body { padding: 18px 22px; }
 .reg-title { font-size: 22px; font-weight: 700; margin: 0 0 6px; }
@@ -75,7 +83,7 @@ body {
 .reg-reward {
   background: linear-gradient(135deg, #fef9c3, #fef3c7);
   border: 1px solid #fde68a; color: #92400e;
-  border-radius: 10px; padding: 10px 14px; font-size: 13.5px; margin-top: 12px; font-weight: 600;
+  border-radius: 10px; padding: 8px 12px; font-size: 12px; margin-top: 12px; font-weight: 600;
 }
 
 /* card */
@@ -105,6 +113,68 @@ body {
   border: 1px solid var(--border); border-radius: 12px; padding: 14px; margin-bottom: 10px;
 }
 .platform-block h4 { margin: 0 0 10px; font-size: 14px; }
+
+/* ── social section (URL + รูป ต่อช่องทาง) ── */
+.social-section { margin-top: 18px; }
+.social-section-title { font-size: 13px; font-weight: 700; color: var(--text2); margin-bottom: 10px; }
+.social-section-title .req { color: var(--danger); }
+.social-section-title .social-hint { display: block; font-weight: 400; font-size: 11.5px; color: var(--text3); margin-top: 2px; }
+
+.social-block {
+  border: 1px solid var(--border); border-radius: 12px;
+  padding: 12px 14px; margin-bottom: 12px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.social-head { font-size: 14px; font-weight: 700; }
+
+/* Link 80% | รูป 20% แถวเดียวกัน */
+.social-fields { display: grid; grid-template-columns: 4fr 1fr; gap: 10px; align-items: start; }
+.social-fields .fg { min-width: 0; }
+.social-fields .img-drop { min-height: 72px; }
+.social-fields .img-drop-ph { font-size: 20px; }
+@media (max-width: 480px) { .social-fields { grid-template-columns: 1fr; } }
+
+.img-drop {
+  position: relative;
+  border: 2px dashed var(--border); border-radius: 10px;
+  min-height: 92px; padding: 8px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; background: var(--surface, #fff);
+  transition: border-color .15s, background .15s;
+  overflow: hidden;
+}
+.img-drop:hover, .img-drop.dragover { border-color: var(--accent); background: var(--accent-pale); }
+.img-drop-ph { font-size: 12.5px; color: var(--text3); }
+.img-prev { max-width: 100%; max-height: 180px; border-radius: 8px; object-fit: contain; display: block; }
+.img-rm {
+  position: absolute; top: 6px; right: 6px;
+  width: 24px; height: 24px; border-radius: 50%;
+  background: rgba(0,0,0,.6); color: #fff; border: 0; cursor: pointer;
+  font-size: 13px; line-height: 1; display: flex; align-items: center; justify-content: center;
+}
+.img-rm:hover { background: var(--danger, #dc2626); }
+.plat-req { color: var(--danger); }
+
+/* ── เงื่อนไขการเข้าร่วม ── */
+.terms-list { margin: 0; padding-left: 20px; }
+.terms-list li { font-size: 13px; color: var(--text2); line-height: 1.7; margin-bottom: 6px; }
+.terms-list li:last-child { margin-bottom: 0; }
+
+/* ── ของรางวัลแยกตามช่องทาง × อันดับ 1–3 (3 คอลัมน์) ── */
+.reward-title { font-weight: 700; margin-bottom: 8px; }
+.reward-cols { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.reward-chan {
+  background: rgba(255, 255, 255, .45);
+  border: 1px solid #fde68a; border-radius: 8px; padding: 8px 10px;
+}
+.reward-chan-title { font-size: 12.5px; font-weight: 700; margin-bottom: 4px; }
+.reward-row {
+  display: flex; justify-content: space-between; gap: 8px;
+  font-size: 12px; padding: 2px 0;
+}
+.reward-row span { color: var(--text2); white-space: nowrap; }
+.reward-row b { text-align: right; }
+@media (max-width: 560px) { .reward-cols { grid-template-columns: 1fr; } }
 
 .btn {
   border: none; border-radius: 10px; font-size: 15px; font-weight: 700;

@@ -30,7 +30,6 @@ async function sbFetch(table, query = "", opts = {}) {
   return method === "DELETE" ? null : res.json().catch(() => null);
 }
 
-const BUCKET = "event-files";
 const fmtDMY = (d) => (window.DateFmt ? window.DateFmt.formatDMY(d) : (d || "").slice(0, 10));
 
 // ── UI helpers ────────────────────────────────────────────
@@ -50,20 +49,10 @@ function esc(s) {
     ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]),
   );
 }
-function genToken() {
-  const raw =
-    (window.crypto && crypto.randomUUID && crypto.randomUUID()) ||
-    Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
-  return raw.replace(/-/g, "").slice(0, 20);
-}
-
 // ── STATE ─────────────────────────────────────────────────
 let allCampaigns = [];
 let partCounts = {};   // campaign_id -> #participants
 let postCounts = {};   // campaign_id -> #submissions
-let editingId = null;
-let pendingMedia = []; // [{file?, url?, type:'image'|'video', name, isCover}]
-let editToken = null;  // public_token of campaign being edited (กัน gen ซ้ำ)
 
 // ── INIT ──────────────────────────────────────────────────
 async function initPage() {
@@ -77,13 +66,6 @@ async function initPage() {
   }
   document.getElementById("searchInput").addEventListener("input", renderTable);
   document.getElementById("filterStatus").addEventListener("change", renderTable);
-
-  // มาจากหน้า detail → เปิด modal แก้ไขทันที (?edit=<id>)
-  const editId = +new URLSearchParams(location.search).get("edit");
-  if (editId && allCampaigns.some((c) => c.campaign_id === editId)) {
-    openCampModal(editId);
-    history.replaceState(null, "", location.pathname);
-  }
 }
 
 async function loadData() {
@@ -166,7 +148,7 @@ function renderTable() {
             ${cover}
             <div>
               <div class="cmp-name">${esc(c.name)}</div>
-              <div class="cmp-sub">${c.reward ? "🎁 " + esc(c.reward) : "ID #" + c.campaign_id}</div>
+              <div class="cmp-sub">${(c.rewards && Object.keys(c.rewards).length) || c.reward ? "🎁 มีของรางวัล" : "ID #" + c.campaign_id}</div>
             </div>
           </div>
         </td>
@@ -179,7 +161,7 @@ function renderTable() {
           <div class="cmp-row-actions">
             <button class="btn-icon" title="เปิด" onclick="window.openDetail(${c.campaign_id})">📂</button>
             <button class="btn-icon" title="ลิงก์ลงทะเบียน" onclick="window.copyRegLink('${esc(c.public_token || "")}')">🔗</button>
-            <button class="btn-icon" title="แก้ไข" data-perm="campaign_edit" onclick="window.openCampModal(${c.campaign_id})">✏️</button>
+            <button class="btn-icon" title="แก้ไข" data-perm="campaign_edit" onclick="window.openCampEdit(${c.campaign_id})">✏️</button>
             <button class="btn-icon" title="ลบ" data-perm="campaign_delete" onclick="window.deleteCampaign(${c.campaign_id})">🗑</button>
           </div>
         </td>
@@ -254,170 +236,12 @@ window.copyRegLink = async function (token) {
   }
 };
 
-// ── CREATE / EDIT MODAL ───────────────────────────────────
-window.openCampModal = function (id = null) {
-  editingId = id;
-  pendingMedia = [];
-  editToken = null;
-  const camp = id ? allCampaigns.find((c) => c.campaign_id === id) : null;
-
-  document.getElementById("campModalTitle").textContent = id ? "✏️ แก้ไขแคมเปญ" : "🚀 สร้างแคมเปญ";
-  document.getElementById("fId").value = id || "";
-  document.getElementById("fName").value = camp?.name || "";
-  document.getElementById("fDesc").value = camp?.description || "";
-  document.getElementById("fStart").value = (camp?.start_date || "").slice(0, 10);
-  document.getElementById("fEnd").value = (camp?.end_date || "").slice(0, 10);
-  document.getElementById("fStatus").value = camp?.status || "DRAFT";
-  document.getElementById("fRankMetric").value = camp?.rank_metric || "views";
-  document.getElementById("fReward").value = camp?.reward || "";
-  document.getElementById("fRegOpen").checked = camp ? !!camp.reg_open : true;
-  editToken = camp?.public_token || null;
-
-  const plats = camp?.platforms || ["tiktok", "instagram", "facebook"];
-  document.querySelectorAll("#fPlatforms input").forEach((cb) => {
-    cb.checked = plats.includes(cb.value);
-  });
-
-  // media: existing url items
-  pendingMedia = (camp?.media || []).map((m) => ({
-    url: m.url,
-    type: m.type || "image",
-    name: m.name || "",
-    isCover: camp?.cover_url && m.url === camp.cover_url,
-  }));
-  if (pendingMedia.length && !pendingMedia.some((m) => m.isCover)) {
-    const firstImg = pendingMedia.find((m) => m.type === "image");
-    if (firstImg) firstImg.isCover = true;
-  }
-  renderMediaGrid();
-  document.getElementById("campModal").classList.add("open");
-  setTimeout(() => document.getElementById("fName").focus(), 50);
+// ── CREATE / EDIT → หน้าแบบฟอร์มแยก (campaign-form.html) ───
+window.openCampCreate = function () {
+  location.href = "./campaign-form.html";
 };
-window.closeCampModal = function () {
-  document.getElementById("campModal").classList.remove("open");
-  editingId = null;
-  pendingMedia = [];
-};
-
-function renderMediaGrid() {
-  const grid = document.getElementById("fMediaGrid");
-  grid.innerHTML = pendingMedia
-    .map((m, i) => {
-      const src = m.url || (m.file ? URL.createObjectURL(m.file) : "");
-      const inner =
-        m.type === "video"
-          ? `<video src="${src}" muted></video><span class="cmp-vid-tag">▶ วิดีโอ</span>`
-          : `<img src="${src}" alt="" />`;
-      const coverTag =
-        m.type === "image"
-          ? `<span class="cmp-cover-tag" style="cursor:pointer" title="ตั้งเป็นปก" onclick="window.setCover(${i})">${m.isCover ? "★ ปก" : "☆"}</span>`
-          : "";
-      return `<div class="cmp-media-item ${m.pending ? "is-pending" : ""}">
-        ${inner}${coverTag}
-        <button class="cmp-media-remove" onclick="window.removeMedia(${i})">✕</button>
-      </div>`;
-    })
-    .join("");
-  document.getElementById("fMediaCount").textContent = `${pendingMedia.length}/5`;
-  const area = document.getElementById("fUploadArea");
-  area.classList.toggle("is-full", pendingMedia.length >= 5);
-}
-window.setCover = function (i) {
-  pendingMedia.forEach((m, idx) => (m.isCover = idx === i && m.type === "image"));
-  renderMediaGrid();
-};
-window.removeMedia = function (i) {
-  pendingMedia.splice(i, 1);
-  if (pendingMedia.length && !pendingMedia.some((m) => m.isCover)) {
-    const f = pendingMedia.find((m) => m.type === "image");
-    if (f) f.isCover = true;
-  }
-  renderMediaGrid();
-};
-window.handleMediaFiles = function (input) {
-  const files = [...input.files];
-  input.value = "";
-  for (const file of files) {
-    if (pendingMedia.length >= 5) {
-      showToast("สูงสุด 5 ไฟล์", "warning");
-      break;
-    }
-    const type = file.type.startsWith("video") ? "video" : "image";
-    pendingMedia.push({ file, type, name: file.name, isCover: false });
-  }
-  if (!pendingMedia.some((m) => m.isCover)) {
-    const f = pendingMedia.find((m) => m.type === "image");
-    if (f) f.isCover = true;
-  }
-  renderMediaGrid();
-};
-
-window.saveCampaign = async function () {
-  const name = document.getElementById("fName").value.trim();
-  if (!name) return showToast("กรุณาใส่ชื่อแคมเปญ", "error");
-
-  const platforms = [...document.querySelectorAll("#fPlatforms input:checked")].map((c) => c.value);
-  if (!platforms.length) return showToast("เลือกอย่างน้อย 1 แพลตฟอร์ม", "error");
-
-  const btn = document.getElementById("btnSaveCamp");
-  btn.disabled = true;
-  showLoading(true);
-  try {
-    const { url, key } = getSB();
-    const token = editToken || genToken();
-
-    // upload pending files → url
-    const media = [];
-    let coverUrl = null;
-    for (let i = 0; i < pendingMedia.length; i++) {
-      const m = pendingMedia[i];
-      let fileUrl = m.url;
-      if (!fileUrl && m.file) {
-        const safe = (m.name || "file").replace(/[^a-zA-Z0-9._-]/g, "_");
-        const path = `campaigns/${token}/${Date.now()}_${i}_${safe}`;
-        fileUrl = await window.ImageCompressor.uploadViaRest(url, key, BUCKET, path, m.file);
-        if (!fileUrl) throw new Error(`อัปโหลดไฟล์ "${m.name}" ไม่สำเร็จ`);
-      }
-      media.push({ url: fileUrl, type: m.type, name: m.name || "" });
-      if (m.isCover) coverUrl = fileUrl;
-    }
-    if (!coverUrl) {
-      const firstImg = media.find((m) => m.type === "image");
-      coverUrl = firstImg ? firstImg.url : null;
-    }
-
-    const payload = {
-      name,
-      description: document.getElementById("fDesc").value.trim() || null,
-      start_date: document.getElementById("fStart").value || null,
-      end_date: document.getElementById("fEnd").value || null,
-      status: document.getElementById("fStatus").value,
-      rank_metric: document.getElementById("fRankMetric").value,
-      platforms,
-      reward: document.getElementById("fReward").value.trim() || null,
-      reg_open: document.getElementById("fRegOpen").checked,
-      media,
-      cover_url: coverUrl,
-      public_token: token,
-      updated_at: new Date().toISOString(),
-    };
-
-    if (editingId) {
-      await sbFetch("campaigns", `?campaign_id=eq.${editingId}`, { method: "PATCH", body: payload });
-    } else {
-      payload.created_by = localStorage.getItem("user_name") || localStorage.getItem("username") || null;
-      await sbFetch("campaigns", "", { method: "POST", body: payload });
-    }
-
-    showToast("บันทึกแคมเปญแล้ว", "success");
-    closeCampModal();
-    await loadData();
-  } catch (e) {
-    showToast("บันทึกไม่สำเร็จ: " + e.message, "error");
-  } finally {
-    btn.disabled = false;
-    showLoading(false);
-  }
+window.openCampEdit = function (id) {
+  location.href = `./campaign-form.html?edit=${id}`;
 };
 
 document.addEventListener("DOMContentLoaded", initPage);

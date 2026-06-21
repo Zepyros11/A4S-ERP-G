@@ -99,13 +99,6 @@
           path: BASE_PATH + "/modules/event/line-promote.html",
           section: "promote",
         },
-        {
-          id: "campaign-planning",
-          icon: "🚀",
-          label: "วางแผนแคมเปญ",
-          path: BASE_PATH + "/modules/event/campaign-planning.html",
-          section: "promote",
-        },
         /* ── SETUP ── */
         {
           id: "events-category",
@@ -141,6 +134,20 @@
           label: "พิมพ์ป้าย & ใบประกาศ",
           path: BASE_PATH + "/modules/event/namecard-generator.html",
           section: "manage",
+        },
+      ],
+    },
+    // **************** CAMPAIGN *****************
+    {
+      group: "แคมเปญ (Campaign)",
+      icon: "🚀",
+      id: "g-campaign",
+      items: [
+        {
+          id: "campaign-planning",
+          icon: "🚀",
+          label: "วางแผนแคมเปญ",
+          path: BASE_PATH + "/modules/event/campaign-planning.html",
         },
       ],
     },

@@ -26,7 +26,7 @@
           <button
             class="btn btn-primary"
             data-perm="campaign_create"
-            onclick="window.openCampModal()"
+            onclick="window.location.href = './campaign-form.html'"
           >
             ＋ สร้างแคมเปญ
           </button>
@@ -124,113 +124,16 @@
       </div>
     </div>
 
-    <!-- ── CREATE / EDIT MODAL ── -->
-    <div class="modal-overlay" id="campModal">
-      <!-- .modal-lg = 1128×600 + safety (max-width 95vw / max-height 92vh) จาก common.css -->
-      <div class="modal modal-lg v-sage-header">
-        <div class="modal-hdr">
-          <div class="modal-title" id="campModalTitle">🚀 สร้างแคมเปญ</div>
-          <button class="btn-modal-close" onclick="window.closeCampModal()">✕</button>
-        </div>
-        <div class="modal-body">
-          <input type="hidden" id="fId" />
-          <div class="form-grid">
-            <div class="form-group">
-              <label class="form-label">ชื่อแคมเปญ <span class="req">*</span></label>
-              <input class="form-control" id="fName" placeholder="เช่น รีวิวสินค้า X ชิงรางวัล" />
-            </div>
-
-            <div class="form-group">
-              <label class="form-label">รายละเอียด / กติกา</label>
-              <textarea class="form-control" id="fDesc" rows="3"
-                placeholder="อธิบายแคมเปญ เงื่อนไข ของรางวัล ฯลฯ"></textarea>
-            </div>
-
-            <div class="form-group">
-              <label class="form-label">วันเริ่ม</label>
-              <input class="form-control" id="fStart" type="date" />
-            </div>
-            <div class="form-group">
-              <label class="form-label">วันสิ้นสุด</label>
-              <input class="form-control" id="fEnd" type="date" />
-            </div>
-
-            <div class="form-group">
-              <label class="form-label">สถานะ</label>
-              <select class="form-control" id="fStatus">
-                <option value="DRAFT">📝 ร่าง</option>
-                <option value="ACTIVE">▶️ กำลังดำเนินการ</option>
-                <option value="ENDED">✅ จบแล้ว</option>
-                <option value="CANCELLED">❌ ยกเลิก</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label class="form-label">จัดอันดับด้วย</label>
-              <select class="form-control" id="fRankMetric">
-                <option value="views">👁 ยอดวิว</option>
-                <option value="likes">❤️ ยอด Like</option>
-                <option value="engagement">🔥 Engagement (like+comment+share)</option>
-                <option value="weighted">⚖️ ถ่วงน้ำหนักตาม Mission (points)</option>
-              </select>
-            </div>
-
-            <div class="form-group full">
-              <label class="form-label">แพลตฟอร์มที่เปิดใช้</label>
-              <div class="cmp-plat-pick" id="fPlatforms">
-                <label><input type="checkbox" value="tiktok" checked /> 🎵 TikTok</label>
-                <label><input type="checkbox" value="instagram" checked /> 📸 Instagram</label>
-                <label><input type="checkbox" value="facebook" checked /> 👍 Facebook</label>
-              </div>
-            </div>
-
-            <div class="form-group full">
-              <label class="form-label">ของรางวัล (optional)</label>
-              <input class="form-control" id="fReward" placeholder="เช่น อันดับ 1 รับ iPhone 16" />
-            </div>
-
-            <div class="form-group full">
-              <label class="form-label cmp-toggle-row">
-                <input type="checkbox" id="fRegOpen" checked /> เปิดรับลงทะเบียน (ลิงก์ public ใช้งานได้)
-              </label>
-            </div>
-
-            <div class="form-group full">
-              <label class="form-label">
-                สื่อ (รูป/วิดีโอ)
-                <span class="cmp-media-count" id="fMediaCount">0/5</span>
-              </label>
-              <div class="cmp-upload-area" id="fUploadArea"
-                onclick="document.getElementById('fMediaFiles').click()">
-                📎 คลิกเพื่อเลือกไฟล์ (รูปหรือวิดีโอ — สูงสุด 5 ไฟล์)
-              </div>
-              <input type="file" id="fMediaFiles" multiple
-                accept="image/*,video/*" style="display: none"
-                onchange="window.handleMediaFiles(this)" />
-              <div id="fMediaGrid" class="cmp-media-grid"></div>
-            </div>
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button class="btn btn-secondary" onclick="window.closeCampModal()">ยกเลิก</button>
-          <button class="btn btn-primary" id="btnSaveCamp" onclick="window.saveCampaign()">
-            💾 บันทึก
-          </button>
-        </div>
-      </div>
-    </div>
-
     <script src="../../js/core/auth.js"></script>
     <script src="../../js/core/authz.js"></script>
     <script src="../../js/core/date-format.js"></script>
     <script>
       AuthZ.requirePerm("campaign_view");
     </script>
-    <script src="../../js/core/imageCompressor.js"></script>
     <script src="./campaign-planning.js"></script>
     <script src="../../js/components/modal/deleteModal.js"></script>
     <script src="../../js/components/modal/confirmModal.js"></script>
     <script src="../../js/components/modal/modalManager.js"></script>
-    <script src="../../js/components/modal/enterSave.js"></script>
     <script type="module">
       import { loadTopbar } from "../../js/components/navigation/topbar.js";
       loadTopbar("🚀 วางแผนแคมเปญ");

@@ -23,9 +23,14 @@
       <div class="reg-state"><div class="ic" id="closedIcon">🔒</div><div class="msg" id="closedMsg">ไม่พบแคมเปญ หรือปิดรับลงทะเบียนแล้ว</div></div>
     </div>
 
+    <!-- DONE (after submit) -->
+    <div class="reg-wrap hidden" id="stateDone">
+      <div class="reg-state"><div class="ic">🎉</div><div class="msg" id="doneMsg">ลงทะเบียนเรียบร้อยแล้ว ขอบคุณค่ะ</div></div>
+    </div>
+
     <!-- MAIN -->
     <div class="reg-wrap hidden" id="content">
-      <div class="reg-cols">
+      <div class="reg-cols reg-cols-2">
         <!-- COL 1: ข้อมูลแคมเปญ -->
         <div class="reg-col">
           <div class="reg-hero">
@@ -37,74 +42,46 @@
               <div class="reg-reward hidden" id="cReward"></div>
             </div>
           </div>
-          <div class="reg-card hidden" id="missionsCard">
-            <h2>🎯 ภารกิจที่ต้องทำ</h2>
-            <div class="sub">ทำตามภารกิจแล้วนำลิงก์โพสต์มาส่งด้านล่าง</div>
-            <div id="missionsList"></div>
+          <div class="reg-card hidden" id="termsCard">
+            <h2>📜 เงื่อนไขการเข้าร่วม</h2>
+            <ul class="terms-list" id="termsList"></ul>
           </div>
         </div>
 
-        <!-- COL 2: ฟอร์มลงทะเบียน -->
+        <!-- COL 2: ฟอร์มกรอกข้อมูล -->
         <div class="reg-col">
           <div class="reg-card" id="regCard">
             <h2>📝 ลงทะเบียนเข้าร่วม</h2>
-            <div class="sub">สำหรับสมาชิกเท่านั้น — ยืนยันด้วย <b>รหัสสมาชิก + รหัสผ่าน A4S</b></div>
+            <div class="sub">กรอกข้อมูล และช่องทางโซเชียลอย่างน้อย 1 ช่องทาง</div>
             <div class="reg-grid">
-              <div class="fg full">
-                <label>รหัสสมาชิก <span class="req">*</span></label>
-                <input id="rCode" placeholder="member_code" autocomplete="username" />
+              <div class="fg">
+                <label>รหัส <span class="req">*</span></label>
+                <input id="rCode" placeholder="รหัสของคุณ" />
               </div>
-              <div class="fg full">
-                <label>รหัสผ่าน A4S <span class="req">*</span></label>
-                <input id="rPass" type="password" placeholder="รหัสผ่านสมาชิกของคุณ" autocomplete="current-password" />
-              </div>
-              <div class="fg full">
-                <label>เบอร์โทร (ถ้าต้องการให้ติดต่อกลับเบอร์อื่น)</label>
-                <input id="rPhone" placeholder="08x-xxx-xxxx" />
+              <div class="fg">
+                <label>ชื่อ <span class="req">*</span></label>
+                <input id="rName" placeholder="ชื่อ-นามสกุล" />
               </div>
             </div>
-          </div>
-        </div>
 
-        <!-- COL 3: ผูกบัญชีโซเชียล -->
-        <div class="reg-col">
-          <div class="reg-card" id="socialCard">
-            <h2>🔗 ผูกบัญชีโซเชียล</h2>
-            <div class="sub">ใส่ ID / ลิงก์โปรไฟล์ของแพลตฟอร์มที่จะรีวิว</div>
-            <div id="platforms"></div>
+            <!-- ช่องทางโซเชียล (อย่างน้อย 1 · ใส่ลิงก์แล้วต้องแนบรูป) -->
+            <div class="social-section">
+              <div class="social-section-title">
+                ช่องทางโซเชียล <span class="req">*</span>
+                <span class="social-hint">กรอกอย่างน้อย 1 ช่องทาง — ช่องทางที่ใส่ลิงก์ต้องแนบรูป</span>
+              </div>
+              <div id="socials"></div>
+            </div>
+
             <div id="rMsg" style="margin-top:10px"></div>
-            <button class="btn" id="btnRegister" onclick="doRegister()" style="margin-top:12px;width:100%">✅ ลงทะเบียนเข้าร่วม</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- WORK SUBMISSION (after register) — เต็มความกว้างใต้ 3 คอลัมน์ -->
-      <div class="reg-card hidden" id="workCard">
-        <h2>📊 ส่งผลงาน (ลิงก์โพสต์)</h2>
-        <div class="sub">วางลิงก์โพสต์ที่คุณทำตามภารกิจ — ทีมงานจะตรวจและเก็บยอดให้</div>
-        <div id="workList"></div>
-        <div class="reg-grid" style="margin-top:12px">
-          <div class="fg">
-            <label>ภารกิจ</label>
-            <select id="wMission"></select>
-          </div>
-          <div class="fg">
-            <label>แพลตฟอร์ม <span class="req">*</span></label>
-            <select id="wPlatform"></select>
-          </div>
-          <div class="fg full">
-            <label>ลิงก์โพสต์ <span class="req">*</span></label>
-            <input id="wUrl" placeholder="https://..." />
-          </div>
-          <div class="full">
-            <button class="btn btn-sm" onclick="doSubmitWork()">＋ ส่งลิงก์ผลงาน</button>
+            <button class="btn" id="btnRegister" onclick="doRegister()" style="margin-top:12px;width:100%">✅ ส่งข้อมูลลงทะเบียน</button>
           </div>
         </div>
       </div>
     </div>
 
     <script src="./register-config.js"></script>
-    <script src="../../js/core/crypto.js"></script>
+    <script src="../../js/core/imageCompressor.js"></script>
     <script src="./campaign-register.js"></script>
   </body>
 </html>
