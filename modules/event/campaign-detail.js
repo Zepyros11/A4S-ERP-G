@@ -134,13 +134,42 @@ function renderHeader() {
     ${plats ? `<span>${plats}</span>` : ""}
     <span>${campaign.reg_open ? "🟢 เปิดรับสมัคร" : "🔴 ปิดรับสมัคร"}</span>`;
 }
+const RW_SOC = [
+  { k: "facebook", ic: "../../assets/icons/facebook.png", label: "Facebook" },
+  { k: "tiktok",   ic: "../../assets/icons/tiktok.png",   label: "TikTok" },
+  { k: "ig",       ic: "../../assets/icons/instagram.png", label: "Instagram" },
+];
+const RW_RANK = ["🥇 รางวัลที่ 1", "🥈 รางวัลที่ 2", "🥉 รางวัลที่ 3"];
+
 function renderOverview() {
   document.getElementById("dDesc").textContent = campaign.description || "—";
+
+  // ── ของรางวัล (JSONB แยกช่องทาง × อันดับ · fallback reward เดิม) ──
   const rewardBox = document.getElementById("dRewardBox");
-  if (campaign.reward) {
+  const rewards = (campaign.rewards && typeof campaign.rewards === "object") ? campaign.rewards : {};
+  const rwBlocks = RW_SOC.map((s) => {
+    const arr = Array.isArray(rewards[s.k]) ? rewards[s.k] : [];
+    const rows = arr
+      .map((v, i) => (v || "").trim()
+        ? `<div class="cmp-rw-row"><span>${RW_RANK[i] || `รางวัลที่ ${i + 1}`}</span><b>${esc(v)}</b></div>` : "")
+      .join("");
+    return rows ? `<div class="cmp-rw-chan"><div class="cmp-rw-head"><img class="soc-ic" src="${s.ic}" alt="" /> ${s.label}</div>${rows}</div>` : "";
+  }).join("");
+  if (rwBlocks) {
+    rewardBox.style.display = "";
+    document.getElementById("dReward").innerHTML = `<div class="cmp-rw-cols">${rwBlocks}</div>`;
+  } else if (campaign.reward) {
     rewardBox.style.display = "";
     document.getElementById("dReward").textContent = campaign.reward;
   } else rewardBox.style.display = "none";
+
+  // ── เงื่อนไขการเข้าร่วม ──
+  const termsBox = document.getElementById("dTermsBox");
+  const terms = (campaign.terms || "").split("\n").map((t) => t.replace(/^[\s•\-*]+/, "").trim()).filter(Boolean);
+  if (terms.length) {
+    termsBox.style.display = "";
+    document.getElementById("dTerms").innerHTML = terms.map((t) => `<li>${esc(t)}</li>`).join("");
+  } else termsBox.style.display = "none";
 
   const media = campaign.media || [];
   const g = document.getElementById("dGallery");
@@ -154,9 +183,18 @@ function renderOverview() {
     .join("");
 }
 
+const PUBLIC_BASE = "https://zepyros11.github.io/A4S-ERP-G";
+function buildRegUrl(token) {
+  const host = location.hostname;
+  let base;
+  if (host.includes("github.io")) base = `${location.origin}/${location.pathname.split("/")[1]}`;
+  else if (host === "127.0.0.1" || host === "localhost") base = PUBLIC_BASE;
+  else base = location.origin;
+  return `${base}/modules/event/campaign-register.html?t=${token}`;
+}
 window.copyRegLink = async function () {
   if (!campaign?.public_token) return showToast("แคมเปญนี้ยังไม่มีลิงก์", "warning");
-  const url = `${location.origin}${location.pathname.replace(/campaign-detail\.html$/, "campaign-register.html")}?t=${campaign.public_token}`;
+  const url = buildRegUrl(campaign.public_token);
   try {
     await navigator.clipboard.writeText(url);
     showToast("คัดลอกลิงก์ลงทะเบียนแล้ว 🔗", "success");
@@ -275,12 +313,18 @@ window.renderParticipants = function () {
   }
   body.innerHTML = rows
     .map((p) => {
-      const soc = (icon, url, on) =>
-        url
-          ? `<a href="${esc(safeHref(url))}" target="_blank" rel="noopener" title="${esc(url)}">${icon}</a>`
-          : `<span class="off">${icon}</span>`;
+      const soc = (ic, url, img) => {
+        if (!url && !img) return `<span class="cmp-soc-cell off"><img class="soc-ic" src="${ic}" alt="" /></span>`;
+        const thumb = img
+          ? `<img class="cmp-soc-thumb" src="${esc(img)}" alt="" onclick="event.stopPropagation();ImgPopup.open(['${esc(img)}'])" title="ดูรูป" />`
+          : "";
+        const link = url
+          ? `<a href="${esc(safeHref(url))}" target="_blank" rel="noopener" title="${esc(url)}"><img class="soc-ic" src="${ic}" alt="" /></a>`
+          : `<span class="off"><img class="soc-ic" src="${ic}" alt="" /></span>`;
+        return `<span class="cmp-soc-cell">${link}${thumb}</span>`;
+      };
       const socials = `<span class="cmp-social-links">
-        ${soc("🎵", p.tiktok_url, p.tiktok_id)}${soc("📸", p.ig_url, p.ig_id)}${soc("👍", p.facebook_url, p.facebook_id)}</span>`;
+        ${soc("../../assets/icons/facebook.png", p.facebook_url, p.facebook_img)}${soc("../../assets/icons/tiktok.png", p.tiktok_url, p.tiktok_img)}${soc("../../assets/icons/instagram.png", p.ig_url, p.ig_img)}</span>`;
       return `<tr>
         <td class="col-center"><input type="checkbox" class="part-check" value="${p.participant_id}" onclick="window.updatePartBulk()" /></td>
         <td><div style="font-weight:600">${esc(p.member_name || "—")}</div>

@@ -160,7 +160,7 @@ function renderTable() {
         <td class="col-center">
           <div class="cmp-row-actions">
             <button class="btn-icon" title="เปิด" onclick="window.openDetail(${c.campaign_id})">📂</button>
-            <button class="btn-icon" title="ลิงก์ลงทะเบียน" onclick="window.copyRegLink('${esc(c.public_token || "")}')">🔗</button>
+            <button class="btn-icon" title="ลิงก์ลงทะเบียน / QR" onclick="window.openShareModal(${c.campaign_id})">🔗</button>
             <button class="btn-icon" title="แก้ไข" data-perm="campaign_edit" onclick="window.openCampEdit(${c.campaign_id})">✏️</button>
             <button class="btn-icon" title="ลบ" data-perm="campaign_delete" onclick="window.deleteCampaign(${c.campaign_id})">🗑</button>
           </div>
@@ -225,14 +225,53 @@ window.deleteCampaign = function (id) {
 window.openDetail = function (id) {
   location.href = `./campaign-detail.html?campaign_id=${id}`;
 };
-window.copyRegLink = async function (token) {
-  if (!token) return showToast("แคมเปญนี้ยังไม่มีลิงก์ — บันทึกแคมเปญก่อน", "warning");
-  const url = `${location.origin}${location.pathname.replace(/campaign-planning\.html$/, "campaign-register.html")}?t=${token}`;
+// ── SHARE LINK MODAL (QR + Link) ──────────────────────────
+// ฐาน URL สาธารณะสำหรับลิงก์ที่แชร์ (ให้ได้ลิงก์ github.io แม้ตอน preview บน localhost)
+const PUBLIC_BASE = "https://zepyros11.github.io/A4S-ERP-G";
+function buildRegUrl(token) {
+  const host = location.hostname;
+  let base;
+  if (host.includes("github.io")) {
+    base = `${location.origin}/${location.pathname.split("/")[1]}`; // deploy จริงบน github.io
+  } else if (host === "127.0.0.1" || host === "localhost") {
+    base = PUBLIC_BASE; // preview ในเครื่อง → ใช้ลิงก์สาธารณะที่แชร์ได้
+  } else {
+    base = location.origin; // custom domain
+  }
+  return `${base}/modules/event/campaign-register.html?t=${token}`;
+}
+window.openShareModal = function (id) {
+  const c = allCampaigns.find((x) => x.campaign_id === id);
+  if (!c) return;
+  if (!c.public_token) return showToast("แคมเปญนี้ยังไม่มีลิงก์ — บันทึกแคมเปญก่อน", "warning");
+
+  const url = buildRegUrl(c.public_token);
+  document.getElementById("shareCampName").textContent = c.name || "";
+  document.getElementById("shareUrlInput").value = url;
+
+  const wrap = document.getElementById("shareQrWrap");
+  wrap.innerHTML = "";
+  if (window.QRCode) {
+    new QRCode(wrap, { text: url, width: 190, height: 190, correctLevel: QRCode.CorrectLevel.M });
+  } else {
+    wrap.textContent = "QR library ยังไม่โหลด — รีเฟรชหน้า";
+  }
+  document.getElementById("shareModal").classList.add("open");
+};
+window.closeShareModal = function () {
+  document.getElementById("shareModal").classList.remove("open");
+};
+window.copyShareUrl = async function () {
+  const input = document.getElementById("shareUrlInput");
+  const url = input.value;
+  if (!url) return;
   try {
     await navigator.clipboard.writeText(url);
     showToast("คัดลอกลิงก์ลงทะเบียนแล้ว 🔗", "success");
   } catch {
-    window.prompt("คัดลอกลิงก์นี้:", url);
+    input.select();
+    document.execCommand("copy");
+    showToast("คัดลอกแล้ว", "success");
   }
 };
 

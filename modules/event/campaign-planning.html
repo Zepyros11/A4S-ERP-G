@@ -124,6 +124,30 @@
       </div>
     </div>
 
+    <!-- ── SHARE LINK MODAL (QR + Link) ── -->
+    <div class="modal-overlay" id="shareModal">
+      <div class="modal v-sage-header" style="max-width: 420px">
+        <div class="modal-hdr">
+          <div class="modal-title">🔗 แชร์ลิงก์ลงทะเบียน</div>
+          <button class="btn-modal-close" onclick="window.closeShareModal()">✕</button>
+        </div>
+        <div class="modal-body" style="text-align: center">
+          <div id="shareCampName" class="share-camp-name"></div>
+          <div id="shareQrWrap" class="share-qr-wrap"></div>
+          <div class="share-url-label">🌐 ลิงก์ลงทะเบียน — ใช้ได้กับทุกคน</div>
+          <div class="share-url-row">
+            <input id="shareUrlInput" readonly />
+            <button class="btn btn-primary" onclick="window.copyShareUrl()">📋 คัดลอก</button>
+          </div>
+          <div class="share-hint">📱 QR code = ลิงก์เดียวกัน — สแกน หรือกดคัดลอกลิงก์เพื่อแชร์</div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" onclick="window.closeShareModal()">ปิด</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
     <script src="../../js/core/auth.js"></script>
     <script src="../../js/core/authz.js"></script>
     <script src="../../js/core/date-format.js"></script>

@@ -286,8 +286,12 @@ async function doRegister() {
     document.getElementById("doneMsg").textContent = "ลงทะเบียนเรียบร้อยแล้ว ขอบคุณค่ะ 🎉";
     show("stateDone", true);
   } catch (e) {
-    regMsg("ลงทะเบียนไม่สำเร็จ: " + esc(e.message));
-    toast("ลงทะเบียนไม่สำเร็จ: " + e.message, "error");
+    const dup = /duplicate key|uq_campaign_participant/i.test(e.message || "");
+    const msg = dup
+      ? `รหัส "${code}" ได้ลงทะเบียนในแคมเปญนี้ไปแล้ว — ใช้ได้ครั้งเดียวต่อ 1 รหัส`
+      : "ลงทะเบียนไม่สำเร็จ: " + e.message;
+    regMsg("❌ " + esc(msg));
+    toast(msg, dup ? "warning" : "error");
     btn.disabled = false;
     btn.textContent = oldLabel;
   }

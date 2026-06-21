@@ -117,9 +117,28 @@
 .pstat-approved { background: #d1fae5; color: #059669; }
 .pstat-rejected { background: #fee2e2; color: #dc2626; }
 
-.cmp-social-links { display: inline-flex; gap: 8px; }
+.cmp-social-links { display: inline-flex; gap: 12px; align-items: flex-start; }
 .cmp-social-links a { text-decoration: none; font-size: 15px; }
-.cmp-social-links .off { opacity: .25; }
+.cmp-social-links .off { opacity: .3; }
+.soc-ic { width: 20px; height: 20px; object-fit: contain; border-radius: 5px; vertical-align: middle; }
+.cmp-soc-cell { display: inline-flex; flex-direction: column; align-items: center; gap: 4px; }
+.cmp-soc-thumb {
+  width: 40px; height: 40px; object-fit: cover; border-radius: 6px;
+  border: 1px solid var(--border); cursor: zoom-in;
+}
+
+/* ── ของรางวัล (overview) แยกช่องทาง × อันดับ ── */
+.cmp-rw-cols { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.cmp-rw-chan { border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; background: var(--surface2, #f8fafc); }
+.cmp-rw-head { font-size: 13px; font-weight: 700; margin-bottom: 6px; display: flex; align-items: center; gap: 6px; }
+.cmp-rw-row { display: flex; justify-content: space-between; gap: 8px; font-size: 12.5px; padding: 2px 0; }
+.cmp-rw-row span { color: var(--text2); white-space: nowrap; }
+.cmp-rw-row b { text-align: right; }
+@media (max-width: 720px) { .cmp-rw-cols { grid-template-columns: 1fr; } }
+
+/* ── เงื่อนไขการเข้าร่วม (overview) ── */
+.cmp-terms-list { margin: 0; padding-left: 20px; }
+.cmp-terms-list li { font-size: 13px; color: var(--text2); line-height: 1.7; margin-bottom: 6px; }
 
 /* small icon buttons reused */
 .cmp-row-actions { display: inline-flex; gap: 6px; }
