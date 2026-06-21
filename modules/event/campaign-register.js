@@ -12,11 +12,12 @@ let campaign = null;
 // 3 ช่องทางโซเชียล — col_url/col_img = ชื่อคอลัมน์ใน campaign_participants,
 // rwkey = key ใน campaigns.rewards (JSONB)
 const SOCIALS = [
-  { key: "facebook",  icon: "👍", label: "Facebook",  col_url: "facebook_url", col_img: "facebook_img", rwkey: "facebook", ph: "https://facebook.com/..." },
-  { key: "tiktok",    icon: "🎵", label: "TikTok",    col_url: "tiktok_url",   col_img: "tiktok_img",   rwkey: "tiktok",   ph: "https://tiktok.com/@..." },
-  { key: "instagram", icon: "📸", label: "Instagram", col_url: "ig_url",       col_img: "ig_img",       rwkey: "ig",       ph: "https://instagram.com/..." },
+  { key: "facebook",  ic: "../../assets/icons/facebook.png",  label: "Facebook",  col_url: "facebook_url", col_img: "facebook_img", rwkey: "facebook", ph: "https://facebook.com/..." },
+  { key: "tiktok",    ic: "../../assets/icons/tiktok.png",    label: "TikTok",    col_url: "tiktok_url",   col_img: "tiktok_img",   rwkey: "tiktok",   ph: "https://tiktok.com/@..." },
+  { key: "instagram", ic: "../../assets/icons/instagram.png", label: "Instagram", col_url: "ig_url",       col_img: "ig_img",       rwkey: "ig",       ph: "https://instagram.com/..." },
 ];
 const RW_RANK_LABEL = ["🥇 รางวัลที่ 1", "🥈 รางวัลที่ 2", "🥉 รางวัลที่ 3"];
+const socIcon = (s) => `<img class="soc-ic" src="${s.ic}" alt="${s.label}" />`;
 const socialImg = {}; // key -> File (รูปที่เลือก ยังไม่ upload)
 
 // ── REST helpers ──────────────────────────────────────────
@@ -113,11 +114,11 @@ function renderCampaign() {
       .map((m) =>
         m.type === "video"
           ? `<video class="reg-media-item" src="${esc(m.url)}" controls playsinline></video>`
-          : `<img class="reg-media-item" src="${esc(m.url)}" alt="" loading="lazy" />`,
+          : `<img class="reg-media-item" src="${esc(m.url)}" alt="" loading="lazy" onclick="window.openLightbox('${esc(m.url)}')" />`,
       )
       .join("")}</div>`;
   } else if (campaign.cover_url) {
-    hc.innerHTML = `<img class="reg-cover" src="${esc(campaign.cover_url)}" alt="" />`;
+    hc.innerHTML = `<img class="reg-cover" src="${esc(campaign.cover_url)}" alt="" style="cursor:zoom-in" onclick="window.openLightbox('${esc(campaign.cover_url)}')" />`;
   } else {
     hc.innerHTML = `<div class="reg-cover reg-cover-ph">🚀</div>`;
   }
@@ -136,7 +137,7 @@ function renderCampaign() {
           ? `<div class="reward-row"><span>${RW_RANK_LABEL[i] || `รางวัลที่ ${i + 1}`}</span><b>${esc(v)}</b></div>`
           : "")
         .join("");
-      return rows ? `<div class="reward-chan"><div class="reward-chan-title">${s.icon} ${s.label}</div>${rows}</div>` : "";
+      return rows ? `<div class="reward-chan"><div class="reward-chan-title">${socIcon(s)} ${s.label}</div>${rows}</div>` : "";
     })
     .join("");
   const rEl = document.getElementById("cReward");
@@ -163,7 +164,7 @@ function renderSocials() {
   const wrap = document.getElementById("socials");
   wrap.innerHTML = SOCIALS.map(
     (s) => `<div class="social-block" data-key="${s.key}">
-      <div class="social-head">${s.icon} ${s.label}</div>
+      <div class="social-head">${socIcon(s)} ${s.label}</div>
       <div class="social-fields">
         <div class="fg fg-link">
           <label>ลิงก์โปรไฟล์ / โพสต์</label>
@@ -291,6 +292,21 @@ async function doRegister() {
     btn.textContent = oldLabel;
   }
 }
+
+// ── LIGHTBOX (กดรูปขยายเต็มจอ) ─────────────────────────────
+window.openLightbox = function (src) {
+  document.getElementById("lightboxImg").src = src;
+  document.getElementById("lightbox").classList.remove("hidden");
+  document.body.style.overflow = "hidden";
+};
+window.closeLightbox = function () {
+  document.getElementById("lightbox").classList.add("hidden");
+  document.getElementById("lightboxImg").src = "";
+  document.body.style.overflow = "";
+};
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") window.closeLightbox();
+});
 
 window.doRegister = doRegister;
 document.addEventListener("DOMContentLoaded", init);

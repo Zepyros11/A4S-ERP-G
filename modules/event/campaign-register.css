@@ -125,7 +125,9 @@ body {
   padding: 12px 14px; margin-bottom: 12px;
   display: flex; flex-direction: column; gap: 10px;
 }
-.social-head { font-size: 14px; font-weight: 700; }
+.social-head { font-size: 14px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+.soc-ic { width: 22px; height: 22px; object-fit: contain; vertical-align: -5px; border-radius: 5px; }
+.reward-chan-title .soc-ic { width: 18px; height: 18px; }
 
 /* Link 80% | รูป 20% แถวเดียวกัน */
 .social-fields { display: grid; grid-template-columns: 4fr 1fr; gap: 10px; align-items: start; }
@@ -154,6 +156,25 @@ body {
 }
 .img-rm:hover { background: var(--danger, #dc2626); }
 .plat-req { color: var(--danger); }
+
+/* ── LIGHTBOX (กดรูปขยายเต็มจอ) ── */
+.lightbox {
+  position: fixed; inset: 0; z-index: 2000;
+  background: rgba(0, 0, 0, .9);
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px; cursor: zoom-out;
+}
+.lightbox img {
+  max-width: 100%; max-height: 100%;
+  object-fit: contain; border-radius: 8px; cursor: default;
+  box-shadow: 0 8px 40px rgba(0, 0, 0, .5);
+}
+.lightbox-close {
+  position: absolute; top: 16px; right: 22px;
+  color: #fff; font-size: 30px; line-height: 1; cursor: pointer;
+  opacity: .85;
+}
+.lightbox-close:hover { opacity: 1; }
 
 /* ── เงื่อนไขการเข้าร่วม ── */
 .terms-list { margin: 0; padding-left: 20px; }

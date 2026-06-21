@@ -80,6 +80,12 @@
       </div>
     </div>
 
+    <!-- LIGHTBOX (กดรูปขยายเต็มจอ) -->
+    <div class="lightbox hidden" id="lightbox" onclick="window.closeLightbox()">
+      <span class="lightbox-close">✕</span>
+      <img id="lightboxImg" src="" alt="" onclick="event.stopPropagation()" />
+    </div>
+
     <script src="./register-config.js"></script>
     <script src="../../js/core/imageCompressor.js"></script>
     <script src="./campaign-register.js"></script>
