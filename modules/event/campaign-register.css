@@ -201,6 +201,45 @@ body {
 .img-rm:hover { background: var(--danger, #dc2626); }
 .plat-req { color: var(--danger); }
 
+/* ── MODAL ส่วนกลางหน้านี้ (dup / password) · sage header ── */
+.cm-overlay {
+  position: fixed; inset: 0; z-index: 2200;
+  background: rgba(15, 23, 42, .5);
+  display: flex; align-items: center; justify-content: center; padding: 20px;
+}
+.cm-overlay.hidden { display: none; }
+.cm-box {
+  background: #fff; border-radius: 16px; width: 100%; max-width: 420px;
+  box-shadow: 0 20px 60px rgba(15, 23, 42, .3); overflow: hidden;
+}
+.cm-header {
+  background: linear-gradient(135deg, var(--accent), var(--accent-light));
+  color: #fff; font-weight: 700; font-size: 16px; padding: 14px 20px;
+}
+.cm-body { padding: 18px 20px; }
+.cm-body p { margin: 0 0 12px; font-size: 14px; color: var(--text2); line-height: 1.6; }
+.cm-body p:last-child { margin-bottom: 0; }
+.cm-body p b { color: var(--text); }
+.cm-actions {
+  display: flex; gap: 10px; justify-content: flex-end;
+  padding: 0 20px 18px;
+}
+.cm-actions .btn-sm { width: auto; }
+
+/* ── banner โหมดแก้ไข ── */
+.edit-banner {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  background: #fef3c7; border: 1px solid #fcd34d; color: #92400e;
+  border-radius: 10px; padding: 8px 12px; font-size: 13px; font-weight: 600;
+  margin-bottom: 14px;
+}
+.edit-banner.hidden { display: none; }
+.edit-banner-x {
+  border: 1px solid #fcd34d; background: #fff; color: #92400e;
+  border-radius: 7px; padding: 4px 10px; font-size: 12px; cursor: pointer; font-family: inherit;
+}
+.edit-banner-x:hover { background: #fde68a; }
+
 /* ── LIGHTBOX (กดรูปขยายเต็มจอ) ── */
 .lightbox {
   position: fixed; inset: 0; z-index: 2000;

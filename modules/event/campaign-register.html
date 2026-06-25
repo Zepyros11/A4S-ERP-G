@@ -65,6 +65,11 @@
           <div class="reg-card" id="regCard">
             <h2>📝 ลงทะเบียนเข้าร่วม</h2>
             <div class="sub">กรอกข้อมูล และช่องทางโซเชียลอย่างน้อย 1 ช่องทาง</div>
+            <!-- แสดงเมื่ออยู่โหมดแก้ไขข้อมูลเดิม -->
+            <div class="edit-banner hidden" id="editBanner">
+              <span>✏️ กำลังแก้ไขข้อมูลที่เคยลงทะเบียนไว้</span>
+              <button type="button" class="edit-banner-x" onclick="window.cancelEditMode()">ยกเลิกการแก้ไข</button>
+            </div>
             <div class="reg-grid">
               <div class="fg fg-code">
                 <label>รหัส <span class="req">*</span></label>
@@ -105,8 +110,43 @@
       <img id="lightboxImg" src="" alt="" onclick="event.stopPropagation()" />
     </div>
 
+    <!-- MODAL: รหัสนี้เคยลงทะเบียนแล้ว (เลือก แก้ไข / ยกเลิก) -->
+    <div class="cm-overlay hidden" id="dupModal">
+      <div class="cm-box">
+        <div class="cm-header">⚠️ รหัสนี้เคยลงทะเบียนแล้ว</div>
+        <div class="cm-body">
+          <p id="dupMsg">รหัส <b></b> มีการลงทะเบียนในแคมเปญนี้แล้ว ต้องการแก้ไขข้อมูลเดิมหรือไม่?</p>
+        </div>
+        <div class="cm-actions">
+          <button class="btn btn-sec btn-sm" type="button" onclick="window.closeDupModal()">ยกเลิก</button>
+          <button class="btn btn-sm" type="button" onclick="window.openPwModal()">✏️ แก้ไขข้อมูล</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL: ยืนยันตัวตนด้วยรหัสผ่านสมาชิก ก่อนแก้ไข -->
+    <div class="cm-overlay hidden" id="pwModal">
+      <div class="cm-box">
+        <div class="cm-header">🔒 ยืนยันตัวตน</div>
+        <div class="cm-body">
+          <p>กรอกรหัสผ่านของสมาชิกรหัส <b id="pwCode"></b> เพื่อแก้ไขข้อมูล</p>
+          <div class="fg">
+            <label>รหัสผ่านสมาชิก <span class="req">*</span></label>
+            <input id="pwInput" type="password" autocomplete="off" placeholder="รหัสผ่าน หรือเลขบัตรประชาชน"
+                   onkeydown="if(event.key==='Enter')window.verifyEditPassword()" />
+          </div>
+          <div id="pwMsg" class="lookup-hit no hidden"></div>
+        </div>
+        <div class="cm-actions">
+          <button class="btn btn-sec btn-sm" type="button" onclick="window.closePwModal()">ยกเลิก</button>
+          <button class="btn btn-sm" type="button" id="pwBtn" onclick="window.verifyEditPassword()">ยืนยัน</button>
+        </div>
+      </div>
+    </div>
+
     <script src="./register-config.js"></script>
     <script src="../../js/core/imageCompressor.js"></script>
+    <script src="../../js/core/crypto.js"></script>
     <script src="./campaign-register.js"></script>
   </body>
 </html>
