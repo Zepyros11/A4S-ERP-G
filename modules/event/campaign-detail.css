@@ -153,6 +153,24 @@
 }
 .cmp-line-name:hover { text-decoration: underline; }
 
+/* ── ส่งข้อความ LINE = side panel เลื่อนจากขวา ──
+   #id specificity ชนะ .modal-overlay.open .modal (scale) → ใช้ translateX แทน */
+#lineMsgModal .modal {
+  position: fixed;
+  top: 0; right: 0; bottom: 0;       /* บังคับเต็มความสูงจอ — ไม่พึ่ง flex/height */
+  width: 420px; max-width: 92vw;
+  height: auto; max-height: none;
+  border-radius: 0; margin: 0;
+  display: flex; flex-direction: column;
+  transform: translateX(100%);
+  transition: transform 0.28s ease;
+  box-shadow: -8px 0 24px rgba(0, 0, 0, 0.18);
+}
+#lineMsgModal.open .modal { transform: translateX(0); }
+#lineMsgModal .modal-body { flex: 1 1 auto; overflow-y: auto; }
+#lineMsgModal .modal-footer { flex: 0 0 auto; }
+@media (max-width: 480px) { #lineMsgModal .modal { width: 100vw; max-width: 100vw; } }
+
 /* ── SHARE LINK MODAL (QR + Link) ── */
 .share-camp-name { font-weight: 700; font-size: 15px; margin-bottom: 12px; }
 .share-qr-wrap {

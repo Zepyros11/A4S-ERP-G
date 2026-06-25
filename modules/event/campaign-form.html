@@ -36,9 +36,9 @@
       /* จอกว้าง: แต่ละคอลัมน์เลื่อน scroll แยกกัน (สูงพอดีหน้าจอ) */
       @media (min-width: 901px) {
         .cf-col {
-          max-height: none;
-          overflow-y: visible;
-          overflow-x: visible;
+          max-height: calc(200vh - 300px);
+          overflow-y: auto;
+          overflow-x: hidden;
           padding-bottom: 4px;
           padding-right: 6px;
         }
@@ -247,6 +247,26 @@
       .rw-range .form-control, .rw-min .form-control { width: 90px; flex: none; }
       .rw-min-unit { font-size: 12px; color: var(--text3); }
       .rw-tier textarea.form-control { width: 100%; }
+      /* รูปของรางวัล (thumbnail + ปุ่ม 📷) */
+      .rw-prize-img {
+        flex: none; width: 44px; height: 44px; border-radius: 8px;
+        border: 1px dashed var(--border); background: var(--surface2, #f8fafc);
+        display: flex; align-items: center; justify-content: center;
+        cursor: pointer; font-size: 18px; color: var(--text3); position: relative; overflow: hidden;
+      }
+      .rw-prize-img:hover { border-color: var(--accent); color: var(--accent); }
+      .rw-prize-img.has { border-style: solid; }
+      .rw-prize-img img { width: 100%; height: 100%; object-fit: cover; }
+      .rw-prize-img .rw-img-rm {
+        position: absolute; top: 1px; right: 1px; width: 16px; height: 16px;
+        border: 0; border-radius: 50%; background: rgba(0,0,0,.6); color: #fff;
+        font-size: 10px; line-height: 1; cursor: pointer; display: flex;
+        align-items: center; justify-content: center; padding: 0;
+      }
+      /* topn: textarea + รูป วางข้างกัน */
+      .rw-prize-line { display: flex; gap: 8px; align-items: stretch; }
+      .rw-prize-line textarea.form-control { flex: 1; min-width: 0; }
+      .rw-prize-line .rw-prize-img { width: 56px; height: auto; align-self: stretch; }
       .rw-add-tier {
         background: none; border: 1px dashed var(--border); color: var(--text2);
       }
@@ -302,6 +322,7 @@
                 <div class="form-group">
                   <label class="form-label">ข้อความบรีฟงาน</label>
                   <textarea class="form-control" id="fRulesText" rows="5"
+                    style="min-height: 750px"
                     placeholder="พิมพ์รายละเอียด / บรีฟงานของแคมเปญ"></textarea>
                 </div>
               </div>
@@ -431,6 +452,8 @@
               </div>
 
               <div id="rwChannels"></div>
+              <input type="file" id="rwImgFile" accept="image/*" style="display: none"
+                onchange="window.onRwImgPicked(this)" />
             </div>
               </div>
 

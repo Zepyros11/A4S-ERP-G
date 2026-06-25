@@ -95,6 +95,56 @@ window.openLineChat = async function (name) {
   window.open(lineInboxUrl(), "_blank", "noopener");
 };
 
+// ── ส่งข้อความ LINE ในแอป (push ผ่าน LineAPI → /line/push ด้วย line_user_id) ──
+let _lmUserId = null;
+let _lmChannel = null;
+window.openLineMsgModal = function (code) {
+  const lm = lineByCode[code];
+  if (!lm || !lm.line_user_id) {
+    showToast("สมาชิกนี้ยังไม่ได้เชื่อม LINE", "warning");
+    return;
+  }
+  _lmUserId = lm.line_user_id;
+  document.getElementById("lmTo").textContent = lm.line_display_name || code;
+  document.getElementById("lmText").value = "";
+  // ลิงก์รอง "เปิดแชทเต็ม" — มี chat id ที่กรอกมือ → ตรงคน, ไม่มี → inbox+ก๊อปชื่อ
+  const oc = document.getElementById("lmOpenChat");
+  if (lm.line_chat_id) {
+    oc.href = lineChatDirectUrl(lm.line_chat_id);
+    oc.onclick = null;
+  } else {
+    oc.href = lineInboxUrl();
+    oc.onclick = (e) => { e.preventDefault(); openLineChat(lm.line_display_name || code); };
+  }
+  document.getElementById("lineMsgModal").classList.add("open");
+  setTimeout(() => document.getElementById("lmText").focus(), 50);
+};
+window.closeLineMsgModal = function () {
+  document.getElementById("lineMsgModal").classList.remove("open");
+};
+window.sendLineMsg = async function () {
+  const text = document.getElementById("lmText").value.trim();
+  if (!text) return showToast("พิมพ์ข้อความก่อน", "warning");
+  if (!_lmUserId) return showToast("ไม่พบ LINE ของสมาชิก", "error");
+  if (!window.LineAPI) return showToast("LineAPI ไม่ได้โหลด — เช็ก script", "error");
+  const btn = document.getElementById("btnSendLine");
+  const orig = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = "กำลังส่ง...";
+  try {
+    if (!_lmChannel) _lmChannel = await LineAPI.getDefaultChannel("event");
+    if (!_lmChannel) throw new Error("ไม่พบ LINE channel (event)");
+    await LineAPI.push({ channel: _lmChannel, to: _lmUserId, message: text });
+    showToast("ส่งข้อความแล้ว ✅", "success");
+    closeLineMsgModal();
+  } catch (e) {
+    showToast("ส่งไม่สำเร็จ: " + e.message, "error");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = orig;
+  }
+};
+
 // ── STATE ─────────────────────────────────────────────────
 let campaignId = null;
 let campaign = null;
@@ -371,16 +421,10 @@ window.renderParticipants = function () {
         : `<span style="color:var(--text3)">—</span>`;
       // Line ID — เช็คจาก member_code (ตาราง members) · มี LINE → ลิงก์เปิดแชท LINE OA, ไม่มี → —
       const lm = lineByCode[p.member_code];
-      let lineCell;
-      if (lm && lm.line_chat_id) {
-        // มี chat id (กรอกมือ) → เปิดแชทตรงคนได้เลย
-        lineCell = `<a href="${esc(lineChatDirectUrl(lm.line_chat_id))}" target="_blank" rel="noopener" class="cmp-line-name" title="เปิดแชท 1:1 ตรงคน" onclick="event.stopPropagation()">${esc(lm.line_display_name || "เปิดแชท")}</a>`;
-      } else if (lm && lm.line_display_name) {
-        // ไม่มี chat id → เปิด inbox + ก๊อปชื่อให้ค้นหา
-        lineCell = `<a href="${esc(lineInboxUrl())}" target="_blank" rel="noopener" class="cmp-line-name" title="เปิดแชท A4S_Lyra + ก๊อปชื่อไปวางค้นหา" data-name="${esc(lm.line_display_name)}" onclick="event.stopPropagation(); event.preventDefault(); openLineChat(this.dataset.name)">${esc(lm.line_display_name)}</a>`;
-      } else {
-        lineCell = `<span style="color:var(--text3)">—</span>`;
-      }
+      // มี line_user_id → คลิกเปิด panel ส่งข้อความในแอป (ส่งได้จริงด้วย id นี้)
+      const lineCell = lm && lm.line_user_id
+        ? `<a href="#" class="cmp-line-name" title="ส่งข้อความ LINE" data-code="${esc(p.member_code)}" onclick="event.stopPropagation(); event.preventDefault(); openLineMsgModal(this.dataset.code)">${esc(lm.line_display_name || "ส่งข้อความ")}</a>`
+        : `<span style="color:var(--text3)">—</span>`;
       return `<tr>
         <td class="col-center"><input type="checkbox" class="part-check" value="${p.participant_id}" onclick="window.updatePartBulk()" /></td>
         <td><div style="font-weight:600">${esc(p.member_name || "—")}</div>

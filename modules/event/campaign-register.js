@@ -38,11 +38,11 @@ function renderRewardTiers() {
     channels = SOCIALS.map((s) => {
       const ch = rw.channels[s.rwkey];
       if (!ch || !ch.enabled) return null;
-      const tiers = (Array.isArray(ch.tiers) ? ch.tiers : []).filter((t) => t && (t.prize || "").trim());
+      const tiers = (Array.isArray(ch.tiers) ? ch.tiers : []).filter((t) => t && ((t.prize || "").trim() || t.prize_img));
       return tiers.length ? { social: s, tiers } : null;
     }).filter(Boolean);
   } else if (Array.isArray(rw.tiers)) {
-    const tiers = rw.tiers.filter((t) => t && (t.prize || "").trim());
+    const tiers = rw.tiers.filter((t) => t && ((t.prize || "").trim() || t.prize_img));
     if (tiers.length) channels = [{ social: null, tiers }];
   }
   if (!channels.length) return;
@@ -65,7 +65,10 @@ function renderRewardTiers() {
     if (!t) return "—";
     const cond = (t.min_value != null && t.min_value !== "")
       ? `<div class="rm-cond">≥ ${esc(t.min_value)} ${esc(unit)}</div>` : "";
-    return `<b>${esc(t.prize)}</b>${cond}`;
+    const img = t.prize_img
+      ? `<img class="rm-img" src="${esc(t.prize_img)}" alt="" loading="lazy" onclick="window.openLightbox('${esc(t.prize_img)}')" />` : "";
+    const txt = (t.prize || "").trim() ? `<b>${esc(t.prize)}</b>` : "";
+    return `${txt}${img}${cond}`;
   };
 
   const hasChanHeader = channels.some((c) => c.social);

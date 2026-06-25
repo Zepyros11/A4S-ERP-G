@@ -374,7 +374,7 @@ const RW_CHANS = [
   { key: "ig",       label: "Instagram", ic: "../../assets/icons/instagram.png" },
 ];
 function newTier(from = 1, to = from) {
-  return { rank_from: from, rank_to: to, min_value: null, prize: "" };
+  return { rank_from: from, rank_to: to, min_value: null, prize: "", prize_img: null };
 }
 function emptyChannels() {
   return {
@@ -389,7 +389,20 @@ function mapTiers(arr) {
     rank_to: +t.rank_to || +t.rank_from || 1,
     min_value: t.min_value == null || t.min_value === "" ? null : +t.min_value,
     prize: t.prize || "",
+    prize_img: typeof t.prize_img === "string" ? t.prize_img : null,
   }));
+}
+// รูปของรางวัล (File ที่เพิ่งเลือก / url เดิม) → thumbnail หรือปุ่ม 📷
+function tierImgHtml(chanKey, i, t) {
+  const src = t.prize_img instanceof File ? URL.createObjectURL(t.prize_img)
+    : (typeof t.prize_img === "string" ? t.prize_img : "");
+  if (src) {
+    return `<div class="rw-prize-img has" title="เปลี่ยนรูป" onclick="window.pickRwImg('${chanKey}',${i})">
+      <img src="${src}" alt="" />
+      <button type="button" class="rw-img-rm" title="ลบรูป" onclick="event.stopPropagation();window.rmRwImg('${chanKey}',${i})">✕</button>
+    </div>`;
+  }
+  return `<div class="rw-prize-img" title="แนบรูปของรางวัล" onclick="window.pickRwImg('${chanKey}',${i})">📷</div>`;
 }
 
 // แปลง rewards จาก DB → per-channel (รองรับ format เดิม: flat tiers / {facebook:[...]})
@@ -473,7 +486,10 @@ function renderChannelCard(c) {
       <label class="rw-lbl">เงื่อนไขขั้นต่ำ (เว้นว่าง = ไม่มี)</label>
       <div class="rw-min">${unit} ≥ <input type="number" min="0" class="form-control" data-chan="${c.key}" data-f="min_value" value="${t.min_value == null ? "" : escHtml(t.min_value)}" placeholder="—" /></div>
       <label class="rw-lbl">ของรางวัล</label>
-      <textarea class="form-control" data-chan="${c.key}" data-f="prize" rows="2" placeholder="เช่น ลูกเทนนิสสกรีนโลโก้ 4BODY + สกรีนชื่อ">${escHtml(t.prize)}</textarea>`;
+      <div class="rw-prize-line">
+        <textarea class="form-control" data-chan="${c.key}" data-f="prize" rows="2" placeholder="เช่น ลูกเทนนิสสกรีนโลโก้ 4BODY + สกรีนชื่อ">${escHtml(t.prize)}</textarea>
+        ${tierImgHtml(c.key, 0, t)}
+      </div>`;
   } else {
     if (!ch.tiers.length) ch.tiers = [newTier(1, 1)];
     const rows = ch.tiers
@@ -481,6 +497,7 @@ function renderChannelCard(c) {
         <div class="rw-tier rw-tier-row" data-chan="${c.key}" data-idx="${i}">
           <span class="rw-tier-no">${["🥇", "🥈", "🥉"][i] || "🏅"} อันดับ ${i + 1}</span>
           <input class="form-control" data-chan="${c.key}" data-idx="${i}" data-f="prize" value="${escHtml(t.prize)}" placeholder="ของรางวัลอันดับ ${i + 1}" />
+          ${tierImgHtml(c.key, i, t)}
           <button type="button" class="rw-tier-del" title="ลบอันดับนี้" onclick="window.removeRewardTier('${c.key}',${i})">🗑</button>
         </div>`)
       .join("");
@@ -502,15 +519,17 @@ function syncRewardsFromDom() {
     if (!ch.enabled) return;
     const card = wrap.querySelector(`.rw-chan-card [data-chan="${c.key}"]`)?.closest(".rw-chan-card");
     if (!card) return;
+    const prev = ch.tiers; // เก็บ prize_img เดิม (File/url) ไว้ตาม index
     if (rewardMeta.mode === "topn") {
       const get = (f) => card.querySelector(`[data-chan="${c.key}"][data-f="${f}"]`);
       const n = Math.max(1, +get("rank_to").value || 1);
       const mv = get("min_value").value.trim();
-      ch.tiers = [{ rank_from: 1, rank_to: n, min_value: mv === "" ? null : +mv, prize: get("prize").value }];
+      ch.tiers = [{ rank_from: 1, rank_to: n, min_value: mv === "" ? null : +mv, prize: get("prize").value, prize_img: prev[0] ? prev[0].prize_img : null }];
     } else {
       ch.tiers = [...card.querySelectorAll(`.rw-tier[data-chan="${c.key}"]`)].map((box, i) => ({
         rank_from: i + 1, rank_to: i + 1, min_value: null,
         prize: box.querySelector('[data-f="prize"]').value,
+        prize_img: prev[i] ? prev[i].prize_img : null,
       }));
     }
   });
@@ -553,6 +572,48 @@ window.removeRewardTier = function (key, i) {
   renderRewards();
 };
 
+// รูปของรางวัล — ใช้ file input กลางตัวเดียว + จำ target ที่กำลังเลือก
+let _rwImgTarget = null;
+window.pickRwImg = function (chan, i) {
+  _rwImgTarget = { chan, i };
+  document.getElementById("rwImgFile").click();
+};
+window.onRwImgPicked = function (input) {
+  const f = input.files && input.files[0];
+  input.value = "";
+  if (!f || !_rwImgTarget) return;
+  syncRewardsFromDom(); // เก็บค่าที่พิมพ์ไว้ก่อน re-render
+  const { chan, i } = _rwImgTarget;
+  const t = rewardMeta.channels[chan] && rewardMeta.channels[chan].tiers[i];
+  if (t) t.prize_img = f;
+  _rwImgTarget = null;
+  renderRewards();
+};
+window.rmRwImg = function (chan, i) {
+  syncRewardsFromDom();
+  const t = rewardMeta.channels[chan] && rewardMeta.channels[chan].tiers[i];
+  if (t) t.prize_img = null;
+  renderRewards();
+};
+
+// upload รูปของรางวัลที่เป็น File → url (เรียกใน saveCampaign ก่อน collectRewards)
+async function uploadRewardImages(url, key, token) {
+  for (const c of RW_CHANS) {
+    const ch = rewardMeta.channels[c.key];
+    if (!ch || !ch.enabled) continue;
+    for (let i = 0; i < ch.tiers.length; i++) {
+      const t = ch.tiers[i];
+      if (t.prize_img instanceof File) {
+        const safe = (t.prize_img.name || "prize").replace(/[^a-zA-Z0-9._-]/g, "_");
+        const path = `campaigns/${token}/reward_${c.key}_${i}_${Date.now()}_${safe}`;
+        const u = await window.ImageCompressor.uploadViaRest(url, key, BUCKET, path, t.prize_img);
+        if (!u) throw new Error(`อัปโหลดรูปรางวัล ${c.label} ไม่สำเร็จ`);
+        t.prize_img = u;
+      }
+    }
+  }
+}
+
 function collectRewards() {
   syncRewardsFromDom();
   const channels = {};
@@ -560,8 +621,12 @@ function collectRewards() {
     const ch = rewardMeta.channels[c.key];
     if (!ch.enabled) return;
     const tiers = ch.tiers
-      .map((t) => ({ rank_from: t.rank_from, rank_to: Math.max(t.rank_from, t.rank_to), min_value: t.min_value, prize: (t.prize || "").trim() }))
-      .filter((t) => t.prize);
+      .map((t) => ({
+        rank_from: t.rank_from, rank_to: Math.max(t.rank_from, t.rank_to),
+        min_value: t.min_value, prize: (t.prize || "").trim(),
+        prize_img: typeof t.prize_img === "string" ? t.prize_img : null,
+      }))
+      .filter((t) => t.prize || t.prize_img);
     if (tiers.length) channels[c.key] = { enabled: true, tiers };
   });
   return { mode: rewardMeta.mode, metric: rewardMeta.metric, channels };
@@ -725,6 +790,10 @@ window.saveCampaign = async function () {
       }
       requirementsImages.push({ url: fileUrl, name: m.name || "" });
     }
+
+    // upload รูปของรางวัล (File → url) ก่อน collectRewards
+    syncRewardsFromDom();
+    await uploadRewardImages(url, key, token);
 
     const payload = {
       name,
