@@ -176,11 +176,34 @@ padding:16px 20px 20px;
 }
 
 .imp-dots{
-display:none;
+display:flex;
+gap:9px;
+align-items:center;
+justify-content:center;
+flex-wrap:wrap;
+max-width:80vw;
+}
+
+.imp-dot{
+width:9px;
+height:9px;
+border-radius:50%;
+background:rgba(255,255,255,0.35);
+cursor:pointer;
+transition:background .15s, transform .15s;
+}
+
+.imp-dot:hover{
+background:rgba(255,255,255,0.6);
+}
+
+.imp-dot.active{
+background:#fff;
+transform:scale(1.35);
 }
 
 .imp-thumbs{
-display:flex;
+display:none;
 gap:8px;
 padding:8px 14px;
 background:rgba(0,0,0,0.45);
@@ -311,17 +334,19 @@ object-fit:cover;
     const img = document.getElementById("impImage");
     const btn = document.getElementById("impZoomBtn");
     if (img) {
-      const baseH = Math.max(240, window.innerHeight - 180); // ขนาดพอดีจอที่ 100%
+      const baseH = Math.max(240, window.innerHeight - 130); // ขนาดพอดีจอที่ 100% (เผื่อ topbar + dots)
       if (zoom === 100) {
-        // พอดีจอ (contain)
-        img.style.maxWidth = "calc(100vw - 180px)";
-        img.style.maxHeight = baseH + "px";
-        img.style.width = "auto";
-        img.style.height = "auto";
+        // พอดีจอ — เติมเต็มพื้นที่ (ขยายภาพเล็กขึ้นได้ด้วย, คงสัดส่วนด้วย object-fit)
+        img.style.maxWidth = "none";
+        img.style.maxHeight = "none";
+        img.style.width = "calc(100vw - 180px)";
+        img.style.height = baseH + "px";
+        img.style.objectFit = "contain";
       } else {
         // ขยายขนาดจริง → เลื่อน (scroll) ดูได้ใน .imp-main
         img.style.maxWidth = "none";
         img.style.maxHeight = "none";
+        img.style.objectFit = "fill";
         img.style.height = Math.round(baseH * zoom / 100) + "px";
         img.style.width = "auto";
       }
@@ -378,6 +403,7 @@ object-fit:cover;
     const dotsEl = document.getElementById("impDots");
 
     if (dotsEl) {
+      dotsEl.style.display = images.length > 1 ? "flex" : "none";
       dotsEl.innerHTML = images
         .map(
           (_, i) =>

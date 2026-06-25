@@ -140,6 +140,12 @@ function renderCampaign() {
     hc.innerHTML = `<div class="reg-cover reg-cover-ph">🚀</div>`;
   }
   document.getElementById("cName").textContent = campaign.name;
+  // โชว์ชื่อแคมเปญบนแถบหัว (แทนข้อความตายตัว)
+  if (campaign.name) {
+    document.getElementById("regBrandMain").textContent = campaign.name;
+    document.getElementById("regBrandSub").textContent = "ลงทะเบียนแคมเปญ · Campaign Registration";
+    document.title = `${campaign.name} — ลงทะเบียนแคมเปญ`;
+  }
   const dates = campaign.start_date || campaign.end_date ? `📅 ${fmtDMY(campaign.start_date) || "—"} – ${fmtDMY(campaign.end_date) || "—"}` : "";
   document.getElementById("cMeta").innerHTML = dates ? `<span>${dates}</span>` : "";
   document.getElementById("cDesc").textContent = campaign.description || "";
