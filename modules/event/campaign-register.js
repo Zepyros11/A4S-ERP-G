@@ -39,9 +39,10 @@ function renderRewardTiers() {
   const rw = (campaign.rewards && typeof campaign.rewards === "object") ? campaign.rewards : {};
   const unit = RW_METRIC_LABEL[rw.metric] || "ยอด";
 
-  let blocks = "";
+  // 1 ช่องทางที่มีรางวัล = 1 คอลัมน์ (FB,TK → 2 คอลัมน์ · FB,TK,IG → 3 คอลัมน์)
+  let groups = [];
   if (rw.channels && typeof rw.channels === "object") {
-    blocks = SOCIALS
+    groups = SOCIALS
       .map((s) => {
         const ch = rw.channels[s.rwkey];
         if (!ch || !ch.enabled) return "";
@@ -49,14 +50,15 @@ function renderRewardTiers() {
         if (!tiers.length) return "";
         return `<div class="reward-chan-group"><div class="reward-chan-title">${socIcon(s)} ${s.label}</div>${tierRowsHtml(tiers, unit)}</div>`;
       })
-      .join("");
+      .filter(Boolean);
   } else if (Array.isArray(rw.tiers)) {
     const tiers = rw.tiers.filter((t) => t && (t.prize || "").trim());
-    if (tiers.length) blocks = `<div class="reward-chan-group">${tierRowsHtml(tiers, unit)}</div>`;
+    if (tiers.length) groups = [`<div class="reward-chan-group">${tierRowsHtml(tiers, unit)}</div>`];
   }
-  if (!blocks) return;
+  if (!groups.length) return;
+  const cols = `<div class="reward-chan-cols" style="grid-template-columns:repeat(${groups.length},minmax(0,1fr))">${groups.join("")}</div>`;
   rEl.innerHTML =
-    `<div class="reward-title">🎁 ของรางวัล <span class="reward-meta">· วัดจาก${unit}</span></div>${blocks}`;
+    `<div class="reward-title">🎁 ของรางวัล <span class="reward-meta">· วัดจาก${unit}</span></div>${cols}`;
   show("cReward", true);
 }
 const socialImg = {}; // key -> File (รูปที่เลือก ยังไม่ upload)

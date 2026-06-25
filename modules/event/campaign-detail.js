@@ -69,6 +69,17 @@ function isRealLink(u) {
 const PLAT_LABEL = { tiktok: "🎵 TikTok", instagram: "📸 IG", facebook: "👍 FB" };
 const fmtNum = (n) => (Number(n) || 0).toLocaleString("en-US");
 
+// ── LINE OA chat (เปิดแชท 1:1 ในฝั่งแอดมิน) ──
+// ACCOUNT_ID = ส่วนใน URL ตอนเปิด OA Manager chat: https://chat.line.biz/<ACCOUNT_ID>/chat/...
+// ค่านี้ = account id ของ OA "A4S_Lyra" (จาก URL chat.line.biz) → ลิงก์เปิดแชทรายคนได้
+const LINE_OA_CHAT_ID = "U1145fdb4cd26606afe4fe12575d211cc";
+function lineChatUrl(userId) {
+  if (!userId) return "";
+  return LINE_OA_CHAT_ID
+    ? `https://chat.line.biz/${LINE_OA_CHAT_ID}/chat/${encodeURIComponent(userId)}`
+    : "https://chat.line.biz/";
+}
+
 // ── STATE ─────────────────────────────────────────────────
 let campaignId = null;
 let campaign = null;
@@ -323,10 +334,10 @@ window.renderParticipants = function () {
             .map((im, i) => `<img class="cmp-soc-thumb" src="${esc(im)}" alt="" title="ดูรูป" onclick="event.stopPropagation();ImgPopup.open(${imgArr}, ${i})" />`)
             .join("")}</span>`
         : `<span style="color:var(--text3)">—</span>`;
-      // Line ID — เช็คจาก member_code (ตาราง members) · มี LINE → แสดงชื่อ LINE, ไม่มี → —
+      // Line ID — เช็คจาก member_code (ตาราง members) · มี LINE → ลิงก์เปิดแชท LINE OA, ไม่มี → —
       const lm = lineByCode[p.member_code];
       const lineCell = lm && lm.line_display_name
-        ? `<span class="cmp-line-name" title="${esc(lm.line_user_id || "")}">💬 ${esc(lm.line_display_name)}</span>`
+        ? `<a href="${esc(lineChatUrl(lm.line_user_id))}" target="_blank" rel="noopener" class="cmp-line-name" title="เปิดแชท LINE OA · ${esc(lm.line_user_id || "")}" onclick="event.stopPropagation()">💬 ${esc(lm.line_display_name)}</a>`
         : `<span style="color:var(--text3)">—</span>`;
       return `<tr>
         <td class="col-center"><input type="checkbox" class="part-check" value="${p.participant_id}" onclick="window.updatePartBulk()" /></td>

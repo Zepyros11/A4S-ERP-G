@@ -267,24 +267,8 @@
           <input type="hidden" id="fId" />
 
           <div class="cf-cols">
-            <!-- ───────── ซ้าย: สื่อ + ข้อมูลพื้นฐาน ───────── -->
+            <!-- ───────── ซ้าย: ข้อกำหนด Campaign ───────── -->
             <div class="cf-col">
-              <!-- MEDIA (top) -->
-              <div class="cf-panel">
-                <div class="cf-media-section" style="margin-bottom: 0">
-                  <label class="form-label">
-                    สื่อที่ใช้โปรโมต (รูป/วิดีโอ)
-                    <span class="cmp-media-count" id="fMediaCount">0/5</span>
-                  </label>
-                  <div id="fMediaGrid" class="cmp-media-grid5"></div>
-                  <input type="file" id="fMediaFiles" multiple
-                    accept="image/*,video/*" style="display: none" />
-                  <div class="cf-media-hint">
-                    📎 ลากรูป/วิดีโอมาวาง หรือคลิกช่องว่างเพื่อเลือกไฟล์ · ลากสลับช่องเพื่อจัดเรียง · ★ = รูปปก
-                  </div>
-                </div>
-              </div>
-
               <!-- ───────── ข้อกำหนด Campaign ───────── -->
               <div class="cf-panel">
                 <div class="cf-rules-title">📋 ข้อกำหนด Campaign</div>
@@ -310,8 +294,24 @@
               </div>
             </div>
 
-            <!-- ───────── ขวา: ชื่อแคมเปญ + ฟอร์มลงทะเบียน + รางวัล + เงื่อนไข ───────── -->
+            <!-- ───────── ขวา: สื่อโปรโมต + ชื่อแคมเปญ + ฟอร์มลงทะเบียน + รางวัล + เงื่อนไข ───────── -->
             <div class="cf-col">
+              <!-- MEDIA (top) -->
+              <div class="cf-panel">
+                <div class="cf-media-section" style="margin-bottom: 0">
+                  <label class="form-label">
+                    สื่อที่ใช้โปรโมต (รูป/วิดีโอ)
+                    <span class="cmp-media-count" id="fMediaCount">0/5</span>
+                  </label>
+                  <div id="fMediaGrid" class="cmp-media-grid5"></div>
+                  <input type="file" id="fMediaFiles" multiple
+                    accept="image/*,video/*" style="display: none" />
+                  <div class="cf-media-hint">
+                    📎 ลากรูป/วิดีโอมาวาง หรือคลิกช่องว่างเพื่อเลือกไฟล์ · ลากสลับช่องเพื่อจัดเรียง · ★ = รูปปก
+                  </div>
+                </div>
+              </div>
+
               <div class="cf-panel">
               <div class="form-grid">
                 <div class="form-group full">
