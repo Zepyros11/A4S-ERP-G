@@ -242,7 +242,8 @@
       .rw-tier-row .rw-tier-no { flex: none; font-size: 12.5px; white-space: nowrap; }
       .rw-tier-row .form-control { flex: 1; min-width: 0; }
       .rw-tier-row .rw-tier-del { flex: none; }
-      .rw-tier .rw-lbl { font-size: 11.5px; font-weight: 600; color: var(--text2); margin: 6px 0 3px; display: block; }
+      .rw-lbl { font-size: 11.5px; font-weight: 600; color: var(--text2); margin: 8px 0 3px; display: block; }
+      .rw-lbl:first-child { margin-top: 0; }
       .rw-range, .rw-min { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text2); }
       .rw-range .form-control, .rw-min .form-control { width: 90px; flex: none; }
       .rw-min-unit { font-size: 12px; color: var(--text3); }
@@ -263,10 +264,8 @@
         font-size: 10px; line-height: 1; cursor: pointer; display: flex;
         align-items: center; justify-content: center; padding: 0;
       }
-      /* topn: textarea + รูป วางข้างกัน */
-      .rw-prize-line { display: flex; gap: 8px; align-items: stretch; }
-      .rw-prize-line textarea.form-control { flex: 1; min-width: 0; }
-      .rw-prize-line .rw-prize-img { width: 56px; height: auto; align-self: stretch; }
+      /* topn: ช่องอัปโหลดรูปของรางวัล (ใหญ่ ชัดเจน) */
+      .rw-prize-big .rw-prize-img { width: 96px; height: 96px; font-size: 26px; }
       .rw-add-tier {
         background: none; border: 1px dashed var(--border); color: var(--text2);
       }

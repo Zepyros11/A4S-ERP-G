@@ -305,6 +305,10 @@ body {
 }
 .rm-cell b { color: var(--text); font-weight: 700; }
 .rm-cond { font-size: 10.5px; color: var(--text3); }
+.rm-img {
+  width: 100%; max-width: 120px; max-height: 90px; object-fit: contain;
+  border-radius: 6px; margin-top: 4px; cursor: zoom-in; background: #fff;
+}
 .reward-tier-cond, .reward-cond {
   font-size: 11.5px; color: var(--text3); margin-top: 4px;
   border-top: 1px dashed #fde68a; padding-top: 4px;
@@ -379,6 +383,7 @@ body {
   box-shadow: 0 8px 30px rgba(15, 23, 42, 0.08);
 }
 .reg-state .ic { font-size: 52px; margin-bottom: 12px; }
+.reg-state .done-img { width: 100%; max-width: 460px; height: auto; border-radius: 16px; margin: 0 auto 16px; display: block; }
 .reg-state .msg { font-size: 16px; color: var(--text2); }
 
 .hidden { display: none !important; }

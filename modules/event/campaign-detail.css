@@ -153,24 +153,6 @@
 }
 .cmp-line-name:hover { text-decoration: underline; }
 
-/* ── ส่งข้อความ LINE = side panel เลื่อนจากขวา ──
-   #id specificity ชนะ .modal-overlay.open .modal (scale) → ใช้ translateX แทน */
-#lineMsgModal .modal {
-  position: fixed;
-  top: 0; right: 0; bottom: 0;       /* บังคับเต็มความสูงจอ — ไม่พึ่ง flex/height */
-  width: 420px; max-width: 92vw;
-  height: auto; max-height: none;
-  border-radius: 0; margin: 0;
-  display: flex; flex-direction: column;
-  transform: translateX(100%);
-  transition: transform 0.28s ease;
-  box-shadow: -8px 0 24px rgba(0, 0, 0, 0.18);
-}
-#lineMsgModal.open .modal { transform: translateX(0); }
-#lineMsgModal .modal-body { flex: 1 1 auto; overflow-y: auto; }
-#lineMsgModal .modal-footer { flex: 0 0 auto; }
-@media (max-width: 480px) { #lineMsgModal .modal { width: 100vw; max-width: 100vw; } }
-
 /* ── SHARE LINK MODAL (QR + Link) ── */
 .share-camp-name { font-weight: 700; font-size: 15px; margin-bottom: 12px; }
 .share-qr-wrap {
@@ -278,3 +260,6 @@
 .cmp-rw-group .cmp-rw-head { display: flex; align-items: center; gap: 6px; font-weight: 700; font-size: 13px; margin-bottom: 6px; }
 .cmp-rw-group .cmp-rw-head .soc-ic { width: 18px; height: 18px; }
 .cmp-rw-group .cmp-rw-tier + .cmp-rw-tier { margin-top: 6px; }
+
+/* รูปของรางวัล (overview) */
+.cmp-rw-img { max-width: 140px; max-height: 110px; object-fit: contain; border-radius: 8px; margin-top: 6px; cursor: zoom-in; background: #fff; border: 1px solid var(--border); }

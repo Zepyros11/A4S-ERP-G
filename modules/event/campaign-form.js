@@ -486,10 +486,9 @@ function renderChannelCard(c) {
       <label class="rw-lbl">เงื่อนไขขั้นต่ำ (เว้นว่าง = ไม่มี)</label>
       <div class="rw-min">${unit} ≥ <input type="number" min="0" class="form-control" data-chan="${c.key}" data-f="min_value" value="${t.min_value == null ? "" : escHtml(t.min_value)}" placeholder="—" /></div>
       <label class="rw-lbl">ของรางวัล</label>
-      <div class="rw-prize-line">
-        <textarea class="form-control" data-chan="${c.key}" data-f="prize" rows="2" placeholder="เช่น ลูกเทนนิสสกรีนโลโก้ 4BODY + สกรีนชื่อ">${escHtml(t.prize)}</textarea>
-        ${tierImgHtml(c.key, 0, t)}
-      </div>`;
+      <textarea class="form-control" data-chan="${c.key}" data-f="prize" rows="2" placeholder="เช่น ลูกเทนนิสสกรีนโลโก้ 4BODY + สกรีนชื่อ">${escHtml(t.prize)}</textarea>
+      <label class="rw-lbl">รูปของรางวัล (แนบได้ 1 รูป)</label>
+      <div class="rw-prize-big">${tierImgHtml(c.key, 0, t)}</div>`;
   } else {
     if (!ch.tiers.length) ch.tiers = [newTier(1, 1)];
     const rows = ch.tiers

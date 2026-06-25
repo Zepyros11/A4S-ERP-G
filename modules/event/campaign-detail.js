@@ -95,56 +95,6 @@ window.openLineChat = async function (name) {
   window.open(lineInboxUrl(), "_blank", "noopener");
 };
 
-// ── ส่งข้อความ LINE ในแอป (push ผ่าน LineAPI → /line/push ด้วย line_user_id) ──
-let _lmUserId = null;
-let _lmChannel = null;
-window.openLineMsgModal = function (code) {
-  const lm = lineByCode[code];
-  if (!lm || !lm.line_user_id) {
-    showToast("สมาชิกนี้ยังไม่ได้เชื่อม LINE", "warning");
-    return;
-  }
-  _lmUserId = lm.line_user_id;
-  document.getElementById("lmTo").textContent = lm.line_display_name || code;
-  document.getElementById("lmText").value = "";
-  // ลิงก์รอง "เปิดแชทเต็ม" — มี chat id ที่กรอกมือ → ตรงคน, ไม่มี → inbox+ก๊อปชื่อ
-  const oc = document.getElementById("lmOpenChat");
-  if (lm.line_chat_id) {
-    oc.href = lineChatDirectUrl(lm.line_chat_id);
-    oc.onclick = null;
-  } else {
-    oc.href = lineInboxUrl();
-    oc.onclick = (e) => { e.preventDefault(); openLineChat(lm.line_display_name || code); };
-  }
-  document.getElementById("lineMsgModal").classList.add("open");
-  setTimeout(() => document.getElementById("lmText").focus(), 50);
-};
-window.closeLineMsgModal = function () {
-  document.getElementById("lineMsgModal").classList.remove("open");
-};
-window.sendLineMsg = async function () {
-  const text = document.getElementById("lmText").value.trim();
-  if (!text) return showToast("พิมพ์ข้อความก่อน", "warning");
-  if (!_lmUserId) return showToast("ไม่พบ LINE ของสมาชิก", "error");
-  if (!window.LineAPI) return showToast("LineAPI ไม่ได้โหลด — เช็ก script", "error");
-  const btn = document.getElementById("btnSendLine");
-  const orig = btn.textContent;
-  btn.disabled = true;
-  btn.textContent = "กำลังส่ง...";
-  try {
-    if (!_lmChannel) _lmChannel = await LineAPI.getDefaultChannel("event");
-    if (!_lmChannel) throw new Error("ไม่พบ LINE channel (event)");
-    await LineAPI.push({ channel: _lmChannel, to: _lmUserId, message: text });
-    showToast("ส่งข้อความแล้ว ✅", "success");
-    closeLineMsgModal();
-  } catch (e) {
-    showToast("ส่งไม่สำเร็จ: " + e.message, "error");
-  } finally {
-    btn.disabled = false;
-    btn.textContent = orig;
-  }
-};
-
 // ── STATE ─────────────────────────────────────────────────
 let campaignId = null;
 let campaign = null;
@@ -189,7 +139,7 @@ async function loadAll() {
     const inList = codes.map((c) => `"${String(c).replace(/"/g, "")}"`).join(",");
     const mem = await sbFetch(
       "members",
-      `?member_code=in.(${inList})&select=member_code,line_display_name,line_user_id,line_chat_id`,
+      `?member_code=in.(${inList})&select=member_code,line_display_name,line_user_id,line_chat_id,phone`,
     ).catch(() => []);
     (mem || []).forEach((m) => (lineByCode[m.member_code] = m));
   }
@@ -257,7 +207,10 @@ function renderOverview() {
       const rank = rf === rt ? `อันดับ ${rf}` : `อันดับ ${rf}–${rt}`;
       const cond = (t.min_value != null && t.min_value !== "")
         ? `<div class="cmp-rw-cond">เงื่อนไข: ${unit} ≥ ${esc(t.min_value)}</div>` : "";
-      return `<div class="cmp-rw-tier"><div class="cmp-rw-tier-rank">🏆 ${rank}</div><div class="cmp-rw-tier-prize">${esc(t.prize)}</div>${cond}</div>`;
+      const img = t.prize_img
+        ? `<img class="cmp-rw-img" src="${esc(t.prize_img)}" alt="" onclick="ImgPopup.open(['${esc(t.prize_img)}'])" />` : "";
+      const txt = (t.prize || "").trim() ? `<div class="cmp-rw-tier-prize">${esc(t.prize)}</div>` : "";
+      return `<div class="cmp-rw-tier"><div class="cmp-rw-tier-rank">🏆 ${rank}</div>${txt}${img}${cond}</div>`;
     })
     .join("");
 
@@ -266,12 +219,12 @@ function renderOverview() {
     rwHtml = RW_SOC.map((s) => {
       const ch = rewards.channels[s.k];
       if (!ch || !ch.enabled) return "";
-      const tiers = (Array.isArray(ch.tiers) ? ch.tiers : []).filter((t) => t && (t.prize || "").trim());
+      const tiers = (Array.isArray(ch.tiers) ? ch.tiers : []).filter((t) => t && ((t.prize || "").trim() || t.prize_img));
       if (!tiers.length) return "";
       return `<div class="cmp-rw-group"><div class="cmp-rw-head"><img class="soc-ic" src="${s.ic}" alt="" /> ${s.label}</div>${tierRows(tiers)}</div>`;
     }).join("");
   } else if (Array.isArray(rewards.tiers)) {
-    const tiers = rewards.tiers.filter((t) => t && (t.prize || "").trim());
+    const tiers = rewards.tiers.filter((t) => t && ((t.prize || "").trim() || t.prize_img));
     if (tiers.length) rwHtml = `<div class="cmp-rw-group">${tierRows(tiers)}</div>`;
   }
 
@@ -421,18 +374,23 @@ window.renderParticipants = function () {
         : `<span style="color:var(--text3)">—</span>`;
       // Line ID — เช็คจาก member_code (ตาราง members) · มี LINE → ลิงก์เปิดแชท LINE OA, ไม่มี → —
       const lm = lineByCode[p.member_code];
-      // มี line_user_id → คลิกเปิด panel ส่งข้อความในแอป (ส่งได้จริงด้วย id นี้)
-      const lineCell = lm && lm.line_user_id
-        ? `<a href="#" class="cmp-line-name" title="ส่งข้อความ LINE" data-code="${esc(p.member_code)}" onclick="event.stopPropagation(); event.preventDefault(); openLineMsgModal(this.dataset.code)">${esc(lm.line_display_name || "ส่งข้อความ")}</a>`
-        : `<span style="color:var(--text3)">—</span>`;
+      // คลิก → มี chat id (กรอกมือ) เปิดตรงคน · ไม่มี → เปิด inbox OA + ก๊อปชื่อให้ค้นหา
+      let lineCell;
+      if (lm && lm.line_chat_id) {
+        lineCell = `<a href="${esc(lineChatDirectUrl(lm.line_chat_id))}" target="_blank" rel="noopener" class="cmp-line-name" title="เปิดแชท 1:1 ตรงคน" onclick="event.stopPropagation()">${esc(lm.line_display_name || "เปิดแชท")}</a>`;
+      } else if (lm && lm.line_display_name) {
+        lineCell = `<a href="${esc(lineInboxUrl())}" target="_blank" rel="noopener" class="cmp-line-name" title="เปิดแชท A4S_Lyra + ก๊อปชื่อไปวางค้นหา" data-name="${esc(lm.line_display_name)}" onclick="event.stopPropagation(); event.preventDefault(); openLineChat(this.dataset.name)">${esc(lm.line_display_name)}</a>`;
+      } else {
+        lineCell = `<span style="color:var(--text3)">—</span>`;
+      }
       return `<tr>
         <td class="col-center"><input type="checkbox" class="part-check" value="${p.participant_id}" onclick="window.updatePartBulk()" /></td>
         <td><div style="font-weight:600">${esc(p.member_name || "—")}</div>
-            <div style="font-size:11px;color:var(--text3);font-family:'IBM Plex Mono',monospace">${esc(p.member_code)}${p.phone ? " · " + esc(p.phone) : ""}</div></td>
+            <div style="font-size:11px;color:var(--text3);font-family:'IBM Plex Mono',monospace">${esc(p.member_code)}</div></td>
         <td class="col-center">${imgCell}</td>
         <td class="col-center">${socials}</td>
         <td class="col-center">${lineCell}</td>
-        <td class="col-center" style="white-space:nowrap;font-size:12px;color:var(--text2)">${p.joined_at && window.DateFmt ? DateFmt.formatDMYTime(p.joined_at) : "—"}</td>
+        <td class="col-center" style="white-space:nowrap;font-size:12.5px;color:var(--text2)">${(lm && lm.phone) || p.phone ? esc((lm && lm.phone) || p.phone) : `<span style="color:var(--text3)">—</span>`}</td>
         <td class="col-center">${statusPillPart(p)}</td>
         <td class="col-center">
           <div class="cmp-row-actions">
@@ -752,7 +710,16 @@ window.saveSub = async function () {
   if (!post_url) return showToast("ใส่ลิงก์โพสต์", "error");
   const participant_id = +document.getElementById("sParticipant").value;
   if (!participant_id) return showToast("เลือกผู้เข้าร่วม", "error");
-  const id = document.getElementById("sId").value;
+  let id = document.getElementById("sId").value;
+
+  // กันโพสต์ซ้ำ: เพิ่มผลงานใหม่ แต่คนนี้ + โพสต์ (URL) นี้ มีอยู่แล้ว → แก้ของเดิมแทน insert ซ้ำ
+  // (ไม่งั้น ranking รวมยอดซ้ำ เช่น 18+30=48 ทั้งที่เป็นโพสต์เดียว)
+  if (!id) {
+    const dup = submissions.find(
+      (x) => x.participant_id === participant_id && (x.post_url || "").trim() === post_url,
+    );
+    if (dup) id = dup.submission_id;
+  }
 
   const btn = document.getElementById("btnSaveSub");
   btn.disabled = true;
