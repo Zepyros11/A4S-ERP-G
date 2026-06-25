@@ -451,12 +451,10 @@ function renderChannelCard(c) {
     if (!ch.tiers.length) ch.tiers = [newTier(1, 1)];
     const rows = ch.tiers
       .map((t, i) => `
-        <div class="rw-tier" data-chan="${c.key}" data-idx="${i}">
-          <div class="rw-tier-head">
-            <span class="rw-tier-no">${["🥇", "🥈", "🥉"][i] || "🏅"} อันดับ ${i + 1}</span>
-            <button type="button" class="rw-tier-del" title="ลบอันดับนี้" onclick="window.removeRewardTier('${c.key}',${i})">🗑</button>
-          </div>
-          <textarea class="form-control" data-chan="${c.key}" data-idx="${i}" data-f="prize" rows="2" placeholder="ของรางวัลอันดับ ${i + 1}">${escHtml(t.prize)}</textarea>
+        <div class="rw-tier rw-tier-row" data-chan="${c.key}" data-idx="${i}">
+          <span class="rw-tier-no">${["🥇", "🥈", "🥉"][i] || "🏅"} อันดับ ${i + 1}</span>
+          <input class="form-control" data-chan="${c.key}" data-idx="${i}" data-f="prize" value="${escHtml(t.prize)}" placeholder="ของรางวัลอันดับ ${i + 1}" />
+          <button type="button" class="rw-tier-del" title="ลบอันดับนี้" onclick="window.removeRewardTier('${c.key}',${i})">🗑</button>
         </div>`)
       .join("");
     body = `${rows}<button type="button" class="btn btn-secondary btn-sm rw-add-tier" style="margin-top:6px" onclick="window.addRewardTier('${c.key}')">＋ เพิ่มอันดับ</button>`;

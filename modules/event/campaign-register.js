@@ -375,15 +375,12 @@ function renderCodeSuggest(rows) {
     el.innerHTML = `<div class="cs-info">ไม่พบรหัสนี้ — พิมพ์ชื่อเองได้</div>`;
     return;
   }
+  // แสดงแค่ รหัส + ชื่อ (ไม่โชว์ chip role/ตำแหน่ง — กัน popup ล้นแนวนอน)
   el.innerHTML = rows.map((m) => {
     const name = m.person_name || "—";
-    const role = m.person_role === "co_applicant"
-      ? `<span class="cs-chip cs-chip-co">👥 ผู้สมัครร่วม</span>`
-      : (m.is_company ? `<span class="cs-chip cs-chip-co">🏢 บุคคลธรรมดา</span>` : "");
-    const pos = m.position_level ? `<span class="cs-chip cs-chip-pos">⭐ ${esc(m.position_level)}</span>` : "";
     return `<div class="cs-row" data-name="${esc(name)}">
       <span class="cs-code">${esc(m.member_code)}</span>
-      <span class="cs-name">${esc(name)}</span>${role}${pos}
+      <span class="cs-name">${esc(name)}</span>
     </div>`;
   }).join("");
   el.querySelectorAll(".cs-row").forEach((r) =>

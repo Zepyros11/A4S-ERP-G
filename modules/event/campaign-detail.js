@@ -75,6 +75,7 @@ let campaign = null;
 let missions = [];
 let participants = [];
 let submissions = [];
+let lineByCode = {}; // member_code -> { line_display_name, line_user_id }
 let _proofFile = null;
 
 // ── INIT ──────────────────────────────────────────────────
@@ -104,6 +105,18 @@ async function loadAll() {
   if (!campaign) throw new Error("ไม่พบแคมเปญ");
   participants = parts || [];
   submissions = subs || [];
+
+  // ── เช็ค LINE จาก member_code (ตาราง members เหมือนหน้า line-members) ──
+  lineByCode = {};
+  const codes = [...new Set(participants.map((p) => p.member_code).filter(Boolean))];
+  if (codes.length) {
+    const inList = codes.map((c) => `"${String(c).replace(/"/g, "")}"`).join(",");
+    const mem = await sbFetch(
+      "members",
+      `?member_code=in.(${inList})&select=member_code,line_display_name,line_user_id`,
+    ).catch(() => []);
+    (mem || []).forEach((m) => (lineByCode[m.member_code] = m));
+  }
 
   renderHeader();
   renderOverview();
@@ -282,7 +295,7 @@ window.renderParticipants = function () {
       (p.member_name || "").toLowerCase().includes(search),
   );
   if (!rows.length) {
-    body.innerHTML = `<tr><td colspan="7"><div class="empty-state"><div class="empty-icon">👥</div><div class="empty-text">ยังไม่มีผู้เข้าร่วม</div></div></td></tr>`;
+    body.innerHTML = `<tr><td colspan="8"><div class="empty-state"><div class="empty-icon">👥</div><div class="empty-text">ยังไม่มีผู้เข้าร่วม</div></div></td></tr>`;
     updatePartBulk();
     return;
   }
@@ -310,12 +323,18 @@ window.renderParticipants = function () {
             .map((im, i) => `<img class="cmp-soc-thumb" src="${esc(im)}" alt="" title="ดูรูป" onclick="event.stopPropagation();ImgPopup.open(${imgArr}, ${i})" />`)
             .join("")}</span>`
         : `<span style="color:var(--text3)">—</span>`;
+      // Line ID — เช็คจาก member_code (ตาราง members) · มี LINE → แสดงชื่อ LINE, ไม่มี → —
+      const lm = lineByCode[p.member_code];
+      const lineCell = lm && lm.line_display_name
+        ? `<span class="cmp-line-name" title="${esc(lm.line_user_id || "")}">💬 ${esc(lm.line_display_name)}</span>`
+        : `<span style="color:var(--text3)">—</span>`;
       return `<tr>
         <td class="col-center"><input type="checkbox" class="part-check" value="${p.participant_id}" onclick="window.updatePartBulk()" /></td>
         <td><div style="font-weight:600">${esc(p.member_name || "—")}</div>
             <div style="font-size:11px;color:var(--text3);font-family:'IBM Plex Mono',monospace">${esc(p.member_code)}${p.phone ? " · " + esc(p.phone) : ""}</div></td>
         <td class="col-center">${imgCell}</td>
         <td class="col-center">${socials}</td>
+        <td class="col-center">${lineCell}</td>
         <td class="col-center" style="white-space:nowrap;font-size:12px;color:var(--text2)">${p.joined_at && window.DateFmt ? DateFmt.formatDMYTime(p.joined_at) : "—"}</td>
         <td class="col-center">${statusPillPart(p)}</td>
         <td class="col-center">

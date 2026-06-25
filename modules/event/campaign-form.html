@@ -224,6 +224,11 @@
         border-radius: 7px; cursor: pointer; font-size: 12px; color: var(--text3);
       }
       .rw-tier-del:hover { background: #fee2e2; border-color: var(--danger); color: var(--danger); }
+      /* แถวอันดับแบบบรรทัดเดียว [อันดับ X | input | 🗑] */
+      .rw-tier-row { display: flex; align-items: center; gap: 8px; padding: 8px 10px; }
+      .rw-tier-row .rw-tier-no { flex: none; font-size: 12.5px; white-space: nowrap; }
+      .rw-tier-row .form-control { flex: 1; min-width: 0; }
+      .rw-tier-row .rw-tier-del { flex: none; }
       .rw-tier .rw-lbl { font-size: 11.5px; font-weight: 600; color: var(--text2); margin: 6px 0 3px; display: block; }
       .rw-range, .rw-min { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text2); }
       .rw-range .form-control, .rw-min .form-control { width: 90px; flex: none; }
