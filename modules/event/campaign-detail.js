@@ -147,7 +147,7 @@ window.switchTab = function (tab) {
 };
 
 // ── HEADER + OVERVIEW ─────────────────────────────────────
-const STATUS_LABEL = { DRAFT: "📝 ร่าง", ACTIVE: "▶️ ดำเนินการ", ENDED: "✅ จบแล้ว", CANCELLED: "❌ ยกเลิก" };
+const STATUS_LABEL = { DRAFT: "📝 ร่าง", CONFIRMED: "✔️ ยืนยัน", ACTIVE: "▶️ ดำเนินการ", ENDED: "✅ จบแล้ว", CANCELLED: "❌ ยกเลิก" };
 function renderHeader() {
   document.getElementById("dName").textContent = campaign.name;
   const cover = document.getElementById("dCover");

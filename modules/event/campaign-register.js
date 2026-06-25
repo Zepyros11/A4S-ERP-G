@@ -306,7 +306,7 @@ function renderSocials() {
         </div>
         <div class="fg fg-img">
           <label>รูป <span class="req plat-req hidden" id="rq_${s.key}">*</span></label>
-          <div class="img-drop" id="drop_${s.key}" onclick="document.getElementById('f_${s.key}').click()">
+          <div class="img-drop disabled" id="drop_${s.key}" onclick="window.tryPickSocialImg('${s.key}')">
             <span class="img-drop-ph">📷</span>
             <img class="img-prev hidden" id="prev_${s.key}" alt="" />
             <button type="button" class="img-rm hidden" id="rm_${s.key}" onclick="event.stopPropagation();window.removeSocialImg('${s.key}')">✕</button>
@@ -327,14 +327,30 @@ function renderSocials() {
       drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.remove("dragover"); }),
     );
     drop.addEventListener("drop", (e) => {
+      const url = (document.getElementById(`u_${s.key}`)?.value || "").trim();
+      if (!url) { toast("กรุณากรอกลิงก์ของช่องทางนี้ก่อนแนบรูป", "warning"); return; }
       const f = e.dataTransfer?.files?.[0];
       if (f && f.type.startsWith("image/")) setSocialImg(s.key, f);
     });
   });
 }
+// คลิกช่องรูป — ต้องมีลิงก์ก่อน ถึงเปิดเลือกไฟล์ได้
+window.tryPickSocialImg = function (key) {
+  const url = (document.getElementById(`u_${key}`)?.value || "").trim();
+  if (!url) {
+    toast("กรุณากรอกลิงก์ของช่องทางนี้ก่อนแนบรูป", "warning");
+    document.getElementById(`u_${key}`)?.focus();
+    return;
+  }
+  document.getElementById(`f_${key}`).click();
+};
 function markReq(key) {
   const url = (document.getElementById(`u_${key}`)?.value || "").trim();
   document.getElementById(`rq_${key}`).classList.toggle("hidden", !url);
+  // ไม่มีลิงก์ → ปิดช่องรูป (กดไม่ได้) + ลบรูปที่เผลอแนบไว้
+  const drop = document.getElementById(`drop_${key}`);
+  if (drop) drop.classList.toggle("disabled", !url);
+  if (!url && (socialImg[key] || existingImg[key])) window.removeSocialImg(key);
 }
 function setSocialImg(key, file) {
   socialImg[key] = file;

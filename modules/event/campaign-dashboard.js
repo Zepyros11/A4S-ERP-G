@@ -60,12 +60,13 @@ function todayBKK() {
   return new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Bangkok" });
 }
 function displayStatus(c) {
-  if (c.status === "CANCELLED") return "CANCELLED";
+  // ไม่ auto: ร่าง (ยังแก้อยู่) และ ยกเลิก — เหมือน campaign-planning (แต่ไม่เขียนกลับ)
+  if (c.status === "DRAFT" || c.status === "CANCELLED") return c.status;
   const start = (c.start_date || "").slice(0, 10);
   if (!start) return c.status;
   const end = (c.end_date || "").slice(0, 10);
   const today = todayBKK();
-  if (today < start) return "DRAFT";
+  if (today < start) return "CONFIRMED";
   if (end && today > end) return "ENDED";
   return "ACTIVE";
 }
@@ -137,6 +138,7 @@ function renderKpis() {
 // ════════════════════════════════════════════════════════
 const STATUS_META = {
   ACTIVE: { label: "▶️ ดำเนินการ", color: "#057a55" },
+  CONFIRMED: { label: "✔️ ยืนยัน", color: "#4338ca" },
   DRAFT: { label: "📝 ร่าง", color: "#9d958b" },
   ENDED: { label: "✅ จบแล้ว", color: "#1e40af" },
   CANCELLED: { label: "❌ ยกเลิก", color: "#b45309" },
