@@ -509,8 +509,12 @@ function openDupModal(code) {
 }
 window.closeDupModal = function () {
   document.getElementById("dupModal").classList.add("hidden");
-  // จดว่ารหัสนี้ถูกยกเลิก — ไม่เด้งซ้ำ (ยอมให้ลงทะเบียนใหม่ได้ตามกติกา multi)
-  _dupDismissedCode = (document.getElementById("rCode").value || "").trim();
+  // ยกเลิก → ล้างรหัส/ชื่อที่กรอก กันลงทะเบียนทับของเดิมโดยไม่ตั้งใจ
+  document.getElementById("rCode").value = "";
+  document.getElementById("rName").value = "";
+  hideCodeSuggest();
+  _dupRow = null;
+  _dupDismissedCode = "";
 };
 window.openPwModal = function () {
   document.getElementById("dupModal").classList.add("hidden");
