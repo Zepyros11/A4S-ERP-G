@@ -720,9 +720,6 @@ async function doRegister() {
     }
 
     show("content", false);
-    document.getElementById("doneMsg").textContent = isEdit
-      ? "แก้ไขข้อมูลเรียบร้อยแล้ว ขอบคุณค่ะ 🎉"
-      : "ลงทะเบียนเรียบร้อยแล้ว ขอบคุณค่ะ 🎉";
     show("stateDone", true);
   } catch (e) {
     regMsg((isEdit ? "บันทึกไม่สำเร็จ: " : "ลงทะเบียนไม่สำเร็จ: ") + esc(e.message));

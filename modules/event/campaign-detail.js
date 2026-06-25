@@ -193,6 +193,32 @@ function metricUnitLabel(m) {
   return arr.length ? arr.map((k) => RW_METRIC_LABEL[k]).join(" + ") : "ยอด";
 }
 
+// ── ยอดตัววัด — รวม submissions ต่อคน + คิดคะแนนตาม rank_metric (ใช้ทั้งคอลัมน์ผู้เข้าร่วม + ranking) ──
+function _metricKeysOf(metric) {
+  if (Array.isArray(metric)) return metric.filter((k) => RW_METRIC_KEYS.includes(k));
+  if (metric === "engagement") return ["likes", "comments", "shares"];
+  return RW_METRIC_KEYS.includes(metric) ? [metric] : ["views"];
+}
+function _subAgg() {
+  const agg = {};
+  participants.forEach((p) => (agg[p.participant_id] = { views: 0, likes: 0, comments: 0, shares: 0, posts: 0 }));
+  submissions
+    .filter((s) => agg[s.participant_id])
+    .forEach((s) => {
+      const a = agg[s.participant_id];
+      a.views += +s.views || 0;
+      a.likes += +s.likes || 0;
+      a.comments += +s.comments || 0;
+      a.shares += +s.shares || 0;
+      a.posts += 1;
+    });
+  return agg;
+}
+function _metricScore(a, metric) {
+  if (!a) return 0;
+  return _metricKeysOf(metric).reduce((sum, k) => sum + (a[k] || 0), 0);
+}
+
 function renderOverview() {
   document.getElementById("dDesc").textContent = campaign.description || "—";
 
@@ -344,10 +370,15 @@ window.renderParticipants = function () {
       (p.member_name || "").toLowerCase().includes(search),
   );
   if (!rows.length) {
-    body.innerHTML = `<tr><td colspan="8"><div class="empty-state"><div class="empty-icon">👥</div><div class="empty-text">ยังไม่มีผู้เข้าร่วม</div></div></td></tr>`;
+    body.innerHTML = `<tr><td colspan="9"><div class="empty-state"><div class="empty-icon">👥</div><div class="empty-text">ยังไม่มีผู้เข้าร่วม</div></div></td></tr>`;
     updatePartBulk();
     return;
   }
+  // ยอดตัววัด (เมตริกที่จัดอันดับ) ต่อคน + ตั้งหัวคอลัมน์ตามเมตริก
+  const metric = campaign.rank_metric || "views";
+  const agg = _subAgg();
+  const thM = document.getElementById("thPartMetric");
+  if (thM) thM.textContent = metricUnitLabel(metric);
   body.innerHTML = rows
     .map((p) => {
       // แสดงเฉพาะช่องทางที่มีลิงก์จริง (ไม่มีลิงก์ → ไม่แสดง)
@@ -389,6 +420,7 @@ window.renderParticipants = function () {
             <div style="font-size:11px;color:var(--text3);font-family:'IBM Plex Mono',monospace">${esc(p.member_code)}</div></td>
         <td class="col-center">${imgCell}</td>
         <td class="col-center">${socials}</td>
+        <td class="col-center" style="font-weight:700;color:var(--accent);font-size:13.5px">${fmtNum(_metricScore(agg[p.participant_id], metric))}</td>
         <td class="col-center">${lineCell}</td>
         <td class="col-center" style="white-space:nowrap;font-size:12.5px;color:var(--text2)">${(lm && lm.phone) || p.phone ? esc((lm && lm.phone) || p.phone) : `<span style="color:var(--text3)">—</span>`}</td>
         <td class="col-center">${statusPillPart(p)}</td>
@@ -798,8 +830,7 @@ window.renderRanking = function () {
       a.posts += 1;
     });
 
-  const scoreOf = (a) =>
-    metric === "likes" ? a.likes : metric === "engagement" ? a.likes + a.comments + a.shares : a.views;
+  const scoreOf = (a) => _metricScore(a, metric);
 
   let rows = Object.values(agg)
     .filter((a) => a.posts > 0)
