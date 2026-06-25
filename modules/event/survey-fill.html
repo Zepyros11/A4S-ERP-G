@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>แบบประเมินความพอใจ — A4S</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./survey-fill.css" />
+  </head>
+  <body>
+    <div class="toast" id="toast"></div>
+
+    <!-- LOADING -->
+    <div class="sv-wrap" id="stateLoading">
+      <div class="sv-state"><div class="ic">⏳</div><div class="msg">กำลังโหลด...</div></div>
+    </div>
+
+    <!-- CLOSED / NOT FOUND -->
+    <div class="sv-wrap hidden" id="stateClosed">
+      <div class="sv-state"><div class="ic" id="closedIcon">🔒</div><div class="msg" id="closedMsg">ไม่พบแบบประเมิน หรือปิดรับความเห็นแล้ว</div></div>
+    </div>
+
+    <!-- DONE -->
+    <div class="sv-wrap hidden" id="stateDone">
+      <div class="sv-state"><div class="ic">🎉</div><div class="msg" id="doneMsg">ขอบคุณสำหรับความคิดเห็นของท่านค่ะ 🙏</div></div>
+    </div>
+
+    <!-- MAIN -->
+    <div class="sv-wrap hidden" id="content">
+      <div class="sv-card">
+        <div class="sv-head">
+          <div class="sv-event hidden" id="svEvent"></div>
+          <h1 class="sv-title" id="svTitle">แบบประเมิน</h1>
+          <p class="sv-intro" id="svIntro"></p>
+        </div>
+
+        <div class="sv-fg">
+          <label>ชื่อ-สกุล <span class="opt">(ไม่บังคับ)</span></label>
+          <input id="svName" placeholder="ระบุชื่อของท่าน (หรือเว้นว่างเพื่อตอบแบบไม่ระบุชื่อ)" autocomplete="off" />
+        </div>
+
+        <div id="svQuestions"></div>
+
+        <div id="svMsg" style="margin-top:10px"></div>
+        <button class="sv-btn" id="svSubmit" onclick="doSubmit()">✅ ส่งแบบประเมิน</button>
+      </div>
+      <div class="sv-footer">A4S-ERP · แบบประเมินความพอใจ</div>
+    </div>
+
+    <script src="./register-config.js"></script>
+    <script src="./survey-fill.js"></script>
+  </body>
+</html>

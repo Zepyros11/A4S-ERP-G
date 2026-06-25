@@ -292,6 +292,27 @@
               </div>
 
 
+              <!-- SECTION: แบบประเมินความพอใจ -->
+              <div class="ef-section">
+                <div class="ef-section-title">📝 แบบประเมินความพอใจ</div>
+                <div class="ef-field">
+                  <label class="ef-label">ฟอร์มประเมิน</label>
+                  <div style="display:flex;gap:6px;align-items:center">
+                    <select class="ef-input" id="fSurveyFormId" style="flex:1" onchange="window.onSurveyChange()">
+                      <option value="">— ไม่มีแบบประเมิน —</option>
+                    </select>
+                    <a href="./survey-forms.html" target="_blank"
+                      title="เปิดหน้าจัดการแบบประเมินในแท็บใหม่"
+                      style="background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe;border-radius:8px;padding:8px 12px;font-size:13px;text-decoration:none;white-space:nowrap">⚙️</a>
+                  </div>
+                  <button type="button" id="btnSurveyShare" onclick="window.openSurveyShare()"
+                    style="display:none;margin-top:8px;width:100%;background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0;border-radius:8px;padding:9px;font-size:13px;font-weight:600;cursor:pointer">
+                    🔗 แชร์ลิงก์ / QR ให้ผู้เข้าร่วมประเมิน
+                  </button>
+                  <div style="margin-top:6px;font-size:11px;color:var(--text3)">ผู้เข้าร่วมตอบผ่านลิงก์/QR (ไม่ต้อง login) · ดูผลตอบกลับได้ที่หน้าจัดการแบบประเมิน</div>
+                </div>
+              </div>
+
               <!-- SECTION: การมอบหมาย -->
               <div class="ef-section">
                 <div class="ef-section-title">👤 การมอบหมาย</div>
@@ -493,7 +514,31 @@
       </div>
     </div>
 
+    <!-- ═══════════ SURVEY SHARE MODAL (ลิงก์/QR แบบประเมินของงานนี้) ═══════════ -->
+    <div class="modal-overlay" id="surveyShareOverlay" onclick="window.closeSurveyShare(event)">
+      <div class="modal v-sage-header" onclick="event.stopPropagation()" style="max-width:440px">
+        <div class="modal-hdr">
+          <div class="modal-title">🔗 แชร์แบบประเมิน</div>
+          <button class="btn-modal-close" onclick="window.closeSurveyShare()">✕</button>
+        </div>
+        <div class="modal-body" style="text-align:center">
+          <div id="surveyShareName" style="font-weight:700;color:#0f172a;margin-bottom:4px"></div>
+          <div style="font-size:11.5px;color:var(--text3);margin-bottom:14px">
+            ผู้เข้าร่วมสแกน/เปิดลิงก์เพื่อให้คะแนนงานนี้ (ไม่ต้อง login)<br>คำตอบจะผูกกับกิจกรรมนี้โดยอัตโนมัติ
+          </div>
+          <div id="surveyShareQr" style="display:flex;justify-content:center;margin-bottom:14px"></div>
+          <div style="display:flex;gap:8px">
+            <input class="ef-input" id="surveyShareUrl" readonly style="flex:1;font-size:12px;font-family:'IBM Plex Mono',monospace">
+            <button class="btn btn-primary" onclick="window.copySurveyUrl()" style="white-space:nowrap">คัดลอก</button>
+          </div>
+          <a id="surveySharePreview" target="_blank" rel="noopener"
+            style="display:inline-block;margin-top:12px;font-size:12.5px;color:#2563eb;text-decoration:none">👁 เปิดดูตัวอย่างฟอร์ม ↗</a>
+        </div>
+      </div>
+    </div>
+
     <!-- FLOATING SAVE BUTTON -->
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
     <script src="../../js/components/ui/floatingSave.js" data-save-fn="window.saveEvent"></script>
 
   </body>

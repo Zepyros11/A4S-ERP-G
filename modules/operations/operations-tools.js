@@ -28,6 +28,7 @@
   // กลุ่มเครื่องมือ Utility — เรียงตามลำดับที่อยากให้แสดง
   const SECTIONS = [
     { key: "doc",  label: "📄 เอกสาร & งานพิมพ์" },
+    { key: "survey", label: "📊 ประเมิน & สำรวจ" },
   ];
 
   // เครื่องมือ Utility ทั้งหมด (เพิ่ม/ลบ/แก้ได้ตามต้องการ)
@@ -42,6 +43,11 @@
     { icon: "🪧", label: "ป้ายตั้งโต๊ะ (รายชื่อ)",
       desc: "ป้ายรายชื่อกลุ่ม/VIP บน A4 · โลโก้ + ภาพพื้นหลัง + เลขลำดับ",
       href: "../event/table-tent-generator.html", perm: "events_view", section: "doc", ready: true },
+
+    // ── ประเมิน & สำรวจ ──
+    { icon: "📝", label: "แบบประเมินความพอใจ",
+      desc: "สร้างฟอร์มประเมิน reusable → แต่ละ Event เลือกผูก + แชร์ลิงก์/QR ให้ผู้เข้าร่วมตอบ",
+      href: "../event/survey-forms.html", perm: "events_view", section: "survey", ready: true },
   ];
 
   /* ── perm check (degrade gracefully ถ้าไม่มี AuthZ) ── */

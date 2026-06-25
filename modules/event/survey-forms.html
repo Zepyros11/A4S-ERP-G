@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>แบบประเมินความพอใจ — A4S-ERP</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../../css/main.css" />
+    <link rel="stylesheet" href="./events.css" />
+    <link rel="stylesheet" href="./survey-forms.css" />
+  </head>
+  <body>
+    <div class="loading-overlay" id="loadingOverlay">
+      <div class="spinner"></div>
+    </div>
+    <div class="toast" id="toast"></div>
+
+    <div class="topbar"></div>
+    <div class="layout">
+      <div class="content-area">
+        <div class="page">
+          <div class="page-hero page-hero--simple page-hero--compact">
+            <div style="display:flex;align-items:center;justify-content:space-between;width:100%">
+              <div>
+                <h1 class="page-hero-title">📝 แบบประเมินความพอใจ</h1>
+                <p class="page-hero-sub">สร้างฟอร์มประเมิน reusable — แต่ละ Event เลือกผูกฟอร์มได้ในหน้าแก้ไขกิจกรรม</p>
+              </div>
+              <button class="btn btn-primary" onclick="window.openFormModal()">
+                ＋ สร้างฟอร์มประเมิน
+              </button>
+            </div>
+          </div>
+
+          <div class="table-card">
+            <div class="table-hdr">
+              <div class="table-title">📋 ฟอร์มที่มี</div>
+              <div class="table-count" id="sfCount">0 รายการ</div>
+              <div id="sfBulkBar" style="display:none;margin-left:auto;align-items:center;gap:10px">
+                <span id="sfBulkCount" style="font-size:12.5px;color:#475569;font-weight:600"></span>
+                <button class="btn btn-danger" onclick="window.bulkDeleteForms()"
+                  style="background:#dc2626;color:#fff;border:none;border-radius:8px;padding:7px 14px;font-size:12.5px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px">
+                  🗑 ลบที่เลือก
+                </button>
+                <button onclick="window.sfClearSelection()"
+                  style="background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;border-radius:8px;padding:7px 12px;font-size:12.5px;font-weight:600;cursor:pointer">
+                  ยกเลิก
+                </button>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th class="col-center" style="width:40px">
+                      <input type="checkbox" id="sfSelectAll" onclick="window.sfToggleAll(this.checked)"
+                        style="width:16px;height:16px;cursor:pointer;accent-color:#16a34a">
+                    </th>
+                    <th style="width:50px;text-align:center">#</th>
+                    <th style="min-width:220px">ชื่อฟอร์ม</th>
+                    <th>คำอธิบาย</th>
+                    <th class="col-center" style="width:90px">คำถาม</th>
+                    <th class="col-center" style="width:110px">ใช้งาน (events)</th>
+                    <th class="col-center" style="width:100px">ตอบกลับ</th>
+                    <th class="col-center" style="width:80px">สถานะ</th>
+                    <th class="col-center" style="width:190px">จัดการ</th>
+                  </tr>
+                </thead>
+                <tbody id="sfTableBody">
+                  <tr><td colspan="9"><div class="empty-state" style="padding:30px"><div class="empty-icon">📝</div><div class="empty-text">กำลังโหลด...</div></div></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═════════════════════════
+         FORM BUILDER MODAL
+         ═════════════════════════ -->
+    <div class="modal-overlay" id="sfOverlay">
+      <div class="modal v-sage-header" onclick="event.stopPropagation()" style="max-width:760px">
+        <div class="modal-hdr">
+          <div class="modal-title" id="sfModalTitle">➕ สร้างฟอร์มประเมิน</div>
+          <button class="btn-modal-close" onclick="window.closeFormModal()">✕</button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="sfFormId">
+
+          <div class="form-group">
+            <label class="form-label">ชื่อฟอร์ม <span class="req">*</span></label>
+            <input class="form-control" id="sfTitle" placeholder="เช่น แบบประเมินความพอใจงานสัมมนา" autocomplete="off">
+          </div>
+
+          <div class="form-group" style="margin-top:12px">
+            <label class="form-label">คำอธิบาย</label>
+            <input class="form-control" id="sfDesc" placeholder="ไว้แสดงเป็น hint ตอนเลือกฟอร์มใน event" autocomplete="off">
+          </div>
+
+          <div class="ef-row-2" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px">
+            <div class="form-group">
+              <label class="form-label">ข้อความเกริ่นนำ (หัวฟอร์ม)</label>
+              <textarea class="form-control" id="sfIntro" rows="2" placeholder="เช่น กรุณาให้คะแนนความพอใจของท่าน..."></textarea>
+            </div>
+            <div class="form-group">
+              <label class="form-label">ข้อความขอบคุณ (หลังส่ง)</label>
+              <textarea class="form-control" id="sfThankYou" rows="2" placeholder="ขอบคุณสำหรับความคิดเห็นของท่านค่ะ 🙏"></textarea>
+            </div>
+          </div>
+
+          <div style="display:flex;align-items:center;justify-content:space-between;margin:18px 0 8px">
+            <div style="font-size:13px;font-weight:700;color:#0f172a">❓ คำถาม <span style="font-weight:400;font-size:11px;color:var(--text3)">— ลาก ⋮⋮ เพื่อจัดลำดับ</span></div>
+            <button class="btn btn-secondary" onclick="window.sfOpenQuestionPicker()" style="padding:6px 14px">➕ เพิ่มคำถาม</button>
+          </div>
+          <div id="sfQuestions" class="sf-q-list"></div>
+        </div>
+        <div class="modal-footer" style="justify-content:space-between">
+          <div>
+            <label style="display:inline-flex;align-items:center;gap:6px;font-size:12.5px;cursor:pointer">
+              <input type="checkbox" id="sfIsActive" checked> เปิดใช้งาน
+            </label>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-ghost" onclick="window.closeFormModal()">ยกเลิก</button>
+            <button class="btn btn-primary" onclick="window.saveForm()">💾 บันทึก</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═════════════════════════
+         QUESTION EDITOR (nested over builder)
+         ═════════════════════════ -->
+    <div class="modal-overlay" id="sfQOverlay" style="z-index:500">
+      <div class="modal v-sage-header" onclick="event.stopPropagation()" style="max-width:560px">
+        <div class="modal-hdr">
+          <div class="modal-title" id="sfQTitle">➕ เพิ่มคำถาม</div>
+          <button class="btn-modal-close" onclick="window.sfCloseQuestionEditor()">✕</button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="sfQEditId">
+          <div class="form-group">
+            <label class="form-label">ชนิดคำถาม</label>
+            <div id="sfQTypeRow" class="sf-qtype-row"></div>
+          </div>
+
+          <div class="form-group" style="margin-top:14px">
+            <label class="form-label">คำถาม <span class="req">*</span></label>
+            <input class="form-control" id="sfQLabel" placeholder="เช่น ความพอใจโดยรวมของงานครั้งนี้"
+              autocomplete="off"
+              onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();window.sfConfirmQuestion()}">
+          </div>
+
+          <!-- options (choice / multichoice) -->
+          <div class="form-group" id="sfQOptionsWrap" style="display:none;margin-top:12px">
+            <label class="form-label">ตัวเลือก <span style="font-weight:400;font-size:11px;color:var(--text3)">— บรรทัดละ 1 ตัวเลือก</span></label>
+            <textarea class="form-control" id="sfQOptions" rows="4" placeholder="ดีมาก&#10;ดี&#10;พอใช้&#10;ควรปรับปรุง"></textarea>
+          </div>
+
+          <!-- scale (rating) -->
+          <div id="sfQScaleWrap" style="display:none;margin-top:12px">
+            <div class="ef-row-2" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+              <div class="form-group">
+                <label class="form-label">สเกลสูงสุด</label>
+                <select class="form-control" id="sfQScaleMax">
+                  <option value="3">3 ระดับ</option>
+                  <option value="5" selected>5 ระดับ (⭐ 1–5)</option>
+                  <option value="10">10 ระดับ</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">รูปแบบ</label>
+                <select class="form-control" id="sfQScaleStyle">
+                  <option value="star">⭐ ดาว</option>
+                  <option value="number">🔢 ตัวเลข</option>
+                </select>
+              </div>
+            </div>
+            <div class="ef-row-2" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:4px">
+              <div class="form-group">
+                <label class="form-label">ป้ายต่ำสุด (optional)</label>
+                <input class="form-control" id="sfQScaleMinLabel" placeholder="เช่น น้อยที่สุด" autocomplete="off">
+              </div>
+              <div class="form-group">
+                <label class="form-label">ป้ายสูงสุด (optional)</label>
+                <input class="form-control" id="sfQScaleMaxLabel" placeholder="เช่น มากที่สุด" autocomplete="off">
+              </div>
+            </div>
+          </div>
+
+          <div class="form-group" style="margin-top:14px">
+            <label style="display:inline-flex;align-items:center;gap:6px;font-size:12.5px;cursor:pointer">
+              <input type="checkbox" id="sfQRequired" checked> บังคับตอบ *
+            </label>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-ghost" onclick="window.sfCloseQuestionEditor()">ยกเลิก</button>
+          <button class="btn btn-primary" onclick="window.sfConfirmQuestion()">บันทึกคำถาม</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═════════════════════════
+         SHARE LINK MODAL (standalone form link + QR)
+         ═════════════════════════ -->
+    <div class="modal-overlay" id="sfShareOverlay" onclick="window.sfCloseShare(event)">
+      <div class="modal v-sage-header" onclick="event.stopPropagation()" style="max-width:440px">
+        <div class="modal-hdr">
+          <div class="modal-title">🔗 ลิงก์แบบประเมิน</div>
+          <button class="btn-modal-close" onclick="window.sfCloseShare()">✕</button>
+        </div>
+        <div class="modal-body" style="text-align:center">
+          <div id="sfShareName" style="font-weight:700;color:#0f172a;margin-bottom:4px"></div>
+          <div style="font-size:11.5px;color:var(--text3);margin-bottom:14px">
+            ลิงก์นี้ไม่ผูกกับ event — ใช้สำหรับเก็บความเห็นทั่วไป<br>
+            (ถ้าต้องการผูกกับงาน ให้แชร์ลิงก์จากหน้าแก้ไข Event แทน)
+          </div>
+          <div id="sfShareQr" style="display:flex;justify-content:center;margin-bottom:14px"></div>
+          <div style="display:flex;gap:8px">
+            <input class="form-control" id="sfShareUrl" readonly style="flex:1;font-size:12px;font-family:'IBM Plex Mono',monospace">
+            <button class="btn btn-primary" onclick="window.sfCopyShare()" style="white-space:nowrap">คัดลอก</button>
+          </div>
+          <a id="sfSharePreview" target="_blank" rel="noopener"
+            style="display:inline-block;margin-top:12px;font-size:12.5px;color:#2563eb;text-decoration:none">👁 เปิดดูตัวอย่างฟอร์ม ↗</a>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+    <script src="../../js/core/auth.js"></script>
+    <script src="../../js/core/authz.js"></script>
+    <script src="../../js/core/date-format.js"></script>
+    <script>AuthZ.requirePerm("events_view");</script>
+    <script src="../../js/components/modal/deleteModal.js"></script>
+    <script src="../../js/components/modal/confirmModal.js"></script>
+    <script src="../../js/components/modal/promptModal.js"></script>
+    <script src="../../js/components/modal/modalManager.js"></script>
+    <script src="./survey-forms.js"></script>
+    <script type="module">
+      import { loadTopbar } from "../../js/components/navigation/topbar.js";
+      loadTopbar("📝 แบบประเมินความพอใจ");
+    </script>
+    <script src="../../js/components/navigation/sidebar.js"></script>
+  </body>
+</html>

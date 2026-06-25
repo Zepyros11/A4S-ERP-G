@@ -77,8 +77,46 @@ async function loadData() {
   allCampaigns = camps || [];
   partCounts = tally(parts || []);
   postCounts = tally(subs || []);
+  await syncAutoStatus();
   renderStats();
   renderTable();
+}
+
+// ── AUTO STATUS ตามวันที่ ──────────────────────────────────
+// today (Asia/Bangkok) เป็น YYYY-MM-DD เทียบกับ start/end ได้ตรงๆ
+// กฎ: ก่อนเริ่ม=DRAFT · อยู่ในช่วง=ACTIVE · เลยสิ้นสุด=ENDED · CANCELLED ค้างไว้เสมอ (auto ไม่ทับ)
+function todayBKK() {
+  return new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Bangkok" });
+}
+function computeAutoStatus(c) {
+  if (c.status === "CANCELLED") return "CANCELLED"; // ยกเลิกแล้วค้างไว้
+  const start = (c.start_date || "").slice(0, 10);
+  if (!start) return c.status; // ไม่มีวันเริ่ม → ปล่อยตามเดิม
+  const end = (c.end_date || "").slice(0, 10);
+  const today = todayBKK();
+  if (today < start) return "DRAFT";
+  if (end && today > end) return "ENDED";
+  return "ACTIVE";
+}
+async function syncAutoStatus() {
+  const changed = [];
+  for (const c of allCampaigns) {
+    const next = computeAutoStatus(c);
+    if (next !== c.status) {
+      c.status = next; // อัปเดต local ทันที (ให้ตารางแสดงถูกแม้ PATCH ช้า)
+      changed.push(c);
+    }
+  }
+  if (!changed.length) return;
+  // เขียนกลับ DB เฉพาะที่เปลี่ยน (best-effort — ถ้าพลาดก็ยังแสดงค่าใหม่ในจอ)
+  await Promise.all(
+    changed.map((c) =>
+      sbFetch("campaigns", `?campaign_id=eq.${c.campaign_id}`, {
+        method: "PATCH",
+        body: { status: c.status },
+      }).catch(() => {})
+    )
+  );
 }
 function tally(rows) {
   const m = {};
@@ -101,7 +139,12 @@ function renderStats() {
 }
 
 // ── TABLE ─────────────────────────────────────────────────
-const PLAT_LABEL = { tiktok: "🎵", instagram: "📸", facebook: "👍" };
+const PLAT_ICON = {
+  tiktok: "../../assets/icons/tiktok.png",
+  instagram: "../../assets/icons/instagram.png",
+  facebook: "../../assets/icons/facebook.png",
+};
+const PLAT_NAME = { tiktok: "TikTok", instagram: "Instagram", facebook: "Facebook" };
 const STATUS_LABEL = {
   DRAFT: "📝 ร่าง",
   ACTIVE: "▶️ ดำเนินการ",
@@ -139,7 +182,11 @@ function renderTable() {
           ? `${fmtDMY(c.start_date) || "—"} – ${fmtDMY(c.end_date) || "—"}`
           : "—";
       const plats = (c.platforms || [])
-        .map((p) => `<span class="cmp-plat-chip">${PLAT_LABEL[p] || p}</span>`)
+        .map((p) =>
+          PLAT_ICON[p]
+            ? `<span class="cmp-plat-chip" title="${PLAT_NAME[p]}"><img src="${PLAT_ICON[p]}" alt="${PLAT_NAME[p]}" class="cmp-plat-ic" /></span>`
+            : `<span class="cmp-plat-chip">${p}</span>`
+        )
         .join("");
       return `<tr>
         <td class="col-center"><input type="checkbox" class="row-check" value="${c.campaign_id}" onclick="window.updateBulkBar()" /></td>
@@ -156,7 +203,14 @@ function renderTable() {
         <td class="col-center"><span class="cmp-plats">${plats || "—"}</span></td>
         <td class="col-center">${partCounts[c.campaign_id] || 0}</td>
         <td class="col-center">${postCounts[c.campaign_id] || 0}</td>
-        <td class="col-center"><span class="cmp-status cmpstat-${c.status}">${STATUS_LABEL[c.status] || c.status}</span></td>
+        <td class="col-center">
+          <select class="cmp-status-select cmpstat-${c.status}" data-perm="campaign_edit"
+                  onchange="window.changeCampStatus(${c.campaign_id}, this)">
+            ${Object.keys(STATUS_LABEL).map((s) =>
+              `<option value="${s}" ${s === c.status ? "selected" : ""}>${STATUS_LABEL[s]}</option>`
+            ).join("")}
+          </select>
+        </td>
         <td class="col-center">
           <div class="cmp-row-actions">
             <button class="btn-icon" title="เปิด" onclick="window.openDetail(${c.campaign_id})">📂</button>
@@ -221,6 +275,29 @@ window.deleteCampaign = function (id) {
   });
 };
 
+// ── INLINE STATUS CHANGE ──────────────────────────────────
+window.changeCampStatus = async function (id, sel) {
+  const c = allCampaigns.find((x) => x.campaign_id === id);
+  if (!c) return;
+  const prev = c.status;
+  const next = sel.value;
+  if (next === prev) return;
+  // อัปเดต UI สีทันที (optimistic)
+  sel.className = `cmp-status-select cmpstat-${next}`;
+  try {
+    await sbFetch("campaigns", `?campaign_id=eq.${id}`, {
+      method: "PATCH",
+      body: { status: next },
+    });
+    c.status = next;
+    showToast(`เปลี่ยนสถานะเป็น ${STATUS_LABEL[next]}`, "success");
+  } catch (e) {
+    sel.value = prev;
+    sel.className = `cmp-status-select cmpstat-${prev}`;
+    showToast("เปลี่ยนสถานะไม่สำเร็จ: " + e.message, "error");
+  }
+};
+
 // ── NAV ───────────────────────────────────────────────────
 window.openDetail = function (id) {
   location.href = `./campaign-detail.html?campaign_id=${id}`;
@@ -260,6 +337,11 @@ window.openShareModal = function (id) {
 };
 window.closeShareModal = function () {
   document.getElementById("shareModal").classList.remove("open");
+};
+window.openShareUrl = function () {
+  const url = document.getElementById("shareUrlInput").value;
+  if (!url) return;
+  window.open(url, "_blank", "noopener");
 };
 window.copyShareUrl = async function () {
   const input = document.getElementById("shareUrlInput");

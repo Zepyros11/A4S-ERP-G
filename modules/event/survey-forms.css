@@ -1,0 +1,63 @@
+/* ============================================================
+   survey-forms.css — แบบประเมินความพอใจ (builder + question editor)
+   ============================================================ */
+
+/* ── question list ใน builder ── */
+.sf-q-list { display: flex; flex-direction: column; gap: 8px; }
+.sf-q-list:empty::after {
+  content: "ยังไม่มีคำถาม — กด \"➕ เพิ่มคำถาม\"";
+  display: block; padding: 20px; text-align: center;
+  color: var(--text3); font-size: 12.5px;
+}
+
+.sf-q {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px; border: 1px solid var(--border);
+  border-radius: 9px; background: var(--surface);
+}
+.sf-q.drag-over { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-pale); }
+.sf-q.dragging { opacity: .5; }
+.sf-q .drag-handle { cursor: grab; color: var(--text3); font-size: 14px; user-select: none; }
+.sf-q-type-ic {
+  flex-shrink: 0; width: 30px; height: 30px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px; background: var(--accent-pale);
+}
+.sf-q-body { flex: 1; min-width: 0; }
+.sf-q-label {
+  font-weight: 600; color: #0f172a; font-size: 13px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.sf-q-meta { font-size: 11px; color: var(--text3); margin-top: 1px; }
+.sf-q-req {
+  font-size: 10px; font-weight: 700; color: #b91c1c;
+  background: #fef2f2; border-radius: 4px; padding: 1px 6px;
+}
+.sf-q-btns { display: flex; gap: 4px; flex-shrink: 0; }
+.sf-q-btn {
+  border: none; background: #f1f5f9; color: #475569;
+  border-radius: 6px; padding: 5px 8px; font-size: 12px; cursor: pointer;
+}
+.sf-q-btn:hover { background: #e2e8f0; }
+.sf-q-btn.danger:hover { background: #fee2e2; color: #b91c1c; }
+
+/* ── type picker (nested modal) ── */
+.sf-qtype-row {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+}
+.sf-qtype {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  padding: 12px 8px; border: 1.5px solid var(--border);
+  border-radius: 10px; background: var(--surface); cursor: pointer;
+  font-size: 12px; font-weight: 600; color: var(--text2);
+  font-family: inherit; transition: all .12s;
+}
+.sf-qtype:hover { border-color: var(--accent); }
+.sf-qtype.active {
+  border-color: var(--accent); background: var(--accent-pale); color: var(--accent);
+}
+.sf-qtype .ic { font-size: 20px; }
+
+@media (max-width: 540px) {
+  .sf-qtype-row { grid-template-columns: repeat(2, 1fr); }
+}

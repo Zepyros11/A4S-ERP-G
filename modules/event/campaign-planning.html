@@ -126,7 +126,7 @@
 
     <!-- ── SHARE LINK MODAL (QR + Link) ── -->
     <div class="modal-overlay" id="shareModal">
-      <div class="modal v-sage-header" style="max-width: 420px">
+      <div class="modal v-sage-header" style="max-width: 480px; max-height: none">
         <div class="modal-hdr">
           <div class="modal-title">🔗 แชร์ลิงก์ลงทะเบียน</div>
           <button class="btn-modal-close" onclick="window.closeShareModal()">✕</button>
@@ -137,6 +137,7 @@
           <div class="share-url-label">🌐 ลิงก์ลงทะเบียน — ใช้ได้กับทุกคน</div>
           <div class="share-url-row">
             <input id="shareUrlInput" readonly />
+            <button class="btn btn-secondary" onclick="window.openShareUrl()">🔗 เปิดลิงก์</button>
             <button class="btn btn-primary" onclick="window.copyShareUrl()">📋 คัดลอก</button>
           </div>
           <div class="share-hint">📱 QR code = ลิงก์เดียวกัน — สแกน หรือกดคัดลอกลิงก์เพื่อแชร์</div>

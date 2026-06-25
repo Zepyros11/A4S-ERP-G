@@ -307,7 +307,7 @@ window.renderParticipants = function () {
       (p.member_name || "").toLowerCase().includes(search),
   );
   if (!rows.length) {
-    body.innerHTML = `<tr><td colspan="7"><div class="empty-state"><div class="empty-icon">👥</div><div class="empty-text">ยังไม่มีผู้เข้าร่วม</div></div></td></tr>`;
+    body.innerHTML = `<tr><td colspan="8"><div class="empty-state"><div class="empty-icon">👥</div><div class="empty-text">ยังไม่มีผู้เข้าร่วม</div></div></td></tr>`;
     updatePartBulk();
     return;
   }
@@ -331,6 +331,7 @@ window.renderParticipants = function () {
             <div style="font-size:11px;color:var(--text3);font-family:'IBM Plex Mono',monospace">${esc(p.member_code)}${p.phone ? " · " + esc(p.phone) : ""}</div></td>
         <td class="col-center">${socials}</td>
         <td class="col-center">${postCountFor(p.participant_id)}</td>
+        <td class="col-center" style="white-space:nowrap;font-size:12px;color:var(--text2)">${p.joined_at && window.DateFmt ? DateFmt.formatDMYTime(p.joined_at) : "—"}</td>
         <td class="col-center"><span class="cmp-tag">${p.source === "public" ? "🌐 public" : "🧑‍💼 staff"}</span></td>
         <td class="col-center">${statusPillPart(p)}</td>
         <td class="col-center">

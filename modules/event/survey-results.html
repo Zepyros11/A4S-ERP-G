@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ผลแบบประเมิน — A4S-ERP</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../../css/main.css" />
+    <link rel="stylesheet" href="./events.css" />
+    <style>
+      .sr-summary { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 12px; margin-bottom: 18px; }
+      @media (max-width: 800px) { .sr-summary { grid-template-columns: 1fr; } }
+      .sr-q-card {
+        background: var(--surface); border: 1px solid var(--border);
+        border-radius: 12px; padding: 16px 18px; margin-bottom: 12px;
+        box-shadow: var(--shadow-soft-md);
+      }
+      .sr-q-hd { display: flex; align-items: baseline; gap: 8px; margin-bottom: 12px; }
+      .sr-q-num { color: var(--accent); font-weight: 700; }
+      .sr-q-label { font-weight: 700; color: #0f172a; font-size: 14.5px; }
+      .sr-q-type { font-size: 11px; color: var(--text3); margin-left: auto; white-space: nowrap; }
+      .sr-avg { font-size: 30px; font-weight: 700; color: var(--accent); }
+      .sr-avg small { font-size: 14px; color: var(--text3); font-weight: 500; }
+      .sr-bar-row { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; font-size: 13px; }
+      .sr-bar-label { width: 130px; flex-shrink: 0; color: var(--text2); text-align: right; }
+      .sr-bar-track { flex: 1; height: 20px; background: #f1f5f9; border-radius: 6px; overflow: hidden; }
+      .sr-bar-fill { height: 100%; background: linear-gradient(90deg, #34d399, #16a34a); border-radius: 6px; min-width: 2px; }
+      .sr-bar-val { width: 64px; flex-shrink: 0; color: var(--text3); font-size: 12px; }
+      .sr-text-list { max-height: 280px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
+      .sr-text-item {
+        background: #f8fafc; border: 1px solid #eef2f6; border-radius: 8px;
+        padding: 8px 12px; font-size: 13px; color: #334155; line-height: 1.5;
+      }
+      .sr-text-meta { font-size: 11px; color: var(--text3); margin-top: 2px; }
+    </style>
+  </head>
+  <body>
+    <div class="loading-overlay" id="loadingOverlay"><div class="spinner"></div></div>
+    <div class="toast" id="toast"></div>
+
+    <div class="topbar"></div>
+    <div class="layout">
+      <div class="content-area">
+        <div class="page">
+          <div class="page-hero page-hero--simple page-hero--compact">
+            <div style="display:flex;align-items:center;justify-content:space-between;width:100%;flex-wrap:wrap;gap:12px">
+              <div>
+                <h1 class="page-hero-title" id="srTitle">📊 ผลแบบประเมิน</h1>
+                <p class="page-hero-sub" id="srSub">—</p>
+              </div>
+              <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                <select class="ef-input" id="srEventFilter" onchange="window.srApplyFilter()"
+                  style="font-size:13px;padding:8px 12px;border:1px solid var(--border);border-radius:8px;background:var(--surface)">
+                  <option value="">ทุกกิจกรรม</option>
+                </select>
+                <button class="btn btn-secondary" onclick="window.srExportCsv()">⬇️ Export CSV</button>
+                <button class="btn btn-ghost" onclick="location.href='./survey-forms.html'">← กลับ</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="stats-row" id="srStats" style="margin-bottom:18px"></div>
+
+          <div id="srQuestions"></div>
+
+          <div class="table-card" style="margin-top:18px">
+            <div class="table-hdr">
+              <div class="table-title">📨 คำตอบรายคน</div>
+              <div class="table-count" id="srRespCount">0 รายการ</div>
+            </div>
+            <div class="table-wrap">
+              <table class="data-table" id="srTable">
+                <thead id="srThead"></thead>
+                <tbody id="srTbody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="../../js/core/auth.js"></script>
+    <script src="../../js/core/authz.js"></script>
+    <script src="../../js/core/date-format.js"></script>
+    <script>AuthZ.requirePerm("events_view");</script>
+    <script src="../../js/components/modal/confirmModal.js"></script>
+    <script src="../../js/components/modal/modalManager.js"></script>
+    <script src="./survey-results.js"></script>
+    <script type="module">
+      import { loadTopbar } from "../../js/components/navigation/topbar.js";
+      loadTopbar("📊 ผลแบบประเมิน");
+    </script>
+    <script src="../../js/components/navigation/sidebar.js"></script>
+  </body>
+</html>

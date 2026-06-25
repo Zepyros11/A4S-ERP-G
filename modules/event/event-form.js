@@ -55,7 +55,7 @@ async function initPage() {
   fpEventDate = flatpickr("#fEventDate", fpOpts);
   fpEndDate = flatpickr("#fEndDate", fpOpts);
 
-  await Promise.all([loadUsers(), loadEventCategories(), loadPlaces(), loadCourseSeries(), loadLineChannels(), loadAttendeeTemplates()]);
+  await Promise.all([loadUsers(), loadEventCategories(), loadPlaces(), loadCourseSeries(), loadLineChannels(), loadAttendeeTemplates(), loadSurveyForms()]);
 
   if (editId) {
     document.getElementById("pageTitle").textContent = "✏️ แก้ไขกิจกรรม";
@@ -386,6 +386,81 @@ window.onTemplateChange = function () {
   preview.style.display = '';
 };
 
+// ── LOAD SURVEY FORMS (แบบประเมินความพอใจ) ─────────────────
+let _allSurveyForms = [];
+
+async function loadSurveyForms() {
+  try {
+    const { url, key } = getSB();
+    const res = await fetch(
+      `${url}/rest/v1/survey_forms?select=id,title,public_token,is_active&is_active=eq.true&order=id.desc`,
+      { headers: { apikey: key, Authorization: `Bearer ${key}` } }
+    );
+    _allSurveyForms = res.ok ? (await res.json()) : [];
+    const sel = document.getElementById('fSurveyFormId');
+    if (!sel) return;
+    sel.innerHTML = '<option value="">— ไม่มีแบบประเมิน —</option>' +
+      _allSurveyForms.map(f => `<option value="${f.id}">📝 ${f.title}</option>`).join('');
+  } catch (e) {
+    console.warn('loadSurveyForms:', e.message);
+  }
+}
+
+window.onSurveyChange = function () {
+  const id = document.getElementById('fSurveyFormId').value;
+  const btn = document.getElementById('btnSurveyShare');
+  // ปุ่มแชร์โผล่เฉพาะตอนแก้ไข event ที่บันทึกแล้ว + เลือกฟอร์มไว้ (ต้องมี event_id ไว้ผูกคำตอบ)
+  if (btn) btn.style.display = (id && editId) ? '' : 'none';
+};
+
+function buildSurveyEventUrl() {
+  const host = location.hostname;
+  let base;
+  if (host.includes("github.io")) {
+    base = `${location.origin}/${location.pathname.split("/")[1]}`;
+  } else if (host === "127.0.0.1" || host === "localhost") {
+    base = "https://zepyros11.github.io/A4S-ERP-G";
+  } else {
+    base = location.origin;
+  }
+  return `${base}/modules/event/survey-fill.html?event=${editId}`;
+}
+
+window.openSurveyShare = function () {
+  if (!editId) { showToast("บันทึกกิจกรรมก่อนจึงจะแชร์แบบประเมินได้", "warning"); return; }
+  const sid = document.getElementById('fSurveyFormId').value;
+  if (!sid) { showToast("เลือกแบบประเมินก่อน", "warning"); return; }
+  const f = _allSurveyForms.find(x => String(x.id) === String(sid));
+  const url = buildSurveyEventUrl();
+  document.getElementById('surveyShareName').textContent = f ? f.title : 'แบบประเมิน';
+  document.getElementById('surveyShareUrl').value = url;
+  document.getElementById('surveySharePreview').href = url;
+  const wrap = document.getElementById('surveyShareQr');
+  wrap.innerHTML = "";
+  if (window.QRCode) {
+    new QRCode(wrap, { text: url, width: 180, height: 180, correctLevel: QRCode.CorrectLevel.M });
+  } else {
+    wrap.textContent = "QR library ยังไม่โหลด — รีเฟรชหน้า";
+  }
+  document.getElementById('surveyShareOverlay').classList.add('open');
+};
+window.closeSurveyShare = function (ev) {
+  if (ev && ev.target && !ev.target.classList?.contains("modal-overlay")) return;
+  document.getElementById('surveyShareOverlay').classList.remove('open');
+};
+window.copySurveyUrl = async function () {
+  const input = document.getElementById('surveyShareUrl');
+  if (!input.value) return;
+  try {
+    await navigator.clipboard.writeText(input.value);
+    showToast("คัดลอกลิงก์แบบประเมินแล้ว 🔗", "success");
+  } catch {
+    input.select();
+    document.execCommand("copy");
+    showToast("คัดลอกแล้ว", "success");
+  }
+};
+
 // ── LOAD EVENT DATA (กรณีแก้ไข) ────────────────────────────
 async function loadEventData() {
   showLoading(true);
@@ -442,6 +517,13 @@ async function loadEventData() {
         tplSel.value = String(e.template_id);
         window.onTemplateChange();
       }
+    }
+
+    // Survey form (แบบประเมินความพอใจ)
+    const surveySel = document.getElementById('fSurveyFormId');
+    if (surveySel) {
+      surveySel.value = e.survey_form_id != null ? String(e.survey_form_id) : "";
+      window.onSurveyChange();
     }
 
     // โหลดรูปภาพ — รองรับทั้ง image_urls (array) และ poster_url เดิม
@@ -691,6 +773,10 @@ window._saveEventImpl = async function () {
       min_position_level: document.getElementById("fMinPosition").value || null,
       template_id: (() => {
         const v = document.getElementById("fTemplateId")?.value || "";
+        return v ? parseInt(v) : null;
+      })(),
+      survey_form_id: (() => {
+        const v = document.getElementById("fSurveyFormId")?.value || "";
         return v ? parseInt(v) : null;
       })(),
       line_channel_id: (() => {

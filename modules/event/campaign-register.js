@@ -79,7 +79,24 @@ function show(id, on) {
 }
 
 // ── INIT ──────────────────────────────────────────────────
+// ── company logo จาก app_settings (cache localStorage + fallback A4S) ──
+async function loadLogo() {
+  try {
+    const cached = (localStorage.getItem("company_logo_url") || "").trim();
+    if (cached) document.querySelectorAll(".js-company-logo").forEach((img) => (img.src = cached));
+  } catch (e) {}
+  try {
+    const rows = await sbGet("app_settings?select=value&key=eq.company_logo_url");
+    const u = (rows && rows[0] && rows[0].value || "").trim();
+    if (u) {
+      try { localStorage.setItem("company_logo_url", u); } catch (e) {}
+      document.querySelectorAll(".js-company-logo").forEach((img) => (img.src = u));
+    }
+  } catch (e) {}
+}
+
 async function init() {
+  loadLogo();
   const token = new URLSearchParams(location.search).get("t");
   if (!token) return closed("🔗", "ลิงก์ไม่ถูกต้อง");
   try {
@@ -286,12 +303,8 @@ async function doRegister() {
     document.getElementById("doneMsg").textContent = "ลงทะเบียนเรียบร้อยแล้ว ขอบคุณค่ะ 🎉";
     show("stateDone", true);
   } catch (e) {
-    const dup = /duplicate key|uq_campaign_participant/i.test(e.message || "");
-    const msg = dup
-      ? `รหัส "${code}" ได้ลงทะเบียนในแคมเปญนี้ไปแล้ว — ใช้ได้ครั้งเดียวต่อ 1 รหัส`
-      : "ลงทะเบียนไม่สำเร็จ: " + e.message;
-    regMsg("❌ " + esc(msg));
-    toast(msg, dup ? "warning" : "error");
+    regMsg("ลงทะเบียนไม่สำเร็จ: " + esc(e.message));
+    toast("ลงทะเบียนไม่สำเร็จ: " + e.message, "error");
     btn.disabled = false;
     btn.textContent = oldLabel;
   }
