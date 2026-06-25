@@ -495,7 +495,10 @@ function _softExitEditOnCodeChange() {
 
 function openDupModal(code) {
   const m = document.getElementById("dupModal");
-  m.querySelector("#dupMsg b").textContent = code;
+  const name = (_dupRow && _dupRow.member_name) ? _dupRow.member_name : "";
+  const nameHtml = name ? ` ในชื่อ <b>${esc(name)}</b>` : "";
+  m.querySelector("#dupMsg").innerHTML =
+    `รหัส <b>${esc(code)}</b>${nameHtml} มีการลงทะเบียนในแคมเปญนี้แล้ว ต้องการแก้ไขข้อมูลเดิมหรือไม่?`;
   m.classList.remove("hidden");
 }
 window.closeDupModal = function () {
@@ -547,7 +550,13 @@ window.verifyEditPassword = async function () {
       const idHash = await ERPCrypto.hash(pass.toUpperCase().replace(/[\s-]/g, ""));
       if (idHash === member.national_id_hash) ok = true;
     }
-    if (!ok) { pwMsg("รหัสผ่านไม่ถูกต้อง"); return; }
+    if (!ok) {
+      // ถ้าไม่มี national_id_hash → ยืนยันด้วยเลขบัตรไม่ได้ (ยังไม่ backfill) → บอกให้ชัด
+      pwMsg(member.national_id_hash
+        ? "รหัสผ่านหรือเลขบัตรไม่ถูกต้อง"
+        : "รหัสผ่านไม่ถูกต้อง — สมาชิกนี้ยังใช้เลขบัตรยืนยันไม่ได้ กรุณาใช้รหัสผ่าน");
+      return;
+    }
 
     // ผ่าน → ดึงข้อมูลเดิมมาแสดง
     if (!_dupRow || _dupRow.member_code !== code) _dupRow = await fetchExistingParticipant(code);
