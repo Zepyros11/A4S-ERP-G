@@ -176,6 +176,11 @@ async function init() {
     setupCodeLookup();
     show("stateLoading", false);
     show("content", true);
+    // วัด/ย่อ font รางวัลอีกครั้งหลังฟอร์มแสดงผล (ตอน renderRewardTiers วัดไม่ได้เพราะ content ยังซ่อน)
+    requestAnimationFrame(() => {
+      const rEl = document.getElementById("cReward");
+      if (rEl && !rEl.classList.contains("hidden")) fitRewardLines(rEl);
+    });
   } catch (e) {
     closed("⚠️", "เกิดข้อผิดพลาด: " + e.message);
   }
