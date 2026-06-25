@@ -28,6 +28,7 @@
   white-space: nowrap;
 }
 .cmpstat-DRAFT     { background: #f3f4f6; color: #6b7280; }
+.cmpstat-CONFIRMED { background: #e0e7ff; color: #4338ca; }
 .cmpstat-ACTIVE    { background: #d1fae5; color: #059669; }
 .cmpstat-ENDED     { background: var(--accent-pale); color: #1d4ed8; }
 .cmpstat-CANCELLED { background: #fef3c7; color: #92400e; }

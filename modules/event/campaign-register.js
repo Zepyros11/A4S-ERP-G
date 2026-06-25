@@ -82,7 +82,8 @@ window.addEventListener("resize", () => {
   const rEl = document.getElementById("cReward");
   if (rEl && !rEl.classList.contains("hidden")) fitRewardLines(rEl);
 });
-const socialImg = {}; // key -> File (รูปที่เลือก ยังไม่ upload)
+const socialImg = {};   // key -> File (รูปใหม่ที่เลือก ยังไม่ upload)
+const existingImg = {}; // key -> URL (รูปเดิมตอนแก้ไข — ไม่ต้องอัปใหม่ถ้าไม่เปลี่ยน)
 
 // ── REST helpers ──────────────────────────────────────────
 async function sbGet(path) {
@@ -337,6 +338,7 @@ function markReq(key) {
 }
 function setSocialImg(key, file) {
   socialImg[key] = file;
+  delete existingImg[key];   // รูปใหม่แทนรูปเดิม
   const prev = document.getElementById(`prev_${key}`);
   prev.src = URL.createObjectURL(file);
   prev.classList.remove("hidden");
@@ -351,6 +353,7 @@ window.onSocialImg = function (key, input) {
 };
 window.removeSocialImg = function (key) {
   delete socialImg[key];
+  delete existingImg[key];
   const prev = document.getElementById(`prev_${key}`);
   prev.src = ""; prev.classList.add("hidden");
   document.getElementById(`rm_${key}`).classList.add("hidden");
@@ -387,7 +390,7 @@ function lookupCodeNames() {
       renderCodeSuggest(rows || []);
     } catch (e) {
       if (seq !== _codeSeq) return;
-      el.innerHTML = `<div class="cs-info cs-err">⚠️ ค้นหาไม่สำเร็จ — พิมพ์ชื่อเองได้</div>`;
+      el.innerHTML = `<div class="cs-info cs-err">⚠️ ค้นหาไม่สำเร็จ — กรุณารีเฟรชหน้าใหม่อีกครั้ง</div>`;
     }
   }, 280);
 }
@@ -413,12 +416,14 @@ function selectCodeName(name) {
   const nameEl = document.getElementById("rName");
   if (nameEl) nameEl.value = name;
   hideCodeSuggest();
+  maybeCheckExisting();   // เลือกสมาชิกแล้ว → เช็คว่าเคยลงทะเบียนไหม
 }
 function setupCodeLookup() {
   const codeInput = document.getElementById("rCode");
   if (!codeInput) return;
-  codeInput.addEventListener("input", lookupCodeNames);
+  codeInput.addEventListener("input", () => { _softExitEditOnCodeChange(); lookupCodeNames(); });
   codeInput.addEventListener("focus", lookupCodeNames);
+  codeInput.addEventListener("change", maybeCheckExisting);   // blur หลังพิมพ์ครบ → เช็คซ้ำ
   // คลิกนอกกรอบ → ปิด popup
   document.addEventListener("click", (e) => {
     if (!e.target.closest(".fg-code")) hideCodeSuggest();
@@ -427,6 +432,185 @@ function setupCodeLookup() {
     if (e.key === "Escape") hideCodeSuggest();
   });
 }
+
+// ── โหมดแก้ไข: รหัสที่เคยลงทะเบียนแล้ว → ยืนยันรหัสผ่าน → ดึงข้อมูลเดิมมาแก้ ──
+let editId = null;          // participant_id ที่กำลังแก้ (null = ลงทะเบียนใหม่)
+let _dupRow = null;         // แถวลงทะเบียนเดิมของรหัสนี้ (ล่าสุด)
+let _dupDismissedCode = ""; // รหัสที่กด "ยกเลิก" ไปแล้ว — ไม่เด้งซ้ำจนกว่าจะเปลี่ยนรหัส
+
+// หาแถวลงทะเบียนล่าสุดของรหัสในแคมเปญนี้
+async function fetchExistingParticipant(code) {
+  if (!campaign || !code) return null;
+  const rows = await sbGet(
+    `campaign_participants?campaign_id=eq.${campaign.campaign_id}` +
+    `&member_code=eq.${encodeURIComponent(code)}&order=joined_at.desc&limit=1`,
+  );
+  return (rows && rows[0]) || null;
+}
+
+// ตรวจว่ารหัสนี้เคยลงทะเบียนไหม → เด้ง popup ให้เลือกแก้ไข/ยกเลิก
+async function maybeCheckExisting() {
+  const code = (document.getElementById("rCode").value || "").trim();
+  if (!/^\d{3,}$/.test(code)) return;
+  if (editId && _dupRow && _dupRow.member_code === code) return; // กำลังแก้รหัสนี้อยู่
+  if (_dupDismissedCode === code) return;                         // เพิ่งกดยกเลิกไป
+  try {
+    const row = await fetchExistingParticipant(code);
+    if (!row) return;
+    _dupRow = row;
+    openDupModal(code);
+  } catch (e) { /* เงียบ — ไม่ขัดการลงทะเบียนปกติ */ }
+}
+
+// ออกจากโหมดแก้ไขแบบเบาๆ เมื่อผู้ใช้แก้รหัสให้ต่างจากที่ยืนยันไว้ (ไม่ล้างค่าที่พิมพ์)
+function _softExitEditOnCodeChange() {
+  if (!editId || !_dupRow) return;
+  const cur = (document.getElementById("rCode").value || "").trim();
+  if (cur === (_dupRow.member_code || "")) return;
+  editId = null; _dupRow = null;
+  document.getElementById("editBanner").classList.add("hidden");
+  document.getElementById("btnRegister").textContent = "✅ ส่งข้อมูลลงทะเบียน";
+}
+
+function openDupModal(code) {
+  const m = document.getElementById("dupModal");
+  m.querySelector("#dupMsg b").textContent = code;
+  m.classList.remove("hidden");
+}
+window.closeDupModal = function () {
+  document.getElementById("dupModal").classList.add("hidden");
+  // จดว่ารหัสนี้ถูกยกเลิก — ไม่เด้งซ้ำ (ยอมให้ลงทะเบียนใหม่ได้ตามกติกา multi)
+  _dupDismissedCode = (document.getElementById("rCode").value || "").trim();
+};
+window.openPwModal = function () {
+  document.getElementById("dupModal").classList.add("hidden");
+  const code = (_dupRow && _dupRow.member_code) || (document.getElementById("rCode").value || "").trim();
+  document.getElementById("pwCode").textContent = code;
+  document.getElementById("pwInput").value = "";
+  pwMsg("");
+  document.getElementById("pwModal").classList.remove("hidden");
+  setTimeout(() => document.getElementById("pwInput").focus(), 50);
+};
+window.closePwModal = function () {
+  document.getElementById("pwModal").classList.add("hidden");
+};
+function pwMsg(text) {
+  const el = document.getElementById("pwMsg");
+  el.textContent = text || "";
+  el.classList.toggle("hidden", !text);
+}
+
+// ยืนยันรหัสผ่านสมาชิก (เทียบ password_hash / national_id_hash เหมือนหน้า register)
+window.verifyEditPassword = async function () {
+  const code = document.getElementById("pwCode").textContent.trim();
+  const pass = document.getElementById("pwInput").value;
+  if (!pass) { pwMsg("กรุณากรอกรหัสผ่าน"); return; }
+  if (!window.ERPCrypto) { pwMsg("ระบบยังไม่พร้อม ลองใหม่อีกครั้ง"); return; }
+  const btn = document.getElementById("pwBtn");
+  btn.disabled = true; btn.textContent = "⏳ กำลังตรวจสอบ...";
+  try {
+    // หา member (members ก่อน · fallback test_members)
+    let rows = await sbGet(`members?member_code=eq.${encodeURIComponent(code)}&select=password_hash,national_id_hash&limit=1`);
+    let member = rows && rows[0];
+    if (!member) {
+      const tr = await sbGet(`test_members?member_code=eq.${encodeURIComponent(code)}&select=password_hash&limit=1`);
+      member = tr && tr[0];
+    }
+    if (!member || (!member.password_hash && !member.national_id_hash)) {
+      pwMsg("สมาชิกนี้ยังไม่ได้ตั้งรหัสผ่าน — ติดต่อเจ้าหน้าที่"); return;
+    }
+    // รับได้ทั้งรหัสผ่าน หรือเลขบัตรประชาชน (เผื่อลืมรหัสผ่าน)
+    const inputHash = await ERPCrypto.hash(pass);
+    let ok = !!member.password_hash && inputHash === member.password_hash;
+    if (!ok && member.national_id_hash) {
+      const idHash = await ERPCrypto.hash(pass.toUpperCase().replace(/[\s-]/g, ""));
+      if (idHash === member.national_id_hash) ok = true;
+    }
+    if (!ok) { pwMsg("รหัสผ่านไม่ถูกต้อง"); return; }
+
+    // ผ่าน → ดึงข้อมูลเดิมมาแสดง
+    if (!_dupRow || _dupRow.member_code !== code) _dupRow = await fetchExistingParticipant(code);
+    if (!_dupRow) { pwMsg("ไม่พบข้อมูลเดิม"); return; }
+    populateFromParticipant(_dupRow);
+    closePwModal();
+    toast("ยืนยันตัวตนสำเร็จ — แก้ไขข้อมูลได้เลย", "success");
+  } catch (e) {
+    pwMsg("ตรวจสอบไม่สำเร็จ: " + (e.message || e));
+  } finally {
+    btn.disabled = false; btn.textContent = "ยืนยัน";
+  }
+};
+
+// เติมข้อมูลเดิมลงฟอร์ม + เข้าโหมดแก้ไข
+function populateFromParticipant(p) {
+  editId = p.participant_id;
+  _dupDismissedCode = "";
+  document.getElementById("rCode").value = p.member_code || "";
+  document.getElementById("rName").value = p.member_name || "";
+  hideCodeSuggest();
+
+  // โซเชียล: ใส่ลิงก์ + แสดงรูปเดิม (เก็บใน existingImg — ไม่ต้องอัปใหม่ถ้าไม่เปลี่ยน)
+  SOCIALS.forEach((s) => {
+    const url = p[s.col_url] || "";
+    const img = p[s.col_img] || "";
+    const uEl = document.getElementById(`u_${s.key}`);
+    if (uEl) uEl.value = url;
+    delete socialImg[s.key];
+    if (img) { existingImg[s.key] = img; showExistingImg(s.key, img); }
+    else { delete existingImg[s.key]; clearImgSlot(s.key); }
+    markReq(s.key);
+  });
+
+  // คำตอบฟิลด์กำหนดเอง
+  const ans = (p.custom_answers && typeof p.custom_answers === "object") ? p.custom_answers : {};
+  (Array.isArray(campaign.register_fields) ? campaign.register_fields : []).forEach((f) => {
+    const v = ans[f.id];
+    const id = `cf_${f.id}`;
+    if (f.type === "checkbox") {
+      const box = document.getElementById(id);
+      if (box) box.querySelectorAll("input").forEach((c) => { c.checked = Array.isArray(v) && v.includes(c.value); });
+    } else if (f.type === "radio") {
+      const box = document.getElementById(id);
+      if (box) box.querySelectorAll("input").forEach((c) => { c.checked = (c.value === v); });
+    } else {
+      const el = document.getElementById(id);
+      if (el) el.value = v != null ? v : "";
+    }
+  });
+
+  document.getElementById("editBanner").classList.remove("hidden");
+  document.getElementById("btnRegister").textContent = "💾 บันทึกการแก้ไข";
+  regMsg("");
+}
+
+function showExistingImg(key, url) {
+  const prev = document.getElementById(`prev_${key}`);
+  prev.src = url; prev.classList.remove("hidden");
+  document.getElementById(`rm_${key}`).classList.remove("hidden");
+  document.getElementById(`drop_${key}`).querySelector(".img-drop-ph").classList.add("hidden");
+}
+function clearImgSlot(key) {
+  const prev = document.getElementById(`prev_${key}`);
+  if (prev) { prev.src = ""; prev.classList.add("hidden"); }
+  document.getElementById(`rm_${key}`)?.classList.add("hidden");
+  document.getElementById(`drop_${key}`)?.querySelector(".img-drop-ph")?.classList.remove("hidden");
+}
+
+// ออกจากโหมดแก้ไข → เคลียร์ฟอร์มกลับเป็นลงทะเบียนใหม่
+window.cancelEditMode = function () {
+  editId = null; _dupRow = null; _dupDismissedCode = "";
+  document.getElementById("rCode").value = "";
+  document.getElementById("rName").value = "";
+  SOCIALS.forEach((s) => {
+    const uEl = document.getElementById(`u_${s.key}`); if (uEl) uEl.value = "";
+    delete socialImg[s.key]; delete existingImg[s.key];
+    clearImgSlot(s.key); markReq(s.key);
+  });
+  renderCustomFields();   // reset ฟิลด์กำหนดเองกลับว่าง
+  document.getElementById("editBanner").classList.add("hidden");
+  document.getElementById("btnRegister").textContent = "✅ ส่งข้อมูลลงทะเบียน";
+  regMsg("");
+};
 
 function regMsg(html) {
   const el = document.getElementById("rMsg");
@@ -455,7 +639,7 @@ async function doRegister() {
       regMsg(`❌ ลิงก์ ${s.label} ไม่ถูกต้อง (ต้องขึ้นต้น http/https)`);
       return toast(`ลิงก์ ${s.label} ไม่ถูกต้อง`, "error");
     }
-    if (!socialImg[s.key]) {
+    if (!socialImg[s.key] && !existingImg[s.key]) {
       regMsg(`❌ กรุณาแนบรูปของ ${s.label} (ช่องที่ใส่ลิงก์ต้องมีรูป)`);
       return toast(`แนบรูปของ ${s.label}`, "error");
     }
@@ -465,38 +649,47 @@ async function doRegister() {
   const cf = collectCustomAnswers();
   if (cf.error) { regMsg(`❌ ${esc(cf.error)}`); return toast(cf.error, "error"); }
 
+  const isEdit = !!editId;
   const btn = document.getElementById("btnRegister");
   btn.disabled = true;
   const oldLabel = btn.textContent;
-  btn.textContent = "⏳ กำลังอัปโหลด...";
+  btn.textContent = isEdit ? "⏳ กำลังบันทึก..." : "⏳ กำลังอัปโหลด...";
   try {
     const token = campaign.public_token || campaign.campaign_id;
-    const payload = {
-      campaign_id: campaign.campaign_id,
-      member_code: code,
-      member_name: name,
-      source: "public",
-      status: "pending",
-      custom_answers: cf.answers,
-    };
+    const payload = isEdit
+      ? { member_code: code, member_name: name, custom_answers: cf.answers }
+      : { campaign_id: campaign.campaign_id, member_code: code, member_name: name,
+          source: "public", status: "pending", custom_answers: cf.answers };
 
-    // upload รูป + set url/img ต่อช่องทาง
+    // โหมดแก้ไข: เคลียร์ทุกช่องทางก่อน → ช่องที่ถูกลบจะกลายเป็น null
+    if (isEdit) SOCIALS.forEach((s) => { payload[s.col_url] = null; payload[s.col_img] = null; });
+
+    // set url/img ต่อช่องทาง — รูปใหม่ → upload · รูปเดิม → ใช้ URL เดิม
     for (const s of filled) {
-      const path = `campaigns/${token}/reg/${Date.now()}_${s.key}`;
-      const imgUrl = await window.ImageCompressor.uploadViaRest(SB_URL, SB_KEY, "event-files", path, socialImg[s.key]);
-      if (!imgUrl) throw new Error(`อัปโหลดรูป ${s.label} ไม่สำเร็จ`);
+      let imgUrl = existingImg[s.key] || null;
+      if (socialImg[s.key]) {
+        const path = `campaigns/${token}/reg/${Date.now()}_${s.key}`;
+        imgUrl = await window.ImageCompressor.uploadViaRest(SB_URL, SB_KEY, "event-files", path, socialImg[s.key]);
+        if (!imgUrl) throw new Error(`อัปโหลดรูป ${s.label} ไม่สำเร็จ`);
+      }
       payload[s.col_url] = s.url;
       payload[s.col_img] = imgUrl;
     }
 
-    await sbSend("campaign_participants", payload);
+    if (isEdit) {
+      await sbSend(`campaign_participants?participant_id=eq.${editId}`, payload, { method: "PATCH" });
+    } else {
+      await sbSend("campaign_participants", payload);
+    }
 
     show("content", false);
-    document.getElementById("doneMsg").textContent = "ลงทะเบียนเรียบร้อยแล้ว ขอบคุณค่ะ 🎉";
+    document.getElementById("doneMsg").textContent = isEdit
+      ? "แก้ไขข้อมูลเรียบร้อยแล้ว ขอบคุณค่ะ 🎉"
+      : "ลงทะเบียนเรียบร้อยแล้ว ขอบคุณค่ะ 🎉";
     show("stateDone", true);
   } catch (e) {
-    regMsg("ลงทะเบียนไม่สำเร็จ: " + esc(e.message));
-    toast("ลงทะเบียนไม่สำเร็จ: " + e.message, "error");
+    regMsg((isEdit ? "บันทึกไม่สำเร็จ: " : "ลงทะเบียนไม่สำเร็จ: ") + esc(e.message));
+    toast((isEdit ? "บันทึกไม่สำเร็จ: " : "ลงทะเบียนไม่สำเร็จ: ") + e.message, "error");
     btn.disabled = false;
     btn.textContent = oldLabel;
   }
@@ -514,7 +707,12 @@ window.closeLightbox = function () {
   document.body.style.overflow = "";
 };
 document.addEventListener("keydown", (e) => {
-  if (e.key === "Escape") window.closeLightbox();
+  if (e.key !== "Escape") return;
+  const pw = document.getElementById("pwModal");
+  const dup = document.getElementById("dupModal");
+  if (pw && !pw.classList.contains("hidden")) { window.closePwModal(); return; }
+  if (dup && !dup.classList.contains("hidden")) { window.closeDupModal(); return; }
+  window.closeLightbox();
 });
 
 window.doRegister = doRegister;

@@ -85,17 +85,21 @@ async function loadData() {
 
 // ── AUTO STATUS ตามวันที่ ──────────────────────────────────
 // today (Asia/Bangkok) เป็น YYYY-MM-DD เทียบกับ start/end ได้ตรงๆ
-// กฎ: ก่อนเริ่ม=DRAFT · อยู่ในช่วง=ACTIVE · เลยสิ้นสุด=ENDED · CANCELLED ค้างไว้เสมอ (auto ไม่ทับ)
+// กฎ: auto ทำงานเฉพาะ "ยืนยันแล้ว" (track CONFIRMED/ACTIVE/ENDED) เท่านั้น
+//   DRAFT (ร่าง) → ไม่ auto · CANCELLED → ค้างไว้เสมอ
+//   ยืนยันแล้ว: ก่อนเริ่ม=CONFIRMED · อยู่ในช่วง=ACTIVE · เลยสิ้นสุด=ENDED
 function todayBKK() {
   return new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Bangkok" });
 }
 function computeAutoStatus(c) {
-  if (c.status === "CANCELLED") return "CANCELLED"; // ยกเลิกแล้วค้างไว้
+  // ไม่ auto: ร่าง (ยังแก้อยู่) และ ยกเลิก (ค้างไว้)
+  if (c.status === "DRAFT" || c.status === "CANCELLED") return c.status;
+  // track ที่ยืนยันแล้ว → เปลี่ยนตามวันที่
   const start = (c.start_date || "").slice(0, 10);
-  if (!start) return c.status; // ไม่มีวันเริ่ม → ปล่อยตามเดิม
+  if (!start) return c.status; // ไม่มีวันเริ่ม → คงเดิม (CONFIRMED)
   const end = (c.end_date || "").slice(0, 10);
   const today = todayBKK();
-  if (today < start) return "DRAFT";
+  if (today < start) return "CONFIRMED"; // ยืนยันแล้ว รอถึงวันเริ่ม
   if (end && today > end) return "ENDED";
   return "ACTIVE";
 }
@@ -170,6 +174,7 @@ const PLAT_ICON = {
 const PLAT_NAME = { tiktok: "TikTok", instagram: "Instagram", facebook: "Facebook" };
 const STATUS_LABEL = {
   DRAFT: "📝 ร่าง",
+  CONFIRMED: "✔️ ยืนยัน",
   ACTIVE: "▶️ ดำเนินการ",
   ENDED: "✅ จบแล้ว",
   CANCELLED: "❌ ยกเลิก",
