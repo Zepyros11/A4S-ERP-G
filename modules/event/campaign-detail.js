@@ -75,9 +75,8 @@ const fmtNum = (n) => (Number(n) || 0).toLocaleString("en-US");
 const LINE_OA_CHAT_ID = "U1145fdb4cd26606afe4fe12575d211cc";
 function lineChatUrl(userId) {
   if (!userId || !LINE_OA_CHAT_ID) return "https://chat.line.biz/";
-  // เปิดหน้าแชทของบัญชี (chat list) — กดได้ชัวร์ ไม่ 404
-  // TODO: เปลี่ยนเป็นลิงก์แชท 1:1 ตรงคน เมื่อรู้ format ที่ถูกต้องจาก URL แชทจริง
-  return `https://chat.line.biz/${LINE_OA_CHAT_ID}`;
+  // แชท 1:1 ตรงคน — format ยืนยันจาก URL จริง: chat.line.biz/<accountId>/chat/<userId>
+  return `https://chat.line.biz/${LINE_OA_CHAT_ID}/chat/${encodeURIComponent(userId)}`;
 }
 
 // ── STATE ─────────────────────────────────────────────────

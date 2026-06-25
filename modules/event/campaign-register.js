@@ -29,7 +29,8 @@ function tierRowsHtml(tiers, unit) {
       const cond = (t.min_value != null && t.min_value !== "")
         ? `<div class="reward-cond">เงื่อนไข: ${unit} ≥ ${esc(t.min_value)}</div>`
         : "";
-      return `<div class="reward-tier"><div class="reward-tier-rank">🏆 ${rank}</div><div class="reward-tier-prize">${esc(t.prize)}</div>${cond}</div>`;
+      // 1 บรรทัด: 🏆 อันดับ 1 : 30 ARP (ล้น → fitRewardLines ลด font ให้พอดี)
+      return `<div class="reward-tier"><div class="reward-tier-line">🏆 ${rank} : <b>${esc(t.prize)}</b></div>${cond}</div>`;
     })
     .join("");
 }
@@ -60,7 +61,27 @@ function renderRewardTiers() {
   rEl.innerHTML =
     `<div class="reward-title">🎁 ของรางวัล <span class="reward-meta">· วัดจาก${unit}</span></div>${cols}`;
   show("cReward", true);
+  // จัด font ของแต่ละบรรทัดรางวัลให้พอดี 1 บรรทัด (หลัง layout เสร็จ)
+  requestAnimationFrame(() => fitRewardLines(rEl));
 }
+
+// ลดขนาด font ของบรรทัด "🏆 อันดับ X : รางวัล" จนพอดี 1 บรรทัด (ไม่ต่ำกว่า 9px)
+function fitRewardLines(root) {
+  root.querySelectorAll(".reward-tier-line").forEach((el) => {
+    let size = 13.5;
+    el.style.fontSize = size + "px";
+    let guard = 0;
+    while (el.scrollWidth > el.clientWidth + 1 && size > 9 && guard++ < 24) {
+      size -= 0.5;
+      el.style.fontSize = size + "px";
+    }
+  });
+}
+// จอเปลี่ยนขนาด → คำนวณ font ใหม่
+window.addEventListener("resize", () => {
+  const rEl = document.getElementById("cReward");
+  if (rEl && !rEl.classList.contains("hidden")) fitRewardLines(rEl);
+});
 const socialImg = {}; // key -> File (รูปที่เลือก ยังไม่ upload)
 
 // ── REST helpers ──────────────────────────────────────────
