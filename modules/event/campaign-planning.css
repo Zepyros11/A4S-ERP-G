@@ -223,6 +223,12 @@
 }
 .share-hint { font-size: 11.5px; color: var(--text3); margin-top: 12px; text-align: left; }
 
+/* sub-line ใต้ค่าในการ์ดสรุป (รายงานภาพรวม) */
+.stat-sub { font-size: 11px; color: var(--text3); margin-top: 3px; white-space: nowrap; }
+
+/* คลิกแถวเพื่อเปิดรายละเอียด */
+.cmp-row:hover > td { background: var(--accent-pale); }
+
 /* action buttons in row */
 .cmp-row-actions { display: inline-flex; gap: 6px; }
 .cmp-row-actions .btn-icon {

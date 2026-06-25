@@ -31,7 +31,7 @@
           </div>
         </div>
         <div class="page-hero-actions">
-          <button class="btn-on-hero" onclick="window.copyRegLink()">🔗 ลิงก์ลงทะเบียน</button>
+          <button class="btn-on-hero" onclick="window.openRegShareModal()">🔗 ลิงก์ลงทะเบียน</button>
           <button class="btn-on-hero btn-primary" data-perm="campaign_edit" onclick="window.editCampaign()">✏️ แก้ไข</button>
         </div>
       </div>
@@ -39,9 +39,7 @@
       <!-- TABS -->
       <div class="cmp-tabs" id="cmpTabs">
         <button class="cmp-tab active" data-tab="overview" onclick="window.switchTab('overview')">📋 ภาพรวม</button>
-        <button class="cmp-tab" data-tab="missions" onclick="window.switchTab('missions')">🎯 Missions <span class="badge-n" id="nMissions">0</span></button>
         <button class="cmp-tab" data-tab="participants" onclick="window.switchTab('participants')">👥 ผู้เข้าร่วม <span class="badge-n" id="nParticipants">0</span></button>
-        <button class="cmp-tab" data-tab="submissions" onclick="window.switchTab('submissions')">📊 ผลงาน <span class="badge-n" id="nSubmissions">0</span></button>
         <button class="cmp-tab" data-tab="ranking" onclick="window.switchTab('ranking')">🏆 อันดับ</button>
       </div>
 
@@ -66,15 +64,6 @@
         </div>
       </div>
 
-      <!-- PANE: MISSIONS -->
-      <div class="cmp-pane" id="pane-missions">
-        <div class="pane-toolbar">
-          <div class="table-title">🎯 ภารกิจ (Missions)</div>
-          <button class="btn btn-primary btn-sm" data-perm="campaign_edit" onclick="window.openMissionModal()">＋ เพิ่ม Mission</button>
-        </div>
-        <div id="missionList"></div>
-      </div>
-
       <!-- PANE: PARTICIPANTS -->
       <div class="cmp-pane" id="pane-participants">
         <div class="pane-toolbar">
@@ -94,46 +83,14 @@
               <tr>
                 <th style="width:40px;text-align:center"><input type="checkbox" id="partChkAll" onclick="window.togglePartAll(this)" /></th>
                 <th>สมาชิก</th>
+                <th class="col-center">รูป</th>
                 <th class="col-center">โซเชียล</th>
-                <th class="col-center">ผลงาน</th>
                 <th class="col-center">เวลาลงทะเบียน</th>
-                <th class="col-center">ที่มา</th>
                 <th class="col-center">สถานะ</th>
                 <th class="col-center">จัดการ</th>
               </tr>
             </thead>
             <tbody id="partBody"></tbody>
-          </table>
-        </div>
-      </div>
-
-      <!-- PANE: SUBMISSIONS -->
-      <div class="cmp-pane" id="pane-submissions">
-        <div class="pane-toolbar">
-          <select class="filter-select" id="subFilterStatus" onchange="window.renderSubmissions()">
-            <option value="">🧿 ทุกสถานะ</option>
-            <option value="pending">⏳ รออนุมัติ</option>
-            <option value="approved">✅ อนุมัติ</option>
-            <option value="rejected">❌ ปฏิเสธ</option>
-          </select>
-          <button class="btn btn-primary btn-sm" data-perm="campaign_metric_edit" onclick="window.openSubModal()">＋ เพิ่มผลงาน</button>
-        </div>
-        <div class="table-wrap">
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>ผู้เข้าร่วม</th>
-                <th class="col-center">แพลตฟอร์ม</th>
-                <th>โพสต์</th>
-                <th class="col-center">👁 วิว</th>
-                <th class="col-center">❤️ Like</th>
-                <th class="col-center">💬</th>
-                <th class="col-center">🔁</th>
-                <th class="col-center">สถานะ</th>
-                <th class="col-center">จัดการ</th>
-              </tr>
-            </thead>
-            <tbody id="subBody"></tbody>
           </table>
         </div>
       </div>
@@ -146,57 +103,16 @@
             <option value="views">👁 ยอดวิว</option>
             <option value="likes">❤️ ยอด Like</option>
             <option value="engagement">🔥 Engagement</option>
-            <option value="weighted">⚖️ ถ่วงน้ำหนัก (points)</option>
           </select>
-          <span style="font-size:11.5px;color:var(--text3)">* นับเฉพาะผลงานที่อนุมัติแล้ว</span>
+          <span style="font-size:11.5px;color:var(--text3)">* นับทุกยอดที่กรอกจากฟอร์มกรอกยอด</span>
         </div>
         <div id="rankList"></div>
       </div>
     </div>
 
-    <!-- ── MISSION MODAL ── -->
-    <div class="modal-overlay" id="missionModal">
-      <div class="modal v-sage-header">
-        <div class="modal-hdr">
-          <div class="modal-title" id="missionModalTitle">🎯 เพิ่ม Mission</div>
-          <button class="btn-modal-close" onclick="window.closeMissionModal()">✕</button>
-        </div>
-        <div class="modal-body">
-          <input type="hidden" id="mId" />
-          <div class="form-grid">
-            <div class="form-group full">
-              <label class="form-label">ชื่อภารกิจ <span class="req">*</span></label>
-              <input class="form-control" id="mTitle" placeholder="เช่น โพสต์รีวิวสินค้าลง TikTok" />
-            </div>
-            <div class="form-group full">
-              <label class="form-label">รายละเอียด</label>
-              <textarea class="form-control" id="mDesc" rows="2"></textarea>
-            </div>
-            <div class="form-group">
-              <label class="form-label">แพลตฟอร์ม</label>
-              <select class="form-control" id="mPlatform">
-                <option value="">ทุกแพลตฟอร์ม</option>
-                <option value="tiktok">🎵 TikTok</option>
-                <option value="instagram">📸 Instagram</option>
-                <option value="facebook">👍 Facebook</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label class="form-label">คะแนน (points)</label>
-              <input class="form-control" id="mPoints" type="number" step="0.1" value="1" />
-            </div>
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button class="btn btn-secondary" onclick="window.closeMissionModal()">ยกเลิก</button>
-          <button class="btn btn-primary" id="btnSaveMission" onclick="window.saveMission()">💾 บันทึก</button>
-        </div>
-      </div>
-    </div>
-
     <!-- ── PARTICIPANT MODAL ── -->
     <div class="modal-overlay" id="partModal">
-      <div class="modal v-sage-header">
+      <div class="modal modal-md v-sage-header" style="max-height: none">
         <div class="modal-hdr">
           <div class="modal-title" id="partModalTitle">👥 เพิ่มผู้เข้าร่วม</div>
           <button class="btn-modal-close" onclick="window.closePartModal()">✕</button>
@@ -226,24 +142,12 @@
               </select>
             </div>
             <div class="form-group">
-              <label class="form-label">🎵 TikTok ID</label>
-              <input class="form-control" id="pTiktokId" placeholder="@username" />
-            </div>
-            <div class="form-group">
               <label class="form-label">🎵 TikTok URL</label>
               <input class="form-control" id="pTiktokUrl" placeholder="https://tiktok.com/@..." />
             </div>
             <div class="form-group">
-              <label class="form-label">📸 IG ID</label>
-              <input class="form-control" id="pIgId" placeholder="@username" />
-            </div>
-            <div class="form-group">
               <label class="form-label">📸 IG URL</label>
               <input class="form-control" id="pIgUrl" placeholder="https://instagram.com/..." />
-            </div>
-            <div class="form-group">
-              <label class="form-label">👍 Facebook ID/ชื่อ</label>
-              <input class="form-control" id="pFbId" />
             </div>
             <div class="form-group">
               <label class="form-label">👍 Facebook URL</label>
@@ -254,6 +158,7 @@
               <input class="form-control" id="pNote" />
             </div>
           </div>
+          <div id="pCustomAnswers"></div>
         </div>
         <div class="modal-footer">
           <button class="btn btn-secondary" onclick="window.closePartModal()">ยกเลิก</button>
@@ -264,7 +169,7 @@
 
     <!-- ── SUBMISSION MODAL ── -->
     <div class="modal-overlay" id="subModal">
-      <div class="modal v-sage-header">
+      <div class="modal modal-md v-sage-header" style="max-height: none">
         <div class="modal-hdr">
           <div class="modal-title" id="subModalTitle">📊 เพิ่มผลงาน</div>
           <button class="btn-modal-close" onclick="window.closeSubModal()">✕</button>
@@ -272,15 +177,11 @@
         <div class="modal-body">
           <input type="hidden" id="sId" />
           <div class="form-grid">
-            <div class="form-group">
+            <div class="form-group full">
               <label class="form-label">ผู้เข้าร่วม <span class="req">*</span></label>
               <select class="form-control" id="sParticipant"></select>
             </div>
-            <div class="form-group">
-              <label class="form-label">Mission</label>
-              <select class="form-control" id="sMission"></select>
-            </div>
-            <div class="form-group">
+            <div class="form-group full">
               <label class="form-label">แพลตฟอร์ม <span class="req">*</span></label>
               <select class="form-control" id="sPlatform">
                 <option value="tiktok">🎵 TikTok</option>
@@ -288,17 +189,12 @@
                 <option value="facebook">👍 Facebook</option>
               </select>
             </div>
-            <div class="form-group">
-              <label class="form-label">สถานะ</label>
-              <select class="form-control" id="sStatus">
-                <option value="pending">⏳ รออนุมัติ</option>
-                <option value="approved">✅ อนุมัติ</option>
-                <option value="rejected">❌ ปฏิเสธ</option>
-              </select>
-            </div>
             <div class="form-group full">
               <label class="form-label">ลิงก์โพสต์ <span class="req">*</span></label>
-              <input class="form-control" id="sPostUrl" placeholder="https://..." />
+              <div style="display:flex;gap:8px">
+                <input class="form-control" id="sPostUrl" placeholder="https://..." style="flex:1;min-width:0" />
+                <button type="button" class="btn btn-secondary" style="white-space:nowrap" onclick="window.openSubPostLink()">🔗 เปิดโพสต์</button>
+              </div>
             </div>
             <div class="form-group"><label class="form-label">👁 วิว</label><input class="form-control" id="sViews" type="number" min="0" value="0" /></div>
             <div class="form-group"><label class="form-label">❤️ Like</label><input class="form-control" id="sLikes" type="number" min="0" value="0" /></div>
@@ -319,6 +215,31 @@
       </div>
     </div>
 
+    <!-- ── SHARE LINK MODAL (QR + Link) ── -->
+    <div class="modal-overlay" id="regShareModal">
+      <div class="modal v-sage-header" style="max-width: 480px; max-height: none">
+        <div class="modal-hdr">
+          <div class="modal-title">🔗 แชร์ลิงก์ลงทะเบียน</div>
+          <button class="btn-modal-close" onclick="window.closeRegShareModal()">✕</button>
+        </div>
+        <div class="modal-body" style="text-align: center">
+          <div id="regShareName" class="share-camp-name"></div>
+          <div id="regShareQrWrap" class="share-qr-wrap"></div>
+          <div class="share-url-label">🌐 ลิงก์ลงทะเบียน — ใช้ได้กับทุกคน</div>
+          <div class="share-url-row">
+            <input id="regShareUrlInput" readonly />
+            <button class="btn btn-secondary" onclick="window.openRegUrl()">🔗 เปิดลิงก์</button>
+            <button class="btn btn-primary" onclick="window.copyRegLink()">📋 คัดลอก</button>
+          </div>
+          <div class="share-hint">📱 QR code = ลิงก์เดียวกัน — สแกน หรือกดคัดลอกลิงก์เพื่อแชร์</div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" onclick="window.closeRegShareModal()">ปิด</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
     <script src="../../js/core/auth.js"></script>
     <script src="../../js/core/authz.js"></script>
     <script src="../../js/core/date-format.js"></script>

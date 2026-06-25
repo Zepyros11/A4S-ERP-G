@@ -53,8 +53,13 @@
   margin-bottom: -2px;
   white-space: nowrap;
 }
-.cmp-tab:hover { color: var(--accent); }
-.cmp-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.cmp-tab { border-radius: 8px 8px 0 0; transition: background .15s, color .15s; }
+.cmp-tab:hover { color: var(--accent); background: var(--accent-pale); }
+.cmp-tab.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+  background: var(--accent-pale);
+}
 .cmp-tab .badge-n {
   font-size: 11px; background: var(--surface2); color: var(--text2);
   padding: 1px 7px; border-radius: 9px; margin-left: 5px;
@@ -117,15 +122,43 @@
 .pstat-approved { background: #d1fae5; color: #059669; }
 .pstat-rejected { background: #fee2e2; color: #dc2626; }
 
-.cmp-social-links { display: inline-flex; gap: 12px; align-items: flex-start; }
+/* แต่ละช่องทาง = 1 แถวแนวนอน [ไอคอน | 📊 กรอก] · เรียงลงมา */
+.cmp-social-links { display: inline-flex; flex-direction: column; gap: 6px; align-items: flex-start; }
 .cmp-social-links a { text-decoration: none; font-size: 15px; }
 .cmp-social-links .off { opacity: .3; }
 .soc-ic { width: 20px; height: 20px; object-fit: contain; border-radius: 5px; vertical-align: middle; }
-.cmp-soc-cell { display: inline-flex; flex-direction: column; align-items: center; gap: 4px; }
+.cmp-soc-cell { display: inline-flex; flex-direction: row; align-items: center; gap: 6px; }
 .cmp-soc-thumb {
   width: 40px; height: 40px; object-fit: cover; border-radius: 6px;
   border: 1px solid var(--border); cursor: zoom-in;
 }
+/* คอลัมน์รูปหลักฐาน — หลายรูปเรียงต่อกัน ห่อบรรทัดได้ */
+.cmp-img-cell {
+  display: inline-flex; flex-wrap: wrap; gap: 4px;
+  align-items: center; justify-content: center;
+}
+.cmp-soc-rec {
+  font-size: 12px; line-height: 1; padding: 2px 5px; cursor: pointer;
+  border: 1px solid var(--border); border-radius: 5px; background: var(--surface2, #f8fafc);
+}
+.cmp-soc-rec:hover { border-color: var(--brand, #4a7c59); background: #eef5f0; }
+
+/* ── SHARE LINK MODAL (QR + Link) ── */
+.share-camp-name { font-weight: 700; font-size: 15px; margin-bottom: 12px; }
+.share-qr-wrap {
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 10px; background: #fff; border: 1px solid var(--border);
+  border-radius: 12px; margin-bottom: 14px;
+}
+.share-qr-wrap img, .share-qr-wrap canvas { display: block; }
+.share-url-label { font-size: 12.5px; font-weight: 600; color: var(--text2); margin-bottom: 6px; text-align: left; }
+.share-url-row { display: flex; gap: 8px; }
+.share-url-row input {
+  flex: 1; min-width: 0; padding: 9px 12px;
+  border: 1.5px solid var(--border); border-radius: 9px;
+  font-size: 13px; font-family: inherit; background: var(--surface2, #f8fafc); color: var(--text);
+}
+.share-hint { font-size: 11.5px; color: var(--text3); margin-top: 12px; text-align: left; }
 
 /* ── ของรางวัล (overview) แยกช่องทาง × อันดับ ── */
 .cmp-rw-cols { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
@@ -189,3 +222,31 @@
 .cmp-lookup-hit { font-size: 12.5px; padding: 8px 12px; border-radius: 8px; margin-top: 6px; }
 .cmp-lookup-hit.ok { background: #d1fae5; color: #065f46; }
 .cmp-lookup-hit.no { background: #fee2e2; color: #991b1b; }
+
+/* คำตอบฟิลด์กำหนดเอง (read-only ในโมดัลผู้เข้าร่วม) */
+.cmp-ans-head {
+  font-size: 12px; font-weight: 700; color: var(--text2);
+  margin: 14px 0 8px; padding-top: 12px; border-top: 1px solid var(--border);
+}
+.cmp-ans-row {
+  display: flex; gap: 10px; padding: 6px 0;
+  font-size: 13px; border-bottom: 1px dashed var(--border);
+}
+.cmp-ans-row:last-child { border-bottom: 0; }
+.cmp-ans-label { flex: 0 0 40%; color: var(--text3); font-weight: 600; }
+.cmp-ans-val { flex: 1; color: var(--text); word-break: break-word; }
+
+/* ของรางวัลแบบ tier (overview) */
+.cmp-rw-meta { font-size: 12px; color: var(--text3); margin-bottom: 8px; }
+.cmp-rw-tiers { display: flex; flex-direction: column; gap: 8px; }
+.cmp-rw-tier { border: 1px solid #fde68a; border-radius: 9px; padding: 9px 12px; background: #fffbeb; }
+.cmp-rw-tier-rank { font-size: 13px; font-weight: 700; color: #92400e; }
+.cmp-rw-tier-prize { font-size: 13.5px; color: var(--text); margin-top: 2px; white-space: pre-wrap; }
+.cmp-rw-cond { font-size: 11.5px; color: var(--text3); margin-top: 4px; border-top: 1px dashed #fde68a; padding-top: 4px; }
+
+/* per-channel reward groups (overview) */
+.cmp-rw-group { margin-bottom: 12px; }
+.cmp-rw-group:last-child { margin-bottom: 0; }
+.cmp-rw-group .cmp-rw-head { display: flex; align-items: center; gap: 6px; font-weight: 700; font-size: 13px; margin-bottom: 6px; }
+.cmp-rw-group .cmp-rw-head .soc-ic { width: 18px; height: 18px; }
+.cmp-rw-group .cmp-rw-tier + .cmp-rw-tier { margin-top: 6px; }

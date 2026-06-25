@@ -4,7 +4,8 @@ const ImgPopup = (() => {
   let skus = [];
   let index = 0;
   const ZOOM_STEPS = [100, 150, 200, 250, 300];
-  let zoom = 100;
+  const DEFAULT_ZOOM = 150; // ระดับซูมเริ่มต้นเมื่อเปิดภาพ
+  let zoom = DEFAULT_ZOOM;
 
   function ensureOverlay() {
     if (document.getElementById("imgPopupOverlay")) return;
@@ -355,7 +356,7 @@ object-fit:cover;
   }
 
   function _resetZoom() {
-    zoom = 100;
+    zoom = DEFAULT_ZOOM;
     _applyZoom();
   }
 

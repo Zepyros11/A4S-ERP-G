@@ -23,8 +23,9 @@
       <div class="page-hero page-hero--simple page-hero--compact">
         <h1 class="page-hero-title">🚀 วางแผนแคมเปญ</h1>
         <div class="page-hero-actions">
+          <a class="btn-on-hero" href="./campaign-dashboard.html" style="text-decoration: none">📊 Dashboard</a>
           <button
-            class="btn btn-primary"
+            class="btn-on-hero btn-primary"
             data-perm="campaign_create"
             onclick="window.location.href = './campaign-form.html'"
           >
@@ -33,34 +34,30 @@
         </div>
       </div>
 
-      <!-- STATS -->
+      <!-- STATS (ภาพรวมเชิงปฏิบัติการ) -->
       <div class="stats-row">
         <div class="stat-card">
           <div class="stat-icon">🚀</div>
           <div>
             <div class="stat-value" id="statTotal">0</div>
             <div class="stat-label">แคมเปญทั้งหมด</div>
+            <div class="stat-sub" id="statCampSub">—</div>
           </div>
         </div>
         <div class="stat-card">
           <div class="stat-icon">▶️</div>
           <div>
             <div class="stat-value" id="statActive" style="color: var(--success)">0</div>
-            <div class="stat-label">กำลังดำเนินการ</div>
+            <div class="stat-label">ดำเนินการอยู่</div>
+            <div class="stat-sub" id="statActiveSub">—</div>
           </div>
         </div>
         <div class="stat-card">
-          <div class="stat-icon">👥</div>
+          <div class="stat-icon">🔜</div>
           <div>
-            <div class="stat-value" id="statParticipants" style="color: var(--accent)">0</div>
-            <div class="stat-label">ผู้เข้าร่วมรวม</div>
-          </div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-icon">📊</div>
-          <div>
-            <div class="stat-value" id="statPosts">0</div>
-            <div class="stat-label">ผลงานรวม</div>
+            <div class="stat-value" id="statUpcoming" style="color: var(--accent)">0</div>
+            <div class="stat-label">กำลังจะถึง</div>
+            <div class="stat-sub" id="statUpcomingSub">—</div>
           </div>
         </div>
       </div>
@@ -104,14 +101,13 @@
                 <th class="col-center">ช่วงเวลา</th>
                 <th class="col-center">แพลตฟอร์ม</th>
                 <th class="col-center">ผู้เข้าร่วม</th>
-                <th class="col-center">ผลงาน</th>
                 <th class="col-center">สถานะ</th>
                 <th class="col-center">จัดการ</th>
               </tr>
             </thead>
             <tbody id="tableBody">
               <tr>
-                <td colspan="8">
+                <td colspan="7">
                   <div class="empty-state">
                     <div class="empty-icon">🚀</div>
                     <div class="empty-text">ยังไม่มีแคมเปญ — กด "สร้างแคมเปญ" เพื่อเริ่ม</div>

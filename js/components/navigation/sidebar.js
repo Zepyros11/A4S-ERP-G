@@ -151,6 +151,12 @@
       id: "g-campaign",
       items: [
         {
+          id: "campaign-dashboard",
+          icon: "📊",
+          label: "Dashboard แคมเปญ",
+          path: BASE_PATH + "/modules/event/campaign-dashboard.html",
+        },
+        {
           id: "campaign-planning",
           icon: "🚀",
           label: "วางแผนแคมเปญ",
@@ -561,6 +567,7 @@
     "event-media": "media_fb_view",
     "line-promote": "line_promote_view",
     "campaign-planning": "campaign_view",
+    "campaign-dashboard": "campaign_view",
     categories: "inv_cat_view",
     units: "units_view",
     warehouses: "warehouse_view",
@@ -689,6 +696,7 @@
     "event-budget",
     "event-media",
     "line-promote",
+    "campaign-dashboard",
     "campaign-planning",
     //  **** Inventory ****
     "stock-dashboard",

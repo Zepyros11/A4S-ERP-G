@@ -59,12 +59,25 @@ function genToken() {
     Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
   return raw.replace(/-/g, "").slice(0, 20);
 }
+function escHtml(s) {
+  return String(s ?? "").replace(/[&<>"']/g, (c) =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]),
+  );
+}
 
 // ── STATE ─────────────────────────────────────────────────
 let editingId = null;
-let pendingMedia = []; // [{file?, url?, type:'image'|'video', name, isCover}]
 let editToken = null;  // public_token ของแคมเปญที่กำลังแก้ (กัน gen ซ้ำ)
-let rankMetric = "views"; // เก็บค่าเดิม (ฟิลด์เลือกถูกเอาออกจาก UI แล้ว — default views)
+let regFields = [];    // ฟิลด์กำหนดเองของฟอร์มลงทะเบียน → campaigns.register_fields
+// ของรางวัล per-channel: { mode:'ranked'|'topn', metric, channels:{<key>:{enabled,tiers:[{rank_from,rank_to,min_value,prize}]}} }
+let rewardMeta = {
+  mode: "ranked", metric: "likes",
+  channels: {
+    facebook: { enabled: false, tiers: [] },
+    tiktok: { enabled: false, tiers: [] },
+    ig: { enabled: false, tiers: [] },
+  },
+};
 let platforms = ["tiktok", "instagram", "facebook"]; // เก็บค่าเดิม (ฟอร์มลงทะเบียนเป็นแบบมาตรฐานแล้ว)
 
 // ── NAV ───────────────────────────────────────────────────
@@ -74,7 +87,9 @@ window.goBack = function () {
 
 // ── INIT ──────────────────────────────────────────────────
 async function initPage() {
-  setupMediaDnd();
+  mediaMgr.setup();
+  rulesMgr.setup();
+  setupRegFieldsDnd();
   const id = +new URLSearchParams(location.search).get("edit");
   if (id) {
     showLoading(true);
@@ -100,7 +115,6 @@ async function initPage() {
 
 function fillForm(camp) {
   editingId = camp?.campaign_id || null;
-  pendingMedia = [];
   editToken = camp?.public_token || null;
 
   const heading = editingId ? "✏️ แก้ไขแคมเปญ" : "🚀 สร้างแคมเปญ";
@@ -115,14 +129,10 @@ function fillForm(camp) {
   document.getElementById("fEnd").value = (camp?.end_date || "").slice(0, 10);
   document.getElementById("fStatus").value = camp?.status || "DRAFT";
   rankMetric = camp?.rank_metric || "views";
-  // ของรางวัลแยกช่องทาง × อันดับ 1–3
-  const rw = (camp && camp.rewards && typeof camp.rewards === "object") ? camp.rewards : {};
-  ["facebook", "tiktok", "ig"].forEach((c) => {
-    const arr = Array.isArray(rw[c]) ? rw[c] : [];
-    [1, 2, 3].forEach((n) => {
-      document.getElementById(`fRw_${c}_${n}`).value = arr[n - 1] || "";
-    });
-  });
+  // ของรางวัล per-channel (รองรับ format เดิม)
+  rewardMeta = normalizeRewards(camp?.rewards, camp?.rank_metric);
+  document.getElementById("fRwMetric").value = rewardMeta.metric;
+  renderRewards();
   // เงื่อนไข: สร้างใหม่ = prefill ค่า default · แก้ของเดิม = ใช้ค่าที่บันทึกไว้
   document.getElementById("fTerms").value = editingId ? (camp?.terms || "") : DEFAULT_TERMS;
   document.getElementById("fRegOpen").checked = camp ? !!camp.reg_open : true;
@@ -131,165 +141,515 @@ function fillForm(camp) {
     ? camp.platforms
     : ["tiktok", "instagram", "facebook"];
 
-  // media: existing url items
-  pendingMedia = (camp?.media || []).map((m) => ({
-    url: m.url,
-    type: m.type || "image",
-    name: m.name || "",
-    isCover: camp?.cover_url && m.url === camp.cover_url,
-  }));
-  if (pendingMedia.length && !pendingMedia.some((m) => m.isCover)) {
-    const firstImg = pendingMedia.find((m) => m.type === "image");
-    if (firstImg) firstImg.isCover = true;
-  }
-  renderMediaGrid();
-}
-
-// ── MEDIA: 5-slot grid + drag & drop ──────────────────────
-const MAX_MEDIA = 5;
-let dragFromIdx = null; // index ที่กำลังลากเพื่อจัดเรียง (null = ไม่มี / กำลังลากไฟล์เข้า)
-
-function renderMediaGrid() {
-  const grid = document.getElementById("fMediaGrid");
-  let html = pendingMedia
-    .map((m, i) => {
-      const src = m.url || (m.file ? URL.createObjectURL(m.file) : "");
-      const inner =
-        m.type === "video"
-          ? `<video src="${src}" muted></video><span class="cmp-vid-tag">▶ วิดีโอ</span>`
-          : `<img src="${src}" alt="" draggable="false" />`;
-      const coverTag =
-        m.type === "image"
-          ? `<span class="cmp-cover-tag" style="cursor:pointer" title="ตั้งเป็นปก" onclick="window.setCover(${i})">${m.isCover ? "★ ปก" : "☆"}</span>`
-          : "";
-      return `<div class="cmp-media-item" draggable="true" data-idx="${i}">
-        ${inner}${coverTag}
-        <button class="cmp-media-remove" onclick="window.removeMedia(${i})">✕</button>
-      </div>`;
-    })
-    .join("");
-  // ช่องว่างให้ครบ 5 ช่อง
-  for (let i = pendingMedia.length; i < MAX_MEDIA; i++) {
-    html += `<div class="cmp-slot-empty" onclick="document.getElementById('fMediaFiles').click()">
-      <span class="cmp-slot-plus">+</span><span class="cmp-slot-label">เพิ่มไฟล์</span>
-    </div>`;
-  }
-  grid.innerHTML = html;
-  document.getElementById("fMediaCount").textContent = `${pendingMedia.length}/${MAX_MEDIA}`;
-}
-
-function addFiles(files) {
-  for (const file of [...files]) {
-    if (pendingMedia.length >= MAX_MEDIA) {
-      showToast(`สูงสุด ${MAX_MEDIA} ไฟล์`, "warning");
-      break;
-    }
-    if (!/^(image|video)\//.test(file.type)) continue;
-    const type = file.type.startsWith("video") ? "video" : "image";
-    pendingMedia.push({ file, type, name: file.name, isCover: false });
-  }
-  if (!pendingMedia.some((m) => m.isCover)) {
-    const f = pendingMedia.find((m) => m.type === "image");
-    if (f) f.isCover = true;
-  }
-  renderMediaGrid();
-}
-function moveMedia(from, to) {
-  if (from == null || to == null || from === to) return;
-  if (from < 0 || from >= pendingMedia.length) return;
-  to = Math.max(0, Math.min(to, pendingMedia.length - 1));
-  const [m] = pendingMedia.splice(from, 1);
-  pendingMedia.splice(to, 0, m);
-  renderMediaGrid();
-}
-
-function setupMediaDnd() {
-  const grid = document.getElementById("fMediaGrid");
-
-  const isFileDrag = (e) =>
-    e.dataTransfer && [...e.dataTransfer.types].includes("Files");
-
-  ["dragenter", "dragover"].forEach((ev) =>
-    grid.addEventListener(ev, (e) => {
-      if (dragFromIdx !== null) {
-        // จัดเรียงภายใน
-        e.preventDefault();
-        const item = e.target.closest(".cmp-media-item");
-        grid.querySelectorAll(".drop-target").forEach((el) => el.classList.remove("drop-target"));
-        if (item && +item.dataset.idx !== dragFromIdx) item.classList.add("drop-target");
-        return;
-      }
-      if (isFileDrag(e)) {
-        e.preventDefault();
-        grid.classList.add("is-dragover");
-      }
-    }),
+  // สื่อโปรโมต: existing url items
+  mediaMgr.setItems(
+    (camp?.media || []).map((m) => ({
+      url: m.url,
+      type: m.type || "image",
+      name: m.name || "",
+      isCover: camp?.cover_url && m.url === camp.cover_url,
+    })),
   );
 
-  grid.addEventListener("dragleave", (e) => {
-    if (!grid.contains(e.relatedTarget)) grid.classList.remove("is-dragover");
-  });
+  // ข้อกำหนด Campaign: รูป + ข้อความ
+  rulesMgr.setItems(
+    (camp?.requirements_images || []).map((m) => ({
+      url: m.url,
+      type: "image",
+      name: m.name || "",
+      isCover: false,
+    })),
+  );
+  document.getElementById("fRulesText").value = camp?.requirements_text || "";
 
-  grid.addEventListener("drop", (e) => {
-    // ลากไฟล์จากเครื่องเข้ามา
-    if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length) {
-      e.preventDefault();
-      grid.classList.remove("is-dragover");
-      addFiles(e.dataTransfer.files);
-      return;
+  // ฟิลด์กำหนดเองของฟอร์มลงทะเบียน
+  regFields = Array.isArray(camp?.register_fields)
+    ? camp.register_fields.map((f) => ({
+        id: f.id || "f_" + genToken().slice(0, 8),
+        label: f.label || "",
+        type: f.type || "text",
+        required: !!f.required,
+        options: Array.isArray(f.options) ? f.options : [],
+      }))
+    : [];
+  renderRegFields();
+}
+
+// ── MEDIA: reusable slot-grid + drag & drop (factory) ─────
+// ใช้ซ้ำได้หลายกริด (สื่อโปรโมต ≤5 / รูปข้อกำหนด ≤10) — event delegation
+// ไม่ผูก global handler (กัน collision) · imagesOnly/allowCover ปรับได้ต่อกริด
+function createMediaManager({ gridId, fileInputId, countId, max, imagesOnly = false, allowCover = false, emptyLabel = "เพิ่มไฟล์" }) {
+  let items = []; // [{file?, url?, type:'image'|'video', name, isCover}]
+  let dragFromIdx = null;
+  const $grid = () => document.getElementById(gridId);
+
+  function ensureCover() {
+    if (!allowCover) return;
+    if (items.length && !items.some((m) => m.isCover)) {
+      const f = items.find((m) => m.type === "image");
+      if (f) f.isCover = true;
     }
-    // จัดเรียงภายใน
-    if (dragFromIdx !== null) {
-      e.preventDefault();
-      const item = e.target.closest(".cmp-media-item");
-      const toIdx = item ? +item.dataset.idx : pendingMedia.length - 1;
-      moveMedia(dragFromIdx, toIdx);
+  }
+
+  function render() {
+    const grid = $grid();
+    if (!grid) return;
+    let html = items
+      .map((m, i) => {
+        const src = m.url || (m.file ? URL.createObjectURL(m.file) : "");
+        const inner =
+          m.type === "video"
+            ? `<video src="${src}" muted></video><span class="cmp-vid-tag">▶ วิดีโอ</span>`
+            : `<img src="${src}" alt="" draggable="false" />`;
+        const coverTag =
+          allowCover && m.type === "image"
+            ? `<span class="cmp-cover-tag" style="cursor:pointer" title="ตั้งเป็นปก" data-act="cover" data-idx="${i}">${m.isCover ? "★ ปก" : "☆"}</span>`
+            : "";
+        return `<div class="cmp-media-item" draggable="true" data-idx="${i}">
+          ${inner}${coverTag}
+          <button class="cmp-media-remove" data-act="remove" data-idx="${i}">✕</button>
+        </div>`;
+      })
+      .join("");
+    for (let i = items.length; i < max; i++) {
+      html += `<div class="cmp-slot-empty" data-act="add">
+        <span class="cmp-slot-plus">+</span><span class="cmp-slot-label">${emptyLabel}</span>
+      </div>`;
     }
-  });
+    grid.innerHTML = html;
+    const cnt = document.getElementById(countId);
+    if (cnt) cnt.textContent = `${items.length}/${max}`;
+  }
 
-  grid.addEventListener("dragstart", (e) => {
-    const item = e.target.closest(".cmp-media-item");
-    if (!item) return;
-    dragFromIdx = +item.dataset.idx;
-    item.classList.add("is-dragging");
-    e.dataTransfer.effectAllowed = "move";
-    try { e.dataTransfer.setData("text/plain", String(dragFromIdx)); } catch {}
-  });
+  function addFiles(files) {
+    for (const file of [...files]) {
+      if (items.length >= max) {
+        showToast(`สูงสุด ${max} ไฟล์`, "warning");
+        break;
+      }
+      const isImg = /^image\//.test(file.type);
+      const isVid = /^video\//.test(file.type);
+      if (imagesOnly ? !isImg : !(isImg || isVid)) continue;
+      items.push({ file, type: isVid ? "video" : "image", name: file.name, isCover: false });
+    }
+    ensureCover();
+    render();
+  }
 
-  grid.addEventListener("dragend", () => {
-    dragFromIdx = null;
-    grid.classList.remove("is-dragover");
-    grid.querySelectorAll(".is-dragging, .drop-target").forEach((el) =>
-      el.classList.remove("is-dragging", "drop-target"),
+  function move(from, to) {
+    if (from == null || to == null || from === to) return;
+    if (from < 0 || from >= items.length) return;
+    to = Math.max(0, Math.min(to, items.length - 1));
+    const [m] = items.splice(from, 1);
+    items.splice(to, 0, m);
+    render();
+  }
+
+  function setup() {
+    const grid = $grid();
+    if (!grid) return;
+    const fileInput = document.getElementById(fileInputId);
+    if (fileInput) {
+      fileInput.addEventListener("change", () => {
+        addFiles(fileInput.files);
+        fileInput.value = "";
+      });
+    }
+
+    // คลิก (event delegation): + เพิ่มไฟล์ / ✕ ลบ / ☆ ตั้งปก
+    grid.addEventListener("click", (e) => {
+      const el = e.target.closest("[data-act]");
+      if (!el) return;
+      const act = el.dataset.act;
+      if (act === "add") {
+        if (fileInput) fileInput.click();
+      } else if (act === "remove") {
+        items.splice(+el.dataset.idx, 1);
+        ensureCover();
+        render();
+      } else if (act === "cover") {
+        const i = +el.dataset.idx;
+        items.forEach((m, idx) => (m.isCover = idx === i && m.type === "image"));
+        render();
+      }
+    });
+
+    const isFileDrag = (e) => e.dataTransfer && [...e.dataTransfer.types].includes("Files");
+
+    ["dragenter", "dragover"].forEach((ev) =>
+      grid.addEventListener(ev, (e) => {
+        if (dragFromIdx !== null) {
+          e.preventDefault();
+          const item = e.target.closest(".cmp-media-item");
+          grid.querySelectorAll(".drop-target").forEach((el) => el.classList.remove("drop-target"));
+          if (item && +item.dataset.idx !== dragFromIdx) item.classList.add("drop-target");
+          return;
+        }
+        if (isFileDrag(e)) {
+          e.preventDefault();
+          grid.classList.add("is-dragover");
+        }
+      }),
     );
+
+    grid.addEventListener("dragleave", (e) => {
+      if (!grid.contains(e.relatedTarget)) grid.classList.remove("is-dragover");
+    });
+
+    grid.addEventListener("drop", (e) => {
+      if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length) {
+        e.preventDefault();
+        grid.classList.remove("is-dragover");
+        addFiles(e.dataTransfer.files);
+        return;
+      }
+      if (dragFromIdx !== null) {
+        e.preventDefault();
+        const item = e.target.closest(".cmp-media-item");
+        const toIdx = item ? +item.dataset.idx : items.length - 1;
+        move(dragFromIdx, toIdx);
+      }
+    });
+
+    grid.addEventListener("dragstart", (e) => {
+      const item = e.target.closest(".cmp-media-item");
+      if (!item) return;
+      dragFromIdx = +item.dataset.idx;
+      item.classList.add("is-dragging");
+      e.dataTransfer.effectAllowed = "move";
+      try { e.dataTransfer.setData("text/plain", String(dragFromIdx)); } catch {}
+    });
+
+    grid.addEventListener("dragend", () => {
+      dragFromIdx = null;
+      grid.classList.remove("is-dragover");
+      grid.querySelectorAll(".is-dragging, .drop-target").forEach((el) =>
+        el.classList.remove("is-dragging", "drop-target"),
+      );
+    });
+  }
+
+  return {
+    setup,
+    render,
+    setItems(arr) { items = arr || []; ensureCover(); render(); },
+    getItems() { return items; },
+  };
+}
+
+// สื่อโปรโมต (≤5 · รูป+วิดีโอ · มีปก) / รูปข้อกำหนด (≤10 · รูปอย่างเดียว · ไม่มีปก)
+const mediaMgr = createMediaManager({
+  gridId: "fMediaGrid", fileInputId: "fMediaFiles", countId: "fMediaCount",
+  max: 5, imagesOnly: false, allowCover: true,
+});
+const rulesMgr = createMediaManager({
+  gridId: "fRulesGrid", fileInputId: "fRulesFiles", countId: "fRulesCount",
+  max: 10, imagesOnly: true, allowCover: false, emptyLabel: "เพิ่มรูป",
+});
+
+// ── REWARDS (per-channel · 2 รูปแบบ: ranked=ต่างกันแต่ละอันดับ / topn=เดียวกัน N คน) ──
+const RW_METRICS_ALLOWED = ["likes", "views", "engagement"];
+const RW_METRIC_LABEL = { likes: "ยอดไลค์", views: "ยอดวิว", engagement: "การมีส่วนร่วม" };
+const RW_CHANS = [
+  { key: "facebook", label: "Facebook",  ic: "../../assets/icons/facebook.png" },
+  { key: "tiktok",   label: "TikTok",    ic: "../../assets/icons/tiktok.png" },
+  { key: "ig",       label: "Instagram", ic: "../../assets/icons/instagram.png" },
+];
+function newTier(from = 1, to = from) {
+  return { rank_from: from, rank_to: to, min_value: null, prize: "" };
+}
+function emptyChannels() {
+  return {
+    facebook: { enabled: false, tiers: [] },
+    tiktok: { enabled: false, tiers: [] },
+    ig: { enabled: false, tiers: [] },
+  };
+}
+function mapTiers(arr) {
+  return (Array.isArray(arr) ? arr : []).map((t) => ({
+    rank_from: +t.rank_from || 1,
+    rank_to: +t.rank_to || +t.rank_from || 1,
+    min_value: t.min_value == null || t.min_value === "" ? null : +t.min_value,
+    prize: t.prize || "",
+  }));
+}
+
+// แปลง rewards จาก DB → per-channel (รองรับ format เดิม: flat tiers / {facebook:[...]})
+function normalizeRewards(raw, rankMetric) {
+  const metric = RW_METRICS_ALLOWED.includes(rankMetric) ? rankMetric : "likes";
+  const out = { mode: "ranked", metric, channels: emptyChannels() };
+  if (!raw || typeof raw !== "object") return out;
+  if (RW_METRICS_ALLOWED.includes(raw.metric)) out.metric = raw.metric;
+  if (raw.mode === "topn" || raw.mode === "ranked") out.mode = raw.mode;
+
+  if (raw.channels && typeof raw.channels === "object") {
+    RW_CHANS.forEach((c) => {
+      const ch = raw.channels[c.key];
+      if (ch && typeof ch === "object") out.channels[c.key] = { enabled: !!ch.enabled, tiers: mapTiers(ch.tiers) };
+    });
+    return out;
+  }
+  if (Array.isArray(raw.tiers)) {
+    // format กลาง (flat tiers) → ใส่ทุกช่องทาง
+    const tiers = mapTiers(raw.tiers);
+    out.mode = (tiers.length <= 1 && tiers[0] && (tiers[0].rank_to > tiers[0].rank_from || tiers[0].min_value != null)) ? "topn" : "ranked";
+    RW_CHANS.forEach((c) => { out.channels[c.key] = { enabled: tiers.length > 0, tiers: tiers.map((t) => ({ ...t })) }; });
+    return out;
+  }
+  // format เดิม {facebook:[r1,r2,r3]}
+  RW_CHANS.forEach((c) => {
+    if (Array.isArray(raw[c.key])) {
+      const tiers = raw[c.key]
+        .map((v, i) => ({ rank_from: i + 1, rank_to: i + 1, min_value: null, prize: v || "" }))
+        .filter((t) => t.prize);
+      out.channels[c.key] = { enabled: tiers.length > 0, tiers };
+    }
+  });
+  out.mode = "ranked";
+  return out;
+}
+
+function updateRewardModeUI() {
+  document.querySelectorAll("#rwModeToggle .rw-mode-btn").forEach((b) =>
+    b.classList.toggle("active", b.dataset.mode === rewardMeta.mode));
+  const hint = document.getElementById("rwModeHint");
+  if (hint) hint.textContent = rewardMeta.mode === "topn"
+    ? "กำหนดจำนวนคนที่ได้รางวัล (เช่น 10 คนแรก) — ทุกคนได้รางวัลเดียวกัน + ตั้งเงื่อนไขขั้นต่ำได้"
+    : "แต่ละอันดับ (1, 2, 3, …) ได้รางวัลต่างกัน — กด ＋ เพิ่มอันดับ ในแต่ละช่องทาง";
+  RW_CHANS.forEach((c) => {
+    const chk = document.querySelector(`#rwChanPick input[data-chan="${c.key}"]`);
+    if (chk) chk.checked = !!rewardMeta.channels[c.key].enabled;
   });
 }
 
-window.setCover = function (i) {
-  pendingMedia.forEach((m, idx) => (m.isCover = idx === i && m.type === "image"));
-  renderMediaGrid();
-};
-window.removeMedia = function (i) {
-  pendingMedia.splice(i, 1);
-  if (pendingMedia.length && !pendingMedia.some((m) => m.isCover)) {
-    const f = pendingMedia.find((m) => m.type === "image");
-    if (f) f.isCover = true;
+function renderRewards() {
+  const wrap = document.getElementById("rwChannels");
+  if (!wrap) return;
+  updateRewardModeUI();
+  const enabled = RW_CHANS.filter((c) => rewardMeta.channels[c.key].enabled);
+  if (!enabled.length) {
+    wrap.innerHTML = `<div class="rw-empty">เลือกช่องทางด้านบนเพื่อกรอกของรางวัล</div>`;
+    return;
   }
-  renderMediaGrid();
+  wrap.innerHTML = enabled.map((c) => renderChannelCard(c)).join("");
+}
+function renderChannelCard(c) {
+  const ch = rewardMeta.channels[c.key];
+  const unit = RW_METRIC_LABEL[rewardMeta.metric] || "ยอด";
+  let body;
+  if (rewardMeta.mode === "topn") {
+    const t = ch.tiers[0] || newTier(1, 1);
+    ch.tiers = [t];
+    body = `
+      <label class="rw-lbl">จำนวนคนที่ได้รางวัล</label>
+      <div class="rw-min">Top <input type="number" min="1" class="form-control" data-chan="${c.key}" data-f="rank_to" value="${escHtml(t.rank_to)}" /> คนแรก</div>
+      <label class="rw-lbl">เงื่อนไขขั้นต่ำ (เว้นว่าง = ไม่มี)</label>
+      <div class="rw-min">${unit} ≥ <input type="number" min="0" class="form-control" data-chan="${c.key}" data-f="min_value" value="${t.min_value == null ? "" : escHtml(t.min_value)}" placeholder="—" /></div>
+      <label class="rw-lbl">ของรางวัล</label>
+      <textarea class="form-control" data-chan="${c.key}" data-f="prize" rows="2" placeholder="เช่น ลูกเทนนิสสกรีนโลโก้ 4BODY + สกรีนชื่อ">${escHtml(t.prize)}</textarea>`;
+  } else {
+    if (!ch.tiers.length) ch.tiers = [newTier(1, 1)];
+    const rows = ch.tiers
+      .map((t, i) => `
+        <div class="rw-tier" data-chan="${c.key}" data-idx="${i}">
+          <div class="rw-tier-head">
+            <span class="rw-tier-no">${["🥇", "🥈", "🥉"][i] || "🏅"} อันดับ ${i + 1}</span>
+            <button type="button" class="rw-tier-del" title="ลบอันดับนี้" onclick="window.removeRewardTier('${c.key}',${i})">🗑</button>
+          </div>
+          <textarea class="form-control" data-chan="${c.key}" data-idx="${i}" data-f="prize" rows="2" placeholder="ของรางวัลอันดับ ${i + 1}">${escHtml(t.prize)}</textarea>
+        </div>`)
+      .join("");
+    body = `${rows}<button type="button" class="btn btn-secondary btn-sm rw-add-tier" style="margin-top:6px" onclick="window.addRewardTier('${c.key}')">＋ เพิ่มอันดับ</button>`;
+  }
+  return `<div class="rw-chan-card">
+    <div class="rw-chan-card-head"><img class="soc-ic" src="${c.ic}" alt="" /> ${c.label}</div>
+    ${body}
+  </div>`;
+}
+
+function syncRewardsFromDom() {
+  rewardMeta.metric = document.getElementById("fRwMetric").value;
+  const wrap = document.getElementById("rwChannels");
+  if (!wrap) return;
+  RW_CHANS.forEach((c) => {
+    const ch = rewardMeta.channels[c.key];
+    if (!ch.enabled) return;
+    const card = wrap.querySelector(`.rw-chan-card [data-chan="${c.key}"]`)?.closest(".rw-chan-card");
+    if (!card) return;
+    if (rewardMeta.mode === "topn") {
+      const get = (f) => card.querySelector(`[data-chan="${c.key}"][data-f="${f}"]`);
+      const n = Math.max(1, +get("rank_to").value || 1);
+      const mv = get("min_value").value.trim();
+      ch.tiers = [{ rank_from: 1, rank_to: n, min_value: mv === "" ? null : +mv, prize: get("prize").value }];
+    } else {
+      ch.tiers = [...card.querySelectorAll(`.rw-tier[data-chan="${c.key}"]`)].map((box, i) => ({
+        rank_from: i + 1, rank_to: i + 1, min_value: null,
+        prize: box.querySelector('[data-f="prize"]').value,
+      }));
+    }
+  });
+}
+
+window.toggleRwChannel = function (key, checked) {
+  syncRewardsFromDom();
+  rewardMeta.channels[key].enabled = checked;
+  if (checked && !rewardMeta.channels[key].tiers.length) rewardMeta.channels[key].tiers = [newTier(1, 1)];
+  renderRewards();
 };
-window.handleMediaFiles = function (input) {
-  addFiles(input.files);
-  input.value = "";
+window.setRewardMode = function (mode) {
+  if (mode === rewardMeta.mode) return;
+  syncRewardsFromDom();
+  rewardMeta.mode = mode;
+  RW_CHANS.forEach((c) => {
+    const ch = rewardMeta.channels[c.key];
+    if (mode === "topn") {
+      const first = ch.tiers[0];
+      ch.tiers = [first ? { ...first, rank_from: 1, rank_to: Math.max(1, first.rank_to || 1) } : newTier(1, 1)];
+    } else {
+      if (!ch.tiers.length) ch.tiers = [newTier(1, 1)];
+      else ch.tiers = ch.tiers.map((t, i) => ({ ...t, rank_from: i + 1, rank_to: i + 1, min_value: null }));
+    }
+  });
+  renderRewards();
+};
+window.onRwMetricChange = function () {
+  syncRewardsFromDom();
+  renderRewards();
+};
+window.addRewardTier = function (key) {
+  syncRewardsFromDom();
+  rewardMeta.channels[key].tiers.push(newTier(rewardMeta.channels[key].tiers.length + 1));
+  renderRewards();
+};
+window.removeRewardTier = function (key, i) {
+  syncRewardsFromDom();
+  rewardMeta.channels[key].tiers.splice(i, 1);
+  renderRewards();
 };
 
-// ── REWARDS (แยกช่องทาง × อันดับ 1–3) ─────────────────────
 function collectRewards() {
-  const out = {};
-  ["facebook", "tiktok", "ig"].forEach((c) => {
-    const arr = [1, 2, 3].map((n) => (document.getElementById(`fRw_${c}_${n}`).value || "").trim());
-    if (arr.some(Boolean)) out[c] = arr; // เก็บเฉพาะช่องทางที่มีรางวัลอย่างน้อย 1 อันดับ
+  syncRewardsFromDom();
+  const channels = {};
+  RW_CHANS.forEach((c) => {
+    const ch = rewardMeta.channels[c.key];
+    if (!ch.enabled) return;
+    const tiers = ch.tiers
+      .map((t) => ({ rank_from: t.rank_from, rank_to: Math.max(t.rank_from, t.rank_to), min_value: t.min_value, prize: (t.prize || "").trim() }))
+      .filter((t) => t.prize);
+    if (tiers.length) channels[c.key] = { enabled: true, tiers };
   });
-  return out;
+  return { mode: rewardMeta.mode, metric: rewardMeta.metric, channels };
+}
+
+// ── FIELD BUILDER (ฟอร์มลงทะเบียน · ฟิลด์กำหนดเอง) ─────────
+const FLD_TYPE_LABEL = {
+  text: "ข้อความสั้น", textarea: "ข้อความยาว",
+  dropdown: "ดรอปดาวน์", radio: "ตัวเลือก", checkbox: "ช่องติ๊ก",
+};
+const FLD_CHOICE_TYPES = ["dropdown", "radio", "checkbox"];
+
+function renderRegFields() {
+  const wrap = document.getElementById("regFieldsList");
+  if (!wrap) return;
+  if (!regFields.length) {
+    wrap.innerHTML = `<div class="rf-empty">ยังไม่มีฟิลด์กำหนดเอง — กด “＋ เพิ่มฟิลด์” เพื่อสร้างคำถามเพิ่ม</div>`;
+    return;
+  }
+  wrap.innerHTML = regFields
+    .map((f, i) => `
+      <div class="rf-row rf-custom" draggable="true" data-idx="${i}">
+        <span class="rf-handle" title="ลากเพื่อจัดลำดับ">⠿</span>
+        <span class="rf-label">${escHtml(f.label)}</span>
+        <span class="rf-type">${FLD_TYPE_LABEL[f.type] || f.type}</span>
+        <span class="rf-req ${f.required ? "on" : ""}">${f.required ? "จำเป็น" : "ไม่บังคับ"}</span>
+        <span class="rf-actions">
+          <button type="button" class="btn-icon" title="แก้ไข" onclick="window.openFieldModal(${i})">✏️</button>
+          <button type="button" class="btn-icon" title="ลบ" onclick="window.removeField(${i})">🗑</button>
+        </span>
+      </div>`)
+    .join("");
+}
+
+window.openFieldModal = function (idx = null) {
+  const f = idx != null ? regFields[idx] : null;
+  document.getElementById("fieldModalTitle").textContent = f ? "✏️ แก้ไขฟิลด์" : "➕ เพิ่มฟิลด์";
+  document.getElementById("fldIdx").value = idx != null ? idx : "";
+  document.getElementById("fldLabel").value = f?.label || "";
+  document.getElementById("fldType").value = f?.type || "text";
+  document.getElementById("fldRequired").checked = !!f?.required;
+  document.getElementById("fldOptions").value = (f?.options || []).join("\n");
+  window.onFieldTypeChange();
+  document.getElementById("fieldModal").classList.add("open");
+  setTimeout(() => document.getElementById("fldLabel").focus(), 50);
+};
+window.closeFieldModal = function () {
+  document.getElementById("fieldModal").classList.remove("open");
+};
+window.onFieldTypeChange = function () {
+  const t = document.getElementById("fldType").value;
+  document.getElementById("fldOptionsWrap").style.display = FLD_CHOICE_TYPES.includes(t) ? "" : "none";
+};
+window.saveField = function () {
+  const label = document.getElementById("fldLabel").value.trim();
+  if (!label) return showToast("กรุณาใส่ชื่อฟิลด์", "error");
+  const type = document.getElementById("fldType").value;
+  const required = document.getElementById("fldRequired").checked;
+  let options = [];
+  if (FLD_CHOICE_TYPES.includes(type)) {
+    options = document.getElementById("fldOptions").value.split("\n").map((s) => s.trim()).filter(Boolean);
+    if (!options.length) return showToast("กรุณาใส่ตัวเลือกอย่างน้อย 1 รายการ", "error");
+  }
+  const idxRaw = document.getElementById("fldIdx").value;
+  const editing = idxRaw !== "";
+  const field = {
+    id: editing ? regFields[+idxRaw].id : "f_" + genToken().slice(0, 8),
+    label, type, required, options,
+  };
+  if (editing) regFields[+idxRaw] = field;
+  else regFields.push(field);
+  renderRegFields();
+  window.closeFieldModal();
+};
+window.removeField = function (idx) {
+  regFields.splice(idx, 1);
+  renderRegFields();
+};
+
+function setupRegFieldsDnd() {
+  const list = document.getElementById("regFieldsList");
+  if (!list) return;
+  let from = null;
+  list.addEventListener("dragstart", (e) => {
+    const r = e.target.closest(".rf-custom");
+    if (!r) return;
+    from = +r.dataset.idx;
+    r.classList.add("is-dragging");
+    e.dataTransfer.effectAllowed = "move";
+  });
+  list.addEventListener("dragover", (e) => {
+    if (from == null) return;
+    e.preventDefault();
+    const r = e.target.closest(".rf-custom");
+    list.querySelectorAll(".drop-target").forEach((el) => el.classList.remove("drop-target"));
+    if (r && +r.dataset.idx !== from) r.classList.add("drop-target");
+  });
+  list.addEventListener("drop", (e) => {
+    if (from == null) return;
+    e.preventDefault();
+    const r = e.target.closest(".rf-custom");
+    const to = r ? +r.dataset.idx : regFields.length - 1;
+    if (to != null && from !== to) {
+      const [m] = regFields.splice(from, 1);
+      regFields.splice(to, 0, m);
+      renderRegFields();
+    }
+    from = null;
+  });
+  list.addEventListener("dragend", () => {
+    from = null;
+    list.querySelectorAll(".is-dragging, .drop-target").forEach((el) =>
+      el.classList.remove("is-dragging", "drop-target"));
+  });
 }
 
 // ── SAVE ──────────────────────────────────────────────────
@@ -304,11 +664,12 @@ window.saveCampaign = async function () {
     const { url, key } = getSB();
     const token = editToken || genToken();
 
-    // upload pending files → url
+    // upload สื่อโปรโมต → url
     const media = [];
     let coverUrl = null;
-    for (let i = 0; i < pendingMedia.length; i++) {
-      const m = pendingMedia[i];
+    const promoItems = mediaMgr.getItems();
+    for (let i = 0; i < promoItems.length; i++) {
+      const m = promoItems[i];
       let fileUrl = m.url;
       if (!fileUrl && m.file) {
         const safe = (m.name || "file").replace(/[^a-zA-Z0-9._-]/g, "_");
@@ -324,17 +685,35 @@ window.saveCampaign = async function () {
       coverUrl = firstImg ? firstImg.url : null;
     }
 
+    // upload รูปข้อกำหนด → url (สูงสุด 10)
+    const requirementsImages = [];
+    const ruleItems = rulesMgr.getItems();
+    for (let i = 0; i < ruleItems.length; i++) {
+      const m = ruleItems[i];
+      let fileUrl = m.url;
+      if (!fileUrl && m.file) {
+        const safe = (m.name || "file").replace(/[^a-zA-Z0-9._-]/g, "_");
+        const path = `campaigns/${token}/req_${Date.now()}_${i}_${safe}`;
+        fileUrl = await window.ImageCompressor.uploadViaRest(url, key, BUCKET, path, m.file);
+        if (!fileUrl) throw new Error(`อัปโหลดรูปข้อกำหนด "${m.name}" ไม่สำเร็จ`);
+      }
+      requirementsImages.push({ url: fileUrl, name: m.name || "" });
+    }
+
     const payload = {
       name,
       description: document.getElementById("fDesc").value.trim() || null,
       start_date: document.getElementById("fStart").value || null,
       end_date: document.getElementById("fEnd").value || null,
       status: document.getElementById("fStatus").value,
-      rank_metric: rankMetric,
+      rank_metric: document.getElementById("fRwMetric").value, // เกณฑ์เดียวกับของรางวัล → leaderboard ตรงกัน
       platforms,
       rewards: collectRewards(),
       terms: document.getElementById("fTerms").value.trim() || null,
       reg_open: document.getElementById("fRegOpen").checked,
+      register_fields: regFields,
+      requirements_images: requirementsImages,
+      requirements_text: document.getElementById("fRulesText").value.trim() || null,
       media,
       cover_url: coverUrl,
       public_token: token,

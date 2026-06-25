@@ -49,10 +49,12 @@ function esc(s) {
     ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]),
   );
 }
+const fmtNum = (n) => (Number(n) || 0).toLocaleString("en-US");
+
 // ── STATE ─────────────────────────────────────────────────
 let allCampaigns = [];
 let partCounts = {};   // campaign_id -> #participants
-let postCounts = {};   // campaign_id -> #submissions
+let allParts = [];     // ผู้เข้าร่วมทั้งหมด (สำหรับนับ approved)
 
 // ── INIT ──────────────────────────────────────────────────
 async function initPage() {
@@ -69,14 +71,13 @@ async function initPage() {
 }
 
 async function loadData() {
-  const [camps, parts, subs] = await Promise.all([
+  const [camps, parts] = await Promise.all([
     sbFetch("campaigns", "?select=*&order=created_at.desc"),
-    sbFetch("campaign_participants", "?select=campaign_id"),
-    sbFetch("campaign_submissions", "?select=campaign_id"),
+    sbFetch("campaign_participants", "?select=campaign_id,status"),
   ]);
   allCampaigns = camps || [];
-  partCounts = tally(parts || []);
-  postCounts = tally(subs || []);
+  allParts = parts || [];
+  partCounts = tally(allParts);
   await syncAutoStatus();
   renderStats();
   renderTable();
@@ -124,18 +125,40 @@ function tally(rows) {
   return m;
 }
 
-// ── STATS ─────────────────────────────────────────────────
+// ── STATS (ภาพรวมเชิงปฏิบัติการ — สถานะ + งานค้าง) ─────────
 function renderStats() {
-  document.getElementById("statTotal").textContent = allCampaigns.length;
-  document.getElementById("statActive").textContent = allCampaigns.filter(
-    (c) => c.status === "ACTIVE",
-  ).length;
-  document.getElementById("statParticipants").textContent = Object.values(
-    partCounts,
-  ).reduce((a, b) => a + b, 0);
-  document.getElementById("statPosts").textContent = Object.values(
-    postCounts,
-  ).reduce((a, b) => a + b, 0);
+  const today = todayBKK();
+
+  // 1) แคมเปญทั้งหมด + แยกจบแล้ว/ยกเลิก
+  const ended = allCampaigns.filter((c) => c.status === "ENDED").length;
+  const cancelled = allCampaigns.filter((c) => c.status === "CANCELLED").length;
+  document.getElementById("statTotal").textContent = fmtNum(allCampaigns.length);
+  document.getElementById("statCampSub").innerHTML =
+    `<span style="color:var(--info)">✅ ${ended} จบแล้ว</span> · ❌ ${cancelled} ยกเลิก`;
+
+  // 2) ดำเนินการอยู่ + เปิดรับสมัครกี่แคมเปญ
+  const activeCamps = allCampaigns.filter((c) => c.status === "ACTIVE");
+  const regOpen = activeCamps.filter((c) => c.reg_open).length;
+  document.getElementById("statActive").textContent = fmtNum(activeCamps.length);
+  document.getElementById("statActiveSub").textContent = regOpen
+    ? `🟢 เปิดรับสมัคร ${fmtNum(regOpen)} แคมเปญ`
+    : "ไม่มีแคมเปญเปิดรับสมัคร";
+
+  // 3) กำลังจะถึง — มีวันเริ่มในอนาคต (ยังไม่ยกเลิก/จบ)
+  const upcoming = allCampaigns.filter((c) => {
+    if (c.status === "CANCELLED" || c.status === "ENDED") return false;
+    const start = (c.start_date || "").slice(0, 10);
+    return start && start > today;
+  });
+  document.getElementById("statUpcoming").textContent = fmtNum(upcoming.length);
+  if (upcoming.length) {
+    const soonest = upcoming
+      .map((c) => (c.start_date || "").slice(0, 10))
+      .sort()[0];
+    document.getElementById("statUpcomingSub").textContent = `เริ่มเร็วสุด ${fmtDMY(soonest)}`;
+  } else {
+    document.getElementById("statUpcomingSub").textContent = "ไม่มีแคมเปญที่ตั้งคิวไว้";
+  }
 }
 
 // ── TABLE ─────────────────────────────────────────────────
@@ -166,7 +189,7 @@ function renderTable() {
   document.getElementById("rowCount").textContent = `${rows.length} แคมเปญ`;
 
   if (!rows.length) {
-    tbody.innerHTML = `<tr><td colspan="8"><div class="empty-state">
+    tbody.innerHTML = `<tr><td colspan="7"><div class="empty-state">
       <div class="empty-icon">🔍</div><div class="empty-text">ไม่พบแคมเปญ</div></div></td></tr>`;
     updateBulkBar();
     return;
@@ -188,7 +211,7 @@ function renderTable() {
             : `<span class="cmp-plat-chip">${p}</span>`
         )
         .join("");
-      return `<tr>
+      return `<tr class="cmp-row" style="cursor:pointer" onclick="window.rowClick(event, ${c.campaign_id})">
         <td class="col-center"><input type="checkbox" class="row-check" value="${c.campaign_id}" onclick="window.updateBulkBar()" /></td>
         <td>
           <div class="cmp-name-cell">
@@ -202,7 +225,6 @@ function renderTable() {
         <td class="col-center" style="white-space:nowrap">${dates}</td>
         <td class="col-center"><span class="cmp-plats">${plats || "—"}</span></td>
         <td class="col-center">${partCounts[c.campaign_id] || 0}</td>
-        <td class="col-center">${postCounts[c.campaign_id] || 0}</td>
         <td class="col-center">
           <select class="cmp-status-select cmpstat-${c.status}" data-perm="campaign_edit"
                   onchange="window.changeCampStatus(${c.campaign_id}, this)">
@@ -213,7 +235,7 @@ function renderTable() {
         </td>
         <td class="col-center">
           <div class="cmp-row-actions">
-            <button class="btn-icon" title="เปิด" onclick="window.openDetail(${c.campaign_id})">📂</button>
+            <button class="btn-icon" title="รายงาน / Dashboard" onclick="window.openReport(${c.campaign_id})">📊</button>
             <button class="btn-icon" title="ลิงก์ลงทะเบียน / QR" onclick="window.openShareModal(${c.campaign_id})">🔗</button>
             <button class="btn-icon" title="แก้ไข" data-perm="campaign_edit" onclick="window.openCampEdit(${c.campaign_id})">✏️</button>
             <button class="btn-icon" title="ลบ" data-perm="campaign_delete" onclick="window.deleteCampaign(${c.campaign_id})">🗑</button>
@@ -299,8 +321,16 @@ window.changeCampStatus = async function (id, sel) {
 };
 
 // ── NAV ───────────────────────────────────────────────────
+// คลิกที่แถว = เปิดรายละเอียด (ยกเว้นคลิกบน control: checkbox / รูปปก / dropdown สถานะ / ปุ่มจัดการ)
+window.rowClick = function (e, id) {
+  if (e.target.closest("input, button, select, a, .cmp-cover")) return;
+  window.openDetail(id);
+};
 window.openDetail = function (id) {
   location.href = `./campaign-detail.html?campaign_id=${id}`;
+};
+window.openReport = function (id) {
+  location.href = `./campaign-report.html?campaign_id=${id}`;
 };
 // ── SHARE LINK MODAL (QR + Link) ──────────────────────────
 // ฐาน URL สาธารณะสำหรับลิงก์ที่แชร์ (ให้ได้ลิงก์ github.io แม้ตอน preview บน localhost)

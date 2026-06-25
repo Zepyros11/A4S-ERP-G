@@ -16,8 +16,49 @@ const SOCIALS = [
   { key: "tiktok",    ic: "../../assets/icons/tiktok.png",    label: "TikTok",    col_url: "tiktok_url",   col_img: "tiktok_img",   rwkey: "tiktok",   ph: "https://tiktok.com/@..." },
   { key: "instagram", ic: "../../assets/icons/instagram.png", label: "Instagram", col_url: "ig_url",       col_img: "ig_img",       rwkey: "ig",       ph: "https://instagram.com/..." },
 ];
-const RW_RANK_LABEL = ["🥇 รางวัลที่ 1", "🥈 รางวัลที่ 2", "🥉 รางวัลที่ 3"];
+const RW_METRIC_LABEL = { likes: "ยอดไลค์", views: "ยอดวิว", engagement: "การมีส่วนร่วม" };
 const socIcon = (s) => `<img class="soc-ic" src="${s.ic}" alt="${s.label}" />`;
+
+// ของรางวัล per-channel (รองรับ fallback flat tiers)
+function tierRowsHtml(tiers, unit) {
+  return tiers
+    .map((t) => {
+      const rf = +t.rank_from || 1;
+      const rt = Math.max(rf, +t.rank_to || rf);
+      const rank = rf === rt ? `อันดับ ${rf}` : `อันดับ ${rf}–${rt}`;
+      const cond = (t.min_value != null && t.min_value !== "")
+        ? `<div class="reward-cond">เงื่อนไข: ${unit} ≥ ${esc(t.min_value)}</div>`
+        : "";
+      return `<div class="reward-tier"><div class="reward-tier-rank">🏆 ${rank}</div><div class="reward-tier-prize">${esc(t.prize)}</div>${cond}</div>`;
+    })
+    .join("");
+}
+function renderRewardTiers() {
+  const rEl = document.getElementById("cReward");
+  if (!rEl) return;
+  const rw = (campaign.rewards && typeof campaign.rewards === "object") ? campaign.rewards : {};
+  const unit = RW_METRIC_LABEL[rw.metric] || "ยอด";
+
+  let blocks = "";
+  if (rw.channels && typeof rw.channels === "object") {
+    blocks = SOCIALS
+      .map((s) => {
+        const ch = rw.channels[s.rwkey];
+        if (!ch || !ch.enabled) return "";
+        const tiers = (Array.isArray(ch.tiers) ? ch.tiers : []).filter((t) => t && (t.prize || "").trim());
+        if (!tiers.length) return "";
+        return `<div class="reward-chan-group"><div class="reward-chan-title">${socIcon(s)} ${s.label}</div>${tierRowsHtml(tiers, unit)}</div>`;
+      })
+      .join("");
+  } else if (Array.isArray(rw.tiers)) {
+    const tiers = rw.tiers.filter((t) => t && (t.prize || "").trim());
+    if (tiers.length) blocks = `<div class="reward-chan-group">${tierRowsHtml(tiers, unit)}</div>`;
+  }
+  if (!blocks) return;
+  rEl.innerHTML =
+    `<div class="reward-title">🎁 ของรางวัล <span class="reward-meta">· วัดจาก${unit}</span></div>${blocks}`;
+  show("cReward", true);
+}
 const socialImg = {}; // key -> File (รูปที่เลือก ยังไม่ upload)
 
 // ── REST helpers ──────────────────────────────────────────
@@ -108,6 +149,7 @@ async function init() {
     if (campaign.status === "ENDED") return closed("🏁", "แคมเปญนี้จบแล้ว");
 
     renderCampaign();
+    setupCodeLookup();
     show("stateLoading", false);
     show("content", true);
   } catch (e) {
@@ -150,24 +192,8 @@ function renderCampaign() {
   document.getElementById("cMeta").innerHTML = dates ? `<span>${dates}</span>` : "";
   document.getElementById("cDesc").textContent = campaign.description || "";
 
-  // ของรางวัลแยกตามช่องทาง × อันดับ 1–3
-  const rewards = (campaign.rewards && typeof campaign.rewards === "object") ? campaign.rewards : {};
-  const rewardBlocks = SOCIALS
-    .map((s) => {
-      const arr = Array.isArray(rewards[s.rwkey]) ? rewards[s.rwkey] : [];
-      const rows = arr
-        .map((v, i) => (v || "").trim()
-          ? `<div class="reward-row"><span>${RW_RANK_LABEL[i] || `รางวัลที่ ${i + 1}`}</span><b>${esc(v)}</b></div>`
-          : "")
-        .join("");
-      return rows ? `<div class="reward-chan"><div class="reward-chan-title">${socIcon(s)} ${s.label}</div>${rows}</div>` : "";
-    })
-    .join("");
-  const rEl = document.getElementById("cReward");
-  if (rewardBlocks) {
-    rEl.innerHTML = `<div class="reward-title">🎁 ของรางวัล</div><div class="reward-cols">${rewardBlocks}</div>`;
-    show("cReward", true);
-  }
+  // ของรางวัล (Tier Builder: ช่วงอันดับ + เงื่อนไขขั้นต่ำ + ของรางวัล)
+  renderRewardTiers();
 
   // เงื่อนไขการเข้าร่วม (1 บรรทัด = 1 ข้อ)
   const terms = (campaign.terms || "")
@@ -180,6 +206,67 @@ function renderCampaign() {
   }
 
   renderSocials();
+  renderCustomFields();
+}
+
+// ── CUSTOM FIELDS (campaigns.register_fields) ──────────────
+const CF_CHOICE_TYPES = ["dropdown", "radio", "checkbox"];
+
+function renderCustomFields() {
+  const wrap = document.getElementById("customFields");
+  if (!wrap) return;
+  const fields = Array.isArray(campaign.register_fields) ? campaign.register_fields : [];
+  if (!fields.length) { wrap.innerHTML = ""; return; }
+  wrap.innerHTML =
+    `<div class="social-section" style="margin-top:14px">
+      <div class="social-section-title">ข้อมูลเพิ่มเติม</div>
+      ${fields.map(renderOneField).join("")}
+    </div>`;
+}
+function renderOneField(f) {
+  const id = `cf_${f.id}`;
+  const req = f.required ? ` <span class="req">*</span>` : "";
+  const label = `<label>${esc(f.label)}${req}</label>`;
+  const opts = Array.isArray(f.options) ? f.options : [];
+  let input;
+  if (f.type === "textarea") {
+    input = `<textarea id="${id}" rows="3"></textarea>`;
+  } else if (f.type === "dropdown") {
+    input = `<select id="${id}"><option value="">— เลือก —</option>${opts
+      .map((o) => `<option value="${esc(o)}">${esc(o)}</option>`).join("")}</select>`;
+  } else if (f.type === "radio") {
+    input = `<div class="cf-choices" id="${id}">${opts
+      .map((o) => `<label class="cf-choice"><input type="radio" name="${id}" value="${esc(o)}" /> ${esc(o)}</label>`).join("")}</div>`;
+  } else if (f.type === "checkbox") {
+    input = `<div class="cf-choices" id="${id}">${opts
+      .map((o) => `<label class="cf-choice"><input type="checkbox" value="${esc(o)}" /> ${esc(o)}</label>`).join("")}</div>`;
+  } else {
+    input = `<input id="${id}" />`;
+  }
+  return `<div class="fg">${label}${input}</div>`;
+}
+function collectCustomAnswers() {
+  const fields = Array.isArray(campaign.register_fields) ? campaign.register_fields : [];
+  const answers = {};
+  for (const f of fields) {
+    const id = `cf_${f.id}`;
+    let val;
+    if (f.type === "checkbox") {
+      const box = document.getElementById(id);
+      val = box ? [...box.querySelectorAll("input:checked")].map((c) => c.value) : [];
+    } else if (f.type === "radio") {
+      const box = document.getElementById(id);
+      const c = box ? box.querySelector("input:checked") : null;
+      val = c ? c.value : "";
+    } else {
+      const el = document.getElementById(id);
+      val = el ? el.value.trim() : "";
+    }
+    const empty = Array.isArray(val) ? !val.length : !val;
+    if (f.required && empty) return { error: `กรุณากรอก “${f.label}”` };
+    if (!empty) answers[f.id] = val;
+  }
+  return { answers };
 }
 
 // ── SOCIAL CHANNELS (URL + รูป) ────────────────────────────
@@ -247,6 +334,80 @@ window.removeSocialImg = function (key) {
   document.getElementById(`drop_${key}`).querySelector(".img-drop-ph").classList.remove("hidden");
 };
 
+// ── ค้นหาชื่อจากรหัสสมาชิก (member_persons) ────────────────
+// กรอกรหัส → popup ชื่อ (1 รหัสอาจมี 1-2 คน: primary + ผู้สมัครร่วม / บริษัท)
+// เลือก → autofill ช่องชื่อ  (logic เดียวกับหน้า attendees: digits → member_code lookup)
+let _codeSearchTimer = null;
+let _codeSeq = 0;
+function _codeSuggestEl() { return document.getElementById("codeSuggest"); }
+function hideCodeSuggest() {
+  const el = _codeSuggestEl();
+  if (el) { el.classList.add("hidden"); el.innerHTML = ""; }
+}
+function lookupCodeNames() {
+  const el = _codeSuggestEl();
+  if (!el) return;
+  clearTimeout(_codeSearchTimer);
+  // strip ilike wildcards / PostgREST reserved chars แล้วรับเฉพาะรหัสตัวเลข
+  const code = (document.getElementById("rCode").value || "").trim().replace(/[,()*%_\\]/g, "");
+  if (!/^\d{3,}$/.test(code)) { hideCodeSuggest(); return; }
+  el.classList.remove("hidden");
+  el.innerHTML = `<div class="cs-info">⏳ กำลังค้นหา…</div>`;
+  const seq = ++_codeSeq;
+  _codeSearchTimer = setTimeout(async () => {
+    try {
+      const rows = await sbGet(
+        `member_persons?select=member_code,person_role,person_name,position_level,is_company` +
+        `&member_code=eq.${encodeURIComponent(code)}&order=person_role`,
+      );
+      if (seq !== _codeSeq) return;   // มีการพิมพ์ใหม่ → ผลนี้เก่าแล้ว
+      renderCodeSuggest(rows || []);
+    } catch (e) {
+      if (seq !== _codeSeq) return;
+      el.innerHTML = `<div class="cs-info cs-err">⚠️ ค้นหาไม่สำเร็จ — พิมพ์ชื่อเองได้</div>`;
+    }
+  }, 280);
+}
+function renderCodeSuggest(rows) {
+  const el = _codeSuggestEl();
+  if (!el) return;
+  if (!rows.length) {
+    el.innerHTML = `<div class="cs-info">ไม่พบรหัสนี้ — พิมพ์ชื่อเองได้</div>`;
+    return;
+  }
+  el.innerHTML = rows.map((m) => {
+    const name = m.person_name || "—";
+    const role = m.person_role === "co_applicant"
+      ? `<span class="cs-chip cs-chip-co">👥 ผู้สมัครร่วม</span>`
+      : (m.is_company ? `<span class="cs-chip cs-chip-co">🏢 บุคคลธรรมดา</span>` : "");
+    const pos = m.position_level ? `<span class="cs-chip cs-chip-pos">⭐ ${esc(m.position_level)}</span>` : "";
+    return `<div class="cs-row" data-name="${esc(name)}">
+      <span class="cs-code">${esc(m.member_code)}</span>
+      <span class="cs-name">${esc(name)}</span>${role}${pos}
+    </div>`;
+  }).join("");
+  el.querySelectorAll(".cs-row").forEach((r) =>
+    r.addEventListener("click", () => selectCodeName(r.dataset.name || "")));
+}
+function selectCodeName(name) {
+  const nameEl = document.getElementById("rName");
+  if (nameEl) nameEl.value = name;
+  hideCodeSuggest();
+}
+function setupCodeLookup() {
+  const codeInput = document.getElementById("rCode");
+  if (!codeInput) return;
+  codeInput.addEventListener("input", lookupCodeNames);
+  codeInput.addEventListener("focus", lookupCodeNames);
+  // คลิกนอกกรอบ → ปิด popup
+  document.addEventListener("click", (e) => {
+    if (!e.target.closest(".fg-code")) hideCodeSuggest();
+  });
+  codeInput.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") hideCodeSuggest();
+  });
+}
+
 function regMsg(html) {
   const el = document.getElementById("rMsg");
   if (el) el.innerHTML = html ? `<div class="lookup-hit no">${html}</div>` : "";
@@ -280,6 +441,10 @@ async function doRegister() {
     }
   }
 
+  // ฟิลด์กำหนดเอง — ตรวจ required + เก็บคำตอบ
+  const cf = collectCustomAnswers();
+  if (cf.error) { regMsg(`❌ ${esc(cf.error)}`); return toast(cf.error, "error"); }
+
   const btn = document.getElementById("btnRegister");
   btn.disabled = true;
   const oldLabel = btn.textContent;
@@ -292,6 +457,7 @@ async function doRegister() {
       member_name: name,
       source: "public",
       status: "pending",
+      custom_answers: cf.answers,
     };
 
     // upload รูป + set url/img ต่อช่องทาง

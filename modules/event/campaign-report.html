@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>รายงานแคมเปญ — A4S-ERP</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../../css/main.css" />
+    <link rel="stylesheet" href="./campaign-dashboard.css" />
+  </head>
+  <body>
+    <div class="loading-overlay" id="loadingOverlay">
+      <div class="spinner"></div>
+    </div>
+    <div class="toast" id="toast"></div>
+
+    <div class="topbar"></div>
+    <div class="page">
+      <a href="./campaign-planning.html" class="dash-back-link">← กลับวางแผนแคมเปญ</a>
+
+      <!-- HERO -->
+      <div class="page-hero page-hero--simple page-hero--compact">
+        <h1 class="page-hero-title">📊 รายงานแคมเปญ — <span id="heroName">…</span></h1>
+        <div class="page-hero-actions">
+          <a class="btn-on-hero" id="linkDetail" href="#" style="text-decoration: none">📂 รายละเอียด</a>
+          <a class="btn-on-hero btn-primary" href="./campaign-planning.html" style="text-decoration: none">📋 รายการแคมเปญ</a>
+        </div>
+      </div>
+
+      <!-- CAMPAIGN HEAD CARD -->
+      <div class="dash-card">
+        <div class="rep-head" id="repHead">
+          <div class="dash-empty-sm">กำลังโหลด...</div>
+        </div>
+      </div>
+
+      <!-- KPI CARDS -->
+      <div class="stats-row">
+        <div class="stat-card">
+          <div class="stat-icon">👥</div>
+          <div>
+            <div class="stat-value" id="kpiParticipants" style="color: var(--accent)">0</div>
+            <div class="stat-label">ผู้เข้าร่วม</div>
+            <div class="dash-kpi-sub" id="kpiParticipantsSub">—</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">📊</div>
+          <div>
+            <div class="stat-value" id="kpiPosts">0</div>
+            <div class="stat-label">ผลงาน</div>
+            <div class="dash-kpi-sub" id="kpiPostsSub">—</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">👁</div>
+          <div>
+            <div class="stat-value" id="kpiViews" style="color: var(--info)">0</div>
+            <div class="stat-label">ยอดวิวรวม</div>
+            <div class="dash-kpi-sub" id="kpiViewsSub">—</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">🔥</div>
+          <div>
+            <div class="stat-value" id="kpiEng" style="color: var(--danger)">0</div>
+            <div class="stat-label">Engagement รวม</div>
+            <div class="dash-kpi-sub" id="kpiEngSub">—</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- CHARTS ROW -->
+      <div class="dash-grid-2">
+        <!-- PARTICIPANT STATUS DONUT -->
+        <div class="dash-card">
+          <div class="dash-card-hdr">🚦 สถานะผู้เข้าร่วม</div>
+          <div class="dash-donut-wrap">
+            <div class="dash-donut">
+              <svg viewBox="0 0 140 140" id="statusDonut" width="150" height="150"></svg>
+              <div class="dash-donut-center">
+                <div class="num" id="donutCenterNum">0</div>
+                <div class="lbl">คน</div>
+              </div>
+            </div>
+            <div class="dash-legend" id="statusLegend"></div>
+          </div>
+        </div>
+
+        <!-- PLATFORM BARS -->
+        <div class="dash-card">
+          <div class="dash-card-hdr">📱 ยอดตามแพลตฟอร์ม</div>
+          <div class="dash-bars" id="platformBars">
+            <div class="dash-empty-sm">กำลังโหลด...</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- LEADERBOARD -->
+      <div class="dash-card">
+        <div class="dash-card-hdr dash-card-hdr--row">
+          <span>🏆 อันดับผู้เข้าร่วม</span>
+          <select class="filter-select dash-metric-sel" id="rankMetricSel" onchange="window.renderRanking()">
+            <option value="views">เรียงตาม วิว</option>
+            <option value="likes">เรียงตาม Like</option>
+            <option value="engagement">เรียงตาม Engagement</option>
+          </select>
+        </div>
+        <div class="dash-lb" id="rankList">
+          <div class="dash-empty-sm">กำลังโหลด...</div>
+        </div>
+      </div>
+
+      <!-- PARTICIPANT REPORT TABLE -->
+      <div class="dash-card">
+        <div class="dash-card-hdr dash-card-hdr--row">
+          <span>📋 รายงานรายผู้เข้าร่วม <span class="dash-hdr-note" id="reportCount">—</span></span>
+          <button class="btn btn-secondary btn-sm" onclick="window.exportReportCSV()">⬇️ Export CSV</button>
+        </div>
+        <div class="dash-report-wrap">
+          <table class="data-table dash-report-table">
+            <thead>
+              <tr>
+                <th>ผู้เข้าร่วม</th>
+                <th class="col-center">สถานะ</th>
+                <th class="col-center">แพลตฟอร์ม</th>
+                <th class="col-center">ผลงาน</th>
+                <th class="col-center">👁 วิว</th>
+                <th class="col-center">❤️ Like</th>
+                <th class="col-center">💬 Comment</th>
+                <th class="col-center">🔁 Share</th>
+                <th class="col-center">🔥 Eng.</th>
+              </tr>
+            </thead>
+            <tbody id="reportBody">
+              <tr><td colspan="9"><div class="dash-empty-sm">กำลังโหลด...</div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <script src="../../js/core/auth.js"></script>
+    <script src="../../js/core/authz.js"></script>
+    <script src="../../js/core/date-format.js"></script>
+    <script>
+      AuthZ.requirePerm("campaign_view");
+    </script>
+    <script src="./campaign-report.js"></script>
+    <script type="module">
+      import { loadTopbar } from "../../js/components/navigation/topbar.js";
+      loadTopbar("📊 รายงานแคมเปญ");
+    </script>
+    <script src="../../js/components/navigation/imgPopup.js"></script>
+    <script src="../../js/components/navigation/sidebar.js"></script>
+  </body>
+</html>

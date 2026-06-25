@@ -481,6 +481,13 @@ export function loadTopbar(title = "", options = {}) {
           title: "เปิด Product Catalog",
         },
         canSeeCampaignCal && {
+          label: "Campaign Dashboard",
+          icon: "📊",
+          href: `${BASE_PATH}/modules/event/campaign-dashboard.html`,
+          target: "_blank",
+          title: "เปิด Dashboard แคมเปญ",
+        },
+        canSeeCampaignCal && {
           label: "Campaign Calendar",
           icon: "🚀",
           href: `${BASE_PATH}/modules/event/campaign-calendar.html`,

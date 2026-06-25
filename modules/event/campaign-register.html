@@ -66,9 +66,13 @@
             <h2>📝 ลงทะเบียนเข้าร่วม</h2>
             <div class="sub">กรอกข้อมูล และช่องทางโซเชียลอย่างน้อย 1 ช่องทาง</div>
             <div class="reg-grid">
-              <div class="fg">
+              <div class="fg fg-code">
                 <label>รหัส <span class="req">*</span></label>
-                <input id="rCode" placeholder="รหัสของคุณ" />
+                <div class="code-input-wrap">
+                  <input id="rCode" placeholder="รหัสของคุณ" autocomplete="off" />
+                  <!-- popup ชื่อจากรหัส (member_persons) — กดเลือกแล้ว autofill ช่องชื่อ -->
+                  <div class="code-suggest hidden" id="codeSuggest"></div>
+                </div>
               </div>
               <div class="fg">
                 <label>ชื่อ <span class="req">*</span></label>
@@ -84,6 +88,9 @@
               </div>
               <div id="socials"></div>
             </div>
+
+            <!-- ฟิลด์กำหนดเอง (จาก campaigns.register_fields) -->
+            <div id="customFields"></div>
 
             <div id="rMsg" style="margin-top:10px"></div>
             <button class="btn" id="btnRegister" onclick="doRegister()" style="margin-top:12px;width:100%">✅ ส่งข้อมูลลงทะเบียน</button>
