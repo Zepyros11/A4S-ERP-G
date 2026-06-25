@@ -285,33 +285,26 @@ body {
 
 /* ── ของรางวัลแบบ tier (per-channel · ช่วงอันดับ + เงื่อนไข) ── */
 .reward-title .reward-meta { font-weight: 400; font-size: 12px; color: var(--text3); }
-/* 1 ช่องทาง = 1 คอลัมน์ (จำนวน column มาจาก inline grid-template-columns) */
-.reward-chan-cols { display: grid; gap: 10px; align-items: start; }
-/* แต่ละช่องทาง = กล่อง bg บางๆ แยกชัด */
-.reward-chan-group {
-  margin-bottom: 0; min-width: 0;
-  background: rgba(255, 255, 255, .5);
-  border: 1px solid #fde68a; border-radius: 10px;
-  padding: 10px;
+/* ── ตาราง matrix: อันดับ (ซ้าย แสดงครั้งเดียว) × ช่องทาง (คอลัมน์ขวา) ── */
+.reward-matrix { display: grid; gap: 6px 8px; align-items: stretch; }
+.rm-corner { }
+.rm-chan {
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  font-weight: 700; font-size: 12.5px; color: var(--text); padding: 2px 4px;
 }
-.reward-chan-group:last-child { margin-bottom: 0; }
-/* จอแคบ → ซ้อนเป็นคอลัมน์เดียว */
-@media (max-width: 560px) {
-  .reward-chan-cols { grid-template-columns: 1fr !important; }
+.rm-chan .soc-ic { width: 18px; height: 18px; }
+.rm-rank {
+  display: flex; align-items: center; white-space: nowrap;
+  font-weight: 700; font-size: 12.5px; color: #92400e; padding-right: 6px;
 }
-.reward-chan-group .reward-chan-title { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
-.reward-chan-group .reward-tier + .reward-tier { margin-top: 6px; }
-.reward-tiers { display: flex; flex-direction: column; gap: 8px; }
-.reward-tier {
-  background: rgba(255, 255, 255, .55);
-  border: 1px solid #fde68a; border-radius: 9px; padding: 9px 12px;
+.rm-cell {
+  background: rgba(255, 255, 255, .6); border: 1px solid #fde68a; border-radius: 8px;
+  padding: 7px 8px; font-size: 13px; color: var(--text2);
+  display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 2px;
+  text-align: center; word-break: break-word; min-width: 0;
 }
-/* 1 บรรทัด: 🏆 อันดับ X : รางวัล (nowrap + overflow:hidden → JS วัด scrollWidth เพื่อลด font) */
-.reward-tier-line {
-  font-size: 13.5px; font-weight: 700; color: #92400e;
-  white-space: nowrap; overflow: hidden;
-}
-.reward-tier-line b { color: var(--text); font-weight: 700; }
+.rm-cell b { color: var(--text); font-weight: 700; }
+.rm-cond { font-size: 10.5px; color: var(--text3); }
 .reward-tier-cond, .reward-cond {
   font-size: 11.5px; color: var(--text3); margin-top: 4px;
   border-top: 1px dashed #fde68a; padding-top: 4px;

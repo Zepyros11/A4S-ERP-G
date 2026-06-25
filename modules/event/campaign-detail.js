@@ -81,6 +81,10 @@ const LINE_OA_CHAT_ID = "U1145fdb4cd26606afe4fe12575d211cc";
 function lineInboxUrl() {
   return LINE_OA_CHAT_ID ? `https://chat.line.biz/${LINE_OA_CHAT_ID}` : "https://chat.line.biz/";
 }
+// ลิงก์ตรงคน — ใช้ได้เฉพาะเมื่อมี line_chat_id (id จาก URL chat.line.biz, กรอกมือ)
+function lineChatDirectUrl(chatId) {
+  return `https://chat.line.biz/${LINE_OA_CHAT_ID}/chat/${encodeURIComponent(chatId)}`;
+}
 window.openLineChat = async function (name) {
   try {
     if (name) await navigator.clipboard.writeText(name);
@@ -135,7 +139,7 @@ async function loadAll() {
     const inList = codes.map((c) => `"${String(c).replace(/"/g, "")}"`).join(",");
     const mem = await sbFetch(
       "members",
-      `?member_code=in.(${inList})&select=member_code,line_display_name,line_user_id`,
+      `?member_code=in.(${inList})&select=member_code,line_display_name,line_user_id,line_chat_id`,
     ).catch(() => []);
     (mem || []).forEach((m) => (lineByCode[m.member_code] = m));
   }
@@ -367,9 +371,16 @@ window.renderParticipants = function () {
         : `<span style="color:var(--text3)">—</span>`;
       // Line ID — เช็คจาก member_code (ตาราง members) · มี LINE → ลิงก์เปิดแชท LINE OA, ไม่มี → —
       const lm = lineByCode[p.member_code];
-      const lineCell = lm && lm.line_display_name
-        ? `<a href="${esc(lineInboxUrl())}" target="_blank" rel="noopener" class="cmp-line-name" title="เปิดแชท A4S_Lyra + ก๊อปชื่อไปวางค้นหา" data-name="${esc(lm.line_display_name)}" onclick="event.stopPropagation(); event.preventDefault(); openLineChat(this.dataset.name)">${esc(lm.line_display_name)}</a>`
-        : `<span style="color:var(--text3)">—</span>`;
+      let lineCell;
+      if (lm && lm.line_chat_id) {
+        // มี chat id (กรอกมือ) → เปิดแชทตรงคนได้เลย
+        lineCell = `<a href="${esc(lineChatDirectUrl(lm.line_chat_id))}" target="_blank" rel="noopener" class="cmp-line-name" title="เปิดแชท 1:1 ตรงคน" onclick="event.stopPropagation()">${esc(lm.line_display_name || "เปิดแชท")}</a>`;
+      } else if (lm && lm.line_display_name) {
+        // ไม่มี chat id → เปิด inbox + ก๊อปชื่อให้ค้นหา
+        lineCell = `<a href="${esc(lineInboxUrl())}" target="_blank" rel="noopener" class="cmp-line-name" title="เปิดแชท A4S_Lyra + ก๊อปชื่อไปวางค้นหา" data-name="${esc(lm.line_display_name)}" onclick="event.stopPropagation(); event.preventDefault(); openLineChat(this.dataset.name)">${esc(lm.line_display_name)}</a>`;
+      } else {
+        lineCell = `<span style="color:var(--text3)">—</span>`;
+      }
       return `<tr>
         <td class="col-center"><input type="checkbox" class="part-check" value="${p.participant_id}" onclick="window.updatePartBulk()" /></td>
         <td><div style="font-weight:600">${esc(p.member_name || "—")}</div>

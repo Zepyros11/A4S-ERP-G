@@ -25,71 +25,68 @@ function metricUnitLabel(m) {
 }
 const socIcon = (s) => `<img class="soc-ic" src="${s.ic}" alt="${s.label}" />`;
 
-// ของรางวัล per-channel (รองรับ fallback flat tiers)
-function tierRowsHtml(tiers, unit) {
-  return tiers
-    .map((t) => {
-      const rf = +t.rank_from || 1;
-      const rt = Math.max(rf, +t.rank_to || rf);
-      const rank = rf === rt ? `อันดับ ${rf}` : `อันดับ ${rf}–${rt}`;
-      const cond = (t.min_value != null && t.min_value !== "")
-        ? `<div class="reward-cond">เงื่อนไข: ${unit} ≥ ${esc(t.min_value)}</div>`
-        : "";
-      // 1 บรรทัด: 🏆 อันดับ 1 : 30 ARP (ล้น → fitRewardLines ลด font ให้พอดี)
-      return `<div class="reward-tier"><div class="reward-tier-line">🏆 ${rank} : <b>${esc(t.prize)}</b></div>${cond}</div>`;
-    })
-    .join("");
-}
+// ของรางวัลแบบตาราง matrix — อันดับอยู่คอลัมน์ซ้าย (แสดงครั้งเดียว) · ช่องทางเป็นคอลัมน์ขวา
 function renderRewardTiers() {
   const rEl = document.getElementById("cReward");
   if (!rEl) return;
   const rw = (campaign.rewards && typeof campaign.rewards === "object") ? campaign.rewards : {};
   const unit = metricUnitLabel(rw.metric);
 
-  // 1 ช่องทางที่มีรางวัล = 1 คอลัมน์ (FB,TK → 2 คอลัมน์ · FB,TK,IG → 3 คอลัมน์)
-  let groups = [];
+  // รวบรวมช่องทางที่มีรางวัล (แต่ละช่องทาง = 1 คอลัมน์)
+  let channels = [];
   if (rw.channels && typeof rw.channels === "object") {
-    groups = SOCIALS
-      .map((s) => {
-        const ch = rw.channels[s.rwkey];
-        if (!ch || !ch.enabled) return "";
-        const tiers = (Array.isArray(ch.tiers) ? ch.tiers : []).filter((t) => t && (t.prize || "").trim());
-        if (!tiers.length) return "";
-        return `<div class="reward-chan-group"><div class="reward-chan-title">${socIcon(s)} ${s.label}</div>${tierRowsHtml(tiers, unit)}</div>`;
-      })
-      .filter(Boolean);
+    channels = SOCIALS.map((s) => {
+      const ch = rw.channels[s.rwkey];
+      if (!ch || !ch.enabled) return null;
+      const tiers = (Array.isArray(ch.tiers) ? ch.tiers : []).filter((t) => t && (t.prize || "").trim());
+      return tiers.length ? { social: s, tiers } : null;
+    }).filter(Boolean);
   } else if (Array.isArray(rw.tiers)) {
     const tiers = rw.tiers.filter((t) => t && (t.prize || "").trim());
-    if (tiers.length) groups = [`<div class="reward-chan-group">${tierRowsHtml(tiers, unit)}</div>`];
+    if (tiers.length) channels = [{ social: null, tiers }];
   }
-  if (!groups.length) return;
-  const cols = `<div class="reward-chan-cols" style="grid-template-columns:repeat(${groups.length},minmax(0,1fr))">${groups.join("")}</div>`;
-  rEl.innerHTML =
-    `<div class="reward-title">🎁 ของรางวัล <span class="reward-meta">· วัดจาก${unit}</span></div>${cols}`;
-  show("cReward", true);
-  // จัด font ของแต่ละบรรทัดรางวัลให้พอดี 1 บรรทัด (หลัง layout เสร็จ)
-  requestAnimationFrame(() => fitRewardLines(rEl));
-}
+  if (!channels.length) return;
 
-// ลดขนาด font ของบรรทัด "🏆 อันดับ X : รางวัล" จนพอดี 1 บรรทัด (ไม่ต่ำกว่า 7px)
-function fitRewardLines(root) {
-  root.querySelectorAll(".reward-tier-line").forEach((el) => {
-    let size = 13.5;
-    el.style.fontSize = size + "px";
-    let guard = 0;
-    while (el.scrollWidth > el.clientWidth + 1 && size > 7 && guard++ < 40) {
-      size -= 0.5;
-      el.style.fontSize = size + "px";
-    }
+  // แถวอันดับ = union ของทุกช่องทาง (เรียงตาม rank_from · แสดงครั้งเดียวด้านซ้าย)
+  const rf = (t) => +t.rank_from || 1;
+  const rt = (t) => Math.max(rf(t), +t.rank_to || rf(t));
+  const key = (t) => `${rf(t)}-${rt(t)}`;
+  const label = (t) => (rf(t) === rt(t) ? `อันดับ ${rf(t)}` : `อันดับ ${rf(t)}–${rt(t)}`);
+  const rowMap = {}, rowOrder = [];
+  channels.forEach((c) => c.tiers.forEach((t) => {
+    const k = key(t);
+    if (!rowMap[k]) { rowMap[k] = { label: label(t), rf: rf(t) }; rowOrder.push(k); }
+  }));
+  rowOrder.sort((a, b) => rowMap[a].rf - rowMap[b].rf);
+
+  // รางวัลของช่องทาง × อันดับ
+  const cellHtml = (c, k) => {
+    const t = c.tiers.find((x) => key(x) === k);
+    if (!t) return "—";
+    const cond = (t.min_value != null && t.min_value !== "")
+      ? `<div class="rm-cond">≥ ${esc(t.min_value)} ${esc(unit)}</div>` : "";
+    return `<b>${esc(t.prize)}</b>${cond}`;
+  };
+
+  const hasChanHeader = channels.some((c) => c.social);
+  let cells = "";
+  if (hasChanHeader) {
+    cells += `<div class="rm-corner"></div>`;
+    channels.forEach((c) => {
+      cells += `<div class="rm-chan">${c.social ? socIcon(c.social) + " " + esc(c.social.label) : ""}</div>`;
+    });
+  }
+  rowOrder.forEach((k) => {
+    cells += `<div class="rm-rank">🏆 ${esc(rowMap[k].label)}</div>`;
+    channels.forEach((c) => { cells += `<div class="rm-cell">${cellHtml(c, k)}</div>`; });
   });
+
+  const cols = `auto repeat(${channels.length}, minmax(0,1fr))`;
+  rEl.innerHTML =
+    `<div class="reward-title">🎁 ของรางวัล <span class="reward-meta">· วัดจาก${unit}</span></div>
+     <div class="reward-matrix" style="grid-template-columns:${cols}">${cells}</div>`;
+  show("cReward", true);
 }
-// วัด/ย่อ font รางวัลใหม่ (เรียกหลัง content แสดง + หลังฟอนต์โหลดเสร็จ — กันวัดด้วยฟอนต์ fallback แล้วล้น)
-function refitRewards() {
-  const rEl = document.getElementById("cReward");
-  if (rEl && !rEl.classList.contains("hidden")) fitRewardLines(rEl);
-}
-// จอเปลี่ยนขนาด → คำนวณ font ใหม่
-window.addEventListener("resize", refitRewards);
 const socialImg = {};   // key -> File (รูปใหม่ที่เลือก ยังไม่ upload)
 const existingImg = {}; // key -> URL (รูปเดิมตอนแก้ไข — ไม่ต้องอัปใหม่ถ้าไม่เปลี่ยน)
 
@@ -184,10 +181,6 @@ async function init() {
     setupCodeLookup();
     show("stateLoading", false);
     show("content", true);
-    // วัด/ย่อ font รางวัลอีกครั้งหลังฟอร์มแสดงผล (ตอน renderRewardTiers วัดไม่ได้เพราะ content ยังซ่อน)
-    requestAnimationFrame(refitRewards);
-    // วัดซ้ำหลังฟอนต์ Sarabun โหลดเสร็จ (ตอนแรกอาจวัดด้วยฟอนต์ fallback ที่แคบกว่า → พอฟอนต์จริงมาเลยล้น)
-    if (document.fonts && document.fonts.ready) document.fonts.ready.then(refitRewards);
   } catch (e) {
     closed("⚠️", "เกิดข้อผิดพลาด: " + e.message);
   }
