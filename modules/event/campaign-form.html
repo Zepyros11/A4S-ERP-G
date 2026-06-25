@@ -394,12 +394,13 @@
               <div class="fb-help">1) เลือกวิธีวัด + รูปแบบรางวัล · 2) เลือกช่องทาง Social แล้วกรอกรางวัลของแต่ละช่องทาง</div>
 
               <!-- ขั้นที่ 1: วิธีวัด + รูปแบบ -->
-              <label class="rw-step">1 · วัดอันดับจาก</label>
-              <select class="form-control" id="fRwMetric" onchange="window.onRwMetricChange()">
-                <option value="likes">❤️ ยอดไลค์</option>
-                <option value="views">👁️ ยอดวิว</option>
-                <option value="engagement">🔥 การมีส่วนร่วมรวม (ไลค์+คอมเมนต์+แชร์)</option>
-              </select>
+              <label class="rw-step">1 · วัดอันดับจาก <span style="font-weight:400;color:var(--text3)">(เลือกได้หลายเมตริก — คะแนน = ผลรวม)</span></label>
+              <div class="rw-chan-pick" id="rwMetricPick">
+                <label class="rw-chan-chk"><input type="checkbox" data-metric="views" onchange="window.onRwMetricChange()" /> 👁️ ยอดวิว</label>
+                <label class="rw-chan-chk"><input type="checkbox" data-metric="likes" onchange="window.onRwMetricChange()" /> ❤️ ยอดไลค์</label>
+                <label class="rw-chan-chk"><input type="checkbox" data-metric="comments" onchange="window.onRwMetricChange()" /> 💬 คอมเมนต์</label>
+                <label class="rw-chan-chk"><input type="checkbox" data-metric="shares" onchange="window.onRwMetricChange()" /> 🔁 แชร์</label>
+              </div>
 
               <label class="rw-step">รูปแบบรางวัล</label>
               <div class="rw-mode-toggle" id="rwModeToggle">

@@ -168,7 +168,13 @@ const RW_SOC = [
   { k: "ig",       ic: "../../assets/icons/instagram.png", label: "Instagram" },
 ];
 const RW_RANK = ["🥇 รางวัลที่ 1", "🥈 รางวัลที่ 2", "🥉 รางวัลที่ 3"];
-const RW_METRIC_LABEL = { likes: "ยอดไลค์", views: "ยอดวิว", engagement: "การมีส่วนร่วม" };
+const RW_METRIC_LABEL = { views: "ยอดวิว", likes: "ยอดไลค์", comments: "คอมเมนต์", shares: "แชร์", engagement: "การมีส่วนร่วม" };
+const RW_METRIC_KEYS = ["views", "likes", "comments", "shares"];
+function metricUnitLabel(m) {
+  let arr = Array.isArray(m) ? m : (m === "engagement" ? ["likes", "comments", "shares"] : (RW_METRIC_KEYS.includes(m) ? [m] : []));
+  arr = arr.filter((k) => RW_METRIC_KEYS.includes(k));
+  return arr.length ? arr.map((k) => RW_METRIC_LABEL[k]).join(" + ") : "ยอด";
+}
 
 function renderOverview() {
   document.getElementById("dDesc").textContent = campaign.description || "—";
@@ -176,7 +182,7 @@ function renderOverview() {
   // ── ของรางวัล (per-channel · fallback flat tiers / format เดิม / reward เดิม) ──
   const rewardBox = document.getElementById("dRewardBox");
   const rewards = (campaign.rewards && typeof campaign.rewards === "object") ? campaign.rewards : {};
-  const unit = RW_METRIC_LABEL[rewards.metric] || "ยอด";
+  const unit = metricUnitLabel(rewards.metric);
   const tierRows = (tiers) => tiers
     .map((t) => {
       const rf = +t.rank_from || 1;

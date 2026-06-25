@@ -16,7 +16,13 @@ const SOCIALS = [
   { key: "tiktok",    ic: "../../assets/icons/tiktok.png",    label: "TikTok",    col_url: "tiktok_url",   col_img: "tiktok_img",   rwkey: "tiktok",   ph: "https://tiktok.com/@..." },
   { key: "instagram", ic: "../../assets/icons/instagram.png", label: "Instagram", col_url: "ig_url",       col_img: "ig_img",       rwkey: "ig",       ph: "https://instagram.com/..." },
 ];
-const RW_METRIC_LABEL = { likes: "ยอดไลค์", views: "ยอดวิว", engagement: "การมีส่วนร่วม" };
+const RW_METRIC_LABEL = { views: "ยอดวิว", likes: "ยอดไลค์", comments: "คอมเมนต์", shares: "แชร์", engagement: "การมีส่วนร่วม" };
+const RW_METRIC_KEYS = ["views", "likes", "comments", "shares"];
+function metricUnitLabel(m) {
+  let arr = Array.isArray(m) ? m : (m === "engagement" ? ["likes", "comments", "shares"] : (RW_METRIC_KEYS.includes(m) ? [m] : []));
+  arr = arr.filter((k) => RW_METRIC_KEYS.includes(k));
+  return arr.length ? arr.map((k) => RW_METRIC_LABEL[k]).join(" + ") : "ยอด";
+}
 const socIcon = (s) => `<img class="soc-ic" src="${s.ic}" alt="${s.label}" />`;
 
 // ของรางวัล per-channel (รองรับ fallback flat tiers)
@@ -38,7 +44,7 @@ function renderRewardTiers() {
   const rEl = document.getElementById("cReward");
   if (!rEl) return;
   const rw = (campaign.rewards && typeof campaign.rewards === "object") ? campaign.rewards : {};
-  const unit = RW_METRIC_LABEL[rw.metric] || "ยอด";
+  const unit = metricUnitLabel(rw.metric);
 
   // 1 ช่องทางที่มีรางวัล = 1 คอลัมน์ (FB,TK → 2 คอลัมน์ · FB,TK,IG → 3 คอลัมน์)
   let groups = [];
