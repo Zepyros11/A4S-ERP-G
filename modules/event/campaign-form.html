@@ -33,6 +33,19 @@
         .cf-cols { grid-template-columns: 1fr; gap: 16px; }
         .cf-col + .cf-col { border-left: 0; padding-left: 0; }
       }
+      /* จอกว้าง: แต่ละคอลัมน์เลื่อน scroll แยกกัน (สูงพอดีหน้าจอ) */
+      @media (min-width: 901px) {
+        .cf-col {
+          max-height: calc(100vh - 230px);
+          overflow-y: auto;
+          overflow-x: hidden;
+          padding-bottom: 4px;
+          padding-right: 6px;
+        }
+        .cf-col::-webkit-scrollbar { width: 8px; }
+        .cf-col::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+        .cf-col::-webkit-scrollbar-track { background: transparent; }
+      }
 
       /* ── การ์ดย่อย (panel) แสดงขอบเขตของแต่ละหัวข้อ ── */
       .cf-panel {

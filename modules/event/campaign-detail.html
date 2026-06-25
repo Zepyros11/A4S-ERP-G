@@ -38,13 +38,27 @@
 
       <!-- TABS -->
       <div class="cmp-tabs" id="cmpTabs">
-        <button class="cmp-tab active" data-tab="overview" onclick="window.switchTab('overview')">📋 ภาพรวม</button>
+        <button class="cmp-tab active" data-tab="brief" onclick="window.switchTab('brief')">📋 บรีฟงาน</button>
+        <button class="cmp-tab" data-tab="overview" onclick="window.switchTab('overview')">📋 ภาพรวม</button>
         <button class="cmp-tab" data-tab="participants" onclick="window.switchTab('participants')">👥 ผู้เข้าร่วม <span class="badge-n" id="nParticipants">0</span></button>
         <button class="cmp-tab" data-tab="ranking" onclick="window.switchTab('ranking')">🏆 อันดับ</button>
       </div>
 
+      <!-- PANE: BRIEF (ภาพ/ข้อความบรีฟงาน) -->
+      <div class="cmp-pane active" id="pane-brief">
+        <div class="cmp-info-box">
+          <h3>🖼️ ภาพบรีฟงาน</h3>
+          <div class="cmp-media-gallery" id="dBriefGallery"></div>
+          <div id="dBriefGalleryEmpty" class="empty-text" style="font-size:13px;color:var(--text3)">ยังไม่มีภาพบรีฟ</div>
+        </div>
+        <div class="cmp-info-box">
+          <h3>📝 ข้อความบรีฟงาน</h3>
+          <p id="dBriefText" style="white-space:pre-wrap">—</p>
+        </div>
+      </div>
+
       <!-- PANE: OVERVIEW -->
-      <div class="cmp-pane active" id="pane-overview">
+      <div class="cmp-pane" id="pane-overview">
         <div class="cmp-info-box" id="dRewardBox" style="display:none">
           <h3>🎁 ของรางวัล</h3>
           <div id="dReward"></div>

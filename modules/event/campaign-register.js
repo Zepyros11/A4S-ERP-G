@@ -71,23 +71,25 @@ function renderRewardTiers() {
   requestAnimationFrame(() => fitRewardLines(rEl));
 }
 
-// ลดขนาด font ของบรรทัด "🏆 อันดับ X : รางวัล" จนพอดี 1 บรรทัด (ไม่ต่ำกว่า 9px)
+// ลดขนาด font ของบรรทัด "🏆 อันดับ X : รางวัล" จนพอดี 1 บรรทัด (ไม่ต่ำกว่า 7px)
 function fitRewardLines(root) {
   root.querySelectorAll(".reward-tier-line").forEach((el) => {
     let size = 13.5;
     el.style.fontSize = size + "px";
     let guard = 0;
-    while (el.scrollWidth > el.clientWidth + 1 && size > 9 && guard++ < 24) {
+    while (el.scrollWidth > el.clientWidth + 1 && size > 7 && guard++ < 40) {
       size -= 0.5;
       el.style.fontSize = size + "px";
     }
   });
 }
-// จอเปลี่ยนขนาด → คำนวณ font ใหม่
-window.addEventListener("resize", () => {
+// วัด/ย่อ font รางวัลใหม่ (เรียกหลัง content แสดง + หลังฟอนต์โหลดเสร็จ — กันวัดด้วยฟอนต์ fallback แล้วล้น)
+function refitRewards() {
   const rEl = document.getElementById("cReward");
   if (rEl && !rEl.classList.contains("hidden")) fitRewardLines(rEl);
-});
+}
+// จอเปลี่ยนขนาด → คำนวณ font ใหม่
+window.addEventListener("resize", refitRewards);
 const socialImg = {};   // key -> File (รูปใหม่ที่เลือก ยังไม่ upload)
 const existingImg = {}; // key -> URL (รูปเดิมตอนแก้ไข — ไม่ต้องอัปใหม่ถ้าไม่เปลี่ยน)
 
@@ -183,10 +185,9 @@ async function init() {
     show("stateLoading", false);
     show("content", true);
     // วัด/ย่อ font รางวัลอีกครั้งหลังฟอร์มแสดงผล (ตอน renderRewardTiers วัดไม่ได้เพราะ content ยังซ่อน)
-    requestAnimationFrame(() => {
-      const rEl = document.getElementById("cReward");
-      if (rEl && !rEl.classList.contains("hidden")) fitRewardLines(rEl);
-    });
+    requestAnimationFrame(refitRewards);
+    // วัดซ้ำหลังฟอนต์ Sarabun โหลดเสร็จ (ตอนแรกอาจวัดด้วยฟอนต์ fallback ที่แคบกว่า → พอฟอนต์จริงมาเลยล้น)
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(refitRewards);
   } catch (e) {
     closed("⚠️", "เกิดข้อผิดพลาด: " + e.message);
   }
