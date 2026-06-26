@@ -40,7 +40,7 @@ const state = {
   rows: [],
   // user selection (mirror template state shape)
   selected: [], collapsed: {}, sort: [], search: "",
-  filters: {}, merged: {}, hidden: {},
+  filters: {}, numFilters: {}, merged: {}, hidden: {},
   warehouseId: "",            // ขอบเขตยอด (scope)
   rowsPerPage: "auto", orientation: "landscape",
   groupBy: "", showTotal: false,
@@ -256,6 +256,14 @@ function statusOf(available, reorder, disableAlert) {
 function buildRows() {
   const idx = buildIndexes();
   const skus = state.products.filter(idx.isSku);
+  // ลำดับฐาน (ตอนยังไม่กดเรียงคอลัมน์) ให้ตรงกับหน้า stock-balance:
+  // จัดกลุ่ม variant ไว้ใต้ parent เดียวกัน แล้วเรียงตาม product_id ASC (ลำดับสร้าง → ไซส์ S/M/L/XL/2XL คงลำดับ)
+  skus.sort((a, b) => {
+    const ga = a.parent_product_id || a.product_id;
+    const gb = b.parent_product_id || b.product_id;
+    if (ga !== gb) return ga - gb;                       // เรียงกลุ่มตาม parent (หรือ singleton) id
+    return (a.product_id || 0) - (b.product_id || 0);    // variant ภายในกลุ่ม เรียงตามลำดับสร้าง
+  });
   state.rows = skus.map((p) => {
     const onHand = sumScoped(idx.onHandByPidWh[p.product_id]);
     const reserved = sumScoped(idx.reservedByPidWh[p.product_id]);
@@ -344,10 +352,23 @@ function isFilterable(key) {
   return n >= 2 && n <= FILTER_MAX_DISTINCT;
 }
 function hasFilterButton(key) {
+  const col = COL_BY_KEY[key];
+  if (col && isNumCol(col)) return state.rows.length > 0;   // numeric → range filter เสมอ
   const n = distinctValuesFor(key).length;
   if (n < 2) return false;
   if (n <= FILTER_MAX_DISTINCT) return true;
   return n < state.rows.length;
+}
+function numRangeFor(key) {
+  const col = COL_BY_KEY[key];
+  let min = Infinity, max = -Infinity;
+  state.rows.forEach((row) => {
+    const n = Number(row[col.key]) || 0;
+    if (n < min) min = n;
+    if (n > max) max = n;
+  });
+  if (!isFinite(min)) { min = 0; max = 0; }
+  return { min, max };
 }
 function isMergeable(key) {
   const n = distinctValuesFor(key).length;
@@ -357,9 +378,11 @@ function isMergeable(key) {
 function blankLabel() { return "(ว่าง)"; }
 
 // ── PIPELINE: filter → search → sort ───────────────────────
+function numFilterActive(r) { return !!(r && (r.min != null || r.max != null)); }
 function filterRows(rows) {
   const active = Object.entries(state.filters).filter(([_, s]) => s && s.size);
-  if (!active.length) return rows;
+  const numActive = Object.entries(state.numFilters).filter(([_, r]) => numFilterActive(r));
+  if (!active.length && !numActive.length) return rows;
   return rows.filter((row) =>
     active.every(([key, set]) => {
       const col = COL_BY_KEY[key];
@@ -368,6 +391,14 @@ function filterRows(rows) {
       if (col.fmt === "image") return set.has(v ? HAS_IMG_VAL : BLANK_VAL);
       if (v === "" || v == null) return set.has(BLANK_VAL);
       return set.has(v);
+    }) &&
+    numActive.every(([key, r]) => {
+      const col = COL_BY_KEY[key];
+      if (!col) return true;
+      const n = Number(row[col.key]) || 0;
+      if (r.min != null && n < r.min) return false;
+      if (r.max != null && n > r.max) return false;
+      return true;
     }));
 }
 function searchRows(rows) {
@@ -556,7 +587,8 @@ function renderPreview() {
   }
   empty.style.display = "none"; table.style.display = "";
   const rows = getRows();
-  const hasFilter = Object.values(state.filters).some((s) => s && s.size);
+  const hasFilter = Object.values(state.filters).some((s) => s && s.size)
+    || Object.values(state.numFilters).some(numFilterActive);
   const hasSearch = !!(state.search || "").trim();
   const filterNote = (hasFilter || hasSearch) ? ` · แสดง ${rows.length}` : "";
   const hiddenCount = cols.filter((c) => state.hidden[c.key]).length;
@@ -574,11 +606,14 @@ function renderPreview() {
         : "";
       const ind = active ? ` ${arrow}${badge}` : ` <span style="opacity:.3">↕</span>`;
       const showBtn = hasFilterButton(c.key);
-      const fActive = state.filters[c.key] && state.filters[c.key].size > 0;
+      const setActive = state.filters[c.key] && state.filters[c.key].size > 0;
+      const numActive = numFilterActive(state.numFilters[c.key]);
+      const fActive = setActive || numActive;
       const mActive = !!state.merged[c.key];
       const anyActive = fActive || mActive;
       const tipParts = [];
-      if (fActive) tipParts.push(`กรอง ${state.filters[c.key].size} ค่า`);
+      if (setActive) tipParts.push(`กรอง ${state.filters[c.key].size} ค่า`);
+      if (numActive) tipParts.push("กรองช่วงตัวเลข");
       if (mActive) tipParts.push("ผสานเซลเปิดอยู่");
       const fBtn = showBtn
         ? `<button class="cr-th-fbtn${anyActive ? " active" : ""}" title="${escapeHtml(tipParts.length ? tipParts.join(" · ") : "กรอง / ผสานเซล")}"
@@ -670,9 +705,11 @@ window._crFilterToggle = function (cb) {
 window.openFilter = function (key, anchorEl) {
   if (_popState && _popState.key === key) { closeFilterPopover(); return; }
   closeFilterPopover();
+  const col = COL_BY_KEY[key];
+  const isNum = !!(col && isNumCol(col));
   const current = state.filters[key] instanceof Set ? state.filters[key] : new Set();
   const draft = new Set(current);
-  const canFilter = isFilterable(key);
+  const canFilter = isNum ? state.rows.length > 0 : isFilterable(key);
   const canMerge = isMergeable(key);
   const mergeChecked = state.merged[key] ? "checked" : "";
   const el = document.createElement("div");
@@ -682,7 +719,27 @@ window.openFilter = function (key, anchorEl) {
       <input type="checkbox" ${mergeChecked} onchange="window._crMergeToggle(this.checked)">
       <span>≣ ผสานเซลซ้ำ</span>
     </label>` : "";
-  const filterBlock = canFilter ? `
+  let filterBlock;
+  if (isNum) {
+    const rng = numRangeFor(key);
+    const cur = state.numFilters[key] || {};
+    const minV = cur.min != null ? cur.min : "";
+    const maxV = cur.max != null ? cur.max : "";
+    filterBlock = `
+      <div style="font-size:11.5px;color:var(--text2);margin-bottom:6px">กรองช่วงค่า · ข้อมูล ${fmtNum(rng.min, 0)} – ${fmtNum(rng.max, 0)}</div>
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+        <input class="cr-fpop-search" id="crNumMin" type="number" inputmode="decimal" step="any" placeholder="ต่ำสุด" value="${minV}" style="margin:0;flex:1"
+          onkeydown="if(event.key==='Enter')window._crNumFilterApply()">
+        <span style="color:var(--text3)">–</span>
+        <input class="cr-fpop-search" id="crNumMax" type="number" inputmode="decimal" step="any" placeholder="สูงสุด" value="${maxV}" style="margin:0;flex:1"
+          onkeydown="if(event.key==='Enter')window._crNumFilterApply()">
+      </div>
+      <div class="cr-fpop-foot">
+        <button onclick="window._crNumFilterClear()">เอาตัวกรองออก</button>
+        <button class="primary" onclick="window._crNumFilterApply()">ใช้</button>
+      </div>`;
+  } else if (canFilter) {
+    filterBlock = `
     <input class="cr-fpop-search" type="search" placeholder="ค้นหาค่า..." oninput="window._crFilterSearch(this.value)">
     <div class="cr-fpop-acts">
       <button onclick="window._crFilterAll(true)">เลือกทั้งหมด</button>
@@ -692,8 +749,11 @@ window.openFilter = function (key, anchorEl) {
     <div class="cr-fpop-foot">
       <button onclick="window._crFilterClear()">เอาตัวกรองออก</button>
       <button class="primary" onclick="window._crFilterApply()">ใช้</button>
-    </div>` : `
+    </div>`;
+  } else {
+    filterBlock = `
     <div class="cr-fpop-msg">ค่าหลากหลายเกิน ${FILTER_MAX_DISTINCT} แบบ จึงกรองไม่ได้${canMerge ? "" : " · ผสานเซลก็ไม่ได้"}</div>`;
+  }
   el.innerHTML = mergeBlock + (mergeBlock && canFilter ? `<div class="cr-fpop-divider"></div>` : "") + filterBlock;
   document.body.appendChild(el);
   _popState = {
@@ -706,7 +766,7 @@ window.openFilter = function (key, anchorEl) {
   document.addEventListener("keydown", _popState.escCloser, true);
   window.addEventListener("resize", _popState.repos, true);
   window.addEventListener("scroll", _popState.repos, true);
-  if (canFilter) renderFilterPopoverBody();
+  if (canFilter && !isNum) renderFilterPopoverBody();
   repositionPopover();
   el.querySelector(".cr-fpop-search")?.focus();
 };
@@ -746,6 +806,27 @@ window._crFilterClear = function () {
   closeFilterPopover();
   renderPreview();
 };
+window._crNumFilterApply = function () {
+  if (!_popState) return;
+  const { key } = _popState;
+  const minEl = document.getElementById("crNumMin");
+  const maxEl = document.getElementById("crNumMax");
+  let min = minEl && minEl.value !== "" ? Number(minEl.value) : null;
+  let max = maxEl && maxEl.value !== "" ? Number(maxEl.value) : null;
+  if (min != null && isNaN(min)) min = null;
+  if (max != null && isNaN(max)) max = null;
+  if (min != null && max != null && min > max) { const t = min; min = max; max = t; }  // สลับให้ถูก
+  if (min == null && max == null) delete state.numFilters[key];
+  else state.numFilters[key] = { min, max };
+  closeFilterPopover();
+  renderPreview();
+};
+window._crNumFilterClear = function () {
+  if (!_popState) return;
+  delete state.numFilters[_popState.key];
+  closeFilterPopover();
+  renderPreview();
+};
 
 // ── COLUMN PICK / SORT / SETTINGS ──────────────────────────
 window.crToggleGroup = function (gid) { state.collapsed[gid] = !state.collapsed[gid]; renderPicker(); };
@@ -755,7 +836,7 @@ window.toggleColumn = function (key, checked) {
   if (checked && idx < 0) state.selected.push(key);
   else if (!checked && idx >= 0) {
     state.selected.splice(idx, 1);
-    delete state.filters[key]; delete state.merged[key]; delete state.hidden[key];
+    delete state.filters[key]; delete state.numFilters[key]; delete state.merged[key]; delete state.hidden[key];
   }
   closeFilterPopover();
   renderPicker();
@@ -826,6 +907,7 @@ window.applyPreset = function (name) {
   if (!tpl) return;
   state.selected = (tpl.columns || []).filter((k) => COL_BY_KEY[k]);
   Object.keys(state.filters).forEach((k) => { if (!state.selected.includes(k)) delete state.filters[k]; });
+  Object.keys(state.numFilters).forEach((k) => { if (!state.selected.includes(k)) delete state.numFilters[k]; });
   Object.keys(state.merged).forEach((k) => { if (!state.selected.includes(k)) delete state.merged[k]; });
   Object.keys(state.hidden).forEach((k) => { if (!state.selected.includes(k)) delete state.hidden[k]; });
   closeFilterPopover();

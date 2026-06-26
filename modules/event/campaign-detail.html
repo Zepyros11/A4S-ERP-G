@@ -36,6 +36,9 @@
         </div>
       </div>
 
+      <!-- EXECUTIVE KPI CARDS -->
+      <div class="stats-row cmp-kpis" id="cmpKpis"></div>
+
       <!-- TABS -->
       <div class="cmp-tabs" id="cmpTabs">
         <button class="cmp-tab active" data-tab="brief" onclick="window.switchTab('brief')">📋 บรีฟงาน</button>
@@ -115,7 +118,7 @@
       <div class="cmp-pane" id="pane-ranking">
         <div class="cmp-rank-controls">
           <span style="font-size:13px;font-weight:600;color:var(--text2)">จัดอันดับด้วย:</span>
-          <select class="filter-select" id="rankMetricSel" onchange="window.renderRanking()">
+          <select class="filter-select" id="rankMetricSel" onchange="window.onRankMetricChange()">
             <option value="views">👁 ยอดวิว</option>
             <option value="likes">❤️ ยอด Like</option>
             <option value="engagement">🔥 Engagement</option>
@@ -251,6 +254,19 @@
         </div>
         <div class="modal-footer">
           <button class="btn btn-secondary" onclick="window.closeRegShareModal()">ปิด</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── CARD REPORT MODAL (table) ── -->
+    <div class="modal-overlay" id="cardReportModal">
+      <div class="modal modal-xl v-sage-header" style="max-height: 88vh">
+        <div class="modal-hdr">
+          <div class="modal-title" id="cardReportTitle">📋 รายงาน</div>
+          <button class="btn-modal-close" onclick="window.closeCardReport()">✕</button>
+        </div>
+        <div class="modal-body" style="overflow: auto">
+          <div id="cardReportBody"></div>
         </div>
       </div>
     </div>

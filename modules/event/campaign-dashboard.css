@@ -172,6 +172,18 @@
 }
 .dash-lb-score .lbl { font-size: 10px; font-weight: 600; color: var(--text3); }
 
+/* leaderboard แยกช่องทาง = คอลัมน์ข้างกัน + รางวัลตามอันดับ */
+.dash-lb-grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); align-items: start; }
+.dash-lb-chan { background: var(--surface2); border: 1px solid var(--border); border-radius: 14px; padding: 14px; min-width: 0; }
+.dash-lb-chan-hdr { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 15px; margin: 0 0 12px; }
+.dash-lb-chan-hdr img { width: 22px; height: 22px; object-fit: contain; border-radius: 5px; }
+.dash-lb-chan-hdr span:first-of-type { flex: 1; min-width: 0; }
+.dash-lb-chan-n { font-size: 12px; font-weight: 500; color: var(--text3); background: var(--surface); padding: 1px 9px; border-radius: 9px; }
+.dash-lb-chan .dash-lb-row { margin-bottom: 8px; }
+.dash-lb-chan .dash-lb-score { width: 52px; font-size: 15px; }
+.dash-lb-prize { text-align: right; font-weight: 700; font-size: 13px; color: #b45309; flex-shrink: 0; white-space: nowrap; }
+.dash-lb-prize-none { color: var(--text3); font-weight: 500; }
+
 /* ════════ SINGLE-CAMPAIGN HEAD CARD (campaign-report) ════════ */
 .rep-head { display: flex; align-items: flex-start; gap: 16px; }
 .rep-head-cover {

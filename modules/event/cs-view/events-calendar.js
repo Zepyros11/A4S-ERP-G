@@ -737,6 +737,9 @@ function openBookingPanel(requestId) {
     : (b.place_name || b.room_name || "—");
   const dateStr = b.booking_date ? formatDate(b.booking_date) : "—";
   const timeStr = formatBookingTime(b);
+  const bookedAtStr = b.created_at
+    ? `${formatDate(b.created_at.slice(0, 10))} ${b.created_at.slice(11, 16)}`
+    : "—";
   const noteHtml = b.note
     ? `<div class="bk-panel-row"><div class="bk-panel-label">หมายเหตุ</div><div class="bk-panel-value">${String(b.note).replace(/</g, "&lt;").replace(/\n/g, "<br>")}</div></div>`
     : "";
@@ -745,8 +748,9 @@ function openBookingPanel(requestId) {
     <div class="bk-panel-badge">✅ อนุมัติแล้ว</div>
     <div class="bk-panel-rows">
       <div class="bk-panel-row"><div class="bk-panel-label">สถานที่</div><div class="bk-panel-value">${place}</div></div>
-      <div class="bk-panel-row"><div class="bk-panel-label">วันที่</div><div class="bk-panel-value">${dateStr}</div></div>
+      <div class="bk-panel-row"><div class="bk-panel-label">วันที่ใช้ห้อง</div><div class="bk-panel-value">${dateStr}</div></div>
       <div class="bk-panel-row"><div class="bk-panel-label">เวลา</div><div class="bk-panel-value">${timeStr}</div></div>
+      <div class="bk-panel-row"><div class="bk-panel-label">วันที่จองห้อง</div><div class="bk-panel-value">${bookedAtStr}</div></div>
       <div class="bk-panel-row"><div class="bk-panel-label">ผู้จอง</div><div class="bk-panel-value">${b.booked_by_name || "—"}</div></div>
       <div class="bk-panel-row"><div class="bk-panel-label">CS</div><div class="bk-panel-value">${b.cs_name || "—"}</div></div>
       ${noteHtml}

@@ -60,8 +60,10 @@
       /* preview table */
       #cr-table-wrap{overflow:auto;max-height:70vh;border:1px solid var(--border);border-radius:8px}
       @media (min-width:881px){
-        .page{height:calc(100vh - var(--topbar-h));display:flex;flex-direction:column;overflow:hidden}
-        .cr-main{flex:1;min-height:0}
+        /* #erp-main (sidebar wrapper) already carries the zoom-compensated full height;
+           fill it with 100% instead of re-deriving 100vh (which ignores :root zoom:0.65) */
+        .page{height:100%;display:flex;flex-direction:column;overflow:hidden}
+        .cr-main{flex:1;min-height:0;grid-template-rows:1fr;align-content:stretch}
         .cr-main > .cr-card{min-height:0;display:flex;flex-direction:column}
         #crPicker{flex:1;min-height:0;overflow:auto}
         #cr-table-wrap{flex:1;min-height:0;max-height:none}

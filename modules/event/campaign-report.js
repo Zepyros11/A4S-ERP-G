@@ -92,6 +92,62 @@ const PLAT_META = {
 };
 const engOf = (s) => (+s.likes || 0) + (+s.comments || 0) + (+s.shares || 0);
 
+// ── เมตริกที่ตั้งจริง (rewards.metric = array) · fallback rank_metric (string legacy) ──
+const RW_METRIC_KEYS = ["views", "likes", "comments", "shares"];
+const RW_METRIC_LABEL = { views: "ยอดวิว", likes: "ยอดไลค์", comments: "คอมเมนต์", shares: "แชร์", engagement: "การมีส่วนร่วม" };
+function metricUnitLabel(m) {
+  let arr = Array.isArray(m) ? m : m === "engagement" ? ["likes", "comments", "shares"] : RW_METRIC_KEYS.includes(m) ? [m] : [];
+  arr = arr.filter((k) => RW_METRIC_KEYS.includes(k));
+  return arr.length ? arr.map((k) => RW_METRIC_LABEL[k]).join(" + ") : "ยอด";
+}
+function _metricKeysOf(metric) {
+  if (Array.isArray(metric)) return metric.filter((k) => RW_METRIC_KEYS.includes(k));
+  if (metric === "engagement") return ["likes", "comments", "shares"];
+  return RW_METRIC_KEYS.includes(metric) ? [metric] : ["views"];
+}
+function _metricScore(a, metric) {
+  if (!a) return 0;
+  return _metricKeysOf(metric).reduce((sum, k) => sum + (+a[k] || 0), 0);
+}
+function effectiveMetric() {
+  const m = campaign && campaign.rewards && campaign.rewards.metric;
+  if (Array.isArray(m) && m.length) return m;
+  return (campaign && campaign.rank_metric) || "views";
+}
+// ช่องทางแจกรางวัล (key ↔ platform: ig ↔ instagram)
+const RANK_CHANS = [
+  { key: "facebook", platform: "facebook", label: "Facebook", ic: "../../assets/icons/facebook.png" },
+  { key: "tiktok", platform: "tiktok", label: "TikTok", ic: "../../assets/icons/tiktok.png" },
+  { key: "ig", platform: "instagram", label: "Instagram", ic: "../../assets/icons/instagram.png" },
+];
+function prizeForRank(tiers, rank, score, mode) {
+  if (!Array.isArray(tiers) || !tiers.length) return "";
+  if (mode === "topn") {
+    const t = tiers[0];
+    const within = rank <= (t.rank_to || t.rank_from || 0);
+    const minOk = t.min_value == null || score >= +t.min_value;
+    return within && minOk ? t.prize || "" : "";
+  }
+  const t = tiers.find((x) => rank >= (x.rank_from || 0) && rank <= (x.rank_to || x.rank_from || 0));
+  return t ? t.prize || "" : "";
+}
+function channelAgg(platform) {
+  const agg = {};
+  participants.forEach((p) => (agg[p.participant_id] = { p, views: 0, likes: 0, comments: 0, shares: 0, posts: 0 }));
+  submissions
+    .filter((s) => s.platform === platform && agg[s.participant_id])
+    .forEach((s) => {
+      const a = agg[s.participant_id];
+      a.views += +s.views || 0;
+      a.likes += +s.likes || 0;
+      a.comments += +s.comments || 0;
+      a.shares += +s.shares || 0;
+      a.posts += 1;
+    });
+  return agg;
+}
+let _rankMetricTouched = false;
+
 // ── INIT ──────────────────────────────────────────────────
 async function initPage() {
   campaignId = +new URLSearchParams(location.search).get("campaign_id");
@@ -182,9 +238,14 @@ function renderKpis() {
   const posters = new Set(submissions.map((s) => s.participant_id)).size;
   document.getElementById("kpiPostsSub").textContent = `จาก ${fmtNum(posters)} คนที่ส่งผลงาน`;
 
-  document.getElementById("kpiViews").textContent = fmtCompact(totalViews);
-  document.getElementById("kpiViews").title = fmtNum(totalViews);
-  document.getElementById("kpiViewsSub").textContent = `❤️ ${fmtCompact(totalLikes)} like`;
+  // การ์ดที่ 3 = ยอดรวมตาม "เมตริกที่ตั้งจริง" (แทนยอดวิวที่มักเป็น 0)
+  const metric = effectiveMetric();
+  const metricTotal = submissions.reduce((a, s) => a + _metricScore(s, metric), 0);
+  document.getElementById("kpiViews").textContent = fmtCompact(metricTotal);
+  document.getElementById("kpiViews").title = fmtNum(metricTotal);
+  const ml = document.getElementById("kpiMetricLabel");
+  if (ml) ml.textContent = metricUnitLabel(metric) + " รวม";
+  document.getElementById("kpiViewsSub").textContent = `👁 ${fmtCompact(totalViews)} วิว · ❤️ ${fmtCompact(totalLikes)} like`;
 
   document.getElementById("kpiEng").textContent = fmtCompact(totalEng);
   document.getElementById("kpiEng").title = fmtNum(totalEng);
@@ -246,16 +307,22 @@ function renderStatusDonut() {
 
 // ── PLATFORM BARS ─────────────────────────────────────────
 function renderPlatformBars() {
+  const metric = effectiveMetric();
+  const mLabel = metricUnitLabel(metric);
   const agg = {};
-  Object.keys(PLAT_META).forEach((k) => (agg[k] = { views: 0, eng: 0, posts: 0 }));
+  Object.keys(PLAT_META).forEach((k) => (agg[k] = { views: 0, likes: 0, comments: 0, shares: 0, eng: 0, posts: 0 }));
   submissions.forEach((s) => {
     const a = agg[s.platform];
     if (!a) return;
     a.views += +s.views || 0;
+    a.likes += +s.likes || 0;
+    a.comments += +s.comments || 0;
+    a.shares += +s.shares || 0;
     a.eng += engOf(s);
     a.posts += 1;
   });
-  const max = Math.max(1, ...Object.values(agg).map((a) => a.views));
+  const scoreOf = (a) => _metricScore(a, metric);
+  const max = Math.max(1, ...Object.values(agg).map(scoreOf));
   const wrap = document.getElementById("platformBars");
   const hasAny = Object.values(agg).some((a) => a.posts > 0);
   if (!hasAny) {
@@ -265,16 +332,17 @@ function renderPlatformBars() {
   wrap.innerHTML = Object.keys(PLAT_META)
     .map((k) => {
       const a = agg[k];
-      const pct = Math.max(2, Math.round((a.views / max) * 100));
+      const score = scoreOf(a);
+      const pct = Math.max(2, Math.round((score / max) * 100));
       return `<div class="dash-bar-row">
         <div class="dash-bar-head">
           <span class="dash-bar-name"><img src="${PLAT_META[k].icon}" alt="" class="dash-plat-ic" /> ${PLAT_META[k].label}</span>
-          <span class="dash-bar-val">${fmtNum(a.views)} <span class="muted">วิว · ${a.posts} โพสต์</span></span>
+          <span class="dash-bar-val">${fmtNum(score)} <span class="muted">${esc(mLabel)} · ${a.posts} โพสต์</span></span>
         </div>
         <div class="dash-bar-track">
           <div class="dash-bar-fill" style="width:${pct}%;background:${PLAT_META[k].color}"></div>
         </div>
-        <div class="dash-bar-sub">❤️💬🔁 ${fmtNum(a.eng)} engagement</div>
+        <div class="dash-bar-sub">👁 ${fmtNum(a.views)} วิว · ❤️💬🔁 ${fmtNum(a.eng)} engagement</div>
       </div>`;
     })
     .join("");
@@ -302,52 +370,70 @@ function aggByParticipant() {
   return agg;
 }
 
-// ── LEADERBOARD ───────────────────────────────────────────
+// ── LEADERBOARD (แยกช่องทาง + รางวัลตามอันดับ) ──────────────
+window.onRankMetricChange = function () {
+  _rankMetricTouched = true;
+  renderRanking();
+};
+function dashLbRow(a, rank, metric, prize) {
+  const medal = rank === 1 ? "🥇" : rank === 2 ? "🥈" : rank === 3 ? "🥉" : rank;
+  const top = rank <= 3 ? ` top${rank}` : "";
+  const prizeCell = prize
+    ? `<div class="dash-lb-prize">🎁 ${esc(prize)}</div>`
+    : `<div class="dash-lb-prize dash-lb-prize-none">—</div>`;
+  return `<div class="dash-lb-row${top}">
+    <div class="dash-lb-rank">${medal}</div>
+    <div class="dash-lb-name">
+      <div class="n">${esc(a.p.member_name || a.p.member_code)}</div>
+      <div class="c">${esc(a.p.member_code)} · ${a.posts} โพสต์</div>
+    </div>
+    <div class="dash-lb-score">${fmtCompact(_metricScore(a, metric))}<div class="lbl">${esc(metricUnitLabel(metric))}</div></div>
+    ${prizeCell}
+  </div>`;
+}
 window.renderRanking = function () {
-  const metric = document.getElementById("rankMetricSel").value;
   const el = document.getElementById("rankList");
-  const scoreOf = (a) =>
-    metric === "likes" ? a.likes
-    : metric === "engagement" ? a.likes + a.comments + a.shares
-    : a.views;
+  const metric = _rankMetricTouched ? document.getElementById("rankMetricSel").value : effectiveMetric();
+  const rewards = (campaign && campaign.rewards) || null;
+  const chans = rewards && rewards.channels
+    ? RANK_CHANS.filter((c) => rewards.channels[c.key] && rewards.channels[c.key].enabled)
+    : [];
 
-  const rows = Object.values(aggByParticipant())
-    .filter((a) => a.posts > 0)
-    .sort((x, y) => scoreOf(y) - scoreOf(x))
-    .slice(0, 10);
-
-  if (!rows.length) {
-    el.innerHTML = `<div class="empty-state"><div class="empty-icon">🏆</div>
-      <div class="empty-text">ยังไม่มีผลงาน — อันดับจะแสดงเมื่อมีการกรอกยอดแล้ว</div></div>`;
+  // ไม่มี config ช่องทาง → leaderboard เดียวรวม (ไม่มีรางวัล)
+  if (!chans.length) {
+    const rows = Object.values(aggByParticipant())
+      .filter((a) => a.posts > 0)
+      .sort((x, y) => _metricScore(y, metric) - _metricScore(x, metric))
+      .slice(0, 10);
+    el.innerHTML = rows.length
+      ? rows.map((a, i) => dashLbRow(a, i + 1, metric, "")).join("")
+      : `<div class="empty-state"><div class="empty-icon">🏆</div><div class="empty-text">ยังไม่มีผลงาน — อันดับจะแสดงเมื่อมีการกรอกยอดแล้ว</div></div>`;
     return;
   }
-  const metricLbl = { views: "วิว", likes: "Like", engagement: "Eng." }[metric];
-  el.innerHTML = rows
-    .map((a, i) => {
-      const rank = i + 1;
-      const medal = rank === 1 ? "🥇" : rank === 2 ? "🥈" : rank === 3 ? "🥉" : rank;
-      const top = rank <= 3 ? ` top${rank}` : "";
-      return `<div class="dash-lb-row${top}">
-        <div class="dash-lb-rank">${medal}</div>
-        <div class="dash-lb-name">
-          <div class="n">${esc(a.p.member_name || a.p.member_code)}</div>
-          <div class="c">${esc(a.p.member_code)} · ${a.posts} โพสต์</div>
-        </div>
-        <div class="dash-lb-metrics">
-          <div class="mm"><div class="v">${fmtCompact(a.views)}</div><div class="l">👁 วิว</div></div>
-          <div class="mm"><div class="v">${fmtCompact(a.likes)}</div><div class="l">❤️ like</div></div>
-          <div class="mm"><div class="v">${fmtCompact(a.comments + a.shares)}</div><div class="l">💬🔁</div></div>
-        </div>
-        <div class="dash-lb-score">${fmtCompact(scoreOf(a))}<div class="lbl">${metricLbl}</div></div>
-      </div>`;
-    })
-    .join("");
+
+  const mode = rewards.mode || "ranked";
+  el.innerHTML =
+    `<div class="dash-lb-grid">` +
+    chans
+      .map((c) => {
+        const rows = Object.values(channelAgg(c.platform))
+          .filter((a) => a.posts > 0)
+          .sort((x, y) => _metricScore(y, metric) - _metricScore(x, metric));
+        const head = `<div class="dash-lb-chan-hdr"><img src="${c.ic}" alt="" /><span>${c.label}</span><span class="dash-lb-chan-n">${rows.length} คน</span></div>`;
+        const body = rows.length
+          ? rows.map((a, i) => dashLbRow(a, i + 1, metric, prizeForRank(rewards.channels[c.key].tiers, i + 1, _metricScore(a, metric), mode))).join("")
+          : `<div class="dash-empty-sm">ยังไม่มีผลงานในช่องนี้</div>`;
+        return `<div class="dash-lb-chan">${head}${body}</div>`;
+      })
+      .join("") +
+    `</div>`;
 };
 
 // ── REPORT TABLE ──────────────────────────────────────────
 const PART_PILL = { pending: "⏳ รอ", approved: "✅ อนุมัติ", rejected: "❌ ปฏิเสธ" };
 function reportRows() {
-  return Object.values(aggByParticipant()).sort((x, y) => y.views - x.views);
+  const metric = effectiveMetric();
+  return Object.values(aggByParticipant()).sort((x, y) => _metricScore(y, metric) - _metricScore(x, metric));
 }
 function renderReport() {
   const rows = reportRows();

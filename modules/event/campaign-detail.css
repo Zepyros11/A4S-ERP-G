@@ -34,6 +34,13 @@
 .cmpstat-ENDED     { background: var(--accent-pale); color: #1d4ed8; }
 .cmpstat-CANCELLED { background: #fef3c7; color: #92400e; }
 
+/* ── การ์ดสรุปผู้บริหาร ── */
+.cmp-kpis { margin: 16px 0 18px; }
+.cmp-kpi-sub { font-size: 11.5px; color: var(--text3); margin-top: 2px; }
+.cmp-kpi-card { cursor: pointer; transition: transform .12s, box-shadow .12s; }
+.cmp-kpi-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md, 0 6px 18px rgba(15,23,42,.1)); }
+.cmp-kpi-big { font-size: 40px; line-height: 1; font-weight: 800; color: #dc2626; }
+
 /* ── TABS ── */
 .cmp-tabs {
   display: flex;
@@ -66,6 +73,9 @@
   padding: 1px 7px; border-radius: 9px; margin-left: 5px;
 }
 .cmp-tab.active .badge-n { background: var(--accent-pale); color: var(--accent); }
+
+.cmp-tab[draggable="true"] { cursor: grab; }
+.cmp-tab.dragging { opacity: .45; cursor: grabbing; }
 
 .cmp-pane { display: none; }
 .cmp-pane.active { display: block; }
@@ -128,7 +138,7 @@
 .cmp-social-links a { text-decoration: none; font-size: 15px; }
 .cmp-social-links .off { opacity: .3; }
 .soc-ic { width: 20px; height: 20px; object-fit: contain; border-radius: 5px; vertical-align: middle; }
-.cmp-soc-cell { display: inline-flex; flex-direction: row; align-items: center; gap: 6px; }
+.cmp-soc-cell { display: inline-flex; flex-direction: row; align-items: center; gap: 6px; min-height: 28px; }
 .cmp-soc-thumb {
   width: 40px; height: 40px; object-fit: cover; border-radius: 6px;
   border: 1px solid var(--border); cursor: zoom-in;
@@ -152,6 +162,16 @@
   vertical-align: middle; text-decoration: none; cursor: pointer;
 }
 .cmp-line-name:hover { text-decoration: underline; }
+
+/* ช่องยอดตัววัด — 1 บรรทัด/ช่องทาง ตรงแถวกับคอลัมน์โซเชียล (gap + min-height เท่ากัน) */
+.cmp-metric-list { display: inline-flex; flex-direction: column; gap: 6px; align-items: center; }
+.cmp-metric-row {
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  min-height: 28px; box-sizing: border-box;
+  cursor: pointer; padding: 0 8px; border-radius: 6px;
+  transition: background .12s;
+}
+.cmp-metric-row:hover { background: var(--accent-pale); }
 
 /* ── SHARE LINK MODAL (QR + Link) ── */
 .share-camp-name { font-weight: 700; font-size: 15px; margin-bottom: 12px; }
@@ -216,6 +236,27 @@
 .lb-metrics .m .v { font-weight: 700; font-size: 15px; }
 .lb-metrics .m .l { font-size: 10px; color: var(--text3); }
 .lb-score { font-weight: 800; font-size: 18px; color: var(--accent); min-width: 70px; text-align: right; }
+
+/* leaderboard แยกต่อช่องทาง = คอลัมน์ข้างกัน (FB | TikTok | IG) */
+.lb-grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); align-items: start; }
+.lb-chan {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 14px; padding: 14px; min-width: 0;
+}
+.lb-chan-hdr { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 15px; margin: 0 0 12px; }
+.lb-chan-hdr img { width: 22px; height: 22px; object-fit: contain; border-radius: 5px; }
+.lb-chan-hdr span:first-of-type { flex: 1; min-width: 0; }
+.lb-chan-n { font-size: 12px; font-weight: 500; color: var(--text3); background: var(--surface2); padding: 1px 9px; border-radius: 9px; }
+.lb-chan-empty { color: var(--text3); font-size: 13px; padding: 8px 4px 4px; }
+.lb-prize { text-align: right; font-weight: 700; font-size: 13px; color: #b45309; flex-shrink: 0; white-space: nowrap; }
+.lb-prize-none { color: var(--text3); font-weight: 500; }
+
+/* row กระชับเมื่ออยู่ในคอลัมน์ */
+.lb-grid .lb-row { padding: 9px 11px; gap: 9px; }
+.lb-grid .lb-rank { width: 30px; height: 30px; font-size: 13px; }
+.lb-grid .lb-name { font-size: 13px; }
+.lb-grid .lb-name .n { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lb-grid .lb-score { font-size: 15px; min-width: 44px; }
 
 /* bulk bar */
 .bulk-bar {

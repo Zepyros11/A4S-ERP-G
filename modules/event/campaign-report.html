@@ -59,7 +59,7 @@
           <div class="stat-icon">👁</div>
           <div>
             <div class="stat-value" id="kpiViews" style="color: var(--info)">0</div>
-            <div class="stat-label">ยอดวิวรวม</div>
+            <div class="stat-label" id="kpiMetricLabel">ยอดรวม</div>
             <div class="dash-kpi-sub" id="kpiViewsSub">—</div>
           </div>
         </div>
@@ -103,7 +103,7 @@
       <div class="dash-card">
         <div class="dash-card-hdr dash-card-hdr--row">
           <span>🏆 อันดับผู้เข้าร่วม</span>
-          <select class="filter-select dash-metric-sel" id="rankMetricSel" onchange="window.renderRanking()">
+          <select class="filter-select dash-metric-sel" id="rankMetricSel" onchange="window.onRankMetricChange()">
             <option value="views">เรียงตาม วิว</option>
             <option value="likes">เรียงตาม Like</option>
             <option value="engagement">เรียงตาม Engagement</option>

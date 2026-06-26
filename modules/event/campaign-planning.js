@@ -91,6 +91,17 @@ async function loadData() {
 function todayBKK() {
   return new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Bangkok" });
 }
+// คอลัมน์วันที่เหลือ (font แดง) — อ้างเวลาไทย
+function daysLeftCell(c) {
+  const start = (c.start_date || "").slice(0, 10);
+  const end = (c.end_date || "").slice(0, 10);
+  if (!end || c.status === "CANCELLED") return `<span style="color:var(--text3)">—</span>`;
+  const today = todayBKK();
+  const diff = (d1, d2) => Math.round((new Date(d1).getTime() - new Date(d2).getTime()) / 86400000);
+  if (start && today < start) return `<span style="color:var(--info);font-weight:700">+${diff(start, today)} วัน</span>`;
+  if (today > end) return `<span style="color:var(--text3)">จบแล้ว</span>`;
+  return `<span style="color:#dc2626;font-weight:800;font-size:15px">${diff(end, today)}</span>`;
+}
 function computeAutoStatus(c) {
   // ไม่ auto: ร่าง (ยังแก้อยู่) และ ยกเลิก (ค้างไว้)
   if (c.status === "DRAFT" || c.status === "CANCELLED") return c.status;
@@ -194,7 +205,7 @@ function renderTable() {
   document.getElementById("rowCount").textContent = `${rows.length} แคมเปญ`;
 
   if (!rows.length) {
-    tbody.innerHTML = `<tr><td colspan="7"><div class="empty-state">
+    tbody.innerHTML = `<tr><td colspan="8"><div class="empty-state">
       <div class="empty-icon">🔍</div><div class="empty-text">ไม่พบแคมเปญ</div></div></td></tr>`;
     updateBulkBar();
     return;
@@ -230,6 +241,7 @@ function renderTable() {
         <td class="col-center" style="white-space:nowrap">${dates}</td>
         <td class="col-center"><span class="cmp-plats">${plats || "—"}</span></td>
         <td class="col-center">${partCounts[c.campaign_id] || 0}</td>
+        <td class="col-center">${daysLeftCell(c)}</td>
         <td class="col-center">
           <select class="cmp-status-select cmpstat-${c.status}" data-perm="campaign_edit"
                   onchange="window.changeCampStatus(${c.campaign_id}, this)">

@@ -462,7 +462,7 @@ body {
 }
 .bk-panel-row {
   display: grid;
-  grid-template-columns: 86px 1fr;
+  grid-template-columns: 110px 1fr;
   gap: 12px;
   font-size: 13px;
   line-height: 1.5;
