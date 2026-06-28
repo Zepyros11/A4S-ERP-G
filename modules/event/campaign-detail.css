@@ -333,10 +333,47 @@
   /* TABS — แตะสบายขึ้น (ยังเลื่อนแนวนอนได้) */
   .cmp-tab { padding: 10px 14px; }
 
-  /* TABLE ผู้เข้าร่วม — 9 คอลัมน์ คงความกว้างให้อ่านออก แล้วเลื่อนแนวนอนในกรอบ (กฎ #1)
-     ไม่บีบคอลัมน์จนข้อความตัด/ห่อแนวตั้ง ("เปิดรับสมัคร") */
-  .table-wrap { -webkit-overflow-scrolling: touch; }
-  #pane-participants .data-table { min-width: 760px; }
+  /* TABLE ผู้เข้าร่วม — 9 คอลัมน์เลื่อนแนวนอนไม่สวยบนมือถือ → แปลงเป็น "การ์ดต่อคน"
+     (label:value เรียงในกรอบ ไม่ต้องเลื่อนซ้ายขวา) */
+  #pane-participants .table-wrap { overflow-x: visible; }
+  #pane-participants .data-table { min-width: 0; }
+  #pane-participants thead { display: none; }
+  #pane-participants tbody tr {
+    display: block; position: relative;
+    border: 1px solid var(--border); border-radius: 12px;
+    background: var(--surface); padding: 10px 14px; margin-bottom: 10px;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, .05);
+  }
+  #pane-participants tbody td {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 12px; padding: 8px 0; border-bottom: 1px dashed var(--border);
+    text-align: right;
+  }
+  #pane-participants tbody td:last-child { border-bottom: 0; }
+  /* label หน้าค่า (จากชื่อคอลัมน์) */
+  #pane-participants tbody td[data-label]::before {
+    content: attr(data-label); flex-shrink: 0;
+    font-size: 11px; font-weight: 700; color: var(--text3); text-align: left;
+  }
+  /* ชื่อสมาชิก = หัวการ์ด (เต็มแถว ชิดซ้าย) · เว้นที่ให้ checkbox มุมขวา */
+  #pane-participants tbody td.part-cell-name {
+    display: block; text-align: left; padding: 2px 70px 10px 0;
+    border-bottom: 1px solid var(--border); margin-bottom: 4px;
+  }
+  #pane-participants tbody td.part-cell-name > div:first-child { font-size: 15px; }
+  /* checkbox ลอยมุมขวาบนของการ์ด */
+  #pane-participants tbody td.part-cell-chk {
+    position: absolute; top: 10px; right: 12px;
+    padding: 0; border: 0; width: auto;
+  }
+  #pane-participants tbody td.part-cell-chk input { width: 20px; height: 20px; }
+  /* โซเชียล/รูป = แถวชิดขวา · ยอด (หลายช่องทาง) = คอลัมน์ชิดขวา */
+  #pane-participants tbody td .cmp-social-links,
+  #pane-participants tbody td .cmp-img-cell { flex-direction: row; flex-wrap: wrap; justify-content: flex-end; }
+  #pane-participants tbody td .cmp-metric-list { align-items: flex-end; }
+  #pane-participants tbody td .cmp-metric-row { justify-content: flex-end; padding-right: 0; }
+  /* empty-state เต็มแถว ไม่มี label */
+  #pane-participants tbody td[colspan] { display: block; text-align: center; border: 0; }
 
   /* TOOLBAR — ค้นหา + ปุ่มเพิ่ม เต็มความกว้าง เรียงลงมา */
   .pane-toolbar { flex-direction: column; align-items: stretch; }
@@ -371,6 +408,5 @@
   .cmp-kpi-big { font-size: 32px; }
   .cmp-d-cover { width: 48px; height: 48px; font-size: 22px; }
   .cmp-tab { padding: 9px 11px; font-size: 13px; }
-  #pane-participants .data-table th,
-  #pane-participants .data-table td { padding: 9px 8px; }
+  #pane-participants tbody tr { padding: 9px 12px; }
 }

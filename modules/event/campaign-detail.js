@@ -629,16 +629,16 @@ window.renderParticipants = function () {
         lineCell = `<span style="color:var(--text3)">—</span>`;
       }
       return `<tr>
-        <td class="col-center"><input type="checkbox" class="part-check" value="${p.participant_id}" onclick="window.updatePartBulk()" /></td>
-        <td><div style="font-weight:600">${esc(p.member_name || "—")}</div>
+        <td class="col-center part-cell-chk"><input type="checkbox" class="part-check" value="${p.participant_id}" onclick="window.updatePartBulk()" /></td>
+        <td class="part-cell-name"><div style="font-weight:600">${esc(p.member_name || "—")}</div>
             <div style="font-size:11px;color:var(--text3);font-family:'IBM Plex Mono',monospace">${esc(p.member_code)}</div></td>
-        <td class="col-center">${imgCell}</td>
-        <td class="col-center">${socials}</td>
-        <td class="col-center" data-perm="campaign_metric_edit">${metricCell(p, metric)}</td>
-        <td class="col-center">${lineCell}</td>
-        <td class="col-center" style="white-space:nowrap;font-size:12.5px;color:var(--text2)">${(lm && lm.phone) || p.phone ? esc((lm && lm.phone) || p.phone) : `<span style="color:var(--text3)">—</span>`}</td>
-        <td class="col-center">${statusPillPart(p)}</td>
-        <td class="col-center">
+        <td class="col-center" data-label="รูป">${imgCell}</td>
+        <td class="col-center" data-label="โซเชียล">${socials}</td>
+        <td class="col-center" data-label="ยอด" data-perm="campaign_metric_edit">${metricCell(p, metric)}</td>
+        <td class="col-center" data-label="Line ID">${lineCell}</td>
+        <td class="col-center" data-label="เบอร์โทร" style="white-space:nowrap;font-size:12.5px;color:var(--text2)">${(lm && lm.phone) || p.phone ? esc((lm && lm.phone) || p.phone) : `<span style="color:var(--text3)">—</span>`}</td>
+        <td class="col-center" data-label="สถานะ">${statusPillPart(p)}</td>
+        <td class="col-center" data-label="จัดการ">
           <div class="cmp-row-actions">
             ${p.status !== "approved" ? `<button class="btn-icon" title="อนุมัติ" data-perm="campaign_edit" onclick="window.setPartStatus(${p.participant_id},'approved')">✅</button>` : ""}
             ${p.status !== "rejected" ? `<button class="btn-icon" title="ปฏิเสธ" data-perm="campaign_edit" onclick="window.setPartStatus(${p.participant_id},'rejected')">🚫</button>` : ""}
