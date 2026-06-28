@@ -474,17 +474,75 @@
 }
 #attTableSection .table-wrap {
   overflow: auto;   /* แนวนอน: ตารางกว้าง · แนวตั้ง: scroll ในกรอบเมื่อ rows เกินจอ (หัวตาราง sticky ค้าง) */
-  /* max-height ตั้งโดย JS (_syncTablePaneHeight) = เต็มจอใต้ topbar+toolbar พอดี
-     → rows น้อย/กลางพอดีจอ = ไม่มี scrollbar · rows เยอะ scroll ในกรอบ + หัวตาราง lock */
+  height: auto;     /* แถวน้อย = หดพอดีข้อมูล (ไม่มี scrollbar) */
+  /* max-height ตั้งโดย JS (_syncTablePaneHeight) — CSS calc(100vh) เพี้ยนกับ zoom:0.65 จึงคำนวณ real px เอง */
 }
 /* หัวตาราง 3 แถว (แถวเพิ่ม/ค้นหา + กลุ่มฟิลด์ + คอลัมน์) ค้างใต้ topbar เรียงซ้อนกัน
    ทุกแถวพื้นทึบ + ซ้อนกัน -1px กัน subpixel gap (ไม่ให้แถวด้านหลังทะลุ) */
 .att-inline-table thead tr.new-row td {
   position: sticky;
-  top: 0;
+  top: 0;   /* sticky อ้างกับ .table-wrap (scroll container) → freeze ที่บนสุดของกรอบตาราง */
   z-index: 7;
   background: #fffbeb !important;
 }
+/* ช่อง filter (เซลล์ว่างซ้ายของแถวบน) — กรองรายชื่อด้านล่าง */
+.att-inline-table thead tr.new-row td.att-filter-cell { padding: 4px 8px; }
+.att-filter-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 6px 10px;
+  font-size: 12px;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--text1, #0f172a);
+  outline: none;
+  transition: border-color .12s, box-shadow .12s;
+}
+.att-filter-input::placeholder { color: var(--text3, #94a3b8); }
+.att-filter-input:focus {
+  border-color: var(--accent, #16a34a);
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, .12);
+}
+/* ช่องเพิ่ม Guest หลายคน (ไม่ระบุชื่อ) — ดันชิดขวาของแถว search */
+.att-guest-add {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  padding: 3px 8px;
+  border-radius: 8px;
+  background: linear-gradient(90deg, #fef3c7, #fde68a);
+  border: 1px solid #fcd34d;
+}
+.att-guest-lbl { font-size: 11.5px; font-weight: 700; color: #78350f; }
+.att-guest-count {
+  width: 52px;
+  padding: 4px 6px;
+  font-size: 12px;
+  text-align: center;
+  border: 1px solid #fcd34d;
+  border-radius: 6px;
+  background: #fff;
+  color: #0f172a;
+  outline: none;
+}
+.att-guest-count:focus { border-color: #d97706; box-shadow: 0 0 0 3px rgba(217, 119, 6, .15); }
+.att-guest-btn {
+  padding: 5px 10px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #fff;
+  background: #d97706;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background .12s, transform .1s;
+}
+.att-guest-btn:hover { background: #b45309; }
+.att-guest-btn:active { transform: translateY(1px); }
 .att-inline-table thead tr.att-grp-row th {
   position: sticky;
   top: calc(var(--att-newrow-h, 0px) - 1px);
@@ -1637,7 +1695,7 @@
 .bulkadd-col-left { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; }
 .bulkadd-col-left .form-group { margin-bottom: 0; flex: 1; display: flex; flex-direction: column; }
 .bulkadd-col-right { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; }
-.bulkadd-input { flex: 1; min-height: 320px; resize: vertical; }
+.bulkadd-input { flex: 1; min-height: 460px; resize: vertical; }
 .bulkadd-col-left #bulkAddTagGroup { flex: 0 0 auto; }
 .bulkadd-tag-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
 .bulkadd-tag-chip {
@@ -1664,12 +1722,12 @@
   color: var(--text3, #94a3b8);
   font-size: 12.5px;
   background: #f8fafc;
-  min-height: 320px;
+  min-height: 460px;
 }
 .bulkadd-results {
   border: 1px solid var(--border, #e2e8f0);
   border-radius: 10px;
-  max-height: 380px;
+  max-height: 520px;
   overflow-y: auto;
   background: #fff;
 }
@@ -2236,7 +2294,7 @@
 
 /* ── TAG PICKER POPOVER (anchored to + tag button) ── */
 .tag-picker-popover {
-  position: absolute;
+  position: fixed;
   background: #fff;
   border: 1px solid #e2e8f0;
   border-radius: 10px;

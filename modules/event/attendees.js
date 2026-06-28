@@ -864,9 +864,10 @@ function updateStats() {
   // การ์ดสายงาน (รวม 3 → 1) — ลงทะเบียน → เข้างาน · % · จำนวนสาย (ids ที่มีจริงใน DOM เท่านั้น)
   const lineKeys = Object.keys(uplineGroups);
   const fullLines = lineKeys.filter((k) => (uplineCheckin[k] || 0) >= uplineGroups[k]).length;
-  setTxt("scUplineReg", matchedUpline);
-  setTxt("scAttendLine", matchedCheckin);
-  setTxt("scLineRate", `${matchedUpline ? Math.round((matchedCheckin / matchedUpline) * 100) : 0}%`);
+  // headline = ยอด "ทั้งหมด" (รวม guest/คนไม่มีสาย ให้ตรงกับจำนวนจริง) · subtitle = ข้อมูลสายงาน
+  setTxt("scUplineReg", total);
+  setTxt("scAttendLine", checkedIn);
+  setTxt("scLineRate", `${total ? Math.round((checkedIn / total) * 100) : 0}%`);
   setTxt("scUplineSub", `${lineKeys.length} สาย · เข้าครบ ${fullLines}/${lineKeys.length}`);
   // การชำระเงิน — มี checklist "ชำระเงิน" → นับจาก ✓ · ไม่งั้นใช้ payment_status เดิม
   const payQk = _paymentQualKey();
@@ -1747,13 +1748,14 @@ window.toggleSort = function (key) {
   filterTable();
 };
 
-function filterTable() {
-  const search = (_searchKeyword || "").toLowerCase();
+// คำนวณรายชื่อที่ผ่าน filter ทั้งหมด (keyword + check-in + ชำระ + tag) — ใช้ร่วม filterTable / onFilterInput
+function _getFilteredList() {
+  const search = (_searchKeyword || "").toLowerCase().trim();
   const checkin = document.getElementById("filterCheckin")?.value || "";
   const payment = document.getElementById("filterPayment")?.value || "";
   const tagFilter = document.getElementById("filterTag")?.value || "";
 
-  const filtered = allAttendees.filter((a) => {
+  return allAttendees.filter((a) => {
     const matchSearch =
       !search ||
       (a.name || "").toLowerCase().includes(search) ||
@@ -1772,9 +1774,35 @@ function filterTable() {
     const matchTag = !tagFilter || (a.tags || []).includes(tagFilter);
     return matchSearch && matchCheckin && matchPayment && matchTag;
   });
-
-  renderTable(_applySort(filtered));   // default = ลำดับลงทะเบียน · มี sort ถ้าคลิกหัวคอลัมน์
 }
+
+function filterTable() {
+  renderTable(_applySort(_getFilteredList()));   // default = ลำดับลงทะเบียน · มี sort ถ้าคลิกหัวคอลัมน์
+}
+
+// ช่อง filter ในเซลล์ว่างซ้ายของแถวบน → กรอง "เฉพาะ tbody" (renderSavedRowsOnly)
+//   ไม่ re-render new-row → ไม่เสีย focus/ค่าที่พิมพ์ค้างในช่อง filter
+window.onFilterInput = function (val) {
+  _searchKeyword = val;
+  renderSavedRowsOnly(_applySort(_getFilteredList()));
+};
+
+// Enter ในช่อง filter = เช็คอินคนที่ตรง (flow สแกนเร็ว: พิมพ์รหัส → Enter → เช็คอิน → เคลียร์รอคนถัดไป)
+window.onFilterEnter = async function (e) {
+  if (e.key !== "Enter") return;
+  e.preventDefault();
+  const list = _getFilteredList();
+  if (!list.length) { showToast("ไม่พบรายชื่อที่ตรง", "error"); return; }
+  if (list.length > 1) { showToast(`พบ ${list.length} คน — พิมพ์ให้เจาะจงขึ้น`, "error"); return; }
+  const a = list[0];
+  const who = a.name || a.member_code || "";
+  if (viewCheckedIn(a)) { showToast(`${who} เช็คอินแล้ว ✅`, "info"); return; }
+  const aid = a.attendee_id;
+  _searchKeyword = "";                          // เคลียร์ก่อน → ตารางกลับมาเต็ม + พร้อมสแกนคนถัดไป
+  await window.toggleCheckin(aid, false);       // false = ยังไม่เช็คอิน → เช็คอิน
+  const inp = document.querySelector("tr.new-row .att-filter-input");
+  if (inp) { inp.value = ""; inp.focus(); }     // refocus ช่อง filter
+};
 
 function renderTable(list) {
   const tbody = document.getElementById("attTableBody");
@@ -1798,9 +1826,12 @@ function _renderNewRowsInHead() {
   const groupHead = document.getElementById("attTableGroupHead");
   if (!thead || !groupHead) return;
   thead.querySelectorAll("tr.new-row").forEach((tr) => tr.remove());
-  const html = newRows.map(renderNewRowSpreadsheet).join("");
+  const html = newRows.map((r, i) => renderNewRowSpreadsheet(r, i)).join("");
   groupHead.insertAdjacentHTML("beforebegin", html);
   if (window.AuthZ) window.AuthZ.applyDomPerms(thead);
+  // วัด offset อีกครั้ง "หลัง" new-row ถูก insert จริง → --att-newrow-h ถูกต้อง
+  //   (กัน sticky ของแถว group/หัวคอลัมน์ เกาะผิดที่ → ไม่ freeze เหลือแต่หัวคอลัมน์)
+  _syncGroupHeaderOffset();
 }
 
 function _buildSavedRowsHtml(list) {
@@ -2383,7 +2414,7 @@ function _renderQualCellSpread(qkey, a, tdOpen) {
   return `${tdOpen}<span style="color:var(--text3);font-size:11px">—</span></td>`;
 }
 
-function renderNewRowSpreadsheet(r) {
+function renderNewRowSpreadsheet(r, idx = 0) {
   const cols = getActiveColumns();
   // generic: ช่อง search อยู่ที่ตำแหน่งคอลัมน์ "name" (colspan กว้าง) · คอลัมน์ก่อนหน้า + ท้าย = placeholder
   const colCount = cols.length;
@@ -2395,7 +2426,16 @@ function renderNewRowSpreadsheet(r) {
   }
   const searchSpan = Math.max(1, colCount - nameIdx - trailingCount);
   const ph = `<td class="col-center"><span class="att-empty">·</span></td>`;
-  const leading = cols.slice(0, nameIdx).map(() => ph).join("");
+  // เซลล์ว่างซ้าย (ก่อนคอลัมน์ชื่อ) → รวมเป็นช่อง filter เดียว เฉพาะแถวบนสุด (idx 0)
+  const leading = (idx === 0 && nameIdx > 0)
+    ? `<td colspan="${nameIdx}" class="att-filter-cell">
+        <input class="att-filter-input" type="search" placeholder="🔎 filter / Enter = เช็คอิน" autocomplete="off"
+          value="${escapeHtml(_searchKeyword)}"
+          oninput="window.onFilterInput(this.value)"
+          onkeydown="window.onFilterEnter(event)"
+          title="กรองรายชื่อด้านล่าง: รหัส / ชื่อ / เบอร์ / tag · กด Enter เพื่อเช็คอินคนที่ตรง">
+      </td>`
+    : cols.slice(0, nameIdx).map(() => ph).join("");
   const trailing = cols.slice(colCount - trailingCount).map(() => ph).join("");
   const codeChip = r.memberCode
     ? `<span style="font-family:'IBM Plex Mono',monospace;font-size:10px;background:#1e40af;color:#fff;padding:2px 7px;border-radius:10px;font-weight:700;white-space:nowrap">${escapeHtml(r.memberCode)}</span>`
@@ -2404,6 +2444,15 @@ function renderNewRowSpreadsheet(r) {
     ? `<span style="font-size:10px;color:#92400e;background:#fef3c7;padding:1px 6px;border-radius:4px;font-weight:700;white-space:nowrap">⭐ ${escapeHtml(r.positionLevel)}</span>`
     : "";
   const phoneBadge = r.phone ? `<span class="cell-phone" style="font-size:11px">${escapeHtml(_cleanPhone(r.phone))}</span>` : "";
+  // ช่องเพิ่ม Guest แบบหลายคน (ไม่แสดงชื่อ → Guest1, Guest2… running) — เฉพาะแถวบนสุด · ดันชิดขวา
+  const guestAdd = (idx === 0)
+    ? `<div class="att-guest-add" title="เพิ่มผู้ร่วมงานแบบไม่ระบุชื่อ — สร้างเป็น Guest1, Guest2… ตามจำนวน">
+        <span class="att-guest-lbl">👤 Guest</span>
+        <input type="number" class="att-guest-count" id="guestAddCount" min="1" max="99" value="1"
+          onkeydown="if(event.key==='Enter'){event.preventDefault();window.addGuestBatch();}">
+        <button type="button" class="att-guest-btn" onclick="window.addGuestBatch()">➕ เพิ่ม</button>
+      </div>`
+    : "";
 
   return `<tr class="new-row" data-nrid="${r.id}">
     ${leading}
@@ -2419,6 +2468,7 @@ function renderNewRowSpreadsheet(r) {
           style="flex:1;min-width:200px;max-width:50%">
         ${posBadge}
         ${phoneBadge}
+        ${guestAdd}
       </div>
     </td>
     ${trailing}
@@ -2717,8 +2767,8 @@ window.saveNewRow = async function (id) {
     populateTagFilter();
     updateStats();
     filterTable();   // แสดงแถวทันที — ไม่รอ MLM walk
-    // สี/เรียงระดับสายงานตามมาเบื้องหลัง (ไม่บล็อกการแสดงผล)
-    computeUplineMatches().then(() => { if (currentEventId) { updateStats(); filterTable(); } }).catch(() => {});
+    // สี/เรียงระดับสายงานตามมาเบื้องหลัง — ใช้ renderSavedRowsOnly (ไม่ re-render new-row) → focus ช่อง search ไม่หลุด
+    computeUplineMatches().then(() => { if (currentEventId) { updateStats(); renderSavedRowsOnly(_applySort(_getFilteredList())); } }).catch(() => {});
     // Focus first empty new row's search input
     requestAnimationFrame(() => {
       const input = document.querySelector("tr.new-row input[data-role='search']");
@@ -3667,13 +3717,39 @@ function _positionSuggestUnderActiveRow() {
   const sug = document.getElementById("memberSuggest");
   if (!input || !sug) return;
   const rect = input.getBoundingClientRect();
-  // กว้างพอให้ชื่อยาวๆ + role chip + ตำแหน่ง + ประเทศ ไม่ตก/ไม่ wrap
-  const desiredWidth = Math.max(rect.width, 520);
-  // กันล้นขอบขวา viewport
-  const maxWidth = Math.min(desiredWidth, window.innerWidth - rect.left - 16);
-  sug.style.top = (rect.bottom + window.scrollY + 2) + "px";
-  sug.style.left = (rect.left + window.scrollX) + "px";
+  // zoom (desktop 0.65) → getBoundingClientRect = real px แต่ fixed element อยู่ใน authoring space (÷ zoom)
+  //   ไม่หาร zoom จะวางสูง/ซ้ายเกิน ~35% → ไปบังแถวด้านบน
+  const zoom = parseFloat(getComputedStyle(document.documentElement).zoom) || 1;
+  const top = rect.bottom / zoom + 2;
+  const left = rect.left / zoom;
+  // กว้างพอให้ชื่อยาวๆ + role chip + ตำแหน่ง + ประเทศ ไม่ตก/ไม่ wrap · กันล้นขอบขวา viewport
+  const desiredWidth = Math.max(rect.width / zoom, 520);
+  const maxWidth = Math.min(desiredWidth, window.innerWidth / zoom - left - 16);
+  // position:fixed → พิกัด viewport (ไม่บวก scroll · กันเพี้ยนตอน sticky/inner-scroll)
+  sug.style.top = top + "px";
+  sug.style.left = left + "px";
   sug.style.width = maxWidth + "px";
+}
+
+// แปลงแถว members ดิบ → person rows (primary/co_applicant) ให้รูปแบบตรงกับ view member_persons
+//   logic เดียวกับ sql/036 · แล้ว filter เฉพาะคนที่ชื่อตรง query (เหมือน view ที่ filter ที่ person_name)
+function _expandMembersToPersons(members, query) {
+  const q = (query || "").toLowerCase();
+  const out = [];
+  for (const m of (members || [])) {
+    // primary: บริษัท → full_name (fallback member_name) · บุคคล → member_name
+    const primary = m.is_company
+      ? ((m.full_name || "").trim() || (m.member_name || ""))
+      : (m.member_name || "");
+    const pName = primary.trim();
+    if (pName) out.push({ member_code: m.member_code, person_role: "primary", person_name: pName,
+      phone: m.phone || null, country_code: m.country_code, position_level: m.position_level, is_company: m.is_company });
+    const co = (m.co_applicant_name || "").trim();
+    if (co) out.push({ member_code: m.member_code, person_role: "co_applicant", person_name: co,
+      phone: null, country_code: m.country_code, position_level: m.position_level, is_company: m.is_company });
+  }
+  const matched = out.filter(p => (p.person_name || "").toLowerCase().includes(q));
+  return (matched.length ? matched : out).slice(0, 12);
 }
 
 window.searchMember = function (q, rowId) {
@@ -3701,10 +3777,13 @@ window.searchMember = function (q, rowId) {
     const isDigits = /^\d+$/.test(esc);
     const { url, key } = getSB();
     // ⭐ ทุกค่าใน URL ต้อง encodeURIComponent (กัน space/Thai/พิเศษ → 500)
-    const filter = isDigits
-      ? `member_code=eq.${encodeURIComponent(esc)}`
-      : `person_name=ilike.${encodeURIComponent('*' + esc + '*')}`;
-    const apiUrl = `${url}/rest/v1/member_persons?select=member_code,person_role,person_name,phone,country_code,position_level,is_company&${filter}&limit=12&order=member_code,person_role`;
+    const pat = encodeURIComponent('*' + esc + '*');
+    // ค้นด้วยรหัส → member_persons (member_code=eq → index เร็ว)
+    // ค้นด้วยชื่อ → members ตรงๆ + trigram index (gin_trgm_ops) บน member_name/full_name/co_applicant_name
+    //   เลี่ยง ilike บน person_name ของ view (computed col → full-scan → timeout 500) · ดู sql/164
+    const apiUrl = isDigits
+      ? `${url}/rest/v1/member_persons?select=member_code,person_role,person_name,phone,country_code,position_level,is_company&member_code=eq.${encodeURIComponent(esc)}&limit=12&order=member_code,person_role`
+      : `${url}/rest/v1/members?select=member_code,member_name,full_name,co_applicant_name,is_company,phone,position_level,country_code&or=(member_name.ilike.${pat},full_name.ilike.${pat},co_applicant_name.ilike.${pat})&limit=15`;
     const opts = { headers: { apikey: key, Authorization: `Bearer ${key}` } };
 
     // ── Retry on 500 (server timeout) — ลองสูงสุด 2 ครั้ง ─────────
@@ -3725,8 +3804,10 @@ window.searchMember = function (q, rowId) {
 
     try {
       const res = await tryOnce(1);
-      const rows = await res.json();
+      let rows = await res.json();
       _memberSearchAbort = null;
+      // ค้นด้วยชื่อ → ได้แถว members ดิบ → แปลงเป็น person (primary/co_applicant) ให้ตรง view member_persons
+      if (!isDigits) rows = _expandMembersToPersons(rows, esc);
       if (!rows || !rows.length) {
         _lastMemberResults = [];
         sug.innerHTML = `
@@ -3819,6 +3900,23 @@ function _guestAddRowHtml() {
 
 // Expose activeSearchRowId for onclick handler (avoid quoting issues in template)
 window._activeSearchRowIdForGuest = function () { return activeSearchRowId; };
+
+// เพิ่ม Guest หลายคนพร้อมกัน (ไม่ระบุชื่อ) → Guest1, Guest2… running ต่อจาก guest เดิมในงาน
+window.addGuestBatch = async function () {
+  const inp = document.getElementById("guestAddCount");
+  let count = parseInt(inp?.value, 10);
+  if (!count || count < 1) { showToast("ระบุจำนวน Guest อย่างน้อย 1 คน", "error"); inp?.focus(); return; }
+  if (count > 99) count = 99;   // กันเผลอใส่เยอะเกิน
+  // หาเลข Guest สูงสุดที่มีอยู่ → running ต่อ (กันชื่อซ้ำ)
+  const re = /^Guest\s*(\d+)$/i;
+  let maxN = 0;
+  allAttendees.forEach(a => { const m = re.exec(String(a.name || "").trim()); if (m) maxN = Math.max(maxN, parseInt(m[1], 10)); });
+  const guests = [];
+  for (let i = 1; i <= count; i++) {
+    guests.push({ memberCode: null, personRole: "guest", name: `Guest${maxN + i}`, phone: "", positionLevel: "" });
+  }
+  await _quickAddMembers(guests, "UNPAID", null, null);
+};
 
 // เพิ่ม guest ลง list ตรงๆ (ไม่เปิด form popup) — บังคับเป็น guest แล้ว quick-add
 window.quickAddGuestFromSearch = function (rowId) {
@@ -3943,7 +4041,8 @@ async function _quickAddMembers(members, paymentStatus, sourceRowId, tags) {
     populateTagFilter();
     updateStats();
     filterTable();   // แสดงทันที
-    computeUplineMatches().then(() => { if (currentEventId) { updateStats(); filterTable(); } }).catch(() => {});
+    // ใช้ renderSavedRowsOnly (ไม่ re-render new-row) → focus ช่อง search ไม่หลุดหลังเพิ่ม
+    computeUplineMatches().then(() => { if (currentEventId) { updateStats(); renderSavedRowsOnly(_applySort(_getFilteredList())); } }).catch(() => {});
     requestAnimationFrame(() => {
       const input = document.querySelector("tr.new-row input[data-role='search']");
       input?.focus();
@@ -4378,11 +4477,16 @@ window.openTagPicker = function (attendeeId, anchorEl) {
   // Position popover under anchor
   const rect = anchorEl.getBoundingClientRect();
   pop.style.display = "block";
-  pop.style.top = (window.scrollY + rect.bottom + 4) + "px";
-  pop.style.left = (window.scrollX + rect.left) + "px";
+  // position:fixed + zoom (0.65) → หารพิกัดด้วย zoom (getBoundingClientRect=real px · fixed อยู่ใน authoring space)
+  const zoom = parseFloat(getComputedStyle(document.documentElement).zoom) || 1;
+  pop.style.top = (rect.bottom / zoom + 4) + "px";
+  pop.style.left = (rect.left / zoom) + "px";
   // Close on outside click — remove any prior listener first to avoid stacking
   document.removeEventListener("click", _tagPickerOutside, true);
   setTimeout(() => document.addEventListener("click", _tagPickerOutside, true), 0);
+  // fixed → ไม่เลื่อนตาม content · ปิดเมื่อ scroll กัน popover ลอยค้างผิดที่
+  document.removeEventListener("scroll", _tagPickerOutside, true);
+  setTimeout(() => document.addEventListener("scroll", _tagPickerOutside, true), 0);
 };
 function _tagPickerOutside(e) {
   const pop = document.getElementById("tagPickerPopover");
@@ -4390,6 +4494,7 @@ function _tagPickerOutside(e) {
   if (!pop.contains(e.target)) {
     pop.style.display = "none";
     document.removeEventListener("click", _tagPickerOutside, true);
+    document.removeEventListener("scroll", _tagPickerOutside, true);
   }
 }
 // หา key ของคอลัมน์ "หมายเหตุ" (custom text field) ใน config ของ event นี้
@@ -5275,20 +5380,24 @@ function _syncGroupHeaderOffset() {
 }
 
 // การ์ดตาราง sticky ใต้ topbar → ตอนเลื่อนหน้าลง hero เลื่อนหายไป ตารางได้พื้นที่ "เต็มจอใต้ topbar"
-// max-height ของ pane = สูงจอ − topbar − (dayTabs+toolbar) − เว้นล่าง
-//  · rows น้อย/กลางพอดีจอ = ไม่มี scrollbar (สูงตามข้อมูล)
-//  · rows เยอะ = scroll ในกรอบ + แถวค้นหา/หัวคอลัมน์ (sticky) lock ค้างใต้ toolbar (แบบ Google Sheet)
+// max-height ของ pane = สูงจอ − topbar − เว้นล่าง  (→ .table-wrap เป็น scroll container แนวตั้ง)
+//  · rows น้อย/กลาง = height:auto หดพอดีข้อมูล (ไม่มี scrollbar · ไม่เหลือพื้นที่ว่าง)
+//  · rows เยอะ = cap เต็มจอ → scroll ในกรอบ + แถว filter/เพิ่ม/หัวคอลัมน์ (sticky) freeze ค้างบนสุดของกรอบ (แบบ Google Sheet)
 function _syncTablePaneHeight() {
   const wrap = document.querySelector("#attTableSection .table-wrap");
   if (!wrap || wrap.offsetParent === null) return;   // ข้ามตอนตารางยังซ่อนอยู่
   requestAnimationFrame(() => {
-    const topbarH = parseInt(getComputedStyle(document.documentElement).getPropertyValue("--topbar-h")) || 56;
-    const above = wrap.offsetTop;   // offset ของ wrap ในการ์ด sticky ≈ 0 (border) — dayTabs/toolbar ย้ายออกนอกการ์ดแล้ว
-    const gap = 12;                 // เว้นล่างนิด ไม่ให้ชิดขอบจอ
-    const h = Math.max(220, window.innerHeight - topbarH - above - gap);
-    // height (ไม่ใช่แค่ max-height) → กรอบสูงเต็มจอเสมอ แม้แถวน้อย (พื้นที่ว่างเป็นสีขาวในกรอบ)
-    wrap.style.height = h + "px";
-    wrap.style.maxHeight = h + "px";
+    // zoom (desktop 0.65) → window.innerHeight เป็น real px · CSS length อยู่ใน authoring space (÷ zoom)
+    const zoom = parseFloat(getComputedStyle(document.documentElement).zoom) || 1;
+    const topbarReal = (parseInt(getComputedStyle(document.documentElement).getPropertyValue("--topbar-h")) || 56) * zoom;
+    // เผื่อพื้นที่ใต้กรอบ (margin/padding ของ section+page ≈ 52 real) + safety → กัน page over-scroll
+    //   (over-scroll = กรอบสูงเกินจน .page ยาว → เลื่อนดันกรอบขึ้นหลัง topbar → หัวตารางหลุด)
+    const belowReserve = 70;
+    const maxReal = window.innerHeight - topbarReal - belowReserve;
+    const maxAuthoring = Math.max(220, maxReal / zoom);   // → CSS px (authoring) ให้กรอบสูงเต็มจอจริง
+    // height:auto = หดพอดีข้อมูล (แถวน้อยไม่มี scrollbar) · max-height = cap → scroll ในกรอบ + freeze หัวตาราง
+    wrap.style.height = "auto";
+    wrap.style.maxHeight = maxAuthoring + "px";
   });
 }
 window.addEventListener("resize", _syncTablePaneHeight);

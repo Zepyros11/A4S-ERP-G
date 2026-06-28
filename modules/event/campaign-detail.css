@@ -172,6 +172,21 @@
   transition: background .12s;
 }
 .cmp-metric-row:hover { background: var(--accent-pale); }
+/* ตัวเลขยอดที่คลิกแก้ inline ได้ */
+.cmp-metric-val {
+  color: var(--accent); cursor: text;
+  padding: 0 3px; border-radius: 4px;
+  border-bottom: 1px dashed transparent; transition: background .12s, border-color .12s;
+}
+.cmp-metric-val:hover { background: #fff; border-bottom-color: var(--accent); }
+.cmp-metric-input {
+  width: 56px; font-size: 13px; font-weight: 700; text-align: center;
+  color: var(--accent); padding: 2px 4px;
+  border: 1px solid var(--accent); border-radius: 5px; outline: none;
+  -moz-appearance: textfield;
+}
+.cmp-metric-input::-webkit-outer-spin-button,
+.cmp-metric-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 
 /* ── SHARE LINK MODAL (QR + Link) ── */
 .share-camp-name { font-weight: 700; font-size: 15px; margin-bottom: 12px; }
@@ -304,3 +319,58 @@
 
 /* รูปของรางวัล (overview) */
 .cmp-rw-img { max-width: 140px; max-height: 110px; object-fit: contain; border-radius: 8px; margin-top: 6px; cursor: zoom-in; background: #fff; border: 1px solid var(--border); }
+
+/* ═══════════ RESPONSIVE (มาตรฐาน 767/480 · ดู css/core/responsive.css) ═══════════ */
+@media (max-width: 767px) {
+  /* HEADER — ปก + ชื่อ + ปุ่ม เรียงแนวตั้ง ปุ่มเต็มความกว้าง (แตะง่าย) */
+  .cmp-d-head { gap: 12px; align-items: stretch; }
+  .cmp-d-left { width: 100%; }
+  .cmp-d-cover { width: 56px; height: 56px; font-size: 26px; }
+  .cmp-d-head .page-hero-title { font-size: 16px; }
+  .cmp-d-head .page-hero-actions { width: 100%; }
+  .cmp-d-head .page-hero-actions .btn-on-hero { flex: 1; justify-content: center; }
+
+  /* TABS — แตะสบายขึ้น (ยังเลื่อนแนวนอนได้) */
+  .cmp-tab { padding: 10px 14px; }
+
+  /* TABLE ผู้เข้าร่วม — 9 คอลัมน์ คงความกว้างให้อ่านออก แล้วเลื่อนแนวนอนในกรอบ (กฎ #1)
+     ไม่บีบคอลัมน์จนข้อความตัด/ห่อแนวตั้ง ("เปิดรับสมัคร") */
+  .table-wrap { -webkit-overflow-scrolling: touch; }
+  #pane-participants .data-table { min-width: 760px; }
+
+  /* TOOLBAR — ค้นหา + ปุ่มเพิ่ม เต็มความกว้าง เรียงลงมา */
+  .pane-toolbar { flex-direction: column; align-items: stretch; }
+  .pane-toolbar .search-wrap { max-width: none !important; width: 100%; }
+  .pane-toolbar .btn { width: 100%; }
+
+  /* RANK CONTROLS — ห่อบรรทัด · ตัวเลือกเต็มแถว */
+  .cmp-rank-controls { flex-wrap: wrap; gap: 8px; }
+  .cmp-rank-controls .filter-select { flex: 1; min-width: 150px; }
+
+  /* LEADERBOARD — เมตริก/คะแนนห่อบรรทัด ไม่ดันจอ */
+  .lb-row { flex-wrap: wrap; gap: 10px 12px; }
+  .lb-metrics { gap: 14px; }
+  .lb-score { min-width: 0; }
+  .lb-grid { grid-template-columns: 1fr; }
+
+  /* OVERVIEW grids → คอลัมน์เดียว */
+  .cmp-rw-cols { grid-template-columns: 1fr; }
+  .cmp-media-gallery { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); }
+
+  /* MODAL form — 2 คอลัมน์บีบเกินบนจอแคบ → คอลัมน์เดียว */
+  #partModal .form-grid,
+  #subModal .form-grid { grid-template-columns: 1fr; }
+  #partModal .form-group.full,
+  #subModal .form-group.full { grid-column: span 1; }
+  /* แชร์ลิงก์ — ปุ่ม/ช่อง URL เรียงลงมาเต็มแถว */
+  .share-url-row { flex-direction: column; }
+  .share-url-row .btn { width: 100%; }
+}
+
+@media (max-width: 480px) {
+  .cmp-kpi-big { font-size: 32px; }
+  .cmp-d-cover { width: 48px; height: 48px; font-size: 22px; }
+  .cmp-tab { padding: 9px 11px; font-size: 13px; }
+  #pane-participants .data-table th,
+  #pane-participants .data-table td { padding: 9px 8px; }
+}

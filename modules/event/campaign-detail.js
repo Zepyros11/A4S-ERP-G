@@ -339,11 +339,17 @@ function effectiveMetric() {
   return (campaign && campaign.rank_metric) || "views";
 }
 const METRIC_ICON = { views: "👁", likes: "❤️", comments: "💬", shares: "🔁" };
-// แสดงยอดแยกแต่ละเมตริก (ไม่รวม) เช่น ❤️ 18 · 💬 5
-function metricBreakdown(a, metric) {
+// แสดงยอดแยกแต่ละเมตริก (ไม่รวม) เช่น ❤️ 18 · 💬 5 · คลิกที่ตัวเลข = แก้ inline
+function metricBreakdown(a, metric, pid, platform) {
   const agg = a || {};
   const parts = _metricKeysOf(metric)
-    .map((k) => `<span style="white-space:nowrap">${METRIC_ICON[k]} <b style="color:var(--accent)">${fmtNum(agg[k] || 0)}</b></span>`)
+    .map((k) => {
+      const val = fmtNum(agg[k] || 0);
+      const num = (pid != null && platform)
+        ? `<b class="cmp-metric-val" data-pid="${pid}" data-plat="${platform}" data-key="${k}" data-raw="${agg[k] || 0}" title="คลิกเพื่อแก้ยอด" onclick="event.stopPropagation();window.editMetricInline(this)">${val}</b>`
+        : `<b style="color:var(--accent)">${val}</b>`;
+      return `<span style="white-space:nowrap">${METRIC_ICON[k]} ${num}</span>`;
+    })
     .join(`<span style="color:var(--text3);margin:0 4px">·</span>`);
   return `<span style="display:inline-flex;align-items:center;font-size:13px;color:var(--text2)">${parts}</span>`;
 }
@@ -370,11 +376,63 @@ function metricCell(p, metric) {
   const rows = plats
     .map(
       (pl) =>
-        `<span class="cmp-metric-row" title="แก้ยอด ${esc(PLAT_LABEL[pl] || pl)}" onclick="event.stopPropagation();window.openSubModal(null,{participant_id:${p.participant_id},platform:'${pl}'})">${metricBreakdown(byPlat[pl] || null, metric)}</span>`,
+        `<span class="cmp-metric-row" title="แก้ยอด ${esc(PLAT_LABEL[pl] || pl)}" onclick="event.stopPropagation();window.openSubModal(null,{participant_id:${p.participant_id},platform:'${pl}'})">${metricBreakdown(byPlat[pl] || null, metric, p.participant_id, pl)}</span>`,
     )
     .join("");
   return `<span class="cmp-metric-list">${rows}</span>`;
 }
+
+// คลิกตัวเลขยอด → กลายเป็น input box แก้ inline (PATCH ตรง ๆ ไม่ต้องเปิดโมดัล)
+// รองรับเฉพาะช่องทางที่มี 1 โพสต์ (ถ้าหลายโพสต์ ยอดเป็นผลรวม แก้ inline ไม่ได้ → เปิดโมดัลแทน)
+window.editMetricInline = function (el) {
+  if (el.dataset.editing) return;
+  const pid = +el.dataset.pid, plat = el.dataset.plat, key = el.dataset.key;
+  const raw = parseInt(el.dataset.raw) || 0;
+  const matches = submissions.filter((x) => x.participant_id === pid && (x.platform || "?") === plat);
+  if (matches.length !== 1) {
+    showToast("ช่องนี้มีหลายโพสต์ — กดที่บรรทัดเพื่อแก้ในหน้าต่าง", "warning");
+    return;
+  }
+  const sub = matches[0];
+  const orig = el.innerHTML;
+  el.dataset.editing = "1";
+  el.textContent = "";
+  const inp = document.createElement("input");
+  inp.type = "number";
+  inp.min = "0";
+  inp.value = raw;
+  inp.className = "cmp-metric-input";
+  el.appendChild(inp);
+  inp.focus();
+  inp.select();
+
+  let done = false;
+  const cleanup = () => { delete el.dataset.editing; };
+  const cancel = () => { if (done) return; done = true; el.innerHTML = orig; cleanup(); };
+  const commit = async () => {
+    if (done) return;
+    done = true;
+    const nv = Math.max(0, parseInt(inp.value) || 0);
+    cleanup();
+    if (nv === raw) { el.innerHTML = orig; return; }
+    el.textContent = fmtNum(nv);
+    try {
+      await sbFetch("campaign_submissions", `?submission_id=eq.${sub.submission_id}`, { method: "PATCH", body: { [key]: nv } });
+      sub[key] = nv;
+      showToast("บันทึกแล้ว", "success");
+      await loadAll();
+      switchTab("participants");
+    } catch (e) {
+      showToast("บันทึกไม่สำเร็จ: " + e.message, "error");
+      el.innerHTML = orig;
+    }
+  };
+  inp.addEventListener("keydown", (ev) => {
+    if (ev.key === "Enter") { ev.preventDefault(); commit(); }
+    else if (ev.key === "Escape") { ev.preventDefault(); cancel(); }
+  });
+  inp.addEventListener("blur", commit);
+};
 
 function renderOverview() {
   document.getElementById("dDesc").textContent = campaign.description || "—";
