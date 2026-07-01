@@ -3124,8 +3124,6 @@ document.addEventListener("click", (e) => {
 async function _buildExportData() {
   const ev = currentEvent || allEvents.find(e => e.event_id === currentEventId) || {};
   const cfg = await fetchEventFieldConfig(currentEventId).catch(() => DEFAULT_FIELD_CONFIG);
-  const order = (Array.isArray(cfg.field_order) ? cfg.field_order : DEFAULT_FIELD_ORDER)
-    .filter(k => _fieldShowsAsColumn(cfg.fields?.[k]));
   const quals = (Array.isArray(cfg.qualifications) ? cfg.qualifications : []);
   const customFields = (Array.isArray(cfg.custom_fields) ? cfg.custom_fields : []);
   const stdLabel = (key) => cfg.fields?.[key]?.label || FIELD_LABELS[key] || key;
@@ -3134,11 +3132,34 @@ async function _buildExportData() {
   cols.push({ kind: "index", label: "ลำดับ" });
   cols.push({ kind: "code",  label: "รหัส" });
   cols.push({ kind: "name",  label: "ชื่อ-นามสกุล" });
-  order.forEach(k => cols.push({ kind: "std", key: k, label: stdLabel(k) }));
-  quals.forEach(q => cols.push({ kind: "qual", key: q.key, label: q.label || q.key }));
-  customFields.forEach(c => cols.push({ kind: "custom", key: c.key, label: c.label || c.key }));
-  // event หลายวัน → คอลัมน์เช็คอินรายวัน + คอลัมน์สรุปข้ามวัน (เพิ่มต่อท้าย · event 1 วันไม่มี)
+
   const xDays = isMultiDay(ev) ? eventDays(ev) : [];
+
+  // คอลัมน์ "ตาม form" — ใช้ลำดับ/ชนิดเดียวกับตาราง (getActiveColumns) ให้ไฟล์ export ตรงกับฟอร์มเป๊ะ
+  //   (check-in วันเดียว · payment · std · custom · qualification เรียงตามที่ template กำหนด)
+  const customByKey = {}; customFields.forEach(c => { customByKey[c.key] = c; });
+  const qualByKey   = {}; quals.forEach(q => { qualByKey[q.key] = q; });
+  const stripIcon = (s) => String(s || "").replace(/^[^฀-๿a-zA-Z0-9]+\s*/, "").trim();
+  getActiveColumns().forEach((c) => {
+    const k = c.key;
+    if (k === "check" || k === "num" || k === "name" || k === "actions") return;  // UI-only / มีแล้ว
+    if (k === "checkin") {
+      if (!xDays.length) cols.push({ kind: "checkin", label: "เช็คอิน" });        // วันเดียว → 1 คอลัมน์ · หลายวันใช้รายวันท้ายตาราง
+    } else if (k === "payment") {
+      cols.push({ kind: "payment", label: stripIcon(c.label) || "ชำระเงิน" });
+    } else if (k.startsWith("field:")) {
+      const fk = k.slice(6);
+      cols.push({ kind: "std", key: fk, label: stdLabel(fk) });
+    } else if (k.startsWith("custom:")) {
+      const ck = k.slice(7);
+      cols.push({ kind: "custom", key: ck, label: customByKey[ck]?.label || stripIcon(c.label) });
+    } else if (k.startsWith("qual:")) {
+      const qk = k.slice(5);
+      cols.push({ kind: "qual", key: qk, label: qualByKey[qk]?.label || stripIcon(c.label) });
+    }
+  });
+
+  // event หลายวัน → คอลัมน์เช็คอินรายวัน + คอลัมน์สรุปข้ามวัน (เพิ่มต่อท้าย · event 1 วันไม่มี)
   if (xDays.length) {
     xDays.forEach((day, i) => cols.push({ kind: "checkinday", day, label: `เช็คอิน วันที่ ${i + 1} (${formatDMY(day)})` }));
     cols.push({ kind: "checkinsummary", label: "สรุปเข้าร่วม" });
@@ -3158,18 +3179,27 @@ async function _buildExportData() {
   const firstQualIdx = cols.findIndex(c => c.kind === "qual");
   let lastQualIdx = -1;
   for (let i = cols.length - 1; i >= 0; i--) { if (cols[i].kind === "qual") { lastQualIdx = i; break; } }
-  const hasQuals = firstQualIdx !== -1;
+  // จัดกลุ่มหัว "คุณสมบัติ" (merge 2 แถว) ได้เฉพาะตอน qual เรียงติดกัน · ถ้าฟอร์มแทรก custom/std คั่น → ใช้หัวแถวเดียว (กัน merge เพี้ยน)
+  let qualsContiguous = firstQualIdx !== -1;
+  for (let i = firstQualIdx; i <= lastQualIdx && qualsContiguous; i++) { if (cols[i].kind !== "qual") qualsContiguous = false; }
+  const hasQuals = firstQualIdx !== -1 && qualsContiguous;
 
   const data = allAttendees.map((a, idx) => cols.map(c => {
     switch (c.kind) {
       case "index": return idx + 1;
       case "code":  return a.member_code || "";
       case "name":  return a.name || "";
+      case "checkin": {
+        if (!viewCheckedIn(a)) return "ยังไม่เข้า";
+        return a.check_in_at ? formatDateTime(a.check_in_at) : "เข้างาน";
+      }
+      case "payment": return _payStatusBadge(a).replace(/^[^฀-๿a-zA-Z0-9]+\s*/, "").trim();
       case "std": {
         switch (c.key) {
           case "phone":        return _cleanPhone(a.phone);
           case "position":     return a.position_level || "";
-          case "upline":       return a.upline_name_text || "";
+          // สายงาน — สมาชิกจับสาย MLM ผ่าน lookup (_uplineMatchFor) · guest ใช้ upline_name_text (เหมือนตาราง)
+          case "upline":       { const m = _uplineMatchFor(a); return (m ? (m.nickname || m.name) : a.upline_name_text) || ""; }
           default:             return "";
         }
       }
@@ -3214,7 +3244,7 @@ window.exportAttendeesXLSX = async function () {
 
   const { ev, title1, dateLine, cols, data, firstQualIdx, lastQualIdx, hasQuals } = await _buildExportData();
 
-  const headerA = cols.map((c, i) => c.kind === "qual" ? (i === firstQualIdx ? "คุณสมบัติ" : "") : c.label);
+  const headerA = cols.map((c, i) => (hasQuals && c.kind === "qual") ? (i === firstQualIdx ? "คุณสมบัติ" : "") : c.label);
   const headerB = cols.map(c => c.kind === "qual" ? c.label : "");
 
   const aoa = [
@@ -3249,6 +3279,8 @@ window.exportAttendeesXLSX = async function () {
       case "name":   return { wch: 28 };
       case "qual":   return { wch: 24 };
       case "custom": return { wch: 18 };
+      case "checkin": return { wch: 18 };
+      case "payment": return { wch: 14 };
       case "checkinday":     return { wch: 20 };
       case "checkinsummary": return { wch: 16 };
       case "std":
@@ -3330,7 +3362,7 @@ window.exportAttendeesXLSX = async function () {
     const isQual = c.kind === "qual";
     const row3v = ws[XLSX.utils.encode_cell({ r: 3, c: i })]?.v ?? "";
     // Row 4 (index 3) — group label "คุณสมบัติ" for first qual, otherwise std header
-    if (isQual && i === firstQualIdx) {
+    if (hasQuals && isQual && i === firstQualIdx) {
       setCell(3, i, "คุณสมบัติ", styleHeaderQualGroup);
     } else {
       setCell(3, i, row3v, styleHeader);
@@ -3407,6 +3439,8 @@ async function _openPrintableReport(autoPrint) {
       case "name":   return "180px";
       case "qual":   return "auto";
       case "custom": return "120px";
+      case "checkin": return "110px";
+      case "payment": return "100px";
       case "std":
         if (c.key === "phone") return "100px";
         if (c.key === "upline") return "100px";

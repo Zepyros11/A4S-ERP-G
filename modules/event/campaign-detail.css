@@ -133,6 +133,27 @@
 .pstat-approved { background: #d1fae5; color: #059669; }
 .pstat-rejected { background: #fee2e2; color: #dc2626; }
 
+/* status dropdown (เลือกสถานะในตาราง) — สีตามสถานะเหมือน badge */
+.pstat-select {
+  padding: 3px 8px; border-radius: 9px; font-size: 11.5px; font-weight: 600;
+  border: 1px solid transparent; cursor: pointer; font-family: inherit;
+  appearance: none; -webkit-appearance: none; text-align: center; text-align-last: center;
+}
+.pstat-select:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+select.pstat-pending  { background: #fef3c7; color: #92400e; }
+select.pstat-approved { background: #d1fae5; color: #059669; }
+select.pstat-rejected { background: #fee2e2; color: #dc2626; }
+.pstat-select option { background: #fff; color: var(--text1); }
+
+/* หมายเหตุ inline input ในตาราง */
+.part-note-input {
+  width: 100%; min-width: 90px; max-width: 180px; padding: 5px 8px;
+  border: 1px solid var(--border); border-radius: 7px; font-size: 12.5px;
+  font-family: inherit; color: var(--text1); background: #fff;
+}
+.part-note-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-pale); }
+.part-note-input::placeholder { color: var(--text3); }
+
 /* แต่ละช่องทาง = 1 แถวแนวนอน [ไอคอน | 📊 กรอก] · เรียงลงมา */
 .cmp-social-links { display: inline-flex; flex-direction: column; gap: 6px; align-items: flex-start; }
 .cmp-social-links a { text-decoration: none; font-size: 15px; }
@@ -168,10 +189,8 @@
 .cmp-metric-row {
   display: flex; align-items: center; justify-content: center; gap: 6px;
   min-height: 28px; box-sizing: border-box;
-  cursor: pointer; padding: 0 8px; border-radius: 6px;
-  transition: background .12s;
+  padding: 0 8px; border-radius: 6px;
 }
-.cmp-metric-row:hover { background: var(--accent-pale); }
 /* ตัวเลขยอดที่คลิกแก้ inline ได้ */
 .cmp-metric-val {
   color: var(--accent); cursor: text;
@@ -230,6 +249,17 @@
 
 /* ── LEADERBOARD ── */
 .cmp-rank-controls { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+/* toggle "ยอดเท่ากัน = รางวัลเท่ากัน" */
+.cmp-tie-label { display: inline-flex; align-items: center; gap: 7px; cursor: pointer; font-size: 12.5px; font-weight: 600; color: var(--text2); user-select: none; }
+.toggle-switch { position: relative; width: 44px; height: 24px; flex-shrink: 0; }
+.toggle-switch input { opacity: 0; width: 0; height: 0; position: absolute; }
+.toggle-slider { position: absolute; inset: 0; background: #cbd5e1; border-radius: 24px; cursor: pointer; transition: background .2s; }
+.toggle-slider::before { content: ""; position: absolute; width: 18px; height: 18px; left: 3px; bottom: 3px; background: #fff; border-radius: 50%; transition: transform .2s; box-shadow: 0 1px 3px rgba(0,0,0,.2); }
+.toggle-switch input:checked + .toggle-slider { background: var(--accent); }
+.toggle-switch input:checked + .toggle-slider::before { transform: translateX(20px); }
+.toggle-switch.toggle-sm { width: 34px; height: 18px; }
+.toggle-switch.toggle-sm .toggle-slider::before { width: 14px; height: 14px; left: 2px; bottom: 2px; }
+.toggle-switch.toggle-sm input:checked + .toggle-slider::before { transform: translateX(16px); }
 .lb-row {
   display: flex; align-items: center; gap: 14px;
   background: var(--surface); border: 1px solid var(--border);
@@ -247,6 +277,10 @@
 .lb-name { flex: 1; min-width: 0; }
 .lb-name .n { font-weight: 600; }
 .lb-name .c { font-size: 11px; color: var(--text3); font-family: 'IBM Plex Mono', monospace; }
+/* คนอันดับเดียวกัน (เสมอ) = หลายชื่อใน block เดียว */
+.lb-members { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+.lb-member { display: flex; align-items: center; gap: 14px; min-width: 0; }
+.lb-member + .lb-member { border-top: 1px dashed var(--border); padding-top: 10px; }
 .lb-metrics { display: flex; gap: 18px; text-align: center; flex-shrink: 0; }
 .lb-metrics .m .v { font-weight: 700; font-size: 15px; }
 .lb-metrics .m .l { font-size: 10px; color: var(--text3); }
@@ -272,6 +306,9 @@
 .lb-grid .lb-name { font-size: 13px; }
 .lb-grid .lb-name .n { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .lb-grid .lb-score { font-size: 15px; min-width: 44px; }
+.lb-grid .lb-member { gap: 9px; }
+.lb-grid .lb-members { gap: 8px; }
+.lb-grid .lb-member + .lb-member { padding-top: 8px; }
 
 /* bulk bar */
 .bulk-bar {

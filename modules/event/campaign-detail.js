@@ -340,14 +340,20 @@ function effectiveMetric() {
 }
 const METRIC_ICON = { views: "👁", likes: "❤️", comments: "💬", shares: "🔁" };
 // แสดงยอดแยกแต่ละเมตริก (ไม่รวม) เช่น ❤️ 18 · 💬 5 · คลิกที่ตัวเลข = แก้ inline
-function metricBreakdown(a, metric, pid, platform) {
+// ctx: {sub} = แก้โพสต์เดิม · {pid,plat} = ยังไม่มีโพสต์ → พิมพ์แล้วสร้างใหม่ · null = อ่านอย่างเดียว
+function metricBreakdown(a, metric, ctx) {
   const agg = a || {};
   const parts = _metricKeysOf(metric)
     .map((k) => {
       const val = fmtNum(agg[k] || 0);
-      const num = (pid != null && platform)
-        ? `<b class="cmp-metric-val" data-pid="${pid}" data-plat="${platform}" data-key="${k}" data-raw="${agg[k] || 0}" title="คลิกเพื่อแก้ยอด" onclick="event.stopPropagation();window.editMetricInline(this)">${val}</b>`
-        : `<b style="color:var(--accent)">${val}</b>`;
+      let num;
+      if (ctx && ctx.sub != null) {
+        num = `<b class="cmp-metric-val" data-sub="${ctx.sub}" data-key="${k}" data-raw="${agg[k] || 0}" title="คลิกเพื่อแก้ยอด" onclick="event.stopPropagation();window.editMetricInline(this)">${val}</b>`;
+      } else if (ctx && ctx.pid != null && ctx.plat) {
+        num = `<b class="cmp-metric-val" data-pid="${ctx.pid}" data-plat="${ctx.plat}" data-key="${k}" data-raw="${agg[k] || 0}" title="คลิกเพื่อกรอกยอด" onclick="event.stopPropagation();window.editMetricInline(this)">${val}</b>`;
+      } else {
+        num = `<b style="color:var(--accent)">${val}</b>`;
+      }
       return `<span style="white-space:nowrap">${METRIC_ICON[k]} ${num}</span>`;
     })
     .join(`<span style="color:var(--text3);margin:0 4px">·</span>`);
@@ -358,42 +364,44 @@ const PLAT_URL_FIELD = { facebook: "facebook_url", tiktok: "tiktok_url", instagr
 function activePlatforms(p) {
   return ["facebook", "tiktok", "instagram"].filter((pl) => isRealLink(p[PLAT_URL_FIELD[pl]]));
 }
-// ช่องยอด — 1 บรรทัด/ช่องทาง ตรงแถวกับคอลัมน์โซเชียล · คลิกบรรทัด = แก้ยอดช่องนั้น
+// ช่องยอด — 1 บรรทัด/โพสต์ · คลิกตัวเลข = แก้ inline (ไม่เปิด popup) · ช่องที่ยังไม่มีโพสต์ = พิมพ์แล้วสร้างใหม่
 function metricCell(p, metric) {
   const plats = activePlatforms(p);
   if (!plats.length) return `<span style="color:var(--text3)">—</span>`;
-  const byPlat = {};
-  submissions
-    .filter((s) => s.participant_id === p.participant_id)
-    .forEach((s) => {
-      const pl = s.platform || "?";
-      (byPlat[pl] || (byPlat[pl] = { views: 0, likes: 0, comments: 0, shares: 0 }));
-      byPlat[pl].views += +s.views || 0;
-      byPlat[pl].likes += +s.likes || 0;
-      byPlat[pl].comments += +s.comments || 0;
-      byPlat[pl].shares += +s.shares || 0;
-    });
-  const rows = plats
-    .map(
-      (pl) =>
-        `<span class="cmp-metric-row" title="แก้ยอด ${esc(PLAT_LABEL[pl] || pl)}" onclick="event.stopPropagation();window.openSubModal(null,{participant_id:${p.participant_id},platform:'${pl}'})">${metricBreakdown(byPlat[pl] || null, metric, p.participant_id, pl)}</span>`,
-    )
-    .join("");
-  return `<span class="cmp-metric-list">${rows}</span>`;
+  const rows = [];
+  plats.forEach((pl) => {
+    const subs = submissions.filter((s) => s.participant_id === p.participant_id && (s.platform || "?") === pl);
+    if (!subs.length) {
+      // ยังไม่มีโพสต์ในช่องนี้ → คลิกตัวเลขกรอก inline แล้วสร้างเรคคอร์ดใหม่ทันที
+      rows.push(
+        `<span class="cmp-metric-row">${metricBreakdown(null, metric, { pid: p.participant_id, plat: pl })}</span>`,
+      );
+    } else {
+      // 1 โพสต์ = 1 บรรทัด · คลิกตัวเลขแก้ inline ตรงโพสต์
+      subs.forEach((s) => {
+        rows.push(
+          `<span class="cmp-metric-row">${metricBreakdown(s, metric, { sub: s.submission_id })}</span>`,
+        );
+      });
+    }
+  });
+  return `<span class="cmp-metric-list">${rows.join("")}</span>`;
 }
 
-// คลิกตัวเลขยอด → กลายเป็น input box แก้ inline (PATCH ตรง ๆ ไม่ต้องเปิดโมดัล)
-// รองรับเฉพาะช่องทางที่มี 1 โพสต์ (ถ้าหลายโพสต์ ยอดเป็นผลรวม แก้ inline ไม่ได้ → เปิดโมดัลแทน)
+// คลิกตัวเลขยอด → กลายเป็น input box แก้ inline (ไม่เปิด popup)
+// มี data-sub → แก้โพสต์เดิม · มี data-pid+data-plat → ยังไม่มีโพสต์ → พิมพ์แล้วสร้างใหม่
 window.editMetricInline = function (el) {
   if (el.dataset.editing) return;
-  const pid = +el.dataset.pid, plat = el.dataset.plat, key = el.dataset.key;
+  const key = el.dataset.key;
   const raw = parseInt(el.dataset.raw) || 0;
-  const matches = submissions.filter((x) => x.participant_id === pid && (x.platform || "?") === plat);
-  if (matches.length !== 1) {
-    showToast("ช่องนี้มีหลายโพสต์ — กดที่บรรทัดเพื่อแก้ในหน้าต่าง", "warning");
+  const subId = el.dataset.sub ? +el.dataset.sub : null;
+  const pid = el.dataset.pid ? +el.dataset.pid : null;
+  const plat = el.dataset.plat || null;
+  const sub = subId ? submissions.find((x) => x.submission_id === subId) : null;
+  if (subId && !sub) {
+    showToast("ไม่พบโพสต์นี้ — รีเฟรชหน้า", "warning");
     return;
   }
-  const sub = matches[0];
   const orig = el.innerHTML;
   el.dataset.editing = "1";
   el.textContent = "";
@@ -417,8 +425,30 @@ window.editMetricInline = function (el) {
     if (nv === raw) { el.innerHTML = orig; return; }
     el.textContent = fmtNum(nv);
     try {
-      await sbFetch("campaign_submissions", `?submission_id=eq.${sub.submission_id}`, { method: "PATCH", body: { [key]: nv } });
-      sub[key] = nv;
+      // กันสร้างซ้ำ: ถ้าโหมดสร้างแต่ระหว่างนั้นมีโพสต์ช่องนี้แล้ว → แก้ของเดิมแทน
+      const target = sub || submissions.find((x) => x.participant_id === pid && (x.platform || "?") === plat);
+      if (target) {
+        await sbFetch("campaign_submissions", `?submission_id=eq.${target.submission_id}`, { method: "PATCH", body: { [key]: nv } });
+        target[key] = nv;
+      } else {
+        // ยังไม่มีเรคคอร์ด → สร้างใหม่ ใช้ลิงก์ช่องทางของคนนั้นเป็น post_url
+        const pp = participants.find((x) => x.participant_id === pid);
+        const post_url = ({ facebook: pp?.facebook_url, tiktok: pp?.tiktok_url, instagram: pp?.ig_url }[plat] || "").trim();
+        await sbFetch("campaign_submissions", "", {
+          method: "POST",
+          body: {
+            campaign_id: campaignId,
+            participant_id: pid,
+            platform: plat,
+            post_url,
+            views: 0, likes: 0, comments: 0, shares: 0,
+            [key]: nv,
+            status: "approved",
+            verified_at: new Date().toISOString(),
+            verified_by: localStorage.getItem("user_name") || localStorage.getItem("username") || null,
+          },
+        });
+      }
       showToast("บันทึกแล้ว", "success");
       await loadAll();
       switchTab("participants");
@@ -638,10 +668,9 @@ window.renderParticipants = function () {
         <td class="col-center" data-label="Line ID">${lineCell}</td>
         <td class="col-center" data-label="เบอร์โทร" style="white-space:nowrap;font-size:12.5px;color:var(--text2)">${(lm && lm.phone) || p.phone ? esc((lm && lm.phone) || p.phone) : `<span style="color:var(--text3)">—</span>`}</td>
         <td class="col-center" data-label="สถานะ">${statusPillPart(p)}</td>
+        <td class="col-center" data-label="หมายเหตุ"><input class="part-note-input" type="text" placeholder="—" value="${esc(p.note || "")}" data-perm="campaign_edit" onchange="window.setPartNote(${p.participant_id}, this.value)" /></td>
         <td class="col-center" data-label="จัดการ">
           <div class="cmp-row-actions">
-            ${p.status !== "approved" ? `<button class="btn-icon" title="อนุมัติ" data-perm="campaign_edit" onclick="window.setPartStatus(${p.participant_id},'approved')">✅</button>` : ""}
-            ${p.status !== "rejected" ? `<button class="btn-icon" title="ปฏิเสธ" data-perm="campaign_edit" onclick="window.setPartStatus(${p.participant_id},'rejected')">🚫</button>` : ""}
             <button class="btn-icon" title="แก้ไข" data-perm="campaign_edit" onclick="window.openPartModal(${p.participant_id})">✏️</button>
             <button class="btn-icon" title="ลบ" data-perm="campaign_delete" onclick="window.deletePart(${p.participant_id})">🗑</button>
           </div>
@@ -653,8 +682,15 @@ window.renderParticipants = function () {
   updatePartBulk();
 };
 function statusPillPart(p) {
-  const lbl = { pending: "⏳ รอ", approved: "✅ อนุมัติ", rejected: "❌ ปฏิเสธ" }[p.status] || p.status;
-  return `<span class="pstat pstat-${p.status}">${lbl}</span>`;
+  const st = p.status || "pending";
+  const opts = [
+    { v: "pending", l: "⏳ รอ" },
+    { v: "approved", l: "✅ อนุมัติ" },
+    { v: "rejected", l: "❌ ไม่ผ่านเกณฑ์" },
+  ];
+  return `<select class="pstat-select pstat-${st}" data-perm="campaign_edit" onchange="window.setPartStatus(${p.participant_id}, this.value)">
+    ${opts.map((o) => `<option value="${o.v}"${o.v === st ? " selected" : ""}>${o.l}</option>`).join("")}
+  </select>`;
 }
 window.setPartStatus = async function (id, status) {
   showLoading(true);
@@ -668,6 +704,18 @@ window.setPartStatus = async function (id, status) {
     showToast("ไม่สำเร็จ: " + e.message, "error");
   }
   showLoading(false);
+};
+window.setPartNote = async function (id, note) {
+  const p = participants.find((x) => x.participant_id === id);
+  const val = note.trim();
+  if (p && (p.note || "") === val) return; // ไม่เปลี่ยน → ไม่ยิง
+  try {
+    await sbFetch("campaign_participants", `?participant_id=eq.${id}`, { method: "PATCH", body: { note: val } });
+    if (p) p.note = val;
+    showToast("บันทึกหมายเหตุแล้ว", "success");
+  } catch (e) {
+    showToast("ไม่สำเร็จ: " + e.message, "error");
+  }
 };
 window.togglePartAll = function (el) {
   document.querySelectorAll(".part-check").forEach((c) => (c.checked = el.checked));
@@ -1034,6 +1082,34 @@ window.onRankMetricChange = function () {
   _rankMetricTouched = true;
   renderRanking();
 };
+// toggle: ยอดเท่ากัน → อันดับเดียวกัน (รับรางวัลเท่ากัน)
+let _rankTieShare = false;
+window.onRankTieToggle = function () {
+  _rankTieShare = document.getElementById("rankTieToggle").checked;
+  renderRanking();
+};
+// แปลง rows (เรียงจากมากไปน้อยแล้ว) → [{a, rank}]
+// tie ON: ยอดเท่ากันได้อันดับเดียวกัน · คนถัดไปเลื่อนขึ้นมาอันดับถัดไป ไม่ข้าม (dense ranking เช่น 1,1,2,3)
+//         → รางวัลทุกระดับยังถูกแจกครบ (เสมอที่ 1 สองคน คนถัดไปยังได้รางวัลที่ 2)
+function rankRows(rows, metric) {
+  let prevScore = null, prevRank = 0;
+  return rows.map((a, i) => {
+    const score = _metricScore(a, metric);
+    let rank;
+    if (_rankTieShare) {
+      if (prevScore !== null && score === prevScore) {
+        rank = prevRank; // เสมอ → อันดับเดียวกัน
+      } else {
+        rank = prevRank + 1; // เลื่อนขึ้นมาอันดับถัดไป
+        prevScore = score;
+        prevRank = rank;
+      }
+    } else {
+      rank = i + 1; // ปิด toggle = ไล่ตามลำดับเดิม
+    }
+    return { a, rank };
+  });
+}
 // ช่องทางแจกรางวัล (key ใน rewards ↔ platform ใน submissions: ig ↔ instagram)
 const RANK_CHANS = [
   { key: "facebook", platform: "facebook", label: "Facebook", ic: "../../assets/icons/facebook.png" },
@@ -1055,7 +1131,10 @@ function prizeForRank(tiers, rank, score, mode) {
 // รวมยอดต่อคน เฉพาะ submissions ของแพลตฟอร์มนี้
 function channelAgg(platform) {
   const agg = {};
-  participants.forEach((p) => (agg[p.participant_id] = { p, views: 0, likes: 0, comments: 0, shares: 0, posts: 0 }));
+  // ไม่นับคนสถานะ "ไม่ผ่านเกณฑ์" (rejected) เข้าอันดับ
+  participants
+    .filter((p) => p.status !== "rejected")
+    .forEach((p) => (agg[p.participant_id] = { p, views: 0, likes: 0, comments: 0, shares: 0, posts: 0 }));
   submissions
     .filter((s) => s.platform === platform && agg[s.participant_id])
     .forEach((s) => {
@@ -1068,17 +1147,35 @@ function channelAgg(platform) {
     });
   return agg;
 }
-function lbRow(a, rank, metric, prize) {
+// render leaderboard เป็น block ต่ออันดับ — คนอันดับเดียวกัน (เสมอ) อยู่ block เดียวกัน รับรางวัลร่วม
+// prizeFn(rank, score) → ข้อความรางวัลของอันดับนั้น (คืน "" ถ้าไม่มีรางวัล)
+function lbBlocks(ranked, metric, prizeFn) {
+  const groups = [];
+  ranked.forEach((r) => {
+    const last = groups[groups.length - 1];
+    if (last && last.rank === r.rank) last.items.push(r.a);
+    else groups.push({ rank: r.rank, score: _metricScore(r.a, metric), items: [r.a] });
+  });
+  return groups.map((g) => lbBlock(g, metric, prizeFn(g.rank, g.score))).join("");
+}
+function lbBlock(g, metric, prize) {
+  const { rank } = g;
   const topClass = rank <= 3 ? ` top${rank}` : "";
   const medal = rank === 1 ? "🥇" : rank === 2 ? "🥈" : rank === 3 ? "🥉" : rank;
   const prizeCell = prize
     ? `<div class="lb-prize">🎁 ${esc(prize)}</div>`
     : `<div class="lb-prize lb-prize-none">—</div>`;
-  return `<div class="lb-row${topClass}">
+  const members = g.items
+    .map((a) => `<div class="lb-member">
+      <div class="lb-name"><div class="n">${esc(a.p.member_name || a.p.member_code)}</div>
+        <div class="c">${esc(a.p.member_code)} · ${a.posts} โพสต์</div></div>
+      <div class="lb-score">${fmtNum(_metricScore(a, metric))}<div style="font-size:10px;color:var(--text3);font-weight:600">${esc(metricUnitLabel(metric))}</div></div>
+    </div>`)
+    .join("");
+  const multi = g.items.length > 1 ? " lb-block-multi" : "";
+  return `<div class="lb-row${topClass}${multi}">
     <div class="lb-rank">${medal}</div>
-    <div class="lb-name"><div class="n">${esc(a.p.member_name || a.p.member_code)}</div>
-      <div class="c">${esc(a.p.member_code)} · ${a.posts} โพสต์</div></div>
-    <div class="lb-score">${fmtNum(_metricScore(a, metric))}<div style="font-size:10px;color:var(--text3);font-weight:600">${esc(metricUnitLabel(metric))}</div></div>
+    <div class="lb-members">${members}</div>
     ${prizeCell}
   </div>`;
 }
@@ -1096,7 +1193,7 @@ window.renderRanking = function () {
     const agg = channelAggAll();
     const rows = Object.values(agg).filter((a) => a.posts > 0).sort((x, y) => _metricScore(y, metric) - _metricScore(x, metric));
     el.innerHTML = rows.length
-      ? rows.map((a, i) => lbRow(a, i + 1, metric, "")).join("")
+      ? lbBlocks(rankRows(rows, metric), metric, () => "")
       : `<div class="empty-state"><div class="empty-icon">🏆</div><div class="empty-text">ยังไม่มีผลงาน — อันดับจะแสดงเมื่อมีผลงานแล้ว</div></div>`;
     return;
   }
@@ -1109,7 +1206,7 @@ window.renderRanking = function () {
         .sort((x, y) => _metricScore(y, metric) - _metricScore(x, metric));
       const head = `<div class="lb-chan-hdr"><img src="${c.ic}" alt="" /><span>${c.label}</span><span class="lb-chan-n">${rows.length} คน</span></div>`;
       const body = rows.length
-        ? rows.map((a, i) => lbRow(a, i + 1, metric, prizeForRank(rewards.channels[c.key].tiers, i + 1, _metricScore(a, metric), mode))).join("")
+        ? lbBlocks(rankRows(rows, metric), metric, (rank, score) => prizeForRank(rewards.channels[c.key].tiers, rank, score, mode))
         : `<div class="lb-chan-empty">ยังไม่มีผลงานในช่องนี้</div>`;
       return `<div class="lb-chan">${head}${body}</div>`;
     })
@@ -1118,7 +1215,10 @@ window.renderRanking = function () {
 };
 function channelAggAll() {
   const agg = {};
-  participants.forEach((p) => (agg[p.participant_id] = { p, views: 0, likes: 0, comments: 0, shares: 0, posts: 0 }));
+  // ไม่นับคนสถานะ "ไม่ผ่านเกณฑ์" (rejected) เข้าอันดับ
+  participants
+    .filter((p) => p.status !== "rejected")
+    .forEach((p) => (agg[p.participant_id] = { p, views: 0, likes: 0, comments: 0, shares: 0, posts: 0 }));
   submissions.filter((s) => agg[s.participant_id]).forEach((s) => {
     const a = agg[s.participant_id];
     a.views += +s.views || 0; a.likes += +s.likes || 0;
