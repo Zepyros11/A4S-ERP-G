@@ -69,6 +69,31 @@ function renderRewardTiers() {
   }));
   rowOrder.sort((a, b) => rowMap[a].rf - rowMap[b].rf);
 
+  const measure = rw.combine_channels ? `${unit} (รวมทุกช่องทาง)` : unit;
+  const rewardTitle = `<div class="reward-title">🎁 ของรางวัล <span class="reward-meta">· วัดจาก${esc(measure)}</span></div>`;
+
+  // ── รางวัลเดียว (1 ช่องทาง × 1 อันดับ) → การ์ดสวย แทนตาราง ──
+  if (channels.length === 1 && channels[0].tiers.length === 1) {
+    const t = channels[0].tiers[0];
+    const cond = condText(t);
+    const chan = channels[0].social;
+    const img = t.prize_img
+      ? `<img class="rm-hero-img" src="${esc(t.prize_img)}" alt="" loading="lazy" onclick="window.openLightbox('${esc(t.prize_img)}')" />` : "";
+    const prize = (t.prize || "").trim() ? `<div class="rm-hero-prize">${esc(t.prize)}</div>` : "";
+    rEl.innerHTML = `${rewardTitle}
+      <div class="rm-hero">
+        <div class="rm-hero-badges">
+          <span class="rm-badge rm-badge-rank">🏆 ${esc(rowMap[rowOrder[0]].label)}</span>
+          ${chan ? `<span class="rm-badge rm-badge-chan">${socIcon(chan)} ${esc(chan.label)}</span>` : ""}
+          ${cond ? `<span class="rm-badge rm-badge-cond">✅ ${esc(cond)}</span>` : ""}
+        </div>
+        ${img}
+        ${prize}
+      </div>`;
+    show("cReward", true);
+    return;
+  }
+
   // รางวัลของช่องทาง × อันดับ (topn: เงื่อนไขขั้นต่ำย้ายไปแสดงใต้อันดับ · ranked: อยู่ในเซลล์)
   const cellHtml = (c, k) => {
     const t = c.tiers.find((x) => key(x) === k);
@@ -97,9 +122,8 @@ function renderRewardTiers() {
   });
 
   const cols = `auto repeat(${channels.length}, minmax(0,1fr))`;
-  const measure = rw.combine_channels ? `${unit} (รวมทุกช่องทาง)` : unit;
   rEl.innerHTML =
-    `<div class="reward-title">🎁 ของรางวัล <span class="reward-meta">· วัดจาก${measure}</span></div>
+    `${rewardTitle}
      <div class="reward-matrix" style="grid-template-columns:${cols}">${cells}</div>`;
   show("cReward", true);
 }
