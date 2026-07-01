@@ -60,8 +60,14 @@ function renderRewardTiers() {
   const label = (t) => isTopN
     ? `${rt(t)} อันดับ`
     : (rf(t) === rt(t) ? `อันดับ ${rf(t)}` : `อันดับ ${rf(t)}–${rt(t)}`);
+  // คำนับหน่วยท้ายตัวเลข (ไลค์/วิว/คอมเมนต์/แชร์) — ใช้เมื่อเลือกเมตริกเดียว
+  const COUNT_WORD = { views: "วิว", likes: "ไลค์", comments: "คอมเมนต์", shares: "แชร์" };
+  const metricKeys = Array.isArray(rw.metric)
+    ? rw.metric
+    : (rw.metric === "engagement" ? ["likes", "comments", "shares"] : (rw.metric ? [rw.metric] : []));
+  const countWord = metricKeys.length === 1 ? (COUNT_WORD[metricKeys[0]] || "") : "";
   const condText = (t) => (t && t.min_value != null && t.min_value !== "")
-    ? `${unit} อย่างน้อย ${t.min_value}` : "";
+    ? `${unit} อย่างน้อย ${t.min_value}${countWord ? " " + countWord : ""}` : "";
   const rowMap = {}, rowOrder = [];
   channels.forEach((c) => c.tiers.forEach((t) => {
     const k = key(t);
