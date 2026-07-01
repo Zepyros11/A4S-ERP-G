@@ -478,7 +478,7 @@ function renderOverview() {
       const rt = Math.max(rf, +t.rank_to || rf);
       const rank = isTopN ? `${rt} อันดับ` : (rf === rt ? `อันดับ ${rf}` : `อันดับ ${rf}–${rt}`);
       const cond = (t.min_value != null && t.min_value !== "")
-        ? `<div class="cmp-rw-cond">เงื่อนไข: ${unit} ≥ ${esc(t.min_value)}</div>` : "";
+        ? `<div class="cmp-rw-cond">เงื่อนไข: ${unit} อย่างน้อย ${esc(t.min_value)}</div>` : "";
       const img = t.prize_img
         ? `<img class="cmp-rw-img" src="${esc(t.prize_img)}" alt="" onclick="ImgPopup.open(['${esc(t.prize_img)}'])" />` : "";
       const txt = (t.prize || "").trim() ? `<div class="cmp-rw-tier-prize">${esc(t.prize)}</div>` : "";

@@ -72,7 +72,7 @@ function renderRewardTiers() {
     const t = c.tiers.find((x) => key(x) === k);
     if (!t) return "—";
     const cond = (t.min_value != null && t.min_value !== "")
-      ? `<div class="rm-cond">≥ ${esc(t.min_value)} ${esc(unit)}</div>` : "";
+      ? `<div class="rm-cond">${esc(unit)} อย่างน้อย ${esc(t.min_value)}</div>` : "";
     const img = t.prize_img
       ? `<img class="rm-img" src="${esc(t.prize_img)}" alt="" loading="lazy" onclick="window.openLightbox('${esc(t.prize_img)}')" />` : "";
     const txt = (t.prize || "").trim() ? `<b>${esc(t.prize)}</b>` : "";
