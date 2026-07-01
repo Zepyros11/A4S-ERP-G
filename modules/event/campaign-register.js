@@ -60,19 +60,21 @@ function renderRewardTiers() {
   const label = (t) => isTopN
     ? `${rt(t)} อันดับ`
     : (rf(t) === rt(t) ? `อันดับ ${rf(t)}` : `อันดับ ${rf(t)}–${rt(t)}`);
+  const condText = (t) => (t && t.min_value != null && t.min_value !== "")
+    ? `${unit} อย่างน้อย ${t.min_value}` : "";
   const rowMap = {}, rowOrder = [];
   channels.forEach((c) => c.tiers.forEach((t) => {
     const k = key(t);
-    if (!rowMap[k]) { rowMap[k] = { label: label(t), rf: rf(t) }; rowOrder.push(k); }
+    if (!rowMap[k]) { rowMap[k] = { label: label(t), rf: rf(t), cond: condText(t) }; rowOrder.push(k); }
   }));
   rowOrder.sort((a, b) => rowMap[a].rf - rowMap[b].rf);
 
-  // รางวัลของช่องทาง × อันดับ
+  // รางวัลของช่องทาง × อันดับ (topn: เงื่อนไขขั้นต่ำย้ายไปแสดงใต้อันดับ · ranked: อยู่ในเซลล์)
   const cellHtml = (c, k) => {
     const t = c.tiers.find((x) => key(x) === k);
     if (!t) return "—";
-    const cond = (t.min_value != null && t.min_value !== "")
-      ? `<div class="rm-cond">${esc(unit)} อย่างน้อย ${esc(t.min_value)}</div>` : "";
+    const cond = (!isTopN && t.min_value != null && t.min_value !== "")
+      ? `<div class="rm-cond">${esc(condText(t))}</div>` : "";
     const img = t.prize_img
       ? `<img class="rm-img" src="${esc(t.prize_img)}" alt="" loading="lazy" onclick="window.openLightbox('${esc(t.prize_img)}')" />` : "";
     const txt = (t.prize || "").trim() ? `<b>${esc(t.prize)}</b>` : "";
@@ -88,7 +90,9 @@ function renderRewardTiers() {
     });
   }
   rowOrder.forEach((k) => {
-    cells += `<div class="rm-rank">🏆 ${esc(rowMap[k].label)}</div>`;
+    const condHtml = (isTopN && rowMap[k].cond)
+      ? `<div class="rm-rank-cond">${esc(rowMap[k].cond)}</div>` : "";
+    cells += `<div class="rm-rank"><span class="rm-rank-lbl">🏆 ${esc(rowMap[k].label)}</span>${condHtml}</div>`;
     channels.forEach((c) => { cells += `<div class="rm-cell">${cellHtml(c, k)}</div>`; });
   });
 
