@@ -471,11 +471,12 @@ function renderOverview() {
   const rewardBox = document.getElementById("dRewardBox");
   const rewards = (campaign.rewards && typeof campaign.rewards === "object") ? campaign.rewards : {};
   const unit = metricUnitLabel(rewards.metric);
+  const isTopN = (rewards.mode || "ranked") === "topn";
   const tierRows = (tiers) => tiers
     .map((t) => {
       const rf = +t.rank_from || 1;
       const rt = Math.max(rf, +t.rank_to || rf);
-      const rank = rf === rt ? `อันดับ ${rf}` : `อันดับ ${rf}–${rt}`;
+      const rank = isTopN ? `${rt} อันดับ` : (rf === rt ? `อันดับ ${rf}` : `อันดับ ${rf}–${rt}`);
       const cond = (t.min_value != null && t.min_value !== "")
         ? `<div class="cmp-rw-cond">เงื่อนไข: ${unit} ≥ ${esc(t.min_value)}</div>` : "";
       const img = t.prize_img

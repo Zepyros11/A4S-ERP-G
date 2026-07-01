@@ -56,7 +56,10 @@ function renderRewardTiers() {
   const rf = (t) => +t.rank_from || 1;
   const rt = (t) => Math.max(rf(t), +t.rank_to || rf(t));
   const key = (t) => `${rf(t)}-${rt(t)}`;
-  const label = (t) => (rf(t) === rt(t) ? `อันดับ ${rf(t)}` : `อันดับ ${rf(t)}–${rt(t)}`);
+  const isTopN = (rw.mode || "ranked") === "topn";
+  const label = (t) => isTopN
+    ? `${rt(t)} อันดับ`
+    : (rf(t) === rt(t) ? `อันดับ ${rf(t)}` : `อันดับ ${rf(t)}–${rt(t)}`);
   const rowMap = {}, rowOrder = [];
   channels.forEach((c) => c.tiers.forEach((t) => {
     const k = key(t);
