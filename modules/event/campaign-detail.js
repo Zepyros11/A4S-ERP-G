@@ -486,7 +486,13 @@ function renderOverview() {
     .join("");
 
   let rwHtml = "";
-  if (rewards.channels && typeof rewards.channels === "object") {
+  if (rewards.combine_channels && rewards.channels && rewards.channels.all) {
+    // รวมยอดทุกช่องทาง → รางวัลชุดเดียว
+    const tiers = (Array.isArray(rewards.channels.all.tiers) ? rewards.channels.all.tiers : [])
+      .filter((t) => t && ((t.prize || "").trim() || t.prize_img));
+    if (tiers.length)
+      rwHtml = `<div class="cmp-rw-group"><div class="cmp-rw-head">🔗 รวมทุกช่องทาง</div>${tierRows(tiers)}</div>`;
+  } else if (rewards.channels && typeof rewards.channels === "object") {
     rwHtml = RW_SOC.map((s) => {
       const ch = rewards.channels[s.k];
       if (!ch || !ch.enabled) return "";
@@ -1187,6 +1193,23 @@ window.renderRanking = function () {
   const chans = rewards && rewards.channels
     ? RANK_CHANS.filter((c) => rewards.channels[c.key] && rewards.channels[c.key].enabled)
     : [];
+
+  // รวมยอดทุกช่องทาง → leaderboard เดียว (ผลรวมทุกช่องต่อคน) + แจกรางวัลตามอันดับรวม
+  if (rewards && rewards.combine_channels) {
+    const rows = Object.values(channelAggAll())
+      .filter((a) => a.posts > 0)
+      .sort((x, y) => _metricScore(y, metric) - _metricScore(x, metric));
+    const mode = rewards.mode || "ranked";
+    // รางวัลชุดเดียว: ใช้ channels.all → fallback ช่องแรกที่เปิด (ข้อมูลเก่า)
+    const tiers = (rewards.channels && rewards.channels.all && rewards.channels.all.tiers)
+      || (chans.length ? rewards.channels[chans[0].key].tiers : null);
+    const head = `<div class="lb-chan-hdr"><span>🔗 รวมทุกช่องทาง</span><span class="lb-chan-n">${rows.length} คน</span></div>`;
+    const body = rows.length
+      ? lbBlocks(rankRows(rows, metric), metric, (rank, score) => (tiers ? prizeForRank(tiers, rank, score, mode) : ""))
+      : `<div class="lb-chan-empty">ยังไม่มีผลงาน — อันดับจะแสดงเมื่อมีผลงานแล้ว</div>`;
+    el.innerHTML = `<div class="lb-grid">${`<div class="lb-chan">${head}${body}</div>`}</div>`;
+    return;
+  }
 
   // ไม่มี config ช่องทางแจกรางวัล → leaderboard เดียวรวมทุกช่อง (ไม่มีรางวัล)
   if (!chans.length) {

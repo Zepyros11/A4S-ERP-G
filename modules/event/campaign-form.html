@@ -200,6 +200,21 @@
         border-color: var(--border); box-shadow: var(--shadow-xs, 0 1px 2px rgba(16,24,40,.06));
       }
       .rw-mode-hint { font-size: 11.5px; color: var(--text3); margin-bottom: 10px; }
+      .rw-step-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+      .rw-combine-toggle {
+        display: inline-flex; align-items: center; gap: 6px; cursor: pointer;
+        font-size: 11.5px; font-weight: 600; color: var(--text2);
+      }
+      /* toggle switch (หน้านี้ยังไม่มี — ยกมาจาก design system) */
+      .toggle-switch { position: relative; width: 44px; height: 24px; flex-shrink: 0; }
+      .toggle-switch input { opacity: 0; width: 0; height: 0; position: absolute; }
+      .toggle-slider { position: absolute; inset: 0; background: #cbd5e1; border-radius: 24px; cursor: pointer; transition: background .2s; }
+      .toggle-slider::before { content: ""; position: absolute; width: 18px; height: 18px; left: 3px; bottom: 3px; background: #fff; border-radius: 50%; transition: transform .2s; box-shadow: 0 1px 3px rgba(0,0,0,.2); }
+      .toggle-switch input:checked + .toggle-slider { background: var(--accent); }
+      .toggle-switch input:checked + .toggle-slider::before { transform: translateX(20px); }
+      .toggle-switch.toggle-sm { width: 34px; height: 18px; }
+      .toggle-switch.toggle-sm .toggle-slider::before { width: 14px; height: 14px; left: 2px; bottom: 2px; }
+      .toggle-switch.toggle-sm input:checked + .toggle-slider::before { transform: translateX(16px); }
       .rw-step { display: block; font-size: 12px; font-weight: 700; color: var(--text2); margin: 12px 0 5px; }
       .rw-step:first-of-type { margin-top: 6px; }
 
@@ -223,6 +238,21 @@
         font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 8px;
       }
       .rw-chan-card-head .soc-ic { width: 18px; height: 18px; }
+      /* แท็บช่องทางที่แจกรางวัล */
+      .rw-chan-tabs { display: flex; gap: 4px; margin-top: 8px; border-bottom: 1px solid var(--border); }
+      .rw-chan-tab {
+        display: inline-flex; align-items: center; gap: 6px; cursor: pointer;
+        border: 1px solid transparent; border-bottom: none; background: none;
+        border-radius: 9px 9px 0 0; padding: 8px 14px; font-size: 13px; font-weight: 600;
+        color: var(--text2); margin-bottom: -1px; transition: color .12s, background .12s;
+      }
+      .rw-chan-tab .soc-ic { width: 16px; height: 16px; }
+      .rw-chan-tab:hover { color: var(--text); }
+      .rw-chan-tab.active {
+        background: var(--surface, #fff); color: var(--accent);
+        border-color: var(--border); border-bottom-color: var(--surface, #fff);
+      }
+      .rw-chan-tabs + .rw-chan-card { margin-top: 0; border-top-left-radius: 0; }
       .rw-config { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 8px 0 12px; }
       @media (max-width: 560px) { .rw-config { grid-template-columns: 1fr; } }
       #rwTiers { display: flex; flex-direction: column; gap: 10px; }
@@ -427,7 +457,16 @@
               <div class="fb-help">1) เลือกวิธีวัด + รูปแบบรางวัล · 2) เลือกช่องทาง Social แล้วกรอกรางวัลของแต่ละช่องทาง</div>
 
               <!-- ขั้นที่ 1: วิธีวัด + รูปแบบ -->
-              <label class="rw-step">1 · วัดอันดับจาก <span style="font-weight:400;color:var(--text3)">(เลือกได้หลายเมตริก — คะแนน = ผลรวม)</span></label>
+              <div class="rw-step rw-step-row">
+                <span>1 · วัดอันดับจาก</span>
+                <label class="rw-combine-toggle" title="รวมยอดของแต่ละคนจากทุกช่องทางเป็นผลรวมเดียว แล้วจัดอันดับรวม">
+                  <span class="toggle-switch toggle-sm">
+                    <input type="checkbox" id="rwCombine" onchange="window.onRwCombineChange(this.checked)" />
+                    <span class="toggle-slider"></span>
+                  </span>
+                  <span>🔗 รวมยอดทุกช่องทาง</span>
+                </label>
+              </div>
               <div class="rw-chan-pick" id="rwMetricPick">
                 <label class="rw-chan-chk"><input type="checkbox" data-metric="views" onchange="window.onRwMetricChange()" /> 👁️ ยอดวิว</label>
                 <label class="rw-chan-chk"><input type="checkbox" data-metric="likes" onchange="window.onRwMetricChange()" /> ❤️ ยอดไลค์</label>
@@ -437,18 +476,21 @@
 
               <label class="rw-step">รูปแบบรางวัล</label>
               <div class="rw-mode-toggle" id="rwModeToggle">
-                <button type="button" class="rw-mode-btn" data-mode="ranked" onclick="window.setRewardMode('ranked')">🪜 ต่างกันแต่ละอันดับ</button>
-                <button type="button" class="rw-mode-btn" data-mode="topn" onclick="window.setRewardMode('topn')">🏆 เดียวกัน (กำหนดจำนวนคน)</button>
+                <button type="button" class="rw-mode-btn" id="rwModeRankedBtn" data-mode="ranked" onclick="window.setRewardMode('ranked')">🪜 อันดับรางวัล แยกช่องทาง</button>
+                <button type="button" class="rw-mode-btn" data-mode="topn" onclick="window.setRewardMode('topn')">🏆 รางวัลเดียวกัน</button>
               </div>
               <div class="rw-mode-hint" id="rwModeHint"></div>
 
               <!-- ขั้นที่ 2: เลือกช่องทาง + กรอกรางวัลต่อช่องทาง -->
-              <label class="rw-step">2 · ช่องทางที่แจกรางวัล</label>
-              <div class="rw-chan-pick" id="rwChanPick">
-                <label class="rw-chan-chk"><input type="checkbox" data-chan="facebook" onchange="window.toggleRwChannel('facebook',this.checked)" /> <img class="soc-ic" src="../../assets/icons/facebook.png" alt="" /> Facebook</label>
-                <label class="rw-chan-chk"><input type="checkbox" data-chan="tiktok" onchange="window.toggleRwChannel('tiktok',this.checked)" /> <img class="soc-ic" src="../../assets/icons/tiktok.png" alt="" /> TikTok</label>
-                <label class="rw-chan-chk"><input type="checkbox" data-chan="ig" onchange="window.toggleRwChannel('ig',this.checked)" /> <img class="soc-ic" src="../../assets/icons/instagram.png" alt="" /> Instagram</label>
+              <div id="rwChanPickWrap">
+                <label class="rw-step">2 · ช่องทางที่แจกรางวัล</label>
+                <div class="rw-chan-pick" id="rwChanPick">
+                  <label class="rw-chan-chk"><input type="checkbox" data-chan="facebook" onchange="window.toggleRwChannel('facebook',this.checked)" /> <img class="soc-ic" src="../../assets/icons/facebook.png" alt="" /> Facebook</label>
+                  <label class="rw-chan-chk"><input type="checkbox" data-chan="tiktok" onchange="window.toggleRwChannel('tiktok',this.checked)" /> <img class="soc-ic" src="../../assets/icons/tiktok.png" alt="" /> TikTok</label>
+                  <label class="rw-chan-chk"><input type="checkbox" data-chan="ig" onchange="window.toggleRwChannel('ig',this.checked)" /> <img class="soc-ic" src="../../assets/icons/instagram.png" alt="" /> Instagram</label>
+                </div>
               </div>
+              <label class="rw-step" id="rwCombinedLabel" style="display:none">2 · รางวัล (ตัดสินจากยอดรวมทุกช่องทาง)</label>
 
               <div id="rwChannels"></div>
               <input type="file" id="rwImgFile" accept="image/*" style="display: none"

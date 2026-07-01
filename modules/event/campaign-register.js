@@ -34,7 +34,12 @@ function renderRewardTiers() {
 
   // รวบรวมช่องทางที่มีรางวัล (แต่ละช่องทาง = 1 คอลัมน์)
   let channels = [];
-  if (rw.channels && typeof rw.channels === "object") {
+  if (rw.combine_channels && rw.channels && rw.channels.all) {
+    // รวมยอดทุกช่องทาง → รางวัลชุดเดียว (คอลัมน์เดียว ไม่มีหัวช่องทาง)
+    const tiers = (Array.isArray(rw.channels.all.tiers) ? rw.channels.all.tiers : [])
+      .filter((t) => t && ((t.prize || "").trim() || t.prize_img));
+    if (tiers.length) channels = [{ social: null, tiers }];
+  } else if (rw.channels && typeof rw.channels === "object") {
     channels = SOCIALS.map((s) => {
       const ch = rw.channels[s.rwkey];
       if (!ch || !ch.enabled) return null;
@@ -85,8 +90,9 @@ function renderRewardTiers() {
   });
 
   const cols = `auto repeat(${channels.length}, minmax(0,1fr))`;
+  const measure = rw.combine_channels ? `${unit} (รวมทุกช่องทาง)` : unit;
   rEl.innerHTML =
-    `<div class="reward-title">🎁 ของรางวัล <span class="reward-meta">· วัดจาก${unit}</span></div>
+    `<div class="reward-title">🎁 ของรางวัล <span class="reward-meta">· วัดจาก${measure}</span></div>
      <div class="reward-matrix" style="grid-template-columns:${cols}">${cells}</div>`;
   show("cReward", true);
 }
