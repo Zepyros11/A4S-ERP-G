@@ -720,7 +720,7 @@
       const counter = document.getElementById("rbkqCount");
       if (!tbody) return;
       if (!url || !key) {
-        if (!silent) tbody.innerHTML = `<tr class="r-card-plain"><td colspan="8" style="text-align:center;color:#94a3b8;font-size:12px;">ไม่พบข้อมูล Supabase</td></tr>`;
+        if (!silent) tbody.innerHTML = `<tr class="r-card-plain"><td colspan="11" style="text-align:center;color:#94a3b8;font-size:12px;">ไม่พบข้อมูล Supabase</td></tr>`;
         return;
       }
       try {
@@ -746,7 +746,7 @@
 
         filterRoomBookings();   // re-apply current search/filter
       } catch (e) {
-        if (!silent) tbody.innerHTML = `<tr class="r-card-plain"><td colspan="8" style="text-align:center;color:#ef4444;font-size:12px;">โหลดข้อมูลไม่ได้: ${e.message}</td></tr>`;
+        if (!silent) tbody.innerHTML = `<tr class="r-card-plain"><td colspan="11" style="text-align:center;color:#ef4444;font-size:12px;">โหลดข้อมูลไม่ได้: ${e.message}</td></tr>`;
       }
     }
 

@@ -155,24 +155,28 @@ img, video, canvas { height: auto; }
    </table>
    กฎ: cell ที่อยากได้ label ต้องใส่ data-label · หัวการ์ด/มุม/แถวว่าง ใช้ modifier ข้างบน */
 
+/* NB: base rules ใช้ prefix `table.r-cards` (specificity 0,1,2) โดยตั้งใจ —
+   เพื่อชนะกฎ `.xxx-table td` (0,1,1) ที่หน้าเขียน inline/page-css (โหลดหลัง main.css)
+   ไม่งั้น td จะไม่กลายเป็น flex → การ์ดพัง. หน้าใหม่จึงใช้ .r-cards ได้เลยไม่ต้องเขียน CSS override.
+   ส่วน modifier (.r-card-title/-corner/-plain) เป็น 2 classes อยู่แล้ว จึงชนะทั้ง base และ page. */
 @media (max-width: 767px) {
-  .r-cards { border: none; }
-  .r-cards thead { display: none; }
-  .r-cards tbody, .r-cards tr, .r-cards td { display: block; width: 100%; }
+  table.r-cards { border: none; }
+  table.r-cards thead { display: none; }
+  table.r-cards tbody, table.r-cards tr, table.r-cards td { display: block; width: 100%; }
 
-  .r-cards tbody tr {
+  table.r-cards tbody tr {
     position: relative;
     border: 1px solid var(--border); border-radius: 12px;
     background: var(--surface, #fff);
     box-shadow: var(--shadow-xs, 0 1px 2px rgba(16, 24, 40, .06));
     padding: 10px 12px; margin-bottom: 12px;
   }
-  .r-cards td {
+  table.r-cards td {
     display: flex; align-items: center; justify-content: space-between; gap: 12px;
     text-align: right; padding: 8px 0; min-height: 0;
     border: none; border-bottom: 1px dashed var(--border);
   }
-  .r-cards td:last-child { border-bottom: none; padding-bottom: 0; }
+  table.r-cards td:last-child { border-bottom: none; padding-bottom: 0; }
   .r-cards td[data-label]::before {
     content: attr(data-label);
     font-weight: 700; color: var(--text2); font-size: 12.5px;

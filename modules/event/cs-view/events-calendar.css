@@ -1120,21 +1120,38 @@ body {
     max-height: 300px;
   }
 }
-/* MOBILE */
-@media (max-width: 600px) {
+/* MOBILE — bottom sheet (สไลด์ขึ้นจากล่าง เต็มความกว้าง มนเฉพาะบน) */
+@keyframes evSheetUp {
+  from { opacity: 0.5; transform: translateY(100%); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@media (max-width: 767px) {
+  /* overlay: ดันชีตไปชิดล่าง (override inline align-items:center) */
+  #evPanelOverlay { align-items: flex-end !important; justify-content: center !important; }
+
   .ev-popup {
     flex-direction: column;
-    width: 94vw;
-    max-height: 90vh;
-    border-radius: 16px;
+    width: 100%;
+    max-width: 100%;
+    max-height: 92vh;
+    border-radius: 18px 18px 0 0;
+    animation: evSheetUp 0.28s cubic-bezier(0.34, 1.1, 0.64, 1);
   }
+  /* แถบจับ (drag handle) บนสุดของชีต */
+  .ev-popup::before {
+    content: "";
+    position: absolute; top: 8px; left: 50%; transform: translateX(-50%);
+    width: 42px; height: 4px; border-radius: 999px;
+    background: rgba(148, 163, 184, .9); z-index: 11;
+  }
+  .ev-popup-close { top: 10px; right: 10px; }
   .ev-popup-left {
     width: 100%;
     min-width: unset;
     min-height: unset;
-    /* fixed thumbnail height so a portrait poster can't blow up the popup */
-    height: 30vh;
-    max-height: 260px;
+    /* fixed thumbnail height so a portrait poster can't blow up the sheet */
+    height: 24vh;
+    max-height: 200px;
     flex-shrink: 0;
     border-right: none;
     border-bottom: 1px solid #e2e8f0;
@@ -1142,7 +1159,7 @@ body {
   .ev-popup-detail {
     border-right: none;
     border-bottom: 1px solid #e2e8f0;
-    /* fill remaining height and scroll internally instead of stretching the popup */
+    /* fill remaining height and scroll internally instead of stretching the sheet */
     flex: 1;
     min-height: 0;
     max-height: none;
@@ -1154,7 +1171,7 @@ body {
     display: none;
   }
   .ev-popup.chat-open {
-    width: 94vw;
+    width: 100%;
   }
   .ev-popup.chat-open .ev-popup-chat {
     display: flex;
