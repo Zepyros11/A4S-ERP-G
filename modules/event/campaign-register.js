@@ -352,7 +352,7 @@ function renderSocials() {
       <div class="social-head">${socIcon(s)} ${s.label}</div>
       <div class="social-fields">
         <div class="fg fg-link">
-          <label>ลิงก์โปรไฟล์ / โพสต์</label>
+          <label>ลิงก์โพสต์เท่านั้น</label>
           <input id="u_${s.key}" placeholder="${s.ph}" oninput="window.onSocialUrl('${s.key}')" />
         </div>
         <div class="fg fg-img">
