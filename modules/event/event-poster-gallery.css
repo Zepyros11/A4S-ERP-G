@@ -508,8 +508,20 @@
 @media (max-width: 640px) {
   .epg-grid-3,
   .epg-grid-4,
-  .epg-grid-5 { grid-template-columns: repeat(2, 1fr); }
+  .epg-grid-5 { grid-template-columns: repeat(2, 1fr); gap: 12px; }
   .epg-filter-chips { padding: 8px 10px; gap: 6px; }
-  .epg-card-name { font-size: 12px; }
-  .epg-card-body { padding: 12px; }
+  .epg-card { border-radius: 16px; }
+  .epg-card-name { font-size: 12px; line-height: 1.35; }
+  .epg-card-body { padding: 10px; gap: 4px; }
+  .epg-card-meta { font-size: 10px; }
+
+  /* date badge เล็กลงให้ได้สัดส่วนกับการ์ดบนมือถือ */
+  .epg-top-badges { top: 7px; left: 7px; gap: 4px; }
+  .epg-date-badge { padding: 4px 8px; min-width: 34px; border-radius: 10px; }
+  .epg-date-day { font-size: 15px; }
+  .epg-date-mon { font-size: 8px; letter-spacing: 1px; margin-top: 1px; }
+  .epg-img-count { top: 7px; right: 7px; font-size: 10px; padding: 4px 7px; }
+
+  /* ปุ่ม 3/4/5 ไม่มีผลบนมือถือ (บังคับ 2 คอลัมน์เสมอ) → ซ่อนลดความรก */
+  .epg-grid-toggle { display: none; }
 }
