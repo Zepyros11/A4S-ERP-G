@@ -99,13 +99,13 @@
             <thead>
               <tr>
                 <th style="width:40px;text-align:center"><input type="checkbox" id="partChkAll" onclick="window.togglePartAll(this)" /></th>
-                <th>สมาชิก</th>
+                <th class="th-sort" onclick="window.sortParts('name')">สมาชิก <span class="sort-ind" data-k="name"></span></th>
                 <th class="col-center">รูป</th>
                 <th class="col-center">โซเชียล</th>
-                <th class="col-center" id="thPartMetric">ยอด</th>
+                <th class="col-center th-sort" onclick="window.sortParts('metric')"><span id="thPartMetric">ยอด</span> <span class="sort-ind" data-k="metric"></span></th>
                 <th class="col-center">Line ID</th>
-                <th class="col-center">เบอร์โทร</th>
-                <th class="col-center">สถานะ</th>
+                <th class="col-center th-sort" onclick="window.sortParts('phone')">เบอร์โทร <span class="sort-ind" data-k="phone"></span></th>
+                <th class="col-center th-sort" onclick="window.sortParts('status')">สถานะ <span class="sort-ind" data-k="status"></span></th>
                 <th class="col-center">หมายเหตุ</th>
                 <th class="col-center">จัดการ</th>
               </tr>

@@ -266,6 +266,7 @@ function renderCampaign() {
   const dates = campaign.start_date || campaign.end_date ? `📅 ${fmtDMY(campaign.start_date) || "—"} – ${fmtDMY(campaign.end_date) || "—"}` : "";
   document.getElementById("cMeta").innerHTML = dates ? `<span>${dates}</span>` : "";
   document.getElementById("cDesc").textContent = campaign.description || "";
+  startCountdown();
 
   // ของรางวัล (Tier Builder: ช่วงอันดับ + เงื่อนไขขั้นต่ำ + ของรางวัล)
   renderRewardTiers();
@@ -502,6 +503,35 @@ function setupCodeLookup() {
   codeInput.addEventListener("keydown", (e) => {
     if (e.key === "Escape") hideCodeSuggest();
   });
+}
+
+// ── นับถอยหลัง (อ้างอิงเวลาไทย Asia/Bangkok +07:00) ──
+let _cdTimer = null;
+function renderCountdown() {
+  const el = document.getElementById("cCountdown");
+  if (!el || !campaign) return;
+  const startMs = campaign.start_date ? Date.parse(campaign.start_date + "T00:00:00+07:00") : null;
+  const endMs = campaign.end_date ? Date.parse(campaign.end_date + "T23:59:59+07:00") : null;
+  const now = Date.now();
+  let target, label, cls;
+  if (startMs && now < startMs) { target = startMs; label = "เริ่มกิจกรรมในอีก"; cls = "cd-soon"; }
+  else if (endMs && now <= endMs) { target = endMs; label = "เหลือเวลาอีก"; cls = "cd-active"; }
+  else if (endMs) { el.innerHTML = `<div class="reg-cd-box cd-ended">⏱️ กิจกรรมสิ้นสุดแล้ว</div>`; return; }
+  else { el.innerHTML = ""; return; }
+  let diff = Math.max(0, target - now);
+  const d = Math.floor(diff / 86400000); diff -= d * 86400000;
+  const h = Math.floor(diff / 3600000); diff -= h * 3600000;
+  const m = Math.floor(diff / 60000); diff -= m * 60000;
+  const s = Math.floor(diff / 1000);
+  const cell = (v, u) => `<div class="cd-cell"><span class="cd-num">${String(v).padStart(2, "0")}</span><span class="cd-unit">${u}</span></div>`;
+  el.innerHTML = `<div class="reg-cd-box ${cls}">
+    <span class="cd-label">⏳ ${label}</span>
+    <div class="cd-grid">${cell(d, "วัน")}${cell(h, "ชม.")}${cell(m, "นาที")}${cell(s, "วิ")}</div>
+  </div>`;
+}
+function startCountdown() {
+  renderCountdown();
+  if (!_cdTimer) _cdTimer = setInterval(renderCountdown, 1000);
 }
 
 // ── โหมดแก้ไข: รหัสที่เคยลงทะเบียนแล้ว → ยืนยันรหัสผ่าน → ดึงข้อมูลเดิมมาแก้ ──

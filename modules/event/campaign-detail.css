@@ -184,6 +184,14 @@ select.pstat-rejected { background: #fee2e2; color: #dc2626; }
 }
 .cmp-line-name:hover { text-decoration: underline; }
 
+/* Line ID — ไอคอน LINE (คลิกเปิดแชท · logic เดิม) */
+.cmp-line-ic {
+  display: inline-flex; align-items: center; justify-content: center;
+  cursor: pointer; line-height: 0; transition: transform .12s ease, opacity .12s ease;
+}
+.cmp-line-ic svg { display: block; }
+.cmp-line-ic:hover { transform: scale(1.12); opacity: .85; }
+
 /* ช่องยอดตัววัด — 1 บรรทัด/ช่องทาง ตรงแถวกับคอลัมน์โซเชียล (gap + min-height เท่ากัน) */
 .cmp-metric-list { display: inline-flex; flex-direction: column; gap: 6px; align-items: center; }
 .cmp-metric-row {
@@ -356,6 +364,13 @@ select.pstat-rejected { background: #fee2e2; color: #dc2626; }
 
 /* รูปของรางวัล (overview) */
 .cmp-rw-img { max-width: 140px; max-height: 110px; object-fit: contain; border-radius: 8px; margin-top: 6px; cursor: zoom-in; background: #fff; border: 1px solid var(--border); }
+
+/* หัวคอลัมน์ที่กด sort ได้ */
+.data-table th.th-sort { cursor: pointer; user-select: none; white-space: nowrap; }
+.data-table th.th-sort:hover { color: var(--accent); }
+.sort-ind { display: inline-block; width: 11px; font-size: 11px; color: var(--text3); opacity: .55; }
+.data-table th.th-sort:hover .sort-ind { opacity: .9; }
+.sort-ind.active { color: var(--accent); opacity: 1; font-weight: 700; }
 
 /* ═══════════ RESPONSIVE (มาตรฐาน 767/480 · ดู css/core/responsive.css) ═══════════ */
 @media (max-width: 767px) {

@@ -103,6 +103,7 @@ let participants = [];
 let submissions = [];
 let lineByCode = {}; // member_code -> { line_display_name, line_user_id }
 let _proofFile = null;
+let partSort = { key: null, dir: 1 }; // คอลัมน์ผู้เข้าร่วม: key ที่กำลัง sort + ทิศทาง (1=น้อย→มาก, -1=มาก→น้อย)
 
 // ── INIT ──────────────────────────────────────────────────
 async function initPage() {
@@ -299,6 +300,8 @@ const RW_SOC = [
   { k: "ig",       ic: "../../assets/icons/instagram.png", label: "Instagram" },
 ];
 const RW_RANK = ["🥇 รางวัลที่ 1", "🥈 รางวัลที่ 2", "🥉 รางวัลที่ 3"];
+// ไอคอนแบรนด์ LINE (inline SVG · สีเขียว LINE) สำหรับคอลัมน์ Line ID
+const LINE_ICON_SVG = `<svg viewBox="0 0 24 24" width="20" height="20" fill="#06c755" aria-hidden="true"><path d="M19.365 9.863c.349 0 .63.285.63.631 0 .345-.281.63-.63.63H17.61v1.125h1.755c.349 0 .63.283.63.63 0 .344-.281.629-.63.629h-2.386c-.345 0-.627-.285-.627-.629V8.108c0-.345.282-.63.63-.63h2.386c.346 0 .627.285.627.63 0 .349-.281.63-.63.63H17.61v1.125h1.755zm-3.855 3.016c0 .27-.174.51-.432.596-.064.021-.133.031-.199.031-.211 0-.391-.09-.51-.25l-2.443-3.317v2.94c0 .344-.279.629-.631.629-.346 0-.626-.285-.626-.629V8.108c0-.27.173-.51.43-.595.06-.023.136-.033.194-.033.195 0 .375.104.495.254l2.462 3.33V8.108c0-.345.282-.63.63-.63.345 0 .63.285.63.63v4.771zm-5.741 0c0 .344-.282.629-.631.629-.345 0-.627-.285-.627-.629V8.108c0-.345.282-.63.63-.63.346 0 .628.285.628.63v4.771zm-2.466.629H4.917c-.345 0-.63-.285-.63-.629V8.108c0-.345.285-.63.63-.63.348 0 .63.285.63.63v4.141h1.756c.348 0 .629.283.629.63 0 .344-.281.629-.629.629M24 10.314C24 4.943 18.615.572 12 .572S0 4.943 0 10.314c0 4.811 4.27 8.842 10.035 9.608.391.082.923.258 1.058.59.12.301.079.766.038 1.08l-.164 1.02c-.045.301-.24 1.186 1.049.645 1.291-.539 6.916-4.078 9.436-6.975C23.176 14.393 24 12.458 24 10.314"/></svg>`;
 const RW_METRIC_LABEL = { views: "ยอดวิว", likes: "ยอดไลค์", comments: "คอมเมนต์", shares: "แชร์", engagement: "การมีส่วนร่วม" };
 const RW_METRIC_KEYS = ["views", "likes", "comments", "shares"];
 function metricUnitLabel(m) {
@@ -623,6 +626,7 @@ window.renderParticipants = function () {
   );
   if (!rows.length) {
     body.innerHTML = `<tr><td colspan="9"><div class="empty-state"><div class="empty-icon">👥</div><div class="empty-text">ยังไม่มีผู้เข้าร่วม</div></div></td></tr>`;
+    updateSortIndicators();
     updatePartBulk();
     return;
   }
@@ -630,6 +634,30 @@ window.renderParticipants = function () {
   const metric = effectiveMetric();
   const thM = document.getElementById("thPartMetric");
   if (thM) thM.textContent = _metricKeysOf(metric).map((k) => RW_METRIC_LABEL[k]).join(" · ");
+  // เรียงลำดับตามคอลัมน์ที่เลือก (ถ้ามี)
+  if (partSort.key) {
+    const agg = partSort.key === "metric" ? _subAgg() : null;
+    const STATUS_ORD = { pending: 0, approved: 1, rejected: 2 };
+    const keyVal = (p) => {
+      switch (partSort.key) {
+        case "name": return (p.member_name || p.member_code || "").toLowerCase();
+        case "metric": return _metricScore(agg[p.participant_id], metric);
+        case "phone": {
+          const ph = (lineByCode[p.member_code] && lineByCode[p.member_code].phone) || p.phone || "";
+          return ph.replace(/\D/g, "");
+        }
+        case "status": return STATUS_ORD[p.status || "pending"] ?? 9;
+        default: return 0;
+      }
+    };
+    rows.sort((a, b) => {
+      const va = keyVal(a), vb = keyVal(b);
+      if (va < vb) return -1 * partSort.dir;
+      if (va > vb) return 1 * partSort.dir;
+      return 0;
+    });
+  }
+  updateSortIndicators();
   body.innerHTML = rows
     .map((p) => {
       // แสดงเฉพาะช่องทางที่มีลิงก์จริง (ไม่มีลิงก์ → ไม่แสดง)
@@ -657,11 +685,12 @@ window.renderParticipants = function () {
       // Line ID — เช็คจาก member_code (ตาราง members) · มี LINE → ลิงก์เปิดแชท LINE OA, ไม่มี → —
       const lm = lineByCode[p.member_code];
       // คลิก → มี chat id (กรอกมือ) เปิดตรงคน · ไม่มี → เปิด inbox OA + ก๊อปชื่อให้ค้นหา
+      // แสดงเป็นไอคอน LINE (logic การกดเหมือนเดิม · ชื่อโชว์บน tooltip)
       let lineCell;
       if (lm && lm.line_chat_id) {
-        lineCell = `<a href="${esc(lineChatDirectUrl(lm.line_chat_id))}" target="_blank" rel="noopener" class="cmp-line-name" title="เปิดแชท 1:1 ตรงคน" onclick="event.stopPropagation()">${esc(lm.line_display_name || "เปิดแชท")}</a>`;
+        lineCell = `<a href="${esc(lineChatDirectUrl(lm.line_chat_id))}" target="_blank" rel="noopener" class="cmp-line-ic" title="เปิดแชท 1:1 ตรงคน${lm.line_display_name ? " · " + esc(lm.line_display_name) : ""}" onclick="event.stopPropagation()">${LINE_ICON_SVG}</a>`;
       } else if (lm && lm.line_display_name) {
-        lineCell = `<a href="${esc(lineInboxUrl())}" target="_blank" rel="noopener" class="cmp-line-name" title="เปิดแชท A4S_Lyra + ก๊อปชื่อไปวางค้นหา" data-name="${esc(lm.line_display_name)}" onclick="event.stopPropagation(); event.preventDefault(); openLineChat(this.dataset.name)">${esc(lm.line_display_name)}</a>`;
+        lineCell = `<a href="${esc(lineInboxUrl())}" target="_blank" rel="noopener" class="cmp-line-ic" title="เปิดแชท A4S_Lyra + ก๊อปชื่อไปวางค้นหา · ${esc(lm.line_display_name)}" data-name="${esc(lm.line_display_name)}" onclick="event.stopPropagation(); event.preventDefault(); openLineChat(this.dataset.name)">${LINE_ICON_SVG}</a>`;
       } else {
         lineCell = `<span style="color:var(--text3)">—</span>`;
       }
@@ -688,6 +717,24 @@ window.renderParticipants = function () {
   if (window.AuthZ) AuthZ.applyDomPerms(body);
   updatePartBulk();
 };
+// กดหัวคอลัมน์ → sort · กดซ้ำคอลัมน์เดิม = สลับทิศทาง · กดคอลัมน์ใหม่ = เริ่ม น้อย→มาก
+window.sortParts = function (key) {
+  if (partSort.key === key) partSort.dir *= -1;
+  else partSort = { key, dir: 1 };
+  renderParticipants();
+};
+// อัปเดตลูกศร ▲/▼ บนหัวคอลัมน์ตามสถานะ sort ปัจจุบัน
+function updateSortIndicators() {
+  document.querySelectorAll(".sort-ind").forEach((el) => {
+    if (el.dataset.k === partSort.key) {
+      el.textContent = partSort.dir === 1 ? "▲" : "▼";
+      el.classList.add("active");
+    } else {
+      el.textContent = "";
+      el.classList.remove("active");
+    }
+  });
+}
 function statusPillPart(p) {
   const st = p.status || "pending";
   const opts = [
