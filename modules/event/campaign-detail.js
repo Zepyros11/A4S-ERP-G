@@ -718,15 +718,18 @@ window.renderParticipants = function () {
       } else {
         lineCell = `<span style="color:var(--text3)">—</span>`;
       }
+      // ธงว่าง/ไม่ว่าง — ใช้ซ่อนช่องที่ไม่มีข้อมูลบนการ์ดมือถือ (class cell-empty)
+      const phoneVal = (lm && lm.phone) || p.phone;
+      const mt = (b) => (b ? "" : " cell-empty");
       return `<tr>
         <td class="col-center part-cell-chk"><input type="checkbox" class="part-check" value="${p.participant_id}" onclick="window.updatePartBulk()" /></td>
         <td class="part-cell-name"><div style="font-weight:600">${esc(p.member_name || "—")}</div>
             <div style="font-size:11px;color:var(--text3);font-family:'IBM Plex Mono',monospace">${esc(p.member_code)}</div></td>
-        <td class="col-center" data-label="รูป">${imgCell}</td>
-        <td class="col-center" data-label="โซเชียล">${socials}</td>
-        <td class="col-center" data-label="ยอด" data-perm="campaign_metric_edit">${metricCell(p, metric)}</td>
-        <td class="col-center" data-label="Line ID">${lineCell}</td>
-        <td class="col-center" data-label="เบอร์โทร" style="white-space:nowrap;font-size:12.5px;color:var(--text2)">${(lm && lm.phone) || p.phone ? esc((lm && lm.phone) || p.phone) : `<span style="color:var(--text3)">—</span>`}</td>
+        <td class="col-center${mt(imgs.length)}" data-label="รูป">${imgCell}</td>
+        <td class="col-center${mt(!!socInner)}" data-label="โซเชียล">${socials}</td>
+        <td class="col-center${mt(activePlatforms(p).length)}" data-label="ยอด" data-perm="campaign_metric_edit">${metricCell(p, metric)}</td>
+        <td class="col-center${mt(!!(lm && (lm.line_chat_id || lm.line_display_name)))}" data-label="Line ID">${lineCell}</td>
+        <td class="col-center${mt(!!phoneVal)}" data-label="เบอร์โทร" style="white-space:nowrap;font-size:12.5px;color:var(--text2)">${phoneVal ? esc(phoneVal) : `<span style="color:var(--text3)">—</span>`}</td>
         <td class="col-center" data-label="สถานะ">${statusPillPart(p)}</td>
         <td class="col-center" data-label="หมายเหตุ"><input class="part-note-input" type="text" placeholder="—" value="${esc(p.note || "")}" data-perm="campaign_edit" onchange="window.setPartNote(${p.participant_id}, this.value)" /></td>
         <td class="col-center" data-label="จัดการ">

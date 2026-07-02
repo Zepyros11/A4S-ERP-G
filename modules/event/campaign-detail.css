@@ -385,52 +385,74 @@ select.pstat-rejected { background: #fee2e2; color: #dc2626; }
   /* TABS — แตะสบายขึ้น (ยังเลื่อนแนวนอนได้) */
   .cmp-tab { padding: 10px 14px; }
 
-  /* TABLE ผู้เข้าร่วม — 9 คอลัมน์เลื่อนแนวนอนไม่สวยบนมือถือ → แปลงเป็น "การ์ดต่อคน"
-     (label:value เรียงในกรอบ ไม่ต้องเลื่อนซ้ายขวา) */
+  /* TABLE ผู้เข้าร่วม — 10 คอลัมน์ → "การ์ดต่อคน" ออกแบบเฉพาะมือถือ
+     หัวการ์ด (ชื่อ+สถานะ+ปุ่ม) → ชิปข้อมูลห่อบรรทัด → หมายเหตุเต็มแถว
+     · ช่องที่ว่าง (.cell-empty) ซ่อน → การ์ดสั้นกระชับ ไม่มี "—" รก */
   #pane-participants .table-wrap { overflow-x: visible; }
   #pane-participants .data-table { min-width: 0; }
   #pane-participants thead { display: none; }
   #pane-participants tbody tr {
-    display: block; position: relative;
-    border: 1px solid var(--border); border-radius: 12px;
-    background: var(--surface); padding: 10px 14px; margin-bottom: 10px;
-    box-shadow: 0 1px 3px rgba(15, 23, 42, .05);
+    position: relative;
+    display: flex; flex-wrap: wrap; align-items: center; gap: 9px 14px;
+    border: 1px solid var(--border); border-radius: 14px;
+    background: var(--surface); padding: 12px 14px 11px; margin-bottom: 12px;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, .06);
   }
-  #pane-participants tbody td {
-    display: flex; align-items: center; justify-content: space-between;
-    gap: 12px; padding: 8px 0; border-bottom: 1px dashed var(--border);
-    text-align: right;
-  }
-  #pane-participants tbody td:last-child { border-bottom: 0; }
-  /* label หน้าค่า (จากชื่อคอลัมน์) */
-  #pane-participants tbody td[data-label]::before {
-    content: attr(data-label); flex-shrink: 0;
-    font-size: 11px; font-weight: 700; color: var(--text3); text-align: left;
-  }
-  /* ชื่อสมาชิก = หัวการ์ด (เต็มแถว ชิดซ้าย) · เว้นที่ให้ checkbox มุมขวา */
+
+  /* ซ่อนช่องว่าง — การ์ดโชว์เฉพาะข้อมูลที่มีจริง */
+  #pane-participants tbody td.cell-empty { display: none !important; }
+
+  /* หัวการ์ด: ชื่อ + รหัส (เต็มแถว · เว้นที่ checkbox มุมขวา) */
   #pane-participants tbody td.part-cell-name {
-    display: block; text-align: left; padding: 2px 70px 10px 0;
-    border-bottom: 1px solid var(--border); margin-bottom: 4px;
+    order: 0; flex: 1 1 100%;
+    text-align: left; padding: 0 60px 9px 0; margin: 0;
+    border-bottom: 1px solid var(--border);
   }
-  #pane-participants tbody td.part-cell-name > div:first-child { font-size: 15px; }
-  /* checkbox ลอยมุมขวาบนของการ์ด */
+  #pane-participants tbody td.part-cell-name > div:first-child { font-size: 15.5px; }
+
+  /* checkbox ลอยมุมขวาบน */
   #pane-participants tbody td.part-cell-chk {
-    position: absolute; top: 10px; right: 12px;
+    position: absolute; top: 12px; right: 12px;
     padding: 0; border: 0; width: auto;
   }
   #pane-participants tbody td.part-cell-chk input { width: 20px; height: 20px; }
-  /* โซเชียล/รูป = แถวชิดขวา · ยอด (หลายช่องทาง) = คอลัมน์ชิดขวา */
+
+  /* ชิปข้อมูล: [label] value เรียงแนวนอน ห่อบรรทัดได้ */
+  #pane-participants tbody td[data-label] {
+    display: inline-flex; align-items: center; gap: 6px;
+    width: auto; padding: 0; border: 0; text-align: left; font-size: 13px;
+  }
+  #pane-participants tbody td[data-label]::before {
+    content: attr(data-label); flex-shrink: 0;
+    font-size: 10.5px; font-weight: 700; color: var(--text3);
+  }
+  /* ลำดับชิป: สถานะ (เด่น เต็มแถว) → ยอด → รูป → โซเชียล → LINE → เบอร์ → หมายเหตุ → ปุ่ม */
+  #pane-participants td[data-label="สถานะ"]   { order: 1; flex-basis: 100%; }
+  #pane-participants td[data-label="สถานะ"]::before { display: none; } /* สีบอกสถานะชัดอยู่แล้ว */
+  #pane-participants td[data-label="ยอด"]      { order: 2; }
+  #pane-participants td[data-label="รูป"]      { order: 3; }
+  #pane-participants td[data-label="โซเชียล"]  { order: 4; }
+  #pane-participants td[data-label="Line ID"]  { order: 5; }
+  #pane-participants td[data-label="เบอร์โทร"] { order: 6; }
+  #pane-participants td[data-label="หมายเหตุ"] { order: 7; flex-basis: 100%; align-items: stretch; }
+  #pane-participants td[data-label="จัดการ"]   { order: 8; margin-left: auto; }
+
+  /* หมายเหตุ = ช่องกรอกเต็มแถว */
+  #pane-participants td[data-label="หมายเหตุ"] .part-note-input { flex: 1; max-width: none; min-height: 40px; }
+
+  /* media/social/metric = ชิดซ้าย เรียงแนวนอน */
   #pane-participants tbody td .cmp-social-links,
-  #pane-participants tbody td .cmp-img-cell { flex-direction: row; flex-wrap: wrap; justify-content: flex-end; }
-  #pane-participants tbody td .cmp-metric-list { align-items: flex-end; }
-  #pane-participants tbody td .cmp-metric-row { justify-content: flex-end; padding-right: 0; }
-  /* empty-state เต็มแถว ไม่มี label */
-  #pane-participants tbody td[colspan] { display: block; text-align: center; border: 0; }
-  /* กฎ #2 — touch target ≥44px: ปุ่ม/ช่องแตะได้ในการ์ดต้องนิ้วแตะสะดวก */
-  #pane-participants .cmp-row-actions { gap: 10px; }
+  #pane-participants tbody td .cmp-img-cell { flex-direction: row; flex-wrap: wrap; }
+  #pane-participants tbody td .cmp-metric-list { align-items: flex-start; }
+  #pane-participants tbody td .cmp-metric-row { padding-right: 0; }
+
+  /* empty-state (ไม่มีผู้เข้าร่วม) เต็มแถว */
+  #pane-participants tbody td[colspan] { display: block; flex-basis: 100%; text-align: center; border: 0; }
+
+  /* กฎ #2 — touch target ≥44px */
+  #pane-participants .cmp-row-actions { gap: 12px; }
   #pane-participants .cmp-row-actions .btn-icon { width: 44px; height: 44px; font-size: 16px; }
-  #pane-participants .pstat-select { min-height: 40px; padding: 8px 12px; font-size: 13px; }
-  #pane-participants .part-note-input { min-height: 40px; max-width: none; }
+  #pane-participants .pstat-select { min-height: 38px; padding: 7px 14px; font-size: 13px; }
   #pane-participants .cmp-line-ic svg { width: 26px; height: 26px; }
 
   /* TOOLBAR — ค้นหา + ปุ่มเพิ่ม เต็มความกว้าง เรียงลงมา */
