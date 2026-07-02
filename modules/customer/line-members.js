@@ -136,7 +136,7 @@ function render() {
   const tbody = document.getElementById('lmTableBody');
   if (!_filtered.length) {
     tbody.innerHTML = `
-      <tr><td colspan="7">
+      <tr class="r-card-plain"><td colspan="7">
         <div class="empty-state">
           <div class="empty-state-icon">💬</div>
           <div class="empty-state-title">ยังไม่มีสมาชิกที่เชื่อม LINE</div>
@@ -160,16 +160,16 @@ function render() {
       ? `<img src="${escAttr(r.line_picture_url)}" alt="">`
       : (r.line_display_name || name).charAt(0).toUpperCase();
     return `<tr>
-      <td><div class="lm-avatar">${avatar}</div></td>
-      <td><span class="lm-member-code">${esc(r.member_code || '')}</span></td>
-      <td><div class="lm-name">${name}</div></td>
-      <td><span class="lm-line-name">${esc(r.line_display_name || '—')}</span></td>
-      <td><span class="lm-phone">${esc(r.phone || '—')}</span></td>
-      <td>
+      <td class="r-card-corner"><div class="lm-avatar">${avatar}</div></td>
+      <td class="r-card-title"><span class="lm-member-code">${esc(r.member_code || '')}</span></td>
+      <td data-label="ชื่อสมาชิก"><div class="lm-name">${name}</div></td>
+      <td data-label="LINE Name"><span class="lm-line-name">${esc(r.line_display_name || '—')}</span></td>
+      <td data-label="เบอร์"><span class="lm-phone">${esc(r.phone || '—')}</span></td>
+      <td data-label="ผูกเมื่อ">
         <div class="lm-date">${formatDateThai(r.line_linked_at)}</div>
         ${r.last_active_at ? `<div class="lm-relative ${isStale(r.last_active_at) ? 'stale' : ''}">Active: ${relativeTime(r.last_active_at)}</div>` : ''}
       </td>
-      <td class="col-center">
+      <td class="col-center" data-label="จัดการ">
         <div style="display:flex;gap:6px;justify-content:center;">
           <button class="btn-icon lm-line-hover" onclick="copyUserId('${escAttr(r.line_user_id)}')" title="Copy LINE User ID">📋</button>
           ${canEdit ? `<button class="btn-icon danger" onclick="unlinkLine('${escAttr(r.member_code)}')" title="ลบข้อมูลเชื่อม LINE">🗑️</button>` : ''}

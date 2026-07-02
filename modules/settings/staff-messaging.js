@@ -117,7 +117,7 @@ function renderTable() {
   const tbody = document.getElementById("smTableBody");
   const rows = getFilteredStaff();
   if (!rows.length) {
-    tbody.innerHTML = `<tr><td colspan="7" class="sm-empty">
+    tbody.innerHTML = `<tr class="r-card-plain"><td colspan="7" class="sm-empty">
       <div class="sm-empty-icon">🔍</div>ไม่พบพนักงานตามเงื่อนไข</td></tr>`;
     updateTargetCount();
     return;
@@ -130,21 +130,21 @@ function renderTable() {
       ? window.DateFmt.formatDMY(u.line_linked_at)
       : "";
     return `<tr class="${isSel ? "selected" : ""} ${linked ? "" : "unlinked"}">
-      <td>
+      <td class="r-card-corner">
         <input type="checkbox" class="sm-check"
           ${!linked ? "disabled" : ""}
           ${isSel ? "checked" : ""}
           onchange="toggleRow(${u.user_id}, this.checked)">
       </td>
-      <td>${renderAvatar(u)}</td>
-      <td>
+      <td class="r-card-title">${renderAvatar(u)}</td>
+      <td class="r-card-title">
         <div class="sm-name">${u.full_name || "—"}</div>
         ${u.line_display_name ? `<div style="font-size:11px;color:var(--text3);">${u.line_display_name}</div>` : ""}
       </td>
-      <td><span class="sm-username">${u.username || ""}</span></td>
-      <td><span class="sm-role-badge">${u.role || "—"}</span></td>
-      <td>${u.line_display_name || "<span class=\"sm-line-none\">—</span>"}</td>
-      <td>${linked
+      <td data-label="Username"><span class="sm-username">${u.username || ""}</span></td>
+      <td data-label="Role"><span class="sm-role-badge">${u.role || "—"}</span></td>
+      <td data-label="LINE Name">${u.line_display_name || "<span class=\"sm-line-none\">—</span>"}</td>
+      <td data-label="สถานะ">${linked
         ? `<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
              <span class="sm-line-badge">💬 ${linkedDate || "ผูกแล้ว"}</span>
              <button class="sm-unlink-btn" title="ลบการเชื่อม LINE"

@@ -101,7 +101,7 @@ function renderTemplateTable() {
   const aliveIds = new Set(_allTemplates.map(t => t.id));
   _selectedIds.forEach(id => { if (!aliveIds.has(id)) _selectedIds.delete(id); });
   if (!_allTemplates.length) {
-    tb.innerHTML = `<tr><td colspan="9"><div class="empty-state" style="padding:30px">
+    tb.innerHTML = `<tr class="r-card-plain"><td colspan="9"><div class="empty-state" style="padding:30px">
       <div class="empty-icon">📋</div>
       <div class="empty-text">ยังไม่มีเทมเพลต — กด "เพิ่มเทมเพลต"</div>
     </div></td></tr>`;
@@ -121,40 +121,40 @@ function renderTemplateTable() {
       ? ' style="background:#fffbeb;box-shadow:inset 3px 0 0 #f59e0b"'
       : (checked ? ' style="background:#f0fdf4"' : '');
     return `<tr${rowStyle}>
-      <td class="col-center">
+      <td class="col-center r-card-corner">
         <input type="checkbox" class="tpl-row-check" data-id="${t.id}" ${checked}
           onclick="window.tplToggleRow(${t.id}, this.checked)"
           style="width:16px;height:16px;cursor:pointer;accent-color:#16a34a">
       </td>
-      <td class="col-center" style="font-family:'IBM Plex Mono',monospace;color:var(--text3)">${isDef ? '📌' : (i + 1)}</td>
-      <td>
+      <td class="col-center" data-label="#" style="font-family:'IBM Plex Mono',monospace;color:var(--text3)">${isDef ? '📌' : (i + 1)}</td>
+      <td class="r-card-title">
         <div style="font-weight:700;color:#0f172a">
           ${escapeHtml(t.name)}
           ${isDef ? '<span style="background:#fef3c7;color:#92400e;border:1px solid #fcd34d;padding:1px 8px;border-radius:999px;font-size:10.5px;font-weight:700;margin-left:6px;vertical-align:middle">⭐ Default (ทุกงาน)</span>' : ''}
         </div>
         <div style="font-size:11px;color:var(--text3);margin-top:2px;font-family:'IBM Plex Mono',monospace">id #${t.id}</div>
       </td>
-      <td style="color:var(--text2);font-size:12.5px">${escapeHtml(t.description || "—")}</td>
-      <td class="col-center">
+      <td style="color:var(--text2);font-size:12.5px" data-label="คำอธิบาย">${escapeHtml(t.description || "—")}</td>
+      <td class="col-center" data-label="ฟิลด์ที่ใช้">
         <span style="background:#e0e7ff;color:#3730a3;padding:2px 9px;border-radius:5px;font-weight:700;font-size:12px">${fieldsCount}/9</span>
       </td>
-      <td class="col-center">
+      <td class="col-center" data-label="checklist">
         ${qualsCount
           ? `<span style="background:#fef3c7;color:#92400e;padding:2px 9px;border-radius:5px;font-weight:700;font-size:12px">${qualsCount} ข้อ</span>`
           : `<span style="color:var(--text3);font-size:12px">—</span>`}
       </td>
-      <td class="col-center">
+      <td class="col-center" data-label="ใช้งาน (events)">
         ${usage > 0
           ? `<span style="background:#d1fae5;color:#065f46;padding:2px 9px;border-radius:5px;font-weight:700;font-size:12px" title="event ที่ใช้ template นี้">🔗 ${usage}</span>`
           : `<span style="color:var(--text3);font-size:12px">—</span>`}
       </td>
-      <td class="col-center">
+      <td class="col-center" data-label="สถานะ">
         <button onclick="window.toggleTemplateActive(${t.id}, ${!t.is_active})"
           style="background:${t.is_active ? '#dcfce7' : '#f1f5f9'};color:${t.is_active ? '#15803d' : '#64748b'};border:none;border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer;font-weight:700">
           ${t.is_active ? '● เปิด' : '○ ปิด'}
         </button>
       </td>
-      <td class="col-center">
+      <td class="col-center" data-label="จัดการ">
         <div class="action-group">
           <button class="btn-icon tpl-star${isDef ? ' active' : ''}" onclick="window.setDefaultTemplate(${t.id}, ${!isDef})"
             title="${isDef ? 'ยกเลิกการเป็น Default' : 'ตั้งเป็น Default — ใช้กับทุกงานที่ไม่ได้เลือกเทมเพลตเอง'}">⭐</button>

@@ -144,7 +144,7 @@ function renderTable() {
   const rows = allRules.filter((r) => !q || (r.rule_name || "").toLowerCase().includes(q));
 
   if (!rows.length) {
-    tb.innerHTML = `<tr><td colspan="6" class="empty-state"><div class="empty-icon">🔔</div><div class="empty-text">ยังไม่มีกฎ — กด "เพิ่มกฎ" ด้านบน</div></td></tr>`;
+    tb.innerHTML = `<tr class="r-card-plain"><td colspan="6" class="empty-state"><div class="empty-icon">🔔</div><div class="empty-text">ยังไม่มีกฎ — กด "เพิ่มกฎ" ด้านบน</div></td></tr>`;
     updateBulkBar();
     return;
   }
@@ -160,14 +160,14 @@ function renderTable() {
     const checked = selectedIds.has(r.id) ? "checked" : "";
     return `
       <tr>
-        <td class="col-center"><input type="checkbox" ${checked} onchange="window.toggleSelect(${r.id}, this.checked)"></td>
-        <td><strong>${escapeHtml(r.rule_name)}</strong></td>
-        <td><span class="br-trigger-chip">${escapeHtml(trig)}</span></td>
-        <td>${chips} <span style="font-size:12.5px;color:var(--text2)">${escapeHtml(targetText)}</span></td>
-        <td class="col-center">
+        <td class="col-center r-card-corner"><input type="checkbox" ${checked} onchange="window.toggleSelect(${r.id}, this.checked)"></td>
+        <td class="r-card-title"><strong>${escapeHtml(r.rule_name)}</strong></td>
+        <td data-label="Trigger"><span class="br-trigger-chip">${escapeHtml(trig)}</span></td>
+        <td data-label="ส่งหา">${chips} <span style="font-size:12.5px;color:var(--text2)">${escapeHtml(targetText)}</span></td>
+        <td class="col-center" data-label="เปิด">
           <label class="br-toggle"><input type="checkbox" ${r.is_active ? "checked" : ""} onchange="window.toggleActive(${r.id}, this.checked)"><span class="br-toggle-s"></span></label>
         </td>
-        <td class="col-center">
+        <td class="col-center" data-label="จัดการ">
           <button class="btn-icon" title="แก้ไข" onclick="window.openRuleModal(${r.id})">✏️</button>
           <button class="btn-icon danger" title="ลบ" onclick="window.deleteRule(${r.id})">🗑️</button>
         </td>

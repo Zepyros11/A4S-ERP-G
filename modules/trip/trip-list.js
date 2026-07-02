@@ -126,7 +126,7 @@ function renderTable(rows) {
 
   if (!sorted.length) {
     tbody.innerHTML = `
-      <tr><td colspan="6">
+      <tr class="r-card-plain"><td colspan="6">
         <div class="empty-state">
           <div class="empty-icon">✈️</div>
           <div class="empty-text">ยังไม่มีทริป — กด "＋ สร้างทริป" เพื่อเริ่ม</div>
@@ -145,21 +145,21 @@ function renderTable(rows) {
         : `<span style="color:var(--text3)">—</span>`;
 
       return `<tr>
-        <td style="text-align:center;color:var(--text3);font-size:12px">${i + 1}</td>
-        <td>
+        <td data-label="#" style="text-align:center;color:var(--text3);font-size:12px">${i + 1}</td>
+        <td class="r-card-title">
           <div class="trip-name-cell">${escapeHtml(t.trip_name || "—")}</div>
           ${t.description ? `<div style="font-size:12px;color:var(--text3);margin-top:2px">${escapeHtml(t.description)}</div>` : ""}
         </td>
-        <td class="col-center"><div class="trip-date-range" style="white-space:nowrap">${dateRange}</div></td>
-        <td class="col-center">
+        <td class="col-center" data-label="ช่วงวันที่"><div class="trip-date-range" style="white-space:nowrap">${dateRange}</div></td>
+        <td class="col-center" data-label="ลูกค้า">
           <span class="trip-seat-badge${seatCount > 0 ? " has" : ""}">${seatCount} คน</span>
         </td>
-        <td class="col-center">
+        <td class="col-center" data-label="สถานะ">
           <span class="trip-status-pill trip-status-${t.status || "ACTIVE"}">
             ${statusLabel(t.status)}
           </span>
         </td>
-        <td class="col-center" onclick="event.stopPropagation()">
+        <td class="col-center" data-label="จัดการ" onclick="event.stopPropagation()">
           <div class="action-group">
             <!-- กลุ่ม 1: ข้อมูลปฏิบัติการของทริป -->
             <button class="btn-icon" title="Check Seat (เปิดแท็บใหม่)"

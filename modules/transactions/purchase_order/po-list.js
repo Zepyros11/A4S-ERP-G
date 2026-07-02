@@ -183,7 +183,7 @@ function renderTable(rows) {
 
   if (!rows.length) {
     tbody.innerHTML = `
-      <tr><td colspan="9">
+      <tr class="r-card-plain"><td colspan="9">
         <div class="empty-state">
           <div class="empty-state-icon">🧾</div>
           <div class="empty-state-title">ไม่พบรายการใบสั่งซื้อ</div>
@@ -203,30 +203,30 @@ function renderTable(rows) {
 
     return `
       <tr data-po-id="${po.po_id}">
-        <td>
+        <td class="r-card-title">
           <div class="po-number">
             <div class="po-number-main">${escapeHtml(po.po_number || "—")}</div>
             <div class="po-number-sub">สร้าง ${escapeHtml(formatDate(po.created_at || po.order_date))}</div>
           </div>
         </td>
-        <td>
+        <td data-label="Supplier">
           <div>
             <div class="po-supplier-name">${supName}</div>
             <div class="po-supplier-meta">ผู้สร้าง: ${creator}</div>
           </div>
         </td>
-        <td class="col-center"><span class="po-chip">${whName}</span></td>
-        <td class="col-center">${escapeHtml(formatDate(po.order_date))}</td>
-        <td class="col-center">${escapeHtml(formatDate(po.expected_date))}</td>
-        <td class="col-center">
+        <td class="col-center" data-label="คลัง"><span class="po-chip">${whName}</span></td>
+        <td class="col-center" data-label="วันที่สั่ง">${escapeHtml(formatDate(po.order_date))}</td>
+        <td class="col-center" data-label="กำหนดรับ">${escapeHtml(formatDate(po.expected_date))}</td>
+        <td class="col-center" data-label="รายการ">
           <div class="po-items-meta">
             <span class="po-items-count">${sum.lineCount}</span>
             <span class="po-items-qty">${sum.qtyTotal.toLocaleString("th-TH")} ชิ้น</span>
           </div>
         </td>
-        <td class="col-center"><span class="po-amount">${formatCurrency(po.total_amount)}</span></td>
-        <td class="col-center"><span class="status-badge ${status.cls}">${escapeHtml(status.label)}</span></td>
-        <td class="col-center">
+        <td class="col-center" data-label="ยอดรวม"><span class="po-amount">${formatCurrency(po.total_amount)}</span></td>
+        <td class="col-center" data-label="สถานะ"><span class="status-badge ${status.cls}">${escapeHtml(status.label)}</span></td>
+        <td class="col-center" data-label="จัดการ">
           <div class="po-row-actions">
             <button class="po-row-action print" title="พิมพ์" onclick="window.printPO(${po.po_id})">🖨️</button>
             ${(st === "DRAFT" && canApprove)
@@ -247,7 +247,7 @@ function renderNoConfigState() {
   state.pos = [];
   updateCards();
   document.getElementById("poTableBody").innerHTML = `
-    <tr><td colspan="9">
+    <tr class="r-card-plain"><td colspan="9">
       <div class="empty-state">
         <div class="empty-state-icon">🔌</div>
         <div class="empty-state-title">ยังไม่ได้ตั้งค่า Supabase</div>

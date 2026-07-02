@@ -119,8 +119,16 @@
 @media(max-width:767px){
   .page{padding:14px;}
   .sm-stats{grid-template-columns:1fr 1fr;}
-  .sm-table th:nth-child(5),.sm-table td:nth-child(5){display:none;}
   .sm-compose{position:static;}/* เลิก sticky เมื่อ stack เป็นคอลัมน์เดียว */
+
+  /* ตาราง → การ์ด (.r-cards) — คืน padding/border ของ card ที่ .sm-table td เผลอ override */
+  .sm-table.r-cards td{padding:8px 0;border-bottom:1px dashed var(--border);}
+  .sm-table.r-cards td:last-child{border-bottom:none;padding-bottom:0;}
+  .sm-table.r-cards tr:hover td,.sm-table.r-cards tr.selected td{background:transparent;}
+  .sm-table.r-cards tr.unlinked td{opacity:1;}/* การ์ดไม่หรี่ทั้งใบ (สถานะบอกอยู่แล้ว) */
+  .sm-table.r-cards td.r-card-title{padding:2px 30px 2px 0;border-bottom:none;margin-bottom:0;}
+  .sm-table.r-cards td.r-card-title:nth-child(3){border-bottom:1px solid var(--border);padding-bottom:10px;margin-bottom:2px;}
+  .sm-table.r-cards td.r-card-corner{padding:0;border:none;}
 }
 </style>
 </head>
@@ -177,7 +185,7 @@
 
           <!-- Table -->
           <div class="sm-table-wrap">
-            <table class="sm-table">
+            <table class="sm-table r-cards">
               <thead>
                 <tr>
                   <th style="width:30px"><input type="checkbox" id="smCheckAll" class="sm-check" onchange="toggleAll(this.checked)"></th>
@@ -190,7 +198,7 @@
                 </tr>
               </thead>
               <tbody id="smTableBody">
-                <tr><td colspan="7" class="sm-empty"><div class="sm-empty-icon">⏳</div>กำลังโหลด...</td></tr>
+                <tr class="r-card-plain"><td colspan="7" class="sm-empty"><div class="sm-empty-icon">⏳</div>กำลังโหลด...</td></tr>
               </tbody>
             </table>
           </div>

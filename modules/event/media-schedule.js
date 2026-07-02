@@ -164,7 +164,7 @@ function renderFbTable() {
   document.getElementById("fbCount").textContent = `${list.length} โพสต์`;
 
   if (!list.length) {
-    tbody.innerHTML = `<tr><td colspan="6">
+    tbody.innerHTML = `<tr class="r-card-plain"><td colspan="6">
       <div class="empty-state">
         <div class="empty-icon">📅</div>
         <div class="empty-text">ยังไม่มีโพสต์</div>
@@ -178,12 +178,12 @@ function renderFbTable() {
       const mediaCount = (p.media_urls || []).length;
       const canEdit = p.status === "SCHEDULED";
       return `<tr>
-        <td><div class="fb-caption-cell">${escapeHtml(p.caption || "")}</div></td>
-        <td class="col-center" style="font-size:12px">${page ? escapeHtml(page.page_name) : "—"}</td>
-        <td class="col-center" style="font-size:12px">${mediaCount > 0 ? `📎 ${mediaCount}` : "—"}</td>
-        <td class="col-center" style="font-size:12px">${formatDateTime(p.scheduled_at)}</td>
-        <td class="col-center"><span class="fb-status-badge fbstat-${p.status}">${fbStatusLabel(p.status)}</span></td>
-        <td class="col-center">
+        <td class="r-card-title"><div class="fb-caption-cell">${escapeHtml(p.caption || "")}</div></td>
+        <td class="col-center" data-label="เพจ" style="font-size:12px">${page ? escapeHtml(page.page_name) : "—"}</td>
+        <td class="col-center" data-label="รูป/วิดีโอ" style="font-size:12px">${mediaCount > 0 ? `📎 ${mediaCount}` : "—"}</td>
+        <td class="col-center" data-label="เวลาเผยแพร่" style="font-size:12px">${formatDateTime(p.scheduled_at)}</td>
+        <td class="col-center" data-label="สถานะ"><span class="fb-status-badge fbstat-${p.status}">${fbStatusLabel(p.status)}</span></td>
+        <td class="col-center" data-label="จัดการ">
           <div class="action-group">
             ${
               p.fb_post_url || p.fb_published_id

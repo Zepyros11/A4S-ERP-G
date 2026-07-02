@@ -66,7 +66,7 @@ async function init() {
   if (!state.tripId) {
     showToast("ต้องส่ง trip_id มาในลิงก์", "error");
     document.getElementById("tableBody").innerHTML = `
-      <tr><td colspan="8">
+      <tr class="r-card-plain"><td colspan="8">
         <div class="empty-state">
           <div class="empty-icon">⚠️</div>
           <div class="empty-text">ไม่มี trip_id — กลับ <a href="./trip-list.html">รายการทริป</a></div>
@@ -214,7 +214,7 @@ function renderTable(rows) {
 
   if (!rows.length) {
     tbody.innerHTML = `
-      <tr><td colspan="8">
+      <tr class="r-card-plain"><td colspan="8">
         <div class="empty-state">
           <div class="empty-icon">🧑‍🤝‍🧑</div>
           <div class="empty-text">ยังไม่มีทีมงาน — กด "＋ เพิ่มสมาชิก" เพื่อเริ่ม</div>
@@ -247,21 +247,21 @@ function memberRowHtml(m, idx) {
   if (m.note)    compNote.push(`<div style="color:var(--text3);font-size:11.5px">${escapeHtml(m.note)}</div>`);
 
   return `<tr>
-    <td style="text-align:center">
+    <td class="r-card-corner" style="text-align:center">
       <input type="checkbox" class="row-chk" data-id="${m.guide_id}"
         ${selected ? "checked" : ""}
         onclick="window.toggleRowSelect(${m.guide_id}, this.checked)" />
     </td>
-    <td style="text-align:center;color:var(--text3);font-size:12px">${idx}</td>
-    <td>
+    <td data-label="#" style="text-align:center;color:var(--text3);font-size:12px">${idx}</td>
+    <td class="r-card-title">
       <div class="tt-name-cell">${escapeHtml(m.full_name || "—")}</div>
       ${m.role_title ? `<div class="tt-name-sub">${escapeHtml(m.role_title)}</div>` : ""}
     </td>
-    <td class="col-center">${typeLabel(m.member_type)}</td>
-    <td>${m.languages ? `<span class="tt-langs">${escapeHtml(m.languages)}</span>` : `<span style="color:var(--text3)">—</span>`}</td>
-    <td>${contactCell(m)}</td>
-    <td>${compNote.length ? compNote.join("") : `<span style="color:var(--text3)">—</span>`}</td>
-    <td class="col-center" onclick="event.stopPropagation()">
+    <td class="col-center" data-label="ประเภท">${typeLabel(m.member_type)}</td>
+    <td data-label="ภาษา">${m.languages ? `<span class="tt-langs">${escapeHtml(m.languages)}</span>` : `<span style="color:var(--text3)">—</span>`}</td>
+    <td data-label="ติดต่อ">${contactCell(m)}</td>
+    <td data-label="บริษัท / หมายเหตุ">${compNote.length ? compNote.join("") : `<span style="color:var(--text3)">—</span>`}</td>
+    <td class="col-center" data-label="จัดการ" onclick="event.stopPropagation()">
       <div class="action-group">
         <button class="btn-icon" title="แก้ไข"
           data-perm="trip_team_edit"

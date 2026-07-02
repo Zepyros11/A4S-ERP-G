@@ -173,7 +173,7 @@ function renderTable(list) {
   document.getElementById("tableCount").textContent = `${list.length} รายการ`;
   const tbody = document.getElementById("tableBody");
   if (list.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="7"><div class="empty-state"><div class="empty-icon">🔍</div><div>ไม่พบผู้ใช้งาน</div></div></td></tr>`;
+    tbody.innerHTML = `<tr class="r-card-plain"><td colspan="7"><div class="empty-state"><div class="empty-icon">🔍</div><div>ไม่พบผู้ใช้งาน</div></div></td></tr>`;
     return;
   }
   const html = list
@@ -200,16 +200,16 @@ function renderTable(list) {
         ? ` <span class="role-badge role-VIEWER" title="${extraTitle}" style="font-size:10px">+${extraCount}</span>`
         : "";
       return `<tr>
-      <td><div style="display:flex;align-items:center;gap:10px">
+      <td class="r-card-title"><div style="display:flex;align-items:center;gap:10px">
         <div class="avatar" style="background:${color};width:32px;height:32px;font-size:10px;letter-spacing:0">${initials}</div>
         <div style="font-weight:600">${u.full_name || "—"}</div>
       </div></td>
-      <td><span style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--text2)">${u.username || "—"}</span></td>
-      <td><span class="role-badge ${primary.color}">${AppPermissions.iconToEmoji(primary.icon)} ${primary.label}</span>${extraBadge}</td>
-      <td><span style="font-size:12.5px;color:var(--text2)">${getDeptName(u.department)}</span></td>
-      <td><span style="font-size:12.5px;color:var(--text2)">${getCountryName(u.country)}</span></td>
-      <td><span class="status-badge ${isActive ? "status-on" : "status-off"}">${isActive ? "● ใช้งาน" : "● ปิด"}</span></td>
-      <td class="col-center" onclick="event.stopPropagation()">
+      <td data-label="Username"><span style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--text2)">${u.username || "—"}</span></td>
+      <td data-label="Role"><span class="role-badge ${primary.color}">${AppPermissions.iconToEmoji(primary.icon)} ${primary.label}</span>${extraBadge}</td>
+      <td data-label="แผนก"><span style="font-size:12.5px;color:var(--text2)">${getDeptName(u.department)}</span></td>
+      <td data-label="ประเทศ"><span style="font-size:12.5px;color:var(--text2)">${getCountryName(u.country)}</span></td>
+      <td data-label="สถานะ"><span class="status-badge ${isActive ? "status-on" : "status-off"}">${isActive ? "● ใช้งาน" : "● ปิด"}</span></td>
+      <td class="col-center" data-label="จัดการ" onclick="event.stopPropagation()">
         <div class="action-group">
           <button class="btn-icon" data-perm="users_edit" onclick="editUser(${u.user_id})">✏️</button>
           <button class="btn-icon danger" data-perm="users_delete" onclick="deleteUser(${u.user_id})">🗑</button>

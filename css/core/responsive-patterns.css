@@ -136,6 +136,73 @@ img, video, canvas { height: auto; }
 }
 
 
+/* ═══════════ TABLE → CARDS — ตารางกลายเป็นการ์ดบนมือถือ ═══════════ */
+/* ใช้เมื่อ: list ที่อ่านทีละแถว (row = 1 entity มีปุ่มจัดการ) เช่น campaign/สมาชิก/event
+   *อย่าใช้กับตารางตัวเลข/บัญชี/spreadsheet ที่ต้องเทียบข้ามคอลัมน์ → ใช้ .r-table-scroll แทน*
+
+   โครง:
+   <table class="data-table r-cards">
+     <thead>…</thead>                              ← ซ่อนอัตโนมัติบนมือถือ
+     <tbody>
+       <tr>
+         <td class="r-card-corner"><input type=checkbox></td>  ← มุมขวาบนการ์ด (optional)
+         <td class="r-card-title">ชื่อ / หัวการ์ด</td>          ← หัวการ์ด เต็มแถว ชิดซ้าย (optional)
+         <td data-label="ช่วงเวลา">…</td>                       ← บรรทัด "label : value"
+         …
+       </tr>
+       <tr class="r-card-plain"><td colspan="N">…empty state…</td></tr>  ← แถวว่าง ไม่ทำเป็นการ์ด
+     </tbody>
+   </table>
+   กฎ: cell ที่อยากได้ label ต้องใส่ data-label · หัวการ์ด/มุม/แถวว่าง ใช้ modifier ข้างบน */
+
+@media (max-width: 767px) {
+  .r-cards { border: none; }
+  .r-cards thead { display: none; }
+  .r-cards tbody, .r-cards tr, .r-cards td { display: block; width: 100%; }
+
+  .r-cards tbody tr {
+    position: relative;
+    border: 1px solid var(--border); border-radius: 12px;
+    background: var(--surface, #fff);
+    box-shadow: var(--shadow-xs, 0 1px 2px rgba(16, 24, 40, .06));
+    padding: 10px 12px; margin-bottom: 12px;
+  }
+  .r-cards td {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    text-align: right; padding: 8px 0; min-height: 0;
+    border: none; border-bottom: 1px dashed var(--border);
+  }
+  .r-cards td:last-child { border-bottom: none; padding-bottom: 0; }
+  .r-cards td[data-label]::before {
+    content: attr(data-label);
+    font-weight: 700; color: var(--text2); font-size: 12.5px;
+    text-align: left; flex-shrink: 0; white-space: nowrap;
+  }
+
+  /* หัวการ์ด (ชื่อ) — เต็มแถว ชิดซ้าย ไม่มี label */
+  .r-cards td.r-card-title {
+    justify-content: flex-start; text-align: left;
+    border-bottom: 1px solid var(--border);
+    padding: 2px 30px 10px 0; margin-bottom: 2px;
+  }
+  .r-cards td.r-card-title::before { display: none; }
+
+  /* มุมขวาบน (เช่น checkbox เลือกแถว) */
+  .r-cards td.r-card-corner {
+    position: absolute; top: 8px; right: 10px;
+    width: auto; padding: 0; border: none;
+  }
+  .r-cards td.r-card-corner::before { display: none; }
+
+  /* แถวว่าง (empty-state) — คงสภาพปกติ ไม่ครอบการ์ด */
+  .r-cards tbody tr.r-card-plain {
+    border: none; box-shadow: none; padding: 0; margin: 0; background: none;
+  }
+  .r-cards tbody tr.r-card-plain td { display: block; text-align: center; border: none; }
+  .r-cards tbody tr.r-card-plain td::before { display: none; }
+}
+
+
 /* ═══════════ VISIBILITY UTILS — โชว์/ซ่อนตามจอ ═══════════ */
 
 @media (max-width: 767px) {

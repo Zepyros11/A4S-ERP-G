@@ -41,6 +41,13 @@
         color:#cbd5e1;font-weight:400;font-size:14px;
         padding:0 2px;user-select:none;flex-shrink:0;
       }
+
+      /* mobile card: ให้กลุ่มปุ่มจัดการชิดขวา + ห่อบรรทัดได้ ไม่ล้นการ์ด */
+      @media (max-width:767px){
+        .r-cards td[data-label="จัดการ"] .action-group{
+          justify-content:flex-end;flex-wrap:wrap;
+        }
+      }
     </style>
   </head>
   <body>
@@ -136,7 +143,7 @@
             </div>
 
             <div class="table-wrap">
-              <table class="data-table">
+              <table class="data-table r-cards">
                 <thead>
                   <tr>
                     <th style="width:48px;text-align:center">#</th>
@@ -152,7 +159,7 @@
                   </tr>
                 </thead>
                 <tbody id="tableBody">
-                  <tr>
+                  <tr class="r-card-plain">
                     <td colspan="6">
                       <div class="empty-state">
                         <div class="empty-icon">✈️</div>

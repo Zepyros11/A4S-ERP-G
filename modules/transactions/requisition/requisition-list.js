@@ -300,7 +300,7 @@ function renderTable(rows) {
 
   if (!rows.length) {
     tbody.innerHTML = `
-      <tr>
+      <tr class="r-card-plain">
         <td colspan="8">
           <div class="empty-state">
             <div class="empty-state-icon">📋</div>
@@ -322,30 +322,30 @@ function renderTable(rows) {
 
       return `
         <tr data-req-id="${req.req_id}">
-          <td>
+          <td class="r-card-title">
             <div class="req-number">
               <div class="req-number-main">${escapeHtml(req.req_number || "—")}</div>
               <div class="req-number-sub">สร้าง ${escapeHtml(formatDate(req.created_at || req.req_date))}</div>
             </div>
           </td>
-          <td>
+          <td data-label="ผู้ขอเบิก">
             <div class="req-requester">
               <div class="req-requester-name">${userName}</div>
             </div>
           </td>
-          <td class="col-center"><span class="req-chip">${deptName}</span></td>
-          <td class="col-center">${purposeName}</td>
-          <td class="col-center">${escapeHtml(formatDate(req.req_date))}</td>
-          <td class="col-center">
+          <td class="col-center" data-label="แผนก"><span class="req-chip">${deptName}</span></td>
+          <td class="col-center" data-label="วัตถุประสงค์">${purposeName}</td>
+          <td class="col-center" data-label="วันที่เบิก">${escapeHtml(formatDate(req.req_date))}</td>
+          <td class="col-center" data-label="จำนวนรายการ">
             <div class="req-items-meta">
               <span class="req-items-count">${summary.lineCount}</span>
               <span class="req-items-qty">${summary.qtyTotal.toLocaleString("th-TH")} ชิ้น</span>
             </div>
           </td>
-          <td class="col-center">
+          <td class="col-center" data-label="สถานะ">
             <span class="status-badge ${status.cls}">${escapeHtml(status.label)}</span>
           </td>
-          <td class="col-center">
+          <td class="col-center" data-label="จัดการ">
             <div class="req-row-actions">
               <button class="req-row-action print" title="พิมพ์" onclick="window.printReq(${req.req_id})">🖨️</button>
               ${(String(req.status || "").toUpperCase() === "DRAFT" && canApprove)
@@ -368,7 +368,7 @@ function renderNoConfigState() {
   state.reqs = [];
   updateCards();
   document.getElementById("reqTableBody").innerHTML = `
-    <tr>
+    <tr class="r-card-plain">
       <td colspan="8">
         <div class="empty-state">
           <div class="empty-state-icon">🔌</div>

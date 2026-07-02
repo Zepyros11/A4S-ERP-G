@@ -90,7 +90,7 @@
                 <div class="table-count" id="rbkqCount">กำลังโหลด...</div>
               </div>
               <div class="table-wrap">
-                <table class="data-table" style="table-layout:fixed;width:100%">
+                <table class="data-table r-cards" style="table-layout:fixed;width:100%">
                   <thead>
                     <tr>
                       <th style="width:40px;text-align:center">
@@ -109,7 +109,7 @@
                     </tr>
                   </thead>
                   <tbody id="rbkqTableBody">
-                    <tr><td colspan="11"><div class="empty-state"><div class="empty-icon">🚪</div><div class="empty-text">กำลังโหลด...</div></div></td></tr>
+                    <tr class="r-card-plain"><td colspan="11"><div class="empty-state"><div class="empty-icon">🚪</div><div class="empty-text">กำลังโหลด...</div></div></td></tr>
                   </tbody>
                 </table>
               </div>
@@ -720,7 +720,7 @@
       const counter = document.getElementById("rbkqCount");
       if (!tbody) return;
       if (!url || !key) {
-        if (!silent) tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;color:#94a3b8;font-size:12px;">ไม่พบข้อมูล Supabase</td></tr>`;
+        if (!silent) tbody.innerHTML = `<tr class="r-card-plain"><td colspan="8" style="text-align:center;color:#94a3b8;font-size:12px;">ไม่พบข้อมูล Supabase</td></tr>`;
         return;
       }
       try {
@@ -746,7 +746,7 @@
 
         filterRoomBookings();   // re-apply current search/filter
       } catch (e) {
-        if (!silent) tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;color:#ef4444;font-size:12px;">โหลดข้อมูลไม่ได้: ${e.message}</td></tr>`;
+        if (!silent) tbody.innerHTML = `<tr class="r-card-plain"><td colspan="8" style="text-align:center;color:#ef4444;font-size:12px;">โหลดข้อมูลไม่ได้: ${e.message}</td></tr>`;
       }
     }
 
@@ -764,7 +764,7 @@
       }
 
       if (rows.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="11"><div class="empty-state"><div class="empty-icon">🚪</div><div class="empty-text">ยังไม่มีรายการจองห้อง</div></div></td></tr>`;
+        tbody.innerHTML = `<tr class="r-card-plain"><td colspan="11"><div class="empty-state"><div class="empty-icon">🚪</div><div class="empty-text">ยังไม่มีรายการจองห้อง</div></div></td></tr>`;
         return;
       }
 
@@ -783,22 +783,22 @@
           : `<span style="color:#cbd5e1">—</span>`;
         return `
           <tr data-rid="${r.request_id}" style="cursor:pointer">
-            <td style="text-align:center" onclick="event.stopPropagation()">
+            <td class="r-card-corner" style="text-align:center" onclick="event.stopPropagation()">
               <input type="checkbox" class="bkq-chk" value="${r.request_id}" onchange="syncBkqDeleteBtn()" />
             </td>
-            <td>${r.place_name}${r.room_name ? ` — ${r.room_name}` : ""}${unreadBadge}</td>
-            <td class="col-center">${booker}</td>
-            <td class="col-center">${noteHtml}</td>
-            <td class="col-center">${cs}</td>
-            <td class="col-center">${window.DateFmt?.formatDMY(r.booking_date) || r.booking_date || ""}</td>
-            <td class="col-center">${window.DateFmt?.formatDMY(r.created_at) || (r.created_at||"").slice(0,10) || ""}</td>
-            <td class="col-center">${timeStr}</td>
-            <td class="col-center"><span class="room-bkq-badge ${s.cls}">${s.label}</span></td>
-            <td class="col-center" onclick="event.stopPropagation()">
+            <td class="r-card-title">${r.place_name}${r.room_name ? ` — ${r.room_name}` : ""}${unreadBadge}</td>
+            <td class="col-center" data-label="ผู้จอง">${booker}</td>
+            <td class="col-center" data-label="หมายเหตุ">${noteHtml}</td>
+            <td class="col-center" data-label="CS">${cs}</td>
+            <td class="col-center" data-label="วันที่ใช้ห้อง">${window.DateFmt?.formatDMY(r.booking_date) || r.booking_date || ""}</td>
+            <td class="col-center" data-label="วันที่จอง">${window.DateFmt?.formatDMY(r.created_at) || (r.created_at||"").slice(0,10) || ""}</td>
+            <td class="col-center" data-label="เวลา">${timeStr}</td>
+            <td class="col-center" data-label="สถานะ"><span class="room-bkq-badge ${s.cls}">${s.label}</span></td>
+            <td class="col-center" data-label="อนุมัติ" onclick="event.stopPropagation()">
               <button class="btn-icon" title="อนุมัติ" onclick="updateRoomBooking(${r.request_id},'APPROVED',this)">✅</button>
               <button class="btn-icon" title="ยกเลิก"  onclick="updateRoomBooking(${r.request_id},'CANCELLED',this)">❌</button>
             </td>
-            <td class="col-center" onclick="event.stopPropagation()">
+            <td class="col-center" data-label="จัดการ" onclick="event.stopPropagation()">
               <button class="btn-icon" title="ผู้เข้าร่วม" onclick="window.open('./booking-attendees.html?request=${r.request_id}','_blank')" style="color:#6366f1">👥</button>
               <button class="btn-icon" title="แก้ไข" onclick="openBkqDetailById(${r.request_id})" style="color:#f97316">✏️</button>
               <button class="btn-icon" title="ลบ"    onclick="deleteBkqRow(${r.request_id},this)"  style="color:#ef4444">🗑</button>

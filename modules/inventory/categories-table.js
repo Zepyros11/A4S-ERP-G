@@ -19,11 +19,11 @@ export function renderCategoriesTable(categories, products) {
     html += `
       <tr>
 
-        <td style="text-align:center">
+        <td class="r-card-corner" style="text-align:center">
           <input type="checkbox" class="row-check" value="${c.category_id}" onchange="window.updateDeleteButton()">
         </td>
 
-        <td>
+        <td class="r-card-title">
           <div style="display:flex;align-items:center;gap:12px">
             <div class="cat-color" style="background:${bg};color:${color};border:1.5px solid ${color}">
               ${c.icon || "📦"}
@@ -34,11 +34,11 @@ export function renderCategoriesTable(categories, products) {
           </div>
         </td>
 
-        <td class="col-center">
+        <td class="col-center" data-label="จำนวนสินค้า">
           <strong>${count}</strong>
         </td>
 
-        <td class="col-center">
+        <td class="col-center" data-label="จัดการ">
           <button class="btn-icon" data-perm="inv_cat_edit" onclick="editCategory(${c.category_id})">✏️</button>
           <button class="btn-icon danger" data-perm="inv_cat_delete" onclick="deleteCategory(${c.category_id},'${c.category_name}')">🗑️</button>
         </td>
@@ -49,7 +49,7 @@ export function renderCategoriesTable(categories, products) {
 
   if (!html) {
     html = `
-      <tr>
+      <tr class="r-card-plain">
         <td colspan="4" style="text-align:center;padding:40px;color:var(--text3)">
           ไม่พบข้อมูล
         </td>

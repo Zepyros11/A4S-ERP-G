@@ -77,21 +77,21 @@ function renderTable(list) {
   document.getElementById('tableCount').textContent = `${list.length} รายการ`;
   const tbody = document.getElementById('tableBody');
   if (list.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state"><div class="empty-icon">🔍</div><div>ไม่พบ Supplier</div></div></td></tr>`;
+    tbody.innerHTML = `<tr class="r-card-plain"><td colspan="6"><div class="empty-state"><div class="empty-icon">🔍</div><div>ไม่พบ Supplier</div></div></td></tr>`;
     return;
   }
   tbody.innerHTML = list.map(s => {
     const poCount = allPOs.filter(p => p.supplier_id === s.supplier_id).length;
     return `<tr class="${s.supplier_id === selectedId ? 'selected' : ''}" onclick="selectSupplier(${s.supplier_id})">
-      <td><span class="sup-code">${s.supplier_code || '—'}</span></td>
-      <td>
+      <td data-label="รหัส"><span class="sup-code">${s.supplier_code || '—'}</span></td>
+      <td class="r-card-title">
         <div class="sup-name">${s.supplier_name}</div>
         ${poCount > 0 ? `<div class="sup-contact">📦 ${poCount} PO</div>` : ''}
       </td>
-      <td><span style="font-size:13px">${s.contact_person || '—'}</span></td>
-      <td><span class="sup-code">${s.phone || '—'}</span></td>
-      <td><span style="font-family:'IBM Plex Mono',monospace;font-size:13px">${s.credit_days ? s.credit_days + ' วัน' : '—'}</span></td>
-      <td><span class="status-badge ${s.is_active ? 'status-active' : 'status-inactive'}">${s.is_active ? '● ใช้งาน' : '● ปิด'}</span></td>
+      <td data-label="ผู้ติดต่อ"><span style="font-size:13px">${s.contact_person || '—'}</span></td>
+      <td data-label="เบอร์โทร"><span class="sup-code">${s.phone || '—'}</span></td>
+      <td data-label="เครดิต"><span style="font-family:'IBM Plex Mono',monospace;font-size:13px">${s.credit_days ? s.credit_days + ' วัน' : '—'}</span></td>
+      <td data-label="สถานะ"><span class="status-badge ${s.is_active ? 'status-active' : 'status-inactive'}">${s.is_active ? '● ใช้งาน' : '● ปิด'}</span></td>
     </tr>`;
   }).join('');
 }

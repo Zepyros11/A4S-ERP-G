@@ -37,7 +37,7 @@ export function renderWarehousesTable(warehouses, stock, countries, types) {
   document.getElementById("whCount").textContent = list.length + " รายการ";
 
   if (list.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:30px;color:var(--text3)">ไม่พบข้อมูล</td></tr>`;
+    tbody.innerHTML = `<tr class="r-card-plain"><td colspan="6" style="text-align:center;padding:30px;color:var(--text3)">ไม่พบข้อมูล</td></tr>`;
     return;
   }
 
@@ -61,7 +61,7 @@ export function renderWarehousesTable(warehouses, stock, countries, types) {
     const children = whs.filter((w) => w.parent_id);
 
     html += `
-<tr class="wh-country-row">
+<tr class="wh-country-row r-card-plain">
   <td colspan="6">
     <span class="wh-country-label">🌍 ${name}</span>
     <span class="wh-country-count">${whs.length} คลัง</span>
@@ -91,7 +91,7 @@ export function renderWarehousesTable(warehouses, stock, countries, types) {
   /* ไม่มีประเทศ */
   if (withoutCountry.length > 0) {
     html += `
-<tr class="wh-country-row wh-country-unknown">
+<tr class="wh-country-row wh-country-unknown r-card-plain">
   <td colspan="6">
     <span class="wh-country-label">🌍 ไม่ระบุประเทศ</span>
     <span class="wh-country-count">${withoutCountry.length} คลัง</span>
@@ -123,16 +123,16 @@ function renderRow(w, isChild, stock) {
 <tr class="${isChild ? "wh-child-row" : "wh-parent-row"}"
     onclick="openWarehouseStock(${w.warehouse_id},'${w.warehouse_name}','${ic}')">
 
-  <td>${nameCell}</td>
+  <td class="r-card-title">${nameCell}</td>
 
-  <td class="col-center">
+  <td class="col-center" data-label="ประเภท">
     ${(() => {
       const t = findType(w.warehouse_type);
       return `<span class="type-badge" style="background:${t.color}22;color:${t.color}">${t.icon} ${t.type_name}</span>`;
     })()}
   </td>
 
-  <td class="col-center">
+  <td class="col-center" data-label="ผู้ดูแล">
     <span class="manager-cell">
       <span class="manager-icon">👤</span>
       ${w.manager_name || "-"}
@@ -142,9 +142,9 @@ function renderRow(w, isChild, stock) {
     </span>
   </td>
 
-  <td class="col-center">${qty}</td>
+  <td class="col-center" data-label="จำนวนสินค้า">${qty}</td>
 
-  <td class="col-center">
+  <td class="col-center" data-label="สถานะ">
     <div class="status-box">
       <label class="switch" onclick="event.stopPropagation()">
         <input type="checkbox" ${w.is_active ? "checked" : ""}
@@ -156,7 +156,7 @@ function renderRow(w, isChild, stock) {
     </div>
   </td>
 
-  <td class="col-center">
+  <td class="col-center" data-label="จัดการ">
     <button class="btn-icon" data-perm="warehouse_edit"
       onclick="event.stopPropagation();editWarehouse(${w.warehouse_id})">✏️</button>
     <button class="btn-icon danger" data-perm="warehouse_delete"

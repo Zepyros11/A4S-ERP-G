@@ -272,7 +272,7 @@ function renderTable() {
   if (!list.length) {
     const totalPosts = allPosts.length;
     const showAutoCreate = totalPosts === 0 && !!currentEvent?.event_date;
-    tbody.innerHTML = `<tr><td colspan="7">
+    tbody.innerHTML = `<tr class="r-card-plain"><td colspan="7">
       <div class="empty-state">
         <div class="empty-icon">📅</div>
         <div class="empty-text">ยังไม่มีโพสต์${totalPosts > 0 ? "ที่ตรงเงื่อนไข filter" : ""}</div>
@@ -329,16 +329,16 @@ function renderTable() {
         : "";
 
       return `<tr class="${checked ? "lp-row-selected" : ""}" data-ids="${idsAttr}">
-        <td class="col-center">
+        <td class="col-center r-card-corner">
           <input type="checkbox" ${checked ? "checked" : ""} ${indeterminate ? "data-indeterminate=\"1\"" : ""}
             onchange="window.toggleLpRow('${idsAttr}', this.checked)" />
         </td>
-        <td class="col-center">${ddayBadge(p.promote_offset)}${countBadge}</td>
-        <td><div class="lp-msg-cell">${escapeHtml(p.message_text || "")}</div></td>
-        <td class="col-center" style="font-size:12px">${groupCell}</td>
-        <td class="col-center" style="font-size:12px">${formatDateTime(p.scheduled_at)}</td>
-        <td class="col-center">${_renderAggStatusBadge(agg)}</td>
-        <td class="col-center">
+        <td class="col-center" data-label="D-day">${ddayBadge(p.promote_offset)}${countBadge}</td>
+        <td class="r-card-title"><div class="lp-msg-cell">${escapeHtml(p.message_text || "")}</div></td>
+        <td class="col-center" data-label="กลุ่ม LINE" style="font-size:12px">${groupCell}</td>
+        <td class="col-center" data-label="เวลาส่ง" style="font-size:12px">${formatDateTime(p.scheduled_at)}</td>
+        <td class="col-center" data-label="สถานะ">${_renderAggStatusBadge(agg)}</td>
+        <td class="col-center" data-label="จัดการ">
           <div class="action-group">
             ${hasScheduled ? `<button class="btn-icon" data-perm="line_promote_edit" onclick="window.sendLpPostNow(${p.id})" title="ส่งทันที (ไม่รอ scheduled_at)">📤</button>` : ""}
             ${canEdit ? `<button class="btn-icon" data-perm="line_promote_edit" onclick="window.openLpModal(${p.id})" title="แก้ไข">✏️</button>` : ""}

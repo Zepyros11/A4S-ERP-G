@@ -493,3 +493,21 @@
   grid-template-columns: 1fr 1fr;
   gap: 12px;
 }
+
+/* ═══════════ MOBILE CARDS (≤767px) — align r-cards content ═══════════ */
+@media (max-width: 767px) {
+  /* รูปสินค้า = ส่วนหัวการ์ดบรรทัดแรก ชิดซ้าย ไม่มีเส้นคั่น (รวมกับชื่อเป็นบล็อกหัวเดียว) */
+  .table-products.r-cards td.r-card-title:first-of-type {
+    padding-bottom: 4px;
+    margin-bottom: 0;
+    border-bottom: none;
+  }
+  /* ชื่อสินค้า = หัวการ์ดหลัก เว้นที่ให้ checkbox มุมขวาบน */
+  .table-products.r-cards td.r-card-title + td.r-card-title {
+    padding-top: 0;
+  }
+  /* ปุ่มจัดการ (แก้ไข/ลบ) จัดชิดขวาให้เสมอกับ label */
+  .table-products.r-cards td[data-label="จัดการ"] .action-group {
+    justify-content: flex-end;
+  }
+}

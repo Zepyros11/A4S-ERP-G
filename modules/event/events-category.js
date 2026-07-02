@@ -44,7 +44,7 @@ function renderTable(list) {
 
   if (!list.length) {
     tbody.innerHTML = `
-      <tr><td colspan="6">
+      <tr class="r-card-plain"><td colspan="6">
         <div class="empty-state">
           <div class="empty-icon">🏷️</div>
           <div class="empty-text">ไม่พบประเภทกิจกรรม</div>
@@ -62,8 +62,8 @@ function renderTable(list) {
       const borderColor = color + "55";
 
       return `<tr>
-        <td style="text-align:center; color:var(--text3); font-size:12px">${i + 1}</td>
-        <td>
+        <td class="r-card-corner" style="text-align:center; color:var(--text3); font-size:12px">${i + 1}</td>
+        <td class="r-card-title">
           <div style="display:flex; align-items:center; gap:10px">
             <span class="ecat-badge"
               style="background:${bgColor}; color:${color}; border-color:${borderColor}">
@@ -71,17 +71,17 @@ function renderTable(list) {
             </span>
           </div>
         </td>
-        <td style="font-size:13px; color:var(--text2)">${c.description || "—"}</td>
-        <td class="col-center">
+        <td style="font-size:13px; color:var(--text2)" data-label="คำอธิบาย">${c.description || "—"}</td>
+        <td class="col-center" data-label="ไอคอน / สี">
           <div class="ecat-icon-wrap">
             <span class="ecat-icon-emoji">${icon}</span>
             <span class="ecat-color-dot" style="background:${color}" title="${color}"></span>
           </div>
         </td>
-        <td class="col-center">
+        <td class="col-center" data-label="ลำดับ">
           <span class="ecat-sort-badge">${c.sort_order ?? 0}</span>
         </td>
-        <td class="col-center" onclick="event.stopPropagation()">
+        <td class="col-center" data-label="จัดการ" onclick="event.stopPropagation()">
           <div class="action-group">
             <button class="btn-icon" data-perm="evt_cat_edit" onclick="window.openModal(${c.event_category_id})">✏️</button>
             <button class="btn-icon danger" data-perm="evt_cat_delete" onclick="window.deleteCategory(${c.event_category_id})">🗑</button>

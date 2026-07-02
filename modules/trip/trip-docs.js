@@ -283,7 +283,7 @@ function renderDocs() {
 
   if (!rows.length) {
     tbody.innerHTML = `
-      <tr><td colspan="6">
+      <tr class="r-card-plain"><td colspan="6">
         <div class="empty-state"><div class="empty-icon">📄</div>
           <div class="empty-text">ยังไม่มีเอกสาร — กด "＋ สร้างเอกสาร" เพื่อเริ่ม</div></div>
       </td></tr>`;
@@ -314,7 +314,7 @@ function renderDocs() {
   const parts = [];
   ordered.forEach((g) => {
     const collapsed = state.collapsedGroups.has(g.key);
-    parts.push(`<tr class="doc-group" onclick="window.toggleDocGroup('${g.key}')">
+    parts.push(`<tr class="doc-group r-card-plain" onclick="window.toggleDocGroup('${g.key}')">
       <td colspan="4">
         <span class="doc-group-toggle">${collapsed ? "▸" : "▾"}</span>
         🧩 ${escapeHtml(g.name)}
@@ -335,16 +335,16 @@ function renderDocs() {
 function docRowHtml(d, idx, fmt) {
   const checked = state.selDocs.has(d.doc_id) ? "checked" : "";
   return `<tr>
-    <td style="text-align:center">
+    <td class="r-card-corner" style="text-align:center">
       <input type="checkbox" data-doc="${d.doc_id}" ${checked} onchange="window.toggleDoc(${d.doc_id}, this)" />
     </td>
-    <td style="text-align:center;color:var(--text3);font-size:12px">${idx}</td>
-    <td><div class="doc-name-cell">${escapeHtml(d.title || "—")}</div></td>
-    <td class="col-center">
+    <td data-label="#" style="text-align:center;color:var(--text3);font-size:12px">${idx}</td>
+    <td class="r-card-title"><div class="doc-name-cell">${escapeHtml(d.title || "—")}</div></td>
+    <td class="col-center" data-label="สถานะ">
       <span class="doc-status-pill doc-status-${d.status || "DRAFT"}">${statusLabel(d.status)}</span>
     </td>
-    <td class="col-center" style="white-space:nowrap;color:var(--text2);font-size:12px">${fmt(d.updated_at)}</td>
-    <td class="col-center" onclick="event.stopPropagation()">
+    <td class="col-center" data-label="อัปเดตล่าสุด" style="white-space:nowrap;color:var(--text2);font-size:12px">${fmt(d.updated_at)}</td>
+    <td class="col-center" data-label="จัดการ" onclick="event.stopPropagation()">
       <div class="action-group">
         <button class="btn-icon" title="พิมพ์/ดู" onclick="window.printDoc(${d.doc_id})">🖨</button>
         <button class="btn-icon" title="แก้ไข" data-perm="trip_docs_edit" onclick="window.openDocEdit(${d.doc_id})">✏️</button>
@@ -905,7 +905,7 @@ function renderTemplates() {
 
   if (!rows.length) {
     tbody.innerHTML = `
-      <tr><td colspan="7">
+      <tr class="r-card-plain"><td colspan="7">
         <div class="empty-state"><div class="empty-icon">🧩</div>
           <div class="empty-text">ยังไม่มีแม่แบบ — กด "＋ สร้างแม่แบบ" เพื่อเริ่ม</div></div>
       </td></tr>`;
@@ -918,18 +918,18 @@ function renderTemplates() {
       const nFields = extractFields(t.body || "").length;
       const checked = state.selTpls.has(t.template_id) ? "checked" : "";
       return `<tr>
-        <td style="text-align:center">
+        <td class="r-card-corner" style="text-align:center">
           <input type="checkbox" data-tpl="${t.template_id}" ${checked} onchange="window.toggleTpl(${t.template_id}, this)" />
         </td>
-        <td style="text-align:center;color:var(--text3);font-size:12px">${i + 1}</td>
-        <td>
+        <td data-label="#" style="text-align:center;color:var(--text3);font-size:12px">${i + 1}</td>
+        <td class="r-card-title">
           <div class="doc-name-cell">${escapeHtml(t.name || "—")}</div>
           ${t.description ? `<div style="font-size:12px;color:var(--text3);margin-top:2px">${escapeHtml(t.description)}</div>` : ""}
         </td>
-        <td class="col-center">${t.category ? `<span class="doc-tpl-badge">${escapeHtml(t.category)}</span>` : `<span style="color:var(--text3)">—</span>`}</td>
-        <td class="col-center"><span class="doc-tpl-badge${nFields ? "" : " none"}">${nFields} ฟิลด์</span></td>
-        <td class="col-center" style="white-space:nowrap;color:var(--text2);font-size:12px">${fmt(t.updated_at)}</td>
-        <td class="col-center" onclick="event.stopPropagation()">
+        <td class="col-center" data-label="หมวดหมู่">${t.category ? `<span class="doc-tpl-badge">${escapeHtml(t.category)}</span>` : `<span style="color:var(--text3)">—</span>`}</td>
+        <td class="col-center" data-label="ฟิลด์"><span class="doc-tpl-badge${nFields ? "" : " none"}">${nFields} ฟิลด์</span></td>
+        <td class="col-center" data-label="อัปเดตล่าสุด" style="white-space:nowrap;color:var(--text2);font-size:12px">${fmt(t.updated_at)}</td>
+        <td class="col-center" data-label="จัดการ" onclick="event.stopPropagation()">
           <div class="action-group">
             <button class="btn-icon" title="ทำสำเนา" data-perm="trip_docs_create" onclick="window.duplicateTemplate(${t.template_id})">⧉</button>
             <button class="btn-icon" title="แก้ไข" data-perm="trip_docs_edit" onclick="window.openTemplateModal(${t.template_id})">✏️</button>

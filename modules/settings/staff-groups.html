@@ -63,6 +63,16 @@
 @media(max-width:767px){.sg-grid{grid-template-columns:1fr;}}/* 767 = คง 2-pane บน laptop ที่ zoom 0.65 (1024 เดิมทำให้ laptop 1366 เป็น 1คอลัมน์) */
 
 .sg-check{width:16px;height:16px;cursor:pointer;}
+
+/* ≤767 = การ์ด (.r-cards) — คืน padding/border ของ card ที่ .sg-table td เผลอ override */
+@media(max-width:767px){
+  .sg-table.r-cards td{padding:8px 0;border-bottom:1px dashed var(--border);}
+  .sg-table.r-cards td:last-child{border-bottom:none;padding-bottom:0;}
+  .sg-table.r-cards tr:hover td,.sg-table.r-cards tr.selected td{background:transparent;}
+  .sg-table.r-cards td.r-card-title{padding:2px 30px 10px 0;border-bottom:1px solid var(--border);}
+  .sg-table.r-cards td.r-card-corner{padding:0;border:none;}
+  .sg-table.r-cards .sg-tags-cell{justify-content:flex-end;}
+}
 </style>
 </head>
 <body>
@@ -107,7 +117,7 @@
           </div>
 
           <div class="sg-table-wrap">
-            <table class="sg-table">
+            <table class="sg-table r-cards">
               <thead>
                 <tr>
                   <th style="width:30px"><input type="checkbox" id="sgCheckAll" class="sg-check" onchange="toggleAll(this.checked)"></th>
@@ -119,7 +129,7 @@
                 </tr>
               </thead>
               <tbody id="sgTbody">
-                <tr><td colspan="6" class="sg-empty"><div class="sg-empty-icon">⏳</div>กำลังโหลด...</td></tr>
+                <tr class="r-card-plain"><td colspan="6" class="sg-empty"><div class="sg-empty-icon">⏳</div>กำลังโหลด...</td></tr>
               </tbody>
             </table>
           </div>

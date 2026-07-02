@@ -88,17 +88,17 @@ function renderList() {
   const tbody = document.getElementById("paxBody");
   document.getElementById("tableCount").textContent = `${rows.length} คน`;
   if (!rows.length) {
-    tbody.innerHTML = `<tr><td colspan="7"><div class="empty-state"><div class="empty-icon">👥</div><div class="empty-text">ยังไม่มีรายชื่อ — กด "＋ เพิ่มคน"${state.program?.source_type ? ' หรือ "📥 ดึงรายชื่อจากระบบเดิม"' : ""}</div></div></td></tr>`;
+    tbody.innerHTML = `<tr class="r-card-plain"><td colspan="7"><div class="empty-state"><div class="empty-icon">👥</div><div class="empty-text">ยังไม่มีรายชื่อ — กด "＋ เพิ่มคน"${state.program?.source_type ? ' หรือ "📥 ดึงรายชื่อจากระบบเดิม"' : ""}</div></div></td></tr>`;
     return;
   }
   tbody.innerHTML = rows.map((x, i) => `<tr>
-    <td style="text-align:center;color:var(--text3);font-size:12px">${i + 1}</td>
-    <td style="font-weight:600;color:var(--text)">${escapeHtml(x.name || "—")}</td>
-    <td class="col-center"><span class="pp-role pp-role-${x.person_role || "primary"}">${roleLabel(x.person_role)}</span></td>
-    <td class="col-center pp-code">${escapeHtml(x.member_code || "—")}</td>
-    <td class="col-center">${x.gender === "male" ? "ชาย" : x.gender === "female" ? "หญิง" : "—"}</td>
-    <td class="col-center">${x.checked_in ? "✅" : "—"}</td>
-    <td class="col-center" onclick="event.stopPropagation()"><div class="action-group">
+    <td class="r-card-corner" style="text-align:center;color:var(--text3);font-size:12px">${i + 1}</td>
+    <td class="r-card-title" style="font-weight:600;color:var(--text)">${escapeHtml(x.name || "—")}</td>
+    <td class="col-center" data-label="บทบาท"><span class="pp-role pp-role-${x.person_role || "primary"}">${roleLabel(x.person_role)}</span></td>
+    <td class="col-center pp-code" data-label="รหัสสมาชิก">${escapeHtml(x.member_code || "—")}</td>
+    <td class="col-center" data-label="เพศ">${x.gender === "male" ? "ชาย" : x.gender === "female" ? "หญิง" : "—"}</td>
+    <td class="col-center" data-label="เช็คอิน">${x.checked_in ? "✅" : "—"}</td>
+    <td class="col-center" data-label="จัดการ" onclick="event.stopPropagation()"><div class="action-group">
       <button class="btn-icon" title="แก้ไข" data-perm="program_participant_edit" onclick="window.openPaxModal(${x.participant_id})">✏️</button>
       <button class="btn-icon danger" title="ลบ" data-perm="program_participant_delete" onclick="window.deletePax(${x.participant_id})">🗑</button>
     </div></td>

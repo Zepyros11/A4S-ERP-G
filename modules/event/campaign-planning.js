@@ -205,7 +205,7 @@ function renderTable() {
   document.getElementById("rowCount").textContent = `${rows.length} แคมเปญ`;
 
   if (!rows.length) {
-    tbody.innerHTML = `<tr><td colspan="8"><div class="empty-state">
+    tbody.innerHTML = `<tr class="r-card-plain"><td colspan="8"><div class="empty-state">
       <div class="empty-icon">🔍</div><div class="empty-text">ไม่พบแคมเปญ</div></div></td></tr>`;
     updateBulkBar();
     return;
@@ -228,8 +228,8 @@ function renderTable() {
         )
         .join("");
       return `<tr class="cmp-row" style="cursor:pointer" onclick="window.rowClick(event, ${c.campaign_id})">
-        <td class="col-center cmp-cb-cell"><input type="checkbox" class="row-check" value="${c.campaign_id}" onclick="window.updateBulkBar()" /></td>
-        <td class="cmp-name-td">
+        <td class="col-center r-card-corner"><input type="checkbox" class="row-check" value="${c.campaign_id}" onclick="window.updateBulkBar()" /></td>
+        <td class="r-card-title">
           <div class="cmp-name-cell">
             ${cover}
             <div>

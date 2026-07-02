@@ -105,7 +105,7 @@ function renderTable(places) {
 
   if (!sorted.length) {
     tbody.innerHTML = `
-      <tr><td colspan="10">
+      <tr class="r-card-plain"><td colspan="10">
         <div class="empty-state">
           <div class="empty-icon">📍</div>
           <div class="empty-text">ไม่พบสถานที่</div>
@@ -136,26 +136,26 @@ function renderTable(places) {
         : "—";
 
       return `<tr onclick="window.location.href='./events-place-form.html?id=${p.place_id}'">
-      <td style="text-align:center" onclick="event.stopPropagation()">
+      <td class="r-card-corner" style="text-align:center" onclick="event.stopPropagation()">
         <input type="checkbox" class="row-check" value="${p.place_id}" onchange="window.updateDeleteButton()">
       </td>
-      <td class="col-center">${coverCell}</td>
-      <td>
+      <td class="col-center" data-label="รูป">${coverCell}</td>
+      <td class="r-card-title">
         <div class="place-name">${p.place_name}</div>
         ${p.contact_name ? `<div class="place-sub">${p.contact_name}</div>` : ""}
       </td>
-      <td class="col-center">
+      <td class="col-center" data-label="ประเภท">
         <span class="place-type-badge ptype-${p.place_type}">${typeLabel(p.place_type)}</span>
       </td>
-      <td><div class="place-address">${p.address || "—"}</div></td>
-      <td>
+      <td data-label="ที่อยู่"><div class="place-address">${p.address || "—"}</div></td>
+      <td data-label="ติดต่อ">
         ${p.phone ? `<div class="place-sub">📞 ${p.phone}</div>` : ""}
         ${p.email ? `<div class="place-sub">✉️ ${p.email}</div>` : ""}
         ${!p.phone && !p.email ? "—" : ""}
       </td>
-      <td class="col-center">${p.capacity ? `${p.capacity.toLocaleString()} คน` : "—"}</td>
-      <td class="col-center">${p.has_parking ? "✅" : "—"}</td>
-      <td class="col-center" onclick="event.stopPropagation()">
+      <td class="col-center" data-label="Capacity">${p.capacity ? `${p.capacity.toLocaleString()} คน` : "—"}</td>
+      <td class="col-center" data-label="ที่จอดรถ">${p.has_parking ? "✅" : "—"}</td>
+      <td class="col-center" data-label="สถานะ" onclick="event.stopPropagation()">
         <button type="button"
           class="place-status-toggle pstatus-${p.status}"
           title="คลิกเพื่อสลับสถานะ"
@@ -163,7 +163,7 @@ function renderTable(places) {
           ${p.status}
         </button>
       </td>
-      <td class="col-center" onclick="event.stopPropagation()">
+      <td class="col-center" data-label="จัดการ" onclick="event.stopPropagation()">
         <div class="action-group">
           <button class="btn-icon" data-perm="evt_place_edit" onclick="window.location.href='./events-place-form.html?id=${p.place_id}'">✏️</button>
           <button class="btn-icon danger" data-perm="evt_place_delete" onclick="window.deletePlace(${p.place_id})">🗑</button>

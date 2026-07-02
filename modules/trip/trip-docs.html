@@ -212,6 +212,9 @@
          ใช้ !important เพราะ inline grid-template มี specificity สูงกว่า class */
       @media (max-width: 767px) {
         .doc-split { grid-template-columns: 1fr !important; }
+        /* กลุ่มแม่แบบ (r-card-plain) บนมือถือ: โชว์เฉพาะชื่อกลุ่ม ชิดซ้าย · ซ่อน td วันที่/ว่าง */
+        .r-cards tbody tr.doc-group td { text-align: left !important; padding: 10px 4px !important; }
+        .r-cards tbody tr.doc-group td:not(:first-child) { display: none !important; }
       }
 
       /* paper ใช้ขนาด A4 เป๊ะ → preview กับ print ตัดบรรทัดเหมือนกัน (WYSIWYG) */
@@ -326,7 +329,7 @@
               </div>
 
               <div class="table-wrap">
-                <table class="data-table v-striped">
+                <table class="data-table v-striped r-cards">
                   <thead>
                     <tr>
                       <th style="width:42px;text-align:center">
@@ -340,7 +343,7 @@
                     </tr>
                   </thead>
                   <tbody id="docTableBody">
-                    <tr><td colspan="6">
+                    <tr class="r-card-plain"><td colspan="6">
                       <div class="empty-state"><div class="empty-icon">📄</div>
                         <div class="empty-text">กำลังโหลด...</div></div>
                     </td></tr>
@@ -378,7 +381,7 @@
               </div>
 
               <div class="table-wrap">
-                <table class="data-table v-striped">
+                <table class="data-table v-striped r-cards">
                   <thead>
                     <tr>
                       <th style="width:42px;text-align:center">
@@ -393,7 +396,7 @@
                     </tr>
                   </thead>
                   <tbody id="tplTableBody">
-                    <tr><td colspan="7">
+                    <tr class="r-card-plain"><td colspan="7">
                       <div class="empty-state"><div class="empty-icon">🧩</div>
                         <div class="empty-text">กำลังโหลด...</div></div>
                     </td></tr>

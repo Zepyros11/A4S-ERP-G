@@ -104,7 +104,7 @@
         <button class="btn btn-danger" id="btnDeleteSelected" style="display:none;margin-left:auto" onclick="window.bulkDelete()">🗑️ ลบที่เลือก</button>
       </div>
       <div class="table-wrap">
-        <table class="data-table">
+        <table class="data-table r-cards">
           <thead>
             <tr>
               <th class="col-center" style="width:44px"><input type="checkbox" id="checkAll" onchange="window.toggleAll(this)" /></th>
@@ -116,7 +116,7 @@
             </tr>
           </thead>
           <tbody id="tableBody">
-            <tr><td colspan="6" class="empty-state"><div class="empty-icon">⏳</div><div class="empty-text">กำลังโหลด...</div></td></tr>
+            <tr class="r-card-plain"><td colspan="6" class="empty-state"><div class="empty-icon">⏳</div><div class="empty-text">กำลังโหลด...</div></td></tr>
           </tbody>
         </table>
       </div>

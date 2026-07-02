@@ -820,7 +820,7 @@ function renderTable(events) {
 
   if (!sorted.length) {
     tbody.innerHTML = `
-      <tr><td colspan="8">
+      <tr class="r-card-plain"><td colspan="8">
         <div class="empty-state">
           <div class="empty-icon">📋</div>
           <div class="empty-text">ไม่พบกิจกรรม</div>
@@ -881,26 +881,26 @@ function renderTable(events) {
       const pinnedRowClass = pinned ? " row-pinned" : "";
 
       return `<tr class="${rowClass}${unreadRowClass}${pinnedRowClass}" onclick="window.openBadgePopup(${e.event_id})" style="cursor:pointer">
-      <td style="text-align:center" onclick="event.stopPropagation()">
+      <td class="r-card-corner" style="text-align:center" onclick="event.stopPropagation()">
         <input type="checkbox" class="row-check" value="${e.event_id}" onchange="window.updateDeleteButton()">
       </td>
-      <td>
+      <td data-label="วันที่จัดงาน">
         <div class="event-date-main">${formatDate(e.event_date)}</div>
         ${dateEnd}
       </td>
-      <td>
+      <td class="r-card-title">
         <div class="event-name">${escapeHtml(e.event_name || "—")}${unreadBadge}</div>
         <div class="event-code">${e._seriesBadge || ''}${e.registration_enabled ? '<span style="display:inline-block;padding:1px 6px;border-radius:4px;font-size:9.5px;font-weight:600;background:#d1fae5;color:#065f46;margin-right:3px">📋 ลงทะเบียน</span>' : ''}${e.members_only ? '<span style="display:inline-block;padding:1px 6px;border-radius:4px;font-size:9.5px;font-weight:600;background:#fef3c7;color:#92400e;margin-right:3px">👤 MLM Only</span>' : ''}</div>
       </td>
-      <td>${escapeHtml(e.location || "—")}</td>
-      <td>
+      <td data-label="สถานที่">${escapeHtml(e.location || "—")}</td>
+      <td data-label="ผู้รับผิดชอบ">
         ${user ? `<div class="event-assignee"><div class="assignee-avatar">${initials}</div><span>${escapeHtml(user.full_name)}</span></div>` : "—"}
       </td>
-      <td class="col-center">${posterCell}</td>
-      <td class="col-center" onclick="event.stopPropagation()">
+      <td class="col-center" data-label="โปสเตอร์">${posterCell}</td>
+      <td class="col-center" data-label="สถานะ" onclick="event.stopPropagation()">
         ${buildStatusPill(e.event_id, e.status)}
       </td>
-      <td class="col-center" onclick="event.stopPropagation()">
+      <td class="col-center" data-label="จัดการ" onclick="event.stopPropagation()">
         <div class="action-group">
           <button class="btn-icon${(_evAuxCountCache[e.event_id]?.attendees || 0) === 0 ? ' btn-icon-dim' : ''}" title="ผู้เข้าร่วม${_evAuxCountCache[e.event_id]?.attendees ? ' ('+_evAuxCountCache[e.event_id].attendees+')' : ''}" onclick="event.stopPropagation();window.open('./attendees.html?event=${e.event_id}', '_blank')">👥</button>
           <button class="btn-icon${(_evAuxCountCache[e.event_id]?.plans || 0) === 0 ? ' btn-icon-dim' : ''}" title="แผนงาน${_evAuxCountCache[e.event_id]?.plans ? ' ('+_evAuxCountCache[e.event_id].plans+')' : ''}" onclick="event.stopPropagation();window.open('../work-plan/work-plan-list.html?scope=event&event_id=${e.event_id}', '_blank')">📋</button>

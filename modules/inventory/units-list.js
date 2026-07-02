@@ -89,7 +89,7 @@ function countUsage(unitId, unitName) {
 function renderTable(rows) {
   const tbody = document.getElementById("tableBody");
   if (!rows.length) {
-    tbody.innerHTML = `<tr><td colspan="5" class="empty-state">
+    tbody.innerHTML = `<tr class="r-card-plain"><td colspan="5" class="empty-state">
       <div class="empty-icon">📐</div>
       <div class="empty-text">ไม่พบหน่วยนับ</div>
     </td></tr>`;
@@ -100,22 +100,22 @@ function renderTable(rows) {
     .map((u) => {
       const usage = countUsage(u.unit_id, u.unit_name);
       return `<tr>
-        <td class="col-center">
+        <td class="col-center r-card-corner">
           <input type="checkbox" class="row-check" value="${u.unit_id}"
             onchange="window.updateDeleteButton()">
         </td>
-        <td><div class="units-name-cell">${escapeHtml(u.unit_name)}</div></td>
-        <td class="col-center">
+        <td class="r-card-title"><div class="units-name-cell">${escapeHtml(u.unit_name)}</div></td>
+        <td class="col-center" data-label="ใช้กับสินค้า">
           <span class="units-usage-badge${usage > 0 ? " used" : ""}">${usage} สินค้า</span>
         </td>
-        <td class="col-center">
+        <td class="col-center" data-label="สถานะ">
           <label class="switch" onclick="event.stopPropagation()">
             <input type="checkbox" ${u.is_active ? "checked" : ""}
               onchange="window.toggleUnitActive(${u.unit_id}, this)">
             <span class="slider"></span>
           </label>
         </td>
-        <td class="col-center">
+        <td class="col-center" data-label="จัดการ">
           <div class="action-group">
             <button class="btn-icon" title="แก้ไข" data-perm="units_edit"
               onclick="window.openUnitModal(${u.unit_id})">✏️</button>

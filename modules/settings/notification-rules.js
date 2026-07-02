@@ -215,7 +215,7 @@ function renderTable() {
   for (const id of [...selectedRuleIds]) if (!validIds.has(id)) selectedRuleIds.delete(id);
 
   if (!allRules.length) {
-    tb.innerHTML = `<tr><td colspan="7" class="nr-empty"><div class="nr-empty-icon">🔔</div>ยังไม่มีกฎ — กดปุ่ม "เพิ่มกฎ" ด้านบน</td></tr>`;
+    tb.innerHTML = `<tr class="r-card-plain"><td colspan="7" class="nr-empty"><div class="nr-empty-icon">🔔</div>ยังไม่มีกฎ — กดปุ่ม "เพิ่มกฎ" ด้านบน</td></tr>`;
     updateBulkBar();
     return;
   }
@@ -248,21 +248,21 @@ function renderTable() {
     const isChecked = selectedRuleIds.has(r.id) ? "checked" : "";
     return `
       <tr>
-        <td class="nr-check-col"><input type="checkbox" ${isChecked} onchange="toggleSelectRule(${r.id}, this.checked)"></td>
-        <td><div class="nr-name">${escapeHtml(r.rule_name)}</div></td>
-        <td><span class="nr-trigger-chip">${escapeHtml(trig)}</span>${schedBadge}</td>
-        <td>
+        <td class="nr-check-col r-card-corner"><input type="checkbox" ${isChecked} onchange="toggleSelectRule(${r.id}, this.checked)"></td>
+        <td class="r-card-title"><div class="nr-name">${escapeHtml(r.rule_name)}</div></td>
+        <td data-label="Trigger"><span class="nr-trigger-chip">${escapeHtml(trig)}</span>${schedBadge}</td>
+        <td data-label="Target">
           ${targetChips}
           <span style="font-size:12.5px;color:var(--text2);">${escapeHtml(targetText)}</span>
         </td>
-        <td style="font-size:12.5px;">${chText}</td>
-        <td style="text-align:center;">
+        <td data-label="Channel" style="font-size:12.5px;">${chText}</td>
+        <td data-label="เปิด" style="text-align:center;">
           <label class="nr-toggle">
             <input type="checkbox" ${r.is_active ? "checked" : ""} onchange="toggleActive(${r.id}, this.checked)">
             <span class="nr-toggle-slider"></span>
           </label>
         </td>
-        <td>
+        <td data-label="จัดการ">
           <div class="nr-row-actions">
             <button class="btn-icon" title="แก้ไข" onclick="openRuleModal(${r.id})">✏️</button>
             <button class="btn-icon btn-danger" title="ลบ" onclick="deleteRule(${r.id})">🗑️</button>

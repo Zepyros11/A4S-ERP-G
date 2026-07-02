@@ -558,7 +558,7 @@ function render() {
   const cols = _activeColumns();
   const tbody = document.getElementById('tbody');
   if (!currentPage.length) {
-    tbody.innerHTML = `<tr><td colspan="${cols.length}" style="text-align:center;padding:40px;color:var(--text3)">ไม่พบข้อมูล</td></tr>`;
+    tbody.innerHTML = `<tr class="r-card-plain"><td colspan="${cols.length}" style="text-align:center;padding:40px;color:var(--text3)">ไม่พบข้อมูล</td></tr>`;
     document.getElementById('paginate').innerHTML = '';
     return;
   }
@@ -578,8 +578,14 @@ function render() {
   const canDecrypt = _canDecrypt();
   const ctx = { canDecrypt };
 
+  // .r-cards (≤767px): คอลัมน์ชื่อ = หัวการ์ด · คอลัมน์อื่น = "label : value"
   tbody.innerHTML = rows.map(m =>
-    `<tr>${cols.map(c => `<td>${c.render(m, ctx)}</td>`).join('')}</tr>`
+    `<tr>${cols.map(c => {
+      const attr = c.key === 'full_name'
+        ? ' class="r-card-title"'
+        : ` data-label="${escapeHtml(c.label)}"`;
+      return `<td${attr}>${c.render(m, ctx)}</td>`;
+    }).join('')}</tr>`
   ).join('');
 
   renderPaginate();

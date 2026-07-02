@@ -91,7 +91,7 @@ export function renderProductList({
   if (!tbody) return;
 
   if (list.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:30px;color:var(--text3)">ไม่พบข้อมูล</td></tr>`;
+    tbody.innerHTML = `<tr class="r-card-plain"><td colspan="5" style="text-align:center;padding:30px;color:var(--text3)">ไม่พบข้อมูล</td></tr>`;
     return;
   }
 
@@ -115,18 +115,18 @@ export function renderProductList({
 
       return `
 <tr class="si-prod-row" onclick="window.openStockModal(${p.product_id})">
-  <td style="text-align:center">${imgCell}</td>
-  <td>
+  <td style="text-align:center" data-label="ภาพ">${imgCell}</td>
+  <td class="r-card-title">
     <div class="si-prod-name">${escapeHtml(p.product_name)}${variantBadge}</div>
   </td>
-  <td class="col-center">
+  <td class="col-center" data-label="หมวดหมู่">
     <div class="cat-badge" style="background:${cat?.color || "#eee"}20">
       <span class="cat-icon">${cat?.icon || "📦"}</span>
       <span>${cat?.category_name || "-"}</span>
     </div>
   </td>
-  <td class="col-center">${fillPill}</td>
-  <td class="col-center">
+  <td class="col-center" data-label="สถานะ Stock">${fillPill}</td>
+  <td class="col-center" data-label="จัดการ">
     <button class="si-set-btn" data-perm="stock_init_create" onclick="event.stopPropagation();window.openStockModal(${p.product_id})">
       ✏️ ตั้ง Stock
     </button>

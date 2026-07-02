@@ -31,7 +31,7 @@ export function renderProductsTable(
   if (countEl) countEl.textContent = `${products.length} รายการ`;
 
   if (products.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state"><div class="empty-icon">🔍</div><div class="empty-text">ไม่พบสินค้า</div></div></td></tr>`;
+    tbody.innerHTML = `<tr class="r-card-plain"><td colspan="9"><div class="empty-state"><div class="empty-icon">🔍</div><div class="empty-text">ไม่พบสินค้า</div></div></td></tr>`;
     return;
   }
 
@@ -188,25 +188,25 @@ function renderRow(
     isChild && parent ? ` data-parent-id="${parent.product_id}"` : "";
 
   return `<tr class="${rowClass}"${childAttr}>
-<td style="text-align:center">
+<td class="r-card-corner" style="text-align:center">
   <input type="checkbox" class="row-check" value="${p.product_id}" onchange="window.updateDeleteButton()">
 </td>
-<td style="text-align:center" onclick="event.stopPropagation();window.openLightbox(${(parent || p).product_id})">
+<td class="r-card-title" style="text-align:center" onclick="event.stopPropagation();window.openLightbox(${(parent || p).product_id})">
   ${imgCell}
 </td>
-<td>${nameCell}</td>
-<td class="col-center">
+<td class="r-card-title">${nameCell}</td>
+<td class="col-center" data-label="หมวดหมู่">
   <div class="cat-badge" style="background:${cat?.color || "#eee"}20;"
     onclick="event.stopPropagation();window.openCategoryPicker(${p.product_id}, event)">
     <span class="cat-icon">${cat?.icon || "📦"}</span>
     <span>${cat?.category_name || "—"}</span>
   </div>
 </td>
-<td class="col-center">${costCell}</td>
-<td class="col-center">${saleCell}</td>
-<td style="text-align:center">${statusCell}</td>
-<td style="text-align:center">${alertOffCell}</td>
-<td style="text-align:center">${actionsCell}</td>
+<td class="col-center" data-label="ราคาทุน">${costCell}</td>
+<td class="col-center" data-label="ราคาขาย">${saleCell}</td>
+<td style="text-align:center" data-label="สถานะ">${statusCell}</td>
+<td style="text-align:center" data-label="ปิดแจ้งเตือนสินค้าหมด">${alertOffCell}</td>
+<td style="text-align:center" data-label="จัดการ">${actionsCell}</td>
 </tr>`;
 }
 

@@ -93,7 +93,7 @@ function renderTable() {
   }
 
   if (!rows.length) {
-    tb.innerHTML = `<tr><td colspan="6" class="sg-empty"><div class="sg-empty-icon">🔍</div>ไม่พบพนักงาน</td></tr>`;
+    tb.innerHTML = `<tr class="r-card-plain"><td colspan="6" class="sg-empty"><div class="sg-empty-icon">🔍</div>ไม่พบพนักงาน</td></tr>`;
     return;
   }
 
@@ -109,12 +109,12 @@ function renderTable() {
       ? `<span class="sg-line">💬 ผูกแล้ว</span>`
       : `<span class="sg-line-none">ยังไม่ผูก</span>`;
     return `<tr class="${isSel ? "selected" : ""}">
-      <td><input type="checkbox" class="sg-check" ${isSel ? "checked" : ""} onchange="toggleSelect(${u.user_id}, this.checked)"></td>
-      <td><div class="sg-name">${escapeHtml(u.full_name || u.username || "—")}</div></td>
-      <td><span class="sg-username">${escapeHtml(u.username || "")}</span></td>
-      <td><span class="sg-role">${escapeHtml(u.role || "—")}</span></td>
-      <td>${lineCell}</td>
-      <td><div class="sg-tags-cell">${tags}${addCtl}</div></td>
+      <td class="r-card-corner"><input type="checkbox" class="sg-check" ${isSel ? "checked" : ""} onchange="toggleSelect(${u.user_id}, this.checked)"></td>
+      <td class="r-card-title"><div class="sg-name">${escapeHtml(u.full_name || u.username || "—")}</div></td>
+      <td data-label="Username"><span class="sg-username">${escapeHtml(u.username || "")}</span></td>
+      <td data-label="Role"><span class="sg-role">${escapeHtml(u.role || "—")}</span></td>
+      <td data-label="LINE">${lineCell}</td>
+      <td data-label="กลุ่ม"><div class="sg-tags-cell">${tags}${addCtl}</div></td>
     </tr>`;
   }).join("");
 

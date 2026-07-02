@@ -109,7 +109,7 @@ function renderList() {
   const tbody = document.getElementById("taskBody");
   const fmt = (window.DateFmt && window.DateFmt.formatDMY) || ((s) => s || "");
   if (!state.tasks.length) {
-    tbody.innerHTML = `<tr><td colspan="7"><div class="empty-state"><div class="empty-icon">📋</div><div class="empty-text">ยังไม่มีงาน — กด "＋ เพิ่มงาน"</div></div></td></tr>`;
+    tbody.innerHTML = `<tr class="r-card-plain"><td colspan="7"><div class="empty-state"><div class="empty-icon">📋</div><div class="empty-text">ยังไม่มีงาน — กด "＋ เพิ่มงาน"</div></div></td></tr>`;
     return;
   }
   tbody.innerHTML = state.tasks
@@ -120,19 +120,19 @@ function renderList() {
           : `<span style="color:var(--text3)">—</span>`;
       const prog = Math.max(0, Math.min(100, t.progress || 0));
       return `<tr>
-        <td style="text-align:center;color:var(--text3);font-size:12px">${i + 1}</td>
-        <td>
+        <td class="r-card-corner" style="text-align:center;color:var(--text3);font-size:12px">${i + 1}</td>
+        <td class="r-card-title">
           <div class="tk-title-cell">${escapeHtml(t.title || "—")}</div>
           ${t.note ? `<div class="tk-note">${escapeHtml(t.note)}</div>` : ""}
         </td>
-        <td>${escapeHtml(t.assignee || "—")}</td>
-        <td class="col-center" style="white-space:nowrap">${range}</td>
-        <td class="col-center"><span class="tk-st tk-st-${t.status || "TODO"}">${statusLabel(t.status)}</span></td>
-        <td class="col-center">
+        <td data-label="ผู้รับผิดชอบ">${escapeHtml(t.assignee || "—")}</td>
+        <td class="col-center" data-label="ช่วงวันที่" style="white-space:nowrap">${range}</td>
+        <td class="col-center" data-label="สถานะ"><span class="tk-st tk-st-${t.status || "TODO"}">${statusLabel(t.status)}</span></td>
+        <td class="col-center" data-label="คืบหน้า">
           <div class="tk-prog"><div class="tk-prog-fill" style="width:${prog}%"></div></div>
           <div class="tk-prog-num">${prog}%</div>
         </td>
-        <td class="col-center" onclick="event.stopPropagation()">
+        <td class="col-center" data-label="จัดการ" onclick="event.stopPropagation()">
           <div class="action-group">
             <button class="btn-icon" title="แก้ไข" data-perm="program_task_edit" onclick="window.openTaskModal(${t.task_id})">✏️</button>
             <button class="btn-icon danger" title="ลบ" data-perm="program_task_delete" onclick="window.deleteTask(${t.task_id})">🗑</button>

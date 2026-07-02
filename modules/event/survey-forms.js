@@ -114,7 +114,7 @@ function renderTable() {
   const aliveIds = new Set(_allForms.map(f => f.id));
   _selectedIds.forEach(id => { if (!aliveIds.has(id)) _selectedIds.delete(id); });
   if (!_allForms.length) {
-    tb.innerHTML = `<tr><td colspan="9"><div class="empty-state" style="padding:30px">
+    tb.innerHTML = `<tr class="r-card-plain"><td colspan="9"><div class="empty-state" style="padding:30px">
       <div class="empty-icon">📝</div>
       <div class="empty-text">ยังไม่มีฟอร์ม — กด "สร้างฟอร์มประเมิน"</div>
     </div></td></tr>`;
@@ -128,37 +128,37 @@ function renderTable() {
     const checked = _selectedIds.has(f.id) ? "checked" : "";
     const rowStyle = checked ? ' style="background:#f0fdf4"' : '';
     return `<tr${rowStyle}>
-      <td class="col-center">
+      <td class="col-center r-card-corner">
         <input type="checkbox" class="sf-row-check" data-id="${f.id}" ${checked}
           onclick="window.sfToggleRow(${f.id}, this.checked)"
           style="width:16px;height:16px;cursor:pointer;accent-color:#16a34a">
       </td>
-      <td class="col-center" style="font-family:'IBM Plex Mono',monospace;color:var(--text3)">${i + 1}</td>
-      <td>
+      <td class="col-center" data-label="#" style="font-family:'IBM Plex Mono',monospace;color:var(--text3)">${i + 1}</td>
+      <td class="r-card-title">
         <div style="font-weight:700;color:#0f172a">${escapeHtml(f.title)}</div>
         <div style="font-size:11px;color:var(--text3);margin-top:2px;font-family:'IBM Plex Mono',monospace">id #${f.id}</div>
       </td>
-      <td style="color:var(--text2);font-size:12.5px">${escapeHtml(f.description || "—")}</td>
-      <td class="col-center">
+      <td style="color:var(--text2);font-size:12.5px" data-label="คำอธิบาย">${escapeHtml(f.description || "—")}</td>
+      <td class="col-center" data-label="คำถาม">
         <span style="background:#e0e7ff;color:#3730a3;padding:2px 9px;border-radius:5px;font-weight:700;font-size:12px">${qCount} ข้อ</span>
       </td>
-      <td class="col-center">
+      <td class="col-center" data-label="ใช้งาน (events)">
         ${usage > 0
           ? `<span style="background:#d1fae5;color:#065f46;padding:2px 9px;border-radius:5px;font-weight:700;font-size:12px" title="event ที่ผูกฟอร์มนี้">🔗 ${usage}</span>`
           : `<span style="color:var(--text3);font-size:12px">—</span>`}
       </td>
-      <td class="col-center">
+      <td class="col-center" data-label="ตอบกลับ">
         ${resp > 0
           ? `<span style="background:#fef3c7;color:#92400e;padding:2px 9px;border-radius:5px;font-weight:700;font-size:12px">📨 ${resp}</span>`
           : `<span style="color:var(--text3);font-size:12px">—</span>`}
       </td>
-      <td class="col-center">
+      <td class="col-center" data-label="สถานะ">
         <button onclick="window.toggleFormActive(${f.id}, ${!f.is_active})"
           style="background:${f.is_active ? '#dcfce7' : '#f1f5f9'};color:${f.is_active ? '#15803d' : '#64748b'};border:none;border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer;font-weight:700">
           ${f.is_active ? '● เปิด' : '○ ปิด'}
         </button>
       </td>
-      <td class="col-center">
+      <td class="col-center" data-label="จัดการ">
         <div class="action-group">
           <button class="btn-icon" onclick="window.openFormModal(${f.id})" title="แก้ไข">✏️</button>
           <button class="btn-icon" onclick="window.viewResults(${f.id})" title="ดูผลตอบกลับ">📊</button>

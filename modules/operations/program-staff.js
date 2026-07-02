@@ -62,14 +62,14 @@ function renderList() {
   const rows = state.staff.filter((x) => !q || (x.full_name || "").toLowerCase().includes(q));
   const tbody = document.getElementById("staffBody");
   document.getElementById("tableCount").textContent = `${rows.length} คน`;
-  if (!rows.length) { tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state"><div class="empty-icon">🧑‍🤝‍🧑</div><div class="empty-text">ยังไม่มีทีมงาน — กด "＋ เพิ่มทีมงาน"</div></div></td></tr>`; return; }
+  if (!rows.length) { tbody.innerHTML = `<tr class="r-card-plain"><td colspan="6"><div class="empty-state"><div class="empty-icon">🧑‍🤝‍🧑</div><div class="empty-text">ยังไม่มีทีมงาน — กด "＋ เพิ่มทีมงาน"</div></div></td></tr>`; return; }
   tbody.innerHTML = rows.map((x, i) => `<tr>
-    <td style="text-align:center;color:var(--text3);font-size:12px">${i + 1}</td>
-    <td style="font-weight:600;color:var(--text)">${escapeHtml(x.full_name || "—")}</td>
-    <td class="col-center"><span class="st-type st-type-${x.member_type || "staff"}">${typeLabel(x.member_type)}</span></td>
-    <td class="col-center">${escapeHtml(x.phone || "—")}</td>
-    <td>${escapeHtml([x.languages, x.note].filter(Boolean).join(" · ") || "—")}</td>
-    <td class="col-center" onclick="event.stopPropagation()"><div class="action-group">
+    <td class="r-card-corner" style="text-align:center;color:var(--text3);font-size:12px">${i + 1}</td>
+    <td class="r-card-title" style="font-weight:600;color:var(--text)">${escapeHtml(x.full_name || "—")}</td>
+    <td class="col-center" data-label="ประเภท"><span class="st-type st-type-${x.member_type || "staff"}">${typeLabel(x.member_type)}</span></td>
+    <td class="col-center" data-label="โทร">${escapeHtml(x.phone || "—")}</td>
+    <td data-label="ภาษา / หมายเหตุ">${escapeHtml([x.languages, x.note].filter(Boolean).join(" · ") || "—")}</td>
+    <td class="col-center" data-label="จัดการ" onclick="event.stopPropagation()"><div class="action-group">
       <button class="btn-icon" title="แก้ไข" data-perm="program_staff_edit" onclick="window.openStaffModal(${x.staff_id})">✏️</button>
       <button class="btn-icon danger" title="ลบ" data-perm="program_staff_delete" onclick="window.deleteStaff(${x.staff_id})">🗑</button>
     </div></td>
