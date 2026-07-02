@@ -65,3 +65,9 @@ body {
   opacity: 0;
   transition: opacity 0.2s ease;
 }
+
+/* ≤600px: topbar wrap เป็น 2 แถว (~100px) → ดันเนื้อหาลงให้พ้น topbar
+   (#threeCol ตั้ง padding-top:56px แบบ inline จึงต้องใช้ !important) */
+@media (max-width: 600px) {
+  #threeCol { padding-top: 100px !important; }
+}

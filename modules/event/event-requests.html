@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>คำขอจองห้อง — A4S-ERP</title>
+    <title>บันทึกการจองห้อง — A4S-ERP</title>
     <link
       href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
       rel="stylesheet"
@@ -20,7 +20,7 @@
     <div class="topbar"></div>
         <div class="page">          <!-- HERO -->
           <div class="page-hero page-hero--simple page-hero--compact">
-            <h1 class="page-hero-title">🚪 คำขอจองห้อง</h1>
+            <h1 class="page-hero-title">🚪 บันทึกการจองห้อง</h1>
           </div>
 
           <div class="stats-row">
@@ -28,28 +28,28 @@
               <div class="stat-icon">📋</div>
               <div>
                 <div class="stat-value" id="cardTotal">0</div>
-                <div class="stat-label">คำขอทั้งหมด</div>
+                <div class="stat-label">การจองทั้งหมด</div>
               </div>
             </div>
             <div class="stat-card">
-              <div class="stat-icon">⏳</div>
+              <div class="stat-icon">📅</div>
               <div>
-                <div class="stat-value" id="cardPending">0</div>
-                <div class="stat-label">รอดำเนินการ</div>
+                <div class="stat-value" id="cardToday">0</div>
+                <div class="stat-label">จองวันนี้</div>
               </div>
             </div>
             <div class="stat-card">
-              <div class="stat-icon">✅</div>
+              <div class="stat-icon">🗓️</div>
               <div>
-                <div class="stat-value" id="cardApproved">0</div>
-                <div class="stat-label">อนุมัติแล้ว</div>
+                <div class="stat-value" id="cardMonth">0</div>
+                <div class="stat-label">จองเดือนนี้</div>
               </div>
             </div>
             <div class="stat-card">
-              <div class="stat-icon">❌</div>
+              <div class="stat-icon">🚫</div>
               <div>
-                <div class="stat-value" id="cardRejected">0</div>
-                <div class="stat-label">ปฏิเสธ</div>
+                <div class="stat-value" id="cardCancelled">0</div>
+                <div class="stat-label">ยกเลิก</div>
               </div>
             </div>
           </div>
@@ -65,8 +65,7 @@
                 </div>
                 <select class="filter-select" id="rbkqFilterStatus" onchange="filterRoomBookings()">
                   <option value="">🧿 ทุกสถานะ</option>
-                  <option value="PENDING">⏳ รอดำเนินการ</option>
-                  <option value="APPROVED">✅ อนุมัติแล้ว</option>
+                  <option value="APPROVED">✅ จองแล้ว</option>
                   <option value="CANCELLED">🚫 ยกเลิก</option>
                 </select>
                 <div class="toolbar-right">
@@ -84,7 +83,7 @@
                     💬 ห้องสนทนา
                   </button>
                   <button class="ev-tab active">
-                    🚪 คำขอจองห้อง<span id="reqPendingBadge" class="tab-badge" style="display:none"></span>
+                    🚪 บันทึกการจองห้อง
                   </button>
                 </div>
                 <div class="table-count" id="rbkqCount">กำลังโหลด...</div>
@@ -104,12 +103,11 @@
                       <th class="col-center">วันที่จอง</th>
                       <th class="col-center">เวลา</th>
                       <th class="col-center">สถานะ</th>
-                      <th class="col-center">อนุมัติ</th>
                       <th class="col-center">จัดการ</th>
                     </tr>
                   </thead>
                   <tbody id="rbkqTableBody">
-                    <tr class="r-card-plain"><td colspan="11"><div class="empty-state"><div class="empty-icon">🚪</div><div class="empty-text">กำลังโหลด...</div></div></td></tr>
+                    <tr class="r-card-plain"><td colspan="10"><div class="empty-state"><div class="empty-icon">🚪</div><div class="empty-text">กำลังโหลด...</div></div></td></tr>
                   </tbody>
                 </table>
               </div>
@@ -123,161 +121,7 @@
     </div>
     <!-- /layout -->
 
-    <!-- ── SIDE PANEL ── -->
-    <div class="req-panel" id="reqPanel">
-      <div class="req-panel-header">
-        <div class="req-panel-title">📋 รายละเอียดคำขอ</div>
-        <button class="btn-icon" onclick="window.closeReqPanel()">✕</button>
-      </div>
-      <div class="req-panel-body" id="reqPanelBody">
-        <!-- filled by JS -->
-      </div>
-      <div class="req-panel-footer" id="reqPanelFooter">
-        <!-- filled by JS (approve/reject buttons) -->
-      </div>
-    </div>
-    <div
-      id="panelBackdrop"
-      style="display: none; position: fixed; inset: 0; z-index: 299"
-      onclick="window.closeReqPanel()"
-    ></div>
-
-    <!-- ── REQUEST MODAL ── -->
-    <div class="req-modal-overlay" id="reqModalOverlay">
-      <div class="req-modal">
-        <div class="req-modal-header">
-          <div style="font-weight: 700; font-size: 15px">
-            📋 ยื่นคำขอจัดกิจกรรม
-          </div>
-          <button class="btn-icon" onclick="window.closeRequestModal()">
-            ✕
-          </button>
-        </div>
-        <div class="req-modal-body">
-          <div class="req-form-grid">
-            <div class="form-group span2">
-              <label class="form-label"
-                >ชื่อกิจกรรม <span class="req-mark">*</span></label
-              >
-              <input
-                class="form-input"
-                id="fReqName"
-                placeholder="ชื่อกิจกรรมที่ต้องการจัด"
-              />
-            </div>
-            <div class="form-group">
-              <label class="form-label"
-                >ประเภท <span class="req-mark">*</span></label
-              >
-              <select class="form-input" id="fReqType">
-                <option value="">-- เลือกประเภท --</option>
-                <option value="BOOTH">🏪 ออกบูธ</option>
-                <option value="MEETING">👥 ประชุม</option>
-                <option value="ONLINE">💻 Online</option>
-                <option value="HYBRID">🔀 Hybrid</option>
-                <option value="CONFERENCE">🎤 Conference</option>
-                <option value="OTHER">📌 อื่นๆ</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label class="form-label">แผนก</label>
-              <select class="form-input" id="fReqDept">
-                <option value="">-- เลือกแผนก --</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label class="form-label"
-                >วันที่ต้องการจัด <span class="req-mark">*</span></label
-              >
-              <input type="date" class="form-input" id="fReqDate" />
-            </div>
-            <div class="form-group">
-              <label class="form-label">วันสิ้นสุด</label>
-              <input type="date" class="form-input" id="fReqEndDate" />
-            </div>
-            <div class="form-group span2">
-              <label class="form-label">สถานที่</label>
-              <input
-                class="form-input"
-                id="fReqLocation"
-                placeholder="สถานที่จัดกิจกรรม"
-              />
-            </div>
-            <div class="form-group">
-              <label class="form-label">จำนวนผู้เข้าร่วม (คน)</label>
-              <input
-                type="number"
-                class="form-input"
-                id="fReqAttendees"
-                min="0"
-                placeholder="0"
-              />
-            </div>
-            <div class="form-group">
-              <label class="form-label">แนบไฟล์</label>
-              <input
-                type="file"
-                class="form-input"
-                id="fReqFile"
-                accept=".pdf,.doc,.docx,.jpg,.png"
-              />
-            </div>
-            <div class="form-group span2">
-              <label class="form-label">รายละเอียด</label>
-              <textarea
-                class="form-input"
-                id="fReqDetail"
-                rows="3"
-                placeholder="รายละเอียดเพิ่มเติม..."
-              ></textarea>
-            </div>
-          </div>
-        </div>
-        <div class="req-modal-footer">
-          <button
-            class="btn btn-secondary"
-            onclick="window.closeRequestModal()"
-          >
-            ยกเลิก
-          </button>
-          <button class="btn btn-primary" onclick="window.submitRequest()">
-            📤 ส่งคำขอ
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- ── REJECT MODAL ── -->
-    <div class="reject-modal-overlay" id="rejectModalOverlay">
-      <div class="reject-modal">
-        <div style="font-weight: 700; font-size: 15px; margin-bottom: 14px">
-          ❌ เหตุผลที่ปฏิเสธ
-        </div>
-        <textarea
-          class="form-input"
-          id="fRejectReason"
-          rows="3"
-          placeholder="ระบุเหตุผล..."
-        ></textarea>
-        <div
-          style="
-            display: flex;
-            gap: 8px;
-            justify-content: flex-end;
-            margin-top: 14px;
-          "
-        >
-          <button class="btn btn-secondary" onclick="window.closeRejectModal()">
-            ยกเลิก
-          </button>
-          <button class="btn btn-danger" onclick="window.confirmReject()">
-            ยืนยันปฏิเสธ
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Room Booking Requests Section -->
+    <!-- Room Booking Log Section -->
     <style>
       .room-bkq-section { margin-top: 24px; }
       .room-bkq-section .table-hdr { display:flex; justify-content:space-between; align-items:center; padding:12px 16px; border-bottom:1px solid #e2e8f0; }
@@ -536,8 +380,7 @@
               <div class="bkq-field">
                 <label>สถานะ</label>
                 <select id="bkqEditStatus">
-                  <option value="PENDING">⏳ รอดำเนินการ</option>
-                  <option value="APPROVED">✅ อนุมัติแล้ว</option>
+                  <option value="APPROVED">✅ จองแล้ว</option>
                   <option value="CANCELLED">🚫 ยกเลิก</option>
                 </select>
               </div>
@@ -650,14 +493,12 @@
     <script src="../../js/core/line.js"></script>
     <script src="../../js/core/notify.js"></script>
     <script>AuthZ.requirePerm("evt_req_view");</script>
-    <script src="../../js/core/imageCompressor.js"></script>
-    <script type="module" src="./event-requests.js"></script>
     <script src="../../js/components/modal/deleteModal.js"></script>
     <script src="../../js/components/modal/modalManager.js"></script>
     <script src="../../js/components/modal/enterSave.js"></script>
     <script type="module">
       import { loadTopbar } from "../../js/components/navigation/topbar.js";
-      loadTopbar("🚪 คำขอจองห้อง");
+      loadTopbar("🚪 บันทึกการจองห้อง");
     </script>
     <script src="../../js/components/navigation/sidebar.js"></script>
 
@@ -707,10 +548,10 @@
     }
 
     const BKQ_STATUS_MAP = {
-      PENDING:  { label:"รอดำเนินการ", cls:"PENDING"  },
-      APPROVED: { label:"อนุมัติแล้ว", cls:"APPROVED" },
-      REJECTED: { label:"ยกเลิก",      cls:"CANCELLED" },
-      CANCELLED:{ label:"ยกเลิก",      cls:"CANCELLED"},
+      PENDING:  { label:"จองแล้ว",  cls:"APPROVED"  },
+      APPROVED: { label:"จองแล้ว",  cls:"APPROVED" },
+      REJECTED: { label:"ยกเลิก",    cls:"CANCELLED" },
+      CANCELLED:{ label:"ยกเลิก",    cls:"CANCELLED"},
     };
 
     // ── Room Booking Requests loader ──────────────────────────
@@ -720,7 +561,7 @@
       const counter = document.getElementById("rbkqCount");
       if (!tbody) return;
       if (!url || !key) {
-        if (!silent) tbody.innerHTML = `<tr class="r-card-plain"><td colspan="11" style="text-align:center;color:#94a3b8;font-size:12px;">ไม่พบข้อมูล Supabase</td></tr>`;
+        if (!silent) tbody.innerHTML = `<tr class="r-card-plain"><td colspan="10" style="text-align:center;color:#94a3b8;font-size:12px;">ไม่พบข้อมูล Supabase</td></tr>`;
         return;
       }
       try {
@@ -746,8 +587,27 @@
 
         filterRoomBookings();   // re-apply current search/filter
       } catch (e) {
-        if (!silent) tbody.innerHTML = `<tr class="r-card-plain"><td colspan="11" style="text-align:center;color:#ef4444;font-size:12px;">โหลดข้อมูลไม่ได้: ${e.message}</td></tr>`;
+        if (!silent) tbody.innerHTML = `<tr class="r-card-plain"><td colspan="10" style="text-align:center;color:#ef4444;font-size:12px;">โหลดข้อมูลไม่ได้: ${e.message}</td></tr>`;
       }
+    }
+
+    // Date in Bangkok timezone as YYYY-MM-DD (en-CA gives ISO-like order)
+    function bkqBkkDate(d) {
+      const dt = d ? new Date(d) : new Date();
+      if (isNaN(dt)) return "";
+      return dt.toLocaleDateString("en-CA", { timeZone: "Asia/Bangkok" });
+    }
+
+    // Log-oriented stat cards (computed from full _bkqRows, not filtered view)
+    function updateBkqCards() {
+      const rows  = _bkqRows || [];
+      const today = bkqBkkDate();
+      const month = today.slice(0, 7);
+      const setC  = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+      setC("cardTotal",     rows.length);
+      setC("cardToday",     rows.filter(r => bkqBkkDate(r.created_at) === today).length);
+      setC("cardMonth",     rows.filter(r => bkqBkkDate(r.created_at).startsWith(month)).length);
+      setC("cardCancelled", rows.filter(r => r.status === "CANCELLED" || r.status === "REJECTED").length);
     }
 
     function renderRoomBookings(rows) {
@@ -755,16 +615,11 @@
       const counter = document.getElementById("rbkqCount");
       counter.textContent = `${rows.length} รายการ`;
 
-      // Update pending badge (count from full _bkqRows, not filtered)
-      const pendingCount = _bkqRows.filter(r => r.status === "PENDING").length;
-      const badge = document.getElementById("reqPendingBadge");
-      if (badge) {
-        badge.textContent = pendingCount;
-        badge.style.display = pendingCount > 0 ? "inline-flex" : "none";
-      }
+      // Refresh log stat cards (count from full _bkqRows, not filtered view)
+      updateBkqCards();
 
       if (rows.length === 0) {
-        tbody.innerHTML = `<tr class="r-card-plain"><td colspan="11"><div class="empty-state"><div class="empty-icon">🚪</div><div class="empty-text">ยังไม่มีรายการจองห้อง</div></div></td></tr>`;
+        tbody.innerHTML = `<tr class="r-card-plain"><td colspan="10"><div class="empty-state"><div class="empty-icon">🚪</div><div class="empty-text">ยังไม่มีรายการจองห้อง</div></div></td></tr>`;
         return;
       }
 
@@ -794,10 +649,6 @@
             <td class="col-center" data-label="วันที่จอง">${window.DateFmt?.formatDMY(r.created_at) || (r.created_at||"").slice(0,10) || ""}</td>
             <td class="col-center" data-label="เวลา">${timeStr}</td>
             <td class="col-center" data-label="สถานะ"><span class="room-bkq-badge ${s.cls}">${s.label}</span></td>
-            <td class="col-center" data-label="อนุมัติ" onclick="event.stopPropagation()">
-              <button class="btn-icon" title="อนุมัติ" onclick="updateRoomBooking(${r.request_id},'APPROVED',this)">✅</button>
-              <button class="btn-icon" title="ยกเลิก"  onclick="updateRoomBooking(${r.request_id},'CANCELLED',this)">❌</button>
-            </td>
             <td class="col-center" data-label="จัดการ" onclick="event.stopPropagation()">
               <button class="btn-icon" title="ผู้เข้าร่วม" onclick="window.open('./booking-attendees.html?request=${r.request_id}','_blank')" style="color:#6366f1">👥</button>
               <button class="btn-icon" title="แก้ไข" onclick="openBkqDetailById(${r.request_id})" style="color:#f97316">✏️</button>
@@ -926,59 +777,6 @@
         refreshBkqLogCounts();
       }, 8000);
     }, 800);
-
-    // Check if approving this request would create a time-overlap conflict
-    // with another already-APPROVED booking for the same room on the same date.
-    function findApprovalConflicts(target) {
-      if (!target) return [];
-      const sameRoomSameDate = _bkqRows.filter((r) => {
-        if (String(r.request_id) === String(target.request_id)) return false;
-        if (r.status !== "APPROVED") return false;
-        if (r.booking_date !== target.booking_date) return false;
-        // Prefer room_id match; fallback to place_id when room_id missing
-        if (target.room_id && r.room_id) return String(r.room_id) === String(target.room_id);
-        return String(r.place_id) === String(target.place_id);
-      });
-      return sameRoomSameDate.filter((r) => {
-        // ALLDAY always conflicts
-        if (target.end_time === "ALLDAY" || r.end_time === "ALLDAY") return true;
-        const aS = (target.start_time || "").slice(0, 5);
-        const aE = (target.end_time   || "23:59").slice(0, 5);
-        const bS = (r.start_time      || "").slice(0, 5);
-        const bE = (r.end_time        || "23:59").slice(0, 5);
-        return aS < bE && aE > bS;
-      });
-    }
-
-    async function updateRoomBooking(id, status, btn) {
-      // Warn when approval would conflict with another approved booking
-      if (status === "APPROVED") {
-        const target = _bkqRows.find((r) => String(r.request_id) === String(id));
-        const conflicts = findApprovalConflicts(target);
-        if (conflicts.length > 0) {
-          const ok = await window.showApprovalConflictWarning(conflicts);
-          if (!ok) return;
-        }
-      }
-      const { url, key } = bkqSB();
-      btn.disabled = true;
-      try {
-        const res = await fetch(`${url}/rest/v1/room_booking_requests?request_id=eq.${id}`, {
-          method: "PATCH",
-          headers: { apikey:key, Authorization:`Bearer ${key}`, "Content-Type":"application/json", Prefer:"return=representation" },
-          body: JSON.stringify({ status }),
-        });
-        if (res.ok) {
-          _bkqListLastSig = "";
-          if (status === "APPROVED") {
-            const row = _bkqRows.find((r) => String(r.request_id) === String(id));
-            fireBookingApprovedNotification(row);
-          }
-          loadRoomBookingRequests();
-        }
-      } catch { btn.disabled = false; }
-    }
-    window.updateRoomBooking = updateRoomBooking;
 
     function fireBookingCreatedNotification(payload) {
       if (!payload || !window.Notify) return;
@@ -1475,9 +1273,6 @@
     // ESC to close modals (innermost first)
     document.addEventListener("keydown", (e) => {
       if (e.key !== "Escape") return;
-      if (document.getElementById("rejectModalOverlay").classList.contains("open")) {
-        window.closeRejectModal(); return;
-      }
       const dm = document.getElementById("deleteModalOverlay");
       if (dm && dm.classList.contains("active")) {
         DeleteModal.close(); return;
@@ -1488,92 +1283,8 @@
       if (document.getElementById("bkqDetailOverlay").classList.contains("open")) {
         closeBkqDetail(); return;
       }
-      if (document.getElementById("reqModalOverlay").classList.contains("open")) {
-        window.closeRequestModal(); return;
-      }
-      if (document.getElementById("reqPanel").classList.contains("open")) {
-        window.closeReqPanel();
-      }
     });
     </script>
 
-    <!-- Approval Conflict Warning Modal -->
-    <style>
-      .aw-overlay { position:fixed; inset:0; background:rgba(15,23,42,.45); backdrop-filter:blur(6px); display:none; align-items:center; justify-content:center; z-index:3000; }
-      .aw-overlay.active { display:flex; }
-      .aw-modal { width:440px; max-width:92vw; background:#fff; border-radius:16px; overflow:hidden; box-shadow:0 8px 32px rgba(0,0,0,.14); animation:awPop .2s cubic-bezier(.34,1.56,.64,1); font-family:'Sarabun',sans-serif; }
-      .aw-header { background:linear-gradient(135deg,#f97316,#ef4444); padding:16px 20px; color:#fff; display:flex; gap:12px; align-items:center; }
-      .aw-header .aw-icon { font-size:24px; }
-      .aw-header .aw-title { font-weight:800; font-size:15px; }
-      .aw-header .aw-sub { font-size:11px; opacity:.85; margin-top:2px; }
-      .aw-body { padding:16px 20px; max-height:260px; overflow-y:auto; }
-      .aw-body .aw-lead { font-size:13px; color:#475569; margin-bottom:10px; }
-      .aw-item { background:#fef3c7; border:1px solid #fcd34d; border-radius:10px; padding:10px 12px; font-size:12px; color:#78350f; margin-bottom:8px; line-height:1.5; }
-      .aw-item:last-child { margin-bottom:0; }
-      .aw-item b { color:#92400e; }
-      .aw-footer { display:flex; gap:10px; padding:0 20px 18px; }
-      .aw-btn { flex:1; padding:10px 16px; border-radius:8px; border:none; cursor:pointer; font-size:14px; font-weight:700; font-family:'Sarabun',sans-serif; transition:background .15s; }
-      .aw-btn.cancel { background:#f1f5f9; color:#475569; border:1px solid #e2e8f0; }
-      .aw-btn.cancel:hover { background:#e2e8f0; }
-      .aw-btn.primary { background:#ea580c; color:#fff; }
-      .aw-btn.primary:hover { background:#c2410c; }
-      @keyframes awPop { from { transform:scale(.94) translateY(8px); opacity:0; } to { transform:scale(1) translateY(0); opacity:1; } }
-    </style>
-    <div id="approvalWarnOverlay" class="aw-overlay">
-      <div class="aw-modal">
-        <div class="aw-header">
-          <span class="aw-icon">⚠️</span>
-          <div>
-            <div class="aw-title">พบการจองที่อนุมัติแล้วซ้อนเวลา</div>
-            <div class="aw-sub">กรุณาตรวจสอบก่อนอนุมัติซ้ำ</div>
-          </div>
-        </div>
-        <div class="aw-body">
-          <div class="aw-lead">ห้องนี้มีการจองที่อนุมัติแล้วในช่วงเวลาเดียวกัน:</div>
-          <div id="approvalWarnList"></div>
-        </div>
-        <div class="aw-footer">
-          <button class="aw-btn cancel" id="approvalWarnCancel">ยกเลิก</button>
-          <button class="aw-btn primary" id="approvalWarnOk">อนุมัติต่อ</button>
-        </div>
-      </div>
-    </div>
-    <script>
-      window.showApprovalConflictWarning = function (conflicts) {
-        return new Promise((resolve) => {
-          const overlay = document.getElementById("approvalWarnOverlay");
-          const listEl = document.getElementById("approvalWarnList");
-          const okBtn = document.getElementById("approvalWarnOk");
-          const cancelBtn = document.getElementById("approvalWarnCancel");
-          listEl.innerHTML = conflicts.map((c) => {
-            const time = c.end_time === "ALLDAY" ? "ตลอดทั้งวัน"
-              : `${(c.start_time||"").slice(0,5)}–${(c.end_time||"").slice(0,5)}`;
-            const room = (c.place_name || "") + (c.room_name ? ` — ${c.room_name}` : "");
-            return `<div class="aw-item">
-              <div><b>${room}</b></div>
-              <div>📅 ${c.booking_date} • ⏰ ${time}</div>
-              <div>👤 ${c.booked_by_name || "—"} · <span style="font-family:monospace">${c.request_code || ""}</span></div>
-            </div>`;
-          }).join("");
-          function cleanup(result) {
-            overlay.classList.remove("active");
-            okBtn.removeEventListener("click", onOk);
-            cancelBtn.removeEventListener("click", onCancel);
-            overlay.removeEventListener("click", onBackdrop);
-            document.removeEventListener("keydown", onKey);
-            resolve(result);
-          }
-          function onOk() { cleanup(true); }
-          function onCancel() { cleanup(false); }
-          function onBackdrop(e) { if (e.target === overlay) cleanup(false); }
-          function onKey(e) { if (e.key === "Escape") cleanup(false); }
-          okBtn.addEventListener("click", onOk);
-          cancelBtn.addEventListener("click", onCancel);
-          overlay.addEventListener("click", onBackdrop);
-          document.addEventListener("keydown", onKey);
-          overlay.classList.add("active");
-        });
-      };
-    </script>
   </body>
 </html>

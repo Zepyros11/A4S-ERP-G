@@ -11,6 +11,10 @@ body > .layout {
 }
 
 @media (max-width: 600px) {
+  /* topbar wrap เป็น 2 แถว (~100px) ที่ ≤600 → ต้องจองพื้นที่บนให้พอ ไม่งั้นหัวข้อโดนบัง */
+  body > .layout {
+    padding-top: 100px;
+  }
   .epg-filter-chips {
     display: none;
   }
