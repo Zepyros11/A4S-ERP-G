@@ -66,8 +66,8 @@ body {
   transition: opacity 0.2s ease;
 }
 
-/* ≤600px: topbar wrap เป็น 2 แถว (~100px) → ดันเนื้อหาลงให้พ้น topbar
-   (#threeCol ตั้ง padding-top:56px แบบ inline จึงต้องใช้ !important) */
+/* ≤600px: topbar wrap เป็น 2 แถว → ใช้ความสูงจริงจาก JS (--cal-topbar-h) ดันเนื้อหาให้พ้นพอดี
+   fallback 100px กันไว้ถ้า JS ไม่ทำงาน · !important เพราะ #threeCol ตั้ง padding-top:56px แบบ inline */
 @media (max-width: 600px) {
-  #threeCol { padding-top: 100px !important; }
+  #threeCol { padding-top: var(--cal-topbar-h, 100px) !important; }
 }

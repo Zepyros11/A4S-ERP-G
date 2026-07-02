@@ -172,6 +172,25 @@ const CalTopbar = (function () {
     const dateEl = document.getElementById("calTopbarDate");
     if (dateEl) dateEl.textContent = formatDateTH(new Date());
 
+    // ── วัดความสูง topbar จริง → เผยเป็น CSS var (--cal-topbar-h) ให้หน้า offset ได้เป๊ะ ──
+    // มือถือ (≤767) topbar wrap เป็น 2 แถว ความสูงไม่คงที่ → หน้าอย่า hardcode
+    // เฉพาะ ≤767 เท่านั้น (≥768 มี global zoom 0.65 ทำให้ getBoundingClientRect เพี้ยน → ปล่อยใช้ fallback)
+    const bar = wrap.querySelector(".cal-topbar");
+    if (bar) {
+      const applyH = () => {
+        if (window.innerWidth <= 767) {
+          const h = Math.round(bar.getBoundingClientRect().height) || 56;
+          document.documentElement.style.setProperty("--cal-topbar-h", h + "px");
+        } else {
+          document.documentElement.style.removeProperty("--cal-topbar-h");
+        }
+      };
+      applyH();
+      window.addEventListener("resize", applyH);
+      if (window.ResizeObserver) new ResizeObserver(applyH).observe(bar);
+      setTimeout(applyH, 300); // เผื่อ font/โลโก้โหลดเสร็จช้าแล้วความสูงเปลี่ยน
+    }
+
   }
 
   return { init: render };
