@@ -228,7 +228,7 @@ async function init() {
       const startMs = campaign.start_date ? Date.parse(campaign.start_date + "T00:00:00+07:00") : null;
       const endMs = campaign.end_date ? Date.parse(campaign.end_date + "T23:59:59+07:00") : null;
       const now = Date.now();
-      if (startMs && now < startMs) return closed("⏳", `ยังไม่ถึงเวลาเปิดลงทะเบียน · เริ่ม ${fmtDMY(campaign.start_date)}`);
+      if (startMs && now < startMs) return closed("⏳", `เริ่ม ${fmtDMY(campaign.start_date)}`, "../../assets/images/campaign-not-open.png");
       if (endMs && now > endMs) return closed("🏁", "หมดเวลากิจกรรมแล้ว — ปิดรับลงทะเบียน");
     }
 
@@ -250,8 +250,19 @@ async function init() {
     closed("⚠️", "เกิดข้อผิดพลาด: " + e.message);
   }
 }
-function closed(icon, msg) {
-  document.getElementById("closedIcon").textContent = icon;
+function closed(icon, msg, img) {
+  const imgEl = document.getElementById("closedImg");
+  const iconEl = document.getElementById("closedIcon");
+  if (img && imgEl) {
+    // ใช้ภาพแบนเนอร์ · ถ้าโหลดไม่ได้ (ยังไม่อัปไฟล์) → fallback เป็น emoji
+    imgEl.onerror = () => { imgEl.classList.add("hidden"); if (iconEl) { iconEl.classList.remove("hidden"); iconEl.textContent = icon; } };
+    imgEl.src = img;
+    imgEl.classList.remove("hidden");
+    if (iconEl) iconEl.classList.add("hidden");
+  } else {
+    if (imgEl) imgEl.classList.add("hidden");
+    if (iconEl) { iconEl.classList.remove("hidden"); iconEl.textContent = icon; }
+  }
   document.getElementById("closedMsg").textContent = msg;
   show("stateLoading", false);
   show("stateClosed", true);

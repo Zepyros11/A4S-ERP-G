@@ -444,6 +444,7 @@ body {
   box-shadow: 0 8px 30px rgba(15, 23, 42, 0.08);
 }
 .reg-state .ic { font-size: 52px; margin-bottom: 12px; }
+.reg-closed-img { width: 100%; max-width: 560px; height: auto; border-radius: 16px; margin: 0 auto 14px; display: block; }
 .reg-state .done-img { width: 100%; max-width: 460px; height: auto; border-radius: 16px; margin: 0 auto 16px; display: block; }
 .reg-state .msg { font-size: 16px; color: var(--text2); }
 
