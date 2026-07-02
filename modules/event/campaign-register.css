@@ -144,6 +144,8 @@ body {
 }
 .fg textarea { resize: vertical; min-height: 64px; }
 .fg input:focus, .fg select:focus, .fg textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-pale); }
+.fg input[readonly] { background: #f1f5f9; color: var(--text2); cursor: default; }
+.fg input[readonly]:focus { border-color: var(--border); box-shadow: none; }
 
 /* ตัวเลือก (radio/checkbox) ของฟิลด์กำหนดเอง */
 .cf-choices { display: flex; flex-direction: column; gap: 7px; padding: 2px 0; }

@@ -465,9 +465,13 @@ function renderCodeSuggest(rows) {
   const el = _codeSuggestEl();
   if (!el) return;
   if (!rows.length) {
-    el.innerHTML = `<div class="cs-info">ไม่พบรหัสนี้ — พิมพ์ชื่อเองได้</div>`;
+    const nameEl = document.getElementById("rName");
+    if (nameEl) nameEl.value = "";
+    el.innerHTML = `<div class="cs-info">ไม่พบรหัสนี้ — กรุณาตรวจสอบรหัสสมาชิก</div>`;
     return;
   }
+  // มีคนเดียว → เติมชื่อให้อัตโนมัติเลย (ช่องชื่อกรอกเองไม่ได้)
+  if (rows.length === 1) { selectCodeName(rows[0].person_name || ""); return; }
   // แสดงแค่ รหัส + ชื่อ (ไม่โชว์ chip role/ตำแหน่ง — กัน popup ล้นแนวนอน)
   el.innerHTML = rows.map((m) => {
     const name = m.person_name || "—";
@@ -703,7 +707,7 @@ async function doRegister() {
   const name = document.getElementById("rName").value.trim();
   regMsg("");
   if (!code) { regMsg("กรุณากรอกรหัส"); return toast("กรุณากรอกรหัส", "error"); }
-  if (!name) { regMsg("กรุณากรอกชื่อ"); return toast("กรุณากรอกชื่อ", "error"); }
+  if (!name) { regMsg("ไม่พบชื่อจากรหัสนี้ — กรุณาตรวจสอบรหัสสมาชิก"); return toast("ไม่พบชื่อจากรหัสสมาชิก", "error"); }
 
   // เก็บช่องทางที่ใส่ลิงก์ + ตรวจกฎ
   const filled = SOCIALS
