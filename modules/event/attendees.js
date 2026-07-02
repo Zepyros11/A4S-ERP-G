@@ -5351,23 +5351,29 @@ function rebuildTableHeader() {
   tr.innerHTML = cols.map((c, i) => {
     const sortable = _isSortable(c.key);
     const editable = _isRenameableCol(c.key);
+    const reorderable = _isReorderableColKey(c.key);
     const active = _sortKey === c.key;
-    const alignClass = (c.align === "center" ? "col-center" : "") + (divKeys.has(c.key) ? " col-grp-divider" : "") + (sortable ? " att-th-sortable" : "") + (editable ? " att-th-editable" : "");
+    const alignClass = (c.align === "center" ? "col-center" : "") + (divKeys.has(c.key) ? " col-grp-divider" : "") + (sortable ? " att-th-sortable" : "") + (editable ? " att-th-editable" : "") + (reorderable ? " att-th-reorderable" : "");
     const extra = c.small ? ";font-size:10.5px;line-height:1.25" : "";
     const arrow = sortable
       ? `<span class="att-sort-ico${active ? " active" : ""}">${active ? (_sortDir === 1 ? "▲" : "▼") : "⇅"}</span>`
       : "";
     // คลิก = เรียงลำดับ · ดับเบิลคลิก (field/custom/qual) = เปลี่ยนชื่อ inline (จับ dblclick ใน onColHeaderClick)
     const onclick = (sortable || editable) ? ` onclick="window.onColHeaderClick('${c.key}', event)"` : "";
+    // ลากเพื่อย้ายคอลัมน์ (field/custom/qual/payment) — native HTML5 DnD
+    const drag = reorderable
+      ? ` draggable="true" ondragstart="window.onColDragStart(event,'${c.key}')" ondragover="window.onColDragOver(event,'${c.key}')" ondragleave="window.onColDragLeave(event)" ondrop="window.onColDrop(event,'${c.key}')" ondragend="window.onColDragEnd(event)"`
+      : "";
     // ปุ่มตรึงคอลัมน์ (📌) — เฉพาะคอลัมน์ข้อมูล (ตั้งแต่ชื่อเป็นต้นไป · ไม่รวม trailing)
     const pinnable = i >= 2 && !["checkin", "actions", "payment"].includes(c.key);
     const pin = pinnable
       ? `<span class="att-pin${i < _freezeCount ? " active" : ""}" onclick="event.stopPropagation();window.toggleFreezeColumn(${i})" title="${i < _freezeCount ? "ยกเลิกตรึง" : "📌 ตรึงคอลัมน์ถึงตรงนี้"}">📌</span>`
       : "";
     const titleTxt = editable
-      ? "ดับเบิลคลิกเพื่อเปลี่ยนชื่อคอลัมน์ · คลิกเพื่อเรียงลำดับ"
-      : (sortable ? 'คลิกเพื่อเรียงลำดับ' : (c.small ? (typeof c.label === 'string' ? c.label.replace(/^✓ /, '') : '') : ''));
-    return `<th class="${alignClass}"${onclick} style="min-width:${c.width}px${extra}" title="${titleTxt}">${c.label}${arrow}${pin}</th>`;
+      ? "ดับเบิลคลิกเพื่อเปลี่ยนชื่อ · คลิกเพื่อเรียงลำดับ · ลากเพื่อย้าย"
+      : (reorderable ? "ลากเพื่อย้ายคอลัมน์"
+        : (sortable ? 'คลิกเพื่อเรียงลำดับ' : (c.small ? (typeof c.label === 'string' ? c.label.replace(/^✓ /, '') : '') : '')));
+    return `<th class="${alignClass}"${onclick}${drag} style="min-width:${c.width}px${extra}" title="${titleTxt}">${c.label}${arrow}${pin}</th>`;
   }).join("");
   _rebuildTableGroupHeader(cols);
   _syncGroupHeaderOffset();
@@ -5432,6 +5438,7 @@ window.startRenameColumn = function (key, ev) {
   if (th.querySelector(".att-col-rename")) return;   // แก้อยู่แล้ว
   _colRenameKeyActive = key;
   const cur = _columnLabelText(key) || "";
+  th.setAttribute("draggable", "false");   // กัน native drag แย่งการเลือกข้อความในช่องแก้ชื่อ
   th.classList.add("att-th-editing");
   th.innerHTML = `<input class="att-col-rename" type="text" value="${escapeHtml(cur)}" maxlength="40"
       onkeydown="window._colRenameKey(event)" onblur="window._colRenameBlur(this)"
@@ -5574,6 +5581,94 @@ document.addEventListener("click", (e) => {
   if (e.target.closest(".att-addcol-wrap")) return;
   document.getElementById("attAddColMenu")?.classList.remove("open");
 });
+
+// ── ลากเลื่อนหัวคอลัมน์ (drag reorder) ──────────────────────
+//   ย้าย item ใน block ของ config → หัวตาราง + ฟอร์มเรียงตามกัน · group header ไม่แตก (block ยัง contiguous)
+//   บันทึกเป็น override เฉพาะงานนี้ · คอลัมน์ที่ย้ายได้: field/custom/qual/payment (ไม่รวม core/#/check-in/จัดการ)
+function _isReorderableColKey(key) {
+  return key.startsWith("field:") || key.startsWith("custom:") || key.startsWith("qual:") || key === "payment";
+}
+// key → ฟังก์ชันเทียบว่า block item ตรงกับคอลัมน์นี้ไหม
+function _blockItemMatcher(key) {
+  if (key === "payment") return (it) => it.type === "payment";
+  if (key.startsWith("field:"))  { const k = key.slice(6); return (it) => it.type === "std" && it.key === k; }
+  if (key.startsWith("custom:")) { const k = key.slice(7); return (it) => it.key === k && ["text","date","number","stamp","persontype","nationalid"].includes(it.type); }
+  if (key.startsWith("qual:"))   { const k = key.slice(5); return (it) => it.type === "check" && it.key === k; }
+  return () => false;
+}
+let _colDragKey = null;
+window.onColDragStart = function (ev, key) {
+  if (!_isReorderableColKey(key)) { ev.preventDefault(); return; }
+  _colDragKey = key;
+  ev.dataTransfer.effectAllowed = "move";
+  try { ev.dataTransfer.setData("text/plain", key); } catch {}
+  ev.currentTarget.classList.add("att-th-dragging");
+};
+window.onColDragOver = function (ev, key) {
+  if (!_colDragKey || key === _colDragKey || !_isReorderableColKey(key)) return;
+  ev.preventDefault();
+  ev.dataTransfer.dropEffect = "move";
+  const th = ev.currentTarget;
+  const rect = th.getBoundingClientRect();   // real px · clientX ก็ real px → เทียบกันได้แม้ zoom
+  const after = (ev.clientX - rect.left) > rect.width / 2;
+  th.classList.remove("att-th-drop-before", "att-th-drop-after");
+  th.classList.add(after ? "att-th-drop-after" : "att-th-drop-before");
+};
+window.onColDragLeave = function (ev) {
+  ev.currentTarget.classList.remove("att-th-drop-before", "att-th-drop-after");
+};
+window.onColDrop = function (ev, key) {
+  ev.preventDefault();
+  const th = ev.currentTarget;
+  const after = th.classList.contains("att-th-drop-after");
+  th.classList.remove("att-th-drop-before", "att-th-drop-after");
+  const src = _colDragKey; _colDragKey = null;
+  if (!src || src === key || !_isReorderableColKey(key)) return;
+  _reorderColumn(src, key, after);
+};
+window.onColDragEnd = function () {
+  _colDragKey = null;
+  document.querySelectorAll("#attTableHead th").forEach(t =>
+    t.classList.remove("att-th-dragging", "att-th-drop-before", "att-th-drop-after"));
+};
+async function _reorderColumn(srcKey, targetKey, after) {
+  const info = _currentCfgInfo();
+  if (!info || info.source === "none") return;
+  const base = JSON.parse(JSON.stringify(
+    info.source === "override" ? (info.override || {}) : (info.templateConfig || {})
+  ));
+  if (!Array.isArray(base.blocks) || !base.blocks.length) {
+    base.blocks = window.AttendeeFields ? window.AttendeeFields.ensureBlocks(base) : null;   // flat → derive blocks
+    if (!base.blocks || !base.blocks.length) { showToast("ย้ายคอลัมน์ไม่ได้", "error"); return; }
+  }
+  const locate = (key) => {
+    const match = _blockItemMatcher(key);
+    for (let bi = 0; bi < base.blocks.length; bi++) {
+      const items = base.blocks[bi].items || [];
+      for (let ii = 0; ii < items.length; ii++) if (match(items[ii])) return { bi, ii };
+    }
+    return null;
+  };
+  const s = locate(srcKey);
+  if (!s) { showToast("ย้ายคอลัมน์ไม่ได้", "error"); return; }
+  const [srcItem] = base.blocks[s.bi].items.splice(s.ii, 1);   // เอาออกก่อน
+  const t = locate(targetKey);                                  // หา index เป้าใหม่ (เผื่อ shift หลังลบ)
+  if (!t) { showToast("ย้ายคอลัมน์ไม่ได้", "error"); return; }
+  base.blocks[t.bi].items.splice(t.ii + (after ? 1 : 0), 0, srcItem);
+  base.blocks = base.blocks.filter(b => Array.isArray(b.items) && b.items.length);   // ตัด block ว่าง
+  try {
+    await sbFetch("events", `?event_id=eq.${currentEventId}`, {
+      method: "PATCH",
+      body: { attendee_field_config: base },
+    });
+    _invalidateEventConfigCache();
+    await fetchEventFieldConfig(currentEventId).catch(() => {});
+    showToast("ย้ายคอลัมน์แล้ว (เฉพาะงานนี้) ↔", "success");
+    filterTable();
+  } catch (e) {
+    showToast("บันทึกไม่สำเร็จ: " + e.message, "error");
+  }
+}
 
 // ── Freeze คอลัมน์ (เลือกเองผ่าน 📌) ────────────────────────
 // default freeze = 4 (☑ · # · Check-in · รหัส/ชื่อ) → คงคอลัมน์ระบุตัวตนไว้ซ้าย · ปรับเองได้ผ่าน 📌 (จำใน localStorage)

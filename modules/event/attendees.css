@@ -730,6 +730,21 @@
 }
 .att-th-editable:hover::after { opacity: .7; }
 .att-th-editing { background: #fff7ed; }
+
+/* ลากเลื่อนหัวคอลัมน์ (drag reorder) */
+.att-th-reorderable::before {
+  content: "⠿";
+  font-size: 10px;
+  color: #cbd5e1;
+  opacity: 0;
+  margin-right: 3px;
+  vertical-align: middle;
+  transition: opacity .12s;
+}
+.att-th-reorderable:hover::before { opacity: .8; }
+.att-th-dragging { opacity: .45; }
+.att-th-drop-before { box-shadow: inset 3px 0 0 0 var(--accent, #16a34a); }
+.att-th-drop-after  { box-shadow: inset -3px 0 0 0 var(--accent, #16a34a); }
 /* ช่องพิมพ์ชื่อคอลัมน์ inline */
 .att-col-rename {
   width: 100%;

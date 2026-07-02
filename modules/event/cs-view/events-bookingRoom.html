@@ -87,6 +87,31 @@
       #bookingModal, #requestDetailModal { z-index: 200; }
       #conflictModal { z-index: 210; }
       #alertModal { z-index: 220; }
+
+      /* ── มือถือ: modal จอง/รายละเอียด = bottom sheet (สไลด์ขึ้นจากล่าง มุมบนมน มีที่จับ)
+         ให้ look เหมือน event popup หน้า calendar ── */
+      @keyframes bkrSheetUp { from { opacity: .5; transform: translateY(100%); } to { opacity: 1; transform: translateY(0); } }
+      @media (max-width: 767px) {
+        #bookingModal, #requestDetailModal {
+          align-items: flex-end;   /* ชิดล่าง */
+          padding: 0;              /* เต็มความกว้าง ไม่มีขอบ */
+        }
+        #bookingModal > div, #requestDetailModal > div {
+          width: 100%;
+          max-width: 100%;
+          border-radius: 18px 18px 0 0;   /* มนเฉพาะบน */
+          animation: bkrSheetUp .28s cubic-bezier(.34, 1.1, .64, 1);
+        }
+        /* แถบจับ (drag handle) บนสุดของ sheet */
+        #bookingModal > div::before, #requestDetailModal > div::before {
+          content: ""; position: absolute; top: 7px; left: 50%; transform: translateX(-50%);
+          width: 42px; height: 4px; border-radius: 999px;
+          background: rgba(148, 163, 184, .9); z-index: 20;
+        }
+        /* เว้นที่เหนือหัว modal ให้ที่จับ */
+        #bookingModal > div > :first-child:not(.absolute),
+        #requestDetailModal > div > :first-child { padding-top: 18px; }
+      }
     </style>
   </head>
   <body class="text-slate-800 flex flex-col h-screen overflow-hidden">
