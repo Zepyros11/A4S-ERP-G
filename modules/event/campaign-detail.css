@@ -426,6 +426,12 @@ select.pstat-rejected { background: #fee2e2; color: #dc2626; }
   #pane-participants tbody td .cmp-metric-row { justify-content: flex-end; padding-right: 0; }
   /* empty-state เต็มแถว ไม่มี label */
   #pane-participants tbody td[colspan] { display: block; text-align: center; border: 0; }
+  /* กฎ #2 — touch target ≥44px: ปุ่ม/ช่องแตะได้ในการ์ดต้องนิ้วแตะสะดวก */
+  #pane-participants .cmp-row-actions { gap: 10px; }
+  #pane-participants .cmp-row-actions .btn-icon { width: 44px; height: 44px; font-size: 16px; }
+  #pane-participants .pstat-select { min-height: 40px; padding: 8px 12px; font-size: 13px; }
+  #pane-participants .part-note-input { min-height: 40px; max-width: none; }
+  #pane-participants .cmp-line-ic svg { width: 26px; height: 26px; }
 
   /* TOOLBAR — ค้นหา + ปุ่มเพิ่ม เต็มความกว้าง เรียงลงมา */
   .pane-toolbar { flex-direction: column; align-items: stretch; }
