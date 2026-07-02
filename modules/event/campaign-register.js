@@ -228,7 +228,7 @@ async function init() {
       const startMs = campaign.start_date ? Date.parse(campaign.start_date + "T00:00:00+07:00") : null;
       const endMs = campaign.end_date ? Date.parse(campaign.end_date + "T23:59:59+07:00") : null;
       const now = Date.now();
-      if (startMs && now < startMs) return closed("⏳", `เริ่ม ${fmtDMY(campaign.start_date)}`, "../../assets/images/campaign-not-open.png");
+      if (startMs && now < startMs) return closed("⏳", `📅 Campaign นี้เริ่ม ${fmtDMY(campaign.start_date)}`, "../../assets/images/campaign-not-open.png");
       if (endMs && now > endMs) return closed("🏁", "หมดเวลากิจกรรมแล้ว — ปิดรับลงทะเบียน", "../../assets/images/campaign-ended.png");
     }
 
@@ -263,7 +263,9 @@ function closed(icon, msg, img) {
     if (imgEl) imgEl.classList.add("hidden");
     if (iconEl) { iconEl.classList.remove("hidden"); iconEl.textContent = icon; }
   }
-  document.getElementById("closedMsg").textContent = msg;
+  const msgEl = document.getElementById("closedMsg");
+  msgEl.textContent = msg;
+  msgEl.classList.toggle("reg-closed-date", !!img); // สถานะมีแบนเนอร์ → แสดง msg เป็น pill สวย
   show("stateLoading", false);
   show("stateClosed", true);
 }
