@@ -13,7 +13,7 @@ body > .layout {
 @media (max-width: 600px) {
   /* topbar wrap เป็น 2 แถว ที่ ≤600 → ใช้ความสูงจริงจาก JS (--cal-topbar-h) · fallback 100px */
   body > .layout {
-    padding-top: var(--cal-topbar-h, 100px);
+    padding-top: var(--cal-topbar-h, 124px);
   }
   .epg-filter-chips {
     display: none;

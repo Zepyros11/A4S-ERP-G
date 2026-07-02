@@ -19,7 +19,9 @@
           display: none;
           position: absolute;
           inset: 0;
-          top: 56px;
+          /* คอลัมน์เป็น absolute → ต้องเริ่มใต้ topbar จริง (topbar wrap 2 แถวบนมือถือ)
+             --cal-topbar-h ตั้งจาก topbar-calendar.js · fallback 124px กันโดนบังถ้า JS ไม่รัน */
+          top: var(--cal-topbar-h, 124px);
           bottom: 56px; /* space for bottom nav */
           overflow: hidden;
         }

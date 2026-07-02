@@ -1739,13 +1739,20 @@ function _applySort(list) {
 }
 
 // คลิกหัวคอลัมน์: asc → desc → default
+// คลิกหัวคอลัมน์ = เรียงลำดับ · ดับเบิลคลิก = เปลี่ยนชื่อ (rename)
+//   → หน่วง sort เล็กน้อยให้ dblclick ยกเลิก sort ทันได้ (คลิกเดี่ยวเรียงตามปกติ · แค่ดีเลย์ ~180ms ไม่รู้สึก)
+let _sortClickTimer = null;
 window.toggleSort = function (key) {
-  if (_sortKey === key) {
-    if (_sortDir === 1) _sortDir = -1;
-    else { _sortKey = null; _sortDir = 1; }
-  } else { _sortKey = key; _sortDir = 1; }
-  rebuildTableHeader();
-  filterTable();
+  if (_sortClickTimer) { clearTimeout(_sortClickTimer); _sortClickTimer = null; }
+  _sortClickTimer = setTimeout(() => {
+    _sortClickTimer = null;
+    if (_sortKey === key) {
+      if (_sortDir === 1) _sortDir = -1;
+      else { _sortKey = null; _sortDir = 1; }
+    } else { _sortKey = key; _sortDir = 1; }
+    rebuildTableHeader();
+    filterTable();
+  }, 180);
 };
 
 // คำนวณรายชื่อที่ผ่าน filter ทั้งหมด (keyword + check-in + ชำระ + tag) — ใช้ร่วม filterTable / onFilterInput
@@ -2444,15 +2451,6 @@ function renderNewRowSpreadsheet(r, idx = 0) {
     ? `<span style="font-size:10px;color:#92400e;background:#fef3c7;padding:1px 6px;border-radius:4px;font-weight:700;white-space:nowrap">⭐ ${escapeHtml(r.positionLevel)}</span>`
     : "";
   const phoneBadge = r.phone ? `<span class="cell-phone" style="font-size:11px">${escapeHtml(_cleanPhone(r.phone))}</span>` : "";
-  // ช่องเพิ่ม Guest แบบหลายคน (ไม่แสดงชื่อ → Guest1, Guest2… running) — เฉพาะแถวบนสุด · ดันชิดขวา
-  const guestAdd = (idx === 0)
-    ? `<div class="att-guest-add" title="เพิ่มผู้ร่วมงานแบบไม่ระบุชื่อ — สร้างเป็น Guest1, Guest2… ตามจำนวน">
-        <span class="att-guest-lbl">👤 Guest</span>
-        <input type="number" class="att-guest-count" id="guestAddCount" min="1" max="99" value="1"
-          onkeydown="if(event.key==='Enter'){event.preventDefault();window.addGuestBatch();}">
-        <button type="button" class="att-guest-btn" onclick="window.addGuestBatch()">➕ เพิ่ม</button>
-      </div>`
-    : "";
 
   return `<tr class="new-row" data-nrid="${r.id}">
     ${leading}
@@ -2468,7 +2466,6 @@ function renderNewRowSpreadsheet(r, idx = 0) {
           style="flex:1;min-width:200px;max-width:50%">
         ${posBadge}
         ${phoneBadge}
-        ${guestAdd}
       </div>
     </td>
     ${trailing}
@@ -5342,24 +5339,133 @@ function rebuildTableHeader() {
   const divKeys = _groupDividerKeys(cols);
   tr.innerHTML = cols.map((c, i) => {
     const sortable = _isSortable(c.key);
+    const editable = _isRenameableCol(c.key);
     const active = _sortKey === c.key;
-    const alignClass = (c.align === "center" ? "col-center" : "") + (divKeys.has(c.key) ? " col-grp-divider" : "") + (sortable ? " att-th-sortable" : "");
+    const alignClass = (c.align === "center" ? "col-center" : "") + (divKeys.has(c.key) ? " col-grp-divider" : "") + (sortable ? " att-th-sortable" : "") + (editable ? " att-th-editable" : "");
     const extra = c.small ? ";font-size:10.5px;line-height:1.25" : "";
     const arrow = sortable
       ? `<span class="att-sort-ico${active ? " active" : ""}">${active ? (_sortDir === 1 ? "▲" : "▼") : "⇅"}</span>`
       : "";
     const onclick = sortable ? ` onclick="window.toggleSort('${c.key}')"` : "";
+    // ดับเบิลคลิกหัวคอลัมน์ (field/custom/qual) = เปลี่ยนชื่อ inline (บันทึกเฉพาะงานนี้)
+    const dbl = editable ? ` ondblclick="window.startRenameColumn('${c.key}', event)"` : "";
     // ปุ่มตรึงคอลัมน์ (📌) — เฉพาะคอลัมน์ข้อมูล (ตั้งแต่ชื่อเป็นต้นไป · ไม่รวม trailing)
     const pinnable = i >= 2 && !["checkin", "actions", "payment"].includes(c.key);
     const pin = pinnable
       ? `<span class="att-pin${i < _freezeCount ? " active" : ""}" onclick="event.stopPropagation();window.toggleFreezeColumn(${i})" title="${i < _freezeCount ? "ยกเลิกตรึง" : "📌 ตรึงคอลัมน์ถึงตรงนี้"}">📌</span>`
       : "";
-    return `<th class="${alignClass}"${onclick} style="min-width:${c.width}px${extra}" title="${sortable ? 'คลิกเพื่อเรียงลำดับ' : (c.small ? (typeof c.label === 'string' ? c.label.replace(/^✓ /, '') : '') : '')}">${c.label}${arrow}${pin}</th>`;
+    const titleTxt = editable
+      ? "ดับเบิลคลิกเพื่อเปลี่ยนชื่อคอลัมน์ · คลิกเพื่อเรียงลำดับ"
+      : (sortable ? 'คลิกเพื่อเรียงลำดับ' : (c.small ? (typeof c.label === 'string' ? c.label.replace(/^✓ /, '') : '') : ''));
+    return `<th class="${alignClass}"${onclick}${dbl} style="min-width:${c.width}px${extra}" title="${titleTxt}">${c.label}${arrow}${pin}</th>`;
   }).join("");
   _rebuildTableGroupHeader(cols);
   _syncGroupHeaderOffset();
   _applyColumnFreeze();
 }
+
+// ── เปลี่ยนชื่อหัวคอลัมน์ inline (ดับเบิลคลิก) ──────────────
+//   รองรับคอลัมน์ที่มาจากฟอร์ม: field:* (มาตรฐาน) · custom:* (ฟิลด์เพิ่ม) · qual:* (checklist)
+//   บันทึกเป็น override เฉพาะงานนี้ (events.attendee_field_config) → ไม่กระทบเทมเพลต/งานอื่น
+//   · เก็บ label ที่ช่อง canonical เดิม (fields[k].label / custom_fields[].label / qualifications[].label)
+//     + sync ลง block item ด้วย → หัวตาราง "และ" ฟอร์มลงทะเบียนแสดงชื่อใหม่ตรงกัน
+//   · icon (📱⭐🌿✓📝👤…) เติมอัตโนมัติตอน render → เก็บเฉพาะ "ข้อความ" ไม่ต้องพิมพ์ icon
+function _isRenameableCol(key) {
+  return key.startsWith("field:") || key.startsWith("custom:") || key.startsWith("qual:");
+}
+function _currentCfgInfo() {
+  return (_eventConfigCache && _eventConfigCache.eventId === currentEventId) ? _eventConfigCache : null;
+}
+// ข้อความ label ปัจจุบัน (ไม่รวม icon) ของคอลัมน์
+function _columnLabelText(key) {
+  const cfg = _getActiveFieldConfig();
+  if (key.startsWith("field:"))  return _getFieldLabel(key.slice(6), cfg);
+  if (key.startsWith("custom:")) { const k = key.slice(7); return (cfg.custom_fields || []).find(c => c.key === k)?.label || ""; }
+  if (key.startsWith("qual:"))   { const k = key.slice(5); return (cfg.qualifications || []).find(q => q.key === k)?.label || ""; }
+  return "";
+}
+// เขียน label ใหม่ลง raw config (แก้ทั้ง flat + block item ให้ตรงกัน)
+function _applyColLabel(base, key, text) {
+  const blocks = Array.isArray(base.blocks) ? base.blocks : null;
+  const eachItem = (fn) => { if (blocks) blocks.forEach(b => (b.items || []).forEach(fn)); };
+  if (key.startsWith("field:")) {
+    const k = key.slice(6);
+    const def = (window.AttendeeFields?.STD_FIELDS?.[k]?.label) || FIELD_LABELS[k] || "";
+    base.fields = base.fields || {};
+    base.fields[k] = base.fields[k] || {};
+    if (!text || text === def) delete base.fields[k].label;   // เท่า default → ลบ override เก็บ config สะอาด
+    else base.fields[k].label = text;
+    eachItem(it => {
+      if (it.type === "std" && it.key === k) { if (!text || text === def) delete it.label; else it.label = text; }
+    });
+  } else if (key.startsWith("custom:")) {
+    const k = key.slice(7);
+    (base.custom_fields || []).forEach(cf => { if (cf.key === k) cf.label = text; });
+    eachItem(it => {
+      if (it.key === k && ["text","date","number","stamp","persontype","nationalid"].includes(it.type)) it.label = text;
+    });
+  } else if (key.startsWith("qual:")) {
+    const k = key.slice(5);
+    (base.qualifications || []).forEach(q => { if (q.key === k) q.label = text; });
+    eachItem(it => { if (it.type === "check" && it.key === k) it.label = text; });
+  }
+}
+
+let _colRenameKeyActive = null;   // key ที่กำลังแก้อยู่ (กัน commit ซ้ำ)
+window.startRenameColumn = function (key, ev) {
+  const th = ev && ev.currentTarget;
+  if (ev) { ev.stopPropagation(); ev.preventDefault(); }
+  if (_sortClickTimer) { clearTimeout(_sortClickTimer); _sortClickTimer = null; }   // ยกเลิก sort ที่ค้างจากคลิกเดี่ยว
+  if (!th || !_isRenameableCol(key)) return;
+  const info = _currentCfgInfo();
+  if (!info || info.source === "none") { showToast("ยังไม่มีฟอร์ม/เทมเพลตสำหรับงานนี้", "error"); return; }
+  if (th.querySelector(".att-col-rename")) return;   // แก้อยู่แล้ว
+  _colRenameKeyActive = key;
+  const cur = _columnLabelText(key) || "";
+  th.classList.add("att-th-editing");
+  th.innerHTML = `<input class="att-col-rename" type="text" value="${escapeHtml(cur)}" maxlength="40"
+      onkeydown="window._colRenameKey(event)" onblur="window._colRenameBlur(this)"
+      onmousedown="event.stopPropagation()" onclick="event.stopPropagation()">`;
+  const inp = th.querySelector(".att-col-rename");
+  requestAnimationFrame(() => { inp.focus(); inp.select(); });
+};
+window._colRenameKey = function (ev) {
+  if (ev.key === "Enter")       { ev.preventDefault(); ev.target.dataset.commit = "1"; ev.target.blur(); }
+  else if (ev.key === "Escape") { ev.preventDefault(); ev.target.dataset.commit = "0"; ev.target.blur(); }
+};
+window._colRenameBlur = function (inp) {
+  const key = _colRenameKeyActive;
+  _colRenameKeyActive = null;
+  if (!key) return;
+  if (inp.dataset.commit === "0") { rebuildTableHeader(); return; }   // Escape = ยกเลิก
+  window._commitColRename(key, inp.value);                            // Enter / คลิกออก = บันทึก
+};
+window._commitColRename = async function (key, rawVal) {
+  const text = String(rawVal == null ? "" : rawVal).trim();
+  const info = _currentCfgInfo();
+  if (!info || info.source === "none") { rebuildTableHeader(); return; }
+  const curText = _columnLabelText(key) || "";
+  // custom/qual ต้องมีชื่อ · ค่าเท่าเดิม/ว่าง(ที่ไม่ใช่ field) → ไม่บันทึก
+  if (text === curText) { rebuildTableHeader(); return; }
+  if (!text && !key.startsWith("field:")) { showToast("ชื่อคอลัมน์ห้ามว่าง", "error"); rebuildTableHeader(); return; }
+  const base = JSON.parse(JSON.stringify(
+    info.source === "override" ? (info.override || {}) : (info.templateConfig || {})
+  ));
+  _applyColLabel(base, key, text);
+  try {
+    await sbFetch("events", `?event_id=eq.${currentEventId}`, {
+      method: "PATCH",
+      body: { attendee_field_config: base },
+    });
+    _invalidateEventConfigCache();
+    await fetchEventFieldConfig(currentEventId).catch(() => {});
+    showToast("เปลี่ยนชื่อคอลัมน์แล้ว (เฉพาะงานนี้) ✏️", "success");
+    filterTable();   // rebuild header + rows ด้วย label ใหม่
+  } catch (e) {
+    showToast("บันทึกไม่สำเร็จ: " + e.message, "error");
+    rebuildTableHeader();
+  }
+};
 
 // ── Freeze คอลัมน์ (เลือกเองผ่าน 📌) ────────────────────────
 // default freeze = 4 (☑ · # · Check-in · รหัส/ชื่อ) → คงคอลัมน์ระบุตัวตนไว้ซ้าย · ปรับเองได้ผ่าน 📌 (จำใน localStorage)

@@ -717,6 +717,35 @@
 }
 .att-sort-ico.active { color: var(--accent, #15803d); opacity: 1; font-size: 10px; }
 
+/* หัวคอลัมน์ที่เปลี่ยนชื่อได้ (ดับเบิลคลิก) — โชว์ ✎ จางๆ ตอน hover */
+.att-th-editable { position: relative; }
+.att-th-editable::after {
+  content: "✎";
+  font-size: 9px;
+  color: #94a3b8;
+  opacity: 0;
+  margin-left: 3px;
+  vertical-align: middle;
+  transition: opacity .12s;
+}
+.att-th-editable:hover::after { opacity: .7; }
+.att-th-editing { background: #fff7ed; }
+/* ช่องพิมพ์ชื่อคอลัมน์ inline */
+.att-col-rename {
+  width: 100%;
+  min-width: 70px;
+  box-sizing: border-box;
+  padding: 3px 6px;
+  font: inherit;
+  font-weight: 600;
+  text-align: center;
+  color: var(--text1, #0f172a);
+  background: #fff;
+  border: 1.5px solid var(--accent, #15803d);
+  border-radius: 5px;
+  outline: none;
+}
+
 /* Subtle empty-cell marker */
 .att-empty {
   color: #cbd5e1;

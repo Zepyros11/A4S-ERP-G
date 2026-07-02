@@ -179,16 +179,21 @@ const CalTopbar = (function () {
     if (bar) {
       const applyH = () => {
         if (window.innerWidth <= 767) {
-          const h = Math.round(bar.getBoundingClientRect().height) || 56;
-          document.documentElement.style.setProperty("--cal-topbar-h", h + "px");
+          const h = Math.round(bar.getBoundingClientRect().height);
+          // h>0 กัน race ตอน CSS topbar ยังโหลดไม่เสร็จ (จะวัดได้ 0/เพี้ยน) · +2 กัน sub-pixel
+          if (h > 0) document.documentElement.style.setProperty("--cal-topbar-h", (h + 2) + "px");
         } else {
           document.documentElement.style.removeProperty("--cal-topbar-h");
         }
       };
       applyH();
+      requestAnimationFrame(applyH);
       window.addEventListener("resize", applyH);
+      window.addEventListener("load", applyH);
       if (window.ResizeObserver) new ResizeObserver(applyH).observe(bar);
-      setTimeout(applyH, 300); // เผื่อ font/โลโก้โหลดเสร็จช้าแล้วความสูงเปลี่ยน
+      // วัดซ้ำหลังจาก CSS/ฟอนต์/โลโก้โหลดเสร็จ (topbar อาจสูงเปลี่ยน)
+      setTimeout(applyH, 300);
+      setTimeout(applyH, 900);
     }
 
   }
