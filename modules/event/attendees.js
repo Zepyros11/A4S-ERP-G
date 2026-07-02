@@ -5369,11 +5369,15 @@ function rebuildTableHeader() {
     const pin = pinnable
       ? `<span class="att-pin${i < _freezeCount ? " active" : ""}" onclick="event.stopPropagation();window.toggleFreezeColumn(${i})" title="${i < _freezeCount ? "ยกเลิกตรึง" : "📌 ตรึงคอลัมน์ถึงตรงนี้"}">📌</span>`
       : "";
+    // ปุ่มลบคอลัมน์ (🗑) — เฉพาะคอลัมน์ที่มาจากฟอร์ม (field/custom/qual) · โผล่ตอน hover
+    const del = editable
+      ? `<span class="att-col-del" onclick="event.stopPropagation();window.deleteColumn('${c.key}')" title="ลบคอลัมน์นี้">🗑</span>`
+      : "";
     const titleTxt = editable
       ? "ดับเบิลคลิกเพื่อเปลี่ยนชื่อ · คลิกเพื่อเรียงลำดับ · ลากเพื่อย้าย"
       : (reorderable ? "ลากเพื่อย้ายคอลัมน์"
         : (sortable ? 'คลิกเพื่อเรียงลำดับ' : (c.small ? (typeof c.label === 'string' ? c.label.replace(/^✓ /, '') : '') : '')));
-    return `<th class="${alignClass}"${onclick}${drag} style="min-width:${c.width}px${extra}" title="${titleTxt}">${c.label}${arrow}${pin}</th>`;
+    return `<th class="${alignClass}"${onclick}${drag} style="min-width:${c.width}px${extra}" title="${titleTxt}">${c.label}${arrow}${pin}${del}</th>`;
   }).join("");
   _rebuildTableGroupHeader(cols);
   _syncGroupHeaderOffset();
@@ -5481,6 +5485,64 @@ window._commitColRename = async function (key, rawVal) {
   } catch (e) {
     showToast("บันทึกไม่สำเร็จ: " + e.message, "error");
     rebuildTableHeader();
+  }
+};
+
+// ── ลบคอลัมน์ (ปุ่ม 🗑 บนหัวคอลัมน์) ────────────────────────
+//   ลบเฉพาะงานนี้ (override) — std → ซ่อน (hidden_keys · ข้อมูลใน DB ยังอยู่) · custom/qual → เอาออกจาก config
+//   sync ตัด block item ด้วย → หายทั้งหัวตาราง + ฟอร์ม · กด "รีเฟรชคอลัมน์" เรียกกลับตามเทมเพลตได้
+function _deleteColumnFromConfig(base, key) {
+  const removeBlockItem = (pred) => {
+    if (!Array.isArray(base.blocks)) return;
+    base.blocks.forEach(b => { if (Array.isArray(b.items)) b.items = b.items.filter(it => !pred(it)); });
+    base.blocks = base.blocks.filter(b => Array.isArray(b.items) && b.items.length);   // ตัด block ว่าง
+  };
+  if (key.startsWith("field:")) {
+    const k = key.slice(6);
+    base.hidden_keys = Array.isArray(base.hidden_keys) ? base.hidden_keys : [];
+    if (!base.hidden_keys.includes(k)) base.hidden_keys.push(k);
+    base.field_order = (Array.isArray(base.field_order) ? base.field_order : []).filter(x => x !== k);
+    if (base.fields && base.fields[k]) base.fields[k] = { ...base.fields[k], show: false, column: false, required: false };
+    removeBlockItem(it => it.type === "std" && it.key === k);
+  } else if (key.startsWith("custom:")) {
+    const k = key.slice(7);
+    base.custom_fields = (Array.isArray(base.custom_fields) ? base.custom_fields : []).filter(c => c.key !== k);
+    removeBlockItem(it => it.key === k && ["text","date","number","stamp","persontype","nationalid"].includes(it.type));
+  } else if (key.startsWith("qual:")) {
+    const k = key.slice(5);
+    base.qualifications = (Array.isArray(base.qualifications) ? base.qualifications : []).filter(q => q.key !== k);
+    removeBlockItem(it => it.type === "check" && it.key === k);
+  }
+}
+window.deleteColumn = async function (key) {
+  if (!_isRenameableCol(key)) return;
+  const info = _currentCfgInfo();
+  if (!info || info.source === "none") return;
+  const label = _columnLabelText(key) || "คอลัมน์นี้";
+  const ok = await window.ConfirmModal.open({
+    icon: "🗑",
+    title: "ลบคอลัมน์นี้?",
+    message: `ลบคอลัมน์ "${label}" ออกจากตาราง (เฉพาะงานนี้)\nข้อมูลเดิมยังอยู่ในระบบ · กด "รีเฟรชคอลัมน์" เพื่อเรียกกลับตามเทมเพลต`,
+    okText: "ลบคอลัมน์",
+    cancelText: "ยกเลิก",
+    tone: "danger",
+  });
+  if (!ok) return;
+  const base = JSON.parse(JSON.stringify(
+    info.source === "override" ? (info.override || {}) : (info.templateConfig || {})
+  ));
+  _deleteColumnFromConfig(base, key);
+  try {
+    await sbFetch("events", `?event_id=eq.${currentEventId}`, {
+      method: "PATCH",
+      body: { attendee_field_config: base },
+    });
+    _invalidateEventConfigCache();
+    await fetchEventFieldConfig(currentEventId).catch(() => {});
+    showToast("ลบคอลัมน์แล้ว (เฉพาะงานนี้) 🗑", "success");
+    filterTable();
+  } catch (e) {
+    showToast("ลบไม่สำเร็จ: " + e.message, "error");
   }
 };
 

@@ -101,6 +101,10 @@
           max-width: 100%;
           border-radius: 18px 18px 0 0;   /* มนเฉพาะบน */
           animation: bkrSheetUp .28s cubic-bezier(.34, 1.1, .64, 1);
+          /* ใช้ dvh (พื้นที่เห็นจริง) ไม่ใช่ vh (viewport ใหญ่รวม address bar) ไม่งั้น sheet สูงเกิน หัวโดนตัด
+             · !important เพื่อชนะ max-height inline/Tailwind เดิม · บรรทัด vh = fallback เบราว์เซอร์เก่า */
+          max-height: 88vh !important;
+          max-height: 88dvh !important;
         }
         /* แถบจับ (drag handle) บนสุดของ sheet */
         #bookingModal > div::before, #requestDetailModal > div::before {

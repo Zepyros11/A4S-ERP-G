@@ -92,19 +92,6 @@
               <div class="att-scard-main"><span id="scPaid" class="sc-ok">0</span> <small>ชำระ</small> <span class="sc-div">|</span> <span id="scUnpaid" class="sc-warn">0</span> <small>ค้าง</small></div>
               <div class="att-scard-sub" id="scPaySub">—</div>
             </div>
-            <!-- ผู้เข้างานแยกตามรถบัส — ดึงรถบัสจาก trip ที่ผูกไว้ (events.bus_trip_id) -->
-            <div id="scBusCard" class="att-scard sc-bus">
-              <div class="att-scard-hd">🚌 ผู้เข้างานแยกตามรถบัส</div>
-              <select id="busTripSelect" class="sc-bus-select" onclick="event.stopPropagation()" onchange="window.setBusTrip(this.value)">
-                <option value="">— เลือกทริปรถบัส —</option>
-              </select>
-              <div class="att-scard-main" role="button" tabindex="0" title="ดูรายชื่อผู้เข้างานแยกตามคันรถ" onclick="window.openStatReport('bus_checkin')">
-                <span id="scBusCheckin" class="sc-actual">0</span> <small>เข้างาน</small>
-                <span class="sc-div">/</span>
-                <span id="scBusAssigned" class="sc-ok">0</span> <small>มีรถบัส</small>
-              </div>
-              <div class="att-scard-sub" id="scBusSub">—</div>
-            </div>
             <!-- สรุปข้ามวัน — แสดงเฉพาะ event หลายวัน (JS toggle) -->
             <div id="scCrossDay" class="att-scard sc-crossday" role="button" tabindex="0" title="สรุปการเข้าร่วมข้ามวัน + รายชื่อคนที่ควรติดตาม" onclick="window.openStatReport('cross_day')" style="display:none">
               <div class="att-scard-hd">📊 สรุปข้ามวัน</div>
@@ -113,8 +100,6 @@
             </div>
           </div>
 
-          <!-- การ์ดแยกรายคัน (รถบัส) — JS เติมจาก trip ที่ผูกไว้ -->
-          <div id="busCardsRow" class="att-bus-cards" style="display:none"></div>
 
           <!-- TIER/GRACE/SEAT DETAIL — ระดับราคา / grace / ที่นั่ง (ราคาปัจจุบันย้ายขึ้น hero แล้ว) -->
           <div id="tierInfoBanner" style="display:none"></div>
