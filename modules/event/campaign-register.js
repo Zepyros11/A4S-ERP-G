@@ -223,13 +223,13 @@ async function init() {
     // โหมดทดสอบ (ตั้งจากหลังบ้าน) → เปิดให้ลงทะเบียนได้ทุกเวลา ข้ามการเช็คด้านล่าง
     if (!campaign.test_mode) {
       if (!campaign.reg_open) return closed("🔒", "แคมเปญนี้ปิดรับลงทะเบียนแล้ว");
-      if (campaign.status === "ENDED") return closed("🏁", "แคมเปญนี้จบแล้ว");
+      if (campaign.status === "ENDED") return closed("🏁", "แคมเปญนี้จบแล้ว", "../../assets/images/campaign-ended.png");
       // ช่วงเวลากิจกรรม (อ้างอิงเวลาไทย Asia/Bangkok +07:00)
       const startMs = campaign.start_date ? Date.parse(campaign.start_date + "T00:00:00+07:00") : null;
       const endMs = campaign.end_date ? Date.parse(campaign.end_date + "T23:59:59+07:00") : null;
       const now = Date.now();
       if (startMs && now < startMs) return closed("⏳", `เริ่ม ${fmtDMY(campaign.start_date)}`, "../../assets/images/campaign-not-open.png");
-      if (endMs && now > endMs) return closed("🏁", "หมดเวลากิจกรรมแล้ว — ปิดรับลงทะเบียน");
+      if (endMs && now > endMs) return closed("🏁", "หมดเวลากิจกรรมแล้ว — ปิดรับลงทะเบียน", "../../assets/images/campaign-ended.png");
     }
 
     renderCampaign();
