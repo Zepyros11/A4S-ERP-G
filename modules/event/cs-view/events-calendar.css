@@ -1124,21 +1124,29 @@ body {
 @media (max-width: 600px) {
   .ev-popup {
     flex-direction: column;
-    width: 96vw;
-    max-height: 94vh;
+    width: 94vw;
+    max-height: 90vh;
     border-radius: 16px;
   }
   .ev-popup-left {
     width: 100%;
     min-width: unset;
-    min-height: 160px;
+    min-height: unset;
+    /* fixed thumbnail height so a portrait poster can't blow up the popup */
+    height: 30vh;
+    max-height: 260px;
+    flex-shrink: 0;
     border-right: none;
     border-bottom: 1px solid #e2e8f0;
   }
   .ev-popup-detail {
     border-right: none;
     border-bottom: 1px solid #e2e8f0;
+    /* fill remaining height and scroll internally instead of stretching the popup */
+    flex: 1;
+    min-height: 0;
     max-height: none;
+    padding: 16px;
   }
   .ev-popup.chat-open {
     width: 96vw;
