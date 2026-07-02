@@ -1148,10 +1148,16 @@ body {
     max-height: none;
     padding: 16px;
   }
+  /* chat column is a vertical row on mobile → keep it fully hidden until opened,
+     otherwise its content leaks under the details (width:0 doesn't collapse height) */
+  .ev-popup-chat {
+    display: none;
+  }
   .ev-popup.chat-open {
-    width: 96vw;
+    width: 94vw;
   }
   .ev-popup.chat-open .ev-popup-chat {
+    display: flex;
     width: 100%;
     border-left: none;
     border-top: 1px solid #e2e8f0;
