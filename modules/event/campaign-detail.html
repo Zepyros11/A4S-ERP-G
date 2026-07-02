@@ -88,7 +88,7 @@
             <span class="search-icon">🔍</span>
             <input class="search-input" id="partSearch" placeholder="ค้นหา รหัส/ชื่อ..." oninput="window.renderParticipants()" />
           </div>
-          <button class="btn btn-primary btn-sm" data-perm="campaign_edit" onclick="window.openPartModal()">＋ เพิ่มผู้เข้าร่วม</button>
+          <button class="btn btn-primary btn-sm r-hide-mobile" data-perm="campaign_edit" onclick="window.openPartModal()">＋ เพิ่มผู้เข้าร่วม</button>
         </div>
         <div id="partBulkBar" class="bulk-bar" style="display:none">
           <span id="partBulkCount">0 รายการ</span>
@@ -113,6 +113,8 @@
             <tbody id="partBody"></tbody>
           </table>
         </div>
+        <!-- FAB เพิ่มผู้เข้าร่วม (โผล่เฉพาะมือถือ · อยู่ในเพนนี้ → เห็นเฉพาะแท็บผู้เข้าร่วม) -->
+        <button class="r-fab" data-perm="campaign_edit" onclick="window.openPartModal()" aria-label="เพิ่มผู้เข้าร่วม">＋ เพิ่ม</button>
       </div>
 
       <!-- PANE: RANKING -->
