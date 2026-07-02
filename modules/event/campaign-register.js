@@ -738,38 +738,34 @@ function regMsg(html) {
   const el = document.getElementById("rMsg");
   if (el) el.innerHTML = html ? `<div class="lookup-hit no">${html}</div>` : "";
 }
+// แจ้ง error ให้ข้อความ inline + toast ตรงกันเสมอ
+function regFail(msg) {
+  regMsg(`❌ ${esc(msg)}`);
+  toast(msg, "error");
+}
 
 // ── SUBMIT (ไม่ต้อง login) ─────────────────────────────────
 async function doRegister() {
   const code = document.getElementById("rCode").value.trim();
   const name = document.getElementById("rName").value.trim();
   regMsg("");
-  if (!code) { regMsg("กรุณากรอกรหัส"); return toast("กรุณากรอกรหัส", "error"); }
-  if (!name) { regMsg("ไม่พบชื่อจากรหัสนี้ — กรุณาตรวจสอบรหัสสมาชิก"); return toast("ไม่พบชื่อจากรหัสสมาชิก", "error"); }
+  if (!code) return regFail("กรุณากรอกรหัส");
+  if (!name) return regFail("ไม่พบชื่อจากรหัสนี้ — กรุณาตรวจสอบรหัสสมาชิก");
 
   // เก็บช่องทางที่ใส่ลิงก์ + ตรวจกฎ
   const filled = SOCIALS
     .map((s) => ({ ...s, url: (document.getElementById(`u_${s.key}`)?.value || "").trim() }))
     .filter((s) => s.url);
 
-  if (!filled.length) {
-    regMsg("❌ กรุณากรอกช่องทางโซเชียลอย่างน้อย 1 ช่องทาง");
-    return toast("กรอกโซเชียลอย่างน้อย 1 ช่องทาง", "error");
-  }
+  if (!filled.length) return regFail("กรุณากรอกช่องทางโซเชียลอย่างน้อย 1 ช่องทาง");
   for (const s of filled) {
-    if (safeHref(s.url) === "#") {
-      regMsg(`❌ ลิงก์ ${s.label} ไม่ถูกต้อง (ต้องขึ้นต้น http/https)`);
-      return toast(`ลิงก์ ${s.label} ไม่ถูกต้อง`, "error");
-    }
-    if (!socialImg[s.key] && !existingImg[s.key]) {
-      regMsg(`❌ กรุณาแนบรูปของ ${s.label} (ช่องที่ใส่ลิงก์ต้องมีรูป)`);
-      return toast(`แนบรูปของ ${s.label}`, "error");
-    }
+    if (safeHref(s.url) === "#") return regFail(`ลิงก์ ${s.label} ไม่ถูกต้อง (ต้องขึ้นต้น http/https)`);
+    if (!socialImg[s.key] && !existingImg[s.key]) return regFail(`กรุณาแนบรูปของ ${s.label} (ช่องที่ใส่ลิงก์ต้องมีรูป)`);
   }
 
   // ฟิลด์กำหนดเอง — ตรวจ required + เก็บคำตอบ
   const cf = collectCustomAnswers();
-  if (cf.error) { regMsg(`❌ ${esc(cf.error)}`); return toast(cf.error, "error"); }
+  if (cf.error) return regFail(cf.error);
 
   const isEdit = !!editId;
   const btn = document.getElementById("btnRegister");
