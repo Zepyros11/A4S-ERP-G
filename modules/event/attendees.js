@@ -1739,20 +1739,31 @@ function _applySort(list) {
 }
 
 // คลิกหัวคอลัมน์: asc → desc → default
-// คลิกหัวคอลัมน์ = เรียงลำดับ · ดับเบิลคลิก = เปลี่ยนชื่อ (rename)
-//   → หน่วง sort เล็กน้อยให้ dblclick ยกเลิก sort ทันได้ (คลิกเดี่ยวเรียงตามปกติ · แค่ดีเลย์ ~180ms ไม่รู้สึก)
-let _sortClickTimer = null;
 window.toggleSort = function (key) {
-  if (_sortClickTimer) { clearTimeout(_sortClickTimer); _sortClickTimer = null; }
-  _sortClickTimer = setTimeout(() => {
-    _sortClickTimer = null;
-    if (_sortKey === key) {
-      if (_sortDir === 1) _sortDir = -1;
-      else { _sortKey = null; _sortDir = 1; }
-    } else { _sortKey = key; _sortDir = 1; }
-    rebuildTableHeader();
-    filterTable();
-  }, 180);
+  if (_sortKey === key) {
+    if (_sortDir === 1) _sortDir = -1;
+    else { _sortKey = null; _sortDir = 1; }
+  } else { _sortKey = key; _sortDir = 1; }
+  rebuildTableHeader();
+  filterTable();
+};
+
+// คลิกหัวคอลัมน์ = เรียงลำดับ · ดับเบิลคลิก = เปลี่ยนชื่อ (เฉพาะคอลัมน์ที่แก้ได้)
+//   จับ double-click เองผ่าน timer (ไม่ใช้ native dblclick) → ไม่ re-render หัวตารางระหว่างคลิกสองครั้ง
+//   ซึ่งเป็นสาเหตุที่ native dblclick ไม่ทำงาน (th ถูกสร้างใหม่ระหว่างคลิก)
+let _thClickTimer = null;
+window.onColHeaderClick = function (key, ev) {
+  if (ev && ev.target && ev.target.closest && (ev.target.closest(".att-pin") || ev.target.closest(".att-col-rename"))) return;
+  if (!_isRenameableCol(key)) { window.toggleSort(key); return; }   // แก้ชื่อไม่ได้ → เรียงทันที
+  if (_thClickTimer) {                    // คลิกที่สอง (ภายใน 250ms) = ดับเบิลคลิก → เปลี่ยนชื่อ
+    clearTimeout(_thClickTimer); _thClickTimer = null;
+    window.startRenameColumn(key, ev);
+    return;
+  }
+  _thClickTimer = setTimeout(() => {      // คลิกเดี่ยว → เรียงลำดับ
+    _thClickTimer = null;
+    window.toggleSort(key);
+  }, 250);
 };
 
 // คำนวณรายชื่อที่ผ่าน filter ทั้งหมด (keyword + check-in + ชำระ + tag) — ใช้ร่วม filterTable / onFilterInput
@@ -5346,9 +5357,8 @@ function rebuildTableHeader() {
     const arrow = sortable
       ? `<span class="att-sort-ico${active ? " active" : ""}">${active ? (_sortDir === 1 ? "▲" : "▼") : "⇅"}</span>`
       : "";
-    const onclick = sortable ? ` onclick="window.toggleSort('${c.key}')"` : "";
-    // ดับเบิลคลิกหัวคอลัมน์ (field/custom/qual) = เปลี่ยนชื่อ inline (บันทึกเฉพาะงานนี้)
-    const dbl = editable ? ` ondblclick="window.startRenameColumn('${c.key}', event)"` : "";
+    // คลิก = เรียงลำดับ · ดับเบิลคลิก (field/custom/qual) = เปลี่ยนชื่อ inline (จับ dblclick ใน onColHeaderClick)
+    const onclick = (sortable || editable) ? ` onclick="window.onColHeaderClick('${c.key}', event)"` : "";
     // ปุ่มตรึงคอลัมน์ (📌) — เฉพาะคอลัมน์ข้อมูล (ตั้งแต่ชื่อเป็นต้นไป · ไม่รวม trailing)
     const pinnable = i >= 2 && !["checkin", "actions", "payment"].includes(c.key);
     const pin = pinnable
@@ -5357,7 +5367,7 @@ function rebuildTableHeader() {
     const titleTxt = editable
       ? "ดับเบิลคลิกเพื่อเปลี่ยนชื่อคอลัมน์ · คลิกเพื่อเรียงลำดับ"
       : (sortable ? 'คลิกเพื่อเรียงลำดับ' : (c.small ? (typeof c.label === 'string' ? c.label.replace(/^✓ /, '') : '') : ''));
-    return `<th class="${alignClass}"${onclick}${dbl} style="min-width:${c.width}px${extra}" title="${titleTxt}">${c.label}${arrow}${pin}</th>`;
+    return `<th class="${alignClass}"${onclick} style="min-width:${c.width}px${extra}" title="${titleTxt}">${c.label}${arrow}${pin}</th>`;
   }).join("");
   _rebuildTableGroupHeader(cols);
   _syncGroupHeaderOffset();
@@ -5415,7 +5425,7 @@ let _colRenameKeyActive = null;   // key ที่กำลังแก้อย
 window.startRenameColumn = function (key, ev) {
   const th = ev && ev.currentTarget;
   if (ev) { ev.stopPropagation(); ev.preventDefault(); }
-  if (_sortClickTimer) { clearTimeout(_sortClickTimer); _sortClickTimer = null; }   // ยกเลิก sort ที่ค้างจากคลิกเดี่ยว
+  if (_thClickTimer) { clearTimeout(_thClickTimer); _thClickTimer = null; }   // ยกเลิก sort ที่ค้างจากคลิกเดี่ยว
   if (!th || !_isRenameableCol(key)) return;
   const info = _currentCfgInfo();
   if (!info || info.source === "none") { showToast("ยังไม่มีฟอร์ม/เทมเพลตสำหรับงานนี้", "error"); return; }
@@ -5466,6 +5476,104 @@ window._commitColRename = async function (key, rawVal) {
     rebuildTableHeader();
   }
 };
+
+// ── เพิ่มคอลัมน์ใหม่ (ปุ่ม ➕ คอลัมน์ ในแถบเครื่องมือ) ──────────
+//   เพิ่มเป็นฟิลด์เฉพาะงานนี้ (override) — text/date/number → custom_fields · check → qualifications
+//   sync ลง block ด้วย → โผล่ทั้งหัวตาราง "และ" ฟอร์มลงทะเบียน
+let _addColFtype = "text";
+window.toggleAddColumnMenu = function (ev) {
+  if (ev) ev.stopPropagation();
+  const menu = document.getElementById("attAddColMenu");
+  if (!menu) return;
+  if (menu.classList.contains("open")) { menu.classList.remove("open"); return; }
+  const info = _currentCfgInfo();
+  if (!info || info.source === "none") { showToast("ยังไม่มีฟอร์ม/เทมเพลตสำหรับงานนี้", "error"); return; }
+  menu.classList.add("open");
+  _addColFtype = "text";
+  document.querySelectorAll("#addColTypes .att-addcol-type").forEach(b => b.classList.toggle("active", b.dataset.ftype === "text"));
+  const inp = document.getElementById("addColLabel");
+  if (inp) { inp.value = ""; requestAnimationFrame(() => inp.focus()); }
+};
+window._pickAddColType = function (btn) {
+  _addColFtype = btn.dataset.ftype || "text";
+  document.querySelectorAll("#addColTypes .att-addcol-type").forEach(b => b.classList.toggle("active", b === btn));
+  document.getElementById("addColLabel")?.focus();
+};
+// เพิ่มฟิลด์ใหม่ลง raw config — คืน false ถ้าชื่อซ้ำ
+function _addColumnToConfig(base, label, ftype) {
+  const isCheck = ftype === "check";
+  const cfg = _getActiveFieldConfig();
+  // กันชื่อซ้ำ (custom + qual + มาตรฐานที่แสดงอยู่)
+  const lc = label.toLowerCase();
+  const existing = [
+    ...(base.custom_fields || []).map(c => c.label),
+    ...(base.qualifications || []).map(q => q.label),
+    ...Object.keys(cfg.fields || {}).filter(k => _fieldShowsAsColumn(cfg.fields[k])).map(k => _getFieldLabel(k, cfg)),
+  ].map(s => String(s || "").trim().toLowerCase());
+  if (existing.includes(lc)) return false;
+  // gen key ไม่ซ้ำ (รองรับไทย เหมือน addCustomField เดิม)
+  const baseKey = "cf_" + label.toLowerCase().replace(/[^\p{L}\p{N}\s_]/gu, "").replace(/\s+/g, "_").slice(0, 36);
+  const used = new Set([
+    ...(base.custom_fields || []).map(c => c.key),
+    ...(base.qualifications || []).map(q => q.key),
+  ]);
+  let key = baseKey || "cf_col";
+  let n = 2;
+  while (used.has(key)) key = `${baseKey}_${n++}`;
+  if (isCheck) {
+    base.qualifications = Array.isArray(base.qualifications) ? base.qualifications : [];
+    base.qualifications.push({ key, label });
+  } else {
+    base.custom_fields = Array.isArray(base.custom_fields) ? base.custom_fields : [];
+    base.custom_fields.push({ key, label, ftype });
+  }
+  // เพิ่ม item ลง block (ให้ฟอร์มลงทะเบียนแสดงด้วย) — หาบล็อก "ฟิลด์เพิ่มเติม"/"เงื่อนไขเพิ่มเติม" ไม่มีก็สร้าง
+  if (Array.isArray(base.blocks) && base.blocks.length) {
+    const item = isCheck ? { type: "check", key, label } : { type: ftype, key, label };
+    const targetTitle = isCheck ? "เงื่อนไขเพิ่มเติม" : "ฟิลด์เพิ่มเติม";
+    let blk = base.blocks.find(b => (b.title || "") === targetTitle);
+    if (!blk) {
+      const id = window.AttendeeFields?.newId ? window.AttendeeFields.newId("blk") : ("blk_" + key);
+      blk = { id, title: targetTitle, items: [] };
+      base.blocks.push(blk);
+    }
+    blk.items = Array.isArray(blk.items) ? blk.items : [];
+    blk.items.push(item);
+  }
+  return true;
+}
+window.submitAddColumn = async function () {
+  const inp = document.getElementById("addColLabel");
+  const label = String(inp?.value || "").trim();
+  if (!label) { inp?.focus(); showToast("ใส่ชื่อคอลัมน์ก่อน", "error"); return; }
+  const info = _currentCfgInfo();
+  if (!info || info.source === "none") { showToast("ยังไม่มีฟอร์ม/เทมเพลตสำหรับงานนี้", "error"); return; }
+  const base = JSON.parse(JSON.stringify(
+    info.source === "override" ? (info.override || {}) : (info.templateConfig || {})
+  ));
+  if (!_addColumnToConfig(base, label, _addColFtype)) { showToast("มีคอลัมน์ชื่อนี้อยู่แล้ว", "error"); inp?.focus(); return; }
+  try {
+    await sbFetch("events", `?event_id=eq.${currentEventId}`, {
+      method: "PATCH",
+      body: { attendee_field_config: base },
+    });
+    _invalidateEventConfigCache();
+    await fetchEventFieldConfig(currentEventId).catch(() => {});
+    document.getElementById("attAddColMenu")?.classList.remove("open");
+    showToast("เพิ่มคอลัมน์แล้ว (เฉพาะงานนี้) ➕", "success");
+    filterTable();
+    // เลื่อนตารางไปขวาสุดให้เห็นคอลัมน์ใหม่
+    const wrap = document.querySelector("#attTableSection .table-wrap");
+    if (wrap) requestAnimationFrame(() => { wrap.scrollLeft = wrap.scrollWidth; });
+  } catch (e) {
+    showToast("บันทึกไม่สำเร็จ: " + e.message, "error");
+  }
+};
+// คลิกนอกเมนู → ปิด
+document.addEventListener("click", (e) => {
+  if (e.target.closest(".att-addcol-wrap")) return;
+  document.getElementById("attAddColMenu")?.classList.remove("open");
+});
 
 // ── Freeze คอลัมน์ (เลือกเองผ่าน 📌) ────────────────────────
 // default freeze = 4 (☑ · # · Check-in · รหัส/ชื่อ) → คงคอลัมน์ระบุตัวตนไว้ซ้าย · ปรับเองได้ผ่าน 📌 (จำใน localStorage)

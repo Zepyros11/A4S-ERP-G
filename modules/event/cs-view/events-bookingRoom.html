@@ -81,6 +81,12 @@
         justify-content: center;
         padding: 0 3px;
       }
+
+      /* Modal ต้องอยู่เหนือ topbar (z-100) + bottom nav (z-100) ไม่งั้นหัว modal โดนบัง
+         (Tailwind z-50/60/70 ต่ำกว่า topbar) · id-selector ชนะ class .z-* */
+      #bookingModal, #requestDetailModal { z-index: 200; }
+      #conflictModal { z-index: 210; }
+      #alertModal { z-index: 220; }
     </style>
   </head>
   <body class="text-slate-800 flex flex-col h-screen overflow-hidden">

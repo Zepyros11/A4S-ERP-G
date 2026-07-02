@@ -1692,6 +1692,87 @@
 }
 .att-tt-addmany:hover { background: var(--accent-light, #15803d); transform: translateY(-1px); }
 
+/* ── เพิ่มคอลัมน์ (ปุ่ม + popover) ─────────────────────────── */
+.att-addcol-wrap { position: relative; display: inline-block; }
+.att-tt-addcol {
+  padding: 6px 12px;
+  border: 1px solid var(--accent, #16a34a);
+  border-radius: 7px;
+  background: #fff;
+  color: var(--accent, #16a34a);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background .15s, transform .1s;
+}
+.att-tt-addcol:hover { background: #f0fdf4; transform: translateY(-1px); }
+.att-addcol-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 60;
+  width: 240px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.18);
+  padding: 12px;
+  display: none;
+  flex-direction: column;
+  gap: 9px;
+}
+.att-addcol-menu.open { display: flex; }
+.att-addcol-title { font-size: 13px; font-weight: 800; color: #0f172a; }
+.att-addcol-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  font: inherit;
+  font-size: 13px;
+  color: #0f172a;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 7px;
+  outline: none;
+  transition: border-color .12s;
+}
+.att-addcol-input:focus { border-color: var(--accent, #16a34a); }
+.att-addcol-types { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.att-addcol-type {
+  padding: 7px 8px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 7px;
+  background: #f8fafc;
+  color: #475569;
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all .12s;
+}
+.att-addcol-type:hover { border-color: #cbd5e1; }
+.att-addcol-type.active {
+  border-color: var(--accent, #16a34a);
+  background: #f0fdf4;
+  color: var(--accent, #16a34a);
+}
+.att-addcol-submit {
+  padding: 8px 12px;
+  border: none;
+  border-radius: 7px;
+  background: var(--accent, #16a34a);
+  color: #fff;
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background .15s;
+}
+.att-addcol-submit:hover { background: var(--accent-light, #15803d); }
+.att-addcol-note { font-size: 10.5px; color: #94a3b8; line-height: 1.35; }
+
 /* ── จัดลำดับเอง (โหมดแก้ไข) — ช่อง # แก้ได้ + หมุดลาก ⠿ ──────── */
 .att-seq-cell { display: flex; align-items: center; gap: 4px; }
 .att-drag-handle {

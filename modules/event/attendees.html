@@ -152,6 +152,24 @@
                 <div class="filter-chips" id="filterPillsPayment" data-for="filterPayment"></div>
               </div>
               <div class="att-tt-spacer"></div>
+              <div class="att-addcol-wrap">
+                <button id="btnAddColumn" onclick="window.toggleAddColumnMenu(event)" class="att-tt-addcol" title="เพิ่มคอลัมน์ใหม่ให้ตาราง (เฉพาะงานนี้)">
+                  ➕ คอลัมน์
+                </button>
+                <div class="att-addcol-menu" id="attAddColMenu" onclick="event.stopPropagation()">
+                  <div class="att-addcol-title">➕ เพิ่มคอลัมน์ใหม่</div>
+                  <input type="text" id="addColLabel" class="att-addcol-input" placeholder="ชื่อคอลัมน์…" maxlength="40" autocomplete="off"
+                    onkeydown="if(event.key==='Enter'){event.preventDefault();window.submitAddColumn();}else if(event.key==='Escape'){window.toggleAddColumnMenu(event);}">
+                  <div class="att-addcol-types" id="addColTypes">
+                    <button type="button" class="att-addcol-type active" data-ftype="text"   onclick="window._pickAddColType(this)">📝 ข้อความ</button>
+                    <button type="button" class="att-addcol-type"        data-ftype="date"   onclick="window._pickAddColType(this)">📅 วันที่</button>
+                    <button type="button" class="att-addcol-type"        data-ftype="number" onclick="window._pickAddColType(this)">🔢 ตัวเลข</button>
+                    <button type="button" class="att-addcol-type"        data-ftype="check"  onclick="window._pickAddColType(this)">✓ ติ๊กถูก</button>
+                  </div>
+                  <button type="button" class="att-addcol-submit" onclick="window.submitAddColumn()">เพิ่มคอลัมน์</button>
+                  <div class="att-addcol-note">บันทึกเฉพาะงานนี้ · เปลี่ยนชื่อภายหลังได้ด้วยดับเบิลคลิกหัวคอลัมน์</div>
+                </div>
+              </div>
               <button id="btnBulkAdd" onclick="window.openBulkAddModal()" class="att-tt-addmany" title="เพิ่มหลายคนพร้อมกัน — วางรหัสหรือชื่อ บรรทัดละ 1 คน">
                 ➕ เพิ่มหลายคน
               </button>
