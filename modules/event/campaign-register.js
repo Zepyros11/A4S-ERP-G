@@ -219,14 +219,33 @@ async function init() {
     const rows = await sbGet(`campaigns?public_token=eq.${encodeURIComponent(token)}&select=*&limit=1`);
     campaign = (rows || [])[0];
     if (!campaign) return closed("❓", "ไม่พบแคมเปญนี้");
-    if (!campaign.reg_open) return closed("🔒", "แคมเปญนี้ปิดรับลงทะเบียนแล้ว");
     if (campaign.status === "CANCELLED") return closed("❌", "แคมเปญนี้ถูกยกเลิก");
-    if (campaign.status === "ENDED") return closed("🏁", "แคมเปญนี้จบแล้ว");
+    // โหมดทดสอบ (ตั้งจากหลังบ้าน) → เปิดให้ลงทะเบียนได้ทุกเวลา ข้ามการเช็คด้านล่าง
+    if (!campaign.test_mode) {
+      if (!campaign.reg_open) return closed("🔒", "แคมเปญนี้ปิดรับลงทะเบียนแล้ว");
+      if (campaign.status === "ENDED") return closed("🏁", "แคมเปญนี้จบแล้ว");
+      // ช่วงเวลากิจกรรม (อ้างอิงเวลาไทย Asia/Bangkok +07:00)
+      const startMs = campaign.start_date ? Date.parse(campaign.start_date + "T00:00:00+07:00") : null;
+      const endMs = campaign.end_date ? Date.parse(campaign.end_date + "T23:59:59+07:00") : null;
+      const now = Date.now();
+      if (startMs && now < startMs) return closed("⏳", `ยังไม่ถึงเวลาเปิดลงทะเบียน · เริ่ม ${fmtDMY(campaign.start_date)}`);
+      if (endMs && now > endMs) return closed("🏁", "หมดเวลากิจกรรมแล้ว — ปิดรับลงทะเบียน");
+    }
 
     renderCampaign();
     setupCodeLookup();
     show("stateLoading", false);
     show("content", true);
+    if (campaign.test_mode) {
+      const card = document.getElementById("regCard");
+      if (card && !document.getElementById("testModeBanner")) {
+        const b = document.createElement("div");
+        b.id = "testModeBanner";
+        b.className = "reg-testmode-banner";
+        b.textContent = "🧪 โหมดทดสอบ — เปิดให้ทดสอบลงทะเบียนนอกช่วงเวลากิจกรรม";
+        card.insertBefore(b, card.firstChild);
+      }
+    }
   } catch (e) {
     closed("⚠️", "เกิดข้อผิดพลาด: " + e.message);
   }

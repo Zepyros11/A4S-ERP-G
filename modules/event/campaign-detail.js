@@ -179,8 +179,32 @@ function renderHeader() {
     <span class="cmp-status cmpstat-${campaign.status}">${STATUS_LABEL[campaign.status] || campaign.status}</span>
     ${dates ? `<span>${dates}</span>` : ""}
     ${plats ? `<span>${plats}</span>` : ""}
-    <span>${campaign.reg_open ? "🟢 เปิดรับสมัคร" : "🔴 ปิดรับสมัคร"}</span>`;
+    <span>${campaign.reg_open ? "🟢 เปิดรับสมัคร" : "🔴 ปิดรับสมัคร"}</span>
+    ${campaign.test_mode ? `<span class="cmp-status" style="background:#fef3c7;color:#92400e">🧪 โหมดทดสอบ</span>` : ""}`;
+  renderTestModeBtn();
 }
+// ปุ่มโหมดทดสอบ: เปิด = หน้าลงทะเบียนเปิดให้ทดสอบได้ทุกเวลา (ข้ามช่วงเวลากิจกรรม)
+function renderTestModeBtn() {
+  const b = document.getElementById("btnTestMode");
+  if (!b) return;
+  const on = !!campaign.test_mode;
+  b.classList.toggle("btn-primary", on);
+  b.textContent = on ? "🧪 โหมดทดสอบ: เปิด" : "🧪 โหมดทดสอบ: ปิด";
+  b.title = on
+    ? "หน้าลงทะเบียนเปิดให้ทดสอบได้ทุกเวลา (ข้ามช่วงเวลากิจกรรม) — กดเพื่อปิด"
+    : "เปิดเพื่อทดสอบการลงทะเบียนก่อนเริ่ม/หลังจบกิจกรรม";
+}
+window.toggleTestMode = async function () {
+  const next = !campaign.test_mode;
+  try {
+    await sbFetch("campaigns", `?campaign_id=eq.${campaign.campaign_id}`, { method: "PATCH", body: { test_mode: next } });
+    campaign.test_mode = next;
+    renderHeader();
+    showToast(next ? "เปิดโหมดทดสอบ — หน้าลงทะเบียนเปิดให้ทดสอบได้ทุกเวลา 🧪" : "ปิดโหมดทดสอบแล้ว", "success");
+  } catch (e) {
+    showToast("อัปเดตไม่สำเร็จ: " + e.message, "error");
+  }
+};
 // ── การ์ดสรุปสำหรับผู้บริหาร (ระหว่าง hero กับ tabs) ──
 function renderKpis() {
   const wrap = document.getElementById("cmpKpis");
