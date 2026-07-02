@@ -383,6 +383,35 @@ export function loadTopbar(title = "", options = {}) {
 }
 .topbar-bell-foot a:hover{ text-decoration:underline; }
 
+/* ══════════ RESPONSIVE — มือถือ (กัน topbar ล้นแนวนอน · กฎ #1) ══════════ */
+@media (max-width: 767px){
+  .topbar{ padding:0 10px; gap:8px; }
+  /* ประหยัดพื้นที่: ซ่อนตัวคั่น + ชื่อหน้า + คำว่า "-ERP" (เหลือโลโก้ + A4S) */
+  .topbar-sep{ display:none; }
+  .topbar-title{ display:none; }
+  .topbar-logo{ font-size:0; gap:5px; flex-shrink:0; }   /* ซ่อน text node " -ERP" */
+  .topbar-logo span{ font-size:14px; }                    /* คง "A4S" ไว้ */
+  .topbar-logo img{ height:24px !important; }
+  /* Action links → ไอคอนล้วน (ซ่อน label ด้วย font-size:0 · ไอคอนอยู่ใน span)
+     · แถบยุบได้ + เลื่อนแนวนอนในตัวเมื่อไอคอนเยอะ (กันดันทั้งหน้าล้น) */
+  .topbar-actions{
+    gap:6px; margin-right:0;
+    flex-shrink:1; min-width:0;
+    overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-width:none;
+  }
+  .topbar-actions::-webkit-scrollbar{ display:none; }
+  .topbar-action{ font-size:0; gap:0; padding:0; width:36px; height:36px; justify-content:center; border-radius:50%; flex-shrink:0; }
+  .topbar-action > span{ font-size:16px; }
+  /* User menu → เหลือ avatar (ซ่อนชื่อ + caret) */
+  .topbar-user-name,
+  .topbar-user-caret{ display:none; }
+  .topbar-user-btn{ padding:4px; border-radius:50%; }
+}
+@media (max-width: 480px){
+  /* จอจิ๋ว: ย่อไอคอน action ลงอีกนิด */
+  .topbar-action{ width:34px; height:34px; }
+}
+
 `;
 
     document.head.appendChild(style);
