@@ -223,13 +223,13 @@ async function init() {
     // โหมดทดสอบ (ตั้งจากหลังบ้าน) → เปิดให้ลงทะเบียนได้ทุกเวลา ข้ามการเช็คด้านล่าง
     if (!campaign.test_mode) {
       if (!campaign.reg_open) return closed("🔒", "แคมเปญนี้ปิดรับลงทะเบียนแล้ว");
-      if (campaign.status === "ENDED") return closed("🏁", "แคมเปญนี้จบแล้ว", "../../assets/images/campaign-ended.png");
+      if (campaign.status === "ENDED") return closed("🏁", "", "../../assets/images/campaign-ended.png");
       // ช่วงเวลากิจกรรม (อ้างอิงเวลาไทย Asia/Bangkok +07:00)
       const startMs = campaign.start_date ? Date.parse(campaign.start_date + "T00:00:00+07:00") : null;
       const endMs = campaign.end_date ? Date.parse(campaign.end_date + "T23:59:59+07:00") : null;
       const now = Date.now();
       if (startMs && now < startMs) return closed("⏳", `📅 Campaign นี้เริ่ม ${fmtDMY(campaign.start_date)}`, "../../assets/images/campaign-not-open.png");
-      if (endMs && now > endMs) return closed("🏁", "หมดเวลากิจกรรมแล้ว — ปิดรับลงทะเบียน", "../../assets/images/campaign-ended.png");
+      if (endMs && now > endMs) return closed("🏁", "", "../../assets/images/campaign-ended.png");
     }
 
     renderCampaign();
@@ -264,8 +264,8 @@ function closed(icon, msg, img) {
     if (iconEl) { iconEl.classList.remove("hidden"); iconEl.textContent = icon; }
   }
   const msgEl = document.getElementById("closedMsg");
-  msgEl.textContent = msg;
-  msgEl.classList.toggle("reg-closed-date", !!img); // สถานะมีแบนเนอร์ → แสดง msg เป็น pill สวย
+  msgEl.textContent = msg || "";
+  msgEl.classList.toggle("reg-closed-date", !!img && !!msg); // มีแบนเนอร์+ข้อความ → แสดง msg เป็น pill สวย
   show("stateLoading", false);
   show("stateClosed", true);
 }
