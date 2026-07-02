@@ -242,3 +242,51 @@
   display: inline-flex; align-items: center; justify-content: center;
 }
 .cmp-row-actions .btn-icon:hover { background: var(--accent-pale); border-color: var(--accent); }
+
+/* ── Responsive: มือถือ (≤767px) — ตารางแคมเปญ → การ์ด ── */
+@media (max-width: 767px) {
+  .toolbar { flex-direction: column; align-items: stretch; gap: 8px; }
+  .toolbar .search-wrap { width: 100%; }
+  .toolbar .filter-select { width: 100%; }
+
+  .table-wrap { overflow: visible; }
+  .data-table { border: none; }
+  .data-table thead { display: none; }
+  .data-table tbody, .data-table tr, .data-table td { display: block; width: 100%; }
+
+  .data-table tr.cmp-row {
+    position: relative;
+    border: 1px solid var(--border); border-radius: 12px;
+    background: var(--surface); box-shadow: var(--shadow-xs, 0 1px 2px rgba(16,24,40,.06));
+    padding: 10px 12px; margin-bottom: 12px;
+  }
+  .data-table tr.cmp-row td {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    text-align: right; padding: 8px 0; border: none;
+    border-bottom: 1px dashed var(--border); min-height: 0;
+  }
+  .data-table tr.cmp-row td:last-child { border-bottom: none; padding-bottom: 0; }
+  .data-table tr.cmp-row td[data-label]::before {
+    content: attr(data-label); font-weight: 700; color: var(--text2);
+    font-size: 12.5px; text-align: left; flex-shrink: 0; white-space: nowrap;
+  }
+
+  /* checkbox → มุมขวาบนการ์ด */
+  .data-table tr.cmp-row td.cmp-cb-cell {
+    position: absolute; top: 8px; right: 10px; width: auto; padding: 0; border: none;
+  }
+  /* ชื่อแคมเปญ = หัวการ์ด (เต็มแถว ชิดซ้าย) */
+  .data-table tr.cmp-row td.cmp-name-td {
+    justify-content: flex-start; text-align: left;
+    border-bottom: 1px solid var(--border); padding: 2px 30px 10px 0; margin-bottom: 2px;
+  }
+  .data-table tr.cmp-row td.cmp-name-td .cmp-name-cell { text-align: left; }
+
+  /* คอลัมน์ที่ค่าอยู่ขวา */
+  .data-table tr.cmp-row td .cmp-plats { justify-content: flex-end; }
+  .data-table tr.cmp-row td .cmp-status-select { max-width: 180px; }
+  .data-table tr.cmp-row td .cmp-row-actions { justify-content: flex-end; }
+
+  /* แถว empty-state ไม่ต้องทำเป็นการ์ด */
+  .data-table tbody tr:not(.cmp-row) td { display: table-cell; text-align: center; }
+}

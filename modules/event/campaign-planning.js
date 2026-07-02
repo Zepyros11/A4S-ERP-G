@@ -228,8 +228,8 @@ function renderTable() {
         )
         .join("");
       return `<tr class="cmp-row" style="cursor:pointer" onclick="window.rowClick(event, ${c.campaign_id})">
-        <td class="col-center"><input type="checkbox" class="row-check" value="${c.campaign_id}" onclick="window.updateBulkBar()" /></td>
-        <td>
+        <td class="col-center cmp-cb-cell"><input type="checkbox" class="row-check" value="${c.campaign_id}" onclick="window.updateBulkBar()" /></td>
+        <td class="cmp-name-td">
           <div class="cmp-name-cell">
             ${cover}
             <div>
@@ -238,11 +238,11 @@ function renderTable() {
             </div>
           </div>
         </td>
-        <td class="col-center" style="white-space:nowrap">${dates}</td>
-        <td class="col-center"><span class="cmp-plats">${plats || "—"}</span></td>
-        <td class="col-center">${partCounts[c.campaign_id] || 0}</td>
-        <td class="col-center">${daysLeftCell(c)}</td>
-        <td class="col-center">
+        <td class="col-center" data-label="ช่วงเวลา" style="white-space:nowrap">${dates}</td>
+        <td class="col-center" data-label="แพลตฟอร์ม"><span class="cmp-plats">${plats || "—"}</span></td>
+        <td class="col-center" data-label="ผู้เข้าร่วม">${partCounts[c.campaign_id] || 0}</td>
+        <td class="col-center" data-label="วันที่เหลือ">${daysLeftCell(c)}</td>
+        <td class="col-center" data-label="สถานะ">
           <select class="cmp-status-select cmpstat-${c.status}" data-perm="campaign_edit"
                   onchange="window.changeCampStatus(${c.campaign_id}, this)">
             ${Object.keys(STATUS_LABEL).map((s) =>
@@ -250,7 +250,7 @@ function renderTable() {
             ).join("")}
           </select>
         </td>
-        <td class="col-center">
+        <td class="col-center" data-label="จัดการ">
           <div class="cmp-row-actions">
             <button class="btn-icon" title="รายงาน / Dashboard" onclick="window.openReport(${c.campaign_id})">📊</button>
             <button class="btn-icon" title="ลิงก์ลงทะเบียน / QR" onclick="window.openShareModal(${c.campaign_id})">🔗</button>

@@ -17,6 +17,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 10px;
   padding: 0 28px;
   z-index: 100;
   font-family: "Sarabun", sans-serif;
@@ -27,6 +28,14 @@
   display: flex;
   align-items: center;
   gap: 10px;
+  margin-right: auto; /* push nav + right cluster to the far right */
+}
+
+/* ── NAV (page tabs) ── */
+.cal-topbar-nav {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 .cal-topbar-logo {
   height: 32px;
@@ -278,8 +287,22 @@
 }
 .cal-modal-btn.danger:hover { background: #b91c1c; }
 
-/* ── MOBILE ── */
-@media (max-width: 600px) {
+.cal-standalone-page {
+  padding-top: 62px;
+}
+
+/* ── TABLET / NARROW LAPTOP: avatar only (reclaim width) ── */
+@media (max-width: 1024px) {
+  .cal-user-name {
+    display: none;
+  }
+  .cal-user-btn {
+    padding: 4px;
+  }
+}
+
+/* ── SMALL: drop page label, tighten nav ── */
+@media (max-width: 767px) {
   .cal-topbar {
     padding: 0 16px;
   }
@@ -287,11 +310,44 @@
   .cal-topbar-page {
     display: none;
   }
+  .cal-topbar-nav {
+    gap: 4px;
+  }
+  .cal-topbar-btn {
+    font-size: 12px;
+    padding: 4px 8px;
+  }
   .cal-topbar-date {
-    font-size: 11px;
+    font-size: 12px;
     padding: 4px 10px;
   }
 }
-.cal-standalone-page {
-  padding-top: 62px;
+
+/* ── MOBILE: two-row topbar (tabs wrap to a full-width second row) ── */
+@media (max-width: 600px) {
+  .cal-topbar {
+    height: auto;
+    flex-wrap: wrap;
+    padding: 8px 12px;
+    row-gap: 8px;
+  }
+  .cal-topbar-nav {
+    order: 3;
+    width: 100%;
+    gap: 6px;
+  }
+  .cal-topbar-nav .cal-topbar-btn {
+    flex: 1;
+    text-align: center;
+    padding: 8px 4px;
+    border-radius: 8px;
+  }
+  .cal-topbar-date {
+    font-size: 11px;
+    padding: 4px 9px;
+  }
+  /* taller two-row bar → offset page content further */
+  .cal-standalone-page {
+    padding-top: 100px;
+  }
 }

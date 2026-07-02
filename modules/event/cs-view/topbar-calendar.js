@@ -94,10 +94,10 @@ const CalTopbar = (function () {
       <div class="cal-topbar">
         <div class="cal-topbar-left">
           <img src="${resolvedLogo}" alt="A4S ERP" class="cal-topbar-logo" onerror="this.onerror=null;this.src='${_logoFallback}'">
-          <span style="width:1px;height:20px;background:#e2e8f0;display:inline-block;flex-shrink:0"></span>
+          <span class="cal-topbar-sep" style="width:1px;height:20px;background:#e2e8f0;display:inline-block;flex-shrink:0"></span>
           <span class="cal-topbar-page">${pageName}</span>
         </div>
-        <div class="cal-topbar-right">
+        <div class="cal-topbar-nav">
           <button class="cal-topbar-btn ${currentPage === "events-calendar" ? "active" : ""}"
             onclick="window.location.href = './events-calendar.html'">
             Event Calendar
@@ -110,6 +110,8 @@ const CalTopbar = (function () {
             onclick="window.location.href = './events-bookingRoom.html'">
             Meet Booking
           </button>
+        </div>
+        <div class="cal-topbar-right">
           <span class="cal-topbar-date" id="calTopbarDate"></span>
           <div class="cal-user-menu" id="calUserMenu">
             <button class="cal-user-btn" onclick="document.getElementById('calUserDropdown').classList.toggle('open')">
