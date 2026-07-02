@@ -471,14 +471,22 @@ function renderCodeSuggest(rows) {
     el.innerHTML = `<div class="cs-info">ไม่พบรหัสนี้ — กรุณาตรวจสอบรหัสสมาชิก</div>`;
     return;
   }
-  // มีคนเดียว → เติมชื่อให้อัตโนมัติเลย (ช่องชื่อกรอกเองไม่ได้)
-  if (rows.length === 1) { selectCodeName(rows[0].person_name || ""); return; }
-  // แสดงแค่ รหัส + ชื่อ (ไม่โชว์ chip role/ตำแหน่ง — กัน popup ล้นแนวนอน)
+  // เรียงบุคคลหลัก (primary) ขึ้นก่อนเสมอ
+  rows = [...rows].sort((a, b) => (b.person_role === "primary") - (a.person_role === "primary"));
+  // เติมชื่อ "บุคคลหลัก" ให้อัตโนมัติเป็นค่าเริ่มต้น (ช่องชื่อกรอกเองไม่ได้)
+  const primary = rows.find((r) => r.person_role === "primary") || rows[0];
+  const nameEl = document.getElementById("rName");
+  if (nameEl) nameEl.value = primary.person_name || "";
+  // มีคนเดียว → ปิด popup (ไม่ต้องเลือก)
+  if (rows.length === 1) { hideCodeSuggest(); maybeCheckExisting(); return; }
+  // หลายคน (บริษัท+ผู้สมัครร่วม) → โชว์ให้เลือก · default = บุคคลหลัก
   el.innerHTML = rows.map((m) => {
     const name = m.person_name || "—";
+    const isPrimary = m.person_role === "primary";
     return `<div class="cs-row" data-name="${esc(name)}">
       <span class="cs-code">${esc(m.member_code)}</span>
       <span class="cs-name">${esc(name)}</span>
+      ${isPrimary ? `<span class="cs-tag">บุคคลหลัก</span>` : ""}
     </div>`;
   }).join("");
   el.querySelectorAll(".cs-row").forEach((r) =>

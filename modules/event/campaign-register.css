@@ -117,12 +117,14 @@ body {
 .reg-desc { font-size: 14px; color: var(--text2); white-space: pre-wrap; }
 
 /* นับถอยหลัง */
-.reg-countdown { margin: 2px 0 12px; }
+.reg-countdown { margin: 0 0 14px; }
 .reg-cd-box {
-  display: inline-flex; align-items: center; gap: 12px; flex-wrap: wrap;
-  padding: 10px 16px; border-radius: 12px;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  width: 100%; box-sizing: border-box;
+  padding: 12px 16px; border-radius: 12px;
   background: linear-gradient(135deg, #ecfdf5, #d1fae5); border: 1px solid #a7f3d0;
 }
+.reg-cd-box.cd-ended { justify-content: center; }
 .reg-cd-box.cd-soon { background: linear-gradient(135deg, #eff6ff, #dbeafe); border-color: #bfdbfe; }
 .reg-cd-box.cd-ended {
   background: #f1f5f9; border: 1px solid var(--border);
@@ -399,6 +401,7 @@ body {
 .cs-chip { font-size: 10.5px; padding: 1px 6px; border-radius: 4px; font-weight: 700; white-space: nowrap; }
 .cs-chip-co { color: #9333ea; background: #f3e8ff; }
 .cs-chip-pos { color: #92400e; background: #fef3c7; }
+.cs-tag { font-size: 10.5px; padding: 1px 7px; border-radius: 999px; font-weight: 700; white-space: nowrap; color: #166534; background: #dcfce7; }
 .cs-info { padding: 10px 12px; font-size: 12px; color: var(--text3); }
 .cs-info.cs-err { color: var(--danger); }
 
