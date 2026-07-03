@@ -1709,6 +1709,53 @@
 }
 .att-tt-addmany:hover { background: var(--accent-light, #15803d); transform: translateY(-1px); }
 
+/* ── กลุ่ม LINE (ลิงก์เชิญเข้ากลุ่มของงาน) ───────────────────── */
+.att-lineg { gap: 6px; }
+.att-lineg-input {
+  width: 240px;
+  max-width: 42vw;
+  padding: 6px 10px;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 7px;
+  background: var(--surface, #fff);
+  color: var(--text, #0f172a);
+  font-family: inherit;
+  font-size: 12px;
+}
+.att-lineg-input:read-only {
+  background: var(--surface2, #f8fafc);
+  color: var(--text2, #475569);
+  cursor: default;
+}
+.att-lineg-input.has-val:read-only { color: #06c755; font-weight: 600; }   /* LINE green */
+.att-lineg.editing .att-lineg-input {
+  border-color: #06c755;
+  box-shadow: 0 0 0 3px rgba(6, 199, 85, .15);
+  outline: none;
+}
+.att-lineg-input::placeholder { color: var(--text3, #94a3b8); font-weight: 400; }
+.att-lineg-btn {
+  padding: 6px 10px;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 7px;
+  background: #fff;
+  color: var(--text2, #475569);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background .15s, transform .1s, border-color .15s;
+}
+.att-lineg-btn:hover { background: var(--surface2, #f8fafc); transform: translateY(-1px); }
+.att-lineg-btn.save {
+  border-color: #06c755;
+  background: #06c755;
+  color: #fff;
+}
+.att-lineg-btn.save:hover { background: #05b34c; }
+.att-lineg-btn.ghost { padding: 6px 9px; color: var(--text2, #475569); }
+
 /* ── เพิ่มคอลัมน์ (ปุ่ม + popover) ─────────────────────────── */
 .att-addcol-wrap { position: relative; display: inline-block; }
 .att-tt-addcol {

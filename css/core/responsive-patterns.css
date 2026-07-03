@@ -207,6 +207,50 @@ img, video, canvas { height: auto; }
 }
 
 
+/* ═══════════ MODAL → BOTTOM SHEET — modal เด้งขึ้นจากล่างบนมือถือ ═══════════ */
+/* ใช้เมื่อ: modal/dialog ที่อยากให้บนมือถือกลายเป็น bottom sheet (สไลด์ขึ้นจากล่าง มุมบนมน มีที่จับ)
+   ตาม Material "Modal Bottom Sheet" · ให้ look เดียวกันทั้งแอป
+
+   โครง (แปะ 2 class):
+     <div class="<overlay เดิม> r-sheet">        ← overlay fixed inset-0 (backdrop dim)
+       <div class="<box เดิม> r-sheet-box"> …content… </div>   ← กล่องเนื้อหา
+     </div>
+
+   - desktop: ไม่แตะ (modal ใช้ layout เดิม เช่น กลางจอ)
+   - มือถือ (≤767): overlay ดัน box ชิดล่าง · box เต็มกว้าง มุมบนมน สไลด์ขึ้น + drag handle
+   - content ยาว → ใส่ overflow-y:auto ที่ box หรือ panel ภายในเอง (utility คุมแค่ตำแหน่ง/ความสูง)
+   - z-index: ถ้ามี fixed topbar/nav ทับ ให้หน้าตั้ง z-index ของ overlay เองให้สูงกว่า (ไม่ใช่หน้าที่ utility)
+   - ใช้ !important เพื่อชนะ max-height/border-radius/align inline หรือ Tailwind ของ modal เดิม */
+
+@keyframes rSheetUp { from { opacity: .5; transform: translateY(100%); } to { opacity: 1; transform: translateY(0); } }
+
+@media (max-width: 767px) {
+  .r-sheet {
+    display: flex !important;
+    align-items: flex-end !important;      /* ดัน box ชิดล่าง */
+    justify-content: center !important;
+    padding: 0 !important;                 /* เต็มความกว้าง ไม่มีขอบ */
+  }
+  .r-sheet-box {
+    position: relative;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    border-radius: 18px 18px 0 0 !important;   /* มนเฉพาะบน */
+    /* dvh = พื้นที่เห็นจริง (ไม่รวม address bar) กันหัว sheet โดนตัด · vh = fallback เบราว์เซอร์เก่า */
+    max-height: 88vh !important;
+    max-height: 88dvh !important;
+    animation: rSheetUp .28s cubic-bezier(.34, 1.1, .64, 1);
+  }
+  /* แถบจับ (drag handle) บนสุดของ sheet */
+  .r-sheet-box::before {
+    content: ""; position: absolute; top: 7px; left: 50%; transform: translateX(-50%);
+    width: 42px; height: 4px; border-radius: 999px;
+    background: rgba(148, 163, 184, .9); z-index: 20; pointer-events: none;
+  }
+}
+
+
 /* ═══════════ VISIBILITY UTILS — โชว์/ซ่อนตามจอ ═══════════ */
 
 @media (max-width: 767px) {

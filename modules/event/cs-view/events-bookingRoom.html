@@ -10,6 +10,8 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="events-bookingRoom.css" />
+    <!-- utility กลาง: .r-sheet (modal→bottom sheet บนมือถือ) · หน้านี้ไม่ได้ใช้ main.css จึงลิงก์ตรง -->
+    <link rel="stylesheet" href="../../../css/core/responsive-patterns.css" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" />
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <style>
@@ -87,35 +89,7 @@
       #bookingModal, #requestDetailModal { z-index: 200; }
       #conflictModal { z-index: 210; }
       #alertModal { z-index: 220; }
-
-      /* ── มือถือ: modal จอง/รายละเอียด = bottom sheet (สไลด์ขึ้นจากล่าง มุมบนมน มีที่จับ)
-         ให้ look เหมือน event popup หน้า calendar ── */
-      @keyframes bkrSheetUp { from { opacity: .5; transform: translateY(100%); } to { opacity: 1; transform: translateY(0); } }
-      @media (max-width: 767px) {
-        #bookingModal, #requestDetailModal {
-          align-items: flex-end;   /* ชิดล่าง */
-          padding: 0;              /* เต็มความกว้าง ไม่มีขอบ */
-        }
-        #bookingModal > div, #requestDetailModal > div {
-          width: 100%;
-          max-width: 100%;
-          border-radius: 18px 18px 0 0;   /* มนเฉพาะบน */
-          animation: bkrSheetUp .28s cubic-bezier(.34, 1.1, .64, 1);
-          /* ใช้ dvh (พื้นที่เห็นจริง) ไม่ใช่ vh (viewport ใหญ่รวม address bar) ไม่งั้น sheet สูงเกิน หัวโดนตัด
-             · !important เพื่อชนะ max-height inline/Tailwind เดิม · บรรทัด vh = fallback เบราว์เซอร์เก่า */
-          max-height: 88vh !important;
-          max-height: 88dvh !important;
-        }
-        /* แถบจับ (drag handle) บนสุดของ sheet */
-        #bookingModal > div::before, #requestDetailModal > div::before {
-          content: ""; position: absolute; top: 7px; left: 50%; transform: translateX(-50%);
-          width: 42px; height: 4px; border-radius: 999px;
-          background: rgba(148, 163, 184, .9); z-index: 20;
-        }
-        /* เว้นที่เหนือหัว modal ให้ที่จับ */
-        #bookingModal > div > :first-child:not(.absolute),
-        #requestDetailModal > div > :first-child { padding-top: 18px; }
-      }
+      /* bottom sheet บนมือถือ = utility กลาง .r-sheet/.r-sheet-box (responsive-patterns.css) */
     </style>
   </head>
   <body class="text-slate-800 flex flex-col h-screen overflow-hidden">
@@ -236,8 +210,8 @@
     </nav>
 
     <!-- Booking Modal -->
-    <div id="bookingModal" class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div class="bg-white rounded-2xl shadow-2xl w-full max-w-3xl p-6 md:p-8 relative max-h-[90vh] overflow-y-auto">
+    <div id="bookingModal" class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 r-sheet">
+      <div class="bg-white rounded-2xl shadow-2xl w-full max-w-3xl p-6 md:p-8 relative max-h-[90vh] overflow-y-auto r-sheet-box">
         <button id="closeModal" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 text-xl font-bold">&times;</button>
         <h2 class="text-lg font-black text-slate-900 mb-1">จองห้องประชุม</h2>
         <p class="text-sm text-slate-400 mb-6" id="modalRoomName">-</p>
@@ -299,8 +273,8 @@
     </div>
 
     <!-- Request Detail Modal -->
-    <div id="requestDetailModal" class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-2 md:p-4">
-      <div class="bg-white rounded-2xl shadow-2xl w-full max-w-3xl relative flex flex-col" style="height: fit-content; max-height: 85vh;">
+    <div id="requestDetailModal" class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-2 md:p-4 r-sheet">
+      <div class="bg-white rounded-2xl shadow-2xl w-full max-w-3xl relative flex flex-col r-sheet-box" style="height: fit-content; max-height: 85vh;">
 
         <!-- Modal Header -->
         <div class="flex items-center justify-between px-4 md:px-6 py-4 border-b border-slate-100 flex-shrink-0 gap-2">

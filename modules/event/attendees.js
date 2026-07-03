@@ -33,7 +33,7 @@ async function sbFetch(table, query = "", opts = {}) {
 async function fetchEvents() {
   // Exclude "วันหยุดบริษัท" category events
   const [events, cats] = await Promise.all([
-    sbFetch("events", "?select=event_id,event_name,event_code,max_attendees,event_category_id,price,event_date,end_date,start_time,end_time,poster_url,image_urls&order=event_date.desc"),
+    sbFetch("events", "?select=event_id,event_name,event_code,max_attendees,event_category_id,price,event_date,end_date,start_time,end_time,poster_url,image_urls,line_group_url&order=event_date.desc"),
     sbFetch("event_categories", "?select=event_category_id,category_name"),
   ]);
   const holidayIds = (cats || []).filter(c => c.category_name === "วันหยุดบริษัท").map(c => c.event_category_id);
@@ -660,6 +660,7 @@ async function loadAttendees(eventId) {
     showSections(true);
     renderTierBanner();
     renderHeroPrice();   // 💰 ราคาปัจจุบันเด่นๆ บน hero (ตัวใหญ่สีแดง)
+    renderLineGroupField();   // 💬 ลิงก์กลุ่ม LINE ของงานนี้ (ในแถบเครื่องมือ)
     populateTagFilter();
     _loadAutoCheckinState();
     _applyPaymentVisibility();   // hide payment UI ถ้า event ไม่มีราคา
@@ -1018,6 +1019,88 @@ window.setBusTrip = async function (val) {
     currentEvent.bus_trip_id = prev;
     renderBusCard();
     showToast("บันทึกไม่สำเร็จ: " + e.message, "error");
+  }
+};
+
+// ── กลุ่ม LINE ─────────────────────────────────────────────
+// ลิงก์เชิญเข้ากลุ่ม LINE ของ event นี้ (events.line_group_url) — ส่งต่อให้ลูกค้า
+// แถบเครื่องมือ: label + input + ปุ่มสลับ แก้ไข ↔ บันทึก/ยกเลิก (+ เปิด/คัดลอกเมื่อมีลิงก์)
+function renderLineGroupField() {
+  const wrap = document.getElementById("lineGroupField");
+  if (!wrap) return;
+  const input = document.getElementById("lineGroupInput");
+  const val = (currentEvent?.line_group_url || "").trim();
+  input.value = val;
+  input.readOnly = true;
+  input.placeholder = "ยังไม่ได้ตั้งลิงก์กลุ่ม LINE";
+  input.classList.toggle("has-val", !!val);
+  wrap.classList.remove("editing");
+  const show = (id, on) => { const el = document.getElementById(id); if (el) el.style.display = on ? "" : "none"; };
+  show("lineGroupOpen", !!val);
+  show("lineGroupCopy", !!val);
+  show("lineGroupSave", false);
+  show("lineGroupCancel", false);
+  const editBtn = document.getElementById("lineGroupEdit");
+  editBtn.style.display = "";
+  editBtn.innerHTML = val ? "✏️ แก้ไข" : "➕ เพิ่มลิงก์";
+}
+
+window.editLineGroup = function () {
+  const wrap = document.getElementById("lineGroupField");
+  const input = document.getElementById("lineGroupInput");
+  if (!wrap || !input) return;
+  wrap.classList.add("editing");
+  input.readOnly = false;
+  input.placeholder = "วางลิงก์กลุ่ม LINE เช่น https://line.me/ti/g/...";
+  const show = (id, on) => { const el = document.getElementById(id); if (el) el.style.display = on ? "" : "none"; };
+  show("lineGroupEdit", false);
+  show("lineGroupOpen", false);
+  show("lineGroupCopy", false);
+  show("lineGroupSave", true);
+  show("lineGroupCancel", true);
+  input.focus();
+  input.select();
+};
+
+window.cancelLineGroup = function () { renderLineGroupField(); };
+
+window.saveLineGroup = async function () {
+  if (!currentEventId || !currentEvent) return;
+  const input = document.getElementById("lineGroupInput");
+  const val = (input?.value || "").trim();
+  if (val && !/^https?:\/\//i.test(val)) {
+    showToast("ลิงก์ต้องขึ้นต้นด้วย http:// หรือ https://", "error");
+    if (input) input.focus();
+    return;
+  }
+  const prev = currentEvent.line_group_url || null;
+  const next = val || null;
+  currentEvent.line_group_url = next;
+  try {
+    await sbFetch("events", `?event_id=eq.${currentEventId}`, { method: "PATCH", body: { line_group_url: next } });
+    if (_currentEvent && _currentEvent.event_id === currentEventId) _currentEvent.line_group_url = next;
+    renderLineGroupField();
+    showToast(next ? "💬 บันทึกลิงก์กลุ่ม LINE แล้ว" : "ลบลิงก์กลุ่ม LINE แล้ว", "success");
+  } catch (e) {
+    currentEvent.line_group_url = prev;
+    renderLineGroupField();
+    showToast("บันทึกไม่สำเร็จ: " + e.message, "error");
+  }
+};
+
+window.openLineGroup = function () {
+  const val = (currentEvent?.line_group_url || "").trim();
+  if (val) window.open(val, "_blank", "noopener");
+};
+
+window.copyLineGroup = async function () {
+  const val = (currentEvent?.line_group_url || "").trim();
+  if (!val) return;
+  try {
+    await navigator.clipboard.writeText(val);
+    showToast("📋 คัดลอกลิงก์กลุ่ม LINE แล้ว", "success");
+  } catch {
+    showToast("คัดลอกไม่สำเร็จ", "error");
   }
 };
 
