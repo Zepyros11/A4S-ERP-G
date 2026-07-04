@@ -55,6 +55,12 @@ let participants = [];
 let submissions = [];
 let partById = {}; // participant_id -> participant row
 
+// per-campaign trend controls
+let trendCid = null;
+let trendMetric = "participants"; // participants | views | likes | engagement
+let trendGran = "week";           // day | week | month | year
+let trendMode = "period";         // period | cumulative
+
 // ── AUTO STATUS ตามวันที่ (เหมือน campaign-planning — แต่ไม่เขียนกลับ) ──
 function todayBKK() {
   return new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Bangkok" });
@@ -86,8 +92,8 @@ async function initPage() {
 async function loadData() {
   const [camps, parts, subs] = await Promise.all([
     sbFetch("campaigns", "?select=*&order=created_at.desc"),
-    sbFetch("campaign_participants", "?select=participant_id,campaign_id,member_code,member_name,status"),
-    sbFetch("campaign_submissions", "?select=campaign_id,participant_id,platform,views,likes,comments,shares,status"),
+    sbFetch("campaign_participants", "?select=participant_id,campaign_id,member_code,member_name,status,joined_at"),
+    sbFetch("campaign_submissions", "?select=campaign_id,participant_id,platform,views,likes,comments,shares,status,submitted_at"),
   ]);
   campaigns = (camps || []).map((c) => ({ ...c, _status: displayStatus(c) }));
   participants = parts || [];
@@ -98,7 +104,13 @@ async function loadData() {
   renderKpis();
   renderStatusDonut();
   renderPlatformBars();
+  initTrendCard();
+  // ถ้าไม่มีการกรอก "วิว" เลย (org นี้วัดที่ engagement) → default leaderboard = Engagement
+  // ไม่งั้นเรียงตามวิว=0 ทุกคน อันดับจะสุ่มไม่มีความหมาย
+  const topSel = document.getElementById("topMetricSel");
+  if (topSel && !approvedSubs().some((s) => (+s.views || 0) > 0)) topSel.value = "engagement";
   renderTopPerformers();
+  renderTopJoiners();
   renderCampaignReport();
 }
 
@@ -294,6 +306,314 @@ function renderTopPerformers() {
     .join("");
 }
 window.renderTopPerformers = renderTopPerformers;
+
+// ════════════════════════════════════════════════════════
+//  TOP เข้าร่วมแคมเปญ — สมาชิกที่เข้าร่วมหลายแคมเปญที่สุด (นับจาก participants)
+// ════════════════════════════════════════════════════════
+function renderTopJoiners() {
+  const byMember = {};
+  participants.forEach((p) => {
+    const key = p.member_code || `#${p.participant_id}`;
+    const m = (byMember[key] ||= {
+      code: p.member_code || "—",
+      name: p.member_name || p.member_code || "—",
+      campaigns: new Set(), approvedParts: 0, posts: 0,
+    });
+    m.campaigns.add(p.campaign_id);
+    if (p.status === "approved") m.approvedParts += 1;
+  });
+  submissions.forEach((s) => {
+    const p = partById[s.participant_id];
+    if (!p) return;
+    const key = p.member_code || `#${s.participant_id}`;
+    if (byMember[key]) byMember[key].posts += 1;
+  });
+
+  const rows = Object.values(byMember)
+    .sort((a, b) =>
+      b.campaigns.size - a.campaigns.size ||
+      b.posts - a.posts ||
+      b.approvedParts - a.approvedParts)
+    .slice(0, 10);
+
+  const el = document.getElementById("topJoinList");
+  if (!rows.length) {
+    el.innerHTML = `<div class="empty-state"><div class="empty-icon">🤝</div>
+      <div class="empty-text">ยังไม่มีผู้เข้าร่วม — อันดับจะแสดงเมื่อมีสมาชิกลงทะเบียนแล้ว</div></div>`;
+    return;
+  }
+  el.innerHTML = rows
+    .map((m, i) => {
+      const rank = i + 1;
+      const medal = rank === 1 ? "🥇" : rank === 2 ? "🥈" : rank === 3 ? "🥉" : rank;
+      const top = rank <= 3 ? ` top${rank}` : "";
+      return `<div class="dash-lb-row${top}">
+        <div class="dash-lb-rank">${medal}</div>
+        <div class="dash-lb-name">
+          <div class="n">${esc(m.name)}</div>
+          <div class="c">${esc(m.code)}</div>
+        </div>
+        <div class="dash-lb-metrics">
+          <div class="mm"><div class="v">${fmtNum(m.posts)}</div><div class="l">📤 โพสต์</div></div>
+        </div>
+        <div class="dash-lb-score">${fmtNum(m.campaigns.size)}<div class="lbl">แคมเปญ</div></div>
+      </div>`;
+    })
+    .join("");
+}
+window.renderTopJoiners = renderTopJoiners;
+
+// ════════════════════════════════════════════════════════
+//  แนวโน้มรายแคมเปญ — line chart (SVG มือเปล่า) + วัน/สัปดาห์/เดือน/ปี
+// ════════════════════════════════════════════════════════
+const TREND_META = {
+  participants: { label: "ผู้เข้าร่วม", unit: "คน", color: "#057a55", src: "participants" },
+  views:        { label: "วิว",        unit: "วิว", color: "#1d4ed8", src: "submissions" },
+  likes:        { label: "Like",       unit: "ครั้ง", color: "#db2777", src: "submissions" },
+  engagement:  { label: "Engagement", unit: "ครั้ง", color: "#d97706", src: "submissions" },
+};
+
+// timestamp (ISO) → 'YYYY-MM-DD' ตามเวลาไทย
+function bkkYMD(ts) {
+  return new Date(ts).toLocaleDateString("en-CA", { timeZone: "Asia/Bangkok" });
+}
+function mondayOf(ymd) {
+  const [y, m, d] = ymd.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  const wd = (dt.getUTCDay() + 6) % 7; // 0=Mon
+  dt.setUTCDate(dt.getUTCDate() - wd);
+  return dt;
+}
+const ymdOfUTC = (dt) => dt.toISOString().slice(0, 10);
+function periodKeyOf(ymd, gran) {
+  if (gran === "day") return ymd;
+  if (gran === "week") return ymdOfUTC(mondayOf(ymd));
+  if (gran === "month") return ymd.slice(0, 7);
+  return ymd.slice(0, 4);
+}
+function periodLabelOf(key, gran) {
+  if (gran === "day" || gran === "week") { const [, m, d] = key.split("-"); return `${d}/${m}`; }
+  if (gran === "month") { const [y, m] = key.split("-"); return `${m}/${y}`; }
+  return key;
+}
+function periodTitleOf(key, gran) {
+  if (gran === "day") { const [y, m, d] = key.split("-"); return `${d}/${m}/${y}`; }
+  if (gran === "week") { const [y, m, d] = key.split("-"); return `สัปดาห์ ${d}/${m}/${y}`; }
+  if (gran === "month") { const [y, m] = key.split("-"); return `เดือน ${m}/${y}`; }
+  return `ปี ${key}`;
+}
+// เติมช่วงว่าง (period ที่ไม่มีข้อมูล = 0) ระหว่าง min→max
+function periodRange(minYmd, maxYmd, gran) {
+  const keys = [];
+  if (gran === "year") {
+    for (let y = +minYmd.slice(0, 4), ey = +maxYmd.slice(0, 4); y <= ey; y++) keys.push(String(y));
+  } else if (gran === "month") {
+    let [y, m] = minYmd.split("-").map(Number);
+    const [ey, em] = maxYmd.split("-").map(Number);
+    while (y < ey || (y === ey && m <= em)) {
+      keys.push(`${y}-${String(m).padStart(2, "0")}`);
+      if (++m > 12) { m = 1; y++; }
+    }
+  } else {
+    const step = gran === "week" ? 7 : 1;
+    let cur = gran === "week" ? mondayOf(minYmd) : new Date(minYmd + "T00:00:00Z");
+    const end = gran === "week" ? mondayOf(maxYmd) : new Date(maxYmd + "T00:00:00Z");
+    while (cur <= end) { keys.push(ymdOfUTC(cur)); cur.setUTCDate(cur.getUTCDate() + step); }
+  }
+  return keys;
+}
+
+function trendValueOf(metric, s) {
+  return metric === "views" ? +s.views || 0
+    : metric === "likes" ? +s.likes || 0
+    : engOf(s); // engagement
+}
+
+// สร้าง series ต่อช่วง (raw) ของแคมเปญ + metric + granularity ที่เลือก
+function buildTrendSeries(cid, metric, gran) {
+  const map = {};
+  const ymds = [];
+  if (metric === "participants") {
+    participants.filter((p) => p.campaign_id === cid).forEach((p) => {
+      if (!p.joined_at) return;
+      const ymd = bkkYMD(p.joined_at);
+      map[periodKeyOf(ymd, gran)] = (map[periodKeyOf(ymd, gran)] || 0) + 1;
+      ymds.push(ymd);
+    });
+  } else {
+    submissions.filter((s) => s.campaign_id === cid && s.status === "approved").forEach((s) => {
+      if (!s.submitted_at) return;
+      const ymd = bkkYMD(s.submitted_at);
+      map[periodKeyOf(ymd, gran)] = (map[periodKeyOf(ymd, gran)] || 0) + trendValueOf(metric, s);
+      ymds.push(ymd);
+    });
+  }
+  if (!ymds.length) return [];
+  ymds.sort();
+  return periodRange(ymds[0], ymds[ymds.length - 1], gran).map((k) => ({
+    key: k, label: periodLabelOf(k, gran), title: periodTitleOf(k, gran), value: map[k] || 0,
+  }));
+}
+
+// นับ "อัตราการเข้าร่วม" ของแคมเปญ
+function participationStats(cid) {
+  const parts = participants.filter((p) => p.campaign_id === cid);
+  const total = parts.length;
+  const approved = parts.filter((p) => p.status === "approved").length;
+  const withWork = new Set(
+    submissions.filter((s) => s.campaign_id === cid).map((s) => s.participant_id),
+  ).size;
+  const pct = (n) => (total ? Math.round((n / total) * 100) : 0);
+  return { total, approved, withWork, apprPct: pct(approved), workPct: pct(withWork) };
+}
+
+function initTrendCard() {
+  const sel = document.getElementById("trendCampaignSel");
+  if (!sel) return;
+  if (!campaigns.length) {
+    sel.innerHTML = `<option>— ยังไม่มีแคมเปญ —</option>`;
+    document.getElementById("trendStats").innerHTML = "";
+    document.getElementById("trendChartWrap").innerHTML =
+      `<div class="dash-empty-sm">ยังไม่มีแคมเปญให้แสดงแนวโน้ม</div>`;
+    return;
+  }
+  sel.innerHTML = campaigns
+    .map((c) => `<option value="${c.campaign_id}">${esc(c.name)} · ${(STATUS_META[c._status]?.label || c._status)}</option>`)
+    .join("");
+  // default = แคมเปญ ACTIVE ตัวแรก ไม่งั้นตัวล่าสุด
+  const def = campaigns.find((c) => c._status === "ACTIVE") || campaigns[0];
+  trendCid = def.campaign_id;
+  sel.value = String(trendCid);
+  renderTrendCard();
+}
+
+function renderTrendCard() {
+  const c = campaigns.find((x) => x.campaign_id === trendCid);
+  const wrap = document.getElementById("trendChartWrap");
+  const statsEl = document.getElementById("trendStats");
+  const note = document.getElementById("trendNote");
+  const meta = TREND_META[trendMetric];
+  if (!c) { wrap.innerHTML = `<div class="dash-empty-sm">เลือกแคมเปญ</div>`; return; }
+
+  note.textContent = meta.src === "participants"
+    ? "(นับตามวันลงทะเบียน)"
+    : "(ผลงานที่อนุมัติ · ตามวันส่งผลงาน)";
+
+  // ── stat tiles: อัตราการเข้าร่วม ──
+  const ps = participationStats(trendCid);
+  let series = buildTrendSeries(trendCid, trendMetric, trendGran);
+  if (trendMode === "cumulative") {
+    let run = 0;
+    series = series.map((p) => ({ ...p, value: (run += p.value) }));
+  }
+  const peak = series.reduce((mx, p) => (p.value > mx.value ? p : mx), { value: -1, label: "—", title: "—" });
+  statsEl.innerHTML = `
+    <div class="dash-trend-stat"><div class="v">${fmtNum(ps.total)}</div><div class="l">👥 ผู้เข้าร่วมทั้งหมด</div></div>
+    <div class="dash-trend-stat"><div class="v">${fmtNum(ps.approved)} <span class="p" style="color:var(--success)">${ps.apprPct}%</span></div><div class="l">✅ อนุมัติแล้ว</div></div>
+    <div class="dash-trend-stat"><div class="v">${fmtNum(ps.withWork)} <span class="p" style="color:var(--info)">${ps.workPct}%</span></div><div class="l">📤 ส่งผลงานแล้ว (อัตรามีส่วนร่วม)</div></div>
+    <div class="dash-trend-stat"><div class="v" style="color:${meta.color}">${peak.value < 0 ? "—" : fmtCompact(peak.value)}</div><div class="l">🔺 พีค${meta.label} · ${peak.label}</div></div>`;
+
+  drawTrendChart(series, meta);
+}
+
+// ── วาด line/area chart (viewBox คงที่, svg width:100%) ──
+function drawTrendChart(series, meta) {
+  const wrap = document.getElementById("trendChartWrap");
+  if (!series.length) {
+    wrap.innerHTML = `<div class="dash-empty-sm">ยังไม่มีข้อมูล${meta.label}ในแคมเปญนี้</div>`;
+    return;
+  }
+  const W = 820, H = 260, padL = 46, padR = 14, padT = 16, padB = 28;
+  const plotW = W - padL - padR, plotH = H - padT - padB;
+  const n = series.length;
+  const maxV = Math.max(1, ...series.map((p) => p.value));
+  // เพดาน+step แกน Y เป็นเลขจำนวนเต็มกลมๆ (ทุก metric เป็นจำนวนนับ)
+  const { niceMax, step } = niceAxis(maxV, 4);
+  const xOf = (i) => padL + (n === 1 ? plotW / 2 : (i / (n - 1)) * plotW);
+  const yOf = (v) => padT + plotH - (v / niceMax) * plotH;
+
+  // gridlines + labels แกน Y
+  const gridN = Math.round(niceMax / step);
+  let grid = "";
+  for (let g = 0; g <= gridN; g++) {
+    const v = step * g;
+    const y = yOf(v);
+    grid += `<line class="dash-trend-grid" x1="${padL}" y1="${y.toFixed(1)}" x2="${W - padR}" y2="${y.toFixed(1)}"${g === 0 ? "" : ' stroke-opacity="0.55"'} />
+      <text class="dash-trend-axis-lbl" x="${padL - 8}" y="${(y + 3.5).toFixed(1)}" text-anchor="end">${fmtCompact(v)}</text>`;
+  }
+
+  // เส้น + พื้นที่
+  const linePts = series.map((p, i) => `${xOf(i).toFixed(1)},${yOf(p.value).toFixed(1)}`).join(" ");
+  const areaD = `M ${xOf(0).toFixed(1)},${(padT + plotH).toFixed(1)} L ${series.map((p, i) => `${xOf(i).toFixed(1)},${yOf(p.value).toFixed(1)}`).join(" L ")} L ${xOf(n - 1).toFixed(1)},${(padT + plotH).toFixed(1)} Z`;
+
+  // x labels (บางลงเหลือ ~8 ป้าย)
+  const stepLbl = Math.max(1, Math.ceil(n / 8));
+  let xLbls = "";
+  series.forEach((p, i) => {
+    if (i % stepLbl !== 0 && i !== n - 1) return;
+    xLbls += `<text class="dash-trend-axis-lbl" x="${xOf(i).toFixed(1)}" y="${H - 9}" text-anchor="middle">${esc(p.label)}</text>`;
+  });
+
+  // dots + hover bands
+  const bandW = plotW / n;
+  let dots = "", bands = "";
+  series.forEach((p, i) => {
+    const cx = xOf(i), cy = yOf(p.value);
+    dots += `<circle class="dash-trend-dot" cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="${n > 40 ? 2 : 3.2}" fill="${meta.color}" />`;
+    bands += `<rect class="dash-trend-band" data-i="${i}" x="${(xOf(i) - bandW / 2).toFixed(1)}" y="${padT}" width="${bandW.toFixed(1)}" height="${plotH}" />`;
+  });
+
+  wrap.innerHTML = `
+    <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="กราฟแนวโน้ม${meta.label}">
+      ${grid}
+      <path class="dash-trend-area" d="${areaD}" fill="${meta.color}" />
+      <polyline class="dash-trend-line" points="${linePts}" stroke="${meta.color}" />
+      ${dots}
+      ${xLbls}
+      ${bands}
+    </svg>
+    <div class="dash-trend-tip" id="trendTip"></div>`;
+
+  // hover — ตำแหน่ง tooltip: getBoundingClientRect = px จริง (หลัง zoom) แต่ style.left
+  // อยู่พิกัด local ที่จะถูก ×zoom อีกรอบ → ต้องหาร zoom ชดเชย (root zoom 0.65 desktop)
+  const tip = wrap.querySelector("#trendTip");
+  const unitTxt = trendMode === "cumulative" ? `${meta.unit} (สะสม)` : meta.unit;
+  const zoom = parseFloat(getComputedStyle(document.documentElement).zoom) || 1;
+  wrap.querySelectorAll(".dash-trend-band").forEach((b) => {
+    b.addEventListener("mouseenter", () => {
+      const p = series[+b.dataset.i];
+      const br = b.getBoundingClientRect(), wr = wrap.getBoundingClientRect();
+      const dotFrac = (padT + plotH - (p.value / niceMax) * plotH) / H;
+      tip.innerHTML = `${fmtNum(p.value)} <span style="font-weight:500">${unitTxt}</span><span class="tt-sub">${esc(p.title)}</span>`;
+      tip.style.left = ((br.left + br.width / 2 - wr.left) / zoom) + "px";
+      tip.style.top = (dotFrac * wr.height / zoom) + "px";
+      tip.style.opacity = "1";
+    });
+    b.addEventListener("mouseleave", () => { tip.style.opacity = "0"; });
+  });
+}
+
+// เลือก step แกน Y เป็นเลขกลม (1/2/5 × 10^k, ขั้นต่ำ 1) แล้วปัดเพดานขึ้นให้ลงตัว
+function niceAxis(maxV, targetTicks) {
+  const raw = maxV / targetTicks;
+  const mag = Math.pow(10, Math.floor(Math.log10(raw)));
+  const norm = raw / mag;
+  let step = (norm <= 1 ? 1 : norm <= 2 ? 2 : norm <= 5 ? 5 : 10) * mag;
+  step = Math.max(1, Math.round(step)); // จำนวนนับ → step เป็นจำนวนเต็ม
+  return { niceMax: Math.ceil(maxV / step) * step, step };
+}
+
+window.onTrendCampaign = function () {
+  trendCid = +document.getElementById("trendCampaignSel").value;
+  renderTrendCard();
+};
+function setSegActive(segId, attr, val) {
+  document.querySelectorAll(`#${segId} .dash-seg-btn`).forEach((btn) =>
+    btn.classList.toggle("is-active", btn.dataset[attr] === val));
+}
+window.setTrendMetric = function (m) { trendMetric = m; setSegActive("trendMetricSeg", "metric", m); renderTrendCard(); };
+window.setTrendGran = function (g) { trendGran = g; setSegActive("trendGranSeg", "gran", g); renderTrendCard(); };
+window.setTrendMode = function (m) { trendMode = m; setSegActive("trendModeSeg", "mode", m); renderTrendCard(); };
 
 // ════════════════════════════════════════════════════════
 //  รายงานทุกแคมเปญ — ตาราง metric รายตัว + filter + CSV

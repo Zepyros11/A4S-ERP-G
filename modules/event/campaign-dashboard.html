@@ -92,18 +92,66 @@
         </div>
       </div>
 
-      <!-- TOP PERFORMERS -->
+      <!-- PER-CAMPAIGN TREND -->
       <div class="dash-card">
         <div class="dash-card-hdr dash-card-hdr--row">
-          <span>🏆 Top performers <span class="dash-hdr-note">(รวมทุกแคมเปญ)</span></span>
-          <select class="filter-select dash-metric-sel" id="topMetricSel" onchange="window.renderTopPerformers()">
-            <option value="views">เรียงตาม วิว</option>
-            <option value="likes">เรียงตาม Like</option>
-            <option value="engagement">เรียงตาม Engagement</option>
-          </select>
+          <span>📈 แนวโน้มรายแคมเปญ <span class="dash-hdr-note" id="trendNote">—</span></span>
+          <select class="filter-select dash-metric-sel" id="trendCampaignSel" onchange="window.onTrendCampaign()"></select>
         </div>
-        <div class="dash-lb" id="topList">
+
+        <div class="dash-trend-controls">
+          <div class="dash-seg" id="trendMetricSeg">
+            <button class="dash-seg-btn is-active" data-metric="participants" onclick="window.setTrendMetric('participants')">👥 ผู้เข้าร่วม</button>
+            <button class="dash-seg-btn" data-metric="views" onclick="window.setTrendMetric('views')">👁 วิว</button>
+            <button class="dash-seg-btn" data-metric="likes" onclick="window.setTrendMetric('likes')">❤️ Like</button>
+            <button class="dash-seg-btn" data-metric="engagement" onclick="window.setTrendMetric('engagement')">🔥 Eng.</button>
+          </div>
+          <div class="dash-trend-controls-right">
+            <div class="dash-seg" id="trendGranSeg">
+              <button class="dash-seg-btn" data-gran="day" onclick="window.setTrendGran('day')">วัน</button>
+              <button class="dash-seg-btn is-active" data-gran="week" onclick="window.setTrendGran('week')">สัปดาห์</button>
+              <button class="dash-seg-btn" data-gran="month" onclick="window.setTrendGran('month')">เดือน</button>
+              <button class="dash-seg-btn" data-gran="year" onclick="window.setTrendGran('year')">ปี</button>
+            </div>
+            <div class="dash-seg" id="trendModeSeg">
+              <button class="dash-seg-btn is-active" data-mode="period" onclick="window.setTrendMode('period')">ต่อช่วง</button>
+              <button class="dash-seg-btn" data-mode="cumulative" onclick="window.setTrendMode('cumulative')">สะสม</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="dash-trend-stats" id="trendStats"></div>
+
+        <div class="dash-trend-chart" id="trendChartWrap">
           <div class="dash-empty-sm">กำลังโหลด...</div>
+        </div>
+      </div>
+
+      <!-- TOP LEADERBOARDS (2 คอลัมน์) -->
+      <div class="dash-grid-2 dash-grid-2--even">
+        <!-- Top performers (คุณภาพ: ยอด engagement) -->
+        <div class="dash-card">
+          <div class="dash-card-hdr dash-card-hdr--row">
+            <span>🏆 Top performers <span class="dash-hdr-note">(ยอดมีส่วนร่วม · ทุกแคมเปญ)</span></span>
+            <select class="filter-select dash-metric-sel" id="topMetricSel" onchange="window.renderTopPerformers()">
+              <option value="views">เรียงตาม วิว</option>
+              <option value="likes">เรียงตาม Like</option>
+              <option value="engagement">เรียงตาม Engagement</option>
+            </select>
+          </div>
+          <div class="dash-lb" id="topList">
+            <div class="dash-empty-sm">กำลังโหลด...</div>
+          </div>
+        </div>
+
+        <!-- Top เข้าร่วมแคมเปญ (ปริมาณ: จำนวนแคมเปญที่เข้าร่วม) -->
+        <div class="dash-card">
+          <div class="dash-card-hdr dash-card-hdr--row">
+            <span>🤝 Top เข้าร่วมแคมเปญ <span class="dash-hdr-note">(สมาชิกที่เข้าร่วมมากสุด)</span></span>
+          </div>
+          <div class="dash-lb" id="topJoinList">
+            <div class="dash-empty-sm">กำลังโหลด...</div>
+          </div>
         </div>
       </div>
 

@@ -118,9 +118,10 @@ let allChannels = [];
 let allUsers = [];      // for user-target picker
 let allRoles = [];      // distinct roles
 let allGroups = [];     // distinct group names
+let allLineGroups = []; // LINE chat groups (line_groups) — {group_id, group_name, category}
 let editingId = null;
-let activeTargetTab = "role";                              // view ปัจจุบัน (role|group) — ไม่ใช่ชนิด target
-let editingTargets = { roles: [], groups: [], users: [] }; // mixed target — เลือกได้หลายชนิดพร้อมกัน
+let activeTargetTab = "role";                              // view ปัจจุบัน (role|group|linegroup) — ไม่ใช่ชนิด target
+let editingTargets = { roles: [], groups: [], users: [], line_groups: [] }; // mixed target — เลือกได้หลายชนิดพร้อมกัน
 let expandedRoles = new Set();                             // role ที่กางดูรายชื่ออยู่
 let editingSchedule = { offset_days: 0, offset_minutes: 0, time: "" };
 let selectedRuleIds = new Set();
@@ -129,25 +130,36 @@ let selectedRuleIds = new Set();
 function targetsOf(rule) {
   if (rule && rule.targets && typeof rule.targets === "object" && !Array.isArray(rule.targets)) {
     return {
-      roles:  Array.isArray(rule.targets.roles)  ? [...rule.targets.roles]  : [],
-      groups: Array.isArray(rule.targets.groups) ? [...rule.targets.groups] : [],
-      users:  Array.isArray(rule.targets.users)  ? [...rule.targets.users]  : [],
+      roles:       Array.isArray(rule.targets.roles)       ? [...rule.targets.roles]       : [],
+      groups:      Array.isArray(rule.targets.groups)      ? [...rule.targets.groups]      : [],
+      users:       Array.isArray(rule.targets.users)       ? [...rule.targets.users]       : [],
+      line_groups: Array.isArray(rule.targets.line_groups) ? [...rule.targets.line_groups] : [],
     };
   }
   const vals = Array.isArray(rule?.target_value) ? rule.target_value : [];
   return {
-    roles:  rule?.target_type === "role"  ? [...vals] : [],
-    groups: rule?.target_type === "group" ? [...vals] : [],
-    users:  rule?.target_type === "user"  ? [...vals] : [],
+    roles:       rule?.target_type === "role"  ? [...vals] : [],
+    groups:      rule?.target_type === "group" ? [...vals] : [],
+    users:       rule?.target_type === "user"  ? [...vals] : [],
+    line_groups: [],
   };
 }
 function userNameById(id) {
   const u = allUsers.find((x) => x.user_id === id);
   return u ? (u.full_name || u.username) : `#${id}`;
 }
+function lineGroupNameById(gid) {
+  const g = allLineGroups.find((x) => x.group_id === gid);
+  return g ? (g.group_name || gid) : gid;
+}
 function targetSummaryText(rule, max = 3) {
   const t = targetsOf(rule);
-  const items = [...t.roles, ...t.groups.map((g) => "👥" + g), ...t.users.map(userNameById)];
+  const items = [
+    ...t.roles,
+    ...t.groups.map((g) => "👥" + g),
+    ...t.users.map(userNameById),
+    ...(t.line_groups || []).map((g) => "💬" + lineGroupNameById(g)),
+  ];
   if (!items.length) return "—";
   return items.slice(0, max).join(", ") + (items.length > max ? ` +${items.length - max}` : "");
 }
@@ -156,7 +168,7 @@ function targetSummaryText(rule, max = 3) {
 async function init() {
   showLoading(true);
   try {
-    await Promise.all([loadTriggers(), loadRules(), loadChannels(), loadUsersAndRoles()]);
+    await Promise.all([loadTriggers(), loadRules(), loadChannels(), loadUsersAndRoles(), loadLineGroups()]);
     renderTable();
     populateTriggers();
     populateChannels();
@@ -194,6 +206,10 @@ async function loadChannels() {
   allChannels = (await sbFetch("line_channels?select=id,name,purpose,is_default,is_active&is_active=eq.true&order=purpose.asc,name.asc")) || [];
 }
 
+async function loadLineGroups() {
+  allLineGroups = (await sbFetch("line_groups?select=group_id,group_name,category,is_active&is_active=eq.true&order=category.asc.nullslast,group_name.asc")) || [];
+}
+
 async function loadUsersAndRoles() {
   allUsers = (await sbFetch("users?select=user_id,username,full_name,role,line_user_id,line_display_name,notification_groups,is_active&is_active=eq.true&order=full_name.asc")) || [];
   // distinct roles
@@ -224,9 +240,10 @@ function renderTable() {
     const trig = meta?.label || r.trigger_key;
     const _t = targetsOf(r);
     const targetChips = [
-      _t.roles.length  ? `<span class="nr-target-type">role ${_t.roles.length}</span>`   : "",
-      _t.groups.length ? `<span class="nr-target-type">group ${_t.groups.length}</span>` : "",
-      _t.users.length  ? `<span class="nr-target-type">user ${_t.users.length}</span>`   : "",
+      _t.roles.length        ? `<span class="nr-target-type">role ${_t.roles.length}</span>`         : "",
+      _t.groups.length       ? `<span class="nr-target-type">group ${_t.groups.length}</span>`       : "",
+      _t.users.length        ? `<span class="nr-target-type">user ${_t.users.length}</span>`         : "",
+      _t.line_groups?.length ? `<span class="nr-target-type">💬 ${_t.line_groups.length}</span>`     : "",
     ].join("") || `<span class="nr-target-type">—</span>`;
     const targetText = targetSummaryText(r);
     const ch = allChannels.find((c) => c.id === r.channel_id);
@@ -652,7 +669,9 @@ function buildSummaryInner() {
     chips.push(`<span class="nr-chip nr-chip-group">👥 ${escapeHtml(g)}<span class="nr-chip-x" onclick="removeTarget('group','${escapeAttr(g)}')">×</span></span>`));
   editingTargets.users.forEach((id) =>
     chips.push(`<span class="nr-chip nr-chip-user">👤 ${escapeHtml(userNameById(id))}<span class="nr-chip-x" onclick="removeTarget('user',${id})">×</span></span>`));
-  return chips.length ? chips.join("") : `<span class="nr-summary-empty">ยังไม่ได้เลือกผู้รับ — ผสม Role / Group / รายคน ได้</span>`;
+  (editingTargets.line_groups || []).forEach((gid) =>
+    chips.push(`<span class="nr-chip nr-chip-group">💬 ${escapeHtml(lineGroupNameById(gid))}<span class="nr-chip-x" onclick="removeTarget('linegroup','${escapeAttr(gid)}')">×</span></span>`));
+  return chips.length ? chips.join("") : `<span class="nr-summary-empty">ยังไม่ได้เลือกผู้รับ — ผสม Role / Group / รายคน / กลุ่มแชท LINE ได้</span>`;
 }
 function updateTargetSummary() {
   const el = document.getElementById("fTargetSummary");
@@ -689,6 +708,31 @@ function renderTargetPicker() {
           </div>`;
         }).join("") + `</div>`;
     wrap.innerHTML = summary + body;
+  } else if (activeTargetTab === "linegroup") {
+    hint.innerHTML = `ติ๊กกลุ่มแชท LINE ที่บอทอยู่ — ข้อความจะถูกส่งเข้ากลุ่มโดยตรง · จัดการกลุ่มที่หน้า <a href="../event/line-promote.html">💬 ตารางโพสต์ LINE</a>`;
+    let body;
+    if (!allLineGroups.length) {
+      body = `<div class="nr-hint">ยังไม่มีกลุ่มแชท LINE — เชิญบอทเข้ากลุ่มก่อน (กลุ่มจะถูกบันทึกอัตโนมัติ)</div>`;
+    } else {
+      // จัดกลุ่มตาม category (แบบโมดัลหน้า line-promote)
+      const byCat = new Map();
+      for (const g of allLineGroups) {
+        const cat = g.category || "อื่นๆ";
+        if (!byCat.has(cat)) byCat.set(cat, []);
+        byCat.get(cat).push(g);
+      }
+      body = `<div class="nr-target-picker">` + [...byCat.entries()].map(([cat, groups]) => {
+        const items = groups.map((g) => {
+          const sel = editingTargets.line_groups.includes(g.group_id);
+          return `<label class="nr-pick-item"><input type="checkbox" value="${escapeAttr(g.group_id)}" ${sel ? "checked" : ""} onchange="toggleLineGroupVal(this.value, this.checked)"><span>${escapeHtml(g.group_name || g.group_id)}</span></label>`;
+        }).join("");
+        return `<div class="nr-role-block">
+            <div class="nr-role-row"><span class="nr-pick-meta" style="font-weight:700">📁 ${escapeHtml(cat)}</span></div>
+            <div class="nr-sub" style="display:block">${items}</div>
+          </div>`;
+      }).join("") + `</div>`;
+    }
+    wrap.innerHTML = summary + body;
   } else {
     hint.innerHTML = `เลือก Group หรือพิมพ์เพิ่ม — จัดการกลุ่มที่หน้า <a href="./staff-groups.html">👥 จัดการกลุ่มพนักงาน</a>`;
     wrap.innerHTML = summary + `<div class="nr-tags-wrap-outer">
@@ -697,6 +741,12 @@ function renderTargetPicker() {
     </div>`;
     renderTags();
   }
+}
+function toggleLineGroupVal(gid, on) {
+  const i = editingTargets.line_groups.indexOf(gid);
+  if (on && i === -1) editingTargets.line_groups.push(gid);
+  else if (!on && i !== -1) editingTargets.line_groups.splice(i, 1);
+  renderTargetPicker();
 }
 
 function toggleRoleExpand(role) {
@@ -716,7 +766,10 @@ function toggleUserVal(id, on) {
   renderTargetPicker();
 }
 function removeTarget(kind, val) {
-  const arr = kind === "role" ? editingTargets.roles : kind === "group" ? editingTargets.groups : editingTargets.users;
+  const arr = kind === "role" ? editingTargets.roles
+            : kind === "group" ? editingTargets.groups
+            : kind === "linegroup" ? editingTargets.line_groups
+            : editingTargets.users;
   const i = arr.indexOf(val);
   if (i !== -1) arr.splice(i, 1);
   renderTargetPicker();
@@ -839,7 +892,7 @@ async function saveRule() {
 
   if (!name) return showToast("กรุณาใส่ชื่อกฎ", "error");
   if (!trigger) return showToast("กรุณาเลือก trigger", "error");
-  const totalTargets = editingTargets.roles.length + editingTargets.groups.length + editingTargets.users.length;
+  const totalTargets = editingTargets.roles.length + editingTargets.groups.length + editingTargets.users.length + editingTargets.line_groups.length;
   if (!totalTargets) return showToast("กรุณาเลือก target อย่างน้อย 1", "error");
   if (!tpl) return showToast("กรุณาใส่ข้อความ template", "error");
 
@@ -862,7 +915,7 @@ async function saveRule() {
   const payload = {
     rule_name: name,
     trigger_key: trigger,
-    targets: { roles: editingTargets.roles, groups: editingTargets.groups, users: editingTargets.users },
+    targets: { roles: editingTargets.roles, groups: editingTargets.groups, users: editingTargets.users, line_groups: editingTargets.line_groups },
     target_type: pType,
     target_value: pVals,
     channel_id: channelId,

@@ -161,7 +161,7 @@ function refreshCounts() {
 
 // ── TABS ──────────────────────────────────────────────────
 window.switchTab = function (tab) {
-  document.querySelectorAll(".cmp-tab").forEach((t) => t.classList.toggle("active", t.dataset.tab === tab));
+  document.querySelectorAll(".page-tab").forEach((t) => t.classList.toggle("active", t.dataset.tab === tab));
   document.querySelectorAll(".cmp-pane").forEach((p) => p.classList.toggle("active", p.id === `pane-${tab}`));
 };
 
@@ -221,12 +221,12 @@ function renderKpis() {
       const clickable = !!c.type;
       const valCls = c.big ? " cmp-kpi-big" : "";
       const valStyle = c.small ? ' style="font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"' : c.color ? ` style="color:${c.color}"` : "";
-      return `<div class="stat-card${clickable ? " cmp-kpi-card" : ""}"${clickable ? ` title="คลิกดูรายงานตาราง" onclick="window.openCardReport('${c.type}')"` : ""}>
+      return `<div class="stat-card${clickable ? " is-clickable" : ""}"${clickable ? ` title="คลิกดูรายงานตาราง" onclick="window.openCardReport('${c.type}')"` : ""}>
       <div class="stat-icon">${c.ic}</div>
       <div style="min-width:0">
         <div class="stat-value${valCls}"${valStyle}>${c.v}</div>
         <div class="stat-label">${c.l}</div>
-        <div class="cmp-kpi-sub">${c.sub}</div>
+        <div class="stat-sub">${c.sub}</div>
       </div>
     </div>`;
     })
@@ -658,7 +658,8 @@ window.renderParticipants = function () {
   const metric = effectiveMetric();
   const thM = document.getElementById("thPartMetric");
   if (thM) thM.textContent = _metricKeysOf(metric).map((k) => RW_METRIC_LABEL[k]).join(" · ");
-  // เรียงลำดับตามคอลัมน์ที่เลือก (ถ้ามี)
+  // สถานะ "รอ" (pending) อยู่บนสุดเสมอ · จากนั้นค่อยเรียงตามคอลัมน์ที่เลือก (ถ้ามี)
+  const pendingFirst = (p) => ((p.status || "pending") === "pending" ? 0 : 1);
   if (partSort.key) {
     const agg = partSort.key === "metric" ? _subAgg() : null;
     const STATUS_ORD = { pending: 0, approved: 1, rejected: 2 };
@@ -675,11 +676,16 @@ window.renderParticipants = function () {
       }
     };
     rows.sort((a, b) => {
+      const pa = pendingFirst(a), pb = pendingFirst(b);
+      if (pa !== pb) return pa - pb;               // pending มาก่อนเสมอ
       const va = keyVal(a), vb = keyVal(b);
       if (va < vb) return -1 * partSort.dir;
       if (va > vb) return 1 * partSort.dir;
       return 0;
     });
+  } else {
+    // ไม่ได้กด sort คอลัมน์ → ดัน pending ขึ้นบน (คงลำดับเดิมภายในกลุ่ม · sort เสถียร)
+    rows.sort((a, b) => pendingFirst(a) - pendingFirst(b));
   }
   updateSortIndicators();
   body.innerHTML = rows
@@ -1330,7 +1336,7 @@ function initTabReorder() {
   const bar = document.getElementById("cmpTabs");
   if (!bar) return;
   const KEY = "cmpTabOrder";
-  const tabs = () => [...bar.querySelectorAll(".cmp-tab")];
+  const tabs = () => [...bar.querySelectorAll(".page-tab")];
   const activateFirst = () => {
     const first = tabs()[0];
     if (first) window.switchTab(first.dataset.tab);
@@ -1341,7 +1347,7 @@ function initTabReorder() {
     const saved = JSON.parse(localStorage.getItem(KEY) || "[]");
     if (Array.isArray(saved)) {
       saved.forEach((t) => {
-        const el = bar.querySelector(`.cmp-tab[data-tab="${t}"]`);
+        const el = bar.querySelector(`.page-tab[data-tab="${t}"]`);
         if (el) bar.appendChild(el);
       });
     }
@@ -1350,7 +1356,7 @@ function initTabReorder() {
 
   let dragEl = null;
   const afterEl = (x) => {
-    const els = [...bar.querySelectorAll(".cmp-tab:not(.dragging)")];
+    const els = [...bar.querySelectorAll(".page-tab:not(.dragging)")];
     let best = { offset: -Infinity, el: null };
     els.forEach((c) => {
       const box = c.getBoundingClientRect();

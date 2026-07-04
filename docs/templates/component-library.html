@@ -1528,6 +1528,7 @@
       <div class="cl-toc-group">
         <h4>🪟 Overlay</h4>
         <a href="#modal">Modal</a>
+        <a href="#bottom-sheet">Bottom Sheet <span class="badge-new">NEW</span></a>
         <a href="#side-panel">Side Panel</a>
         <a href="#tooltip">Tooltip <span class="badge-new">NEW</span></a>
       </div>
@@ -3588,6 +3589,80 @@ document.addEventListener('click', e =&gt; {
 &lt;/div&gt;</pre>
       </div>
 
+
+      <!-- ================= BOTTOM SHEET ================= -->
+      <div class="cl-section" id="bottom-sheet">
+        <div class="cl-section-head">
+          <h2>Bottom Sheet</h2>
+          <div class="desc"><code>.r-sheet</code> (overlay) + <code>.r-sheet-box</code> (กล่อง) · จาก <code>responsive-patterns.css</code></div>
+          <span class="tag tag-new">NEW</span>
+        </div>
+        <div class="cl-block-desc">
+          <b>ใช้กับ:</b> Modal Bottom Sheet — บนมือถือ (≤767px) modal จะเด้งขึ้นจากขอบล่างจอ มุมบนมน มีที่จับ (drag handle) · desktop = modal กลางจอเดิม
+          แปะ <code>.r-sheet</code> ที่ overlay (fixed inset-0) + <code>.r-sheet-box</code> ที่กล่องเนื้อหา → ได้ sheet อัตโนมัติ ไม่ต้องเขียน CSS
+          ✓ ใช้ <code>max-height:88dvh</code> (dvh กันหัวโดนตัดจาก address bar) · ถ้ามี fixed topbar/nav ทับ ให้ตั้ง z-index ของ overlay เอง
+          <span class="pages">ใช้ที่: Meet Booking (modal จอง/รายละเอียด) · Event Calendar (event popup)</span>
+        </div>
+        <div class="cl-demo">
+          <div class="cl-variants is-rows">
+            <div class="cl-variant">
+              <div class="cl-variant-title">A · หน้าตา <small>รูปทรง sheet (มุมบนมน + drag handle)</small></div>
+              <div class="cl-variant-demo is-stack" style="background:rgba(15,23,42,.06);border-radius:10px;padding:16px;">
+                <div style="max-width:320px;margin:0 auto;width:100%;background:var(--surface,#fff);border-radius:18px 18px 0 0;box-shadow:0 -6px 24px rgba(15,23,42,.14);position:relative;overflow:hidden;">
+                  <div style="position:absolute;top:7px;left:50%;transform:translateX(-50%);width:42px;height:4px;border-radius:999px;background:rgba(148,163,184,.9)"></div>
+                  <div style="padding:22px 16px 10px;border-bottom:1px solid var(--border);font-weight:800">รายละเอียดคำขอจองห้อง</div>
+                  <div style="padding:14px 16px;color:var(--text2);font-size:13px;line-height:1.7">A4S สนง.ใหญ่ — ห้อง 1<br>13:00–18:00 · พี่เกรียง</div>
+                  <div style="padding:12px 16px;display:flex;gap:8px;justify-content:flex-end;border-top:1px solid var(--border)"><button class="btn btn-outline">ปิด</button><button class="btn btn-primary">ยืนยัน</button></div>
+                </div>
+              </div>
+              <label class="cl-pick" data-cid="bottom-sheet:a"><input type="checkbox"> ติดตั้ง A</label>
+            </div>
+            <div class="cl-variant">
+              <div class="cl-variant-title">B · ลองจริง <small>กดเพื่อเด้งขึ้นจากล่าง</small></div>
+              <div class="cl-variant-demo is-stack" style="background:rgba(15,23,42,.06);border-radius:10px;padding:16px;align-items:center;justify-content:center;min-height:120px;">
+                <button class="btn btn-primary" onclick="window.clOpenSheet()">▲ เปิด Bottom Sheet</button>
+              </div>
+              <label class="cl-pick" data-cid="bottom-sheet:b"><input type="checkbox"> ติดตั้ง B</label>
+            </div>
+          </div>
+        </div>
+<pre class="cl-code">&lt;!-- แปะ .r-sheet ที่ overlay + .r-sheet-box ที่กล่อง (responsive-patterns.css) --&gt;
+&lt;div class="modal-overlay open r-sheet" id="myModal"&gt;
+  &lt;div class="modal r-sheet-box"&gt;
+    &lt;div class="modal-hdr"&gt;&lt;div class="modal-title"&gt;หัวข้อ&lt;/div&gt;&lt;/div&gt;
+    &lt;div class="modal-body"&gt;...&lt;/div&gt;
+  &lt;/div&gt;
+&lt;/div&gt;
+&lt;!-- desktop: modal กลางจอเดิม · ≤767px: เด้งขึ้นจากล่างเป็น sheet อัตโนมัติ --&gt;</pre>
+
+        <!-- live demo overlay (always-on sheet เพื่อให้เห็นบน desktop · ของจริงใช้ .r-sheet auto ≤767) -->
+        <style>
+          .cl-sheet-overlay{position:fixed;inset:0;background:rgba(15,23,42,.5);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);z-index:9998;display:none;align-items:flex-end;justify-content:center;}
+          .cl-sheet-overlay.open{display:flex;}
+          .cl-sheet-box{width:100%;max-width:520px;background:var(--surface,#fff);border-radius:18px 18px 0 0;position:relative;max-height:88vh;max-height:88dvh;overflow-y:auto;box-shadow:0 -8px 30px rgba(0,0,0,.22);animation:clSheetUp .28s cubic-bezier(.34,1.1,.64,1);}
+          @keyframes clSheetUp{from{opacity:.5;transform:translateY(100%)}to{opacity:1;transform:translateY(0)}}
+          .cl-sheet-box .cl-sheet-handle{position:absolute;top:7px;left:50%;transform:translateX(-50%);width:42px;height:4px;border-radius:999px;background:rgba(148,163,184,.9);}
+        </style>
+        <div class="cl-sheet-overlay" id="clSheetOverlay" onclick="if(event.target===this)window.clCloseSheet()">
+          <div class="cl-sheet-box">
+            <div class="cl-sheet-handle"></div>
+            <div style="padding:24px 18px 12px;font-weight:800;font-size:16px">Bottom Sheet ตัวอย่าง</div>
+            <div style="padding:0 18px 14px;color:var(--text2);font-size:13px;line-height:1.8">
+              นี่คือ <b>Modal Bottom Sheet</b> — เด้งขึ้นจากขอบล่างจอ มุมบนมน มีที่จับด้านบน<br>
+              บนมือถือจริง (≤767px) modal ที่ใส่ <code>.r-sheet</code>/<code>.r-sheet-box</code> จะกลายเป็นแบบนี้อัตโนมัติ · desktop เป็น modal กลางจอเดิม
+            </div>
+            <div style="padding:12px 18px;display:flex;gap:8px;justify-content:flex-end;border-top:1px solid var(--border)">
+              <button class="btn btn-outline" onclick="window.clCloseSheet()">ปิด</button>
+              <button class="btn btn-primary" onclick="window.clCloseSheet()">เข้าใจแล้ว</button>
+            </div>
+          </div>
+        </div>
+        <script>
+          window.clOpenSheet = function () { document.getElementById("clSheetOverlay").classList.add("open"); };
+          window.clCloseSheet = function () { document.getElementById("clSheetOverlay").classList.remove("open"); };
+          document.addEventListener("keydown", function (e) { if (e.key === "Escape") window.clCloseSheet(); });
+        </script>
+      </div>
 
       <div class="cl-section" id="side-panel">
         <div class="cl-section-head">

@@ -40,12 +40,14 @@
       <!-- EXECUTIVE KPI CARDS -->
       <div class="stats-row cmp-kpis" id="cmpKpis"></div>
 
+      <!-- DATA BOARD (tab + เนื้อหา = การ์ดกรอบเดียว) -->
+      <div class="cmp-board">
       <!-- TABS -->
-      <div class="cmp-tabs" id="cmpTabs">
-        <button class="cmp-tab active" data-tab="brief" onclick="window.switchTab('brief')">📋 บรีฟงาน</button>
-        <button class="cmp-tab" data-tab="overview" onclick="window.switchTab('overview')">📋 ภาพรวม</button>
-        <button class="cmp-tab" data-tab="participants" onclick="window.switchTab('participants')">👥 ผู้เข้าร่วม <span class="badge-n" id="nParticipants">0</span></button>
-        <button class="cmp-tab" data-tab="ranking" onclick="window.switchTab('ranking')">🏆 อันดับ</button>
+      <div class="page-tabs" id="cmpTabs">
+        <button class="page-tab active" data-tab="brief" onclick="window.switchTab('brief')">📋 บรีฟงาน</button>
+        <button class="page-tab" data-tab="overview" onclick="window.switchTab('overview')">📋 ภาพรวม</button>
+        <button class="page-tab" data-tab="participants" onclick="window.switchTab('participants')">👥 ผู้เข้าร่วม <span class="badge-n" id="nParticipants">0</span></button>
+        <button class="page-tab" data-tab="ranking" onclick="window.switchTab('ranking')">🏆 อันดับ</button>
       </div>
 
       <!-- PANE: BRIEF (ภาพ/ข้อความบรีฟงาน) -->
@@ -137,6 +139,7 @@
         </div>
         <div id="rankList"></div>
       </div>
+      </div><!-- /.cmp-board -->
     </div>
 
     <!-- ── PARTICIPANT MODAL ── -->

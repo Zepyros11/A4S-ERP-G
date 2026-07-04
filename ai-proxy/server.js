@@ -1706,8 +1706,10 @@ async function _processRule(rule, now) {
   if (!records.length) return result;
 
   // 2) Resolve recipients ครั้งเดียว (ใช้ทุก record ของ rule นี้)
+  //    recipients = user รายคน (multicast) · lineGroupIds = กลุ่มแชท LINE (push)
   const recipients = await _resolveRuleTargets(rule);
-  if (!recipients.length) {
+  const lineGroupIds = Array.isArray(rule.targets?.line_groups) ? rule.targets.line_groups : [];
+  if (!recipients.length && !lineGroupIds.length) {
     result.reason = 'no recipients';
     for (const rec of records) {
       const refId = rec[refKey];
@@ -1733,14 +1735,20 @@ async function _processRule(rule, now) {
     const text = _renderTpl(rule.message_template, payload);
     try {
       if (lineIds.length) await _multicastViaCronToken(lineIds, text);
+      // push เข้ากลุ่มแชท LINE (target ชนิด line_groups) — 1 ข้อความต่อกลุ่ม
+      if (lineGroupIds.length) {
+        for (const gid of lineGroupIds) {
+          await _pushLineMessages(gid, [{ type: 'text', text: String(text).slice(0, 5000) }]);
+        }
+      }
       // log only LINE recipients ใน notification_log (รักษา semantic เดิม)
       // แต่ inbox เขียน "ทุก" recipient (รวมคนยังไม่ผูก LINE)
       await _logBatch(rule, refKey, refId, lineRecipients, 'sent');
       await _writeInbox(rule, rule.trigger_key, payload, text, recipients, refKey, refId);
-      result.sent += recipients.length;
+      result.sent += recipients.length + lineGroupIds.length;
     } catch (e) {
       await _logBatch(rule, refKey, refId, lineRecipients, 'failed', e.message);
-      result.failed += recipients.length;
+      result.failed += recipients.length + lineGroupIds.length;
     }
   }
   return result;
