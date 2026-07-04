@@ -413,7 +413,7 @@ body {
   position: relative;
   background: #fff;
   border-radius: 20px;
-  width: 460px;
+  width: 620px;
   max-width: 94vw;
   padding: 28px 24px 24px;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.18);
@@ -455,30 +455,49 @@ body {
   border-radius: 999px;
   margin-bottom: 14px;
 }
+/* table look: 1px grid gap over a line-colored background reveals cell borders */
 .bk-panel-rows {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  background: #e2e8f0;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  overflow: hidden;
 }
 .bk-panel-row {
   display: grid;
-  grid-template-columns: 110px 1fr;
-  gap: 12px;
+  grid-template-columns: 96px 1fr;
   font-size: 13px;
   line-height: 1.5;
+  background: #fff;
+}
+/* rows with long content span the full width */
+.bk-panel-row--full {
+  grid-column: 1 / -1;
+}
+@media (max-width: 520px) {
+  .bk-panel-rows { grid-template-columns: 1fr; }
 }
 .bk-panel-label {
+  display: flex;
+  align-items: center;
   font-size: 10px;
   font-weight: 700;
   color: #94a3b8;
   text-transform: uppercase;
   letter-spacing: 0.6px;
-  padding-top: 3px;
+  background: #f8fafc;
+  padding: 10px 12px;
+  border-right: 1px solid #eef2f7;
 }
 .bk-panel-value {
+  display: flex;
+  align-items: center;
   color: #1e293b;
   font-weight: 500;
   word-break: break-word;
+  padding: 10px 14px;
 }
 
 .bk-panel-actions {

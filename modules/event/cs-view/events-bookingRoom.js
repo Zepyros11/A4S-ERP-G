@@ -676,6 +676,8 @@ function openModal(date = "", start = "") {
     cn.setAttribute("readonly", "readonly");
     cn.classList.add("bg-slate-100", "cursor-not-allowed");
   }
+  const paxEl = document.getElementById("inputPax");
+  if (paxEl) paxEl.value = "";
   const noteEl = document.getElementById("inputNote");
   if (noteEl) noteEl.value = "";
   buildStartGrid(initStart);
@@ -715,6 +717,8 @@ function openEditModal(req) {
     cn.setAttribute("readonly", "readonly");
     cn.classList.add("bg-slate-100", "cursor-not-allowed");
   }
+  const paxEl = document.getElementById("inputPax");
+  if (paxEl) paxEl.value = req.num_people ?? "";
   const noteEl = document.getElementById("inputNote");
   if (noteEl) noteEl.value = req.note || "";
   buildStartGrid(startStr);
@@ -776,6 +780,7 @@ function fireBookingCreatedNotification(payload) {
     booked_by_name: payload.booked_by_name || "",
     cs_name:        payload.cs_name || "",
     note:           payload.note || "",
+    num_people:     payload.num_people != null ? payload.num_people : "",
     requester,
     approver:       requester,
   };
@@ -792,6 +797,8 @@ async function confirmBooking() {
   const start = document.getElementById("inputStart").value;
   const end   = document.getElementById("inputEnd").value;
   const note  = (document.getElementById("inputNote")?.value || "").trim();
+  const paxRaw = (document.getElementById("inputPax")?.value || "").trim();
+  const numPeople = paxRaw === "" ? null : Math.max(1, parseInt(paxRaw, 10) || 0) || null;
 
   if (!bookerName || !date || !start || !end) {
     showAlert("กรุณากรอกข้อมูลให้ครบถ้วน", { title: "ข้อมูลไม่ครบ", icon: "⚠️", headerClass: "bg-gradient-to-r from-amber-500 to-orange-500" });
@@ -881,25 +888,25 @@ async function confirmBooking() {
         start_time: start,
         end_time: end,
         note: note || null,
+        num_people: numPeople,
       };
-      try {
+      async function tryPatch() {
         await sbFetch(
           "room_booking_requests",
           `?request_id=eq.${_editingRequestId}`,
           { method: "PATCH", body: patchBody }
         );
+      }
+      try {
+        await tryPatch();
       } catch (err) {
-        // Retry without note if column doesn't exist in DB yet
-        if (/note/i.test(err.message || "")) {
-          delete patchBody.note;
-          await sbFetch(
-            "room_booking_requests",
-            `?request_id=eq.${_editingRequestId}`,
-            { method: "PATCH", body: patchBody }
-          );
-        } else {
-          throw err;
-        }
+        // Retry without optional columns if they don't exist in DB yet
+        const msg = err.message || "";
+        let retried = false;
+        if (/note/i.test(msg) && patchBody.note !== undefined) { delete patchBody.note; retried = true; }
+        if (/num_people/i.test(msg) && patchBody.num_people !== undefined) { delete patchBody.num_people; retried = true; }
+        if (retried) await tryPatch();
+        else throw err;
       }
       _editingRequestId = null;
     } else {
@@ -919,6 +926,7 @@ async function confirmBooking() {
         start_time: start,
         end_time: end,
         note: note || null,
+        num_people: numPeople,
         status: "APPROVED",
         created_by: window.ERP_USER?.user_id || null,
       };
@@ -936,6 +944,10 @@ async function confirmBooking() {
         }
         if (/note/i.test(msg) && payload.note !== undefined) {
           delete payload.note;
+          retried = true;
+        }
+        if (/num_people/i.test(msg) && payload.num_people !== undefined) {
+          delete payload.num_people;
           retried = true;
         }
         if (retried) {
@@ -1272,7 +1284,8 @@ function openRequestDetail(req) {
   detailCurrentRequestId = req.request_id;
 
   // Header code
-  document.getElementById("detailModalCode").textContent = req.request_code || "—";
+  const codeEl = document.getElementById("detailModalCode");
+  if (codeEl) codeEl.textContent = req.request_code || "—";
 
   // Info panel
   const s = REQ_STATUS_MAP[req.status] || REQ_STATUS_MAP.PENDING;
@@ -1285,7 +1298,6 @@ function openRequestDetail(req) {
     <div class="flex items-start justify-between gap-2 mb-4">
       <div>
         <p class="text-base font-black text-slate-900 leading-tight">${req.place_name || "—"}${req.room_name ? ` — ${req.room_name}` : ""}</p>
-        <p class="text-xs text-indigo-400 font-mono mt-0.5">${req.request_code || "—"}</p>
       </div>
       <span class="text-xs font-bold px-3 py-1 rounded-full flex-shrink-0 ${s.cls}">${s.label}</span>
     </div>
@@ -1295,14 +1307,13 @@ function openRequestDetail(req) {
       ${infoRow("CS", csName)}
       ${infoRow("วันที่", req.booking_date || "—")}
       ${infoRow("เวลา", timeStr)}
+      ${req.num_people ? infoRow("จำนวนคน", `${req.num_people} คน`) : ""}
       ${req.note ? infoRow("หมายเหตุ", String(req.note).replace(/</g, "&lt;").replace(/\n/g, "<br>")) : ""}
       ${infoRow("สร้างเมื่อ", createdAt)}
     </div>
   `;
 
   // Set chat panel header
-  const subEl = document.getElementById("bkrChatSubtitle");
-  if (subEl) subEl.textContent = req.request_code || "—";
   const senderEl = document.getElementById("bkrSenderName");
   if (senderEl) senderEl.textContent = window.ERP_USER?.full_name || window.ERP_USER?.username || "Admin";
 

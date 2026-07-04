@@ -39,6 +39,7 @@ const VAR_CATALOG = {
       ["end_time",        "เวลาเลิก (HH:MM หรือ ทั้งวัน)", "12:00"],
       ["booked_by_name",  "ผู้จอง",                       "วิชัย ตั้งใจ"],
       ["cs_name",         "CS ผู้รับผิดชอบ",              "น้องส้ม"],
+      ["num_people",      "จำนวนคน",                      "13"],
     ],
   },
   ibd_member: {

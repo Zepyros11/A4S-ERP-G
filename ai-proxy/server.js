@@ -1602,6 +1602,7 @@ function _payloadFromBooking(rec) {
     end_time:       rec.end_time === 'ALLDAY' ? 'ทั้งวัน' : (rec.end_time || '').slice(0, 5),
     booked_by_name: rec.booked_by_name || '',
     cs_name:        rec.cs_name || '',
+    num_people:     rec.num_people != null ? rec.num_people : '',
   };
 }
 

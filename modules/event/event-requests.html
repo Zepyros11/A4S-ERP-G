@@ -796,6 +796,7 @@
         booked_by_name: payload.booked_by_name || "",
         cs_name:        payload.cs_name || "",
         note:           payload.note || "",
+        num_people:     payload.num_people != null ? payload.num_people : "",
         requester,
       });
     }
@@ -818,6 +819,7 @@
         end_time:       row.end_time === "ALLDAY" ? "ทั้งวัน" : (row.end_time || ""),
         booked_by_name: row.booked_by_name || "",
         cs_name:        row.cs_name || "",
+        num_people:     row.num_people != null ? row.num_people : "",
         approver,
       });
     }
