@@ -445,9 +445,29 @@ body {
 }
 .reg-state .ic { font-size: 52px; margin-bottom: 12px; }
 .reg-closed-img { width: 100%; max-width: 560px; height: auto; border-radius: 16px; margin: 0 auto 14px; display: block; }
-/* แกลเลอรีภาพประกาศผลรางวัล (จบแล้ว) */
-.reg-announce-gallery { display: flex; flex-direction: column; gap: 14px; align-items: center; }
-.reg-announce-gallery .reg-closed-img { margin: 0 auto; }
+/* แกลเลอรีภาพประกาศผลรางวัล (จบแล้ว) — grid จัดกึ่งกลาง หลายคอลัมน์ */
+.reg-announce-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, 260px);
+  gap: 22px;
+  justify-content: center;
+  align-items: start;
+  max-width: 900px;
+  margin: 0 auto;
+}
+.reg-announce-gallery .reg-closed-img {
+  width: 100%; max-width: 100%; margin: 0;
+  border-radius: 18px;
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.16);
+  transition: transform .18s ease, box-shadow .18s ease;
+}
+.reg-announce-gallery .reg-closed-img:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 16px 36px rgba(15, 23, 42, 0.22);
+}
+@media (max-width: 560px) {
+  .reg-announce-gallery { grid-template-columns: 1fr; max-width: 340px; gap: 16px; }
+}
 .reg-state .done-img { width: 100%; max-width: 460px; height: auto; border-radius: 16px; margin: 0 auto 16px; display: block; }
 .reg-state .msg { font-size: 16px; color: var(--text2); }
 /* วันเริ่มใต้แบนเนอร์ (pill สวย) */
