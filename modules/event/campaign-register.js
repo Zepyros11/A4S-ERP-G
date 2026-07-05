@@ -290,7 +290,9 @@ function closedEnded() {
     show("stateClosed", true);
     return;
   }
-  return closed("🏁", "", rw.ended_image || "../../assets/images/campaign-ended.png");
+  // ยังไม่ถึงวันประกาศ → โชว์ pill บอกวันประกาศผลรางวัล (สไตล์เดียวกับ pill วันเริ่ม)
+  const msg = rw.announce_date ? `📅 ประกาศผลรางวัล ${fmtDMY(rw.announce_date)}` : "";
+  return closed("🏁", msg, rw.ended_image || "../../assets/images/campaign-ended.png");
 }
 
 function renderCampaign() {
