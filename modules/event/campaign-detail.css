@@ -251,6 +251,7 @@ select.pstat-rejected { background: #fee2e2; color: #dc2626; }
 
 /* ── LEADERBOARD ── */
 .cmp-rank-controls { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.cmp-announce-badge { margin-left: auto; font-size: 12.5px; font-weight: 700; color: var(--accent); background: var(--accent-weak, rgba(16,185,129,0.1)); border: 1px solid var(--border); border-radius: 999px; padding: 5px 12px; white-space: nowrap; }
 /* toggle "ยอดเท่ากัน = รางวัลเท่ากัน" */
 .cmp-tie-label { display: inline-flex; align-items: center; gap: 7px; cursor: pointer; font-size: 12.5px; font-weight: 600; color: var(--text2); user-select: none; }
 .toggle-switch { position: relative; width: 44px; height: 24px; flex-shrink: 0; }
@@ -287,6 +288,22 @@ select.pstat-rejected { background: #fee2e2; color: #dc2626; }
 .lb-metrics .m .v { font-weight: 700; font-size: 15px; }
 .lb-metrics .m .l { font-size: 10px; color: var(--text3); }
 .lb-score { font-weight: 800; font-size: 18px; color: var(--accent); min-width: 70px; text-align: right; }
+/* คนที่มีลิงก์ผลงาน = กดได้เพื่อดูลิงก์ */
+.lb-member-link { cursor: pointer; border-radius: 8px; transition: background 0.12s; }
+.lb-member-link:hover { background: var(--accent-weak, rgba(16, 185, 129, 0.08)); }
+.lb-link-ic { font-size: 11px; opacity: 0.7; }
+
+/* popup ลิงก์ผลงาน */
+.rl-list { display: flex; flex-direction: column; gap: 10px; }
+.rl-item {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface);
+}
+.rl-info { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.rl-plat { flex-shrink: 0; font-size: 13px; }
+.rl-url { font-size: 12px; color: var(--accent); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rl-actions { display: flex; gap: 6px; flex-shrink: 0; }
+.rl-empty { text-align: center; color: var(--text3); padding: 20px 0; }
 
 /* leaderboard แยกต่อช่องทาง = คอลัมน์ข้างกัน (FB | TikTok | IG) */
 .lb-grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); align-items: start; }

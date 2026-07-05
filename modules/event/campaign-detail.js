@@ -845,6 +845,155 @@ window.deletePart = function (id) {
   });
 };
 
+// ── EXPORT → XLSX (ผู้เข้าร่วม · แยกยอดตามช่องทาง FB/TikTok/IG · sage green style) ──
+const PART_STATUS_TH = { pending: "รออนุมัติ", approved: "อนุมัติ", rejected: "ไม่ผ่านเกณฑ์" };
+// รวม submissions ต่อคน "แยกช่องทาง" (ไม่รวมทุกแพลตฟอร์มเข้าด้วยกัน)
+function _subAggByPlat() {
+  const PL = ["facebook", "tiktok", "instagram"];
+  const blank = () => ({ views: 0, likes: 0, comments: 0, shares: 0, posts: 0 });
+  const agg = {};
+  participants.forEach((p) => {
+    agg[p.participant_id] = {};
+    PL.forEach((k) => (agg[p.participant_id][k] = blank()));
+  });
+  submissions
+    .filter((s) => agg[s.participant_id] && agg[s.participant_id][s.platform])
+    .forEach((s) => {
+      const b = agg[s.participant_id][s.platform];
+      b.views += +s.views || 0;
+      b.likes += +s.likes || 0;
+      b.comments += +s.comments || 0;
+      b.shares += +s.shares || 0;
+      b.posts += 1;
+    });
+  return agg;
+}
+window.exportParticipantsXLSX = function () {
+  if (typeof XLSX === "undefined") {
+    showToast("Library โหลดไม่สำเร็จ — refresh แล้วลองใหม่", "error");
+    return;
+  }
+  if (!participants.length) {
+    showToast("ไม่มีผู้เข้าร่วมให้ Export", "error");
+    return;
+  }
+  const agg = _subAggByPlat();
+
+  // แพลตฟอร์ม + ฟิลด์ลิงก์ของแต่ละช่องทาง
+  const PLATS = [
+    { key: "facebook", label: "👍 Facebook", urlField: "facebook_url" },
+    { key: "tiktok", label: "🎵 TikTok", urlField: "tiktok_url" },
+    { key: "instagram", label: "📸 Instagram", urlField: "ig_url" },
+  ];
+  const METRICS = [
+    { k: "views", sub: "👁 วิว" },
+    { k: "likes", sub: "❤️ Like" },
+    { k: "comments", sub: "💬 Cmt" },
+    { k: "shares", sub: "🔁 Share" },
+  ];
+
+  // นิยามคอลัมน์แบบ flat (kind: base=หัวเดี่ยว · group=หัว 2 ชั้นต่อช่องทาง)
+  const cols = [];
+  cols.push({ kind: "base", label: "ลำดับ", wch: 6, align: "center" });
+  cols.push({ kind: "base", label: "รหัสสมาชิก", wch: 12, align: "center" });
+  cols.push({ kind: "base", label: "ชื่อ", wch: 26, align: "left" });
+  cols.push({ kind: "base", label: "เบอร์โทร", wch: 14, align: "center" });
+  cols.push({ kind: "base", label: "LINE", wch: 20, align: "left" });
+  cols.push({ kind: "base", label: "สถานะ", wch: 14, align: "center" });
+  PLATS.forEach((pl) => {
+    cols.push({ kind: "group", plat: pl.key, group: pl.label, sub: "ลิงก์", role: "url", wch: 30, align: "left" });
+    METRICS.forEach((m) => cols.push({ kind: "group", plat: pl.key, group: pl.label, sub: m.sub, role: "metric", metric: m.k, wch: 9, align: "center" }));
+  });
+  cols.push({ kind: "base", label: "หมายเหตุ", wch: 24, align: "left" });
+
+  const data = participants.map((p, i) => {
+    const byPlat = agg[p.participant_id] || {};
+    const lm = lineByCode[p.member_code] || {};
+    const row = [
+      i + 1,
+      p.member_code || "",
+      p.member_name || "",
+      lm.phone || p.phone || "",
+      lm.line_display_name || "",
+      PART_STATUS_TH[p.status || "pending"] || p.status || "",
+    ];
+    PLATS.forEach((pl) => {
+      const b = byPlat[pl.key] || {};
+      row.push(isRealLink(p[pl.urlField]) ? p[pl.urlField] : "");
+      METRICS.forEach((m) => row.push(b[m.k] || 0));
+    });
+    row.push(p.note || "");
+    return row;
+  });
+
+  const lastColIdx = cols.length - 1;
+  const title1 = `แคมเปญ: ${campaign?.name || "—"}`;
+  const range = campaign?.start_date || campaign?.end_date ? `${fmtDMY(campaign.start_date) || "—"} – ${fmtDMY(campaign.end_date) || "—"}` : "";
+  const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Bangkok" });
+  const dateLine = `${range ? "ช่วงเวลา " + range + "   •   " : ""}ผู้เข้าร่วม ${participants.length} คน   •   ออกรายงาน ${fmtDMY(today)}`;
+
+  // header 2 ชั้น: A = base label / ชื่อช่องทาง (merge แนวนอน) · B = ช่องย่อยของช่องทาง
+  const headerA = cols.map((c) => (c.kind === "group" ? (c.role === "url" ? c.group : "") : c.label));
+  const headerB = cols.map((c) => (c.kind === "group" ? c.sub : ""));
+
+  const aoa = [[title1], [dateLine], [], headerA, headerB, ...data];
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+
+  // ── merges ──
+  const merges = [
+    { s: { r: 0, c: 0 }, e: { r: 0, c: lastColIdx } },
+    { s: { r: 1, c: 0 }, e: { r: 1, c: lastColIdx } },
+  ];
+  cols.forEach((c, i) => {
+    if (c.kind === "base") merges.push({ s: { r: 3, c: i }, e: { r: 4, c: i } }); // หัวเดี่ยว merge แนวตั้ง 2 แถว
+  });
+  PLATS.forEach((pl) => {
+    const idxs = cols.map((c, i) => (c.plat === pl.key ? i : -1)).filter((i) => i >= 0);
+    if (idxs.length) merges.push({ s: { r: 3, c: idxs[0] }, e: { r: 3, c: idxs[idxs.length - 1] } }); // ชื่อช่องทาง merge แนวนอน
+  });
+  ws["!merges"] = merges;
+
+  ws["!cols"] = cols.map((c) => ({ wch: c.wch }));
+  ws["!rows"] = [{ hpt: 26 }, { hpt: 20 }, { hpt: 6 }, { hpt: 22 }, { hpt: 20 }];
+
+  const border = {
+    top: { style: "thin", color: { rgb: "94A3B8" } },
+    bottom: { style: "thin", color: { rgb: "94A3B8" } },
+    left: { style: "thin", color: { rgb: "94A3B8" } },
+    right: { style: "thin", color: { rgb: "94A3B8" } },
+  };
+  const sCenter = { horizontal: "center", vertical: "center", wrapText: true };
+  const styleTitle1 = { font: { name: "Sarabun", sz: 16, bold: true, color: { rgb: "064E3B" } }, alignment: sCenter, fill: { fgColor: { rgb: "D1FAE5" } } };
+  const styleTitle2 = { font: { name: "Sarabun", sz: 12, bold: true, color: { rgb: "065F46" } }, alignment: sCenter, fill: { fgColor: { rgb: "ECFDF5" } } };
+  const styleHeader = { font: { name: "Sarabun", sz: 11, bold: true, color: { rgb: "064E3B" } }, alignment: sCenter, fill: { fgColor: { rgb: "A7F3D0" } }, border };
+  const styleGroup = { font: { name: "Sarabun", sz: 12, bold: true, color: { rgb: "064E3B" } }, alignment: sCenter, fill: { fgColor: { rgb: "6EE7B7" } }, border };
+  const styleData = (align) => ({ font: { name: "Sarabun", sz: 11, color: { rgb: "0F172A" } }, alignment: { horizontal: align, vertical: "center", wrapText: align === "left" }, border });
+
+  const setStyle = (r, c, s) => {
+    const ref = XLSX.utils.encode_cell({ r, c });
+    if (!ws[ref]) ws[ref] = { t: "s", v: "" };
+    ws[ref].s = s;
+  };
+  setStyle(0, 0, styleTitle1);
+  setStyle(1, 0, styleTitle2);
+  // header row A (3) + B (4)
+  cols.forEach((c, i) => {
+    setStyle(3, i, c.kind === "group" ? styleGroup : styleHeader);
+    setStyle(4, i, c.kind === "group" ? styleHeader : styleHeader);
+  });
+  // data
+  data.forEach((_, ri) => {
+    const r = 5 + ri;
+    cols.forEach((c, i) => setStyle(r, i, styleData(c.align)));
+  });
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "ผู้เข้าร่วม");
+  const safeName = String(campaign?.name || "campaign").replace(/[\\/:*?"<>|]/g, "").slice(0, 40).trim() || "campaign";
+  XLSX.writeFile(wb, `campaign-${safeName}-${today}.xlsx`);
+  showToast("Export Excel สำเร็จ 📊", "success");
+};
+
 window.openPartModal = function (id = null) {
   const p = id ? participants.find((x) => x.participant_id === id) : null;
   document.getElementById("partModalTitle").textContent = id ? "✏️ แก้ไขผู้เข้าร่วม" : "👥 เพิ่มผู้เข้าร่วม";
@@ -1236,16 +1385,38 @@ function channelAgg(platform) {
 }
 // render leaderboard เป็น block ต่ออันดับ — คนอันดับเดียวกัน (เสมอ) อยู่ block เดียวกัน รับรางวัลร่วม
 // prizeFn(rank, score) → ข้อความรางวัลของอันดับนั้น (คืน "" ถ้าไม่มีรางวัล)
-function lbBlocks(ranked, metric, prizeFn) {
+function lbBlocks(ranked, metric, prizeFn, platform) {
   const groups = [];
   ranked.forEach((r) => {
     const last = groups[groups.length - 1];
     if (last && last.rank === r.rank) last.items.push(r.a);
     else groups.push({ rank: r.rank, score: _metricScore(r.a, metric), items: [r.a] });
   });
-  return groups.map((g) => lbBlock(g, metric, prizeFn(g.rank, g.score))).join("");
+  return groups.map((g) => lbBlock(g, metric, prizeFn(g.rank, g.score), platform)).join("");
 }
-function lbBlock(g, metric, prize) {
+// รวมลิงก์ของคนนี้ในช่องทางที่กำหนด ('all' = ทุกช่อง) — ลิงก์โปรไฟล์ที่แนบ + ลิงก์โพสต์ผลงาน (dedupe)
+function rankLinksFor(pid, platform) {
+  const p = participants.find((x) => x.participant_id === pid) || {};
+  const plats = platform === "all" ? ["facebook", "tiktok", "instagram"] : [platform];
+  const out = [];
+  const seen = new Set();
+  const push = (pl, url) => {
+    if (!isRealLink(url) || seen.has(url)) return;
+    seen.add(url);
+    out.push({ platform: pl, url });
+  };
+  // ลิงก์ช่องทาง/โปรไฟล์ที่แนบไว้ในผู้เข้าร่วม
+  plats.forEach((pl) => push(pl, p[PLAT_URL_FIELD[pl]]));
+  // ลิงก์โพสต์จากผลงานที่กรอกยอด (ถ้ามี)
+  submissions
+    .filter((s) => s.participant_id === pid && plats.includes(s.platform))
+    .forEach((s) => push(s.platform, s.post_url));
+  return out;
+}
+function rankLinkCount(pid, platform) {
+  return rankLinksFor(pid, platform).length;
+}
+function lbBlock(g, metric, prize, platform) {
   const { rank } = g;
   const topClass = rank <= 3 ? ` top${rank}` : "";
   const medal = rank === 1 ? "🥇" : rank === 2 ? "🥈" : rank === 3 ? "🥉" : rank;
@@ -1253,11 +1424,19 @@ function lbBlock(g, metric, prize) {
     ? `<div class="lb-prize">🎁 ${esc(prize)}</div>`
     : `<div class="lb-prize lb-prize-none">—</div>`;
   const members = g.items
-    .map((a) => `<div class="lb-member">
-      <div class="lb-name"><div class="n">${esc(a.p.member_name || a.p.member_code)}</div>
+    .map((a) => {
+      const pid = a.p.participant_id;
+      const linkN = rankLinkCount(pid, platform || "all");
+      const clk = linkN
+        ? ` onclick="window.showRankLinks(${JSON.stringify(pid)},'${platform || "all"}')" title="ดูลิงก์ผลงาน"`
+        : "";
+      const hint = linkN ? ` <span class="lb-link-ic">🔗</span>` : "";
+      return `<div class="lb-member${linkN ? " lb-member-link" : ""}"${clk}>
+      <div class="lb-name"><div class="n">${esc(a.p.member_name || a.p.member_code)}${hint}</div>
         <div class="c">${esc(a.p.member_code)} · ${a.posts} โพสต์</div></div>
       <div class="lb-score">${fmtNum(_metricScore(a, metric))}<div style="font-size:10px;color:var(--text3);font-weight:600">${esc(metricUnitLabel(metric))}</div></div>
-    </div>`)
+    </div>`;
+    })
     .join("");
   const multi = g.items.length > 1 ? " lb-block-multi" : "";
   return `<div class="lb-row${topClass}${multi}">
@@ -1266,11 +1445,65 @@ function lbBlock(g, metric, prize) {
     ${prizeCell}
   </div>`;
 }
+// ── POPUP: แสดงลิงก์ผลงานของคนที่กดในตารางอันดับ ──
+window.showRankLinks = function (pid, platform) {
+  const p = participants.find((x) => x.participant_id === pid) || {};
+  const links = rankLinksFor(pid, platform);
+  const plLabel = platform === "all" ? "ทุกช่องทาง" : (PLAT_LABEL[platform] || platform);
+  const body = links.length
+    ? links
+        .map((l) => {
+          const ic = PLAT_LABEL[l.platform] || "🔗";
+          return `<div class="rl-item" data-url="${esc(l.url)}">
+        <div class="rl-info">
+          <span class="rl-plat">${ic}</span>
+          <a class="rl-url" href="${esc(safeHref(l.url))}" target="_blank" rel="noopener" onclick="window.openRankLink(this.closest('.rl-item'));return false">${esc(l.url)}</a>
+        </div>
+        <div class="rl-actions">
+          <button class="btn btn-secondary btn-sm" onclick="window.openRankLink(this.closest('.rl-item'))">🔗 เปิด</button>
+          <button class="btn btn-secondary btn-sm" onclick="window.copyRankLink(this.closest('.rl-item'))">📋 คัดลอก</button>
+        </div>
+      </div>`;
+        })
+        .join("")
+    : `<div class="rl-empty">ยังไม่มีลิงก์ผลงานในช่องทางนี้</div>`;
+  document.getElementById("rankLinksTitle").textContent = `🔗 ลิงก์ผลงาน — ${p.member_name || p.member_code || ""}`;
+  document.getElementById("rankLinksSub").textContent = plLabel;
+  document.getElementById("rankLinksBody").innerHTML = body;
+  document.getElementById("rankLinksModal").classList.add("open");
+};
+window.closeRankLinks = function () {
+  document.getElementById("rankLinksModal").classList.remove("open");
+};
+window.openRankLink = function (item) {
+  const url = item && item.dataset ? item.dataset.url : "";
+  window.openSocialWindow(safeHref(url));
+};
+window.copyRankLink = function (item) {
+  const url = item && item.dataset ? item.dataset.url : "";
+  if (!url) return;
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(url)
+      .then(() => showToast("คัดลอกลิงก์แล้ว", "success"))
+      .catch(() => showToast("คัดลอกไม่สำเร็จ", "error"));
+  }
+};
 window.renderRanking = function () {
   const el = document.getElementById("rankList");
   // ตอนโหลด = เมตริกที่ตั้งจริง (rewards.metric) · staff เปลี่ยน dropdown เอง = override
   const metric = _rankMetricTouched ? document.getElementById("rankMetricSel").value : effectiveMetric();
   const rewards = (campaign && campaign.rewards) || null;
+  // ป้ายวันประกาศรางวัล
+  const annEl = document.getElementById("rankAnnounce");
+  if (annEl) {
+    const ad = rewards && rewards.announce_date;
+    if (ad) {
+      annEl.textContent = `🏆 ประกาศรางวัล ${fmtDMY(ad)}`;
+      annEl.style.display = "";
+    } else {
+      annEl.style.display = "none";
+    }
+  }
   const chans = rewards && rewards.channels
     ? RANK_CHANS.filter((c) => rewards.channels[c.key] && rewards.channels[c.key].enabled)
     : [];
@@ -1286,7 +1519,7 @@ window.renderRanking = function () {
       || (chans.length ? rewards.channels[chans[0].key].tiers : null);
     const head = `<div class="lb-chan-hdr"><span>🔗 รวมทุกช่องทาง</span><span class="lb-chan-n">${rows.length} คน</span></div>`;
     const body = rows.length
-      ? lbBlocks(rankRows(rows, metric), metric, (rank, score) => (tiers ? prizeForRank(tiers, rank, score, mode) : ""))
+      ? lbBlocks(rankRows(rows, metric), metric, (rank, score) => (tiers ? prizeForRank(tiers, rank, score, mode) : ""), "all")
       : `<div class="lb-chan-empty">ยังไม่มีผลงาน — อันดับจะแสดงเมื่อมีผลงานแล้ว</div>`;
     el.innerHTML = `<div class="lb-grid">${`<div class="lb-chan">${head}${body}</div>`}</div>`;
     return;
@@ -1297,7 +1530,7 @@ window.renderRanking = function () {
     const agg = channelAggAll();
     const rows = Object.values(agg).filter((a) => a.posts > 0).sort((x, y) => _metricScore(y, metric) - _metricScore(x, metric));
     el.innerHTML = rows.length
-      ? lbBlocks(rankRows(rows, metric), metric, () => "")
+      ? lbBlocks(rankRows(rows, metric), metric, () => "", "all")
       : `<div class="empty-state"><div class="empty-icon">🏆</div><div class="empty-text">ยังไม่มีผลงาน — อันดับจะแสดงเมื่อมีผลงานแล้ว</div></div>`;
     return;
   }
@@ -1310,7 +1543,7 @@ window.renderRanking = function () {
         .sort((x, y) => _metricScore(y, metric) - _metricScore(x, metric));
       const head = `<div class="lb-chan-hdr"><img src="${c.ic}" alt="" /><span>${c.label}</span><span class="lb-chan-n">${rows.length} คน</span></div>`;
       const body = rows.length
-        ? lbBlocks(rankRows(rows, metric), metric, (rank, score) => prizeForRank(rewards.channels[c.key].tiers, rank, score, mode))
+        ? lbBlocks(rankRows(rows, metric), metric, (rank, score) => prizeForRank(rewards.channels[c.key].tiers, rank, score, mode), c.platform)
         : `<div class="lb-chan-empty">ยังไม่มีผลงานในช่องนี้</div>`;
       return `<div class="lb-chan">${head}${body}</div>`;
     })

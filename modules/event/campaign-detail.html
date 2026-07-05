@@ -32,6 +32,7 @@
         </div>
         <div class="page-hero-actions">
           <button class="btn-on-hero" id="btnTestMode" data-perm="campaign_edit" onclick="window.toggleTestMode()">🧪 โหมดทดสอบ</button>
+          <button class="btn-on-hero" onclick="window.exportParticipantsXLSX()">📊 Export Excel</button>
           <button class="btn-on-hero" onclick="window.openRegShareModal()">🔗 ลิงก์ลงทะเบียน</button>
           <button class="btn-on-hero btn-primary" data-perm="campaign_edit" onclick="window.editCampaign()">✏️ แก้ไข</button>
         </div>
@@ -136,6 +137,7 @@
             </span>
             <span>ยอดเท่ากัน = รางวัลเท่ากัน</span>
           </label>
+          <span id="rankAnnounce" class="cmp-announce-badge" style="display:none"></span>
         </div>
         <div id="rankList"></div>
       </div>
@@ -284,7 +286,23 @@
       </div>
     </div>
 
+    <div class="modal-overlay" id="rankLinksModal">
+      <div class="modal v-sage-header" style="max-width: 520px; max-height: none">
+        <div class="modal-hdr">
+          <div>
+            <div class="modal-title" id="rankLinksTitle">🔗 ลิงก์ผลงาน</div>
+            <div id="rankLinksSub" style="font-size: 12px; opacity: 0.85; margin-top: 2px"></div>
+          </div>
+          <button class="btn-modal-close" onclick="window.closeRankLinks()">✕</button>
+        </div>
+        <div class="modal-body">
+          <div id="rankLinksBody" class="rl-list"></div>
+        </div>
+      </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
     <script src="../../js/core/auth.js"></script>
     <script src="../../js/core/authz.js"></script>
     <script src="../../js/core/date-format.js"></script>

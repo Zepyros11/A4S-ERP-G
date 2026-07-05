@@ -15,6 +15,16 @@
       .cf-card { max-width: none; margin: 0; }
       .cf-card .table-hdr { padding: 14px 20px; }
       .cf-body { padding: 20px; }
+      /* 3 คอลัมน์: ยังไม่เปิด | จบแล้ว | ภาพประกาศผลรางวัล */
+      .cf-state-layout { display: grid; grid-template-columns: minmax(180px, 220px) minmax(180px, 220px) 1fr; gap: 16px 24px; align-items: start; }
+      @media (max-width: 900px) { .cf-state-layout { grid-template-columns: 1fr; } }
+      /* ภาพสถานะแคมเปญ: กรอบยืดหยุ่นตามอัตราส่วนภาพจริง (ไม่ crop) */
+      .cf-state-panel .cmp-media-grid5 { align-items: start; }
+      .cf-state-panel #fNotOpenGrid, .cf-state-panel #fEndedGrid { grid-template-columns: 1fr; }
+      .cf-state-panel #fAnnounceGrid { grid-template-columns: repeat(auto-fill, 140px); }
+      .cf-state-panel .cmp-media-item { aspect-ratio: auto; height: auto; }
+      .cf-state-panel .cmp-media-item img { height: auto; object-fit: contain; }
+      .cf-state-panel .cmp-slot-empty { aspect-ratio: 16 / 9; }
 
       /* ── 2-panel layout (ซ้าย-ขวา) ── */
       .cf-cols {
@@ -511,6 +521,37 @@
                 <input type="checkbox" id="fRegOpen" checked /> เปิดรับลงทะเบียน (ลิงก์ public ใช้งานได้)
               </label>
             </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ───────── ภาพสถานะแคมเปญ (public) ───────── -->
+          <div class="cf-panel cf-state-panel">
+            <div class="cf-rules-title">🖼️ ภาพปกสถานะแคมเปญ</div>
+            <div class="cf-media-hint" style="margin-bottom: 14px">ตั้งภาพที่แสดงในหน้า public ตามสถานะแคมเปญ — ถ้าไม่อัปโหลด ระบบจะใช้ภาพ default ของระบบ</div>
+            <div class="cf-state-layout">
+              <div class="cf-media-section">
+                <label class="form-label">⏳ ยังไม่เปิดรับสมัคร <span class="cmp-media-count" id="fNotOpenCount">0/1</span></label>
+                <div id="fNotOpenGrid" class="cmp-media-grid5"></div>
+                <input type="file" id="fNotOpenFiles" accept="image/*" style="display: none" />
+                <div class="cf-media-hint">แทนภาพ campaign-not-open · อัปได้ 1 ภาพ</div>
+              </div>
+              <div class="cf-media-section">
+                <label class="form-label">🏁 แคมเปญจบแล้ว <span class="cmp-media-count" id="fEndedCount">0/1</span></label>
+                <div id="fEndedGrid" class="cmp-media-grid5"></div>
+                <input type="file" id="fEndedFiles" accept="image/*" style="display: none" />
+                <div class="cf-media-hint">แทนภาพ campaign-ended · อัปได้ 1 ภาพ</div>
+              </div>
+              <div class="cf-media-section">
+                <label class="form-label">🏆 ภาพประกาศผลรางวัล <span class="cmp-media-count" id="fAnnounceCount">0/10</span></label>
+                <div id="fAnnounceGrid" class="cmp-media-grid5"></div>
+                <input type="file" id="fAnnounceFiles" accept="image/*" multiple style="display: none" />
+                <div class="cf-media-hint">📎 สูงสุด 10 ภาพ · จะแสดง<b>แทน</b>ภาพ "แคมเปญจบแล้ว" ในหน้า public เมื่อถึงวันประกาศรางวัล</div>
+                <div style="margin-top: 12px">
+                  <label class="form-label">📅 วันประกาศรางวัล (optional)</label>
+                  <input type="date" class="form-control" id="rwAnnounceDate" style="max-width: 220px" />
+                  <div class="cf-media-hint">ก่อนถึงวันนี้ = แสดงภาพ "แคมเปญจบแล้ว" · ถึงวันแล้ว = แสดงภาพประกาศผลรางวัล (ถ้าเว้นว่าง = แสดงทันทีที่จบ)</div>
+                </div>
               </div>
             </div>
           </div>

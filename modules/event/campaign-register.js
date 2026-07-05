@@ -223,13 +223,13 @@ async function init() {
     // โหมดทดสอบ (ตั้งจากหลังบ้าน) → เปิดให้ลงทะเบียนได้ทุกเวลา ข้ามการเช็คด้านล่าง
     if (!campaign.test_mode) {
       if (!campaign.reg_open) return closed("🔒", "แคมเปญนี้ปิดรับลงทะเบียนแล้ว");
-      if (campaign.status === "ENDED") return closed("🏁", "", "../../assets/images/campaign-ended.png");
+      if (campaign.status === "ENDED") return closedEnded();
       // ช่วงเวลากิจกรรม (อ้างอิงเวลาไทย Asia/Bangkok +07:00)
       const startMs = campaign.start_date ? Date.parse(campaign.start_date + "T00:00:00+07:00") : null;
       const endMs = campaign.end_date ? Date.parse(campaign.end_date + "T23:59:59+07:00") : null;
       const now = Date.now();
-      if (startMs && now < startMs) return closed("⏳", `📅 Campaign นี้เริ่ม ${fmtDMY(campaign.start_date)}`, "../../assets/images/campaign-not-open.png");
-      if (endMs && now > endMs) return closed("🏁", "", "../../assets/images/campaign-ended.png");
+      if (startMs && now < startMs) return closed("⏳", `📅 Campaign นี้เริ่ม ${fmtDMY(campaign.start_date)}`, (campaign.rewards && campaign.rewards.not_open_image) || "../../assets/images/campaign-not-open.png");
+      if (endMs && now > endMs) return closedEnded();
     }
 
     renderCampaign();
@@ -268,6 +268,29 @@ function closed(icon, msg, img) {
   msgEl.classList.toggle("reg-closed-date", !!img && !!msg); // มีแบนเนอร์+ข้อความ → แสดง msg เป็น pill สวย
   show("stateLoading", false);
   show("stateClosed", true);
+}
+
+// สถานะ "จบแล้ว" — ถ้ามีภาพประกาศผลรางวัล + ถึงวันประกาศแล้ว แสดงภาพชุดนั้นแทน · ไม่งั้นใช้ปก ended (custom → default)
+function closedEnded() {
+  const rw = campaign.rewards || {};
+  const anns = (Array.isArray(rw.announce_images) ? rw.announce_images : [])
+    .map((m) => (typeof m === "string" ? m : m && m.url))
+    .filter(Boolean);
+  // ถึงวันประกาศรางวัลหรือยัง (อ้างเวลาไทย Asia/Bangkok · เว้นว่าง = แสดงทันทีที่จบ)
+  const annMs = rw.announce_date ? Date.parse(rw.announce_date + "T00:00:00+07:00") : null;
+  const announceReady = !annMs || Date.now() >= annMs;
+  if (anns.length && announceReady) {
+    const st = document.querySelector("#stateClosed .reg-state");
+    if (st) {
+      st.innerHTML = `<div class="reg-announce-gallery">${anns
+        .map((u) => `<img class="reg-closed-img" src="${esc(u)}" alt="" />`)
+        .join("")}</div>`;
+    }
+    show("stateLoading", false);
+    show("stateClosed", true);
+    return;
+  }
+  return closed("🏁", "", rw.ended_image || "../../assets/images/campaign-ended.png");
 }
 
 function renderCampaign() {
