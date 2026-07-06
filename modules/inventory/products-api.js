@@ -104,9 +104,22 @@ export async function createProductImage(data) {
 }
 
 export async function uploadProductImage(productId, file, slotIndex) {
-  const { url, key } = getSB();
   const rand = Math.random().toString(36).slice(2, 6);
   const path = `products/${productId}_${slotIndex}_${Date.now()}_${rand}`;
+
+  // ── Drive storage (pilot) — สลับด้วย flag localStorage.erp_drive_storage="1"
+  //    ปิด flag = กลับไปใช้ Supabase Storage ทันที (reversible) ──
+  if (localStorage.getItem("erp_drive_storage") === "1") {
+    const proxyBase = (localStorage.getItem("erp_proxy_url") || "").replace(/\/+$/, "");
+    const driveKey = localStorage.getItem("erp_drive_key") || "";
+    const driveUrl = await window.ImageCompressor.uploadToDrive(
+      proxyBase, driveKey, path, file,
+    );
+    if (!driveUrl) throw new Error("Upload failed (Drive)");
+    return driveUrl;
+  }
+
+  const { url, key } = getSB();
   const publicUrl = await window.ImageCompressor.uploadViaRest(
     url, key, "product-images", path, file,
   );

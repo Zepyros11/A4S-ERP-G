@@ -22,9 +22,15 @@ if (fs.existsSync(envPath)) {
   });
 }
 
+/* ── Drive storage backend (require AFTER .env load — reads env at module load) ── */
+const drive = require('./drive');
+
 /* ── Config ────────────────────────────────────────────── */
 const PORT    = process.env.PORT || 3001;
 const API_KEY = process.env.ANTHROPIC_API_KEY || '';
+/* Upload gate — shared key ที่ frontend ต้องส่งมาใน x-drive-key
+   (exposure = ระดับเดียวกับ Supabase anon key; กัน bot สุ่มยิงเฉยๆ) */
+const DRIVE_UPLOAD_KEY = process.env.DRIVE_UPLOAD_KEY || '';
 
 /* OCR (Anthropic) is optional — only needed for /extract endpoint.
    LINE endpoints work without it. */
@@ -41,6 +47,87 @@ app.use(express.json({
 /* ── Health check ──────────────────────────────────────── */
 app.get('/', (req, res) => {
   res.json({ status: 'ok', message: 'AI Proxy running ✅' });
+});
+
+/* ══════════════════════════════════════════════════════════
+   Google Drive storage proxy (แทน Supabase Storage)
+   - POST /drive/upload  → อัปโหลดไฟล์เข้า Shared Drive → คืน { id, url }
+   - GET  /drive/file/:id → stream ไฟล์ (สำหรับ <img src>) + cache ยาว
+   - DELETE /drive/file/:id → ลบไฟล์ (ต้องมี x-drive-key)
+   ══════════════════════════════════════════════════════════ */
+
+/* raw binary parser เฉพาะ upload (global express.json ไม่ parse image/*) */
+const _driveRaw = express.raw({
+  type: () => true,          // รับทุก content-type (image/*, application/pdf, video/*)
+  limit: '25mb',
+});
+
+app.get('/drive/health', (_req, res) => {
+  res.json({ ok: true, configured: drive.isConfigured() });
+});
+
+app.post('/drive/upload', _driveRaw, async (req, res) => {
+  if (!drive.isConfigured()) {
+    return res.status(503).json({ ok: false, error: 'Drive backend ยังไม่ตั้งค่า (env ไม่ครบ)' });
+  }
+  // Upload gate
+  if (DRIVE_UPLOAD_KEY && req.get('x-drive-key') !== DRIVE_UPLOAD_KEY) {
+    return res.status(401).json({ ok: false, error: 'unauthorized' });
+  }
+  const name = (req.query.name || '').toString().trim();
+  if (!name) return res.status(400).json({ ok: false, error: 'missing ?name' });
+  const body = req.body;
+  if (!Buffer.isBuffer(body) || !body.length) {
+    return res.status(400).json({ ok: false, error: 'empty body' });
+  }
+  const contentType = req.get('content-type') || 'application/octet-stream';
+  try {
+    const { id } = await drive.uploadFile(name, contentType, body);
+    // URL ที่ frontend เก็บลง DB + ใช้ใน <img src>
+    const base = (process.env.PUBLIC_PROXY_URL || `${req.protocol}://${req.get('host')}`).replace(/\/+$/, '');
+    return res.json({ ok: true, id, url: `${base}/drive/file/${id}` });
+  } catch (e) {
+    console.error('[drive/upload]', e.message);
+    return res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+app.get('/drive/file/:id', async (req, res) => {
+  if (!drive.isConfigured()) return res.status(503).send('Drive not configured');
+  const id = req.params.id;
+  // fileId เปลี่ยนไม่ได้ → cache ได้ยาว (immutable). ETag ให้ browser revalidate ถูก
+  const etag = `"drv-${id}"`;
+  if (req.get('if-none-match') === etag) {
+    res.set('Cache-Control', 'public, max-age=31536000, immutable');
+    return res.status(304).end();
+  }
+  try {
+    const f = await drive.getFile(id);
+    if (!f.ok) {
+      return res.status(f.status === 404 ? 404 : 502).send(f.status === 404 ? 'not found' : 'upstream error');
+    }
+    res.set('Content-Type', f.contentType);
+    res.set('Cache-Control', 'public, max-age=31536000, immutable');
+    res.set('ETag', etag);
+    return res.send(f.buffer);
+  } catch (e) {
+    console.error('[drive/file]', e.message);
+    return res.status(500).send('error');
+  }
+});
+
+app.delete('/drive/file/:id', async (req, res) => {
+  if (!drive.isConfigured()) return res.status(503).json({ ok: false, error: 'Drive not configured' });
+  if (DRIVE_UPLOAD_KEY && req.get('x-drive-key') !== DRIVE_UPLOAD_KEY) {
+    return res.status(401).json({ ok: false, error: 'unauthorized' });
+  }
+  try {
+    const r = await drive.deleteFile(req.params.id);
+    return res.status(r.ok ? 200 : 502).json({ ok: r.ok, status: r.status });
+  } catch (e) {
+    console.error('[drive/delete]', e.message);
+    return res.status(500).json({ ok: false, error: e.message });
+  }
 });
 
 /* ── Passport OCR Endpoint ─────────────────────────────── */

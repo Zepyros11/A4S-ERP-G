@@ -149,5 +149,45 @@
     }
   }
 
-  window.ImageCompressor = { compress, compressIfImage, uploadViaClient, uploadViaRest };
+  /* compress + upload ผ่าน Drive proxy (ai-proxy /drive/upload)
+     ใช้แทน Supabase Storage — return public URL (proxy serve URL) หรือ null
+     - proxyBase : เช่น "https://a4s-erp-proxy.onrender.com" (ไม่มี / ท้าย)
+     - uploadKey : ค่า DRIVE_UPLOAD_KEY (ส่งใน x-drive-key)
+     - path      : ชื่อไฟล์ที่จะแสดงใน Drive (เช่น "products/123_0_....") — image จะบังคับ .jpg
+     signature ตั้งใจให้คล้าย uploadViaRest เพื่อสลับ call site ได้ง่าย */
+  async function uploadToDrive(proxyBase, uploadKey, path, input, opts = {}) {
+    if (!proxyBase) return null;
+    try {
+      let blob, contentType, finalName;
+      if (inputIsImage(input)) {
+        blob = await compress(input, opts);
+        contentType = 'image/jpeg';
+        finalName = path.endsWith('.jpg') ? path : `${path}.jpg`;
+      } else {
+        blob = input instanceof Blob ? input : null;
+        if (!blob) throw new Error('non-image input must be File/Blob');
+        contentType = blob.type || 'application/octet-stream';
+        const ext = (input.name && input.name.includes('.')) ? input.name.split('.').pop() : '';
+        finalName = ext ? (path.endsWith(`.${ext}`) ? path : `${path}.${ext}`) : path;
+      }
+      const base = String(proxyBase).replace(/\/+$/, '');
+      const headers = { 'Content-Type': contentType };
+      if (uploadKey) headers['x-drive-key'] = uploadKey;
+      const res = await fetch(`${base}/drive/upload?name=${encodeURIComponent(finalName)}`, {
+        method: 'POST',
+        headers,
+        body: blob,
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.url) {
+        throw new Error(`drive upload ${res.status}: ${data.error || 'no url'}`);
+      }
+      return data.url;
+    } catch (e) {
+      console.warn('uploadToDrive failed:', e.message);
+      return null;
+    }
+  }
+
+  window.ImageCompressor = { compress, compressIfImage, uploadViaClient, uploadViaRest, uploadToDrive };
 })();

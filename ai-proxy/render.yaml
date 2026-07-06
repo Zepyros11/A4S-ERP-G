@@ -27,3 +27,14 @@ services:
         sync: false           # Supabase project URL (for webhook DB updates)
       - key: SB_SERVICE_KEY
         sync: false           # service_role key (bypasses RLS) — keep SECRET
+      # ── Google Drive storage backend (แทน Supabase Storage) ──
+      - key: GOOGLE_SA_EMAIL
+        sync: false           # service account email (xxx@yyy.iam.gserviceaccount.com)
+      - key: GOOGLE_SA_PRIVATE_KEY
+        sync: false           # private key จาก JSON key — คง \n ไว้ (SECRET)
+      - key: GDRIVE_FOLDER_ID
+        sync: false           # โฟลเดอร์ปลายทางใน Shared Drive
+      - key: DRIVE_UPLOAD_KEY
+        sync: false           # shared key กัน bot อัปโหลดมั่ว (ส่งผ่าน x-drive-key)
+      - key: PUBLIC_PROXY_URL
+        sync: false           # เช่น https://a4s-erp-proxy.onrender.com (สำหรับสร้าง url รูป)
