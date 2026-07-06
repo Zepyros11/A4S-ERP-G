@@ -219,5 +219,24 @@
     }
   }
 
-  window.ImageCompressor = { compress, compressIfImage, uploadViaClient, uploadViaRest, uploadToDrive };
+  /* ลบไฟล์ Drive จาก url (เรียกตอนลบรูป/ลบข้อมูล) → trash · คืน true/false
+     - รับ Supabase url ก็ได้ (ข้าม เพราะไม่ใช่ Drive) — ปลอดภัยเรียกได้ทุก url
+     - อ่าน proxy/key จาก localStorage (เหมือน upload) */
+  async function deleteDriveUrl(url) {
+    try {
+      if (!url || !url.includes('/drive/file/')) return false;
+      const proxyBase = (localStorage.getItem('erp_proxy_url') || '').replace(/\/+$/, '');
+      if (!proxyBase) return false;
+      const key = localStorage.getItem('erp_drive_key') || '';
+      const id = url.split('/drive/file/')[1].split(/[?#]/)[0];
+      if (!id) return false;
+      const res = await fetch(`${proxyBase}/drive/file/${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+        headers: key ? { 'x-drive-key': key } : {},
+      });
+      return res.ok;
+    } catch (e) { console.warn('deleteDriveUrl failed:', e.message); return false; }
+  }
+
+  window.ImageCompressor = { compress, compressIfImage, uploadViaClient, uploadViaRest, uploadToDrive, deleteDriveUrl };
 })();

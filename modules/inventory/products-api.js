@@ -99,6 +99,12 @@ export async function removeProductImages(productId) {
   }).catch(() => null);
 }
 
+// ดึง url รูปของสินค้า (ใช้ลบไฟล์ Drive ก่อนลบ row)
+export async function fetchProductImageUrls(productId) {
+  const rows = await sbFetch("product_images", `?product_id=eq.${productId}&select=url`) || [];
+  return rows.map((r) => r.url).filter(Boolean);
+}
+
 export async function createProductImage(data) {
   return sbFetch("product_images", "", { method: "POST", body: data });
 }

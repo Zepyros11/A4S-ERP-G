@@ -667,6 +667,11 @@ function onImgFileSelected(e) {
 
 function removeImg(e, idx) {
   e.stopPropagation();
+  // ถ้าเป็นรูปเดิมที่อยู่บน Drive → ลบไฟล์ Drive ด้วย (trash · กู้คืนได้ 30 วัน)
+  const removed = imgFiles[idx];
+  if (removed && removed._existingUrl) {
+    window.ImageCompressor?.deleteDriveUrl(removed._existingUrl);
+  }
   imgFiles[idx] = null;
   const slot = document.querySelector(`.img-slot[data-idx="${idx}"]`);
   if (!slot) return;

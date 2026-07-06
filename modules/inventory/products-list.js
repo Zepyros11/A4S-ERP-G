@@ -9,6 +9,8 @@ import {
   fetchProductImages,
   removeProduct,
   removeProductUnits,
+  removeProductImages,
+  fetchProductImageUrls,
   updateProductStatus,
   updateProductStockAlert,
   updateProductCategory,
@@ -173,17 +175,27 @@ window.sortTable = function (key) {
 };
 
 // ── DELETE ────────────────────────────────────────────────
+// ลบไฟล์ Drive ของสินค้าก่อนลบ row (กัน orphan บน Drive · trash กู้คืนได้ 30 วัน)
+async function trashProductImageFiles(productId) {
+  try {
+    const urls = await fetchProductImageUrls(productId);
+    for (const u of urls) await window.ImageCompressor?.deleteDriveUrl(u);
+  } catch { /* best-effort */ }
+}
+
 async function deleteProductCascade(productId) {
   // หา variants ที่เป็น children ของ parent นี้
   const kids = allProducts.filter((p) => p.parent_product_id === productId);
   // ลบ children's units/images/row ก่อน (กัน orphan ใน product_units/product_images)
   for (const k of kids) {
     await removeProductUnits(k.product_id).catch(() => {});
+    await trashProductImageFiles(k.product_id);
     await removeProductImages(k.product_id).catch(() => {});
     await removeProduct(k.product_id);
   }
   // ลบ parent (หรือ singleton) — DB จะ cascade ลบ variants ที่เหลือผ่าน FK ด้วย
   await removeProductUnits(productId).catch(() => {});
+  await trashProductImageFiles(productId);
   await removeProductImages(productId).catch(() => {});
   await removeProduct(productId);
 }

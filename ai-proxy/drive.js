@@ -171,14 +171,21 @@ async function getFile(id) {
   return { ok: true, status: 200, contentType, buffer };
 }
 
-/* ── ลบไฟล์ ── */
+/* ── ลบไฟล์ = ย้ายลงถังขยะ (trash) ──
+   ใช้ trash แทน hard-delete เพราะ:
+   - Content manager ทำได้ (hard-delete ถาวรต้อง Manager → เคยได้ 404)
+   - กู้คืนได้ 30 วัน (safety) แล้ว Drive auto-purge คืนพื้นที่เอง */
 async function deleteFile(id) {
   const token = await _getAccessToken();
   const res = await fetch(
-    `${API}/files/${encodeURIComponent(id)}?supportsAllDrives=true`,
-    { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } },
+    `${API}/files/${encodeURIComponent(id)}?supportsAllDrives=true&fields=id`,
+    {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ trashed: true }),
+    },
   );
-  // 204 = ลบสำเร็จ, 404 = ไม่มีอยู่แล้ว (ถือว่าสำเร็จเชิง idempotent)
+  // 200 = trashed, 404 = ไม่มีอยู่แล้ว (idempotent)
   return { ok: res.ok || res.status === 404, status: res.status };
 }
 
