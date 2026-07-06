@@ -667,11 +667,7 @@ function onImgFileSelected(e) {
 
 function removeImg(e, idx) {
   e.stopPropagation();
-  // ถ้าเป็นรูปเดิมที่อยู่บน Drive → ลบไฟล์ Drive ด้วย (trash · กู้คืนได้ 30 วัน)
-  const removed = imgFiles[idx];
-  if (removed && removed._existingUrl) {
-    window.ImageCompressor?.deleteDriveUrl(removed._existingUrl);
-  }
+  // แค่เอาออกจาก UI — ไฟล์ Drive จะถูก trash ตอน save (เฉพาะรูปที่หายจริง เคารพการยกเลิก)
   imgFiles[idx] = null;
   const slot = document.querySelector(`.img-slot[data-idx="${idx}"]`);
   if (!slot) return;
@@ -686,12 +682,29 @@ async function uploadProductImages(productId) {
   const filesToUpload = imgFiles
     .map((file, idx) => ({ file, idx }))
     .filter(({ file }) => file !== null);
-  if (filesToUpload.length === 0) return;
 
+  // url เดิมใน DB — ใช้หา "รูปที่ถูกลบ" เพื่อ trash ไฟล์ Drive (เฉพาะที่หายจริง)
+  const keptUrls = new Set(
+    filesToUpload.filter((x) => x.file._existingUrl).map((x) => x.file._existingUrl),
+  );
+  let oldUrls = [];
+  try {
+    const rows = await supabaseFetch("product_images", {
+      query: `?product_id=eq.${productId}&select=url`,
+    });
+    oldUrls = (rows || []).map((r) => r.url).filter(Boolean);
+  } catch { /* ignore */ }
+
+  // ลบ row เดิมทั้งหมดเสมอ (แม้ลบรูปหมด — กัน row ค้างชี้ไฟล์ที่ถูก trash)
   await supabaseFetch("product_images", {
     method: "DELETE",
     query: `?product_id=eq.${productId}`,
   }).catch(() => {});
+
+  // trash ไฟล์ Drive ของรูปที่ถูกลบออก (ไม่อยู่ในชุดที่เก็บไว้)
+  for (const u of oldUrls) {
+    if (!keptUrls.has(u)) await window.ImageCompressor?.deleteDriveUrl(u);
+  }
 
   for (const { file, idx } of filesToUpload) {
     if (file._existingUrl) {
