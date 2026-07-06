@@ -1564,6 +1564,181 @@ function channelAggAll() {
   return agg;
 }
 
+// ════════════════════════════════════════════════════════
+//  ใบอนุมัติรางวัล (Reward Approval Sheet) — เอกสารพิมพ์ A4
+//  รวม: รายละเอียดแคมเปญ · ของรางวัล · รหัส + ชื่อผู้ได้รับรางวัล
+// ════════════════════════════════════════════════════════
+// เมตริกที่ใช้จัดอันดับตอนนี้ (ตามที่แสดงในแท็บอันดับ)
+function currentRankMetric() {
+  return _rankMetricTouched ? document.getElementById("rankMetricSel").value : effectiveMetric();
+}
+// รวมผู้ได้รับรางวัล (เฉพาะอันดับที่มีของรางวัล) — mirror ตรรกะ renderRanking
+function buildRewardWinners() {
+  const metric = currentRankMetric();
+  const rewards = (campaign && campaign.rewards) || null;
+  const sections = []; // [{ label, groups: [{rank, prize, members:[{code,name,score}]}] }]
+  if (!rewards) return { metric, sections };
+
+  const mkGroups = (rows, tiers, mode) => {
+    const groups = [];
+    rankRows(rows, metric).forEach((r) => {
+      const last = groups[groups.length - 1];
+      if (last && last.rank === r.rank) last.items.push(r.a);
+      else groups.push({ rank: r.rank, score: _metricScore(r.a, metric), items: [r.a] });
+    });
+    return groups
+      .map((g) => ({
+        rank: g.rank,
+        prize: tiers ? prizeForRank(tiers, g.rank, g.score, mode) : "",
+        members: g.items.map((a) => ({
+          code: a.p.member_code,
+          name: a.p.member_name || a.p.member_code,
+          score: _metricScore(a, metric),
+        })),
+      }))
+      .filter((g) => (g.prize || "").trim()); // เฉพาะอันดับที่มีรางวัลจริง
+  };
+
+  const mode = rewards.mode || "ranked";
+  const enabledChans = rewards.channels
+    ? RANK_CHANS.filter((c) => rewards.channels[c.key] && rewards.channels[c.key].enabled)
+    : [];
+
+  if (rewards.combine_channels) {
+    const rows = Object.values(channelAggAll())
+      .filter((a) => a.posts > 0)
+      .sort((x, y) => _metricScore(y, metric) - _metricScore(x, metric));
+    const tiers =
+      (rewards.channels && rewards.channels.all && rewards.channels.all.tiers) ||
+      (enabledChans.length ? rewards.channels[enabledChans[0].key].tiers : null);
+    const groups = mkGroups(rows, tiers, mode);
+    if (groups.length) sections.push({ label: "🔗 รวมทุกช่องทาง", groups });
+  } else {
+    enabledChans.forEach((c) => {
+      const rows = Object.values(channelAgg(c.platform))
+        .filter((a) => a.posts > 0)
+        .sort((x, y) => _metricScore(y, metric) - _metricScore(x, metric));
+      const groups = mkGroups(rows, rewards.channels[c.key].tiers, mode);
+      if (groups.length) sections.push({ label: c.label, groups });
+    });
+  }
+  return { metric, sections };
+}
+
+window.openRewardApproval = function () {
+  const { metric, sections } = buildRewardWinners();
+  const total = sections.reduce((n, s) => n + s.groups.reduce((m, g) => m + g.members.length, 0), 0);
+  if (!total) {
+    showToast("ยังไม่มีผู้ได้รับรางวัล — ตั้งของรางวัลและกรอกยอดก่อน", "warning");
+    return;
+  }
+
+  const medal = (r) => (r === 1 ? "🥇 อันดับ 1" : r === 2 ? "🥈 อันดับ 2" : r === 3 ? "🥉 อันดับ 3" : `อันดับ ${r}`);
+  const unit = metricUnitLabel(metric);
+  const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Bangkok" });
+  const rewards = (campaign && campaign.rewards) || {};
+  const range =
+    campaign.start_date || campaign.end_date
+      ? `${fmtDMY(campaign.start_date) || "—"} – ${fmtDMY(campaign.end_date) || "—"}`
+      : "—";
+  const logo = localStorage.getItem("company_logo_url") || "";
+  const companyName = localStorage.getItem("company_name") || "";
+
+  const sectionsHtml = sections
+    .map((s) => {
+      const rowsHtml = s.groups
+        .map((g) => {
+          const rs = g.members.length;
+          return g.members
+            .map(
+              (m, i) => `<tr>
+                ${i === 0 ? `<td rowspan="${rs}" class="c rank-cell">${medal(g.rank)}</td>` : ""}
+                <td class="c code-cell">${esc(m.code)}</td>
+                <td>${esc(m.name)}</td>
+                <td class="c">${fmtNum(m.score)}</td>
+                ${i === 0 ? `<td rowspan="${rs}" class="prize-cell">${esc(g.prize)}</td>` : ""}
+              </tr>`,
+            )
+            .join("");
+        })
+        .join("");
+      return `<div class="sec">
+        <div class="sec-hd">${esc(s.label)}</div>
+        <table>
+          <thead><tr>
+            <th class="c" style="width:15%">อันดับ</th>
+            <th class="c" style="width:16%">รหัสสมาชิก</th>
+            <th style="width:31%">ชื่อ-สกุล</th>
+            <th class="c" style="width:13%">${esc(unit)}</th>
+            <th style="width:25%">ของรางวัล</th>
+          </tr></thead>
+          <tbody>${rowsHtml}</tbody>
+        </table>
+      </div>`;
+    })
+    .join("");
+
+  const html = `<!doctype html><html lang="th"><head><meta charset="utf-8" />
+<title>ใบอนุมัติรางวัล — ${esc(campaign.name || "")}</title>
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: "Sarabun", sans-serif; color: #0f172a; margin: 0; padding: 24px 32px; background: #fff; }
+  .doc-hd { display: flex; align-items: center; gap: 16px; border-bottom: 2px solid #065f46; padding-bottom: 12px; margin-bottom: 4px; }
+  .doc-hd img { height: 56px; width: auto; object-fit: contain; }
+  .doc-hd .co { flex: 1; }
+  .doc-hd .co .nm { font-size: 18px; font-weight: 700; color: #064e3b; }
+  .doc-hd .issued { font-size: 12px; color: #64748b; white-space: nowrap; align-self: flex-start; }
+  .doc-title { text-align: center; font-size: 22px; font-weight: 700; color: #064e3b; margin: 14px 0 4px; }
+  .meta { margin: 14px 0 18px; font-size: 14px; line-height: 1.9; }
+  .meta b { color: #065f46; display: inline-block; min-width: 118px; }
+  .sec { margin-bottom: 18px; page-break-inside: avoid; }
+  .sec-hd { font-size: 15px; font-weight: 700; color: #065f46; background: #ecfdf5; padding: 6px 12px; border-left: 4px solid #10b981; border-radius: 4px; margin-bottom: 6px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  th, td { border: 1px solid #94a3b8; padding: 7px 10px; vertical-align: middle; }
+  th { background: #a7f3d0; color: #064e3b; font-weight: 700; }
+  td.c, th.c { text-align: center; }
+  .rank-cell { font-weight: 700; background: #f0fdf4; white-space: nowrap; }
+  .code-cell { font-family: "IBM Plex Mono", monospace; }
+  .prize-cell { font-weight: 600; background: #fffbeb; }
+  .sign { display: flex; justify-content: space-around; gap: 24px; margin-top: 48px; page-break-inside: avoid; }
+  .sign .box { text-align: center; font-size: 13px; flex: 1; }
+  .sign .line { border-top: 1px dotted #64748b; margin: 40px 12px 6px; }
+  @media print { body { padding: 0; } @page { margin: 16mm 14mm; } }
+</style></head>
+<body>
+  <div class="doc-hd">
+    ${logo ? `<img src="${esc(logo)}" alt="logo" />` : ""}
+    <div class="co">${companyName ? `<div class="nm">${esc(companyName)}</div>` : ""}</div>
+    <div class="issued">ออกเอกสาร ${esc(fmtDMY(today))}</div>
+  </div>
+  <div class="doc-title">ใบอนุมัติรางวัล</div>
+  <div class="meta">
+    <div><b>แคมเปญ</b> ${esc(campaign.name || "—")}</div>
+    <div><b>ช่วงเวลา</b> ${esc(range)}</div>
+    ${rewards.announce_date ? `<div><b>วันประกาศรางวัล</b> ${esc(fmtDMY(rewards.announce_date))}</div>` : ""}
+    <div><b>เกณฑ์จัดอันดับ</b> วัดจาก${esc(unit)}</div>
+    <div><b>จำนวนผู้ได้รับรางวัล</b> ${fmtNum(total)} คน</div>
+  </div>
+  ${sectionsHtml}
+  <div class="sign">
+    <div class="box"><div class="line"></div>ผู้จัดทำ</div>
+    <div class="box"><div class="line"></div>ผู้ตรวจสอบ</div>
+    <div class="box"><div class="line"></div>ผู้อนุมัติ</div>
+  </div>
+  <script>window.onload = function(){ setTimeout(function(){ window.print(); }, 350); };<\/script>
+</body></html>`;
+
+  const w = window.open("", "_blank");
+  if (!w) {
+    showToast("เบราว์เซอร์บล็อกป๊อปอัป — อนุญาตป๊อปอัปแล้วลองใหม่", "error");
+    return;
+  }
+  w.document.open();
+  w.document.write(html);
+  w.document.close();
+};
+
 // ── ลาก tab ซ้าย/ขวา จัดลำดับ (จำค่าไว้ใน localStorage) ──
 function initTabReorder() {
   const bar = document.getElementById("cmpTabs");
