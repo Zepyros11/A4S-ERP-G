@@ -220,5 +220,28 @@ async function moveFile(id, bucket, fromParent) {
   return { ok: res.ok, status: res.status, target };
 }
 
+/* ── meta (เช็ค trashed/parents) + กู้จากถังขยะ (untrash) ── */
+async function getMeta(id) {
+  const token = await _getAccessToken();
+  const res = await fetch(
+    `${API}/files/${encodeURIComponent(id)}?supportsAllDrives=true&fields=id,name,trashed,parents`,
+    { headers: { Authorization: `Bearer ${token}` } },
+  );
+  if (!res.ok) return { ok: false, status: res.status };
+  return { ok: true, ...(await res.json()) };
+}
+async function restoreFile(id) {
+  const token = await _getAccessToken();
+  const res = await fetch(
+    `${API}/files/${encodeURIComponent(id)}?supportsAllDrives=true&fields=id`,
+    {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ trashed: false }),
+    },
+  );
+  return { ok: res.ok, status: res.status };
+}
+
 const ROOT_FOLDER_ID = FOLDER_ID;
-module.exports = { isConfigured, uploadFile, getFile, deleteFile, ensureSubfolder, listFolder, moveFile, ROOT_FOLDER_ID };
+module.exports = { isConfigured, uploadFile, getFile, deleteFile, ensureSubfolder, listFolder, moveFile, getMeta, restoreFile, ROOT_FOLDER_ID };

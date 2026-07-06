@@ -235,53 +235,61 @@ async function loadMemberStats() {
     return;
   }
   if (!section) return;
-  if (typeof Chart === 'undefined') {
-    console.warn('Chart.js not loaded');
-    return;
-  }
 
-  try {
-    const [country, pkg, monthly, top, total] = await Promise.all([
-      _mlmFetch('v_members_country_count'),
-      _mlmFetch('v_members_package_count'),
-      _mlmFetch('v_members_monthly_signups'),
-      _mlmFetch('v_top_sponsors'),
-      _mlmTotalCount(),
-    ]);
+  // ── KPI #1: total members count (โหลดแยก ไม่ให้ view ที่ช้า/พังมาบล็อก) ──
+  _mlmTotalCount()
+    .then(total => {
+      document.getElementById('kpiMembers').textContent = total.toLocaleString();
+      document.getElementById('mlmTotalBadge').textContent = `${total.toLocaleString()} คน`;
+    })
+    .catch(e => {
+      console.error('loadMemberStats/count:', e);
+      document.getElementById('kpiMembers').textContent = '—';
+      document.getElementById('kpiMembersSub').textContent = 'โหลดยอดสมาชิกไม่ได้';
+    });
 
-    // KPI #1: Members total + new this month
-    const now = new Date();
-    const curMonth = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
-    const newThisMonth = (monthly.find(r => r.month === curMonth)?.count) || 0;
-    const lastMonth = new Date(now.getFullYear(), now.getMonth()-1, 1);
-    const lastMonthKey = `${lastMonth.getFullYear()}-${String(lastMonth.getMonth()+1).padStart(2,'0')}`;
-    const newLastMonth = (monthly.find(r => r.month === lastMonthKey)?.count) || 0;
-    document.getElementById('kpiMembers').textContent = total.toLocaleString();
-    document.getElementById('kpiMembersSub').textContent = `+${newThisMonth.toLocaleString()} คน · เดือนนี้`;
-    const tEl = document.getElementById('trendMembers');
-    if (newThisMonth > newLastMonth) {
-      tEl.textContent = `↑ +${newThisMonth - newLastMonth}`;
-      tEl.className = 'kpi-trend trend-up';
-    } else if (newThisMonth < newLastMonth) {
-      tEl.textContent = `↓ ${newThisMonth - newLastMonth}`;
-      tEl.className = 'kpi-trend trend-down';
-    } else {
-      tEl.textContent = `= ${newThisMonth}`;
-      tEl.className = 'kpi-trend trend-neu';
-    }
+  // ── Monthly signups → feeds KPI sub/trend + trend chart (โหลดแยก) ──
+  _mlmFetch('v_members_monthly_signups')
+    .then(monthly => {
+      const now = new Date();
+      const curMonth = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+      const newThisMonth = (monthly.find(r => r.month === curMonth)?.count) || 0;
+      const lastMonth = new Date(now.getFullYear(), now.getMonth()-1, 1);
+      const lastMonthKey = `${lastMonth.getFullYear()}-${String(lastMonth.getMonth()+1).padStart(2,'0')}`;
+      const newLastMonth = (monthly.find(r => r.month === lastMonthKey)?.count) || 0;
+      document.getElementById('kpiMembersSub').textContent = `+${newThisMonth.toLocaleString()} คน · เดือนนี้`;
+      const tEl = document.getElementById('trendMembers');
+      if (newThisMonth > newLastMonth) {
+        tEl.textContent = `↑ +${newThisMonth - newLastMonth}`;
+        tEl.className = 'kpi-trend trend-up';
+      } else if (newThisMonth < newLastMonth) {
+        tEl.textContent = `↓ ${newThisMonth - newLastMonth}`;
+        tEl.className = 'kpi-trend trend-down';
+      } else {
+        tEl.textContent = `= ${newThisMonth}`;
+        tEl.className = 'kpi-trend trend-neu';
+      }
+      if (typeof Chart !== 'undefined') _renderTrendChart(monthly);
+    })
+    .catch(e => {
+      console.error('loadMemberStats/monthly:', e);
+      const sub = document.getElementById('kpiMembersSub');
+      if (sub.textContent.includes('กำลังโหลด')) sub.textContent = 'โหลดสถิติรายเดือนไม่ได้';
+    });
 
-    document.getElementById('mlmTotalBadge').textContent = `${total.toLocaleString()} คน`;
-    _renderTrendChart(monthly);
-    _renderCountryChart(country);
-    _renderPackageChart(pkg);
-    _renderTopSponsors(top);
-  } catch (e) {
-    console.error('loadMemberStats:', e);
-    // ถ้า view ยังไม่มี (ยังไม่รัน SQL 005) — ซ่อน section เงียบ ๆ
-    if (e.message.includes('404') || e.message.includes('PGRST')) {
-      section.style.display = 'none';
-    }
-  }
+  if (typeof Chart === 'undefined') { console.warn('Chart.js not loaded'); return; }
+
+  // ── Charts + top sponsors (แต่ละอันโหลด+เรนเดอร์แยก ไม่บล็อกกัน) ──
+  _mlmFetch('v_members_country_count').then(_renderCountryChart)
+    .catch(e => console.error('loadMemberStats/country:', e));
+  _mlmFetch('v_members_package_count').then(_renderPackageChart)
+    .catch(e => console.error('loadMemberStats/package:', e));
+  _mlmFetch('v_top_sponsors').then(_renderTopSponsors)
+    .catch(e => {
+      console.error('loadMemberStats/sponsors:', e);
+      document.getElementById('topSponsorsBody').innerHTML =
+        `<tr><td colspan="5" style="text-align:center;padding:30px;color:var(--danger)">โหลดข้อมูลไม่ได้: ${escapeHtml(e.message)}</td></tr>`;
+    });
 }
 
 /* ============================================================
@@ -422,6 +430,7 @@ async function _mlmTotalCount() {
       Prefer: 'count=exact', Range: '0-0',
     },
   });
+  if (!res.ok) throw new Error(`members ${res.status}: ${await res.text()}`);
   const range = res.headers.get('content-range') || '*/0';
   return parseInt(range.split('/')[1], 10) || 0;
 }
