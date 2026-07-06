@@ -702,10 +702,22 @@ async function uploadProductImages(productId) {
     }
     try {
       const path = `products/${productId}_${idx}_${Date.now()}`;
-      const publicUrl = await window.ImageCompressor.uploadViaRest(
-        url, key, "product-images", path, file,
-      );
-      if (!publicUrl) throw new Error("Upload failed");
+      // Drive storage (pilot) — สลับด้วย flag localStorage.erp_drive_storage="1"
+      // ปิด flag = กลับไปใช้ Supabase Storage ทันที (reversible)
+      let publicUrl;
+      if (localStorage.getItem("erp_drive_storage") === "1") {
+        const proxyBase = (localStorage.getItem("erp_proxy_url") || "").replace(/\/+$/, "");
+        const driveKey = localStorage.getItem("erp_drive_key") || "";
+        publicUrl = await window.ImageCompressor.uploadToDrive(
+          proxyBase, driveKey, path, file,
+        );
+        if (!publicUrl) throw new Error("Upload failed (Drive)");
+      } else {
+        publicUrl = await window.ImageCompressor.uploadViaRest(
+          url, key, "product-images", path, file,
+        );
+        if (!publicUrl) throw new Error("Upload failed");
+      }
       await supabaseFetch("product_images", {
         method: "POST",
         body: { product_id: productId, url: publicUrl, sort_order: idx },
