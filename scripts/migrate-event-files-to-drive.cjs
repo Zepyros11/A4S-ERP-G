@@ -203,7 +203,7 @@ async function main() {
       if (!dl.ok) { console.warn(`  ⚠️ download ${dl.status}: ${u.slice(-40)}`); failed++; continue; }
       const ct = dl.headers.get('content-type') || 'application/octet-stream';
       const buf = Buffer.from(await dl.arrayBuffer());
-      const { id } = await drive.uploadFile(driveNameFromUrl(u), ct, buf);
+      const { id } = await drive.uploadFile(driveNameFromUrl(u), ct, buf, BUCKET);
       map[u] = `${PROXY}/drive/file/${id}`;
       done++;
       if (done % 10 === 0) console.log(`  upload ${done}/${urls.length}...`);

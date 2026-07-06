@@ -76,13 +76,14 @@ app.post('/drive/upload', _driveRaw, async (req, res) => {
   }
   const name = (req.query.name || '').toString().trim();
   if (!name) return res.status(400).json({ ok: false, error: 'missing ?name' });
+  const bucket = (req.query.bucket || '').toString().trim();  // subfolder ปลายทาง (optional)
   const body = req.body;
   if (!Buffer.isBuffer(body) || !body.length) {
     return res.status(400).json({ ok: false, error: 'empty body' });
   }
   const contentType = req.get('content-type') || 'application/octet-stream';
   try {
-    const { id } = await drive.uploadFile(name, contentType, body);
+    const { id } = await drive.uploadFile(name, contentType, body, bucket);
     // URL ที่ frontend เก็บลง DB + ใช้ใน <img src>
     const base = (process.env.PUBLIC_PROXY_URL || `${req.protocol}://${req.get('host')}`).replace(/\/+$/, '');
     return res.json({ ok: true, id, url: `${base}/drive/file/${id}` });

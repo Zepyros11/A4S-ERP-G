@@ -109,7 +109,7 @@
   async function uploadViaClient(sbClient, bucket, path, input, opts = {}) {
     if (_driveEnabledFor(bucket)) {
       const { proxyBase, key } = _driveCfg();
-      return uploadToDrive(proxyBase, key, `${bucket}/${path}`, input, opts);
+      return uploadToDrive(proxyBase, key, bucket, path, input, opts);
     }
     if (!sbClient) return null;
     try {
@@ -143,7 +143,7 @@
   async function uploadViaRest(sbUrl, sbKey, bucket, path, input, opts = {}) {
     if (_driveEnabledFor(bucket)) {
       const { proxyBase, key } = _driveCfg();
-      return uploadToDrive(proxyBase, key, `${bucket}/${path}`, input, opts);
+      return uploadToDrive(proxyBase, key, bucket, path, input, opts);
     }
     if (!sbUrl || !sbKey) return null;
     try {
@@ -181,9 +181,9 @@
      ใช้แทน Supabase Storage — return public URL (proxy serve URL) หรือ null
      - proxyBase : เช่น "https://a4s-erp-proxy.onrender.com" (ไม่มี / ท้าย)
      - uploadKey : ค่า DRIVE_UPLOAD_KEY (ส่งใน x-drive-key)
-     - path      : ชื่อไฟล์ที่จะแสดงใน Drive (เช่น "products/123_0_....") — image จะบังคับ .jpg
-     signature ตั้งใจให้คล้าย uploadViaRest เพื่อสลับ call site ได้ง่าย */
-  async function uploadToDrive(proxyBase, uploadKey, path, input, opts = {}) {
+     - bucket    : ชื่อ subfolder ปลายทางใน Drive (เช่น "product-images","event-files")
+     - path      : ชื่อไฟล์ (เช่น "products/123_0_....") — image จะบังคับ .jpg */
+  async function uploadToDrive(proxyBase, uploadKey, bucket, path, input, opts = {}) {
     if (!proxyBase) return null;
     try {
       let blob, contentType, finalName;
@@ -199,9 +199,11 @@
         finalName = ext ? (path.endsWith(`.${ext}`) ? path : `${path}.${ext}`) : path;
       }
       const base = String(proxyBase).replace(/\/+$/, '');
+      const displayName = bucket ? `${bucket}/${finalName}` : finalName;
       const headers = { 'Content-Type': contentType };
       if (uploadKey) headers['x-drive-key'] = uploadKey;
-      const res = await fetch(`${base}/drive/upload?name=${encodeURIComponent(finalName)}`, {
+      const qs = `name=${encodeURIComponent(displayName)}${bucket ? `&bucket=${encodeURIComponent(bucket)}` : ''}`;
+      const res = await fetch(`${base}/drive/upload?${qs}`, {
         method: 'POST',
         headers,
         body: blob,

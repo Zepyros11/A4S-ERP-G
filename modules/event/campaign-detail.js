@@ -1690,12 +1690,13 @@ window.openRewardApproval = function () {
   .doc-hd .co .nm { font-size: 18px; font-weight: 700; color: #064e3b; }
   .doc-hd .hd-right { align-self: flex-start; text-align: right; }
   .doc-hd .issued { font-size: 12px; color: #64748b; white-space: nowrap; margin-bottom: 8px; }
-  .doc-hd .award-box { display: inline-flex; align-items: baseline; gap: 8px; border: 1px solid #94a3b8; border-radius: 6px; padding: 7px 12px; font-size: 13px; }
-  .doc-hd .award-box b { color: #065f46; white-space: nowrap; }
+  .doc-hd .award-box { display: inline-flex; align-items: baseline; gap: 8px; border: 1px solid #dc2626; border-radius: 6px; padding: 7px 12px; font-size: 13px; }
+  .doc-hd .award-box b { color: #dc2626; white-space: nowrap; }
   .doc-hd .award-box .fill { display: inline-block; min-width: 120px; border-bottom: 1px dotted #64748b; }
   .doc-title { text-align: center; font-size: 22px; font-weight: 700; color: #064e3b; margin: 14px 0 4px; }
-  .meta { margin: 14px 0 18px; font-size: 14px; line-height: 1.9; }
-  .meta b { color: #065f46; display: inline-block; min-width: 118px; }
+  .meta { margin: 14px 0 18px; font-size: 12.5px; line-height: 1.7; display: grid; grid-template-columns: 1fr 1fr; column-gap: 32px; row-gap: 2px; }
+  .meta b { color: #065f46; display: inline-block; min-width: 104px; }
+  .meta .full { grid-column: 1 / -1; }
   .sec { margin-bottom: 18px; page-break-inside: avoid; }
   .sec-hd { font-size: 15px; font-weight: 700; color: #065f46; background: #ecfdf5; padding: 6px 12px; border-left: 4px solid #10b981; border-radius: 4px; margin-bottom: 6px; }
   table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
@@ -1716,14 +1717,14 @@ window.openRewardApproval = function () {
     <div class="co">${companyName ? `<div class="nm">${esc(companyName)}</div>` : ""}</div>
     <div class="hd-right">
       <div class="issued">ออกเอกสาร ${esc(fmtDMY(today))}</div>
-      <div class="award-box"><b>วันที่ออกรางวัล</b><span class="fill">&nbsp;</span></div>
+      <div class="award-box"><b>วันที่ออกรางวัล</b><span class="fill">${rewards.announce_date ? esc(fmtDMY(rewards.announce_date)) : "&nbsp;"}</span></div>
     </div>
   </div>
   <div class="doc-title">ใบอนุมัติรางวัล</div>
   <div class="meta">
-    <div><b>แคมเปญ</b> ${esc(campaign.name || "—")}</div>
-    <div><b>ช่วงเวลา</b> ${esc(range)}</div>
+    <div class="full"><b>แคมเปญ</b> ${esc(campaign.name || "—")}</div>
     ${rewards.announce_date ? `<div><b>วันประกาศรางวัล</b> ${esc(fmtDMY(rewards.announce_date))}</div>` : ""}
+    <div><b>ช่วงเวลา</b> ${esc(range)}</div>
     <div><b>เกณฑ์จัดอันดับ</b> วัดจาก${esc(unit)}</div>
     <div><b>จำนวนผู้ได้รับรางวัล</b> ${fmtNum(total)} คน</div>
   </div>

@@ -77,14 +77,43 @@ async function _getAccessToken() {
   return _token.value;
 }
 
-/* ── Upload ไฟล์ (multipart) → คืน { id } ──
-   name = ชื่อไฟล์ที่จะแสดงใน Drive (เช่น "products/123_0_....jpg")
-   contentType = mime (image/jpeg ฯลฯ)
-   body = Buffer */
-async function uploadFile(name, contentType, body) {
+/* ── Subfolder ต่อ bucket (cache id) — จัดไฟล์เข้าโฟลเดอร์ย่อยใต้ FOLDER_ID ── */
+const _subfolderCache = new Map();
+async function ensureSubfolder(bucket) {
+  if (!bucket) return FOLDER_ID;
+  if (_subfolderCache.has(bucket)) return _subfolderCache.get(bucket);
   const token = await _getAccessToken();
+  const q = `name='${bucket.replace(/'/g, "\\'")}' and '${FOLDER_ID}' in parents ` +
+    `and mimeType='application/vnd.google-apps.folder' and trashed=false`;
+  const sres = await fetch(
+    `${API}/files?q=${encodeURIComponent(q)}&supportsAllDrives=true&includeItemsFromAllDrives=true&fields=files(id)`,
+    { headers: { Authorization: `Bearer ${token}` } },
+  );
+  const sdata = await sres.json().catch(() => ({}));
+  let id = sdata.files && sdata.files[0] && sdata.files[0].id;
+  if (!id) {
+    const cres = await fetch(`${API}/files?supportsAllDrives=true&fields=id`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: bucket, mimeType: 'application/vnd.google-apps.folder', parents: [FOLDER_ID] }),
+    });
+    const cdata = await cres.json().catch(() => ({}));
+    if (!cres.ok || !cdata.id) throw new Error(`create subfolder ${bucket} ${cres.status}: ${JSON.stringify(cdata).slice(0, 200)}`);
+    id = cdata.id;
+  }
+  _subfolderCache.set(bucket, id);
+  return id;
+}
+
+/* ── Upload ไฟล์ (multipart) → คืน { id } ──
+   name   = ชื่อไฟล์ที่แสดงใน Drive (เช่น "event-files/posters/55_....jpg")
+   bucket = ชื่อโฟลเดอร์ย่อยปลายทาง (เช่น "product-images","event-files") — ไม่ใส่ = FOLDER_ID
+   contentType = mime · body = Buffer */
+async function uploadFile(name, contentType, body, bucket) {
+  const token = await _getAccessToken();
+  const parent = await ensureSubfolder(bucket);
   const boundary = 'a4s' + crypto.randomBytes(12).toString('hex');
-  const metadata = JSON.stringify({ name, parents: [FOLDER_ID] });
+  const metadata = JSON.stringify({ name, parents: [parent] });
 
   const pre = Buffer.from(
     `--${boundary}\r\n` +
@@ -142,4 +171,36 @@ async function deleteFile(id) {
   return { ok: res.ok || res.status === 404, status: res.status };
 }
 
-module.exports = { isConfigured, uploadFile, getFile, deleteFile };
+/* ── list ไฟล์ในโฟลเดอร์ (สำหรับ reorg) → [{id,name,parents}] · รองรับ paging ── */
+async function listFolder(parentId) {
+  const token = await _getAccessToken();
+  const out = [];
+  let pageToken = '';
+  do {
+    const q = `'${parentId}' in parents and trashed=false`;
+    const url = `${API}/files?q=${encodeURIComponent(q)}&supportsAllDrives=true&includeItemsFromAllDrives=true`
+      + `&fields=nextPageToken,files(id,name,mimeType,parents)&pageSize=1000${pageToken ? `&pageToken=${pageToken}` : ''}`;
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(`list ${res.status}: ${JSON.stringify(data).slice(0, 200)}`);
+    out.push(...(data.files || []));
+    pageToken = data.nextPageToken || '';
+  } while (pageToken);
+  return out;
+}
+
+/* ── ย้ายไฟล์เข้า subfolder ตาม bucket (addParents/removeParents) ── */
+async function moveFile(id, bucket, fromParent) {
+  const token = await _getAccessToken();
+  const target = await ensureSubfolder(bucket);
+  if (target === fromParent) return { ok: true, status: 304 };
+  const res = await fetch(
+    `${API}/files/${encodeURIComponent(id)}?supportsAllDrives=true&addParents=${target}`
+    + `${fromParent ? `&removeParents=${fromParent}` : ''}&fields=id`,
+    { method: 'PATCH', headers: { Authorization: `Bearer ${token}` } },
+  );
+  return { ok: res.ok, status: res.status, target };
+}
+
+const ROOT_FOLDER_ID = FOLDER_ID;
+module.exports = { isConfigured, uploadFile, getFile, deleteFile, ensureSubfolder, listFolder, moveFile, ROOT_FOLDER_ID };

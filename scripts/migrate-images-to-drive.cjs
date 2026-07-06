@@ -105,7 +105,7 @@ async function migrateRow(row, stats) {
   }
 
   // 2) อัปโหลดขึ้น Drive
-  const { id } = await drive.uploadFile(name, contentType, buffer);
+  const { id } = await drive.uploadFile(name, contentType, buffer, 'product-images');
   const newUrl = `${PROXY}/drive/file/${id}`;
 
   // 3) rewrite url ใน DB
