@@ -83,10 +83,34 @@
     catch (e) { console.warn('compressIfImage failed, using original:', e.message); return input; }
   }
 
+  /* ── Drive storage routing (rollout กลาง) ──
+     เปิดรูป Drive per-bucket ด้วย localStorage:
+       erp_drive_storage = "1"                (master switch)
+       erp_drive_buckets = "product-images,event-files,..."  (allowlist ราย bucket)
+     bucket ที่ไม่อยู่ใน allowlist → อัปขึ้น Supabase ตามเดิม (PII buckets ปลอดภัย) */
+  function _driveEnabledFor(bucket) {
+    try {
+      if (localStorage.getItem('erp_drive_storage') !== '1') return false;
+      const list = (localStorage.getItem('erp_drive_buckets') || '')
+        .split(',').map(s => s.trim()).filter(Boolean);
+      return list.includes(bucket);
+    } catch { return false; }
+  }
+  function _driveCfg() {
+    return {
+      proxyBase: (localStorage.getItem('erp_proxy_url') || '').replace(/\/+$/, ''),
+      key: localStorage.getItem('erp_drive_key') || '',
+    };
+  }
+
   /* compress + upload ผ่าน Supabase JS SDK → return public URL หรือ null
      `path` ไม่ต้องใส่ extension — จะถูกบังคับเป็น .jpg เสมอ (ของ compressed image)
      ถ้า input ไม่ใช่รูป จะ upload ตามเดิม (ใช้ name/type จาก File) */
   async function uploadViaClient(sbClient, bucket, path, input, opts = {}) {
+    if (_driveEnabledFor(bucket)) {
+      const { proxyBase, key } = _driveCfg();
+      return uploadToDrive(proxyBase, key, `${bucket}/${path}`, input, opts);
+    }
     if (!sbClient) return null;
     try {
       let blob, contentType, finalPath;
@@ -117,6 +141,10 @@
      return public URL หรือ null
      `path` จะถูกบังคับเป็น .jpg เสมอ ถ้า input เป็นรูป */
   async function uploadViaRest(sbUrl, sbKey, bucket, path, input, opts = {}) {
+    if (_driveEnabledFor(bucket)) {
+      const { proxyBase, key } = _driveCfg();
+      return uploadToDrive(proxyBase, key, `${bucket}/${path}`, input, opts);
+    }
     if (!sbUrl || !sbKey) return null;
     try {
       let blob, contentType, finalPath;
