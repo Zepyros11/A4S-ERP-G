@@ -76,14 +76,21 @@ app.post('/drive/upload', _driveRaw, async (req, res) => {
   }
   const name = (req.query.name || '').toString().trim();
   if (!name) return res.status(400).json({ ok: false, error: 'missing ?name' });
-  const bucket = (req.query.bucket || '').toString().trim();  // subfolder ปลายทาง (optional)
+  const bucket = (req.query.bucket || '').toString().trim();
+  // จัดเข้า nested subfolder แบบ bucket/category (สูงสุด 2 ชั้น) จาก path ของ name
+  // เช่น "event-files/posters/55_x.jpg" → folder "event-files/posters", ไฟล์ "55_x.jpg"
+  const segs = name.split('/').filter(Boolean);
+  let folderPath, displayName;
+  if (segs.length >= 3) { folderPath = segs.slice(0, 2).join('/'); displayName = segs.slice(2).join('/'); }
+  else if (segs.length === 2) { folderPath = segs[0]; displayName = segs[1]; }
+  else { folderPath = bucket || ''; displayName = name; }
   const body = req.body;
   if (!Buffer.isBuffer(body) || !body.length) {
     return res.status(400).json({ ok: false, error: 'empty body' });
   }
   const contentType = req.get('content-type') || 'application/octet-stream';
   try {
-    const { id } = await drive.uploadFile(name, contentType, body, bucket);
+    const { id } = await drive.uploadFile(displayName, contentType, body, folderPath);
     // URL ที่ frontend เก็บลง DB + ใช้ใน <img src>
     const base = (process.env.PUBLIC_PROXY_URL || `${req.protocol}://${req.get('host')}`).replace(/\/+$/, '');
     return res.json({ ok: true, id, url: `${base}/drive/file/${id}` });

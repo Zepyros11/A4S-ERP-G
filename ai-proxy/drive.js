@@ -77,13 +77,12 @@ async function _getAccessToken() {
   return _token.value;
 }
 
-/* ── Subfolder ต่อ bucket (cache id) — จัดไฟล์เข้าโฟลเดอร์ย่อยใต้ FOLDER_ID ── */
+/* ── Subfolder (nested, cache id) — จัดไฟล์เข้าโฟลเดอร์ย่อยใต้ FOLDER_ID ──
+   รองรับ path หลายชั้น เช่น "event-files/posters" → สร้าง event-files แล้ว posters ใต้มัน */
 const _subfolderCache = new Map();
-async function ensureSubfolder(bucket) {
-  if (!bucket) return FOLDER_ID;
-  if (_subfolderCache.has(bucket)) return _subfolderCache.get(bucket);
+async function _findOrCreateFolder(name, parentId) {
   const token = await _getAccessToken();
-  const q = `name='${bucket.replace(/'/g, "\\'")}' and '${FOLDER_ID}' in parents ` +
+  const q = `name='${name.replace(/'/g, "\\'")}' and '${parentId}' in parents ` +
     `and mimeType='application/vnd.google-apps.folder' and trashed=false`;
   const sres = await fetch(
     `${API}/files?q=${encodeURIComponent(q)}&supportsAllDrives=true&includeItemsFromAllDrives=true&fields=files(id)`,
@@ -95,14 +94,26 @@ async function ensureSubfolder(bucket) {
     const cres = await fetch(`${API}/files?supportsAllDrives=true&fields=id`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: bucket, mimeType: 'application/vnd.google-apps.folder', parents: [FOLDER_ID] }),
+      body: JSON.stringify({ name, mimeType: 'application/vnd.google-apps.folder', parents: [parentId] }),
     });
     const cdata = await cres.json().catch(() => ({}));
-    if (!cres.ok || !cdata.id) throw new Error(`create subfolder ${bucket} ${cres.status}: ${JSON.stringify(cdata).slice(0, 200)}`);
+    if (!cres.ok || !cdata.id) throw new Error(`create subfolder ${name} ${cres.status}: ${JSON.stringify(cdata).slice(0, 200)}`);
     id = cdata.id;
   }
-  _subfolderCache.set(bucket, id);
   return id;
+}
+async function ensureSubfolder(folderPath) {
+  if (!folderPath) return FOLDER_ID;
+  if (_subfolderCache.has(folderPath)) return _subfolderCache.get(folderPath);
+  const parts = String(folderPath).split('/').filter(Boolean);
+  let parentId = FOLDER_ID, cum = '';
+  for (const part of parts) {
+    cum = cum ? `${cum}/${part}` : part;
+    if (_subfolderCache.has(cum)) { parentId = _subfolderCache.get(cum); continue; }
+    parentId = await _findOrCreateFolder(part, parentId);
+    _subfolderCache.set(cum, parentId);
+  }
+  return parentId;
 }
 
 /* ── Upload ไฟล์ (multipart) → คืน { id } ──
