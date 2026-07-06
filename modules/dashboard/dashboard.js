@@ -218,6 +218,25 @@ function showToast(msg, type = 'success') {
 
 const _mlmCharts = {};   // keep references for re-render
 
+/* ── Fix Chart.js hover/tooltip ให้ตรงกับตำแหน่งเมาส์ใต้ CSS zoom ──
+   แอปตั้ง :root{zoom:.65} (desktop density) แต่ Chart.js อ่านพิกัดจาก
+   offsetX/offsetY ซึ่งไม่ผ่านการ map ของ zoom → hitbox/tooltip เลื่อนออกจากช่องจริง.
+   แก้โดยคำนวณตำแหน่งใหม่จากสัดส่วน getBoundingClientRect (คงที่ไม่ขึ้นกับ zoom).
+   ทำงานได้ทุกค่า zoom — ไม่ต้อง hardcode 0.65 */
+const ChartZoomHoverFix = {
+  id: 'zoomHoverFix',
+  beforeEvent(chart, args) {
+    const e = args.event;
+    const ne = e && e.native;
+    if (!ne || ne.clientX == null) return;          // event ไม่มีพิกัดเมาส์ — ข้าม
+    const rect = chart.canvas.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
+    e.x = (ne.clientX - rect.left) / rect.width  * chart.width;
+    e.y = (ne.clientY - rect.top)  / rect.height * chart.height;
+  },
+};
+if (typeof Chart !== 'undefined') Chart.register(ChartZoomHoverFix);
+
 async function _mlmFetch(view) {
   const res = await fetch(`${SUPABASE_URL}/rest/v1/${view}?select=*`, {
     headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
