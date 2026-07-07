@@ -3943,10 +3943,15 @@ async function deleteRow(id) {
   if (!ok) return;
 
   const idsToDelete = [id, ...rows.filter(r => r.parentId === id).map(r => r.id)];
-  const codesToDelete = idsToDelete
-    .map(rid => getRow(rid))
-    .filter(r => r && r.code)
-    .map(r => r.code);
+  const rowsToDelete = idsToDelete.map(rid => getRow(rid)).filter(Boolean);
+  const codesToDelete = rowsToDelete.filter(r => r.code).map(r => r.code);
+
+  // trash รูป Drive (passport/visa/visa-pdf) ของแถวที่ลบก่อนเคลียร์ — best-effort (ข้าม Supabase url เอง)
+  if (window.ImageCompressor) {
+    window.ImageCompressor.deleteDriveUrlsIn(
+      rowsToDelete.flatMap(r => [r.passImg, r.visaImg, r.visaPdf]),
+    );
+  }
 
   rows = rows.filter(r => !idsToDelete.includes(r.id));
   saveLocal();
@@ -4058,6 +4063,7 @@ function loadImageFile(file, id, field, fileField) {
   reader.onload = async (e) => {
     const row = getRow(id);
     if (!row) return;
+    const oldUrl   = row[field];   // url เดิม (ถ้าเป็น Drive) → trash หลังอัปตัวใหม่สำเร็จ
     row[field]     = e.target.result;
     row[fileField] = file;
     refreshRow(row);
@@ -4078,6 +4084,10 @@ function loadImageFile(file, id, field, fileField) {
         row[fileField] = null;
         refreshRow(row);
         IMG_DB.del(`${row.code}_${field}`); // ลบออกจาก IDB (ใช้ Supabase URL แล้ว)
+        // Drive ไม่ upsert ทับชื่อเดิม → สร้าง file id ใหม่ทุกครั้ง · trash ตัวเก่ากัน orphan
+        if (oldUrl && oldUrl !== url && window.ImageCompressor) {
+          window.ImageCompressor.deleteDriveUrl(oldUrl);
+        }
         scheduleRowSave(row, 100);
       } else {
         toast('Upload รูปล้มเหลว', 'error');
@@ -4091,12 +4101,16 @@ function removeImg(id, field, fileField, event) {
   event.stopPropagation();
   const row = getRow(id);
   if (!row) return;
+  const oldUrl   = row[field];   // trash ไฟล์ Drive เดิม (ถ้ามี) หลังเคลียร์
   row[field]     = null;
   row[fileField] = null;
   refreshRow(row);
 
   // ลบจาก IndexedDB ด้วย ไม่งั้นรูปจะกลับมาหลัง refresh
   if (row.code) IMG_DB.del(`${row.code}_${field}`);
+
+  // best-effort trash — ข้าม data:/Supabase url เอง
+  if (oldUrl && window.ImageCompressor) window.ImageCompressor.deleteDriveUrl(oldUrl);
 
   scheduleRowSave(row, 100);
 }
@@ -4129,6 +4143,7 @@ async function loadPdfFile(file, id) {
   const row = getRow(id);
   if (!row) return;
 
+  const oldUrl = row.visaPdf;   // trash Drive PDF เดิมหลังอัปตัวใหม่สำเร็จ (Drive ไม่ upsert ทับ)
   // เก็บ File ไว้ก่อน — แสดงชื่อไฟล์ทันที
   row.visaPdfFile = file;
   row.visaPdf = null;
@@ -4143,6 +4158,9 @@ async function loadPdfFile(file, id) {
       row.visaPdf = url;
       row.visaPdfFile = null;
       refreshRow(row);
+      if (oldUrl && oldUrl !== url && window.ImageCompressor) {
+        window.ImageCompressor.deleteDriveUrl(oldUrl);
+      }
       scheduleRowSave(row, 100);
     } else {
       refreshRow(row);
@@ -4158,10 +4176,12 @@ function removePdf(id, event) {
   event.stopPropagation();
   const row = getRow(id);
   if (!row) return;
+  const oldUrl = row.visaPdf;
   row.visaPdf = null;
   row.visaPdfFile = null;
   row.visaPdfUploading = false;
   refreshRow(row);
+  if (oldUrl && window.ImageCompressor) window.ImageCompressor.deleteDriveUrl(oldUrl);
   scheduleRowSave(row, 100);
 }
 

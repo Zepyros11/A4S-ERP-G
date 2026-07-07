@@ -5364,8 +5364,13 @@ window.toggleFlightTicketsCollapse = function (flightId) {
 };
 
 // ลบไฟล์ใน Storage จาก public URL (best-effort — ไม่ throw ถ้าลบไม่ได้)
+// รองรับทั้ง Supabase (public object) และ Drive (/drive/file/ → trash ผ่าน proxy)
 async function deleteStorageByPublicUrl(publicUrl) {
   if (!publicUrl) return;
+  if (publicUrl.includes("/drive/file/")) {
+    if (window.ImageCompressor) await window.ImageCompressor.deleteDriveUrl(publicUrl);
+    return;
+  }
   const { url, key } = getSB();
   const marker = "/storage/v1/object/public/";
   const i = publicUrl.indexOf(marker);
@@ -5527,12 +5532,15 @@ window.flTicketDocChosen = async function (ev) {
   if (!file || !ctx) return;
   if (!window.ImageCompressor) { showToast("ImageCompressor ไม่พร้อม — reload หน้า", "error"); return; }
   const { url, key } = getSB();
+  const oldUrl = flightTicketsOf(ctx.flightId).find(x => x.ticket_id === ctx.ticketId)?.ticket_url;
   showLoading(true);
   try {
     const u = await ImageCompressor.uploadViaRest(url, key, "tour-seat-images",
       `ticket/${ctx.flightId}_${ctx.ticketId}_${Date.now()}`, file);
     if (!u) { showToast("อัปโหลดไม่สำเร็จ", "error"); showLoading(false); return; }
     await sbFetch("trip_flight_tickets", `?ticket_id=eq.${ctx.ticketId}`, { method: "PATCH", body: { ticket_url: u } });
+    // path มี timestamp → replace = ไฟล์ใหม่เสมอ · ลบตัวเก่ากัน orphan (Supabase + Drive)
+    if (oldUrl && oldUrl !== u) await deleteStorageByPublicUrl(oldUrl);
     await refreshFlightTickets();
     showToast("แนบไฟล์ตั๋วแล้ว", "success");
   } catch (e) { showToast("อัปโหลดไม่สำเร็จ: " + e.message, "error"); }
@@ -5547,9 +5555,11 @@ window.removeTicketDoc = async function (ticketId, flightId) {
       })
     : confirm(msg);
   if (!ok) return;
+  const oldUrl = flightTicketsOf(flightId).find(x => x.ticket_id === ticketId)?.ticket_url;
   showLoading(true);
   try {
     await sbFetch("trip_flight_tickets", `?ticket_id=eq.${ticketId}`, { method: "PATCH", body: { ticket_url: null } });
+    if (oldUrl) await deleteStorageByPublicUrl(oldUrl);   // ลบไฟล์จริงด้วย (เดิม patch null อย่างเดียว = orphan)
     await refreshFlightTickets();
     showToast("ลบไฟล์ตั๋วแล้ว", "success");
   } catch (e) { showToast("ลบไม่สำเร็จ: " + e.message, "error"); }
