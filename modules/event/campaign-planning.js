@@ -284,13 +284,28 @@ window.updateBulkBar = function () {
 function getSelected() {
   return [...document.querySelectorAll(".row-check:checked")].map((c) => +c.value);
 }
+// ลบไฟล์ Drive ของแคมเปญก่อนลบ row — รวบทุก drive url จาก campaign row (rewards/media/requirements/
+// announce/state images) + ตารางลูก (submissions.proof_url, participants) → trash (best-effort, กู้ได้ 30 วัน)
+async function trashCampaignDriveImages(id, campaignRow) {
+  try {
+    const [subs, parts] = await Promise.all([
+      sbFetch("campaign_submissions", `?campaign_id=eq.${id}&select=*`).catch(() => []),
+      sbFetch("campaign_participants", `?campaign_id=eq.${id}&select=*`).catch(() => []),
+    ]);
+    await window.ImageCompressor?.deleteDriveUrlsIn(campaignRow, subs, parts);
+  } catch { /* best-effort */ }
+}
+
 window.bulkDelete = function () {
   const ids = getSelected();
   if (!ids.length) return;
   DeleteModal.open(`ต้องการลบแคมเปญ ${ids.length} รายการ (รวมผู้เข้าร่วม/ผลงานทั้งหมด) หรือไม่?`, async () => {
     showLoading(true);
     try {
-      for (const id of ids) await sbFetch("campaigns", `?campaign_id=eq.${id}`, { method: "DELETE" });
+      for (const id of ids) {
+        await trashCampaignDriveImages(id, allCampaigns.find((x) => x.campaign_id === id));
+        await sbFetch("campaigns", `?campaign_id=eq.${id}`, { method: "DELETE" });
+      }
       showToast("ลบแคมเปญที่เลือกแล้ว", "success");
       await loadData();
     } catch (e) {
@@ -304,6 +319,7 @@ window.deleteCampaign = function (id) {
   DeleteModal.open(`ต้องการลบแคมเปญ "${c ? esc(c.name) : id}" (รวมผู้เข้าร่วม/ผลงานทั้งหมด) หรือไม่?`, async () => {
     showLoading(true);
     try {
+      await trashCampaignDriveImages(id, c);
       await sbFetch("campaigns", `?campaign_id=eq.${id}`, { method: "DELETE" });
       showToast("ลบแคมเปญแล้ว", "success");
       await loadData();

@@ -238,5 +238,30 @@
     } catch (e) { console.warn('deleteDriveUrl failed:', e.message); return false; }
   }
 
-  window.ImageCompressor = { compress, compressIfImage, uploadViaClient, uploadViaRest, uploadToDrive, deleteDriveUrl };
+  /* เก็บ url ที่เป็นไฟล์ Drive (/drive/file/) จากค่าใด ๆ (string / array / object ซ้อนกัน) แบบ recursive
+     ใช้ก่อนลบ row เพื่อรวบ url รูปทุกคอลัมน์ (image_urls / cover / document_urls / JSONB / ตารางลูก) มา trash ทีเดียว
+     → คืน array ของ url ไม่ซ้ำ */
+  function collectDriveUrls(value) {
+    const acc = new Set();
+    (function walk(v) {
+      if (!v) return;
+      if (typeof v === 'string') { if (v.includes('/drive/file/')) acc.add(v); }
+      else if (Array.isArray(v)) v.forEach(walk);
+      else if (typeof v === 'object') Object.values(v).forEach(walk);
+    })(value);
+    return [...acc];
+  }
+
+  /* รวบ url Drive จาก object/array (หลายตัวก็ได้) แล้ว trash ทั้งหมด (best-effort)
+     เช่น deleteDriveUrlsIn(placeRow, rooms, dining) → คืนจำนวนที่ trash สำเร็จ */
+  async function deleteDriveUrlsIn(...values) {
+    const urls = collectDriveUrls(values);   // values เป็น array → walk รับได้
+    let ok = 0;
+    for (const u of urls) {
+      try { if (await deleteDriveUrl(u)) ok++; } catch { /* best-effort */ }
+    }
+    return ok;
+  }
+
+  window.ImageCompressor = { compress, compressIfImage, uploadViaClient, uploadViaRest, uploadToDrive, deleteDriveUrl, collectDriveUrls, deleteDriveUrlsIn };
 })();

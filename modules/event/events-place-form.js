@@ -435,6 +435,11 @@ async function loadPlaceData() {
     }
     renderDining();
 
+    // เก็บ url รูป Drive เดิมทั้งหมด (row + ตารางลูก) เทียบตอน save → trash รูปที่ถูกลบ/แทนที่ (กัน orphan)
+    window._placeOriginalDriveUrls = window.ImageCompressor
+      ? window.ImageCompressor.collectDriveUrls([p, accom, rooms, dinings])
+      : [];
+
     // โหลดรูปตามหมวด — image_urls เก็บเป็น object {exterior:[], room:[], food:[]}
     // backward compat: ถ้าเป็น array เดิม → ใส่ใน exterior
     const imgs = p.image_urls || [];
@@ -761,6 +766,21 @@ window.savePlace = async function () {
         upsertPlaceRoomTypes(placeId, accomData),
         upsertPlaceDiningRooms(placeId, diningData),
       ]);
+    }
+
+    // trash รูปเดิมที่ถูกลบ/แทนที่ตอนแก้ไข (เทียบ original vs สถานะที่ persist จริง) — best-effort
+    if (editId && placeId && window.ImageCompressor) {
+      try {
+        const [np, nRooms, nAccom, nDining] = await Promise.all([
+          fetchPlaceById(placeId).catch(() => null),
+          fetchPlaceRooms(placeId).catch(() => []),
+          fetchPlaceRoomTypes(placeId).catch(() => []),
+          fetchPlaceDiningRooms(placeId).catch(() => []),
+        ]);
+        const finalUrls = new Set(window.ImageCompressor.collectDriveUrls([np, nRooms, nAccom, nDining]));
+        const removed = (window._placeOriginalDriveUrls || []).filter((u) => !finalUrls.has(u));
+        if (removed.length) window.ImageCompressor.deleteDriveUrlsIn(removed);
+      } catch { /* best-effort */ }
     }
 
     showToast(editId ? "บันทึกการแก้ไขแล้ว" : "บันทึกสถานที่แล้ว", "success");

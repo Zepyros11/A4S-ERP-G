@@ -2,7 +2,15 @@
    events-place-list.js — Controller for Place List page
 ============================================================ */
 
-import { fetchPlaces, removePlace, updatePlace, fetchPlaceTypes } from "./events-api.js";
+import {
+  fetchPlaces,
+  removePlace,
+  updatePlace,
+  fetchPlaceTypes,
+  fetchPlaceRooms,
+  fetchPlaceRoomTypes,
+  fetchPlaceDiningRooms,
+} from "./events-api.js";
 
 // ── STATE ──────────────────────────────────────────────────
 let allPlaces = [];
@@ -274,12 +282,26 @@ window.togglePlaceStatus = async function (placeId, btn) {
 };
 
 // ── DELETE ─────────────────────────────────────────────────
+// ลบไฟล์ Drive ของสถานที่ก่อนลบ row — รวบทุก drive url จาก place row (image_urls/cover/document_urls/
+// bank_image_urls) + ตารางลูก (rooms/accom/dining ที่มี image_urls) → trash ทีเดียว (best-effort, กู้ได้ 30 วัน)
+async function trashPlaceDriveImages(placeId, placeObj) {
+  try {
+    const [rooms, accom, dining] = await Promise.all([
+      fetchPlaceRooms(placeId).catch(() => []),
+      fetchPlaceRoomTypes(placeId).catch(() => []),
+      fetchPlaceDiningRooms(placeId).catch(() => []),
+    ]);
+    await window.ImageCompressor?.deleteDriveUrlsIn(placeObj, rooms, accom, dining);
+  } catch { /* best-effort */ }
+}
+
 window.deletePlace = function (placeId) {
   const p = allPlaces.find((pl) => pl.place_id === placeId);
   if (!p) return;
   DeleteModal.open(`ต้องการลบสถานที่ "${p.place_name}" หรือไม่?`, async () => {
     showLoading(true);
     try {
+      await trashPlaceDriveImages(placeId, p);
       await removePlace(placeId);
       showToast("ลบสถานที่แล้ว", "success");
       await loadData();
@@ -321,7 +343,10 @@ window.deleteSelectedPlaces = async function () {
     async () => {
       showLoading(true);
       try {
-        for (const id of ids) await removePlace(id);
+        for (const id of ids) {
+          await trashPlaceDriveImages(id, allPlaces.find((pl) => pl.place_id === id));
+          await removePlace(id);
+        }
         showToast("ลบที่เลือกแล้ว", "success");
         await loadData();
       } catch (err) {

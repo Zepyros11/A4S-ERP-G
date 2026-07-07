@@ -532,6 +532,8 @@ async function loadEventData() {
       : (e.poster_url ? [e.poster_url] : []);
     window._imageUrls = [...imgUrls, ...new Array(5).fill(null)].slice(0, 5);
     window._imageFiles = new Array(5).fill(null);
+    // เก็บ url รูปเดิมไว้ เทียบตอน save → trash รูปที่ถูกลบ/แทนที่ (กัน orphan บน Drive)
+    window._originalImageUrls = [...imgUrls];
     if (typeof window._renderImgGrid === "function") window._renderImgGrid();
 
     // โหลด ticket tiers
@@ -814,6 +816,13 @@ window._saveEventImpl = async function () {
       poster_url: finalUrls[0] || null,
       image_urls: finalUrls.length ? finalUrls : null,
     });
+
+    // trash รูปเดิมที่ถูกลบ/แทนที่ตอนแก้ไข (มีใน original แต่ไม่อยู่ใน final) — best-effort
+    if (editId && window.ImageCompressor) {
+      const kept = new Set(finalUrls);
+      const removed = (window._originalImageUrls || []).filter((u) => !kept.has(u));
+      if (removed.length) window.ImageCompressor.deleteDriveUrlsIn(removed);
+    }
 
     // Save ticket tiers (diff-based)
     if (savedId) await saveTicketTiers(savedId);

@@ -274,6 +274,7 @@ async function uploadToStorage(blob, ext) {
   const yyyymmdd = new Date().toISOString().slice(0, 10).replace(/-/g, "");
   const name = `sm_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
   const path = `staff-messaging/${yyyymmdd}/${name}`;
+  // คงไว้ที่ Supabase โดยตั้งใจ — รูป LINE ไม่ใหญ่ + LINE fetch URL เอง เลี่ยงปัญหา Render cold-start
   const res = await fetch(`${SB_URL}/storage/v1/object/event-files/${path}`, {
     method: "POST",
     headers: {

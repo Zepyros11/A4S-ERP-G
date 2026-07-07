@@ -813,13 +813,20 @@ window.updatePartBulk = function () {
   document.getElementById("partBulkBar").style.display = sel.length ? "flex" : "none";
   document.getElementById("partBulkCount").textContent = `${sel.length} รายการ`;
 };
+// trash ไฟล์ Drive ของ row (participant/submission) ก่อนลบ — best-effort, กู้ได้ 30 วัน
+async function _trashRowDrive(...rows) {
+  try { await window.ImageCompressor?.deleteDriveUrlsIn(...rows); } catch { /* best-effort */ }
+}
 window.bulkDeleteParts = function () {
   const ids = [...document.querySelectorAll(".part-check:checked")].map((c) => +c.value);
   if (!ids.length) return;
   DeleteModal.open(`ลบผู้เข้าร่วม ${ids.length} คน (รวมผลงาน) ?`, async () => {
     showLoading(true);
     try {
-      for (const id of ids) await sbFetch("campaign_participants", `?participant_id=eq.${id}`, { method: "DELETE" });
+      for (const id of ids) {
+        await _trashRowDrive(participants.find((x) => x.participant_id === id));
+        await sbFetch("campaign_participants", `?participant_id=eq.${id}`, { method: "DELETE" });
+      }
       showToast("ลบแล้ว", "success");
       await loadAll();
       switchTab("participants");
@@ -834,6 +841,7 @@ window.deletePart = function (id) {
   DeleteModal.open(`ลบผู้เข้าร่วม "${p ? esc(p.member_name || p.member_code) : id}" (รวมผลงาน) ?`, async () => {
     showLoading(true);
     try {
+      await _trashRowDrive(p);
       await sbFetch("campaign_participants", `?participant_id=eq.${id}`, { method: "DELETE" });
       showToast("ลบแล้ว", "success");
       await loadAll();
@@ -1299,6 +1307,7 @@ window.deleteSub = function (id) {
   DeleteModal.open("ลบผลงานนี้?", async () => {
     showLoading(true);
     try {
+      await _trashRowDrive(submissions.find((x) => x.submission_id === id));
       await sbFetch("campaign_submissions", `?submission_id=eq.${id}`, { method: "DELETE" });
       showToast("ลบแล้ว", "success");
       await loadAll();

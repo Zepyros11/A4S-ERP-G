@@ -105,6 +105,10 @@ async function initPage() {
         setTimeout(() => (location.href = LIST_URL), 1200);
         return;
       }
+      // เก็บ url รูป Drive เดิม เทียบตอน save → trash รูปที่ถูกลบ/แทนที่ (กัน orphan)
+      window._campOriginalDriveUrls = window.ImageCompressor
+        ? window.ImageCompressor.collectDriveUrls(camp)
+        : [];
       fillForm(camp);
     } catch (e) {
       showToast("โหลดข้อมูลไม่สำเร็จ: " + e.message, "error");
@@ -944,6 +948,13 @@ window.saveCampaign = async function () {
     } else {
       payload.created_by = localStorage.getItem("user_name") || localStorage.getItem("username") || null;
       await sbFetch("campaigns", "", { method: "POST", body: payload });
+    }
+
+    // trash รูปเดิมที่ถูกลบ/แทนที่ตอนแก้ไข (payload มี url ใหม่ครบ) — best-effort
+    if (editingId && window.ImageCompressor) {
+      const finalUrls = new Set(window.ImageCompressor.collectDriveUrls(payload));
+      const removed = (window._campOriginalDriveUrls || []).filter((u) => !finalUrls.has(u));
+      if (removed.length) window.ImageCompressor.deleteDriveUrlsIn(removed);
     }
 
     showToast("บันทึกแคมเปญแล้ว", "success");

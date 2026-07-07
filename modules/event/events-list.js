@@ -1068,12 +1068,20 @@ window.savePanelEvent = async function () {
   showLoading(false);
 };
 
+// ลบไฟล์ Drive ของ event (poster/gallery/ทุก drive url ใน row) ก่อนลบ row — กัน orphan (trash กู้ได้ 30 วัน)
+// best-effort: ถ้า trash ไม่ได้ ไม่ควรบล็อกการลบ event
+async function trashEventDriveImages(e) {
+  if (!e) return;
+  try { await window.ImageCompressor?.deleteDriveUrlsIn(e); } catch { /* best-effort */ }
+}
+
 window.deleteEvent = function (eventId) {
   const e = allEvents.find((ev) => ev.event_id === eventId);
   if (!e) return;
   DeleteModal.open(`ต้องการลบกิจกรรม "${e.event_name}" หรือไม่?`, async () => {
     showLoading(true);
     try {
+      await trashEventDriveImages(e);
       await removeEvent(eventId);
       showToast("ลบกิจกรรมแล้ว", "success");
       await loadData();
@@ -1111,7 +1119,10 @@ window.deleteSelectedEvents = async function () {
     async () => {
       showLoading(true);
       try {
-        for (const id of ids) await removeEvent(id);
+        for (const id of ids) {
+          await trashEventDriveImages(allEvents.find((ev) => ev.event_id === id));
+          await removeEvent(id);
+        }
         showToast("ลบกิจกรรมที่เลือกแล้ว", "success");
         await loadData();
         if (ids.includes(window._panelEventId)) window.closeEventPanel();

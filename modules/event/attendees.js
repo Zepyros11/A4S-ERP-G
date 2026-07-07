@@ -3037,12 +3037,17 @@ async function _patchAttendee(id, patch) {
 }
 
 // ── DELETE ────────────────────────────────────────────────
+// trash ไฟล์ Drive ของผู้เข้าร่วม (slip) ก่อนลบ — QR อยู่ Supabase (deterministic) จะถูกข้าม (Phase 2b)
+async function _trashAttendeeDrive(a) {
+  try { await window.ImageCompressor?.deleteDriveUrlsIn(a); } catch { /* best-effort */ }
+}
 window.deleteAttendee = function (id) {
   const a = allAttendees.find((x) => x.attendee_id === id);
   if (!a) return;
   DeleteModal.open(`ต้องการลบ "${a.name}" ออกจากรายชื่อหรือไม่?`, async () => {
     showLoading(true);
     try {
+      await _trashAttendeeDrive(a);
       await removeAttendee(id);
       showToast("ลบผู้เข้าร่วมแล้ว", "success");
       allAttendees = await fetchAttendees(currentEventId);
@@ -3119,6 +3124,7 @@ window.bulkDeleteSelected = function () {
   DeleteModal.open(`ต้องการลบ ${ids.length} คน ออกจากรายชื่อหรือไม่?\n${preview}`, async () => {
     showLoading(true);
     try {
+      await Promise.all(ids.map((id) => _trashAttendeeDrive(allAttendees.find((a) => a.attendee_id === id))));
       await Promise.all(ids.map((id) => removeAttendee(id)));
       selectedAttendeeIds.clear();
       showToast(`ลบผู้เข้าร่วม ${ids.length} คน แล้ว`, "success");
