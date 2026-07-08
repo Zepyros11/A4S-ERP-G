@@ -95,8 +95,32 @@ export async function upsertBills(records) {
   return _batchUpsert('daily_sale_bills', records, 'bill_no', 500);
 }
 
+/* Fetch bill_no's whose payment CS has manually corrected in ERP.
+   Queried in slices of 200 so the in.(...) list stays a reasonable URL length. */
+async function fetchCorrectedBillNos(billNos) {
+  const set = new Set();
+  const uniq = [...new Set((billNos || []).filter(Boolean))];
+  for (let i = 0; i < uniq.length; i += 200) {
+    const inList = uniq.slice(i, i + 200).map(b => `"${b}"`).join(',');
+    const rows = await _request(
+      `daily_sale_payments?corrected=eq.true&bill_no=in.(${inList})&select=bill_no`
+    );
+    (rows || []).forEach(r => set.add(r.bill_no));
+  }
+  return set;
+}
+
 export async function upsertPayments(records) {
-  return _batchUpsert('daily_sale_payments', records, 'bill_no', 500);
+  if (!records?.length) return { inserted: 0, failed: 0, skipped: 0 };
+  // Guard: never overwrite payment rows CS has corrected in ERP (migration 025).
+  // answerforsuccess channels are the "raw/wrong" values; corrected=true means
+  // the ERP row is the source of truth — sync must leave its channels untouched.
+  const skip = await fetchCorrectedBillNos(records.map(r => r.bill_no));
+  const fresh = skip.size ? records.filter(r => !skip.has(r.bill_no)) : records;
+  const skipped = records.length - fresh.length;
+  if (skipped) console.log(`   🔒 payments: skipped ${skipped} corrected bill(s) (kept ERP values)`);
+  const res = await _batchUpsert('daily_sale_payments', fresh, 'bill_no', 500);
+  return { ...res, skipped };
 }
 
 export async function upsertTopupBills(records) {
