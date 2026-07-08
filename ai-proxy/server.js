@@ -2135,6 +2135,78 @@ app.post('/cron/line-promote', async (req, res) => {
 });
 
 /* ══════════════════════════════════════════════════════════
+   POST /cron/prune-qr — ลบ QR code ของ event ที่จบเกิน GRACE วัน (default 30)
+   QR (event-files/qr_{eventId}_*.png) ใช้แค่ช่วงเช็คอิน · หลังงานจบไร้ประโยชน์
+   ลบเพื่อประหยัดพื้นที่ Supabase · ปลอดภัยเพราะ getStyledQrUrl regenerate ให้เองถ้าต้องใช้อีก
+   one-pass: list qr_* ที่ root ครั้งเดียว → filter เฉพาะ event ที่จบ → bulk delete
+   ?dry=1 (หรือ body.dry=true) = รายงานอย่างเดียว ไม่ลบ
+   ══════════════════════════════════════════════════════════ */
+const QR_PRUNE_GRACE_DAYS = parseInt(process.env.QR_PRUNE_GRACE_DAYS || '30', 10);
+app.post('/cron/prune-qr', async (req, res) => {
+  if (CRON_SECRET) {
+    const got = req.get('x-cron-secret') || (req.body && req.body.secret) || '';
+    if (got !== CRON_SECRET) return res.status(401).json({ error: 'unauthorized' });
+  }
+  if (!SB_URL_WEBHOOK || !SB_SERVICE_KEY) {
+    return res.status(503).json({ error: 'SB_URL/SB_SERVICE_KEY not configured' });
+  }
+  const dry = req.query.dry === '1' || (req.body && req.body.dry === true);
+  const BUCKET = 'event-files';
+  const H = { apikey: SB_SERVICE_KEY, Authorization: `Bearer ${SB_SERVICE_KEY}` };
+  const cutoff = new Date(Date.now() - QR_PRUNE_GRACE_DAYS * 86400000).toISOString().slice(0, 10);
+
+  try {
+    // 1) event ที่จบเกิน grace: COALESCE(end_date, event_date) < cutoff
+    const events = await _sbGet(
+      'events',
+      `select=event_id&or=(end_date.lt.${cutoff},and(end_date.is.null,event_date.lt.${cutoff}))&limit=10000`,
+    );
+    const pruneIds = new Set((events || []).map((e) => e.event_id));
+    if (!pruneIds.size) {
+      return res.json({ ok: true, dry, grace_days: QR_PRUNE_GRACE_DAYS, cutoff, events_matched: 0, files_deleted: 0 });
+    }
+
+    // 2) list qr_* ที่ root ครั้งเดียว (paginate) → parse eventId
+    const toDelete = [];
+    for (let offset = 0; ; offset += 1000) {
+      const lr = await fetch(`${SB_URL_WEBHOOK}/storage/v1/object/list/${BUCKET}`, {
+        method: 'POST',
+        headers: { ...H, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prefix: '', limit: 1000, offset, sortBy: { column: 'name', order: 'asc' } }),
+      });
+      if (!lr.ok) { console.warn('[cron prune-qr] list', lr.status); break; }
+      const batch = await lr.json().catch(() => []);
+      for (const o of (batch || [])) {
+        if (!o.id || !o.name || !o.name.startsWith('qr_')) continue;   // o.id null = folder placeholder
+        const m = o.name.match(/^qr_(\d+)_/);
+        if (m && pruneIds.has(Number(m[1]))) toDelete.push(o.name);
+      }
+      if (!batch || batch.length < 1000) break;
+    }
+
+    // 3) bulk delete (ชุดละ 100)
+    if (!dry) {
+      for (let i = 0; i < toDelete.length; i += 100) {
+        await fetch(`${SB_URL_WEBHOOK}/storage/v1/object/${BUCKET}`, {
+          method: 'DELETE',
+          headers: { ...H, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prefixes: toDelete.slice(i, i + 100) }),
+        }).catch((e) => console.warn('[cron prune-qr] delete', e.message));
+      }
+    }
+
+    console.log(`[cron prune-qr] ${dry ? 'DRY ' : ''}events=${pruneIds.size} files=${toDelete.length} (grace ${QR_PRUNE_GRACE_DAYS}d cutoff ${cutoff})`);
+    return res.json({
+      ok: true, dry, grace_days: QR_PRUNE_GRACE_DAYS, cutoff,
+      events_matched: pruneIds.size, files_deleted: dry ? 0 : toDelete.length, files_matched: toDelete.length,
+    });
+  } catch (e) {
+    console.error('[cron prune-qr]', e.message);
+    return res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+/* ══════════════════════════════════════════════════════════
    IBD: instant notification when a new submission arrives
    ──────────────────────────────────────────────────────────
    POST /ibd/notify
@@ -2263,6 +2335,7 @@ app.listen(PORT, () => {
   console.log(`  → http://localhost:${PORT}/line/webhook     (LINE webhook ${LINE_CHANNEL_SECRET ? '✅' : '❌ no secret'})`);
   console.log(`  → http://localhost:${PORT}/cron/notifications (Scheduled LINE — every 15 min)${CRON_SECRET ? ' 🔒' : ''}`);
   console.log(`  → http://localhost:${PORT}/cron/line-promote  (LINE Promote scheduler — every 15 min)${CRON_SECRET ? ' 🔒' : ''}`);
+  console.log(`  → http://localhost:${PORT}/cron/prune-qr      (ลบ QR event จบเกิน ${QR_PRUNE_GRACE_DAYS} วัน — daily)${CRON_SECRET ? ' 🔒' : ''}`);
   if (SB_URL_WEBHOOK && SB_SERVICE_KEY) {
     console.log(`  ✅ Webhook + cron will update Supabase`);
   } else {
