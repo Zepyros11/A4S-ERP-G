@@ -15,6 +15,18 @@ on:
         description: 'Days back for date range (default 1 = yesterday→today)'
         type: string
         default: '1'
+      date_from:
+        description: 'Backfill start YYYY-MM-DD (overrides days_back; use with date_to)'
+        type: string
+        default: ''
+      date_to:
+        description: 'Backfill end YYYY-MM-DD (use with date_from)'
+        type: string
+        default: ''
+      backfill:
+        description: 'Historical backfill — tag rows business_date=sale_date (not pending)'
+        type: boolean
+        default: false
 
 concurrency:
   group: sync-daily-sale
@@ -23,7 +35,7 @@ concurrency:
 jobs:
   sync:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 120  # generous headroom for multi-month historical backfill
     defaults:
       run:
         working-directory: scripts
@@ -51,6 +63,9 @@ jobs:
           MASTER_KEY: ${{ secrets.MASTER_KEY }}
           FORCE: ${{ inputs.force }}
           DAYS_BACK: ${{ inputs.days_back || '1' }}
+          DATE_FROM: ${{ inputs.date_from }}
+          DATE_TO: ${{ inputs.date_to }}
+          BACKFILL: ${{ inputs.backfill }}
         run: npm run sync:daily
 
       - name: 📸 Upload debug screenshots (on failure)
