@@ -10,7 +10,7 @@ window.APP_CONFIG = {
      DRIVE_KEY = gate กัน bot อัปมั่ว (exposure ระดับเดียวกับ anon key ด้านบน) */
   DRIVE_PROXY: "https://a4s-erp-proxy.onrender.com",
   DRIVE_KEY: "e8a34e421ad649830e5da29bff37b9e2ec729c4e252ab337",
-  DRIVE_BUCKETS: "product-images,event-files,tour-seat-images",
+  DRIVE_BUCKETS: "product-images,event-files,tour-seat-images,promotion-files",
 };
 
 /* sync ลง localStorage เพื่อให้ทุกหน้าอ่านได้เหมือนเดิม */

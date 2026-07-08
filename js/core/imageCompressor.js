@@ -92,7 +92,7 @@
      กัน session เก่า/เครื่องที่ไม่ได้ตั้ง flag อัปไม่ได้หลังลบ bucket (config.js เติม flag ให้ตอน login อยู่แล้ว
      ตัวนี้เป็น safety net · key = exposure ระดับเดียวกับ anon key ใน config.js) */
   const _ALWAYS_DRIVE = {
-    buckets: ['product-images', 'tour-seat-images'],
+    buckets: ['product-images', 'tour-seat-images', 'promotion-files'],
     proxy: 'https://a4s-erp-proxy.onrender.com',
     key: 'e8a34e421ad649830e5da29bff37b9e2ec729c4e252ab337',
   };

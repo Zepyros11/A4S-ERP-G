@@ -92,7 +92,7 @@ function toISODate(v) {
 }
 
 const clean = v => { const s = (v == null ? '' : String(v)).trim(); return s === '' ? null : s; };
-const chan = billNo => (billNo && billNo.startsWith('STHONLIN')) ? 'Online' : 'Branch';
+const chan = billNo => (billNo && billNo.includes('ONLIN')) ? 'Online' : 'Branch';  // STHONLIN / ETHONLIN
 
 function findFile(keyword) {
   const f = readdirSync(DATA_DIR).find(n => n.toLowerCase().includes(keyword.toLowerCase()) && n.toLowerCase().endsWith('.csv'));
@@ -117,7 +117,9 @@ function parseDailySale(path) {
     const saleDate = toISODate(r[0]);
     const billNo = clean(r[2]);
     if (!saleDate || !billNo) { skipped++; continue; }
-    const branch = clean(r[18]) || 'BKK01';
+    // branch col is uniformly BKK01 in this export (the daily CS ledger is HQ);
+    // normalize defensively so stray case variants never spawn duplicate branches.
+    const branch = (clean(r[18]) || 'BKK01').toUpperCase();
     const cash = num(r[5]), fo = num(r[6]), online = num(r[7]);
     const kbank = num(r[8]), ktb = num(r[9]), ewallet = num(r[10]);
     const gift = num(r[11]), qr = num(r[12]), comm = num(r[13]), arp = num(r[14]);
@@ -129,6 +131,7 @@ function parseDailySale(path) {
       bill_no: billNo, sale_date: saleDate, business_date: saleDate,
       member_code: clean(r[3]), member_name: clean(r[4]),
       amount: num(r[15]), branch, channel: chan(billNo),
+      bill_type: clean(r[19]),   // TYPE: Dailysale / ARP / EWALLET — keeps ETH distinguishable
       recorded_by: clean(r[16]), notes: clean(r[17]), source_file: SOURCE_FILE,
     });
     pays.set(billNo, {
@@ -155,7 +158,10 @@ function parseBillonline(path) {
     const saleDate = toISODate(r[0]);
     const billNo = clean(r[2]);
     if (!saleDate || !billNo) { skipped++; continue; }
-    const branch = clean(r[10]) || 'BKK01';
+    // col10 (สาขา) here is the customer pickup point (NB/DP/…), NOT the selling
+    // branch — the selling branch is BKK01 (see DailySale). Pickup detail already
+    // lives in the note ("รับเอง …"), so force BKK01 and don't corrupt branch.
+    const branch = 'BKK01';
     const online = num(r[5]), ewallet = num(r[6]), qr = num(r[7]);
     const comm = num(r[8]), arp = num(r[9]);
     const amount = online + ewallet + qr;
@@ -164,7 +170,7 @@ function parseBillonline(path) {
     bills.set(billNo, {
       bill_no: billNo, sale_date: saleDate, business_date: saleDate,
       member_code: clean(r[3]), member_name: clean(r[4]),
-      amount, branch, channel: 'Online',
+      amount, branch, channel: 'Online', bill_type: null,
       recorded_by: null, notes: clean(r[12]), source_file: SOURCE_FILE,
     });
     pays.set(billNo, {
@@ -181,8 +187,11 @@ function parseBillonline(path) {
 }
 
 // CheckBill_DATA columns:
-// 0 วันที่ 1 จำนวนบิล(ระบบ) 2 มูลค่า(ระบบ) 3 คงเหลือ 4 จำนวนบิล(นับจริง) 5 มูลค่า(นับจริง)
+// 0 วันที่ 1 จำนวนบิล(นับจริง) 2 มูลค่า(นับจริง) 3 คงเหลือ 4 จำนวนบิล(ระบบ) 5 มูลค่า(ระบบ)
 // 6 ผลต่าง(generated,skip) 7 SIGNATURE 8 หมายเหตุ
+// NOTE: first pair = bill (source of truth / counted), second pair = system.
+//   Verified against the sheet's own ผลต่าง sign: diff = bill_value - system_value
+//   e.g. 12/7 → 61,040 - 74,440 = -13,400, matching the sheet's "-13,400".
 function parseCheckBill(path) {
   const recs = new Map();
   let skipped = 0;
@@ -192,9 +201,9 @@ function parseCheckBill(path) {
     const branch = 'BKK01';
     recs.set(`${d}|${branch}`, {
       reconcile_date: d, branch,
-      system_count: Math.round(num(r[1])), system_value: num(r[2]),
+      bill_count: Math.round(num(r[1])), bill_value: num(r[2]),
       remaining: num(r[3]),
-      bill_count: Math.round(num(r[4])), bill_value: num(r[5]),
+      system_count: Math.round(num(r[4])), system_value: num(r[5]),
       signature: clean(r[7]), notes: clean(r[8]),
     });
   }
@@ -216,6 +225,22 @@ async function req(path, { method = 'GET', body, headers = {} } = {}) {
   if (!res.ok) throw new Error(`${method} ${path} → ${res.status}: ${(await res.text()).slice(0, 400)}`);
   const t = await res.text();
   return t ? (() => { try { return JSON.parse(t); } catch { return null; } })() : null;
+}
+
+// Confirm required migrations (021 qr/comm/arp · 023 business_date · 025 corrected)
+// are live before writing — a missing column would fail every batch.
+async function preflight() {
+  const checks = [
+    ['daily_sale_payments', 'bill_no,corrected,qr_payment,commission_deduct,arp_amount', '025 (+021)'],
+    ['daily_sale_bills', 'bill_no,business_date,bill_type', '023'],
+    ['daily_sale_reconcile', 'reconcile_date,bill_count,system_count', '020'],
+  ];
+  for (const [table, cols, mig] of checks) {
+    try { await req(`${table}?select=${cols}&limit=1`); }
+    catch (e) {
+      throw new Error(`preflight failed on ${table} (${e.message.slice(0, 120)})\n   → run migration ${mig} in Supabase first.`);
+    }
+  }
 }
 
 async function ensureBranches(codes) {
@@ -258,11 +283,18 @@ async function main() {
   const bo = parseBillonline(boPath);
   const cb = parseCheckBill(cbPath);
 
-  // Merge bills + payments (Billonline overrides DailySale on shared STHONLIN bills)
+  // Merge: DailySale is the authoritative daily ledger (it already contains
+  // nearly all online bills). Billonline only ADDS bills DailySale is missing
+  // and enriches an empty note with its pickup detail — it never overrides
+  // DailySale's corrected channel/amount.
   const bills = new Map(ds.bills);
-  for (const [k, v] of bo.bills) bills.set(k, v);
+  let boAdded = 0, boEnriched = 0;
+  for (const [k, v] of bo.bills) {
+    if (!bills.has(k)) { bills.set(k, v); boAdded++; }
+    else if (!bills.get(k).notes && v.notes) { bills.get(k).notes = v.notes; boEnriched++; }
+  }
   const pays = new Map(ds.pays);
-  for (const [k, v] of bo.pays) pays.set(k, v);
+  for (const [k, v] of bo.pays) if (!pays.has(k)) pays.set(k, v);
 
   const billArr = [...bills.values()];
   const payArr = [...pays.values()];
@@ -275,7 +307,7 @@ async function main() {
   console.log(`  DailySale : ${ds.bills.size} bills (skipped ${ds.skipped} non-data rows)`);
   console.log(`  Billonline: ${bo.bills.size} bills (skipped ${bo.skipped})`);
   console.log(`  CheckBill : ${cb.recs.size} reconcile rows (skipped ${cb.skipped})`);
-  console.log(`  → merged  : ${billArr.length} unique bills · ${payArr.length} payments`);
+  console.log(`  → merged  : ${billArr.length} unique bills · ${payArr.length} payments (Billonline added ${boAdded}, enriched ${boEnriched} notes)`);
   console.log(`  date range: ${dates[0]} … ${dates[dates.length - 1]}`);
   console.log(`  branches  : ${branchCodes.join(', ')}`);
 
@@ -283,7 +315,7 @@ async function main() {
   let mismatch = 0;
   const sampleMis = [];
   for (const p of payArr) {
-    const parts = p.cash + p.transfer + p.credit_card + p.ewallet + p.gift_voucher + p.qr_payment;
+    const parts = p.cash + p.transfer + p.credit_card + p.ewallet + p.gift_voucher + p.qr_payment + p.arp_amount + p.commission_deduct;
     if (Math.abs(parts - p.amount) > 0.5) {
       mismatch++;
       if (sampleMis.length < 8) sampleMis.push(`${p.bill_no}: amount=${p.amount} parts=${parts}`);
@@ -302,6 +334,10 @@ async function main() {
   console.log('\n── Sample reconcile (first 3) ──');
   recArr.slice(0, 3).forEach(r =>
     console.log(`  ${r.reconcile_date} | system ${r.system_count}฿${r.system_value} | counted ${r.bill_count}฿${r.bill_value} | remain ${r.remaining} | sig ${r.signature || '-'}`));
+
+  console.log('\n── Preflight (required migrations live?) ──');
+  await preflight();
+  console.log('  ✓ daily_sale_payments.corrected/qr/comm/arp · bills.business_date/bill_type · reconcile ready');
 
   if (DRY_RUN) { console.log('\n✅ DRY RUN done — no data written. Remove DRY_RUN=1 to import.\n'); return; }
 

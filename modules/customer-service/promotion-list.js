@@ -257,6 +257,11 @@ window.deletePoster = function (id) {
       message: "ยืนยันลบโปสเตอร์นี้?",
       onConfirm: async () => {
         try {
+          // trash ไฟล์ Drive ของโปสเตอร์ก่อนลบ row (best-effort · ข้าม Supabase url เอง)
+          const promo = allPromotions.find((p) => p.promotion_id === id);
+          if (promo?.poster_url) {
+            try { await window.ImageCompressor?.deleteDriveUrl(promo.poster_url); } catch {}
+          }
           await removePromotion(id);
           allPromotions = allPromotions.filter((p) => p.promotion_id !== id);
           renderCategoryChips();
