@@ -81,10 +81,11 @@
                   <th class="ds-num">Gift</th>
                   <th>วิธีชำระ</th>
                   <th>สาขา</th>
+                  <th></th>
                 </tr>
               </thead>
               <tbody id="dsSaleBody">
-                <tr><td colspan="11" class="ds-table-empty">กำลังโหลด...</td></tr>
+                <tr><td colspan="12" class="ds-table-empty">กำลังโหลด...</td></tr>
               </tbody>
             </table>
           </div>
@@ -223,6 +224,41 @@
       <a id="spGhLink" href="#" target="_blank" style="color:var(--accent);font-size:11.5px;font-weight:600">📂 GitHub Actions</a>
       <button onclick="dsCloseSyncProgress()" style="padding:7px 16px;border:none;border-radius:16px;background:linear-gradient(135deg,var(--accent),var(--accent-light));color:#fff;font-size:12px;font-weight:600;cursor:pointer">ปิด</button>
     </div>
+<!-- ── Edit Channel Modal (แก้ช่องทางชำระต่อบิล) — form modal, no backdrop close ── -->
+<div class="modal-overlay" id="dsEditOverlay">
+  <div class="modal v-sage-header" onclick="event.stopPropagation()" style="max-width:560px">
+    <div class="modal-hdr">
+      <div class="modal-title">✏️ แก้ช่องทางชำระ</div>
+      <button class="btn-modal-close" onclick="dsEditClose()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="ds-edit-meta">
+        <div><span class="k">เลขบิล</span><span class="v ds-bill-no" id="dsEditBillNo">—</span></div>
+        <div><span class="k">สมาชิก</span><span class="v" id="dsEditMember">—</span></div>
+        <div><span class="k">ยอดบิล</span><span class="v" id="dsEditAmount">—</span> THB</div>
+      </div>
+      <input type="hidden" id="dsEditAmountRaw" />
+
+      <div class="ds-edit-grid" id="dsEditGrid"></div>
+
+      <div class="ds-edit-sumcheck ok" id="dsEditSumCheck"></div>
+
+      <div class="ds-edit-field" style="margin-top:12px">
+        <label>วิธีชำระ / ธนาคาร (เช่น ธนาคาร กสิกรไทย, KTB)</label>
+        <input type="text" id="dsEditMethod" class="form-control" placeholder="ระบุธนาคาร/ช่องทาง (ไม่บังคับ)" />
+      </div>
+      <div class="ds-edit-field" style="margin-top:10px">
+        <label>หมายเหตุการแก้ไข</label>
+        <input type="text" id="dsEditNotes" class="form-control" placeholder="เหตุผลที่แก้ (ไม่บังคับ)" />
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="dsEditClose()">ยกเลิก</button>
+      <button class="btn btn-primary" onclick="dsEditSave()">💾 บันทึก</button>
+    </div>
+  </div>
+</div>
+
 <script src="../../js/core/auth.js"></script>
 <script src="../../js/core/authz.js"></script>
 <script src="../../js/core/crypto.js"></script>

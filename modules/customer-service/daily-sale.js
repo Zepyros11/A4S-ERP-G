@@ -169,15 +169,17 @@ async function loadKPI() {
    ============================================================ */
 async function loadSale() {
   const body = $('dsSaleBody');
-  body.innerHTML = `<tr><td colspan="11" class="ds-table-empty">กำลังโหลด...</td></tr>`;
+  const canEdit = window.hasPerm ? hasPerm('daily_sale_reconcile') : true;
+  body.innerHTML = `<tr><td colspan="12" class="ds-table-empty">กำลังโหลด...</td></tr>`;
   try {
     const branchFilter = state.branch ? `&branch=eq.${state.branch}` : '';
     const bills = await sbGet(
       `daily_sale_bills?${dateFilter()}${branchFilter}&order=sale_datetime.desc&limit=1000`
     );
     if (!bills.length) {
-      body.innerHTML = `<tr><td colspan="11" class="ds-table-empty">ไม่มีบิลในวันนี้</td></tr>`;
+      body.innerHTML = `<tr><td colspan="12" class="ds-table-empty">ไม่มีบิลในวันนี้</td></tr>`;
       $('dsSaleSummary').style.display = 'none';
+      state.sale = {};
       return;
     }
 
@@ -186,11 +188,15 @@ async function loadSale() {
     const payments = await sbGet(`daily_sale_payments?bill_no=in.(${billNos})&select=*`);
     const pMap = Object.fromEntries(payments.map(p => [p.bill_no, p]));
 
+    // Cache bill+payment together so the edit modal can read them without refetch
+    state.sale = {};
+
     const rows = [];
     let sumAmount = 0, sumCash = 0, sumTransfer = 0, sumCredit = 0, sumEwallet = 0, sumGift = 0;
 
     for (const b of bills) {
       const p = pMap[b.bill_no] || {};
+      state.sale[b.bill_no] = { bill: b, payment: p };
       sumAmount += Number(b.amount || 0);
       sumCash += Number(p.cash || 0);
       sumTransfer += Number(p.transfer || 0);
@@ -198,9 +204,16 @@ async function loadSale() {
       sumEwallet += Number(p.ewallet || 0);
       sumGift += Number(p.gift_voucher || 0);
 
+      const correctedBadge = p.corrected
+        ? ` <span class="ds-corrected-badge" title="ช่องทางชำระถูกแก้ใน ERP — sync จะไม่เขียนทับ">✏️ แก้แล้ว</span>`
+        : '';
+      const editBtn = canEdit
+        ? `<button class="ds-edit-btn" title="แก้ช่องทางชำระ" onclick="dsEditOpen('${b.bill_no}')">✏️</button>`
+        : '';
+
       rows.push(`
-        <tr>
-          <td><span class="ds-bill-no">${b.bill_no}</span></td>
+        <tr${p.corrected ? ' class="ds-row-corrected"' : ''}>
+          <td><span class="ds-bill-no">${b.bill_no}</span>${correctedBadge}</td>
           <td>${b.member_code || ''} · ${(b.member_name || '').slice(0, 28)}</td>
           <td><span class="ds-badge sale">${b.bill_type || '—'}</span></td>
           <td class="ds-num">${fmt(b.amount)}</td>
@@ -211,6 +224,7 @@ async function loadSale() {
           <td class="ds-num">${fmt(p.gift_voucher)}</td>
           <td style="font-size:11.5px">${p.payment_method || '—'}</td>
           <td>${b.branch || '—'}</td>
+          <td class="ds-edit-cell">${editBtn}</td>
         </tr>
       `);
     }
@@ -225,8 +239,109 @@ async function loadSale() {
     $('dsSumGift').textContent = fmt(sumGift);
     $('dsSaleSummary').style.display = 'flex';
   } catch (e) {
-    body.innerHTML = `<tr><td colspan="11" class="ds-table-empty">❌ ${e.message}</td></tr>`;
+    body.innerHTML = `<tr><td colspan="12" class="ds-table-empty">❌ ${e.message}</td></tr>`;
   }
+}
+
+/* ============================================================
+   EDIT CHANNEL — แก้ช่องทางชำระต่อบิล (Forward: ERP = source of truth)
+   ============================================================ */
+const DS_EDIT_FIELDS = [
+  { key: 'cash',              label: 'เงินสด' },
+  { key: 'transfer',          label: 'เงินโอน' },
+  { key: 'credit_card',       label: 'บัตรเครดิต' },
+  { key: 'ewallet',           label: 'E-Wallet' },
+  { key: 'gift_voucher',      label: 'Gift Voucher' },
+  { key: 'qr_payment',        label: 'QR Payment' },
+  { key: 'commission_deduct', label: 'หักค่าคอม' },
+  { key: 'arp_amount',        label: 'ARP' },
+];
+
+let _dsEditBillNo = null;
+
+function dsEditOpen(billNo) {
+  const rec = state.sale?.[billNo];
+  if (!rec) { toast('ไม่พบข้อมูลบิล', 'error'); return; }
+  _dsEditBillNo = billNo;
+  const { bill, payment } = rec;
+
+  $('dsEditBillNo').textContent = billNo;
+  $('dsEditMember').textContent = `${bill.member_code || ''} · ${bill.member_name || '—'}`;
+  $('dsEditAmount').textContent = fmt(bill.amount);
+  $('dsEditAmountRaw').value = Number(bill.amount || 0);
+
+  const grid = $('dsEditGrid');
+  grid.innerHTML = DS_EDIT_FIELDS.map(f => `
+    <div class="ds-edit-field">
+      <label>${f.label}</label>
+      <input type="number" step="0.01" id="dsEdit_${f.key}"
+             value="${Number(payment[f.key] || 0)}" oninput="dsEditRecalc()" />
+    </div>
+  `).join('');
+
+  $('dsEditMethod').value = payment.payment_method || '';
+  $('dsEditNotes').value = payment.correction_notes || '';
+  $('dsEditOverlay').classList.add('open');
+  dsEditRecalc();
+}
+
+function dsEditClose() {
+  $('dsEditOverlay').classList.remove('open');
+  _dsEditBillNo = null;
+}
+
+// Live compare: sum of channels vs bill amount (soft warning, doesn't block save)
+function dsEditRecalc() {
+  let sum = 0;
+  for (const f of DS_EDIT_FIELDS) {
+    // หักค่าคอม เป็นยอด "หัก" — ไม่นับรวมเป็นเงินรับ
+    if (f.key === 'commission_deduct') continue;
+    sum += Number($(`dsEdit_${f.key}`)?.value || 0);
+  }
+  const amount = Number($('dsEditAmountRaw').value || 0);
+  const diff = sum - amount;
+  const el = $('dsEditSumCheck');
+  if (Math.abs(diff) < 0.005) {
+    el.className = 'ds-edit-sumcheck ok';
+    el.textContent = `✓ รวมช่องทาง ${fmt(sum)} = ยอดบิล`;
+  } else {
+    el.className = 'ds-edit-sumcheck warn';
+    el.innerHTML = `⚠️ รวมช่องทาง <b>${fmt(sum)}</b> · ยอดบิล <b>${fmt(amount)}</b> · ต่าง <b>${fmt(diff)}</b>`;
+  }
+}
+
+async function dsEditSave() {
+  if (!_dsEditBillNo) return;
+  const billNo = _dsEditBillNo;
+  const rec = state.sale?.[billNo];
+  const record = {
+    bill_no: billNo,
+    sale_date: rec?.bill?.sale_date || todayIso(),
+    amount: Number($('dsEditAmountRaw').value || 0),
+    payment_method: $('dsEditMethod').value.trim() || null,
+    correction_notes: $('dsEditNotes').value.trim() || null,
+    corrected: true,
+    corrected_by: window.ERP_USER?.user_id || 'unknown',
+    corrected_at: new Date().toISOString(),
+  };
+  for (const f of DS_EDIT_FIELDS) {
+    record[f.key] = Number($(`dsEdit_${f.key}`)?.value || 0);
+  }
+
+  showLoading(true);
+  try {
+    await sbPost(
+      'daily_sale_payments?on_conflict=bill_no',
+      [record],
+      'resolution=merge-duplicates,return=minimal'
+    );
+    dsEditClose();
+    toast('บันทึกช่องทางชำระแล้ว · sync จะไม่เขียนทับบิลนี้', 'success');
+    await Promise.all([loadSale(), loadKPI()]);
+  } catch (e) {
+    toast('บันทึกล้มเหลว: ' + e.message, 'error');
+  }
+  showLoading(false);
 }
 
 /* ============================================================
@@ -558,5 +673,9 @@ window.dsRecPrefill = dsRecPrefill;
 window.dsRecSave = dsRecSave;
 window.dsRecOpen = dsRecOpen;
 window.dsConfirmResolve = dsConfirmResolve;
+window.dsEditOpen = dsEditOpen;
+window.dsEditClose = dsEditClose;
+window.dsEditRecalc = dsEditRecalc;
+window.dsEditSave = dsEditSave;
 
 document.addEventListener('DOMContentLoaded', init);

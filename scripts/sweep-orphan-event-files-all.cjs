@@ -32,6 +32,8 @@ const DRY_RUN = process.env.DRY_RUN === '1';
 
 const BUCKET = 'event-files';
 const MARKER = `/storage/v1/object/public/${BUCKET}/`;
+// ONLY_PREFIX = จำกัดลบเฉพาะ top-prefix เดียว (เช่น "posters") · ว่าง = ทุก prefix
+const ONLY_PREFIX = (process.env.ONLY_PREFIX || '').replace(/\/+$/, '');
 // ทุกตารางที่อาจอ้าง URL event-files (select=* → collect ทุกคอลัมน์)
 const REF_TABLES = [
   'event_attendees', 'room_booking_attendees', 'event_suppliers', 'event_logs',
@@ -125,6 +127,7 @@ async function main() {
     byPrefix[pfx] ||= { del: 0, delBytes: 0, keep: 0, qr: 0, excl: 0 };
     if (base.startsWith('qr_')) { qrCount++; byPrefix[pfx].qr++; continue; }        // protect QR
     if (EXCLUDE_PREFIXES.has(top)) { excluded++; byPrefix[pfx].excl++; continue; }  // ห้ามแตะ
+    if (ONLY_PREFIX && top !== ONLY_PREFIX) { byPrefix[pfx].excl++; continue; }     // scope เฉพาะ prefix
     const url = `${SB_URL}${MARKER}${f.path}`;
     if (referenced.has(url)) { keepRef++; byPrefix[pfx].keep++; continue; }          // ยังอ้างอยู่
     orphans.push(f.path); orphanBytes += f.size;
