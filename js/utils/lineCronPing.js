@@ -15,6 +15,20 @@
   const STARTUP_DELAY_MS = 5 * 1000;        // wait 5s after page load (don't slow first paint)
   const LAST_PING_KEY    = "lp_last_cron_ping_at";
   const MIN_GAP_MS       = 4 * 60 * 1000;   // never ping more than once per 4 min per browser
+  const QR_PRUNE_KEY     = "qr_prune_last_at";
+  const QR_PRUNE_GAP_MS  = 24 * 60 * 60 * 1000;  // prune-qr วันละครั้ง (ต่อ browser · idempotent = ยิงซ้ำไม่เสียหาย)
+
+  /* QR housekeeping — ลบ QR ของ event ที่จบเกิน grace (server กำหนด 30 วัน)
+     piggyback บน user activity เหมือน line-promote (ไม่มี scheduler ภายนอก) · ไม่เร่งด่วน = วันละครั้งพอ */
+  function maybePruneQr(proxy) {
+    const last = parseInt(localStorage.getItem(QR_PRUNE_KEY) || "0", 10);
+    if (Date.now() - last < QR_PRUNE_GAP_MS) return;
+    localStorage.setItem(QR_PRUNE_KEY, String(Date.now()));
+    fetch(`${proxy}/cron/prune-qr`, { method: "POST", headers: { "Content-Type": "application/json" } })
+      .then((r) => r.json().catch(() => ({})))
+      .then((d) => { if (d && d.files_deleted != null) console.log(`[prune-qr] ลบ QR ${d.files_deleted} ไฟล์ (grace ${d.grace_days}d)`); })
+      .catch((e) => console.warn("[prune-qr] ping failed:", e.message));
+  }
 
   function getProxyBase() {
     return (localStorage.getItem("erp_proxy_url") || "").replace(/\/+$/, "");
@@ -35,6 +49,9 @@
     const sbUrl = getSbUrl();
     const sbKey = getSbKey();
     if (!proxy || !sbUrl || !sbKey) return;
+
+    // QR housekeeping (แยกจาก line-promote throttle · วันละครั้ง)
+    maybePruneQr(proxy);
 
     // Cross-tab throttle via localStorage
     const last = parseInt(localStorage.getItem(LAST_PING_KEY) || "0", 10);

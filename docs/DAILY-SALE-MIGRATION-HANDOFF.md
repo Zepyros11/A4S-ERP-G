@@ -41,28 +41,38 @@
 
 ---
 
+## ✅ Historical import (DATA_CS) — เสร็จแล้ว (2026-07-08)
+- CSV 3 ไฟล์เซฟไว้ที่ `data/daily-sale-import/` (ต้นฉบับ UTF-8 · ห้ามเปิด Excel save ทับ)
+- Importer: [`scripts/import-data-cs.js`](../scripts/import-data-cs.js) — อ่าน CSV → map → upsert idempotent · `DRY_RUN=1` = ตรวจอย่างเดียว · preflight เช็ค migration 021/023/025 live ก่อนเขียน
+- **ผลรัน:** 7,081 bills · 7,081 payments (**corrected=true ทุกแถว** กัน sync ทับ) · 184 reconcile · source_file=`DATA_CS-import` · ช่วง 2025-09-01 … 2026-07-07 · verified round-trip ครบ
+- **Column map:** `Cash`→cash · `Front Office`+`Online`→credit_card · `KBANK`+`KTB`→transfer · `E-WALLET`→ewallet · `gift`→gift_voucher · `qr`→qr_payment · `หักคอม`→commission_deduct · `ARP`→arp_amount · TYPE→bill_type · `CheckBill_DATA`→daily_sale_reconcile
+- **การตัดสินใจ (encode ไว้ในโค้ด):**
+  1. ETH (EWALLET เติมเงิน 605 บิล) ปนใน DailySale → import เข้า `daily_sale_bills` ตามชีท แต่ tag `bill_type='EWALLET'` → แยกไป topup ทีหลังได้
+  2. branch = `BKK01` บังคับล้วน (Billonline สาขา=จุดรับของ NB/DP ไม่ใช่สาขาขาย · รายละเอียดอยู่ใน note)
+  3. CheckBill: คู่แรก=นับจริง(bill_count/value) คู่สอง=system → ตรงเครื่องหมาย ผลต่าง ในชีท (verify 12/7 = −13,400)
+  4. duplicate bill_no 300 กลุ่ม (297 เหมือนเป๊ะ · 3 ต่างแต่ Total เท่า) → last-wins ไม่ทำเงินหาย
+  5. 3 บิล Total มีแต่ชีทไม่ลงช่องทาง (STHBKK012509000386/628/667) = gap ต้นทาง import ตามจริง
+- **รันซ้ำ:** `node scripts/import-data-cs.js` (upsert idempotent ปลอดภัย)
+
 ## ⏳ งานที่เหลือ
 
-### 1. Historical import (DATA_CS → SQL) — รอ CSV
-- CSV ที่เคยส่งในแชทเก่า **หายแล้ว** (ไม่ได้เซฟลงดิสก์ · /clear ไปพร้อม context)
-- `sql/022_data_cs_import.sql` มีแค่ ~314 บิล (partial) + **ยังไม่ตั้ง corrected=true** (สร้างก่อน migration 025)
-- **CSV ไม่ได้เสีย** — ที่เห็นเพี้ยนใน Excel เป็นแค่ display (ไฟล์เป็น UTF-8 ถูกต้อง) · ห้ามเปิด Excel แล้ว Save ทับ (จะเสียจริง)
-- **ต้องการ:** ลาก CSV 3 ไฟล์มาวางในแชท → `DailySale_DATA` (~7,600) · `Billonline_DATA` (~1,480) · `CheckBill_DATA`
-- **แผน:** เขียน `scripts/import-data-cs.js` อ่าน CSV → map คอลัมน์ → upsert (corrected=true, business_date=sale_date, source='DATA_CS-import') → user รัน `node scripts/import-data-cs.js`
-- **Column map:** `Cash`→cash · `Front Office`+`Online`→credit_card · `KBANK`+`KTB`→transfer · `E-WALLET`→ewallet · `gift`→gift_voucher · `QR`→qr_payment · `หักคอม`→commission_deduct · `ARP`→arp_amount · `CheckBill_DATA`→daily_sale_reconcile
+### ~~2b. บิลค้าง "รอตรวจ" 70 ใบ~~ ✅ แก้แล้ว 2026-07-08
+- อาการ: บิล เม.ย. 2026 (19–27) โผล่แท็บ "รอตรวจ" · เหตุ: sync fail → business_date=NULL ค้าง (ไม่เคย close_day)
+- แก้: [sql/026_close_stale_pending.sql](../sql/026_close_stale_pending.sql) ตีตรา business_date=sale_date ให้ NULL ที่ sale_date<วันนี้ (รันแล้ว · NULL เหลือ 0)
 
-### 2. ซ่อม sync ที่ failed
+### 2. ซ่อม sync ที่ failed  ← เหลืองานนี้
 - หน้า Daily Sale ขึ้น "Sync ล่าสุด failed" ค้างที่ 27/4/2569 — pipeline answerforsuccess พังอยู่ ต้องดู log GitHub Actions workflow `sync-daily-sale.yml`
+- หมายเหตุ: พอ sync กลับมา บิลใหม่จะเข้า business_date=NULL (pending) ตามปกติ · sql/026 จัดการเฉพาะ orphan เก่า ไม่กระทบ flow ปกติ
 
-### 3. (ค้างถาม) เสริม guard บิลเก่า
-- ถ้ารัน sql/022 ไปแล้ว → UPDATE `daily_sale_payments SET corrected=true WHERE source_file='DATA_CS-import'` กันโดน sync ทับ
+### ~~3. เสริม guard บิลเก่า~~ ✅ ครบแล้ว
+- importer เขียน `corrected=true` ทุกแถวอยู่แล้ว → ไม่ต้อง UPDATE แยก
 
 ---
 
 ## ลำดับที่แนะนำ
-1. รัน `sql/025` → เปิดใช้ Forward (แก้ channel ได้)
-2. ส่ง CSV 3 ไฟล์ → ผมเขียน importer → รัน → ได้ข้อมูลเก่าครบ
-3. ซ่อม sync failed → บิลใหม่ไหลเข้าอัตโนมัติ
+1. ~~รัน `sql/025`~~ ✅ live แล้ว (preflight ยืนยัน)
+2. ~~import CSV~~ ✅ เสร็จ 2026-07-08 (7,081 บิล)
+3. **ซ่อม sync failed** (ค้าง 27/4/2569) → บิลใหม่ไหลเข้าอัตโนมัติ ← เหลืองานเดียว
 
 ## Memory ที่เกี่ยวข้อง (มีอยู่แล้ว)
 `project_daily_sale_backfill` · `project_daily_sale_module`

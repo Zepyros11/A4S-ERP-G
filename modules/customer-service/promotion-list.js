@@ -251,28 +251,23 @@ function initScrollReveal() {
 
 // ── DELETE ─────────────────────────────────────────────────
 window.deletePoster = function (id) {
-  if (typeof DeleteModal !== "undefined") {
-    DeleteModal.show({
-      title: "ลบโปสเตอร์",
-      message: "ยืนยันลบโปสเตอร์นี้?",
-      onConfirm: async () => {
-        try {
-          // trash ไฟล์ Drive ของโปสเตอร์ก่อนลบ row (best-effort · ข้าม Supabase url เอง)
-          const promo = allPromotions.find((p) => p.promotion_id === id);
-          if (promo?.poster_url) {
-            try { await window.ImageCompressor?.deleteDriveUrl(promo.poster_url); } catch {}
-          }
-          await removePromotion(id);
-          allPromotions = allPromotions.filter((p) => p.promotion_id !== id);
-          renderCategoryChips();
-          renderGallery();
-          showToast("ลบเรียบร้อย");
-        } catch (e) {
-          showToast("ลบไม่สำเร็จ: " + e.message, "error");
-        }
-      },
-    });
-  }
+  if (typeof DeleteModal === "undefined") return;
+  DeleteModal.open("ยืนยันลบโปสเตอร์นี้?", async () => {
+    try {
+      // trash ไฟล์ Drive ของโปสเตอร์ก่อนลบ row (best-effort · ข้าม Supabase url เอง)
+      const promo = allPromotions.find((p) => p.promotion_id === id);
+      if (promo?.poster_url) {
+        try { await window.ImageCompressor?.deleteDriveUrl(promo.poster_url); } catch {}
+      }
+      await removePromotion(id);
+      allPromotions = allPromotions.filter((p) => p.promotion_id !== id);
+      renderCategoryChips();
+      renderGallery();
+      showToast("ลบเรียบร้อย");
+    } catch (e) {
+      showToast("ลบไม่สำเร็จ: " + e.message, "error");
+    }
+  });
 };
 
 // ── UPLOAD MODAL ───────────────────────────────────────────
