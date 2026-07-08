@@ -184,12 +184,8 @@ function saleSort(a, b) {
   if (da !== db) return da < db ? -1 : 1;
   return String(a.bill_no) < String(b.bill_no) ? -1 : 1;
 }
-// สาขาของบิลสำหรับ checkbox filter: บิลออนไลน์ → ONLINE, ที่เหลือใช้ branch column (BKK01/HY/KK)
-function branchKey(b) {
-  const p = billPrefix(b.bill_no);
-  if (p === 'ONLIN' || p === 'ETHONLIN') return 'ONLINE';
-  return b.branch || p || '—';
-}
+// สาขาสำหรับ checkbox filter = สาขาที่ตารางนั้นใช้ scope (BKK01/NB/BUR/DP · HY/KK ถูกตัดก่อนแล้ว)
+function branchKey(b) { return scopeBranch(b, billGroup(b)); }
 function renderBranchChecks(keys) {
   const el = $('dsBranchChecks');
   if (!el) return;
@@ -203,18 +199,35 @@ function dsToggleBranch(k) {
   loadSale();
 }
 
-// 3 ตารางตาม Google Sheet — คอลัมน์เดียวกันหมด ต่างแค่ label 3 ช่องท้าย (qr/comm/arp)
+// 3 ตารางตาม Google Sheet DailySaleCS — logic ตรงสูตร QUERY ของชีท
+//   คอลัมน์จ่ายเงินเหมือนกันหมด ต่างแค่ label 3 ช่องท้าย + branch scope + ประเภทบิล
+//   branches = สาขาที่นับเข้าตารางนั้น (สูตร: สาขารับ IN ... · ewallet ใช้ สาขา)
 const DS_TABLES = [
-  { key: 'sale',    title: '💰 บิลขายปกติ',                                       l: ['QR Paymet', 'หักค่าคอม', 'ARP'] },
-  { key: 'arp',     title: '🎁 แลกสินค้า ARP (POINT) · ARP EASY · ABB Online',    l: ['ARP (POINT)', 'ARP EASY', 'ABB Online'] },
-  { key: 'ewallet', title: '👛 E-WALLET (THB)',                                    l: ['QR Paymet', 'โอนค่าคอมเข้า E/W', 'ARP'] },
+  { key: 'sale',    title: '💰 บิลขายปกติ',                                    l: ['QR Paymet', 'หักค่าคอม', 'ARP'],           branches: ['BKK01', 'NB', 'BUR'] },
+  { key: 'arp',     title: '🎁 แลกสินค้า ARP (POINT) · ARP EASY · ABB Online', l: ['ARP (POINT)', 'ARP EASY', 'ABB Online'],   branches: ['BKK01', 'NB', 'DP'] },
+  { key: 'ewallet', title: '👛 E-WALLET (THB)',                                l: ['QR Paymet', 'โอนค่าคอมเข้า E/W', 'ARP'],   branches: ['BKK01', 'BUR'] },
 ];
-// จัดบิลเข้าตาราง: ARP (bill_type) / EWALLET (bill_type หรือ prefix ETH) / ที่เหลือ = ขายปกติ
+const DS_TABLE_BY_KEY = Object.fromEntries(DS_TABLES.map(c => [c.key, c]));
+
+// สาขารับ: sync มี receive_branch · import เก่า/online = null → fallback branch → BKK01 (รับที่ HQ)
+function recvBranch(b) { return b.receive_branch || b.branch || 'BKK01'; }
+// ประเภทบิล 'แลกสินค้า' (sync) หรือ bill_type 'ARP' (import เก่า)
+function isRedemption(b) { const t = (b.bill_type || '').trim(); return t === 'แลกสินค้า' || t.toUpperCase() === 'ARP'; }
+// บิลเติมเงิน ewallet: bill_type EWALLET (import) หรือ prefix ETH
+function isEwallet(b) { const t = (b.bill_type || '').toUpperCase(); return t === 'EWALLET' || String(b.bill_no || '').toUpperCase().startsWith('ETH'); }
+
+// จัดบิลเข้าตาราง (ตามสูตร: ewallet ก่อน → แลกสินค้า=ARP → ที่เหลือ=ขายปกติ)
 function billGroup(b) {
-  const t = (b.bill_type || '').toUpperCase();
-  if (t === 'ARP') return 'arp';
-  if (t === 'EWALLET' || String(b.bill_no || '').toUpperCase().startsWith('ETH')) return 'ewallet';
+  if (isEwallet(b)) return 'ewallet';
+  if (isRedemption(b)) return 'arp';
   return 'sale';
+}
+// สาขาที่ใช้เทียบ scope: ewallet ใช้ 'สาขา'(branch) · อื่น ๆ ใช้ 'สาขารับ'(receive_branch)
+function scopeBranch(b, key) { return key === 'ewallet' ? (b.branch || 'BKK01') : recvBranch(b); }
+// เข้าเงื่อนไขตารางไหม (branch scope + amount≠0 สำหรับ sale/arp ตามสูตร)
+function inScope(b, cfg) {
+  if (cfg.key !== 'ewallet' && Number(b.amount || 0) === 0) return false;
+  return cfg.branches.includes(scopeBranch(b, cfg.key));
 }
 
 function saleTableShell(cfg) {
@@ -346,11 +359,14 @@ async function loadSale() {
     const bills = await sbGet(`daily_sale_bills?${dateFilter()}${branchFilter}&limit=3000`);
     bills.sort(saleSort);   // BKK ก่อน ONLIN · วันที่เก่าก่อน (client-side)
 
-    // Branch checkbox filter — render จาก set เต็ม (สาขาใหม่ default ติ๊ก) แล้วค่อยกรอง
-    const allKeys = [...new Set(bills.map(branchKey))].sort();
+    // กรองตาม scope ของสูตร (branch + amount≠0) ก่อน → HY/KK/นอก scope ตกไปเอง
+    const scoped = bills.filter(b => inScope(b, DS_TABLE_BY_KEY[billGroup(b)]));
+
+    // Branch checkbox filter — เฉพาะสาขาใน scope (สาขาใหม่ default ติ๊ก)
+    const allKeys = [...new Set(scoped.map(branchKey))].sort();
     allKeys.forEach(k => { if (!(k in state.branchChecks)) state.branchChecks[k] = true; });
     renderBranchChecks(allKeys);
-    const visible = bills.filter(b => state.branchChecks[branchKey(b)] !== false);
+    const visible = scoped.filter(b => state.branchChecks[branchKey(b)] !== false);
 
     const pMap = visible.length ? await fetchPaymentsMap(visible.map(b => b.bill_no)) : {};
 
