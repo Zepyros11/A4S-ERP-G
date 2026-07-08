@@ -14,6 +14,7 @@ let state = {
   tab: 'sale',
   branches: [],
   config: null,
+  sale: {},   // bill_no → { bill, payment } cache shared by sale + pending tabs
 };
 
 function todayIso() { return new Date().toISOString().slice(0, 10); }
@@ -121,7 +122,7 @@ async function init() {
 
 async function loadAll() {
   $('dsRecDateLabel').textContent = fmtDMY(state.date);
-  await Promise.all([loadKPI(), loadSale(), loadTopup(), loadReconcile(), loadReconcileList()]);
+  await Promise.all([loadKPI(), loadPending(), loadSale(), loadTopup(), loadReconcile(), loadReconcileList()]);
 }
 
 /* ============================================================
@@ -179,7 +180,6 @@ async function loadSale() {
     if (!bills.length) {
       body.innerHTML = `<tr><td colspan="12" class="ds-table-empty">ไม่มีบิลในวันนี้</td></tr>`;
       $('dsSaleSummary').style.display = 'none';
-      state.sale = {};
       return;
     }
 
@@ -188,9 +188,7 @@ async function loadSale() {
     const payments = await sbGet(`daily_sale_payments?bill_no=in.(${billNos})&select=*`);
     const pMap = Object.fromEntries(payments.map(p => [p.bill_no, p]));
 
-    // Cache bill+payment together so the edit modal can read them without refetch
-    state.sale = {};
-
+    // Cache bill+payment together (merge — shared with pending tab; edit modal reads it)
     const rows = [];
     let sumAmount = 0, sumCash = 0, sumTransfer = 0, sumCredit = 0, sumEwallet = 0, sumGift = 0;
 
@@ -337,11 +335,92 @@ async function dsEditSave() {
     );
     dsEditClose();
     toast('บันทึกช่องทางชำระแล้ว · sync จะไม่เขียนทับบิลนี้', 'success');
-    await Promise.all([loadSale(), loadKPI()]);
+    await Promise.all([loadSale(), loadPending(), loadKPI()]);
   } catch (e) {
     toast('บันทึกล้มเหลว: ' + e.message, 'error');
   }
   showLoading(false);
+}
+
+/* ============================================================
+   TAB: Pending review — บิลใหม่รอตรวจ (business_date IS NULL)
+   บิลที่ sync เข้ามาแต่ยังไม่ปิดยอด = โผล่หลังปิดรอบก่อน · CS ตรวจ+แก้ channel
+   แล้วค่อยกด Sync Now → close_day ตีตราเป็นวัน
+   ============================================================ */
+function channelSummary(p) {
+  const map = { cash: 'เงินสด', transfer: 'โอน', credit_card: 'บัตร', ewallet: 'E-Wallet', gift_voucher: 'Gift', qr_payment: 'QR', arp_amount: 'ARP' };
+  const parts = [];
+  for (const k in map) { if (Number(p[k] || 0) > 0) parts.push(`${map[k]} ${fmt(p[k])}`); }
+  if (Number(p.commission_deduct || 0) > 0) parts.push(`หักคอม ${fmt(p.commission_deduct)}`);
+  return parts.join(' · ') || '—';
+}
+
+function updatePendingBadge(n) {
+  const badge = $('dsPendingBadge');
+  if (!badge) return;
+  if (n > 0) { badge.textContent = n; badge.style.display = ''; }
+  else { badge.style.display = 'none'; }
+}
+
+async function loadPending() {
+  const body = $('dsPendingBody');
+  const canEdit = window.hasPerm ? hasPerm('daily_sale_reconcile') : true;
+  body.innerHTML = `<tr><td colspan="8" class="ds-table-empty">กำลังโหลด...</td></tr>`;
+  try {
+    const branchFilter = state.branch ? `&branch=eq.${state.branch}` : '';
+    const bills = await sbGet(
+      `daily_sale_bills?business_date=is.null${branchFilter}&order=sale_datetime.desc&limit=1000`
+    );
+    updatePendingBadge(bills.length);
+    if (!bills.length) {
+      body.innerHTML = `<tr><td colspan="8" class="ds-table-empty">✓ ไม่มีบิลค้างตรวจ — ปิดยอดครบแล้ว</td></tr>`;
+      $('dsPendingSummary').style.display = 'none';
+      return;
+    }
+
+    const billNos = bills.map(b => `"${b.bill_no}"`).join(',');
+    const payments = await sbGet(`daily_sale_payments?bill_no=in.(${billNos})&select=*`);
+    const pMap = Object.fromEntries(payments.map(p => [p.bill_no, p]));
+
+    const rows = [];
+    let sumAmount = 0, correctedCount = 0;
+    for (const b of bills) {
+      const p = pMap[b.bill_no] || {};
+      state.sale[b.bill_no] = { bill: b, payment: p };
+      sumAmount += Number(b.amount || 0);
+      if (p.corrected) correctedCount++;
+
+      const time = b.sale_datetime
+        ? new Date(b.sale_datetime).toLocaleString('th-TH', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+        : '—';
+      const status = p.corrected
+        ? `<span class="ds-corrected-badge">✏️ แก้แล้ว</span>`
+        : `<span class="ds-pending-badge">รอตรวจ</span>`;
+      const editBtn = canEdit
+        ? `<button class="ds-edit-btn" title="แก้ช่องทางชำระ" onclick="dsEditOpen('${b.bill_no}')">✏️</button>`
+        : '';
+
+      rows.push(`
+        <tr${p.corrected ? ' class="ds-row-corrected"' : ''}>
+          <td><span class="ds-bill-no">${b.bill_no}</span></td>
+          <td style="font-size:11.5px;white-space:nowrap">${time}</td>
+          <td>${b.member_code || ''} · ${(b.member_name || '').slice(0, 24)}</td>
+          <td class="ds-num">${fmt(b.amount)}</td>
+          <td style="font-size:11.5px">${channelSummary(p)}</td>
+          <td>${b.branch || '—'}</td>
+          <td>${status}</td>
+          <td class="ds-edit-cell">${editBtn}</td>
+        </tr>
+      `);
+    }
+    body.innerHTML = rows.join('');
+    $('dsPendCount').textContent = bills.length;
+    $('dsPendCorrected').textContent = correctedCount;
+    $('dsPendAmount').textContent = fmt(sumAmount);
+    $('dsPendingSummary').style.display = 'flex';
+  } catch (e) {
+    body.innerHTML = `<tr><td colspan="8" class="ds-table-empty">❌ ${e.message}</td></tr>`;
+  }
 }
 
 /* ============================================================
@@ -532,6 +611,7 @@ function dsRecOpen(date, branch) {
 function dsSwitchTab(tab) {
   state.tab = tab;
   document.querySelectorAll('.page-tab[data-tab]').forEach(el => el.classList.toggle('active', el.dataset.tab === tab));
+  $('dsPanelPending').style.display = tab === 'pending' ? '' : 'none';
   $('dsPanelSale').style.display = tab === 'sale' ? '' : 'none';
   $('dsPanelTopup').style.display = tab === 'topup' ? '' : 'none';
   $('dsPanelReconcile').style.display = tab === 'reconcile' ? '' : 'none';

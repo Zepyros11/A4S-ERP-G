@@ -58,9 +58,43 @@
 
       <!-- ── TABS ── -->
       <div class="page-tabs" style="margin-bottom:14px;">
+        <button class="page-tab"        data-tab="pending"   onclick="dsSwitchTab('pending')">🆕 บิลใหม่รอตรวจ <span class="ds-tab-badge" id="dsPendingBadge" style="display:none">0</span></button>
         <button class="page-tab active" data-tab="sale"      onclick="dsSwitchTab('sale')">💰 บิลขาย</button>
         <button class="page-tab"        data-tab="topup"     onclick="dsSwitchTab('topup')">🔋 เติม E-Wallet</button>
         <button class="page-tab"        data-tab="reconcile" onclick="dsSwitchTab('reconcile')">📋 ตรวจบิล</button>
+      </div>
+
+      <!-- ── Tab: Pending review (business_date IS NULL) ── -->
+      <div class="ds-tab-panel" id="dsPanelPending" style="display:none">
+        <div class="section-card" style="padding:10px 14px;margin-bottom:12px;font-size:12.5px;color:var(--text2);line-height:1.6;">
+          บิลที่ sync เข้ามาแต่<b>ยังไม่ปิดยอด</b> (รวมบิล online ที่เกิดหลัง 18:00 ซึ่งจะนับเป็นวันถัดไป) · ตรวจ + แก้ช่องทางชำระให้ครบ แล้วกด <b>🔄 Sync Now</b> เพื่อปิดยอดวัน
+        </div>
+        <div class="ds-table-wrap">
+          <div style="overflow-x:auto">
+            <table class="ds-table">
+              <thead>
+                <tr>
+                  <th>เลขบิล</th>
+                  <th>เวลา</th>
+                  <th>สมาชิก</th>
+                  <th class="ds-num">ยอด</th>
+                  <th>ช่องทาง (ปัจจุบัน)</th>
+                  <th>สาขา</th>
+                  <th>สถานะ</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="dsPendingBody">
+                <tr><td colspan="8" class="ds-table-empty">กำลังโหลด...</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="ds-summary" id="dsPendingSummary" style="display:none">
+            <div class="ds-summary-item"><span class="label">บิลรอตรวจ</span><span class="value" id="dsPendCount">—</span></div>
+            <div class="ds-summary-item"><span class="label">แก้แล้ว</span><span class="value" id="dsPendCorrected">—</span></div>
+            <div class="ds-summary-item"><span class="label">ยอดรวม</span><span class="value" id="dsPendAmount">—</span></div>
+          </div>
+        </div>
       </div>
 
       <!-- ── Tab: Sale (bills + payments JOIN) ── -->

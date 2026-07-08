@@ -30,24 +30,27 @@ const SB_URL = (process.env.SUPABASE_URL || process.env.SB_URL || '').replace(/\
 const SB_KEY = process.env.SUPABASE_SERVICE_KEY || process.env.SB_SERVICE_KEY || '';
 const DRY_RUN = process.env.DRY_RUN === '1';
 
-const BUCKET = 'event-files';
+// bucket + ตารางที่อ้าง + exclude → override ผ่าน env ได้ (reusable ข้าม bucket)
+//   default = event-files · ตัวอย่าง tour-seat:
+//   SWEEP_BUCKET=tour-seat-images SWEEP_REF_TABLES=tour_seat_check,trip_flight_tickets SWEEP_EXCLUDE=
+const BUCKET = process.env.SWEEP_BUCKET || 'event-files';
 const MARKER = `/storage/v1/object/public/${BUCKET}/`;
 // ONLY_PREFIX = จำกัดลบเฉพาะ top-prefix ที่ระบุ (comma list เช่น "campaigns,documents") · ว่าง = ทุก prefix
 const ONLY_PREFIX = new Set(
   (process.env.ONLY_PREFIX || '').split(',').map((s) => s.trim().replace(/\/+$/, '')).filter(Boolean),
 );
-// ทุกตารางที่อาจอ้าง URL event-files (select=* → collect ทุกคอลัมน์)
-const REF_TABLES = [
-  'event_attendees', 'room_booking_attendees', 'event_suppliers', 'event_logs',
-  'events', 'places', 'place_room_types', 'place_rooms', 'place_dining_rooms',
-  'fb_scheduled_posts', 'campaign_participants', 'campaign_submissions', 'campaigns',
-];
+// ทุกตารางที่อาจอ้าง URL (select=* → collect ทุกคอลัมน์)
+const REF_TABLES = (process.env.SWEEP_REF_TABLES ??
+  'event_attendees,room_booking_attendees,event_suppliers,event_logs,events,places,place_room_types,place_rooms,place_dining_rooms,fb_scheduled_posts,campaign_participants,campaign_submissions,campaigns'
+).split(',').map((s) => s.trim()).filter(Boolean);
 
 /* prefix ที่ห้ามแตะ (อ้างจากตารางนอก REF_TABLES / ตั้งใจเก็บ / ยังใช้อยู่):
    - staff-messaging = LINE fetch URL เอง (user สั่งคงไว้ Supabase)
    - qr = QR code (มี cron prune-qr แยก)
    - media = ไม่แน่ใจตารางที่อ้าง (conservative) */
-const EXCLUDE_PREFIXES = new Set(['staff-messaging', 'qr', 'media']);
+const EXCLUDE_PREFIXES = new Set(
+  (process.env.SWEEP_EXCLUDE ?? 'staff-messaging,qr,media').split(',').map((s) => s.trim()).filter(Boolean),
+);
 
 if (!SB_URL || !SB_KEY) { console.error('❌ ต้องมี SUPABASE_URL + SUPABASE_SERVICE_KEY'); process.exit(1); }
 const H = { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` };
