@@ -16,6 +16,7 @@ let state = {
   config: null,
   sale: {},   // bill_no → { bill, payment } cache shared by sale + pending tabs
   branchChecks: {},  // branchKey → bool (checkbox filter, sale tab · persists across reloads)
+  saleChecked: new Set(),  // bill_no ที่ติ๊กไว้ (multi-select ลบ)
 };
 
 function todayIso() { return new Date().toISOString().slice(0, 10); }
@@ -89,6 +90,21 @@ async function sbPost(path, body, prefer = 'return=representation') {
   });
   if (!res.ok) throw new Error(`POST ${path} → ${res.status}: ${(await res.text()).slice(0, 200)}`);
   return res.json().catch(() => null);
+}
+async function sbDelete(path) {
+  const res = await fetch(`${SB_URL}/rest/v1/${path}`, {
+    method: 'DELETE',
+    headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}`, Prefer: 'return=minimal' },
+  });
+  if (!res.ok) throw new Error(`DELETE ${path} → ${res.status}: ${(await res.text()).slice(0, 150)}`);
+}
+async function sbPatch(path, body) {
+  const res = await fetch(`${SB_URL}/rest/v1/${path}`, {
+    method: 'PATCH',
+    headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`PATCH ${path} → ${res.status}: ${(await res.text()).slice(0, 150)}`);
 }
 
 /* ============================================================
@@ -203,11 +219,16 @@ function dsToggleBranch(k) {
 //   คอลัมน์จ่ายเงินเหมือนกันหมด ต่างแค่ label 3 ช่องท้าย + branch scope + ประเภทบิล
 //   branches = สาขาที่นับเข้าตารางนั้น (สูตร: สาขารับ IN ... · ewallet ใช้ สาขา)
 const DS_TABLES = [
-  { key: 'sale',    title: '💰 บิลขายปกติ',                                    l: ['QR Paymet', 'หักค่าคอม', 'ARP'],           branches: ['BKK01', 'NB', 'BUR'] },
-  { key: 'arp',     title: '🎁 แลกสินค้า ARP (POINT) · ARP EASY · ABB Online', l: ['ARP (POINT)', 'ARP EASY', 'ABB Online'],   branches: ['BKK01', 'NB', 'DP'] },
-  { key: 'ewallet', title: '👛 E-WALLET (THB)',                                l: ['QR Paymet', 'โอนค่าคอมเข้า E/W', 'ARP'],   branches: ['BKK01', 'BUR'] },
+  // tail = คอลัมน์ท้าย payment ที่ต่างกันต่อตาราง (Daily Sale ตัด หักค่าคอม/ARP ออก เหลือ QR)
+  { key: 'sale',    title: '💰 Daily Sale',                                    branches: ['BKK01', 'NB', 'BUR'],
+    tail: [{ label: 'QR Paymet', field: 'qr_payment', col: 'ds-col-qr' }] },
+  { key: 'arp',     title: '🎁 แลกสินค้า ARP (POINT) · ARP EASY · ABB Online', branches: ['BKK01', 'NB', 'DP'],
+    tail: [{ label: 'ARP (POINT)', field: 'qr_payment', col: 'ds-col-qr' }, { label: 'ARP EASY', field: 'commission_deduct', col: 'ds-col-comm' }, { label: 'ABB Online', field: 'arp_amount', col: 'ds-col-arp' }] },
+  { key: 'ewallet', title: '👛 E-WALLET (THB)',                                branches: ['BKK01', 'BUR'],
+    tail: [{ label: 'QR Paymet', field: 'qr_payment', col: 'ds-col-qr' }, { label: 'โอนค่าคอมเข้า E/W', field: 'commission_deduct', col: 'ds-col-comm' }, { label: 'ARP', field: 'arp_amount', col: 'ds-col-arp' }] },
 ];
 const DS_TABLE_BY_KEY = Object.fromEntries(DS_TABLES.map(c => [c.key, c]));
+const DS_FIXED_FIELDS = ['cash', 'front_office', 'online', 'kbank', 'ktb', 'ewallet', 'gift_voucher'];  // payment cols ที่ทุกตารางมีเหมือนกัน
 
 // สาขารับ: sync มี receive_branch · import เก่า/online = null → fallback branch → BKK01 (รับที่ HQ)
 function recvBranch(b) { return b.receive_branch || b.branch || 'BKK01'; }
@@ -230,8 +251,11 @@ function inScope(b, cfg) {
   return cfg.branches.includes(scopeBranch(b, cfg.key));
 }
 
-function saleTableShell(cfg) {
-  const [l8, l9, l10] = cfg.l;
+function saleTableShell(cfg, canEdit) {
+  const payCount = 7 + cfg.tail.length;              // Cash + CreditCard(2) + Transfer(2) + EW + Gift + tail
+  const totalCols = 10 + payCount + (canEdit ? 1 : 0);   // + checkbox col
+  const tailTh = cfg.tail.map(t => `<th rowspan="2" class="ds-num ${t.col}">${t.label}</th>`).join('');
+  const chkTh = canEdit ? `<th rowspan="3" class="ds-chk-col"><input type="checkbox" class="ds-chk-all" title="เลือกทั้งหมด" onclick="dsToggleAll('${cfg.key}',this)"></th>` : '';
   return `
   <div class="ds-table-wrap ds-sale-block">
     <div class="ds-table-title">${cfg.title}</div>
@@ -239,12 +263,13 @@ function saleTableShell(cfg) {
       <table class="ds-table ds-table-sheet">
         <thead>
           <tr>
+            ${chkTh}
             <th rowspan="3" class="ds-hd-id">NO</th>
             <th rowspan="3" class="ds-hd-id">วันที่</th>
             <th rowspan="3" class="ds-hd-id">เลขออเดอร์</th>
             <th rowspan="3" class="ds-hd-id">รหัส</th>
             <th rowspan="3" class="ds-hd-id">Name</th>
-            <th colspan="10" class="ds-grp ds-grp-pay">Payment (THB)</th>
+            <th colspan="${payCount}" class="ds-grp ds-grp-pay">Payment (THB)</th>
             <th rowspan="3" class="ds-num ds-hd-sys">ยอดในระบบ</th>
             <th rowspan="3" class="ds-num ds-hd-sys">ผลต่าง</th>
             <th rowspan="3" class="ds-hd-meta">ผู้บันทึก</th>
@@ -257,9 +282,7 @@ function saleTableShell(cfg) {
             <th colspan="2" class="ds-grp ds-col-tf">Tranfer Money</th>
             <th rowspan="2" class="ds-num ds-col-ew">E-WALLET</th>
             <th rowspan="2" class="ds-num ds-col-gift">Gift Voucher</th>
-            <th rowspan="2" class="ds-num ds-col-qr">${l8}</th>
-            <th rowspan="2" class="ds-num ds-col-comm">${l9}</th>
-            <th rowspan="2" class="ds-num ds-col-arp">${l10}</th>
+            ${tailTh}
           </tr>
           <tr>
             <th class="ds-num ds-col-cc">Front Office</th>
@@ -268,71 +291,86 @@ function saleTableShell(cfg) {
             <th class="ds-num ds-col-tf">KTB</th>
           </tr>
         </thead>
-        <tbody id="dsBody_${cfg.key}"><tr><td colspan="20" class="ds-table-empty">กำลังโหลด...</td></tr></tbody>
+        <tbody id="dsBody_${cfg.key}"><tr><td colspan="${totalCols}" class="ds-table-empty">กำลังโหลด...</td></tr></tbody>
         <tfoot id="dsFoot_${cfg.key}"></tfoot>
       </table>
     </div>
   </div>`;
 }
 
-function fillSaleTable(key, list, pMap, canEdit) {
+function fillSaleTable(cfg, list, pMap, canEdit) {
+  const key = cfg.key;
+  const fields = DS_FIXED_FIELDS.concat(cfg.tail.map(t => t.field));   // คอลัมน์ payment ของตารางนี้
+  const totalCols = 10 + 7 + cfg.tail.length + (canEdit ? 1 : 0);
   const body = $(`dsBody_${key}`), foot = $(`dsFoot_${key}`);
   if (!body) return;
   if (!list.length) {
-    body.innerHTML = `<tr><td colspan="20" class="ds-table-empty">ไม่มีข้อมูล</td></tr>`;
+    body.innerHTML = `<tr><td colspan="${totalCols}" class="ds-table-empty">ไม่มีข้อมูล</td></tr>`;
     if (foot) foot.innerHTML = '';
     return;
   }
   const rows = [];
   let sumAmount = 0, sumDiff = 0;
-  const tot = Object.fromEntries(DS_CH.map(k => [k, 0]));
+  const tot = {}; fields.forEach(f => { tot[f] = 0; });
 
   list.forEach((b, i) => {
     const p = pMap[b.bill_no] || {};
     state.sale[b.bill_no] = { bill: b, payment: p };
     const amount = Number(b.amount || 0);
-    const diff = channelSum(p) - amount;
+    const diff = fields.reduce((s, f) => s + Number(p[f] || 0), 0) - amount;
     sumAmount += amount;
     sumDiff += diff;
-    DS_CH.forEach(k => { tot[k] += Number(p[k] || 0); });
+    fields.forEach(f => { tot[f] += Number(p[f] || 0); });
 
     const correctedBadge = p.corrected
       ? ` <span class="ds-corrected-badge" title="ช่องทางชำระถูกแก้ใน ERP — sync จะไม่เขียนทับ">✏️</span>` : '';
-    const editBtn = canEdit
-      ? `<button class="ds-edit-btn" title="แก้ช่องทางชำระ" onclick="dsEditOpen('${b.bill_no}')">✏️</button>` : '';
-    const note = b.notes || p.correction_notes || '';
+    const delBtn = canEdit
+      ? `<button class="ds-del-btn" title="ลบบิลนี้" onclick="dsDeleteBill('${b.bill_no}')">🗑</button>` : '';
+    const chkTd = canEdit
+      ? `<td class="ds-chk-col"><input type="checkbox" class="ds-rowchk" data-bill="${b.bill_no}" ${state.saleChecked.has(b.bill_no) ? 'checked' : ''} onchange="dsToggleRow(this)"></td>` : '';
+    const note = String(p.correction_notes || b.notes || '');
     const diffCls = Math.abs(diff) > 0.5 ? 'ds-num ds-diff-bad' : 'ds-num ds-diff-ok';
+    // ผลต่าง ≠ 0 (บวก/ลบ) → ไฮไลต์ทั้งแถวสีแดง
+    const rowClasses = [p.corrected ? 'ds-row-corrected' : '', Math.abs(diff) > 0.5 ? 'ds-row-diff' : ''].filter(Boolean).join(' ');
+    // payment cell — คลิกแก้ inline ได้ (ถ้ามีสิทธิ์)
+    const pc = (field, cls, val) => canEdit
+      ? `<td class="ds-num ${cls} ds-editable" data-bill="${b.bill_no}" data-field="${field}" ondblclick="dsCellEdit(this)" title="ดับเบิลคลิกเพื่อแก้">${fmt0(val)}</td>`
+      : `<td class="ds-num ${cls}">${fmt0(val)}</td>`;
+    // note cell — คลิกแก้ข้อความได้
+    const noteCell = canEdit
+      ? `<td class="ds-editable ds-note-cell" data-bill="${b.bill_no}" data-field="correction_notes" data-type="text" ondblclick="dsCellEdit(this)" title="${escHtml(note) || 'คลิกเพื่อแก้'}">${escHtml(note.slice(0, 40))}</td>`
+      : `<td style="font-size:11.5px">${escHtml(note.slice(0, 40))}</td>`;
 
     rows.push(`
-      <tr${p.corrected ? ' class="ds-row-corrected"' : ''}>
+      <tr${rowClasses ? ` class="${rowClasses}"` : ''}>
+        ${chkTd}
         <td class="ds-num">${i + 1}</td>
         <td>${fmtDMY(b.sale_date)}</td>
         <td><span class="ds-bill-no">${b.bill_no}</span>${correctedBadge}</td>
         <td>${b.member_code || ''}</td>
         <td>${(b.member_name || '').slice(0, 40)}</td>
-        <td class="ds-num ds-col-cash">${fmt0(p.cash)}</td>
-        <td class="ds-num ds-col-cc">${fmt0(p.front_office)}</td>
-        <td class="ds-num ds-col-cc">${fmt0(p.online)}</td>
-        <td class="ds-num ds-col-tf">${fmt0(p.kbank)}</td>
-        <td class="ds-num ds-col-tf">${fmt0(p.ktb)}</td>
-        <td class="ds-num ds-col-ew">${fmt0(p.ewallet)}</td>
-        <td class="ds-num ds-col-gift">${fmt0(p.gift_voucher)}</td>
-        <td class="ds-num ds-col-qr">${fmt0(p.qr_payment)}</td>
-        <td class="ds-num ds-col-comm">${fmt0(p.commission_deduct)}</td>
-        <td class="ds-num ds-col-arp">${fmt0(p.arp_amount)}</td>
+        ${pc('cash', 'ds-col-cash', p.cash)}
+        ${pc('front_office', 'ds-col-cc', p.front_office)}
+        ${pc('online', 'ds-col-cc', p.online)}
+        ${pc('kbank', 'ds-col-tf', p.kbank)}
+        ${pc('ktb', 'ds-col-tf', p.ktb)}
+        ${pc('ewallet', 'ds-col-ew', p.ewallet)}
+        ${pc('gift_voucher', 'ds-col-gift', p.gift_voucher)}
+        ${cfg.tail.map(t => pc(t.field, t.col, p[t.field])).join('')}
         <td class="ds-num">${fmt(amount)}</td>
         <td class="${diffCls}">${diff === 0 ? '-' : fmt(diff)}</td>
         <td>${b.recorded_by || ''}</td>
-        <td style="font-size:11.5px">${note.slice(0, 40)}</td>
-        <td class="ds-edit-cell">${editBtn}</td>
+        ${noteCell}
+        <td class="ds-edit-cell">${delBtn}</td>
       </tr>`);
   });
   body.innerHTML = rows.join('');
 
   const c = (cls, v) => `<td class="ds-num ${cls}">${fmt(v)}</td>`;
+  const tailTot = cfg.tail.map(t => c(t.col, tot[t.field])).join('');
   foot.innerHTML = `<tr class="ds-foot-total">
-    <td colspan="5" style="text-align:right">รวม (${list.length})</td>
-    ${c('ds-col-cash', tot.cash)}${c('ds-col-cc', tot.front_office)}${c('ds-col-cc', tot.online)}${c('ds-col-tf', tot.kbank)}${c('ds-col-tf', tot.ktb)}${c('ds-col-ew', tot.ewallet)}${c('ds-col-gift', tot.gift_voucher)}${c('ds-col-qr', tot.qr_payment)}${c('ds-col-comm', tot.commission_deduct)}${c('ds-col-arp', tot.arp_amount)}
+    <td colspan="${5 + (canEdit ? 1 : 0)}" style="text-align:right">รวม (${list.length})</td>
+    ${c('ds-col-cash', tot.cash)}${c('ds-col-cc', tot.front_office)}${c('ds-col-cc', tot.online)}${c('ds-col-tf', tot.kbank)}${c('ds-col-tf', tot.ktb)}${c('ds-col-ew', tot.ewallet)}${c('ds-col-gift', tot.gift_voucher)}${tailTot}
     <td class="ds-num">${fmt(sumAmount)}</td>
     <td class="ds-num ${sumDiff === 0 ? '' : 'ds-diff-bad'}">${sumDiff === 0 ? '-' : fmt(sumDiff)}</td>
     <td colspan="3"></td>
@@ -353,7 +391,7 @@ async function fetchPaymentsMap(billNos) {
 async function loadSale() {
   const canEdit = window.hasPerm ? hasPerm('daily_sale_reconcile') : true;
   const wrap = $('dsSaleTables');
-  if (wrap && !$('dsBody_sale')) wrap.innerHTML = DS_TABLES.map(saleTableShell).join('');
+  if (wrap && !$('dsBody_sale')) wrap.innerHTML = DS_TABLES.map(cfg => saleTableShell(cfg, canEdit)).join('');
   try {
     const branchFilter = state.branch ? `&branch=eq.${state.branch}` : '';
     const bills = await sbGet(`daily_sale_bills?${dateFilter()}${branchFilter}&limit=3000`);
@@ -372,10 +410,137 @@ async function loadSale() {
 
     const groups = { sale: [], arp: [], ewallet: [] };
     visible.forEach(b => groups[billGroup(b)].push(b));
-    DS_TABLES.forEach(cfg => fillSaleTable(cfg.key, groups[cfg.key], pMap, canEdit));
+    DS_TABLES.forEach(cfg => fillSaleTable(cfg, groups[cfg.key], pMap, canEdit));
+    // ล้าง selection ของบิลที่ไม่แสดงแล้ว + refresh bulk bar
+    const vis = new Set(visible.map(b => b.bill_no));
+    [...state.saleChecked].forEach(bn => { if (!vis.has(bn)) state.saleChecked.delete(bn); });
+    dsUpdateBulk();
   } catch (e) {
     if (wrap) wrap.innerHTML = `<div class="ds-table-empty">❌ ${e.message}</div>`;
   }
+}
+
+/* ============================================================
+   INLINE CELL EDIT — คลิกช่อง payment ในตารางแล้วแก้ได้เลย
+   ============================================================ */
+function dsCellEdit(td) {
+  if (td.querySelector('input')) return;                 // กำลังแก้อยู่แล้ว
+  const bill = td.dataset.bill, field = td.dataset.field, type = td.dataset.type || 'number';
+  td.classList.add('ds-editing');
+  if (type === 'text') {
+    const cur = state.sale?.[bill]?.payment?.correction_notes || state.sale?.[bill]?.bill?.notes || '';
+    const w = Math.max(td.offsetWidth - 10, 120);
+    td.innerHTML = `<input type="text" class="ds-cell-input ds-cell-text" value="${String(cur).replace(/"/g, '&quot;')}" style="width:${w}px">`;
+  } else {
+    const cur = Number(state.sale?.[bill]?.payment?.[field] || 0);
+    const w = Math.max(td.offsetWidth - 10, 48);
+    td.innerHTML = `<input type="number" step="0.01" class="ds-cell-input" value="${cur || ''}" style="width:${w}px">`;
+  }
+  const inp = td.querySelector('input');
+  inp.focus(); inp.select();
+  let done = false;
+  inp.addEventListener('blur', () => { if (!done) { done = true; dsCellSave(bill, field, inp.value, type); } });
+  inp.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); inp.blur(); }
+    else if (e.key === 'Escape') { done = true; loadSale(); }   // ยกเลิก = โหลดใหม่
+  });
+}
+
+async function dsCellSave(bill, field, rawVal, type = 'number') {
+  const rec = state.sale?.[bill];
+  if (!rec) { loadSale(); return; }
+  const p = rec.payment || {};
+  let record;
+
+  if (type === 'text') {
+    // หมายเหตุ — บันทึก correction_notes (ไม่ตั้ง corrected · ไม่แตะ split)
+    const val = String(rawVal).trim() || null;
+    if ((p.correction_notes || '') === (val || '')) { loadSale(); return; }
+    p.correction_notes = val;
+    record = { bill_no: bill, sale_date: rec.bill?.sale_date || todayIso(), amount: Number(rec.bill?.amount || 0), correction_notes: val };
+  } else {
+    const val = Number(rawVal) || 0;
+    if (Number(p[field] || 0) === val) { loadSale(); return; }
+    p[field] = val;
+    record = {
+      bill_no: bill,
+      sale_date: rec.bill?.sale_date || todayIso(),
+      amount: Number(rec.bill?.amount || 0),
+      [field]: val,
+      credit_card: Number(p.front_office || 0) + Number(p.online || 0),
+      transfer: Number(p.kbank || 0) + Number(p.ktb || 0),
+      corrected: true,                     // → 029/030 trigger จะไม่ทับ split
+      corrected_by: window.ERP_USER?.user_id || 'unknown',
+      corrected_at: new Date().toISOString(),
+    };
+  }
+
+  showLoading(true);
+  try {
+    await sbPost('daily_sale_payments?on_conflict=bill_no', [record], 'resolution=merge-duplicates,return=minimal');
+    toast('บันทึกแล้ว', 'success');
+    await loadSale();
+  } catch (e) {
+    toast('บันทึกล้มเหลว: ' + e.message, 'error');
+    await loadSale();
+  }
+  showLoading(false);
+}
+
+/* ============================================================
+   DELETE BILL — ลบบิล (per-row 🗑 + multi-select bulk delete)
+   ============================================================ */
+function dsToggleRow(chk) {
+  const bill = chk.dataset.bill;
+  if (chk.checked) state.saleChecked.add(bill); else state.saleChecked.delete(bill);
+  dsUpdateBulk();
+}
+function dsToggleAll(key, chk) {
+  document.querySelectorAll(`#dsBody_${key} .ds-rowchk`).forEach(c => {
+    c.checked = chk.checked;
+    if (chk.checked) state.saleChecked.add(c.dataset.bill); else state.saleChecked.delete(c.dataset.bill);
+  });
+  dsUpdateBulk();
+}
+function dsClearSel() {
+  state.saleChecked.clear();
+  document.querySelectorAll('.ds-rowchk, .ds-chk-all').forEach(c => { c.checked = false; });
+  dsUpdateBulk();
+}
+function dsUpdateBulk() {
+  const bar = $('dsBulkBar'); if (!bar) return;
+  const n = state.saleChecked.size;
+  bar.style.display = n ? 'flex' : 'none';
+  const cnt = $('dsBulkCount'); if (cnt) cnt.textContent = n;
+}
+async function dsDeleteBills(bills, msg) {
+  const ok = await dsConfirm(msg, { title: 'ยืนยันลบบิล', icon: '🗑' });
+  if (!ok) return;
+  showLoading(true);
+  try {
+    for (let i = 0; i < bills.length; i += 100) {
+      const inl = bills.slice(i, i + 100).map(b => `"${b}"`).join(',');
+      await sbDelete(`daily_sale_bills?bill_no=in.(${inl})`);   // cascade → ลบ payment ด้วย
+    }
+    bills.forEach(b => state.saleChecked.delete(b));
+    toast(`ลบ ${bills.length} บิลแล้ว`, 'success');
+    await loadSale();
+  } catch (e) {
+    toast('ลบไม่สำเร็จ: ' + e.message, 'error');
+    await loadSale();
+  }
+  showLoading(false);
+}
+function dsDeleteBill(bill) {
+  const name = state.sale?.[bill]?.bill?.member_name || '';
+  return dsDeleteBills([bill],
+    `ลบบิล <b>${bill}</b>${name ? ' · ' + name : ''}?<br><span style="font-size:12px;color:var(--text3)">payment จะถูกลบด้วย · บิลจาก sync อาจกลับมารอบถัดไป</span>`);
+}
+function dsBulkDelete() {
+  const bills = [...state.saleChecked];
+  if (!bills.length) return;
+  return dsDeleteBills(bills,
+    `ลบ <b>${bills.length}</b> บิลที่เลือก?<br><span style="font-size:12px;color:var(--text3)">payment จะถูกลบด้วย · บิลจาก sync อาจกลับมารอบถัดไป</span>`);
 }
 
 /* ============================================================
@@ -749,6 +914,40 @@ function dsRecOpen(date, branch) {
 /* ============================================================
    TAB SWITCH
    ============================================================ */
+/* ============================================================
+   RAW DATA TABS — ดูข้อมูลดิบที่ sync download มา (4 ตาราง)
+   ============================================================ */
+const DS_RAW_TABS = {
+  raw_bills:  { table: 'daily_sale_bills',         label: '📄 01 บิลการขายทั้งหมด' },
+  raw_pay:    { table: 'daily_sale_payments',      label: '💳 01 รายงานช่องทางการชำระเงิน' },
+  raw_topup:  { table: 'daily_sale_topup_bills',   label: '👛 08 บิลเติมเงิน Ewallet' },
+  raw_detail: { table: 'daily_sale_topup_details', label: '📋 03 รายงานรายละเอียด Payment' },
+};
+function escHtml(s) { return String(s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c])); }
+function fmtRawCell(v) {
+  if (v === null || v === undefined || v === '') return '<span style="color:var(--text3)">·</span>';
+  const s = String(v);
+  return escHtml(s.length > 60 ? s.slice(0, 60) + '…' : s);
+}
+async function loadRaw(key) {
+  const cfg = DS_RAW_TABS[key];
+  const el = $(`dsRawBody_${key}`);
+  if (!cfg || !el) return;
+  el.innerHTML = `<div class="ds-table-empty">กำลังโหลด...</div>`;
+  try {
+    const rows = await sbGet(`${cfg.table}?sale_date=eq.${state.date}&select=*&limit=3000`);
+    const headTxt = `<div class="ds-raw-head">${cfg.label} · ${fmtDMY(state.date)} · <b>${rows.length}</b> แถว · <code>${cfg.table}</code></div>`;
+    if (!rows.length) { el.innerHTML = headTxt + `<div class="ds-table-empty">ไม่มีข้อมูลวันที่นี้ (ลองเปลี่ยนวันที่ด้านบน)</div>`; return; }
+    const cols = Object.keys(rows[0]);
+    const thead = cols.map(c => `<th>${escHtml(c)}</th>`).join('');
+    const tbody = rows.map(r => `<tr>${cols.map(c => `<td>${fmtRawCell(r[c])}</td>`).join('')}</tr>`).join('');
+    el.innerHTML = headTxt +
+      `<div class="ds-table-wrap"><div style="overflow-x:auto">
+         <table class="ds-table ds-raw-table"><thead><tr>${thead}</tr></thead><tbody>${tbody}</tbody></table>
+       </div></div>`;
+  } catch (e) { el.innerHTML = `<div class="ds-table-empty">❌ ${e.message}</div>`; }
+}
+
 function dsSwitchTab(tab) {
   state.tab = tab;
   document.querySelectorAll('.page-tab[data-tab]').forEach(el => el.classList.toggle('active', el.dataset.tab === tab));
@@ -756,6 +955,8 @@ function dsSwitchTab(tab) {
   $('dsPanelSale').style.display = tab === 'sale' ? '' : 'none';
   $('dsPanelTopup').style.display = tab === 'topup' ? '' : 'none';
   $('dsPanelReconcile').style.display = tab === 'reconcile' ? '' : 'none';
+  Object.keys(DS_RAW_TABS).forEach(k => { const el = $('dsPanel' + k); if (el) el.style.display = tab === k ? '' : 'none'; });
+  if (DS_RAW_TABS[tab]) loadRaw(tab);
 }
 
 function dsShiftDate(delta) {
@@ -781,14 +982,25 @@ async function dsSyncNow() {
     return;
   }
 
-  const ok = await dsConfirm('สั่ง GitHub Actions sync Daily Sale ตอนนี้?', {
-    title: 'ยืนยันการ Sync',
+  const ok = await dsConfirm(
+    'Sync จะดึงข้อมูลใหม่จาก answerforsuccess มา<b>ทับค่าที่แก้ไว้</b> (เฉพาะบิลจาก sync) ด้วยข้อมูลสด<br><span style="font-size:12px;color:var(--text3)">บิลเก่า import (DATA_CS) ไม่ถูกแตะ · ดำเนินการ?</span>', {
+    title: 'ยืนยันการ Sync (refresh สด)',
     icon: '🔄',
   });
   if (!ok) return;
 
   showLoading(true);
   try {
+    // Sync Now = refresh สด: ล้าง corrected ของบิล sync (ที่ CS แก้/ลบ) ในช่วงที่ sync จะดึง
+    // → sync download ทับ aggregate ใหม่ → trigger 030 derive split สด · ไม่แตะบิล import DATA_CS
+    const from = new Date(Date.now() - 3 * 86400000).toISOString().slice(0, 10);
+    try {
+      await sbPatch(
+        `daily_sale_payments?corrected=eq.true&source_file=neq.DATA_CS-import&sale_date=gte.${from}`,
+        { corrected: false, corrected_by: null, corrected_at: null }
+      );
+    } catch (e) { console.warn('reset corrected before sync:', e.message); }
+
     const pat = await ERPCrypto.decrypt(c.github_pat_encrypted);
     if (!pat) throw new Error('decrypt PAT failed');
 
@@ -897,6 +1109,12 @@ window.dsRecSave = dsRecSave;
 window.dsRecOpen = dsRecOpen;
 window.dsConfirmResolve = dsConfirmResolve;
 window.dsToggleBranch = dsToggleBranch;
+window.dsCellEdit = dsCellEdit;
+window.dsToggleRow = dsToggleRow;
+window.dsToggleAll = dsToggleAll;
+window.dsClearSel = dsClearSel;
+window.dsDeleteBill = dsDeleteBill;
+window.dsBulkDelete = dsBulkDelete;
 window.dsEditOpen = dsEditOpen;
 window.dsEditClose = dsEditClose;
 window.dsEditRecalc = dsEditRecalc;

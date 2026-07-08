@@ -58,11 +58,17 @@
       </div>
 
       <!-- ── TABS ── -->
-      <div class="page-tabs" style="margin-bottom:14px;">
+      <div class="page-tabs" style="margin-bottom:14px;display:flex;flex-wrap:wrap;align-items:center;gap:6px;">
         <button class="page-tab"        data-tab="pending"   onclick="dsSwitchTab('pending')">🆕 บิลใหม่รอตรวจ <span class="ds-tab-badge" id="dsPendingBadge" style="display:none">0</span></button>
         <button class="page-tab active" data-tab="sale"      onclick="dsSwitchTab('sale')">💰 บิลขาย</button>
         <button class="page-tab"        data-tab="topup"     onclick="dsSwitchTab('topup')">🔋 เติม E-Wallet</button>
         <button class="page-tab"        data-tab="reconcile" onclick="dsSwitchTab('reconcile')">📋 ตรวจบิล</button>
+        <!-- ชิดขวา: ข้อมูลดิบที่ sync download มา (4 ไฟล์) -->
+        <span class="ds-raw-sep" style="margin-left:auto;font-size:11px;color:var(--text3);font-weight:600;">ข้อมูลดิบ (sync) →</span>
+        <button class="page-tab ds-raw-tab" data-tab="raw_bills"  onclick="dsSwitchTab('raw_bills')">📄 01 บิลขาย</button>
+        <button class="page-tab ds-raw-tab" data-tab="raw_pay"    onclick="dsSwitchTab('raw_pay')">💳 01 ช่องทางชำระ</button>
+        <button class="page-tab ds-raw-tab" data-tab="raw_topup"  onclick="dsSwitchTab('raw_topup')">👛 08 เติมเงิน</button>
+        <button class="page-tab ds-raw-tab" data-tab="raw_detail" onclick="dsSwitchTab('raw_detail')">📋 03 รายละเอียด</button>
       </div>
 
       <!-- ── Tab: Pending review (business_date IS NULL) ── -->
@@ -100,8 +106,19 @@
 
       <!-- ── Tab: Sale — 3 ตารางตาม Google Sheet DAILY SALE (ขายปกติ / ARP / E-WALLET) สร้างใน JS ── -->
       <div class="ds-tab-panel" id="dsPanelSale">
+        <div id="dsBulkBar" class="ds-bulk-bar" style="display:none">
+          <span>เลือก <b id="dsBulkCount">0</b> บิล</span>
+          <button class="ds-bulk-del" onclick="dsBulkDelete()">🗑 ลบที่เลือก</button>
+          <button class="ds-bulk-cancel" onclick="dsClearSel()">ยกเลิก</button>
+        </div>
         <div id="dsSaleTables"></div>
       </div>
+
+      <!-- ── Raw data tabs — ดูข้อมูลดิบที่ sync download มา (สร้างเนื้อหาใน JS) ── -->
+      <div class="ds-tab-panel" id="dsPanelraw_bills"  style="display:none"><div class="ds-raw-body" id="dsRawBody_raw_bills"></div></div>
+      <div class="ds-tab-panel" id="dsPanelraw_pay"    style="display:none"><div class="ds-raw-body" id="dsRawBody_raw_pay"></div></div>
+      <div class="ds-tab-panel" id="dsPanelraw_topup"  style="display:none"><div class="ds-raw-body" id="dsRawBody_raw_topup"></div></div>
+      <div class="ds-tab-panel" id="dsPanelraw_detail" style="display:none"><div class="ds-raw-body" id="dsRawBody_raw_detail"></div></div>
 
       <!-- ── Tab: Topup (topup_bills + details) ── -->
       <div class="ds-tab-panel" id="dsPanelTopup" style="display:none">

@@ -62,18 +62,48 @@
 .ds-table-sheet th.ds-hd-id  {background:rgba(120,180,120,.20);}
 .ds-table-sheet th.ds-hd-sys {background:rgba(245,190,90,.20);}
 .ds-table-sheet th.ds-hd-meta{background:rgba(150,160,175,.18);}
+/* raw-data tabs (ข้อมูลดิบ sync) */
+.ds-raw-tab{opacity:.85;font-size:11.5px;}
+.ds-raw-tab.active{opacity:1;}
+.ds-raw-head{font-size:12.5px;color:var(--text2);margin-bottom:8px;padding:8px 12px;background:var(--surface2);border-radius:8px;}
+.ds-raw-head code{font-size:11px;color:var(--accent);background:rgba(var(--accent-rgb),.1);padding:1px 6px;border-radius:5px;}
+.ds-raw-table{font-size:11px;}
+.ds-raw-table th{padding:6px 9px;white-space:nowrap;text-transform:none;letter-spacing:0;position:static;}
+.ds-raw-table td{padding:5px 9px;white-space:nowrap;font-family:'IBM Plex Mono',monospace;font-size:10.5px;}
 /* 3 ตารางในแท็บบิลขาย (ขายปกติ / ARP / E-WALLET) */
 .ds-sale-block{margin-bottom:18px;}
-.ds-table-title{font-size:14px;font-weight:800;color:var(--accent);padding:10px 14px;border-bottom:1px solid var(--border);background:var(--accent-pale);}
+.ds-table-title{font-size:14px;font-weight:800;color:var(--accent);padding:10px 14px;border-bottom:1px solid var(--border);background:var(--accent-pale);text-align:center;}
 /* branch checkbox filter (แท็บบิลขาย) */
 .ds-branch-checks{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
 .ds-branch-chip{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;color:var(--text3);background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:4px 10px;cursor:pointer;user-select:none;}
 .ds-branch-chip input{margin:0;cursor:pointer;accent-color:var(--accent);}
 .ds-branch-chip.on{color:var(--accent);border-color:var(--accent);background:var(--accent-pale);}
-.ds-foot-total td{font-weight:800;background:var(--surface2);border-top:2px solid var(--accent);}
+/* delete + multi-select */
+.ds-chk-col{text-align:center;width:32px;}
+.ds-chk-col input{cursor:pointer;accent-color:var(--accent);}
+.ds-del-btn{background:none;border:none;cursor:pointer;font-size:14px;opacity:.6;padding:2px 5px;border-radius:5px;line-height:1;}
+.ds-del-btn:hover{opacity:1;background:rgba(220,38,38,.12);}
+.ds-bulk-bar{display:flex;align-items:center;gap:12px;padding:10px 16px;margin-bottom:12px;background:rgba(220,38,38,.08);border:1px solid rgba(220,38,38,.35);border-radius:10px;font-size:13px;}
+.ds-bulk-del{background:#dc2626;color:#fff;border:none;border-radius:8px;padding:6px 14px;font-weight:700;cursor:pointer;font-size:12.5px;}
+.ds-bulk-del:hover{background:#b91c1c;}
+.ds-bulk-cancel{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:6px 12px;cursor:pointer;font-size:12.5px;color:var(--text2);}
+/* inline cell edit (คลิกช่อง payment แก้ได้) */
+.ds-editable{cursor:pointer;}
+.ds-editable:hover{outline:1.5px solid var(--accent);outline-offset:-1.5px;background:rgba(var(--accent-rgb),.08)!important;}
+.ds-editing{padding:2px 4px!important;}
+.ds-cell-input{border:1.5px solid var(--accent);border-radius:4px;padding:2px 5px;font-size:11px;text-align:right;font-family:'IBM Plex Mono',monospace;background:var(--surface);color:var(--text);outline:none;}
+.ds-cell-input.ds-cell-text{text-align:left;font-family:inherit;}
+.ds-note-cell{font-size:11.5px;cursor:pointer;}
+.ds-foot-total td{font-weight:800;background:var(--accent-pale);border-top:2px solid var(--accent);border-bottom:2px solid var(--accent);padding:8px 8px;font-size:12px;color:var(--text);}
+.ds-foot-total td:first-child{color:var(--accent);letter-spacing:.5px;text-transform:uppercase;}
+.ds-foot-total .ds-diff-bad{color:#dc2626;}
 .ds-foot-total td.ds-col-cash,.ds-foot-total td.ds-col-cc,.ds-foot-total td.ds-col-tf,.ds-foot-total td.ds-col-ew,.ds-foot-total td.ds-col-gift,.ds-foot-total td.ds-col-qr,.ds-foot-total td.ds-col-comm,.ds-foot-total td.ds-col-arp{background:var(--surface2);}
 .ds-diff-bad{color:#dc2626;font-weight:700;}
 .ds-diff-ok{color:var(--text3);}
+/* ผลต่าง ≠ 0 → ทั้งแถวแดง (ทับสีคอลัมน์กลุ่ม) */
+.ds-table-sheet tr.ds-row-diff td{background:rgba(220,38,38,.12)!important;}
+.ds-table-sheet tr.ds-row-diff:hover td{background:rgba(220,38,38,.18)!important;}
+.ds-table-sheet tr.ds-row-diff .ds-bill-no{color:#dc2626;}
 .ds-bill-no{font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:var(--accent);font-weight:600;}
 .ds-badge{display:inline-block;padding:2px 7px;border-radius:4px;font-size:10.5px;font-weight:600;background:var(--surface2);color:var(--text2);}
 .ds-badge.sale{background:var(--accent-pale);color:#1e40af;}
