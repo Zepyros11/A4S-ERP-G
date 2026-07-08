@@ -15,6 +15,7 @@ let state = {
   branches: [],
   config: null,
   sale: {},   // bill_no → { bill, payment } cache shared by sale + pending tabs
+  branchChecks: {},  // branchKey → bool (checkbox filter, sale tab · persists across reloads)
 };
 
 function todayIso() { return new Date().toISOString().slice(0, 10); }
@@ -168,86 +169,209 @@ async function loadKPI() {
 /* ============================================================
    TAB: Sale (bills + payments)
    ============================================================ */
+// Payment channels shown in the sale table (order = Google Sheet DAILY SALE)
+const DS_CH = ['cash', 'front_office', 'online', 'kbank', 'ktb', 'ewallet', 'gift_voucher', 'qr_payment', 'commission_deduct', 'arp_amount'];
+// blank a zero so the sheet stays readable (matches Google Sheet: empty cell for 0)
+function fmt0(n) { return Number(n || 0) === 0 ? '' : fmt(n); }
+function channelSum(p) { return DS_CH.reduce((s, k) => s + Number(p[k] || 0), 0); }
+// prefix ตัวอักษรของเลขบิล (STHBKK.. → "BKK", STHONLIN.. → "ONLIN") ใช้จัดกลุ่มก่อนเรียง
+function billPrefix(bn) { return (String(bn || '').replace(/^STH/i, '').match(/^[A-Za-z]+/)?.[0] || '').toUpperCase(); }
+// เรียง: prefix (BKK<HY<KK<ONLIN) → วันที่เก่าก่อน → เลขบิล
+function saleSort(a, b) {
+  const pa = billPrefix(a.bill_no), pb = billPrefix(b.bill_no);
+  if (pa !== pb) return pa < pb ? -1 : 1;
+  const da = a.sale_date || '', db = b.sale_date || '';
+  if (da !== db) return da < db ? -1 : 1;
+  return String(a.bill_no) < String(b.bill_no) ? -1 : 1;
+}
+// สาขาของบิลสำหรับ checkbox filter: บิลออนไลน์ → ONLINE, ที่เหลือใช้ branch column (BKK01/HY/KK)
+function branchKey(b) {
+  const p = billPrefix(b.bill_no);
+  if (p === 'ONLIN' || p === 'ETHONLIN') return 'ONLINE';
+  return b.branch || p || '—';
+}
+function renderBranchChecks(keys) {
+  const el = $('dsBranchChecks');
+  if (!el) return;
+  el.innerHTML = keys.map(k => {
+    const on = state.branchChecks[k] !== false;
+    return `<label class="ds-branch-chip${on ? ' on' : ''}"><input type="checkbox" ${on ? 'checked' : ''} onchange="dsToggleBranch('${k}')">${k}</label>`;
+  }).join('');
+}
+function dsToggleBranch(k) {
+  state.branchChecks[k] = (state.branchChecks[k] === false);  // flip (default true → false → true)
+  loadSale();
+}
+
+// 3 ตารางตาม Google Sheet — คอลัมน์เดียวกันหมด ต่างแค่ label 3 ช่องท้าย (qr/comm/arp)
+const DS_TABLES = [
+  { key: 'sale',    title: '💰 บิลขายปกติ',                                       l: ['QR Paymet', 'หักค่าคอม', 'ARP'] },
+  { key: 'arp',     title: '🎁 แลกสินค้า ARP (POINT) · ARP EASY · ABB Online',    l: ['ARP (POINT)', 'ARP EASY', 'ABB Online'] },
+  { key: 'ewallet', title: '👛 E-WALLET (THB)',                                    l: ['QR Paymet', 'โอนค่าคอมเข้า E/W', 'ARP'] },
+];
+// จัดบิลเข้าตาราง: ARP (bill_type) / EWALLET (bill_type หรือ prefix ETH) / ที่เหลือ = ขายปกติ
+function billGroup(b) {
+  const t = (b.bill_type || '').toUpperCase();
+  if (t === 'ARP') return 'arp';
+  if (t === 'EWALLET' || String(b.bill_no || '').toUpperCase().startsWith('ETH')) return 'ewallet';
+  return 'sale';
+}
+
+function saleTableShell(cfg) {
+  const [l8, l9, l10] = cfg.l;
+  return `
+  <div class="ds-table-wrap ds-sale-block">
+    <div class="ds-table-title">${cfg.title}</div>
+    <div style="overflow-x:auto">
+      <table class="ds-table ds-table-sheet">
+        <thead>
+          <tr>
+            <th rowspan="3" class="ds-hd-id">NO</th>
+            <th rowspan="3" class="ds-hd-id">วันที่</th>
+            <th rowspan="3" class="ds-hd-id">เลขออเดอร์</th>
+            <th rowspan="3" class="ds-hd-id">รหัส</th>
+            <th rowspan="3" class="ds-hd-id">Name</th>
+            <th colspan="10" class="ds-grp ds-grp-pay">Payment (THB)</th>
+            <th rowspan="3" class="ds-num ds-hd-sys">ยอดในระบบ</th>
+            <th rowspan="3" class="ds-num ds-hd-sys">ผลต่าง</th>
+            <th rowspan="3" class="ds-hd-meta">ผู้บันทึก</th>
+            <th rowspan="3" class="ds-hd-meta">หมายเหตุเพิ่มเติม</th>
+            <th rowspan="3" class="ds-hd-meta"></th>
+          </tr>
+          <tr>
+            <th rowspan="2" class="ds-num ds-col-cash">Cash</th>
+            <th colspan="2" class="ds-grp ds-col-cc">Credit Card</th>
+            <th colspan="2" class="ds-grp ds-col-tf">Tranfer Money</th>
+            <th rowspan="2" class="ds-num ds-col-ew">E-WALLET</th>
+            <th rowspan="2" class="ds-num ds-col-gift">Gift Voucher</th>
+            <th rowspan="2" class="ds-num ds-col-qr">${l8}</th>
+            <th rowspan="2" class="ds-num ds-col-comm">${l9}</th>
+            <th rowspan="2" class="ds-num ds-col-arp">${l10}</th>
+          </tr>
+          <tr>
+            <th class="ds-num ds-col-cc">Front Office</th>
+            <th class="ds-num ds-col-cc">Online</th>
+            <th class="ds-num ds-col-tf">KBANK</th>
+            <th class="ds-num ds-col-tf">KTB</th>
+          </tr>
+        </thead>
+        <tbody id="dsBody_${cfg.key}"><tr><td colspan="20" class="ds-table-empty">กำลังโหลด...</td></tr></tbody>
+        <tfoot id="dsFoot_${cfg.key}"></tfoot>
+      </table>
+    </div>
+  </div>`;
+}
+
+function fillSaleTable(key, list, pMap, canEdit) {
+  const body = $(`dsBody_${key}`), foot = $(`dsFoot_${key}`);
+  if (!body) return;
+  if (!list.length) {
+    body.innerHTML = `<tr><td colspan="20" class="ds-table-empty">ไม่มีข้อมูล</td></tr>`;
+    if (foot) foot.innerHTML = '';
+    return;
+  }
+  const rows = [];
+  let sumAmount = 0, sumDiff = 0;
+  const tot = Object.fromEntries(DS_CH.map(k => [k, 0]));
+
+  list.forEach((b, i) => {
+    const p = pMap[b.bill_no] || {};
+    state.sale[b.bill_no] = { bill: b, payment: p };
+    const amount = Number(b.amount || 0);
+    const diff = channelSum(p) - amount;
+    sumAmount += amount;
+    sumDiff += diff;
+    DS_CH.forEach(k => { tot[k] += Number(p[k] || 0); });
+
+    const correctedBadge = p.corrected
+      ? ` <span class="ds-corrected-badge" title="ช่องทางชำระถูกแก้ใน ERP — sync จะไม่เขียนทับ">✏️</span>` : '';
+    const editBtn = canEdit
+      ? `<button class="ds-edit-btn" title="แก้ช่องทางชำระ" onclick="dsEditOpen('${b.bill_no}')">✏️</button>` : '';
+    const note = b.notes || p.correction_notes || '';
+    const diffCls = Math.abs(diff) > 0.5 ? 'ds-num ds-diff-bad' : 'ds-num ds-diff-ok';
+
+    rows.push(`
+      <tr${p.corrected ? ' class="ds-row-corrected"' : ''}>
+        <td class="ds-num">${i + 1}</td>
+        <td>${fmtDMY(b.sale_date)}</td>
+        <td><span class="ds-bill-no">${b.bill_no}</span>${correctedBadge}</td>
+        <td>${b.member_code || ''}</td>
+        <td>${(b.member_name || '').slice(0, 40)}</td>
+        <td class="ds-num ds-col-cash">${fmt0(p.cash)}</td>
+        <td class="ds-num ds-col-cc">${fmt0(p.front_office)}</td>
+        <td class="ds-num ds-col-cc">${fmt0(p.online)}</td>
+        <td class="ds-num ds-col-tf">${fmt0(p.kbank)}</td>
+        <td class="ds-num ds-col-tf">${fmt0(p.ktb)}</td>
+        <td class="ds-num ds-col-ew">${fmt0(p.ewallet)}</td>
+        <td class="ds-num ds-col-gift">${fmt0(p.gift_voucher)}</td>
+        <td class="ds-num ds-col-qr">${fmt0(p.qr_payment)}</td>
+        <td class="ds-num ds-col-comm">${fmt0(p.commission_deduct)}</td>
+        <td class="ds-num ds-col-arp">${fmt0(p.arp_amount)}</td>
+        <td class="ds-num">${fmt(amount)}</td>
+        <td class="${diffCls}">${diff === 0 ? '-' : fmt(diff)}</td>
+        <td>${b.recorded_by || ''}</td>
+        <td style="font-size:11.5px">${note.slice(0, 40)}</td>
+        <td class="ds-edit-cell">${editBtn}</td>
+      </tr>`);
+  });
+  body.innerHTML = rows.join('');
+
+  const c = (cls, v) => `<td class="ds-num ${cls}">${fmt(v)}</td>`;
+  foot.innerHTML = `<tr class="ds-foot-total">
+    <td colspan="5" style="text-align:right">รวม (${list.length})</td>
+    ${c('ds-col-cash', tot.cash)}${c('ds-col-cc', tot.front_office)}${c('ds-col-cc', tot.online)}${c('ds-col-tf', tot.kbank)}${c('ds-col-tf', tot.ktb)}${c('ds-col-ew', tot.ewallet)}${c('ds-col-gift', tot.gift_voucher)}${c('ds-col-qr', tot.qr_payment)}${c('ds-col-comm', tot.commission_deduct)}${c('ds-col-arp', tot.arp_amount)}
+    <td class="ds-num">${fmt(sumAmount)}</td>
+    <td class="ds-num ${sumDiff === 0 ? '' : 'ds-diff-bad'}">${sumDiff === 0 ? '-' : fmt(sumDiff)}</td>
+    <td colspan="3"></td>
+  </tr>`;
+}
+
+// fetch payments in chunks (in.() list stays short even for a big day)
+async function fetchPaymentsMap(billNos) {
+  const pMap = {};
+  for (let i = 0; i < billNos.length; i += 200) {
+    const inl = billNos.slice(i, i + 200).map(b => `"${b}"`).join(',');
+    const rows = await sbGet(`daily_sale_payments?bill_no=in.(${inl})&select=*`);
+    rows.forEach(p => { pMap[p.bill_no] = p; });
+  }
+  return pMap;
+}
+
 async function loadSale() {
-  const body = $('dsSaleBody');
   const canEdit = window.hasPerm ? hasPerm('daily_sale_reconcile') : true;
-  body.innerHTML = `<tr><td colspan="12" class="ds-table-empty">กำลังโหลด...</td></tr>`;
+  const wrap = $('dsSaleTables');
+  if (wrap && !$('dsBody_sale')) wrap.innerHTML = DS_TABLES.map(saleTableShell).join('');
   try {
     const branchFilter = state.branch ? `&branch=eq.${state.branch}` : '';
-    const bills = await sbGet(
-      `daily_sale_bills?${dateFilter()}${branchFilter}&order=sale_datetime.desc&limit=1000`
-    );
-    if (!bills.length) {
-      body.innerHTML = `<tr><td colspan="12" class="ds-table-empty">ไม่มีบิลในวันนี้</td></tr>`;
-      $('dsSaleSummary').style.display = 'none';
-      return;
-    }
+    const bills = await sbGet(`daily_sale_bills?${dateFilter()}${branchFilter}&limit=3000`);
+    bills.sort(saleSort);   // BKK ก่อน ONLIN · วันที่เก่าก่อน (client-side)
 
-    // Fetch payments for these bills
-    const billNos = bills.map(b => `"${b.bill_no}"`).join(',');
-    const payments = await sbGet(`daily_sale_payments?bill_no=in.(${billNos})&select=*`);
-    const pMap = Object.fromEntries(payments.map(p => [p.bill_no, p]));
+    // Branch checkbox filter — render จาก set เต็ม (สาขาใหม่ default ติ๊ก) แล้วค่อยกรอง
+    const allKeys = [...new Set(bills.map(branchKey))].sort();
+    allKeys.forEach(k => { if (!(k in state.branchChecks)) state.branchChecks[k] = true; });
+    renderBranchChecks(allKeys);
+    const visible = bills.filter(b => state.branchChecks[branchKey(b)] !== false);
 
-    // Cache bill+payment together (merge — shared with pending tab; edit modal reads it)
-    const rows = [];
-    let sumAmount = 0, sumCash = 0, sumTransfer = 0, sumCredit = 0, sumEwallet = 0, sumGift = 0;
+    const pMap = visible.length ? await fetchPaymentsMap(visible.map(b => b.bill_no)) : {};
 
-    for (const b of bills) {
-      const p = pMap[b.bill_no] || {};
-      state.sale[b.bill_no] = { bill: b, payment: p };
-      sumAmount += Number(b.amount || 0);
-      sumCash += Number(p.cash || 0);
-      sumTransfer += Number(p.transfer || 0);
-      sumCredit += Number(p.credit_card || 0);
-      sumEwallet += Number(p.ewallet || 0);
-      sumGift += Number(p.gift_voucher || 0);
-
-      const correctedBadge = p.corrected
-        ? ` <span class="ds-corrected-badge" title="ช่องทางชำระถูกแก้ใน ERP — sync จะไม่เขียนทับ">✏️ แก้แล้ว</span>`
-        : '';
-      const editBtn = canEdit
-        ? `<button class="ds-edit-btn" title="แก้ช่องทางชำระ" onclick="dsEditOpen('${b.bill_no}')">✏️</button>`
-        : '';
-
-      rows.push(`
-        <tr${p.corrected ? ' class="ds-row-corrected"' : ''}>
-          <td><span class="ds-bill-no">${b.bill_no}</span>${correctedBadge}</td>
-          <td>${b.member_code || ''} · ${(b.member_name || '').slice(0, 28)}</td>
-          <td><span class="ds-badge sale">${b.bill_type || '—'}</span></td>
-          <td class="ds-num">${fmt(b.amount)}</td>
-          <td class="ds-num">${fmt(p.cash)}</td>
-          <td class="ds-num">${fmt(p.transfer)}</td>
-          <td class="ds-num">${fmt(p.credit_card)}</td>
-          <td class="ds-num">${fmt(p.ewallet)}</td>
-          <td class="ds-num">${fmt(p.gift_voucher)}</td>
-          <td style="font-size:11.5px">${p.payment_method || '—'}</td>
-          <td>${b.branch || '—'}</td>
-          <td class="ds-edit-cell">${editBtn}</td>
-        </tr>
-      `);
-    }
-    body.innerHTML = rows.join('');
-
-    $('dsSumCount').textContent = bills.length;
-    $('dsSumAmount').textContent = fmt(sumAmount);
-    $('dsSumCash').textContent = fmt(sumCash);
-    $('dsSumTransfer').textContent = fmt(sumTransfer);
-    $('dsSumCredit').textContent = fmt(sumCredit);
-    $('dsSumEwallet').textContent = fmt(sumEwallet);
-    $('dsSumGift').textContent = fmt(sumGift);
-    $('dsSaleSummary').style.display = 'flex';
+    const groups = { sale: [], arp: [], ewallet: [] };
+    visible.forEach(b => groups[billGroup(b)].push(b));
+    DS_TABLES.forEach(cfg => fillSaleTable(cfg.key, groups[cfg.key], pMap, canEdit));
   } catch (e) {
-    body.innerHTML = `<tr><td colspan="12" class="ds-table-empty">❌ ${e.message}</td></tr>`;
+    if (wrap) wrap.innerHTML = `<div class="ds-table-empty">❌ ${e.message}</div>`;
   }
 }
 
 /* ============================================================
    EDIT CHANNEL — แก้ช่องทางชำระต่อบิล (Forward: ERP = source of truth)
    ============================================================ */
+// Split channels — ตรงกับคอลัมน์ Google Sheet (CS จำแนก Front Office/Online, KBANK/KTB ที่นี่)
 const DS_EDIT_FIELDS = [
-  { key: 'cash',              label: 'เงินสด' },
-  { key: 'transfer',          label: 'เงินโอน' },
-  { key: 'credit_card',       label: 'บัตรเครดิต' },
+  { key: 'cash',              label: 'เงินสด (Cash)' },
+  { key: 'front_office',      label: 'บัตร · Front Office' },
+  { key: 'online',            label: 'บัตร · Online' },
+  { key: 'kbank',             label: 'โอน · KBANK' },
+  { key: 'ktb',               label: 'โอน · KTB' },
   { key: 'ewallet',           label: 'E-Wallet' },
   { key: 'gift_voucher',      label: 'Gift Voucher' },
   { key: 'qr_payment',        label: 'QR Payment' },
@@ -292,8 +416,6 @@ function dsEditClose() {
 function dsEditRecalc() {
   let sum = 0;
   for (const f of DS_EDIT_FIELDS) {
-    // หักค่าคอม เป็นยอด "หัก" — ไม่นับรวมเป็นเงินรับ
-    if (f.key === 'commission_deduct') continue;
     sum += Number($(`dsEdit_${f.key}`)?.value || 0);
   }
   const amount = Number($('dsEditAmountRaw').value || 0);
@@ -325,6 +447,9 @@ async function dsEditSave() {
   for (const f of DS_EDIT_FIELDS) {
     record[f.key] = Number($(`dsEdit_${f.key}`)?.value || 0);
   }
+  // Keep aggregates in sync (summary view + KPIs still read credit_card/transfer)
+  record.credit_card = record.front_office + record.online;
+  record.transfer = record.kbank + record.ktb;
 
   showLoading(true);
   try {
@@ -660,7 +785,9 @@ async function dsSyncNow() {
         'X-GitHub-Api-Version': '2022-11-28',
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ ref: c.github_branch || 'main' }),
+      // force:true → manual "Sync Now" always runs, bypassing the schedule/pause
+      // gate in gateScheduledRun (a user click is an explicit "run now" intent).
+      body: JSON.stringify({ ref: c.github_branch || 'main', inputs: { force: 'true' } }),
     });
     if (res.status !== 204) throw new Error(`GitHub API ${res.status}: ${(await res.text()).slice(0, 150)}`);
 
@@ -753,6 +880,7 @@ window.dsRecPrefill = dsRecPrefill;
 window.dsRecSave = dsRecSave;
 window.dsRecOpen = dsRecOpen;
 window.dsConfirmResolve = dsConfirmResolve;
+window.dsToggleBranch = dsToggleBranch;
 window.dsEditOpen = dsEditOpen;
 window.dsEditClose = dsEditClose;
 window.dsEditRecalc = dsEditRecalc;

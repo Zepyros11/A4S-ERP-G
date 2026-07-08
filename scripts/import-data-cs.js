@@ -136,7 +136,9 @@ function parseDailySale(path) {
     });
     pays.set(billNo, {
       bill_no: billNo, sale_date: saleDate, amount: num(r[15]),
-      cash, transfer: kbank + ktb, credit_card: fo + online,
+      cash,
+      front_office: fo, online, kbank, ktb,          // split (increment 2)
+      transfer: kbank + ktb, credit_card: fo + online, // aggregates (backward-compat)
       ewallet, gift_voucher: gift, qr_payment: qr,
       commission_deduct: comm, arp_amount: arp,
       payment_method: parts.length ? parts.join('+') : null,
@@ -175,7 +177,9 @@ function parseBillonline(path) {
     });
     pays.set(billNo, {
       bill_no: billNo, sale_date: saleDate, amount,
-      cash: 0, transfer: 0, credit_card: online,
+      cash: 0,
+      front_office: 0, online, kbank: 0, ktb: 0,      // Billonline = online CC only
+      transfer: 0, credit_card: online,
       ewallet, gift_voucher: 0, qr_payment: qr,
       commission_deduct: comm, arp_amount: arp,
       payment_method: parts.length ? parts.join('+') : null,
@@ -231,7 +235,7 @@ async function req(path, { method = 'GET', body, headers = {} } = {}) {
 // are live before writing — a missing column would fail every batch.
 async function preflight() {
   const checks = [
-    ['daily_sale_payments', 'bill_no,corrected,qr_payment,commission_deduct,arp_amount', '025 (+021)'],
+    ['daily_sale_payments', 'bill_no,corrected,qr_payment,front_office,online,kbank,ktb', '027 (+025/021)'],
     ['daily_sale_bills', 'bill_no,business_date,bill_type', '023'],
     ['daily_sale_reconcile', 'reconcile_date,bill_count,system_count', '020'],
   ];
