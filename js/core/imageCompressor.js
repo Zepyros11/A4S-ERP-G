@@ -88,18 +88,27 @@
        erp_drive_storage = "1"                (master switch)
        erp_drive_buckets = "product-images,event-files,..."  (allowlist ราย bucket)
      bucket ที่ไม่อยู่ใน allowlist → อัปขึ้น Supabase ตามเดิม (PII buckets ปลอดภัย) */
+  /* bucket ที่ย้าย Drive ถาวร (Supabase bucket ลบแล้ว) → route Drive "เสมอ" แม้ไม่มี localStorage flag
+     กัน session เก่า/เครื่องที่ไม่ได้ตั้ง flag อัปไม่ได้หลังลบ bucket (config.js เติม flag ให้ตอน login อยู่แล้ว
+     ตัวนี้เป็น safety net · key = exposure ระดับเดียวกับ anon key ใน config.js) */
+  const _ALWAYS_DRIVE = {
+    buckets: ['product-images', 'tour-seat-images'],
+    proxy: 'https://a4s-erp-proxy.onrender.com',
+    key: 'e8a34e421ad649830e5da29bff37b9e2ec729c4e252ab337',
+  };
   function _driveEnabledFor(bucket) {
     try {
+      if (_ALWAYS_DRIVE.buckets.includes(bucket)) return true;   // bucket ที่ลบ Supabase แล้ว → Drive เสมอ
       if (localStorage.getItem('erp_drive_storage') !== '1') return false;
       const list = (localStorage.getItem('erp_drive_buckets') || '')
         .split(',').map(s => s.trim()).filter(Boolean);
       return list.includes(bucket);
-    } catch { return false; }
+    } catch { return _ALWAYS_DRIVE.buckets.includes(bucket); }
   }
   function _driveCfg() {
     return {
-      proxyBase: (localStorage.getItem('erp_proxy_url') || '').replace(/\/+$/, ''),
-      key: localStorage.getItem('erp_drive_key') || '',
+      proxyBase: (localStorage.getItem('erp_proxy_url') || _ALWAYS_DRIVE.proxy).replace(/\/+$/, ''),
+      key: localStorage.getItem('erp_drive_key') || _ALWAYS_DRIVE.key,
     };
   }
 
