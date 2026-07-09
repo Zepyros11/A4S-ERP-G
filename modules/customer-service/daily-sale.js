@@ -1006,11 +1006,63 @@ function recGroup() { return state.branchGroup && state.branchGroup !== 'ALL' ? 
 // reconcile.branch มี FK → branches(branch_code) เก็บชื่อกลุ่มไม่ได้ · ใช้รหัสตัวแทนของกลุ่ม (BKK→BKK01)
 function recBranchKey() { return (DS_BRANCH_GROUPS[recGroup()] || [])[0] || 'BKK01'; }
 let _recSysMonth = {};   // cache: business_date → {count,value} ของเดือนที่แสดง
+let _recDaily = null;    // ข้อมูลสรุปยอดรายวันล่าสุด (ให้ปุ่มคัดลอกใช้)
 
 async function loadReconcile() {
   state.recMonth = (state.date || todayIso()).slice(0, 7);   // sync เดือนกับวันที่เลือก
+  state.recDailyDate = state.date || todayIso();              // sync วันสรุปยอดขวา (เลือกเองได้ทีหลัง)
   await dsLoadSigOptions();
   await Promise.all([loadRecMonth(), loadRecDaily()]);
+}
+
+function dsRecDailyDateChange(val) { state.recDailyDate = val || todayIso(); loadRecDaily(); }
+
+// คัดลอกสรุปยอดรายวันทั้งบล็อกเป็นข้อความ (เอาไปวาง LINE/chat)
+async function dsRecCopyDaily() {
+  if (!_recDaily) { toast('ยังไม่มีข้อมูล', 'error'); return; }
+  const { ds, ew, group, date } = _recDaily;
+  const b = v => `${fmt(v)} บาท`;
+  const by = window.ERP_USER?.full_name || window.ERP_USER?.user_id || '';
+  const text = [
+    'DAILY SALE Payment (THB)',
+    `${fmtDMY(date)} · สาขา ${group}`,
+    `ยอดรวม = ${b(ds.amount)}`,
+    `1) เงินสด = ${b(ds.cash)}`,
+    `2) ยอดตัดบัตรเครดิตออนไลน์วันนี้ = ${b(ds.online)}`,
+    `3) บัตรเครดิตกสิกร Can = ${b(ds.front_office)}`,
+    `4) ยอดโอนกสิกร = ${b(ds.kbank)}`,
+    `5) ยอดโอนกรุงไทย = ${b(ds.ktb)}`,
+    `6) E-WALLET = ${b(ds.ewallet)}`,
+    `7) ARP = ${b(ds.arp_amount)}`,
+    `8) QR PAYMENT = ${b(ds.qr_payment)}`,
+    `9) โอนค่าคอมเข้า E/W = ${b(ds.commission_deduct)}`,
+    `10) คูปองเงินสด = ${b(ds.gift_voucher)}`,
+    `11) ARP POINT (USD) = ------ USD`,
+    `   - ARP EASY = ------`,
+    `   - ABB Online = ------`,
+    `12) การเติม E-WALLET จำนวน = ${b(ew.amount)}`,
+    `   - ยอดเงินสด = ${b(ew.cash)}`,
+    `   - บัตรเครดิตกสิกร Can = ${b(ew.front_office)}`,
+    `   - Online = ${b(ew.online)}`,
+    `   - K-Bank = ${b(ew.kbank)}`,
+    `   - KTB = ${b(ew.ktb)}`,
+    `   - E-WALLET = ${b(ew.ewallet)}`,
+    `   - QR = ${b(ew.qr_payment)}`,
+    `   - GIFT VOUCHER = ${b(ew.gift_voucher)}`,
+    `   - โอนค่าคอมเข้า E/W = ${b(ew.commission_deduct)}`,
+    `สรุปยอดโดย: ${by ? 'CS-' + by : '—'}`,
+  ].join('\n');
+  try {
+    await navigator.clipboard.writeText(text);
+    toast('คัดลอกแล้ว', 'success');
+  } catch {
+    const ta = document.createElement('textarea');
+    ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); toast('คัดลอกแล้ว', 'success'); }
+    catch { toast('คัดลอกไม่สำเร็จ', 'error'); }
+    ta.remove();
+  }
 }
 
 function dsRecMonthShift(delta) {
@@ -1053,8 +1105,9 @@ async function loadRecMonth() {
       const cnt = has ? s.count : '';
       const val = has ? fmt(s.value) : '';   // มูลค่า = Sum(amount) · คงเหลือ = มูลค่า · ในระบบ = ค่าเดียวกัน
       const sig = r.signature || '';
+      const opts = (sig && !DS_SIG_OPTS.includes(sig)) ? [sig, ...DS_SIG_OPTS] : DS_SIG_OPTS;   // เผื่อชื่อเก่าไม่อยู่ในลิสต์
       const sigCell = canEdit
-        ? `<td class="ds-rec-edit"><select data-date="${date}" data-field="signature" onchange="dsRecCellSave(this)"><option value=""></option>${DS_SIG_OPTS.map(o => `<option${o === sig ? ' selected' : ''}>${o}</option>`).join('')}</select></td>`
+        ? `<td class="ds-rec-edit"><select data-date="${date}" data-field="signature" onchange="dsRecCellSave(this)"><option value=""></option>${opts.map(o => `<option${o === sig ? ' selected' : ''}>${escHtml(o)}</option>`).join('')}</select></td>`
         : `<td>${escHtml(sig)}</td>`;
       const note = r.notes || '';
       const noteCell = canEdit
@@ -1097,9 +1150,10 @@ async function loadRecDaily() {
   const el = $('dsRecDaily');
   if (!el) return;
   const group = recGroup();
+  const date = state.recDailyDate || state.date || todayIso();
   el.innerHTML = `<div class="ds-table-empty">กำลังโหลด...</div>`;
   try {
-    const bills = await sbGet(`daily_sale_bills?${dateFilter()}&select=*&limit=5000`);
+    const bills = await sbGet(`daily_sale_bills?business_date=eq.${date}&select=*&limit=5000`);
     const scoped = bills.filter(b => branchGroupOf(b) === group);
     const pMap = scoped.length ? await fetchPaymentsMap(scoped.map(b => b.bill_no)) : {};
     const ds = REC_ZERO(), ew = REC_ZERO();   // ds = DAILY SALE (ไม่ใช่ ewallet) · ew = เติม E-Wallet
@@ -1112,18 +1166,22 @@ async function loadRecDaily() {
       t.amount += Number(b.amount || 0);
       for (const f in REC_ZERO()) if (f !== 'amount') t[f] += Number(p[f] || 0);
     });
-    el.innerHTML = renderRecDaily(ds, ew, group);
+    _recDaily = { ds, ew, group, date };   // เก็บไว้ให้ปุ่มคัดลอกใช้
+    el.innerHTML = renderRecDaily(ds, ew, group, date);
   } catch (e) {
     el.innerHTML = `<div class="ds-table-empty">❌ ${e.message}</div>`;
   }
 }
 
-function renderRecDaily(ds, ew, group) {
+function renderRecDaily(ds, ew, group, date) {
   const L = (label, val, dash) => `<div class="ds-recd-line"><span>${label}</span><b>${dash ? '------' : fmt(val)}${dash ? '' : ' บาท'}</b></div>`;
   const by = window.ERP_USER?.full_name || window.ERP_USER?.user_id || '';
   return `
     <div class="ds-recd-card">
-      <div class="ds-recd-head">DAILY SALE Payment (THB)<span>${fmtDMY(state.date)} · สาขา ${group}</span></div>
+      <div class="ds-recd-head">
+        <div class="ds-recd-headrow">DAILY SALE Payment (THB)<button class="ds-recd-copy" onclick="dsRecCopyDaily()" title="คัดลอกทั้งบล็อก">📋 คัดลอก</button></div>
+        <span><input type="date" class="ds-recd-datepick" value="${date}" onchange="dsRecDailyDateChange(this.value)"> · สาขา ${group}</span>
+      </div>
       <div class="ds-recd-line total"><span>ยอดรวม</span><b>${fmt(ds.amount)} บาท</b></div>
       ${L('1) เงินสด', ds.cash)}
       ${L('2) ยอดตัดบัตรเครดิตออนไลน์วันนี้', ds.online)}
@@ -1442,6 +1500,8 @@ window.dsSyncModalClose = dsSyncModalClose;
 window.dsCloseSyncProgress = dsCloseSyncProgress;
 window.dsRecCellSave = dsRecCellSave;
 window.dsRecMonthShift = dsRecMonthShift;
+window.dsRecDailyDateChange = dsRecDailyDateChange;
+window.dsRecCopyDaily = dsRecCopyDaily;
 window.dsConfirmResolve = dsConfirmResolve;
 window.dsSelectBranch = dsSelectBranch;
 window.dsGroupOpen = dsGroupOpen;

@@ -113,6 +113,34 @@ function _parseNewsRss(xml, limit) {
   }).filter(x => x.title);
 }
 
+/* ── YouTube: ค้นคลิปฮิตตาม hashtag/หัวข้อ (30 วันล่าสุด เรียงตามยอดวิว) ──
+   ต้องมี YOUTUBE_API_KEY (Google Cloud → YouTube Data API v3) · ไม่มีคีย์ = ข้าม ไม่พัง */
+const YT_KEY = process.env.YOUTUBE_API_KEY || '';
+async function _fetchYouTube(query, geo, hl) {
+  const pubAfter = new Date(Date.now() - 30 * 86400000).toISOString();
+  const searchUrl =
+    'https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=6' +
+    `&order=viewCount&regionCode=${geo}&relevanceLanguage=${hl}` +
+    `&publishedAfter=${encodeURIComponent(pubAfter)}&q=${encodeURIComponent(query)}&key=${YT_KEY}`;
+  const sr = await fetch(searchUrl);
+  const sj = await sr.json();
+  if (sj.error) throw new Error(sj.error.message || 'YouTube search error');
+  const ids = (sj.items || []).map(i => i.id && i.id.videoId).filter(Boolean);
+  if (!ids.length) return [];
+  const vr = await fetch(
+    `https://www.googleapis.com/youtube/v3/videos?part=statistics,snippet&id=${ids.join(',')}&key=${YT_KEY}`);
+  const vj = await vr.json();
+  if (vj.error) throw new Error(vj.error.message || 'YouTube videos error');
+  return (vj.items || []).map(v => ({
+    title: v.snippet.title,
+    channel: v.snippet.channelTitle,
+    url: `https://www.youtube.com/watch?v=${v.id}`,
+    thumb: (v.snippet.thumbnails && (v.snippet.thumbnails.medium || v.snippet.thumbnails.default) || {}).url || '',
+    views: Number((v.statistics || {}).viewCount || 0),
+    publishedAt: v.snippet.publishedAt,
+  })).sort((a, b) => b.views - a.views);
+}
+
 app.post('/trend/fetch', async (req, res) => {
   try {
     const body = req.body || {};
@@ -128,22 +156,66 @@ app.post('/trend/fetch', async (req, res) => {
       trending = _parseTrendsRss(tx).slice(0, 20);
     } catch (e) { /* trends optional */ }
 
-    // 2) Google News RSS ต่อหัวข้อ (ยิงขนานกัน)
+    // 2) ต่อหัวข้อ: Google News RSS + YouTube (ยิงขนานกัน)
     const perTopic = await Promise.all(topics.map(async (t) => {
       const label = String(t.label || '').slice(0, 80);
       const query = String(t.query || t.label || '').slice(0, 160);
-      if (!query) return { label, query, items: [] };
+      if (!query) return { label, query, items: [], videos: [] };
+      const out = { label, query, items: [], videos: [] };
+      // ข่าว
       try {
         const url = `https://news.google.com/rss/search?q=${encodeURIComponent(query)}` +
                     `&hl=${hl}&gl=${geo}&ceid=${geo}:${hl}`;
-        const nx = await _trFetch(url);
-        return { label, query, items: _parseNewsRss(nx, 8) };
-      } catch (e) {
-        return { label, query, items: [], error: e.message };
+        out.items = _parseNewsRss(await _trFetch(url), 8);
+      } catch (e) { out.error = e.message; }
+      // YouTube (เฉพาะเมื่อมีคีย์)
+      if (YT_KEY) {
+        try { out.videos = await _fetchYouTube(query, geo, hl); }
+        catch (e) { out.ytError = e.message; }
       }
+      return out;
     }));
 
-    res.json({ ok: true, geo, fetchedAt: new Date().toISOString(), trending, topics: perTopic });
+    res.json({
+      ok: true, geo, fetchedAt: new Date().toISOString(),
+      youtubeEnabled: !!YT_KEY, trending, topics: perTopic,
+    });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+/* ── AI แนะ hashtag ต่อกระแส/หัวข้อ (ไทย+อังกฤษ) ── */
+app.post('/trend/hashtags', async (req, res) => {
+  if (!client) return res.status(503).json({ ok: false, error: 'LLM ยังไม่ได้ตั้งค่า (ANTHROPIC_API_KEY)' });
+  try {
+    const b = req.body || {};
+    const title = String(b.title || '').slice(0, 300);
+    if (!title) return res.status(400).json({ ok: false, error: 'ต้องมี title' });
+    const topic = String(b.topic || '').slice(0, 120);
+    const brand = String(b.brand || '').slice(0, 500);
+
+    const msg = await client.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 400,
+      system: 'คุณเป็นผู้เชี่ยวชาญโซเชียลมีเดียไทย เสนอ hashtag ที่คนไทยใช้จริงและช่วยให้โพสต์เข้าถึงคนเยอะ ' +
+              'ตอบเป็น JSON array of strings เท่านั้น ห้ามมีข้อความอื่น',
+      messages: [{
+        role: 'user',
+        content: `กระแส/หัวข้อ: "${title}"${topic ? ` (หมวด: ${topic})` : ''}\n` +
+          (brand ? `ธุรกิจ: ${brand}\n` : '') +
+          `เสนอ 8-12 hashtag (ผสมไทยและอังกฤษ) ที่เกี่ยวข้องกับกระแสนี้และเหมาะกับโพสต์ธุรกิจ ` +
+          `เรียงจากกว้าง(คนเยอะ)ไปเฉพาะเจาะจง ตอบ JSON array เช่น ["#สุขภาพ","#อาหารเสริม","#healthy"]`,
+      }],
+    });
+    const text = (msg.content || []).filter(c => c.type === 'text').map(c => c.text).join('\n');
+    let tags = [];
+    const jm = text.match(/\[[\s\S]*\]/);
+    if (jm) { try { tags = JSON.parse(jm[0]); } catch (e) { /* fall through */ } }
+    tags = (Array.isArray(tags) ? tags : []).map(String)
+      .map(s => s.trim().startsWith('#') ? s.trim() : '#' + s.trim().replace(/^#+/, ''))
+      .filter(s => s.length > 1).slice(0, 15);
+    res.json({ ok: true, hashtags: tags });
   } catch (err) {
     res.status(500).json({ ok: false, error: err.message });
   }

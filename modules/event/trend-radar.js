@@ -157,7 +157,10 @@ function renderTrending() {
         </div>
         <div class="tr-card-title">${esc(t.title)}</div>
         <div class="tr-card-news">${newsHtml || '<span class="tr-src-empty">—</span>'}</div>
-        <button class="tr-idea-btn" onclick="ideaFromTrend(${i})">💡 ปั้นคอนเทนต์</button>
+        <div class="tr-card-actions">
+          <button class="tr-idea-btn" onclick="ideaFromTrend(${i})">💡 ปั้นคอนเทนต์</button>
+          <button class="tr-tag-btn" onclick="hashtagsFromTrend(${i})" title="hashtag แนะนำ">🏷️</button>
+        </div>
       </div>`;
   }).join("");
 }
@@ -174,6 +177,15 @@ function ideaFromNews(tabIdx, itemIdx) {
   const n = t && (t.items || [])[itemIdx];
   if (!n) return;
   openIdeas(n.title, t.label, "");
+}
+function hashtagsFromTrend(i) {
+  const t = (LAST.trending || [])[i];
+  if (t) openHashtags(t.title, "กระแสทั่วไป");
+}
+function hashtagsFromNews(tabIdx, itemIdx) {
+  const t = (LAST.topics || [])[tabIdx];
+  const n = t && (t.items || [])[itemIdx];
+  if (n) openHashtags(n.title, t.label);
 }
 
 /* ── Section 2: topic tabs + news ── */
@@ -192,27 +204,59 @@ function selectTab(i) {
   renderTopicTabs();
   renderTopicNews();
 }
+function formatViews(n) {
+  n = Number(n) || 0;
+  if (n >= 1e6) return (n / 1e6).toFixed(n >= 1e7 ? 0 : 1) + "M";
+  if (n >= 1e3) return (n / 1e3).toFixed(n >= 1e4 ? 0 : 1) + "K";
+  return String(n);
+}
 function renderTopicNews() {
   const wrap = document.getElementById("topicNews");
   const topics = LAST.topics || [];
   const t = topics[ACTIVE_TAB];
   if (!t) { wrap.innerHTML = `<div class="tr-empty">ยังไม่มีหัวข้อ — เพิ่มที่ ⚙️ จัดการหัวข้อ</div>`; return; }
+
+  // ── ข่าว ──
   const items = t.items || [];
-  if (!items.length) {
-    wrap.innerHTML = `<div class="tr-empty">ไม่พบข่าวสำหรับ "${esc(t.label)}" ลองปรับคำค้นให้กว้างขึ้น</div>`;
-    return;
-  }
-  wrap.innerHTML = items.map((n, idx) => `
-    <div class="tr-news-item">
-      <div class="tr-news-main">
-        <a class="tr-news-title" href="${esc(n.url)}" target="_blank" rel="noopener">${esc(n.title)}</a>
-        <div class="tr-news-meta">
-          ${n.source ? `<span class="tr-news-src">${esc(n.source)}</span>` : ""}
-          ${n.pubDate ? `<span class="tr-news-time">· ${esc(timeAgo(n.pubDate))}</span>` : ""}
+  const newsHtml = items.length
+    ? items.map((n, idx) => `
+      <div class="tr-news-item">
+        <div class="tr-news-main">
+          <a class="tr-news-title" href="${esc(n.url)}" target="_blank" rel="noopener">${esc(n.title)}</a>
+          <div class="tr-news-meta">
+            ${n.source ? `<span class="tr-news-src">${esc(n.source)}</span>` : ""}
+            ${n.pubDate ? `<span class="tr-news-time">· ${esc(timeAgo(n.pubDate))}</span>` : ""}
+          </div>
         </div>
-      </div>
-      <button class="tr-idea-btn sm" onclick="ideaFromNews(${ACTIVE_TAB}, ${idx})">💡 ปั้น</button>
-    </div>`).join("");
+        <div class="tr-news-actions">
+          <button class="tr-idea-btn sm" onclick="ideaFromNews(${ACTIVE_TAB}, ${idx})">💡 ปั้น</button>
+          <button class="tr-tag-btn sm" onclick="hashtagsFromNews(${ACTIVE_TAB}, ${idx})" title="hashtag แนะนำ">🏷️</button>
+        </div>
+      </div>`).join("")
+    : `<div class="tr-empty">ไม่พบข่าวสำหรับ "${esc(t.label)}" ลองปรับคำค้นให้กว้างขึ้น</div>`;
+
+  // ── YouTube ──
+  let ytHtml = "";
+  if (LAST.youtubeEnabled) {
+    const videos = t.videos || [];
+    const grid = videos.length
+      ? `<div class="tr-yt-grid">${videos.map(v => `
+          <a class="tr-yt-card" href="${esc(v.url)}" target="_blank" rel="noopener">
+            <div class="tr-yt-thumb"${v.thumb ? ` style="background-image:url('${esc(v.thumb)}')"` : ""}>
+              <span class="tr-yt-play">▶</span>
+            </div>
+            <div class="tr-yt-info">
+              <div class="tr-yt-title">${esc(v.title)}</div>
+              <div class="tr-yt-meta">${esc(v.channel)} · 👁 ${formatViews(v.views)} วิว</div>
+            </div>
+          </a>`).join("")}</div>`
+      : `<div class="tr-empty">ไม่พบคลิปสำหรับหัวข้อนี้ในรอบ 30 วัน</div>`;
+    ytHtml = `
+      <div class="tr-sub-hdr">🎬 คลิปฮิตตามหัวข้อ <span class="tr-sub-note">YouTube · 30 วันล่าสุด เรียงตามยอดวิว</span></div>
+      ${grid}`;
+  }
+
+  wrap.innerHTML = `<div class="tr-sub-hdr">📰 ข่าว/บทความ</div>${newsHtml}${ytHtml}`;
 }
 
 /* ══ Ideas modal ══ */
@@ -285,6 +329,52 @@ async function copyText(text) {
   try { await navigator.clipboard.writeText(text); showToast("คัดลอกแล้ว ✅"); }
   catch { showToast("คัดลอกไม่สำเร็จ", "error"); }
 }
+
+/* ══ Hashtag modal ══ */
+let CURRENT_TAGS = [];
+async function openHashtags(title, topic) {
+  const base = proxyBase();
+  if (!base) return showToast("ยังไม่ได้ตั้ง erp_proxy_url", "error");
+  const body = document.getElementById("hashtagBody");
+  body.innerHTML = `
+    <div class="tr-idea-source">📌 กระแส: <b>${esc(title)}</b></div>
+    <div class="tr-loading">🤖 กำลังคิด hashtag…</div>`;
+  document.getElementById("hashtagModal").classList.add("open");
+  try {
+    const r = await fetch(`${base}/trend/hashtags`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title, topic, brand: BRAND_CONTEXT }),
+    });
+    const data = await r.json().catch(() => ({}));
+    if (!data.ok) throw new Error(data.error || "คิด hashtag ไม่สำเร็จ");
+    CURRENT_TAGS = data.hashtags || [];
+    renderHashtags(title);
+  } catch (e) {
+    body.innerHTML = `
+      <div class="tr-idea-source">📌 กระแส: <b>${esc(title)}</b></div>
+      <div class="tr-empty">คิด hashtag ไม่สำเร็จ — ${esc(e.message)}</div>`;
+  }
+}
+function renderHashtags(title) {
+  const body = document.getElementById("hashtagBody");
+  if (!CURRENT_TAGS.length) {
+    body.innerHTML = `<div class="tr-idea-source">📌 <b>${esc(title)}</b></div><div class="tr-empty">ไม่มี hashtag แนะนำ</div>`;
+    return;
+  }
+  const chips = CURRENT_TAGS.map((h, i) =>
+    `<button class="tr-tag-chip" onclick="copyTag(${i})" title="คลิกเพื่อคัดลอก">${esc(h)}</button>`).join("");
+  body.innerHTML = `
+    <div class="tr-idea-source">📌 กระแส: <b>${esc(title)}</b></div>
+    <p class="tr-hint">คลิกแท็บเพื่อคัดลอกทีละอัน หรือคัดลอกทั้งหมด</p>
+    <div class="tr-tag-chips">${chips}</div>
+    <div class="tr-idea-actions">
+      <button class="btn btn-primary btn-sm" onclick="copyAllTags()">📋 คัดลอกทั้งหมด</button>
+    </div>`;
+}
+function copyTag(i) { const h = CURRENT_TAGS[i]; if (h) copyText(h); }
+function copyAllTags() { if (CURRENT_TAGS.length) copyText(CURRENT_TAGS.join(" ")); }
+function closeHashtags() { document.getElementById("hashtagModal").classList.remove("open"); }
 
 /* ── ส่งไอเดียเข้า FB Scheduler เป็น DRAFT ── */
 async function sendToFb(caption, btn) {
