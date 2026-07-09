@@ -174,6 +174,19 @@ async function _fetchYouTube(query, geo, hl) {
   })).sort((a, b) => b.views - a.views);
 }
 
+/* Cache ผล YouTube (เก็บเฉพาะที่สำเร็จ) — กันรีเฟรชซ้ำๆ กินโควตา (search = 100 หน่วย/ครั้ง)
+   default 180 นาที = 1 ครั้ง/หัวข้อ/3ชม. → ~32 searches/วัน << 10,000 หน่วย */
+const _ytCache = new Map();
+const YT_CACHE_MIN = parseInt(process.env.YT_CACHE_MIN || '180', 10);
+async function _fetchYouTubeCached(ytQuery, geo, hl) {
+  const key = geo + '|' + ytQuery;
+  const c = _ytCache.get(key);
+  if (c && (Date.now() - c.ts) < YT_CACHE_MIN * 60000) return c.videos;
+  const videos = await _fetchYouTube(ytQuery, geo, hl);   // throw ตอนโควตาหมด → ไม่ cache
+  _ytCache.set(key, { videos, ts: Date.now() });
+  return videos;
+}
+
 /* ดึงกระแสทั้งชุด (ใช้ทั้ง /trend/fetch และ digest LINE) */
 async function _gatherTrends(geo, topics) {
   const hl = geo === 'TH' ? 'th' : 'en';
@@ -199,7 +212,7 @@ async function _gatherTrends(geo, topics) {
     if (YT_KEY) {
       // yt_query (คำค้นรีวิว) ถ้ามี ไม่งั้นใช้ query เดิม
       const ytQuery = String(t.yt_query || '').trim() || query;
-      try { out.videos = await _fetchYouTube(ytQuery, geo, hl); }
+      try { out.videos = await _fetchYouTubeCached(ytQuery, geo, hl); }
       catch (e) { out.ytError = e.message; }
     }
     return out;

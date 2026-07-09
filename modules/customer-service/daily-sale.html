@@ -293,6 +293,12 @@
           <input type="date" id="dsSyncTo" class="form-control" style="min-width:150px" />
         </label>
       </div>
+      <div class="ds-close-choice">
+        <label class="ds-close-opt on"><input type="radio" name="dsCloseMode" value="open" checked onchange="dsCloseModeSel(this)">
+          <span><b>ยังไม่ปิดรอบ</b><small>ดึงสด · บิลลงตามวันขายจริง</small></span></label>
+        <label class="ds-close-opt"><input type="radio" name="dsCloseMode" value="close" onchange="dsCloseModeSel(this)">
+          <span><b>🔒 ปิดรอบวันนี้</b><small>บิลที่ขายหลังตอนนี้ → นับเป็นวันถัดไป</small></span></label>
+      </div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="dsSyncModalClose()">ยกเลิก</button>
