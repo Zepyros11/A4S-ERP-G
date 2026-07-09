@@ -339,7 +339,7 @@ async function _fetchTikTokTrends(geo) {
   const headers = {
     'User-Agent': _YT_UA,
     'Referer': 'https://ads.tiktok.com/business/creativecenter/inspiration/popular/hashtag/pc/en',
-    'anonymous-user-id': require('crypto').randomUUID(),
+    'anonymous-user-id': crypto.randomUUID(),
     'timestamp': String(Math.floor(Date.now() / 1000)),
     'Accept': 'application/json, text/plain, */*',
     'Accept-Language': 'en',
@@ -420,7 +420,14 @@ async function _gatherTrends(geo, topics) {
     return out;
   }));
 
-  return { geo, youtubeEnabled: true, trending, topics: perTopic };
+  // 3) รวมผลเทรนด์ระดับประเทศที่ยิงไว้ตอนต้น
+  const [tiktok, yc] = await Promise.all([ttP, ycP]);
+
+  return {
+    geo, youtubeEnabled: true, ytKey: !!YT_KEY,
+    trending, topics: perTopic,
+    tiktok, ytChart: yc.videos, ytChartError: yc.error || '',
+  };
 }
 
 app.post('/trend/fetch', async (req, res) => {

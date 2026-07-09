@@ -17,8 +17,8 @@
   <div class="page">
     <div class="page-hero page-hero--simple page-hero--compact">
       <div>
-        <h1 class="page-hero-title">📺 เรดาร์ยูทูบ</h1>
-        <p class="page-hero-sub">ส่องคลิปมาแรงตามหัวข้อธุรกิจจาก YouTube · เรียงตามยอดวิว แล้วปั้นเป็นไอเดียคอนเทนต์</p>
+        <h1 class="page-hero-title">📡 เรดาร์เทรนด์</h1>
+        <p class="page-hero-sub">รวมกระแสจาก YouTube · TikTok · Google Trends — เรียงตามความแรง แล้วปั้นเป็นไอเดียคอนเทนต์</p>
       </div>
       <div class="page-hero-actions">
         <button class="btn-on-hero" id="btnDigest" onclick="openDigest()">📩 ตั้งค่าส่ง LINE</button>
@@ -73,16 +73,34 @@
       <div id="topicNews" class="tr-news-list"></div>
     </div>
 
-    <!-- Section 2: Google Trends (ส่วนเสริม) -->
-    <details class="tr-section tr-extra" id="trendsDetails">
-      <summary class="tr-section-hdr tr-extra-summary">
-        <h2 class="tr-section-title">🔥 คำค้นมาแรงวันนี้ (Google Trends)</h2>
-        <span class="tr-section-sub">คำค้นที่พุ่งแรงในไทย · แตะเพื่อดู/ซ่อน</span>
-      </summary>
+    <!-- Section 2: TikTok เทรนด์ (ซ่อนจนกว่าจะมีข้อมูล) -->
+    <div class="tr-section" id="tiktokSection" style="display:none">
+      <div class="tr-section-hdr">
+        <h2 class="tr-section-title">🎵 TikTok เทรนด์</h2>
+        <span class="tr-section-sub">แฮชแท็ก & เพลงมาแรงในไทย · 7 วันล่าสุด · จาก TikTok Creative Center</span>
+      </div>
+      <div id="tiktokBody"></div>
+    </div>
+
+    <!-- Section 3: YouTube Trending รวมประเทศ (ซ่อนจนกว่าจะมีข้อมูล) -->
+    <div class="tr-section" id="ytChartSection" style="display:none">
+      <div class="tr-section-hdr">
+        <h2 class="tr-section-title">📺 YouTube มาแรงรวม (ไทย)</h2>
+        <span class="tr-section-sub">คลิปฮิตทั้งประเทศตอนนี้ · ไม่แยกตามหัวข้อ</span>
+      </div>
+      <div id="ytChartGrid"></div>
+    </div>
+
+    <!-- Section 4: Google Trends -->
+    <div class="tr-section">
+      <div class="tr-section-hdr">
+        <h2 class="tr-section-title">🔥 คำค้นมาแรงวันนี้</h2>
+        <span class="tr-section-sub">คำค้นที่พุ่งแรงในไทย · จาก Google Trends</span>
+      </div>
       <div id="trendingGrid" class="tr-grid">
         <div class="tr-skeleton"></div><div class="tr-skeleton"></div><div class="tr-skeleton"></div>
       </div>
-    </details>
+    </div>
   </div>
 
   <!-- ══ Ideas modal ══ -->

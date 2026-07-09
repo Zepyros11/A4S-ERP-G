@@ -189,11 +189,11 @@
 .ds-pending-badge{display:inline-block;font-size:10.5px;font-weight:700;color:#b45309;background:rgba(217,119,6,.14);border-radius:10px;padding:1px 8px;}
 
 /* ── Sync progress runner (avatar วิ่งตาม %) ── */
-.ds-runner-emo{display:inline-block;font-size:19px;line-height:1;animation:dsRun .45s ease-in-out infinite;filter:drop-shadow(0 1px 1px rgba(0,0,0,.2));}
+.ds-runner-emo{display:inline-block;font-size:28px;line-height:1;animation:dsRun .45s ease-in-out infinite;filter:drop-shadow(0 1px 1px rgba(0,0,0,.2));}
 @keyframes dsRun{0%,100%{transform:translateY(0) rotate(-6deg) scaleX(-1);}50%{transform:translateY(-3px) rotate(6deg) scaleX(-1);}}
 
 /* mascot sprite (รูปจริง) — เด้ง+เอียง แต่ไม่ flip (กัน logo A4S กลับด้าน) */
-.ds-runner-sprite{width:58px;height:58px;object-fit:contain;display:block;animation:dsRunImg .45s ease-in-out infinite;filter:drop-shadow(0 2px 3px rgba(0,0,0,.25));}
+.ds-runner-sprite{width:84px;height:84px;object-fit:contain;display:block;animation:dsRunImg .45s ease-in-out infinite;filter:drop-shadow(0 2px 3px rgba(0,0,0,.25));}
 @keyframes dsRunImg{0%,100%{transform:translateY(0) rotate(-5deg);}50%{transform:translateY(-4px) rotate(5deg);}}
 
 /* ── บิลออนไลน์: dropdown หมายเหตุจัดส่ง ── */

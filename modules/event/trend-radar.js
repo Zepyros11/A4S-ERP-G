@@ -118,6 +118,8 @@ async function refreshAll() {
     renderTrending();
     renderTopicTabs();
     renderTopicNews();
+    renderTikTok();
+    renderYtChart();
   } catch (e) {
     showToast("โหลดกระแสไม่สำเร็จ: " + e.message, "error");
     grid.innerHTML = `<div class="tr-empty">โหลดไม่สำเร็จ — ${esc(e.message)}</div>`;
@@ -235,7 +237,7 @@ function renderTopicNews() {
   wrap.innerHTML = `${youtubeSection(t)}${newsSection(t)}`;
 }
 
-/* ── YouTube (พระเอก): คลิปเด่นตัวใหญ่ + กริดคลิป มี badge อันดับ ── */
+/* ── YouTube (พระเอก): list กระชับ เรียงตามยอดวิว มี badge อันดับ ── */
 function youtubeSection(t) {
   const canIdea = !!proxyBase();
   if (!LAST.youtubeEnabled) {
@@ -251,37 +253,148 @@ function youtubeSection(t) {
     return `<div class="tr-empty tr-empty-sm">${msg}</div>`;
   }
 
-  const card = (v, i) => {
-    const rank = i + 1;
-    const rankCls = rank <= 3 ? ` top${rank}` : "";
-    const channel = v.channelUrl
-      ? `<a class="tr-yt-channel" href="${esc(v.channelUrl)}" target="_blank" rel="noopener">📺 ${esc(v.channel)}</a>`
-      : `<span class="tr-yt-channel-plain">📺 ${esc(v.channel)}</span>`;
-    return `
-      <div class="tr-yt-card">
-        <a class="tr-yt-thumb"${v.thumb ? ` style="background-image:url('${esc(v.thumb)}')"` : ""} href="${esc(v.url)}" target="_blank" rel="noopener" title="เปิดวิดีโอ">
-          <span class="tr-yt-rank${rankCls}">#${rank}</span>
-          <span class="tr-yt-play">▶</span>
-          <span class="tr-yt-views">👁 ${formatViews(v.views)}</span>
-        </a>
-        <div class="tr-yt-info">
-          <a class="tr-yt-title" href="${esc(v.url)}" target="_blank" rel="noopener">${esc(v.title)}</a>
-          <div class="tr-yt-meta">${channel}</div>
-          ${canIdea ? `<div class="tr-yt-actions">
-            <button class="tr-idea-btn sm" onclick="ideaFromVideo(${ACTIVE_TAB}, ${i})">💡 ปั้นคอนเทนต์</button>
-            <button class="tr-tag-btn sm" onclick="hashtagsFromVideo(${ACTIVE_TAB}, ${i})" title="hashtag แนะนำ">🏷️</button>
-          </div>` : ""}
-        </div>
-      </div>`;
-  };
+  const rows = videos.map((v, i) => ytRowHtml(v, i + 1,
+    canIdea ? `ideaFromVideo(${ACTIVE_TAB}, ${i})` : "",
+    canIdea ? `hashtagsFromVideo(${ACTIVE_TAB}, ${i})` : "")).join("");
+  return `<div class="tr-yt-list">${rows}</div>`;
+}
 
-  // คลิปอันดับ 1 = คลิปเด่น (การ์ดใหญ่พาดขวาง) ที่เหลือเป็นกริดปกติ
-  const [hero, ...rest] = videos;
-  const heroHtml = `<div class="tr-yt-hero">${card(hero, 0)}</div>`;
-  const restHtml = rest.length
-    ? `<div class="tr-yt-grid">${rest.map((v, i) => card(v, i + 1)).join("")}</div>`
+/* แถวคลิป YouTube แบบ list กระชับ (thumbnail เล็ก · ใช้ร่วม per-topic + chart) */
+function ytRowHtml(v, rank, ideaCall, tagCall) {
+  const rankCls = rank <= 3 ? ` top${rank}` : "";
+  const channel = v.channelUrl
+    ? `<a class="tr-yt-row-channel" href="${esc(v.channelUrl)}" target="_blank" rel="noopener">📺 ${esc(v.channel)}</a>`
+    : `<span>📺 ${esc(v.channel)}</span>`;
+  const actions = ideaCall
+    ? `<div class="tr-yt-row-actions">
+         <button class="tr-tag-btn sm" onclick="${ideaCall}" title="ปั้นคอนเทนต์">💡</button>
+         <button class="tr-tag-btn sm" onclick="${tagCall}" title="hashtag แนะนำ">🏷️</button>
+       </div>`
     : "";
-  return `<div class="tr-yt-wrap">${heroHtml}${restHtml}</div>`;
+  return `
+    <div class="tr-yt-row">
+      <span class="tr-yt-row-rank${rankCls}">#${rank}</span>
+      <a class="tr-yt-row-thumb"${v.thumb ? ` style="background-image:url('${esc(v.thumb)}')"` : ""} href="${esc(v.url)}" target="_blank" rel="noopener" title="เปิดวิดีโอ">
+        <span class="tr-yt-row-views">👁 ${formatViews(v.views)}</span>
+      </a>
+      <div class="tr-yt-row-main">
+        <a class="tr-yt-row-title" href="${esc(v.url)}" target="_blank" rel="noopener">${esc(v.title)}</a>
+        <div class="tr-yt-row-meta">${channel}</div>
+      </div>
+      ${actions}
+    </div>`;
+}
+
+/* การ์ดคลิป YouTube (ใช้ร่วมกันทั้ง per-topic + chart) · ideaCall/tagCall = onclick string ("" = ไม่โชว์ปุ่ม) */
+function ytCardHtml(v, rank, ideaCall, tagCall) {
+  const rankCls = rank <= 3 ? ` top${rank}` : "";
+  const channel = v.channelUrl
+    ? `<a class="tr-yt-channel" href="${esc(v.channelUrl)}" target="_blank" rel="noopener">📺 ${esc(v.channel)}</a>`
+    : `<span class="tr-yt-channel-plain">📺 ${esc(v.channel)}</span>`;
+  const actions = ideaCall
+    ? `<div class="tr-yt-actions">
+         <button class="tr-idea-btn sm" onclick="${ideaCall}">💡 ปั้นคอนเทนต์</button>
+         <button class="tr-tag-btn sm" onclick="${tagCall}" title="hashtag แนะนำ">🏷️</button>
+       </div>`
+    : "";
+  return `
+    <div class="tr-yt-card">
+      <a class="tr-yt-thumb"${v.thumb ? ` style="background-image:url('${esc(v.thumb)}')"` : ""} href="${esc(v.url)}" target="_blank" rel="noopener" title="เปิดวิดีโอ">
+        <span class="tr-yt-rank${rankCls}">#${rank}</span>
+        <span class="tr-yt-play">▶</span>
+        <span class="tr-yt-views">👁 ${formatViews(v.views)}</span>
+      </a>
+      <div class="tr-yt-info">
+        <a class="tr-yt-title" href="${esc(v.url)}" target="_blank" rel="noopener">${esc(v.title)}</a>
+        <div class="tr-yt-meta">${channel}</div>
+        ${actions}
+      </div>
+    </div>`;
+}
+
+/* ── Section: YouTube Trending รวมประเทศ (chart) ── */
+function renderYtChart() {
+  const sec = document.getElementById("ytChartSection");
+  const grid = document.getElementById("ytChartGrid");
+  const vids = (LAST && LAST.ytChart) || [];
+  if (!vids.length) { sec.style.display = "none"; return; }
+  const canIdea = !!proxyBase();
+  grid.innerHTML = `<div class="tr-yt-list tr-yt-list--2col">${vids.map((v, i) => ytRowHtml(v, i + 1,
+    canIdea ? `ideaFromChart(${i})` : "",
+    canIdea ? `hashtagsFromChart(${i})` : "")).join("")}</div>`;
+  sec.style.display = "";
+}
+function ideaFromChart(i) {
+  const v = (LAST.ytChart || [])[i];
+  if (v) openIdeas(v.title, "YouTube มาแรง", `คลิป YouTube ยอดวิว ${formatViews(v.views)} จากช่อง ${v.channel || "-"}`);
+}
+function hashtagsFromChart(i) {
+  const v = (LAST.ytChart || [])[i];
+  if (v) openHashtags(v.title, "YouTube มาแรง");
+}
+
+/* ── Section: TikTok เทรนด์ (แฮชแท็ก + เพลง) ── */
+function renderTikTok() {
+  const sec = document.getElementById("tiktokSection");
+  const body = document.getElementById("tiktokBody");
+  const tt = (LAST && LAST.tiktok) || {};
+  const tags = tt.hashtags || [];
+  const songs = tt.songs || [];
+
+  if (!tags.length && !songs.length) {
+    const err = tt.error || tt.hashtagError;
+    if (err) {   // ดึงไม่ได้จริง → โชว์ข้อความเล็ก ๆ ช่วย debug บน Render
+      sec.style.display = "";
+      body.innerHTML = `<div class="tr-empty tr-empty-sm">ดึง TikTok ไม่สำเร็จ — <code>${esc(err)}</code>
+        <br><span class="tr-sub-note">TikTok อาจบล็อก IP เซิร์ฟเวอร์ หรือต้องเซ็น header เพิ่ม</span></div>`;
+    } else {
+      sec.style.display = "none";
+    }
+    return;
+  }
+
+  const canIdea = !!proxyBase();
+  let html = "";
+  if (tags.length) {
+    html += `<div class="tr-sub-hdr">🏷️ แฮชแท็กมาแรง</div><div class="tt-tags">`;
+    html += tags.map((h, i) => {
+      const rank = h.rank || (i + 1);
+      const rankCls = rank <= 3 ? ` top${rank}` : "";
+      const stat = h.posts ? `${formatViews(h.posts)} โพสต์` : (h.views ? `${formatViews(h.views)} วิว` : "");
+      return `<div class="tt-tag">
+          <span class="tt-tag-rank${rankCls}">#${rank}</span>
+          <a class="tt-tag-name" href="${esc(h.url)}" target="_blank" rel="noopener">#${esc(h.name)}</a>
+          ${stat ? `<span class="tt-tag-stat">${stat}</span>` : ""}
+          ${canIdea ? `<button class="tt-tag-idea" onclick="ideaFromTikTag(${i})" title="ปั้นคอนเทนต์">💡</button>` : ""}
+        </div>`;
+    }).join("");
+    html += `</div>`;
+  }
+  if (songs.length) {
+    html += `<div class="tr-sub-hdr">🎵 เพลงมาแรง</div><div class="tt-songs">`;
+    html += songs.map((s, i) => {
+      const rank = s.rank || (i + 1);
+      const cover = s.cover
+        ? `<span class="tt-song-cover" style="background-image:url('${esc(s.cover)}')"></span>`
+        : `<span class="tt-song-cover tt-song-cover-ph">🎵</span>`;
+      return `<a class="tt-song"${s.url ? ` href="${esc(s.url)}" target="_blank" rel="noopener"` : ""}>
+          <span class="tt-song-rank">#${rank}</span>
+          ${cover}
+          <span class="tt-song-main">
+            <span class="tt-song-title">${esc(s.title)}</span>
+            ${s.author ? `<span class="tt-song-author">${esc(s.author)}</span>` : ""}
+          </span>
+        </a>`;
+    }).join("");
+    html += `</div>`;
+  }
+  body.innerHTML = html;
+  sec.style.display = "";
+}
+function ideaFromTikTag(i) {
+  const h = ((LAST.tiktok || {}).hashtags || [])[i];
+  if (!h) return;
+  openIdeas("#" + h.name, "TikTok เทรนด์", `แฮชแท็ก TikTok มาแรง${h.posts ? " ~" + formatViews(h.posts) + " โพสต์" : ""}`);
 }
 
 /* ── ข่าว/บทความ (ส่วนรอง — พับเก็บได้) ── */
