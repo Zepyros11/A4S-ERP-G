@@ -1321,10 +1321,19 @@ async function dsLineOpen() {
       sel.innerHTML = (chs || []).map(c => `<option value="${c.id}">${escHtml(c.channel_name || c.name || ('channel ' + c.id))}</option>`).join('') || '<option value="">— ไม่มี channel —</option>';
     } catch { sel.innerHTML = '<option value="">โหลด channel ไม่ได้</option>'; }
   }
+  const gsel = $('dsLineGroup');
+  if (gsel) {
+    try {
+      const groups = await sbGet('line_groups?select=*&order=is_active.desc,group_name.asc');
+      gsel.innerHTML = '<option value="">— พิมพ์ ID เอง / broadcast —</option>' +
+        (groups || []).map(g => `<option value="${escHtml(g.group_id)}">${escHtml((g.category ? '[' + g.category + '] ' : '') + (g.group_name || g.group_id))}${g.is_active ? '' : ' (ปิด)'}</option>`).join('');
+    } catch { gsel.innerHTML = '<option value="">โหลดกลุ่มไม่ได้</option>'; }
+  }
   dsLineNoteChange();
   const ov = $('dsLineOverlay'); if (ov) ov.style.display = 'flex';
 }
 function dsLineClose() { const ov = $('dsLineOverlay'); if (ov) ov.style.display = 'none'; }
+function dsLineGroupChange() { const g = $('dsLineGroup')?.value || ''; if (g && $('dsLineTarget')) $('dsLineTarget').value = g; }
 function dsLineNoteChange() { const pv = $('dsLinePreview'); if (pv) pv.textContent = dsBuildSummaryText(($('dsLineNote')?.value || '').trim()); }
 
 // แคป element เป็นรูป (clone ออกนอกจอ → html2canvas → jpeg blob) · รองรับแท็บที่ซ่อนอยู่
