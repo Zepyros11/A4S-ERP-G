@@ -824,19 +824,43 @@ window.printPreview = function () {
 };
 
 // render เอกสาร 1 ฉบับ → canvas (ใช้ร่วม PDF/PNG)
+// เดิม render ใน #pdfHolder ของหน้าหลัก แล้วใช้ inverse-zoom หัก :root{zoom:0.65}
+// แต่ html2canvas วัด layout เพี้ยน (สูงเกินจริง) → PDF ล้นเป็น 2 หน้า
+// ย้ายมา render ใน iframe สะอาด (ไม่มี zoom/CSS ของแอป) → layout ตรงกับ preview/print เป๊ะ
 async function renderDocCanvas(d) {
-  const holder = document.getElementById("pdfHolder");
-  holder.innerHTML = `<div class="doc-paper">${composeDocHtml(d.body, d.signatory_id, d.letterhead_id)}</div>`;
-  const paper = holder.firstElementChild;
-  paper.style.boxShadow = "none";
-  // แอปตั้ง :root{zoom:0.65} บน desktop (common.css) — html2canvas ไม่รู้จัก CSS zoom
-  // เลยวัดกล่องแบบย่อแต่วาดตัวอักษรเต็มขนาด → คำทับกันเละ
-  // หักล้างด้วย zoom ผกผันเฉพาะกล่อง render ให้ net zoom = 1 (กล่องอยู่นอกจอ ไม่กระทบ UI)
-  const rootZoom = parseFloat(getComputedStyle(document.documentElement).zoom) || 1;
-  if (rootZoom !== 1) paper.style.zoom = String(1 / rootZoom);
-  await waitImages(paper);
-  await waitFonts(); // รอ Sarabun โหลดครบ ไม่งั้น html2canvas วัดตัวอักษรผิดได้เช่นกัน
-  return html2canvas(paper, { scale: 2, useCORS: true, backgroundColor: "#ffffff" });
+  const iframe = document.createElement("iframe");
+  iframe.style.cssText =
+    "position:fixed;left:-10000px;top:0;width:840px;height:1400px;border:0;background:#fff;";
+  document.body.appendChild(iframe);
+  try {
+    const idoc = iframe.contentDocument || iframe.contentWindow.document;
+    idoc.open();
+    idoc.write(
+      '<!doctype html><html><head><meta charset="utf-8">' +
+      '<base href="' + location.href + '">' +
+      '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700;800&display=swap">' +
+      '<style>' + DOC_PRINT_CSS + '</style></head><body>' +
+      '<div class="doc-paper">' + composeDocHtml(d.body, d.signatory_id, d.letterhead_id) + '</div>' +
+      '</body></html>'
+    );
+    idoc.close();
+    const paper = idoc.querySelector(".doc-paper");
+    await waitImages(idoc.body);
+    const fr = idoc.fonts && idoc.fonts.ready ? idoc.fonts.ready : Promise.resolve();
+    await fr.catch(() => {});
+    await new Promise((r) => setTimeout(r, 120)); // เผื่อ reflow หลังฟอนต์พร้อม
+    return await html2canvas(paper, {
+      scale: 2,
+      useCORS: true,
+      backgroundColor: "#ffffff",
+      width: paper.offsetWidth,
+      height: paper.offsetHeight,
+      windowWidth: idoc.documentElement.scrollWidth,
+      windowHeight: idoc.documentElement.scrollHeight,
+    });
+  } finally {
+    iframe.remove();
+  }
 }
 
 // รอให้ web font (Sarabun/IBM Plex Mono) โหลดเสร็จก่อน rasterize

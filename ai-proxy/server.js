@@ -145,10 +145,115 @@ async function _fetchNews(query, geo, hl) {
   return { items, source: 'bing' };
 }
 
-/* ── YouTube: ค้นคลิปฮิตตาม hashtag/หัวข้อ (30 วันล่าสุด เรียงตามยอดวิว) ──
-   ต้องมี YOUTUBE_API_KEY (Google Cloud → YouTube Data API v3) · ไม่มีคีย์ = ข้าม ไม่พัง */
+/* ── YouTube: ค้นคลิปฮิตตามหัวข้อ (คลิปยอดนิยม ~เดือนล่าสุด เรียงตามยอดวิว) ──
+   ค่าเริ่มต้น = SCRAPE หน้าค้นหา youtube.com/results (ไม่ใช้ API key / ไม่กินโควตา)
+   ถ้ามี YOUTUBE_API_KEY จะใช้ Data API เป็น fallback ตอน scrape ล่ม/ว่าง เท่านั้น */
 const YT_KEY = process.env.YOUTUBE_API_KEY || '';
-async function _fetchYouTube(query, geo, hl) {
+const _YT_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 ' +
+               '(KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36';
+
+/* ตัด JSON ก้อนแรกหลัง marker ด้วยการนับวงเล็บปีกกา (กัน regex พังเพราะ nested/quote) */
+function _sliceJson(html, marker) {
+  const i = html.indexOf(marker);
+  if (i < 0) return null;
+  const start = html.indexOf('{', i);
+  if (start < 0) return null;
+  let depth = 0, inStr = false, esc = false;
+  for (let j = start; j < html.length; j++) {
+    const ch = html[j];
+    if (inStr) {
+      if (esc) esc = false;
+      else if (ch === '\\') esc = true;
+      else if (ch === '"') inStr = false;
+    } else if (ch === '"') inStr = true;
+    else if (ch === '{') depth++;
+    else if (ch === '}' && --depth === 0) return html.slice(start, j + 1);
+  }
+  return null;
+}
+function _extractYtInitialData(html) {
+  for (const marker of ['var ytInitialData = ', 'ytInitialData = ', 'ytInitialData"] = ']) {
+    const raw = _sliceJson(html, marker);
+    if (raw) { try { return JSON.parse(raw); } catch (e) { /* ลอง marker ถัดไป */ } }
+  }
+  return null;
+}
+/* เดินทั้ง object เก็บทุก videoRenderer (ผลการค้นหาซ้อนหลายชั้น) */
+function _collectVideoRenderers(node, out) {
+  if (!node || typeof node !== 'object') return;
+  if (Array.isArray(node)) { for (const x of node) _collectVideoRenderers(x, out); return; }
+  if (node.videoRenderer && node.videoRenderer.videoId) out.push(node.videoRenderer);
+  for (const k in node) _collectVideoRenderers(node[k], out);
+}
+function _runsText(o) {
+  if (!o) return '';
+  if (o.simpleText) return o.simpleText;
+  if (Array.isArray(o.runs)) return o.runs.map(r => r.text).join('');
+  return '';
+}
+function _vrToVideo(vr) {
+  const id = vr.videoId;
+  if (!id) return null;
+  const owner = (vr.ownerText && vr.ownerText.runs && vr.ownerText.runs[0]) ||
+                (vr.longBylineText && vr.longBylineText.runs && vr.longBylineText.runs[0]) || {};
+  const chId = owner.navigationEndpoint && owner.navigationEndpoint.browseEndpoint &&
+               owner.navigationEndpoint.browseEndpoint.browseId || '';
+  const thumbs = (vr.thumbnail && vr.thumbnail.thumbnails) || [];
+  return {
+    title: _runsText(vr.title),
+    channel: owner.text || '',
+    channelUrl: chId ? `https://www.youtube.com/channel/${chId}` : '',
+    url: `https://www.youtube.com/watch?v=${id}`,
+    thumb: thumbs.length ? thumbs[thumbs.length - 1].url : `https://i.ytimg.com/vi/${id}/mqdefault.jpg`,
+    views: parseInt(String(_runsText(vr.viewCountText)).replace(/[^\d]/g, ''), 10) || 0,
+    publishedText: _runsText(vr.publishedTimeText),
+  };
+}
+/* แปลงข้อความ "2 สัปดาห์ที่ผ่านมา"/"3 months ago" → อายุโดยประมาณ (วัน) · null = อ่านไม่ออก */
+function _ytAgeDays(text) {
+  if (!text) return null;
+  const s = String(text).toLowerCase();
+  const num = parseFloat((s.match(/[\d.]+/) || ['1'])[0]) || 1;
+  const unit =
+    /year|ปี/.test(s) ? 365 :
+    /month|เดือน/.test(s) ? 30 :
+    /week|สัปดาห/.test(s) ? 7 :
+    /day|วัน/.test(s) ? 1 :
+    /hour|ชั่วโมง|ชม/.test(s) ? 1 / 24 :
+    /min|นาที/.test(s) ? 1 / 1440 : null;
+  return unit == null ? null : num * unit;
+}
+async function _scrapeYouTube(query, geo, hl) {
+  const url = 'https://www.youtube.com/results?search_query=' + encodeURIComponent(query) +
+              `&hl=${hl}&gl=${geo}`;
+  const r = await fetch(url, {
+    signal: AbortSignal.timeout(10000),
+    headers: {
+      'User-Agent': _YT_UA,
+      'Accept-Language': hl === 'th' ? 'th-TH,th;q=0.9,en;q=0.8' : 'en-US,en;q=0.9',
+      // CONSENT + PREF: เลี่ยงหน้ายินยอมของ Google ที่เสิร์ฟให้ IP ดาต้าเซ็นเตอร์
+      'Cookie': `CONSENT=YES+cb.20220301-11-p0.en+FX+000; PREF=hl=${hl}&gl=${geo}`,
+    },
+  });
+  if (!r.ok) throw new Error('YouTube HTTP ' + r.status);
+  const data = _extractYtInitialData(await r.text());
+  if (!data) throw new Error('อ่าน ytInitialData ไม่ได้ (โครงสร้าง YouTube อาจเปลี่ยน หรือโดนหน้า consent)');
+
+  const vrs = []; _collectVideoRenderers(data, vrs);
+  const all = []; const seen = new Set();
+  for (const vr of vrs) {
+    const v = _vrToVideo(vr);
+    if (!v || !v.title || seen.has(v.url)) continue;
+    seen.add(v.url); all.push(v);
+  }
+  // เอาเฉพาะ ~2 เดือนล่าสุด แต่ถ้ากรองแล้วเหลือน้อยไป ใช้ทั้งหมด (กันผลว่างเพราะกรองแรงเกิน)
+  let pool = all.filter(v => { const a = _ytAgeDays(v.publishedText); return a == null || a <= 60; });
+  if (pool.length < 3) pool = all;
+  return pool.sort((a, b) => b.views - a.views).slice(0, 6);
+}
+
+/* fallback: YouTube Data API v3 (ใช้เฉพาะเมื่อมี YOUTUBE_API_KEY และ scrape ล่ม/ว่าง) */
+async function _fetchYouTubeApi(query, geo, hl) {
   const pubAfter = new Date(Date.now() - 30 * 86400000).toISOString();
   const searchUrl =
     'https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=6' +
@@ -174,22 +279,121 @@ async function _fetchYouTube(query, geo, hl) {
   })).sort((a, b) => b.views - a.views);
 }
 
-/* Cache ผล YouTube (เก็บเฉพาะที่สำเร็จ) — กันรีเฟรชซ้ำๆ กินโควตา (search = 100 หน่วย/ครั้ง)
-   default 180 นาที = 1 ครั้ง/หัวข้อ/3ชม. → ~32 searches/วัน << 10,000 หน่วย */
+/* Cache ผล YouTube — กันยิงหา YouTube ถี่เกิน (ลดโอกาสโดนบล็อก) · ไม่กินโควตา
+   default 180 นาที = 1 ครั้ง/หัวข้อ/3ชม. */
 const _ytCache = new Map();
 const YT_CACHE_MIN = parseInt(process.env.YT_CACHE_MIN || '180', 10);
 async function _fetchYouTubeCached(ytQuery, geo, hl) {
   const key = geo + '|' + ytQuery;
   const c = _ytCache.get(key);
   if (c && (Date.now() - c.ts) < YT_CACHE_MIN * 60000) return c.videos;
-  const videos = await _fetchYouTube(ytQuery, geo, hl);   // throw ตอนโควตาหมด → ไม่ cache
+
+  let videos;
+  try {
+    videos = await _scrapeYouTube(ytQuery, geo, hl);        // หลัก: ไม่ใช้โควตา
+    if (!videos.length && YT_KEY) {                          // scrape ว่าง + มีคีย์ → เสริมด้วย API
+      try { videos = await _fetchYouTubeApi(ytQuery, geo, hl); } catch (e) { /* คง [] */ }
+    }
+  } catch (e) {
+    if (!YT_KEY) throw e;                                    // ไม่มีคีย์ → โยน error ให้ขึ้น ytError
+    videos = await _fetchYouTubeApi(ytQuery, geo, hl);       // มีคีย์ → fallback API
+  }
   _ytCache.set(key, { videos, ts: Date.now() });
   return videos;
+}
+
+/* ── YouTube Trending รวมประเทศ (chart=mostPopular = 1 หน่วย ≈ ฟรี · ต้องมี YOUTUBE_API_KEY) ── */
+const _ytChartCache = new Map();
+async function _fetchYouTubeChart(geo, hl) {
+  if (!YT_KEY) return [];
+  const r = await fetch(
+    'https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics&chart=mostPopular' +
+    `&maxResults=12&regionCode=${geo}&hl=${hl}&key=${YT_KEY}`);
+  const j = await r.json();
+  if (j.error) throw new Error((j.error && j.error.message) || 'YouTube chart error');
+  return (j.items || []).map(v => ({
+    title: v.snippet.title,
+    channel: v.snippet.channelTitle,
+    channelUrl: v.snippet.channelId ? `https://www.youtube.com/channel/${v.snippet.channelId}` : '',
+    url: `https://www.youtube.com/watch?v=${v.id}`,
+    thumb: (v.snippet.thumbnails && (v.snippet.thumbnails.medium || v.snippet.thumbnails.default) || {}).url || '',
+    views: Number((v.statistics || {}).viewCount || 0),
+  }));
+}
+async function _fetchYouTubeChartCached(geo, hl) {
+  const c = _ytChartCache.get(geo);
+  if (c && (Date.now() - c.ts) < 60 * 60000) return c.videos;   // 1 ชม.
+  const videos = await _fetchYouTubeChart(geo, hl);
+  if (videos.length) _ytChartCache.set(geo, { videos, ts: Date.now() });
+  return videos;
+}
+
+/* ── TikTok Creative Center: แฮชแท็ก/เพลงเทรนด์ (internal API · best-effort) ──
+   หมายเหตุ: TikTok อาจต้องเซ็น header (user-sign) และบล็อก IP ดาต้าเซ็นเตอร์
+   → wrap try/catch แยกแต่ละก้อน ล้มก็ไม่พังทั้งชุด · ต้องพิสูจน์จริงหลัง deploy บน Render */
+const _ttCache = new Map();
+const TT_CACHE_MIN = parseInt(process.env.TT_CACHE_MIN || '180', 10);
+async function _fetchTikTokTrends(geo) {
+  const cc = geo || 'TH';
+  const base = 'https://ads.tiktok.com/creative_radar_api/v1/popular_trend';
+  const headers = {
+    'User-Agent': _YT_UA,
+    'Referer': 'https://ads.tiktok.com/business/creativecenter/inspiration/popular/hashtag/pc/en',
+    'anonymous-user-id': require('crypto').randomUUID(),
+    'timestamp': String(Math.floor(Date.now() / 1000)),
+    'Accept': 'application/json, text/plain, */*',
+    'Accept-Language': 'en',
+  };
+  const getList = async (path, qs) => {
+    const r = await fetch(`${base}/${path}?${qs}`, { headers, signal: AbortSignal.timeout(12000) });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const j = await r.json();
+    if (j.code) throw new Error(j.msg || ('code ' + j.code));   // code!=0 = error
+    return j.data || {};
+  };
+  const out = { hashtags: [], songs: [] };
+  try {
+    const d = await getList('hashtag/list', `page=1&limit=20&period=7&country_code=${cc}&sort_by=popular`);
+    out.hashtags = (d.list || []).map(h => ({
+      name: h.hashtag_name,
+      rank: h.rank,
+      posts: Number(h.publish_cnt || 0),
+      views: Number(h.video_views || 0),
+      url: `https://www.tiktok.com/tag/${encodeURIComponent(h.hashtag_name || '')}`,
+    })).filter(x => x.name);
+  } catch (e) { out.hashtagError = e.message; }
+  try {
+    const d = await getList('sound/list', `page=1&limit=10&period=7&rank_type=popular&country_code=${cc}`);
+    const list = d.sound_list || d.list || [];
+    out.songs = list.map(s => ({
+      title: s.title || s.song_name || s.music_title || '',
+      author: s.author || s.singer || '',
+      rank: s.rank,
+      cover: s.cover || s.cover_large || s.cover_medium || '',
+      url: s.link || (s.clip_id ? `https://www.tiktok.com/music/-${s.clip_id}` : ''),
+    })).filter(x => x.title);
+  } catch (e) { out.songError = e.message; }
+  if (out.hashtagError && out.songError) out.error = out.hashtagError;   // ล้มทั้งคู่ = ดึงไม่ได้จริง
+  return out;
+}
+async function _fetchTikTokCached(geo) {
+  const c = _ttCache.get(geo);
+  if (c && (Date.now() - c.ts) < TT_CACHE_MIN * 60000) return c.data;
+  const data = await _fetchTikTokTrends(geo);
+  // cache เฉพาะเมื่อได้อย่างน้อยอย่างหนึ่ง (กัน cache ค่าว่างตอนโดนบล็อกชั่วคราว)
+  if ((data.hashtags || []).length || (data.songs || []).length) _ttCache.set(geo, { data, ts: Date.now() });
+  return data;
 }
 
 /* ดึงกระแสทั้งชุด (ใช้ทั้ง /trend/fetch และ digest LINE) */
 async function _gatherTrends(geo, topics) {
   const hl = geo === 'TH' ? 'th' : 'en';
+
+  // เริ่มดึงเทรนด์ระดับประเทศ (TikTok + YouTube chart) ขนานไปกับ per-topic — ล้มก็ไม่พังทั้งชุด
+  const ttP = _fetchTikTokCached(geo).catch(e => ({ hashtags: [], songs: [], error: e.message }));
+  const ycP = _fetchYouTubeChartCached(geo, hl)
+    .then(videos => ({ videos, error: '' }))
+    .catch(e => ({ videos: [], error: e.message }));
 
   // 1) Google Trends daily (optional)
   let trending = [];
@@ -209,16 +413,14 @@ async function _gatherTrends(geo, topics) {
       out.items = news.items;
       out.newsSource = news.source;
     } catch (e) { out.error = e.message; }
-    if (YT_KEY) {
-      // yt_query (คำค้นรีวิว) ถ้ามี ไม่งั้นใช้ query เดิม
-      const ytQuery = String(t.yt_query || '').trim() || query;
-      try { out.videos = await _fetchYouTubeCached(ytQuery, geo, hl); }
-      catch (e) { out.ytError = e.message; }
-    }
+    // YouTube (scrape ไม่ใช้โควตา) — yt_query ถ้ามี ไม่งั้นใช้ query เดิม
+    const ytQuery = String(t.yt_query || '').trim() || query;
+    try { out.videos = await _fetchYouTubeCached(ytQuery, geo, hl); }
+    catch (e) { out.ytError = e.message; }
     return out;
   }));
 
-  return { geo, youtubeEnabled: !!YT_KEY, trending, topics: perTopic };
+  return { geo, youtubeEnabled: true, trending, topics: perTopic };
 }
 
 app.post('/trend/fetch', async (req, res) => {

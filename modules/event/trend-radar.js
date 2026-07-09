@@ -247,7 +247,7 @@ function youtubeSection(t) {
       ? (/quota/i.test(t.ytError)
           ? `🎬 โควตา YouTube วันนี้เต็ม — คลิปจะกลับมาเองหลังรีเซ็ต (พรุ่งนี้ ~บ่าย)`
           : `ดึงคลิปไม่สำเร็จ — <code>${esc(t.ytError)}</code>`)
-      : `ไม่พบคลิปสำหรับ "${esc(t.label)}" ในรอบ 30 วัน — ลองปรับ 🎬 คำค้น YouTube ที่ ⚙️ จัดการหัวข้อ`;
+      : `ไม่พบคลิปสำหรับ "${esc(t.label)}" — ลองปรับ 🎬 คำค้น YouTube ที่ ⚙️ จัดการหัวข้อ`;
     return `<div class="tr-empty tr-empty-sm">${msg}</div>`;
   }
 
