@@ -63,17 +63,19 @@
       </div>
     </div>
 
-    <!-- Section 1: YouTube clips ตามหัวข้อ (พระเอกของหน้า) -->
-    <div class="tr-section">
+    <!-- แท็บหัวข้อ = ตัวคุมหลัก (ภาพรวม + แต่ละหัวข้อ) คุมทั้งหน้า -->
+    <div id="topicTabs" class="tr-tabs tr-tabs-master"></div>
+
+    <!-- โหมดหัวข้อ: คลิป YouTube + ข่าว ของหัวข้อที่เลือก -->
+    <div class="tr-section" id="topicSection" style="display:none">
       <div class="tr-section-hdr">
-        <h2 class="tr-section-title">🎬 คลิปมาแรงตามหัวข้อ</h2>
+        <h2 class="tr-section-title" id="topicSectionTitle">🎬 คลิปมาแรงตามหัวข้อ</h2>
         <span class="tr-section-sub">YouTube · เรียงตามยอดวิว · เน้นคลิปล่าสุด · คลิกชื่อช่องเพื่อไปหน้าช่อง</span>
       </div>
-      <div id="topicTabs" class="tr-tabs"></div>
       <div id="topicNews" class="tr-news-list"></div>
     </div>
 
-    <!-- Section 2: YouTube Trending รวมประเทศ (ซ่อนจนกว่าจะมีข้อมูล) -->
+    <!-- โหมดภาพรวม: YouTube มาแรงรวม (ทั้งประเทศ) -->
     <div class="tr-section" id="ytChartSection" style="display:none">
       <div class="tr-section-hdr">
         <h2 class="tr-section-title">📺 YouTube มาแรงรวม (ไทย)</h2>
@@ -82,8 +84,8 @@
       <div id="ytChartGrid"></div>
     </div>
 
-    <!-- Section 3: Google Trends -->
-    <div class="tr-section">
+    <!-- โหมดภาพรวม: Google Trends (ทั้งประเทศ) -->
+    <div class="tr-section" id="trendingSection" style="display:none">
       <div class="tr-section-hdr">
         <h2 class="tr-section-title">🔥 คำค้นมาแรงวันนี้</h2>
         <span class="tr-section-sub">คำค้นที่พุ่งแรงในไทย · จาก Google Trends</span>

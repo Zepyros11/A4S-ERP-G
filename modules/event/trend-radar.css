@@ -209,6 +209,9 @@ details[open] > .tr-news-summary::before, details[open] > .tr-extra-summary::bef
 
 /* ── Topic tabs ── */
 .tr-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+/* แท็บบาร์หลัก = ตัวคุมทั้งหน้า (มีเส้นคั่นใต้ให้รู้ว่าคุมทุก section ด้านล่าง) */
+.tr-tabs-master { border-bottom: 1px solid var(--border); padding-bottom: 14px; margin-bottom: 18px; }
+.tr-tab-overview { margin-right: 8px; font-weight: 600; }
 .tr-tab {
   background: var(--surface); border: 1px solid var(--border);
   color: var(--text2); padding: 8px 14px; border-radius: 22px;

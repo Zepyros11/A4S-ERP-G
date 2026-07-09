@@ -47,7 +47,7 @@ const DEFAULT_TOPICS = [
 
 let TOPICS = [];          // [{id?, label, query, emoji, sort, is_active}]
 let LAST = null;          // ผลลัพธ์ /trend/fetch ล่าสุด
-let ACTIVE_TAB = 0;
+let ACTIVE_TAB = -1;   // -1 = แท็บ "ภาพรวม" (chart + Google Trends ทั้งประเทศ) · 0..N = หัวข้อ
 let TOPICS_FROM_DB = false;
 
 /* ── Toast ── */
@@ -102,6 +102,10 @@ async function refreshAll() {
   const grid = document.getElementById("trendingGrid");
   grid.innerHTML = `<div class="tr-skeleton"></div><div class="tr-skeleton"></div><div class="tr-skeleton"></div>`;
   document.getElementById("topicNews").innerHTML = `<div class="tr-loading">กำลังส่องกระแส…</div>`;
+  // เผย section ที่กำลังโหลดตามโหมด (กัน cold-start แล้วจอว่างเพราะ section ถูกซ่อนอยู่)
+  const _ov = ACTIVE_TAB < 0;
+  document.getElementById("topicSection").style.display = _ov ? "none" : "";
+  document.getElementById("trendingSection").style.display = _ov ? "" : "none";
   document.getElementById("btnRefresh").disabled = true;
 
   try {
@@ -119,8 +123,7 @@ async function refreshAll() {
     renderStats();
     renderTrending();
     renderTopicTabs();
-    renderTopicNews();
-    renderYtChart();
+    renderActiveView();
   } catch (e) {
     showToast("โหลดกระแสไม่สำเร็จ: " + e.message, "error");
     grid.innerHTML = `<div class="tr-empty">โหลดไม่สำเร็จ — ${esc(e.message)}</div>`;
@@ -210,18 +213,36 @@ function hashtagsFromVideo(tabIdx, vidIdx) {
 function renderTopicTabs() {
   const tabs = document.getElementById("topicTabs");
   const topics = LAST.topics || [];
-  tabs.innerHTML = topics.map((t, i) => {
+  const overview = `<button class="tr-tab tr-tab-overview ${ACTIVE_TAB < 0 ? "active" : ""}" onclick="selectTab(-1)">🌐 ภาพรวม</button>`;
+  const topicBtns = topics.map((t, i) => {
     const emoji = (TOPICS.find(x => x.label === t.label) || {}).emoji || "🎬";
     const n = (t.videos || []).length;
     return `<button class="tr-tab ${i === ACTIVE_TAB ? "active" : ""}" onclick="selectTab(${i})">
       ${esc(emoji)} ${esc(t.label)} <span class="tr-tab-count">🎬 ${n}</span>
     </button>`;
   }).join("");
+  tabs.innerHTML = overview + topicBtns;
 }
 function selectTab(i) {
   ACTIVE_TAB = i;
   renderTopicTabs();
-  renderTopicNews();
+  renderActiveView();
+}
+
+/* สลับโหมดตามแท็บ: ภาพรวม (chart + Google Trends) หรือ หัวข้อ (คลิป + ข่าว) */
+function renderActiveView() {
+  const isOverview = ACTIVE_TAB < 0;
+  document.getElementById("topicSection").style.display = isOverview ? "none" : "";
+  document.getElementById("trendingSection").style.display = isOverview ? "" : "none";
+  if (isOverview) {
+    renderYtChart();                     // โชว์/ซ่อน chart เองตามว่ามีข้อมูลไหม
+  } else {
+    document.getElementById("ytChartSection").style.display = "none";
+    const t = (LAST.topics || [])[ACTIVE_TAB];
+    const title = document.getElementById("topicSectionTitle");
+    if (t && title) title.textContent = `🎬 ${t.label}`;
+    renderTopicNews();
+  }
 }
 function formatViews(n) {
   n = Number(n) || 0;
