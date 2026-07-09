@@ -39,6 +39,8 @@ function fmtDMY(iso) {
   const [y, m, d] = iso.slice(0, 10).split('-');
   return `${d}/${m}/${y}`;
 }
+// ตัด boilerplate จาก import DATA_CS ออกจากช่องหมายเหตุ (ไม่ให้โชว์)
+function dsCleanNote(s) { const t = String(s || ''); return /DATA_CS historical import/i.test(t) ? '' : t; }
 function toast(msg, type = 'success') {
   const el = $('toast');
   if (!el) return alert(msg);
@@ -386,7 +388,7 @@ function fillSaleTable(cfg, list, pMap, canEdit) {
       ? `<button class="ds-del-btn" title="ลบบิลนี้" onclick="dsDeleteBill('${b.bill_no}')">🗑</button>` : '';
     const chkTd = canEdit
       ? `<td class="ds-chk-col"><input type="checkbox" class="ds-rowchk" data-bill="${b.bill_no}" ${state.saleChecked.has(b.bill_no) ? 'checked' : ''} onchange="dsToggleRow(this)"></td>` : '';
-    const note = String(p.correction_notes || b.notes || '');
+    const note = dsCleanNote(p.correction_notes || b.notes);
     const diffCls = Math.abs(diff) > 0.5 ? 'ds-num ds-diff-bad' : 'ds-num ds-diff-ok';
     // ผลต่าง ≠ 0 (บวก/ลบ) → ไฮไลต์ทั้งแถวสีแดง
     const rowClasses = [p.corrected ? 'ds-row-corrected' : '', Math.abs(diff) > 0.5 ? 'ds-row-diff' : ''].filter(Boolean).join(' ');
@@ -528,8 +530,8 @@ async function dsSignoffSave() {
   } catch (e) { toast('บันทึกไม่สำเร็จ: ' + e.message, 'error'); }
 }
 
-/* ── Export CSV รูปแบบเดียวกับชีท DailySaleCS (3 section + รวม + บล็อกลงชื่อ) ── */
-async function dsExportCSV() {
+/* ── Export Excel (.xls) รูปแบบ + สี เหมือนชีท DailySaleCS (HTML-table → Excel) ── */
+async function dsExportExcel() {
   const group = state.branchGroup || 'ALL';
   const groupLabel = group === 'ALL' ? 'ทั้งหมด' : group;
   showLoading(true);
@@ -541,29 +543,40 @@ async function dsExportCSV() {
     scoped.forEach(b => groups[billGroup(b)].push(b));
 
     const PAY = ['cash', 'front_office', 'online', 'kbank', 'ktb', 'ewallet', 'gift_voucher', 'qr_payment', 'commission_deduct', 'arp_amount'];
-    const lines = [];
-    lines.push([`วันที่ ${fmtDMY(state.date)} · สาขา ${groupLabel}`]);
-    lines.push([]);
+    const BG = { cash: '#FFF6D5', cc: '#E3F3E5', tf: '#ECE4F7', ew: '#DEEBFB', gift: '#D9F5F1', qr: '#ECECEC', comm: '#FBE2EA', arp: '#E5E6FB', sys: '#FDE9C7' };
+    const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const B = 'border:1px solid #b0b0b0;padding:3px 6px;font-size:11px;';
+    const NF = "mso-number-format:'\\#\\,\\#\\#0';";
+    const th = (t, span = '', bg = '#e8eef0') => `<td ${span} style="${B}background:${bg};font-weight:bold;text-align:center">${esc(t)}</td>`;
+    const numC = (v, bg) => { const n = Number(v || 0); return `<td style="${B}${NF}background:${bg || '#fff'};text-align:right">${n === 0 ? '' : n}</td>`; };
+    const txtC = (v, bg, align) => `<td style="${B}background:${bg || '#fff'};text-align:${align || 'left'}">${esc(v)}</td>`;
 
+    let body = '';
     const section = (title, list, tail) => {
-      lines.push([title]);
-      lines.push(['NO', 'วันที่', 'เลขออเดอร์', 'รหัส', 'Name', 'Payment (THB)', '', '', '', '', '', '', '', '', '', 'ยอดในระบบ', 'ผลต่าง', 'ผู้บันทึก', 'หมายเหตุเพิ่มเติม']);
-      lines.push(['', '', '', '', '', 'Cash', 'Credit Card', '', 'Tranfer Money', '', 'E-WALLET', '', '', '', '', '', '', '', '']);
-      lines.push(['', '', '', '', '', '', 'Front Office', 'Online', 'KBANK', 'KTB', '', 'gift voucher', 'qr paymet', tail[0], tail[1], '', '', '', '']);
-      const tot = {}; PAY.forEach(f => tot[f] = 0); let sumAmt = 0, sumDiff = 0;
+      body += `<tr><td colspan="19" style="${B}background:#d7ecdd;font-weight:bold;text-align:center;font-size:13px">${esc(title)}</td></tr>`;
+      body += `<tr>${th('NO', 'rowspan="3"')}${th('วันที่', 'rowspan="3"')}${th('เลขออเดอร์', 'rowspan="3"')}${th('รหัส', 'rowspan="3"')}${th('Name', 'rowspan="3"')}${th('Payment (THB)', 'colspan="10"', '#f6dfe8')}${th('ยอดในระบบ', 'rowspan="3"', BG.sys)}${th('ผลต่าง', 'rowspan="3"', BG.sys)}${th('ผู้บันทึก', 'rowspan="3"')}${th('หมายเหตุเพิ่มเติม', 'rowspan="3"')}</tr>`;
+      body += `<tr>${th('Cash', 'rowspan="2"', BG.cash)}${th('Credit Card', 'colspan="2"', BG.cc)}${th('Tranfer Money', 'colspan="2"', BG.tf)}${th('E-WALLET', 'rowspan="2"', BG.ew)}${th('gift voucher', 'rowspan="2"', BG.gift)}${th('qr paymet', 'rowspan="2"', BG.qr)}${th(tail[0], 'rowspan="2"', BG.comm)}${th(tail[1], 'rowspan="2"', BG.arp)}</tr>`;
+      body += `<tr>${th('Front Office', '', BG.cc)}${th('Online', '', BG.cc)}${th('KBANK', '', BG.tf)}${th('KTB', '', BG.tf)}</tr>`;
+      const tot = {}; PAY.forEach(f => tot[f] = 0); let sa = 0, sd = 0;
       list.forEach((b, i) => {
         const p = pMap[b.bill_no] || {};
         const amt = Number(b.amount || 0);
         const diff = PAY.reduce((s, f) => s + Number(p[f] || 0), 0) - amt;
-        PAY.forEach(f => tot[f] += Number(p[f] || 0)); sumAmt += amt; sumDiff += diff;
-        const c = f => (Number(p[f] || 0) === 0 ? '' : fmt(p[f]));
-        lines.push([i + 1, fmtDMY(b.sale_date), b.bill_no, b.member_code || '', b.member_name || '',
-          c('cash'), c('front_office'), c('online'), c('kbank'), c('ktb'), c('ewallet'), c('gift_voucher'), c('qr_payment'), c('commission_deduct'), c('arp_amount'),
-          fmt(amt), diff === 0 ? '0' : fmt(diff), b.recorded_by || '', p.correction_notes || b.notes || '']);
+        PAY.forEach(f => tot[f] += Number(p[f] || 0)); sa += amt; sd += diff;
+        body += `<tr>${txtC(i + 1, '', 'center')}${txtC(fmtDMY(b.sale_date))}${txtC(b.bill_no)}${txtC(b.member_code || '')}${txtC(b.member_name || '')}`
+          + numC(p.cash, BG.cash) + numC(p.front_office, BG.cc) + numC(p.online, BG.cc) + numC(p.kbank, BG.tf) + numC(p.ktb, BG.tf)
+          + numC(p.ewallet, BG.ew) + numC(p.gift_voucher, BG.gift) + numC(p.qr_payment, BG.qr) + numC(p.commission_deduct, BG.comm) + numC(p.arp_amount, BG.arp)
+          + numC(amt, BG.sys) + `<td style="${B}${NF}background:${BG.sys};text-align:right;color:${Math.abs(diff) > 0.5 ? '#c00;font-weight:bold' : '#000'}">${diff === 0 ? '' : diff}</td>`
+          + txtC(b.recorded_by || '') + txtC(dsCleanNote(p.correction_notes || b.notes)) + `</tr>`;
       });
-      const tc = f => (tot[f] === 0 ? '' : fmt(tot[f]));
-      lines.push(['', '', '', '', `รวม (${list.length})`, tc('cash'), tc('front_office'), tc('online'), tc('kbank'), tc('ktb'), tc('ewallet'), tc('gift_voucher'), tc('qr_payment'), tc('commission_deduct'), tc('arp_amount'), fmt(sumAmt), sumDiff === 0 ? '0' : fmt(sumDiff), '', '']);
-      lines.push([]);
+      const tc = (f, bg) => `<td style="${B}${NF}background:${bg};font-weight:bold;text-align:right">${tot[f] === 0 ? '' : tot[f]}</td>`;
+      body += `<tr><td colspan="4" style="${B}background:#f3d9a6"></td><td style="${B}background:#f3d9a6;font-weight:bold;text-align:right">รวม (${list.length})</td>`
+        + tc('cash', BG.cash) + tc('front_office', BG.cc) + tc('online', BG.cc) + tc('kbank', BG.tf) + tc('ktb', BG.tf)
+        + tc('ewallet', BG.ew) + tc('gift_voucher', BG.gift) + tc('qr_payment', BG.qr) + tc('commission_deduct', BG.comm) + tc('arp_amount', BG.arp)
+        + `<td style="${B}${NF}background:#f3d9a6;font-weight:bold;text-align:right">${sa}</td><td style="${B}${NF}background:#f3d9a6;font-weight:bold;text-align:right">${sd === 0 ? '' : sd}</td><td colspan="2" style="${B}background:#f3d9a6"></td></tr>`;
+      // แถวสรุปรวมใหญ่ (merged cell ยอดรวมทั้ง section · span E–Q ตามชีท)
+      body += `<tr><td colspan="4" style="border:none"></td><td colspan="13" style="${B}${NF}background:#f7e2b0;font-weight:bold;text-align:center;font-size:15px">${sa}</td><td colspan="2" style="border:none"></td></tr>`;
+      body += `<tr><td colspan="19" style="height:8px;border:none"></td></tr>`;
     };
 
     section('DAILY SALE', groups.sale, ['หักค่าคอม', 'ARP']);
@@ -574,20 +587,168 @@ async function dsExportCSV() {
     try {
       const rows = await sbGet(`daily_sale_reconcile?reconcile_date=eq.${state.date}&branch=eq.${encodeURIComponent(recBranchKey())}&select=signoff,special_notes&limit=1`);
       const r = rows?.[0] || {}; const so = r.signoff || {};
-      lines.push([]);
-      DS_SIGNOFF_ROLES.forEach(role => lines.push(['', '', '', role.label, so[role.key] || '']));
-      lines.push(['', '', '', 'หมายเหตุ รายการพิเศษในวันนี้', r.special_notes || '']);
+      body += `<tr><td colspan="19" style="height:10px;border:none"></td></tr>`;
+      const N = DS_SIGNOFF_ROLES.length;
+      DS_SIGNOFF_ROLES.forEach((role, i) => {
+        let row = `<tr><td colspan="3" style="border:none"></td>`;
+        row += `<td colspan="2" style="${B}background:#dbeef0;font-weight:bold;text-align:right">${esc(role.label)}</td>`;
+        row += `<td colspan="2" style="${B}text-align:center;color:#7c3aed;font-weight:bold">${esc(so[role.key] || '')}</td>`;
+        row += `<td colspan="1" style="border:none"></td>`;   // ช่องว่างคั่น
+        if (i === 0) {
+          // กล่องหมายเหตุอยู่ขวา · span ครอบทุกแถวลงชื่อ (เหมือนชีท)
+          row += `<td colspan="11" rowspan="${N}" style="${B}vertical-align:top;color:#c00;font-weight:bold">หมายเหตุ รายการพิเศษในวันนี้<div style="color:#000;font-weight:normal;margin-top:8px;white-space:pre-wrap">${esc(r.special_notes || '')}</div></td>`;
+        }
+        row += `</tr>`;
+        body += row;
+      });
     } catch { /* ignore */ }
 
-    const esc = v => { const s = v == null ? '' : String(v); return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
-    const csv = '﻿' + lines.map(row => (row || []).map(esc).join(',')).join('\r\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel">
+<head><meta charset="utf-8"><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>DailySale</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]--></head>
+<body><table border="1" style="border-collapse:collapse;font-family:'TH Sarabun New',Tahoma,sans-serif">
+<tr><td colspan="19" style="font-size:15px;font-weight:bold;padding:8px;background:#2f6b4f;color:#fff;text-align:center">DAILY SALE — วันที่ ${esc(fmtDMY(state.date))} · สาขา ${esc(groupLabel)}</td></tr>
+${body}</table></body></html>`;
+
+    const blob = new Blob(['﻿' + html], { type: 'application/vnd.ms-excel;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url; a.download = `DailySale_${state.date}_${groupLabel}.csv`;
+    a.href = url; a.download = `DailySale_${state.date}_${groupLabel}.xls`;
     document.body.appendChild(a); a.click(); a.remove();
     URL.revokeObjectURL(url);
-    toast('Export CSV แล้ว', 'success');
+    toast('Export Excel แล้ว', 'success');
+  } catch (e) {
+    toast('Export ไม่สำเร็จ: ' + e.message, 'error');
+  }
+  showLoading(false);
+}
+
+/* ============================================================
+   Export รายเดือน — 1 ไฟล์ หลาย tab (วันละ tab) · SpreadsheetML 2003 (สี+merge จริง)
+   ============================================================ */
+const _SS_COL = { white: '#FFFFFF', cash: '#FFF6D5', cc: '#E3F3E5', tf: '#ECE4F7', ew: '#DEEBFB', gift: '#D9F5F1', qr: '#ECECEC', comm: '#FBE2EA', arp: '#E5E6FB', sys: '#FDE9C7', total: '#F3D9A6', grand: '#F7E2B0', sec: '#D7ECDD', pay: '#F6DFE8', sign: '#DBEEF0', title: '#FFFF00' };
+const _SS_BORD = '<Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#B0B0B0"/><Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#B0B0B0"/><Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#B0B0B0"/><Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#B0B0B0"/></Borders>';
+function _ssX(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+function _ssStyles() {
+  let s = '';
+  const mk = (id, align, color, o = {}) => {
+    s += `<Style ss:ID="${id}"><Alignment ss:Horizontal="${align}" ss:Vertical="${o.top ? 'Top' : 'Center'}"${o.wrap ? ' ss:WrapText="1"' : ''}/>${_SS_BORD}<Interior ss:Color="${color}" ss:Pattern="Solid"/><Font ss:FontName="Tahoma" ss:Size="${o.size || 10}"${o.bold ? ' ss:Bold="1"' : ''}${o.fc ? ` ss:Color="${o.fc}"` : ''}/>${o.num ? '<NumberFormat ss:Format="#,##0"/>' : ''}</Style>`;
+  };
+  for (const k in _SS_COL) {
+    mk(`h_${k}`, 'Center', _SS_COL[k], { bold: true, wrap: true });
+    mk(`n_${k}`, 'Right', _SS_COL[k], { num: true });
+    mk(`nb_${k}`, 'Right', _SS_COL[k], { num: true, bold: true });
+    mk(`t_${k}`, 'Left', _SS_COL[k], {});
+  }
+  mk('title', 'Center', _SS_COL.title, { bold: true, size: 15 });
+  mk('sectitle', 'Center', _SS_COL.sec, { bold: true, size: 13 });
+  mk('grand', 'Center', _SS_COL.grand, { bold: true, size: 14, num: true });
+  mk('tcenter', 'Center', _SS_COL.white, {});
+  mk('nr_sys', 'Right', _SS_COL.sys, { num: true, bold: true, fc: '#CC0000' });
+  mk('lbl_total', 'Right', _SS_COL.total, { bold: true });
+  mk('signlabel', 'Right', _SS_COL.sign, { bold: true });
+  mk('signval', 'Center', _SS_COL.white, { bold: true, fc: '#7C3AED' });
+  mk('notes', 'Left', _SS_COL.white, { wrap: true, top: true, bold: true, fc: '#CC0000' });
+  return `<Styles>${s}</Styles>`;
+}
+function _ssC(txt, sid, ma, md, idx) {
+  const a = (idx ? ` ss:Index="${idx}"` : '') + (ma ? ` ss:MergeAcross="${ma}"` : '') + (md ? ` ss:MergeDown="${md}"` : '');
+  return `<Cell ss:StyleID="${sid}"${a}><Data ss:Type="String">${_ssX(txt)}</Data></Cell>`;
+}
+function _ssN(val, sid, ma, md, idx) {
+  const n = Number(val || 0);
+  const a = (idx ? ` ss:Index="${idx}"` : '') + (ma ? ` ss:MergeAcross="${ma}"` : '') + (md ? ` ss:MergeDown="${md}"` : '');
+  return n === 0 ? `<Cell ss:StyleID="${sid}"${a}/>` : `<Cell ss:StyleID="${sid}"${a}><Data ss:Type="Number">${n}</Data></Cell>`;
+}
+function _ssSection(title, list, tail, pMap) {
+  const PAY = ['cash', 'front_office', 'online', 'kbank', 'ktb', 'ewallet', 'gift_voucher', 'qr_payment', 'commission_deduct', 'arp_amount'];
+  const NC = ['n_cash', 'n_cc', 'n_cc', 'n_tf', 'n_tf', 'n_ew', 'n_gift', 'n_qr', 'n_comm', 'n_arp'];
+  const NB = ['nb_cash', 'nb_cc', 'nb_cc', 'nb_tf', 'nb_tf', 'nb_ew', 'nb_gift', 'nb_qr', 'nb_comm', 'nb_arp'];
+  let r = `<Row><Cell ss:StyleID="sectitle" ss:MergeAcross="18"><Data ss:Type="String">${_ssX(title)}</Data></Cell></Row>`;
+  r += `<Row>${_ssC('NO', 'h_white', 0, 2)}${_ssC('วันที่', 'h_white', 0, 2)}${_ssC('เลขออเดอร์', 'h_white', 0, 2)}${_ssC('รหัส', 'h_white', 0, 2)}${_ssC('Name', 'h_white', 0, 2)}${_ssC('Payment (THB)', 'h_pay', 9, 0)}${_ssC('ยอดในระบบ', 'h_sys', 0, 2)}${_ssC('ผลต่าง', 'h_sys', 0, 2)}${_ssC('ผู้บันทึก', 'h_white', 0, 2)}${_ssC('หมายเหตุเพิ่มเติม', 'h_white', 0, 2)}</Row>`;
+  r += `<Row>${_ssC('Cash', 'h_cash', 0, 1, 6)}${_ssC('Credit Card', 'h_cc', 1, 0)}${_ssC('Tranfer Money', 'h_tf', 1, 0)}${_ssC('E-WALLET', 'h_ew', 0, 1)}${_ssC('gift voucher', 'h_gift', 0, 1)}${_ssC('qr paymet', 'h_qr', 0, 1)}${_ssC(tail[0], 'h_comm', 0, 1)}${_ssC(tail[1], 'h_arp', 0, 1)}</Row>`;
+  r += `<Row>${_ssC('Front Office', 'h_cc', 0, 0, 7)}${_ssC('Online', 'h_cc')}${_ssC('KBANK', 'h_tf')}${_ssC('KTB', 'h_tf')}</Row>`;
+  const tot = {}; PAY.forEach(f => tot[f] = 0); let sa = 0, sd = 0;
+  list.forEach((b, i) => {
+    const p = pMap[b.bill_no] || {};
+    const amt = Number(b.amount || 0);
+    const diff = PAY.reduce((s, f) => s + Number(p[f] || 0), 0) - amt;
+    PAY.forEach(f => tot[f] += Number(p[f] || 0)); sa += amt; sd += diff;
+    r += `<Row>${_ssC(i + 1, 'tcenter')}${_ssC(fmtDMY(b.sale_date), 't_white')}${_ssC(b.bill_no, 't_white')}${_ssC(b.member_code || '', 't_white')}${_ssC(b.member_name || '', 't_white')}`
+      + PAY.map((f, j) => _ssN(p[f], NC[j])).join('')
+      + _ssN(amt, 'n_sys') + _ssN(diff, Math.abs(diff) > 0.5 ? 'nr_sys' : 'n_sys')
+      + _ssC(b.recorded_by || '', 't_white') + _ssC(dsCleanNote(p.correction_notes || b.notes), 't_white') + `</Row>`;
+  });
+  r += `<Row>${_ssN(0, 'n_total')}${_ssN(0, 'n_total')}${_ssN(0, 'n_total')}${_ssN(0, 'n_total')}${_ssC(`รวม (${list.length})`, 'lbl_total')}`
+    + PAY.map((f, j) => _ssN(tot[f], NB[j])).join('')
+    + _ssN(sa, 'nb_total') + _ssN(sd, 'nb_total') + _ssN(0, 'n_total') + _ssN(0, 'n_total') + `</Row>`;
+  r += `<Row><Cell ss:StyleID="grand" ss:Index="5" ss:MergeAcross="12"><Data ss:Type="Number">${sa}</Data></Cell></Row>`;
+  return r;
+}
+function _ssSignoff(rec) {
+  const so = rec.signoff || {}, notes = rec.special_notes || '';
+  const N = DS_SIGNOFF_ROLES.length;
+  let r = '';
+  DS_SIGNOFF_ROLES.forEach((role, i) => {
+    let row = `<Row>${_ssC(role.label, 'signlabel', 1, 0, 4)}${_ssC(so[role.key] || '', 'signval', 1, 0)}`;
+    if (i === 0) {
+      const t = _ssX('หมายเหตุ รายการพิเศษในวันนี้\n' + notes).replace(/\n/g, '&#10;');
+      row += `<Cell ss:StyleID="notes" ss:Index="9" ss:MergeAcross="10" ss:MergeDown="${N - 1}"><Data ss:Type="String">${t}</Data></Cell>`;
+    }
+    r += row + `</Row>`;
+  });
+  return r;
+}
+function _ssDaySheet(date, list, pMap, rec, group) {
+  const groups = { sale: [], arp: [], ewallet: [] };
+  list.slice().sort(saleSort).forEach(b => groups[billGroup(b)].push(b));
+  const [y, m, d] = date.split('-').map(Number);
+  const name = `${d}-${m}-${(y + 543) % 100}`;
+  const cols = [30, 55, 118, 45, 200, 52, 62, 55, 58, 55, 62, 62, 58, 58, 55, 68, 50, 62, 120].map(w => `<Column ss:Width="${w}"/>`).join('');
+  let rows = `<Row ss:Height="26"><Cell ss:StyleID="title" ss:MergeAcross="18"><Data ss:Type="String">วันที่ ${_ssX(fmtDMY(date))} · สาขา ${_ssX(group === 'ALL' ? 'ทั้งหมด' : group)}</Data></Cell></Row>`;
+  rows += _ssSection('DAILY SALE', groups.sale, ['หักค่าคอม', 'ARP'], pMap) + '<Row/>';
+  rows += _ssSection('แลก ARP (POINT) · ARP EASY · ABB ONLINE', groups.arp, ['ARP EASY', 'ARP (USD)'], pMap) + '<Row/>';
+  rows += _ssSection('E-WALLET (THB)', groups.ewallet, ['หักค่าคอม', ''], pMap) + '<Row/><Row/>';
+  rows += _ssSignoff(rec);
+  return `<Worksheet ss:Name="${_ssX(name)}"><Table>${cols}${rows}</Table></Worksheet>`;
+}
+async function dsExportMonth() {
+  const group = state.branchGroup || 'ALL';
+  const groupLabel = group === 'ALL' ? 'ทั้งหมด' : group;
+  const ym = (state.recMonth || state.date || todayIso()).slice(0, 7);
+  const [y, m] = ym.split('-').map(Number);
+  const days = new Date(y, m, 0).getDate();
+  const start = `${ym}-01`, end = `${ym}-${String(days).padStart(2, '0')}`;
+  showLoading(true);
+  try {
+    const bills = await sbGet(`daily_sale_bills?business_date=gte.${start}&business_date=lte.${end}&limit=20000`);
+    const scoped = bills.filter(b => group === 'ALL' || branchGroupOf(b) === group);
+    const pMap = scoped.length ? await fetchPaymentsMap(scoped.map(b => b.bill_no)) : {};
+    let recMap = {};
+    try {
+      const recs = await sbGet(`daily_sale_reconcile?reconcile_date=gte.${start}&reconcile_date=lte.${end}&branch=eq.${encodeURIComponent(recBranchKey())}&select=reconcile_date,signoff,special_notes`);
+      recMap = Object.fromEntries((recs || []).map(r => [r.reconcile_date, r]));
+    } catch { /* ignore */ }
+    const byDay = {};
+    scoped.forEach(b => { (byDay[b.business_date] = byDay[b.business_date] || []).push(b); });
+
+    let sheets = '', count = 0;
+    for (let dd = 1; dd <= days; dd++) {
+      const date = `${ym}-${String(dd).padStart(2, '0')}`;
+      const list = byDay[date];
+      if (!list || !list.length) continue;   // ข้ามวันที่ไม่มีบิล
+      sheets += _ssDaySheet(date, list, pMap, recMap[date] || {}, group);
+      count++;
+    }
+    if (!count) { toast('เดือนนี้ไม่มีข้อมูล', 'error'); showLoading(false); return; }
+
+    const xml = `<?xml version="1.0"?>\n<?mso-application progid="Excel.Sheet"?>\n<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet" xmlns:html="http://www.w3.org/TR/REC-html40">${_ssStyles()}${sheets}</Workbook>`;
+    const blob = new Blob(['﻿' + xml], { type: 'application/vnd.ms-excel;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `DailySale_${TH_MONTHS[m - 1]}${y + 543}_${groupLabel}.xls`;
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+    toast(`Export ${count} วัน (${count} แท็บ) แล้ว`, 'success');
   } catch (e) {
     toast('Export ไม่สำเร็จ: ' + e.message, 'error');
   }
@@ -1547,7 +1708,8 @@ window.dsRecMonthShift = dsRecMonthShift;
 window.dsRecDailyDateChange = dsRecDailyDateChange;
 window.dsRecCopyDaily = dsRecCopyDaily;
 window.dsSignoffSave = dsSignoffSave;
-window.dsExportCSV = dsExportCSV;
+window.dsExportExcel = dsExportExcel;
+window.dsExportMonth = dsExportMonth;
 window.dsConfirmResolve = dsConfirmResolve;
 window.dsSelectBranch = dsSelectBranch;
 window.dsGroupOpen = dsGroupOpen;
