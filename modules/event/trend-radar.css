@@ -76,8 +76,9 @@
 .tr-sub-note { font-size: .78rem; color: var(--text3); font-weight: 400; }
 
 /* ── YouTube แบบ list กระชับ (thumbnail เล็กซ้าย · ชื่อ/ช่อง/วิว · ปุ่มไอคอน) ── */
-.tr-yt-list { display: flex; flex-direction: column; gap: 8px; }
-.tr-yt-list--2col { display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 8px; }
+.tr-yt-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.tr-yt-list--2col { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+@media (max-width: 720px) { .tr-yt-list, .tr-yt-list--2col { grid-template-columns: 1fr; } }
 .tr-yt-row {
   display: flex; align-items: center; gap: 12px;
   background: var(--surface); border: 1px solid var(--border);
@@ -93,7 +94,7 @@
 .tr-yt-row-rank.top2 { color: #9aa0aa; }
 .tr-yt-row-rank.top3 { color: #cf8347; }
 .tr-yt-row-thumb {
-  flex: 0 0 auto; width: 128px; aspect-ratio: 16 / 9; border-radius: 8px; overflow: hidden;
+  flex: 0 0 auto; width: 96px; aspect-ratio: 16 / 9; border-radius: 8px; overflow: hidden;
   background: var(--surface2) center/cover no-repeat; position: relative; display: block; text-decoration: none;
 }
 .tr-yt-row-views {
@@ -112,7 +113,7 @@
 .tr-yt-row-channel:hover { text-decoration: underline; }
 .tr-yt-row-actions { flex: 0 0 auto; display: flex; gap: 6px; align-items: center; }
 @media (max-width: 560px) {
-  .tr-yt-row-thumb { width: 100px; }
+  .tr-yt-row-thumb { width: 84px; }
   .tr-yt-row-actions { flex-direction: column; }
 }
 

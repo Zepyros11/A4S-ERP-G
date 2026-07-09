@@ -73,10 +73,12 @@ function timeAgo(iso) {
   if (diff < 86400) return `${Math.round(diff / 3600)} ชม.ที่แล้ว`;
   return `${Math.round(diff / 86400)} วันก่อน`;
 }
-function nowBangkok() {
-  return new Date().toLocaleTimeString("th-TH", {
-    timeZone: "Asia/Bangkok", hour: "2-digit", minute: "2-digit",
-  });
+/* date & time stamp เต็ม (DD/MM/YYYY HH:MM) — ใช้ DateFmt มาตรฐานของแอป */
+function nowStamp() {
+  const d = new Date();
+  if (window.DateFmt) return DateFmt.formatDMYTime(d.toISOString());
+  const p = n => String(n).padStart(2, "0");
+  return `${p(d.getDate())}/${p(d.getMonth() + 1)}/${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`;
 }
 
 /* ══ Load topics ══ */
@@ -135,7 +137,7 @@ function renderStats() {
   document.getElementById("statVideos").textContent = vids;
   document.getElementById("statViews").textContent = formatViews(views);
   document.getElementById("statTopics").textContent = topics.length;
-  document.getElementById("statUpdated").textContent = nowBangkok() + " น.";
+  document.getElementById("statUpdated").textContent = nowStamp() + " น.";
 }
 
 /* ── Section 1: Google Trends cards ── */
