@@ -75,9 +75,10 @@
 .tr-sub-hdr:first-child { margin-top: 0; }
 .tr-sub-note { font-size: .78rem; color: var(--text3); font-weight: 400; }
 
-/* ── YouTube grid (เด่น: การ์ดใหญ่ · thumbnail เต็ม · ป้ายยอดวิว) ── */
+/* ── YouTube (พระเอก): คลิปเด่นตัวใหญ่ + กริดคลิป ── */
+.tr-yt-wrap { display: flex; flex-direction: column; gap: 18px; }
 .tr-yt-grid {
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px;
 }
 .tr-yt-card {
   border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden;
@@ -92,7 +93,7 @@
 }
 .tr-yt-thumb::after {   /* ไล่เฉดล่างให้ป้ายอ่านง่าย */
   content: ""; position: absolute; inset: 0;
-  background: linear-gradient(to top, rgba(0,0,0,.35), transparent 40%);
+  background: linear-gradient(to top, rgba(0,0,0,.4), transparent 42%);
 }
 .tr-yt-play {
   position: relative; z-index: 1;
@@ -104,10 +105,19 @@
 .tr-yt-card:hover .tr-yt-play { opacity: 1; transform: scale(1); }
 .tr-yt-views {
   position: absolute; bottom: 8px; right: 8px; z-index: 1;
-  background: rgba(0,0,0,.78); color: #fff; font-size: .74rem; font-weight: 600;
+  background: rgba(0,0,0,.78); color: #fff; font-size: .76rem; font-weight: 700;
   padding: 3px 8px; border-radius: 6px; line-height: 1;
 }
-.tr-yt-info { padding: 11px 13px 13px; display: flex; flex-direction: column; gap: 6px; }
+/* badge อันดับ (เรียงตามยอดวิว) — top3 เป็นทอง/เงิน/ทองแดง */
+.tr-yt-rank {
+  position: absolute; top: 8px; left: 8px; z-index: 1;
+  background: rgba(0,0,0,.78); color: #fff; font-family: "IBM Plex Mono", monospace;
+  font-size: .76rem; font-weight: 700; padding: 3px 9px; border-radius: 6px; line-height: 1;
+}
+.tr-yt-rank.top1 { background: #e8ab00; color: #241c00; }
+.tr-yt-rank.top2 { background: #c2c6ce; color: #20242b; }
+.tr-yt-rank.top3 { background: #cf8347; color: #fff; }
+.tr-yt-info { padding: 11px 13px 13px; display: flex; flex-direction: column; gap: 8px; }
 .tr-yt-title {
   font-size: .95rem; font-weight: 600; color: var(--text); line-height: 1.4;
   text-decoration: none;
@@ -117,17 +127,33 @@
 .tr-yt-meta { font-size: .82rem; color: var(--text3); }
 .tr-yt-channel { color: var(--accent); text-decoration: none; font-weight: 500; }
 .tr-yt-channel:hover { text-decoration: underline; }
+.tr-yt-channel-plain { color: var(--text3); font-weight: 500; }
+.tr-yt-actions { display: flex; gap: 8px; align-items: center; margin-top: 2px; }
+.tr-yt-actions .tr-idea-btn { flex: 1; }
 
-/* section 🎬 เด่นขึ้น — แถบ accent + พื้นอ่อน */
-.tr-yt-block {
-  background: var(--accent-pale); border: 1px solid var(--accent-light, var(--border));
-  border-radius: var(--radius-lg, 14px); padding: 16px; margin-bottom: 20px;
+/* คลิปเด่นอันดับ 1 — การ์ดใหญ่พาดขวาง (thumb ซ้าย · ข้อมูลขวา) */
+.tr-yt-hero .tr-yt-card { flex-direction: row; }
+.tr-yt-hero .tr-yt-thumb { flex: 0 0 56%; }
+.tr-yt-hero .tr-yt-info { flex: 1; justify-content: center; gap: 12px; padding: 18px 22px; }
+.tr-yt-hero .tr-yt-title { font-size: 1.3rem; -webkit-line-clamp: 3; }
+.tr-yt-hero .tr-yt-play { width: 66px; height: 66px; font-size: 1.85rem; }
+.tr-yt-hero .tr-yt-views { font-size: .88rem; padding: 5px 11px; }
+.tr-yt-hero .tr-yt-rank { font-size: .9rem; padding: 4px 12px; }
+.tr-yt-hero .tr-yt-meta { font-size: .9rem; }
+@media (max-width: 720px) {
+  .tr-yt-hero .tr-yt-card { flex-direction: column; }
+  .tr-yt-hero .tr-yt-thumb { flex-basis: auto; }
+  .tr-yt-hero .tr-yt-title { font-size: 1.1rem; }
 }
-.tr-yt-block .tr-sub-hdr { margin-top: 0; font-size: 1.05rem; }
-.tr-yt-block .tr-sub-hdr::before {
-  content: ""; display: inline-block; width: 4px; height: 18px;
-  background: var(--accent); border-radius: 3px; vertical-align: -3px; margin-right: 2px;
-}
+
+/* ── ส่วนพับเก็บได้ (ข่าว/บทความ + Google Trends) ── */
+.tr-news-details { margin-top: 22px; border-top: 1px dashed var(--border); padding-top: 8px; }
+.tr-news-details[open] { margin-bottom: 4px; }
+.tr-news-summary, .tr-extra-summary { cursor: pointer; list-style: none; user-select: none; }
+.tr-news-summary::-webkit-details-marker, .tr-extra-summary::-webkit-details-marker { display: none; }
+.tr-news-summary::before, .tr-extra-summary::before { content: "▸"; color: var(--text3); margin-right: 6px; font-size: .85em; }
+details[open] > .tr-news-summary::before, details[open] > .tr-extra-summary::before { content: "▾"; }
+.tr-extra-summary { align-items: center; }
 
 /* ── hashtag chips ── */
 .tr-modal-sm { max-width: 460px; }

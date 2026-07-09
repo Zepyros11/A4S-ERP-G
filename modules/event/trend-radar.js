@@ -128,10 +128,12 @@ async function refreshAll() {
 }
 
 function renderStats() {
-  document.getElementById("statTrending").textContent = (LAST.trending || []).length;
-  document.getElementById("statTopics").textContent = (LAST.topics || []).length;
-  const news = (LAST.topics || []).reduce((s, t) => s + (t.items || []).length, 0);
-  document.getElementById("statNews").textContent = news;
+  const topics = LAST.topics || [];
+  const vids = topics.reduce((s, t) => s + (t.videos || []).length, 0);
+  const views = topics.reduce((s, t) => s + (t.videos || []).reduce((a, v) => a + (Number(v.views) || 0), 0), 0);
+  document.getElementById("statVideos").textContent = vids;
+  document.getElementById("statViews").textContent = formatViews(views);
+  document.getElementById("statTopics").textContent = topics.length;
   document.getElementById("statUpdated").textContent = nowBangkok() + " น.";
 }
 
@@ -188,15 +190,28 @@ function hashtagsFromNews(tabIdx, itemIdx) {
   const n = t && (t.items || [])[itemIdx];
   if (n) openHashtags(n.title, t.label);
 }
+function ideaFromVideo(tabIdx, vidIdx) {
+  const t = (LAST.topics || [])[tabIdx];
+  const v = t && (t.videos || [])[vidIdx];
+  if (!v) return;
+  const ctx = `คลิป YouTube ยอดวิว ${formatViews(v.views)} จากช่อง ${v.channel || "-"}`;
+  openIdeas(v.title, t.label, ctx);
+}
+function hashtagsFromVideo(tabIdx, vidIdx) {
+  const t = (LAST.topics || [])[tabIdx];
+  const v = t && (t.videos || [])[vidIdx];
+  if (v) openHashtags(v.title, t.label);
+}
 
 /* ── Section 2: topic tabs + news ── */
 function renderTopicTabs() {
   const tabs = document.getElementById("topicTabs");
   const topics = LAST.topics || [];
   tabs.innerHTML = topics.map((t, i) => {
-    const emoji = (TOPICS.find(x => x.label === t.label) || {}).emoji || "📰";
+    const emoji = (TOPICS.find(x => x.label === t.label) || {}).emoji || "🎬";
+    const n = (t.videos || []).length;
     return `<button class="tr-tab ${i === ACTIVE_TAB ? "active" : ""}" onclick="selectTab(${i})">
-      ${esc(emoji)} ${esc(t.label)} <span class="tr-tab-count">${(t.items || []).length}</span>
+      ${esc(emoji)} ${esc(t.label)} <span class="tr-tab-count">🎬 ${n}</span>
     </button>`;
   }).join("");
 }
@@ -217,13 +232,66 @@ function renderTopicNews() {
   const t = topics[ACTIVE_TAB];
   if (!t) { wrap.innerHTML = `<div class="tr-empty">ยังไม่มีหัวข้อ — เพิ่มที่ ⚙️ จัดการหัวข้อ</div>`; return; }
 
-  // ── ข่าว ──
+  wrap.innerHTML = `${youtubeSection(t)}${newsSection(t)}`;
+}
+
+/* ── YouTube (พระเอก): คลิปเด่นตัวใหญ่ + กริดคลิป มี badge อันดับ ── */
+function youtubeSection(t) {
+  const canIdea = !!proxyBase();
+  if (!LAST.youtubeEnabled) {
+    return `<div class="tr-empty tr-empty-sm">🎬 ยังไม่ได้เปิดใช้ YouTube — ตั้งค่า API key ที่ backend ก่อน</div>`;
+  }
+  const videos = t.videos || [];
+  if (!videos.length) {
+    const msg = t.ytError
+      ? (/quota/i.test(t.ytError)
+          ? `🎬 โควตา YouTube วันนี้เต็ม — คลิปจะกลับมาเองหลังรีเซ็ต (พรุ่งนี้ ~บ่าย)`
+          : `ดึงคลิปไม่สำเร็จ — <code>${esc(t.ytError)}</code>`)
+      : `ไม่พบคลิปสำหรับ "${esc(t.label)}" ในรอบ 30 วัน — ลองปรับ 🎬 คำค้น YouTube ที่ ⚙️ จัดการหัวข้อ`;
+    return `<div class="tr-empty tr-empty-sm">${msg}</div>`;
+  }
+
+  const card = (v, i) => {
+    const rank = i + 1;
+    const rankCls = rank <= 3 ? ` top${rank}` : "";
+    const channel = v.channelUrl
+      ? `<a class="tr-yt-channel" href="${esc(v.channelUrl)}" target="_blank" rel="noopener">📺 ${esc(v.channel)}</a>`
+      : `<span class="tr-yt-channel-plain">📺 ${esc(v.channel)}</span>`;
+    return `
+      <div class="tr-yt-card">
+        <a class="tr-yt-thumb"${v.thumb ? ` style="background-image:url('${esc(v.thumb)}')"` : ""} href="${esc(v.url)}" target="_blank" rel="noopener" title="เปิดวิดีโอ">
+          <span class="tr-yt-rank${rankCls}">#${rank}</span>
+          <span class="tr-yt-play">▶</span>
+          <span class="tr-yt-views">👁 ${formatViews(v.views)}</span>
+        </a>
+        <div class="tr-yt-info">
+          <a class="tr-yt-title" href="${esc(v.url)}" target="_blank" rel="noopener">${esc(v.title)}</a>
+          <div class="tr-yt-meta">${channel}</div>
+          ${canIdea ? `<div class="tr-yt-actions">
+            <button class="tr-idea-btn sm" onclick="ideaFromVideo(${ACTIVE_TAB}, ${i})">💡 ปั้นคอนเทนต์</button>
+            <button class="tr-tag-btn sm" onclick="hashtagsFromVideo(${ACTIVE_TAB}, ${i})" title="hashtag แนะนำ">🏷️</button>
+          </div>` : ""}
+        </div>
+      </div>`;
+  };
+
+  // คลิปอันดับ 1 = คลิปเด่น (การ์ดใหญ่พาดขวาง) ที่เหลือเป็นกริดปกติ
+  const [hero, ...rest] = videos;
+  const heroHtml = `<div class="tr-yt-hero">${card(hero, 0)}</div>`;
+  const restHtml = rest.length
+    ? `<div class="tr-yt-grid">${rest.map((v, i) => card(v, i + 1)).join("")}</div>`
+    : "";
+  return `<div class="tr-yt-wrap">${heroHtml}${restHtml}</div>`;
+}
+
+/* ── ข่าว/บทความ (ส่วนรอง — พับเก็บได้) ── */
+function newsSection(t) {
   const items = t.items || [];
-  const newsEmptyMsg = t.error
+  const emptyMsg = t.error
     ? `<div class="tr-empty">ดึงข่าวไม่สำเร็จ — <code>${esc(t.error)}</code><br><span class="tr-sub-note">ถ้าเป็น consent/redirect แปลว่า backend ยังไม่ได้ deploy ตัวแก้คุกกี้</span></div>`
     : `<div class="tr-empty">ไม่พบข่าวสำหรับ "${esc(t.label)}" ลองปรับคำค้นให้กว้างขึ้น</div>`;
-  const newsHtml = items.length
-    ? items.map((n, idx) => `
+  const list = items.length
+    ? `<div class="tr-news-grid">${items.map((n, idx) => `
       <div class="tr-news-item">
         <div class="tr-news-main">
           <a class="tr-news-title" href="${esc(n.url)}" target="_blank" rel="noopener">${esc(n.title)}</a>
@@ -236,46 +304,13 @@ function renderTopicNews() {
           <button class="tr-idea-btn sm" onclick="ideaFromNews(${ACTIVE_TAB}, ${idx})">💡 ปั้น</button>
           <button class="tr-tag-btn sm" onclick="hashtagsFromNews(${ACTIVE_TAB}, ${idx})" title="hashtag แนะนำ">🏷️</button>
         </div>
-      </div>`).join("")
-    : newsEmptyMsg;
-
-  // ── YouTube (รีวิว/คลิปฮิต) — โชว์ก่อนข่าว ให้เป็นพระเอก ──
-  let ytHtml = "";
-  if (LAST.youtubeEnabled) {
-    const videos = t.videos || [];
-    let ytEmpty;
-    if (t.ytError) {
-      ytEmpty = /quota/i.test(t.ytError)
-        ? `<div class="tr-empty tr-empty-sm">🎬 โควตา YouTube วันนี้เต็ม — คลิปจะกลับมาเองหลังรีเซ็ต (พรุ่งนี้ ~บ่าย)</div>`
-        : `<div class="tr-empty tr-empty-sm">ดึงคลิปไม่สำเร็จ — <code>${esc(t.ytError)}</code></div>`;
-    } else {
-      ytEmpty = `<div class="tr-empty tr-empty-sm">ไม่พบคลิปรีวิวสำหรับหัวข้อนี้ในรอบ 30 วัน</div>`;
-    }
-    const grid = videos.length
-      ? `<div class="tr-yt-grid">${videos.map(v => `
-          <div class="tr-yt-card">
-            <a class="tr-yt-thumb"${v.thumb ? ` style="background-image:url('${esc(v.thumb)}')"` : ""} href="${esc(v.url)}" target="_blank" rel="noopener" title="เปิดวิดีโอ">
-              <span class="tr-yt-play">▶</span>
-              <span class="tr-yt-views">👁 ${formatViews(v.views)}</span>
-            </a>
-            <div class="tr-yt-info">
-              <a class="tr-yt-title" href="${esc(v.url)}" target="_blank" rel="noopener">${esc(v.title)}</a>
-              <div class="tr-yt-meta">
-                ${v.channelUrl
-                  ? `<a class="tr-yt-channel" href="${esc(v.channelUrl)}" target="_blank" rel="noopener">📺 ${esc(v.channel)}</a>`
-                  : `<span>📺 ${esc(v.channel)}</span>`}
-              </div>
-            </div>
-          </div>`).join("")}</div>`
-      : ytEmpty;
-    ytHtml = `
-      <div class="tr-yt-block">
-        <div class="tr-sub-hdr">🎬 รีวิว/คลิปฮิตตามหัวข้อ <span class="tr-sub-note">YouTube · 30 วันล่าสุด เรียงตามยอดวิว · คลิกชื่อช่องไปหน้าช่อง</span></div>
-        ${grid}
-      </div>`;
-  }
-
-  wrap.innerHTML = `${ytHtml}<div class="tr-sub-hdr">📰 ข่าว/บทความ</div><div class="tr-news-grid">${newsHtml}</div>`;
+      </div>`).join("")}</div>`
+    : emptyMsg;
+  return `
+    <details class="tr-news-details">
+      <summary class="tr-sub-hdr tr-news-summary">📰 ข่าว/บทความ <span class="tr-sub-note">${items.length ? items.length + " รายการ · แตะเพื่อดู" : "แตะเพื่อดู"}</span></summary>
+      ${list}
+    </details>`;
 }
 
 /* ══ Ideas modal ══ */

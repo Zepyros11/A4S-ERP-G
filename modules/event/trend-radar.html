@@ -17,8 +17,8 @@
   <div class="page">
     <div class="page-hero page-hero--simple page-hero--compact">
       <div>
-        <h1 class="page-hero-title">📡 เรดาร์กระแส</h1>
-        <p class="page-hero-sub">ส่องกระแสฮิตจาก Google Trends + ข่าวตามหัวข้อธุรกิจ แล้วปั้นเป็นไอเดียคอนเทนต์</p>
+        <h1 class="page-hero-title">📺 เรดาร์ยูทูบ</h1>
+        <p class="page-hero-sub">ส่องคลิปมาแรงตามหัวข้อธุรกิจจาก YouTube · เรียงตามยอดวิว แล้วปั้นเป็นไอเดียคอนเทนต์</p>
       </div>
       <div class="page-hero-actions">
         <button class="btn-on-hero" id="btnDigest" onclick="openDigest()">📩 ตั้งค่าส่ง LINE</button>
@@ -30,11 +30,19 @@
     <!-- Stats -->
     <div class="stats-row">
       <div class="stat-card pink">
-        <div class="stat-icon">🔥</div>
+        <div class="stat-icon">🎬</div>
         <div class="stat-info">
-          <div class="stat-label">กระแสมาแรงวันนี้</div>
-          <div class="stat-value" id="statTrending">–</div>
-          <div class="stat-sub">Google Trends (ไทย)</div>
+          <div class="stat-label">คลิปมาแรงที่พบ</div>
+          <div class="stat-value" id="statVideos">–</div>
+          <div class="stat-sub">YouTube · 30 วันล่าสุด</div>
+        </div>
+      </div>
+      <div class="stat-card pink">
+        <div class="stat-icon">👁</div>
+        <div class="stat-info">
+          <div class="stat-label">ยอดวิวรวม</div>
+          <div class="stat-value" id="statViews">–</div>
+          <div class="stat-sub">รวมทุกคลิปที่พบ</div>
         </div>
       </div>
       <div class="stat-card green">
@@ -43,14 +51,6 @@
           <div class="stat-label">หัวข้อที่ติดตาม</div>
           <div class="stat-value" id="statTopics">–</div>
           <div class="stat-sub">แก้ได้ที่ ⚙️ จัดการหัวข้อ</div>
-        </div>
-      </div>
-      <div class="stat-card blue">
-        <div class="stat-icon">📰</div>
-        <div class="stat-info">
-          <div class="stat-label">ข่าว/กระแสที่พบ</div>
-          <div class="stat-value" id="statNews">–</div>
-          <div class="stat-sub">รวมทุกหัวข้อ</div>
         </div>
       </div>
       <div class="stat-card gray">
@@ -63,26 +63,26 @@
       </div>
     </div>
 
-    <!-- Section 1: Per-topic news (กระแสตามหัวข้อธุรกิจ — ให้ความสำคัญ อยู่บนสุด) -->
+    <!-- Section 1: YouTube clips ตามหัวข้อ (พระเอกของหน้า) -->
     <div class="tr-section">
       <div class="tr-section-hdr">
-        <h2 class="tr-section-title">🎯 กระแสตามหัวข้อธุรกิจ</h2>
-        <span class="tr-section-sub">ข่าว/บทความล่าสุดของแต่ละหัวข้อที่คุณติดตาม</span>
+        <h2 class="tr-section-title">🎬 คลิปมาแรงตามหัวข้อ</h2>
+        <span class="tr-section-sub">YouTube · 30 วันล่าสุด · เรียงตามยอดวิว · คลิกชื่อช่องเพื่อไปหน้าช่อง</span>
       </div>
       <div id="topicTabs" class="tr-tabs"></div>
       <div id="topicNews" class="tr-news-list"></div>
     </div>
 
-    <!-- Section 2: Google Trends -->
-    <div class="tr-section">
-      <div class="tr-section-hdr">
-        <h2 class="tr-section-title">🔥 กระแสมาแรงวันนี้</h2>
-        <span class="tr-section-sub">คำค้นที่พุ่งแรงในไทย · จาก Google Trends</span>
-      </div>
+    <!-- Section 2: Google Trends (ส่วนเสริม) -->
+    <details class="tr-section tr-extra" id="trendsDetails">
+      <summary class="tr-section-hdr tr-extra-summary">
+        <h2 class="tr-section-title">🔥 คำค้นมาแรงวันนี้ (Google Trends)</h2>
+        <span class="tr-section-sub">คำค้นที่พุ่งแรงในไทย · แตะเพื่อดู/ซ่อน</span>
+      </summary>
       <div id="trendingGrid" class="tr-grid">
         <div class="tr-skeleton"></div><div class="tr-skeleton"></div><div class="tr-skeleton"></div>
       </div>
-    </div>
+    </details>
   </div>
 
   <!-- ══ Ideas modal ══ -->

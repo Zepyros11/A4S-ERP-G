@@ -758,8 +758,15 @@ window.closePreview = function (e) {
   document.getElementById("previewOverlay").classList.remove("open");
 };
 window.printPreview = function () {
-  document.getElementById("printPaper").innerHTML =
-    document.getElementById("previewPaper").innerHTML;
+  const src = document.getElementById("previewPaper");
+  const pp = document.getElementById("printPaper");
+  pp.innerHTML = src.innerHTML;
+  // เอกสารที่สูงเกิน A4 นิดหน่อย (≤15%) → ย่อให้พอดี 1 หน้า กันตกไปหน้า 2
+  // ใช้ "อัตราส่วน" (สูง/กว้าง) ซึ่งไม่ขึ้นกับ CSS zoom ของแอป
+  const a4Ratio = 297 / 210;
+  const ratio = src.offsetHeight / src.offsetWidth;
+  pp.style.zoom =
+    ratio > a4Ratio && ratio <= a4Ratio * 1.15 ? String(a4Ratio / ratio) : "";
   const prev = document.title;
   document.title = _previewTitle;
   window.print();
@@ -818,8 +825,14 @@ window.bulkExportDocs = async function () {
       const pdf = new window.jspdf.jsPDF("p", "mm", "a4");
       const pw = 210, ph = 297;
       const imgH = (canvas.height * pw) / canvas.width;
+      // เนื้อหาล้นไม่เกิน 15% → ย่อทั้งหน้าให้พอดี A4 หน้าเดียว (กันเอกสารสั้นตกไปหน้า 2)
+      const FIT_TOLERANCE = 1.15;
       if (imgH <= ph) {
         pdf.addImage(img, "JPEG", 0, 0, pw, imgH);
+      } else if (imgH <= ph * FIT_TOLERANCE) {
+        // ย่อคงสัดส่วน จัดชิดบน-กึ่งกลางแนวนอน
+        const w = (canvas.width * ph) / canvas.height;
+        pdf.addImage(img, "JPEG", (pw - w) / 2, 0, w, ph);
       } else {
         // เนื้อหายาวเกิน 1 หน้า → ตัดเป็นหลายหน้า
         let remaining = imgH, position = 0;
