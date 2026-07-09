@@ -236,8 +236,10 @@ function renderActiveView() {
   document.getElementById("trendingSection").style.display = isOverview ? "" : "none";
   if (isOverview) {
     renderOverviewClips();               // รวมคลิปเด่นทุกหัวข้อ (โชว์/ซ่อนเองตามว่ามีข้อมูลไหม)
+    renderMarketing();                   // เทรนด์การตลาด/คอนเทนต์
   } else {
     document.getElementById("ytChartSection").style.display = "none";
+    document.getElementById("marketingSection").style.display = "none";
     const t = (LAST.topics || [])[ACTIVE_TAB];
     const title = document.getElementById("topicSectionTitle");
     if (t && title) title.textContent = `🎬 ${t.label}`;
@@ -364,6 +366,38 @@ function ideaFromOverview(i) {
 function hashtagsFromOverview(i) {
   const v = OVERVIEW_VIDS[i];
   if (v) openHashtags(v.title, "คลิปมาแรง");
+}
+
+/* ภาพรวม: เทรนด์การตลาด/คอนเทนต์ จากสื่อการตลาดไทย (RSS) */
+function renderMarketing() {
+  const sec = document.getElementById("marketingSection");
+  const wrap = document.getElementById("marketingBody");
+  const items = (LAST && LAST.marketing) || [];
+  if (!items.length) { sec.style.display = "none"; return; }
+  const canIdea = !!proxyBase();
+  wrap.innerHTML = `<div class="tr-news-grid">${items.map((n, i) => `
+    <div class="tr-news-item">
+      <div class="tr-news-main">
+        <a class="tr-news-title" href="${esc(n.url)}" target="_blank" rel="noopener">${esc(n.title)}</a>
+        <div class="tr-news-meta">
+          ${n.source ? `<span class="tr-news-src">${esc(n.source)}</span>` : ""}
+          ${n.pubDate ? `<span class="tr-news-time">· ${esc(timeAgo(n.pubDate))}</span>` : ""}
+        </div>
+      </div>
+      ${canIdea ? `<div class="tr-news-actions">
+        <button class="tr-idea-btn sm" onclick="ideaFromMkt(${i})">💡 ปั้น</button>
+        <button class="tr-tag-btn sm" onclick="hashtagsFromMkt(${i})" title="hashtag แนะนำ">🏷️</button>
+      </div>` : ""}
+    </div>`).join("")}</div>`;
+  sec.style.display = "";
+}
+function ideaFromMkt(i) {
+  const n = ((LAST && LAST.marketing) || [])[i];
+  if (n) openIdeas(n.title, "เทรนด์การตลาด", `บทความจาก ${n.source || "-"}`);
+}
+function hashtagsFromMkt(i) {
+  const n = ((LAST && LAST.marketing) || [])[i];
+  if (n) openHashtags(n.title, "เทรนด์การตลาด");
 }
 
 /* ── ข่าว/บทความ (ส่วนรอง — พับเก็บได้) ── */
