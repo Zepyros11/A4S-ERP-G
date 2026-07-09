@@ -281,3 +281,7 @@
 .ds-close-opt b{font-size:13px;color:var(--text1);}
 .ds-close-opt small{font-size:11px;color:var(--text3);}
 #dsCloseStatus{font-weight:700;color:#fde68a;}
+
+/* โมดัลดึงข้อมูล: content-hug · ไม่ scroll ภายใน */
+#dsSyncOverlay .modal{max-height:92vh;}
+#dsSyncOverlay .modal-body{max-height:none;overflow:visible;padding-top:8px;padding-bottom:8px;}

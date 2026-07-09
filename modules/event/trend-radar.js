@@ -243,26 +243,36 @@ function renderTopicNews() {
   let ytHtml = "";
   if (LAST.youtubeEnabled) {
     const videos = t.videos || [];
+    let ytEmpty;
+    if (t.ytError) {
+      ytEmpty = /quota/i.test(t.ytError)
+        ? `<div class="tr-empty tr-empty-sm">🎬 โควตา YouTube วันนี้เต็ม — คลิปจะกลับมาเองหลังรีเซ็ต (พรุ่งนี้ ~บ่าย)</div>`
+        : `<div class="tr-empty tr-empty-sm">ดึงคลิปไม่สำเร็จ — <code>${esc(t.ytError)}</code></div>`;
+    } else {
+      ytEmpty = `<div class="tr-empty tr-empty-sm">ไม่พบคลิปรีวิวสำหรับหัวข้อนี้ในรอบ 30 วัน</div>`;
+    }
     const grid = videos.length
       ? `<div class="tr-yt-grid">${videos.map(v => `
           <div class="tr-yt-card">
             <a class="tr-yt-thumb"${v.thumb ? ` style="background-image:url('${esc(v.thumb)}')"` : ""} href="${esc(v.url)}" target="_blank" rel="noopener" title="เปิดวิดีโอ">
               <span class="tr-yt-play">▶</span>
+              <span class="tr-yt-views">👁 ${formatViews(v.views)}</span>
             </a>
             <div class="tr-yt-info">
               <a class="tr-yt-title" href="${esc(v.url)}" target="_blank" rel="noopener">${esc(v.title)}</a>
               <div class="tr-yt-meta">
                 ${v.channelUrl
-                  ? `<a class="tr-yt-channel" href="${esc(v.channelUrl)}" target="_blank" rel="noopener">${esc(v.channel)}</a>`
-                  : `<span>${esc(v.channel)}</span>`}
-                · 👁 ${formatViews(v.views)} วิว
+                  ? `<a class="tr-yt-channel" href="${esc(v.channelUrl)}" target="_blank" rel="noopener">📺 ${esc(v.channel)}</a>`
+                  : `<span>📺 ${esc(v.channel)}</span>`}
               </div>
             </div>
           </div>`).join("")}</div>`
-      : `<div class="tr-empty">ไม่พบคลิปสำหรับหัวข้อนี้ในรอบ 30 วัน</div>`;
+      : ytEmpty;
     ytHtml = `
-      <div class="tr-sub-hdr">🎬 รีวิว/คลิปฮิตตามหัวข้อ <span class="tr-sub-note">YouTube · 30 วันล่าสุด เรียงตามยอดวิว · คลิกชื่อช่องไปหน้าช่อง</span></div>
-      ${grid}`;
+      <div class="tr-yt-block">
+        <div class="tr-sub-hdr">🎬 รีวิว/คลิปฮิตตามหัวข้อ <span class="tr-sub-note">YouTube · 30 วันล่าสุด เรียงตามยอดวิว · คลิกชื่อช่องไปหน้าช่อง</span></div>
+        ${grid}
+      </div>`;
   }
 
   wrap.innerHTML = `${ytHtml}<div class="tr-sub-hdr">📰 ข่าว/บทความ</div><div class="tr-news-grid">${newsHtml}</div>`;

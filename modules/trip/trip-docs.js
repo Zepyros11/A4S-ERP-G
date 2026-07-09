@@ -772,8 +772,13 @@ async function renderDocCanvas(d) {
   holder.innerHTML = `<div class="doc-paper">${composeDocHtml(d.body, d.signatory_id, d.letterhead_id)}</div>`;
   const paper = holder.firstElementChild;
   paper.style.boxShadow = "none";
+  // แอปตั้ง :root{zoom:0.65} บน desktop (common.css) — html2canvas ไม่รู้จัก CSS zoom
+  // เลยวัดกล่องแบบย่อแต่วาดตัวอักษรเต็มขนาด → คำทับกันเละ
+  // หักล้างด้วย zoom ผกผันเฉพาะกล่อง render ให้ net zoom = 1 (กล่องอยู่นอกจอ ไม่กระทบ UI)
+  const rootZoom = parseFloat(getComputedStyle(document.documentElement).zoom) || 1;
+  if (rootZoom !== 1) paper.style.zoom = String(1 / rootZoom);
   await waitImages(paper);
-  await waitFonts(); // สำคัญ: รอ Sarabun โหลดครบ ไม่งั้น html2canvas วัดตัวอักษรผิด → คำทับกันเละ
+  await waitFonts(); // รอ Sarabun โหลดครบ ไม่งั้น html2canvas วัดตัวอักษรผิดได้เช่นกัน
   return html2canvas(paper, { scale: 2, useCORS: true, backgroundColor: "#ffffff" });
 }
 
