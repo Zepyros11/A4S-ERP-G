@@ -757,20 +757,70 @@ window.closePreview = function (e) {
   if (e && e.target.id !== "previewOverlay") return;
   document.getElementById("previewOverlay").classList.remove("open");
 };
+// CSS ของกระดาษเอกสาร (คัดจาก trip-docs.html) — ใช้ใน iframe พิมพ์ให้ WYSIWYG เป๊ะ
+const DOC_PRINT_CSS = `
+@page{size:A4 portrait;margin:0}
+html,body{margin:0;padding:0;background:#fff}
+*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
+.doc-paper{background:#fff;width:794px;max-width:100%;margin:0 auto;padding:46px 64px;
+  color:#1f2937;font-family:"Sarabun","Segoe UI",sans-serif;min-height:1000px;box-shadow:none;}
+.doc-letterhead{display:flex;align-items:flex-start;gap:18px;padding-bottom:12px;
+  border-bottom:2px solid #5b9b35;margin-bottom:30px;}
+.doc-letterhead .lh-logo{width:120px;flex-shrink:0;text-align:left;}
+.doc-letterhead .lh-logo img{max-width:120px;max-height:88px;height:auto;}
+.doc-letterhead .lh-info{flex:1;min-width:0;}
+.doc-letterhead .lh-info > *{margin:0;}
+.doc-letterhead .lh-name{font-size:16px;font-weight:700;color:#111;margin-bottom:4px;}
+.doc-letterhead .lh-addr{font-size:12.5px;line-height:1.6;color:#222;}
+.doc-body{font-size:15px;line-height:1.7;color:#1f2937;min-height:300px;}
+.doc-body p{margin:0 0 10px;}
+.doc-body div{margin:0;}
+.doc-body ul,.doc-body ol{margin:0 0 12px;padding-left:26px;}
+.doc-signature{margin-top:30px;text-align:center;width:300px;margin-left:auto;
+  break-inside:avoid;page-break-inside:avoid;}
+.doc-signature img{max-width:200px;max-height:90px;object-fit:contain;margin:0 auto 2px;}
+.doc-signature .sig-line{border-top:1px solid #111;width:240px;margin:0 auto 8px;height:1px;}
+.doc-signature .sig-name{font-size:15px;font-weight:600;color:#111;}
+.doc-signature .sig-title{font-size:14px;color:#333;margin-top:2px;}
+`;
+
+// พิมพ์ผ่าน iframe แยกที่สะอาด — เอกสารเดียวมีแค่ .doc-paper + @page A4
+// (พิมพ์ทั้งหน้าตรง ๆ ทำให้ zoom:0.65 + CSS ของแอปทำ pagination เพี้ยน → ล้นเป็น 2 หน้า
+//  ดู namecard-generator.js printSheetsViaIframe — เทคนิคเดียวกัน)
 window.printPreview = function () {
-  const src = document.getElementById("previewPaper");
-  const pp = document.getElementById("printPaper");
-  pp.innerHTML = src.innerHTML;
-  // เอกสารที่สูงเกิน A4 นิดหน่อย (≤15%) → ย่อให้พอดี 1 หน้า กันตกไปหน้า 2
-  // ใช้ "อัตราส่วน" (สูง/กว้าง) ซึ่งไม่ขึ้นกับ CSS zoom ของแอป
-  const a4Ratio = 297 / 210;
-  const ratio = src.offsetHeight / src.offsetWidth;
-  pp.style.zoom =
-    ratio > a4Ratio && ratio <= a4Ratio * 1.15 ? String(a4Ratio / ratio) : "";
-  const prev = document.title;
-  document.title = _previewTitle;
-  window.print();
-  setTimeout(() => (document.title = prev), 300);
+  const html = document.getElementById("previewPaper").innerHTML;
+
+  const old = document.getElementById("docPrintFrame");
+  if (old) old.remove();
+
+  const iframe = document.createElement("iframe");
+  iframe.id = "docPrintFrame";
+  iframe.style.cssText = "position:fixed;width:0;height:0;border:0;right:0;bottom:0;";
+  document.body.appendChild(iframe);
+
+  const doc = iframe.contentDocument || iframe.contentWindow.document;
+  doc.open();
+  doc.write(
+    '<!doctype html><html><head><meta charset="utf-8">' +
+    '<base href="' + location.href + '">' +
+    '<title>' + (_previewTitle || "เอกสาร").replace(/[<>&]/g, "") + '</title>' +
+    '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700;800&display=swap">' +
+    '<style>' + DOC_PRINT_CSS + '</style></head><body>' +
+    '<div class="doc-paper">' + html + '</div>' +
+    '</body></html>'
+  );
+  doc.close();
+
+  const win = iframe.contentWindow;
+  const doPrint = () => {
+    try { win.focus(); win.print(); } catch (e) { console.error(e); }
+    setTimeout(() => iframe.remove(), 1500);
+  };
+  // รอฟอนต์ + รูป (โลโก้/ลายเซ็น) โหลดครบก่อนพิมพ์ ไม่งั้น layout ขยับ → ตัดหน้าเพี้ยน
+  const fontsReady = doc.fonts && doc.fonts.ready ? doc.fonts.ready : Promise.resolve();
+  Promise.all([fontsReady, waitImages(doc.body)])
+    .then(() => setTimeout(doPrint, 300))
+    .catch(() => setTimeout(doPrint, 500));
 };
 
 // render เอกสาร 1 ฉบับ → canvas (ใช้ร่วม PDF/PNG)
