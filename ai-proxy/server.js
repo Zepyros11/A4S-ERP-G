@@ -76,7 +76,15 @@ function _trTagBlocks(block, tag) {
   return out;
 }
 async function _trFetch(url) {
-  const r = await fetch(url, { headers: { 'User-Agent': _TREND_UA } });
+  const r = await fetch(url, {
+    headers: {
+      'User-Agent': _TREND_UA,
+      // เลี่ยงหน้า consent ของ Google (news.google.com เสิร์ฟ interstitial ให้ IP ดาต้าเซ็นเตอร์
+      // ถ้าไม่มีคุกกี้นี้ → ได้ HTML consent แทน RSS → parser หา <item> ไม่เจอ = 0 ข่าว)
+      'Cookie': 'CONSENT=YES+cb.20220301-11-p0.en+FX+000',
+      'Accept-Language': 'th-TH,th;q=0.9,en;q=0.8',
+    },
+  });
   if (!r.ok) throw new Error('HTTP ' + r.status);
   return r.text();
 }
