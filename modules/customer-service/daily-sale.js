@@ -1365,6 +1365,21 @@ async function dsUploadLineImg(blob) {
   return `${SB_URL}/storage/v1/object/public/event-files/${path}`;
 }
 
+// สร้าง messages (ข้อความ + รูปตรวจบิล + รูป daily sale) — ใช้ร่วมทั้งส่งจริง + ทดสอบหาฉัน
+async function dsLineBuildMessages(note, setStatus) {
+  if (!_recDaily) await loadReconcile();
+  await loadSale();
+  if (!_recDaily) throw new Error('ยังไม่มีข้อมูลสรุป');
+  const messages = [window.LineAPI.textMessage(dsBuildSummaryText(note))];
+  setStatus && setStatus('⏳ ทำรูปตรวจบิล...');
+  const recBlob = await dsCaptureEl(document.getElementById('dsRecMonthBody')?.closest('table'));
+  if (recBlob) { const u = await dsUploadLineImg(recBlob); messages.push({ type: 'image', originalContentUrl: u, previewImageUrl: u }); }
+  setStatus && setStatus('⏳ ทำรูป daily sale...');
+  const saleBlob = await dsCaptureEl($('dsSaleTables'));
+  if (saleBlob) { const u = await dsUploadLineImg(saleBlob); messages.push({ type: 'image', originalContentUrl: u, previewImageUrl: u }); }
+  return messages;
+}
+
 async function dsLineSend() {
   if (!window.LineAPI) { toast('LINE module ไม่โหลด', 'error'); return; }
   const chId = $('dsLineChannel')?.value;
@@ -1373,31 +1388,49 @@ async function dsLineSend() {
   const note = ($('dsLineNote')?.value || '').trim();
   const btn = $('dsLineSendBtn');
   const orig = btn ? btn.innerHTML : '';
-  if (btn) { btn.disabled = true; btn.innerHTML = '⏳ กำลังเตรียม...'; }
+  const setStatus = s => { if (btn) btn.innerHTML = s; };
+  if (btn) btn.disabled = true;
+  setStatus('⏳ กำลังเตรียม...');
   try {
-    if (!_recDaily) await loadReconcile();
-    await loadSale();
-    if (!_recDaily) throw new Error('ยังไม่มีข้อมูลสรุป');
-
-    const messages = [window.LineAPI.textMessage(dsBuildSummaryText(note))];
-
-    if (btn) btn.innerHTML = '⏳ ทำรูปตรวจบิล...';
-    const recBlob = await dsCaptureEl(document.getElementById('dsRecMonthBody')?.closest('table'));
-    if (recBlob) { const u = await dsUploadLineImg(recBlob); messages.push({ type: 'image', originalContentUrl: u, previewImageUrl: u }); }
-
-    if (btn) btn.innerHTML = '⏳ ทำรูป daily sale...';
-    const saleBlob = await dsCaptureEl($('dsSaleTables'));
-    if (saleBlob) { const u = await dsUploadLineImg(saleBlob); messages.push({ type: 'image', originalContentUrl: u, previewImageUrl: u }); }
-
-    if (btn) btn.innerHTML = '⏳ กำลังส่ง...';
+    const messages = await dsLineBuildMessages(note, setStatus);
+    setStatus('⏳ กำลังส่ง...');
     const channel = await window.LineAPI.getChannel(Number(chId));
     if (target) await window.LineAPI.push({ channel, to: target, messages });
     else await window.LineAPI.broadcast({ channel, messages });
-
     toast('ส่งเข้า LINE สำเร็จ 🎉', 'success');
     dsLineClose();
   } catch (e) {
     toast('ส่งไม่สำเร็จ: ' + e.message, 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = orig; }
+  }
+}
+
+// ทดสอบส่งหาตัวเอง (line_user_id ของ user ปัจจุบัน) — เช็คหน้าตาก่อนส่งเข้ากลุ่มจริง
+async function dsLineTestMe() {
+  if (!window.LineAPI) { toast('LINE module ไม่โหลด', 'error'); return; }
+  const chId = $('dsLineChannel')?.value;
+  if (!chId) { toast('เลือก channel ก่อน', 'error'); return; }
+  const note = ($('dsLineNote')?.value || '').trim();
+  const btn = $('dsLineTestBtn');
+  const orig = btn ? btn.innerHTML : '';
+  const setStatus = s => { if (btn) btn.innerHTML = s; };
+  if (btn) btn.disabled = true;
+  setStatus('⏳ หา LINE ของคุณ...');
+  try {
+    let me = null;
+    try { me = JSON.parse(localStorage.getItem('erp_session') || sessionStorage.getItem('erp_session') || 'null'); } catch {}
+    if (!me?.user_id) throw new Error('กรุณา login ก่อน');
+    const rows = await sbGet(`users?user_id=eq.${me.user_id}&select=full_name,line_user_id`);
+    const meRow = Array.isArray(rows) ? rows[0] : null;
+    if (!meRow?.line_user_id) throw new Error('คุณยังไม่ผูก LINE — พิมพ์ username ในแชท Bot ก่อน');
+    const messages = await dsLineBuildMessages(note, setStatus);
+    setStatus('⏳ กำลังส่ง...');
+    const channel = await window.LineAPI.getChannel(Number(chId));
+    await window.LineAPI.push({ channel, to: meRow.line_user_id, messages });
+    toast(`ส่งทดสอบแล้ว → เช็ค LINE ของคุณ (${meRow.full_name || ''})`, 'success');
+  } catch (e) {
+    toast('ทดสอบไม่สำเร็จ: ' + e.message, 'error');
   } finally {
     if (btn) { btn.disabled = false; btn.innerHTML = orig; }
   }

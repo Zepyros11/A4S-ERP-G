@@ -62,8 +62,11 @@ function _trStripCdata(s) { return (s || '').replace(/<!\[CDATA\[/g, '').replace
 function _trDecode(s) {
   return (s || '')
     .replace(/&lt;/g, '<').replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&apos;/g, "'")
-    .replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&');
+    .replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&nbsp;/g, ' ')
+    // numeric entities (WordPress ใช้เยอะ: &#8216; &#8217; &#8220; &#8230; ฯลฯ)
+    .replace(/&#x([0-9a-fA-F]+);/g, (m, h) => { try { return String.fromCodePoint(parseInt(h, 16)); } catch (e) { return m; } })
+    .replace(/&#(\d+);/g, (m, n) => { try { return String.fromCodePoint(+n); } catch (e) { return m; } })
+    .replace(/&amp;/g, '&');
 }
 function _trTag(block, tag) {
   const m = block.match(new RegExp('<' + tag + '[^>]*>([\\s\\S]*?)<\\/' + tag + '>'));
@@ -328,14 +331,46 @@ async function _fetchYouTubeChartCached(geo, hl) {
   return videos;
 }
 
+/* ── สื่อการตลาด/เทรนด์คอนเทนต์ไทย (RSS ฟรี · ไม่กินโควตา · ไม่ผูกหัวข้อ) ── */
+const MKT_FEEDS = [
+  { source: 'Marketing Oops', url: 'https://www.marketingoops.com/feed/' },
+  { source: 'Brand Buffet',   url: 'https://www.brandbuffet.in.th/feed/' },
+];
+const _mktCache = new Map();
+async function _fetchMarketingRss(url, source) {
+  const r = await fetch(url, {
+    signal: AbortSignal.timeout(12000),
+    headers: { 'User-Agent': _YT_UA, 'Accept-Language': 'th-TH,th;q=0.9,en;q=0.8' },
+  });
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  const xml = await r.text();
+  return _trTagBlocks(xml, 'item').slice(0, 8).map(it => ({
+    title: _trTag(it, 'title'),
+    url: _trTag(it, 'link'),
+    source,
+    pubDate: _trTag(it, 'pubDate'),
+  })).filter(x => x.title && x.url);
+}
+async function _fetchMarketingCached() {
+  const c = _mktCache.get('mkt');
+  if (c && (Date.now() - c.ts) < 60 * 60000) return c.items;   // 1 ชม.
+  const lists = await Promise.all(MKT_FEEDS.map(f => _fetchMarketingRss(f.url, f.source).catch(() => [])));
+  const items = lists.flat()
+    .sort((a, b) => (Date.parse(b.pubDate) || 0) - (Date.parse(a.pubDate) || 0))
+    .slice(0, 12);
+  if (items.length) _mktCache.set('mkt', { items, ts: Date.now() });
+  return items;
+}
+
 /* ดึงกระแสทั้งชุด (ใช้ทั้ง /trend/fetch และ digest LINE) */
 async function _gatherTrends(geo, topics) {
   const hl = geo === 'TH' ? 'th' : 'en';
 
-  // เริ่มดึง YouTube chart (รวมประเทศ) ขนานไปกับ per-topic — ล้มก็ไม่พังทั้งชุด
+  // เริ่มดึงเทรนด์รวมประเทศ (YouTube chart + สื่อการตลาด) ขนานไปกับ per-topic — ล้มก็ไม่พังทั้งชุด
   const ycP = _fetchYouTubeChartCached(geo, hl)
     .then(videos => ({ videos, error: '' }))
     .catch(e => ({ videos: [], error: e.message }));
+  const mktP = _fetchMarketingCached().catch(() => []);
 
   // 1) Google Trends daily (optional)
   let trending = [];
@@ -362,13 +397,14 @@ async function _gatherTrends(geo, topics) {
     return out;
   }));
 
-  // 3) รวมผล YouTube chart ที่ยิงไว้ตอนต้น
-  const yc = await ycP;
+  // 3) รวมผลที่ยิงไว้ตอนต้น (chart + สื่อการตลาด)
+  const [yc, marketing] = await Promise.all([ycP, mktP]);
 
   return {
     geo, youtubeEnabled: true, ytKey: !!YT_KEY,
     trending, topics: perTopic,
     ytChart: yc.videos, ytChartError: yc.error || '',
+    marketing,
   };
 }
 
