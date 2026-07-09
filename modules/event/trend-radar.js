@@ -235,7 +235,7 @@ function renderActiveView() {
   document.getElementById("topicSection").style.display = isOverview ? "none" : "";
   document.getElementById("trendingSection").style.display = isOverview ? "" : "none";
   if (isOverview) {
-    renderYtChart();                     // โชว์/ซ่อน chart เองตามว่ามีข้อมูลไหม
+    renderOverviewClips();               // รวมคลิปเด่นทุกหัวข้อ (โชว์/ซ่อนเองตามว่ามีข้อมูลไหม)
   } else {
     document.getElementById("ytChartSection").style.display = "none";
     const t = (LAST.topics || [])[ACTIVE_TAB];
@@ -335,24 +335,35 @@ function ytCardHtml(v, rank, ideaCall, tagCall) {
 }
 
 /* ── Section: YouTube Trending รวมประเทศ (chart) ── */
-function renderYtChart() {
+/* ภาพรวม: รวมคลิปเด่นจากทุกหัวข้อที่ติดตาม (ตัดซ้ำ · เรียงยอดวิว) — เฉพาะ niche ธุรกิจ ไม่มีหนัง/เพลงปน */
+let OVERVIEW_VIDS = [];
+function renderOverviewClips() {
   const sec = document.getElementById("ytChartSection");
   const grid = document.getElementById("ytChartGrid");
-  const vids = (LAST && LAST.ytChart) || [];
-  if (!vids.length) { sec.style.display = "none"; return; }
+  const seen = new Set();
+  OVERVIEW_VIDS = [];
+  for (const t of (LAST && LAST.topics) || []) {
+    for (const v of t.videos || []) {
+      if (v && v.url && !seen.has(v.url)) { seen.add(v.url); OVERVIEW_VIDS.push(v); }
+    }
+  }
+  OVERVIEW_VIDS.sort((a, b) => (b.views || 0) - (a.views || 0));
+  OVERVIEW_VIDS = OVERVIEW_VIDS.slice(0, 12);
+
+  if (!OVERVIEW_VIDS.length) { sec.style.display = "none"; return; }
   const canIdea = !!proxyBase();
-  grid.innerHTML = `<div class="tr-yt-list tr-yt-list--2col">${vids.map((v, i) => ytRowHtml(v, i + 1,
-    canIdea ? `ideaFromChart(${i})` : "",
-    canIdea ? `hashtagsFromChart(${i})` : "")).join("")}</div>`;
+  grid.innerHTML = `<div class="tr-yt-list tr-yt-list--2col">${OVERVIEW_VIDS.map((v, i) => ytRowHtml(v, i + 1,
+    canIdea ? `ideaFromOverview(${i})` : "",
+    canIdea ? `hashtagsFromOverview(${i})` : "")).join("")}</div>`;
   sec.style.display = "";
 }
-function ideaFromChart(i) {
-  const v = (LAST.ytChart || [])[i];
-  if (v) openIdeas(v.title, "YouTube มาแรง", `คลิป YouTube ยอดวิว ${formatViews(v.views)} จากช่อง ${v.channel || "-"}`);
+function ideaFromOverview(i) {
+  const v = OVERVIEW_VIDS[i];
+  if (v) openIdeas(v.title, "คลิปมาแรง", `คลิป YouTube ยอดวิว ${formatViews(v.views)} จากช่อง ${v.channel || "-"}`);
 }
-function hashtagsFromChart(i) {
-  const v = (LAST.ytChart || [])[i];
-  if (v) openHashtags(v.title, "YouTube มาแรง");
+function hashtagsFromOverview(i) {
+  const v = OVERVIEW_VIDS[i];
+  if (v) openHashtags(v.title, "คลิปมาแรง");
 }
 
 /* ── ข่าว/บทความ (ส่วนรอง — พับเก็บได้) ── */

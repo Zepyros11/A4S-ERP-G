@@ -1255,13 +1255,13 @@ async function loadReconcile() {
 
 function dsRecDailyDateChange(val) { state.recDailyDate = val || todayIso(); loadRecDaily(); }
 
-// คัดลอกสรุปยอดรายวันทั้งบล็อกเป็นข้อความ (เอาไปวาง LINE/chat)
-async function dsRecCopyDaily() {
-  if (!_recDaily) { toast('ยังไม่มีข้อมูล', 'error'); return; }
+// สร้างข้อความสรุปยอดรายวัน (ใช้ร่วม: ปุ่มคัดลอก + ส่ง LINE) · note = หมายเหตุ (ก่อนบรรทัดสรุปยอดโดย)
+function dsBuildSummaryText(note = '') {
+  if (!_recDaily) return '';
   const { ds, ew, group, date } = _recDaily;
   const b = v => `${fmt(v)} บาท`;
   const by = window.ERP_USER?.full_name || window.ERP_USER?.user_id || '';
-  const text = [
+  return [
     'DAILY SALE Payment (THB)',
     `${fmtDMY(date)} · สาขา ${group}`,
     `ยอดรวม = ${b(ds.amount)}`,
@@ -1288,8 +1288,15 @@ async function dsRecCopyDaily() {
     `   - QR = ${b(ew.qr_payment)}`,
     `   - GIFT VOUCHER = ${b(ew.gift_voucher)}`,
     `   - โอนค่าคอมเข้า E/W = ${b(ew.commission_deduct)}`,
+    `หมายเหตุ : ${note || '-'}`,
     `สรุปยอดโดย: ${by ? 'CS-' + by : '—'}`,
   ].join('\n');
+}
+
+// คัดลอกสรุปยอดรายวันทั้งบล็อกเป็นข้อความ (เอาไปวาง LINE/chat)
+async function dsRecCopyDaily() {
+  if (!_recDaily) { toast('ยังไม่มีข้อมูล', 'error'); return; }
+  const text = dsBuildSummaryText();
   try {
     await navigator.clipboard.writeText(text);
     toast('คัดลอกแล้ว', 'success');
