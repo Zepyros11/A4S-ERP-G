@@ -1310,6 +1310,90 @@ async function dsRecCopyDaily() {
   }
 }
 
+/* ── ส่งสรุปยอดรายวันเข้า LINE (ข้อความ + รูปตรวจบิล + รูป daily sale) ── */
+async function dsLineOpen() {
+  if (!_recDaily) { try { await loadReconcile(); } catch {} }
+  if (!_recDaily) { toast('ยังไม่มีข้อมูลสรุป — เปิดแท็บ "ตรวจบิล" ก่อน', 'error'); return; }
+  const sel = $('dsLineChannel');
+  if (sel && window.LineAPI) {
+    try {
+      const chs = await window.LineAPI.listChannels();
+      sel.innerHTML = (chs || []).map(c => `<option value="${c.id}">${escHtml(c.channel_name || c.name || ('channel ' + c.id))}</option>`).join('') || '<option value="">— ไม่มี channel —</option>';
+    } catch { sel.innerHTML = '<option value="">โหลด channel ไม่ได้</option>'; }
+  }
+  dsLineNoteChange();
+  const ov = $('dsLineOverlay'); if (ov) ov.style.display = 'flex';
+}
+function dsLineClose() { const ov = $('dsLineOverlay'); if (ov) ov.style.display = 'none'; }
+function dsLineNoteChange() { const pv = $('dsLinePreview'); if (pv) pv.textContent = dsBuildSummaryText(($('dsLineNote')?.value || '').trim()); }
+
+// แคป element เป็นรูป (clone ออกนอกจอ → html2canvas → jpeg blob) · รองรับแท็บที่ซ่อนอยู่
+async function dsCaptureEl(el) {
+  if (!el || typeof html2canvas === 'undefined') return null;
+  const holder = document.createElement('div');
+  holder.style.cssText = 'position:fixed;left:-99999px;top:0;background:#fff;padding:12px;z-index:-1;';
+  const clone = el.cloneNode(true);
+  holder.appendChild(clone);
+  document.body.appendChild(holder);
+  try {
+    const canvas = await html2canvas(clone, { backgroundColor: '#ffffff', scale: 2, logging: false });
+    return await new Promise(res => canvas.toBlob(b => res(b), 'image/jpeg', 0.85));
+  } catch (e) { console.warn('capture failed:', e); return null; }
+  finally { holder.remove(); }
+}
+
+// อัปโหลดรูปขึ้น Supabase bucket public → คืน URL ที่ LINE fetch ได้
+async function dsUploadLineImg(blob) {
+  const ymd = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+  const name = `dsale_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.jpg`;
+  const path = `daily-sale/${ymd}/${name}`;
+  const res = await fetch(`${SB_URL}/storage/v1/object/event-files/${path}`, {
+    method: 'POST',
+    headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}`, 'Content-Type': blob.type || 'image/jpeg', 'x-upsert': 'true' },
+    body: blob,
+  });
+  if (!res.ok) throw new Error(`อัปโหลดรูปไม่สำเร็จ (${res.status})`);
+  return `${SB_URL}/storage/v1/object/public/event-files/${path}`;
+}
+
+async function dsLineSend() {
+  if (!window.LineAPI) { toast('LINE module ไม่โหลด', 'error'); return; }
+  const chId = $('dsLineChannel')?.value;
+  if (!chId) { toast('เลือก channel ก่อน', 'error'); return; }
+  const target = ($('dsLineTarget')?.value || '').trim();
+  const note = ($('dsLineNote')?.value || '').trim();
+  const btn = $('dsLineSendBtn');
+  const orig = btn ? btn.innerHTML : '';
+  if (btn) { btn.disabled = true; btn.innerHTML = '⏳ กำลังเตรียม...'; }
+  try {
+    if (!_recDaily) await loadReconcile();
+    await loadSale();
+    if (!_recDaily) throw new Error('ยังไม่มีข้อมูลสรุป');
+
+    const messages = [window.LineAPI.textMessage(dsBuildSummaryText(note))];
+
+    if (btn) btn.innerHTML = '⏳ ทำรูปตรวจบิล...';
+    const recBlob = await dsCaptureEl(document.getElementById('dsRecMonthBody')?.closest('table'));
+    if (recBlob) { const u = await dsUploadLineImg(recBlob); messages.push({ type: 'image', originalContentUrl: u, previewImageUrl: u }); }
+
+    if (btn) btn.innerHTML = '⏳ ทำรูป daily sale...';
+    const saleBlob = await dsCaptureEl($('dsSaleTables'));
+    if (saleBlob) { const u = await dsUploadLineImg(saleBlob); messages.push({ type: 'image', originalContentUrl: u, previewImageUrl: u }); }
+
+    if (btn) btn.innerHTML = '⏳ กำลังส่ง...';
+    const channel = await window.LineAPI.getChannel(Number(chId));
+    if (target) await window.LineAPI.push({ channel, to: target, messages });
+    else await window.LineAPI.broadcast({ channel, messages });
+
+    toast('ส่งเข้า LINE สำเร็จ 🎉', 'success');
+    dsLineClose();
+  } catch (e) {
+    toast('ส่งไม่สำเร็จ: ' + e.message, 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = orig; }
+  }
+}
+
 function dsRecMonthShift(delta) {
   const [y, m] = (state.recMonth || todayIso().slice(0, 7)).split('-').map(Number);
   const d = new Date(y, m - 1 + delta, 1);

@@ -24,6 +24,7 @@
         </div>
         <div class="page-hero-actions">
           <button class="btn-on-hero" data-perm="daily_sale_sync" onclick="dsSyncModalOpen()">🔄 ดึงข้อมูล</button>
+          <button class="btn-on-hero" data-perm="daily_sale_reconcile" onclick="dsLineOpen()">📤 ส่งสรุป LINE</button>
         </div>
       </div>
 
@@ -339,6 +340,38 @@
   </div>
 </div>
 
+<!-- ── ส่งสรุป LINE Modal ── -->
+<div id="dsLineOverlay" style="position:fixed;inset:0;background:rgba(15,23,42,.6);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;z-index:9998;">
+  <div style="background:#fff;border-radius:14px;max-width:460px;width:92%;max-height:90vh;overflow:auto;box-shadow:0 18px 44px rgba(0,0,0,.28);">
+    <div style="background:linear-gradient(135deg,var(--accent),var(--accent-light));color:#fff;padding:14px 18px;font-weight:700;">📤 ส่งสรุปยอดเข้า LINE</div>
+    <div style="padding:16px 18px;display:flex;flex-direction:column;gap:12px;">
+      <div>
+        <label style="font-size:12.5px;font-weight:600;color:var(--text2)">LINE Channel (OA)</label>
+        <select id="dsLineChannel" class="form-control" style="width:100%"></select>
+      </div>
+      <div>
+        <label style="font-size:12.5px;font-weight:600;color:var(--text2)">ปลายทาง (userId / groupId)</label>
+        <input id="dsLineTarget" class="form-control" style="width:100%" placeholder="ทดสอบ: userId ตัวเอง · เว้นว่าง = broadcast">
+        <div style="font-size:11px;color:var(--text3);margin-top:3px">ยังไม่เอากลุ่มจริง — ทดสอบก่อน แล้วค่อยเปลี่ยนเป็น groupId ทีหลัง</div>
+      </div>
+      <div>
+        <label style="font-size:12.5px;font-weight:600;color:var(--text2)">หมายเหตุ</label>
+        <input id="dsLineNote" class="form-control" style="width:100%" placeholder="(ไม่บังคับ)" oninput="dsLineNoteChange()">
+      </div>
+      <div>
+        <label style="font-size:12.5px;font-weight:600;color:var(--text2)">ตัวอย่างข้อความ · จะแนบ 2 รูป (ตรวจบิล · daily sale)</label>
+        <pre id="dsLinePreview" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px;font-size:11.5px;white-space:pre-wrap;max-height:220px;overflow:auto;margin:4px 0 0;"></pre>
+      </div>
+    </div>
+    <div style="padding:12px 18px;display:flex;justify-content:flex-end;gap:8px;border-top:1px solid #eef2f7;">
+      <button class="btn btn-outline" onclick="dsLineClose()">ยกเลิก</button>
+      <button class="btn btn-primary" id="dsLineSendBtn" onclick="dsLineSend()">📤 ส่งเข้า LINE</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script src="../../js/core/line.js"></script>
 <script src="../../js/core/auth.js"></script>
 <script src="../../js/core/authz.js"></script>
 <script src="../../js/core/crypto.js"></script>
