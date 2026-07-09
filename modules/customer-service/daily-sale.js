@@ -9,7 +9,7 @@ const SB_KEY = localStorage.getItem('sb_key') || '';
 const WORKFLOW = 'sync-daily-sale.yml';
 
 let state = {
-  date: new Date().toISOString().slice(0, 10),
+  date: todayIso(),
   branch: '',
   tab: 'sale',
   branches: [],
@@ -20,7 +20,10 @@ let state = {
   saleChecked: new Set(),  // bill_no ที่ติ๊กไว้ (multi-select ลบ)
 };
 
-function todayIso() { return new Date().toISOString().slice(0, 10); }
+// วันที่ปัจจุบันตามเวลาไทย (Asia/Bangkok) — กัน UTC ทำให้ช่วงตี 0–7 โมงยังเป็นเมื่อวาน
+function todayIso() { return new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Bangkok' }); }
+// เลื่อนวันจาก YYYY-MM-DD ไป n วัน (คำนวณ date-only แบบ UTC ไม่เพี้ยนข้าม TZ)
+function isoShift(iso, n) { const d = new Date(iso + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); }
 
 // Filter clause: ถ้าเลือก "วันนี้" → รวม business_date = today + NULL (pending)
 //                ถ้าย้อนหลัง → business_date = selected_date (finalized แล้ว)
@@ -141,7 +144,7 @@ async function init() {
 
 // ไฮไลต์ปุ่มวันนี้/เมื่อวานตามวันที่ที่เลือกจริง
 function dsSyncDateChips() {
-  const yest = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+  const yest = isoShift(todayIso(), -1);
   const t = $('dsChipToday'), y = $('dsChipYesterday');
   if (t) t.classList.toggle('active', state.date === todayIso());
   if (y) y.classList.toggle('active', state.date === yest);
@@ -1498,10 +1501,7 @@ function dsSwitchTab(tab) {
 }
 
 function dsShiftDate(delta) {
-  const d = new Date(state.date);
-  d.setDate(d.getDate() + delta);
-  if (delta === 0) state.date = new Date().toISOString().slice(0, 10);
-  else state.date = d.toISOString().slice(0, 10);
+  state.date = (delta === 0) ? todayIso() : isoShift(state.date, delta);
   $('dsDate').value = state.date;
   loadAll();
 }
@@ -1511,7 +1511,7 @@ function dsShiftDate(delta) {
    ============================================================ */
 /* เปิด modal เลือกช่วงวันที่ · default = เมื่อวาน → วันนี้ */
 function dsSyncModalOpen() {
-  $('dsSyncFrom').value = new Date(Date.now() - 86400000).toISOString().slice(0, 10); // today-1
+  $('dsSyncFrom').value = isoShift(todayIso(), -1); // today-1
   $('dsSyncTo').value = todayIso();
   // reset โหมด → ยังไม่ปิดรอบ
   const r = document.querySelector('input[name="dsCloseMode"][value="open"]');
