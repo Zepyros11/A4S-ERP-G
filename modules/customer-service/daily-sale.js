@@ -528,6 +528,72 @@ async function dsSignoffSave() {
   } catch (e) { toast('บันทึกไม่สำเร็จ: ' + e.message, 'error'); }
 }
 
+/* ── Export CSV รูปแบบเดียวกับชีท DailySaleCS (3 section + รวม + บล็อกลงชื่อ) ── */
+async function dsExportCSV() {
+  const group = state.branchGroup || 'ALL';
+  const groupLabel = group === 'ALL' ? 'ทั้งหมด' : group;
+  showLoading(true);
+  try {
+    const bills = await sbGet(`daily_sale_bills?${dateFilter()}&limit=5000`);
+    const scoped = bills.filter(b => group === 'ALL' || branchGroupOf(b) === group).sort(saleSort);
+    const pMap = scoped.length ? await fetchPaymentsMap(scoped.map(b => b.bill_no)) : {};
+    const groups = { sale: [], arp: [], ewallet: [] };
+    scoped.forEach(b => groups[billGroup(b)].push(b));
+
+    const PAY = ['cash', 'front_office', 'online', 'kbank', 'ktb', 'ewallet', 'gift_voucher', 'qr_payment', 'commission_deduct', 'arp_amount'];
+    const lines = [];
+    lines.push([`วันที่ ${fmtDMY(state.date)} · สาขา ${groupLabel}`]);
+    lines.push([]);
+
+    const section = (title, list, tail) => {
+      lines.push([title]);
+      lines.push(['NO', 'วันที่', 'เลขออเดอร์', 'รหัส', 'Name', 'Payment (THB)', '', '', '', '', '', '', '', '', '', 'ยอดในระบบ', 'ผลต่าง', 'ผู้บันทึก', 'หมายเหตุเพิ่มเติม']);
+      lines.push(['', '', '', '', '', 'Cash', 'Credit Card', '', 'Tranfer Money', '', 'E-WALLET', '', '', '', '', '', '', '', '']);
+      lines.push(['', '', '', '', '', '', 'Front Office', 'Online', 'KBANK', 'KTB', '', 'gift voucher', 'qr paymet', tail[0], tail[1], '', '', '', '']);
+      const tot = {}; PAY.forEach(f => tot[f] = 0); let sumAmt = 0, sumDiff = 0;
+      list.forEach((b, i) => {
+        const p = pMap[b.bill_no] || {};
+        const amt = Number(b.amount || 0);
+        const diff = PAY.reduce((s, f) => s + Number(p[f] || 0), 0) - amt;
+        PAY.forEach(f => tot[f] += Number(p[f] || 0)); sumAmt += amt; sumDiff += diff;
+        const c = f => (Number(p[f] || 0) === 0 ? '' : fmt(p[f]));
+        lines.push([i + 1, fmtDMY(b.sale_date), b.bill_no, b.member_code || '', b.member_name || '',
+          c('cash'), c('front_office'), c('online'), c('kbank'), c('ktb'), c('ewallet'), c('gift_voucher'), c('qr_payment'), c('commission_deduct'), c('arp_amount'),
+          fmt(amt), diff === 0 ? '0' : fmt(diff), b.recorded_by || '', p.correction_notes || b.notes || '']);
+      });
+      const tc = f => (tot[f] === 0 ? '' : fmt(tot[f]));
+      lines.push(['', '', '', '', `รวม (${list.length})`, tc('cash'), tc('front_office'), tc('online'), tc('kbank'), tc('ktb'), tc('ewallet'), tc('gift_voucher'), tc('qr_payment'), tc('commission_deduct'), tc('arp_amount'), fmt(sumAmt), sumDiff === 0 ? '0' : fmt(sumDiff), '', '']);
+      lines.push([]);
+    };
+
+    section('DAILY SALE', groups.sale, ['หักค่าคอม', 'ARP']);
+    section('แลก ARP (POINT) · ARP EASY · ABB ONLINE', groups.arp, ['ARP EASY', 'ARP (USD)']);
+    section('E-WALLET (THB)', groups.ewallet, ['หักค่าคอม', '']);
+
+    // บล็อกลงชื่อผู้รับผิดชอบ + หมายเหตุพิเศษ
+    try {
+      const rows = await sbGet(`daily_sale_reconcile?reconcile_date=eq.${state.date}&branch=eq.${encodeURIComponent(recBranchKey())}&select=signoff,special_notes&limit=1`);
+      const r = rows?.[0] || {}; const so = r.signoff || {};
+      lines.push([]);
+      DS_SIGNOFF_ROLES.forEach(role => lines.push(['', '', '', role.label, so[role.key] || '']));
+      lines.push(['', '', '', 'หมายเหตุ รายการพิเศษในวันนี้', r.special_notes || '']);
+    } catch { /* ignore */ }
+
+    const esc = v => { const s = v == null ? '' : String(v); return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
+    const csv = '﻿' + lines.map(row => (row || []).map(esc).join(',')).join('\r\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `DailySale_${state.date}_${groupLabel}.csv`;
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+    toast('Export CSV แล้ว', 'success');
+  } catch (e) {
+    toast('Export ไม่สำเร็จ: ' + e.message, 'error');
+  }
+  showLoading(false);
+}
+
 /* reload ตารางของแท็บที่กำลังเปิด (edit/delete ใช้ร่วมทั้งบิลขาย + บิลออนไลน์) */
 function dsReloadActive() { return state.tab === 'online' ? loadOnline() : loadSale(); }
 
@@ -1481,6 +1547,7 @@ window.dsRecMonthShift = dsRecMonthShift;
 window.dsRecDailyDateChange = dsRecDailyDateChange;
 window.dsRecCopyDaily = dsRecCopyDaily;
 window.dsSignoffSave = dsSignoffSave;
+window.dsExportCSV = dsExportCSV;
 window.dsConfirmResolve = dsConfirmResolve;
 window.dsSelectBranch = dsSelectBranch;
 window.dsGroupOpen = dsGroupOpen;

@@ -120,12 +120,14 @@ function _bingRealUrl(link) {
   return link;
 }
 function _parseBingNews(xml, limit) {
-  return _trTagBlocks(xml, 'item').slice(0, limit || 8).map(it => ({
+  return _trTagBlocks(xml, 'item').map(it => ({
     title: _trTag(it, 'title'),
     url: _bingRealUrl(_trTag(it, 'link')),
     source: _trTag(it, 'News:Source'),
     pubDate: _trTag(it, 'pubDate'),
-  })).filter(x => x.title);
+  })).filter(x => x.title)
+    .sort((a, b) => (Date.parse(b.pubDate) || 0) - (Date.parse(a.pubDate) || 0))  // ใหม่ก่อน
+    .slice(0, limit || 8);
 }
 
 /* ข่าวต่อหัวข้อ: ลอง Google News ก่อน → ถ้าล่ม/ว่าง ใช้ Bing News (self-heal บน Render) */
@@ -136,8 +138,9 @@ async function _fetchNews(query, geo, hl) {
     const items = _parseNewsRss(await _trFetch(gurl), 8);
     if (items.length) return { items, source: 'google' };
   } catch (e) { /* → Bing */ }
+  // qft=interval="9" → เฉพาะข่าวเดือนล่าสุด (relevance เดิมดึงข่าวเก่าปนมาถึง 10 ปี)
   const burl = `https://www.bing.com/news/search?q=${encodeURIComponent(query)}` +
-               `&format=rss&setlang=${hl}&cc=${geo}`;
+               `&format=rss&setlang=${hl}&cc=${geo}&qft=interval%3d%229%22`;
   const items = _parseBingNews(await _trFetch(burl), 8);
   return { items, source: 'bing' };
 }

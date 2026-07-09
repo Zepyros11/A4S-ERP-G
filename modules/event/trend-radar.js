@@ -259,7 +259,7 @@ function renderTopicNews() {
       ${grid}`;
   }
 
-  wrap.innerHTML = `<div class="tr-sub-hdr">📰 ข่าว/บทความ</div>${newsHtml}${ytHtml}`;
+  wrap.innerHTML = `<div class="tr-sub-hdr">📰 ข่าว/บทความ</div><div class="tr-news-grid">${newsHtml}</div>${ytHtml}`;
 }
 
 /* ══ Ideas modal ══ */

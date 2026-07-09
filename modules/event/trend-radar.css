@@ -130,6 +130,9 @@
 
 /* ── Topic news list ── */
 .tr-news-list { display: flex; flex-direction: column; gap: 10px; }
+.tr-news-grid {
+  display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;
+}
 .tr-news-item {
   background: var(--surface); border: 1px solid var(--border);
   border-radius: var(--radius); padding: 14px 16px;
@@ -220,6 +223,9 @@
 .tr-field-row input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer; }
 select.tr-input { cursor: pointer; }
 
+@media (max-width: 900px) {
+  .tr-news-grid { grid-template-columns: 1fr; }
+}
 @media (max-width: 767px) {
   .tr-manage-row { flex-wrap: wrap; }
   .tr-manage-row .tr-input:not(.tr-mini) { flex: 1 1 100%; }
