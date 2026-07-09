@@ -250,6 +250,17 @@ const DS_TABLES = [
     tail: [{ label: 'QR Paymet', field: 'qr_payment', col: 'ds-col-qr' }, { label: 'โอนค่าคอมเข้า E/W', field: 'commission_deduct', col: 'ds-col-comm' }, { label: 'ARP', field: 'arp_amount', col: 'ds-col-arp' }] },
 ];
 const DS_TABLE_BY_KEY = Object.fromEntries(DS_TABLES.map(c => [c.key, c]));
+
+// บล็อกผู้รับผิดชอบท้ายตารางบิลขาย (ตามชีท) — เก็บที่ daily_sale_reconcile.signoff (JSONB)
+const DS_SIGNOFF_ROLES = [
+  { key: 'bill_sorter',     label: 'ผู้เรียงบิล' },
+  { key: 'online_summary',  label: 'ผู้สรุปยอด บิลออนไลน์' },
+  { key: 'data_puller',     label: 'ผู้ดึงยอด' },
+  { key: 'daily_entry',     label: 'ผู้หยอดบิลลงเดลี่' },
+  { key: 'daily_print',     label: 'ผู้ปริ้นเดลี่ ประกบบิลขาย' },
+  { key: 'final_check',     label: 'ผู้ตรวจสอบความเรียบร้อยก่อนส่งบัญชี' },
+  { key: 'ewallet_summary', label: 'ผู้สรุปยอด E-WALLET' },
+];
 const DS_FIXED_FIELDS = ['cash', 'front_office', 'online', 'kbank', 'ktb', 'ewallet', 'gift_voucher'];  // payment cols ที่ทุกตารางมีเหมือนกัน
 
 // dropdown "หมายเหตุ" ของบิลออนไลน์ (ค่าคงที่ตามชีท) + สีชิป · เก็บที่ daily_sale_bills.delivery_note (sync ไม่แตะ)
@@ -462,9 +473,59 @@ async function loadSale() {
     const vis = new Set(visible.map(b => b.bill_no));
     [...state.saleChecked].forEach(bn => { if (!vis.has(bn)) state.saleChecked.delete(bn); });
     dsUpdateBulk();
+    loadSignoff();   // บล็อกผู้รับผิดชอบท้ายตาราง
   } catch (e) {
     if (wrap) wrap.innerHTML = `<div class="ds-table-empty">❌ ${e.message}</div>`;
   }
+}
+
+/* ── บล็อกผู้รับผิดชอบ + หมายเหตุพิเศษ (ท้ายตารางบิลขาย · เก็บ daily_sale_reconcile) ── */
+async function loadSignoff() {
+  const el = $('dsSignoffBlock');
+  if (!el) return;
+  await dsLoadSigOptions();
+  try {
+    const rows = await sbGet(`daily_sale_reconcile?reconcile_date=eq.${state.date}&branch=eq.${encodeURIComponent(recBranchKey())}&select=signoff,special_notes&limit=1`);
+    const r = rows?.[0] || {};
+    renderSignoff(r.signoff || {}, r.special_notes || '');
+  } catch { renderSignoff({}, ''); }
+}
+function renderSignoff(signoff, notes) {
+  const el = $('dsSignoffBlock');
+  if (!el) return;
+  const canEdit = window.hasPerm ? hasPerm('daily_sale_reconcile') : true;
+  const optHtml = cur => {
+    const list = (cur && !DS_SIG_OPTS.includes(cur)) ? [cur, ...DS_SIG_OPTS] : DS_SIG_OPTS;
+    return `<option value=""></option>` + list.map(o => `<option${o === cur ? ' selected' : ''}>${escHtml(o)}</option>`).join('');
+  };
+  const roleRows = DS_SIGNOFF_ROLES.map(r => {
+    const cur = signoff[r.key] || '';
+    const field = canEdit
+      ? `<select data-role="${r.key}" onchange="dsSignoffSave()">${optHtml(cur)}</select>`
+      : `<span class="ds-signoff-val">${escHtml(cur) || '—'}</span>`;
+    return `<div class="ds-signoff-row"><label>${r.label}</label>${field}</div>`;
+  }).join('');
+  const notesField = canEdit
+    ? `<textarea id="dsSignoffNotes" rows="7" onchange="dsSignoffSave()" placeholder="—">${escHtml(notes || '')}</textarea>`
+    : `<div class="ds-signoff-noteview">${escHtml(notes || '—')}</div>`;
+  el.innerHTML = `
+    <div class="ds-signoff-grid">
+      <div class="ds-signoff-roles">${roleRows}</div>
+      <div class="ds-signoff-notes"><label>หมายเหตุ รายการพิเศษในวันนี้</label>${notesField}</div>
+    </div>`;
+}
+async function dsSignoffSave() {
+  const signoff = {};
+  document.querySelectorAll('#dsSignoffBlock select[data-role]').forEach(s => { if (s.value) signoff[s.dataset.role] = s.value; });
+  const record = {
+    reconcile_date: state.date, branch: recBranchKey(),
+    signoff, special_notes: $('dsSignoffNotes')?.value.trim() || null,
+    created_by: window.ERP_USER?.user_id || 'unknown', updated_at: new Date().toISOString(),
+  };
+  try {
+    await sbPost('daily_sale_reconcile?on_conflict=reconcile_date,branch', [record], 'resolution=merge-duplicates,return=minimal');
+    toast('บันทึกแล้ว', 'success');
+  } catch (e) { toast('บันทึกไม่สำเร็จ: ' + e.message, 'error'); }
 }
 
 /* reload ตารางของแท็บที่กำลังเปิด (edit/delete ใช้ร่วมทั้งบิลขาย + บิลออนไลน์) */
@@ -1221,14 +1282,6 @@ async function dsSyncNow() {
   if (!from || !to) { toast('เลือกช่วงวันที่ก่อน', 'error'); return; }
   if (from > to) { toast('วันที่เริ่มต้องไม่เกินวันที่สิ้นสุด', 'error'); return; }
 
-  const rangeLabel = from === to ? fmtDMY(from) : `${fmtDMY(from)} – ${fmtDMY(to)}`;
-  const ok = await dsConfirm(
-    `ดึงข้อมูลช่วง <b>${rangeLabel}</b> จาก answerforsuccess มา<b>ทับค่าที่แก้ไว้</b> (เฉพาะบิลจาก sync) ด้วยข้อมูลสด<br><span style="font-size:12px;color:var(--text3)">แต่ละบิลลงยอดตามวันที่ขายจริง · บิลเก่า import (DATA_CS) ไม่ถูกแตะ · ดำเนินการ?</span>`, {
-    title: 'ยืนยันการดึงข้อมูล',
-    icon: '🔄',
-  });
-  if (!ok) return;
-
   dsSyncModalClose();
   showLoading(true);
   try {
@@ -1326,7 +1379,7 @@ async function _stepPct(pat, runId) {
 
 function _openSyncModal(pat) {
   $('spOverlay').style.display = 'flex';
-  $('spLog').innerHTML = '';
+  _spMsg('ซักครู่นะคะ');
   $('spStatus').textContent = 'queued';
   _startMs = Date.now();
   _lastPct = 0;
@@ -1357,12 +1410,13 @@ function dsCloseSyncProgress() {
   loadAll();
 }
 
-function _spLog(msg, type = '') {
-  const el = $('spLog');
-  const ts = new Date().toTimeString().slice(0, 8);
-  const color = type === 'ok' ? '#4ade80' : type === 'err' ? '#f87171' : '#e2e8f0';
-  el.innerHTML += `<div><span style="color:#64748b;margin-right:6px">${ts}</span><span style="color:${color}">${msg}</span></div>`;
-  el.scrollTop = el.scrollHeight;
+function _spLog() { /* กล่อง log ถูกเอาออกแล้ว — no-op */ }
+
+// เปลี่ยนข้อความโหลด (หยุดจุดวิ่งเมื่อจบ)
+function _spMsg(text, done) {
+  const el = $('spLoadingMsg');
+  if (!el) return;
+  el.innerHTML = done ? text : `${text}<span class="ds-loading-dots"></span>`;
 }
 
 async function _pollRun(pat) {
@@ -1384,12 +1438,12 @@ async function _pollRun(pat) {
       $('spStatus').textContent = run.status;
       if (run.conclusion === 'success') {
         _setProgress(100, 'สำเร็จ', 'ok');
-        _spLog('✅ ดึงข้อมูลสำเร็จ · ลงยอดตามวันขายจริงแล้ว', 'ok');
+        _spMsg('เสร็จเรียบร้อยค่ะ 🎉', true);
         // backfill=true tag business_date=sale_date ต่อบิลแล้ว → ไม่ต้อง close_day
         // (ไม่ไปตีบิล pending อื่นเป็นวันนี้)
         return;
       }
-      if (run.conclusion === 'failure') { _setProgress(_lastPct, 'ล้มเหลว', 'err'); _spLog('❌ Sync ล้มเหลว', 'err'); return; }
+      if (run.conclusion === 'failure') { _setProgress(_lastPct, 'ล้มเหลว', 'err'); _spMsg('ดึงข้อมูลไม่สำเร็จ ❌', true); return; }
       if (run.status === 'completed' && run.conclusion) {
         _setProgress(100, run.conclusion, run.conclusion === 'success' ? 'ok' : 'err');
         _spLog(`Run ended: ${run.conclusion}`, run.conclusion === 'success' ? 'ok' : 'err');
@@ -1426,6 +1480,7 @@ window.dsRecCellSave = dsRecCellSave;
 window.dsRecMonthShift = dsRecMonthShift;
 window.dsRecDailyDateChange = dsRecDailyDateChange;
 window.dsRecCopyDaily = dsRecCopyDaily;
+window.dsSignoffSave = dsSignoffSave;
 window.dsConfirmResolve = dsConfirmResolve;
 window.dsSelectBranch = dsSelectBranch;
 window.dsGroupOpen = dsGroupOpen;

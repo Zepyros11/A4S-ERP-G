@@ -113,6 +113,35 @@ function _parseNewsRss(xml, limit) {
   }).filter(x => x.title);
 }
 
+/* Bing News RSS — สำรองเมื่อ Google News โดนบล็อก (503 บน IP ดาต้าเซ็นเตอร์) */
+function _bingRealUrl(link) {
+  const m = String(link).match(/[?&]url=([^&]+)/);
+  if (m) { try { return decodeURIComponent(m[1]); } catch (e) { /* ignore */ } }
+  return link;
+}
+function _parseBingNews(xml, limit) {
+  return _trTagBlocks(xml, 'item').slice(0, limit || 8).map(it => ({
+    title: _trTag(it, 'title'),
+    url: _bingRealUrl(_trTag(it, 'link')),
+    source: _trTag(it, 'News:Source'),
+    pubDate: _trTag(it, 'pubDate'),
+  })).filter(x => x.title);
+}
+
+/* ข่าวต่อหัวข้อ: ลอง Google News ก่อน → ถ้าล่ม/ว่าง ใช้ Bing News (self-heal บน Render) */
+async function _fetchNews(query, geo, hl) {
+  try {
+    const gurl = `https://news.google.com/rss/search?q=${encodeURIComponent(query)}` +
+                 `&hl=${hl}&gl=${geo}&ceid=${geo}:${hl}`;
+    const items = _parseNewsRss(await _trFetch(gurl), 8);
+    if (items.length) return { items, source: 'google' };
+  } catch (e) { /* → Bing */ }
+  const burl = `https://www.bing.com/news/search?q=${encodeURIComponent(query)}` +
+               `&format=rss&setlang=${hl}&cc=${geo}`;
+  const items = _parseBingNews(await _trFetch(burl), 8);
+  return { items, source: 'bing' };
+}
+
 /* ── YouTube: ค้นคลิปฮิตตาม hashtag/หัวข้อ (30 วันล่าสุด เรียงตามยอดวิว) ──
    ต้องมี YOUTUBE_API_KEY (Google Cloud → YouTube Data API v3) · ไม่มีคีย์ = ข้าม ไม่พัง */
 const YT_KEY = process.env.YOUTUBE_API_KEY || '';
@@ -159,9 +188,9 @@ async function _gatherTrends(geo, topics) {
     if (!query) return { label, query, items: [], videos: [] };
     const out = { label, query, items: [], videos: [] };
     try {
-      const url = `https://news.google.com/rss/search?q=${encodeURIComponent(query)}` +
-                  `&hl=${hl}&gl=${geo}&ceid=${geo}:${hl}`;
-      out.items = _parseNewsRss(await _trFetch(url), 8);
+      const news = await _fetchNews(query, geo, hl);
+      out.items = news.items;
+      out.newsSource = news.source;
     } catch (e) { out.error = e.message; }
     if (YT_KEY) {
       try { out.videos = await _fetchYouTube(query, geo, hl); }

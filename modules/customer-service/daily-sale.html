@@ -72,6 +72,7 @@
       <!-- ── Tab: Sale — 3 ตารางตาม Google Sheet DAILY SALE (ขายปกติ / ARP / E-WALLET) สร้างใน JS ── -->
       <div class="ds-tab-panel" id="dsPanelSale">
         <div id="dsSaleTables"></div>
+        <div id="dsSignoffBlock" class="ds-signoff"></div>
       </div>
 
       <!-- ── Raw data tabs — ดูข้อมูลดิบที่ sync download มา (สร้างเนื้อหาใน JS) ── -->
@@ -200,7 +201,7 @@
       </div>
     </div>
     <div style="padding:14px 16px">
-      <div id="spLog" style="background:#0f172a;color:#94a3b8;border-radius:6px;padding:8px 10px;font-family:'IBM Plex Mono',monospace;font-size:11px;max-height:140px;overflow-y:auto;margin-bottom:10px"></div>
+      <div id="spLoadingMsg" class="ds-sync-loading">ซักครู่นะคะ<span class="ds-loading-dots"></span></div>
       <div style="display:flex;justify-content:space-between;gap:10px;font-size:12px">
         <div>⏱️ <b id="spElapsed">0s</b></div>
         <div>Status: <b id="spStatus">—</b></div>
