@@ -22,6 +22,7 @@ jobs:
         endpoint:
           - notifications     # event/booking-anchored rules
           - line-promote      # ad-hoc LINE posts (line_scheduled_posts)
+          - trend-digest      # daily trend digest (sends only at configured hour, once/day)
     steps:
       - name: Trigger /cron/${{ matrix.endpoint }}
         env:

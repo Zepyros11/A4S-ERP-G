@@ -137,33 +137,40 @@ async function init() {
   await loadAll();
 }
 
+// ไฮไลต์ปุ่มวันนี้/เมื่อวานตามวันที่ที่เลือกจริง
+function dsSyncDateChips() {
+  const yest = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+  const t = $('dsChipToday'), y = $('dsChipYesterday');
+  if (t) t.classList.toggle('active', state.date === todayIso());
+  if (y) y.classList.toggle('active', state.date === yest);
+}
+
 async function loadAll() {
-  await Promise.all([loadKPI(), loadPending(), loadSale(), loadOnline(), loadReconcile()]);
+  dsSyncDateChips();
+  await Promise.all([loadKPI(), loadSale(), loadOnline(), loadReconcile()]);
 }
 
 /* ============================================================
    KPI (hero)
    ============================================================ */
 async function loadKPI() {
-  const branchFilter = state.branch ? `&branch=eq.${state.branch}` : '';
   try {
-    // view column aliased: business_date AS sale_date
-    const rows = await sbGet(`daily_sale_summary?${dateFilter('sale_date')}${branchFilter}`);
-    let bills = 0, amount = 0, cash = 0, transfer = 0, credit = 0, ewallet = 0;
-    rows.forEach(r => {
-      bills += r.bill_count || 0;
-      amount += Number(r.total_amount || 0);
-      cash += Number(r.total_cash || 0);
-      transfer += Number(r.total_transfer || 0);
-      credit += Number(r.total_credit_card || 0);
-      ewallet += Number(r.total_ewallet || 0);
+    const group = state.branchGroup || 'ALL';
+    if ($('dsKpiGroupLbl')) $('dsKpiGroupLbl').textContent = group === 'ALL' ? 'ทั้งหมด' : group;
+    // report ตามกลุ่มสาขาที่เลือก · บิลวันนี้/ยอดขาย = DAILY SALE (ไม่รวม ARP/ewallet) · ARP/Ewallet = จำนวนรายการ
+    const bills = await sbGet(`daily_sale_bills?${dateFilter()}&select=amount,bill_type,bill_no,branch,receive_branch&limit=8000`);
+    let count = 0, amount = 0, arp = 0, ew = 0;
+    bills.forEach(b => {
+      if (group !== 'ALL' && branchGroupOf(b) !== group) return;
+      if (isEwallet(b)) { ew++; return; }
+      if (isRedemption(b)) { arp++; return; }
+      count++; amount += Number(b.amount || 0);
     });
-    $('dsKpiBills').textContent = bills;
+    $('dsKpiBills').textContent = count;
     $('dsKpiAmount').textContent = fmt(amount);
-    $('dsKpiCash').textContent = fmt(cash);
-    $('dsKpiTransfer').textContent = fmt(transfer);
-    $('dsKpiCredit').textContent = fmt(credit);
-    $('dsKpiEwallet').textContent = fmt(ewallet);
+    $('dsKpiArp').textContent = arp;
+    $('dsKpiEwallet').textContent = ew;
+    $('dsKpiDate').textContent = fmtDMY(state.date);
   } catch (e) {
     console.error('KPI load failed:', e);
   }
@@ -171,12 +178,11 @@ async function loadKPI() {
   try {
     const logs = await sbGet(`sync_log?source=eq.daily_sale&order=started_at.desc&limit=1`);
     const r = logs?.[0];
+    $('dsHeroStatus').textContent = r?.started_at ? `Sync ล่าสุด · ${r.status}` : 'ยังไม่เคย sync';
     if (r?.started_at) {
-      const d = new Date(r.started_at);
-      $('dsKpiSync').textContent = `${d.toLocaleDateString('th-TH')} ${d.toTimeString().slice(0, 5)}`;
-      $('dsHeroStatus').textContent = `Sync ล่าสุด · ${r.status}`;
-    } else {
-      $('dsHeroStatus').textContent = 'ยังไม่เคย sync';
+      // ข้อมูลวันที่ = วัน+เวลาที่ sync ล่าสุด (Asia/Bangkok)
+      const time = new Date(r.started_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Bangkok' });
+      $('dsKpiDate').textContent = `${fmtDMY(r.started_at)} ${time}`;
     }
   } catch {}
 }
@@ -212,7 +218,7 @@ function renderBranchChecks(keys) {
     return `<label class="ds-branch-chip${on ? ' on' : ''}" title="${tip}"><input type="radio" name="dsBranchGrp" ${on ? 'checked' : ''} onchange="dsSelectBranch('${g}')">${label}</label>`;
   }).join('') + `<button type="button" class="ds-grp-edit" title="แก้ไขกลุ่มสาขา" onclick="dsGroupOpen()">⚙️</button>`;
 }
-function dsSelectBranch(g) { state.branchGroup = g; loadSale(); if (state.tab === 'online') loadOnline(); if (state.tab === 'reconcile') loadReconcile(); }
+function dsSelectBranch(g) { state.branchGroup = g; loadKPI(); loadSale(); if (state.tab === 'online') loadOnline(); if (state.tab === 'reconcile') loadReconcile(); }
 
 // แก้ไขกลุ่มสาขา (เก็บ localStorage)
 function dsGroupOpen() {
@@ -685,92 +691,11 @@ async function dsEditSave() {
     );
     dsEditClose();
     toast('บันทึกช่องทางชำระแล้ว · sync จะไม่เขียนทับบิลนี้', 'success');
-    await Promise.all([loadSale(), loadPending(), loadKPI()]);
+    await Promise.all([loadSale(), loadKPI()]);
   } catch (e) {
     toast('บันทึกล้มเหลว: ' + e.message, 'error');
   }
   showLoading(false);
-}
-
-/* ============================================================
-   TAB: Pending review — บิลใหม่รอตรวจ (business_date IS NULL)
-   บิลที่ sync เข้ามาแต่ยังไม่ปิดยอด = โผล่หลังปิดรอบก่อน · CS ตรวจ+แก้ channel
-   แล้วค่อยกด Sync Now → close_day ตีตราเป็นวัน
-   ============================================================ */
-function channelSummary(p) {
-  const map = { cash: 'เงินสด', transfer: 'โอน', credit_card: 'บัตร', ewallet: 'E-Wallet', gift_voucher: 'Gift', qr_payment: 'QR', arp_amount: 'ARP' };
-  const parts = [];
-  for (const k in map) { if (Number(p[k] || 0) > 0) parts.push(`${map[k]} ${fmt(p[k])}`); }
-  if (Number(p.commission_deduct || 0) > 0) parts.push(`หักคอม ${fmt(p.commission_deduct)}`);
-  return parts.join(' · ') || '—';
-}
-
-function updatePendingBadge(n) {
-  const badge = $('dsPendingBadge');
-  if (!badge) return;
-  if (n > 0) { badge.textContent = n; badge.style.display = ''; }
-  else { badge.style.display = 'none'; }
-}
-
-async function loadPending() {
-  const body = $('dsPendingBody');
-  const canEdit = window.hasPerm ? hasPerm('daily_sale_reconcile') : true;
-  body.innerHTML = `<tr><td colspan="8" class="ds-table-empty">กำลังโหลด...</td></tr>`;
-  try {
-    const branchFilter = state.branch ? `&branch=eq.${state.branch}` : '';
-    const bills = await sbGet(
-      `daily_sale_bills?business_date=is.null${branchFilter}&order=sale_datetime.desc&limit=1000`
-    );
-    updatePendingBadge(bills.length);
-    if (!bills.length) {
-      body.innerHTML = `<tr><td colspan="8" class="ds-table-empty">✓ ไม่มีบิลค้างตรวจ — ปิดยอดครบแล้ว</td></tr>`;
-      $('dsPendingSummary').style.display = 'none';
-      return;
-    }
-
-    const billNos = bills.map(b => `"${b.bill_no}"`).join(',');
-    const payments = await sbGet(`daily_sale_payments?bill_no=in.(${billNos})&select=*`);
-    const pMap = Object.fromEntries(payments.map(p => [p.bill_no, p]));
-
-    const rows = [];
-    let sumAmount = 0, correctedCount = 0;
-    for (const b of bills) {
-      const p = pMap[b.bill_no] || {};
-      state.sale[b.bill_no] = { bill: b, payment: p };
-      sumAmount += Number(b.amount || 0);
-      if (p.corrected) correctedCount++;
-
-      const time = b.sale_datetime
-        ? new Date(b.sale_datetime).toLocaleString('th-TH', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
-        : '—';
-      const status = p.corrected
-        ? `<span class="ds-corrected-badge">✏️ แก้แล้ว</span>`
-        : `<span class="ds-pending-badge">รอตรวจ</span>`;
-      const editBtn = canEdit
-        ? `<button class="ds-edit-btn" title="แก้ช่องทางชำระ" onclick="dsEditOpen('${b.bill_no}')">✏️</button>`
-        : '';
-
-      rows.push(`
-        <tr${p.corrected ? ' class="ds-row-corrected"' : ''}>
-          <td><span class="ds-bill-no">${b.bill_no}</span></td>
-          <td style="font-size:11.5px;white-space:nowrap">${time}</td>
-          <td>${b.member_code || ''} · ${(b.member_name || '').slice(0, 24)}</td>
-          <td class="ds-num">${fmt(b.amount)}</td>
-          <td style="font-size:11.5px">${channelSummary(p)}</td>
-          <td>${b.branch || '—'}</td>
-          <td>${status}</td>
-          <td class="ds-edit-cell">${editBtn}</td>
-        </tr>
-      `);
-    }
-    body.innerHTML = rows.join('');
-    $('dsPendCount').textContent = bills.length;
-    $('dsPendCorrected').textContent = correctedCount;
-    $('dsPendAmount').textContent = fmt(sumAmount);
-    $('dsPendingSummary').style.display = 'flex';
-  } catch (e) {
-    body.innerHTML = `<tr><td colspan="8" class="ds-table-empty">❌ ${e.message}</td></tr>`;
-  }
 }
 
 /* ============================================================
@@ -1252,7 +1177,6 @@ function dsSwitchTab(tab) {
   if (tab !== state.tab) dsClearSel();   // กัน selection ค้างข้ามแท็บ (sale ↔ online)
   state.tab = tab;
   document.querySelectorAll('.page-tab[data-tab]').forEach(el => el.classList.toggle('active', el.dataset.tab === tab));
-  $('dsPanelPending').style.display = tab === 'pending' ? '' : 'none';
   $('dsPanelSale').style.display = tab === 'sale' ? '' : 'none';
   $('dsPanelOnline').style.display = tab === 'online' ? '' : 'none';
   $('dsPanelReconcile').style.display = tab === 'reconcile' ? '' : 'none';

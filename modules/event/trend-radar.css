@@ -209,6 +209,17 @@
 }
 .tr-warn code { font-family: "IBM Plex Mono", monospace; font-size: .78rem; }
 
+/* ── digest settings form ── */
+.tr-field { display: block; margin-bottom: 14px; }
+.tr-field-lbl { display: block; font-size: .82rem; color: var(--text2); font-weight: 600; margin-bottom: 6px; }
+.tr-field-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  background: var(--surface-soft, var(--surface2)); padding: 10px 14px; border-radius: 10px;
+  font-size: .9rem; color: var(--text); cursor: pointer;
+}
+.tr-field-row input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer; }
+select.tr-input { cursor: pointer; }
+
 @media (max-width: 767px) {
   .tr-manage-row { flex-wrap: wrap; }
   .tr-manage-row .tr-input:not(.tr-mini) { flex: 1 1 100%; }

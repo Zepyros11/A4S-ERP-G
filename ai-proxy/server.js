@@ -141,45 +141,45 @@ async function _fetchYouTube(query, geo, hl) {
   })).sort((a, b) => b.views - a.views);
 }
 
+/* ดึงกระแสทั้งชุด (ใช้ทั้ง /trend/fetch และ digest LINE) */
+async function _gatherTrends(geo, topics) {
+  const hl = geo === 'TH' ? 'th' : 'en';
+
+  // 1) Google Trends daily (optional)
+  let trending = [];
+  try {
+    const tx = await _trFetch(`https://trends.google.com/trending/rss?geo=${geo}`);
+    trending = _parseTrendsRss(tx).slice(0, 20);
+  } catch (e) { /* trends optional */ }
+
+  // 2) ต่อหัวข้อ: Google News RSS + YouTube (ขนานกัน)
+  const perTopic = await Promise.all((topics || []).slice(0, 12).map(async (t) => {
+    const label = String(t.label || '').slice(0, 80);
+    const query = String(t.query || t.label || '').slice(0, 160);
+    if (!query) return { label, query, items: [], videos: [] };
+    const out = { label, query, items: [], videos: [] };
+    try {
+      const url = `https://news.google.com/rss/search?q=${encodeURIComponent(query)}` +
+                  `&hl=${hl}&gl=${geo}&ceid=${geo}:${hl}`;
+      out.items = _parseNewsRss(await _trFetch(url), 8);
+    } catch (e) { out.error = e.message; }
+    if (YT_KEY) {
+      try { out.videos = await _fetchYouTube(query, geo, hl); }
+      catch (e) { out.ytError = e.message; }
+    }
+    return out;
+  }));
+
+  return { geo, youtubeEnabled: !!YT_KEY, trending, topics: perTopic };
+}
+
 app.post('/trend/fetch', async (req, res) => {
   try {
     const body = req.body || {};
     const geo = String(body.geo || 'TH').toUpperCase();
     if (!/^[A-Z]{2}$/.test(geo)) return res.status(400).json({ ok: false, error: 'bad geo' });
-    const hl = geo === 'TH' ? 'th' : 'en';
-    const topics = Array.isArray(body.topics) ? body.topics.slice(0, 12) : [];
-
-    // 1) Google Trends daily (optional — ถ้าล่มก็ยังคืน per-topic ได้)
-    let trending = [];
-    try {
-      const tx = await _trFetch(`https://trends.google.com/trending/rss?geo=${geo}`);
-      trending = _parseTrendsRss(tx).slice(0, 20);
-    } catch (e) { /* trends optional */ }
-
-    // 2) ต่อหัวข้อ: Google News RSS + YouTube (ยิงขนานกัน)
-    const perTopic = await Promise.all(topics.map(async (t) => {
-      const label = String(t.label || '').slice(0, 80);
-      const query = String(t.query || t.label || '').slice(0, 160);
-      if (!query) return { label, query, items: [], videos: [] };
-      const out = { label, query, items: [], videos: [] };
-      // ข่าว
-      try {
-        const url = `https://news.google.com/rss/search?q=${encodeURIComponent(query)}` +
-                    `&hl=${hl}&gl=${geo}&ceid=${geo}:${hl}`;
-        out.items = _parseNewsRss(await _trFetch(url), 8);
-      } catch (e) { out.error = e.message; }
-      // YouTube (เฉพาะเมื่อมีคีย์)
-      if (YT_KEY) {
-        try { out.videos = await _fetchYouTube(query, geo, hl); }
-        catch (e) { out.ytError = e.message; }
-      }
-      return out;
-    }));
-
-    res.json({
-      ok: true, geo, fetchedAt: new Date().toISOString(),
-      youtubeEnabled: !!YT_KEY, trending, topics: perTopic,
-    });
+    const data = await _gatherTrends(geo, Array.isArray(body.topics) ? body.topics : []);
+    res.json({ ok: true, fetchedAt: new Date().toISOString(), ...data });
   } catch (err) {
     res.status(500).json({ ok: false, error: err.message });
   }
@@ -264,6 +264,105 @@ app.post('/trend/ideas', async (req, res) => {
   } catch (err) {
     res.status(500).json({ ok: false, error: err.message });
   }
+});
+
+/* ══════════════════════════════════════════════════════════
+   Trend Digest → LINE (สรุปกระแสประจำวัน)
+   - config เก็บใน trend_digest_config (1 แถว) · ตั้งใน UI เรดาร์กระแส
+   - /cron/trend-digest ยิงทุก 15 นาที (GitHub Actions) → ส่งเฉพาะชั่วโมงที่ตั้ง + วันละครั้ง
+   - /trend/digest/test → ส่งทันที (ปุ่มทดสอบใน UI) ข้ามเช็คเวลา/กันซ้ำ
+   ══════════════════════════════════════════════════════════ */
+
+function _bkkDate() { return new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Bangkok' }); }
+function _bkkHour() {
+  return parseInt(new Intl.DateTimeFormat('en-GB',
+    { timeZone: 'Asia/Bangkok', hour: '2-digit', hour12: false }).format(new Date()), 10);
+}
+function _bkkDMY() { const [y, m, d] = _bkkDate().split('-'); return `${d}/${m}/${y}`; }
+
+async function _digestIdea(seed) {
+  if (!client || !seed) return '';
+  try {
+    const msg = await client.messages.create({
+      model: 'claude-sonnet-5',
+      max_tokens: 400,
+      system: 'คุณเป็นครีเอทีฟคอนเทนต์ Facebook ของบริษัทไทย (ธุรกิจเครือข่าย/สุขภาพ/ความงาม/อีเวนต์-ทริป) ' +
+              'เขียนแคปชั่นโพสต์สั้น กระชับ มี emoji และปิดท้ายด้วย 3-5 hashtag · ตอบเป็นข้อความล้วน ไม่ต้องมีหัวข้อกำกับ',
+      messages: [{ role: 'user', content: `เอากระแสนี้มาต่อยอดเป็นโพสต์ FB ธุรกิจ 1 โพสต์ (2-3 บรรทัด): "${seed}"` }],
+    });
+    return (msg.content || []).filter(c => c.type === 'text').map(c => c.text).join('\n').trim();
+  } catch (e) { return ''; }
+}
+
+async function _buildDigestText(data, includeIdeas) {
+  const lines = [`📡 เรดาร์กระแส — ${_bkkDMY()}`];
+
+  const tr = (data.trending || []).slice(0, 5);
+  if (tr.length) {
+    lines.push('', '🔥 กระแสมาแรงวันนี้');
+    tr.forEach((t, i) => lines.push(`${i + 1}. ${t.title}${t.traffic ? ` (${t.traffic})` : ''}`));
+  }
+
+  const topics = (data.topics || []).filter(t => (t.items || []).length);
+  if (topics.length) {
+    lines.push('', '🎯 ตามหัวข้อธุรกิจ');
+    topics.forEach(t => {
+      const n = t.items[0];
+      lines.push(`• ${t.label}: ${n.title}${n.source ? ` — ${n.source}` : ''}`);
+    });
+  }
+
+  if (includeIdeas) {
+    const seed = (topics[0] && topics[0].items[0] && topics[0].items[0].title) || (tr[0] && tr[0].title);
+    const idea = await _digestIdea(seed);
+    if (idea) lines.push('', '💡 ไอเดียโพสต์วันนี้', idea);
+  }
+
+  lines.push('', '— ดูทั้งหมดในระบบ ERP › เรดาร์กระแส');
+  return lines.join('\n');
+}
+
+async function _runTrendDigest(force) {
+  if (!SB_URL_WEBHOOK || !SB_SERVICE_KEY) return { ok: false, error: 'SB env not set' };
+  const cfgs = await _sbGet('trend_digest_config', 'select=*&order=id.asc&limit=1');
+  const cfg = cfgs && cfgs[0];
+  if (!cfg) return { ok: false, error: 'ยังไม่มี config (ตั้งค่าในหน้าเรดาร์กระแสก่อน)' };
+
+  if (!force) {
+    if (!cfg.is_enabled) return { ok: true, skipped: 'disabled' };
+    if (_bkkHour() !== (cfg.send_hour == null ? 8 : cfg.send_hour)) return { ok: true, skipped: 'not send hour', hour: _bkkHour() };
+    if (cfg.last_sent_on === _bkkDate()) return { ok: true, skipped: 'already sent today' };
+  }
+  if (!LINE_CHANNEL_TOKEN) return { ok: false, error: 'LINE_CHANNEL_TOKEN not set' };
+
+  const topics = await _sbGet('trend_topics', 'select=label,query&is_active=eq.true&order=sort.asc') || [];
+  const data = await _gatherTrends('TH', topics);
+  const text = await _buildDigestText(data, cfg.include_ideas !== false);
+  const messages = [{ type: 'text', text: text.slice(0, 5000) }];
+
+  if (cfg.target_type === 'broadcast') {
+    await _broadcastLineMessages(messages);
+  } else {
+    if (!cfg.target_id) return { ok: false, error: 'ยังไม่ได้เลือกกลุ่มปลายทาง' };
+    await _pushLineMessages(cfg.target_id, messages);
+  }
+  if (!force) await _sbPatch('trend_digest_config', `id=eq.${cfg.id}`, { last_sent_on: _bkkDate() });
+  console.log(`[trend-digest] sent target=${cfg.target_type} force=${!!force} chars=${text.length}`);
+  return { ok: true, sent: true, target: cfg.target_type, chars: text.length, preview: text.slice(0, 400) };
+}
+
+app.post('/cron/trend-digest', async (req, res) => {
+  if (CRON_SECRET) {
+    const got = req.get('x-cron-secret') || (req.body && req.body.secret) || '';
+    if (got !== CRON_SECRET) return res.status(401).json({ error: 'unauthorized' });
+  }
+  try { res.json(await _runTrendDigest(false)); }
+  catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
+app.post('/trend/digest/test', async (req, res) => {
+  try { res.json(await _runTrendDigest(true)); }
+  catch (e) { res.status(500).json({ ok: false, error: e.message }); }
 });
 
 /* ══════════════════════════════════════════════════════════

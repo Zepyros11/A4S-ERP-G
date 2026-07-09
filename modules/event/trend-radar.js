@@ -218,6 +218,9 @@ function renderTopicNews() {
 
   // ── ข่าว ──
   const items = t.items || [];
+  const newsEmptyMsg = t.error
+    ? `<div class="tr-empty">ดึงข่าวไม่สำเร็จ — <code>${esc(t.error)}</code><br><span class="tr-sub-note">ถ้าเป็น consent/redirect แปลว่า backend ยังไม่ได้ deploy ตัวแก้คุกกี้</span></div>`
+    : `<div class="tr-empty">ไม่พบข่าวสำหรับ "${esc(t.label)}" ลองปรับคำค้นให้กว้างขึ้น</div>`;
   const newsHtml = items.length
     ? items.map((n, idx) => `
       <div class="tr-news-item">
@@ -233,7 +236,7 @@ function renderTopicNews() {
           <button class="tr-tag-btn sm" onclick="hashtagsFromNews(${ACTIVE_TAB}, ${idx})" title="hashtag แนะนำ">🏷️</button>
         </div>
       </div>`).join("")
-    : `<div class="tr-empty">ไม่พบข่าวสำหรับ "${esc(t.label)}" ลองปรับคำค้นให้กว้างขึ้น</div>`;
+    : newsEmptyMsg;
 
   // ── YouTube ──
   let ytHtml = "";
@@ -474,6 +477,115 @@ async function saveManageAndRefresh() {
   TOPICS = clean;
   closeManage();
   refreshAll();
+}
+
+/* ══ Digest → LINE settings ══ */
+let DIGEST_CFG = null;
+let LINE_GROUPS = [];
+async function openDigest() {
+  const status = document.getElementById("dgStatus");
+  status.textContent = "กำลังโหลดการตั้งค่า…";
+  document.getElementById("digestModal").classList.add("open");
+
+  // hour options 0-23
+  const hourSel = document.getElementById("dgHour");
+  hourSel.innerHTML = Array.from({ length: 24 }, (_, h) =>
+    `<option value="${h}">${String(h).padStart(2, "0")}:00 น.</option>`).join("");
+
+  try {
+    const [cfgRows, groups] = await Promise.all([
+      sbFetch("trend_digest_config", "?select=*&order=id.asc&limit=1"),
+      sbFetch("line_groups", "?select=group_id,group_name,is_active&order=is_active.desc,group_name.asc").catch(() => []),
+    ]);
+    DIGEST_CFG = (Array.isArray(cfgRows) && cfgRows[0]) || null;
+    LINE_GROUPS = Array.isArray(groups) ? groups : [];
+
+    // group dropdown
+    const gSel = document.getElementById("dgGroup");
+    const hint = document.getElementById("dgGroupHint");
+    if (LINE_GROUPS.length) {
+      gSel.innerHTML = LINE_GROUPS.map(g =>
+        `<option value="${esc(g.group_id)}">${esc(g.group_name || g.group_id)}${g.is_active === false ? " (ออกแล้ว)" : ""}</option>`).join("");
+      hint.textContent = "";
+    } else {
+      gSel.innerHTML = `<option value="">— ยังไม่มีกลุ่ม —</option>`;
+      hint.textContent = "บอทยังไม่ได้อยู่ในกลุ่มไหน — เชิญบอทเข้ากลุ่ม LINE ก่อน แล้วกลุ่มจะขึ้นเอง";
+    }
+
+    const c = DIGEST_CFG || { is_enabled: false, target_type: "group", send_hour: 8, include_ideas: true };
+    document.getElementById("dgEnabled").checked = !!c.is_enabled;
+    document.getElementById("dgTargetType").value = c.target_type || "group";
+    document.getElementById("dgIdeas").checked = c.include_ideas !== false;
+    hourSel.value = String(c.send_hour == null ? 8 : c.send_hour);
+    if (c.target_id) document.getElementById("dgGroup").value = c.target_id;
+    onDigestTargetChange();
+    status.textContent = c.last_sent_on ? `ส่งล่าสุด: ${c.last_sent_on}` : "ยังไม่เคยส่ง";
+  } catch (e) {
+    status.textContent = "โหลดไม่สำเร็จ — " + e.message + " (รัน migration 041 หรือยัง?)";
+  }
+}
+function onDigestTargetChange() {
+  const isGroup = document.getElementById("dgTargetType").value === "group";
+  document.getElementById("dgGroupWrap").style.display = isGroup ? "" : "none";
+}
+function closeDigest() { document.getElementById("digestModal").classList.remove("open"); }
+
+function readDigestForm() {
+  const target_type = document.getElementById("dgTargetType").value;
+  return {
+    is_enabled: document.getElementById("dgEnabled").checked,
+    target_type,
+    target_id: target_type === "group" ? (document.getElementById("dgGroup").value || null) : null,
+    send_hour: parseInt(document.getElementById("dgHour").value, 10),
+    include_ideas: document.getElementById("dgIdeas").checked,
+    updated_at: new Date().toISOString(),
+    updated_by: (window.ERP_USER && window.ERP_USER.full_name) || null,
+  };
+}
+async function saveDigest() {
+  const body = readDigestForm();
+  if (body.is_enabled && body.target_type === "group" && !body.target_id)
+    return showToast("เลือกกลุ่มปลายทางก่อน", "error");
+  try {
+    if (DIGEST_CFG && DIGEST_CFG.id) {
+      await sbFetch("trend_digest_config", `?id=eq.${DIGEST_CFG.id}`, { method: "PATCH", body });
+    } else {
+      const rows = await sbFetch("trend_digest_config", "", { method: "POST", body });
+      DIGEST_CFG = Array.isArray(rows) ? rows[0] : null;
+    }
+    showToast("บันทึกการตั้งค่าแล้ว ✅");
+    closeDigest();
+  } catch (e) {
+    showToast("บันทึกไม่สำเร็จ: " + e.message, "error");
+  }
+}
+async function testDigest(btn) {
+  const base = proxyBase();
+  if (!base) return showToast("ยังไม่ได้ตั้ง erp_proxy_url", "error");
+  const body = readDigestForm();
+  if (body.target_type === "group" && !body.target_id)
+    return showToast("เลือกกลุ่มปลายทางก่อนทดสอบ", "error");
+  // บันทึกก่อน แล้วค่อยยิงทดสอบ (endpoint อ่าน config จาก DB)
+  if (btn) { btn.disabled = true; btn.textContent = "กำลังส่ง…"; }
+  try {
+    await saveDigestSilent(body);
+    const r = await fetch(`${base}/trend/digest/test`, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+    const data = await r.json().catch(() => ({}));
+    if (!data.ok) throw new Error(data.error || "ส่งไม่สำเร็จ");
+    showToast("ส่งสรุปทดสอบเข้า LINE แล้ว ✅ เช็คในกลุ่มได้เลย");
+  } catch (e) {
+    showToast("ทดสอบไม่สำเร็จ: " + e.message, "error");
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = "📤 ส่งทดสอบตอนนี้"; }
+  }
+}
+async function saveDigestSilent(body) {
+  if (DIGEST_CFG && DIGEST_CFG.id) {
+    await sbFetch("trend_digest_config", `?id=eq.${DIGEST_CFG.id}`, { method: "PATCH", body });
+  } else {
+    const rows = await sbFetch("trend_digest_config", "", { method: "POST", body });
+    DIGEST_CFG = Array.isArray(rows) ? rows[0] : null;
+  }
 }
 
 /* ══ Init ══ */

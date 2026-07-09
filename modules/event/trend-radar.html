@@ -21,6 +21,7 @@
         <p class="page-hero-sub">ส่องกระแสฮิตจาก Google Trends + ข่าวตามหัวข้อธุรกิจ แล้วปั้นเป็นไอเดียคอนเทนต์</p>
       </div>
       <div class="page-hero-actions">
+        <button class="btn-on-hero" id="btnDigest" onclick="openDigest()">📩 ตั้งค่าส่ง LINE</button>
         <button class="btn-on-hero" id="btnManage" onclick="openManage()">⚙️ จัดการหัวข้อ</button>
         <button class="btn-on-hero" id="btnRefresh" onclick="refreshAll()">🔄 รีเฟรช</button>
       </div>
@@ -127,6 +128,52 @@
       <div class="modal-footer">
         <button class="btn btn-outline" onclick="closeManage()">ปิด</button>
         <button class="btn btn-primary" onclick="saveManageAndRefresh()">บันทึก & รีเฟรชกระแส</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ Digest → LINE settings modal ══ -->
+  <div class="modal-overlay" id="digestModal">
+    <div class="modal v-sage-header tr-modal">
+      <div class="modal-hdr">
+        <div class="modal-title">📩 ตั้งค่าส่งสรุปกระแสเข้า LINE</div>
+        <button class="btn-modal-close" onclick="closeDigest()">✕</button>
+      </div>
+      <div class="modal-body">
+        <label class="tr-field tr-field-row">
+          <span>เปิดส่งอัตโนมัติทุกวัน</span>
+          <input type="checkbox" id="dgEnabled" />
+        </label>
+
+        <label class="tr-field">
+          <span class="tr-field-lbl">ปลายทาง</span>
+          <select id="dgTargetType" class="tr-input" onchange="onDigestTargetChange()">
+            <option value="group">กลุ่ม LINE เฉพาะ</option>
+            <option value="broadcast">Broadcast (ทุกคนที่แอดบอท)</option>
+          </select>
+        </label>
+
+        <label class="tr-field" id="dgGroupWrap">
+          <span class="tr-field-lbl">เลือกกลุ่ม</span>
+          <select id="dgGroup" class="tr-input"></select>
+          <span class="tr-sub-note" id="dgGroupHint"></span>
+        </label>
+
+        <label class="tr-field">
+          <span class="tr-field-lbl">เวลาส่ง (เวลาไทย)</span>
+          <select id="dgHour" class="tr-input"></select>
+        </label>
+
+        <label class="tr-field tr-field-row">
+          <span>แนบไอเดียโพสต์จาก AI ในสรุป</span>
+          <input type="checkbox" id="dgIdeas" checked />
+        </label>
+
+        <p class="tr-hint" id="dgStatus"></p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="testDigest(this)">📤 ส่งทดสอบตอนนี้</button>
+        <button class="btn btn-primary" onclick="saveDigest()">บันทึก</button>
       </div>
     </div>
   </div>
