@@ -187,6 +187,18 @@ async function loadKPI() {
       $('dsKpiDate').textContent = `${fmtDMY(r.started_at)} ${time}`;
     }
   } catch {}
+
+  // สถานะปิดรอบของวันนี้
+  try {
+    const el = $('dsCloseStatus');
+    if (el) {
+      const rows = await sbGet(`daily_sale_day_close?close_date=eq.${todayIso()}&select=closed_at&limit=1`);
+      if (rows?.[0]?.closed_at) {
+        const t = new Date(rows[0].closed_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Bangkok' });
+        el.textContent = `· 🔒 ปิดรอบแล้ว ${t}`;
+      } else { el.textContent = ''; }
+    }
+  } catch {}
 }
 
 /* ============================================================
@@ -1488,7 +1500,14 @@ function dsShiftDate(delta) {
 function dsSyncModalOpen() {
   $('dsSyncFrom').value = new Date(Date.now() - 86400000).toISOString().slice(0, 10); // today-1
   $('dsSyncTo').value = todayIso();
+  // reset โหมด → ยังไม่ปิดรอบ
+  const r = document.querySelector('input[name="dsCloseMode"][value="open"]');
+  if (r) { r.checked = true; dsCloseModeSel(r); }
   $('dsSyncOverlay').classList.add('open');
+}
+// ไฮไลต์ตัวเลือกที่เลือก (open/close)
+function dsCloseModeSel() {
+  document.querySelectorAll('input[name="dsCloseMode"]').forEach(x => x.closest('.ds-close-opt')?.classList.toggle('on', x.checked));
 }
 function dsSyncModalClose() { $('dsSyncOverlay').classList.remove('open'); }
 
@@ -1509,9 +1528,20 @@ async function dsSyncNow() {
   if (!from || !to) { toast('เลือกช่วงวันที่ก่อน', 'error'); return; }
   if (from > to) { toast('วันที่เริ่มต้องไม่เกินวันที่สิ้นสุด', 'error'); return; }
 
+  const closeMode = document.querySelector('input[name="dsCloseMode"]:checked')?.value === 'close';
+
   dsSyncModalClose();
   showLoading(true);
   try {
+    // ปิดรอบวันนี้: ลง marker (เวลาปิด = now) → trigger ตี business_date ให้บิลหลังเวลานี้เป็นวันถัดไป
+    if (closeMode) {
+      try {
+        await sbPost('daily_sale_day_close?on_conflict=close_date',
+          [{ close_date: todayIso(), closed_at: new Date().toISOString(), closed_by: window.ERP_USER?.user_id || 'unknown', updated_at: new Date().toISOString() }],
+          'resolution=merge-duplicates,return=minimal');
+      } catch (e) { toast('ปิดรอบไม่สำเร็จ: ' + e.message, 'error'); }
+    }
+
     // ล้าง corrected ของบิล sync (ที่ CS แก้/ลบ) เฉพาะช่วงที่จะดึง
     // → sync download ทับ aggregate ใหม่ → trigger 030 derive split สด · ไม่แตะบิล import DATA_CS
     try {
@@ -1702,6 +1732,7 @@ window.dsShiftDate = dsShiftDate;
 window.dsSyncNow = dsSyncNow;
 window.dsSyncModalOpen = dsSyncModalOpen;
 window.dsSyncModalClose = dsSyncModalClose;
+window.dsCloseModeSel = dsCloseModeSel;
 window.dsCloseSyncProgress = dsCloseSyncProgress;
 window.dsRecCellSave = dsRecCellSave;
 window.dsRecMonthShift = dsRecMonthShift;

@@ -773,7 +773,24 @@ async function renderDocCanvas(d) {
   const paper = holder.firstElementChild;
   paper.style.boxShadow = "none";
   await waitImages(paper);
+  await waitFonts(); // สำคัญ: รอ Sarabun โหลดครบ ไม่งั้น html2canvas วัดตัวอักษรผิด → คำทับกันเละ
   return html2canvas(paper, { scale: 2, useCORS: true, backgroundColor: "#ffffff" });
+}
+
+// รอให้ web font (Sarabun/IBM Plex Mono) โหลดเสร็จก่อน rasterize
+let _fontsReady = null;
+function waitFonts() {
+  if (_fontsReady) return _fontsReady;
+  if (!document.fonts) return Promise.resolve();
+  _fontsReady = Promise.all([
+    document.fonts.load('400 15px "Sarabun"'),
+    document.fonts.load('600 15px "Sarabun"'),
+    document.fonts.load('700 15px "Sarabun"'),
+    document.fonts.load('400 13px "IBM Plex Mono"'),
+  ])
+    .catch(() => {})
+    .then(() => document.fonts.ready);
+  return _fontsReady;
 }
 
 // ── EXPORT PDF หลายฉบับ (แยกคนละไฟล์ใน zip) ────────────────

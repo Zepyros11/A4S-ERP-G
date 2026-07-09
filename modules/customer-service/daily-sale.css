@@ -270,3 +270,14 @@
 .ds-signoff-notes textarea{width:100%;box-sizing:border-box;border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:12.5px;font-family:inherit;resize:vertical;color:var(--text1);background:#fff;}
 .ds-signoff-notes textarea:focus{outline:none;border-color:var(--accent);}
 .ds-signoff-noteview{white-space:pre-wrap;font-size:12.5px;color:var(--text2);min-height:60px;border:1px dashed var(--border);border-radius:8px;padding:8px 10px;}
+
+/* ── ตัวเลือกปิดรอบในโมดัลดึงข้อมูล ── */
+.ds-close-choice{display:flex;flex-direction:column;gap:8px;margin-top:16px;}
+.ds-close-opt{display:flex;align-items:flex-start;gap:9px;border:1.5px solid var(--border);border-radius:10px;padding:9px 12px;cursor:pointer;transition:all .15s;}
+.ds-close-opt:hover{border-color:var(--accent-light,#7bb894);}
+.ds-close-opt.on{border-color:var(--accent);background:var(--accent-pale,rgba(110,190,120,.1));}
+.ds-close-opt input{margin-top:2px;accent-color:var(--accent);cursor:pointer;}
+.ds-close-opt span{display:flex;flex-direction:column;gap:1px;}
+.ds-close-opt b{font-size:13px;color:var(--text1);}
+.ds-close-opt small{font-size:11px;color:var(--text3);}
+#dsCloseStatus{font-weight:700;color:#fde68a;}
