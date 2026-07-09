@@ -188,15 +188,15 @@
       </div>
     </div>
     <div style="padding:14px 16px 0">
-      <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;margin-bottom:6px">
-        <span id="spBarNote" style="color:var(--text3);font-weight:600">กำลังเตรียม...</span>
+      <div style="display:flex;justify-content:flex-end;align-items:center;font-size:11px;margin-bottom:6px">
+        <span id="spBarNote" style="display:none"></span>
         <span id="spPct" style="color:var(--accent);font-weight:800;font-size:13px">0%</span>
       </div>
       <div style="position:relative;margin-top:16px">
         <div style="height:10px;border-radius:6px;background:#e2e8f0;overflow:hidden">
           <div id="spBar" style="height:100%;width:0%;border-radius:6px;background:linear-gradient(90deg,var(--accent),var(--accent-light));transition:width .6s cubic-bezier(.4,0,.2,1)"></div>
         </div>
-        <div id="spRunner" style="position:absolute;top:-26px;left:0%;transform:translateX(-50%);transition:left .6s cubic-bezier(.4,0,.2,1);pointer-events:none">
+        <div id="spRunner" style="position:absolute;top:-50px;left:0%;transform:translateX(-50%);transition:left .6s cubic-bezier(.4,0,.2,1);pointer-events:none;z-index:2">
           <img class="ds-runner-sprite" src="../../assets/images/mascot-a4s.png" alt="" onerror="this.style.display='none';this.nextElementSibling.style.display='inline-block'">
           <span class="ds-runner-emo" style="display:none">🏃</span>
         </div>

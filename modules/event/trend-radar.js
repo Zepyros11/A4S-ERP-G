@@ -39,7 +39,8 @@ const BRAND_CONTEXT =
 /* ── หัวข้อ fallback ถ้ายังไม่รัน migration 040 ── */
 const DEFAULT_TOPICS = [
   { label: "MLM / ธุรกิจเครือข่าย", query: "ธุรกิจเครือข่าย ขายตรง MLM แชร์ลูกโซ่", emoji: "🔗" },
-  { label: "สุขภาพ / ความงาม", query: "เทรนด์สุขภาพ อาหารเสริม ความงาม สกินแคร์", emoji: "💚" },
+  { label: "สุขภาพ / ความงาม", query: "เทรนด์สุขภาพ อาหารเสริม ความงาม สกินแคร์", emoji: "💚",
+    yt_query: "รีวิว อาหารเสริม สกินแคร์ ครีมบำรุง เซรั่ม วิตามิน สุขภาพ ความงาม" },
   { label: "ท่องเที่ยว / อีเวนต์", query: "เทรนด์ท่องเที่ยว ทริป สัมมนา คอนเสิร์ต อีเวนต์", emoji: "✈️" },
   { label: "ไลฟ์สไตล์ / ไวรัล", query: "ไวรัล กระแสโซเชียล ไลฟ์สไตล์ ที่กำลังฮิต", emoji: "🔥" },
 ];
@@ -107,7 +108,7 @@ async function refreshAll() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         geo: "TH",
-        topics: TOPICS.map(t => ({ label: t.label, query: t.query })),
+        topics: TOPICS.map(t => ({ label: t.label, query: t.query, yt_query: t.yt_query || "" })),
       }),
     });
     const data = await r.json().catch(() => ({}));
@@ -238,28 +239,33 @@ function renderTopicNews() {
       </div>`).join("")
     : newsEmptyMsg;
 
-  // ── YouTube ──
+  // ── YouTube (รีวิว/คลิปฮิต) — โชว์ก่อนข่าว ให้เป็นพระเอก ──
   let ytHtml = "";
   if (LAST.youtubeEnabled) {
     const videos = t.videos || [];
     const grid = videos.length
       ? `<div class="tr-yt-grid">${videos.map(v => `
-          <a class="tr-yt-card" href="${esc(v.url)}" target="_blank" rel="noopener">
-            <div class="tr-yt-thumb"${v.thumb ? ` style="background-image:url('${esc(v.thumb)}')"` : ""}>
+          <div class="tr-yt-card">
+            <a class="tr-yt-thumb"${v.thumb ? ` style="background-image:url('${esc(v.thumb)}')"` : ""} href="${esc(v.url)}" target="_blank" rel="noopener" title="เปิดวิดีโอ">
               <span class="tr-yt-play">▶</span>
-            </div>
+            </a>
             <div class="tr-yt-info">
-              <div class="tr-yt-title">${esc(v.title)}</div>
-              <div class="tr-yt-meta">${esc(v.channel)} · 👁 ${formatViews(v.views)} วิว</div>
+              <a class="tr-yt-title" href="${esc(v.url)}" target="_blank" rel="noopener">${esc(v.title)}</a>
+              <div class="tr-yt-meta">
+                ${v.channelUrl
+                  ? `<a class="tr-yt-channel" href="${esc(v.channelUrl)}" target="_blank" rel="noopener">${esc(v.channel)}</a>`
+                  : `<span>${esc(v.channel)}</span>`}
+                · 👁 ${formatViews(v.views)} วิว
+              </div>
             </div>
-          </a>`).join("")}</div>`
+          </div>`).join("")}</div>`
       : `<div class="tr-empty">ไม่พบคลิปสำหรับหัวข้อนี้ในรอบ 30 วัน</div>`;
     ytHtml = `
-      <div class="tr-sub-hdr">🎬 คลิปฮิตตามหัวข้อ <span class="tr-sub-note">YouTube · 30 วันล่าสุด เรียงตามยอดวิว</span></div>
+      <div class="tr-sub-hdr">🎬 รีวิว/คลิปฮิตตามหัวข้อ <span class="tr-sub-note">YouTube · 30 วันล่าสุด เรียงตามยอดวิว · คลิกชื่อช่องไปหน้าช่อง</span></div>
       ${grid}`;
   }
 
-  wrap.innerHTML = `<div class="tr-sub-hdr">📰 ข่าว/บทความ</div><div class="tr-news-grid">${newsHtml}</div>${ytHtml}`;
+  wrap.innerHTML = `${ytHtml}<div class="tr-sub-hdr">📰 ข่าว/บทความ</div><div class="tr-news-grid">${newsHtml}</div>`;
 }
 
 /* ══ Ideas modal ══ */
@@ -429,11 +435,14 @@ function paintRows() {
 }
 function manageRows() {
   return MANAGE_DRAFT.map((t, i) => `
-    <div class="tr-manage-row">
-      <input class="tr-input tr-mini" value="${esc(t.emoji || "🔎")}" maxlength="2" oninput="editTopic(${i},'emoji',this.value)" />
-      <input class="tr-input" value="${esc(t.label)}" placeholder="ชื่อหัวข้อ" oninput="editTopic(${i},'label',this.value)" />
-      <input class="tr-input" value="${esc(t.query)}" placeholder="คำค้น" oninput="editTopic(${i},'query',this.value)" />
-      <button class="tr-del" title="ลบ" onclick="removeTopic(${i})">🗑</button>
+    <div class="tr-manage-item">
+      <div class="tr-manage-row">
+        <input class="tr-input tr-mini" value="${esc(t.emoji || "🔎")}" maxlength="2" oninput="editTopic(${i},'emoji',this.value)" />
+        <input class="tr-input" value="${esc(t.label)}" placeholder="ชื่อหัวข้อ" oninput="editTopic(${i},'label',this.value)" />
+        <button class="tr-del" title="ลบหัวข้อ" onclick="removeTopic(${i})">🗑</button>
+      </div>
+      <input class="tr-input tr-sub-input" value="${esc(t.query)}" placeholder="🔎 คำค้นข่าว" oninput="editTopic(${i},'query',this.value)" />
+      <input class="tr-input tr-sub-input" value="${esc(t.yt_query || "")}" placeholder="🎬 คำค้น YouTube (เช่น รีวิว...) — ว่าง = ใช้เหมือนข่าว" oninput="editTopic(${i},'yt_query',this.value)" />
     </div>`).join("");
 }
 function editTopic(i, field, val) { if (MANAGE_DRAFT[i]) MANAGE_DRAFT[i][field] = val; }
@@ -453,7 +462,8 @@ function addTopic() {
 
 async function saveManageAndRefresh() {
   const clean = MANAGE_DRAFT
-    .map((t, i) => ({ ...t, label: (t.label || "").trim(), query: (t.query || "").trim(), sort: i + 1 }))
+    .map((t, i) => ({ ...t, label: (t.label || "").trim(), query: (t.query || "").trim(),
+                     yt_query: (t.yt_query || "").trim(), sort: i + 1 }))
     .filter(t => t.label && t.query);
   if (!clean.length) return showToast("ต้องมีอย่างน้อย 1 หัวข้อ", "error");
 
@@ -464,7 +474,8 @@ async function saveManageAndRefresh() {
       await sbFetch("trend_topics", "", {
         method: "POST",
         body: clean.map(t => ({
-          label: t.label, query: t.query, emoji: t.emoji || "🔎", sort: t.sort, is_active: true,
+          label: t.label, query: t.query, yt_query: t.yt_query || null,
+          emoji: t.emoji || "🔎", sort: t.sort, is_active: true,
         })),
       });
       showToast("บันทึกหัวข้อแล้ว ✅");

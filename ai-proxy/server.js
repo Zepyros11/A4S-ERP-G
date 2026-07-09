@@ -166,6 +166,7 @@ async function _fetchYouTube(query, geo, hl) {
   return (vj.items || []).map(v => ({
     title: v.snippet.title,
     channel: v.snippet.channelTitle,
+    channelUrl: v.snippet.channelId ? `https://www.youtube.com/channel/${v.snippet.channelId}` : '',
     url: `https://www.youtube.com/watch?v=${v.id}`,
     thumb: (v.snippet.thumbnails && (v.snippet.thumbnails.medium || v.snippet.thumbnails.default) || {}).url || '',
     views: Number((v.statistics || {}).viewCount || 0),
@@ -196,7 +197,9 @@ async function _gatherTrends(geo, topics) {
       out.newsSource = news.source;
     } catch (e) { out.error = e.message; }
     if (YT_KEY) {
-      try { out.videos = await _fetchYouTube(query, geo, hl); }
+      // yt_query (คำค้นรีวิว) ถ้ามี ไม่งั้นใช้ query เดิม
+      const ytQuery = String(t.yt_query || '').trim() || query;
+      try { out.videos = await _fetchYouTube(ytQuery, geo, hl); }
       catch (e) { out.ytError = e.message; }
     }
     return out;
