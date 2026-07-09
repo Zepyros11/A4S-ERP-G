@@ -118,7 +118,6 @@ async function refreshAll() {
     renderTrending();
     renderTopicTabs();
     renderTopicNews();
-    renderTikTok();
     renderYtChart();
   } catch (e) {
     showToast("โหลดกระแสไม่สำเร็จ: " + e.message, "error");
@@ -331,70 +330,6 @@ function ideaFromChart(i) {
 function hashtagsFromChart(i) {
   const v = (LAST.ytChart || [])[i];
   if (v) openHashtags(v.title, "YouTube มาแรง");
-}
-
-/* ── Section: TikTok เทรนด์ (แฮชแท็ก + เพลง) ── */
-function renderTikTok() {
-  const sec = document.getElementById("tiktokSection");
-  const body = document.getElementById("tiktokBody");
-  const tt = (LAST && LAST.tiktok) || {};
-  const tags = tt.hashtags || [];
-  const songs = tt.songs || [];
-
-  if (!tags.length && !songs.length) {
-    const err = tt.error || tt.hashtagError;
-    if (err) {   // ดึงไม่ได้จริง → โชว์ข้อความเล็ก ๆ ช่วย debug บน Render
-      sec.style.display = "";
-      body.innerHTML = `<div class="tr-empty tr-empty-sm">ดึง TikTok ไม่สำเร็จ — <code>${esc(err)}</code>
-        <br><span class="tr-sub-note">TikTok อาจบล็อก IP เซิร์ฟเวอร์ หรือต้องเซ็น header เพิ่ม</span></div>`;
-    } else {
-      sec.style.display = "none";
-    }
-    return;
-  }
-
-  const canIdea = !!proxyBase();
-  let html = "";
-  if (tags.length) {
-    html += `<div class="tr-sub-hdr">🏷️ แฮชแท็กมาแรง</div><div class="tt-tags">`;
-    html += tags.map((h, i) => {
-      const rank = h.rank || (i + 1);
-      const rankCls = rank <= 3 ? ` top${rank}` : "";
-      const stat = h.posts ? `${formatViews(h.posts)} โพสต์` : (h.views ? `${formatViews(h.views)} วิว` : "");
-      return `<div class="tt-tag">
-          <span class="tt-tag-rank${rankCls}">#${rank}</span>
-          <a class="tt-tag-name" href="${esc(h.url)}" target="_blank" rel="noopener">#${esc(h.name)}</a>
-          ${stat ? `<span class="tt-tag-stat">${stat}</span>` : ""}
-          ${canIdea ? `<button class="tt-tag-idea" onclick="ideaFromTikTag(${i})" title="ปั้นคอนเทนต์">💡</button>` : ""}
-        </div>`;
-    }).join("");
-    html += `</div>`;
-  }
-  if (songs.length) {
-    html += `<div class="tr-sub-hdr">🎵 เพลงมาแรง</div><div class="tt-songs">`;
-    html += songs.map((s, i) => {
-      const rank = s.rank || (i + 1);
-      const cover = s.cover
-        ? `<span class="tt-song-cover" style="background-image:url('${esc(s.cover)}')"></span>`
-        : `<span class="tt-song-cover tt-song-cover-ph">🎵</span>`;
-      return `<a class="tt-song"${s.url ? ` href="${esc(s.url)}" target="_blank" rel="noopener"` : ""}>
-          <span class="tt-song-rank">#${rank}</span>
-          ${cover}
-          <span class="tt-song-main">
-            <span class="tt-song-title">${esc(s.title)}</span>
-            ${s.author ? `<span class="tt-song-author">${esc(s.author)}</span>` : ""}
-          </span>
-        </a>`;
-    }).join("");
-    html += `</div>`;
-  }
-  body.innerHTML = html;
-  sec.style.display = "";
-}
-function ideaFromTikTag(i) {
-  const h = ((LAST.tiktok || {}).hashtags || [])[i];
-  if (!h) return;
-  openIdeas("#" + h.name, "TikTok เทรนด์", `แฮชแท็ก TikTok มาแรง${h.posts ? " ~" + formatViews(h.posts) + " โพสต์" : ""}`);
 }
 
 /* ── ข่าว/บทความ (ส่วนรอง — พับเก็บได้) ── */

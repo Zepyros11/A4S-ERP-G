@@ -328,69 +328,11 @@ async function _fetchYouTubeChartCached(geo, hl) {
   return videos;
 }
 
-/* ── TikTok Creative Center: แฮชแท็ก/เพลงเทรนด์ (internal API · best-effort) ──
-   หมายเหตุ: TikTok อาจต้องเซ็น header (user-sign) และบล็อก IP ดาต้าเซ็นเตอร์
-   → wrap try/catch แยกแต่ละก้อน ล้มก็ไม่พังทั้งชุด · ต้องพิสูจน์จริงหลัง deploy บน Render */
-const _ttCache = new Map();
-const TT_CACHE_MIN = parseInt(process.env.TT_CACHE_MIN || '180', 10);
-async function _fetchTikTokTrends(geo) {
-  const cc = geo || 'TH';
-  const base = 'https://ads.tiktok.com/creative_radar_api/v1/popular_trend';
-  const headers = {
-    'User-Agent': _YT_UA,
-    'Referer': 'https://ads.tiktok.com/business/creativecenter/inspiration/popular/hashtag/pc/en',
-    'anonymous-user-id': crypto.randomUUID(),
-    'timestamp': String(Math.floor(Date.now() / 1000)),
-    'Accept': 'application/json, text/plain, */*',
-    'Accept-Language': 'en',
-  };
-  const getList = async (path, qs) => {
-    const r = await fetch(`${base}/${path}?${qs}`, { headers, signal: AbortSignal.timeout(12000) });
-    if (!r.ok) throw new Error('HTTP ' + r.status);
-    const j = await r.json();
-    if (j.code) throw new Error(j.msg || ('code ' + j.code));   // code!=0 = error
-    return j.data || {};
-  };
-  const out = { hashtags: [], songs: [] };
-  try {
-    const d = await getList('hashtag/list', `page=1&limit=20&period=7&country_code=${cc}&sort_by=popular`);
-    out.hashtags = (d.list || []).map(h => ({
-      name: h.hashtag_name,
-      rank: h.rank,
-      posts: Number(h.publish_cnt || 0),
-      views: Number(h.video_views || 0),
-      url: `https://www.tiktok.com/tag/${encodeURIComponent(h.hashtag_name || '')}`,
-    })).filter(x => x.name);
-  } catch (e) { out.hashtagError = e.message; }
-  try {
-    const d = await getList('sound/list', `page=1&limit=10&period=7&rank_type=popular&country_code=${cc}`);
-    const list = d.sound_list || d.list || [];
-    out.songs = list.map(s => ({
-      title: s.title || s.song_name || s.music_title || '',
-      author: s.author || s.singer || '',
-      rank: s.rank,
-      cover: s.cover || s.cover_large || s.cover_medium || '',
-      url: s.link || (s.clip_id ? `https://www.tiktok.com/music/-${s.clip_id}` : ''),
-    })).filter(x => x.title);
-  } catch (e) { out.songError = e.message; }
-  if (out.hashtagError && out.songError) out.error = out.hashtagError;   // ล้มทั้งคู่ = ดึงไม่ได้จริง
-  return out;
-}
-async function _fetchTikTokCached(geo) {
-  const c = _ttCache.get(geo);
-  if (c && (Date.now() - c.ts) < TT_CACHE_MIN * 60000) return c.data;
-  const data = await _fetchTikTokTrends(geo);
-  // cache เฉพาะเมื่อได้อย่างน้อยอย่างหนึ่ง (กัน cache ค่าว่างตอนโดนบล็อกชั่วคราว)
-  if ((data.hashtags || []).length || (data.songs || []).length) _ttCache.set(geo, { data, ts: Date.now() });
-  return data;
-}
-
 /* ดึงกระแสทั้งชุด (ใช้ทั้ง /trend/fetch และ digest LINE) */
 async function _gatherTrends(geo, topics) {
   const hl = geo === 'TH' ? 'th' : 'en';
 
-  // เริ่มดึงเทรนด์ระดับประเทศ (TikTok + YouTube chart) ขนานไปกับ per-topic — ล้มก็ไม่พังทั้งชุด
-  const ttP = _fetchTikTokCached(geo).catch(e => ({ hashtags: [], songs: [], error: e.message }));
+  // เริ่มดึง YouTube chart (รวมประเทศ) ขนานไปกับ per-topic — ล้มก็ไม่พังทั้งชุด
   const ycP = _fetchYouTubeChartCached(geo, hl)
     .then(videos => ({ videos, error: '' }))
     .catch(e => ({ videos: [], error: e.message }));
@@ -420,13 +362,13 @@ async function _gatherTrends(geo, topics) {
     return out;
   }));
 
-  // 3) รวมผลเทรนด์ระดับประเทศที่ยิงไว้ตอนต้น
-  const [tiktok, yc] = await Promise.all([ttP, ycP]);
+  // 3) รวมผล YouTube chart ที่ยิงไว้ตอนต้น
+  const yc = await ycP;
 
   return {
     geo, youtubeEnabled: true, ytKey: !!YT_KEY,
     trending, topics: perTopic,
-    tiktok, ytChart: yc.videos, ytChartError: yc.error || '',
+    ytChart: yc.videos, ytChartError: yc.error || '',
   };
 }
 
