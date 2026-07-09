@@ -703,6 +703,34 @@ function updateDayHint() {
   }
 }
 
+// แจ้งเตือน LINE เมื่อมีการ "เพิ่ม" ตารางโพสต์ (fire-and-forget — ไม่ throw, ไม่ block)
+// ยิง trigger line_promote.created → notification_rules (เช่น ส่งเข้ากลุ่ม BRE ประสานงาน)
+function _notifyPromoteScheduled(rows) {
+  try {
+    if (!window.Notify || !Array.isArray(rows) || !rows.length) return;
+    const dates = [...new Set(rows.map((r) => formatDMY((r.scheduled_at || "").slice(0, 10))).filter(Boolean))];
+    const gids = [...new Set(rows.map((r) => r.target_id).filter(Boolean))];
+    const gnames = gids.map((gid) => allGroups.find((g) => g.group_id === gid)?.group_name || gid);
+    let by = "";
+    try {
+      const s = JSON.parse(localStorage.getItem("erp_session") || sessionStorage.getItem("erp_session") || "{}");
+      by = s.full_name || s.username || "";
+    } catch (_) {}
+    window.Notify.evaluateRules("line_promote.created", {
+      event_name: currentEvent?.event_name || "",
+      event_code: currentEvent?.event_code || "",
+      event_date: currentEvent?.event_date ? formatDMY(currentEvent.event_date) : "",
+      post_count: rows.length,
+      post_dates: dates.join(", "),
+      group_names: gnames.join(", "),
+      group_count: gids.length,
+      created_by: by,
+    });
+  } catch (e) {
+    console.warn("[line-promote] notify failed", e.message);
+  }
+}
+
 // ── Save / Schedule ───────────────────────────────────────
 window.saveLpPost = async function () {
   const message = document.getElementById("fLpMessage").value.trim();
@@ -792,6 +820,7 @@ window.saveLpPost = async function () {
         created_by: session?.user_id || null,
       }));
       await sbFetch("line_scheduled_posts", "", { method: "POST", body: rows });
+      _notifyPromoteScheduled(rows);
       showToast(`schedule ${rows.length} โพสต์ (${targets.length} กลุ่ม) แล้ว 📅`, "success");
     }
     window.closeLpModal();
@@ -1941,6 +1970,7 @@ window.confirmAutoCreate = async function () {
   showLoading(true);
   try {
     await sbFetch("line_scheduled_posts", "", { method: "POST", body: rows });
+    _notifyPromoteScheduled(rows);
     showToast(`สร้าง ${rows.length} โพสต์ (4 D-day × ${targetGroups.length} กลุ่ม) แล้ว 📢`, "success");
     window.closeAutoCreateModal();
     allPosts = await fetchPosts(currentEventId);

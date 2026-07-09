@@ -999,6 +999,67 @@ async function testSendRule() {
   }
 }
 
+// ส่งข้อความจริงเข้ากลุ่มแชท LINE เป้าหมายที่ตั้งไว้ในกฎ (ด้วย sample data)
+async function sendToTargetGroups() {
+  const btn = document.getElementById("nrSendGroupBtn");
+  const trigger = document.getElementById("fTrigger").value;
+  const tpl = (document.getElementById("fTemplate").value || "").trim();
+  const channelIdRaw = document.getElementById("fChannel").value;
+
+  if (!trigger || !TRIGGERS[trigger]) return showToast("เลือก trigger ก่อน", "error");
+  if (!tpl) return showToast("ใส่ข้อความ template ก่อน", "error");
+
+  const gids = (editingTargets.line_groups || []).slice();
+  if (!gids.length) return showToast("กฎนี้ยังไม่ได้เลือกกลุ่มแชท LINE เป้าหมาย", "error");
+
+  // Render preview ด้วย sample data ของ trigger
+  const sample = TRIGGERS[trigger].sample || {};
+  const rendered = window.Notify.renderTemplate(tpl, sample);
+  const names = gids.map(lineGroupNameById);
+
+  // Confirm ก่อนยิงกลุ่มจริง
+  const ok = await ConfirmModal.open({
+    title: "ส่งเข้ากลุ่มเป้าหมาย?",
+    message: `ข้อความจะถูกส่งเข้ากลุ่มแชท LINE จริง ${gids.length} กลุ่ม (ใช้ข้อมูลตัวอย่าง)`,
+    icon: "📢",
+    okText: "📢 ส่งเลย",
+    tone: "warning",
+    details: { "กลุ่มเป้าหมาย": names.join(", ") },
+    note: escapeHtml(rendered).replace(/\n/g, "<br>"),
+    noteTone: "info",
+  });
+  if (!ok) return;
+
+  btn.disabled = true;
+  btn.textContent = "⏳ กำลังส่ง...";
+  try {
+    // Resolve channel (rule.channel_id → default announcement)
+    let channel = null;
+    if (channelIdRaw) channel = await window.LineAPI.getChannel(parseInt(channelIdRaw, 10));
+    if (!channel) channel = await window.LineAPI.getDefaultChannel("announcement");
+    if (!channel) throw new Error("ไม่มี channel — ตั้งค่าที่ LINE Channels ก่อน");
+
+    const msg = `📢 [ทดสอบเข้ากลุ่ม]\n${"─".repeat(20)}\n${rendered}`;
+    let sent = 0;
+    const fails = [];
+    for (const gid of gids) {
+      try {
+        await window.LineAPI.push({ channel, to: gid, message: msg });
+        sent++;
+      } catch (e) {
+        fails.push(`${lineGroupNameById(gid)}: ${e.message}`);
+      }
+    }
+    if (sent) showToast(`ส่งเข้ากลุ่มแล้ว ${sent}/${gids.length} กลุ่ม`, "success");
+    if (fails.length) showToast("ส่งไม่สำเร็จบางกลุ่ม: " + fails.join(" · "), "error");
+  } catch (e) {
+    showToast("ส่งไม่สำเร็จ: " + e.message, "error");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "📢 ส่งเข้ากลุ่มเป้าหมาย";
+  }
+}
+
 // ── Helpers ───────────────────────────────────────────────
 function escapeHtml(s) {
   return String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -1285,6 +1346,7 @@ window.onTagInputChange = onTagInputChange;
 window.onTagInputBlur = onTagInputBlur;
 window.pickTagSuggestion = pickTagSuggestion;
 window.testSendRule = testSendRule;
+window.sendToTargetGroups = sendToTargetGroups;
 window.updateScheduleState = updateScheduleState;
 
 window.openTriggerManager = openTriggerManager;

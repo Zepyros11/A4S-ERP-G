@@ -50,6 +50,143 @@ app.get('/', (req, res) => {
 });
 
 /* ══════════════════════════════════════════════════════════
+   Trend Radar (เรดาร์กระแส)
+   - POST /trend/fetch  → Google Trends daily RSS + Google News RSS ต่อหัวข้อ
+                          (server สร้าง URL เอง จาก topics ที่ส่งมา = ไม่ใช่ open proxy)
+   - POST /trend/ideas  → Claude ปั้นมุมคอนเทนต์จากกระแส 1 หัวข้อ
+   ══════════════════════════════════════════════════════════ */
+
+const _TREND_UA = 'Mozilla/5.0 (compatible; A4S-TrendRadar/1.0)';
+
+function _trStripCdata(s) { return (s || '').replace(/<!\[CDATA\[/g, '').replace(/\]\]>/g, '').trim(); }
+function _trDecode(s) {
+  return (s || '')
+    .replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&apos;/g, "'")
+    .replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&');
+}
+function _trTag(block, tag) {
+  const m = block.match(new RegExp('<' + tag + '[^>]*>([\\s\\S]*?)<\\/' + tag + '>'));
+  return m ? _trDecode(_trStripCdata(m[1])) : '';
+}
+function _trTagBlocks(block, tag) {
+  const re = new RegExp('<' + tag + '[^>]*>([\\s\\S]*?)<\\/' + tag + '>', 'g');
+  const out = []; let m;
+  while ((m = re.exec(block))) out.push(m[1]);
+  return out;
+}
+async function _trFetch(url) {
+  const r = await fetch(url, { headers: { 'User-Agent': _TREND_UA } });
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  return r.text();
+}
+
+function _parseTrendsRss(xml) {
+  return _trTagBlocks(xml, 'item').map(it => ({
+    title: _trTag(it, 'title'),
+    traffic: _trTag(it, 'ht:approx_traffic'),
+    picture: _trTag(it, 'ht:picture'),
+    pubDate: _trTag(it, 'pubDate'),
+    news: _trTagBlocks(it, 'ht:news_item').map(n => ({
+      title: _trTag(n, 'ht:news_item_title'),
+      url: _trTag(n, 'ht:news_item_url'),
+      source: _trTag(n, 'ht:news_item_source'),
+    })).filter(n => n.title),
+  })).filter(x => x.title);
+}
+
+function _parseNewsRss(xml, limit) {
+  return _trTagBlocks(xml, 'item').slice(0, limit || 8).map(it => {
+    const raw = _trTag(it, 'title');
+    const source = _trTag(it, 'source');
+    // Google News title = "หัวข้อ - ชื่อสำนักข่าว" → ตัด suffix ออกให้เหลือหัวข้อ
+    const title = source && raw.endsWith(' - ' + source) ? raw.slice(0, -(source.length + 3)) : raw;
+    return { title, url: _trTag(it, 'link'), source, pubDate: _trTag(it, 'pubDate') };
+  }).filter(x => x.title);
+}
+
+app.post('/trend/fetch', async (req, res) => {
+  try {
+    const body = req.body || {};
+    const geo = String(body.geo || 'TH').toUpperCase();
+    if (!/^[A-Z]{2}$/.test(geo)) return res.status(400).json({ ok: false, error: 'bad geo' });
+    const hl = geo === 'TH' ? 'th' : 'en';
+    const topics = Array.isArray(body.topics) ? body.topics.slice(0, 12) : [];
+
+    // 1) Google Trends daily (optional — ถ้าล่มก็ยังคืน per-topic ได้)
+    let trending = [];
+    try {
+      const tx = await _trFetch(`https://trends.google.com/trending/rss?geo=${geo}`);
+      trending = _parseTrendsRss(tx).slice(0, 20);
+    } catch (e) { /* trends optional */ }
+
+    // 2) Google News RSS ต่อหัวข้อ (ยิงขนานกัน)
+    const perTopic = await Promise.all(topics.map(async (t) => {
+      const label = String(t.label || '').slice(0, 80);
+      const query = String(t.query || t.label || '').slice(0, 160);
+      if (!query) return { label, query, items: [] };
+      try {
+        const url = `https://news.google.com/rss/search?q=${encodeURIComponent(query)}` +
+                    `&hl=${hl}&gl=${geo}&ceid=${geo}:${hl}`;
+        const nx = await _trFetch(url);
+        return { label, query, items: _parseNewsRss(nx, 8) };
+      } catch (e) {
+        return { label, query, items: [], error: e.message };
+      }
+    }));
+
+    res.json({ ok: true, geo, fetchedAt: new Date().toISOString(), trending, topics: perTopic });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+app.post('/trend/ideas', async (req, res) => {
+  if (!client) return res.status(503).json({ ok: false, error: 'LLM ยังไม่ได้ตั้งค่า (ANTHROPIC_API_KEY)' });
+  try {
+    const b = req.body || {};
+    const title = String(b.title || '').slice(0, 300);
+    if (!title) return res.status(400).json({ ok: false, error: 'ต้องมี title' });
+    const topic = String(b.topic || '').slice(0, 120);
+    const context = String(b.context || '').slice(0, 1500);
+    const brand = String(b.brand || '').slice(0, 1000) ||
+      'บริษัทธุรกิจเครือข่าย (MLM) จำหน่ายสินค้าสุขภาพ/ความงาม และจัดอีเวนต์/ทริปท่องเที่ยวให้สมาชิก';
+
+    const system =
+      'คุณเป็นครีเอทีฟคอนเทนต์การตลาดโซเชียล (Facebook) ของบริษัทไทย ' +
+      'หน้าที่คือเปลี่ยน "กระแส/ข่าวที่กำลังฮิต" ให้เป็นไอเดียโพสต์ที่โยงกับธุรกิจได้อย่างแนบเนียน ไม่ดูยัดเยียด ' +
+      'ต้องเหมาะกับบริบทไทย สุภาพ ไม่ละเมิด ไม่ดราม่าเกินเหตุ ไม่แอบอ้างข่าวลบมาหากิน ' +
+      'ตอบกลับเป็น JSON array เท่านั้น ห้ามมีข้อความอื่นนอก JSON';
+
+    const prompt =
+      `ธุรกิจของเรา: ${brand}\n` +
+      (topic ? `หมวดหัวข้อ: ${topic}\n` : '') +
+      `กระแส/ข่าวที่กำลังมา: "${title}"\n` +
+      (context ? `บริบทเพิ่มเติม: ${context}\n` : '') +
+      `\nช่วยคิด "มุมคอนเทนต์" 3 แบบที่เอากระแสนี้มาต่อยอดเป็นโพสต์ Facebook ของธุรกิจเราได้ ` +
+      `ถ้ากระแสนี้โยงกับธุรกิจได้ยากหรือไม่เหมาะ (เช่น ข่าวอาชญากรรม/การเมืองแรงๆ) ให้เลี่ยงการใช้ตรงๆ ` +
+      `แล้วเสนอมุมที่ปลอดภัย (เช่น จับ "อารมณ์ร่วม" ของคนช่วงนี้แทน)\n\n` +
+      `ตอบเป็น JSON array 3 ชิ้น แต่ละชิ้น: ` +
+      `{"angle":"ชื่อมุมสั้นๆ","hook":"ประโยคเปิดสะดุด","caption":"แคปชั่นเต็มพร้อมโพสต์ 2-4 บรรทัด มี emoji","hashtags":["#..."],"format":"รูปแบบแนะนำ เช่น ภาพเดี่ยว/คลิปสั้น/อัลบั้ม"}`;
+
+    const msg = await client.messages.create({
+      model: 'claude-sonnet-5',
+      max_tokens: 1800,
+      system,
+      messages: [{ role: 'user', content: prompt }],
+    });
+    const text = (msg.content || []).filter(c => c.type === 'text').map(c => c.text).join('\n');
+    let ideas = [];
+    const jm = text.match(/\[[\s\S]*\]/);
+    if (jm) { try { ideas = JSON.parse(jm[0]); } catch (e) { /* fall through */ } }
+    if (!Array.isArray(ideas)) ideas = [];
+    res.json({ ok: true, ideas, raw: ideas.length ? undefined : text });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+/* ══════════════════════════════════════════════════════════
    Google Drive storage proxy (แทน Supabase Storage)
    - POST /drive/upload  → อัปโหลดไฟล์เข้า Shared Drive → คืน { id, url }
    - GET  /drive/file/:id → stream ไฟล์ (สำหรับ <img src>) + cache ยาว

@@ -78,6 +78,8 @@
 .ds-branch-chip{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;color:var(--text3);background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:4px 10px;cursor:pointer;user-select:none;}
 .ds-branch-chip input{margin:0;cursor:pointer;accent-color:var(--accent);}
 .ds-branch-chip.on{color:var(--accent);border-color:var(--accent);background:var(--accent-pale);}
+.ds-grp-edit{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:4px 8px;cursor:pointer;font-size:13px;line-height:1;}
+.ds-grp-edit:hover{border-color:var(--accent);}
 /* delete + multi-select */
 .ds-chk-col{text-align:center;width:32px;}
 .ds-chk-col input{cursor:pointer;accent-color:var(--accent);}
@@ -87,11 +89,11 @@
 .ds-bulk-del{background:#dc2626;color:#fff;border:none;border-radius:8px;padding:6px 14px;font-weight:700;cursor:pointer;font-size:12.5px;}
 .ds-bulk-del:hover{background:#b91c1c;}
 .ds-bulk-cancel{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:6px 12px;cursor:pointer;font-size:12.5px;color:var(--text2);}
-/* inline cell edit (คลิกช่อง payment แก้ได้) */
-.ds-editable{cursor:pointer;}
+/* inline cell edit (ดับเบิลคลิกช่อง payment แก้ได้) */
+.ds-editable{cursor:pointer;user-select:none;-webkit-user-select:none;-webkit-user-modify:read-only;}
 .ds-editable:hover{outline:1.5px solid var(--accent);outline-offset:-1.5px;background:rgba(var(--accent-rgb),.08)!important;}
 .ds-editing{padding:2px 4px!important;}
-.ds-cell-input{border:1.5px solid var(--accent);border-radius:4px;padding:2px 5px;font-size:11px;text-align:right;font-family:'IBM Plex Mono',monospace;background:var(--surface);color:var(--text);outline:none;}
+.ds-cell-input{border:1.5px solid var(--accent);border-radius:4px;padding:2px 5px;font-size:11px;text-align:right;font-family:'IBM Plex Mono',monospace;background:var(--surface);color:var(--text);outline:none;user-select:text;-webkit-user-select:text;-webkit-user-modify:read-write;}
 .ds-cell-input.ds-cell-text{text-align:left;font-family:inherit;}
 .ds-note-cell{font-size:11.5px;cursor:pointer;}
 .ds-foot-total td{font-weight:800;background:var(--accent-pale);border-top:2px solid var(--accent);border-bottom:2px solid var(--accent);padding:8px 8px;font-size:12px;color:var(--text);}
@@ -185,3 +187,47 @@
 .ds-tab-badge{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 5px;margin-left:5px;border-radius:9px;background:#dc2626;color:#fff;font-size:11px;font-weight:700;line-height:1;vertical-align:middle;}
 .page-tab.active .ds-tab-badge{background:#fff;color:#dc2626;}
 .ds-pending-badge{display:inline-block;font-size:10.5px;font-weight:700;color:#b45309;background:rgba(217,119,6,.14);border-radius:10px;padding:1px 8px;}
+
+/* ── Sync progress runner (avatar วิ่งตาม %) ── */
+.ds-runner-emo{display:inline-block;font-size:19px;line-height:1;animation:dsRun .45s ease-in-out infinite;filter:drop-shadow(0 1px 1px rgba(0,0,0,.2));}
+@keyframes dsRun{0%,100%{transform:translateY(0) rotate(-6deg) scaleX(-1);}50%{transform:translateY(-3px) rotate(6deg) scaleX(-1);}}
+
+/* mascot sprite (รูปจริง) — เด้ง+เอียง แต่ไม่ flip (กัน logo A4S กลับด้าน) */
+.ds-runner-sprite{width:34px;height:34px;object-fit:contain;display:block;animation:dsRunImg .45s ease-in-out infinite;filter:drop-shadow(0 2px 2px rgba(0,0,0,.22));}
+@keyframes dsRunImg{0%,100%{transform:translateY(0) rotate(-5deg);}50%{transform:translateY(-4px) rotate(5deg);}}
+
+/* ── บิลออนไลน์: dropdown หมายเหตุจัดส่ง ── */
+.ds-online-note{padding:3px 6px;}
+.ds-delivery-sel{border:1px solid var(--border);border-radius:6px;padding:3px 6px;font-size:11.5px;min-width:112px;cursor:pointer;color:#1f2937;}
+.ds-delivery-sel:focus{outline:2px solid var(--accent-light);outline-offset:0;}
+.ds-delivery-chip{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;}
+
+/* ── ฟอร์มเพิ่มบิลออนไลน์ (grid 2 คอลัมน์) ── */
+.ds-add-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px 14px;}
+.ds-add-grid .ds-edit-field{display:flex;flex-direction:column;gap:4px;}
+.ds-add-grid label{font-size:11.5px;color:var(--text2);font-weight:600;}
+@media (max-width:520px){.ds-add-grid{grid-template-columns:1fr;}}
+
+/* ── ตรวจบิล: 2 panel (ตารางเดือน + สรุปรายวัน) ── */
+.ds-rec-layout{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:16px;align-items:start;}
+@media (max-width:1100px){.ds-rec-layout{grid-template-columns:1fr;}}
+.ds-rec-monthhead{display:flex;align-items:center;gap:10px;margin-bottom:4px;}
+.ds-rec-navbtn{width:28px;height:28px;border:1px solid var(--border);border-radius:8px;background:#fff;cursor:pointer;font-size:16px;line-height:1;color:var(--text2);}
+.ds-rec-navbtn:hover{background:var(--surface2);}
+.ds-rec-table td.ds-rec-day{white-space:nowrap;font-size:12px;}
+.ds-rec-table .ds-rec-edit{padding:2px;}
+.ds-rec-table .ds-rec-edit input{width:100%;min-width:56px;border:1px solid transparent;border-radius:5px;padding:4px 6px;font-size:12px;text-align:right;background:transparent;}
+.ds-rec-table .ds-rec-edit input[type=text]{text-align:left;}
+.ds-rec-table .ds-rec-edit input:hover{border-color:var(--border);}
+.ds-rec-table .ds-rec-edit input:focus{border-color:var(--accent);outline:none;background:#fff;}
+/* right daily breakdown */
+.ds-recd-card{border:1px solid var(--border);border-radius:12px;background:#fff;padding:14px 16px;font-size:12.5px;position:sticky;top:12px;}
+.ds-recd-head{font-weight:800;color:var(--accent-dark,#2f6b4f);border-bottom:2px solid var(--border);padding-bottom:8px;margin-bottom:8px;display:flex;flex-direction:column;gap:2px;}
+.ds-recd-head span{font-weight:600;font-size:11px;color:var(--text3);}
+.ds-recd-line{display:flex;justify-content:space-between;gap:10px;padding:3px 0;}
+.ds-recd-line span{color:var(--text2);}
+.ds-recd-line b{white-space:nowrap;font-variant-numeric:tabular-nums;}
+.ds-recd-line.total{font-weight:800;border-top:1px dashed var(--border);border-bottom:1px dashed var(--border);margin:6px 0;padding:6px 0;color:var(--text1);}
+.ds-recd-sub{padding-left:12px;border-left:2px solid var(--border);margin:2px 0 6px;}
+.ds-recd-sub .ds-recd-line{padding:2px 0;font-size:12px;}
+.ds-recd-by{margin-top:10px;padding-top:8px;border-top:1px solid var(--border);text-align:right;color:var(--text2);}

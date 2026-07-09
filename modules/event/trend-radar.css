@@ -1,0 +1,161 @@
+/* ============================================================
+   trend-radar.css — เรดาร์กระแส
+   ใช้ design tokens จาก css/core/theme.css
+   ============================================================ */
+
+.tr-section { margin-top: 26px; }
+.tr-section-hdr {
+  display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+.tr-section-title { font-size: 1.15rem; font-weight: 700; color: var(--text); margin: 0; }
+.tr-section-sub { font-size: .82rem; color: var(--text3); }
+
+/* ── Google Trends grid ── */
+.tr-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 14px;
+}
+.tr-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  box-shadow: var(--shadow-soft-md, var(--shadow));
+  display: flex; flex-direction: column; gap: 10px;
+  transition: transform .12s ease, box-shadow .12s ease;
+}
+.tr-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
+.tr-card-top { display: flex; align-items: center; justify-content: space-between; }
+.tr-rank {
+  font-family: "IBM Plex Mono", monospace; font-weight: 600;
+  font-size: .8rem; color: var(--accent);
+  background: var(--accent-pale); padding: 2px 8px; border-radius: 20px;
+}
+.tr-traffic { font-size: .78rem; color: var(--text3); }
+.tr-card-title { font-size: 1.05rem; font-weight: 700; color: var(--text); line-height: 1.35; }
+.tr-card-news { display: flex; flex-direction: column; gap: 6px; flex: 1; }
+.tr-src-link {
+  font-size: .8rem; color: var(--text2); text-decoration: none; line-height: 1.4;
+  display: block;
+}
+.tr-src-link:hover { color: var(--accent); }
+.tr-src-dot { color: var(--accent); }
+.tr-src-name { color: var(--text3); }
+.tr-src-empty { color: var(--text3); font-size: .8rem; }
+
+/* ── idea button ── */
+.tr-idea-btn {
+  align-self: flex-start;
+  background: var(--accent); color: #fff; border: none;
+  padding: 7px 14px; border-radius: 8px; font-size: .85rem; font-weight: 600;
+  cursor: pointer; transition: filter .12s ease;
+}
+.tr-idea-btn:hover { filter: brightness(1.08); }
+.tr-idea-btn.sm { padding: 6px 12px; font-size: .8rem; white-space: nowrap; }
+
+/* ── Topic tabs ── */
+.tr-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+.tr-tab {
+  background: var(--surface); border: 1px solid var(--border);
+  color: var(--text2); padding: 8px 14px; border-radius: 22px;
+  font-size: .85rem; font-weight: 500; cursor: pointer;
+  transition: all .12s ease;
+}
+.tr-tab:hover { border-color: var(--accent); color: var(--accent); }
+.tr-tab.active {
+  background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600;
+}
+.tr-tab-count {
+  font-family: "IBM Plex Mono", monospace; font-size: .72rem;
+  opacity: .8; margin-left: 4px;
+}
+
+/* ── Topic news list ── */
+.tr-news-list { display: flex; flex-direction: column; gap: 10px; }
+.tr-news-item {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 14px 16px;
+  display: flex; align-items: center; gap: 14px; justify-content: space-between;
+}
+.tr-news-item:hover { border-color: var(--accent-light, var(--accent)); }
+.tr-news-main { min-width: 0; }
+.tr-news-title {
+  font-size: .95rem; font-weight: 600; color: var(--text);
+  text-decoration: none; line-height: 1.4; display: block;
+}
+.tr-news-title:hover { color: var(--accent); }
+.tr-news-meta { font-size: .78rem; color: var(--text3); margin-top: 4px; }
+.tr-news-src { color: var(--accent); font-weight: 500; }
+
+/* ── states ── */
+.tr-empty, .tr-loading {
+  padding: 28px; text-align: center; color: var(--text3);
+  font-size: .9rem; grid-column: 1 / -1;
+}
+.tr-skeleton {
+  height: 150px; border-radius: var(--radius);
+  background: linear-gradient(90deg, var(--surface2) 25%, var(--surface-soft) 50%, var(--surface2) 75%);
+  background-size: 200% 100%; animation: tr-shimmer 1.3s infinite;
+}
+@keyframes tr-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+/* ── Modals ── */
+.tr-modal { max-width: 640px; width: 92vw; }
+.tr-modal .modal-body { max-height: 72vh; overflow-y: auto; }
+.tr-idea-source {
+  background: var(--accent-pale); color: var(--text);
+  padding: 10px 14px; border-radius: 8px; font-size: .9rem; margin-bottom: 14px;
+}
+.tr-idea-card {
+  border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 14px; margin-bottom: 12px; background: var(--surface);
+}
+.tr-idea-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
+.tr-idea-num {
+  width: 22px; height: 22px; border-radius: 50%;
+  background: var(--accent); color: #fff; font-size: .78rem; font-weight: 700;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.tr-idea-angle { font-weight: 700; color: var(--text); }
+.tr-idea-format {
+  margin-left: auto; font-size: .72rem; color: var(--accent);
+  background: var(--accent-pale); padding: 2px 8px; border-radius: 12px;
+}
+.tr-idea-hook { font-style: italic; color: var(--text2); margin-bottom: 8px; font-size: .9rem; }
+.tr-idea-caption { white-space: pre-wrap; color: var(--text); font-size: .92rem; line-height: 1.5; }
+.tr-idea-tags { color: var(--accent); font-size: .82rem; margin-top: 8px; }
+.tr-idea-actions { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+.btn-sm { padding: 6px 12px !important; font-size: .82rem !important; }
+.tr-raw { white-space: pre-wrap; text-align: left; font-size: .78rem; color: var(--text2); margin-top: 8px; }
+
+/* ── Manage modal ── */
+.tr-hint { font-size: .82rem; color: var(--text3); margin: 0 0 12px; }
+.tr-manage-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
+.tr-manage-row { display: flex; gap: 8px; align-items: center; }
+.tr-input {
+  flex: 1; min-width: 0; padding: 8px 10px; border: 1px solid var(--border);
+  border-radius: 8px; font-size: .88rem; background: var(--surface); color: var(--text);
+  font-family: inherit;
+}
+.tr-input:focus { outline: none; border-color: var(--accent); }
+.tr-input.tr-mini { flex: 0 0 46px; text-align: center; }
+.tr-del {
+  background: none; border: none; cursor: pointer; font-size: 1rem;
+  padding: 6px; border-radius: 6px; flex: 0 0 auto;
+}
+.tr-del:hover { background: var(--danger-pale); }
+.tr-add-row { display: flex; gap: 8px; align-items: center; border-top: 1px dashed var(--border); padding-top: 12px; }
+.tr-warn {
+  background: var(--warning-pale); color: var(--text);
+  padding: 10px 12px; border-radius: 8px; font-size: .82rem; margin-bottom: 12px;
+}
+.tr-warn code { font-family: "IBM Plex Mono", monospace; font-size: .78rem; }
+
+@media (max-width: 767px) {
+  .tr-manage-row { flex-wrap: wrap; }
+  .tr-manage-row .tr-input:not(.tr-mini) { flex: 1 1 100%; }
+  .tr-news-item { flex-direction: column; align-items: stretch; }
+  .tr-idea-btn.sm { align-self: flex-end; }
+}

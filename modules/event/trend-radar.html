@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>📡 เรดาร์กระแส — A4S-ERP</title>
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../css/main.css" />
+  <link rel="stylesheet" href="./trend-radar.css" />
+</head>
+<body>
+  <div class="loading-overlay" id="loadingOverlay"><div class="spinner"></div></div>
+  <div class="toast" id="toast"></div>
+
+  <div class="topbar"></div>
+
+  <div class="page">
+    <div class="page-hero page-hero--simple page-hero--compact">
+      <div>
+        <h1 class="page-hero-title">📡 เรดาร์กระแส</h1>
+        <p class="page-hero-sub">ส่องกระแสฮิตจาก Google Trends + ข่าวตามหัวข้อธุรกิจ แล้วปั้นเป็นไอเดียคอนเทนต์</p>
+      </div>
+      <div class="page-hero-actions">
+        <button class="btn-on-hero" id="btnManage" onclick="openManage()">⚙️ จัดการหัวข้อ</button>
+        <button class="btn-on-hero" id="btnRefresh" onclick="refreshAll()">🔄 รีเฟรช</button>
+      </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-row">
+      <div class="stat-card pink">
+        <div class="stat-icon">🔥</div>
+        <div class="stat-info">
+          <div class="stat-label">กระแสมาแรงวันนี้</div>
+          <div class="stat-value" id="statTrending">–</div>
+          <div class="stat-sub">Google Trends (ไทย)</div>
+        </div>
+      </div>
+      <div class="stat-card green">
+        <div class="stat-icon">🎯</div>
+        <div class="stat-info">
+          <div class="stat-label">หัวข้อที่ติดตาม</div>
+          <div class="stat-value" id="statTopics">–</div>
+          <div class="stat-sub">แก้ได้ที่ ⚙️ จัดการหัวข้อ</div>
+        </div>
+      </div>
+      <div class="stat-card blue">
+        <div class="stat-icon">📰</div>
+        <div class="stat-info">
+          <div class="stat-label">ข่าว/กระแสที่พบ</div>
+          <div class="stat-value" id="statNews">–</div>
+          <div class="stat-sub">รวมทุกหัวข้อ</div>
+        </div>
+      </div>
+      <div class="stat-card gray">
+        <div class="stat-icon">🕒</div>
+        <div class="stat-info">
+          <div class="stat-label">อัปเดตล่าสุด</div>
+          <div class="stat-value" id="statUpdated" style="font-size:1.1rem">–</div>
+          <div class="stat-sub">เวลาไทย</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section 1: Google Trends -->
+    <div class="tr-section">
+      <div class="tr-section-hdr">
+        <h2 class="tr-section-title">🔥 กระแสมาแรงวันนี้</h2>
+        <span class="tr-section-sub">คำค้นที่พุ่งแรงในไทย · จาก Google Trends</span>
+      </div>
+      <div id="trendingGrid" class="tr-grid">
+        <div class="tr-skeleton"></div><div class="tr-skeleton"></div><div class="tr-skeleton"></div>
+      </div>
+    </div>
+
+    <!-- Section 2: Per-topic news -->
+    <div class="tr-section">
+      <div class="tr-section-hdr">
+        <h2 class="tr-section-title">🎯 กระแสตามหัวข้อธุรกิจ</h2>
+        <span class="tr-section-sub">ข่าว/บทความล่าสุดของแต่ละหัวข้อที่คุณติดตาม</span>
+      </div>
+      <div id="topicTabs" class="tr-tabs"></div>
+      <div id="topicNews" class="tr-news-list"></div>
+    </div>
+  </div>
+
+  <!-- ══ Ideas modal ══ -->
+  <div class="modal-overlay" id="ideasModal">
+    <div class="modal v-sage-header tr-modal">
+      <div class="modal-hdr">
+        <div class="modal-title" id="ideasTitle">💡 ปั้นคอนเทนต์</div>
+        <button class="btn-modal-close" onclick="closeIdeas()">✕</button>
+      </div>
+      <div class="modal-body" id="ideasBody">
+        <!-- filled by JS -->
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ Manage topics modal ══ -->
+  <div class="modal-overlay" id="manageModal">
+    <div class="modal v-sage-header tr-modal">
+      <div class="modal-hdr">
+        <div class="modal-title">⚙️ จัดการหัวข้อที่ติดตาม</div>
+        <button class="btn-modal-close" onclick="closeManage()">✕</button>
+      </div>
+      <div class="modal-body">
+        <p class="tr-hint">หัวข้อเหล่านี้ใช้ยิงค้นข่าว (Google News) — ยิ่งคำค้นเจาะจง ข่าวยิ่งตรง</p>
+        <div id="manageList" class="tr-manage-list"></div>
+        <div class="tr-add-row">
+          <input type="text" id="newLabel" class="tr-input" placeholder="ชื่อหัวข้อ เช่น สุขภาพ/ความงาม" />
+          <input type="text" id="newQuery" class="tr-input" placeholder="คำค้น เช่น อาหารเสริม สกินแคร์ เทรนด์สุขภาพ" />
+          <button class="btn btn-primary" onclick="addTopic()">+ เพิ่ม</button>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closeManage()">ปิด</button>
+        <button class="btn btn-primary" onclick="saveManageAndRefresh()">บันทึก & รีเฟรชกระแส</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCRIPTS -->
+  <script src="../../js/core/auth.js"></script>
+  <script src="../../js/core/authz.js"></script>
+  <script src="../../js/core/date-format.js"></script>
+  <script>AuthZ.requirePerm("trend_radar_view");</script>
+  <script src="./trend-radar.js"></script>
+  <script type="module">
+    import { loadTopbar } from "../../js/components/navigation/topbar.js";
+    loadTopbar("📡 เรดาร์กระแส");
+  </script>
+  <script src="../../js/components/navigation/sidebar.js"></script>
+  <script src="../../js/components/modal/modalManager.js"></script>
+  <script src="../../js/components/modal/confirmModal.js"></script>
+</body>
+</html>

@@ -99,6 +99,13 @@
           path: BASE_PATH + "/modules/event/line-promote.html",
           section: "promote",
         },
+        {
+          id: "trend-radar",
+          icon: "📡",
+          label: "เรดาร์กระแส",
+          path: BASE_PATH + "/modules/event/trend-radar.html",
+          section: "promote",
+        },
         /* ── SETUP ── */
         {
           id: "events-category",
@@ -566,6 +573,7 @@
     "event-budget": "evt_budget_view",
     "event-media": "media_fb_view",
     "line-promote": "line_promote_view",
+    "trend-radar": "trend_radar_view",
     "campaign-planning": "campaign_view",
     "campaign-dashboard": "campaign_view",
     categories: "inv_cat_view",
@@ -696,6 +704,7 @@
     "event-budget",
     "event-media",
     "line-promote",
+    "trend-radar",
     "campaign-dashboard",
     "campaign-planning",
     //  **** Inventory ****

@@ -23,7 +23,7 @@
           <p class="page-hero-sub">Sync จาก answerforsuccess.com อัตโนมัติทุก 1 ชม. (08:00–20:00) · <span id="dsHeroStatus">กำลังโหลด...</span></p>
         </div>
         <div class="page-hero-actions">
-          <button class="btn-on-hero" data-perm="daily_sale_sync" onclick="dsSyncNow()">🔄 Sync Now</button>
+          <button class="btn-on-hero" data-perm="daily_sale_sync" onclick="dsSyncModalOpen()">🔄 ดึงข้อมูล</button>
         </div>
       </div>
 
@@ -48,20 +48,14 @@
           <button class="filter-chip" onclick="dsShiftDate(-1)">← เมื่อวาน</button>
           <button class="filter-chip active" onclick="dsShiftDate(0)">วันนี้</button>
         </div>
-        <div id="dsBranchChecks" class="ds-branch-checks" title="เลือกสาขาที่จะแสดง (แท็บบิลขาย)"></div>
-        <label style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--text2);font-weight:600;margin-left:auto;">
-          🏢 สาขา
-          <select class="form-control" id="dsBranch" style="width:auto;min-width:160px;">
-            <option value="">ทุกสาขา</option>
-          </select>
-        </label>
+        <div id="dsBranchChecks" class="ds-branch-checks" title="เลือกกลุ่มสาขาที่จะแสดง"></div>
       </div>
 
       <!-- ── TABS ── -->
       <div class="page-tabs" style="margin-bottom:14px;display:flex;flex-wrap:wrap;align-items:center;gap:6px;">
         <button class="page-tab"        data-tab="pending"   onclick="dsSwitchTab('pending')">🆕 บิลใหม่รอตรวจ <span class="ds-tab-badge" id="dsPendingBadge" style="display:none">0</span></button>
         <button class="page-tab active" data-tab="sale"      onclick="dsSwitchTab('sale')">💰 บิลขาย</button>
-        <button class="page-tab"        data-tab="topup"     onclick="dsSwitchTab('topup')">🔋 เติม E-Wallet</button>
+        <button class="page-tab"        data-tab="online"    onclick="dsSwitchTab('online')">🌐 บิลออนไลน์</button>
         <button class="page-tab"        data-tab="reconcile" onclick="dsSwitchTab('reconcile')">📋 ตรวจบิล</button>
         <!-- ชิดขวา: ข้อมูลดิบที่ sync download มา (4 ไฟล์) -->
         <span class="ds-raw-sep" style="margin-left:auto;font-size:11px;color:var(--text3);font-weight:600;">ข้อมูลดิบ (sync) →</span>
@@ -71,10 +65,17 @@
         <button class="page-tab ds-raw-tab" data-tab="raw_detail" onclick="dsSwitchTab('raw_detail')">📋 03 รายละเอียด</button>
       </div>
 
+      <!-- ── Bulk-delete bar (ใช้ร่วมทั้งแท็บบิลขาย + บิลออนไลน์) ── -->
+      <div id="dsBulkBar" class="ds-bulk-bar" style="display:none">
+        <span>เลือก <b id="dsBulkCount">0</b> บิล</span>
+        <button class="ds-bulk-del" onclick="dsBulkDelete()">🗑 ลบที่เลือก</button>
+        <button class="ds-bulk-cancel" onclick="dsClearSel()">ยกเลิก</button>
+      </div>
+
       <!-- ── Tab: Pending review (business_date IS NULL) ── -->
       <div class="ds-tab-panel" id="dsPanelPending" style="display:none">
         <div class="section-card" style="padding:10px 14px;margin-bottom:12px;font-size:12.5px;color:var(--text2);line-height:1.6;">
-          บิลที่ sync เข้ามาแต่<b>ยังไม่ปิดยอด</b> (รวมบิล online ที่เกิดหลัง 18:00 ซึ่งจะนับเป็นวันถัดไป) · ตรวจ + แก้ช่องทางชำระให้ครบ แล้วกด <b>🔄 Sync Now</b> เพื่อปิดยอดวัน
+          บิลเก่าที่ยัง<b>ไม่ถูกตีวัน</b> (business_date ว่าง) · ปกติจะว่างเพราะการดึงข้อมูลรุ่นใหม่ตีวันจากวันขายจริงให้อัตโนมัติแล้ว
         </div>
         <div class="ds-table-wrap">
           <div style="overflow-x:auto">
@@ -106,11 +107,6 @@
 
       <!-- ── Tab: Sale — 3 ตารางตาม Google Sheet DAILY SALE (ขายปกติ / ARP / E-WALLET) สร้างใน JS ── -->
       <div class="ds-tab-panel" id="dsPanelSale">
-        <div id="dsBulkBar" class="ds-bulk-bar" style="display:none">
-          <span>เลือก <b id="dsBulkCount">0</b> บิล</span>
-          <button class="ds-bulk-del" onclick="dsBulkDelete()">🗑 ลบที่เลือก</button>
-          <button class="ds-bulk-cancel" onclick="dsClearSel()">ยกเลิก</button>
-        </div>
         <div id="dsSaleTables"></div>
       </div>
 
@@ -121,87 +117,79 @@
       <div class="ds-tab-panel" id="dsPanelraw_detail" style="display:none"><div class="ds-raw-body" id="dsRawBody_raw_detail"></div></div>
 
       <!-- ── Tab: Topup (topup_bills + details) ── -->
-      <div class="ds-tab-panel" id="dsPanelTopup" style="display:none">
-        <div class="ds-table-wrap">
+      <div class="ds-tab-panel" id="dsPanelOnline" style="display:none">
+        <div style="display:flex;justify-content:flex-end;margin-bottom:8px">
+          <button class="btn btn-primary" data-perm="daily_sale_reconcile" style="padding:6px 14px;font-size:12.5px" onclick="dsOnlineAddOpen()">➕ เพิ่มบิลออนไลน์</button>
+        </div>
+        <div class="ds-table-wrap ds-sale-block">
+          <div class="ds-table-title">🌐 บิลออนไลน์ จัดส่ง / นำเข้า DP</div>
           <div style="overflow-x:auto">
-            <table class="ds-table">
+            <table class="ds-table ds-table-sheet">
               <thead>
                 <tr>
-                  <th>เลขบิล</th>
-                  <th>สมาชิก</th>
-                  <th class="ds-num">ยอด</th>
-                  <th class="ds-num">เงินสด</th>
-                  <th class="ds-num">เงินโอน</th>
-                  <th class="ds-num">บัตรเครดิต</th>
-                  <th class="ds-num">Gift</th>
-                  <th>รายละเอียด</th>
-                  <th>สาขา</th>
-                  <th>ช่องทาง</th>
+                  <th rowspan="2" class="ds-chk-col"><input type="checkbox" class="ds-chk-all" title="เลือกทั้งหมด" onclick="dsToggleAll('online',this)"></th>
+                  <th rowspan="2" class="ds-hd-id">ลำดับ</th>
+                  <th rowspan="2" class="ds-hd-id">วันที่ซื้อ</th>
+                  <th rowspan="2" class="ds-hd-id">เลขที่บิล</th>
+                  <th rowspan="2" class="ds-hd-id">รหัสผู้ซื้อ</th>
+                  <th rowspan="2" class="ds-hd-id">ชื่อผู้ซื้อ</th>
+                  <th colspan="5" class="ds-grp ds-grp-pay">จำนวนเงิน</th>
+                  <th rowspan="2" class="ds-hd-id">สาขา</th>
+                  <th rowspan="2" class="ds-hd-id">เวลา</th>
+                  <th rowspan="2" class="ds-hd-meta">หมายเหตุ</th>
+                  <th rowspan="2" class="ds-hd-meta"></th>
+                </tr>
+                <tr>
+                  <th class="ds-num ds-col-cc">CREDIT</th>
+                  <th class="ds-num ds-col-ew">E-WALLET</th>
+                  <th class="ds-num ds-col-qr">QR</th>
+                  <th class="ds-num ds-col-comm">หักคอม</th>
+                  <th class="ds-num ds-col-arp">ARP (POINT) USD</th>
                 </tr>
               </thead>
-              <tbody id="dsTopupBody">
-                <tr><td colspan="10" class="ds-table-empty">กำลังโหลด...</td></tr>
-              </tbody>
+              <tbody id="dsBody_online"><tr><td colspan="15" class="ds-table-empty">กำลังโหลด...</td></tr></tbody>
+              <tfoot id="dsFoot_online"></tfoot>
             </table>
-          </div>
-          <div class="ds-summary" id="dsTopupSummary" style="display:none">
-            <div class="ds-summary-item"><span class="label">จำนวนบิล</span><span class="value" id="dsTupCount">—</span></div>
-            <div class="ds-summary-item"><span class="label">ยอดเติม</span><span class="value" id="dsTupAmount">—</span></div>
           </div>
         </div>
       </div>
 
       <!-- ── Tab: Reconcile ── -->
       <div class="ds-tab-panel" id="dsPanelReconcile" style="display:none">
-        <div class="ds-rec-card">
-          <div class="ds-rec-title">📋 ตรวจบิลประจำวัน — <span id="dsRecDateLabel">—</span></div>
-          <div class="ds-rec-sub">ระบบ prefill ข้อมูลจาก ERP · CS ปรับแก้ได้ถ้าระบบบันทึกผิด · ผลต่างจะคำนวณให้อัตโนมัติ</div>
-
-          <div class="ds-rec-diff" id="dsRecDiff">เลือกวันที่เพื่อดูข้อมูล</div>
-
-          <div class="ds-rec-grid">
-            <div class="ds-rec-field">
-              <label>จำนวนบิล (CS)</label>
-              <input type="number" id="dsRecBillCount" min="0" step="1" />
+        <div class="ds-rec-layout">
+          <!-- ซ้าย: ตารางตรวจบิลรายเดือน -->
+          <div class="ds-rec-month">
+            <div class="ds-rec-monthhead">
+              <button class="ds-rec-navbtn" onclick="dsRecMonthShift(-1)" title="เดือนก่อน">‹</button>
+              <span class="ds-rec-title">📋 ตรวจบิล เดือน <span id="dsRecMonthLabel">—</span></span>
+              <button class="ds-rec-navbtn" onclick="dsRecMonthShift(1)" title="เดือนถัดไป">›</button>
             </div>
-            <div class="ds-rec-field">
-              <label>มูลค่ารวม (CS)</label>
-              <input type="number" id="dsRecBillValue" min="0" step="0.01" />
-            </div>
-            <div class="ds-rec-field">
-              <label>คงเหลือ</label>
-              <input type="number" id="dsRecRemaining" min="0" step="0.01" />
-            </div>
-            <div class="ds-rec-field readonly">
-              <label>จำนวนบิล (ระบบ)</label>
-              <input type="number" id="dsRecSystemCount" readonly />
-            </div>
-            <div class="ds-rec-field readonly">
-              <label>มูลค่ารวม (ระบบ)</label>
-              <input type="number" id="dsRecSystemValue" readonly />
-            </div>
-            <div class="ds-rec-field">
-              <label>ผู้เซ็น (Signature)</label>
-              <input type="text" id="dsRecSignature" placeholder="เกษ / เหน่ง" />
-            </div>
+            <div class="ds-rec-sub">CS กรอกช่อง "ใน DAILY SALE" · "ในระบบ" ดึงจาก ERP อัตโนมัติ (ไม่รวมเติม E-Wallet) · ผลต่างคำนวณให้</div>
+            <div class="ds-table-wrap"><div style="overflow-x:auto">
+              <table class="ds-table ds-table-sheet ds-rec-table">
+                <thead>
+                  <tr>
+                    <th rowspan="2" class="ds-hd-id">วันที่</th>
+                    <th colspan="3" class="ds-grp ds-col-cash">ใน DAILY SALE</th>
+                    <th colspan="2" class="ds-grp ds-col-tf">ในระบบ</th>
+                    <th rowspan="2" class="ds-num">ผลต่าง</th>
+                    <th rowspan="2">Signature</th>
+                    <th rowspan="2" class="ds-hd-meta">หมายเหตุ</th>
+                  </tr>
+                  <tr>
+                    <th class="ds-num ds-col-cash">จำนวนบิล</th>
+                    <th class="ds-num ds-col-cash">มูลค่า</th>
+                    <th class="ds-num ds-col-cash">คงเหลือ</th>
+                    <th class="ds-num ds-col-tf">จำนวนบิล</th>
+                    <th class="ds-num ds-col-tf">มูลค่า</th>
+                  </tr>
+                </thead>
+                <tbody id="dsRecMonthBody"><tr><td colspan="9" class="ds-table-empty">กำลังโหลด...</td></tr></tbody>
+              </table>
+            </div></div>
           </div>
-
-          <div class="ds-rec-field" style="margin-bottom:16px">
-            <label>หมายเหตุ</label>
-            <input type="text" id="dsRecNotes" placeholder="กรอกหมายเหตุ (ไม่บังคับ)" />
-          </div>
-
-          <div class="ds-rec-actions">
-            <button class="ds-rec-prefill" onclick="dsRecPrefill()">🔄 Prefill จาก ERP</button>
-            <button class="ds-rec-save" data-perm="daily_sale_reconcile" onclick="dsRecSave()">💾 บันทึก</button>
-          </div>
-        </div>
-
-        <div class="ds-rec-card">
-          <div class="ds-rec-title">📅 ประวัติการตรวจบิล (30 วันล่าสุด)</div>
-          <div class="ds-rec-list" id="dsRecList">
-            <div style="text-align:center;padding:30px;color:var(--text3);grid-column:1/-1">กำลังโหลด...</div>
-          </div>
+          <!-- ขวา: สรุปยอดจ่ายรายวัน -->
+          <div class="ds-rec-daily" id="dsRecDaily"></div>
         </div>
       </div>
 
@@ -232,6 +220,21 @@
         <div id="spPhase" style="font-size:11.5px;opacity:.92">รอเริ่ม workflow...</div>
       </div>
     </div>
+    <div style="padding:14px 16px 0">
+      <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;margin-bottom:6px">
+        <span id="spBarNote" style="color:var(--text3);font-weight:600">กำลังเตรียม...</span>
+        <span id="spPct" style="color:var(--accent);font-weight:800;font-size:13px">0%</span>
+      </div>
+      <div style="position:relative;margin-top:16px">
+        <div style="height:10px;border-radius:6px;background:#e2e8f0;overflow:hidden">
+          <div id="spBar" style="height:100%;width:0%;border-radius:6px;background:linear-gradient(90deg,var(--accent),var(--accent-light));transition:width .6s cubic-bezier(.4,0,.2,1)"></div>
+        </div>
+        <div id="spRunner" style="position:absolute;top:-26px;left:0%;transform:translateX(-50%);transition:left .6s cubic-bezier(.4,0,.2,1);pointer-events:none">
+          <img class="ds-runner-sprite" src="../../assets/images/mascot-a4s.png" alt="" onerror="this.style.display='none';this.nextElementSibling.style.display='inline-block'">
+          <span class="ds-runner-emo" style="display:none">🏃</span>
+        </div>
+      </div>
+    </div>
     <div style="padding:14px 16px">
       <div id="spLog" style="background:#0f172a;color:#94a3b8;border-radius:6px;padding:8px 10px;font-family:'IBM Plex Mono',monospace;font-size:11px;max-height:140px;overflow-y:auto;margin-bottom:10px"></div>
       <div style="display:flex;justify-content:space-between;gap:10px;font-size:12px">
@@ -243,6 +246,8 @@
       <a id="spGhLink" href="#" target="_blank" style="color:var(--accent);font-size:11.5px;font-weight:600">📂 GitHub Actions</a>
       <button onclick="dsCloseSyncProgress()" style="padding:7px 16px;border:none;border-radius:16px;background:linear-gradient(135deg,var(--accent),var(--accent-light));color:#fff;font-size:12px;font-weight:600;cursor:pointer">ปิด</button>
     </div>
+  </div>
+</div>
 <!-- ── Edit Channel Modal (แก้ช่องทางชำระต่อบิล) — form modal, no backdrop close ── -->
 <div class="modal-overlay" id="dsEditOverlay">
   <div class="modal v-sage-header" onclick="event.stopPropagation()" style="max-width:560px">
@@ -274,6 +279,89 @@
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="dsEditClose()">ยกเลิก</button>
       <button class="btn btn-primary" onclick="dsEditSave()">💾 บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<!-- แก้ไขกลุ่มสาขา (radio filter) -->
+<div class="modal-overlay" id="dsGroupOverlay">
+  <div class="modal v-sage-header" onclick="event.stopPropagation()" style="max-width:440px">
+    <div class="modal-hdr">
+      <div class="modal-title">⚙️ แก้ไขกลุ่มสาขา</div>
+      <button class="btn-modal-close" onclick="dsGroupClose()">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:12px;color:var(--text3);margin:0 0 12px">ใส่รหัสสาขาของแต่ละกลุ่ม คั่นด้วย comma (เช่น <code>BKK01, NB, BUR</code>)</p>
+      <div class="ds-edit-field"><label>BKK</label><input type="text" id="dsGrpBKK" class="form-control" placeholder="BKK01, NB, BUR, DP" /></div>
+      <div class="ds-edit-field" style="margin-top:10px"><label>HY</label><input type="text" id="dsGrpHY" class="form-control" placeholder="HY" /></div>
+      <div class="ds-edit-field" style="margin-top:10px"><label>KK</label><input type="text" id="dsGrpKK" class="form-control" placeholder="KK" /></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="dsGroupClose()">ยกเลิก</button>
+      <button class="btn btn-primary" onclick="dsGroupSave()">💾 บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Modal: เลือกช่วงวันที่ที่จะดึงข้อมูล (Sync) ── -->
+<div class="modal-overlay" id="dsSyncOverlay">
+  <div class="modal v-sage-header" onclick="event.stopPropagation()" style="max-width:420px">
+    <div class="modal-hdr">
+      <div class="modal-title">🔄 ดึงข้อมูล (Sync)</div>
+      <button class="btn-modal-close" onclick="dsSyncModalClose()">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:12px;color:var(--text3);margin:0 0 14px">
+        เลือกช่วงวันที่ที่จะดึงจาก answerforsuccess มาทับข้อมูลในระบบ ·
+        แต่ละบิลจะลงยอดตาม<b>วันที่ขายจริง</b>
+      </p>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--text2);font-weight:600;">
+          จากวันที่
+          <input type="date" id="dsSyncFrom" class="form-control" style="min-width:150px" />
+        </label>
+        <span style="align-self:flex-end;padding-bottom:9px;color:var(--text3)">ถึง</span>
+        <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--text2);font-weight:600;">
+          ถึงวันที่
+          <input type="date" id="dsSyncTo" class="form-control" style="min-width:150px" />
+        </label>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="dsSyncModalClose()">ยกเลิก</button>
+      <button class="btn btn-primary" onclick="dsSyncNow()">📥 ดึงข้อมูล</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Modal: เพิ่มบิลออนไลน์ (manual) ── -->
+<div class="modal-overlay" id="dsOnlineAddOverlay">
+  <div class="modal v-sage-header" onclick="event.stopPropagation()" style="max-width:560px">
+    <div class="modal-hdr">
+      <div class="modal-title">➕ เพิ่มบิลออนไลน์</div>
+      <button class="btn-modal-close" onclick="dsOnlineAddClose()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="ds-add-grid">
+        <div class="ds-edit-field"><label>เลขที่บิล *</label><input type="text" id="dsAddBillNo" class="form-control" placeholder="เช่น STHONLIN2607000123"></div>
+        <div class="ds-edit-field"><label>วันที่ซื้อ *</label><input type="date" id="dsAddDate" class="form-control"></div>
+        <div class="ds-edit-field"><label>รหัสผู้ซื้อ</label><input type="text" id="dsAddCode" class="form-control"></div>
+        <div class="ds-edit-field"><label>ชื่อผู้ซื้อ</label><input type="text" id="dsAddName" class="form-control"></div>
+        <div class="ds-edit-field"><label>CREDIT</label><input type="number" step="0.01" id="dsAddCredit" class="form-control" value=""></div>
+        <div class="ds-edit-field"><label>E-WALLET</label><input type="number" step="0.01" id="dsAddEwallet" class="form-control" value=""></div>
+        <div class="ds-edit-field"><label>QR</label><input type="number" step="0.01" id="dsAddQr" class="form-control" value=""></div>
+        <div class="ds-edit-field"><label>หักคอม</label><input type="number" step="0.01" id="dsAddComm" class="form-control" value=""></div>
+        <div class="ds-edit-field"><label>ARP (POINT) USD</label><input type="number" step="0.01" id="dsAddArp" class="form-control" value=""></div>
+        <div class="ds-edit-field"><label>สาขา</label><input type="text" id="dsAddBranch" class="form-control" value="BKK01"></div>
+        <div class="ds-edit-field"><label>หมายเหตุ (จัดส่ง)</label>
+          <select id="dsAddDelivery" class="form-control"><option value=""></option></select>
+        </div>
+      </div>
+      <p style="font-size:11px;color:var(--text3);margin:12px 0 0">เลขบิลต้องมี <b>ONLIN</b> เพื่อให้แสดงในแท็บบิลออนไลน์ · ยอดบิล = ผลรวมทุกช่อง</p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="dsOnlineAddClose()">ยกเลิก</button>
+      <button class="btn btn-primary" onclick="dsOnlineAddSave()">💾 บันทึก</button>
     </div>
   </div>
 </div>

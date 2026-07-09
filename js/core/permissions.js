@@ -66,6 +66,10 @@ window.AppPermissions = (() => {
           { key: "line_promote_edit",   label: "แก้ไข" },
           { key: "line_promote_cancel", label: "ยกเลิก" },
         ]},
+        { key: "trend_radar", label: "เรดาร์กระแส", icon: "📡", perms: [
+          { key: "trend_radar_view",   label: "ดู/ปั้นคอนเทนต์" },
+          { key: "trend_radar_manage", label: "จัดการหัวข้อ" },
+        ]},
         { key: "campaign", label: "วางแผนแคมเปญ", icon: "🚀", perms: [
           { key: "campaign_view",        label: "ดูรายการ" },
           { key: "campaign_create",      label: "สร้าง" },
@@ -412,6 +416,7 @@ window.AppPermissions = (() => {
         "attendee_view","attendee_edit",
         "media_fb_view","media_fb_create","media_fb_edit","media_fb_cancel",
         "line_promote_view","line_promote_create","line_promote_edit","line_promote_cancel",
+        "trend_radar_view","trend_radar_manage",
         "campaign_view","campaign_create","campaign_edit","campaign_delete","campaign_metric_edit",
         "inv_cat_view","inv_cat_create","inv_cat_edit",
         "warehouse_view","warehouse_create","warehouse_edit",

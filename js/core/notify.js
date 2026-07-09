@@ -159,7 +159,9 @@
       return;
     }
 
-    // 2) Resolve recipients
+    // 2) Resolve recipients (users → multicast) + LINE chat groups (→ push)
+    const lineGroupIds = (rule.targets && Array.isArray(rule.targets.line_groups))
+      ? rule.targets.line_groups.filter(Boolean) : [];
     let targets;
     try {
       targets = await resolveTargets(rule);
@@ -167,24 +169,21 @@
       await _log([{ ...logBase, status: "failed", error: "resolve: " + e.message }]);
       return;
     }
-    if (!targets.length) {
+    const lineIds = targets.map((t) => t.line_user_id).filter(Boolean);
+    if (!lineIds.length && !lineGroupIds.length) {
       await _log([{ ...logBase, status: "skipped", error: "no recipients" }]);
       return;
     }
 
-    const lineIds = targets.map((t) => t.line_user_id).filter(Boolean);
-    if (!lineIds.length) {
-      await _log([{ ...logBase, status: "skipped", error: "no line_user_id on targets" }]);
-      return;
-    }
-
-    // 3) Render + send (multicast up to 500)
+    // 3) Render + send (users: multicast ≤500 · กลุ่มแชท LINE: push ต่อกลุ่ม)
     const text = renderTemplate(rule.message_template, payload);
     try {
-      // chunk at 500
       for (let i = 0; i < lineIds.length; i += 500) {
         const chunk = lineIds.slice(i, i + 500);
         await window.LineAPI.multicast({ channel, to: chunk, message: text });
+      }
+      for (const gid of lineGroupIds) {
+        await window.LineAPI.push({ channel, to: gid, message: text });
       }
       const logs = targets.map((t) => ({
         ...logBase,
@@ -193,12 +192,25 @@
         channel_id: channel.id,
         status: t.line_user_id ? "sent" : "skipped",
       }));
+      lineGroupIds.forEach((gid) => logs.push({
+        ...logBase,
+        recipient_line_id: gid,
+        channel_id: channel.id,
+        status: "sent",
+      }));
       await _log(logs);
     } catch (e) {
       const logs = targets.map((t) => ({
         ...logBase,
         recipient_user_id: t.user_id,
         recipient_line_id: t.line_user_id,
+        channel_id: channel.id,
+        status: "failed",
+        error: e.message,
+      }));
+      lineGroupIds.forEach((gid) => logs.push({
+        ...logBase,
+        recipient_line_id: gid,
         channel_id: channel.id,
         status: "failed",
         error: e.message,
