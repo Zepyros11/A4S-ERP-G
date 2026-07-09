@@ -188,6 +188,19 @@ async function loadKPI() {
     }
   } catch {}
 
+  // สถานะ auto-sync (ดึงจริงจาก automation_tasks · ไม่ hardcode)
+  try {
+    const el = $('dsAutoStatus');
+    if (el) {
+      const SCHED = { manual: 'Manual', '1h': 'ทุก 1 ชม.', '3h': 'ทุก 3 ชม.', '6h': 'ทุก 6 ชม.', '12h': 'ทุก 12 ชม.', '24h': 'ทุกวัน', weekly: 'ทุกสัปดาห์' };
+      const rows = await sbGet(`automation_tasks?workflow=eq.sync-daily-sale.yml&select=status,schedule&limit=1`);
+      const t = rows?.[0];
+      if (!t) el.textContent = '';
+      else if (t.status === 'active') el.textContent = ` · 🟢 auto ${SCHED[t.schedule] || t.schedule || ''}`.trimEnd();
+      else el.textContent = ' · ⚪ auto ปิด (ดึงเอง)';
+    }
+  } catch {}
+
   // สถานะปิดรอบของวันนี้
   try {
     const el = $('dsCloseStatus');
