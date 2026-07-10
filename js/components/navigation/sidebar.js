@@ -325,8 +325,14 @@
       id: "g-customer-service",
       items: [
         {
-          id: "daily-sale",
+          id: "cs-dashboard",
           icon: "📊",
+          label: "CS Dashboard",
+          path: BASE_PATH + "/modules/customer-service/cs-dashboard.html",
+        },
+        {
+          id: "daily-sale",
+          icon: "🧾",
           label: "Daily Sale",
           path: BASE_PATH + "/modules/customer-service/daily-sale.html",
         },
@@ -610,6 +616,7 @@
     "members-sync": "member_sync_config",
     promotions: "view_promotions",
     "promotion-gallery": "view_promotions",
+    "cs-dashboard": "daily_sale_view",
     "daily-sale": "daily_sale_view",
     "event-work-plan": "evt_wp_view",
     "cs-work-plan": "cs_wp_view",
@@ -736,6 +743,7 @@
     "line-members",
     "members-sync",
     //**** CUSTOMER SERVICE ****
+    "cs-dashboard",
     "daily-sale",
     "promotion-gallery",
     "promotions",

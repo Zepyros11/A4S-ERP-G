@@ -1,0 +1,105 @@
+/* ============================================================
+   cs-dashboard.css — CS Sales Dashboard (ยอดขายตามสาขา)
+   ต่อยอดจาก design system กลาง (page-hero / kpi-strip / kpi-row /
+   stat-card / section-card / filter-chip). กำหนดเฉพาะส่วนที่หน้านี้
+   ต้องการ: ตัวกรองสาขา · การ์ดสาขา · กราฟ · ตารางช่องทางชำระ
+   ============================================================ */
+
+/* ── FILTER BAR ── */
+.csd-filter {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 12px 16px;
+  margin-bottom: 14px;
+}
+.csd-filter-dates { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.csd-date-lbl {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 12.5px; color: var(--text2); font-weight: 600;
+}
+.csd-date-lbl .form-control { width: auto; min-width: 150px; }
+.csd-date-sep { color: var(--text3); font-size: 12.5px; }
+
+/* ── BRANCH FILTER CHIPS (ALL / BKK / HY / KK) — เหมือน Daily Sale ── */
+.csd-branch-chips { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.csd-branch-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 12px; font-weight: 600; color: var(--text3);
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 8px; padding: 4px 11px; cursor: pointer; user-select: none;
+  transition: all .15s;
+}
+.csd-branch-chip input { margin: 0; cursor: pointer; accent-color: var(--accent); }
+.csd-branch-chip:hover { border-color: var(--border2); }
+.csd-branch-chip.on { color: var(--accent); border-color: var(--accent); background: var(--accent-pale); }
+.csd-grp-edit {
+  background: var(--surface2); border: 1px solid var(--border); border-radius: 8px;
+  padding: 4px 8px; cursor: pointer; font-size: 13px; line-height: 1;
+}
+.csd-grp-edit:hover { border-color: var(--accent); }
+.csd-refresh { border: 1px solid var(--border); }
+
+/* ── KPI STRIP: highlight ตัวเลขยอดขาย ── */
+.csd-kpi-grp {
+  display: inline-block; font-size: 9.5px; font-weight: 800;
+  color: var(--accent); background: var(--accent-pale);
+  border-radius: 5px; padding: 1px 6px; margin-left: 3px; vertical-align: middle;
+}
+#csdKpiSales { color: var(--accent); }
+
+/* ── BRANCH CARDS ── */
+.csd-branch-card { transition: box-shadow .2s, transform .15s, opacity .2s; }
+.csd-branch-card.is-dimmed { opacity: .42; }
+.csd-branch-card.is-dimmed:hover { opacity: .75; }
+.csd-card-pct { color: var(--text2); font-weight: 800; }
+.csd-branch-card .stat-value { font-size: 20px; }
+
+/* ── CHARTS ── */
+.csd-row2 {
+  display: grid;
+  grid-template-columns: 1fr 1.4fr;   /* comparison แคบกว่า · trend กว้างกว่า */
+  gap: 14px;
+  margin-bottom: 14px;
+}
+@media (max-width: 900px) { .csd-row2 { grid-template-columns: 1fr; } }
+/* min-width:0 กัน grid blowout — ไม่งั้น cell กว้างเกิน แล้ว canvas ถูก CSS หด → Chart.js
+   คำนวณพิกัดเมาส์ผิด (hover ชี้วันเพี้ยน). ปล่อยให้ Chart.js คุมขนาด canvas เอง (อย่าใส่ max-width) */
+.csd-row2 > .section-card { min-width: 0; }
+.csd-chart-wrap { position: relative; height: 300px; width: 100%; }
+.csd-chart-wrap canvas { display: block; }
+.csd-chart-empty {
+  height: 300px; display: flex; align-items: center; justify-content: center;
+  color: var(--text3); font-size: 13px; font-weight: 600;
+}
+
+/* ── PAYMENT CHANNEL TABLE ── */
+.csd-table-wrap { overflow-x: auto; border-radius: 10px; }
+.csd-table {
+  width: 100%; border-collapse: collapse; font-size: 12.5px;
+  background: var(--surface); border-radius: 10px; overflow: hidden;
+}
+.csd-table thead th {
+  background: var(--accent-pale); color: var(--accent);
+  font-weight: 700; font-size: 11.5px; text-align: right;
+  padding: 9px 12px; white-space: nowrap; border-bottom: 1px solid var(--border);
+}
+.csd-table thead th.csd-th-branch { text-align: left; }
+.csd-table thead th.csd-th-total { background: #d7ecdd; }
+.csd-table tbody td { padding: 9px 12px; border-bottom: 1px solid var(--border); }
+.csd-table tbody tr:hover { background: var(--surface2); }
+.csd-num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.csd-td-branch { font-weight: 700; color: var(--text); white-space: nowrap; }
+.csd-col-total { font-weight: 700; background: rgba(61, 107, 79, .05); }
+.csd-zero { color: var(--text3); }
+.csd-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 7px; vertical-align: middle; }
+.csd-table-empty { text-align: center; color: var(--text3); padding: 26px !important; }
+.csd-total-row td {
+  background: #f7e2b0; font-weight: 800; color: var(--text);
+  border-top: 2px solid var(--border2); border-bottom: none;
+}
+.csd-total-row td.csd-col-total { background: #f3d9a6; }
+
+/* ── group-edit modal fields (daily-sale.css ไม่ได้โหลดในหน้านี้) ── */
+.ds-edit-field label { display: block; font-size: 11.5px; font-weight: 600; color: var(--text3); margin-bottom: 4px; }

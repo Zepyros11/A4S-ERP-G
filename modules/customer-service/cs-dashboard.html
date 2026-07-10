@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CS Dashboard — A4S-ERP</title>
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../css/main.css" />
+  <link rel="stylesheet" href="./cs-dashboard.css" />
+</head>
+<body>
+
+<div class="loading-overlay" id="loadingOverlay"><div class="spinner"></div></div>
+<div class="toast" id="toast"></div>
+
+<div class="topbar"></div>
+
+<div class="page">
+
+  <!-- ── HERO ── -->
+  <div class="page-hero page-hero--simple page-hero--compact">
+    <div>
+      <h1 class="page-hero-title">📊 CS Dashboard — ยอดขายตามสาขา</h1>
+      <p class="page-hero-sub">สรุปยอดขายแยกกลุ่มสาขา (BKK · HY · KK) · <span id="csdRangeLabel">กำลังโหลด...</span></p>
+    </div>
+    <div class="page-hero-actions">
+      <a class="btn-on-hero" href="./daily-sale.html" title="ไปหน้า Daily Sale">🧾 Daily Sale</a>
+    </div>
+  </div>
+
+  <!-- ── FILTER BAR ── -->
+  <div class="section-card csd-filter">
+    <div class="csd-filter-dates">
+      <label class="csd-date-lbl">📅 จาก
+        <input type="date" class="form-control" id="csdFrom" />
+      </label>
+      <span class="csd-date-sep">ถึง</span>
+      <label class="csd-date-lbl">
+        <input type="date" class="form-control" id="csdTo" />
+      </label>
+    </div>
+    <div class="filter-chips" id="csdPresetChips">
+      <button class="filter-chip" data-preset="today"  onclick="csdSetPreset('today')">วันนี้</button>
+      <button class="filter-chip" data-preset="week"   onclick="csdSetPreset('week')">สัปดาห์นี้</button>
+      <button class="filter-chip" data-preset="month"  onclick="csdSetPreset('month')">เดือนนี้</button>
+    </div>
+    <div id="csdBranchChips" class="csd-branch-chips" title="เลือกกลุ่มสาขาที่จะแสดง"></div>
+    <button class="filter-chip csd-refresh" style="margin-left:auto" onclick="loadAll()" title="โหลดข้อมูลใหม่">🔄 รีเฟรช</button>
+  </div>
+
+  <!-- ── KPI STRIP (scoped by branch filter) ── -->
+  <div class="kpi-strip">
+    <div class="kpi-card"><div class="kpi-label">ยอดขาย (THB) <span id="csdKpiGrp" class="csd-kpi-grp">รวม</span></div><div class="kpi-value" id="csdKpiSales">—</div></div>
+    <div class="kpi-card"><div class="kpi-label">จำนวนบิลขาย</div><div class="kpi-value" id="csdKpiBills">—</div></div>
+    <div class="kpi-card"><div class="kpi-label">เฉลี่ย/บิล (ARP)</div><div class="kpi-value" id="csdKpiAvg">—</div></div>
+    <div class="kpi-card"><div class="kpi-label">ARP (รายการ)</div><div class="kpi-value" id="csdKpiArp">—</div></div>
+    <div class="kpi-card"><div class="kpi-label">E-Wallet (รายการ)</div><div class="kpi-value" id="csdKpiEwallet">—</div></div>
+  </div>
+
+  <!-- ── BRANCH CARDS (per group · clickable filter) ── -->
+  <div class="kpi-row" id="csdBranchCards"></div>
+
+  <!-- ── CHARTS: comparison + trend ── -->
+  <div class="csd-row2">
+    <div class="section-card">
+      <div class="section-head">
+        <div class="section-title">🏢 เทียบยอดขายตามสาขา</div>
+        <span class="section-sub" id="csdBarSub"></span>
+      </div>
+      <div class="csd-chart-wrap"><canvas id="csdBranchChart"></canvas></div>
+      <div class="csd-chart-empty" id="csdBranchEmpty" style="display:none">ไม่มีข้อมูลในช่วงที่เลือก</div>
+    </div>
+
+    <div class="section-card">
+      <div class="section-head">
+        <div class="section-title">📈 แนวโน้มยอดขายรายวัน</div>
+        <span class="section-sub" id="csdTrendSub"></span>
+      </div>
+      <div class="csd-chart-wrap"><canvas id="csdTrendChart"></canvas></div>
+      <div class="csd-chart-empty" id="csdTrendEmpty" style="display:none">ไม่มีข้อมูลในช่วงที่เลือก</div>
+    </div>
+  </div>
+
+  <!-- ── PAYMENT CHANNEL TABLE ── -->
+  <div class="section-card">
+    <div class="section-head">
+      <div class="section-title">💳 สรุปยอดขายแยกช่องทางชำระ</div>
+      <span class="section-sub">หน่วย: THB · อ้างอิงเฉพาะบิลขายปกติ (ไม่รวม ARP / เติม E-Wallet)</span>
+    </div>
+    <div class="csd-table-wrap">
+      <table class="csd-table" id="csdPayTable">
+        <thead>
+          <tr>
+            <th class="csd-th-branch">สาขา</th>
+            <th>เงินสด</th>
+            <th>บัตรเครดิต</th>
+            <th>เงินโอน</th>
+            <th>E-Wallet</th>
+            <th>Gift Voucher</th>
+            <th>QR</th>
+            <th class="csd-th-total">รวมช่องทาง</th>
+            <th class="csd-th-total">ยอดบิล</th>
+            <th class="csd-th-total">จำนวนบิล</th>
+          </tr>
+        </thead>
+        <tbody id="csdPayBody">
+          <tr><td colspan="10" class="csd-table-empty">กำลังโหลด...</td></tr>
+        </tbody>
+        <tfoot id="csdPayFoot"></tfoot>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<!-- ── แก้ไขกลุ่มสาขา (radio filter) — sync localStorage เดียวกับ Daily Sale ── -->
+<div class="modal-overlay" id="csdGroupOverlay">
+  <div class="modal v-sage-header" onclick="event.stopPropagation()" style="max-width:440px">
+    <div class="modal-hdr">
+      <div class="modal-title">⚙️ แก้ไขกลุ่มสาขา</div>
+      <button class="btn-modal-close" onclick="csdGroupClose()">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:12px;color:var(--text3);margin:0 0 12px">ใส่รหัสสาขาของแต่ละกลุ่ม คั่นด้วย comma (เช่น <code>BKK01, NB, BUR</code>) · ใช้ร่วมกับหน้า Daily Sale</p>
+      <div class="ds-edit-field"><label>BKK</label><input type="text" id="csdGrpBKK" class="form-control" placeholder="BKK01, NB, BUR, DP" /></div>
+      <div class="ds-edit-field" style="margin-top:10px"><label>HY</label><input type="text" id="csdGrpHY" class="form-control" placeholder="HY" /></div>
+      <div class="ds-edit-field" style="margin-top:10px"><label>KK</label><input type="text" id="csdGrpKK" class="form-control" placeholder="KK" /></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="csdGroupClose()">ยกเลิก</button>
+      <button class="btn btn-primary" onclick="csdGroupSave()">💾 บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<script src="../../js/core/auth.js"></script>
+<script src="../../js/core/authz.js"></script>
+<script src="../../js/core/crypto.js"></script>
+<script src="../../js/core/date-format.js"></script>
+<script>AuthZ.requirePerm("daily_sale_view");</script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="./cs-dashboard.js"></script>
+<script type="module">
+  import { loadTopbar } from "../../js/components/navigation/topbar.js";
+  loadTopbar("📊 CS Dashboard");
+</script>
+<script src="../../js/components/navigation/sidebar.js"></script>
+<script src="../../js/components/modal/modalManager.js"></script>
+</body>
+</html>
