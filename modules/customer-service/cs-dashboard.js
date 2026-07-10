@@ -34,7 +34,34 @@ function todayIso() { return new Date().toLocaleDateString('en-CA', { timeZone: 
 function isoShift(iso, n) { const d = new Date(iso + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); }
 function startOfWeek(iso) { const d = new Date(iso + 'T00:00:00Z'); const wd = (d.getUTCDay() + 6) % 7; d.setUTCDate(d.getUTCDate() - wd); return d.toISOString().slice(0, 10); }  // จันทร์
 function startOfMonth(iso) { return iso.slice(0, 7) + '-01'; }
+function startOfYear(iso) { return iso.slice(0, 4) + '-01-01'; }
 function enumerateDays(from, to) { const out = []; let d = from, guard = 0; while (d <= to && guard++ < 400) { out.push(d); d = isoShift(d, 1); } return out; }
+const TH_MONTHS = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
+const TH_MONTHS_SHORT = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+// รายการเดือน YYYY-MM ตั้งแต่ from ถึง to (ใช้ย่อยกราฟแนวโน้มเมื่อช่วงยาว)
+function enumerateMonths(from, to) {
+  const out = [];
+  let y = +from.slice(0, 4), m = +from.slice(5, 7);
+  const ey = +to.slice(0, 4), em = +to.slice(5, 7);
+  let guard = 0;
+  while ((y < ey || (y === ey && m <= em)) && guard++ < 240) {
+    out.push(`${y}-${String(m).padStart(2, '0')}`);
+    m++; if (m > 12) { m = 1; y++; }
+  }
+  return out;
+}
+// ป้ายกำกับ "เดือนที่เลือก" ต่อท้ายหัวข้อ — รองรับช่วงข้ามเดือน/ข้ามปี
+function csdMonthLabel() {
+  const [fy, fm] = state.from.split('-').map(Number);
+  const [ty, tm] = state.to.split('-').map(Number);
+  if (state.preset === 'year') return ` ปี ${fy}`;
+  if (fy === ty && fm === tm) return ` เดือน ${TH_MONTHS[fm - 1]} ${fy}`;
+  if (fy === ty) return ` เดือน ${TH_MONTHS[fm - 1]}–${TH_MONTHS[tm - 1]} ${fy}`;
+  return ` ${TH_MONTHS[fm - 1]} ${fy} – ${TH_MONTHS[tm - 1]} ${ty}`;
+}
+function updateMonthLabels() {
+  document.querySelectorAll('.csd-title-month').forEach(el => { el.textContent = csdMonthLabel(); });
+}
 
 /* ── Supabase fetch ── */
 async function sbGet(path) {
@@ -131,6 +158,7 @@ function csdSetPreset(preset, silent) {
   if (preset === 'today') { state.from = today; state.to = today; }
   else if (preset === 'week') { state.from = startOfWeek(today); state.to = today; }
   else if (preset === 'month') { state.from = startOfMonth(today); state.to = today; }
+  else if (preset === 'year') { state.from = startOfYear(today); state.to = today; }
   state.preset = preset;
   $('csdFrom').value = state.from;
   $('csdTo').value = state.to;
@@ -215,10 +243,14 @@ async function fetchPayments(bills) {
 }
 
 async function loadAll() {
-  showLoading(true);
+  // โหลดแบบเนียน: หรี่จาง content เดิมไว้ (ไม่บังทั้งจอ) + spinner เล็กที่ปุ่มรีเฟรช
+  const body = $('csdBody'), busy = $('csdBusy');
+  if (body) body.classList.add('is-loading');
+  if (busy) busy.style.display = 'inline-flex';
   $('csdRangeLabel').textContent = state.from === state.to
     ? fmtDMY(state.from)
     : `${fmtDMY(state.from)} – ${fmtDMY(state.to)}`;
+  updateMonthLabels();
   try {
     const bills = await fetchBills();
     const payMap = await fetchPayments(bills);
@@ -228,7 +260,8 @@ async function loadAll() {
     console.error('CS Dashboard load failed:', e);
     toast('โหลดข้อมูลไม่สำเร็จ: ' + e.message, 'error');
   } finally {
-    showLoading(false);
+    if (body) body.classList.remove('is-loading');
+    if (busy) busy.style.display = 'none';
   }
 }
 
@@ -241,8 +274,10 @@ function blankAgg() { return { sales: 0, bills: 0, arp: 0, ew: 0, ch: blankChann
 function render(bills, payMap) {
   // aggregate ต่อกลุ่มสาขา
   const agg = {}; GROUP_ORDER.forEach(g => agg[g] = blankAgg());
-  const days = enumerateDays(state.from, state.to);
-  const trend = {}; GROUP_ORDER.forEach(g => { trend[g] = {}; days.forEach(d => trend[g][d] = 0); });
+  // แกนเวลาของกราฟแนวโน้ม: ช่วงยาว (>62 วัน เช่น "ปีนี้") ย่อยเป็นรายเดือน · สั้นกว่านั้นรายวัน
+  const monthly = enumerateDays(state.from, state.to).length > 62;
+  const buckets = monthly ? enumerateMonths(state.from, state.to) : enumerateDays(state.from, state.to);
+  const trend = {}; GROUP_ORDER.forEach(g => { trend[g] = {}; buckets.forEach(k => trend[g][k] = 0); });
 
   bills.forEach(b => {
     const g = branchGroupOf(b);
@@ -251,8 +286,8 @@ function render(bills, payMap) {
     if (isRedemption(b)) { A.arp++; return; }
     const amt = Number(b.amount || 0);
     A.sales += amt; A.bills++;
-    const d = effDate(b);
-    if (trend[g] && d in trend[g]) trend[g][d] += amt;
+    const key = monthly ? effDate(b).slice(0, 7) : effDate(b);
+    if (trend[g] && key in trend[g]) trend[g][key] += amt;
     const p = payMap[b.bill_no] || {};
     A.ch.cash     += Number(p.cash || 0);
     A.ch.credit   += Number(p.front_office || 0) + Number(p.online || 0);
@@ -267,7 +302,7 @@ function render(bills, payMap) {
   renderKPI(agg, visible);
   renderBranchCards(agg);
   renderBranchChart(agg);
-  renderTrendChart(trend, days, visible);
+  renderTrendChart(trend, buckets, visible, monthly);
   renderPayTable(agg, visible);
 }
 
@@ -339,22 +374,28 @@ function renderBranchChart(agg) {
   });
 }
 
-function renderTrendChart(trend, days, visible) {
+function renderTrendChart(trend, buckets, visible, monthly) {
   const canvas = $('csdTrendChart');
-  const anyData = visible.some(g => days.some(d => trend[g] && trend[g][d] > 0));
+  const anyData = visible.some(g => buckets.some(k => trend[g] && trend[g][k] > 0));
   $('csdTrendEmpty').style.display = anyData ? 'none' : 'block';
   canvas.style.display = anyData ? 'block' : 'none';
-  $('csdTrendSub').textContent = days.length > 1 ? `${days.length} วัน` : '';
+  $('csdTrendSub').textContent = buckets.length > 1 ? `${buckets.length} ${monthly ? 'เดือน' : 'วัน'}` : '';
   if (charts.trend) { charts.trend.destroy(); charts.trend = null; }
   if (!anyData || !window.Chart) return;
-  const labels = days.map(d => { const [, m, dd] = d.split('-'); return `${dd}/${m}`; });
+  let labels;
+  if (monthly) {
+    const multiYear = new Set(buckets.map(b => b.slice(0, 4))).size > 1;
+    labels = buckets.map(b => { const [y, m] = b.split('-'); return TH_MONTHS_SHORT[+m - 1] + (multiYear ? ' ' + y.slice(2) : ''); });
+  } else {
+    labels = buckets.map(d => { const [, m, dd] = d.split('-'); return `${dd}/${m}`; });
+  }
   const datasets = visible.map(g => ({
     label: g,
-    data: days.map(d => trend[g] ? trend[g][d] : 0),
+    data: buckets.map(k => trend[g] ? trend[g][k] : 0),
     borderColor: GROUP_COLOR[g],
     backgroundColor: GROUP_COLOR[g] + '22',
     borderWidth: 2,
-    pointRadius: days.length > 45 ? 0 : 3,
+    pointRadius: buckets.length > 45 ? 0 : 3,
     pointHoverRadius: 5,
     tension: 0.3,
     fill: visible.length === 1,

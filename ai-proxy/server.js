@@ -1931,14 +1931,16 @@ function _renderTpl(template, payload) {
   });
 }
 
-// ตรวจว่า want time (HH:MM) อยู่ใน window [now, now-windowMin) ของวันนั้น
-function _timeInWindow(wantTimeStr, now, windowMin) {
+// ตรวจว่าถึงเวลา want time (HH:MM) ของวันนั้นแล้วหรือยัง — one-sided window
+//   fire ถ้า now ≥ wantMin (ที่เวลานั้นหรือหลังจากนั้นในวันเดียวกัน)
+//   ทนดีเลย์ของ GitHub Actions cron ได้ (tick แรกที่มาถึงหลังเวลาที่ตั้งจะยิง)
+//   ป้องกันส่งซ้ำด้วย _checkDedupe (per rule+record ภายใน 24 ชม.) ที่ callsite
+function _timeReached(wantTimeStr, now) {
   if (!wantTimeStr) return false;
   const m = String(wantTimeStr).match(/^(\d{1,2}):(\d{2})/);
   if (!m) return false;
   const wantMin = parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
-  // fire if now ∈ [wantMin, wantMin + windowMin)
-  return now.totalMinutes >= wantMin && now.totalMinutes < wantMin + windowMin;
+  return now.totalMinutes >= wantMin;
 }
 
 async function _resolveRuleTargets(rule) {
@@ -2262,8 +2264,8 @@ async function _processRule(rule, now) {
   let refKey;
 
   if (rule.schedule_anchor === 'event_date') {
-    if (!_timeInWindow(rule.schedule_time, now, CRON_WINDOW_MIN)) {
-      result.reason = 'time-window';
+    if (!_timeReached(rule.schedule_time, now)) {
+      result.reason = 'time-not-reached';
       return result;
     }
     // event_date = today - offset_days  (เช่น offset=-1 → event_date = today + 1)
@@ -2272,8 +2274,8 @@ async function _processRule(rule, now) {
       `select=*&event_date=eq.${targetDate}&status=eq.CONFIRMED`)) || [];
     refKey = 'event_id';
   } else if (rule.schedule_anchor === 'booking_date') {
-    if (!_timeInWindow(rule.schedule_time, now, CRON_WINDOW_MIN)) {
-      result.reason = 'time-window';
+    if (!_timeReached(rule.schedule_time, now)) {
+      result.reason = 'time-not-reached';
       return result;
     }
     const targetDate = _addDays(now.date, -offsetDays);
@@ -2295,8 +2297,8 @@ async function _processRule(rule, now) {
     refKey = 'request_id';
   } else if (rule.schedule_anchor === 'daily_summary') {
     // รวม events + bookings ของวัน → 1 record summary → 1 message
-    if (!_timeInWindow(rule.schedule_time, now, CRON_WINDOW_MIN)) {
-      result.reason = 'time-window';
+    if (!_timeReached(rule.schedule_time, now)) {
+      result.reason = 'time-not-reached';
       return result;
     }
     const targetDate = _addDays(now.date, -offsetDays);

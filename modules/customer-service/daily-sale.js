@@ -354,7 +354,7 @@ function saleTableShell(cfg, canEdit) {
           </tr>`;
   return `
   <div class="ds-table-wrap ds-sale-block">
-    <div class="ds-table-title">${cfg.title}</div>
+    <div class="ds-table-title ds-title-${cfg.key}">${cfg.title}</div>
     <div style="overflow-x:auto">
       <table class="ds-table ds-table-sheet">
         <thead>

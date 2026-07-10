@@ -43,10 +43,17 @@
       <button class="filter-chip" data-preset="today"  onclick="csdSetPreset('today')">วันนี้</button>
       <button class="filter-chip" data-preset="week"   onclick="csdSetPreset('week')">สัปดาห์นี้</button>
       <button class="filter-chip" data-preset="month"  onclick="csdSetPreset('month')">เดือนนี้</button>
+      <button class="filter-chip" data-preset="year"   onclick="csdSetPreset('year')">ปีนี้</button>
     </div>
     <div id="csdBranchChips" class="csd-branch-chips" title="เลือกกลุ่มสาขาที่จะแสดง"></div>
-    <button class="filter-chip csd-refresh" style="margin-left:auto" onclick="loadAll()" title="โหลดข้อมูลใหม่">🔄 รีเฟรช</button>
+    <div class="csd-filter-right">
+      <span id="csdBusy" class="csd-busy" style="display:none">กำลังโหลด…</span>
+      <button class="filter-chip csd-refresh" onclick="loadAll()" title="โหลดข้อมูลใหม่">🔄 รีเฟรช</button>
+    </div>
   </div>
+
+  <!-- ── DASHBOARD BODY (หรี่จางเนียนๆ ตอนโหลด แทน full-screen overlay) ── -->
+  <div id="csdBody">
 
   <!-- ── KPI STRIP (scoped by branch filter) ── -->
   <div class="kpi-strip">
@@ -64,7 +71,7 @@
   <div class="csd-row2">
     <div class="section-card">
       <div class="section-head">
-        <div class="section-title">🏢 เทียบยอดขายตามสาขา</div>
+        <div class="section-title">🏢 เทียบยอดขายตามสาขา<span class="csd-title-month"></span></div>
         <span class="section-sub" id="csdBarSub"></span>
       </div>
       <div class="csd-chart-wrap"><canvas id="csdBranchChart"></canvas></div>
@@ -73,7 +80,7 @@
 
     <div class="section-card">
       <div class="section-head">
-        <div class="section-title">📈 แนวโน้มยอดขายรายวัน</div>
+        <div class="section-title">📈 แนวโน้มยอดขายรายวัน<span class="csd-title-month"></span></div>
         <span class="section-sub" id="csdTrendSub"></span>
       </div>
       <div class="csd-chart-wrap"><canvas id="csdTrendChart"></canvas></div>
@@ -84,7 +91,7 @@
   <!-- ── PAYMENT CHANNEL TABLE ── -->
   <div class="section-card">
     <div class="section-head">
-      <div class="section-title">💳 สรุปยอดขายแยกช่องทางชำระ</div>
+      <div class="section-title">💳 สรุปยอดขายแยกช่องทางชำระ<span class="csd-title-month"></span></div>
       <span class="section-sub">หน่วย: THB · อ้างอิงเฉพาะบิลขายปกติ (ไม่รวม ARP / เติม E-Wallet)</span>
     </div>
     <div class="csd-table-wrap">
@@ -110,6 +117,8 @@
       </table>
     </div>
   </div>
+
+  </div><!-- /#csdBody -->
 
 </div>
 

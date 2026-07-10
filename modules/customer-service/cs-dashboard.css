@@ -40,6 +40,21 @@
 }
 .csd-grp-edit:hover { border-color: var(--accent); }
 .csd-refresh { border: 1px solid var(--border); }
+.csd-filter-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+
+/* ── โหลดแบบเนียน: หรี่ content เดิม + spinner เล็ก (แทน full-screen overlay) ── */
+#csdBody { transition: opacity .22s ease; }
+#csdBody.is-loading { opacity: .45; pointer-events: none; }
+.csd-busy {
+  font-size: 12px; font-weight: 600; color: var(--accent);
+  display: inline-flex; align-items: center; gap: 7px; white-space: nowrap;
+}
+.csd-busy::before {
+  content: ''; width: 13px; height: 13px; flex-shrink: 0;
+  border: 2px solid var(--accent-pale); border-top-color: var(--accent);
+  border-radius: 50%; animation: csd-spin .7s linear infinite;
+}
+@keyframes csd-spin { to { transform: rotate(360deg); } }
 
 /* ── KPI STRIP: highlight ตัวเลขยอดขาย ── */
 .csd-kpi-grp {
@@ -55,6 +70,9 @@
 .csd-branch-card.is-dimmed:hover { opacity: .75; }
 .csd-card-pct { color: var(--text2); font-weight: 800; }
 .csd-branch-card .stat-value { font-size: 20px; }
+
+/* ── ป้ายเดือนต่อท้ายหัวข้อ section ── */
+.csd-title-month { color: var(--accent); font-weight: 600; font-size: 12.5px; }
 
 /* ── CHARTS ── */
 .csd-row2 {
