@@ -41,6 +41,19 @@ tr.row-pinned .event-name {
   font-weight: 700;
 }
 
+/* ── TODAY ROW (วันที่ปัจจุบัน) ── */
+tr.row-today {
+  background: #fff7ed !important;
+  box-shadow: inset 4px 0 0 #f97316;
+}
+tr.row-today:hover {
+  background: #ffedd5 !important;
+}
+tr.row-today .event-date-main {
+  font-weight: 700;
+  color: #ea580c;
+}
+
 /* ── PAGE TABS: shared in core/common.css (.page-tabs / .page-tab)
    .ev-tabs / .ev-tab = legacy aliases — ดู common.css ── */
 

@@ -62,6 +62,14 @@ function csdMonthLabel() {
 function updateMonthLabels() {
   document.querySelectorAll('.csd-title-month').forEach(el => { el.textContent = csdMonthLabel(); });
 }
+// ป้ายช่วงเวลาปัจจุบัน (สำหรับตัวเลื่อนล่าง) — อ่านง่ายตาม preset
+function csdPeriodText() {
+  const [fy, fm] = state.from.split('-').map(Number);
+  if (state.preset === 'year') return `ปี ${fy}`;
+  if (state.preset === 'month') return `${TH_MONTHS[fm - 1]} ${fy}`;
+  if (state.preset === 'today') return fmtDMY(state.from);
+  return state.from === state.to ? fmtDMY(state.from) : `${fmtDMY(state.from)} – ${fmtDMY(state.to)}`;
+}
 
 /* ── Supabase fetch ── */
 async function sbGet(path) {
@@ -119,7 +127,31 @@ const ChartZoomHoverFix = {
 if (typeof Chart !== 'undefined') Chart.register(ChartZoomHoverFix);
 
 /* ── state ── */
-let state = { from: startOfMonth(todayIso()), to: todayIso(), preset: 'month', group: 'ALL' };
+let state = { from: startOfMonth(todayIso()), to: todayIso(), preset: 'month', offset: 0, group: 'ALL' };
+
+// คำนวณช่วง from–to จากหน่วย (วัน/สัปดาห์/เดือน/ปี) + offset (0 = ปัจจุบัน, -1 = ย้อน 1, +1 = หน้า 1)
+function computePeriod(gran, offset) {
+  const today = todayIso();
+  offset = offset || 0;
+  if (gran === 'today') { const d = isoShift(today, offset); return { from: d, to: d }; }
+  if (gran === 'week') {
+    const from = startOfWeek(isoShift(today, offset * 7));
+    return { from, to: offset === 0 ? today : isoShift(from, 6) };
+  }
+  if (gran === 'month') {
+    const [y, m] = today.split('-').map(Number);
+    const dt = new Date(Date.UTC(y, m - 1 + offset, 1));
+    const yy = dt.getUTCFullYear(), mm = dt.getUTCMonth() + 1;
+    const from = `${yy}-${String(mm).padStart(2, '0')}-01`;
+    const last = new Date(Date.UTC(yy, mm, 0)).getUTCDate();
+    return { from, to: offset === 0 ? today : `${yy}-${String(mm).padStart(2, '0')}-${String(last).padStart(2, '0')}` };
+  }
+  if (gran === 'year') {
+    const y = Number(today.slice(0, 4)) + offset;
+    return { from: `${y}-01-01`, to: offset === 0 ? today : `${y}-12-31` };
+  }
+  return { from: today, to: today };
+}
 let charts = { branch: null, trend: null };
 let _lastData = null;   // เก็บบิล+payment ล่าสุด เพื่อ re-render ตอนสลับ filter สาขาโดยไม่ต้อง fetch ใหม่
 
@@ -149,21 +181,36 @@ function csdOnDateInput() {
   state.to = $('csdTo').value || state.from;
   if (state.from > state.to) { const t = state.from; state.from = state.to; state.to = t; $('csdFrom').value = state.from; $('csdTo').value = state.to; }
   state.preset = 'custom';
+  state.offset = 0;
   syncPresetChips();
   loadAll();
 }
 
 function csdSetPreset(preset, silent) {
-  const today = todayIso();
-  if (preset === 'today') { state.from = today; state.to = today; }
-  else if (preset === 'week') { state.from = startOfWeek(today); state.to = today; }
-  else if (preset === 'month') { state.from = startOfMonth(today); state.to = today; }
-  else if (preset === 'year') { state.from = startOfYear(today); state.to = today; }
   state.preset = preset;
+  state.offset = 0;                      // เลือกหน่วยใหม่ → กลับมาช่วงปัจจุบันเสมอ
+  const p = computePeriod(preset, 0);
+  state.from = p.from; state.to = p.to;
   $('csdFrom').value = state.from;
   $('csdTo').value = state.to;
   syncPresetChips();
   if (!silent) loadAll();
+}
+
+// ‹ / › เลื่อนช่วงไป-กลับ 1 หน่วยตาม preset ที่เลือก (custom = เลื่อนเท่าความกว้างช่วง)
+function csdShiftPeriod(dir) {
+  if (['today', 'week', 'month', 'year'].includes(state.preset)) {
+    state.offset = (state.offset || 0) + dir;
+    const p = computePeriod(state.preset, state.offset);
+    state.from = p.from; state.to = p.to;
+  } else {
+    const span = Math.round((Date.parse(state.to) - Date.parse(state.from)) / 86400000) + 1;
+    state.from = isoShift(state.from, dir * span);
+    state.to = isoShift(state.to, dir * span);
+  }
+  $('csdFrom').value = state.from;
+  $('csdTo').value = state.to;
+  loadAll();
 }
 
 function syncPresetChips() {
@@ -187,7 +234,10 @@ function renderBranchChips() {
 function csdSelectBranch(g) {
   state.group = g;
   renderBranchChips();
-  if (_lastData) render(_lastData.bills, _lastData.payMap);   // re-render จาก cache (ไม่ fetch ใหม่)
+  if (_lastData && _lastData.bills) {
+    renderSales(_lastData.bills);                              // re-render จาก cache (ไม่ fetch ใหม่)
+    if (_lastData.payMap) renderPay(_lastData.bills, _lastData.payMap);
+  }
 }
 
 /* ── แก้ไขกลุ่มสาขา (sync localStorage เดียวกับ Daily Sale) ── */
@@ -209,37 +259,58 @@ function csdGroupSave() {
 /* ============================================================
    LOAD
    ============================================================ */
+// PostgREST คืนสูงสุด 1000 แถว/request (max-rows) → ต้องดึงทีละหน้า (offset) จนครบ
+const SB_PAGE = 1000;
+// ดึงหน้าแรกพร้อมนับ total (count=exact) แล้วยิงหน้าที่เหลือ "ขนานกันทั้งหมด" → เร็วกว่าวนทีละหน้ามาก
+// ถ้าอ่าน Content-Range ไม่ได้ (CORS ไม่ expose) → fallback วน sequential (กันข้อมูลตกหล่น)
+async function sbGetAll(base) {
+  const res = await fetch(`${SB_URL}/rest/v1/${base}&limit=${SB_PAGE}&offset=0`, {
+    headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}`, Prefer: 'count=exact' },
+  });
+  if (!res.ok) throw new Error(`GET ${base} → ${res.status}`);
+  const first = await res.json();
+  if (first.length < SB_PAGE) return first;                          // หน้าเดียวจบ
+  const total = Number((res.headers.get('content-range') || '').split('/')[1]);
+  if (!Number.isFinite(total)) {                                     // อ่าน count ไม่ได้ → วนต่อทีละหน้า
+    const all = first.slice();
+    for (let offset = SB_PAGE, guard = 0; guard < 100; guard++, offset += SB_PAGE) {
+      const rows = await sbGet(`${base}&limit=${SB_PAGE}&offset=${offset}`);
+      all.push(...rows);
+      if (rows.length < SB_PAGE) break;
+    }
+    return all;
+  }
+  const pages = Math.ceil(total / SB_PAGE);                          // ยิงหน้าที่เหลือขนานกัน
+  const rest = await Promise.all(
+    Array.from({ length: pages - 1 }, (_, i) => sbGet(`${base}&limit=${SB_PAGE}&offset=${(i + 1) * SB_PAGE}`))
+  );
+  return first.concat(...rest);
+}
+
 async function fetchBills() {
   const { from, to } = state;
   const today = todayIso();
   const sel = 'select=amount,bill_type,bill_no,branch,receive_branch,sale_date,business_date';
-  let q;
-  if (to >= today) {
+  // order คงที่ (bill_no) เพื่อให้ paginate ด้วย offset ไม่ซ้ำ/ไม่ตกหล่น
+  const where = (to >= today)
     // ช่วงคลุมวันนี้ → รวมบิล pending (business_date = NULL) ด้วย
-    q = `daily_sale_bills?or=(and(business_date.gte.${from},business_date.lte.${to}),business_date.is.null)&${sel}&limit=20000`;
-  } else {
-    q = `daily_sale_bills?business_date=gte.${from}&business_date=lte.${to}&${sel}&limit=20000`;
-  }
-  let bills = await sbGet(q);
+    ? `or=(and(business_date.gte.${from},business_date.lte.${to}),business_date.is.null)`
+    : `business_date=gte.${from}&business_date=lte.${to}`;
+  const rows = await sbGetAll(`daily_sale_bills?${where}&${sel}&order=bill_no.asc`);
   // บิล pending (business_date = NULL) เก็บเฉพาะที่ sale_date อยู่ในช่วง
-  bills = bills.filter(b => {
+  return rows.filter(b => {
     if (b.business_date) return true;
     const d = String(b.sale_date || '').slice(0, 10);
     return d >= from && d <= to;
   });
-  return bills;
 }
 
-async function fetchPayments(bills) {
-  const map = {};
-  const nos = [...new Set(bills.map(b => b.bill_no).filter(Boolean))];
-  const FIELDS = 'select=bill_no,cash,front_office,online,kbank,ktb,ewallet,gift_voucher,qr_payment,commission_deduct,arp_amount';
-  for (let i = 0; i < nos.length; i += 200) {
-    const inl = nos.slice(i, i + 200).map(b => `"${b}"`).join(',');
-    const rows = await sbGet(`daily_sale_payments?bill_no=in.(${inl})&${FIELDS}`);
-    rows.forEach(p => { map[p.bill_no] = p; });
-  }
-  return map;
+// payments สำหรับตารางช่องทางชำระ — ดึงตามช่วง sale_date (paginate) แทนยิงทีละ 200 bill_no
+// เร็วกว่ามาก (5 requests แทน ~25) และไม่ต้องรอ bills → ยิงขนานกับ fetchBills ได้
+async function fetchPaymentRows() {
+  const FIELDS = 'select=bill_no,cash,front_office,online,kbank,ktb,ewallet,gift_voucher,qr_payment';
+  const from = isoShift(state.from, -3), to = isoShift(state.to, 3);   // เผื่อขอบวันเล็กน้อย
+  return sbGetAll(`daily_sale_payments?sale_date=gte.${from}&sale_date=lte.${to}&${FIELDS}&order=bill_no.asc`);
 }
 
 async function loadAll() {
@@ -251,11 +322,22 @@ async function loadAll() {
     ? fmtDMY(state.from)
     : `${fmtDMY(state.from)} – ${fmtDMY(state.to)}`;
   updateMonthLabels();
+  { const el = $('csdPeriodLabel'); if (el) el.textContent = csdPeriodText(); }
   try {
-    const bills = await fetchBills();
-    const payMap = await fetchPayments(bills);
-    _lastData = { bills, payMap };
-    render(bills, payMap);
+    // ยิง bills + payments พร้อมกัน (payments ดึงตามช่วงวันที่ ไม่ต้องรอ bills)
+    const billsP = fetchBills();
+    const payP = fetchPaymentRows().catch(e => { console.warn('payments load failed:', e); return []; });
+    const bills = await billsP;
+    _lastData = { bills, payMap: null };
+    renderSales(bills);                          // KPI/การ์ด/กราฟ แสดงทันทีที่ได้ bills
+    if (body) body.classList.remove('is-loading');
+    // เติมตารางช่องทางชำระเมื่อ payments มา (map เฉพาะบิลในชุด)
+    const payRows = await payP;
+    const need = new Set(bills.map(b => b.bill_no));
+    const payMap = {};
+    payRows.forEach(p => { if (need.has(p.bill_no)) payMap[p.bill_no] = p; });
+    _lastData.payMap = payMap;
+    renderPay(bills, payMap);
   } catch (e) {
     console.error('CS Dashboard load failed:', e);
     toast('โหลดข้อมูลไม่สำเร็จ: ' + e.message, 'error');
@@ -271,8 +353,10 @@ async function loadAll() {
 function blankChannels() { return { cash: 0, credit: 0, transfer: 0, ewallet: 0, gift: 0, qr: 0 }; }
 function blankAgg() { return { sales: 0, bills: 0, arp: 0, ew: 0, ch: blankChannels() }; }
 
-function render(bills, payMap) {
-  // aggregate ต่อกลุ่มสาขา
+let _agg = null;   // agg ล่าสุด (sales/bills/arp/ew) — renderPay เติม channel ต่อ
+
+// จาก bills อย่างเดียว: KPI · การ์ดสาขา · กราฟเทียบ · กราฟแนวโน้ม · โครงตาราง (ช่องทาง = 0 ก่อน)
+function renderSales(bills) {
   const agg = {}; GROUP_ORDER.forEach(g => agg[g] = blankAgg());
   // แกนเวลาของกราฟแนวโน้ม: ช่วงยาว (>62 วัน เช่น "ปีนี้") ย่อยเป็นรายเดือน · สั้นกว่านั้นรายวัน
   const monthly = enumerateDays(state.from, state.to).length > 62;
@@ -288,21 +372,34 @@ function render(bills, payMap) {
     A.sales += amt; A.bills++;
     const key = monthly ? effDate(b).slice(0, 7) : effDate(b);
     if (trend[g] && key in trend[g]) trend[g][key] += amt;
-    const p = payMap[b.bill_no] || {};
-    A.ch.cash     += Number(p.cash || 0);
-    A.ch.credit   += Number(p.front_office || 0) + Number(p.online || 0);
-    A.ch.transfer += Number(p.kbank || 0) + Number(p.ktb || 0);
-    A.ch.ewallet  += Number(p.ewallet || 0);
-    A.ch.gift     += Number(p.gift_voucher || 0);
-    A.ch.qr       += Number(p.qr_payment || 0);
   });
-
+  _agg = agg;
   const visible = state.group === 'ALL' ? GROUP_ORDER : [state.group];
-
   renderKPI(agg, visible);
   renderBranchCards(agg);
   renderBranchChart(agg);
   renderTrendChart(trend, buckets, visible, monthly);
+  renderPayTable(agg, visible);   // ยอดบิล/จำนวนบิล แสดงได้เลย · ช่องทาง = 0 (เติมใน renderPay)
+}
+
+// เติม channel sums จาก payments แล้ว re-render เฉพาะตารางช่องทางชำระ
+function renderPay(bills, payMap) {
+  const agg = _agg; if (!agg) return;
+  GROUP_ORDER.forEach(g => { if (agg[g]) agg[g].ch = blankChannels(); });
+  bills.forEach(b => {
+    if (isEwallet(b) || isRedemption(b)) return;   // เฉพาะบิลขายปกติ
+    const g = branchGroupOf(b);
+    if (!agg[g]) return;
+    const p = payMap[b.bill_no] || {};
+    const C = agg[g].ch;
+    C.cash     += Number(p.cash || 0);
+    C.credit   += Number(p.front_office || 0) + Number(p.online || 0);
+    C.transfer += Number(p.kbank || 0) + Number(p.ktb || 0);
+    C.ewallet  += Number(p.ewallet || 0);
+    C.gift     += Number(p.gift_voucher || 0);
+    C.qr       += Number(p.qr_payment || 0);
+  });
+  const visible = state.group === 'ALL' ? GROUP_ORDER : [state.group];
   renderPayTable(agg, visible);
 }
 

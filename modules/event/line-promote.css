@@ -161,6 +161,23 @@
   font-size: 28px;
   filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
 }
+.lp-event-header .lp-evt-icon--poster {
+  flex: 0 0 auto;
+  width: 56px;
+  height: 56px;
+  border-radius: 10px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.2);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  filter: none;
+}
+.lp-event-header .lp-evt-icon--poster img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  cursor: pointer;
+  display: block;
+}
 .lp-event-header .lp-evt-info {
   flex: 1;
   min-width: 0;
@@ -763,6 +780,42 @@
 
 .btn-icon-dim {
   opacity: 0.4;
+}
+
+/* ── ACTION BUTTONS (จัดการ column) ── */
+.action-group {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+.action-group .btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 8px;
+  background: #fff;
+  color: #475569;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.action-group .btn-icon:hover {
+  background: var(--accent-pale, #eff6ff);
+  border-color: #93c5fd;
+}
+.action-group .btn-icon.danger:hover {
+  background: #fef2f2;
+  border-color: #fca5a5;
 }
 
 /* ============================================================

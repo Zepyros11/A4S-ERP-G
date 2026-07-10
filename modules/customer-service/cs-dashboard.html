@@ -39,11 +39,15 @@
         <input type="date" class="form-control" id="csdTo" />
       </label>
     </div>
-    <div class="filter-chips" id="csdPresetChips">
-      <button class="filter-chip" data-preset="today"  onclick="csdSetPreset('today')">วันนี้</button>
-      <button class="filter-chip" data-preset="week"   onclick="csdSetPreset('week')">สัปดาห์นี้</button>
-      <button class="filter-chip" data-preset="month"  onclick="csdSetPreset('month')">เดือนนี้</button>
-      <button class="filter-chip" data-preset="year"   onclick="csdSetPreset('year')">ปีนี้</button>
+    <div class="csd-period-nav">
+      <button class="csd-nav-arrow" onclick="csdShiftPeriod(-1)" title="ย้อนกลับ 1 ช่วง" aria-label="ย้อนกลับ">‹</button>
+      <div class="filter-chips" id="csdPresetChips">
+        <button class="filter-chip" data-preset="today"  onclick="csdSetPreset('today')">วันนี้</button>
+        <button class="filter-chip" data-preset="week"   onclick="csdSetPreset('week')">สัปดาห์นี้</button>
+        <button class="filter-chip" data-preset="month"  onclick="csdSetPreset('month')">เดือนนี้</button>
+        <button class="filter-chip" data-preset="year"   onclick="csdSetPreset('year')">ปีนี้</button>
+      </div>
+      <button class="csd-nav-arrow" onclick="csdShiftPeriod(1)" title="ถัดไป 1 ช่วง" aria-label="ถัดไป">›</button>
     </div>
     <div id="csdBranchChips" class="csd-branch-chips" title="เลือกกลุ่มสาขาที่จะแสดง"></div>
     <div class="csd-filter-right">
@@ -66,6 +70,13 @@
 
   <!-- ── BRANCH CARDS (per group · clickable filter) ── -->
   <div class="kpi-row" id="csdBranchCards"></div>
+
+  <!-- ── ตัวเลื่อนช่วงเวลา (เหนือกราฟ) ── -->
+  <div class="csd-period-nav csd-period-nav-bottom">
+    <button class="csd-nav-arrow" onclick="csdShiftPeriod(-1)" title="ย้อนกลับ 1 ช่วง" aria-label="ย้อนกลับ">‹</button>
+    <span class="csd-period-label" id="csdPeriodLabel">—</span>
+    <button class="csd-nav-arrow" onclick="csdShiftPeriod(1)" title="ถัดไป 1 ช่วง" aria-label="ถัดไป">›</button>
+  </div>
 
   <!-- ── CHARTS: comparison + trend ── -->
   <div class="csd-row2">

@@ -41,7 +41,7 @@ async function fetchEvents() {
   return (
     sbFetch(
       "events",
-      `?select=event_id,event_name,event_code,event_date,end_date,start_time,end_time,location,line_group_ids&event_date=gte.${since}&order=event_date.asc&limit=500`,
+      `?select=event_id,event_name,event_code,event_date,end_date,start_time,end_time,location,line_group_ids,poster_url&event_date=gte.${since}&order=event_date.asc&limit=500`,
     ) || []
   );
 }
@@ -99,7 +99,7 @@ async function initPage() {
     // โหลด event เดียวที่ต้องใช้ + groups
     const evtRow = await sbFetch(
       "events",
-      `?event_id=eq.${parseInt(urlEventId)}&select=event_id,event_name,event_code,event_date,end_date,start_time,end_time,location,line_group_ids&limit=1`,
+      `?event_id=eq.${parseInt(urlEventId)}&select=event_id,event_name,event_code,event_date,end_date,start_time,end_time,location,line_group_ids,poster_url&limit=1`,
     );
     allEvents = evtRow || [];
     allGroups = await fetchLineGroups().catch((e) => {
@@ -168,8 +168,17 @@ function renderEventHeader() {
     ? `<span class="lp-evt-group-badge">📨 ${groupCount} กลุ่ม</span>`
     : `<span class="lp-evt-group-badge lp-evt-group-badge-empty">📨 ยังไม่ผูกกลุ่ม</span>`;
 
+  const posterUrl = currentEvent.poster_url || "";
+  const iconCell = posterUrl
+    ? `<div class="lp-evt-icon lp-evt-icon--poster">
+         <img src="${escapeHtml(posterUrl)}" alt="${escapeHtml(currentEvent.event_name || "")}" loading="lazy"
+           onclick="window.open('${escapeHtml(posterUrl)}','_blank')"
+           onerror="this.parentElement.classList.remove('lp-evt-icon--poster');this.parentElement.innerHTML='📢'" />
+       </div>`
+    : `<div class="lp-evt-icon">📢</div>`;
+
   el.innerHTML = `
-    <div class="lp-evt-icon">📢</div>
+    ${iconCell}
     <div class="lp-evt-info">
       <div class="lp-evt-name">${escapeHtml(currentEvent.event_name || "")}</div>
       <div class="lp-evt-meta">${meta}</div>
@@ -318,7 +327,6 @@ function renderTable() {
       const hasScheduled = siblings.some((s) => s.status === "SCHEDULED");
       const hasFailed = siblings.some((s) => s.status === "FAILED");
       const hasCancelled = siblings.some((s) => s.status === "CANCELLED");
-      const hasSentOrCancelled = siblings.some((s) => s.status === "SENT" || s.status === "CANCELLED");
       const canEdit = siblings.some((s) => s.status === "SCHEDULED" || s.status === "DRAFT");
 
       const checkedCount = ids.filter((id) => _selectedPostIds.has(id)).length;
@@ -344,7 +352,7 @@ function renderTable() {
             ${canEdit ? `<button class="btn-icon" data-perm="line_promote_edit" onclick="window.openLpModal(${p.id})" title="แก้ไข">✏️</button>` : ""}
             ${hasScheduled ? `<button class="btn-icon danger" data-perm="line_promote_cancel" onclick="window.cancelLpPost(${p.id})" title="ยกเลิก">🚫</button>` : ""}
             ${hasFailed ? `<button class="btn-icon" data-perm="line_promote_edit" onclick="window.retryLpPost(${p.id})" title="ลองใหม่">🔄</button>` : ""}
-            ${hasSentOrCancelled ? `<button class="btn-icon" data-perm="line_promote_edit" onclick="window.cloneLpPost(${p.id})" title="สร้างซ้ำ (clone เป็นโพสต์ใหม่)">📋</button>` : ""}
+            <button class="btn-icon" data-perm="line_promote_edit" onclick="window.cloneLpPost(${p.id})" title="Duplicate (สร้างซ้ำเป็นโพสต์ใหม่)">📋</button>
             ${hasCancelled ? `<button class="btn-icon" data-perm="line_promote_edit" onclick="window.reactivateLpPost(${p.id})" title="ใช้งานใหม่ (กลับเป็น SCHEDULED)">↩️</button>` : ""}
             <button class="btn-icon danger" data-perm="line_promote_cancel" onclick="window.deleteLpPost(${p.id})" title="ลบทิ้งถาวร">🗑</button>
           </div>

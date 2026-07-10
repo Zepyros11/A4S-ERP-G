@@ -879,8 +879,11 @@ function renderTable(events) {
       const unreadRowClass = unread > 0 ? " row-has-unread" : "";
       const pinned = isPinned(e.event_id);
       const pinnedRowClass = pinned ? " row-pinned" : "";
+      const eventEnd = e.end_date || e.event_date;
+      const isToday = e.event_date <= today && today <= eventEnd;
+      const todayRowClass = isToday ? " row-today" : "";
 
-      return `<tr class="${rowClass}${unreadRowClass}${pinnedRowClass}" onclick="window.openBadgePopup(${e.event_id})" style="cursor:pointer">
+      return `<tr class="${rowClass}${unreadRowClass}${pinnedRowClass}${todayRowClass}" onclick="window.openBadgePopup(${e.event_id})" style="cursor:pointer">
       <td class="r-card-corner" style="text-align:center" onclick="event.stopPropagation()">
         <input type="checkbox" class="row-check" value="${e.event_id}" onchange="window.updateDeleteButton()">
       </td>
