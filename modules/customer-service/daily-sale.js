@@ -1580,11 +1580,18 @@ function dsSyncModalOpen() {
   // reset โหมด → ยังไม่ปิดรอบ
   const r = document.querySelector('input[name="dsCloseMode"][value="open"]');
   if (r) { r.checked = true; dsCloseModeSel(r); }
+  // reset โหมดทับข้อมูล → เก็บการเปลี่ยนแปลง (default ปลอดภัย)
+  const k = document.querySelector('input[name="dsMergeMode"][value="keep"]');
+  if (k) { k.checked = true; dsMergeModeSel(); }
   $('dsSyncOverlay').classList.add('open');
 }
 // ไฮไลต์ตัวเลือกที่เลือก (open/close)
 function dsCloseModeSel() {
   document.querySelectorAll('input[name="dsCloseMode"]').forEach(x => x.closest('.ds-close-opt')?.classList.toggle('on', x.checked));
+}
+// ไฮไลต์ตัวเลือกโหมดทับข้อมูล (keep/restore)
+function dsMergeModeSel() {
+  document.querySelectorAll('input[name="dsMergeMode"]').forEach(x => x.closest('.ds-close-opt')?.classList.toggle('on', x.checked));
 }
 function dsSyncModalClose() { $('dsSyncOverlay').classList.remove('open'); }
 
@@ -1606,6 +1613,8 @@ async function dsSyncNow() {
   if (from > to) { toast('วันที่เริ่มต้องไม่เกินวันที่สิ้นสุด', 'error'); return; }
 
   const closeMode = document.querySelector('input[name="dsCloseMode"]:checked')?.value === 'close';
+  // restore = ล้าง corrected แล้วให้ sync ทับทั้งหมด · keep = ไม่ล้าง → คงค่าที่ CS แก้ไว้
+  const restoreAll = document.querySelector('input[name="dsMergeMode"]:checked')?.value === 'restore';
 
   dsSyncModalClose();
   showLoading(true);
@@ -1619,14 +1628,17 @@ async function dsSyncNow() {
       } catch (e) { toast('ปิดรอบไม่สำเร็จ: ' + e.message, 'error'); }
     }
 
-    // ล้าง corrected ของบิล sync (ที่ CS แก้/ลบ) เฉพาะช่วงที่จะดึง
+    // ล้าง corrected ของบิล sync (ที่ CS แก้/ลบ) เฉพาะช่วงที่จะดึง — เฉพาะโหมด "คืนค่าเดิม"
     // → sync download ทับ aggregate ใหม่ → trigger 030 derive split สด · ไม่แตะบิล import DATA_CS
-    try {
-      await sbPatch(
-        `daily_sale_payments?corrected=eq.true&source_file=neq.DATA_CS-import&sale_date=gte.${from}&sale_date=lte.${to}`,
-        { corrected: false, corrected_by: null, corrected_at: null }
-      );
-    } catch (e) { console.warn('reset corrected before sync:', e.message); }
+    // โหมด "เก็บการเปลี่ยนแปลง" (default) จะข้ามขั้นนี้ → corrected=true คงอยู่ → sync ไม่ทับที่แก้เอง
+    if (restoreAll) {
+      try {
+        await sbPatch(
+          `daily_sale_payments?corrected=eq.true&source_file=neq.DATA_CS-import&sale_date=gte.${from}&sale_date=lte.${to}`,
+          { corrected: false, corrected_by: null, corrected_at: null }
+        );
+      } catch (e) { console.warn('reset corrected before sync:', e.message); }
+    }
 
     const pat = await ERPCrypto.decrypt(c.github_pat_encrypted);
     if (!pat) throw new Error('decrypt PAT failed');

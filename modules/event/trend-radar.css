@@ -117,6 +117,45 @@
   border: 1px solid var(--accent-soft-border, rgba(80,140,90,.25));
   padding: 3px 8px; border-radius: 999px;
 }
+
+/* ── แฮชแท็กมาแรง (เลือกหัวข้อได้) ── */
+.tr-htag-filter {
+  margin-left: auto; font-size: .8rem; color: var(--text); background: var(--surface);
+  border: 1px solid var(--border); border-radius: 8px; padding: 5px 10px; cursor: pointer;
+  max-width: 220px;
+}
+.tr-htag-filter:focus { outline: none; border-color: var(--accent); }
+.tr-copyall-btn {
+  font-size: .78rem; font-weight: 600; color: var(--accent);
+  background: var(--accent-pale); border: 1px solid var(--accent-soft-border, transparent);
+  padding: 5px 12px; border-radius: 999px; cursor: pointer;
+  transition: background .12s ease, transform .12s ease;
+}
+.tr-copyall-btn:hover { transform: translateY(-1px); filter: brightness(.97); }
+.tr-htag-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 12px;
+}
+.tr-htag {
+  display: flex; align-items: center; gap: 10px; text-align: left;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 12px; padding: 12px 14px; cursor: pointer; font: inherit;
+  transition: border-color .12s ease, box-shadow .12s ease, transform .12s ease;
+}
+.tr-htag:hover { border-color: var(--accent); box-shadow: var(--shadow-soft-md, var(--shadow)); transform: translateY(-2px); }
+.tr-htag-rank {
+  flex: 0 0 auto; font-family: "IBM Plex Mono", monospace; font-weight: 700;
+  font-size: .74rem; color: var(--text3);
+}
+.tr-htag-rank.top1 { color: #e8ab00; }
+.tr-htag-rank.top2 { color: #9aa0aa; }
+.tr-htag-rank.top3 { color: #cf8347; }
+.tr-htag-tag {
+  flex: 1 1 auto; min-width: 0; font-weight: 600; font-size: .92rem; color: var(--accent);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.tr-htag-traffic { flex: 0 0 auto; font-size: .72rem; color: var(--text3); }
 .tr-yt-row-channel { color: var(--accent); text-decoration: none; }
 .tr-yt-row-channel:hover { text-decoration: underline; }
 .tr-yt-row-actions { flex: 0 0 auto; display: flex; gap: 6px; align-items: center; }

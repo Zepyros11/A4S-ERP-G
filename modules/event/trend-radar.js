@@ -174,6 +174,106 @@ function renderTrending() {
   }).join("");
 }
 
+/* ── Section: แฮชแท็กมาแรง (เลือกหัวข้อได้ · default = สุขภาพ/ความงาม) ──
+   🌐 ทั่วไป = คำค้น Google Trends → #แฮชแท็ก · หัวข้อ = ดึงจากคลิป+ข่าวของหัวข้อนั้น */
+let TREND_TAGS = [];        // รายการแฮชแท็กที่แสดงอยู่ (ใช้ copy)
+let HTAG_FILTER = null;     // null = ยังไม่เลือก (จะตั้ง default), -1 = ทั่วไป, >=0 = index หัวข้อ
+
+/* คำค้น → #แฮชแท็ก: ตัดช่องว่าง/เครื่องหมาย เหลือ ไทย/อังกฤษ/เลข แล้วเติม # */
+function queryToHashtag(q) {
+  const core = String(q || "").replace(/[^0-9A-Za-z฀-๿]+/g, "");
+  return core ? "#" + core : "";
+}
+/* หา index หัวข้อ "สุขภาพ/ความงาม" ไว้ตั้งเป็น default */
+function htagBeautyIndex() {
+  return ((LAST && LAST.topics) || []).findIndex(t => /ความงาม|สวยงาม|beauty|สุขภาพ/i.test(t.label || ""));
+}
+/* ทั่วไป: แปลงคำค้น Google Trends เป็นแฮชแท็ก */
+function trendsHashtags() {
+  const seen = new Set(), out = [];
+  for (const t of (LAST && LAST.trending) || []) {
+    const tag = queryToHashtag(t.title);
+    const key = tag.toLowerCase();
+    if (tag.length > 1 && !seen.has(key)) {
+      seen.add(key);
+      out.push({ tag, badge: t.traffic ? `🔎 ${t.traffic}` : "", tip: `จากคำค้น: ${t.title}` });
+    }
+  }
+  return out;
+}
+/* หัวข้อ: รวมแฮชแท็กจากชื่อคลิป + ข่าวของหัวข้อ แล้วเรียงตามที่พบบ่อย */
+function topicHashtags(t) {
+  const map = new Map();
+  const add = (title) => {
+    for (const tag of extractHashtags(title)) {
+      const k = tag.toLowerCase();
+      const e = map.get(k) || { tag, n: 0 };
+      e.n++; map.set(k, e);
+    }
+  };
+  (t.videos || []).forEach(v => add(v.title));
+  (t.items || []).forEach(n => add(n.title));
+  return [...map.values()]
+    .sort((a, b) => b.n - a.n)
+    .slice(0, 30)
+    .map(e => ({ tag: e.tag, badge: e.n > 1 ? `×${e.n}` : "", tip: `พบใน ${e.n} คลิป/ข่าว ของหัวข้อ ${t.label}` }));
+}
+
+function renderTrendTags() {
+  const sec = document.getElementById("trendTagsSection");
+  const grid = document.getElementById("trendTagsGrid");
+  const topics = (LAST && LAST.topics) || [];
+  const hasTrending = (((LAST && LAST.trending) || []).length) > 0;
+  if (!hasTrending && !topics.length) { sec.style.display = "none"; return; }
+
+  // ตั้ง default ครั้งแรก = สุขภาพ/ความงาม ถ้ามี ไม่งั้น 🌐 ทั่วไป
+  if (HTAG_FILTER === null) { const bi = htagBeautyIndex(); HTAG_FILTER = bi >= 0 ? bi : -1; }
+  if (HTAG_FILTER >= topics.length) HTAG_FILTER = -1;              // หัวข้อถูกลบ → กลับไปทั่วไป
+  if (HTAG_FILTER < 0 && !hasTrending && topics.length) HTAG_FILTER = 0;  // ไม่มี trends → ใช้หัวข้อแรก
+
+  // เติมตัวเลือก filter (ทั่วไป + ทุกหัวข้อที่ติดตาม)
+  const sel = document.getElementById("htagFilter");
+  sel.innerHTML = `<option value="-1">🌐 ทั่วไป (Google Trends)</option>` +
+    topics.map((t, i) => `<option value="${i}">${esc(t.label)}</option>`).join("");
+  sel.value = String(HTAG_FILTER);
+
+  // สร้างแฮชแท็กตามตัวเลือก
+  let subText;
+  if (HTAG_FILTER < 0) {
+    TREND_TAGS = trendsHashtags();
+    subText = "คำที่คนไทยค้นหามากสุดตอนนี้ · จาก Google Trends · คลิกเพื่อคัดลอก";
+  } else {
+    TREND_TAGS = topicHashtags(topics[HTAG_FILTER]);
+    subText = `จากคลิป + ข่าวในหัวข้อ “${topics[HTAG_FILTER].label}” · เรียงตามที่พบบ่อย · คลิกเพื่อคัดลอก`;
+  }
+  document.getElementById("htagSub").textContent = subText;
+  sec.style.display = "";
+
+  if (!TREND_TAGS.length) {
+    grid.innerHTML = `<div class="tr-empty tr-empty-sm">ไม่พบแฮชแท็กในหัวข้อนี้ — ลองหัวข้ออื่น หรือ 🌐 ทั่วไป</div>`;
+    return;
+  }
+  grid.innerHTML = TREND_TAGS.map((t, i) => {
+    const rankCls = i < 3 ? ` top${i + 1}` : "";
+    return `
+      <button class="tr-htag" onclick="copyTrendTag(${i})" title="คลิกเพื่อคัดลอก · ${esc(t.tip)}">
+        <span class="tr-htag-rank${rankCls}">#${i + 1}</span>
+        <span class="tr-htag-tag">${esc(t.tag)}</span>
+        ${t.badge ? `<span class="tr-htag-traffic">${esc(t.badge)}</span>` : ""}
+      </button>`;
+  }).join("");
+}
+function onHtagFilterChange() {
+  const v = parseInt(document.getElementById("htagFilter").value, 10);
+  HTAG_FILTER = Number.isNaN(v) ? -1 : v;
+  renderTrendTags();
+}
+function copyTrendTag(i) { const t = TREND_TAGS[i]; if (t) copyText(t.tag); }
+function copyAllTrendTags() {
+  if (!TREND_TAGS.length) return showToast("ยังไม่มีแฮชแท็ก", "error");
+  copyText(TREND_TAGS.map(t => t.tag).join(" "));
+}
+
 /* หยิบข้อมูลจาก LAST ด้วย index (เลี่ยงยัด text เข้า onclick → กัน quote/apostrophe พัง) */
 function ideaFromTrend(i) {
   const t = (LAST.trending || [])[i];
@@ -236,9 +336,11 @@ function renderActiveView() {
   document.getElementById("trendingSection").style.display = isOverview ? "" : "none";
   if (isOverview) {
     renderOverviewClips();               // รวมคลิปเด่นทุกหัวข้อ (โชว์/ซ่อนเองตามว่ามีข้อมูลไหม)
+    renderTrendTags();                   // แฮชแท็กมาแรงในไทย (จาก Google Trends · โชว์/ซ่อนเองตามว่ามีข้อมูลไหม)
     renderMarketing();                   // เทรนด์การตลาด/คอนเทนต์
   } else {
     document.getElementById("ytChartSection").style.display = "none";
+    document.getElementById("trendTagsSection").style.display = "none";
     document.getElementById("marketingSection").style.display = "none";
     const t = (LAST.topics || [])[ACTIVE_TAB];
     const title = document.getElementById("topicSectionTitle");
@@ -283,12 +385,30 @@ function youtubeSection(t) {
   return `<div class="tr-yt-list">${rows}</div>`;
 }
 
-/* ดึง #แท็ก ที่ฝังมาในชื่อคลิปเอง (รองรับไทย/อังกฤษ/ตัวเลข) */
+/* คำที่ไม่เอามาทำ hashtag (ไทย = คำเชื่อม/สรรพนามทั่วไป, อังกฤษ = คำฟิลเลอร์/มาร์กเกอร์) */
+const TAG_STOPWORDS = new Set([
+  "eng","sub","ep","live","official","the","and","or","for","with","a","an","of","in","to","on","is","by","vs",
+  "ที่","และ","หรือ","ใน","ของ","กับ","ให้","ได้","ไม่","จะ","ก็","แล้ว","เป็น","มี","การ","ความ","นี้","นั้น",
+  "ว่า","จาก","ถึง","เมื่อ","ทุก","คุณ","เรา","มา","ไป","อยู่","ยัง","แต่","งบ","วัย","ปี","อีก","แค่",
+]);
+
+/* สร้าง #แท็ก จากคำในชื่อคลิปเอง (ตัดคำ · ทิ้งเลข/คำเชื่อม/ประโยคยาว · ไม่เรียก AI) */
 function extractHashtags(title) {
-  const m = String(title || "").match(/#[0-9A-Za-z_฀-๿]+/g);
-  if (!m) return [];
+  let s = String(title || "");
+  s = s.replace(/[\[\(][^\]\)]*[\]\)]/g, " ");        // ตัดข้อความในวงเล็บ เช่น [ENG SUB]
+  s = s.replace(/[^0-9A-Za-z฀-๿ ]+/g, " ");            // เหลือเฉพาะ ไทย/อังกฤษ/เลข + ช่องว่าง
+  const words = s.split(/\s+/).map(w => w.trim()).filter(Boolean);
   const seen = new Set(), out = [];
-  for (const h of m) { const k = h.toLowerCase(); if (!seen.has(k)) { seen.add(k); out.push(h); } }
+  for (const w of words) {
+    if (out.length >= 5) break;
+    const lower = w.toLowerCase();
+    if (/^\d+$/.test(w)) continue;                     // ตัวเลขล้วน
+    if (w.length < 3 || w.length > 30) continue;       // สั้นไป / ยาวเป็นประโยค
+    if (TAG_STOPWORDS.has(lower)) continue;
+    if (seen.has(lower)) continue;
+    seen.add(lower);
+    out.push("#" + w);
+  }
   return out;
 }
 

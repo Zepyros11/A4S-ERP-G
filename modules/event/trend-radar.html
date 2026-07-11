@@ -93,6 +93,17 @@
       <div id="marketingBody"></div>
     </div>
 
+    <!-- โหมดภาพรวม: แฮชแท็กมาแรง (เลือกหัวข้อได้ · default สุขภาพ/ความงาม) -->
+    <div class="tr-section" id="trendTagsSection" style="display:none">
+      <div class="tr-section-hdr">
+        <h2 class="tr-section-title">🔥 แฮชแท็กมาแรง</h2>
+        <span class="tr-section-sub" id="htagSub">คลิกเพื่อคัดลอก</span>
+        <select id="htagFilter" class="tr-htag-filter" onchange="onHtagFilterChange()" title="เลือกหัวข้อ"></select>
+        <button class="tr-copyall-btn" onclick="copyAllTrendTags()" title="คัดลอกแฮชแท็กทั้งหมด">📋 คัดลอกทั้งหมด</button>
+      </div>
+      <div id="trendTagsGrid" class="tr-htag-grid"></div>
+    </div>
+
     <!-- โหมดภาพรวม: Google Trends (ทั้งประเทศ) -->
     <div class="tr-section" id="trendingSection" style="display:none">
       <div class="tr-section-hdr">
