@@ -283,6 +283,15 @@ function youtubeSection(t) {
   return `<div class="tr-yt-list">${rows}</div>`;
 }
 
+/* ดึง #แท็ก ที่ฝังมาในชื่อคลิปเอง (รองรับไทย/อังกฤษ/ตัวเลข) */
+function extractHashtags(title) {
+  const m = String(title || "").match(/#[0-9A-Za-z_฀-๿]+/g);
+  if (!m) return [];
+  const seen = new Set(), out = [];
+  for (const h of m) { const k = h.toLowerCase(); if (!seen.has(k)) { seen.add(k); out.push(h); } }
+  return out;
+}
+
 /* แถวคลิป YouTube แบบ list กระชับ (thumbnail เล็ก · ใช้ร่วม per-topic + chart) */
 function ytRowHtml(v, rank, ideaCall, tagCall) {
   const rankCls = rank <= 3 ? ` top${rank}` : "";
@@ -295,15 +304,17 @@ function ytRowHtml(v, rank, ideaCall, tagCall) {
          <button class="tr-tag-btn sm" onclick="${tagCall}" title="hashtag แนะนำ">🏷️</button>
        </div>`
     : "";
+  const tags = extractHashtags(v.title);
+  const tagsRow = tags.length
+    ? `<div class="tr-yt-row-tags">${tags.map(h => `<span class="tr-yt-tag">${esc(h)}</span>`).join("")}</div>`
+    : "";
   return `
     <div class="tr-yt-row">
       <span class="tr-yt-row-rank${rankCls}">#${rank}</span>
-      <a class="tr-yt-row-thumb"${v.thumb ? ` style="background-image:url('${esc(v.thumb)}')"` : ""} href="${esc(v.url)}" target="_blank" rel="noopener" title="เปิดวิดีโอ">
-        <span class="tr-yt-row-views">👁 ${formatViews(v.views)}</span>
-      </a>
       <div class="tr-yt-row-main">
         <a class="tr-yt-row-title" href="${esc(v.url)}" target="_blank" rel="noopener">${esc(v.title)}</a>
-        <div class="tr-yt-row-meta">${channel}</div>
+        <div class="tr-yt-row-meta">${channel}<span class="tr-yt-row-views-inline">👁 ${formatViews(v.views)}</span></div>
+        ${tagsRow}
       </div>
       ${actions}
     </div>`;
