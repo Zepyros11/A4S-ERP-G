@@ -110,29 +110,60 @@ async function loadPlaces() {
 
     const input = document.getElementById("fLocation");
     const dropdown = document.getElementById("locationDropdown");
-    if (!input || !dropdown) return;
+    const chipsBox = document.getElementById("locationChips");
+    if (!input || !dropdown || !chipsBox) return;
 
-    let confirmedValue = input.value || "";
+    const SEP = " | ";
+    const escapeHtml = (s) =>
+      String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+    const parseValue = (v) =>
+      (v || "").split(SEP).map((s) => s.trim()).filter(Boolean);
+
+    // รายชื่อสถานที่ที่เลือกไว้ (หลายที่ได้)
+    let selected = parseValue(input.value);
 
     window._setConfirmedLocation = (v) => {
-      confirmedValue = v || "";
-      input.value = confirmedValue;
-      updateClearBtn();
+      selected = parseValue(v);
+      input.value = "";
+      renderChips();
     };
 
-    window._getConfirmedLocation = () => confirmedValue || null;
-
-    function updateClearBtn() {
-      const btn = document.getElementById("btnClearLocation");
-      if (btn) btn.style.display = confirmedValue ? "block" : "none";
-    }
+    window._getConfirmedLocation = () => (selected.length ? selected.join(SEP) : null);
 
     window._clearLocation = function () {
-      confirmedValue = "";
+      selected = [];
       input.value = "";
       dropdown.style.display = "none";
-      updateClearBtn();
+      renderChips();
     };
+
+    function renderChips() {
+      chipsBox.innerHTML = selected
+        .map(
+          (name, i) => `
+          <span class="ef-loc-chip">
+            <span class="ef-loc-chip-name">${escapeHtml(name)}</span>
+            <button type="button" class="ef-loc-chip-x" data-i="${i}" title="ลบ">✕</button>
+          </span>`,
+        )
+        .join("");
+      chipsBox.querySelectorAll(".ef-loc-chip-x").forEach((b) => {
+        b.addEventListener("mousedown", (e) => {
+          e.preventDefault();
+          selected.splice(parseInt(b.dataset.i), 1);
+          renderChips();
+        });
+      });
+    }
+
+    function addLocation(name) {
+      if (!name) return;
+      if (!selected.includes(name)) selected.push(name);
+      input.value = "";
+      renderChips();
+      renderDropdown(""); // refresh เครื่องหมายถูกในรายการ
+      input.focus();
+    }
 
     function renderDropdown(keyword) {
       const kw = (keyword || "").toLowerCase();
@@ -170,25 +201,30 @@ async function loadPlaces() {
             </div>`;
           // sub-rooms
           pRooms.forEach((r) => {
+            const nm = `${p.place_name} — ${r.room_name}`;
+            const on = selected.includes(nm);
             html += `
-              <div class="ef-loc-item ef-loc-subroom" data-name="${p.place_name} — ${r.room_name}">
+              <div class="ef-loc-item ef-loc-subroom${on ? " ef-loc-selected" : ""}" data-name="${escapeHtml(nm)}">
                 <div class="ef-loc-icon" style="font-size:16px">🚪</div>
                 <div class="ef-loc-info">
                   <div class="ef-loc-name">${r.room_name}</div>
                 </div>
                 ${r.capacity ? `<div class="ef-loc-cap">👥 ${r.capacity}</div>` : ""}
+                ${on ? `<div class="ef-loc-check">✓</div>` : ""}
               </div>`;
           });
         } else {
           // place without rooms (clickable directly)
+          const on = selected.includes(p.place_name);
           html += `
-            <div class="ef-loc-item" data-name="${p.place_name}">
+            <div class="ef-loc-item${on ? " ef-loc-selected" : ""}" data-name="${escapeHtml(p.place_name)}">
               <div class="ef-loc-icon">${thumb}</div>
               <div class="ef-loc-info">
                 <div class="ef-loc-name">${p.place_name}</div>
                 ${p.address ? `<div class="ef-loc-addr">${p.address}</div>` : ""}
               </div>
               ${p.capacity ? `<div class="ef-loc-cap">👥 ${p.capacity.toLocaleString()}</div>` : ""}
+              ${on ? `<div class="ef-loc-check">✓</div>` : ""}
             </div>`;
         }
       });
@@ -199,39 +235,46 @@ async function loadPlaces() {
       dropdown.querySelectorAll(".ef-loc-item").forEach((el) => {
         el.addEventListener("mousedown", (e) => {
           e.preventDefault();
-          confirmedValue = el.dataset.name;
-          input.value = confirmedValue;
-          dropdown.style.display = "none";
-          updateClearBtn();
+          const nm = el.dataset.name;
+          // คลิกซ้ำ = สลับออก (ยกเลิกเลือก)
+          if (selected.includes(nm)) {
+            selected = selected.filter((s) => s !== nm);
+            renderChips();
+            renderDropdown(input.value.trim());
+            input.focus();
+          } else {
+            addLocation(nm);
+          }
         });
       });
     }
 
+    // คลิกที่ว่างในกล่อง = โฟกัสช่องค้นหา
+    const control = document.getElementById("locationControl");
+    if (control) {
+      control.addEventListener("mousedown", (e) => {
+        if (e.target === control || e.target === chipsBox) {
+          e.preventDefault();
+          input.focus();
+        }
+      });
+    }
+
     input.addEventListener("focus", () => {
-      input.select();
-      // แสดง dropdown เฉพาะเมื่อพิมพ์แล้ว หรือมี <= 5 สถานที่
-      if (activePlaces.length <= 5) {
-        renderDropdown("");
-      } else {
-        dropdown.style.display = "none";
-      }
+      // แสดงรายการสถานที่ทั้งหมดทุกครั้งที่โฟกัส (ให้เลือกได้หลายที่)
+      renderDropdown(input.value.trim());
     });
     input.addEventListener("input", () => {
-      const q = input.value.trim();
-      if (q.length >= 1) {
-        renderDropdown(q);
-      } else {
-        dropdown.style.display = "none";
-      }
+      renderDropdown(input.value.trim());
     });
     input.addEventListener("blur", () => {
       setTimeout(() => {
-        input.value = confirmedValue;
+        input.value = "";
         dropdown.style.display = "none";
       }, 150);
     });
 
-    updateClearBtn();
+    renderChips();
   } catch (e) {
     console.error("โหลดสถานที่ไม่ได้", e);
   }

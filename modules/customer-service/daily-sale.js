@@ -436,7 +436,7 @@ function fillSaleTable(cfg, list, pMap, canEdit) {
         <td>${fmtDMY(b.sale_date)}</td>
         <td><span class="ds-bill-no">${b.bill_no}</span></td>
         <td>${b.member_code || ''}</td>
-        <td>${(b.member_name || '').slice(0, 40)}</td>
+        ${dsNameCell(b)}
         ${nf ? '' : `${hide.has('cash') ? '' : pc('cash', 'ds-col-cash', p.cash)}
         ${pc('front_office', 'ds-col-cc', p.front_office)}
         ${pc('online', 'ds-col-cc', p.online)}
@@ -477,6 +477,33 @@ async function fetchPaymentsMap(billNos) {
   return pMap;
 }
 
+/* ── member lookup — บิลที่ชื่อเป็นบริษัท (นิติบุคคล) จะมีชื่อบุคคลจริงใน members.full_name
+   โชว์ตอน hover + ลิงก์ไปหน้าสมาชิก · รหัสในบิลมี 0 นำหน้า แต่ตาราง members ไม่มี → ตัด 0 ── */
+let dsMemberMap = {};
+function memCanon(code) { const s = String(code || '').trim(); return s.replace(/^0+/, '') || s; }
+async function fetchMemberNames(codes) {
+  const map = {};
+  const canon = [...new Set((codes || []).map(memCanon).filter(Boolean))];
+  for (let i = 0; i < canon.length; i += 200) {
+    const inl = canon.slice(i, i + 200).map(c => `"${c}"`).join(',');
+    try {
+      const rows = await sbGet(`members?member_code=in.(${inl})&select=member_code,member_name,full_name`);
+      rows.forEach(m => { map[m.member_code] = m; });
+    } catch { /* ไม่มีสิทธิ์อ่าน members → ข้าม (ชื่อยังโชว์ปกติ) */ }
+  }
+  return map;
+}
+// เซลล์ชื่อ (<td>) — มี full_name ที่ต่างจากชื่อบิล (= บริษัทที่มีชื่อบุคคล) → hover โชว์ชื่อบุคคล (ไม่ลิงก์)
+function dsNameCell(b) {
+  const shown = (b.member_name || '').slice(0, 40);
+  const m = dsMemberMap[memCanon(b.member_code)];
+  const person = m && m.full_name ? String(m.full_name).trim() : '';
+  if (person && person !== String(b.member_name || '').trim()) {
+    return `<td><span class="ds-mem-link" title="👤 ${escHtml(person)}">${escHtml(shown)}</span></td>`;
+  }
+  return `<td>${escHtml(shown)}</td>`;
+}
+
 async function loadSale() {
   const canEdit = window.hasPerm ? hasPerm('daily_sale_reconcile') : true;
   const wrap = $('dsSaleTables');
@@ -494,7 +521,11 @@ async function loadSale() {
     const grp = state.branchGroup || 'ALL';
     const visible = scoped.filter(b => grp === 'ALL' || branchGroupOf(b) === grp);
 
-    const pMap = visible.length ? await fetchPaymentsMap(visible.map(b => b.bill_no)) : {};
+    const [pMap, memMap] = await Promise.all([
+      visible.length ? fetchPaymentsMap(visible.map(b => b.bill_no)) : Promise.resolve({}),
+      visible.length ? fetchMemberNames(visible.map(b => b.member_code)) : Promise.resolve({}),
+    ]);
+    dsMemberMap = memMap;
 
     const groups = { sale: [], arp: [], ewallet: [] };
     visible.forEach(b => groups[billGroup(b)].push(b));
@@ -558,7 +589,7 @@ async function dsSignoffSave() {
   } catch (e) { toast('บันทึกไม่สำเร็จ: ' + e.message, 'error'); }
 }
 
-/* ── Export Excel (.xls) รูปแบบ + สี เหมือนชีท DailySaleCS (HTML-table → Excel) ── */
+/* ── Export Excel วัน (.xls) — 3 ชีต: Daily Sale · บิลออนไลน์ · ตรวจบิล (SpreadsheetML สี+merge จริง) ── */
 async function dsExportExcel() {
   const group = state.branchGroup || 'ALL';
   const groupLabel = group === 'ALL' ? 'ทั้งหมด' : group;
@@ -567,83 +598,30 @@ async function dsExportExcel() {
     const bills = await sbGet(`daily_sale_bills?${dateFilter()}&limit=5000`);
     const scoped = bills.filter(b => group === 'ALL' || branchGroupOf(b) === group).sort(saleSort);
     const pMap = scoped.length ? await fetchPaymentsMap(scoped.map(b => b.bill_no)) : {};
-    const groups = { sale: [], arp: [], ewallet: [] };
-    scoped.forEach(b => groups[billGroup(b)].push(b));
 
-    const PAY = ['cash', 'front_office', 'online', 'kbank', 'ktb', 'ewallet', 'gift_voucher', 'qr_payment', 'commission_deduct', 'arp_amount'];
-    const BG = { cash: '#FFF6D5', cc: '#E3F3E5', tf: '#ECE4F7', ew: '#DEEBFB', gift: '#D9F5F1', qr: '#ECECEC', comm: '#FBE2EA', arp: '#E5E6FB', sys: '#FDE9C7' };
-    const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-    const B = 'border:1px solid #b0b0b0;padding:3px 6px;font-size:11px;';
-    const NF = "mso-number-format:'\\#\\,\\#\\#0';";
-    const th = (t, span = '', bg = '#e8eef0') => `<td ${span} style="${B}background:${bg};font-weight:bold;text-align:center">${esc(t)}</td>`;
-    const numC = (v, bg) => { const n = Number(v || 0); return `<td style="${B}${NF}background:${bg || '#fff'};text-align:right">${n === 0 ? '' : n}</td>`; };
-    const txtC = (v, bg, align) => `<td style="${B}background:${bg || '#fff'};text-align:${align || 'left'}">${esc(v)}</td>`;
-
-    let body = '';
-    const section = (title, list, tail) => {
-      body += `<tr><td colspan="19" style="${B}background:#d7ecdd;font-weight:bold;text-align:center;font-size:13px">${esc(title)}</td></tr>`;
-      body += `<tr>${th('NO', 'rowspan="3"')}${th('วันที่', 'rowspan="3"')}${th('เลขออเดอร์', 'rowspan="3"')}${th('รหัส', 'rowspan="3"')}${th('Name', 'rowspan="3"')}${th('Payment (THB)', 'colspan="10"', '#f6dfe8')}${th('ยอดในระบบ', 'rowspan="3"', BG.sys)}${th('ผลต่าง', 'rowspan="3"', BG.sys)}${th('ผู้บันทึก', 'rowspan="3"')}${th('หมายเหตุเพิ่มเติม', 'rowspan="3"')}</tr>`;
-      body += `<tr>${th('Cash', 'rowspan="2"', BG.cash)}${th('Credit Card', 'colspan="2"', BG.cc)}${th('Tranfer Money', 'colspan="2"', BG.tf)}${th('E-WALLET', 'rowspan="2"', BG.ew)}${th('gift voucher', 'rowspan="2"', BG.gift)}${th('qr paymet', 'rowspan="2"', BG.qr)}${th(tail[0], 'rowspan="2"', BG.comm)}${th(tail[1], 'rowspan="2"', BG.arp)}</tr>`;
-      body += `<tr>${th('Front Office', '', BG.cc)}${th('Online', '', BG.cc)}${th('KBANK', '', BG.tf)}${th('KTB', '', BG.tf)}</tr>`;
-      const tot = {}; PAY.forEach(f => tot[f] = 0); let sa = 0, sd = 0;
-      list.forEach((b, i) => {
-        const p = pMap[b.bill_no] || {};
-        const amt = Number(b.amount || 0);
-        const diff = PAY.reduce((s, f) => s + Number(p[f] || 0), 0) - amt;
-        PAY.forEach(f => tot[f] += Number(p[f] || 0)); sa += amt; sd += diff;
-        body += `<tr>${txtC(i + 1, '', 'center')}${txtC(fmtDMY(b.sale_date))}${txtC(b.bill_no)}${txtC(b.member_code || '')}${txtC(b.member_name || '')}`
-          + numC(p.cash, BG.cash) + numC(p.front_office, BG.cc) + numC(p.online, BG.cc) + numC(p.kbank, BG.tf) + numC(p.ktb, BG.tf)
-          + numC(p.ewallet, BG.ew) + numC(p.gift_voucher, BG.gift) + numC(p.qr_payment, BG.qr) + numC(p.commission_deduct, BG.comm) + numC(p.arp_amount, BG.arp)
-          + numC(amt, BG.sys) + `<td style="${B}${NF}background:${BG.sys};text-align:right;color:${Math.abs(diff) > 0.5 ? '#c00;font-weight:bold' : '#000'}">${diff === 0 ? '' : diff}</td>`
-          + txtC(b.recorded_by || '') + txtC(dsCleanNote(p.correction_notes || b.notes)) + `</tr>`;
-      });
-      const tc = (f, bg) => `<td style="${B}${NF}background:${bg};font-weight:bold;text-align:right">${tot[f] === 0 ? '' : tot[f]}</td>`;
-      body += `<tr><td colspan="4" style="${B}background:#f3d9a6"></td><td style="${B}background:#f3d9a6;font-weight:bold;text-align:right">รวม (${list.length})</td>`
-        + tc('cash', BG.cash) + tc('front_office', BG.cc) + tc('online', BG.cc) + tc('kbank', BG.tf) + tc('ktb', BG.tf)
-        + tc('ewallet', BG.ew) + tc('gift_voucher', BG.gift) + tc('qr_payment', BG.qr) + tc('commission_deduct', BG.comm) + tc('arp_amount', BG.arp)
-        + `<td style="${B}${NF}background:#f3d9a6;font-weight:bold;text-align:right">${sa}</td><td style="${B}${NF}background:#f3d9a6;font-weight:bold;text-align:right">${sd === 0 ? '' : sd}</td><td colspan="2" style="${B}background:#f3d9a6"></td></tr>`;
-      // แถวสรุปรวมใหญ่ (merged cell ยอดรวมทั้ง section · span E–Q ตามชีท)
-      body += `<tr><td colspan="4" style="border:none"></td><td colspan="13" style="${B}${NF}background:#f7e2b0;font-weight:bold;text-align:center;font-size:15px">${sa}</td><td colspan="2" style="border:none"></td></tr>`;
-      body += `<tr><td colspan="19" style="height:8px;border:none"></td></tr>`;
-    };
-
-    section('DAILY SALE', groups.sale, ['หักค่าคอม', 'ARP']);
-    section('แลก ARP (POINT) · ARP EASY · ABB ONLINE', groups.arp, ['ARP EASY', 'ARP (USD)']);
-    section('E-WALLET (THB)', groups.ewallet, ['หักค่าคอม', '']);
-
-    // บล็อกลงชื่อผู้รับผิดชอบ + หมายเหตุพิเศษ
+    // reconcile record ของวัน (signoff + หมายเหตุพิเศษ) → ท้ายชีต Daily Sale
+    let rec = {};
     try {
       const rows = await sbGet(`daily_sale_reconcile?reconcile_date=eq.${state.date}&branch=eq.${encodeURIComponent(recBranchKey())}&select=signoff,special_notes&limit=1`);
-      const r = rows?.[0] || {}; const so = r.signoff || {};
-      body += `<tr><td colspan="19" style="height:10px;border:none"></td></tr>`;
-      const N = DS_SIGNOFF_ROLES.length;
-      DS_SIGNOFF_ROLES.forEach((role, i) => {
-        let row = `<tr><td colspan="3" style="border:none"></td>`;
-        row += `<td colspan="2" style="${B}background:#dbeef0;font-weight:bold;text-align:right">${esc(role.label)}</td>`;
-        row += `<td colspan="2" style="${B}text-align:center;color:#7c3aed;font-weight:bold">${esc(so[role.key] || '')}</td>`;
-        row += `<td colspan="1" style="border:none"></td>`;   // ช่องว่างคั่น
-        if (i === 0) {
-          // กล่องหมายเหตุอยู่ขวา · span ครอบทุกแถวลงชื่อ (เหมือนชีท)
-          row += `<td colspan="11" rowspan="${N}" style="${B}vertical-align:top;color:#c00;font-weight:bold">หมายเหตุ รายการพิเศษในวันนี้<div style="color:#000;font-weight:normal;margin-top:8px;white-space:pre-wrap">${esc(r.special_notes || '')}</div></td>`;
-        }
-        row += `</tr>`;
-        body += row;
-      });
+      rec = rows?.[0] || {};
     } catch { /* ignore */ }
 
-    const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel">
-<head><meta charset="utf-8"><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>DailySale</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]--></head>
-<body><table border="1" style="border-collapse:collapse;font-family:'TH Sarabun New',Tahoma,sans-serif">
-<tr><td colspan="19" style="font-size:15px;font-weight:bold;padding:8px;background:#2f6b4f;color:#fff;text-align:center">DAILY SALE — วันที่ ${esc(fmtDMY(state.date))} · สาขา ${esc(groupLabel)}</td></tr>
-${body}</table></body></html>`;
+    // ชีต 1: Daily Sale (3 section + ลงชื่อ) · ชีต 2: บิลออนไลน์ · ชีต 3: ตรวจบิล (ทั้งเดือน)
+    const sheet1 = _ssDaySheet(state.date, scoped, pMap, rec, group);
+    const online = scoped
+      .filter(b => String(b.bill_no || '').toUpperCase().includes('ONLIN'))
+      .sort((a, b) => String(a.bill_no) < String(b.bill_no) ? -1 : String(a.bill_no) > String(b.bill_no) ? 1 : 0);
+    const sheet2 = _ssOnlineSheet(state.date, online, pMap, group);
+    const sheet3 = await _ssReconcileSheet(state.date);
 
-    const blob = new Blob(['﻿' + html], { type: 'application/vnd.ms-excel;charset=utf-8;' });
+    const xml = `<?xml version="1.0"?>\n<?mso-application progid="Excel.Sheet"?>\n<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet" xmlns:html="http://www.w3.org/TR/REC-html40">${_ssStyles()}${sheet1}${sheet2}${sheet3}</Workbook>`;
+    const blob = new Blob(['﻿' + xml], { type: 'application/vnd.ms-excel;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url; a.download = `DailySale_${state.date}_${groupLabel}.xls`;
     document.body.appendChild(a); a.click(); a.remove();
     URL.revokeObjectURL(url);
-    toast('Export Excel แล้ว', 'success');
+    toast('Export Excel แล้ว (3 ชีต)', 'success');
   } catch (e) {
     toast('Export ไม่สำเร็จ: ' + e.message, 'error');
   }
@@ -671,6 +649,10 @@ function _ssStyles() {
   mk('sectitle', 'Center', _SS_COL.sec, { bold: true, size: 13 });
   mk('grand', 'Center', _SS_COL.grand, { bold: true, size: 14, num: true });
   mk('tcenter', 'Center', _SS_COL.white, {});
+  mk('nc_cash', 'Center', _SS_COL.cash, { num: true });     // ตัวเลขจัดกลาง (คอลัมน์จำนวนบิล ในตรวจบิล)
+  mk('nc_tf', 'Center', _SS_COL.tf, { num: true });
+  mk('ncb_cash', 'Center', _SS_COL.cash, { num: true, bold: true });
+  mk('ncb_tf', 'Center', _SS_COL.tf, { num: true, bold: true });
   mk('nr_sys', 'Right', _SS_COL.sys, { num: true, bold: true, fc: '#CC0000' });
   mk('lbl_total', 'Right', _SS_COL.total, { bold: true });
   mk('signlabel', 'Right', _SS_COL.sign, { bold: true });
@@ -739,6 +721,84 @@ function _ssDaySheet(date, list, pMap, rec, group) {
   rows += _ssSignoff(rec);
   return `<Worksheet ss:Name="${_ssX(name)}"><Table>${cols}${rows}</Table></Worksheet>`;
 }
+
+// ชีต "บิลออนไลน์" — เลขบิลมี ONLIN (คอลัมน์ตามแท็บบิลออนไลน์)
+function _ssOnlineSheet(date, list, pMap, group) {
+  const cols = [30, 70, 120, 55, 190, 62, 62, 55, 58, 72, 50, 50, 92].map(w => `<Column ss:Width="${w}"/>`).join('');
+  let rows = `<Row ss:Height="24"><Cell ss:StyleID="title" ss:MergeAcross="12"><Data ss:Type="String">บิลออนไลน์ · วันที่ ${_ssX(fmtDMY(date))} · สาขา ${_ssX(group === 'ALL' ? 'ทั้งหมด' : group)}</Data></Cell></Row>`;
+  rows += `<Row>${_ssC('NO', 'h_white')}${_ssC('วันที่ซื้อ', 'h_white')}${_ssC('เลขที่บิล', 'h_white')}${_ssC('รหัสผู้ซื้อ', 'h_white')}${_ssC('ชื่อผู้ซื้อ', 'h_white')}${_ssC('CREDIT', 'h_cc')}${_ssC('E-WALLET', 'h_ew')}${_ssC('QR', 'h_qr')}${_ssC('หักคอม', 'h_comm')}${_ssC('ARP (POINT) USD', 'h_arp')}${_ssC('สาขา', 'h_white')}${_ssC('เวลา', 'h_white')}${_ssC('หมายเหตุ', 'h_white')}</Row>`;
+  const tot = { credit: 0, ew: 0, qr: 0, comm: 0, arp: 0 };
+  list.forEach((b, i) => {
+    const p = pMap[b.bill_no] || {};
+    const credit = Number(p.online || 0), ew = Number(p.ewallet || 0), qr = Number(p.qr_payment || 0), comm = Number(p.commission_deduct || 0), arp = Number(p.arp_amount || 0);
+    tot.credit += credit; tot.ew += ew; tot.qr += qr; tot.comm += comm; tot.arp += arp;
+    const time = b.sale_datetime ? new Date(b.sale_datetime).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Bangkok' }) : '';
+    rows += `<Row>${_ssC(i + 1, 'tcenter')}${_ssC(fmtDMY(b.sale_date), 't_white')}${_ssC(b.bill_no, 't_white')}${_ssC(b.member_code || '', 't_white')}${_ssC(b.member_name || '', 't_white')}`
+      + _ssN(credit, 'n_cc') + _ssN(ew, 'n_ew') + _ssN(qr, 'n_qr') + _ssN(comm, 'n_comm') + _ssN(arp, 'n_arp')
+      + _ssC(b.branch || '', 't_white') + _ssC(time, 'tcenter') + _ssC(b.delivery_note || '', 't_white') + `</Row>`;
+  });
+  if (list.length) {
+    rows += `<Row>${_ssN(0, 'n_total')}${_ssN(0, 'n_total')}${_ssN(0, 'n_total')}${_ssN(0, 'n_total')}${_ssC('รวม (' + list.length + ')', 'lbl_total')}`
+      + _ssN(tot.credit, 'nb_cc') + _ssN(tot.ew, 'nb_ew') + _ssN(tot.qr, 'nb_qr') + _ssN(tot.comm, 'nb_comm') + _ssN(tot.arp, 'nb_arp')
+      + _ssN(0, 'n_total') + _ssN(0, 'n_total') + _ssN(0, 'n_total') + `</Row>`;
+    // แถวสรุปรวมใหญ่ — ผลรวมทุกช่อง (CREDIT+E-Wallet+QR+หักคอม+ARP) · merge F–M
+    const grand = tot.credit + tot.ew + tot.qr + tot.comm + tot.arp;
+    rows += `<Row><Cell ss:StyleID="grand" ss:Index="6" ss:MergeAcross="7"><Data ss:Type="Number">${grand}</Data></Cell></Row>`;
+  } else {
+    rows += `<Row>${_ssC('— ไม่มีบิลออนไลน์ในวันนี้ —', 't_white', 12)}</Row>`;
+  }
+  return `<Worksheet ss:Name="บิลออนไลน์"><Table>${cols}${rows}</Table></Worksheet>`;
+}
+
+// ดึงทุกแถวแบบแบ่งหน้า (PostgREST cap 1000/req) — ใช้ในชีตตรวจบิลรายเดือน
+async function dsGetAll(base) {
+  const all = [];
+  for (let off = 0, g = 0; g < 100; g++, off += 1000) {
+    const rows = await sbGet(`${base}&limit=1000&offset=${off}`);
+    all.push(...rows);
+    if (rows.length < 1000) break;
+  }
+  return all;
+}
+
+// ชีต "ตรวจบิล" — ตารางรายเดือน (ทั้งเดือนของวันที่เลือก) เหมือนแท็บตรวจบิล
+async function _ssReconcileSheet(date) {
+  const ym = date.slice(0, 7);
+  const [y, m] = ym.split('-').map(Number);
+  const days = new Date(y, m, 0).getDate();
+  const start = `${ym}-01`, end = `${ym}-${String(days).padStart(2, '0')}`;
+  const rgroup = recGroup();
+  const bills = await dsGetAll(`daily_sale_bills?business_date=gte.${start}&business_date=lte.${end}&select=business_date,amount,bill_type,bill_no,branch,receive_branch&order=bill_no.asc`);
+  const sys = {};
+  bills.forEach(b => {
+    if (isEwallet(b) || isRedemption(b) || branchGroupOf(b) !== rgroup) return;
+    const d = b.business_date;
+    (sys[d] = sys[d] || { count: 0, value: 0 }); sys[d].count++; sys[d].value += Number(b.amount || 0);
+  });
+  let recMap = {};
+  try {
+    const recs = await sbGet(`daily_sale_reconcile?reconcile_date=gte.${start}&reconcile_date=lte.${end}&branch=eq.${encodeURIComponent(recBranchKey())}`);
+    recMap = Object.fromEntries((recs || []).map(r => [r.reconcile_date, r]));
+  } catch { /* ignore */ }
+  const cols = [90, 62, 82, 82, 62, 82, 55, 90, 150].map(w => `<Column ss:Width="${w}"/>`).join('');
+  let rows = `<Row ss:Height="24"><Cell ss:StyleID="title" ss:MergeAcross="8"><Data ss:Type="String">ตรวจบิล เดือน ${_ssX(TH_MONTHS[m - 1])} ${y + 543} · ${_ssX(rgroup)}</Data></Cell></Row>`;
+  rows += `<Row>${_ssC('วันที่', 'h_white', 0, 1)}${_ssC('ใน DAILY SALE', 'h_cash', 2, 0)}${_ssC('ในระบบ', 'h_tf', 1, 0)}${_ssC('ผลต่าง', 'h_white', 0, 1)}${_ssC('Signature', 'h_white', 0, 1)}${_ssC('หมายเหตุ', 'h_white', 0, 1)}</Row>`;
+  rows += `<Row>${_ssC('จำนวนบิล', 'h_cash', 0, 0, 2)}${_ssC('มูลค่า', 'h_cash')}${_ssC('คงเหลือ', 'h_cash')}${_ssC('จำนวนบิล', 'h_tf')}${_ssC('มูลค่า', 'h_tf')}</Row>`;
+  let tc = 0, tv = 0;
+  for (let dd = 1; dd <= days; dd++) {
+    const d = `${ym}-${String(dd).padStart(2, '0')}`;
+    const s = sys[d] || { count: 0, value: 0 }; const r = recMap[d] || {};
+    const has = s.count > 0;
+    tc += s.count; tv += s.value;
+    rows += `<Row>${_ssC(fmtDMY(d), 'tcenter')}`
+      + _ssN(s.count, 'nc_cash') + _ssN(s.value, 'n_cash') + _ssN(s.value, 'n_cash')
+      + _ssN(s.count, 'nc_tf') + _ssN(s.value, 'n_tf')
+      + _ssC(has ? '0' : '', 'tcenter') + _ssC(r.signature || '', 't_white') + _ssC(r.notes || '', 't_white') + `</Row>`;
+  }
+  rows += `<Row>${_ssC('รวม', 'lbl_total')}${_ssN(tc, 'ncb_cash')}${_ssN(tv, 'nb_cash')}${_ssN(tv, 'nb_cash')}${_ssN(tc, 'ncb_tf')}${_ssN(tv, 'nb_tf')}${_ssC('', 't_total')}${_ssC('', 't_total')}${_ssC('', 't_total')}</Row>`;
+  return `<Worksheet ss:Name="ตรวจบิล"><Table>${cols}${rows}</Table></Worksheet>`;
+}
+
 async function dsExportMonth() {
   const group = state.branchGroup || 'ALL';
   const groupLabel = group === 'ALL' ? 'ทั้งหมด' : group;
@@ -1043,7 +1103,11 @@ async function loadOnline() {
       return;
     }
 
-    const pMap = await fetchPaymentsMap(online.map(b => b.bill_no));
+    const [pMap, memMap] = await Promise.all([
+      fetchPaymentsMap(online.map(b => b.bill_no)),
+      fetchMemberNames(online.map(b => b.member_code)),
+    ]);
+    Object.assign(dsMemberMap, memMap);
     const rows = [];
     const tot = { credit: 0, ewallet: 0, qr: 0, comm: 0, arp: 0 };
 
@@ -1084,7 +1148,7 @@ async function loadOnline() {
           <td>${fmtDMY(b.sale_date)}</td>
           <td><span class="ds-bill-no">${b.bill_no}</span></td>
           <td>${b.member_code || ''}</td>
-          <td>${(b.member_name || '').slice(0, 40)}</td>
+          ${dsNameCell(b)}
           ${pc('online', 'ds-col-cc', credit)}
           ${pc('ewallet', 'ds-col-ew', ew)}
           ${pc('qr_payment', 'ds-col-qr', qr)}

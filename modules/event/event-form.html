@@ -192,18 +192,18 @@
                 </div>
 
                 <div class="ef-field">
-                  <label class="ef-label">สถานที่</label>
+                  <label class="ef-label">สถานที่ <span style="font-weight:400;color:var(--text3);font-size:11px">(เลือกได้มากกว่า 1 ที่)</span></label>
   <div class="ef-location-wrap" id="locationWrap">
-    <input
-      class="ef-input"
-      type="text"
-      id="fLocation"
-      placeholder="พิมพ์เพื่อค้นหาสถานที่..."
-      autocomplete="off"
-      style="padding-right:36px"
-    />
-    <button type="button" id="btnClearLocation" onclick="window._clearLocation()" title="ล้างสถานที่"
-      style="display:none;position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text3);font-size:16px;padding:2px 4px;line-height:1">✕</button>
+    <div class="ef-loc-control" id="locationControl">
+      <div class="ef-loc-chips" id="locationChips"></div>
+      <input
+        class="ef-loc-search"
+        type="text"
+        id="fLocation"
+        placeholder="พิมพ์เพื่อค้นหาสถานที่..."
+        autocomplete="off"
+      />
+    </div>
     <div class="ef-location-dropdown" id="locationDropdown"></div>
   </div>
 </div>

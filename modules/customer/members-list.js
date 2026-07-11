@@ -1099,5 +1099,25 @@ window.exportExcel = exportExcel;
 /* ── Init ── */
 window.addEventListener('DOMContentLoaded', () => {
   renderHead();   // วาดหัวตารางทันที (ก่อน data มา)
+  // deep-link: ?code=<member_code> (จากหน้า Daily Sale) → ค้นรหัสนั้นเลย · ?q= = ค้นทั่วไป
+  try {
+    const params = new URLSearchParams(location.search);
+    const code = params.get('code'), q = params.get('q');
+    const input = document.getElementById('searchInput');
+    if (input && (code || q)) {
+      input.value = code || q;
+      if (code) {
+        const wrap = document.getElementById('searchMode');
+        const opt = document.querySelector('.search-mode-option[data-value="member_code"]');
+        if (wrap && opt) {
+          wrap.dataset.value = 'member_code';
+          wrap.querySelector('.search-mode-icon').textContent = opt.dataset.icon || '';
+          wrap.querySelector('.search-mode-label').textContent = opt.dataset.label || 'รหัสสมาชิก';
+          wrap.querySelectorAll('.search-mode-option').forEach(o => o.classList.toggle('active', o.dataset.value === 'member_code'));
+        }
+      }
+      _updateSearchClearBtn();
+    }
+  } catch { /* ignore */ }
   loadData();
 });

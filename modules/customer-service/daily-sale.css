@@ -122,6 +122,8 @@
 .ds-table-sheet tr.ds-row-diff:hover td{background:rgba(220,38,38,.18)!important;}
 .ds-table-sheet tr.ds-row-diff .ds-bill-no{color:#dc2626;}
 .ds-bill-no{font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:var(--accent);font-weight:600;}
+/* ชื่อบริษัทที่มีชื่อบุคคลจริง — เส้นใต้ประ + hover โชว์ชื่อบุคคล (title tooltip · ไม่ลิงก์) */
+.ds-mem-link{text-decoration:underline dotted var(--accent);text-underline-offset:2px;cursor:help;}
 .ds-badge{display:inline-block;padding:2px 7px;border-radius:4px;font-size:10.5px;font-weight:600;background:var(--surface2);color:var(--text2);}
 .ds-badge.sale{background:var(--info-pale);color:var(--info);}
 .ds-badge.topup{background:var(--warning-pale);color:var(--warning);}
