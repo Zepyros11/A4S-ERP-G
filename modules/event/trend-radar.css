@@ -21,16 +21,16 @@
 /* ── Google Trends grid ── */
 .tr-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 14px;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 10px;
 }
 .tr-card {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 16px;
+  padding: 11px 13px;
   box-shadow: var(--shadow-soft-md, var(--shadow));
-  display: flex; flex-direction: column; gap: 10px;
+  display: flex; flex-direction: column; gap: 7px;
   transition: transform .12s ease, box-shadow .12s ease;
 }
 .tr-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
@@ -41,11 +41,11 @@
   background: var(--accent-pale); padding: 2px 8px; border-radius: 20px;
 }
 .tr-traffic { font-size: .78rem; color: var(--text3); }
-.tr-card-title { font-size: 1.05rem; font-weight: 700; color: var(--text); line-height: 1.35; }
-.tr-card-news { display: flex; flex-direction: column; gap: 6px; flex: 1; }
+.tr-card-title { font-size: .92rem; font-weight: 700; color: var(--text); line-height: 1.3; }
+.tr-card-news { display: flex; flex-direction: column; gap: 4px; flex: 1; }
 .tr-src-link {
-  font-size: .8rem; color: var(--text2); text-decoration: none; line-height: 1.4;
-  display: block;
+  font-size: .76rem; color: var(--text2); text-decoration: none; line-height: 1.32;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
 }
 .tr-src-link:hover { color: var(--accent); }
 .tr-src-dot { color: var(--accent); }
@@ -63,7 +63,9 @@
 .tr-idea-btn.sm { padding: 6px 12px; font-size: .8rem; white-space: nowrap; }
 
 /* ── card / news action rows + hashtag button ── */
-.tr-card-actions { display: flex; gap: 8px; align-items: center; }
+.tr-card-actions { display: flex; gap: 6px; align-items: center; }
+/* ปุ่มปั้นคอนเทนต์ในการ์ด trending — ย่อให้กระชับ */
+.tr-card-actions .tr-idea-btn { padding: 5px 10px; font-size: .8rem; }
 .tr-card-actions .tr-idea-btn { flex: 1; }
 .tr-news-actions { display: flex; gap: 6px; align-items: center; flex: 0 0 auto; }
 .tr-tag-btn {
@@ -119,13 +121,6 @@
 .tr-yt-row-views-inline { font-weight: 600; color: var(--text2, var(--text3)); }
 
 /* ── แฮชแท็กมาแรง (เลือกหัวข้อได้) ── */
-.tr-copyall-btn {
-  font-size: .78rem; font-weight: 600; color: var(--accent);
-  background: var(--accent-pale); border: 1px solid var(--accent-soft-border, transparent);
-  padding: 5px 12px; border-radius: 999px; cursor: pointer;
-  transition: background .12s ease, transform .12s ease;
-}
-.tr-copyall-btn:hover { transform: translateY(-1px); filter: brightness(.97); }
 .tr-htag-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
@@ -138,7 +133,8 @@
   border-radius: 12px; padding: 12px 14px; cursor: pointer; font: inherit;
   transition: border-color .12s ease, box-shadow .12s ease, transform .12s ease;
 }
-.tr-htag:hover { border-color: var(--accent); box-shadow: var(--shadow-soft-md, var(--shadow)); transform: translateY(-2px); }
+/* z-index: transform สร้าง stacking context → ต้องยก chip ที่ hover ให้ลอยเหนือ chip/section อื่น ไม่งั้น tooltip โดนทับ */
+.tr-htag:hover { border-color: var(--accent); box-shadow: var(--shadow-soft-md, var(--shadow)); transform: translateY(-2px); z-index: 40; }
 /* tooltip ตัวใหญ่อ่านง่าย (แทน title เดิมของ browser) — โชว์ชื่อแท็กเต็มตอน hover */
 .tr-htag:hover::after {
   content: attr(data-tip);
@@ -264,7 +260,13 @@ details[open] > .tr-news-summary::before, details[open] > .tr-extra-summary::bef
 /* ── Topic tabs ── */
 .tr-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
 /* แท็บบาร์หลัก = ตัวคุมทั้งหน้า (มีเส้นคั่นใต้ให้รู้ว่าคุมทุก section ด้านล่าง) */
-.tr-tabs-master { border-bottom: 1px solid var(--border); padding-bottom: 14px; margin-bottom: 18px; }
+/* แท็บหัวข้อ = sticky ค้างบนสุดเวลาเลื่อนลง → สลับ filter ได้ตลอด
+   scroll container คือ #erp-main (topbar อยู่นอก) จึงใช้ top:0 */
+.tr-tabs-master {
+  position: sticky; top: 0; z-index: 20;
+  background: var(--bg); padding-top: 12px;
+  border-bottom: 1px solid var(--border); padding-bottom: 14px; margin-bottom: 18px;
+}
 .tr-tab-overview { margin-right: 8px; font-weight: 600; }
 .tr-tab {
   background: var(--surface); border: 1px solid var(--border);
@@ -276,41 +278,6 @@ details[open] > .tr-news-summary::before, details[open] > .tr-extra-summary::bef
 .tr-tab.active {
   background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600;
 }
-.tr-tab-count {
-  font-family: "IBM Plex Mono", monospace; font-size: .72rem;
-  opacity: .8; margin-left: 4px;
-}
-/* ⚙️ ปุ่มเลือกหมวดข่าว — วางท้ายแถบแท็บ (ดันชิดขวาบนจอกว้าง) */
-.tr-tab-gear { margin-left: auto; }
-.tr-tab-gear:hover { border-color: var(--accent); color: var(--accent); }
-
-/* ── แผงเลือกหมวดข่าว (ตัวกรอง "เทรนด์ & ข่าวกระแส") ── */
-.tr-catfilter {
-  display: flex; align-items: center; flex-wrap: wrap; gap: 8px;
-  padding: 12px 14px; margin: -6px 0 16px;
-  background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
-}
-.tr-catfilter-hd { font-size: .85rem; font-weight: 600; color: var(--text2); margin-right: 4px; }
-.tr-catchip {
-  display: inline-flex; align-items: center; gap: 6px;
-  padding: 6px 12px; border-radius: 20px; cursor: pointer;
-  font-size: .85rem; font-weight: 500; color: var(--text2);
-  background: var(--bg); border: 1px solid var(--border);
-  transition: all .12s ease; user-select: none;
-}
-.tr-catchip:hover { border-color: var(--accent); }
-.tr-catchip.on {
-  background: color-mix(in srgb, var(--accent) 14%, transparent);
-  border-color: var(--accent); color: var(--accent); font-weight: 600;
-}
-.tr-catchip input { accent-color: var(--accent); cursor: pointer; margin: 0; }
-.tr-catfilter-all {
-  margin-left: 4px; padding: 6px 12px; border-radius: 20px; cursor: pointer;
-  font-size: .8rem; font-weight: 500; color: var(--text2);
-  background: transparent; border: 1px dashed var(--border); transition: all .12s ease;
-}
-.tr-catfilter-all:hover { border-color: var(--accent); color: var(--accent); }
-
 /* ── Topic news list ── */
 .tr-news-list { display: flex; flex-direction: column; gap: 10px; }
 .tr-news-grid {
