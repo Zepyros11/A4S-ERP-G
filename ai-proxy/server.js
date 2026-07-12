@@ -331,13 +331,31 @@ async function _fetchYouTubeChartCached(geo, hl) {
   return videos;
 }
 
-/* ── สื่อการตลาด/เทรนด์คอนเทนต์ไทย (RSS ฟรี · ไม่กินโควตา · ไม่ผูกหัวข้อ) ── */
+/* ── สื่อ/ข่าว/เทรนด์คอนเทนต์ไทย (RSS ฟรี · ไม่กินโควตา · ไม่ผูกหัวข้อ) ──
+   ทุก URL ทดสอบแล้วคืน <item> จริง · เพิ่ม/ลบได้ที่นี่ที่เดียว
+   cat ใช้จัดกลุ่มบน UI (business / news / health / travel / tech) */
 const MKT_FEEDS = [
-  { source: 'Marketing Oops', url: 'https://www.marketingoops.com/feed/' },
-  { source: 'Brand Buffet',   url: 'https://www.brandbuffet.in.th/feed/' },
+  // การตลาด / ธุรกิจ (ใกล้ MLM + เทรนด์ขาย)
+  { source: 'Marketing Oops',   cat: 'business', url: 'https://www.marketingoops.com/feed/' },
+  { source: 'Brand Buffet',     cat: 'business', url: 'https://www.brandbuffet.in.th/feed/' },
+  { source: 'Brand Inside',     cat: 'business', url: 'https://brandinside.asia/feed/' },
+  { source: 'ประชาชาติธุรกิจ',   cat: 'business', url: 'https://www.prachachat.net/feed' },
+  // ข่าว / ไวรัลทั่วไป
+  { source: 'ไทยรัฐ',            cat: 'news',     url: 'https://www.thairath.co.th/rss/news' },
+  { source: 'ไทยรัฐ ไลฟ์สไตล์',  cat: 'news',     url: 'https://www.thairath.co.th/rss/lifestyle' },
+  { source: 'ข่าวสด',            cat: 'news',     url: 'https://www.khaosod.co.th/feed' },
+  { source: 'มติชน',             cat: 'news',     url: 'https://www.matichon.co.th/feed' },
+  { source: 'The Standard',      cat: 'news',     url: 'https://thestandard.co/feed/' },
+  { source: 'Sanook ข่าว',       cat: 'news',     url: 'https://rssfeeds.sanook.com/rss/feeds/sanook/news.index.xml' },
+  // สุขภาพ / ความงาม
+  { source: 'Sanook สุขภาพ',     cat: 'health',   url: 'https://rssfeeds.sanook.com/rss/feeds/sanook/health.index.xml' },
+  // ท่องเที่ยว / อีเวนต์
+  { source: 'Sanook ท่องเที่ยว', cat: 'travel',   url: 'https://rssfeeds.sanook.com/rss/feeds/sanook/travel.index.xml' },
+  // เทค / ไวรัลออนไลน์
+  { source: 'Beartai',           cat: 'tech',     url: 'https://www.beartai.com/feed/' },
 ];
 const _mktCache = new Map();
-async function _fetchMarketingRss(url, source) {
+async function _fetchMarketingRss(url, source, cat) {
   const r = await fetch(url, {
     signal: AbortSignal.timeout(12000),
     headers: { 'User-Agent': _YT_UA, 'Accept-Language': 'th-TH,th;q=0.9,en;q=0.8' },
@@ -347,17 +365,20 @@ async function _fetchMarketingRss(url, source) {
   return _trTagBlocks(xml, 'item').slice(0, 8).map(it => ({
     title: _trTag(it, 'title'),
     url: _trTag(it, 'link'),
-    source,
+    source, cat,
     pubDate: _trTag(it, 'pubDate'),
   })).filter(x => x.title && x.url);
 }
 async function _fetchMarketingCached() {
   const c = _mktCache.get('mkt');
   if (c && (Date.now() - c.ts) < 60 * 60000) return c.items;   // 1 ชม.
-  const lists = await Promise.all(MKT_FEEDS.map(f => _fetchMarketingRss(f.url, f.source).catch(() => [])));
-  const items = lists.flat()
-    .sort((a, b) => (Date.parse(b.pubDate) || 0) - (Date.parse(a.pubDate) || 0))
-    .slice(0, 12);
+  const lists = await Promise.all(MKT_FEEDS.map(f => _fetchMarketingRss(f.url, f.source, f.cat).catch(() => [])));
+  // จำกัดต่อแหล่ง 3 ข่าว (เลือกล่าสุด) กันสำนักข่าวโพสต์ถี่กลบ niche → ได้ความหลากหลาย
+  const byDate = (a, b) => (Date.parse(b.pubDate) || 0) - (Date.parse(a.pubDate) || 0);
+  const items = lists
+    .flatMap(list => list.sort(byDate).slice(0, 3))
+    .sort(byDate)
+    .slice(0, 30);
   if (items.length) _mktCache.set('mkt', { items, ts: Date.now() });
   return items;
 }
