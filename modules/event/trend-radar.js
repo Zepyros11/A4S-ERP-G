@@ -43,6 +43,8 @@ const DEFAULT_TOPICS = [
     yt_query: "รีวิว อาหารเสริม สกินแคร์ ครีมบำรุง เซรั่ม วิตามิน สุขภาพ ความงาม" },
   { label: "ท่องเที่ยว / อีเวนต์", query: "เทรนด์ท่องเที่ยว ทริป สัมมนา คอนเสิร์ต อีเวนต์", emoji: "✈️" },
   { label: "ไลฟ์สไตล์ / ไวรัล", query: "ไวรัล กระแสโซเชียล ไลฟ์สไตล์ ที่กำลังฮิต", emoji: "🔥" },
+  { label: "ข่าวเม้า / เรื่องข้างบ้าน", query: "ข่าวบันเทิง ดารา ดราม่า ซุบซิบ เม้าท์มอย ดราม่าโซเชียล", emoji: "🍵",
+    yt_query: "ข่าวบันเทิง ซุบซิบดารา ดราม่า เม้าท์มอย คนดัง คลิปดัง" },
 ];
 
 let TOPICS = [];          // [{id?, label, query, emoji, sort, is_active}]
@@ -206,35 +208,39 @@ function queryToHashtag(q) {
   const core = String(q || "").replace(/[^0-9A-Za-z฀-๿]+/g, "");
   return core ? "#" + core : "";
 }
+/* ลิงก์ค้นหา Google สำหรับคำค้นเทรนด์ (ใช้เป็น "ที่มา" เมื่อไม่มีข่าวแนบ) */
+function googleSearchUrl(q) { return "https://www.google.com/search?q=" + encodeURIComponent(q); }
+
 /* ทั่วไป: คำค้น Google Trends (มาก่อน) + เติมจากพาดหัวข่าวจนได้สูงสุด 30 */
 function trendsHashtags() {
   const LIMIT = 30;
   const seen = new Set(), out = [];
-  // 1) คำค้น Google Trends — มี badge ยอดค้น มาก่อน
+  // 1) คำค้น Google Trends — มี badge ยอดค้น · ที่มา = ข่าวแรก หรือ Google search
   for (const t of (LAST && LAST.trending) || []) {
     const tag = queryToHashtag(t.title);
     const key = tag.toLowerCase();
     if (tag.length > 1 && !seen.has(key)) {
       seen.add(key);
-      out.push({ tag, badge: t.traffic ? `🔎 ${t.traffic}` : "", tip: `จากคำค้น: ${t.title}` });
+      const url = (t.news && t.news[0] && t.news[0].url) || googleSearchUrl(t.title);
+      out.push({ tag, badge: t.traffic ? `🔎 ${t.traffic}` : "", tip: `จากคำค้น: ${t.title}`, url });
     }
   }
   // 2) เติมจากพาดหัวข่าว (trending news + สื่อการตลาด) เรียงตามที่พบบ่อย จนครบ 30
   if (out.length < LIMIT) {
     const map = new Map();
-    const addFrom = (title) => {
+    const addFrom = (title, url) => {
       for (const tag of extractHashtags(title)) {
         const k = tag.toLowerCase();
         if (seen.has(k)) continue;
-        const e = map.get(k) || { tag, n: 0 }; e.n++; map.set(k, e);
+        const e = map.get(k) || { tag, n: 0, url }; e.n++; if (!e.url) e.url = url; map.set(k, e);
       }
     };
-    ((LAST && LAST.trending) || []).forEach(t => (t.news || []).forEach(n => addFrom(n.title)));
-    ((LAST && LAST.marketing) || []).forEach(n => addFrom(n.title));
+    ((LAST && LAST.trending) || []).forEach(t => (t.news || []).forEach(n => addFrom(n.title, n.url)));
+    ((LAST && LAST.marketing) || []).forEach(n => addFrom(n.title, n.url));
     for (const e of [...map.values()].sort((a, b) => b.n - a.n)) {
       if (out.length >= LIMIT) break;
       seen.add(e.tag.toLowerCase());
-      out.push({ tag: e.tag, badge: e.n > 1 ? `×${e.n}` : "", tip: `พบใน ${e.n} ข่าว` });
+      out.push({ tag: e.tag, badge: e.n > 1 ? `×${e.n}` : "", tip: `พบใน ${e.n} ข่าว`, url: e.url });
     }
   }
   return out.slice(0, LIMIT);
@@ -242,19 +248,19 @@ function trendsHashtags() {
 /* หัวข้อ: รวมแฮชแท็กจากชื่อคลิป + ข่าวของหัวข้อ แล้วเรียงตามที่พบบ่อย */
 function topicHashtags(t) {
   const map = new Map();
-  const add = (title) => {
+  const add = (title, url) => {
     for (const tag of extractHashtags(title)) {
       const k = tag.toLowerCase();
-      const e = map.get(k) || { tag, n: 0 };
-      e.n++; map.set(k, e);
+      const e = map.get(k) || { tag, n: 0, url };
+      e.n++; if (!e.url) e.url = url; map.set(k, e);
     }
   };
-  (t.videos || []).forEach(v => add(v.title));
-  (t.items || []).forEach(n => add(n.title));
+  (t.videos || []).forEach(v => add(v.title, v.url));
+  (t.items || []).forEach(n => add(n.title, n.url));
   return [...map.values()]
     .sort((a, b) => b.n - a.n)
     .slice(0, 30)
-    .map(e => ({ tag: e.tag, badge: e.n > 1 ? `×${e.n}` : "", tip: `พบใน ${e.n} คลิป/ข่าว ของหัวข้อ ${t.label}` }));
+    .map(e => ({ tag: e.tag, badge: e.n > 1 ? `×${e.n}` : "", tip: `พบใน ${e.n} คลิป/ข่าว ของหัวข้อ ${t.label}`, url: e.url }));
 }
 
 /* คุมด้วยแท็บบนสุด (ACTIVE_TAB): -1 = ภาพรวม (Google Trends) · >=0 = หัวข้อนั้น (คลิป+ข่าว) */
@@ -287,12 +293,16 @@ function renderTrendTags() {
   sec.style.display = "";
   grid.innerHTML = TREND_TAGS.map((t, i) => {
     const rankCls = i < 3 ? ` top${i + 1}` : "";
+    const link = t.url
+      ? `<a class="tr-htag-link" href="${esc(t.url)}" target="_blank" rel="noopener" title="เปิดที่มา" onclick="event.stopPropagation()">🔗</a>`
+      : "";
     return `
-      <button class="tr-htag" onclick="copyTrendTag(${i})" data-tip="${esc(t.tag)}&#10;คลิกเพื่อคัดลอก · ${esc(t.tip)}">
+      <div class="tr-htag" onclick="copyTrendTag(${i})" data-tip="${esc(t.tag)}&#10;คลิก = คัดลอก · 🔗 = เปิดที่มา · ${esc(t.tip)}">
         <span class="tr-htag-rank${rankCls}">#${i + 1}</span>
         <span class="tr-htag-tag">${esc(t.tag)}</span>
         ${t.badge ? `<span class="tr-htag-traffic">${esc(t.badge)}</span>` : ""}
-      </button>`;
+        ${link}
+      </div>`;
   }).join("");
 }
 function copyTrendTag(i) { const t = TREND_TAGS[i]; if (t) copyText(t.tag); }

@@ -159,6 +159,12 @@
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .tr-htag-traffic { flex: 0 0 auto; font-size: .72rem; color: var(--text3); }
+/* 🔗 ปุ่มเปิดที่มา — คลิกแยกจากการคัดลอก (stopPropagation) */
+.tr-htag-link {
+  flex: 0 0 auto; text-decoration: none; font-size: .82rem; line-height: 1;
+  opacity: .45; transition: opacity .12s ease, transform .12s ease;
+}
+.tr-htag-link:hover { opacity: 1; transform: scale(1.15); }
 .tr-yt-row-channel { color: var(--accent); text-decoration: none; }
 .tr-yt-row-channel:hover { text-decoration: underline; }
 .tr-yt-row-actions { flex: 0 0 auto; display: flex; gap: 6px; align-items: center; }
