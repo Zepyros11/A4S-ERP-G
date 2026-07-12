@@ -174,19 +174,14 @@ function renderTrending() {
   }).join("");
 }
 
-/* ── Section: แฮชแท็กมาแรง (เลือกหัวข้อได้ · default = สุขภาพ/ความงาม) ──
-   🌐 ทั่วไป = คำค้น Google Trends → #แฮชแท็ก · หัวข้อ = ดึงจากคลิป+ข่าวของหัวข้อนั้น */
+/* ── Section: แฮชแท็กมาแรง (คุมด้วยแท็บหัวข้อด้านบน = ACTIVE_TAB) ──
+   🌐 ภาพรวม = คำค้น Google Trends → #แฮชแท็ก · หัวข้อ = ดึงจากคลิป+ข่าวของหัวข้อนั้น */
 let TREND_TAGS = [];        // รายการแฮชแท็กที่แสดงอยู่ (ใช้ copy)
-let HTAG_FILTER = null;     // null = ยังไม่เลือก (จะตั้ง default), -1 = ทั่วไป, >=0 = index หัวข้อ
 
 /* คำค้น → #แฮชแท็ก: ตัดช่องว่าง/เครื่องหมาย เหลือ ไทย/อังกฤษ/เลข แล้วเติม # */
 function queryToHashtag(q) {
   const core = String(q || "").replace(/[^0-9A-Za-z฀-๿]+/g, "");
   return core ? "#" + core : "";
-}
-/* หา index หัวข้อ "สุขภาพ/ความงาม" ไว้ตั้งเป็น default */
-function htagBeautyIndex() {
-  return ((LAST && LAST.topics) || []).findIndex(t => /ความงาม|สวยงาม|beauty|สุขภาพ/i.test(t.label || ""));
 }
 /* ทั่วไป: แปลงคำค้น Google Trends เป็นแฮชแท็ก */
 function trendsHashtags() {
@@ -219,54 +214,43 @@ function topicHashtags(t) {
     .map(e => ({ tag: e.tag, badge: e.n > 1 ? `×${e.n}` : "", tip: `พบใน ${e.n} คลิป/ข่าว ของหัวข้อ ${t.label}` }));
 }
 
+/* คุมด้วยแท็บบนสุด (ACTIVE_TAB): -1 = ภาพรวม (Google Trends) · >=0 = หัวข้อนั้น (คลิป+ข่าว) */
 function renderTrendTags() {
   const sec = document.getElementById("trendTagsSection");
   const grid = document.getElementById("trendTagsGrid");
   const topics = (LAST && LAST.topics) || [];
-  const hasTrending = (((LAST && LAST.trending) || []).length) > 0;
-  if (!hasTrending && !topics.length) { sec.style.display = "none"; return; }
+  const isOverview = ACTIVE_TAB < 0;
 
-  // ตั้ง default ครั้งแรก = สุขภาพ/ความงาม ถ้ามี ไม่งั้น 🌐 ทั่วไป
-  if (HTAG_FILTER === null) { const bi = htagBeautyIndex(); HTAG_FILTER = bi >= 0 ? bi : -1; }
-  if (HTAG_FILTER >= topics.length) HTAG_FILTER = -1;              // หัวข้อถูกลบ → กลับไปทั่วไป
-  if (HTAG_FILTER < 0 && !hasTrending && topics.length) HTAG_FILTER = 0;  // ไม่มี trends → ใช้หัวข้อแรก
-
-  // เติมตัวเลือก filter (ทั่วไป + ทุกหัวข้อที่ติดตาม)
-  const sel = document.getElementById("htagFilter");
-  sel.innerHTML = `<option value="-1">🌐 ทั่วไป (Google Trends)</option>` +
-    topics.map((t, i) => `<option value="${i}">${esc(t.label)}</option>`).join("");
-  sel.value = String(HTAG_FILTER);
-
-  // สร้างแฮชแท็กตามตัวเลือก
-  let subText;
-  if (HTAG_FILTER < 0) {
+  let subText, srcText;
+  if (isOverview) {
     TREND_TAGS = trendsHashtags();
-    subText = "คำที่คนไทยค้นหามากสุดตอนนี้ · จาก Google Trends · คลิกเพื่อคัดลอก";
+    subText = "คำที่คนไทยค้นหามากสุดตอนนี้ · คลิกเพื่อคัดลอก";
+    srcText = "🔎 ที่มา: Google Trends";
   } else {
-    TREND_TAGS = topicHashtags(topics[HTAG_FILTER]);
-    subText = `จากคลิป + ข่าวในหัวข้อ “${topics[HTAG_FILTER].label}” · เรียงตามที่พบบ่อย · คลิกเพื่อคัดลอก`;
+    const t = topics[ACTIVE_TAB];
+    TREND_TAGS = t ? topicHashtags(t) : [];
+    subText = "เรียงตามที่พบบ่อย · คลิกเพื่อคัดลอก";
+    srcText = "🎬 ที่มา: YouTube + 📰 ข่าว";
   }
   document.getElementById("htagSub").textContent = subText;
-  sec.style.display = "";
+  document.getElementById("htagSrc").textContent = srcText;
 
   if (!TREND_TAGS.length) {
-    grid.innerHTML = `<div class="tr-empty tr-empty-sm">ไม่พบแฮชแท็กในหัวข้อนี้ — ลองหัวข้ออื่น หรือ 🌐 ทั่วไป</div>`;
+    if (isOverview) { sec.style.display = "none"; return; }   // ภาพรวมไม่มี trends → ซ่อน
+    sec.style.display = "";                                    // โหมดหัวข้อ → โชว์โน้ตไว้
+    grid.innerHTML = `<div class="tr-empty tr-empty-sm">ยังไม่พบแฮชแท็กในหัวข้อนี้</div>`;
     return;
   }
+  sec.style.display = "";
   grid.innerHTML = TREND_TAGS.map((t, i) => {
     const rankCls = i < 3 ? ` top${i + 1}` : "";
     return `
-      <button class="tr-htag" onclick="copyTrendTag(${i})" title="คลิกเพื่อคัดลอก · ${esc(t.tip)}">
+      <button class="tr-htag" onclick="copyTrendTag(${i})" data-tip="${esc(t.tag)}&#10;คลิกเพื่อคัดลอก · ${esc(t.tip)}">
         <span class="tr-htag-rank${rankCls}">#${i + 1}</span>
         <span class="tr-htag-tag">${esc(t.tag)}</span>
         ${t.badge ? `<span class="tr-htag-traffic">${esc(t.badge)}</span>` : ""}
       </button>`;
   }).join("");
-}
-function onHtagFilterChange() {
-  const v = parseInt(document.getElementById("htagFilter").value, 10);
-  HTAG_FILTER = Number.isNaN(v) ? -1 : v;
-  renderTrendTags();
 }
 function copyTrendTag(i) { const t = TREND_TAGS[i]; if (t) copyText(t.tag); }
 function copyAllTrendTags() {
@@ -332,15 +316,14 @@ function selectTab(i) {
 /* สลับโหมดตามแท็บ: ภาพรวม (chart + Google Trends) หรือ หัวข้อ (คลิป + ข่าว) */
 function renderActiveView() {
   const isOverview = ACTIVE_TAB < 0;
+  renderTrendTags();                     // แฮชแท็กมาแรง — ตามแท็บบนสุด (โชว์ทั้งสองโหมด)
   document.getElementById("topicSection").style.display = isOverview ? "none" : "";
   document.getElementById("trendingSection").style.display = isOverview ? "" : "none";
   if (isOverview) {
     renderOverviewClips();               // รวมคลิปเด่นทุกหัวข้อ (โชว์/ซ่อนเองตามว่ามีข้อมูลไหม)
-    renderTrendTags();                   // แฮชแท็กมาแรงในไทย (จาก Google Trends · โชว์/ซ่อนเองตามว่ามีข้อมูลไหม)
     renderMarketing();                   // เทรนด์การตลาด/คอนเทนต์
   } else {
     document.getElementById("ytChartSection").style.display = "none";
-    document.getElementById("trendTagsSection").style.display = "none";
     document.getElementById("marketingSection").style.display = "none";
     const t = (LAST.topics || [])[ACTIVE_TAB];
     const title = document.getElementById("topicSectionTitle");
@@ -424,17 +407,12 @@ function ytRowHtml(v, rank, ideaCall, tagCall) {
          <button class="tr-tag-btn sm" onclick="${tagCall}" title="hashtag แนะนำ">🏷️</button>
        </div>`
     : "";
-  const tags = extractHashtags(v.title);
-  const tagsRow = tags.length
-    ? `<div class="tr-yt-row-tags">${tags.map(h => `<span class="tr-yt-tag">${esc(h)}</span>`).join("")}</div>`
-    : "";
   return `
     <div class="tr-yt-row">
       <span class="tr-yt-row-rank${rankCls}">#${rank}</span>
       <div class="tr-yt-row-main">
         <a class="tr-yt-row-title" href="${esc(v.url)}" target="_blank" rel="noopener">${esc(v.title)}</a>
         <div class="tr-yt-row-meta">${channel}<span class="tr-yt-row-views-inline">👁 ${formatViews(v.views)}</span></div>
-        ${tagsRow}
       </div>
       ${actions}
     </div>`;
@@ -553,9 +531,12 @@ function newsSection(t) {
         </div>
       </div>`).join("")}</div>`
     : emptyMsg;
+  const newsSrc = t.newsSource === "bing" ? "Bing News" : "Google News";
   return `
     <details class="tr-news-details">
-      <summary class="tr-sub-hdr tr-news-summary">📰 ข่าว/บทความ <span class="tr-sub-note">${items.length ? items.length + " รายการ · แตะเพื่อดู" : "แตะเพื่อดู"}</span></summary>
+      <summary class="tr-sub-hdr tr-news-summary">📰 ข่าว/บทความ <span class="tr-sub-note">${items.length ? items.length + " รายการ · แตะเพื่อดู" : "แตะเพื่อดู"}</span>
+        <span class="tr-src-tag">📰 ที่มา: ${esc(newsSrc)}</span>
+      </summary>
       ${list}
     </details>`;
 }

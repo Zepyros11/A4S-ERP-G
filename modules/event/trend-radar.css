@@ -10,6 +10,13 @@
 }
 .tr-section-title { font-size: 1.15rem; font-weight: 700; color: var(--text); margin: 0; }
 .tr-section-sub { font-size: .82rem; color: var(--text3); }
+/* ป้ายบอก "ที่มาของข้อมูล" ชิดขวาของหัวเซกชัน */
+.tr-src-tag {
+  margin-left: auto; flex: 0 0 auto; align-self: center;
+  font-size: .72rem; font-weight: 500; color: var(--text2, var(--text3));
+  background: var(--surface2); border: 1px solid var(--border);
+  padding: 3px 10px; border-radius: 999px; white-space: nowrap;
+}
 
 /* ── Google Trends grid ── */
 .tr-grid {
@@ -110,21 +117,8 @@
 .tr-yt-row-title:hover { color: var(--accent); }
 .tr-yt-row-meta { font-size: .78rem; color: var(--text3); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .tr-yt-row-views-inline { font-weight: 600; color: var(--text2, var(--text3)); }
-.tr-yt-row-tags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 5px; }
-.tr-yt-tag {
-  font-size: .72rem; font-weight: 500; line-height: 1;
-  color: var(--accent); background: var(--accent-soft, rgba(80,140,90,.12));
-  border: 1px solid var(--accent-soft-border, rgba(80,140,90,.25));
-  padding: 3px 8px; border-radius: 999px;
-}
 
 /* ── แฮชแท็กมาแรง (เลือกหัวข้อได้) ── */
-.tr-htag-filter {
-  margin-left: auto; font-size: .8rem; color: var(--text); background: var(--surface);
-  border: 1px solid var(--border); border-radius: 8px; padding: 5px 10px; cursor: pointer;
-  max-width: 220px;
-}
-.tr-htag-filter:focus { outline: none; border-color: var(--accent); }
 .tr-copyall-btn {
   font-size: .78rem; font-weight: 600; color: var(--accent);
   background: var(--accent-pale); border: 1px solid var(--accent-soft-border, transparent);
@@ -138,12 +132,25 @@
   gap: 12px;
 }
 .tr-htag {
+  position: relative;
   display: flex; align-items: center; gap: 10px; text-align: left;
   background: var(--surface); border: 1px solid var(--border);
   border-radius: 12px; padding: 12px 14px; cursor: pointer; font: inherit;
   transition: border-color .12s ease, box-shadow .12s ease, transform .12s ease;
 }
 .tr-htag:hover { border-color: var(--accent); box-shadow: var(--shadow-soft-md, var(--shadow)); transform: translateY(-2px); }
+/* tooltip ตัวใหญ่อ่านง่าย (แทน title เดิมของ browser) — โชว์ชื่อแท็กเต็มตอน hover */
+.tr-htag:hover::after {
+  content: attr(data-tip);
+  white-space: pre-line;
+  position: absolute; left: 0; top: calc(100% + 8px); z-index: 30;
+  width: max-content; max-width: min(360px, 90vw);
+  background: var(--text, #1f2a24); color: var(--surface, #fff);
+  font-size: .9rem; font-weight: 500; line-height: 1.45;
+  padding: 9px 13px; border-radius: 10px;
+  box-shadow: var(--shadow-lg, 0 8px 24px rgba(0,0,0,.28));
+  pointer-events: none;
+}
 .tr-htag-rank {
   flex: 0 0 auto; font-family: "IBM Plex Mono", monospace; font-weight: 700;
   font-size: .74rem; color: var(--text3);

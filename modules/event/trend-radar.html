@@ -66,11 +66,23 @@
     <!-- แท็บหัวข้อ = ตัวคุมหลัก (ภาพรวม + แต่ละหัวข้อ) คุมทั้งหน้า -->
     <div id="topicTabs" class="tr-tabs tr-tabs-master"></div>
 
+    <!-- แฮชแท็กมาแรง (คุมด้วยแท็บหัวข้อด้านบน · โชว์ทั้งภาพรวม + รายหัวข้อ) -->
+    <div class="tr-section" id="trendTagsSection" style="display:none">
+      <div class="tr-section-hdr">
+        <h2 class="tr-section-title">🔥 แฮชแท็กมาแรง</h2>
+        <span class="tr-section-sub" id="htagSub">คลิกเพื่อคัดลอก</span>
+        <span class="tr-src-tag" id="htagSrc"></span>
+        <button class="tr-copyall-btn" onclick="copyAllTrendTags()" title="คัดลอกแฮชแท็กทั้งหมด">📋 คัดลอกทั้งหมด</button>
+      </div>
+      <div id="trendTagsGrid" class="tr-htag-grid"></div>
+    </div>
+
     <!-- โหมดหัวข้อ: คลิป YouTube + ข่าว ของหัวข้อที่เลือก -->
     <div class="tr-section" id="topicSection" style="display:none">
       <div class="tr-section-hdr">
         <h2 class="tr-section-title" id="topicSectionTitle">🎬 คลิปมาแรงตามหัวข้อ</h2>
-        <span class="tr-section-sub">YouTube · เรียงตามยอดวิว · เน้นคลิปล่าสุด · คลิกชื่อช่องเพื่อไปหน้าช่อง</span>
+        <span class="tr-section-sub">เรียงตามยอดวิว · เน้นคลิปล่าสุด · คลิกชื่อช่องเพื่อไปหน้าช่อง</span>
+        <span class="tr-src-tag">🎬 ที่มา: YouTube</span>
       </div>
       <div id="topicNews" class="tr-news-list"></div>
     </div>
@@ -80,6 +92,7 @@
       <div class="tr-section-hdr">
         <h2 class="tr-section-title">🎬 คลิปมาแรงรวมทุกหัวข้อ</h2>
         <span class="tr-section-sub">รวมคลิปเด่นจากทุกหัวข้อที่คุณติดตาม · เรียงตามยอดวิว · เฉพาะ niche คุณ ไม่มีหนัง/เพลงปน</span>
+        <span class="tr-src-tag">🎬 ที่มา: YouTube</span>
       </div>
       <div id="ytChartGrid"></div>
     </div>
@@ -88,27 +101,18 @@
     <div class="tr-section" id="marketingSection" style="display:none">
       <div class="tr-section-hdr">
         <h2 class="tr-section-title">📈 เทรนด์การตลาด/คอนเทนต์</h2>
-        <span class="tr-section-sub">บทความล่าสุดจาก Marketing Oops · Brand Buffet — วัตถุดิบปั้นคอนเทนต์</span>
+        <span class="tr-section-sub">บทความล่าสุด — วัตถุดิบปั้นคอนเทนต์</span>
+        <span class="tr-src-tag">📰 ที่มา: Marketing Oops · Brand Buffet</span>
       </div>
       <div id="marketingBody"></div>
-    </div>
-
-    <!-- โหมดภาพรวม: แฮชแท็กมาแรง (เลือกหัวข้อได้ · default สุขภาพ/ความงาม) -->
-    <div class="tr-section" id="trendTagsSection" style="display:none">
-      <div class="tr-section-hdr">
-        <h2 class="tr-section-title">🔥 แฮชแท็กมาแรง</h2>
-        <span class="tr-section-sub" id="htagSub">คลิกเพื่อคัดลอก</span>
-        <select id="htagFilter" class="tr-htag-filter" onchange="onHtagFilterChange()" title="เลือกหัวข้อ"></select>
-        <button class="tr-copyall-btn" onclick="copyAllTrendTags()" title="คัดลอกแฮชแท็กทั้งหมด">📋 คัดลอกทั้งหมด</button>
-      </div>
-      <div id="trendTagsGrid" class="tr-htag-grid"></div>
     </div>
 
     <!-- โหมดภาพรวม: Google Trends (ทั้งประเทศ) -->
     <div class="tr-section" id="trendingSection" style="display:none">
       <div class="tr-section-hdr">
         <h2 class="tr-section-title">🔥 คำค้นมาแรงวันนี้</h2>
-        <span class="tr-section-sub">คำค้นที่พุ่งแรงในไทย · จาก Google Trends</span>
+        <span class="tr-section-sub">คำค้นที่พุ่งแรงในไทย</span>
+        <span class="tr-src-tag">🔎 ที่มา: Google Trends</span>
       </div>
       <div id="trendingGrid" class="tr-grid">
         <div class="tr-skeleton"></div><div class="tr-skeleton"></div><div class="tr-skeleton"></div>
