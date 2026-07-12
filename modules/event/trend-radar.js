@@ -48,6 +48,7 @@ const DEFAULT_TOPICS = [
 let TOPICS = [];          // [{id?, label, query, emoji, sort, is_active}]
 let LAST = null;          // ผลลัพธ์ /trend/fetch ล่าสุด
 let ACTIVE_TAB = -1;   // -1 = แท็บ "ภาพรวม" (chart + Google Trends ทั้งประเทศ) · 0..N = หัวข้อ
+let MKT_VIEW = [];        // ข่าว "เทรนด์ & ข่าวกระแส" ที่แสดงจริงหลังกรองหมวด (ให้ปุ่ม 💡/🏷️ อ้าง index ตรง)
 let TOPICS_FROM_DB = false;
 
 /* ── Toast ── */
@@ -293,6 +294,70 @@ function hashtagsFromVideo(tabIdx, vidIdx) {
   if (v) openHashtags(v.title, t.label);
 }
 
+/* ── ตัวกรองหมวดข่าว (เทรนด์ & ข่าวกระแส) · หมวดดึงจากข้อมูลจริง (field cat) ── */
+const CAT_META = {
+  business: { label: "ธุรกิจ/การตลาด",   emoji: "💼" },
+  news:     { label: "ข่าว/ไวรัล",        emoji: "📰" },
+  health:   { label: "สุขภาพ/ความงาม",    emoji: "💚" },
+  travel:   { label: "ท่องเที่ยว/อีเวนต์", emoji: "✈️" },
+  tech:     { label: "เทค",               emoji: "💻" },
+};
+const CAT_ORDER = ["business", "news", "health", "travel", "tech"];
+/* หมวดที่ "มีจริง" ในข้อมูลรอบนี้ (เรียงตาม CAT_ORDER · หมวดแปลกไปต่อท้าย) */
+function catsInData() {
+  const seen = [];
+  ((LAST && LAST.marketing) || []).forEach(n => { if (n.cat && !seen.includes(n.cat)) seen.push(n.cat); });
+  return seen.sort((a, b) => {
+    const ia = CAT_ORDER.indexOf(a), ib = CAT_ORDER.indexOf(b);
+    return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
+  });
+}
+/* หมวดที่ user เลือกไว้ · ยังไม่เคยตั้ง = แสดงทุกหมวด · array ว่าง = ซ่อนหมด (ตั้งใจ) */
+function getCatSel() {
+  const present = catsInData();
+  let saved = null;
+  try { saved = JSON.parse(localStorage.getItem("trCatFilter")); } catch (e) { /* ignore */ }
+  if (!Array.isArray(saved)) return present.slice();
+  return saved.filter(c => present.includes(c));
+}
+function setCatSel(arr) { localStorage.setItem("trCatFilter", JSON.stringify(arr)); }
+function renderCatFilterPanel() {
+  const panel = document.getElementById("catFilterPanel");
+  if (!panel) return;
+  const present = catsInData();
+  if (!present.length) { panel.innerHTML = ""; panel.style.display = "none"; return; }
+  const sel = new Set(getCatSel());
+  panel.innerHTML =
+    `<span class="tr-catfilter-hd">📂 แสดงหมวดข่าว:</span>` +
+    present.map(c => {
+      const m = CAT_META[c] || { label: c, emoji: "•" };
+      return `<label class="tr-catchip ${sel.has(c) ? "on" : ""}">
+        <input type="checkbox" ${sel.has(c) ? "checked" : ""} onchange="onCatToggle('${c}', this.checked)">
+        <span>${m.emoji} ${esc(m.label)}</span>
+      </label>`;
+    }).join("") +
+    `<button class="tr-catfilter-all" onclick="resetCatFilter()" title="แสดงทุกหมวด">ทั้งหมด</button>`;
+}
+function onCatToggle(cat, on) {
+  const sel = new Set(getCatSel());
+  if (on) sel.add(cat); else sel.delete(cat);
+  setCatSel([...sel]);
+  renderCatFilterPanel();
+  renderMarketing();
+}
+function resetCatFilter() {
+  localStorage.removeItem("trCatFilter");
+  renderCatFilterPanel();
+  renderMarketing();
+}
+function toggleCatFilter() {
+  const panel = document.getElementById("catFilterPanel");
+  if (!panel) return;
+  const show = panel.style.display === "none" || !panel.style.display;
+  if (show) renderCatFilterPanel();
+  panel.style.display = show ? "" : "none";
+}
+
 /* ── Section 2: topic tabs + news ── */
 function renderTopicTabs() {
   const tabs = document.getElementById("topicTabs");
@@ -305,7 +370,11 @@ function renderTopicTabs() {
       ${esc(emoji)} ${esc(t.label)} <span class="tr-tab-count">🎬 ${n}</span>
     </button>`;
   }).join("");
-  tabs.innerHTML = overview + topicBtns;
+  // ⚙️ ปุ่มเลือกหมวดข่าว — เฉพาะโหมดภาพรวม และเมื่อมีหมวดในข้อมูล
+  const gear = (ACTIVE_TAB < 0 && catsInData().length)
+    ? `<button class="tr-tab tr-tab-gear" onclick="toggleCatFilter()" title="เลือกหมวดข่าวที่จะแสดง">⚙️ หมวดข่าว</button>`
+    : "";
+  tabs.innerHTML = overview + topicBtns + gear;
 }
 function selectTab(i) {
   ACTIVE_TAB = i;
@@ -325,6 +394,7 @@ function renderActiveView() {
   } else {
     document.getElementById("ytChartSection").style.display = "none";
     document.getElementById("marketingSection").style.display = "none";
+    document.getElementById("catFilterPanel").style.display = "none";   // ซ่อนแผงหมวดเมื่อออกจากภาพรวม
     const t = (LAST.topics || [])[ACTIVE_TAB];
     const title = document.getElementById("topicSectionTitle");
     if (t && title) title.textContent = `🎬 ${t.label}`;
@@ -481,7 +551,11 @@ function hashtagsFromOverview(i) {
 function renderMarketing() {
   const sec = document.getElementById("marketingSection");
   const wrap = document.getElementById("marketingBody");
-  const items = (LAST && LAST.marketing) || [];
+  const all = (LAST && LAST.marketing) || [];
+  // กรองตามหมวดที่ user เลือก (item ไม่มี cat → แสดงเสมอ)
+  const sel = new Set(getCatSel());
+  const items = all.filter(n => !n.cat || sel.has(n.cat));
+  MKT_VIEW = items;   // เก็บลิสต์ที่แสดงจริง เพื่อให้ปุ่ม 💡/🏷️ อ้าง index ตรงกัน (หลังกรอง)
   if (!items.length) { sec.style.display = "none"; return; }
   const canIdea = !!proxyBase();
   wrap.innerHTML = `<div class="tr-news-grid">${items.map((n, i) => `
@@ -501,11 +575,11 @@ function renderMarketing() {
   sec.style.display = "";
 }
 function ideaFromMkt(i) {
-  const n = ((LAST && LAST.marketing) || [])[i];
+  const n = MKT_VIEW[i];
   if (n) openIdeas(n.title, "เทรนด์การตลาด", `บทความจาก ${n.source || "-"}`);
 }
 function hashtagsFromMkt(i) {
-  const n = ((LAST && LAST.marketing) || [])[i];
+  const n = MKT_VIEW[i];
   if (n) openHashtags(n.title, "เทรนด์การตลาด");
 }
 

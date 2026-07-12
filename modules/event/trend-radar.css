@@ -280,6 +280,36 @@ details[open] > .tr-news-summary::before, details[open] > .tr-extra-summary::bef
   font-family: "IBM Plex Mono", monospace; font-size: .72rem;
   opacity: .8; margin-left: 4px;
 }
+/* ⚙️ ปุ่มเลือกหมวดข่าว — วางท้ายแถบแท็บ (ดันชิดขวาบนจอกว้าง) */
+.tr-tab-gear { margin-left: auto; }
+.tr-tab-gear:hover { border-color: var(--accent); color: var(--accent); }
+
+/* ── แผงเลือกหมวดข่าว (ตัวกรอง "เทรนด์ & ข่าวกระแส") ── */
+.tr-catfilter {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 8px;
+  padding: 12px 14px; margin: -6px 0 16px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+}
+.tr-catfilter-hd { font-size: .85rem; font-weight: 600; color: var(--text2); margin-right: 4px; }
+.tr-catchip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 12px; border-radius: 20px; cursor: pointer;
+  font-size: .85rem; font-weight: 500; color: var(--text2);
+  background: var(--bg); border: 1px solid var(--border);
+  transition: all .12s ease; user-select: none;
+}
+.tr-catchip:hover { border-color: var(--accent); }
+.tr-catchip.on {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  border-color: var(--accent); color: var(--accent); font-weight: 600;
+}
+.tr-catchip input { accent-color: var(--accent); cursor: pointer; margin: 0; }
+.tr-catfilter-all {
+  margin-left: 4px; padding: 6px 12px; border-radius: 20px; cursor: pointer;
+  font-size: .8rem; font-weight: 500; color: var(--text2);
+  background: transparent; border: 1px dashed var(--border); transition: all .12s ease;
+}
+.tr-catfilter-all:hover { border-color: var(--accent); color: var(--accent); }
 
 /* ── Topic news list ── */
 .tr-news-list { display: flex; flex-direction: column; gap: 10px; }
