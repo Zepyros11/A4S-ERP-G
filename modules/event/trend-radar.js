@@ -134,53 +134,9 @@ async function refreshAll() {
   }
 }
 
-let HOT_TOPIC_IDX = -1;   // index หัวข้อมาแรงสุด (ให้การ์ดคลิกไปได้)
-
+/* เวลาอัปเดตล่าสุด — แสดงเป็นข้อความใน hero (ไม่มีการ์ดสถิติแล้ว) */
 function renderStats() {
-  const topics = LAST.topics || [];
-
-  // 1) หัวข้อมาแรงสุด — วัด momentum จากยอดวิวคลิปรวมของหัวข้อนั้น
-  let best = null;
-  topics.forEach((t, i) => {
-    const views = (t.videos || []).reduce((a, v) => a + (Number(v.views) || 0), 0);
-    if (!best || views > best.views) best = { i, label: t.label, views, news: (t.items || []).length };
-  });
-  HOT_TOPIC_IDX = best && best.views > 0 ? best.i : -1;
-  document.getElementById("statHotTopic").textContent = HOT_TOPIC_IDX >= 0 ? best.label : "–";
-  document.getElementById("statHotTopicSub").textContent = HOT_TOPIC_IDX >= 0
-    ? `${formatViews(best.views)} วิว · ${best.news} ข่าว · คลิกเพื่อดู`
-    : "ยังไม่มีข้อมูล";
-
-  // 2) กระแสอันดับ 1 — คำค้น Google Trends อันดับแรก
-  const top = (LAST.trending || [])[0];
-  document.getElementById("statTopTrend").textContent = top ? top.title : "–";
-  document.getElementById("statTopTrendSub").textContent = top
-    ? `${top.traffic ? "🔎 " + top.traffic + " ค้นหา · " : ""}คลิกดูที่มา`
-    : "ยังไม่มีข้อมูล";
-
-  // 3) ข่าวใหม่ 24 ชม. — นับข่าวสด (dedupe ด้วย url) จากสื่อ + ข่าวรายหัวข้อ
-  const DAY = 24 * 3600 * 1000, now = Date.now();
-  const fresh = new Set();
-  const addIfFresh = (n) => {
-    const d = Date.parse(n && n.pubDate);
-    if (d && (now - d) < DAY && n.url) fresh.add(n.url);
-  };
-  (LAST.marketing || []).forEach(addIfFresh);
-  topics.forEach(t => (t.items || []).forEach(addIfFresh));
-  document.getElementById("statFreshNews").textContent = fresh.size;
-
   document.getElementById("statUpdated").textContent = nowStamp() + " น.";
-}
-/* การ์ด "หัวข้อมาแรงสุด" → เปิดแท็บหัวข้อนั้น */
-function goHotTopic() {
-  if (HOT_TOPIC_IDX >= 0) selectTab(HOT_TOPIC_IDX);
-}
-/* การ์ด "กระแสอันดับ 1" → เปิดที่มา (ข่าวที่เกี่ยวข้อง หรือ Google search) — ไม่พึ่ง AI */
-function openTopTrend() {
-  const t = (LAST && LAST.trending || [])[0];
-  if (!t) return;
-  const url = (t.news && t.news[0] && t.news[0].url) || googleSearchUrl(t.title);
-  window.open(url, "_blank", "noopener");
 }
 
 /* คีย์เวิร์ดของหัวข้อ (ใช้กรอง Google Trends ให้ตรงหัวข้อที่เลือก) */

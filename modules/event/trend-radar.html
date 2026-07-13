@@ -19,47 +19,12 @@
       <div>
         <h1 class="page-hero-title">📡 กระแส Social</h1>
         <p class="page-hero-sub">รวมกระแสจาก YouTube · Google Trends · เทรนด์การตลาด · ข่าวธุรกิจ — แล้วปั้นเป็นไอเดียคอนเทนต์</p>
+        <p class="page-hero-sub tr-hero-updated">🕒 อัปเดตล่าสุด: <b id="statUpdated">–</b> <span class="tr-hero-note">· เวลาไทย · อัปเดตเมื่อกดรีเฟรช</span></p>
       </div>
       <div class="page-hero-actions">
         <button class="btn-on-hero" id="btnDigest" onclick="openDigest()">📩 ตั้งค่าส่ง LINE</button>
         <button class="btn-on-hero" id="btnManage" onclick="openManage()">⚙️ จัดการหัวข้อ</button>
         <button class="btn-on-hero" id="btnRefresh" onclick="refreshAll()">🔄 รีเฟรช</button>
-      </div>
-    </div>
-
-    <!-- Stats -->
-    <div class="stats-row">
-      <div class="stat-card pink tr-stat-click" onclick="goHotTopic()" title="ไปที่หัวข้อนี้">
-        <div class="stat-icon">🔥</div>
-        <div class="stat-info">
-          <div class="stat-label">หัวข้อมาแรงสุด</div>
-          <div class="stat-value" id="statHotTopic" style="font-size:1.05rem">–</div>
-          <div class="stat-sub" id="statHotTopicSub">–</div>
-        </div>
-      </div>
-      <div class="stat-card pink tr-stat-click" onclick="openTopTrend()" title="เปิดดูที่มาของกระแสนี้">
-        <div class="stat-icon">🥇</div>
-        <div class="stat-info">
-          <div class="stat-label">กระแสอันดับ 1</div>
-          <div class="stat-value" id="statTopTrend" style="font-size:1.05rem">–</div>
-          <div class="stat-sub" id="statTopTrendSub">–</div>
-        </div>
-      </div>
-      <div class="stat-card green">
-        <div class="stat-icon">🆕</div>
-        <div class="stat-info">
-          <div class="stat-label">ข่าวใหม่ 24 ชม.</div>
-          <div class="stat-value" id="statFreshNews">–</div>
-          <div class="stat-sub">วัตถุดิบสด พร้อมปั้นคอนเทนต์</div>
-        </div>
-      </div>
-      <div class="stat-card gray">
-        <div class="stat-icon">🕒</div>
-        <div class="stat-info">
-          <div class="stat-label">อัปเดตล่าสุด</div>
-          <div class="stat-value" id="statUpdated" style="font-size:0.95rem">–</div>
-          <div class="stat-sub">วัน-เวลาไทย · อัปเดตเมื่อกดรีเฟรช</div>
-        </div>
       </div>
     </div>
 

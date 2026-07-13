@@ -3,9 +3,9 @@
    ใช้ design tokens จาก css/core/theme.css
    ============================================================ */
 
-/* การ์ดสถิติที่กดได้ (หัวข้อมาแรงสุด / กระแสอันดับ 1) */
-.tr-stat-click { cursor: pointer; transition: transform .12s ease, box-shadow .12s ease; }
-.tr-stat-click:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg, 0 8px 24px rgba(0,0,0,.12)); }
+/* เวลาอัปเดตล่าสุดใน hero (แทนการ์ดสถิติเดิม) */
+.tr-hero-updated { margin-top: 6px; opacity: .92; }
+.tr-hero-note { opacity: .75; font-size: .92em; }
 
 .tr-section { margin-top: 26px; }
 .tr-section-hdr {
