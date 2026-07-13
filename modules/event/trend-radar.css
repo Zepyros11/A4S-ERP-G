@@ -3,6 +3,10 @@
    ใช้ design tokens จาก css/core/theme.css
    ============================================================ */
 
+/* การ์ดสถิติที่กดได้ (หัวข้อมาแรงสุด / กระแสอันดับ 1) */
+.tr-stat-click { cursor: pointer; transition: transform .12s ease, box-shadow .12s ease; }
+.tr-stat-click:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg, 0 8px 24px rgba(0,0,0,.12)); }
+
 .tr-section { margin-top: 26px; }
 .tr-section-hdr {
   display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;
@@ -321,7 +325,7 @@ details[open] > .tr-news-summary::before, details[open] > .tr-extra-summary::bef
 @keyframes tr-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 
 /* ── Modals ── */
-.tr-modal { max-width: 640px; width: 92vw; }
+.tr-modal { max-width: 760px; width: 92vw; }
 .tr-modal .modal-body { max-height: 72vh; overflow-y: auto; }
 .tr-idea-source {
   background: var(--accent-pale); color: var(--text);
@@ -358,6 +362,11 @@ details[open] > .tr-news-summary::before, details[open] > .tr-extra-summary::bef
 }
 .tr-manage-row { display: flex; gap: 8px; align-items: center; }
 .tr-sub-input { font-size: .82rem; }
+/* label กำกับช่องกรอก — กันสับสนว่าช่องไหนคืออะไร (placeholder หายเมื่อมีค่า) */
+.tr-field-lbl {
+  display: block; font-size: .76rem; font-weight: 600; color: var(--text2); margin-top: 4px;
+}
+.tr-field-note { font-weight: 400; color: var(--text3); }
 .tr-input {
   flex: 1; min-width: 0; padding: 8px 10px; border: 1px solid var(--border);
   border-radius: 8px; font-size: .88rem; background: var(--surface); color: var(--text);
@@ -370,7 +379,7 @@ details[open] > .tr-news-summary::before, details[open] > .tr-extra-summary::bef
   padding: 6px; border-radius: 6px; flex: 0 0 auto;
 }
 .tr-del:hover { background: var(--danger-pale); }
-.tr-add-row { display: flex; gap: 8px; align-items: center; border-top: 1px dashed var(--border); padding-top: 12px; }
+.tr-add-row { display: flex; justify-content: center; border-top: 1px dashed var(--border); padding-top: 12px; }
 .tr-warn {
   background: var(--warning-pale); color: var(--text);
   padding: 10px 12px; border-radius: 8px; font-size: .82rem; margin-bottom: 12px;

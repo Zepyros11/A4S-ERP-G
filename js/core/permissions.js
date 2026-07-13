@@ -66,7 +66,7 @@ window.AppPermissions = (() => {
           { key: "line_promote_edit",   label: "แก้ไข" },
           { key: "line_promote_cancel", label: "ยกเลิก" },
         ]},
-        { key: "trend_radar", label: "เรดาร์กระแส", icon: "📡", perms: [
+        { key: "trend_radar", label: "กระแส Social", icon: "📡", perms: [
           { key: "trend_radar_view",   label: "ดู/ปั้นคอนเทนต์" },
           { key: "trend_radar_manage", label: "จัดการหัวข้อ" },
         ]},

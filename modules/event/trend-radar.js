@@ -134,14 +134,53 @@ async function refreshAll() {
   }
 }
 
+let HOT_TOPIC_IDX = -1;   // index หัวข้อมาแรงสุด (ให้การ์ดคลิกไปได้)
+
 function renderStats() {
   const topics = LAST.topics || [];
-  const vids = topics.reduce((s, t) => s + (t.videos || []).length, 0);
-  const views = topics.reduce((s, t) => s + (t.videos || []).reduce((a, v) => a + (Number(v.views) || 0), 0), 0);
-  document.getElementById("statVideos").textContent = vids;
-  document.getElementById("statViews").textContent = formatViews(views);
-  document.getElementById("statTopics").textContent = topics.length;
+
+  // 1) หัวข้อมาแรงสุด — วัด momentum จากยอดวิวคลิปรวมของหัวข้อนั้น
+  let best = null;
+  topics.forEach((t, i) => {
+    const views = (t.videos || []).reduce((a, v) => a + (Number(v.views) || 0), 0);
+    if (!best || views > best.views) best = { i, label: t.label, views, news: (t.items || []).length };
+  });
+  HOT_TOPIC_IDX = best && best.views > 0 ? best.i : -1;
+  document.getElementById("statHotTopic").textContent = HOT_TOPIC_IDX >= 0 ? best.label : "–";
+  document.getElementById("statHotTopicSub").textContent = HOT_TOPIC_IDX >= 0
+    ? `${formatViews(best.views)} วิว · ${best.news} ข่าว · คลิกเพื่อดู`
+    : "ยังไม่มีข้อมูล";
+
+  // 2) กระแสอันดับ 1 — คำค้น Google Trends อันดับแรก
+  const top = (LAST.trending || [])[0];
+  document.getElementById("statTopTrend").textContent = top ? top.title : "–";
+  document.getElementById("statTopTrendSub").textContent = top
+    ? `${top.traffic ? "🔎 " + top.traffic + " ค้นหา · " : ""}คลิกดูที่มา`
+    : "ยังไม่มีข้อมูล";
+
+  // 3) ข่าวใหม่ 24 ชม. — นับข่าวสด (dedupe ด้วย url) จากสื่อ + ข่าวรายหัวข้อ
+  const DAY = 24 * 3600 * 1000, now = Date.now();
+  const fresh = new Set();
+  const addIfFresh = (n) => {
+    const d = Date.parse(n && n.pubDate);
+    if (d && (now - d) < DAY && n.url) fresh.add(n.url);
+  };
+  (LAST.marketing || []).forEach(addIfFresh);
+  topics.forEach(t => (t.items || []).forEach(addIfFresh));
+  document.getElementById("statFreshNews").textContent = fresh.size;
+
   document.getElementById("statUpdated").textContent = nowStamp() + " น.";
+}
+/* การ์ด "หัวข้อมาแรงสุด" → เปิดแท็บหัวข้อนั้น */
+function goHotTopic() {
+  if (HOT_TOPIC_IDX >= 0) selectTab(HOT_TOPIC_IDX);
+}
+/* การ์ด "กระแสอันดับ 1" → เปิดที่มา (ข่าวที่เกี่ยวข้อง หรือ Google search) — ไม่พึ่ง AI */
+function openTopTrend() {
+  const t = (LAST && LAST.trending || [])[0];
+  if (!t) return;
+  const url = (t.news && t.news[0] && t.news[0].url) || googleSearchUrl(t.title);
+  window.open(url, "_blank", "noopener");
 }
 
 /* คีย์เวิร์ดของหัวข้อ (ใช้กรอง Google Trends ให้ตรงหัวข้อที่เลือก) */
@@ -757,13 +796,16 @@ function paintRows() {
 function manageRows() {
   return MANAGE_DRAFT.map((t, i) => `
     <div class="tr-manage-item">
+      <label class="tr-field-lbl">ชื่อหัวข้อ <span class="tr-field-note">(อีโมจิ + ชื่อที่จะโชว์บนแท็บ)</span></label>
       <div class="tr-manage-row">
-        <input class="tr-input tr-mini" value="${esc(t.emoji || "🔎")}" maxlength="2" oninput="editTopic(${i},'emoji',this.value)" />
-        <input class="tr-input" value="${esc(t.label)}" placeholder="ชื่อหัวข้อ" oninput="editTopic(${i},'label',this.value)" />
+        <input class="tr-input tr-mini" value="${esc(t.emoji || "🔎")}" maxlength="2" title="อีโมจิ" oninput="editTopic(${i},'emoji',this.value)" />
+        <input class="tr-input" value="${esc(t.label)}" placeholder="เช่น สุขภาพ / ความงาม" oninput="editTopic(${i},'label',this.value)" />
         <button class="tr-del" title="ลบหัวข้อ" onclick="removeTopic(${i})">🗑</button>
       </div>
-      <input class="tr-input tr-sub-input" value="${esc(t.query)}" placeholder="🔎 คำค้นข่าว" oninput="editTopic(${i},'query',this.value)" />
-      <input class="tr-input tr-sub-input" value="${esc(t.yt_query || "")}" placeholder="🎬 คำค้น YouTube (เช่น รีวิว...) — ว่าง = ใช้เหมือนข่าว" oninput="editTopic(${i},'yt_query',this.value)" />
+      <label class="tr-field-lbl">🔎 คำค้นข่าว <span class="tr-field-note">ยิ่งเจาะจง ข่าวยิ่งตรง</span></label>
+      <input class="tr-input tr-sub-input" value="${esc(t.query)}" placeholder="เช่น อาหารเสริม สกินแคร์ เทรนด์สุขภาพ" oninput="editTopic(${i},'query',this.value)" />
+      <label class="tr-field-lbl">🎬 คำค้น YouTube <span class="tr-field-note">ว่าง = ใช้คำค้นข่าวด้านบน</span></label>
+      <input class="tr-input tr-sub-input" value="${esc(t.yt_query || "")}" placeholder="เช่น รีวิว สกินแคร์ ครีมบำรุง" oninput="editTopic(${i},'yt_query',this.value)" />
     </div>`).join("");
 }
 function editTopic(i, field, val) { if (MANAGE_DRAFT[i]) MANAGE_DRAFT[i][field] = val; }
@@ -771,14 +813,17 @@ function removeTopic(i) {
   MANAGE_DRAFT.splice(i, 1);
   paintRows();
 }
+/* เพิ่มแถวเปล่าท้ายลิสต์ แล้วโฟกัสช่องชื่อ — กรอกครบทุกฟิลด์ในที่เดียว */
 function addTopic() {
-  const label = document.getElementById("newLabel").value.trim();
-  const query = document.getElementById("newQuery").value.trim();
-  if (!label || !query) return showToast("กรอกชื่อหัวข้อและคำค้น", "error");
-  MANAGE_DRAFT.push({ label, query, emoji: "🔎", sort: MANAGE_DRAFT.length + 1, is_active: true });
-  document.getElementById("newLabel").value = "";
-  document.getElementById("newQuery").value = "";
+  MANAGE_DRAFT.push({ label: "", query: "", yt_query: "", emoji: "🔎", sort: MANAGE_DRAFT.length + 1, is_active: true });
   paintRows();
+  const items = document.querySelectorAll("#manageList .tr-manage-item");
+  const last = items[items.length - 1];
+  if (last) {
+    last.scrollIntoView({ block: "nearest" });
+    const nameInput = last.querySelectorAll(".tr-input")[1];   // [0]=อีโมจิ [1]=ชื่อหัวข้อ
+    if (nameInput) nameInput.focus();
+  }
 }
 
 async function saveManageAndRefresh() {
@@ -924,8 +969,7 @@ async function saveDigestSilent(body) {
 async function initPage() {
   document.getElementById("loadingOverlay").style.display = "none";
   await loadTopics();
-  document.getElementById("statTopics").textContent = TOPICS.length;
-  await refreshAll();
+  await refreshAll();          // renderStats() ตั้งค่าการ์ดทั้งหมดหลังได้ข้อมูล
 }
 if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", initPage);
 else initPage();

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>📡 เรดาร์กระแส — A4S-ERP</title>
+  <title>📡 กระแส Social — A4S-ERP</title>
   <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="../../css/main.css" />
   <link rel="stylesheet" href="./trend-radar.css" />
@@ -17,7 +17,7 @@
   <div class="page">
     <div class="page-hero page-hero--simple page-hero--compact">
       <div>
-        <h1 class="page-hero-title">📡 เรดาร์เทรนด์</h1>
+        <h1 class="page-hero-title">📡 กระแส Social</h1>
         <p class="page-hero-sub">รวมกระแสจาก YouTube · Google Trends · เทรนด์การตลาด · ข่าวธุรกิจ — แล้วปั้นเป็นไอเดียคอนเทนต์</p>
       </div>
       <div class="page-hero-actions">
@@ -29,28 +29,28 @@
 
     <!-- Stats -->
     <div class="stats-row">
-      <div class="stat-card pink">
-        <div class="stat-icon">🎬</div>
+      <div class="stat-card pink tr-stat-click" onclick="goHotTopic()" title="ไปที่หัวข้อนี้">
+        <div class="stat-icon">🔥</div>
         <div class="stat-info">
-          <div class="stat-label">คลิปมาแรงที่พบ</div>
-          <div class="stat-value" id="statVideos">–</div>
-          <div class="stat-sub">YouTube · เรียงตามยอดวิว</div>
+          <div class="stat-label">หัวข้อมาแรงสุด</div>
+          <div class="stat-value" id="statHotTopic" style="font-size:1.05rem">–</div>
+          <div class="stat-sub" id="statHotTopicSub">–</div>
         </div>
       </div>
-      <div class="stat-card pink">
-        <div class="stat-icon">👁</div>
+      <div class="stat-card pink tr-stat-click" onclick="openTopTrend()" title="เปิดดูที่มาของกระแสนี้">
+        <div class="stat-icon">🥇</div>
         <div class="stat-info">
-          <div class="stat-label">ยอดวิวรวม</div>
-          <div class="stat-value" id="statViews">–</div>
-          <div class="stat-sub">รวมทุกคลิปที่พบ</div>
+          <div class="stat-label">กระแสอันดับ 1</div>
+          <div class="stat-value" id="statTopTrend" style="font-size:1.05rem">–</div>
+          <div class="stat-sub" id="statTopTrendSub">–</div>
         </div>
       </div>
       <div class="stat-card green">
-        <div class="stat-icon">🎯</div>
+        <div class="stat-icon">🆕</div>
         <div class="stat-info">
-          <div class="stat-label">หัวข้อที่ติดตาม</div>
-          <div class="stat-value" id="statTopics">–</div>
-          <div class="stat-sub">แก้ได้ที่ ⚙️ จัดการหัวข้อ</div>
+          <div class="stat-label">ข่าวใหม่ 24 ชม.</div>
+          <div class="stat-value" id="statFreshNews">–</div>
+          <div class="stat-sub">วัตถุดิบสด พร้อมปั้นคอนเทนต์</div>
         </div>
       </div>
       <div class="stat-card gray">
@@ -151,12 +151,10 @@
         <button class="btn-modal-close" onclick="closeManage()">✕</button>
       </div>
       <div class="modal-body">
-        <p class="tr-hint">หัวข้อเหล่านี้ใช้ยิงค้นข่าว (Google News) — ยิ่งคำค้นเจาะจง ข่าวยิ่งตรง</p>
+        <p class="tr-hint">แต่ละหัวข้อ = 1 แท็บบนหน้าเรดาร์ · ใช้ยิงค้นข่าว (Google News) + คลิป (YouTube)</p>
         <div id="manageList" class="tr-manage-list"></div>
         <div class="tr-add-row">
-          <input type="text" id="newLabel" class="tr-input" placeholder="ชื่อหัวข้อ เช่น สุขภาพ/ความงาม" />
-          <input type="text" id="newQuery" class="tr-input" placeholder="คำค้น เช่น อาหารเสริม สกินแคร์ เทรนด์สุขภาพ" />
-          <button class="btn btn-primary" onclick="addTopic()">+ เพิ่ม</button>
+          <button class="btn btn-outline" onclick="addTopic()">+ เพิ่มหัวข้อ</button>
         </div>
       </div>
       <div class="modal-footer">
@@ -220,7 +218,7 @@
   <script src="./trend-radar.js"></script>
   <script type="module">
     import { loadTopbar } from "../../js/components/navigation/topbar.js";
-    loadTopbar("📡 เรดาร์กระแส");
+    loadTopbar("📡 กระแส Social");
   </script>
   <script src="../../js/components/navigation/sidebar.js"></script>
   <script src="../../js/components/modal/modalManager.js"></script>

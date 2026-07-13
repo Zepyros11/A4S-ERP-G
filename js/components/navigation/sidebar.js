@@ -102,7 +102,7 @@
         {
           id: "trend-radar",
           icon: "📡",
-          label: "เรดาร์กระแส",
+          label: "กระแส Social",
           path: BASE_PATH + "/modules/event/trend-radar.html",
           section: "promote",
         },

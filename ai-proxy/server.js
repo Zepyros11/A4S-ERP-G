@@ -551,7 +551,7 @@ async function _digestIdea(seed) {
 }
 
 async function _buildDigestText(data, includeIdeas) {
-  const lines = [`📡 เรดาร์กระแส — ${_bkkDMY()}`];
+  const lines = [`📡 กระแส Social — ${_bkkDMY()}`];
 
   const tr = (data.trending || []).slice(0, 5);
   if (tr.length) {
@@ -574,7 +574,7 @@ async function _buildDigestText(data, includeIdeas) {
     if (idea) lines.push('', '💡 ไอเดียโพสต์วันนี้', idea);
   }
 
-  lines.push('', '— ดูทั้งหมดในระบบ ERP › เรดาร์กระแส');
+  lines.push('', '— ดูทั้งหมดในระบบ ERP › กระแส Social');
   return lines.join('\n');
 }
 
@@ -582,7 +582,7 @@ async function _runTrendDigest(force) {
   if (!SB_URL_WEBHOOK || !SB_SERVICE_KEY) return { ok: false, error: 'SB env not set' };
   const cfgs = await _sbGet('trend_digest_config', 'select=*&order=id.asc&limit=1');
   const cfg = cfgs && cfgs[0];
-  if (!cfg) return { ok: false, error: 'ยังไม่มี config (ตั้งค่าในหน้าเรดาร์กระแสก่อน)' };
+  if (!cfg) return { ok: false, error: 'ยังไม่มี config (ตั้งค่าในหน้ากระแส Social ก่อน)' };
 
   if (!force) {
     if (!cfg.is_enabled) return { ok: true, skipped: 'disabled' };
