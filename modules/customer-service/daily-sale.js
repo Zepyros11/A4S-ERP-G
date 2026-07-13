@@ -142,12 +142,12 @@ async function init() {
   await loadAll();
 }
 
-// ไฮไลต์ปุ่มวันนี้/เมื่อวานตามวันที่ที่เลือกจริง
+// ไฮไลต์ปุ่ม "วันนี้" ตามวันที่ที่เลือกจริง + ปิดปุ่มวันหน้าเมื่อถึงวันนี้แล้ว (ไม่มีข้อมูลอนาคต)
 function dsSyncDateChips() {
-  const yest = isoShift(todayIso(), -1);
-  const t = $('dsChipToday'), y = $('dsChipYesterday');
-  if (t) t.classList.toggle('active', state.date === todayIso());
-  if (y) y.classList.toggle('active', state.date === yest);
+  const today = todayIso();
+  const t = $('dsChipToday'), n = $('dsChipNext');
+  if (t) t.classList.toggle('active', state.date === today);
+  if (n) n.disabled = state.date >= today;
 }
 
 async function loadAll() {
@@ -164,11 +164,14 @@ async function loadKPI() {
     if ($('dsKpiGroupLbl')) $('dsKpiGroupLbl').textContent = group === 'ALL' ? 'ทั้งหมด' : group;
     // report ตามกลุ่มสาขาที่เลือก · บิลวันนี้/ยอดขาย = DAILY SALE (ไม่รวม ARP/ewallet) · ARP/Ewallet = จำนวนรายการ
     const bills = await sbGet(`daily_sale_bills?${dateFilter()}&select=amount,bill_type,bill_no,branch,receive_branch&limit=8000`);
+    // บิลที่จ่ายด้วย ABB (dummy>0) นับเป็น ARP ไม่ใช่ยอดขาย → ต้องรู้ dummy ก่อนแยกกลุ่ม
+    const abb = await dsFetchAbbSet(bills.map(b => b.bill_no));
     let count = 0, amount = 0, arp = 0, ew = 0;
     bills.forEach(b => {
       if (group !== 'ALL' && branchGroupOf(b) !== group) return;
       if (isEwallet(b)) { ew++; return; }
-      if (isRedemption(b)) { arp++; return; }
+      if (!isCounted(b)) return;        // ยอด 0 → ไม่นับ (ให้ตรงกับตารางบิลขายด้านล่าง)
+      if (isRedemption(b) || abb.has(b.bill_no)) { arp++; return; }
       count++; amount += Number(b.amount || 0);
     });
     $('dsKpiBills').textContent = count;
@@ -221,7 +224,7 @@ async function loadKPI() {
    TAB: Sale (bills + payments)
    ============================================================ */
 // Payment channels shown in the sale table (order = Google Sheet DAILY SALE)
-const DS_CH = ['cash', 'front_office', 'online', 'kbank', 'ktb', 'ewallet', 'gift_voucher', 'qr_payment', 'commission_deduct', 'arp_amount'];
+const DS_CH = ['cash', 'front_office', 'online', 'kbank', 'ktb', 'ewallet', 'gift_voucher', 'qr_payment', 'commission_deduct', 'arp_amount', 'abb_easy', 'abb_online', 'arp_usd'];
 // blank a zero so the sheet stays readable (matches Google Sheet: empty cell for 0)
 function fmt0(n) { return Number(n || 0) === 0 ? '' : fmt(n); }
 function channelSum(p) { return DS_CH.reduce((s, k) => s + Number(p[k] || 0), 0); }
@@ -274,10 +277,12 @@ const DS_TABLES = [
   // tail = คอลัมน์ท้าย payment ที่ต่างกันต่อตาราง (Daily Sale ตัด หักค่าคอม/ARP ออก เหลือ QR)
   { key: 'sale',    title: '💰 Daily Sale',                                    branches: ['BKK01', 'NB', 'BUR'],
     tail: [{ label: 'QR Paymet', field: 'qr_payment', col: 'ds-col-qr' }] },
-  { key: 'arp',     title: '🎁 แลกสินค้า ARP (POINT) · ARP EASY · ABB Online', branches: ['BKK01', 'NB', 'DP'], noFixed: true,  // redemption: ไม่มี Cash/Credit/Transfer/EW/Gift
-    tail: [{ label: 'ARP (POINT)', field: 'qr_payment', col: 'ds-col-qr' }, { label: 'ARP EASY', field: 'commission_deduct', col: 'ds-col-comm' }, { label: 'ABB Online', field: 'arp_amount', col: 'ds-col-arp' }] },
+  // ARP: ค่าอยู่ที่ abb_easy / abb_online / arp_usd (derive จาก dummy + bill_type · migration 170)
+  //      ไม่ใช่ qr_payment/commission_deduct/arp_amount ซึ่งบิล ARP ไม่เคยมีค่า
+  { key: 'arp',     title: '🎁 แลก ARP (POINT) · รับรางวัล ABB ONLINE · ARP EASY', branches: ['BKK01', 'NB', 'DP'], noFixed: true,  // redemption: ไม่มี Cash/Credit/Transfer/EW/Gift
+    tail: [{ label: 'ABB EASY', field: 'abb_easy', col: 'ds-col-comm' }, { label: 'ABB ONLINE', field: 'abb_online', col: 'ds-col-arp' }, { label: 'ARP (USD)', field: 'arp_usd', col: 'ds-col-qr' }] },
   { key: 'ewallet', title: '👛 E-WALLET (THB)',                                branches: ['BKK01', 'BUR'], hideFixed: ['cash'],
-    tail: [{ label: 'QR Paymet', field: 'qr_payment', col: 'ds-col-qr' }, { label: 'โอนค่าคอมเข้า E/W', field: 'commission_deduct', col: 'ds-col-comm' }, { label: 'ARP', field: 'arp_amount', col: 'ds-col-arp' }] },
+    tail: [{ label: 'QR Paymet', field: 'qr_payment', col: 'ds-col-qr' }, { label: 'โอนค่าคอมเข้า E/W', field: 'commission_deduct', col: 'ds-col-comm' }, { label: 'ARP (USD)', field: 'arp_usd', col: 'ds-col-arp' }] },
 ];
 const DS_TABLE_BY_KEY = Object.fromEntries(DS_TABLES.map(c => [c.key, c]));
 
@@ -316,16 +321,23 @@ function branchGroupOf(b) {
 function isRedemption(b) { const t = (b.bill_type || '').trim(); return t === 'แลกสินค้า' || t.toUpperCase() === 'ARP'; }
 // บิลเติมเงิน ewallet: bill_type EWALLET (import) หรือ prefix ETH
 function isEwallet(b) { const t = (b.bill_type || '').toUpperCase(); return t === 'EWALLET' || String(b.bill_no || '').toUpperCase().startsWith('ETH'); }
+// นับเข้ายอดไหม — ยอด 0 (บิล 'อัพเกรด' ที่ไม่มีการชำระ) ไม่นับ ตรงกับสูตรชีท
+// ใช้ร่วมทุกจุดที่นับยอด: ตารางบิลขาย · KPI · ตรวจบิล · สรุปยอดรายวัน · Excel export
+// (ตาราง E-WALLET ยกเว้น — บิลเติมเงินโชว์ทุกใบตามชีท)
+function isCounted(b) { return Number(b.amount || 0) !== 0; }
 
-// จัดบิลเข้าตาราง (ตามสูตร: ewallet ก่อน → แลกสินค้า=ARP → ที่เหลือ=ขายปกติ)
-function billGroup(b) {
+// จ่ายด้วย ABB/ARP (ช่อง Dummy ในไฟล์ช่องทางชำระ) — บิลแบบนี้ชีทลงตาราง ARP แม้ประเภทบิลไม่ใช่ "แลกสินค้า"
+function isAbbPaid(p) { return Number(p?.dummy || 0) > 0; }
+// จัดบิลเข้าตาราง (ตามสูตร: ewallet ก่อน → แลกสินค้า/จ่ายด้วย ABB = ARP → ที่เหลือ = ขายปกติ)
+// p = payment row (ไม่ส่งมาก็ได้ · ใช้ตอนยังไม่โหลด payment เช่นกรอง inScope)
+function billGroup(b, p) {
   if (isEwallet(b)) return 'ewallet';
-  if (isRedemption(b)) return 'arp';
+  if (isRedemption(b) || isAbbPaid(p)) return 'arp';
   return 'sale';
 }
 // เข้าเงื่อนไขตารางไหม (amount≠0 สำหรับ sale/arp ตามสูตร · branch คุมด้วย group checkbox แทน)
 function inScope(b, cfg) {
-  if (cfg.key !== 'ewallet' && Number(b.amount || 0) === 0) return false;
+  if (cfg.key !== 'ewallet' && !isCounted(b)) return false;
   return true;
 }
 
@@ -413,7 +425,8 @@ function fillSaleTable(cfg, list, pMap, canEdit) {
     fields.forEach(f => { tot[f] += Number(p[f] || 0); });
 
     const delBtn = canEdit
-      ? `<button class="ds-del-btn" title="ลบบิลนี้" onclick="dsDeleteBill('${b.bill_no}')">🗑</button>` : '';
+      ? `<button class="ds-move-btn" title="ย้ายวันบัญชี (บิลข้ามวัน)" onclick="dsBizDateOpen('${b.bill_no}')">📅</button>`
+        + `<button class="ds-del-btn" title="ลบบิลนี้" onclick="dsDeleteBill('${b.bill_no}')">🗑</button>` : '';
     const chkTd = canEdit
       ? `<td class="ds-chk-col"><input type="checkbox" class="ds-rowchk" data-bill="${b.bill_no}" ${state.saleChecked.has(b.bill_no) ? 'checked' : ''} onchange="dsToggleRow(this)"></td>` : '';
     const note = dsCleanNote(p.correction_notes || b.notes);
@@ -433,7 +446,7 @@ function fillSaleTable(cfg, list, pMap, canEdit) {
       <tr${rowClasses ? ` class="${rowClasses}"` : ''}>
         ${chkTd}
         <td class="ds-num">${i + 1}</td>
-        <td>${fmtDMY(b.sale_date)}</td>
+        ${dsDateCell(b)}
         <td><span class="ds-bill-no">${b.bill_no}</span></td>
         <td>${b.member_code || ''}</td>
         ${dsNameCell(b)}
@@ -457,13 +470,31 @@ function fillSaleTable(cfg, list, pMap, canEdit) {
   const c = (cls, v) => `<td class="ds-num ${cls}">${fmt(v)}</td>`;
   const tailTot = cfg.tail.map(t => c(t.col, tot[t.field])).join('');
   const fixedTot = nf ? '' : `${hide.has('cash') ? '' : c('ds-col-cash', tot.cash)}${c('ds-col-cc', tot.front_office)}${c('ds-col-cc', tot.online)}${c('ds-col-tf', tot.kbank)}${c('ds-col-tf', tot.ktb)}${hide.has('ewallet') ? '' : c('ds-col-ew', tot.ewallet)}${hide.has('gift_voucher') ? '' : c('ds-col-gift', tot.gift_voucher)}`;
+  // รวมทุกช่องทางชำระ = ยอดรวมทั้งสิ้นของตาราง (ตรงกับช่องใหญ่ท้ายชีท)
+  const grand = fields.reduce((s, f) => s + Number(tot[f] || 0), 0);
   foot.innerHTML = `<tr class="ds-foot-total">
     <td colspan="${5 + (canEdit ? 1 : 0)}" style="text-align:right">รวม (${list.length})</td>
     ${fixedTot}${tailTot}
     <td class="ds-num">${fmt(sumAmount)}</td>
     <td class="ds-num ${sumDiff === 0 ? '' : 'ds-diff-bad'}">${sumDiff === 0 ? '-' : fmt(sumDiff)}</td>
     <td colspan="3"></td>
+  </tr>
+  <tr class="ds-foot-grand">
+    <td colspan="${totalCols}">รวมทั้งสิ้น <b>${fmt(grand)}</b> บาท</td>
   </tr>`;
+}
+
+// เซ็ตของบิลที่จ่ายด้วย ABB/ARP (dummy>0) — ใช้ตอนนับ KPI/ตรวจบิล ที่ไม่ได้โหลด payment เต็ม
+async function dsFetchAbbSet(billNos) {
+  const set = new Set();
+  for (let i = 0; i < billNos.length; i += 200) {
+    const inl = billNos.slice(i, i + 200).map(b => `"${b}"`).join(',');
+    try {
+      const rows = await sbGet(`daily_sale_payments?bill_no=in.(${inl})&dummy=gt.0&select=bill_no`);
+      rows.forEach(p => set.add(p.bill_no));
+    } catch { /* อ่านไม่ได้ → ถือว่าไม่มี ABB */ }
+  }
+  return set;
 }
 
 // fetch payments in chunks (in.() list stays short even for a big day)
@@ -493,6 +524,12 @@ async function fetchMemberNames(codes) {
   }
   return map;
 }
+// เซลล์วันที่ (<td>) — โชว์วันขายจริง · ถ้าปักหมุดวันบัญชีไว้ (business_date_manual) → ขึ้น 📌 + hover บอกวันบัญชี
+function dsDateCell(b) {
+  if (!b.business_date_manual) return `<td>${fmtDMY(b.sale_date)}</td>`;
+  const tip = `ปักหมุดวันบัญชี ${fmtDMY(b.business_date_manual)} · วันขายจริง ${fmtDMY(b.sale_date)}`;
+  return `<td>${fmtDMY(b.sale_date)} <span class="ds-pin" title="${escHtml(tip)}">📌</span></td>`;
+}
 // เซลล์ชื่อ (<td>) — มี full_name ที่ต่างจากชื่อบิล (= บริษัทที่มีชื่อบุคคล) → hover โชว์ชื่อบุคคล (ไม่ลิงก์)
 function dsNameCell(b) {
   const shown = (b.member_name || '').slice(0, 40);
@@ -504,8 +541,19 @@ function dsNameCell(b) {
   return `<td>${escHtml(shown)}</td>`;
 }
 
+// แถบหัวเรื่องวันที่แบบชีท — "วันที่ 11 กรกฎาคม 2569 · สาขา BKK"
+function dsRenderSheetTitle() {
+  const el = $('dsSheetTitle');
+  if (!el) return;
+  const [y, m, d] = (state.date || todayIso()).split('-').map(Number);
+  const grp = state.branchGroup || 'ALL';
+  el.innerHTML = `วันที่ ${d} ${TH_MONTHS[m - 1]} ${y + 543}
+    <span class="ds-sheet-title-sub">· สาขา ${grp === 'ALL' ? 'ทั้งหมด' : grp}</span>`;
+}
+
 async function loadSale() {
   const canEdit = window.hasPerm ? hasPerm('daily_sale_reconcile') : true;
+  dsRenderSheetTitle();
   const wrap = $('dsSaleTables');
   if (wrap && !$('dsBody_sale')) wrap.innerHTML = DS_TABLES.map(cfg => saleTableShell(cfg, canEdit)).join('');
   try {
@@ -528,7 +576,7 @@ async function loadSale() {
     dsMemberMap = memMap;
 
     const groups = { sale: [], arp: [], ewallet: [] };
-    visible.forEach(b => groups[billGroup(b)].push(b));
+    visible.forEach(b => groups[billGroup(b, pMap[b.bill_no])].push(b));   // ต้องมี payment ก่อน (เช็ค dummy → ARP)
     DS_TABLES.forEach(cfg => fillSaleTable(cfg, groups[cfg.key], pMap, canEdit));
     // ล้าง selection ของบิลที่ไม่แสดงแล้ว + refresh bulk bar
     const vis = new Set(visible.map(b => b.bill_no));
@@ -596,7 +644,10 @@ async function dsExportExcel() {
   showLoading(true);
   try {
     const bills = await sbGet(`daily_sale_bills?${dateFilter()}&limit=5000`);
-    const scoped = bills.filter(b => group === 'ALL' || branchGroupOf(b) === group).sort(saleSort);
+    const scoped = bills
+      .filter(b => group === 'ALL' || branchGroupOf(b) === group)
+      .filter(b => inScope(b, DS_TABLE_BY_KEY[billGroup(b)]))   // ตัดบิลยอด 0 เหมือนตารางบนหน้าจอ
+      .sort(saleSort);
     const pMap = scoped.length ? await fetchPaymentsMap(scoped.map(b => b.bill_no)) : {};
 
     // reconcile record ของวัน (signoff + หมายเหตุพิเศษ) → ท้ายชีต Daily Sale
@@ -669,13 +720,14 @@ function _ssN(val, sid, ma, md, idx) {
   const a = (idx ? ` ss:Index="${idx}"` : '') + (ma ? ` ss:MergeAcross="${ma}"` : '') + (md ? ` ss:MergeDown="${md}"` : '');
   return n === 0 ? `<Cell ss:StyleID="${sid}"${a}/>` : `<Cell ss:StyleID="${sid}"${a}><Data ss:Type="Number">${n}</Data></Cell>`;
 }
-function _ssSection(title, list, tail, pMap) {
-  const PAY = ['cash', 'front_office', 'online', 'kbank', 'ktb', 'ewallet', 'gift_voucher', 'qr_payment', 'commission_deduct', 'arp_amount'];
+// tail3 = 3 คอลัมน์ท้าย payment ที่ต่างกันต่อ section (ตรงกับ DS_TABLES[].tail)
+function _ssSection(title, list, tail3, pMap) {
+  const PAY = ['cash', 'front_office', 'online', 'kbank', 'ktb', 'ewallet', 'gift_voucher', ...tail3.map(t => t.f)];
   const NC = ['n_cash', 'n_cc', 'n_cc', 'n_tf', 'n_tf', 'n_ew', 'n_gift', 'n_qr', 'n_comm', 'n_arp'];
   const NB = ['nb_cash', 'nb_cc', 'nb_cc', 'nb_tf', 'nb_tf', 'nb_ew', 'nb_gift', 'nb_qr', 'nb_comm', 'nb_arp'];
   let r = `<Row><Cell ss:StyleID="sectitle" ss:MergeAcross="18"><Data ss:Type="String">${_ssX(title)}</Data></Cell></Row>`;
   r += `<Row>${_ssC('NO', 'h_white', 0, 2)}${_ssC('วันที่', 'h_white', 0, 2)}${_ssC('เลขออเดอร์', 'h_white', 0, 2)}${_ssC('รหัส', 'h_white', 0, 2)}${_ssC('Name', 'h_white', 0, 2)}${_ssC('Payment (THB)', 'h_pay', 9, 0)}${_ssC('ยอดในระบบ', 'h_sys', 0, 2)}${_ssC('ผลต่าง', 'h_sys', 0, 2)}${_ssC('ผู้บันทึก', 'h_white', 0, 2)}${_ssC('หมายเหตุเพิ่มเติม', 'h_white', 0, 2)}</Row>`;
-  r += `<Row>${_ssC('Cash', 'h_cash', 0, 1, 6)}${_ssC('Credit Card', 'h_cc', 1, 0)}${_ssC('Tranfer Money', 'h_tf', 1, 0)}${_ssC('E-WALLET', 'h_ew', 0, 1)}${_ssC('gift voucher', 'h_gift', 0, 1)}${_ssC('qr paymet', 'h_qr', 0, 1)}${_ssC(tail[0], 'h_comm', 0, 1)}${_ssC(tail[1], 'h_arp', 0, 1)}</Row>`;
+  r += `<Row>${_ssC('Cash', 'h_cash', 0, 1, 6)}${_ssC('Credit Card', 'h_cc', 1, 0)}${_ssC('Tranfer Money', 'h_tf', 1, 0)}${_ssC('E-WALLET', 'h_ew', 0, 1)}${_ssC('gift voucher', 'h_gift', 0, 1)}${_ssC(tail3[0].l, 'h_qr', 0, 1)}${_ssC(tail3[1].l, 'h_comm', 0, 1)}${_ssC(tail3[2].l, 'h_arp', 0, 1)}</Row>`;
   r += `<Row>${_ssC('Front Office', 'h_cc', 0, 0, 7)}${_ssC('Online', 'h_cc')}${_ssC('KBANK', 'h_tf')}${_ssC('KTB', 'h_tf')}</Row>`;
   const tot = {}; PAY.forEach(f => tot[f] = 0); let sa = 0, sd = 0;
   list.forEach((b, i) => {
@@ -708,16 +760,22 @@ function _ssSignoff(rec) {
   });
   return r;
 }
+// 3 คอลัมน์ท้าย payment ต่อ section — ต้องตรงกับ DS_TABLES[].tail (ARP อ่าน abb_easy/abb_online/arp_usd)
+const _SS_TAIL = {
+  sale:    [{ l: 'qr paymet', f: 'qr_payment' }, { l: 'หักค่าคอม', f: 'commission_deduct' }, { l: 'ARP', f: 'arp_amount' }],
+  arp:     [{ l: 'ABB EASY', f: 'abb_easy' }, { l: 'ABB ONLINE', f: 'abb_online' }, { l: 'ARP (USD)', f: 'arp_usd' }],
+  ewallet: [{ l: 'qr paymet', f: 'qr_payment' }, { l: 'โอนค่าคอมเข้า E/W', f: 'commission_deduct' }, { l: 'ARP (USD)', f: 'arp_usd' }],
+};
 function _ssDaySheet(date, list, pMap, rec, group) {
   const groups = { sale: [], arp: [], ewallet: [] };
-  list.slice().sort(saleSort).forEach(b => groups[billGroup(b)].push(b));
+  list.slice().sort(saleSort).forEach(b => groups[billGroup(b, pMap[b.bill_no])].push(b));
   const [y, m, d] = date.split('-').map(Number);
   const name = `${d}-${m}-${(y + 543) % 100}`;
   const cols = [30, 55, 118, 45, 200, 52, 62, 55, 58, 55, 62, 62, 58, 58, 55, 68, 50, 62, 120].map(w => `<Column ss:Width="${w}"/>`).join('');
   let rows = `<Row ss:Height="26"><Cell ss:StyleID="title" ss:MergeAcross="18"><Data ss:Type="String">วันที่ ${_ssX(fmtDMY(date))} · สาขา ${_ssX(group === 'ALL' ? 'ทั้งหมด' : group)}</Data></Cell></Row>`;
-  rows += _ssSection('DAILY SALE', groups.sale, ['หักค่าคอม', 'ARP'], pMap) + '<Row/>';
-  rows += _ssSection('แลก ARP (POINT) · ARP EASY · ABB ONLINE', groups.arp, ['ARP EASY', 'ARP (USD)'], pMap) + '<Row/>';
-  rows += _ssSection('E-WALLET (THB)', groups.ewallet, ['หักค่าคอม', ''], pMap) + '<Row/><Row/>';
+  rows += _ssSection('DAILY SALE', groups.sale, _SS_TAIL.sale, pMap) + '<Row/>';
+  rows += _ssSection('แลก ARP (POINT) · รับรางวัล ABB ONLINE · ARP EASY', groups.arp, _SS_TAIL.arp, pMap) + '<Row/>';
+  rows += _ssSection('E-WALLET (THB)', groups.ewallet, _SS_TAIL.ewallet, pMap) + '<Row/><Row/>';
   rows += _ssSignoff(rec);
   return `<Worksheet ss:Name="${_ssX(name)}"><Table>${cols}${rows}</Table></Worksheet>`;
 }
@@ -769,9 +827,10 @@ async function _ssReconcileSheet(date) {
   const start = `${ym}-01`, end = `${ym}-${String(days).padStart(2, '0')}`;
   const rgroup = recGroup();
   const bills = await dsGetAll(`daily_sale_bills?business_date=gte.${start}&business_date=lte.${end}&select=business_date,amount,bill_type,bill_no,branch,receive_branch&order=bill_no.asc`);
+  const abb = await dsFetchAbbSet(bills.map(b => b.bill_no));
   const sys = {};
   bills.forEach(b => {
-    if (isEwallet(b) || isRedemption(b) || branchGroupOf(b) !== rgroup) return;
+    if (isEwallet(b) || isRedemption(b) || abb.has(b.bill_no) || !isCounted(b) || branchGroupOf(b) !== rgroup) return;
     const d = b.business_date;
     (sys[d] = sys[d] || { count: 0, value: 0 }); sys[d].count++; sys[d].value += Number(b.amount || 0);
   });
@@ -809,7 +868,9 @@ async function dsExportMonth() {
   showLoading(true);
   try {
     const bills = await sbGet(`daily_sale_bills?business_date=gte.${start}&business_date=lte.${end}&limit=20000`);
-    const scoped = bills.filter(b => group === 'ALL' || branchGroupOf(b) === group);
+    const scoped = bills
+      .filter(b => group === 'ALL' || branchGroupOf(b) === group)
+      .filter(b => inScope(b, DS_TABLE_BY_KEY[billGroup(b)]));   // ตัดบิลยอด 0 เหมือนตารางบนหน้าจอ
     const pMap = scoped.length ? await fetchPaymentsMap(scoped.map(b => b.bill_no)) : {};
     let recMap = {};
     try {
@@ -970,6 +1031,47 @@ function dsBulkDelete() {
 }
 
 /* ============================================================
+   ย้ายวันบัญชี (บิลข้ามวัน) — ปักหมุด business_date_manual (migration 168)
+     ชีทจริงลงบิลที่ปิดหลังรอบไว้ในวันถัดไป แต่ sale_datetime จาก sync ไม่มีเวลาจริง
+     (07:00 ทุกใบ) → trigger cutoff คำนวณไม่ได้ ต้องให้ CS ปักหมุดเอง
+     ปักหมุดแล้ว sync รอบถัดไปไม่ล้าง (sync ไม่ส่งคอลัมน์นี้มา)
+   ============================================================ */
+let _dsBizBill = null;
+
+function dsBizDateOpen(billNo) {
+  const rec = state.sale?.[billNo];
+  if (!rec) { toast('ไม่พบข้อมูลบิล', 'error'); return; }
+  const b = rec.bill;
+  _dsBizBill = billNo;
+  $('dsBizBillNo').textContent = billNo;
+  $('dsBizMember').textContent = `${b.member_code || ''} · ${b.member_name || '—'}`;
+  $('dsBizSaleDate').textContent = fmtDMY(b.sale_date);
+  $('dsBizCurrent').textContent = fmtDMY(b.business_date);
+  $('dsBizInput').value = b.business_date_manual || b.business_date || b.sale_date || todayIso();
+  $('dsBizClear').style.display = b.business_date_manual ? '' : 'none';
+  $('dsBizOverlay').classList.add('open');
+}
+function dsBizDateClose() { $('dsBizOverlay').classList.remove('open'); _dsBizBill = null; }
+
+async function dsBizDateSave(clear = false) {
+  if (!_dsBizBill) return;
+  const bill = _dsBizBill;
+  const val = clear ? null : ($('dsBizInput').value || '');
+  if (!clear && !val) { toast('เลือกวันบัญชีก่อน', 'error'); return; }
+  showLoading(true);
+  try {
+    // trigger 168 อ่าน business_date_manual แล้ว set business_date ให้เอง
+    await sbPatch(`daily_sale_bills?bill_no=eq.${encodeURIComponent(bill)}`, { business_date_manual: val || null });
+    dsBizDateClose();
+    toast(clear ? 'ล้างการปักหมุดแล้ว · กลับไปใช้วันขายจริง' : `ย้ายวันบัญชีไป ${fmtDMY(val)} แล้ว`, 'success');
+    await loadAll();   // บิลย้ายออกจากวันที่กำลังดู → รีโหลดทั้งหน้า (KPI + ตาราง + ตรวจบิล)
+  } catch (e) {
+    toast('บันทึกไม่สำเร็จ: ' + e.message, 'error');
+  }
+  showLoading(false);
+}
+
+/* ============================================================
    EDIT CHANNEL — แก้ช่องทางชำระต่อบิล (Forward: ERP = source of truth)
    ============================================================ */
 // Split channels — ตรงกับคอลัมน์ Google Sheet (CS จำแนก Front Office/Online, KBANK/KTB ที่นี่)
@@ -984,6 +1086,9 @@ const DS_EDIT_FIELDS = [
   { key: 'qr_payment',        label: 'QR Payment' },
   { key: 'commission_deduct', label: 'หักค่าคอม' },
   { key: 'arp_amount',        label: 'ARP' },
+  { key: 'abb_easy',          label: 'ABB EASY' },
+  { key: 'abb_online',        label: 'ABB ONLINE' },
+  { key: 'arp_usd',           label: 'ARP (USD)' },
 ];
 
 let _dsEditBillNo = null;
@@ -1139,13 +1244,16 @@ async function loadOnline() {
         ? `<td class="ds-chk-col"><input type="checkbox" class="ds-rowchk" data-bill="${b.bill_no}" ${state.saleChecked.has(b.bill_no) ? 'checked' : ''} onchange="dsToggleRow(this)"></td>`
         : '<td class="ds-chk-col"></td>';
       const delTd = canEdit
-        ? `<td class="ds-edit-cell"><button class="ds-del-btn" title="ลบบิลนี้" onclick="dsDeleteBill('${b.bill_no}')">🗑</button></td>`
+        ? `<td class="ds-edit-cell">
+             <button class="ds-move-btn" title="ย้ายวันบัญชี (บิลข้ามวัน)" onclick="dsBizDateOpen('${b.bill_no}')">📅</button>
+             <button class="ds-del-btn" title="ลบบิลนี้" onclick="dsDeleteBill('${b.bill_no}')">🗑</button>
+           </td>`
         : '<td></td>';
       rows.push(`
         <tr>
           ${chkTd}
           <td class="ds-num">${i + 1}</td>
-          <td>${fmtDMY(b.sale_date)}</td>
+          ${dsDateCell(b)}
           <td><span class="ds-bill-no">${b.bill_no}</span></td>
           <td>${b.member_code || ''}</td>
           ${dsNameCell(b)}
@@ -1390,10 +1498,11 @@ async function loadRecMonth() {
   try {
     // ในระบบ = บิล DAILY SALE (ไม่รวมเติม ewallet) group ตาม business_date
     const bills = await sbGet(`daily_sale_bills?business_date=gte.${start}&business_date=lte.${end}&select=business_date,amount,bill_type,bill_no,branch,receive_branch&limit=10000`);
+    const abb = await dsFetchAbbSet(bills.map(b => b.bill_no));
     _recSysMonth = {};
     bills.forEach(b => {
-      // ตรงสูตรชีท: Col20<>'ARP' and Col20<>'EWALLET' → ตัดทั้ง ARP + เติม E-Wallet
-      if (isEwallet(b) || isRedemption(b) || branchGroupOf(b) !== group) return;
+      // ตรงสูตรชีท: Col20<>'ARP' and Col20<>'EWALLET' → ตัดทั้ง ARP (รวมบิลจ่ายด้วย ABB) + เติม E-Wallet + บิลยอด 0
+      if (isEwallet(b) || isRedemption(b) || abb.has(b.bill_no) || !isCounted(b) || branchGroupOf(b) !== group) return;
       const d = b.business_date;
       (_recSysMonth[d] = _recSysMonth[d] || { count: 0, value: 0 });
       _recSysMonth[d].count++; _recSysMonth[d].value += Number(b.amount || 0);
@@ -1465,9 +1574,10 @@ async function loadRecDaily() {
     scoped.forEach(b => {
       const p = pMap[b.bill_no] || {};
       let t;
-      if (isEwallet(b)) t = ew;              // เติม E-Wallet → ข้อ 12
-      else if (isRedemption(b)) return;      // ARP ไม่นับใน DAILY SALE (Col20<>'ARP')
-      else t = ds;                           // DAILY SALE → ข้อ 1-11
+      const g = billGroup(b, p);
+      if (g === 'ewallet') t = ew;                         // เติม E-Wallet → ข้อ 12
+      else if (g === 'arp' || !isCounted(b)) return;       // ARP (รวมจ่ายด้วย ABB) + บิลยอด 0 ไม่นับ
+      else t = ds;                                         // DAILY SALE → ข้อ 1-11
       t.amount += Number(b.amount || 0);
       for (const f in REC_ZERO()) if (f !== 'amount') t[f] += Number(p[f] || 0);
     });

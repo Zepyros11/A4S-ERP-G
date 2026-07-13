@@ -42,9 +42,10 @@
           📅 วันที่
           <input type="date" class="form-control" id="dsDate" style="width:auto;min-width:160px;" />
         </label>
-        <div class="filter-chips">
-          <button class="filter-chip" id="dsChipYesterday" onclick="dsShiftDate(-1)">← เมื่อวาน</button>
-          <button class="filter-chip active" id="dsChipToday" onclick="dsShiftDate(0)">วันนี้</button>
+        <div class="ds-datenav">
+          <button type="button" class="ds-nav-chip" id="dsChipPrev" onclick="dsShiftDate(-1)" title="ย้อนวัน">‹</button>
+          <button type="button" class="active" id="dsChipToday" onclick="dsShiftDate(0)">วันนี้</button>
+          <button type="button" class="ds-nav-chip" id="dsChipNext" onclick="dsShiftDate(1)" title="วันหน้า">›</button>
         </div>
         <div id="dsBranchChecks" class="ds-branch-checks" title="เลือกกลุ่มสาขาที่จะแสดง"></div>
         <button class="filter-chip ds-export-btn" style="margin-left:auto" onclick="dsExportExcel()" title="ดาวน์โหลด Excel วันที่เลือก (สี+merge)">⬇️ Excel วัน</button>
@@ -73,6 +74,7 @@
 
       <!-- ── Tab: Sale — 3 ตารางตาม Google Sheet DAILY SALE (ขายปกติ / ARP / E-WALLET) สร้างใน JS ── -->
       <div class="ds-tab-panel" id="dsPanelSale">
+        <div id="dsSheetTitle" class="ds-sheet-title"></div>
         <div id="dsSaleTables"></div>
         <div id="dsSignoffBlock" class="ds-signoff"></div>
       </div>
@@ -246,6 +248,37 @@
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="dsEditClose()">ยกเลิก</button>
       <button class="btn btn-primary" onclick="dsEditSave()">💾 บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── ย้ายวันบัญชี (บิลข้ามวัน) — ปักหมุด business_date_manual ── -->
+<div class="modal-overlay" id="dsBizOverlay">
+  <div class="modal v-sage-header" onclick="event.stopPropagation()" style="max-width:430px">
+    <div class="modal-hdr">
+      <div class="modal-title">📅 ย้ายวันบัญชี</div>
+      <button class="btn-modal-close" onclick="dsBizDateClose()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="ds-edit-meta">
+        <div><span class="k">เลขบิล</span><span class="v ds-bill-no" id="dsBizBillNo">—</span></div>
+        <div><span class="k">สมาชิก</span><span class="v" id="dsBizMember">—</span></div>
+        <div><span class="k">วันขายจริง</span><span class="v" id="dsBizSaleDate">—</span></div>
+        <div><span class="k">วันบัญชีปัจจุบัน</span><span class="v" id="dsBizCurrent">—</span></div>
+      </div>
+      <div class="ds-edit-field">
+        <label>ย้ายไปลงวันบัญชี</label>
+        <input type="date" id="dsBizInput" class="form-control" />
+      </div>
+      <p style="font-size:12px;color:var(--text3);margin:10px 0 0;line-height:1.6">
+        ใช้กับบิลที่ปิดหลังรอบ → ชีทลงยอดวันถัดไป · บิลที่ปักหมุดจะขึ้น 📌 ในตาราง
+        และ <b>sync รอบถัดไปจะไม่ทับ</b>
+      </p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" id="dsBizClear" onclick="dsBizDateSave(true)" style="display:none">↩ ล้างการปักหมุด</button>
+      <button class="btn btn-outline" onclick="dsBizDateClose()">ยกเลิก</button>
+      <button class="btn btn-primary" onclick="dsBizDateSave()">💾 ย้าย</button>
     </div>
   </div>
 </div>
