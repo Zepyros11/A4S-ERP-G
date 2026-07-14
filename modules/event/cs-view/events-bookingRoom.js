@@ -116,6 +116,27 @@ function todayStr(offsetDays = 0) {
   return d.toISOString().split("T")[0];
 }
 
+// timestamptz จาก Supabase เป็น UTC — ต้องแปลงเป็นเวลาไทยก่อนแสดง
+function formatTimestampBangkok(ts) {
+  if (!ts) return "";
+  const s = /(Z|[+-]\d{2}:?\d{2})$/.test(ts) ? ts : ts.replace(" ", "T") + "Z";
+  const d = new Date(s);
+  if (isNaN(d)) return "";
+  const p = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Bangkok",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  })
+    .formatToParts(d)
+    .reduce((o, x) => ((o[x.type] = x.value), o), {});
+  const hh = p.hour === "24" ? "00" : p.hour;
+  return `${p.year}-${p.month}-${p.day} ${hh}:${p.minute}`;
+}
+
 function formatDateThai(dateStr) {
   const months = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
   const d = new Date(dateStr + "T00:00:00");
@@ -1292,7 +1313,7 @@ function openRequestDetail(req) {
   const bookerName = req.booked_by_name || (users.find((u) => String(u.user_id) === String(req.booked_by)) || {}).full_name || "—";
   const csName = req.cs_name || (req.cs_id ? (users.find((u) => String(u.user_id) === String(req.cs_id)) || {}).full_name : null) || "—";
   const timeStr = req.end_time === "ALLDAY" ? "ตลอดทั้งวัน" : `${req.start_time || ""}–${req.end_time || ""}`;
-  const createdAt = req.created_at ? req.created_at.slice(0, 16).replace("T", " ") : "—";
+  const createdAt = formatTimestampBangkok(req.created_at) || "—";
 
   document.getElementById("detailInfoPanel").innerHTML = `
     <div class="flex items-start justify-between gap-2 mb-4">
@@ -1396,7 +1417,7 @@ async function loadRequestLogs(requestId, silent = false) {
 
   const myName = window.ERP_USER?.full_name || window.ERP_USER?.username || "";
   panel.innerHTML = logs.map((log) => {
-    const time = log.created_at ? log.created_at.slice(0, 16).replace("T", " ") : "";
+    const time = formatTimestampBangkok(log.created_at);
     const author = log.created_by_name || "ระบบ";
     const isMe = author === myName;
     let bg, border, textColor;

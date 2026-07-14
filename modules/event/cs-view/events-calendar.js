@@ -737,9 +737,8 @@ function openBookingPanel(requestId) {
     : (b.place_name || b.room_name || "—");
   const dateStr = b.booking_date ? formatDate(b.booking_date) : "—";
   const timeStr = formatBookingTime(b);
-  const bookedAtStr = b.created_at
-    ? `${formatDate(b.created_at.slice(0, 10))} ${b.created_at.slice(11, 16)}`
-    : "—";
+  const bookedAt = toBangkokParts(b.created_at);
+  const bookedAtStr = bookedAt ? `${formatDate(bookedAt.date)} ${bookedAt.time}` : "—";
   const paxHtml = b.num_people
     ? `<div class="bk-panel-row"><div class="bk-panel-label">จำนวนคน</div><div class="bk-panel-value">${b.num_people} คน</div></div>`
     : "";
@@ -865,7 +864,8 @@ async function loadEventLogs(silent = false) {
     }
     const mySenderName = getCalSenderName();
     panel.innerHTML = logs.map(log => {
-      const time = (log.created_at || "").slice(0, 16).replace("T", " ");
+      const tp = toBangkokParts(log.created_at);
+      const time = tp ? `${tp.date} ${tp.time}` : "";
       const author = log.created_by_name || "ระบบ";
       // right = my own messages, left = others
       const isRight = author === mySenderName;
@@ -976,6 +976,28 @@ function getSB() {
   return {
     url: storedUrl || SB_URL_DEFAULT,
     key: isValidKey ? storedKey : SB_KEY_DEFAULT,
+  };
+}
+// timestamptz จาก Supabase เป็น UTC — ต้องแปลงเป็นเวลาไทยก่อนแสดง
+function toBangkokParts(ts) {
+  if (!ts) return null;
+  const s = /(Z|[+-]\d{2}:?\d{2})$/.test(ts) ? ts : ts.replace(" ", "T") + "Z";
+  const d = new Date(s);
+  if (isNaN(d)) return null;
+  const p = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Bangkok",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  })
+    .formatToParts(d)
+    .reduce((o, x) => ((o[x.type] = x.value), o), {});
+  return {
+    date: `${p.year}-${p.month}-${p.day}`,
+    time: `${p.hour === "24" ? "00" : p.hour}:${p.minute}`,
   };
 }
 function formatDate(d) {
