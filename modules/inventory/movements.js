@@ -168,7 +168,8 @@ function renderTimeline() {
   });
 
   container.innerHTML = Object.entries(groups).map(([date, items]) => {
-    const lbl = new Date(date + 'T00:00:00').toLocaleDateString('th-TH', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+    // เดือน/วันภาษาไทยได้ แต่ปีต้องเป็น ค.ศ. (Gregorian) ตามมาตรฐาน — ใช้ปฏิทิน gregory
+    const lbl = new Date(date + 'T00:00:00').toLocaleDateString('th-TH-u-ca-gregory', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
     return `<div class="date-group">
       <div class="date-label"><div class="date-dot"></div><span class="date-text">📅 ${lbl}</span></div>
       ${items.map(renderItem).join('')}
@@ -295,7 +296,7 @@ function exportCSV() {
     const dt   = new Date(m.moved_at);
     const cfg  = TC[m.movement_type];
     return [
-      dt.toLocaleDateString('th-TH'),
+      (window.DateFmt?.formatDMY?.(m.moved_at)) || dt.toLocaleDateString('en-GB', { timeZone:'Asia/Bangkok' }),
       dt.toLocaleTimeString('th-TH', { hour:'2-digit', minute:'2-digit' }),
       cfg?.label || m.movement_type,
       prod?.product_code || '',

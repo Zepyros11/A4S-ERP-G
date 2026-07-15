@@ -96,16 +96,10 @@ function renderAll() {
       : '<span class="status-badge status-off">● ปิด</span>';
   document.getElementById("infoUserId").textContent = "#" + (u.user_id || "—");
 
-  const loginAt = window.ERP_USER?.login_at
-    ? new Date(window.ERP_USER.login_at)
-    : new Date();
-  document.getElementById("infoLoginTime").textContent = loginAt.toLocaleString("th-TH", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  const loginIso = window.ERP_USER?.login_at || new Date().toISOString();
+  document.getElementById("infoLoginTime").textContent = window.DateFmt
+    ? window.DateFmt.formatDMYTime(loginIso)
+    : loginIso;
 
   /* ── Permissions Tree ── */
   renderPermTree();

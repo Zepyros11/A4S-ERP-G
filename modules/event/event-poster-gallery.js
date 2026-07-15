@@ -285,7 +285,7 @@ function formatMonthLabel(key) {
     "พฤศจิกายน",
     "ธันวาคม",
   ];
-  return `${thMonths[parseInt(m)]} ${parseInt(y) + 543}`;
+  return `${thMonths[parseInt(m)]} ${parseInt(y)}`;
 }
 
 function showToast(msg, type = "success") {

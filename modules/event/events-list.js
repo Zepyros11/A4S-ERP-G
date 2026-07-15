@@ -1139,23 +1139,8 @@ window.deleteSelectedEvents = async function () {
 
 function formatDate(d) {
   if (!d) return "—";
-  const [y, m, day] = d.split("-");
-  const months = [
-    "",
-    "ม.ค.",
-    "ก.พ.",
-    "มี.ค.",
-    "เม.ย.",
-    "พ.ค.",
-    "มิ.ย.",
-    "ก.ค.",
-    "ส.ค.",
-    "ก.ย.",
-    "ต.ค.",
-    "พ.ย.",
-    "ธ.ค.",
-  ];
-  return `${parseInt(day, 10)} ${months[parseInt(m, 10)]} ${parseInt(y, 10) + 543}`;
+  const [y, m, day] = String(d).slice(0, 10).split("-");
+  return `${day}/${m}/${y}`;
 }
 
 

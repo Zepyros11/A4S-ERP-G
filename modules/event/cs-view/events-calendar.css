@@ -166,6 +166,10 @@ body {
   grid-template-columns: repeat(7, minmax(0, 1fr));
   /* grid-template-rows set inline when spans exist */
   position: relative;
+  /* ระบายสีคอลัมน์เสาร์-อาทิตย์เต็มความสูง ให้ต่อเนื่องผ่านโซน span bar */
+  background:
+    linear-gradient(#fff8f8, #fff8f8) 0 0 / calc(100% / 7) 100% no-repeat,
+    linear-gradient(#fff8f8, #fff8f8) 100% 0 / calc(100% / 7) 100% no-repeat;
 }
 
 /* Vertical column dividers — drawn on top of span bars via pseudo-element */
@@ -250,11 +254,24 @@ body {
   opacity: 0.4;
 }
 
-/* วันที่ — มุมขวาบน */
+/* วันที่ — แถวบนสุดของแต่ละสัปดาห์ (event bar อยู่ใต้วันที่) */
+.cal-daterow {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  padding: 6px 10px 0;
+  background: #fff;
+}
+.cal-daterow.weekend-cell {
+  background: #fff8f8;
+}
+.cal-daterow.today {
+  background: #fffbea;
+}
+.cal-daterow.other-month {
+  opacity: 0.4;
+}
 .cal-date-num {
-  position: absolute;
-  top: 8px;
-  right: 10px;
   width: 28px;
   height: 28px;
   border-radius: 50%;
@@ -270,7 +287,7 @@ body {
   background: #fffbea !important;
   box-shadow: inset 0 0 0 2px #fbbf24;
 }
-.cal-cell.today .cal-date-num {
+.cal-daterow.today .cal-date-num {
   background: #f59e0b;
   color: #fff;
   font-weight: 700;
@@ -317,19 +334,16 @@ body {
   animation: todayFocusPulse 1.6s cubic-bezier(0.22, 1, 0.36, 1);
   z-index: 5;
 }
-.cal-cell.today.focus-anim .cal-date-num {
-  animation: todayDateNumPop 0.9s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-.cal-cell.weekend-cell .cal-date-num {
+.cal-daterow.weekend-cell .cal-date-num {
   color: #f43f5e;
 }
-.cal-cell.today.weekend-cell .cal-date-num {
+.cal-daterow.today.weekend-cell .cal-date-num {
   color: #fff;
 }
 
-/* pills อยู่ใต้วันที่ ต้อง offset */
-.cal-event-pill:first-of-type {
-  margin-top: 32px;
+/* pills อยู่ใต้ date row + span bars อยู่แล้ว ไม่ต้อง offset */
+.cal-pills-wrap {
+  padding-top: 2px;
 }
 
 /* ── EVENT PILL — filled rounded ── */
@@ -1476,25 +1490,23 @@ body {
     border-right: 1px solid #d1d5db;
     border-bottom: none;
   }
+  .cal-daterow {
+    padding: 2px 2px 0;
+  }
   .cal-date-num {
     width: 16px;
     height: 16px;
     font-size: 9px;
     font-weight: 700;
-    top: 2px;
-    right: 2px;
     background: rgba(241,245,249,0.95);
     border-radius: 50%;
   }
-  .cal-cell.today .cal-date-num {
+  .cal-daterow.today .cal-date-num {
     background: #f59e0b !important;
     color: #fff !important;
   }
 
   /* Event pills */
-  .cal-event-pill:first-of-type {
-    margin-top: 20px;
-  }
   .cal-event-pill {
     display: block;
     font-size: 9px;

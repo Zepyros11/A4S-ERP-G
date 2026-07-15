@@ -134,7 +134,7 @@ function formatTimestampBangkok(ts) {
     .formatToParts(d)
     .reduce((o, x) => ((o[x.type] = x.value), o), {});
   const hh = p.hour === "24" ? "00" : p.hour;
-  return `${p.year}-${p.month}-${p.day} ${hh}:${p.minute}`;
+  return `${p.day}/${p.month}/${p.year} ${hh}:${p.minute}`;
 }
 
 function formatDateThai(dateStr) {
@@ -1231,7 +1231,7 @@ function renderRequestList() {
           <div class="flex items-center gap-1 flex-shrink-0">${unreadBadge}<span class="text-[9px] font-bold px-1.5 py-0.5 rounded-full ${s.cls}">${s.label}</span></div>
         </div>
         <p class="text-[10px] text-slate-500 mt-0.5">${r.place_name}</p>
-        <p class="text-[10px] text-slate-400">${r.booking_date} • ${timeStr}</p>
+        <p class="text-[10px] text-slate-400">${(window.DateFmt?.formatDMY?.(r.booking_date)) || r.booking_date} • ${timeStr}</p>
         <p class="text-[10px] text-indigo-400 font-mono mt-0.5">${r.request_code}</p>
       </div>
     `;
@@ -1326,7 +1326,7 @@ function openRequestDetail(req) {
     <div class="divide-y divide-slate-100">
       ${infoRow("ผู้จอง", bookerName)}
       ${infoRow("CS", csName)}
-      ${infoRow("วันที่", req.booking_date || "—")}
+      ${infoRow("วันที่", req.booking_date ? ((window.DateFmt?.formatDMY?.(req.booking_date)) || req.booking_date) : "—")}
       ${infoRow("เวลา", timeStr)}
       ${req.num_people ? infoRow("จำนวนคน", `${req.num_people} คน`) : ""}
       ${req.note ? infoRow("หมายเหตุ", String(req.note).replace(/</g, "&lt;").replace(/\n/g, "<br>")) : ""}

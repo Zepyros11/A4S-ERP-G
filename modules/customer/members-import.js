@@ -190,7 +190,7 @@ function updateUI() {
   document.getElementById('fileInfoWrap').style.display = 'block';
   document.getElementById('fileName').textContent = currentFile.name;
   document.getElementById('fileMeta').textContent =
-    `${(currentFile.size/1024).toFixed(1)} KB · ${new Date(currentFile.lastModified).toLocaleString('th-TH')}`;
+    `${(currentFile.size/1024).toFixed(1)} KB · ${DateFmt.formatDMYTime(currentFile.lastModified)}`;
   document.getElementById('cfgRows').textContent = parsedRows.length.toLocaleString();
   document.getElementById('cfgCols').textContent = parsedHeaders.filter(Boolean).length;
 

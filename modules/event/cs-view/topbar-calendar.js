@@ -39,11 +39,8 @@ const CalTopbar = (function () {
   }
 
   function formatDateTH(date) {
-    return date.toLocaleDateString("th-TH", {
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-    });
+    const p = (n) => String(n).padStart(2, "0");
+    return `${p(date.getDate())}/${p(date.getMonth() + 1)}/${date.getFullYear()}`;
   }
 
   async function render(opts) {

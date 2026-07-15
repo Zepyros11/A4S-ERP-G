@@ -134,7 +134,7 @@ function selectSupplier(id) {
     ? `<div style="text-align:center;padding:16px;color:var(--text3);font-size:13px">ยังไม่มี PO</div>`
     : pos.map(p => `<div class="po-item">
         <div><div class="po-ref">${p.po_number}</div>
-        <div class="po-date">${new Date(p.order_date).toLocaleDateString('th-TH',{day:'numeric',month:'short',year:'2-digit'})}</div></div>
+        <div class="po-date">${(window.DateFmt?.formatDMY?.(p.order_date)) || new Date(p.order_date).toLocaleDateString('en-GB',{timeZone:'Asia/Bangkok'})}</div></div>
         <span class="status-badge ${p.status==='APPROVED'||p.status==='RECEIVED'?'status-active':''}" style="font-size:10px">${p.status}</span>
         <div class="po-amount">฿${parseFloat(p.total_amount||0).toLocaleString('th-TH',{minimumFractionDigits:2})}</div>
       </div>`).join('');

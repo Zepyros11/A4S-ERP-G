@@ -18,7 +18,7 @@ function _passportData() {
   const range     = currentTrip
     ? `${currentTrip.start_date ? fmt(currentTrip.start_date) : '—'} → ${currentTrip.end_date ? fmt(currentTrip.end_date) : '—'}`
     : '';
-  const printedAt = new Date().toLocaleString('th-TH', { timeZone: 'Asia/Bangkok' });
+  const printedAt = new Date().toLocaleString('en-GB', { timeZone: 'Asia/Bangkok' });
 
   const cards = list.map(r => {
     let src = r.passImg;

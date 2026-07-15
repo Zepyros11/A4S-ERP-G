@@ -1045,7 +1045,7 @@ function waitForImages(container, timeoutMs = 10000) {
   });
 }
 function buildReportHeaderHtml(cols, rows) {
-  const gen = new Date().toLocaleString("th-TH", { timeZone: "Asia/Bangkok" });
+  const gen = new Date().toLocaleString("en-GB", { timeZone: "Asia/Bangkok" });
   return `<div class="cr-print-title">📦 Stock Report · ${escapeHtml(scopeLabel())}</div>
     <div class="cr-print-sub">${rows.length} รายการ · ${cols.length} คอลัมน์ · พิมพ์เมื่อ ${escapeHtml(gen)}</div>`;
 }

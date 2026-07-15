@@ -242,23 +242,8 @@ function getSB() {
 
 function formatDate(d) {
   if (!d) return "—";
-  const [y, m, day] = d.split("-");
-  const months = [
-    "",
-    "ม.ค.",
-    "ก.พ.",
-    "มี.ค.",
-    "เม.ย.",
-    "พ.ค.",
-    "มิ.ย.",
-    "ก.ค.",
-    "ส.ค.",
-    "ก.ย.",
-    "ต.ค.",
-    "พ.ย.",
-    "ธ.ค.",
-  ];
-  return `${parseInt(day)} ${months[parseInt(m)]} ${parseInt(y) + 543}`;
+  const [y, m, day] = String(d).slice(0, 10).split("-");
+  return `${day}/${m}/${y}`;
 }
 
 function timeAgo(dateStr) {

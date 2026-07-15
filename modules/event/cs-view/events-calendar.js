@@ -94,11 +94,7 @@ async function initPage() {
   const now = new Date();
   const dateEl = document.getElementById("calTopbarDate");
   if (dateEl) {
-    dateEl.textContent = now.toLocaleDateString("th-TH", {
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-    });
+    dateEl.textContent = formatDate(toDateStr(now));
   }
   await Promise.all([loadEvents(), loadCategories(), loadBookings()]);
   renderCalendar();
@@ -338,7 +334,7 @@ function renderCalendar() {
               ? `<span class="cal-unread-badge cal-read-badge">${barTotal}</span>`
               : "";
           return `<div class="cal-span-bar"
-            style="grid-column:${colStart + 1}/${colEnd + 2};grid-row:${laneIdx + 1};
+            style="grid-column:${colStart + 1}/${colEnd + 2};grid-row:${laneIdx + 2};
                    background:${color};color:#fff;
                    border-radius:${rTL} ${rTR} ${rBR} ${rBL};
                    margin:2px ${isEnd ? "3px" : "0"} 1px ${isStart ? "3px" : "0"};"
@@ -350,8 +346,27 @@ function renderCalendar() {
       )
       .join("");
 
-    // ── Day cells (grid-row = numLanes+1) ────────────────────
-    const cellRow = numLanes + 1;
+    // ── Date-number header row (grid-row 1) — วันที่อยู่บนสุด ──
+    const dateRowHtml = week
+      .map(({ dateStr, day, inMonth }, colIdx) => {
+        const isToday = dateStr === todayStr;
+        const dow = new Date(dateStr + "T00:00:00").getDay();
+        const isWeekend = dow === 0 || dow === 6;
+        const cls = [
+          "cal-daterow",
+          !inMonth ? "other-month" : "",
+          isToday ? "today" : "",
+          isWeekend ? "weekend-cell" : "",
+          colIdx === 6 ? "col-last" : "",
+        ]
+          .filter(Boolean)
+          .join(" ");
+        return `<div class="${cls}" style="grid-column:${colIdx + 1};grid-row:1"><span class="cal-date-num">${day}</span></div>`;
+      })
+      .join("");
+
+    // ── Day cells (grid-row = numLanes+2, below date row + bars) ──
+    const cellRow = numLanes + 2;
     // pills fit per cell — derived from cell min-height (150px) minus date offset (32px) minus lane bars (24px each), at ~22px per pill
     const MAX_PILLS = numLanes >= 4 ? 1 : numLanes === 3 ? 2 : numLanes === 2 ? 3 : numLanes === 1 ? 4 : 5;
     const cellsHtml = week
@@ -400,15 +415,15 @@ function renderCalendar() {
           })
           .join("");
         const moreHtml = extra > 0 ? `<div class="cal-more" onclick="openDayPopup('${dateStr}');event.stopPropagation()">+${extra}</div>` : "";
-        return `<div class="${cls}" style="grid-column:${colIdx + 1};grid-row:${cellRow}"><div class="cal-date-num">${day}</div><div class="cal-pills-wrap">${pillsHtml}${bookingsHtml}${moreHtml}</div></div>`;
+        return `<div class="${cls}" style="grid-column:${colIdx + 1};grid-row:${cellRow}"><div class="cal-pills-wrap">${pillsHtml}${bookingsHtml}${moreHtml}</div></div>`;
       })
       .join("");
 
     // Single grid: bars + cells share the same 7-col grid → perfect column alignment
     const rowTemplate = numLanes > 0
-      ? `style="grid-template-rows:repeat(${numLanes},24px) auto"`
-      : "";
-    html += `<div class="cal-week-row" ${rowTemplate}>${barsHtml}${cellsHtml}</div>`;
+      ? `style="grid-template-rows:auto repeat(${numLanes},24px) auto"`
+      : `style="grid-template-rows:auto auto"`;
+    html += `<div class="cal-week-row" ${rowTemplate}>${dateRowHtml}${barsHtml}${cellsHtml}</div>`;
   });
 
   document.getElementById("calGrid").innerHTML =
@@ -865,7 +880,7 @@ async function loadEventLogs(silent = false) {
     const mySenderName = getCalSenderName();
     panel.innerHTML = logs.map(log => {
       const tp = toBangkokParts(log.created_at);
-      const time = tp ? `${tp.date} ${tp.time}` : "";
+      const time = tp ? `${formatDate(tp.date)} ${tp.time}` : "";
       const author = log.created_by_name || "ระบบ";
       // right = my own messages, left = others
       const isRight = author === mySenderName;
@@ -1002,23 +1017,10 @@ function toBangkokParts(ts) {
 }
 function formatDate(d) {
   if (!d) return "—";
-  const [y, m, day] = d.split("-");
-  const months = [
-    "",
-    "ม.ค.",
-    "ก.พ.",
-    "มี.ค.",
-    "เม.ย.",
-    "พ.ค.",
-    "มิ.ย.",
-    "ก.ค.",
-    "ส.ค.",
-    "ก.ย.",
-    "ต.ค.",
-    "พ.ย.",
-    "ธ.ค.",
-  ];
-  return `${parseInt(day)} ${months[parseInt(m)]} ${parseInt(y) + 543}`;
+  const s = String(d).slice(0, 10);
+  const [y, m, day] = s.split("-");
+  if (!y || !m || !day) return d;
+  return `${day}/${m}/${y}`;
 }
 function typeIcon(t) {
   return (

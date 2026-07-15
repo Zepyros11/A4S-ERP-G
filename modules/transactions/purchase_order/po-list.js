@@ -99,9 +99,11 @@ function formatCurrency(v) {
 }
 function formatDate(value) {
   if (!value) return "—";
+  // มาตรฐานโปรเจกต์ = DD/MM/YYYY (ค.ศ.) ผ่าน window.DateFmt
+  if (window.DateFmt?.formatDMY) return window.DateFmt.formatDMY(value) || "—";
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return value;
-  return d.toLocaleDateString("th-TH", { year: "numeric", month: "short", day: "numeric" });
+  return d.toLocaleDateString("en-GB", { timeZone: "Asia/Bangkok" });
 }
 function escapeHtml(v) {
   return String(v ?? "")

@@ -3719,15 +3719,14 @@ function formatNum(n) {
 }
 function formatDateTime(dt) {
   if (!dt) return "";
-  const d = new Date(dt);
-  return d.toLocaleString("th-TH", {
-    timeZone: "Asia/Bangkok",
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  try {
+    const d = new Date(dt);
+    const p = new Intl.DateTimeFormat("en-GB", {
+      timeZone: "Asia/Bangkok", day: "2-digit", month: "2-digit", year: "numeric",
+      hour: "2-digit", minute: "2-digit", hour12: false,
+    }).formatToParts(d).reduce((a, x) => (a[x.type] = x.value, a), {});
+    return `${p.day}/${p.month}/${p.year} ${p.hour}:${p.minute}`;
+  } catch { return String(dt).slice(0, 16).replace("T", " "); }
 }
 function showToast(msg, type = "success") {
   const t = document.getElementById("toast");
@@ -6172,11 +6171,7 @@ function _qrImageUrl(text) {
 
 function _fmtDateTH(d) {
   if (!d) return "";
-  try {
-    return new Date(d).toLocaleDateString("th-TH", { year: "numeric", month: "short", day: "numeric" });
-  } catch {
-    return d;
-  }
+  return window.DateFmt ? window.DateFmt.formatDMY(d) : String(d).slice(0, 10).split("-").reverse().join("/");
 }
 
 /* Detect image natural dimensions (for matching LINE Flex aspectRatio) */

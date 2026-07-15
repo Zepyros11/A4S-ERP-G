@@ -34,4 +34,78 @@
   }
 
   window.DateFmt = { formatDMY, parseDMY, formatDMYTime };
+
+  /* ── บังคับ native <input type=date> ให้แสดง DD/MM/YYYY ──
+     Chrome/Edge เลือกรูปแบบ native date picker ตามภาษาเบราว์เซอร์ (คุมด้วย lang/CSS/JS ไม่ได้)
+     จึงใช้ flatpickr แบบ altInput แทน: ช่องที่เห็นแสดง DD/MM/YYYY แต่ .value ยังเป็น ISO YYYY-MM-DD
+     → โค้ดเดิมที่อ่าน/เขียน el.value (ISO) และฟัง event 'change' ทำงานได้เหมือนเดิม */
+  const FP_CSS = 'https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css';
+  const FP_JS  = 'https://cdn.jsdelivr.net/npm/flatpickr';
+  const nativeValueDesc = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value');
+
+  function enhance(el) {
+    if (!el || el.dataset.dmyFp || el._flatpickr) return;         // ข้ามถ้าทำแล้ว/หน้ามี flatpickr เอง
+    if ((el.getAttribute('type') || '').toLowerCase() !== 'date') return;
+    if (typeof window.flatpickr === 'undefined') return;
+    el.dataset.dmyFp = '1';
+
+    const fp = window.flatpickr(el, {
+      dateFormat: 'Y-m-d',        // ค่าจริงใน el.value = ISO
+      altInput: true,             // สร้างช่องที่ผู้ใช้เห็นแยก
+      altFormat: 'd/m/Y',         // ช่องที่เห็น = DD/MM/YYYY
+      altInputClass: el.className, // ใช้สไตล์เดิมของ input
+      allowInput: true,
+      disableMobile: true,
+      static: true,               // วางปฏิทินอ้างอิง wrapper (กัน popup เพี้ยนตอนหน้า zoom)
+    });
+    if (fp.altInput) fp.altInput.style.cssText = el.style.cssText; // คง width/inline style เดิม
+
+    /* sync เมื่อโค้ดเซ็ตค่าเอง (เช่น el.value = todayIso()) ให้ picker อัปเดตด้วย */
+    let syncing = false;
+    Object.defineProperty(el, 'value', {
+      configurable: true,
+      get() { return nativeValueDesc.get.call(el); },
+      set(v) {
+        const cur = nativeValueDesc.get.call(el);
+        nativeValueDesc.set.call(el, v == null ? '' : v);
+        if (syncing || String(v || '') === String(cur || '')) return;
+        syncing = true;
+        try { v ? fp.setDate(v, false) : fp.clear(false); } finally { syncing = false; }
+      }
+    });
+  }
+
+  function scan(root) {
+    if (root.querySelectorAll) root.querySelectorAll('input[type="date"]').forEach(enhance);
+  }
+  function boot() {
+    scan(document);
+    new MutationObserver(muts => {
+      for (const m of muts) {
+        m.addedNodes && m.addedNodes.forEach(n => {
+          if (n.nodeType !== 1) return;
+          if (n.matches && n.matches('input[type="date"]')) enhance(n);
+          scan(n);
+        });
+      }
+    }).observe(document.documentElement, { childList: true, subtree: true });
+  }
+  function init() {
+    if (!document.querySelector('input[type="date"]')) return;    // ไม่มี date input → ไม่ต้องโหลดอะไร
+    if (typeof window.flatpickr !== 'undefined') { boot(); return; }
+    if (!document.querySelector('link[href*="flatpickr"]')) {
+      const link = document.createElement('link');
+      link.rel = 'stylesheet'; link.href = FP_CSS;
+      document.head.appendChild(link);
+    }
+    const s = document.createElement('script');
+    s.src = FP_JS;
+    s.onload = boot;                                              // flatpickr พร้อมแล้วค่อยแปลง
+    document.body.appendChild(s);
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
 })();

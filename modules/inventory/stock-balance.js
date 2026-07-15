@@ -890,7 +890,7 @@ window.sbExportSelectedPDF = function () {
   const scopeLabel = filter.warehouseId
     ? `คลัง: ${idx.warehousesById[filter.warehouseId]?.warehouse_name || "—"}`
     : "ทุกคลัง";
-  const nowText = new Date().toLocaleString("th-TH", {
+  const nowText = new Date().toLocaleString("en-GB", {
     timeZone: "Asia/Bangkok",
     day: "2-digit",
     month: "2-digit",

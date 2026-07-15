@@ -387,11 +387,11 @@ function renderUpcomingEvents(events, attendeesByEvent) {
 function formatEventDate(start, end) {
   if (!start) return '—';
   const s = new Date(start + 'T00:00:00');
-  const sLabel = s.toLocaleDateString('th-TH', { day:'numeric', month:'short', year:'numeric' });
+  const sLabel = s.toLocaleDateString('th-TH', { day:'numeric', month:'short', year:'numeric', calendar:'gregory' });
   if (!end || end === start) return sLabel;
   const e = new Date(end + 'T00:00:00');
   const eLabel = e.toLocaleDateString('th-TH', { day:'numeric', month:'short' });
-  return `${s.toLocaleDateString('th-TH', { day:'numeric', month:'short' })} - ${eLabel} ${s.toLocaleDateString('th-TH', { year:'numeric' })}`;
+  return `${s.toLocaleDateString('th-TH', { day:'numeric', month:'short' })} - ${eLabel} ${s.toLocaleDateString('th-TH', { year:'numeric', calendar:'gregory' })}`;
 }
 
 /* ============================================================

@@ -335,7 +335,8 @@ function previewSO() {
   const typeLabel = currentType === 'SALE' ? 'ใบขาย' : 'เบิกภายใน';
   const cus = document.getElementById('customerId');
   const cusName = currentType === 'SALE' ? (cus.options[cus.selectedIndex]?.text || '—') : 'ภายใน';
-  alert(`📋 Preview ${typeLabel}\n\nเลขที่: ${data.soNumber}\nวันที่: ${data.orderDate}\nวันส่งของ: ${data.deliveryDate || '—'}\nลูกค้า: ${cusName}\nรายการ: ${data.items.length} รายการ\nยอดรวม: ${formatCurrency(data.total)}`);
+  const fmtDate = (iso) => (window.DateFmt?.formatDMY?.(iso)) || iso || '—';
+  alert(`📋 Preview ${typeLabel}\n\nเลขที่: ${data.soNumber}\nวันที่: ${fmtDate(data.orderDate)}\nวันส่งของ: ${data.deliveryDate ? fmtDate(data.deliveryDate) : '—'}\nลูกค้า: ${cusName}\nรายการ: ${data.items.length} รายการ\nยอดรวม: ${formatCurrency(data.total)}`);
 }
 
 function resetForm() {

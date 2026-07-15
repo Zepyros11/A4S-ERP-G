@@ -1235,7 +1235,7 @@ window.exportRaPdf = function (lang = "th") {
     ${sectionsHtml || `<div class="ra-print-section"><div style="text-align:center;color:#94a3b8;padding:20px">${t.noHotel}</div></div>`}
     ${busSectionsHtml ? `<div style="margin-top:18px;font-weight:700;font-size:13px;color:#0f4c75">🚌 รถบัส</div>${busSectionsHtml}` : ""}
     <div style="margin-top:20px;font-size:10px;color:#64748b">
-      ${t.generated} ${new Date().toLocaleString(lang === "en" ? "en-US" : "th-TH", { timeZone: "Asia/Bangkok" })} · A4S-ERP
+      ${t.generated} ${new Date().toLocaleString("en-GB", { timeZone: "Asia/Bangkok" })} · A4S-ERP
     </div>`;
 
   const area = document.getElementById("raPrintArea");

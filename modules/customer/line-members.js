@@ -316,7 +316,8 @@ function formatDateThai(iso) {
   try {
     const d = new Date(iso);
     if (window.DateFmt?.formatDMY) return DateFmt.formatDMY(iso) + ' ' + d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
-    return d.toLocaleDateString('th-TH') + ' ' + d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+    const s = String(iso).slice(0, 10), [y, mo, da] = s.split('-');
+    return `${da}/${mo}/${y}` + ' ' + d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
   } catch { return iso; }
 }
 

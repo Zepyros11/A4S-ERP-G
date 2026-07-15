@@ -1348,7 +1348,7 @@ function buildPrintPayload() {
   const thead = `<th>#</th>` + cols.map(c => `<th>${escapeHtml(colLabel(c))}</th>`).join("");
   const rows = getRows();
   const tbody = buildGroupedTrs(cols, rows).join(""); // group-aware: หัวกลุ่ม + Total ตามที่ตั้งไว้
-  const gen = new Date().toLocaleString(curLang() === "en" ? "en-GB" : "th-TH", { timeZone: "Asia/Bangkok" });
+  const gen = new Date().toLocaleString("en-GB", { timeZone: "Asia/Bangkok" });
   const extra = rows.length !== state.pax.length ? ` ${T("cr.print.extraSplit", { n: rows.length })}` : "";
   const teamNote = state.teamCount ? ` ${T("cr.count.team", { n: state.teamCount })}` : "";
   const html = `

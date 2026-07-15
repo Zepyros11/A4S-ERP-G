@@ -2556,16 +2556,14 @@ function formatDMY(ymd) {
 }
 function formatDateTime(iso) {
   if (!iso) return "—";
-  const d = new Date(iso);
-  return d.toLocaleString("th-TH", {
-    timeZone: "Asia/Bangkok",
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  });
+  try {
+    const d = new Date(iso);
+    const p = new Intl.DateTimeFormat("en-GB", {
+      timeZone: "Asia/Bangkok", day: "2-digit", month: "2-digit", year: "numeric",
+      hour: "2-digit", minute: "2-digit", hour12: false,
+    }).formatToParts(d).reduce((a, x) => (a[x.type] = x.value, a), {});
+    return `${p.day}/${p.month}/${p.year} ${p.hour}:${p.minute}`;
+  } catch { return String(iso).slice(0, 16).replace("T", " "); }
 }
 function showToast(msg, type = "success") {
   const t = document.getElementById("toast");
