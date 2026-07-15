@@ -284,9 +284,25 @@ function renderCalendar() {
     const weekEnd = week[6].dateStr;
 
     // Multi-day events: end_date > event_date AND overlaps this week
-    const multiDayEvts = filtered.filter((e) => {
+    const multiDayAll = filtered.filter((e) => {
       const eEnd = e.end_date || e.event_date;
       return eEnd > e.event_date && e.event_date <= weekEnd && eEnd >= weekStart;
+    });
+    // แยกตามเวลา: เต็มวัน/คร่อมเที่ยง → แท่งยาวต่อเนื่อง · เช้า/บ่ายเฉพาะ → pill รายวันในช่องที่ถูก
+    const multiDayEvts = []; // full → span bars
+    const dayHalfMap = {}; // dateStr -> [event] (multi-day เช้า/บ่าย แยกต่อวัน)
+    multiDayAll.forEach((e) => {
+      if (dayItemSlot(e.start_time, e.end_time) === "full") {
+        multiDayEvts.push(e);
+        return;
+      }
+      const eEnd = e.end_date || e.event_date;
+      week.forEach((d) => {
+        if (d.dateStr >= e.event_date && d.dateStr <= eEnd) {
+          if (!dayHalfMap[d.dateStr]) dayHalfMap[d.dateStr] = [];
+          dayHalfMap[d.dateStr].push(e);
+        }
+      });
     });
 
     // Single-day events mapped by date
@@ -322,10 +338,10 @@ function renderCalendar() {
           const eEnd = e.end_date || e.event_date;
           const isStart = e.event_date >= weekStart;
           const isEnd = eEnd <= weekEnd;
-          const rTL = isStart ? "6px" : "0";
-          const rBL = isStart ? "6px" : "0";
-          const rTR = isEnd ? "6px" : "0";
-          const rBR = isEnd ? "6px" : "0";
+          const rTL = isStart ? "8px" : "0";
+          const rBL = isStart ? "8px" : "0";
+          const rTR = isEnd ? "8px" : "0";
+          const rBR = isEnd ? "8px" : "0";
           const barUnread = getCalUnread(e.event_id);
           const barTotal = getCalTotal(e.event_id);
           const barBadge = barUnread > 0
@@ -333,14 +349,27 @@ function renderCalendar() {
             : barTotal > 0
               ? `<span class="cal-unread-badge cal-read-badge">${barTotal}</span>`
               : "";
-          return `<div class="cal-span-bar"
+          // เลขห้อง — แสดงชิดขวา "ทุกวัน" ที่ bar พาดผ่านในสัปดาห์นี้
+          const barRoomNo = extractRoomNo(e.location);
+          const span = colEnd - colStart + 1;
+          let barRoomChips = "";
+          if (barRoomNo) {
+            const rn = /^\d+$/.test(barRoomNo) ? " room-" + barRoomNo : "";
+            for (let d = 0; d < span; d++) {
+              const rightPct = ((span - d - 1) / span) * 100;
+              barRoomChips += `<span class="cal-pill-room cal-bar-room${rn}" style="right:calc(${rightPct}% + 6px)">${barRoomNo}</span>`;
+            }
+          }
+          // ช่วง bar ที่อยู่ในวันเดือนอื่นทั้งหมด → จางลง (เหมือน pill เดือนอื่น)
+          const segDim = week.slice(colStart, colEnd + 1).every((d) => !d.inMonth);
+          return `<div class="cal-span-bar${segDim ? " cal-dim" : ""}"
             style="grid-column:${colStart + 1}/${colEnd + 2};grid-row:${laneIdx + 2};
                    background:${color};color:#fff;
                    border-radius:${rTL} ${rTR} ${rBR} ${rBL};
-                   margin:2px ${isEnd ? "3px" : "0"} 1px ${isStart ? "3px" : "0"};"
+                   margin:2px ${isEnd ? "10px" : "0"} 1px ${isStart ? "10px" : "0"};"
             onclick="openEventPanel(${e.event_id})"
             title="${e.event_name}">
-            ${isStart ? `<span class="cal-bar-text">${icon} ${e.event_name}</span>${barBadge}` : ""}
+            ${!isStart ? `<span class="cal-bar-cont cal-bar-cont-l">‹</span>` : ""}${isStart ? `<span class="cal-bar-text">${icon} ${eventShortName(e.event_name)}</span>` : ""}${barRoomChips}${!isEnd ? `<span class="cal-bar-cont cal-bar-cont-r">›</span>` : ""}${barBadge}
           </div>`;
         })
       )
@@ -374,7 +403,8 @@ function renderCalendar() {
         const isToday = dateStr === todayStr;
         const dow = new Date(dateStr + "T00:00:00").getDay();
         const isWeekend = dow === 0 || dow === 6;
-        const dayEvents = singleMap[dateStr] || [];
+        // event รายวัน + multi-day เช้า/บ่าย (แยกต่อวัน)
+        const dayEvents = [...(singleMap[dateStr] || []), ...(dayHalfMap[dateStr] || [])];
         const dayBookings = bookingMap[dateStr] || [];
         const cls = [
           "cal-cell",
@@ -385,45 +415,53 @@ function renderCalendar() {
         ]
           .filter(Boolean)
           .join(" ");
-        const evShown = dayEvents.slice(0, MAX_PILLS);
-        const bkSlots = Math.max(0, MAX_PILLS - evShown.length);
-        const bkShown = dayBookings.slice(0, bkSlots);
-        const extra = dayEvents.length + dayBookings.length - evShown.length - bkShown.length;
-        const pillsHtml = evShown
-          .map((ev) => {
-            const { color, icon } = getCatStyle(ev);
-            const pillUnread = getCalUnread(ev.event_id);
-            const pillTotal = getCalTotal(ev.event_id);
-            const pillBadge = pillUnread > 0
-              ? `<span class="cal-unread-badge">${pillUnread}</span>`
-              : pillTotal > 0
-                ? `<span class="cal-unread-badge cal-read-badge">${pillTotal}</span>`
-                : "";
-            return `<div class="cal-event-pill"
-              style="background:${color};color:#fff;"
-              onclick="openEventPanel(${ev.event_id});event.stopPropagation();"
-              title="${ev.event_name}">${icon} ${ev.event_name}${pillBadge}</div>`;
-          })
-          .join("");
-        const bookingsHtml = bkShown
-          .map((b) => {
-            const label = b.room_name || b.place_name || "ห้องจอง";
-            const tip = `${label} · ${formatBookingTime(b)}${b.booked_by_name ? " · " + b.booked_by_name : ""}`;
-            return `<div class="cal-event-pill cal-booking-pill"
-              onclick="openBookingPanel(${b.request_id});event.stopPropagation();"
-              title="${tip}">🚪 ${label}</div>`;
-          })
-          .join("");
+        // รวม event + booking → กำหนด slot เวลา (เช้า/บ่าย/เต็มวัน)
+        const dayItems = [
+          ...dayEvents.map((ev) => ({
+            kind: "event", ev, room: extractRoomNo(ev.location),
+            slot: dayItemSlot(ev.start_time, ev.end_time),
+          })),
+          ...dayBookings.map((b) => ({
+            kind: "booking", b, room: extractRoomNo(b.room_name || b.place_name || ""),
+            slot: dayItemSlot(b.start_time, b.end_time),
+          })),
+        ];
+        // เรียงตามห้องภายในแต่ละกลุ่ม
+        const byRoom = (a, z) => roomSortKey(a.room) - roomSortKey(z.room);
+        const morning = dayItems.filter((i) => i.slot === "am").sort(byRoom);
+        const afternoon = dayItems.filter((i) => i.slot === "pm").sort(byRoom);
+        const fullDay = dayItems.filter((i) => i.slot === "full").sort(byRoom);
+
+        // งบจำนวนแถว: เต็มวันกินเต็มแถว, เช้า/บ่ายวางคู่กัน (นับ 1 แถวต่อคู่)
+        const fullShown = fullDay.slice(0, MAX_PILLS);
+        const halfBudget = Math.max(0, MAX_PILLS - fullShown.length);
+        const amShown = morning.slice(0, halfBudget);
+        const pmShown = afternoon.slice(0, halfBudget);
+        const extra = dayItems.length - fullShown.length - amShown.length - pmShown.length;
+
+        const amHtml = amShown.map(renderDayPill).join("");
+        const pmHtml = pmShown.map(renderDayPill).join("");
+        const fullHtml = fullShown.map(renderDayPill).join("");
+        const halvesHtml = amHtml || pmHtml
+          ? `<div class="cal-half-row"><div class="cal-half cal-half-am">${amHtml}</div><div class="cal-half cal-half-pm">${pmHtml}</div></div>`
+          : "";
         const moreHtml = extra > 0 ? `<div class="cal-more" onclick="openDayPopup('${dateStr}');event.stopPropagation()">+${extra}</div>` : "";
-        return `<div class="${cls}" style="grid-column:${colIdx + 1};grid-row:${cellRow}"><div class="cal-pills-wrap">${pillsHtml}${bookingsHtml}${moreHtml}</div></div>`;
+        return `<div class="${cls}" style="grid-column:${colIdx + 1};grid-row:${cellRow}"><div class="cal-pills-wrap">${halvesHtml}${fullHtml}${moreHtml}</div></div>`;
       })
       .join("");
 
+    // กรอบวันปัจจุบัน — เลเยอร์คลุมทั้งคอลัมน์ (วันที่ + bar + เนื้อหา) เป็นกรอบเดียว
+    const todayCol = week.findIndex((d) => d.dateStr === todayStr);
+    const todayLayerHtml = todayCol >= 0
+      ? `<div class="cal-today-bg" style="grid-column:${todayCol + 1};grid-row:1/-1"></div>` +
+        `<div class="cal-today-frame" style="grid-column:${todayCol + 1};grid-row:1/-1"></div>`
+      : "";
+
     // Single grid: bars + cells share the same 7-col grid → perfect column alignment
     const rowTemplate = numLanes > 0
-      ? `style="grid-template-rows:auto repeat(${numLanes},24px) auto"`
+      ? `style="grid-template-rows:auto repeat(${numLanes},var(--cal-lane-h)) auto"`
       : `style="grid-template-rows:auto auto"`;
-    html += `<div class="cal-week-row" ${rowTemplate}>${dateRowHtml}${barsHtml}${cellsHtml}</div>`;
+    html += `<div class="cal-week-row" ${rowTemplate}>${todayLayerHtml}${dateRowHtml}${barsHtml}${cellsHtml}</div>`;
   });
 
   document.getElementById("calGrid").innerHTML =
@@ -446,6 +484,84 @@ function renderCalendar() {
 // ── Helpers ────────────────────────────────────────────────
 function toDateStr(d) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+// ดึงเลขห้องจาก location เช่น "A4S สนง.ใหญ่ — ห้อง 2" → "2"
+function extractRoomNo(location) {
+  if (!location) return "";
+  const m = String(location).match(/ห้อง\s*(\S+)/);
+  return m ? m[1] : "";
+}
+
+// ชื่อ event ยาว (≥3 คำ) → ย่อเป็นอักษรตัวขึ้นต้นของแต่ละคำ
+// เช่น "UNLOCK THE WORLD : Online" → "UTWO" (ข้าม token ที่เป็นเครื่องหมายล้วน เช่น : &)
+function eventShortName(name) {
+  const words = String(name || "")
+    .trim()
+    .split(/\s+/)
+    .filter((w) => /[A-Za-z0-9ก-๙]/.test(w));
+  if (words.length < 3) return name; // สั้นอยู่แล้ว แสดงเต็ม
+  return words.map((w) => w[0].toUpperCase()).join("");
+}
+
+// ชิปเลขห้อง — ห้อง 1/2/3 ใช้สีต่างกัน (class room-N)
+function roomChipHtml(roomNo) {
+  if (!roomNo) return "";
+  const cls = /^\d+$/.test(roomNo) ? ` room-${roomNo}` : "";
+  return `<span class="cal-pill-room${cls}">${roomNo}</span>`;
+}
+
+// ลำดับห้องในเซลล์: ไม่ระบุห้อง → 1 → 2 → 3 (ห้องที่ไม่ใช่ตัวเลขไปท้ายสุด)
+function roomSortKey(roomNo) {
+  if (!roomNo) return -1;
+  return /^\d+$/.test(roomNo) ? parseInt(roomNo, 10) : 9999;
+}
+
+// แบ่งช่วงเวลาในวัน: เช้า(am)/บ่าย(pm)/เต็มวัน(full) ตัดที่ 12:00
+// จบถึง 12:00 = เช้า · เริ่มตั้งแต่ 12:00 = บ่าย · คร่อมเที่ยง/ทั้งวัน/ไม่ระบุ = เต็ม
+function dayItemSlot(start, end) {
+  if (!start || !end || end === "ALLDAY") return "full";
+  const s = String(start).slice(0, 5);
+  const e = String(end).slice(0, 5);
+  if (!s || !e) return "full";
+  if (e <= "12:00") return "am";
+  if (s >= "12:00") return "pm";
+  return "full";
+}
+
+// render pill เดียว (event หรือ booking) — ใช้ร่วมทุก slot
+function renderDayPill(item) {
+  if (item.kind === "event") {
+    const ev = item.ev;
+    const { color, icon } = getCatStyle(ev);
+    const pillUnread = getCalUnread(ev.event_id);
+    const pillTotal = getCalTotal(ev.event_id);
+    const pillBadge = pillUnread > 0
+      ? `<span class="cal-unread-badge">${pillUnread}</span>`
+      : pillTotal > 0
+        ? `<span class="cal-unread-badge cal-read-badge">${pillTotal}</span>`
+        : "";
+    const roomChip = roomChipHtml(item.room);
+    return `<div class="cal-event-pill"
+      style="background:${color};color:#fff;"
+      onclick="openEventPanel(${ev.event_id});event.stopPropagation();"
+      title="${ev.event_name}"><span class="cal-pill-text">${icon} ${eventShortName(ev.event_name)}</span>${roomChip}${pillBadge}</div>`;
+  }
+  const b = item.b;
+  const label = b.room_name || b.place_name || "ห้องจอง";
+  const roomNo = item.room;
+  const booker = b.booked_by_name || "";
+  let text, roomChip = "";
+  if (roomNo) {
+    text = booker || `ห้อง ${roomNo}`;
+    roomChip = roomChipHtml(roomNo);
+  } else {
+    text = booker ? `${booker} (${label})` : label;
+  }
+  const tip = `${label} · ${formatBookingTime(b)}${booker ? " · " + booker : ""}`;
+  return `<div class="cal-event-pill cal-booking-pill"
+    onclick="openBookingPanel(${b.request_id});event.stopPropagation();"
+    title="${tip}"><span class="cal-pill-text">${text}</span>${roomChip}</div>`;
 }
 
 function assignLanes(events, week) {
