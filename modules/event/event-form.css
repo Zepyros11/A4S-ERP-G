@@ -36,6 +36,11 @@
 .ef-field:last-child {
   margin-bottom: 0;
 }
+/* วันสิ้นสุดถูกล็อกเมื่อเลือก 1/2 วัน (คำนวณอัตโนมัติ) */
+.ef-field.is-disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
 .ef-label {
   display: block;
   font-size: 13px;
@@ -79,14 +84,65 @@
   line-height: 1.6;
 }
 
-/* ── ALL-DAY TOGGLE ROW ── */
-.ef-allday-row {
+/* ── TIME-MODE RADIO ROW (ทั้งวัน / เช้า / บ่าย / กำหนดเอง) ── */
+.ef-timemode-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
   margin-bottom: 14px;
-  padding: 8px 12px;
+}
+.ef-timemode {
+  position: relative;        /* ครอบ input ที่ absolute ไว้ในกล่องนี้ (กัน phantom overflow) */
+  display: inline-flex;
+  cursor: pointer;
+}
+/* ซ่อน radio แบบ visually-hidden มาตรฐาน — 1px + clip ไม่กินพื้นที่ layout เลย */
+.ef-timemode input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  pointer-events: none;
+}
+.ef-timemode-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
   background: var(--surface2, #f8fafc);
   border: 1px solid var(--border);
   border-radius: 8px;
-  display: inline-flex;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text2, #475569);
+  transition: all 0.15s ease;
+}
+.ef-timemode-chip small {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--text3);
+}
+.ef-timemode:hover .ef-timemode-chip {
+  border-color: var(--accent);
+}
+.ef-timemode input:checked + .ef-timemode-chip {
+  background: rgba(var(--accent-rgb), 0.1);
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 600;
+}
+.ef-timemode input:checked + .ef-timemode-chip small {
+  color: var(--accent);
+}
+.ef-timemode input:focus-visible + .ef-timemode-chip {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 .ef-time-row.is-disabled {
   opacity: 0.5;

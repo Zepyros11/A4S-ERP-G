@@ -26,42 +26,62 @@ body {
 ========================================================= */
 
 /* ── CALENDAR HEADER ── */
+/* ── TOOLBAR CARD (month nav + filter) ── */
+.cal-toolbar {
+  background: #fff;
+  border: 1px solid #e8ecf1;
+  border-radius: 16px;
+  padding: 14px 16px;
+  margin-bottom: 16px;
+  box-shadow: 0 2px 12px rgba(148, 163, 184, 0.07);
+}
 .cal-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 16px;
   flex-wrap: wrap;
   gap: 12px;
 }
 .cal-nav {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
+}
+/* ‹ เดือน › รวมเป็นก้อนเดียว (segmented) */
+.cal-nav-seg {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  background: #f6f8fa;
+  border: 1px solid #e8ecf1;
+  border-radius: 12px;
+  padding: 3px;
 }
 .cal-nav .btn-circle {
-  width: 32px;
-  height: 32px;
+  width: 30px;
+  height: 30px;
   padding: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 50%;
-  font-size: 16px;
+  border-radius: 9px;
+  font-size: 17px;
   background: transparent;
-  border: 1px solid #e2e8f0;
+  border: none;
   color: #64748b;
   cursor: pointer;
-  transition: background 0.15s;
+  transition: background 0.15s, color 0.15s, box-shadow 0.15s;
 }
 .cal-nav .btn-circle:hover {
-  background: #f1f5f9;
+  background: #fff;
+  color: #3d6b4f;
+  box-shadow: 0 1px 4px rgba(148, 163, 184, 0.25);
 }
 .cal-month-label {
-  font-size: 20px;
+  font-size: 19px;
   font-weight: 700;
   color: #1e293b;
-  min-width: 150px;
+  min-width: 148px;
   text-align: center;
   letter-spacing: -0.3px;
 }
@@ -97,38 +117,98 @@ body {
 }
 
 /* ── CATEGORY CHIPS ROW ── */
-.cal-cat-chips {
+/* ── CATEGORY FILTER DROPDOWN ── */
+.cal-cat-filter {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.cal-cat-filter-label {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #64748b;
+  white-space: nowrap;
+}
+.cal-cat-dd {
+  position: relative;
+}
+.cal-cat-dd-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 210px;
+  padding: 8px 14px;
+  border-radius: 10px;
+  border: 1px solid #e5e9ef;
+  background: #fff;
+  color: #334155;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: "Plus Jakarta Sans", "IBM Plex Sans Thai", sans-serif;
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.cal-cat-dd-btn:hover {
+  border-color: #cbd5e1;
+}
+.cal-cat-dd.open .cal-cat-dd-btn {
+  border-color: #7da480;
+  box-shadow: 0 0 0 3px rgba(125, 164, 128, 0.18);
+}
+.cal-cat-dd-caret {
+  margin-left: auto;
+  color: #94a3b8;
+  font-size: 11px;
+  transition: transform 0.15s;
+}
+.cal-cat-dd.open .cal-cat-dd-caret {
+  transform: rotate(180deg);
+}
+.cal-cat-dd-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 30;
+  display: none;
+  min-width: 100%;
+  max-height: 340px;
+  overflow-y: auto;
+  padding: 5px;
+  background: #fff;
+  border: 1px solid #e5e9ef;
+  border-radius: 12px;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.14);
+}
+.cal-cat-dd.open .cal-cat-dd-menu {
+  display: block;
+}
+.cal-dd-item {
   display: flex;
   align-items: center;
   gap: 8px;
-  flex-wrap: wrap;
-  margin-bottom: 16px;
-}
-.cal-cat-select {
-  display: none;
-}
-.epg-chip {
-  padding: 7px 18px;
-  border-radius: 999px;
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  background: transparent;
+  border-radius: 8px;
   font-size: 13px;
   font-weight: 600;
-  border: 1px solid #e2e8f0;
-  background: #f8fafc;
-  color: #475569;
+  color: #334155;
+  font-family: "Plus Jakarta Sans", "IBM Plex Sans Thai", sans-serif;
   cursor: pointer;
   white-space: nowrap;
-  font-family: "Plus Jakarta Sans", "IBM Plex Sans Thai", sans-serif;
-  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  text-align: left;
 }
-.epg-chip:hover:not(.active) {
+.cal-dd-item:hover {
   background: #f1f5f9;
-  border-color: #cbd5e1;
 }
-.epg-chip.active {
-  background: #d8e7d2;
-  color: #3d6b4f;
-  border-color: #3d6b4f;
-  box-shadow: 0 0 0 2px #7da480;
+/* จุดสีหมวดหมู่ (map กับสีในปฏิทิน) */
+.epg-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: #94a3b8;
 }
 
 /* ── GRID WRAP ── */
@@ -252,6 +332,8 @@ body {
   border-bottom: 2px solid #cbd5e1;
   padding: 10px 10px 8px;
   min-height: 150px;
+  height: 100%; /* เต็มความสูงแถว → มุมขวาล่างคือก้นช่องจริง */
+  box-sizing: border-box;
   position: relative;
   cursor: default;
   transition: background 0.12s;
@@ -395,6 +477,132 @@ body {
 /* pills อยู่ใต้ date row + span bars อยู่แล้ว ไม่ต้อง offset */
 .cal-pills-wrap {
   padding-top: 2px;
+}
+
+/* ปุ่ม + (โผล่เมื่อ hover เซลล์) → เมนู สร้าง Event / จองห้อง */
+.cal-add-btn {
+  position: absolute;
+  bottom: 4px;
+  right: 4px;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: #5b8a6e;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.12s, transform 0.1s, background 0.12s;
+  z-index: 6;
+}
+.cal-cell:hover .cal-add-btn {
+  opacity: 1;
+}
+.cal-add-btn:hover {
+  background: #3d6b4f;
+  transform: scale(1.1);
+}
+.cal-add-menu {
+  position: absolute;
+  bottom: 28px;
+  right: 4px;
+  display: none;
+  min-width: 138px;
+  padding: 4px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.16);
+  z-index: 20;
+}
+.cal-add-menu button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 10px;
+  border: none;
+  background: transparent;
+  border-radius: 7px;
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #334155;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.cal-add-menu button:hover {
+  background: #f1f5f9;
+}
+.cam-ico {
+  font-size: 14px;
+}
+/* submenu เลือกห้อง (flyout ออกทางซ้าย เพราะเมนูอยู่มุมขวา) */
+.cam-sub {
+  position: relative;
+}
+.cam-parent {
+  justify-content: space-between;
+}
+.cam-caret {
+  margin-left: auto;
+  color: #94a3b8;
+  font-weight: 800;
+}
+.cam-submenu {
+  position: absolute;
+  right: 100%;
+  bottom: -4px; /* เปิดขึ้นบน → ไม่ล้นลงแถวถัดไป (ที่จะทับด้วย isolation) */
+  display: none;
+  min-width: 130px;
+  max-height: 260px;
+  overflow-y: auto;
+  padding: 4px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.16);
+}
+.cam-sub:hover .cam-submenu {
+  display: block;
+}
+/* คอลัมน์ซ้ายสุด: กาง submenu ออกทางขวาแทน (กันหลุดขอบซ้าย) */
+.cal-add-menu.flip-right .cam-submenu {
+  right: auto;
+  left: 100%;
+}
+
+/* ── Booking popup (iframe embed) ── */
+.cal-bookframe-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 600;
+  background: rgba(15, 23, 42, 0.4);
+  backdrop-filter: blur(3px);
+}
+.cal-bookframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+  background: transparent;
+  display: block;
+}
+/* จุดแดง = ห้องถูกจองแล้วในวันนั้น */
+.cam-dot {
+  width: 8px;
+  height: 8px;
+  margin-left: auto;
+  border-radius: 50%;
+  background: #ef4444;
+  flex-shrink: 0;
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.18);
 }
 
 /* แบ่งวันเป็น 2 ช่อง: เช้า(ซ้าย)/บ่าย(ขวา) — event/booking ย่อครึ่งตามเวลา */
@@ -548,7 +756,7 @@ body {
   position: relative;
   background: #fff;
   border-radius: 20px;
-  width: 620px;
+  width: 760px;
   max-width: 94vw;
   padding: 28px 24px 24px;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.18);
@@ -574,21 +782,128 @@ body {
 .bk-panel-close:hover {
   background: #f1f5f9;
 }
-.bk-panel-title {
-  font-size: 18px;
+/* หัว popup รายละเอียด — สไตล์เดียวกับฟอร์มจอง (badge ห้อง + สถานะ) */
+.bk-panel-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+.bk-panel-eyebrow {
+  font-size: 11px;
   font-weight: 800;
-  color: #4c1d95;
-  margin-bottom: 6px;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: #94a3b8;
+  white-space: nowrap;
+}
+.bk-panel-room {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 10px;
+  background: #eef2ff;
+  border: 1px solid #c7d2fe;
+  color: #4338ca;
+  font-size: 15px;
+  font-weight: 800;
+}
+/* room badge = dropdown เปลี่ยนห้อง */
+.bk-room-dd {
+  position: relative;
+  display: inline-flex;
+}
+.bk-panel-room--btn {
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s, border-color 0.15s;
+}
+.bk-panel-room--btn:hover {
+  background: #e0e7ff;
+  border-color: #a5b4fc;
+}
+.bk-room-caret {
+  margin-left: 4px;
+  font-size: 11px;
+  color: #6366f1;
+}
+.bk-room-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 20;
+  display: none;
+  min-width: 100%;
+  padding: 5px;
+  background: #fff;
+  border: 1px solid #e5e9ef;
+  border-radius: 12px;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.16);
+}
+.bk-room-dd.open .bk-room-menu {
+  display: block;
+}
+.bk-room-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 8px 12px;
+  border: none;
+  background: transparent;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  color: #334155;
+  cursor: pointer;
+  white-space: nowrap;
+  text-align: left;
+}
+.bk-room-item:hover {
+  background: #f1f5f9;
+}
+.bk-room-item.active {
+  background: #eef2ff;
+  color: #4338ca;
+}
+/* จุดแดง = ห้องไม่ว่างช่วงเวลานี้ */
+.bk-room-dot {
+  width: 8px;
+  height: 8px;
+  margin-left: auto;
+  border-radius: 50%;
+  background: #ef4444;
+  flex-shrink: 0;
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.18);
 }
 .bk-panel-badge {
-  display: inline-block;
-  background: #ede9fe;
-  color: #6d28d9;
-  font-size: 11px;
+  display: inline-flex;
+  align-items: center;
+  background: #dcfce7;
+  color: #15803d;
+  font-size: 11.5px;
   font-weight: 700;
-  padding: 3px 10px;
+  padding: 5px 12px;
   border-radius: 999px;
-  margin-bottom: 14px;
+}
+/* เน้นคำที่ต่าง (ใช้ / จอง) เป็นสีแดง */
+.bk-hl {
+  color: #dc2626;
+}
+.bk-panel-cs {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 10px;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  color: #334155;
+  font-size: 13px;
+  font-weight: 700;
 }
 /* table look: 1px grid gap over a line-colored background reveals cell borders */
 .bk-panel-rows {
@@ -602,7 +917,7 @@ body {
 }
 .bk-panel-row {
   display: grid;
-  grid-template-columns: 96px 1fr;
+  grid-template-columns: 130px 1fr;
   font-size: 13px;
   line-height: 1.5;
   background: #fff;
@@ -1531,10 +1846,13 @@ body {
     padding: 72px 4px 40px;
   }
 
-  /* Header */
+  /* Toolbar / Header */
+  .cal-toolbar {
+    padding: 10px 12px;
+    border-radius: 12px;
+  }
   .cal-header {
     gap: 8px;
-    margin-bottom: 10px;
   }
   .cal-month-label {
     font-size: 15px;
@@ -1555,31 +1873,16 @@ body {
     padding: 0 10px;
   }
 
-  /* Category chips → hidden on mobile, replaced by select */
-  .cal-cat-chips {
-    display: none;
-  }
-  .cal-cat-select {
-    display: block;
+  /* Category dropdown → full width on mobile */
+  .cal-cat-filter {
     width: 100%;
-    margin-bottom: 12px;
-    height: 40px;
-    padding: 0 16px;
-    border-radius: 999px;
-    border: 1.5px solid #7da480;
-    background: #d8e7d2;
-    color: #3d6b4f;
-    font-size: 13px;
-    font-weight: 600;
-    font-family: "Plus Jakarta Sans", "IBM Plex Sans Thai", sans-serif;
-    box-shadow: 0 0 0 2px rgba(125,164,128,0.25);
-    appearance: none;
-    -webkit-appearance: none;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%233d6b4f' stroke-width='1.8' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: right 14px center;
-    padding-right: 36px;
-    cursor: pointer;
+  }
+  .cal-cat-dd {
+    flex: 1;
+  }
+  .cal-cat-dd-btn {
+    width: 100%;
+    min-width: 0;
   }
 
   /* Grid */
@@ -1679,6 +1982,28 @@ body {
 }
 
 /* Registration badges in event detail panel */
+/* ปุ่มแก้ไข event (ไอคอนดินสอ) → เปิดฟอร์มแก้ไขแท็บใหม่ */
+.ev-edit-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  margin-left: 6px;
+  border-radius: 8px;
+  background: #eef2ff;
+  border: 1px solid #c7d2fe;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  vertical-align: middle;
+  transition: background 0.15s, border-color 0.15s;
+}
+.ev-edit-btn:hover {
+  background: #e0e7ff;
+  border-color: #a5b4fc;
+}
 .ev-reg-badge {
   display: inline-flex;
   align-items: center;

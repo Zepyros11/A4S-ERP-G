@@ -39,25 +39,33 @@
         <a onclick="openSettings()">คลิกที่นี่เพื่อตั้งค่า</a>
       </div>
 
-      <!-- HEADER -->
-      <div class="cal-header">
-        <div class="cal-nav">
-          <button class="btn-circle" onclick="changeMonth(-1)">‹</button>
-          <div class="cal-month-label" id="calMonthLabel">—</div>
-          <button class="btn-circle" onclick="changeMonth(1)">›</button>
-          <button class="btn-today" onclick="goToday()">วันนี้</button>
+      <!-- TOOLBAR (month nav + category filter) -->
+      <div class="cal-toolbar">
+        <!-- HEADER (nav + filter บนแถวเดียว) -->
+        <div class="cal-header">
+          <div class="cal-nav">
+            <div class="cal-nav-seg">
+              <button class="btn-circle" onclick="changeMonth(-1)" aria-label="เดือนก่อนหน้า">‹</button>
+              <div class="cal-month-label" id="calMonthLabel">—</div>
+              <button class="btn-circle" onclick="changeMonth(1)" aria-label="เดือนถัดไป">›</button>
+            </div>
+            <button class="btn-today" onclick="goToday()">วันนี้</button>
+          </div>
+
+          <!-- Category Filter Dropdown -->
+          <div class="cal-cat-filter">
+            <span class="cal-cat-filter-label">🔎 หมวดหมู่</span>
+            <div class="cal-cat-dd" id="calCatDD">
+              <button type="button" class="cal-cat-dd-btn" onclick="toggleCatDD(event)">
+                <span class="epg-dot" id="calCatDotSel" style="display:none"></span>
+                <span id="calCatLabelSel">ทั้งหมด</span>
+                <span class="cal-cat-dd-caret">▾</span>
+              </button>
+              <div class="cal-cat-dd-menu" id="calCatDDMenu"><!-- options injected by JS --></div>
+            </div>
+          </div>
         </div>
       </div>
-
-      <!-- Category Filter Chips (desktop) -->
-      <div class="cal-cat-chips" id="calCatChips">
-        <button class="epg-chip active" data-cat="" onclick="setCalCatFilter(this, '')">ทั้งหมด</button>
-        <!-- dynamic chips injected by JS -->
-      </div>
-      <!-- Category Filter Dropdown (mobile) -->
-      <select id="calCatSelect" class="filter-select cal-cat-select" onchange="setCalCatFromSelect(this)">
-        <option value="">ทั้งหมด</option>
-      </select>
 
       <!-- CALENDAR -->
       <div class="cal-grid-wrap">
@@ -75,8 +83,6 @@
         </div>
       </div>
 
-      <!-- LEGEND -->
-      <div class="cal-legend" id="calLegend"></div>
     </div>
     <!-- SETTINGS MODAL -->
     <div

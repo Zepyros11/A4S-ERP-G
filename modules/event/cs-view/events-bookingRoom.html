@@ -14,6 +14,109 @@
     <link rel="stylesheet" href="../../../css/core/responsive-patterns.css" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" />
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <!-- embed mode: เปิดจากปฏิทินผ่าน iframe → โชว์เฉพาะ modal จอง -->
+    <script>
+      if (new URLSearchParams(location.search).get("embed") === "1")
+        document.documentElement.classList.add("embed-mode");
+    </script>
+    <style>
+      /* embed mode (ใน iframe บนหน้าปฏิทิน): ซ่อนทุกอย่างเหลือแค่ modal */
+      html.embed-mode,
+      html.embed-mode body {
+        background: transparent !important;
+      }
+      html.embed-mode #calTopbarContainer,
+      html.embed-mode #threeCol,
+      html.embed-mode #mobileNav {
+        display: none !important;
+      }
+      /* modal ใช้ฉากหลังจาก overlay ของ parent แทน (กัน dim ซ้อน) */
+      html.embed-mode #bookingModal {
+        background: transparent !important;
+        backdrop-filter: none !important;
+      }
+      /* ── ช่วงเวลา (radio slots) ── */
+      .ts-slot {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 14px;
+        border: 2px solid #e2e8f0;
+        border-radius: 12px;
+        cursor: pointer;
+        transition: border-color 0.15s, background 0.15s;
+      }
+      .ts-slot:hover {
+        border-color: #c7d2fe;
+        background: #f8faff;
+      }
+      .ts-slot-name {
+        font-size: 14px;
+        font-weight: 700;
+        color: #1e293b;
+      }
+      .ts-slot-time {
+        margin-left: auto;
+        font-size: 12px;
+        font-weight: 600;
+        color: #64748b;
+      }
+      .ts-slot:has(input:checked) {
+        border-color: #6366f1;
+        background: #eef2ff;
+      }
+      .ts-slot:has(input:checked) .ts-slot-time {
+        color: #4f46e5;
+      }
+      /* ── จำนวนคน (preset chips) ── */
+      .pax-chip {
+        flex: 1;
+        padding: 8px 4px;
+        border: 1.5px solid #e2e8f0;
+        border-radius: 10px;
+        background: #fff;
+        font-size: 13px;
+        font-weight: 700;
+        color: #475569;
+        cursor: pointer;
+        white-space: nowrap;
+        transition: border-color 0.15s, background 0.15s, color 0.15s;
+      }
+      .pax-chip:hover {
+        border-color: #c7d2fe;
+        background: #f8faff;
+      }
+      .pax-chip.active {
+        border-color: #6366f1;
+        background: #eef2ff;
+        color: #4338ca;
+      }
+      /* ช่องกำหนดเอง (input ในแถวเดียวกับ 10/20/30) */
+      .pax-custom-input {
+        text-align: center;
+        min-width: 0;
+        color: #4338ca;
+        outline: none;
+      }
+      .pax-custom-input::placeholder {
+        color: #475569;
+        font-weight: 700;
+      }
+      .pax-custom-input:focus,
+      .pax-custom-input.active {
+        border-color: #6366f1;
+        background: #eef2ff;
+      }
+      .pax-custom-input::-webkit-outer-spin-button,
+      .pax-custom-input::-webkit-inner-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+      }
+      .pax-custom-input {
+        -moz-appearance: textfield;
+        appearance: textfield;
+      }
+    </style>
     <style>
       /* ── Mobile panel switching ── */
       @media (max-width: 767px) {
@@ -211,15 +314,25 @@
 
     <!-- Booking Modal -->
     <div id="bookingModal" class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 r-sheet">
-      <div class="bg-white rounded-2xl shadow-2xl w-full max-w-3xl p-6 md:p-8 relative max-h-[90vh] overflow-y-auto r-sheet-box">
-        <button id="closeModal" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 text-xl font-bold">&times;</button>
-        <h2 class="text-lg font-black text-slate-900 mb-1">จองห้องประชุม</h2>
-        <p class="text-sm text-slate-400 mb-6" id="modalRoomName">-</p>
+      <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl p-5 md:p-6 relative max-h-[90vh] overflow-y-auto r-sheet-box">
+        <button id="closeModal" class="absolute top-3.5 right-4 text-slate-400 hover:text-slate-600 text-xl font-bold">&times;</button>
+        <div class="flex flex-wrap items-center gap-x-3 gap-y-2 mb-4 pr-8">
+          <h2 class="text-lg font-black text-slate-900 whitespace-nowrap">จองห้องประชุม</h2>
+          <span class="text-slate-300 text-lg font-light">|</span>
+          <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-50 border border-indigo-200">
+            <span>🚪</span>
+            <span id="modalRoomName" class="text-sm md:text-base font-black text-indigo-700 leading-tight">-</span>
+          </span>
+          <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 border border-slate-200 text-sm font-bold text-slate-600">
+            👤 CS: <span id="csNameText" class="text-slate-800">-</span>
+          </span>
+        </div>
+        <input type="hidden" id="inputCsName" />
 
-        <div class="flex flex-col md:flex-row gap-6 md:divide-x md:divide-slate-100">
+        <div class="flex flex-col md:flex-row gap-5 md:divide-x md:divide-slate-100">
 
-          <!-- LEFT: ชื่อผู้จอง + ชื่อ CS + วันที่ -->
-          <div class="flex-1 space-y-4 md:pr-6">
+          <!-- LEFT: ชื่อผู้จอง + วันที่ + หมายเหตุ -->
+          <div class="flex-1 basis-1/2 min-w-0 space-y-4 md:pr-5">
             <div class="relative">
               <label class="text-xs font-bold text-slate-500 uppercase tracking-widest">ชื่อผู้จอง</label>
               <input id="inputBookerName" type="text" placeholder="พิมพ์หรือเลือกชื่อ..."
@@ -228,22 +341,9 @@
               <div id="bookerDropdownPanel" class="hidden absolute z-20 left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden" style="max-height:180px;overflow-y:auto"></div>
             </div>
 
-            <div class="relative">
-              <label class="text-xs font-bold text-slate-500 uppercase tracking-widest">ชื่อ CS</label>
-              <input id="inputCsName" type="text" placeholder="พิมพ์หรือเลือกชื่อ..."
-                autocomplete="off"
-                class="mt-1 w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300" />
-              <div id="csDropdownPanel" class="hidden absolute z-20 left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden" style="max-height:180px;overflow-y:auto"></div>
-            </div>
-
             <div>
               <label class="text-xs font-bold text-slate-500 uppercase tracking-widest">วันที่</label>
               <input id="inputDate" type="text" placeholder="dd/mm/yyyy" class="mt-1 w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300" />
-            </div>
-
-            <div>
-              <label class="text-xs font-bold text-slate-500 uppercase tracking-widest">จำนวนคน</label>
-              <input id="inputPax" type="number" min="1" step="1" inputmode="numeric" placeholder="จำนวนผู้เข้าร่วม" class="mt-1 w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300" />
             </div>
 
             <div>
@@ -253,27 +353,49 @@
             </div>
           </div>
 
-          <!-- RIGHT: เวลา + ปุ่มยืนยัน -->
-          <div class="flex-1 flex flex-col md:pl-6">
-            <div class="flex gap-4 flex-1">
-              <div class="flex-1">
-                <label class="text-xs font-bold text-slate-500 uppercase tracking-widest">เวลาเริ่ม</label>
-                <input type="hidden" id="inputStart" />
-                <div id="startTimeGrid" class="mt-1 grid grid-cols-2 gap-1 max-h-56 overflow-y-auto pr-0.5"></div>
+          <!-- RIGHT: จำนวนคน + ช่วงเวลา (radio) -->
+          <div class="flex-1 basis-1/2 min-w-0 md:pl-5 space-y-4">
+            <div>
+              <label class="text-xs font-bold text-slate-500 uppercase tracking-widest">จำนวนคน</label>
+              <div id="paxPresets" class="mt-1 flex gap-2">
+                <button type="button" class="pax-chip" onclick="setPax('10')">10</button>
+                <button type="button" class="pax-chip" onclick="setPax('20')">20</button>
+                <button type="button" class="pax-chip" onclick="setPax('30')">30</button>
+                <input id="paxCustom" type="number" min="1" step="1" inputmode="numeric" placeholder="กำหนดเอง"
+                  class="pax-chip pax-custom-input" oninput="onPaxCustomInput()" />
               </div>
-              <div class="flex-1">
-                <label class="text-xs font-bold text-slate-500 uppercase tracking-widest">เวลาสิ้นสุด</label>
-                <input type="hidden" id="inputEnd" />
-                <div id="endTimeGrid" class="mt-1 grid grid-cols-2 gap-1 max-h-56 overflow-y-auto pr-0.5"></div>
-              </div>
+              <input type="hidden" id="inputPax" />
             </div>
 
-            <button id="btnConfirmBook" class="mt-4 w-full py-3 bg-indigo-600 text-white rounded-xl font-bold text-sm hover:bg-indigo-700 transition">
-              ยืนยันการจอง
-            </button>
+            <div>
+              <label class="text-xs font-bold text-slate-500 uppercase tracking-widest">ช่วงเวลา</label>
+              <input type="hidden" id="inputStart" />
+              <input type="hidden" id="inputEnd" />
+              <div id="timeSlotRadios" class="mt-2 flex flex-col gap-2">
+                <label class="ts-slot">
+                  <input type="radio" name="timeSlot" value="allday" class="accent-indigo-600 w-4 h-4" />
+                  <span class="ts-slot-name">🗓️ ทั้งวัน</span>
+                  <span class="ts-slot-time">ตลอดวัน</span>
+                </label>
+                <label class="ts-slot">
+                  <input type="radio" name="timeSlot" value="morning" class="accent-indigo-600 w-4 h-4" />
+                  <span class="ts-slot-name">🌤️ ช่วงเช้า</span>
+                  <span class="ts-slot-time">09:00 – 12:00</span>
+                </label>
+                <label class="ts-slot">
+                  <input type="radio" name="timeSlot" value="afternoon" class="accent-indigo-600 w-4 h-4" />
+                  <span class="ts-slot-name">🌆 ช่วงบ่าย</span>
+                  <span class="ts-slot-time">13:00 – 18:00</span>
+                </label>
+              </div>
+            </div>
           </div>
 
         </div>
+
+        <button id="btnConfirmBook" class="mt-5 w-full py-3 bg-indigo-600 text-white rounded-xl font-bold text-sm hover:bg-indigo-700 transition">
+          ยืนยันการจอง
+        </button>
       </div>
     </div>
 

@@ -9,6 +9,7 @@ const SB_KEY_DEFAULT =
 let allEvents = [];
 let allCategories = [];
 let allBookings = [];
+let allRooms = []; // place_rooms — สำหรับ submenu เลือกห้องตอนกด "จองห้อง"
 let _calSeriesMap = {};
 let _calLevelMap = {};
 let currentYear = new Date().getFullYear();
@@ -96,7 +97,7 @@ async function initPage() {
   if (dateEl) {
     dateEl.textContent = formatDate(toDateStr(now));
   }
-  await Promise.all([loadEvents(), loadCategories(), loadBookings()]);
+  await Promise.all([loadEvents(), loadCategories(), loadBookings(), loadRooms()]);
   renderCalendar();
   await refreshCalChatCounts();
   setInterval(refreshCalChatCounts, 15000);
@@ -150,6 +151,28 @@ async function loadBookings() {
   }
 }
 
+async function loadRooms() {
+  try {
+    const { url, key } = getSB();
+    const headers = { apikey: key, Authorization: `Bearer ${key}` };
+    // เอาเฉพาะห้องของ "A4S สำนักงานใหญ่"
+    const pRes = await fetch(`${url}/rest/v1/places?select=place_id,place_name`, { headers });
+    const places = pRes.ok ? await pRes.json() : [];
+    const hq = places.find((p) => /ใหญ่/.test(p.place_name || ""));
+    if (!hq) {
+      allRooms = [];
+      return;
+    }
+    const res = await fetch(
+      `${url}/rest/v1/place_rooms?place_id=eq.${hq.place_id}&select=room_id,room_name,place_id&order=room_name.asc`,
+      { headers },
+    );
+    if (res.ok) allRooms = await res.json();
+  } catch (_) {
+    allRooms = [];
+  }
+}
+
 function formatBookingTime(b) {
   if (b.end_time === "ALLDAY" || (!b.start_time && !b.end_time)) return "ตลอดทั้งวัน";
   const s = (b.start_time || "").slice(0, 5);
@@ -168,67 +191,50 @@ async function loadCategories() {
     if (res.ok) allCategories = await res.json();
   } catch (_) {}
 
-  // inject category chips
-  const chipsWrap = document.getElementById("calCatChips");
-  if (chipsWrap) {
-    const allBtn = chipsWrap.querySelector('[data-cat=""]');
-    chipsWrap.innerHTML = "";
-    chipsWrap.appendChild(allBtn);
+  // inject category dropdown menu
+  const ddMenu = document.getElementById("calCatDDMenu");
+  if (ddMenu) {
+    const esc = (s) => String(s).replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+    const items = [
+      `<button type="button" class="cal-dd-item" onclick="selectCatDD('','ทั้งหมด','')"><span class="epg-dot" style="background:#94a3b8"></span>ทั้งหมด</button>`,
+    ];
     allCategories.forEach((cat) => {
-      const btn = document.createElement("button");
-      btn.className = "epg-chip";
-      btn.dataset.cat = cat.event_category_id;
-      btn.textContent = `${cat.icon || ""} ${cat.category_name}`.trim();
-      btn.onclick = () => setCalCatFilter(btn, String(cat.event_category_id));
-      chipsWrap.appendChild(btn);
+      const label = `${cat.icon || ""} ${cat.category_name}`.trim();
+      const color = cat.color || "#94a3b8";
+      items.push(
+        `<button type="button" class="cal-dd-item" onclick="selectCatDD('${cat.event_category_id}','${esc(label)}','${color}')"><span class="epg-dot" style="background:${color}"></span>${label}</button>`,
+      );
     });
+    ddMenu.innerHTML = items.join("");
   }
 
-  // inject category select (mobile)
-  const catSelect = document.getElementById("calCatSelect");
-  if (catSelect) {
-    catSelect.innerHTML = '<option value="">ทั้งหมด</option>';
-    allCategories.forEach((cat) => {
-      const opt = document.createElement("option");
-      opt.value = cat.event_category_id;
-      opt.textContent = `${cat.icon || ""} ${cat.category_name}`.trim();
-      catSelect.appendChild(opt);
-    });
-  }
-
-  // inject legend
-  const legend = document.getElementById("calLegend");
-  if (legend) {
-    const catItems = allCategories.map(c =>
-      `<div class="cal-legend-item">
-        <div class="cal-legend-dot" style="background:${c.color || "#5b8a6e"}"></div>
-        ${c.icon || ""} ${c.category_name}
-      </div>`
-    ).join("");
-    const bookingItem = `<div class="cal-legend-item">
-      <div class="cal-legend-dot" style="background:#8b5cf6"></div>
-      🚪 ห้องจอง (อนุมัติแล้ว)
-    </div>`;
-    legend.innerHTML = catItems + bookingItem;
-  }
 }
 
-function setCalCatFilter(btn, catId) {
-  document.querySelectorAll("#calCatChips .epg-chip").forEach((b) => b.classList.remove("active"));
-  btn.classList.add("active");
+function toggleCatDD(e) {
+  if (e) e.stopPropagation();
+  document.getElementById("calCatDD")?.classList.toggle("open");
+}
+function selectCatDD(catId, label, color) {
   activeCalCatId = catId;
-  const sel = document.getElementById("calCatSelect");
-  if (sel) sel.value = catId;
+  const lbl = document.getElementById("calCatLabelSel");
+  const dot = document.getElementById("calCatDotSel");
+  if (lbl) lbl.textContent = label;
+  if (dot) {
+    if (catId) {
+      dot.style.display = "";
+      dot.style.background = color || "#94a3b8";
+    } else {
+      dot.style.display = "none";
+    }
+  }
+  document.getElementById("calCatDD")?.classList.remove("open");
   renderCalendar();
 }
-
-function setCalCatFromSelect(sel) {
-  activeCalCatId = sel.value;
-  document.querySelectorAll("#calCatChips .epg-chip").forEach((b) => {
-    b.classList.toggle("active", b.dataset.cat === sel.value);
-  });
-  renderCalendar();
-}
+// ปิด dropdown เมื่อคลิกนอกกรอบ
+document.addEventListener("click", (e) => {
+  const dd = document.getElementById("calCatDD");
+  if (dd && !dd.contains(e.target)) dd.classList.remove("open");
+});
 
 function getCatStyle(event) {
   const cat = allCategories.find((c) => c.event_category_id === event.event_category_id);
@@ -369,7 +375,7 @@ function renderCalendar() {
                    margin:2px ${isEnd ? "10px" : "0"} 1px ${isStart ? "10px" : "0"};"
             onclick="openEventPanel(${e.event_id})"
             title="${e.event_name}">
-            ${!isStart ? `<span class="cal-bar-cont cal-bar-cont-l">‹</span>` : ""}${isStart ? `<span class="cal-bar-text">${icon} ${eventShortName(e.event_name)}</span>` : ""}${barRoomChips}${!isEnd ? `<span class="cal-bar-cont cal-bar-cont-r">›</span>` : ""}${barBadge}
+            ${!isStart ? `<span class="cal-bar-cont cal-bar-cont-l">‹</span>` : ""}${isStart ? `<span class="cal-bar-text">${icon} ${eventLabel(e)}</span>` : ""}${barRoomChips}${!isEnd ? `<span class="cal-bar-cont cal-bar-cont-r">›</span>` : ""}${barBadge}
           </div>`;
         })
       )
@@ -446,7 +452,7 @@ function renderCalendar() {
           ? `<div class="cal-half-row"><div class="cal-half cal-half-am">${amHtml}</div><div class="cal-half cal-half-pm">${pmHtml}</div></div>`
           : "";
         const moreHtml = extra > 0 ? `<div class="cal-more" onclick="openDayPopup('${dateStr}');event.stopPropagation()">+${extra}</div>` : "";
-        return `<div class="${cls}" style="grid-column:${colIdx + 1};grid-row:${cellRow}"><div class="cal-pills-wrap">${halvesHtml}${fullHtml}${moreHtml}</div></div>`;
+        return `<div class="${cls}" data-col="${colIdx + 1}" style="grid-column:${colIdx + 1};grid-row:${cellRow}"><button class="cal-add-btn" title="เพิ่ม" onclick="openCellMenu(event,'${dateStr}')">+</button><div class="cal-pills-wrap">${halvesHtml}${fullHtml}${moreHtml}</div></div>`;
       })
       .join("");
 
@@ -504,6 +510,14 @@ function eventShortName(name) {
   return words.map((w) => w[0].toUpperCase()).join("");
 }
 
+// ข้อความบน pill/bar: type "วันหยุดบริษัท" → แสดงชื่อ type · อื่นๆ → ย่อชื่อ event
+function eventLabel(ev) {
+  const cat = allCategories.find((c) => c.event_category_id === ev.event_category_id);
+  const catName = cat?.category_name || "";
+  if (/วันหยุด/.test(catName)) return catName;
+  return eventShortName(ev.event_name);
+}
+
 // ชิปเลขห้อง — ห้อง 1/2/3 ใช้สีต่างกัน (class room-N)
 function roomChipHtml(roomNo) {
   if (!roomNo) return "";
@@ -545,7 +559,7 @@ function renderDayPill(item) {
     return `<div class="cal-event-pill"
       style="background:${color};color:#fff;"
       onclick="openEventPanel(${ev.event_id});event.stopPropagation();"
-      title="${ev.event_name}"><span class="cal-pill-text">${icon} ${eventShortName(ev.event_name)}</span>${roomChip}${pillBadge}</div>`;
+      title="${ev.event_name}"><span class="cal-pill-text">${icon} ${eventLabel(ev)}</span>${roomChip}${pillBadge}</div>`;
   }
   const b = item.b;
   const label = b.room_name || b.place_name || "ห้องจอง";
@@ -621,6 +635,10 @@ function goToday() {
   renderCalendar();
 }
 
+function editEvent(eventId) {
+  window.open(`../event-form.html?id=${eventId}`, "_blank", "noopener");
+}
+
 function openEventPanel(eventId) {
   const e = allEvents.find((ev) => ev.event_id === eventId);
   if (!e) return;
@@ -652,6 +670,7 @@ function openEventPanel(eventId) {
     let regHtml = '';
     if (e.registration_enabled) regHtml += `<a href="../attendees.html?event=${e.event_id}" target="_blank" rel="noopener" title="ดูรายชื่อผู้ลงทะเบียน" class="ev-reg-badge reg-on is-link">📋 กดลงทะเบียน</a>`;
     if (e.members_only) regHtml += '<span class="ev-reg-badge reg-mlm">👤 MLM Only</span>';
+    regHtml += `<button class="ev-edit-btn" onclick="editEvent(${e.event_id})" title="แก้ไขกิจกรรม" aria-label="แก้ไข">✏️</button>`;
     panelCode.insertAdjacentHTML('beforeend', regHtml);
   }
 
@@ -696,6 +715,104 @@ function openEventPanel(eventId) {
     openChatPanel(e.event_id, e.event_name);
   }
 }
+
+/* ── Cell "+" menu: สร้าง Event / จองห้อง ── */
+let _cellMenuDate = null;
+function openCellMenu(ev, dateStr) {
+  ev.stopPropagation();
+  _cellMenuDate = dateStr;
+  let menu = document.getElementById("cellAddMenu");
+  if (!menu) {
+    menu = document.createElement("div");
+    menu.id = "cellAddMenu";
+    menu.className = "cal-add-menu";
+    document.body.appendChild(menu);
+  }
+  // ห้องที่ถูกจอง (APPROVED) ในวันนี้ → จุดแดง
+  const bookedRoomIds = new Set(
+    allBookings
+      .filter((b) => b.booking_date === dateStr && b.room_id != null)
+      .map((b) => String(b.room_id)),
+  );
+  // submenu รายชื่อห้อง (จาก place_rooms)
+  const roomsHtml = allRooms
+    .map((r) => {
+      const dot = bookedRoomIds.has(String(r.room_id))
+        ? `<span class="cam-dot" title="ถูกจองแล้ว"></span>`
+        : "";
+      return `<button onclick="cellBookRoom('${r.room_id ?? ""}')"><span class="cam-ico">🚪</span> ${r.room_name}${dot}</button>`;
+    })
+    .join("");
+  menu.innerHTML =
+    `<button onclick="cellCreateEvent()"><span class="cam-ico">📝</span> สร้าง Event</button>` +
+    `<div class="cam-sub">` +
+      `<button class="cam-parent"><span class="cam-ico">🚪</span> จองห้อง <span class="cam-caret">›</span></button>` +
+      `<div class="cam-submenu">${roomsHtml}</div>` +
+    `</div>`;
+  const cell = ev.currentTarget.closest(".cal-cell");
+  if (cell) {
+    cell.appendChild(menu);
+    // คอลัมน์ซ้ายสุด → submenu กางออกทางขวา (กันหลุดขอบซ้าย)
+    const col = parseInt(cell.dataset.col || "0", 10);
+    menu.classList.toggle("flip-right", col <= 2);
+  }
+  menu.style.display = "block";
+}
+function closeCellMenu() {
+  const menu = document.getElementById("cellAddMenu");
+  if (menu) menu.style.display = "none";
+}
+function cellCreateEvent() {
+  const d = _cellMenuDate;
+  closeCellMenu();
+  window.open(`../event-form.html?date=${d}`, "_blank", "noopener");
+}
+function cellBookRoom(roomId) {
+  const d = _cellMenuDate;
+  closeCellMenu();
+  const q = roomId ? `?date=${d}&room=${roomId}&embed=1` : `?date=${d}&embed=1`;
+  openBookingFrame(`./events-bookingRoom.html${q}`);
+}
+
+/* ── Booking popup (iframe embed ของหน้า events-bookingRoom) ── */
+function openBookingFrame(src) {
+  closeBookingFrame();
+  const wrap = document.createElement("div");
+  wrap.id = "bookingFrameOverlay";
+  wrap.className = "cal-bookframe-overlay";
+  const frame = document.createElement("iframe");
+  frame.className = "cal-bookframe";
+  frame.src = src;
+  frame.setAttribute("title", "จองห้องประชุม");
+  wrap.appendChild(frame);
+  document.body.appendChild(wrap);
+  document.body.style.overflow = "hidden";
+}
+function closeBookingFrame() {
+  const wrap = document.getElementById("bookingFrameOverlay");
+  if (wrap) wrap.remove();
+  document.body.style.overflow = "";
+}
+window.addEventListener("message", (e) => {
+  const t = e.data && e.data.type;
+  if (t === "a4s-booking-done") {
+    closeBookingFrame();
+    loadBookings().then(renderCalendar); // รีเฟรชการจองในปฏิทิน
+  } else if (t === "a4s-booking-close") {
+    closeBookingFrame();
+  }
+});
+document.addEventListener("click", (e) => {
+  const menu = document.getElementById("cellAddMenu");
+  if (!menu || menu.style.display !== "block") return;
+  if (menu.contains(e.target) || (e.target.classList && e.target.classList.contains("cal-add-btn"))) return;
+  closeCellMenu();
+});
+// ปิด dropdown เปลี่ยนห้อง เมื่อคลิกนอกกรอบ
+document.addEventListener("click", (e) => {
+  const dd = document.getElementById("bkRoomDD");
+  if (dd && !dd.contains(e.target)) dd.classList.remove("open");
+});
 
 /* ── Day-events popup (shows full list when "+N" clicked) ── */
 function openDayPopup(dateStr) {
@@ -876,16 +993,49 @@ function openBookingPanel(requestId) {
   const noteHtml = b.note
     ? `<div class="bk-panel-row bk-panel-row--full"><div class="bk-panel-label">หมายเหตุ</div><div class="bk-panel-value">${String(b.note).replace(/</g, "&lt;").replace(/\n/g, "<br>")}</div></div>`
     : "";
+  // เมนูเปลี่ยนห้อง (จาก place_rooms ของ HQ) + จุดแดงถ้าห้องไม่ว่างช่วงเวลานี้
+  const roomMenuHtml = allRooms
+    .map((r) => {
+      const rn = String(r.room_name || "").replace(/'/g, "\\'");
+      const active = String(r.room_id) === String(b.room_id) ? " active" : "";
+      const rNo = extractRoomNo(r.room_name);
+      const busyBooking = allBookings.some((x) =>
+        String(x.request_id) !== String(b.request_id) &&
+        x.booking_date === b.booking_date &&
+        String(x.room_id) === String(r.room_id) &&
+        bookingsOverlap(b, x),
+      );
+      const busyEvent = rNo && allEvents.some((ev) =>
+        ev.status !== "CANCELLED" &&
+        extractRoomNo(ev.location) === rNo &&
+        b.booking_date >= ev.event_date &&
+        b.booking_date <= (ev.end_date || ev.event_date) &&
+        bookingsOverlap(b, ev),
+      );
+      const dot = (busyBooking || busyEvent)
+        ? `<span class="bk-room-dot" title="ไม่ว่างช่วงเวลานี้"></span>`
+        : "";
+      return `<button type="button" class="bk-room-item${active}" onclick="changeBookingRoom(${b.request_id},'${r.room_id}','${rn}')">🚪 ${r.room_name}${dot}</button>`;
+    })
+    .join("");
+  const roomHead = allRooms.length
+    ? `<span class="bk-room-dd" id="bkRoomDD">
+         <button type="button" class="bk-panel-room bk-panel-room--btn" onclick="toggleBkRoomDD(event)" title="คลิกเพื่อเปลี่ยนห้อง">🚪 ${title}<span class="bk-room-caret">▾</span></button>
+         <div class="bk-room-menu" id="bkRoomMenu">${roomMenuHtml}</div>
+       </span>`
+    : `<span class="bk-panel-room">🚪 ${title}</span>`;
   document.getElementById("bookingPanelBody").innerHTML = `
-    <div class="bk-panel-title">🚪 ${title}</div>
-    <div class="bk-panel-badge">✅ อนุมัติแล้ว</div>
+    <div class="bk-panel-head">
+      <span class="bk-panel-eyebrow">รายละเอียดการจอง</span>
+      ${roomHead}
+      <span class="bk-panel-badge">✅ อนุมัติแล้ว</span>
+      <span class="bk-panel-cs">👤 CS: ${b.cs_name || "—"}</span>
+    </div>
     <div class="bk-panel-rows">
-      <div class="bk-panel-row bk-panel-row--full"><div class="bk-panel-label">สถานที่</div><div class="bk-panel-value">${place}</div></div>
-      <div class="bk-panel-row"><div class="bk-panel-label">วันที่ใช้ห้อง</div><div class="bk-panel-value">${dateStr}</div></div>
+      <div class="bk-panel-row"><div class="bk-panel-label">วันที่<span class="bk-hl">ใช้</span>ห้อง</div><div class="bk-panel-value">${dateStr}</div></div>
       <div class="bk-panel-row"><div class="bk-panel-label">เวลา</div><div class="bk-panel-value">${timeStr}</div></div>
-      <div class="bk-panel-row"><div class="bk-panel-label">วันที่จองห้อง</div><div class="bk-panel-value">${bookedAtStr}</div></div>
+      <div class="bk-panel-row"><div class="bk-panel-label">วันที่<span class="bk-hl">จอง</span>ห้อง</div><div class="bk-panel-value">${bookedAtStr}</div></div>
       <div class="bk-panel-row"><div class="bk-panel-label">ผู้จอง</div><div class="bk-panel-value">${b.booked_by_name || "—"}</div></div>
-      <div class="bk-panel-row"><div class="bk-panel-label">CS</div><div class="bk-panel-value">${b.cs_name || "—"}</div></div>
       ${paxHtml}
       ${noteHtml}
     </div>
@@ -894,6 +1044,88 @@ function openBookingPanel(requestId) {
     </div>`;
   overlay.classList.add("open");
   document.body.style.overflow = "hidden";
+}
+
+/* ── เปลี่ยนห้องจาก popup รายละเอียด ── */
+function toggleBkRoomDD(e) {
+  if (e) e.stopPropagation();
+  document.getElementById("bkRoomDD")?.classList.toggle("open");
+}
+function closeBkRoomDD() {
+  document.getElementById("bkRoomDD")?.classList.remove("open");
+}
+// ช่วงเวลาสองบุ๊คกิ้งชนกันไหม (ALLDAY = ชนทั้งวัน)
+function bookingsOverlap(a, b) {
+  const allDay = (x) => x.end_time === "ALLDAY" || (!x.start_time && !x.end_time);
+  if (allDay(a) || allDay(b)) return true;
+  const as = (a.start_time || "").slice(0, 5), ae = (a.end_time || "").slice(0, 5);
+  const bs = (b.start_time || "").slice(0, 5), be = (b.end_time || "").slice(0, 5);
+  return as < be && bs < ae;
+}
+async function changeBookingRoom(requestId, roomId, roomName) {
+  const b = allBookings.find((x) => String(x.request_id) === String(requestId));
+  if (!b) return;
+  closeBkRoomDD();
+  if (String(b.room_id) === String(roomId)) return; // ห้องเดิม
+  // เช็คชนเวลาในห้องใหม่ (วันเดียวกัน · เวลาทับ · เว้นบุ๊คกิ้งนี้เอง)
+  const conflict = allBookings.find((x) =>
+    String(x.request_id) !== String(requestId) &&
+    x.booking_date === b.booking_date &&
+    String(x.room_id) === String(roomId) &&
+    bookingsOverlap(b, x),
+  );
+  if (conflict) {
+    showToast(`เปลี่ยนไม่ได้ · ห้อง ${roomName} ถูกจองช่วงเวลานี้แล้ว (${conflict.booked_by_name || "—"})`, "error");
+    return;
+  }
+  // เช็คชนกับ "กิจกรรม" (event) ที่ใช้ห้องเดียวกัน (match เลขห้องจาก location)
+  const targetRoomNo = extractRoomNo(roomName);
+  const evConflict = targetRoomNo && allEvents.find((ev) => {
+    if (ev.status === "CANCELLED") return false;
+    if (extractRoomNo(ev.location) !== targetRoomNo) return false;
+    const evStart = ev.event_date;
+    const evEnd = ev.end_date || ev.event_date;
+    if (b.booking_date < evStart || b.booking_date > evEnd) return false; // ไม่ครอบวันจอง
+    return bookingsOverlap(b, ev);
+  });
+  if (evConflict) {
+    showToast(`เปลี่ยนไม่ได้ · ห้อง ${roomName} มีกิจกรรม “${evConflict.event_name}” ในเวลานี้แล้ว`, "error");
+    return;
+  }
+  const ok = window.ConfirmModal
+    ? await window.ConfirmModal.open({
+        icon: "🚪",
+        title: "เปลี่ยนห้อง",
+        message: `ย้ายการจองนี้ไปที่ “${roomName}” ?`,
+        details: {
+          "จาก": b.room_name || "—",
+          "ไป": roomName,
+          "วันที่": b.booking_date ? formatDate(b.booking_date) : "—",
+        },
+        okText: "เปลี่ยนห้อง",
+        cancelText: "ไม่ใช่",
+      })
+    : confirm(`เปลี่ยนไปห้อง ${roomName}?`);
+  if (!ok) return;
+  try {
+    const { url, key } = getSB();
+    const res = await fetch(
+      `${url}/rest/v1/room_booking_requests?request_id=eq.${requestId}`,
+      {
+        method: "PATCH",
+        headers: { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ room_id: Number(roomId), room_name: roomName }),
+      },
+    );
+    if (!res.ok) throw new Error(await res.text().catch(() => res.statusText));
+    b.room_id = Number(roomId);
+    b.room_name = roomName;
+    renderCalendar();
+    openBookingPanel(requestId); // re-render panel ด้วยห้องใหม่
+    showToast(`เปลี่ยนเป็น ${roomName} แล้ว`, "success");
+  } catch (e) {
+    showToast("เปลี่ยนห้องไม่สำเร็จ: " + (e.message || ""), "error");
+  }
 }
 
 async function cancelBooking(requestId) {

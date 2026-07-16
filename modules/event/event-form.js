@@ -52,8 +52,16 @@ async function initPage() {
     }
     return new Date(dateStr);
   }};
-  fpEventDate = flatpickr("#fEventDate", fpOpts);
+  fpEventDate = flatpickr("#fEventDate", {
+    ...fpOpts,
+    onChange: () => {
+      // ระยะเวลา 1/2 วัน → คำนวณวันสิ้นสุดใหม่เมื่อวันเริ่มเปลี่ยน
+      const mode = getDayCountMode();
+      if (mode === "1" || mode === "2") applyDayCount(mode);
+    },
+  });
   fpEndDate = flatpickr("#fEndDate", fpOpts);
+  setupDayCount();
 
   await Promise.all([loadUsers(), loadEventCategories(), loadPlaces(), loadCourseSeries(), loadLineChannels(), loadAttendeeTemplates(), loadSurveyForms()]);
 
@@ -65,7 +73,63 @@ async function initPage() {
     await loadEventData();
   } else {
     await autoGenerateCode();
+    // เติมวันที่ที่คลิกมาจากปฏิทิน (?date=YYYY-MM-DD)
+    const preDate = params.get("date");
+    if (preDate && /^\d{4}-\d{2}-\d{2}$/.test(preDate) && fpEventDate) {
+      fpEventDate.setDate(preDate, true);
+    }
   }
+  refreshDayCount(); // ตั้ง radio ระยะเวลา (1/2 วัน/กำหนดเอง) ตามวันที่ที่โหลดมา
+}
+
+// ── DURATION SELECTOR (1 วัน / 2 วัน / กำหนดเอง) → กำหนดวันสิ้นสุด ──
+function getDayCountMode() {
+  const r = document.querySelector('input[name="dayCount"]:checked');
+  return r ? r.value : null;
+}
+function lockEndDate(locked) {
+  const inp = document.getElementById("fEndDate");
+  if (inp) inp.disabled = locked;
+  if (fpEndDate) fpEndDate.set("clickOpens", !locked);
+  const field = inp && inp.closest(".ef-field");
+  if (field) field.classList.toggle("is-disabled", locked);
+}
+function applyDayCount(mode) {
+  if (mode === "custom") {
+    lockEndDate(false);
+    return;
+  }
+  lockEndDate(true);
+  const start = fpEventDate.selectedDates[0];
+  if (mode === "1" || !start) {
+    fpEndDate.clear(); // 1 วัน = วันเดียว ไม่มีวันสิ้นสุด
+  } else if (mode === "2") {
+    const end = new Date(start);
+    end.setDate(end.getDate() + 1);
+    fpEndDate.setDate(end, true);
+  }
+}
+function setupDayCount() {
+  document.querySelectorAll('input[name="dayCount"]').forEach((r) => {
+    r.addEventListener("change", () => {
+      if (r.checked) applyDayCount(r.value);
+    });
+  });
+}
+// ตั้ง radio + สถานะ lock ตามค่าวันที่ปัจจุบัน (ไม่แก้ค่าวันที่ที่โหลดมา)
+function refreshDayCount() {
+  const s = fpEventDate.selectedDates[0];
+  const e = fpEndDate.selectedDates[0];
+  let mode;
+  if (!e) mode = "1";
+  else if (!s) mode = "custom";
+  else {
+    const diff = Math.round((e - s) / 86400000);
+    mode = diff === 0 ? "1" : diff === 1 ? "2" : "custom";
+  }
+  const r = document.querySelector(`input[name="dayCount"][value="${mode}"]`);
+  if (r) r.checked = true;
+  lockEndDate(mode !== "custom");
 }
 
 // ── LOAD USERS ─────────────────────────────────────────────
@@ -525,6 +589,7 @@ async function loadEventData() {
     document.getElementById("fEndTime").value = e.end_time
       ? e.end_time.slice(0, 5)
       : "";
+    if (window._refreshTimeMode) window._refreshTimeMode();
     if (window._setConfirmedLocation) window._setConfirmedLocation(e.location || "");
     else document.getElementById("fLocation").value = e.location || "";
     document.getElementById("fMaxAttendees").value = e.max_attendees || "";

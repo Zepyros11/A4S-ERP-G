@@ -626,6 +626,76 @@ function populateBookerDropdown() {
   // no-op: using plain text inputs now
 }
 
+// ── ช่วงเวลา (radio): ทั้งวัน / เช้า 09-12 / บ่าย 13-18 ──
+const TIME_SLOTS = {
+  allday: { start: "09:00", end: "ALLDAY" },
+  morning: { start: "09:00", end: "12:00" },
+  afternoon: { start: "13:00", end: "18:00" },
+};
+function setTimeSlot(slot) {
+  const key = TIME_SLOTS[slot] ? slot : "morning";
+  const v = TIME_SLOTS[key];
+  document.getElementById("inputStart").value = v.start;
+  document.getElementById("inputEnd").value = v.end;
+  document.querySelectorAll('input[name="timeSlot"]').forEach((r) => {
+    r.checked = r.value === key;
+  });
+}
+function slotFromTimes(start, end) {
+  if (end === "ALLDAY") return "allday";
+  const s = String(start || "").slice(0, 5);
+  return s >= "12:30" ? "afternoon" : "morning";
+}
+
+// ── ชื่อ CS: fix เป็นผู้ล็อกอิน แสดงเป็น pill บนหัว modal ──
+function setCsName(fallback) {
+  const val = window.ERP_USER?.full_name || window.ERP_USER?.username || fallback || "";
+  const inp = document.getElementById("inputCsName");
+  if (inp) inp.value = val;
+  const txt = document.getElementById("csNameText");
+  if (txt) txt.textContent = val || "—";
+}
+
+// ── จำนวนคน: preset 10/20/30 หรือช่องกำหนดเอง (ในแถวเดียวกัน) ──
+function highlightPaxChip(val) {
+  document.querySelectorAll("#paxPresets button.pax-chip").forEach((b) => {
+    b.classList.toggle("active", b.textContent.trim() === String(val));
+  });
+  const custom = document.getElementById("paxCustom");
+  if (custom) custom.classList.toggle("active", val === "custom");
+}
+function setPax(val) {
+  const custom = document.getElementById("paxCustom");
+  if (custom) custom.value = "";
+  document.getElementById("inputPax").value = val;
+  highlightPaxChip(val);
+}
+function onPaxCustomInput() {
+  const custom = document.getElementById("paxCustom");
+  document.getElementById("inputPax").value = custom.value;
+  highlightPaxChip("custom");
+}
+function initPax(value) {
+  const custom = document.getElementById("paxCustom");
+  if (custom) custom.value = "";
+  const v = value != null && value !== "" ? String(value) : "";
+  if (["10", "20", "30"].includes(v)) {
+    document.getElementById("inputPax").value = v;
+    highlightPaxChip(v);
+  } else if (v) {
+    document.getElementById("inputPax").value = v;
+    if (custom) custom.value = v;
+    highlightPaxChip("custom");
+  } else {
+    document.getElementById("inputPax").value = "";
+    highlightPaxChip(""); // ไม่เลือกอะไร
+  }
+}
+// bind radio change → set inputStart/inputEnd
+document.querySelectorAll('input[name="timeSlot"]').forEach((r) => {
+  r.addEventListener("change", () => setTimeSlot(r.value));
+});
+
 function checkAllDayConflicts(date) {
   const conflicts = [];
   const checkDate = date || todayStr(0);
@@ -683,26 +753,15 @@ function openModal(date = "", start = "") {
   }
 
   const modal = document.getElementById("bookingModal");
-  const initStart = start || "09:00";
-  const initEnd = nextHour(initStart, 1);
   if (_datePicker) _datePicker.setDate(checkDate, true);
   else document.getElementById("inputDate").value = checkDate;
-  document.getElementById("inputStart").value = initStart;
-  document.getElementById("inputEnd").value = initEnd;
   const bn = document.getElementById("inputBookerName");
-  const cn = document.getElementById("inputCsName");
   if (bn) bn.value = "";
-  if (cn) {
-    cn.value = window.ERP_USER?.full_name || window.ERP_USER?.username || "";
-    cn.setAttribute("readonly", "readonly");
-    cn.classList.add("bg-slate-100", "cursor-not-allowed");
-  }
-  const paxEl = document.getElementById("inputPax");
-  if (paxEl) paxEl.value = "";
+  setCsName();
+  initPax("");
   const noteEl = document.getElementById("inputNote");
   if (noteEl) noteEl.value = "";
-  buildStartGrid(initStart);
-  buildEndGrid(initEnd);
+  setTimeSlot(start || "morning"); // default ช่วงเช้า
   updateHeader();
   // Reset modal chrome for create mode
   const title = modal.querySelector("h2");
@@ -730,20 +789,12 @@ function openEditModal(req) {
   document.getElementById("inputStart").value = startStr;
   document.getElementById("inputEnd").value = endStr;
   const bn = document.getElementById("inputBookerName");
-  const cn = document.getElementById("inputCsName");
   if (bn) bn.value = req.booked_by_name || "";
-  if (cn) {
-    // CS field is fixed to the logged-in user (the editor), not the original cs_name
-    cn.value = window.ERP_USER?.full_name || window.ERP_USER?.username || req.cs_name || "";
-    cn.setAttribute("readonly", "readonly");
-    cn.classList.add("bg-slate-100", "cursor-not-allowed");
-  }
-  const paxEl = document.getElementById("inputPax");
-  if (paxEl) paxEl.value = req.num_people ?? "";
+  setCsName(req.cs_name); // fixed to logged-in editor (fallback req.cs_name)
+  initPax(req.num_people);
   const noteEl = document.getElementById("inputNote");
   if (noteEl) noteEl.value = req.note || "";
-  buildStartGrid(startStr);
-  buildEndGrid(endStr);
+  setTimeSlot(slotFromTimes(startStr, endStr));
   document.getElementById("modalRoomName").textContent =
     (selectedPlaceName || "") + (req.room_name ? ` — ${req.room_name}` : "");
   // Set modal chrome for edit mode
@@ -754,9 +805,12 @@ function openEditModal(req) {
   modal.classList.remove("hidden");
 }
 
+const IS_EMBED = new URLSearchParams(location.search).get("embed") === "1";
 function closeModal() {
   document.getElementById("bookingModal").classList.add("hidden");
   _editingRequestId = null;
+  // เปิดจากปฏิทิน (iframe) → แจ้ง parent ให้ปิด overlay
+  if (IS_EMBED) window.parent?.postMessage({ type: "a4s-booking-close" }, "*");
 }
 
 function showConflictModal(items) {
@@ -777,9 +831,14 @@ function showConflictModal(items) {
 
 document.getElementById("conflictOk").addEventListener("click", () => {
   document.getElementById("conflictModal").classList.add("hidden");
+  // embed: จองไม่ได้ (ชนทั้งวัน) → ปิด overlay บนปฏิทินด้วย
+  if (IS_EMBED) window.parent?.postMessage({ type: "a4s-booking-close" }, "*");
 });
 document.getElementById("conflictModal").addEventListener("click", (e) => {
-  if (e.target.id === "conflictModal") e.target.classList.add("hidden");
+  if (e.target.id === "conflictModal") {
+    e.target.classList.add("hidden");
+    if (IS_EMBED) window.parent?.postMessage({ type: "a4s-booking-close" }, "*");
+  }
 });
 // Esc close for conflictModal handled by modalManager.js
 
@@ -979,6 +1038,8 @@ async function confirmBooking() {
       }
       fireBookingCreatedNotification(payload);
     }
+    // เปิดจากปฏิทิน → แจ้ง parent ว่าจองสำเร็จ (ให้รีเฟรชปฏิทิน)
+    if (IS_EMBED) window.parent?.postMessage({ type: "a4s-booking-done" }, "*");
     closeModal();
     await loadRoomBookings();
     renderRequestList();
@@ -1591,7 +1652,29 @@ async function loadData() {
   renderRequestList();
 }
 
-loadData().then(() => refreshLogCounts());
+loadData().then(async () => {
+  refreshLogCounts();
+  // เปิดฟอร์มจองห้องด้วยวันที่ (+ห้อง) ที่คลิกมาจากปฏิทิน (?date=YYYY-MM-DD&room=<room_id>)
+  const sp = new URLSearchParams(location.search);
+  const preDate = sp.get("date");
+  if (!preDate || !/^\d{4}-\d{2}-\d{2}$/.test(preDate)) return;
+  const preRoom = sp.get("room");
+  if (preRoom) {
+    const rm = rooms.find((r) => String(r.room_id) === String(preRoom));
+    if (rm) {
+      selectedPlaceId = String(rm.place_id);
+      selectedPlaceName = rm.place_name;
+      selectedRoomId = rm.room_id != null ? String(rm.room_id) : null;
+      selectedRoomName = rm.room_name;
+      await loadRoomEvents();
+      renderRoomList();
+      renderTimeline();
+      updateHeader();
+      renderMiniCalendar();
+    }
+  }
+  openModal(preDate);
+});
 
 // --- Flatpickr for date input (dd/mm/yyyy) ---
 _datePicker = flatpickr("#inputDate", {

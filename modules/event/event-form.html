@@ -139,6 +139,24 @@
                   </div>
                 </div>
 
+                <div class="ef-field">
+                  <label class="ef-label">📆 ระยะเวลา</label>
+                  <div class="ef-timemode-row" role="radiogroup" aria-label="จำนวนวันของกิจกรรม">
+                    <label class="ef-timemode">
+                      <input type="radio" name="dayCount" value="1">
+                      <span class="ef-timemode-chip">1 วัน</span>
+                    </label>
+                    <label class="ef-timemode">
+                      <input type="radio" name="dayCount" value="2">
+                      <span class="ef-timemode-chip">2 วัน</span>
+                    </label>
+                    <label class="ef-timemode">
+                      <input type="radio" name="dayCount" value="custom">
+                      <span class="ef-timemode-chip">✏️ กำหนดเอง</span>
+                    </label>
+                  </div>
+                </div>
+
                 <div class="ef-row-2">
                   <div class="ef-field">
                     <label class="ef-label">
@@ -152,13 +170,22 @@
                   </div>
                 </div>
 
-                <div class="ef-allday-row">
-                  <label class="ef-toggle-row">
-                    <span class="switch">
-                      <input type="checkbox" id="fAllDay">
-                      <span class="slider"></span>
-                    </span>
-                    <span class="ef-toggle-title">⏱ ทั้งวัน (ไม่ระบุเวลา)</span>
+                <div class="ef-timemode-row" role="radiogroup" aria-label="ช่วงเวลากิจกรรม">
+                  <label class="ef-timemode">
+                    <input type="radio" name="timeMode" value="allday">
+                    <span class="ef-timemode-chip">⏱ ทั้งวัน</span>
+                  </label>
+                  <label class="ef-timemode">
+                    <input type="radio" name="timeMode" value="morning">
+                    <span class="ef-timemode-chip">🌅 ช่วงเช้า <small>09:00–12:00</small></span>
+                  </label>
+                  <label class="ef-timemode">
+                    <input type="radio" name="timeMode" value="afternoon">
+                    <span class="ef-timemode-chip">🌇 ช่วงบ่าย <small>13:00–18:00</small></span>
+                  </label>
+                  <label class="ef-timemode">
+                    <input type="radio" name="timeMode" value="custom">
+                    <span class="ef-timemode-chip">✏️ กำหนดเอง</span>
                   </label>
                 </div>
 
@@ -428,22 +455,62 @@
             bindTime("fStartTime", "fStartHour", "fStartMin");
             bindTime("fEndTime",   "fEndHour",   "fEndMin");
 
-            // ── "ทั้งวัน" toggle: disable + clear time selects when on ──
-            var allDay   = document.getElementById("fAllDay");
+            // ── Time-mode radio: ทั้งวัน / ช่วงเช้า / ช่วงบ่าย / กำหนดเอง ──
             var timeRow  = document.querySelector(".ef-time-row");
             var timeSels = ["fStartHour","fStartMin","fEndHour","fEndMin"]
               .map(function (id) { return document.getElementById(id); })
               .filter(Boolean);
-            if (allDay) {
-              allDay.addEventListener("change", function () {
-                var on = allDay.checked;
-                if (timeRow) timeRow.classList.toggle("is-disabled", on);
-                timeSels.forEach(function (s) {
-                  s.disabled = on;
-                  if (on) s.value = "";
-                });
-              });
+            var fStart = document.getElementById("fStartTime");
+            var fEnd   = document.getElementById("fEndTime");
+
+            var TIME_PRESETS = {
+              morning:   { start: "09:00", end: "12:00" },
+              afternoon: { start: "13:00", end: "18:00" },
+            };
+
+            // lock the time selects for every mode except "กำหนดเอง"
+            function setLocked(locked) {
+              if (timeRow) timeRow.classList.toggle("is-disabled", locked);
+              timeSels.forEach(function (s) { s.disabled = locked; });
             }
+
+            // user picks a mode → apply its times (custom keeps whatever is set)
+            function applyTimeMode(mode) {
+              setLocked(mode !== "custom");
+              if (mode === "allday") {
+                fStart.value = "";
+                fEnd.value   = "";
+              } else if (TIME_PRESETS[mode]) {
+                fStart.value = TIME_PRESETS[mode].start;
+                fEnd.value   = TIME_PRESETS[mode].end;
+              }
+            }
+
+            document.querySelectorAll('input[name="timeMode"]').forEach(function (r) {
+              r.addEventListener("change", function () {
+                if (r.checked) applyTimeMode(r.value);
+              });
+            });
+
+            // derive the mode from the current start/end values
+            function detectTimeMode() {
+              var s = fStart.value, e = fEnd.value;
+              if (!s && !e) return "allday";
+              if (s === "09:00" && e === "12:00") return "morning";
+              if (s === "13:00" && e === "18:00") return "afternoon";
+              return "custom";
+            }
+
+            // reflect current times into the radio + lock state WITHOUT clobbering
+            // loaded/custom values (called on load by event-form.js and initially)
+            window._refreshTimeMode = function () {
+              var mode = detectTimeMode();
+              var radio = document.querySelector('input[name="timeMode"][value="' + mode + '"]');
+              if (radio) radio.checked = true;
+              setLocked(mode !== "custom");
+            };
+
+            window._refreshTimeMode();
           })();
         </script>
 
