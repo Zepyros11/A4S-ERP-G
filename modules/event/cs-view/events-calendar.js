@@ -432,27 +432,38 @@ function renderCalendar() {
             slot: dayItemSlot(b.start_time, b.end_time),
           })),
         ];
-        // เรียงตามห้องภายในแต่ละกลุ่ม
-        const byRoom = (a, z) => roomSortKey(a.room) - roomSortKey(z.room);
-        const morning = dayItems.filter((i) => i.slot === "am").sort(byRoom);
-        const afternoon = dayItems.filter((i) => i.slot === "pm").sort(byRoom);
-        const fullDay = dayItems.filter((i) => i.slot === "full").sort(byRoom);
-
-        // งบจำนวนแถว: เต็มวันกินเต็มแถว, เช้า/บ่ายวางคู่กัน (นับ 1 แถวต่อคู่)
-        const fullShown = fullDay.slice(0, MAX_PILLS);
-        const halfBudget = Math.max(0, MAX_PILLS - fullShown.length);
-        const amShown = morning.slice(0, halfBudget);
-        const pmShown = afternoon.slice(0, halfBudget);
-        const extra = dayItems.length - fullShown.length - amShown.length - pmShown.length;
-
-        const amHtml = amShown.map(renderDayPill).join("");
-        const pmHtml = pmShown.map(renderDayPill).join("");
-        const fullHtml = fullShown.map(renderDayPill).join("");
-        const halvesHtml = amHtml || pmHtml
-          ? `<div class="cal-half-row"><div class="cal-half cal-half-am">${amHtml}</div><div class="cal-half cal-half-pm">${pmHtml}</div></div>`
-          : "";
+        // จัดกลุ่มตามห้อง (ไม่ระบุ → 1 → 2 → 3)
+        // ห้องเดียวกัน: เต็มวัน = แถวเต็ม · เช้า+บ่าย = จับคู่อยู่แถวเดียวกัน (ซ้าย/ขวา)
+        const groups = new Map();
+        dayItems.forEach((item) => {
+          const k = String(item.room || "");
+          if (!groups.has(k)) groups.set(k, { full: [], am: [], pm: [] });
+          groups.get(k)[item.slot].push(item);
+        });
+        const rows = [];
+        [...groups.keys()]
+          .sort((a, z) => roomSortKey(a) - roomSortKey(z))
+          .forEach((k) => {
+            const g = groups.get(k);
+            g.full.forEach((it) => rows.push({ full: it }));
+            const pairCount = Math.max(g.am.length, g.pm.length);
+            for (let i = 0; i < pairCount; i++) rows.push({ am: g.am[i], pm: g.pm[i] });
+          });
+        const shownRows = rows.slice(0, MAX_PILLS);
+        const shownCount = shownRows.reduce(
+          (n, r) => n + (r.full ? 1 : (r.am ? 1 : 0) + (r.pm ? 1 : 0)),
+          0,
+        );
+        const extra = dayItems.length - shownCount;
+        const pillsHtml = shownRows
+          .map((r) =>
+            r.full
+              ? `<div class="cal-slot cal-slot--full">${renderDayPill(r.full)}</div>`
+              : `<div class="cal-pair"><div class="cal-pair-cell">${r.am ? renderDayPill(r.am) : ""}</div><div class="cal-pair-cell">${r.pm ? renderDayPill(r.pm) : ""}</div></div>`,
+          )
+          .join("");
         const moreHtml = extra > 0 ? `<div class="cal-more" onclick="openDayPopup('${dateStr}');event.stopPropagation()">+${extra}</div>` : "";
-        return `<div class="${cls}" data-col="${colIdx + 1}" style="grid-column:${colIdx + 1};grid-row:${cellRow}"><button class="cal-add-btn" title="เพิ่ม" onclick="openCellMenu(event,'${dateStr}')">+</button><div class="cal-pills-wrap">${halvesHtml}${fullHtml}${moreHtml}</div></div>`;
+        return `<div class="${cls}" data-col="${colIdx + 1}" style="grid-column:${colIdx + 1};grid-row:${cellRow}"><button class="cal-add-btn" title="เพิ่ม" onclick="openCellMenu(event,'${dateStr}')">+</button><div class="cal-pills-wrap">${pillsHtml}${moreHtml}</div></div>`;
       })
       .join("");
 

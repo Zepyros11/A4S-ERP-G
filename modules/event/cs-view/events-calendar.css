@@ -605,27 +605,21 @@ body {
   box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.18);
 }
 
-/* แบ่งวันเป็น 2 ช่อง: เช้า(ซ้าย)/บ่าย(ขวา) — event/booking ย่อครึ่งตามเวลา */
-.cal-half-row {
+/* เรียงตามเลขห้อง (ไม่ระบุ → 1 → 2 → 3)
+   ห้องเดียวกัน: เต็มวัน = แถวเต็ม · เช้า+บ่าย = จับคู่แถวเดียวกัน (ซ้าย/ขวา) */
+.cal-slot {
+  min-width: 0;
+}
+.cal-slot--full {
+  width: 100%;
+}
+.cal-pair {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 5px;
-  position: relative;
+  gap: 6px;
   align-items: start;
 }
-/* เส้นแบ่งเช้า/บ่าย — ล่องหน (จางมาก) */
-.cal-half-row::before {
-  content: "";
-  position: absolute;
-  top: 1px;
-  bottom: 1px;
-  left: 50%;
-  width: 1px;
-  background: rgba(148, 163, 184, 0.22);
-  transform: translateX(-0.5px);
-  pointer-events: none;
-}
-.cal-half {
+.cal-pair-cell {
   min-width: 0;
 }
 
@@ -1951,12 +1945,12 @@ body {
     width: 16px;
     margin-right: 0;
   }
-  /* จอเล็ก: ยุบ 2 ช่องเช้า/บ่าย เป็นคอลัมน์เดียว (กันบีบจนอ่านไม่ออก) */
-  .cal-half-row {
+  /* จอเล็ก: ไม่จับคู่ซ้าย/ขวา ใช้เต็มความกว้างหมด (กันบีบจนอ่านไม่ออก) */
+  .cal-pair {
     grid-template-columns: 1fr;
     gap: 0;
   }
-  .cal-half-row::before {
+  .cal-pair-cell:empty {
     display: none;
   }
   .cal-more {
