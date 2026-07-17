@@ -1,0 +1,435 @@
+/* ============================================================
+   web-editor.css — Website Builder canvas editor
+   3 คอลัมน์: palette (ซ้าย) · canvas (กลาง) · properties (ขวา)
+   ============================================================ */
+
+.wb-shell {
+  display: grid;
+  /* --wb-pane-w ปรับได้ด้วยการลาก .wb-split (JS จำค่าไว้ใน localStorage) */
+  grid-template-columns: var(--wb-pane-w, 300px) 8px 1fr;
+  gap: 8px;
+  align-items: start;
+}
+
+/* ── เส้นแบ่งลากปรับขนาด ── */
+.wb-split {
+  align-self: stretch; /* ชนะ align-items:start ของ shell → ยาวเท่าแถว */
+  position: relative;
+  min-height: 80px;
+  cursor: col-resize;
+  touch-action: none; /* กัน browser แย่ง pointer ไป scroll ตอนลาก */
+}
+.wb-split::before {
+  content: "";
+  position: absolute;
+  inset: 0 2px;
+  border-radius: 3px;
+  background: var(--border, #e3e8dd);
+  transition: background 0.12s;
+}
+.wb-split:hover::before,
+.wb-split.dragging::before { background: #71bf44; }
+
+/* ── แท็บของแผงซ้าย ── */
+.wb-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border, #e3e8dd);
+  background: var(--surface-2, #f7f9f5);
+}
+.wb-tab {
+  flex: 1;
+  padding: 11px 8px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  cursor: pointer;
+  font: 600 12.5px/1 "Sarabun", sans-serif;
+  color: var(--text-2, #5a6551);
+}
+.wb-tab:hover:not(.active) { background: #eef2ea; }
+.wb-tab.active {
+  background: #fff;
+  color: var(--sage-dark, #4f9e2e);
+  border-bottom-color: #71bf44;
+}
+
+/* หัวบอกว่ากำลังแก้บล็อกไหน */
+.wb-props-hdr {
+  font: 600 13px/1.3 "Sarabun", sans-serif;
+  padding: 10px 13px;
+  border-bottom: 1px solid var(--border, #e3e8dd);
+  color: var(--text, #2f3a28);
+  background: #fff;
+}
+
+/* ── panel ร่วม ── */
+.wb-panel {
+  background: var(--surface, #fff);
+  border: 1px solid var(--border, #e3e8dd);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.wb-panel-hdr {
+  font: 600 13px/1 "Sarabun", sans-serif;
+  padding: 11px 13px;
+  border-bottom: 1px solid var(--border, #e3e8dd);
+  background: var(--surface-2, #f7f9f5);
+  color: var(--text-2, #5a6551);
+}
+.wb-panel-body { padding: 11px; }
+
+/* sticky — เลื่อน canvas แล้วแผงยังอยู่ */
+.wb-side { position: sticky; top: 12px; overflow-y: auto; }
+
+/* ⚠️ ความสูงต้องหาร zoom เอง
+   common.css ตั้ง :root{zoom:.65} บน ≥768 แต่ Chromium ไม่ scale หน่วย vh ตาม element zoom
+   → calc(100vh - 90px) ให้ 940px ทั้งที่พื้นที่จริงมี 1585px = แผงเตี้ยเกิน เกิด scrollbar ซ้อน
+   (กฎเดียวกับ #erp-sidebar ใน sidebar.js และ .ra-passengers ของ room-assign)
+   ถ้าเปลี่ยนค่า zoom ใน common.css ต้องมาแก้ตัวหารตรงนี้ด้วย */
+@media (min-width: 768px) {
+  .wb-side { max-height: calc(100vh / 0.65 - 90px); }
+}
+
+/* ── ระบบสไลด์ 2 ระดับ (หมวด → บล็อก) ──
+   track กว้าง 200% วางสองแผ่นเรียงกัน · เลื่อน -50% = โชว์แผ่นที่ 2
+   ความสูงคุมด้วย JS (syncNavHeight) — ไม่งั้นแผ่นเตี้ยจะเหลือที่ว่างเท่าแผ่นสูง */
+.wb-nav {
+  overflow: hidden;
+  transition: height 0.22s ease;
+}
+.wb-nav-track {
+  display: flex;
+  width: 200%;
+  transition: transform 0.22s ease;
+}
+.wb-nav-pane {
+  width: 50%;
+  flex: none;
+  align-self: flex-start;
+}
+.wb-nav.level2 .wb-nav-track { transform: translateX(-50%); }
+
+/* ── รายการหมวด (ระดับ 1) ── */
+.wb-cat {
+  display: flex; align-items: center; gap: 9px;
+  width: 100%; text-align: left;
+  padding: 10px; margin-bottom: 8px;
+  border: 1px solid var(--border, #e3e8dd);
+  border-radius: 9px;
+  background: #fff;
+  box-shadow: var(--shadow);
+  cursor: pointer;
+  color: var(--text, #2f3a28);
+  transition: box-shadow .14s, border-color .14s, transform .14s;
+}
+.wb-cat:hover {
+  border-color: var(--sage, #7c9070);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
+}
+.wb-cat-icon { font-size: 16px; flex: none; }
+.wb-cat-txt { flex: 1; min-width: 0; }
+.wb-cat-name { font: 600 12.5px/1.3 "Sarabun", sans-serif; }
+.wb-cat-hint {
+  font: 400 11px/1.4 "Sarabun", sans-serif;
+  color: var(--text-3, #9aa691);
+  margin-top: 2px;
+}
+.wb-cat-count {
+  flex: none;
+  font: 700 10.5px/1 "Sarabun", sans-serif;
+  color: var(--accent, #3d6b4f);
+  background: var(--accent-pale, #d8e7d2);
+  padding: 3px 7px; border-radius: 999px;
+}
+.wb-cat-arrow { flex: none; color: var(--text-3, #9aa691); font-size: 14px; }
+
+/* ── ปุ่มย้อนกลับ (ระดับ 2) ── */
+.wb-back {
+  display: flex; align-items: center; gap: 7px;
+  width: calc(100% - 22px);
+  margin: 11px 11px 0;
+  padding: 8px 9px;
+  border: 1px solid var(--border, #e3e8dd);
+  border-radius: 8px;
+  background: var(--surface-2, #f7f9f5);
+  cursor: pointer;
+  font: 600 12px/1 "Sarabun", sans-serif;
+  color: var(--accent, #3d6b4f);
+}
+.wb-back:hover { background: var(--accent-pale, #d8e7d2); border-color: var(--sage, #7c9070); }
+
+/* ── palette ── */
+/* เคอร์เซอร์มือสีเหลือง — บอกว่า "ลากได้"
+   วาดเป็น SVG inline (ไม่ใช้ emoji ✋ เพราะเครื่องที่ไม่มีฟอนต์ emoji จะได้สี่เหลี่ยม)
+   เส้นขอบเข้ม #1f2937 = เห็นชัดทั้งบนพื้นขาวและบนแถบเมนูสีเข้ม #16240f ของ canvas
+   ท้ายค่าต้องมี grab เสมอ = fallback ถ้าเบราว์เซอร์โหลด URI ไม่ได้ · # ในสีต้องเป็น %23
+   ปรับขนาด: แก้ width/height (viewBox คงเดิม) แล้ว **ย่อ hotspot ตามสัดส่วนด้วย**
+   hotspot เป็น px ของภาพจริง ไม่ใช่ของ viewBox — ลืมแก้ = จุดกดหลุดออกนอกมือ */
+:root {
+  --wb-hand: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='17' viewBox='0 0 30 32'><g fill='%23f4c025' stroke='%231f2937' stroke-width='2.8' stroke-linejoin='round' stroke-linecap='round'><path d='M8 17V7.5a2 2 0 0 1 4 0V15'/><path d='M12 14.5V5a2 2 0 0 1 4 0v9.5'/><path d='M16 14.5V6a2 2 0 0 1 4 0v8.5'/><path d='M20 15V9a2 2 0 0 1 4 0v9a10 10 0 0 1-10 10h-1a9 9 0 0 1-6.4-2.6l-4.2-4.2a2 2 0 0 1 2.8-2.8L8 21'/></g></svg>") 6 6, grab;
+}
+
+.wb-palette-item {
+  display: block;
+  padding: 7px; margin-bottom: 10px;
+  border: 1px solid var(--border, #e3e8dd);
+  border-radius: 9px;
+  background: #fff;
+  box-shadow: var(--shadow); /* ยกการ์ดขึ้นจากพื้นแผง — ไม่งั้นภาพตัวอย่างกลืนกันจนแยกไม่ออกว่าใบไหนถึงใบไหน */
+  cursor: var(--wb-hand);
+  color: var(--text, #2f3a28);
+  user-select: none;
+  transition: box-shadow .14s, border-color .14s, transform .14s;
+}
+.wb-palette-item:hover {
+  border-color: var(--sage, #7c9070);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px); /* ลอยขึ้นนิดเดียว = บอกว่าหยิบได้ */
+}
+.wb-palette-item:active {
+  cursor: grabbing;
+  transform: none;
+  box-shadow: var(--shadow);
+}
+
+/* ภาพจำลองโครงสร้าง (wireframe SVG จาก b.wire)
+   SVG ยืดตามความกว้างการ์ดเองด้วย viewBox — ไม่ต้องคำนวณ scale */
+.wb-thumb {
+  overflow: hidden;
+  border-radius: 5px;
+  border: 1px solid #d5ddcc; /* เข้มกว่า --border เพื่อคุมขอบให้อ่านเป็น "จอ" */
+  background: #f6f7f3;
+  pointer-events: none; /* ให้คลิก/ลากทะลุไปโดนตัวการ์ด */
+}
+.wb-thumb svg {
+  display: block; /* กันช่องว่างใต้ inline element */
+  width: 100%;
+  height: auto;
+}
+/* ── แถบสีหัวข้อ (ใช้ร่วม 2 ที่) ──
+   1. ชื่อบล็อกบนการ์ดในแท็บเครื่องมือ
+   2. หัวข้อแต่ละส่วนในแท็บตั้งค่า
+   เขียนเป็นกฎเดียวตั้งใจ — สองที่นี้ต้องหน้าตาเหมือนกันเสมอ แก้ที่เดียวเปลี่ยนทั้งคู่
+   แถบพื้น + ขอบซ้ายเข้ม = กวาดตาหาหัวข้อได้โดยไม่ต้องเพ่ง */
+.wb-palette-label,
+/* .wb-field.wb-field--head — ต้องเขียน 2 class ให้ specificity = (0,2,1)
+   ถ้าเขียน .wb-field--head > label เฉยๆ จะได้ (0,1,1) เท่ากับ .wb-field > label ด้านล่าง
+   พอเท่ากัน source order ชนะ → สี/ระยะห่างโดนทับเงียบๆ (background/border รอดเพราะไม่มีคู่แข่ง) */
+.wb-field.wb-field--head > label {
+  display: flex; align-items: center; gap: 6px;
+  margin-bottom: 7px;
+  padding: 5px 8px;
+  background: var(--accent-pale, #d8e7d2);
+  border-left: 3px solid var(--accent, #3d6b4f);
+  border-radius: 0 5px 5px 0;
+  font: 600 12px/1.3 "Sarabun", sans-serif;
+  color: var(--accent, #3d6b4f);
+}
+.wb-palette-item:hover .wb-palette-label { background: #c9dec2; }
+.wb-palette-icon { font-size: 14px; flex: none; }
+
+/* ── canvas ── */
+.wb-canvas-wrap {
+  background: var(--surface, #fff);
+  border: 1px solid var(--border, #e3e8dd);
+  border-radius: 12px;
+  padding: 10px;
+  min-height: 400px;
+}
+/* กรอบจำลองเว็บจริง — max-width 1200 ตาม design */
+.wb-canvas {
+  max-width: 1200px;
+  margin: 0 auto;
+  background: #f6f7f3;
+  font-family: "Sarabun", system-ui, sans-serif;
+}
+.wb-canvas * { box-sizing: border-box; }
+
+/* block wrapper — ครอบ HTML จริงของ block */
+.wb-block { position: relative; outline: 2px solid transparent; transition: outline-color .12s; }
+.wb-block:hover { outline-color: #b9d6a5; }
+.wb-block.selected { outline-color: #71bf44; }
+.wb-block.dragging { opacity: .4; }
+
+/* กัน block ที่มีลิงก์/ปุ่มดักคลิก — canvas ต้องเลือก block ได้เสมอ */
+.wb-block > * { pointer-events: none; }
+/* ...ยกเว้น toolbar/tag ของ editor เอง ไม่งั้นปุ่ม ▲▼⧉✕ กดไม่ได้ */
+.wb-block > .wb-block-bar, .wb-block > .wb-block-tag { pointer-events: auto; }
+.wb-block-bar * { pointer-events: auto; }
+
+.wb-block-bar {
+  position: absolute; top: 0; right: 0; z-index: 5;
+  display: none; gap: 3px; padding: 3px;
+  background: #16240f; border-radius: 0 0 0 7px;
+}
+.wb-block:hover .wb-block-bar, .wb-block.selected .wb-block-bar { display: flex; }
+.wb-block-bar button {
+  border: 0; background: transparent; color: #c3cbba;
+  cursor: pointer; padding: 3px 6px; border-radius: 5px;
+  font: 600 11px/1 "Sarabun", sans-serif;
+}
+.wb-block-bar button:hover { background: #2c4420; color: #fff; }
+.wb-block-bar .wb-grip { cursor: var(--wb-hand); color: #71bf44; }
+
+.wb-block-tag {
+  position: absolute; top: 0; left: 0; z-index: 5;
+  display: none;
+  background: #71bf44; color: #0f2109;
+  font: 700 10px/1 "Sarabun", sans-serif;
+  padding: 4px 7px; border-radius: 0 0 7px 0;
+}
+.wb-block:hover .wb-block-tag, .wb-block.selected .wb-block-tag { display: block; }
+
+/* เส้นบอกตำแหน่งวาง */
+.wb-drop-line { height: 3px; background: #71bf44; margin: 0; border-radius: 2px; }
+
+.wb-empty {
+  padding: 60px 20px; text-align: center;
+  color: var(--text-3, #9aa691);
+  font: 500 13px/1.6 "Sarabun", sans-serif;
+}
+
+/* ── properties ── */
+.wb-field { margin-bottom: 12px; }
+/* ครึ่งความกว้าง — ขนาด/สี ที่ประกาศติดกันจะเรียงคู่เอง
+   ใช้ inline-block ไม่ใช่ grid เพราะ field เรียงมาจาก .join("") ไม่มีช่องว่างคั่น */
+.wb-field--half {
+  display: inline-block;
+  width: calc(50% - 4px);
+  vertical-align: top;
+}
+.wb-field--half + .wb-field--half { margin-left: 8px; }
+
+/* ── ช่องสี: จานสี + hex ── */
+.wb-color-row { display: flex; gap: 6px; }
+.wb-color-row input[type="color"] {
+  flex: none;
+  width: 34px; height: 32px;
+  padding: 2px;
+  border: 1px solid var(--border, #e3e8dd);
+  border-radius: 7px;
+  background: #fff;
+  cursor: pointer;
+}
+.wb-color-hex {
+  flex: 1; min-width: 0;
+  font-family: "IBM Plex Mono", monospace !important;
+  text-transform: lowercase;
+}
+
+.wb-field > label {
+  display: block; margin-bottom: 4px;
+  font: 600 12px/1 "Sarabun", sans-serif;
+  color: var(--text-2, #5a6551);
+}
+
+/* ── เส้นคั่นระหว่างส่วน ── */
+.wb-sep {
+  border-top: 1px solid var(--border, #e3e8dd);
+  margin: 15px 0 13px;
+}
+
+/* หัวข้อแต่ละส่วนในแท็บตั้งค่า = แถบสีเดียวกับการ์ดเครื่องมือ (ดูกฎรวมด้านบน)
+   ช่องลูก (ขนาด/สี) ยังเป็น label เทาอ่อนธรรมดา → เห็นลำดับชั้นทันที */
+.wb-field input[type="text"], .wb-field input[type="number"], .wb-field textarea {
+  width: 100%; padding: 7px 9px;
+  border: 1px solid var(--border, #e3e8dd); border-radius: 7px;
+  font: 400 13px/1.4 "Sarabun", sans-serif;
+  color: var(--text, #2f3a28); background: #fff;
+}
+.wb-field textarea { resize: vertical; min-height: 58px; }
+.wb-field input:focus, .wb-field textarea:focus {
+  outline: none; border-color: #71bf44;
+}
+
+/* image field */
+.wb-img-row { display: flex; gap: 6px; align-items: center; }
+.wb-img-row input { flex: 1; min-width: 0; }
+.wb-img-thumb {
+  width: 100%; height: 74px; margin-top: 6px;
+  border: 1px dashed var(--border, #e3e8dd); border-radius: 7px;
+  /* contain ไม่ใช่ cover — ต้องเห็นรูปเต็มใบเพื่อตรวจว่าอัปถูกรูป
+     cover จะครอบตัดขอบทิ้ง โลโก้ที่กว้างกว่าสูงจะโดนเฉือนหัวท้าย */
+  background-size: contain;
+  background-position: center;
+  background-repeat: no-repeat;
+  display: flex; align-items: center; justify-content: center;
+  font: 500 11px/1 "Sarabun", sans-serif; color: var(--text-3, #9aa691);
+}
+
+/* list (repeater) */
+.wb-list-item {
+  border: 1px solid var(--border, #e3e8dd); border-radius: 9px;
+  padding: 9px; margin-bottom: 7px; background: var(--surface-2, #f7f9f5);
+}
+.wb-list-item-hdr {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 7px;
+  font: 700 11px/1 "Sarabun", sans-serif; color: var(--text-3, #9aa691);
+}
+.wb-list-item-hdr div { display: flex; gap: 2px; }
+.wb-list-item-hdr button {
+  border: 0; background: transparent; cursor: pointer;
+  padding: 2px 5px; border-radius: 4px; font-size: 11px;
+  color: var(--text-2, #5a6551);
+}
+.wb-list-item-hdr button:hover { background: #e3e8dd; }
+.wb-btn-add {
+  width: 100%; padding: 7px;
+  border: 1px dashed var(--border, #b9c4ae); border-radius: 7px;
+  background: #fff; cursor: pointer;
+  font: 600 12px/1 "Sarabun", sans-serif; color: var(--sage-dark, #4f9e2e);
+}
+.wb-btn-add:hover { background: #f0f7ec; border-color: #71bf44; }
+
+.wb-hint {
+  font: 400 11.5px/1.5 "Sarabun", sans-serif;
+  color: var(--text-3, #9aa691);
+  padding: 20px 6px; text-align: center;
+}
+
+/* ── สถานะบันทึก ── */
+.wb-dirty {
+  font: 600 12px/1 "Sarabun", sans-serif;
+  color: #c77c17; margin-right: 8px;
+}
+
+/* ── responsive (desktop-first · breakpoint มาตรฐาน 1280/1024/767/480) ──
+   ⚠️ multi-pane ยุบที่ 767 เท่านั้น — ห้าม 900/1024 (กฎเดียวกับ .ra-grid ของ room-assign
+   ดู docs/templates/RESPONSIVE-BLUEPRINT.md) เพราะ laptop ตกไปอยู่ใน tier ≤1024 ได้ง่าย
+   แล้วกลายเป็น 1 คอลัมน์บนเครื่อง desktop จริง = regression
+
+   ตัวเลขยืนยัน (วัดจริงบน Chromium): viewport 1024 + :root{zoom:.65} ของ common.css
+   → พื้นที่ layout จริง = 1024/0.65 = 1575px ขณะที่ media query ยังเห็น 1024
+   3 คอลัมน์กินแค่ ~564px + canvas → ที่ 767 (=1180px จริง) ยังสบาย
+   เคยตั้ง 1024 = ยุบเร็วไป palette เด้งไปกองบนสุด ลากบล็อกไม่ได้ */
+@media (max-width: 1280px) {
+  .wb-shell { grid-template-columns: var(--wb-pane-w, 260px) 8px 1fr; }
+}
+@media (max-width: 767px) {
+  .wb-shell { grid-template-columns: 1fr; }
+  .wb-split { display: none; } /* คอลัมน์เดียวแล้ว ไม่มีอะไรให้ลาก */
+
+  /* จอแคบ = ซ้อนกัน แต่แผงต้องเอื้อมถึงตลอด (กฎ #4)
+     → ปักบนสุด จำกัดความสูงให้ยังเห็น canvas ข้างล่าง */
+  .wb-side {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    max-height: 46vh;
+  }
+  /* แท็บบล็อก: เรียงแนวนอนเลื่อนได้ ไม่กินความสูง */
+  #tabBlocks .wb-panel-body {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    padding: 8px;
+  }
+  #tabBlocks .wb-palette-item {
+    flex: none;
+    width: 150px; /* ต้องกำหนด — ในแถวแนวนอนการ์ดไม่มีความกว้างของตัวเอง ภาพตัวอย่างจะแบน */
+    margin-bottom: 0;
+  }
+  #tabProps { max-height: calc(46vh - 42px); overflow-y: auto; }
+}

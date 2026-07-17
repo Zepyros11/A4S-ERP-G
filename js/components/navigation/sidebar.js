@@ -171,6 +171,34 @@
         },
       ],
     },
+    // **************** MEDIA *****************
+    {
+      group: "สื่อ (Media)",
+      icon: "🎬",
+      id: "g-media",
+      items: [
+        {
+          id: "web-pages",
+          icon: "🌐",
+          label: "จัดการหน้าเว็บ",
+          path: BASE_PATH + "/modules/media/web-pages.html",
+        },
+        {
+          id: "web-content",
+          icon: "📝",
+          label: "เนื้อหา/บทความ",
+          path: BASE_PATH + "/modules/media/web-content.html",
+        },
+        /* ── SETUP items ── */
+        {
+          id: "web-settings",
+          icon: "⚙️",
+          label: "ตั้งค่าเว็บไซต์",
+          path: BASE_PATH + "/modules/media/web-settings.html",
+          section: "setup",
+        },
+      ],
+    },
     //  **************** STOCK *****************
     {
       group: "คลังสินค้า (Stock)",
@@ -582,6 +610,9 @@
     "trend-radar": "trend_radar_view",
     "campaign-planning": "campaign_view",
     "campaign-dashboard": "campaign_view",
+    "web-pages": "web_pages_view",
+    "web-content": "web_content_view",
+    "web-settings": "web_settings_view",
     categories: "inv_cat_view",
     units: "units_view",
     warehouses: "warehouse_view",
@@ -714,6 +745,10 @@
     "trend-radar",
     "campaign-dashboard",
     "campaign-planning",
+    //**** MEDIA ****
+    "web-pages",
+    "web-content",
+    "web-settings",
     //  **** Inventory ****
     "stock-dashboard",
     "stock-balance",

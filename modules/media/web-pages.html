@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>🌐 จัดการหน้าเว็บ — A4S-ERP</title>
+
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../css/main.css" />
+</head>
+<body>
+
+  <div class="loading-overlay" id="loadingOverlay"><div class="spinner"></div></div>
+  <div class="toast" id="toast"></div>
+
+  <div class="topbar"></div>
+
+  <div class="page">
+
+    <div class="page-hero page-hero--simple page-hero--compact">
+      <div>
+        <h1 class="page-hero-title">🌐 จัดการหน้าเว็บ</h1>
+        <p class="page-hero-sub">สร้างและควบคุมหน้าเว็บไซต์ของบริษัท</p>
+      </div>
+      <div class="page-hero-actions">
+        <button class="btn-on-hero" onclick="window.openWebsite()">🌐 Website</button>
+      </div>
+    </div>
+
+    <div class="table-card">
+
+      <div class="table-toolbar">
+        <div class="search-wrap" style="max-width:none;flex:1">
+          <span class="search-icon">🔍</span>
+          <input class="search-input" id="searchInput" placeholder="ค้นหาชื่อหน้า / URL..." />
+        </div>
+        <select class="filter-select" id="filterStatus">
+          <option value="">🧿 ทุกสถานะ</option>
+          <option value="published">✅ เผยแพร่</option>
+          <option value="draft">📝 ฉบับร่าง</option>
+        </select>
+        <div class="toolbar-right">
+          <button class="btn btn-danger-outline" id="btnDeleteSelected" data-perm="web_pages_delete" style="display:none" onclick="window.deleteSelectedPages()">🗑 ลบที่เลือก</button>
+          <button class="btn btn-primary" data-perm="web_pages_create" onclick="window.openPageModal()">＋ เพิ่มหน้า</button>
+        </div>
+      </div>
+
+      <div class="table-hdr">
+        <div class="table-title">📋 หน้าเว็บทั้งหมด</div>
+        <div class="table-count" id="tableCount">0 หน้า</div>
+      </div>
+
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th class="col-center" style="width:44px">
+                <input type="checkbox" id="selectAllCheckbox" onchange="window.toggleAllCheckbox(this)" />
+              </th>
+              <th>ชื่อหน้า</th>
+              <th>URL</th>
+              <th class="col-center" style="width:110px">สถานะ</th>
+              <th class="col-center" style="width:150px">แก้ไขล่าสุด</th>
+              <th class="col-center" style="width:180px">จัดการ</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ────── PAGE FORM MODAL ────── -->
+  <div class="modal-overlay" id="pageOverlay">
+    <div class="modal modal-sm v-sage-header" onclick="event.stopPropagation()">
+      <div class="modal-hdr">
+        <div class="modal-title" id="pageModalTitle">เพิ่มหน้าใหม่</div>
+        <button class="btn-modal-close" onclick="window.closePageModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">ชื่อหน้า <span class="req">*</span></label>
+          <input class="form-control" id="fTitle" placeholder="เช่น หน้าแรก — A4S Academy" autocomplete="off" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">URL (slug) <span class="req">*</span></label>
+          <input class="form-control" id="fSlug" placeholder="เช่น about" autocomplete="off" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">สถานะ</label>
+          <select class="form-control" id="fStatus">
+            <option value="draft">📝 ฉบับร่าง (เห็นเฉพาะใน ERP)</option>
+            <option value="published">✅ เผยแพร่ (คนนอกเข้าดูได้)</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin-top:14px">
+          <label id="fHomeLabel" style="display:flex;align-items:center;gap:8px;cursor:pointer">
+            <input type="checkbox" id="fHome" />
+            <span id="fHomeText">ตั้งเป็นหน้าแรก</span>
+          </label>
+          <div id="fHomeHint" style="display:none;margin-top:6px;font-size:12px;line-height:1.5;color:var(--text2)"></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="window.closePageModal()">ยกเลิก</button>
+        <button class="btn btn-primary" onclick="window.savePageInfo()">💾 บันทึก</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       SCRIPTS — order matters
+       ============================================================ -->
+  <script src="../../js/core/config.js"></script>
+  <script src="../../js/core/auth.js"></script>
+  <script src="../../js/core/authz.js"></script>
+  <script src="../../js/core/date-format.js"></script>
+
+  <script src="../../js/core/permissions.js"></script>
+  <script>AuthZ.requirePerm("web_pages_view");</script>
+
+  <script src="./web-pages.js"></script>
+
+  <script type="module">
+    import { loadTopbar } from "../../js/components/navigation/topbar.js";
+    loadTopbar("🌐 จัดการหน้าเว็บ");
+  </script>
+  <script src="../../js/components/navigation/sidebar.js"></script>
+
+  <script src="../../js/components/modal/modalManager.js"></script>
+  <script src="../../js/components/modal/deleteModal.js"></script>
+  <script src="../../js/components/modal/confirmModal.js"></script>
+
+</body>
+</html>

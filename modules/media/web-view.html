@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>A4S Academy</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anuphan:wght@400;500;600;700&family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;background:#f6f7f3;font-family:'Sarabun',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+  a{color:#4f9e2e;text-decoration:none}
+  a:hover{color:#3d7a22}
+  #site{max-width:1200px;margin:0 auto;background:#f6f7f3}
+  .wv-state{padding:80px 20px;text-align:center;color:#7c8a72;font:500 14px/1.7 'Sarabun',sans-serif}
+</style>
+</head>
+<body>
+
+<div id="site"></div>
+<div class="wv-state" id="stateLoading">กำลังโหลด…</div>
+<div class="wv-state" id="stateEmpty" style="display:none">ยังไม่มีหน้านี้เผยแพร่</div>
+
+<!-- Public — ไม่โหลด auth.js/sidebar.js โดยตั้งใจ (ไม่งั้นจะเด้งไปหน้า login) -->
+<script src="./web-view-config.js"></script>
+<script src="../../js/shared/web-blocks.js"></script>
+<script src="../../js/shared/web-render.js"></script>
+<script src="./web-view.js"></script>
+
+</body>
+</html>

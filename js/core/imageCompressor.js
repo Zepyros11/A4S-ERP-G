@@ -54,10 +54,14 @@
     });
   }
 
-  /* compress image → Blob (image/jpeg)
-     throws ถ้า input ไม่ใช่รูป — caller ต้องเช็คก่อน หรือใช้ compressIfImage */
+  /* compress image → Blob (image/jpeg · หรือ image/png ถ้า opts.keepAlpha)
+     throws ถ้า input ไม่ใช่รูป — caller ต้องเช็คก่อน หรือใช้ compressIfImage
+
+     opts.keepAlpha (default false) — สำหรับโลโก้/ภาพพื้นใส
+     JPEG ไม่มี alpha channel → พื้นใสจะกลายเป็นดำ/ขาว ใช้กับโลโก้ไม่ได้
+     เปิด keepAlpha แล้วจะได้ PNG (ไฟล์ใหญ่กว่า จึงไม่เปิดเป็นค่าเริ่มต้น) */
   async function compress(input, opts = {}) {
-    const { maxDim, quality } = { ...DEFAULTS, ...opts };
+    const { maxDim, quality, keepAlpha } = { ...DEFAULTS, ...opts };
     if (!inputIsImage(input)) throw new Error('compress: input is not an image');
     const dataUrl = await _toDataUrl(input);
     const img = await _loadImage(dataUrl);
@@ -70,7 +74,9 @@
     const canvas = document.createElement('canvas');
     canvas.width = w; canvas.height = h;
     canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-    const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', quality));
+    const mime = keepAlpha ? 'image/png' : 'image/jpeg';
+    /* PNG ไม่มี quality — ส่ง undefined ไม่งั้นบางเบราว์เซอร์งอแง */
+    const blob = await new Promise(res => canvas.toBlob(res, mime, keepAlpha ? undefined : quality));
     if (!blob) throw new Error('compress: canvas.toBlob returned null');
     return blob;
   }
@@ -125,8 +131,11 @@
       let blob, contentType, finalPath;
       if (inputIsImage(input)) {
         blob = await compress(input, opts);
-        contentType = 'image/jpeg';
-        finalPath = path.endsWith('.jpg') ? path : `${path}.jpg`;
+        /* นามสกุล/contentType ต้องตามผลลัพธ์จริงของ compress ไม่งั้น serve ผิด type */
+        const png = !!opts.keepAlpha;
+        contentType = png ? 'image/png' : 'image/jpeg';
+        const ext = png ? '.png' : '.jpg';
+        finalPath = path.endsWith(ext) ? path : `${path}${ext}`;
       } else {
         blob = input instanceof Blob ? input : null;
         if (!blob) throw new Error('non-image input must be File/Blob');
@@ -159,8 +168,11 @@
       let blob, contentType, finalPath;
       if (inputIsImage(input)) {
         blob = await compress(input, opts);
-        contentType = 'image/jpeg';
-        finalPath = path.endsWith('.jpg') ? path : `${path}.jpg`;
+        /* นามสกุล/contentType ต้องตามผลลัพธ์จริงของ compress ไม่งั้น serve ผิด type */
+        const png = !!opts.keepAlpha;
+        contentType = png ? 'image/png' : 'image/jpeg';
+        const ext = png ? '.png' : '.jpg';
+        finalPath = path.endsWith(ext) ? path : `${path}${ext}`;
       } else {
         blob = input instanceof Blob ? input : null;
         if (!blob) throw new Error('non-image input must be File/Blob');

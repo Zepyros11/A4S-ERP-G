@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>📝 เนื้อหา/บทความ — A4S-ERP</title>
+
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../css/main.css" />
+</head>
+<body>
+
+  <div class="loading-overlay" id="loadingOverlay"><div class="spinner"></div></div>
+  <div class="toast" id="toast"></div>
+
+  <div class="topbar"></div>
+
+  <div class="page">
+
+    <div class="page-hero page-hero--simple page-hero--compact">
+      <div>
+        <h1 class="page-hero-title">📝 เนื้อหา/บทความ</h1>
+        <p class="page-hero-sub">จัดการเนื้อหาและบทความบนเว็บไซต์</p>
+      </div>
+    </div>
+
+    <div class="table-card">
+      <div class="empty-state">
+        <div class="empty-state-icon">🚧</div>
+        <div class="empty-state-title">อยู่ระหว่างพัฒนา</div>
+        <div class="empty-state-hint">หน้านี้ยังไม่มีเนื้อหา</div>
+      </div>
+    </div>
+
+  </div><!-- /.page -->
+
+  <script src="../../js/core/auth.js"></script>
+  <script src="../../js/core/authz.js"></script>
+  <script src="../../js/core/date-format.js"></script>
+
+  <script src="../../js/core/permissions.js"></script>
+  <script>AuthZ.requirePerm("web_content_view");</script>
+
+  <script type="module">
+    import { loadTopbar } from "../../js/components/navigation/topbar.js";
+    loadTopbar("📝 เนื้อหา/บทความ");
+  </script>
+  <script src="../../js/components/navigation/sidebar.js"></script>
+
+  <script src="../../js/components/modal/modalManager.js"></script>
+
+</body>
+</html>

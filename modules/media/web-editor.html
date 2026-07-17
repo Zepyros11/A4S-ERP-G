@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>✏️ แก้ไขหน้าเว็บ — A4S-ERP</title>
+
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <!-- ฟอนต์ของเว็บจริง — canvas ต้องแสดงเหมือนหน้า public เป๊ะ -->
+  <link href="https://fonts.googleapis.com/css2?family=Anuphan:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../css/main.css" />
+  <link rel="stylesheet" href="./web-editor.css" />
+</head>
+<body>
+
+  <div class="loading-overlay" id="loadingOverlay"><div class="spinner"></div></div>
+  <div class="toast" id="toast"></div>
+
+  <div class="topbar"></div>
+
+  <div class="page">
+
+    <div class="page-hero page-hero--simple page-hero--compact">
+      <div>
+        <h1 class="page-hero-title" id="heroTitle">✏️ แก้ไขหน้าเว็บ</h1>
+        <p class="page-hero-sub" id="heroSub">ลากบล็อกจากซ้ายมาวาง · คลิกบล็อกเพื่อแก้เนื้อหา</p>
+      </div>
+      <div class="page-hero-actions">
+        <span class="wb-dirty" id="dirtyFlag" style="display:none">● ยังไม่บันทึก</span>
+        <button class="btn-on-hero" onclick="goBack()">← กลับ</button>
+        <button class="btn-on-hero" onclick="openLive()">🌐 ดูเว็บจริง</button>
+        <button class="btn-on-hero btn-primary" data-perm="web_pages_edit" onclick="savePage()">💾 บันทึก</button>
+      </div>
+    </div>
+
+    <div class="wb-shell">
+
+      <!-- ── ซ้าย: แผงเดียว 2 แท็บ (บล็อก ↔ ตั้งค่า) ──
+           คลิกบล็อกใน canvas → สลับไปแท็บตั้งค่าเอง
+           ESC / คลิกที่ว่าง → กลับมาแท็บบล็อก -->
+      <div class="wb-panel wb-side">
+        <div class="wb-tabs">
+          <button class="wb-tab active" data-tab="blocks" onclick="switchTab('blocks')">🧰 เครื่องมือ</button>
+          <button class="wb-tab" data-tab="props" onclick="switchTab('props')">⚙️ ตั้งค่า</button>
+        </div>
+
+        <!-- 2 ระดับ: หมวด → บล็อกในหมวด (สไลด์ซ้าย) -->
+        <div id="tabBlocks">
+          <div class="wb-nav" id="wbNav">
+            <div class="wb-nav-track">
+              <!-- ระดับ 1 -->
+              <div class="wb-nav-pane" id="paneCats">
+                <div class="wb-panel-body" id="catList"></div>
+              </div>
+              <!-- ระดับ 2 -->
+              <div class="wb-nav-pane" id="paneBlocks">
+                <button class="wb-back" onclick="backToCats()">
+                  <span>←</span><span id="backLabel">ทุกหมวด</span>
+                </button>
+                <div class="wb-panel-body" id="palette"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div id="tabProps" hidden>
+          <div class="wb-props-hdr" id="propsHdr">⚙️ ตั้งค่า</div>
+          <div class="wb-panel-body" id="props">
+            <div class="wb-hint">คลิกบล็อกใน canvas<br />เพื่อแก้เนื้อหา</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── เส้นแบ่ง: ลากเพื่อขยาย/ย่อแผง · ดับเบิลคลิก = คืนค่าเริ่มต้น ── -->
+      <div class="wb-split" id="wbSplit" title="ลากเพื่อปรับความกว้าง · ดับเบิลคลิกเพื่อคืนค่าเริ่มต้น"></div>
+
+      <!-- ── ขวา: canvas ── -->
+      <div class="wb-canvas-wrap">
+        <div class="wb-canvas" id="canvas"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ============================================================
+       SCRIPTS
+       ============================================================ -->
+  <script src="../../js/core/config.js"></script>
+  <script src="../../js/core/auth.js"></script>
+  <script src="../../js/core/authz.js"></script>
+  <script src="../../js/core/date-format.js"></script>
+  <script src="../../js/core/imageCompressor.js"></script>
+
+  <script src="../../js/core/permissions.js"></script>
+  <script>AuthZ.requirePerm("web_pages_view");</script>
+
+  <!-- block contract + renderer (ใช้ร่วมกับหน้า public) -->
+  <script src="../../js/shared/web-blocks.js"></script>
+  <script src="../../js/shared/web-render.js"></script>
+
+  <script src="./web-editor.js"></script>
+
+  <script type="module">
+    import { loadTopbar } from "../../js/components/navigation/topbar.js";
+    loadTopbar("✏️ แก้ไขหน้าเว็บ");
+  </script>
+  <script src="../../js/components/navigation/sidebar.js"></script>
+
+  <script src="../../js/components/modal/modalManager.js"></script>
+  <script src="../../js/components/modal/confirmModal.js"></script>
+
+</body>
+</html>

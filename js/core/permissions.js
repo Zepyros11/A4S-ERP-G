@@ -99,7 +99,33 @@ window.AppPermissions = (() => {
       ],
     },
 
-    /* ── 3. คลังสินค้า (STOCK) ── */
+    /* ── 3. สื่อ (MEDIA) — สร้าง/ควบคุม website ── */
+    {
+      key: "website", label: "สื่อ (Media)", icon: "🎬",
+      children: [
+        { key: "web_pages", label: "จัดการหน้าเว็บ", icon: "🌐", perms: [
+          { key: "web_pages_view",    label: "ดูรายการ" },
+          { key: "web_pages_create",  label: "สร้าง" },
+          { key: "web_pages_edit",    label: "แก้ไข" },
+          { key: "web_pages_publish", label: "เผยแพร่/ปิดหน้า" },
+          { key: "web_pages_delete",  label: "ลบ" },
+        ]},
+        { key: "web_content", label: "เนื้อหา/บทความ", icon: "📝", perms: [
+          { key: "web_content_view",    label: "ดูรายการ" },
+          { key: "web_content_create",  label: "สร้าง" },
+          { key: "web_content_edit",    label: "แก้ไข" },
+          { key: "web_content_publish", label: "เผยแพร่" },
+          { key: "web_content_delete",  label: "ลบ" },
+        ]},
+        /* ── ตั้งค่า Website ── */
+        { key: "web_settings", label: "ตั้งค่าเว็บไซต์", icon: "⚙️", perms: [
+          { key: "web_settings_view", label: "ดู" },
+          { key: "web_settings_edit", label: "แก้ไข" },
+        ]},
+      ],
+    },
+
+    /* ── 4. คลังสินค้า (STOCK) ── */
     {
       key: "stock", label: "คลังสินค้า (Stock)", icon: "📦",
       children: [
@@ -140,7 +166,7 @@ window.AppPermissions = (() => {
       ],
     },
 
-    /* ── 4. เอกสาร ── */
+    /* ── 5. เอกสาร ── */
     {
       key: "docs", label: "เอกสาร", icon: "📄",
       children: [
@@ -175,7 +201,7 @@ window.AppPermissions = (() => {
       ],
     },
 
-    /* ── 5. ลูกค้า (CRM) ── */
+    /* ── 6. ลูกค้า (CRM) ── */
     {
       key: "crm", label: "ลูกค้า (CRM)", icon: "🧑",
       children: [
@@ -201,7 +227,7 @@ window.AppPermissions = (() => {
       ],
     },
 
-    /* ── 6. ซัพพลายเออร์ ── */
+    /* ── 7. ซัพพลายเออร์ ── */
     {
       key: "supplier_grp", label: "ซัพพลายเออร์ (Supplier)", icon: "🚚",
       children: [
@@ -214,7 +240,7 @@ window.AppPermissions = (() => {
       ],
     },
 
-    /* ── 7. บริการลูกค้า (Customer Service) ── */
+    /* ── 8. บริการลูกค้า (Customer Service) ── */
     {
       key: "customer_service", label: "บริการลูกค้า (CS)", icon: "🎁",
       children: [
