@@ -36,11 +36,24 @@ async function load() {
     document.title = page.title || "A4S Academy";
     document.getElementById("site").innerHTML = window.WebRender.page(page.blocks || []);
     show("");
+    initShrink();
   } catch (e) {
     console.error(e);
     document.getElementById("stateEmpty").textContent = "โหลดหน้าไม่สำเร็จ";
     show("stateEmpty");
   }
+}
+
+/* ย่อโลโก้เมื่อเลื่อน — เฉพาะ header ที่ตั้ง data-shrink (CSS .is-shrunk อยู่ใน web-view.html) */
+function initShrink() {
+  const heads = [...document.querySelectorAll('.wv-header[data-shrink="1"]')];
+  if (!heads.length) return;
+  const onScroll = () => {
+    const s = window.scrollY > 30;
+    heads.forEach((h) => h.classList.toggle("is-shrunk", s));
+  };
+  window.addEventListener("scroll", onScroll, { passive: true });
+  onScroll();
 }
 
 load();

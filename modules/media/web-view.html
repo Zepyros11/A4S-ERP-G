@@ -14,6 +14,10 @@
   a:hover{color:#3d7a22}
   #site{max-width:1200px;margin:0 auto;background:#f6f7f3}
   .wv-state{padding:80px 20px;text-align:center;color:#7c8a72;font:500 14px/1.7 'Sarabun',sans-serif}
+  /* ส่วนหัว: ซ่อนบนมือถือ + ย่อโลโก้เมื่อเลื่อน (web-view.js เติม .is-shrunk) */
+  @media (max-width:767px){ .wv-header.wv-hide-sm{ display:none !important } }
+  .wv-header .wv-logo{ transition:height .18s ease }
+  .wv-header.is-shrunk .wv-logo{ height:30px !important }
 </style>
 </head>
 <body>

@@ -27,6 +27,14 @@ window.WebRender = (() => {
   };
   const col = (v, def) => (/^#[0-9a-f]{3,8}$/i.test(String(v || "").trim()) ? String(v).trim() : def);
 
+  /* ── ค่าเปิด/ปิด ──
+     ห้ามใช้ truthy เปล่าๆ — string "0" เป็น truthy ใน JS
+     ข้อมูลเก่าเก็บเป็น "1"/"" ของใหม่เป็น boolean → ต้องรับได้ทั้งคู่ */
+  const on = (v) => v === true || v === 1 || v === "1" || v === "true";
+  /* น้ำหนักตัวอักษร: บาง/ปกติ/หนา → ค่า CSS */
+  const wt = (v) => ({ light: 300, normal: 400, bold: 700 }[v] || 400);
+  const al = (v) => (["left", "center", "right"].includes(v) ? v : "left");
+
   /* ── placeholder ลายทาง (ใช้เมื่อยังไม่มีรูป — ตรงกับ design เดิม) ── */
   function ph(label, a, b, step, fontSize) {
     return `background:repeating-linear-gradient(135deg,${a},${a} ${step}px,${b} ${step}px,${b} ${step * 2}px);display:flex;align-items:center;justify-content:center;font:600 ${fontSize}px/1 ui-monospace,monospace;color:#7c9070`;
@@ -40,32 +48,54 @@ window.WebRender = (() => {
   }
 
   const B = {
-    site_header: (p) => `
-  <div style="background:#ffffff;padding:26px 44px 18px;display:flex;justify-content:space-between;align-items:flex-end;border-bottom:1px solid #e6e9e0">
-    <div style="display:flex;align-items:center;gap:14px">
-      ${p.logo
-        ? `<img src="${esc(p.logo)}" alt="${esc(p.brand)}" style="height:46px;width:auto;flex:none;display:block" />`
-        : ""}
-      <div>
-        <div style="font:700 ${num(p.brandSize, 30)}px/1.15 'Anuphan',sans-serif;color:${col(p.brandColor, "#16240f")};letter-spacing:-.01em">${esc(p.brand)} <span style="font-size:${num(p.accentSize, 30)}px;color:${col(p.accentColor, "#71bf44")}">${esc(p.brandAccent)}</span></div>
-        <div style="font:500 ${num(p.taglineSize, 13)}px/1.3 'Sarabun',sans-serif;color:${col(p.taglineColor, "#7c8a72")};margin-top:8px;letter-spacing:.02em">${esc(p.tagline)}</div>
-      </div>
-    </div>
-    <div style="display:flex;gap:8px;align-items:center;font:600 13px/1 'Anuphan',sans-serif">
-      <span style="color:#9aa691;margin-right:4px">ภาษา</span>
-      ${(p.langs || []).map((l) =>
-        l.active
-          ? `<span style="background:#71bf44;color:#fff;padding:6px 12px;border-radius:999px">${esc(l.code)}</span>`
-          : `<span style="color:#5a6551;padding:6px 12px;border-radius:999px;border:1px solid #dfe4d8">${esc(l.code)}</span>`
-      ).join("")}
-    </div>
-  </div>`,
+    site_header: (p) => {
+      const center = p.logoPos === "center";
+      const sticky = on(p.sticky);
+      const brandInner = `
+        ${p.logo ? `<img class="wv-logo" src="${esc(p.logo)}" alt="${esc(p.brand)}" style="height:46px;width:auto;flex:none;display:block" />` : ""}
+        <div>
+          <div style="font-family:'Anuphan',sans-serif;font-weight:${wt(p.brandWeight)};font-size:${num(p.brandSize, 30)}px;line-height:1.15;color:${col(p.brandColor, "#16240f")};letter-spacing:-.01em;text-align:${al(p.brandAlign)}">${esc(p.brand)} <span style="font-weight:${wt(p.accentWeight)};font-size:${num(p.accentSize, 30)}px;color:${col(p.accentColor, "#71bf44")}">${esc(p.brandAccent)}</span></div>
+          <div style="font-family:'Sarabun',sans-serif;font-weight:${wt(p.taglineWeight)};font-size:${num(p.taglineSize, 13)}px;line-height:1.3;color:${col(p.taglineColor, "#7c8a72")};margin-top:6px;letter-spacing:.02em;text-align:${al(p.taglineAlign)}">${esc(p.tagline)}</div>
+        </div>`;
+      /* คลิกโลโก้ → ไปหน้าที่เลือก (logoLink = slug) · ไม่มี = ไม่ทำลิงก์ */
+      const brand = p.logoLink
+        ? `<a href="web-view.html?slug=${esc(p.logoLink)}" style="display:flex;align-items:center;gap:14px;text-decoration:none">${brandInner}</a>`
+        : `<div style="display:flex;align-items:center;gap:14px">${brandInner}</div>`;
+      /* ตำแหน่งกลาง = brand อยู่กลาง · langs ลอยไปขวาสุดด้วย absolute (ไม่งั้นจะเบียดกลาง) */
+      const langs = on(p.showLangs)
+        ? `<div style="display:flex;gap:8px;align-items:center;font:600 13px/1 'Anuphan',sans-serif${center ? ";position:absolute;right:44px;top:50%;transform:translateY(-50%)" : ""}">
+        <span style="color:#9aa691;margin-right:4px">ภาษา</span>
+        ${(p.langs || []).map((l) =>
+          on(l.active)
+            ? `<span style="background:#71bf44;color:#fff;padding:6px 12px;border-radius:999px">${esc(l.code)}</span>`
+            : `<span style="color:#5a6551;padding:6px 12px;border-radius:999px;border:1px solid #dfe4d8">${esc(l.code)}</span>`
+        ).join("")}
+      </div>`
+        : "";
+      const st = [
+        `background:${col(p.bgColor, "#ffffff")}`,
+        `min-height:${num(p.height, 90, 40, 300)}px`,
+        "padding:0 44px",
+        "display:flex", "align-items:center", "gap:14px",
+        `justify-content:${center ? "center" : "space-between"}`,
+        on(p.showBorder) ? "border-bottom:1px solid #e6e9e0" : "",
+        /* sticky ต้อง position:sticky · ไม่งั้น relative (ให้ langs absolute ตอน center อ้างอิงได้) */
+        sticky ? "position:sticky;top:0;z-index:50" : "position:relative",
+      ].filter(Boolean).join(";");
+      /* hideMobile/shrink = พฤติกรรมที่ต้องมี CSS/JS นอก inline → ใส่ class+data-attr ให้ web-view/editor จับ */
+      const cls = "wv-header" + (on(p.hideMobile) ? " wv-hide-sm" : "");
+      return `
+  <div class="${cls}"${on(p.shrinkOnScroll) ? ' data-shrink="1"' : ""} style="${st}">
+    ${brand}
+    ${langs}
+  </div>`;
+    },
 
     nav_bar: (p) => `
   <div style="background:#16240f;padding:0 44px;display:flex;justify-content:space-between;align-items:center">
     <div style="display:flex;gap:28px;font:600 15px/1 'Anuphan',sans-serif">
       ${(p.items || []).map((i) =>
-        `<span style="color:${i.active ? "#fff" : "#c3cbba"};padding:18px 0;border-bottom:3px solid ${i.active ? "#71bf44" : "transparent"}">${esc(i.label)}</span>`
+        `<span style="color:${on(i.active) ? "#fff" : "#c3cbba"};padding:18px 0;border-bottom:3px solid ${on(i.active) ? "#71bf44" : "transparent"}">${esc(i.label)}</span>`
       ).join("")}
     </div>
     <span style="background:#71bf44;color:#0f2109;font:700 14px/1 'Anuphan',sans-serif;padding:11px 20px;border-radius:8px">${esc(p.ctaText)}</span>
@@ -155,6 +185,7 @@ window.WebRender = (() => {
 
   return {
     esc,
+    on, /* editor ใช้ตัวนี้ตัดสินว่า toggle ติ๊กไว้ไหม — ต้องใช้กติกาเดียวกับ renderer เป๊ะ */
     /* block เดียว → HTML (type ที่ไม่รู้จัก = ข้าม ไม่ทำหน้าพัง) */
     block(b) {
       const fn = B[b.type];

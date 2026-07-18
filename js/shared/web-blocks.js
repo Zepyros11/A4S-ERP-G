@@ -20,13 +20,19 @@
    ============================================================ */
 
 window.WebBlocks = (() => {
+  /* สีแบรนด์ A4S — ใช้เป็นปุ่มสีในช่อง swatch (สีข้อความส่วนหัว) */
+  const BRAND_COLORS = ["#16240f", "#71bf44", "#3B6D11", "#7c8a72"];
+  /* preset ขนาดตัวอักษร (px) สำหรับปุ่ม S/M/L/XL ใน TextSetting
+     sizeMode "custom" = ค่าที่ไม่ตรง preset ไหน (derive จาก size ไม่เก็บ state แยก) */
+  const SIZE_PRESETS = { s: 16, m: 22, l: 30, xl: 44 };
+
   /* หมวดของเครื่องมือ — แผงซ้ายโชว์หมวดก่อน กดแล้วค่อยสไลด์ไปดูบล็อกข้างใน
      block ใหม่ต้องมี group ตรงกับ key ใดใน GROUPS ไม่งั้นจะไม่โผล่ในแผง */
   const GROUPS = [
-    { key: "layout",  label: "โครงหน้า",      icon: "🧱", hint: "ส่วนหัว · เมนู · ส่วนท้าย" },
-    { key: "content", label: "ข่าว & เนื้อหา", icon: "📰", hint: "ข่าวเด่น · ข่าวหลัก" },
-    { key: "list",    label: "รายการ & กริด",  icon: "🔲", hint: "สินค้า · กิจกรรม · ดาวน์โหลด" },
-    { key: "cta",     label: "ชักชวน",        icon: "🎯", hint: "แบนเนอร์เรียกให้สมัคร" },
+    { key: "layout",  label: "โครงสร้าง (Structure)",       icon: "🧱", hint: "ส่วนหัว · เมนู · ส่วนท้าย" },
+    { key: "content", label: "เนื้อหา (Content)",           icon: "📰", hint: "ข่าวเด่น · ข่าวหลัก" },
+    { key: "list",    label: "รายการข้อมูล (Lists & Details)", icon: "🔲", hint: "สินค้า · กิจกรรม · ดาวน์โหลด" },
+    { key: "cta",     label: "Call to Action",             icon: "🎯", hint: "แบนเนอร์เรียกให้สมัคร" },
   ];
 
   const CATALOG = [
@@ -36,43 +42,65 @@ window.WebBlocks = (() => {
       label: "ส่วนหัว (โลโก้+ภาษา)",
       icon: "🏷️",
       wire: `<svg viewBox="0 0 120 44"><rect width="120" height="44" fill="#fff"/><rect x="8" y="13" width="16" height="18" rx="3" fill="#71bf44"/><rect x="28" y="14" width="28" height="7" rx="2" fill="#16240f"/><rect x="28" y="25" width="20" height="4" rx="2" fill="#c3cbba"/><rect x="76" y="17" width="13" height="9" rx="4.5" fill="#71bf44"/><rect x="92" y="17" width="10" height="9" rx="4.5" fill="#dfe4d8"/><rect x="105" y="17" width="10" height="9" rx="4.5" fill="#dfe4d8"/></svg>`,
+      /* fields มี section marker → editor render เป็นหัวข้อกลุ่ม + แถวแนวนอน (label ซ้าย/ตัวคุมขวา)
+         บล็อกอื่นที่ไม่มี section ยังใช้ layout เดิม (แนวตั้ง) ไม่กระทบ */
       fields: [
+        { section: "เนื้อหา" },
         /* bucket = company-assets → uploadViaRest ส่งขึ้น Supabase Storage (ไม่อยู่ใน DRIVE_BUCKETS)
-           keepAlpha → ได้ PNG พื้นใส · maxDim 600 พอสำหรับโลโก้ (ไม่ต้อง 1600 เหมือนภาพเนื้อหา) */
+           keepAlpha → ได้ PNG พื้นใส · maxDim 600 พอสำหรับโลโก้ */
         {
-          key: "logo", label: "โลโก้ (ไม่ใส่ = ใช้ข้อความอย่างเดียว)", type: "image",
+          key: "logo", label: "โลโก้", type: "image",
           bucket: "company-assets", keepAlpha: true, maxDim: 600,
         },
-        { key: "brand", label: "ชื่อแบรนด์", type: "text" },
-        { key: "brandSize", label: "ขนาด (px)", type: "number", half: true, min: 10, max: 90 },
-        { key: "brandColor", label: "สีตัวอักษร", type: "color", half: true },
+        /* optionsFrom pages → editor เติม dropdown จากหน้าเว็บที่มีจริง (คลิกโลโก้ไปหน้านั้น) */
+        { key: "logoLink", label: "ลิงก์โลโก้", type: "select", optionsFrom: "pages", row: true },
 
-        { key: "brandAccent", label: "คำที่เน้นสี (ต่อท้าย)", type: "text" },
-        { key: "accentSize", label: "ขนาด (px)", type: "number", half: true, min: 10, max: 90 },
-        { key: "accentColor", label: "สีตัวอักษร", type: "color", half: true },
+        /* TextSetting = ชุดตั้งค่าข้อความรวม (ข้อความ+ขนาด+น้ำหนัก+สี+จัดวาง) พับได้
+           ใช้ซ้ำ 3 ตัว · map = ผูกแต่ละส่วนเข้ากับ prop key เดิมที่บันทึกอยู่แล้ว (ไม่รื้อเป็น nested) */
+        { type: "textsetting", label: "ชื่อแบรนด์", swatches: BRAND_COLORS, min: 10, max: 90,
+          map: { text: "brand", size: "brandSize", color: "brandColor", weight: "brandWeight", align: "brandAlign" } },
+        { type: "textsetting", label: "คำที่เน้นสี", swatches: BRAND_COLORS, min: 10, max: 90,
+          map: { text: "brandAccent", size: "accentSize", color: "accentColor", weight: "accentWeight", align: "accentAlign" } },
+        { type: "textsetting", label: "Tagline", swatches: BRAND_COLORS, min: 8, max: 90,
+          map: { text: "tagline", size: "taglineSize", color: "taglineColor", weight: "taglineWeight", align: "taglineAlign" } },
 
-        { key: "tagline", label: "Tagline", type: "text" },
-        { key: "taglineSize", label: "ขนาด (px)", type: "number", half: true, min: 8, max: 40 },
-        { key: "taglineColor", label: "สีตัวอักษร", type: "color", half: true },
+        { key: "showLangs", label: "แสดงตัวเลือกภาษา", type: "toggle", row: true },
         {
-          key: "langs", label: "ตัวเลือกภาษา", type: "list",
+          key: "langs", label: "ภาษาที่แสดง", type: "list",
           itemFields: [
-            { key: "code", label: "ภาษา", type: "text" },
-            { key: "active", label: "ใช้อยู่ (1=ใช่)", type: "text" },
+            { key: "code", label: "ภาษา", type: "text", half: true },
+            { key: "active", label: "ใช้อยู่", type: "toggle", half: true, exclusive: true },
           ],
         },
+
+        { section: "สไตล์" },
+        { key: "logoPos", label: "ตำแหน่งโลโก้", type: "segment", row: true,
+          options: [{ value: "left", label: "ซ้าย" }, { value: "center", label: "กลาง" }] },
+        { key: "bgColor", label: "สีพื้นหลัง", type: "color", row: true },
+        { key: "height", label: "ความสูง", type: "range", row: true, min: 48, max: 160, step: 2, unit: "px" },
+        { key: "showBorder", label: "เส้นขอบล่าง", type: "toggle", row: true },
+
+        { section: "พฤติกรรม" },
+        { key: "sticky", label: "ปักหมุดเมื่อเลื่อน (Sticky)", type: "toggle", row: true },
+        { key: "shrinkOnScroll", label: "ย่อโลโก้เมื่อเลื่อน", type: "toggle", row: true },
+        { key: "hideMobile", label: "ซ่อนบนมือถือ", type: "toggle", row: true },
       ],
       defaults: {
-        logo: "",
-        brand: "A4S", brandSize: 30, brandColor: "#16240f",
-        brandAccent: "Academy", accentSize: 30, accentColor: "#71bf44",
+        logo: "", logoLink: "home",
+        /* weight/align = state ใหม่ (ของเดิมไม่มี) · หน้าเก่า withDefaults เติมให้
+           ตั้ง brand/accent = bold รักษาหน้าตาเดิม (ไม่ทำตาม GPT ที่ default normal ทั้งหมด — ไม่งั้นแบรนด์บางลง) */
+        brand: "A4S", brandSize: 30, brandColor: "#16240f", brandWeight: "bold", brandAlign: "left",
+        brandAccent: "Academy", accentSize: 30, accentColor: "#71bf44", accentWeight: "bold", accentAlign: "left",
         tagline: "Make a Life, Not Just a Living!",
-        taglineSize: 13, taglineColor: "#7c8a72",
+        taglineSize: 13, taglineColor: "#7c8a72", taglineWeight: "normal", taglineAlign: "left",
+        showLangs: true,
         langs: [
-          { code: "ไทย", active: "1" },
-          { code: "EN", active: "" },
-          { code: "FR", active: "" },
+          { code: "ไทย", active: true },
+          { code: "EN", active: false },
+          { code: "FR", active: false },
         ],
+        logoPos: "left", bgColor: "#ffffff", height: 90, showBorder: true,
+        sticky: false, shrinkOnScroll: false, hideMobile: false,
       },
     },
     {
@@ -85,20 +113,20 @@ window.WebBlocks = (() => {
         {
           key: "items", label: "เมนู", type: "list",
           itemFields: [
-            { key: "label", label: "ชื่อเมนู", type: "text" },
-            { key: "active", label: "หน้าปัจจุบัน (1=ใช่)", type: "text" },
+            { key: "label", label: "ชื่อเมนู", type: "text", half: true },
+            { key: "active", label: "หน้าปัจจุบัน", type: "toggle", half: true, exclusive: true },
           ],
         },
         { key: "ctaText", label: "ปุ่มขวา (CTA)", type: "text" },
       ],
       defaults: {
         items: [
-          { label: "หน้าแรก", active: "1" },
-          { label: "ข่าวสาร", active: "" },
-          { label: "สินค้า", active: "" },
-          { label: "กิจกรรม", active: "" },
-          { label: "บทเรียนออนไลน์", active: "" },
-          { label: "ดาวน์โหลด", active: "" },
+          { label: "หน้าแรก", active: true },
+          { label: "ข่าวสาร", active: false },
+          { label: "สินค้า", active: false },
+          { label: "กิจกรรม", active: false },
+          { label: "บทเรียนออนไลน์", active: false },
+          { label: "ดาวน์โหลด", active: false },
         ],
         ctaText: "สมัครเป็นสปอนเซอร์ →",
       },
@@ -305,6 +333,7 @@ window.WebBlocks = (() => {
   return {
     CATALOG,
     GROUPS,
+    SIZE_PRESETS,
     byGroup: (key) => CATALOG.filter((b) => b.group === key),
     get: (type) => byType[type] || null,
     /* block ใหม่พร้อม props default — id ใช้แยก block ตอน drag/select */

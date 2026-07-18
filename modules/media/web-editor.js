@@ -72,11 +72,22 @@ async function init() {
     document.getElementById("heroSub").textContent =
       `/${page.slug} · ${page.status === "published" ? "เผยแพร่แล้ว" : "ฉบับร่าง"} · ลากบล็อกจากซ้ายมาวาง · คลิกบล็อกเพื่อแก้เนื้อหา`;
     renderCanvas();
+    loadPagesForSelect(); /* เติม dropdown "ลิงก์โลโก้" — ไม่ต้อง await กันหน้าค้าง */
   } catch (e) {
     console.error(e);
     toast("โหลดหน้าไม่สำเร็จ: " + e.message, "error");
   } finally {
     loading(false);
+  }
+}
+
+/* รายชื่อหน้าเว็บสำหรับ select optionsFrom:"pages" (เช่น ลิงก์โลโก้)
+   เก็บที่ window.__wbPages ให้ inputHtml อ่าน · fallback = หน้าปัจจุบัน ถ้าโหลดไม่ได้ */
+async function loadPagesForSelect() {
+  try {
+    window.__wbPages = await sbGet("web_pages?select=slug,title&order=title");
+  } catch (e) {
+    window.__wbPages = page ? [{ slug: page.slug, title: page.title }] : [];
   }
 }
 
@@ -439,17 +450,98 @@ function renderProps() {
   }
   const def = window.WebBlocks.get(b.type);
   hdr.textContent = `${def.icon} ${def.label}`;
-  /* field ที่ไม่ใช่ half = หัวข้อของกลุ่ม · half (ขนาด/สี) = ลูกของหัวข้อก่อนหน้า
-     → ขีดเส้นคั่นก่อนหัวข้อใหม่ทุกอัน (ยกเว้นอันแรก) แยกแต่ละส่วนให้ชัด */
+  /* block ที่มี section marker → โหมดแบ่งหมวด (หัวข้อเทา + แถวแนวนอน) เช่น site_header
+     block อื่น → โหมดเดิม (ป้ายสีเขียว + เส้นคั่น) ไม่กระทบ */
+  const sectioned = def.fields.some((f) => f.section);
   host.innerHTML = def.fields
-    .map((f, i) => (!f.half && i > 0 ? '<div class="wb-sep"></div>' : "") + fieldHtml(f, b.props[f.key]))
+    .map((f, i) => {
+      if (f.section) return `<div class="wb-section">${f.section}</div>`;
+      if (f.type === "textsetting") return textSettingHtml(f, b.props);
+      const sep = !sectioned && !f.half && i > 0 ? '<div class="wb-sep"></div>' : "";
+      return sep + fieldHtml(f, b.props[f.key], sectioned);
+    })
     .join("");
 }
 
-function fieldHtml(f, val) {
-  if (f.type === "list") return listHtml(f, val || []);
-  /* half = ครึ่งความกว้าง เรียงคู่กันเอง (inline-block) · ไม่ half = หัวข้อกลุ่ม (ป้ายสี) */
-  const cls = "wb-field" + (f.half ? " wb-field--half" : " wb-field--head");
+/* ── TextSetting: ชุดตั้งค่าข้อความรวม (พับได้) — ใช้ซ้ำได้ทุกที่ที่ต้องตั้งค่าข้อความ ──
+   อ่าน/เขียนผ่าน f.map → prop key เดิม (ไม่มี state ใหม่นอกจาก weight/align ที่ contract ตั้ง default ให้)
+   ทุก sub-control ใส่ data-fk = key จริง → ไหลผ่าน input/click handler เดิม */
+function tsAttr(k) { return `data-fk="${k}"`; }
+
+function swatchesHtml(fk, val, list) {
+  const cur = String(val ?? "").trim().toLowerCase();
+  const hex = /^#[0-9a-f]{6}$/i.test(cur) ? cur : "#000000";
+  const btns = (list || [])
+    .map((c) => `<button type="button" class="wb-sw${cur === c.toLowerCase() ? " active" : ""}" ${tsAttr(fk)} data-swatch="${c}" style="--sw:${c}" title="${c}"></button>`)
+    .join("");
+  const custom = cur && !(list || []).some((c) => c.toLowerCase() === cur);
+  return `<div class="wb-swatches">${btns}<label class="wb-sw-custom${custom ? " active" : ""}" title="กำหนดเอง"><input type="color" ${tsAttr(fk)} value="${hex}" /><span>+</span></label></div>`;
+}
+
+/* ปุ่มกลุ่มเลือก 1 ตัว (S/M/L/XL · บาง/ปกติ/หนา · ซ้าย/กลาง/ขวา) */
+function btnGroup(fk, cur, opts, extraCls) {
+  return `<div class="wb-btngroup${extraCls ? " " + extraCls : ""}">${opts
+    .map((o) => `<button type="button" class="wb-gbtn${String(cur) === String(o.value) ? " active" : ""}" ${tsAttr(fk)} data-setbtn="1" data-val="${o.value}"${o.num ? " data-num=\"1\"" : ""}${o.title ? ` title="${o.title}"` : ""}>${o.label}</button>`)
+    .join("")}</div>`;
+}
+
+const ALIGN_ICON = {
+  left: `<svg width="14" height="12"><rect y="1" width="13" height="2"/><rect y="5" width="8" height="2"/><rect y="9" width="11" height="2"/></svg>`,
+  center: `<svg width="14" height="12"><rect x="0.5" y="1" width="13" height="2"/><rect x="3" y="5" width="8" height="2"/><rect x="1.5" y="9" width="11" height="2"/></svg>`,
+  right: `<svg width="14" height="12"><rect x="1" y="1" width="13" height="2"/><rect x="6" y="5" width="8" height="2"/><rect x="3" y="9" width="11" height="2"/></svg>`,
+};
+
+function textSettingHtml(f, props) {
+  const m = f.map;
+  const text = props[m.text] ?? "";
+  const size = props[m.size];
+  const weight = props[m.weight] || "normal";
+  const align = props[m.align] || "left";
+  const P = window.WebBlocks.SIZE_PRESETS;
+  /* preset ที่ตรงกับ size ปัจจุบัน (ไม่ตรง = custom → ไม่มีปุ่ม preset ไฮไลต์) */
+  const presetVal = Object.keys(P).find((k) => +P[k] === +size);
+
+  const sizeBtns = btnGroup(
+    m.size,
+    presetVal || "",
+    ["s", "m", "l", "xl"].map((k) => ({ value: P[k], label: k.toUpperCase(), num: true }))
+  );
+  const weightBtns = btnGroup(m.weight, weight, [
+    { value: "light", label: "บาง" }, { value: "normal", label: "ปกติ" }, { value: "bold", label: "หนา" },
+  ]);
+  const alignBtns = btnGroup(m.align, align, [
+    { value: "left", label: ALIGN_ICON.left, title: "ซ้าย" },
+    { value: "center", label: ALIGN_ICON.center, title: "กลาง" },
+    { value: "right", label: ALIGN_ICON.right, title: "ขวา" },
+  ], "wb-icons");
+
+  const preview = window.WebRender.esc(String(text).slice(0, 22));
+  return `<details class="wb-ts">
+    <summary class="wb-ts-head">
+      <span class="wb-ts-label">${f.label}</span>
+      <span class="wb-ts-preview">${preview}</span>
+    </summary>
+    <div class="wb-ts-body">
+      <input type="text" class="wb-ts-text" ${tsAttr(m.text)} value="${window.WebRender.esc(text)}" placeholder="ข้อความ" />
+      <div class="wb-ts-field"><label>ขนาด</label>
+        <div class="wb-ts-size">${sizeBtns}<span class="wb-ts-or">หรือ</span>
+          <input type="number" class="wb-ts-px" ${tsAttr(m.size)} value="${window.WebRender.esc(size ?? "")}" min="${f.min ?? 8}" max="${f.max ?? 120}" step="1" /><span class="wb-ts-unit">px</span></div>
+      </div>
+      <div class="wb-ts-field"><label>น้ำหนัก</label>${weightBtns}</div>
+      <div class="wb-ts-field"><label>สี</label>${swatchesHtml(m.color, props[m.color], f.swatches)}</div>
+      <div class="wb-ts-field"><label>จัดวาง</label>${alignBtns}</div>
+    </div>
+  </details>`;
+}
+
+function fieldHtml(f, val, sectioned) {
+  if (f.type === "list") return listHtml(f, val || [], sectioned);
+  /* row = แถวแนวนอน (label ซ้าย/ตัวคุมขวา) · half = ครึ่งกว้างเรียงคู่
+     head (ป้ายสีเขียว) = เฉพาะ block โหมดเดิมที่ไม่มี section */
+  let cls = "wb-field";
+  if (f.row) cls += " wb-field--row";
+  else if (f.half) cls += " wb-field--half";
+  else if (!sectioned) cls += " wb-field--head";
   return `<div class="${cls}"><label>${f.label}</label>${inputHtml(f, val, {})}</div>`;
 }
 
@@ -457,9 +549,46 @@ function fieldHtml(f, val) {
 function inputHtml(f, val, ctx) {
   const attrs = `data-fk="${ctx.fk || f.key}"${ctx.idx != null ? ` data-idx="${ctx.idx}" data-sub="${f.key}"` : ""}`;
   const v = window.WebRender.esc(val ?? "");
+  if (f.type === "toggle") {
+    /* ใช้ .switch/.slider ของ design system (css/components/components.css) */
+    return `<label class="switch"><input type="checkbox" ${attrs} ${window.WebRender.on(val) ? "checked" : ""} /><span class="slider"></span></label>`;
+  }
   if (f.type === "textarea") return `<textarea ${attrs}>${v}</textarea>`;
   if (f.type === "number")
     return `<input type="number" ${attrs} value="${v}" min="${f.min ?? 1}" max="${f.max ?? 200}" step="1" />`;
+  if (f.type === "select") {
+    /* optionsFrom "pages" = เติม dropdown จากหน้าเว็บจริง (โหลดไว้ที่ window.__wbPages) */
+    const opts =
+      f.optionsFrom === "pages"
+        ? (window.__wbPages || []).map((pg) => ({ value: pg.slug, label: pg.title }))
+        : f.options || [];
+    return `<select ${attrs}>${opts
+      .map((o) => `<option value="${window.WebRender.esc(o.value)}"${String(val) === String(o.value) ? " selected" : ""}>${window.WebRender.esc(o.label)}</option>`)
+      .join("")}</select>`;
+  }
+  if (f.type === "segment") {
+    /* ปุ่มเลือก 1 ตัว (ซ้าย/กลาง) = radio ซ่อน + label เป็นปุ่ม → ไหลผ่าน input handler เป็นค่าปกติ */
+    const nm = `seg-${ctx.fk || f.key}-${ctx.idx ?? ""}`;
+    return `<div class="wb-seg">${(f.options || [])
+      .map((o) => `<label class="wb-seg-btn"><input type="radio" ${attrs} name="${nm}" value="${window.WebRender.esc(o.value)}"${String(val) === String(o.value) ? " checked" : ""} /><span>${window.WebRender.esc(o.label)}</span></label>`)
+      .join("")}</div>`;
+  }
+  if (f.type === "range") {
+    const rv = window.WebRender.esc(val ?? f.min ?? 0);
+    return `<div class="wb-range"><input type="range" ${attrs} min="${f.min ?? 0}" max="${f.max ?? 100}" step="${f.step ?? 1}" value="${rv}" /><span class="wb-range-val" data-unit="${f.unit || ""}">${rv}${f.unit || ""}</span></div>`;
+  }
+  if (f.type === "swatch") {
+    /* ปุ่มสีแบรนด์ + ปุ่ม "+" (color picker) → เก็บค่าใน prop key เดิม (ไม่มี state ใหม่)
+       ปุ่มที่ตรงกับค่าปัจจุบัน = ไฮไลต์ · ถ้าค่าไม่ตรงปุ่มไหน = ปุ่ม "+" ไฮไลต์แทน (สีกำหนดเอง) */
+    const cur = String(val ?? "").trim().toLowerCase();
+    const hex = /^#[0-9a-f]{6}$/i.test(cur) ? cur : "#000000";
+    const list = f.swatches || [];
+    const btns = list
+      .map((c) => `<button type="button" class="wb-sw${cur === c.toLowerCase() ? " active" : ""}" ${attrs} data-swatch="${c}" style="--sw:${c}" title="${c}"></button>`)
+      .join("");
+    const custom = cur && !list.some((c) => c.toLowerCase() === cur);
+    return `<div class="wb-swatches">${btns}<label class="wb-sw-custom${custom ? " active" : ""}" title="กำหนดเอง"><input type="color" ${attrs} value="${hex}" /><span>+</span></label></div>`;
+  }
   if (f.type === "color") {
     /* 2 ช่องคู่กัน: จานสี (เลือกเร็ว) + hex (วางค่าจาก brand guide ได้)
        ทั้งคู่ data-fk เดียวกัน → sync กันในตัว handler */
@@ -479,9 +608,9 @@ function inputHtml(f, val, ctx) {
   return `<input type="text" ${attrs} value="${v}" />`;
 }
 
-function listHtml(f, arr) {
-  /* --head เหมือน field อื่นที่ไม่ใช่ half — list ก็เป็นหัวข้อกลุ่มหนึ่ง ต้องได้ป้ายสีเท่ากัน */
-  return `<div class="wb-field wb-field--head">
+function listHtml(f, arr, sectioned) {
+  /* --head (ป้ายสีเขียว) เฉพาะ block โหมดเดิม · ในโหมด section ใช้ label ธรรมดา */
+  return `<div class="wb-field${sectioned ? "" : " wb-field--head"}">
     <label>${f.label} (${arr.length})</label>
     ${arr.map((item, idx) => `
       <div class="wb-list-item">
@@ -493,11 +622,13 @@ function listHtml(f, arr) {
             <button data-lact="del" data-fk="${f.key}" data-idx="${idx}" title="ลบ">✕</button>
           </div>
         </div>
+        <div class="wb-item-fields">
         ${f.itemFields.map((sf) => `
-          <div class="wb-field">
+          <div class="wb-field${sf.half ? " wb-field--half" : ""}">
             <label>${sf.label}</label>
             ${inputHtml(sf, item[sf.key], { idx, fk: f.key })}
           </div>`).join("")}
+        </div>
       </div>`).join("")}
     <button class="wb-btn-add" data-lact="add" data-fk="${f.key}">＋ เพิ่มรายการ</button>
   </div>`;
@@ -509,10 +640,47 @@ document.getElementById("props").addEventListener("input", (e) => {
   if (!el.dataset.fk || el.dataset.upload) return;
   const b = blocks.find((x) => x.id === selectedId);
   if (!b) return;
+  /* checkbox เก็บค่าที่ .checked ไม่ใช่ .value (.value ของ checkbox คือ "on" เสมอ) */
+  const isToggle = el.type === "checkbox";
+  const val = isToggle ? el.checked : el.value;
+
   if (el.dataset.idx != null && el.dataset.sub) {
-    b.props[el.dataset.fk][+el.dataset.idx][el.dataset.sub] = el.value;
+    b.props[el.dataset.fk][+el.dataset.idx][el.dataset.sub] = val;
   } else {
-    b.props[el.dataset.fk] = el.value;
+    b.props[el.dataset.fk] = val;
+  }
+
+  /* exclusive: เปิดอันนี้ = ปิดอันอื่นในลิสต์เดียวกัน (ภาษา/หน้าปัจจุบัน มีได้อันเดียว) */
+  let rerender = false;
+  if (isToggle && el.checked && el.dataset.idx != null && el.dataset.sub) {
+    const fd = fieldDef(b, el.dataset.fk, el.dataset.sub);
+    if (fd?.exclusive) {
+      b.props[el.dataset.fk].forEach((it, i) => {
+        if (i !== +el.dataset.idx) it[el.dataset.sub] = false;
+      });
+      rerender = true; /* ต้องวาดแผงใหม่ให้ checkbox ตัวอื่นเด้งกลับเป็นปิด */
+    }
+  }
+
+  /* ปุ่ม "+" เลือกสีเอง → อัปเดตไฮไลต์ (เลิกไฮไลต์ปุ่มแบรนด์ ถ้าสีไม่ตรง) โดยไม่ re-render (กัน picker ปิด) */
+  if (el.type === "color" && el.closest(".wb-swatches")) syncSwatchHighlight(el.closest(".wb-swatches"), val);
+
+  /* TextSetting: พิมพ์ข้อความ → อัปเดตค่าย่อในหัวข้อพับ · พิมพ์ px → เลิกไฮไลต์ปุ่ม preset ที่ไม่ตรง */
+  const ts = el.closest(".wb-ts");
+  if (ts) {
+    if (el.classList.contains("wb-ts-text")) {
+      const pv = ts.querySelector(".wb-ts-preview");
+      if (pv) pv.textContent = String(el.value).slice(0, 22);
+    }
+    if (el.classList.contains("wb-ts-px")) {
+      ts.querySelectorAll(".wb-ts-size [data-setbtn]").forEach((btn) => btn.classList.toggle("active", +btn.dataset.val === +el.value));
+    }
+  }
+
+  /* slider: อัปเดตตัวเลขที่โชว์ข้างๆ ตามค่าที่ลาก */
+  if (el.type === "range") {
+    const rv = el.parentElement.querySelector(".wb-range-val");
+    if (rv) rv.textContent = el.value + (rv.dataset.unit || "");
   }
 
   /* ช่องสี: sync จานสี ↔ hex
@@ -536,6 +704,7 @@ document.getElementById("props").addEventListener("input", (e) => {
 
   setDirty(true);
   refreshBlock(b.id);
+  if (rerender) renderProps();
 });
 
 /* ── ปุ่มใน repeater + อัปโหลดรูป ── */
@@ -547,6 +716,38 @@ document.getElementById("props").addEventListener("click", (e) => {
 
   if (btn.dataset.upload) { pickImage(btn); return; }
 
+  /* ปุ่มกลุ่มเลือก 1 ตัว (ขนาด preset / น้ำหนัก / จัดวาง) → ตั้งค่า + ไฮไลต์เฉพาะที่เลือก */
+  if (btn.dataset.setbtn) {
+    let v = btn.dataset.val;
+    if (btn.dataset.num) v = +v;
+    if (btn.dataset.idx != null && btn.dataset.sub) b.props[btn.dataset.fk][+btn.dataset.idx][btn.dataset.sub] = v;
+    else b.props[btn.dataset.fk] = v;
+    btn.parentElement.querySelectorAll("[data-setbtn]").forEach((x) => x.classList.toggle("active", x === btn));
+    /* กด preset ขนาด → อัปเดตช่อง px ให้ตรง */
+    const card = btn.closest(".wb-ts");
+    if (card && btn.dataset.num) {
+      const px = card.querySelector(`.wb-ts-px[data-fk="${btn.dataset.fk}"]`);
+      if (px) px.value = v;
+    }
+    setDirty(true);
+    refreshBlock(b.id);
+    return;
+  }
+
+  /* คลิกปุ่มสีแบรนด์ → ตั้งค่าสี (prop key เดิม) + ไฮไลต์ + อัปเดต canvas */
+  if (btn.dataset.swatch != null) {
+    const color = btn.dataset.swatch;
+    if (btn.dataset.idx != null && btn.dataset.sub) b.props[btn.dataset.fk][+btn.dataset.idx][btn.dataset.sub] = color;
+    else b.props[btn.dataset.fk] = color;
+    const wrap = btn.closest(".wb-swatches");
+    syncSwatchHighlight(wrap, color);
+    const ci = wrap.querySelector('input[type="color"]');
+    if (ci && /^#[0-9a-f]{6}$/i.test(color)) ci.value = color; /* ให้ picker เริ่มจากสีนี้ */
+    setDirty(true);
+    refreshBlock(b.id);
+    return;
+  }
+
   const act = btn.dataset.lact;
   if (!act) return;
   const fk = btn.dataset.fk;
@@ -556,7 +757,8 @@ document.getElementById("props").addEventListener("click", (e) => {
   if (act === "add") {
     const def = window.WebBlocks.get(b.type);
     const f = def.fields.find((x) => x.key === fk);
-    arr.push(Object.fromEntries(f.itemFields.map((sf) => [sf.key, ""])));
+    /* toggle ต้องเริ่มเป็น false ไม่ใช่ "" — เก็บชนิดให้ตรงตั้งแต่แรก */
+    arr.push(Object.fromEntries(f.itemFields.map((sf) => [sf.key, sf.type === "toggle" ? false : ""])));
   } else if (act === "del") arr.splice(idx, 1);
   else if (act === "up" && idx > 0) [arr[idx - 1], arr[idx]] = [arr[idx], arr[idx - 1]];
   else if (act === "down" && idx < arr.length - 1) [arr[idx + 1], arr[idx]] = [arr[idx], arr[idx + 1]];
@@ -566,6 +768,19 @@ document.getElementById("props").addEventListener("click", (e) => {
   refreshBlock(b.id);
   renderProps();
 });
+
+/* ไฮไลต์ปุ่มสีที่ตรงกับค่าปัจจุบัน · ไม่ตรงปุ่มไหน → ปุ่ม "+" ไฮไลต์ (สีกำหนดเอง) */
+function syncSwatchHighlight(wrap, value) {
+  if (!wrap) return;
+  const cur = String(value ?? "").trim().toLowerCase();
+  let matched = false;
+  wrap.querySelectorAll(".wb-sw").forEach((btn) => {
+    const on = btn.dataset.swatch.toLowerCase() === cur;
+    btn.classList.toggle("active", on);
+    if (on) matched = true;
+  });
+  wrap.querySelector(".wb-sw-custom")?.classList.toggle("active", !!cur && !matched);
+}
 
 /* หา definition ของ field จาก contract — ใช้อ่าน bucket/keepAlpha ตอนอัปโหลด */
 function fieldDef(block, fk, sub) {
