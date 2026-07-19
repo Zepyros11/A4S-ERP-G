@@ -31,10 +31,14 @@
 .wb-split.dragging::before { background: #71bf44; }
 
 /* ── แท็บของแผงซ้าย ── */
+/* หัวแท็บล็อกไว้บนสุด ไม่เลื่อนหายตอนไถดูฟิลด์ยาวๆ
+   ตัวที่เลื่อนจริงคือ .wb-side (overflow-y:auto) → sticky อ้างอิงกล่องนั้น
+   พื้นต้องทึบ ไม่งั้นเนื้อหาที่เลื่อนผ่านจะทะลุขึ้นมาซ้อน */
 .wb-tabs {
   display: flex;
   border-bottom: 1px solid var(--border, #e3e8dd);
   background: var(--surface-2, #f7f9f5);
+  position: sticky; top: 0; z-index: 20;
 }
 .wb-tab {
   flex: 1;
@@ -47,20 +51,38 @@
   color: var(--text-2, #5a6551);
 }
 .wb-tab:hover:not(.active) { background: #eef2ea; }
+/* แท็บที่เลือก = พื้นเขียวอ่อนเต็มปุ่ม
+   (เดิมเป็นพื้นขาวบนแถบ #f7f9f5 — ต่างกันแค่ไม่กี่ % แยกไม่ออกว่าอยู่แท็บไหน) */
 .wb-tab.active {
-  background: #fff;
-  color: var(--sage-dark, #4f9e2e);
-  border-bottom-color: #71bf44;
+  background: #dcefcc;
+  color: #16240f;
+  border-bottom-color: #5da637;
+  border-bottom-width: 3px;
 }
 
-/* หัวบอกว่ากำลังแก้บล็อกไหน */
+/* หัวบอกว่ากำลังแก้บล็อกไหน — "⚙️ ตั้งค่า · <ชื่อบล็อก>" แถบขาวเรียบ ไม่แย่งสายตาจากฟิลด์ */
 .wb-props-hdr {
-  font: 600 13px/1.3 "Sarabun", sans-serif;
-  padding: 10px 13px;
+  font: 600 12.5px/1.3 "Sarabun", sans-serif;
+  padding: 11px 13px;
   border-bottom: 1px solid var(--border, #e3e8dd);
-  color: var(--text, #2f3a28);
+  color: var(--text-2, #5a6551);
   background: #fff;
 }
+
+/* ── breadcrumb ชั้นของ node ที่เลือก (Section › คอลัมน์ › ข้อความ) ── */
+.wb-crumb {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 3px;
+  padding: 7px 13px;
+  border-bottom: 1px solid var(--border, #e3e8dd);
+  background: var(--surface-2, #f7f9f5);
+}
+.wb-crumb-up {
+  border: 0; background: transparent; cursor: pointer; padding: 2px 5px; border-radius: 5px;
+  font: 500 11px/1.3 "Sarabun", sans-serif; color: var(--text-2, #5a6551);
+}
+.wb-crumb-up:hover { background: var(--accent-pale, #d8e7d2); color: var(--accent, #3d6b4f); }
+.wb-crumb-sep { color: var(--text-3, #9aa691); font-size: 10px; }
+.wb-crumb-cur { font: 600 11px/1.3 "Sarabun", sans-serif; color: var(--accent, #3d6b4f); padding: 2px 5px; }
 
 /* ── panel ร่วม ── */
 .wb-panel {
@@ -144,20 +166,60 @@
 }
 .wb-cat-arrow { flex: none; color: var(--text-3, #9aa691); font-size: 14px; }
 
+/* ── ชื่อที่ดับเบิลคลิกแก้ได้ (ของชั่วคราว เก็บใน localStorage) ── */
+.wb-lbl { border-radius: 4px; }
+.wb-lbl:hover {
+  background: #fffbe6;
+  box-shadow: 0 0 0 2px #fffbe6;
+  text-decoration: underline dotted #c9a227;
+  text-underline-offset: 3px;
+}
+.wb-lbl-input {
+  width: 100%; min-width: 60px;
+  padding: 1px 4px; margin: -2px 0;
+  border: 1px solid #71bf44; border-radius: 4px;
+  background: #fff; color: #16240f;
+  font: inherit;
+}
+.wb-lbl-input:focus { outline: 2px solid #dcefcc; }
+
+.wb-lbl-reset {
+  width: calc(100% - 22px); margin: 4px 11px 0; padding: 7px 9px;
+  border: 1px dashed #cfd6c8; border-radius: 8px;
+  background: transparent; cursor: pointer;
+  font: 600 11.5px/1 "Sarabun", sans-serif; color: #7c8a72;
+}
+.wb-lbl-reset:hover { background: #f3f6f0; color: #16240f; border-color: #9aa691; }
+
 /* ── ปุ่มย้อนกลับ (ระดับ 2) ── */
+/* เดิมตัวเล็ก 12px สีจาง บนพื้นเกือบขาว → อ่านยากและดูไม่ออกว่ากดได้
+   ใหม่: พื้นเขียวอ่อน + ลูกศรเป็นวงกลมขาว + ชื่อหมวดปัจจุบันเข้มหนา */
 .wb-back {
-  display: flex; align-items: center; gap: 7px;
+  display: flex; align-items: center; gap: 8px;
   width: calc(100% - 22px);
   margin: 11px 11px 0;
-  padding: 8px 9px;
-  border: 1px solid var(--border, #e3e8dd);
+  padding: 9px 11px;
+  border: 1px solid #cfe0c2;
   border-radius: 8px;
-  background: var(--surface-2, #f7f9f5);
+  background: #eaf4e2;
   cursor: pointer;
-  font: 600 12px/1 "Sarabun", sans-serif;
-  color: var(--accent, #3d6b4f);
+  font: 600 13px/1 "Sarabun", sans-serif;
+  color: #5a6551;
+  text-align: left;
 }
-.wb-back:hover { background: var(--accent-pale, #d8e7d2); border-color: var(--sage, #7c9070); }
+.wb-back:hover { background: #dcefcc; border-color: #5da637; }
+/* ลูกศร = ชิปกลมขาว บอกว่าเป็นปุ่มย้อนกลับ ไม่ใช่แค่ป้ายบอกตำแหน่ง */
+.wb-back > span:first-child {
+  flex: none;
+  display: flex; align-items: center; justify-content: center;
+  width: 21px; height: 21px;
+  background: #fff; border: 1px solid #cfe0c2; border-radius: 50%;
+  color: #4f8a2e; font-size: 12px; line-height: 1;
+}
+.wb-back:hover > span:first-child { border-color: #5da637; }
+/* ชื่อหมวดที่เปิดอยู่ = ตัวเน้น · "ทุกหมวด" = ปลายทางของการกด (สีจางกว่า) */
+.wb-back-cur { color: #16240f; font-weight: 700; }
+.wb-back-sep { color: #9aa691; margin: 0 2px; }
 
 /* ── palette ── */
 /* เคอร์เซอร์มือสีเหลือง — บอกว่า "ลากได้"
@@ -248,15 +310,39 @@
 
 /* block wrapper — ครอบ HTML จริงของ block */
 .wb-block { position: relative; outline: 2px solid transparent; transition: outline-color .12s; }
-.wb-block:hover { outline-color: #b9d6a5; }
+/* :not(:has(...)) = ไฮไลต์เฉพาะชั้นในสุดที่เมาส์อยู่
+   ไม่มีตัวนี้ = ชี้ที่ข้อความในคอลัมน์แล้วสว่างพร้อมกัน 3 กรอบ (element+คอลัมน์+section) อ่านไม่ออกว่าจะโดนอันไหน */
+.wb-block:hover:not(:has(.wb-block:hover)) { outline-color: #b9d6a5; }
 .wb-block.selected { outline-color: #71bf44; }
 .wb-block.dragging { opacity: .4; }
 
 /* กัน block ที่มีลิงก์/ปุ่มดักคลิก — canvas ต้องเลือก block ได้เสมอ */
 .wb-block > * { pointer-events: none; }
-/* ...ยกเว้น toolbar/tag ของ editor เอง ไม่งั้นปุ่ม ▲▼⧉✕ กดไม่ได้ */
-.wb-block > .wb-block-bar, .wb-block > .wb-block-tag { pointer-events: auto; }
+/* ...ยกเว้น toolbar/tag ของ editor เอง ไม่งั้นปุ่ม ▲▼⧉✕ กดไม่ได้
+   และ block ที่ซ้อนอยู่ข้างใน (ต้องคลิกเลือกได้) — ตัวมันเองรับคลิก ส่วนเนื้อในโดนกฎ `> *` ปิดต่ออีกชั้น
+   จึงได้ "คลิกโดน element ในสุด" โดยที่ลิงก์/ปุ่มข้างในยังกดไม่ติด (ถูกแล้ว — นี่คือโหมดแก้ไข) */
+.wb-block .wb-block,
+.wb-block .wb-block-bar,
+.wb-block .wb-block-tag { pointer-events: auto; }
 .wb-block-bar * { pointer-events: auto; }
+
+/* ── คอลัมน์ (โมเดล 3 ชั้น) ── */
+.wb-block--col { outline-offset: -2px; }
+.wb-block--col:hover:not(:has(.wb-block:hover)) { outline-color: #cfe0c2; }
+/* ป้าย "คอลัมน์" ตัวเล็กกว่าของ section — ไม่งั้นป้าย 2 อันซ้อนกันจนบังเนื้อหา */
+.wb-block--col > .wb-block-tag { font-size: 9px; padding: 3px 5px; background: #cfe0c2; color: #2f3a28; }
+
+/* คอลัมน์ว่าง = ต้องเห็นว่าวางของลงได้ (หน้าจริงไม่มีกล่องนี้ — renderer ใส่ให้เฉพาะโหมดแก้ไข) */
+.wv-col-empty {
+  width: 100%; min-height: 72px;
+  display: flex; align-items: center; justify-content: center;
+  border: 1.5px dashed #c3d4b5; border-radius: 9px;
+  background: #fafcf8;
+  font: 500 11.5px/1.4 "Sarabun", sans-serif; color: #9aa691; text-align: center;
+}
+/* คอลัมน์ที่เมาส์ลากของลอยอยู่เหนือ = เป้าหมายที่จะวางลง */
+.wb-block--col.wb-col-over { outline-color: #71bf44; background: #f2f9ec; }
+.wb-block--col.wb-col-over .wv-col-empty { border-color: #71bf44; background: #eef7e8; color: #4f9e2e; }
 
 .wb-block-bar {
   position: absolute; top: 0; right: 0; z-index: 5;
@@ -281,8 +367,23 @@
 }
 .wb-block:hover .wb-block-tag, .wb-block.selected .wb-block-tag { display: block; }
 
-/* เส้นบอกตำแหน่งวาง */
-.wb-drop-line { height: 3px; background: #71bf44; margin: 0; border-radius: 2px; }
+/* ── เส้นบอกตำแหน่งวาง ──
+   เดิมสูง 3px ติดกับบล็อกจนดูไม่ออกว่าจะแทรกตรงไหน → เปิดเป็นช่องจริง 22px
+   ความสูงคงที่ (ไม่ใช้ margin) เพราะ dropIndex วัด midpoint ใหม่ทุก dragover
+   ช่องที่แทรกดันบล็อกล่างลง = เกิด hysteresis พอดีตัว เส้นจึงนิ่ง ไม่กระพริบสลับตำแหน่ง */
+.wb-drop-line {
+  height: 96px; margin: 0;
+  display: flex; align-items: center; justify-content: center;
+  /* พื้นเขียวชัด + ลายทางเฉียง — ให้อ่านออกทันทีว่า "นี่คือที่วาง" ไม่ใช่ช่องว่างของหน้าเว็บ */
+  background: repeating-linear-gradient(135deg, #d9edca, #d9edca 10px, #cbe6b7 10px, #cbe6b7 20px);
+  border: 2px dashed #5da637; border-radius: 10px;
+}
+/* ช่องใหญ่ขนาดนี้ถ้าปล่อยว่างจะดูเหมือนหน้าเพี้ยน → ใส่ป้ายบอกว่าเป็นที่วาง */
+.wb-drop-line::before {
+  content: "วางบล็อกตรงนี้";
+  font: 700 13px/1 "Sarabun", sans-serif; color: #16240f; letter-spacing: .02em;
+  background: #fff; padding: 7px 14px; border-radius: 999px; box-shadow: 0 1px 4px rgba(22, 36, 15, .12);
+}
 
 .wb-empty {
   padding: 60px 20px; text-align: center;
@@ -312,26 +413,42 @@
   margin-left: 0; /* ล้าง margin ของกฎ inline-block ด้านบน — flex ใช้ column-gap แทน */
 }
 
-/* ── โหมดแบ่งหมวด (site_header) ── */
+/* ── โหมดแบ่งหมวด (site_header) ──
+   หัวข้อกลุ่ม = ตัวเล็กสีเทา + เส้นคั่นเต็มความกว้างแผง (ยืดออกนอก padding ของ body ด้วย margin ลบ)
+   → กวาดตาเห็นว่าจบกลุ่มตรงไหนโดยไม่ต้องมีกล่องครอบ */
 .wb-section {
-  font: 700 11px/1 "Sarabun", sans-serif;
-  letter-spacing: .04em;
+  font: 600 11px/1 "Sarabun", sans-serif;
+  letter-spacing: .03em;
   color: var(--text-3, #9aa691);
-  text-transform: uppercase;
-  margin: 16px 0 9px;
+  margin: 0 -11px 10px;
+  padding: 13px 11px 0;
+  border-top: 1px solid var(--border, #e3e8dd);
 }
-.wb-section:first-child { margin-top: 2px; }
+.wb-section:first-child { margin-top: 0; padding-top: 0; border-top: 0; }
 
 /* แถวแนวนอน: label ซ้าย · ตัวคุมขวา (ตามภาพ mockup) */
 .wb-field--row {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-bottom: 11px;
+  margin-bottom: 10px;
+  min-height: 30px;
 }
-.wb-field--row > label { flex: 1; margin: 0; color: var(--text, #2f3a28); font-weight: 500; }
-.wb-field--row > *:not(label) { flex: none; margin: 0; }
-.wb-field--row select { min-width: 120px; }
+/* ⚠️ :not(.switch) ห้ามลบ — toggle ของ design system เป็น <label> เหมือนกัน
+   ถ้าเขียน `> label` เฉยๆ สวิตช์จะโดน flex:1 ยืดเต็มแถวจนยาวผิดปกติ
+   (.wb-seg-btn ในกลุ่ม segment ก็เป็น label แต่อยู่ลึกกว่า 1 ชั้น ไม่โดนกฎนี้) */
+.wb-field--row > label:not(.switch) {
+  flex: 1; margin: 0;
+  font: 500 12.5px/1.35 "Sarabun", sans-serif;
+  color: var(--text, #2f3a28);
+}
+.wb-field--row > *:not(label),
+.wb-field--row > label.switch { flex: none; margin: 0; }
+/* max-width กันชื่อหน้ายาวๆ ดันแถวจนล้นแผง · ellipsis ให้ตัดสวยแทนการเบียดลูกศร */
+.wb-field--row select {
+  min-width: 118px; max-width: 150px;
+  text-overflow: ellipsis;
+}
 
 /* segment (ซ้าย/กลาง) */
 .wb-seg { display: inline-flex; border: 1px solid var(--border, #e3e8dd); border-radius: 7px; overflow: hidden; }
@@ -345,7 +462,7 @@
 .wb-seg-btn input:checked + span { background: var(--accent, #3d6b4f); color: #fff; }
 
 /* range (slider + ตัวเลข) */
-.wb-range { display: flex; align-items: center; gap: 9px; min-width: 160px; }
+.wb-range { display: flex; align-items: center; gap: 9px; min-width: 140px; }
 .wb-range input[type="range"] { flex: 1; accent-color: #71bf44; }
 .wb-range-val { flex: none; min-width: 42px; text-align: right; font: 600 12px/1 "IBM Plex Mono", monospace; color: var(--text, #2f3a28); }
 
@@ -356,7 +473,27 @@
 }
 
 /* ซ่อนบนมือถือ (พรีวิวใน canvas) — public ใช้กฎเดียวกันใน web-view.html */
-@media (max-width: 767px) { .wv-header.wv-hide-sm { display: none !important; } }
+@media (max-width: 767px) {
+  .wv-header.wv-hide-sm { display: none !important; }
+  .wv-grid { grid-template-columns: 1fr !important; }
+}
+
+/* ── spacer ในโหมดแก้ไข ──
+   หน้า public เป็นช่องว่างเปล่าจริงๆ แต่ใน canvas ต้องมองเห็น ไม่งั้นหาไม่เจอ/ลบไม่ได้
+   กฎนี้อยู่เฉพาะ editor.css → ไม่รั่วไปหน้า public
+   ::before/::after ห้ามใช้กับ .wv-spacer เปล่าๆ ต้อง scope ใต้ .wb-block */
+.wb-block > .wv-spacer {
+  border-top: 1px dashed #c3cbba;
+  border-bottom: 1px dashed #c3cbba;
+  background: repeating-linear-gradient(135deg, transparent, transparent 7px, #eef1ea 7px, #eef1ea 14px);
+  display: flex; align-items: center; justify-content: center;
+}
+.wb-block > .wv-spacer::after {
+  content: "↕ เว้นระยะ " attr(data-h) "px";
+  font: 600 11px/1 "Sarabun", sans-serif; color: #8d9a84;
+  background: #fff; padding: 3px 8px; border-radius: 999px; border: 1px solid #e3e5e0;
+}
+@media (max-width: 767px) { .wv-spacer { height: var(--sp-hm) !important; } }
 
 /* ============================================================
    TextSetting — ชุดตั้งค่าข้อความรวม (พับได้) · color role ตาม GPT
@@ -379,23 +516,46 @@
 }
 .wb-ts-head::-webkit-details-marker { display: none; }
 .wb-ts-head::before {
-  content: "▸"; color: #6b6f68; font-size: 10px; transition: transform .15s;
+  content: "›"; color: #6b6f68; font: 600 15px/1 "Sarabun", sans-serif;
+  width: 9px; text-align: center; transition: transform .15s;
 }
 .wb-ts[open] .wb-ts-head::before { transform: rotate(90deg); }
 .wb-ts-label { flex: none; }
 .wb-ts-preview { flex: 1; text-align: right; color: #6b6f68; font-weight: 400; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.wb-ts-body { padding: 11px; border-top: 1px solid #e3e5e0; }
+/* กางแล้ว = หัวกลายเป็นพื้นขาว (เนื้อในต่อเนื่องกับหัว ไม่อ่านเป็น 2 ก้อน) */
+.wb-ts[open] .wb-ts-head { background: #fff; padding-bottom: 4px; }
+.wb-ts[open] .wb-ts-preview { display: none; }
+.wb-ts-body { padding: 0 11px 11px; }
 .wb-ts-text {
-  width: 100%; padding: 8px 9px; margin-bottom: 11px;
+  width: 100%; padding: 7px 9px; margin-bottom: 10px;
   border: 1px solid #e3e5e0; border-radius: 7px;
   font: 400 13px/1.4 "Sarabun", sans-serif; color: #1f2420;
 }
-.wb-ts-field { display: flex; align-items: center; gap: 9px; margin-bottom: 10px; }
-.wb-ts-field > label { flex: none; width: 46px; font: 600 12px/1 "Sarabun", sans-serif; color: #6b6f68; }
+.wb-ts-field { display: flex; align-items: center; gap: 9px; margin-bottom: 9px; }
+/* ป้ายแคบ + ตกบรรทัดได้ ("น้ำหนัก" ยาวกว่าช่องพอดี) — ปุ่มทุกแถวจึงเริ่มตรงกันเป็นคอลัมน์เดียว */
+.wb-ts-field > label {
+  flex: none; width: 34px;
+  font: 500 11.5px/1.25 "Sarabun", sans-serif; color: #6b6f68;
+}
+.wb-ts-field:last-child { margin-bottom: 0; }
 .wb-ts-size { display: flex; align-items: center; gap: 6px; flex: 1; flex-wrap: wrap; }
-.wb-ts-or { font: 400 11px/1 "Sarabun", sans-serif; color: #6b6f68; }
-.wb-ts-px { width: 52px; padding: 5px 6px; border: 1px solid #e3e5e0; border-radius: 6px; font: 600 12px/1 "IBM Plex Mono", monospace; color: #1f2420; text-align: center; }
-.wb-ts-unit { font: 400 11px/1 "Sarabun", sans-serif; color: #6b6f68; }
+/* ช่อง px = กรอบเดียวครอบ [ตัวเลข][px] ให้อ่านเป็นก้อนเดียวกับปุ่ม S/M/L/XL ข้างๆ
+   ปุ่มลูกศร spinner ซ่อนทิ้ง — กรอบแคบขนาดนี้กดไม่โดนอยู่แล้ว และมันเบียดคำว่า px */
+.wb-ts-pxwrap {
+  display: inline-flex; align-items: center; gap: 1px;
+  padding: 0 6px 0 4px;
+  border: 1px solid #e3e5e0; border-radius: 7px; background: #fff;
+}
+.wb-ts-pxwrap:focus-within { border-color: #71bf44; }
+.wb-ts-px {
+  width: 30px; padding: 6px 0; border: 0; background: transparent;
+  font: 600 11.5px/1 "Sarabun", sans-serif; color: #1f2420; text-align: right;
+  -moz-appearance: textfield;
+}
+.wb-ts-px:focus { outline: none; }
+.wb-ts-px::-webkit-outer-spin-button,
+.wb-ts-px::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.wb-ts-unit { font: 500 11.5px/1 "Sarabun", sans-serif; color: #1f2420; }
 
 /* ปุ่มกลุ่มเลือก 1 ตัว (preset/น้ำหนัก/จัดวาง) — accent ที่เลือก = #3B6D11 */
 .wb-btngroup { display: inline-flex; border: 1px solid #e3e5e0; border-radius: 7px; overflow: hidden; }
@@ -406,6 +566,8 @@
 .wb-gbtn + .wb-gbtn { border-left: 1px solid #e3e5e0; }
 .wb-gbtn:hover:not(.active) { background: #f5f6f3; }
 .wb-gbtn.active { background: #3B6D11; color: #ffffff; }
+/* ในการ์ด TextSetting แผงแคบ — บีบปุ่มลง ไม่งั้น S/M/L/XL + ช่อง px ตกบรรทัด */
+.wb-ts .wb-gbtn { padding: 6px 10px; }
 .wb-btngroup.wb-icons .wb-gbtn { padding: 6px 10px; display: flex; align-items: center; }
 .wb-btngroup.wb-icons svg { fill: currentColor; display: block; }
 
@@ -437,7 +599,8 @@
 .wb-sw-custom.active { border-style: solid; box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--accent, #3d6b4f); }
 .wb-sw-custom input[type="color"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
 
-/* ── ช่องสี: จานสี + hex ── */
+/* ── ช่องสี: จานสี + hex ──
+   ในแถวแนวนอน (.wb-field--row) บีบเป็นชิปเดียว [▪ #FFFFFF] ให้ชิดขวาเท่าตัวคุมอื่น */
 .wb-color-row { display: flex; gap: 6px; }
 .wb-color-row input[type="color"] {
   flex: none;
@@ -452,6 +615,53 @@
   flex: 1; min-width: 0;
   font-family: "IBM Plex Mono", monospace !important;
   text-transform: lowercase;
+}
+.wb-field--row .wb-color-row {
+  gap: 0; align-items: center; width: 128px;
+  border: 1px solid var(--border, #e3e8dd); border-radius: 7px; background: #fff;
+  padding: 0 8px 0 4px;
+}
+.wb-field--row .wb-color-row:focus-within { border-color: #71bf44; }
+.wb-field--row .wb-color-row input[type="color"] {
+  width: 22px; height: 22px; padding: 1px;
+  border-radius: 5px; border-color: #d8ded1;
+}
+.wb-field--row .wb-color-hex {
+  border: 0 !important; background: transparent; padding: 6px 0 6px 7px;
+  text-transform: uppercase; font-size: 11.5px !important;
+}
+.wb-field--row .wb-color-hex:focus { outline: none; }
+
+/* ── เลือกเลย์เอาต์คอลัมน์จากภาพ (gridpick) ── */
+.wb-gridpick { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.wb-gp {
+  padding: 0; border: 1.5px solid var(--border, #e3e8dd); border-radius: 8px;
+  background: #fff; cursor: pointer; overflow: hidden; line-height: 0;
+  transition: border-color .12s, box-shadow .12s;
+}
+.wb-gp:hover:not(.active) { border-color: var(--sage, #7c9070); }
+.wb-gp.active { border-color: #3B6D11; box-shadow: 0 0 0 2px #d8e7d2; }
+.wb-gp svg { width: 100%; height: auto; display: block; }
+
+/* ── pills: ลิสต์สั้นที่เลือกได้ทีละอัน (ภาษา) ── */
+.wb-pills { display: flex; flex-wrap: wrap; gap: 5px; justify-content: flex-end; }
+.wb-pill {
+  padding: 5px 11px;
+  border: 1px solid var(--border, #e3e8dd); border-radius: 999px;
+  background: #fff; cursor: pointer;
+  font: 600 11.5px/1.2 "Sarabun", sans-serif; color: var(--text-2, #5a6551);
+  transition: background .12s, border-color .12s, color .12s;
+}
+.wb-pill:hover:not(.active) { background: #f2f6ee; border-color: var(--sage, #7c9070); }
+.wb-pill.active { background: #3B6D11; border-color: #3B6D11; color: #fff; }
+.wb-pill-edit { padding: 5px 8px; color: var(--text-3, #9aa691); }
+
+/* แผงจัดการรายการของ pills — เปิดด้วยปุ่ม ✎ เท่านั้น (summary ซ่อน) */
+.wb-pill-manage > summary { display: none; }
+.wb-pill-manage-body {
+  padding: 9px; margin-bottom: 10px;
+  border: 1px solid var(--border, #e3e8dd); border-radius: 9px;
+  background: var(--surface-2, #f7f9f5);
 }
 
 .wb-field > label {
@@ -482,6 +692,27 @@
 /* image field */
 .wb-img-row { display: flex; gap: 6px; align-items: center; }
 .wb-img-row input { flex: 1; min-width: 0; }
+
+/* ปุ่มเลือกรูปในแถวแนวนอน — ไม่มีรูป = ไม่มีกล่องพรีวิวว่างมากินความสูงแผง */
+.wb-img-btn {
+  padding: 6px 12px;
+  border: 1px solid var(--border, #e3e8dd); border-radius: 7px;
+  background: #fff; cursor: pointer;
+  font: 600 11.5px/1.2 "Sarabun", sans-serif; color: var(--text-2, #5a6551);
+}
+.wb-img-btn:hover { border-color: var(--sage, #7c9070); background: #f2f6ee; color: var(--sage-dark, #4f9e2e); }
+
+/* ปุ่มลบรูปมุมขวาบนของพรีวิว (โผล่เมื่อมีรูปแล้วเท่านั้น) */
+.wb-img-thumb { position: relative; margin-bottom: 11px; }
+.wb-img-clear {
+  position: absolute; top: 5px; right: 5px;
+  width: 20px; height: 20px; padding: 0;
+  border: 0; border-radius: 50%;
+  background: rgba(22, 36, 15, .62); color: #fff; cursor: pointer;
+  font: 600 11px/1 "Sarabun", sans-serif;
+}
+.wb-img-clear:hover { background: #16240f; }
+
 .wb-img-thumb {
   width: 100%; height: 74px; margin-top: 6px;
   border: 1px dashed var(--border, #e3e8dd); border-radius: 7px;
@@ -568,4 +799,36 @@
     margin-bottom: 0;
   }
   #tabProps { max-height: calc(46vh - 42px); overflow-y: auto; }
+
+  /* กฎ #2 — touch target ≥44px · ปุ่มพวกนี้เล็กมาก (3px padding) นิ้วแตะพลาดตลอด */
+  .wb-block-bar button,
+  .wb-list-item-hdr button {
+    min-width: 34px; min-height: 34px;
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  .wb-tab { min-height: 44px; }
+  .wb-btn-add, .wb-back, .wb-cat { min-height: 44px; }
+
+  /* ช่องวาง 96px กินพื้นที่ canvas ที่เหลือ (~54vh) เยอะไป บนจอเล็กเอาแค่พอเห็น */
+  .wb-drop-line { height: 56px; }
+  .wb-drop-line::before { font-size: 12px; padding: 5px 10px; }
+}
+
+/* กฎ #1 — ห้าม horizontal overflow ของ "หน้า"
+   canvas วาดเว็บจริงซึ่งบางบล็อกกว้างกว่าแผงที่เหลือได้ (แถบเมนู 6 อัน + ปุ่ม CTA)
+   ให้เลื่อนอยู่ในกรอบตัวเอง แทนที่จะดันทั้งหน้าให้มีสกรอลล์แนวนอน
+   ไม่ตั้ง min-width ไว้ตั้งใจ — จอแคบจะได้เห็นว่าเว็บจริงบนมือถือหน้าตายังไง */
+.wb-canvas-wrap { overflow-x: auto; }
+
+@media (max-width: 480px) {
+  .wb-canvas-wrap { padding: 6px; border-radius: 8px; }
+  .wb-side { max-height: 52vh; } /* จอเตี้ย: ให้แผงตั้งค่าหายใจได้มากขึ้น */
+  #tabProps { max-height: calc(52vh - 42px); }
+  #tabBlocks .wb-palette-item { width: 128px; }
+  .wb-drop-line { height: 44px; }
+  /* ฟิลด์ครึ่งกว้างเรียงคู่ไม่ไหวแล้วที่ความกว้างนี้ — ป้ายกับช่องกรอกเบียดจนอ่านไม่ออก
+     ต้องคุมทั้ง 2 กฎ: ตัวนอก (inline-block) และตัวในรายการย่อย (flex · specificity สูงกว่า) */
+  .wb-field--half,
+  .wb-item-fields > .wb-field--half { width: 100%; }
+  .wb-field--half + .wb-field--half { margin-left: 0; }
 }

@@ -6,7 +6,7 @@
 <title>A4S Academy</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Anuphan:wght@400;500;600;700&family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Anuphan:wght@300;400;500;600;700&family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
   *{box-sizing:border-box}
   body{margin:0;background:#f6f7f3;font-family:'Sarabun',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
@@ -18,6 +18,12 @@
   @media (max-width:767px){ .wv-header.wv-hide-sm{ display:none !important } }
   .wv-header .wv-logo{ transition:height .18s ease }
   .wv-header.is-shrunk .wv-logo{ height:30px !important }
+  /* spacer: ความสูงแยกสำหรับจอเล็ก (inline style ทำ media query ไม่ได้ → ส่งมาเป็น CSS var) */
+  @media (max-width:767px){ .wv-spacer{ height:var(--sp-hm) !important } }
+  /* section หลายคอลัมน์ → ยุบเหลือคอลัมน์เดียวบนมือถือ
+     ผู้ใช้ไม่ต้องตั้งค่าอะไร (กฎ "อย่าให้ตั้ง responsive ทีละ property" — ดูบรีฟ)
+     รูปในคอลัมน์ที่ตั้งความกว้าง % ไว้ ปล่อยตามเดิม เพราะ % ของคอลัมน์เต็มจอก็ยังพอดี */
+  @media (max-width:767px){ .wv-grid{ grid-template-columns:1fr !important } }
 </style>
 </head>
 <body>

@@ -29,13 +29,168 @@ window.WebBlocks = (() => {
   /* หมวดของเครื่องมือ — แผงซ้ายโชว์หมวดก่อน กดแล้วค่อยสไลด์ไปดูบล็อกข้างใน
      block ใหม่ต้องมี group ตรงกับ key ใดใน GROUPS ไม่งั้นจะไม่โผล่ในแผง */
   const GROUPS = [
-    { key: "layout",  label: "โครงสร้าง (Structure)",       icon: "🧱", hint: "ส่วนหัว · เมนู · ส่วนท้าย" },
+    { key: "element", label: "องค์ประกอบ (Elements)",       icon: "🧩", hint: "ข้อความ · รูป · ปุ่ม — วางในคอลัมน์" },
+    { key: "layout",  label: "โครงสร้าง (Structure)",       icon: "🧱", hint: "แถบคอลัมน์ · ส่วนหัว · เมนู · ส่วนท้าย" },
     { key: "content", label: "เนื้อหา (Content)",           icon: "📰", hint: "ข่าวเด่น · ข่าวหลัก" },
     { key: "list",    label: "รายการข้อมูล (Lists & Details)", icon: "🔲", hint: "สินค้า · กิจกรรม · ดาวน์โหลด" },
     { key: "cta",     label: "Call to Action",             icon: "🎯", hint: "แบนเนอร์เรียกให้สมัคร" },
   ];
 
+  /* ── ชุดตัวเลือกที่ใช้ซ้ำหลาย block ── */
+  const ALIGN_OPTS = [{ value: "left", label: "ซ้าย" }, { value: "center", label: "กลาง" }, { value: "right", label: "ขวา" }];
+
+  /* ── เลย์เอาต์คอลัมน์ ──
+     เก็บเป็นสตริงสัดส่วน "1-1" / "2-1" / "1-1-1" แทนการเก็บ "จำนวนคอลัมน์" เฉยๆ
+     เพราะงานจริงต้องการคอลัมน์ไม่เท่ากันบ่อยมาก (เนื้อหา 2 ส่วน + แถบข้าง 1 ส่วน)
+     ถ้าเก็บเป็นตัวเลขจำนวน จะรองรับได้แค่ช่องเท่ากันตลอดไป แล้วต้องรื้อ data ทีหลัง
+     จำนวนคอลัมน์ = จำนวนท่อน · ความกว้าง = สัดส่วน fr ของแต่ละท่อน */
+  const LAYOUTS = [
+    { value: "1", label: "เต็มความกว้าง" },
+    { value: "1-1", label: "2 คอลัมน์เท่ากัน" },
+    { value: "2-1", label: "ซ้ายกว้าง · ขวาแคบ" },
+    { value: "1-2", label: "ซ้ายแคบ · ขวากว้าง" },
+    { value: "1-1-1", label: "3 คอลัมน์เท่ากัน" },
+    { value: "1-2-1", label: "กลางกว้าง" },
+    { value: "1-1-1-1", label: "4 คอลัมน์เท่ากัน" },
+  ];
+  const parts = (layout) => {
+    const a = String(layout || "1").split("-").map((n) => Math.max(1, Math.min(6, +n || 1)));
+    return a.length && a.length <= 4 ? a : [1];
+  };
+  /* ภาพจำลองเลย์เอาต์ — วาดจากสัดส่วนจริง ใช้ได้ทั้งการ์ดใน palette และปุ่มเลือกในแผงตั้งค่า
+     สร้างด้วยโค้ดแทนวาดมือ 7 อัน เพราะถ้าเพิ่มเลย์เอาต์ใหม่จะได้ไม่ต้องวาด SVG ตามทุกครั้ง */
+  function gridWire(layout, w = 120, h = 44, pad = 7, gap = 4) {
+    const ps = parts(layout);
+    const total = ps.reduce((a, b) => a + b, 0);
+    const avail = w - pad * 2 - gap * (ps.length - 1);
+    let x = pad, out = "";
+    ps.forEach((p) => {
+      const cw = (avail * p) / total;
+      out += `<rect x="${x.toFixed(1)}" y="${pad}" width="${cw.toFixed(1)}" height="${h - pad * 2}" rx="3"/>`;
+      x += cw + gap;
+    });
+    return `<svg viewBox="0 0 ${w} ${h}"><rect width="${w}" height="${h}" fill="#f6f7f3"/><g fill="#fff" stroke="#71bf44" stroke-width="1.1" stroke-dasharray="3 2">${out}</g></svg>`;
+  }
+
   const CATALOG = [
+    /* ============================================================
+       โมเดล 3 ชั้น: Section > Column > Element
+       ============================================================
+       node ทุกตัวหน้าตาเหมือนกัน { id, type, props, children? }
+       — section  = แถบเต็มจอ · children = คอลัมน์ (จำนวนตาม props.cols)
+       — column   = ช่องในแถบ  · children = element (ไม่อยู่ใน palette สร้างจาก section เท่านั้น)
+       — element  = ใบไม้ ไม่มี children (scope:"element" = ลากลงได้เฉพาะในคอลัมน์)
+
+       ทำไมจำกัด 3 ชั้น (ไม่ให้ section ซ้อน section):
+       ซ้อนไม่จำกัด = ผู้ใช้หลงว่าตัวเองอยู่ชั้นไหน ลากของหล่นผิดกล่องตลอด
+       และ responsive คุมไม่ได้ · 3 ชั้นครอบคลุมงานจริงเกือบทั้งหมด
+       ============================================================ */
+    {
+      type: "section",
+      group: "layout",
+      label: "แถบ + คอลัมน์ (Section)",
+      icon: "▤",
+      wire: gridWire("1-1"),
+      /* presets = แตกเป็นการ์ดหลายใบใน palette → "เลือก grid ก่อนลาก" ไม่ต้องวางแล้วค่อยมาตั้งค่า
+         (ยังเปลี่ยนทีหลังได้ในแท็บตั้งค่า — นี่แค่ทางลัดของขั้นตอนที่ทำบ่อยที่สุด) */
+      presets: LAYOUTS.map((l) => ({ layout: l.value, label: l.label, wire: gridWire(l.value) })),
+      /* container = editor รู้ว่า block นี้มีลูก ต้องวาด children + รับการวางของ */
+      container: true,
+      fields: [
+        { section: "เลย์เอาต์" },
+        { key: "layout", label: "คอลัมน์", type: "gridpick", options: LAYOUTS },
+        { key: "gap", label: "ระยะห่างคอลัมน์", type: "range", row: true, min: 0, max: 80, step: 4, unit: "px" },
+        { key: "vAlign", label: "จัดแนวตั้ง", type: "segment", row: true,
+          options: [{ value: "start", label: "บน" }, { value: "center", label: "กลาง" }, { value: "stretch", label: "เต็ม" }] },
+
+        { section: "สไตล์" },
+        { key: "bg", label: "สีพื้นหลัง", type: "color", row: true },
+        { key: "maxWidth", label: "ความกว้างเนื้อหา", type: "range", row: true, min: 700, max: 1600, step: 20, unit: "px" },
+        { key: "padY", label: "ระยะบน-ล่าง", type: "range", row: true, min: 0, max: 160, step: 4, unit: "px" },
+        { key: "padX", label: "ระยะซ้าย-ขวา", type: "range", row: true, min: 0, max: 120, step: 4, unit: "px" },
+      ],
+      defaults: { layout: "1-1", gap: 24, vAlign: "start", bg: "#ffffff", maxWidth: 1200, padY: 40, padX: 44 },
+      /* section ที่เพิ่งสร้าง = ต้องมีคอลัมน์ว่างให้ลากของลงทันที */
+      makeChildren: true,
+    },
+    {
+      /* ไม่มี group = ไม่โผล่ใน palette · เกิดจาก section เท่านั้น (ลบเดี่ยวไม่ได้ ลบทั้ง section แทน) */
+      type: "column",
+      label: "คอลัมน์",
+      icon: "▯",
+      container: true,
+      fields: [
+        { section: "จัดวาง" },
+        { key: "align", label: "จัดข้อความ", type: "segment", row: true, options: ALIGN_OPTS },
+        { key: "pad", label: "ระยะขอบใน", type: "range", row: true, min: 0, max: 60, step: 2, unit: "px" },
+        { key: "gap", label: "ระยะห่างระหว่างชิ้น", type: "range", row: true, min: 0, max: 48, step: 2, unit: "px" },
+        { section: "สไตล์" },
+        { key: "bg", label: "สีพื้นหลัง", type: "color", row: true },
+        { key: "radius", label: "ความมนขอบ", type: "range", row: true, min: 0, max: 32, step: 2, unit: "px" },
+      ],
+      defaults: { align: "left", pad: 0, gap: 14, bg: "", radius: 0 },
+      makeChildren: true,
+    },
+    {
+      type: "el_text",
+      group: "element",
+      scope: "element",
+      label: "ข้อความ",
+      icon: "🅃",
+      wire: `<svg viewBox="0 0 120 44"><rect width="120" height="44" fill="#fff"/><rect x="10" y="10" width="60" height="6" rx="3" fill="#16240f"/><rect x="10" y="22" width="100" height="4" rx="2" fill="#c3cbba"/><rect x="10" y="31" width="86" height="4" rx="2" fill="#c3cbba"/></svg>`,
+      fields: [
+        { key: "text", label: "ข้อความ", type: "textarea" },
+        { section: "สไตล์" },
+        { key: "size", label: "ขนาด", type: "range", row: true, min: 11, max: 72, step: 1, unit: "px" },
+        { key: "weight", label: "น้ำหนัก", type: "segment", row: true,
+          options: [{ value: "light", label: "บาง" }, { value: "normal", label: "ปกติ" }, { value: "bold", label: "หนา" }] },
+        { key: "color", label: "สี", type: "swatch", swatches: ["#16240f", "#2f3a28", "#5a6551", "#71bf44", "#ffffff"] },
+        { key: "align", label: "จัดวาง", type: "segment", row: true, options: ALIGN_OPTS },
+        { key: "lh", label: "ระยะบรรทัด", type: "range", row: true, min: 1, max: 2.4, step: 0.1, unit: "" },
+      ],
+      defaults: { text: "พิมพ์ข้อความที่นี่ — ขึ้นบรรทัดใหม่ได้", size: 16, weight: "normal", color: "#2f3a28", align: "left", lh: 1.6 },
+    },
+    {
+      type: "el_image",
+      group: "element",
+      scope: "element",
+      label: "รูปภาพ",
+      icon: "🖼️",
+      wire: `<svg viewBox="0 0 120 44"><rect width="120" height="44" fill="#fff"/><rect x="14" y="7" width="92" height="30" rx="3" fill="#e4ece0"/><circle cx="34" cy="17" r="4" fill="#a9c69a"/><path d="M20 33l16-13 12 9 10-7 16 11z" fill="#a9c69a"/></svg>`,
+      fields: [
+        { key: "src", label: "รูป", type: "image" },
+        { key: "alt", label: "คำอธิบายรูป (SEO)", type: "text" },
+        { key: "link", label: "คลิกแล้วไปหน้า", type: "select", optionsFrom: "pages", allowEmpty: true, emptyLabel: "— ไม่ลิงก์ —", row: true },
+        { section: "สไตล์" },
+        { key: "ratio", label: "สัดส่วน", type: "select", row: true,
+          options: [{ value: "auto", label: "ตามรูปจริง" }, { value: "16/9", label: "16:9" }, { value: "4/3", label: "4:3" }, { value: "1/1", label: "จัตุรัส" }, { value: "3/4", label: "แนวตั้ง 3:4" }] },
+        { key: "width", label: "ความกว้าง", type: "range", row: true, min: 20, max: 100, step: 5, unit: "%" },
+        { key: "radius", label: "ความมนขอบ", type: "range", row: true, min: 0, max: 40, step: 2, unit: "px" },
+        { key: "align", label: "จัดวาง", type: "segment", row: true, options: ALIGN_OPTS },
+      ],
+      defaults: { src: "", alt: "", link: "", ratio: "16/9", width: 100, radius: 12, align: "center" },
+    },
+    {
+      type: "el_button",
+      group: "element",
+      scope: "element",
+      label: "ปุ่ม",
+      icon: "🔘",
+      wire: `<svg viewBox="0 0 120 44"><rect width="120" height="44" fill="#fff"/><rect x="34" y="14" width="52" height="17" rx="5" fill="#71bf44"/><rect x="45" y="21" width="30" height="4" rx="2" fill="#0f2109"/></svg>`,
+      fields: [
+        { key: "label", label: "ข้อความบนปุ่ม", type: "text" },
+        { key: "link", label: "ลิงก์ไปหน้า", type: "select", optionsFrom: "pages", allowEmpty: true, emptyLabel: "— ไม่ลิงก์ —", row: true },
+        { section: "สไตล์" },
+        { key: "variant", label: "รูปแบบ", type: "segment", row: true,
+          options: [{ value: "solid", label: "ทึบ" }, { value: "outline", label: "ขอบ" }] },
+        { key: "bg", label: "สีปุ่ม", type: "swatch", swatches: ["#71bf44", "#16240f", "#3B6D11", "#ffffff"] },
+        { key: "fg", label: "สีตัวอักษร", type: "swatch", swatches: ["#0f2109", "#ffffff", "#16240f"] },
+        { key: "size", label: "ขนาด", type: "range", row: true, min: 12, max: 22, step: 1, unit: "px" },
+        { key: "radius", label: "ความมนขอบ", type: "range", row: true, min: 0, max: 999, step: 1, unit: "px" },
+        { key: "align", label: "จัดวาง", type: "segment", row: true, options: ALIGN_OPTS },
+      ],
+      defaults: { label: "ดูรายละเอียด →", link: "", variant: "solid", bg: "#71bf44", fg: "#0f2109", size: 15, radius: 10, align: "left" },
+    },
     {
       type: "site_header",
       group: "layout",
@@ -66,7 +221,9 @@ window.WebBlocks = (() => {
 
         { key: "showLangs", label: "แสดงตัวเลือกภาษา", type: "toggle", row: true },
         {
-          key: "langs", label: "ภาษาที่แสดง", type: "list",
+          /* pills = แสดงเป็นปุ่มกลมแถวเดียว (ไทย · EN · FR) แทนการ์ด #1 #2 #3
+             กด ✎ ถึงจะกางแผงจัดการ (เพิ่ม/ลบ/เรียง/เปลี่ยนชื่อ) */
+          key: "langs", label: "ภาษาที่แสดง", type: "list", pills: true,
           itemFields: [
             { key: "code", label: "ภาษา", type: "text", half: true },
             { key: "active", label: "ใช้อยู่", type: "toggle", half: true, exclusive: true },
@@ -115,20 +272,35 @@ window.WebBlocks = (() => {
           itemFields: [
             { key: "label", label: "ชื่อเมนู", type: "text", half: true },
             { key: "active", label: "หน้าปัจจุบัน", type: "toggle", half: true, exclusive: true },
+            /* allowEmpty = มีตัวเลือก "ไม่ลิงก์" ให้เลิกผูกได้ (ไม่งั้น dropdown ไม่มีทางว่าง)
+               เมนูเก่าที่บันทึกไว้ไม่มี key นี้ → renderer เช็ค falsy แล้วออกเป็นข้อความเฉยๆ */
+            { key: "link", label: "ลิงก์ไปหน้า", type: "select", optionsFrom: "pages", allowEmpty: true, emptyLabel: "— ไม่ลิงก์ —" },
           ],
         },
-        { key: "ctaText", label: "ปุ่มขวา (CTA)", type: "text" },
+        /* ปุ่ม CTA ขวาสุด — เป็นรายการ เพิ่ม/ลบได้ · แต่ละปุ่มเปิดปิดเองได้ (ไม่ exclusive)
+           ของเดิมเก็บปุ่มเดียวใน ctaText → ย้ายให้อัตโนมัติใน withDefaults ข้างล่าง */
+        {
+          key: "ctaItems", label: "ปุ่มขวา (CTA)", type: "list",
+          itemFields: [
+            { key: "label", label: "ข้อความปุ่ม", type: "text" },
+            { key: "enabled", label: "แสดงปุ่ม", type: "toggle", half: true, default: true },
+            { key: "link", label: "ลิงก์ไปหน้า", type: "select", optionsFrom: "pages", allowEmpty: true, emptyLabel: "— ไม่ลิงก์ —" },
+          ],
+        },
       ],
       defaults: {
         items: [
-          { label: "หน้าแรก", active: true },
-          { label: "ข่าวสาร", active: false },
-          { label: "สินค้า", active: false },
-          { label: "กิจกรรม", active: false },
-          { label: "บทเรียนออนไลน์", active: false },
-          { label: "ดาวน์โหลด", active: false },
+          { label: "หน้าแรก", active: true, link: "" },
+          { label: "ข่าวสาร", active: false, link: "" },
+          { label: "สินค้า", active: false, link: "" },
+          { label: "กิจกรรม", active: false, link: "" },
+          { label: "บทเรียนออนไลน์", active: false, link: "" },
+          { label: "ดาวน์โหลด", active: false, link: "" },
         ],
-        ctaText: "สมัครเป็นสปอนเซอร์ →",
+        /* ctaItems = null (ไม่ใช่ []) โดยตั้งใจ — เป็นสัญญาณให้ withDefaults รู้ว่า "ยังไม่เคยย้าย"
+           ถ้าตั้งเป็น [] ปุ่มเดิมของหน้าเก่าจะหายเงียบๆ · ผู้ใช้ลบปุ่มจนหมดเองถึงจะเป็น [] จริง */
+        ctaItems: null,
+        ctaText: "สมัครเป็นสปอนเซอร์ →", /* legacy — ปล่อยค้างไว้เป็นต้นทางตอนย้าย */
       },
     },
     {
@@ -296,6 +468,47 @@ window.WebBlocks = (() => {
       },
     },
     {
+      /* ── spacer — ช่องว่างล้วน ไม่มีเนื้อหา ──
+         หน้า public = ว่างเปล่าจริงๆ · ในโหมดแก้ไขต้อง "มองเห็นและลบได้"
+         ไม่งั้นผู้ใช้หาไม่เจอ → ทำด้วย class wv-spacer + CSS ฝั่ง editor
+         (แบบเดียวกับ wv-header/wv-hide-sm — renderer ไม่ต้องรู้ว่าอยู่ canvas หรือ public) */
+      type: "spacer",
+      group: "layout",
+      label: "ตัวเว้นระยะ",
+      icon: "↕️",
+      wire: `<svg viewBox="0 0 120 44"><rect width="120" height="44" fill="#fff"/><rect x="8" y="5" width="104" height="8" rx="2" fill="#dfe4d8"/><rect x="8" y="31" width="104" height="8" rx="2" fill="#dfe4d8"/><line x1="8" y1="22" x2="112" y2="22" stroke="#71bf44" stroke-width="1.5" stroke-dasharray="4 3"/><path d="M60 16v12M56.5 19.5 60 16l3.5 3.5M56.5 24.5 60 28l3.5-3.5" stroke="#71bf44" stroke-width="1.3" fill="none" stroke-linecap="round"/></svg>`,
+      fields: [
+        { section: "ความสูง" },
+        { key: "height", label: "จอปกติ", type: "range", row: true, min: 8, max: 200, step: 2, unit: "px" },
+        { key: "mobileHeight", label: "บนมือถือ", type: "range", row: true, min: 8, max: 120, step: 2, unit: "px" },
+      ],
+      defaults: { height: 48, mobileHeight: 32 },
+    },
+    {
+      /* ── divider — เส้นคั่นเซกชัน ──
+         ทำงานคล้าย spacer แต่มีเส้นให้เห็น · แยกเป็นคนละ block เพราะชื่อสื่อความหมายกว่า
+         width < 100% = เส้นสั้นลงและจัดกึ่งกลางเอง (margin:0 auto) */
+      type: "divider",
+      group: "layout",
+      label: "เส้นคั่น",
+      icon: "➖",
+      wire: `<svg viewBox="0 0 120 44"><rect width="120" height="44" fill="#fff"/><rect x="8" y="8" width="70" height="4" rx="2" fill="#dfe4d8"/><rect x="8" y="32" width="52" height="4" rx="2" fill="#dfe4d8"/><line x1="22" y1="22" x2="98" y2="22" stroke="#16240f" stroke-width="2"/></svg>`,
+      fields: [
+        { section: "เส้น" },
+        { key: "lineStyle", label: "รูปแบบ", type: "segment", row: true,
+          options: [{ value: "solid", label: "ทึบ" }, { value: "dashed", label: "ประ" }, { value: "dotted", label: "จุด" }] },
+        { key: "thickness", label: "ความหนา", type: "range", row: true, min: 1, max: 8, step: 1, unit: "px" },
+        /* เส้นคั่นส่วนใหญ่ควรเป็นสีเทาจางๆ ไม่ใช่สีแบรนด์ → ใส่เทาเป็นปุ่มแรก
+           ไม่งั้น default #e3e5e0 จะไปโผล่เป็น "กำหนดเอง" ทั้งที่เป็นค่ามาตรฐาน */
+        { key: "color", label: "สีเส้น", type: "swatch", swatches: ["#e3e5e0", ...BRAND_COLORS] },
+        { key: "width", label: "ความกว้าง", type: "range", row: true, min: 20, max: 100, step: 5, unit: "%" },
+
+        { section: "ระยะ" },
+        { key: "spacing", label: "ระยะห่างบน-ล่าง", type: "range", row: true, min: 0, max: 96, step: 4, unit: "px" },
+      ],
+      defaults: { lineStyle: "solid", thickness: 1, color: "#e3e5e0", width: 100, spacing: 32 },
+    },
+    {
       type: "site_footer",
       group: "layout",
       label: "ส่วนท้าย",
@@ -325,6 +538,14 @@ window.WebBlocks = (() => {
     },
   ];
 
+  /* ── ส่วนกลางของเว็บ (Global chrome) ──
+     header/เมนู/footer เหมือนกันทุกหน้า → เก็บไว้ "แถวเดียว" ไม่ใช่ก๊อปใส่ทุกหน้า
+     ใช้ตาราง web_pages เดิม แค่จอง slug ขึ้นต้นด้วย "_" ไว้ (ไม่ต้องสร้างตารางใหม่/ไม่ต้องรัน SQL)
+     เวลาแสดงผลจริง = header ส่วนกลาง + blocks ของหน้านั้น + footer ส่วนกลาง
+     slug ขึ้นต้นด้วย "_" ถือเป็นแถวระบบ → ต้องซ่อนจากรายการหน้าเว็บปกติเสมอ */
+  const LAYOUT_SLUGS = { header: "_layout_header", footer: "_layout_footer" };
+  const isSystemSlug = (slug) => String(slug || "").startsWith("_");
+
   const byType = Object.fromEntries(CATALOG.map((b) => [b.type, b]));
 
   /* deep clone แบบง่าย — props เป็น JSON ล้วน ไม่มี Date/function */
@@ -334,23 +555,91 @@ window.WebBlocks = (() => {
     CATALOG,
     GROUPS,
     SIZE_PRESETS,
+    LAYOUT_SLUGS,
+    isSystemSlug,
+    /* บล็อกที่ควรอยู่ "ส่วนกลาง" ไม่ใช่รายหน้า — ใช้ตรวจว่าหน้านี้มีของที่ควรย้ายไหม */
+    CHROME_TYPES: ["site_header", "nav_bar", "site_footer"],
     byGroup: (key) => CATALOG.filter((b) => b.group === key),
     get: (type) => byType[type] || null,
-    /* block ใหม่พร้อม props default — id ใช้แยก block ตอน drag/select */
-    newBlock(type) {
+    /* element = ลากลงได้เฉพาะในคอลัมน์ · ไม่ใช่ = วางที่ระดับหน้าเท่านั้น
+       ใช้ตัดสินใจตอน drag & drop ทั้ง 2 ฝั่ง (ไฮไลต์เป้าหมาย + ตอนวางจริง) */
+    isElement: (type) => byType[type]?.scope === "element",
+    isContainer: (type) => !!byType[type]?.container,
+
+    /* ── เดินต้นไม้หา node จาก id ──
+       คืน { node, list, idx, parent } — list คือ array ที่ node อยู่ (ไว้ splice ย้าย/ลบ)
+       ต้องมีตัวนี้เพราะ block ไม่ได้อยู่ระดับเดียวอีกแล้ว (blocks.find เอาไม่อยู่) */
+    find(list, id, parent = null) {
+      for (let i = 0; i < (list || []).length; i++) {
+        const n = list[i];
+        if (!n) continue;
+        if (n.id === id) return { node: n, list, idx: i, parent };
+        if (n.children) {
+          const hit = this.find(n.children, id, n);
+          if (hit) return hit;
+        }
+      }
+      return null;
+    },
+
+    /* ── ปรับจำนวนคอลัมน์ให้ตรงกับ props.cols ──
+       เพิ่ม = ต่อคอลัมน์ว่าง · ลด = ย้ายของในคอลัมน์ที่หายไปมารวมกับคอลัมน์สุดท้ายที่เหลือ
+       (ห้ามตัดทิ้งเฉยๆ — ผู้ใช้กดเลข 3→2 แล้วเนื้อหาหายไปเงียบๆ คือบั๊กที่ให้อภัยไม่ได้) */
+    syncColumns(section) {
+      if (section?.type !== "section") return section;
+      const want = parts(section.props.layout).length;
+      const cols = section.children || [];
+      while (cols.length < want) cols.push(this.newBlock("column"));
+      if (cols.length > want) {
+        const dropped = cols.splice(want);
+        const last = cols[want - 1];
+        dropped.forEach((c) => last.children.push(...(c.children || [])));
+      }
+      section.children = cols;
+      return section;
+    },
+
+    LAYOUTS,
+    gridWire,
+    colParts: parts,
+
+    /* block ใหม่พร้อม props default — id ใช้แยก block ตอน drag/select
+       preset = ค่าที่เลือกไว้ตั้งแต่ใน palette (ตอนนี้ใช้กับ section: เลย์เอาต์คอลัมน์) */
+    newBlock(type, preset) {
       const def = byType[type];
       if (!def) return null;
-      return {
+      /* ต้องผ่าน withDefaults ด้วย — บล็อกที่เพิ่งลากมาวางต้องได้ "รูปข้อมูล" เดียวกับที่โหลดจาก DB เป๊ะ
+         ไม่งั้นค่าที่รอย้ายรูปแบบ (เช่น ctaItems ที่ default เป็น null) จะค้างเป็น null ในสถานะ editor
+         → แผงตั้งค่าเห็น 0 รายการ แต่ canvas เห็นปุ่ม (renderer เรียก withDefaults เอง) = ไม่ตรงกัน
+         และกด "เพิ่มรายการ" แล้วพัง เพราะ push ใส่ null ไม่ได้ */
+      const b = this.withDefaults({
         id: "b" + Math.random().toString(36).slice(2, 9),
         type,
         props: clone(def.defaults),
-      };
+      });
+      if (preset && type === "section") b.props.layout = preset;
+      /* container ต้องมี children ตั้งแต่เกิด — section ที่ยังไม่มีคอลัมน์ = ลากของลงไม่ได้เลย */
+      if (def.makeChildren) {
+        b.children = [];
+        this.syncColumns(b);
+      }
+      return b;
     },
     /* เติม props ที่ขาด (block เก่าใน DB ที่ contract เพิ่ม field ทีหลัง) */
     withDefaults(block) {
       const def = byType[block.type];
       if (!def) return block;
-      return { ...block, props: { ...clone(def.defaults), ...(block.props || {}) } };
+      const props = { ...clone(def.defaults), ...(block.props || {}) };
+      /* ── ย้ายข้อมูลรูปแบบเก่า ──
+         nav_bar เดิมเก็บปุ่ม CTA เดียวเป็นข้อความใน ctaText → ตอนนี้เป็นรายการ ctaItems
+         ทำที่นี่ที่เดียว renderer/editor จึงเห็นรูปเดียวกันเสมอ · ctaText ไม่ลบทิ้ง
+         (เผื่อเปิดหน้าเดิมด้วยโค้ดเวอร์ชันเก่า ปุ่มจะได้ไม่หาย) */
+      if (block.type === "nav_bar" && !Array.isArray(props.ctaItems)) {
+        props.ctaItems = props.ctaText
+          ? [{ label: props.ctaText, link: "", enabled: true }]
+          : [];
+      }
+      return { ...block, props };
     },
   };
 })();

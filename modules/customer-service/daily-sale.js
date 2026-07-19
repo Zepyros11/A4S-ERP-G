@@ -230,6 +230,11 @@ function fmt0(n) { return Number(n || 0) === 0 ? '' : fmt(n); }
 function channelSum(p) { return DS_CH.reduce((s, k) => s + Number(p[k] || 0), 0); }
 // prefix ตัวอักษรของเลขบิล (STHBKK.. → "BKK", STHONLIN.. → "ONLIN") ใช้จัดกลุ่มก่อนเรียง
 function billPrefix(bn) { return (String(bn || '').replace(/^STH/i, '').match(/^[A-Za-z]+/)?.[0] || '').toUpperCase(); }
+// บิลออนไลน์ = เลขบิลมี 'ONLIN' แต่ไม่นับ ETHONLIN.. (บิลคนละชุด ไม่เอาเข้าแท็บ/ชีตบิลออนไลน์)
+function isOnlineBill(bn) {
+  const s = String(bn || '').toUpperCase();
+  return s.includes('ONLIN') && !s.startsWith('ETHONLIN');
+}
 // เรียง: prefix (BKK<HY<KK<ONLIN) → วันที่เก่าก่อน → เลขบิล
 function saleSort(a, b) {
   const pa = billPrefix(a.bill_no), pb = billPrefix(b.bill_no);
@@ -541,9 +546,9 @@ function dsNameCell(b) {
   return `<td>${escHtml(shown)}</td>`;
 }
 
-// แถบหัวเรื่องวันที่แบบชีท — "วันที่ 11 กรกฎาคม 2569 · สาขา BKK"
-function dsRenderSheetTitle() {
-  const el = $('dsSheetTitle');
+// แถบหัวเรื่องวันที่แบบชีท — "วันที่ 11 กรกฎาคม 2569 · สาขา BKK" (id = dsSheetTitle | dsSheetTitleOnline)
+function dsRenderSheetTitle(elId = 'dsSheetTitle') {
+  const el = $(elId);
   if (!el) return;
   const [y, m, d] = (state.date || todayIso()).split('-').map(Number);
   const grp = state.branchGroup || 'ALL';
@@ -660,7 +665,7 @@ async function dsExportExcel() {
     // ชีต 1: Daily Sale (3 section + ลงชื่อ) · ชีต 2: บิลออนไลน์ · ชีต 3: ตรวจบิล (ทั้งเดือน)
     const sheet1 = _ssDaySheet(state.date, scoped, pMap, rec, group);
     const online = scoped
-      .filter(b => String(b.bill_no || '').toUpperCase().includes('ONLIN'))
+      .filter(b => isOnlineBill(b.bill_no) && billGroup(b, pMap[b.bill_no]) === 'sale')   // ไม่เอาบิลที่ลงตาราง ARP/E-WALLET
       .sort((a, b) => String(a.bill_no) < String(b.bill_no) ? -1 : String(a.bill_no) > String(b.bill_no) ? 1 : 0);
     const sheet2 = _ssOnlineSheet(state.date, online, pMap, group);
     const sheet3 = await _ssReconcileSheet(state.date);
@@ -1186,33 +1191,36 @@ async function dsEditSave() {
 async function loadOnline() {
   const body = $('dsBody_online'), foot = $('dsFoot_online');
   if (!body) return;
+  dsRenderSheetTitle('dsSheetTitleOnline');
   body.innerHTML = `<tr><td colspan="15" class="ds-table-empty">กำลังโหลด...</td></tr>`;
   if (foot) foot.innerHTML = '';
   try {
     const branchFilter = state.branch ? `&branch=eq.${state.branch}` : '';
     const bills = await sbGet(`daily_sale_bills?${dateFilter()}${branchFilter}&limit=3000`);
 
-    // ตรงสูตรชีท: Where เลขบิล contains 'ONLIN' · Order by เลขบิล asc
+    // ตรงสูตรชีท: Where เลขบิล contains 'ONLIN' (ยกเว้น ETHONLIN) · Order by เลขบิล asc
     //   + กรองกลุ่มสาขาเหมือนแท็บบิลขาย
     const grp = state.branchGroup || 'ALL';
-    const online = bills
-      .filter(b => String(b.bill_no || '').toUpperCase().includes('ONLIN'))
+    const cand = bills
+      .filter(b => isOnlineBill(b.bill_no) && isCounted(b))   // ตัดบิลยอด 0 เหมือนแท็บบิลขาย/ชีท
       .filter(b => grp === 'ALL' || branchGroupOf(b) === grp)
       .sort((a, b) => String(a.bill_no) < String(b.bill_no) ? -1 : String(a.bill_no) > String(b.bill_no) ? 1 : 0);
 
     const canEdit = window.hasPerm ? hasPerm('daily_sale_reconcile') : true;
+    const [pMap, memMap] = await Promise.all([
+      fetchPaymentsMap(cand.map(b => b.bill_no)),
+      fetchMemberNames(cand.map(b => b.member_code)),
+    ]);
+    Object.assign(dsMemberMap, memMap);
+
+    // บิลที่ลงตาราง ARP หรือ E-WALLET ในแท็บบิลขาย → ไม่เอามาซ้ำที่นี่ (ต้องมี payment ก่อนถึงเช็ค dummy ได้)
+    const online = cand.filter(b => billGroup(b, pMap[b.bill_no]) === 'sale');
     if (!online.length) {
       body.innerHTML = `<tr><td colspan="15" class="ds-table-empty">ไม่มีบิลออนไลน์ในวันนี้</td></tr>`;
       if (foot) foot.innerHTML = '';
       dsUpdateBulk();
       return;
     }
-
-    const [pMap, memMap] = await Promise.all([
-      fetchPaymentsMap(online.map(b => b.bill_no)),
-      fetchMemberNames(online.map(b => b.member_code)),
-    ]);
-    Object.assign(dsMemberMap, memMap);
     const rows = [];
     const tot = { credit: 0, ewallet: 0, qr: 0, comm: 0, arp: 0 };
 
@@ -1354,9 +1362,9 @@ async function dsOnlineAddSave() {
   const date = $('dsAddDate').value;
   if (!billNo) { toast('ใส่เลขที่บิลก่อน', 'error'); return; }
   if (!date) { toast('เลือกวันที่ก่อน', 'error'); return; }
-  if (!billNo.toUpperCase().includes('ONLIN')) {
+  if (!isOnlineBill(billNo)) {
     const ok = await dsConfirm(
-      'เลขบิลนี้ไม่มีคำว่า <b>ONLIN</b> → จะไม่แสดงในแท็บบิลออนไลน์<br><span style="font-size:12px;color:var(--text3)">ยืนยันบันทึกต่อ?</span>',
+      'เลขบิลนี้ไม่เข้าเงื่อนไขบิลออนไลน์ (ต้องมี <b>ONLIN</b> และไม่ขึ้นต้น <b>ETHONLIN</b>) → จะไม่แสดงในแท็บบิลออนไลน์<br><span style="font-size:12px;color:var(--text3)">ยืนยันบันทึกต่อ?</span>',
       { title: 'เลขบิลไม่ตรงรูปแบบออนไลน์', icon: '⚠️' });
     if (!ok) return;
   }

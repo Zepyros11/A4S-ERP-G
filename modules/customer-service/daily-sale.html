@@ -87,8 +87,9 @@
 
       <!-- ── Tab: Topup (topup_bills + details) ── -->
       <div class="ds-tab-panel" id="dsPanelOnline" style="display:none">
-        <div style="display:flex;justify-content:flex-end;margin-bottom:8px">
-          <button class="btn btn-primary" data-perm="daily_sale_reconcile" style="padding:6px 14px;font-size:12.5px" onclick="dsOnlineAddOpen()">➕ เพิ่มบิลออนไลน์</button>
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:8px">
+          <div id="dsSheetTitleOnline" class="ds-sheet-title" style="flex:1;margin-bottom:0"></div>
+          <button class="btn btn-primary" data-perm="daily_sale_reconcile" style="padding:6px 14px;font-size:12.5px;white-space:nowrap" onclick="dsOnlineAddOpen()">➕ เพิ่มบิลออนไลน์</button>
         </div>
         <div class="ds-table-wrap ds-sale-block">
           <div class="ds-table-title">🌐 บิลออนไลน์ จัดส่ง / นำเข้า DP</div>

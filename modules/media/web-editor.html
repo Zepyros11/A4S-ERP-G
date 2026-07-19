@@ -7,7 +7,7 @@
 
   <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
   <!-- ฟอนต์ของเว็บจริง — canvas ต้องแสดงเหมือนหน้า public เป๊ะ -->
-  <link href="https://fonts.googleapis.com/css2?family=Anuphan:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Anuphan:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="../../css/main.css" />
   <link rel="stylesheet" href="./web-editor.css" />
 </head>
@@ -65,6 +65,8 @@
 
         <div id="tabProps" hidden>
           <div class="wb-props-hdr" id="propsHdr">⚙️ ตั้งค่า</div>
+          <!-- เส้นทางชั้นของ node ที่เลือก (Section › คอลัมน์ › ข้อความ) — โผล่เฉพาะของที่ซ้อนอยู่ -->
+          <div class="wb-crumb" id="propsCrumb" hidden></div>
           <div class="wb-panel-body" id="props">
             <div class="wb-hint">คลิกบล็อกใน canvas<br />เพื่อแก้เนื้อหา</div>
           </div>
@@ -75,8 +77,12 @@
       <div class="wb-split" id="wbSplit" title="ลากเพื่อปรับความกว้าง · ดับเบิลคลิกเพื่อคืนค่าเริ่มต้น"></div>
 
       <!-- ── ขวา: canvas ── -->
+      <!-- ส่วนกลาง (header/footer ที่ใช้ร่วมทุกหน้า) โชว์เป็นตัวล็อกหัว-ท้าย
+           อยู่ "นอก" #canvas โดยตั้งใจ — ไม่งั้นจะถูกนับเป็นบล็อกตอนลากวาง แล้วลำดับเพี้ยน -->
       <div class="wb-canvas-wrap">
+        <div class="wb-canvas wb-chrome" id="chromeTop"></div>
         <div class="wb-canvas" id="canvas"></div>
+        <div class="wb-canvas wb-chrome" id="chromeBottom"></div>
       </div>
 
     </div>

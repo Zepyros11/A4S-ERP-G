@@ -20,21 +20,38 @@ const show = (id) => {
   });
 };
 
+const sbGet = async (query) => {
+  const r = await fetch(`${SB_URL}/rest/v1/web_pages?${query}`, {
+    headers: { apikey: SB_KEY, Authorization: "Bearer " + SB_KEY },
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+};
+
 async function load() {
   const slug = new URLSearchParams(location.search).get("slug");
   const q = slug ? `slug=eq.${encodeURIComponent(slug)}` : `is_home=eq.true`;
+  const L = window.WebBlocks.LAYOUT_SLUGS;
   try {
-    const r = await fetch(
-      `${SB_URL}/rest/v1/web_pages?${q}&status=eq.published&select=title,blocks&limit=1`,
-      { headers: { apikey: SB_KEY, Authorization: "Bearer " + SB_KEY } }
-    );
-    if (!r.ok) throw new Error(await r.text());
-    const rows = await r.json();
+    /* ยิงพร้อมกัน — ส่วนกลางกับหน้าไม่ต้องรอกัน
+       ส่วนกลางยังไม่ถูกตั้งค่า = ไม่มีแถว/blocks ว่าง → หน้าออกมาเหมือนเดิมเป๊ะ
+       (ตั้งใจให้ค่อยๆ ย้ายได้ ไม่ใช่เปลี่ยนแล้วทุกหน้าพังพร้อมกัน) */
+    const [rows, chrome] = await Promise.all([
+      sbGet(`${q}&status=eq.published&select=title,blocks&limit=1`),
+      /* ไม่กรอง status ตั้งใจ — แถวส่วนกลางสร้างเป็น published เสมอและซ่อนจากรายการหน้าเว็บ
+         ไม่มีทาง toggle เป็นร่างได้ จึงไม่ต้องเช็คซ้ำ */
+      sbGet(`slug=in.(${L.header},${L.footer})&select=slug,blocks`),
+    ]);
     if (!rows.length) return show("stateEmpty");
 
+    const partOf = (s) => (chrome.find((c) => c.slug === s) || {}).blocks || [];
     const page = rows[0];
     document.title = page.title || "A4S Academy";
-    document.getElementById("site").innerHTML = window.WebRender.page(page.blocks || []);
+    document.getElementById("site").innerHTML = window.WebRender.page([
+      ...partOf(L.header),
+      ...(page.blocks || []),
+      ...partOf(L.footer),
+    ]);
     show("");
     initShrink();
   } catch (e) {

@@ -47,7 +47,94 @@ window.WebRender = (() => {
     return `<div style="${style};${phStyle}">${esc(label)}</div>`;
   }
 
+  /* ── ตัวช่วยของโมเดล 3 ชั้น ── */
+  const alignSelf = { left: "flex-start", center: "center", right: "flex-end" };
+  /* px แบบยอมให้เป็น 0 ได้ (num() ตั้ง min=1 เป็นค่าเริ่มต้น → padding:0 จะโดนตีกลับเป็น default) */
+  const px0 = (v, def, max = 200) => num(v, def, 0, max);
+
   const B = {
+    /* ── section: แถบเต็มจอ → กริดคอลัมน์ ──
+       รับ node + wrap มาด้วย (นอกจาก props) เพราะต้องวาดลูกต่อ
+       wrap มีเฉพาะตอน editor เรียก → ใช้เป็นสัญญาณว่า "อยู่โหมดแก้ไข" ได้ด้วย
+       wv-grid = hook ให้ CSS ยุบเหลือคอลัมน์เดียวบนมือถือ (media query ทำใน inline style ไม่ได้) */
+    section: (p, node, wrap) => {
+      const st = [
+        `background:${col(p.bg, "#ffffff")}`,
+        `padding:${px0(p.padY, 40, 160)}px ${px0(p.padX, 44, 120)}px`,
+      ].join(";");
+      const grid = [
+        "display:grid",
+        /* สัดส่วนคอลัมน์มาจาก layout ("2-1" → 2fr 1fr) — colParts กรองค่าเพี้ยนให้แล้ว
+           จึงต่อเข้า style ได้ตรงๆ โดยไม่ต้อง sanitize ซ้ำ */
+        `grid-template-columns:${window.WebBlocks.colParts(p.layout).map((n) => n + "fr").join(" ")}`,
+        `gap:${px0(p.gap, 24, 80)}px`,
+        `align-items:${["start", "center", "stretch"].includes(p.vAlign) ? p.vAlign : "start"}`,
+        `max-width:${num(p.maxWidth, 1200, 320, 1600)}px`,
+        "margin:0 auto",
+      ].join(";");
+      return `
+  <div style="${st}"><div class="wv-grid" style="${grid}">${renderList(node.children, wrap)}</div></div>`;
+    },
+
+    /* ── column: ช่องในแถบ → เรียง element แนวตั้ง ──
+       คอลัมน์ว่างต้อง "มองเห็นได้" เฉพาะตอนแก้ไข (wrap มีค่า) — หน้าจริงต้องว่างเปล่าสนิท */
+    column: (p, node, wrap) => {
+      const kids = node.children || [];
+      const st = [
+        "display:flex", "flex-direction:column",
+        `gap:${px0(p.gap, 14, 48)}px`,
+        `align-items:${alignSelf[al(p.align)]}`,
+        `text-align:${al(p.align)}`,
+        `padding:${px0(p.pad, 0, 60)}px`,
+        p.bg ? `background:${col(p.bg, "transparent")}` : "",
+        `border-radius:${px0(p.radius, 0, 32)}px`,
+      ].filter(Boolean).join(";");
+      const empty = !kids.length && wrap
+        ? `<div class="wv-col-empty">ลากองค์ประกอบมาวางที่นี่</div>`
+        : "";
+      return `<div class="wv-col" style="${st}">${renderList(kids, wrap)}${empty}</div>`;
+    },
+
+    /* ── element: ใบไม้ ไม่มีลูก ── */
+    el_text: (p) => `<div style="font-family:'Sarabun',sans-serif;font-weight:${wt(p.weight)};font-size:${num(p.size, 16, 11, 72)}px;line-height:${num(p.lh, 1.6, 1, 2.4)};color:${col(p.color, "#2f3a28")};text-align:${al(p.align)};white-space:pre-wrap;width:100%">${esc(p.text)}</div>`,
+
+    el_image: (p) => {
+      const ratio = ["16/9", "4/3", "1/1", "3/4"].includes(p.ratio) ? p.ratio : "";
+      const st = [
+        `width:${num(p.width, 100, 20, 100)}%`,
+        ratio ? `aspect-ratio:${ratio}` : "",
+        `border-radius:${px0(p.radius, 12, 40)}px`,
+        /* จัดวางด้วย margin เพราะตัวมันเองเป็นลูกของ flex column ที่ align-items ตั้งไว้แล้ว
+           (margin auto ชนะ align-items → ปุ่ม "จัดวาง" ของรูปเองมีผลจริง) */
+        p.align === "center" ? "margin:0 auto" : p.align === "right" ? "margin-left:auto" : "margin-right:auto",
+        "display:block",
+      ].filter(Boolean).join(";");
+      const inner = p.src
+        ? `<img src="${esc(p.src)}" alt="${esc(p.alt)}" style="${st};object-fit:cover;height:${ratio ? "100%" : "auto"}" />`
+        : `<div style="${st};${ph("", "#e4ece0", "#dbe5d5", 10, 12)};${ratio ? "" : "height:180px"}">${esc(p.alt || "ยังไม่ได้เลือกรูป")}</div>`;
+      return p.link
+        ? `<a href="web-view.html?slug=${esc(p.link)}" style="display:block;width:100%">${inner}</a>`
+        : inner;
+    },
+
+    el_button: (p) => {
+      const solid = p.variant !== "outline";
+      const bg = col(p.bg, "#71bf44");
+      const st = [
+        "display:inline-block", "text-decoration:none",
+        `font:700 ${num(p.size, 15, 12, 22)}px/1 'Anuphan',sans-serif`,
+        `padding:${num(p.size, 15, 12, 22)}px ${num(p.size, 15, 12, 22) * 1.7}px`,
+        `border-radius:${px0(p.radius, 10, 999)}px`,
+        solid ? `background:${bg};color:${col(p.fg, "#0f2109")};border:2px solid ${bg}`
+              : `background:transparent;color:${bg};border:2px solid ${bg}`,
+      ].join(";");
+      const wrapSt = `width:100%;text-align:${al(p.align)}`;
+      const btn = p.link
+        ? `<a href="web-view.html?slug=${esc(p.link)}" style="${st}">${esc(p.label)}</a>`
+        : `<span style="${st}">${esc(p.label)}</span>`;
+      return `<div style="${wrapSt}">${btn}</div>`;
+    },
+
     site_header: (p) => {
       const center = p.logoPos === "center";
       const sticky = on(p.sticky);
@@ -94,11 +181,22 @@ window.WebRender = (() => {
     nav_bar: (p) => `
   <div style="background:#16240f;padding:0 44px;display:flex;justify-content:space-between;align-items:center">
     <div style="display:flex;gap:28px;font:600 15px/1 'Anuphan',sans-serif">
-      ${(p.items || []).map((i) =>
-        `<span style="color:${on(i.active) ? "#fff" : "#c3cbba"};padding:18px 0;border-bottom:3px solid ${on(i.active) ? "#71bf44" : "transparent"}">${esc(i.label)}</span>`
-      ).join("")}
+      ${(p.items || []).map((i) => {
+        const st = `color:${on(i.active) ? "#fff" : "#c3cbba"};padding:18px 0;border-bottom:3px solid ${on(i.active) ? "#71bf44" : "transparent"}`;
+        /* เมนูที่ยังไม่ผูกหน้า (หรือของเก่าที่ไม่มี key นี้) = ข้อความเฉยๆ ไม่ต้องมี <a> ว่าง */
+        return i.link
+          ? `<a href="web-view.html?slug=${esc(i.link)}" style="${st};text-decoration:none">${esc(i.label)}</a>`
+          : `<span style="${st}">${esc(i.label)}</span>`;
+      }).join("")}
     </div>
-    <span style="background:#71bf44;color:#0f2109;font:700 14px/1 'Anuphan',sans-serif;padding:11px 20px;border-radius:8px">${esc(p.ctaText)}</span>
+    <div style="display:flex;gap:10px;align-items:center">
+      ${(p.ctaItems || []).filter((c) => on(c.enabled) && c.label).map((c) => {
+        const st = "background:#71bf44;color:#0f2109;font:700 14px/1 'Anuphan',sans-serif;padding:11px 20px;border-radius:8px";
+        return c.link
+          ? `<a href="web-view.html?slug=${esc(c.link)}" style="${st};text-decoration:none">${esc(c.label)}</a>`
+          : `<span style="${st}">${esc(c.label)}</span>`;
+      }).join("")}
+    </div>
   </div>`,
 
     ticker: (p) => `
@@ -175,6 +273,27 @@ window.WebRender = (() => {
     <div style="display:flex;gap:12px;flex:none"><span style="background:#71bf44;color:#0f2109;font:700 15px/1 'Anuphan',sans-serif;padding:15px 26px;border-radius:10px">${esc(p.primaryText)}</span><span style="background:transparent;color:#fff;border:1px solid #3d5a30;font:700 15px/1 'Anuphan',sans-serif;padding:15px 26px;border-radius:10px">${esc(p.secondaryText)}</span></div>
   </div>`,
 
+    /* ── spacer ──
+       ความสูงมือถือแยกไม่ได้ด้วย inline style (media query ทำใน style="" ไม่ได้)
+       → ส่งค่าเป็น CSS var แล้วให้ CSS ฝั่ง editor/view สลับที่ 767px
+       data-h = ตัวเลขให้ CSS โหมดแก้ไขเอาไปโชว์ (content: attr(data-h)) */
+    spacer: (p) => {
+      const h = num(p.height, 48, 8, 200);
+      const hm = num(p.mobileHeight, 32, 8, 120);
+      return `
+  <div class="wv-spacer" data-h="${h}" style="--sp-h:${h}px;--sp-hm:${hm}px;height:var(--sp-h)"></div>`;
+    },
+
+    /* ── divider ── */
+    divider: (p) => {
+      /* lineStyle ยิงเข้า border-top ตรงๆ → ต้อง whitelist ไม่ใช่ esc (กัน CSS injection) */
+      const ls = ["solid", "dashed", "dotted"].includes(p.lineStyle) ? p.lineStyle : "solid";
+      return `
+  <div style="padding:${num(p.spacing, 32, 0, 96)}px 44px">
+    <div style="width:${num(p.width, 100, 20, 100)}%;margin:0 auto;border-top:${num(p.thickness, 1, 1, 8)}px ${ls} ${col(p.color, "#e3e5e0")}"></div>
+  </div>`;
+    },
+
     site_footer: (p) => `
   <div style="background:#0f2109;padding:36px 44px;display:grid;grid-template-columns:1.4fr 1fr 1fr 1fr;gap:28px">
     <div><div style="font:700 22px/1 'Anuphan',sans-serif;color:#fff">${esc(p.brand)} <span style="color:#71bf44">${esc(p.brandAccent)}</span></div><div style="font:400 13px/1.6 'Sarabun',sans-serif;color:#8fa382;margin-top:12px;max-width:240px">${esc(p.about)}</div></div>
@@ -183,18 +302,29 @@ window.WebRender = (() => {
   </div>`,
   };
 
+  /* ── แกนกลางของการวาด (recursive) ──
+     wrap = ฟังก์ชันของ "คนเรียก" ที่ได้โอกาสห่อ HTML ของทุก node ก่อนส่งต่อ
+       · web-view (หน้าจริง) ไม่ส่ง wrap → ได้ HTML สะอาด ไม่มีของ editor ปน
+       · web-editor ส่ง wrap → ห่อทุกชั้นด้วยกรอบเลือก/ปุ่มจัดการ
+     นี่คือเหตุผลที่ nesting ทำงานได้ทุกความลึกโดย editor ไม่ต้องรู้จักโครงสร้างของ block เลย
+     — section วาดลูกด้วย renderList(children, wrap) ตัวเดียวกัน */
+  function renderOne(b, wrap) {
+    const fn = B[b?.type];
+    if (!fn) return "";
+    const nb = window.WebBlocks.withDefaults(b);
+    const html = fn(nb.props, nb, wrap);
+    return wrap ? wrap(nb, html) : html;
+  }
+  function renderList(list, wrap) {
+    return (list || []).map((b) => renderOne(b, wrap)).join("\n");
+  }
+
   return {
     esc,
     on, /* editor ใช้ตัวนี้ตัดสินว่า toggle ติ๊กไว้ไหม — ต้องใช้กติกาเดียวกับ renderer เป๊ะ */
     /* block เดียว → HTML (type ที่ไม่รู้จัก = ข้าม ไม่ทำหน้าพัง) */
-    block(b) {
-      const fn = B[b.type];
-      if (!fn) return "";
-      return fn(window.WebBlocks.withDefaults(b).props);
-    },
+    block: (b, wrap) => renderOne(b, wrap),
     /* ทั้งหน้า → HTML */
-    page(blocks) {
-      return (blocks || []).map((b) => this.block(b)).join("\n");
-    },
+    page: (blocks, wrap) => renderList(blocks, wrap),
   };
 })();
