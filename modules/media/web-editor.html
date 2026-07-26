@@ -27,9 +27,21 @@
       </div>
       <div class="page-hero-actions">
         <span class="wb-dirty" id="dirtyFlag" style="display:none">● ยังไม่บันทึก</span>
+        <!-- ปุ่มคู่กับคีย์ลัด Ctrl+Z / Ctrl+Shift+Z — ปุ่มทำหน้าที่บอกสถานะด้วยว่ายังย้อนได้อีกไหม -->
+        <button class="btn-on-hero btn-icon-only" id="undoBtn" onclick="undo()" title="ย้อนกลับ (Ctrl+Z)" disabled>↶</button>
+        <button class="btn-on-hero btn-icon-only" id="redoBtn" onclick="redo()" title="ทำซ้ำ (Ctrl+Shift+Z)" disabled>↷</button>
+        <!-- สลับ "เห็นโครง" ↔ "เห็นของจริง" — จำค่าไว้ต่อเครื่อง (localStorage) -->
+        <select class="btn-on-hero wb-zoom-sel" id="zoomSel" onchange="setZoom(this.value)" title="ย่อ/ขยายมุมมอง canvas">
+          <option value="fit">🔍 พอดีจอ</option>
+          <option value="50">🔍 50%</option>
+          <option value="75">🔍 75%</option>
+          <option value="100">🔍 100%</option>
+        </select>
+        <button class="btn-on-hero" id="guideBtn" onclick="toggleGuides()" title="สลับการแสดงเส้นโครงสร้าง (section · ช่อง)">⊞ เส้นโครง</button>
+        <button class="btn-on-hero" id="layersBtn" onclick="toggleLayers()" title="แสดง/ซ่อนแผงเลเยอร์">🗂 เลเยอร์</button>
         <button class="btn-on-hero" onclick="goBack()">← กลับ</button>
         <button class="btn-on-hero" onclick="openLive()">🌐 ดูเว็บจริง</button>
-        <button class="btn-on-hero btn-primary" data-perm="web_pages_edit" onclick="savePage()">💾 บันทึก</button>
+        <button class="btn-on-hero btn-primary" data-perm="web_pages_edit" onclick="savePage()" title="บันทึก (Ctrl+S)">💾 บันทึก</button>
       </div>
     </div>
 
@@ -42,20 +54,32 @@
         <div class="wb-tabs">
           <button class="wb-tab active" data-tab="blocks" onclick="switchTab('blocks')">🧰 เครื่องมือ</button>
           <button class="wb-tab" data-tab="props" onclick="switchTab('props')">⚙️ ตั้งค่า</button>
+          <!-- สลับแผงเลเยอร์ — วางไว้ในแถบแท็บเพราะแถบนี้ sticky ติดจอตลอด
+               (ปุ่มบนหัวหน้าเลื่อนหายตอนไถ · ปุ่มลอย position:fixed ใช้ไม่ได้เพราะ :root{zoom:.65}) -->
+          <button class="wb-tab-side" id="layersBtn2" onclick="toggleLayers()" title="แสดง/ซ่อนแผงเลเยอร์ (โครงสร้างหน้า)">🗂</button>
         </div>
 
-        <!-- 2 ระดับ: หมวด → บล็อกในหมวด (สไลด์ซ้าย) -->
+        <!-- 3 ระดับ: หมวด → หมวดย่อย → บล็อก (สไลด์ซ้ายทีละชั้น)
+             หมวดย่อยจำเป็นตั้งแต่ที่ block แตกเป็น preset หลายใบ — โครงสร้างมี 16 การ์ด
+             ถ้าเรียงรวดเดียวต้องไถหา 3 หน้าจอกว่าจะเจอสิ่งที่ต้องการ -->
         <div id="tabBlocks">
           <div class="wb-nav" id="wbNav">
             <div class="wb-nav-track">
-              <!-- ระดับ 1 -->
+              <!-- ระดับ 1: หมวด -->
               <div class="wb-nav-pane" id="paneCats">
                 <div class="wb-panel-body" id="catList"></div>
               </div>
-              <!-- ระดับ 2 -->
-              <div class="wb-nav-pane" id="paneBlocks">
+              <!-- ระดับ 2: หมวดย่อย -->
+              <div class="wb-nav-pane" id="paneSubs">
                 <button class="wb-back" onclick="backToCats()">
                   <span>←</span><span id="backLabel">ทุกหมวด</span>
+                </button>
+                <div class="wb-panel-body" id="subList"></div>
+              </div>
+              <!-- ระดับ 3: บล็อกในหมวดย่อย -->
+              <div class="wb-nav-pane" id="paneBlocks">
+                <button class="wb-back" onclick="backToSubs()">
+                  <span>←</span><span id="backLabel2">ย้อนกลับ</span>
                 </button>
                 <div class="wb-panel-body" id="palette"></div>
               </div>
@@ -67,6 +91,8 @@
           <div class="wb-props-hdr" id="propsHdr">⚙️ ตั้งค่า</div>
           <!-- เส้นทางชั้นของ node ที่เลือก (Section › คอลัมน์ › ข้อความ) — โผล่เฉพาะของที่ซ้อนอยู่ -->
           <div class="wb-crumb" id="propsCrumb" hidden></div>
+          <!-- คัดลอก/วาง "เฉพาะสไตล์" — เนื้อหาไม่ถูกแตะ -->
+          <div class="wb-stylebar" id="styleBar" hidden></div>
           <div class="wb-panel-body" id="props">
             <div class="wb-hint">คลิกบล็อกใน canvas<br />เพื่อแก้เนื้อหา</div>
           </div>
@@ -80,11 +106,42 @@
       <!-- ส่วนกลาง (header/footer ที่ใช้ร่วมทุกหน้า) โชว์เป็นตัวล็อกหัว-ท้าย
            อยู่ "นอก" #canvas โดยตั้งใจ — ไม่งั้นจะถูกนับเป็นบล็อกตอนลากวาง แล้วลำดับเพี้ยน -->
       <div class="wb-canvas-wrap">
-        <div class="wb-canvas wb-chrome" id="chromeTop"></div>
-        <div class="wb-canvas" id="canvas"></div>
-        <div class="wb-canvas wb-chrome" id="chromeBottom"></div>
+        <!-- ตัวย่อ/ขยาย canvas — ครอบทั้งส่วนหัว·เนื้อหา·ส่วนท้าย เพื่อให้ย่อพร้อมกันทั้งหน้า
+             ใช้ CSS zoom ไม่ใช่ transform:scale เพราะ zoom ย่อ "พื้นที่ที่ใช้จริง" ด้วย
+             (transform ย่อแค่ภาพ กล่องยังกินที่เท่าเดิม → เหลือช่องว่างใหญ่ๆ ใต้หน้า) -->
+        <div class="wb-scaler" id="wbScaler">
+          <div class="wb-canvas wb-chrome" id="chromeTop"></div>
+          <div class="wb-canvas" id="canvas"></div>
+          <div class="wb-canvas wb-chrome" id="chromeBottom"></div>
+        </div>
       </div>
 
+      <!-- ── ขวา: แผงเลเยอร์ (โครงทั้งหน้าเป็นต้นไม้) ──
+           แยกเป็นแผงของตัวเอง ไม่ใช่แท็บ เพราะต้องดูคู่กับแท็บตั้งค่าพร้อมกัน
+           (ไล่โครงจากต้นไม้ → แก้ค่าในแผงซ้ายทันที ไม่ต้องสลับแท็บไปมา)
+           ความกว้างปรับตามความลึกของโครงจริง — ดู syncLayerWidth() -->
+      <div class="wb-layers" id="layersPane">
+        <div class="wb-layers-hdr">
+          <span>🗂 เลเยอร์</span>
+          <button class="wb-layers-x" onclick="toggleLayers()" title="ซ่อนแผงเลเยอร์">✕</button>
+        </div>
+        <div class="wb-lyr-body" id="layerTree"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ────── เลือกเลย์เอาต์แถบใหม่ (เปิดจากปุ่ม + ใน canvas) ──────
+       เป็น "ตัวเลือก" ไม่ใช่ฟอร์ม → คลิกนอกกรอบปิดได้ (กฎห้ามปิดด้วย backdrop ใช้กับฟอร์มเท่านั้น) -->
+  <div class="modal-overlay" id="layoutOverlay" onclick="closeLayoutPicker()">
+    <div class="modal modal-sm v-sage-header" onclick="event.stopPropagation()">
+      <div class="modal-hdr">
+        <div class="modal-title">เลือกเลย์เอาต์แถบใหม่</div>
+        <button class="btn-modal-close" onclick="closeLayoutPicker()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="wb-lp-grid" id="layoutPickGrid"></div>
+      </div>
     </div>
   </div>
 

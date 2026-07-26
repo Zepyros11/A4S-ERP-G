@@ -45,30 +45,81 @@ window.WebBlocks = (() => {
      ถ้าเก็บเป็นตัวเลขจำนวน จะรองรับได้แค่ช่องเท่ากันตลอดไป แล้วต้องรื้อ data ทีหลัง
      จำนวนคอลัมน์ = จำนวนท่อน · ความกว้าง = สัดส่วน fr ของแต่ละท่อน */
   const LAYOUTS = [
-    { value: "1", label: "เต็มความกว้าง" },
+    { value: "1", label: "1 คอลัมน์" },
     { value: "1-1", label: "2 คอลัมน์เท่ากัน" },
-    { value: "2-1", label: "ซ้ายกว้าง · ขวาแคบ" },
-    { value: "1-2", label: "ซ้ายแคบ · ขวากว้าง" },
+    { value: "2-1", label: "ซ้ายกว้าง 2:1" },
+    { value: "1-2", label: "ขวากว้าง 1:2" },
     { value: "1-1-1", label: "3 คอลัมน์เท่ากัน" },
-    { value: "1-2-1", label: "กลางกว้าง" },
+    { value: "1-2-1", label: "กลางกว้าง 1:2:1" },
     { value: "1-1-1-1", label: "4 คอลัมน์เท่ากัน" },
   ];
+  /* เทมเพลตใน palette = คอลัมน์ × แถว (ตามที่เรียกกันว่า 2x2 / 3x2)
+     เก็บลง props เป็น 2 ค่าแยก (layout = สัดส่วนคอลัมน์ · rows = จำนวนแถว)
+     preset ที่ส่งตอนลากเข้ารหัสเป็น "<layout>x<rows>" */
+  const PRESETS = [
+    { layout: "1", rows: 1, label: "1 × 1" },
+    { layout: "1-1", rows: 1, label: "2 × 1" },
+    { layout: "1-1", rows: 2, label: "2 × 2" },
+    { layout: "1-1-1", rows: 1, label: "3 × 1" },
+    { layout: "1-1-1", rows: 2, label: "3 × 2" },
+    { layout: "1-1-1-1", rows: 1, label: "4 × 1" },
+    { layout: "2-1", rows: 1, label: "2:1 เนื้อหา + แถบข้าง" },
+    { layout: "1-2-1", rows: 1, label: "1:2:1 กลางกว้าง" },
+    /* แถวหัวเต็มความกว้าง + กริดข้างล่าง — โครงของเซกชัน CATEGORY บนเว็บจริง
+       (หัวข้อพาดยาว 1 แถว แล้วค่อยแตกเป็นการ์ด) ทำด้วยคอลัมน์เท่ากันทุกแถวไม่ได้ */
+    { layout: "1-1", rows: 1, head: true, label: "หัวข้อ + 2 × 1" },
+    { layout: "1-1", rows: 2, head: true, label: "หัวข้อ + 2 × 2" },
+    { layout: "1-1-1", rows: 1, head: true, label: "หัวข้อ + 3 × 1" },
+  ];
+  /* รับทศนิยมด้วย ("1.4-0.6") — เกิดจากการลากขอบคอลัมน์ให้กว้างไม่เท่ากันแบบละเอียด
+     ต่ำสุด 0.2 กัน "ลากจนคอลัมน์หายไปเลย" (0 = ช่องกว้าง 0px คลิกกลับมาแก้ไม่ได้อีก) */
+  /* ภาพจำลองของ preset ข้อความ — วาดเป็นแท่งแทนตัวอักษร ให้เห็น "น้ำหนัก/ขนาด" ต่างกันที่ขนาดเล็ก
+     bars = [{w, h, c}] เรียงลงมา · เขียนเป็นตัวสร้างเพราะจะเพิ่ม preset อีกเรื่อยๆ */
+  function txtWire(bars, accent) {
+    const total = bars.reduce((s, b) => s + b.h + 5, -5);
+    let y = (44 - total) / 2, out = "";
+    bars.forEach((b) => {
+      out += `<rect x="11" y="${y.toFixed(1)}" width="${b.w}" height="${b.h}" rx="${Math.min(2, b.h / 2)}" fill="${b.c}"/>`;
+      y += b.h + 5;
+    });
+    /* เส้นเน้นสั้นๆ ใต้แท่งแรก (ใช้กับ preset หัวข้อที่มีขีดใต้ชื่อ) */
+    const acc = accent ? `<rect x="11" y="${(44 - total) / 2 + bars[0].h + 2}" width="26" height="2.5" rx="1" fill="${accent}"/>` : "";
+    return `<svg viewBox="0 0 120 44"><rect width="120" height="44" fill="#fff"/>${out}${acc}</svg>`;
+  }
+
   const parts = (layout) => {
-    const a = String(layout || "1").split("-").map((n) => Math.max(1, Math.min(6, +n || 1)));
+    const a = String(layout || "1").split("-").map((n) => {
+      const v = parseFloat(n);
+      return Number.isFinite(v) ? Math.max(0.2, Math.min(6, v)) : 1;
+    });
     return a.length && a.length <= 4 ? a : [1];
   };
-  /* ภาพจำลองเลย์เอาต์ — วาดจากสัดส่วนจริง ใช้ได้ทั้งการ์ดใน palette และปุ่มเลือกในแผงตั้งค่า
-     สร้างด้วยโค้ดแทนวาดมือ 7 อัน เพราะถ้าเพิ่มเลย์เอาต์ใหม่จะได้ไม่ต้องวาด SVG ตามทุกครั้ง */
-  function gridWire(layout, w = 120, h = 44, pad = 7, gap = 4) {
+  const rowsOf = (v) => Math.max(1, Math.min(4, +v || 1));
+  /* ต้องรับได้ทั้ง boolean และ "1"/"true" ของข้อมูลเก่า — กติกาเดียวกับ WebRender.on */
+  const truthy = (v) => v === true || v === 1 || v === "1" || v === "true";
+  /* ภาพจำลองเลย์เอาต์ — วาดจากสัดส่วน+จำนวนแถวจริง ใช้ทั้งการ์ดใน palette และปุ่มเลือกในแผงตั้งค่า
+     สร้างด้วยโค้ดแทนวาดมือ เพราะเพิ่มเทมเพลตใหม่จะได้ไม่ต้องวาด SVG ตามทุกครั้ง */
+  function gridWire(layout, rows = 1, w = 120, h = 44, pad = 6, gap = 3.5, head = false) {
     const ps = parts(layout);
     const total = ps.reduce((a, b) => a + b, 0);
-    const avail = w - pad * 2 - gap * (ps.length - 1);
-    let x = pad, out = "";
-    ps.forEach((p) => {
-      const cw = (avail * p) / total;
-      out += `<rect x="${x.toFixed(1)}" y="${pad}" width="${cw.toFixed(1)}" height="${h - pad * 2}" rx="3"/>`;
-      x += cw + gap;
-    });
+    const r = rowsOf(rows);
+    const availW = w - pad * 2 - gap * (ps.length - 1);
+    /* แถวหัววาดเตี้ยกว่าแถวปกติ — สื่อว่าเป็นแถบหัวข้อ ไม่ใช่ช่องเนื้อหาเต็มๆ */
+    const headH = head ? 8 : 0;
+    const ch = (h - pad * 2 - (head ? headH + gap : 0) - gap * (r - 1)) / r;
+    const top = pad + (head ? headH + gap : 0);
+    let out = head
+      ? `<rect x="${pad}" y="${pad}" width="${w - pad * 2}" height="${headH}" rx="2"/>`
+      : "";
+    for (let ri = 0; ri < r; ri++) {
+      let x = pad;
+      const y = top + ri * (ch + gap);
+      ps.forEach((p) => {
+        const cw = (availW * p) / total;
+        out += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${cw.toFixed(1)}" height="${ch.toFixed(1)}" rx="2.5"/>`;
+        x += cw + gap;
+      });
+    }
     return `<svg viewBox="0 0 ${w} ${h}"><rect width="${w}" height="${h}" fill="#f6f7f3"/><g fill="#fff" stroke="#71bf44" stroke-width="1.1" stroke-dasharray="3 2">${out}</g></svg>`;
   }
 
@@ -87,18 +138,32 @@ window.WebBlocks = (() => {
        ============================================================ */
     {
       type: "section",
+      sub: "กริด (แบ่งช่อง)",
       group: "layout",
       label: "แถบ + คอลัมน์ (Section)",
       icon: "▤",
-      wire: gridWire("1-1"),
+      wire: gridWire("1-1", 2),
       /* presets = แตกเป็นการ์ดหลายใบใน palette → "เลือก grid ก่อนลาก" ไม่ต้องวางแล้วค่อยมาตั้งค่า
          (ยังเปลี่ยนทีหลังได้ในแท็บตั้งค่า — นี่แค่ทางลัดของขั้นตอนที่ทำบ่อยที่สุด) */
-      presets: LAYOUTS.map((l) => ({ layout: l.value, label: l.label, wire: gridWire(l.value) })),
+      /* preset = "ชุดค่าที่ทับลง props ตอนสร้าง" (รูปแบบเดียวกันทุก block — ดู newBlock)
+         key ใช้เป็นรหัสอ้างอิงตอนลาก/กดเลือก จึงต้องไม่ซ้ำกันในบล็อกเดียว */
+      presets: PRESETS.map((p) => ({
+        key: `${p.layout}x${p.rows}${p.head ? "h" : ""}`,
+        label: p.label,
+        props: { layout: p.layout, rows: String(p.rows), headRow: !!p.head },
+        wire: gridWire(p.layout, p.rows, 120, 44, 6, 3.5, p.head),
+      })),
       /* container = editor รู้ว่า block นี้มีลูก ต้องวาด children + รับการวางของ */
       container: true,
       fields: [
         { section: "เลย์เอาต์" },
         { key: "layout", label: "คอลัมน์", type: "gridpick", options: LAYOUTS },
+        { key: "rows", label: "จำนวนแถว", type: "segment", row: true,
+          options: [{ value: "1", label: "1" }, { value: "2", label: "2" }, { value: "3", label: "3" }, { value: "4", label: "4" }] },
+        { key: "rowH", label: "ความสูงแถว", type: "range", row: true, min: 0, max: 500, step: 10, unit: "px" },
+        /* แถวหัว = ช่องแรกพาดเต็มความกว้าง แล้วที่เหลือค่อยแตกตามคอลัมน์
+           ทำด้วยการตั้ง spanX ของช่องแรกให้เท่าจำนวนคอลัมน์ (ไม่ต้องแก้ renderer เลย) */
+        { key: "headRow", label: "แถวหัวเต็มความกว้าง", type: "toggle", row: true },
         { key: "gap", label: "ระยะห่างคอลัมน์", type: "range", row: true, min: 0, max: 80, step: 4, unit: "px" },
         { key: "vAlign", label: "จัดแนวตั้ง", type: "segment", row: true,
           options: [{ value: "start", label: "บน" }, { value: "center", label: "กลาง" }, { value: "stretch", label: "เต็ม" }] },
@@ -109,35 +174,75 @@ window.WebBlocks = (() => {
         { key: "padY", label: "ระยะบน-ล่าง", type: "range", row: true, min: 0, max: 160, step: 4, unit: "px" },
         { key: "padX", label: "ระยะซ้าย-ขวา", type: "range", row: true, min: 0, max: 120, step: 4, unit: "px" },
       ],
-      defaults: { layout: "1-1", gap: 24, vAlign: "start", bg: "#ffffff", maxWidth: 1200, padY: 40, padX: 44 },
+      /* rowH 0 = สูงตามเนื้อหา (auto) — ค่าเริ่มต้นที่ปลอดภัยที่สุด ตั้งเองเมื่ออยากได้ช่องสูงเท่ากัน */
+      defaults: { layout: "1-1", rows: "1", rowH: 0, headRow: false, gap: 24, vAlign: "start", bg: "#ffffff", maxWidth: 1200, padY: 40, padX: 44 },
       /* section ที่เพิ่งสร้าง = ต้องมีคอลัมน์ว่างให้ลากของลงทันที */
       makeChildren: true,
     },
     {
       /* ไม่มี group = ไม่โผล่ใน palette · เกิดจาก section เท่านั้น (ลบเดี่ยวไม่ได้ ลบทั้ง section แทน) */
       type: "column",
-      label: "คอลัมน์",
+      label: "ช่อง (Cell)",
       icon: "▯",
       container: true,
       fields: [
+        /* ── ขนาดของช่องนี้ ──
+           ในระบบกริด "กว้าง/สูง" ของช่องคือ "กินกี่ช่อง" ไม่ใช่ px
+           (ตั้งเป็น px ตรงๆ = กริดแตก เพราะช่องอื่นไม่ขยับตาม)
+           อยากได้ความสูงจริงเป็น px → ใช้ "ความสูงขั้นต่ำ" ข้างล่าง */
+        { section: "ขนาดช่อง" },
+        { key: "spanX", label: "กว้าง (กินกี่คอลัมน์)", type: "segment", row: true,
+          options: [{ value: "1", label: "1" }, { value: "2", label: "2" }, { value: "3", label: "3" }, { value: "4", label: "4" }] },
+        { key: "spanY", label: "สูง (กินกี่แถว)", type: "segment", row: true,
+          options: [{ value: "1", label: "1" }, { value: "2", label: "2" }, { value: "3", label: "3" }, { value: "4", label: "4" }] },
+        /* W/H แบบละเอียด — ทำงาน "ข้างในช่อง" ไม่ใช่เปลี่ยนขนาด track ของกริด
+           (ถ้าไปยืด track กริดจะแตก เพราะช่องอื่นในแถวเดียวกันต้องขยับตาม)
+           กว้าง % = เนื้อหาในช่องแคบลงกว่าช่อง แล้วจัดชิดตามค่า "จัดข้อความ"
+           สูง = ความสูงขั้นต่ำ (ไม่ใช่ตายตัว) — เนื้อหายาวเกินจะยืดเองแทนที่จะล้นออกนอกกรอบ */
+        { key: "w", label: "ความกว้าง", type: "range", row: true, min: 20, max: 100, step: 5, unit: "%" },
+        { key: "minH", label: "ความสูง", type: "range", row: true, min: 0, max: 800, step: 10, unit: "px" },
+
         { section: "จัดวาง" },
         { key: "align", label: "จัดข้อความ", type: "segment", row: true, options: ALIGN_OPTS },
+        { key: "vAlign", label: "จัดแนวตั้ง", type: "segment", row: true,
+          options: [{ value: "start", label: "บน" }, { value: "center", label: "กลาง" }, { value: "end", label: "ล่าง" }] },
         { key: "pad", label: "ระยะขอบใน", type: "range", row: true, min: 0, max: 60, step: 2, unit: "px" },
         { key: "gap", label: "ระยะห่างระหว่างชิ้น", type: "range", row: true, min: 0, max: 48, step: 2, unit: "px" },
+
         { section: "สไตล์" },
         { key: "bg", label: "สีพื้นหลัง", type: "color", row: true },
         { key: "radius", label: "ความมนขอบ", type: "range", row: true, min: 0, max: 32, step: 2, unit: "px" },
       ],
-      defaults: { align: "left", pad: 0, gap: 14, bg: "", radius: 0 },
+      defaults: { spanX: "1", spanY: "1", w: 100, minH: 0, align: "left", vAlign: "start", pad: 0, gap: 14, bg: "", radius: 0 },
       makeChildren: true,
     },
     {
       type: "el_text",
+      sub: "ข้อความ",
       group: "element",
       scope: "element",
       label: "ข้อความ",
       icon: "🅃",
       wire: `<svg viewBox="0 0 120 44"><rect width="120" height="44" fill="#fff"/><rect x="10" y="10" width="60" height="6" rx="3" fill="#16240f"/><rect x="10" y="22" width="100" height="4" rx="2" fill="#c3cbba"/><rect x="10" y="31" width="86" height="4" rx="2" fill="#c3cbba"/></svg>`,
+      /* แบบข้อความสำเร็จรูป — เลือกตั้งแต่ตอนหยิบ ไม่ต้องมาไล่ตั้งขนาด/น้ำหนัก/สีทีละอัน
+         เพิ่มแบบใหม่ = ต่อรายการตรงนี้ที่เดียว (palette + โมดัล ＋ ขึ้นให้เอง) */
+      presets: [
+        { key: "para", label: "ย่อหน้า",
+          props: { text: "พิมพ์ข้อความที่นี่ — ขึ้นบรรทัดใหม่ได้", size: 16, weight: "normal", color: "#2f3a28", lh: 1.6 },
+          wire: txtWire([{ w: 96, h: 4, c: "#c3cbba" }, { w: 86, h: 4, c: "#c3cbba" }, { w: 62, h: 4, c: "#c3cbba" }]) },
+        { key: "h1", label: "หัวข้อใหญ่",
+          props: { text: "หัวข้อใหญ่", size: 34, weight: "bold", color: "#16240f", lh: 1.2 },
+          wire: txtWire([{ w: 74, h: 10, c: "#16240f" }, { w: 96, h: 4, c: "#dfe4d8" }]) },
+        { key: "h2", label: "หัวข้อรอง",
+          props: { text: "หัวข้อรอง", size: 22, weight: "bold", color: "#16240f", lh: 1.3 },
+          wire: txtWire([{ w: 60, h: 7, c: "#2f3a28" }, { w: 92, h: 4, c: "#dfe4d8" }]) },
+        { key: "lead", label: "คำโปรย",
+          props: { text: "คำโปรยสั้นๆ อธิบายเนื้อหาด้านล่าง", size: 15, weight: "normal", color: "#5a6551", lh: 1.75 },
+          wire: txtWire([{ w: 92, h: 4.5, c: "#9aa691" }, { w: 78, h: 4.5, c: "#9aa691" }]) },
+        { key: "note", label: "ตัวเล็ก / หมายเหตุ",
+          props: { text: "หมายเหตุ · ข้อความขนาดเล็ก", size: 12, weight: "normal", color: "#9aa691", lh: 1.6 },
+          wire: txtWire([{ w: 66, h: 3, c: "#c3cbba" }, { w: 48, h: 3, c: "#c3cbba" }]) },
+      ],
       fields: [
         { key: "text", label: "ข้อความ", type: "textarea" },
         { section: "สไตล์" },
@@ -152,6 +257,7 @@ window.WebBlocks = (() => {
     },
     {
       type: "el_image",
+      sub: "สื่อ",
       group: "element",
       scope: "element",
       label: "รูปภาพ",
@@ -171,7 +277,125 @@ window.WebBlocks = (() => {
       defaults: { src: "", alt: "", link: "", ratio: "16/9", width: 100, radius: 12, align: "center" },
     },
     {
+      /* ── หัวข้อเซกชัน ──
+         รูปแบบที่โผล่ซ้ำใน 5 บล็อกของหน้าเดิม (ข่าวหลัก · หมวดหมู่ · สินค้า · กิจกรรม · ดาวน์โหลด)
+         และตรงกับหัวข้อ "MAIN NEWS" บนเว็บจริง: ชื่อ + เส้นเน้นใต้ชื่อ + เส้นบางลากไปขวา + ลิงก์มุมขวา
+         แยกเป็น 3 สวิตช์อิสระ เพราะแต่ละที่ใช้ไม่เหมือนกัน — ประกอบเอาเองได้ทุกแบบ */
+      type: "el_heading",
+      sub: "ข้อความ",
+      group: "element",
+      scope: "element",
+      label: "หัวข้อเซกชัน",
+      icon: "🏷",
+      wire: `<svg viewBox="0 0 120 44"><rect width="120" height="44" fill="#fff"/><rect x="10" y="15" width="34" height="7" rx="2" fill="#16240f"/><rect x="10" y="26" width="34" height="3" rx="1.5" fill="#d94141"/><rect x="50" y="27" width="46" height="1.5" rx="0.75" fill="#dfe4d8"/><rect x="100" y="24" width="12" height="4" rx="2" fill="#71bf44"/></svg>`,
+      presets: [
+        /* แบบ CATEGORY บนเว็บจริง — ตัวพิมพ์ใหญ่ + ขีดแดงใต้ชื่อ + เส้นบางลากไปสุดแถว */
+        { key: "cat", label: "หัวข้อ + ขีดเน้น",
+          props: { text: "CATEGORY", upper: true, underline: true, lineColor: "#d94141", rule: true, rightText: "" },
+          wire: `<svg viewBox="0 0 120 44"><rect width="120" height="44" fill="#fff"/><rect x="11" y="16" width="38" height="7" rx="2" fill="#16240f"/><rect x="11" y="27" width="38" height="3" rx="1.5" fill="#d94141"/><rect x="53" y="28" width="56" height="1.5" rx="0.75" fill="#dfe4d8"/></svg>` },
+        /* แบบบล็อกเดิมของ ERP — ชื่อ + เส้นลากขวา + ลิงก์ "ดูทั้งหมด" */
+        { key: "link", label: "หัวข้อ + ลิงก์ขวา",
+          props: { text: "หัวข้อเซกชัน", upper: false, underline: false, rule: true, rightText: "ดูทั้งหมด →" },
+          wire: `<svg viewBox="0 0 120 44"><rect width="120" height="44" fill="#fff"/><rect x="11" y="19" width="40" height="6" rx="2" fill="#16240f"/><rect x="55" y="22" width="34" height="1.5" rx="0.75" fill="#dfe4d8"/><rect x="94" y="19" width="15" height="5" rx="2.5" fill="#71bf44"/></svg>` },
+        { key: "plain", label: "หัวข้อเปล่า",
+          props: { text: "หัวข้อเซกชัน", upper: false, underline: false, rule: false, rightText: "" },
+          wire: `<svg viewBox="0 0 120 44"><rect width="120" height="44" fill="#fff"/><rect x="11" y="19" width="52" height="7" rx="2" fill="#16240f"/></svg>` },
+      ],
+      fields: [
+        { key: "text", label: "หัวข้อ", type: "text" },
+        { key: "rightText", label: "ข้อความมุมขวา", type: "text" },
+        { key: "rightLink", label: "ลิงก์มุมขวา", type: "select", optionsFrom: "pages", allowEmpty: true, emptyLabel: "— ไม่ลิงก์ —", row: true },
+
+        { section: "สไตล์" },
+        { key: "size", label: "ขนาด", type: "range", row: true, min: 12, max: 48, step: 1, unit: "px" },
+        { key: "weight", label: "น้ำหนัก", type: "segment", row: true,
+          options: [{ value: "light", label: "บาง" }, { value: "normal", label: "ปกติ" }, { value: "bold", label: "หนา" }] },
+        { key: "color", label: "สีหัวข้อ", type: "swatch", swatches: ["#16240f", "#2f3a28", "#71bf44", "#ffffff"] },
+        { key: "upper", label: "ตัวพิมพ์ใหญ่", type: "toggle", row: true },
+
+        { section: "เส้น" },
+        /* เส้นเน้นใต้ชื่อ = สั้นเท่าตัวอักษร · เส้นบางลากขวา = ต่อจากชื่อไปจนสุดแถว
+           เปิดพร้อมกันได้ (แบบเว็บจริง) หรือเปิดอย่างเดียว (แบบบล็อกเดิมของ ERP ที่ใช้เส้นลากขวาอย่างเดียว) */
+        { key: "underline", label: "เส้นเน้นใต้ชื่อ", type: "toggle", row: true },
+        { key: "lineColor", label: "สีเส้นเน้น", type: "swatch", swatches: ["#71bf44", "#d94141", "#16240f", "#e0e5d9"] },
+        { key: "lineWeight", label: "ความหนา", type: "range", row: true, min: 1, max: 8, step: 1, unit: "px" },
+        { key: "rule", label: "เส้นบางลากไปขวา", type: "toggle", row: true },
+      ],
+      defaults: {
+        text: "หัวข้อเซกชัน", rightText: "", rightLink: "",
+        size: 18, weight: "bold", color: "#16240f", upper: false,
+        underline: true, lineColor: "#71bf44", lineWeight: 3, rule: true,
+      },
+    },
+    {
+      /* ── สไลด์ภาพ (carousel) ──
+         มาจากของจริงบน a4s.academy: ภาพใหญ่เลื่อนได้ + พาดหัวทับบนภาพ + ผู้เขียน/วันที่
+         เนื้อหาเป็น "รายการสไลด์" ไม่ใช่วางภาพทีละใบ — เพิ่ม/ลบข่าวแล้วไม่ต้องจัดหน้าใหม่ */
+      type: "el_carousel",
+      sub: "สื่อ",
+      group: "element",
+      scope: "element",
+      label: "สไลด์ภาพ",
+      icon: "🎞️",
+      wire: `<svg viewBox="0 0 120 44"><rect width="120" height="44" fill="#fff"/><rect x="16" y="6" width="88" height="32" rx="3" fill="#e4ece0"/><path d="M22 34l14-11 10 8 9-6 14 9z" fill="#a9c69a"/><rect x="22" y="27" width="40" height="4" rx="2" fill="#fff" opacity=".9"/><g fill="#16240f"><path d="M11 22l4-4v8z"/><path d="M109 22l-4-4v8z"/></g><g fill="#71bf44"><circle cx="54" cy="41" r="1.6"/><circle cx="60" cy="41" r="1.6"/><circle cx="66" cy="41" r="1.6"/></g></svg>`,
+      fields: [
+        /* หัวข้อในตัว — เว้นว่าง = ไม่แสดง
+           มีเพราะรูปแบบจริงบนเว็บคือ "หัวข้อซ้าย + ลูกศรขวา อยู่แถวเดียวกัน"
+           ถ้าแยกไปใช้ el_heading ลูกศรจะตกไปอยู่คนละบรรทัดเสมอ (จัดให้ตรงกันเองไม่ได้) */
+        { key: "heading", label: "หัวข้อ (เว้นว่าง = ไม่แสดง)", type: "text" },
+        {
+          key: "slides", label: "สไลด์", type: "list",
+          itemFields: [
+            { key: "image", label: "ภาพ", type: "image" },
+            { key: "title", label: "พาดหัว", type: "textarea" },
+            { key: "meta", label: "ผู้เขียน · วันที่", type: "text" },
+            { key: "link", label: "ลิงก์ไปหน้า", type: "select", optionsFrom: "pages", allowEmpty: true, emptyLabel: "— ไม่ลิงก์ —" },
+          ],
+        },
+        { section: "หัวข้อ" },
+        { key: "headingSize", label: "ขนาดหัวข้อ", type: "range", row: true, min: 12, max: 40, step: 1, unit: "px" },
+        { key: "headingUpper", label: "ตัวพิมพ์ใหญ่", type: "toggle", row: true },
+        { key: "headingLine", label: "เส้นเน้นใต้หัวข้อ", type: "toggle", row: true },
+        { key: "headingLineColor", label: "สีเส้นเน้น", type: "swatch", swatches: ["#d94141", "#71bf44", "#16240f", "#e0e5d9"] },
+
+        { section: "สไตล์" },
+        { key: "ratio", label: "สัดส่วน", type: "select", row: true,
+          options: [{ value: "16/9", label: "16:9" }, { value: "4/3", label: "4:3" }, { value: "1/1", label: "จัตุรัส" }, { value: "21/9", label: "แบนกว้าง 21:9" }] },
+        { key: "radius", label: "ความมนขอบ", type: "range", row: true, min: 0, max: 32, step: 2, unit: "px" },
+        /* overlay = พาดหัวทับบนภาพ (มีแถบไล่สีดำรองให้อ่านออกทุกภาพ)
+           ปิด = พาดหัวไปอยู่ใต้ภาพแทน สำหรับภาพที่มีตัวหนังสือเยอะอยู่แล้ว */
+        { key: "overlay", label: "พาดหัวทับบนภาพ", type: "toggle", row: true },
+        { key: "titleSize", label: "ขนาดพาดหัว", type: "range", row: true, min: 14, max: 48, step: 1, unit: "px" },
+        /* แถบไล่สีดำใต้พาดหัว = ตัวทำให้ตัวหนังสือขาวอ่านออกบนภาพสว่าง
+           ต้องปรับได้เพราะภาพแต่ละใบสว่างไม่เท่ากัน — ภาพมืดอยู่แล้วใส่เข้มไปจะทึบเกิน
+           ภาพสว่างจัด (อย่างโปสเตอร์สีม่วง/ทอง) ต้องเข้มขึ้นถึงจะอ่านออก
+           ความเข้ม 0 = ไม่มีแถบเลย (ภาพที่มีที่ว่างมืดอยู่แล้ว) */
+        { key: "shade", label: "ความเข้มแถบไล่สี", type: "range", row: true, min: 0, max: 100, step: 5, unit: "%" },
+        { key: "shadeHeight", label: "ความสูงแถบไล่สี", type: "range", row: true, min: 0, max: 100, step: 5, unit: "%" },
+
+        { section: "พฤติกรรม" },
+        { key: "auto", label: "เลื่อนอัตโนมัติ", type: "toggle", row: true },
+        { key: "interval", label: "เปลี่ยนทุก", type: "range", row: true, min: 2, max: 12, step: 1, unit: " วิ" },
+        { key: "arrows", label: "แสดงลูกศร", type: "toggle", row: true },
+        /* ในภาพ = ทับบนภาพ (ประหยัดที่ แต่บังเนื้อภาพ) · นอกภาพ = กันที่ซ้าย-ขวาไว้ให้ลูกศร
+           เลือกได้เพราะขึ้นกับภาพที่ใช้จริง — ภาพที่มีคนหรือตัวหนังสือชิดขอบจะโดนลูกศรบังพอดี */
+        { key: "arrowPos", label: "ตำแหน่งลูกศร", type: "segment", row: true,
+          options: [{ value: "in", label: "ในภาพ" }, { value: "out", label: "นอกภาพ" }, { value: "top", label: "มุมบนขวา" }] },
+        { key: "dots", label: "แสดงจุดบอกตำแหน่ง", type: "toggle", row: true },
+      ],
+      defaults: {
+        heading: "", headingSize: 18, headingUpper: true, headingLine: true, headingLineColor: "#d94141",
+        ratio: "16/9", radius: 12, overlay: true, titleSize: 26, shade: 80, shadeHeight: 55,
+        auto: true, interval: 5, arrows: true, arrowPos: "in", dots: true,
+        slides: [
+          { image: "", title: "พาดหัวข่าวสไลด์แรก", meta: "admin · วันที่", link: "" },
+          { image: "", title: "พาดหัวข่าวสไลด์ที่สอง", meta: "admin · วันที่", link: "" },
+        ],
+      },
+    },
+    {
       type: "el_button",
+      sub: "ปุ่ม & ลิงก์",
       group: "element",
       scope: "element",
       label: "ปุ่ม",
@@ -193,6 +417,7 @@ window.WebBlocks = (() => {
     },
     {
       type: "site_header",
+      sub: "ส่วนกลางของเว็บ",
       group: "layout",
       label: "ส่วนหัว (โลโก้+ภาษา)",
       icon: "🏷️",
@@ -262,6 +487,7 @@ window.WebBlocks = (() => {
     },
     {
       type: "nav_bar",
+      sub: "ส่วนกลางของเว็บ",
       group: "layout",
       label: "แถบเมนู",
       icon: "🧭",
@@ -305,6 +531,7 @@ window.WebBlocks = (() => {
     },
     {
       type: "ticker",
+      sub: "ข่าว",
       group: "content",
       label: "แถบข่าวเด่น",
       icon: "📢",
@@ -320,6 +547,7 @@ window.WebBlocks = (() => {
     },
     {
       type: "hero_news",
+      sub: "ข่าว",
       group: "content",
       label: "ข่าวหลัก + หมวดหมู่",
       icon: "📰",
@@ -357,6 +585,7 @@ window.WebBlocks = (() => {
     },
     {
       type: "product_grid",
+      sub: "รายการ",
       group: "list",
       label: "กริดสินค้า (4 ช่อง)",
       icon: "🛍️",
@@ -384,6 +613,7 @@ window.WebBlocks = (() => {
     },
     {
       type: "event_lessons",
+      sub: "รายการ",
       group: "list",
       label: "กิจกรรม + บทเรียน (2 คอลัมน์)",
       icon: "📅",
@@ -423,6 +653,7 @@ window.WebBlocks = (() => {
     },
     {
       type: "download_grid",
+      sub: "รายการ",
       group: "list",
       label: "กริดดาวน์โหลด",
       icon: "📥",
@@ -473,6 +704,7 @@ window.WebBlocks = (() => {
          ไม่งั้นผู้ใช้หาไม่เจอ → ทำด้วย class wv-spacer + CSS ฝั่ง editor
          (แบบเดียวกับ wv-header/wv-hide-sm — renderer ไม่ต้องรู้ว่าอยู่ canvas หรือ public) */
       type: "spacer",
+      sub: "เว้นระยะ & เส้นคั่น",
       group: "layout",
       label: "ตัวเว้นระยะ",
       icon: "↕️",
@@ -489,6 +721,7 @@ window.WebBlocks = (() => {
          ทำงานคล้าย spacer แต่มีเส้นให้เห็น · แยกเป็นคนละ block เพราะชื่อสื่อความหมายกว่า
          width < 100% = เส้นสั้นลงและจัดกึ่งกลางเอง (margin:0 auto) */
       type: "divider",
+      sub: "เว้นระยะ & เส้นคั่น",
       group: "layout",
       label: "เส้นคั่น",
       icon: "➖",
@@ -510,6 +743,7 @@ window.WebBlocks = (() => {
     },
     {
       type: "site_footer",
+      sub: "ส่วนกลางของเว็บ",
       group: "layout",
       label: "ส่วนท้าย",
       icon: "🔻",
@@ -587,7 +821,10 @@ window.WebBlocks = (() => {
        (ห้ามตัดทิ้งเฉยๆ — ผู้ใช้กดเลข 3→2 แล้วเนื้อหาหายไปเงียบๆ คือบั๊กที่ให้อภัยไม่ได้) */
     syncColumns(section) {
       if (section?.type !== "section") return section;
-      const want = parts(section.props.layout).length;
+      const nCols = parts(section.props.layout).length;
+      const head = truthy(section.props.headRow);
+      /* จำนวนช่อง = คอลัมน์ × แถว (+1 ถ้ามีแถวหัว) — กริด 3×2 = 6 ช่อง · มีแถวหัว = 7 */
+      const want = nCols * rowsOf(section.props.rows) + (head ? 1 : 0);
       const cols = section.children || [];
       while (cols.length < want) cols.push(this.newBlock("column"));
       if (cols.length > want) {
@@ -595,13 +832,17 @@ window.WebBlocks = (() => {
         const last = cols[want - 1];
         dropped.forEach((c) => last.children.push(...(c.children || [])));
       }
+      /* ช่องแรกพาดเต็มความกว้างเมื่อเปิดแถวหัว · ปิดแล้วต้องคืนเป็น 1 ไม่งั้นค้างกว้างผิด */
+      if (cols[0]) cols[0].props.spanX = String(head ? nCols : 1);
       section.children = cols;
       return section;
     },
 
     LAYOUTS,
+    PRESETS,
     gridWire,
     colParts: parts,
+    rowsOf,
 
     /* block ใหม่พร้อม props default — id ใช้แยก block ตอน drag/select
        preset = ค่าที่เลือกไว้ตั้งแต่ใน palette (ตอนนี้ใช้กับ section: เลย์เอาต์คอลัมน์) */
@@ -617,7 +858,13 @@ window.WebBlocks = (() => {
         type,
         props: clone(def.defaults),
       });
-      if (preset && type === "section") b.props.layout = preset;
+      /* preset = ชุดค่าที่ทับลง props ตอนสร้าง — ใช้กลไกเดียวกันทุกชนิดบล็อก
+         (กริด: คอลัมน์/แถว · ข้อความ: ขนาด/น้ำหนัก/สี · หัวข้อ: เส้นเน้น ฯลฯ)
+         เพิ่มแบบใหม่ = เพิ่มรายการใน presets ของ block นั้น ไม่ต้องแตะโค้ดตรงนี้อีก */
+      if (preset) {
+        const ps = (def.presets || []).find((p) => p.key === preset);
+        if (ps?.props) Object.assign(b.props, clone(ps.props));
+      }
       /* container ต้องมี children ตั้งแต่เกิด — section ที่ยังไม่มีคอลัมน์ = ลากของลงไม่ได้เลย */
       if (def.makeChildren) {
         b.children = [];

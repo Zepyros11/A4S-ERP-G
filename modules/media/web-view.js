@@ -54,6 +54,7 @@ async function load() {
     ]);
     show("");
     initShrink();
+    window.WebRender.bindCarousels(); /* HTML จาก renderer เป็นของนิ่ง — สไลด์ต้องผูก JS หลังวาดเสมอ */
   } catch (e) {
     console.error(e);
     document.getElementById("stateEmpty").textContent = "โหลดหน้าไม่สำเร็จ";
