@@ -203,6 +203,40 @@ Environment variables:
 
 เช็ค: `curl https://a4s-erp-proxy-new.onrender.com/drive/health` → `{"ok":true,"configured":true}`
 
+### 3.1 ⚠️ รันทันทีหลัง Render ใหม่พร้อม — เขียน URL รูปในฐานข้อมูลใหม่
+
+**นี่คือกับดักที่มองไม่เห็น** — ระบบใหม่เปิดดูรูปได้ตั้งแต่ยังไม่มี proxy ของตัวเอง
+เพราะ URL ที่เก็บในฐานข้อมูลเป็น **absolute** ชี้ไป proxy เก่าของบัญชีส่วนตัว:
+
+```
+https://a4s-erp-proxy.onrender.com/drive/file/<fileId>
+```
+
+สำรวจเมื่อ 2026-07-27 พบ **505 แถว ใน 17 คอลัมน์**:
+
+| ตาราง.คอลัมน์ | แถว |
+|---|---|
+| `tour_seat_check.passport_image_url` | 132 |
+| `tour_seat_check.visa_pdf_url` | 104 |
+| `events.poster_url` | 66 |
+| `trip_flight_tickets.ticket_url` | 62 |
+| `product_images.url` | 48 |
+| `promotions.poster_url` | 33 |
+| `campaign_participants.{facebook,tiktok,ig}_img` | 37 |
+| `places` / `place_rooms` / `campaigns` / `web_pages` | 23 |
+
+**ถ้าไม่แก้:** วันที่ปิดบัญชี Render ส่วนตัว (หรือ free tier ถูกระงับ) → พาสปอร์ต วีซ่า ตั๋วเครื่องบิน
+โปสเตอร์ รูปสินค้า **พังพร้อมกันหมด** ทั้งที่ไฟล์จริงยังอยู่ครบใน Shared Drive ของบริษัท
+
+**วิธีแก้** (fileId ไม่เปลี่ยน → proxy ใหม่ที่ใช้ service account เดิม เสิร์ฟไฟล์เดิมได้ทันที):
+1. แก้ `new_host` ใน [sql/173_rewrite_proxy_urls.sql](../sql/173_rewrite_proxy_urls.sql) ให้ตรงชื่อ Render service จริง
+2. รัน [sql/173_rewrite_proxy_urls_check.sql](../sql/173_rewrite_proxy_urls_check.sql) → จดตัวเลขไว้
+3. รัน [sql/173_rewrite_proxy_urls.sql](../sql/173_rewrite_proxy_urls.sql) (idempotent รันซ้ำได้)
+4. รัน check อีกรอบ → ต้องได้ **0 แถว**
+5. เปิดหน้า catalog / pax-detail / trip-list ดูว่ารูปยังขึ้นครบ
+
+> รันบน project **ใหม่** เท่านั้น — อย่ารันบนของเดิม
+
 ---
 
 ## Phase 4 — แก้โค้ด: env switch (✅ ทำแล้ว 2026-07-27)
