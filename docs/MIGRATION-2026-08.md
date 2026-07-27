@@ -25,13 +25,31 @@
 - **Visibility: Public** ⚠️ จำเป็น — GitHub Pages บนบัญชีฟรีใช้กับ private repo ไม่ได้
 - **อย่าติ๊ก** Add README / .gitignore / license (จะทำให้ push แรกชนกัน)
 
-### 1.2 ปิด Actions ทันที (ก่อน push) ⚠️ สำคัญที่สุด
-Settings → Actions → General → Actions permissions → **Disable actions** → Save
+### 1.2 หยุด cron ⚠️ สำคัญที่สุด
 
-ถ้าไม่ปิด พอ push ปุ๊บ cron 4 ตัวจะเริ่มวิ่งทันที:
+ถ้าปล่อยไว้ พอ push ปุ๊บ cron 4 ตัวจะเริ่มวิ่งทันที:
 - `notif-cron.yml` — ยิงทุก 15 นาที → **แจ้งเตือน LINE ส่งซ้ำถึงสมาชิกจริง**
 - `sync-members.yml` / `sync-daily-sale.yml` → ดึง answerforsuccess.com ชนกับระบบเดิม
 - `keep-render-alive.yml` → ping proxy เดิม
+
+**⚠️ ห้ามใช้ "Disable actions" ทั้ง repo** — GitHub Pages แบบ *Deploy from a branch* ต้องใช้ Actions
+build ผ่าน workflow ระบบ `pages-build-deployment` ปิด Actions = **เว็บไม่ deploy เลย**
+
+ใช้ repo variable แทน — ทั้ง 4 workflow มี guard ระดับ job:
+```yaml
+if: vars.CRON_DISABLED != '1'
+```
+**Settings → Secrets and variables → Actions → แท็บ `Variables` → New repository variable**
+`CRON_DISABLED` = `1`
+
+| repo | ตั้ง `CRON_DISABLED` ไหม | ผล |
+|---|---|---|
+| ใหม่ (a4scontent) ช่วงเทสต์ | ✅ `1` | cron ทั้ง 4 ไม่ทำงาน · Pages ยัง build ได้ |
+| เดิม (zepyros11) | ❌ ไม่ตั้ง | ทำงานปกติ — production ไม่กระทบ |
+| ใหม่ ตอน cutover | ลบ variable ทิ้ง | cron เริ่มทำงาน |
+
+> **ลำดับสำคัญ**: ตั้ง variable ให้เสร็จ **ก่อน** เปิด Actions ไม่งั้นมีช่องว่างให้ cron ยิงได้
+> (ยังอยากปิดสนิทระหว่างยังไม่ตั้ง variable ก็ปิด Actions ไว้ก่อนได้ แค่ต้องเปิดคืนตอนจะให้ Pages build)
 
 ### 1.3 ให้สิทธิ์ push
 วิธีง่ายสุด (ไม่ต้อง re-login): repo ใหม่ → Settings → Collaborators → Add people → `Zepyros11` → Write → แล้วรับคำเชิญที่เมล

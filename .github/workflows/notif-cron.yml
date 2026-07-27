@@ -14,6 +14,9 @@ on:
 
 jobs:
   fire:
+    # ปิดทั้ง workflow ได้จาก repo variable CRON_DISABLED=1 (ใช้ตอนรันคู่ขนาน — ดู docs/MIGRATION-2026-08.md)
+    # ไม่ตั้ง = ทำงานตามปกติ (production เดิมจึงไม่กระทบ)
+    if: vars.CRON_DISABLED != '1'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     strategy:
