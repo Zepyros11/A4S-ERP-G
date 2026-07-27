@@ -182,7 +182,26 @@ pg_restore --no-owner --no-privileges -d \
 
 ---
 
-## Phase 3 — Render proxy ตัวที่ 2
+## Phase 3 — Render proxy ตัวที่ 2 — ✅ เสร็จแล้ว 2026-07-27
+
+`https://a4s-erp-proxy-new.onrender.com` · ตรวจแล้ว:
+
+| ทดสอบ | ผล |
+|---|---|
+| `GET /` | ✅ `{"status":"ok"}` |
+| `GET /drive/health` | ✅ `{"ok":true,"configured":true}` |
+| อ่านไฟล์เดิมจาก Drive (product/poster/passport/visa/ticket) | ✅ 200 ทุกไฟล์ · ขนาดตรงกับ proxy เก่าไบต์ต่อไบต์ |
+| `POST /drive/upload` | ✅ อัปได้ + อ่านกลับได้ |
+| upload โดยไม่มี `x-drive-key` | ✅ 401 (gate ทำงาน) |
+| [sql/173](../sql/173_rewrite_proxy_urls.sql) เขียน URL ใหม่ | ✅ **503 แถว · เหลือค้าง 0** |
+
+> 🧹 มีไฟล์ทดสอบค้างใน Drive: `event-files/_migration-test-DELETE-ME.txt` — ลบทิ้งได้
+>
+> ⏳ proxy ใหม่จะ **หลับหลังไม่มีคนใช้ 15 นาที** (free tier) → โหลดรูปครั้งแรกช้า ~50 วินาที
+> เป็นเรื่องปกติช่วงเทสต์ เพราะ `keep-render-alive` ถูกปิดด้วย `CRON_DISABLED=1`
+> พอ cutover (ลบ variable) workflow จะ ping ทุก 10 นาที แล้วอาการนี้จะหาย
+
+### ค่า env ที่ตั้งไว้จริง (อ้างอิง)
 
 New → Web Service → เชื่อม repo `a4scontent/A4S-ERP-G` → Root Directory `ai-proxy` → plan Free → region Singapore
 ตั้งชื่อเช่น `a4s-erp-proxy-new` → URL `https://a4s-erp-proxy-new.onrender.com`
