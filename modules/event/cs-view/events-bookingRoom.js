@@ -3,10 +3,23 @@
 // ============================================================
 
 // --- Supabase API ---
+// fallback env-aware — ดู js/core/config.js + docs/MIGRATION-2026-08.md
 function getSB() {
+  const isNew =
+    window.ERP_IS_NEW ??
+    (localStorage.getItem("erp_env") === "new" ||
+      location.hostname.startsWith("a4scontent"));
   return {
-    url: localStorage.getItem("sb_url") || "https://dtiynydgkcqausqktreg.supabase.co",
-    key: localStorage.getItem("sb_key") || "sb_publishable_erMV0G_pNtPTYq-3frqv1Q_sIJ7KILD",
+    url:
+      localStorage.getItem("sb_url") ||
+      (isNew
+        ? "https://egnwfmdsqtxxyhyajnnu.supabase.co"
+        : "https://dtiynydgkcqausqktreg.supabase.co"),
+    key:
+      localStorage.getItem("sb_key") ||
+      (isNew
+        ? "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVnbndmbWRzcXR4eHloeWFqbm51Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUwNTI4ODEsImV4cCI6MjEwMDYyODg4MX0.5R47xGBQY0Nr92AP30kSNgpYkZ6pV-al9-JGxsimifc"
+        : "sb_publishable_erMV0G_pNtPTYq-3frqv1Q_sIJ7KILD"),
   };
 }
 async function sbFetch(table, query = "", opts = {}) {

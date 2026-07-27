@@ -16,7 +16,8 @@ const Q_TYPES = {
   number:      { icon: "🔢", label: "ตัวเลข" },
 };
 
-const PUBLIC_BASE = "https://zepyros11.github.io/A4S-ERP-G";
+// env switch — ดู js/core/config.js + docs/MIGRATION-2026-08.md
+const PUBLIC_BASE = (localStorage.getItem('erp_env') === 'new' ? 'https://a4scontent.github.io/A4S-ERP-G' : 'https://zepyros11.github.io/A4S-ERP-G');
 
 let _allForms = [];
 let _usageCounts = {};      // { form_id: number_of_events }

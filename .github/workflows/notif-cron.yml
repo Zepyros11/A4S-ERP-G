@@ -28,7 +28,7 @@ jobs:
         env:
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
         run: |
-          URL="https://a4s-erp-proxy.onrender.com/cron/${{ matrix.endpoint }}"
+          URL="${{ vars.PROXY_URL || 'https://a4s-erp-proxy.onrender.com' }}/cron/${{ matrix.endpoint }}"
           echo "POST $URL"
           if [ -n "$CRON_SECRET" ]; then
             HEADER="-H x-cron-secret:$CRON_SECRET"

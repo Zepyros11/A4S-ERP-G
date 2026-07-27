@@ -20,9 +20,17 @@
      created_at             TIMESTAMPTZ DEFAULT now()
 ============================================================ */
 
-const SB_URL_DEFAULT = "https://dtiynydgkcqausqktreg.supabase.co";
-const SB_KEY_DEFAULT =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR0aXlueWRna2NxYXVzcWt0cmVnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIyNjEwNTcsImV4cCI6MjA4NzgzNzA1N30.DmXwvBBvx3zK7rw21179ro65mTm0B4lQ20ktVMpAUQE";
+/* env switch — ดู js/core/config.js + docs/MIGRATION-2026-08.md */
+window.ERP_IS_NEW =
+  window.ERP_IS_NEW ??
+  (localStorage.getItem("erp_env") === "new" ||
+    location.hostname.startsWith("a4scontent"));
+const SB_URL_DEFAULT = window.ERP_IS_NEW
+  ? "https://egnwfmdsqtxxyhyajnnu.supabase.co"
+  : "https://dtiynydgkcqausqktreg.supabase.co";
+const SB_KEY_DEFAULT = window.ERP_IS_NEW
+  ? "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVnbndmbWRzcXR4eHloeWFqbm51Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUwNTI4ODEsImV4cCI6MjEwMDYyODg4MX0.5R47xGBQY0Nr92AP30kSNgpYkZ6pV-al9-JGxsimifc"
+  : "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR0aXlueWRna2NxYXVzcWt0cmVnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIyNjEwNTcsImV4cCI6MjA4NzgzNzA1N30.DmXwvBBvx3zK7rw21179ro65mTm0B4lQ20ktVMpAUQE";
 
 function getSB() {
   const storedKey = localStorage.getItem("sb_key") || "";

@@ -526,7 +526,7 @@ function buildSurveyEventUrl() {
   if (host.includes("github.io")) {
     base = `${location.origin}/${location.pathname.split("/")[1]}`;
   } else if (host === "127.0.0.1" || host === "localhost") {
-    base = "https://zepyros11.github.io/A4S-ERP-G";
+    base = (localStorage.getItem('erp_env') === 'new' ? 'https://a4scontent.github.io/A4S-ERP-G' : 'https://zepyros11.github.io/A4S-ERP-G');
   } else {
     base = location.origin;
   }

@@ -16,8 +16,9 @@ jobs:
     steps:
       - name: Ping ai-proxy health endpoint
         run: |
-          echo "Pinging https://a4s-erp-proxy.onrender.com/ ..."
-          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 60 https://a4s-erp-proxy.onrender.com/)
+          URL="${{ vars.PROXY_URL || 'https://a4s-erp-proxy.onrender.com' }}"
+          echo "Pinging $URL/ ..."
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 60 "$URL/")
           echo "HTTP status: $HTTP_CODE"
           if [ "$HTTP_CODE" != "200" ]; then
             echo "::warning::Unexpected status $HTTP_CODE — proxy may be down"

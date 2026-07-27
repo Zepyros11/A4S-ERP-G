@@ -367,7 +367,8 @@ window.openReport = function (id) {
 };
 // ── SHARE LINK MODAL (QR + Link) ──────────────────────────
 // ฐาน URL สาธารณะสำหรับลิงก์ที่แชร์ (ให้ได้ลิงก์ github.io แม้ตอน preview บน localhost)
-const PUBLIC_BASE = "https://zepyros11.github.io/A4S-ERP-G";
+// env switch — ดู js/core/config.js + docs/MIGRATION-2026-08.md
+const PUBLIC_BASE = (localStorage.getItem('erp_env') === 'new' ? 'https://a4scontent.github.io/A4S-ERP-G' : 'https://zepyros11.github.io/A4S-ERP-G');
 function buildRegUrl(token) {
   const host = location.hostname;
   let base;
