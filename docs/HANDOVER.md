@@ -34,12 +34,22 @@
 | GitHub | `a4scontent` | ฟรี |
 | Supabase | `a4scontent's Org` → project `a4scontent's Project` | ฟรี |
 | Render | service `a4s-erp-proxy-new` | ฟรี |
-| Google Drive | Shared Drive ของบริษัท (ผ่าน Google Cloud service account) | ใช้โควตา Workspace เดิม |
+| Google Drive | Shared Drive **`A4S-ERP-Images`** ของบริษัท | ใช้โควตา Workspace เดิม |
+| Google Cloud | project **`a4s-storage`** ใต้องค์กร **`a4s.global`** — ออก service account ให้เข้า Drive | ฟรี |
 | LINE | Messaging API channel **A4S Lyra** | ฟรี (มีโควตาข้อความ/เดือน) |
 
-> ⚠️ **ต้องตรวจ:** Google Cloud project ที่ออก service account ให้ Drive อยู่ใต้บัญชีใคร
-> ถ้ายังเป็นบัญชีส่วนตัวของผู้พัฒนาเดิม **วันที่ปิดบัญชีนั้น รูปทั้งระบบจะพังหมด**
-> (พาสปอร์ต · วีซ่า · ตั๋วเครื่องบิน · โปสเตอร์ · รูปสินค้า)
+### ✅ ตรวจแล้ว 29 ก.ค. 2569 — ขา Google Drive ไม่ผูกกับตัวบุคคล
+
+- **Shared Drive** = เป็นของ**องค์กร** ไม่ใช่ของคนสร้าง → บัญชีใครถูกลบ ไฟล์ก็ยังอยู่ครบ
+- **Google Cloud project `a4s-storage`** = อยู่ใต้องค์กร `a4s.global` (ID 414906114207) ไม่ใช่บัญชีส่วนตัว
+- **Service account** ที่ระบบใช้: `a4s-drive-uploader@a4s-storage.iam.gserviceaccount.com`
+  เป็นสมาชิกของ Shared Drive ระดับ **ผู้จัดการเนื้อหา**
+
+ผู้ดูแล Google Workspace ของบริษัทเข้าจัดการทั้งสองอย่างได้เสมอ
+
+> project อื่นในองค์กรเดียวกัน (ไม่เกี่ยวกับ ERP โดยตรงแต่บันทึกไว้): `A4S-Trend`, `A4S-Automation`, `A4S-Customer-Data-Project`, `Calendar`
+>
+> ⚠️ project ชื่อ `A4S-ERP` (id `a4s-erp`) ที่อยู่ใต้ Gmail ส่วนตัวของผู้พัฒนาเดิม **ไม่ได้ถูกใช้โดยระบบนี้** — อย่าสับสน
 
 ## 1.3 ตัวเลขที่ต้องเฝ้า
 
