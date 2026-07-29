@@ -4,6 +4,50 @@
 //          ก่อน sidebar.js ในทุกหน้าที่ต้องการป้องกัน
 // ============================================================
 
+/* ============================================================
+   Connection guard — ต้องอยู่บนสุด รันก่อนโค้ดอื่นทั้งหมด
+   ------------------------------------------------------------
+   ปัญหาที่แก้: มีแค่ 3 หน้าที่โหลด js/core/config.js (login, web-editor,
+   web-pages) · อีก ~94 หน้าอ่าน localStorage 'sb_url' ที่ค้างไว้ตั้งแต่ตอน login
+   → พอเปลี่ยนปลายทาง Supabase คนที่ login ค้างอยู่จะยังยิงเข้าฐานเดิม
+     จนกว่าจะ logout/login ใหม่ ทำให้ข้อมูลแตกเป็นสองทางแบบเงียบๆ
+
+   auth.js โหลดครบ 117 หน้า จึงคำนวณปลายทางใหม่ทุกครั้งที่โหลดหน้า
+   ค่าต้องตรงกับ js/core/config.js เสมอ (แก้ที่ไหนต้องแก้ทั้งคู่)
+   ดู docs/MIGRATION-2026-08.md
+   ============================================================ */
+(function () {
+  var isNew = (window.ERP_IS_NEW =
+    window.ERP_IS_NEW ?? (localStorage.getItem("erp_env") !== "old"));
+
+  var cfg = isNew
+    ? {
+        url: "https://egnwfmdsqtxxyhyajnnu.supabase.co",
+        key: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVnbndmbWRzcXR4eHloeWFqbm51Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUwNTI4ODEsImV4cCI6MjEwMDYyODg4MX0.5R47xGBQY0Nr92AP30kSNgpYkZ6pV-al9-JGxsimifc",
+        proxy: "https://a4s-erp-proxy-new.onrender.com",
+        driveKey: "7f2f204a8636f7136e23ec84924d691bde6879086605ece1",
+      }
+    : {
+        url: "https://dtiynydgkcqausqktreg.supabase.co",
+        key: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR0aXlueWRna2NxYXVzcWt0cmVnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIyNjEwNTcsImV4cCI6MjA4NzgzNzA1N30.DmXwvBBvx3zK7rw21179ro65mTm0B4lQ20ktVMpAUQE",
+        proxy: "https://a4s-erp-proxy.onrender.com",
+        driveKey: "e8a34e421ad649830e5da29bff37b9e2ec729c4e252ab337",
+      };
+
+  try {
+    if (localStorage.getItem("sb_url") !== cfg.url) {
+      console.info("[auth] ปลายทาง Supabase เปลี่ยน → อัปเดต localStorage");
+    }
+    localStorage.setItem("sb_url", cfg.url);
+    localStorage.setItem("sb_key", cfg.key);
+    localStorage.setItem("erp_proxy_url", cfg.proxy);
+    localStorage.setItem("erp_drive_key", cfg.driveKey);
+    localStorage.setItem("erp_drive_storage", "1");
+  } catch (e) {
+    /* โหมดส่วนตัว/localStorage ถูกปิด — ปล่อยผ่าน ไม่ให้ทั้งหน้าพัง */
+  }
+})();
+
 (function () {
   // ── 1. อ่าน Session ──────────────────────────────────────
   function getSession() {

@@ -167,7 +167,7 @@ VACUUM (ANALYZE) members;
 
 | เรื่อง | รายละเอียด |
 |---|---|
-| **config โหลดแค่ 3 หน้า** | มีแค่ `login.html`, `web-editor.html`, `web-pages.html` ที่โหลด [js/core/config.js](../js/core/config.js) · อีก 94 หน้าอ่าน `localStorage.getItem('sb_url')` ที่ 3 หน้านั้นเขียนไว้ · localStorage แยกตาม origin จึงใช้งานได้จริง แต่เปราะ |
+| **config โหลดแค่ 3 หน้า** | มีแค่ `login.html`, `web-editor.html`, `web-pages.html` ที่โหลด [js/core/config.js](../js/core/config.js) · อีก ~94 หน้าอ่าน `localStorage.getItem('sb_url')` ที่ 3 หน้านั้นเขียนไว้ · **ตั้งแต่ 29 ก.ค. 2569 มี "connection guard" อยู่บนสุดของ [js/core/auth.js](../js/core/auth.js)** (โหลดครบ 117 หน้า) คอยเขียน `sb_url`/`sb_key`/proxy ใหม่ทุกครั้งที่โหลดหน้า → เปลี่ยนปลายทาง Supabase แล้วคนที่ login ค้างอยู่ไม่ค้างที่ฐานเดิม · ⚠️ **ค่าใน `auth.js` กับ `config.js` ต้องตรงกันเสมอ — แก้ที่ไหนต้องแก้ทั้งคู่** |
 | **env switch** | โค้ดชุดเดียวรองรับ 2 สภาพแวดล้อม — ดู `window.ERP_IS_NEW` ใน config.js · ตกค้างจากช่วงย้ายระบบ **ลบทิ้งได้เมื่อระบบเก่าถูกปิดถาวรแล้ว** |
 | **RLS ปิดทั้งระบบ** | ทุกตารางใน `public` ปิด Row Level Security + `GRANT` ให้ `anon` · **CREATE TABLE ใหม่ทุกครั้งต้อง `DISABLE ROW LEVEL SECURITY` + `GRANT` ไม่งั้นหน้าเว็บพังเงียบๆ** (SQL Editor bypass RLS ทำให้หลอกตาว่าใช้ได้) |
 | **ไฟล์รูปอยู่ Google Drive** | URL เก็บเป็น `https://<proxy>/drive/file/<fileId>` — **hostname ของ proxy ฝังอยู่ในข้อมูล** ถ้าย้าย proxy ต้องรัน [sql/173_rewrite_proxy_urls.sql](../sql/173_rewrite_proxy_urls.sql) |
