@@ -37,8 +37,10 @@ build ผ่าน workflow ระบบ `pages-build-deployment` ปิด Acti
 
 ใช้ repo variable แทน — ทั้ง 4 workflow มี guard ระดับ job:
 ```yaml
-if: vars.CRON_DISABLED != '1'
+if: github.event_name == 'workflow_dispatch' || vars.CRON_DISABLED != '1'
 ```
+> **กดรันมือจากแท็บ Actions ยังทำได้เสมอ** แม้ตั้ง `CRON_DISABLED=1` ไว้ — จงใจให้ทดสอบได้ก่อน cutover
+> (ปิดเฉพาะการรันตามเวลาเท่านั้น)
 **Settings → Secrets and variables → Actions → แท็บ `Variables` → New repository variable**
 `CRON_DISABLED` = `1`
 
