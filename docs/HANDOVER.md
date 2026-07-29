@@ -44,6 +44,9 @@
 - **Google Cloud project `a4s-storage`** = อยู่ใต้องค์กร `a4s.global` (ID 414906114207) ไม่ใช่บัญชีส่วนตัว
 - **Service account** ที่ระบบใช้: `a4s-drive-uploader@a4s-storage.iam.gserviceaccount.com`
   เป็นสมาชิกของ Shared Drive ระดับ **ผู้จัดการเนื้อหา**
+- **สิทธิ์ Owner ของ `a4s-storage`**: ตั้งเพิ่มไว้แล้ว 2 คน (29 ก.ค. 2569) ซึ่งยังอยู่กับบริษัท
+  หลังผู้พัฒนาเดิมออก → project ไม่กลายเป็นของกำพร้า
+  ดูรายชื่อจริงได้ที่ Cloud Console → project `a4s-storage` → **IAM & Admin → IAM**
 
 ผู้ดูแล Google Workspace ของบริษัทเข้าจัดการทั้งสองอย่างได้เสมอ
 
