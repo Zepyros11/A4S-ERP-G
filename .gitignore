@@ -1,6 +1,10 @@
 # Environment files (secrets)
 .env
 *.env
+# สำเนา/ไฟล์สำรองของ .env — มีความลับเหมือนต้นฉบับ ห้าม commit
+.env.*
+*.env.*
+*.bak-*
 
 # Node modules (never commit)
 node_modules/
@@ -19,3 +23,6 @@ Thumbs.db
 .vscode/
 .idea/
 *.swp
+
+# เอกสารไอเดียภายใน (ไม่ขึ้น GitHub)
+mainIdea/
