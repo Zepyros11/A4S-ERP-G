@@ -1695,8 +1695,8 @@ function dsShiftDate(delta) {
 function dsSyncModalOpen() {
   $('dsSyncFrom').value = isoShift(todayIso(), -1); // today-1
   $('dsSyncTo').value = todayIso();
-  // reset โหมด → ยังไม่ปิดรอบ
-  const r = document.querySelector('input[name="dsCloseMode"][value="open"]');
+  // reset โหมด → ปิดรอบวันนี้ (เป็นการใช้งานปกติของ CS)
+  const r = document.querySelector('input[name="dsCloseMode"][value="close"]');
   if (r) { r.checked = true; dsCloseModeSel(r); }
   // reset โหมดทับข้อมูล → เก็บการเปลี่ยนแปลง (default ปลอดภัย)
   const k = document.querySelector('input[name="dsMergeMode"][value="keep"]');
