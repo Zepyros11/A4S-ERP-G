@@ -5,10 +5,7 @@
 // --- Supabase API ---
 // fallback env-aware — ดู js/core/config.js + docs/MIGRATION-2026-08.md
 function getSB() {
-  const isNew =
-    window.ERP_IS_NEW ??
-    (localStorage.getItem("erp_env") === "new" ||
-      location.hostname.startsWith("a4scontent"));
+  const isNew = window.ERP_IS_NEW ?? (localStorage.getItem("erp_env") !== "old");
   return {
     url:
       localStorage.getItem("sb_url") ||

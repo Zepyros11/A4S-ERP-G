@@ -7,8 +7,7 @@
    ============================================================ */
 window.ERP_IS_NEW =
   window.ERP_IS_NEW ??
-  (localStorage.getItem("erp_env") === "new" ||
-    location.hostname.startsWith("a4scontent"));
+  (localStorage.getItem("erp_env") !== "old");
 
 window.PORTAL_CONFIG = window.ERP_IS_NEW
   ? {

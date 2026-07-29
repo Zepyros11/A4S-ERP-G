@@ -1,8 +1,7 @@
 /* env switch — ดู js/core/config.js + docs/MIGRATION-2026-08.md */
 window.ERP_IS_NEW =
   window.ERP_IS_NEW ??
-  (localStorage.getItem("erp_env") === "new" ||
-    location.hostname.startsWith("a4scontent"));
+  (localStorage.getItem("erp_env") !== "old");
 
 window.supabaseConfig = window.ERP_IS_NEW
   ? {

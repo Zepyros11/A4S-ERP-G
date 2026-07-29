@@ -1,19 +1,19 @@
 /* ============================================================
    config.js — Supabase / Google Drive Connection Config
    ------------------------------------------------------------
-   รองรับ 2 สภาพแวดล้อมพร้อมกันช่วงย้ายไปบัญชีบริษัท (ดู docs/MIGRATION-2026-08.md)
-     • a4scontent.github.io          → Supabase + proxy ของบริษัท (ใหม่)
-     • zepyros11.github.io / อื่นๆ    → ของเดิม (production ที่ใช้อยู่)
+   ทุก URL ชี้ Supabase + proxy ของบริษัท (ใหม่) เป็นค่าเริ่มต้น (ดู docs/MIGRATION-2026-08.md)
+     • a4scontent.github.io   → ระบบใหม่ (ปลายทางถาวร)
+     • zepyros11.github.io    → ระบบใหม่เช่นกัน — เป็นแค่ "หน้ากาก" URL เดิมให้ผู้ใช้
+                                ระหว่างยังไม่ประกาศ URL ใหม่ · ฐานข้อมูลเหลือตัวเดียว
+                                จึงไม่มีปัญหาข้อมูลแยกสองทางอีก
 
-   localStorage แยกตาม origin อยู่แล้ว → 2 ระบบไม่กวนกัน
-   ทดสอบบนเครื่อง (localhost) ให้ชี้ของใหม่:
-     localStorage.setItem('erp_env','new')   แล้ว reload
-     localStorage.removeItem('erp_env')      = กลับของเดิม
+   ปุ่มถอยฉุกเฉิน (เฉพาะเครื่องที่สั่ง) — ให้กลับไปใช้ Supabase เดิม:
+     localStorage.setItem('erp_env','old')   แล้ว reload
+     localStorage.removeItem('erp_env')      = กลับมาใช้ระบบใหม่
    ============================================================ */
 window.ERP_IS_NEW =
   window.ERP_IS_NEW ??
-  (localStorage.getItem("erp_env") === "new" ||
-    location.hostname.startsWith("a4scontent"));
+  (localStorage.getItem("erp_env") !== "old");
 
 window.APP_CONFIG = window.ERP_IS_NEW
   ? {

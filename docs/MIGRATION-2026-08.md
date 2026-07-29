@@ -303,6 +303,38 @@ window.ERP_IS_NEW =
 
 ---
 
+## Phase 4.5 — Cutover ชั้นข้อมูล (✅ 29 ก.ค. 2569 เช้า)
+
+**ทำก่อน cutover เต็มรูปแบบ** — ยุบให้เหลือฐานข้อมูลเดียว แต่ยังคง URL เดิมไว้ให้ผู้ใช้
+
+เหตุผล: ระบบเก่ายังมีคนใช้และ sync ทุกชั่วโมง → ข้อมูล 2 ฝั่งแยกกันทุกวัน
+ถ้าไม่ยุบ ต้องนั่งย้าย delta ไปเรื่อยๆ จนถึงวัน cutover
+
+```
+zepyros11.github.io  ┐
+                     ├──→  Supabase ใหม่ (a4scontent)  ←── ตัวเดียว
+a4scontent.github.io ┘
+```
+
+| # | เปลี่ยนที่ | เปลี่ยนอะไร |
+|---|---|---|
+| 1 | Render **เก่า** (`a4s-erp-proxy`) | `SB_URL` + `SB_SERVICE_KEY` → project ใหม่ (LINE webhook/cron เขียนลง DB ใหม่) |
+| 2 | GitHub Secrets repo **เก่า** | `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `MASTER_KEY` → ค่าใหม่ (⚠️ MASTER_KEY ต้องเป็นคีย์หลัง re-key) |
+| 3 | โค้ด (push ทั้ง 2 repo) | env switch เปลี่ยน default เป็น "ใหม่" ทุก hostname |
+| 4 | repo ใหม่ | คง `CRON_DISABLED=1` ไว้ → cron วิ่งชุดเดียวจาก repo เก่า |
+
+**ก่อนสลับต้องทำ delta sync ให้ข้อมูล 2 ฝั่งตรงกันก่อน** — คราวนี้ต่างกัน 6 ตาราง
+(daily_sale 5 ตาราง + events/notifications/room_booking_requests/sync_log/notification_log)
+ตรวจด้วย md5 checksum รายแถว ไม่ใช่แค่นับจำนวน · และ **resync sequence** หลัง insert ด้วย `setval`
+
+**วิธียืนยันว่า proxy ชี้ DB ใหม่จริง:** เรียก `GET /line/diag` — ถ้า `SB_URL` เป็นของเก่าแต่ key เป็นของใหม่
+Supabase จะตอบ 401 · ได้ 200 ทุกตาราง = URL กับ key เป็นคู่เดียวกันของ project ใหม่
+
+**ปุ่มถอยฉุกเฉิน** (ต่อเครื่อง ไม่ต้อง deploy): `localStorage.setItem('erp_env','old'); location.reload()`
+Supabase เก่าถูกแช่แข็งไว้เป็นจุด rollback
+
+---
+
 ## Phase 5 — LINE + Webhook
 
 LINE ผูกกับระบบ 3 จุด และ **ทุกจุดชี้ปลายทางได้ที่เดียว**:
