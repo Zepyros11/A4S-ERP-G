@@ -331,7 +331,29 @@ a4scontent.github.io ┘
 Supabase จะตอบ 401 · ได้ 200 ทุกตาราง = URL กับ key เป็นคู่เดียวกันของ project ใหม่
 
 **ปุ่มถอยฉุกเฉิน** (ต่อเครื่อง ไม่ต้อง deploy): `localStorage.setItem('erp_env','old'); location.reload()`
-Supabase เก่าถูกแช่แข็งไว้เป็นจุด rollback
+
+### กับดัก 2 อย่างที่เจอตอนทำจริง (ถ้าพลาดจะเงียบมาก)
+
+1. **คนที่ login ค้างจะยังยิงเข้าฐานเดิม** — `sb_url` ถูกเก็บใน localStorage ตอน login
+   และมีแค่ 3 หน้าที่โหลด `config.js` มาคำนวณใหม่
+   → แก้ด้วย **connection guard** บนสุดของ [js/core/auth.js](../js/core/auth.js) (โหลดครบ 117 หน้า)
+2. **URL รูปที่ยังอยู่ใน Supabase Storage** (ไม่ได้ย้ายไป Drive) ฝัง project ref ไว้ 7 แถว
+   รวม `app_settings.company_logo_url` ที่ขึ้นทุกหน้า → แก้ด้วย [sql/174](../sql/174_rewrite_supabase_storage_urls.sql)
+
+### ✅ pause project เก่าแล้ว (29 ก.ค. 2569)
+
+ทดสอบโดยการ **pause** project เก่า — ถ้ามีอะไรหลงเหลือชี้ฐานเดิมจะพังทันทีให้เห็น
+
+| ตรวจ | ผล |
+|---|---|
+| ต่อฐานเก่า | `tenant not found` = pause สำเร็จ |
+| ดึง `member_master_key` ผ่าน REST | ไม่มีข้อมูลตอบกลับ → **เลขบัตรประชาชนที่เคยเปิดอยู่ ถูกปิดแล้ว** |
+| ระบบใหม่หลัง pause | ใช้งานปกติ · `daily_sale_bills` +52 · `events` +2 ในวันเดียว |
+
+ข้อมูลยังเพิ่มขึ้นเรื่อยๆ ทั้งที่ฐานเก่าปิดไปแล้ว = ไม่มีอะไรพึ่งฐานเก่าเหลืออยู่
+
+> ⚠️ หลัง pause **ปุ่มถอยฉุกเฉินใช้ไม่ได้แล้ว** (ฐานไม่ตอบ)
+> ตาข่ายรองที่เหลือคือ dump 2 ชุดที่ `D:/@Projects/A4S-backups/migration-2026-07-27/`
 
 ---
 
