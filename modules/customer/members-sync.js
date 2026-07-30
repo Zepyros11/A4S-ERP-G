@@ -374,8 +374,12 @@ async function syncNow() {
     showToast('ต้องใส่ GitHub PAT ก่อน', 'error');
     return;
   }
+  // ยังไม่มี master key → ขอจาก proxy (ปกติ login ดึงมาให้แล้ว · ดู js/core/crypto.js)
+  if (window.ERPCrypto?.ensureMasterKey && !ERPCrypto.hasMasterKey()) {
+    await ERPCrypto.ensureMasterKey();
+  }
   if (!ERPCrypto.hasMasterKey()) {
-    showToast('ต้องตั้ง Master Key ก่อน', 'error');
+    showToast('ยังไม่ได้ Master Key — ลอง logout แล้ว login ใหม่', 'error');
     return;
   }
 

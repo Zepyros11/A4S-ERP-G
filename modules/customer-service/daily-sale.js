@@ -1719,8 +1719,13 @@ async function dsSyncNow() {
     toast('ต้องตั้งค่า GitHub Integration ก่อน (ไปที่ Web Automation)', 'error');
     return;
   }
+  // ยังไม่มี master key ในเครื่องนี้ → ขอจาก proxy (ปกติ login จะดึงมาให้แล้ว
+  // ถ้าพลาดจะเด้งถามรหัสผ่าน ERP เป็นทางสำรอง) — ดู js/core/crypto.js
+  if (window.ERPCrypto?.ensureMasterKey && !ERPCrypto.hasMasterKey()) {
+    await ERPCrypto.ensureMasterKey();
+  }
   if (!window.ERPCrypto || !ERPCrypto.hasMasterKey()) {
-    toast('ต้องตั้ง Master Key ก่อน', 'error');
+    toast('ยังไม่ได้ Master Key — ลอง logout แล้ว login ใหม่', 'error');
     return;
   }
 
