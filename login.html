@@ -635,6 +635,39 @@
             localStorage.removeItem("erp_remember_user");
             sessionStorage.setItem("erp_session", JSON.stringify(sessionData));
           }
+
+          /* ── ขอ master key จาก ai-proxy ตอน login (ผู้ใช้ไม่ต้องทำอะไรเพิ่ม) ──
+             กุญแจถอดรหัสข้อมูลสมาชิกย้ายจาก app_settings (ที่ anon key อ่านได้)
+             ไปเก็บใน env ของ proxy แล้ว — ดู docs/HANDOVER.md 2.3 ข้อ 1
+
+             ทำตรงนี้เพราะเป็นจุดเดียวที่มีรหัสผ่านอยู่ในมือ → ไม่ต้องเด้ง popup
+             ถามซ้ำทีหลัง (มี 16/20 คนที่มีสิทธิ์ member_decrypt — เยอะเกินจะไล่บอก)
+
+             best-effort: ล้มเหลว/ช้า = ปล่อยผ่าน ไม่ขวางการ login
+             ถ้าไม่ได้กุญแจตอนนี้ ERPCrypto.ensureMasterKey() จะถามรหัสผ่านให้ทีหลัง */
+          try {
+            const proxyBase = (localStorage.getItem("erp_proxy_url") || "").replace(/\/+$/, "");
+            if (proxyBase && effectivePerms.includes("member_decrypt")) {
+              const ac = new AbortController();
+              const t = setTimeout(() => ac.abort(), 6000);   // ไม่ให้ login ค้างถ้า proxy หลับ
+              const mkRes = await fetch(`${proxyBase}/master-key`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ username, password }),
+                signal: ac.signal,
+              });
+              clearTimeout(t);
+              const mk = await mkRes.json().catch(() => ({}));
+              if (mk?.ok && mk.key) {
+                localStorage.setItem("erp_master_key", mk.key);
+              } else {
+                console.warn("[login] ขอ master key ไม่สำเร็จ:", mk?.error || mkRes.status);
+              }
+            }
+          } catch (e) {
+            console.warn("[login] ขอ master key ไม่สำเร็จ (ข้ามไป):", e.name || e.message);
+          }
+
           const redirectPath = sessionStorage.getItem("erp_redirect");
           sessionStorage.removeItem("erp_redirect");
           /* landing priority: stored redirect > role.landing_path > dashboard */
