@@ -130,6 +130,77 @@
       .join("");
   }
 
+  /* ============================================================
+     ensureMasterKey() — ขอกุญแจจาก ai-proxy (แทนการอ่านจาก app_settings)
+     ------------------------------------------------------------
+     เดิมกุญแจเก็บใน app_settings ซึ่ง anon key อ่านได้ = ใครก็ดึงไปถอด
+     ข้อมูลส่วนตัวสมาชิกได้โดยไม่ต้อง login (ดู docs/HANDOVER.md 2.3 ข้อ 1)
+
+     ตอนนี้กุญแจอยู่ใน env ของ proxy · ต้องยืนยันรหัสผ่าน ERP ของตัวเอง
+     และมีสิทธิ์ member_decrypt ก่อน proxy จะคืนค่าให้
+
+     คืน true = พร้อมใช้ · false = ไม่มีสิทธิ์ / ยกเลิก / ขอไม่สำเร็จ
+     ============================================================ */
+  async function ensureMasterKey() {
+    if (hasMasterKey()) return true;
+    if (!(window.AuthZ && AuthZ.hasPerm("member_decrypt"))) return false;
+
+    const proxy = (localStorage.getItem("erp_proxy_url") || "").replace(/\/+$/, "");
+    const username = window.ERP_USER?.username;
+    if (!proxy || !username) {
+      console.warn("[crypto] ไม่มี erp_proxy_url หรือ username — ขอกุญแจไม่ได้");
+      return false;
+    }
+
+    let password = null;
+    if (window.PromptModal) {
+      password = await PromptModal.open({
+        title: "ยืนยันตัวตนเพื่อดูข้อมูลลับ",
+        message:
+          `กรอกรหัสผ่าน ERP ของคุณ (${username}) เพื่อเปิดดูข้อมูลที่เข้ารหัสไว้\n` +
+          `ยืนยันครั้งเดียวต่อเครื่อง`,
+        icon: "🔐",
+        inputType: "password",
+        placeholder: "รหัสผ่านของคุณ",
+        okText: "ยืนยัน",
+        required: true,
+        tone: "primary",
+      });
+    } else {
+      console.warn("[crypto] ไม่มี PromptModal — ต้องใส่ <script src=.../promptModal.js>");
+      return false;
+    }
+    if (!password) return false;   // null = กด ยกเลิก
+
+    try {
+      const res = await fetch(`${proxy}/master-key`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.ok || !data.key) {
+        const msg = data.error || `ขอกุญแจไม่สำเร็จ (HTTP ${res.status})`;
+        if (window.toast) toast(msg, "error");
+        else alert(msg);
+        return false;
+      }
+      setMasterKey(data.key);
+      /* ยืนยันว่าคีย์ถอดข้อมูลจริงได้ ไม่ใช่แค่รูปแบบถูก */
+      if (!(await verifyMasterKey())) {
+        clearMasterKey();
+        if (window.toast) toast("กุญแจที่ได้มาใช้ถอดรหัสไม่ได้ — แจ้งผู้ดูแลระบบ", "error");
+        return false;
+      }
+      return true;
+    } catch (e) {
+      const msg = `ติดต่อ proxy ไม่ได้: ${e.message}`;
+      if (window.toast) toast(msg, "error");
+      console.error("[crypto] ensureMasterKey", e);
+      return false;
+    }
+  }
+
   /* ── Export ── */
   window.ERPCrypto = {
     encrypt,
@@ -139,5 +210,6 @@
     hasMasterKey,
     clearMasterKey,
     verifyMasterKey,
+    ensureMasterKey,
   };
 })();

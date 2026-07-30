@@ -2888,6 +2888,107 @@ app.post('/bell/notify', async (req, res) => {
   }
 });
 
+/* ============================================================
+   POST /master-key — คืนกุญแจถอดรหัสข้อมูลสมาชิก (ต้องยืนยันตัวตนก่อน)
+   ------------------------------------------------------------
+   ทำไมต้องมี: เดิมกุญแจเก็บใน app_settings.member_master_key ซึ่ง anon key
+   อ่านได้ (RLS ปิดทั้งระบบ + anon key อยู่ใน repo สาธารณะ)
+   = ใครก็ดึงกุญแจไปถอดข้อมูลส่วนตัวสมาชิกแสนคนได้ โดยไม่ต้อง login
+
+   ตอนนี้กุญแจอยู่ใน env ของ proxy (MEMBER_MASTER_KEY) เท่านั้น
+   จะได้ต้องผ่าน 3 ด่าน: รหัสผ่าน ERP ถูก → บัญชียัง active → มีสิทธิ์ member_decrypt
+
+   body: { username, password }   → { ok:true, key }
+   ดู docs/HANDOVER.md ส่วนที่ 2.3 ข้อ 1
+   ============================================================ */
+const MEMBER_MASTER_KEY = process.env.MEMBER_MASTER_KEY || '';
+const REQUIRED_PERM     = 'member_decrypt';
+
+/* กัน brute-force: นับครั้งที่ล้มเหลวต่อ username+IP (in-memory พอ — proxy ตัวเดียว) */
+const _mkFails = new Map();          // key → { n, until }
+const MK_MAX_FAILS   = 5;
+const MK_LOCK_MS     = 10 * 60 * 1000;
+
+function _mkGate(key) {
+  const rec = _mkFails.get(key);
+  if (rec && rec.until > Date.now()) return Math.ceil((rec.until - Date.now()) / 1000);
+  return 0;
+}
+function _mkFail(key) {
+  const rec = _mkFails.get(key) || { n: 0, until: 0 };
+  rec.n += 1;
+  if (rec.n >= MK_MAX_FAILS) { rec.until = Date.now() + MK_LOCK_MS; rec.n = 0; }
+  _mkFails.set(key, rec);
+}
+
+app.post('/master-key', async (req, res) => {
+  try {
+    if (!MEMBER_MASTER_KEY) {
+      return res.status(503).json({ ok: false, error: 'ยังไม่ได้ตั้ง MEMBER_MASTER_KEY ที่ proxy' });
+    }
+    if (!SB_URL_WEBHOOK || !SB_SERVICE_KEY) {
+      return res.status(503).json({ ok: false, error: 'SB_URL/SB_SERVICE_KEY not configured' });
+    }
+
+    const username = (req.body?.username || '').toString().trim();
+    const password = (req.body?.password || '').toString();
+    if (!username || !password) {
+      return res.status(400).json({ ok: false, error: 'ต้องส่ง username และ password' });
+    }
+
+    const gateKey = `${username}|${req.ip}`;
+    const wait = _mkGate(gateKey);
+    if (wait) {
+      return res.status(429).json({ ok: false, error: `ลองผิดหลายครั้งเกินไป — รออีก ${wait} วินาที` });
+    }
+
+    /* ── 1. หา user (service_role — ฝั่ง browser อ่านตารางนี้ไม่ได้อีกแล้วในอนาคต) ── */
+    const rows = await _sbGet(
+      'users',
+      `select=user_id,username,password,password_hash,is_active,role,roles,custom_permissions` +
+      `&username=eq.${encodeURIComponent(username)}&is_active=eq.true&limit=1`
+    );
+    const user = Array.isArray(rows) ? rows[0] : null;
+
+    /* ── 2. ตรวจรหัสผ่าน — SHA-256 hex เหมือน login.html (ไม่มี salt: หนี้ทางเทคนิคที่รู้อยู่) ── */
+    let ok = false;
+    if (user) {
+      const hash = crypto.createHash('sha256').update(password, 'utf8').digest('hex');
+      if (user.password_hash) ok = hash === user.password_hash;
+      else if (user.password)  ok = password === user.password;
+    }
+    if (!ok) {
+      _mkFail(gateKey);
+      /* ข้อความเดียวกันทั้งกรณีไม่มี user และรหัสผิด — ไม่บอกใบ้ว่า username มีจริงไหม */
+      return res.status(401).json({ ok: false, error: 'username หรือรหัสผ่านไม่ถูกต้อง' });
+    }
+
+    /* ── 3. รวมสิทธิ์: role_configs.permissions ของทุก role + custom_permissions ── */
+    const roleKeys = (Array.isArray(user.roles) && user.roles.length)
+      ? user.roles.filter(Boolean)
+      : (user.role ? [user.role] : []);
+    let perms = Array.isArray(user.custom_permissions) ? [...user.custom_permissions] : [];
+    if (roleKeys.length) {
+      const inList = roleKeys.map((k) => `"${k}"`).join(',');
+      const cfgs = await _sbGet('role_configs', `select=role_key,permissions&role_key=in.(${encodeURIComponent(inList)})`);
+      for (const c of (cfgs || [])) {
+        if (Array.isArray(c.permissions)) perms = perms.concat(c.permissions);
+      }
+    }
+    if (!new Set(perms).has(REQUIRED_PERM)) {
+      console.warn(`[master-key] ปฏิเสธ ${username} — ไม่มีสิทธิ์ ${REQUIRED_PERM}`);
+      return res.status(403).json({ ok: false, error: `บัญชีนี้ไม่มีสิทธิ์ ${REQUIRED_PERM}` });
+    }
+
+    _mkFails.delete(gateKey);
+    console.log(`[master-key] อนุมัติ ${username} (user_id=${user.user_id})`);
+    return res.json({ ok: true, key: MEMBER_MASTER_KEY });
+  } catch (e) {
+    console.error('[master-key]', e.message);
+    return res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
 /* ── Start ─────────────────────────────────────────────── */
 app.listen(PORT, () => {
   console.log('');
@@ -2910,6 +3011,7 @@ app.listen(PORT, () => {
   console.log(`  → http://localhost:${PORT}/cron/notifications (Scheduled LINE — every 15 min)${CRON_SECRET ? ' 🔒' : ''}`);
   console.log(`  → http://localhost:${PORT}/cron/line-promote  (LINE Promote scheduler — every 15 min)${CRON_SECRET ? ' 🔒' : ''}`);
   console.log(`  → http://localhost:${PORT}/cron/prune-qr      (ลบ QR event จบเกิน ${QR_PRUNE_GRACE_DAYS} วัน — daily)${CRON_SECRET ? ' 🔒' : ''}`);
+  console.log(`  → http://localhost:${PORT}/master-key       (กุญแจถอดรหัสสมาชิก ${MEMBER_MASTER_KEY ? '✅ 🔒 ต้องยืนยันรหัสผ่าน' : '❌ ไม่ได้ตั้ง MEMBER_MASTER_KEY'})`);
   if (SB_URL_WEBHOOK && SB_SERVICE_KEY) {
     console.log(`  ✅ Webhook + cron will update Supabase`);
   } else {

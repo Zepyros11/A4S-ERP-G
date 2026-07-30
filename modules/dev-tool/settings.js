@@ -43,6 +43,11 @@ async function _populateFields() {
   document.getElementById('lineSuccess').checked = !!config.line_notify_on_success;
 
   // Decrypt sensitive fields if master key available
+  // ยังไม่มี key ในเครื่องนี้ → ขอจาก proxy (จะเด้งถามรหัสผ่าน ERP ครั้งเดียว)
+  if (window.ERPCrypto?.ensureMasterKey && !ERPCrypto.hasMasterKey()
+      && (config.github_pat_encrypted || config.line_token_encrypted)) {
+    await ERPCrypto.ensureMasterKey();
+  }
   if (!window.ERPCrypto || !ERPCrypto.hasMasterKey()) {
     if (config.github_pat_encrypted) document.getElementById('ghPat').placeholder = '(encrypted — ต้อง Master Key)';
     if (config.line_token_encrypted) document.getElementById('lineToken').placeholder = '(encrypted — ต้อง Master Key)';

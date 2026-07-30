@@ -20,49 +20,31 @@ function _canDecrypt() {
          && window.ERPCrypto && ERPCrypto.hasMasterKey());
 }
 
-/* ── Auto-fetch master key จาก app_settings (สำหรับ user ที่มี perm
-      แต่ยังไม่มี key ใน localStorage — เช่น login บนเครื่องใหม่)
-      Return true ถ้า key พร้อมใช้, false ถ้ายังไม่มี/ดึงไม่ได้ ── */
+/* ── ขอ master key จาก ai-proxy (ต้องยืนยันรหัสผ่าน ERP + มีสิทธิ์ member_decrypt)
+      เดิมอ่านจาก app_settings ซึ่ง anon key อ่านได้ = ใครก็ดึงกุญแจไปถอด
+      ข้อมูลสมาชิกได้โดยไม่ต้อง login · ย้ายไปไว้ที่ proxy 30 ก.ค. 2569
+      ตรรกะอยู่ที่ ERPCrypto.ensureMasterKey() (js/core/crypto.js) ── */
 async function _ensureMasterKey() {
-  if (!window.AuthZ || !AuthZ.hasPerm('member_decrypt')) return false;
-  if (!window.ERPCrypto) return false;
-  if (ERPCrypto.hasMasterKey()) return true;
-  if (!SUPABASE_URL || !SUPABASE_KEY) return false;
+  if (!window.ERPCrypto?.ensureMasterKey) return false;
+  const ok = await ERPCrypto.ensureMasterKey();
+  if (!ok) return false;
+
+  /* ยืนยันซ้ำกับ data จริง — round-trip "test" ไม่พอ เพราะ key ผิดก็ผ่าน */
   try {
-    const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/app_settings?key=eq.member_master_key&select=value`,
+    const probeRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/members?password_encrypted=not.is.null&select=password_encrypted&limit=1`,
       { headers: _sbHeaders() }
     );
-    if (!res.ok) return false;
-    const rows = await res.json();
-    const key = rows?.[0]?.value;
-    // กัน placeholder ที่ admin ลืมแทนด้วย key จริง
-    if (!key || /^(REPLACE_ME|PASTE_KEY|YOUR_REAL|YOUR_KEY|TODO|XXX)/i.test(key)) {
-      console.warn('[members-list] master key in app_settings looks like a placeholder:', key);
-      return false;
+    const probeRows = await probeRes.json();
+    const blob = probeRows?.[0]?.password_encrypted;
+    if (blob) {
+      const plain = await ERPCrypto.decrypt(blob);
+      if (plain == null) throw new Error('decrypt returned null');
     }
-    if (key.length < 8) return false;
-    ERPCrypto.setMasterKey(key);
-    // Verify โดย decrypt blob จริงจาก members (round-trip "test" ไม่พอ
-    // เพราะ encrypt+decrypt ด้วย key ผิดก็ผ่าน — ต้องเทียบกับ data จริง)
-    try {
-      const probeRes = await fetch(
-        `${SUPABASE_URL}/rest/v1/members?password_encrypted=not.is.null&select=password_encrypted&limit=1`,
-        { headers: _sbHeaders() }
-      );
-      const probeRows = await probeRes.json();
-      const blob = probeRows?.[0]?.password_encrypted;
-      if (blob) {
-        const plain = await ERPCrypto.decrypt(blob);
-        if (plain == null) throw new Error('decrypt returned null');
-      }
-      return true;
-    } catch (e) {
-      console.warn('[members-list] master key from app_settings is wrong — clearing:', e.message);
-      ERPCrypto.clearMasterKey();
-      return false;
-    }
-  } catch {
+    return true;
+  } catch (e) {
+    console.warn('[members-list] master key ถอดข้อมูลจริงไม่ได้ — ล้างทิ้ง:', e.message);
+    ERPCrypto.clearMasterKey();
     return false;
   }
 }

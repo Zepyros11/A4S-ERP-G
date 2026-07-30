@@ -7055,25 +7055,18 @@ function personTypeLabel(memberCode, personRole) {
 }
 
 // ── บัตรประชาชน (auto จากข้อมูลสมาชิก) ────────────────────────
-// Auto-load master key จาก app_settings สำหรับ user ที่มีสิทธิ์ member_decrypt
-// แต่ยังไม่มี key ในเครื่องนี้ (pattern เดียวกับ members-list._ensureMasterKey)
+// ขอ master key จาก ai-proxy (ต้องยืนยันรหัสผ่าน ERP + มีสิทธิ์ member_decrypt)
+// เดิมอ่านจาก app_settings ซึ่ง anon key อ่านได้ — ย้ายไปที่ proxy 30 ก.ค. 2569
+// ตรรกะอยู่ที่ ERPCrypto.ensureMasterKey() (js/core/crypto.js)
+// _nidMasterKeyTried กันไม่ให้เด้ง popup ถามรหัสผ่านซ้ำเมื่อ user กดยกเลิกไปแล้ว
 let _nidMasterKeyTried = false;
 async function _ensureMasterKeyForDecrypt() {
-  if (!window.ERPCrypto) return false;
+  if (!window.ERPCrypto?.ensureMasterKey) return false;
   if (ERPCrypto.hasMasterKey()) return true;
   if (!(window.AuthZ && AuthZ.hasPerm("member_decrypt"))) return false;
   if (_nidMasterKeyTried) return ERPCrypto.hasMasterKey();
   _nidMasterKeyTried = true;
-  try {
-    const rows = await sbFetch("app_settings", "?key=eq.member_master_key&select=value");
-    const key = String((rows && rows[0] && rows[0].value) || "").trim();
-    if (!key || key.length < 8 || /^(REPLACE_ME|PASTE_KEY|YOUR_REAL|YOUR_KEY|TODO|XXX)/i.test(key)) return false;
-    ERPCrypto.setMasterKey(key);
-    return true;
-  } catch (e) {
-    console.warn("master key auto-load:", e.message);
-    return false;
-  }
+  return await ERPCrypto.ensureMasterKey();
 }
 
 // ดึง+ถอดรหัสเลขบัตรประชาชนของสมาชิก · null = ถอดรหัสไม่ได้/ไม่มีข้อมูล (→ ให้กรอกมือ)
