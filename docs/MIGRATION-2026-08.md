@@ -506,8 +506,15 @@ a4scontent เป็น Google One 2 TB ใช้ไป 1.03 TB → เหลื
 | 4 | ขอ refresh token | `node scripts/drive-get-refresh-token.cjs <id> <secret>` → ยืนยันบัญชี a4scontent · เหลือ 994 GB | ✅ |
 | 5 | อัปเข้า My Drive + ได้ id-map | `node scripts/drive-upload-to-personal.cjs` | ✅ **682/682** · id-map 682 คู่ · ตรวจกับ Drive จริงแล้วไม่มีไฟล์เกิน/ขาด |
 | 6 | สร้าง SQL เขียน fileId ใหม่ | `node scripts/drive-gen-id-rewrite-sql.cjs` | ✅ [sql/183](../sql/183_rewrite_drive_file_ids.sql) + [check](../sql/183_rewrite_drive_file_ids_check.sql) |
-| 7 | ตั้ง env ที่ Render + รัน SQL | ดู "ขั้นตอน cutover" | ⬜ **ต้องทำมือ** |
+| 7 | ตั้ง env ที่ Render + รัน SQL | `/drive/health` → `mode:oauth` · [sql/183](../sql/183_rewrite_drive_file_ids.sql) → **507 แถว** · check → **0** | ✅ 3 ส.ค. 2569 |
 | 8 | rotate client secret + เฝ้า 1-2 สัปดาห์ แล้วค่อยลบ Shared Drive | — | ⬜ |
+
+**ตรวจปลายทางแล้ว (DB → proxy → ไฟล์จริง):** `product_images.url` · `events.poster_url` ·
+`tour_seat_check.passport_image_url` · `trip_flight_tickets.ticket_url` → **id ใหม่ + HTTP 200 ทุกตัว**
+
+> ⏱ **ช่วงรูปล่มระหว่าง cutover ~นาที** — พอ Render deploy โค้ดใหม่พร้อม env OAuth
+> proxy จะมองไม่เห็น Shared Drive ทันที แต่ DB ยังชี้ id เก่า → รูปพังจนกว่าจะรัน SQL 183
+> **ครั้งหน้าให้เตรียม SQL ไว้ในแท็บ SQL Editor ก่อน แล้วกด Run ทันทีที่ `/drive/health` ขึ้น `mode:oauth`**
 
 **ทดสอบโหมด OAuth บนเครื่องแล้ว (ก่อนแตะ Render):** `mode=oauth` · อ่านไฟล์ที่ย้ายมา (jpg/pdf) 200 ครบ ·
 **อัปไฟล์ใหม่สำเร็จ** (จุดที่ service account จะ 403) · อ่านกลับได้ · ลบได้
