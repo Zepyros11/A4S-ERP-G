@@ -1,0 +1,977 @@
+/* ============================================================
+   stock-check.css — ตรวจนับสต็อก (Stock F.3)
+   ต่อยอดจาก css/main.css — ที่นี่เก็บเฉพาะส่วนที่เป็นของหน้านี้
+   prefix `sc-` ทั้งหมด (กันชนกับ CSS ที่ sidebar.js inject ตอน runtime)
+   ============================================================ */
+
+/* ── แถบเลือกรอบตรวจนับ ─────────────────────────────────── */
+.sc-session-bar {
+  display: flex;
+  align-items: flex-end;
+  gap: 14px;
+  flex-wrap: wrap;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 14px 18px;
+  margin-bottom: 16px;
+  box-shadow: var(--shadow-sm);
+}
+
+/* ── แถบเลือกวันที่นับ (รูปแบบเดียวกับหน้า Daily Sale ของ CS) ── */
+.sc-date-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text2);
+  white-space: nowrap;
+}
+.sc-date-label .form-control {
+  width: auto;
+  min-width: 150px;
+}
+.sc-datenav {
+  display: inline-flex;
+  align-items: stretch;
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--surface);
+}
+.sc-datenav button {
+  border: none;
+  background: var(--surface);
+  color: var(--text2);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 8px 14px;
+  line-height: 1.2;
+}
+.sc-datenav button + button {
+  border-left: 1.5px solid var(--border);
+}
+.sc-datenav button:hover:not(:disabled) {
+  background: var(--accent-pale);
+  color: var(--accent);
+}
+.sc-nav-chip {
+  font-size: 18px;
+  font-weight: 900;
+  padding: 8px 13px;
+}
+.sc-nav-chip:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+  background: var(--surface2);
+}
+/* "วันนี้" เขียวเข้มเมื่ออยู่ที่วันปัจจุบัน — บอกทันทีว่ากำลังดูใบที่กรอกได้อยู่ */
+.sc-datenav #scToday {
+  min-width: 64px;
+}
+.sc-datenav #scToday.active,
+.sc-datenav #scToday.active:hover {
+  background: var(--accent);
+  color: #fff;
+}
+/* คลังประจำ — ป้ายอ่านอย่างเดียว ไม่ใช่ dropdown (ตั้งที่ app_settings) */
+.sc-wh-fixed {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 7px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text2);
+  white-space: nowrap;
+}
+.sc-wh-fixed.sc-wh-missing {
+  background: #fef2f2;
+  border-color: #fecaca;
+  color: #b91c1c;
+}
+/* .sc-session-meta / .sc-meta-chip ถูกลบทิ้งแล้ว — ชิปคลัง/สถานะ/ผู้บันทึก
+   บอกซ้ำกับป้าย 🏭 ทางซ้าย · แถบหัวเรื่องวันที่ · และปุ่มล็อกทางขวา
+   ตอนนี้สถานะอยู่ที่แถบหัวเรื่องวันที่ (.sc-sheet-title) ที่เดียว */
+
+.sc-session-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding-bottom: 2px;
+}
+.sc-btn-danger {
+  color: var(--danger, #b91c1c);
+  border-color: #fecaca;
+}
+.sc-btn-danger:hover {
+  background: #fef2f2;
+}
+
+/* ── แถบหัวเรื่องวันที่ (ชุดเดียวกับ .ds-sheet-title ของ Daily Sale) ── */
+.sc-sheet-title {
+  background: linear-gradient(180deg, #fef9c3, #fde68a);
+  border: 1px solid #eab308;
+  border-radius: 10px;
+  padding: 10px 16px;
+  margin-bottom: 12px;
+  text-align: center;
+  font-weight: 800;
+  font-size: 15px;
+  color: #713f12;
+  letter-spacing: 0.2px;
+}
+.sc-sheet-title-sub {
+  font-weight: 600;
+  font-size: 13px;
+  color: #854d0e;
+  opacity: 0.85;
+}
+/* ใบย้อนหลัง — เทาแทนเหลือง กันเผลอกรอกใส่ใบเก่าโดยไม่ทันสังเกตวันที่ */
+.sc-sheet-title-past {
+  background: linear-gradient(180deg, #f1f5f9, #e2e8f0);
+  border-color: #94a3b8;
+  color: #334155;
+}
+.sc-sheet-title-past .sc-sheet-title-sub {
+  color: #475569;
+}
+
+/* ── ลากไฟล์มาวาง (ยอดในระบบ) ───────────────────────────── */
+/* ป้ายในแถวปุ่ม — หน้าตาเหมือนปุ่มแต่เป็น label ครอบ input[type=file] ไว้
+   ใช้ label เพื่อให้คลิกแล้วเปิดหน้าต่างเลือกไฟล์ได้เองโดยไม่ต้องเขียน JS */
+/* สีส้ม — ตั้งใจให้ต่างจากปุ่มอื่นในแถว (เขียว/ขาว) เพราะเป็นปุ่มเดียวที่รับไฟล์จากข้างนอก
+   และเป็นขั้นที่ต้องทำทุกวัน ไม่ควรกลืนไปกับปุ่มที่เหลือ */
+.sc-drop {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border: 1.5px dashed #f59e0b;
+  border-radius: 8px;
+  background: #fffbeb;
+  color: #b45309;
+  font-size: 0.86rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.sc-drop:hover {
+  background: #fef3c7;
+  border-color: #d97706;
+  color: #92400e;
+}
+
+/* ป้ายคลุมทั้งการ์ดตอนลากไฟล์เข้ามา */
+.sc-card {
+  position: relative;
+}
+.sc-drop-overlay {
+  display: none;
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-size: 1.15rem;
+  font-weight: 700;
+  line-height: 1.9;
+  /* ส้มชุดเดียวกับป้าย — ลากแล้วเห็นว่าเป็นการทำงานเดียวกับปุ่มที่เพิ่งจับ */
+  color: #b45309;
+  background: rgba(245, 158, 11, 0.12);
+  border: 2.5px dashed #f59e0b;
+  border-radius: 14px;
+  backdrop-filter: blur(1.5px);
+  /* ห้ามรับ event เอง ไม่งั้นตัว overlay จะยิง dragleave ของการ์ดทันทีที่โผล่มา
+     แล้วป้ายจะกะพริบถี่ ๆ ตลอดเวลาที่ลาก */
+  pointer-events: none;
+}
+.sc-drop-overlay.open {
+  display: flex;
+}
+
+/* ── การ์ดหลัก ──────────────────────────────────────────── */
+.sc-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 16px 18px 8px;
+  box-shadow: var(--shadow-sm);
+}
+
+.sc-card-hdr {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.sc-card-title {
+  font-weight: 600;
+  font-size: 1.02rem;
+  color: var(--text);
+}
+
+.sc-closed-flag {
+  display: none;
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fcd34d;
+  border-radius: 999px;
+  padding: 3px 12px;
+  font-size: 0.78rem;
+  font-weight: 500;
+}
+.sc-closed .sc-closed-flag {
+  display: inline-block;
+}
+
+/* สถานะ autosave — ขึ้นสั้น ๆ ตอนบันทึก ไม่กินที่ */
+.sc-save-flag {
+  font-size: 0.78rem;
+  color: var(--text3);
+  min-width: 92px;
+  text-align: right;
+  transition: opacity 0.2s;
+}
+.sc-save-flag.sc-saving {
+  color: var(--text2);
+}
+.sc-save-flag.sc-saved {
+  color: #166534;
+}
+.sc-save-flag.sc-failed {
+  color: #b91c1c;
+  font-weight: 500;
+}
+
+/* ── แถวปุ่ม / ตัวกรอง ──────────────────────────────────── */
+.sc-tool-row,
+.sc-filter-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.sc-tool-div {
+  width: 1px;
+  height: 22px;
+  background: var(--border);
+  margin: 0 2px;
+}
+
+.sc-threshold {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  color: var(--text2);
+  white-space: nowrap;
+}
+.sc-threshold .form-control {
+  width: 82px;
+  text-align: right;
+}
+
+.sc-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.88rem;
+  color: var(--text2);
+  cursor: pointer;
+}
+
+/* ── แถบเลือกหลายรายการ ─────────────────────────────────── */
+.sc-bulk-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 8px 14px;
+  margin-bottom: 12px;
+}
+.sc-bulk-info {
+  font-size: 0.86rem;
+  color: var(--text2);
+}
+.sc-bulk-actions {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+  flex-wrap: wrap;
+}
+.sc-bulk-btn {
+  padding: 5px 12px;
+  font-size: 0.82rem;
+}
+.sc-bulk-btn-danger {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+.sc-bulk-btn-danger:hover {
+  background: #fecaca;
+}
+
+/* ── ตาราง ──────────────────────────────────────────────── */
+/* ใบตรวจนับแสดงทุกแถวยาวลงมา — ไม่มีกรอบเลื่อนซ้อนในหน้า
+   (สองแถบเลื่อนซ้อนกันทำให้หาแถวยาก และพิมพ์/สแกนสายตาไล่ทีละแถวไม่ได้)
+   ห้ามใส่ overflow ที่กรอบนี้: overflow-x:auto จะทำให้มันกลายเป็น scroll container
+   แล้ว sticky ของหัวตารางจะไปอ้างกรอบนี้ซึ่งไม่เลื่อนแนวตั้ง → หัวตารางไม่ตรึง */
+.sc-table-wrap {
+  overflow: visible;
+}
+.sc-table {
+  min-width: 1180px;
+}
+/* ตัวเลื่อนจริงของหน้าคือ #erp-main (sidebar.js สร้าง · height:calc(100vh - 56px)
+   ซึ่งเริ่มใต้ topbar อยู่แล้ว) → top:0 = ชิดใต้ topbar พอดี
+   อย่าไปบวก --topbar-h ซ้ำ จะดันหัวตารางต่ำลงมาลอยกลางจอ */
+.sc-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+.sc-table th,
+.sc-table td {
+  padding: 6px 8px;
+  vertical-align: middle;
+}
+
+.sc-col-chk { width: 36px; text-align: center; }
+.sc-col-no { width: 44px; text-align: center; }
+.sc-col-prod { min-width: 230px; }
+.sc-col-in { width: 86px; text-align: right; }
+.sc-col-num { width: 96px; text-align: right; }
+.sc-col-note { min-width: 150px; }
+.sc-col-alert { width: 132px; }
+.sc-col-alert2 { width: 112px; }
+.sc-col-act { width: 40px; text-align: center; }
+
+/* คอลัมน์ที่เป็นสูตร — พื้นต่างจากช่องกรอก ให้เห็นว่าแก้ไม่ได้ */
+/* หัวคอลัมน์สูตร (รวม / ผลต่าง) — พื้นเขียวเข้มทับของเดิม
+   ต้องเปลี่ยนสีตัวอักษรด้วย! `.data-table thead th` ตั้ง color เป็นเขียวเข้ม (--accent)
+   ทับพื้นอย่างเดียวแล้วได้เขียวเข้มบนเขียวเข้ม อ่านไม่ออก */
+.sc-th-calc {
+  background: var(--sage-700, #2d4a36) !important;
+  color: #fff !important;
+}
+.sc-td-calc {
+  background: var(--surface2);
+  font-weight: 600;
+}
+
+/* "ยอดในระบบ" — ข้อมูลนำเข้า ไม่ใช่สูตร และแก้มือไม่ได้
+   ทำให้ดูต่างจากช่องกรอกชัด ๆ ไม่งั้นผู้ใช้จะคลิกแล้วงงว่าทำไมพิมพ์ไม่ได้ */
+.sc-td-locked {
+  background: var(--surface2);
+  color: var(--text2);
+  font-weight: 600;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-family: "IBM Plex Mono", monospace;
+  cursor: not-allowed;
+}
+
+.sc-num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-family: "IBM Plex Mono", monospace;
+}
+
+/* รหัส · ชื่อ · ตัวคูณลัง อยู่บรรทัดเดียวกัน — แถวเตี้ยลงเกือบครึ่ง เห็นสินค้าต่อจอมากขึ้น
+   หมวดหมู่ไม่แสดงเป็นข้อความแล้ว (สีพื้นแถวบอกอยู่แล้ว · hover ที่ช่องนี้ดูชื่อหมวดได้) */
+.sc-col-prod {
+  white-space: nowrap;
+}
+.sc-prod-name {
+  font-weight: 500;
+  color: var(--text);
+  line-height: 1.3;
+}
+/* รหัสกว้างคงที่ให้ชื่อสินค้าเริ่มตรงแนวเดียวกันทุกแถว — ไล่สายตาลงคอลัมน์ได้
+   (ปล่อยตามความยาวรหัสแล้วชื่อจะเยื้องกันทุกแถว อ่านยากกว่าเดิม) */
+.sc-prod-code {
+  display: inline-block;
+  min-width: 62px;
+  margin-right: 8px;
+  font-size: 0.76rem;
+  color: var(--text3);
+  font-family: "IBM Plex Mono", monospace;
+}
+/* ตัวคูณลัง→ชิ้น แสดงติดชื่อสินค้า เพราะเป็นตัวแปรของสูตร Col F
+   ถ้าไม่โชว์ ผู้ใช้จะงงว่าทำไม 1 ลังของสินค้า A กับ B ได้ไม่เท่ากัน */
+.sc-conv-chip {
+  display: inline-block;
+  margin-left: 6px;
+  font-size: 0.72rem;
+  color: var(--text2);
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 1px 7px;
+  cursor: pointer;
+  font-family: "IBM Plex Mono", monospace;
+}
+.sc-conv-chip:hover {
+  border-color: var(--sage-400, #7fa88b);
+}
+.sc-conv-chip.sc-conv-default {
+  color: var(--text3);
+  border-style: dashed;
+}
+
+/* ช่องกรอกในตาราง — ให้ดูเป็นเซลล์ชีต ไม่ใช่ฟอร์ม */
+.sc-cell-input {
+  width: 100%;
+  border: 1px solid transparent;
+  background: transparent;
+  border-radius: 6px;
+  padding: 4px 6px;
+  font: inherit;
+  font-family: "IBM Plex Mono", monospace;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  color: var(--text);
+}
+.sc-cell-input.sc-cell-text {
+  text-align: left;
+  font-family: inherit;
+}
+.sc-cell-input:hover:not(:disabled) {
+  border-color: var(--border);
+  background: var(--surface);
+}
+.sc-cell-input:focus {
+  outline: none;
+  border-color: var(--sage-500, #4a7c59);
+  background: var(--surface);
+  box-shadow: 0 0 0 2px rgba(74, 124, 89, 0.15);
+}
+.sc-cell-input:disabled {
+  color: var(--text2);
+  cursor: not-allowed;
+}
+/* ช่องที่ระบบเติมมาให้ (ยืม/เบิก/ยอดระบบ) — เส้นใต้บอกว่ามีที่มา ไม่ใช่คนพิมพ์ */
+.sc-cell-input.sc-auto {
+  border-bottom-color: var(--sage-400, #7fa88b);
+  border-bottom-style: dashed;
+}
+
+.sc-row-uncounted .sc-td-calc {
+  color: var(--text3);
+}
+/* ── สีพื้นแถวตามหมวดหมู่ ────────────────────────────────
+   ใช้ "โทนเย็น" ล้วน เพราะโทนอุ่น (แดง/ส้ม) จองไว้ให้สถานะของหาย/ของเกินแล้ว
+   ถ้าเอาโทนอุ่นมาใช้กับหมวดด้วย จะอ่านสลับกันว่าแถวนี้ของหายหรือแค่คนละหมวด
+   ความสว่าง 90% — เห็นชัดว่าคนละกลุ่มโดยที่ตัวหนังสือสีเข้มยังอ่านสบาย
+   (เคยตั้ง 95.5% แล้วจางจนมองไม่เห็นว่าแบ่งกลุ่ม)
+   เฉดเรียงแบบสลับ ไม่ไล่ต่อเนื่อง — หมวดที่อยู่ติดกันตอนเรียงชื่อจะได้สีที่ห่างกันมาก
+   (ไล่ hue ต่อเนื่องแล้วหมวดข้างกันได้สีเกือบเหมือนกัน ต่างกันไม่กี่ค่า RGB)
+   hue ทั้งหมดอยู่ในช่วงเย็น 88–265 · เพิ่มแกน saturation สลับเข้ม-อ่อนอีกชั้น */
+.sc-cat-0 { --cat-h: 150; --cat-s: 58%; }   /* เขียว */
+.sc-cat-1 { --cat-h: 265; --cat-s: 45%; }   /* ม่วง */
+.sc-cat-2 { --cat-h:  88; --cat-s: 58%; }   /* เขียวอมเหลือง */
+.sc-cat-3 { --cat-h: 205; --cat-s: 45%; }   /* ฟ้า */
+.sc-cat-4 { --cat-h: 232; --cat-s: 58%; }   /* น้ำเงินอมม่วง */
+.sc-cat-5 { --cat-h: 178; --cat-s: 45%; }   /* เขียวน้ำทะเล */
+
+.sc-cat-0, .sc-cat-1, .sc-cat-2,
+.sc-cat-3, .sc-cat-4, .sc-cat-5 {
+  background: hsl(var(--cat-h) var(--cat-s) 90%);
+}
+/* แถบสีขอบซ้าย — ตัวชี้หมวดตัวหลัก อ่านออกแม้พื้นหลังจะอ่อน
+   ใช้ inset box-shadow ไม่ใช่ border-left: ตารางเป็น border-collapse การใส่ border
+   จะไปดันความกว้างคอลัมน์และเส้นตารางเพี้ยน */
+.sc-cat-0 .sc-col-chk, .sc-cat-1 .sc-col-chk, .sc-cat-2 .sc-col-chk,
+.sc-cat-3 .sc-col-chk, .sc-cat-4 .sc-col-chk, .sc-cat-5 .sc-col-chk {
+  box-shadow: inset 5px 0 0 hsl(var(--cat-h) 55% 48%);
+}
+/* ช่องสูตร (รวม/ผลต่าง) พื้นเทาทึบทับสีหมวด — ให้จางลงเพื่อให้สีแถวไหลผ่านได้
+   ไม่งั้นแถบเทา 2 แถบจะตัดแถวขาดเป็น 3 ท่อน มองไม่ออกว่าแถวไหนกลุ่มไหน */
+.sc-cat-0 .sc-td-calc, .sc-cat-1 .sc-td-calc, .sc-cat-2 .sc-td-calc,
+.sc-cat-3 .sc-td-calc, .sc-cat-4 .sc-td-calc, .sc-cat-5 .sc-td-calc {
+  background: hsl(var(--cat-h) var(--cat-s) 85%);
+}
+
+/* สถานะต้องชนะสีหมวดเสมอ — ของหาย/ของเกินคือสิ่งที่ต้องเห็นก่อน
+   (จึงต้องประกาศ "หลัง" .sc-cat-* เพราะ specificity เท่ากัน ลำดับเป็นตัวตัดสิน)
+   ต้องเข้มกว่าสีหมวดด้วย ไม่งั้นแถวที่ของหายจะกลายเป็นแถวที่ "ซีดที่สุด"
+   ในตารางที่แถวอื่นมีสีหมด = สัญญาณกลับด้าน */
+.sc-row-short { background: hsl(0 72% 91%); }
+.sc-row-over { background: hsl(35 85% 89%); }
+.sc-row-short .sc-td-calc { background: hsl(0 66% 86%); }
+.sc-row-over .sc-td-calc { background: hsl(35 78% 84%); }
+/* แถบซ้ายของแถวที่ผิดปกติก็ต้องเป็นสีสถานะ ไม่ใช่สีหมวด */
+.sc-row-short .sc-col-chk { box-shadow: inset 5px 0 0 hsl(0 70% 52%); }
+.sc-row-over .sc-col-chk { box-shadow: inset 5px 0 0 hsl(32 85% 48%); }
+
+/* ── ป้ายแจ้งเตือน (Col L / M) ──────────────────────────── */
+.sc-badge {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.sc-badge-match { background: #dcfce7; color: #166534; }
+.sc-badge-short { background: #fee2e2; color: #b91c1c; }
+.sc-badge-over { background: #fef3c7; color: #92400e; }
+.sc-badge-none { background: var(--surface2); color: var(--text3); font-weight: 400; }
+.sc-badge-low { background: #ffedd5; color: #9a3412; }
+
+.sc-ok { color: #166534; }
+.sc-short { color: #b91c1c; }
+.sc-over { color: #b45309; }
+.sc-low { color: #9a3412; }
+
+.sc-del-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.92rem;
+  opacity: 0.55;
+  padding: 2px 4px;
+  border-radius: 6px;
+}
+.sc-del-btn:hover {
+  opacity: 1;
+  background: #fee2e2;
+}
+
+.sc-foot-label {
+  text-align: right;
+  font-weight: 600;
+  color: var(--text2);
+}
+.sc-table tfoot td {
+  position: sticky;
+  bottom: 0;
+  background: var(--surface2);
+  border-top: 2px solid var(--sage-500, #4a7c59);
+  font-weight: 700;
+  z-index: 2;
+}
+
+.sc-empty {
+  text-align: center;
+  color: var(--text3);
+  padding: 28px 0;
+}
+
+/* ── พรีวิวรายการสินค้า (ยังไม่เปิดรอบ) ──────────────────── */
+.sc-preview-note td {
+  background: var(--surface2);
+  color: var(--text2);
+  font-size: 12.5px;
+  padding: 9px 14px;
+  border-bottom: 1px solid var(--border);
+}
+/* จางลงเล็กน้อยให้อ่านออกว่ายังกรอกไม่ได้ แต่ยังเห็นรหัส/ชื่อชัด */
+.sc-row-preview .sc-cell-input {
+  background: var(--surface2);
+  opacity: 0.55;
+}
+
+/* ── โมดัล ──────────────────────────────────────────────── */
+/* content-hugging: กว้างพอดีฟอร์ม 2 คอลัมน์ ไม่โหวง ไม่ scroll ภายใน */
+.sc-upload-modal { max-width: 640px; }
+/* รายการสินค้ากลาง = ตาราง 8 คอลัมน์ จึงต้องกว้างกว่าโมดัลฟอร์มปกติ */
+.sc-item-modal { max-width: 980px; }
+
+/* ── โมดัล: รายการสินค้ากลาง ────────────────────────────── */
+/* คอลัมน์ชุดเดียวใช้ทั้งหัวตาราง · แถวเพิ่มใหม่ · แถวในลิสต์
+   → เปลี่ยนความกว้างที่เดียวแล้วทั้ง 3 แถวขยับตรงกันเสมอ */
+.sc-im-head,
+.sc-im-add,
+.sc-im-row {
+  display: grid;
+  grid-template-columns:
+    minmax(84px, 0.9fr)   /* รหัส */
+    minmax(180px, 2.4fr)  /* ชื่อสินค้า */
+    minmax(96px, 1fr)     /* หมวด */
+    76px                  /* ลัง→ชิ้น */
+    88px                  /* ราคา */
+    72px                  /* ลำดับ */
+    64px                  /* เปิดใช้ */
+    64px;                 /* ปุ่ม */
+  gap: 6px;
+  align-items: center;
+}
+
+.sc-im-note {
+  font-size: 12.5px;
+  color: var(--text2);
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--primary, #4a7c59);
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin-bottom: 12px;
+}
+
+.sc-im-add {
+  padding: 10px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.sc-im-add-btn {
+  grid-column: 7 / -1;
+  white-space: nowrap;
+}
+
+/* ── ซ่อนคอลัมน์ราคา (ค่าเริ่มต้น) ───────────────────────
+   หน้าตรวจนับไม่ใช้ราคา ฟอร์มเลยสั้นลง · แต่หน้าเบิก และหน้ายืม/คืน ใช้คิดมูลค่า
+   จึงแค่ "ซ่อน" ไม่ได้ลบ input ทิ้ง — ค่าที่มีอยู่ยังอยู่ครบและถูกส่งกลับตอนบันทึก
+   (ถ้าลบ input ออกจาก DOM จริง กดบันทึกทีเดียวราคาทั้งตารางจะกลายเป็น 0) */
+.sc-item-modal.sc-hide-price .sc-im-c-price {
+  display: none;
+}
+.sc-item-modal.sc-hide-price .sc-im-head,
+.sc-item-modal.sc-hide-price .sc-im-add,
+.sc-item-modal.sc-hide-price .sc-im-row {
+  grid-template-columns:
+    minmax(84px, 0.9fr)   /* รหัส */
+    minmax(180px, 2.4fr)  /* ชื่อสินค้า */
+    minmax(96px, 1fr)     /* หมวด */
+    76px                  /* ลัง→ชิ้น */
+    72px                  /* ลำดับ */
+    64px                  /* เปิดใช้ */
+    64px;                 /* ปุ่ม */
+}
+.sc-item-modal.sc-hide-price .sc-im-add-btn {
+  grid-column: 6 / -1;
+}
+
+.sc-im-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 14px 0 8px;
+}
+.sc-im-search {
+  flex: 1 1 260px;
+  max-width: 340px;
+}
+
+.sc-im-head {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text3);
+  padding: 0 10px 6px;
+  border-bottom: 1px solid var(--border);
+}
+
+.sc-im-list {
+  max-height: 46vh;
+  overflow-y: auto;
+  padding: 4px 10px 0;
+}
+.sc-im-row {
+  padding: 5px 0;
+  border-bottom: 1px solid var(--border-light, #eef1ee);
+}
+.sc-im-row .form-control {
+  height: 32px;
+  padding: 4px 8px;
+  font-size: 13px;
+}
+/* ปิดใช้งาน = จางลงแต่ยังอ่านออกและแก้ได้ (ไม่ใช่ซ่อน) */
+.sc-im-off {
+  opacity: 0.5;
+}
+
+/* คลาสอยู่บนตัว input เองทั้งชุด (ทั้งแถวหัว แถวเพิ่ม และแถวลิสต์) */
+.sc-im-c-code {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 12px;
+}
+input.sc-im-c-box,
+input.sc-im-c-price,
+input.sc-im-c-order {
+  text-align: right;
+}
+
+.sc-im-c-on {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  cursor: pointer;
+}
+.sc-im-link {
+  font-size: 12px;
+  opacity: 0.45;
+}
+.sc-im-link-on {
+  opacity: 1;
+}
+
+.sc-im-c-act {
+  display: flex;
+  gap: 2px;
+  justify-content: flex-end;
+}
+.sc-im-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 4px 5px;
+  border-radius: 6px;
+  line-height: 1;
+}
+.sc-im-btn:hover {
+  background: var(--surface2);
+}
+.sc-im-btn-danger:hover {
+  background: #fee2e2;
+}
+
+.sc-im-empty {
+  text-align: center;
+  color: var(--text3);
+  padding: 28px 0;
+}
+
+/* แคบลง → ตาราง 8 คอลัมน์ยัดไม่ลง ให้เลื่อนแนวนอนในกรอบตัวเอง
+   (ห้ามให้ตัว modal-body เลื่อน ไม่งั้นหัวตารางหลุดจากแถว) */
+@media (max-width: 1024px) {
+  .sc-item-modal .modal-body {
+    overflow-x: auto;
+  }
+  .sc-im-head,
+  .sc-im-add,
+  .sc-im-row {
+    min-width: 860px;
+  }
+}
+
+.sc-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px 16px;
+}
+.sc-form-full {
+  grid-column: 1 / -1;
+}
+.sc-preview {
+  margin-top: 12px;
+  max-height: 200px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.sc-preview table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+}
+.sc-preview th,
+.sc-preview td {
+  padding: 5px 9px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  white-space: nowrap;
+}
+.sc-preview th {
+  background: var(--surface2);
+  position: sticky;
+  top: 0;
+  font-weight: 600;
+}
+/* แถบบอกผลการอ่านไฟล์ — แถวหัวตารางที่เจอ + จำนวนแถว */
+.sc-upload-detected {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--primary, #4a7c59);
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin-bottom: 12px;
+  font-size: 12.5px;
+  color: var(--text2);
+}
+/* ป้ายบอกว่ารหัสนี้ซ้ำในไฟล์ กี่แถว (รวมยอดให้แล้ว) */
+.sc-dup {
+  display: inline-block;
+  background: #fef3c7;
+  color: #92400e;
+  border-radius: 999px;
+  padding: 0 6px;
+  font-size: 10.5px;
+  font-weight: 700;
+}
+.sc-preview .sc-hit { color: #166534; }
+.sc-preview .sc-miss { color: #b91c1c; }
+
+.sc-upload-summary {
+  margin-top: 12px;
+  font-size: 0.86rem;
+  color: var(--text2);
+  line-height: 1.6;
+}
+
+/* ── RESPONSIVE (desktop-first 1280 / 1024 / 767 / 480) ──── */
+@media (max-width: 1280px) {
+  .sc-session-bar {
+    gap: 10px;
+  }
+}
+
+@media (max-width: 1024px) {
+  .sc-session-actions {
+    flex: 1 1 100%;
+  }
+}
+
+@media (max-width: 767px) {
+  /* จอแคบ ตาราง 14 คอลัมน์ยัดไม่ลง → คืนการเลื่อนแนวนอนไว้ในกรอบตัวเอง
+     ห้ามให้ body เลื่อนแนวนอน (กฎ responsive กลางของโปรเจกต์)
+     แลกกับหัวตารางไม่ตรึง — กรอบกลายเป็น scroll container */
+  .sc-table-wrap {
+    overflow-x: auto;
+  }
+  .sc-card {
+    padding: 12px 12px 6px;
+  }
+  .sc-form-grid {
+    grid-template-columns: 1fr;
+  }
+  .sc-tool-row .btn,
+  .sc-session-actions .btn {
+    flex: 1 1 auto;
+  }
+  .sc-filter-row .search-wrap {
+    flex: 1 1 100%;
+  }
+  /* ตารางยังเลื่อนแนวนอนได้ — ไม่ยุบเป็นการ์ด เพราะใบตรวจนับต้องเทียบคอลัมน์กัน */
+  .sc-table thead th {
+    position: static;
+  }
+  .sc-table tfoot td {
+    position: static;
+  }
+}
+
+@media (max-width: 480px) {
+  .sc-bulk-actions {
+    width: 100%;
+    margin-left: 0;
+  }
+  .sc-bulk-btn {
+    flex: 1 1 auto;
+  }
+}
+
+/* ── พิมพ์ ──────────────────────────────────────────────── */
+@media print {
+  .topbar,
+  .sidebar,
+  .sc-tool-row,
+  .sc-filter-row,
+  .sc-bulk-bar,
+  .sc-session-actions,
+  .sc-col-chk,
+  .sc-col-act,
+  .sc-del-btn {
+    display: none !important;
+  }
+  .sc-table-wrap {
+    max-height: none;
+    overflow: visible;
+  }
+  .sc-card {
+    border: none;
+    box-shadow: none;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════
+   แท็บ "เบิกรอเซ็น" — แทนชีต `เบิกรอเซ็น` (เล่มเดียวกับ Stock F.3)
+   ══════════════════════════════════════════════════════════ */
+
+/* .page-tabs กลางตั้ง margin-bottom:-14px ไว้ให้เส้นใต้ชนขอบ table-hdr
+   หน้านี้แท็บลอยระหว่างแถบวันที่กับการ์ดสถิติ ไม่มีขอบให้ชน → คืนระยะห่างปกติ */
+#scTabs { margin: 2px 0 14px; }
+
+#scTabs .badge-n {
+  display: inline-block;
+  min-width: 18px;
+  padding: 1px 6px;
+  margin-left: 4px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 700;
+  background: var(--surface2);
+  color: var(--text2);
+  vertical-align: middle;
+}
+/* รอเซ็น = งานค้าง ต้องสะดุดตากว่า badge ธรรมดา */
+#scTabs .badge-n.badge-warn { background: var(--warning-pale); color: var(--warning); }
+#scTabs .page-tab.active .badge-n.badge-warn { background: var(--warning); color: #fff; }
+
+/* กล่องอธิบาย — คนรับงานต่อต้องอ่านออกว่าแท็บนี้มีไว้ทำอะไรโดยไม่ต้องถาม */
+.sc-issue-note {
+  padding: 9px 12px;
+  margin-bottom: 12px;
+  border-radius: 8px;
+  border: 1px solid #f0dcae;
+  background: #fefaf0;
+  color: var(--text2);
+  font-size: 12px;
+  line-height: 1.65;
+}
+.sc-issue-note strong { color: var(--text); }
+
+/* แถวเพิ่มรายการ — เรียงตรงกับคอลัมน์ชีตเดิม (วันที่ · สินค้า · จำนวน · ผู้เบิก · หมายเหตุ) */
+.sc-issue-add {
+  display: grid;
+  grid-template-columns: 140px minmax(200px, 1.6fr) 90px minmax(120px, 1fr) minmax(120px, 1.2fr) auto;
+  gap: 8px;
+  align-items: center;
+  padding: 10px;
+  margin-bottom: 12px;
+  border-radius: 8px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+}
+.sc-issue-add .form-control { height: 34px; font-size: 12.5px; }
+.sc-ia-btn { white-space: nowrap; }
+
+.sc-issue-table td { vertical-align: middle; }
+.sc-issue-code {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11px;
+  color: var(--text3);
+  margin-right: 2px;
+}
+.sc-issue-muted { color: var(--text3); font-size: 11.5px; }
+.sc-issue-table tfoot td {
+  font-weight: 700;
+  background: var(--surface2);
+  border-top: 2px solid var(--border);
+}
+
+/* ── จอแคบ: แถวเพิ่มรายการซ้อนลงมาแทนที่จะบีบจนกรอกไม่ได้ ── */
+@media (max-width: 1024px) {
+  .sc-issue-add { grid-template-columns: 1fr 1fr; }
+  .sc-ia-btn { grid-column: 1 / -1; }
+}
+@media (max-width: 480px) {
+  .sc-issue-add { grid-template-columns: 1fr; }
+}

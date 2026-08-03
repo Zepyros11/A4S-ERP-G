@@ -1,17 +1,22 @@
 /**
- * drive.js — Google Drive storage backend (Shared Drive)
+ * drive.js — Google Drive storage backend (2 โหมด)
  * ────────────────────────────────────────────────────────────
  * ใช้แทน Supabase Storage เพื่อลดค่า egress/storage
  *
- * ต้องใช้ Google Workspace + Shared Drive:
- *   - service account เป็น "Content manager" ของ Shared Drive
- *   - ไฟล์ถูกเก็บใน Shared Drive (owner = องค์กร, โควต้าใช้พูล Workspace)
- *     ไม่ติดเพดาน 15GB และไม่มีปัญหา ownership แบบ personal Drive
+ * โหมด A — OAuth (My Drive ส่วนตัวของ a4scontent) ◀ ใช้อยู่ตอนนี้
+ *   ยิง Drive API ในนามผู้ใช้จริง → ไฟล์เป็นของ a4scontent กินโควต้า Google One 2TB
+ *   ⚠️ scope = drive.file → เห็นเฉพาะไฟล์ที่ **OAuth client ตัวนี้** สร้างเอง
+ *      ห้ามเปลี่ยน GOOGLE_OAUTH_CLIENT_ID เด็ดขาด — เปลี่ยนแล้วอ่านไฟล์เก่าไม่ได้
+ *   GOOGLE_OAUTH_CLIENT_ID / GOOGLE_OAUTH_CLIENT_SECRET / GOOGLE_OAUTH_REFRESH_TOKEN
+ *   GDRIVE_FOLDER_ID  — โฟลเดอร์ราก `A4S-ERP-Images` ใน My Drive
  *
- * Env vars (Render):
- *   GOOGLE_SA_EMAIL        — service account email (xxx@yyy.iam.gserviceaccount.com)
- *   GOOGLE_SA_PRIVATE_KEY  — private key จาก JSON key (คง \n ไว้ ระบบจะ unescape ให้)
- *   GDRIVE_FOLDER_ID       — โฟลเดอร์ปลายทางใน Shared Drive (root ของรูป)
+ * โหมด B — Service account (Shared Drive ของ Workspace) — legacy, fallback
+ *   service account เป็น "Content manager" ของ Shared Drive
+ *   ⚠️ SA **เขียนลง My Drive ส่วนตัวไม่ได้** (ไม่มีโควต้าของตัวเอง → 403 storageQuotaExceeded)
+ *      นี่คือเหตุผลที่ต้องมีโหมด A ตอนเลิกใช้ Workspace
+ *   GOOGLE_SA_EMAIL / GOOGLE_SA_PRIVATE_KEY / GDRIVE_FOLDER_ID
+ *
+ * เลือกโหมดอัตโนมัติ: มี GOOGLE_OAUTH_REFRESH_TOKEN → โหมด A · ไม่มี → โหมด B
  *
  * ไม่มี dependency ใหม่ — ใช้ crypto (JWT RS256) + global fetch (Node 18+)
  */
@@ -21,14 +26,23 @@ const crypto = require('crypto');
 const SA_EMAIL   = process.env.GOOGLE_SA_EMAIL || '';
 // env เก็บ private key แบบ \n escaped → แปลงกลับเป็น newline จริง
 const SA_KEY     = (process.env.GOOGLE_SA_PRIVATE_KEY || '').replace(/\\n/g, '\n');
+const OA_ID      = process.env.GOOGLE_OAUTH_CLIENT_ID || '';
+const OA_SECRET  = process.env.GOOGLE_OAUTH_CLIENT_SECRET || '';
+const OA_REFRESH = process.env.GOOGLE_OAUTH_REFRESH_TOKEN || '';
 const FOLDER_ID  = process.env.GDRIVE_FOLDER_ID || '';
 const SCOPE      = 'https://www.googleapis.com/auth/drive';
 const TOKEN_URL  = 'https://oauth2.googleapis.com/token';
 const API        = 'https://www.googleapis.com/drive/v3';
 const UPLOAD_API = 'https://www.googleapis.com/upload/drive/v3';
 
+const OAUTH_MODE = !!(OA_ID && OA_SECRET && OA_REFRESH);
+
 function isConfigured() {
-  return !!(SA_EMAIL && SA_KEY && FOLDER_ID);
+  if (!FOLDER_ID) return false;
+  return OAUTH_MODE || !!(SA_EMAIL && SA_KEY);
+}
+function backendMode() {
+  return OAUTH_MODE ? 'oauth' : (SA_EMAIL && SA_KEY ? 'service-account' : 'none');
 }
 
 /* ── Access token (cache in-memory จนกว่าจะใกล้หมดอายุ) ── */
@@ -39,10 +53,18 @@ function _b64url(buf) {
     .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
-async function _getAccessToken() {
-  if (_token && _token.expiresAt > Date.now() + 60_000) return _token.value;
-  if (!isConfigured()) throw new Error('Drive not configured (missing SA_EMAIL/SA_KEY/FOLDER_ID)');
+/* โหมด A — แลก refresh token เป็น access token */
+function _oauthBody() {
+  return new URLSearchParams({
+    client_id: OA_ID,
+    client_secret: OA_SECRET,
+    refresh_token: OA_REFRESH,
+    grant_type: 'refresh_token',
+  });
+}
 
+/* โหมด B — เซ็น JWT ด้วย private key ของ service account */
+function _jwtBody() {
   const now = Math.floor(Date.now() / 1000);
   const header = _b64url(JSON.stringify({ alg: 'RS256', typ: 'JWT' }));
   const claim  = _b64url(JSON.stringify({
@@ -56,19 +78,26 @@ async function _getAccessToken() {
   const signature = _b64url(
     crypto.sign('RSA-SHA256', Buffer.from(signingInput), SA_KEY)
   );
-  const assertion = `${signingInput}.${signature}`;
+  return new URLSearchParams({
+    grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+    assertion: `${signingInput}.${signature}`,
+  });
+}
+
+async function _getAccessToken() {
+  if (_token && _token.expiresAt > Date.now() + 60_000) return _token.value;
+  if (!isConfigured()) {
+    throw new Error('Drive not configured (ต้องมี GDRIVE_FOLDER_ID + OAuth หรือ service account)');
+  }
 
   const res = await fetch(TOKEN_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
-      assertion,
-    }),
+    body: OAUTH_MODE ? _oauthBody() : _jwtBody(),
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok || !data.access_token) {
-    throw new Error(`Drive token error ${res.status}: ${data.error_description || data.error || 'unknown'}`);
+    throw new Error(`Drive token error (${backendMode()}) ${res.status}: ${data.error_description || data.error || 'unknown'}`);
   }
   _token = {
     value: data.access_token,
@@ -244,4 +273,4 @@ async function restoreFile(id) {
 }
 
 const ROOT_FOLDER_ID = FOLDER_ID;
-module.exports = { isConfigured, uploadFile, getFile, deleteFile, ensureSubfolder, listFolder, moveFile, getMeta, restoreFile, ROOT_FOLDER_ID };
+module.exports = { isConfigured, backendMode, uploadFile, getFile, deleteFile, ensureSubfolder, listFolder, moveFile, getMeta, restoreFile, ROOT_FOLDER_ID };

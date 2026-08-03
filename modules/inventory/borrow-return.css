@@ -1,0 +1,415 @@
+/* ============================================================
+   borrow-return.css — หน้า "ยืม / คืน สินค้า" (แทน Google Sheet)
+   prefix: .br-*  (เลี่ยงชนกับ .sb-* ที่ sidebar.js inject ตอน runtime)
+   ============================================================ */
+
+/* ── ⚙️ จัดการ (In-Context CRUD link — ชุดเดียวกับ delivery-tracking.css) ── */
+.ic-manage-link {
+  margin-left: 8px;
+  background: none;
+  border: none;
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: background 0.12s;
+}
+.ic-manage-link:hover { background: var(--accent-pale); }
+
+/* คำอธิบายใต้หัวข้อ (.form-hint ไม่มีนิยามกลาง — กำหนดเองในหน้านี้) */
+.br-card .form-hint,
+#personModal .form-hint,
+#itemModal .form-hint {
+  font-size: 11.5px;
+  color: var(--text2);
+  line-height: 1.5;
+  margin: 6px 0 12px;
+}
+
+/* ── การ์ด ── */
+.br-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 16px 18px;
+  margin-bottom: 14px;
+}
+.br-card-hdr {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.br-card-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--accent);
+}
+.br-card-sub {
+  font-size: 11.5px;
+  color: var(--text2);
+}
+
+/* แท็บชิดการ์ดที่อยู่ใต้ลงมา */
+#brTabs { margin-bottom: 12px; }
+
+/* ── หัวบิล (วันที่ / ประเภท / คน / หมายเหตุ / ปุ่ม Save) ── */
+.br-head-grid {
+  display: grid;
+  grid-template-columns: 150px 190px minmax(220px, 1.4fr) minmax(180px, 1fr) auto;
+  gap: 10px 12px;
+  align-items: end;
+}
+.br-head-grid .form-group { margin-bottom: 0; }
+.br-save-cell {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.br-save-btn { white-space: nowrap; }
+
+/* ── สลับ ยืม / คืน (segmented) ── */
+.br-type-toggle {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding: 3px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-soft);
+}
+.br-type-btn {
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  padding: 7px 6px;
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text2);
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+  white-space: nowrap;
+}
+.br-type-btn:hover { background: var(--surface2); }
+.br-type-btn.borrow.active { background: var(--danger-pale); color: var(--danger); }
+.br-type-btn.return.active { background: var(--success-pale); color: var(--success); }
+
+/* ── Combobox ผู้ยืม (เขียนเอง — <datalist> จัดสไตล์ไม่ได้) ──
+   เมนูวาง absolute ในกรอบ .br-combo (position:relative)
+   → ไม่ต้องคำนวณชดเชย zoom ของ :root เหมือน popup แบบ fixed */
+.br-combo { position: relative; }
+.br-combo .form-control { padding-right: 30px; }
+
+.br-combo-caret {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  transform: translateY(-50%);
+  border: none;
+  background: transparent;
+  color: var(--text3);
+  font-size: 12px;
+  line-height: 1;
+  padding: 4px 5px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.br-combo-caret:hover { background: var(--accent-pale); color: var(--accent); }
+
+.br-combo-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 60;
+  max-height: 280px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: var(--shadow-lg);
+  padding: 4px;
+  display: none;
+}
+.br-combo.open .br-combo-menu { display: block; }
+
+.br-combo-item {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 7px 10px;
+  border-radius: 7px;
+  font-size: 13px;
+  color: var(--text);
+  cursor: pointer;
+  line-height: 1.35;
+}
+.br-combo-item:hover,
+.br-combo-item.active { background: var(--accent-pale); color: var(--accent); }
+.br-combo-item-main { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.br-combo-item-main b { color: var(--accent); font-weight: 700; }
+.br-combo-item-sub {
+  flex-shrink: 0;
+  font-size: 11px;
+  color: var(--text2);
+  white-space: nowrap;
+}
+.br-combo-item.active .br-combo-item-sub { color: var(--accent); opacity: 0.8; }
+.br-combo-empty {
+  padding: 12px 10px;
+  text-align: center;
+  font-size: 12.5px;
+  color: var(--text3);
+}
+
+/* ── โหมดแก้ไข ── */
+.br-card.editing {
+  border-color: var(--warning);
+  box-shadow: 0 0 0 2px var(--warning-pale);
+}
+.br-edit-flag {
+  display: none;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--warning-pale);
+  color: var(--warning);
+  font-size: 11.5px;
+  font-weight: 700;
+}
+.br-card.editing .br-edit-flag { display: inline-flex; }
+
+/* ── แถบฟิลเตอร์ ── */
+.br-filter-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+.br-filter-row .search-wrap { min-width: 220px; }
+.br-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text2);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.br-check input { width: 15px; height: 15px; margin: 0; cursor: pointer; }
+.br-date-range {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text2);
+}
+.br-date-range input { max-width: 150px; }
+
+/* ── ตาราง (ใช้ร่วมทั้ง 3 แท็บ) ── */
+.br-table { font-size: 12.5px; }
+.br-table th,
+.br-table td { vertical-align: middle; }
+.br-table .br-col-no { width: 60px; text-align: center; }
+.br-table .br-col-code { width: 96px; }
+.br-table .br-code {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11.5px;
+  color: var(--text2);
+}
+.br-table .br-col-num { width: 110px; text-align: right; }
+.br-table .br-col-qty { width: 120px; text-align: center; }
+.br-table .br-col-chk { width: 34px; text-align: center; }
+.br-table .br-col-act { width: 110px; text-align: center; }
+.br-table .br-col-person { width: 180px; }
+.br-table td.br-num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.br-table input[type="checkbox"] { width: 15px; height: 15px; cursor: pointer; margin: 0; }
+
+/* แถวสลับสี — อ่านตารางยาวๆ ง่ายขึ้น (ชีตเดิมก็ทำแบบนี้) */
+.br-table tbody tr:nth-child(even) td { background: var(--surface-soft); }
+.br-table tbody tr:hover td { background: var(--accent-pale); }
+
+.br-table tfoot td {
+  background: var(--surface2);
+  font-weight: 700;
+  border-top: 2px solid var(--border2);
+  padding: 9px 12px;
+}
+.br-foot-label { text-align: right; color: var(--text2); }
+.br-table tfoot td.br-num { text-align: right; font-variant-numeric: tabular-nums; }
+
+.br-empty {
+  padding: 34px 16px;
+  text-align: center;
+  color: var(--text3);
+  font-size: 13px;
+  line-height: 1.7;
+}
+.br-empty .br-empty-icon { font-size: 30px; display: block; margin-bottom: 8px; }
+
+/* ── ตารางกรอกจำนวน (แท็บ 1) — หัวตารางติดบนตอนเลื่อน ── */
+.br-item-wrap {
+  max-height: 60vh;
+  overflow-y: auto;
+}
+.br-item-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--surface2);
+}
+.br-qty-input {
+  width: 100%;
+  max-width: 92px;
+  padding: 5px 8px;
+  font-size: 12.5px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.br-item-table tr.br-row-filled td { background: var(--accent-pale); }
+.br-item-table tr.br-row-filled td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
+
+/* ── สีสถานะ ยืม / คืน / คงเหลือ ── */
+.br-borrow { color: var(--danger); font-weight: 700; }
+.br-return { color: var(--success); font-weight: 700; }
+.br-balance { color: var(--accent); font-weight: 700; }
+.br-zero { color: var(--text3); font-weight: 400; }
+
+.br-th-borrow { color: var(--danger); }
+.br-th-return { color: var(--success); }
+.br-th-balance { color: var(--accent); }
+
+.br-chip {
+  display: inline-block;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.br-chip-borrow { background: var(--danger-pale); color: var(--danger); }
+.br-chip-return { background: var(--success-pale); color: var(--success); }
+.br-chip-muted { background: var(--surface2); color: var(--text2); }
+/* สินค้าที่ปิดใช้งานแล้ว (เลิกผลิต) แต่ยังมีของค้างคืน — โผล่เฉพาะตอนแก้บิลเก่า */
+.br-chip-off { background: #fef3c7; color: #92400e; }
+
+/* รายการสินค้าย่อในแถวประวัติ */
+.br-items-cell {
+  white-space: normal;
+  min-width: 200px;
+  line-height: 1.45;
+  font-size: 11.5px;
+  color: var(--text2);
+}
+.br-items-cell strong { color: var(--text); font-weight: 600; }
+
+.br-icon-btn {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  padding: 3px 5px;
+  border-radius: 6px;
+  opacity: 0.75;
+}
+.br-icon-btn:hover { background: var(--accent-pale); opacity: 1; }
+.br-icon-btn.br-danger:hover { background: var(--danger-pale); }
+
+/* ── แถบ bulk (เลือกหลายแถว) ── */
+.br-bulk-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 8px 12px;
+  margin-bottom: 10px;
+  border-radius: 8px;
+  background: var(--accent-pale);
+  border: 1px solid var(--accent-lighter);
+}
+.br-bulk-info { font-size: 12.5px; color: var(--accent); }
+.br-bulk-actions { display: flex; gap: 6px; flex-wrap: wrap; margin-left: auto; }
+.br-bulk-btn { padding: 4px 10px; font-size: 12px; }
+.br-bulk-btn-danger { color: var(--danger); border-color: var(--danger); }
+
+/* ── โมดัลจัดการ master (ผู้ยืม / สินค้า) ── */
+.br-manage-modal {
+  width: 760px;
+  max-width: 94vw;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+}
+.br-manage-modal .modal-body {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+}
+.br-manage-add {
+  display: grid;
+  gap: 6px;
+  align-items: center;
+}
+.br-person-grid { grid-template-columns: 1.6fr 1fr 1fr auto; }
+.br-manage-search { margin-bottom: 10px; }
+.br-manage-list { display: flex; flex-direction: column; gap: 6px; }
+.br-manage-row {
+  display: grid;
+  gap: 6px;
+  align-items: center;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-soft);
+}
+.br-manage-row.br-person-row { grid-template-columns: 1.6fr 1fr 1fr auto; }
+.br-manage-row .form-control { padding: 5px 8px; font-size: 12px; }
+.br-manage-actions { display: flex; gap: 2px; }
+
+/* ── โมดัลรายละเอียด ── */
+.br-detail-modal { width: 640px; max-width: 94vw; }
+.br-detail-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  border-radius: 8px;
+  background: var(--surface-soft);
+  border: 1px solid var(--border);
+  font-size: 12.5px;
+  color: var(--text2);
+}
+.br-detail-meta strong { color: var(--text); font-weight: 600; }
+
+/* ── RESPONSIVE (desktop-first · 1280/1024/767/480) ── */
+@media (max-width: 1280px) {
+  .br-head-grid { grid-template-columns: 140px 180px minmax(200px, 1fr) minmax(160px, 1fr); }
+  .br-save-cell { grid-column: 1 / -1; }
+}
+@media (max-width: 1024px) {
+  .br-head-grid { grid-template-columns: 1fr 1fr; }
+  .br-person-grid,
+  .br-manage-row.br-person-row { grid-template-columns: 1fr 1fr auto; }
+}
+@media (max-width: 767px) {
+  .br-head-grid { grid-template-columns: 1fr; }
+  .br-save-cell { flex-direction: column; align-items: stretch; }
+  .br-filter-row .search-wrap { min-width: 100%; }
+  .br-bulk-actions { margin-left: 0; width: 100%; }
+  .br-person-grid,
+  .br-manage-row.br-person-row { grid-template-columns: 1fr; }
+  .br-item-wrap { max-height: none; }
+}

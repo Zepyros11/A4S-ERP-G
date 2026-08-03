@@ -1,0 +1,409 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>🔁 ยืม / คืน สินค้า — A4S-ERP</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../../css/main.css" />
+    <link rel="stylesheet" href="./borrow-return.css" />
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+  </head>
+  <body>
+    <div class="loading-overlay" id="loadingOverlay">
+      <div class="spinner"></div>
+    </div>
+    <div class="toast" id="toast"></div>
+
+    <!-- TOPBAR -->
+    <div class="topbar"></div>
+
+    <!-- PAGE -->
+    <div class="page">
+      <!-- HERO -->
+      <div class="page-hero page-hero--simple page-hero--compact">
+        <div>
+          <h1 class="page-hero-title">🔁 ยืม / คืน สินค้า</h1>
+          <p class="page-hero-sub">
+            บันทึกการยืม-คืนสินค้ารายคน · ดูยอดคงเหลือที่ยังไม่ได้คืนของแต่ละคน
+          </p>
+        </div>
+      </div>
+
+      <!-- STATS -->
+      <div class="stats-row">
+        <div class="stat-card">
+          <div class="stat-icon">📤</div>
+          <div class="stat-info">
+            <div class="stat-label">ยืมสะสม</div>
+            <div class="stat-value" id="statBorrow">0</div>
+            <div class="stat-sub">ชิ้น · ทุกคนรวมกัน</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">📥</div>
+          <div class="stat-info">
+            <div class="stat-label">คืนแล้ว</div>
+            <div class="stat-value" id="statReturn">0</div>
+            <div class="stat-sub" id="statReturnSub">0% ของที่ยืม</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">⏳</div>
+          <div class="stat-info">
+            <div class="stat-label">ค้างคืน</div>
+            <div class="stat-value" id="statOutstanding">0</div>
+            <div class="stat-sub" id="statOutstandingSub">0 คนที่ยังค้าง</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">💰</div>
+          <div class="stat-info">
+            <div class="stat-label">มูลค่าค้างคืน</div>
+            <div class="stat-value" id="statValue">0.00</div>
+            <div class="stat-sub">บาท · ตามราคาที่บันทึกไว้</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TABS -->
+      <div class="page-tabs v-segment" id="brTabs">
+        <button class="page-tab active" data-tab="entry" onclick="window.switchTab('entry')">
+          📝 บันทึกยืม / คืน
+        </button>
+        <button class="page-tab" data-tab="report" onclick="window.switchTab('report')">
+          📊 รายงานยืม-คืน
+        </button>
+        <button class="page-tab" data-tab="history" onclick="window.switchTab('history')">
+          🧾 ประวัติรายการ <span class="badge-n" id="nHistory">0</span>
+        </button>
+      </div>
+
+      <!-- ═══════════════════════════════════════════════════════
+           TAB 1 — บันทึกยืม / คืน
+           ═══════════════════════════════════════════════════════ -->
+      <div class="br-pane" id="pane-entry">
+        <!-- หัวบิล -->
+        <div class="br-card" id="brFormCard">
+          <div class="br-card-hdr">
+            <div class="br-card-title" id="brFormTitle">📝 บันทึกรายการ</div>
+            <span class="br-edit-flag">✏️ กำลังแก้ไขรายการเดิม</span>
+            <span style="flex: 1"></span>
+            <span class="br-card-sub">กรอกจำนวนเฉพาะสินค้าที่ยืม/คืนรอบนี้ แล้วกด “Save ข้อมูล”</span>
+          </div>
+
+          <input type="hidden" id="fEditId" />
+
+          <div class="br-head-grid">
+            <div class="form-group">
+              <label class="form-label">วันที่ <span class="req">*</span></label>
+              <input class="form-control" type="date" id="fDate" />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">ประเภท <span class="req">*</span></label>
+              <div class="br-type-toggle" id="fTypeToggle">
+                <button type="button" class="br-type-btn borrow active" data-type="borrow"
+                        onclick="window.setType('borrow')">📤 ยืม</button>
+                <button type="button" class="br-type-btn return" data-type="return"
+                        onclick="window.setType('return')">📥 คืน</button>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">
+                ชื่อผู้ยืม <span class="req">*</span>
+                <button type="button" class="ic-manage-link" onclick="window.openPersonManager()"
+                        title="เพิ่ม / แก้ไข / ลบรายชื่อผู้ยืม">⚙️ จัดการ</button>
+              </label>
+              <div class="br-combo">
+                <input class="form-control" id="fPerson" autocomplete="off"
+                       placeholder="พิมพ์หรือเลือกชื่อ — พิมพ์ชื่อใหม่ได้เลย" />
+                <button type="button" class="br-combo-caret" tabindex="-1" title="เลือกจากรายการ">▾</button>
+              </div>
+              <input type="hidden" id="fPersonId" />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">หมายเหตุ</label>
+              <input class="form-control" id="fNote" placeholder="(ถ้ามี)" />
+            </div>
+
+            <div class="form-group br-save-cell">
+              <!-- ไม่ใช้ data-perm เพราะสิทธิ์ที่ต้องใช้ต่างกันตามโหมด
+                   (เพิ่มใหม่ = borrow_create · แก้ไข = borrow_edit) → คุมด้วย syncSaveBtn() -->
+              <button class="btn btn-primary br-save-btn"
+                      id="brSaveBtn" onclick="window.saveEntry()">💾 Save ข้อมูล</button>
+              <button class="btn btn-outline" id="brCancelEditBtn" style="display: none"
+                      onclick="window.resetEntry()">✕ ยกเลิกการแก้ไข</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- ตารางสินค้า -->
+        <div class="br-card">
+          <div class="br-card-hdr">
+            <div class="br-card-title">
+              📦 เลือกสินค้า
+              <button type="button" class="ic-manage-link" data-perm="stock_items_manage" data-perm-mode="hide"
+                      onclick="window.openItemManager()"
+                      title="รายการสินค้ากลาง ใช้ร่วมกับหน้าตรวจนับ และหน้าเบิกสินค้า — ตั้งค่าที่หน้าตรวจนับ Stock F.3">⚙️ จัดการสินค้า</button>
+            </div>
+            <span style="flex: 1"></span>
+            <div class="table-count" id="brItemCount">0 รายการ</div>
+          </div>
+
+          <div class="br-filter-row">
+            <div class="search-wrap">
+              <span class="search-icon">🔍</span>
+              <input class="search-input" id="fltItem" placeholder="ค้นหาชื่อสินค้า" />
+            </div>
+            <label class="br-check">
+              <input type="checkbox" id="fltOnlyFilled" />
+              แสดงเฉพาะที่กรอกจำนวนแล้ว
+            </label>
+            <span style="flex: 1"></span>
+            <button class="btn btn-outline" onclick="window.clearQty()">♻️ ล้างจำนวนทั้งหมด</button>
+          </div>
+
+          <div class="table-wrap br-item-wrap">
+            <table class="data-table br-table br-item-table">
+              <thead>
+                <tr>
+                  <th class="br-col-no">ลำดับ</th>
+                  <th class="br-col-code">รหัส</th>
+                  <th>ชื่อสินค้า</th>
+                  <th class="br-col-num">ราคา</th>
+                  <th class="br-col-qty">จำนวน</th>
+                  <th class="br-col-num">มูลค่า</th>
+                </tr>
+              </thead>
+              <tbody id="brItemBody"></tbody>
+              <tfoot>
+                <tr>
+                  <td colspan="3" class="br-foot-label">รวมรอบนี้</td>
+                  <td class="br-num" id="brSumQty">0</td>
+                  <td class="br-num" id="brSumAmount">0.00</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══════════════════════════════════════════════════════
+           TAB 2 — รายงานยืม-คืน
+           ═══════════════════════════════════════════════════════ -->
+      <div class="br-pane" id="pane-report" style="display: none">
+        <div class="br-card">
+          <div class="br-card-hdr">
+            <div class="br-card-title">📊 สรุปยืม-คืน คงเหลือ</div>
+            <span style="flex: 1"></span>
+            <div class="table-count" id="brReportCount">0 รายการ</div>
+          </div>
+
+          <div class="br-filter-row">
+            <select class="filter-select" id="rptPerson">
+              <option value="">👥 ทุกคน</option>
+            </select>
+            <div class="search-wrap">
+              <span class="search-icon">🔍</span>
+              <input class="search-input" id="rptSearch" placeholder="ค้นหาสินค้า" />
+            </div>
+            <label class="br-check">
+              <input type="checkbox" id="rptHideZero" checked />
+              ซ่อนรายการที่คงเหลือ 0
+            </label>
+            <span style="flex: 1"></span>
+            <button class="btn btn-outline" onclick="window.exportReport()"
+                    title="ดาวน์โหลดรายงานที่เห็นอยู่เป็นไฟล์ Excel">📥 Excel</button>
+            <button class="btn btn-outline" onclick="window.reloadAll()">🔄 รีเฟรช</button>
+          </div>
+
+          <div class="table-wrap">
+            <table class="data-table br-table br-report-table">
+              <thead>
+                <tr>
+                  <th class="br-col-no">ลำดับ</th>
+                  <th>สินค้า</th>
+                  <th class="br-col-person" id="rptPersonTh">ผู้ยืม</th>
+                  <th class="br-col-num">ราคา</th>
+                  <th class="br-col-num br-th-borrow">ยืม</th>
+                  <th class="br-col-num br-th-return">คืน</th>
+                  <th class="br-col-num br-th-balance">คงเหลือ</th>
+                  <th class="br-col-num">มูลค่าคงเหลือ</th>
+                </tr>
+              </thead>
+              <tbody id="brReportBody"></tbody>
+              <tfoot id="brReportFoot">
+                <tr>
+                  <td colspan="4" class="br-foot-label">รวม</td>
+                  <td class="br-num br-borrow" id="rptSumBorrow">0</td>
+                  <td class="br-num br-return" id="rptSumReturn">0</td>
+                  <td class="br-num br-balance" id="rptSumBalance">0</td>
+                  <td class="br-num" id="rptSumValue">0.00</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══════════════════════════════════════════════════════
+           TAB 3 — ประวัติรายการ
+           ═══════════════════════════════════════════════════════ -->
+      <div class="br-pane" id="pane-history" style="display: none">
+        <div class="br-card">
+          <div class="br-card-hdr">
+            <div class="br-card-title">🧾 ประวัติการบันทึก</div>
+            <span style="flex: 1"></span>
+            <div class="table-count" id="brHistCount">0 รายการ</div>
+          </div>
+
+          <div class="br-filter-row">
+            <div class="search-wrap">
+              <span class="search-icon">🔍</span>
+              <input class="search-input" id="hisSearch" placeholder="ค้นหาชื่อคน / สินค้า / หมายเหตุ" />
+            </div>
+            <select class="filter-select" id="hisPerson">
+              <option value="">👥 ทุกคน</option>
+            </select>
+            <select class="filter-select" id="hisType">
+              <option value="">🧿 ทุกประเภท</option>
+              <option value="borrow">📤 ยืม</option>
+              <option value="return">📥 คืน</option>
+            </select>
+            <span class="br-date-range">
+              📅 <input class="form-control" type="date" id="hisFrom" title="ตั้งแต่วันที่" />
+              —
+              <input class="form-control" type="date" id="hisTo" title="ถึงวันที่" />
+            </span>
+            <button class="btn btn-outline" onclick="window.clearHistoryFilters()">✕ ล้างตัวกรอง</button>
+            <span style="flex: 1"></span>
+            <button class="btn btn-outline" onclick="window.exportHistory()">📥 Excel</button>
+          </div>
+
+          <div class="br-bulk-bar" id="brBulkBar" style="display: none">
+            <span class="br-bulk-info">
+              เลือกแล้ว <strong id="brBulkCount">0</strong> รายการ ·
+              รวม <strong id="brBulkQty">0</strong> ชิ้น
+            </span>
+            <div class="br-bulk-actions">
+              <button class="btn btn-secondary br-bulk-btn br-bulk-btn-danger" data-perm="borrow_delete"
+                      onclick="window.bulkDelete()">🗑 ลบที่เลือก</button>
+              <button class="btn btn-secondary br-bulk-btn" onclick="window.clearSelection()">✕ เลิกเลือก</button>
+            </div>
+          </div>
+
+          <div class="table-wrap">
+            <table class="data-table br-table br-hist-table">
+              <thead>
+                <tr>
+                  <th class="br-col-chk">
+                    <input type="checkbox" id="brChkAll" onchange="window.toggleSelectAll(this.checked)"
+                           title="เลือกทั้งหมด" />
+                  </th>
+                  <th>วันที่</th>
+                  <th>ประเภท</th>
+                  <th>ชื่อผู้ยืม</th>
+                  <th>สินค้า</th>
+                  <th class="br-col-num">จำนวนรวม</th>
+                  <th class="br-col-num">มูลค่า</th>
+                  <th>ผู้บันทึก</th>
+                  <th class="br-col-act">จัดการ</th>
+                </tr>
+              </thead>
+              <tbody id="brHistBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════ MODAL: จัดการผู้ยืม (In-Context CRUD) ═══════════ -->
+    <div class="modal-overlay" id="personModal">
+      <div class="modal v-sage-header br-manage-modal">
+        <div class="modal-hdr">
+          <div class="modal-title">👥 จัดการรายชื่อผู้ยืม</div>
+          <button class="btn-modal-close" onclick="window.closePersonManager()">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="br-manage-add br-person-grid">
+            <input class="form-control" id="pmNewName" placeholder="ชื่อผู้ยืม *" />
+            <select class="form-control" id="pmNewType">
+              <option value="person">👤 บุคคล</option>
+              <option value="company">🏢 บริษัท</option>
+            </select>
+            <input class="form-control" id="pmNewPhone" placeholder="เบอร์โทร" />
+            <button class="btn btn-primary" data-perm="borrow_create" onclick="window.addPerson()">＋ เพิ่ม</button>
+          </div>
+          <div class="form-hint">
+            ชื่อห้ามซ้ำ · แก้ชื่อแล้วกด 💾 เพื่อบันทึก ·
+            การแก้ที่นี่ <strong>ไม่</strong> เปลี่ยนชื่อในรายการที่บันทึกไปแล้ว
+          </div>
+          <div class="search-wrap br-manage-search">
+            <span class="search-icon">🔍</span>
+            <input class="search-input" id="pmSearch" placeholder="ค้นหาชื่อ" oninput="window.renderPersonManager()" />
+          </div>
+          <div class="br-manage-list" id="pmList"></div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-outline" onclick="window.closePersonManager()">ปิด</button>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- ═══════════ MODAL: รายละเอียดรายการ ═══════════ -->
+    <div class="modal-overlay" id="detailModal">
+      <div class="modal v-sage-header br-detail-modal">
+        <div class="modal-hdr">
+          <div class="modal-title">🧾 รายละเอียดรายการ</div>
+          <button class="btn-modal-close" onclick="window.closeDetail()">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="br-detail-meta" id="dtlMeta"></div>
+          <div class="table-wrap">
+            <table class="data-table br-table">
+              <thead>
+                <tr>
+                  <th class="br-col-no">ลำดับ</th>
+                  <th>ชื่อสินค้า</th>
+                  <th class="br-col-num">ราคา</th>
+                  <th class="br-col-num">จำนวน</th>
+                  <th class="br-col-num">มูลค่า</th>
+                </tr>
+              </thead>
+              <tbody id="dtlBody"></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-outline" onclick="window.closeDetail()">ปิด</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Core -->
+    <script src="../../js/core/auth.js"></script>
+    <script src="../../js/core/authz.js"></script>
+    <script src="../../js/core/date-format.js"></script>
+    <script>AuthZ.requirePerm("borrow_view");</script>
+    <script src="./borrow-return.js"></script>
+
+    <!-- MODALS -->
+    <script src="../../js/components/modal/deleteModal.js"></script>
+    <script src="../../js/components/modal/confirmModal.js"></script>
+    <script src="../../js/components/modal/modalManager.js"></script>
+
+    <!-- JS Component/navigation -->
+    <script type="module">
+      import { loadTopbar } from "../../js/components/navigation/topbar.js";
+      loadTopbar("🔁 ยืม / คืน สินค้า");
+    </script>
+    <script src="../../js/components/navigation/sidebar.js"></script>
+  </body>
+</html>

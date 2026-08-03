@@ -1,0 +1,503 @@
+/* ============================================================
+   delivery-tracking.css — หน้า "ติดตามการจัดส่ง" (แทน Google Sheet)
+   prefix: .dt-*  (เลี่ยงชนกับ .sb-* ที่ sidebar.js inject ตอน runtime)
+   ============================================================ */
+
+/* ── ⚙️ จัดการ (In-Context CRUD link — ชุดเดียวกับ warehouse.css) ── */
+.ic-manage-link {
+  margin-left: 8px;
+  background: none;
+  border: none;
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: background .12s;
+}
+.ic-manage-link:hover { background: var(--accent-pale); }
+
+/* คำอธิบายใต้หัวข้อในโมดัล (.form-hint ไม่มีนิยามกลาง — กำหนดเองในหน้านี้) */
+.dt-card .form-hint,
+#custModal .form-hint,
+#kexModal .form-hint,
+#msgModal .form-hint {
+  font-size: 11.5px;
+  color: var(--text2);
+  line-height: 1.5;
+}
+
+/* ── การ์ดฟอร์มบันทึก ── */
+.dt-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 16px 18px;
+  margin-bottom: 14px;
+}
+.dt-card-hdr {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.dt-card-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--accent);
+}
+.dt-card-sub {
+  font-size: 11.5px;
+  color: var(--text2);
+}
+
+/* ── หัวข้อย่อยในฟอร์ม (แบ่งขั้นตอนตาม flow จริง) ── */
+.dt-form-sec {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 4px 0 10px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--accent);
+}
+.dt-form-sec small { font-weight: 400; color: var(--text2); font-size: 11.5px; }
+.dt-form-sec--later { margin-top: 16px; padding-top: 12px; border-top: 1px dashed var(--border); }
+.dt-form-sec-no {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 19px;
+  height: 19px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+}
+/* ป้ายบอกว่ารายการใน dropdown ถูกกรองตาม Line ID แล้ว */
+.dt-fk-hint { margin-left: 6px; font-size: 10.5px; font-weight: 600; color: var(--accent); }
+
+/* แถวรวมค่าส่งท้ายตาราง ("คิดราคา" ของชีตเดิม) */
+.dt-foot-total td {
+  background: var(--accent-pale);
+  border-top: 2px solid var(--accent);
+  font-weight: 800;
+  font-size: 13px;
+  color: var(--accent);
+  padding: 9px 10px;
+}
+.dt-foot-total td:first-child { text-align: right; }
+
+/* ช่องในตารางที่คลิกแก้ได้ (Tracking / ค่าส่ง) */
+.dt-editable { cursor: text; }
+.dt-editable:hover {
+  outline: 1.5px dashed var(--accent);
+  outline-offset: -2px;
+  background: var(--accent-pale);
+}
+.dt-cell-input {
+  width: 100%;
+  min-width: 90px;
+  border: 1.5px solid var(--accent);
+  border-radius: 5px;
+  padding: 3px 6px;
+  font: inherit;
+  font-size: 12px;
+  background: var(--surface);
+  color: var(--text);
+  outline: none;
+}
+.dt-cell-input.dt-num-input { text-align: right; }
+.dt-cell-empty { color: var(--text3); font-style: italic; }
+
+/* ── ตะแกรงฟอร์ม — 4 คอลัมน์บนจอกว้าง ── */
+.dt-form-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px 12px;
+}
+.dt-form-grid .form-group { margin-bottom: 0; }
+.dt-col-2 { grid-column: span 2; }
+
+.dt-form-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--border);
+}
+.dt-form-actions .dt-spacer { flex: 1; min-width: 8px; }
+
+/* ── Combobox (แทน <datalist> ที่เบราว์เซอร์วาดเองและจัดสไตล์ไม่ได้) ──
+   เมนูวางแบบ absolute ในกรอบ .dt-combo (position:relative)
+   → ไม่ต้องคำนวณชดเชย zoom ของ :root เหมือน popup แบบ fixed */
+.dt-combo { position: relative; }
+.dt-combo .form-control { padding-right: 30px; }
+
+.dt-combo-caret {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  transform: translateY(-50%);
+  border: none;
+  background: transparent;
+  color: var(--text3);
+  font-size: 12px;
+  line-height: 1;
+  padding: 4px 5px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.dt-combo-caret:hover { background: var(--accent-pale); color: var(--accent); }
+
+.dt-combo-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 60;
+  max-height: 280px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: var(--shadow-lg);
+  padding: 4px;
+  display: none;
+}
+.dt-combo.open .dt-combo-menu { display: block; }
+
+.dt-combo-item {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 7px 10px;
+  border-radius: 7px;
+  font-size: 13px;
+  color: var(--text);
+  cursor: pointer;
+  line-height: 1.35;
+}
+.dt-combo-item:hover,
+.dt-combo-item.active { background: var(--accent-pale); color: var(--accent); }
+.dt-combo-item-main { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.dt-combo-item-main b { color: var(--accent); font-weight: 700; }   /* ไฮไลต์คำที่ค้น */
+.dt-combo-item-sub {
+  flex-shrink: 0;
+  max-width: 45%;
+  font-size: 11px;
+  color: var(--text2);
+  text-align: right;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dt-combo-item.active .dt-combo-item-sub { color: var(--accent); opacity: .8; }
+
+.dt-combo-empty {
+  padding: 12px 10px;
+  text-align: center;
+  font-size: 12.5px;
+  color: var(--text3);
+}
+.dt-combo-more {
+  padding: 7px 10px;
+  border-top: 1px dashed var(--border);
+  margin-top: 3px;
+  font-size: 11.5px;
+  color: var(--text3);
+  text-align: center;
+}
+
+/* ── แถบสถานะ LINE OA ── */
+.dt-oa-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+.dt-oa-row .form-group { flex: 1; min-width: 0; }
+.dt-oa-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.dt-oa-status.on  { background: var(--success-pale); color: var(--success); }
+.dt-oa-status.off { background: var(--danger-pale);  color: var(--danger); }
+.dt-oa-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: currentColor;
+}
+
+/* ── โหมดแก้ไข (ฟอร์มเดียวกันกับตอนเพิ่ม) ── */
+.dt-card.editing {
+  border-color: var(--warning);
+  box-shadow: 0 0 0 2px var(--warning-pale);
+}
+.dt-edit-flag {
+  display: none;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--warning-pale);
+  color: var(--warning);
+  font-size: 11.5px;
+  font-weight: 700;
+}
+.dt-card.editing .dt-edit-flag { display: inline-flex; }
+
+/* ── แถบเลือกวัน (มุมมองรายวัน — ชุดเดียวกับ Daily Sale) ── */
+.dt-daynav {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 10px 12px;
+  margin-bottom: 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-soft);
+}
+.dt-daynav-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text2);
+}
+.dt-daynav-label input { width: auto; min-width: 150px; }
+.dt-daynav-info { font-size: 12px; color: var(--text2); margin-left: auto; }
+
+.dt-datenav {
+  display: inline-flex;
+  align-items: stretch;
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--surface);
+}
+.dt-datenav button {
+  border: none;
+  background: var(--surface);
+  color: var(--text2);
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 7px 14px;
+  line-height: 1.2;
+  transition: background .15s, color .15s;
+}
+.dt-datenav button + button { border-left: 1.5px solid var(--border); }
+.dt-datenav button:hover:not(:disabled) { background: rgba(var(--accent-rgb), .12); color: var(--accent); }
+.dt-nav-chip { font-size: 18px; font-weight: 900; padding: 7px 13px; }
+.dt-datenav #dtChipToday { min-width: 64px; }
+.dt-datenav #dtChipToday.active { background: var(--accent); color: #fff; }
+.dt-datenav button:disabled { opacity: .35; cursor: not-allowed; }
+
+.dt-allday {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  color: var(--text2);
+  cursor: pointer;
+  user-select: none;
+}
+.dt-allday input { width: 15px; height: 15px; margin: 0; cursor: pointer; }
+
+/* หัวเรื่องวันที่ (แถบเหลืองแบบหัวชีท DAILY SALE) */
+.dt-sheet-title {
+  background: linear-gradient(180deg, #fef9c3, #fde68a);
+  border: 1px solid #eab308;
+  border-radius: 10px;
+  padding: 9px 16px;
+  margin-bottom: 10px;
+  text-align: center;
+  font-weight: 800;
+  font-size: 14.5px;
+  color: #713f12;
+}
+.dt-sheet-title small { font-weight: 600; font-size: 12.5px; color: #854d0e; opacity: .9; }
+
+/* ── แถบฟิลเตอร์ ── */
+.dt-filter-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+.dt-filter-row .search-wrap { min-width: 220px; }
+.dt-date-range {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text2);
+}
+.dt-date-range input { max-width: 150px; }
+
+/* ── แถบ bulk (เลือกหลายแถว) ── */
+.dt-bulk-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 8px 12px;
+  margin-bottom: 10px;
+  border-radius: 8px;
+  background: var(--accent-pale);
+  border: 1px solid var(--accent-lighter);
+}
+.dt-bulk-info { font-size: 12.5px; color: var(--accent); }
+.dt-bulk-actions { display: flex; gap: 6px; flex-wrap: wrap; margin-left: auto; }
+.dt-bulk-btn { padding: 4px 10px; font-size: 12px; }
+.dt-bulk-btn-danger { color: var(--danger); border-color: var(--danger); }
+
+/* ── ตาราง ── */
+.dt-table { font-size: 12.5px; }
+.dt-table th, .dt-table td { white-space: nowrap; vertical-align: middle; }
+.dt-table td.dt-num { text-align: right; font-variant-numeric: tabular-nums; }
+.dt-table .dt-col-chk { width: 34px; text-align: center; }
+.dt-table .dt-col-send { width: 78px; text-align: center; }
+.dt-table .dt-col-act { width: 96px; text-align: center; }
+.dt-table input[type="checkbox"] { width: 15px; height: 15px; cursor: pointer; margin: 0; }
+.dt-table tr.dt-sent td { background: color-mix(in srgb, var(--success-pale) 45%, transparent); }
+.dt-table tr.dt-row-edit td { background: var(--warning-pale); }
+
+.dt-cust {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.35;
+  white-space: normal;
+  min-width: 140px;
+}
+.dt-cust-name { font-weight: 600; color: var(--text); }
+.dt-cust-line { font-size: 11px; color: var(--text2); }
+
+.dt-track {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11.5px;
+}
+.dt-track a { color: var(--accent); text-decoration: none; }
+.dt-track a:hover { text-decoration: underline; }
+
+.dt-chip {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 700;
+  background: var(--info-pale);
+  color: var(--info);
+}
+.dt-chip.dt-chip-muted { background: #eee9e1; color: var(--text2); }
+
+.dt-icon-btn {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  padding: 3px 5px;
+  border-radius: 6px;
+  opacity: .75;
+}
+.dt-icon-btn:hover { background: var(--accent-pale); opacity: 1; }
+.dt-icon-btn.dt-danger:hover { background: var(--danger-pale); }
+.dt-icon-btn.dt-off { opacity: .28; cursor: not-allowed; }
+.dt-icon-btn.dt-off:hover { background: transparent; opacity: .28; }
+
+/* ── modal: จัดการลูกค้า (In-Context CRUD) ── */
+.dt-cust-add {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr 1fr 1fr auto;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 4px;
+}
+.dt-cust-list { display: flex; flex-direction: column; gap: 6px; }
+.dt-cust-row {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr 1fr 1fr 1.4fr auto;
+  gap: 6px;
+  align-items: center;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-soft);
+}
+.dt-cust-row .form-control { padding: 5px 8px; font-size: 12px; }
+.dt-cust-actions { display: flex; gap: 2px; }
+
+/* ── modal: นำเข้า KEX ── */
+.dt-kex-drop {
+  border: 2px dashed var(--border);
+  border-radius: 10px;
+  padding: 18px;
+  text-align: center;
+  color: var(--text2);
+  font-size: 12.5px;
+  background: var(--surface-soft);
+  cursor: pointer;
+}
+.dt-kex-drop:hover { border-color: var(--accent-light); color: var(--accent); }
+.dt-kex-preview {
+  max-height: 300px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-top: 10px;
+}
+.dt-kex-preview table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.dt-kex-preview th, .dt-kex-preview td {
+  padding: 5px 8px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  white-space: nowrap;
+}
+.dt-kex-preview thead th { background: var(--surface-soft); position: sticky; top: 0; }
+.dt-kex-hit  { color: var(--success); font-weight: 700; }
+.dt-kex-miss { color: var(--danger); }
+
+/* ── modal: ข้อความส่งลูกค้า ── */
+.dt-msg-box {
+  width: 100%;
+  min-height: 170px;
+  font-size: 13px;
+  line-height: 1.6;
+  resize: vertical;
+}
+
+/* ── RESPONSIVE (desktop-first · 1280/1024/767/480) ── */
+@media (max-width: 1280px) {
+  .dt-form-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 1024px) {
+  .dt-form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .dt-cust-row  { grid-template-columns: 1fr 1fr auto; }
+  .dt-cust-add  { grid-template-columns: 1fr 1fr auto; }
+}
+@media (max-width: 767px) {
+  .dt-form-grid { grid-template-columns: 1fr; }
+  .dt-col-2 { grid-column: span 1; }
+  .dt-oa-row { flex-direction: column; align-items: stretch; }
+  .dt-bulk-actions { margin-left: 0; width: 100%; }
+  .dt-filter-row .search-wrap { min-width: 100%; }
+  .dt-cust-row, .dt-cust-add { grid-template-columns: 1fr; }
+}

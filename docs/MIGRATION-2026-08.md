@@ -10,10 +10,11 @@
 | หน้าเว็บ (Pages) | `https://zepyros11.github.io/A4S-ERP-G/` | `https://a4scontent.github.io/A4S-ERP-G/` |
 | Supabase | `dtiynydgkcqausqktreg` | `egnwfmdsqtxxyhyajnnu` |
 | Render proxy | `a4s-erp-proxy.onrender.com` | ต้องสร้างตัวที่ 2 |
-| Google Drive | Shared Drive บริษัท | **ใช้ของเดิม ไม่เปลี่ยน** |
+| Google Drive | Shared Drive (Workspace) | **My Drive ของ `a4scontent@gmail.com`** → Phase 6 |
 | LINE OA | channel เดิม | ตัดสินใจตอน cutover (ดู Phase 5) |
 
-**ทำไม Drive ไม่ต้องแตะ:** URL รูปในฐานข้อมูลเก็บเป็น `/drive/file/<fileId>` — proxy อ่านด้วย fileId ตรงๆ ไม่สนว่าไฟล์อยู่โฟลเดอร์ไหน → ระบบใหม่ที่ต่อ service account เดิม อ่านรูปเก่าได้ครบทันทีโดยไม่ต้อง migrate อะไรเลย
+**เดิมคิดว่า Drive ไม่ต้องแตะ:** URL รูปในฐานข้อมูลเก็บเป็น `/drive/file/<fileId>` — proxy อ่านด้วย fileId ตรงๆ ไม่สนว่าไฟล์อยู่โฟลเดอร์ไหน → ระบบใหม่ที่ต่อ service account เดิม อ่านรูปเก่าได้ครบทันที
+**แต่ 3 ส.ค. 2569 ตัดสินใจเลิกใช้ Workspace** → Shared Drive อยู่ไม่ได้ ต้องย้ายจริง → **Phase 6**
 
 ---
 
@@ -450,6 +451,105 @@ LINE ผูกกับระบบ 3 จุด และ **ทุกจุด�
 
 ### Rollback
 กลับ webhook + LIFF ไปชี้ของเดิม + เปิด Actions repo เดิม → ระบบเดิมกลับมาทันที (ข้อมูลที่กรอกในระบบใหม่ช่วง cutover จะไม่ตามกลับมา)
+
+---
+
+## Phase 6 — Google Drive: Shared Drive → My Drive ของ a4scontent (เริ่ม 3 ส.ค. 2569)
+
+**ขนาดงานจริง (สำรวจแล้ว):** `A4S-ERP-Images` มี **682 ไฟล์ / 388.8 MB / 17 โฟลเดอร์**
+a4scontent เป็น Google One 2 TB ใช้ไป 1.03 TB → เหลือ ~970 GB ใส่สบาย
+
+| โฟลเดอร์ | ไฟล์ | ขนาด |
+|---|---|---|
+| `Backups/db-20260708_1553` | 96 | 155.0 MB |
+| `uploads/tour-seat-images/passport` | 132 | 65.8 MB |
+| `uploads/event-files/posters` | 82 | 55.3 MB |
+| `uploads/tour-seat-images/visa-pdf` | 104 | 54.7 MB |
+| `uploads/promotion-files` | 33 | 36.1 MB |
+| `uploads/event-files/campaigns` · `places` | 78 | 15.8 MB |
+| `uploads/web-images` · `product-images` · `ticket` | 156 | 6.2 MB |
+
+> อีก 7 Shared Drive (BRE / CS / ERP / HR / IT Develop / Purchasing / แชร์ภาพ) **ระบบไม่ได้ใช้**
+> service account มองไม่เห็นด้วยซ้ำ — เป็นไฟล์งานบริษัทล้วนๆ ต้องย้ายแยกด้วยมือ ไม่ใช่ scope นี้
+
+### 🔴 กับดัก 2 ข้อที่ต้องรู้ก่อนลงมือ
+
+1. **service account เขียนลง My Drive ส่วนตัวไม่ได้**
+   SA ไม่มีโควต้าเก็บของของตัวเอง เขียนได้เฉพาะ Shared Drive → ถ้าย้ายไฟล์ไปเฉยๆ
+   **รูปเก่าจะยังอ่านได้ แต่อัปโหลดรูปใหม่จะ 403 `storageQuotaExceeded` ทุกครั้ง**
+   → ต้องเปลี่ยน [ai-proxy/drive.js](../ai-proxy/drive.js) ไปใช้ **OAuth refresh token ของ a4scontent** (ทำแล้ว — โหมด A)
+2. **ก๊อปข้ามบัญชี = fileId เปลี่ยนทุกไฟล์**
+   (ต่างจาก Phase 3 ที่ย้ายแค่ proxy — id เดิม) → ต้องเขียน URL ในฐานข้อมูลใหม่ทั้ง 682 id
+   ไม่รัน = พาสปอร์ต/วีซ่า/ตั๋ว/โปสเตอร์/รูปสินค้า พังพร้อมกันวันที่ปิด Shared Drive
+
+### ทำไมใช้ scope `drive.file` ไม่ใช่ `drive` เต็ม
+
+| | `drive` (เต็ม) | `drive.file` ◀ เลือกอันนี้ |
+|---|---|---|
+| Google จัดชั้น | **restricted** — publish ต้องผ่าน verification + security assessment | ไม่ sensitive — กด Publish ได้เลย |
+| consent screen ค้างสถานะ Testing | refresh token **หมดอายุทุก 7 วัน** = ระบบพังทุกสัปดาห์ | เหมือนกัน → **ต้อง Publish to production** |
+| ถ้า token หลุด | อ่าน Drive ส่วนตัวได้ทั้งบัญชี | เห็นเฉพาะไฟล์ที่แอปนี้สร้าง |
+
+> ⚠️ **ห้ามเปลี่ยน `GOOGLE_OAUTH_CLIENT_ID` ตลอดไป** — `drive.file` ผูกสิทธิ์กับ client ID
+> สร้าง client ใหม่ = proxy อ่านไฟล์ที่ client เก่าอัปไว้ไม่ได้ (ไฟล์ยังอยู่ เห็นใน Drive UI แต่ API แตะไม่ได้)
+>
+> ⚠️ **สร้าง Google Cloud project ใต้บัญชี `a4scontent@gmail.com`** — อย่าใช้ project เดิมที่ผูก Workspace
+> ไม่งั้นวันที่ปิด Workspace project ตายตาม พาระบบพังซ้ำรอบสอง
+
+### ลำดับที่ทำ
+
+| # | ขั้น | คำสั่ง / ที่ทำ | สถานะ |
+|---|---|---|---|
+| 1 | ก๊อปทุกไฟล์ลงเครื่องเป็นตาข่ายนิรภัย | `node scripts/drive-backup-local.cjs` | ✅ 682/682 · 388.8 MB · [D:/@Projects/A4S-backups/drive-20260803](D:/@Projects/A4S-backups/drive-20260803) |
+| 2 | แก้ proxy ให้รองรับ OAuth (fallback SA ไว้เหมือนเดิม) | [ai-proxy/drive.js](../ai-proxy/drive.js) · `/drive/health` คืน `mode` ด้วยแล้ว | ✅ |
+| 3 | สร้าง GCP project + OAuth client | project `a4s-erp-drive` ใต้ a4scontent (No organization) · consent screen **In production** · client type Desktop | ✅ |
+| 4 | ขอ refresh token | `node scripts/drive-get-refresh-token.cjs <id> <secret>` → ยืนยันบัญชี a4scontent · เหลือ 994 GB | ✅ |
+| 5 | อัปเข้า My Drive + ได้ id-map | `node scripts/drive-upload-to-personal.cjs` | ✅ **682/682** · id-map 682 คู่ · ตรวจกับ Drive จริงแล้วไม่มีไฟล์เกิน/ขาด |
+| 6 | สร้าง SQL เขียน fileId ใหม่ | `node scripts/drive-gen-id-rewrite-sql.cjs` | ✅ [sql/183](../sql/183_rewrite_drive_file_ids.sql) + [check](../sql/183_rewrite_drive_file_ids_check.sql) |
+| 7 | ตั้ง env ที่ Render + รัน SQL | ดู "ขั้นตอน cutover" | ⬜ **ต้องทำมือ** |
+| 8 | rotate client secret + เฝ้า 1-2 สัปดาห์ แล้วค่อยลบ Shared Drive | — | ⬜ |
+
+**ทดสอบโหมด OAuth บนเครื่องแล้ว (ก่อนแตะ Render):** `mode=oauth` · อ่านไฟล์ที่ย้ายมา (jpg/pdf) 200 ครบ ·
+**อัปไฟล์ใหม่สำเร็จ** (จุดที่ service account จะ 403) · อ่านกลับได้ · ลบได้
+
+### ⚠️ 2 กับดักที่เจอตอนทำจริง (ถ้าทำซ้ำที่อื่นให้ระวัง)
+
+1. **DRY_RUN เขียน cache โฟลเดอร์ทับของจริง** — `folders.json` ถูก seed ด้วย id ปลอม `DRY-*`
+   รอบจริงเจอ cache hit เลยไม่สร้างโฟลเดอร์ → upload 404 **ทั้ง 682 ไฟล์** (เงียบมาก เพราะดูเผินๆ เหมือนทำงาน)
+   → แก้ที่ [drive-upload-to-personal.cjs:94](../scripts/drive-upload-to-personal.cjs) · ถ้าเคยรัน DRY ต้องลบ `folders.json` + `id-map.json` ก่อนรันจริง
+2. **`fetch failed` ระหว่างอัป ≠ ไฟล์ไม่ขึ้น** — ไฟล์ขึ้นไปแล้วแต่ response หลุด → รันซ้ำได้ไฟล์ซ้ำ
+   → ต้องเทียบ "ไฟล์จริงใน Drive" กับ id-map เสมอ แล้ว trash ตัวกำพร้า (เจอ 1 ตัว จัดการแล้ว)
+
+### ขั้นที่ 3 — สร้าง OAuth client (ทำมือ ~5 นาที)
+
+1. เข้า https://console.cloud.google.com **ด้วยบัญชี `a4scontent@gmail.com`** → New Project (เช่น `a4s-erp-drive`)
+2. APIs & Services → Library → **Google Drive API** → Enable
+3. OAuth consent screen → **External** → กรอกชื่อแอป + support email + developer email → Save
+4. **Audience → Publish app → Confirm** ⬅ ข้อนี้ห้ามลืม ไม่งั้น refresh token ตายทุก 7 วัน
+   (`drive.file` ไม่ sensitive → ไม่ต้องส่ง verification)
+5. Credentials → Create credentials → OAuth client ID → Application type **Desktop app** → Create
+6. ก๊อป **Client ID** + **Client secret** ไปใช้ขั้นที่ 4
+
+### ขั้นตอน cutover (ขั้นที่ 7 — เรียงตามนี้)
+
+1. เปิดไฟล์ที่อัปใหม่ 2-3 ใบใน Drive UI ของ a4scontent ว่าครบและเปิดได้จริง
+2. รัน [sql/183_rewrite_drive_file_ids_check.sql](../sql/183_rewrite_drive_file_ids_check.sql) → จดตัวเลขไว้
+3. Render **`a4s-erp-proxy-new`** (ตัวเดียวพอ — [js/core/config.js](../js/core/config.js) ชี้ตัวนี้ทั้ง 2 hostname
+   · proxy เก่าใช้เฉพาะตอนกด `erp_env=old` ซึ่งตายไปแล้วตั้งแต่ pause Supabase เก่า) → Environment → เพิ่ม
+   `GOOGLE_OAUTH_CLIENT_ID` / `GOOGLE_OAUTH_CLIENT_SECRET` / `GOOGLE_OAUTH_REFRESH_TOKEN`
+   และเปลี่ยน `GDRIVE_FOLDER_ID` = **`1v2JulHC8uBdAt70vh8NbkTIzHe-ZEOWn`** (= `A4S-ERP-Images/uploads` ใน My Drive)
+   · **ยังไม่ต้องลบ `GOOGLE_SA_*`** เผื่อถอย (มีอยู่ก็ไม่ถูกใช้ — OAuth ชนะเสมอเมื่อ refresh token ครบ)
+
+   > id อ้างอิง: root `A4S-ERP-Images` = `1wBzIc8qUI9nU5G7O7z7w9BK-XF-_deEs`
+   > · ค่าเดิม (Shared Drive `uploads`) = `1g_ebm1nGFL_oP3dJsNqU-DO79S0_ITVc` เก็บไว้เผื่อถอย
+4. Deploy → `curl .../drive/health` → ต้องได้ `{"ok":true,"configured":true,"mode":"oauth"}`
+5. รัน [sql/183_rewrite_drive_file_ids.sql](../sql/183_rewrite_drive_file_ids.sql) → รัน check ซ้ำ → ต้องได้ **0**
+6. เปิดหน้า catalog / pax-detail / trip-list / event → รูปต้องขึ้นครบ
+7. ทดสอบ **อัปรูปใหม่** 1 ใบ (นี่คือจุดที่ SA เคยพัง) → ต้องได้ url `/drive/file/...` และแสดงได้
+8. ทดสอบลบรูป → ต้องไม่ error
+
+**ปุ่มถอย:** ลบ 3 env ของ OAuth + คืน `GDRIVE_FOLDER_ID` เดิม → กลับเป็นโหมด service-account ทันที
+(แต่ถ้ารัน SQL 183 ไปแล้ว ต้องถอย DB ด้วย — id-map.json กลับทางได้ ไฟล์เดิมยังอยู่ครบใน Shared Drive)
 
 ---
 

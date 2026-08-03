@@ -1,0 +1,465 @@
+/* ============================================================
+   withdraw.css — หน้า "เบิกสินค้า" (แทน Google Sheet Withdraw_DATA)
+   prefix: .wd-*  (เลี่ยงชนกับ .sb-* ที่ sidebar.js inject ตอน runtime)
+   ============================================================ */
+
+/* ── ⚙️ จัดการ (In-Context CRUD link — ชุดเดียวกับ delivery-tracking.css) ── */
+.ic-manage-link {
+  margin-left: 8px;
+  background: none;
+  border: none;
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: background 0.12s;
+}
+.ic-manage-link:hover { background: var(--accent-pale); }
+
+/* คำอธิบายใต้หัวข้อ (.form-hint ไม่มีนิยามกลาง — กำหนดเองในหน้านี้) */
+.wd-card .form-hint,
+#categoryModal .form-hint,
+#itemModal .form-hint {
+  font-size: 11.5px;
+  color: var(--text2);
+  line-height: 1.5;
+  margin: 6px 0 12px;
+}
+
+/* ── การ์ด ── */
+.wd-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 16px 18px;
+  margin-bottom: 14px;
+}
+.wd-card-hdr {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.wd-card-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--accent);
+}
+.wd-card-sub {
+  font-size: 11.5px;
+  color: var(--text2);
+}
+
+/* ชื่อประเภทยาวกว่าตัวเลขปกติ — ลดขนาดเฉพาะการ์ดนั้น */
+.stat-value--sm { font-size: 18px; line-height: 1.3; }
+
+/* แท็บชิดการ์ดที่อยู่ใต้ลงมา */
+#wdTabs { margin-bottom: 12px; }
+
+/* ── หัวบิล (วันที่ / ประเภท / คลัง / หมายเหตุ / ปุ่ม Save) ── */
+.wd-head-grid {
+  display: grid;
+  grid-template-columns: 150px minmax(180px, 1fr) minmax(180px, 1fr) minmax(180px, 1.2fr) auto;
+  gap: 10px 12px;
+  align-items: end;
+}
+.wd-head-grid .form-group { margin-bottom: 0; }
+.wd-save-cell {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.wd-save-btn { white-space: nowrap; }
+
+/* แถบอธิบายว่ากด Save แล้วสต็อกถูกตัดจริง */
+.wd-stock-note {
+  margin-top: 12px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--accent-pale);
+  border: 1px solid var(--accent-lighter);
+  color: var(--accent);
+  font-size: 11.5px;
+  line-height: 1.55;
+}
+
+/* ── โหมดแก้ไข ── */
+.wd-card.editing {
+  border-color: var(--warning);
+  box-shadow: 0 0 0 2px var(--warning-pale);
+}
+.wd-edit-flag {
+  display: none;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--warning-pale);
+  color: var(--warning);
+  font-size: 11.5px;
+  font-weight: 700;
+}
+.wd-card.editing .wd-edit-flag { display: inline-flex; }
+
+/* ── แถบฟิลเตอร์ ── */
+.wd-filter-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+.wd-filter-row .search-wrap { min-width: 220px; }
+.wd-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text2);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.wd-check input { width: 15px; height: 15px; margin: 0; cursor: pointer; }
+.wd-date-range {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text2);
+}
+.wd-date-range input { max-width: 165px; }
+
+/* ── แท็บประเภทการเบิก (= แท็บในชีตรายงานเดิม) ── */
+.wd-cat-tabs {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+.wd-cat-tab {
+  border: 1px solid var(--border);
+  background: var(--surface-soft);
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text2);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+.wd-cat-tab:hover { background: var(--accent-pale); color: var(--accent); }
+.wd-cat-tab.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.wd-cat-tab .wd-cat-n {
+  margin-left: 6px;
+  font-size: 11px;
+  opacity: 0.8;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── ตาราง (ใช้ร่วมทั้ง 3 แท็บ) ── */
+.wd-table { font-size: 12.5px; }
+.wd-table th,
+.wd-table td { vertical-align: middle; }
+.wd-table .wd-col-no { width: 60px; text-align: center; }
+.wd-table .wd-col-code { width: 120px; }
+.wd-table .wd-col-num { width: 110px; text-align: right; }
+.wd-table .wd-col-qty { width: 120px; text-align: center; }
+.wd-table .wd-col-chk { width: 34px; text-align: center; }
+.wd-table .wd-col-act { width: 110px; text-align: center; }
+.wd-table td.wd-num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.wd-table td.wd-code {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11.5px;
+  color: var(--text2);
+}
+.wd-table input[type="checkbox"] { width: 15px; height: 15px; cursor: pointer; margin: 0; }
+
+/* แถวสลับสี — อ่านตารางยาวๆ ง่ายขึ้น (ชีตเดิมก็ทำแบบนี้) */
+.wd-table tbody tr:nth-child(even) td { background: var(--surface-soft); }
+.wd-table tbody tr:hover td { background: var(--accent-pale); }
+
+.wd-table tfoot td {
+  background: var(--surface2);
+  font-weight: 700;
+  border-top: 2px solid var(--border2);
+  padding: 9px 12px;
+}
+.wd-foot-label { text-align: right; color: var(--text2); }
+.wd-table tfoot td.wd-num { text-align: right; font-variant-numeric: tabular-nums; }
+
+.wd-empty {
+  padding: 34px 16px;
+  text-align: center;
+  color: var(--text3);
+  font-size: 13px;
+  line-height: 1.7;
+}
+.wd-empty .wd-empty-icon { font-size: 30px; display: block; margin-bottom: 8px; }
+
+/* ── ตารางกรอกจำนวน (แท็บ 1) — หัวตารางติดบนตอนเลื่อน ── */
+.wd-item-wrap {
+  max-height: 60vh;
+  overflow-y: auto;
+}
+.wd-item-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--surface2);
+}
+.wd-qty-input {
+  width: 100%;
+  max-width: 92px;
+  padding: 5px 8px;
+  font-size: 12.5px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.wd-item-table tr.wd-row-filled td { background: var(--accent-pale); }
+.wd-item-table tr.wd-row-filled td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
+
+/* คงเหลือ (on-hand ของคลังที่เลือก) */
+.wd-onhand { color: var(--text2); font-variant-numeric: tabular-nums; }
+.wd-onhand.wd-low { color: var(--warning); font-weight: 700; }
+.wd-onhand.wd-neg { color: var(--danger); font-weight: 700; }
+/* กรอกจำนวนเกินของที่มี */
+.wd-qty-input.wd-over {
+  border-color: var(--danger);
+  background: var(--danger-pale);
+}
+
+/* ── เมทริกซ์รายงาน (แท็บ 2) — สินค้า × วันที่ 1–31 ── */
+.wd-matrix-wrap {
+  max-height: 66vh;
+  overflow: auto;          /* เลื่อนได้ทั้งแนวนอน (31 วัน) และแนวตั้ง */
+}
+.wd-matrix-table {
+  border-collapse: separate;
+  border-spacing: 0;
+  min-width: 100%;
+  white-space: nowrap;
+}
+.wd-matrix-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: var(--surface2);
+}
+/* 3 คอลัมน์แรก (ลำดับ / รหัส / รายละเอียด) ตรึงไว้ตอนเลื่อนแนวนอน */
+.wd-matrix-table th.wd-sticky-1,
+.wd-matrix-table td.wd-sticky-1 { position: sticky; left: 0;      z-index: 2; }
+/* --wd-left-2/3 ตั้งค่าจาก JS (applyStickyOffsets) ตามความกว้างจริงของ 2 คอลัมน์แรก */
+.wd-matrix-table th.wd-sticky-2,
+.wd-matrix-table td.wd-sticky-2 { position: sticky; left: var(--wd-left-2, 60px);  z-index: 2; }
+.wd-matrix-table th.wd-sticky-3,
+.wd-matrix-table td.wd-sticky-3 { position: sticky; left: var(--wd-left-3, 180px); z-index: 2; }
+.wd-matrix-table thead th.wd-sticky-1,
+.wd-matrix-table thead th.wd-sticky-2,
+.wd-matrix-table thead th.wd-sticky-3 { z-index: 4; }
+/* คอลัมน์ตรึงต้องมีพื้นหลังทึบ ไม่งั้นเนื้อหาที่เลื่อนผ่านจะทะลุขึ้นมา */
+.wd-matrix-table td.wd-sticky-1,
+.wd-matrix-table td.wd-sticky-2,
+.wd-matrix-table td.wd-sticky-3 { background: var(--surface); }
+.wd-matrix-table tbody tr:nth-child(even) td.wd-sticky-1,
+.wd-matrix-table tbody tr:nth-child(even) td.wd-sticky-2,
+.wd-matrix-table tbody tr:nth-child(even) td.wd-sticky-3 { background: var(--surface-soft); }
+.wd-matrix-table tbody tr:hover td.wd-sticky-1,
+.wd-matrix-table tbody tr:hover td.wd-sticky-2,
+.wd-matrix-table tbody tr:hover td.wd-sticky-3 { background: var(--accent-pale); }
+.wd-matrix-table tfoot td { position: sticky; bottom: 0; z-index: 3; }
+.wd-matrix-table tfoot td.wd-sticky-1,
+.wd-matrix-table tfoot td.wd-sticky-2,
+.wd-matrix-table tfoot td.wd-sticky-3 { z-index: 4; background: var(--surface2); }
+
+.wd-matrix-table .wd-col-day { width: 40px; min-width: 40px; text-align: center; padding: 6px 4px; }
+.wd-matrix-table th.wd-col-day { font-size: 11px; }
+.wd-matrix-table td.wd-col-day { font-variant-numeric: tabular-nums; }
+.wd-matrix-table .wd-day-weekend { color: var(--danger); }
+.wd-matrix-table .wd-day-zero { color: var(--border2); }
+.wd-matrix-table .wd-name-cell { min-width: 220px; white-space: normal; }
+
+/* คอลัมน์ "รวมเบิก" — ตัวเลขสรุปท้ายแถว */
+.wd-matrix-table .wd-col-total {
+  width: 92px;
+  min-width: 92px;
+  text-align: right;
+  font-weight: 700;
+  color: var(--accent);
+  background: var(--accent-pale) !important;
+  font-variant-numeric: tabular-nums;
+}
+.wd-matrix-table .wd-col-value {
+  width: 110px;
+  min-width: 110px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── ชิป / ปุ่มไอคอน ── */
+.wd-chip {
+  display: inline-block;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 700;
+  white-space: nowrap;
+  background: var(--accent-pale);
+  color: var(--accent);
+}
+.wd-chip-muted { background: var(--surface2); color: var(--text2); }
+
+.wd-items-cell {
+  white-space: normal;
+  min-width: 200px;
+  line-height: 1.45;
+  font-size: 11.5px;
+  color: var(--text2);
+}
+.wd-items-cell strong { color: var(--text); font-weight: 600; }
+
+.wd-icon-btn {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  padding: 3px 5px;
+  border-radius: 6px;
+  opacity: 0.75;
+}
+.wd-icon-btn:hover { background: var(--accent-pale); opacity: 1; }
+.wd-icon-btn.wd-danger:hover { background: var(--danger-pale); }
+
+/* ── แถบ bulk (เลือกหลายแถว) ── */
+.wd-bulk-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 8px 12px;
+  margin-bottom: 10px;
+  border-radius: 8px;
+  background: var(--accent-pale);
+  border: 1px solid var(--accent-lighter);
+}
+.wd-bulk-info { font-size: 12.5px; color: var(--accent); }
+.wd-bulk-actions { display: flex; gap: 6px; flex-wrap: wrap; margin-left: auto; }
+.wd-bulk-btn { padding: 4px 10px; font-size: 12px; }
+.wd-bulk-btn-danger { color: var(--danger); border-color: var(--danger); }
+
+/* ── โมดัลจัดการ master (ประเภท / รายการสินค้า) ── */
+.wd-manage-modal {
+  width: 780px;
+  max-width: 94vw;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+}
+.wd-manage-modal .modal-body {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+}
+.wd-manage-add {
+  display: grid;
+  gap: 6px;
+  align-items: center;
+}
+.wd-cat-grid { grid-template-columns: 1fr 90px auto; }
+.wd-icon-input { text-align: center; }
+.wd-manage-search { margin-bottom: 10px; }
+.wd-manage-list { display: flex; flex-direction: column; gap: 6px; }
+.wd-manage-row {
+  display: grid;
+  gap: 6px;
+  align-items: center;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-soft);
+}
+/* .wd-manage-* เหลือใช้เฉพาะโมดัล "จัดการประเภทการเบิก" แล้ว
+   — โมดัลตั้งค่ารายการสินค้าย้ายไปหน้าตรวจนับ Stock F.3 (master กลาง · sql/179) */
+.wd-manage-row.wd-cat-row { grid-template-columns: 1fr 90px auto; }
+.wd-manage-row .form-control { padding: 5px 8px; font-size: 12px; }
+.wd-manage-actions { display: flex; gap: 2px; }
+
+/* ── โมดัลรายละเอียด ── */
+.wd-detail-modal { width: 680px; max-width: 94vw; }
+.wd-detail-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  border-radius: 8px;
+  background: var(--surface-soft);
+  border: 1px solid var(--border);
+  font-size: 12.5px;
+  color: var(--text2);
+}
+.wd-detail-meta strong { color: var(--text); font-weight: 600; }
+
+/* ── RESPONSIVE (desktop-first · 1280/1024/767/480) ── */
+@media (max-width: 1280px) {
+  .wd-head-grid { grid-template-columns: 140px minmax(160px, 1fr) minmax(160px, 1fr) minmax(160px, 1fr); }
+  .wd-save-cell { grid-column: 1 / -1; }
+}
+@media (max-width: 1024px) {
+  .wd-head-grid { grid-template-columns: 1fr 1fr; }
+  .wd-manage-row.wd-item-row { grid-template-columns: 26px 100px 1fr 80px; }
+  .wd-manage-row.wd-item-row .wd-im-price { display: none; }
+  /* จอแคบ: ตรึงแค่คอลัมน์ชื่อสินค้าพอ ไม่งั้นกินพื้นที่จนดูวันที่ไม่ได้ */
+  .wd-matrix-table th.wd-sticky-1,
+  .wd-matrix-table td.wd-sticky-1,
+  .wd-matrix-table th.wd-sticky-2,
+  .wd-matrix-table td.wd-sticky-2 { position: static; }
+  .wd-matrix-table th.wd-sticky-3,
+  .wd-matrix-table td.wd-sticky-3 { left: 0; }
+}
+@media (max-width: 767px) {
+  .wd-head-grid { grid-template-columns: 1fr; }
+  .wd-save-cell { flex-direction: column; align-items: stretch; }
+  .wd-filter-row .search-wrap { min-width: 100%; }
+  .wd-bulk-actions { margin-left: 0; width: 100%; }
+  .wd-cat-grid,
+  .wd-manage-row.wd-cat-row { grid-template-columns: 1fr; }
+  .wd-manage-row.wd-item-row { grid-template-columns: 26px 1fr; }
+  .wd-manage-row.wd-item-row .wd-im-code,
+  .wd-manage-row.wd-item-row .form-control { grid-column: 2; }
+  .wd-item-wrap { max-height: none; }
+  .wd-matrix-wrap { max-height: none; }
+  .wd-matrix-table th.wd-sticky-3,
+  .wd-matrix-table td.wd-sticky-3 { position: static; }
+  .wd-matrix-table .wd-name-cell { min-width: 160px; }
+}
+
+/* badge ตัวเลขบนหัวแท็บ (#nHistory — ของเดิมไม่เคยมี CSS) */
+.page-tab .badge-n {
+  display: inline-block;
+  min-width: 18px;
+  padding: 1px 6px;
+  margin-left: 4px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 700;
+  background: var(--surface2);
+  color: var(--text2);
+  vertical-align: middle;
+}
+.page-tab.active .badge-n { background: var(--accent-pale); color: var(--accent); }

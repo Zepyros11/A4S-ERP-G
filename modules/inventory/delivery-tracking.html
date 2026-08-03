@@ -1,0 +1,426 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>🚚 Order Tracking — A4S-ERP</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../../css/main.css" />
+    <link rel="stylesheet" href="./delivery-tracking.css" />
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+  </head>
+  <body>
+    <div class="loading-overlay" id="loadingOverlay">
+      <div class="spinner"></div>
+    </div>
+    <div class="toast" id="toast"></div>
+
+    <!-- TOPBAR -->
+    <div class="topbar"></div>
+
+    <!-- PAGE -->
+    <div class="page">
+      <!-- HERO -->
+      <div class="page-hero page-hero--simple page-hero--compact">
+        <div>
+          <h1 class="page-hero-title">🚚 Order Tracking</h1>
+          <p class="page-hero-sub">
+            บันทึกรอบจัดส่ง · เลข Tracking · ค่าส่ง และติ๊กเมื่อส่ง Track ให้ลูกค้าแล้ว
+          </p>
+        </div>
+      </div>
+
+      <!-- STATS -->
+      <div class="stats-row">
+        <div class="stat-card">
+          <div class="stat-icon">📦</div>
+          <div class="stat-info">
+            <div class="stat-label">รายการจัดส่ง</div>
+            <div class="stat-value" id="statTotal">0</div>
+            <div class="stat-sub" id="statTotalSub">ตามช่วงที่กรอง</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">✅</div>
+          <div class="stat-info">
+            <div class="stat-label">ส่ง Track แล้ว</div>
+            <div class="stat-value" id="statSent">0</div>
+            <div class="stat-sub" id="statSentSub">0%</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">⏳</div>
+          <div class="stat-info">
+            <div class="stat-label">ยังไม่ส่ง Track</div>
+            <div class="stat-value" id="statPending">0</div>
+            <div class="stat-sub" id="statPendingSub">รอแจ้งลูกค้า</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">💰</div>
+          <div class="stat-info">
+            <div class="stat-label">ค่าส่งรวม (คิดราคา)</div>
+            <div class="stat-value" id="statCost">0.00</div>
+            <div class="stat-sub" id="statCostSub">บาท · รวมทุกแถวที่กรอง</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══════════ ฟอร์มบันทึก ═══════════ -->
+      <div class="dt-card" id="dtFormCard">
+        <div class="dt-card-hdr">
+          <div class="dt-card-title" id="dtFormTitle">📝 บันทึกรายการจัดส่ง</div>
+          <span class="dt-edit-flag" id="dtEditFlag">✏️ กำลังแก้ไขรายการเดิม</span>
+          <span style="flex:1"></span>
+          <span class="dt-card-sub">บันทึกอัตโนมัติทันทีที่กด "เพิ่ม" (ไม่มีปุ่ม Save ข้อมูล)</span>
+        </div>
+
+        <input type="hidden" id="fEditId" />
+        <input type="hidden" id="fCustomerId" />
+
+        <div class="dt-form-sec">
+          <span class="dt-form-sec-no">1</span> ข้อมูลจากใบสั่งของ CS
+          <small>เลือก Line ID ก่อน — ชื่อผู้รับ / จังหวัด / เบอร์ จะขึ้นเฉพาะของบัญชีนั้น</small>
+        </div>
+
+        <div class="dt-form-grid">
+          <div class="form-group">
+            <label class="form-label">Order Date <span class="req">*</span></label>
+            <input class="form-control" type="date" id="fOrderDate" />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">วันที่จัดส่ง</label>
+            <input class="form-control" type="date" id="fShipDate" />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">CS</label>
+            <select class="form-control" id="fCs">
+              <option value="">— เลือก CS —</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">
+              Line ID
+              <button type="button" class="ic-manage-link" onclick="window.openCustManager()" title="จัดการรายชื่อลูกค้า / Line ID">⚙️ จัดการ</button>
+            </label>
+            <div class="dt-combo">
+              <input class="form-control" id="fLineId" autocomplete="off"
+                     placeholder="บัญชี LINE ที่สั่ง — พิมพ์เพิ่มใหม่ได้" oninput="window.onLineIdInput()" />
+              <button type="button" class="dt-combo-caret" tabindex="-1" title="เลือกจากรายการ">▾</button>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">
+              รายชื่อลูกค้า (ผู้รับ) <span class="req">*</span>
+              <span class="dt-fk-hint" id="fCustomerHint"></span>
+            </label>
+            <div class="dt-combo">
+              <input class="form-control" id="fCustomer" autocomplete="off"
+                     placeholder="ชื่อผู้รับพัสดุบิลนี้" oninput="window.onCustomerInput()" />
+              <button type="button" class="dt-combo-caret" tabindex="-1" title="เลือกจากรายการ">▾</button>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">จังหวัด</label>
+            <div class="dt-combo">
+              <input class="form-control" id="fProvince" autocomplete="off" placeholder="พิมพ์หรือเลือกจังหวัด" />
+              <button type="button" class="dt-combo-caret" tabindex="-1" title="เลือกจากรายการ">▾</button>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">เบอร์โทรศัพท์</label>
+            <div class="dt-combo">
+              <input class="form-control" id="fPhone" autocomplete="off" placeholder="พิมพ์หรือเลือกเบอร์" />
+              <button type="button" class="dt-combo-caret" tabindex="-1" title="เลือกจากรายการ">▾</button>
+            </div>
+          </div>
+
+          <div class="form-group dt-col-2">
+            <label class="form-label">
+              LineOA Link
+              <span class="dt-oa-status off" id="fOaStatus" style="margin-left:6px">
+                <span class="dt-oa-dot"></span><span id="fOaStatusText">ยังไม่มีลิงก์</span>
+              </span>
+            </label>
+            <div class="dt-oa-row">
+              <div class="form-group">
+                <input class="form-control" id="fOaLink" placeholder="https://line.me/... หรือลิงก์แชท OA"
+                       oninput="window.refreshOaStatus()" />
+              </div>
+              <button class="btn btn-outline" data-perm="delivery_edit" onclick="window.saveLineOa()"
+                      title="ผูก URL นี้เข้ากับ Line ID ของลูกค้า">💾 Save line OA</button>
+            </div>
+          </div>
+
+        </div>
+
+        <div class="dt-form-sec dt-form-sec--later">
+          <span class="dt-form-sec-no">2</span> เลข Tracking + ค่าส่ง
+          <small>เว้นว่างไว้ได้ — กดปุ่ม 🚚 KEX เติมให้ทีหลัง หรือคลิกแก้ในตารางได้เลย</small>
+        </div>
+
+        <div class="dt-form-grid">
+          <div class="form-group">
+            <label class="form-label">ขนส่ง</label>
+            <select class="form-control" id="fCourier">
+              <option value="KEX">Kerry (KEX)</option>
+              <option value="FLASH">Flash Express</option>
+              <option value="JT">J&amp;T Express</option>
+              <option value="THP">ไปรษณีย์ไทย</option>
+              <option value="OTHER">อื่น ๆ</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Tracking</label>
+            <input class="form-control dt-track" id="fTracking" autocomplete="off" placeholder="เลขพัสดุ (เว้นว่างได้)" />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">ค่าส่ง (บาท)</label>
+            <input class="form-control" type="number" step="0.01" min="0" id="fCost" value="0" />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">หมายเหตุ</label>
+            <input class="form-control" id="fNote" placeholder="(ถ้ามี)" />
+          </div>
+        </div>
+
+        <div class="dt-form-actions">
+          <!-- hide (ไม่ remove) เพราะ JS อ้าง id นี้ตอนสลับโหมดเพิ่ม/แก้ไข -->
+          <button class="btn btn-primary" data-perm="delivery_create" data-perm-mode="hide"
+                  id="dtAddBtn" onclick="window.saveOrder()">＋ เพิ่ม</button>
+          <button class="btn btn-outline" id="dtCancelEditBtn" style="display:none" onclick="window.resetForm()">✕ ยกเลิกการแก้ไข</button>
+          <button class="btn btn-outline" data-perm="delivery_edit" onclick="window.openKexImport()"
+                  title="ดึงข้อมูลจาก KEX มาเติมเลข Tracking + ค่าส่งให้อัตโนมัติ โดย lookup จากชื่อผู้รับ">🚚 KEX</button>
+          <button class="btn btn-outline" onclick="window.resetForm()">♻️ Reset</button>
+          <span class="dt-spacer"></span>
+          <span class="dt-card-sub">💡 กด <kbd>Enter</kbd> ในช่องใดก็ได้ = เพิ่มรายการ</span>
+        </div>
+      </div>
+
+      <!-- ═══════════ ตารางรายการ ═══════════ -->
+      <div class="dt-card">
+        <div class="dt-card-hdr">
+          <div class="dt-card-title">📋 รายการจัดส่ง</div>
+          <span style="flex:1"></span>
+          <div class="table-count" id="dtCount">0 รายการ</div>
+        </div>
+
+        <!-- ── แถบเลือกวัน (มุมมองรายวันแบบ Daily Sale) ── -->
+        <div class="dt-daynav">
+          <label class="dt-daynav-label">
+            📅 วันที่
+            <input type="date" class="form-control" id="fltDay" />
+          </label>
+          <div class="dt-datenav">
+            <button type="button" class="dt-nav-chip" id="dtChipPrev" onclick="window.shiftDay(-1)" title="ย้อนวัน">‹</button>
+            <button type="button" class="active" id="dtChipToday" onclick="window.shiftDay(0)">วันนี้</button>
+            <button type="button" class="dt-nav-chip" id="dtChipNext" onclick="window.shiftDay(1)" title="วันถัดไป">›</button>
+          </div>
+          <label class="dt-allday" title="ปิดมุมมองรายวัน — แสดงทุกวันรวมกัน (ใช้ค้นย้อนหลัง)">
+            <input type="checkbox" id="fltAllDays" />
+            <span>🗂 ดูทุกวันรวมกัน</span>
+          </label>
+          <span class="dt-daynav-info" id="dtDayInfo"></span>
+        </div>
+
+        <div class="dt-sheet-title" id="dtSheetTitle"></div>
+
+        <div class="dt-filter-row">
+          <div class="search-wrap">
+            <span class="search-icon">🔍</span>
+            <input class="search-input" id="fltSearch" placeholder="ค้นหาชื่อ / Line ID / Tracking / เบอร์" />
+          </div>
+          <select class="filter-select" id="fltCs">
+            <option value="">🧿 CS ทั้งหมด</option>
+          </select>
+          <select class="filter-select" id="fltCourier">
+            <option value="">🚚 ขนส่งทั้งหมด</option>
+            <option value="KEX">Kerry (KEX)</option>
+            <option value="FLASH">Flash Express</option>
+            <option value="JT">J&amp;T Express</option>
+            <option value="THP">ไปรษณีย์ไทย</option>
+            <option value="OTHER">อื่น ๆ</option>
+          </select>
+          <select class="filter-select" id="fltSent">
+            <option value="">🧿 ทุกสถานะ</option>
+            <option value="1">✅ ส่ง Track แล้ว</option>
+            <option value="0">⏳ ยังไม่ส่ง Track</option>
+          </select>
+          <button class="btn btn-outline" onclick="window.clearFilters()">✕ ล้างตัวกรอง</button>
+          <span style="flex:1"></span>
+          <button class="btn btn-outline" onclick="window.exportExcel()" title="ดาวน์โหลดรายการที่เห็นอยู่ (วันที่เลือก) เป็น Excel">📥 Excel วัน</button>
+          <button class="btn btn-outline" onclick="window.reloadAll()">🔄 รีเฟรช</button>
+        </div>
+
+        <div class="dt-bulk-bar" id="dtBulkBar" style="display:none">
+          <span class="dt-bulk-info">
+            เลือกแล้ว <strong id="dtBulkCount">0</strong> รายการ ·
+            ค่าส่งรวม <strong id="dtBulkCost">0.00</strong> บาท
+          </span>
+          <div class="dt-bulk-actions">
+            <button class="btn btn-secondary dt-bulk-btn" data-perm="delivery_edit" onclick="window.bulkSetSent(true)">✅ ติ๊กส่ง Track</button>
+            <button class="btn btn-secondary dt-bulk-btn" data-perm="delivery_edit" onclick="window.bulkSetSent(false)">↩️ ยกเลิกติ๊ก</button>
+            <button class="btn btn-secondary dt-bulk-btn dt-bulk-btn-danger" data-perm="delivery_delete" onclick="window.bulkDelete()">🗑 ลบที่เลือก</button>
+            <button class="btn btn-secondary dt-bulk-btn" onclick="window.clearSelection()">✕ เลิกเลือก</button>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table class="data-table dt-table">
+            <thead>
+              <tr>
+                <th class="dt-col-chk">
+                  <input type="checkbox" id="dtChkAll" onchange="window.toggleSelectAll(this.checked)" title="เลือกทั้งหมด" />
+                </th>
+                <th class="dt-col-send">ส่ง Track</th>
+                <th>Order Date</th>
+                <th>วันที่จัดส่ง</th>
+                <th>CS</th>
+                <th>ลูกค้า / Line ID</th>
+                <th>จังหวัด</th>
+                <th>เบอร์โทร</th>
+                <th>ขนส่ง</th>
+                <th>Tracking</th>
+                <th style="text-align:right">ค่าส่ง</th>
+                <th style="text-align:center">ข้อความ</th>
+                <th style="text-align:center">Line OA</th>
+                <th class="dt-col-act">จัดการ</th>
+              </tr>
+            </thead>
+            <tbody id="dtBody"></tbody>
+            <tfoot>
+              <tr class="dt-foot-total" id="dtFootTotal" style="display:none">
+                <td colspan="10">💰 รวมค่าส่ง<span id="dtFootScope"></span></td>
+                <td class="dt-num" id="dtFootCost">0.00</td>
+                <td colspan="3"></td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════ MODAL: ข้อความส่งลูกค้า ═══════════ -->
+    <div class="modal-overlay" id="msgModal">
+      <div class="modal v-sage-header" style="max-width:640px">
+        <div class="modal-hdr">
+          <div class="modal-title">💬 ข้อความส่งลูกค้า</div>
+          <button class="btn-modal-close" onclick="window.closeMsgModal()">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-hint" style="margin-bottom:8px">
+            แก้ข้อความได้ก่อนคัดลอก · ลิงก์ติดตามพัสดุถูกใส่ให้ตามบริษัทขนส่งของแถวนั้น
+          </div>
+          <textarea class="form-control dt-msg-box" id="msgText"></textarea>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-outline" onclick="window.closeMsgModal()">ปิด</button>
+          <a class="btn btn-outline" id="msgOaBtn" target="_blank" rel="noopener" style="display:none">🔗 เปิดแชท Line OA</a>
+          <button class="btn btn-primary" onclick="window.copyMsg()">📋 คัดลอกข้อความ</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════ MODAL: จัดการลูกค้า (In-Context CRUD) ═══════════ -->
+    <div class="modal-overlay" id="custModal">
+      <div class="modal v-sage-header" style="max-width:900px;max-height:85vh;display:flex;flex-direction:column">
+        <div class="modal-hdr">
+          <div class="modal-title">👥 จัดการรายชื่อลูกค้า</div>
+          <button class="btn-modal-close" onclick="window.closeCustManager()">✕</button>
+        </div>
+        <div class="modal-body" style="flex:1;overflow-y:auto;min-height:0">
+          <div class="dt-cust-add">
+            <input class="form-control" id="cmNewLineId" placeholder="Line ID" />
+            <input class="form-control" id="cmNewName" placeholder="ชื่อลูกค้า *" />
+            <input class="form-control" id="cmNewProvince" placeholder="จังหวัด" />
+            <input class="form-control" id="cmNewPhone" placeholder="เบอร์โทร" />
+            <button class="btn btn-primary" data-perm="delivery_create" onclick="window.addCustEntry()">＋ เพิ่ม</button>
+          </div>
+          <div class="form-hint" style="margin:6px 0 12px">
+            Line ID ห้ามซ้ำ (เว้นว่างได้) · แก้ชื่อ/จังหวัด/เบอร์/Line OA แล้วกด 💾 เพื่อบันทึก ·
+            การแก้ที่นี่ <strong>ไม่</strong> เปลี่ยนข้อมูลในรายการจัดส่งที่บันทึกไปแล้ว
+          </div>
+          <div class="search-wrap" style="margin-bottom:10px">
+            <span class="search-icon">🔍</span>
+            <input class="search-input" id="cmSearch" placeholder="ค้นหาลูกค้า" oninput="window.renderCustManager()" />
+          </div>
+          <div class="dt-cust-list" id="cmList"></div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-outline" onclick="window.closeCustManager()">ปิด</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════ MODAL: นำเข้า KEX ═══════════ -->
+    <div class="modal-overlay" id="kexModal">
+      <div class="modal v-sage-header" style="max-width:760px;max-height:85vh;display:flex;flex-direction:column">
+        <div class="modal-hdr">
+          <div class="modal-title">📥 นำเข้าข้อมูลจาก KEX</div>
+          <button class="btn-modal-close" onclick="window.closeKexImport()">✕</button>
+        </div>
+        <div class="modal-body" style="flex:1;overflow-y:auto;min-height:0">
+          <div class="form-hint" style="margin-bottom:10px">
+            อัปโหลดไฟล์จาก Kerry (.xlsx / .csv) หรือวางข้อมูลที่ก๊อปจากชีต KEX —
+            ระบบจะ lookup <strong>ชื่อผู้รับ</strong> แล้วเติม <strong>Tracking + ค่าส่ง</strong>
+            ให้แถว<strong>ของวันที่เปิดอยู่</strong> โดยเลือกแถวที่ยังไม่มี Tracking ก่อน
+          </div>
+
+          <div class="dt-kex-drop" id="kexDrop" onclick="document.getElementById('kexFile').click()">
+            📄 คลิกเพื่อเลือกไฟล์ หรือลากไฟล์มาวางตรงนี้
+          </div>
+          <input type="file" id="kexFile" accept=".xlsx,.xls,.csv" style="display:none" />
+
+          <div class="form-group" style="margin-top:12px">
+            <label class="form-label">หรือวางข้อมูล (คอลัมน์คั่นด้วย Tab — ชื่อลูกค้า / Tracking / ค่าส่ง)</label>
+            <textarea class="form-control" id="kexPaste" rows="4"
+                      placeholder="สมชาย ใจดี&#9;TH01234567890&#9;45"></textarea>
+          </div>
+
+          <div class="dt-form-actions" style="margin-top:6px;padding-top:8px">
+            <button class="btn btn-outline" onclick="window.parseKexPaste()">🔎 ตรวจข้อมูลที่วาง</button>
+            <span class="dt-spacer"></span>
+            <span class="dt-card-sub" id="kexSummary"></span>
+          </div>
+
+          <div class="dt-kex-preview" id="kexPreview" style="display:none"></div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-outline" onclick="window.closeKexImport()">ยกเลิก</button>
+          <button class="btn btn-primary" id="kexApplyBtn" disabled onclick="window.applyKexImport()">✅ เติมข้อมูลที่จับคู่ได้</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Core -->
+    <script src="../../js/core/auth.js"></script>
+    <script src="../../js/core/authz.js"></script>
+    <script src="../../js/core/date-format.js"></script>
+    <script>AuthZ.requirePerm("delivery_view");</script>
+    <script src="./delivery-tracking.js"></script>
+
+    <!-- MODALS -->
+    <script src="../../js/components/modal/deleteModal.js"></script>
+    <script src="../../js/components/modal/confirmModal.js"></script>
+    <script src="../../js/components/modal/modalManager.js"></script>
+
+    <!-- JS Component/navigation -->
+    <script type="module">
+      import { loadTopbar } from "../../js/components/navigation/topbar.js";
+      loadTopbar("🚚 Order Tracking");
+    </script>
+    <script src="../../js/components/navigation/sidebar.js"></script>
+  </body>
+</html>

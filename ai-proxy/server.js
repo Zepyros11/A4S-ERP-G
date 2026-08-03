@@ -635,7 +635,8 @@ const _driveRaw = express.raw({
 });
 
 app.get('/drive/health', (_req, res) => {
-  res.json({ ok: true, configured: drive.isConfigured() });
+  // mode: 'oauth' = My Drive ของ a4scontent · 'service-account' = Shared Drive เดิม
+  res.json({ ok: true, configured: drive.isConfigured(), mode: drive.backendMode() });
 });
 
 app.post('/drive/upload', _driveRaw, async (req, res) => {

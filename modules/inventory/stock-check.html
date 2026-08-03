@@ -1,0 +1,456 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>🧮 ตรวจนับสต็อก — A4S-ERP</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../../css/main.css" />
+    <link rel="stylesheet" href="./stock-check.css" />
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+  </head>
+  <body>
+    <div class="loading-overlay" id="loadingOverlay">
+      <div class="spinner"></div>
+    </div>
+    <div class="toast" id="toast"></div>
+
+    <!-- TOPBAR -->
+    <div class="topbar"></div>
+
+    <!-- PAGE -->
+    <div class="page">
+      <!-- HERO -->
+      <div class="page-hero page-hero--simple page-hero--compact">
+        <div>
+          <h1 class="page-hero-title">🧮 ตรวจนับสต็อก</h1>
+          <p class="page-hero-sub">
+            นับของบนชั้นเทียบกับยอดในระบบ · แปลงลัง→ชิ้นอัตโนมัติ · หักยืม/เบิก แล้วสรุปของหาย-ของเกิน
+          </p>
+        </div>
+      </div>
+
+      <!-- แถบเลือกวันที่นับ (นับทุกวัน · 1 วัน = 1 ใบ) -->
+      <div class="sc-session-bar">
+        <label class="sc-date-label">
+          📅 วันที่นับ
+          <input type="date" class="form-control" id="scDate" />
+        </label>
+        <div class="sc-datenav">
+          <button type="button" class="sc-nav-chip" id="scPrev"
+                  onclick="window.shiftDate(-1)" title="ย้อนไปวันก่อนหน้า">‹</button>
+          <button type="button" id="scToday" onclick="window.shiftDate(0)">วันนี้</button>
+          <button type="button" class="sc-nav-chip" id="scNext"
+                  onclick="window.shiftDate(1)" title="วันถัดไป">›</button>
+        </div>
+        <!-- คลังคงที่ อ่านอย่างเดียว — ตั้งที่ app_settings.stock_check_warehouse_id ไม่ใช่ที่หน้านี้ -->
+        <span class="sc-wh-fixed" id="scWarehouse"
+              title="คลังประจำของหน้านี้ — เปลี่ยนได้ที่ app_settings.stock_check_warehouse_id เท่านั้น">🏭 …</span>
+        <span style="flex: 1"></span>
+        <div class="sc-session-actions">
+          <button class="btn btn-outline" data-perm="stock_items_manage" data-perm-mode="hide"
+                  onclick="window.openItemManager()"
+                  title="รายการสินค้ากลาง — ใช้ร่วมกับหน้าเบิกสินค้า และหน้ายืม/คืน สินค้า">
+            📦 รายการสินค้า
+          </button>
+          <button class="btn btn-outline" id="btnToggleLock" data-perm="stock_check_edit" data-perm-mode="hide"
+                  onclick="window.toggleLock()">🔓 ปลดล็อกแก้ไข</button>
+          <button class="btn btn-outline sc-btn-danger" id="btnDeleteSheet" data-perm="stock_check_delete" data-perm-mode="hide"
+                  onclick="window.deleteSession()">🗑 ลบใบนี้</button>
+        </div>
+      </div>
+
+      <!-- STATS -->
+      <div class="stats-row">
+        <div class="stat-card">
+          <div class="stat-icon">📋</div>
+          <div class="stat-info">
+            <div class="stat-label">รายการในรอบ</div>
+            <div class="stat-value" id="statTotal">0</div>
+            <div class="stat-sub" id="statCounted">นับแล้ว 0 รายการ</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">✅</div>
+          <div class="stat-info">
+            <div class="stat-label">ตรงกัน</div>
+            <div class="stat-value sc-ok" id="statMatch">0</div>
+            <div class="stat-sub" id="statMatchSub">0% ของที่นับแล้ว</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">🔻</div>
+          <div class="stat-info">
+            <div class="stat-label">ของหาย</div>
+            <div class="stat-value sc-short" id="statShort">0</div>
+            <div class="stat-sub" id="statShortSub">รวม 0 ชิ้น</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">🔺</div>
+          <div class="stat-info">
+            <div class="stat-label">ของเกิน</div>
+            <div class="stat-value sc-over" id="statOver">0</div>
+            <div class="stat-sub" id="statOverSub">รวม 0 ชิ้น</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">⚠️</div>
+          <div class="stat-info">
+            <div class="stat-label">ใกล้หมด</div>
+            <div class="stat-value sc-low" id="statLow">0</div>
+            <div class="stat-sub" id="statLowSub">ต่ำกว่าเกณฑ์ 50 ชิ้น</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- แถบหัวเรื่องวันที่ (รูปแบบเดียวกับหัวชีทของ Daily Sale) -->
+      <div class="sc-sheet-title" id="scSheetTitle"></div>
+
+      <!-- TABS — ตรงกับไฟล์ชีตเดิมที่มี 2 แผ่นในเล่มเดียวกัน (Stock F.3 / เบิกรอเซ็น)
+           อยู่ใต้แถบวันที่สีเหลือง: ทุกอย่างเหนือแท็บ (ตัวเลือกวันที่ · การ์ดสถิติ ·
+           หัวเรื่องวันที่) เป็นบริบทของทั้งหน้า — แท็บสลับแค่ "ตารางล่าง" เท่านั้น -->
+      <div class="page-tabs v-segment" id="scTabs">
+        <button class="page-tab active" data-tab="count" onclick="window.switchScTab('count')">
+          🧮 ตรวจนับสต็อก
+        </button>
+        <button class="page-tab" data-tab="issue" onclick="window.switchScTab('issue')">
+          ⏳ เบิกรอเซ็น <span class="badge-n badge-warn" id="scNIssue">0</span>
+        </button>
+      </div>
+
+      <div id="scPaneCount">
+
+      <!-- ตารางตรวจนับ -->
+      <div class="sc-card" id="scCard">
+        <!-- ป้ายคลุมทั้งการ์ดตอนลากไฟล์เข้ามา — ให้เห็นชัดว่าวางตรงไหนก็ได้ -->
+        <div class="sc-drop-overlay" id="upDropOverlay">
+          <div>📤<br />วางไฟล์เพื่อลงยอดในระบบ</div>
+        </div>
+        <div class="sc-card-hdr">
+          <div class="sc-card-title">🧾 ใบตรวจนับ</div>
+          <span class="sc-closed-flag" id="closedFlag">🔒 ใบนี้ถูกล็อกแล้ว — แก้ตัวเลขไม่ได้</span>
+          <span style="flex: 1"></span>
+          <span class="sc-save-flag" id="saveFlag"></span>
+          <div class="table-count" id="lineCount">0 รายการ</div>
+        </div>
+
+        <!-- แถวปุ่มดึงข้อมูล -->
+        <div class="sc-tool-row">
+          <button class="btn btn-outline" data-perm="stock_check_edit" data-perm-mode="hide"
+                  onclick="window.addProductsToSession()"
+                  title="เพิ่มสินค้าที่ยังไม่มีในใบนี้ (สินค้าที่เพิ่งเพิ่มใน 📦 รายการสินค้า)">
+            ＋ เติมสินค้าเข้าใบ
+          </button>
+          <span class="sc-tool-div"></span>
+          <button class="btn btn-outline" data-perm="stock_check_edit" data-perm-mode="hide"
+                  onclick="window.pullBorrow()"
+                  title="ดึงยอดค้างคืนจากหน้ายืม/คืน มาลงคอลัมน์ ยืม">
+            🤝 ดึงยอดยืม
+          </button>
+          <button class="btn btn-outline" data-perm="stock_check_edit" data-perm-mode="hide"
+                  onclick="window.pullIssue()"
+                  title="ดึงยอดเบิกที่ยัง “รอเซ็น” จากหน้าเบิกสินค้าอีกครั้ง (ปกติดึงให้เองตอนเปิดใบของวันนี้)">
+            🧾 ดึงยอดเบิก
+          </button>
+          <span class="sc-tool-div"></span>
+          <button class="btn btn-outline" data-perm="stock_check_edit" data-perm-mode="hide"
+                  onclick="window.pullSystemQty()"
+                  title="คำนวณยอดคงเหลือจากความเคลื่อนไหวสต็อกในระบบ">
+            🔄 ดึงยอดในระบบ
+          </button>
+          <!-- ลากไฟล์มาวางที่ไหนก็ได้ในการ์ดนี้ · หรือคลิกที่ป้ายเพื่อเลือกไฟล์ -->
+          <label class="sc-drop" id="upDrop" data-perm="stock_check_edit" data-perm-mode="hide"
+                 title="ลากไฟล์รายงานสต็อกมาวางตรงไหนก็ได้ในตาราง — ลงยอดให้ทันที (หรือคลิกเพื่อเลือกไฟล์)">
+            <input type="file" id="upQuickFile" accept=".xlsx,.xls,.csv" hidden />
+            📤 ลากไฟล์ยอดในระบบมาวาง
+          </label>
+          <span style="flex: 1"></span>
+          <!-- ไม่ใช่ตัวกรอง — เป็นค่าที่คุมการ์ด "ใกล้หมด" + ป้าย "ใกล้หมดแล้ว" (เก็บติดใบ) -->
+          <label class="sc-threshold">
+            เกณฑ์ใกล้หมด
+            <input class="form-control" type="number" min="0" step="1" id="fltThreshold"
+                   data-perm="stock_check_edit" data-perm-mode="disable"
+                   title="ต่ำกว่าจำนวนนี้ = ขึ้นแจ้งเตือน &quot;ใกล้หมดแล้ว&quot; (เก็บติดใบ)" />
+            ชิ้น
+          </label>
+          <button class="btn btn-outline" onclick="window.exportExcel()">📥 Excel</button>
+          <button class="btn btn-outline" onclick="window.printSheet()">🖨 พิมพ์</button>
+          <button class="btn btn-outline" onclick="window.reloadAll()">🔄 รีเฟรช</button>
+        </div>
+
+        <!-- แถบเลือกหลายรายการ -->
+        <div class="sc-bulk-bar" id="bulkBar" style="display: none">
+          <span class="sc-bulk-info">
+            เลือกแล้ว <strong id="bulkCount">0</strong> รายการ
+          </span>
+          <div class="sc-bulk-actions">
+            <button class="btn btn-secondary sc-bulk-btn" data-perm="stock_check_edit"
+                    onclick="window.bulkClearCount()">♻️ ล้างจำนวนที่นับ</button>
+            <button class="btn btn-secondary sc-bulk-btn sc-bulk-btn-danger" data-perm="stock_check_delete"
+                    onclick="window.bulkDelete()">🗑 ลบที่เลือก</button>
+            <button class="btn btn-secondary sc-bulk-btn" onclick="window.clearSelection()">✕ เลิกเลือก</button>
+          </div>
+        </div>
+
+        <div class="table-wrap sc-table-wrap">
+          <table class="data-table sc-table">
+            <thead>
+              <tr>
+                <th class="sc-col-chk">
+                  <input type="checkbox" id="chkAll" onchange="window.toggleSelectAll(this.checked)"
+                         title="เลือกทั้งหมด" />
+                </th>
+                <th class="sc-col-no">NO</th>
+                <th class="sc-col-prod">สินค้า</th>
+                <th class="sc-col-in" title="จำนวนลังที่นับได้">ลัง</th>
+                <th class="sc-col-in" title="จำนวนชิ้นที่นับได้ (นอกลัง)">ชิ้น</th>
+                <th class="sc-col-num sc-th-calc" title="ลัง × ตัวคูณ + ชิ้น">รวม (ชิ้น)</th>
+                <th class="sc-col-in" title="ของที่ยืมออกไปแล้วยังไม่คืน (ยืม − คืน) — ดึงจากหน้ายืม/คืน ให้อัตโนมัติ แก้มือไม่ได้">🔒 ยืม</th>
+                <th class="sc-col-in" title="ของที่เบิกออกไปแล้วแต่ระบบหลังบ้านยังไม่ตัดยอด (สถานะ “รอเซ็น” ในหน้าเบิกสินค้า) — ดึงให้อัตโนมัติ แก้มือไม่ได้">🔒 เบิก</th>
+                <th class="sc-col-in" title="ยอดคงเหลือจากระบบหลังบ้าน — ลงด้วยปุ่ม 📤 อัปโหลดยอดในระบบ เท่านั้น แก้มือไม่ได้">🔒 ยอดในระบบ</th>
+                <th class="sc-col-num sc-th-calc" title="(รวม + ยืม + เบิก) − ยอดในระบบ">ผลต่าง</th>
+                <th class="sc-col-note">หมายเหตุ</th>
+                <th class="sc-col-alert">แจ้งเตือน</th>
+                <th class="sc-col-alert2">แจ้งเตือน 2</th>
+                <th class="sc-col-act"></th>
+              </tr>
+            </thead>
+            <tbody id="lineBody"></tbody>
+            <tfoot>
+              <tr>
+                <td colspan="5" class="sc-foot-label">รวมทั้งใบ</td>
+                <td class="sc-num" id="sumTotal">0</td>
+                <td class="sc-num" id="sumBorrow">0</td>
+                <td class="sc-num" id="sumIssue">0</td>
+                <td class="sc-num" id="sumSystem">0</td>
+                <td class="sc-num" id="sumVariance">0</td>
+                <td colspan="4"></td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════ MODAL: อัปโหลดยอดในระบบ ═══════════ -->
+    <div class="modal-overlay" id="uploadModal">
+      <div class="modal v-sage-header sc-upload-modal">
+        <div class="modal-hdr">
+          <div class="modal-title">📤 อัปโหลดยอดในระบบ</div>
+          <button class="btn-modal-close" onclick="window.closeUpload()">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="sc-im-note">
+            หน้าต่างนี้ขึ้นเพราะ<strong>อ่านไฟล์อัตโนมัติไม่ได้</strong> — ไฟล์คนละรูปแบบ
+            หรือไม่มีสาขา <strong>BKK01</strong> อยู่ในไฟล์ · เลือกคอลัมน์และสาขาเองแล้วกดลงยอด
+            <br />ปกติแค่<strong>ลากไฟล์มาวางที่ตาราง</strong> ระบบจะลงยอดให้ทันทีโดยไม่ต้องเปิดหน้าต่างนี้
+          </div>
+
+          <div id="upMapWrap" style="display: none">
+            <div class="sc-upload-detected" id="upDetected"></div>
+            <div class="sc-form-grid">
+              <div class="form-group">
+                <label class="form-label">สาขาในไฟล์ <span class="req">*</span></label>
+                <select class="form-control" id="upBranch"></select>
+                <div class="form-hint">
+                  รหัสสินค้าเดียวกันมีได้ทุกสาขา — ถ้าไม่กรอง ยอดจะรวมข้ามสาขาแล้วเพี้ยน
+                </div>
+              </div>
+              <div class="form-group">
+                <label class="form-label">คอลัมน์ที่ใช้จับคู่สินค้า <span class="req">*</span></label>
+                <select class="form-control" id="upKeyCol"></select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">คอลัมน์ยอดคงเหลือ <span class="req">*</span></label>
+                <select class="form-control" id="upQtyCol"></select>
+              </div>
+            </div>
+            <div class="sc-preview" id="upPreview"></div>
+            <div class="sc-upload-summary" id="upSummary"></div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-outline" onclick="window.closeUpload()">ยกเลิก</button>
+          <button class="btn btn-primary" id="upApplyBtn" onclick="window.applyUpload()" disabled>
+            ✅ ลงยอดในระบบ
+          </button>
+        </div>
+      </div>
+      </div><!-- /scPaneCount -->
+
+      <!-- ═══════════════════════════════════════════════════════
+           TAB 2 — เบิกรอเซ็น (แทนชีต "เบิกรอเซ็น" ของ Stock F.3)
+           ของออกจากชั้นแล้ว แต่ระบบหลังบ้านยังไม่ตัดยอด
+           → ใบตรวจนับบวกกลับในคอลัมน์ "เบิก" ให้ · เซ็นแล้ว = ลบแถวทิ้ง
+           ═══════════════════════════════════════════════════════ -->
+      <div id="scPaneIssue" style="display: none">
+        <div class="sc-card">
+          <div class="sc-card-hdr">
+            <div class="sc-card-title">⏳ เบิกรอเซ็น</div>
+            <span style="flex: 1"></span>
+            <div class="table-count" id="scIssueCount">0 รายการ</div>
+          </div>
+
+          <div class="sc-issue-note">
+            ของออกจากชั้นไปแล้วแต่ระบบหลังบ้าน<strong>ยังไม่ตัดยอด</strong> —
+            ใบตรวจนับจะบวกยอดพวกนี้กลับในคอลัมน์ <strong>“เบิก”</strong> ให้อัตโนมัติ
+            ไม่ให้ขึ้นว่า “ของหาย”
+            <br />
+            <strong>เซ็นอนุมัติแล้ว → ลบแถวทิ้ง</strong> (🗑) ยอดจะหลุดจากคอลัมน์นั้นเอง
+          </div>
+
+          <!-- เพิ่มรายการ (ตรงกับคอลัมน์ชีตเดิม: วันที่ · สินค้า · จำนวน · ผู้เบิก · หมายเหตุ) -->
+          <div class="sc-issue-add" data-perm="stock_check_edit" data-perm-mode="hide">
+            <input class="form-control sc-ia-date" type="date" id="iaDate" title="วันที่เบิก" />
+            <select class="form-control sc-ia-item" id="iaItem" title="สินค้า"></select>
+            <input class="form-control sc-ia-qty" type="number" min="0" step="any" id="iaQty"
+                   placeholder="จำนวน" title="จำนวน (ชิ้น)" />
+            <input class="form-control sc-ia-req" id="iaRequester" list="scRequesterList"
+                   placeholder="ผู้เบิก" title="ผู้เบิก" />
+            <datalist id="scRequesterList"></datalist>
+            <input class="form-control sc-ia-note" id="iaNote" placeholder="หมายเหตุ" title="หมายเหตุ" />
+            <button class="btn btn-primary sc-ia-btn" onclick="window.addIssue()">＋ เพิ่ม</button>
+          </div>
+
+          <div class="sc-filter-row">
+            <div class="search-wrap">
+              <span class="search-icon">🔍</span>
+              <input class="search-input" id="issueSearch" placeholder="ค้นหาสินค้า / ผู้เบิก / หมายเหตุ" />
+            </div>
+            <span style="flex: 1"></span>
+            <button class="btn btn-outline" onclick="window.exportIssues()">📥 Excel</button>
+          </div>
+
+          <div class="sc-bulk-bar" id="scIssueBulkBar" style="display: none">
+            <span class="sc-bulk-info">
+              เลือกแล้ว <strong id="scIssueBulkCount">0</strong> รายการ ·
+              รวม <strong id="scIssueBulkQty">0</strong> ชิ้น
+            </span>
+            <div class="sc-bulk-actions">
+              <button class="btn btn-secondary sc-bulk-btn sc-bulk-btn-danger" data-perm="stock_check_edit"
+                      onclick="window.deleteIssues()">🗑 ลบที่เลือก (เซ็นแล้ว)</button>
+              <button class="btn btn-secondary sc-bulk-btn" onclick="window.clearIssueSel()">✕ เลิกเลือก</button>
+            </div>
+          </div>
+
+          <div class="table-wrap">
+            <table class="data-table sc-issue-table">
+              <thead>
+                <tr>
+                  <th class="sc-col-chk">
+                    <input type="checkbox" id="scIssueChkAll" onchange="window.toggleIssueAll(this.checked)"
+                           title="เลือกทั้งหมด" />
+                  </th>
+                  <th>วันที่</th>
+                  <th>สินค้า</th>
+                  <th class="sc-col-num">จำนวน</th>
+                  <th>ผู้เบิก</th>
+                  <th>หมายเหตุ</th>
+                  <th>ผู้บันทึก</th>
+                  <th class="sc-col-act">จัดการ</th>
+                </tr>
+              </thead>
+              <tbody id="scIssueBody"></tbody>
+              <tfoot>
+                <tr>
+                  <td colspan="3">รวมทั้งหมด</td>
+                  <td class="sc-col-num" id="scIssueTotal">0</td>
+                  <td colspan="4"></td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════ MODAL: รายการสินค้ากลาง (ใช้ร่วม 3 หน้า) ═══════════ -->
+    <div class="modal-overlay" id="itemModal">
+      <div class="modal v-sage-header sc-item-modal">
+        <div class="modal-hdr">
+          <div class="modal-title">📦 รายการสินค้า</div>
+          <button class="btn-modal-close" onclick="window.closeItemManager()">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="sc-im-note">
+            รายการชุดนี้ใช้ร่วมกัน 3 หน้า — <strong>ตรวจนับสต็อก</strong> ·
+            <strong>เบิกสินค้า</strong> · <strong>ยืม / คืน สินค้า</strong>
+            แก้ที่นี่ที่เดียวแล้วเปลี่ยนทุกหน้า
+          </div>
+
+          <!-- เพิ่มสินค้าใหม่ -->
+          <div class="sc-im-add" data-perm="stock_items_manage" data-perm-mode="hide">
+            <input class="form-control sc-im-c-code" id="imNewCode" autocomplete="off" placeholder="รหัส" />
+            <input class="form-control sc-im-c-name" id="imNewName" autocomplete="off" placeholder="ชื่อสินค้า *" />
+            <input class="form-control sc-im-c-cat" id="imNewCat" autocomplete="off" placeholder="หมวด" />
+            <input class="form-control sc-im-c-box" id="imNewBox" autocomplete="off" type="number" min="1" step="any"
+                   placeholder="ลัง→ชิ้น" title="1 ลัง = กี่ชิ้น (ไม่มีลัง ใส่ 1)" />
+            <input class="form-control sc-im-c-price" id="imNewPrice" autocomplete="off" type="number" min="0" step="0.01"
+                   placeholder="ราคา" />
+            <input class="form-control sc-im-c-order" id="imNewOrder" autocomplete="off" type="number" step="any"
+                   placeholder="ลำดับ" title="ลำดับการแสดงในฟอร์มกรอก (ใส่ทศนิยมเพื่อแทรกกลางกลุ่มได้ เช่น 3.1)" />
+            <button class="btn btn-primary sc-im-add-btn" onclick="window.addItem()">＋ เพิ่ม</button>
+          </div>
+
+          <!-- ค้นหา -->
+          <div class="sc-im-toolbar">
+            <div class="search-wrap sc-im-search">
+              <span class="search-icon">🔍</span>
+              <input class="search-input" id="imSearch" autocomplete="off" placeholder="ค้นหารหัส / ชื่อสินค้า / หมวด" />
+            </div>
+            <label class="sc-check">
+              <input type="checkbox" id="imShowInactive" />
+              แสดงที่ปิดใช้งานด้วย
+            </label>
+            <label class="sc-check" title="หน้าตรวจนับไม่ใช้ราคา — แต่หน้าเบิกสินค้า และหน้ายืม/คืน ใช้คิดมูลค่า">
+              <input type="checkbox" id="imShowPrice" />
+              💰 แสดงราคา
+            </label>
+            <span style="flex: 1"></span>
+            <span class="table-count" id="imCount">0 รายการ</span>
+          </div>
+
+          <!-- หัวคอลัมน์ -->
+          <div class="sc-im-head">
+            <span class="sc-im-c-code">รหัส</span>
+            <span class="sc-im-c-name">ชื่อสินค้า</span>
+            <span class="sc-im-c-cat">หมวด</span>
+            <span class="sc-im-c-box" title="1 ลัง = กี่ชิ้น (ใช้ในใบตรวจนับ)">ลัง→ชิ้น</span>
+            <span class="sc-im-c-price">ราคา</span>
+            <span class="sc-im-c-order">ลำดับ</span>
+            <span class="sc-im-c-on" title="ปิดแล้วจะไม่ขึ้นในฟอร์มกรอกทั้ง 3 หน้า">เปิดใช้</span>
+            <span class="sc-im-c-act"></span>
+          </div>
+
+          <div class="sc-im-list" id="imList"></div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-outline" onclick="window.closeItemManager()">ปิด</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Core -->
+    <script src="../../js/core/auth.js"></script>
+    <script src="../../js/core/authz.js"></script>
+    <script src="../../js/core/date-format.js"></script>
+    <script>AuthZ.requirePerm("stock_check_view");</script>
+    <script src="./stock-check.js"></script>
+
+    <!-- MODALS -->
+    <script src="../../js/components/modal/deleteModal.js"></script>
+    <script src="../../js/components/modal/confirmModal.js"></script>
+    <script src="../../js/components/modal/modalManager.js"></script>
+
+    <!-- JS Component/navigation -->
+    <script type="module">
+      import { loadTopbar } from "../../js/components/navigation/topbar.js";
+      loadTopbar("🧮 ตรวจนับสต็อก");
+    </script>
+    <script src="../../js/components/navigation/sidebar.js"></script>
+  </body>
+</html>
